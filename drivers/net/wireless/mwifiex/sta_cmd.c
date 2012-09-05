@@ -610,7 +610,7 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 		memcpy(&key_material->key_param_set.key[2],
 		       enc_key->key_material, enc_key->key_len);
 		memcpy(&key_material->key_param_set.key[2 + enc_key->key_len],
-		       enc_key->wapi_rxpn, WAPI_RXPN_LEN);
+		       enc_key->pn, PN_LEN);
 		key_material->key_param_set.length =
 			cpu_to_le16(WAPI_KEY_LEN + KEYPARAMSET_FIXED_LEN);
 
@@ -621,23 +621,38 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 		return ret;
 	}
 	if (enc_key->key_len == WLAN_KEY_LEN_CCMP) {
-		dev_dbg(priv->adapter->dev, "cmd: WPA_AES\n");
-		key_material->key_param_set.key_type_id =
-						cpu_to_le16(KEY_TYPE_ID_AES);
-		if (cmd_oid == KEY_INFO_ENABLED)
-			key_material->key_param_set.key_info =
+		if (enc_key->is_igtk_key) {
+			dev_dbg(priv->adapter->dev, "cmd: CMAC_AES\n");
+			key_material->key_param_set.key_type_id =
+					cpu_to_le16(KEY_TYPE_ID_AES_CMAC);
+			if (cmd_oid == KEY_INFO_ENABLED)
+				key_material->key_param_set.key_info =
 						cpu_to_le16(KEY_ENABLED);
-		else
-			key_material->key_param_set.key_info =
+			else
+				key_material->key_param_set.key_info =
 						cpu_to_le16(!KEY_ENABLED);
 
-		if (enc_key->key_index & MWIFIEX_KEY_INDEX_UNICAST)
+			key_material->key_param_set.key_info |=
+							cpu_to_le16(KEY_IGTK);
+		} else {
+			dev_dbg(priv->adapter->dev, "cmd: WPA_AES\n");
+			key_material->key_param_set.key_type_id =
+						cpu_to_le16(KEY_TYPE_ID_AES);
+			if (cmd_oid == KEY_INFO_ENABLED)
+				key_material->key_param_set.key_info =
+						cpu_to_le16(KEY_ENABLED);
+			else
+				key_material->key_param_set.key_info =
+						cpu_to_le16(!KEY_ENABLED);
+
+			if (enc_key->key_index & MWIFIEX_KEY_INDEX_UNICAST)
 				/* AES pairwise key: unicast */
-			key_material->key_param_set.key_info |=
+				key_material->key_param_set.key_info |=
 						cpu_to_le16(KEY_UNICAST);
-		else		/* AES group key: multicast */
-			key_material->key_param_set.key_info |=
+			else	/* AES group key: multicast */
+				key_material->key_param_set.key_info |=
 							cpu_to_le16(KEY_MCAST);
+		}
 	} else if (enc_key->key_len == WLAN_KEY_LEN_TKIP) {
 		dev_dbg(priv->adapter->dev, "cmd: WPA_TKIP\n");
 		key_material->key_param_set.key_type_id =
@@ -667,6 +682,24 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 
 		key_param_len = (u16)(enc_key->key_len + KEYPARAMSET_FIXED_LEN)
 				+ sizeof(struct mwifiex_ie_types_header);
+
+		if (le16_to_cpu(key_material->key_param_set.key_type_id) ==
+							KEY_TYPE_ID_AES_CMAC) {
+			struct mwifiex_cmac_param *param =
+					(void *)key_material->key_param_set.key;
+
+			memcpy(param->ipn, enc_key->pn, IGTK_PN_LEN);
+			memcpy(param->key, enc_key->key_material,
+			       WLAN_KEY_LEN_AES_CMAC);
+
+			key_param_len = sizeof(struct mwifiex_cmac_param);
+			key_material->key_param_set.key_len =
+						cpu_to_le16(key_param_len);
+			key_param_len += KEYPARAMSET_FIXED_LEN;
+			key_material->key_param_set.length =
+						cpu_to_le16(key_param_len);
+			key_param_len += sizeof(struct mwifiex_ie_types_header);
+		}
 
 		cmd->size = cpu_to_le16(sizeof(key_material->action) + S_DS_GEN
 					+ key_param_len);
@@ -809,8 +842,7 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		struct host_cmd_ds_mac_reg_access *mac_reg;
 
 		cmd->size = cpu_to_le16(sizeof(*mac_reg) + S_DS_GEN);
-		mac_reg = (struct host_cmd_ds_mac_reg_access *) &cmd->
-								params.mac_reg;
+		mac_reg = &cmd->params.mac_reg;
 		mac_reg->action = cpu_to_le16(cmd_action);
 		mac_reg->offset =
 			cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
@@ -822,8 +854,7 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		struct host_cmd_ds_bbp_reg_access *bbp_reg;
 
 		cmd->size = cpu_to_le16(sizeof(*bbp_reg) + S_DS_GEN);
-		bbp_reg = (struct host_cmd_ds_bbp_reg_access *)
-							&cmd->params.bbp_reg;
+		bbp_reg = &cmd->params.bbp_reg;
 		bbp_reg->action = cpu_to_le16(cmd_action);
 		bbp_reg->offset =
 			cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
@@ -835,8 +866,7 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		struct host_cmd_ds_rf_reg_access *rf_reg;
 
 		cmd->size = cpu_to_le16(sizeof(*rf_reg) + S_DS_GEN);
-		rf_reg = (struct host_cmd_ds_rf_reg_access *)
-							&cmd->params.rf_reg;
+		rf_reg = &cmd->params.rf_reg;
 		rf_reg->action = cpu_to_le16(cmd_action);
 		rf_reg->offset = cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
 		rf_reg->value = (u8) le32_to_cpu(reg_rw->value);
@@ -847,8 +877,7 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		struct host_cmd_ds_pmic_reg_access *pmic_reg;
 
 		cmd->size = cpu_to_le16(sizeof(*pmic_reg) + S_DS_GEN);
-		pmic_reg = (struct host_cmd_ds_pmic_reg_access *) &cmd->
-				params.pmic_reg;
+		pmic_reg = &cmd->params.pmic_reg;
 		pmic_reg->action = cpu_to_le16(cmd_action);
 		pmic_reg->offset =
 				cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
@@ -860,8 +889,7 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 		struct host_cmd_ds_rf_reg_access *cau_reg;
 
 		cmd->size = cpu_to_le16(sizeof(*cau_reg) + S_DS_GEN);
-		cau_reg = (struct host_cmd_ds_rf_reg_access *)
-							&cmd->params.rf_reg;
+		cau_reg = &cmd->params.rf_reg;
 		cau_reg->action = cpu_to_le16(cmd_action);
 		cau_reg->offset =
 				cpu_to_le16((u16) le32_to_cpu(reg_rw->offset));
@@ -872,7 +900,6 @@ static int mwifiex_cmd_reg_access(struct host_cmd_ds_command *cmd,
 	{
 		struct mwifiex_ds_read_eeprom *rd_eeprom = data_buf;
 		struct host_cmd_ds_802_11_eeprom_access *cmd_eeprom =
-			(struct host_cmd_ds_802_11_eeprom_access *)
 			&cmd->params.eeprom;
 
 		cmd->size = cpu_to_le16(sizeof(*cmd_eeprom) + S_DS_GEN);

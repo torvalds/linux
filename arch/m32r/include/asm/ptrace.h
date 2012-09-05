@@ -113,9 +113,6 @@ struct pt_regs {
 
 #define PTRACE_OLDSETOPTIONS	21
 
-/* options set using PTRACE_SETOPTIONS */
-#define PTRACE_O_TRACESYSGOOD	0x00000001
-
 #ifdef __KERNEL__
 
 #include <asm/m32r.h>		/* M32R_PSW_BSM, M32R_PSW_BPM */

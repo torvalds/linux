@@ -54,8 +54,13 @@ mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv,
 			tbl->rx_reorder_ptr[i] = NULL;
 		}
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		if (rx_tmp_ptr)
-			mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
+		if (rx_tmp_ptr) {
+			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+				mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
+			else
+				mwifiex_process_rx_packet(priv->adapter,
+							  rx_tmp_ptr);
+		}
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -97,7 +102,11 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		rx_tmp_ptr = tbl->rx_reorder_ptr[i];
 		tbl->rx_reorder_ptr[i] = NULL;
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
+
+		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+			mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
+		else
+			mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -148,7 +157,7 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
  * This function returns the pointer to an entry in Rx reordering
  * table which matches the given TA/TID pair.
  */
-static struct mwifiex_rx_reorder_tbl *
+struct mwifiex_rx_reorder_tbl *
 mwifiex_11n_get_rx_reorder_tbl(struct mwifiex_private *priv, int tid, u8 *ta)
 {
 	struct mwifiex_rx_reorder_tbl *tbl;
@@ -165,6 +174,31 @@ mwifiex_11n_get_rx_reorder_tbl(struct mwifiex_private *priv, int tid, u8 *ta)
 	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
 	return NULL;
+}
+
+/* This function retrieves the pointer to an entry in Rx reordering
+ * table which matches the given TA and deletes it.
+ */
+void mwifiex_11n_del_rx_reorder_tbl_by_ta(struct mwifiex_private *priv, u8 *ta)
+{
+	struct mwifiex_rx_reorder_tbl *tbl, *tmp;
+	unsigned long flags;
+
+	if (!ta)
+		return;
+
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+	list_for_each_entry_safe(tbl, tmp, &priv->rx_reorder_tbl_ptr, list) {
+		if (!memcmp(tbl->ta, ta, ETH_ALEN)) {
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       flags);
+			mwifiex_del_rx_reorder_entry(priv, tbl);
+			spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+		}
+	}
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
+
+	return;
 }
 
 /*
@@ -226,6 +260,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	struct mwifiex_rx_reorder_tbl *tbl, *new_node;
 	u16 last_seq = 0;
 	unsigned long flags;
+	struct mwifiex_sta_node *node;
 
 	/*
 	 * If we get a TID, ta pair which is already present dispatch all the
@@ -248,13 +283,19 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	new_node->tid = tid;
 	memcpy(new_node->ta, ta, ETH_ALEN);
 	new_node->start_win = seq_num;
-	if (mwifiex_queuing_ra_based(priv))
-		/* TODO for adhoc */
+
+	if (mwifiex_queuing_ra_based(priv)) {
 		dev_dbg(priv->adapter->dev,
-			"info: ADHOC:last_seq=%d start_win=%d\n",
+			"info: AP/ADHOC:last_seq=%d start_win=%d\n",
 			last_seq, new_node->start_win);
-	else
+		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP) {
+			node = mwifiex_get_sta_entry(priv, ta);
+			if (node)
+				last_seq = node->rx_seq[tid];
+		}
+	} else {
 		last_seq = priv->rx_seq[tid];
+	}
 
 	if (last_seq != MWIFIEX_DEF_11N_RX_SEQ_NUM &&
 	    last_seq >= new_node->start_win)
@@ -297,9 +338,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
  */
 int mwifiex_cmd_11n_addba_req(struct host_cmd_ds_command *cmd, void *data_buf)
 {
-	struct host_cmd_ds_11n_addba_req *add_ba_req =
-		(struct host_cmd_ds_11n_addba_req *)
-		&cmd->params.add_ba_req;
+	struct host_cmd_ds_11n_addba_req *add_ba_req = &cmd->params.add_ba_req;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_11N_ADDBA_REQ);
 	cmd->size = cpu_to_le16(sizeof(*add_ba_req) + S_DS_GEN);
@@ -321,9 +360,7 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 				  struct host_cmd_ds_11n_addba_req
 				  *cmd_addba_req)
 {
-	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp =
-		(struct host_cmd_ds_11n_addba_rsp *)
-		&cmd->params.add_ba_rsp;
+	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp = &cmd->params.add_ba_rsp;
 	u8 tid;
 	int win_size;
 	uint16_t block_ack_param_set;
@@ -368,8 +405,7 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
  */
 int mwifiex_cmd_11n_delba(struct host_cmd_ds_command *cmd, void *data_buf)
 {
-	struct host_cmd_ds_11n_delba *del_ba = (struct host_cmd_ds_11n_delba *)
-		&cmd->params.del_ba;
+	struct host_cmd_ds_11n_delba *del_ba = &cmd->params.del_ba;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_11N_DELBA);
 	cmd->size = cpu_to_le16(sizeof(*del_ba) + S_DS_GEN);
@@ -399,11 +435,15 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	int start_win, end_win, win_size;
 	u16 pkt_index;
 
-	tbl = mwifiex_11n_get_rx_reorder_tbl((struct mwifiex_private *) priv,
-					     tid, ta);
+	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (!tbl) {
-		if (pkt_type != PKT_TYPE_BAR)
-			mwifiex_process_rx_packet(priv->adapter, payload);
+		if (pkt_type != PKT_TYPE_BAR) {
+			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+				mwifiex_handle_uap_rx_forward(priv, payload);
+			else
+				mwifiex_process_rx_packet(priv->adapter,
+							  payload);
+		}
 		return 0;
 	}
 	start_win = tbl->start_win;
@@ -521,9 +561,7 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 			       struct host_cmd_ds_command *resp)
 {
-	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp =
-		(struct host_cmd_ds_11n_addba_rsp *)
-		&resp->params.add_ba_rsp;
+	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp = &resp->params.add_ba_rsp;
 	int tid, win_size;
 	struct mwifiex_rx_reorder_tbl *tbl;
 	uint16_t block_ack_param_set;

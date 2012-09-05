@@ -752,7 +752,7 @@ int exynos_dp_read_bytes_from_i2c(struct exynos_dp_device *dp,
 
 			/*
 			 * If Rx sends defer, Tx sends only reads
-			 * request without sending addres
+			 * request without sending address
 			 */
 			if (!defer)
 				retval = exynos_dp_select_i2c_device(dp,

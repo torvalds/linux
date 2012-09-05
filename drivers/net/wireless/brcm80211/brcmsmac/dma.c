@@ -1438,7 +1438,7 @@ void dma_walk_packets(struct dma_pub *dmah, void (*callback_fnc)
 	struct ieee80211_tx_info *tx_info;
 
 	while (i != end) {
-		skb = (struct sk_buff *)di->txp[i];
+		skb = di->txp[i];
 		if (skb != NULL) {
 			tx_info = (struct ieee80211_tx_info *)skb->cb;
 			(callback_fnc)(tx_info, arg_a);

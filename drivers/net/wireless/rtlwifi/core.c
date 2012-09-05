@@ -124,7 +124,9 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
-static void rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void rtl_op_tx(struct ieee80211_hw *hw,
+		      struct ieee80211_tx_control *control,
+		      struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -138,8 +140,8 @@ static void rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
 		goto err_free;
 
-	if (!rtlpriv->intf_ops->waitq_insert(hw, skb))
-		rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
+	if (!rtlpriv->intf_ops->waitq_insert(hw, control->sta, skb))
+		rtlpriv->intf_ops->adapter_tx(hw, control->sta, skb, &tcb_desc);
 
 	return;
 
@@ -680,7 +682,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 		mac->short_preamble = bss_conf->use_short_preamble;
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ACK_PREAMBLE,
-					      (u8 *) (&mac->short_preamble));
+					      &mac->short_preamble);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -693,7 +695,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			mac->slot_time = RTL_SLOT_TIME_20;
 
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SLOT_TIME,
-					      (u8 *) (&mac->slot_time));
+					      &mac->slot_time);
 	}
 
 	if (changed & BSS_CHANGED_HT) {
@@ -713,7 +715,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		rcu_read_unlock();
 
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SHORTGI_DENSITY,
-					      (u8 *) (&mac->max_mss_density));
+					      &mac->max_mss_density);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_AMPDU_FACTOR,
 					      &mac->current_ampdu_factor);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_AMPDU_MIN_SPACE,
@@ -801,7 +803,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				u8 mstatus = RT_MEDIA_CONNECT;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_H2C_FW_JOINBSSRPT,
-						      (u8 *) (&mstatus));
+						      &mstatus);
 				ppsc->report_linked = true;
 			}
 		} else {
@@ -809,7 +811,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				u8 mstatus = RT_MEDIA_DISCONNECT;
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_H2C_FW_JOINBSSRPT,
-						      (u8 *)(&mstatus));
+						      &mstatus);
 				ppsc->report_linked = false;
 			}
 		}
@@ -836,7 +838,7 @@ static void rtl_op_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u8 bibss = (mac->opmode == NL80211_IFTYPE_ADHOC) ? 1 : 0;
 
 	mac->tsf = tsf;
-	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_CORRECT_TSF, (u8 *) (&bibss));
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_CORRECT_TSF, &bibss);
 }
 
 static void rtl_op_reset_tsf(struct ieee80211_hw *hw,
@@ -845,7 +847,7 @@ static void rtl_op_reset_tsf(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 tmp = 0;
 
-	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_DUAL_TSF_RST, (u8 *) (&tmp));
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_DUAL_TSF_RST, &tmp);
 }
 
 static void rtl_op_sta_notify(struct ieee80211_hw *hw,

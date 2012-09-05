@@ -56,7 +56,7 @@ static struct dentry *proc_ns_instantiate(struct inode *dir,
 	d_set_d_op(dentry, &pid_dentry_operations);
 	d_add(dentry, inode);
 	/* Close the race of the process dying before we return the dentry */
-	if (pid_revalidate(dentry, NULL))
+	if (pid_revalidate(dentry, 0))
 		error = NULL;
 out:
 	return error;
@@ -140,7 +140,7 @@ const struct file_operations proc_ns_dir_operations = {
 };
 
 static struct dentry *proc_ns_dir_lookup(struct inode *dir,
-				struct dentry *dentry, struct nameidata *nd)
+				struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *error;
 	struct task_struct *task = get_proc_task(dir);

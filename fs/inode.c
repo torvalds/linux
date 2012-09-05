@@ -182,7 +182,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	}
 	inode->i_private = NULL;
 	inode->i_mapping = mapping;
-	INIT_LIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */
+	INIT_HLIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */
 #ifdef CONFIG_FS_POSIX_ACL
 	inode->i_acl = inode->i_default_acl = ACL_NOT_CACHED;
 #endif
@@ -1551,6 +1551,8 @@ void touch_atime(struct path *path)
 	 * Btrfs), but since we touch atime while walking down the path we
 	 * really don't care if we failed to update the atime of the file,
 	 * so just ignore the return value.
+	 * We may also fail on filesystems that have the ability to make parts
+	 * of the fs read only, e.g. subvolumes in Btrfs.
 	 */
 	update_time(inode, &now, S_ATIME);
 	mnt_drop_write(mnt);

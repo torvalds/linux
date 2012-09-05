@@ -1920,7 +1920,7 @@ static int b43legacy_gpio_init(struct b43legacy_wldev *dev)
 		return 0;
 	ssb_write32(gpiodev, B43legacy_GPIO_CONTROL,
 		    (ssb_read32(gpiodev, B43legacy_GPIO_CONTROL)
-		     & mask) | set);
+		     & ~mask) | set);
 
 	return 0;
 }
@@ -2492,6 +2492,7 @@ static void b43legacy_tx_work(struct work_struct *work)
 }
 
 static void b43legacy_op_tx(struct ieee80211_hw *hw,
+			    struct ieee80211_tx_control *control,
 			    struct sk_buff *skb)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
@@ -2633,7 +2634,7 @@ static int b43legacy_switch_phymode(struct b43legacy_wl *wl,
 	if (prev_status >= B43legacy_STAT_STARTED) {
 		err = b43legacy_wireless_core_start(up_dev);
 		if (err) {
-			b43legacyerr(wl, "Fatal: Coult not start device for "
+			b43legacyerr(wl, "Fatal: Could not start device for "
 			       "newly selected %s-PHY mode\n",
 			       phymode_to_string(new_mode));
 			b43legacy_wireless_core_exit(up_dev);

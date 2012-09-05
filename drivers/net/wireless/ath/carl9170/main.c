@@ -616,10 +616,12 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 
 			goto unlock;
 
+		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_AP:
 			if ((vif->type == NL80211_IFTYPE_STATION) ||
 			    (vif->type == NL80211_IFTYPE_WDS) ||
-			    (vif->type == NL80211_IFTYPE_AP))
+			    (vif->type == NL80211_IFTYPE_AP) ||
+			    (vif->type == NL80211_IFTYPE_MESH_POINT))
 				break;
 
 			err = -EBUSY;

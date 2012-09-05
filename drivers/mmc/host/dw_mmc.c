@@ -405,10 +405,22 @@ static void dw_mci_idmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 static int dw_mci_idmac_init(struct dw_mci *host)
 {
 	struct idmac_desc *p;
-	int i;
+	int i, dma_support;
 
 	/* Number of descriptors in the ring buffer */
 	host->ring_size = PAGE_SIZE / sizeof(struct idmac_desc);
+
+	/* Check if Hardware Configuration Register has support for DMA */
+	dma_support = (mci_readl(host, HCON) >> 16) & 0x3;
+
+	if (!dma_support || dma_support > 2) {
+		dev_err(&host->dev,
+			"Host Controller does not support IDMA Tx.\n");
+		host->dma_ops = NULL;
+		return -ENODEV;
+	}
+
+	dev_info(&host->dev, "Using internal DMA controller.\n");
 
 	/* Forward link the descriptor list */
 	for (i = 0, p = host->sg_cpu; i < host->ring_size - 1; i++, p++)
@@ -417,6 +429,8 @@ static int dw_mci_idmac_init(struct dw_mci *host)
 	/* Set the last descriptor as the end-of-ring descriptor */
 	p->des3 = host->sg_dma;
 	p->des0 = IDMAC_DES0_ER;
+
+	mci_writel(host, BMOD, SDMMC_IDMAC_SWRESET);
 
 	/* Mask out interrupts - get Tx & Rx complete only */
 	mci_writel(host, IDINTEN, SDMMC_IDMAC_INT_NI | SDMMC_IDMAC_INT_RI |
@@ -615,14 +629,15 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot)
 	u32 div;
 
 	if (slot->clock != host->current_speed) {
-		if (host->bus_hz % slot->clock)
+		div = host->bus_hz / slot->clock;
+		if (host->bus_hz % slot->clock && host->bus_hz > slot->clock)
 			/*
 			 * move the + 1 after the divide to prevent
 			 * over-clocking the card.
 			 */
-			div = ((host->bus_hz / slot->clock) >> 1) + 1;
-		else
-			div = (host->bus_hz  / slot->clock) >> 1;
+			div += 1;
+
+		div = (host->bus_hz != slot->clock) ? DIV_ROUND_UP(div, 2) : 0;
 
 		dev_info(&slot->mmc->class_dev,
 			 "Bus speed (slot %d) = %dHz (slot req %dHz, actual %dHZ"
@@ -939,8 +954,8 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 			mdelay(20);
 
 		if (cmd->data) {
-			host->data = NULL;
 			dw_mci_stop_dma(host);
+			host->data = NULL;
 		}
 	}
 }
@@ -1623,7 +1638,6 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 	if (pending & (SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI)) {
 		mci_writel(host, IDSTS, SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI);
 		mci_writel(host, IDSTS, SDMMC_IDMAC_INT_NI);
-		set_bit(EVENT_DATA_COMPLETE, &host->pending_events);
 		host->dma_ops->complete(host);
 	}
 #endif
@@ -1725,7 +1739,8 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 
 #ifdef CONFIG_MMC_DW_IDMAC
 				ctrl = mci_readl(host, BMOD);
-				ctrl |= 0x01; /* Software reset of DMA */
+				/* Software reset of DMA */
+				ctrl |= SDMMC_IDMAC_SWRESET;
 				mci_writel(host, BMOD, ctrl);
 #endif
 
@@ -1873,7 +1888,6 @@ static void dw_mci_init_dma(struct dw_mci *host)
 	/* Determine which DMA interface to use */
 #ifdef CONFIG_MMC_DW_IDMAC
 	host->dma_ops = &dw_mci_idmac_ops;
-	dev_info(&host->dev, "Using internal DMA controller.\n");
 #endif
 
 	if (!host->dma_ops)
@@ -1950,10 +1964,6 @@ int dw_mci_probe(struct dw_mci *host)
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);
 
-
-	host->dma_ops = host->pdata->dma_ops;
-	dw_mci_init_dma(host);
-
 	/*
 	 * Get the host data width - this assumes that HCON has been set with
 	 * the correct values.
@@ -1981,10 +1991,11 @@ int dw_mci_probe(struct dw_mci *host)
 	}
 
 	/* Reset all blocks */
-	if (!mci_wait_reset(&host->dev, host)) {
-		ret = -ENODEV;
-		goto err_dmaunmap;
-	}
+	if (!mci_wait_reset(&host->dev, host))
+		return -ENODEV;
+
+	host->dma_ops = host->pdata->dma_ops;
+	dw_mci_init_dma(host);
 
 	/* Clear the interrupts for the host controller */
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
@@ -2170,13 +2181,13 @@ int dw_mci_resume(struct dw_mci *host)
 	if (host->vmmc)
 		regulator_enable(host->vmmc);
 
-	if (host->dma_ops->init)
-		host->dma_ops->init(host);
-
 	if (!mci_wait_reset(&host->dev, host)) {
 		ret = -ENODEV;
 		return ret;
 	}
+
+	if (host->use_dma && host->dma_ops->init)
+		host->dma_ops->init(host);
 
 	/* Restore the old value at FIFOTH register */
 	mci_writel(host, FIFOTH, host->fifoth_val);

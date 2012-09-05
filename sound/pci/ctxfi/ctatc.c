@@ -1537,7 +1537,7 @@ static void atc_connect_resources(struct ct_atc *atc)
 }
 
 #ifdef CONFIG_PM
-static int atc_suspend(struct ct_atc *atc, pm_message_t state)
+static int atc_suspend(struct ct_atc *atc)
 {
 	int i;
 	struct hw *hw = atc->hw;
@@ -1553,7 +1553,7 @@ static int atc_suspend(struct ct_atc *atc, pm_message_t state)
 
 	atc_release_resources(atc);
 
-	hw->suspend(hw, state);
+	hw->suspend(hw);
 
 	return 0;
 }

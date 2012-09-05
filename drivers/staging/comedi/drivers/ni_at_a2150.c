@@ -755,6 +755,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int dma = it->options[2];
 	static const int timeout = 2000;
 	int i;
+	int ret;
 
 	printk("comedi%d: %s: io 0x%lx", dev->minor, dev->driver->driver_name,
 	       iobase);
@@ -826,8 +827,9 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_ptr = a2150_boards + a2150_probe(dev);
 	dev->board_name = thisboard->name;
 
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	/* analog input subdevice */
 	s = dev->subdevices + 0;

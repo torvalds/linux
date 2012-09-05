@@ -259,6 +259,7 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 	config.dev = &client->dev;
 	config.init_data = pdata->regulator;
 	config.driver_data = info;
+	config.regmap = info->regmap;
 
 	info->regulator = regulator_register(&dcdc_desc, &config);
 	if (IS_ERR(info->regulator)) {

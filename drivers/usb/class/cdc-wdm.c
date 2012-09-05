@@ -32,28 +32,12 @@
 #define DRIVER_AUTHOR "Oliver Neukum"
 #define DRIVER_DESC "USB Abstract Control Model driver for USB WCM Device Management"
 
-#define HUAWEI_VENDOR_ID	0x12D1
-
 static const struct usb_device_id wdm_ids[] = {
 	{
 		.match_flags = USB_DEVICE_ID_MATCH_INT_CLASS |
 				 USB_DEVICE_ID_MATCH_INT_SUBCLASS,
 		.bInterfaceClass = USB_CLASS_COMM,
 		.bInterfaceSubClass = USB_CDC_SUBCLASS_DMM
-	},
-	{
-		/* 
-		 * Huawei E392, E398 and possibly other Qualcomm based modems
-		 * embed the Qualcomm QMI protocol inside CDC on CDC ECM like
-		 * control interfaces.  Userspace access to this is required
-		 * to configure the accompanying data interface
-		 */
-		.match_flags        = USB_DEVICE_ID_MATCH_VENDOR |
-					USB_DEVICE_ID_MATCH_INT_INFO,
-		.idVendor           = HUAWEI_VENDOR_ID,
-		.bInterfaceClass    = USB_CLASS_VENDOR_SPEC,
-		.bInterfaceSubClass = 1,
-		.bInterfaceProtocol = 9, /* NOTE: CDC ECM control interface! */
 	},
 	{ }
 };
@@ -491,6 +475,8 @@ retry:
 			goto retry;
 		}
 		if (!desc->reslength) { /* zero length read */
+			dev_dbg(&desc->intf->dev, "%s: zero length - clearing WDM_READ\n", __func__);
+			clear_bit(WDM_READ, &desc->flags);
 			spin_unlock_irq(&desc->iuspin);
 			goto retry;
 		}

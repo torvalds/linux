@@ -106,7 +106,7 @@ void pde_users_dec(struct proc_dir_entry *pde);
 
 extern spinlock_t proc_subdir_lock;
 
-struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *);
+struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, unsigned int);
 int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir);
 unsigned long task_vsize(struct mm_struct *);
 unsigned long task_statm(struct mm_struct *,
@@ -132,7 +132,7 @@ int proc_remount(struct super_block *sb, int *flags, char *data);
  * of the /proc/<pid> subdirectories.
  */
 int proc_readdir(struct file *, void *, filldir_t);
-struct dentry *proc_lookup(struct inode *, struct dentry *, struct nameidata *);
+struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
 
 
 
@@ -142,7 +142,7 @@ typedef struct dentry *instantiate_t(struct inode *, struct dentry *,
 int proc_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	const char *name, int len,
 	instantiate_t instantiate, struct task_struct *task, const void *ptr);
-int pid_revalidate(struct dentry *dentry, struct nameidata *nd);
+int pid_revalidate(struct dentry *dentry, unsigned int flags);
 struct inode *proc_pid_make_inode(struct super_block * sb, struct task_struct *task);
 extern const struct dentry_operations pid_dentry_operations;
 int pid_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);

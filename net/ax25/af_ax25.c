@@ -842,6 +842,7 @@ static int ax25_create(struct net *net, struct socket *sock, int protocol,
 		case AX25_P_NETROM:
 			if (ax25_protocol_is_registered(AX25_P_NETROM))
 				return -ESOCKTNOSUPPORT;
+			break;
 #endif
 #ifdef CONFIG_ROSE_MODULE
 		case AX25_P_ROSE:

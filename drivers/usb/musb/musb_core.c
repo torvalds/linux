@@ -1909,7 +1909,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs and musb->isr if needed,
 	 *   - may initialize an integrated tranceiver
-	 *   - initializes musb->xceiv, usually by otg_get_transceiver()
+	 *   - initializes musb->xceiv, usually by otg_get_phy()
 	 *   - stops powering VBUS
 	 *
 	 * There are various transceiver configurations.  Blackfin,

@@ -352,6 +352,11 @@ config MEM_MT48H32M16LFCJ_75
 	depends on (BFIN526_EZBRD)
 	default y
 
+config MEM_MT47H64M16
+	bool
+	depends on (BFIN609_EZKIT)
+	default y
+
 source "arch/blackfin/mach-bf518/Kconfig"
 source "arch/blackfin/mach-bf527/Kconfig"
 source "arch/blackfin/mach-bf533/Kconfig"
@@ -399,8 +404,9 @@ config ROM_BASE
 	hex "Kernel ROM Base"
 	depends on ROMKERNEL
 	default "0x20040040"
-	range 0x20000000 0x20400000 if !(BF54x || BF561)
+	range 0x20000000 0x20400000 if !(BF54x || BF561 || BF60x)
 	range 0x20000000 0x30000000 if (BF54x || BF561)
+	range 0xB0000000 0xC0000000 if (BF60x)
 	help
 	  Make sure your ROM base does not include any file-header
 	  information that is prepended to the kernel.
@@ -1009,6 +1015,12 @@ config HAVE_PWM
 choice
 	prompt "Uncached DMA region"
 	default DMA_UNCACHED_1M
+config DMA_UNCACHED_32M
+	bool "Enable 32M DMA region"
+config DMA_UNCACHED_16M
+	bool "Enable 16M DMA region"
+config DMA_UNCACHED_8M
+	bool "Enable 8M DMA region"
 config DMA_UNCACHED_4M
 	bool "Enable 4M DMA region"
 config DMA_UNCACHED_2M
@@ -1038,7 +1050,7 @@ config BFIN_EXTMEM_ICACHEABLE
 config BFIN_L2_ICACHEABLE
 	bool "Enable ICACHE for L2 SRAM"
 	depends on BFIN_ICACHE
-	depends on BF54x || BF561
+	depends on (BF54x || BF561 || BF60x) && !SMP
 	default n
 
 config BFIN_DCACHE

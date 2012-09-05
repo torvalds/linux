@@ -395,7 +395,7 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 	as->volume = vol;
 
 	/* allocate a deviceless superblock */
-	sb = sget(fs_type, afs_test_super, afs_set_super, as);
+	sb = sget(fs_type, afs_test_super, afs_set_super, flags, as);
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
 		afs_put_volume(vol);
@@ -406,7 +406,6 @@ static struct dentry *afs_mount(struct file_system_type *fs_type,
 	if (!sb->s_root) {
 		/* initial superblock/root creation */
 		_debug("create");
-		sb->s_flags = flags;
 		ret = afs_fill_super(sb, &params);
 		if (ret < 0) {
 			deactivate_locked_super(sb);

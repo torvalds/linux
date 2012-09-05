@@ -78,7 +78,7 @@
 #include <linux/quotaops.h>
 #include "../internal.h" /* ugh */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * There are three quota SMP locks. dq_list_lock protects all lists with quotas
@@ -595,12 +595,14 @@ out:
 }
 EXPORT_SYMBOL(dquot_scan_active);
 
-int dquot_quota_sync(struct super_block *sb, int type, int wait)
+/* Write all dquot structures to quota files */
+int dquot_writeback_dquots(struct super_block *sb, int type)
 {
 	struct list_head *dirty;
 	struct dquot *dquot;
 	struct quota_info *dqopt = sb_dqopt(sb);
 	int cnt;
+	int err, ret = 0;
 
 	mutex_lock(&dqopt->dqonoff_mutex);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
@@ -624,7 +626,9 @@ int dquot_quota_sync(struct super_block *sb, int type, int wait)
 			atomic_inc(&dquot->dq_count);
 			spin_unlock(&dq_list_lock);
 			dqstats_inc(DQST_LOOKUPS);
-			sb->dq_op->write_dquot(dquot);
+			err = sb->dq_op->write_dquot(dquot);
+			if (!ret && err)
+				err = ret;
 			dqput(dquot);
 			spin_lock(&dq_list_lock);
 		}
@@ -638,7 +642,21 @@ int dquot_quota_sync(struct super_block *sb, int type, int wait)
 	dqstats_inc(DQST_SYNCS);
 	mutex_unlock(&dqopt->dqonoff_mutex);
 
-	if (!wait || (dqopt->flags & DQUOT_QUOTA_SYS_FILE))
+	return ret;
+}
+EXPORT_SYMBOL(dquot_writeback_dquots);
+
+/* Write all dquot structures to disk and make them visible from userspace */
+int dquot_quota_sync(struct super_block *sb, int type)
+{
+	struct quota_info *dqopt = sb_dqopt(sb);
+	int cnt;
+	int ret;
+
+	ret = dquot_writeback_dquots(sb, type);
+	if (ret)
+		return ret;
+	if (dqopt->flags & DQUOT_QUOTA_SYS_FILE)
 		return 0;
 
 	/* This is not very clever (and fast) but currently I don't know about

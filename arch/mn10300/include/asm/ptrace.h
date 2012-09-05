@@ -81,9 +81,6 @@ struct pt_regs {
 #define PTRACE_GETFPREGS          14
 #define PTRACE_SETFPREGS          15
 
-/* options set using PTRACE_SETOPTIONS */
-#define PTRACE_O_TRACESYSGOOD     0x00000001
-
 #ifdef __KERNEL__
 
 #define user_mode(regs)			(((regs)->epsw & EPSW_nSL) == EPSW_nSL)

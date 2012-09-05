@@ -112,15 +112,15 @@ static void __init clk_misc_init(void)
 
 	/*
 	 * 480 MHz seems too high to be ssp clock source directly,
-	 * so set frac0 to get a 288 MHz ref_io0.
+	 * so set frac0 to get a 288 MHz ref_io0 and ref_io1.
 	 */
 	val = readl_relaxed(FRAC0);
-	val &= ~(0x3f << BP_FRAC0_IO0FRAC);
-	val |= 30 << BP_FRAC0_IO0FRAC;
+	val &= ~((0x3f << BP_FRAC0_IO0FRAC) | (0x3f << BP_FRAC0_IO1FRAC));
+	val |= (30 << BP_FRAC0_IO0FRAC) | (30 << BP_FRAC0_IO1FRAC);
 	writel_relaxed(val, FRAC0);
 }
 
-static struct clk_lookup uart_lookups[] __initdata = {
+static struct clk_lookup uart_lookups[] = {
 	{ .dev_id = "duart", },
 	{ .dev_id = "mxs-auart.0", },
 	{ .dev_id = "mxs-auart.1", },
@@ -135,71 +135,71 @@ static struct clk_lookup uart_lookups[] __initdata = {
 	{ .dev_id = "80074000.serial", },
 };
 
-static struct clk_lookup hbus_lookups[] __initdata = {
+static struct clk_lookup hbus_lookups[] = {
 	{ .dev_id = "imx28-dma-apbh", },
 	{ .dev_id = "80004000.dma-apbh", },
 };
 
-static struct clk_lookup xbus_lookups[] __initdata = {
+static struct clk_lookup xbus_lookups[] = {
 	{ .dev_id = "duart", .con_id = "apb_pclk"},
 	{ .dev_id = "80074000.serial", .con_id = "apb_pclk"},
 	{ .dev_id = "imx28-dma-apbx", },
 	{ .dev_id = "80024000.dma-apbx", },
 };
 
-static struct clk_lookup ssp0_lookups[] __initdata = {
+static struct clk_lookup ssp0_lookups[] = {
 	{ .dev_id = "imx28-mmc.0", },
 	{ .dev_id = "80010000.ssp", },
 };
 
-static struct clk_lookup ssp1_lookups[] __initdata = {
+static struct clk_lookup ssp1_lookups[] = {
 	{ .dev_id = "imx28-mmc.1", },
 	{ .dev_id = "80012000.ssp", },
 };
 
-static struct clk_lookup ssp2_lookups[] __initdata = {
+static struct clk_lookup ssp2_lookups[] = {
 	{ .dev_id = "imx28-mmc.2", },
 	{ .dev_id = "80014000.ssp", },
 };
 
-static struct clk_lookup ssp3_lookups[] __initdata = {
+static struct clk_lookup ssp3_lookups[] = {
 	{ .dev_id = "imx28-mmc.3", },
 	{ .dev_id = "80016000.ssp", },
 };
 
-static struct clk_lookup lcdif_lookups[] __initdata = {
+static struct clk_lookup lcdif_lookups[] = {
 	{ .dev_id = "imx28-fb", },
 	{ .dev_id = "80030000.lcdif", },
 };
 
-static struct clk_lookup gpmi_lookups[] __initdata = {
+static struct clk_lookup gpmi_lookups[] = {
 	{ .dev_id = "imx28-gpmi-nand", },
-	{ .dev_id = "8000c000.gpmi", },
+	{ .dev_id = "8000c000.gpmi-nand", },
 };
 
-static struct clk_lookup fec_lookups[] __initdata = {
+static struct clk_lookup fec_lookups[] = {
 	{ .dev_id = "imx28-fec.0", },
 	{ .dev_id = "imx28-fec.1", },
 	{ .dev_id = "800f0000.ethernet", },
 	{ .dev_id = "800f4000.ethernet", },
 };
 
-static struct clk_lookup can0_lookups[] __initdata = {
+static struct clk_lookup can0_lookups[] = {
 	{ .dev_id = "flexcan.0", },
 	{ .dev_id = "80032000.can", },
 };
 
-static struct clk_lookup can1_lookups[] __initdata = {
+static struct clk_lookup can1_lookups[] = {
 	{ .dev_id = "flexcan.1", },
 	{ .dev_id = "80034000.can", },
 };
 
-static struct clk_lookup saif0_lookups[] __initdata = {
+static struct clk_lookup saif0_lookups[] = {
 	{ .dev_id = "mxs-saif.0", },
 	{ .dev_id = "80042000.saif", },
 };
 
-static struct clk_lookup saif1_lookups[] __initdata = {
+static struct clk_lookup saif1_lookups[] = {
 	{ .dev_id = "mxs-saif.1", },
 	{ .dev_id = "80046000.saif", },
 };
@@ -245,8 +245,8 @@ int __init mx28_clocks_init(void)
 	clks[pll2] = mxs_clk_pll("pll2", "ref_xtal", PLL2CTRL0, 23, 50000000);
 	clks[ref_cpu] = mxs_clk_ref("ref_cpu", "pll0", FRAC0, 0);
 	clks[ref_emi] = mxs_clk_ref("ref_emi", "pll0", FRAC0, 1);
-	clks[ref_io0] = mxs_clk_ref("ref_io0", "pll0", FRAC0, 2);
-	clks[ref_io1] = mxs_clk_ref("ref_io1", "pll0", FRAC0, 3);
+	clks[ref_io1] = mxs_clk_ref("ref_io1", "pll0", FRAC0, 2);
+	clks[ref_io0] = mxs_clk_ref("ref_io0", "pll0", FRAC0, 3);
 	clks[ref_pix] = mxs_clk_ref("ref_pix", "pll0", FRAC1, 0);
 	clks[ref_hsadc] = mxs_clk_ref("ref_hsadc", "pll0", FRAC1, 1);
 	clks[ref_gpmi] = mxs_clk_ref("ref_gpmi", "pll0", FRAC1, 2);
@@ -314,6 +314,7 @@ int __init mx28_clocks_init(void)
 
 	clk_register_clkdev(clks[clk32k], NULL, "timrot");
 	clk_register_clkdev(clks[enet_out], NULL, "enet_out");
+	clk_register_clkdev(clks[pwm], NULL, "80064000.pwm");
 	clk_register_clkdevs(clks[hbus], hbus_lookups, ARRAY_SIZE(hbus_lookups));
 	clk_register_clkdevs(clks[xbus], xbus_lookups, ARRAY_SIZE(xbus_lookups));
 	clk_register_clkdevs(clks[uart], uart_lookups, ARRAY_SIZE(uart_lookups));
@@ -328,6 +329,10 @@ int __init mx28_clocks_init(void)
 	clk_register_clkdevs(clks[fec], fec_lookups, ARRAY_SIZE(fec_lookups));
 	clk_register_clkdevs(clks[can0], can0_lookups, ARRAY_SIZE(can0_lookups));
 	clk_register_clkdevs(clks[can1], can1_lookups, ARRAY_SIZE(can1_lookups));
+	clk_register_clkdev(clks[usb0_pwr], NULL, "8007c000.usbphy");
+	clk_register_clkdev(clks[usb1_pwr], NULL, "8007e000.usbphy");
+	clk_register_clkdev(clks[usb0], NULL, "80080000.usb");
+	clk_register_clkdev(clks[usb1], NULL, "80090000.usb");
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);

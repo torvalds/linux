@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <linux/err.h>
+#include <linux/regulator/of_regulator.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65217.h>
@@ -132,6 +133,61 @@ int tps65217_clear_bits(struct tps65217 *tps, unsigned int reg,
 }
 EXPORT_SYMBOL_GPL(tps65217_clear_bits);
 
+#ifdef CONFIG_OF
+static struct of_regulator_match reg_matches[] = {
+	{ .name = "dcdc1", .driver_data = (void *)TPS65217_DCDC_1 },
+	{ .name = "dcdc2", .driver_data = (void *)TPS65217_DCDC_2 },
+	{ .name = "dcdc3", .driver_data = (void *)TPS65217_DCDC_3 },
+	{ .name = "ldo1", .driver_data = (void *)TPS65217_LDO_1 },
+	{ .name = "ldo2", .driver_data = (void *)TPS65217_LDO_2 },
+	{ .name = "ldo3", .driver_data = (void *)TPS65217_LDO_3 },
+	{ .name = "ldo4", .driver_data = (void *)TPS65217_LDO_4 },
+};
+
+static struct tps65217_board *tps65217_parse_dt(struct i2c_client *client)
+{
+	struct device_node *node = client->dev.of_node;
+	struct tps65217_board *pdata;
+	struct device_node *regs;
+	int count = ARRAY_SIZE(reg_matches);
+	int ret, i;
+
+	regs = of_find_node_by_name(node, "regulators");
+	if (!regs)
+		return NULL;
+
+	ret = of_regulator_match(&client->dev, regs, reg_matches, count);
+	of_node_put(regs);
+	if ((ret < 0) || (ret > count))
+		return NULL;
+
+	count = ret;
+	pdata = devm_kzalloc(&client->dev, count * sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+
+	for (i = 0; i < count; i++) {
+		if (!reg_matches[i].init_data || !reg_matches[i].of_node)
+			continue;
+
+		pdata->tps65217_init_data[i] = reg_matches[i].init_data;
+		pdata->of_node[i] = reg_matches[i].of_node;
+	}
+
+	return pdata;
+}
+
+static struct of_device_id tps65217_of_match[] = {
+	{ .compatible = "ti,tps65217", },
+	{ },
+};
+#else
+static struct tps65217_board *tps65217_parse_dt(struct i2c_client *client)
+{
+	return NULL;
+}
+#endif
+
 static struct regmap_config tps65217_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -141,9 +197,13 @@ static int __devinit tps65217_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
 {
 	struct tps65217 *tps;
+	struct regulator_init_data *reg_data;
 	struct tps65217_board *pdata = client->dev.platform_data;
 	int i, ret;
 	unsigned int version;
+
+	if (!pdata && client->dev.of_node)
+		pdata = tps65217_parse_dt(client);
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
@@ -182,8 +242,9 @@ static int __devinit tps65217_probe(struct i2c_client *client,
 		}
 
 		pdev->dev.parent = tps->dev;
-		platform_device_add_data(pdev, &pdata->tps65217_init_data[i],
-					sizeof(pdata->tps65217_init_data[i]));
+		pdev->dev.of_node = pdata->of_node[i];
+		reg_data = pdata->tps65217_init_data[i];
+		platform_device_add_data(pdev, reg_data, sizeof(*reg_data));
 		tps->regulator_pdev[i] = pdev;
 
 		platform_device_add(pdev);
@@ -212,6 +273,8 @@ MODULE_DEVICE_TABLE(i2c, tps65217_id_table);
 static struct i2c_driver tps65217_driver = {
 	.driver		= {
 		.name	= "tps65217",
+		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(tps65217_of_match),
 	},
 	.id_table	= tps65217_id_table,
 	.probe		= tps65217_probe,

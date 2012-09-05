@@ -784,6 +784,7 @@
 #define RTSYSTEMS_VID			0x2100	/* Vendor ID */
 #define RTSYSTEMS_SERIAL_VX7_PID	0x9e52	/* Serial converter for VX-7 Radios using FT232RL */
 #define RTSYSTEMS_CT29B_PID		0x9e54	/* CT29B Radio Cable */
+#define RTSYSTEMS_RTS01_PID		0x9e57	/* USB-RTS01 Radio Cable */
 
 
 /*

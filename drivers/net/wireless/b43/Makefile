@@ -4,6 +4,7 @@ b43-y				+= tables.o
 b43-$(CONFIG_B43_PHY_N)		+= tables_nphy.o
 b43-$(CONFIG_B43_PHY_N)		+= radio_2055.o
 b43-$(CONFIG_B43_PHY_N)		+= radio_2056.o
+b43-$(CONFIG_B43_PHY_N)		+= radio_2057.o
 b43-y				+= phy_common.o
 b43-y				+= phy_g.o
 b43-y				+= phy_a.o

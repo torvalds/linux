@@ -68,6 +68,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
+#include <linux/file.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -460,6 +461,10 @@ static void __init mm_init(void)
 	percpu_init_late();
 	pgtable_cache_init();
 	vmalloc_init();
+#ifdef CONFIG_X86
+	if (efi_enabled)
+		efi_enter_virtual_mode();
+#endif
 }
 
 asmlinkage void __init start_kernel(void)
@@ -508,7 +513,7 @@ asmlinkage void __init start_kernel(void)
 	parse_early_param();
 	parse_args("Booting kernel", static_command_line, __start___param,
 		   __stop___param - __start___param,
-		   0, 0, &unknown_bootoption);
+		   -1, -1, &unknown_bootoption);
 
 	jump_label_init();
 
@@ -601,10 +606,6 @@ asmlinkage void __init start_kernel(void)
 	calibrate_delay();
 	pidmap_init();
 	anon_vma_init();
-#ifdef CONFIG_X86
-	if (efi_enabled)
-		efi_enter_virtual_mode();
-#endif
 	thread_info_cache_init();
 	cred_init();
 	fork_init(totalram_pages);
@@ -724,6 +725,7 @@ static initcall_t *initcall_levels[] __initdata = {
 	__initcall_end,
 };
 
+/* Keep these in sync with initcalls in include/linux/init.h */
 static char *initcall_level_names[] __initdata = {
 	"early",
 	"core",
@@ -755,13 +757,8 @@ static void __init do_initcalls(void)
 {
 	int level;
 
-	for (level = 0; level < ARRAY_SIZE(initcall_levels) - 1; level++) {
-		pr_info("initlevel:%d=%s, %d registered initcalls\n",
-			level, initcall_level_names[level],
-			(int) (initcall_levels[level+1]
-				- initcall_levels[level]));
+	for (level = 0; level < ARRAY_SIZE(initcall_levels) - 1; level++)
 		do_initcall_level(level);
-	}
 }
 
 /*
@@ -809,8 +806,8 @@ static noinline int init_post(void)
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 
-
 	current->signal->flags |= SIGNAL_UNKILLABLE;
+	flush_delayed_fput();
 
 	if (ramdisk_execute_command) {
 		run_init_process(ramdisk_execute_command);

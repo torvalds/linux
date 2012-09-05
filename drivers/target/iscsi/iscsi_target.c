@@ -429,19 +429,8 @@ int iscsit_reset_np_thread(
 
 int iscsit_del_np_comm(struct iscsi_np *np)
 {
-	if (!np->np_socket)
-		return 0;
-
-	/*
-	 * Some network transports allocate their own struct sock->file,
-	 * see  if we need to free any additional allocated resources.
-	 */
-	if (np->np_flags & NPF_SCTP_STRUCT_FILE) {
-		kfree(np->np_socket->file);
-		np->np_socket->file = NULL;
-	}
-
-	sock_release(np->np_socket);
+	if (np->np_socket)
+		sock_release(np->np_socket);
 	return 0;
 }
 
@@ -1413,8 +1402,10 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 		spin_unlock_bh(&cmd->istate_lock);
 
 		iscsit_stop_dataout_timer(cmd);
-		return (!ooo_cmdsn) ? transport_generic_handle_data(
-					&cmd->se_cmd) : 0;
+		if (ooo_cmdsn)
+			return 0;
+		target_execute_cmd(&cmd->se_cmd);
+		return 0;
 	} else /* DATAOUT_CANNOT_RECOVER */
 		return -1;
 
@@ -2683,7 +2674,7 @@ static int iscsit_send_logout_response(
 		 */
 		logout_conn = iscsit_get_conn_from_cid_rcfr(sess,
 				cmd->logout_cid);
-		if ((logout_conn)) {
+		if (logout_conn) {
 			iscsit_connection_reinstatement_rcfr(logout_conn);
 			iscsit_dec_conn_usage_count(logout_conn);
 		}
@@ -4077,13 +4068,8 @@ int iscsit_close_connection(
 	kfree(conn->conn_ops);
 	conn->conn_ops = NULL;
 
-	if (conn->sock) {
-		if (conn->conn_flags & CONNFLAG_SCTP_STRUCT_FILE) {
-			kfree(conn->sock->file);
-			conn->sock->file = NULL;
-		}
+	if (conn->sock)
 		sock_release(conn->sock);
-	}
 	conn->thread_set = NULL;
 
 	pr_debug("Moving to TARG_CONN_STATE_FREE.\n");

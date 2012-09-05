@@ -80,6 +80,7 @@ struct nfs_write_header *nfs_writehdr_alloc(void)
 		INIT_LIST_HEAD(&hdr->rpc_list);
 		spin_lock_init(&hdr->lock);
 		atomic_set(&hdr->refcnt, 0);
+		hdr->verf = &p->verf;
 	}
 	return p;
 }
@@ -619,6 +620,7 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 			goto next;
 		}
 		if (test_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags)) {
+			memcpy(&req->wb_verf, hdr->verf, sizeof(req->wb_verf));
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
 			goto next;
 		}
@@ -1255,15 +1257,14 @@ static void nfs_writeback_release_common(void *calldata)
 	struct nfs_write_data	*data = calldata;
 	struct nfs_pgio_header *hdr = data->header;
 	int status = data->task.tk_status;
-	struct nfs_page *req = hdr->req;
 
 	if ((status >= 0) && nfs_write_need_commit(data)) {
 		spin_lock(&hdr->lock);
 		if (test_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags))
 			; /* Do nothing */
 		else if (!test_and_set_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags))
-			memcpy(&req->wb_verf, &data->verf, sizeof(req->wb_verf));
-		else if (memcmp(&req->wb_verf, &data->verf, sizeof(req->wb_verf)))
+			memcpy(hdr->verf, &data->verf, sizeof(*hdr->verf));
+		else if (memcmp(hdr->verf, &data->verf, sizeof(*hdr->verf)))
 			set_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags);
 		spin_unlock(&hdr->lock);
 	}

@@ -122,7 +122,7 @@ enum rt_eeprom_type {
 	EEPROM_BOOT_EFUSE,
 };
 
-enum rtl_status {
+enum ttl_status {
 	RTL_STATUS_INTERFACE_START = 0,
 };
 
@@ -1418,6 +1418,7 @@ struct rtl_hal_ops {
 	void (*fill_tx_desc) (struct ieee80211_hw *hw,
 			      struct ieee80211_hdr *hdr, u8 *pdesc_tx,
 			      struct ieee80211_tx_info *info,
+			      struct ieee80211_sta *sta,
 			      struct sk_buff *skb, u8 hw_queue,
 			      struct rtl_tcb_desc *ptcb_desc);
 	void (*fill_fake_txdesc) (struct ieee80211_hw *hw, u8 *pDesc,
@@ -1475,11 +1476,15 @@ struct rtl_intf_ops {
 	int (*adapter_start) (struct ieee80211_hw *hw);
 	void (*adapter_stop) (struct ieee80211_hw *hw);
 
-	int (*adapter_tx) (struct ieee80211_hw *hw, struct sk_buff *skb,
-			struct rtl_tcb_desc *ptcb_desc);
+	int (*adapter_tx) (struct ieee80211_hw *hw,
+			   struct ieee80211_sta *sta,
+			   struct sk_buff *skb,
+			   struct rtl_tcb_desc *ptcb_desc);
 	void (*flush)(struct ieee80211_hw *hw, bool drop);
 	int (*reset_trx_ring) (struct ieee80211_hw *hw);
-	bool (*waitq_insert) (struct ieee80211_hw *hw, struct sk_buff *skb);
+	bool (*waitq_insert) (struct ieee80211_hw *hw,
+			      struct ieee80211_sta *sta,
+			      struct sk_buff *skb);
 
 	/*pci */
 	void (*disable_aspm) (struct ieee80211_hw *hw);

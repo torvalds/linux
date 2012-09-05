@@ -258,7 +258,8 @@ static int e1000_set_settings(struct net_device *netdev,
 	 * When SoL/IDER sessions are active, autoneg/speed/duplex
 	 * cannot be changed
 	 */
-	if (hw->phy.ops.check_reset_block(hw)) {
+	if (hw->phy.ops.check_reset_block &&
+	    hw->phy.ops.check_reset_block(hw)) {
 		e_err("Cannot change link characteristics when SoL/IDER is active.\n");
 		return -EINVAL;
 	}
@@ -1615,7 +1616,8 @@ static int e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 	 * PHY loopback cannot be performed if SoL/IDER
 	 * sessions are active
 	 */
-	if (hw->phy.ops.check_reset_block(hw)) {
+	if (hw->phy.ops.check_reset_block &&
+	    hw->phy.ops.check_reset_block(hw)) {
 		e_err("Cannot do PHY loopback test when SoL/IDER is active.\n");
 		*data = 0;
 		goto out;
@@ -1895,7 +1897,6 @@ static int e1000_set_coalesce(struct net_device *netdev,
 			      struct ethtool_coalesce *ec)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
 
 	if ((ec->rx_coalesce_usecs > E1000_MAX_ITR_USECS) ||
 	    ((ec->rx_coalesce_usecs > 4) &&
@@ -1914,9 +1915,9 @@ static int e1000_set_coalesce(struct net_device *netdev,
 	}
 
 	if (adapter->itr_setting != 0)
-		ew32(ITR, 1000000000 / (adapter->itr * 256));
+		e1000e_write_itr(adapter, adapter->itr);
 	else
-		ew32(ITR, 0);
+		e1000e_write_itr(adapter, 0);
 
 	return 0;
 }
@@ -2060,6 +2061,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
 	.get_rxnfc		= e1000_get_rxnfc,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)

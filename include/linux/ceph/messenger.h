@@ -163,16 +163,8 @@ struct ceph_connection {
 
 	/* connection negotiation temps */
 	char in_banner[CEPH_BANNER_MAX_LEN];
-	union {
-		struct {  /* outgoing connection */
-			struct ceph_msg_connect out_connect;
-			struct ceph_msg_connect_reply in_reply;
-		};
-		struct {  /* incoming */
-			struct ceph_msg_connect in_connect;
-			struct ceph_msg_connect_reply out_reply;
-		};
-	};
+	struct ceph_msg_connect out_connect;
+	struct ceph_msg_connect_reply in_reply;
 	struct ceph_entity_addr actual_peer_addr;
 
 	/* message out temps */

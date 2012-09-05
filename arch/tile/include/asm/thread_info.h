@@ -91,11 +91,6 @@ extern void smp_nap(void);
 /* Enable interrupts racelessly and nap forever: helper for cpu_idle(). */
 extern void _cpu_idle(void);
 
-/* Switch boot idle thread to a freshly-allocated stack and free old stack. */
-extern void cpu_idle_on_new_stack(struct thread_info *old_ti,
-				  unsigned long new_sp,
-				  unsigned long new_ss10);
-
 #else /* __ASSEMBLY__ */
 
 /*

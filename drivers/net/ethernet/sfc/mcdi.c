@@ -1001,12 +1001,17 @@ static void efx_mcdi_exit_assertion(struct efx_nic *efx)
 {
 	u8 inbuf[MC_CMD_REBOOT_IN_LEN];
 
-	/* Atomically reboot the mcfw out of the assertion handler */
+	/* If the MC is running debug firmware, it might now be
+	 * waiting for a debugger to attach, but we just want it to
+	 * reboot.  We set a flag that makes the command a no-op if it
+	 * has already done so.  We don't know what return code to
+	 * expect (0 or -EIO), so ignore it.
+	 */
 	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
 	MCDI_SET_DWORD(inbuf, REBOOT_IN_FLAGS,
 		       MC_CMD_REBOOT_FLAGS_AFTER_ASSERTION);
-	efx_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf, MC_CMD_REBOOT_IN_LEN,
-		     NULL, 0, NULL);
+	(void) efx_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf, MC_CMD_REBOOT_IN_LEN,
+			    NULL, 0, NULL);
 }
 
 int efx_mcdi_handle_assertion(struct efx_nic *efx)

@@ -28,7 +28,7 @@
 #  - (66): the last prefix is 0x66
 #  - (F3): the last prefix is 0xF3
 #  - (F2): the last prefix is 0xF2
-#
+#  - (!F3) : the last prefix is not 0xF3 (including non-last prefix case)
 
 Table: one byte opcode
 Referrer:
@@ -515,12 +515,12 @@ b4: LFS Gv,Mp
 b5: LGS Gv,Mp
 b6: MOVZX Gv,Eb
 b7: MOVZX Gv,Ew
-b8: JMPE | POPCNT Gv,Ev (F3)
+b8: JMPE (!F3) | POPCNT Gv,Ev (F3)
 b9: Grp10 (1A)
 ba: Grp8 Ev,Ib (1A)
 bb: BTC Ev,Gv
-bc: BSF Gv,Ev | TZCNT Gv,Ev (F3)
-bd: BSR Gv,Ev | LZCNT Gv,Ev (F3)
+bc: BSF Gv,Ev (!F3) | TZCNT Gv,Ev (F3)
+bd: BSR Gv,Ev (!F3) | LZCNT Gv,Ev (F3)
 be: MOVSX Gv,Eb
 bf: MOVSX Gv,Ew
 # 0x0f 0xc0-0xcf

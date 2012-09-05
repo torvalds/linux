@@ -434,7 +434,7 @@ static int __nmk_config_pins(pin_cfg_t *cfgs, int num, bool sleep)
 /**
  * nmk_config_pin - configure a pin's mux attributes
  * @cfg: pin confguration
- *
+ * @sleep: Non-zero to apply the sleep mode configuration
  * Configures a pin's mode (alternate function or GPIO), its pull up status,
  * and its sleep mode based on the specified configuration.  The @cfg is
  * usually one of the SoC specific macros defined in mach/<soc>-pins.h.  These
@@ -673,7 +673,7 @@ static void __nmk_gpio_set_wake(struct nmk_gpio_chip *nmk_chip,
 	 * wakeup is anyhow controlled by the RIMSC and FIMSC registers.
 	 */
 	if (nmk_chip->sleepmode && on) {
-		__nmk_gpio_set_slpm(nmk_chip, gpio % nmk_chip->chip.base,
+		__nmk_gpio_set_slpm(nmk_chip, gpio % NMK_GPIO_PER_CHIP,
 				    NMK_GPIO_SLPM_WAKEUP_ENABLE);
 	}
 
@@ -1194,11 +1194,11 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	}
 
 	if (np) {
-		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 
-		if (of_get_property(np, "supports-sleepmode", NULL))
+		if (of_get_property(np, "st,supports-sleepmode", NULL))
 			pdata->supports_sleepmode = true;
 
 		if (of_property_read_u32(np, "gpio-bank", &dev->id)) {
@@ -1229,28 +1229,23 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 		goto out;
 	}
 
-	if (request_mem_region(res->start, resource_size(res),
-			       dev_name(&dev->dev)) == NULL) {
-		ret = -EBUSY;
+	base = devm_request_and_ioremap(&dev->dev, res);
+	if (!base) {
+		ret = -ENOMEM;
 		goto out;
 	}
 
-	base = ioremap(res->start, resource_size(res));
-	if (!base) {
-		ret = -ENOMEM;
-		goto out_release;
-	}
-
-	clk = clk_get(&dev->dev, NULL);
+	clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		goto out_unmap;
+		goto out;
 	}
+	clk_prepare(clk);
 
-	nmk_chip = kzalloc(sizeof(*nmk_chip), GFP_KERNEL);
+	nmk_chip = devm_kzalloc(&dev->dev, sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
 		ret = -ENOMEM;
-		goto out_clk;
+		goto out;
 	}
 
 	/*
@@ -1285,7 +1280,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	ret = gpiochip_add(&nmk_chip->chip);
 	if (ret)
-		goto out_free;
+		goto out;
 
 	BUG_ON(nmk_chip->bank >= ARRAY_SIZE(nmk_gpio_chips));
 
@@ -1299,7 +1294,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	if (!nmk_chip->domain) {
 		pr_err("%s: Failed to create irqdomain\n", np->full_name);
 		ret = -ENOSYS;
-		goto out_free;
+		goto out;
 	}
 
 	nmk_gpio_init_irq(nmk_chip);
@@ -1308,20 +1303,9 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	return 0;
 
-out_free:
-	kfree(nmk_chip);
-out_clk:
-	clk_disable(clk);
-	clk_put(clk);
-out_unmap:
-	iounmap(base);
-out_release:
-	release_mem_region(res->start, resource_size(res));
 out:
 	dev_err(&dev->dev, "Failure %i for GPIO %i-%i\n", ret,
 		  pdata->first_gpio, pdata->first_gpio+31);
-	if (np)
-		kfree(pdata);
 
 	return ret;
 }
@@ -1437,7 +1421,27 @@ static int nmk_pmx_enable(struct pinctrl_dev *pctldev, unsigned function,
 
 	dev_dbg(npct->dev, "enable group %s, %u pins\n", g->name, g->npins);
 
-	/* Handle this special glitch on altfunction C */
+	/*
+	 * If we're setting altfunc C by setting both AFSLA and AFSLB to 1,
+	 * we may pass through an undesired state. In this case we take
+	 * some extra care.
+	 *
+	 * Safe sequence used to switch IOs between GPIO and Alternate-C mode:
+	 *  - Save SLPM registers (since we have a shadow register in the
+	 *    nmk_chip we're using that as backup)
+	 *  - Set SLPM=0 for the IOs you want to switch and others to 1
+	 *  - Configure the GPIO registers for the IOs that are being switched
+	 *  - Set IOFORCE=1
+	 *  - Modify the AFLSA/B registers for the IOs that are being switched
+	 *  - Set IOFORCE=0
+	 *  - Restore SLPM registers
+	 *  - Any spurious wake up event during switch sequence to be ignored
+	 *    and cleared
+	 *
+	 * We REALLY need to save ALL slpm registers, because the external
+	 * IOFORCE will switch *all* ports to their sleepmode setting to as
+	 * to avoid glitches. (Not just one port!)
+	 */
 	glitch = (g->altsetting == NMK_GPIO_ALT_C);
 
 	if (glitch) {

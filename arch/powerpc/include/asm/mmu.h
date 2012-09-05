@@ -163,12 +163,7 @@ extern u64 ppc64_rma_size;
  * to think about, feedback welcome. --BenH.
  */
 
-/* There are #define as they have to be used in assembly
- *
- * WARNING: If you change this list, make sure to update the array of
- * names currently in arch/powerpc/mm/hugetlbpage.c or bad things will
- * happen
- */
+/* These are #defines as they have to be used in assembly */
 #define MMU_PAGE_4K	0
 #define MMU_PAGE_16K	1
 #define MMU_PAGE_64K	2

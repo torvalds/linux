@@ -358,8 +358,10 @@ static int rv770_cp_load_microcode(struct radeon_device *rdev)
 
 void r700_cp_fini(struct radeon_device *rdev)
 {
+	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r700_cp_stop(rdev);
-	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	radeon_ring_fini(rdev, ring);
+	radeon_scratch_free(rdev, ring->rptr_save_reg);
 }
 
 /*
@@ -616,6 +618,9 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 				       ACK_FLUSH_CTL(3) |
 				       SYNC_FLUSH_CTL));
 
+	if (rdev->family != CHIP_RV770)
+		WREG32(SMX_SAR_CTL0, 0x00003f3f);
+
 	db_debug3 = RREG32(DB_DEBUG3);
 	db_debug3 &= ~DB_CLK_OFF_DELAY(0x1f);
 	switch (rdev->family) {
@@ -792,7 +797,7 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 	WREG32(PA_CL_ENHANCE, (CLIP_VTX_REORDER_ENA |
 					  NUM_CLIP_SEQ(3)));
-
+	WREG32(VC_ENHANCE, 0);
 }
 
 void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
@@ -948,13 +953,17 @@ static int rv770_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_pool_start(rdev);
-	if (r)
+	r = radeon_ib_pool_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 		return r;
+	}
 
-	r = radeon_ib_ring_tests(rdev);
-	if (r)
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio init failed\n");
 		return r;
+	}
 
 	return 0;
 }
@@ -978,12 +987,6 @@ int rv770_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_audio_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "radeon: audio init failed\n");
-		return r;
-	}
-
 	return r;
 
 }
@@ -991,9 +994,6 @@ int rv770_resume(struct radeon_device *rdev)
 int rv770_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
-	radeon_ib_pool_suspend(rdev);
-	r600_blit_suspend(rdev);
-	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 	r600_irq_suspend(rdev);
@@ -1073,29 +1073,17 @@ int rv770_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_pool_init(rdev);
 	rdev->accel_working = true;
-	if (r) {
-		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
-		rdev->accel_working = false;
-	}
-
 	r = rv770_startup(rdev);
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
 		r700_cp_fini(rdev);
 		r600_irq_fini(rdev);
 		radeon_wb_fini(rdev);
-		r100_ib_fini(rdev);
+		radeon_ib_pool_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
-	}
-
-	r = r600_audio_init(rdev);
-	if (r) {
-		dev_err(rdev->dev, "radeon: audio init failed\n");
-		return r;
 	}
 
 	return 0;
@@ -1107,7 +1095,7 @@ void rv770_fini(struct radeon_device *rdev)
 	r700_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);
-	r100_ib_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
@@ -1124,6 +1112,8 @@ static void rv770_pcie_gen2_enable(struct radeon_device *rdev)
 {
 	u32 link_width_cntl, lanes, speed_cntl, tmp;
 	u16 link_cntl2;
+	u32 mask;
+	int ret;
 
 	if (radeon_pcie_gen2 == 0)
 		return;
@@ -1137,6 +1127,15 @@ static void rv770_pcie_gen2_enable(struct radeon_device *rdev)
 	/* x2 cards have a special sequence */
 	if (ASIC_IS_X2(rdev))
 		return;
+
+	ret = drm_pcie_get_speed_cap_mask(rdev->ddev, &mask);
+	if (ret != 0)
+		return;
+
+	if (!(mask & DRM_PCIE_SPEED_50))
+		return;
+
+	DRM_INFO("enabling PCIE gen 2 link speeds, disable with radeon.pcie_gen2=0\n");
 
 	/* advertise upconfig capability */
 	link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);

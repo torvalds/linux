@@ -136,7 +136,7 @@ config GPIO_MPC8XXX
 
 config GPIO_MSM_V1
 	tristate "Qualcomm MSM GPIO v1"
-	depends on GPIOLIB && ARCH_MSM
+	depends on GPIOLIB && ARCH_MSM && (ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50)
 	help
 	  Say yes here to support the GPIO interface on ARM v6 based
 	  Qualcomm MSM chips.  Most of the pins on the MSM can be
@@ -252,6 +252,12 @@ config GPIO_GE_FPGA
 	  board computers.
 
 comment "I2C GPIO expanders:"
+
+config GPIO_ARIZONA
+	tristate "Wolfson Microelectronics Arizona class devices"
+	depends on MFD_ARIZONA
+	help
+	  Support for GPIOs on Wolfson Arizona class devices.
 
 config GPIO_MAX7300
 	tristate "Maxim MAX7300 GPIO expander"
@@ -465,6 +471,18 @@ config GPIO_BT8XX
 	  Documentation/bt8xxgpio.txt
 
 	  If unsure, say N.
+
+config GPIO_AMD8111
+	tristate "AMD 8111 GPIO driver"
+	depends on PCI
+	help
+	  The AMD 8111 south bridge contains 32 GPIO pins which can be used.
+
+	  Note, that usually system firmware/ACPI handles GPIO pins on their
+	  own and users might easily break their systems with uncarefull usage
+	  of this driver!
+
+	  If unsure, say N
 
 config GPIO_LANGWELL
 	bool "Intel Langwell/Penwell GPIO support"

@@ -104,8 +104,8 @@ ACPI_EXPORT_SYMBOL(acpi_reset)
  *
  * FUNCTION:    acpi_read
  *
- * PARAMETERS:  Value               - Where the value is returned
- *              Reg                 - GAS register structure
+ * PARAMETERS:  value               - Where the value is returned
+ *              reg                 - GAS register structure
  *
  * RETURN:      Status
  *
@@ -113,7 +113,7 @@ ACPI_EXPORT_SYMBOL(acpi_reset)
  *
  * LIMITATIONS: <These limitations also apply to acpi_write>
  *      bit_width must be exactly 8, 16, 32, or 64.
- *      space_iD must be system_memory or system_iO.
+ *      space_ID must be system_memory or system_IO.
  *      bit_offset and access_width are currently ignored, as there has
  *          not been a need to implement these.
  *
@@ -196,8 +196,8 @@ ACPI_EXPORT_SYMBOL(acpi_read)
  *
  * FUNCTION:    acpi_write
  *
- * PARAMETERS:  Value               - Value to be written
- *              Reg                 - GAS register structure
+ * PARAMETERS:  value               - Value to be written
+ *              reg                 - GAS register structure
  *
  * RETURN:      Status
  *
@@ -441,7 +441,7 @@ ACPI_EXPORT_SYMBOL(acpi_write_bit_register)
  *              *sleep_type_a        - Where SLP_TYPa is returned
  *              *sleep_type_b        - Where SLP_TYPb is returned
  *
- * RETURN:      Status - ACPI status
+ * RETURN:      status - ACPI status
  *
  * DESCRIPTION: Obtain the SLP_TYPa and SLP_TYPb values for the requested sleep
  *              state.

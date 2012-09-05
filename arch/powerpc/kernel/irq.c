@@ -229,7 +229,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 */
 	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
 		__hard_irq_disable();
-#ifdef CONFIG_TRACE_IRQFLAG
+#ifdef CONFIG_TRACE_IRQFLAGS
 	else {
 		/*
 		 * We should already be hard disabled here. We had bugs
@@ -277,13 +277,59 @@ EXPORT_SYMBOL(arch_local_irq_restore);
  * NOTE: This is called with interrupts hard disabled but not marked
  * as such in paca->irq_happened, so we need to resync this.
  */
-void restore_interrupts(void)
+void notrace restore_interrupts(void)
 {
 	if (irqs_disabled()) {
 		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 		local_irq_enable();
 	} else
 		__hard_irq_enable();
+}
+
+/*
+ * This is a helper to use when about to go into idle low-power
+ * when the latter has the side effect of re-enabling interrupts
+ * (such as calling H_CEDE under pHyp).
+ *
+ * You call this function with interrupts soft-disabled (this is
+ * already the case when ppc_md.power_save is called). The function
+ * will return whether to enter power save or just return.
+ *
+ * In the former case, it will have notified lockdep of interrupts
+ * being re-enabled and generally sanitized the lazy irq state,
+ * and in the latter case it will leave with interrupts hard
+ * disabled and marked as such, so the local_irq_enable() call
+ * in cpu_idle() will properly re-enable everything.
+ */
+bool prep_irq_for_idle(void)
+{
+	/*
+	 * First we need to hard disable to ensure no interrupt
+	 * occurs before we effectively enter the low power state
+	 */
+	hard_irq_disable();
+
+	/*
+	 * If anything happened while we were soft-disabled,
+	 * we return now and do not enter the low power state.
+	 */
+	if (lazy_irq_pending())
+		return false;
+
+	/* Tell lockdep we are about to re-enable */
+	trace_hardirqs_on();
+
+	/*
+	 * Mark interrupts as soft-enabled and clear the
+	 * PACA_IRQ_HARD_DIS from the pending mask since we
+	 * are about to hard enable as well as a side effect
+	 * of entering the low power state.
+	 */
+	local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
+	local_paca->soft_enabled = 1;
+
+	/* Tell the caller to enter the low power state */
+	return true;
 }
 
 #endif /* CONFIG_PPC64 */

@@ -981,10 +981,15 @@ xfs_vm_writepage(
 				imap_valid = 0;
 			}
 		} else {
-			if (PageUptodate(page)) {
+			if (PageUptodate(page))
 				ASSERT(buffer_mapped(bh));
-				imap_valid = 0;
-			}
+			/*
+			 * This buffer is not uptodate and will not be
+			 * written to disk.  Ensure that we will put any
+			 * subsequent writeable buffers into a new
+			 * ioend.
+			 */
+			imap_valid = 0;
 			continue;
 		}
 

@@ -38,8 +38,6 @@
 #include <linux/string.h>
 #include <linux/configfs.h>
 #include <linux/ctype.h>
-#include <linux/string.h>
-#include <linux/ctype.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -137,13 +135,15 @@ static char *tcm_qla2xxx_get_fabric_name(void)
  */
 static int tcm_qla2xxx_npiv_extract_wwn(const char *ns, u64 *nm)
 {
-	unsigned int i, j, value;
+	unsigned int i, j;
 	u8 wwn[8];
 
 	memset(wwn, 0, sizeof(wwn));
 
 	/* Validate and store the new name */
 	for (i = 0, j = 0; i < 16; i++) {
+		int value;
+
 		value = hex_to_bin(*ns++);
 		if (value >= 0)
 			j = (j << 4) | value;
@@ -464,8 +464,7 @@ static int tcm_qla2xxx_shutdown_session(struct se_session *se_sess)
 	vha = sess->vha;
 
 	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-	sess->tearing_down = 1;
-	target_splice_sess_cmd_list(se_sess);
+	target_sess_cmd_list_set_waiting(se_sess);
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 
 	return 1;
@@ -598,28 +597,15 @@ static int tcm_qla2xxx_handle_cmd(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 		return -EINVAL;
 	}
 
-	target_submit_cmd(se_cmd, se_sess, cdb, &cmd->sense_buffer[0],
+	return target_submit_cmd(se_cmd, se_sess, cdb, &cmd->sense_buffer[0],
 				cmd->unpacked_lun, data_length, fcp_task_attr,
 				data_dir, flags);
-	return 0;
 }
 
-static void tcm_qla2xxx_do_rsp(struct work_struct *work)
+static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 {
 	struct qla_tgt_cmd *cmd = container_of(work, struct qla_tgt_cmd, work);
-	/*
-	 * Dispatch ->queue_status from workqueue process context
-	 */
-	transport_generic_request_failure(&cmd->se_cmd);
-}
 
-/*
- * Called from qla_target.c:qlt_do_ctio_completion()
- */
-static int tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
-{
-	struct se_cmd *se_cmd = &cmd->se_cmd;
-	unsigned long flags;
 	/*
 	 * Ensure that the complete FCP WRITE payload has been received.
 	 * Otherwise return an exception via CHECK_CONDITION status.
@@ -629,31 +615,33 @@ static int tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
 		 * Check if se_cmd has already been aborted via LUN_RESET, and
 		 * waiting upon completion in tcm_qla2xxx_write_pending_status()
 		 */
-		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
-		if (se_cmd->transport_state & CMD_T_ABORTED) {
-			spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
-			complete(&se_cmd->t_transport_stop_comp);
-			return 0;
+		if (cmd->se_cmd.transport_state & CMD_T_ABORTED) {
+			complete(&cmd->se_cmd.t_transport_stop_comp);
+			return;
 		}
-		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 
-		se_cmd->scsi_sense_reason = TCM_CHECK_CONDITION_ABORT_CMD;
-		INIT_WORK(&cmd->work, tcm_qla2xxx_do_rsp);
-		queue_work(tcm_qla2xxx_free_wq, &cmd->work);
-		return 0;
+		cmd->se_cmd.scsi_sense_reason = TCM_CHECK_CONDITION_ABORT_CMD;
+		transport_generic_request_failure(&cmd->se_cmd);
+		return;
 	}
-	/*
-	 * We now tell TCM to queue this WRITE CDB with TRANSPORT_PROCESS_WRITE
-	 * status to the backstore processing thread.
-	 */
-	return transport_generic_handle_data(&cmd->se_cmd);
+
+	return target_execute_cmd(&cmd->se_cmd);
+}
+
+/*
+ * Called from qla_target.c:qlt_do_ctio_completion()
+ */
+static void tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
+{
+	INIT_WORK(&cmd->work, tcm_qla2xxx_handle_data_work);
+	queue_work(tcm_qla2xxx_free_wq, &cmd->work);
 }
 
 /*
  * Called from qla_target.c:qlt_issue_task_mgmt()
  */
-int tcm_qla2xxx_handle_tmr(struct qla_tgt_mgmt_cmd *mcmd, uint32_t lun,
-			uint8_t tmr_func, uint32_t tag)
+static int tcm_qla2xxx_handle_tmr(struct qla_tgt_mgmt_cmd *mcmd, uint32_t lun,
+	uint8_t tmr_func, uint32_t tag)
 {
 	struct qla_tgt_sess *sess = mcmd->sess;
 	struct se_cmd *se_cmd = &mcmd->se_cmd;
@@ -762,65 +750,8 @@ static u16 tcm_qla2xxx_set_fabric_sense_len(struct se_cmd *se_cmd,
 struct target_fabric_configfs *tcm_qla2xxx_fabric_configfs;
 struct target_fabric_configfs *tcm_qla2xxx_npiv_fabric_configfs;
 
-static int tcm_qla2xxx_setup_nacl_from_rport(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct tcm_qla2xxx_lport *lport,
-	struct tcm_qla2xxx_nacl *nacl,
-	u64 rport_wwnn)
-{
-	struct scsi_qla_host *vha = lport->qla_vha;
-	struct Scsi_Host *sh = vha->host;
-	struct fc_host_attrs *fc_host = shost_to_fc_host(sh);
-	struct fc_rport *rport;
-	unsigned long flags;
-	void *node;
-	int rc;
-
-	/*
-	 * Scan the existing rports, and create a session for the
-	 * explict NodeACL is an matching rport->node_name already
-	 * exists.
-	 */
-	spin_lock_irqsave(sh->host_lock, flags);
-	list_for_each_entry(rport, &fc_host->rports, peers) {
-		if (rport_wwnn != rport->node_name)
-			continue;
-
-		pr_debug("Located existing rport_wwpn and rport->node_name: 0x%016LX, port_id: 0x%04x\n",
-		    rport->node_name, rport->port_id);
-		nacl->nport_id = rport->port_id;
-
-		spin_unlock_irqrestore(sh->host_lock, flags);
-
-		spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-		node = btree_lookup32(&lport->lport_fcport_map, rport->port_id);
-		if (node) {
-			rc = btree_update32(&lport->lport_fcport_map,
-					    rport->port_id, se_nacl);
-		} else {
-			rc = btree_insert32(&lport->lport_fcport_map,
-					    rport->port_id, se_nacl,
-					    GFP_ATOMIC);
-		}
-		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
-
-		if (rc) {
-			pr_err("Unable to insert se_nacl into fcport_map");
-			WARN_ON(rc > 0);
-			return rc;
-		}
-
-		pr_debug("Inserted into fcport_map: %p for WWNN: 0x%016LX, port_id: 0x%08x\n",
-		    se_nacl, rport_wwnn, nacl->nport_id);
-
-		return 1;
-	}
-	spin_unlock_irqrestore(sh->host_lock, flags);
-
-	return 0;
-}
-
+static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *,
+			struct tcm_qla2xxx_nacl *, struct qla_tgt_sess *);
 /*
  * Expected to be called with struct qla_hw_data->hardware_lock held
  */
@@ -842,11 +773,40 @@ static void tcm_qla2xxx_clear_nacl_from_fcport_map(struct qla_tgt_sess *sess)
 
 	pr_debug("Removed from fcport_map: %p for WWNN: 0x%016LX, port_id: 0x%06x\n",
 	    se_nacl, nacl->nport_wwnn, nacl->nport_id);
+	/*
+	 * Now clear the se_nacl and session pointers from our HW lport lookup
+	 * table mapping for this initiator's fabric S_ID and LOOP_ID entries.
+	 *
+	 * This is done ahead of callbacks into tcm_qla2xxx_free_session() ->
+	 * target_wait_for_sess_cmds() before the session waits for outstanding
+	 * I/O to complete, to avoid a race between session shutdown execution
+	 * and incoming ATIOs or TMRs picking up a stale se_node_act reference.
+	 */
+	tcm_qla2xxx_clear_sess_lookup(lport, nacl, sess);
+}
+
+static void tcm_qla2xxx_release_session(struct kref *kref)
+{
+	struct se_session *se_sess = container_of(kref,
+			struct se_session, sess_kref);
+
+	qlt_unreg_sess(se_sess->fabric_sess_ptr);
+}
+
+static void tcm_qla2xxx_put_session(struct se_session *se_sess)
+{
+	struct qla_tgt_sess *sess = se_sess->fabric_sess_ptr;
+	struct qla_hw_data *ha = sess->vha->hw;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	kref_put(&se_sess->sess_kref, tcm_qla2xxx_release_session);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
 static void tcm_qla2xxx_put_sess(struct qla_tgt_sess *sess)
 {
-	target_put_session(sess->se_sess);
+	tcm_qla2xxx_put_session(sess->se_sess);
 }
 
 static void tcm_qla2xxx_shutdown_sess(struct qla_tgt_sess *sess)
@@ -859,14 +819,10 @@ static struct se_node_acl *tcm_qla2xxx_make_nodeacl(
 	struct config_group *group,
 	const char *name)
 {
-	struct se_wwn *se_wwn = se_tpg->se_tpg_wwn;
-	struct tcm_qla2xxx_lport *lport = container_of(se_wwn,
-				struct tcm_qla2xxx_lport, lport_wwn);
 	struct se_node_acl *se_nacl, *se_nacl_new;
 	struct tcm_qla2xxx_nacl *nacl;
 	u64 wwnn;
 	u32 qla2xxx_nexus_depth;
-	int rc;
 
 	if (tcm_qla2xxx_parse_wwn(name, &wwnn, 1) < 0)
 		return ERR_PTR(-EINVAL);
@@ -893,16 +849,6 @@ static struct se_node_acl *tcm_qla2xxx_make_nodeacl(
 	nacl = container_of(se_nacl, struct tcm_qla2xxx_nacl, se_node_acl);
 	nacl->nport_wwnn = wwnn;
 	tcm_qla2xxx_format_wwn(&nacl->nport_name[0], TCM_QLA2XXX_NAMELEN, wwnn);
-	/*
-	 * Setup a se_nacl handle based on an a matching struct fc_rport setup
-	 * via drivers/scsi/qla2xxx/qla_init.c:qla2x00_reg_remote_port()
-	 */
-	rc = tcm_qla2xxx_setup_nacl_from_rport(se_tpg, se_nacl, lport,
-					nacl, wwnn);
-	if (rc < 0) {
-		tcm_qla2xxx_release_fabric_acl(se_tpg, se_nacl_new);
-		return ERR_PTR(rc);
-	}
 
 	return se_nacl;
 }
@@ -1390,6 +1336,25 @@ static void tcm_qla2xxx_set_sess_by_loop_id(
 	    nacl->qla_tgt_sess, new_se_nacl, new_se_nacl->initiatorname);
 }
 
+/*
+ * Should always be called with qla_hw_data->hardware_lock held.
+ */
+static void tcm_qla2xxx_clear_sess_lookup(struct tcm_qla2xxx_lport *lport,
+		struct tcm_qla2xxx_nacl *nacl, struct qla_tgt_sess *sess)
+{
+	struct se_session *se_sess = sess->se_sess;
+	unsigned char be_sid[3];
+
+	be_sid[0] = sess->s_id.b.domain;
+	be_sid[1] = sess->s_id.b.area;
+	be_sid[2] = sess->s_id.b.al_pa;
+
+	tcm_qla2xxx_set_sess_by_s_id(lport, NULL, nacl, se_sess,
+				sess, be_sid);
+	tcm_qla2xxx_set_sess_by_loop_id(lport, NULL, nacl, se_sess,
+				sess, sess->loop_id);
+}
+
 static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 {
 	struct qla_tgt *tgt = sess->tgt;
@@ -1398,8 +1363,6 @@ static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 	struct se_node_acl *se_nacl;
 	struct tcm_qla2xxx_lport *lport;
 	struct tcm_qla2xxx_nacl *nacl;
-	unsigned char be_sid[3];
-	unsigned long flags;
 
 	BUG_ON(in_interrupt());
 
@@ -1419,21 +1382,6 @@ static void tcm_qla2xxx_free_session(struct qla_tgt_sess *sess)
 		return;
 	}
 	target_wait_for_sess_cmds(se_sess, 0);
-	/*
-	 * And now clear the se_nacl and session pointers from our HW lport
-	 * mappings for fabric S_ID and LOOP_ID.
-	 */
-	memset(&be_sid, 0, 3);
-	be_sid[0] = sess->s_id.b.domain;
-	be_sid[1] = sess->s_id.b.area;
-	be_sid[2] = sess->s_id.b.al_pa;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	tcm_qla2xxx_set_sess_by_s_id(lport, NULL, nacl, se_sess,
-			sess, be_sid);
-	tcm_qla2xxx_set_sess_by_loop_id(lport, NULL, nacl, se_sess,
-			sess, sess->loop_id);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	transport_deregister_session_configfs(sess->se_sess);
 	transport_deregister_session(sess->se_sess);
@@ -1728,9 +1676,9 @@ static struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
 	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
-	.new_cmd_map			= NULL,
 	.check_stop_free		= tcm_qla2xxx_check_stop_free,
 	.release_cmd			= tcm_qla2xxx_release_cmd,
+	.put_session			= tcm_qla2xxx_put_session,
 	.shutdown_session		= tcm_qla2xxx_shutdown_session,
 	.close_session			= tcm_qla2xxx_close_session,
 	.sess_get_index			= tcm_qla2xxx_sess_get_index,
@@ -1779,6 +1727,7 @@ static struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
 	.release_cmd			= tcm_qla2xxx_release_cmd,
+	.put_session			= tcm_qla2xxx_put_session,
 	.shutdown_session		= tcm_qla2xxx_shutdown_session,
 	.close_session			= tcm_qla2xxx_close_session,
 	.sess_get_index			= tcm_qla2xxx_sess_get_index,

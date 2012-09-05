@@ -81,4 +81,7 @@
 #define MCF_PAR_PSC_RTS_RTS	(0x30)
 #define MCF_PAR_PSC_CANRX	(0x40)
 
+#define MCF_PAR_PCIBG		(CONFIG_MBAR + 0xa48)	/* PCI bus grant */
+#define MCF_PAR_PCIBR		(CONFIG_MBAR + 0xa4a)	/* PCI */
+
 #endif	/* m54xxsim_h */

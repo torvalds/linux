@@ -453,7 +453,7 @@ static void efx_ethtool_get_strings(struct net_device *net_dev,
 	switch (string_set) {
 	case ETH_SS_STATS:
 		for (i = 0; i < EFX_ETHTOOL_NUM_STATS; i++)
-			strncpy(ethtool_strings[i].name,
+			strlcpy(ethtool_strings[i].name,
 				efx_ethtool_stats[i].name,
 				sizeof(ethtool_strings[i].name));
 		break;

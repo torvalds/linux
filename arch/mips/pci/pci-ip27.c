@@ -212,7 +212,7 @@ static inline void pci_enable_swapping(struct pci_dev *dev)
 	bridge->b_widget.w_tflush;	/* Flush */
 }
 
-static void __init pci_fixup_ioc3(struct pci_dev *d)
+static void __devinit pci_fixup_ioc3(struct pci_dev *d)
 {
 	pci_disable_swapping(d);
 }

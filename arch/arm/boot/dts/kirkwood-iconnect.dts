@@ -4,7 +4,7 @@
 
 / {
 	model = "Iomega Iconnect";
-	compatible = "iom,iconnect-1.1", "iom,iconnect", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
+	compatible = "iom,iconnect-1.1", "iom,iconnect", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";

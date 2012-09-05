@@ -28,7 +28,6 @@
 #ifndef __OCRDMA_VERBS_H__
 #define __OCRDMA_VERBS_H__
 
-#include <linux/version.h>
 int ocrdma_post_send(struct ib_qp *, struct ib_send_wr *,
 		     struct ib_send_wr **bad_wr);
 int ocrdma_post_recv(struct ib_qp *, struct ib_recv_wr *,

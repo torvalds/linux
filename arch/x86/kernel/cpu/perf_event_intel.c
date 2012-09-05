@@ -5,6 +5,8 @@
  * among events on a single PMU.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -21,14 +23,14 @@
  */
 static u64 intel_perfmon_event_map[PERF_COUNT_HW_MAX] __read_mostly =
 {
-  [PERF_COUNT_HW_CPU_CYCLES]		= 0x003c,
-  [PERF_COUNT_HW_INSTRUCTIONS]		= 0x00c0,
-  [PERF_COUNT_HW_CACHE_REFERENCES]	= 0x4f2e,
-  [PERF_COUNT_HW_CACHE_MISSES]		= 0x412e,
-  [PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= 0x00c4,
-  [PERF_COUNT_HW_BRANCH_MISSES]		= 0x00c5,
-  [PERF_COUNT_HW_BUS_CYCLES]		= 0x013c,
-  [PERF_COUNT_HW_REF_CPU_CYCLES]	= 0x0300, /* pseudo-encoding */
+	[PERF_COUNT_HW_CPU_CYCLES]		= 0x003c,
+	[PERF_COUNT_HW_INSTRUCTIONS]		= 0x00c0,
+	[PERF_COUNT_HW_CACHE_REFERENCES]	= 0x4f2e,
+	[PERF_COUNT_HW_CACHE_MISSES]		= 0x412e,
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= 0x00c4,
+	[PERF_COUNT_HW_BRANCH_MISSES]		= 0x00c5,
+	[PERF_COUNT_HW_BUS_CYCLES]		= 0x013c,
+	[PERF_COUNT_HW_REF_CPU_CYCLES]		= 0x0300, /* pseudo-encoding */
 };
 
 static struct event_constraint intel_core_event_constraints[] __read_mostly =
@@ -747,7 +749,7 @@ static void intel_pmu_disable_all(void)
 
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 
-	if (test_bit(X86_PMC_IDX_FIXED_BTS, cpuc->active_mask))
+	if (test_bit(INTEL_PMC_IDX_FIXED_BTS, cpuc->active_mask))
 		intel_pmu_disable_bts();
 
 	intel_pmu_pebs_disable_all();
@@ -763,9 +765,9 @@ static void intel_pmu_enable_all(int added)
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL,
 			x86_pmu.intel_ctrl & ~cpuc->intel_ctrl_guest_mask);
 
-	if (test_bit(X86_PMC_IDX_FIXED_BTS, cpuc->active_mask)) {
+	if (test_bit(INTEL_PMC_IDX_FIXED_BTS, cpuc->active_mask)) {
 		struct perf_event *event =
-			cpuc->events[X86_PMC_IDX_FIXED_BTS];
+			cpuc->events[INTEL_PMC_IDX_FIXED_BTS];
 
 		if (WARN_ON_ONCE(!event))
 			return;
@@ -871,7 +873,7 @@ static inline void intel_pmu_ack_status(u64 ack)
 
 static void intel_pmu_disable_fixed(struct hw_perf_event *hwc)
 {
-	int idx = hwc->idx - X86_PMC_IDX_FIXED;
+	int idx = hwc->idx - INTEL_PMC_IDX_FIXED;
 	u64 ctrl_val, mask;
 
 	mask = 0xfULL << (idx * 4);
@@ -886,7 +888,7 @@ static void intel_pmu_disable_event(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
-	if (unlikely(hwc->idx == X86_PMC_IDX_FIXED_BTS)) {
+	if (unlikely(hwc->idx == INTEL_PMC_IDX_FIXED_BTS)) {
 		intel_pmu_disable_bts();
 		intel_pmu_drain_bts_buffer();
 		return;
@@ -915,7 +917,7 @@ static void intel_pmu_disable_event(struct perf_event *event)
 
 static void intel_pmu_enable_fixed(struct hw_perf_event *hwc)
 {
-	int idx = hwc->idx - X86_PMC_IDX_FIXED;
+	int idx = hwc->idx - INTEL_PMC_IDX_FIXED;
 	u64 ctrl_val, bits, mask;
 
 	/*
@@ -949,7 +951,7 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
-	if (unlikely(hwc->idx == X86_PMC_IDX_FIXED_BTS)) {
+	if (unlikely(hwc->idx == INTEL_PMC_IDX_FIXED_BTS)) {
 		if (!__this_cpu_read(cpu_hw_events.enabled))
 			return;
 
@@ -1000,14 +1002,14 @@ static void intel_pmu_reset(void)
 
 	local_irq_save(flags);
 
-	printk("clearing PMU state on CPU#%d\n", smp_processor_id());
+	pr_info("clearing PMU state on CPU#%d\n", smp_processor_id());
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
-		checking_wrmsrl(x86_pmu_config_addr(idx), 0ull);
-		checking_wrmsrl(x86_pmu_event_addr(idx),  0ull);
+		wrmsrl_safe(x86_pmu_config_addr(idx), 0ull);
+		wrmsrl_safe(x86_pmu_event_addr(idx),  0ull);
 	}
 	for (idx = 0; idx < x86_pmu.num_counters_fixed; idx++)
-		checking_wrmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
+		wrmsrl_safe(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
 
 	if (ds)
 		ds->bts_index = ds->bts_buffer_base;
@@ -1119,27 +1121,33 @@ intel_bts_constraints(struct perf_event *event)
 	return NULL;
 }
 
-static bool intel_try_alt_er(struct perf_event *event, int orig_idx)
+static int intel_alt_er(int idx)
 {
 	if (!(x86_pmu.er_flags & ERF_HAS_RSP_1))
-		return false;
+		return idx;
 
-	if (event->hw.extra_reg.idx == EXTRA_REG_RSP_0) {
-		event->hw.config &= ~INTEL_ARCH_EVENT_MASK;
-		event->hw.config |= 0x01bb;
-		event->hw.extra_reg.idx = EXTRA_REG_RSP_1;
-		event->hw.extra_reg.reg = MSR_OFFCORE_RSP_1;
-	} else if (event->hw.extra_reg.idx == EXTRA_REG_RSP_1) {
+	if (idx == EXTRA_REG_RSP_0)
+		return EXTRA_REG_RSP_1;
+
+	if (idx == EXTRA_REG_RSP_1)
+		return EXTRA_REG_RSP_0;
+
+	return idx;
+}
+
+static void intel_fixup_er(struct perf_event *event, int idx)
+{
+	event->hw.extra_reg.idx = idx;
+
+	if (idx == EXTRA_REG_RSP_0) {
 		event->hw.config &= ~INTEL_ARCH_EVENT_MASK;
 		event->hw.config |= 0x01b7;
-		event->hw.extra_reg.idx = EXTRA_REG_RSP_0;
 		event->hw.extra_reg.reg = MSR_OFFCORE_RSP_0;
+	} else if (idx == EXTRA_REG_RSP_1) {
+		event->hw.config &= ~INTEL_ARCH_EVENT_MASK;
+		event->hw.config |= 0x01bb;
+		event->hw.extra_reg.reg = MSR_OFFCORE_RSP_1;
 	}
-
-	if (event->hw.extra_reg.idx == orig_idx)
-		return false;
-
-	return true;
 }
 
 /*
@@ -1157,14 +1165,18 @@ __intel_shared_reg_get_constraints(struct cpu_hw_events *cpuc,
 	struct event_constraint *c = &emptyconstraint;
 	struct er_account *era;
 	unsigned long flags;
-	int orig_idx = reg->idx;
+	int idx = reg->idx;
 
-	/* already allocated shared msr */
-	if (reg->alloc)
+	/*
+	 * reg->alloc can be set due to existing state, so for fake cpuc we
+	 * need to ignore this, otherwise we might fail to allocate proper fake
+	 * state for this extra reg constraint. Also see the comment below.
+	 */
+	if (reg->alloc && !cpuc->is_fake)
 		return NULL; /* call x86_get_event_constraint() */
 
 again:
-	era = &cpuc->shared_regs->regs[reg->idx];
+	era = &cpuc->shared_regs->regs[idx];
 	/*
 	 * we use spin_lock_irqsave() to avoid lockdep issues when
 	 * passing a fake cpuc
@@ -1173,6 +1185,29 @@ again:
 
 	if (!atomic_read(&era->ref) || era->config == reg->config) {
 
+		/*
+		 * If its a fake cpuc -- as per validate_{group,event}() we
+		 * shouldn't touch event state and we can avoid doing so
+		 * since both will only call get_event_constraints() once
+		 * on each event, this avoids the need for reg->alloc.
+		 *
+		 * Not doing the ER fixup will only result in era->reg being
+		 * wrong, but since we won't actually try and program hardware
+		 * this isn't a problem either.
+		 */
+		if (!cpuc->is_fake) {
+			if (idx != reg->idx)
+				intel_fixup_er(event, idx);
+
+			/*
+			 * x86_schedule_events() can call get_event_constraints()
+			 * multiple times on events in the case of incremental
+			 * scheduling(). reg->alloc ensures we only do the ER
+			 * allocation once.
+			 */
+			reg->alloc = 1;
+		}
+
 		/* lock in msr value */
 		era->config = reg->config;
 		era->reg = reg->reg;
@@ -1180,17 +1215,17 @@ again:
 		/* one more user */
 		atomic_inc(&era->ref);
 
-		/* no need to reallocate during incremental event scheduling */
-		reg->alloc = 1;
-
 		/*
 		 * need to call x86_get_event_constraint()
 		 * to check if associated event has constraints
 		 */
 		c = NULL;
-	} else if (intel_try_alt_er(event, orig_idx)) {
-		raw_spin_unlock_irqrestore(&era->lock, flags);
-		goto again;
+	} else {
+		idx = intel_alt_er(idx);
+		if (idx != reg->idx) {
+			raw_spin_unlock_irqrestore(&era->lock, flags);
+			goto again;
+		}
 	}
 	raw_spin_unlock_irqrestore(&era->lock, flags);
 
@@ -1204,11 +1239,14 @@ __intel_shared_reg_put_constraints(struct cpu_hw_events *cpuc,
 	struct er_account *era;
 
 	/*
-	 * only put constraint if extra reg was actually
-	 * allocated. Also takes care of event which do
-	 * not use an extra shared reg
+	 * Only put constraint if extra reg was actually allocated. Also takes
+	 * care of event which do not use an extra shared reg.
+	 *
+	 * Also, if this is a fake cpuc we shouldn't touch any event state
+	 * (reg->alloc) and we don't care about leaving inconsistent cpuc state
+	 * either since it'll be thrown out.
 	 */
-	if (!reg->alloc)
+	if (!reg->alloc || cpuc->is_fake)
 		return;
 
 	era = &cpuc->shared_regs->regs[reg->idx];
@@ -1300,15 +1338,9 @@ static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
 	intel_put_shared_regs_event_constraints(cpuc, event);
 }
 
-static int intel_pmu_hw_config(struct perf_event *event)
+static void intel_pebs_aliases_core2(struct perf_event *event)
 {
-	int ret = x86_pmu_hw_config(event);
-
-	if (ret)
-		return ret;
-
-	if (event->attr.precise_ip &&
-	    (event->hw.config & X86_RAW_EVENT_MASK) == 0x003c) {
+	if ((event->hw.config & X86_RAW_EVENT_MASK) == 0x003c) {
 		/*
 		 * Use an alternative encoding for CPU_CLK_UNHALTED.THREAD_P
 		 * (0x003c) so that we can use it with PEBS.
@@ -1329,10 +1361,48 @@ static int intel_pmu_hw_config(struct perf_event *event)
 		 */
 		u64 alt_config = X86_CONFIG(.event=0xc0, .inv=1, .cmask=16);
 
+		alt_config |= (event->hw.config & ~X86_RAW_EVENT_MASK);
+		event->hw.config = alt_config;
+	}
+}
+
+static void intel_pebs_aliases_snb(struct perf_event *event)
+{
+	if ((event->hw.config & X86_RAW_EVENT_MASK) == 0x003c) {
+		/*
+		 * Use an alternative encoding for CPU_CLK_UNHALTED.THREAD_P
+		 * (0x003c) so that we can use it with PEBS.
+		 *
+		 * The regular CPU_CLK_UNHALTED.THREAD_P event (0x003c) isn't
+		 * PEBS capable. However we can use UOPS_RETIRED.ALL
+		 * (0x01c2), which is a PEBS capable event, to get the same
+		 * count.
+		 *
+		 * UOPS_RETIRED.ALL counts the number of cycles that retires
+		 * CNTMASK micro-ops. By setting CNTMASK to a value (16)
+		 * larger than the maximum number of micro-ops that can be
+		 * retired per cycle (4) and then inverting the condition, we
+		 * count all cycles that retire 16 or less micro-ops, which
+		 * is every cycle.
+		 *
+		 * Thereby we gain a PEBS capable cycle counter.
+		 */
+		u64 alt_config = X86_CONFIG(.event=0xc2, .umask=0x01, .inv=1, .cmask=16);
 
 		alt_config |= (event->hw.config & ~X86_RAW_EVENT_MASK);
 		event->hw.config = alt_config;
 	}
+}
+
+static int intel_pmu_hw_config(struct perf_event *event)
+{
+	int ret = x86_pmu_hw_config(event);
+
+	if (ret)
+		return ret;
+
+	if (event->attr.precise_ip && x86_pmu.pebs_aliases)
+		x86_pmu.pebs_aliases(event);
 
 	if (intel_pmu_needs_lbr_smpl(event)) {
 		ret = intel_pmu_setup_lbr_filter(event);
@@ -1607,6 +1677,7 @@ static __initconst const struct x86_pmu intel_pmu = {
 	.max_period		= (1ULL << 31) - 1,
 	.get_event_constraints	= intel_get_event_constraints,
 	.put_event_constraints	= intel_put_event_constraints,
+	.pebs_aliases		= intel_pebs_aliases_core2,
 
 	.format_attrs		= intel_arch3_formats_attr,
 
@@ -1638,16 +1709,61 @@ static __init void intel_clovertown_quirk(void)
 	 * But taken together it might just make sense to not enable PEBS on
 	 * these chips.
 	 */
-	printk(KERN_WARNING "PEBS disabled due to CPU errata.\n");
+	pr_warn("PEBS disabled due to CPU errata\n");
 	x86_pmu.pebs = 0;
 	x86_pmu.pebs_constraints = NULL;
 }
 
+static int intel_snb_pebs_broken(int cpu)
+{
+	u32 rev = UINT_MAX; /* default to broken for unknown models */
+
+	switch (cpu_data(cpu).x86_model) {
+	case 42: /* SNB */
+		rev = 0x28;
+		break;
+
+	case 45: /* SNB-EP */
+		switch (cpu_data(cpu).x86_mask) {
+		case 6: rev = 0x618; break;
+		case 7: rev = 0x70c; break;
+		}
+	}
+
+	return (cpu_data(cpu).microcode < rev);
+}
+
+static void intel_snb_check_microcode(void)
+{
+	int pebs_broken = 0;
+	int cpu;
+
+	get_online_cpus();
+	for_each_online_cpu(cpu) {
+		if ((pebs_broken = intel_snb_pebs_broken(cpu)))
+			break;
+	}
+	put_online_cpus();
+
+	if (pebs_broken == x86_pmu.pebs_broken)
+		return;
+
+	/*
+	 * Serialized by the microcode lock..
+	 */
+	if (x86_pmu.pebs_broken) {
+		pr_info("PEBS enabled due to microcode update\n");
+		x86_pmu.pebs_broken = 0;
+	} else {
+		pr_info("PEBS disabled due to CPU errata, please upgrade microcode\n");
+		x86_pmu.pebs_broken = 1;
+	}
+}
+
 static __init void intel_sandybridge_quirk(void)
 {
-	printk(KERN_WARNING "PEBS disabled due to CPU errata.\n");
-	x86_pmu.pebs = 0;
-	x86_pmu.pebs_constraints = NULL;
+	x86_pmu.check_microcode = intel_snb_check_microcode;
+	intel_snb_check_microcode();
 }
 
 static const struct { int id; char *name; } intel_arch_events_map[] __initconst = {
@@ -1667,8 +1783,8 @@ static __init void intel_arch_events_quirk(void)
 	/* disable event that reported as not presend by cpuid */
 	for_each_set_bit(bit, x86_pmu.events_mask, ARRAY_SIZE(intel_arch_events_map)) {
 		intel_perfmon_event_map[intel_arch_events_map[bit].id] = 0;
-		printk(KERN_WARNING "CPUID marked event: \'%s\' unavailable\n",
-				intel_arch_events_map[bit].name);
+		pr_warn("CPUID marked event: \'%s\' unavailable\n",
+			intel_arch_events_map[bit].name);
 	}
 }
 
@@ -1687,7 +1803,7 @@ static __init void intel_nehalem_quirk(void)
 		intel_perfmon_event_map[PERF_COUNT_HW_BRANCH_MISSES] = 0x7f89;
 		ebx.split.no_branch_misses_retired = 0;
 		x86_pmu.events_maskl = ebx.full;
-		printk(KERN_INFO "CPU erratum AAJ80 worked around\n");
+		pr_info("CPU erratum AAJ80 worked around\n");
 	}
 }
 
@@ -1696,6 +1812,7 @@ __init int intel_pmu_init(void)
 	union cpuid10_edx edx;
 	union cpuid10_eax eax;
 	union cpuid10_ebx ebx;
+	struct event_constraint *c;
 	unsigned int unused;
 	int version;
 
@@ -1730,6 +1847,8 @@ __init int intel_pmu_init(void)
 
 	x86_pmu.events_maskl		= ebx.full;
 	x86_pmu.events_mask_len		= eax.split.mask_length;
+
+	x86_pmu.max_pebs_events		= min_t(unsigned, MAX_PEBS_EVENTS, x86_pmu.num_counters);
 
 	/*
 	 * Quirk: v2 perfmon does not report fixed-purpose events, so
@@ -1840,8 +1959,9 @@ __init int intel_pmu_init(void)
 		break;
 
 	case 42: /* SandyBridge */
-		x86_add_quirk(intel_sandybridge_quirk);
 	case 45: /* SandyBridge, "Romely-EP" */
+		x86_add_quirk(intel_sandybridge_quirk);
+	case 58: /* IvyBridge */
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 
@@ -1849,6 +1969,7 @@ __init int intel_pmu_init(void)
 
 		x86_pmu.event_constraints = intel_snb_event_constraints;
 		x86_pmu.pebs_constraints = intel_snb_pebs_event_constraints;
+		x86_pmu.pebs_aliases = intel_pebs_aliases_snb;
 		x86_pmu.extra_regs = intel_snb_extra_regs;
 		/* all extra regs are per-cpu when HT is on */
 		x86_pmu.er_flags |= ERF_HAS_RSP_1;
@@ -1877,6 +1998,38 @@ __init int intel_pmu_init(void)
 			x86_pmu.event_constraints = intel_gen_event_constraints;
 			pr_cont("generic architected perfmon, ");
 			break;
+		}
+	}
+
+	if (x86_pmu.num_counters > INTEL_PMC_MAX_GENERIC) {
+		WARN(1, KERN_ERR "hw perf events %d > max(%d), clipping!",
+		     x86_pmu.num_counters, INTEL_PMC_MAX_GENERIC);
+		x86_pmu.num_counters = INTEL_PMC_MAX_GENERIC;
+	}
+	x86_pmu.intel_ctrl = (1 << x86_pmu.num_counters) - 1;
+
+	if (x86_pmu.num_counters_fixed > INTEL_PMC_MAX_FIXED) {
+		WARN(1, KERN_ERR "hw perf events fixed %d > max(%d), clipping!",
+		     x86_pmu.num_counters_fixed, INTEL_PMC_MAX_FIXED);
+		x86_pmu.num_counters_fixed = INTEL_PMC_MAX_FIXED;
+	}
+
+	x86_pmu.intel_ctrl |=
+		((1LL << x86_pmu.num_counters_fixed)-1) << INTEL_PMC_IDX_FIXED;
+
+	if (x86_pmu.event_constraints) {
+		/*
+		 * event on fixed counter2 (REF_CYCLES) only works on this
+		 * counter, so do not extend mask to generic counters
+		 */
+		for_each_event_constraint(c, x86_pmu.event_constraints) {
+			if (c->cmask != X86_RAW_EVENT_MASK
+			    || c->idxmsk64 == INTEL_PMC_MSK_FIXED_REF_CYCLES) {
+				continue;
+			}
+
+			c->idxmsk64 |= (1ULL << x86_pmu.num_counters) - 1;
+			c->weight += x86_pmu.num_counters;
 		}
 	}
 

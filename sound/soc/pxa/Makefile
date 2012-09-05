@@ -3,11 +3,15 @@ snd-soc-pxa2xx-objs := pxa2xx-pcm.o
 snd-soc-pxa2xx-ac97-objs := pxa2xx-ac97.o
 snd-soc-pxa2xx-i2s-objs := pxa2xx-i2s.o
 snd-soc-pxa-ssp-objs := pxa-ssp.o
+snd-soc-mmp-objs := mmp-pcm.o
+snd-soc-mmp-sspa-objs := mmp-sspa.o
 
 obj-$(CONFIG_SND_PXA2XX_SOC) += snd-soc-pxa2xx.o
 obj-$(CONFIG_SND_PXA2XX_SOC_AC97) += snd-soc-pxa2xx-ac97.o
 obj-$(CONFIG_SND_PXA2XX_SOC_I2S) += snd-soc-pxa2xx-i2s.o
 obj-$(CONFIG_SND_PXA_SOC_SSP) += snd-soc-pxa-ssp.o
+obj-$(CONFIG_SND_MMP_SOC) += snd-soc-mmp.o
+obj-$(CONFIG_SND_MMP_SOC_SSPA) += snd-soc-mmp-sspa.o
 
 # PXA Machine Support
 snd-soc-corgi-objs := corgi.o
@@ -28,6 +32,8 @@ snd-soc-mioa701-objs := mioa701_wm9713.o
 snd-soc-z2-objs := z2.o
 snd-soc-imote2-objs := imote2.o
 snd-soc-raumfeld-objs := raumfeld.o
+snd-soc-brownstone-objs := brownstone.o
+snd-soc-ttc-dkb-objs := ttc-dkb.o
 
 obj-$(CONFIG_SND_PXA2XX_SOC_CORGI) += snd-soc-corgi.o
 obj-$(CONFIG_SND_PXA2XX_SOC_POODLE) += snd-soc-poodle.o
@@ -47,3 +53,5 @@ obj-$(CONFIG_SND_SOC_TAVOREVB3) += snd-soc-tavorevb3.o
 obj-$(CONFIG_SND_SOC_ZYLONITE) += snd-soc-zylonite.o
 obj-$(CONFIG_SND_PXA2XX_SOC_IMOTE2) += snd-soc-imote2.o
 obj-$(CONFIG_SND_SOC_RAUMFELD) += snd-soc-raumfeld.o
+obj-$(CONFIG_SND_MMP_SOC_BROWNSTONE) += snd-soc-brownstone.o
+obj-$(CONFIG_SND_SOC_TTC_DKB) += snd-soc-ttc-dkb.o

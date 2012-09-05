@@ -563,6 +563,10 @@ static void prepare_write_message(struct ceph_connection *con)
 		m->hdr.seq = cpu_to_le64(++con->out_seq);
 		m->needs_out_seq = false;
 	}
+#ifdef CONFIG_BLOCK
+	else
+		m->bio_iter = NULL;
+#endif
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%d %d pgs\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
@@ -1419,7 +1423,7 @@ static int process_connect(struct ceph_connection *con)
 		 * dropped messages.
 		 */
 		dout("process_connect got RESET peer seq %u\n",
-		     le32_to_cpu(con->in_connect.connect_seq));
+		     le32_to_cpu(con->in_reply.connect_seq));
 		pr_err("%s%lld %s connection reset\n",
 		       ENTITY_NAME(con->peer_name),
 		       ceph_pr_addr(&con->peer_addr.in_addr));
@@ -1446,10 +1450,10 @@ static int process_connect(struct ceph_connection *con)
 		 * If we sent a smaller connect_seq than the peer has, try
 		 * again with a larger value.
 		 */
-		dout("process_connect got RETRY my seq = %u, peer_seq = %u\n",
+		dout("process_connect got RETRY_SESSION my seq %u, peer %u\n",
 		     le32_to_cpu(con->out_connect.connect_seq),
-		     le32_to_cpu(con->in_connect.connect_seq));
-		con->connect_seq = le32_to_cpu(con->in_connect.connect_seq);
+		     le32_to_cpu(con->in_reply.connect_seq));
+		con->connect_seq = le32_to_cpu(con->in_reply.connect_seq);
 		ceph_con_out_kvec_reset(con);
 		ret = prepare_write_connect(con);
 		if (ret < 0)
@@ -1464,9 +1468,9 @@ static int process_connect(struct ceph_connection *con)
 		 */
 		dout("process_connect got RETRY_GLOBAL my %u peer_gseq %u\n",
 		     con->peer_global_seq,
-		     le32_to_cpu(con->in_connect.global_seq));
+		     le32_to_cpu(con->in_reply.global_seq));
 		get_global_seq(con->msgr,
-			       le32_to_cpu(con->in_connect.global_seq));
+			       le32_to_cpu(con->in_reply.global_seq));
 		ceph_con_out_kvec_reset(con);
 		ret = prepare_write_connect(con);
 		if (ret < 0)

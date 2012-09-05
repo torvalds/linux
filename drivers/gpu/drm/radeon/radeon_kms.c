@@ -33,6 +33,17 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 
+/**
+ * radeon_driver_unload_kms - Main unload function for KMS.
+ *
+ * @dev: drm dev pointer
+ *
+ * This is the main unload function for KMS (all asics).
+ * It calls radeon_modeset_fini() to tear down the
+ * displays, and radeon_device_fini() to tear down
+ * the rest of the device (CP, writeback, etc.).
+ * Returns 0 on success.
+ */
 int radeon_driver_unload_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -46,6 +57,19 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 	return 0;
 }
 
+/**
+ * radeon_driver_load_kms - Main load function for KMS.
+ *
+ * @dev: drm dev pointer
+ * @flags: device flags
+ *
+ * This is the main load function for KMS (all asics).
+ * It calls radeon_device_init() to set up the non-display
+ * parts of the chip (asic init, CP, writeback, etc.), and
+ * radeon_modeset_init() to set up the display parts
+ * (crtcs, encoders, hotplug detect, etc.).
+ * Returns 0 on success, error on failure.
+ */
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 {
 	struct radeon_device *rdev;
@@ -96,6 +120,16 @@ out:
 	return r;
 }
 
+/**
+ * radeon_set_filp_rights - Set filp right.
+ *
+ * @dev: drm dev pointer
+ * @owner: drm file
+ * @applier: drm file
+ * @value: value
+ *
+ * Sets the filp rights for the device (all asics).
+ */
 static void radeon_set_filp_rights(struct drm_device *dev,
 				   struct drm_file **owner,
 				   struct drm_file *applier,
@@ -117,6 +151,18 @@ static void radeon_set_filp_rights(struct drm_device *dev,
 
 /*
  * Userspace get information ioctl
+ */
+/**
+ * radeon_info_ioctl - answer a device specific request.
+ *
+ * @rdev: radeon device pointer
+ * @data: request object
+ * @filp: drm filp
+ *
+ * This function is used to pass device specific parameters to the userspace
+ * drivers.  Examples include: pci device id, pipeline parms, tiling params,
+ * etc. (all asics).
+ * Returns 0 on success, -EINVAL on failure.
  */
 int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
@@ -273,7 +319,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_MAX_PIPES:
 		if (rdev->family >= CHIP_TAHITI)
-			value = rdev->config.si.max_pipes_per_simd;
+			value = rdev->config.si.max_cu_per_sh;
 		else if (rdev->family >= CHIP_CAYMAN)
 			value = rdev->config.cayman.max_pipes_per_simd;
 		else if (rdev->family >= CHIP_CEDAR)
@@ -301,16 +347,40 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 /*
  * Outdated mess for old drm with Xorg being in charge (void function now).
  */
+/**
+ * radeon_driver_firstopen_kms - drm callback for first open
+ *
+ * @dev: drm dev pointer
+ *
+ * Nothing to be done for KMS (all asics).
+ * Returns 0 on success.
+ */
 int radeon_driver_firstopen_kms(struct drm_device *dev)
 {
 	return 0;
 }
 
+/**
+ * radeon_driver_firstopen_kms - drm callback for last close
+ *
+ * @dev: drm dev pointer
+ *
+ * Switch vga switcheroo state after last close (all asics).
+ */
 void radeon_driver_lastclose_kms(struct drm_device *dev)
 {
 	vga_switcheroo_process_delayed_switch();
 }
 
+/**
+ * radeon_driver_open_kms - drm callback for open
+ *
+ * @dev: drm dev pointer
+ * @file_priv: drm file
+ *
+ * On device open, init vm on cayman+ (all asics).
+ * Returns 0 on success, error on failure.
+ */
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -339,6 +409,14 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	return 0;
 }
 
+/**
+ * radeon_driver_postclose_kms - drm callback for post close
+ *
+ * @dev: drm dev pointer
+ * @file_priv: drm file
+ *
+ * On device post close, tear down vm on cayman+ (all asics).
+ */
 void radeon_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv)
 {
@@ -354,6 +432,15 @@ void radeon_driver_postclose_kms(struct drm_device *dev,
 	}
 }
 
+/**
+ * radeon_driver_preclose_kms - drm callback for pre close
+ *
+ * @dev: drm dev pointer
+ * @file_priv: drm file
+ *
+ * On device pre close, tear down hyperz and cmask filps on r1xx-r5xx
+ * (all asics).
+ */
 void radeon_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
@@ -367,6 +454,15 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 /*
  * VBlank related functions.
  */
+/**
+ * radeon_get_vblank_counter_kms - get frame count
+ *
+ * @dev: drm dev pointer
+ * @crtc: crtc to get the frame count from
+ *
+ * Gets the frame count on the requested crtc (all asics).
+ * Returns frame count on success, -EINVAL on failure.
+ */
 u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -379,34 +475,70 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 	return radeon_get_vblank_counter(rdev, crtc);
 }
 
+/**
+ * radeon_enable_vblank_kms - enable vblank interrupt
+ *
+ * @dev: drm dev pointer
+ * @crtc: crtc to enable vblank interrupt for
+ *
+ * Enable the interrupt on the requested crtc (all asics).
+ * Returns 0 on success, -EINVAL on failure.
+ */
 int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
+	unsigned long irqflags;
+	int r;
 
 	if (crtc < 0 || crtc >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
 
+	spin_lock_irqsave(&rdev->irq.lock, irqflags);
 	rdev->irq.crtc_vblank_int[crtc] = true;
-
-	return radeon_irq_set(rdev);
+	r = radeon_irq_set(rdev);
+	spin_unlock_irqrestore(&rdev->irq.lock, irqflags);
+	return r;
 }
 
+/**
+ * radeon_disable_vblank_kms - disable vblank interrupt
+ *
+ * @dev: drm dev pointer
+ * @crtc: crtc to disable vblank interrupt for
+ *
+ * Disable the interrupt on the requested crtc (all asics).
+ */
 void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
+	unsigned long irqflags;
 
 	if (crtc < 0 || crtc >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return;
 	}
 
+	spin_lock_irqsave(&rdev->irq.lock, irqflags);
 	rdev->irq.crtc_vblank_int[crtc] = false;
-
 	radeon_irq_set(rdev);
+	spin_unlock_irqrestore(&rdev->irq.lock, irqflags);
 }
 
+/**
+ * radeon_get_vblank_timestamp_kms - get vblank timestamp
+ *
+ * @dev: drm dev pointer
+ * @crtc: crtc to get the timestamp for
+ * @max_error: max error
+ * @vblank_time: time value
+ * @flags: flags passed to the driver
+ *
+ * Gets the timestamp on the requested crtc based on the
+ * scanout position.  (all asics).
+ * Returns postive status flags on success, negative error on failure.
+ */
 int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 				    int *max_error,
 				    struct timeval *vblank_time,

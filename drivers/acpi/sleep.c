@@ -57,6 +57,7 @@ MODULE_PARM_DESC(gts, "Enable evaluation of _GTS on suspend.");
 MODULE_PARM_DESC(bfs, "Enable evaluation of _BFS on resume".);
 
 static u8 sleep_states[ACPI_S_STATE_COUNT];
+static bool pwr_btn_event_pending;
 
 static void acpi_sleep_tts_switch(u32 acpi_state)
 {
@@ -142,7 +143,7 @@ void __init acpi_old_suspend_ordering(void)
 static int acpi_pm_freeze(void)
 {
 	acpi_disable_all_gpes();
-	acpi_os_wait_events_complete(NULL);
+	acpi_os_wait_events_complete();
 	acpi_ec_block_transactions();
 	return 0;
 }
@@ -184,6 +185,14 @@ static int acpi_pm_prepare(void)
 	return error;
 }
 
+static int find_powerf_dev(struct device *dev, void *data)
+{
+	struct acpi_device *device = to_acpi_device(dev);
+	const char *hid = acpi_device_hid(device);
+
+	return !strcmp(hid, ACPI_BUTTON_HID_POWERF);
+}
+
 /**
  *	acpi_pm_finish - Instruct the platform to leave a sleep state.
  *
@@ -192,6 +201,7 @@ static int acpi_pm_prepare(void)
  */
 static void acpi_pm_finish(void)
 {
+	struct device *pwr_btn_dev;
 	u32 acpi_state = acpi_target_sleep_state;
 
 	acpi_ec_unblock_transactions();
@@ -209,6 +219,23 @@ static void acpi_pm_finish(void)
 	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
 
 	acpi_target_sleep_state = ACPI_STATE_S0;
+
+	/* If we were woken with the fixed power button, provide a small
+	 * hint to userspace in the form of a wakeup event on the fixed power
+	 * button device (if it can be found).
+	 *
+	 * We delay the event generation til now, as the PM layer requires
+	 * timekeeping to be running before we generate events. */
+	if (!pwr_btn_event_pending)
+		return;
+
+	pwr_btn_event_pending = false;
+	pwr_btn_dev = bus_find_device(&acpi_bus_type, NULL, NULL,
+				      find_powerf_dev);
+	if (pwr_btn_dev) {
+		pm_wakeup_event(pwr_btn_dev, 0);
+		put_device(pwr_btn_dev);
+	}
 }
 
 /**
@@ -298,9 +325,23 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	/* ACPI 3.0 specs (P62) says that it's the responsibility
 	 * of the OSPM to clear the status bit [ implying that the
 	 * POWER_BUTTON event should not reach userspace ]
+	 *
+	 * However, we do generate a small hint for userspace in the form of
+	 * a wakeup event. We flag this condition for now and generate the
+	 * event later, as we're currently too early in resume to be able to
+	 * generate wakeup events.
 	 */
-	if (ACPI_SUCCESS(status) && (acpi_state == ACPI_STATE_S3))
-		acpi_clear_event(ACPI_EVENT_POWER_BUTTON);
+	if (ACPI_SUCCESS(status) && (acpi_state == ACPI_STATE_S3)) {
+		acpi_event_status pwr_btn_status;
+
+		acpi_get_event_status(ACPI_EVENT_POWER_BUTTON, &pwr_btn_status);
+
+		if (pwr_btn_status & ACPI_EVENT_FLAG_SET) {
+			acpi_clear_event(ACPI_EVENT_POWER_BUTTON);
+			/* Flag for later */
+			pwr_btn_event_pending = true;
+		}
+	}
 
 	/*
 	 * Disable and clear GPE status before interrupt is enabled. Some GPEs
@@ -675,8 +716,9 @@ int acpi_suspend(u32 acpi_state)
  *	@dev: device to examine; its driver model wakeup flags control
  *		whether it should be able to wake up the system
  *	@d_min_p: used to store the upper limit of allowed states range
- *	Return value: preferred power state of the device on success, -ENODEV on
- *		failure (ie. if there's no 'struct acpi_device' for @dev)
+ *	@d_max_in: specify the lowest allowed states
+ *	Return value: preferred power state of the device on success, -ENODEV
+ *	(ie. if there's no 'struct acpi_device' for @dev) or -EINVAL on failure
  *
  *	Find the lowest power (highest number) ACPI device power state that
  *	device @dev can be in while the system is in the sleep state represented
@@ -691,13 +733,15 @@ int acpi_suspend(u32 acpi_state)
  *	via @wake.
  */
 
-int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p)
+int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 {
 	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 	char acpi_method[] = "_SxD";
 	unsigned long long d_min, d_max;
 
+	if (d_max_in < ACPI_STATE_D0 || d_max_in > ACPI_STATE_D3)
+		return -EINVAL;
 	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
 		printk(KERN_DEBUG "ACPI handle has no context!\n");
 		return -ENODEV;
@@ -705,8 +749,10 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p)
 
 	acpi_method[2] = '0' + acpi_target_sleep_state;
 	/*
-	 * If the sleep state is S0, we will return D3, but if the device has
-	 * _S0W, we will use the value from _S0W
+	 * If the sleep state is S0, the lowest limit from ACPI is D3,
+	 * but if the device has _S0W, we will use the value from _S0W
+	 * as the lowest limit from ACPI.  Finally, we will constrain
+	 * the lowest limit with the specified one.
 	 */
 	d_min = ACPI_STATE_D0;
 	d_max = ACPI_STATE_D3;
@@ -730,8 +776,8 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p)
 	 * can wake the system.  _S0W may be valid, too.
 	 */
 	if (acpi_target_sleep_state == ACPI_STATE_S0 ||
-	    (device_may_wakeup(dev) &&
-	     adev->wakeup.sleep_state <= acpi_target_sleep_state)) {
+	    (device_may_wakeup(dev) && adev->wakeup.flags.valid &&
+	     adev->wakeup.sleep_state >= acpi_target_sleep_state)) {
 		acpi_status status;
 
 		acpi_method[3] = 'W';
@@ -750,10 +796,20 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p)
 		}
 	}
 
+	if (d_max_in < d_min)
+		return -EINVAL;
 	if (d_min_p)
 		*d_min_p = d_min;
+	/* constrain d_max with specified lowest limit (max number) */
+	if (d_max > d_max_in) {
+		for (d_max = d_max_in; d_max > d_min; d_max--) {
+			if (adev->power.states[d_max].flags.valid)
+				break;
+		}
+	}
 	return d_max;
 }
+EXPORT_SYMBOL(acpi_pm_device_sleep_state);
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
@@ -790,6 +846,7 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 
 	return 0;
 }
+EXPORT_SYMBOL(acpi_pm_device_run_wake);
 
 /**
  *	acpi_pm_device_sleep_wake - enable or disable the system wake-up

@@ -1,6 +1,5 @@
 /*
- * (C) Copyright IBM Corp. 2004   All Rights Reserved.
- * tape_class.h
+ * Copyright IBM Corp. 2004   All Rights Reserved.
  *
  * Tape class device support
  *

@@ -244,7 +244,9 @@ static irqreturn_t rtl8180_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void rtl8180_tx(struct ieee80211_hw *dev,
+		       struct ieee80211_tx_control *control,
+		       struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -710,7 +712,7 @@ static void rtl8180_beacon_work(struct work_struct *work)
 	/* TODO: use actual beacon queue */
 	skb_set_queue_mapping(skb, 0);
 
-	rtl8180_tx(dev, skb);
+	rtl8180_tx(dev, NULL, skb);
 
 resched:
 	/*
@@ -1078,7 +1080,7 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	if (!is_valid_ether_addr(mac_addr)) {
 		printk(KERN_WARNING "%s (rtl8180): Invalid hwaddr! Using"
 		       " randomly generated MAC addr\n", pci_name(pdev));
-		random_ether_addr(mac_addr);
+		eth_random_addr(mac_addr);
 	}
 	SET_IEEE80211_PERM_ADDR(dev, mac_addr);
 

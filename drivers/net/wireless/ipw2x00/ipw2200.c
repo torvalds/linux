@@ -7080,9 +7080,7 @@ static int ipw_qos_activate(struct ipw_priv *priv,
 	}
 
 	IPW_DEBUG_QOS("QoS sending IPW_CMD_QOS_PARAMETERS\n");
-	err = ipw_send_qos_params_command(priv,
-					  (struct libipw_qos_parameters *)
-					  &(qos_parameters[0]));
+	err = ipw_send_qos_params_command(priv, &qos_parameters[0]);
 	if (err)
 		IPW_DEBUG_QOS("QoS IPW_CMD_QOS_PARAMETERS failed\n");
 

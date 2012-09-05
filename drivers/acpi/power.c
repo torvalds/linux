@@ -60,13 +60,15 @@ ACPI_MODULE_NAME("power");
 
 static int acpi_power_add(struct acpi_device *device);
 static int acpi_power_remove(struct acpi_device *device, int type);
-static int acpi_power_resume(struct acpi_device *device);
 
 static const struct acpi_device_id power_device_ids[] = {
 	{ACPI_POWER_HID, 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, power_device_ids);
+
+static int acpi_power_resume(struct device *dev);
+static SIMPLE_DEV_PM_OPS(acpi_power_pm, NULL, acpi_power_resume);
 
 static struct acpi_driver acpi_power_driver = {
 	.name = "power",
@@ -75,8 +77,8 @@ static struct acpi_driver acpi_power_driver = {
 	.ops = {
 		.add = acpi_power_add,
 		.remove = acpi_power_remove,
-		.resume = acpi_power_resume,
 		},
+	.drv.pm = &acpi_power_pm,
 };
 
 /*
@@ -390,6 +392,7 @@ void acpi_power_resource_unregister_device(struct device *dev, acpi_handle handl
 		__acpi_power_resource_unregister_device(dev,
 			list->handles[i]);
 }
+EXPORT_SYMBOL_GPL(acpi_power_resource_unregister_device);
 
 static int __acpi_power_resource_register_device(
 	struct acpi_power_managed_device *powered_device, acpi_handle handle)
@@ -460,6 +463,7 @@ no_power_resource:
 	printk(KERN_WARNING PREFIX "Invalid Power Resource to register!");
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(acpi_power_resource_register_device);
 
 /**
  * acpi_device_sleep_wake - execute _DSW (Device Sleep Wake) or (deprecated in
@@ -631,7 +635,7 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 	 * We know a device's inferred power state when all the resources
 	 * required for a given D-state are 'on'.
 	 */
-	for (i = ACPI_STATE_D0; i < ACPI_STATE_D3_HOT; i++) {
+	for (i = ACPI_STATE_D0; i <= ACPI_STATE_D3_HOT; i++) {
 		list = &device->power.states[i].resources;
 		if (list->count < 1)
 			continue;
@@ -771,14 +775,16 @@ static int acpi_power_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_power_resume(struct acpi_device *device)
+static int acpi_power_resume(struct device *dev)
 {
 	int result = 0, state;
+	struct acpi_device *device;
 	struct acpi_power_resource *resource;
 
-	if (!device)
+	if (!dev)
 		return -EINVAL;
 
+	device = to_acpi_device(dev);
 	resource = acpi_driver_data(device);
 	if (!resource)
 		return -EINVAL;

@@ -520,6 +520,9 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	mwifiex_wmm_add_buf_txqueue(priv, skb);
 	atomic_inc(&priv->adapter->tx_pending);
 
+	if (priv->adapter->scan_delay_cnt)
+		atomic_set(&priv->adapter->is_tx_received, true);
+
 	if (atomic_read(&priv->adapter->tx_pending) >= MAX_TX_PENDING) {
 		mwifiex_set_trans_start(dev);
 		mwifiex_stop_net_dev_queue(priv->netdev, priv->adapter);

@@ -96,7 +96,7 @@ static void setbrightness(struct gspca_dev *gspca_dev);
 static void setcontrast(struct gspca_dev *gspca_dev);
 static void setgain(struct gspca_dev *gspca_dev);
 static void setexposure(struct gspca_dev *gspca_dev);
-static int sd_setagc(struct gspca_dev *gspca_dev, __s32 val);
+static void setagc(struct gspca_dev *gspca_dev);
 static void setawb(struct gspca_dev *gspca_dev);
 static void setaec(struct gspca_dev *gspca_dev);
 static void setsharpness(struct gspca_dev *gspca_dev);
@@ -189,7 +189,7 @@ static const struct ctrl sd_ctrls[] = {
 			.step    = 1,
 			.default_value = 1,
 		},
-		.set = sd_setagc
+		.set_control = setagc
 	},
 [AWB] = {
 		{
@@ -851,6 +851,7 @@ static int sccb_check_status(struct gspca_dev *gspca_dev)
 	int i;
 
 	for (i = 0; i < 5; i++) {
+		msleep(10);
 		data = ov534_reg_read(gspca_dev, OV534_REG_STATUS);
 
 		switch (data) {
@@ -1242,10 +1243,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam->ctrls = sd->ctrls;
 
-	/* the auto white balance control works only when auto gain is set */
-	if (sd_ctrls[AGC].qctrl.default_value == 0)
-		gspca_dev->ctrl_inac |= (1 << AWB);
-
 	cam->cam_mode = ov772x_mode;
 	cam->nmodes = ARRAY_SIZE(ov772x_mode);
 
@@ -1484,29 +1481,6 @@ scan_next:
 		remaining_len -= len;
 		data += len;
 	} while (remaining_len > 0);
-}
-
-static int sd_setagc(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->ctrls[AGC].val = val;
-
-	/* the auto white balance control works only
-	 * when auto gain is set */
-	if (val) {
-		gspca_dev->ctrl_inac &= ~(1 << AWB);
-	} else {
-		gspca_dev->ctrl_inac |= (1 << AWB);
-		if (sd->ctrls[AWB].val) {
-			sd->ctrls[AWB].val = 0;
-			if (gspca_dev->streaming)
-				setawb(gspca_dev);
-		}
-	}
-	if (gspca_dev->streaming)
-		setagc(gspca_dev);
-	return gspca_dev->usb_err;
 }
 
 static int sd_querymenu(struct gspca_dev *gspca_dev,

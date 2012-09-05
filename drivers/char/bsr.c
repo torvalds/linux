@@ -297,7 +297,6 @@ static int __init bsr_init(void)
 	struct device_node *np;
 	dev_t bsr_dev;
 	int ret = -ENODEV;
-	int result;
 
 	np = of_find_compatible_node(NULL, NULL, "ibm,bsr");
 	if (!np)
@@ -306,13 +305,14 @@ static int __init bsr_init(void)
 	bsr_class = class_create(THIS_MODULE, "bsr");
 	if (IS_ERR(bsr_class)) {
 		printk(KERN_ERR "class_create() failed for bsr_class\n");
+		ret = PTR_ERR(bsr_class);
 		goto out_err_1;
 	}
 	bsr_class->dev_attrs = bsr_dev_attrs;
 
-	result = alloc_chrdev_region(&bsr_dev, 0, BSR_MAX_DEVS, "bsr");
+	ret = alloc_chrdev_region(&bsr_dev, 0, BSR_MAX_DEVS, "bsr");
 	bsr_major = MAJOR(bsr_dev);
-	if (result < 0) {
+	if (ret < 0) {
 		printk(KERN_ERR "alloc_chrdev_region() failed for bsr\n");
 		goto out_err_2;
 	}

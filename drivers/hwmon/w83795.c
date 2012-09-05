@@ -2157,11 +2157,9 @@ static int w83795_probe(struct i2c_client *client,
 	struct w83795_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct w83795_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(dev, sizeof(struct w83795_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	data->chip_type = id->driver_data;
@@ -2247,8 +2245,6 @@ static int w83795_probe(struct i2c_client *client,
 
 exit_remove:
 	w83795_handle_files(dev, device_remove_file_wrapper);
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -2258,7 +2254,6 @@ static int w83795_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	w83795_handle_files(&client->dev, device_remove_file_wrapper);
-	kfree(data);
 
 	return 0;
 }

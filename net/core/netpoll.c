@@ -362,22 +362,23 @@ EXPORT_SYMBOL(netpoll_send_skb_on_dev);
 
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 {
-	int total_len, eth_len, ip_len, udp_len;
+	int total_len, ip_len, udp_len;
 	struct sk_buff *skb;
 	struct udphdr *udph;
 	struct iphdr *iph;
 	struct ethhdr *eth;
 
 	udp_len = len + sizeof(*udph);
-	ip_len = eth_len = udp_len + sizeof(*iph);
-	total_len = eth_len + ETH_HLEN + NET_IP_ALIGN;
+	ip_len = udp_len + sizeof(*iph);
+	total_len = ip_len + LL_RESERVED_SPACE(np->dev);
 
-	skb = find_skb(np, total_len, total_len - len);
+	skb = find_skb(np, total_len + np->dev->needed_tailroom,
+		       total_len - len);
 	if (!skb)
 		return;
 
 	skb_copy_to_linear_data(skb, msg, len);
-	skb->len += len;
+	skb_put(skb, len);
 
 	skb_push(skb, sizeof(*udph));
 	skb_reset_transport_header(skb);
@@ -714,13 +715,15 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 }
 EXPORT_SYMBOL(netpoll_parse_options);
 
-int __netpoll_setup(struct netpoll *np)
+int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 {
-	struct net_device *ndev = np->dev;
 	struct netpoll_info *npinfo;
 	const struct net_device_ops *ops;
 	unsigned long flags;
 	int err;
+
+	np->dev = ndev;
+	strlcpy(np->dev_name, ndev->name, IFNAMSIZ);
 
 	if ((ndev->priv_flags & IFF_DISABLE_NETPOLL) ||
 	    !ndev->netdev_ops->ndo_poll_controller) {
@@ -850,13 +853,11 @@ int netpoll_setup(struct netpoll *np)
 		np_info(np, "local IP %pI4\n", &np->local_ip);
 	}
 
-	np->dev = ndev;
-
 	/* fill up the skb queue */
 	refill_skbs();
 
 	rtnl_lock();
-	err = __netpoll_setup(np);
+	err = __netpoll_setup(np, ndev);
 	rtnl_unlock();
 
 	if (err)

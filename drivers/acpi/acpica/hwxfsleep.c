@@ -205,7 +205,7 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 	ACPI_FLUSH_CPU_CACHE();
 
 	status = acpi_hw_write_port(acpi_gbl_FADT.smi_command,
-				    (u32)acpi_gbl_FADT.S4bios_request, 8);
+				    (u32)acpi_gbl_FADT.s4_bios_request, 8);
 
 	do {
 		acpi_os_stall(1000);
@@ -349,7 +349,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_prep)
  * FUNCTION:    acpi_enter_sleep_state
  *
  * PARAMETERS:  sleep_state         - Which sleep state to enter
- *              Flags               - ACPI_EXECUTE_GTS to run optional method
+ *              flags               - ACPI_EXECUTE_GTS to run optional method
  *
  * RETURN:      Status
  *
@@ -382,7 +382,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state)
  * FUNCTION:    acpi_leave_sleep_state_prep
  *
  * PARAMETERS:  sleep_state         - Which sleep state we are exiting
- *              Flags               - ACPI_EXECUTE_BFS to run optional method
+ *              flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *

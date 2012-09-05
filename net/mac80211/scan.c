@@ -115,8 +115,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 
 	if (elems->tim && (!elems->parse_error ||
 			   !(bss->valid_data & IEEE80211_BSS_VALID_DTIM))) {
-		struct ieee80211_tim_ie *tim_ie =
-			(struct ieee80211_tim_ie *)elems->tim;
+		struct ieee80211_tim_ie *tim_ie = elems->tim;
 		bss->dtim_period = tim_ie->dtim_period;
 		if (!elems->parse_error)
 				bss->valid_data |= IEEE80211_BSS_VALID_DTIM;
@@ -417,7 +416,8 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 			local->scan_req->ssids[i].ssid_len,
 			local->scan_req->ie, local->scan_req->ie_len,
 			local->scan_req->rates[band], false,
-			local->scan_req->no_cck);
+			local->scan_req->no_cck,
+			local->hw.conf.channel);
 
 	/*
 	 * After sending probe requests, wait for probe responses
@@ -480,11 +480,10 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->ops->hw_scan) {
 		__set_bit(SCAN_HW_SCANNING, &local->scanning);
 	} else if ((req->n_channels == 1) &&
-		   (req->channels[0]->center_freq ==
-		    local->hw.conf.channel->center_freq)) {
-
-		/* If we are scanning only on the current channel, then
-		 * we do not need to stop normal activities
+		   (req->channels[0] == local->oper_channel)) {
+		/*
+		 * If we are scanning only on the operating channel
+		 * then we do not need to stop normal activities
 		 */
 		unsigned long next_delay;
 

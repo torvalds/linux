@@ -576,7 +576,7 @@ static int is_root_ceph_dentry(struct inode *inode, struct dentry *dentry)
  * the MDS so that it gets our 'caps wanted' value in a single op.
  */
 static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
-				  struct nameidata *nd)
+				  unsigned int flags)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
@@ -593,14 +593,6 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	err = ceph_init_dentry(dentry);
 	if (err < 0)
 		return ERR_PTR(err);
-
-	/* open (but not create!) intent? */
-	if (nd &&
-	    (nd->flags & LOOKUP_OPEN) &&
-	    !(nd->intent.open.flags & O_CREAT)) {
-		int mode = nd->intent.open.create_mode & ~current->fs->umask;
-		return ceph_lookup_open(dir, dentry, nd, mode, 1);
-	}
 
 	/* can we conclude ENOENT locally? */
 	if (dentry->d_inode == NULL) {
@@ -642,13 +634,51 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	return dentry;
 }
 
+int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
+		     struct file *file, unsigned flags, umode_t mode,
+		     int *opened)
+{
+	int err;
+	struct dentry *res = NULL;
+
+	if (!(flags & O_CREAT)) {
+		if (dentry->d_name.len > NAME_MAX)
+			return -ENAMETOOLONG;
+
+		err = ceph_init_dentry(dentry);
+		if (err < 0)
+			return err;
+
+		return ceph_lookup_open(dir, dentry, file, flags, mode, opened);
+	}
+
+	if (d_unhashed(dentry)) {
+		res = ceph_lookup(dir, dentry, 0);
+		if (IS_ERR(res))
+			return PTR_ERR(res);
+
+		if (res)
+			dentry = res;
+	}
+
+	/* We don't deal with positive dentries here */
+	if (dentry->d_inode)
+		return finish_no_open(file, res);
+
+	*opened |= FILE_CREATED;
+	err = ceph_lookup_open(dir, dentry, file, flags, mode, opened);
+	dput(res);
+
+	return err;
+}
+
 /*
  * If we do a create but get no trace back from the MDS, follow up with
  * a lookup (the VFS expects us to link up the provided dentry).
  */
 int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry)
 {
-	struct dentry *result = ceph_lookup(dir, dentry, NULL);
+	struct dentry *result = ceph_lookup(dir, dentry, 0);
 
 	if (result && !IS_ERR(result)) {
 		/*
@@ -700,25 +730,9 @@ static int ceph_mknod(struct inode *dir, struct dentry *dentry,
 }
 
 static int ceph_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		       struct nameidata *nd)
+		       bool excl)
 {
-	dout("create in dir %p dentry %p name '%.*s'\n",
-	     dir, dentry, dentry->d_name.len, dentry->d_name.name);
-
-	if (ceph_snap(dir) != CEPH_NOSNAP)
-		return -EROFS;
-
-	if (nd) {
-		BUG_ON((nd->flags & LOOKUP_OPEN) == 0);
-		dentry = ceph_lookup_open(dir, dentry, nd, mode, 0);
-		/* hrm, what should i do here if we get aliased? */
-		if (IS_ERR(dentry))
-			return PTR_ERR(dentry);
-		return 0;
-	}
-
-	/* fall back to mknod */
-	return ceph_mknod(dir, dentry, (mode & ~S_IFMT) | S_IFREG, 0);
+	return ceph_mknod(dir, dentry, mode, 0);
 }
 
 static int ceph_symlink(struct inode *dir, struct dentry *dentry,
@@ -1028,12 +1042,12 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
 /*
  * Check if cached dentry can be trusted.
  */
-static int ceph_d_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	int valid = 0;
 	struct inode *dir;
 
-	if (nd && nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	dout("d_revalidate %p '%.*s' inode %p offset %lld\n", dentry,
@@ -1080,7 +1094,7 @@ static void ceph_d_release(struct dentry *dentry)
 }
 
 static int ceph_snapdir_d_revalidate(struct dentry *dentry,
-					  struct nameidata *nd)
+					  unsigned int flags)
 {
 	/*
 	 * Eventually, we'll want to revalidate snapped metadata
@@ -1357,6 +1371,7 @@ const struct inode_operations ceph_dir_iops = {
 	.rmdir = ceph_unlink,
 	.rename = ceph_rename,
 	.create = ceph_create,
+	.atomic_open = ceph_atomic_open,
 };
 
 const struct dentry_operations ceph_dentry_ops = {

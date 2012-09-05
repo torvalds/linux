@@ -1,7 +1,7 @@
 /include/ "skeleton.dtsi"
 
 / {
-	compatible = "mrvl,kirkwood";
+	compatible = "marvell,kirkwood";
 
 	ocp@f1000000 {
 		compatible = "simple-bus";
@@ -28,7 +28,7 @@
 		};
 
 		rtc@10300 {
-			compatible = "mrvl,kirkwood-rtc", "mrvl,orion-rtc";
+			compatible = "marvell,kirkwood-rtc", "marvell,orion-rtc";
 			reg = <0x10300 0x20>;
 			interrupts = <53>;
 		};
@@ -39,7 +39,7 @@
 			cle = <0>;
 			ale = <1>;
 			bank-width = <1>;
-			compatible = "mrvl,orion-nand";
+			compatible = "marvell,orion-nand";
 			reg = <0x3000000 0x400>;
 			chip-delay = <25>;
 			/* set partition map and/or chip-delay in board dts */

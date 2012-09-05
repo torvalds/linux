@@ -322,9 +322,6 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	uint32_t offset;
 
-	if (ASIC_IS_DCE5(rdev))
-		return;
-
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (!dig->afmt->enabled)
 		return;
@@ -348,7 +345,6 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 		WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
 		       HDMI0_AUDIO_SAMPLE_SEND | /* send audio packets */
 		       HDMI0_AUDIO_DELAY_EN(1) | /* default audio delay */
-		       HDMI0_AUDIO_SEND_MAX_PACKETS | /* send NULL packets if no audio is available */
 		       HDMI0_AUDIO_PACKETS_PER_LINE(3) | /* should be suffient for all audio modes and small enough for all hblanks */
 		       HDMI0_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
 	}
@@ -484,7 +480,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	uint32_t offset;
 	u32 hdmi;
 
-	if (ASIC_IS_DCE5(rdev))
+	if (ASIC_IS_DCE6(rdev))
 		return;
 
 	/* Silent, r600_hdmi_enable will raise WARN for us */
@@ -523,8 +519,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 
 	if (rdev->irq.installed) {
 		/* if irq is available use it */
-		rdev->irq.afmt[dig->afmt->id] = true;
-		radeon_irq_set(rdev);
+		radeon_irq_kms_enable_afmt(rdev, dig->afmt->id);
 	}
 
 	dig->afmt->enabled = true;
@@ -544,7 +539,7 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	uint32_t offset;
 
-	if (ASIC_IS_DCE5(rdev))
+	if (ASIC_IS_DCE6(rdev))
 		return;
 
 	/* Called for ATOM_ENCODER_MODE_HDMI only */
@@ -560,8 +555,7 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 		  offset, radeon_encoder->encoder_id);
 
 	/* disable irq */
-	rdev->irq.afmt[dig->afmt->id] = false;
-	radeon_irq_set(rdev);
+	radeon_irq_kms_disable_afmt(rdev, dig->afmt->id);
 
 	/* Older chipsets not handled by AtomBIOS */
 	if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {

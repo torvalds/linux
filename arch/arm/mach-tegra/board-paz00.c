@@ -148,7 +148,6 @@ static struct platform_device *paz00_devices[] __initdata = {
 	&debug_uart,
 	&tegra_sdhci_device4,
 	&tegra_sdhci_device1,
-	&wifi_rfkill_device,
 	&leds_gpio,
 	&gpio_keys_device,
 };
@@ -201,6 +200,11 @@ static struct tegra_sdhci_platform_data sdhci_pdata4 = {
 	.is_8bit	= 1,
 };
 
+void __init tegra_paz00_wifikill_init(void)
+{
+	platform_device_register(&wifi_rfkill_device);
+}
+
 static void __init tegra_paz00_init(void)
 {
 	tegra_clk_init_from_table(paz00_clk_init_table);
@@ -211,6 +215,7 @@ static void __init tegra_paz00_init(void)
 	tegra_sdhci_device4.dev.platform_data = &sdhci_pdata4;
 
 	platform_add_devices(paz00_devices, ARRAY_SIZE(paz00_devices));
+	tegra_paz00_wifikill_init();
 
 	paz00_i2c_init();
 	paz00_usb_init();

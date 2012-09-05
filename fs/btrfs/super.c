@@ -54,6 +54,7 @@
 #include "version.h"
 #include "export.h"
 #include "compression.h"
+#include "rcu-string.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
@@ -395,15 +396,23 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			    strcmp(args[0].from, "zlib") == 0) {
 				compress_type = "zlib";
 				info->compress_type = BTRFS_COMPRESS_ZLIB;
+				btrfs_set_opt(info->mount_opt, COMPRESS);
 			} else if (strcmp(args[0].from, "lzo") == 0) {
 				compress_type = "lzo";
 				info->compress_type = BTRFS_COMPRESS_LZO;
+				btrfs_set_opt(info->mount_opt, COMPRESS);
+				btrfs_set_fs_incompat(info, COMPRESS_LZO);
+			} else if (strncmp(args[0].from, "no", 2) == 0) {
+				compress_type = "no";
+				info->compress_type = BTRFS_COMPRESS_NONE;
+				btrfs_clear_opt(info->mount_opt, COMPRESS);
+				btrfs_clear_opt(info->mount_opt, FORCE_COMPRESS);
+				compress_force = false;
 			} else {
 				ret = -EINVAL;
 				goto out;
 			}
 
-			btrfs_set_opt(info->mount_opt, COMPRESS);
 			if (compress_force) {
 				btrfs_set_opt(info->mount_opt, FORCE_COMPRESS);
 				pr_info("btrfs: force %s compression\n",
@@ -1067,7 +1076,8 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	}
 
 	bdev = fs_devices->latest_bdev;
-	s = sget(fs_type, btrfs_test_super, btrfs_set_super, fs_info);
+	s = sget(fs_type, btrfs_test_super, btrfs_set_super, flags | MS_NOSEC,
+		 fs_info);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto error_close_devices;
@@ -1081,7 +1091,6 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	} else {
 		char b[BDEVNAME_SIZE];
 
-		s->s_flags = flags | MS_NOSEC;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		btrfs_sb(s)->bdev_holder = fs_type;
 		error = btrfs_fill_super(s, fs_devices, data,
@@ -1183,6 +1192,10 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 
 		/* recover relocation */
 		ret = btrfs_recover_relocation(root);
+		if (ret)
+			goto restore;
+
+		ret = btrfs_resume_balance_async(fs_info);
 		if (ret)
 			goto restore;
 
@@ -1450,6 +1463,13 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 		ret = btrfs_scan_one_device(vol->name, FMODE_READ,
 					    &btrfs_fs_type, &fs_devices);
 		break;
+	case BTRFS_IOC_DEVICES_READY:
+		ret = btrfs_scan_one_device(vol->name, FMODE_READ,
+					    &btrfs_fs_type, &fs_devices);
+		if (ret)
+			break;
+		ret = !(fs_devices->num_devices == fs_devices->total_devices);
+		break;
 	}
 
 	kfree(vol);
@@ -1472,14 +1492,35 @@ static int btrfs_unfreeze(struct super_block *sb)
 	return 0;
 }
 
-static void btrfs_fs_dirty_inode(struct inode *inode, int flags)
+static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 {
-	int ret;
+	struct btrfs_fs_info *fs_info = btrfs_sb(root->d_sb);
+	struct btrfs_fs_devices *cur_devices;
+	struct btrfs_device *dev, *first_dev = NULL;
+	struct list_head *head;
+	struct rcu_string *name;
 
-	ret = btrfs_dirty_inode(inode);
-	if (ret)
-		printk_ratelimited(KERN_ERR "btrfs: fail to dirty inode %Lu "
-				   "error %d\n", btrfs_ino(inode), ret);
+	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	cur_devices = fs_info->fs_devices;
+	while (cur_devices) {
+		head = &cur_devices->devices;
+		list_for_each_entry(dev, head, dev_list) {
+			if (!first_dev || dev->devid < first_dev->devid)
+				first_dev = dev;
+		}
+		cur_devices = cur_devices->seed;
+	}
+
+	if (first_dev) {
+		rcu_read_lock();
+		name = rcu_dereference(first_dev->name);
+		seq_escape(m, name->str, " \t\n\\");
+		rcu_read_unlock();
+	} else {
+		WARN_ON(1);
+	}
+	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	return 0;
 }
 
 static const struct super_operations btrfs_super_ops = {
@@ -1488,8 +1529,8 @@ static const struct super_operations btrfs_super_ops = {
 	.put_super	= btrfs_put_super,
 	.sync_fs	= btrfs_sync_fs,
 	.show_options	= btrfs_show_options,
+	.show_devname	= btrfs_show_devname,
 	.write_inode	= btrfs_write_inode,
-	.dirty_inode	= btrfs_fs_dirty_inode,
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_destroy_inode,
 	.statfs		= btrfs_statfs,

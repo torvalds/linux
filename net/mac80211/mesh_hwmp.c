@@ -17,8 +17,6 @@
 #define MAX_METRIC	0xffffffff
 #define ARITH_SHIFT	8
 
-/* Number of frames buffered per destination for unresolved destinations */
-#define MESH_FRAME_QUEUE_LEN	10
 #define MAX_PREQ_QUEUE_LEN	64
 
 /* Destination only */
@@ -1054,11 +1052,14 @@ enddiscovery:
 	kfree(preq_node);
 }
 
-/* mesh_nexthop_resolve - lookup next hop for given skb and start path
- * discovery if no forwarding information is found.
+/**
+ * mesh_nexthop_resolve - lookup next hop; conditionally start path discovery
  *
  * @skb: 802.11 frame to be sent
  * @sdata: network subif the frame will be sent through
+ *
+ * Lookup next hop for given skb and start path discovery if no
+ * forwarding information is found.
  *
  * Returns: 0 if the next hop was found and -ENOENT if the frame was queued.
  * skb is freeed here if no mpath could be allocated.

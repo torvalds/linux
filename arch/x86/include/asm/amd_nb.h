@@ -26,10 +26,31 @@ struct amd_l3_cache {
 	u8	 subcaches[4];
 };
 
+struct threshold_block {
+	unsigned int		block;
+	unsigned int		bank;
+	unsigned int		cpu;
+	u32			address;
+	u16			interrupt_enable;
+	bool			interrupt_capable;
+	u16			threshold_limit;
+	struct kobject		kobj;
+	struct list_head	miscj;
+};
+
+struct threshold_bank {
+	struct kobject		*kobj;
+	struct threshold_block	*blocks;
+
+	/* initialized to the number of CPUs on the node sharing this bank */
+	atomic_t		cpus;
+};
+
 struct amd_northbridge {
 	struct pci_dev *misc;
 	struct pci_dev *link;
 	struct amd_l3_cache l3_cache;
+	struct threshold_bank *bank4;
 };
 
 struct amd_northbridge_info {

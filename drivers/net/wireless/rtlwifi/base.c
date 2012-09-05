@@ -907,7 +907,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	__le16 fc = hdr->frame_control;
-	u8 *act = (u8 *) (((u8 *) skb->data + MAC80211_3ADDR_LEN));
+	u8 *act = (u8 *)skb->data + MAC80211_3ADDR_LEN;
 	u8 category;
 
 	if (!ieee80211_is_action(fc))
@@ -1341,9 +1341,8 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 		rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
 
 		info->control.rates[0].idx = 0;
-		info->control.sta = sta;
 		info->band = hw->conf.channel->band;
-		rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
+		rtlpriv->intf_ops->adapter_tx(hw, sta, skb, &tcb_desc);
 	}
 err_free:
 	return 0;

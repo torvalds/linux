@@ -77,7 +77,7 @@ static __u16 wiiext_keymap[] = {
 	BTN_TR,		/* WIIEXT_KEY_RT */
 };
 
-/* diable all extensions */
+/* disable all extensions */
 static void ext_disable(struct wiimote_ext *ext)
 {
 	unsigned long flags;

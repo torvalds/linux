@@ -33,26 +33,12 @@
 
 #include "ioapic.h"
 
-static inline int kvm_irq_line_state(unsigned long *irq_state,
-				     int irq_source_id, int level)
-{
-	/* Logical OR for level trig interrupt */
-	if (level)
-		set_bit(irq_source_id, irq_state);
-	else
-		clear_bit(irq_source_id, irq_state);
-
-	return !!(*irq_state);
-}
-
 static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 			   struct kvm *kvm, int irq_source_id, int level)
 {
 #ifdef CONFIG_X86
 	struct kvm_pic *pic = pic_irqchip(kvm);
-	level = kvm_irq_line_state(&pic->irq_states[e->irqchip.pin],
-				   irq_source_id, level);
-	return kvm_pic_set_irq(pic, e->irqchip.pin, level);
+	return kvm_pic_set_irq(pic, e->irqchip.pin, irq_source_id, level);
 #else
 	return -1;
 #endif
@@ -62,10 +48,7 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 			      struct kvm *kvm, int irq_source_id, int level)
 {
 	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
-	level = kvm_irq_line_state(&ioapic->irq_states[e->irqchip.pin],
-				   irq_source_id, level);
-
-	return kvm_ioapic_set_irq(ioapic, e->irqchip.pin, level);
+	return kvm_ioapic_set_irq(ioapic, e->irqchip.pin, irq_source_id, level);
 }
 
 inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
@@ -249,8 +232,6 @@ unlock:
 
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 {
-	int i;
-
 	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
 
 	mutex_lock(&kvm->irq_lock);
@@ -263,14 +244,10 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 	if (!irqchip_in_kernel(kvm))
 		goto unlock;
 
-	for (i = 0; i < KVM_IOAPIC_NUM_PINS; i++) {
-		clear_bit(irq_source_id, &kvm->arch.vioapic->irq_states[i]);
-		if (i >= 16)
-			continue;
+	kvm_ioapic_clear_all(kvm->arch.vioapic, irq_source_id);
 #ifdef CONFIG_X86
-		clear_bit(irq_source_id, &pic_irqchip(kvm)->irq_states[i]);
+	kvm_pic_clear_all(pic_irqchip(kvm), irq_source_id);
 #endif
-	}
 unlock:
 	mutex_unlock(&kvm->irq_lock);
 }
@@ -332,6 +309,7 @@ static int setup_routing_entry(struct kvm_irq_routing_table *rt,
 	 */
 	hlist_for_each_entry(ei, n, &rt->map[ue->gsi], link)
 		if (ei->type == KVM_IRQ_ROUTING_MSI ||
+		    ue->type == KVM_IRQ_ROUTING_MSI ||
 		    ue->u.irqchip.irqchip == ei->irqchip.irqchip)
 			return r;
 

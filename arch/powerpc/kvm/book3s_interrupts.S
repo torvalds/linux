@@ -25,38 +25,30 @@
 #include <asm/exception-64s.h>
 
 #if defined(CONFIG_PPC_BOOK3S_64)
-
-#define ULONG_SIZE 		8
 #define FUNC(name) 		GLUE(.,name)
-
 #elif defined(CONFIG_PPC_BOOK3S_32)
-
-#define ULONG_SIZE              4
 #define FUNC(name)		name
-
 #endif /* CONFIG_PPC_BOOK3S_XX */
 
-
-#define VCPU_GPR(n)		(VCPU_GPRS + (n * ULONG_SIZE))
 #define VCPU_LOAD_NVGPRS(vcpu) \
-	PPC_LL	r14, VCPU_GPR(r14)(vcpu); \
-	PPC_LL	r15, VCPU_GPR(r15)(vcpu); \
-	PPC_LL	r16, VCPU_GPR(r16)(vcpu); \
-	PPC_LL	r17, VCPU_GPR(r17)(vcpu); \
-	PPC_LL	r18, VCPU_GPR(r18)(vcpu); \
-	PPC_LL	r19, VCPU_GPR(r19)(vcpu); \
-	PPC_LL	r20, VCPU_GPR(r20)(vcpu); \
-	PPC_LL	r21, VCPU_GPR(r21)(vcpu); \
-	PPC_LL	r22, VCPU_GPR(r22)(vcpu); \
-	PPC_LL	r23, VCPU_GPR(r23)(vcpu); \
-	PPC_LL	r24, VCPU_GPR(r24)(vcpu); \
-	PPC_LL	r25, VCPU_GPR(r25)(vcpu); \
-	PPC_LL	r26, VCPU_GPR(r26)(vcpu); \
-	PPC_LL	r27, VCPU_GPR(r27)(vcpu); \
-	PPC_LL	r28, VCPU_GPR(r28)(vcpu); \
-	PPC_LL	r29, VCPU_GPR(r29)(vcpu); \
-	PPC_LL	r30, VCPU_GPR(r30)(vcpu); \
-	PPC_LL	r31, VCPU_GPR(r31)(vcpu); \
+	PPC_LL	r14, VCPU_GPR(R14)(vcpu); \
+	PPC_LL	r15, VCPU_GPR(R15)(vcpu); \
+	PPC_LL	r16, VCPU_GPR(R16)(vcpu); \
+	PPC_LL	r17, VCPU_GPR(R17)(vcpu); \
+	PPC_LL	r18, VCPU_GPR(R18)(vcpu); \
+	PPC_LL	r19, VCPU_GPR(R19)(vcpu); \
+	PPC_LL	r20, VCPU_GPR(R20)(vcpu); \
+	PPC_LL	r21, VCPU_GPR(R21)(vcpu); \
+	PPC_LL	r22, VCPU_GPR(R22)(vcpu); \
+	PPC_LL	r23, VCPU_GPR(R23)(vcpu); \
+	PPC_LL	r24, VCPU_GPR(R24)(vcpu); \
+	PPC_LL	r25, VCPU_GPR(R25)(vcpu); \
+	PPC_LL	r26, VCPU_GPR(R26)(vcpu); \
+	PPC_LL	r27, VCPU_GPR(R27)(vcpu); \
+	PPC_LL	r28, VCPU_GPR(R28)(vcpu); \
+	PPC_LL	r29, VCPU_GPR(R29)(vcpu); \
+	PPC_LL	r30, VCPU_GPR(R30)(vcpu); \
+	PPC_LL	r31, VCPU_GPR(R31)(vcpu); \
 
 /*****************************************************************************
  *                                                                           *
@@ -131,24 +123,24 @@ kvmppc_handler_highmem:
 	/* R7 = vcpu */
 	PPC_LL	r7, GPR4(r1)
 
-	PPC_STL	r14, VCPU_GPR(r14)(r7)
-	PPC_STL	r15, VCPU_GPR(r15)(r7)
-	PPC_STL	r16, VCPU_GPR(r16)(r7)
-	PPC_STL	r17, VCPU_GPR(r17)(r7)
-	PPC_STL	r18, VCPU_GPR(r18)(r7)
-	PPC_STL	r19, VCPU_GPR(r19)(r7)
-	PPC_STL	r20, VCPU_GPR(r20)(r7)
-	PPC_STL	r21, VCPU_GPR(r21)(r7)
-	PPC_STL	r22, VCPU_GPR(r22)(r7)
-	PPC_STL	r23, VCPU_GPR(r23)(r7)
-	PPC_STL	r24, VCPU_GPR(r24)(r7)
-	PPC_STL	r25, VCPU_GPR(r25)(r7)
-	PPC_STL	r26, VCPU_GPR(r26)(r7)
-	PPC_STL	r27, VCPU_GPR(r27)(r7)
-	PPC_STL	r28, VCPU_GPR(r28)(r7)
-	PPC_STL	r29, VCPU_GPR(r29)(r7)
-	PPC_STL	r30, VCPU_GPR(r30)(r7)
-	PPC_STL	r31, VCPU_GPR(r31)(r7)
+	PPC_STL	r14, VCPU_GPR(R14)(r7)
+	PPC_STL	r15, VCPU_GPR(R15)(r7)
+	PPC_STL	r16, VCPU_GPR(R16)(r7)
+	PPC_STL	r17, VCPU_GPR(R17)(r7)
+	PPC_STL	r18, VCPU_GPR(R18)(r7)
+	PPC_STL	r19, VCPU_GPR(R19)(r7)
+	PPC_STL	r20, VCPU_GPR(R20)(r7)
+	PPC_STL	r21, VCPU_GPR(R21)(r7)
+	PPC_STL	r22, VCPU_GPR(R22)(r7)
+	PPC_STL	r23, VCPU_GPR(R23)(r7)
+	PPC_STL	r24, VCPU_GPR(R24)(r7)
+	PPC_STL	r25, VCPU_GPR(R25)(r7)
+	PPC_STL	r26, VCPU_GPR(R26)(r7)
+	PPC_STL	r27, VCPU_GPR(R27)(r7)
+	PPC_STL	r28, VCPU_GPR(R28)(r7)
+	PPC_STL	r29, VCPU_GPR(R29)(r7)
+	PPC_STL	r30, VCPU_GPR(R30)(r7)
+	PPC_STL	r31, VCPU_GPR(R31)(r7)
 
 	/* Pass the exit number as 3rd argument to kvmppc_handle_exit */
 	mr	r5, r12

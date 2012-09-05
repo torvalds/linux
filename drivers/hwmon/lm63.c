@@ -1108,11 +1108,9 @@ static int lm63_probe(struct i2c_client *client,
 	struct lm63_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct lm63_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct lm63_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	data->valid = 0;
@@ -1129,7 +1127,7 @@ static int lm63_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &lm63_group);
 	if (err)
-		goto exit_free;
+		return err;
 	if (data->config & 0x04) { /* tachometer enabled */
 		err = sysfs_create_group(&client->dev.kobj, &lm63_group_fan1);
 		if (err)
@@ -1161,9 +1159,6 @@ exit_remove_files:
 		device_remove_file(&client->dev, &dev_attr_temp2_type);
 		sysfs_remove_group(&client->dev.kobj, &lm63_group_extra_lut);
 	}
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -1179,7 +1174,6 @@ static int lm63_remove(struct i2c_client *client)
 		sysfs_remove_group(&client->dev.kobj, &lm63_group_extra_lut);
 	}
 
-	kfree(data);
 	return 0;
 }
 

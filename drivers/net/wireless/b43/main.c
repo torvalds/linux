@@ -533,11 +533,11 @@ u64 b43_hf_read(struct b43_wldev *dev)
 {
 	u64 ret;
 
-	ret = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFHI);
+	ret = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF3);
 	ret <<= 16;
-	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFMI);
+	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF2);
 	ret <<= 16;
-	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO);
+	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF1);
 
 	return ret;
 }
@@ -550,9 +550,9 @@ void b43_hf_write(struct b43_wldev *dev, u64 value)
 	lo = (value & 0x00000000FFFFULL);
 	mi = (value & 0x0000FFFF0000ULL) >> 16;
 	hi = (value & 0xFFFF00000000ULL) >> 32;
-	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO, lo);
-	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFMI, mi);
-	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFHI, hi);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF1, lo);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF2, mi);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF3, hi);
 }
 
 /* Read the firmware capabilities bitmask (Opensource firmware only) */
@@ -3407,7 +3407,8 @@ static void b43_tx_work(struct work_struct *work)
 }
 
 static void b43_op_tx(struct ieee80211_hw *hw,
-		     struct sk_buff *skb)
+		      struct ieee80211_tx_control *control,
+		      struct sk_buff *skb)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 
@@ -3765,7 +3766,7 @@ static int b43_switch_band(struct b43_wl *wl, struct ieee80211_channel *chan)
 	if (prev_status >= B43_STAT_STARTED) {
 		err = b43_wireless_core_start(up_dev);
 		if (err) {
-			b43err(wl, "Fatal: Coult not start device for "
+			b43err(wl, "Fatal: Could not start device for "
 			       "selected %s-GHz band\n",
 			       band_to_string(chan->band));
 			b43_wireless_core_exit(up_dev);
@@ -4277,6 +4278,35 @@ out:
 	return err;
 }
 
+static char *b43_phy_name(struct b43_wldev *dev, u8 phy_type)
+{
+	switch (phy_type) {
+	case B43_PHYTYPE_A:
+		return "A";
+	case B43_PHYTYPE_B:
+		return "B";
+	case B43_PHYTYPE_G:
+		return "G";
+	case B43_PHYTYPE_N:
+		return "N";
+	case B43_PHYTYPE_LP:
+		return "LP";
+	case B43_PHYTYPE_SSLPN:
+		return "SSLPN";
+	case B43_PHYTYPE_HT:
+		return "HT";
+	case B43_PHYTYPE_LCN:
+		return "LCN";
+	case B43_PHYTYPE_LCNXN:
+		return "LCNXN";
+	case B43_PHYTYPE_LCN40:
+		return "LCN40";
+	case B43_PHYTYPE_AC:
+		return "AC";
+	}
+	return "UNKNOWN";
+}
+
 /* Get PHY and RADIO versioning numbers */
 static int b43_phy_versioning(struct b43_wldev *dev)
 {
@@ -4337,13 +4367,13 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		unsupported = 1;
 	}
 	if (unsupported) {
-		b43err(dev->wl, "FOUND UNSUPPORTED PHY "
-		       "(Analog %u, Type %u, Revision %u)\n",
-		       analog_type, phy_type, phy_rev);
+		b43err(dev->wl, "FOUND UNSUPPORTED PHY (Analog %u, Type %d (%s), Revision %u)\n",
+		       analog_type, phy_type, b43_phy_name(dev, phy_type),
+		       phy_rev);
 		return -EOPNOTSUPP;
 	}
-	b43dbg(dev->wl, "Found PHY: Analog %u, Type %u, Revision %u\n",
-	       analog_type, phy_type, phy_rev);
+	b43info(dev->wl, "Found PHY: Analog %u, Type %d (%s), Revision %u\n",
+		analog_type, phy_type, b43_phy_name(dev, phy_type), phy_rev);
 
 	/* Get RADIO versioning */
 	if (dev->dev->core_rev >= 24) {

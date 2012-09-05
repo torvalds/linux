@@ -942,20 +942,26 @@ mwifiex_drv_get_driver_version(struct mwifiex_adapter *adapter, char *version,
  * This function allocates the IOCTL request buffer, fills it
  * with requisite parameters and calls the IOCTL handler.
  */
-int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
-			int key_len, u8 key_index,
-			const u8 *mac_addr, int disable)
+int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
+		       const u8 *key, int key_len, u8 key_index,
+		       const u8 *mac_addr, int disable)
 {
 	struct mwifiex_ds_encrypt_key encrypt_key;
 
 	memset(&encrypt_key, 0, sizeof(struct mwifiex_ds_encrypt_key));
 	encrypt_key.key_len = key_len;
+
+	if (kp && kp->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+		encrypt_key.is_igtk_key = true;
+
 	if (!disable) {
 		encrypt_key.key_index = key_index;
 		if (key_len)
 			memcpy(encrypt_key.key_material, key, key_len);
 		if (mac_addr)
 			memcpy(encrypt_key.mac_addr, mac_addr, ETH_ALEN);
+		if (kp && kp->seq && kp->seq_len)
+			memcpy(encrypt_key.pn, kp->seq, kp->seq_len);
 	} else {
 		encrypt_key.key_disable = true;
 		if (mac_addr)

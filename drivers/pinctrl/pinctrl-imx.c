@@ -27,16 +27,16 @@
 #include "core.h"
 #include "pinctrl-imx.h"
 
-#define IMX_PMX_DUMP(info, p, m, c, n)		\
-{						\
-	int i, j;				\
-	printk("Format: Pin Mux Config\n");	\
-	for (i = 0; i < n; i++) {		\
-		j = p[i];			\
-		printk("%s %d 0x%lx\n",		\
-			info->pins[j].name,	\
-			m[i], c[i]);		\
-	}					\
+#define IMX_PMX_DUMP(info, p, m, c, n)			\
+{							\
+	int i, j;					\
+	printk(KERN_DEBUG "Format: Pin Mux Config\n");	\
+	for (i = 0; i < n; i++) {			\
+		j = p[i];				\
+		printk(KERN_DEBUG "%s %d 0x%lx\n",	\
+			info->pins[j].name,		\
+			m[i], c[i]);			\
+	}						\
 }
 
 /* The bits in CONFIG cell defined in binding doc*/
@@ -146,7 +146,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	struct pinctrl_map *new_map;
 	struct device_node *parent;
 	int map_num = 1;
-	int i;
+	int i, j;
 
 	/*
 	 * first find the group of this node and check if we need create
@@ -173,8 +173,10 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	/* create mux map */
 	parent = of_get_parent(np);
-	if (!parent)
+	if (!parent) {
+		kfree(new_map);
 		return -EINVAL;
+	}
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
 	new_map[0].data.mux.function = parent->name;
 	new_map[0].data.mux.group = np->name;
@@ -182,18 +184,19 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	/* create config map */
 	new_map++;
-	for (i = 0; i < grp->npins; i++) {
+	for (i = j = 0; i < grp->npins; i++) {
 		if (!(grp->configs[i] & IMX_NO_PAD_CTL)) {
-			new_map[i].type = PIN_MAP_TYPE_CONFIGS_PIN;
-			new_map[i].data.configs.group_or_pin =
+			new_map[j].type = PIN_MAP_TYPE_CONFIGS_PIN;
+			new_map[j].data.configs.group_or_pin =
 					pin_get_name(pctldev, grp->pins[i]);
-			new_map[i].data.configs.configs = &grp->configs[i];
-			new_map[i].data.configs.num_configs = 1;
+			new_map[j].data.configs.configs = &grp->configs[i];
+			new_map[j].data.configs.num_configs = 1;
+			j++;
 		}
 	}
 
 	dev_dbg(pctldev->dev, "maps: function %s group %s num %d\n",
-		new_map->data.mux.function, new_map->data.mux.group, map_num);
+		(*map)->data.mux.function, (*map)->data.mux.group, map_num);
 
 	return 0;
 }
@@ -201,10 +204,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 static void imx_dt_free_map(struct pinctrl_dev *pctldev,
 				struct pinctrl_map *map, unsigned num_maps)
 {
-	int i;
-
-	for (i = 0; i < num_maps; i++)
-		kfree(map);
+	kfree(map);
 }
 
 static struct pinctrl_ops imx_pctrl_ops = {
@@ -478,6 +478,7 @@ static int __devinit imx_pinctrl_parse_groups(struct device_node *np,
 #ifdef DEBUG
 	IMX_PMX_DUMP(info, grp->pins, grp->mux_mode, grp->configs, grp->npins);
 #endif
+
 	return 0;
 }
 

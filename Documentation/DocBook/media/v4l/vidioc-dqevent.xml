@@ -89,7 +89,7 @@
 	  <row>
 	    <entry></entry>
 	    <entry>&v4l2-event-frame-sync;</entry>
-            <entry><structfield>frame</structfield></entry>
+            <entry><structfield>frame_sync</structfield></entry>
 	    <entry>Event data for event V4L2_EVENT_FRAME_SYNC.</entry>
 	  </row>
 	  <row>

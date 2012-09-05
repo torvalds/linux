@@ -86,11 +86,9 @@ struct pipe_buf_operations {
 	 * mapping or not. The atomic map is faster, however you can't take
 	 * page faults before calling ->unmap() again. So if you need to eg
 	 * access user data through copy_to/from_user(), then you must get
-	 * a non-atomic map. ->map() uses the KM_USER0 atomic slot for
-	 * atomic maps, so you can't map more than one pipe_buffer at once
-	 * and you have to be careful if mapping another page as source
-	 * or destination for a copy (IOW, it has to use something else
-	 * than KM_USER0).
+	 * a non-atomic map. ->map() uses the kmap_atomic slot for
+	 * atomic maps, you have to be careful if mapping another page as
+	 * source or destination for a copy.
 	 */
 	void * (*map)(struct pipe_inode_info *, struct pipe_buffer *, int);
 

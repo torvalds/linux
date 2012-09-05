@@ -5,7 +5,7 @@
  *
  * (C) 2009 - Peter Feuerer     peter (a) piie.net
  *                              http://piie.net
- *     2009 Borislav Petkov <petkovbb@gmail.com>
+ *     2009 Borislav Petkov	bp (a) alien8.de
  *
  * Inspired by and many thanks to:
  *  o acerfand   - Rachel Greenham
@@ -660,7 +660,7 @@ static int acerhdf_register_thermal(void)
 	if (IS_ERR(cl_dev))
 		return -EINVAL;
 
-	thz_dev = thermal_zone_device_register("acerhdf", 1, NULL,
+	thz_dev = thermal_zone_device_register("acerhdf", 1, 0, NULL,
 					      &acerhdf_dev_ops, 0, 0, 0,
 					      (kernelmode) ? interval*1000 : 0);
 	if (IS_ERR(thz_dev))

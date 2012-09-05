@@ -158,8 +158,9 @@ static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 	return (arg->flags & IP_REPLY_ARG_NOSRCCHECK) ? FLOWI_FLAG_ANYSRC : 0;
 }
 
-void ip_send_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
-		   const struct ip_reply_arg *arg, unsigned int len);
+void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
+			   __be32 saddr, const struct ip_reply_arg *arg,
+			   unsigned int len);
 
 struct ipv4_config {
 	int	log_martians;
@@ -209,6 +210,9 @@ extern int sysctl_ip_nonlocal_bind;
 extern int inet_peer_threshold;
 extern int inet_peer_minttl;
 extern int inet_peer_maxttl;
+
+/* From ip_input.c */
+extern int sysctl_ip_early_demux;
 
 /* From ip_output.c */
 extern int sysctl_ip_dynaddr;

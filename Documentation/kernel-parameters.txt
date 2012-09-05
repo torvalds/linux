@@ -1134,7 +1134,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		forcesac
 		soft
 		pt		[x86, IA-64]
-		group_mf	[x86, IA-64]
 
 
 	io7=		[HW] IO7 for Marvel based alpha systems
@@ -2367,6 +2366,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set maximum number of finished RCU callbacks to process
 			in one batch.
 
+	rcutree.fanout_leaf=	[KNL,BOOT]
+			Increase the number of CPUs assigned to each
+			leaf rcu_node structure.  Useful for very large
+			systems.
+
 	rcutree.qhimark=	[KNL,BOOT]
 			Set threshold of queued
 			RCU callbacks over which batch limiting is disabled.
@@ -2542,6 +2546,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	sbni=		[NET] Granch SBNI12 leased line adapter
 
 	sched_debug	[KNL] Enables verbose scheduler debug messages.
+
+	skew_tick=	[KNL] Offset the periodic timer tick per cpu to mitigate
+			xtime_lock contention on larger systems, and/or RCU lock
+			contention on all systems with CONFIG_MAXSMP set.
+			Format: { "0" | "1" }
+			0 -- disable. (may be 1 via CONFIG_CMDLINE="skew_tick=1"
+			1 -- enable.
+			Note: increases power consumption, thus should only be
+			enabled if running jitter sensitive (HPC/RT) workloads.
 
 	security=	[SECURITY] Choose a security module to enable at boot.
 			If this boot parameter is not specified, only the first
@@ -2923,6 +2936,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					initial READ(10) command);
 				o = CAPACITY_OK (accept the capacity
 					reported by the device);
+				p = WRITE_CACHE (the device cache is ON
+					by default);
 				r = IGNORE_RESIDUE (the device reports
 					bogus residue values);
 				s = SINGLE_LUN (the device has only one

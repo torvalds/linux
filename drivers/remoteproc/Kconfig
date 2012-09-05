@@ -4,9 +4,11 @@ menu "Remoteproc drivers (EXPERIMENTAL)"
 config REMOTEPROC
 	tristate
 	depends on EXPERIMENTAL
+	select FW_CONFIG
 
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
+	depends on EXPERIMENTAL
 	depends on ARCH_OMAP4
 	depends on OMAP_IOMMU
 	select REMOTEPROC

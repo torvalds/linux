@@ -127,43 +127,43 @@
 			};
 
 			gpio1: gpio@73f84000 {
-				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 				reg = <0x73f84000 0x4000>;
 				interrupts = <50 51>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
-				#interrupt-cells = <1>;
+				#interrupt-cells = <2>;
 			};
 
 			gpio2: gpio@73f88000 {
-				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 				reg = <0x73f88000 0x4000>;
 				interrupts = <52 53>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
-				#interrupt-cells = <1>;
+				#interrupt-cells = <2>;
 			};
 
 			gpio3: gpio@73f8c000 {
-				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 				reg = <0x73f8c000 0x4000>;
 				interrupts = <54 55>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
-				#interrupt-cells = <1>;
+				#interrupt-cells = <2>;
 			};
 
 			gpio4: gpio@73f90000 {
-				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 				reg = <0x73f90000 0x4000>;
 				interrupts = <56 57>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
-				#interrupt-cells = <1>;
+				#interrupt-cells = <2>;
 			};
 
 			wdog@73f98000 { /* WDOG1 */

@@ -110,7 +110,7 @@ static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = inb(dev->iobase + PARPORT_A);
 
-	return 2;
+	return insn->n;
 }
 
 static int parport_insn_config_a(struct comedi_device *dev,
@@ -139,7 +139,7 @@ static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = (inb(dev->iobase + PARPORT_B) >> 3);
 
-	return 2;
+	return insn->n;
 }
 
 static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -155,18 +155,15 @@ static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = devpriv->c_data & 0xf;
 
-	return 2;
+	return insn->n;
 }
 
 static int parport_intr_insn(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n < 1)
-		return -EINVAL;
-
 	data[1] = 0;
-	return 2;
+	return insn->n;
 }
 
 static int parport_intr_cmdtest(struct comedi_device *dev,
@@ -315,9 +312,10 @@ static int parport_attach(struct comedi_device *dev,
 	}
 	dev->board_name = "parport";
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
+
 	ret = alloc_private(dev, sizeof(struct parport_private));
 	if (ret < 0)
 		return ret;

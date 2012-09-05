@@ -567,7 +567,7 @@ static int btuart_probe(struct pcmcia_device *link)
 	btuart_info_t *info;
 
 	/* Create new info device */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&link->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -583,10 +583,7 @@ static int btuart_probe(struct pcmcia_device *link)
 
 static void btuart_detach(struct pcmcia_device *link)
 {
-	btuart_info_t *info = link->priv;
-
 	btuart_release(link);
-	kfree(info);
 }
 
 static int btuart_check_config(struct pcmcia_device *p_dev, void *priv_data)

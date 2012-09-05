@@ -13,11 +13,17 @@ Required properties:
 Optional properties:
 
 - arm,primecell-periphid : Value to override the h/w value with
+- clocks : From common clock binding. First clock is phandle to clock for apb
+	pclk. Additional clocks are optional and specific to those peripherals.
+- clock-names : From common clock binding. Shall be "apb_pclk" for first clock.
 
 Example:
 
 serial@fff36000 {
 	compatible = "arm,pl011", "arm,primecell";
 	arm,primecell-periphid = <0x00341011>;
+	clocks = <&pclk>;
+	clock-names = "apb_pclk";
+	
 };
 

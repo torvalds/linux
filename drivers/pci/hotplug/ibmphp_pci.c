@@ -109,7 +109,7 @@ int ibmphp_configure_card (struct pci_func *func, u8 slotno)
 
 		cur_func->function = function;
 
-		debug ("inside the loop, cur_func->busno = %x, cur_func->device = %x, cur_func->funcion = %x\n",
+		debug ("inside the loop, cur_func->busno = %x, cur_func->device = %x, cur_func->function = %x\n",
 			cur_func->busno, cur_func->device, cur_func->function);
 
 		pci_bus_read_config_word (ibmphp_pci_bus, devfn, PCI_VENDOR_ID, &vendor_id);

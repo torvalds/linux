@@ -404,7 +404,7 @@ static void sdhci_s3c_setup_card_detect_gpio(struct sdhci_s3c *sc)
 		if (sc->ext_cd_irq &&
 		    request_threaded_irq(sc->ext_cd_irq, NULL,
 					 sdhci_s3c_gpio_card_detect_thread,
-					 IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+					 IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					 dev_name(dev), sc) == 0) {
 			int status = gpio_get_value(sc->ext_cd_gpio);
 			if (pdata->ext_cd_gpio_invert)

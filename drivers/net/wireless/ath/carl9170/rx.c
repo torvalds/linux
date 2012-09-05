@@ -161,7 +161,7 @@ static void carl9170_cmd_callback(struct ar9170 *ar, u32 len, void *buffer)
 
 void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 {
-	struct carl9170_rsp *cmd = (void *) buf;
+	struct carl9170_rsp *cmd = buf;
 	struct ieee80211_vif *vif;
 
 	if (carl9170_check_sequence(ar, cmd->hdr.seq))
@@ -206,6 +206,7 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_MESH_POINT:
 			carl9170_update_beacon(ar, true);
 			break;
 
@@ -520,7 +521,7 @@ static u8 *carl9170_find_ie(u8 *data, unsigned int len, u8 ie)
  */
 static void carl9170_ps_beacon(struct ar9170 *ar, void *data, unsigned int len)
 {
-	struct ieee80211_hdr *hdr = (void *) data;
+	struct ieee80211_hdr *hdr = data;
 	struct ieee80211_tim_ie *tim_ie;
 	u8 *tim;
 	u8 tim_len;
@@ -623,7 +624,8 @@ static void carl9170_ba_check(struct ar9170 *ar, void *data, unsigned int len)
 #undef TID_CHECK
 }
 
-static bool carl9170_ampdu_check(struct ar9170 *ar, u8 *buf, u8 ms)
+static bool carl9170_ampdu_check(struct ar9170 *ar, u8 *buf, u8 ms,
+				 struct ieee80211_rx_status *rx_status)
 {
 	__le16 fc;
 
@@ -635,6 +637,9 @@ static bool carl9170_ampdu_check(struct ar9170 *ar, u8 *buf, u8 ms)
 		 */
 		return true;
 	}
+
+	rx_status->flag |= RX_FLAG_AMPDU_DETAILS | RX_FLAG_AMPDU_LAST_KNOWN;
+	rx_status->ampdu_reference = ar->ampdu_ref;
 
 	/*
 	 * "802.11n - 7.4a.3 A-MPDU contents" describes in which contexts
@@ -684,12 +689,15 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	if (unlikely(len < sizeof(*mac)))
 		goto drop;
 
+	memset(&status, 0, sizeof(status));
+
 	mpdu_len = len - sizeof(*mac);
 
 	mac = (void *)(buf + mpdu_len);
 	mac_status = mac->status;
 	switch (mac_status & AR9170_RX_STATUS_MPDU) {
 	case AR9170_RX_STATUS_MPDU_FIRST:
+		ar->ampdu_ref++;
 		/* Aggregated MPDUs start with an PLCP header */
 		if (likely(mpdu_len >= sizeof(struct ar9170_rx_head))) {
 			head = (void *) buf;
@@ -720,12 +728,13 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 		break;
 
 	case AR9170_RX_STATUS_MPDU_LAST:
+		status.flag |= RX_FLAG_AMPDU_IS_LAST;
+
 		/*
 		 * The last frame of an A-MPDU has an extra tail
 		 * which does contain the phy status of the whole
 		 * aggregate.
 		 */
-
 		if (likely(mpdu_len >= sizeof(struct ar9170_rx_phystatus))) {
 			mpdu_len -= sizeof(struct ar9170_rx_phystatus);
 			phy = (void *)(buf + mpdu_len);
@@ -773,11 +782,10 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	if (unlikely(mpdu_len < (2 + 2 + ETH_ALEN + FCS_LEN)))
 		goto drop;
 
-	memset(&status, 0, sizeof(status));
 	if (unlikely(carl9170_rx_mac_status(ar, head, mac, &status)))
 		goto drop;
 
-	if (!carl9170_ampdu_check(ar, buf, mac_status))
+	if (!carl9170_ampdu_check(ar, buf, mac_status, &status))
 		goto drop;
 
 	if (phy)

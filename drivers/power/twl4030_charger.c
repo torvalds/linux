@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/i2c/twl.h>
@@ -479,8 +480,8 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	INIT_WORK(&bci->work, twl4030_bci_usb_work);
 
-	bci->transceiver = usb_get_transceiver();
-	if (bci->transceiver != NULL) {
+	bci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+	if (!IS_ERR_OR_NULL(bci->transceiver)) {
 		bci->usb_nb.notifier_call = twl4030_bci_usb_ncb;
 		usb_register_notifier(bci->transceiver, &bci->usb_nb);
 	}
@@ -507,9 +508,9 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	return 0;
 
 fail_unmask_interrupts:
-	if (bci->transceiver != NULL) {
+	if (!IS_ERR_OR_NULL(bci->transceiver)) {
 		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
-		usb_put_transceiver(bci->transceiver);
+		usb_put_phy(bci->transceiver);
 	}
 	free_irq(bci->irq_bci, bci);
 fail_bci_irq:
@@ -538,9 +539,9 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 	twl_i2c_write_u8(TWL4030_MODULE_INTERRUPTS, 0xff,
 			 TWL4030_INTERRUPTS_BCIIMR2A);
 
-	if (bci->transceiver != NULL) {
+	if (!IS_ERR_OR_NULL(bci->transceiver)) {
 		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
-		usb_put_transceiver(bci->transceiver);
+		usb_put_phy(bci->transceiver);
 	}
 	free_irq(bci->irq_bci, bci);
 	free_irq(bci->irq_chg, bci);

@@ -133,7 +133,7 @@ config I2C_PIIX4
 	    ATI IXP300
 	    ATI IXP400
 	    ATI SB600
-	    ATI SB700
+	    ATI SB700/SP5100
 	    ATI SB800
 	    AMD Hudson-2
 	    Serverworks OSB4
@@ -142,6 +142,10 @@ config I2C_PIIX4
 	    Serverworks HT-1000
 	    Serverworks HT-1100
 	    SMSC Victory66
+
+	  Some AMD chipsets contain two PIIX4-compatible SMBus
+	  controllers. This driver will attempt to use both controllers
+	  on the SB700/SP5100, if they have been initialized by the BIOS.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-piix4.

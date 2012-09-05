@@ -3178,7 +3178,7 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 				mdata_size, length);
 			return -1;
 		}
-		memcpy(mptr, (u8 *) (word + COMP_HDR_LEN), length);
+		memcpy(mptr, word + COMP_HDR_LEN, length);
 		ath_dbg(common, EEPROM,
 			"restored eeprom %d: uncompressed, length %d\n",
 			it, length);
@@ -3199,7 +3199,7 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 			"restore eeprom %d: block, reference %d, length %d\n",
 			it, reference, length);
 		ar9300_uncompress_block(ah, mptr, mdata_size,
-					(u8 *) (word + COMP_HDR_LEN), length);
+					(word + COMP_HDR_LEN), length);
 		break;
 	default:
 		ath_dbg(common, EEPROM, "unknown compression code %d\n", code);
@@ -4901,90 +4901,79 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 				i, cfgCtl, pCtlMode[ctlMode], ctlIndex[i],
 				chan->channel);
 
-				/*
-				 * compare test group from regulatory
-				 * channel list with test mode from pCtlMode
-				 * list
-				 */
-				if ((((cfgCtl & ~CTL_MODE_M) |
-				       (pCtlMode[ctlMode] & CTL_MODE_M)) ==
-					ctlIndex[i]) ||
-				    (((cfgCtl & ~CTL_MODE_M) |
-				       (pCtlMode[ctlMode] & CTL_MODE_M)) ==
-				     ((ctlIndex[i] & CTL_MODE_M) |
-				       SD_NO_CTL))) {
-					twiceMinEdgePower =
-					  ar9003_hw_get_max_edge_power(pEepData,
-								       freq, i,
-								       is2ghz);
+			/*
+			 * compare test group from regulatory
+			 * channel list with test mode from pCtlMode
+			 * list
+			 */
+			if ((((cfgCtl & ~CTL_MODE_M) |
+			       (pCtlMode[ctlMode] & CTL_MODE_M)) ==
+				ctlIndex[i]) ||
+			    (((cfgCtl & ~CTL_MODE_M) |
+			       (pCtlMode[ctlMode] & CTL_MODE_M)) ==
+			     ((ctlIndex[i] & CTL_MODE_M) |
+			       SD_NO_CTL))) {
+				twiceMinEdgePower =
+				  ar9003_hw_get_max_edge_power(pEepData,
+							       freq, i,
+							       is2ghz);
 
-					if ((cfgCtl & ~CTL_MODE_M) == SD_NO_CTL)
-						/*
-						 * Find the minimum of all CTL
-						 * edge powers that apply to
-						 * this channel
-						 */
-						twiceMaxEdgePower =
-							min(twiceMaxEdgePower,
-							    twiceMinEdgePower);
-						else {
-							/* specific */
-							twiceMaxEdgePower =
-							  twiceMinEdgePower;
-							break;
-						}
+				if ((cfgCtl & ~CTL_MODE_M) == SD_NO_CTL)
+					/*
+					 * Find the minimum of all CTL
+					 * edge powers that apply to
+					 * this channel
+					 */
+					twiceMaxEdgePower =
+						min(twiceMaxEdgePower,
+						    twiceMinEdgePower);
+				else {
+					/* specific */
+					twiceMaxEdgePower = twiceMinEdgePower;
+					break;
 				}
 			}
+		}
 
-			minCtlPower = (u8)min(twiceMaxEdgePower, scaledPower);
+		minCtlPower = (u8)min(twiceMaxEdgePower, scaledPower);
 
-			ath_dbg(common, REGULATORY,
-				"SEL-Min ctlMode %d pCtlMode %d 2xMaxEdge %d sP %d minCtlPwr %d\n",
-				ctlMode, pCtlMode[ctlMode], twiceMaxEdgePower,
-				scaledPower, minCtlPower);
+		ath_dbg(common, REGULATORY,
+			"SEL-Min ctlMode %d pCtlMode %d 2xMaxEdge %d sP %d minCtlPwr %d\n",
+			ctlMode, pCtlMode[ctlMode], twiceMaxEdgePower,
+			scaledPower, minCtlPower);
 
-			/* Apply ctl mode to correct target power set */
-			switch (pCtlMode[ctlMode]) {
-			case CTL_11B:
-				for (i = ALL_TARGET_LEGACY_1L_5L;
-				     i <= ALL_TARGET_LEGACY_11S; i++)
-					pPwrArray[i] =
-					  (u8)min((u16)pPwrArray[i],
-						  minCtlPower);
-				break;
-			case CTL_11A:
-			case CTL_11G:
-				for (i = ALL_TARGET_LEGACY_6_24;
-				     i <= ALL_TARGET_LEGACY_54; i++)
-					pPwrArray[i] =
-					  (u8)min((u16)pPwrArray[i],
-						  minCtlPower);
-				break;
-			case CTL_5GHT20:
-			case CTL_2GHT20:
-				for (i = ALL_TARGET_HT20_0_8_16;
-				     i <= ALL_TARGET_HT20_21; i++)
-					pPwrArray[i] =
-					  (u8)min((u16)pPwrArray[i],
-						  minCtlPower);
-				pPwrArray[ALL_TARGET_HT20_22] =
-				  (u8)min((u16)pPwrArray[ALL_TARGET_HT20_22],
-					  minCtlPower);
-				pPwrArray[ALL_TARGET_HT20_23] =
-				  (u8)min((u16)pPwrArray[ALL_TARGET_HT20_23],
-					   minCtlPower);
-				break;
-			case CTL_5GHT40:
-			case CTL_2GHT40:
-				for (i = ALL_TARGET_HT40_0_8_16;
-				     i <= ALL_TARGET_HT40_23; i++)
-					pPwrArray[i] =
-					  (u8)min((u16)pPwrArray[i],
-						  minCtlPower);
-				break;
-			default:
-			    break;
-			}
+		/* Apply ctl mode to correct target power set */
+		switch (pCtlMode[ctlMode]) {
+		case CTL_11B:
+			for (i = ALL_TARGET_LEGACY_1L_5L;
+			     i <= ALL_TARGET_LEGACY_11S; i++)
+				pPwrArray[i] = (u8)min((u16)pPwrArray[i],
+						       minCtlPower);
+			break;
+		case CTL_11A:
+		case CTL_11G:
+			for (i = ALL_TARGET_LEGACY_6_24;
+			     i <= ALL_TARGET_LEGACY_54; i++)
+				pPwrArray[i] = (u8)min((u16)pPwrArray[i],
+						       minCtlPower);
+			break;
+		case CTL_5GHT20:
+		case CTL_2GHT20:
+			for (i = ALL_TARGET_HT20_0_8_16;
+			     i <= ALL_TARGET_HT20_23; i++)
+				pPwrArray[i] = (u8)min((u16)pPwrArray[i],
+						       minCtlPower);
+			break;
+		case CTL_5GHT40:
+		case CTL_2GHT40:
+			for (i = ALL_TARGET_HT40_0_8_16;
+			     i <= ALL_TARGET_HT40_23; i++)
+				pPwrArray[i] = (u8)min((u16)pPwrArray[i],
+						       minCtlPower);
+			break;
+		default:
+			break;
+		}
 	} /* end ctl mode checking */
 }
 

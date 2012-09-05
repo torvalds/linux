@@ -57,6 +57,18 @@ struct pda_channel_output_limit {
 	u8 rate_set_size;
 } __packed;
 
+struct pda_channel_output_limit_point_longbow {
+	__le16 val_bpsk;
+	__le16 val_qpsk;
+	__le16 val_16qam;
+	__le16 val_64qam;
+} __packed;
+
+struct pda_channel_output_limit_longbow {
+	__le16 freq;
+	struct pda_channel_output_limit_point_longbow point[3];
+} __packed;
+
 struct pda_pa_curve_data_sample_rev0 {
 	u8 rf_power;
 	u8 pa_detector;

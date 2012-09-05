@@ -32,9 +32,6 @@
 #include <linux/mdio.h>
 #include <linux/netdevice.h>
 
-/* Vendor ID */
-#define IXGBE_INTEL_VENDOR_ID   0x8086
-
 /* Device IDs */
 #define IXGBE_DEV_ID_82598               0x10B6
 #define IXGBE_DEV_ID_82598_BX            0x1508
@@ -57,6 +54,7 @@
 #define IXGBE_DEV_ID_82599_BACKPLANE_FCOE       0x152a
 #define IXGBE_DEV_ID_82599_SFP_FCOE      0x1529
 #define IXGBE_SUBDEV_ID_82599_SFP        0x11A9
+#define IXGBE_SUBDEV_ID_82599_RNDC       0x1F72
 #define IXGBE_SUBDEV_ID_82599_560FLR     0x17D0
 #define IXGBE_DEV_ID_82599_SFP_EM        0x1507
 #define IXGBE_DEV_ID_82599_SFP_SF2       0x154D
@@ -1452,6 +1450,7 @@ enum {
 #define IXGBE_ETQF_1588         0x40000000 /* bit 30 */
 #define IXGBE_ETQF_FILTER_EN    0x80000000 /* bit 31 */
 #define IXGBE_ETQF_POOL_ENABLE   (1 << 26) /* bit 26 */
+#define IXGBE_ETQF_POOL_SHIFT		20
 
 #define IXGBE_ETQS_RX_QUEUE     0x007F0000 /* bits 22:16 */
 #define IXGBE_ETQS_RX_QUEUE_SHIFT       16
@@ -2419,7 +2418,7 @@ typedef u32 ixgbe_physical_layer;
  */
 
 /* BitTimes (BT) conversion */
-#define IXGBE_BT2KB(BT) ((BT + 1023) / (8 * 1024))
+#define IXGBE_BT2KB(BT) ((BT + (8 * 1024 - 1)) / (8 * 1024))
 #define IXGBE_B2BT(BT) (BT * 8)
 
 /* Calculate Delay to respond to PFC */
@@ -2450,24 +2449,31 @@ typedef u32 ixgbe_physical_layer;
 #define IXGBE_PCI_DELAY	10000
 
 /* Calculate X540 delay value in bit times */
-#define IXGBE_FILL_RATE (36 / 25)
-
-#define IXGBE_DV_X540(LINK, TC) (IXGBE_FILL_RATE * \
-				 (IXGBE_B2BT(LINK) + IXGBE_PFC_D + \
-				 (2 * IXGBE_CABLE_DC) + \
-				 (2 * IXGBE_ID_X540) + \
-				 IXGBE_HD + IXGBE_B2BT(TC)))
+#define IXGBE_DV_X540(_max_frame_link, _max_frame_tc) \
+			((36 * \
+			  (IXGBE_B2BT(_max_frame_link) + \
+			   IXGBE_PFC_D + \
+			   (2 * IXGBE_CABLE_DC) + \
+			   (2 * IXGBE_ID_X540) + \
+			   IXGBE_HD) / 25 + 1) + \
+			 2 * IXGBE_B2BT(_max_frame_tc))
 
 /* Calculate 82599, 82598 delay value in bit times */
-#define IXGBE_DV(LINK, TC) (IXGBE_FILL_RATE * \
-			    (IXGBE_B2BT(LINK) + IXGBE_PFC_D + \
-			    (2 * IXGBE_CABLE_DC) + (2 * IXGBE_ID) + \
-			    IXGBE_HD + IXGBE_B2BT(TC)))
+#define IXGBE_DV(_max_frame_link, _max_frame_tc) \
+			((36 * \
+			  (IXGBE_B2BT(_max_frame_link) + \
+			   IXGBE_PFC_D + \
+			   (2 * IXGBE_CABLE_DC) + \
+			   (2 * IXGBE_ID) + \
+			   IXGBE_HD) / 25 + 1) + \
+			 2 * IXGBE_B2BT(_max_frame_tc))
 
 /* Calculate low threshold delay values */
-#define IXGBE_LOW_DV_X540(TC) (2 * IXGBE_B2BT(TC) + \
-			       (IXGBE_FILL_RATE * IXGBE_PCI_DELAY))
-#define IXGBE_LOW_DV(TC)      (2 * IXGBE_LOW_DV_X540(TC))
+#define IXGBE_LOW_DV_X540(_max_frame_tc) \
+			(2 * IXGBE_B2BT(_max_frame_tc) + \
+			(36 * IXGBE_PCI_DELAY / 25) + 1)
+#define IXGBE_LOW_DV(_max_frame_tc) \
+			(2 * IXGBE_LOW_DV_X540(_max_frame_tc))
 
 /* Software ATR hash keys */
 #define IXGBE_ATR_BUCKET_HASH_KEY    0x3DAD14E2
@@ -2597,6 +2603,8 @@ enum ixgbe_sfp_type {
 	ixgbe_sfp_type_da_act_lmt_core1 = 8,
 	ixgbe_sfp_type_1g_cu_core0 = 9,
 	ixgbe_sfp_type_1g_cu_core1 = 10,
+	ixgbe_sfp_type_1g_sx_core0 = 11,
+	ixgbe_sfp_type_1g_sx_core1 = 12,
 	ixgbe_sfp_type_not_present = 0xFFFE,
 	ixgbe_sfp_type_unknown = 0xFFFF
 };
@@ -2837,6 +2845,7 @@ struct ixgbe_mac_operations {
 	s32 (*set_rar)(struct ixgbe_hw *, u32, u8 *, u32, u32);
 	s32 (*clear_rar)(struct ixgbe_hw *, u32);
 	s32 (*set_vmdq)(struct ixgbe_hw *, u32, u32);
+	s32 (*set_vmdq_san_mac)(struct ixgbe_hw *, u32);
 	s32 (*clear_vmdq)(struct ixgbe_hw *, u32, u32);
 	s32 (*init_rx_addrs)(struct ixgbe_hw *);
 	s32 (*update_mc_addr_list)(struct ixgbe_hw *, struct net_device *);
@@ -2912,6 +2921,7 @@ struct ixgbe_mac_info {
 	bool                            orig_link_settings_stored;
 	bool                            autotry_restart;
 	u8                              flags;
+	u8				san_mac_rar_index;
 	struct ixgbe_thermal_sensor_data  thermal_sensor_data;
 };
 

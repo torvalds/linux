@@ -224,7 +224,7 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
  *	and the caller has to be careful not to fault before calling
  *	the unmap function.
  *
- *	Note that this function occupies KM_USER0 if @atomic != 0.
+ *	Note that this function calls kmap_atomic() if @atomic != 0.
  */
 void *generic_pipe_buf_map(struct pipe_inode_info *pipe,
 			   struct pipe_buffer *buf, int atomic)

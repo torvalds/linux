@@ -201,8 +201,8 @@ static struct resource kfr2r09_usb0_gadget_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= evtirq(0xa20),
-		.end	= evtirq(0xa20),
+		.start	= evt2irq(0xa20),
+		.end	= evt2irq(0xa20),
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };

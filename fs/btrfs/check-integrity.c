@@ -93,6 +93,7 @@
 #include "print-tree.h"
 #include "locking.h"
 #include "check-integrity.h"
+#include "rcu-string.h"
 
 #define BTRFSIC_BLOCK_HASHTABLE_SIZE 0x10000
 #define BTRFSIC_BLOCK_LINK_HASHTABLE_SIZE 0x10000
@@ -843,13 +844,14 @@ static int btrfsic_process_superblock_dev_mirror(
 		superblock_tmp->never_written = 0;
 		superblock_tmp->mirror_num = 1 + superblock_mirror_num;
 		if (state->print_mask & BTRFSIC_PRINT_MASK_SUPERBLOCK_WRITE)
-			printk(KERN_INFO "New initial S-block (bdev %p, %s)"
-			       " @%llu (%s/%llu/%d)\n",
-			       superblock_bdev, device->name,
-			       (unsigned long long)dev_bytenr,
-			       dev_state->name,
-			       (unsigned long long)dev_bytenr,
-			       superblock_mirror_num);
+			printk_in_rcu(KERN_INFO "New initial S-block (bdev %p, %s)"
+				     " @%llu (%s/%llu/%d)\n",
+				     superblock_bdev,
+				     rcu_str_deref(device->name),
+				     (unsigned long long)dev_bytenr,
+				     dev_state->name,
+				     (unsigned long long)dev_bytenr,
+				     superblock_mirror_num);
 		list_add(&superblock_tmp->all_blocks_node,
 			 &state->all_blocks_list);
 		btrfsic_block_hashtable_add(superblock_tmp,
@@ -1030,6 +1032,7 @@ continue_with_current_leaf_stack_frame:
 			struct btrfs_disk_key *disk_key;
 			u8 type;
 			u32 item_offset;
+			u32 item_size;
 
 			if (disk_item_offset + sizeof(struct btrfs_item) >
 			    sf->block_ctx->len) {
@@ -1045,6 +1048,7 @@ leaf_item_out_of_bounce_error:
 						     disk_item_offset,
 						     sizeof(struct btrfs_item));
 			item_offset = le32_to_cpu(disk_item.offset);
+			item_size = le32_to_cpu(disk_item.size);
 			disk_key = &disk_item.key;
 			type = disk_key->type;
 
@@ -1055,14 +1059,13 @@ leaf_item_out_of_bounce_error:
 
 				root_item_offset = item_offset +
 					offsetof(struct btrfs_leaf, items);
-				if (root_item_offset +
-				    sizeof(struct btrfs_root_item) >
+				if (root_item_offset + item_size >
 				    sf->block_ctx->len)
 					goto leaf_item_out_of_bounce_error;
 				btrfsic_read_from_block_data(
 					sf->block_ctx, &root_item,
 					root_item_offset,
-					sizeof(struct btrfs_root_item));
+					item_size);
 				next_bytenr = le64_to_cpu(root_item.bytenr);
 
 				sf->error =

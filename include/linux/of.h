@@ -163,6 +163,11 @@ static inline int of_node_to_nid(struct device_node *np) { return -1; }
 #define of_node_to_nid of_node_to_nid
 #endif
 
+static inline const char* of_node_full_name(struct device_node *np)
+{
+	return np ? np->full_name : "<no-node>";
+}
+
 extern struct device_node *of_find_node_by_name(struct device_node *from,
 	const char *name);
 #define for_each_node_by_name(dn, name) \
@@ -260,8 +265,7 @@ extern int of_machine_is_compatible(const char *compat);
 extern int prom_add_property(struct device_node* np, struct property* prop);
 extern int prom_remove_property(struct device_node *np, struct property *prop);
 extern int prom_update_property(struct device_node *np,
-				struct property *newprop,
-				struct property *oldprop);
+				struct property *newprop);
 
 #if defined(CONFIG_OF_DYNAMIC)
 /* For updating the device tree at runtime */
@@ -302,6 +306,11 @@ const char *of_prop_next_string(struct property *prop, const char *cur);
 		s = of_prop_next_string(prop, s))
 
 #else /* CONFIG_OF */
+
+static inline const char* of_node_full_name(struct device_node *np)
+{
+	return "<no-node>";
+}
 
 static inline bool of_have_populated_dt(void)
 {

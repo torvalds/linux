@@ -1267,7 +1267,7 @@ int i2400m_fw_check(struct i2400m *i2400m, const void *bcf, size_t bcf_size)
 		size_t leftover, offset, header_len, size;
 
 		leftover = top - itr;
-		offset = itr - (const void *) bcf;
+		offset = itr - bcf;
 		if (leftover <= sizeof(*bcf_hdr)) {
 			dev_err(dev, "firmware %s: %zu B left at @%zx, "
 				"not enough for BCF header\n",

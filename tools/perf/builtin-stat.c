@@ -391,7 +391,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 
 	if (verbose) {
 		fprintf(output, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
-			event_name(counter), count[0], count[1], count[2]);
+			perf_evsel__name(counter), count[0], count[1], count[2]);
 	}
 
 	/*
@@ -496,7 +496,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 			    errno == ENXIO) {
 				if (verbose)
 					ui__warning("%s event is not supported by the kernel.\n",
-						    event_name(counter));
+						    perf_evsel__name(counter));
 				counter->supported = false;
 				continue;
 			}
@@ -594,7 +594,7 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 			csv_output ? 0 : -4,
 			evsel_list->cpus->map[cpu], csv_sep);
 
-	fprintf(output, fmt, cpustr, msecs, csv_sep, event_name(evsel));
+	fprintf(output, fmt, cpustr, msecs, csv_sep, perf_evsel__name(evsel));
 
 	if (evsel->cgrp)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
@@ -792,7 +792,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 	else
 		cpu = 0;
 
-	fprintf(output, fmt, cpustr, avg, csv_sep, event_name(evsel));
+	fprintf(output, fmt, cpustr, avg, csv_sep, perf_evsel__name(evsel));
 
 	if (evsel->cgrp)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
@@ -908,7 +908,7 @@ static void print_counter_aggr(struct perf_evsel *counter)
 			counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
 			csv_sep,
 			csv_output ? 0 : -24,
-			event_name(counter));
+			perf_evsel__name(counter));
 
 		if (counter->cgrp)
 			fprintf(output, "%s%s", csv_sep, counter->cgrp->name);
@@ -961,7 +961,7 @@ static void print_counter(struct perf_evsel *counter)
 				counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
 				csv_sep,
 				csv_output ? 0 : -24,
-				event_name(counter));
+				perf_evsel__name(counter));
 
 			if (counter->cgrp)
 				fprintf(output, "%s%s",
@@ -1129,7 +1129,7 @@ static int add_default_attributes(void)
 		return 0;
 
 	if (!evsel_list->nr_entries) {
-		if (perf_evlist__add_attrs_array(evsel_list, default_attrs) < 0)
+		if (perf_evlist__add_default_attrs(evsel_list, default_attrs) < 0)
 			return -1;
 	}
 
@@ -1139,21 +1139,21 @@ static int add_default_attributes(void)
 		return 0;
 
 	/* Append detailed run extra attributes: */
-	if (perf_evlist__add_attrs_array(evsel_list, detailed_attrs) < 0)
+	if (perf_evlist__add_default_attrs(evsel_list, detailed_attrs) < 0)
 		return -1;
 
 	if (detailed_run < 2)
 		return 0;
 
 	/* Append very detailed run extra attributes: */
-	if (perf_evlist__add_attrs_array(evsel_list, very_detailed_attrs) < 0)
+	if (perf_evlist__add_default_attrs(evsel_list, very_detailed_attrs) < 0)
 		return -1;
 
 	if (detailed_run < 3)
 		return 0;
 
 	/* Append very, very detailed run extra attributes: */
-	return perf_evlist__add_attrs_array(evsel_list, very_very_detailed_attrs);
+	return perf_evlist__add_default_attrs(evsel_list, very_very_detailed_attrs);
 }
 
 int cmd_stat(int argc, const char **argv, const char *prefix __used)
@@ -1179,6 +1179,12 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		fprintf(stderr, "cannot use both --output and --log-fd\n");
 		usage_with_options(stat_usage, options);
 	}
+
+	if (output_fd < 0) {
+		fprintf(stderr, "argument to --log-fd must be a > 0\n");
+		usage_with_options(stat_usage, options);
+	}
+
 	if (!output) {
 		struct timespec tm;
 		mode = append_file ? "a" : "w";
@@ -1190,7 +1196,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		}
 		clock_gettime(CLOCK_REALTIME, &tm);
 		fprintf(output, "# started on %s\n", ctime(&tm.tv_sec));
-	} else if (output_fd != 2) {
+	} else if (output_fd > 0) {
 		mode = append_file ? "a" : "w";
 		output = fdopen(output_fd, mode);
 		if (!output) {

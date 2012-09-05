@@ -297,6 +297,7 @@ struct hptiop_adapter_ops {
 	int  (*iop_intr)(struct hptiop_hba *hba);
 	void (*post_msg)(struct hptiop_hba *hba, u32 msg);
 	void (*post_req)(struct hptiop_hba *hba, struct hptiop_request *_req);
+	int  hw_dma_bit_mask;
 };
 
 #define HPT_IOCTL_RESULT_OK         0

@@ -43,6 +43,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/gpio.h>
+#include <linux/clk.h>
 
 /* EHCI Register Set */
 #define EHCI_INSNREG04					(0xA0)
@@ -54,6 +55,15 @@
 #define	EHCI_INSNREG05_ULPI_REGADD_SHIFT		16
 #define	EHCI_INSNREG05_ULPI_EXTREGADD_SHIFT		8
 #define	EHCI_INSNREG05_ULPI_WRDATA_SHIFT		0
+
+/* Errata i693 */
+static struct clk	*utmi_p1_fck;
+static struct clk	*utmi_p2_fck;
+static struct clk	*xclk60mhsp1_ck;
+static struct clk	*xclk60mhsp2_ck;
+static struct clk	*usbhost_p1_fck;
+static struct clk	*usbhost_p2_fck;
+static struct clk	*init_60m_fclk;
 
 /*-------------------------------------------------------------------------*/
 
@@ -70,9 +80,43 @@ static inline u32 ehci_read(void __iomem *base, u32 reg)
 	return __raw_readl(base + reg);
 }
 
-static void omap_ehci_soft_phy_reset(struct platform_device *pdev, u8 port)
+/* Erratum i693 workaround sequence */
+static void omap_ehci_erratum_i693(struct ehci_hcd *ehci)
 {
-	struct usb_hcd	*hcd = dev_get_drvdata(&pdev->dev);
+	int ret = 0;
+
+	/* Switch to the internal 60 MHz clock */
+	ret = clk_set_parent(utmi_p1_fck, init_60m_fclk);
+	if (ret != 0)
+		ehci_err(ehci, "init_60m_fclk set parent"
+			"failed error:%d\n", ret);
+
+	ret = clk_set_parent(utmi_p2_fck, init_60m_fclk);
+	if (ret != 0)
+		ehci_err(ehci, "init_60m_fclk set parent"
+			"failed error:%d\n", ret);
+
+	clk_enable(usbhost_p1_fck);
+	clk_enable(usbhost_p2_fck);
+
+	/* Wait 1ms and switch back to the external clock */
+	mdelay(1);
+	ret = clk_set_parent(utmi_p1_fck, xclk60mhsp1_ck);
+	if (ret != 0)
+		ehci_err(ehci, "xclk60mhsp1_ck set parent"
+			"failed error:%d\n", ret);
+
+	ret = clk_set_parent(utmi_p2_fck, xclk60mhsp2_ck);
+	if (ret != 0)
+		ehci_err(ehci, "xclk60mhsp2_ck set parent"
+			"failed error:%d\n", ret);
+
+	clk_disable(usbhost_p1_fck);
+	clk_disable(usbhost_p2_fck);
+}
+
+static void omap_ehci_soft_phy_reset(struct usb_hcd *hcd, u8 port)
+{
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	unsigned reg = 0;
 
@@ -94,10 +138,105 @@ static void omap_ehci_soft_phy_reset(struct platform_device *pdev, u8 port)
 		cpu_relax();
 
 		if (time_after(jiffies, timeout)) {
-			dev_dbg(&pdev->dev, "phy reset operation timed out\n");
+			dev_dbg(hcd->self.controller,
+					"phy reset operation timed out\n");
 			break;
 		}
 	}
+}
+
+static int omap_ehci_init(struct usb_hcd *hcd)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+	int			rc;
+	struct ehci_hcd_omap_platform_data	*pdata;
+
+	pdata = hcd->self.controller->platform_data;
+	if (pdata->phy_reset) {
+		if (gpio_is_valid(pdata->reset_gpio_port[0]))
+			gpio_request_one(pdata->reset_gpio_port[0],
+					 GPIOF_OUT_INIT_LOW, "USB1 PHY reset");
+
+		if (gpio_is_valid(pdata->reset_gpio_port[1]))
+			gpio_request_one(pdata->reset_gpio_port[1],
+					 GPIOF_OUT_INIT_LOW, "USB2 PHY reset");
+
+		/* Hold the PHY in RESET for enough time till DIR is high */
+		udelay(10);
+	}
+
+	/* Soft reset the PHY using PHY reset command over ULPI */
+	if (pdata->port_mode[0] == OMAP_EHCI_PORT_MODE_PHY)
+		omap_ehci_soft_phy_reset(hcd, 0);
+	if (pdata->port_mode[1] == OMAP_EHCI_PORT_MODE_PHY)
+		omap_ehci_soft_phy_reset(hcd, 1);
+
+	/* we know this is the memory we want, no need to ioremap again */
+	ehci->caps = hcd->regs;
+
+	rc = ehci_setup(hcd);
+
+	if (pdata->phy_reset) {
+		/* Hold the PHY in RESET for enough time till
+		 * PHY is settled and ready
+		 */
+		udelay(10);
+
+		if (gpio_is_valid(pdata->reset_gpio_port[0]))
+			gpio_set_value_cansleep(pdata->reset_gpio_port[0], 1);
+
+		if (gpio_is_valid(pdata->reset_gpio_port[1]))
+			gpio_set_value_cansleep(pdata->reset_gpio_port[1], 1);
+	}
+
+	/* root ports should always stay powered */
+	ehci_port_power(ehci, 1);
+
+	return rc;
+}
+
+static int omap_ehci_hub_control(
+	struct usb_hcd	*hcd,
+	u16		typeReq,
+	u16		wValue,
+	u16		wIndex,
+	char		*buf,
+	u16		wLength
+)
+{
+	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
+	u32 __iomem *status_reg = &ehci->regs->port_status[
+				(wIndex & 0xff) - 1];
+	u32		temp;
+	unsigned long	flags;
+	int		retval = 0;
+
+	spin_lock_irqsave(&ehci->lock, flags);
+
+	if (typeReq == SetPortFeature && wValue == USB_PORT_FEAT_SUSPEND) {
+		temp = ehci_readl(ehci, status_reg);
+		if ((temp & PORT_PE) == 0 || (temp & PORT_RESET) != 0) {
+			retval = -EPIPE;
+			goto done;
+		}
+
+		temp &= ~PORT_WKCONN_E;
+		temp |= PORT_WKDISC_E | PORT_WKOC_E;
+		ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
+
+		omap_ehci_erratum_i693(ehci);
+
+		set_bit((wIndex & 0xff) - 1, &ehci->suspended_ports);
+		goto done;
+	}
+
+	spin_unlock_irqrestore(&ehci->lock, flags);
+
+	/* Handle the hub control events here */
+	return ehci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+done:
+	spin_unlock_irqrestore(&ehci->lock, flags);
+	return retval;
 }
 
 static void disable_put_regulator(
@@ -130,7 +269,6 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	struct resource				*res;
 	struct usb_hcd				*hcd;
 	void __iomem				*regs;
-	struct ehci_hcd				*omap_ehci;
 	int					ret = -ENODEV;
 	int					irq;
 	int					i;
@@ -192,19 +330,6 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (pdata->phy_reset) {
-		if (gpio_is_valid(pdata->reset_gpio_port[0]))
-			gpio_request_one(pdata->reset_gpio_port[0],
-					 GPIOF_OUT_INIT_LOW, "USB1 PHY reset");
-
-		if (gpio_is_valid(pdata->reset_gpio_port[1]))
-			gpio_request_one(pdata->reset_gpio_port[1],
-					 GPIOF_OUT_INIT_LOW, "USB2 PHY reset");
-
-		/* Hold the PHY in RESET for enough time till DIR is high */
-		udelay(10);
-	}
-
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
@@ -220,55 +345,89 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	ehci_write(regs, EHCI_INSNREG04,
 				EHCI_INSNREG04_DISABLE_UNSUSPEND);
 
-	/* Soft reset the PHY using PHY reset command over ULPI */
-	if (pdata->port_mode[0] == OMAP_EHCI_PORT_MODE_PHY)
-		omap_ehci_soft_phy_reset(pdev, 0);
-	if (pdata->port_mode[1] == OMAP_EHCI_PORT_MODE_PHY)
-		omap_ehci_soft_phy_reset(pdev, 1);
-
-	omap_ehci = hcd_to_ehci(hcd);
-	omap_ehci->sbrn = 0x20;
-
-	/* we know this is the memory we want, no need to ioremap again */
-	omap_ehci->caps = hcd->regs;
-	omap_ehci->regs = hcd->regs
-		+ HC_LENGTH(ehci, readl(&omap_ehci->caps->hc_capbase));
-
-	dbg_hcs_params(omap_ehci, "reset");
-	dbg_hcc_params(omap_ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	omap_ehci->hcs_params = readl(&omap_ehci->caps->hcs_params);
-
-	ehci_reset(omap_ehci);
-
-	if (pdata->phy_reset) {
-		/* Hold the PHY in RESET for enough time till
-		 * PHY is settled and ready
-		 */
-		udelay(10);
-
-		if (gpio_is_valid(pdata->reset_gpio_port[0]))
-			gpio_set_value_cansleep(pdata->reset_gpio_port[0], 1);
-
-		if (gpio_is_valid(pdata->reset_gpio_port[1]))
-			gpio_set_value_cansleep(pdata->reset_gpio_port[1], 1);
-	}
-
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret) {
 		dev_err(dev, "failed to add hcd with err %d\n", ret);
+		goto err_pm_runtime;
+	}
+
+	/* get clocks */
+	utmi_p1_fck = clk_get(dev, "utmi_p1_gfclk");
+	if (IS_ERR(utmi_p1_fck)) {
+		ret = PTR_ERR(utmi_p1_fck);
+		dev_err(dev, "utmi_p1_gfclk failed error:%d\n",	ret);
 		goto err_add_hcd;
 	}
 
-	/* root ports should always stay powered */
-	ehci_port_power(omap_ehci, 1);
+	xclk60mhsp1_ck = clk_get(dev, "xclk60mhsp1_ck");
+	if (IS_ERR(xclk60mhsp1_ck)) {
+		ret = PTR_ERR(xclk60mhsp1_ck);
+		dev_err(dev, "xclk60mhsp1_ck failed error:%d\n", ret);
+		goto err_utmi_p1_fck;
+	}
+
+	utmi_p2_fck = clk_get(dev, "utmi_p2_gfclk");
+	if (IS_ERR(utmi_p2_fck)) {
+		ret = PTR_ERR(utmi_p2_fck);
+		dev_err(dev, "utmi_p2_gfclk failed error:%d\n", ret);
+		goto err_xclk60mhsp1_ck;
+	}
+
+	xclk60mhsp2_ck = clk_get(dev, "xclk60mhsp2_ck");
+	if (IS_ERR(xclk60mhsp2_ck)) {
+		ret = PTR_ERR(xclk60mhsp2_ck);
+		dev_err(dev, "xclk60mhsp2_ck failed error:%d\n", ret);
+		goto err_utmi_p2_fck;
+	}
+
+	usbhost_p1_fck = clk_get(dev, "usb_host_hs_utmi_p1_clk");
+	if (IS_ERR(usbhost_p1_fck)) {
+		ret = PTR_ERR(usbhost_p1_fck);
+		dev_err(dev, "usbhost_p1_fck failed error:%d\n", ret);
+		goto err_xclk60mhsp2_ck;
+	}
+
+	usbhost_p2_fck = clk_get(dev, "usb_host_hs_utmi_p2_clk");
+	if (IS_ERR(usbhost_p2_fck)) {
+		ret = PTR_ERR(usbhost_p2_fck);
+		dev_err(dev, "usbhost_p2_fck failed error:%d\n", ret);
+		goto err_usbhost_p1_fck;
+	}
+
+	init_60m_fclk = clk_get(dev, "init_60m_fclk");
+	if (IS_ERR(init_60m_fclk)) {
+		ret = PTR_ERR(init_60m_fclk);
+		dev_err(dev, "init_60m_fclk failed error:%d\n", ret);
+		goto err_usbhost_p2_fck;
+	}
 
 	return 0;
 
+err_usbhost_p2_fck:
+	clk_put(usbhost_p2_fck);
+
+err_usbhost_p1_fck:
+	clk_put(usbhost_p1_fck);
+
+err_xclk60mhsp2_ck:
+	clk_put(xclk60mhsp2_ck);
+
+err_utmi_p2_fck:
+	clk_put(utmi_p2_fck);
+
+err_xclk60mhsp1_ck:
+	clk_put(xclk60mhsp1_ck);
+
+err_utmi_p1_fck:
+	clk_put(utmi_p1_fck);
+
 err_add_hcd:
+	usb_remove_hcd(hcd);
+
+err_pm_runtime:
 	disable_put_regulator(pdata);
 	pm_runtime_put_sync(dev);
+	usb_put_hcd(hcd);
 
 err_io:
 	iounmap(regs);
@@ -294,6 +453,15 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 	disable_put_regulator(dev->platform_data);
 	iounmap(hcd->regs);
 	usb_put_hcd(hcd);
+
+	clk_put(utmi_p1_fck);
+	clk_put(utmi_p2_fck);
+	clk_put(xclk60mhsp1_ck);
+	clk_put(xclk60mhsp2_ck);
+	clk_put(usbhost_p1_fck);
+	clk_put(usbhost_p2_fck);
+	clk_put(init_60m_fclk);
+
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 
@@ -342,7 +510,7 @@ static const struct hc_driver ehci_omap_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset			= ehci_init,
+	.reset			= omap_ehci_init,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,
@@ -364,7 +532,7 @@ static const struct hc_driver ehci_omap_hc_driver = {
 	 * root hub support
 	 */
 	.hub_status_data	= ehci_hub_status_data,
-	.hub_control		= ehci_hub_control,
+	.hub_control		= omap_ehci_hub_control,
 	.bus_suspend		= ehci_bus_suspend,
 	.bus_resume		= ehci_bus_resume,
 

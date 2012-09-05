@@ -722,13 +722,11 @@ int adjust_resource(struct resource *res, resource_size_t start, resource_size_t
 
 	write_lock(&resource_lock);
 
+	if (!parent)
+		goto skip;
+
 	if ((start < parent->start) || (end > parent->end))
 		goto out;
-
-	for (tmp = res->child; tmp; tmp = tmp->sibling) {
-		if ((tmp->start < start) || (tmp->end > end))
-			goto out;
-	}
 
 	if (res->sibling && (res->sibling->start <= end))
 		goto out;
@@ -740,6 +738,11 @@ int adjust_resource(struct resource *res, resource_size_t start, resource_size_t
 		if (start <= tmp->end)
 			goto out;
 	}
+
+skip:
+	for (tmp = res->child; tmp; tmp = tmp->sibling)
+		if ((tmp->start < start) || (tmp->end > end))
+			goto out;
 
 	res->start = start;
 	res->end = end;

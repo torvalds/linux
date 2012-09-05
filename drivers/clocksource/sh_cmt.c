@@ -48,13 +48,13 @@ struct sh_cmt_priv {
 	unsigned long next_match_value;
 	unsigned long max_match_value;
 	unsigned long rate;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	struct clock_event_device ced;
 	struct clocksource cs;
 	unsigned long total_cycles;
 };
 
-static DEFINE_SPINLOCK(sh_cmt_lock);
+static DEFINE_RAW_SPINLOCK(sh_cmt_lock);
 
 #define CMSTR -1 /* shared register */
 #define CMCSR 0 /* channel register */
@@ -139,7 +139,7 @@ static void sh_cmt_start_stop_ch(struct sh_cmt_priv *p, int start)
 	unsigned long flags, value;
 
 	/* start stop register shared by multiple timer channels */
-	spin_lock_irqsave(&sh_cmt_lock, flags);
+	raw_spin_lock_irqsave(&sh_cmt_lock, flags);
 	value = sh_cmt_read(p, CMSTR);
 
 	if (start)
@@ -148,7 +148,7 @@ static void sh_cmt_start_stop_ch(struct sh_cmt_priv *p, int start)
 		value &= ~(1 << cfg->timer_bit);
 
 	sh_cmt_write(p, CMSTR, value);
-	spin_unlock_irqrestore(&sh_cmt_lock, flags);
+	raw_spin_unlock_irqrestore(&sh_cmt_lock, flags);
 }
 
 static int sh_cmt_enable(struct sh_cmt_priv *p, unsigned long *rate)
@@ -328,9 +328,9 @@ static void sh_cmt_set_next(struct sh_cmt_priv *p, unsigned long delta)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&p->lock, flags);
+	raw_spin_lock_irqsave(&p->lock, flags);
 	__sh_cmt_set_next(p, delta);
-	spin_unlock_irqrestore(&p->lock, flags);
+	raw_spin_unlock_irqrestore(&p->lock, flags);
 }
 
 static irqreturn_t sh_cmt_interrupt(int irq, void *dev_id)
@@ -385,7 +385,7 @@ static int sh_cmt_start(struct sh_cmt_priv *p, unsigned long flag)
 	int ret = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&p->lock, flags);
+	raw_spin_lock_irqsave(&p->lock, flags);
 
 	if (!(p->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE)))
 		ret = sh_cmt_enable(p, &p->rate);
@@ -398,7 +398,7 @@ static int sh_cmt_start(struct sh_cmt_priv *p, unsigned long flag)
 	if ((flag == FLAG_CLOCKSOURCE) && (!(p->flags & FLAG_CLOCKEVENT)))
 		__sh_cmt_set_next(p, p->max_match_value);
  out:
-	spin_unlock_irqrestore(&p->lock, flags);
+	raw_spin_unlock_irqrestore(&p->lock, flags);
 
 	return ret;
 }
@@ -408,7 +408,7 @@ static void sh_cmt_stop(struct sh_cmt_priv *p, unsigned long flag)
 	unsigned long flags;
 	unsigned long f;
 
-	spin_lock_irqsave(&p->lock, flags);
+	raw_spin_lock_irqsave(&p->lock, flags);
 
 	f = p->flags & (FLAG_CLOCKEVENT | FLAG_CLOCKSOURCE);
 	p->flags &= ~flag;
@@ -420,7 +420,7 @@ static void sh_cmt_stop(struct sh_cmt_priv *p, unsigned long flag)
 	if ((flag == FLAG_CLOCKEVENT) && (p->flags & FLAG_CLOCKSOURCE))
 		__sh_cmt_set_next(p, p->max_match_value);
 
-	spin_unlock_irqrestore(&p->lock, flags);
+	raw_spin_unlock_irqrestore(&p->lock, flags);
 }
 
 static struct sh_cmt_priv *cs_to_sh_cmt(struct clocksource *cs)
@@ -435,13 +435,13 @@ static cycle_t sh_cmt_clocksource_read(struct clocksource *cs)
 	unsigned long value;
 	int has_wrapped;
 
-	spin_lock_irqsave(&p->lock, flags);
+	raw_spin_lock_irqsave(&p->lock, flags);
 	value = p->total_cycles;
 	raw = sh_cmt_get_counter(p, &has_wrapped);
 
 	if (unlikely(has_wrapped))
 		raw += p->match_value + 1;
-	spin_unlock_irqrestore(&p->lock, flags);
+	raw_spin_unlock_irqrestore(&p->lock, flags);
 
 	return value + raw;
 }
@@ -591,7 +591,7 @@ static int sh_cmt_register(struct sh_cmt_priv *p, char *name,
 		p->max_match_value = (1 << p->width) - 1;
 
 	p->match_value = p->max_match_value;
-	spin_lock_init(&p->lock);
+	raw_spin_lock_init(&p->lock);
 
 	if (clockevent_rating)
 		sh_cmt_register_clockevent(p, name, clockevent_rating);

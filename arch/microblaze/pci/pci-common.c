@@ -192,11 +192,6 @@ void pcibios_set_master(struct pci_dev *dev)
 	/* No special bus mastering setup handling */
 }
 
-char __devinit *pcibios_setup(char *str)
-{
-	return str;
-}
-
 /*
  * Reads the interrupt pin to determine if interrupt is use by card.
  * If the interrupt is used, then gets the interrupt line from the
@@ -249,8 +244,7 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 	} else {
 		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
 			 oirq.size, oirq.specifier[0], oirq.specifier[1],
-			 oirq.controller ? oirq.controller->full_name :
-			 "<default>");
+			 of_node_full_name(oirq.controller));
 
 		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 					     oirq.size);
@@ -1493,8 +1487,7 @@ static void __devinit pcibios_scan_phb(struct pci_controller *hose)
 	struct pci_bus *bus;
 	struct device_node *node = hose->dn;
 
-	pr_debug("PCI: Scanning PHB %s\n",
-		 node ? node->full_name : "<NO NAME>");
+	pr_debug("PCI: Scanning PHB %s\n", of_node_full_name(node));
 
 	pcibios_setup_phb_resources(hose, &resources);
 
@@ -1506,10 +1499,10 @@ static void __devinit pcibios_scan_phb(struct pci_controller *hose)
 		pci_free_resource_list(&resources);
 		return;
 	}
-	bus->secondary = hose->first_busno;
+	bus->busn_res.start = hose->first_busno;
 	hose->bus = bus;
 
-	hose->last_busno = bus->subordinate;
+	hose->last_busno = bus->busn_res.end;
 }
 
 static int __init pcibios_init(void)

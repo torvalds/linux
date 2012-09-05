@@ -1620,7 +1620,7 @@ qla82xx_pci_info_str(struct scsi_qla_host *vha, char *str)
 	char lwstr[6];
 	uint16_t lnk;
 
-	pcie_reg = pci_find_capability(ha->pdev, PCI_CAP_ID_EXP);
+	pcie_reg = pci_pcie_cap(ha->pdev);
 	pci_read_config_word(ha->pdev, pcie_reg + PCI_EXP_LNKSTA, &lnk);
 	ha->link_width = (lnk >> 4) & 0x3f;
 
@@ -2528,7 +2528,7 @@ qla82xx_start_firmware(scsi_qla_host_t *vha)
 	}
 
 	/* Negotiated Link width */
-	pcie_cap = pci_find_capability(ha->pdev, PCI_CAP_ID_EXP);
+	pcie_cap = pci_pcie_cap(ha->pdev);
 	pci_read_config_word(ha->pdev, pcie_cap + PCI_EXP_LNKSTA, &lnk);
 	ha->link_width = (lnk >> 4) & 0x3f;
 

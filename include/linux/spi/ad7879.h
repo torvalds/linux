@@ -12,6 +12,8 @@ struct ad7879_platform_data {
 	u16	y_min, y_max;
 	u16	pressure_min, pressure_max;
 
+	bool	swap_xy;		/* swap x and y axes */
+
 	/* [0..255] 0=OFF Starts at 1=550us and goes
 	 * all the way to 9.440ms in steps of 35us.
 	 */

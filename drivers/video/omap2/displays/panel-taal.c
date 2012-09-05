@@ -526,7 +526,7 @@ static ssize_t taal_num_errors_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	u8 errors;
+	u8 errors = 0;
 	int r;
 
 	mutex_lock(&td->lock);

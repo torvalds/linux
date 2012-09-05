@@ -29,6 +29,9 @@
 #include "smberr.h"
 #include "nterr.h"
 #include "cifs_unicode.h"
+#ifdef CONFIG_CIFS_SMB2
+#include "smb2pdu.h"
+#endif
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -40,7 +43,7 @@ extern mempool_t *cifs_req_poolp;
    since the cifs fs was mounted */
 
 unsigned int
-_GetXid(void)
+_get_xid(void)
 {
 	unsigned int xid;
 
@@ -58,7 +61,7 @@ _GetXid(void)
 }
 
 void
-_FreeXid(unsigned int xid)
+_free_xid(unsigned int xid)
 {
 	spin_lock(&GlobalMid_Lock);
 	/* if (GlobalTotalActiveXid == 0)
@@ -143,17 +146,27 @@ struct smb_hdr *
 cifs_buf_get(void)
 {
 	struct smb_hdr *ret_buf = NULL;
+	size_t buf_size = sizeof(struct smb_hdr);
 
-/* We could use negotiated size instead of max_msgsize -
-   but it may be more efficient to always alloc same size
-   albeit slightly larger than necessary and maxbuffersize
-   defaults to this and can not be bigger */
+#ifdef CONFIG_CIFS_SMB2
+	/*
+	 * SMB2 header is bigger than CIFS one - no problems to clean some
+	 * more bytes for CIFS.
+	 */
+	buf_size = sizeof(struct smb2_hdr);
+#endif
+	/*
+	 * We could use negotiated size instead of max_msgsize -
+	 * but it may be more efficient to always alloc same size
+	 * albeit slightly larger than necessary and maxbuffersize
+	 * defaults to this and can not be bigger.
+	 */
 	ret_buf = mempool_alloc(cifs_req_poolp, GFP_NOFS);
 
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
 	if (ret_buf) {
-		memset(ret_buf, 0, sizeof(struct smb_hdr) + 3);
+		memset(ret_buf, 0, buf_size + 3);
 		atomic_inc(&bufAllocCount);
 #ifdef CONFIG_CIFS_STATS2
 		atomic_inc(&totBufAllocCount);
@@ -212,93 +225,6 @@ cifs_small_buf_release(void *buf_to_free)
 	return;
 }
 
-/*
- * Find a free multiplex id (SMB mid). Otherwise there could be
- * mid collisions which might cause problems, demultiplexing the
- * wrong response to this request. Multiplex ids could collide if
- * one of a series requests takes much longer than the others, or
- * if a very large number of long lived requests (byte range
- * locks or FindNotify requests) are pending. No more than
- * 64K-1 requests can be outstanding at one time. If no
- * mids are available, return zero. A future optimization
- * could make the combination of mids and uid the key we use
- * to demultiplex on (rather than mid alone).
- * In addition to the above check, the cifs demultiplex
- * code already used the command code as a secondary
- * check of the frame and if signing is negotiated the
- * response would be discarded if the mid were the same
- * but the signature was wrong. Since the mid is not put in the
- * pending queue until later (when it is about to be dispatched)
- * we do have to limit the number of outstanding requests
- * to somewhat less than 64K-1 although it is hard to imagine
- * so many threads being in the vfs at one time.
- */
-__u64 GetNextMid(struct TCP_Server_Info *server)
-{
-	__u64 mid = 0;
-	__u16 last_mid, cur_mid;
-	bool collision;
-
-	spin_lock(&GlobalMid_Lock);
-
-	/* mid is 16 bit only for CIFS/SMB */
-	cur_mid = (__u16)((server->CurrentMid) & 0xffff);
-	/* we do not want to loop forever */
-	last_mid = cur_mid;
-	cur_mid++;
-
-	/*
-	 * This nested loop looks more expensive than it is.
-	 * In practice the list of pending requests is short,
-	 * fewer than 50, and the mids are likely to be unique
-	 * on the first pass through the loop unless some request
-	 * takes longer than the 64 thousand requests before it
-	 * (and it would also have to have been a request that
-	 * did not time out).
-	 */
-	while (cur_mid != last_mid) {
-		struct mid_q_entry *mid_entry;
-		unsigned int num_mids;
-
-		collision = false;
-		if (cur_mid == 0)
-			cur_mid++;
-
-		num_mids = 0;
-		list_for_each_entry(mid_entry, &server->pending_mid_q, qhead) {
-			++num_mids;
-			if (mid_entry->mid == cur_mid &&
-			    mid_entry->mid_state == MID_REQUEST_SUBMITTED) {
-				/* This mid is in use, try a different one */
-				collision = true;
-				break;
-			}
-		}
-
-		/*
-		 * if we have more than 32k mids in the list, then something
-		 * is very wrong. Possibly a local user is trying to DoS the
-		 * box by issuing long-running calls and SIGKILL'ing them. If
-		 * we get to 2^16 mids then we're in big trouble as this
-		 * function could loop forever.
-		 *
-		 * Go ahead and assign out the mid in this situation, but force
-		 * an eventual reconnect to clean out the pending_mid_q.
-		 */
-		if (num_mids > 32768)
-			server->tcpStatus = CifsNeedReconnect;
-
-		if (!collision) {
-			mid = (__u64)cur_mid;
-			server->CurrentMid = mid;
-			break;
-		}
-		cur_mid++;
-	}
-	spin_unlock(&GlobalMid_Lock);
-	return mid;
-}
-
 /* NB: MID can not be set if treeCon not passed in, in that
    case it is responsbility of caller to set the mid */
 void
@@ -334,7 +260,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 
 			/* Uid is not converted */
 			buffer->Uid = treeCon->ses->Suid;
-			buffer->Mid = GetNextMid(treeCon->ses->server);
+			buffer->Mid = get_next_mid(treeCon->ses->server);
 		}
 		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
 			buffer->Flags2 |= SMBFLG2_DFS;
@@ -535,7 +461,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			if (tcon->tid != buf->Tid)
 				continue;
 
-			cifs_stats_inc(&tcon->num_oplock_brks);
+			cifs_stats_inc(&tcon->stats.cifs_stats.num_oplock_brks);
 			spin_lock(&cifs_file_list_lock);
 			list_for_each(tmp2, &tcon->openFileList) {
 				netfile = list_entry(tmp2, struct cifsFileInfo,

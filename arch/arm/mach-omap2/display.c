@@ -271,9 +271,9 @@ static struct platform_device *create_simple_dss_pdev(const char *pdev_name,
 		goto err;
 	}
 
-	r = omap_device_register(pdev);
+	r = platform_device_add(pdev);
 	if (r) {
-		pr_err("Could not register omap_device for %s\n", pdev_name);
+		pr_err("Could not register platform_device for %s\n", pdev_name);
 		goto err;
 	}
 

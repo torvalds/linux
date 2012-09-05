@@ -620,7 +620,7 @@ static int __devinit mrstouch_probe(struct platform_device *pdev)
 			     MRST_PRESSURE_MIN, MRST_PRESSURE_MAX, 0, 0);
 
 	err = request_threaded_irq(tsdev->irq, NULL, mrstouch_pendet_irq,
-				   0, "mrstouch", tsdev);
+				   IRQF_ONESHOT, "mrstouch", tsdev);
 	if (err) {
 		dev_err(tsdev->dev, "unable to allocate irq\n");
 		goto err_free_mem;

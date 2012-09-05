@@ -1748,7 +1748,7 @@ static void via_unsol_event(struct hda_codec *codec,
 }
 
 #ifdef CONFIG_PM
-static int via_suspend(struct hda_codec *codec, pm_message_t state)
+static int via_suspend(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	vt1708_stop_hp_work(spec);

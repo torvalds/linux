@@ -2501,7 +2501,7 @@ clkwait:
 		int ret, i;
 
 		ret = brcmf_sdcard_send_buf(bus->sdiodev, bus->sdiodev->sbwad,
-			SDIO_FUNC_2, F2SYNC, (u8 *) bus->ctrl_frame_buf,
+			SDIO_FUNC_2, F2SYNC, bus->ctrl_frame_buf,
 			(u32) bus->ctrl_frame_len);
 
 		if (ret < 0) {

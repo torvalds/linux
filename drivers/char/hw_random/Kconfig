@@ -263,3 +263,15 @@ config HW_RANDOM_PSERIES
 	  module will be called pseries-rng.
 
 	  If unsure, say Y.
+
+config HW_RANDOM_EXYNOS
+	tristate "EXYNOS HW random number generator support"
+	depends on HW_RANDOM && HAS_IOMEM && HAVE_CLK
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on EXYNOS SOCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called exynos-rng.
+
+	  If unsure, say Y.

@@ -545,6 +545,8 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 	if (dev->speed > 400)
 		w |= OMAP_I2C_CON_OPMODE_HS;
 
+	if (msg->flags & I2C_M_STOP)
+		stop = 1;
 	if (msg->flags & I2C_M_TEN)
 		w |= OMAP_I2C_CON_XA;
 	if (!(msg->flags & I2C_M_RD))
@@ -658,7 +660,8 @@ out:
 static u32
 omap_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
+	return I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) |
+	       I2C_FUNC_PROTOCOL_MANGLING;
 }
 
 static inline void

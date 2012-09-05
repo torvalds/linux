@@ -12,6 +12,7 @@
 #ifndef __LINUX_CLK_H
 #define __LINUX_CLK_H
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 
@@ -86,7 +87,7 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
 /**
  * clk_get - lookup and obtain a reference to a clock producer.
  * @dev: device for clock "consumer"
- * @id: clock comsumer ID
+ * @id: clock consumer ID
  *
  * Returns a struct clk corresponding to the clock producer, or
  * valid IS_ERR() condition containing errno.  The implementation
@@ -103,7 +104,7 @@ struct clk *clk_get(struct device *dev, const char *id);
 /**
  * devm_clk_get - lookup and obtain a managed reference to a clock producer.
  * @dev: device for clock "consumer"
- * @id: clock comsumer ID
+ * @id: clock consumer ID
  *
  * Returns a struct clk corresponding to the clock producer, or
  * valid IS_ERR() condition containing errno.  The implementation
@@ -309,5 +310,24 @@ struct clk *clk_get_sys(const char *dev_id, const char *con_id);
  */
 int clk_add_alias(const char *alias, const char *alias_dev_name, char *id,
 			struct device *dev);
+
+struct device_node;
+struct of_phandle_args;
+
+#if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
+struct clk *of_clk_get(struct device_node *np, int index);
+struct clk *of_clk_get_by_name(struct device_node *np, const char *name);
+struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec);
+#else
+static inline struct clk *of_clk_get(struct device_node *np, int index)
+{
+	return ERR_PTR(-ENOENT);
+}
+static inline struct clk *of_clk_get_by_name(struct device_node *np,
+					     const char *name)
+{
+	return ERR_PTR(-ENOENT);
+}
+#endif
 
 #endif

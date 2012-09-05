@@ -1024,7 +1024,7 @@ static int llc_ui_ioctl(struct socket *sock, unsigned int cmd,
  *	@sock: Socket to set options on.
  *	@level: Socket level user is requesting operations on.
  *	@optname: Operation name.
- *	@optval User provided operation data.
+ *	@optval: User provided operation data.
  *	@optlen: Length of optval.
  *
  *	Set various connection specific parameters.

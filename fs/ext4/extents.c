@@ -1891,11 +1891,10 @@ has_space:
 	nearex->ee_len = newext->ee_len;
 
 merge:
-	/* try to merge extents to the right */
+	/* try to merge extents */
 	if (!(flag & EXT4_GET_BLOCKS_PRE_IO))
 		ext4_ext_try_to_merge(inode, path, nearex);
 
-	/* try to merge extents to the left */
 
 	/* time to correct all indexes above */
 	err = ext4_ext_correct_indexes(handle, inode, path);
@@ -2570,10 +2569,10 @@ static int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start,
 {
 	struct super_block *sb = inode->i_sb;
 	int depth = ext_depth(inode);
-	struct ext4_ext_path *path;
+	struct ext4_ext_path *path = NULL;
 	ext4_fsblk_t partial_cluster = 0;
 	handle_t *handle;
-	int i, err;
+	int i = 0, err;
 
 	ext_debug("truncate since %u to %u\n", start, end);
 
@@ -2606,8 +2605,12 @@ again:
 		}
 		depth = ext_depth(inode);
 		ex = path[depth].p_ext;
-		if (!ex)
+		if (!ex) {
+			ext4_ext_drop_refs(path);
+			kfree(path);
+			path = NULL;
 			goto cont;
+		}
 
 		ee_block = le32_to_cpu(ex->ee_block);
 
@@ -2637,8 +2640,6 @@ again:
 			if (err < 0)
 				goto out;
 		}
-		ext4_ext_drop_refs(path);
-		kfree(path);
 	}
 cont:
 
@@ -2647,19 +2648,27 @@ cont:
 	 * after i_size and walking into the tree depth-wise.
 	 */
 	depth = ext_depth(inode);
-	path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1), GFP_NOFS);
-	if (path == NULL) {
-		ext4_journal_stop(handle);
-		return -ENOMEM;
-	}
-	path[0].p_depth = depth;
-	path[0].p_hdr = ext_inode_hdr(inode);
+	if (path) {
+		int k = i = depth;
+		while (--k > 0)
+			path[k].p_block =
+				le16_to_cpu(path[k].p_hdr->eh_entries)+1;
+	} else {
+		path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1),
+			       GFP_NOFS);
+		if (path == NULL) {
+			ext4_journal_stop(handle);
+			return -ENOMEM;
+		}
+		path[0].p_depth = depth;
+		path[0].p_hdr = ext_inode_hdr(inode);
 
-	if (ext4_ext_check(inode, path[0].p_hdr, depth)) {
-		err = -EIO;
-		goto out;
+		if (ext4_ext_check(inode, path[0].p_hdr, depth)) {
+			err = -EIO;
+			goto out;
+		}
 	}
-	i = err = 0;
+	err = 0;
 
 	while (i >= 0 && err == 0) {
 		if (i == depth) {
@@ -2773,8 +2782,10 @@ cont:
 out:
 	ext4_ext_drop_refs(path);
 	kfree(path);
-	if (err == -EAGAIN)
+	if (err == -EAGAIN) {
+		path = NULL;
 		goto again;
+	}
 	ext4_journal_stop(handle);
 
 	return err;
@@ -4420,6 +4431,8 @@ retry:
 		ext4_falloc_update_inode(inode, mode, new_size,
 					 (map.m_flags & EXT4_MAP_NEW));
 		ext4_mark_inode_dirty(handle, inode);
+		if ((file->f_flags & O_SYNC) && ret >= max_blocks)
+			ext4_handle_sync(handle);
 		ret2 = ext4_journal_stop(handle);
 		if (ret2)
 			break;

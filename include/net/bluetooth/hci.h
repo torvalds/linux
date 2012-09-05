@@ -62,6 +62,15 @@
 /* First BR/EDR Controller shall have ID = 0 */
 #define HCI_BREDR_ID	0
 
+/* AMP controller status */
+#define AMP_CTRL_POWERED_DOWN			0x00
+#define AMP_CTRL_BLUETOOTH_ONLY			0x01
+#define AMP_CTRL_NO_CAPACITY			0x02
+#define AMP_CTRL_LOW_CAPACITY			0x03
+#define AMP_CTRL_MEDIUM_CAPACITY		0x04
+#define AMP_CTRL_HIGH_CAPACITY			0x05
+#define AMP_CTRL_FULL_CAPACITY			0x06
+
 /* HCI device quirks */
 enum {
 	HCI_QUIRK_RESET_ON_CLOSE,
@@ -1295,6 +1304,8 @@ struct hci_ev_num_comp_blocks {
 } __packed;
 
 /* Low energy meta events */
+#define LE_CONN_ROLE_MASTER	0x00
+
 #define HCI_EV_LE_CONN_COMPLETE		0x01
 struct hci_ev_le_conn_complete {
 	__u8     status;

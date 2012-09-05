@@ -102,7 +102,7 @@ goku_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	unsigned long	flags;
 
 	ep = container_of(_ep, struct goku_ep, ep);
-	if (!_ep || !desc || ep->ep.desc
+	if (!_ep || !desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
 		return -EINVAL;
 	dev = ep->dev;

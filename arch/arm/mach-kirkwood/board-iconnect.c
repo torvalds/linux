@@ -20,9 +20,6 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
-#include <linux/spi/flash.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/orion_spi.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>

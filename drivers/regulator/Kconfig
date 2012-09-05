@@ -20,6 +20,7 @@ menuconfig REGULATOR
 
 	  If unsure, say no.
 
+
 if REGULATOR
 
 config REGULATOR_DEBUG
@@ -87,6 +88,13 @@ config REGULATOR_AAT2870
 	help
 	  If you have a AnalogicTech AAT2870 say Y to enable the
 	  regulator driver.
+
+config REGULATOR_ARIZONA
+	tristate "Wolfson Arizona class devices"
+	depends on MFD_ARIZONA
+	help
+	  Support for the regulators found on Wolfson Arizona class
+	  devices.
 
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
@@ -195,6 +203,14 @@ config REGULATOR_MAX8998
 	  via I2C bus. The provided regulator is suitable for S3C6410
 	  and S5PC1XX chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_MAX77686
+	tristate "Maxim 77686 regulator"
+	depends on MFD_MAX77686
+	help
+	  This driver controls a Maxim 77686 regulator
+	  via I2C bus. The provided regulator is suitable for
+	  Exynos-4 chips to control VARM and VINT voltages.
+
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
 	depends on EZX_PCAP
@@ -216,6 +232,19 @@ config REGULATOR_LP3972
 	 Say Y here to support the voltage regulators and convertors
 	 on National Semiconductors LP3972 PMIC
 
+config REGULATOR_LP872X
+	bool "TI/National Semiconductor LP8720/LP8725 voltage regulators"
+	depends on I2C=y
+	select REGMAP_I2C
+	help
+	  This driver supports LP8720/LP8725 PMIC
+
+config REGULATOR_LP8788
+	bool "TI LP8788 Power Regulators"
+	depends on MFD_LP8788
+	help
+	  This driver supports LP8788 voltage regulator chip.
+
 config REGULATOR_PCF50633
 	tristate "NXP PCF50633 regulator driver"
         depends on MFD_PCF50633
@@ -232,6 +261,14 @@ config REGULATOR_RC5T583
 	  This driver supports the control of different power rails of device
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
+
+config REGULATOR_S2MPS11
+	tristate "Samsung S2MPS11 voltage regulator"
+	depends on MFD_SEC_CORE
+	help
+	 This driver supports a Samsung S2MPS11 voltage output regulator
+	 via I2C bus. S2MPS11 is comprised of high efficient Buck converters
+	 including Dual-Phase Buck converter, Buck-Boost converter, various LDOs.
 
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"

@@ -57,7 +57,7 @@ static void __init mx27ipcam_init(void)
 
 	imx27_add_imx_uart0(NULL);
 	imx27_add_fec(NULL);
-	imx27_add_imx2_wdt(NULL);
+	imx27_add_imx2_wdt();
 }
 
 static void __init mx27ipcam_timer_init(void)

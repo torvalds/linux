@@ -69,6 +69,7 @@ int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
 int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
 				int cmd_action,
 				struct mwifiex_ds_11n_amsdu_aggr_ctrl *aa_ctrl);
+void mwifiex_del_tx_ba_stream_tbl_by_ra(struct mwifiex_private *priv, u8 *ra);
 
 /*
  * This function checks whether AMPDU is allowed or not for a particular TID.
@@ -105,8 +106,7 @@ static inline u8 mwifiex_space_avail_for_new_ba_stream(
 		priv = adapter->priv[i];
 		if (priv)
 			ba_stream_num += mwifiex_wmm_list_len(
-						(struct list_head *)
-						&priv->tx_ba_stream_tbl_ptr);
+				&priv->tx_ba_stream_tbl_ptr);
 	}
 
 	return ((ba_stream_num <
@@ -157,5 +157,19 @@ mwifiex_is_ba_stream_setup(struct mwifiex_private *priv,
 		return true;
 
 	return false;
+}
+
+/*
+ * This function checks whether associated station is 11n enabled
+ */
+static inline int mwifiex_is_sta_11n_enabled(struct mwifiex_private *priv,
+					     struct mwifiex_sta_node *node)
+{
+
+	if (!node || (priv->bss_role != MWIFIEX_BSS_ROLE_UAP) ||
+	    !priv->ap_11n_enabled)
+		return 0;
+
+	return node->is_11n_enabled;
 }
 #endif /* !_MWIFIEX_11N_H_ */

@@ -1364,7 +1364,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 				   DMA_BIDIRECTIONAL);
 
 	trace_iwlwifi_dev_tx(trans->dev,
-			     &((struct iwl_tfd *)txq->tfds)[txq->q.write_ptr],
+			     &txq->tfds[txq->q.write_ptr],
 			     sizeof(struct iwl_tfd),
 			     &dev_cmd->hdr, firstlen,
 			     skb->data + hdr_len, secondlen);

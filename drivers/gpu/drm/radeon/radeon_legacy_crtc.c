@@ -990,7 +990,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 }
 
 static bool radeon_crtc_mode_fixup(struct drm_crtc *crtc,
-				   struct drm_display_mode *mode,
+				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))

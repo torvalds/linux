@@ -415,19 +415,8 @@ static struct pci_driver pasemi_smb_driver = {
 	.remove		= __devexit_p(pasemi_smb_remove),
 };
 
-static int __init pasemi_smb_init(void)
-{
-	return pci_register_driver(&pasemi_smb_driver);
-}
-
-static void __exit pasemi_smb_exit(void)
-{
-	pci_unregister_driver(&pasemi_smb_driver);
-}
+module_pci_driver(pasemi_smb_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");
 MODULE_DESCRIPTION("PA Semi PWRficient SMBus driver");
-
-module_init(pasemi_smb_init);
-module_exit(pasemi_smb_exit);

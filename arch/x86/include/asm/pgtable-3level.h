@@ -9,13 +9,13 @@
  */
 
 #define pte_ERROR(e)							\
-	printk("%s:%d: bad pte %p(%08lx%08lx).\n",			\
+	pr_err("%s:%d: bad pte %p(%08lx%08lx)\n",			\
 	       __FILE__, __LINE__, &(e), (e).pte_high, (e).pte_low)
 #define pmd_ERROR(e)							\
-	printk("%s:%d: bad pmd %p(%016Lx).\n",				\
+	pr_err("%s:%d: bad pmd %p(%016Lx)\n",				\
 	       __FILE__, __LINE__, &(e), pmd_val(e))
 #define pgd_ERROR(e)							\
-	printk("%s:%d: bad pgd %p(%016Lx).\n",				\
+	pr_err("%s:%d: bad pgd %p(%016Lx)\n",				\
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
 /* Rules for using set_pte: the pte being assigned *must* be
@@ -47,16 +47,26 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
  * they can run pmd_offset_map_lock or pmd_trans_huge or other pmd
  * operations.
  *
- * Without THP if the mmap_sem is hold for reading, the
- * pmd can only transition from null to not null while pmd_read_atomic runs.
- * So there's no need of literally reading it atomically.
+ * Without THP if the mmap_sem is hold for reading, the pmd can only
+ * transition from null to not null while pmd_read_atomic runs. So
+ * we can always return atomic pmd values with this function.
  *
  * With THP if the mmap_sem is hold for reading, the pmd can become
- * THP or null or point to a pte (and in turn become "stable") at any
- * time under pmd_read_atomic, so it's mandatory to read it atomically
- * with cmpxchg8b.
+ * trans_huge or none or point to a pte (and in turn become "stable")
+ * at any time under pmd_read_atomic. We could read it really
+ * atomically here with a atomic64_read for the THP enabled case (and
+ * it would be a whole lot simpler), but to avoid using cmpxchg8b we
+ * only return an atomic pmdval if the low part of the pmdval is later
+ * found stable (i.e. pointing to a pte). And we're returning a none
+ * pmdval if the low part of the pmd is none. In some cases the high
+ * and low part of the pmdval returned may not be consistent if THP is
+ * enabled (the low part may point to previously mapped hugepage,
+ * while the high part may point to a more recently mapped hugepage),
+ * but pmd_none_or_trans_huge_or_clear_bad() only needs the low part
+ * of the pmd to be read atomically to decide if the pmd is unstable
+ * or not, with the only exception of when the low part of the pmd is
+ * zero in which case we return a none pmd.
  */
-#ifndef CONFIG_TRANSPARENT_HUGEPAGE
 static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
 {
 	pmdval_t ret;
@@ -74,12 +84,6 @@ static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
 
 	return (pmd_t) { ret };
 }
-#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
-{
-	return (pmd_t) { atomic64_read((atomic64_t *)pmdp) };
-}
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 {

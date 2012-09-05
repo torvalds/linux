@@ -1100,6 +1100,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		if (nla_put_u32(msg, i, NL80211_CMD_REGISTER_BEACONS))
 			goto nla_put_failure;
 	}
+	CMD(start_p2p_device, START_P2P_DEVICE);
 
 #ifdef CONFIG_NL80211_TESTMODE
 	CMD(testmode_cmd, TESTMODE);
@@ -1748,13 +1749,13 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	if (dev &&
 	    (nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex) ||
-	     nla_put_string(msg, NL80211_ATTR_IFNAME, dev->name) ||
-	     nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, dev->dev_addr)))
+	     nla_put_string(msg, NL80211_ATTR_IFNAME, dev->name)))
 		goto nla_put_failure;
 
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    nla_put_u32(msg, NL80211_ATTR_IFTYPE, wdev->iftype) ||
 	    nla_put_u64(msg, NL80211_ATTR_WDEV, wdev_id(wdev)) ||
+	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, wdev_address(wdev)) ||
 	    nla_put_u32(msg, NL80211_ATTR_GENERATION,
 			rdev->devlist_generation ^
 			(cfg80211_rdev_list_generation << 2)))
@@ -2021,8 +2022,10 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		return PTR_ERR(wdev);
 	}
 
-	if (type == NL80211_IFTYPE_MESH_POINT &&
-	    info->attrs[NL80211_ATTR_MESH_ID]) {
+	switch (type) {
+	case NL80211_IFTYPE_MESH_POINT:
+		if (!info->attrs[NL80211_ATTR_MESH_ID])
+			break;
 		wdev_lock(wdev);
 		BUILD_BUG_ON(IEEE80211_MAX_SSID_LEN !=
 			     IEEE80211_MAX_MESH_ID_LEN);
@@ -2031,6 +2034,26 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		memcpy(wdev->ssid, nla_data(info->attrs[NL80211_ATTR_MESH_ID]),
 		       wdev->mesh_id_up_len);
 		wdev_unlock(wdev);
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		/*
+		 * P2P Device doesn't have a netdev, so doesn't go
+		 * through the netdev notifier and must be added here
+		 */
+		mutex_init(&wdev->mtx);
+		INIT_LIST_HEAD(&wdev->event_list);
+		spin_lock_init(&wdev->event_lock);
+		INIT_LIST_HEAD(&wdev->mgmt_registrations);
+		spin_lock_init(&wdev->mgmt_registrations_lock);
+
+		mutex_lock(&rdev->devlist_mtx);
+		wdev->identifier = ++rdev->wdev_id;
+		list_add_rcu(&wdev->list, &rdev->wdev_list);
+		rdev->devlist_generation++;
+		mutex_unlock(&rdev->devlist_mtx);
+		break;
+	default:
+		break;
 	}
 
 	if (nl80211_send_iface(msg, info->snd_pid, info->snd_seq, 0,
@@ -6053,6 +6076,7 @@ static int nl80211_register_mgmt(struct sk_buff *skb, struct genl_info *info)
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_P2P_DEVICE:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -6099,6 +6123,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_P2P_DEVICE:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -6195,6 +6220,7 @@ static int nl80211_tx_mgmt_cancel_wait(struct sk_buff *skb, struct genl_info *in
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_P2P_DEVICE:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -6810,6 +6836,68 @@ static int nl80211_register_beacons(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
+static int nl80211_start_p2p_device(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct wireless_dev *wdev = info->user_ptr[1];
+	int err;
+
+	if (!rdev->ops->start_p2p_device)
+		return -EOPNOTSUPP;
+
+	if (wdev->iftype != NL80211_IFTYPE_P2P_DEVICE)
+		return -EOPNOTSUPP;
+
+	if (wdev->p2p_started)
+		return 0;
+
+	mutex_lock(&rdev->devlist_mtx);
+	err = cfg80211_can_add_interface(rdev, wdev->iftype);
+	mutex_unlock(&rdev->devlist_mtx);
+	if (err)
+		return err;
+
+	err = rdev->ops->start_p2p_device(&rdev->wiphy, wdev);
+	if (err)
+		return err;
+
+	wdev->p2p_started = true;
+	mutex_lock(&rdev->devlist_mtx);
+	rdev->opencount++;
+	mutex_unlock(&rdev->devlist_mtx);
+
+	return 0;
+}
+
+static int nl80211_stop_p2p_device(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct wireless_dev *wdev = info->user_ptr[1];
+
+	if (wdev->iftype != NL80211_IFTYPE_P2P_DEVICE)
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->stop_p2p_device)
+		return -EOPNOTSUPP;
+
+	if (!wdev->p2p_started)
+		return 0;
+
+	rdev->ops->stop_p2p_device(&rdev->wiphy, wdev);
+	wdev->p2p_started = false;
+
+	mutex_lock(&rdev->devlist_mtx);
+	rdev->opencount--;
+	mutex_unlock(&rdev->devlist_mtx);
+
+	if (WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev)) {
+		rdev->scan_req->aborted = true;
+		___cfg80211_scan_done(rdev, true);
+	}
+
+	return 0;
+}
+
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
@@ -6817,7 +6905,7 @@ static int nl80211_register_beacons(struct sk_buff *skb, struct genl_info *info)
 #define NL80211_FLAG_NEED_NETDEV_UP	(NL80211_FLAG_NEED_NETDEV |\
 					 NL80211_FLAG_CHECK_NETDEV_UP)
 #define NL80211_FLAG_NEED_WDEV		0x10
-/* If a netdev is associated, it must be UP */
+/* If a netdev is associated, it must be UP, P2P must be started */
 #define NL80211_FLAG_NEED_WDEV_UP	(NL80211_FLAG_NEED_WDEV |\
 					 NL80211_FLAG_CHECK_NETDEV_UP)
 
@@ -6878,6 +6966,13 @@ static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 			}
 
 			dev_hold(dev);
+		} else if (ops->internal_flags & NL80211_FLAG_CHECK_NETDEV_UP) {
+			if (!wdev->p2p_started) {
+				mutex_unlock(&cfg80211_mutex);
+				if (rtnl)
+					rtnl_unlock();
+				return -ENETDOWN;
+			}
 		}
 
 		cfg80211_lock_rdev(rdev);
@@ -7439,7 +7534,22 @@ static struct genl_ops nl80211_ops[] = {
 		.internal_flags = NL80211_FLAG_NEED_NETDEV |
 				  NL80211_FLAG_NEED_RTNL,
 	},
-
+	{
+		.cmd = NL80211_CMD_START_P2P_DEVICE,
+		.doit = nl80211_start_p2p_device,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_WDEV |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_STOP_P2P_DEVICE,
+		.doit = nl80211_stop_p2p_device,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_WDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
 };
 
 static struct genl_multicast_group nl80211_mlme_mcgrp = {
@@ -7571,7 +7681,7 @@ void nl80211_send_scan_start(struct cfg80211_registered_device *rdev,
 {
 	struct sk_buff *msg;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		return;
 
@@ -7647,7 +7757,7 @@ void nl80211_send_sched_scan(struct cfg80211_registered_device *rdev,
 {
 	struct sk_buff *msg;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		return;
 
@@ -7863,7 +7973,7 @@ void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
 	struct sk_buff *msg;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 
@@ -7903,7 +8013,7 @@ void nl80211_send_roamed(struct cfg80211_registered_device *rdev,
 	struct sk_buff *msg;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 
@@ -7941,7 +8051,7 @@ void nl80211_send_disconnected(struct cfg80211_registered_device *rdev,
 	struct sk_buff *msg;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		return;
 
@@ -8206,7 +8316,7 @@ void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,
 {
 	struct sk_buff *msg;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 
@@ -8227,7 +8337,7 @@ void nl80211_send_sta_del_event(struct cfg80211_registered_device *rdev,
 	struct sk_buff *msg;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 
@@ -8394,7 +8504,7 @@ nl80211_send_cqm_rssi_notify(struct cfg80211_registered_device *rdev,
 	struct nlattr *pinfoattr;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 
@@ -8437,7 +8547,7 @@ void nl80211_gtk_rekey_notify(struct cfg80211_registered_device *rdev,
 	struct nlattr *rekey_attr;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 
@@ -8481,7 +8591,7 @@ void nl80211_pmksa_candidate_notify(struct cfg80211_registered_device *rdev,
 	struct nlattr *attr;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 
@@ -8525,7 +8635,7 @@ void nl80211_ch_switch_notify(struct cfg80211_registered_device *rdev,
 	struct sk_buff *msg;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 
@@ -8610,7 +8720,7 @@ nl80211_send_cqm_pktloss_notify(struct cfg80211_registered_device *rdev,
 	struct nlattr *pinfoattr;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 
@@ -8654,7 +8764,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 	void *hdr;
 	int err;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
 	if (!msg)
 		return;
 

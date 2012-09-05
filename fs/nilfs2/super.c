@@ -1288,7 +1288,8 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		err = -EBUSY;
 		goto failed;
 	}
-	s = sget(fs_type, nilfs_test_bdev_super, nilfs_set_bdev_super, sd.bdev);
+	s = sget(fs_type, nilfs_test_bdev_super, nilfs_set_bdev_super, flags,
+		 sd.bdev);
 	mutex_unlock(&sd.bdev->bd_fsfreeze_mutex);
 	if (IS_ERR(s)) {
 		err = PTR_ERR(s);
@@ -1301,7 +1302,6 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		s_new = true;
 
 		/* New superblock instance created */
-		s->s_flags = flags;
 		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(sd.bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(sd.bdev));

@@ -153,10 +153,10 @@ struct usb_ep_para{
 #define USB_BUSMODE_DTB		0x02
 
 /* Endpoint basic handle */
-#define ep_index(EP)		((EP)->desc->bEndpointAddress & 0xF)
+#define ep_index(EP)		((EP)->ep.desc->bEndpointAddress & 0xF)
 #define ep_maxpacket(EP)	((EP)->ep.maxpacket)
 #define ep_is_in(EP)	((ep_index(EP) == 0) ? (EP->udc->ep0_dir == \
-			USB_DIR_IN) : ((EP)->desc->bEndpointAddress \
+			USB_DIR_IN) : ((EP)->ep.desc->bEndpointAddress \
 			& USB_DIR_IN) == USB_DIR_IN)
 
 /* ep0 transfer state */

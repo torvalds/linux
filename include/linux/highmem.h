@@ -110,54 +110,15 @@ static inline void kmap_atomic_idx_pop(void)
 #endif
 
 /*
- * NOTE:
- * kmap_atomic() and kunmap_atomic() with two arguments are deprecated.
- * We only keep them for backward compatibility, any usage of them
- * are now warned.
- */
-
-#define PASTE(a, b) a ## b
-#define PASTE2(a, b) PASTE(a, b)
-
-#define NARG_(_2, _1, n, ...) n
-#define NARG(...) NARG_(__VA_ARGS__, 2, 1, :)
-
-static inline void __deprecated *kmap_atomic_deprecated(struct page *page,
-							enum km_type km)
-{
-	return kmap_atomic(page);
-}
-
-#define kmap_atomic1(...) kmap_atomic(__VA_ARGS__)
-#define kmap_atomic2(...) kmap_atomic_deprecated(__VA_ARGS__)
-#define kmap_atomic(...) PASTE2(kmap_atomic, NARG(__VA_ARGS__)(__VA_ARGS__))
-
-static inline void __deprecated __kunmap_atomic_deprecated(void *addr,
-							enum km_type km)
-{
-	__kunmap_atomic(addr);
-}
-
-/*
  * Prevent people trying to call kunmap_atomic() as if it were kunmap()
  * kunmap_atomic() should get the return value of kmap_atomic, not the page.
  */
-#define kunmap_atomic_deprecated(addr, km)                      \
-do {                                                            \
-	BUILD_BUG_ON(__same_type((addr), struct page *));       \
-	__kunmap_atomic_deprecated(addr, km);                   \
-} while (0)
-
-#define kunmap_atomic_withcheck(addr)                           \
+#define kunmap_atomic(addr)                                     \
 do {                                                            \
 	BUILD_BUG_ON(__same_type((addr), struct page *));       \
 	__kunmap_atomic(addr);                                  \
 } while (0)
 
-#define kunmap_atomic1(...) kunmap_atomic_withcheck(__VA_ARGS__)
-#define kunmap_atomic2(...) kunmap_atomic_deprecated(__VA_ARGS__)
-#define kunmap_atomic(...) PASTE2(kunmap_atomic, NARG(__VA_ARGS__)(__VA_ARGS__))
-/**** End of C pre-processor tricks for deprecated macros ****/
 
 /* when CONFIG_HIGHMEM is not set these will be plain clear/copy_page */
 #ifndef clear_user_highpage

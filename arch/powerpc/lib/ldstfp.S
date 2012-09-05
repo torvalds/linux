@@ -330,13 +330,13 @@ _GLOBAL(do_lxvd2x)
 	MTMSRD(r7)
 	isync
 	beq	cr7,1f
-	STXVD2X(0,r1,r8)
+	STXVD2X(0,R1,R8)
 1:	li	r9,-EFAULT
-2:	LXVD2X(0,0,r4)
+2:	LXVD2X(0,R0,R4)
 	li	r9,0
 3:	beq	cr7,4f
 	bl	put_vsr
-	LXVD2X(0,r1,r8)
+	LXVD2X(0,R1,R8)
 4:	PPC_LL	r0,STKFRM+PPC_LR_STKOFF(r1)
 	mtlr	r0
 	MTMSRD(r6)
@@ -358,13 +358,13 @@ _GLOBAL(do_stxvd2x)
 	MTMSRD(r7)
 	isync
 	beq	cr7,1f
-	STXVD2X(0,r1,r8)
+	STXVD2X(0,R1,R8)
 	bl	get_vsr
 1:	li	r9,-EFAULT
-2:	STXVD2X(0,0,r4)
+2:	STXVD2X(0,R0,R4)
 	li	r9,0
 3:	beq	cr7,4f
-	LXVD2X(0,r1,r8)
+	LXVD2X(0,R1,R8)
 4:	PPC_LL	r0,STKFRM+PPC_LR_STKOFF(r1)
 	mtlr	r0
 	MTMSRD(r6)

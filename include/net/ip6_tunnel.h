@@ -9,6 +9,8 @@
 #define IP6_TNL_F_CAP_XMIT 0x10000
 /* capable of receiving packets */
 #define IP6_TNL_F_CAP_RCV 0x20000
+/* determine capability on a per-packet basis */
+#define IP6_TNL_F_CAP_PER_PACKET 0x40000
 
 /* IPv6 tunnel */
 

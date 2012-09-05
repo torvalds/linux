@@ -83,6 +83,8 @@ static struct iommu_ops amd_iommu_ops;
 static ATOMIC_NOTIFIER_HEAD(ppr_notifier);
 int amd_iommu_max_glx_val = -1;
 
+static struct dma_map_ops amd_iommu_dma_ops;
+
 /*
  * general struct to manage commands send to an IOMMU
  */
@@ -254,11 +256,21 @@ static bool check_device(struct device *dev)
 	return true;
 }
 
+static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
+{
+	pci_dev_put(*from);
+	*from = to;
+}
+
+#define REQ_ACS_FLAGS	(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)
+
 static int iommu_init_device(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_dev *dma_pdev, *pdev = to_pci_dev(dev);
 	struct iommu_dev_data *dev_data;
+	struct iommu_group *group;
 	u16 alias;
+	int ret;
 
 	if (dev->archdata.iommu)
 		return 0;
@@ -279,7 +291,42 @@ static int iommu_init_device(struct device *dev)
 			return -ENOTSUPP;
 		}
 		dev_data->alias_data = alias_data;
+
+		dma_pdev = pci_get_bus_and_slot(alias >> 8, alias & 0xff);
+	} else
+		dma_pdev = pci_dev_get(pdev);
+
+	swap_pci_ref(&dma_pdev, pci_get_dma_source(dma_pdev));
+
+	if (dma_pdev->multifunction &&
+	    !pci_acs_enabled(dma_pdev, REQ_ACS_FLAGS))
+		swap_pci_ref(&dma_pdev,
+			     pci_get_slot(dma_pdev->bus,
+					  PCI_DEVFN(PCI_SLOT(dma_pdev->devfn),
+					  0)));
+
+	while (!pci_is_root_bus(dma_pdev->bus)) {
+		if (pci_acs_path_enabled(dma_pdev->bus->self,
+					 NULL, REQ_ACS_FLAGS))
+			break;
+
+		swap_pci_ref(&dma_pdev, pci_dev_get(dma_pdev->bus->self));
 	}
+
+	group = iommu_group_get(&dma_pdev->dev);
+	pci_dev_put(dma_pdev);
+	if (!group) {
+		group = iommu_group_alloc();
+		if (IS_ERR(group))
+			return PTR_ERR(group);
+	}
+
+	ret = iommu_group_add_device(group, dev);
+
+	iommu_group_put(group);
+
+	if (ret)
+		return ret;
 
 	if (pci_iommuv2_capable(pdev)) {
 		struct amd_iommu *iommu;
@@ -309,6 +356,8 @@ static void iommu_ignore_device(struct device *dev)
 
 static void iommu_uninit_device(struct device *dev)
 {
+	iommu_group_remove_device(dev);
+
 	/*
 	 * Nothing to do here - we keep dev_data around for unplugged devices
 	 * and reuse it when the device is re-plugged - not doing so would
@@ -382,7 +431,6 @@ DECLARE_STATS_COUNTER(invalidate_iotlb);
 DECLARE_STATS_COUNTER(invalidate_iotlb_all);
 DECLARE_STATS_COUNTER(pri_requests);
 
-
 static struct dentry *stats_dir;
 static struct dentry *de_fflush;
 
@@ -402,7 +450,7 @@ static void amd_iommu_stats_init(void)
 		return;
 
 	de_fflush  = debugfs_create_bool("fullflush", 0444, stats_dir,
-					 (u32 *)&amd_iommu_unmap_flush);
+					 &amd_iommu_unmap_flush);
 
 	amd_iommu_stats_add(&compl_wait);
 	amd_iommu_stats_add(&cnt_map_single);
@@ -547,25 +595,11 @@ static void iommu_poll_events(struct amd_iommu *iommu)
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u32 head)
+static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u64 *raw)
 {
 	struct amd_iommu_fault fault;
-	volatile u64 *raw;
-	int i;
 
 	INC_STATS_COUNTER(pri_requests);
-
-	raw = (u64 *)(iommu->ppr_log + head);
-
-	/*
-	 * Hardware bug: Interrupt may arrive before the entry is written to
-	 * memory. If this happens we need to wait for the entry to arrive.
-	 */
-	for (i = 0; i < LOOP_TIMEOUT; ++i) {
-		if (PPR_REQ_TYPE(raw[0]) != 0)
-			break;
-		udelay(1);
-	}
 
 	if (PPR_REQ_TYPE(raw[0]) != PPR_REQ_FAULT) {
 		pr_err_ratelimited("AMD-Vi: Unknown PPR request received\n");
@@ -578,12 +612,6 @@ static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u32 head)
 	fault.tag       = PPR_TAG(raw[0]);
 	fault.flags     = PPR_FLAGS(raw[0]);
 
-	/*
-	 * To detect the hardware bug we need to clear the entry
-	 * to back to zero.
-	 */
-	raw[0] = raw[1] = 0;
-
 	atomic_notifier_call_chain(&ppr_notifier, 0, &fault);
 }
 
@@ -595,24 +623,61 @@ static void iommu_poll_ppr_log(struct amd_iommu *iommu)
 	if (iommu->ppr_log == NULL)
 		return;
 
+	/* enable ppr interrupts again */
+	writel(MMIO_STATUS_PPR_INT_MASK, iommu->mmio_base + MMIO_STATUS_OFFSET);
+
 	spin_lock_irqsave(&iommu->lock, flags);
 
 	head = readl(iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
 	tail = readl(iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
 
 	while (head != tail) {
+		volatile u64 *raw;
+		u64 entry[2];
+		int i;
 
-		/* Handle PPR entry */
-		iommu_handle_ppr_entry(iommu, head);
+		raw = (u64 *)(iommu->ppr_log + head);
 
-		/* Update and refresh ring-buffer state*/
+		/*
+		 * Hardware bug: Interrupt may arrive before the entry is
+		 * written to memory. If this happens we need to wait for the
+		 * entry to arrive.
+		 */
+		for (i = 0; i < LOOP_TIMEOUT; ++i) {
+			if (PPR_REQ_TYPE(raw[0]) != 0)
+				break;
+			udelay(1);
+		}
+
+		/* Avoid memcpy function-call overhead */
+		entry[0] = raw[0];
+		entry[1] = raw[1];
+
+		/*
+		 * To detect the hardware bug we need to clear the entry
+		 * back to zero.
+		 */
+		raw[0] = raw[1] = 0UL;
+
+		/* Update head pointer of hardware ring-buffer */
 		head = (head + PPR_ENTRY_SIZE) % PPR_LOG_SIZE;
 		writel(head, iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
+
+		/*
+		 * Release iommu->lock because ppr-handling might need to
+		 * re-aquire it
+		 */
+		spin_unlock_irqrestore(&iommu->lock, flags);
+
+		/* Handle PPR entry */
+		iommu_handle_ppr_entry(iommu, entry);
+
+		spin_lock_irqsave(&iommu->lock, flags);
+
+		/* Refresh ring-buffer information */
+		head = readl(iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
 		tail = readl(iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
 	}
-
-	/* enable ppr interrupts again */
-	writel(MMIO_STATUS_PPR_INT_MASK, iommu->mmio_base + MMIO_STATUS_OFFSET);
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
@@ -2054,7 +2119,7 @@ out_err:
 /* FIXME: Move this to PCI code */
 #define PCI_PRI_TLP_OFF		(1 << 15)
 
-bool pci_pri_tlp_required(struct pci_dev *pdev)
+static bool pci_pri_tlp_required(struct pci_dev *pdev)
 {
 	u16 status;
 	int pos;
@@ -2235,6 +2300,18 @@ static int device_change_notifier(struct notifier_block *nb,
 
 		iommu_init_device(dev);
 
+		/*
+		 * dev_data is still NULL and
+		 * got initialized in iommu_init_device
+		 */
+		dev_data = get_dev_data(dev);
+
+		if (iommu_pass_through || dev_data->iommu_v2) {
+			dev_data->passthrough = true;
+			attach_device(dev, pt_domain);
+			break;
+		}
+
 		domain = domain_for_device(dev);
 
 		/* allocate a protection domain if a device is added */
@@ -2249,6 +2326,10 @@ static int device_change_notifier(struct notifier_block *nb,
 		spin_lock_irqsave(&iommu_pd_list_lock, flags);
 		list_add_tail(&dma_domain->list, &iommu_pd_list);
 		spin_unlock_irqrestore(&iommu_pd_list_lock, flags);
+
+		dev_data = get_dev_data(dev);
+
+		dev->archdata.dma_ops = &amd_iommu_dma_ops;
 
 		break;
 	case BUS_NOTIFY_DEL_DEVICE:
@@ -2946,6 +3027,11 @@ int __init amd_iommu_init_dma_ops(void)
 
 	amd_iommu_stats_init();
 
+	if (amd_iommu_unmap_flush)
+		pr_info("AMD-Vi: IO/TLB flush on unmap enabled\n");
+	else
+		pr_info("AMD-Vi: Lazy IO/TLB flushing enabled\n");
+
 	return 0;
 
 free_domains:
@@ -3051,6 +3137,10 @@ static int amd_iommu_domain_init(struct iommu_domain *dom)
 	domain->iommu_domain = dom;
 
 	dom->priv = domain;
+
+	dom->geometry.aperture_start = 0;
+	dom->geometry.aperture_end   = ~0ULL;
+	dom->geometry.force_aperture = true;
 
 	return 0;
 
@@ -3210,26 +3300,6 @@ static int amd_iommu_domain_has_cap(struct iommu_domain *domain,
 	return 0;
 }
 
-static int amd_iommu_device_group(struct device *dev, unsigned int *groupid)
-{
-	struct iommu_dev_data *dev_data = dev->archdata.iommu;
-	struct pci_dev *pdev = to_pci_dev(dev);
-	u16 devid;
-
-	if (!dev_data)
-		return -ENODEV;
-
-	if (pdev->is_virtfn || !iommu_group_mf)
-		devid = dev_data->devid;
-	else
-		devid = calc_devid(pdev->bus->number,
-				   PCI_DEVFN(PCI_SLOT(pdev->devfn), 0));
-
-	*groupid = amd_iommu_alias_table[devid];
-
-	return 0;
-}
-
 static struct iommu_ops amd_iommu_ops = {
 	.domain_init = amd_iommu_domain_init,
 	.domain_destroy = amd_iommu_domain_destroy,
@@ -3239,7 +3309,6 @@ static struct iommu_ops amd_iommu_ops = {
 	.unmap = amd_iommu_unmap,
 	.iova_to_phys = amd_iommu_iova_to_phys,
 	.domain_has_cap = amd_iommu_domain_has_cap,
-	.device_group = amd_iommu_device_group,
 	.pgsize_bitmap	= AMD_IOMMU_PGSIZES,
 };
 

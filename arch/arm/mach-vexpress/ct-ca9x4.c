@@ -66,8 +66,15 @@ static void __init ct_ca9x4_init_irq(void)
 
 static void ct_ca9x4_clcd_enable(struct clcd_fb *fb)
 {
-	v2m_cfg_write(SYS_CFG_MUXFPGA | SYS_CFG_SITE_DB1, 0);
-	v2m_cfg_write(SYS_CFG_DVIMODE | SYS_CFG_SITE_DB1, 2);
+	u32 site = v2m_get_master_site();
+
+	/*
+	 * Old firmware was using the "site" component of the command
+	 * to control the DVI muxer (while it should be always 0 ie. MB).
+	 * Newer firmware uses the data register. Keep both for compatibility.
+	 */
+	v2m_cfg_write(SYS_CFG_MUXFPGA | SYS_CFG_SITE(site), site);
+	v2m_cfg_write(SYS_CFG_DVIMODE | SYS_CFG_SITE(SYS_CFG_SITE_MB), 2);
 }
 
 static int ct_ca9x4_clcd_setup(struct clcd_fb *fb)
@@ -105,43 +112,11 @@ static struct amba_device *ct_ca9x4_amba_devs[] __initdata = {
 };
 
 
-static long ct_round(struct clk *clk, unsigned long rate)
-{
-	return rate;
-}
-
-static int ct_set(struct clk *clk, unsigned long rate)
-{
-	return v2m_cfg_write(SYS_CFG_OSC | SYS_CFG_SITE_DB1 | 1, rate);
-}
-
-static const struct clk_ops osc1_clk_ops = {
-	.round	= ct_round,
-	.set	= ct_set,
-};
-
-static struct clk osc1_clk = {
-	.ops	= &osc1_clk_ops,
-	.rate	= 24000000,
-};
-
-static struct clk ct_sp804_clk = {
-	.rate	= 1000000,
-};
-
-static struct clk_lookup lookups[] = {
-	{	/* CLCD */
-		.dev_id		= "ct:clcd",
-		.clk		= &osc1_clk,
-	}, {	/* SP804 timers */
-		.dev_id		= "sp804",
-		.con_id		= "ct-timer0",
-		.clk		= &ct_sp804_clk,
-	}, {	/* SP804 timers */
-		.dev_id		= "sp804",
-		.con_id		= "ct-timer1",
-		.clk		= &ct_sp804_clk,
-	},
+static struct v2m_osc ct_osc1 = {
+	.osc = 1,
+	.rate_min = 10000000,
+	.rate_max = 80000000,
+	.rate_default = 23750000,
 };
 
 static struct resource pmu_resources[] = {
@@ -174,14 +149,10 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
-static void __init ct_ca9x4_init_early(void)
-{
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
-}
-
 static void __init ct_ca9x4_init(void)
 {
 	int i;
+	struct clk *clk;
 
 #ifdef CONFIG_CACHE_L2X0
 	void __iomem *l2x0_base = ioremap(CT_CA9X4_L2CC, SZ_4K);
@@ -192,6 +163,10 @@ static void __init ct_ca9x4_init(void)
 
 	l2x0_init(l2x0_base, 0x00400000, 0xfe0fffff);
 #endif
+
+	ct_osc1.site = v2m_get_master_site();
+	clk = v2m_osc_register("ct:osc1", &ct_osc1);
+	clk_register_clkdev(clk, NULL, "ct:clcd");
 
 	for (i = 0; i < ARRAY_SIZE(ct_ca9x4_amba_devs); i++)
 		amba_device_register(ct_ca9x4_amba_devs[i], &iomem_resource);
@@ -234,7 +209,6 @@ struct ct_desc ct_ca9x4_desc __initdata = {
 	.id		= V2M_CT_ID_CA9,
 	.name		= "CA9x4",
 	.map_io		= ct_ca9x4_map_io,
-	.init_early	= ct_ca9x4_init_early,
 	.init_irq	= ct_ca9x4_init_irq,
 	.init_tile	= ct_ca9x4_init,
 #ifdef CONFIG_SMP

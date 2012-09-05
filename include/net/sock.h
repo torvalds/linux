@@ -198,6 +198,7 @@ struct cg_proto;
   *	@sk_lock:	synchronizer
   *	@sk_rcvbuf: size of receive buffer in bytes
   *	@sk_wq: sock wait queue and async head
+  *	@sk_rx_dst: receive input route used by early tcp demux
   *	@sk_dst_cache: destination cache
   *	@sk_dst_lock: destination cache lock
   *	@sk_policy: flow policy
@@ -317,6 +318,7 @@ struct sock {
 	struct xfrm_policy	*sk_policy[2];
 #endif
 	unsigned long 		sk_flags;
+	struct dst_entry	*sk_rx_dst;
 	struct dst_entry	*sk_dst_cache;
 	spinlock_t		sk_dst_lock;
 	atomic_t		sk_wmem_alloc;
@@ -855,6 +857,9 @@ struct proto {
 
 	int			(*backlog_rcv) (struct sock *sk,
 						struct sk_buff *skb);
+
+	void		(*release_cb)(struct sock *sk);
+	void		(*mtu_reduced)(struct sock *sk);
 
 	/* Keeping track of sk's, looking them up, and port selection methods. */
 	void			(*hash)(struct sock *sk);
@@ -1426,6 +1431,7 @@ extern struct sk_buff		*sock_rmalloc(struct sock *sk,
 					      gfp_t priority);
 extern void			sock_wfree(struct sk_buff *skb);
 extern void			sock_rfree(struct sk_buff *skb);
+extern void			sock_edemux(struct sk_buff *skb);
 
 extern int			sock_setsockopt(struct socket *sock, int level,
 						int op, char __user *optval,
@@ -2152,7 +2158,7 @@ static inline void sk_change_net(struct sock *sk, struct net *net)
 
 static inline struct sock *skb_steal_sock(struct sk_buff *skb)
 {
-	if (unlikely(skb->sk)) {
+	if (skb->sk) {
 		struct sock *sk = skb->sk;
 
 		skb->destructor = NULL;

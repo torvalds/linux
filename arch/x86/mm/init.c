@@ -62,7 +62,8 @@ static void __init find_early_table_space(struct map_range *mr, unsigned long en
 		extra += PMD_SIZE;
 #endif
 		/* The first 2/4M doesn't use large pages. */
-		extra += mr->end - mr->start;
+		if (mr->start < PMD_SIZE)
+			extra += mr->end - mr->start;
 
 		ptes = (extra + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	} else
@@ -384,7 +385,7 @@ void free_initmem(void)
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
+void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
 	/*
 	 * end could be not aligned, and We can not align that,

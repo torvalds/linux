@@ -79,7 +79,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset,
 		   uint64_t dst_offset,
 		   unsigned num_gpu_pages,
-		   struct radeon_fence *fence);
+		   struct radeon_fence **fence);
 int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
 			 uint32_t offset, uint32_t obj_size);
@@ -103,7 +103,6 @@ int r100_pci_gart_enable(struct radeon_device *rdev);
 void r100_pci_gart_disable(struct radeon_device *rdev);
 int r100_debugfs_mc_info_init(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
-void r100_ib_fini(struct radeon_device *rdev);
 int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r100_irq_disable(struct radeon_device *rdev);
 void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save);
@@ -144,7 +143,7 @@ extern int r200_copy_dma(struct radeon_device *rdev,
 			 uint64_t src_offset,
 			 uint64_t dst_offset,
 			 unsigned num_gpu_pages,
-			 struct radeon_fence *fence);
+			 struct radeon_fence **fence);
 void r200_set_safe_registers(struct radeon_device *rdev);
 
 /*
@@ -318,7 +317,7 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
-		   unsigned num_gpu_pages, struct radeon_fence *fence);
+		   unsigned num_gpu_pages, struct radeon_fence **fence);
 void r600_hpd_init(struct radeon_device *rdev);
 void r600_hpd_fini(struct radeon_device *rdev);
 bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
@@ -363,9 +362,10 @@ int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 /* r600 blit */
 int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages,
-			   struct radeon_sa_bo **vb);
-void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence,
-			 struct radeon_sa_bo *vb);
+			   struct radeon_fence **fence, struct radeon_sa_bo **vb,
+			   struct radeon_semaphore **sem);
+void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence **fence,
+			 struct radeon_sa_bo *vb, struct radeon_semaphore *sem);
 void r600_kms_blit_copy(struct radeon_device *rdev,
 			u64 src_gpu_addr, u64 dst_gpu_addr,
 			unsigned num_gpu_pages,

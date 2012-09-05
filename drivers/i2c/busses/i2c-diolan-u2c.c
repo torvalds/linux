@@ -517,6 +517,6 @@ static struct usb_driver diolan_u2c_driver = {
 
 module_usb_driver(diolan_u2c_driver);
 
-MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
+MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION(DRIVER_NAME " driver");
 MODULE_LICENSE("GPL");

@@ -1216,12 +1216,7 @@ static void mmci_dt_populate_generic_pdata(struct device_node *np,
 	int bus_width = 0;
 
 	pdata->gpio_wp = of_get_named_gpio(np, "wp-gpios", 0);
-	if (!pdata->gpio_wp)
-		pdata->gpio_wp = -1;
-
 	pdata->gpio_cd = of_get_named_gpio(np, "cd-gpios", 0);
-	if (!pdata->gpio_cd)
-		pdata->gpio_cd = -1;
 
 	if (of_get_property(np, "cd-inverted", NULL))
 		pdata->cd_invert = true;
@@ -1274,6 +1269,12 @@ static int __devinit mmci_probe(struct amba_device *dev,
 	if (!plat && !np) {
 		dev_err(&dev->dev, "No plat data or DT found\n");
 		return -EINVAL;
+	}
+
+	if (!plat) {
+		plat = devm_kzalloc(&dev->dev, sizeof(*plat), GFP_KERNEL);
+		if (!plat)
+			return -ENOMEM;
 	}
 
 	if (np)
@@ -1424,6 +1425,10 @@ static int __devinit mmci_probe(struct amba_device *dev,
 	writel(0, host->base + MMCIMASK1);
 	writel(0xfff, host->base + MMCICLEAR);
 
+	if (plat->gpio_cd == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_gpio_cd;
+	}
 	if (gpio_is_valid(plat->gpio_cd)) {
 		ret = gpio_request(plat->gpio_cd, DRIVER_NAME " (cd)");
 		if (ret == 0)
@@ -1446,6 +1451,10 @@ static int __devinit mmci_probe(struct amba_device *dev,
 				DRIVER_NAME " (cd)", host);
 		if (ret >= 0)
 			host->gpio_cd_irq = gpio_to_irq(plat->gpio_cd);
+	}
+	if (plat->gpio_wp == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_gpio_wp;
 	}
 	if (gpio_is_valid(plat->gpio_wp)) {
 		ret = gpio_request(plat->gpio_wp, DRIVER_NAME " (wp)");

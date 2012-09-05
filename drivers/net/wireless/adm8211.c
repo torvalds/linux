@@ -1661,7 +1661,9 @@ static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 }
 
 /* Put adm8211_tx_hdr on skb and transmit */
-static void adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void adm8211_tx(struct ieee80211_hw *dev,
+		       struct ieee80211_tx_control *control,
+		       struct sk_buff *skb)
 {
 	struct adm8211_tx_hdr *txhdr;
 	size_t payload_len, hdrlen;
@@ -1738,8 +1740,7 @@ static int adm8211_alloc_rings(struct ieee80211_hw *dev)
 		return -ENOMEM;
 	}
 
-	priv->tx_ring = (struct adm8211_desc *)(priv->rx_ring +
-						priv->rx_ring_size);
+	priv->tx_ring = priv->rx_ring + priv->rx_ring_size;
 	priv->tx_ring_dma = priv->rx_ring_dma +
 			    sizeof(struct adm8211_desc) * priv->rx_ring_size;
 
@@ -1855,7 +1856,7 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	if (!is_valid_ether_addr(perm_addr)) {
 		printk(KERN_WARNING "%s (adm8211): Invalid hwaddr in EEPROM!\n",
 		       pci_name(pdev));
-		random_ether_addr(perm_addr);
+		eth_random_addr(perm_addr);
 	}
 	SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 

@@ -53,7 +53,7 @@ int ocrdma_query_gid(struct ib_device *ibdev, u8 port,
 
 	dev = get_ocrdma_dev(ibdev);
 	memset(sgid, 0, sizeof(*sgid));
-	if (index > OCRDMA_MAX_SGID)
+	if (index >= OCRDMA_MAX_SGID)
 		return -EINVAL;
 
 	memcpy(sgid, &dev->sgid_tbl[index], sizeof(*sgid));
@@ -83,8 +83,8 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 					IB_DEVICE_SHUTDOWN_PORT |
 					IB_DEVICE_SYS_IMAGE_GUID |
 					IB_DEVICE_LOCAL_DMA_LKEY;
-	attr->max_sge = dev->attr.max_send_sge;
-	attr->max_sge_rd = dev->attr.max_send_sge;
+	attr->max_sge = min(dev->attr.max_send_sge, dev->attr.max_srq_sge);
+	attr->max_sge_rd = 0;
 	attr->max_cq = dev->attr.max_cq;
 	attr->max_cqe = dev->attr.max_cqe;
 	attr->max_mr = dev->attr.max_mr;
@@ -97,7 +97,7 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 	    min(dev->attr.max_ord_per_qp, dev->attr.max_ird_per_qp);
 	attr->max_qp_init_rd_atom = dev->attr.max_ord_per_qp;
 	attr->max_srq = (dev->attr.max_qp - 1);
-	attr->max_srq_sge = attr->max_sge;
+	attr->max_srq_sge = dev->attr.max_srq_sge;
 	attr->max_srq_wr = dev->attr.max_rqe;
 	attr->local_ca_ack_delay = dev->attr.local_ca_ack_delay;
 	attr->max_fast_reg_page_list_len = 0;
@@ -940,8 +940,6 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 		uresp.db_rq_offset = OCRDMA_DB_RQ_OFFSET;
 		uresp.db_shift = 16;
 	}
-	uresp.free_wqe_delta = qp->sq.free_delta;
-	uresp.free_rqe_delta = qp->rq.free_delta;
 
 	if (qp->dpp_enabled) {
 		uresp.dpp_credit = dpp_credit_lmt;
@@ -1307,8 +1305,6 @@ static int ocrdma_hwq_free_cnt(struct ocrdma_qp_hwq_info *q)
 		free_cnt = (q->max_cnt - q->head) + q->tail;
 	else
 		free_cnt = q->tail - q->head;
-	if (q->free_delta)
-		free_cnt -= q->free_delta;
 	return free_cnt;
 }
 
@@ -1501,7 +1497,6 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_srq *srq, struct ib_udata *udata)
 	    (srq->pd->id * srq->dev->nic_info.db_page_size);
 	uresp.db_page_size = srq->dev->nic_info.db_page_size;
 	uresp.num_rqe_allocated = srq->rq.max_cnt;
-	uresp.free_rqe_delta = 1;
 	if (srq->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
 		uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ1_OFFSET;
 		uresp.db_shift = 24;
@@ -2306,8 +2301,10 @@ static bool ocrdma_poll_err_rcqe(struct ocrdma_qp *qp, struct ocrdma_cqe *cqe,
 			*stop = true;
 			expand = false;
 		}
-	} else
+	} else {
+		*polled = true;
 		expand = ocrdma_update_err_rcqe(ibwc, cqe, qp, status);
+	}
 	return expand;
 }
 

@@ -2802,6 +2802,8 @@ static ssize_t dfs_file_read(struct file *file, char __user *u, size_t count,
 		val = d->chk_fs;
 	else if (dent == d->dfs_tst_rcvry)
 		val = d->tst_rcvry;
+	else if (dent == d->dfs_ro_error)
+		val = c->ro_error;
 	else
 		return -EINVAL;
 
@@ -2885,6 +2887,8 @@ static ssize_t dfs_file_write(struct file *file, const char __user *u,
 		d->chk_fs = val;
 	else if (dent == d->dfs_tst_rcvry)
 		d->tst_rcvry = val;
+	else if (dent == d->dfs_ro_error)
+		c->ro_error = !!val;
 	else
 		return -EINVAL;
 
@@ -2917,6 +2921,9 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	const char *fname;
 	struct dentry *dent;
 	struct ubifs_debug_info *d = c->dbg;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return 0;
 
 	n = snprintf(d->dfs_dir_name, UBIFS_DFS_DIR_LEN + 1, UBIFS_DFS_DIR_NAME,
 		     c->vi.ubi_num, c->vi.vol_id);
@@ -2993,6 +3000,13 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 		goto out_remove;
 	d->dfs_tst_rcvry = dent;
 
+	fname = "ro_error";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_ro_error = dent;
+
 	return 0;
 
 out_remove:
@@ -3010,7 +3024,8 @@ out:
  */
 void dbg_debugfs_exit_fs(struct ubifs_info *c)
 {
-	debugfs_remove_recursive(c->dbg->dfs_dir);
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		debugfs_remove_recursive(c->dbg->dfs_dir);
 }
 
 struct ubifs_global_debug_info ubifs_dbg;
@@ -3095,6 +3110,9 @@ int dbg_debugfs_init(void)
 	const char *fname;
 	struct dentry *dent;
 
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return 0;
+
 	fname = "ubifs";
 	dent = debugfs_create_dir(fname, NULL);
 	if (IS_ERR_OR_NULL(dent))
@@ -3159,7 +3177,8 @@ out:
  */
 void dbg_debugfs_exit(void)
 {
-	debugfs_remove_recursive(dfs_rootdir);
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		debugfs_remove_recursive(dfs_rootdir);
 }
 
 /**

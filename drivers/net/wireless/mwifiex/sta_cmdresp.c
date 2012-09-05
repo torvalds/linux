@@ -227,7 +227,7 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
 			       struct mwifiex_ds_get_stats *stats)
 {
 	struct host_cmd_ds_802_11_get_log *get_log =
-		(struct host_cmd_ds_802_11_get_log *) &resp->params.get_log;
+		&resp->params.get_log;
 
 	if (stats) {
 		stats->mcast_tx_frame = le32_to_cpu(get_log->mcast_tx_frame);
@@ -279,7 +279,7 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	u8 *tlv_buf;
 	u32 i;
 
-	tlv_buf = (u8 *) ((u8 *) rate_cfg) +
+	tlv_buf = ((u8 *)rate_cfg) +
 			sizeof(struct host_cmd_ds_tx_rate_cfg);
 	tlv_buf_len = *(u16 *) (tlv_buf + sizeof(u16));
 
@@ -677,39 +677,33 @@ static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 	eeprom = data_buf;
 	switch (type) {
 	case HostCmd_CMD_MAC_REG_ACCESS:
-		r.mac = (struct host_cmd_ds_mac_reg_access *)
-			&resp->params.mac_reg;
+		r.mac = &resp->params.mac_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.mac->offset));
 		reg_rw->value = r.mac->value;
 		break;
 	case HostCmd_CMD_BBP_REG_ACCESS:
-		r.bbp = (struct host_cmd_ds_bbp_reg_access *)
-			&resp->params.bbp_reg;
+		r.bbp = &resp->params.bbp_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.bbp->offset));
 		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
 		break;
 
 	case HostCmd_CMD_RF_REG_ACCESS:
-		r.rf = (struct host_cmd_ds_rf_reg_access *)
-		       &resp->params.rf_reg;
+		r.rf = &resp->params.rf_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
 		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
 		break;
 	case HostCmd_CMD_PMIC_REG_ACCESS:
-		r.pmic = (struct host_cmd_ds_pmic_reg_access *)
-			 &resp->params.pmic_reg;
+		r.pmic = &resp->params.pmic_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.pmic->offset));
 		reg_rw->value = cpu_to_le32((u32) r.pmic->value);
 		break;
 	case HostCmd_CMD_CAU_REG_ACCESS:
-		r.rf = (struct host_cmd_ds_rf_reg_access *)
-		       &resp->params.rf_reg;
+		r.rf = &resp->params.rf_reg;
 		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
 		reg_rw->value = cpu_to_le32((u32) r.rf->value);
 		break;
 	case HostCmd_CMD_802_11_EEPROM_ACCESS:
-		r.eeprom = (struct host_cmd_ds_802_11_eeprom_access *)
-			   &resp->params.eeprom;
+		r.eeprom = &resp->params.eeprom;
 		pr_debug("info: EEPROM read len=%x\n", r.eeprom->byte_count);
 		if (le16_to_cpu(eeprom->byte_count) <
 		    le16_to_cpu(r.eeprom->byte_count)) {
@@ -785,7 +779,7 @@ static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
 				 struct mwifiex_ds_misc_subsc_evt *sub_event)
 {
 	struct host_cmd_ds_802_11_subsc_evt *cmd_sub_event =
-		(struct host_cmd_ds_802_11_subsc_evt *)&resp->params.subsc_evt;
+		&resp->params.subsc_evt;
 
 	/* For every subscribe event command (Get/Set/Clear), FW reports the
 	 * current set of subscribed events*/

@@ -121,20 +121,23 @@ static const struct snd_soc_dai_ops wm1250_ev1_ops = {
 	.hw_params = wm1250_ev1_hw_params,
 };
 
+#define WM1250_EV1_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
+			  SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_64000)
+
 static struct snd_soc_dai_driver wm1250_ev1_dai = {
 	.name = "wm1250-ev1",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000,
+		.rates = WM1250_EV1_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000,
+		.rates = WM1250_EV1_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.ops = &wm1250_ev1_ops,

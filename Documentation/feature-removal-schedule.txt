@@ -405,21 +405,6 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
 
-What:	xt_connlimit rev 0
-When:	2012
-Who:	Jan Engelhardt <jengelh@medozas.de>
-Files:	net/netfilter/xt_connlimit.c
-
-----------------------------
-
-What:	ipt_addrtype match include file
-When:	2012
-Why:	superseded by xt_addrtype
-Who:	Florian Westphal <fw@strlen.de>
-Files:	include/linux/netfilter_ipv4/ipt_addrtype.h
-
-----------------------------
-
 What:	i2c_driver.attach_adapter
 	i2c_driver.detach_adapter
 When:	September 2011
@@ -527,14 +512,6 @@ Who:	Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
 
 ----------------------------
 
-What:	kmap_atomic(page, km_type)
-When:	3.5
-Why:	The old kmap_atomic() with two arguments is deprecated, we only
-	keep it for backward compatibility for few cycles and then drop it.
-Who:	Cong Wang <amwang@redhat.com>
-
-----------------------------
-
 What:	get_robust_list syscall
 When:	2013
 Why:	There appear to be no production users of the get_robust_list syscall,
@@ -590,6 +567,13 @@ Why:	Remount currently allows changing bound subsystems and
 	release_agent.  Rebinding is hardly useful as it only works
 	when the hierarchy is empty and release_agent itself should be
 	replaced with conventional fsnotify.
+
+----------------------------
+
+What:  xt_recent rev 0
+When:  2013
+Who:   Pablo Neira Ayuso <pablo@netfilter.org>
+Files: net/netfilter/xt_recent.c
 
 ----------------------------
 

@@ -4,7 +4,7 @@
 
 / {
 	model = "D-Link DNS-325 NAS (Rev A1)";
-	compatible = "dlink,dns-325-a1", "dlink,dns-325", "dlink,dns-kirkwood", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
+	compatible = "dlink,dns-325-a1", "dlink,dns-325", "dlink,dns-kirkwood", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";

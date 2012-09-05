@@ -180,7 +180,9 @@ EXPORT_SYMBOL_GPL(xdr_inline_pages);
 
 /*
  * Helper routines for doing 'memmove' like operations on a struct xdr_buf
- *
+ */
+
+/**
  * _shift_data_right_pages
  * @pages: vector of pages containing both the source and dest memory area.
  * @pgto_base: page vector address of destination
@@ -242,7 +244,7 @@ _shift_data_right_pages(struct page **pages, size_t pgto_base,
 	} while ((len -= copy) != 0);
 }
 
-/*
+/**
  * _copy_to_pages
  * @pages: array of pages
  * @pgbase: page vector address of destination
@@ -286,7 +288,7 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
 	flush_dcache_page(*pgto);
 }
 
-/*
+/**
  * _copy_from_pages
  * @p: pointer to destination
  * @pages: array of pages
@@ -326,7 +328,7 @@ _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
 }
 EXPORT_SYMBOL_GPL(_copy_from_pages);
 
-/*
+/**
  * xdr_shrink_bufhead
  * @buf: xdr_buf
  * @len: bytes to remove from buf->head[0]
@@ -399,7 +401,7 @@ xdr_shrink_bufhead(struct xdr_buf *buf, size_t len)
 		buf->len = buf->buflen;
 }
 
-/*
+/**
  * xdr_shrink_pagelen
  * @buf: xdr_buf
  * @len: bytes to remove from buf->pages

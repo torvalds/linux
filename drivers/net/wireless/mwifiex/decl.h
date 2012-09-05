@@ -60,6 +60,9 @@
 #define MWIFIEX_SDIO_BLOCK_SIZE            256
 
 #define MWIFIEX_BUF_FLAG_REQUEUED_PKT      BIT(0)
+#define MWIFIEX_BUF_FLAG_BRIDGED_PKT	   BIT(1)
+
+#define MWIFIEX_BRIDGED_PKTS_THRESHOLD     1024
 
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,

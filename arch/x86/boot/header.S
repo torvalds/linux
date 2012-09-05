@@ -94,10 +94,10 @@ bs_die:
 
 	.section ".bsdata", "a"
 bugger_off_msg:
-	.ascii	"Direct booting from floppy is no longer supported.\r\n"
-	.ascii	"Please use a boot loader program instead.\r\n"
+	.ascii	"Direct floppy boot is not supported. "
+	.ascii	"Use a boot loader program instead.\r\n"
 	.ascii	"\n"
-	.ascii	"Remove disk and press any key to reboot . . .\r\n"
+	.ascii	"Remove disk and press any key to reboot ...\r\n"
 	.byte	0
 
 #ifdef CONFIG_EFI_STUB
@@ -111,7 +111,7 @@ coff_header:
 #else
 	.word	0x8664				# x86-64
 #endif
-	.word	2				# nr_sections
+	.word	3				# nr_sections
 	.long	0 				# TimeDateStamp
 	.long	0				# PointerToSymbolTable
 	.long	1				# NumberOfSymbols
@@ -158,8 +158,8 @@ extra_header_fields:
 #else
 	.quad	0				# ImageBase
 #endif
-	.long	0x1000				# SectionAlignment
-	.long	0x200				# FileAlignment
+	.long	0x20				# SectionAlignment
+	.long	0x20				# FileAlignment
 	.word	0				# MajorOperatingSystemVersion
 	.word	0				# MinorOperatingSystemVersion
 	.word	0				# MajorImageVersion
@@ -200,8 +200,10 @@ extra_header_fields:
 
 	# Section table
 section_table:
-	.ascii	".text"
-	.byte	0
+	#
+	# The offset & size fields are filled in by build.c.
+	#
+	.ascii	".setup"
 	.byte	0
 	.byte	0
 	.long	0
@@ -217,9 +219,8 @@ section_table:
 
 	#
 	# The EFI application loader requires a relocation section
-	# because EFI applications must be relocatable. But since
-	# we don't need the loader to fixup any relocs for us, we
-	# just create an empty (zero-length) .reloc section header.
+	# because EFI applications must be relocatable. The .reloc
+	# offset & size fields are filled in by build.c.
 	#
 	.ascii	".reloc"
 	.byte	0
@@ -233,6 +234,25 @@ section_table:
 	.word	0				# NumberOfRelocations
 	.word	0				# NumberOfLineNumbers
 	.long	0x42100040			# Characteristics (section flags)
+
+	#
+	# The offset & size fields are filled in by build.c.
+	#
+	.ascii	".text"
+	.byte	0
+	.byte	0
+	.byte	0
+	.long	0
+	.long	0x0				# startup_{32,64}
+	.long	0				# Size of initialized data
+						# on disk
+	.long	0x0				# startup_{32,64}
+	.long	0				# PointerToRelocations
+	.long	0				# PointerToLineNumbers
+	.word	0				# NumberOfRelocations
+	.word	0				# NumberOfLineNumbers
+	.long	0x60500020			# Characteristics (section flags)
+
 #endif /* CONFIG_EFI_STUB */
 
 	# Kernel attributes; used by setup.  This is part 1 of the
@@ -263,7 +283,7 @@ _start:
 	# Part 2 of the header, from the old setup.S
 
 		.ascii	"HdrS"		# header signature
-		.word	0x020a		# header version number (>= 0x0105)
+		.word	0x020b		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 		.globl realmode_swtch
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
@@ -381,18 +401,13 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 #define INIT_SIZE VO_INIT_SIZE
 #endif
 init_size:		.long INIT_SIZE		# kernel initialization size
+handover_offset:	.long 0x30		# offset to the handover
+						# protocol entry point
 
 # End of setup header #####################################################
 
 	.section ".entrytext", "ax"
 start_of_setup:
-#ifdef SAFE_RESET_DISK_CONTROLLER
-# Reset the disk controller.
-	movw	$0x0000, %ax		# Reset disk controller
-	movb	$0x80, %dl		# All disks
-	int	$0x13
-#endif
-
 # Force %es = %ds
 	movw	%ds, %ax
 	movw	%ax, %es
