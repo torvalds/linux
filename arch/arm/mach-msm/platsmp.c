@@ -22,16 +22,11 @@
 #include <asm/mach-types.h>
 #include <asm/smp_plat.h>
 
-#include <mach/msm_iomap.h>
-
 #include "scm-boot.h"
 
 #define VDD_SC1_ARRAY_CLAMP_GFS_CTL 0x15A0
 #define SCSS_CPU1CORE_RESET 0xD80
 #define SCSS_DBG_STATUS_CORE_PWRDUP 0xE64
-
-/* Mask for edge trigger PPIs except AVS_SVICINT and AVS_SVICINTSWDONE */
-#define GIC_PPI_EDGE_MASK 0xFFFFD7FF
 
 extern void msm_secondary_startup(void);
 /*
@@ -50,9 +45,6 @@ static inline int get_core_count(void)
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
-	/* Configure edge-triggered PPIs */
-	writel(GIC_PPI_EDGE_MASK, MSM_QGIC_DIST_BASE + GIC_DIST_CONFIG + 4);
-
 	/*
 	 * if any interrupts are already enabled for the primary
 	 * core (e.g. timer irq), then they will not have been enabled
