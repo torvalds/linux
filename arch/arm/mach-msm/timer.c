@@ -37,7 +37,6 @@
 #define TIMER_ENABLE_CLR_ON_MATCH_EN    BIT(1)
 #define TIMER_ENABLE_EN                 BIT(0)
 #define TIMER_CLEAR             0x000C
-#define DGT_CLK_CTL             0x0030
 #define DGT_CLK_CTL_DIV_4	0x3
 
 #define GPT_HZ 32768
@@ -344,18 +343,6 @@ static void __init msm7x30_timer_init(void)
 
 struct sys_timer msm7x30_timer = {
 	.init = msm7x30_timer_init
-};
-
-static void __init msm8960_timer_init(void)
-{
-	if (msm_timer_map(0x0200A004, 0x0208A024))
-		return;
-	writel_relaxed(DGT_CLK_CTL_DIV_4, event_base + DGT_CLK_CTL);
-	msm_timer_init(27000000 / 4, 32, 17, true);
-}
-
-struct sys_timer msm8960_timer = {
-	.init = msm8960_timer_init
 };
 
 static void __init qsd8x50_timer_init(void)

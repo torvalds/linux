@@ -50,7 +50,6 @@ config ARCH_MSM8X60
 config ARCH_MSM8960
 	bool "MSM8960"
 	select ARCH_MSM_SCORPIONMP
-	select MACH_MSM8960_SIM if (!MACH_MSM8960_RUMI3)
 	select ARM_GIC
 	select CPU_V7
 	select MSM_V2_TLMM
@@ -111,18 +110,6 @@ config MACH_QSD8X50A_ST1_5
 	bool "QSD8x50A ST1.5"
 	help
 	  Support for the Qualcomm ST1.5.
-
-config MACH_MSM8960_SIM
-	depends on ARCH_MSM8960
-	bool "MSM8960 Simulator"
-	help
-	  Support for the Qualcomm MSM8960 simulator.
-
-config MACH_MSM8960_RUMI3
-	depends on ARCH_MSM8960
-	bool "MSM8960 RUMI3"
-	help
-	  Support for the Qualcomm MSM8960 RUMI3 emulator.
 
 endmenu
 
