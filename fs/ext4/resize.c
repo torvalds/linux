@@ -1358,13 +1358,15 @@ exit_journal:
 		err = err2;
 
 	if (!err) {
-		int i;
+		int gdb_num = group / EXT4_DESC_PER_BLOCK(sb);
+		int gdb_num_end = ((group + flex_gd->count - 1) /
+				   EXT4_DESC_PER_BLOCK(sb));
+
 		update_backups(sb, sbi->s_sbh->b_blocknr, (char *)es,
 			       sizeof(struct ext4_super_block));
-		for (i = 0; i < flex_gd->count; i++, group++) {
+		for (; gdb_num <= gdb_num_end; gdb_num++) {
 			struct buffer_head *gdb_bh;
-			int gdb_num;
-			gdb_num = group / EXT4_BLOCKS_PER_GROUP(sb);
+
 			gdb_bh = sbi->s_group_desc[gdb_num];
 			update_backups(sb, gdb_bh->b_blocknr, gdb_bh->b_data,
 				       gdb_bh->b_size);
