@@ -30,21 +30,21 @@ void __init sirfsoc_init_late(void)
 	sirfsoc_pm_init();
 }
 
-static const char *prima2cb_dt_match[] __initdata = {
-       "sirf,prima2-cb",
+#ifdef CONFIG_ARCH_PRIMA2
+static const char *prima2_dt_match[] __initdata = {
+       "sirf,prima2",
        NULL
 };
 
-MACHINE_START(PRIMA2_EVB, "prima2cb")
+DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
-	.atag_offset	= 0x100,
-	.init_early     = sirfsoc_of_clk_init,
 	.map_io         = sirfsoc_map_lluart,
 	.init_irq	= sirfsoc_of_irq_init,
 	.timer		= &sirfsoc_timer,
 	.dma_zone_size	= SZ_256M,
 	.init_machine	= sirfsoc_mach_init,
 	.init_late	= sirfsoc_init_late,
-	.dt_compat      = prima2cb_dt_match,
+	.dt_compat      = prima2_dt_match,
 	.restart	= sirfsoc_restart,
 MACHINE_END
+#endif
