@@ -39,6 +39,11 @@
 #endif
 #endif
 
+struct usb_port {
+	struct device dev;
+	struct dev_state *port_owner;
+};
+
 struct usb_hub {
 	struct device		*intfdev;	/* the "interface" device */
 	struct usb_device	*hdev;
@@ -83,7 +88,7 @@ struct usb_hub {
 	u8			indicator[USB_MAXCHILDREN];
 	struct delayed_work	leds;
 	struct delayed_work	init_work;
-	struct dev_state	**port_owners;
+	struct usb_port		**ports;
 };
 
 static inline int hub_is_superspeed(struct usb_device *hdev)
@@ -156,6 +161,8 @@ EXPORT_SYMBOL_GPL(ehci_cf_port_reset_rwsem);
 #define HUB_DEBOUNCE_STEP	  25
 #define HUB_DEBOUNCE_STABLE	 100
 
+#define to_usb_port(_dev) \
+	container_of(_dev, struct usb_port, dev)
 
 static int usb_reset_and_verify_device(struct usb_device *udev);
 
@@ -1222,6 +1229,52 @@ static int hub_post_reset(struct usb_interface *intf)
 	return 0;
 }
 
+static void usb_port_device_release(struct device *dev)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+
+	kfree(port_dev);
+}
+
+static void usb_hub_remove_port_device(struct usb_hub *hub,
+				       int port1)
+{
+	device_unregister(&hub->ports[port1 - 1]->dev);
+}
+
+struct device_type usb_port_device_type = {
+	.name =		"usb_port",
+	.release =	usb_port_device_release,
+};
+
+static int usb_hub_create_port_device(struct usb_hub *hub,
+				      int port1)
+{
+	struct usb_port *port_dev = NULL;
+	int retval;
+
+	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
+	if (!port_dev) {
+		retval = -ENOMEM;
+		goto exit;
+	}
+
+	hub->ports[port1 - 1] = port_dev;
+	port_dev->dev.parent = hub->intfdev;
+	port_dev->dev.type = &usb_port_device_type;
+	dev_set_name(&port_dev->dev, "port%d", port1);
+
+	retval = device_register(&port_dev->dev);
+	if (retval)
+		goto error_register;
+	return 0;
+
+error_register:
+	put_device(&port_dev->dev);
+exit:
+	return retval;
+}
+
 static int hub_configure(struct usb_hub *hub,
 	struct usb_endpoint_descriptor *endpoint)
 {
@@ -1231,7 +1284,7 @@ static int hub_configure(struct usb_hub *hub,
 	u16 hubstatus, hubchange;
 	u16 wHubCharacteristics;
 	unsigned int pipe;
-	int maxp, ret;
+	int maxp, ret, i;
 	char *message = "out of memory";
 
 	hub->buffer = kmalloc(sizeof(*hub->buffer), GFP_KERNEL);
@@ -1273,9 +1326,9 @@ static int hub_configure(struct usb_hub *hub,
 
 	hdev->children = kzalloc(hdev->maxchild *
 				sizeof(struct usb_device *), GFP_KERNEL);
-	hub->port_owners = kzalloc(hdev->maxchild * sizeof(struct dev_state *),
-				GFP_KERNEL);
-	if (!hdev->children || !hub->port_owners) {
+	hub->ports = kzalloc(hdev->maxchild * sizeof(struct usb_port *),
+			     GFP_KERNEL);
+	if (!hdev->children || !hub->ports) {
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1484,6 +1537,11 @@ static int hub_configure(struct usb_hub *hub,
 	if (hub->has_indicators && blinkenlights)
 		hub->indicator [0] = INDICATOR_CYCLE;
 
+	for (i = 0; i < hdev->maxchild; i++)
+		if (usb_hub_create_port_device(hub, i + 1) < 0)
+			dev_err(hub->intfdev,
+				"couldn't create port%d device.\n", i + 1);
+
 	hub_activate(hub, HUB_INIT);
 	return 0;
 
@@ -1508,6 +1566,10 @@ static void hub_disconnect(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
 	struct usb_device *hdev = interface_to_usbdev(intf);
+	int i;
+
+	for (i = 0; i < hdev->maxchild; i++)
+		usb_hub_remove_port_device(hub, i + 1);
 
 	/* Take the hub off the event list and don't let it be added again */
 	spin_lock_irq(&hub_event_lock);
@@ -1530,7 +1592,7 @@ static void hub_disconnect(struct usb_interface *intf)
 
 	usb_free_urb(hub->urb);
 	kfree(hdev->children);
-	kfree(hub->port_owners);
+	kfree(hub->ports);
 	kfree(hub->descriptor);
 	kfree(hub->status);
 	kfree(hub->buffer);
@@ -1662,7 +1724,7 @@ static int find_port_owner(struct usb_device *hdev, unsigned port1,
 	/* This assumes that devices not managed by the hub driver
 	 * will always have maxchild equal to 0.
 	 */
-	*ppowner = &(hdev_to_hub(hdev)->port_owners[port1 - 1]);
+	*ppowner = &(hdev_to_hub(hdev)->ports[port1 - 1]->port_owner);
 	return 0;
 }
 
@@ -1699,16 +1761,14 @@ int usb_hub_release_port(struct usb_device *hdev, unsigned port1,
 
 void usb_hub_release_all_ports(struct usb_device *hdev, struct dev_state *owner)
 {
+	struct usb_hub *hub = hdev_to_hub(hdev);
 	int n;
-	struct dev_state **powner;
 
-	n = find_port_owner(hdev, 1, &powner);
-	if (n == 0) {
-		for (; n < hdev->maxchild; (++n, ++powner)) {
-			if (*powner == owner)
-				*powner = NULL;
-		}
+	for (n = 0; n < hdev->maxchild; n++) {
+		if (hub->ports[n]->port_owner == owner)
+			hub->ports[n]->port_owner = NULL;
 	}
+
 }
 
 /* The caller must hold udev's lock */
@@ -1719,9 +1779,8 @@ bool usb_device_is_owned(struct usb_device *udev)
 	if (udev->state == USB_STATE_NOTATTACHED || !udev->parent)
 		return false;
 	hub = hdev_to_hub(udev->parent);
-	return !!hub->port_owners[udev->portnum - 1];
+	return !!hub->ports[udev->portnum - 1]->port_owner;
 }
-
 
 static void recursively_mark_NOTATTACHED(struct usb_device *udev)
 {
