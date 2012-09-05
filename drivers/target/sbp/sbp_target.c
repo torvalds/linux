@@ -660,8 +660,7 @@ static void session_reconnect_expired(struct sbp_session *sess)
 	spin_lock_bh(&sess->lock);
 	list_for_each_entry_safe(login, temp, &sess->login_list, link) {
 		login->sess = NULL;
-		list_del(&login->link);
-		list_add_tail(&login->link, &login_list);
+		list_move_tail(&login->link, &login_list);
 	}
 	spin_unlock_bh(&sess->lock);
 
