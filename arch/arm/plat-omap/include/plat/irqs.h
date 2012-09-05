@@ -53,7 +53,6 @@
 #define INT_DMA_CH3		22
 #define INT_DMA_CH4		23
 #define INT_DMA_CH5		24
-#define INT_DMA_LCD		25
 #define INT_TIMER1		26
 #define INT_WD_TIMER		27
 #define INT_BRIDGE_PUB		28
