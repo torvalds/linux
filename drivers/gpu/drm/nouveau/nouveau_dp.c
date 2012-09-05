@@ -289,9 +289,7 @@ dp_link_train_update(struct drm_device *dev, struct dp_state *dp, u32 delay)
 	if (ret)
 		return ret;
 
-	NV_DEBUG_KMS(dev, "status %02x %02x %02x %02x %02x %02x\n",
-		     dp->stat[0], dp->stat[1], dp->stat[2], dp->stat[3],
-		     dp->stat[4], dp->stat[5]);
+	NV_DEBUG_KMS(dev, "status %*ph\n", 6, dp->stat);
 	return 0;
 }
 
