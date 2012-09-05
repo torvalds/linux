@@ -2314,7 +2314,7 @@ static int perf_evlist__set_tracepoint_names(struct perf_evlist *evlist,
 	struct perf_evsel *pos;
 
 	list_for_each_entry(pos, &evlist->entries, node) {
-		if (pos->attr.type == PERF_TYPE_TRACEPOINT &&
+		if (pos->attr.type == PERF_TYPE_TRACEPOINT && !pos->name &&
 		    perf_evsel__set_tracepoint_name(pos, pevent))
 			return -1;
 	}
