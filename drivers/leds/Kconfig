@@ -423,13 +423,13 @@ config LEDS_MAX8997
 	  This option enables support for on-chip LED drivers on
 	  MAXIM MAX8997 PMIC.
 
-config LEDS_LM3556
-	tristate "LED support for LM3556 Chip"
+config LEDS_LM355x
+	tristate "LED support for LM355x Chips, LM3554 and LM3556"
 	depends on LEDS_CLASS && I2C
 	select REGMAP_I2C
 	help
-	  This option enables support for LEDs connected to LM3556.
-	  LM3556 includes Torch, Flash and Indicator functions.
+	  This option enables support for LEDs connected to LM355x.
+	  LM355x includes Torch, Flash and Indicator functions.
 
 config LEDS_OT200
 	tristate "LED support for the Bachmann OT200"
