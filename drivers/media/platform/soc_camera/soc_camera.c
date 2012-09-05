@@ -1529,12 +1529,11 @@ static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
 {
 	struct soc_camera_link *icl = pdev->dev.platform_data;
 	struct soc_camera_device *icd;
-	int ret;
 
 	if (!icl)
 		return -EINVAL;
 
-	icd = kzalloc(sizeof(*icd), GFP_KERNEL);
+	icd = devm_kzalloc(&pdev->dev, sizeof(*icd), GFP_KERNEL);
 	if (!icd)
 		return -ENOMEM;
 
@@ -1543,19 +1542,10 @@ static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
 	icd->pdev = &pdev->dev;
 	platform_set_drvdata(pdev, icd);
 
-	ret = soc_camera_device_register(icd);
-	if (ret < 0)
-		goto escdevreg;
-
 	icd->user_width		= DEFAULT_WIDTH;
 	icd->user_height	= DEFAULT_HEIGHT;
 
-	return 0;
-
-escdevreg:
-	kfree(icd);
-
-	return ret;
+	return soc_camera_device_register(icd);
 }
 
 /*
@@ -1571,8 +1561,6 @@ static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
 		return -EINVAL;
 
 	list_del(&icd->list);
-
-	kfree(icd);
 
 	return 0;
 }
