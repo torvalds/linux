@@ -663,7 +663,9 @@ abort:
 	wm0010_halt(codec);
 	mutex_unlock(&wm0010->lock);
 	return ret;
+
 err_core:
+	mutex_unlock(&wm0010->lock);
 	regulator_bulk_disable(ARRAY_SIZE(wm0010->core_supplies),
 			       wm0010->core_supplies);
 err:
