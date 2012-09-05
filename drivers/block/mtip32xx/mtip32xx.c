@@ -2592,9 +2592,6 @@ static ssize_t mtip_hw_read_registers(struct file *f, char __user *ubuf,
 	if (!len || size)
 		return 0;
 
-	if (size < 0)
-		return -EINVAL;
-
 	size += sprintf(&buf[size], "H/ S ACTive      : [ 0x");
 
 	for (n = dd->slot_groups-1; n >= 0; n--)
@@ -2663,9 +2660,6 @@ static ssize_t mtip_hw_read_flags(struct file *f, char __user *ubuf,
 
 	if (!len || size)
 		return 0;
-
-	if (size < 0)
-		return -EINVAL;
 
 	size += sprintf(&buf[size], "Flag-port : [ %08lX ]\n",
 							dd->port->flags);
