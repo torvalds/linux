@@ -90,7 +90,7 @@ static int __devinit gen_74x164_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&spi->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -125,7 +125,6 @@ static int __devinit gen_74x164_probe(struct spi_device *spi)
 exit_destroy:
 	dev_set_drvdata(&spi->dev, NULL);
 	mutex_destroy(&chip->lock);
-	kfree(chip);
 	return ret;
 }
 
@@ -141,10 +140,9 @@ static int __devexit gen_74x164_remove(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, NULL);
 
 	ret = gpiochip_remove(&chip->gpio_chip);
-	if (!ret) {
+	if (!ret)
 		mutex_destroy(&chip->lock);
-		kfree(chip);
-	} else
+	else
 		dev_err(&spi->dev, "Failed to remove the GPIO controller: %d\n",
 				ret);
 
