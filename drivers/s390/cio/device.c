@@ -1521,11 +1521,14 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 			goto out;
 		break;
 	case IO_SCH_UNREG_ATTACH:
+		spin_lock_irqsave(sch->lock, flags);
 		if (cdev->private->flags.resuming) {
 			/* Device will be handled later. */
 			rc = 0;
-			goto out;
+			goto out_unlock;
 		}
+		sch_set_cdev(sch, NULL);
+		spin_unlock_irqrestore(sch->lock, flags);
 		/* Unregister ccw device. */
 		ccw_device_unregister(cdev);
 		break;
