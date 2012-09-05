@@ -512,6 +512,10 @@ static struct platform_device *devices[] __initdata = {
 #define TPS65910_HOST_IRQ        RK2928_PIN1_PB2
 #include "board-rk2928-a720-tps65910.c"
 #endif
+#ifdef CONFIG_REGULATOR_ACT8931
+#include "board-rk2928-sdk-act8931.c"
+#endif
+
 static struct i2c_board_info __initdata i2c0_info[] = {
 #if defined (CONFIG_MFD_TPS65910)
 	{
@@ -522,6 +526,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
     	.platform_data = &tps65910_data,
 	},
 #endif
+#if defined (CONFIG_REGULATOR_ACT8931)
+	{
+		.type    		= "act8931",
+		.addr           = 0x5b, 
+		.flags			= 0,
+		.platform_data=&act8931_data,
+	},
+#endif
+
 };
 #endif
 #ifdef CONFIG_I2C1_RK30
