@@ -128,7 +128,7 @@ enum _codec_pll {
 #define CLK_FLG_MAX_I2S_49152KHZ 	(1<<4)
 //uart 1m\3m
 #define CLK_FLG_UART_1_3M			(1<<5)
-
+#define CLK_CPU_HPCLK_11				(1<<6)
 
 
 #ifdef CONFIG_RK29_VMAC
