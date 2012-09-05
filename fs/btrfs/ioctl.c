@@ -424,7 +424,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	uuid_le_gen(&new_uuid);
 	memcpy(root_item.uuid, new_uuid.b, BTRFS_UUID_SIZE);
 	root_item.otime.sec = cpu_to_le64(cur_time.tv_sec);
-	root_item.otime.nsec = cpu_to_le64(cur_time.tv_nsec);
+	root_item.otime.nsec = cpu_to_le32(cur_time.tv_nsec);
 	root_item.ctime = root_item.otime;
 	btrfs_set_root_ctransid(&root_item, trans->transid);
 	btrfs_set_root_otransid(&root_item, trans->transid);
@@ -664,10 +664,6 @@ static noinline int btrfs_mksubvol(struct path *parent,
 	struct dentry *dentry;
 	int error;
 
-	error = mnt_want_write(parent->mnt);
-	if (error)
-		return error;
-
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 
 	dentry = lookup_one_len(name, parent->dentry, namelen);
@@ -703,7 +699,6 @@ out_dput:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&dir->i_mutex);
-	mnt_drop_write(parent->mnt);
 	return error;
 }
 

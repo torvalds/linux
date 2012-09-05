@@ -922,6 +922,7 @@ static struct input_dev *tpacpi_inputdev;
 static struct mutex tpacpi_inputdev_send_mutex;
 static LIST_HEAD(tpacpi_all_drivers);
 
+#ifdef CONFIG_PM_SLEEP
 static int tpacpi_suspend_handler(struct device *dev)
 {
 	struct ibm_struct *ibm, *itmp;
@@ -949,6 +950,7 @@ static int tpacpi_resume_handler(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(tpacpi_pm,
 			 tpacpi_suspend_handler, tpacpi_resume_handler);
@@ -8662,6 +8664,13 @@ static int __must_check __init get_thinkpad_model_data(
 		tp->model_str = kstrdup(s, GFP_KERNEL);
 		if (!tp->model_str)
 			return -ENOMEM;
+	} else {
+		s = dmi_get_system_info(DMI_BIOS_VENDOR);
+		if (s && !(strnicmp(s, "Lenovo", 6))) {
+			tp->model_str = kstrdup(s, GFP_KERNEL);
+			if (!tp->model_str)
+				return -ENOMEM;
+		}
 	}
 
 	s = dmi_get_system_info(DMI_PRODUCT_NAME);
