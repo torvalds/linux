@@ -46,6 +46,7 @@ struct spi_gpio {
 	struct spi_bitbang		bitbang;
 	struct spi_gpio_platform_data	pdata;
 	struct platform_device		*pdev;
+	int				cs_gpios[0];
 };
 
 /*----------------------------------------------------------------------*/
@@ -89,15 +90,21 @@ struct spi_gpio {
 
 /*----------------------------------------------------------------------*/
 
-static inline const struct spi_gpio_platform_data * __pure
-spi_to_pdata(const struct spi_device *spi)
+static inline struct spi_gpio * __pure
+spi_to_spi_gpio(const struct spi_device *spi)
 {
 	const struct spi_bitbang	*bang;
-	const struct spi_gpio		*spi_gpio;
+	struct spi_gpio			*spi_gpio;
 
 	bang = spi_master_get_devdata(spi->master);
 	spi_gpio = container_of(bang, struct spi_gpio, bitbang);
-	return &spi_gpio->pdata;
+	return spi_gpio;
+}
+
+static inline struct spi_gpio_platform_data * __pure
+spi_to_pdata(const struct spi_device *spi)
+{
+	return &spi_to_spi_gpio(spi)->pdata;
 }
 
 /* this is #defined to avoid unused-variable warnings when inlining */
@@ -210,7 +217,8 @@ static u32 spi_gpio_spec_txrx_word_mode3(struct spi_device *spi,
 
 static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 {
-	unsigned long cs = (unsigned long) spi->controller_data;
+	struct spi_gpio *spi_gpio = spi_to_spi_gpio(spi);
+	unsigned int cs = spi_gpio->cs_gpios[spi->chip_select];
 
 	/* set initial clock polarity */
 	if (is_active)
@@ -224,8 +232,9 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 
 static int spi_gpio_setup(struct spi_device *spi)
 {
-	unsigned long	cs = (unsigned long) spi->controller_data;
-	int		status = 0;
+	unsigned int		cs = (unsigned int) spi->controller_data;
+	int			status = 0;
+	struct spi_gpio		*spi_gpio = spi_to_spi_gpio(spi);
 
 	if (spi->bits_per_word > 32)
 		return -EINVAL;
@@ -239,8 +248,11 @@ static int spi_gpio_setup(struct spi_device *spi)
 					!(spi->mode & SPI_CS_HIGH));
 		}
 	}
-	if (!status)
+	if (!status) {
 		status = spi_bitbang_setup(spi);
+		spi_gpio->cs_gpios[spi->chip_select] = cs;
+	}
+
 	if (status) {
 		if (!spi->controller_state && cs != SPI_GPIO_NO_CHIPSELECT)
 			gpio_free(cs);
@@ -250,7 +262,8 @@ static int spi_gpio_setup(struct spi_device *spi)
 
 static void spi_gpio_cleanup(struct spi_device *spi)
 {
-	unsigned long	cs = (unsigned long) spi->controller_data;
+	struct spi_gpio *spi_gpio = spi_to_spi_gpio(spi);
+	unsigned int cs = spi_gpio->cs_gpios[spi->chip_select];
 
 	if (cs != SPI_GPIO_NO_CHIPSELECT)
 		gpio_free(cs);
@@ -331,7 +344,8 @@ static int __devinit spi_gpio_probe(struct platform_device *pdev)
 	if (status < 0)
 		return status;
 
-	master = spi_alloc_master(&pdev->dev, sizeof *spi_gpio);
+	master = spi_alloc_master(&pdev->dev, sizeof(*spi_gpio) +
+					(sizeof(int) * SPI_N_CHIPSEL));
 	if (!master) {
 		status = -ENOMEM;
 		goto gpio_free;
