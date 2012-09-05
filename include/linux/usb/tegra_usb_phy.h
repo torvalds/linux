@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-tegra/include/mach/usb_phy.h
- *
  * Copyright (C) 2010 Google, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
@@ -14,8 +12,8 @@
  *
  */
 
-#ifndef __MACH_USB_PHY_H
-#define __MACH_USB_PHY_H
+#ifndef __TEGRA_USB_PHY_H
+#define __TEGRA_USB_PHY_H
 
 #include <linux/clk.h>
 #include <linux/usb/otg.h>
@@ -59,18 +57,16 @@ struct tegra_usb_phy {
 	enum tegra_usb_phy_mode mode;
 	void *config;
 	struct usb_phy *ulpi;
+	struct usb_phy u_phy;
+	struct device *dev;
 };
 
 struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 	void __iomem *regs, void *config, enum tegra_usb_phy_mode phy_mode);
 
-int tegra_usb_phy_power_on(struct tegra_usb_phy *phy);
-
 void tegra_usb_phy_clk_disable(struct tegra_usb_phy *phy);
 
 void tegra_usb_phy_clk_enable(struct tegra_usb_phy *phy);
-
-void tegra_usb_phy_power_off(struct tegra_usb_phy *phy);
 
 void tegra_usb_phy_preresume(struct tegra_usb_phy *phy);
 
@@ -81,6 +77,4 @@ void tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy,
 
 void tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy);
 
-void tegra_usb_phy_close(struct tegra_usb_phy *phy);
-
-#endif /* __MACH_USB_PHY_H */
+#endif /* __TEGRA_USB_PHY_H */
