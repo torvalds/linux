@@ -24,7 +24,6 @@ struct omap_nand_platform_data {
 	struct gpmc_timings	*gpmc_t;
 	int			nr_parts;
 	bool			dev_ready;
-	int			gpmc_irq;
 	enum nand_io		xfer_type;
 	int			devsize;
 	enum omap_ecc           ecc_opt;
