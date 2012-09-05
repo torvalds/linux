@@ -411,7 +411,8 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 
 		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 		len += sizeof(u32); /* account for status word */
-		trace_iwlwifi_dev_rx(trans->dev, pkt, len);
+		trace_iwlwifi_dev_rx(trans->dev, trans, pkt, len);
+		trace_iwlwifi_dev_rx_data(trans->dev, trans, pkt, len);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.

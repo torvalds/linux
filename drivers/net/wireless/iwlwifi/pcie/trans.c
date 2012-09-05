@@ -1385,11 +1385,13 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	dma_sync_single_for_device(trans->dev, txcmd_phys, firstlen,
 				   DMA_BIDIRECTIONAL);
 
-	trace_iwlwifi_dev_tx(trans->dev,
+	trace_iwlwifi_dev_tx(trans->dev, skb,
 			     &txq->tfds[txq->q.write_ptr],
 			     sizeof(struct iwl_tfd),
 			     &dev_cmd->hdr, firstlen,
 			     skb->data + hdr_len, secondlen);
+	trace_iwlwifi_dev_tx_data(trans->dev, skb,
+				  skb->data + hdr_len, secondlen);
 
 	/* start timer if queue currently empty */
 	if (txq->need_update && q->read_ptr == q->write_ptr &&

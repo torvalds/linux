@@ -1334,6 +1334,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* Configure transport layer */
 	iwl_trans_configure(priv->trans, &trans_cfg);
 
+	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
+	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
+
 	/* At this point both hw and priv are allocated. */
 
 	SET_IEEE80211_DEV(priv->hw, priv->trans->dev);
