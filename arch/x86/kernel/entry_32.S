@@ -1148,7 +1148,6 @@ ENTRY(ftrace_regs_caller)
 	 * ip location, and move flags into the return ip location.
 	 */
 	pushl 4(%esp)	/* save return ip into ip slot */
-	subl $MCOUNT_INSN_SIZE, (%esp)	/* Adjust ip */
 
 	pushl $0	/* Load 0 into orig_ax */
 	pushl %gs
@@ -1169,6 +1168,7 @@ ENTRY(ftrace_regs_caller)
 	movl $__KERNEL_CS,13*4(%esp)
 
 	movl 12*4(%esp), %eax	/* Load ip (1st parameter) */
+	subl $MCOUNT_INSN_SIZE, %eax	/* Adjust ip */
 	movl 0x4(%ebp), %edx	/* Load parent ip (2nd parameter) */
 	leal function_trace_op, %ecx /* Save ftrace_pos in 3rd parameter */
 	pushl %esp		/* Save pt_regs as 4th parameter */
@@ -1180,7 +1180,6 @@ GLOBAL(ftrace_regs_call)
 	movl 14*4(%esp), %eax	/* Move flags back into cs */
 	movl %eax, 13*4(%esp)	/* Needed to keep addl from modifying flags */
 	movl 12*4(%esp), %eax	/* Get return ip from regs->ip */
-	addl $MCOUNT_INSN_SIZE, %eax
 	movl %eax, 14*4(%esp)	/* Put return ip back for ret */
 
 	popl %ebx
