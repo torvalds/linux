@@ -150,13 +150,11 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 
 	if (test_bit(SCAN_SW_SCANNING, &local->scanning) ||
 	    test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
-	    test_bit(SCAN_HW_SCANNING, &local->scanning))
+	    test_bit(SCAN_HW_SCANNING, &local->scanning) ||
+	    !local->ap_power_level)
 		power = chan->max_power;
 	else
-		power = local->power_constr_level ?
-			min(chan->max_power,
-				(chan->max_reg_power  - local->power_constr_level)) :
-			chan->max_power;
+		power = min(chan->max_power, local->ap_power_level);
 
 	if (local->user_power_level >= 0)
 		power = min(power, local->user_power_level);

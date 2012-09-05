@@ -779,18 +779,71 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 }
 
 static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
-					u16 capab_info, u8 *pwr_constr_elem)
+					struct ieee80211_channel *channel,
+					const u8 *country_ie, u8 country_ie_len,
+					const u8 *pwr_constr_elem)
 {
-	struct ieee80211_conf *conf = &sdata->local->hw.conf;
+	struct ieee80211_country_ie_triplet *triplet;
+	int chan = ieee80211_frequency_to_channel(channel->center_freq);
+	int i, chan_pwr, chan_increment, new_ap_level;
+	bool have_chan_pwr = false;
 
-	if (!(capab_info & WLAN_CAPABILITY_SPECTRUM_MGMT))
+	/* Invalid IE */
+	if (country_ie_len % 2 || country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
 		return;
 
-	if ((*pwr_constr_elem <= conf->channel->max_reg_power) &&
-	    (*pwr_constr_elem != sdata->local->power_constr_level)) {
-		sdata->local->power_constr_level = *pwr_constr_elem;
-		ieee80211_hw_config(sdata->local, 0);
+	triplet = (void *)(country_ie + 3);
+	country_ie_len -= 3;
+
+	switch (channel->band) {
+	default:
+		WARN_ON_ONCE(1);
+		/* fall through */
+	case IEEE80211_BAND_2GHZ:
+	case IEEE80211_BAND_60GHZ:
+		chan_increment = 1;
+		break;
+	case IEEE80211_BAND_5GHZ:
+		chan_increment = 4;
+		break;
 	}
+
+	/* find channel */
+	while (country_ie_len >= 3) {
+		u8 first_channel = triplet->chans.first_channel;
+
+		if (first_channel >= IEEE80211_COUNTRY_EXTENSION_ID)
+			goto next;
+
+		for (i = 0; i < triplet->chans.num_channels; i++) {
+			if (first_channel + i * chan_increment == chan) {
+				have_chan_pwr = true;
+				chan_pwr = triplet->chans.max_power;
+				break;
+			}
+		}
+		if (have_chan_pwr)
+			break;
+
+ next:
+		triplet++;
+		country_ie_len -= 3;
+	}
+
+	if (!have_chan_pwr)
+		return;
+
+	new_ap_level = max_t(int, 0, chan_pwr - *pwr_constr_elem);
+
+	if (sdata->local->ap_power_level == new_ap_level)
+		return;
+
+	sdata_info(sdata,
+		   "Limiting TX power to %d (%d - %d) dBm as advertised by %pM\n",
+		   new_ap_level, chan_pwr, *pwr_constr_elem,
+		   sdata->u.mgd.bssid);
+	sdata->local->ap_power_level = new_ap_level;
+	ieee80211_hw_config(sdata->local, 0);
 }
 
 void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif)
@@ -1394,7 +1447,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	memset(&ifmgd->ht_capa, 0, sizeof(ifmgd->ht_capa));
 	memset(&ifmgd->ht_capa_mask, 0, sizeof(ifmgd->ht_capa_mask));
 
-	local->power_constr_level = 0;
+	local->ap_power_level = 0;
 
 	del_timer_sync(&local->dynamic_ps_timer);
 	cancel_work_sync(&local->dynamic_ps_enable_work);
@@ -2499,14 +2552,13 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 						  bssid, true);
 	}
 
-	/* Note: country IE parsing is done for us by cfg80211 */
-	if (elems.country_elem) {
-		/* TODO: IBSS also needs this */
-		if (elems.pwr_constr_elem)
-			ieee80211_handle_pwr_constr(sdata,
-				le16_to_cpu(mgmt->u.probe_resp.capab_info),
-				elems.pwr_constr_elem);
-	}
+	if (elems.country_elem && elems.pwr_constr_elem &&
+	    mgmt->u.probe_resp.capab_info &
+				cpu_to_le16(WLAN_CAPABILITY_SPECTRUM_MGMT))
+		ieee80211_handle_pwr_constr(sdata, local->oper_channel,
+					    elems.country_elem,
+					    elems.country_elem_len,
+					    elems.pwr_constr_elem);
 
 	ieee80211_bss_info_change_notify(sdata, changed);
 }

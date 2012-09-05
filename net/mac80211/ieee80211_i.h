@@ -1059,7 +1059,7 @@ struct ieee80211_local {
 	bool disable_dynamic_ps;
 
 	int user_power_level; /* in dBm */
-	int power_constr_level; /* in dBm */
+	int ap_power_level; /* in dBm */
 
 	enum ieee80211_smps_mode smps_mode;
 
