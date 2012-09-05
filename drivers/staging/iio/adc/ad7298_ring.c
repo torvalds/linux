@@ -76,7 +76,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7298_state *st = iio_priv(indio_dev);
 	struct iio_buffer *ring = indio_dev->buffer;
-	s64 time_ns;
+	s64 time_ns = 0;
 	__u16 buf[16];
 	int b_sent, i;
 

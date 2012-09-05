@@ -383,13 +383,6 @@ int netvsc_device_remove(struct hv_device *device)
 	unsigned long flags;
 
 	net_device = hv_get_drvdata(device);
-	spin_lock_irqsave(&device->channel->inbound_lock, flags);
-	net_device->destroy = true;
-	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
-
-	/* Wait for all send completions */
-	wait_event(net_device->wait_drain,
-		   atomic_read(&net_device->num_outstanding_sends) == 0);
 
 	netvsc_disconnect_vsp(net_device);
 
