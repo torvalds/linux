@@ -211,9 +211,6 @@ static struct regulator_init_data sdp2430_vmmc1 = {
 };
 
 static struct twl4030_gpio_platform_data sdp2430_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 };
 
 static struct twl4030_platform_data sdp2430_twldata = {

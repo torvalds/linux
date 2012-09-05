@@ -51,6 +51,7 @@
 
 
 static struct gpio_chip twl_gpiochip;
+static int twl4030_gpio_base;
 static int twl4030_gpio_irq_base;
 
 /* genirq interfaces are not available to modules */
@@ -428,8 +429,6 @@ no_irqs:
 	twl_gpiochip.dev = &pdev->dev;
 
 	if (pdata) {
-		twl_gpiochip.base = pdata->gpio_base;
-
 		/*
 		 * NOTE:  boards may waste power if they don't set pullups
 		 * and pulldowns correctly ... default for non-ULPI pins is
@@ -461,15 +460,21 @@ no_irqs:
 		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
 		twl_gpiochip.ngpio = 0;
 		gpio_twl4030_remove(pdev);
-	} else if (pdata && pdata->setup) {
+		goto out;
+	}
+
+	twl4030_gpio_base = twl_gpiochip.base;
+
+	if (pdata && pdata->setup) {
 		int status;
 
 		status = pdata->setup(&pdev->dev,
-				pdata->gpio_base, TWL4030_GPIO_MAX);
+				twl4030_gpio_base, TWL4030_GPIO_MAX);
 		if (status)
 			dev_dbg(&pdev->dev, "setup --> %d\n", status);
 	}
 
+out:
 	return ret;
 }
 
@@ -481,7 +486,7 @@ static int gpio_twl4030_remove(struct platform_device *pdev)
 
 	if (pdata && pdata->teardown) {
 		status = pdata->teardown(&pdev->dev,
-				pdata->gpio_base, TWL4030_GPIO_MAX);
+				twl4030_gpio_base, TWL4030_GPIO_MAX);
 		if (status) {
 			dev_dbg(&pdev->dev, "teardown --> %d\n", status);
 			return status;

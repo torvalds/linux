@@ -72,9 +72,6 @@ static struct platform_device *rm680_peripherals_devices[] __initdata = {
 
 /* TWL */
 static struct twl4030_gpio_platform_data rm680_gpio_data = {
-	.gpio_base		= OMAP_MAX_GPIO_LINES,
-	.irq_base		= TWL4030_GPIO_IRQ_BASE,
-	.irq_end		= TWL4030_GPIO_IRQ_END,
 	.pullups		= BIT(0),
 	.pulldowns		= BIT(1) | BIT(2) | BIT(8) | BIT(15),
 };

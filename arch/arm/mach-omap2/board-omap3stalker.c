@@ -278,9 +278,6 @@ omap3stalker_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data omap3stalker_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= omap3stalker_twl_gpio_setup,
 };

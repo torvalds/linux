@@ -773,9 +773,6 @@ static int rx51_twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
 }
 
 static struct twl4030_gpio_platform_data rx51_gpio_data = {
-	.gpio_base		= OMAP_MAX_GPIO_LINES,
-	.irq_base		= TWL4030_GPIO_IRQ_BASE,
-	.irq_end		= TWL4030_GPIO_IRQ_END,
 	.pulldowns		= BIT(0) | BIT(1) | BIT(2) | BIT(3)
 				| BIT(4) | BIT(5)
 				| BIT(8) | BIT(9) | BIT(10) | BIT(11)
