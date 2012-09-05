@@ -1363,7 +1363,7 @@ static int __init mxcnd_probe_pdata(struct mxc_nand_host *host)
 	return 0;
 }
 
-static int __init mxcnd_probe(struct platform_device *pdev)
+static int __devinit mxcnd_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
 	struct mtd_info *mtd;
@@ -1555,22 +1555,10 @@ static struct platform_driver mxcnd_driver = {
 		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(mxcnd_dt_ids),
 	},
+	.probe = mxcnd_probe,
 	.remove = __devexit_p(mxcnd_remove),
 };
-
-static int __init mxc_nd_init(void)
-{
-	return platform_driver_probe(&mxcnd_driver, mxcnd_probe);
-}
-
-static void __exit mxc_nd_cleanup(void)
-{
-	/* Unregister the device structure */
-	platform_driver_unregister(&mxcnd_driver);
-}
-
-module_init(mxc_nd_init);
-module_exit(mxc_nd_cleanup);
+module_platform_driver(mxcnd_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXC NAND MTD driver");
