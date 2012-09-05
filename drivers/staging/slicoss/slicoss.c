@@ -3701,9 +3701,8 @@ static void slic_init_adapter(struct net_device *netdev,
 					phys_shmem);
 	ASSERT(adapter->pshmem);
 
-	memset(adapter->pshmem, 0, sizeof(struct slic_shmem));
-
-	return;
+	if (adapter->pshmem)
+		memset(adapter->pshmem, 0, sizeof(struct slic_shmem));
 }
 
 static const struct net_device_ops slic_netdev_ops = {
