@@ -987,6 +987,8 @@ static int ivtv_g_input(struct file *file, void *fh, unsigned int *i)
 int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
+	v4l2_std_id std;
+	int i;
 
 	if (inp < 0 || inp >= itv->nof_inputs)
 		return -EINVAL;
@@ -1007,6 +1009,13 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 	/* Set the audio input to whatever is appropriate for the
 	   input type. */
 	itv->audio_input = itv->card->video_inputs[inp].audio_index;
+
+	if (itv->card->video_inputs[inp].video_type == IVTV_CARD_INPUT_VID_TUNER)
+		std = itv->tuner_std;
+	else
+		std = V4L2_STD_ALL;
+	for (i = 0; i <= IVTV_ENC_STREAM_TYPE_VBI; i++)
+		itv->streams[i].vdev->tvnorms = std;
 
 	/* prevent others from messing with the streams until
 	   we're finished changing inputs. */
