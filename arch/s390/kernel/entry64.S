@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ptrace.h>
@@ -1008,9 +1009,7 @@ sie_fault:
 .Lhost_id:
 	.quad	0
 
-	.section __ex_table,"a"
-	.quad	sie_loop,sie_fault
-	.previous
+	EX_TABLE(sie_loop,sie_fault)
 #endif
 
 		.section .rodata, "a"

@@ -322,7 +322,7 @@ static void __kprobes do_trap(struct pt_regs *regs,
                 const struct exception_table_entry *fixup;
                 fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
                 if (fixup)
-                        regs->psw.addr = fixup->fixup | PSW_ADDR_AMODE;
+			regs->psw.addr = extable_fixup(fixup) | PSW_ADDR_AMODE;
 		else {
 			enum bug_trap_type btt;
 

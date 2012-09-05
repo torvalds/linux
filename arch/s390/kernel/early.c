@@ -255,14 +255,14 @@ static __init void setup_topology(void)
 
 static void early_pgm_check_handler(void)
 {
-	unsigned long addr;
 	const struct exception_table_entry *fixup;
+	unsigned long addr;
 
 	addr = S390_lowcore.program_old_psw.addr;
 	fixup = search_exception_tables(addr & PSW_ADDR_INSN);
 	if (!fixup)
 		disabled_wait(0);
-	S390_lowcore.program_old_psw.addr = fixup->fixup | PSW_ADDR_AMODE;
+	S390_lowcore.program_old_psw.addr = extable_fixup(fixup)|PSW_ADDR_AMODE;
 }
 
 static noinline __init void setup_lowcore_early(void)
