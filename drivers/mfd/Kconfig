@@ -1004,6 +1004,14 @@ config MFD_ANATOP
 	  MFD controller. This controller embeds regulator and
 	  thermal devices for Freescale i.MX platforms.
 
+config MFD_SYSCON
+	bool "System Controller Register R/W Based on Regmap"
+	depends on OF
+	select REGMAP_MMIO
+	help
+	  Select this option to enable accessing system control registers
+	  via regmap.
+
 config MFD_PALMAS
 	bool "Support for the TI Palmas series chips"
 	select MFD_CORE
