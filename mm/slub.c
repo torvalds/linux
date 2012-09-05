@@ -202,10 +202,12 @@ struct track {
 enum track_item { TRACK_ALLOC, TRACK_FREE };
 
 #ifdef CONFIG_SYSFS
+static int sysfs_slab_add(struct kmem_cache *);
 static int sysfs_slab_alias(struct kmem_cache *, const char *);
 static void sysfs_slab_remove(struct kmem_cache *);
 
 #else
+static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
 static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
 							{ return 0; }
 static inline void sysfs_slab_remove(struct kmem_cache *s) { }
@@ -3943,7 +3945,20 @@ struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
 
 int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
 {
-	return kmem_cache_open(s, flags);
+	int err;
+
+	err = kmem_cache_open(s, flags);
+	if (err)
+		return err;
+
+	mutex_unlock(&slab_mutex);
+	err = sysfs_slab_add(s);
+	mutex_lock(&slab_mutex);
+
+	if (err)
+		kmem_cache_close(s);
+
+	return err;
 }
 
 #ifdef CONFIG_SMP
@@ -5233,7 +5248,7 @@ static char *create_unique_id(struct kmem_cache *s)
 	return name;
 }
 
-int sysfs_slab_add(struct kmem_cache *s)
+static int sysfs_slab_add(struct kmem_cache *s)
 {
 	int err;
 	const char *name;
