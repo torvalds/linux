@@ -398,6 +398,7 @@ static int ivtv_g_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_fo
 		vbifmt->service_set = itv->is_50hz ? V4L2_SLICED_VBI_625 :
 			V4L2_SLICED_VBI_525;
 		ivtv_expand_service_set(vbifmt, itv->is_50hz);
+		vbifmt->service_set = ivtv_get_service_set(vbifmt);
 		return 0;
 	}
 
