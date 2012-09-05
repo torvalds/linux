@@ -256,6 +256,8 @@ static int process_ob_ipinfo(void *in_msg, void *out_msg, int op)
 
 		out->kvp_ip_val.dhcp_enabled =
 			in->body.kvp_ip_val.dhcp_enabled;
+		out->kvp_ip_val.addr_family =
+			in->body.kvp_ip_val.addr_family;
 	}
 
 	return 0;
