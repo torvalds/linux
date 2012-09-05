@@ -1666,7 +1666,7 @@ static int vpfe_g_crop(struct file *file, void *priv,
 }
 
 static int vpfe_s_crop(struct file *file, void *priv,
-			     struct v4l2_crop *crop)
+			     const struct v4l2_crop *crop)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	int ret = 0;

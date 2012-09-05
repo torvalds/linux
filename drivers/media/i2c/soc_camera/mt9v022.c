@@ -237,7 +237,7 @@ static int mt9v022_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int mt9v022_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);

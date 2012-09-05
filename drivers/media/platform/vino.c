@@ -3284,7 +3284,7 @@ static int vino_g_crop(struct file *file, void *__fh,
 }
 
 static int vino_s_crop(struct file *file, void *__fh,
-			    struct v4l2_crop *c)
+			    const struct v4l2_crop *c)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;

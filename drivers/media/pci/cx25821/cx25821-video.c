@@ -1610,7 +1610,7 @@ int cx25821_vidioc_cropcap(struct file *file, void *priv,
 	return 0;
 }
 
-int cx25821_vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
+int cx25821_vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *crop)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 	struct cx25821_fh *fh = priv;

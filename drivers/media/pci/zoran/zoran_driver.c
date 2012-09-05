@@ -2598,7 +2598,7 @@ gcrop_unlock_and_return:
 	return res;
 }
 
-static int zoran_s_crop(struct file *file, void *__fh, struct v4l2_crop *crop)
+static int zoran_s_crop(struct file *file, void *__fh, const struct v4l2_crop *crop)
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;

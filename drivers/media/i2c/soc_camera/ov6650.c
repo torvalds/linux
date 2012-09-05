@@ -451,42 +451,42 @@ static int ov6650_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	return 0;
 }
 
-static int ov6650_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int ov6650_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_rect rect = a->c;
 	int ret;
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	rect->left   = ALIGN(rect->left,   2);
-	rect->width  = ALIGN(rect->width,  2);
-	rect->top    = ALIGN(rect->top,    2);
-	rect->height = ALIGN(rect->height, 2);
-	soc_camera_limit_side(&rect->left, &rect->width,
+	rect.left   = ALIGN(rect.left,   2);
+	rect.width  = ALIGN(rect.width,  2);
+	rect.top    = ALIGN(rect.top,    2);
+	rect.height = ALIGN(rect.height, 2);
+	soc_camera_limit_side(&rect.left, &rect.width,
 			DEF_HSTRT << 1, 2, W_CIF);
-	soc_camera_limit_side(&rect->top, &rect->height,
+	soc_camera_limit_side(&rect.top, &rect.height,
 			DEF_VSTRT << 1, 2, H_CIF);
 
-	ret = ov6650_reg_write(client, REG_HSTRT, rect->left >> 1);
+	ret = ov6650_reg_write(client, REG_HSTRT, rect.left >> 1);
 	if (!ret) {
-		priv->rect.left = rect->left;
+		priv->rect.left = rect.left;
 		ret = ov6650_reg_write(client, REG_HSTOP,
-				(rect->left + rect->width) >> 1);
+				(rect.left + rect.width) >> 1);
 	}
 	if (!ret) {
-		priv->rect.width = rect->width;
-		ret = ov6650_reg_write(client, REG_VSTRT, rect->top >> 1);
+		priv->rect.width = rect.width;
+		ret = ov6650_reg_write(client, REG_VSTRT, rect.top >> 1);
 	}
 	if (!ret) {
-		priv->rect.top = rect->top;
+		priv->rect.top = rect.top;
 		ret = ov6650_reg_write(client, REG_VSTOP,
-				(rect->top + rect->height) >> 1);
+				(rect.top + rect.height) >> 1);
 	}
 	if (!ret)
-		priv->rect.height = rect->height;
+		priv->rect.height = rect.height;
 
 	return ret;
 }

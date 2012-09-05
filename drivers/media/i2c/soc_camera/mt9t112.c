@@ -907,11 +907,11 @@ static int mt9t112_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	return 0;
 }
 
-static int mt9t112_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int mt9t112_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t112_priv *priv = to_mt9t112(client);
-	struct v4l2_rect *rect = &a->c;
+	const struct v4l2_rect *rect = &a->c;
 
 	return mt9t112_set_params(priv, rect, priv->format->code);
 }

@@ -527,7 +527,7 @@ static int cx18_cropcap(struct file *file, void *fh,
 	return 0;
 }
 
-static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
+static int cx18_s_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;

@@ -186,7 +186,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_crop)           (struct file *file, void *fh,
 					struct v4l2_crop *a);
 	int (*vidioc_s_crop)           (struct file *file, void *fh,
-					struct v4l2_crop *a);
+					const struct v4l2_crop *a);
 	int (*vidioc_g_selection)      (struct file *file, void *fh,
 					struct v4l2_selection *s);
 	int (*vidioc_s_selection)      (struct file *file, void *fh,

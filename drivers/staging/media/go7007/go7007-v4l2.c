@@ -1372,7 +1372,7 @@ static int vidioc_g_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 
 /* FIXME: vidioc_s_crop is not really implemented!!!
  */
-static int vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
+static int vidioc_s_crop(struct file *file, void *priv, const struct v4l2_crop *crop)
 {
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;

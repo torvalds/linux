@@ -383,7 +383,7 @@ static int mt9m111_reset(struct mt9m111 *mt9m111)
 	return ret;
 }
 
-static int mt9m111_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int mt9m111_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct v4l2_rect rect = a->c;
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);

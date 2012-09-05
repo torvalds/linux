@@ -874,7 +874,7 @@ static int ivtv_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cropca
 	return 0;
 }
 
-static int ivtv_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
+static int ivtv_s_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
 {
 	struct ivtv_open_id *id = fh2id(fh);
 	struct ivtv *itv = id->itv;

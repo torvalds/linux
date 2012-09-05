@@ -536,11 +536,11 @@ static int rj54n1_commit(struct i2c_client *client)
 static int rj54n1_sensor_scale(struct v4l2_subdev *sd, s32 *in_w, s32 *in_h,
 			       s32 *out_w, s32 *out_h);
 
-static int rj54n1_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int rj54n1_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
-	struct v4l2_rect *rect = &a->c;
+	const struct v4l2_rect *rect = &a->c;
 	int dummy = 0, output_w, output_h,
 		input_w = rect->width, input_h = rect->height;
 	int ret;

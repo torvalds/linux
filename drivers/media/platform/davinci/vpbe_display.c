@@ -629,7 +629,7 @@ static int vpbe_display_querycap(struct file *file, void  *priv,
 }
 
 static int vpbe_display_s_crop(struct file *file, void *priv,
-			     struct v4l2_crop *crop)
+			     const struct v4l2_crop *crop)
 {
 	struct vpbe_fh *fh = file->private_data;
 	struct vpbe_layer *layer = fh->layer;

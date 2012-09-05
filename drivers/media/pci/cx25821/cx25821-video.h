@@ -177,7 +177,7 @@ extern int cx25821_set_control(struct cx25821_dev *dev,
 extern int cx25821_vidioc_cropcap(struct file *file, void *fh,
 				  struct v4l2_cropcap *cropcap);
 extern int cx25821_vidioc_s_crop(struct file *file, void *priv,
-				 struct v4l2_crop *crop);
+				 const struct v4l2_crop *crop);
 extern int cx25821_vidioc_g_crop(struct file *file, void *priv,
 				 struct v4l2_crop *crop);
 

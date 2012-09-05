@@ -1291,7 +1291,7 @@ static int vidioc_g_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 	return 0;
 }
 
-static int vidioc_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
+static int vidioc_s_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
 {
 	int ret = -EINVAL;
 	struct omap_vout_device *vout = fh;

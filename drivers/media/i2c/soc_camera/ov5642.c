@@ -865,24 +865,24 @@ static int ov5642_g_chip_ident(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov5642_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int ov5642_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5642 *priv = to_ov5642(client);
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_rect rect = a->c;
 	int ret;
 
-	v4l_bound_align_image(&rect->width, 48, OV5642_MAX_WIDTH, 1,
-			      &rect->height, 32, OV5642_MAX_HEIGHT, 1, 0);
+	v4l_bound_align_image(&rect.width, 48, OV5642_MAX_WIDTH, 1,
+			      &rect.height, 32, OV5642_MAX_HEIGHT, 1, 0);
 
-	priv->crop_rect.width	= rect->width;
-	priv->crop_rect.height	= rect->height;
-	priv->total_width	= rect->width + BLANKING_EXTRA_WIDTH;
-	priv->total_height	= max_t(int, rect->height +
+	priv->crop_rect.width	= rect.width;
+	priv->crop_rect.height	= rect.height;
+	priv->total_width	= rect.width + BLANKING_EXTRA_WIDTH;
+	priv->total_height	= max_t(int, rect.height +
 							BLANKING_EXTRA_HEIGHT,
 							BLANKING_MIN_HEIGHT);
-	priv->crop_rect.width		= rect->width;
-	priv->crop_rect.height		= rect->height;
+	priv->crop_rect.width		= rect.width;
+	priv->crop_rect.height		= rect.height;
 
 	ret = ov5642_write_array(client, ov5642_default_regs_init);
 	if (!ret)

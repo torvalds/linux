@@ -865,7 +865,7 @@ static int tvp5150_mbus_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tvp5150_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct v4l2_rect rect = a->c;
 	struct tvp5150 *decoder = to_tvp5150(sd);

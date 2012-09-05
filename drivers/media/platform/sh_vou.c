@@ -933,7 +933,7 @@ static int sh_vou_g_crop(struct file *file, void *fh, struct v4l2_crop *a)
 }
 
 /* Assume a dull encoder, do all the work ourselves. */
-static int sh_vou_s_crop(struct file *file, void *fh, struct v4l2_crop *a)
+static int sh_vou_s_crop(struct file *file, void *fh, const struct v4l2_crop *a)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct sh_vou_device *vou_dev = video_get_drvdata(vdev);

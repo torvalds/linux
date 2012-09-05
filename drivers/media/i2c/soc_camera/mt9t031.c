@@ -294,7 +294,7 @@ static int mt9t031_set_params(struct i2c_client *client,
 	return ret < 0 ? ret : 0;
 }
 
-static int mt9t031_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int mt9t031_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 {
 	struct v4l2_rect rect = a->c;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);

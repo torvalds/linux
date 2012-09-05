@@ -1953,11 +1953,12 @@ static int saa7134_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
 	return 0;
 }
 
-static int saa7134_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
+static int saa7134_s_crop(struct file *file, void *f, const struct v4l2_crop *crop)
 {
 	struct saa7134_fh *fh = f;
 	struct saa7134_dev *dev = fh->dev;
 	struct v4l2_rect *b = &dev->crop_bounds;
+	struct v4l2_rect *c = &dev->crop_current;
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
 	    crop->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
@@ -1972,21 +1973,20 @@ static int saa7134_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
 	if (res_locked(fh->dev, RESOURCE_VIDEO))
 		return -EBUSY;
 
-	if (crop->c.top < b->top)
-		crop->c.top = b->top;
-	if (crop->c.top > b->top + b->height)
-		crop->c.top = b->top + b->height;
-	if (crop->c.height > b->top - crop->c.top + b->height)
-		crop->c.height = b->top - crop->c.top + b->height;
+	*c = crop->c;
+	if (c->top < b->top)
+		c->top = b->top;
+	if (c->top > b->top + b->height)
+		c->top = b->top + b->height;
+	if (c->height > b->top - c->top + b->height)
+		c->height = b->top - c->top + b->height;
 
-	if (crop->c.left < b->left)
-		crop->c.left = b->left;
-	if (crop->c.left > b->left + b->width)
-		crop->c.left = b->left + b->width;
-	if (crop->c.width > b->left - crop->c.left + b->width)
-		crop->c.width = b->left - crop->c.left + b->width;
-
-	dev->crop_current = crop->c;
+	if (c->left < b->left)
+		c->left = b->left;
+	if (c->left > b->left + b->width)
+		c->left = b->left + b->width;
+	if (c->width > b->left - c->left + b->width)
+		c->width = b->left - c->left + b->width;
 	return 0;
 }
 

@@ -551,7 +551,7 @@ static int fimc_m2m_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 	return 0;
 }
 
-static int fimc_m2m_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
+static int fimc_m2m_s_crop(struct file *file, void *fh, const struct v4l2_crop *cr)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
 	struct fimc_dev *fimc = ctx->fimc_dev;

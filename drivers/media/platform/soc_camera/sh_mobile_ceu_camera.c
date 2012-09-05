@@ -1263,7 +1263,7 @@ static void update_subrect(struct sh_mobile_ceu_cam *cam)
  * 3. if (2) failed, try to request the maximum image
  */
 static int client_s_crop(struct soc_camera_device *icd, struct v4l2_crop *crop,
-			 struct v4l2_crop *cam_crop)
+			 const struct v4l2_crop *cam_crop)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct v4l2_rect *rect = &crop->c, *cam_rect = &cam_crop->c;
@@ -1517,7 +1517,7 @@ static int client_scale(struct soc_camera_device *icd,
  * scaling and cropping algorithms and for the meaning of referenced here steps.
  */
 static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
-				  struct v4l2_crop *a)
+				  const struct v4l2_crop *a)
 {
 	struct v4l2_rect *rect = &a->c;
 	struct device *dev = icd->parent;

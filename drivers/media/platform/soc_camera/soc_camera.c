@@ -888,11 +888,11 @@ static int soc_camera_g_crop(struct file *file, void *fh,
  * retrieve it.
  */
 static int soc_camera_s_crop(struct file *file, void *fh,
-			     struct v4l2_crop *a)
+			     const struct v4l2_crop *a)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct v4l2_rect *rect = &a->c;
+	const struct v4l2_rect *rect = &a->c;
 	struct v4l2_crop current_crop;
 	int ret;
 
@@ -1289,7 +1289,7 @@ static int default_g_crop(struct soc_camera_device *icd, struct v4l2_crop *a)
 	return v4l2_subdev_call(sd, video, g_crop, a);
 }
 
-static int default_s_crop(struct soc_camera_device *icd, struct v4l2_crop *a)
+static int default_s_crop(struct soc_camera_device *icd, const struct v4l2_crop *a)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	return v4l2_subdev_call(sd, video, s_crop, a);
