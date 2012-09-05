@@ -27,6 +27,7 @@
 
 static unsigned long get_uart_base(void)
 {
+#if defined(CONFIG_DEBUG_VEXPRESS_UART0_DETECT)
 	unsigned long mpcore_periph;
 
 	/*
@@ -42,6 +43,13 @@ static unsigned long get_uart_base(void)
 		return UART_BASE;
 	else
 		return UART_BASE_RS1;
+#elif defined(CONFIG_DEBUG_VEXPRESS_UART0_CA9)
+	return UART_BASE;
+#elif defined(CONFIG_DEBUG_VEXPRESS_UART0_RS1)
+	return UART_BASE_RS1;
+#else
+	return 0;
+#endif
 }
 
 /*
@@ -50,6 +58,9 @@ static unsigned long get_uart_base(void)
 static inline void putc(int c)
 {
 	unsigned long base = get_uart_base();
+
+	if (!base)
+		return;
 
 	while (AMBA_UART_FR(base) & (1 << 5))
 		barrier();
@@ -60,6 +71,9 @@ static inline void putc(int c)
 static inline void flush(void)
 {
 	unsigned long base = get_uart_base();
+
+	if (!base)
+		return;
 
 	while (AMBA_UART_FR(base) & (1 << 3))
 		barrier();

@@ -67,6 +67,8 @@ extern void dn_rt_cache_flush(int delay);
 struct dn_route {
 	struct dst_entry dst;
 
+	struct neighbour *n;
+
 	struct flowidn fld;
 
 	__le16 rt_saddr;

@@ -1,0 +1,91 @@
+TPS65217 family of regulators
+
+Required properties:
+- compatible: "ti,tps65217"
+- reg: I2C slave address
+- regulators: list of regulators provided by this controller, must be named
+  after their hardware counterparts: dcdc[1-3] and ldo[1-4]
+- regulators: This is the list of child nodes that specify the regulator
+  initialization data for defined regulators. Not all regulators for the given
+  device need to be present. The definition for each of these nodes is defined
+  using the standard binding for regulators found at
+  Documentation/devicetree/bindings/regulator/regulator.txt.
+
+  The valid names for regulators are:
+  tps65217: dcdc1, dcdc2, dcdc3, ldo1, ldo2, ldo3 and ldo4
+
+Each regulator is defined using the standard binding for regulators.
+
+Example:
+
+	tps: tps@24 {
+		compatible = "ti,tps65217";
+
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dcdc1_reg: regulator@0 {
+				reg = <0>;
+				regulator-compatible = "dcdc1";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			dcdc2_reg: regulator@1 {
+				reg = <1>;
+				regulator-compatible = "dcdc2";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			dcdc3_reg: regulator@2 {
+				reg = <2>;
+				regulator-compatible = "dcdc3";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo1_reg: regulator@3 {
+				reg = <3>;
+				regulator-compatible = "ldo1";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo2_reg: regulator@4 {
+				reg = <4>;
+				regulator-compatible = "ldo2";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo3_reg: regulator@5 {
+				reg = <5>;
+				regulator-compatible = "ldo3";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo4_reg: regulator@6 {
+				reg = <6>;
+				regulator-compatible = "ldo4";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};

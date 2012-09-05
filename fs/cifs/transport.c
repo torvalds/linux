@@ -365,16 +365,14 @@ cifs_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
 	if (mid == NULL)
 		return -ENOMEM;
 
-	/* put it on the pending_mid_q */
-	spin_lock(&GlobalMid_Lock);
-	list_add_tail(&mid->qhead, &server->pending_mid_q);
-	spin_unlock(&GlobalMid_Lock);
-
 	rc = cifs_sign_smb2(iov, nvec, server, &mid->sequence_number);
-	if (rc)
-		delete_mid(mid);
+	if (rc) {
+		DeleteMidQEntry(mid);
+		return rc;
+	}
+
 	*ret_mid = mid;
-	return rc;
+	return 0;
 }
 
 /*
@@ -407,17 +405,21 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 	mid->callback_data = cbdata;
 	mid->mid_state = MID_REQUEST_SUBMITTED;
 
+	/* put it on the pending_mid_q */
+	spin_lock(&GlobalMid_Lock);
+	list_add_tail(&mid->qhead, &server->pending_mid_q);
+	spin_unlock(&GlobalMid_Lock);
+
+
 	cifs_in_send_inc(server);
 	rc = smb_sendv(server, iov, nvec);
 	cifs_in_send_dec(server);
 	cifs_save_when_sent(mid);
 	mutex_unlock(&server->srv_mutex);
 
-	if (rc)
-		goto out_err;
+	if (rc == 0)
+		return 0;
 
-	return rc;
-out_err:
 	delete_mid(mid);
 	add_credits(server, 1);
 	wake_up(&server->request_q);

@@ -310,6 +310,7 @@ int __init pcibios_init(void)
 		if (pci_scan_flags[i] == 0 && controllers[i].ops != NULL) {
 			struct pci_controller *controller = &controllers[i];
 			struct pci_bus *bus;
+			LIST_HEAD(resources);
 
 			if (tile_init_irqs(i, controller)) {
 				pr_err("PCI: Could not initialize IRQs\n");
@@ -327,9 +328,11 @@ int __init pcibios_init(void)
 			 * This is inlined in linux/pci.h and calls into
 			 * pci_scan_bus_parented() in probe.c.
 			 */
-			bus = pci_scan_bus(0, controller->ops, controller);
+			pci_add_resource(&resources, &ioport_resource);
+			pci_add_resource(&resources, &iomem_resource);
+			bus = pci_scan_root_bus(NULL, 0, controller->ops, controller, &resources);
 			controller->root_bus = bus;
-			controller->last_busno = bus->subordinate;
+			controller->last_busno = bus->busn_res.end;
 		}
 	}
 
@@ -366,7 +369,7 @@ int __init pcibios_init(void)
 				 */
 				if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI &&
 					(PCI_SLOT(dev->devfn) == 0)) {
-					next_bus = dev->subordinate;
+					next_bus = dev->busn_res.end;
 					controllers[i].mem_resources[0] =
 						*next_bus->resource[0];
 					controllers[i].mem_resources[1] =
@@ -398,16 +401,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling. */
-}
-
-/*
- * This can be called from the generic PCI layer, but doesn't need to
- * do anything.
- */
-char __devinit *pcibios_setup(char *str)
-{
-	/* Nothing needs to be done. */
-	return str;
 }
 
 /*

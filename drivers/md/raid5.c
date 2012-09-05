@@ -196,12 +196,14 @@ static void __release_stripe(struct r5conf *conf, struct stripe_head *sh)
 		BUG_ON(!list_empty(&sh->lru));
 		BUG_ON(atomic_read(&conf->active_stripes)==0);
 		if (test_bit(STRIPE_HANDLE, &sh->state)) {
-			if (test_bit(STRIPE_DELAYED, &sh->state))
+			if (test_bit(STRIPE_DELAYED, &sh->state) &&
+			    !test_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
 				list_add_tail(&sh->lru, &conf->delayed_list);
 			else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
 				   sh->bm_seq - conf->seq_write > 0)
 				list_add_tail(&sh->lru, &conf->bitmap_list);
 			else {
+				clear_bit(STRIPE_DELAYED, &sh->state);
 				clear_bit(STRIPE_BIT_DELAY, &sh->state);
 				list_add_tail(&sh->lru, &conf->handle_list);
 			}
@@ -606,6 +608,12 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 					 * a chance*/
 					md_check_recovery(conf->mddev);
 				}
+				/*
+				 * Because md_wait_for_blocked_rdev
+				 * will dec nr_pending, we must
+				 * increment it first.
+				 */
+				atomic_inc(&rdev->nr_pending);
 				md_wait_for_blocked_rdev(rdev, conf->mddev);
 			} else {
 				/* Acknowledged bad block - skip the write */
@@ -1737,6 +1745,7 @@ static void raid5_end_read_request(struct bio * bi, int error)
 	} else {
 		const char *bdn = bdevname(rdev->bdev, b);
 		int retry = 0;
+		int set_bad = 0;
 
 		clear_bit(R5_UPTODATE, &sh->dev[i].flags);
 		atomic_inc(&rdev->read_errors);
@@ -1748,7 +1757,8 @@ static void raid5_end_read_request(struct bio * bi, int error)
 				mdname(conf->mddev),
 				(unsigned long long)s,
 				bdn);
-		else if (conf->mddev->degraded >= conf->max_degraded)
+		else if (conf->mddev->degraded >= conf->max_degraded) {
+			set_bad = 1;
 			printk_ratelimited(
 				KERN_WARNING
 				"md/raid:%s: read error not correctable "
@@ -1756,8 +1766,9 @@ static void raid5_end_read_request(struct bio * bi, int error)
 				mdname(conf->mddev),
 				(unsigned long long)s,
 				bdn);
-		else if (test_bit(R5_ReWrite, &sh->dev[i].flags))
+		} else if (test_bit(R5_ReWrite, &sh->dev[i].flags)) {
 			/* Oh, no!!! */
+			set_bad = 1;
 			printk_ratelimited(
 				KERN_WARNING
 				"md/raid:%s: read error NOT corrected!! "
@@ -1765,7 +1776,7 @@ static void raid5_end_read_request(struct bio * bi, int error)
 				mdname(conf->mddev),
 				(unsigned long long)s,
 				bdn);
-		else if (atomic_read(&rdev->read_errors)
+		} else if (atomic_read(&rdev->read_errors)
 			 > conf->max_nr_stripes)
 			printk(KERN_WARNING
 			       "md/raid:%s: Too many read errors, failing device %s.\n",
@@ -1777,7 +1788,11 @@ static void raid5_end_read_request(struct bio * bi, int error)
 		else {
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
-			md_error(conf->mddev, rdev);
+			if (!(set_bad
+			      && test_bit(In_sync, &rdev->flags)
+			      && rdev_set_badblocks(
+				      rdev, sh->sector, STRIPE_SECTORS, 0)))
+				md_error(conf->mddev, rdev);
 		}
 	}
 	rdev_dec_pending(rdev, conf->mddev);
@@ -3582,8 +3597,18 @@ static void handle_stripe(struct stripe_head *sh)
 
 finish:
 	/* wait for this device to become unblocked */
-	if (conf->mddev->external && unlikely(s.blocked_rdev))
-		md_wait_for_blocked_rdev(s.blocked_rdev, conf->mddev);
+	if (unlikely(s.blocked_rdev)) {
+		if (conf->mddev->external)
+			md_wait_for_blocked_rdev(s.blocked_rdev,
+						 conf->mddev);
+		else
+			/* Internal metadata will immediately
+			 * be written by raid5d, so we don't
+			 * need to wait here.
+			 */
+			rdev_dec_pending(s.blocked_rdev,
+					 conf->mddev);
+	}
 
 	if (s.handle_bad_blocks)
 		for (i = disks; i--; ) {
@@ -3881,8 +3906,6 @@ static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
 		raid_bio->bi_next = (void*)rdev;
 		align_bi->bi_bdev =  rdev->bdev;
 		align_bi->bi_flags &= ~(1 << BIO_SEG_VALID);
-		/* No reshape active, so we can trust rdev->data_offset */
-		align_bi->bi_sector += rdev->data_offset;
 
 		if (!bio_fits_rdev(align_bi) ||
 		    is_badblock(rdev, align_bi->bi_sector, align_bi->bi_size>>9,
@@ -3892,6 +3915,9 @@ static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
 			rdev_dec_pending(rdev, mddev);
 			return 0;
 		}
+
+		/* No reshape active, so we can trust rdev->data_offset */
+		align_bi->bi_sector += rdev->data_offset;
 
 		spin_lock_irq(&conf->device_lock);
 		wait_event_lock_irq(conf->wait_for_stripe,
@@ -3971,7 +3997,6 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 	struct stripe_head *sh;
 	const int rw = bio_data_dir(bi);
 	int remaining;
-	int plugged;
 
 	if (unlikely(bi->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bi);
@@ -3990,7 +4015,6 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 	bi->bi_next = NULL;
 	bi->bi_phys_segments = 1;	/* over-loaded to count active stripes */
 
-	plugged = mddev_check_plugged(mddev);
 	for (;logical_sector < last_sector; logical_sector += STRIPE_SECTORS) {
 		DEFINE_WAIT(w);
 		int previous;
@@ -4092,6 +4116,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 			if ((bi->bi_rw & REQ_SYNC) &&
 			    !test_and_set_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
 				atomic_inc(&conf->preread_active_stripes);
+			mddev_check_plugged(mddev);
 			release_stripe(sh);
 		} else {
 			/* cannot get stripe for read-ahead, just give-up */
@@ -4099,10 +4124,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 			finish_wait(&conf->wait_for_overlap, &w);
 			break;
 		}
-			
 	}
-	if (!plugged)
-		md_wakeup_thread(mddev->thread);
 
 	spin_lock_irq(&conf->device_lock);
 	remaining = raid5_dec_bi_phys_segments(bi);
@@ -4823,6 +4845,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	int raid_disk, memory, max_disks;
 	struct md_rdev *rdev;
 	struct disk_info *disk;
+	char pers_name[6];
 
 	if (mddev->new_level != 5
 	    && mddev->new_level != 4
@@ -4946,7 +4969,8 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		printk(KERN_INFO "md/raid:%s: allocated %dkB\n",
 		       mdname(mddev), memory);
 
-	conf->thread = md_register_thread(raid5d, mddev, NULL);
+	sprintf(pers_name, "raid%d", mddev->new_level);
+	conf->thread = md_register_thread(raid5d, mddev, pers_name);
 	if (!conf->thread) {
 		printk(KERN_ERR
 		       "md/raid:%s: couldn't allocate thread.\n",
@@ -5465,10 +5489,9 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	if (rdev->saved_raid_disk >= 0 &&
 	    rdev->saved_raid_disk >= first &&
 	    conf->disks[rdev->saved_raid_disk].rdev == NULL)
-		disk = rdev->saved_raid_disk;
-	else
-		disk = first;
-	for ( ; disk <= last ; disk++) {
+		first = rdev->saved_raid_disk;
+
+	for (disk = first; disk <= last; disk++) {
 		p = conf->disks + disk;
 		if (p->rdev == NULL) {
 			clear_bit(In_sync, &rdev->flags);
@@ -5477,8 +5500,11 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			if (rdev->saved_raid_disk != disk)
 				conf->fullsync = 1;
 			rcu_assign_pointer(p->rdev, rdev);
-			break;
+			goto out;
 		}
+	}
+	for (disk = first; disk <= last; disk++) {
+		p = conf->disks + disk;
 		if (test_bit(WantReplacement, &p->rdev->flags) &&
 		    p->replacement == NULL) {
 			clear_bit(In_sync, &rdev->flags);
@@ -5490,6 +5516,7 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			break;
 		}
 	}
+out:
 	print_raid5_conf(conf);
 	return err;
 }

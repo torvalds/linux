@@ -98,6 +98,7 @@ int devm_gpio_request_one(struct device *dev, unsigned gpio,
 
 	return 0;
 }
+EXPORT_SYMBOL(devm_gpio_request_one);
 
 /**
  *      devm_gpio_free - free an interrupt

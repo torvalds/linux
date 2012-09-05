@@ -13,17 +13,23 @@
 #include <linux/mm.h>
 #include <asm/page.h>
 #include <asm/code-patching.h>
+#include <asm/uaccess.h>
 
 
-void patch_instruction(unsigned int *addr, unsigned int instr)
+int patch_instruction(unsigned int *addr, unsigned int instr)
 {
-	*addr = instr;
+	int err;
+
+	err = __put_user(instr, addr);
+	if (err)
+		return err;
 	asm ("dcbst 0, %0; sync; icbi 0,%0; sync; isync" : : "r" (addr));
+	return 0;
 }
 
-void patch_branch(unsigned int *addr, unsigned long target, int flags)
+int patch_branch(unsigned int *addr, unsigned long target, int flags)
 {
-	patch_instruction(addr, create_branch(addr, target, flags));
+	return patch_instruction(addr, create_branch(addr, target, flags));
 }
 
 unsigned int create_branch(const unsigned int *addr,

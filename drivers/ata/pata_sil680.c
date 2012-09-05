@@ -437,21 +437,10 @@ static struct pci_driver sil680_pci_driver = {
 #endif
 };
 
-static int __init sil680_init(void)
-{
-	return pci_register_driver(&sil680_pci_driver);
-}
-
-static void __exit sil680_exit(void)
-{
-	pci_unregister_driver(&sil680_pci_driver);
-}
+module_pci_driver(sil680_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for SI680 PATA");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sil680);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(sil680_init);
-module_exit(sil680_exit);

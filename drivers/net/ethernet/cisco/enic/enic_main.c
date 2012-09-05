@@ -1300,8 +1300,6 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		}
 
-		skb->dev = netdev;
-
 		if (vlan_stripped)
 			__vlan_hwaccel_put_tag(skb, vlan_tci);
 

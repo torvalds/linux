@@ -69,9 +69,13 @@ static int cn_test_want_notify(void)
 		return -ENOMEM;
 	}
 
-	nlh = NLMSG_PUT(skb, 0, 0x123, NLMSG_DONE, size - sizeof(*nlh));
+	nlh = nlmsg_put(skb, 0, 0x123, NLMSG_DONE, size - sizeof(*nlh), 0);
+	if (!nlh) {
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
 
-	msg = (struct cn_msg *)NLMSG_DATA(nlh);
+	msg = nlmsg_data(nlh);
 
 	memset(msg, 0, size0);
 
@@ -117,11 +121,6 @@ static int cn_test_want_notify(void)
 	pr_info("request was sent: group=0x%x\n", ctl->group);
 
 	return 0;
-
-nlmsg_failure:
-	pr_err("failed to send %u.%u\n", msg->seq, msg->ack);
-	kfree_skb(skb);
-	return -EINVAL;
 }
 #endif
 

@@ -36,8 +36,6 @@
 #include "ttype.h"
 #include "tether.h"
 
-/*---------------------  Export Definitions -------------------------*/
-
 // max transmit or receive buffer size
 #define CB_MAX_BUF_SIZE     2900U       // max buffer size
                                         // NOTE: must be multiple of 4
@@ -120,17 +118,11 @@
 #define FRAGCTL_TKIP        0x0200 // 0000 0010 0000 0000
 #define FRAGCTL_LEGACY      0x0100 // 0000 0001 0000 0000
 #define FRAGCTL_NONENCRYPT  0x0000 // 0000 0000 0000 0000
-//#define FRAGCTL_AC3         0x000C // 0000 0000 0000 1100
-//#define FRAGCTL_AC2         0x0008 // 0000 0000 0000 1000
-//#define FRAGCTL_AC1         0x0004 // 0000 0000 0000 0100
-//#define FRAGCTL_AC0         0x0000 // 0000 0000 0000 0000
 #define FRAGCTL_ENDFRAG     0x0003 // 0000 0000 0000 0011
 #define FRAGCTL_MIDFRAG     0x0002 // 0000 0000 0000 0010
 #define FRAGCTL_STAFRAG     0x0001 // 0000 0000 0000 0001
 #define FRAGCTL_NONFRAG     0x0000 // 0000 0000 0000 0000
 
-//#define TYPE_AC0DMA     0
-//#define TYPE_TXDMA0     1
 #define TYPE_TXDMA0     0
 #define TYPE_AC0DMA     1
 #define TYPE_ATIMDMA    2
@@ -147,9 +139,6 @@
 #define TD_FLAGS_NETIF_SKB               0x01       // check if need release skb
 #define TD_FLAGS_PRIV_SKB                0x02       // check if called from private skb(hostap)
 #define TD_FLAGS_PS_RETRY                0x04       // check if PS STA frame re-transmit
-//#define TD_FLAGS_NETIF_SKB                0x04
-
-/*---------------------  Export Types  ------------------------------*/
 
 //
 // RsvTime buffer header
@@ -267,7 +256,6 @@ typedef struct tagSRTS_a_FB {
 SRTS_a_FB, *PSRTS_a_FB;
 
 typedef const SRTS_a_FB *PCSRTS_a_FB;
-
 
 //
 // CTS buffer header
@@ -421,12 +409,5 @@ typedef struct tagSKeyEntry {
     DWORD dwKey4[4];
 } __attribute__ ((__packed__))
 SKeyEntry;
-/*---------------------  Export Macros ------------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 #endif /* __DESC_H__ */

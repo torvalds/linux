@@ -87,6 +87,12 @@ struct stmmac_priv {
 #endif
 	int clk_csr;
 	int synopsys_id;
+	struct timer_list eee_ctrl_timer;
+	bool tx_path_in_lpi_mode;
+	int lpi_irq;
+	int eee_enabled;
+	int eee_active;
+	int tx_lpi_timer;
 };
 
 extern int phyaddr;
@@ -104,6 +110,8 @@ int stmmac_dvr_remove(struct net_device *ndev);
 struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 				     struct plat_stmmacenet_data *plat_dat,
 				     void __iomem *addr);
+void stmmac_disable_eee_mode(struct stmmac_priv *priv);
+bool stmmac_eee_init(struct stmmac_priv *priv);
 
 #ifdef CONFIG_HAVE_CLK
 static inline int stmmac_clk_enable(struct stmmac_priv *priv)

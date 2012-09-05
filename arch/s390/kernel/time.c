@@ -1,5 +1,4 @@
 /*
- *  arch/s390/kernel/time.c
  *    Time of day based timer functions.
  *
  *  S390 version
@@ -45,7 +44,7 @@
 #include <asm/vdso.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
-#include <asm/timer.h>
+#include <asm/vtimer.h>
 #include <asm/etr.h>
 #include <asm/cio.h>
 #include "entry.h"

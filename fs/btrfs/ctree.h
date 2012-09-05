@@ -2755,12 +2755,17 @@ static inline int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,
 			u64 time_seq);
-static inline int btrfs_next_item(struct btrfs_root *root, struct btrfs_path *p)
+static inline int btrfs_next_old_item(struct btrfs_root *root,
+				      struct btrfs_path *p, u64 time_seq)
 {
 	++p->slots[0];
 	if (p->slots[0] >= btrfs_header_nritems(p->nodes[0]))
-		return btrfs_next_leaf(root, p);
+		return btrfs_next_old_leaf(root, p, time_seq);
 	return 0;
+}
+static inline int btrfs_next_item(struct btrfs_root *root, struct btrfs_path *p)
+{
+	return btrfs_next_old_item(root, p, 0);
 }
 int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_root *root, struct extent_buffer *leaf);

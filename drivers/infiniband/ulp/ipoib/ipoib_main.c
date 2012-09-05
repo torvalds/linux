@@ -715,7 +715,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	rcu_read_lock();
 	if (likely(skb_dst(skb))) {
-		n = dst_get_neighbour_noref(skb_dst(skb));
+		n = dst_neigh_lookup_skb(skb_dst(skb), skb);
 		if (!n) {
 			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
@@ -797,6 +797,8 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 unlock:
+	if (n)
+		neigh_release(n);
 	rcu_read_unlock();
 	return NETDEV_TX_OK;
 }

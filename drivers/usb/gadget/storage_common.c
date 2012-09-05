@@ -38,12 +38,6 @@
  */
 
 /*
- * When FSG_BUFFHD_STATIC_BUFFER is defined when this file is included
- * the fsg_buffhd structure's buf field will be an array of FSG_BUFLEN
- * characters rather then a pointer to void.
- */
-
-/*
  * When USB_GADGET_DEBUG_FILES is defined the module param num_buffers
  * sets the number of pipeline buffers (length of the fsg_buffhd array).
  * The valid range of num_buffers is: num >= 2 && num <= 4.
@@ -260,11 +254,7 @@ enum fsg_buffer_state {
 };
 
 struct fsg_buffhd {
-#ifdef FSG_BUFFHD_STATIC_BUFFER
-	char				buf[FSG_BUFLEN];
-#else
 	void				*buf;
-#endif
 	enum fsg_buffer_state		state;
 	struct fsg_buffhd		*next;
 
@@ -627,6 +617,16 @@ static struct usb_gadget_strings	fsg_stringtab = {
  * the caller must own fsg->filesem for writing.
  */
 
+static void fsg_lun_close(struct fsg_lun *curlun)
+{
+	if (curlun->filp) {
+		LDBG(curlun, "close backing file\n");
+		fput(curlun->filp);
+		curlun->filp = NULL;
+	}
+}
+
+
 static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 {
 	int				ro;
@@ -636,6 +636,8 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	loff_t				size;
 	loff_t				num_sectors;
 	loff_t				min_sectors;
+	unsigned int			blkbits;
+	unsigned int			blksize;
 
 	/* R/W if we can, R/O if we must */
 	ro = curlun->initially_ro;
@@ -680,17 +682,17 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	}
 
 	if (curlun->cdrom) {
-		curlun->blksize = 2048;
-		curlun->blkbits = 11;
+		blksize = 2048;
+		blkbits = 11;
 	} else if (inode->i_bdev) {
-		curlun->blksize = bdev_logical_block_size(inode->i_bdev);
-		curlun->blkbits = blksize_bits(curlun->blksize);
+		blksize = bdev_logical_block_size(inode->i_bdev);
+		blkbits = blksize_bits(blksize);
 	} else {
-		curlun->blksize = 512;
-		curlun->blkbits = 9;
+		blksize = 512;
+		blkbits = 9;
 	}
 
-	num_sectors = size >> curlun->blkbits; /* File size in logic-block-size blocks */
+	num_sectors = size >> blkbits; /* File size in logic-block-size blocks */
 	min_sectors = 1;
 	if (curlun->cdrom) {
 		min_sectors = 300;	/* Smallest track is 300 frames */
@@ -707,7 +709,12 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 		goto out;
 	}
 
+	if (fsg_lun_is_open(curlun))
+		fsg_lun_close(curlun);
+
 	get_file(filp);
+	curlun->blksize = blksize;
+	curlun->blkbits = blkbits;
 	curlun->ro = ro;
 	curlun->filp = filp;
 	curlun->file_length = size;
@@ -718,16 +725,6 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 out:
 	filp_close(filp, current->files);
 	return rc;
-}
-
-
-static void fsg_lun_close(struct fsg_lun *curlun)
-{
-	if (curlun->filp) {
-		LDBG(curlun, "close backing file\n");
-		fput(curlun->filp);
-		curlun->filp = NULL;
-	}
 }
 
 
@@ -881,19 +878,17 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 	if (count > 0 && buf[count-1] == '\n')
 		((char *) buf)[count-1] = 0;		/* Ugh! */
 
-	/* Eject current medium */
-	down_write(filesem);
-	if (fsg_lun_is_open(curlun)) {
-		fsg_lun_close(curlun);
-		curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
-	}
-
 	/* Load new medium */
+	down_write(filesem);
 	if (count > 0 && buf[0]) {
+		/* fsg_lun_open() will close existing file if any. */
 		rc = fsg_lun_open(curlun, buf);
 		if (rc == 0)
 			curlun->unit_attention_data =
 					SS_NOT_READY_TO_READY_TRANSITION;
+	} else if (fsg_lun_is_open(curlun)) {
+		fsg_lun_close(curlun);
+		curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
 	}
 	up_write(filesem);
 	return (rc < 0 ? rc : count);

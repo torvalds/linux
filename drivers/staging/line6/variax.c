@@ -319,10 +319,10 @@ static ssize_t variax_set_volume(struct device *dev,
 {
 	struct usb_line6_variax *variax =
 	    usb_get_intfdata(to_usb_interface(dev));
-	unsigned long value;
+	u8 value;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &value);
+	ret = kstrtou8(buf, 10, &value);
 	if (ret)
 		return ret;
 
@@ -418,10 +418,10 @@ static ssize_t variax_set_tone(struct device *dev,
 {
 	struct usb_line6_variax *variax =
 	    usb_get_intfdata(to_usb_interface(dev));
-	unsigned long value;
+	u8 value;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &value);
+	ret = kstrtou8(buf, 10, &value);
 	if (ret)
 		return ret;
 

@@ -611,7 +611,7 @@ static int ctrl_slot_setup(struct controller *ctrl,
 	u32 tempdword;
 	char name[SLOT_NAME_SIZE];
 	void __iomem *slot_entry= NULL;
-	int result = -ENOMEM;
+	int result;
 
 	dbg("%s\n", __func__);
 
@@ -623,19 +623,25 @@ static int ctrl_slot_setup(struct controller *ctrl,
 
 	while (number_of_slots) {
 		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
-		if (!slot)
+		if (!slot) {
+			result = -ENOMEM;
 			goto error;
+		}
 
 		slot->hotplug_slot = kzalloc(sizeof(*(slot->hotplug_slot)),
 						GFP_KERNEL);
-		if (!slot->hotplug_slot)
+		if (!slot->hotplug_slot) {
+			result = -ENOMEM;
 			goto error_slot;
+		}
 		hotplug_slot = slot->hotplug_slot;
 
 		hotplug_slot->info = kzalloc(sizeof(*(hotplug_slot->info)),
 							GFP_KERNEL);
-		if (!hotplug_slot->info)
+		if (!hotplug_slot->info) {
+			result = -ENOMEM;
 			goto error_hpslot;
+		}
 		hotplug_slot_info = hotplug_slot->info;
 
 		slot->ctrl = ctrl;

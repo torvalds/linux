@@ -278,7 +278,8 @@ static int __devinit tca6416_keypad_probe(struct i2c_client *client,
 
 		error = request_threaded_irq(chip->irqnum, NULL,
 					     tca6416_keys_isr,
-					     IRQF_TRIGGER_FALLING,
+					     IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
 					     "tca6416-keypad", chip);
 		if (error) {
 			dev_dbg(&client->dev,

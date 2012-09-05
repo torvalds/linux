@@ -2122,7 +2122,7 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 	int try;
 	s32 res;
 
-	flags &= I2C_M_TEN | I2C_CLIENT_PEC;
+	flags &= I2C_M_TEN | I2C_CLIENT_PEC | I2C_CLIENT_SCCB;
 
 	if (adapter->algo->smbus_xfer) {
 		i2c_lock_adapter(adapter);
@@ -2140,11 +2140,17 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 				break;
 		}
 		i2c_unlock_adapter(adapter);
-	} else
-		res = i2c_smbus_xfer_emulated(adapter, addr, flags, read_write,
-					      command, protocol, data);
 
-	return res;
+		if (res != -EOPNOTSUPP || !adapter->algo->master_xfer)
+			return res;
+		/*
+		 * Fall back to i2c_smbus_xfer_emulated if the adapter doesn't
+		 * implement native support for the SMBus operation.
+		 */
+	}
+
+	return i2c_smbus_xfer_emulated(adapter, addr, flags, read_write,
+				       command, protocol, data);
 }
 EXPORT_SYMBOL(i2c_smbus_xfer);
 

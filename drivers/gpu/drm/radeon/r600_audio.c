@@ -57,7 +57,7 @@ static bool radeon_dig_encoder(struct drm_encoder *encoder)
  */
 static int r600_audio_chipset_supported(struct radeon_device *rdev)
 {
-	return (rdev->family >= CHIP_R600 && !ASIC_IS_DCE5(rdev))
+	return (rdev->family >= CHIP_R600 && !ASIC_IS_DCE6(rdev))
 		|| rdev->family == CHIP_RS600
 		|| rdev->family == CHIP_RS690
 		|| rdev->family == CHIP_RS740;

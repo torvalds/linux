@@ -51,7 +51,7 @@ static bool cfg80211_is_all_idle(void)
 	 */
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
 		cfg80211_lock_rdev(rdev);
-		list_for_each_entry(wdev, &rdev->netdev_list, list) {
+		list_for_each_entry(wdev, &rdev->wdev_list, list) {
 			wdev_lock(wdev);
 			if (wdev->sme_state != CFG80211_SME_IDLE)
 				is_all_idle = false;
@@ -136,15 +136,15 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 		wdev->conn->params.ssid_len);
 	request->ssids[0].ssid_len = wdev->conn->params.ssid_len;
 
-	request->dev = wdev->netdev;
+	request->wdev = wdev;
 	request->wiphy = &rdev->wiphy;
 
 	rdev->scan_req = request;
 
-	err = rdev->ops->scan(wdev->wiphy, wdev->netdev, request);
+	err = rdev->ops->scan(wdev->wiphy, request);
 	if (!err) {
 		wdev->conn->state = CFG80211_CONN_SCANNING;
-		nl80211_send_scan_start(rdev, wdev->netdev);
+		nl80211_send_scan_start(rdev, wdev);
 		dev_hold(wdev->netdev);
 	} else {
 		rdev->scan_req = NULL;
@@ -221,7 +221,7 @@ void cfg80211_conn_work(struct work_struct *work)
 	cfg80211_lock_rdev(rdev);
 	mutex_lock(&rdev->devlist_mtx);
 
-	list_for_each_entry(wdev, &rdev->netdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wdev_list, list) {
 		wdev_lock(wdev);
 		if (!netif_running(wdev->netdev)) {
 			wdev_unlock(wdev);

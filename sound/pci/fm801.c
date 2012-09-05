@@ -1254,7 +1254,7 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 	sprintf(chip->tea.bus_info, "PCI:%s", pci_name(pci));
 	if ((tea575x_tuner & TUNER_TYPE_MASK) > 0 &&
 	    (tea575x_tuner & TUNER_TYPE_MASK) < 4) {
-		if (snd_tea575x_init(&chip->tea)) {
+		if (snd_tea575x_init(&chip->tea, THIS_MODULE)) {
 			snd_printk(KERN_ERR "TEA575x radio not found\n");
 			snd_fm801_free(chip);
 			return -ENODEV;
@@ -1263,7 +1263,7 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 		/* autodetect tuner connection */
 		for (tea575x_tuner = 1; tea575x_tuner <= 3; tea575x_tuner++) {
 			chip->tea575x_tuner = tea575x_tuner;
-			if (!snd_tea575x_init(&chip->tea)) {
+			if (!snd_tea575x_init(&chip->tea, THIS_MODULE)) {
 				snd_printk(KERN_INFO "detected TEA575x radio type %s\n",
 					   get_tea575x_gpio(chip)->name);
 				break;
@@ -1369,9 +1369,10 @@ static unsigned char saved_regs[] = {
 	FM801_CODEC_CTRL, FM801_I2S_MODE, FM801_VOLUME, FM801_GEN_CTRL,
 };
 
-static int snd_fm801_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_fm801_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct fm801 *chip = card->private_data;
 	int i;
 
@@ -1385,13 +1386,14 @@ static int snd_fm801_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int snd_fm801_resume(struct pci_dev *pci)
+static int snd_fm801_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct fm801 *chip = card->private_data;
 	int i;
 
@@ -1414,17 +1416,21 @@ static int snd_fm801_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif
+
+static SIMPLE_DEV_PM_OPS(snd_fm801_pm, snd_fm801_suspend, snd_fm801_resume);
+#define SND_FM801_PM_OPS	&snd_fm801_pm
+#else
+#define SND_FM801_PM_OPS	NULL
+#endif /* CONFIG_PM */
 
 static struct pci_driver fm801_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
 	.remove = __devexit_p(snd_card_fm801_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_fm801_suspend,
-	.resume = snd_fm801_resume,
-#endif
+	.driver = {
+		.pm = SND_FM801_PM_OPS,
+	},
 };
 
 module_pci_driver(fm801_driver);

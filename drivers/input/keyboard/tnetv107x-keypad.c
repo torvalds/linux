@@ -227,15 +227,15 @@ static int __devinit keypad_probe(struct platform_device *pdev)
 		goto error_clk;
 	}
 
-	error = request_threaded_irq(kp->irq_press, NULL, keypad_irq, 0,
-				     dev_name(dev), kp);
+	error = request_threaded_irq(kp->irq_press, NULL, keypad_irq,
+				     IRQF_ONESHOT, dev_name(dev), kp);
 	if (error < 0) {
 		dev_err(kp->dev, "Could not allocate keypad press key irq\n");
 		goto error_irq_press;
 	}
 
-	error = request_threaded_irq(kp->irq_release, NULL, keypad_irq, 0,
-				     dev_name(dev), kp);
+	error = request_threaded_irq(kp->irq_release, NULL, keypad_irq,
+				     IRQF_ONESHOT, dev_name(dev), kp);
 	if (error < 0) {
 		dev_err(kp->dev, "Could not allocate keypad release key irq\n");
 		goto error_irq_release;

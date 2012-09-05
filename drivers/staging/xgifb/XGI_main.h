@@ -1,16 +1,8 @@
 #ifndef _XGIFB_MAIN
 #define _XGIFB_MAIN
-
-
 /* ------------------- Constant Definitions ------------------------- */
-
-
 #include "XGIfb.h"
-#include "vb_struct.h"
-#include "../../video/sis/sis.h"
 #include "vb_def.h"
-
-#define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while (0)
 
 #ifndef PCI_DEVICE_ID_XGI_42
 #define PCI_DEVICE_ID_XGI_42      0x042
@@ -75,9 +67,6 @@ static int XGIfb_ypan = -1;
 static int XGIfb_crt2type = -1;
 /* PR: Tv plug type (for overriding autodetection) */
 static int XGIfb_tvplug = -1;
-
-/* TW: For ioctl XGIFB_GET_INFO */
-/* XGIfb_info XGIfbinfo; */
 
 #define MD_XGI315 1
 
@@ -238,17 +227,6 @@ static const struct _XGI_vrate {
 	{0, 0, 0, 0}
 };
 
-static const struct _chswtable {
-	int subsysVendor;
-	int subsysCard;
-	char *vendorName;
-	char *cardName;
-} mychswtable[] = {
-	{ 0x1631, 0x1002, "Mitachi", "0x1002" },
-	{ 0,      0,      ""       , ""       }
-};
-
-/* Eden Chen */
 static const struct _XGI_TV_filter {
 	u8 filter[9][4];
 } XGI_TV_filter[] = {

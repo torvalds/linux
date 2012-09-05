@@ -1,5 +1,4 @@
 
-//   vim:tw=110:ts=4:
 #ifndef HCF_H
 #define HCF_H 1
 

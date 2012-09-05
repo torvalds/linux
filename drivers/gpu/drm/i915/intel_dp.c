@@ -32,6 +32,7 @@
 #include "drm.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
+#include "drm_edid.h"
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
@@ -67,6 +68,8 @@ struct intel_dp {
 	struct drm_display_mode *panel_fixed_mode;  /* for eDP */
 	struct delayed_work panel_vdd_work;
 	bool want_panel_vdd;
+	struct edid *edid; /* cached EDID for eDP */
+	int edid_mode_count;
 };
 
 /**
@@ -371,7 +374,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	int recv_bytes;
 	uint32_t status;
 	uint32_t aux_clock_divider;
-	int try, precharge = 5;
+	int try, precharge;
 
 	intel_dp_check_edp(intel_dp);
 	/* The clock divider is based off the hrawclk,
@@ -390,6 +393,11 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		aux_clock_divider = 63; /* IRL input clock fixed at 125Mhz */
 	else
 		aux_clock_divider = intel_hrawclk(dev) / 2;
+
+	if (IS_GEN6(dev))
+		precharge = 3;
+	else
+		precharge = 5;
 
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
@@ -1973,6 +1981,8 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 	if (!(intel_dp->dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
 		return;
 
+	ironlake_edp_panel_vdd_on(intel_dp);
+
 	if (intel_dp_aux_native_read_retry(intel_dp, DP_SINK_OUI, buf, 3))
 		DRM_DEBUG_KMS("Sink OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
@@ -1980,6 +1990,8 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 	if (intel_dp_aux_native_read_retry(intel_dp, DP_BRANCH_OUI, buf, 3))
 		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
+
+	ironlake_edp_panel_vdd_off(intel_dp, false);
 }
 
 static bool
@@ -2116,10 +2128,22 @@ intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct edid	*edid;
+	int size;
 
-	ironlake_edp_panel_vdd_on(intel_dp);
+	if (is_edp(intel_dp)) {
+		if (!intel_dp->edid)
+			return NULL;
+
+		size = (intel_dp->edid->extensions + 1) * EDID_LENGTH;
+		edid = kmalloc(size, GFP_KERNEL);
+		if (!edid)
+			return NULL;
+
+		memcpy(edid, intel_dp->edid, size);
+		return edid;
+	}
+
 	edid = drm_get_edid(connector, adapter);
-	ironlake_edp_panel_vdd_off(intel_dp, false);
 	return edid;
 }
 
@@ -2129,9 +2153,17 @@ intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter *ada
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	int	ret;
 
-	ironlake_edp_panel_vdd_on(intel_dp);
+	if (is_edp(intel_dp)) {
+		drm_mode_connector_update_edid_property(connector,
+							intel_dp->edid);
+		ret = drm_add_edid_modes(connector, intel_dp->edid);
+		drm_edid_to_eld(connector,
+				intel_dp->edid);
+		connector->display_info.raw_edid = NULL;
+		return intel_dp->edid_mode_count;
+	}
+
 	ret = intel_ddc_get_modes(connector, adapter);
-	ironlake_edp_panel_vdd_off(intel_dp, false);
 	return ret;
 }
 
@@ -2321,6 +2353,7 @@ static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	i2c_del_adapter(&intel_dp->adapter);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
+		kfree(intel_dp->edid);
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
 		ironlake_panel_vdd_off_sync(intel_dp);
 	}
@@ -2504,11 +2537,14 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			break;
 	}
 
+	intel_dp_i2c_init(intel_dp, intel_connector, name);
+
 	/* Cache some DPCD data in the eDP case */
 	if (is_edp(intel_dp)) {
 		bool ret;
 		struct edp_power_seq	cur, vbt;
 		u32 pp_on, pp_off, pp_div;
+		struct edid *edid;
 
 		pp_on = I915_READ(PCH_PP_ON_DELAYS);
 		pp_off = I915_READ(PCH_PP_OFF_DELAYS);
@@ -2576,9 +2612,19 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			intel_dp_destroy(&intel_connector->base);
 			return;
 		}
-	}
 
-	intel_dp_i2c_init(intel_dp, intel_connector, name);
+		ironlake_edp_panel_vdd_on(intel_dp);
+		edid = drm_get_edid(connector, &intel_dp->adapter);
+		if (edid) {
+			drm_mode_connector_update_edid_property(connector,
+								edid);
+			intel_dp->edid_mode_count =
+				drm_add_edid_modes(connector, edid);
+			drm_edid_to_eld(connector, edid);
+			intel_dp->edid = edid;
+		}
+		ironlake_edp_panel_vdd_off(intel_dp, false);
+	}
 
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 

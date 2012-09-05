@@ -197,6 +197,7 @@ static struct fib6_table *fib6_alloc_table(struct net *net, u32 id)
 		table->tb6_id = id;
 		table->tb6_root.leaf = net->ipv6.ip6_null_entry;
 		table->tb6_root.fn_flags = RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
+		inet_peer_base_init(&table->tb6_peers);
 	}
 
 	return table;
@@ -1349,8 +1350,8 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 			if (w->leaf && fn->fn_flags & RTN_RTINFO) {
 				int err;
 
-				if (w->count < w->skip) {
-					w->count++;
+				if (w->skip) {
+					w->skip--;
 					continue;
 				}
 
@@ -1633,6 +1634,7 @@ static int __net_init fib6_net_init(struct net *net)
 	net->ipv6.fib6_main_tbl->tb6_root.leaf = net->ipv6.ip6_null_entry;
 	net->ipv6.fib6_main_tbl->tb6_root.fn_flags =
 		RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
+	inet_peer_base_init(&net->ipv6.fib6_main_tbl->tb6_peers);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	net->ipv6.fib6_local_tbl = kzalloc(sizeof(*net->ipv6.fib6_local_tbl),
@@ -1643,6 +1645,7 @@ static int __net_init fib6_net_init(struct net *net)
 	net->ipv6.fib6_local_tbl->tb6_root.leaf = net->ipv6.ip6_null_entry;
 	net->ipv6.fib6_local_tbl->tb6_root.fn_flags =
 		RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
+	inet_peer_base_init(&net->ipv6.fib6_local_tbl->tb6_peers);
 #endif
 	fib6_tables_init(net);
 
@@ -1666,8 +1669,10 @@ static void fib6_net_exit(struct net *net)
 	del_timer_sync(&net->ipv6.ip6_fib_timer);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	inetpeer_invalidate_tree(&net->ipv6.fib6_local_tbl->tb6_peers);
 	kfree(net->ipv6.fib6_local_tbl);
 #endif
+	inetpeer_invalidate_tree(&net->ipv6.fib6_main_tbl->tb6_peers);
 	kfree(net->ipv6.fib6_main_tbl);
 	kfree(net->ipv6.fib_table_hash);
 	kfree(net->ipv6.rt6_stats);

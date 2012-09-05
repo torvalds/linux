@@ -800,7 +800,7 @@ cifs_find_inode(struct inode *inode, void *opaque)
 		return 0;
 
 	/* if it's not a directory or has no dentries, then flag it */
-	if (S_ISDIR(inode->i_mode) && !list_empty(&inode->i_dentry))
+	if (S_ISDIR(inode->i_mode) && !hlist_empty(&inode->i_dentry))
 		fattr->cf_flags |= CIFS_FATTR_INO_COLLISION;
 
 	return 1;
@@ -825,9 +825,10 @@ static bool
 inode_has_hashed_dentries(struct inode *inode)
 {
 	struct dentry *dentry;
+	struct hlist_node *p;
 
 	spin_lock(&inode->i_lock);
-	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
 		if (!d_unhashed(dentry) || IS_ROOT(dentry)) {
 			spin_unlock(&inode->i_lock);
 			return true;

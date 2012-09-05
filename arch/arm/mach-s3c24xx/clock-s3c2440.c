@@ -106,7 +106,7 @@ static struct clk s3c2440_clk_cam_upll = {
 static struct clk s3c2440_clk_ac97 = {
 	.name		= "ac97",
 	.enable		= s3c2410_clkcon_enable,
-	.ctrlbit	= S3C2440_CLKCON_CAMERA,
+	.ctrlbit	= S3C2440_CLKCON_AC97,
 };
 
 static unsigned long  s3c2440_fclk_n_getrate(struct clk *clk)

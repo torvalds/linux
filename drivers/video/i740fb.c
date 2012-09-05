@@ -497,7 +497,7 @@ static int i740fb_decode_var(const struct fb_var_screeninfo *var,
 
 	mem = vxres * vyres * ((bpp + 1) / 8);
 	if (mem > info->screen_size) {
-		dev_err(info->device, "not enough video memory (%d KB requested, %ld KB avaliable)\n",
+		dev_err(info->device, "not enough video memory (%d KB requested, %ld KB available)\n",
 			mem >> 10, info->screen_size >> 10);
 		return -ENOMEM;
 	}
@@ -728,7 +728,7 @@ static void vga_protect(struct i740fb_par *par)
 	i740outreg_mask(par, VGA_SEQ_I, VGA_SEQ_CLOCK_MODE, 0x20, 0x20);
 
 	i740inb(par, 0x3DA);
-	i740outb(par, VGA_ATT_W, 0x00);	/* enable pallete access */
+	i740outb(par, VGA_ATT_W, 0x00);	/* enable palette access */
 }
 
 static void vga_unprotect(struct i740fb_par *par)
@@ -737,7 +737,7 @@ static void vga_unprotect(struct i740fb_par *par)
 	i740outreg_mask(par, VGA_SEQ_I, VGA_SEQ_CLOCK_MODE, 0, 0x20);
 
 	i740inb(par, 0x3DA);
-	i740outb(par, VGA_ATT_W, 0x20);	/* disable pallete access */
+	i740outb(par, VGA_ATT_W, 0x20);	/* disable palette access */
 }
 
 static int i740fb_set_par(struct fb_info *info)

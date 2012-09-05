@@ -70,4 +70,7 @@ extern int is_in_rom(unsigned long);
 #define	VMALLOC_END	0xffffffff
 
 #define arch_enter_lazy_cpu_mode()    do {} while (0)
+
+#include <asm-generic/pgtable.h>
+
 #endif /* _H8300_PGTABLE_H */

@@ -267,6 +267,7 @@ static void brcms_set_basic_rate(struct brcm_rateset *rs, u16 rate, bool is_br)
 static void brcms_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct brcms_info *wl = hw->priv;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 
 	spin_lock_bh(&wl->lock);
 	if (!wl->pub->up) {
@@ -275,6 +276,7 @@ static void brcms_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto done;
 	}
 	brcms_c_sendpkt_mac80211(wl->wlc, skb, hw);
+	tx_info->rate_driver_data[0] = tx_info->control.sta;
  done:
 	spin_unlock_bh(&wl->lock);
 }
@@ -319,8 +321,7 @@ static void brcms_ops_stop(struct ieee80211_hw *hw)
 		return;
 
 	spin_lock_bh(&wl->lock);
-	status = brcms_c_chipmatch(wl->wlc->hw->vendorid,
-				   wl->wlc->hw->deviceid);
+	status = brcms_c_chipmatch(wl->wlc->hw->d11core);
 	spin_unlock_bh(&wl->lock);
 	if (!status) {
 		wiphy_err(wl->wiphy,
@@ -721,14 +722,6 @@ static const struct ieee80211_ops brcms_ops = {
 	.flush = brcms_ops_flush,
 };
 
-/*
- * is called in brcms_bcma_probe() context, therefore no locking required.
- */
-static int brcms_set_hint(struct brcms_info *wl, char *abbrev)
-{
-	return regulatory_hint(wl->pub->ieee_hw->wiphy, abbrev);
-}
-
 void brcms_dpc(unsigned long data)
 {
 	struct brcms_info *wl;
@@ -1058,6 +1051,8 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 		goto fail;
 	}
 
+	brcms_c_regd_init(wl->wlc);
+
 	memcpy(perm, &wl->pub->cur_etheraddr, ETH_ALEN);
 	if (WARN_ON(!is_valid_ether_addr(perm)))
 		goto fail;
@@ -1068,9 +1063,9 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 		wiphy_err(wl->wiphy, "%s: ieee80211_register_hw failed, status"
 			  "%d\n", __func__, err);
 
-	if (wl->pub->srom_ccode[0] && brcms_set_hint(wl, wl->pub->srom_ccode))
-		wiphy_err(wl->wiphy, "%s: regulatory_hint failed, status %d\n",
-			  __func__, err);
+	if (wl->pub->srom_ccode[0] &&
+	    regulatory_hint(wl->wiphy, wl->pub->srom_ccode))
+		wiphy_err(wl->wiphy, "%s: regulatory hint failed\n", __func__);
 
 	n_adapters_found++;
 	return wl;

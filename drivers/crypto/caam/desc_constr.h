@@ -1,7 +1,7 @@
 /*
  * caam descriptor construction helper functions
  *
- * Copyright 2008-2011 Freescale Semiconductor, Inc.
+ * Copyright 2008-2012 Freescale Semiconductor, Inc.
  */
 
 #include "desc.h"
@@ -51,7 +51,7 @@ static inline void *sh_desc_pdb(u32 *desc)
 
 static inline void init_desc(u32 *desc, u32 options)
 {
-	*desc = options | HDR_ONE | 1;
+	*desc = (options | HDR_ONE) + 1;
 }
 
 static inline void init_sh_desc(u32 *desc, u32 options)
@@ -62,9 +62,9 @@ static inline void init_sh_desc(u32 *desc, u32 options)
 
 static inline void init_sh_desc_pdb(u32 *desc, u32 options, size_t pdb_bytes)
 {
-	u32 pdb_len = pdb_bytes / CAAM_CMD_SZ + 1;
+	u32 pdb_len = (pdb_bytes + CAAM_CMD_SZ - 1) / CAAM_CMD_SZ;
 
-	init_sh_desc(desc, ((pdb_len << HDR_START_IDX_SHIFT) + pdb_len) |
+	init_sh_desc(desc, (((pdb_len + 1) << HDR_START_IDX_SHIFT) + pdb_len) |
 		     options);
 }
 
@@ -117,6 +117,15 @@ static inline void append_cmd_ptr(u32 *desc, dma_addr_t ptr, int len,
 	append_ptr(desc, ptr);
 }
 
+/* Write length after pointer, rather than inside command */
+static inline void append_cmd_ptr_extlen(u32 *desc, dma_addr_t ptr,
+					 unsigned int len, u32 command)
+{
+	append_cmd(desc, command);
+	append_ptr(desc, ptr);
+	append_cmd(desc, len);
+}
+
 static inline void append_cmd_data(u32 *desc, void *data, int len,
 				   u32 command)
 {
@@ -166,12 +175,21 @@ static inline void append_##cmd(u32 *desc, dma_addr_t ptr, unsigned int len, \
 	append_cmd_ptr(desc, ptr, len, CMD_##op | options); \
 }
 APPEND_CMD_PTR(key, KEY)
-APPEND_CMD_PTR(seq_in_ptr, SEQ_IN_PTR)
-APPEND_CMD_PTR(seq_out_ptr, SEQ_OUT_PTR)
 APPEND_CMD_PTR(load, LOAD)
 APPEND_CMD_PTR(store, STORE)
 APPEND_CMD_PTR(fifo_load, FIFO_LOAD)
 APPEND_CMD_PTR(fifo_store, FIFO_STORE)
+
+#define APPEND_SEQ_PTR_INTLEN(cmd, op) \
+static inline void append_seq_##cmd##_ptr_intlen(u32 *desc, dma_addr_t ptr, \
+						 unsigned int len, \
+						 u32 options) \
+{ \
+	PRINT_POS; \
+	append_cmd_ptr(desc, ptr, len, CMD_SEQ_##op##_PTR | options); \
+}
+APPEND_SEQ_PTR_INTLEN(in, IN)
+APPEND_SEQ_PTR_INTLEN(out, OUT)
 
 #define APPEND_CMD_PTR_TO_IMM(cmd, op) \
 static inline void append_##cmd##_as_imm(u32 *desc, void *data, \
@@ -182,6 +200,33 @@ static inline void append_##cmd##_as_imm(u32 *desc, void *data, \
 }
 APPEND_CMD_PTR_TO_IMM(load, LOAD);
 APPEND_CMD_PTR_TO_IMM(fifo_load, FIFO_LOAD);
+
+#define APPEND_CMD_PTR_EXTLEN(cmd, op) \
+static inline void append_##cmd##_extlen(u32 *desc, dma_addr_t ptr, \
+					 unsigned int len, u32 options) \
+{ \
+	PRINT_POS; \
+	append_cmd_ptr_extlen(desc, ptr, len, CMD_##op | SQIN_EXT | options); \
+}
+APPEND_CMD_PTR_EXTLEN(seq_in_ptr, SEQ_IN_PTR)
+APPEND_CMD_PTR_EXTLEN(seq_out_ptr, SEQ_OUT_PTR)
+
+/*
+ * Determine whether to store length internally or externally depending on
+ * the size of its type
+ */
+#define APPEND_CMD_PTR_LEN(cmd, op, type) \
+static inline void append_##cmd(u32 *desc, dma_addr_t ptr, \
+				type len, u32 options) \
+{ \
+	PRINT_POS; \
+	if (sizeof(type) > sizeof(u16)) \
+		append_##cmd##_extlen(desc, ptr, len, options); \
+	else \
+		append_##cmd##_intlen(desc, ptr, len, options); \
+}
+APPEND_CMD_PTR_LEN(seq_in_ptr, SEQ_IN_PTR, u32)
+APPEND_CMD_PTR_LEN(seq_out_ptr, SEQ_OUT_PTR, u32)
 
 /*
  * 2nd variant for commands whose specified immediate length differs

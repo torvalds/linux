@@ -64,7 +64,7 @@ config ATH9K_DEBUGFS
 
 config ATH9K_DFS_CERTIFIED
 	bool "Atheros DFS support for certified platforms"
-	depends on ATH9K && EXPERT
+	depends on ATH9K && CFG80211_CERTIFICATION_ONUS
 	default n
 	---help---
 	  This option enables DFS support for initiating radiation on

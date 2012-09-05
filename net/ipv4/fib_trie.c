@@ -1007,9 +1007,9 @@ static void trie_rebalance(struct trie *t, struct tnode *tn)
 	while (tn != NULL && (tp = node_parent((struct rt_trie_node *)tn)) != NULL) {
 		cindex = tkey_extract_bits(key, tp->pos, tp->bits);
 		wasfull = tnode_full(tp, tnode_get_child(tp, cindex));
-		tn = (struct tnode *) resize(t, (struct tnode *)tn);
+		tn = (struct tnode *)resize(t, tn);
 
-		tnode_put_child_reorg((struct tnode *)tp, cindex,
+		tnode_put_child_reorg(tp, cindex,
 				      (struct rt_trie_node *)tn, wasfull);
 
 		tp = node_parent((struct rt_trie_node *) tn);
@@ -1024,7 +1024,7 @@ static void trie_rebalance(struct trie *t, struct tnode *tn)
 
 	/* Handle last (top) tnode */
 	if (IS_TNODE(tn))
-		tn = (struct tnode *)resize(t, (struct tnode *)tn);
+		tn = (struct tnode *)resize(t, tn);
 
 	rcu_assign_pointer(t->trie, (struct rt_trie_node *)tn);
 	tnode_free_flush();
@@ -1125,7 +1125,7 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 		node_set_parent((struct rt_trie_node *)l, tp);
 
 		cindex = tkey_extract_bits(key, tp->pos, tp->bits);
-		put_child(t, (struct tnode *)tp, cindex, (struct rt_trie_node *)l);
+		put_child(t, tp, cindex, (struct rt_trie_node *)l);
 	} else {
 		/* Case 3: n is a LEAF or a TNODE and the key doesn't match. */
 		/*
@@ -1160,8 +1160,7 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 
 		if (tp) {
 			cindex = tkey_extract_bits(key, tp->pos, tp->bits);
-			put_child(t, (struct tnode *)tp, cindex,
-				  (struct rt_trie_node *)tn);
+			put_child(t, tp, cindex, (struct rt_trie_node *)tn);
 		} else {
 			rcu_assign_pointer(t->trie, (struct rt_trie_node *)tn);
 			tp = tn;
@@ -1620,7 +1619,7 @@ static void trie_leaf_remove(struct trie *t, struct leaf *l)
 
 	if (tp) {
 		t_key cindex = tkey_extract_bits(l->key, tp->pos, tp->bits);
-		put_child(t, (struct tnode *)tp, cindex, NULL);
+		put_child(t, tp, cindex, NULL);
 		trie_rebalance(t, tp);
 	} else
 		RCU_INIT_POINTER(t->trie, NULL);

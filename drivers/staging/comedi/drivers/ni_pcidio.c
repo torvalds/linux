@@ -745,8 +745,6 @@ static int ni_pcidio_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -754,7 +752,7 @@ static int ni_pcidio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = readl(devpriv->mite->daq_io_addr + Port_IO(0));
 
-	return 2;
+	return insn->n;
 }
 
 static int ni_pcidio_cmdtest(struct comedi_device *dev,
@@ -1248,8 +1246,8 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	else
 		n_subdevices = 1;
 
-	ret = alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
 		return ret;
 
 	if (!this_board->is_diodaq) {

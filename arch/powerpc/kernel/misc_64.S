@@ -301,11 +301,6 @@ _GLOBAL(real_writeb)
 
 #ifdef CONFIG_PPC_PASEMI
 
-/* No support in all binutils for these yet, so use defines */
-#define LBZCIX(RT,RA,RB)  .long (0x7c0006aa|(RT<<21)|(RA<<16)|(RB << 11))
-#define STBCIX(RS,RA,RB)  .long (0x7c0007aa|(RS<<21)|(RA<<16)|(RB << 11))
-
-
 _GLOBAL(real_205_readb)
 	mfmsr	r7
 	ori	r0,r7,MSR_DR
@@ -314,7 +309,7 @@ _GLOBAL(real_205_readb)
 	mtmsrd	r0
 	sync
 	isync
-	LBZCIX(r3,0,r3)
+	LBZCIX(R3,R0,R3)
 	isync
 	mtmsrd	r7
 	sync
@@ -329,7 +324,7 @@ _GLOBAL(real_205_writeb)
 	mtmsrd	r0
 	sync
 	isync
-	STBCIX(r3,0,r4)
+	STBCIX(R3,R0,R4)
 	isync
 	mtmsrd	r7
 	sync

@@ -137,7 +137,7 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 free_group:
 	if (!purecfg)
-		free(group);
+		kfree(group);
 free:
 	kfree(new_map);
 	return ret;

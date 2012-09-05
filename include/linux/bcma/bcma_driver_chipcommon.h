@@ -24,7 +24,7 @@
 #define   BCMA_CC_FLASHT_NONE		0x00000000	/* No flash */
 #define   BCMA_CC_FLASHT_STSER		0x00000100	/* ST serial flash */
 #define   BCMA_CC_FLASHT_ATSER		0x00000200	/* Atmel serial flash */
-#define   BCMA_CC_FLASHT_NFLASH		0x00000200
+#define   BCMA_CC_FLASHT_NFLASH		0x00000200	/* NAND flash */
 #define	  BCMA_CC_FLASHT_PARA		0x00000700	/* Parallel flash */
 #define  BCMA_CC_CAP_PLLT		0x00038000	/* PLL Type */
 #define   BCMA_PLLTYPE_NONE		0x00000000
@@ -45,6 +45,7 @@
 #define  BCMA_CC_CAP_PMU		0x10000000	/* PMU available (rev >= 20) */
 #define  BCMA_CC_CAP_ECI		0x20000000	/* ECI available (rev >= 20) */
 #define  BCMA_CC_CAP_SPROM		0x40000000	/* SPROM present */
+#define  BCMA_CC_CAP_NFLASH		0x80000000	/* NAND flash present (rev >= 35 or BCM4706?) */
 #define BCMA_CC_CORECTL			0x0008
 #define  BCMA_CC_CORECTL_UARTCLK0	0x00000001	/* Drive UART with internal clock */
 #define	 BCMA_CC_CORECTL_SE		0x00000002	/* sync clk out enable (corerev >= 3) */
@@ -88,6 +89,11 @@
 #define  BCMA_CC_CHIPST_4313_OTP_PRESENT	2
 #define  BCMA_CC_CHIPST_4331_SPROM_PRESENT	2
 #define  BCMA_CC_CHIPST_4331_OTP_PRESENT	4
+#define  BCMA_CC_CHIPST_4706_PKG_OPTION		BIT(0) /* 0: full-featured package 1: low-cost package */
+#define  BCMA_CC_CHIPST_4706_SFLASH_PRESENT	BIT(1) /* 0: parallel, 1: serial flash is present */
+#define  BCMA_CC_CHIPST_4706_SFLASH_TYPE	BIT(2) /* 0: 8b-p/ST-s flash, 1: 16b-p/Atmal-s flash */
+#define  BCMA_CC_CHIPST_4706_MIPS_BENDIAN	BIT(3) /* 0: little, 1: big endian */
+#define  BCMA_CC_CHIPST_4706_PCIE1_DISABLE	BIT(5) /* PCIE1 enable strap pin */
 #define BCMA_CC_JCMD			0x0030		/* Rev >= 10 only */
 #define  BCMA_CC_JCMD_START		0x80000000
 #define  BCMA_CC_JCMD_BUSY		0x80000000
@@ -117,10 +123,58 @@
 #define  BCMA_CC_JCTL_EXT_EN		2		/* Enable external targets */
 #define  BCMA_CC_JCTL_EN		1		/* Enable Jtag master */
 #define BCMA_CC_FLASHCTL		0x0040
+/* Start/busy bit in flashcontrol */
+#define  BCMA_CC_FLASHCTL_OPCODE	0x000000ff
+#define  BCMA_CC_FLASHCTL_ACTION	0x00000700
+#define  BCMA_CC_FLASHCTL_CS_ACTIVE	0x00001000	/* Chip Select Active, rev >= 20 */
 #define  BCMA_CC_FLASHCTL_START		0x80000000
 #define  BCMA_CC_FLASHCTL_BUSY		BCMA_CC_FLASHCTL_START
+/* Flashcontrol action + opcodes for ST flashes */
+#define  BCMA_CC_FLASHCTL_ST_WREN	0x0006		/* Write Enable */
+#define  BCMA_CC_FLASHCTL_ST_WRDIS	0x0004		/* Write Disable */
+#define  BCMA_CC_FLASHCTL_ST_RDSR	0x0105		/* Read Status Register */
+#define  BCMA_CC_FLASHCTL_ST_WRSR	0x0101		/* Write Status Register */
+#define  BCMA_CC_FLASHCTL_ST_READ	0x0303		/* Read Data Bytes */
+#define  BCMA_CC_FLASHCTL_ST_PP		0x0302		/* Page Program */
+#define  BCMA_CC_FLASHCTL_ST_SE		0x02d8		/* Sector Erase */
+#define  BCMA_CC_FLASHCTL_ST_BE		0x00c7		/* Bulk Erase */
+#define  BCMA_CC_FLASHCTL_ST_DP		0x00b9		/* Deep Power-down */
+#define  BCMA_CC_FLASHCTL_ST_RES	0x03ab		/* Read Electronic Signature */
+#define  BCMA_CC_FLASHCTL_ST_CSA	0x1000		/* Keep chip select asserted */
+#define  BCMA_CC_FLASHCTL_ST_SSE	0x0220		/* Sub-sector Erase */
+/* Flashcontrol action + opcodes for Atmel flashes */
+#define  BCMA_CC_FLASHCTL_AT_READ			0x07e8
+#define  BCMA_CC_FLASHCTL_AT_PAGE_READ			0x07d2
+#define  BCMA_CC_FLASHCTL_AT_STATUS			0x01d7
+#define  BCMA_CC_FLASHCTL_AT_BUF1_WRITE			0x0384
+#define  BCMA_CC_FLASHCTL_AT_BUF2_WRITE			0x0387
+#define  BCMA_CC_FLASHCTL_AT_BUF1_ERASE_PROGRAM		0x0283
+#define  BCMA_CC_FLASHCTL_AT_BUF2_ERASE_PROGRAM		0x0286
+#define  BCMA_CC_FLASHCTL_AT_BUF1_PROGRAM		0x0288
+#define  BCMA_CC_FLASHCTL_AT_BUF2_PROGRAM		0x0289
+#define  BCMA_CC_FLASHCTL_AT_PAGE_ERASE			0x0281
+#define  BCMA_CC_FLASHCTL_AT_BLOCK_ERASE		0x0250
+#define  BCMA_CC_FLASHCTL_AT_BUF1_WRITE_ERASE_PROGRAM	0x0382
+#define  BCMA_CC_FLASHCTL_AT_BUF2_WRITE_ERASE_PROGRAM	0x0385
+#define  BCMA_CC_FLASHCTL_AT_BUF1_LOAD			0x0253
+#define  BCMA_CC_FLASHCTL_AT_BUF2_LOAD			0x0255
+#define  BCMA_CC_FLASHCTL_AT_BUF1_COMPARE		0x0260
+#define  BCMA_CC_FLASHCTL_AT_BUF2_COMPARE		0x0261
+#define  BCMA_CC_FLASHCTL_AT_BUF1_REPROGRAM		0x0258
+#define  BCMA_CC_FLASHCTL_AT_BUF2_REPROGRAM		0x0259
 #define BCMA_CC_FLASHADDR		0x0044
 #define BCMA_CC_FLASHDATA		0x0048
+/* Status register bits for ST flashes */
+#define  BCMA_CC_FLASHDATA_ST_WIP	0x01		/* Write In Progress */
+#define  BCMA_CC_FLASHDATA_ST_WEL	0x02		/* Write Enable Latch */
+#define  BCMA_CC_FLASHDATA_ST_BP_MASK	0x1c		/* Block Protect */
+#define  BCMA_CC_FLASHDATA_ST_BP_SHIFT	2
+#define  BCMA_CC_FLASHDATA_ST_SRWD	0x80		/* Status Register Write Disable */
+/* Status register bits for Atmel flashes */
+#define  BCMA_CC_FLASHDATA_AT_READY	0x80
+#define  BCMA_CC_FLASHDATA_AT_MISMATCH	0x40
+#define  BCMA_CC_FLASHDATA_AT_ID_MASK	0x38
+#define  BCMA_CC_FLASHDATA_AT_ID_SHIFT	3
 #define BCMA_CC_BCAST_ADDR		0x0050
 #define BCMA_CC_BCAST_DATA		0x0054
 #define BCMA_CC_GPIOPULLUP		0x0058		/* Rev >= 20 only */
@@ -280,6 +334,15 @@
 
 /* 4706 PMU */
 #define BCMA_CC_PMU4706_MAINPLL_PLL0	0
+#define BCMA_CC_PMU6_4706_PROCPLL_OFF	4	/* The CPU PLL */
+#define  BCMA_CC_PMU6_4706_PROC_P2DIV_MASK	0x000f0000
+#define  BCMA_CC_PMU6_4706_PROC_P2DIV_SHIFT	16
+#define  BCMA_CC_PMU6_4706_PROC_P1DIV_MASK	0x0000f000
+#define  BCMA_CC_PMU6_4706_PROC_P1DIV_SHIFT	12
+#define  BCMA_CC_PMU6_4706_PROC_NDIV_INT_MASK	0x00000ff8
+#define  BCMA_CC_PMU6_4706_PROC_NDIV_INT_SHIFT	3
+#define  BCMA_CC_PMU6_4706_PROC_NDIV_MODE_MASK	0x00000007
+#define  BCMA_CC_PMU6_4706_PROC_NDIV_MODE_SHIFT	0
 
 /* ALP clock on pre-PMU chips */
 #define BCMA_CC_PMU_ALP_CLOCK		20000000
@@ -308,6 +371,19 @@
 #define BCMA_CC_PPL_PCHI_OFF		5
 #define BCMA_CC_PPL_PCHI_MASK		0x0000003f
 
+#define BCMA_CC_PMU_PLL_CTL0		0
+#define BCMA_CC_PMU_PLL_CTL1		1
+#define BCMA_CC_PMU_PLL_CTL2		2
+#define BCMA_CC_PMU_PLL_CTL3		3
+#define BCMA_CC_PMU_PLL_CTL4		4
+#define BCMA_CC_PMU_PLL_CTL5		5
+
+#define BCMA_CC_PMU1_PLL0_PC0_P1DIV_MASK	0x00f00000
+#define BCMA_CC_PMU1_PLL0_PC0_P1DIV_SHIFT	20
+
+#define BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_MASK	0x1ff00000
+#define BCMA_CC_PMU1_PLL0_PC2_NDIV_INT_SHIFT	20
+
 /* BCM4331 ChipControl numbers. */
 #define BCMA_CHIPCTL_4331_BT_COEXIST		BIT(0)	/* 0 disable */
 #define BCMA_CHIPCTL_4331_SECI			BIT(1)	/* 0 SECI is disabled (JATG functional) */
@@ -321,8 +397,17 @@
 #define BCMA_CHIPCTL_4331_OVR_PIPEAUXPWRDOWN	BIT(9)	/* override core control on pipe_AuxPowerDown */
 #define BCMA_CHIPCTL_4331_PCIE_AUXCLKEN		BIT(10)	/* pcie_auxclkenable */
 #define BCMA_CHIPCTL_4331_PCIE_PIPE_PLLDOWN	BIT(11)	/* pcie_pipe_pllpowerdown */
+#define BCMA_CHIPCTL_4331_EXTPA_EN2		BIT(12)	/* 0 ext pa disable, 1 ext pa enabled */
 #define BCMA_CHIPCTL_4331_BT_SHD0_ON_GPIO4	BIT(16)	/* enable bt_shd0 at gpio4 */
 #define BCMA_CHIPCTL_4331_BT_SHD1_ON_GPIO5	BIT(17)	/* enable bt_shd1 at gpio5 */
+
+/* 43224 chip-specific ChipControl register bits */
+#define BCMA_CCTRL_43224_GPIO_TOGGLE		0x8000		/* gpio[3:0] pins as btcoex or s/w gpio */
+#define BCMA_CCTRL_43224A0_12MA_LED_DRIVE	0x00F000F0	/* 12 mA drive strength */
+#define BCMA_CCTRL_43224B0_12MA_LED_DRIVE	0xF0		/* 12 mA drive strength for later 43224s */
+
+/* 4313 Chip specific ChipControl register bits */
+#define BCMA_CCTRL_4313_12MA_LED_DRIVE		0x00000007	/* 12 mA drive strengh for later 4313 */
 
 /* Data for the PMU, if available.
  * Check availability with ((struct bcma_chipcommon)->capabilities & BCMA_CC_CAP_PMU)
@@ -411,5 +496,6 @@ extern void bcma_chipco_chipctl_maskset(struct bcma_drv_cc *cc,
 					u32 offset, u32 mask, u32 set);
 extern void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc,
 				       u32 offset, u32 mask, u32 set);
+extern void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid);
 
 #endif /* LINUX_BCMA_DRIVER_CC_H_ */

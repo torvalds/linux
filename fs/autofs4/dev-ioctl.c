@@ -257,8 +257,8 @@ static int autofs_dev_ioctl_open_mountpoint(const char *name, dev_t devid)
 		 * corresponding to the autofs fs we want to open.
 		 */
 
-		filp = dentry_open(path.dentry, path.mnt, O_RDONLY,
-				   current_cred());
+		filp = dentry_open(&path, O_RDONLY, current_cred());
+		path_put(&path);
 		if (IS_ERR(filp)) {
 			err = PTR_ERR(filp);
 			goto out;

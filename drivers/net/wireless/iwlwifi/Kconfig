@@ -6,6 +6,7 @@ config IWLWIFI
 	select LEDS_CLASS
 	select LEDS_TRIGGERS
 	select MAC80211_LEDS
+	select IWLDVM
 	---help---
 	  Select to build the driver supporting the:
 
@@ -40,6 +41,10 @@ config IWLWIFI
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwlwifi.
+
+config IWLDVM
+	tristate "Intel Wireless WiFi"
+	depends on IWLWIFI
 
 menu "Debugging Options"
 	depends on IWLWIFI

@@ -34,11 +34,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/export.h>
-#include <net/sock.h>
-
 #include "core.h"
 #include "port.h"
+
+#include <linux/export.h>
+#include <net/sock.h>
 
 #define SS_LISTENING	-1	/* socket is listening */
 #define SS_READY	-2	/* socket is connectionless */
@@ -54,7 +54,7 @@ struct tipc_sock {
 };
 
 #define tipc_sk(sk) ((struct tipc_sock *)(sk))
-#define tipc_sk_port(sk) ((struct tipc_port *)(tipc_sk(sk)->p))
+#define tipc_sk_port(sk) (tipc_sk(sk)->p)
 
 #define tipc_rx_ready(sock) (!skb_queue_empty(&sock->sk->sk_receive_queue) || \
 			(sock->state == SS_DISCONNECTING))
@@ -1699,9 +1699,8 @@ static int getsockopt(struct socket *sock,
 	return put_user(sizeof(value), ol);
 }
 
-/**
- * Protocol switches for the various types of TIPC sockets
- */
+/* Protocol switches for the various types of TIPC sockets */
+
 static const struct proto_ops msg_ops = {
 	.owner		= THIS_MODULE,
 	.family		= AF_TIPC,
@@ -1788,13 +1787,13 @@ int tipc_socket_init(void)
 
 	res = proto_register(&tipc_proto, 1);
 	if (res) {
-		err("Failed to register TIPC protocol type\n");
+		pr_err("Failed to register TIPC protocol type\n");
 		goto out;
 	}
 
 	res = sock_register(&tipc_family_ops);
 	if (res) {
-		err("Failed to register TIPC socket type\n");
+		pr_err("Failed to register TIPC socket type\n");
 		proto_unregister(&tipc_proto);
 		goto out;
 	}

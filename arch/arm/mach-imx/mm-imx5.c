@@ -16,31 +16,12 @@
 #include <linux/clk.h>
 #include <linux/pinctrl/machine.h>
 
-#include <asm/system_misc.h>
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/devices-common.h>
 #include <mach/iomux-v3.h>
-
-static struct clk *gpc_dvfs_clk;
-
-static void imx5_idle(void)
-{
-	/* gpc clock is needed for SRPG */
-	if (gpc_dvfs_clk == NULL) {
-		gpc_dvfs_clk = clk_get(NULL, "gpc_dvfs");
-		if (IS_ERR(gpc_dvfs_clk))
-			return;
-		clk_prepare(gpc_dvfs_clk);
-	}
-	clk_enable(gpc_dvfs_clk);
-	mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
-	if (!tzic_enable_wake())
-		cpu_do_idle();
-	clk_disable(gpc_dvfs_clk);
-}
 
 /*
  * Define the MX50 memory map.
@@ -105,7 +86,6 @@ void __init imx51_init_early(void)
 	mxc_set_cpu_type(MXC_CPU_MX51);
 	mxc_iomux_v3_init(MX51_IO_ADDRESS(MX51_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG1_BASE_ADDR));
-	arm_pm_idle = imx5_idle;
 }
 
 void __init imx53_init_early(void)
@@ -202,6 +182,8 @@ void __init imx51_soc_init(void)
 	mxc_register_gpio("imx31-gpio", 2, MX51_GPIO3_BASE_ADDR, SZ_16K, MX51_INT_GPIO3_LOW, MX51_INT_GPIO3_HIGH);
 	mxc_register_gpio("imx31-gpio", 3, MX51_GPIO4_BASE_ADDR, SZ_16K, MX51_INT_GPIO4_LOW, MX51_INT_GPIO4_HIGH);
 
+	pinctrl_provide_dummies();
+
 	/* i.mx51 has the i.mx35 type sdma */
 	imx_add_imx_sdma("imx35-sdma", MX51_SDMA_BASE_ADDR, MX51_INT_SDMA, &imx51_sdma_pdata);
 
@@ -241,4 +223,10 @@ void __init imx53_soc_init(void)
 void __init imx51_init_late(void)
 {
 	mx51_neon_fixup();
+	imx51_pm_init();
+}
+
+void __init imx53_init_late(void)
+{
+	imx53_pm_init();
 }

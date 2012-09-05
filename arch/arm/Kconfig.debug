@@ -310,6 +310,32 @@ choice
 		  The uncompressor code port configuration is now handled
 		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
 
+	config DEBUG_VEXPRESS_UART0_DETECT
+		bool "Autodetect UART0 on Versatile Express Cortex-A core tiles"
+		depends on ARCH_VEXPRESS && CPU_CP15_MMU
+		help
+		  This option enables a simple heuristic which tries to determine
+		  the motherboard's memory map variant (original or RS1) and then
+		  choose the relevant UART0 base address.
+
+		  Note that this will only work with standard A-class core tiles,
+		  and may fail with non-standard SMM or custom software models.
+
+	config DEBUG_VEXPRESS_UART0_CA9
+		bool "Use PL011 UART0 at 0x10009000 (V2P-CA9 core tile)"
+		depends on ARCH_VEXPRESS
+		help
+		  This option selects UART0 at 0x10009000. Except for custom models,
+		  this applies only to the V2P-CA9 tile.
+
+	config DEBUG_VEXPRESS_UART0_RS1
+		bool "Use PL011 UART0 at 0x1c090000 (RS1 complaint tiles)"
+		depends on ARCH_VEXPRESS
+		help
+		  This option selects UART0 at 0x1c090000. This applies to most
+		  of the tiles using the RS1 memory map, including all new A-class
+		  core tiles, FPGA-based SMMs and software models.
+
 	config DEBUG_LL_UART_NONE
 		bool "No low-level debugging UART"
 		help

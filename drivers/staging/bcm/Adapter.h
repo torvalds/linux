@@ -7,74 +7,28 @@
 #define MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES 256
 #include "Debug.h"
 
-struct _LEADER {
+struct bcm_leader {
 	USHORT	Vcid;
 	USHORT	PLength;
 	UCHAR	Status;
 	UCHAR	Unused[3];
 } __packed;
-typedef struct _LEADER LEADER, *PLEADER;
 
-struct _PACKETTOSEND {
-	LEADER	Leader;
+struct bcm_packettosend {
+	struct bcm_leader Leader;
 	UCHAR	ucPayload;
 } __packed;
-typedef struct _PACKETTOSEND PACKETTOSEND, *PPACKETTOSEND;
 
-struct _CONTROL_PACKET {
+struct bcm_control_packet {
 	PVOID	ControlBuff;
 	UINT	ControlBuffLen;
-	struct _CONTROL_PACKET *next;
+	struct bcm_control_packet *next;
 } __packed;
-typedef struct _CONTROL_PACKET CONTROL_PACKET, *PCONTROL_PACKET;
 
-struct link_request {
-	LEADER	Leader;
+struct bcm_link_request {
+	struct bcm_leader Leader;
 	UCHAR	szData[4];
 } __packed;
-typedef struct link_request LINK_REQUEST, *PLINK_REQUEST;
-
-/* classification extension is added */
-typedef struct _ADD_CONNECTION {
-	ULONG	SrcIpAddressCount;
-	ULONG	SrcIpAddress[MAX_CONNECTIONS];
-	ULONG	SrcIpMask[MAX_CONNECTIONS];
-
-	ULONG	DestIpAddressCount;
-	ULONG	DestIpAddress[MAX_CONNECTIONS];
-	ULONG	DestIpMask[MAX_CONNECTIONS];
-
-	USHORT	SrcPortBegin;
-	USHORT	SrcPortEnd;
-
-	USHORT	DestPortBegin;
-	USHORT	DestPortEnd;
-
-	UCHAR	SrcTOS;
-	UCHAR	SrcProtocol;
-} ADD_CONNECTION, *PADD_CONNECTION;
-
-typedef struct _CLASSIFICATION_RULE {
-	UCHAR	ucIPSrcAddrLen;
-	UCHAR	ucIPSrcAddr[32];
-	UCHAR	ucIPDestAddrLen;
-	UCHAR	ucIPDestAddr[32];
-	UCHAR	ucSrcPortRangeLen;
-	UCHAR	ucSrcPortRange[4];
-	UCHAR	ucDestPortRangeLen;
-	UCHAR	ucDestPortRange[4];
-	USHORT	usVcid;
-} CLASSIFICATION_RULE, *PCLASSIFICATION_RULE;
-
-typedef struct _CLASSIFICATION_ONLY {
-	USHORT	usVcid;
-	ULONG	DestIpAddress;
-	ULONG	DestIpMask;
-	USHORT	usPortLo;
-	USHORT	usPortHi;
-	BOOLEAN	bIpVersion;
-	UCHAR	ucDestinationAddress[16];
-} CLASSIFICATION_ONLY, *PCLASSIFICATION_ONLY;
 
 #define MAX_IP_RANGE_LENGTH 4
 #define MAX_PORT_RANGE 4
@@ -99,14 +53,13 @@ typedef union _U_IP_ADDRESS {
 		UCHAR ucIpv6Mask[MAX_IP_RANGE_LENGTH * IPV6_ADDRESS_SIZEINBYTES];
 	};
 } U_IP_ADDRESS;
-struct _packet_info;
 
-typedef struct _S_HDR_SUPRESSION_CONTEXTINFO {
-	UCHAR ucaHdrSupressionInBuf[MAX_PHS_LENGTHS]; /* Intermediate buffer to accumulate pkt Header for PHS */
-	UCHAR ucaHdrSupressionOutBuf[MAX_PHS_LENGTHS + PHSI_LEN]; /* Intermediate buffer containing pkt Header after PHS */
-} S_HDR_SUPRESSION_CONTEXTINFO;
+struct bcm_hdr_suppression_contextinfo {
+	UCHAR ucaHdrSuppressionInBuf[MAX_PHS_LENGTHS]; /* Intermediate buffer to accumulate pkt Header for PHS */
+	UCHAR ucaHdrSuppressionOutBuf[MAX_PHS_LENGTHS + PHSI_LEN]; /* Intermediate buffer containing pkt Header after PHS */
+};
 
-typedef struct _S_CLASSIFIER_RULE {
+struct bcm_classifier_rule {
 	ULONG		ulSFID;
 	UCHAR		ucReserved[2];
 	B_UINT16	uiClassifierRuleIndex;
@@ -157,18 +110,17 @@ typedef struct _S_CLASSIFIER_RULE {
 	UCHAR		usUserPriority[2];
 	USHORT		usVLANID;
 	USHORT		usValidityBitMap;
-} S_CLASSIFIER_RULE;
-/* typedef struct _S_CLASSIFIER_RULE S_CLASSIFIER_RULE; */
+};
 
-typedef struct _S_FRAGMENTED_PACKET_INFO {
+struct bcm_fragmented_packet_info {
 	BOOLEAN			bUsed;
 	ULONG			ulSrcIpAddress;
 	USHORT			usIpIdentification;
-	S_CLASSIFIER_RULE	*pstMatchedClassifierEntry;
+	struct bcm_classifier_rule *pstMatchedClassifierEntry;
 	BOOLEAN			bOutOfOrderFragment;
-} S_FRAGMENTED_PACKET_INFO, *PS_FRAGMENTED_PACKET_INFO;
+};
 
-struct _packet_info {
+struct bcm_packet_info {
 	/* classification extension Rule */
 	ULONG		ulSFID;
 	USHORT		usVCID_Value;
@@ -237,11 +189,10 @@ struct _packet_info {
 	UCHAR		bIPCSSupport;
 	UCHAR		bEthCSSupport;
 };
-typedef struct _packet_info PacketInfo;
 
-typedef struct _PER_TARANG_DATA {
-	struct _PER_TARANG_DATA	*next;
-	struct _MINI_ADAPTER	*Adapter;
+struct bcm_tarang_data {
+	struct bcm_tarang_data	*next;
+	struct bcm_mini_adapter	*Adapter;
 	struct sk_buff		*RxAppControlHead;
 	struct sk_buff		*RxAppControlTail;
 	int			AppCtrlQueueLen;
@@ -249,104 +200,23 @@ typedef struct _PER_TARANG_DATA {
 	BOOLEAN			bApplicationToExit;
 	S_MIBS_DROPPED_APP_CNTRL_MESSAGES	stDroppedAppCntrlMsgs;
 	ULONG			RxCntrlMsgBitMask;
-} PER_TARANG_DATA, *PPER_TARANG_DATA;
+};
 
-#ifdef REL_4_1
-typedef struct _TARGET_PARAMS {
-	B_UINT32 m_u32CfgVersion;
-
-	/* Scanning Related Params */
-	B_UINT32 m_u32CenterFrequency;
-	B_UINT32 m_u32BandAScan;
-	B_UINT32 m_u32BandBScan;
-	B_UINT32 m_u32BandCScan;
-
-	/* QoS Params */
-	B_UINT32 m_u32minGrantsize;	/* size of minimum grant is 0 or 6 */
-	B_UINT32 m_u32PHSEnable;
-
-	/* HO Params */
-	B_UINT32 m_u32HoEnable;
-	B_UINT32 m_u32HoReserved1;
-	B_UINT32 m_u32HoReserved2;
-
-	/* Power Control Params */
-	B_UINT32 m_u32MimoEnable;
-	B_UINT32 m_u32SecurityEnable;
-	/*
-	 * bit 1: 1 Idlemode enable;
-	 * bit 2: 1 Sleepmode Enable
-	 */
-	B_UINT32 m_u32PowerSavingModesEnable;
-	/* PowerSaving Mode Options:
-	 * bit 0 = 1: CPE mode - to keep pcmcia if alive;
-	 * bit 1 = 1: CINR reporing in Idlemode Msg
-	 * bit 2 = 1: Default PSC Enable in sleepmode
-	 */
-	B_UINT32 m_u32PowerSavingModeOptions;
-
-	B_UINT32 m_u32ArqEnable;
-
-	/* From Version #3, the HARQ section renamed as general */
-	B_UINT32 m_u32HarqEnable;
-	/* EEPROM Param Location */
-	B_UINT32 m_u32EEPROMFlag;
-	/* BINARY TYPE - 4th MSByte:
-	 * Interface Type -  3rd MSByte:
-	 * Vendor Type - 2nd MSByte
-	 */
-	/* Unused - LSByte */
-	B_UINT32 m_u32Customize;
-	B_UINT32 m_u32ConfigBW;  /* In Hz */
-	B_UINT32 m_u32ShutDownTimer;
-	B_UINT32 m_u32RadioParameter;
-	B_UINT32 m_u32PhyParameter1;
-	B_UINT32 m_u32PhyParameter2;
-	B_UINT32 m_u32PhyParameter3;
-
-	/* in eval mode only;
-	 * lower 16bits = basic cid for testing;
-	 * then bit 16 is test cqich,
-	 * bit 17  test init rang;
-	 * bit 18 test periodic rang
-	 * bit 19 is test harq ack/nack
-	 */
-	B_UINT32 m_u32TestOptions;
-	B_UINT32 m_u32MaxMACDataperDLFrame;
-	B_UINT32 m_u32MaxMACDataperULFrame;
-	B_UINT32 m_u32Corr2MacFlags;
-
-	/* adding driver params. */
-	B_UINT32 HostDrvrConfig1;
-	B_UINT32 HostDrvrConfig2;
-	B_UINT32 HostDrvrConfig3;
-	B_UINT32 HostDrvrConfig4;
-	B_UINT32 HostDrvrConfig5;
-	B_UINT32 HostDrvrConfig6;
-	B_UINT32 m_u32SegmentedPUSCenable;
-
-	/* BAMC enable - but 4.x does not support this feature
-	 * This is added just to sync 4.x and 5.x CFGs
-	 */
-	B_UINT32 m_u32BandAMCEnable;
-} STARGETPARAMS, *PSTARGETPARAMS;
-#endif
-
-typedef struct _STTARGETDSXBUFFER {
+struct bcm_targetdsx_buffer {
 	ULONG		ulTargetDsxBuffer;
 	B_UINT16	tid;
 	BOOLEAN		valid;
-} STTARGETDSXBUFFER, *PSTTARGETDSXBUFFER;
+};
 
-typedef int (*FP_FLASH_WRITE)(struct _MINI_ADAPTER *, UINT, PVOID);
+typedef int (*FP_FLASH_WRITE)(struct bcm_mini_adapter *, UINT, PVOID);
 
-typedef int (*FP_FLASH_WRITE_STATUS)(struct _MINI_ADAPTER *, UINT, PVOID);
+typedef int (*FP_FLASH_WRITE_STATUS)(struct bcm_mini_adapter *, UINT, PVOID);
 
 /*
  * Driver adapter data structure
  */
-struct _MINI_ADAPTER {
-	struct _MINI_ADAPTER	*next;
+struct bcm_mini_adapter {
+	struct bcm_mini_adapter	*next;
 	struct net_device	*dev;
 	u32			msg_enable;
 	CHAR			*caDsxReqResp;
@@ -361,7 +231,7 @@ struct _MINI_ADAPTER {
 	struct sk_buff		*RxControlTail;
 	struct semaphore	RxAppControlQueuelock;
 	struct semaphore	fw_download_sema;
-	PPER_TARANG_DATA	pTarangs;
+	struct bcm_tarang_data	*pTarangs;
 	spinlock_t		control_queue_lock;
 	wait_queue_head_t	process_read_wait_queue;
 
@@ -377,8 +247,8 @@ struct _MINI_ADAPTER {
 	USHORT			PrevNumRecvDescs;
 	USHORT			CurrNumRecvDescs;
 	UINT			u32TotalDSD;
-	PacketInfo		PackInfo[NO_OF_QUEUES];
-	S_CLASSIFIER_RULE	astClassifierTable[MAX_CLASSIFIERS];
+	struct bcm_packet_info	PackInfo[NO_OF_QUEUES];
+	struct bcm_classifier_rule astClassifierTable[MAX_CLASSIFIERS];
 	BOOLEAN			TransferMode;
 
 	/*************** qos ******************/
@@ -404,7 +274,7 @@ struct _MINI_ADAPTER {
 	UINT			index_datpkt;
 	struct semaphore	rdmwrmsync;
 
-	STTARGETDSXBUFFER	astTargetDsxBuffer[MAX_TARGET_DSX_BUFFERS];
+	struct bcm_targetdsx_buffer	astTargetDsxBuffer[MAX_TARGET_DSX_BUFFERS];
 	ULONG			ulFreeTargetBufferCnt;
 	ULONG			ulCurrentTargetBuffer;
 	ULONG			ulTotalTargetBuffersAvailable;
@@ -464,7 +334,7 @@ struct _MINI_ADAPTER {
 	BOOLEAN			bLinkDownRequested;
 	int			downloadDDR;
 	PHS_DEVICE_EXTENSION	stBCMPhsContext;
-	S_HDR_SUPRESSION_CONTEXTINFO stPhsTxContextInfo;
+	struct bcm_hdr_suppression_contextinfo stPhsTxContextInfo;
 	uint8_t			ucaPHSPktRestoreBuf[2048];
 	uint8_t			bPHSEnabled;
 	BOOLEAN			AutoFirmDld;
@@ -472,7 +342,7 @@ struct _MINI_ADAPTER {
 	BOOLEAN			bDPLLConfig;
 	UINT32			aTxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
 	UINT32			aRxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
-	S_FRAGMENTED_PACKET_INFO astFragmentedPktClassifierTable[MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES];
+	struct bcm_fragmented_packet_info astFragmentedPktClassifierTable[MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES];
 	atomic_t		uiMBupdate;
 	UINT32			PmuMode;
 	NVM_TYPE		eNVMType;
@@ -524,37 +394,29 @@ struct _MINI_ADAPTER {
 	UINT			gpioBitMap;
 	S_BCM_DEBUG_STATE	stDebugState;
 };
-typedef struct _MINI_ADAPTER MINI_ADAPTER, *PMINI_ADAPTER;
 
 #define GET_BCM_ADAPTER(net_dev) netdev_priv(net_dev)
 
-struct _ETH_HEADER_STRUC {
+struct bcm_eth_header {
 	UCHAR	au8DestinationAddress[6];
 	UCHAR	au8SourceAddress[6];
 	USHORT	u16Etype;
 } __packed;
-typedef struct _ETH_HEADER_STRUC ETH_HEADER_STRUC, *PETH_HEADER_STRUC;
 
-typedef struct FirmwareInfo {
+struct bcm_firmware_info {
 	void	__user *pvMappedFirmwareAddress;
 	ULONG	u32FirmwareLength;
 	ULONG	u32StartingAddress;
-} __packed FIRMWARE_INFO, *PFIRMWARE_INFO;
+} __packed;
 
 /* holds the value of net_device structure.. */
 extern struct net_device *gblpnetdev;
-typedef struct _cntl_pkt {
-	PMINI_ADAPTER	Adapter;
-	PLEADER		PLeader;
-} cntl_pkt;
-typedef LINK_REQUEST CONTROL_MESSAGE;
 
-typedef struct _DDR_SETTING {
+struct bcm_ddr_setting {
 	UINT ulRegAddress;
 	UINT ulRegValue;
-} DDR_SETTING, *PDDR_SETTING;
-typedef DDR_SETTING DDR_SET_NODE, *PDDR_SET_NODE;
-int InitAdapter(PMINI_ADAPTER psAdapter);
+};
+int InitAdapter(struct bcm_mini_adapter *psAdapter);
 
 /* =====================================================================
  * Beceem vendor request codes for EP0
@@ -585,9 +447,9 @@ int InitAdapter(PMINI_ADAPTER psAdapter);
 #define EP5 4
 #define EP6 5
 
-typedef enum eInterface_setting {
+enum bcm_einterface_setting {
 	DEFAULT_SETTING_0  = 0,
 	ALTERNATE_SETTING_1 = 1,
-} INTERFACE_SETTING;
+};
 
 #endif	/* __ADAPTER_H__ */

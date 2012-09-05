@@ -63,7 +63,7 @@ static struct dentry *mount_mtd_aux(struct file_system_type *fs_type, int flags,
 	struct super_block *sb;
 	int ret;
 
-	sb = sget(fs_type, get_sb_mtd_compare, get_sb_mtd_set, mtd);
+	sb = sget(fs_type, get_sb_mtd_compare, get_sb_mtd_set, flags, mtd);
 	if (IS_ERR(sb))
 		goto out_error;
 
@@ -73,8 +73,6 @@ static struct dentry *mount_mtd_aux(struct file_system_type *fs_type, int flags,
 	/* fresh new superblock */
 	pr_debug("MTDSB: New superblock for device %d (\"%s\")\n",
 	      mtd->index, mtd->name);
-
-	sb->s_flags = flags;
 
 	ret = fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 	if (ret < 0) {

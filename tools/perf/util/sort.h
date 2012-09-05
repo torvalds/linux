@@ -71,6 +71,7 @@ struct hist_entry {
 	char			level;
 	bool			used;
 	u8			filtered;
+	char			*srcline;
 	struct symbol		*parent;
 	union {
 		unsigned long	  position;
@@ -93,6 +94,7 @@ enum sort_type {
 	SORT_SYM_FROM,
 	SORT_SYM_TO,
 	SORT_MISPREDICT,
+	SORT_SRCLINE,
 };
 
 /*

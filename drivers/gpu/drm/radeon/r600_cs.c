@@ -2079,6 +2079,48 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		break;
+	case PACKET3_STRMOUT_BASE_UPDATE:
+		if (p->family < CHIP_RV770) {
+			DRM_ERROR("STRMOUT_BASE_UPDATE only supported on 7xx\n");
+			return -EINVAL;
+		}
+		if (pkt->count != 1) {
+			DRM_ERROR("bad STRMOUT_BASE_UPDATE packet count\n");
+			return -EINVAL;
+		}
+		if (idx_value > 3) {
+			DRM_ERROR("bad STRMOUT_BASE_UPDATE index\n");
+			return -EINVAL;
+		}
+		{
+			u64 offset;
+
+			r = r600_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE reloc\n");
+				return -EINVAL;
+			}
+
+			if (reloc->robj != track->vgt_strmout_bo[idx_value]) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo does not match\n");
+				return -EINVAL;
+			}
+
+			offset = radeon_get_ib_value(p, idx+1) << 8;
+			if (offset != track->vgt_strmout_bo_offset[idx_value]) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo offset does not match: 0x%llx, 0x%x\n",
+					  offset, track->vgt_strmout_bo_offset[idx_value]);
+				return -EINVAL;
+			}
+
+			if ((offset + 4) > radeon_bo_size(reloc->robj)) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE bo too small: 0x%llx, 0x%lx\n",
+					  offset + 4, radeon_bo_size(reloc->robj));
+				return -EINVAL;
+			}
+			ib[idx+1] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		}
+		break;
 	case PACKET3_SURFACE_BASE_UPDATE:
 		if (p->family >= CHIP_RV770 || p->family == CHIP_R600) {
 			DRM_ERROR("bad SURFACE_BASE_UPDATE\n");

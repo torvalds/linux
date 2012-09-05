@@ -770,7 +770,7 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct ieee80211_tx_rate *rates = tx_info->control.rates;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 fc = hdr->frame_control;
-	u8 try_per_rate, i = 0, rix, high_rix;
+	u8 try_per_rate, i = 0, rix;
 	int is_probe = 0;
 
 	if (rate_control_send_low(sta, priv_sta, txrc))
@@ -791,7 +791,6 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	rate_table = ath_rc_priv->rate_table;
 	rix = ath_rc_get_highest_rix(sc, ath_rc_priv, rate_table,
 				     &is_probe, false);
-	high_rix = rix;
 
 	/*
 	 * If we're in HT mode and both us and our peer supports LDPC.
@@ -839,16 +838,16 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	try_per_rate = 8;
 
 	/*
-	 * Use a legacy rate as last retry to ensure that the frame
-	 * is tried in both MCS and legacy rates.
+	 * If the last rate in the rate series is MCS and has
+	 * more than 80% of per thresh, then use a legacy rate
+	 * as last retry to ensure that the frame is tried in both
+	 * MCS and legacy rate.
 	 */
-	if ((rates[2].flags & IEEE80211_TX_RC_MCS) &&
-	    (!(tx_info->flags & IEEE80211_TX_CTL_AMPDU) ||
-	    (ath_rc_priv->per[high_rix] > 45)))
+	ath_rc_get_lower_rix(rate_table, ath_rc_priv, rix, &rix);
+	if (WLAN_RC_PHY_HT(rate_table->info[rix].phy) &&
+	    (ath_rc_priv->per[rix] > 45))
 		rix = ath_rc_get_highest_rix(sc, ath_rc_priv, rate_table,
 				&is_probe, true);
-	else
-		ath_rc_get_lower_rix(rate_table, ath_rc_priv, rix, &rix);
 
 	/* All other rates in the series have RTS enabled */
 	ath_rc_rate_set_series(rate_table, &rates[i], txrc,

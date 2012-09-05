@@ -277,7 +277,7 @@ struct ibm_struct {
 	int (*write) (char *);
 	void (*exit) (void);
 	void (*resume) (void);
-	void (*suspend) (pm_message_t state);
+	void (*suspend) (void);
 	void (*shutdown) (void);
 
 	struct list_head all_drivers;
@@ -922,8 +922,7 @@ static struct input_dev *tpacpi_inputdev;
 static struct mutex tpacpi_inputdev_send_mutex;
 static LIST_HEAD(tpacpi_all_drivers);
 
-static int tpacpi_suspend_handler(struct platform_device *pdev,
-				  pm_message_t state)
+static int tpacpi_suspend_handler(struct device *dev)
 {
 	struct ibm_struct *ibm, *itmp;
 
@@ -931,13 +930,13 @@ static int tpacpi_suspend_handler(struct platform_device *pdev,
 				 &tpacpi_all_drivers,
 				 all_drivers) {
 		if (ibm->suspend)
-			(ibm->suspend)(state);
+			(ibm->suspend)();
 	}
 
 	return 0;
 }
 
-static int tpacpi_resume_handler(struct platform_device *pdev)
+static int tpacpi_resume_handler(struct device *dev)
 {
 	struct ibm_struct *ibm, *itmp;
 
@@ -950,6 +949,9 @@ static int tpacpi_resume_handler(struct platform_device *pdev)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(tpacpi_pm,
+			 tpacpi_suspend_handler, tpacpi_resume_handler);
 
 static void tpacpi_shutdown_handler(struct platform_device *pdev)
 {
@@ -967,9 +969,8 @@ static struct platform_driver tpacpi_pdriver = {
 	.driver = {
 		.name = TPACPI_DRVR_NAME,
 		.owner = THIS_MODULE,
+		.pm = &tpacpi_pm,
 	},
-	.suspend = tpacpi_suspend_handler,
-	.resume = tpacpi_resume_handler,
 	.shutdown = tpacpi_shutdown_handler,
 };
 
@@ -3758,7 +3759,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 	}
 }
 
-static void hotkey_suspend(pm_message_t state)
+static void hotkey_suspend(void)
 {
 	/* Do these on suspend, we get the events on early resume! */
 	hotkey_wakeup_reason = TP_ACPI_WAKEUP_NONE;
@@ -6329,7 +6330,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	return 0;
 }
 
-static void brightness_suspend(pm_message_t state)
+static void brightness_suspend(void)
 {
 	tpacpi_brightness_checkpoint_nvram();
 }
@@ -6748,7 +6749,7 @@ static struct snd_kcontrol_new volume_alsa_control_mute __devinitdata = {
 	.get = volume_alsa_mute_get,
 };
 
-static void volume_suspend(pm_message_t state)
+static void volume_suspend(void)
 {
 	tpacpi_volume_checkpoint_nvram();
 }
@@ -8107,7 +8108,7 @@ static void fan_exit(void)
 	flush_workqueue(tpacpi_wq);
 }
 
-static void fan_suspend(pm_message_t state)
+static void fan_suspend(void)
 {
 	int rc;
 

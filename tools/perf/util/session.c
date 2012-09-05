@@ -14,6 +14,7 @@
 #include "sort.h"
 #include "util.h"
 #include "cpumap.h"
+#include "event-parse.h"
 
 static int perf_session__open(struct perf_session *self, bool force)
 {
@@ -289,7 +290,6 @@ struct branch_info *machine__resolve_bstack(struct machine *self,
 }
 
 int machine__resolve_callchain(struct machine *self,
-			       struct perf_evsel *evsel __used,
 			       struct thread *thread,
 			       struct ip_callchain *chain,
 			       struct symbol **parent)
@@ -440,6 +440,16 @@ static void perf_tool__fill_defaults(struct perf_tool *tool)
 			tool->finished_round = process_finished_round;
 		else
 			tool->finished_round = process_finished_round_stub;
+	}
+}
+ 
+void mem_bswap_32(void *src, int byte_size)
+{
+	u32 *m = src;
+	while (byte_size > 0) {
+		*m = bswap_32(*m);
+		byte_size -= sizeof(u32);
+		++m;
 	}
 }
 
@@ -916,7 +926,7 @@ static struct machine *
 		else
 			pid = event->ip.pid;
 
-		return perf_session__find_machine(session, pid);
+		return perf_session__findnew_machine(session, pid);
 	}
 
 	return perf_session__find_host_machine(session);
@@ -1439,7 +1449,7 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 	ret += hists__fprintf_nr_events(&session->hists, fp);
 
 	list_for_each_entry(pos, &session->evlist->entries, node) {
-		ret += fprintf(fp, "%s stats:\n", event_name(pos));
+		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
 		ret += hists__fprintf_nr_events(&pos->hists, fp);
 	}
 
@@ -1480,8 +1490,8 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 }
 
 void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
-			  struct machine *machine, struct perf_evsel *evsel,
-			  int print_sym, int print_dso, int print_symoffset)
+			  struct machine *machine, int print_sym,
+			  int print_dso, int print_symoffset)
 {
 	struct addr_location al;
 	struct callchain_cursor_node *node;
@@ -1495,7 +1505,7 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 
 	if (symbol_conf.use_callchain && sample->callchain) {
 
-		if (machine__resolve_callchain(machine, evsel, al.thread,
+		if (machine__resolve_callchain(machine, al.thread,
 						sample->callchain, NULL) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");
@@ -1600,4 +1610,59 @@ void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
 	fprintf(fp, "# captured on: %s", ctime(&st.st_ctime));
 	perf_header__fprintf_info(session, fp, full);
 	fprintf(fp, "# ========\n#\n");
+}
+
+
+int __perf_session__set_tracepoints_handlers(struct perf_session *session,
+					     const struct perf_evsel_str_handler *assocs,
+					     size_t nr_assocs)
+{
+	struct perf_evlist *evlist = session->evlist;
+	struct event_format *format;
+	struct perf_evsel *evsel;
+	char *tracepoint, *name;
+	size_t i;
+	int err;
+
+	for (i = 0; i < nr_assocs; i++) {
+		err = -ENOMEM;
+		tracepoint = strdup(assocs[i].name);
+		if (tracepoint == NULL)
+			goto out;
+
+		err = -ENOENT;
+		name = strchr(tracepoint, ':');
+		if (name == NULL)
+			goto out_free;
+
+		*name++ = '\0';
+		format = pevent_find_event_by_name(session->pevent,
+						   tracepoint, name);
+		if (format == NULL) {
+			/*
+			 * Adding a handler for an event not in the session,
+			 * just ignore it.
+			 */
+			goto next;
+		}
+
+		evsel = perf_evlist__find_tracepoint_by_id(evlist, format->id);
+		if (evsel == NULL)
+			goto next;
+
+		err = -EEXIST;
+		if (evsel->handler.func != NULL)
+			goto out_free;
+		evsel->handler.func = assocs[i].handler;
+next:
+		free(tracepoint);
+	}
+
+	err = 0;
+out:
+	return err;
+
+out_free:
+	free(tracepoint);
+	goto out;
 }

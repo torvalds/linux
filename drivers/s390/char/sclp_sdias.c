@@ -1,7 +1,7 @@
 /*
  * Sclp "store data in absolut storage"
  *
- * Copyright IBM Corp. 2003,2007
+ * Copyright IBM Corp. 2003, 2007
  * Author(s): Michael Holzheu
  */
 

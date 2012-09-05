@@ -329,7 +329,7 @@ F:	drivers/hwmon/adm1029.c
 
 ADM8211 WIRELESS DRIVER
 L:	linux-wireless@vger.kernel.org
-W:	http://linuxwireless.org/
+W:	http://wireless.kernel.org/
 S:	Orphan
 F:	drivers/net/wireless/adm8211.*
 
@@ -579,7 +579,7 @@ F:	drivers/net/appletalk/
 F:	net/appletalk/
 
 ARASAN COMPACT FLASH PATA CONTROLLER
-M:	Viresh Kumar <viresh.kumar@st.com>
+M:     Viresh Kumar <viresh.linux@gmail.com>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
 F:	include/linux/pata_arasan_cf_data.h
@@ -894,6 +894,14 @@ ARM/MAGICIAN MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
 
+ARM/Marvell Armada 370 and Armada XP SOC support
+M:	Jason Cooper <jason@lakedaemon.net>
+M:	Andrew Lunn <andrew@lunn.ch>
+M:	Gregory Clement <gregory.clement@free-electrons.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-mvebu/
+
 ARM/Marvell Dove/Kirkwood/MV78xx0/Orion SOC support
 M:	Jason Cooper <jason@lakedaemon.net>
 M:	Andrew Lunn <andrew@lunn.ch>
@@ -1102,6 +1110,16 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git rmobile-l
 S:	Supported
 F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
+
+ARM/SOCFPGA ARCHITECTURE
+M:	Dinh Nguyen <dinguyen@altera.com>
+S:	Maintained
+F:	arch/arm/mach-socfpga/
+
+ARM/SOCFPGA CLOCK FRAMEWORK SUPPORT
+M:	Dinh Nguyen <dinguyen@altera.com>
+S:	Maintained
+F:	drivers/clk/socfpga/
 
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -1423,7 +1441,7 @@ B43 WIRELESS DRIVER
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 L:	linux-wireless@vger.kernel.org
 L:	b43-dev@lists.infradead.org
-W:	http://linuxwireless.org/en/users/Drivers/b43
+W:	http://wireless.kernel.org/en/users/Drivers/b43
 S:	Maintained
 F:	drivers/net/wireless/b43/
 
@@ -1432,7 +1450,7 @@ M:	Larry Finger <Larry.Finger@lwfinger.net>
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 L:	linux-wireless@vger.kernel.org
 L:	b43-dev@lists.infradead.org
-W:	http://linuxwireless.org/en/users/Drivers/b43
+W:	http://wireless.kernel.org/en/users/Drivers/b43
 S:	Maintained
 F:	drivers/net/wireless/b43legacy/
 
@@ -1595,6 +1613,7 @@ M:	Arend van Spriel <arend@broadcom.com>
 M:	Franky (Zhenhui) Lin <frankyl@broadcom.com>
 M:	Kan Yan	<kanyan@broadcom.com>
 L:	linux-wireless@vger.kernel.org
+L:	brcm80211-dev-list@broadcom.com
 S:	Supported
 F:	drivers/net/wireless/brcm80211/
 
@@ -2709,6 +2728,14 @@ M:	Mimi Zohar <zohar@us.ibm.com>
 S:	Supported
 F:	security/integrity/evm/
 
+EXTERNAL CONNECTOR SUBSYSTEM (EXTCON)
+M:	MyungJoo Ham <myungjoo.ham@samsung.com>
+M:	Chanwoo Choi <cw00.choi@samsung.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/extcon/
+F:	Documentation/extcon/
+
 EXYNOS DP DRIVER
 M:	Jingoo Han <jg1.han@samsung.com>
 L:	linux-fbdev@vger.kernel.org
@@ -3433,13 +3460,14 @@ S:	Supported
 F:	drivers/idle/i7300_idle.c
 
 IEEE 802.15.4 SUBSYSTEM
+M:	Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
-M:	Sergey Lapin <slapin@ossfans.org>
 L:	linux-zigbee-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://apps.sourceforge.net/trac/linux-zigbee
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lowpan/lowpan.git
 S:	Maintained
 F:	net/ieee802154/
+F:	net/mac802154/
 F:	drivers/ieee802154/
 
 IIO SUBSYSTEM AND DRIVERS
@@ -3659,14 +3687,6 @@ W:	http://intellinuxwireless.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi.git
 S:	Supported
 F:	drivers/net/wireless/iwlwifi/
-
-INTEL WIRELESS MULTICOMM 3200 WIFI (iwmc3200wifi)
-M:	Samuel Ortiz <samuel.ortiz@intel.com>
-M:	Intel Linux Wireless <ilw@linux.intel.com>
-L:	linux-wireless@vger.kernel.org
-S:	Supported
-W:	http://wireless.kernel.org/en/users/Drivers/iwmc3200wifi
-F:	drivers/net/wireless/iwmc3200wifi/
 
 INTEL MANAGEMENT ENGINE (mei)
 M:	Tomas Winkler <tomas.winkler@intel.com>
@@ -3990,8 +4010,8 @@ F:	arch/ia64/include/asm/kvm*
 F:	arch/ia64/kvm/
 
 KERNEL VIRTUAL MACHINE for s390 (KVM/s390)
-M:	Carsten Otte <cotte@de.ibm.com>
 M:	Christian Borntraeger <borntraeger@de.ibm.com>
+M:	Cornelia Huck <cornelia.huck@de.ibm.com>
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -4351,7 +4371,7 @@ F:	arch/m68k/hp300/
 MAC80211
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
-W:	http://linuxwireless.org/
+W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 S:	Maintained
@@ -4363,7 +4383,7 @@ MAC80211 PID RATE CONTROL
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 M:	Mattias Nissler <mattias.nissler@gmx.de>
 L:	linux-wireless@vger.kernel.org
-W:	http://linuxwireless.org/en/developers/Documentation/mac80211/RateControl/PID
+W:	http://wireless.kernel.org/en/developers/Documentation/mac80211/RateControl/PID
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jberg/mac80211-next.git
 S:	Maintained
@@ -4592,7 +4612,6 @@ S:	Maintained
 F:	drivers/usb/musb/
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
-M:	Jon Mason <mason@myri.com>
 M:	Andrew Gallatin <gallatin@myri.com>
 L:	netdev@vger.kernel.org
 W:	http://www.myri.com/scs/download-Myri10GE.html
@@ -4637,8 +4656,6 @@ F:	net/sched/sch_netem.c
 NETERION 10GbE DRIVERS (s2io/vxge)
 M:	Jon Mason <jdmason@kudzu.us>
 L:	netdev@vger.kernel.org
-W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/Linux?Anonymous
-W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/X3100Linux?Anonymous
 S:	Supported
 F:	Documentation/networking/s2io.txt
 F:	Documentation/networking/vxge.txt
@@ -4654,8 +4671,8 @@ L:	netfilter@vger.kernel.org
 L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf-2.6.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netfilter/nf-next-2.6.git
+T:	git git://1984.lsi.us.es/nf
+T:	git git://1984.lsi.us.es/nf-next
 S:	Supported
 F:	include/linux/netfilter*
 F:	include/linux/netfilter/
@@ -4857,6 +4874,7 @@ M:	Kevin Hilman <khilman@ti.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	arch/arm/*omap*/*pm*
+F:	drivers/cpufreq/omap-cpufreq.c
 
 OMAP POWERDOMAIN/CLOCKDOMAIN SOC ADAPTATION LAYER SUPPORT
 M:	Rajendra Nayak <rnayak@ti.com>
@@ -5048,7 +5066,7 @@ F:	fs/ocfs2/
 
 ORINOCO DRIVER
 L:	linux-wireless@vger.kernel.org
-W:	http://linuxwireless.org/en/users/Drivers/orinoco
+W:	http://wireless.kernel.org/en/users/Drivers/orinoco
 W:	http://www.nongnu.org/orinoco/
 S:	Orphan
 F:	drivers/net/wireless/orinoco/
@@ -5200,7 +5218,7 @@ PCI SUBSYSTEM
 M:	Bjorn Helgaas <bhelgaas@google.com>
 L:	linux-pci@vger.kernel.org
 Q:	http://patchwork.ozlabs.org/project/linux-pci/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/helgaas/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/helgaas/pci.git
 S:	Supported
 F:	Documentation/PCI/
 F:	drivers/pci/
@@ -5296,7 +5314,7 @@ S:	Maintained
 F:	drivers/pinctrl/
 
 PIN CONTROLLER - ST SPEAR
-M:	Viresh Kumar <viresh.kumar@st.com>
+M:     Viresh Kumar <viresh.linux@gmail.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
@@ -5563,7 +5581,7 @@ F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
-M:	Anirban Chakraborty <anirban.chakraborty@qlogic.com>
+M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
 M:	Sony Chacko <sony.chacko@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
@@ -5571,7 +5589,6 @@ S:	Supported
 F:	drivers/net/ethernet/qlogic/qlcnic/
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
-M:	Anirban Chakraborty <anirban.chakraborty@qlogic.com>
 M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
 M:	Ron Mercer <ron.mercer@qlogic.com>
 M:	linux-driver@qlogic.com
@@ -5753,7 +5770,7 @@ F:	net/rose/
 RTL8180 WIRELESS DRIVER
 M:	"John W. Linville" <linville@tuxdriver.com>
 L:	linux-wireless@vger.kernel.org
-W:	http://linuxwireless.org/
+W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
 F:	drivers/net/wireless/rtl818x/rtl8180/
@@ -5763,7 +5780,7 @@ M:	Herton Ronaldo Krzesinski <herton@canonical.com>
 M:	Hin-Tak Leung <htl10@users.sourceforge.net>
 M:	Larry Finger <Larry.Finger@lwfinger.net>
 L:	linux-wireless@vger.kernel.org
-W:	http://linuxwireless.org/
+W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
 F:	drivers/net/wireless/rtl818x/rtl8187/
@@ -5772,7 +5789,7 @@ RTL8192CE WIRELESS DRIVER
 M:	Larry Finger <Larry.Finger@lwfinger.net>
 M:	Chaoming Li <chaoming_li@realsil.com.cn>
 L:	linux-wireless@vger.kernel.org
-W:	http://linuxwireless.org/
+W:	http://wireless.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
 F:	drivers/net/wireless/rtlwifi/
@@ -5873,7 +5890,7 @@ S:	Maintained
 F:	drivers/tty/serial
 
 SYNOPSYS DESIGNWARE DMAC DRIVER
-M:	Viresh Kumar <viresh.kumar@st.com>
+M:     Viresh Kumar <viresh.linux@gmail.com>
 S:	Maintained
 F:	include/linux/dw_dmac.h
 F:	drivers/dma/dw_dmac_regs.h
@@ -5909,7 +5926,7 @@ M:	Ingo Molnar <mingo@redhat.com>
 M:	Peter Zijlstra <peterz@infradead.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git sched/core
 S:	Maintained
-F:	kernel/sched*
+F:	kernel/sched/
 F:	include/linux/sched.h
 
 SCORE ARCHITECTURE
@@ -6021,7 +6038,7 @@ S:	Maintained
 F:	drivers/mmc/host/sdhci-s3c.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) ST SPEAR DRIVER
-M:	Viresh Kumar <viresh.kumar@st.com>
+M:     Viresh Kumar <viresh.linux@gmail.com>
 L:	spear-devel@list.st.com
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
@@ -6211,6 +6228,15 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
 F:	include/linux/srcu*
 F:	kernel/srcu*
 
+SMACK SECURITY MODULE
+M:	Casey Schaufler <casey@schaufler-ca.com>
+L:	linux-security-module@vger.kernel.org
+W:	http://schaufler-ca.com
+T:	git git://git.gitorious.org/smack-next/kernel.git
+S:	Maintained
+F:	Documentation/security/Smack.txt
+F:	security/smack/
+
 SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
@@ -6224,9 +6250,9 @@ F:	Documentation/hwmon/smm665
 F:	drivers/hwmon/smm665.c
 
 SMSC EMC2103 HARDWARE MONITOR DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	lm-sensors@lm-sensors.org
-S:	Supported
+S:	Maintained
 F:	Documentation/hwmon/emc2103
 F:	drivers/hwmon/emc2103.c
 
@@ -6245,22 +6271,22 @@ F:	Documentation/hwmon/smsc47b397
 F:	drivers/hwmon/smsc47b397.c
 
 SMSC911x ETHERNET DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	include/linux/smsc911x.h
 F:	drivers/net/ethernet/smsc/smsc911x.*
 
 SMSC9420 PCI ETHERNET DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ethernet/smsc/smsc9420.*
 
 SMSC UFX6000 and UFX7000 USB to VGA DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	linux-fbdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/video/smscufx.c
 
 SN-IA64 (Itanium) SUB-PLATFORM
@@ -6377,7 +6403,7 @@ S:	Maintained
 F:	include/linux/compiler.h
 
 SPEAR PLATFORM SUPPORT
-M:	Viresh Kumar <viresh.kumar@st.com>
+M:     Viresh Kumar <viresh.linux@gmail.com>
 M:	Shiraz Hashim <shiraz.hashim@st.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -6386,7 +6412,7 @@ S:	Maintained
 F:	arch/arm/plat-spear/
 
 SPEAR13XX MACHINE SUPPORT
-M:	Viresh Kumar <viresh.kumar@st.com>
+M:     Viresh Kumar <viresh.linux@gmail.com>
 M:	Shiraz Hashim <shiraz.hashim@st.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -6395,7 +6421,7 @@ S:	Maintained
 F:	arch/arm/mach-spear13xx/
 
 SPEAR3XX MACHINE SUPPORT
-M:	Viresh Kumar <viresh.kumar@st.com>
+M:     Viresh Kumar <viresh.linux@gmail.com>
 M:	Shiraz Hashim <shiraz.hashim@st.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -6406,7 +6432,7 @@ F:	arch/arm/mach-spear3xx/
 SPEAR6XX MACHINE SUPPORT
 M:	Rajeev Kumar <rajeev-dlh.kumar@st.com>
 M:	Shiraz Hashim <shiraz.hashim@st.com>
-M:	Viresh Kumar <viresh.kumar@st.com>
+M:     Viresh Kumar <viresh.linux@gmail.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
@@ -6414,7 +6440,7 @@ S:	Maintained
 F:	arch/arm/mach-spear6xx/
 
 SPEAR CLOCK FRAMEWORK SUPPORT
-M:	Viresh Kumar <viresh.kumar@st.com>
+M:     Viresh Kumar <viresh.linux@gmail.com>
 L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
@@ -6747,9 +6773,11 @@ F:	include/linux/tifm.h
 
 TI LM49xxx FAMILY ASoC CODEC DRIVERS
 M:	M R Swami Reddy <mr.swami.reddy@ti.com>
+M:	Vishwas A Deshpande <vishwas.a.deshpande@ti.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/codecs/lm49453*
+F:	sound/soc/codecs/isabelle*
 
 TI TWL4030 SERIES SOC CODEC DRIVER
 M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
@@ -6843,10 +6871,11 @@ F:	include/linux/shmem_fs.h
 F:	mm/shmem.c
 
 TPM DEVICE DRIVER
-M:	Debora Velarde <debora@linux.vnet.ibm.com>
-M:	Rajiv Andrade <srajiv@linux.vnet.ibm.com>
+M:	Kent Yoder <key@linux.vnet.ibm.com>
+M:	Rajiv Andrade <mail@srajiv.net>
 W:	http://tpmdd.sourceforge.net
-M:	Marcel Selhorst <m.selhorst@sirrix.com>
+M:	Marcel Selhorst <tpmdd@selhorst.net>
+M:	Sirrix AG <tpmdd@sirrix.com>
 W:	http://www.sirrix.com
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
@@ -6945,6 +6974,13 @@ M:	Evgeniy Dushistov <dushistov@mail.ru>
 S:	Maintained
 F:	Documentation/filesystems/ufs.txt
 F:	fs/ufs/
+
+UHID USERSPACE HID IO DRIVER:
+M:	David Herrmann <dh.herrmann@googlemail.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/uhid.c
+F:	include/linux/uhid.h
 
 ULTRA-WIDEBAND (UWB) SUBSYSTEM:
 L:	linux-usb@vger.kernel.org
@@ -7206,9 +7242,9 @@ S:	Supported
 F:	drivers/usb/serial/whiteheat*
 
 USB SMSC95XX ETHERNET DRIVER
-M:	Steve Glendinning <steve.glendinning@smsc.com>
+M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/usb/smsc95xx.*
 
 USB SN9C1xx DRIVER
@@ -7421,7 +7457,7 @@ F:	include/linux/vlynq.h
 
 VME SUBSYSTEM
 M:	Martyn Welch <martyn.welch@ge.com>
-M:	Manohar Vanga <manohar.vanga@cern.ch>
+M:	Manohar Vanga <manohar.vanga@gmail.com>
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	devel@driverdev.osuosl.org
 S:	Maintained
@@ -7577,6 +7613,7 @@ W:	http://opensource.wolfsonmicro.com/content/linux-drivers-wolfson-devices
 S:	Supported
 F:	Documentation/hwmon/wm83??
 F:	arch/arm/mach-s3c64xx/mach-crag6410*
+F:	drivers/clk/clk-wm83*.c
 F:	drivers/leds/leds-wm83*.c
 F:	drivers/hwmon/wm83??-hwmon.c
 F:	drivers/input/misc/wm831x-on.c

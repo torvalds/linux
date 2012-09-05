@@ -582,7 +582,7 @@ void __init orion_spi_1_init(unsigned long mapbase)
  * Watchdog
  ****************************************************************************/
 static struct resource orion_wdt_resource =
-		DEFINE_RES_MEM(TIMER_VIRT_BASE, 0x28);
+		DEFINE_RES_MEM(TIMER_PHYS_BASE, 0x28);
 
 static struct platform_device orion_wdt_device = {
 	.name		= "orion_wdt",

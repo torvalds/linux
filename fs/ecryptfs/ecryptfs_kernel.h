@@ -550,20 +550,6 @@ extern struct kmem_cache *ecryptfs_key_record_cache;
 extern struct kmem_cache *ecryptfs_key_sig_cache;
 extern struct kmem_cache *ecryptfs_global_auth_tok_cache;
 extern struct kmem_cache *ecryptfs_key_tfm_cache;
-extern struct kmem_cache *ecryptfs_open_req_cache;
-
-struct ecryptfs_open_req {
-#define ECRYPTFS_REQ_PROCESSED 0x00000001
-#define ECRYPTFS_REQ_DROPPED   0x00000002
-#define ECRYPTFS_REQ_ZOMBIE    0x00000004
-	u32 flags;
-	struct file **lower_file;
-	struct dentry *lower_dentry;
-	struct vfsmount *lower_mnt;
-	wait_queue_head_t wait;
-	struct mutex mux;
-	struct list_head kthread_ctl_list;
-};
 
 struct inode *ecryptfs_get_inode(struct inode *lower_inode,
 				 struct super_block *sb);

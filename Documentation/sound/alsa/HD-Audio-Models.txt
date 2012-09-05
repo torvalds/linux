@@ -15,19 +15,24 @@ ALC260
 
 ALC262
 ======
-  N/A
+  inv-dmic	Inverted internal mic workaround
 
 ALC267/268
 ==========
-  N/A
+  inv-dmic	Inverted internal mic workaround
 
-ALC269
+ALC269/270/275/276/280/282
 ======
   laptop-amic	Laptops with analog-mic input
   laptop-dmic	Laptops with digital-mic input
+  alc269-dmic	Enable ALC269(VA) digital mic workaround
+  alc271-dmic	Enable ALC271X digital mic workaround
+  inv-dmic	Inverted internal mic workaround
+  lenovo-dock   Enables docking station I/O for some Lenovos
 
 ALC662/663/272
 ==============
+  mario		Chromebook mario model fixup
   asus-mode1	ASUS
   asus-mode2	ASUS
   asus-mode3	ASUS
@@ -36,6 +41,7 @@ ALC662/663/272
   asus-mode6	ASUS
   asus-mode7	ASUS
   asus-mode8	ASUS
+  inv-dmic	Inverted internal mic workaround
 
 ALC680
 ======
@@ -46,6 +52,7 @@ ALC882/883/885/888/889
   acer-aspire-4930g	Acer Aspire 4930G/5930G/6530G/6930G/7730G
   acer-aspire-8930g	Acer Aspire 8330G/6935G
   acer-aspire		Acer Aspire others
+  inv-dmic	Inverted internal mic workaround
 
 ALC861/660
 ==========

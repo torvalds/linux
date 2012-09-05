@@ -41,6 +41,7 @@
 #include <linux/slab.h>
 #include <linux/io-mapping.h>
 #include <linux/delay.h>
+#include <linux/netdevice.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
@@ -90,7 +91,9 @@ module_param_named(log_num_mgm_entry_size,
 MODULE_PARM_DESC(log_num_mgm_entry_size, "log mgm size, that defines the num"
 					 " of qp per mcg, for example:"
 					 " 10 gives 248.range: 9<="
-					 " log_num_mgm_entry_size <= 12");
+					 " log_num_mgm_entry_size <= 12."
+					 " Not in use with device managed"
+					 " flow steering");
 
 #define MLX4_VF                                        (1 << 0)
 
@@ -215,6 +218,10 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
 		dev->caps.vl_cap[i]	    = dev_cap->max_vl[i];
 		dev->caps.ib_mtu_cap[i]	    = dev_cap->ib_mtu[i];
+		dev->phys_caps.gid_phys_table_len[i]  = dev_cap->max_gids[i];
+		dev->phys_caps.pkey_phys_table_len[i] = dev_cap->max_pkeys[i];
+		/* set gid and pkey table operating lengths by default
+		 * to non-sriov values */
 		dev->caps.gid_table_len[i]  = dev_cap->max_gids[i];
 		dev->caps.pkey_table_len[i] = dev_cap->max_pkeys[i];
 		dev->caps.port_width_cap[i] = dev_cap->max_port_width[i];
@@ -243,7 +250,6 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.reserved_srqs	     = dev_cap->reserved_srqs;
 	dev->caps.max_sq_desc_sz     = dev_cap->max_sq_desc_sz;
 	dev->caps.max_rq_desc_sz     = dev_cap->max_rq_desc_sz;
-	dev->caps.num_qp_per_mgm     = mlx4_get_qp_per_mgm(dev);
 	/*
 	 * Subtract 1 from the limit because we need to allocate a
 	 * spare CQE so the HCA HW can tell the difference between an
@@ -274,6 +280,28 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
 	dev->caps.max_rss_tbl_sz     = dev_cap->max_rss_tbl_sz;
 
+	if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_FS_EN) {
+		dev->caps.steering_mode = MLX4_STEERING_MODE_DEVICE_MANAGED;
+		dev->caps.num_qp_per_mgm = dev_cap->fs_max_num_qp_per_entry;
+		dev->caps.fs_log_max_ucast_qp_range_size =
+			dev_cap->fs_log_max_ucast_qp_range_size;
+	} else {
+		if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER &&
+		    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) {
+			dev->caps.steering_mode = MLX4_STEERING_MODE_B0;
+		} else {
+			dev->caps.steering_mode = MLX4_STEERING_MODE_A0;
+
+			if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER ||
+			    dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER)
+				mlx4_warn(dev, "Must have UC_STEER and MC_STEER flags "
+						"set to use B0 steering. Falling back to A0 steering mode.\n");
+		}
+		dev->caps.num_qp_per_mgm = mlx4_get_qp_per_mgm(dev);
+	}
+	mlx4_dbg(dev, "Steering mode is: %s\n",
+		 mlx4_steering_mode_str(dev->caps.steering_mode));
+
 	/* Sense port always allowed on supported devices for ConnectX1 and 2 */
 	if (dev->pdev->device != 0x1003)
 		dev->caps.flags |= MLX4_DEV_CAP_FLAG_SENSE_SUPPORT;
@@ -288,29 +316,19 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			/* if only ETH is supported - assign ETH */
 			if (dev->caps.supported_type[i] == MLX4_PORT_TYPE_ETH)
 				dev->caps.port_type[i] = MLX4_PORT_TYPE_ETH;
-			/* if only IB is supported,
-			 * assign IB only if SRIOV is off*/
+			/* if only IB is supported, assign IB */
 			else if (dev->caps.supported_type[i] ==
-				 MLX4_PORT_TYPE_IB) {
-				if (dev->flags & MLX4_FLAG_SRIOV)
-					dev->caps.port_type[i] =
-						MLX4_PORT_TYPE_NONE;
-				else
-					dev->caps.port_type[i] =
-						MLX4_PORT_TYPE_IB;
-			/* if IB and ETH are supported,
-			 * first of all check if SRIOV is on */
-			} else if (dev->flags & MLX4_FLAG_SRIOV)
-				dev->caps.port_type[i] = MLX4_PORT_TYPE_ETH;
+				 MLX4_PORT_TYPE_IB)
+				dev->caps.port_type[i] = MLX4_PORT_TYPE_IB;
 			else {
-				/* In non-SRIOV mode, we set the port type
-				 * according to user selection of port type,
-				 * if usere selected none, take the FW hint */
-				if (port_type_array[i-1] == MLX4_PORT_TYPE_NONE)
+				/* if IB and ETH are supported, we set the port
+				 * type according to user selection of port type;
+				 * if user selected none, take the FW hint */
+				if (port_type_array[i - 1] == MLX4_PORT_TYPE_NONE)
 					dev->caps.port_type[i] = dev->caps.suggested_type[i] ?
 						MLX4_PORT_TYPE_ETH : MLX4_PORT_TYPE_IB;
 				else
-					dev->caps.port_type[i] = port_type_array[i-1];
+					dev->caps.port_type[i] = port_type_array[i - 1];
 			}
 		}
 		/*
@@ -390,6 +408,23 @@ static int mlx4_how_many_lives_vf(struct mlx4_dev *dev)
 	}
 	return ret;
 }
+
+int mlx4_get_parav_qkey(struct mlx4_dev *dev, u32 qpn, u32 *qkey)
+{
+	u32 qk = MLX4_RESERVED_QKEY_BASE;
+	if (qpn >= dev->caps.base_tunnel_sqpn + 8 * MLX4_MFUNC_MAX ||
+	    qpn < dev->caps.sqp_start)
+		return -EINVAL;
+
+	if (qpn >= dev->caps.base_tunnel_sqpn)
+		/* tunnel qp */
+		qk += qpn - dev->caps.base_tunnel_sqpn;
+	else
+		qk += qpn - dev->caps.sqp_start;
+	*qkey = qk;
+	return 0;
+}
+EXPORT_SYMBOL(mlx4_get_parav_qkey);
 
 int mlx4_is_slave_active(struct mlx4_dev *dev, int slave)
 {
@@ -491,8 +526,13 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		return -ENODEV;
 	}
 
-	for (i = 1; i <= dev->caps.num_ports; ++i)
+	for (i = 1; i <= dev->caps.num_ports; ++i) {
 		dev->caps.port_mask[i] = dev->caps.port_type[i];
+		if (mlx4_get_slave_pkey_gid_tbl_len(dev, i,
+						    &dev->caps.gid_table_len[i],
+						    &dev->caps.pkey_table_len[i]))
+			return -ENODEV;
+	}
 
 	if (dev->caps.uar_page_size * (dev->caps.num_uars -
 				       dev->caps.reserved_uars) >
@@ -529,7 +569,7 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 		for (port = 1; port <= dev->caps.num_ports; port++) {
 			mlx4_CLOSE_PORT(dev, port);
 			dev->caps.port_type[port] = port_types[port - 1];
-			err = mlx4_SET_PORT(dev, port);
+			err = mlx4_SET_PORT(dev, port, -1);
 			if (err) {
 				mlx4_err(dev, "Failed to set port %d, "
 					      "aborting\n", port);
@@ -715,7 +755,7 @@ static ssize_t set_port_ib_mtu(struct device *dev,
 	mlx4_unregister_device(mdev);
 	for (port = 1; port <= mdev->caps.num_ports; port++) {
 		mlx4_CLOSE_PORT(mdev, port);
-		err = mlx4_SET_PORT(mdev, port);
+		err = mlx4_SET_PORT(mdev, port, -1);
 		if (err) {
 			mlx4_err(mdev, "Failed to set port %d, "
 				      "aborting\n", port);
@@ -967,9 +1007,11 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 	}
 
 	/*
-	 * It's not strictly required, but for simplicity just map the
-	 * whole multicast group table now.  The table isn't very big
-	 * and it's a lot easier than trying to track ref counts.
+	 * For flow steering device managed mode it is required to use
+	 * mlx4_init_icm_table. For B0 steering mode it's not strictly
+	 * required, but for simplicity just map the whole multicast
+	 * group table now.  The table isn't very big and it's a lot
+	 * easier than trying to track ref counts.
 	 */
 	err = mlx4_init_icm_table(dev, &priv->mcg_table.table,
 				  init_hca->mc_base,
@@ -1166,6 +1208,17 @@ err:
 	return -EIO;
 }
 
+static void mlx4_parav_master_pf_caps(struct mlx4_dev *dev)
+{
+	int i;
+
+	for (i = 1; i <= dev->caps.num_ports; i++) {
+		dev->caps.gid_table_len[i] = 1;
+		dev->caps.pkey_table_len[i] =
+			dev->phys_caps.pkey_phys_table_len[i] - 1;
+	}
+}
+
 static int mlx4_init_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv	  *priv = mlx4_priv(dev);
@@ -1205,7 +1258,29 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 			goto err_stop_fw;
 		}
 
+		if (mlx4_is_master(dev))
+			mlx4_parav_master_pf_caps(dev);
+
+		priv->fs_hash_mode = MLX4_FS_L2_HASH;
+
+		switch (priv->fs_hash_mode) {
+		case MLX4_FS_L2_HASH:
+			init_hca.fs_hash_enable_bits = 0;
+			break;
+
+		case MLX4_FS_L2_L3_L4_HASH:
+			/* Enable flow steering with
+			 * udp unicast and tcp unicast
+			 */
+			init_hca.fs_hash_enable_bits =
+				MLX4_FS_UDP_UC_EN | MLX4_FS_TCP_UC_EN;
+			break;
+		}
+
 		profile = default_profile;
+		if (dev->caps.steering_mode ==
+		    MLX4_STEERING_MODE_DEVICE_MANAGED)
+			profile.num_mcg = MLX4_FS_NUM_MCG;
 
 		icm_size = mlx4_make_profile(dev, &profile, &dev_cap,
 					     &init_hca);
@@ -1477,12 +1552,24 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 					  "with caps = 0\n", port, err);
 			dev->caps.ib_port_def_cap[port] = ib_port_default_caps;
 
+			/* initialize per-slave default ib port capabilities */
+			if (mlx4_is_master(dev)) {
+				int i;
+				for (i = 0; i < dev->num_slaves; i++) {
+					if (i == mlx4_master_func_num(dev))
+						continue;
+					priv->mfunc.master.slave_state[i].ib_cap_mask[port] =
+							ib_port_default_caps;
+				}
+			}
+
 			if (mlx4_is_mfunc(dev))
 				dev->caps.port_ib_mtu[port] = IB_MTU_2048;
 			else
 				dev->caps.port_ib_mtu[port] = IB_MTU_4096;
 
-			err = mlx4_SET_PORT(dev, port);
+			err = mlx4_SET_PORT(dev, port, mlx4_is_master(dev) ?
+					    dev->caps.pkey_table_len[port] : -1);
 			if (err) {
 				mlx4_err(dev, "Failed to set port %d, aborting\n",
 					port);
@@ -1539,8 +1626,8 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry *entries;
 	int nreq = min_t(int, dev->caps.num_ports *
-			 min_t(int, num_online_cpus() + 1, MAX_MSIX_P_PORT)
-				+ MSIX_LEGACY_SZ, MAX_MSIX);
+			 min_t(int, netif_get_num_default_rss_queues() + 1,
+			       MAX_MSIX_P_PORT) + MSIX_LEGACY_SZ, MAX_MSIX);
 	int err;
 	int i;
 
@@ -1975,6 +2062,8 @@ slave_start:
 	if (err == -EBUSY && (dev->flags & MLX4_FLAG_MSI_X) &&
 	    !mlx4_is_mfunc(dev)) {
 		dev->flags &= ~MLX4_FLAG_MSI_X;
+		dev->caps.num_comp_vectors = 1;
+		dev->caps.comp_pool	   = 0;
 		pci_disable_msix(pdev);
 		err = mlx4_setup_hca(dev);
 	}

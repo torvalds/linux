@@ -106,7 +106,7 @@ static void exynos_mipi_update_cfg(struct mipi_dsim_device *dsim)
 
 	/*
 	 * data from Display controller(FIMD) is transferred in video mode
-	 * but in case of command mode, all settigs is updated to registers.
+	 * but in case of command mode, all settings are updated to registers.
 	 */
 	exynos_mipi_dsi_stand_by(dsim, 1);
 }

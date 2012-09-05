@@ -133,8 +133,6 @@ static int bonding_dio_insn_bits(struct comedi_device *dev,
 {
 #define LSAMPL_BITS (sizeof(unsigned int)*8)
 	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
-	if (insn->n != 2)
-		return -EINVAL;
 
 	if (devpriv->nchans < nchans)
 		nchans = devpriv->nchans;
@@ -336,6 +334,7 @@ static int bonding_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
+	int ret;
 
 	LOG_MSG("comedi%d\n", dev->minor);
 
@@ -358,12 +357,9 @@ static int bonding_attach(struct comedi_device *dev,
 	 */
 	dev->board_name = devpriv->name;
 
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DIO;

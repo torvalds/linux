@@ -9,7 +9,7 @@ be able to use diff(1).
 
 --------------------------- dentry_operations --------------------------
 prototypes:
-	int (*d_revalidate)(struct dentry *, struct nameidata *);
+	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, const struct inode *,
 			struct qstr *);
 	int (*d_compare)(const struct dentry *, const struct inode *,
@@ -37,9 +37,8 @@ d_manage:	no		no		yes (ref-walk)	maybe
 
 --------------------------- inode_operations --------------------------- 
 prototypes:
-	int (*create) (struct inode *,struct dentry *,umode_t, struct nameidata *);
-	struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameid
-ata *);
+	int (*create) (struct inode *,struct dentry *,umode_t, bool);
+	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 	int (*link) (struct dentry *,struct inode *,struct dentry *);
 	int (*unlink) (struct inode *,struct dentry *);
 	int (*symlink) (struct inode *,struct dentry *,const char *);
@@ -62,6 +61,9 @@ ata *);
 	int (*removexattr) (struct dentry *, const char *);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start, u64 len);
 	void (*update_time)(struct inode *, struct timespec *, int);
+	int (*atomic_open)(struct inode *, struct dentry *,
+				struct file *, unsigned open_flag,
+				umode_t create_mode, int *opened);
 
 locking rules:
 	all may block
@@ -89,6 +91,7 @@ listxattr:	no
 removexattr:	yes
 fiemap:		no
 update_time:	no
+atomic_open:	yes
 
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.

@@ -7,6 +7,9 @@
  * Copyright 2008 Intel Corporation
  * Author: Andi Kleen
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/thread_info.h>
 #include <linux/capability.h>
 #include <linux/miscdevice.h>
@@ -208,7 +211,7 @@ static void drain_mcelog_buffer(void)
 				cpu_relax();
 
 				if (!m->finished && retries >= 4) {
-					pr_err("MCE: skipping error being logged currently!\n");
+					pr_err("skipping error being logged currently!\n");
 					break;
 				}
 			}
@@ -1165,8 +1168,9 @@ int memory_failure(unsigned long pfn, int vector, int flags)
 {
 	/* mce_severity() should not hand us an ACTION_REQUIRED error */
 	BUG_ON(flags & MF_ACTION_REQUIRED);
-	printk(KERN_ERR "Uncorrected memory error in page 0x%lx ignored\n"
-		"Rebuild kernel with CONFIG_MEMORY_FAILURE=y for smarter handling\n", pfn);
+	pr_err("Uncorrected memory error in page 0x%lx ignored\n"
+	       "Rebuild kernel with CONFIG_MEMORY_FAILURE=y for smarter handling\n",
+	       pfn);
 
 	return 0;
 }
@@ -1184,6 +1188,7 @@ void mce_notify_process(void)
 {
 	unsigned long pfn;
 	struct mce_info *mi = mce_find_info();
+	int flags = MF_ACTION_REQUIRED;
 
 	if (!mi)
 		mce_panic("Lost physical address for unconsumed uncorrectable error", NULL, NULL);
@@ -1198,8 +1203,9 @@ void mce_notify_process(void)
 	 * doomed. We still need to mark the page as poisoned and alert any
 	 * other users of the page.
 	 */
-	if (memory_failure(pfn, MCE_VECTOR, MF_ACTION_REQUIRED) < 0 ||
-			   mi->restartable == 0) {
+	if (!mi->restartable)
+		flags |= MF_MUST_KILL;
+	if (memory_failure(pfn, MCE_VECTOR, flags) < 0) {
 		pr_err("Memory error not recovered");
 		force_sig(SIGBUS, current);
 	}
@@ -1356,11 +1362,10 @@ static int __cpuinit __mcheck_cpu_cap_init(void)
 
 	b = cap & MCG_BANKCNT_MASK;
 	if (!banks)
-		printk(KERN_INFO "mce: CPU supports %d MCE banks\n", b);
+		pr_info("CPU supports %d MCE banks\n", b);
 
 	if (b > MAX_NR_BANKS) {
-		printk(KERN_WARNING
-		       "MCE: Using only %u machine check banks out of %u\n",
+		pr_warn("Using only %u machine check banks out of %u\n",
 			MAX_NR_BANKS, b);
 		b = MAX_NR_BANKS;
 	}
@@ -1417,7 +1422,7 @@ static void __mcheck_cpu_init_generic(void)
 static int __cpuinit __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 {
 	if (c->x86_vendor == X86_VENDOR_UNKNOWN) {
-		pr_info("MCE: unknown CPU type - not enabling MCE support.\n");
+		pr_info("unknown CPU type - not enabling MCE support\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1572,7 +1577,7 @@ static void __mcheck_cpu_init_timer(void)
 /* Handle unconfigured int18 (should never happen) */
 static void unexpected_machine_check(struct pt_regs *regs, long error_code)
 {
-	printk(KERN_ERR "CPU#%d: Unexpected int18 (Machine Check).\n",
+	pr_err("CPU#%d: Unexpected int18 (Machine Check)\n",
 	       smp_processor_id());
 }
 
@@ -1891,8 +1896,7 @@ static int __init mcheck_enable(char *str)
 			get_option(&str, &monarch_timeout);
 		}
 	} else {
-		printk(KERN_INFO "mce argument %s ignored. Please use /sys\n",
-		       str);
+		pr_info("mce argument %s ignored. Please use /sys\n", str);
 		return 0;
 	}
 	return 1;

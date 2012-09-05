@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
+#include <linux/delay.h>
 #include <linux/io.h>
 
 /* RNGA Registers */
@@ -60,16 +61,20 @@
 
 static struct platform_device *rng_dev;
 
-static int mxc_rnga_data_present(struct hwrng *rng)
+static int mxc_rnga_data_present(struct hwrng *rng, int wait)
 {
-	int level;
 	void __iomem *rng_base = (void __iomem *)rng->priv;
+	int i;
 
-	/* how many random numbers is in FIFO? [0-16] */
-	level = ((__raw_readl(rng_base + RNGA_STATUS) &
-			RNGA_STATUS_LEVEL_MASK) >> 8);
-
-	return level > 0 ? 1 : 0;
+	for (i = 0; i < 20; i++) {
+		/* how many random numbers are in FIFO? [0-16] */
+		int level = (__raw_readl(rng_base + RNGA_STATUS) &
+				RNGA_STATUS_LEVEL_MASK) >> 8;
+		if (level || !wait)
+			return !!level;
+		udelay(10);
+	}
+	return 0;
 }
 
 static int mxc_rnga_data_read(struct hwrng *rng, u32 * data)

@@ -157,7 +157,7 @@ static int __devinit maxiradio_probe(struct pci_dev *pdev, const struct pci_devi
 		goto err_out_free_region;
 
 	dev->io = pci_resource_start(pdev, 0);
-	if (snd_tea575x_init(&dev->tea)) {
+	if (snd_tea575x_init(&dev->tea, THIS_MODULE)) {
 		printk(KERN_ERR "radio-maxiradio: Unable to detect TEA575x tuner\n");
 		goto err_out_free_region;
 	}

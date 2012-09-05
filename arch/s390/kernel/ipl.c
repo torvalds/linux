@@ -1,8 +1,7 @@
 /*
- *  arch/s390/kernel/ipl.c
  *    ipl/reipl/dump support for Linux on s390.
  *
- *    Copyright IBM Corp. 2005,2012
+ *    Copyright IBM Corp. 2005, 2012
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Volker Sameske <sameske@de.ibm.com>
@@ -1528,15 +1527,12 @@ static struct shutdown_action __refdata dump_action = {
 
 static void dump_reipl_run(struct shutdown_trigger *trigger)
 {
-	struct {
-		void	*addr;
-		__u32	csum;
-	} __packed ipib;
+	unsigned long ipib = (unsigned long) reipl_block_actual;
+	unsigned int csum;
 
-	ipib.csum = csum_partial(reipl_block_actual,
-				 reipl_block_actual->hdr.len, 0);
-	ipib.addr = reipl_block_actual;
-	memcpy_absolute(&S390_lowcore.ipib, &ipib, sizeof(ipib));
+	csum = csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
+	mem_assign_absolute(S390_lowcore.ipib, ipib);
+	mem_assign_absolute(S390_lowcore.ipib_checksum, csum);
 	dump_run(trigger);
 }
 

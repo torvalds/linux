@@ -174,7 +174,7 @@ static int dino_cfg_read(struct pci_bus *bus, unsigned int devfn, int where,
 		int size, u32 *val)
 {
 	struct dino_device *d = DINO_DEV(parisc_walk_tree(bus->bridge));
-	u32 local_bus = (bus->parent == NULL) ? 0 : bus->secondary;
+	u32 local_bus = (bus->parent == NULL) ? 0 : bus->busn_res.start;
 	u32 v = DINO_CFG_TOK(local_bus, devfn, where & ~3);
 	void __iomem *base_addr = d->hba.base_addr;
 	unsigned long flags;
@@ -209,7 +209,7 @@ static int dino_cfg_write(struct pci_bus *bus, unsigned int devfn, int where,
 	int size, u32 val)
 {
 	struct dino_device *d = DINO_DEV(parisc_walk_tree(bus->bridge));
-	u32 local_bus = (bus->parent == NULL) ? 0 : bus->secondary;
+	u32 local_bus = (bus->parent == NULL) ? 0 : bus->busn_res.start;
 	u32 v = DINO_CFG_TOK(local_bus, devfn, where & ~3);
 	void __iomem *base_addr = d->hba.base_addr;
 	unsigned long flags;
@@ -554,7 +554,7 @@ dino_fixup_bus(struct pci_bus *bus)
         struct dino_device *dino_dev = DINO_DEV(parisc_walk_tree(bus->bridge));
 
 	DBG(KERN_WARNING "%s(0x%p) bus %d platform_data 0x%p\n",
-	    __func__, bus, bus->secondary,
+	    __func__, bus, bus->busn_res.start,
 	    bus->bridge->platform_data);
 
 	/* Firmware doesn't set up card-mode dino, so we have to */
@@ -898,6 +898,7 @@ static int __init dino_probe(struct parisc_device *dev)
 	LIST_HEAD(resources);
 	struct pci_bus *bus;
 	unsigned long hpa = dev->hpa.start;
+	int max;
 
 	name = "Dino";
 	if (is_card_dino(&dev->id)) {
@@ -983,6 +984,10 @@ static int __init dino_probe(struct parisc_device *dev)
 	if (dino_dev->hba.gmmio_space.flags)
 		pci_add_resource(&resources, &dino_dev->hba.gmmio_space);
 
+	dino_dev->hba.bus_num.start = dino_current_bus;
+	dino_dev->hba.bus_num.end = 255;
+	dino_dev->hba.bus_num.flags = IORESOURCE_BUS;
+	pci_add_resource(&resources, &dino_dev->hba.bus_num);
 	/*
 	** It's not used to avoid chicken/egg problems
 	** with configuration accessor functions.
@@ -998,12 +1003,13 @@ static int __init dino_probe(struct parisc_device *dev)
 		return 0;
 	}
 
-	bus->subordinate = pci_scan_child_bus(bus);
+	max = pci_scan_child_bus(bus);
+	pci_bus_update_busn_res_end(bus, max);
 
 	/* This code *depends* on scanning being single threaded
 	 * if it isn't, this global bus number count will fail
 	 */
-	dino_current_bus = bus->subordinate + 1;
+	dino_current_bus = max + 1;
 	pci_bus_assign_resources(bus);
 	pci_bus_add_devices(bus);
 	return 0;

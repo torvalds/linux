@@ -31,6 +31,7 @@
 #include <linux/if_addr.h>
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
+#include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -85,6 +86,24 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 	tb = fib_trie_table(id);
 	if (!tb)
 		return NULL;
+
+	switch (id) {
+	case RT_TABLE_LOCAL:
+		net->ipv4.fib_local = tb;
+		break;
+
+	case RT_TABLE_MAIN:
+		net->ipv4.fib_main = tb;
+		break;
+
+	case RT_TABLE_DEFAULT:
+		net->ipv4.fib_default = tb;
+		break;
+
+	default:
+		break;
+	}
+
 	h = id & (FIB_TABLE_HASHSZ - 1);
 	hlist_add_head_rcu(&tb->tb_hlist, &net->ipv4.fib_table_hash[h]);
 	return tb;
@@ -150,10 +169,6 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	if (ipv4_is_multicast(addr))
 		return RTN_MULTICAST;
 
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-	res.r = NULL;
-#endif
-
 	local_table = fib_get_table(net, RT_TABLE_LOCAL);
 	if (local_table) {
 		ret = RTN_UNICAST;
@@ -180,6 +195,44 @@ unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 }
 EXPORT_SYMBOL(inet_dev_addr_type);
 
+__be32 fib_compute_spec_dst(struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	struct in_device *in_dev;
+	struct fib_result res;
+	struct rtable *rt;
+	struct flowi4 fl4;
+	struct net *net;
+	int scope;
+
+	rt = skb_rtable(skb);
+	if ((rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST | RTCF_LOCAL)) ==
+	    RTCF_LOCAL)
+		return ip_hdr(skb)->daddr;
+
+	in_dev = __in_dev_get_rcu(dev);
+	BUG_ON(!in_dev);
+
+	net = dev_net(dev);
+
+	scope = RT_SCOPE_UNIVERSE;
+	if (!ipv4_is_zeronet(ip_hdr(skb)->saddr)) {
+		fl4.flowi4_oif = 0;
+		fl4.flowi4_iif = net->loopback_dev->ifindex;
+		fl4.daddr = ip_hdr(skb)->saddr;
+		fl4.saddr = 0;
+		fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);
+		fl4.flowi4_scope = scope;
+		fl4.flowi4_mark = IN_DEV_SRC_VMARK(in_dev) ? skb->mark : 0;
+		if (!fib_lookup(net, &fl4, &res))
+			return FIB_RES_PREFSRC(net, res);
+	} else {
+		scope = RT_SCOPE_LINK;
+	}
+
+	return inet_select_addr(dev, ip_hdr(skb)->saddr, scope);
+}
+
 /* Given (packet source, input interface) and optional (dst, oif, tos):
  * - (main) check, that source is valid i.e. not broadcast or our local
  *   address.
@@ -188,17 +241,15 @@ EXPORT_SYMBOL(inet_dev_addr_type);
  * - check, that packet arrived from expected physical interface.
  * called with rcu_read_lock()
  */
-int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
-			int oif, struct net_device *dev, __be32 *spec_dst,
-			u32 *itag)
+static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
+				 u8 tos, int oif, struct net_device *dev,
+				 int rpf, struct in_device *idev, u32 *itag)
 {
-	struct in_device *in_dev;
-	struct flowi4 fl4;
+	int ret, no_addr, accept_local;
 	struct fib_result res;
-	int no_addr, rpf, accept_local;
-	bool dev_match;
-	int ret;
+	struct flowi4 fl4;
 	struct net *net;
+	bool dev_match;
 
 	fl4.flowi4_oif = 0;
 	fl4.flowi4_iif = oif;
@@ -207,20 +258,10 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
 	fl4.flowi4_tos = tos;
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 
-	no_addr = rpf = accept_local = 0;
-	in_dev = __in_dev_get_rcu(dev);
-	if (in_dev) {
-		no_addr = in_dev->ifa_list == NULL;
+	no_addr = idev->ifa_list == NULL;
 
-		/* Ignore rp_filter for packets protected by IPsec. */
-		rpf = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(in_dev);
-
-		accept_local = IN_DEV_ACCEPT_LOCAL(in_dev);
-		fl4.flowi4_mark = IN_DEV_SRC_VMARK(in_dev) ? skb->mark : 0;
-	}
-
-	if (in_dev == NULL)
-		goto e_inval;
+	accept_local = IN_DEV_ACCEPT_LOCAL(idev);
+	fl4.flowi4_mark = IN_DEV_SRC_VMARK(idev) ? skb->mark : 0;
 
 	net = dev_net(dev);
 	if (fib_lookup(net, &fl4, &res))
@@ -229,7 +270,6 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
 		if (res.type != RTN_LOCAL || !accept_local)
 			goto e_inval;
 	}
-	*spec_dst = FIB_RES_PREFSRC(net, res);
 	fib_combine_itag(itag, &res);
 	dev_match = false;
 
@@ -258,17 +298,14 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst, u8 tos,
 
 	ret = 0;
 	if (fib_lookup(net, &fl4, &res) == 0) {
-		if (res.type == RTN_UNICAST) {
-			*spec_dst = FIB_RES_PREFSRC(net, res);
+		if (res.type == RTN_UNICAST)
 			ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
-		}
 	}
 	return ret;
 
 last_resort:
 	if (rpf)
 		goto e_rpf;
-	*spec_dst = inet_select_addr(dev, 0, RT_SCOPE_UNIVERSE);
 	*itag = 0;
 	return 0;
 
@@ -276,6 +313,20 @@ e_inval:
 	return -EINVAL;
 e_rpf:
 	return -EXDEV;
+}
+
+/* Ignore rp_filter for packets protected by IPsec. */
+int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
+			u8 tos, int oif, struct net_device *dev,
+			struct in_device *idev, u32 *itag)
+{
+	int r = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
+
+	if (!r && !fib_num_tclassid_users(dev_net(dev))) {
+		*itag = 0;
+		return 0;
+	}
+	return __fib_validate_source(skb, src, dst, tos, oif, dev, r, idev, itag);
 }
 
 static inline __be32 sk_extract_addr(struct sockaddr *addr)
@@ -879,10 +930,6 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 		.flowi4_scope = frn->fl_scope,
 	};
 
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-	res.r = NULL;
-#endif
-
 	frn->err = -ENOENT;
 	if (tb) {
 		local_bh_disable();
@@ -935,8 +982,11 @@ static void nl_fib_input(struct sk_buff *skb)
 static int __net_init nl_fib_lookup_init(struct net *net)
 {
 	struct sock *sk;
-	sk = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, 0,
-				   nl_fib_input, NULL, THIS_MODULE);
+	struct netlink_kernel_cfg cfg = {
+		.input	= nl_fib_input,
+	};
+
+	sk = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, THIS_MODULE, &cfg);
 	if (sk == NULL)
 		return -EAFNOSUPPORT;
 	net->ipv4.fibnl = sk;
@@ -1021,11 +1071,6 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		rt_cache_flush(dev_net(dev), 0);
 		break;
 	case NETDEV_UNREGISTER_BATCH:
-		/* The batch unregister is only called on the first
-		 * device in the list of devices being unregistered.
-		 * Therefore we should not pass dev_net(dev) in here.
-		 */
-		rt_cache_flush_batch(NULL);
 		break;
 	}
 	return NOTIFY_DONE;
@@ -1090,6 +1135,9 @@ static int __net_init fib_net_init(struct net *net)
 {
 	int error;
 
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	net->ipv4.fib_num_tclassid_users = 0;
+#endif
 	error = ip_fib_net_init(net);
 	if (error < 0)
 		goto out;

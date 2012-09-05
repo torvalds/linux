@@ -25,11 +25,6 @@ config ANDROID_LOGGER
 	tristate "Android log driver"
 	default n
 
-config ANDROID_RAM_CONSOLE
-	bool "Android RAM buffer console"
-	depends on !S390 && !UML && HAVE_MEMBLOCK && PSTORE_RAM=y
-	default n
-
 config ANDROID_TIMED_OUTPUT
 	bool "Timed output class driver"
 	default y

@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/errno.h
- *
  *  S390 version
  *
  */

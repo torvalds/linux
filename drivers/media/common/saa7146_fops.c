@@ -198,7 +198,6 @@ static int fops_open(struct file *file)
 	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = NULL;
 	int result = 0;
-	enum v4l2_buf_type type;
 
 	DEB_EE("file:%p, dev:%s\n", file, video_device_node_name(vdev));
 
@@ -206,10 +205,6 @@ static int fops_open(struct file *file)
 		return -ERESTARTSYS;
 
 	DEB_D("using: %p\n", dev);
-
-	type = vdev->vfl_type == VFL_TYPE_GRABBER
-	     ? V4L2_BUF_TYPE_VIDEO_CAPTURE
-	     : V4L2_BUF_TYPE_VBI_CAPTURE;
 
 	/* check if an extension is registered */
 	if( NULL == dev->ext ) {

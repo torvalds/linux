@@ -263,23 +263,6 @@ config SCSI_SCAN_ASYNC
 	  You can override this choice by specifying "scsi_mod.scan=sync"
 	  or async on the kernel's command line.
 
-config SCSI_WAIT_SCAN
-	tristate  # No prompt here, this is an invisible symbol.
-	default m
-	depends on SCSI
-	depends on MODULES
-# scsi_wait_scan is a loadable module which waits until all the async scans are
-# complete.  The idea is to use it in initrd/ initramfs scripts.  You modprobe
-# it after all the modprobes of the root SCSI drivers and it will wait until
-# they have all finished scanning their buses before allowing the boot to
-# proceed.  (This method is not applicable if targets boot independently in
-# parallel with the initiator, or with transports with non-deterministic target
-# discovery schemes, or if a transport driver does not support scsi_wait_scan.)
-#
-# This symbol is not exposed as a prompt because little is to be gained by
-# disabling it, whereas people who accidentally switch it off may wonder why
-# their mkinitrd gets into trouble.
-
 menu "SCSI Transports"
 	depends on SCSI
 
@@ -461,7 +444,7 @@ config SCSI_ACARD
 
 config SCSI_AHA152X
 	tristate "Adaptec AHA152X/2825 support"
-	depends on ISA && SCSI && !64BIT
+	depends on ISA && SCSI
 	select SCSI_SPI_ATTRS
 	select CHECK_SIGNATURE
 	---help---

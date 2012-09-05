@@ -32,14 +32,9 @@ struct pcl730_board {
 	unsigned int io_range;	/*  len of I/O space */
 };
 
-#define this_board ((const struct pcl730_board *)dev->board_ptr)
-
 static int pcl730_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -53,41 +48,41 @@ static int pcl730_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl730_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + ((unsigned long)s->private)) |
 	    (inb(dev->iobase + ((unsigned long)s->private) + 1) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcl730_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iorange;
+	int ret;
 
 	iobase = it->options[0];
-	iorange = this_board->io_range;
+	iorange = board->io_range;
 	printk(KERN_INFO "comedi%d: pcl730: board=%s 0x%04lx ", dev->minor,
-	       this_board->name, iobase);
+	       board->name, iobase);
 	if (!request_region(iobase, iorange, "pcl730")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 	dev->iobase = iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* Isolated do */
@@ -136,8 +131,10 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcl730_detach(struct comedi_device *dev)
 {
+	const struct pcl730_board *board = comedi_board(dev);
+
 	if (dev->iobase)
-		release_region(dev->iobase, this_board->io_range);
+		release_region(dev->iobase, board->io_range);
 }
 
 static const struct pcl730_board boardtypes[] = {

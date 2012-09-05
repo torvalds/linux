@@ -58,11 +58,19 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 
 #ifdef CONFIG_ROMKERNEL
 	/* Cover kernel XIP flash area */
+#ifdef CONFIG_BF60x
+	addr = CONFIG_ROM_BASE & ~(16 * 1024 * 1024 - 1);
+	d_tbl[i_d].addr = addr;
+	d_tbl[i_d++].data = SDRAM_DGENERIC | PAGE_SIZE_16MB;
+	i_tbl[i_i].addr = addr;
+	i_tbl[i_i++].data = SDRAM_IGENERIC | PAGE_SIZE_16MB;
+#else
 	addr = CONFIG_ROM_BASE & ~(4 * 1024 * 1024 - 1);
 	d_tbl[i_d].addr = addr;
 	d_tbl[i_d++].data = SDRAM_DGENERIC | PAGE_SIZE_4MB;
 	i_tbl[i_i].addr = addr;
 	i_tbl[i_i++].data = SDRAM_IGENERIC | PAGE_SIZE_4MB;
+#endif
 #endif
 
 	/* Cover L1 memory.  One 4M area for code and data each is enough.  */

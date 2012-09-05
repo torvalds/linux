@@ -207,9 +207,9 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 	else
 		priv->ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
 
-	if (priv->op_flags & OP_TSF_RESET) {
+	if (test_bit(OP_TSF_RESET, &priv->op_flags)) {
 		ath9k_hw_reset_tsf(priv->ah);
-		priv->op_flags &= ~OP_TSF_RESET;
+		clear_bit(OP_TSF_RESET, &priv->op_flags);
 	} else {
 		/*
 		 * Pull nexttbtt forward to reflect the current TSF.
@@ -221,7 +221,7 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 		} while (nexttbtt < tsftu);
 	}
 
-	if (priv->op_flags & OP_ENABLE_BEACON)
+	if (test_bit(OP_ENABLE_BEACON, &priv->op_flags))
 		imask |= ATH9K_INT_SWBA;
 
 	ath_dbg(common, CONFIG,
@@ -269,7 +269,7 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 	else
 		priv->ah->config.sw_beacon_response_time = MIN_SWBA_RESPONSE;
 
-	if (priv->op_flags & OP_ENABLE_BEACON)
+	if (test_bit(OP_ENABLE_BEACON, &priv->op_flags))
 		imask |= ATH9K_INT_SWBA;
 
 	ath_dbg(common, CONFIG,
@@ -365,7 +365,7 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	vif = priv->cur_beacon_conf.bslot[slot];
 	avp = (struct ath9k_htc_vif *)vif->drv_priv;
 
-	if (unlikely(priv->op_flags & OP_SCANNING)) {
+	if (unlikely(test_bit(OP_SCANNING, &priv->op_flags))) {
 		spin_unlock_bh(&priv->beacon_lock);
 		return;
 	}

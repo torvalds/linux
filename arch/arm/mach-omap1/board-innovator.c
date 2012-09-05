@@ -35,11 +35,11 @@
 #include <plat/flash.h>
 #include <plat/fpga.h>
 #include <plat/tc.h>
-#include <plat/usb.h>
 #include <plat/keypad.h>
 #include <plat/mmc.h>
 
 #include <mach/hardware.h>
+#include <mach/usb.h>
 
 #include "iomap.h"
 #include "common.h"

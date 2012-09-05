@@ -132,7 +132,7 @@ void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
  * abort chunk.  Differs from sctp_init_cause in that it won't oops
  * if there isn't enough space in the op error chunk
  */
-int sctp_init_cause_fixed(struct sctp_chunk *chunk, __be16 cause_code,
+static int sctp_init_cause_fixed(struct sctp_chunk *chunk, __be16 cause_code,
 		      size_t paylen)
 {
 	sctp_errhdr_t err;
@@ -734,8 +734,10 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 	int len;
 	__u32 ctsn;
 	__u16 num_gabs, num_dup_tsns;
+	struct sctp_association *aptr = (struct sctp_association *)asoc;
 	struct sctp_tsnmap *map = (struct sctp_tsnmap *)&asoc->peer.tsn_map;
 	struct sctp_gap_ack_block gabs[SCTP_MAX_GABS];
+	struct sctp_transport *trans;
 
 	memset(gabs, 0, sizeof(gabs));
 	ctsn = sctp_tsnmap_get_ctsn(map);
@@ -805,6 +807,20 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 		sctp_addto_chunk(retval, sizeof(__u32) * num_dup_tsns,
 				 sctp_tsnmap_get_dups(map));
 
+	/* Once we have a sack generated, check to see what our sack
+	 * generation is, if its 0, reset the transports to 0, and reset
+	 * the association generation to 1
+	 *
+	 * The idea is that zero is never used as a valid generation for the
+	 * association so no transport will match after a wrap event like this,
+	 * Until the next sack
+	 */
+	if (++aptr->peer.sack_generation == 0) {
+		list_for_each_entry(trans, &asoc->peer.transport_addr_list,
+				    transports)
+			trans->sack_generation = 0;
+		aptr->peer.sack_generation = 1;
+	}
 nodata:
 	return retval;
 }

@@ -66,7 +66,7 @@ enum pm_qos_req_action {
 
 static inline int dev_pm_qos_request_active(struct dev_pm_qos_request *req)
 {
-	return req->dev != 0;
+	return req->dev != NULL;
 }
 
 int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,

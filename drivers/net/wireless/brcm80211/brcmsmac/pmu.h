@@ -26,10 +26,7 @@ extern u32 si_pmu_chipcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val);
 extern u32 si_pmu_regcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val);
 extern u32 si_pmu_alp_clock(struct si_pub *sih);
 extern void si_pmu_pllupd(struct si_pub *sih);
-extern void si_pmu_spuravoid_pllupdate(struct si_pub *sih, u8 spuravoid);
 extern u32 si_pmu_pllcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val);
-extern void si_pmu_init(struct si_pub *sih);
-extern void si_pmu_res_init(struct si_pub *sih);
 extern u32 si_pmu_measure_alpclk(struct si_pub *sih);
 
 #endif /* _BRCM_PMU_H_ */

@@ -58,6 +58,7 @@
 /* MX31, MX35, MX25, MX5 */
 #define V2_TCTL_WAITEN		(1 << 3) /* Wait enable mode */
 #define V2_TCTL_CLK_IPG		(1 << 6)
+#define V2_TCTL_CLK_PER		(2 << 6)
 #define V2_TCTL_FRR		(1 << 9)
 #define V2_IR			0x0c
 #define V2_TSTAT		0x08
@@ -159,7 +160,8 @@ static const char *clock_event_mode_label[] = {
 	[CLOCK_EVT_MODE_PERIODIC] = "CLOCK_EVT_MODE_PERIODIC",
 	[CLOCK_EVT_MODE_ONESHOT]  = "CLOCK_EVT_MODE_ONESHOT",
 	[CLOCK_EVT_MODE_SHUTDOWN] = "CLOCK_EVT_MODE_SHUTDOWN",
-	[CLOCK_EVT_MODE_UNUSED]   = "CLOCK_EVT_MODE_UNUSED"
+	[CLOCK_EVT_MODE_UNUSED]   = "CLOCK_EVT_MODE_UNUSED",
+	[CLOCK_EVT_MODE_RESUME]   = "CLOCK_EVT_MODE_RESUME",
 };
 #endif /* DEBUG */
 
@@ -280,22 +282,21 @@ static int __init mxc_clockevent_init(struct clk *timer_clk)
 	return 0;
 }
 
-void __init mxc_timer_init(struct clk *timer_clk, void __iomem *base, int irq)
+void __init mxc_timer_init(void __iomem *base, int irq)
 {
 	uint32_t tctl_val;
+	struct clk *timer_clk;
 	struct clk *timer_ipg_clk;
 
-	if (!timer_clk) {
-		timer_clk = clk_get_sys("imx-gpt.0", "per");
-		if (IS_ERR(timer_clk)) {
-			pr_err("i.MX timer: unable to get clk\n");
-			return;
-		}
-
-		timer_ipg_clk = clk_get_sys("imx-gpt.0", "ipg");
-		if (!IS_ERR(timer_ipg_clk))
-			clk_prepare_enable(timer_ipg_clk);
+	timer_clk = clk_get_sys("imx-gpt.0", "per");
+	if (IS_ERR(timer_clk)) {
+		pr_err("i.MX timer: unable to get clk\n");
+		return;
 	}
+
+	timer_ipg_clk = clk_get_sys("imx-gpt.0", "ipg");
+	if (!IS_ERR(timer_ipg_clk))
+		clk_prepare_enable(timer_ipg_clk);
 
 	clk_prepare_enable(timer_clk);
 
@@ -309,7 +310,7 @@ void __init mxc_timer_init(struct clk *timer_clk, void __iomem *base, int irq)
 	__raw_writel(0, timer_base + MXC_TPRER); /* see datasheet note */
 
 	if (timer_is_v2())
-		tctl_val = V2_TCTL_CLK_IPG | V2_TCTL_FRR | V2_TCTL_WAITEN | MXC_TCTL_TEN;
+		tctl_val = V2_TCTL_CLK_PER | V2_TCTL_FRR | V2_TCTL_WAITEN | MXC_TCTL_TEN;
 	else
 		tctl_val = MX1_2_TCTL_FRR | MX1_2_TCTL_CLK_PCLK1 | MXC_TCTL_TEN;
 

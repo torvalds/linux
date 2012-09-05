@@ -715,13 +715,15 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 }
 EXPORT_SYMBOL(netpoll_parse_options);
 
-int __netpoll_setup(struct netpoll *np)
+int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 {
-	struct net_device *ndev = np->dev;
 	struct netpoll_info *npinfo;
 	const struct net_device_ops *ops;
 	unsigned long flags;
 	int err;
+
+	np->dev = ndev;
+	strlcpy(np->dev_name, ndev->name, IFNAMSIZ);
 
 	if ((ndev->priv_flags & IFF_DISABLE_NETPOLL) ||
 	    !ndev->netdev_ops->ndo_poll_controller) {
@@ -851,13 +853,11 @@ int netpoll_setup(struct netpoll *np)
 		np_info(np, "local IP %pI4\n", &np->local_ip);
 	}
 
-	np->dev = ndev;
-
 	/* fill up the skb queue */
 	refill_skbs();
 
 	rtnl_lock();
-	err = __netpoll_setup(np);
+	err = __netpoll_setup(np, ndev);
 	rtnl_unlock();
 
 	if (err)

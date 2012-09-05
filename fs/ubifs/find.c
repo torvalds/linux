@@ -939,8 +939,8 @@ static int find_dirtiest_idx_leb(struct ubifs_info *c)
 	}
 	dbg_find("LEB %d, dirty %d and free %d flags %#x", lp->lnum, lp->dirty,
 		 lp->free, lp->flags);
-	ubifs_assert(lp->flags | LPROPS_TAKEN);
-	ubifs_assert(lp->flags | LPROPS_INDEX);
+	ubifs_assert(lp->flags & LPROPS_TAKEN);
+	ubifs_assert(lp->flags & LPROPS_INDEX);
 	return lnum;
 }
 

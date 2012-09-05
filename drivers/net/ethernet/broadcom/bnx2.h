@@ -4642,6 +4642,47 @@ struct l2_fhdr {
 #define BNX2_TBDR_FTQ_CTL_CUR_DEPTH			 (0x3ffL<<22)
 
 
+/*
+ *  tbdc definition
+ *  offset: 0x5400
+ */
+#define BNX2_TBDC_COMMAND                               0x5400
+#define BNX2_TBDC_COMMAND_CMD_ENABLED                    (1UL<<0)
+#define BNX2_TBDC_COMMAND_CMD_FLUSH                      (1UL<<1)
+#define BNX2_TBDC_COMMAND_CMD_SOFT_RST                   (1UL<<2)
+#define BNX2_TBDC_COMMAND_CMD_REG_ARB                    (1UL<<3)
+#define BNX2_TBDC_COMMAND_WRCHK_RANGE_ERROR              (1UL<<4)
+#define BNX2_TBDC_COMMAND_WRCHK_ALL_ONES_ERROR           (1UL<<5)
+#define BNX2_TBDC_COMMAND_WRCHK_ALL_ZEROS_ERROR          (1UL<<6)
+#define BNX2_TBDC_COMMAND_WRCHK_ANY_ONES_ERROR           (1UL<<7)
+#define BNX2_TBDC_COMMAND_WRCHK_ANY_ZEROS_ERROR          (1UL<<8)
+
+#define BNX2_TBDC_STATUS				0x5404
+#define BNX2_TBDC_STATUS_FREE_CNT                        (0x3fUL<<0)
+
+#define BNX2_TBDC_BD_ADDR                               0x5424
+
+#define BNX2_TBDC_BIDX                                  0x542c
+#define BNX2_TBDC_BDIDX_BDIDX                            (0xffffUL<<0)
+#define BNX2_TBDC_BDIDX_CMD                              (0xffUL<<24)
+
+#define BNX2_TBDC_CID                                   0x5430
+
+#define BNX2_TBDC_CAM_OPCODE                            0x5434
+#define BNX2_TBDC_CAM_OPCODE_OPCODE                      (0x7UL<<0)
+#define BNX2_TBDC_CAM_OPCODE_OPCODE_SEARCH               (0UL<<0)
+#define BNX2_TBDC_CAM_OPCODE_OPCODE_CACHE_WRITE          (1UL<<0)
+#define BNX2_TBDC_CAM_OPCODE_OPCODE_INVALIDATE           (2UL<<0)
+#define BNX2_TBDC_CAM_OPCODE_OPCODE_CAM_WRITE            (4UL<<0)
+#define BNX2_TBDC_CAM_OPCODE_OPCODE_CAM_READ             (5UL<<0)
+#define BNX2_TBDC_CAM_OPCODE_OPCODE_RAM_WRITE            (6UL<<0)
+#define BNX2_TBDC_CAM_OPCODE_OPCODE_RAM_READ             (7UL<<0)
+#define BNX2_TBDC_CAM_OPCODE_SMASK_BDIDX                 (1UL<<4)
+#define BNX2_TBDC_CAM_OPCODE_SMASK_CID                   (1UL<<5)
+#define BNX2_TBDC_CAM_OPCODE_SMASK_CMD                   (1UL<<6)
+#define BNX2_TBDC_CAM_OPCODE_WMT_FAILED                  (1UL<<7)
+#define BNX2_TBDC_CAM_OPCODE_CAM_VALIDS                  (0xffUL<<8)
+
 
 /*
  *  tdma_reg definition
@@ -6930,6 +6971,8 @@ struct bnx2 {
 	struct bnx2_irq		irq_tbl[BNX2_MAX_MSIX_VEC];
 	int			irq_nvecs;
 
+	u8			func;
+
 	u8			num_tx_rings;
 	u8			num_rx_rings;
 
@@ -7313,6 +7356,8 @@ struct bnx2_rv2p_fw_file {
 					   DRV_MSG_CODE_DIAG)
 #define BNX2_BC_STATE_RESET_TYPE_VALUE(msg) (BNX2_BC_STATE_RESET_TYPE_SIG | \
 					     (msg))
+
+#define BNX2_BC_RESET_TYPE			0x000001c0
 
 #define BNX2_BC_STATE				0x000001c4
 #define BNX2_BC_STATE_ERR_MASK			 0x0000ff00

@@ -1,7 +1,7 @@
 /*
  *  Helper functions for scsw access.
  *
- *    Copyright IBM Corp. 2008,2009
+ *    Copyright IBM Corp. 2008, 2009
  *    Author(s): Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 

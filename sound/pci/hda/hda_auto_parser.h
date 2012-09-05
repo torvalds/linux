@@ -157,4 +157,14 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct snd_pci_quirk *quirk,
 			const struct hda_fixup *fixlist);
 
+static inline void snd_hda_gen_init(struct hda_gen_spec *spec)
+{
+	snd_array_init(&spec->verbs, sizeof(struct hda_verb *), 8);
+}
+
+static inline void snd_hda_gen_free(struct hda_gen_spec *spec)
+{
+	snd_array_free(&spec->verbs);
+}
+
 #endif /* __SOUND_HDA_AUTO_PARSER_H */

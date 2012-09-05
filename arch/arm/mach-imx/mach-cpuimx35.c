@@ -70,9 +70,8 @@ static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 		I2C_BOARD_INFO("pcf8563", 0x51),
 	}, {
 		I2C_BOARD_INFO("tsc2007", 0x48),
-		.type		= "tsc2007",
 		.platform_data	= &tsc2007_info,
-		.irq		= IMX_GPIO_TO_IRQ(TSC2007_IRQGPIO),
+		/* irq number is run-time assigned */
 	},
 };
 
@@ -142,18 +141,18 @@ static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.workaround	= FLS_USB2_WORKAROUND_ENGCM09152,
 };
 
-static int otg_mode_host;
+static bool otg_mode_host __initdata;
 
 static int __init eukrea_cpuimx35_otg_mode(char *options)
 {
 	if (!strcmp(options, "host"))
-		otg_mode_host = 1;
+		otg_mode_host = true;
 	else if (!strcmp(options, "device"))
-		otg_mode_host = 0;
+		otg_mode_host = false;
 	else
 		pr_info("otg_mode neither \"host\" nor \"device\". "
 			"Defaulting to device\n");
-	return 0;
+	return 1;
 }
 __setup("otg_mode=", eukrea_cpuimx35_otg_mode);
 
@@ -168,11 +167,12 @@ static void __init eukrea_cpuimx35_init(void)
 			ARRAY_SIZE(eukrea_cpuimx35_pads));
 
 	imx35_add_fec(NULL);
-	imx35_add_imx2_wdt(NULL);
+	imx35_add_imx2_wdt();
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&eukrea_cpuimx35_nand_board_info);
 
+	eukrea_cpuimx35_i2c_devices[1].irq = gpio_to_irq(TSC2007_IRQGPIO);
 	i2c_register_board_info(0, eukrea_cpuimx35_i2c_devices,
 			ARRAY_SIZE(eukrea_cpuimx35_i2c_devices));
 	imx35_add_imx_i2c0(&eukrea_cpuimx35_i2c0_data);

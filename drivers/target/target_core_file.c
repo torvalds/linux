@@ -331,7 +331,7 @@ static int fd_do_writev(struct se_cmd *cmd, struct scatterlist *sgl,
 	return 1;
 }
 
-static void fd_emulate_sync_cache(struct se_cmd *cmd)
+static int fd_execute_sync_cache(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
@@ -365,7 +365,7 @@ static void fd_emulate_sync_cache(struct se_cmd *cmd)
 		pr_err("FILEIO: vfs_fsync_range() failed: %d\n", ret);
 
 	if (immed)
-		return;
+		return 0;
 
 	if (ret) {
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -373,11 +373,15 @@ static void fd_emulate_sync_cache(struct se_cmd *cmd)
 	} else {
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	}
+
+	return 0;
 }
 
-static int fd_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents, enum dma_data_direction data_direction)
+static int fd_execute_rw(struct se_cmd *cmd)
 {
+	struct scatterlist *sgl = cmd->t_data_sg;
+	u32 sgl_nents = cmd->t_data_nents;
+	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *dev = cmd->se_dev;
 	int ret = 0;
 
@@ -550,6 +554,16 @@ static sector_t fd_get_blocks(struct se_device *dev)
 	return div_u64(dev_size, dev->se_sub_dev->se_dev_attrib.block_size);
 }
 
+static struct spc_ops fd_spc_ops = {
+	.execute_rw		= fd_execute_rw,
+	.execute_sync_cache	= fd_execute_sync_cache,
+};
+
+static int fd_parse_cdb(struct se_cmd *cmd)
+{
+	return sbc_parse_cdb(cmd, &fd_spc_ops);
+}
+
 static struct se_subsystem_api fileio_template = {
 	.name			= "fileio",
 	.owner			= THIS_MODULE,
@@ -561,8 +575,7 @@ static struct se_subsystem_api fileio_template = {
 	.allocate_virtdevice	= fd_allocate_virtdevice,
 	.create_virtdevice	= fd_create_virtdevice,
 	.free_device		= fd_free_device,
-	.execute_cmd		= fd_execute_cmd,
-	.do_sync_cache		= fd_emulate_sync_cache,
+	.parse_cdb		= fd_parse_cdb,
 	.check_configfs_dev_params = fd_check_configfs_dev_params,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,
