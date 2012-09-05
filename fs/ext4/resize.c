@@ -200,8 +200,11 @@ static void free_flex_gd(struct ext4_new_flex_group_data *flex_gd)
  * be a partial of a flex group.
  *
  * @sb: super block of fs to which the groups belongs
+ *
+ * Returns 0 on a successful allocation of the metadata blocks in the
+ * block group.
  */
-static void ext4_alloc_group_tables(struct super_block *sb,
+static int ext4_alloc_group_tables(struct super_block *sb,
 				struct ext4_new_flex_group_data *flex_gd,
 				int flexbg_size)
 {
@@ -226,6 +229,8 @@ static void ext4_alloc_group_tables(struct super_block *sb,
 	       (last_group & ~(flexbg_size - 1))));
 next_group:
 	group = group_data[0].group;
+	if (src_group >= group_data[0].group + flex_gd->count)
+		return -ENOSPC;
 	start_blk = ext4_group_first_block_no(sb, src_group);
 	last_blk = start_blk + group_data[src_group - group].blocks_count;
 
@@ -235,7 +240,6 @@ next_group:
 
 	start_blk += overhead;
 
-	BUG_ON(src_group >= group_data[0].group + flex_gd->count);
 	/* We collect contiguous blocks as much as possible. */
 	src_group++;
 	for (; src_group <= last_group; src_group++)
@@ -300,6 +304,7 @@ next_group:
 			       group_data[i].free_blocks_count);
 		}
 	}
+	return 0;
 }
 
 static struct buffer_head *bclean(handle_t *handle, struct super_block *sb,
@@ -1676,7 +1681,8 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 	 */
 	while (ext4_setup_next_flex_gd(sb, flex_gd, n_blocks_count,
 					      flexbg_size)) {
-		ext4_alloc_group_tables(sb, flex_gd, flexbg_size);
+		if (ext4_alloc_group_tables(sb, flex_gd, flexbg_size) != 0)
+			break;
 		err = ext4_flex_group_add(sb, resize_inode, flex_gd);
 		if (unlikely(err))
 			break;
