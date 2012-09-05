@@ -26,6 +26,7 @@
 
 struct nvc0_ltcg_priv {
 	struct nouveau_ltcg base;
+	u32 subp_nr;
 };
 
 static void
@@ -49,7 +50,7 @@ nvc0_ltcg_intr(struct nouveau_subdev *subdev)
 	units = nv_rd32(priv, 0x00017c);
 	while (units) {
 		u32 subp, unit = ffs(units) - 1;
-		for (subp = 0; subp < 2; subp++)
+		for (subp = 0; subp < priv->subp_nr; subp++)
 			nvc0_ltcg_subp_isr(priv, unit, subp);
 		units &= ~(1 << unit);
 	}
@@ -73,6 +74,7 @@ nvc0_ltcg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	priv->subp_nr = nv_rd32(priv, 0x17e8dc) >> 24;
 	nv_mask(priv, 0x17e820, 0x00100000, 0x00000000); /* INTR_EN &= ~0x10 */
 
 	nv_subdev(priv)->intr = nvc0_ltcg_intr;
