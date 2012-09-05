@@ -221,8 +221,13 @@ static int rk610_control_probe(struct i2c_client *client,
         return -ENOMEM;
     }
     memset(core_info, 0, sizeof(struct rk610_core_info));
-    
-		iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
+		#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)        
+        	iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
+		#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+		iis_clk = clk_get_sys("rk29_i2s.1", "i2s");
+		#else
+        	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
+		#endif
 		if (IS_ERR(iis_clk)) {
 			printk("failed to get i2s clk\n");
 			ret = PTR_ERR(iis_clk);
