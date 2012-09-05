@@ -1399,7 +1399,7 @@ static int __devinit mxcnd_probe(struct platform_device *pdev)
 	this->write_buf = mxc_nand_write_buf;
 	this->read_buf = mxc_nand_read_buf;
 
-	host->clk = devm_clk_get(&pdev->dev, "nfc");
+	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk))
 		return PTR_ERR(host->clk);
 
