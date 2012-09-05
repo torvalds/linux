@@ -2366,7 +2366,7 @@ static int kvm_vcpu_ioctl_set_lapic(struct kvm_vcpu *vcpu,
 static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 				    struct kvm_interrupt *irq)
 {
-	if (irq->irq < 0 || irq->irq >= 256)
+	if (irq->irq < 0 || irq->irq >= KVM_NR_INTERRUPTS)
 		return -EINVAL;
 	if (irqchip_in_kernel(vcpu->kvm))
 		return -ENXIO;
@@ -5793,7 +5793,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	if (mmu_reset_needed)
 		kvm_mmu_reset_context(vcpu);
 
-	max_bits = (sizeof sregs->interrupt_bitmap) << 3;
+	max_bits = KVM_NR_INTERRUPTS;
 	pending_vec = find_first_bit(
 		(const unsigned long *)sregs->interrupt_bitmap, max_bits);
 	if (pending_vec < max_bits) {
