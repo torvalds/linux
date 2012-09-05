@@ -43,6 +43,8 @@
 
 #define LM70_CHIP_LM70		0	/* original NS LM70 */
 #define LM70_CHIP_TMP121	1	/* TI TMP121/TMP123 */
+#define LM70_CHIP_LM71		2	/* NS LM71 */
+#define LM70_CHIP_LM74		3	/* NS LM74 */
 
 struct lm70 {
 	struct device *hwmon_dev;
@@ -88,9 +90,13 @@ static ssize_t lm70_sense_temp(struct device *dev,
 	 * Celsius.
 	 * So it's equivalent to multiplying by 0.25 * 1000 = 250.
 	 *
-	 * TMP121/TMP123:
+	 * LM74 and TMP121/TMP123:
 	 * 13 bits of 2's complement data, discard LSB 3 bits,
 	 * resolution 0.0625 degrees celsius.
+	 *
+	 * LM71:
+	 * 14 bits of 2's complement data, discard LSB 2 bits,
+	 * resolution 0.0312 degrees celsius.
 	 */
 	switch (p_lm70->chip) {
 	case LM70_CHIP_LM70:
@@ -98,7 +104,12 @@ static ssize_t lm70_sense_temp(struct device *dev,
 		break;
 
 	case LM70_CHIP_TMP121:
+	case LM70_CHIP_LM74:
 		val = ((int)raw / 8) * 625 / 10;
+		break;
+
+	case LM70_CHIP_LM71:
+		val = ((int)raw / 4) * 3125 / 100;
 		break;
 	}
 
@@ -123,6 +134,12 @@ static ssize_t lm70_show_name(struct device *dev, struct device_attribute
 	case LM70_CHIP_TMP121:
 		ret = sprintf(buf, "tmp121\n");
 		break;
+	case LM70_CHIP_LM71:
+		ret = sprintf(buf, "lm71\n");
+		break;
+	case LM70_CHIP_LM74:
+		ret = sprintf(buf, "lm74\n");
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -139,7 +156,7 @@ static int __devinit lm70_probe(struct spi_device *spi)
 	struct lm70 *p_lm70;
 	int status;
 
-	/* signaling is SPI_MODE_0 for both LM70 and TMP121 */
+	/* signaling is SPI_MODE_0 */
 	if (spi->mode & (SPI_CPOL | SPI_CPHA))
 		return -EINVAL;
 
@@ -196,6 +213,8 @@ static int __devexit lm70_remove(struct spi_device *spi)
 static const struct spi_device_id lm70_ids[] = {
 	{ "lm70",   LM70_CHIP_LM70 },
 	{ "tmp121", LM70_CHIP_TMP121 },
+	{ "lm71",   LM70_CHIP_LM71 },
+	{ "lm74",   LM70_CHIP_LM74 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, lm70_ids);
@@ -213,5 +232,5 @@ static struct spi_driver lm70_driver = {
 module_spi_driver(lm70_driver);
 
 MODULE_AUTHOR("Kaiwan N Billimoria");
-MODULE_DESCRIPTION("NS LM70 / TI TMP121/TMP123 Linux driver");
+MODULE_DESCRIPTION("NS LM70 and compatibles Linux driver");
 MODULE_LICENSE("GPL");

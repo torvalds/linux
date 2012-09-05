@@ -560,12 +560,12 @@ config SENSORS_LM63
 	  will be called lm63.
 
 config SENSORS_LM70
-	tristate "National Semiconductor LM70 / Texas Instruments TMP121"
+	tristate "National Semiconductor LM70 and compatibles"
 	depends on SPI_MASTER
 	help
 	  If you say yes here you get support for the National Semiconductor
-	  LM70 and Texas Instruments TMP121/TMP123 digital temperature
-	  sensor chips.
+	  LM70, LM71, LM74 and Texas Instruments TMP121/TMP123 digital tempera-
+	  ture sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm70.
