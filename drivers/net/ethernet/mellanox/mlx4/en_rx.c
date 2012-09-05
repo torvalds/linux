@@ -614,8 +614,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		/* If source MAC is equal to our own MAC and not performing
 		 * the selftest or flb disabled - drop the packet */
 		if (s_mac == priv->mac &&
-			(!(dev->features & NETIF_F_LOOPBACK) ||
-			 !priv->validate_loopback))
+		    !((dev->features & NETIF_F_LOOPBACK) ||
+		      priv->validate_loopback))
 			goto next;
 
 		/*

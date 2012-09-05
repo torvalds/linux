@@ -224,8 +224,8 @@ all your transactions.
 </para>
 
 <para>
-Then at umount time , in your put_super() (2.4) or write_super() (2.5)
-you can then call journal_destroy() to clean up your in-core journal object.
+Then at umount time , in your put_super() you can then call journal_destroy()
+to clean up your in-core journal object.
 </para>
 
 <para>

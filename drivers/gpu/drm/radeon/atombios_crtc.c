@@ -259,7 +259,7 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* adjust pm to dpms changes BEFORE enabling crtcs */
 		radeon_pm_compute_clocks(rdev);
 		/* disable crtc pair power gating before programming */
-		if (ASIC_IS_DCE6(rdev))
+		if (ASIC_IS_DCE6(rdev) && !radeon_crtc->in_mode_set)
 			atombios_powergate_crtc(crtc, ATOM_DISABLE);
 		atombios_enable_crtc(crtc, ATOM_ENABLE);
 		if (ASIC_IS_DCE3(rdev) && !ASIC_IS_DCE6(rdev))
@@ -279,7 +279,7 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 		atombios_enable_crtc(crtc, ATOM_DISABLE);
 		radeon_crtc->enabled = false;
 		/* power gating is per-pair */
-		if (ASIC_IS_DCE6(rdev)) {
+		if (ASIC_IS_DCE6(rdev) && !radeon_crtc->in_mode_set) {
 			struct drm_crtc *other_crtc;
 			struct radeon_crtc *other_radeon_crtc;
 			list_for_each_entry(other_crtc, &rdev->ddev->mode_config.crtc_list, head) {
@@ -444,10 +444,27 @@ union atom_enable_ss {
 static void atombios_crtc_program_ss(struct radeon_device *rdev,
 				     int enable,
 				     int pll_id,
+				     int crtc_id,
 				     struct radeon_atom_ss *ss)
 {
+	unsigned i;
 	int index = GetIndexIntoMasterTable(COMMAND, EnableSpreadSpectrumOnPPLL);
 	union atom_enable_ss args;
+
+	if (!enable) {
+		for (i = 0; i < rdev->num_crtc; i++) {
+			if (rdev->mode_info.crtcs[i] &&
+			    rdev->mode_info.crtcs[i]->enabled &&
+			    i != crtc_id &&
+			    pll_id == rdev->mode_info.crtcs[i]->pll_id) {
+				/* one other crtc is using this pll don't turn
+				 * off spread spectrum as it might turn off
+				 * display on active crtc
+				 */
+				return;
+			}
+		}
+	}
 
 	memset(&args, 0, sizeof(args));
 
@@ -1028,7 +1045,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		radeon_compute_pll_legacy(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
 					  &ref_div, &post_div);
 
-	atombios_crtc_program_ss(rdev, ATOM_DISABLE, radeon_crtc->pll_id, &ss);
+	atombios_crtc_program_ss(rdev, ATOM_DISABLE, radeon_crtc->pll_id, radeon_crtc->crtc_id, &ss);
 
 	atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
 				  encoder_mode, radeon_encoder->encoder_id, mode->clock,
@@ -1051,7 +1068,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 			ss.step = step_size;
 		}
 
-		atombios_crtc_program_ss(rdev, ATOM_ENABLE, radeon_crtc->pll_id, &ss);
+		atombios_crtc_program_ss(rdev, ATOM_ENABLE, radeon_crtc->pll_id, radeon_crtc->crtc_id, &ss);
 	}
 }
 
@@ -1531,12 +1548,12 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 				 * crtc virtual pixel clock.
 				 */
 				if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
-					if (ASIC_IS_DCE5(rdev))
-						return ATOM_DCPLL;
+					if (rdev->clock.dp_extclk)
+						return ATOM_PPLL_INVALID;
 					else if (ASIC_IS_DCE6(rdev))
 						return ATOM_PPLL0;
-					else if (rdev->clock.dp_extclk)
-						return ATOM_PPLL_INVALID;
+					else if (ASIC_IS_DCE5(rdev))
+						return ATOM_DCPLL;
 				}
 			}
 		}
@@ -1572,11 +1589,11 @@ void radeon_atom_disp_eng_pll_init(struct radeon_device *rdev)
 								   ASIC_INTERNAL_SS_ON_DCPLL,
 								   rdev->clock.default_dispclk);
 		if (ss_enabled)
-			atombios_crtc_program_ss(rdev, ATOM_DISABLE, ATOM_DCPLL, &ss);
+			atombios_crtc_program_ss(rdev, ATOM_DISABLE, ATOM_DCPLL, -1, &ss);
 		/* XXX: DCE5, make sure voltage, dispclk is high enough */
 		atombios_crtc_set_disp_eng_pll(rdev, rdev->clock.default_dispclk);
 		if (ss_enabled)
-			atombios_crtc_program_ss(rdev, ATOM_ENABLE, ATOM_DCPLL, &ss);
+			atombios_crtc_program_ss(rdev, ATOM_ENABLE, ATOM_DCPLL, -1, &ss);
 	}
 
 }
@@ -1635,9 +1652,16 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 static void atombios_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 
+	radeon_crtc->in_mode_set = true;
 	/* pick pll */
 	radeon_crtc->pll_id = radeon_atom_pick_pll(crtc);
+
+	/* disable crtc pair power gating before programming */
+	if (ASIC_IS_DCE6(rdev))
+		atombios_powergate_crtc(crtc, ATOM_DISABLE);
 
 	atombios_lock_crtc(crtc, ATOM_ENABLE);
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
@@ -1645,8 +1669,11 @@ static void atombios_crtc_prepare(struct drm_crtc *crtc)
 
 static void atombios_crtc_commit(struct drm_crtc *crtc)
 {
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 	atombios_lock_crtc(crtc, ATOM_DISABLE);
+	radeon_crtc->in_mode_set = false;
 }
 
 static void atombios_crtc_disable(struct drm_crtc *crtc)

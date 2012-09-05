@@ -53,7 +53,7 @@
 						spi-max-frequency = <6000000>;
 						reg = <0>;
 						interrupt-parent = <&gpio1>;
-						interrupts = <8>;
+						interrupts = <8 0x4>;
 
 						regulators {
 							sw1_reg: sw1 {

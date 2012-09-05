@@ -59,8 +59,8 @@ _stext:	movew	#0x2700,%sr
 	cmpal	%a1, %a2
 	bhi	1b
 
-	moveal	#_sbss, %a0
-	moveal	#_ebss, %a1
+	moveal	#__bss_start, %a0
+	moveal	#__bss_stop, %a1
 	/* Copy 0 to %a0 until %a0 == %a1 */
 	
 1:
@@ -70,7 +70,7 @@ _stext:	movew	#0x2700,%sr
 
         movel   #_sdata, %d0    
         movel   %d0, _rambase        
-        movel   #_ebss, %d0
+        movel   #__bss_stop, %d0
         movel   %d0, _ramstart
 	movel	#RAMEND-CONFIG_MEMORY_RESERVE*0x100000, %d0
 	movel	%d0, _ramend

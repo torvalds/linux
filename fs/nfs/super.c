@@ -319,6 +319,34 @@ EXPORT_SYMBOL_GPL(nfs_sops);
 static void nfs4_validate_mount_flags(struct nfs_parsed_mount_data *);
 static int nfs4_validate_mount_data(void *options,
 	struct nfs_parsed_mount_data *args, const char *dev_name);
+
+struct file_system_type nfs4_fs_type = {
+	.owner		= THIS_MODULE,
+	.name		= "nfs4",
+	.mount		= nfs_fs_mount,
+	.kill_sb	= nfs_kill_super,
+	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
+};
+EXPORT_SYMBOL_GPL(nfs4_fs_type);
+
+static int __init register_nfs4_fs(void)
+{
+	return register_filesystem(&nfs4_fs_type);
+}
+
+static void unregister_nfs4_fs(void)
+{
+	unregister_filesystem(&nfs4_fs_type);
+}
+#else
+static int __init register_nfs4_fs(void)
+{
+	return 0;
+}
+
+static void unregister_nfs4_fs(void)
+{
+}
 #endif
 
 static struct shrinker acl_shrinker = {
@@ -337,12 +365,18 @@ int __init register_nfs_fs(void)
 	if (ret < 0)
 		goto error_0;
 
-	ret = nfs_register_sysctl();
+	ret = register_nfs4_fs();
 	if (ret < 0)
 		goto error_1;
+
+	ret = nfs_register_sysctl();
+	if (ret < 0)
+		goto error_2;
 	register_shrinker(&acl_shrinker);
 	return 0;
 
+error_2:
+	unregister_nfs4_fs();
 error_1:
 	unregister_filesystem(&nfs_fs_type);
 error_0:
@@ -356,6 +390,7 @@ void __exit unregister_nfs_fs(void)
 {
 	unregister_shrinker(&acl_shrinker);
 	nfs_unregister_sysctl();
+	unregister_nfs4_fs();
 	unregister_filesystem(&nfs_fs_type);
 }
 
@@ -2645,4 +2680,6 @@ MODULE_PARM_DESC(max_session_slots, "Maximum number of outstanding NFSv4.1 "
 module_param(send_implementation_id, ushort, 0644);
 MODULE_PARM_DESC(send_implementation_id,
 		"Send implementation ID with NFSv4.1 exchange_id");
+MODULE_ALIAS("nfs4");
+
 #endif /* CONFIG_NFS_V4 */

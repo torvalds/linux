@@ -664,10 +664,6 @@ static noinline int btrfs_mksubvol(struct path *parent,
 	struct dentry *dentry;
 	int error;
 
-	error = mnt_want_write(parent->mnt);
-	if (error)
-		return error;
-
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 
 	dentry = lookup_one_len(name, parent->dentry, namelen);
@@ -703,7 +699,6 @@ out_dput:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&dir->i_mutex);
-	mnt_drop_write(parent->mnt);
 	return error;
 }
 

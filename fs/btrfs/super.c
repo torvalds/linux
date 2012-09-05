@@ -100,10 +100,6 @@ static void __save_error_info(struct btrfs_fs_info *fs_info)
 	fs_info->fs_state = BTRFS_SUPER_FLAG_ERROR;
 }
 
-/* NOTE:
- *	We move write_super stuff at umount in order to avoid deadlock
- *	for umount hold all lock.
- */
 static void save_error_info(struct btrfs_fs_info *fs_info)
 {
 	__save_error_info(fs_info);

@@ -9,5 +9,5 @@ dtb-$(CONFIG_MACH_ICONNECT_DT) += kirkwood-iconnect.dtb
 dtb-$(CONFIG_MACH_IB62X0_DT) += kirkwood-ib62x0.dtb
 dtb-$(CONFIG_MACH_TS219_DT)	+= kirkwood-qnap-ts219.dtb
 dtb-$(CONFIG_MACH_GOFLEXNET_DT) += kirkwood-goflexnet.dtb
-dbt-$(CONFIG_MACH_LSXL_DT) += kirkwood-lschlv2.dtb
-dbt-$(CONFIG_MACH_LSXL_DT) += kirkwood-lsxhl.dtb
+dtb-$(CONFIG_MACH_LSXL_DT) += kirkwood-lschlv2.dtb
+dtb-$(CONFIG_MACH_LSXL_DT) += kirkwood-lsxhl.dtb

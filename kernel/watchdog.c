@@ -575,7 +575,7 @@ out:
 /*
  * Create/destroy watchdog threads as CPUs come and go:
  */
-static int
+static int __cpuinit
 cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	int hotcpu = (unsigned long)hcpu;
@@ -610,26 +610,9 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cpu_nfb = {
+static struct notifier_block __cpuinitdata cpu_nfb = {
 	.notifier_call = cpu_callback
 };
-
-#ifdef CONFIG_SUSPEND
-/*
- * On exit from suspend we force an offline->online transition on the boot CPU
- * so that the PMU state that was lost while in suspended state gets set up
- * properly for the boot CPU.  This information is required for restarting the
- * NMI watchdog.
- */
-void lockup_detector_bootcpu_resume(void)
-{
-	void *cpu = (void *)(long)smp_processor_id();
-
-	cpu_callback(&cpu_nfb, CPU_DEAD_FROZEN, cpu);
-	cpu_callback(&cpu_nfb, CPU_UP_PREPARE_FROZEN, cpu);
-	cpu_callback(&cpu_nfb, CPU_ONLINE_FROZEN, cpu);
-}
-#endif
 
 void __init lockup_detector_init(void)
 {
