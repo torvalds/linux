@@ -18,3 +18,4 @@ obj-y += frequency/
 obj-y += dac/
 obj-y += common/
 obj-y += gyro/
+obj-y += magnetometer/
