@@ -178,8 +178,7 @@ static struct usb_rx *get_rx_struct(struct rx_cxt *rx)
 	}
 
 	r = list_entry(rx->free_list.next, struct usb_rx, list);
-	list_del(&r->list);
-	list_add_tail(&r->list, &rx->used_list);
+	list_move_tail(&r->list, &rx->used_list);
 
 	return r;
 }
