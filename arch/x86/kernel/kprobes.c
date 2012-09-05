@@ -1072,7 +1072,8 @@ void __kprobes kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(p);
 	} else {
-		regs->ip += sizeof(kprobe_opcode_t);
+		/* Kprobe handler expects regs->ip = ip + 1 as breakpoint hit */
+		regs->ip = ip + sizeof(kprobe_opcode_t);
 
 		__this_cpu_write(current_kprobe, p);
 		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
@@ -1080,13 +1081,15 @@ void __kprobes kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 			p->pre_handler(p, regs);
 
 		if (unlikely(p->post_handler)) {
-			/* Emulate singlestep as if there is a 5byte nop */
+			/*
+			 * Emulate singlestep (and also recover regs->ip)
+			 * as if there is a 5byte nop
+			 */
 			regs->ip = ip + MCOUNT_INSN_SIZE;
 			kcb->kprobe_status = KPROBE_HIT_SSDONE;
 			p->post_handler(p, regs, 0);
 		}
 		__this_cpu_write(current_kprobe, NULL);
-		regs->ip = ip;	/* Recover for next callback */
 	}
 end:
 	local_irq_restore(flags);
