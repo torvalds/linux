@@ -76,7 +76,13 @@
 
 /* Micron Vendor ID & P320x SSD Device ID */
 #define PCI_VENDOR_ID_MICRON    0x1344
-#define P320_DEVICE_ID		0x5150
+#define P320H_DEVICE_ID		0x5150
+#define P320M_DEVICE_ID		0x5151
+#define P320S_DEVICE_ID		0x5152
+#define P325M_DEVICE_ID		0x5153
+#define P420H_DEVICE_ID		0x5160
+#define P420M_DEVICE_ID		0x5161
+#define P425M_DEVICE_ID		0x5163
 
 /* Driver name and version strings */
 #define MTIP_DRV_NAME		"mtip32xx"
