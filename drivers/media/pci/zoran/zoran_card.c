@@ -1055,6 +1055,10 @@ zr36057_init (struct zoran *zr)
 	memcpy(zr->video_dev, &zoran_template, sizeof(zoran_template));
 	zr->video_dev->parent = &zr->pci_dev->dev;
 	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
+	/* It's not a mem2mem device, but you can both capture and output from
+	   one and the same device. This should really be split up into two
+	   device nodes, but that's a job for another day. */
+	zr->video_dev->vfl_dir = VFL_DIR_M2M;
 	err = video_register_device(zr->video_dev, VFL_TYPE_GRABBER, video_nr[zr->id]);
 	if (err < 0)
 		goto exit_free;

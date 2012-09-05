@@ -999,6 +999,7 @@ static const struct v4l2_file_operations m2mtest_fops = {
 
 static struct video_device m2mtest_videodev = {
 	.name		= MEM2MEM_NAME,
+	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &m2mtest_fops,
 	.ioctl_ops	= &m2mtest_ioctl_ops,
 	.minor		= -1,

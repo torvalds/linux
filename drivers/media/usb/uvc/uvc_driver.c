@@ -1722,6 +1722,8 @@ static int uvc_register_video(struct uvc_device *dev,
 	vdev->v4l2_dev = &dev->vdev;
 	vdev->fops = &uvc_fops;
 	vdev->release = uvc_release;
+	if (stream->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		vdev->vfl_dir = VFL_DIR_TX;
 	strlcpy(vdev->name, dev->name, sizeof vdev->name);
 
 	/* Set the driver data before calling video_register_device, otherwise

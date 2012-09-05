@@ -1639,6 +1639,7 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 	dev->vfd.release	= video_device_release_empty,
 	dev->vfd.lock	= &dev->dev_mutex;
 	dev->vfd.v4l2_dev	= &dev->v4l2_dev;
+	dev->vfd.vfl_dir	= VFL_DIR_M2M;
 	snprintf(dev->vfd.name, sizeof(dev->vfd.name), "%s", CODA_NAME);
 	video_set_drvdata(&dev->vfd, dev);
 

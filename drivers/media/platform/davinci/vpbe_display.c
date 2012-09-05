@@ -1633,6 +1633,7 @@ static __devinit int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 	vbd->minor	= -1;
 	vbd->v4l2_dev   = &disp_dev->vpbe_dev->v4l2_dev;
 	vbd->lock	= &vpbe_display_layer->opslock;
+	vbd->vfl_dir	= VFL_DIR_TX;
 
 	if (disp_dev->vpbe_dev->current_timings.timings_type &
 			VPBE_ENC_STD) {

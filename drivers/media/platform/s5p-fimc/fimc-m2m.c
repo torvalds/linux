@@ -804,6 +804,7 @@ int fimc_register_m2m_device(struct fimc_dev *fimc,
 	vfd->minor = -1;
 	vfd->release = video_device_release;
 	vfd->lock = &fimc->lock;
+	vfd->vfl_dir = VFL_DIR_M2M;
 
 	snprintf(vfd->name, sizeof(vfd->name), "fimc.%d.m2m", fimc->id);
 	video_set_drvdata(vfd, fimc);

@@ -1342,6 +1342,7 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		direction = "input";
 		video->pad.flags = MEDIA_PAD_FL_SOURCE;
+		video->video.vfl_dir = VFL_DIR_TX;
 		break;
 
 	default:

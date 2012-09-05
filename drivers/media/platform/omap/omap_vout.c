@@ -1951,6 +1951,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 
 	vfd->fops = &omap_vout_fops;
 	vfd->v4l2_dev = &vout->vid_dev->v4l2_dev;
+	vfd->vfl_dir = VFL_DIR_TX;
 	mutex_init(&vout->lock);
 
 	vfd->minor = -1;

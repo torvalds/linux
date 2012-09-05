@@ -877,6 +877,7 @@ static struct video_device emmaprp_videodev = {
 	.ioctl_ops	= &emmaprp_ioctl_ops,
 	.minor		= -1,
 	.release	= video_device_release,
+	.vfl_dir	= VFL_DIR_M2M,
 };
 
 static struct v4l2_m2m_ops m2m_ops = {

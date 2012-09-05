@@ -1081,6 +1081,7 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 		.minor = -1,
 		.release = mxr_vfd_release,
 		.fops = &mxr_fops,
+		.vfl_dir = VFL_DIR_TX,
 		.ioctl_ops = &mxr_ioctl_ops,
 	};
 	strlcpy(layer->vfd.name, name, sizeof(layer->vfd.name));

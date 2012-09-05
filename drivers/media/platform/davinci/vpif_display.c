@@ -1745,6 +1745,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 		*vfd = vpif_video_template;
 		vfd->v4l2_dev = &vpif_obj.v4l2_dev;
 		vfd->release = video_device_release;
+		vfd->vfl_dir = VFL_DIR_TX;
 		snprintf(vfd->name, sizeof(vfd->name),
 			 "VPIF_Display_DRIVER_V%s",
 			 VPIF_DISPLAY_VERSION);
