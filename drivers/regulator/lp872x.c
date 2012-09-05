@@ -729,28 +729,6 @@ static struct regulator_desc lp8725_regulator_desc[] = {
 	},
 };
 
-static int lp872x_check_dvs_validity(struct lp872x *lp)
-{
-	struct lp872x_dvs *dvs = lp->pdata->dvs;
-	u8 val = 0;
-	int ret;
-
-	ret = lp872x_read_byte(lp, LP872X_GENERAL_CFG, &val);
-	if (ret)
-		return ret;
-
-	ret = 0;
-	if (lp->chipid == LP8720) {
-		if (val & LP8720_EXT_DVS_M)
-			ret = dvs ? 0 : -EINVAL;
-	} else {
-		if ((val & LP8725_DVS1_M) == EXTERN_DVS_USED)
-			ret = dvs ? 0 : -EINVAL;
-	}
-
-	return ret;
-}
-
 static int lp872x_init_dvs(struct lp872x *lp)
 {
 	int ret, gpio;
@@ -761,12 +739,6 @@ static int lp872x_init_dvs(struct lp872x *lp)
 
 	if (!dvs)
 		goto set_default_dvs_mode;
-
-	ret = lp872x_check_dvs_validity(lp);
-	if (ret) {
-		dev_warn(lp->dev, "invalid dvs data: %d\n", ret);
-		return ret;
-	}
 
 	gpio = dvs->gpio;
 	if (!gpio_is_valid(gpio)) {
