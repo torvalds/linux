@@ -14,3 +14,17 @@ config ZCACHE2
 	  technical disagreements.  It is intended that they will merge
 	  again in the future.  Until then, zcache2 is a single-node
 	  version of ramster.
+
+config RAMSTER
+	bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
+	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE2=y
+	# must ensure struct page is 8-byte aligned
+	select HAVE_ALIGNED_STRUCT_PAGE if !64_BIT
+	default n
+	help
+	  RAMster allows RAM on other machines in a cluster to be utilized
+	  dynamically and symmetrically instead of swapping to a local swap
+	  disk, thus improving performance on memory-constrained workloads
+	  while minimizing total RAM across the cluster.  RAMster, like
+	  zcache2, compresses swap pages into local RAM, but then remotifies
+	  the compressed pages to another node in the RAMster cluster.
