@@ -238,6 +238,19 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 	s->vdev->release = video_device_release;
 	s->vdev->tvnorms = V4L2_STD_ALL;
 	s->vdev->lock = &itv->serialize_lock;
+	if (s->type == IVTV_DEC_STREAM_TYPE_VBI) {
+		v4l2_disable_ioctl(s->vdev, VIDIOC_S_AUDIO);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_ENUMAUDIO);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_ENUMINPUT);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_S_INPUT);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_G_INPUT);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(s->vdev, VIDIOC_S_STD);
+	}
 	set_bit(V4L2_FL_USE_FH_PRIO, &s->vdev->flags);
 	ivtv_set_funcs(s->vdev);
 	return 0;
