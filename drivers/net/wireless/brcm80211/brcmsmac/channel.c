@@ -77,7 +77,7 @@
 					 NL80211_RRF_NO_IBSS)
 
 static const struct ieee80211_regdomain brcms_regdom_x2 = {
-	.n_reg_rules = 7,
+	.n_reg_rules = 6,
 	.alpha2 = "X2",
 	.reg_rules = {
 		BRCM_2GHZ_2412_2462,
