@@ -63,7 +63,7 @@
 					     &mmc0_cd_cfg
 					     &mmc0_sck_cfg>;
 				bus-width = <8>;
-				wp-gpios = <&gpio3 10 1>;
+				wp-gpios = <&gpio3 10 0>;
 				vmmc-supply = <&reg_vddio_sd0>;
 				status = "okay";
 			};
