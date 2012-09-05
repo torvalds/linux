@@ -792,8 +792,11 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->country_elem_len = elen;
 			break;
 		case WLAN_EID_PWR_CONSTRAINT:
+			if (elen != 1) {
+				elem_parse_failed = true;
+				break;
+			}
 			elems->pwr_constr_elem = pos;
-			elems->pwr_constr_elem_len = elen;
 			break;
 		case WLAN_EID_TIMEOUT_INTERVAL:
 			elems->timeout_int = pos;
