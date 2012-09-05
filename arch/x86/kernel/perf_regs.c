@@ -57,7 +57,7 @@ static unsigned int pt_regs_offset[PERF_REG_X86_MAX] = {
 
 u64 perf_reg_value(struct pt_regs *regs, int idx)
 {
-	if (WARN_ON_ONCE(idx > ARRAY_SIZE(pt_regs_offset)))
+	if (WARN_ON_ONCE(idx >= ARRAY_SIZE(pt_regs_offset)))
 		return 0;
 
 	return regs_get_register(regs, pt_regs_offset[idx]);
