@@ -1334,9 +1334,7 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 	else if (bitmap == 0)
 		block = (REISERFS_DISK_OFFSET_IN_BYTES >> sb->s_blocksize_bits) + 1;
 
-	reiserfs_write_unlock(sb);
 	bh = sb_bread(sb, block);
-	reiserfs_write_lock(sb);
 	if (bh == NULL)
 		reiserfs_warning(sb, "sh-2029: %s: bitmap block (#%u) "
 		                 "reading failed", __func__, block);

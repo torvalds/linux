@@ -228,6 +228,8 @@ static int mtx1_pci_idsel(unsigned int devsel, int assert)
 	 * adapter on the mtx-1 "singleboard" variant. It triggers a custom
 	 * logic chip connected to EXT_IO3 (GPIO1) to suppress IDSEL signals.
 	 */
+	udelay(1);
+
 	if (assert && devsel != 0)
 		/* Suppress signal to Cardbus */
 		alchemy_gpio_set_value(1, 0);	/* set EXT_IO3 OFF */
