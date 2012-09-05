@@ -51,6 +51,7 @@ struct rk29_button_data {
 struct rk29_keys_drvdata {
 	int nbuttons;
 	int result;
+	bool in_suspend;	/* Flag to indicate if we're suspending/resuming */
 	struct input_dev *input;
 	struct adc_client *client;
 	struct timer_list timer;
@@ -63,9 +64,9 @@ struct rk29_keys_Arrary {
 };
 
 static ssize_t rk29key_set(struct device *dev,
-		struct device_attribute *attr, char *buf)
+		struct device_attribute *attr, const char *buf, size_t count)
 {
- 	struct rk29_keys_platform_data *pdata = dev->platform_data;
+	struct rk29_keys_platform_data *pdata = dev_get_platdata(dev);
 	int i,j,start,end;
 	char rk29keyArrary[400];
 	struct rk29_keys_Arrary Arrary[]={
@@ -278,8 +279,9 @@ static void callback(struct adc_client *client, void *client_param, int result)
 static void adc_timer(unsigned long _data)
 {
 	struct rk29_keys_drvdata *ddata = (struct rk29_keys_drvdata *)_data;
-	
-	adc_async_read(ddata->client);
+
+	if (!ddata->in_suspend)
+		adc_async_read(ddata->client);
 	mod_timer(&ddata->timer, jiffies + msecs_to_jiffies(ADC_SAMPLE_TIME));
 }
 static ssize_t adc_value_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -293,7 +295,8 @@ static DEVICE_ATTR(get_adc_value, S_IRUGO | S_IWUSR, adc_value_show, NULL);
 
 static int __devinit keys_probe(struct platform_device *pdev)
 {
-	struct rk29_keys_platform_data *pdata = pdev->dev.platform_data;
+	struct device *dev = &pdev->dev;
+	struct rk29_keys_platform_data *pdata = dev_get_platdata(dev);
 	struct rk29_keys_drvdata *ddata;
 	struct input_dev *input;
 	int i, error = 0;
@@ -315,7 +318,7 @@ static int __devinit keys_probe(struct platform_device *pdev)
 
 	input->name = pdev->name;
 	input->phys = "gpio-keys/input0";
-	input->dev.parent = &pdev->dev;
+	input->dev.parent = dev;
 
 	input->id.bustype = BUS_HOST;
 	input->id.vendor = 0x0001;
@@ -404,10 +407,10 @@ static int __devinit keys_probe(struct platform_device *pdev)
 		goto fail2;
 	}
 
-	device_init_wakeup(&pdev->dev, wakeup);
-	error = device_create_file(&pdev->dev, &dev_attr_get_adc_value);
+	device_init_wakeup(dev, wakeup);
+	error = device_create_file(dev, &dev_attr_get_adc_value);
 
-	error = device_create_file(&pdev->dev,&dev_attr_rk29key);
+	error = device_create_file(dev, &dev_attr_rk29key);
 	if(error )
 	{
 		pr_err("failed to create key file error: %d\n", error);
@@ -438,13 +441,14 @@ static int __devinit keys_probe(struct platform_device *pdev)
 
 static int __devexit keys_remove(struct platform_device *pdev)
 {
-	struct rk29_keys_platform_data *pdata = pdev->dev.platform_data;
-	struct rk29_keys_drvdata *ddata = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+	struct rk29_keys_platform_data *pdata = dev_get_platdata(dev);
+	struct rk29_keys_drvdata *ddata = dev_get_drvdata(dev);
 	struct input_dev *input = ddata->input;
 	int i;
 
 	input_dev = NULL;
-	device_init_wakeup(&pdev->dev, 0);
+	device_init_wakeup(dev, 0);
 
 	for (i = 0; i < pdata->nbuttons; i++) {
 		int irq = gpio_to_irq(pdata->buttons[i].gpio);
@@ -463,11 +467,13 @@ static int __devexit keys_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int keys_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rk29_keys_platform_data *pdata = pdev->dev.platform_data;
+	struct rk29_keys_platform_data *pdata = dev_get_platdata(dev);
+	struct rk29_keys_drvdata *ddata = dev_get_drvdata(dev);
 	int i;
 
-	if (device_may_wakeup(&pdev->dev)) {
+	ddata->in_suspend = true;
+
+	if (device_may_wakeup(dev)) {
 		for (i = 0; i < pdata->nbuttons; i++) {
 			struct rk29_keys_button *button = &pdata->buttons[i];
 			if (button->wakeup) {
@@ -482,11 +488,11 @@ static int keys_suspend(struct device *dev)
 
 static int keys_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rk29_keys_platform_data *pdata = pdev->dev.platform_data;
+	struct rk29_keys_platform_data *pdata = dev_get_platdata(dev);
+	struct rk29_keys_drvdata *ddata = dev_get_drvdata(dev);
 	int i;
 
-	if (device_may_wakeup(&pdev->dev)) {
+	if (device_may_wakeup(dev)) {
 		for (i = 0; i < pdata->nbuttons; i++) {
 			struct rk29_keys_button *button = &pdata->buttons[i];
 			if (button->wakeup) {
@@ -495,6 +501,8 @@ static int keys_resume(struct device *dev)
 			}
 		}
 	}
+
+	ddata->in_suspend = false;
 
 	return 0;
 }
