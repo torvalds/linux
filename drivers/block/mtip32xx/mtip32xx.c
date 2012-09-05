@@ -3218,8 +3218,8 @@ static int mtip_hw_init(struct driver_data *dd)
 				"Unable to check write protect progress\n");
 	else
 		dev_info(&dd->pdev->dev,
-				"Write protect progress: %d%% (%d blocks)\n",
-				attr242.cur, attr242.data);
+				"Write protect progress: %u%% (%u blocks)\n",
+				attr242.cur, le32_to_cpu(attr242.data));
 	return rv;
 
 out3:
