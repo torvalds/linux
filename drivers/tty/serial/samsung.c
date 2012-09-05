@@ -459,7 +459,7 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret != 0) {
-		printk(KERN_ERR "cannot get irq %d\n", ourport->rx_irq);
+		dev_err(port->dev, "cannot get irq %d\n", ourport->rx_irq);
 		return ret;
 	}
 
@@ -473,7 +473,7 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret) {
-		printk(KERN_ERR "cannot get irq %d\n", ourport->tx_irq);
+		dev_err(port->dev, "cannot get irq %d\n", ourport->tx_irq);
 		goto err;
 	}
 
@@ -502,7 +502,7 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	ret = request_irq(port->irq, s3c64xx_serial_handle_irq, IRQF_SHARED,
 			  s3c24xx_serial_portname(port), ourport);
 	if (ret) {
-		printk(KERN_ERR "cannot get irq %d\n", port->irq);
+		dev_err(port->dev, "cannot get irq %d\n", port->irq);
 		return ret;
 	}
 
@@ -543,7 +543,7 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 
 		break;
 	default:
-		printk(KERN_ERR "s3c24xx_serial: unknown pm %d\n", level);
+		dev_err(port->dev, "s3c24xx_serial: unknown pm %d\n", level);
 	}
 }
 
@@ -1038,7 +1038,7 @@ static int s3c24xx_serial_cpufreq_transition(struct notifier_block *nb,
 		termios = &tty->termios;
 
 		if (termios == NULL) {
-			printk(KERN_WARNING "%s: no termios?\n", __func__);
+			dev_warn(uport->dev, "%s: no termios?\n", __func__);
 			goto exit;
 		}
 
@@ -1113,7 +1113,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	res = platform_get_resource(platdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		printk(KERN_ERR "failed to find memory resource for uart\n");
+		dev_err(port->dev, "failed to find memory resource for uart\n");
 		return -EINVAL;
 	}
 
@@ -1683,7 +1683,7 @@ static int __init s3c24xx_serial_modinit(void)
 
 	ret = uart_register_driver(&s3c24xx_uart_drv);
 	if (ret < 0) {
-		printk(KERN_ERR "failed to register UART driver\n");
+		pr_err("Failed to register Samsung UART driver\n");
 		return -1;
 	}
 
