@@ -19,6 +19,68 @@
 
 #include "usb.h"
 
+/**
+ * usb_acpi_power_manageable - check whether usb port has
+ * acpi power resource.
+ * @hdev: USB device belonging to the usb hub
+ * @index: port index based zero
+ *
+ * Return true if the port has acpi power resource and false if no.
+ */
+bool usb_acpi_power_manageable(struct usb_device *hdev, int index)
+{
+	acpi_handle port_handle;
+	int port1 = index + 1;
+
+	port_handle = usb_get_hub_port_acpi_handle(hdev,
+		port1);
+	if (port_handle)
+		return acpi_bus_power_manageable(port_handle);
+	else
+		return false;
+}
+EXPORT_SYMBOL_GPL(usb_acpi_power_manageable);
+
+/**
+ * usb_acpi_set_power_state - control usb port's power via acpi power
+ * resource
+ * @hdev: USB device belonging to the usb hub
+ * @index: port index based zero
+ * @enable: power state expected to be set
+ *
+ * Notice to use usb_acpi_power_manageable() to check whether the usb port
+ * has acpi power resource before invoking this function.
+ *
+ * Returns 0 on success, else negative errno.
+ */
+int usb_acpi_set_power_state(struct usb_device *hdev, int index, bool enable)
+{
+	acpi_handle port_handle;
+	unsigned char state;
+	int port1 = index + 1;
+	int error = -EINVAL;
+
+	port_handle = (acpi_handle)usb_get_hub_port_acpi_handle(hdev,
+		port1);
+	if (!port_handle)
+		return error;
+
+	if (enable)
+		state = ACPI_STATE_D0;
+	else
+		state = ACPI_STATE_D3_COLD;
+
+	error = acpi_bus_set_power(port_handle, state);
+	if (!error)
+		dev_dbg(&hdev->dev, "The power of hub port %d was set to %d\n",
+			port1, enable);
+	else
+		dev_dbg(&hdev->dev, "The power of hub port failed to be set\n");
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(usb_acpi_set_power_state);
+
 static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
 	acpi_handle handle, int port1)
 {

@@ -766,6 +766,12 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 			temp = xhci_readl(xhci, port_array[wIndex]);
 			xhci_dbg(xhci, "set port power, actual port %d status  = 0x%x\n", wIndex, temp);
+
+			temp = usb_acpi_power_manageable(hcd->self.root_hub,
+					wIndex);
+			if (temp)
+				usb_acpi_set_power_state(hcd->self.root_hub,
+						wIndex, true);
 			break;
 		case USB_PORT_FEAT_RESET:
 			temp = (temp | PORT_RESET);
@@ -868,6 +874,12 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_POWER:
 			xhci_writel(xhci, temp & ~PORT_POWER,
 				port_array[wIndex]);
+
+			temp = usb_acpi_power_manageable(hcd->self.root_hub,
+					wIndex);
+			if (temp)
+				usb_acpi_set_power_state(hcd->self.root_hub,
+						wIndex, false);
 			break;
 		default:
 			goto error;

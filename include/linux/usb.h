@@ -602,6 +602,16 @@ extern int usb_lock_device_for_reset(struct usb_device *udev,
 extern int usb_reset_device(struct usb_device *dev);
 extern void usb_queue_reset_device(struct usb_interface *dev);
 
+#ifdef CONFIG_ACPI
+extern int usb_acpi_set_power_state(struct usb_device *hdev, int index,
+	bool enable);
+extern bool usb_acpi_power_manageable(struct usb_device *hdev, int index);
+#else
+static inline int usb_acpi_set_power_state(struct usb_device *hdev, int index,
+	bool enable) { return 0; }
+static inline bool usb_acpi_power_manageable(struct usb_device *hdev, int index)
+	{ return true; }
+#endif
 
 /* USB autosuspend and autoresume */
 #ifdef CONFIG_USB_SUSPEND
