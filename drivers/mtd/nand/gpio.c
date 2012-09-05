@@ -417,20 +417,7 @@ static struct platform_driver gpio_nand_driver = {
 	},
 };
 
-static int __init gpio_nand_init(void)
-{
-	printk(KERN_INFO "GPIO NAND driver, © 2004 Simtec Electronics\n");
-
-	return platform_driver_register(&gpio_nand_driver);
-}
-
-static void __exit gpio_nand_exit(void)
-{
-	platform_driver_unregister(&gpio_nand_driver);
-}
-
-module_init(gpio_nand_init);
-module_exit(gpio_nand_exit);
+module_platform_driver(gpio_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
