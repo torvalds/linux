@@ -94,7 +94,7 @@ static void exynos_drm_subdrv_remove(struct drm_device *dev,
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
 	if (subdrv->remove)
-		subdrv->remove(dev);
+		subdrv->remove(dev, subdrv->dev);
 
 	if (subdrv->encoder) {
 		struct drm_encoder *encoder = subdrv->encoder;
