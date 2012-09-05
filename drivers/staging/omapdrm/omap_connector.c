@@ -48,13 +48,10 @@ static inline void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 	mode->vsync_end = mode->vsync_start + timings->vsw;
 	mode->vtotal = mode->vsync_end + timings->vbp;
 
-	/* note: whether or not it is interlaced, +/- h/vsync, etc,
-	 * which should be set in the mode flags, is not exposed in
-	 * the omap_video_timings struct.. but hdmi driver tracks
-	 * those separately so all we have to have to set the mode
-	 * is the way to recover these timings values, and the
-	 * omap_dss_driver would do the rest.
-	 */
+	mode->flags = 0;
+
+	if (timings->interlace)
+		mode->flags |= DRM_MODE_FLAG_INTERLACE;
 }
 
 static inline void copy_timings_drm_to_omap(struct omap_video_timings *timings,
@@ -71,6 +68,8 @@ static inline void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 	timings->vfp = mode->vsync_start - mode->vdisplay;
 	timings->vsw = mode->vsync_end - mode->vsync_start;
 	timings->vbp = mode->vtotal - mode->vsync_end;
+
+	timings->interlace = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
 }
 
 static void omap_connector_dpms(struct drm_connector *connector, int mode)
@@ -187,7 +186,7 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 		}
 	} else {
 		struct drm_display_mode *mode = drm_mode_create(dev);
-		struct omap_video_timings timings;
+		struct omap_video_timings timings = {0};
 
 		dssdrv->get_timings(dssdev, &timings);
 
@@ -291,7 +290,7 @@ void omap_connector_mode_set(struct drm_connector *connector,
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
 	struct omap_dss_driver *dssdrv = dssdev->driver;
-	struct omap_video_timings timings;
+	struct omap_video_timings timings = {0};
 
 	copy_timings_drm_to_omap(&timings, mode);
 
