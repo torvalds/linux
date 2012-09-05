@@ -410,7 +410,7 @@ static struct pinctrl_map __initdata u9500_pinmap[] = {
 	DB8500_PIN_HOG("GPIO144_B13", gpio_in_pu),
 	/* HSI */
 	DB8500_MUX_HOG("hsir_a_1", "hsi"),
-	DB8500_MUX_HOG("hsit_a_1", "hsi"),
+	DB8500_MUX_HOG("hsit_a_2", "hsi"),
 	DB8500_PIN_HOG("GPIO219_AG10", in_pd), /* RX FLA0 */
 	DB8500_PIN_HOG("GPIO220_AH10", in_pd), /* RX DAT0 */
 	DB8500_PIN_HOG("GPIO221_AJ11", out_lo), /* RX RDY0 */
@@ -418,7 +418,7 @@ static struct pinctrl_map __initdata u9500_pinmap[] = {
 	DB8500_PIN_HOG("GPIO223_AH9", out_lo), /* TX DAT0 */
 	DB8500_PIN_HOG("GPIO224_AG9", in_pd), /* TX RDY0 */
 	DB8500_PIN_HOG("GPIO225_AG8", in_pd), /* CAWAKE0 */
-	DB8500_PIN_HOG("GPIO226_AF8", out_hi), /* ACWAKE0 */
+	DB8500_PIN_HOG("GPIO226_AF8", gpio_out_hi), /* ACWAKE0 */
 };
 
 static struct pinctrl_map __initdata u8500_pinmap[] = {
