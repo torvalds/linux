@@ -90,10 +90,12 @@ static inline struct virtblk_req *virtblk_alloc_req(struct virtio_blk *vblk,
 	struct virtblk_req *vbr;
 
 	vbr = mempool_alloc(vblk->pool, gfp_mask);
-	if (vbr && use_bio)
-		sg_init_table(vbr->sg, vblk->sg_elems);
+	if (!vbr)
+		return NULL;
 
 	vbr->vblk = vblk;
+	if (use_bio)
+		sg_init_table(vbr->sg, vblk->sg_elems);
 
 	return vbr;
 }
