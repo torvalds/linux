@@ -82,7 +82,7 @@ static inline const char *s3c24xx_serial_portname(struct uart_port *port)
 
 static int s3c24xx_serial_txempty_nofifo(struct uart_port *port)
 {
-	return (rd_regl(port, S3C2410_UTRSTAT) & S3C2410_UTRSTAT_TXE);
+	return rd_regl(port, S3C2410_UTRSTAT) & S3C2410_UTRSTAT_TXE;
 }
 
 /*
@@ -268,7 +268,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 				dbg("break!\n");
 				port->icount.brk++;
 				if (uart_handle_break(port))
-				    goto ignore_char;
+					goto ignore_char;
 			}
 
 			if (uerstat & S3C2410_UERSTAT_FRAME)
@@ -1129,7 +1129,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		ourport->rx_irq = ret;
 		ourport->tx_irq = ret + 1;
 	}
-	
+
 	ret = platform_get_irq(platdev, 1);
 	if (ret > 0)
 		ourport->tx_irq = ret;
