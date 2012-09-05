@@ -263,6 +263,9 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 	struct virtqueue *vq;
 	int err;
 
+	if (!name)
+		return NULL;
+
 	/* We must have this many virtqueues. */
 	if (index >= ldev->desc->num_vq)
 		return ERR_PTR(-ENOENT);

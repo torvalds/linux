@@ -555,7 +555,10 @@ static int vp_try_to_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	vp_dev->per_vq_vectors = per_vq_vectors;
 	allocated_vectors = vp_dev->msix_used_vectors;
 	for (i = 0; i < nvqs; ++i) {
-		if (!callbacks[i] || !vp_dev->msix_enabled)
+		if (!names[i]) {
+			vqs[i] = NULL;
+			continue;
+		} else if (!callbacks[i] || !vp_dev->msix_enabled)
 			msix_vec = VIRTIO_MSI_NO_VECTOR;
 		else if (vp_dev->per_vq_vectors)
 			msix_vec = allocated_vectors++;

@@ -84,7 +84,9 @@
  *	nvqs: the number of virtqueues to find
  *	vqs: on success, includes new virtqueues
  *	callbacks: array of callbacks, for each virtqueue
+ *		include a NULL entry for vqs that do not need a callback
  *	names: array of virtqueue names (mainly for debugging)
+ *		include a NULL entry for vqs unused by driver
  *	Returns 0 on success or error status
  * @del_vqs: free virtqueues found by find_vqs().
  * @get_features: get the array of feature bits for this device.

@@ -306,6 +306,9 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 	unsigned long flags, size;
 	int err;
 
+	if (!name)
+		return NULL;
+
 	/* Select the queue we're interested in */
 	writel(index, vm_dev->base + VIRTIO_MMIO_QUEUE_SEL);
 

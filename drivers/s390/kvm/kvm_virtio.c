@@ -190,6 +190,9 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 	if (index >= kdev->desc->num_vq)
 		return ERR_PTR(-ENOENT);
 
+	if (!name)
+		return NULL;
+
 	config = kvm_vq_config(kdev->desc)+index;
 
 	err = vmem_add_mapping(config->address,

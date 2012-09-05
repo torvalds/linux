@@ -84,6 +84,9 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	if (id >= ARRAY_SIZE(rvdev->vring))
 		return ERR_PTR(-EINVAL);
 
+	if (!name)
+		return NULL;
+
 	ret = rproc_alloc_vring(rvdev, id);
 	if (ret)
 		return ERR_PTR(ret);
