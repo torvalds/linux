@@ -627,7 +627,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     {
         if((ubuffer[0] != 0) && (ubuffer[0] != 1))
         {
-            __wrn("para err in disp_ioctl, screen id = %d\n", (int)ubuffer[0]);
+			__wrn("para err in disp_ioctl, cmd = 0x%x,screen id = %d\n", cmd, (int)ubuffer[0]);
             return -1;
         }
     }
@@ -655,6 +655,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     		if(copy_from_user(&para, (void __user *)ubuffer[1],sizeof(__disp_color_t)))
     		{
+				__wrn("copy_from_user fail\n");
     			return  -EFAULT;
     		}
 		    ret = BSP_disp_set_bk_color(ubuffer[0], &para);
@@ -667,6 +668,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
     		if(copy_from_user(&para, (void __user *)ubuffer[1],sizeof(__disp_colorkey_t)))
     		{
+				__wrn("copy_from_user fail\n");
     			return  -EFAULT;
     		}
     		ret = BSP_disp_set_color_key(ubuffer[0], &para);
@@ -681,6 +683,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     	    }
     		if(copy_from_user(gbuffer, (void __user *)ubuffer[1],ubuffer[3]))
     		{
+				__wrn("copy_from_user fail\n");
     			return  -EFAULT;
     		}
     		ret = BSP_disp_set_palette_table(ubuffer[0], (__u32 *)gbuffer, ubuffer[2], ubuffer[3]);
@@ -695,6 +698,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_get_palette_table(ubuffer[0], (__u32 *)gbuffer, ubuffer[2], ubuffer[3]);
     		if(copy_to_user((void __user *)ubuffer[1], gbuffer,ubuffer[3]))
     		{
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -840,7 +844,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_layer_get_framebuffer(ubuffer[0], ubuffer[1], &para);
     		if(copy_to_user((void __user *)ubuffer[2], &para,sizeof(__disp_fb_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -867,7 +871,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_layer_get_src_window(ubuffer[0],ubuffer[1], &para);
     		if(copy_to_user((void __user *)ubuffer[2], &para, sizeof(__disp_rect_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -894,7 +898,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_layer_get_screen_window(ubuffer[0],ubuffer[1], &para);
     		if(copy_to_user((void __user *)ubuffer[2], &para, sizeof(__disp_rect_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -921,7 +925,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_layer_get_para(ubuffer[0], ubuffer[1], &para);
     		if(copy_to_user((void __user *)ubuffer[2],&para, sizeof(__disp_layer_info_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -1127,7 +1131,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_hwc_get_pos(ubuffer[0], &para);
     		if(copy_to_user((void __user *)ubuffer[1],&para, sizeof(__disp_pos_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -1194,7 +1198,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             ret = BSP_disp_video_get_dit_info(ubuffer[0], ubuffer[1],&para);
     		if(copy_to_user((void __user *)ubuffer[2],&para, sizeof(__disp_dit_info_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -1503,7 +1507,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_sprite_block_get_srceen_win(ubuffer[0], ubuffer[1],&para);
     		if(copy_to_user((void __user *)ubuffer[2],&para, sizeof(__disp_rect_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -1529,7 +1533,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_sprite_block_get_src_win(ubuffer[0], ubuffer[1],&para);
     		if(copy_to_user((void __user *)ubuffer[2],&para, sizeof(__disp_rect_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -1555,7 +1559,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_sprite_block_get_framebufer(ubuffer[0], ubuffer[1],&para);
     		if(copy_to_user((void __user *)ubuffer[2],&para, sizeof(__disp_fb_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -1609,7 +1613,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		ret = BSP_disp_sprite_block_get_para(ubuffer[0], ubuffer[1],&para);
     		if(copy_to_user((void __user *)ubuffer[2],&para, sizeof(__disp_sprite_block_para_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
     		break;
@@ -1640,7 +1644,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = Display_Fb_get_para(ubuffer[0], &para);
     		if(copy_to_user((void __user *)ubuffer[1],&para, sizeof(__disp_fb_create_para_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
 			break;
@@ -1653,7 +1657,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = Display_get_disp_init_para(&para);
     		if(copy_to_user((void __user *)ubuffer[0],&para, sizeof(__disp_init_t)))
     		{
-    		    __wrn("copy_from_user fail\n");
+				__wrn("copy_to_user fail\n");
     			return  -EFAULT;
     		}
 			break;
