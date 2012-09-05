@@ -568,38 +568,31 @@ static void target_complete_failure_work(struct work_struct *work)
 }
 
 /*
- * Used to obtain Sense Data from underlying Linux/SCSI struct scsi_cmnd
+ * Used when asking transport to copy Sense Data from the underlying
+ * Linux/SCSI struct scsi_cmnd
  */
-static void transport_get_sense_data(struct se_cmd *cmd)
+static unsigned char *transport_get_sense_buffer(struct se_cmd *cmd)
 {
-	unsigned char *buffer = cmd->sense_buffer, *sense_buffer = NULL;
+	unsigned char *buffer = cmd->sense_buffer;
 	struct se_device *dev = cmd->se_dev;
-	unsigned long flags;
 	u32 offset = 0;
 
 	WARN_ON(!cmd->se_lun);
 
 	if (!dev)
-		return;
+		return NULL;
 
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
-	}
-
-	sense_buffer = dev->transport->get_sense_buffer(cmd);
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+	if (cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION)
+		return NULL;
 
 	offset = cmd->se_tfo->set_fabric_sense_len(cmd, TRANSPORT_SENSE_BUFFER);
-
-	memcpy(&buffer[offset], sense_buffer, TRANSPORT_SENSE_BUFFER);
 
 	/* Automatically padded */
 	cmd->scsi_sense_length = TRANSPORT_SENSE_BUFFER + offset;
 
-	pr_debug("HBA_[%u]_PLUG[%s]: Set SAM STATUS: 0x%02x and sense\n",
+	pr_debug("HBA_[%u]_PLUG[%s]: Requesting sense for SAM STATUS: 0x%02x\n",
 		dev->se_hba->hba_id, dev->transport->name, cmd->scsi_status);
+	return &buffer[offset];
 }
 
 void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
@@ -615,11 +608,11 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 	cmd->transport_state &= ~CMD_T_BUSY;
 
 	if (dev && dev->transport->transport_complete) {
-		if (dev->transport->transport_complete(cmd,
-				cmd->t_data_sg) != 0) {
-			cmd->se_cmd_flags |= SCF_TRANSPORT_TASK_SENSE;
+		dev->transport->transport_complete(cmd,
+				cmd->t_data_sg,
+				transport_get_sense_buffer(cmd));
+		if (cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE)
 			success = 1;
-		}
 	}
 
 	/*
@@ -1987,12 +1980,11 @@ static void target_complete_ok_work(struct work_struct *work)
 		schedule_work(&cmd->se_dev->qf_work_queue);
 
 	/*
-	 * Check if we need to retrieve a sense buffer from
+	 * Check if we need to send a sense buffer from
 	 * the struct se_cmd in question.
 	 */
 	if (cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) {
 		WARN_ON(!cmd->scsi_status);
-		transport_get_sense_data(cmd);
 		ret = transport_send_check_condition_and_sense(
 					cmd, 0, 1);
 		if (ret == -EAGAIN || ret == -ENOMEM)

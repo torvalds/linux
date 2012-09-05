@@ -667,7 +667,8 @@ static void pscsi_free_device(void *p)
 	kfree(pdv);
 }
 
-static int pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg)
+static void pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg,
+				     unsigned char *sense_buffer)
 {
 	struct pscsi_dev_virt *pdv = cmd->se_dev->dev_ptr;
 	struct scsi_device *sd = pdv->pdv_sd;
@@ -679,7 +680,7 @@ static int pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg)
 	 * not been allocated because TCM is handling the emulation directly.
 	 */
 	if (!pt)
-		return 0;
+		return;
 
 	cdb = &pt->pscsi_cdb[0];
 	result = pt->pscsi_result;
@@ -750,10 +751,10 @@ after_mode_sense:
 	}
 after_mode_select:
 
-	if (status_byte(result) & CHECK_CONDITION)
-		return 1;
-
-	return 0;
+	if (sense_buffer && (status_byte(result) & CHECK_CONDITION)) {
+		memcpy(sense_buffer, pt->pscsi_sense, TRANSPORT_SENSE_BUFFER);
+		cmd->se_cmd_flags |= SCF_TRANSPORT_TASK_SENSE;
+	}
 }
 
 enum {
@@ -1184,13 +1185,6 @@ fail:
 	return -ENOMEM;
 }
 
-static unsigned char *pscsi_get_sense_buffer(struct se_cmd *cmd)
-{
-	struct pscsi_plugin_task *pt = cmd->priv;
-
-	return pt->pscsi_sense;
-}
-
 /*	pscsi_get_device_rev():
  *
  *
@@ -1273,7 +1267,6 @@ static struct se_subsystem_api pscsi_template = {
 	.check_configfs_dev_params = pscsi_check_configfs_dev_params,
 	.set_configfs_dev_params = pscsi_set_configfs_dev_params,
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,
-	.get_sense_buffer	= pscsi_get_sense_buffer,
 	.get_device_rev		= pscsi_get_device_rev,
 	.get_device_type	= pscsi_get_device_type,
 	.get_blocks		= pscsi_get_blocks,

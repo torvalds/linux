@@ -23,7 +23,9 @@ struct se_subsystem_api {
 	struct se_device *(*create_virtdevice)(struct se_hba *,
 				struct se_subsystem_dev *, void *);
 	void (*free_device)(void *);
-	int (*transport_complete)(struct se_cmd *cmd, struct scatterlist *);
+	void (*transport_complete)(struct se_cmd *cmd,
+				   struct scatterlist *,
+				   unsigned char *);
 
 	int (*parse_cdb)(struct se_cmd *cmd);
 	ssize_t (*check_configfs_dev_params)(struct se_hba *,
