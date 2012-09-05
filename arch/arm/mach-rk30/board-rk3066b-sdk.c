@@ -168,6 +168,7 @@ static int rk29_backlight_io_deinit(void)
 	gpio_free(BL_EN_PIN);
 #endif
 	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
+	gpio_request(PWM_GPIO, NULL);
 	gpio_direction_output(PWM_GPIO, GPIO_LOW);
 	return ret;
 }
