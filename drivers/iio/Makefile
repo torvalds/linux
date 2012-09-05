@@ -15,3 +15,4 @@ obj-y += amplifiers/
 obj-y += light/
 obj-y += frequency/
 obj-y += dac/
+obj-y += common/
