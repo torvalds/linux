@@ -4213,12 +4213,12 @@ static int __init mtip_init(void)
 {
 	int error;
 
-	printk(KERN_INFO MTIP_DRV_NAME " Version " MTIP_DRV_VERSION "\n");
+	pr_info(MTIP_DRV_NAME " Version " MTIP_DRV_VERSION "\n");
 
 	/* Allocate a major block device number to use with this driver. */
 	error = register_blkdev(0, MTIP_DRV_NAME);
 	if (error <= 0) {
-		printk(KERN_ERR "Unable to register block device (%d)\n",
+		pr_err("Unable to register block device (%d)\n",
 		error);
 		return -EBUSY;
 	}
@@ -4227,7 +4227,7 @@ static int __init mtip_init(void)
 	if (!dfs_parent) {
 		dfs_parent = debugfs_create_dir("rssd", NULL);
 		if (IS_ERR_OR_NULL(dfs_parent)) {
-			printk(KERN_WARNING "Error creating debugfs parent\n");
+			pr_warn("Error creating debugfs parent\n");
 			dfs_parent = NULL;
 		}
 	}
