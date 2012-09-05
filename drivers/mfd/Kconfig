@@ -996,14 +996,6 @@ config MFD_STA2X11
 	depends on STA2X11
 	select MFD_CORE
 
-config MFD_ANATOP
-	bool "Support for Freescale i.MX on-chip ANATOP controller"
-	depends on SOC_IMX6Q
-	help
-	  Select this option to enable Freescale i.MX on-chip ANATOP
-	  MFD controller. This controller embeds regulator and
-	  thermal devices for Freescale i.MX platforms.
-
 config MFD_SYSCON
 	bool "System Controller Register R/W Based on Regmap"
 	depends on OF
