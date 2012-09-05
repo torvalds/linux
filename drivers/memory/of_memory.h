@@ -12,7 +12,7 @@
 #ifndef __LINUX_MEMORY_OF_REG_H
 #define __LINUX_MEMORY_OF_REG_H
 
-#ifdef CONFIG_OF
+#if defined(CONFIG_OF) && defined(CONFIG_DDR)
 extern const struct lpddr2_min_tck *of_get_min_tck(struct device_node *np,
 		struct device *dev);
 extern const struct lpddr2_timings
@@ -31,6 +31,6 @@ static inline const struct lpddr2_timings
 {
 	return NULL;
 }
-#endif /* CONFIG_OF */
+#endif /* CONFIG_OF && CONFIG_DDR */
 
 #endif /* __LINUX_MEMORY_OF_REG_ */
