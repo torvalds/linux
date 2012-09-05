@@ -28,6 +28,7 @@ config MACH_MOP500
 	select I2C
 	select I2C_NOMADIK
 	select SOC_BUS
+	select REGULATOR_FIXED_VOLTAGE
 	help
 	  Include support for the MOP500 development platform.
 
