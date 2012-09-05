@@ -5077,3 +5077,21 @@ struct usb_device *usb_hub_find_child(struct usb_device *hdev,
 	return hub->ports[port1 - 1]->child;
 }
 EXPORT_SYMBOL_GPL(usb_hub_find_child);
+
+#ifdef CONFIG_ACPI
+/**
+ * usb_get_hub_port_acpi_handle - Get the usb port's acpi handle
+ * @hdev: USB device belonging to the usb hub
+ * @port1: port num of the port
+ *
+ * Return port's acpi handle if successful, NULL if params are
+ * invaild.
+ */
+acpi_handle usb_get_hub_port_acpi_handle(struct usb_device *hdev,
+	int port1)
+{
+	struct usb_hub *hub = hdev_to_hub(hdev);
+
+	return DEVICE_ACPI_HANDLE(&hub->ports[port1 - 1]->dev);
+}
+#endif

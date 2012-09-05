@@ -70,22 +70,59 @@ static int usb_acpi_check_pld(struct usb_device *udev, acpi_handle handle)
 static int usb_acpi_find_device(struct device *dev, acpi_handle *handle)
 {
 	struct usb_device *udev;
-	struct device *parent;
 	acpi_handle *parent_handle;
+	int port_num;
 
-	if (!is_usb_device(dev))
-		return -ENODEV;
+	/*
+	 * In the ACPI DSDT table, only usb root hub and usb ports are
+	 * acpi device nodes. The hierarchy like following.
+	 * Device (EHC1)
+	 *	Device (HUBN)
+	 *		Device (PR01)
+	 *			Device (PR11)
+	 *			Device (PR12)
+	 *			Device (PR13)
+	 *			...
+	 * So all binding process is divided into two parts. binding
+	 * root hub and usb ports.
+	 */
+	if (is_usb_device(dev)) {
+		udev = to_usb_device(dev);
+		if (udev->parent)
+			return -ENODEV;
+		/* root hub's parent is the usb hcd. */
+		parent_handle = DEVICE_ACPI_HANDLE(dev->parent);
+		*handle = acpi_get_child(parent_handle, udev->portnum);
+		if (!*handle)
+			return -ENODEV;
+		return 0;
+	} else if (is_usb_port(dev)) {
+		sscanf(dev_name(dev), "port%d", &port_num);
+		/* Get the struct usb_device point of port's hub */
+		udev = to_usb_device(dev->parent->parent);
 
-	udev = to_usb_device(dev);
-	parent = dev->parent;
-	parent_handle = DEVICE_ACPI_HANDLE(parent);
+		/*
+		 * The root hub ports' parent is the root hub. The non-root-hub
+		 * ports' parent is the parent hub port which the hub is
+		 * connected to.
+		 */
+		if (!udev->parent) {
+			*handle = acpi_get_child(DEVICE_ACPI_HANDLE(&udev->dev),
+				port_num);
+			if (!*handle)
+				return -ENODEV;
+		} else {
+			parent_handle =
+				usb_get_hub_port_acpi_handle(udev->parent,
+				udev->portnum);
+			if (!parent_handle)
+				return -ENODEV;
 
-	if (!parent_handle)
-		return -ENODEV;
-
-	*handle = acpi_get_child(parent_handle, udev->portnum);
-
-	if (!*handle)
+			*handle = acpi_get_child(parent_handle,	port_num);
+			if (!*handle)
+				return -ENODEV;
+		}
+	} else
 		return -ENODEV;
 
 	/*
@@ -102,7 +139,7 @@ static int usb_acpi_find_device(struct device *dev, acpi_handle *handle)
 
 static struct acpi_bus_type usb_acpi_bus = {
 	.bus = &usb_bus_type,
-	.find_bridge = NULL,
+	.find_bridge = usb_acpi_find_device,
 	.find_device = usb_acpi_find_device,
 };
 
