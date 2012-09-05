@@ -159,18 +159,7 @@ static struct spi_driver gen_74x164_driver = {
 	.probe		= gen_74x164_probe,
 	.remove		= __devexit_p(gen_74x164_remove),
 };
-
-static int __init gen_74x164_init(void)
-{
-	return spi_register_driver(&gen_74x164_driver);
-}
-subsys_initcall(gen_74x164_init);
-
-static void __exit gen_74x164_exit(void)
-{
-	spi_unregister_driver(&gen_74x164_driver);
-}
-module_exit(gen_74x164_exit);
+module_spi_driver(gen_74x164_driver);
 
 MODULE_AUTHOR("Gabor Juhos <juhosg@openwrt.org>");
 MODULE_AUTHOR("Miguel Gaio <miguel.gaio@efixo.com>");
