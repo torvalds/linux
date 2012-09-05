@@ -254,6 +254,13 @@ config CHARGER_LP8727
 	help
 	  Say Y here to enable support for LP8727 Charger Driver.
 
+config CHARGER_LP8788
+	tristate "TI LP8788 charger driver"
+	depends on MFD_LP8788
+	depends on LP8788_ADC
+	help
+	  Say Y to enable support for the LP8788 linear charger.
+
 config CHARGER_GPIO
 	tristate "GPIO charger"
 	depends on GPIOLIB
