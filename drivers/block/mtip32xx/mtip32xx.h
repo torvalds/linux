@@ -137,10 +137,12 @@ enum {
 	MTIP_PF_SVC_THD_STOP_BIT    = 8,
 
 	/* below are bit numbers in 'dd_flag' defined in driver_data */
+	MTIP_DDF_SEC_LOCK_BIT	    = 0,
 	MTIP_DDF_REMOVE_PENDING_BIT = 1,
 	MTIP_DDF_OVER_TEMP_BIT      = 2,
 	MTIP_DDF_WRITE_PROTECT_BIT  = 3,
 	MTIP_DDF_STOP_IO      = ((1 << MTIP_DDF_REMOVE_PENDING_BIT) | \
+				(1 << MTIP_DDF_SEC_LOCK_BIT) | \
 				(1 << MTIP_DDF_OVER_TEMP_BIT) | \
 				(1 << MTIP_DDF_WRITE_PROTECT_BIT)),
 
