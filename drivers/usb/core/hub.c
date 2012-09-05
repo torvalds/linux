@@ -43,6 +43,7 @@ struct usb_port {
 	struct usb_device *child;
 	struct device dev;
 	struct dev_state *port_owner;
+	enum usb_port_connect_type connect_type;
 };
 
 struct usb_hub {
@@ -5077,6 +5078,36 @@ struct usb_device *usb_hub_find_child(struct usb_device *hdev,
 	return hub->ports[port1 - 1]->child;
 }
 EXPORT_SYMBOL_GPL(usb_hub_find_child);
+
+/**
+ * usb_set_hub_port_connect_type - set hub port connect type.
+ * @hdev: USB device belonging to the usb hub
+ * @port1: port num of the port
+ * @type: connect type of the port
+ */
+void usb_set_hub_port_connect_type(struct usb_device *hdev, int port1,
+	enum usb_port_connect_type type)
+{
+	struct usb_hub *hub = hdev_to_hub(hdev);
+
+	hub->ports[port1 - 1]->connect_type = type;
+}
+
+/**
+ * usb_get_hub_port_connect_type - Get the port's connect type
+ * @hdev: USB device belonging to the usb hub
+ * @port1: port num of the port
+ *
+ * Return connect type of the port and if input params are
+ * invalid, return USB_PORT_CONNECT_TYPE_UNKNOWN.
+ */
+enum usb_port_connect_type
+usb_get_hub_port_connect_type(struct usb_device *hdev, int port1)
+{
+	struct usb_hub *hub = hdev_to_hub(hdev);
+
+	return hub->ports[port1 - 1]->connect_type;
+}
 
 #ifdef CONFIG_ACPI
 /**

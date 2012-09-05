@@ -19,20 +19,29 @@
 
 #include "usb.h"
 
-static int usb_acpi_check_upc(struct usb_device *udev, acpi_handle handle)
+static int usb_acpi_check_port_connect_type(struct usb_device *hdev,
+	acpi_handle handle, int port1)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *upc;
+	struct acpi_pld pld;
 	int ret = 0;
 
-	status = acpi_evaluate_object(handle, "_UPC", NULL, &buffer);
-
+	/*
+	 * Accoding to ACPI Spec 9.13. PLD indicates whether usb port is
+	 * user visible and _UPC indicates whether it is connectable. If
+	 * the port was visible and connectable, it could be freely connected
+	 * and disconnected with USB devices. If no visible and connectable,
+	 * a usb device is directly hard-wired to the port. If no visible and
+	 * no connectable, the port would be not used.
+	 */
+	status = acpi_get_physical_device_location(handle, &pld);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
+	status = acpi_evaluate_object(handle, "_UPC", NULL, &buffer);
 	upc = buffer.pointer;
-
 	if (!upc || (upc->type != ACPI_TYPE_PACKAGE)
 		|| upc->package.count != 4) {
 		ret = -EINVAL;
@@ -40,31 +49,18 @@ static int usb_acpi_check_upc(struct usb_device *udev, acpi_handle handle)
 	}
 
 	if (upc->package.elements[0].integer.value)
-		udev->removable = USB_DEVICE_REMOVABLE;
-	else
-		udev->removable = USB_DEVICE_FIXED;
+		if (pld.user_visible)
+			usb_set_hub_port_connect_type(hdev, port1,
+				USB_PORT_CONNECT_TYPE_HOT_PLUG);
+		else
+			usb_set_hub_port_connect_type(hdev, port1,
+				USB_PORT_CONNECT_TYPE_HARD_WIRED);
+	else if (!pld.user_visible)
+		usb_set_hub_port_connect_type(hdev, port1, USB_PORT_NOT_USED);
 
 out:
 	kfree(upc);
 	return ret;
-}
-
-static int usb_acpi_check_pld(struct usb_device *udev, acpi_handle handle)
-{
-	acpi_status status;
-	struct acpi_pld pld;
-
-	status = acpi_get_physical_device_location(handle, &pld);
-
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	if (pld.user_visible)
-		udev->removable = USB_DEVICE_REMOVABLE;
-	else
-		udev->removable = USB_DEVICE_FIXED;
-
-	return 0;
 }
 
 static int usb_acpi_find_device(struct device *dev, acpi_handle *handle)
@@ -88,8 +84,30 @@ static int usb_acpi_find_device(struct device *dev, acpi_handle *handle)
 	 */
 	if (is_usb_device(dev)) {
 		udev = to_usb_device(dev);
-		if (udev->parent)
+		if (udev->parent) {
+			enum usb_port_connect_type type;
+
+			/*
+			 * According usb port's connect type to set usb device's
+			 * removability.
+			 */
+			type = usb_get_hub_port_connect_type(udev->parent,
+				udev->portnum);
+			switch (type) {
+			case USB_PORT_CONNECT_TYPE_HOT_PLUG:
+				udev->removable = USB_DEVICE_REMOVABLE;
+				break;
+			case USB_PORT_CONNECT_TYPE_HARD_WIRED:
+				udev->removable = USB_DEVICE_FIXED;
+				break;
+			default:
+				udev->removable = USB_DEVICE_REMOVABLE_UNKNOWN;
+				break;
+			}
+
 			return -ENODEV;
+		}
+
 		/* root hub's parent is the usb hcd. */
 		parent_handle = DEVICE_ACPI_HANDLE(dev->parent);
 		*handle = acpi_get_child(parent_handle, udev->portnum);
@@ -122,17 +140,9 @@ static int usb_acpi_find_device(struct device *dev, acpi_handle *handle)
 			if (!*handle)
 				return -ENODEV;
 		}
+		usb_acpi_check_port_connect_type(udev, *handle, port_num);
 	} else
 		return -ENODEV;
-
-	/*
-	 * PLD will tell us whether a port is removable to the user or
-	 * not. If we don't get an answer from PLD (it's not present
-	 * or it's malformed) then try to infer it from UPC. If a
-	 * device isn't connectable then it's probably not removable.
-	 */
-	if (usb_acpi_check_pld(udev, *handle) != 0)
-		usb_acpi_check_upc(udev, *handle);
 
 	return 0;
 }
