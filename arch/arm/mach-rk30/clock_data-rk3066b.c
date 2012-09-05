@@ -524,7 +524,7 @@ static int frac_div_get_seting(unsigned long rate_out, unsigned long rate,
 static void pll_wait_lock(int pll_idx)
 {
 	u32 pll_state[4] = {1, 0, 2, 3};
-	u32 bit = 0x10u << pll_state[pll_idx];
+	u32 bit = 0x20u << pll_state[pll_idx];
 	int delay = 24000000;
 	while (delay > 0) {
 		if (regfile_readl(GRF_SOC_STATUS0) & bit)
