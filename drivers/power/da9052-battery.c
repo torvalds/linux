@@ -623,7 +623,7 @@ static s32 __devinit da9052_bat_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	for (; i >= 0; i--) {
+	while (--i >= 0) {
 		irq = platform_get_irq_byname(pdev, da9052_bat_irqs[i]);
 		free_irq(bat->da9052->irq_base + irq, bat);
 	}
