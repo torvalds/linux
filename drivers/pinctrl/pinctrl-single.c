@@ -337,7 +337,7 @@ static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 		vals = &func->vals[i];
 		val = pcs->read(vals->reg);
 		val &= ~pcs->fmask;
-		val |= vals->val;
+		val |= (vals->val & pcs->fmask);
 		pcs->write(val, vals->reg);
 	}
 
