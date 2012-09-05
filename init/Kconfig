@@ -1201,13 +1201,7 @@ config KALLSYMS_ALL
 	   Say N unless you really need all symbols.
 
 config HOTPLUG
-	bool "Support for hot-pluggable devices" if EXPERT
-	default y
-	help
-	  This option is provided for the case where no hotplug or uevent
-	  capabilities is wanted by the kernel.  You should only consider
-	  disabling this option for embedded systems that do not use modules, a
-	  dynamic /dev tree, or dynamic device discovery.  Just say Y.
+	def_bool y
 
 config PRINTK
 	default y
