@@ -1322,6 +1322,8 @@ struct net_device {
 	/* phy device may attach itself for hardware timestamping */
 	struct phy_device *phydev;
 
+	struct lock_class_key *qdisc_tx_busylock;
+
 	/* group the device belongs to */
 	int group;
 

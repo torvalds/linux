@@ -527,6 +527,8 @@ struct Qdisc_ops pfifo_fast_ops __read_mostly = {
 };
 EXPORT_SYMBOL(pfifo_fast_ops);
 
+static struct lock_class_key qdisc_tx_busylock;
+
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  struct Qdisc_ops *ops)
 {
@@ -534,6 +536,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	struct Qdisc *sch;
 	unsigned int size = QDISC_ALIGN(sizeof(*sch)) + ops->priv_size;
 	int err = -ENOBUFS;
+	struct net_device *dev = dev_queue->dev;
 
 	p = kzalloc_node(size, GFP_KERNEL,
 			 netdev_queue_numa_node_read(dev_queue));
@@ -553,12 +556,16 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	}
 	INIT_LIST_HEAD(&sch->list);
 	skb_queue_head_init(&sch->q);
+
 	spin_lock_init(&sch->busylock);
+	lockdep_set_class(&sch->busylock,
+			  dev->qdisc_tx_busylock ?: &qdisc_tx_busylock);
+
 	sch->ops = ops;
 	sch->enqueue = ops->enqueue;
 	sch->dequeue = ops->dequeue;
 	sch->dev_queue = dev_queue;
-	dev_hold(qdisc_dev(sch));
+	dev_hold(dev);
 	atomic_set(&sch->refcnt, 1);
 
 	return sch;
