@@ -564,19 +564,6 @@ void omapdss_venc_set_timings(struct omap_dss_device *dssdev,
 
 	venc.timings = *timings;
 
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		int r;
-
-		/* turn the venc off and on to get new timings to use */
-		venc_power_off(dssdev);
-
-		r = venc_power_on(dssdev);
-		if (r)
-			DSSERR("failed to power on VENC\n");
-	} else {
-		dss_mgr_set_timings(dssdev->manager, timings);
-	}
-
 	mutex_unlock(&venc.venc_lock);
 }
 

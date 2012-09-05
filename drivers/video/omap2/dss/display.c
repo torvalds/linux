@@ -142,7 +142,11 @@ static ssize_t display_timings_store(struct device *dev,
 	if (r)
 		return r;
 
+	dssdev->driver->disable(dssdev);
 	dssdev->driver->set_timings(dssdev, &t);
+	r = dssdev->driver->enable(dssdev);
+	if (r)
+		return r;
 
 	return size;
 }

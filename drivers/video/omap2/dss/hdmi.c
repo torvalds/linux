@@ -632,18 +632,6 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	if (t != NULL)
 		hdmi.ip_data.cfg = *t;
 
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		int r;
-
-		hdmi_power_off(dssdev);
-
-		r = hdmi_power_on(dssdev);
-		if (r)
-			DSSERR("failed to power on device\n");
-	} else {
-		dss_mgr_set_timings(dssdev->manager, &t->timings);
-	}
-
 	mutex_unlock(&hdmi.lock);
 }
 
