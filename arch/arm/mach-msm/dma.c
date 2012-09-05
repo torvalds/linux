@@ -223,8 +223,7 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 			PRINT_FLOW("msm_datamover_irq_handler id %d, status %x\n", id, ch_status);
 			if ((ch_status & DMOV_STATUS_CMD_PTR_RDY) && !list_empty(&ready_commands[id])) {
 				cmd = list_entry(ready_commands[id].next, typeof(*cmd), list);
-				list_del(&cmd->list);
-				list_add_tail(&cmd->list, &active_commands[id]);
+				list_move_tail(&cmd->list, &active_commands[id]);
 				if (cmd->execute_func)
 					cmd->execute_func(cmd);
 				PRINT_FLOW("msm_datamover_irq_handler id %d, start command\n", id);
