@@ -39,6 +39,7 @@
 
 #define OMAP_I2C_SIZE		0x3f
 #define OMAP1_I2C_BASE		0xfffb3800
+#define OMAP1_INT_I2C		(32 + 4)
 
 static const char name[] = "omap_i2c";
 
@@ -105,7 +106,7 @@ static inline int omap1_i2c_add_bus(int bus_id)
 	res = pdev->resource;
 	res[0].start = OMAP1_I2C_BASE;
 	res[0].end = res[0].start + OMAP_I2C_SIZE;
-	res[1].start = INT_I2C;
+	res[1].start = OMAP1_INT_I2C;
 	pdata = &i2c_pdata[bus_id - 1];
 
 	/* all OMAP1 have IP version 1 register set */
