@@ -439,7 +439,7 @@ static int c2_rnic_close(struct c2_dev *c2dev)
 
 /*
  * Called by c2_probe to initialize the RNIC. This principally
- * involves initalizing the various limits and resouce pools that
+ * involves initializing the various limits and resource pools that
  * comprise the RNIC instance.
  */
 int __devinit c2_rnic_init(struct c2_dev *c2dev)

@@ -1266,6 +1266,12 @@ static int usbhsh_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	return ret;
 }
 
+static int usbhsh_bus_nop(struct usb_hcd *hcd)
+{
+	/* nothing to do */
+	return 0;
+}
+
 static struct hc_driver usbhsh_driver = {
 	.description =		usbhsh_hcd_name,
 	.hcd_priv_size =	sizeof(struct usbhsh_hpriv),
@@ -1290,6 +1296,8 @@ static struct hc_driver usbhsh_driver = {
 	 */
 	.hub_status_data =	usbhsh_hub_status_data,
 	.hub_control =		usbhsh_hub_control,
+	.bus_suspend =		usbhsh_bus_nop,
+	.bus_resume =		usbhsh_bus_nop,
 };
 
 /*

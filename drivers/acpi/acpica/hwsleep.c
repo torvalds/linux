@@ -56,7 +56,6 @@ ACPI_MODULE_NAME("hwsleep")
  * FUNCTION:    acpi_hw_legacy_sleep
  *
  * PARAMETERS:  sleep_state         - Which sleep state to enter
- *              flags               - ACPI_EXECUTE_GTS to run optional method
  *
  * RETURN:      Status
  *
@@ -64,7 +63,7 @@ ACPI_MODULE_NAME("hwsleep")
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
  ******************************************************************************/
-acpi_status acpi_hw_legacy_sleep(u8 sleep_state, u8 flags)
+acpi_status acpi_hw_legacy_sleep(u8 sleep_state)
 {
 	struct acpi_bit_register_info *sleep_type_reg_info;
 	struct acpi_bit_register_info *sleep_enable_reg_info;
@@ -108,12 +107,6 @@ acpi_status acpi_hw_legacy_sleep(u8 sleep_state, u8 flags)
 	status = acpi_hw_enable_all_wakeup_gpes();
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
-	}
-
-	/* Optionally execute _GTS (Going To Sleep) */
-
-	if (flags & ACPI_EXECUTE_GTS) {
-		acpi_hw_execute_sleep_method(METHOD_PATHNAME__GTS, sleep_state);
 	}
 
 	/* Get current value of PM1A control */
@@ -214,7 +207,6 @@ acpi_status acpi_hw_legacy_sleep(u8 sleep_state, u8 flags)
  * FUNCTION:    acpi_hw_legacy_wake_prep
  *
  * PARAMETERS:  sleep_state         - Which sleep state we just exited
- *              flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *
@@ -224,7 +216,7 @@ acpi_status acpi_hw_legacy_sleep(u8 sleep_state, u8 flags)
  *
  ******************************************************************************/
 
-acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state, u8 flags)
+acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state)
 {
 	acpi_status status;
 	struct acpi_bit_register_info *sleep_type_reg_info;
@@ -275,11 +267,6 @@ acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state, u8 flags)
 		}
 	}
 
-	/* Optionally execute _BFS (Back From Sleep) */
-
-	if (flags & ACPI_EXECUTE_BFS) {
-		acpi_hw_execute_sleep_method(METHOD_PATHNAME__BFS, sleep_state);
-	}
 	return_ACPI_STATUS(status);
 }
 
@@ -288,7 +275,6 @@ acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state, u8 flags)
  * FUNCTION:    acpi_hw_legacy_wake
  *
  * PARAMETERS:  sleep_state         - Which sleep state we just exited
- *              flags               - Reserved, set to zero
  *
  * RETURN:      Status
  *
@@ -297,7 +283,7 @@ acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state, u8 flags)
  *
  ******************************************************************************/
 
-acpi_status acpi_hw_legacy_wake(u8 sleep_state, u8 flags)
+acpi_status acpi_hw_legacy_wake(u8 sleep_state)
 {
 	acpi_status status;
 

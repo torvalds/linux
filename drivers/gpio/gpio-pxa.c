@@ -65,6 +65,7 @@ static int irq_base;
 
 #ifdef CONFIG_OF
 static struct irq_domain *domain;
+static struct device_node *pxa_gpio_of_node;
 #endif
 
 struct pxa_gpio_chip {
@@ -231,6 +232,24 @@ static void pxa_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 				(value ? GPSR_OFFSET : GPCR_OFFSET));
 }
 
+#ifdef CONFIG_OF_GPIO
+static int pxa_gpio_of_xlate(struct gpio_chip *gc,
+			     const struct of_phandle_args *gpiospec,
+			     u32 *flags)
+{
+	if (gpiospec->args[0] > pxa_last_gpio)
+		return -EINVAL;
+
+	if (gc != &pxa_gpio_chips[gpiospec->args[0] / 32].chip)
+		return -EINVAL;
+
+	if (flags)
+		*flags = gpiospec->args[1];
+
+	return gpiospec->args[0] % 32;
+}
+#endif
+
 static int __devinit pxa_init_gpio_chip(int gpio_end,
 					int (*set_wake)(unsigned int, unsigned int))
 {
@@ -258,6 +277,11 @@ static int __devinit pxa_init_gpio_chip(int gpio_end,
 		c->get = pxa_gpio_get;
 		c->set = pxa_gpio_set;
 		c->to_irq = pxa_gpio_to_irq;
+#ifdef CONFIG_OF_GPIO
+		c->of_node = pxa_gpio_of_node;
+		c->of_xlate = pxa_gpio_of_xlate;
+		c->of_gpio_n_cells = 2;
+#endif
 
 		/* number of GPIOs on last bank may be less than 32 */
 		c->ngpio = (gpio + 31 > gpio_end) ? (gpio_end - gpio + 1) : 32;
@@ -447,6 +471,7 @@ static int pxa_gpio_nums(void)
 	return count;
 }
 
+#ifdef CONFIG_OF
 static struct of_device_id pxa_gpio_dt_ids[] = {
 	{ .compatible = "mrvl,pxa-gpio" },
 	{ .compatible = "mrvl,mmp-gpio", .data = (void *)MMP_GPIO },
@@ -464,9 +489,9 @@ static int pxa_irq_domain_map(struct irq_domain *d, unsigned int irq,
 
 const struct irq_domain_ops pxa_irq_domain_ops = {
 	.map	= pxa_irq_domain_map,
+	.xlate	= irq_domain_xlate_twocell,
 };
 
-#ifdef CONFIG_OF
 static int __devinit pxa_gpio_probe_dt(struct platform_device *pdev)
 {
 	int ret, nr_banks, nr_gpios;
@@ -504,6 +529,7 @@ static int __devinit pxa_gpio_probe_dt(struct platform_device *pdev)
 	}
 	domain = irq_domain_add_legacy(np, nr_gpios, irq_base, 0,
 				       &pxa_irq_domain_ops, NULL);
+	pxa_gpio_of_node = np;
 	return 0;
 err:
 	iounmap(gpio_reg_base);
@@ -622,7 +648,7 @@ static struct platform_driver pxa_gpio_driver = {
 	.probe		= pxa_gpio_probe,
 	.driver		= {
 		.name	= "pxa-gpio",
-		.of_match_table = pxa_gpio_dt_ids,
+		.of_match_table = of_match_ptr(pxa_gpio_dt_ids),
 	},
 };
 

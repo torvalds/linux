@@ -187,10 +187,8 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	}
 
 	pwm->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!pwm->mmio_base) {
-		dev_err(&pdev->dev, "failed to ioremap() region\n");
+	if (!pwm->mmio_base)
 		return -EADDRNOTAVAIL;
-	}
 
 	platform_set_drvdata(pdev, pwm);
 

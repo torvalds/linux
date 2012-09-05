@@ -3537,9 +3537,9 @@ static void drbd_cleanup(void)
 }
 
 /**
- * drbd_congested() - Callback for pdflush
+ * drbd_congested() - Callback for the flusher thread
  * @congested_data:	User data
- * @bdi_bits:		Bits pdflush is currently interested in
+ * @bdi_bits:		Bits the BDI flusher thread is currently interested in
  *
  * Returns 1<<BDI_async_congested and/or 1<<BDI_sync_congested if we are congested.
  */
