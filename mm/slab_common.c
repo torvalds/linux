@@ -152,6 +152,14 @@ out_locked:
 		return NULL;
 	}
 
+	if (s->refcount == 1) {
+		err = sysfs_slab_add(s);
+		if (err)
+			printk(KERN_WARNING "kmem_cache_create(%s) failed to"
+				" create sysfs entry. Error %d\n",
+					name, err);
+	}
+
 	return s;
 }
 EXPORT_SYMBOL(kmem_cache_create);
