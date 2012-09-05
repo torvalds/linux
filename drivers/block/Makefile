@@ -40,7 +40,7 @@ obj-$(CONFIG_XEN_BLKDEV_BACKEND)	+= xen-blkback/
 obj-$(CONFIG_BLK_DEV_DRBD)     += drbd/
 obj-$(CONFIG_BLK_DEV_RBD)     += rbd.o
 obj-$(CONFIG_SUN3I_NANDFLASH) += sun3i_nand/
-obj-$(CONFIG_SUNXI_NANDFLASH) += sunxi_nand/
+obj-$(CONFIG_SUNXI_NAND) += sunxi_nand/
 
 
 swim_mod-y	:= swim.o swim_asm.o
