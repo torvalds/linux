@@ -70,12 +70,6 @@
 /* TICK_USEC is the time between ticks in usec assuming fake USER_HZ */
 #define TICK_USEC ((1000000UL + USER_HZ/2) / USER_HZ)
 
-/*
- * TICK_USEC_TO_NSEC is the time between ticks in nsec assuming SHIFTED_HZ and
- * a value TUSEC for TICK_USEC (can be set bij adjtimex)
- */
-#define TICK_USEC_TO_NSEC(TUSEC) (SH_DIV(TUSEC * USER_HZ * 1000, SHIFTED_HZ, 8))
-
 /* some arch's have a small-data section that can be accessed register-relative
  * but that can only take up to, say, 4-byte variables. jiffies being part of
  * an 8-byte variable may not be correctly accessed unless we force the issue
