@@ -66,6 +66,7 @@
 #define APIC_DEST_NOSHORT		0x0
 #define APIC_DEST_MASK			0x800
 #define MAX_APIC_VECTOR			256
+#define APIC_VECTORS_PER_REG		32
 
 #define VEC_POS(v) ((v) & (32 - 1))
 #define REG_POS(v) (((v) >> 5) << 4)
@@ -208,25 +209,30 @@ static const unsigned int apic_lvt_mask[APIC_LVT_NUM] = {
 
 static int find_highest_vector(void *bitmap)
 {
-	u32 *word = bitmap;
-	int word_offset = MAX_APIC_VECTOR >> 5;
+	int vec;
+	u32 *reg;
 
-	while ((word_offset != 0) && (word[(--word_offset) << 2] == 0))
-		continue;
+	for (vec = MAX_APIC_VECTOR - APIC_VECTORS_PER_REG;
+	     vec >= 0; vec -= APIC_VECTORS_PER_REG) {
+		reg = bitmap + REG_POS(vec);
+		if (*reg)
+			return fls(*reg) - 1 + vec;
+	}
 
-	if (likely(!word_offset && !word[0]))
-		return -1;
-	else
-		return fls(word[word_offset << 2]) - 1 + (word_offset << 5);
+	return -1;
 }
 
 static u8 count_vectors(void *bitmap)
 {
-	u32 *word = bitmap;
-	int word_offset;
+	int vec;
+	u32 *reg;
 	u8 count = 0;
-	for (word_offset = 0; word_offset < MAX_APIC_VECTOR >> 5; ++word_offset)
-		count += hweight32(word[word_offset << 2]);
+
+	for (vec = 0; vec < MAX_APIC_VECTOR; vec += APIC_VECTORS_PER_REG) {
+		reg = bitmap + REG_POS(vec);
+		count += hweight32(*reg);
+	}
+
 	return count;
 }
 
