@@ -294,7 +294,7 @@ int __kprobes single_step_dabr_instruction(struct die_args *args)
 {
 	struct pt_regs *regs = args->regs;
 	struct perf_event *bp = NULL;
-	struct arch_hw_breakpoint *bp_info;
+	struct arch_hw_breakpoint *info;
 
 	bp = current->thread.last_hit_ubp;
 	/*
@@ -304,16 +304,16 @@ int __kprobes single_step_dabr_instruction(struct die_args *args)
 	if (!bp)
 		return NOTIFY_DONE;
 
-	bp_info = counter_arch_bp(bp);
+	info = counter_arch_bp(bp);
 
 	/*
 	 * We shall invoke the user-defined callback function in the single
 	 * stepping handler to confirm to 'trigger-after-execute' semantics
 	 */
-	if (!bp_info->extraneous_interrupt)
+	if (!info->extraneous_interrupt)
 		perf_bp_event(bp, regs);
 
-	set_dabr(bp_info->address | bp_info->type | DABR_TRANSLATION);
+	set_dabr(info->address | info->type | DABR_TRANSLATION);
 	current->thread.last_hit_ubp = NULL;
 
 	/*
