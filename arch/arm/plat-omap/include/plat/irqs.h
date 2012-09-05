@@ -440,9 +440,6 @@
 
 #define OMAP_IRQ_BIT(irq)	(1 << ((irq) % 32))
 
-#define INTCPS_NR_MIR_REGS	3
-#define INTCPS_NR_IRQS		96
-
 #include <mach/hardware.h>
 
 #ifdef CONFIG_FIQ
