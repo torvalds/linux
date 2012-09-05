@@ -769,8 +769,8 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 	wmb();            /* write descriptors before telling HW */
 	spin_lock(&q->db_lock);
 	if (!q->db_disabled) {
-		t4_write_reg(adap, MYPF_REG(A_SGE_PF_KDOORBELL),
-			     V_QID(q->cntxt_id) | V_PIDX(n));
+		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
+			     QID(q->cntxt_id) | PIDX(n));
 	}
 	q->db_pidx = q->pidx;
 	spin_unlock(&q->db_lock);

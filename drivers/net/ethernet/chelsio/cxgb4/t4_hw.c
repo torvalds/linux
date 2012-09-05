@@ -1018,9 +1018,9 @@ static void sge_intr_handler(struct adapter *adapter)
 		{ ERR_INVALID_CIDX_INC,
 		  "SGE GTS CIDX increment too large", -1, 0 },
 		{ ERR_CPL_OPCODE_0, "SGE received 0-length CPL", -1, 0 },
-		{ F_DBFIFO_LP_INT, NULL, -1, 0, t4_db_full },
-		{ F_DBFIFO_HP_INT, NULL, -1, 0, t4_db_full },
-		{ F_ERR_DROPPED_DB, NULL, -1, 0, t4_db_dropped },
+		{ DBFIFO_LP_INT, NULL, -1, 0, t4_db_full },
+		{ DBFIFO_HP_INT, NULL, -1, 0, t4_db_full },
+		{ ERR_DROPPED_DB, NULL, -1, 0, t4_db_dropped },
 		{ ERR_DATA_CPL_ON_HIGH_QID1 | ERR_DATA_CPL_ON_HIGH_QID0,
 		  "SGE IQID > 1023 received CPL for FL", -1, 0 },
 		{ ERR_BAD_DB_PIDX3, "SGE DBP 3 pidx increment too large", -1,
@@ -1520,7 +1520,7 @@ void t4_intr_enable(struct adapter *adapter)
 		     ERR_BAD_DB_PIDX2 | ERR_BAD_DB_PIDX1 |
 		     ERR_BAD_DB_PIDX0 | ERR_ING_CTXT_PRIO |
 		     ERR_EGR_CTXT_PRIO | INGRESS_SIZE_ERR |
-		     F_DBFIFO_HP_INT | F_DBFIFO_LP_INT |
+		     DBFIFO_HP_INT | DBFIFO_LP_INT |
 		     EGRESS_SIZE_ERR);
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE), PF_INTR_MASK);
 	t4_set_reg_field(adapter, PL_INT_MAP0, 0, 1 << pf);
@@ -2033,8 +2033,8 @@ int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len)
 	if ((addr & 3) || (len + off) > MEMWIN0_APERTURE)
 		return -EINVAL;
 
-	t4_write_reg(adap, A_PCIE_MEM_ACCESS_OFFSET, addr & ~15);
-	t4_read_reg(adap, A_PCIE_MEM_ACCESS_OFFSET);
+	t4_write_reg(adap, PCIE_MEM_ACCESS_OFFSET, addr & ~15);
+	t4_read_reg(adap, PCIE_MEM_ACCESS_OFFSET);
 
 	for (i = 0; i < len; i += 4)
 		*data++ = t4_read_reg(adap, (MEMWIN0_BASE + off + i));

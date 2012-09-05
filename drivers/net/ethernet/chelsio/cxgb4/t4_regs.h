@@ -190,58 +190,30 @@
 #define SGE_DEBUG_DATA_LOW 0x10d4
 #define SGE_INGRESS_QUEUES_PER_PAGE_PF 0x10f4
 
-#define S_LP_INT_THRESH    12
-#define V_LP_INT_THRESH(x) ((x) << S_LP_INT_THRESH)
 #define S_HP_INT_THRESH    28
+#define M_HP_INT_THRESH 0xfU
 #define V_HP_INT_THRESH(x) ((x) << S_HP_INT_THRESH)
+#define M_HP_COUNT 0x7ffU
+#define S_HP_COUNT 16
+#define G_HP_COUNT(x) (((x) >> S_HP_COUNT) & M_HP_COUNT)
+#define S_LP_INT_THRESH    12
+#define M_LP_INT_THRESH 0xfU
+#define V_LP_INT_THRESH(x) ((x) << S_LP_INT_THRESH)
+#define M_LP_COUNT 0x7ffU
+#define S_LP_COUNT 0
+#define G_LP_COUNT(x) (((x) >> S_LP_COUNT) & M_LP_COUNT)
 #define A_SGE_DBFIFO_STATUS 0x10a4
 
 #define S_ENABLE_DROP    13
 #define V_ENABLE_DROP(x) ((x) << S_ENABLE_DROP)
 #define F_ENABLE_DROP    V_ENABLE_DROP(1U)
+#define S_DROPPED_DB 0
+#define V_DROPPED_DB(x) ((x) << S_DROPPED_DB)
+#define F_DROPPED_DB V_DROPPED_DB(1U)
 #define A_SGE_DOORBELL_CONTROL 0x10a8
 
 #define A_SGE_CTXT_CMD 0x11fc
 #define A_SGE_DBQ_CTXT_BADDR 0x1084
-
-#define A_SGE_PF_KDOORBELL 0x0
-
-#define S_QID 15
-#define V_QID(x) ((x) << S_QID)
-
-#define S_PIDX 0
-#define V_PIDX(x) ((x) << S_PIDX)
-
-#define M_LP_COUNT 0x7ffU
-#define S_LP_COUNT 0
-#define G_LP_COUNT(x) (((x) >> S_LP_COUNT) & M_LP_COUNT)
-
-#define M_HP_COUNT 0x7ffU
-#define S_HP_COUNT 16
-#define G_HP_COUNT(x) (((x) >> S_HP_COUNT) & M_HP_COUNT)
-
-#define A_SGE_INT_ENABLE3 0x1040
-
-#define S_DBFIFO_HP_INT 8
-#define V_DBFIFO_HP_INT(x) ((x) << S_DBFIFO_HP_INT)
-#define F_DBFIFO_HP_INT V_DBFIFO_HP_INT(1U)
-
-#define S_DBFIFO_LP_INT 7
-#define V_DBFIFO_LP_INT(x) ((x) << S_DBFIFO_LP_INT)
-#define F_DBFIFO_LP_INT V_DBFIFO_LP_INT(1U)
-
-#define S_DROPPED_DB 0
-#define V_DROPPED_DB(x) ((x) << S_DROPPED_DB)
-#define F_DROPPED_DB V_DROPPED_DB(1U)
-
-#define S_ERR_DROPPED_DB 18
-#define V_ERR_DROPPED_DB(x) ((x) << S_ERR_DROPPED_DB)
-#define F_ERR_DROPPED_DB V_ERR_DROPPED_DB(1U)
-
-#define A_PCIE_MEM_ACCESS_OFFSET 0x306c
-
-#define M_HP_INT_THRESH 0xfU
-#define M_LP_INT_THRESH 0xfU
 
 #define PCIE_PF_CLI 0x44
 #define PCIE_INT_CAUSE 0x3004

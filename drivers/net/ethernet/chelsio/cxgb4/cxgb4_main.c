@@ -2470,8 +2470,8 @@ int cxgb4_sync_txq_pidx(struct net_device *dev, u16 qid, u16 pidx,
 		else
 			delta = size - hw_pidx + pidx;
 		wmb();
-		t4_write_reg(adap, MYPF_REG(A_SGE_PF_KDOORBELL),
-			     V_QID(qid) | V_PIDX(delta));
+		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
+			     QID(qid) | PIDX(delta));
 	}
 out:
 	return ret;
@@ -2579,8 +2579,8 @@ static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
 		else
 			delta = q->size - hw_pidx + q->db_pidx;
 		wmb();
-		t4_write_reg(adap, MYPF_REG(A_SGE_PF_KDOORBELL),
-				V_QID(q->cntxt_id) | V_PIDX(delta));
+		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
+			     QID(q->cntxt_id) | PIDX(delta));
 	}
 out:
 	q->db_disabled = 0;
@@ -2617,9 +2617,9 @@ static void process_db_full(struct work_struct *work)
 
 	notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
 	drain_db_fifo(adap, dbfifo_drain_delay);
-	t4_set_reg_field(adap, A_SGE_INT_ENABLE3,
-			F_DBFIFO_HP_INT | F_DBFIFO_LP_INT,
-			F_DBFIFO_HP_INT | F_DBFIFO_LP_INT);
+	t4_set_reg_field(adap, SGE_INT_ENABLE3,
+			 DBFIFO_HP_INT | DBFIFO_LP_INT,
+			 DBFIFO_HP_INT | DBFIFO_LP_INT);
 	notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
 }
 
@@ -2639,8 +2639,8 @@ static void process_db_drop(struct work_struct *work)
 
 void t4_db_full(struct adapter *adap)
 {
-	t4_set_reg_field(adap, A_SGE_INT_ENABLE3,
-			F_DBFIFO_HP_INT | F_DBFIFO_LP_INT, 0);
+	t4_set_reg_field(adap, SGE_INT_ENABLE3,
+			 DBFIFO_HP_INT | DBFIFO_LP_INT, 0);
 	queue_work(workq, &adap->db_full_task);
 }
 
