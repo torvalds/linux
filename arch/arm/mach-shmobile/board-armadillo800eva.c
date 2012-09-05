@@ -902,8 +902,8 @@ static struct platform_device *eva_devices[] __initdata = {
 	&camera_device,
 	&ceu0_device,
 	&fsi_device,
-	&fsi_hdmi_device,
 	&fsi_wm8978_device,
+	&fsi_hdmi_device,
 };
 
 static void __init eva_clock_init(void)
