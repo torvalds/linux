@@ -16,6 +16,7 @@ extern struct sys_timer msm7x01_timer;
 extern struct sys_timer msm7x30_timer;
 extern struct sys_timer msm8x60_timer;
 extern struct sys_timer msm8960_timer;
+extern struct sys_timer msm_dt_timer;
 extern struct sys_timer qsd8x50_timer;
 
 #endif

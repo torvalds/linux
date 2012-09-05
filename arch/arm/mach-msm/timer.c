@@ -20,6 +20,9 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
 #include <asm/hardware/gic.h>
@@ -215,6 +218,90 @@ err:
 		pr_err("clocksource_register failed\n");
 	setup_sched_clock(msm_sched_clock_read, sched_bits, dgt_hz);
 }
+
+#ifdef CONFIG_OF
+static const struct of_device_id msm_dgt_match[] __initconst = {
+	{ .compatible = "qcom,msm-dgt" },
+	{ },
+};
+
+static const struct of_device_id msm_gpt_match[] __initconst = {
+	{ .compatible = "qcom,msm-gpt" },
+	{ },
+};
+
+static void __init msm_dt_timer_init(void)
+{
+	struct device_node *np;
+	u32 freq;
+	int irq;
+	struct resource res;
+	u32 percpu_offset;
+	void __iomem *dgt_clk_ctl;
+
+	np = of_find_matching_node(NULL, msm_gpt_match);
+	if (!np) {
+		pr_err("Can't find GPT DT node\n");
+		return;
+	}
+
+	event_base = of_iomap(np, 0);
+	if (!event_base) {
+		pr_err("Failed to map event base\n");
+		return;
+	}
+
+	irq = irq_of_parse_and_map(np, 0);
+	if (irq <= 0) {
+		pr_err("Can't get irq\n");
+		return;
+	}
+	of_node_put(np);
+
+	np = of_find_matching_node(NULL, msm_dgt_match);
+	if (!np) {
+		pr_err("Can't find DGT DT node\n");
+		return;
+	}
+
+	if (of_property_read_u32(np, "cpu-offset", &percpu_offset))
+		percpu_offset = 0;
+
+	if (of_address_to_resource(np, 0, &res)) {
+		pr_err("Failed to parse DGT resource\n");
+		return;
+	}
+
+	source_base = ioremap(res.start + percpu_offset, resource_size(&res));
+	if (!source_base) {
+		pr_err("Failed to map source base\n");
+		return;
+	}
+
+	if (!of_address_to_resource(np, 1, &res)) {
+		dgt_clk_ctl = ioremap(res.start + percpu_offset,
+				      resource_size(&res));
+		if (!dgt_clk_ctl) {
+			pr_err("Failed to map DGT control base\n");
+			return;
+		}
+		writel_relaxed(DGT_CLK_CTL_DIV_4, dgt_clk_ctl);
+		iounmap(dgt_clk_ctl);
+	}
+
+	if (of_property_read_u32(np, "clock-frequency", &freq)) {
+		pr_err("Unknown frequency\n");
+		return;
+	}
+	of_node_put(np);
+
+	msm_timer_init(freq, 32, irq, !!percpu_offset);
+}
+
+struct sys_timer msm_dt_timer = {
+	.init = msm_dt_timer_init
+};
+#endif
 
 static int __init msm_timer_map(phys_addr_t event, phys_addr_t source)
 {
