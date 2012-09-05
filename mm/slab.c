@@ -1676,7 +1676,8 @@ void __init kmem_cache_init(void)
 	 * bug.
 	 */
 
-	sizes[INDEX_AC].cs_cachep = __kmem_cache_create(names[INDEX_AC].name,
+	sizes[INDEX_AC].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+	__kmem_cache_create(sizes[INDEX_AC].cs_cachep, names[INDEX_AC].name,
 					sizes[INDEX_AC].cs_size,
 					ARCH_KMALLOC_MINALIGN,
 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
@@ -1684,8 +1685,8 @@ void __init kmem_cache_init(void)
 
 	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
 	if (INDEX_AC != INDEX_L3) {
-		sizes[INDEX_L3].cs_cachep =
-			__kmem_cache_create(names[INDEX_L3].name,
+		sizes[INDEX_L3].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+		__kmem_cache_create(sizes[INDEX_L3].cs_cachep, names[INDEX_L3].name,
 				sizes[INDEX_L3].cs_size,
 				ARCH_KMALLOC_MINALIGN,
 				ARCH_KMALLOC_FLAGS|SLAB_PANIC,
@@ -1704,7 +1705,8 @@ void __init kmem_cache_init(void)
 		 * allow tighter packing of the smaller caches.
 		 */
 		if (!sizes->cs_cachep) {
-			sizes->cs_cachep = __kmem_cache_create(names->name,
+			sizes->cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+			__kmem_cache_create(sizes->cs_cachep, names->name,
 					sizes->cs_size,
 					ARCH_KMALLOC_MINALIGN,
 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
@@ -1712,7 +1714,8 @@ void __init kmem_cache_init(void)
 			list_add(&sizes->cs_cachep->list, &slab_caches);
 		}
 #ifdef CONFIG_ZONE_DMA
-		sizes->cs_dmacachep = __kmem_cache_create(
+		sizes->cs_dmacachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+		__kmem_cache_create(sizes->cs_dmacachep,
 					names->name_dma,
 					sizes->cs_size,
 					ARCH_KMALLOC_MINALIGN,
@@ -2356,13 +2359,13 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
  * cacheline.  This can be beneficial if you're counting cycles as closely
  * as davem.
  */
-struct kmem_cache *
-__kmem_cache_create (const char *name, size_t size, size_t align,
+int
+__kmem_cache_create (struct kmem_cache *cachep, const char *name, size_t size, size_t align,
 	unsigned long flags, void (*ctor)(void *))
 {
 	size_t left_over, slab_size, ralign;
-	struct kmem_cache *cachep = NULL;
 	gfp_t gfp;
+	int err;
 
 #if DEBUG
 #if FORCED_DEBUG
@@ -2450,11 +2453,6 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 	else
 		gfp = GFP_NOWAIT;
 
-	/* Get cache's description obj. */
-	cachep = kmem_cache_zalloc(kmem_cache, gfp);
-	if (!cachep)
-		return NULL;
-
 	cachep->nodelists = (struct kmem_list3 **)&cachep->array[nr_cpu_ids];
 	cachep->object_size = size;
 	cachep->align = align;
@@ -2509,8 +2507,7 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 	if (!cachep->num) {
 		printk(KERN_ERR
 		       "kmem_cache_create: couldn't create cache %s.\n", name);
-		kmem_cache_free(kmem_cache, cachep);
-		return NULL;
+		return -E2BIG;
 	}
 	slab_size = ALIGN(cachep->num * sizeof(kmem_bufctl_t)
 			  + sizeof(struct slab), align);
@@ -2567,9 +2564,10 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 	cachep->name = name;
 	cachep->refcount = 1;
 
-	if (setup_cpu_cache(cachep, gfp)) {
+	err = setup_cpu_cache(cachep, gfp);
+	if (err) {
 		__kmem_cache_shutdown(cachep);
-		return NULL;
+		return err;
 	}
 
 	if (flags & SLAB_DEBUG_OBJECTS) {
@@ -2582,7 +2580,7 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 		slab_set_debugobj_lock_classes(cachep);
 	}
 
-	return cachep;
+	return 0;
 }
 
 #if DEBUG

@@ -119,19 +119,21 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
 	if (s)
 		goto out_locked;
 
-	s = __kmem_cache_create(n, size, align, flags, ctor);
-
+	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
 	if (s) {
-		/*
-		 * Check if the slab has actually been created and if it was a
-		 * real instatiation. Aliases do not belong on the list
-		 */
-		if (s->refcount == 1)
+		err = __kmem_cache_create(s, n, size, align, flags, ctor);
+		if (!err)
+
 			list_add(&s->list, &slab_caches);
+
+		else {
+			kfree(n);
+			kmem_cache_free(kmem_cache, s);
+		}
 
 	} else {
 		kfree(n);
-		err = -ENOSYS; /* Until __kmem_cache_create returns code */
+		err = -ENOMEM;
 	}
 
 out_locked:
