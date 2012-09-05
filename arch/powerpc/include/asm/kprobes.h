@@ -36,7 +36,7 @@
 struct pt_regs;
 struct kprobe;
 
-typedef opcode_t kprobe_opcode_t;
+typedef ppc_opcode_t kprobe_opcode_t;
 #define MAX_INSN_SIZE 1
 
 #ifdef CONFIG_PPC64

@@ -22,7 +22,7 @@
  */
 #include <linux/types.h>
 
-typedef u32 opcode_t;
+typedef u32 ppc_opcode_t;
 #define BREAKPOINT_INSTRUCTION	0x7fe00008	/* trap */
 
 /* Trap definitions per ISA */
