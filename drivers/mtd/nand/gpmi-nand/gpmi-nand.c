@@ -18,6 +18,9 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -114,7 +117,7 @@ int common_nfc_set_geometry(struct gpmi_nand_data *this)
 	/* We use the same ECC strength for all chunks. */
 	geo->ecc_strength = get_ecc_strength(this);
 	if (!geo->ecc_strength) {
-		pr_err("We get a wrong ECC strength.\n");
+		pr_err("wrong ECC strength.\n");
 		return -EINVAL;
 	}
 
@@ -1685,9 +1688,9 @@ static int __init gpmi_nand_init(void)
 
 	err = platform_driver_register(&gpmi_nand_driver);
 	if (err == 0)
-		printk(KERN_INFO "GPMI NAND driver registered. (IMX)\n");
+		pr_info("driver registered.\n");
 	else
-		pr_err("i.MX GPMI NAND driver registration failed\n");
+		pr_err("driver registration failed.\n");
 	return err;
 }
 
