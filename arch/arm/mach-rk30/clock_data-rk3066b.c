@@ -93,11 +93,7 @@ struct pll_clk_set {
 	.pllcon0 = PLL_CLKR_SET(nr) | PLL_CLKOD_SET(no), \
 	.pllcon1 = PLL_CLKF_SET(nf),\
 	.clksel0 = CORE_PERIPH_W_MSK | CORE_PERIPH_##_periph_div,\
-	.clksel1 = CORE_ACLK_W_MSK | CORE_ACLK_##_axi_core_div\
-	| CPU_ACLK_W_MSK | CPU_ACLK_##_axi_div\
-	| ACLK_HCLK_W_MSK | ACLK_HCLK_##_ahb_div\
-	| ACLK_PCLK_W_MSK | ACLK_PCLK_##_apb_div\
-	| AHB2APB_W_MSK | AHB2APB_##_ahb2apb,\
+	.clksel1 = CORE_ACLK_W_MSK | CORE_ACLK_##_axi_core_div,\
 	_APLL_SET_LPJ(_mhz),\
 	.rst_dly=((nr*500)/24+1),\
 }
@@ -867,46 +863,17 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	if(!temp_clk_div)
 		temp_clk_div = &arm_clk_div_tlb[4];
 
-	gpll_arm_aclk_div = GET_CORE_ACLK_VAL(temp_clk_div->clksel1 & CORE_ACLK_MSK);
-
 	CLKDATA_LOG("gpll_arm_rate=%lu,sel rate%u,sel0%x,sel1%x\n", arm_gpll_rate, temp_clk_div->rate,
 			temp_clk_div->clksel0, temp_clk_div->clksel1);
 
 	local_irq_save(flags);
-	//new div max first
-	if(gpll_arm_aclk_div >= old_aclk_div) {
-		if((old_aclk_div == 3 || gpll_arm_aclk_div == 3) && (gpll_arm_aclk_div != old_aclk_div)) {
-			cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
-			cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
-			cru_writel((temp_clk_div->clksel0 | CORE_CLK_DIV(temp_div) | CORE_CLK_DIV_W_MSK),
-					CRU_CLKSELS_CON(0));
-			cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
-		} else {
-			cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
-			cru_writel((temp_clk_div->clksel0) | CORE_CLK_DIV(temp_div) | CORE_CLK_DIV_W_MSK,
-					CRU_CLKSELS_CON(0));
-		}
-	}
+
 	// open gpu gpll path
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH) | CLK_UN_GATE(CLK_GATE_CPU_GPLL_PATH), 
 			CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
 	cru_writel(CORE_SEL_GPLL | CORE_SEL_PLL_W_MSK, CRU_CLKSELS_CON(0));
 	loops_per_jiffy = arm_gpll_lpj;
 	smp_wmb();
-	//new div max late
-	if(gpll_arm_aclk_div < old_aclk_div) {
-		if((old_aclk_div == 3 || gpll_arm_aclk_div == 3) && (gpll_arm_aclk_div != old_aclk_div)) {
-			cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
-			cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
-			cru_writel((temp_clk_div->clksel0 | CORE_CLK_DIV(temp_div) | CORE_CLK_DIV_W_MSK),
-					CRU_CLKSELS_CON(0));
-			cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
-		} else {
-			cru_writel((temp_clk_div->clksel1), CRU_CLKSELS_CON(1));
-			cru_writel((temp_clk_div->clksel0) | CORE_CLK_DIV(temp_div) | CORE_CLK_DIV_W_MSK,
-					CRU_CLKSELS_CON(0));
-		}
-	}
 
 	/*if core src don't select gpll ,apll neet to enter slow mode */
 	//cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
@@ -916,6 +883,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	cru_writel(ps->pllcon0, PLL_CONS(pll_id, 0));
 	cru_writel(ps->pllcon1, PLL_CONS(pll_id, 1));
 	cru_writel(ps->pllcon2, PLL_CONS(pll_id, 2));
+	cru_writel(ps->clksel1, CRU_CLKSELS_CON(1));
 	rk30_clock_udelay(5);
 
 	//return form rest
@@ -928,35 +896,11 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	//return form slow
 	//cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
-	//a/h/p clk sel
-	if(new_aclk_div >= gpll_arm_aclk_div) {
-		if((gpll_arm_aclk_div == 3 || new_aclk_div == 3) && (new_aclk_div != gpll_arm_aclk_div)) {
-			cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
-			cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
-			cru_writel((ps->clksel0) | CORE_CLK_DIV(1) | CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
-			cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
-		} else {
-			cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
-			cru_writel((ps->clksel0) | CORE_CLK_DIV(1) | CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
-		}
-	}
-
 	//reparent to apll
 	cru_writel(CORE_SEL_PLL_W_MSK | CORE_SEL_APLL, CRU_CLKSELS_CON(0));
 	loops_per_jiffy = ps->lpj;
 	smp_wmb();
 
-	if(new_aclk_div < gpll_arm_aclk_div) {
-		if((gpll_arm_aclk_div == 3 || new_aclk_div == 3) && (new_aclk_div != gpll_arm_aclk_div)) {
-			cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
-			cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
-			cru_writel((ps->clksel0) | CORE_CLK_DIV(1) | CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
-			cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
-		} else {
-			cru_writel((ps->clksel1), CRU_CLKSELS_CON(1));
-			cru_writel((ps->clksel0) | CORE_CLK_DIV(1) | CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
-		}
-	}
 	//CLKDATA_DBG("apll set loops_per_jiffy =%lu,rate(%lu)\n",loops_per_jiffy,ps->rate);
 
 	local_irq_restore(flags);
@@ -1296,10 +1240,12 @@ static struct clk pclk_cpu = {
 	.clksel_con	= CRU_CLKSELS_CON(1),
 	CRU_DIV_SET(0x3, 12, 8),
 };
+
 static struct clk ahb2apb_cpu = {
 	.name		= "ahb2apb",
 	.parent		= &hclk_cpu,
 	.recalc		= clksel_recalc_shift,
+	.set_rate	= clksel_set_rate_shift,
 	.clksel_con	= CRU_CLKSELS_CON(1),
 	CRU_DIV_SET(0x3, 14, 4),
 };
@@ -2573,6 +2519,7 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "pclk_cpu", &pclk_cpu),
 	CLK(NULL, "atclk_cpu", &atclk_cpu),
 	CLK(NULL, "hclk_cpu", &hclk_cpu),
+	CLK(NULL, "ahb2apb_cpu", &ahb2apb_cpu),
 
 	CLK1(gpu),
 	CLK(NULL, "aclk_gpu", 	&aclk_gpu),
@@ -3062,14 +3009,14 @@ static void periph_clk_set_init(void)
 
 static void cpu_axi_init(void)
 {
-	unsigned long aclk_cpu_rate, hclk_cpu_rate, pclk_cpu_rate;
+	unsigned long aclk_cpu_rate, hclk_cpu_rate, pclk_cpu_rate, ahb2apb_cpu_rate;
 	unsigned long gpll_rate = general_pll_clk.rate;
 
 	switch (gpll_rate) {
 		case 297 * MHZ:
 			aclk_cpu_rate = gpll_rate >> 0;
-			hclk_cpu_rate = aclk_cpu_rate >> 0;
-			pclk_cpu_rate = aclk_cpu_rate >> 1;
+			hclk_cpu_rate = aclk_cpu_rate >> 1;
+			pclk_cpu_rate = aclk_cpu_rate >> 2;
 			break;
 
 		default:
@@ -3078,10 +3025,13 @@ static void cpu_axi_init(void)
 			pclk_cpu_rate = 75 * MHZ;
 			break;
 	}
+	ahb2apb_cpu_rate = pclk_cpu_rate;
+
 	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk);
 	clk_set_rate_nolock(&aclk_cpu, aclk_cpu_rate);
 	clk_set_rate_nolock(&hclk_cpu, hclk_cpu_rate);
 	clk_set_rate_nolock(&pclk_cpu, pclk_cpu_rate);
+	clk_set_rate_nolock(&ahb2apb_cpu, ahb2apb_cpu_rate);
 }
 
 void rk30_clock_common_i2s_init(void)
@@ -3115,13 +3065,13 @@ void rk30_clock_common_i2s_init(void)
 static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long cpll_rate)
 {
 
-	clk_set_rate_nolock(&clk_core, 816 * MHZ);
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 
 	cpu_axi_init();
+	clk_set_rate_nolock(&clk_core, 816 * MHZ);
 	//periph clk
 	periph_clk_set_init();
 
