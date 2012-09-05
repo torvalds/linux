@@ -3221,8 +3221,6 @@ void __kmem_cache_destroy(struct kmem_cache *s)
 struct kmem_cache *kmalloc_caches[SLUB_PAGE_SHIFT];
 EXPORT_SYMBOL(kmalloc_caches);
 
-static struct kmem_cache *kmem_cache;
-
 #ifdef CONFIG_ZONE_DMA
 static struct kmem_cache *kmalloc_dma_caches[SLUB_PAGE_SHIFT];
 #endif

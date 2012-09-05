@@ -622,8 +622,16 @@ int kmem_cache_shrink(struct kmem_cache *d)
 }
 EXPORT_SYMBOL(kmem_cache_shrink);
 
+struct kmem_cache kmem_cache_boot = {
+	.name = "kmem_cache",
+	.size = sizeof(struct kmem_cache),
+	.flags = SLAB_PANIC,
+	.align = ARCH_KMALLOC_MINALIGN,
+};
+
 void __init kmem_cache_init(void)
 {
+	kmem_cache = &kmem_cache_boot;
 	slab_state = UP;
 }
 
