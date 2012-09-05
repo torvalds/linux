@@ -17,3 +17,4 @@ obj-y += light/
 obj-y += frequency/
 obj-y += dac/
 obj-y += common/
+obj-y += gyro/
