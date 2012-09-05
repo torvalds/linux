@@ -610,11 +610,10 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 			    struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
-	u32 nre = 0, nri, sz;
+	u32 nre, nri, sz;
 	int ret;
 
-	list_for_each_entry(evsel, &evlist->entries, node)
-		nre++;
+	nre = evlist->nr_entries;
 
 	/*
 	 * write number of events
