@@ -1009,7 +1009,7 @@ static int si4713_choose_econtrol_action(struct si4713_device *sdev, u32 id,
 
 	default:
 		rval = -EINVAL;
-	};
+	}
 
 	return rval;
 }
@@ -1081,7 +1081,7 @@ static int si4713_write_econtrol_string(struct si4713_device *sdev,
 	default:
 		rval = -EINVAL;
 		break;
-	};
+	}
 
 exit:
 	return rval;
@@ -1130,7 +1130,7 @@ static int si4713_write_econtrol_tune(struct si4713_device *sdev,
 	default:
 		rval = -EINVAL;
 		goto unlock;
-	};
+	}
 
 	if (sdev->power_state)
 		rval = si4713_tx_tune_power(sdev, power, antcap);
@@ -1420,7 +1420,7 @@ static int si4713_read_econtrol_string(struct si4713_device *sdev,
 	default:
 		rval = -EINVAL;
 		break;
-	};
+	}
 
 exit:
 	return rval;
@@ -1473,7 +1473,7 @@ static int si4713_read_econtrol_tune(struct si4713_device *sdev,
 		break;
 	default:
 		rval = -EINVAL;
-	};
+	}
 
 unlock:
 	mutex_unlock(&sdev->mutex);
@@ -1698,7 +1698,7 @@ static int si4713_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	default:
 		rval = -EINVAL;
 		break;
-	};
+	}
 
 	return rval;
 }
