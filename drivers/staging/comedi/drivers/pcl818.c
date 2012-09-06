@@ -477,7 +477,7 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int low;
 	int timeout = 50;	/* wait max 50us */
 
@@ -536,7 +536,7 @@ conv_finish:
 static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, bufptr;
 	unsigned long flags;
 	short *ptr;
@@ -615,7 +615,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned long tmp;
 	unsigned int top1, top2, i, bufptr;
 	long ofs_dats;
@@ -720,7 +720,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int i, len, lo;
 
 	outb(0, dev->iobase + PCL818_FI_INTCLR);	/*  clear fifo int request */
@@ -811,7 +811,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 			   being reprogrammed while a DMA transfer is in
 			   progress.
 			 */
-			struct comedi_subdevice *s = dev->subdevices + 0;
+			struct comedi_subdevice *s = &dev->subdevices[0];
 			devpriv->ai_act_scan = 0;
 			devpriv->neverending_ai = 0;
 			pcl818_ai_cancel(dev, s);
@@ -1763,7 +1763,7 @@ no_dma:
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	if (!board->n_aichan_se) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
@@ -1829,7 +1829,7 @@ no_dma:
 		}
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (!board->n_aochan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
@@ -1862,7 +1862,7 @@ no_dma:
 		}
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	if (!board->n_dichan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
@@ -1875,7 +1875,7 @@ no_dma:
 		s->insn_bits = pcl818_di_insn_bits;
 	}
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	if (!board->n_dochan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
