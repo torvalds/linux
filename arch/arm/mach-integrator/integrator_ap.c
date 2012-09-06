@@ -36,6 +36,7 @@
 #include <linux/platform_data/clk-integrator.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <video/vga.h>
 
 #include <mach/hardware.h>
@@ -271,36 +272,6 @@ static struct platform_device cfi_flash_device = {
 	.resource	= &cfi_flash_resource,
 };
 
-static void __init ap_init(void)
-{
-	unsigned long sc_dec;
-	int i;
-
-	platform_device_register(&cfi_flash_device);
-
-	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
-	for (i = 0; i < 4; i++) {
-		struct lm_device *lmdev;
-
-		if ((sc_dec & (16 << i)) == 0)
-			continue;
-
-		lmdev = kzalloc(sizeof(struct lm_device), GFP_KERNEL);
-		if (!lmdev)
-			continue;
-
-		lmdev->resource.start = 0xc0000000 + 0x10000000 * i;
-		lmdev->resource.end = lmdev->resource.start + 0x0fffffff;
-		lmdev->resource.flags = IORESOURCE_MEM;
-		lmdev->irq = IRQ_AP_EXPINT0 + i;
-		lmdev->id = i;
-
-		lm_device_register(lmdev);
-	}
-
-	integrator_init(false);
-}
-
 /*
  * Where is the timer (VA)?
  */
@@ -493,6 +464,52 @@ static void __init ap_init_irq_of(void)
 	integrator_clk_init(false);
 }
 
+/* For the Device Tree, add in the UART callbacks as AUXDATA */
+static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_RTC_BASE,
+		"rtc", NULL),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART0_BASE,
+		"uart0", &integrator_uart_data),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART1_BASE,
+		"uart1", &integrator_uart_data),
+	OF_DEV_AUXDATA("arm,primecell", KMI0_BASE,
+		"kmi0", NULL),
+	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
+		"kmi1", NULL),
+	{ /* sentinel */ },
+};
+
+static void __init ap_init_of(void)
+{
+	unsigned long sc_dec;
+	int i;
+
+	of_platform_populate(NULL, of_default_bus_match_table,
+			ap_auxdata_lookup, NULL);
+
+	platform_device_register(&cfi_flash_device);
+
+	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
+	for (i = 0; i < 4; i++) {
+		struct lm_device *lmdev;
+
+		if ((sc_dec & (16 << i)) == 0)
+			continue;
+
+		lmdev = kzalloc(sizeof(struct lm_device), GFP_KERNEL);
+		if (!lmdev)
+			continue;
+
+		lmdev->resource.start = 0xc0000000 + 0x10000000 * i;
+		lmdev->resource.end = lmdev->resource.start + 0x0fffffff;
+		lmdev->resource.flags = IORESOURCE_MEM;
+		lmdev->irq = IRQ_AP_EXPINT0 + i;
+		lmdev->id = i;
+
+		lm_device_register(lmdev);
+	}
+}
+
 static const char * ap_dt_board_compat[] = {
 	"arm,integrator-ap",
 	NULL,
@@ -506,7 +523,7 @@ DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
 	.init_irq	= ap_init_irq_of,
 	.handle_irq	= fpga_handle_irq,
 	.timer		= &ap_of_timer,
-	.init_machine	= ap_init,
+	.init_machine	= ap_init_of,
 	.restart	= integrator_restart,
 	.dt_compat      = ap_dt_board_compat,
 MACHINE_END
@@ -558,6 +575,36 @@ static void __init ap_init_irq(void)
 	fpga_irq_init(VA_IC_BASE, "SC", IRQ_PIC_START,
 		-1, INTEGRATOR_SC_VALID_INT, NULL);
 	integrator_clk_init(false);
+}
+
+static void __init ap_init(void)
+{
+	unsigned long sc_dec;
+	int i;
+
+	platform_device_register(&cfi_flash_device);
+
+	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
+	for (i = 0; i < 4; i++) {
+		struct lm_device *lmdev;
+
+		if ((sc_dec & (16 << i)) == 0)
+			continue;
+
+		lmdev = kzalloc(sizeof(struct lm_device), GFP_KERNEL);
+		if (!lmdev)
+			continue;
+
+		lmdev->resource.start = 0xc0000000 + 0x10000000 * i;
+		lmdev->resource.end = lmdev->resource.start + 0x0fffffff;
+		lmdev->resource.flags = IORESOURCE_MEM;
+		lmdev->irq = IRQ_AP_EXPINT0 + i;
+		lmdev->id = i;
+
+		lm_device_register(lmdev);
+	}
+
+	integrator_init(false);
 }
 
 MACHINE_START(INTEGRATOR, "ARM-Integrator")

@@ -25,6 +25,7 @@
 #include <linux/platform_data/clk-integrator.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -245,16 +246,6 @@ static struct mmci_platform_data mmc_data = {
 	.gpio_cd	= -1,
 };
 
-#define INTEGRATOR_CP_MMC_IRQS	{ IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 }
-#define INTEGRATOR_CP_AACI_IRQS	{ IRQ_CP_AACIINT }
-
-static AMBA_APB_DEVICE(mmc, "mmci", 0, INTEGRATOR_CP_MMC_BASE,
-	INTEGRATOR_CP_MMC_IRQS, &mmc_data);
-
-static AMBA_APB_DEVICE(aaci, "aaci", 0, INTEGRATOR_CP_AACI_BASE,
-	INTEGRATOR_CP_AACI_IRQS, NULL);
-
-
 /*
  * CLCD support
  */
@@ -303,15 +294,6 @@ static struct clcd_board clcd_data = {
 	.setup		= cp_clcd_setup,
 	.mmap		= versatile_clcd_mmap_dma,
 	.remove		= versatile_clcd_remove_dma,
-};
-
-static AMBA_AHB_DEVICE(clcd, "clcd", 0, INTCP_PA_CLCD_BASE,
-	{ IRQ_CP_CLCDCINT }, &clcd_data);
-
-static struct amba_device *amba_devs[] __initdata = {
-	&mmc_device,
-	&aaci_device,
-	&clcd_device,
 };
 
 #define REFCOUNTER (__io_address(INTEGRATOR_HDR_BASE) + 0x28)
@@ -372,6 +354,37 @@ static void __init intcp_init_irq_of(void)
 	integrator_clk_init(true);
 }
 
+/*
+ * For the Device Tree, add in the UART, MMC and CLCD specifics as AUXDATA
+ * and enforce the bus names since these are used for clock lookups.
+ */
+static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_RTC_BASE,
+		"rtc", NULL),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART0_BASE,
+		"uart0", &integrator_uart_data),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART1_BASE,
+		"uart1", &integrator_uart_data),
+	OF_DEV_AUXDATA("arm,primecell", KMI0_BASE,
+		"kmi0", NULL),
+	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
+		"kmi1", NULL),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_CP_MMC_BASE,
+		"mmci", &mmc_data),
+	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_CP_AACI_BASE,
+		"aaci", &mmc_data),
+	OF_DEV_AUXDATA("arm,primecell", INTCP_PA_CLCD_BASE,
+		"clcd", &clcd_data),
+	{ /* sentinel */ },
+};
+
+static void __init intcp_init_of(void)
+{
+	of_platform_populate(NULL, of_default_bus_match_table,
+			intcp_auxdata_lookup, NULL);
+	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
+}
+
 static const char * intcp_dt_board_compat[] = {
 	"arm,integrator-cp",
 	NULL,
@@ -385,7 +398,7 @@ DT_MACHINE_START(INTEGRATOR_CP_DT, "ARM Integrator/CP (Device Tree)")
 	.init_irq	= intcp_init_irq_of,
 	.handle_irq	= fpga_handle_irq,
 	.timer		= &cp_of_timer,
-	.init_machine	= intcp_init,
+	.init_machine	= intcp_init_of,
 	.restart	= integrator_restart,
 	.dt_compat      = intcp_dt_board_compat,
 MACHINE_END
@@ -452,6 +465,37 @@ static void __init intcp_timer_init(void)
 static struct sys_timer cp_timer = {
 	.init		= intcp_timer_init,
 };
+
+#define INTEGRATOR_CP_MMC_IRQS	{ IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 }
+#define INTEGRATOR_CP_AACI_IRQS	{ IRQ_CP_AACIINT }
+
+static AMBA_APB_DEVICE(mmc, "mmci", 0, INTEGRATOR_CP_MMC_BASE,
+	INTEGRATOR_CP_MMC_IRQS, &mmc_data);
+
+static AMBA_APB_DEVICE(aaci, "aaci", 0, INTEGRATOR_CP_AACI_BASE,
+	INTEGRATOR_CP_AACI_IRQS, NULL);
+
+static AMBA_AHB_DEVICE(clcd, "clcd", 0, INTCP_PA_CLCD_BASE,
+	{ IRQ_CP_CLCDCINT }, &clcd_data);
+
+static struct amba_device *amba_devs[] __initdata = {
+	&mmc_device,
+	&aaci_device,
+	&clcd_device,
+};
+
+static void __init intcp_init(void)
+{
+	int i;
+
+	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
+
+	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
+		struct amba_device *d = amba_devs[i];
+		amba_device_register(d, &iomem_resource);
+	}
+	integrator_init(true);
+}
 
 MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */

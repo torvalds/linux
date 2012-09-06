@@ -33,7 +33,9 @@
 #include <asm/mach/time.h>
 #include <asm/pgtable.h>
 
-static struct amba_pl010_data integrator_uart_data;
+#include "common.h"
+
+#ifdef CONFIG_ATAGS
 
 #define INTEGRATOR_RTC_IRQ	{ IRQ_RTCINT }
 #define INTEGRATOR_UART0_IRQ	{ IRQ_UARTINT0 }
@@ -86,6 +88,8 @@ int __init integrator_init(bool is_cp)
 	return 0;
 }
 
+#endif
+
 /*
  * On the Integrator platform, the port RTS and DTR are provided by
  * bits in the following SC_CTRLS register bits:
@@ -125,7 +129,7 @@ static void integrator_uart_set_mctrl(struct amba_device *dev, void __iomem *bas
 	__raw_writel(ctrlc, SC_CTRLC);
 }
 
-static struct amba_pl010_data integrator_uart_data = {
+struct amba_pl010_data integrator_uart_data = {
 	.set_mctrl = integrator_uart_set_mctrl,
 };
 

@@ -30,4 +30,42 @@
 		reg = <0x14000000 0x100>;
 		clear-mask = <0xffffffff>;
 	};
+
+	fpga {
+		compatible = "arm,amba-bus", "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		interrupt-parent = <&pic>;
+
+		/*
+		 * These PrimeCells are in the same locations and using the
+		 * same interrupts in all Integrators, however the silicon
+		 * version deployed is different.
+		 */
+		rtc@15000000 {
+			reg = <0x15000000 0x1000>;
+			interrupts = <8>;
+		};
+
+		uart@16000000 {
+			reg = <0x16000000 0x1000>;
+			interrupts = <1>;
+		};
+
+		uart@17000000 {
+			reg = <0x17000000 0x1000>;
+			interrupts = <2>;
+		};
+
+		kmi@18000000 {
+			reg = <0x18000000 0x1000>;
+			interrupts = <3>;
+		};
+
+		kmi@19000000 {
+			reg = <0x19000000 0x1000>;
+			interrupts = <4>;
+		};
+	};
 };
