@@ -3184,10 +3184,12 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	is_pch_port = intel_crtc_driving_pch(crtc);
 
-	if (is_pch_port)
+	if (is_pch_port) {
 		ironlake_fdi_pll_enable(intel_crtc);
-	else
-		ironlake_fdi_disable(crtc);
+	} else {
+		assert_fdi_tx_disabled(dev_priv, pipe);
+		assert_fdi_rx_disabled(dev_priv, pipe);
+	}
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
