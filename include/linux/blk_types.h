@@ -80,6 +80,9 @@ struct bio {
 	struct bio_integrity_payload *bi_integrity;  /* data integrity */
 #endif
 
+	/* If bi_pool is non NULL, bi_destructor is not called */
+	struct bio_set		*bi_pool;
+
 	bio_destructor_t	*bi_destructor;	/* destructor */
 
 	/*

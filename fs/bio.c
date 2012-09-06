@@ -272,10 +272,6 @@ EXPORT_SYMBOL(bio_init);
  *   bio_alloc_bioset will try its own mempool to satisfy the allocation.
  *   If %__GFP_WAIT is set then we will block on the internal pool waiting
  *   for a &struct bio to become free.
- *
- *   Note that the caller must set ->bi_destructor on successful return
- *   of a bio, to do the appropriate freeing of the bio once the reference
- *   count drops to zero.
  **/
 struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 {
@@ -290,6 +286,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 	bio = p + bs->front_pad;
 
 	bio_init(bio);
+	bio->bi_pool = bs;
 
 	if (unlikely(!nr_iovecs))
 		goto out_set;
@@ -316,11 +313,6 @@ err_free:
 }
 EXPORT_SYMBOL(bio_alloc_bioset);
 
-static void bio_fs_destructor(struct bio *bio)
-{
-	bio_free(bio, fs_bio_set);
-}
-
 /**
  *	bio_alloc - allocate a new bio, memory pool backed
  *	@gfp_mask: allocation mask to use
@@ -342,12 +334,7 @@ static void bio_fs_destructor(struct bio *bio)
  */
 struct bio *bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
 {
-	struct bio *bio = bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
-
-	if (bio)
-		bio->bi_destructor = bio_fs_destructor;
-
-	return bio;
+	return bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
 }
 EXPORT_SYMBOL(bio_alloc);
 
@@ -423,7 +410,16 @@ void bio_put(struct bio *bio)
 	if (atomic_dec_and_test(&bio->bi_cnt)) {
 		bio_disassociate_task(bio);
 		bio->bi_next = NULL;
-		bio->bi_destructor(bio);
+
+		/*
+		 * This if statement is temporary - bi_pool is replacing
+		 * bi_destructor, but bi_destructor will be taken out in another
+		 * patch.
+		 */
+		if (bio->bi_pool)
+			bio_free(bio, bio->bi_pool);
+		else
+			bio->bi_destructor(bio);
 	}
 }
 EXPORT_SYMBOL(bio_put);
@@ -474,12 +470,11 @@ EXPORT_SYMBOL(__bio_clone);
  */
 struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
 {
-	struct bio *b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, fs_bio_set);
+	struct bio *b = bio_alloc(gfp_mask, bio->bi_max_vecs);
 
 	if (!b)
 		return NULL;
 
-	b->bi_destructor = bio_fs_destructor;
 	__bio_clone(b, bio);
 
 	if (bio_integrity(bio)) {

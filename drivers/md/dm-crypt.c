@@ -798,14 +798,6 @@ static int crypt_convert(struct crypt_config *cc,
 	return 0;
 }
 
-static void dm_crypt_bio_destructor(struct bio *bio)
-{
-	struct dm_crypt_io *io = bio->bi_private;
-	struct crypt_config *cc = io->cc;
-
-	bio_free(bio, cc->bs);
-}
-
 /*
  * Generate a new unfragmented bio with the given size
  * This should never violate the device limitations
@@ -974,7 +966,6 @@ static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 	clone->bi_end_io  = crypt_endio;
 	clone->bi_bdev    = cc->dev->bdev;
 	clone->bi_rw      = io->base_bio->bi_rw;
-	clone->bi_destructor = dm_crypt_bio_destructor;
 }
 
 static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
