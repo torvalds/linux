@@ -480,7 +480,7 @@ static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 static irqreturn_t nidio_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	struct comedi_async *async = s->async;
 	struct mite_struct *mite = devpriv->mite;
 
@@ -1252,8 +1252,8 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (!this_board->is_diodaq) {
 		for (i = 0; i < this_board->n_8255; i++) {
-			subdev_8255_init(dev, dev->subdevices + i,
-					 nidio96_8255_cb,
+			s = &dev->subdevices[i];
+			subdev_8255_init(dev, s, nidio96_8255_cb,
 					 (unsigned long)(devpriv->mite->
 							 daq_io_addr +
 							 NIDIO_8255_BASE(i)));
@@ -1263,7 +1263,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk(KERN_INFO " rev=%d",
 		       readb(devpriv->mite->daq_io_addr + Chip_Version));
 
-		s = dev->subdevices + 0;
+		s = &dev->subdevices[0];
 
 		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_DIO;
@@ -1307,11 +1307,14 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void nidio_detach(struct comedi_device *dev)
 {
+	struct comedi_subdevice *s;
 	int i;
 
 	if (this_board && !this_board->is_diodaq) {
-		for (i = 0; i < this_board->n_8255; i++)
-			subdev_8255_cleanup(dev, dev->subdevices + i);
+		for (i = 0; i < this_board->n_8255; i++) {
+			s = &dev->subdevices[i];
+			subdev_8255_cleanup(dev, s);
+		}
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
