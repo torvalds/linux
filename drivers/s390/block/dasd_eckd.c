@@ -211,7 +211,7 @@ check_XRC (struct ccw1         *de_ccw,
 
 	rc = get_sync_clock(&data->ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
-	if (rc == -ENOSYS || rc == -EACCES)
+	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
 
 	de_ccw->count = sizeof(struct DE_eckd_data);
@@ -322,7 +322,7 @@ static int check_XRC_on_prefix(struct PFX_eckd_data *pfxdata,
 
 	rc = get_sync_clock(&pfxdata->define_extent.ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
-	if (rc == -ENOSYS || rc == -EACCES)
+	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
 	return rc;
 }
