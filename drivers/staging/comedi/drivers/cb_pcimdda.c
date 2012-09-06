@@ -176,7 +176,7 @@ static int cb_pcimdda_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog output subdevice */
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
@@ -186,7 +186,7 @@ static int cb_pcimdda_attach_pci(struct comedi_device *dev,
 	s->insn_write	= cb_pcimdda_ao_winsn;
 	s->insn_read	= cb_pcimdda_ao_rinsn;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* digital i/o subdevice */
 	ret = subdev_8255_init(dev, s, NULL,
 			dev->iobase + PCIMDDA_8255_BASE_REG);
@@ -203,7 +203,7 @@ static void cb_pcimdda_detach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 1);
+		subdev_8255_cleanup(dev, &dev->subdevices[1]);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
