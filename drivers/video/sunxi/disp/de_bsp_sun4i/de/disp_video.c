@@ -208,12 +208,7 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     				g_video[sel][id].tempdiff_en = FALSE;
     			}
     			g_video[sel][id].diagintp_en = TRUE;
-
-                g_video[sel][id].fetch_field = FALSE;//todo
-                g_video[sel][id].fetch_bot = 0;//todo
-                g_video[sel][id].dit_mode = DIT_MODE_MAF_BOB;//todo
                 g_video[sel][id].tempdiff_en = FALSE;//todo
-                g_video[sel][id].diagintp_en = FALSE;//todo
     		}
     		else
     		{

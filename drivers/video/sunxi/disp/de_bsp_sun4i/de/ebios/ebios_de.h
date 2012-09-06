@@ -354,16 +354,13 @@ __s32 DE_BE_Sprite_Block_Set_Size(__u32 sel, __u8 blk_idx,__u32 xsize,__u32 ysiz
 __s32 DE_BE_Sprite_Block_Set_fb(__u32 sel, __u8 blk_idx,__u32 addr, __u32 line_width);
 __s32 DE_BE_Sprite_Block_Set_Next_Id(__u32 sel, __u8 blk_idx,__u8 next_blk_id);
 __s32 DE_BE_Sprite_Set_Palette_Table(__u32 sel, __u32 address, __u32 offset, __u32 size);
-__s32 DE_BE_Set_Enhance(__u8 sel,__u32 brightness, __u32 contrast, __u32 saturaion, __u32 hue);
+__s32 DE_BE_Set_Enhance_ex(__u8 sel, __u32 out_csc, __u32 out_color_range, __u32 enhance_en, __u32 brightness, __u32 contrast, __u32 saturaion, __u32 hue);
 __s32 DE_BE_enhance_enable(__u32 sel, __bool enable);
 __s32 DE_BE_set_display_size(__u32 sel, __u32 width, __u32 height);
 __s32 DE_BE_get_display_width(__u32 sel);
 __s32 DE_BE_get_display_height(__u32 sel);
 __s32 DE_BE_deflicker_enable(__u32 sel, __bool enable);
-__s32 DE_BE_output_csc_enable(__u32 sel, __bool enable);
 __s32 DE_BE_Set_Outitl_enable(__u32 sel, __bool enable);
-__s32 DE_BE_Output_Cfg_Csc_Coeff(__u32 sel, __bool bout_yuv, __u32 out_color_range);
-//__s32 DE_BE_Output_Cfg_Csc_Coeff(__u32 sel, __u8 cs_mode);
 __s32 DE_BE_Format_To_Bpp(__u32 sel, __u8 format);
 __u32 DE_BE_Offset_To_Addr(__u32 src_addr,__u32 width,__u32 x,__u32 y,__u32 bpp);
 __u32 DE_BE_Addr_To_Offset(__u32 src_addr,__u32 off_addr,__u32 width,__u32 bpp,__disp_pos_t *pos);
