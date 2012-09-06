@@ -141,7 +141,7 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 
 	s->n_chan = 32;
 	s->type = COMEDI_SUBD_DIO;
