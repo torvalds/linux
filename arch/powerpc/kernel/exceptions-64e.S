@@ -110,7 +110,9 @@
 
 #define PROLOG_STORE_RESTORE_SCRATCH_CRIT				    \
 	mfspr	r10,SPRN_SPRG_CRIT_SCRATCH;	/* get r13 */		    \
-	std	r10,PACA_EXCRIT+EX_R13(r13)
+	std	r10,PACA_EXCRIT+EX_R13(r13);				    \
+	ld	r11,PACA_SPRG3(r13);					    \
+	mtspr	SPRN_SPRG_CRIT_SCRATCH,r11;
 
 /* Variants of the "addition" argument for the prolog
  */
