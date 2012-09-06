@@ -478,3 +478,10 @@ struct mgmt_ev_device_unblocked {
 struct mgmt_ev_device_unpaired {
 	struct mgmt_addr_info addr;
 } __packed;
+
+#define MGMT_EV_PASSKEY_NOTIFY		0x0017
+struct mgmt_ev_passkey_notify {
+	struct mgmt_addr_info addr;
+	__le32	passkey;
+	__u8	entered;
+} __packed;

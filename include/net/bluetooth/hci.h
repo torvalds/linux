@@ -1249,6 +1249,24 @@ struct hci_ev_simple_pair_complete {
 	bdaddr_t bdaddr;
 } __packed;
 
+#define HCI_EV_USER_PASSKEY_NOTIFY	0x3b
+struct hci_ev_user_passkey_notify {
+	bdaddr_t	bdaddr;
+	__le32		passkey;
+} __packed;
+
+#define HCI_KEYPRESS_STARTED		0
+#define HCI_KEYPRESS_ENTERED		1
+#define HCI_KEYPRESS_ERASED		2
+#define HCI_KEYPRESS_CLEARED		3
+#define HCI_KEYPRESS_COMPLETED		4
+
+#define HCI_EV_KEYPRESS_NOTIFY		0x3c
+struct hci_ev_keypress_notify {
+	bdaddr_t	bdaddr;
+	__u8		type;
+} __packed;
+
 #define HCI_EV_REMOTE_HOST_FEATURES	0x3d
 struct hci_ev_remote_host_features {
 	bdaddr_t bdaddr;
