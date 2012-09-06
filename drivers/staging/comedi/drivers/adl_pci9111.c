@@ -754,9 +754,9 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 /*  Analog input command */
 
 static int pci9111_ai_do_cmd(struct comedi_device *dev,
-			     struct comedi_subdevice *subdevice)
+			     struct comedi_subdevice *s)
 {
-	struct comedi_cmd *async_cmd = &subdevice->async->cmd;
+	struct comedi_cmd *async_cmd = &s->async->cmd;
 
 	if (!dev->irq) {
 		comedi_error(dev,
@@ -907,7 +907,7 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 {
 	struct comedi_device *dev = p_device;
-	struct comedi_subdevice *subdevice = dev->read_subdev;
+	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
 	unsigned long irq_flags;
 	unsigned char intcsr;
@@ -918,7 +918,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		return IRQ_NONE;
 	}
 
-	async = subdevice->async;
+	async = s->async;
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 
@@ -944,9 +944,9 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 			comedi_error(dev, PCI9111_DRIVER_NAME " fifo overflow");
 			pci9111_interrupt_clear();
-			pci9111_ai_cancel(dev, subdevice);
+			pci9111_ai_cancel(dev, s);
 			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			comedi_event(dev, subdevice);
+			comedi_event(dev, s);
 
 			return IRQ_HANDLED;
 		}
@@ -970,7 +970,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 
 			if (dev_private->scan_delay < 1) {
 				bytes_written =
-				    cfc_write_array_to_buffer(subdevice,
+				    cfc_write_array_to_buffer(s,
 							      dev_private->
 							      ai_bounce_buffer,
 							      num_samples *
@@ -994,7 +994,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 
 						bytes_written +=
 						    cfc_write_array_to_buffer
-						    (subdevice,
+						    (s,
 						     dev_private->ai_bounce_buffer
 						     + position,
 						     to_read * sizeof(short));
@@ -1029,7 +1029,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 
 	if ((dev_private->stop_counter == 0) && (!dev_private->stop_is_none)) {
 		async->events |= COMEDI_CB_EOA;
-		pci9111_ai_cancel(dev, subdevice);
+		pci9111_ai_cancel(dev, s);
 	}
 
 	/* Very important, otherwise another interrupt request will be inserted
@@ -1039,7 +1039,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
-	comedi_event(dev, subdevice);
+	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
 }
@@ -1053,7 +1053,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 #undef AI_INSN_DEBUG
 
 static int pci9111_ai_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *subdevice,
+				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	int resolution =
@@ -1144,7 +1144,7 @@ static int pci9111_ao_insn_read(struct comedi_device *dev,
 /*  Digital inputs */
 
 static int pci9111_di_insn_bits(struct comedi_device *dev,
-				struct comedi_subdevice *subdevice,
+				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int bits;
@@ -1158,7 +1158,7 @@ static int pci9111_di_insn_bits(struct comedi_device *dev,
 /*  Digital outputs */
 
 static int pci9111_do_insn_bits(struct comedi_device *dev,
-				struct comedi_subdevice *subdevice,
+				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int bits;
@@ -1169,10 +1169,10 @@ static int pci9111_do_insn_bits(struct comedi_device *dev,
 
 	data[0] &= PCI9111_DO_MASK;
 
-	bits = subdevice->state;
+	bits = s->state;
 	bits &= ~data[0];
 	bits |= data[0] & data[1];
-	subdevice->state = bits;
+	s->state = bits;
 
 	pci9111_do_set_bits(bits);
 
@@ -1247,7 +1247,7 @@ static int pci9111_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev;
-	struct comedi_subdevice *subdevice;
+	struct comedi_subdevice *s;
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 	int error;
 	const struct pci9111_board *board;
@@ -1322,51 +1322,51 @@ static int pci9111_attach(struct comedi_device *dev,
 	if (error)
 		return error;
 
-	subdevice = dev->subdevices + 0;
-	dev->read_subdev = subdevice;
+	s = dev->subdevices + 0;
+	dev->read_subdev = s;
 
-	subdevice->type = COMEDI_SUBD_AI;
-	subdevice->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
 
 	/*  TODO: Add external multiplexer data */
-	/*     if (devpriv->usemux) { subdevice->n_chan = devpriv->usemux; } */
-	/*     else { subdevice->n_chan = this_board->n_aichan; } */
+	/*     if (devpriv->usemux) { s->n_chan = devpriv->usemux; } */
+	/*     else { s->n_chan = this_board->n_aichan; } */
 
-	subdevice->n_chan = board->ai_channel_nbr;
-	subdevice->maxdata = board->ai_resolution_mask;
-	subdevice->len_chanlist = board->ai_channel_nbr;
-	subdevice->range_table = board->ai_range_list;
-	subdevice->cancel = pci9111_ai_cancel;
-	subdevice->insn_read = pci9111_ai_insn_read;
-	subdevice->do_cmdtest = pci9111_ai_do_cmd_test;
-	subdevice->do_cmd = pci9111_ai_do_cmd;
-	subdevice->munge = pci9111_ai_munge;
+	s->n_chan = board->ai_channel_nbr;
+	s->maxdata = board->ai_resolution_mask;
+	s->len_chanlist = board->ai_channel_nbr;
+	s->range_table = board->ai_range_list;
+	s->cancel = pci9111_ai_cancel;
+	s->insn_read = pci9111_ai_insn_read;
+	s->do_cmdtest = pci9111_ai_do_cmd_test;
+	s->do_cmd = pci9111_ai_do_cmd;
+	s->munge = pci9111_ai_munge;
 
-	subdevice = dev->subdevices + 1;
-	subdevice->type = COMEDI_SUBD_AO;
-	subdevice->subdev_flags = SDF_WRITABLE | SDF_COMMON;
-	subdevice->n_chan = board->ao_channel_nbr;
-	subdevice->maxdata = board->ao_resolution_mask;
-	subdevice->len_chanlist = board->ao_channel_nbr;
-	subdevice->range_table = board->ao_range_list;
-	subdevice->insn_write = pci9111_ao_insn_write;
-	subdevice->insn_read = pci9111_ao_insn_read;
+	s = dev->subdevices + 1;
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE | SDF_COMMON;
+	s->n_chan = board->ao_channel_nbr;
+	s->maxdata = board->ao_resolution_mask;
+	s->len_chanlist = board->ao_channel_nbr;
+	s->range_table = board->ao_range_list;
+	s->insn_write = pci9111_ao_insn_write;
+	s->insn_read = pci9111_ao_insn_read;
 
-	subdevice = dev->subdevices + 2;
-	subdevice->type = COMEDI_SUBD_DI;
-	subdevice->subdev_flags = SDF_READABLE;
-	subdevice->n_chan = PCI9111_DI_CHANNEL_NBR;
-	subdevice->maxdata = 1;
-	subdevice->range_table = &range_digital;
-	subdevice->insn_bits = pci9111_di_insn_bits;
+	s = dev->subdevices + 2;
+	s->type = COMEDI_SUBD_DI;
+	s->subdev_flags = SDF_READABLE;
+	s->n_chan = PCI9111_DI_CHANNEL_NBR;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = pci9111_di_insn_bits;
 
-	subdevice = dev->subdevices + 3;
-	subdevice->type = COMEDI_SUBD_DO;
-	subdevice->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	subdevice->n_chan = PCI9111_DO_CHANNEL_NBR;
-	subdevice->maxdata = 1;
-	subdevice->range_table = &range_digital;
-	subdevice->insn_bits = pci9111_do_insn_bits;
+	s = dev->subdevices + 3;
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = PCI9111_DO_CHANNEL_NBR;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = pci9111_do_insn_bits;
 
 	dev_private->is_valid = 1;
 
