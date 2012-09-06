@@ -3676,6 +3676,16 @@ restart_ih:
 				break;
 			}
 			break;
+		case 146:
+		case 147:
+			dev_err(rdev->dev, "GPU fault detected: %d 0x%08x\n", src_id, src_data);
+			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
+				RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR));
+			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
+				RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
+			/* reset addr and status */
+			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
+			break;
 		case 176: /* GFX RB CP_INT */
 		case 177: /* GFX IB CP_INT */
 			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
