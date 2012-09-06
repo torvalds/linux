@@ -164,7 +164,7 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	/* analog output subdevice */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = board->type;
 	s->n_chan = board->n_chan;
 	s->maxdata = (1 << board->n_bits) - 1;
