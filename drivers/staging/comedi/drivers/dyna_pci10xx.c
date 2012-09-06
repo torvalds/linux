@@ -208,7 +208,7 @@ static int dyna_pci10xx_attach_pci(struct comedi_device *dev,
 		return ret;
 
 	/* analog input */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan = 16;
@@ -218,7 +218,7 @@ static int dyna_pci10xx_attach_pci(struct comedi_device *dev,
 	s->insn_read = dyna_pci10xx_insn_read_ai;
 
 	/* analog output */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 16;
@@ -228,7 +228,7 @@ static int dyna_pci10xx_attach_pci(struct comedi_device *dev,
 	s->insn_write = dyna_pci10xx_insn_write_ao;
 
 	/* digital input */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 16;
@@ -238,7 +238,7 @@ static int dyna_pci10xx_attach_pci(struct comedi_device *dev,
 	s->insn_bits = dyna_pci10xx_di_insn_bits;
 
 	/* digital output */
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 	s->n_chan = 16;
