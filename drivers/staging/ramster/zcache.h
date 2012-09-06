@@ -42,7 +42,7 @@ extern void zcache_decompress_to_page(char *, unsigned int, struct page *);
 #ifdef CONFIG_RAMSTER
 extern void *zcache_pampd_create(char *, unsigned int, bool, int,
 				struct tmem_handle *);
-extern int zcache_autocreate_pool(int, int, bool);
+int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bool eph);
 #endif
 
 #define MAX_POOLS_PER_CLIENT 16

@@ -1338,10 +1338,10 @@ static int zcache_local_new_pool(uint32_t flags)
 	return zcache_new_pool(LOCAL_CLIENT, flags);
 }
 
-int zcache_autocreate_pool(int cli_id, int pool_id, bool eph)
+int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bool eph)
 {
 	struct tmem_pool *pool;
-	struct zcache_client *cli = NULL;
+	struct zcache_client *cli;
 	uint32_t flags = eph ? 0 : TMEM_POOL_PERSIST;
 	int ret = -1;
 
@@ -1350,8 +1350,10 @@ int zcache_autocreate_pool(int cli_id, int pool_id, bool eph)
 		goto out;
 	if (pool_id >= MAX_POOLS_PER_CLIENT)
 		goto out;
-	else if ((unsigned int)cli_id < MAX_CLIENTS)
-		cli = &zcache_clients[cli_id];
+	if (cli_id >= MAX_CLIENTS)
+		goto out;
+
+	cli = &zcache_clients[cli_id];
 	if ((eph && disable_cleancache) || (!eph && disable_frontswap)) {
 		pr_err("zcache_autocreate_pool: pool type disabled\n");
 		goto out;
