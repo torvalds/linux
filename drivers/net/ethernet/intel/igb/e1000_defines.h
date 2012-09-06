@@ -857,8 +857,9 @@
 #define E1000_IPCNFG_EEE_100M_AN     0x00000004  /* EEE Enable 100M AN */
 #define E1000_EEER_TX_LPI_EN         0x00010000  /* EEE Tx LPI Enable */
 #define E1000_EEER_RX_LPI_EN         0x00020000  /* EEE Rx LPI Enable */
-#define E1000_EEER_FRC_AN            0x10000000 /* Enable EEE in loopback */
+#define E1000_EEER_FRC_AN            0x10000000  /* Enable EEE in loopback */
 #define E1000_EEER_LPI_FC            0x00040000  /* EEE Enable on FC */
+#define E1000_EEE_SU_LPI_CLK_STP     0X00800000  /* EEE LPI Clock Stop */
 
 /* SerDes Control */
 #define E1000_GEN_CTL_READY             0x80000000
