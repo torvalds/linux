@@ -61,7 +61,6 @@ struct hdmi_spec_per_cvt {
 	u32 rates;
 	u64 formats;
 	unsigned int maxbps;
-	bool non_pcm;
 };
 
 struct hdmi_spec_per_pin {
@@ -73,6 +72,7 @@ struct hdmi_spec_per_pin {
 	struct hdmi_eld sink_eld;
 	struct delayed_work work;
 	int repoll_count;
+	bool non_pcm;
 };
 
 struct hdmi_spec {
@@ -550,7 +550,6 @@ static void hdmi_debug_channel_mapping(struct hda_codec *codec,
 
 static void hdmi_setup_channel_mapping(struct hda_codec *codec,
 				       hda_nid_t pin_nid,
-				       hda_nid_t cvt_nid,
 				       bool non_pcm,
 				       int ca)
 {
@@ -712,27 +711,16 @@ static bool hdmi_infoframe_uptodate(struct hda_codec *codec, hda_nid_t pin_nid,
 }
 
 static void hdmi_setup_audio_infoframe(struct hda_codec *codec, int pin_idx,
-					hda_nid_t cvt_nid, struct snd_pcm_substream *substream)
+				       bool non_pcm,
+				       struct snd_pcm_substream *substream)
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
-	struct hdmi_spec_per_cvt *per_cvt;
-	struct hda_spdif_out *spdif;
 	hda_nid_t pin_nid = per_pin->pin_nid;
 	int channels = substream->runtime->channels;
 	struct hdmi_eld *eld;
 	int ca;
-	int cvt_idx;
 	union audio_infoframe ai;
-	bool non_pcm = false;
-
-	cvt_idx = cvt_nid_to_cvt_index(spec, cvt_nid);
-	per_cvt = &spec->cvts[cvt_idx];
-
-	mutex_lock(&codec->spdif_mutex);
-	spdif = snd_hda_spdif_out_of_nid(codec, cvt_nid);
-	non_pcm = !!(spdif->status & IEC958_AES0_NONAUDIO);
-	mutex_unlock(&codec->spdif_mutex);
 
 	eld = &spec->pins[pin_idx].sink_eld;
 	if (!eld->monitor_present)
@@ -775,7 +763,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, int pin_idx,
 			    "pin=%d channels=%d\n",
 			    pin_nid,
 			    channels);
-		hdmi_setup_channel_mapping(codec, pin_nid, cvt_nid, non_pcm, ca);
+		hdmi_setup_channel_mapping(codec, pin_nid, non_pcm, ca);
 		hdmi_stop_infoframe_trans(codec, pin_nid);
 		hdmi_fill_audio_infoframe(codec, pin_nid,
 					    ai.bytes, sizeof(ai));
@@ -783,11 +771,11 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, int pin_idx,
 	} else {
 		/* For non-pcm audio switch, setup new channel mapping
 		 * accordingly */
-		if (per_cvt->non_pcm != non_pcm)
-			hdmi_setup_channel_mapping(codec, pin_nid, cvt_nid, non_pcm, ca);
+		if (per_pin->non_pcm != non_pcm)
+			hdmi_setup_channel_mapping(codec, pin_nid, non_pcm, ca);
 	}
 
-	per_cvt->non_pcm = non_pcm;
+	per_pin->non_pcm = non_pcm;
 }
 
 
@@ -1080,6 +1068,7 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 	per_pin = &spec->pins[pin_idx];
 
 	per_pin->pin_nid = pin_nid;
+	per_pin->non_pcm = false;
 
 	err = hdmi_read_pin_conn(codec, pin_idx);
 	if (err < 0)
@@ -1109,7 +1098,6 @@ static int hdmi_add_cvt(struct hda_codec *codec, hda_nid_t cvt_nid)
 
 	per_cvt->cvt_nid = cvt_nid;
 	per_cvt->channels_min = 2;
-	per_cvt->non_pcm = false;
 	if (chans <= 16)
 		per_cvt->channels_max = chans;
 
@@ -1179,6 +1167,19 @@ static char *get_hdmi_pcm_name(int idx)
 	return &names[idx][0];
 }
 
+static bool check_non_pcm_per_cvt(struct hda_codec *codec, hda_nid_t cvt_nid)
+{
+	struct hda_spdif_out *spdif;
+	bool non_pcm;
+
+	mutex_lock(&codec->spdif_mutex);
+	spdif = snd_hda_spdif_out_of_nid(codec, cvt_nid);
+	non_pcm = !!(spdif->status & IEC958_AES0_NONAUDIO);
+	mutex_unlock(&codec->spdif_mutex);
+	return non_pcm;
+}
+
+
 /*
  * HDMI callbacks
  */
@@ -1194,10 +1195,13 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	int pin_idx = hinfo_to_pin_index(spec, hinfo);
 	hda_nid_t pin_nid = spec->pins[pin_idx].pin_nid;
 	int pinctl;
+	bool non_pcm;
+
+	non_pcm = check_non_pcm_per_cvt(codec, cvt_nid);
 
 	hdmi_set_channel_count(codec, cvt_nid, substream->runtime->channels);
 
-	hdmi_setup_audio_infoframe(codec, pin_idx, cvt_nid, substream);
+	hdmi_setup_audio_infoframe(codec, pin_idx, non_pcm, substream);
 
 	pinctl = snd_hda_codec_read(codec, pin_nid, 0,
 				    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
