@@ -407,7 +407,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 	enum ieee80211_band band = local->hw.conf.channel->band;
 
 	sdata = rcu_dereference_protected(local->scan_sdata,
-					  lockdep_is_held(&local->mtx));;
+					  lockdep_is_held(&local->mtx));
 
 	for (i = 0; i < local->scan_req->n_ssids; i++)
 		ieee80211_send_probe_req(
