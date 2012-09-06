@@ -60,7 +60,7 @@ static struct snd_soc_codec *rt3261_codec;
 #define RT3261_REG_RW 1 /* for debug */
 #define RT3261_DET_EXT_MIC 0
 
-#define VERSION "RT3261_V1.0.0"
+#define VERSION "RT3261_V1.1.0"
 
 #if defined (CONFIG_SND_SOC_RT5623)
 extern void rt5623_on(void);
@@ -2356,13 +2356,9 @@ static const struct snd_soc_dapm_route rt3261_dapm_routes[] = {
 
 	{"DAC R2 Mux", "IF2", "IF2 DAC R"},
 	{"DAC R2 Mux", "IF3", "IF3 DAC R"},
-#if defined (CONFIG_SND_SOC_RT3261)
 	{"DAC R2 Volume", NULL, "Mono dacr Mux"},
 	{"Mono dacr Mux", "TxDC_R", "DAC R2 Mux"},
 	{"Mono dacr Mux", "TxDP_R", "IF2 ADC R Mux"},
-#else
-	{"DAC R2 Volume", NULL, "DAC R2 Mux"},
-#endif
 
 	{"Stereo DAC MIXL", "DAC L1 Switch", "DAC MIXL"},
 	{"Stereo DAC MIXL", "DAC L2 Switch", "DAC L2 Volume"},
