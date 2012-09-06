@@ -1333,15 +1333,15 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
+	if (WARN_ON(dp_reg & DP_PORT_EN))
+		return;
+
 	ironlake_edp_panel_vdd_on(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
-	if (!(dp_reg & DP_PORT_EN)) {
-		intel_dp_start_link_train(intel_dp);
-		ironlake_edp_panel_on(intel_dp);
-		ironlake_edp_panel_vdd_off(intel_dp, true);
-		intel_dp_complete_link_train(intel_dp);
-	} else
-		ironlake_edp_panel_vdd_off(intel_dp, false);
+	intel_dp_start_link_train(intel_dp);
+	ironlake_edp_panel_on(intel_dp);
+	ironlake_edp_panel_vdd_off(intel_dp, true);
+	intel_dp_complete_link_train(intel_dp);
 	ironlake_edp_backlight_on(intel_dp);
 }
 
@@ -1900,7 +1900,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t DP = intel_dp->DP;
 
-	if ((I915_READ(intel_dp->output_reg) & DP_PORT_EN) == 0)
+	if (WARN_ON((I915_READ(intel_dp->output_reg) & DP_PORT_EN) == 0))
 		return;
 
 	DRM_DEBUG_KMS("\n");
