@@ -39,6 +39,7 @@ void flush_thread(void)
 
 void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
 {
+	get_safe_registers(regs->regs.gp, regs->regs.fp);
 	PT_REGS_IP(regs) = eip;
 	PT_REGS_SP(regs) = esp;
 	current->ptrace &= ~PT_DTRACE;
