@@ -150,6 +150,10 @@ config PINCTRL_SAMSUNG
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_EXYNOS4
+	bool "Pinctrl driver data for Exynos4 SoC"
+	select PINCTRL_SAMSUNG
+
 source "drivers/pinctrl/spear/Kconfig"
 
 endmenu
