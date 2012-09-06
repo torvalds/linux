@@ -645,7 +645,8 @@ static int __init cadet_init(void)
 	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
 	video_set_drvdata(&dev->vdev, dev);
 
-	if (video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr) < 0)
+	res = video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr);
+	if (res < 0)
 		goto err_hdl;
 	v4l2_info(v4l2_dev, "ADS Cadet Radio Card at 0x%x\n", dev->io);
 	return 0;
