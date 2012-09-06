@@ -12,8 +12,6 @@ int		sort__branch_mode = -1; /* -1 = means not set */
 
 enum sort_type	sort__first_dimension;
 
-char * field_sep;
-
 LIST_HEAD(hist_entry__sort_list);
 
 static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
@@ -23,11 +21,11 @@ static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	n = vsnprintf(bf, size, fmt, ap);
-	if (field_sep && n > 0) {
+	if (symbol_conf.field_sep && n > 0) {
 		char *sep = bf;
 
 		while (1) {
-			sep = strchr(sep, *field_sep);
+			sep = strchr(sep, *symbol_conf.field_sep);
 			if (sep == NULL)
 				break;
 			*sep = '.';
