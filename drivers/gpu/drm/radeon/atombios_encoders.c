@@ -866,14 +866,14 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 			else
 				args.v3.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
-			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode))
+			if (ENCODER_MODE_IS_DP(args.v3.ucEncoderMode))
 				args.v3.ucLaneNum = dp_lane_count;
 			else if (radeon_dig_monitor_is_duallink(encoder, radeon_encoder->pixel_clock))
 				args.v3.ucLaneNum = 8;
 			else
 				args.v3.ucLaneNum = 4;
 
-			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode) && (dp_clock == 270000))
+			if (ENCODER_MODE_IS_DP(args.v3.ucEncoderMode) && (dp_clock == 270000))
 				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
 			args.v3.acConfig.ucDigSel = dig->dig_encoder;
 			args.v3.ucBitPerColor = radeon_atom_get_bpc(encoder);
@@ -886,14 +886,14 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 			else
 				args.v4.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
-			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode))
+			if (ENCODER_MODE_IS_DP(args.v4.ucEncoderMode))
 				args.v4.ucLaneNum = dp_lane_count;
 			else if (radeon_dig_monitor_is_duallink(encoder, radeon_encoder->pixel_clock))
 				args.v4.ucLaneNum = 8;
 			else
 				args.v4.ucLaneNum = 4;
 
-			if (ENCODER_MODE_IS_DP(args.v1.ucEncoderMode)) {
+			if (ENCODER_MODE_IS_DP(args.v4.ucEncoderMode)) {
 				if (dp_clock == 270000)
 					args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_2_70GHZ;
 				else if (dp_clock == 540000)
