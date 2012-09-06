@@ -231,6 +231,9 @@ static void amp_init(struct hci_dev *hdev)
 
 	/* Read Local AMP Info */
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
+
+	/* Read Data Blk size */
+	hci_send_cmd(hdev, HCI_OP_READ_DATA_BLOCK_SIZE, 0, NULL);
 }
 
 static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
