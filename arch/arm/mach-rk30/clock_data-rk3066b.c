@@ -635,9 +635,9 @@ static int gpll_clk_set_rate(struct clk *c, unsigned long rate)
 #define PLL_FOUT_MIN (18750*KHZ)
 #define PLL_FOUT_MAX (1500*MHZ)
 
-#define PLL_NF_MAX (4096)
+#define PLL_NF_MAX (65536)
 #define PLL_NR_MAX (64)
-#define PLL_NO_MAX (16)
+#define PLL_NO_MAX (64)
 
 static int pll_clk_get_set(unsigned long fin_hz, unsigned long fout_hz, u32 *clk_nr, u32 *clk_nf, u32 *clk_no)
 {
@@ -923,6 +923,10 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 static const struct apll_clk_set apll_clks[] = {
 	//_APLL_SET_CLKS(_mhz, nr, nf, no, _periph_div, 
 	//		_axi_core_div, _axi_div, _ahb_div, _apb_div, _ahb2apb) 	
+	_APLL_SET_CLKS(1992, 1, 83, 1, 8, 	81, 81, 21, 41, 21),
+	_APLL_SET_CLKS(1896, 1, 79, 1, 8, 	81, 81, 21, 41, 21),
+	_APLL_SET_CLKS(1800, 1, 75, 1, 8, 	81, 81, 21, 41, 21),
+	_APLL_SET_CLKS(1704, 1, 71, 1, 8, 	81, 81, 21, 41, 21),
 	_APLL_SET_CLKS(1608, 1, 67, 1, 8, 	41, 41, 21, 41, 21),
 	_APLL_SET_CLKS(1560, 1, 65, 1, 8, 	41, 41, 21, 41, 21),
 	_APLL_SET_CLKS(1512, 1, 63, 1, 8, 	41, 41, 21, 41, 21),
@@ -936,20 +940,21 @@ static const struct apll_clk_set apll_clks[] = {
 	_APLL_SET_CLKS(1176, 1, 49, 1, 8, 	41, 41, 21, 41, 21),
 	_APLL_SET_CLKS(1128, 1, 47, 1, 8, 	41, 41, 21, 41, 21),
 	_APLL_SET_CLKS(1104, 1, 46, 1, 8, 	41, 41, 21, 41, 21),
-	_APLL_SET_CLKS(1008, 1, 42, 1, 8, 	41, 31, 21, 41, 21),
-	_APLL_SET_CLKS(888,  1, 37, 1, 8, 	41, 31, 21, 41, 21),
+	_APLL_SET_CLKS(1008, 1, 84, 2, 8, 	41, 31, 21, 41, 21),
+	_APLL_SET_CLKS(912,  1, 76, 2, 8, 	41, 31, 21, 41, 21),
+	_APLL_SET_CLKS(888,  1, 74, 2, 8, 	41, 31, 21, 41, 21),
 	_APLL_SET_CLKS(816 , 1, 68, 2, 8, 	41, 31, 21, 41, 21),
-	_APLL_SET_CLKS(792 , 1, 33, 1, 8, 	41, 31, 21, 41, 21),
-	_APLL_SET_CLKS(696 , 1, 29, 1, 8, 	41, 31, 21, 41, 21),
-	_APLL_SET_CLKS(600 , 1, 25, 1, 4, 	41, 31, 21, 41, 21),
-	_APLL_SET_CLKS(504 , 1, 21, 1, 4, 	41, 21, 21, 41, 21),
-	_APLL_SET_CLKS(408 , 1, 17, 1, 4, 	41, 21, 21, 41, 21),
-	_APLL_SET_CLKS(312 , 1, 13, 1, 2, 	41, 21, 21, 21, 11),
-	_APLL_SET_CLKS(252 , 1, 21, 2, 2, 	41, 21, 21, 21, 11),
-	_APLL_SET_CLKS(216 , 1, 18, 2, 2, 	41, 21, 21, 21, 11),
-	_APLL_SET_CLKS(126 , 1, 21, 4, 2, 	41, 21, 11, 11, 11),
-	_APLL_SET_CLKS(48  , 1, 16, 8, 2, 	41, 11, 11, 11, 11),
-	_APLL_SET_CLKS(0   , 1, 21, 4, 2, 	41, 21, 21, 41, 21),
+	_APLL_SET_CLKS(792 , 1, 66, 2, 8, 	41, 31, 21, 41, 21),
+	_APLL_SET_CLKS(696 , 1, 58, 2, 8, 	41, 31, 21, 41, 21),
+	_APLL_SET_CLKS(600 , 1, 50, 2, 4, 	41, 31, 21, 41, 21),
+	_APLL_SET_CLKS(504 , 1, 84, 4, 4, 	41, 21, 21, 41, 21),
+	_APLL_SET_CLKS(408 , 1, 68, 4, 4, 	21, 21, 21, 41, 21),
+	_APLL_SET_CLKS(312 , 1, 52, 4, 2, 	21, 21, 21, 21, 11),
+	_APLL_SET_CLKS(252 , 1, 84, 8, 2, 	21, 21, 21, 21, 11),
+	_APLL_SET_CLKS(216 , 1, 72, 8, 2, 	21, 21, 21, 21, 11),
+	_APLL_SET_CLKS(126 , 1, 84, 16, 2, 	11, 21, 11, 11, 11),
+	_APLL_SET_CLKS(48  , 1, 64, 32, 2, 	11, 11, 11, 11, 11),
+	_APLL_SET_CLKS(0   , 1, 21, 4, 2, 	11, 11, 11, 11, 11),
 
 };
 static struct _pll_data apll_data = SET_PLL_DATA(APLL_ID, (void *)apll_clks);
