@@ -359,6 +359,7 @@ choice
 
 	config DEBUG_LL_UART_NONE
 		bool "No low-level debugging UART"
+		depends on !ARCH_MULTIPLATFORM
 		help
 		  Say Y here if your platform doesn't provide a UART option
 		  below. This relies on your platform choosing the right UART
