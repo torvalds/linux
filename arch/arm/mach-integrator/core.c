@@ -61,7 +61,7 @@ static struct amba_device *amba_devs[] __initdata = {
 	&kmi1_device,
 };
 
-static int __init integrator_init(void)
+int __init integrator_init(bool is_cp)
 {
 	int i;
 
@@ -70,7 +70,7 @@ static int __init integrator_init(void)
 	 * hard-code them. The Integator/CP and forward have proper cell IDs.
 	 * Else we leave them undefined to the bus driver can autoprobe them.
 	 */
-	if (machine_is_integrator()) {
+	if (!is_cp) {
 		rtc_device.periphid	= 0x00041030;
 		uart0_device.periphid	= 0x00041010;
 		uart1_device.periphid	= 0x00041010;
@@ -85,8 +85,6 @@ static int __init integrator_init(void)
 
 	return 0;
 }
-
-arch_initcall(integrator_init);
 
 /*
  * On the Integrator platform, the port RTS and DTR are provided by

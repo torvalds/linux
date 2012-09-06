@@ -312,6 +312,8 @@ static void __init ap_init(void)
 
 		lm_device_register(lmdev);
 	}
+
+	integrator_init(false);
 }
 
 /*

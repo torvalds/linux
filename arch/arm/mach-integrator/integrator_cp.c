@@ -366,6 +366,7 @@ static void __init intcp_init(void)
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
+	integrator_init(true);
 }
 
 #define TIMER0_VA_BASE __io_address(INTEGRATOR_TIMER0_BASE)
