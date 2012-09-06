@@ -153,21 +153,7 @@ struct sysinfo_15_1_x {
 	union topology_entry tle[0];
 };
 
-static inline int stsi(void *sysinfo, int fc, int sel1, int sel2)
-{
-	register int r0 asm("0") = (fc << 28) | sel1;
-	register int r1 asm("1") = sel2;
-
-	asm volatile(
-		"   stsi 0(%2)\n"
-		"0: jz   2f\n"
-		"1: lhi  %0,%3\n"
-		"2:\n"
-		EX_TABLE(0b, 1b)
-		: "+d" (r0) : "d" (r1), "a" (sysinfo), "K" (-ENOSYS)
-		: "cc", "memory");
-	return r0;
-}
+int stsi(void *sysinfo, int fc, int sel1, int sel2);
 
 /*
  * Service level reporting interface.

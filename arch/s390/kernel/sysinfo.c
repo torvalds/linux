@@ -24,18 +24,38 @@
 
 int topology_max_mnest;
 
-static inline int stsi_0(void)
+/*
+ * stsi - store system information
+ *
+ * Returns the current configuration level if function code 0 was specified.
+ * Otherwise returns 0 on success or a negative value on error.
+ */
+int stsi(void *sysinfo, int fc, int sel1, int sel2)
 {
-	int rc = stsi(NULL, 0, 0, 0);
+	register int r0 asm("0") = (fc << 28) | sel1;
+	register int r1 asm("1") = sel2;
+	int rc = 0;
 
-	return rc == -ENOSYS ? rc : (((unsigned int) rc) >> 28);
+	asm volatile(
+		"	stsi	0(%3)\n"
+		"0:	jz	2f\n"
+		"1:	lhi	%1,%4\n"
+		"2:\n"
+		EX_TABLE(0b, 1b)
+		: "+d" (r0), "+d" (rc)
+		: "d" (r1), "a" (sysinfo), "K" (-EOPNOTSUPP)
+		: "cc", "memory");
+	if (rc)
+		return rc;
+	return fc ? 0 : ((unsigned int) r0) >> 28;
 }
+EXPORT_SYMBOL(stsi);
 
 static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 {
 	int i;
 
-	if (stsi(info, 1, 1, 1) == -ENOSYS)
+	if (stsi(info, 1, 1, 1))
 		return;
 	EBCASC(info->manufacturer, sizeof(info->manufacturer));
 	EBCASC(info->type, sizeof(info->type));
@@ -97,7 +117,8 @@ static void stsi_15_1_x(struct seq_file *m, struct sysinfo_15_1_x *info)
 	seq_putc(m, '\n');
 	if (!MACHINE_HAS_TOPOLOGY)
 		return;
-	stsi(info, 15, 1, topology_max_mnest);
+	if (stsi(info, 15, 1, topology_max_mnest))
+		return;
 	seq_printf(m, "CPU Topology HW:     ");
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
 		seq_printf(m, " %d", info->mag[i]);
@@ -116,7 +137,7 @@ static void stsi_1_2_2(struct seq_file *m, struct sysinfo_1_2_2 *info)
 	struct sysinfo_1_2_2_extension *ext;
 	int i;
 
-	if (stsi(info, 1, 2, 2) == -ENOSYS)
+	if (stsi(info, 1, 2, 2))
 		return;
 	ext = (struct sysinfo_1_2_2_extension *)
 		((unsigned long) info + info->acc_offset);
@@ -152,7 +173,7 @@ static void stsi_1_2_2(struct seq_file *m, struct sysinfo_1_2_2 *info)
 
 static void stsi_2_2_2(struct seq_file *m, struct sysinfo_2_2_2 *info)
 {
-	if (stsi(info, 2, 2, 2) == -ENOSYS)
+	if (stsi(info, 2, 2, 2))
 		return;
 	EBCASC(info->name, sizeof(info->name));
 	seq_putc(m, '\n');
@@ -179,7 +200,7 @@ static void stsi_3_2_2(struct seq_file *m, struct sysinfo_3_2_2 *info)
 {
 	int i;
 
-	if (stsi(info, 3, 2, 2) == -ENOSYS)
+	if (stsi(info, 3, 2, 2))
 		return;
 	for (i = 0; i < info->count; i++) {
 		EBCASC(info->vm[i].name, sizeof(info->vm[i].name));
@@ -202,7 +223,7 @@ static int sysinfo_show(struct seq_file *m, void *v)
 
 	if (!info)
 		return 0;
-	level = stsi_0();
+	level = stsi(NULL, 0, 0, 0);
 	if (level >= 1)
 		stsi_1_1_1(m, info);
 	if (level >= 1)
@@ -365,7 +386,7 @@ void s390_adjust_jiffies(void)
 	if (!info)
 		return;
 
-	if (stsi(info, 1, 2, 2) != -ENOSYS) {
+	if (stsi(info, 1, 2, 2) == 0) {
 		/*
 		 * Major sigh. The cpu capability encoding is "special".
 		 * If the first 9 bits of info->capability are 0 then it

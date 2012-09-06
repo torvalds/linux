@@ -222,12 +222,12 @@ static noinline __init void detect_machine_type(void)
 	struct sysinfo_3_2_2 *vmms = (struct sysinfo_3_2_2 *)&sysinfo_page;
 
 	/* Check current-configuration-level */
-	if ((stsi(NULL, 0, 0, 0) >> 28) <= 2) {
+	if (stsi(NULL, 0, 0, 0) <= 2) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_LPAR;
 		return;
 	}
 	/* Get virtual-machine cpu information. */
-	if (stsi(vmms, 3, 2, 2) == -ENOSYS || !vmms->count)
+	if (stsi(vmms, 3, 2, 2) || !vmms->count)
 		return;
 
 	/* Running under KVM? If not we assume z/VM */
@@ -246,7 +246,7 @@ static __init void setup_topology(void)
 		return;
 	S390_lowcore.machine_flags |= MACHINE_FLAG_TOPOLOGY;
 	for (max_mnest = 6; max_mnest > 1; max_mnest--) {
-		if (stsi(&sysinfo_page, 15, 1, max_mnest) != -ENOSYS)
+		if (stsi(&sysinfo_page, 15, 1, max_mnest) == 0)
 			break;
 	}
 	topology_max_mnest = max_mnest;
