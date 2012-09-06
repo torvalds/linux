@@ -32,7 +32,6 @@
 #define USB_BUFSIZ	1024
 
 static struct usb_composite_driver *composite;
-static int (*composite_gadget_bind)(struct usb_composite_dev *cdev);
 
 /* Some systems will need runtime overrides for the  product identifiers
  * published in the device descriptor, either numbers or strings or both.
@@ -1468,7 +1467,7 @@ static int composite_bind(struct usb_gadget *gadget)
 	 * serial number), register function drivers, potentially update
 	 * power state and consumption, etc
 	 */
-	status = composite_gadget_bind(cdev);
+	status = composite->bind(cdev);
 	if (status < 0)
 		goto fail;
 
@@ -1621,7 +1620,9 @@ static struct usb_gadget_driver composite_driver = {
 int usb_composite_probe(struct usb_composite_driver *driver,
 			       int (*bind)(struct usb_composite_dev *cdev))
 {
-	if (!driver || !driver->dev || !bind || composite)
+	if (!driver || !driver->dev || composite)
+		return -EINVAL;
+	if (!bind && !driver->bind)
 		return -EINVAL;
 
 	if (!driver->name)
@@ -1632,7 +1633,8 @@ int usb_composite_probe(struct usb_composite_driver *driver,
 	composite_driver.driver.name = driver->name;
 	composite_driver.max_speed = driver->max_speed;
 	composite = driver;
-	composite_gadget_bind = bind;
+	if (!driver->bind)
+		driver->bind = bind;
 
 	return usb_gadget_probe_driver(&composite_driver, composite_bind);
 }
