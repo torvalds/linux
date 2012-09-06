@@ -145,7 +145,7 @@ static int cnt_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 
 	s->type = COMEDI_SUBD_COUNTER;
