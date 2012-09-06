@@ -19,3 +19,22 @@ Board specific device node entry
 &twl6030-usb {
 	usb-supply = <&vusb>;
 };
+
+TWL4030 USB PHY AND COMPARATOR
+ - compatible : Should be "ti,twl4030-usb"
+ - interrupts : The interrupt numbers to the cpu should be specified. First
+   interrupt number is the otg interrupt number that raises ID interrupts
+   and VBUS interrupts. The second interrupt number is optional.
+ - <supply-name>-supply : phandle to the regulator device tree node.
+   <supply-name> should be vusb1v5, vusb1v8 and vusb3v1
+ - usb_mode : The mode used by the phy to connect to the controller. "1"
+   specifies "ULPI" mode and "2" specifies "CEA2011_3PIN" mode.
+
+twl4030-usb {
+	compatible = "ti,twl4030-usb";
+	interrupts = < 10 4 >;
+	usb1v5-supply = <&vusb1v5>;
+	usb1v8-supply = <&vusb1v8>;
+	usb3v1-supply = <&vusb3v1>;
+	usb_mode = <1>;
+};
