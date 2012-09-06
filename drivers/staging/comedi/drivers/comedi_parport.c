@@ -277,7 +277,7 @@ static irqreturn_t parport_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct parport_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->subdevices + 3;
+	struct comedi_subdevice *s = &dev->subdevices[3];
 
 	if (!devpriv->enable_irq)
 		return IRQ_NONE;
@@ -327,7 +327,7 @@ static int parport_attach(struct comedi_device *dev,
 		return ret;
 	devpriv = dev->private;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 8;
@@ -336,7 +336,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->insn_bits = parport_insn_a;
 	s->insn_config = parport_insn_config_a;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 5;
@@ -344,7 +344,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = parport_insn_b;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 4;
@@ -352,7 +352,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = parport_insn_c;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	if (irq) {
 		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_DI;
