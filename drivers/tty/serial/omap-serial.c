@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/serial_core.h>
@@ -40,7 +41,6 @@
 #include <linux/of.h>
 #include <linux/gpio.h>
 
-#include <plat/dmtimer.h>
 #include <plat/omap-serial.h>
 
 #define UART_BUILD_REVISION(x, y)	(((x) << 8) | (y))
