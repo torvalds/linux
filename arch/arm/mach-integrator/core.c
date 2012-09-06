@@ -99,11 +99,14 @@ int __init integrator_init(bool is_cp)
 static void integrator_uart_set_mctrl(struct amba_device *dev, void __iomem *base, unsigned int mctrl)
 {
 	unsigned int ctrls = 0, ctrlc = 0, rts_mask, dtr_mask;
+	u32 phybase = dev->res.start;
 
-	if (dev == &uart0_device) {
+	if (phybase == INTEGRATOR_UART0_BASE) {
+		/* UART0 */
 		rts_mask = 1 << 4;
 		dtr_mask = 1 << 5;
 	} else {
+		/* UART1 */
 		rts_mask = 1 << 6;
 		dtr_mask = 1 << 7;
 	}
