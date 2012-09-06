@@ -18,7 +18,7 @@
 #define __OMAP_SERIAL_H__
 
 #include <linux/serial_core.h>
-#include <linux/platform_device.h>
+#include <linux/device.h>
 #include <linux/pm_qos.h>
 
 #include <plat/mux.h>
@@ -74,9 +74,9 @@ struct omap_uart_port_info {
 	int			DTR_present;
 
 	int (*get_context_loss_count)(struct device *);
-	void (*set_forceidle)(struct platform_device *);
-	void (*set_noidle)(struct platform_device *);
-	void (*enable_wakeup)(struct platform_device *, bool);
+	void (*set_forceidle)(struct device *);
+	void (*set_noidle)(struct device *);
+	void (*enable_wakeup)(struct device *, bool);
 };
 
 struct uart_omap_dma {
@@ -108,7 +108,7 @@ struct uart_omap_dma {
 struct uart_omap_port {
 	struct uart_port	port;
 	struct uart_omap_dma	uart_dma;
-	struct platform_device	*pdev;
+	struct device		*dev;
 
 	unsigned char		ier;
 	unsigned char		lcr;

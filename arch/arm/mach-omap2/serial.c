@@ -81,8 +81,9 @@ static struct omap_uart_port_info omap_serial_default_info[] __initdata = {
 };
 
 #ifdef CONFIG_PM
-static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
+static void omap_uart_enable_wakeup(struct device *dev, bool enable)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 
 	if (!od)
@@ -99,15 +100,17 @@ static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
  * in Smartidle Mode When Configured for DMA Operations.
  * WA: configure uart in force idle mode.
  */
-static void omap_uart_set_noidle(struct platform_device *pdev)
+static void omap_uart_set_noidle(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 
 	omap_hwmod_set_slave_idlemode(od->hwmods[0], HWMOD_IDLEMODE_NO);
 }
 
-static void omap_uart_set_smartidle(struct platform_device *pdev)
+static void omap_uart_set_smartidle(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 	u8 idlemode;
 
@@ -120,10 +123,10 @@ static void omap_uart_set_smartidle(struct platform_device *pdev)
 }
 
 #else
-static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
+static void omap_uart_enable_wakeup(struct device *dev, bool enable)
 {}
-static void omap_uart_set_noidle(struct platform_device *pdev) {}
-static void omap_uart_set_smartidle(struct platform_device *pdev) {}
+static void omap_uart_set_noidle(struct device *dev) {}
+static void omap_uart_set_smartidle(struct device *dev) {}
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_OMAP_MUX
