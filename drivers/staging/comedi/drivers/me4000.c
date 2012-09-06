@@ -1410,7 +1410,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 {
 	unsigned int tmp;
 	struct comedi_device *dev = dev_id;
-	struct comedi_subdevice *s = dev->subdevices;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	struct me4000_ai_context *ai_context = &info->ai_context;
 	int i;
 	int c = 0;
@@ -2017,7 +2017,7 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
       Analog input subdevice
       ========================================================================*/
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 
 	if (thisboard->ai.count) {
 		s->type = COMEDI_SUBD_AI;
@@ -2055,7 +2055,7 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
       Analog output subdevice
       ========================================================================*/
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 
 	if (thisboard->ao.count) {
 		s->type = COMEDI_SUBD_AO;
@@ -2073,7 +2073,7 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
       Digital I/O subdevice
       ========================================================================*/
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 
 	if (thisboard->dio.count) {
 		s->type = COMEDI_SUBD_DIO;
@@ -2100,7 +2100,7 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
       Counter subdevice
       ========================================================================*/
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 
 	if (thisboard->cnt.count) {
 		s->type = COMEDI_SUBD_COUNTER;
