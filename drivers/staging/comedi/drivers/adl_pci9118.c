@@ -837,7 +837,7 @@ static irqreturn_t interrupt_pci9118(int irq, void *d)
 				}
 			}
 
-		(devpriv->int_ai_func) (dev, dev->subdevices + 0, int_adstat,
+		(devpriv->int_ai_func) (dev, &dev->subdevices[0], int_adstat,
 					int_amcc, int_daq);
 
 	}
@@ -2273,7 +2273,7 @@ static int pci9118_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
@@ -2294,7 +2294,7 @@ static int pci9118_attach(struct comedi_device *dev,
 		s->munge = pci9118_ai_munge;
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = this_board->n_aochan;
@@ -2304,7 +2304,7 @@ static int pci9118_attach(struct comedi_device *dev,
 	s->insn_write = pci9118_insn_write_ao;
 	s->insn_read = pci9118_insn_read_ao;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 4;
@@ -2314,7 +2314,7 @@ static int pci9118_attach(struct comedi_device *dev,
 	s->io_bits = 0;		/* all bits input */
 	s->insn_bits = pci9118_insn_bits_di;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 4;
