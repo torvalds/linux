@@ -3497,7 +3497,7 @@ void v_APCI3200_Interrupt(int irq, void *d)
 int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 {
 	unsigned int ui_StatusRegister = 0;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 	/* comedi_async *async = s->async; */
