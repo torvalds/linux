@@ -1315,15 +1315,20 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 	ironlake_edp_backlight_off(intel_dp);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	ironlake_edp_panel_off(intel_dp);
-	intel_dp_link_down(intel_dp);
+
+	/* cpu edp my only be disable _after_ the cpu pipe/plane is disabled. */
+	if (!is_cpu_edp(intel_dp))
+		intel_dp_link_down(intel_dp);
 }
 
 static void intel_post_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-	if (is_cpu_edp(intel_dp))
+	if (is_cpu_edp(intel_dp)) {
+		intel_dp_link_down(intel_dp);
 		ironlake_edp_pll_off(intel_dp);
+	}
 }
 
 static void intel_enable_dp(struct intel_encoder *encoder)
