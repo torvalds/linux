@@ -290,7 +290,7 @@ DEFINE_PCI_DEVICE_TABLE(vt6655_pci_id_table) = {
 
 
 static int  vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent);
-static bool vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice, PCHIP_INFO);
+static void vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice, PCHIP_INFO);
 static void device_free_info(PSDevice pDevice);
 static bool device_get_pci_info(PSDevice, struct pci_dev* pcid);
 static void device_print_info(PSDevice pDevice);
@@ -935,9 +935,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
         bFirst=false;
     }
 
-    if (!vt6655_init_info(pcid, &pDevice, pChip_info)) {
-        return -ENOMEM;
-    }
+    vt6655_init_info(pcid, &pDevice, pChip_info);
     pDevice->dev = dev;
     pDevice->next_module = root_device_dev;
     root_device_dev = dev;
@@ -1101,7 +1099,7 @@ static void device_print_info(PSDevice pDevice)
 
 }
 
-static bool __devinit vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
+static void __devinit vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
     PCHIP_INFO pChip_info) {
 
     PSDevice p;
@@ -1125,8 +1123,6 @@ static bool __devinit vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
     (*ppDevice)->multicast_limit =32;
 
     spin_lock_init(&((*ppDevice)->lock));
-
-    return true;
 }
 
 static bool device_get_pci_info(PSDevice pDevice, struct pci_dev* pcid) {
