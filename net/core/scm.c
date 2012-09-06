@@ -155,19 +155,21 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 			break;
 		case SCM_CREDENTIALS:
 		{
+			struct ucred creds;
 			kuid_t uid;
 			kgid_t gid;
 			if (cmsg->cmsg_len != CMSG_LEN(sizeof(struct ucred)))
 				goto error;
-			memcpy(&p->creds, CMSG_DATA(cmsg), sizeof(struct ucred));
-			err = scm_check_creds(&p->creds);
+			memcpy(&creds, CMSG_DATA(cmsg), sizeof(struct ucred));
+			err = scm_check_creds(&creds);
 			if (err)
 				goto error;
 
-			if (!p->pid || pid_vnr(p->pid) != p->creds.pid) {
+			p->creds.pid = creds.pid;
+			if (!p->pid || pid_vnr(p->pid) != creds.pid) {
 				struct pid *pid;
 				err = -ESRCH;
-				pid = find_get_pid(p->creds.pid);
+				pid = find_get_pid(creds.pid);
 				if (!pid)
 					goto error;
 				put_pid(p->pid);
@@ -175,10 +177,13 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 			}
 
 			err = -EINVAL;
-			uid = make_kuid(current_user_ns(), p->creds.uid);
-			gid = make_kgid(current_user_ns(), p->creds.gid);
+			uid = make_kuid(current_user_ns(), creds.uid);
+			gid = make_kgid(current_user_ns(), creds.gid);
 			if (!uid_valid(uid) || !gid_valid(gid))
 				goto error;
+
+			p->creds.uid = uid;
+			p->creds.gid = gid;
 
 			if (!p->cred ||
 			    !uid_eq(p->cred->euid, uid) ||
