@@ -3697,6 +3697,13 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 		writeback_inodes_sb_nr_if_idle(root->fs_info->sb, nr_pages,
 					       WB_REASON_FS_FREE_SPACE);
 
+		/*
+		 * We need to wait for the async pages to actually start before
+		 * we do anything.
+		 */
+		wait_event(root->fs_info->async_submit_wait,
+			   !atomic_read(&root->fs_info->async_delalloc_pages));
+
 		spin_lock(&space_info->lock);
 		if (space_info->bytes_used + space_info->bytes_reserved +
 		    space_info->bytes_pinned + space_info->bytes_readonly +
