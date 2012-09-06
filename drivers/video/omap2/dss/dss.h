@@ -185,7 +185,7 @@ int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
 int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
 
 int omap_dss_register_device(struct omap_dss_device *dssdev,
-		struct device *parent, int disp_num);
+		struct device *parent);
 void omap_dss_unregister_device(struct omap_dss_device *dssdev);
 void omap_dss_unregister_child_devices(struct device *parent);
 

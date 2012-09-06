@@ -5027,7 +5027,7 @@ static void __init dsi_probe_pdata(struct platform_device *dsidev)
 			continue;
 		}
 
-		r = omap_dss_register_device(dssdev, &dsidev->dev, i);
+		r = omap_dss_register_device(dssdev, &dsidev->dev);
 		if (r)
 			DSSERR("device %s register failed: %d\n",
 					dssdev->name, r);

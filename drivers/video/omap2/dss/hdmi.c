@@ -923,7 +923,7 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 			continue;
 		}
 
-		r = omap_dss_register_device(dssdev, &pdev->dev, i);
+		r = omap_dss_register_device(dssdev, &pdev->dev);
 		if (r)
 			DSSERR("device %s register failed: %d\n",
 					dssdev->name, r);

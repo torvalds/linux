@@ -450,16 +450,17 @@ static void omap_dss_dev_release(struct device *dev)
 	reset_device(dev, 0);
 }
 
-int omap_dss_register_device(struct omap_dss_device *dssdev,
-		struct device *parent, int disp_num)
-{
-	WARN_ON(!dssdev->driver_name);
+static int disp_num_counter;
 
+int omap_dss_register_device(struct omap_dss_device *dssdev,
+		struct device *parent)
+{
 	reset_device(&dssdev->dev, 1);
+
 	dssdev->dev.bus = &dss_bus_type;
 	dssdev->dev.parent = parent;
 	dssdev->dev.release = omap_dss_dev_release;
-	dev_set_name(&dssdev->dev, "display%d", disp_num);
+	dev_set_name(&dssdev->dev, "display%d", disp_num_counter++);
 	return device_register(&dssdev->dev);
 }
 
