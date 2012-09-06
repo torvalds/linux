@@ -2723,7 +2723,7 @@ static void __init rcu_init_levelspread(struct rcu_state *rsp)
 	int cprv;
 	int i;
 
-	cprv = NR_CPUS;
+	cprv = nr_cpu_ids;
 	for (i = rcu_num_lvls - 1; i >= 0; i--) {
 		ccur = rsp->levelcnt[i];
 		rsp->levelspread[i] = (cprv + ccur - 1) / ccur;
