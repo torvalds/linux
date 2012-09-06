@@ -264,28 +264,18 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 {
 	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;
-	int			id;
+	int			status;
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_dev[STRING_MANUFACTURER_IDX].id = id;
-	device_desc.iManufacturer = id;
+	status = usb_string_ids_tab(cdev, strings_dev);
+	if (status < 0)
+		return status;
 
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_dev[STRING_PRODUCT_IDX].id = id;
-	device_desc.iProduct = id;
-
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_dev[STRING_SERIAL_IDX].id = id;
-	device_desc.iSerialNumber = id;
+	device_desc.iManufacturer = strings_dev[STRING_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[STRING_PRODUCT_IDX].id;
+	device_desc.iSerialNumber = strings_dev[STRING_SERIAL_IDX].id;
 
 	setup_timer(&autoresume_timer, zero_autoresume, (unsigned long) cdev);
 

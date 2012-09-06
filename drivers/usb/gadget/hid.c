@@ -176,17 +176,12 @@ static int __init hid_bind(struct usb_composite_dev *cdev)
 	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
 		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
-	status = usb_string_id(cdev);
-	if (status < 0)
-		return status;
-	strings_dev[STRING_MANUFACTURER_IDX].id = status;
-	device_desc.iManufacturer = status;
 
-	status = usb_string_id(cdev);
+	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		return status;
-	strings_dev[STRING_PRODUCT_IDX].id = status;
-	device_desc.iProduct = status;
+	device_desc.iManufacturer = strings_dev[STRING_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[STRING_PRODUCT_IDX].id;
 
 	/* register our configuration */
 	status = usb_add_config(cdev, &config_driver, do_config);

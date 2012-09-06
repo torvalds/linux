@@ -164,26 +164,12 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto err_ether;
 
-	status = usb_string_id(cdev);
+	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		goto err_usb;
-	strings_dev[STRING_MANUFACTURER_IDX].id = status;
-
-	device_desc.iManufacturer = status;
-
-	status = usb_string_id(cdev);
-	if (status < 0)
-		goto err_usb;
-	strings_dev[STRING_PRODUCT_IDX].id = status;
-
-	device_desc.iProduct = status;
-
-	/* config description */
-	status = usb_string_id(cdev);
-	if (status < 0)
-		goto err_usb;
-	strings_dev[STRING_DESCRIPTION_IDX].id = status;
-
+	device_desc.iManufacturer = strings_dev[STRING_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[STRING_PRODUCT_IDX].id;
+	status = strings_dev[STRING_DESCRIPTION_IDX].id;
 	nokia_config_500ma_driver.iConfiguration = status;
 	nokia_config_100ma_driver.iConfiguration = status;
 

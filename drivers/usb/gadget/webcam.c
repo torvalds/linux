@@ -355,20 +355,15 @@ webcam_bind(struct usb_composite_dev *cdev)
 	/* Allocate string descriptor numbers ... note that string contents
 	 * can be overridden by the composite_dev glue.
 	 */
-	if ((ret = usb_string_id(cdev)) < 0)
+	ret = usb_string_ids_tab(cdev, webcam_strings);
+	if (ret < 0)
 		goto error;
-	webcam_strings[STRING_MANUFACTURER_IDX].id = ret;
-	webcam_device_descriptor.iManufacturer = ret;
-
-	if ((ret = usb_string_id(cdev)) < 0)
-		goto error;
-	webcam_strings[STRING_PRODUCT_IDX].id = ret;
-	webcam_device_descriptor.iProduct = ret;
-
-	if ((ret = usb_string_id(cdev)) < 0)
-		goto error;
-	webcam_strings[STRING_DESCRIPTION_IDX].id = ret;
-	webcam_config_driver.iConfiguration = ret;
+	webcam_device_descriptor.iManufacturer =
+		webcam_strings[STRING_MANUFACTURER_IDX].id;
+	webcam_device_descriptor.iProduct =
+		webcam_strings[STRING_PRODUCT_IDX].id;
+	webcam_config_driver.iConfiguration =
+		webcam_strings[STRING_DESCRIPTION_IDX].id;
 
 	/* Register our configuration. */
 	if ((ret = usb_add_config(cdev, &webcam_config_driver,
