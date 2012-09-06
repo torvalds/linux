@@ -105,7 +105,7 @@ struct twl6030_usb {
 	u8			asleep;
 	bool			irq_enabled;
 	bool			vbus_enable;
-	unsigned long		features;
+	const char		*regulator;
 };
 
 #define	comparator_to_twl(x) container_of((x), struct twl6030_usb, comparator)
@@ -153,13 +153,6 @@ static int twl6030_start_srp(struct phy_companion *comparator)
 
 static int twl6030_usb_ldo_init(struct twl6030_usb *twl)
 {
-	char *regulator_name;
-
-	if (twl->features & TWL6025_SUBCLASS)
-		regulator_name = "ldousb";
-	else
-		regulator_name = "vusb";
-
 	/* Set to OTG_REV 1.3 and turn on the ID_WAKEUP_COMP */
 	twl6030_writeb(twl, TWL6030_MODULE_ID0 , 0x1, TWL6030_BACKUP_REG);
 
@@ -169,7 +162,7 @@ static int twl6030_usb_ldo_init(struct twl6030_usb *twl)
 	/* Program MISC2 register and set bit VUSB_IN_VBAT */
 	twl6030_writeb(twl, TWL6030_MODULE_ID0 , 0x10, TWL6030_MISC2);
 
-	twl->usb3v3 = regulator_get(twl->dev, regulator_name);
+	twl->usb3v3 = regulator_get(twl->dev, twl->regulator);
 	if (IS_ERR(twl->usb3v3))
 		return -ENODEV;
 
@@ -322,9 +315,9 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 	u32 ret;
 	struct twl6030_usb	*twl;
 	int			status, err;
-	struct twl4030_usb_data *pdata;
-	struct device *dev = &pdev->dev;
-	pdata = dev->platform_data;
+	struct device_node	*np = pdev->dev.of_node;
+	struct device		*dev = &pdev->dev;
+	struct twl4030_usb_data	*pdata = dev->platform_data;
 
 	twl = devm_kzalloc(dev, sizeof *twl, GFP_KERNEL);
 	if (!twl)
@@ -333,7 +326,6 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 	twl->dev		= &pdev->dev;
 	twl->irq1		= platform_get_irq(pdev, 0);
 	twl->irq2		= platform_get_irq(pdev, 1);
-	twl->features		= pdata->features;
 	twl->linkstat		= OMAP_MUSB_UNKNOWN;
 
 	twl->comparator.set_vbus	= twl6030_set_vbus;
@@ -343,6 +335,18 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 	if (ret == -ENODEV) {
 		dev_info(&pdev->dev, "phy not ready, deferring probe");
 		return -EPROBE_DEFER;
+	}
+
+	if (np) {
+		twl->regulator = "usb";
+	} else if (pdata) {
+		if (pdata->features & TWL6025_SUBCLASS)
+			twl->regulator = "ldousb";
+		else
+			twl->regulator = "vusb";
+	} else {
+		dev_err(&pdev->dev, "twl6030 initialized without pdata\n");
+		return -EINVAL;
 	}
 
 	/* init spinlock for workqueue */
@@ -406,12 +410,21 @@ static int __exit twl6030_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id twl6030_usb_id_table[] = {
+	{ .compatible = "ti,twl6030-usb" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, twl6030_usb_id_table);
+#endif
+
 static struct platform_driver twl6030_usb_driver = {
 	.probe		= twl6030_usb_probe,
 	.remove		= __exit_p(twl6030_usb_remove),
 	.driver		= {
 		.name	= "twl6030_usb",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(twl6030_usb_id_table),
 	},
 };
 

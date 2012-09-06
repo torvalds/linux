@@ -1,0 +1,21 @@
+USB COMPARATOR OF TWL CHIPS
+
+TWL6030 USB COMPARATOR
+ - compatible : Should be "ti,twl6030-usb"
+ - interrupts : Two interrupt numbers to the cpu should be specified. First
+   interrupt number is the otg interrupt number that raises ID interrupts when
+   the controller has to act as host and the second interrupt number is the
+   usb interrupt number that raises VBUS interrupts when the controller has to
+   act as device
+ - usb-supply : phandle to the regulator device tree node. It should be vusb
+   if it is twl6030 or ldousb if it is twl6025 subclass.
+
+twl6030-usb {
+	compatible = "ti,twl6030-usb";
+	interrupts = < 4 10 >;
+};
+
+Board specific device node entry
+&twl6030-usb {
+	usb-supply = <&vusb>;
+};
