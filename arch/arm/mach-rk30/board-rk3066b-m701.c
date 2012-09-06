@@ -62,6 +62,9 @@
 #if defined(CONFIG_MT6229)
 #include <linux/mt6229.h>
 #endif
+#if defined(CONFIG_SEW868)
+#include <linux/sew868.h>
+#endif
 #if defined(CONFIG_ANDROID_TIMED_GPIO)
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
@@ -73,7 +76,7 @@
 #endif
 
 #include "board-rk3066b-sdk-camera.c"
-#include "board-rk3066b-sdk-key.c"
+#include "board-rk3066b-m701-key.c"
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN2_PC0
@@ -123,6 +126,73 @@ struct goodix_platform_data goodix_info = {
 };
 #endif
 
+#if defined (CONFIG_TOUCHSCREEN_FT5306)
+
+#define TOUCH_RESET_PIN  RK30_PIN2_PC0
+#define TOUCH_INT_PIN	 RK30_PIN0_PD4
+#define TOUCH_PWR_PIN    RK30_PIN2_PB4
+
+static int ft5x0x_init_platform_hw(void)
+{
+
+	rk30_mux_api_set(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME, GPIO2C_GPIO2C0);
+        rk30_mux_api_set(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME, GPIO2B_GPIO2B4);
+       //printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME),rk30_mux_api_get(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME));
+
+	printk("==ft5x0x_init_platform_hw =\n");
+	if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+	  gpio_free(TOUCH_RESET_PIN);
+	  printk("ft5606_init_platform_hw gpio_request error\n");
+	  return -EIO;
+	}
+
+	if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+	  gpio_free(TOUCH_INT_PIN);
+	  printk("ift5606_init_platform_hw gpio_request error\n");
+	  return -EIO;
+	}
+
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	mdelay(50);
+	gpio_direction_input(TOUCH_INT_PIN);
+	mdelay(10);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+	return 0;
+}
+
+void ft5x0x_exit_platform_hw(void)
+{
+	printk("ft5606_exit_platform_hw\n");
+	gpio_free(TOUCH_RESET_PIN);
+	gpio_free(TOUCH_INT_PIN);
+}
+
+int ft5x0x_platform_sleep(void)
+{
+	printk("ft5606_platform_sleep\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	return 0;
+}
+
+int ft5x0x_platform_wakeup(void)
+{
+	printk("ft5606_platform_wakeup\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+	return 0;
+}
+
+static struct ft5606_platform_data ft5x0x_info = {
+	.init_platform_hw= ft5x0x_init_platform_hw,
+	.exit_platform_hw= ft5x0x_exit_platform_hw,
+	.platform_sleep  = ft5x0x_platform_sleep,
+	.platform_wakeup = ft5x0x_platform_wakeup,
+};
+#endif
+
+
 static struct spi_board_info board_spi_devices[] = {
 };
 
@@ -135,7 +205,7 @@ static struct spi_board_info board_spi_devices[] = {
 #define PWM_MUX_MODE      GPIO3D_PWM2
 #define PWM_MUX_MODE_GPIO GPIO3D_GPIO3D5
 #define PWM_GPIO 	  RK30_PIN3_PD5
-#define PWM_EFFECT_VALUE  1
+#define PWM_EFFECT_VALUE  0
 
 #define LCD_DISP_ON_PIN
 
@@ -168,8 +238,6 @@ static int rk29_backlight_io_deinit(void)
 	gpio_free(BL_EN_PIN);
 #endif
 	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
-	gpio_request(PWM_GPIO, NULL);
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
 	return ret;
 }
 
@@ -348,6 +416,63 @@ struct platform_device rk29_device_mt6229 = {
 	}    	
     };
 #endif
+#if defined(CONFIG_SEW868)
+static int sew868_io_init(void)
+{
+	rk30_mux_api_set(GPIO2B6_LCDC1DATA14_SMCADDR18_TSSYNC_NAME, GPIO2B_GPIO2B6);
+    rk30_mux_api_set(GPIO4D2_SMCDATA10_TRACEDATA10_NAME, GPIO4D_GPIO4D2);
+	rk30_mux_api_set(GPIO4D4_SMCDATA12_TRACEDATA12_NAME, GPIO4D_GPIO4D4);
+	return 0;
+}
+static int sew868_io_deinit(void)
+{
+	return 0;
+}
+struct rk30_sew868_data rk30_sew868_info = {
+	.io_init = sew868_io_init,
+  	.io_deinit = sew868_io_deinit,
+	.bp_power = RK30_PIN6_PB2, 
+	.bp_power_active_low = 1,
+	.bp_sys = RK30_PIN2_PB6, 
+	.bp_reset = RK30_PIN4_PD2, 
+	.bp_reset_active_low = 1,
+	.bp_wakeup_ap = RK30_PIN4_PD4, 
+	.ap_wakeup_bp = NULL,
+};
+
+struct platform_device rk30_device_sew868 = {	
+        .name = "sew868",	
+    	.id = -1,	
+	.dev		= {
+		.platform_data = &rk30_sew868_info,
+	}    	
+    };
+#endif
+
+
+#if defined (CONFIG_GS_MMA7660)
+#define MMA7660_INT_PIN                      	RK30_PIN4_PC0
+static int gs_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+    if(gpio_request(MMA7660_INT_PIN, NULL) != 0){
+      gpio_free(MMA7660_INT_PIN);
+      printk("gsensor gpio_request error\n");
+      return -EIO;
+    }
+	//gpio_direction_input(MMA7660_INT_PIN);
+    gpio_pull_updown(MMA7660_INT_PIN, 1);
+    return 0;
+}
+
+
+static struct gs_platform_data mma7660_info = {
+  .model= 7660,
+  .swap_xy = 0,
+  .init_platform_hw= gs_init_platform_hw,
+};
+#endif
+
 
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
@@ -953,7 +1078,7 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 		.pwm_iomux_name = GPIO3D6_PWM3_JTAGTMS_HOSTDRVVBUS_NAME,
 		.pwm_iomux_pwm = GPIO3D_PWM3,
 		.pwm_iomux_gpio = GPIO3D_GPIO3D6,
-		.pwm_voltage = 1100000,
+		.pwm_voltage = 1000000,
 		.suspend_voltage = 1050000,
 		.min_uV = 1000000,
 		.max_uV	= 1400000,
@@ -985,7 +1110,7 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
     .type               = RFKILL_TYPE_BLUETOOTH,
 
     .poweron_gpio       = { // BT_REG_ON
-        .io             = INVALID_GPIO, //RK30_PIN3_PC7,
+        .io             = RK30_PIN3_PC7,
         .enable         = GPIO_HIGH,
         .iomux          = {
             .name       = GPIO3C7_SDMMC1WRITEPRT_RMIICRS_NAME,
@@ -1083,6 +1208,9 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_MT6229)
 	&rk29_device_mt6229,
 #endif
+#if defined(CONFIG_SEW868)
+	&rk30_device_sew868,
+#endif
 #ifdef CONFIG_BATTERY_RK30_ADC
  	&rk30_device_adc_battery,
 #endif
@@ -1094,6 +1222,15 @@ static struct platform_device *devices[] __initdata = {
 // i2c
 #ifdef CONFIG_I2C0_RK30
 static struct i2c_board_info __initdata i2c0_info[] = {
+#if defined (CONFIG_GS_MMA7660)
+	{
+	  .type 		  = "gs_mma7660",
+	  .addr 		  = 0x4c,
+	  .flags		  = 0,
+	  .irq			  = MMA7660_INT_PIN,
+	  .platform_data  = &mma7660_info,
+	},
+#endif
 #if defined (CONFIG_GS_MMA8452)
 	{
 		.type	        = "gs_mma8452",
@@ -1149,7 +1286,13 @@ static struct i2c_board_info __initdata i2c0_info[] = {
                 .flags                  = 0,
         },
 #endif
-
+#if defined (CONFIG_SND_SOC_ES8323)
+        {
+                .type                   = "es8323",
+                .addr                   = 0x10,
+                .flags                  = 0,
+        },
+#endif
 #ifdef CONFIG_MFD_RK610
 		{
 			.type			= "rk610_ctl",
@@ -1298,6 +1441,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.irq           = RK30_PIN0_PD4,
 		.platform_data = &goodix_info,
 	},
+#endif
+#if defined (CONFIG_TOUCHSCREEN_FT5306)
+		{
+			.type			= "ft5x0x_ts",
+			.addr			= 0x38,
+			.flags			= 0,
+			.irq			= RK30_PIN0_PD4,
+			.platform_data	= &ft5x0x_info,
+		},
 #endif
 #if defined (CONFIG_LS_CM3217)
 	{

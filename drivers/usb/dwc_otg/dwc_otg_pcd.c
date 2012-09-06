@@ -1766,9 +1766,10 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
 	local_irq_save(flags);
     _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
     if(!pldata->get_status(USB_STATUS_ID)){  // id low
-    
-        if( pldata->phy_status) 
-             pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+        if( pldata->phy_status){ 
+            pldata->clock_enable( pldata, 1);		
+            pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+        } 
     }
 	else if(pldata->get_status(USB_STATUS_BVABLID)){  // bvalid
         /* if usb not connect before ,then start connect */
@@ -1777,7 +1778,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
     	    _pcd->vbus_status = 1;
             if(_pcd->conn_en)
                 goto connect;
-            else{
+            else if( pldata->phy_status == USB_PHY_ENABLED ){
                 // not connect, suspend phy
                 pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
                 udelay(3);
@@ -1796,9 +1797,11 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
                 _pcd->vbus_status = 2;
                 
             // not connect, suspend phy
-            pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
-            udelay(3);
-            pldata->clock_enable( pldata, 0);
+            if( pldata->phy_status == USB_PHY_ENABLED ){
+                pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+                udelay(3);
+                pldata->clock_enable( pldata, 0);
+            }
         }
 	}else {
         _pcd->vbus_status = 0;
@@ -1806,8 +1809,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
              _pcd->conn_status = 0;
              dwc_otg_msc_unlock(_pcd);
         }
-        /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
-        else if( pldata->phy_status == 0 ){ 
+        else if( pldata->phy_status == USB_PHY_ENABLED ){ 
             /* no vbus detect here , close usb phy  */
             pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
             udelay(3);
@@ -1821,8 +1823,10 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
 connect:
     if(_pcd->conn_status==0)
         dwc_otg_msc_lock(_pcd);
-    pldata->clock_enable( pldata, 1);	
-    pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+    if( pldata->phy_status){
+        pldata->clock_enable( pldata, 1);	
+        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+    }
     schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
     add_timer(&_pcd->check_vbus_timer); 
@@ -1968,7 +1972,7 @@ int dwc_otg_pcd_init(struct device *dev)
     pcd->vbus_status  = 0;
     pcd->phy_suspend  = 0;
     if(dwc_otg_is_device_mode(core_if))
-        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<2)); // delay 16 S  
+        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<4)); // delay 16 S  
 	return 0;
 }
 /**

@@ -211,7 +211,6 @@ dwc_otg_core_if_t *dwc_otg_cil_init(const uint32_t *_reg_base_addr,
 	core_if->srp_success = 0;
 	core_if->srp_timer_started = 0;
 
-	core_if->usb_wakeup = 0;
 //	if(dwc_core_if  ==  NULL)
              dwc_core_if = core_if;
 	return core_if;
@@ -3303,7 +3302,6 @@ void dwc_otg_dump_flags(dwc_otg_core_if_t *_core_if)
     DWC_PRINT("_______________________dwc_otg flags_______________________________\n");
 	DWC_PRINT("core_if->op_state = %x\n",_core_if->op_state);
 	DWC_PRINT("core_if->usb_mode = %x\n",_core_if->usb_mode);
-	DWC_PRINT("core_if->usb_wakeup = %x\n",_core_if->usb_wakeup);
 }
 
 #ifndef CONFIG_DWC_OTG_HOST_ONLY

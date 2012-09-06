@@ -1276,7 +1276,7 @@ static int soc_camera_probe(struct device *dev)
 	soc_camera_power_set(icd, icl, 0);
 
 	mutex_unlock(&icd->video_lock);
-    dev_info(dev, "Probe %s success\n", dev_name(icd->pdev));
+    printk("Probe %s success\n", dev_name(icd->pdev));
 	return 0;
 
 evidstart:

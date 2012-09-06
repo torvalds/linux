@@ -160,6 +160,10 @@
 #define RK_CAM_SCALE_CROP_RGA      2
 #define RK_CAM_SCALE_CROP_PP       3
 
+#define RK_CAM_INPUT_FMT_YUV422    (1<<0)
+#define RK_CAM_INPUT_FMT_RAW10     (1<<1)
+#define RK_CAM_INPUT_FMT_RAW12     (1<<2)
+
 /* v4l2_subdev_core_ops.ioctl  ioctl_cmd macro */
 #define RK29_CAM_SUBDEV_ACTIVATE            0x00
 #define RK29_CAM_SUBDEV_DEACTIVATE          0x01
