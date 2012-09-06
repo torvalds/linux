@@ -139,20 +139,15 @@ const struct usb_descriptor_header *otg_desc[] = {
 #endif
 
 /* string IDs are assigned dynamically */
-
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-#define STRING_SERIAL_IDX		2
-
 static char manufacturer[50];
 
 /* default serial number takes at least two packets */
 static char serial[] = "0123456789.0123456789.0123456789";
 
 static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer,
-	[STRING_PRODUCT_IDX].s = longname,
-	[STRING_SERIAL_IDX].s = serial,
+	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer,
+	[USB_GADGET_PRODUCT_IDX].s = longname,
+	[USB_GADGET_SERIAL_IDX].s = serial,
 	{  }			/* end of list */
 };
 
@@ -274,9 +269,9 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		return status;
 
-	device_desc.iManufacturer = strings_dev[STRING_MANUFACTURER_IDX].id;
-	device_desc.iProduct = strings_dev[STRING_PRODUCT_IDX].id;
-	device_desc.iSerialNumber = strings_dev[STRING_SERIAL_IDX].id;
+	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
+	device_desc.iSerialNumber = strings_dev[USB_GADGET_SERIAL_IDX].id;
 
 	setup_timer(&autoresume_timer, zero_autoresume, (unsigned long) cdev);
 

@@ -116,6 +116,9 @@ static const struct usb_descriptor_header *gfs_otg_desc[] = {
 
 /* String IDs are assigned dynamically */
 static struct usb_string gfs_strings[] = {
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = "",
+	[USB_GADGET_SERIAL_IDX].s = "",
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{ .s = "FunctionFS + RNDIS" },
 #endif
@@ -369,9 +372,10 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 	for (i = 0; i < ARRAY_SIZE(gfs_configurations); ++i) {
 		struct gfs_configuration *c = gfs_configurations + i;
+		int sid = USB_GADGET_FIRST_AVAIL_IDX + i;
 
-		c->c.label			= gfs_strings[i].s;
-		c->c.iConfiguration		= gfs_strings[i].id;
+		c->c.label			= gfs_strings[sid].s;
+		c->c.iConfiguration		= gfs_strings[sid].id;
 		c->c.bConfigurationValue	= 1 + i;
 		c->c.bmAttributes		= USB_CONFIG_ATT_SELFPOWER;
 

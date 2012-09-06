@@ -109,21 +109,16 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 
 enum {
-#ifdef CONFIG_USB_G_MULTI_RNDIS
-	MULTI_STRING_RNDIS_CONFIG_IDX,
-#endif
-#ifdef CONFIG_USB_G_MULTI_CDC
+	MULTI_STRING_RNDIS_CONFIG_IDX = USB_GADGET_FIRST_AVAIL_IDX,
 	MULTI_STRING_CDC_CONFIG_IDX,
-#endif
 };
 
 static struct usb_string strings_dev[] = {
-#ifdef CONFIG_USB_G_MULTI_RNDIS
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = "",
+	[USB_GADGET_SERIAL_IDX].s = "",
 	[MULTI_STRING_RNDIS_CONFIG_IDX].s = "Multifunction with RNDIS",
-#endif
-#ifdef CONFIG_USB_G_MULTI_CDC
 	[MULTI_STRING_CDC_CONFIG_IDX].s   = "Multifunction with CDC ECM",
-#endif
 	{  } /* end of list */
 };
 

@@ -56,17 +56,16 @@ USB_GADGET_COMPOSITE_OPTIONS();
 
 /* string IDs are assigned dynamically */
 
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-#define STRING_DESCRIPTION_IDX		2
+#define STRING_DESCRIPTION_IDX		USB_GADGET_FIRST_AVAIL_IDX
 
 static char manufacturer_nokia[] = "Nokia";
 static const char product_nokia[] = NOKIA_LONG_NAME;
 static const char description_nokia[] = "PC-Suite Configuration";
 
 static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer_nokia,
-	[STRING_PRODUCT_IDX].s = NOKIA_LONG_NAME,
+	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer_nokia,
+	[USB_GADGET_PRODUCT_IDX].s = NOKIA_LONG_NAME,
+	[USB_GADGET_SERIAL_IDX].s = "",
 	[STRING_DESCRIPTION_IDX].s = description_nokia,
 	{  } /* end of list */
 };
@@ -168,8 +167,8 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		goto err_usb;
-	device_desc.iManufacturer = strings_dev[STRING_MANUFACTURER_IDX].id;
-	device_desc.iProduct = strings_dev[STRING_PRODUCT_IDX].id;
+	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 	status = strings_dev[STRING_DESCRIPTION_IDX].id;
 	nokia_config_500ma_driver.iConfiguration = status;
 	nokia_config_100ma_driver.iConfiguration = status;

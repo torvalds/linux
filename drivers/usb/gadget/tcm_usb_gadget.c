@@ -2210,9 +2210,9 @@ static struct usb_device_descriptor usbg_device_desc = {
 };
 
 static struct usb_string	usbg_us_strings[] = {
-	[USB_G_STR_MANUFACTOR].s	= "Target Manufactor",
-	[USB_G_STR_PRODUCT].s		= "Target Product",
-	[USB_G_STR_SERIAL].s		= "000000000001",
+	[USB_GADGET_MANUFACTURER_IDX].s	= "Target Manufactor",
+	[USB_GADGET_PRODUCT_IDX].s	= "Target Product",
+	[USB_GADGET_SERIAL_IDX].s	= "000000000001",
 	[USB_G_STR_CONFIG].s		= "default config",
 	[USB_G_STR_INT_UAS].s		= "USB Attached SCSI",
 	[USB_G_STR_INT_BBB].s		= "Bulk Only Transport",
@@ -2431,9 +2431,10 @@ static int usb_target_bind(struct usb_composite_dev *cdev)
 		return ret;
 
 	usbg_device_desc.iManufacturer =
-		usbg_us_strings[USB_G_STR_MANUFACTOR].id;
-	usbg_device_desc.iProduct = usbg_us_strings[USB_G_STR_PRODUCT].id;
-	usbg_device_desc.iSerialNumber = usbg_us_strings[USB_G_STR_SERIAL].id;
+		usbg_us_strings[USB_GADGET_MANUFACTURER_IDX].id;
+	usbg_device_desc.iProduct = usbg_us_strings[USB_GADGET_PRODUCT_IDX].id;
+	usbg_device_desc.iSerialNumber =
+		usbg_us_strings[USB_GADGET_SERIAL_IDX].id;
 	usbg_config_driver.iConfiguration =
 		usbg_us_strings[USB_G_STR_CONFIG].id;
 

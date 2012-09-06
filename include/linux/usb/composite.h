@@ -248,6 +248,14 @@ int usb_add_config(struct usb_composite_dev *,
 void usb_remove_config(struct usb_composite_dev *,
 		struct usb_configuration *);
 
+/* predefined index for usb_composite_driver */
+enum {
+	USB_GADGET_MANUFACTURER_IDX	= 0,
+	USB_GADGET_PRODUCT_IDX,
+	USB_GADGET_SERIAL_IDX,
+	USB_GADGET_FIRST_AVAIL_IDX,
+};
+
 /**
  * struct usb_composite_driver - groups configurations into a gadget
  * @name: For diagnostics, identifies the driver.
@@ -261,7 +269,9 @@ void usb_remove_config(struct usb_composite_dev *,
  * @dev: Template descriptor for the device, including default device
  *	identifiers.
  * @strings: tables of strings, keyed by identifiers assigned during @bind
- *	and language IDs provided in control requests
+ *	and language IDs provided in control requests. Note: The first entries
+ *	are predefined. The first entry that may be used is
+ *	USB_GADGET_FIRST_AVAIL_IDX
  * @max_speed: Highest speed the driver supports.
  * @needs_serial: set to 1 if the gadget needs userspace to provide
  * 	a serial number.  If one is not provided, warning will be printed.

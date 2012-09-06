@@ -45,13 +45,12 @@ static char webcam_config_label[] = "Video";
 
 /* string IDs are assigned dynamically */
 
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-#define STRING_DESCRIPTION_IDX		2
+#define STRING_DESCRIPTION_IDX		USB_GADGET_FIRST_AVAIL_IDX
 
 static struct usb_string webcam_strings[] = {
-	[STRING_MANUFACTURER_IDX].s = webcam_vendor_label,
-	[STRING_PRODUCT_IDX].s = webcam_product_label,
+	[USB_GADGET_MANUFACTURER_IDX].s = webcam_vendor_label,
+	[USB_GADGET_PRODUCT_IDX].s = webcam_product_label,
+	[USB_GADGET_SERIAL_IDX].s = "",
 	[STRING_DESCRIPTION_IDX].s = webcam_config_label,
 	{  }
 };
@@ -360,9 +359,9 @@ webcam_bind(struct usb_composite_dev *cdev)
 	if (ret < 0)
 		goto error;
 	webcam_device_descriptor.iManufacturer =
-		webcam_strings[STRING_MANUFACTURER_IDX].id;
+		webcam_strings[USB_GADGET_MANUFACTURER_IDX].id;
 	webcam_device_descriptor.iProduct =
-		webcam_strings[STRING_PRODUCT_IDX].id;
+		webcam_strings[USB_GADGET_PRODUCT_IDX].id;
 	webcam_config_driver.iConfiguration =
 		webcam_strings[STRING_DESCRIPTION_IDX].id;
 

@@ -91,15 +91,12 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 
 /* string IDs are assigned dynamically */
-
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-
 static char manufacturer[50];
 
 static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer,
-	[STRING_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer,
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_SERIAL_IDX].s = "",
 	{  } /* end of list */
 };
 
@@ -181,8 +178,8 @@ static int __init hid_bind(struct usb_composite_dev *cdev)
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		return status;
-	device_desc.iManufacturer = strings_dev[STRING_MANUFACTURER_IDX].id;
-	device_desc.iProduct = strings_dev[STRING_PRODUCT_IDX].id;
+	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
 	/* register our configuration */
 	status = usb_add_config(cdev, &config_driver, do_config);

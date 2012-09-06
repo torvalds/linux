@@ -84,9 +84,7 @@ MODULE_PARM_DESC(out_ports, "Number of MIDI output ports");
 
 /* string IDs are assigned dynamically */
 
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-#define STRING_DESCRIPTION_IDX		2
+#define STRING_DESCRIPTION_IDX		USB_GADGET_FIRST_AVAIL_IDX
 
 static struct usb_device_descriptor device_desc = {
 	.bLength =		USB_DT_DEVICE_SIZE,
@@ -101,8 +99,9 @@ static struct usb_device_descriptor device_desc = {
 };
 
 static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s	= "Grey Innovation",
-	[STRING_PRODUCT_IDX].s		= "MIDI Gadget",
+	[USB_GADGET_MANUFACTURER_IDX].s	= "Grey Innovation",
+	[USB_GADGET_PRODUCT_IDX].s	= "MIDI Gadget",
+	[USB_GADGET_SERIAL_IDX].s	= "",
 	[STRING_DESCRIPTION_IDX].s	= "MIDI",
 	{  } /* end of list */
 };
@@ -145,8 +144,8 @@ static int __init midi_bind(struct usb_composite_dev *cdev)
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		return status;
-	device_desc.iManufacturer = strings_dev[STRING_MANUFACTURER_IDX].id;
-	device_desc.iProduct = strings_dev[STRING_PRODUCT_IDX].id;
+	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 	midi_config.iConfiguration = strings_dev[STRING_DESCRIPTION_IDX].id;
 
 	gcnum = usb_gadget_controller_number(gadget);

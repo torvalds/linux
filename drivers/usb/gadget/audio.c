@@ -33,14 +33,12 @@ USB_GADGET_COMPOSITE_OPTIONS();
 
 /* string IDs are assigned dynamically */
 
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-
 static char manufacturer[50];
 
 static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer,
-	[STRING_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer,
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_SERIAL_IDX].s = "",
 	{  } /* end of list */
 };
 
@@ -170,8 +168,8 @@ static int __init audio_bind(struct usb_composite_dev *cdev)
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		goto fail;
-	device_desc.iManufacturer = strings_dev[STRING_MANUFACTURER_IDX].id;
-	device_desc.iProduct = strings_dev[STRING_PRODUCT_IDX].id;
+	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
 	status = usb_add_config(cdev, &audio_config_driver, audio_do_config);
 	if (status < 0)

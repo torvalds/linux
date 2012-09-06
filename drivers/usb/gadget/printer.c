@@ -139,10 +139,6 @@ module_param(qlen, uint, S_IRUGO|S_IWUSR);
  * descriptors are built on demand.
  */
 
-#define STRING_MANUFACTURER		0
-#define STRING_PRODUCT			1
-#define STRING_SERIALNUM		2
-
 /* holds our biggest descriptor */
 #define USB_DESC_BUFSIZE		256
 #define USB_BUFSIZE			8192
@@ -250,9 +246,9 @@ static char				pnp_string [1024] =
 
 /* static strings, in UTF-8 */
 static struct usb_string		strings [] = {
-	[STRING_MANUFACTURER].s = manufacturer,
-	[STRING_PRODUCT].s = product_desc,
-	[STRING_SERIALNUM].s =	serial_num,
+	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer,
+	[USB_GADGET_PRODUCT_IDX].s = product_desc,
+	[USB_GADGET_SERIAL_IDX].s =	serial_num,
 	{  }		/* end of list */
 };
 
@@ -1261,9 +1257,9 @@ static int __init printer_bind(struct usb_composite_dev *cdev)
 	ret = usb_string_ids_tab(cdev, strings);
 	if (ret < 0)
 		return ret;
-	device_desc.iManufacturer = strings[STRING_MANUFACTURER].id;
-	device_desc.iProduct = strings[STRING_PRODUCT].id;
-	device_desc.iSerialNumber = strings[STRING_SERIALNUM].id;
+	device_desc.iManufacturer = strings[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings[USB_GADGET_PRODUCT_IDX].id;
+	device_desc.iSerialNumber = strings[USB_GADGET_SERIAL_IDX].id;
 
 	ret = usb_add_config(cdev, &printer_cfg_driver, printer_bind_config);
 	if (ret)
