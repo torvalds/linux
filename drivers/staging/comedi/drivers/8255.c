@@ -403,7 +403,7 @@ static int dev_8255_attach(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 		iobase = it->options[i];
 
 		if (!request_region(iobase, _8255_SIZE, "8255")) {
@@ -429,7 +429,7 @@ static void dev_8255_detach(struct comedi_device *dev)
 	int i;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 		if (s->type != COMEDI_SUBD_UNUSED) {
 			spriv = s->private;
 			release_region(spriv->iobase, _8255_SIZE);
