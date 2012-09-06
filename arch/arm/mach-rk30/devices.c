@@ -1296,17 +1296,24 @@ static struct platform_device device_wdt = {
 };
 #endif
 
-static struct resource resource_arm_pmu = {
-	.start		= IRQ_ARM_PMU,
-	.end		= IRQ_ARM_PMU,
-	.flags		= IORESOURCE_IRQ,
+static struct resource resource_arm_pmu[] = {
+	{
+		.start	= IRQ_ARM_PMU,
+		.end	= IRQ_ARM_PMU,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_ARM_PMU + 1,
+		.end	= IRQ_ARM_PMU + 1,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 struct platform_device device_arm_pmu = {
 	.name		= "arm-pmu",
 	.id		= ARM_PMU_DEVICE_CPU,
-	.num_resources	= 1,
-	.resource	= &resource_arm_pmu,
+	.num_resources	= ARRAY_SIZE(resource_arm_pmu),
+	.resource	= resource_arm_pmu,
 };
 
 static int __init rk30_init_devices(void)
