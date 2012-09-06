@@ -935,7 +935,7 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 	return chan;
 }
 
-int hci_chan_del(struct hci_chan *chan)
+void hci_chan_del(struct hci_chan *chan)
 {
 	struct hci_conn *conn = chan->conn;
 	struct hci_dev *hdev = conn->hdev;
@@ -948,8 +948,6 @@ int hci_chan_del(struct hci_chan *chan)
 
 	skb_queue_purge(&chan->data_q);
 	kfree(chan);
-
-	return 0;
 }
 
 void hci_chan_list_flush(struct hci_conn *conn)
