@@ -526,6 +526,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 {
 	int asic, got1 = 0;
 	struct comedi_device *dev = (struct comedi_device *)d;
+	int i;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		if (irq == devpriv->asics[asic].irq) {
@@ -583,9 +584,8 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 				printk
 				    (KERN_DEBUG "got edge detect interrupt %d asic %d which_chans: %06x\n",
 				     irq, asic, triggered);
-				for (s = dev->subdevices + 2;
-				     s < dev->subdevices + dev->n_subdevices;
-				     ++s) {
+				for (i = 2; i < dev->n_subdevices; i++) {
+					s = &dev->subdevices[i];
 					/*
 					 * this is an interrupt subdev,
 					 * and it matches this asic!
@@ -1076,9 +1076,8 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	/* First, AI */
-	sdev_no = 0;
-	s = dev->subdevices + sdev_no;
-	s->private = devpriv->sprivs + sdev_no;
+	s = &dev->subdevices[0];
+	s->private = &devpriv->sprivs[0];
 	s->maxdata = (1 << board->ai_bits) - 1;
 	s->range_table = board->ai_range_table;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
@@ -1092,9 +1091,8 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(0, subpriv->iobase + 4 + 3);
 
 	/* Next, AO */
-	++sdev_no;
-	s = dev->subdevices + sdev_no;
-	s->private = devpriv->sprivs + sdev_no;
+	s = &dev->subdevices[1];
+	s->private = &devpriv->sprivs[1];
 	s->maxdata = (1 << board->ao_bits) - 1;
 	s->range_table = board->ao_range_table;
 	s->subdev_flags = SDF_READABLE;
@@ -1108,14 +1106,13 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(0, subpriv->iobase + 3);
 	outb(0, subpriv->iobase + 4 + 3);
 
-	++sdev_no;
 	port = 0;
 	asic = 0;
-	for (; sdev_no < (int)dev->n_subdevices; ++sdev_no) {
+	for (sdev_no = 2; sdev_no < dev->n_subdevices; ++sdev_no) {
 		int byte_no;
 
-		s = dev->subdevices + sdev_no;
-		s->private = devpriv->sprivs + sdev_no;
+		s = &dev->subdevices[sdev_no];
+		s->private = &devpriv->sprivs[sdev_no];
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
