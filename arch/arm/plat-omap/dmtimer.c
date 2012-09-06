@@ -237,6 +237,58 @@ struct omap_dm_timer *omap_dm_timer_request_specific(int id)
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_request_specific);
 
+/**
+ * omap_dm_timer_request_by_cap - Request a timer by capability
+ * @cap:	Bit mask of capabilities to match
+ *
+ * Find a timer based upon capabilities bit mask. Callers of this function
+ * should use the definitions found in the plat/dmtimer.h file under the
+ * comment "timer capabilities used in hwmod database". Returns pointer to
+ * timer handle on success and a NULL pointer on failure.
+ */
+struct omap_dm_timer *omap_dm_timer_request_by_cap(u32 cap)
+{
+	struct omap_dm_timer *timer = NULL, *t;
+	unsigned long flags;
+
+	if (!cap)
+		return NULL;
+
+	spin_lock_irqsave(&dm_timer_lock, flags);
+	list_for_each_entry(t, &omap_timer_list, node) {
+		if ((!t->reserved) && ((t->capability & cap) == cap)) {
+			/*
+			 * If timer is not NULL, we have already found one timer
+			 * but it was not an exact match because it had more
+			 * capabilites that what was required. Therefore,
+			 * unreserve the last timer found and see if this one
+			 * is a better match.
+			 */
+			if (timer)
+				timer->reserved = 0;
+
+			timer = t;
+			timer->reserved = 1;
+
+			/* Exit loop early if we find an exact match */
+			if (t->capability == cap)
+				break;
+		}
+	}
+	spin_unlock_irqrestore(&dm_timer_lock, flags);
+
+	if (timer && omap_dm_timer_prepare(timer)) {
+		timer->reserved = 0;
+		timer = NULL;
+	}
+
+	if (!timer)
+		pr_debug("%s: timer request failed!\n", __func__);
+
+	return timer;
+}
+EXPORT_SYMBOL_GPL(omap_dm_timer_request_by_cap);
+
 int omap_dm_timer_free(struct omap_dm_timer *timer)
 {
 	if (unlikely(!timer))
