@@ -1471,6 +1471,9 @@ int ip6_route_add(struct fib6_config *cfg)
 		case RTN_PROHIBIT:
 			rt->dst.error = -EACCES;
 			break;
+		case RTN_THROW:
+			rt->dst.error = -EAGAIN;
+			break;
 		default:
 			rt->dst.error = -ENETUNREACH;
 			break;
@@ -2275,7 +2278,8 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (rtm->rtm_type == RTN_UNREACHABLE ||
 	    rtm->rtm_type == RTN_BLACKHOLE ||
-	    rtm->rtm_type == RTN_PROHIBIT)
+	    rtm->rtm_type == RTN_PROHIBIT ||
+	    rtm->rtm_type == RTN_THROW)
 		cfg->fc_flags |= RTF_REJECT;
 
 	if (rtm->rtm_type == RTN_LOCAL)
@@ -2411,6 +2415,9 @@ static int rt6_fill_node(struct net *net,
 			break;
 		case -EACCES:
 			rtm->rtm_type = RTN_PROHIBIT;
+			break;
+		case -EAGAIN:
+			rtm->rtm_type = RTN_THROW;
 			break;
 		default:
 			rtm->rtm_type = RTN_UNREACHABLE;
