@@ -3270,8 +3270,8 @@ static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
 	key.offset = 0;
 
 	inode = btrfs_iget(fs_info->sb, &key, root, NULL);
-	if (IS_ERR_OR_NULL(inode) || is_bad_inode(inode)) {
-		if (inode && !IS_ERR(inode))
+	if (IS_ERR(inode) || is_bad_inode(inode)) {
+		if (!IS_ERR(inode))
 			iput(inode);
 		return -ENOENT;
 	}
