@@ -640,7 +640,7 @@ static void uart_get_info(struct tty_port *port,
 {
 	struct uart_port *uport = state->uart_port;
 
-	memset(retinfo, 0, sizeof(retinfo));
+	memset(retinfo, 0, sizeof(*retinfo));
 
 	retinfo->type	    = uport->type;
 	retinfo->line	    = uport->line;
