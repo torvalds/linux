@@ -749,6 +749,7 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 {
 	struct vhci_unlink *unlink, *tmp;
 
+	spin_lock(&the_controller->lock);
 	spin_lock(&vdev->priv_lock);
 
 	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_tx, list) {
@@ -757,8 +758,11 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 		kfree(unlink);
 	}
 
-	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_rx, list) {
+	while (!list_empty(&vdev->unlink_rx)) {
 		struct urb *urb;
+
+		unlink = list_first_entry(&vdev->unlink_rx, struct vhci_unlink,
+			list);
 
 		/* give back URB of unanswered unlink request */
 		pr_info("unlink cleanup rx %lu\n", unlink->unlink_seqnum);
@@ -774,18 +778,24 @@ static void vhci_device_unlink_cleanup(struct vhci_device *vdev)
 
 		urb->status = -ENODEV;
 
-		spin_lock(&the_controller->lock);
 		usb_hcd_unlink_urb_from_ep(vhci_to_hcd(the_controller), urb);
+
+		list_del(&unlink->list);
+
+		spin_unlock(&vdev->priv_lock);
 		spin_unlock(&the_controller->lock);
 
 		usb_hcd_giveback_urb(vhci_to_hcd(the_controller), urb,
 				     urb->status);
 
-		list_del(&unlink->list);
+		spin_lock(&the_controller->lock);
+		spin_lock(&vdev->priv_lock);
+
 		kfree(unlink);
 	}
 
 	spin_unlock(&vdev->priv_lock);
+	spin_unlock(&the_controller->lock);
 }
 
 /*
