@@ -189,12 +189,13 @@ static __refdata struct usb_composite_driver midi_driver = {
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= midi_bind,
 	.unbind		= __exit_p(midi_unbind),
 };
 
 static int __init midi_init(void)
 {
-	return usb_composite_probe(&midi_driver, midi_bind);
+	return usb_composite_probe(&midi_driver);
 }
 module_init(midi_init);
 

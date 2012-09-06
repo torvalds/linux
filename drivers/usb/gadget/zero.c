@@ -339,6 +339,7 @@ static __refdata struct usb_composite_driver zero_driver = {
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_SUPER,
+	.bind		= zero_bind,
 	.unbind		= zero_unbind,
 	.suspend	= zero_suspend,
 	.resume		= zero_resume,
@@ -349,7 +350,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	return usb_composite_probe(&zero_driver, zero_bind);
+	return usb_composite_probe(&zero_driver);
 }
 module_init(init);
 

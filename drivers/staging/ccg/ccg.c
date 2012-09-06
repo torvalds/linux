@@ -1162,6 +1162,7 @@ static int ccg_usb_unbind(struct usb_composite_dev *cdev)
 static struct usb_composite_driver ccg_usb_driver = {
 	.name		= "configurable_usb",
 	.dev		= &device_desc,
+	.bind		= ccg_bind,
 	.unbind		= ccg_usb_unbind,
 	.needs_serial	= true,
 	.iManufacturer	= "Linux Foundation",
@@ -1275,7 +1276,7 @@ static int __init init(void)
 	composite_driver.setup = ccg_setup;
 	composite_driver.disconnect = ccg_disconnect;
 
-	err = usb_composite_probe(&ccg_usb_driver, ccg_bind);
+	err = usb_composite_probe(&ccg_usb_driver);
 	if (err) {
 		class_destroy(ccg_class);
 		kfree(dev);

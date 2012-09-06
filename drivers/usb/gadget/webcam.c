@@ -395,13 +395,14 @@ static __refdata struct usb_composite_driver webcam_driver = {
 	.dev		= &webcam_device_descriptor,
 	.strings	= webcam_device_strings,
 	.max_speed	= USB_SPEED_SUPER,
+	.bind		= webcam_bind,
 	.unbind		= webcam_unbind,
 };
 
 static int __init
 webcam_init(void)
 {
-	return usb_composite_probe(&webcam_driver, webcam_bind);
+	return usb_composite_probe(&webcam_driver);
 }
 
 static void __exit

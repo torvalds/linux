@@ -1274,6 +1274,7 @@ static __refdata struct usb_composite_driver printer_driver = {
 	.dev            = &device_desc,
 	.strings        = dev_strings,
 	.max_speed      = USB_SPEED_HIGH,
+	.bind		= printer_bind,
 	.unbind		= printer_unbind,
 };
 
@@ -1297,7 +1298,7 @@ init(void)
 		return status;
 	}
 
-	status = usb_composite_probe(&printer_driver, printer_bind);
+	status = usb_composite_probe(&printer_driver);
 	if (status) {
 		class_destroy(usb_gadget_class);
 		unregister_chrdev_region(g_printer_devno, 1);

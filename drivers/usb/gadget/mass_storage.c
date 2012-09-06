@@ -162,6 +162,7 @@ static __refdata struct usb_composite_driver msg_driver = {
 	.iProduct	= DRIVER_DESC,
 	.max_speed	= USB_SPEED_SUPER,
 	.needs_serial	= 1,
+	.bind		= msg_bind,
 };
 
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -170,7 +171,7 @@ MODULE_LICENSE("GPL");
 
 static int __init msg_init(void)
 {
-	return usb_composite_probe(&msg_driver, msg_bind);
+	return usb_composite_probe(&msg_driver);
 }
 module_init(msg_init);
 

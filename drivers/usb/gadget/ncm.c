@@ -220,6 +220,7 @@ static __refdata struct usb_composite_driver ncm_driver = {
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= gncm_bind,
 	.unbind		= __exit_p(gncm_unbind),
 };
 
@@ -229,7 +230,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	return usb_composite_probe(&ncm_driver, gncm_bind);
+	return usb_composite_probe(&ncm_driver);
 }
 module_init(init);
 

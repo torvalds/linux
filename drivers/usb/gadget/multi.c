@@ -343,6 +343,7 @@ static __refdata struct usb_composite_driver multi_driver = {
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= multi_bind,
 	.unbind		= __exit_p(multi_unbind),
 	.iProduct	= DRIVER_DESC,
 	.needs_serial	= 1,
@@ -351,7 +352,7 @@ static __refdata struct usb_composite_driver multi_driver = {
 
 static int __init multi_init(void)
 {
-	return usb_composite_probe(&multi_driver, multi_bind);
+	return usb_composite_probe(&multi_driver);
 }
 module_init(multi_init);
 

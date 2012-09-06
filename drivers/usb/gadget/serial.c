@@ -243,6 +243,7 @@ static __refdata struct usb_composite_driver gserial_driver = {
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_SUPER,
+	.bind		= gs_bind,
 };
 
 static int __init init(void)
@@ -271,7 +272,7 @@ static int __init init(void)
 	}
 	strings_dev[STRING_DESCRIPTION_IDX].s = serial_config_driver.label;
 
-	return usb_composite_probe(&gserial_driver, gs_bind);
+	return usb_composite_probe(&gserial_driver);
 }
 module_init(init);
 

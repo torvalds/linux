@@ -2441,12 +2441,13 @@ static __refdata struct usb_composite_driver usbg_driver = {
 	.dev            = &usbg_device_desc,
 	.strings        = usbg_strings,
 	.max_speed      = USB_SPEED_SUPER,
+	.bind		= usb_target_bind,
 	.unbind         = guas_unbind,
 };
 
 static int usbg_attach(struct usbg_tpg *tpg)
 {
-	return usb_composite_probe(&usbg_driver, usb_target_bind);
+	return usb_composite_probe(&usbg_driver);
 }
 
 static void usbg_detach(struct usbg_tpg *tpg)

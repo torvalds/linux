@@ -237,6 +237,7 @@ static __refdata struct usb_composite_driver acm_ms_driver = {
 	.dev		= &device_desc,
 	.max_speed	= USB_SPEED_SUPER,
 	.strings	= dev_strings,
+	.bind		= acm_ms_bind,
 	.unbind		= __exit_p(acm_ms_unbind),
 };
 
@@ -246,7 +247,7 @@ MODULE_LICENSE("GPL v2");
 
 static int __init init(void)
 {
-	return usb_composite_probe(&acm_ms_driver, acm_ms_bind);
+	return usb_composite_probe(&acm_ms_driver);
 }
 module_init(init);
 

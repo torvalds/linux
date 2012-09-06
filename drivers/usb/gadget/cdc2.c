@@ -237,6 +237,7 @@ static __refdata struct usb_composite_driver cdc_driver = {
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= cdc_bind,
 	.unbind		= __exit_p(cdc_unbind),
 };
 
@@ -246,7 +247,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	return usb_composite_probe(&cdc_driver, cdc_bind);
+	return usb_composite_probe(&cdc_driver);
 }
 module_init(init);
 

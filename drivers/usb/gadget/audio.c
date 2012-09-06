@@ -203,12 +203,13 @@ static __refdata struct usb_composite_driver audio_driver = {
 	.dev		= &device_desc,
 	.strings	= audio_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= audio_bind,
 	.unbind		= __exit_p(audio_unbind),
 };
 
 static int __init init(void)
 {
-	return usb_composite_probe(&audio_driver, audio_bind);
+	return usb_composite_probe(&audio_driver);
 }
 module_init(init);
 

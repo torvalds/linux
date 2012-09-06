@@ -168,6 +168,7 @@ static __refdata struct usb_composite_driver gfs_driver = {
 	.dev		= &gfs_dev_desc,
 	.strings	= gfs_dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= gfs_bind,
 	.unbind		= gfs_unbind,
 	.iProduct	= DRIVER_DESC,
 };
@@ -268,7 +269,7 @@ static int functionfs_ready_callback(struct ffs_data *ffs)
 	}
 	gfs_registered = true;
 
-	ret = usb_composite_probe(&gfs_driver, gfs_bind);
+	ret = usb_composite_probe(&gfs_driver);
 	if (unlikely(ret < 0))
 		gfs_registered = false;
 

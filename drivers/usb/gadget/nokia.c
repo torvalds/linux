@@ -242,12 +242,13 @@ static __refdata struct usb_composite_driver nokia_driver = {
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_HIGH,
+	.bind		= nokia_bind,
 	.unbind		= __exit_p(nokia_unbind),
 };
 
 static int __init nokia_init(void)
 {
-	return usb_composite_probe(&nokia_driver, nokia_bind);
+	return usb_composite_probe(&nokia_driver);
 }
 module_init(nokia_init);
 
