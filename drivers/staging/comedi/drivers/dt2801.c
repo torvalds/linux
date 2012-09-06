@@ -532,7 +532,7 @@ static int dt2801_dio_insn_bits(struct comedi_device *dev,
 {
 	int which = 0;
 
-	if (s == dev->subdevices + 4)
+	if (s == dev->subdevices + 3)
 		which = 1;
 
 	if (data[0]) {
@@ -555,7 +555,7 @@ static int dt2801_dio_insn_config(struct comedi_device *dev,
 {
 	int which = 0;
 
-	if (s == dev->subdevices + 4)
+	if (s == dev->subdevices + 3)
 		which = 1;
 
 	/* configure */
