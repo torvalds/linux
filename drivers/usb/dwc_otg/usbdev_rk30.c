@@ -22,6 +22,10 @@
 #define USBGRF_UOC0_CON3	(GRF_REG_BASE+0x118)
 #define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x124)
 #define USBGRF_UOC1_CON3	(GRF_REG_BASE+0x128)
+
+#define RK3066B_HOST_DRV_VBUS RK30_PIN0_PD7
+#define RK3066B_OTG_DRV_VBUS  RK30_PIN0_PD6
+
 #else
 #define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x15c)
 #define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x184)
@@ -169,6 +173,7 @@ void usb20otg_clock_init(void* pdata)
 }
 void usb20otg_clock_enable(void* pdata, int enable)
 {
+#
     struct dwc_otg_platform_data *usbpdata=pdata;
 
     if(enable){
@@ -220,28 +225,29 @@ int usb20otg_get_status(int id)
 }
  
 void usb20otg_power_enable(int enable)
-{
+{ 
     int ret;
+    unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
     if(0 == enable)//disable
     {
-    /*    ret = gpio_request(RK30_PIN0_PD6, NULL);
-        if (ret != 0) {
-            gpio_free(RK30_PIN0_PD6);
+        ret = gpio_request(RK3066B_OTG_DRV_VBUS, NULL);
+        if (ret != 0) 
+        {
+            gpio_free(RK3066B_OTG_DRV_VBUS);
         }
-        gpio_direction_output(RK30_PIN0_PD6, 1);
-        gpio_set_value(RK30_PIN0_PD6, 0);*/ 
-    }
+        gpio_direction_output(RK3066B_OTG_DRV_VBUS, GPIO_HIGH);
+        gpio_set_value(RK3066B_OTG_DRV_VBUS, GPIO_LOW); 
 
+    }
     if(1 == enable)//enable
     {
-        ret = gpio_request(RK30_PIN0_PD6, NULL);
+        ret = gpio_request(RK3066B_OTG_DRV_VBUS, NULL);
         if (ret != 0) {
-            gpio_free(RK30_PIN0_PD6);
+            gpio_free(RK3066B_OTG_DRV_VBUS);
         }
-        gpio_direction_output(RK30_PIN0_PD6, 1);
-        gpio_set_value(RK30_PIN0_PD6, 1); 
-    }  
-
+        gpio_direction_output(RK3066B_OTG_DRV_VBUS, GPIO_HIGH);
+        gpio_set_value(RK3066B_OTG_DRV_VBUS, GPIO_HIGH); 
+    }   
 }
 struct dwc_otg_platform_data usb20otg_pdata = {
     .phyclk = NULL,
@@ -399,30 +405,29 @@ int usb20host_get_status(int id)
     return ret;
 }
 void usb20host_power_enable(int enable)
-{
-
+{ 
     int ret;
     if(0 == enable)//disable
     {
-        //ret = gpio_request(RK30_PIN0_PD7, NULL);
+        //ret = gpio_request(RK3066B_HOST_DRV_VBUS, NULL);
         //if (ret != 0) {
-        //    gpio_free(RK30_PIN0_PD7);
+        //    gpio_free(RK3066B_HOST_DRV_VBUS);
         //}
-        //gpio_direction_output(RK30_PIN0_PD7, 1);
-        //gpio_set_value(RK30_PIN0_PD7, 0);
+        //gpio_direction_output(RK3066B_HOST_DRV_VBUS, 1);
+        //gpio_set_value(RK3066B_HOST_DRV_VBUS, 0);
         //printk("!!!!!!!!!!!!!!!!!!!disable host power!!!!!!!!!!!!!!!!!!\n");
     }
 
     if(1 == enable)//enable
     {
-        ret = gpio_request(RK30_PIN0_PD7, NULL);
+        ret = gpio_request(RK3066B_HOST_DRV_VBUS, NULL);
         if (ret != 0) {
-            gpio_free(RK30_PIN0_PD7);
+            gpio_free(RK3066B_HOST_DRV_VBUS);
         }
-        gpio_direction_output(RK30_PIN0_PD7, 1);
-        gpio_set_value(RK30_PIN0_PD7, 1);
+        gpio_direction_output(RK3066B_HOST_DRV_VBUS, GPIO_HIGH);
+        gpio_set_value(RK3066B_HOST_DRV_VBUS, GPIO_HIGH);
         //printk("!!!!!!!!!!!!!!!!!!!!!enable host power!!!!!!!!!!!!!!!!!!\n");
-    }  
+    }   
 }
 struct dwc_otg_platform_data usb20host_pdata = {
     .phyclk = NULL,
