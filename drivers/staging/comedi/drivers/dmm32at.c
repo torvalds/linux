@@ -825,7 +825,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
@@ -841,7 +841,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->do_cmdtest = dmm32at_ai_cmdtest;
 	s->cancel = dmm32at_ai_cancel;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -851,7 +851,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->insn_write = dmm32at_ao_winsn;
 	s->insn_read = dmm32at_ao_rinsn;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 
 	/* get access to the DIO regs */
