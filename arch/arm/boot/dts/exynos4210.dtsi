@@ -20,6 +20,7 @@
 */
 
 /include/ "skeleton.dtsi"
+/include/ "exynos4210-pinctrl.dtsi"
 
 / {
 	compatible = "samsung,exynos4210";
@@ -29,6 +30,9 @@
 		spi0 = &spi_0;
 		spi1 = &spi_1;
 		spi2 = &spi_2;
+		pinctrl0 = &pinctrl_0;
+		pinctrl1 = &pinctrl_1;
+		pinctrl2 = &pinctrl_2;
 	};
 
 	gic:interrupt-controller@10490000 {
@@ -48,6 +52,39 @@
 			     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
 			     <0 8 0>, <0 9 0>, <0 10 0>, <0 11 0>,
 			     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>;
+	};
+
+	pinctrl_0: pinctrl@11400000 {
+		compatible = "samsung,pinctrl-exynos4210";
+		reg = <0x11400000 0x1000>;
+		interrupts = <0 47 0>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	pinctrl_1: pinctrl@11000000 {
+		compatible = "samsung,pinctrl-exynos4210";
+		reg = <0x11000000 0x1000>;
+		interrupts = <0 46 0>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		wakup_eint: wakeup-interrupt-controller {
+			compatible = "samsung,exynos4210-wakeup-eint";
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <0 16 0>, <0 17 0>, <0 18 0>, <0 19 0>,
+					<0 20 0>, <0 21 0>, <0 22 0>, <0 23 0>,
+					<0 24 0>, <0 25 0>, <0 26 0>, <0 27 0>,
+					<0 28 0>, <0 29 0>, <0 30 0>, <0 31 0>,
+					<0 32 0>;
+		};
+	};
+
+	pinctrl_2: pinctrl@03860000 {
+		compatible = "samsung,pinctrl-exynos4210";
+		reg = <0x03860000 0x1000>;
 	};
 
 	watchdog@10060000 {
