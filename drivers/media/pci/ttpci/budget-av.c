@@ -1477,8 +1477,8 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	if (saa7113_init(budget_av) == 0) {
 		budget_av->has_saa7113 = 1;
-
-		if (0 != saa7146_vv_init(dev, &vv_data)) {
+		err = saa7146_vv_init(dev, &vv_data);
+		if (err != 0) {
 			/* fixme: proper cleanup here */
 			ERR("cannot init vv subsystem\n");
 			return err;
