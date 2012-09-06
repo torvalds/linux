@@ -303,6 +303,7 @@ static inline bool radeon_encoder_is_digital(struct drm_encoder *encoder)
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 		return true;
 	default:
 		return false;
@@ -922,10 +923,14 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 				args.v4.ucLaneNum = 4;
 
 			if (ENCODER_MODE_IS_DP(args.v4.ucEncoderMode)) {
-				if (dp_clock == 270000)
-					args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_2_70GHZ;
-				else if (dp_clock == 540000)
+				if (dp_clock == 540000)
 					args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_5_40GHZ;
+				else if (dp_clock == 324000)
+					args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_3_24GHZ;
+				else if (dp_clock == 270000)
+					args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_2_70GHZ;
+				else
+					args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_1_62GHZ;
 			}
 			args.v4.acConfig.ucDigSel = dig->dig_encoder;
 			args.v4.ucBitPerColor = radeon_atom_get_bpc(encoder);
@@ -1019,6 +1024,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 		index = GetIndexIntoMasterTable(COMMAND, UNIPHYTransmitterControl);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
@@ -1277,6 +1283,9 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 					args.v5.ucPhyId = ATOM_PHY_ID_UNIPHYF;
 				else
 					args.v5.ucPhyId = ATOM_PHY_ID_UNIPHYE;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
+				args.v5.ucPhyId = ATOM_PHY_ID_UNIPHYG;
 				break;
 			}
 			if (is_dp)
@@ -1742,6 +1751,7 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		radeon_atom_encoder_dpms_dig(encoder, mode);
 		break;
@@ -1879,6 +1889,7 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 				dig = radeon_encoder->enc_priv;
 				switch (dig->dig_encoder) {
@@ -1899,6 +1910,9 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 					break;
 				case 5:
 					args.v2.ucEncoderID = ASIC_INT_DIG6_ENCODER_ID;
+					break;
+				case 6:
+					args.v2.ucEncoderID = ASIC_INT_DIG7_ENCODER_ID;
 					break;
 				}
 				break;
@@ -2015,6 +2029,9 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 			else
 				return 4;
 			break;
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
+			return 6;
+			break;
 		}
 	} else if (ASIC_IS_DCE4(rdev)) {
 		/* DCE4/5 */
@@ -2099,6 +2116,7 @@ radeon_atom_encoder_init(struct radeon_device *rdev)
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_INIT, 0, 0);
 			break;
@@ -2143,6 +2161,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		/* handled in dpms */
 		break;
@@ -2408,6 +2427,7 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		/* handled in dpms */
 		break;
@@ -2639,6 +2659,7 @@ radeon_add_atom_encoder(struct drm_device *dev,
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 			radeon_encoder->rmx_type = RMX_FULL;
 			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_LVDS);
