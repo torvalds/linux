@@ -373,7 +373,7 @@ static void efx_iterate_state(struct efx_nic *efx)
 	/* saddr set later and used as incrementing count */
 	payload->ip.daddr = htonl(INADDR_LOOPBACK);
 	payload->ip.ihl = 5;
-	payload->ip.check = htons(0xdead);
+	payload->ip.check = (__force __sum16) htons(0xdead);
 	payload->ip.tot_len = htons(sizeof(*payload) - sizeof(struct ethhdr));
 	payload->ip.version = IPVERSION;
 	payload->ip.protocol = IPPROTO_UDP;
