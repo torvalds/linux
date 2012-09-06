@@ -3242,6 +3242,10 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	else
 		ironlake_fdi_disable(crtc);
 
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->pre_enable)
+			encoder->pre_enable(encoder);
+
 	/* Enable panel fitting for LVDS */
 	if (dev_priv->pch_pf_size &&
 	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) || HAS_eDP)) {
@@ -3310,6 +3314,10 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	/* Disable PF */
 	I915_WRITE(PF_CTL(pipe), 0);
 	I915_WRITE(PF_WIN_SZ(pipe), 0);
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->post_disable)
+			encoder->post_disable(encoder);
 
 	ironlake_fdi_disable(crtc);
 
