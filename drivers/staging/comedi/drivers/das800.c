@@ -517,7 +517,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	/* analog input subdevice */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
@@ -531,7 +531,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->cancel = das800_cancel;
 
 	/* di */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 3;
@@ -540,7 +540,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_bits = das800_di_rbits;
 
 	/* do */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->n_chan = 4;
