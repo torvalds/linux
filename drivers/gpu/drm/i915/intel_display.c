@@ -1860,59 +1860,6 @@ static void intel_disable_plane(struct drm_i915_private *dev_priv,
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
-static void disable_pch_dp(struct drm_i915_private *dev_priv,
-			   enum pipe pipe, int reg, u32 port_sel)
-{
-	u32 val = I915_READ(reg);
-	if (dp_pipe_enabled(dev_priv, pipe, port_sel, val)) {
-		DRM_DEBUG_KMS("Disabling pch dp %x on pipe %d\n", reg, pipe);
-		I915_WRITE(reg, val & ~DP_PORT_EN);
-	}
-}
-
-static void disable_pch_hdmi(struct drm_i915_private *dev_priv,
-			     enum pipe pipe, int reg)
-{
-	u32 val = I915_READ(reg);
-	if (hdmi_pipe_enabled(dev_priv, pipe, val)) {
-		DRM_DEBUG_KMS("Disabling pch HDMI %x on pipe %d\n",
-			      reg, pipe);
-		I915_WRITE(reg, val & ~PORT_ENABLE);
-	}
-}
-
-/* Disable any ports connected to this transcoder */
-static void intel_disable_pch_ports(struct drm_i915_private *dev_priv,
-				    enum pipe pipe)
-{
-	u32 reg, val;
-
-	val = I915_READ(PCH_PP_CONTROL);
-	I915_WRITE(PCH_PP_CONTROL, val | PANEL_UNLOCK_REGS);
-
-	disable_pch_dp(dev_priv, pipe, PCH_DP_B, TRANS_DP_PORT_SEL_B);
-	disable_pch_dp(dev_priv, pipe, PCH_DP_C, TRANS_DP_PORT_SEL_C);
-	disable_pch_dp(dev_priv, pipe, PCH_DP_D, TRANS_DP_PORT_SEL_D);
-
-	reg = PCH_ADPA;
-	val = I915_READ(reg);
-	if (adpa_pipe_enabled(dev_priv, pipe, val))
-		I915_WRITE(reg, val & ~ADPA_DAC_ENABLE);
-
-	reg = PCH_LVDS;
-	val = I915_READ(reg);
-	if (lvds_pipe_enabled(dev_priv, pipe, val)) {
-		DRM_DEBUG_KMS("disable lvds on pipe %d val 0x%08x\n", pipe, val);
-		I915_WRITE(reg, val & ~LVDS_PORT_EN);
-		POSTING_READ(reg);
-		udelay(100);
-	}
-
-	disable_pch_hdmi(dev_priv, pipe, HDMIB);
-	disable_pch_hdmi(dev_priv, pipe, HDMIC);
-	disable_pch_hdmi(dev_priv, pipe, HDMID);
-}
-
 int
 intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			   struct drm_i915_gem_object *obj,
@@ -3320,13 +3267,6 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 			encoder->post_disable(encoder);
 
 	ironlake_fdi_disable(crtc);
-
-	/* This is a horrible layering violation; we should be doing this in
-	 * the connector/encoder ->prepare instead, but we don't always have
-	 * enough information there about the config to know whether it will
-	 * actually be necessary or just cause undesired flicker.
-	 */
-	intel_disable_pch_ports(dev_priv, pipe);
 
 	intel_disable_transcoder(dev_priv, pipe);
 
