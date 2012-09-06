@@ -32,7 +32,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/usb/ch9.h>
-#include <linux/usb/composite.h>
+#include "composite.h"
 #include <linux/usb/gadget.h>
 
 #include "gadget_chips.h"
@@ -44,19 +44,19 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#include "../../usb/gadget/usbstring.c"
-#include "../../usb/gadget/config.c"
-#include "../../usb/gadget/epautoconf.c"
-#include "../../usb/gadget/composite.c"
+#include "usbstring.c"
+#include "config.c"
+#include "epautoconf.c"
+#include "composite.c"
 
-#include "../../usb/gadget/f_mass_storage.c"
-#include "../../usb/gadget/u_serial.c"
-#include "../../usb/gadget/f_acm.c"
+#include "f_mass_storage.c"
+#include "u_serial.c"
+#include "f_acm.c"
 #define USB_ETH_RNDIS y
-#include "../../usb/gadget/f_rndis.c"
-#include "../../usb/gadget/rndis.c"
-#include "../../usb/gadget/u_ether.c"
-#include "../../usb/gadget/f_fs.c"
+#include "f_rndis.c"
+#include "rndis.c"
+#include "u_ether.c"
+#include "f_fs.c"
 
 MODULE_AUTHOR("Mike Lockwood, Andrzej Pietrasiewicz");
 MODULE_DESCRIPTION("Configurable Composite USB Gadget");
