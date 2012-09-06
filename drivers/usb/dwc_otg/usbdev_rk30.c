@@ -173,7 +173,6 @@ void usb20otg_clock_init(void* pdata)
 }
 void usb20otg_clock_enable(void* pdata, int enable)
 {
-#
     struct dwc_otg_platform_data *usbpdata=pdata;
 
     if(enable){
@@ -224,6 +223,7 @@ int usb20otg_get_status(int id)
         return ret;
 }
  
+#ifdef CONFIG_ARCH_RK3066B
 void usb20otg_power_enable(int enable)
 { 
     int ret;
@@ -249,6 +249,7 @@ void usb20otg_power_enable(int enable)
         gpio_set_value(RK3066B_OTG_DRV_VBUS, GPIO_HIGH); 
     }   
 }
+#endif
 struct dwc_otg_platform_data usb20otg_pdata = {
     .phyclk = NULL,
     .ahbclk = NULL,
@@ -404,6 +405,8 @@ int usb20host_get_status(int id)
     }
     return ret;
 }
+
+#ifdef CONFIG_ARCH_RK3066B
 void usb20host_power_enable(int enable)
 { 
     int ret;
@@ -429,6 +432,7 @@ void usb20host_power_enable(int enable)
         //printk("!!!!!!!!!!!!!!!!!!!!!enable host power!!!!!!!!!!!!!!!!!!\n");
     }   
 }
+#endif
 struct dwc_otg_platform_data usb20host_pdata = {
     .phyclk = NULL,
     .ahbclk = NULL,
