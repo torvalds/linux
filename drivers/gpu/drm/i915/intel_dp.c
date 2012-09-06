@@ -808,9 +808,6 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	}
 }
 
-static void ironlake_edp_pll_on(struct drm_encoder *encoder);
-static void ironlake_edp_pll_off(struct drm_encoder *encoder);
-
 static void
 intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		  struct drm_display_mode *adjusted_mode)
@@ -820,14 +817,6 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_crtc *crtc = intel_dp->base.base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	/* Turn on the eDP PLL if needed */
-	if (is_edp(intel_dp)) {
-		if (!is_pch_edp(intel_dp))
-			ironlake_edp_pll_on(encoder);
-		else
-			ironlake_edp_pll_off(encoder);
-	}
 
 	/*
 	 * There are four kinds of DP registers:
@@ -1191,11 +1180,15 @@ static void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
 	msleep(intel_dp->backlight_off_delay);
 }
 
-static void ironlake_edp_pll_on(struct drm_encoder *encoder)
+static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_crtc *crtc = intel_dp->base.base.crtc;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpa_ctl;
+
+	assert_pipe_disabled(dev_priv,
+			     to_intel_crtc(crtc)->pipe);
 
 	DRM_DEBUG_KMS("\n");
 	dpa_ctl = I915_READ(DP_A);
@@ -1205,11 +1198,15 @@ static void ironlake_edp_pll_on(struct drm_encoder *encoder)
 	udelay(200);
 }
 
-static void ironlake_edp_pll_off(struct drm_encoder *encoder)
+static void ironlake_edp_pll_off(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = intel_dp->base.base.dev;
+	struct drm_crtc *crtc = intel_dp->base.base.crtc;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpa_ctl;
+
+	assert_pipe_disabled(dev_priv,
+			     to_intel_crtc(crtc)->pipe);
 
 	dpa_ctl = I915_READ(DP_A);
 	dpa_ctl &= ~DP_PLL_ENABLE;
@@ -1309,6 +1306,14 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 	intel_dp_link_down(intel_dp);
 }
 
+static void intel_post_disable_dp(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
+	if (is_cpu_edp(intel_dp))
+		ironlake_edp_pll_off(intel_dp);
+}
+
 static void intel_enable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
@@ -1328,39 +1333,12 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	ironlake_edp_backlight_on(intel_dp);
 }
 
-static void
-intel_dp_dpms(struct drm_connector *connector, int mode)
+static void intel_pre_enable_dp(struct intel_encoder *encoder)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-	/* DP supports only 2 dpms states. */
-	if (mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
-
-	if (mode == connector->dpms)
-		return;
-
-	connector->dpms = mode;
-
-	/* Only need to change hw state when actually enabled */
-	if (!intel_dp->base.base.crtc) {
-		intel_dp->base.connectors_active = false;
-		return;
-	}
-
-	if (mode != DRM_MODE_DPMS_ON) {
-		intel_encoder_dpms(&intel_dp->base, mode);
-
-		if (is_cpu_edp(intel_dp))
-			ironlake_edp_pll_off(&intel_dp->base.base);
-	} else {
-		if (is_cpu_edp(intel_dp))
-			ironlake_edp_pll_on(&intel_dp->base.base);
-
-		intel_encoder_dpms(&intel_dp->base, mode);
-	}
-
-	intel_modeset_check_state(connector->dev);
+	if (is_cpu_edp(intel_dp))
+		ironlake_edp_pll_on(intel_dp);
 }
 
 /*
@@ -2378,7 +2356,7 @@ static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
-	.dpms = intel_dp_dpms,
+	.dpms = intel_connector_dpms,
 	.detect = intel_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_dp_set_property,
@@ -2509,7 +2487,9 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	drm_sysfs_connector_add(connector);
 
 	intel_encoder->enable = intel_enable_dp;
+	intel_encoder->pre_enable = intel_pre_enable_dp;
 	intel_encoder->disable = intel_disable_dp;
+	intel_encoder->post_disable = intel_post_disable_dp;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
