@@ -168,7 +168,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 	int data;
 	struct comedi_device *dev = d;
 	const struct pcl711_board *board = comedi_board(dev);
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
@@ -520,7 +520,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret < 0)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* AI subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
@@ -536,7 +536,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->do_cmd = pcl711_ai_cmd;
 	}
 
-	s++;
+	s = &dev->subdevices[1];
 	/* AO subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -547,7 +547,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = pcl711_ao_insn;
 	s->insn_read = pcl711_ao_insn_read;
 
-	s++;
+	s = &dev->subdevices[2];
 	/* 16-bit digital input */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -557,7 +557,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->insn_bits = pcl711_di_insn_bits;
 
-	s++;
+	s = &dev->subdevices[3];
 	/* 16-bit digital out */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
