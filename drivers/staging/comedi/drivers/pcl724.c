@@ -99,6 +99,7 @@ static int subdev_8255mapped_cb(int dir, int port, int data,
 static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl724_board *board = comedi_board(dev);
+	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iorange;
 	int ret, i, n_subdevices;
@@ -161,14 +162,13 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
+		s = &dev->subdevices[i];
 		if (board->is_pet48) {
-			subdev_8255_init(dev, dev->subdevices + i,
-					 subdev_8255mapped_cb,
+			subdev_8255_init(dev, s, subdev_8255mapped_cb,
 					 (unsigned long)(dev->iobase +
 							 i * 0x1000));
 		} else
-			subdev_8255_init(dev, dev->subdevices + i,
-					 subdev_8255_cb,
+			subdev_8255_init(dev, s, subdev_8255_cb,
 					 (unsigned long)(dev->iobase +
 							 SIZE_8255 * i));
 	}
@@ -179,10 +179,13 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void pcl724_detach(struct comedi_device *dev)
 {
 	const struct pcl724_board *board = comedi_board(dev);
+	struct comedi_subdevice *s;
 	int i;
 
-	for (i = 0; i < dev->n_subdevices; i++)
-		subdev_8255_cleanup(dev, dev->subdevices + i);
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = &dev->subdevices[i];
+		subdev_8255_cleanup(dev, s);
+	}
 #ifdef PCL724_IRQ
 	if (dev->irq)
 		free_irq(dev->irq, dev);
