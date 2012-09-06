@@ -3663,6 +3663,46 @@ out:
 	return ret;
 }
 
+static int can_overcommit(struct btrfs_root *root,
+			  struct btrfs_space_info *space_info, u64 bytes,
+			  int flush)
+{
+	u64 profile = btrfs_get_alloc_profile(root, 0);
+	u64 avail;
+	u64 used;
+
+	used = space_info->bytes_used + space_info->bytes_reserved +
+		space_info->bytes_pinned + space_info->bytes_readonly +
+		space_info->bytes_may_use;
+
+	spin_lock(&root->fs_info->free_chunk_lock);
+	avail = root->fs_info->free_chunk_space;
+	spin_unlock(&root->fs_info->free_chunk_lock);
+
+	/*
+	 * If we have dup, raid1 or raid10 then only half of the free
+	 * space is actually useable.
+	 */
+	if (profile & (BTRFS_BLOCK_GROUP_DUP |
+		       BTRFS_BLOCK_GROUP_RAID1 |
+		       BTRFS_BLOCK_GROUP_RAID10))
+		avail >>= 1;
+
+	/*
+	 * If we aren't flushing don't let us overcommit too much, say
+	 * 1/8th of the space.  If we can flush, let it overcommit up to
+	 * 1/2 of the space.
+	 */
+	if (flush)
+		avail >>= 3;
+	else
+		avail >>= 1;
+
+	if (used + bytes < space_info->total_bytes + avail)
+		return 1;
+	return 0;
+}
+
 /*
  * shrink metadata reservation for delalloc
  */
@@ -3705,10 +3745,7 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 			   !atomic_read(&root->fs_info->async_delalloc_pages));
 
 		spin_lock(&space_info->lock);
-		if (space_info->bytes_used + space_info->bytes_reserved +
-		    space_info->bytes_pinned + space_info->bytes_readonly +
-		    space_info->bytes_may_use + orig <=
-		    space_info->total_bytes) {
+		if (can_overcommit(root, space_info, orig, !trans)) {
 			spin_unlock(&space_info->lock);
 			break;
 		}
@@ -3924,7 +3961,6 @@ again:
 	}
 
 	if (ret) {
-		u64 profile = btrfs_get_alloc_profile(root, 0);
 		u64 avail;
 
 		/*
@@ -3945,30 +3981,7 @@ again:
 			goto again;
 		}
 
-		spin_lock(&root->fs_info->free_chunk_lock);
-		avail = root->fs_info->free_chunk_space;
-
-		/*
-		 * If we have dup, raid1 or raid10 then only half of the free
-		 * space is actually useable.
-		 */
-		if (profile & (BTRFS_BLOCK_GROUP_DUP |
-			       BTRFS_BLOCK_GROUP_RAID1 |
-			       BTRFS_BLOCK_GROUP_RAID10))
-			avail >>= 1;
-
-		/*
-		 * If we aren't flushing don't let us overcommit too much, say
-		 * 1/8th of the space.  If we can flush, let it overcommit up to
-		 * 1/2 of the space.
-		 */
-		if (flush)
-			avail >>= 3;
-		else
-			avail >>= 1;
-		 spin_unlock(&root->fs_info->free_chunk_lock);
-
-		if (used + num_bytes < space_info->total_bytes + avail) {
+		if (can_overcommit(root, space_info, orig_bytes, flush)) {
 			space_info->bytes_may_use += orig_bytes;
 			trace_btrfs_space_reservation(root->fs_info,
 				"space_info", space_info->flags, orig_bytes, 1);
