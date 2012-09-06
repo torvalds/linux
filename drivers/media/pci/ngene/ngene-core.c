@@ -1691,7 +1691,8 @@ int __devinit ngene_probe(struct pci_dev *pci_dev,
 	dev->i2c_current_bus = -1;
 
 	/* Register DVB adapters and devices for both channels */
-	if (init_channels(dev) < 0)
+	stat = init_channels(dev);
+	if (stat < 0)
 		goto fail2;
 
 	return 0;
