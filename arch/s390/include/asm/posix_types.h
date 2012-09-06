@@ -13,6 +13,7 @@
  */
 
 typedef unsigned long   __kernel_size_t;
+typedef long            __kernel_ssize_t;
 #define __kernel_size_t __kernel_size_t
 
 typedef unsigned short	__kernel_old_dev_t;
@@ -25,7 +26,6 @@ typedef unsigned short  __kernel_mode_t;
 typedef unsigned short  __kernel_ipc_pid_t;
 typedef unsigned short  __kernel_uid_t;
 typedef unsigned short  __kernel_gid_t;
-typedef int             __kernel_ssize_t;
 typedef int             __kernel_ptrdiff_t;
 
 #else /* __s390x__ */
@@ -35,7 +35,6 @@ typedef unsigned int    __kernel_mode_t;
 typedef int             __kernel_ipc_pid_t;
 typedef unsigned int    __kernel_uid_t;
 typedef unsigned int    __kernel_gid_t;
-typedef long            __kernel_ssize_t;
 typedef long            __kernel_ptrdiff_t;
 typedef unsigned long   __kernel_sigset_t;      /* at least 32 bits */
 

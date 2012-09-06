@@ -444,13 +444,16 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	struct i2c_msg *msgs;
 	int i, ret = true;
 
+        /* Would be simpler to allocate both in one go ? */        
 	buf = (u8 *)kzalloc(args_len * 2 + 2, GFP_KERNEL);
 	if (!buf)
 		return false;
 
 	msgs = kcalloc(args_len + 3, sizeof(*msgs), GFP_KERNEL);
-	if (!msgs)
+	if (!msgs) {
+	        kfree(buf);
 		return false;
+        }
 
 	intel_sdvo_debug_write(intel_sdvo, cmd, args, args_len);
 
@@ -1689,6 +1692,7 @@ static bool intel_sdvo_detect_hdmi_audio(struct drm_connector *connector)
 	edid = intel_sdvo_get_edid(connector);
 	if (edid != NULL && edid->input & DRM_EDID_INPUT_DIGITAL)
 		has_audio = drm_detect_monitor_audio(edid);
+	kfree(edid);
 
 	return has_audio;
 }

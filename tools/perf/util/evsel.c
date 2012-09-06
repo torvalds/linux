@@ -20,7 +20,7 @@
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
 
-int __perf_evsel__sample_size(u64 sample_type)
+static int __perf_evsel__sample_size(u64 sample_type)
 {
 	u64 mask = sample_type & PERF_SAMPLE_MASK;
 	int size = 0;
@@ -53,6 +53,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->attr	   = *attr;
 	INIT_LIST_HEAD(&evsel->node);
 	hists__init(&evsel->hists);
+	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
 }
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
@@ -728,10 +729,10 @@ static bool sample_overlap(const union perf_event *event,
 	return false;
 }
 
-int perf_event__parse_sample(const union perf_event *event, u64 type,
-			     int sample_size, bool sample_id_all,
+int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *data, bool swapped)
 {
+	u64 type = evsel->attr.sample_type;
 	const u64 *array;
 
 	/*
@@ -746,14 +747,14 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	data->period = 1;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
-		if (!sample_id_all)
+		if (!evsel->attr.sample_id_all)
 			return 0;
 		return perf_event__parse_id_sample(event, type, data, swapped);
 	}
 
 	array = event->sample.array;
 
-	if (sample_size + sizeof(event->header) > event->header.size)
+	if (evsel->sample_size + sizeof(event->header) > event->header.size)
 		return -EFAULT;
 
 	if (type & PERF_SAMPLE_IP) {
@@ -895,7 +896,7 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 		u.val32[1] = sample->tid;
 		if (swapped) {
 			/*
-			 * Inverse of what is done in perf_event__parse_sample
+			 * Inverse of what is done in perf_evsel__parse_sample
 			 */
 			u.val32[0] = bswap_32(u.val32[0]);
 			u.val32[1] = bswap_32(u.val32[1]);
@@ -930,7 +931,7 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 		u.val32[0] = sample->cpu;
 		if (swapped) {
 			/*
-			 * Inverse of what is done in perf_event__parse_sample
+			 * Inverse of what is done in perf_evsel__parse_sample
 			 */
 			u.val32[0] = bswap_32(u.val32[0]);
 			u.val64 = bswap_64(u.val64);

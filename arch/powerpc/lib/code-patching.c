@@ -20,7 +20,7 @@ int patch_instruction(unsigned int *addr, unsigned int instr)
 {
 	int err;
 
-	err = __put_user(instr, addr);
+	__put_user_size(instr, addr, 4, err);
 	if (err)
 		return err;
 	asm ("dcbst 0, %0; sync; icbi 0,%0; sync; isync" : : "r" (addr));

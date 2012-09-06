@@ -6346,8 +6346,10 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 			dd->piobcnt4k * dd->align4k;
 		dd->piovl15base	= ioremap_nocache(vl15off,
 						  NUM_VL15_BUFS * dd->align4k);
-		if (!dd->piovl15base)
+		if (!dd->piovl15base) {
+			ret = -ENOMEM;
 			goto bail;
+		}
 	}
 	qib_7322_set_baseaddrs(dd); /* set chip access pointers now */
 

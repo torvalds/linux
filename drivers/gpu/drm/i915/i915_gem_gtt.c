@@ -72,7 +72,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	/* ppgtt PDEs reside in the global gtt pagetable, which has 512*1024
 	 * entries. For aliasing ppgtt support we just steal them at the end for
 	 * now. */
-	first_pd_entry_in_global_pt = 512*1024 - I915_PPGTT_PD_ENTRIES;
+	first_pd_entry_in_global_pt = dev_priv->mm.gtt->gtt_total_entries - I915_PPGTT_PD_ENTRIES;
 
 	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
 	if (!ppgtt)
@@ -261,7 +261,10 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 		pte_flags |= GEN6_PTE_CACHE_LLC;
 		break;
 	case I915_CACHE_NONE:
-		pte_flags |= GEN6_PTE_UNCACHED;
+		if (IS_HASWELL(dev))
+			pte_flags |= HSW_PTE_UNCACHED;
+		else
+			pte_flags |= GEN6_PTE_UNCACHED;
 		break;
 	default:
 		BUG();
@@ -361,7 +364,8 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->mm.gtt->needs_dmar)
+	/* don't map imported dma buf objects */
+	if (dev_priv->mm.gtt->needs_dmar && !obj->sg_table)
 		return intel_gtt_map_memory(obj->pages,
 					    obj->base.size >> PAGE_SHIFT,
 					    &obj->sg_list,

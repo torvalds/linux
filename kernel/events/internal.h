@@ -101,7 +101,8 @@ __output_copy(struct perf_output_handle *handle,
 }
 
 /* Callchain handling */
-extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
+extern struct perf_callchain_entry *
+perf_callchain(struct perf_event *event, struct pt_regs *regs);
 extern int get_callchain_buffers(void);
 extern void put_callchain_buffers(void);
 

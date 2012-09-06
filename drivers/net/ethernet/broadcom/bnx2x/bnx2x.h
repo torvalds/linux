@@ -1278,7 +1278,7 @@ struct bnx2x {
 #define BNX2X_FW_RX_ALIGN_START	(1UL << BNX2X_RX_ALIGN_SHIFT)
 
 #define BNX2X_FW_RX_ALIGN_END					\
-	max(1UL << BNX2X_RX_ALIGN_SHIFT, 			\
+	max_t(u64, 1UL << BNX2X_RX_ALIGN_SHIFT,			\
 	    SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define BNX2X_PXP_DRAM_ALIGN		(BNX2X_RX_ALIGN_SHIFT - 5)
@@ -1707,9 +1707,6 @@ struct bnx2x_func_init_params {
 		if (skip_rx_queue(bp, var))	\
 			continue;		\
 		else
-
-#define for_each_napi_rx_queue(bp, var) \
-	for ((var) = 0; (var) < bp->num_napi_queues; (var)++)
 
 /* Skip OOO FP */
 #define for_each_tx_queue(bp, var) \

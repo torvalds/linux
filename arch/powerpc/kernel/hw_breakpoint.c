@@ -253,7 +253,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 
 	/* Do not emulate user-space instructions, instead single-step them */
 	if (user_mode(regs)) {
-		bp->ctx->task->thread.last_hit_ubp = bp;
+		current->thread.last_hit_ubp = bp;
 		regs->msr |= MSR_SE;
 		goto out;
 	}

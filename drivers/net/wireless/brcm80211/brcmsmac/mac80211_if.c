@@ -121,7 +121,8 @@ static struct ieee80211_channel brcms_2ghz_chantable[] = {
 		 IEEE80211_CHAN_NO_HT40PLUS),
 	CHAN2GHZ(14, 2484,
 		 IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_NO_IBSS |
-		 IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
+		 IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS |
+		 IEEE80211_CHAN_NO_OFDM)
 };
 
 static struct ieee80211_channel brcms_5ghz_nphy_chantable[] = {
@@ -1231,6 +1232,9 @@ uint brcms_reset(struct brcms_info *wl)
 
 	/* dpc will not be rescheduled */
 	wl->resched = false;
+
+	/* inform publicly that interface is down */
+	wl->pub->up = false;
 
 	return 0;
 }

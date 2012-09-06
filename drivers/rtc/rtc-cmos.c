@@ -568,7 +568,6 @@ static irqreturn_t cmos_interrupt(int irq, void *p)
 		hpet_mask_rtc_irq_bit(RTC_AIE);
 
 		CMOS_READ(RTC_INTR_FLAGS);
-		pm_wakeup_event(cmos_rtc.dev, 0);
 	}
 	spin_unlock(&rtc_lock);
 
