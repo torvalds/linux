@@ -526,9 +526,13 @@ nfqnl_set_mode(struct nfqnl_instance *queue,
 
 	case NFQNL_COPY_PACKET:
 		queue->copy_mode = mode;
-		/* we're using struct nlattr which has 16bit nla_len */
-		if (range > 0xffff)
-			queue->copy_range = 0xffff;
+		/* We're using struct nlattr which has 16bit nla_len. Note that
+		 * nla_len includes the header length. Thus, the maximum packet
+		 * length that we support is 65531 bytes. We send truncated
+		 * packets if the specified length is larger than that.
+		 */
+		if (range > 0xffff - NLA_HDRLEN)
+			queue->copy_range = 0xffff - NLA_HDRLEN;
 		else
 			queue->copy_range = range;
 		break;
