@@ -290,7 +290,7 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* ao */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
@@ -316,7 +316,7 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			devpriv->bipolar[i] = 1;	/* bipolar range */
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* di */
 	if (!board->have_dio) {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -330,7 +330,7 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->range_table = &range_digital;
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* do */
 	if (!board->have_dio) {
 		s->type = COMEDI_SUBD_UNUSED;
