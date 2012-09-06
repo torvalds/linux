@@ -311,13 +311,12 @@ EXPORT_SYMBOL_GPL(usb_del_gadget_udc);
 
 /* ------------------------------------------------------------------------- */
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 {
 	struct usb_udc		*udc = NULL;
 	int			ret;
 
-	if (!driver || !bind || !driver->setup)
+	if (!driver || !driver->bind || !driver->setup)
 		return -EINVAL;
 
 	mutex_lock(&udc_lock);
@@ -339,7 +338,7 @@ found:
 	udc->dev.driver = &driver->driver;
 
 	if (udc_is_newstyle(udc)) {
-		ret = bind(udc->gadget);
+		ret = driver->bind(udc->gadget);
 		if (ret)
 			goto err1;
 		ret = usb_gadget_udc_start(udc->gadget, driver);
@@ -350,7 +349,7 @@ found:
 		usb_gadget_connect(udc->gadget);
 	} else {
 
-		ret = usb_gadget_start(udc->gadget, driver, bind);
+		ret = usb_gadget_start(udc->gadget, driver, driver->bind);
 		if (ret)
 			goto err1;
 

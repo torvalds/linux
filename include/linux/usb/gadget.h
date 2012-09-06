@@ -766,6 +766,7 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
  *	when the host is disconnected.  May be called in_interrupt; this
  *	may not sleep.  Some devices can't detect disconnect, so this might
  *	not be called except as part of controller shutdown.
+ * @bind: the driver's bind callback
  * @unbind: Invoked when the driver is unbound from a gadget,
  *	usually from rmmod (after a disconnect is reported).
  *	Called in a context that permits sleeping.
@@ -820,6 +821,7 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
 struct usb_gadget_driver {
 	char			*function;
 	enum usb_device_speed	max_speed;
+	int			(*bind)(struct usb_gadget *gadget);
 	void			(*unbind)(struct usb_gadget *);
 	int			(*setup)(struct usb_gadget *,
 					const struct usb_ctrlrequest *);
@@ -845,7 +847,6 @@ struct usb_gadget_driver {
 /**
  * usb_gadget_probe_driver - probe a gadget driver
  * @driver: the driver being registered
- * @bind: the driver's bind callback
  * Context: can sleep
  *
  * Call this in your gadget driver's module initialization function,
@@ -854,8 +855,7 @@ struct usb_gadget_driver {
  * registration call returns.  It's expected that the @bind() function will
  * be in init sections.
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver);
 
 /**
  * usb_gadget_unregister_driver - unregister a gadget driver
