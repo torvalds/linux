@@ -221,7 +221,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	if (board->ai_nchan) {
 		/* Analog input subdevice */
 		s->type		= COMEDI_SUBD_AI;
@@ -234,7 +234,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (board->ao_nchan) {
 		/* Analog output subdevice */
 		s->type		= COMEDI_SUBD_AO;
@@ -248,14 +248,14 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* 8255 Digital i/o subdevice */
 	iobase = dev->iobase + AIO12_8_8255_BASE_REG;
 	ret = subdev_8255_init(dev, s, NULL, iobase);
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* 8254 counter/timer subdevice */
 	s->type		= COMEDI_SUBD_UNUSED;
 
@@ -268,7 +268,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 static void aio_aio12_8_detach(struct comedi_device *dev)
 {
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
+		subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->iobase)
 		release_region(dev->iobase, 24);
 }
