@@ -463,7 +463,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		goto out;
 	}
 	radeon_cs_sync_rings(parser);
-	radeon_cs_sync_to(parser, vm->last_flush);
+	radeon_cs_sync_to(parser, vm->fence);
 	radeon_cs_sync_to(parser, radeon_vm_grab_id(rdev, vm, parser->ring));
 
 	if ((rdev->family >= CHIP_TAHITI) &&
