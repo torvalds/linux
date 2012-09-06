@@ -2014,12 +2014,15 @@ int open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->space_info);
 	INIT_LIST_HEAD(&fs_info->tree_mod_seq_list);
 	btrfs_mapping_init(&fs_info->mapping_tree);
-	btrfs_init_block_rsv(&fs_info->global_block_rsv);
-	btrfs_init_block_rsv(&fs_info->delalloc_block_rsv);
-	btrfs_init_block_rsv(&fs_info->trans_block_rsv);
-	btrfs_init_block_rsv(&fs_info->chunk_block_rsv);
-	btrfs_init_block_rsv(&fs_info->empty_block_rsv);
-	btrfs_init_block_rsv(&fs_info->delayed_block_rsv);
+	btrfs_init_block_rsv(&fs_info->global_block_rsv,
+			     BTRFS_BLOCK_RSV_GLOBAL);
+	btrfs_init_block_rsv(&fs_info->delalloc_block_rsv,
+			     BTRFS_BLOCK_RSV_DELALLOC);
+	btrfs_init_block_rsv(&fs_info->trans_block_rsv, BTRFS_BLOCK_RSV_TRANS);
+	btrfs_init_block_rsv(&fs_info->chunk_block_rsv, BTRFS_BLOCK_RSV_CHUNK);
+	btrfs_init_block_rsv(&fs_info->empty_block_rsv, BTRFS_BLOCK_RSV_EMPTY);
+	btrfs_init_block_rsv(&fs_info->delayed_block_rsv,
+			     BTRFS_BLOCK_RSV_DELOPS);
 	atomic_set(&fs_info->nr_async_submits, 0);
 	atomic_set(&fs_info->async_delalloc_pages, 0);
 	atomic_set(&fs_info->async_submit_draining, 0);

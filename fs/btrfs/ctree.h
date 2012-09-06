@@ -1028,13 +1028,22 @@ struct btrfs_space_info {
 	wait_queue_head_t wait;
 };
 
+#define	BTRFS_BLOCK_RSV_GLOBAL		1
+#define	BTRFS_BLOCK_RSV_DELALLOC	2
+#define	BTRFS_BLOCK_RSV_TRANS		3
+#define	BTRFS_BLOCK_RSV_CHUNK		4
+#define	BTRFS_BLOCK_RSV_DELOPS		5
+#define	BTRFS_BLOCK_RSV_EMPTY		6
+#define	BTRFS_BLOCK_RSV_TEMP		7
+
 struct btrfs_block_rsv {
 	u64 size;
 	u64 reserved;
 	struct btrfs_space_info *space_info;
 	spinlock_t lock;
-	unsigned int full;
-	unsigned int failfast;
+	unsigned short full;
+	unsigned short type;
+	unsigned short failfast;
 };
 
 /*
@@ -2875,8 +2884,9 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes);
 void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes);
 int btrfs_delalloc_reserve_space(struct inode *inode, u64 num_bytes);
 void btrfs_delalloc_release_space(struct inode *inode, u64 num_bytes);
-void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv);
-struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root);
+void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, unsigned short type);
+struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root,
+					      unsigned short type);
 void btrfs_free_block_rsv(struct btrfs_root *root,
 			  struct btrfs_block_rsv *rsv);
 int btrfs_block_rsv_add(struct btrfs_root *root,

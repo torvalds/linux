@@ -516,7 +516,8 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	if (!pending_snapshot)
 		return -ENOMEM;
 
-	btrfs_init_block_rsv(&pending_snapshot->block_rsv);
+	btrfs_init_block_rsv(&pending_snapshot->block_rsv,
+			     BTRFS_BLOCK_RSV_TEMP);
 	pending_snapshot->dentry = dentry;
 	pending_snapshot->root = root;
 	pending_snapshot->readonly = readonly;

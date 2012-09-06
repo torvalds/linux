@@ -4108,13 +4108,15 @@ static int block_rsv_migrate_bytes(struct btrfs_block_rsv *src,
 	return 0;
 }
 
-void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv)
+void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, unsigned short type)
 {
 	memset(rsv, 0, sizeof(*rsv));
 	spin_lock_init(&rsv->lock);
+	rsv->type = type;
 }
 
-struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root)
+struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root,
+					      unsigned short type)
 {
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -4123,7 +4125,7 @@ struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root)
 	if (!block_rsv)
 		return NULL;
 
-	btrfs_init_block_rsv(block_rsv);
+	btrfs_init_block_rsv(block_rsv, type);
 	block_rsv->space_info = __find_space_info(fs_info,
 						  BTRFS_BLOCK_GROUP_METADATA);
 	return block_rsv;

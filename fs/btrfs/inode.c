@@ -2195,7 +2195,7 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	int ret;
 
 	if (!root->orphan_block_rsv) {
-		block_rsv = btrfs_alloc_block_rsv(root);
+		block_rsv = btrfs_alloc_block_rsv(root, BTRFS_BLOCK_RSV_TEMP);
 		if (!block_rsv)
 			return -ENOMEM;
 	}
@@ -3070,7 +3070,7 @@ out:
 static void __unlink_end_trans(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root)
 {
-	if (trans->block_rsv == &root->fs_info->global_block_rsv) {
+	if (trans->block_rsv->type == BTRFS_BLOCK_RSV_GLOBAL) {
 		btrfs_block_rsv_release(root, trans->block_rsv,
 					trans->bytes_reserved);
 		trans->block_rsv = &root->fs_info->trans_block_rsv;
@@ -3821,7 +3821,7 @@ void btrfs_evict_inode(struct inode *inode)
 		goto no_delete;
 	}
 
-	rsv = btrfs_alloc_block_rsv(root);
+	rsv = btrfs_alloc_block_rsv(root, BTRFS_BLOCK_RSV_TEMP);
 	if (!rsv) {
 		btrfs_orphan_del(NULL, inode);
 		goto no_delete;
@@ -6851,7 +6851,7 @@ static int btrfs_truncate(struct inode *inode)
 	 * 3) fs_info->trans_block_rsv - this will have 1 items worth left for
 	 * updating the inode.
 	 */
-	rsv = btrfs_alloc_block_rsv(root);
+	rsv = btrfs_alloc_block_rsv(root, BTRFS_BLOCK_RSV_TEMP);
 	if (!rsv)
 		return -ENOMEM;
 	rsv->size = min_size;

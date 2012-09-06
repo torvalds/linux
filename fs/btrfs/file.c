@@ -1874,7 +1874,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		goto out;
 	}
 
-	rsv = btrfs_alloc_block_rsv(root);
+	rsv = btrfs_alloc_block_rsv(root, BTRFS_BLOCK_RSV_TEMP);
 	if (!rsv) {
 		ret = -ENOMEM;
 		goto out_free;

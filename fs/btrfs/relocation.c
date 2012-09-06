@@ -3674,7 +3674,8 @@ int prepare_to_relocate(struct reloc_control *rc)
 	struct btrfs_trans_handle *trans;
 	int ret;
 
-	rc->block_rsv = btrfs_alloc_block_rsv(rc->extent_root);
+	rc->block_rsv = btrfs_alloc_block_rsv(rc->extent_root,
+					      BTRFS_BLOCK_RSV_TEMP);
 	if (!rc->block_rsv)
 		return -ENOMEM;
 
