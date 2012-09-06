@@ -73,7 +73,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 	 * If so, DABR will be populated in single_step_dabr_instruction().
 	 */
 	if (current->thread.last_hit_ubp != bp)
-		set_dabr(info->address | info->type | DABR_TRANSLATION, DABRX_ALL);
+		set_dabr(info->address | info->type | DABR_TRANSLATION, info->dabrx);
 
 	return 0;
 }
@@ -170,6 +170,13 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 
 	info->address = bp->attr.bp_addr;
 	info->len = bp->attr.bp_len;
+	info->dabrx = DABRX_ALL;
+	if (bp->attr.exclude_user)
+		info->dabrx &= ~DABRX_USER;
+	if (bp->attr.exclude_kernel)
+		info->dabrx &= ~DABRX_KERNEL;
+	if (bp->attr.exclude_hv)
+		info->dabrx &= ~DABRX_HYP;
 
 	/*
 	 * Since breakpoint length can be a maximum of HW_BREAKPOINT_LEN(8)
@@ -197,7 +204,7 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 
 	info = counter_arch_bp(tsk->thread.last_hit_ubp);
 	regs->msr &= ~MSR_SE;
-	set_dabr(info->address | info->type | DABR_TRANSLATION, DABRX_ALL);
+	set_dabr(info->address | info->type | DABR_TRANSLATION, info->dabrx);
 	tsk->thread.last_hit_ubp = NULL;
 }
 
@@ -281,7 +288,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	if (!info->extraneous_interrupt)
 		perf_bp_event(bp, regs);
 
-	set_dabr(info->address | info->type | DABR_TRANSLATION, DABRX_ALL);
+	set_dabr(info->address | info->type | DABR_TRANSLATION, info->dabrx);
 out:
 	rcu_read_unlock();
 	return rc;
@@ -313,7 +320,7 @@ int __kprobes single_step_dabr_instruction(struct die_args *args)
 	if (!info->extraneous_interrupt)
 		perf_bp_event(bp, regs);
 
-	set_dabr(info->address | info->type | DABR_TRANSLATION, DABRX_ALL);
+	set_dabr(info->address | info->type | DABR_TRANSLATION, info->dabrx);
 	current->thread.last_hit_ubp = NULL;
 
 	/*

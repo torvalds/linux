@@ -28,6 +28,7 @@
 
 struct arch_hw_breakpoint {
 	unsigned long	address;
+	unsigned long	dabrx;
 	int		type;
 	u8		len; /* length of the target data symbol */
 	bool		extraneous_interrupt;

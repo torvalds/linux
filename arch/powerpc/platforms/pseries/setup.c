@@ -425,7 +425,7 @@ static int pseries_set_xdabr(unsigned long dabr, unsigned long dabrx)
 	if (dabrx == 0 && dabr == 0)
 		dabrx = DABRX_USER;
 	/* PAPR says we can only set kernel and user bits */
-	dabrx &= H_DABRX_KERNEL | H_DABRX_USER;
+	dabrx &= DABRX_KERNEL | DABRX_USER;
 
 	return plpar_hcall_norets(H_SET_XDABR, dabr, dabrx);
 }
