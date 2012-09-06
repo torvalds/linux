@@ -137,7 +137,7 @@ static int mpc8260cpm_attach(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < 4; i++) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 		s->n_chan = 32;
