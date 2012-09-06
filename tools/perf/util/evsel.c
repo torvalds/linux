@@ -68,7 +68,7 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
-static const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
+const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
 	"cycles",
 	"instructions",
 	"cache-references",
@@ -131,12 +131,12 @@ static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
 	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
-static const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
+const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
 	"cpu-clock",
 	"task-clock",
 	"page-faults",
 	"context-switches",
-	"CPU-migrations",
+	"cpu-migrations",
 	"minor-faults",
 	"major-faults",
 	"alignment-faults",

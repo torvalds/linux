@@ -1092,6 +1092,55 @@ static int test__perf_pmu(void)
 	return perf_pmu__test();
 }
 
+static int __perf_evsel__name_array_test(const char *names[], int nr_names)
+{
+	int i, err;
+	struct perf_evsel *evsel;
+        struct perf_evlist *evlist = perf_evlist__new(NULL, NULL);
+
+        if (evlist == NULL)
+                return -ENOMEM;
+
+	for (i = 0; i < nr_names; ++i) {
+		err = parse_events(evlist, names[i], 0);
+		if (err) {
+			pr_debug("failed to parse event '%s', err %d\n",
+				 names[i], err);
+			goto out_delete_evlist;
+		}
+	}
+
+	err = 0;
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if (strcmp(perf_evsel__name(evsel), names[evsel->idx])) {
+			--err;
+			pr_debug("%s != %s\n", perf_evsel__name(evsel), names[evsel->idx]);
+		}
+	}
+
+out_delete_evlist:
+	perf_evlist__delete(evlist);
+	return err;
+}
+
+#define perf_evsel__name_array_test(names) \
+	__perf_evsel__name_array_test(names, ARRAY_SIZE(names))
+
+static int perf_evsel__roundtrip_name_test(void)
+{
+	int err = 0, ret = 0;
+
+	err = perf_evsel__name_array_test(perf_evsel__hw_names);
+	if (err)
+		ret = err;
+
+	err = perf_evsel__name_array_test(perf_evsel__sw_names);
+	if (err)
+		ret = err;
+
+	return ret;
+}
+
 static struct test {
 	const char *desc;
 	int (*func)(void);
@@ -1133,6 +1182,10 @@ static struct test {
 	{
 		.desc = "Test dso data interface",
 		.func = dso__test_data,
+	},
+	{
+		.desc = "roundtrip evsel->name check",
+		.func = perf_evsel__roundtrip_name_test,
 	},
 	{
 		.func = NULL,
