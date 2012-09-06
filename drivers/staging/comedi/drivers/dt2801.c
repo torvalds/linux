@@ -532,7 +532,7 @@ static int dt2801_dio_insn_bits(struct comedi_device *dev,
 {
 	int which = 0;
 
-	if (s == dev->subdevices + 3)
+	if (s == &dev->subdevices[3])
 		which = 1;
 
 	if (data[0]) {
@@ -555,7 +555,7 @@ static int dt2801_dio_insn_config(struct comedi_device *dev,
 {
 	int which = 0;
 
-	if (s == dev->subdevices + 3)
+	if (s == &dev->subdevices[3])
 		which = 1;
 
 	/* configure */
@@ -636,7 +636,7 @@ havetype:
 
 	dev->board_name = boardtype.name;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
@@ -652,7 +652,7 @@ havetype:
 	s->range_table = ai_range_lkup(boardtype.adrangetype, it->options[3]);
 	s->insn_read = dt2801_ai_insn_read;
 
-	s++;
+	s = &dev->subdevices[1];
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -664,7 +664,7 @@ havetype:
 	s->insn_read = dt2801_ao_insn_read;
 	s->insn_write = dt2801_ao_insn_write;
 
-	s++;
+	s = &dev->subdevices[2];
 	/* 1st digital subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -674,7 +674,7 @@ havetype:
 	s->insn_bits = dt2801_dio_insn_bits;
 	s->insn_config = dt2801_dio_insn_config;
 
-	s++;
+	s = &dev->subdevices[3];
 	/* 2nd digital subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
