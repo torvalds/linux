@@ -1802,6 +1802,7 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 		if (!dev->radio_dev) {
 			printk(KERN_INFO "%s: can't register radio device\n",
 			       dev->name);
+			ret = -ENXIO;
 			return ret; /* FIXME release resource */
 		}
 
