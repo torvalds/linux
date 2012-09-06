@@ -20,7 +20,6 @@ endif
 KBUILD_AFLAGS           += $(call cc-option,-mno-fdpic)
 KBUILD_CFLAGS_MODULE    += -mlong-calls
 LDFLAGS                 += -m elf32bfin
-KALLSYMS         += --symbol-prefix=_
 
 KBUILD_DEFCONFIG := BF537-STAMP_defconfig
 
