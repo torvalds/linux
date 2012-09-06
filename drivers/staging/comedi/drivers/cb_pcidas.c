@@ -1560,7 +1560,7 @@ static int cb_pcidas_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
@@ -1577,7 +1577,7 @@ static int cb_pcidas_attach_pci(struct comedi_device *dev,
 	s->cancel = cb_pcidas_cancel;
 
 	/* analog output subdevice */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (thisboard->ao_nchan) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
@@ -1604,14 +1604,14 @@ static int cb_pcidas_attach_pci(struct comedi_device *dev,
 	}
 
 	/* 8255 */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	ret = subdev_8255_init(dev, s, NULL,
 			       devpriv->pacer_counter_dio + DIO_8255);
 	if (ret)
 		return ret;
 
 	/*  serial EEPROM, */
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_MEMORY;
 	s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
 	s->n_chan = 256;
@@ -1619,7 +1619,7 @@ static int cb_pcidas_attach_pci(struct comedi_device *dev,
 	s->insn_read = eeprom_read_insn;
 
 	/*  8800 caldac */
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = NUM_CHANNELS_8800;
@@ -1630,7 +1630,7 @@ static int cb_pcidas_attach_pci(struct comedi_device *dev,
 		caldac_8800_write(dev, i, s->maxdata / 2);
 
 	/*  trim potentiometer */
-	s = dev->subdevices + 5;
+	s = &dev->subdevices[5];
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	if (thisboard->trimpot == AD7376) {
@@ -1646,7 +1646,7 @@ static int cb_pcidas_attach_pci(struct comedi_device *dev,
 		cb_pcidas_trimpot_write(dev, i, s->maxdata / 2);
 
 	/*  dac08 caldac */
-	s = dev->subdevices + 6;
+	s = &dev->subdevices[6];
 	if (thisboard->has_dac08) {
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
@@ -1688,7 +1688,7 @@ static void cb_pcidas_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
+		subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (pcidev) {
 		if (devpriv->s5933_config)
 			comedi_pci_disable(pcidev);
