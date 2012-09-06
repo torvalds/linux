@@ -159,7 +159,7 @@ int machine_kexec_prepare(struct kimage *image)
 
 	/* Can't replace kernel image since it is read-only. */
 	if (ipl_flags & IPL_NSS_VALID)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	if (image->type == KEXEC_TYPE_CRASH)
 		return machine_kexec_prepare_kdump();
