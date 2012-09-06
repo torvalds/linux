@@ -546,6 +546,7 @@ static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
 			reg[0] = VMK8055_AI2_REG;
 		break;
 	case VMK8061_MODEL:
+	default:
 		reg[0] = VMK8061_AI_REG1;
 		reg[1] = VMK8061_AI_REG2;
 		dev->usb_tx_buf[0] = VMK8061_CMD_RD_AI;
@@ -904,6 +905,7 @@ static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
 			reg[0] = VMK8055_CNT2_REG;
 		break;
 	case VMK8061_MODEL:
+	default:
 		reg[0] = VMK8061_CNT_REG;
 		reg[1] = VMK8061_CNT_REG;
 		dev->usb_tx_buf[0] = VMK8061_CMD_RD_CNT;
