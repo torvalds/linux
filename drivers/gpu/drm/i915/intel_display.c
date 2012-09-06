@@ -6866,7 +6866,13 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 		intel_crtc = to_intel_crtc(connector->encoder->crtc);
 
 		if (prepare_pipes & (1 << intel_crtc->pipe)) {
+			struct drm_property *dpms_property =
+				dev->mode_config.dpms_property;
+
 			connector->dpms = DRM_MODE_DPMS_ON;
+			drm_connector_property_set_value(connector,
+							 dpms_property,
+							 DRM_MODE_DPMS_ON);
 
 			intel_encoder = to_intel_encoder(connector->encoder);
 			intel_encoder->connectors_active = true;
