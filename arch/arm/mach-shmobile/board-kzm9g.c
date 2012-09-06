@@ -384,6 +384,8 @@ static struct regulator_consumer_supply fixed2v8_power_consumers[] =
 
 /* SDHI */
 static struct sh_mobile_sdhi_info sdhi0_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
 	.tmio_ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
@@ -424,6 +426,8 @@ static struct platform_device sdhi0_device = {
 
 /* Micro SD */
 static struct sh_mobile_sdhi_info sdhi2_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI2_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI2_RX,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
 			  TMIO_MMC_USE_GPIO_CD |
 			  TMIO_MMC_WRPROTECT_DISABLE,
