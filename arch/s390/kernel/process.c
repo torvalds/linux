@@ -250,31 +250,6 @@ asmlinkage void execve_tail(void)
 }
 
 /*
- * sys_execve() executes a new program.
- */
-SYSCALL_DEFINE3(execve, const char __user *, name,
-		const char __user *const __user *, argv,
-		const char __user *const __user *, envp)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	char *filename;
-	long rc;
-
-	filename = getname(name);
-	rc = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return rc;
-	rc = do_execve(filename, argv, envp, regs);
-	if (rc)
-		goto out;
-	execve_tail();
-	rc = regs->gprs[2];
-out:
-	putname(filename);
-	return rc;
-}
-
-/*
  * fill in the FPU structure for a core dump.
  */
 int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)

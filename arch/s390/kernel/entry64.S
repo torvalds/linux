@@ -386,7 +386,6 @@ ENTRY(kernel_execve)
 	lg	%r12,__LC_THREAD_INFO
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
-	brasl	%r14,execve_tail
 	j	sysc_return
 
 /*

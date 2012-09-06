@@ -368,8 +368,6 @@ ENTRY(kernel_execve)
 	l	%r12,__LC_THREAD_INFO
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
-	l	%r1,BASED(.Lexecve_tail)
-	basr	%r14,%r1		# call execve_tail
 	j	sysc_return
 
 /*
@@ -932,7 +930,6 @@ cleanup_idle_wait:
 .Ldo_notify_resume:	.long	do_notify_resume
 .Ldo_per_trap:		.long	do_per_trap
 .Ldo_execve:		.long	do_execve
-.Lexecve_tail:		.long	execve_tail
 .Ljump_table:		.long	pgm_check_table
 .Lschedule:		.long	schedule
 #ifdef CONFIG_PREEMPT
