@@ -751,7 +751,7 @@ static int goto_high_power(struct gspca_dev *gspca_dev)
 	if (signal_pending(current))
 		return -EINTR;
 
-	do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
+	ret = do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
 	if (ret)
 		return ret;
 
