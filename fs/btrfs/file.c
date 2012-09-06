@@ -2000,7 +2000,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	 * Make sure we have enough space before we do the
 	 * allocation.
 	 */
-	ret = btrfs_check_data_free_space(inode, len);
+	ret = btrfs_check_data_free_space(inode, alloc_end - alloc_start + 1);
 	if (ret)
 		return ret;
 
@@ -2107,7 +2107,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 out:
 	mutex_unlock(&inode->i_mutex);
 	/* Let go of our reservation. */
-	btrfs_free_reserved_data_space(inode, len);
+	btrfs_free_reserved_data_space(inode, alloc_end - alloc_start + 1);
 	return ret;
 }
 
