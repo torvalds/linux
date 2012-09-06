@@ -224,7 +224,7 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	       dev->minor, devpriv->ioaddr);
 
 	for (i = 0; i < PCI20000_MODULES; i++) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 		id = readb(devpriv->ioaddr + (i + 1) * PCI20000_OFFSET);
 		s->private = devpriv->subdev_private + i;
 		sdp = s->private;
@@ -259,7 +259,7 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	}
 
 	/* initialize struct pci20xxx_private */
-	pci20xxx_dio_init(dev, dev->subdevices + PCI20000_MODULES);
+	pci20xxx_dio_init(dev, &dev->subdevices[PCI20000_MODULES]);
 
 	return 1;
 }
