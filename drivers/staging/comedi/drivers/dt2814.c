@@ -247,7 +247,7 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 
 	hi = inb(dev->iobase + DT2814_DATA);
 	lo = inb(dev->iobase + DT2814_DATA);
@@ -346,7 +346,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret < 0)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
