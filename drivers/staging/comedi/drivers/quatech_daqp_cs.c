@@ -878,7 +878,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_INFO "comedi%d: attaching daqp%d (io 0x%04lx)\n",
 	       dev->minor, it->options[0], dev->iobase);
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->private = local;
 	s->type = COMEDI_SUBD_AI;
@@ -892,7 +892,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->do_cmd = daqp_ai_cmd;
 	s->cancel = daqp_ai_cancel;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	dev->write_subdev = s;
 	s->private = local;
 	s->type = COMEDI_SUBD_AO;
@@ -903,7 +903,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_daqp_ao;
 	s->insn_write = daqp_ao_insn_write;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->private = local;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -911,7 +911,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 1;
 	s->insn_read = daqp_di_insn_read;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->private = local;
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE;
