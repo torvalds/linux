@@ -121,7 +121,7 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	/* DAQCard-700 dio */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 	s->n_chan	= 16;
