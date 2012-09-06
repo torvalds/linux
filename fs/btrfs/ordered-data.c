@@ -25,6 +25,8 @@
 #include "btrfs_inode.h"
 #include "extent_io.h"
 
+static struct kmem_cache *btrfs_ordered_extent_cache;
+
 static u64 entry_end(struct btrfs_ordered_extent *entry)
 {
 	if (entry->file_offset + entry->len < entry->file_offset)
@@ -187,7 +189,7 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	struct btrfs_ordered_extent *entry;
 
 	tree = &BTRFS_I(inode)->ordered_tree;
-	entry = kzalloc(sizeof(*entry), GFP_NOFS);
+	entry = kmem_cache_zalloc(btrfs_ordered_extent_cache, GFP_NOFS);
 	if (!entry)
 		return -ENOMEM;
 
@@ -421,7 +423,7 @@ void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 			list_del(&sum->list);
 			kfree(sum);
 		}
-		kfree(entry);
+		kmem_cache_free(btrfs_ordered_extent_cache, entry);
 	}
 }
 
@@ -957,4 +959,21 @@ void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 			      &root->fs_info->ordered_operations);
 	}
 	spin_unlock(&root->fs_info->ordered_extent_lock);
+}
+
+int __init ordered_data_init(void)
+{
+	btrfs_ordered_extent_cache = kmem_cache_create("btrfs_ordered_extent",
+				     sizeof(struct btrfs_ordered_extent), 0,
+				     SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+				     NULL);
+	if (!btrfs_ordered_extent_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void ordered_data_exit(void)
+{
+	if (btrfs_ordered_extent_cache)
+		kmem_cache_destroy(btrfs_ordered_extent_cache);
 }

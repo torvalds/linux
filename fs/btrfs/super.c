@@ -1620,9 +1620,13 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_extent_io;
 
-	err = btrfs_delayed_inode_init();
+	err = ordered_data_init();
 	if (err)
 		goto free_extent_map;
+
+	err = btrfs_delayed_inode_init();
+	if (err)
+		goto free_ordered_data;
 
 	err = btrfs_interface_init();
 	if (err)
@@ -1641,6 +1645,8 @@ unregister_ioctl:
 	btrfs_interface_exit();
 free_delayed_inode:
 	btrfs_delayed_inode_exit();
+free_ordered_data:
+	ordered_data_exit();
 free_extent_map:
 	extent_map_exit();
 free_extent_io:
@@ -1657,6 +1663,7 @@ static void __exit exit_btrfs_fs(void)
 {
 	btrfs_destroy_cachep();
 	btrfs_delayed_inode_exit();
+	ordered_data_exit();
 	extent_map_exit();
 	extent_io_exit();
 	btrfs_interface_exit();
