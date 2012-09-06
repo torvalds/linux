@@ -1551,9 +1551,9 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * ordered range does a filemape_write_and_wait_range which is why we
 	 * don't do it above like other file systems.
 	 */
-	root->log_batch++;
+	atomic_inc(&root->log_batch);
 	btrfs_wait_ordered_range(inode, start, end);
-	root->log_batch++;
+	atomic_inc(&root->log_batch);
 
 	/*
 	 * check the transaction that last modified this inode

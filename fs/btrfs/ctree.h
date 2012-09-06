@@ -1491,9 +1491,9 @@ struct btrfs_root {
 	wait_queue_head_t log_commit_wait[2];
 	atomic_t log_writers;
 	atomic_t log_commit[2];
+	atomic_t log_batch;
 	unsigned long log_transid;
 	unsigned long last_log_commit;
-	unsigned long log_batch;
 	pid_t log_start_pid;
 	bool log_multiple_pids;
 

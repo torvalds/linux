@@ -147,7 +147,7 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 			root->log_multiple_pids = true;
 		}
 
-		root->log_batch++;
+		atomic_inc(&root->log_batch);
 		atomic_inc(&root->log_writers);
 		mutex_unlock(&root->log_mutex);
 		return 0;
@@ -166,7 +166,7 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 			err = ret;
 	}
 	mutex_unlock(&root->fs_info->tree_log_mutex);
-	root->log_batch++;
+	atomic_inc(&root->log_batch);
 	atomic_inc(&root->log_writers);
 	mutex_unlock(&root->log_mutex);
 	return err;
@@ -2036,7 +2036,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	if (atomic_read(&root->log_commit[(index1 + 1) % 2]))
 		wait_log_commit(trans, root, root->log_transid - 1);
 	while (1) {
-		unsigned long batch = root->log_batch;
+		int batch = atomic_read(&root->log_batch);
 		/* when we're on an ssd, just kick the log commit out */
 		if (!btrfs_test_opt(root, SSD) && root->log_multiple_pids) {
 			mutex_unlock(&root->log_mutex);
@@ -2044,7 +2044,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 			mutex_lock(&root->log_mutex);
 		}
 		wait_for_writer(trans, root);
-		if (batch == root->log_batch)
+		if (batch == atomic_read(&root->log_batch))
 			break;
 	}
 
@@ -2073,7 +2073,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	btrfs_set_root_node(&log->root_item, log->node);
 
-	root->log_batch = 0;
 	root->log_transid++;
 	log->log_transid = root->log_transid;
 	root->log_start_pid = 0;
@@ -2086,7 +2085,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	mutex_unlock(&root->log_mutex);
 
 	mutex_lock(&log_root_tree->log_mutex);
-	log_root_tree->log_batch++;
+	atomic_inc(&log_root_tree->log_batch);
 	atomic_inc(&log_root_tree->log_writers);
 	mutex_unlock(&log_root_tree->log_mutex);
 
@@ -2156,7 +2155,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	btrfs_set_super_log_root_level(root->fs_info->super_for_commit,
 				btrfs_header_level(log_root_tree->node));
 
-	log_root_tree->log_batch = 0;
 	log_root_tree->log_transid++;
 	smp_mb();
 
