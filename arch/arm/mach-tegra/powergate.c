@@ -199,7 +199,9 @@ int __init tegra_powergate_init(void)
 
 #ifdef CONFIG_DEBUG_FS
 
-static const char * const powergate_name[] = {
+static const char * const *powergate_name;
+
+static const char * const powergate_name_t20[] = {
 	[TEGRA_POWERGATE_CPU]	= "cpu",
 	[TEGRA_POWERGATE_3D]	= "3d",
 	[TEGRA_POWERGATE_VENC]	= "venc",
@@ -207,6 +209,23 @@ static const char * const powergate_name[] = {
 	[TEGRA_POWERGATE_PCIE]	= "pcie",
 	[TEGRA_POWERGATE_L2]	= "l2",
 	[TEGRA_POWERGATE_MPE]	= "mpe",
+};
+
+static const char * const powergate_name_t30[] = {
+	[TEGRA_POWERGATE_CPU]	= "cpu0",
+	[TEGRA_POWERGATE_3D]	= "3d0",
+	[TEGRA_POWERGATE_VENC]	= "venc",
+	[TEGRA_POWERGATE_VDEC]	= "vdec",
+	[TEGRA_POWERGATE_PCIE]	= "pcie",
+	[TEGRA_POWERGATE_L2]	= "l2",
+	[TEGRA_POWERGATE_MPE]	= "mpe",
+	[TEGRA_POWERGATE_HEG]	= "heg",
+	[TEGRA_POWERGATE_SATA]	= "sata",
+	[TEGRA_POWERGATE_CPU1]	= "cpu1",
+	[TEGRA_POWERGATE_CPU2]	= "cpu2",
+	[TEGRA_POWERGATE_CPU3]	= "cpu3",
+	[TEGRA_POWERGATE_CELP]	= "celp",
+	[TEGRA_POWERGATE_3D1]	= "3d1",
 };
 
 static int powergate_show(struct seq_file *s, void *data)
@@ -238,10 +257,21 @@ int __init tegra_powergate_debugfs_init(void)
 {
 	struct dentry *d;
 
-	d = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
-		&powergate_fops);
-	if (!d)
-		return -ENOMEM;
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		powergate_name = powergate_name_t20;
+		break;
+	case TEGRA30:
+		powergate_name = powergate_name_t30;
+		break;
+	}
+
+	if (powergate_name) {
+		d = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
+			&powergate_fops);
+		if (!d)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
