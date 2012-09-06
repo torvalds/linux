@@ -539,8 +539,6 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.restart	= v2m_restart,
 MACHINE_END
 
-#if defined(CONFIG_ARCH_VEXPRESS_DT)
-
 static struct map_desc v2m_rs1_io_desc __initdata = {
 	.virtual	= V2M_PERIPH,
 	.pfn		= __phys_to_pfn(0x1c000000),
@@ -671,5 +669,3 @@ DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.handle_irq	= gic_handle_irq,
 	.restart	= v2m_restart,
 MACHINE_END
-
-#endif

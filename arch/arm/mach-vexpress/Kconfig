@@ -1,3 +1,38 @@
+config ARCH_VEXPRESS
+	bool "ARM Ltd. Versatile Express family" if ARCH_MULTI_V7
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	select HAVE_PATA_PLATFORM
+	select HAVE_SMP
+	select ICST
+	select MIGHT_HAVE_CACHE_L2X0
+	select NO_IOPORT
+	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	help
+	  This option enables support for systems using Cortex processor based
+	  ARM core and logic (FPGA) tiles on the Versatile Express motherboard,
+	  for example:
+
+	  - CoreTile Express A5x2 (V2P-CA5s)
+	  - CoreTile Express A9x4 (V2P-CA9)
+	  - CoreTile Express A15x2 (V2P-CA15)
+	  - LogicTile Express 13MG (V2F-2XV6) with A5, A7, A9 or A15 SMMs
+	    (Soft Macrocell Models)
+	  - Versatile Express RTSMs (Models)
+
+	  You must boot using a Flattened Device Tree in order to use these
+	  platforms. The traditional (ATAGs) boot method is not usable on
+	  these boards with this option.
+
 menu "Versatile Express platform type"
 	depends on ARCH_VEXPRESS
 
@@ -15,40 +50,5 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 
 config ARCH_VEXPRESS_CA9X4
 	bool "Versatile Express Cortex-A9x4 tile"
-	select ARM_GIC
-	select CPU_V7
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-
-config ARCH_VEXPRESS_DT
-	bool "Device Tree support for Versatile Express platforms"
-	select ARM_GIC
-	select ARM_PATCH_PHYS_VIRT
-	select AUTO_ZRELADDR
-	select CPU_V7
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-	select USE_OF
-	help
-	  New Versatile Express platforms require Flattened Device Tree to
-	  be passed to the kernel.
-
-	  This option enables support for systems using Cortex processor based
-	  ARM core and logic (FPGA) tiles on the Versatile Express motherboard,
-	  for example:
-
-	  - CoreTile Express A5x2 (V2P-CA5s)
-	  - CoreTile Express A9x4 (V2P-CA9)
-	  - CoreTile Express A15x2 (V2P-CA15)
-	  - LogicTile Express 13MG (V2F-2XV6) with A5, A7, A9 or A15 SMMs
-	    (Soft Macrocell Models)
-	  - Versatile Express RTSMs (Models)
-
-	  You must boot using a Flattened Device Tree in order to use these
-	  platforms. The traditional (ATAGs) boot method is not usable on
-	  these boards with this option.
-
-	  If your bootloader supports Flattened Device Tree based booting,
-	  say Y here.
 
 endmenu
