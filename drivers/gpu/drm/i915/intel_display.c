@@ -7296,7 +7296,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	struct drm_mode_set save_set;
 	struct intel_set_config *config;
 	int ret;
-	int i;
 
 	BUG_ON(!set);
 	BUG_ON(!set->crtc);
@@ -7359,15 +7358,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 				  set->crtc->base.id);
 			ret = -EINVAL;
 			goto fail;
-		}
-
-		if (set->crtc->enabled) {
-			DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
-			for (i = 0; i < set->num_connectors; i++) {
-				DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
-					      drm_get_connector_name(set->connectors[i]));
-				set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
-			}
 		}
 	} else if (config->fb_changed) {
 		ret = intel_pipe_set_base(set->crtc,
