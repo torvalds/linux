@@ -247,7 +247,7 @@ static int ni_670x_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -271,7 +271,7 @@ static int ni_670x_attach(struct comedi_device *dev,
 	s->insn_write = &ni_670x_ao_winsn;
 	s->insn_read = &ni_670x_ao_rinsn;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* digital i/o subdevice */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -298,7 +298,7 @@ static void ni_670x_detach(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 
 	if (dev->n_subdevices) {
-		s = dev->subdevices + 0;
+		s = &dev->subdevices[0];
 		if (s)
 			kfree(s->range_table_list);
 	}
