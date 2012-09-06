@@ -628,7 +628,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		return ret;
 
 	/* analog input subdevice */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags =
@@ -643,7 +643,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	s->cancel = labpc_cancel;
 
 	/* analog output */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (thisboard->has_ao) {
 		/*
 		 * Could provide command support, except it only has a
@@ -670,7 +670,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	}
 
 	/* 8255 dio */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/*  if board uses io memory we have to give a custom callback
 	 * function to the 8255 driver */
 	if (thisboard->memory_mapped_io)
@@ -680,7 +680,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		subdev_8255_init(dev, s, NULL, dev->iobase + DIO_BASE_REG);
 
 	/*  calibration subdevices for boards that have one */
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	if (thisboard->register_layout == labpc_1200_layout) {
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
@@ -695,7 +695,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/* EEPROM */
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	if (thisboard->register_layout == labpc_1200_layout) {
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
@@ -809,8 +809,12 @@ static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 
 void labpc_common_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
+	struct comedi_subdevice *s;
+
+	if (dev->subdevices) {
+		s = &dev->subdevices[2];
+		subdev_8255_cleanup(dev, s);
+	}
 #ifdef CONFIG_ISA_DMA_API
 	/* only free stuff if it has been allocated by _attach */
 	kfree(devpriv->dma_buffer);
