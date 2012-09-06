@@ -35,10 +35,6 @@
 #include "internal.h"
 #include "iwl-op-mode.h"
 
-#ifdef CONFIG_IWLWIFI_IDI
-#include "iwl-amfh.h"
-#endif
-
 /******************************************************************************
  *
  * RX path functions
@@ -723,11 +719,9 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		/* Disable periodic interrupt; we use it as just a one-shot. */
 		iwl_write8(trans, CSR_INT_PERIODIC_REG,
 			    CSR_INT_PERIODIC_DIS);
-#ifdef CONFIG_IWLWIFI_IDI
-		iwl_amfh_rx_handler();
-#else
+
 		iwl_rx_handle(trans);
-#endif
+
 		/*
 		 * Enable periodic interrupt in 8 msec only if we received
 		 * real RX interrupt (instead of just periodic int), to catch
