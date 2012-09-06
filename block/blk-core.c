@@ -2807,7 +2807,7 @@ int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 
 free_and_out:
 	if (bio)
-		bio_free(bio, bs);
+		bio_put(bio);
 	blk_rq_unprep_clone(rq);
 
 	return -ENOMEM;

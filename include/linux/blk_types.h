@@ -84,10 +84,7 @@ struct bio {
 
 	struct bio_vec		*bi_io_vec;	/* the actual vec list */
 
-	/* If bi_pool is non NULL, bi_destructor is not called */
 	struct bio_set		*bi_pool;
-
-	bio_destructor_t	*bi_destructor;	/* destructor */
 
 	/*
 	 * We can inline a number of vecs at the end of the bio, to avoid
