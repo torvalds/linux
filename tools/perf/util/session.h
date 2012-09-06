@@ -36,9 +36,7 @@ struct perf_session {
 	struct pevent		*pevent;
 	/*
 	 * FIXME: Need to split this up further, we need global
-	 *	  stats + per event stats. 'perf diff' also needs
-	 *	  to properly support multiple events in a single
-	 *	  perf.data file.
+	 *	  stats + per event stats.
 	 */
 	struct hists		hists;
 	int			fd;

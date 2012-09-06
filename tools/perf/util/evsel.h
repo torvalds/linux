@@ -124,6 +124,13 @@ void perf_evsel__close(struct perf_evsel *evsel, int ncpus, int nthreads);
 	(evsel->attr.type == PERF_TYPE_##t &&	\
 	 evsel->attr.config == PERF_COUNT_##c)
 
+static inline bool perf_evsel__match2(struct perf_evsel *e1,
+				      struct perf_evsel *e2)
+{
+	return (e1->attr.type == e2->attr.type) &&
+	       (e1->attr.config == e2->attr.config);
+}
+
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 			      int cpu, int thread, bool scale);
 
