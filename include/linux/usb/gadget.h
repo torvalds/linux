@@ -503,6 +503,8 @@ struct usb_gadget_ops {
  * @name: Identifies the controller hardware type.  Used in diagnostics
  *	and sometimes configuration.
  * @dev: Driver model state for this abstract device.
+ * @out_epnum: last used out ep number
+ * @in_epnum: last used in ep number
  *
  * Gadgets have a mostly-portable "gadget driver" implementing device
  * functions, handling all usb configurations and interfaces.  Gadget
@@ -537,6 +539,8 @@ struct usb_gadget {
 	unsigned			a_alt_hnp_support:1;
 	const char			*name;
 	struct device			dev;
+	unsigned			out_epnum;
+	unsigned			in_epnum;
 };
 
 static inline void set_gadget_data(struct usb_gadget *gadget, void *data)
