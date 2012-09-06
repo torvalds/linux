@@ -4,6 +4,15 @@
 comment "USB Physical Layer drivers"
 	depends on USB || USB_GADGET
 
+config OMAP_USB2
+	tristate "OMAP USB2 PHY Driver"
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the transceiver that is part of SOC. This
+	  driver takes care of all the PHY functionality apart from comparator.
+	  The USB OTG controller communicates with the comparator using this
+	  driver.
+
 config USB_ISP1301
 	tristate "NXP ISP1301 USB transceiver support"
 	depends on USB || USB_GADGET
