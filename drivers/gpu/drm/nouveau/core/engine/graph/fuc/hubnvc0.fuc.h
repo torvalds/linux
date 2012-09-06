@@ -1,4 +1,9 @@
-static uint32_t nvc0_grhub_data[] = {
+uint32_t nvc0_grhub_data[] = {
+/* 0x0000: gpc_count */
+	0x00000000,
+/* 0x0004: rop_count */
+	0x00000000,
+/* 0x0008: cmd_queue */
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -17,11 +22,13 @@ static uint32_t nvc0_grhub_data[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
+/* 0x0050: hub_mmio_list_head */
 	0x00000000,
+/* 0x0054: hub_mmio_list_tail */
 	0x00000000,
+/* 0x0058: ctx_current */
 	0x00000000,
-	0x00000000,
-	0x00000000,
+/* 0x005c: chipsets */
 	0x000000c0,
 	0x013c00a0,
 	0x000000c1,
@@ -39,6 +46,7 @@ static uint32_t nvc0_grhub_data[] = {
 	0x000000d9,
 	0x01dc0140,
 	0x00000000,
+/* 0x00a0: nvc0_hub_mmio_head */
 	0x0417e91c,
 	0x04400204,
 	0x28404004,
@@ -78,7 +86,10 @@ static uint32_t nvc0_grhub_data[] = {
 	0x08408800,
 	0x0c408900,
 	0x00408980,
+/* 0x013c: nvc0_hub_mmio_tail */
 	0x044064c0,
+/* 0x0140: nvc1_hub_mmio_tail */
+/* 0x0140: nvd9_hub_mmio_head */
 	0x0417e91c,
 	0x04400204,
 	0x24404004,
@@ -118,6 +129,7 @@ static uint32_t nvc0_grhub_data[] = {
 	0x08408800,
 	0x0c408900,
 	0x00408980,
+/* 0x01dc: nvd9_hub_mmio_tail */
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -127,7 +139,10 @@ static uint32_t nvc0_grhub_data[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
+/* 0x0200: chan_data */
+/* 0x0200: chan_mmio_count */
 	0x00000000,
+/* 0x0204: chan_mmio_address */
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -191,17 +206,20 @@ static uint32_t nvc0_grhub_data[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
+/* 0x0300: xfer_data */
 	0x00000000,
 };
 
-static uint32_t nvc0_grhub_code[] = {
+uint32_t nvc0_grhub_code[] = {
 	0x03090ef5,
+/* 0x0004: queue_put */
 	0x9800d898,
 	0x86f001d9,
 	0x0489b808,
 	0xf00c1bf4,
 	0x21f502f7,
 	0x00f802ec,
+/* 0x001c: queue_put_next */
 	0xb60798c4,
 	0x8dbb0384,
 	0x0880b600,
@@ -209,6 +227,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0x90b6018f,
 	0x0f94f001,
 	0xf801d980,
+/* 0x0039: queue_get */
 	0x0131f400,
 	0x9800d898,
 	0x89b801d9,
@@ -220,37 +239,46 @@ static uint32_t nvc0_grhub_code[] = {
 	0x80b6019f,
 	0x0f84f001,
 	0xf400d880,
+/* 0x0066: queue_get_done */
 	0x00f80132,
+/* 0x0068: nv_rd32 */
 	0x0728b7f1,
 	0xb906b4b6,
 	0xc9f002ec,
 	0x00bcd01f,
+/* 0x0078: nv_rd32_wait */
 	0xc800bccf,
 	0x1bf41fcc,
 	0x06a7f0fa,
 	0x010321f5,
 	0xf840bfcf,
+/* 0x008d: nv_wr32 */
 	0x28b7f100,
 	0x06b4b607,
 	0xb980bfd0,
 	0xc9f002ec,
 	0x1ec9f01f,
+/* 0x00a3: nv_wr32_wait */
 	0xcf00bcd0,
 	0xccc800bc,
 	0xfa1bf41f,
+/* 0x00ae: watchdog_reset */
 	0x87f100f8,
 	0x84b60430,
 	0x1ff9f006,
 	0xf8008fd0,
+/* 0x00bd: watchdog_clear */
 	0x3087f100,
 	0x0684b604,
 	0xf80080d0,
+/* 0x00c9: wait_donez */
 	0x3c87f100,
 	0x0684b608,
 	0x99f094bd,
 	0x0089d000,
 	0x081887f1,
 	0xd00684b6,
+/* 0x00e2: wait_done_wait_donez */
 	0x87f1008a,
 	0x84b60400,
 	0x0088cf06,
@@ -259,6 +287,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0x84b6085c,
 	0xf094bd06,
 	0x89d00099,
+/* 0x0103: wait_doneo */
 	0xf100f800,
 	0xb6083c87,
 	0x94bd0684,
@@ -266,6 +295,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0x87f10089,
 	0x84b60818,
 	0x008ad006,
+/* 0x011c: wait_done_wait_doneo */
 	0x040087f1,
 	0xcf0684b6,
 	0x8aff0088,
@@ -274,6 +304,8 @@ static uint32_t nvc0_grhub_code[] = {
 	0xbd0684b6,
 	0x0099f094,
 	0xf80089d0,
+/* 0x013d: mmctx_size */
+/* 0x013f: nv_mmctx_size_loop */
 	0x9894bd00,
 	0x85b600e8,
 	0x0180b61a,
@@ -282,6 +314,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0x04efb804,
 	0xb9eb1bf4,
 	0x00f8029f,
+/* 0x015c: mmctx_xfer */
 	0x083c87f1,
 	0xbd0684b6,
 	0x0199f094,
@@ -291,9 +324,11 @@ static uint32_t nvc0_grhub_code[] = {
 	0xf405bbfd,
 	0x8bd0090b,
 	0x0099f000,
+/* 0x0180: mmctx_base_disabled */
 	0xf405eefd,
 	0x8ed00c0b,
 	0xc08fd080,
+/* 0x018f: mmctx_multi_disabled */
 	0xb70199f0,
 	0xc8010080,
 	0xb4b600ab,
@@ -301,6 +336,8 @@ static uint32_t nvc0_grhub_code[] = {
 	0xb601aec8,
 	0xbefd11e4,
 	0x008bd005,
+/* 0x01a8: mmctx_exec_loop */
+/* 0x01a8: mmctx_wait_free */
 	0xf0008ecf,
 	0x0bf41fe4,
 	0x00ce98fa,
@@ -309,34 +346,42 @@ static uint32_t nvc0_grhub_code[] = {
 	0x04cdb804,
 	0xc8e81bf4,
 	0x1bf402ab,
+/* 0x01c9: mmctx_fini_wait */
 	0x008bcf18,
 	0xb01fb4f0,
 	0x1bf410b4,
 	0x02a7f0f7,
 	0xf4c921f4,
+/* 0x01de: mmctx_stop */
 	0xabc81b0e,
 	0x10b4b600,
 	0xf00cb9f0,
 	0x8bd012b9,
+/* 0x01ed: mmctx_stop_wait */
 	0x008bcf00,
 	0xf412bbc8,
+/* 0x01f6: mmctx_done */
 	0x87f1fa1b,
 	0x84b6085c,
 	0xf094bd06,
 	0x89d00199,
+/* 0x0207: strand_wait */
 	0xf900f800,
 	0x02a7f0a0,
 	0xfcc921f4,
+/* 0x0213: strand_pre */
 	0xf100f8a0,
 	0xf04afc87,
 	0x97f00283,
 	0x0089d00c,
 	0x020721f5,
+/* 0x0226: strand_post */
 	0x87f100f8,
 	0x83f04afc,
 	0x0d97f002,
 	0xf50089d0,
 	0xf8020721,
+/* 0x0239: strand_set */
 	0xfca7f100,
 	0x02a3f04f,
 	0x0500aba2,
@@ -347,6 +392,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0xf000aed0,
 	0xbcd00ac7,
 	0x0721f500,
+/* 0x0263: strand_ctx_init */
 	0xf100f802,
 	0xb6083c87,
 	0x94bd0684,
@@ -369,6 +415,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0x0684b608,
 	0xb70089cf,
 	0x95220080,
+/* 0x02ba: ctx_init_strand_loop */
 	0x8ed008fe,
 	0x408ed000,
 	0xb6808acf,
@@ -382,6 +429,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0x94bd0684,
 	0xd00399f0,
 	0x00f80089,
+/* 0x02ec: error */
 	0xe7f1e0f9,
 	0xe4b60814,
 	0x00efd006,
@@ -389,6 +437,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0xf006e4b6,
 	0xefd001f7,
 	0xf8e0fc00,
+/* 0x0309: init */
 	0xfe04bd00,
 	0x07fe0004,
 	0x0017f100,
@@ -429,11 +478,13 @@ static uint32_t nvc0_grhub_code[] = {
 	0x080027f1,
 	0xcf0624b6,
 	0xf7f00022,
+/* 0x03a9: init_find_chipset */
 	0x08f0b654,
 	0xb800f398,
 	0x0bf40432,
 	0x0034b00b,
 	0xf8f11bf4,
+/* 0x03bd: init_context */
 	0x0017f100,
 	0x02fe5801,
 	0xf003ff58,
@@ -454,6 +505,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0x001fbb02,
 	0xf1000398,
 	0xf0200047,
+/* 0x040e: init_gpc */
 	0x4ea05043,
 	0x1fb90804,
 	0x8d21f402,
@@ -467,6 +519,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0xf7f00100,
 	0x8d21f402,
 	0x08004ea0,
+/* 0x0440: init_gpc_wait */
 	0xc86821f4,
 	0x0bf41fff,
 	0x044ea0fa,
@@ -479,6 +532,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0xb74021d0,
 	0xbd080020,
 	0x1f19f014,
+/* 0x0473: main */
 	0xf40021d0,
 	0x28f40031,
 	0x08d7f000,
@@ -517,6 +571,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0x94bd0684,
 	0xd00699f0,
 	0x0ef40089,
+/* 0x0509: chsw_prev_no_next */
 	0xb920f931,
 	0x32f40212,
 	0x0232f401,
@@ -524,10 +579,12 @@ static uint32_t nvc0_grhub_code[] = {
 	0x17f120fc,
 	0x14b60b00,
 	0x0012d006,
+/* 0x0527: chsw_no_prev */
 	0xc8130ef4,
 	0x0bf41f23,
 	0x0131f40d,
 	0xf50232f4,
+/* 0x0537: chsw_done */
 	0xf1082921,
 	0xb60b0c17,
 	0x27f00614,
@@ -536,10 +593,12 @@ static uint32_t nvc0_grhub_code[] = {
 	0xbd0684b6,
 	0x0499f094,
 	0xf50089d0,
+/* 0x0557: main_not_ctx_switch */
 	0xb0ff200e,
 	0x1bf401e4,
 	0x02f2b90d,
 	0x07b521f5,
+/* 0x0567: main_not_ctx_chan */
 	0xb0420ef4,
 	0x1bf402e4,
 	0x3c87f12e,
@@ -553,14 +612,17 @@ static uint32_t nvc0_grhub_code[] = {
 	0xf094bd06,
 	0x89d00799,
 	0x110ef400,
+/* 0x0598: main_not_ctx_save */
 	0xf010ef94,
 	0x21f501f5,
 	0x0ef502ec,
+/* 0x05a6: main_done */
 	0x17f1fed1,
 	0x14b60820,
 	0xf024bd06,
 	0x12d01f29,
 	0xbe0ef500,
+/* 0x05b9: ih */
 	0xfe80f9fe,
 	0x80f90188,
 	0xa0f990f9,
@@ -574,16 +636,19 @@ static uint32_t nvc0_grhub_code[] = {
 	0x21f400bf,
 	0x00b0b704,
 	0x01e7f004,
+/* 0x05ef: ih_no_fifo */
 	0xe400bed0,
 	0xf40100ab,
 	0xd7f00d0b,
 	0x01e7f108,
 	0x0421f440,
+/* 0x0600: ih_no_ctxsw */
 	0x0104b7f1,
 	0xabffb0bd,
 	0x0d0bf4b4,
 	0x0c1ca7f1,
 	0xd006a4b6,
+/* 0x0616: ih_no_other */
 	0x0ad000ab,
 	0xfcf0fc40,
 	0xfcd0fce0,
@@ -591,32 +656,40 @@ static uint32_t nvc0_grhub_code[] = {
 	0xfe80fc90,
 	0x80fc0088,
 	0xf80032f4,
+/* 0x0631: ctx_4160s */
 	0x60e7f101,
 	0x40e3f041,
 	0xf401f7f0,
+/* 0x063e: ctx_4160s_wait */
 	0x21f48d21,
 	0x04ffc868,
 	0xf8fa0bf4,
+/* 0x0649: ctx_4160c */
 	0x60e7f100,
 	0x40e3f041,
 	0x21f4f4bd,
+/* 0x0657: ctx_4170s */
 	0xf100f88d,
 	0xf04170e7,
 	0xf5f040e3,
 	0x8d21f410,
+/* 0x0666: ctx_4170w */
 	0xe7f100f8,
 	0xe3f04170,
 	0x6821f440,
 	0xf410f4f0,
 	0x00f8f31b,
+/* 0x0678: ctx_redswitch */
 	0x0614e7f1,
 	0xf106e4b6,
 	0xd00270f7,
 	0xf7f000ef,
+/* 0x0689: ctx_redswitch_delay */
 	0x01f2b608,
 	0xf1fd1bf4,
 	0xd00770f7,
 	0x00f800ef,
+/* 0x0698: ctx_86c */
 	0x086ce7f1,
 	0xd006e4b6,
 	0xe7f100ef,
@@ -625,6 +698,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0xa86ce7f1,
 	0xf441e3f0,
 	0x00f88d21,
+/* 0x06b8: ctx_load */
 	0x083c87f1,
 	0xbd0684b6,
 	0x0599f094,
@@ -639,6 +713,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0x0614b60a,
 	0xd00747f0,
 	0x14d00012,
+/* 0x06f1: ctx_chan_wait_0 */
 	0x4014cf40,
 	0xf41f44f0,
 	0x32d0fa1b,
@@ -688,6 +763,7 @@ static uint32_t nvc0_grhub_code[] = {
 	0xbd0684b6,
 	0x0599f094,
 	0xf80089d0,
+/* 0x07b5: ctx_chan */
 	0x3121f500,
 	0xb821f506,
 	0x0ca7f006,
@@ -695,39 +771,48 @@ static uint32_t nvc0_grhub_code[] = {
 	0xb60a1017,
 	0x27f00614,
 	0x0012d005,
+/* 0x07d0: ctx_chan_wait */
 	0xfd0012cf,
 	0x1bf40522,
 	0x4921f5fa,
+/* 0x07df: ctx_mmio_exec */
 	0x9800f806,
 	0x27f18103,
 	0x24b60a04,
 	0x0023d006,
+/* 0x07ee: ctx_mmio_loop */
 	0x34c434bd,
 	0x0f1bf4ff,
 	0x030057f1,
 	0xfa0653f0,
 	0x03f80535,
+/* 0x0800: ctx_mmio_pull */
 	0x98c04e98,
 	0x21f4c14f,
 	0x0830b68d,
 	0xf40112b6,
+/* 0x0812: ctx_mmio_done */
 	0x0398df1b,
 	0x0023d016,
 	0xf1800080,
 	0xf0020017,
 	0x01fa0613,
 	0xf803f806,
+/* 0x0829: ctx_xfer */
 	0x0611f400,
+/* 0x082f: ctx_xfer_pre */
 	0xf01102f4,
 	0x21f510f7,
 	0x21f50698,
 	0x11f40631,
+/* 0x083d: ctx_xfer_pre_load */
 	0x02f7f01c,
 	0x065721f5,
 	0x066621f5,
 	0x067821f5,
 	0x21f5f4bd,
 	0x21f50657,
+/* 0x0856: ctx_xfer_exec */
 	0x019806b8,
 	0x1427f116,
 	0x0624b604,
@@ -762,9 +847,11 @@ static uint32_t nvc0_grhub_code[] = {
 	0x0a1017f1,
 	0xf00614b6,
 	0x12d00527,
+/* 0x08dd: ctx_xfer_post_save_wait */
 	0x0012cf00,
 	0xf40522fd,
 	0x02f4fa1b,
+/* 0x08e9: ctx_xfer_post */
 	0x02f7f032,
 	0x065721f5,
 	0x21f5f4bd,
@@ -776,7 +863,9 @@ static uint32_t nvc0_grhub_code[] = {
 	0x11fd8001,
 	0x070bf405,
 	0x07df21f5,
+/* 0x0914: ctx_xfer_no_post_mmio */
 	0x064921f5,
+/* 0x0918: ctx_xfer_done */
 	0x000000f8,
 	0x00000000,
 	0x00000000,

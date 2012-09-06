@@ -24,7 +24,7 @@
  */
 
 /* To build:
- *    m4 nvc0_grgpc.fuc | envyas -a -w -m fuc -V nva3 -o nvc0_grgpc.fuc.h
+ *    m4 gpcnvc0.fuc | envyas -a -w -m fuc -V fuc3 -o gpcnvc0.fuc.h
  */
 
 /* TODO
@@ -33,7 +33,7 @@
  */
 
 .section #nvc0_grgpc_data
-include(`nvc0_graph.fuc')
+include(`nvc0.fuc')
 gpc_id:			.b32 0
 gpc_mmio_list_head:	.b32 0
 gpc_mmio_list_tail:	.b32 0
@@ -209,11 +209,11 @@ nvd9_tpc_mmio_tail:
 .section #nvc0_grgpc_code
 bra #init
 define(`include_code')
-include(`nvc0_graph.fuc')
+include(`nvc0.fuc')
 
 // reports an exception to the host
 //
-// In: $r15 error code (see nvc0_graph.fuc)
+// In: $r15 error code (see nvc0.fuc)
 //
 error:
 	push $r14

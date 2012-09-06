@@ -24,11 +24,11 @@
  */
 
 /* To build:
- *    m4 nvc0_grhub.fuc | envyas -a -w -m fuc -V nva3 -o nvc0_grhub.fuc.h
+ *    m4 hubnvc0.fuc | envyas -a -w -m fuc -V fuc3 -o hubnvc0.fuc.h
  */
 
 .section #nvc0_grhub_data
-include(`nvc0_graph.fuc')
+include(`nvc0.fuc')
 gpc_count:		.b32 0
 rop_count:		.b32 0
 cmd_queue:		queue_init
@@ -161,11 +161,11 @@ xfer_data: 		.b32 0
 .section #nvc0_grhub_code
 bra #init
 define(`include_code')
-include(`nvc0_graph.fuc')
+include(`nvc0.fuc')
 
 // reports an exception to the host
 //
-// In: $r15 error code (see nvc0_graph.fuc)
+// In: $r15 error code (see nvc0.fuc)
 //
 error:
 	push $r14
