@@ -650,7 +650,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	/* ai */
 	s->type = COMEDI_SUBD_AI;
@@ -666,7 +666,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	s->cancel = das16m1_cancel;
 	s->poll = das16m1_poll;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* di */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -675,7 +675,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = das16m1_di_rbits;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* do */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -684,7 +684,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = das16m1_do_wbits;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* 8255 */
 	subdev_8255_init(dev, s, NULL, dev->iobase + DAS16M1_82C55);
 
@@ -707,7 +707,7 @@ static int das16m1_attach(struct comedi_device *dev,
 static void das16m1_detach(struct comedi_device *dev)
 {
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 3);
+		subdev_8255_cleanup(dev, &dev->subdevices[3]);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->iobase) {
