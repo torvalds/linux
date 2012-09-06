@@ -478,7 +478,7 @@ static int das16cs_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type		= COMEDI_SUBD_AI;
@@ -491,7 +491,7 @@ static int das16cs_attach(struct comedi_device *dev,
 	s->do_cmd	= das16cs_ai_cmd;
 	s->do_cmdtest	= das16cs_ai_cmdtest;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	if (thisboard->n_ao_chans) {
 		s->type		= COMEDI_SUBD_AO;
@@ -505,7 +505,7 @@ static int das16cs_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
