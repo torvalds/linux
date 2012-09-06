@@ -469,6 +469,17 @@ static void init_channel_allocations(void)
 	}
 }
 
+static int get_channel_allocation_order(int ca)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(channel_allocations); i++) {
+		if (channel_allocations[i].ca_index == ca)
+			break;
+	}
+	return i;
+}
+
 /*
  * The transformation takes two steps:
  *
@@ -541,9 +552,11 @@ static void hdmi_setup_channel_mapping(struct hda_codec *codec,
 {
 	int i;
 	int err;
+	int order;
 
+	order = get_channel_allocation_order(ca);
 	if (hdmi_channel_mapping[ca][1] == 0) {
-		for (i = 0; i < channel_allocations[ca].channels; i++)
+		for (i = 0; i < channel_allocations[order].channels; i++)
 			hdmi_channel_mapping[ca][i] = i | (i << 4);
 		for (; i < 8; i++)
 			hdmi_channel_mapping[ca][i] = 0xf | (i << 4);
