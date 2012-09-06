@@ -220,7 +220,7 @@ static int vhci_hub_status(struct usb_hcd *hcd, char *buf)
 
 	pr_info("changed %d\n", changed);
 
-	if (hcd->state == HC_STATE_SUSPENDED)
+	if ((hcd->state == HC_STATE_SUSPENDED) && (changed == 1))
 		usb_hcd_resume_root_hub(hcd);
 
 done:
