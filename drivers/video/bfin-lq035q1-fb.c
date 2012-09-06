@@ -577,6 +577,7 @@ static int __devinit bfin_lq035q1_probe(struct platform_device *pdev)
 	info = fbinfo->par;
 	info->fb = fbinfo;
 	info->dev = &pdev->dev;
+	spin_lock_init(&info->lock);
 
 	info->disp_info = pdev->dev.platform_data;
 
