@@ -889,3 +889,16 @@ int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *even
 	struct perf_evsel *evsel = perf_evlist__first(evlist);
 	return perf_evsel__parse_sample(evsel, event, sample, swapped);
 }
+
+size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp)
+{
+	struct perf_evsel *evsel;
+	size_t printed = 0;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		printed += fprintf(fp, "%s%s", evsel->idx ? ", " : "",
+				   perf_evsel__name(evsel));
+	}
+
+	return printed + fprintf(fp, "\n");;
+}

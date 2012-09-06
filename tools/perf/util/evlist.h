@@ -143,4 +143,6 @@ static inline struct perf_evsel *perf_evlist__last(struct perf_evlist *evlist)
 {
 	return list_entry(evlist->entries.prev, struct perf_evsel, node);
 }
+
+size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp);
 #endif /* __PERF_EVLIST_H */
