@@ -978,15 +978,15 @@ static irqreturn_t dio200_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct dio200_private *devpriv = dev->private;
+	struct comedi_subdevice *s;
 	int handled;
 
 	if (!dev->attached)
 		return IRQ_NONE;
 
 	if (devpriv->intr_sd >= 0) {
-		handled = dio200_handle_read_intr(dev,
-						  dev->subdevices +
-						  devpriv->intr_sd);
+		s = &dev->subdevices[devpriv->intr_sd];
+		handled = dio200_handle_read_intr(dev, s);
 	} else {
 		handled = 0;
 	}
