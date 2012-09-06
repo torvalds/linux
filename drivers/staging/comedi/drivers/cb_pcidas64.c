@@ -1348,7 +1348,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
@@ -1379,7 +1379,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	}
 
 	/* analog output subdevice */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (board(dev)->ao_nchan) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags =
@@ -1401,7 +1401,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	}
 
 	/*  digital input */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	if (board(dev)->layout == LAYOUT_64XX) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
@@ -1414,7 +1414,7 @@ static int setup_subdevices(struct comedi_device *dev)
 
 	/*  digital output */
 	if (board(dev)->layout == LAYOUT_64XX) {
-		s = dev->subdevices + 3;
+		s = &dev->subdevices[3];
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = 4;
@@ -1425,7 +1425,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/* 8255 */
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	if (board(dev)->has_8255) {
 		if (board(dev)->layout == LAYOUT_4020) {
 			dio_8255_iobase =
@@ -1442,7 +1442,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/*  8 channel dio for 60xx */
-	s = dev->subdevices + 5;
+	s = &dev->subdevices[5];
 	if (board(dev)->layout == LAYOUT_60XX) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -1455,7 +1455,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/*  caldac */
-	s = dev->subdevices + 6;
+	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = 8;
@@ -1469,7 +1469,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		caldac_write(dev, i, s->maxdata / 2);
 
 	/*  2 channel ad8402 potentiometer */
-	s = dev->subdevices + 7;
+	s = &dev->subdevices[7];
 	if (board(dev)->layout == LAYOUT_64XX) {
 		s->type = COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
@@ -1483,7 +1483,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/* serial EEPROM, if present */
-	s = dev->subdevices + 8;
+	s = &dev->subdevices[8];
 	if (readl(priv(dev)->plx9080_iobase + PLX_CONTROL_REG) & CTL_EECHK) {
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
@@ -1494,7 +1494,7 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	/*  user counter subd XXX */
-	s = dev->subdevices + 9;
+	s = &dev->subdevices[9];
 	s->type = COMEDI_SUBD_UNUSED;
 
 	return 0;
@@ -1847,7 +1847,7 @@ static void detach(struct comedi_device *dev)
 		}
 	}
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 4);
+		subdev_8255_cleanup(dev, &dev->subdevices[4]);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
