@@ -44,7 +44,6 @@
  */
 
 #include "composite.c"
-#include "config.c"
 #include "epautoconf.c"
 #include "u_serial.c"
 #include "f_acm.c"

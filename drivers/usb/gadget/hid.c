@@ -35,7 +35,6 @@
  */
 
 #include "composite.c"
-#include "config.c"
 #include "epautoconf.c"
 
 #include "f_hid.c"

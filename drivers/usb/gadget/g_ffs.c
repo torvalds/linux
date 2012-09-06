@@ -24,7 +24,6 @@
  */
 
 #include "composite.c"
-#include "config.c"
 #include "epautoconf.c"
 
 #if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS

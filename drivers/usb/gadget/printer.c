@@ -52,7 +52,6 @@
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 #include "composite.c"
-#include "config.c"
 #include "epautoconf.c"
 
 /*-------------------------------------------------------------------------*/
