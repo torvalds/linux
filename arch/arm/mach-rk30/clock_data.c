@@ -981,6 +981,10 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	{	
 		ps_clksel1=force_cpu_hpclk_11(ps->clksel1);
 	}
+	else
+	{
+		ps_clksel1=ps->clksel1;
+	}
 	//return form slow
 	//cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
 	//a/h/p clk sel
