@@ -234,7 +234,7 @@ static void reset_atmio16d(struct comedi_device *dev)
 static irqreturn_t atmio16d_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	comedi_buf_put(s->async, inw(dev->iobase + AD_FIFO_REG));
 
@@ -724,7 +724,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	devpriv->dac1_coding = it->options[12];
 
 	/* setup sub-devices */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
@@ -749,7 +749,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	}
 
 	/* ao subdevice */
-	s++;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 2;
@@ -775,7 +775,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	}
 
 	/* Digital I/O */
-	s++;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->n_chan = 8;
@@ -785,7 +785,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 
 	/* 8255 subdevice */
-	s++;
+	s = &dev->subdevices[3];
 	if (board->has_8255)
 		subdev_8255_init(dev, s, NULL, dev->iobase);
 	else
@@ -793,7 +793,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 /* don't yet know how to deal with counter/timers */
 #if 0
-	s++;
+	s = &dev->subdevices[4];
 	/* do */
 	s->type = COMEDI_SUBD_TIMER;
 	s->n_chan = 0;
@@ -807,9 +807,12 @@ static int atmio16d_attach(struct comedi_device *dev,
 static void atmio16d_detach(struct comedi_device *dev)
 {
 	const struct atmio16_board_t *board = comedi_board(dev);
+	struct comedi_subdevice *s;
 
-	if (dev->subdevices && board->has_8255)
-		subdev_8255_cleanup(dev, dev->subdevices + 3);
+	if (dev->subdevices && board->has_8255) {
+		s = &dev->subdevices[3];
+		subdev_8255_cleanup(dev, s);
+	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	reset_atmio16d(dev);
