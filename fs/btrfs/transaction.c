@@ -955,6 +955,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root *parent_root;
 	struct btrfs_block_rsv *rsv;
 	struct inode *parent_inode;
+	struct btrfs_path *path;
+	struct btrfs_dir_item *dir_item;
 	struct dentry *parent;
 	struct dentry *dentry;
 	struct extent_buffer *tmp;
@@ -966,6 +968,12 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	u64 objectid;
 	u64 root_flags;
 	uuid_le new_uuid;
+
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = pending->error = -ENOMEM;
+		goto path_alloc_fail;
+	}
 
 	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
 	if (!new_root_item) {
@@ -1015,23 +1023,20 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 */
 	ret = btrfs_set_inode_index(parent_inode, &index);
 	BUG_ON(ret); /* -ENOMEM */
-	ret = btrfs_insert_dir_item(trans, parent_root,
-				dentry->d_name.name, dentry->d_name.len,
-				parent_inode, &key,
-				BTRFS_FT_DIR, index);
-	if (ret == -EEXIST) {
+
+	/* check if there is a file/dir which has the same name. */
+	dir_item = btrfs_lookup_dir_item(NULL, parent_root, path,
+					 btrfs_ino(parent_inode),
+					 dentry->d_name.name,
+					 dentry->d_name.len, 0);
+	if (dir_item != NULL && !IS_ERR(dir_item)) {
 		pending->error = -EEXIST;
 		goto fail;
-	} else if (ret) {
+	} else if (IS_ERR(dir_item)) {
+		ret = PTR_ERR(dir_item);
 		goto abort_trans;
 	}
-
-	btrfs_i_size_write(parent_inode, parent_inode->i_size +
-					 dentry->d_name.len * 2);
-	parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
-	ret = btrfs_update_inode(trans, parent_root, parent_inode);
-	if (ret)
-		goto abort_trans;
+	btrfs_release_path(path);
 
 	/*
 	 * pull in the delayed directory update
@@ -1123,12 +1128,30 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
 	if (ret)
 		goto abort_trans;
+
+	ret = btrfs_insert_dir_item(trans, parent_root,
+				    dentry->d_name.name, dentry->d_name.len,
+				    parent_inode, &key,
+				    BTRFS_FT_DIR, index);
+	/* We have check then name at the beginning, so it is impossible. */
+	BUG_ON(ret == -EEXIST);
+	if (ret)
+		goto abort_trans;
+
+	btrfs_i_size_write(parent_inode, parent_inode->i_size +
+					 dentry->d_name.len * 2);
+	parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
+	ret = btrfs_update_inode(trans, parent_root, parent_inode);
+	if (ret)
+		goto abort_trans;
 fail:
 	dput(parent);
 	trans->block_rsv = rsv;
 no_free_objectid:
 	kfree(new_root_item);
 root_item_alloc_fail:
+	btrfs_free_path(path);
+path_alloc_fail:
 	btrfs_block_rsv_release(root, &pending->block_rsv, (u64)-1);
 	return ret;
 
@@ -1472,13 +1495,28 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 */
 	mutex_lock(&root->fs_info->reloc_mutex);
 
-	ret = btrfs_run_delayed_items(trans, root);
+	/*
+	 * We needn't worry about the delayed items because we will
+	 * deal with them in create_pending_snapshot(), which is the
+	 * core function of the snapshot creation.
+	 */
+	ret = create_pending_snapshots(trans, root->fs_info);
 	if (ret) {
 		mutex_unlock(&root->fs_info->reloc_mutex);
 		goto cleanup_transaction;
 	}
 
-	ret = create_pending_snapshots(trans, root->fs_info);
+	/*
+	 * We insert the dir indexes of the snapshots and update the inode
+	 * of the snapshots' parents after the snapshot creation, so there
+	 * are some delayed items which are not dealt with. Now deal with
+	 * them.
+	 *
+	 * We needn't worry that this operation will corrupt the snapshots,
+	 * because all the tree which are snapshoted will be forced to COW
+	 * the nodes and leaves.
+	 */
+	ret = btrfs_run_delayed_items(trans, root);
 	if (ret) {
 		mutex_unlock(&root->fs_info->reloc_mutex);
 		goto cleanup_transaction;
