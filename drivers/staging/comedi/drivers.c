@@ -71,7 +71,7 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 	dev->n_subdevices = num_subdevices;
 
 	for (i = 0; i < num_subdevices; ++i) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 		s->device = dev;
 		s->async_dma_dir = DMA_NONE;
 		spin_lock_init(&s->spin_lock);
@@ -88,7 +88,7 @@ static void cleanup_device(struct comedi_device *dev)
 
 	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
-			s = dev->subdevices + i;
+			s = &dev->subdevices[i];
 			comedi_free_subdevice_minor(s);
 			if (s->async) {
 				comedi_buf_alloc(dev, s, 0);
@@ -260,7 +260,7 @@ static int postconfig(struct comedi_device *dev)
 	int ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 
 		if (s->type == COMEDI_SUBD_UNUSED)
 			continue;
