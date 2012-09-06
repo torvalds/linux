@@ -131,7 +131,7 @@ static int do_signal(struct pt_regs *regs)
 	 * triggered inside the kernel.
 	 */
 	if (current->thread.dabr)
-		set_dabr(current->thread.dabr);
+		set_dabr(current->thread.dabr, current->thread.dabrx);
 #endif
 	/* Re-enable the breakpoints for the signal stack */
 	thread_change_pc(current, regs);

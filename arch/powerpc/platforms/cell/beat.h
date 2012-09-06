@@ -32,7 +32,7 @@ void beat_get_rtc_time(struct rtc_time *);
 ssize_t beat_nvram_get_size(void);
 ssize_t beat_nvram_read(char *, size_t, loff_t *);
 ssize_t beat_nvram_write(char *, size_t, loff_t *);
-int beat_set_xdabr(unsigned long);
+int beat_set_xdabr(unsigned long, unsigned long);
 void beat_power_save(void);
 void beat_kexec_cpu_down(int, int);
 

@@ -414,16 +414,20 @@ static int __init pSeries_init_panel(void)
 }
 machine_arch_initcall(pseries, pSeries_init_panel);
 
-static int pseries_set_dabr(unsigned long dabr)
+static int pseries_set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	return plpar_hcall_norets(H_SET_DABR, dabr);
 }
 
-static int pseries_set_xdabr(unsigned long dabr)
+static int pseries_set_xdabr(unsigned long dabr, unsigned long dabrx)
 {
-	/* We want to catch accesses from kernel and userspace */
-	return plpar_hcall_norets(H_SET_XDABR, dabr,
-			H_DABRX_KERNEL | H_DABRX_USER);
+	/* Have to set at least one bit in the DABRX according to PAPR */
+	if (dabrx == 0 && dabr == 0)
+		dabrx = DABRX_USER;
+	/* PAPR says we can only set kernel and user bits */
+	dabrx &= H_DABRX_KERNEL | H_DABRX_USER;
+
+	return plpar_hcall_norets(H_SET_XDABR, dabr, dabrx);
 }
 
 #define CMO_CHARACTERISTICS_TOKEN 44

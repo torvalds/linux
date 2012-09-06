@@ -285,7 +285,7 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 		return;
 
 	/* Clear the DABR */
-	set_dabr(0);
+	set_dabr(0, 0);
 
 	/* Deliver the signal to userspace */
 	info.si_signo = SIGTRAP;
@@ -366,18 +366,19 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 {
 	if (thread->dabr) {
 		thread->dabr = 0;
-		set_dabr(0);
+		thread->dabrx = 0;
+		set_dabr(0, 0);
 	}
 }
 #endif /* !CONFIG_HAVE_HW_BREAKPOINT */
 #endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
-int set_dabr(unsigned long dabr)
+int set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	__get_cpu_var(current_dabr) = dabr;
 
 	if (ppc_md.set_dabr)
-		return ppc_md.set_dabr(dabr);
+		return ppc_md.set_dabr(dabr, dabrx);
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
@@ -387,9 +388,8 @@ int set_dabr(unsigned long dabr)
 #endif
 #elif defined(CONFIG_PPC_BOOK3S)
 	mtspr(SPRN_DABR, dabr);
+	mtspr(SPRN_DABRX, dabrx);
 #endif
-
-
 	return 0;
 }
 
@@ -482,7 +482,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
  */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
-		set_dabr(new->thread.dabr);
+		set_dabr(new->thread.dabr, new->thread.dabrx);
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 

@@ -61,7 +61,7 @@ extern void ptrace_triggered(struct perf_event *bp,
 			struct perf_sample_data *data, struct pt_regs *regs);
 static inline void hw_breakpoint_disable(void)
 {
-	set_dabr(0);
+	set_dabr(0, 0);
 }
 extern void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs);
 

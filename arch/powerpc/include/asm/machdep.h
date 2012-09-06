@@ -180,7 +180,8 @@ struct machdep_calls {
 	void		(*enable_pmcs)(void);
 
 	/* Set DABR for this platform, leave empty for default implemenation */
-	int		(*set_dabr)(unsigned long dabr);
+	int		(*set_dabr)(unsigned long dabr,
+				    unsigned long dabrx);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
 	/* A general init function, called by ppc_init in init/main.c.
