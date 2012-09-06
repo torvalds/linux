@@ -670,7 +670,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* ai */
 	if (thisboard->ai_nbits) {
 		s->type = COMEDI_SUBD_AI;
@@ -689,7 +689,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* ao */
 	if (thisboard->ao_nbits) {
 		s->type = COMEDI_SUBD_AO;
@@ -704,7 +704,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* di */
 	if (thisboard->di_nchan) {
 		s->type = COMEDI_SUBD_DI;
@@ -718,7 +718,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* do */
 	if (thisboard->do_nchan) {
 		s->type = COMEDI_SUBD_DO;
@@ -732,7 +732,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	/* 8255 */
 	if (thisboard->i8255_offset != 0) {
 		subdev_8255_init(dev, s, NULL, (unsigned long)(dev->iobase +
@@ -742,7 +742,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 5;
+	s = &dev->subdevices[5];
 	/* 8254 */
 	if (thisboard->i8254_offset != 0) {
 		s->type = COMEDI_SUBD_COUNTER;
@@ -838,7 +838,7 @@ das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 void das08_common_detach(struct comedi_device *dev)
 {
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 4);
+		subdev_8255_cleanup(dev, &dev->subdevices[4]);
 }
 EXPORT_SYMBOL_GPL(das08_common_detach);
 
