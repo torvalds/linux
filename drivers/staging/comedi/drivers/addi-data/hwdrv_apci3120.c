@@ -1451,7 +1451,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 	unsigned short us_TmpValue;
 	unsigned char b_DummyRead;
 
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	ui_Check = 1;
 
 	int_daq = inw(dev->iobase + APCI3120_RD_STATUS) & 0xf000;	/*  get IRQ reasons */
@@ -1656,7 +1656,7 @@ void v_APCI3120_Interrupt(int irq, void *d)
 int i_APCI3120_InterruptHandleEos(struct comedi_device *dev)
 {
 	int n_chan, i;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int err = 1;
 
 	n_chan = devpriv->ui_AiNbrofChannels;
@@ -1698,7 +1698,7 @@ int i_APCI3120_InterruptHandleEos(struct comedi_device *dev)
 void v_APCI3120_InterruptDma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned int next_dma_buf, samplesinbuf;
 	unsigned long low_word, high_word, var;
 
