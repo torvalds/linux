@@ -390,7 +390,7 @@ error:
  * Driver
  */
 
-static struct usb_composite_driver webcam_driver = {
+static __refdata struct usb_composite_driver webcam_driver = {
 	.name		= "g_webcam",
 	.dev		= &webcam_device_descriptor,
 	.strings	= webcam_device_strings,

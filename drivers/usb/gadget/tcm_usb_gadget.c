@@ -2436,7 +2436,7 @@ static int usb_target_bind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static struct usb_composite_driver usbg_driver = {
+static __refdata struct usb_composite_driver usbg_driver = {
 	.name           = "g_target",
 	.dev            = &usbg_device_desc,
 	.strings        = usbg_strings,

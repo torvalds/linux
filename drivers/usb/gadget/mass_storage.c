@@ -156,7 +156,7 @@ static int __init msg_bind(struct usb_composite_dev *cdev)
 
 /****************************** Some noise ******************************/
 
-static struct usb_composite_driver msg_driver = {
+static __refdata struct usb_composite_driver msg_driver = {
 	.name		= "g_mass_storage",
 	.dev		= &msg_device_desc,
 	.iProduct	= DRIVER_DESC,

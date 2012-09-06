@@ -1269,7 +1269,7 @@ static int __init printer_bind(struct usb_composite_dev *cdev)
 	return usb_add_config(cdev, &printer_cfg_driver, printer_bind_config);
 }
 
-static struct usb_composite_driver printer_driver = {
+static __refdata struct usb_composite_driver printer_driver = {
 	.name           = shortname,
 	.dev            = &device_desc,
 	.strings        = dev_strings,

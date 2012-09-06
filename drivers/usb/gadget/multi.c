@@ -338,7 +338,7 @@ static int __exit multi_unbind(struct usb_composite_dev *cdev)
 /****************************** Some noise ******************************/
 
 
-static struct usb_composite_driver multi_driver = {
+static __refdata struct usb_composite_driver multi_driver = {
 	.name		= "g_multi",
 	.dev		= &device_desc,
 	.strings	= dev_strings,

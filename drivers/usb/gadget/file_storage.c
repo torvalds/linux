@@ -3603,7 +3603,7 @@ static void fsg_resume(struct usb_gadget *gadget)
 
 /*-------------------------------------------------------------------------*/
 
-static struct usb_gadget_driver		fsg_driver = {
+static __refdata struct usb_gadget_driver		fsg_driver = {
 	.max_speed	= USB_SPEED_SUPER,
 	.function	= (char *) fsg_string_product,
 	.unbind		= fsg_unbind,

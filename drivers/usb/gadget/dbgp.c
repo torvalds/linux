@@ -402,7 +402,7 @@ fail:
 	return err;
 }
 
-static struct usb_gadget_driver dbgp_driver = {
+static __refdata struct usb_gadget_driver dbgp_driver = {
 	.function = "dbgp",
 	.max_speed = USB_SPEED_HIGH,
 	.unbind = dbgp_unbind,

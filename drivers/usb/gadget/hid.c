@@ -242,7 +242,7 @@ static int __devexit hidg_plat_driver_remove(struct platform_device *pdev)
 /****************************** Some noise ******************************/
 
 
-static struct usb_composite_driver hidg_driver = {
+static __refdata struct usb_composite_driver hidg_driver = {
 	.name		= "g_hid",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
