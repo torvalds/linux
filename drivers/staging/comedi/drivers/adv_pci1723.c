@@ -258,7 +258,7 @@ static int pci1723_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->write_subdev = s;
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -269,7 +269,7 @@ static int pci1723_attach_pci(struct comedi_device *dev,
 	s->insn_write	= pci1723_ao_write_winsn;
 	s->insn_read	= pci1723_insn_read_ao;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 	s->n_chan	= 16;
