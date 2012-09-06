@@ -968,6 +968,7 @@ static int __devinit bcap_probe(struct platform_device *pdev)
 	if (!i2c_adap) {
 		v4l2_err(&bcap_dev->v4l2_dev,
 				"Unable to find i2c adapter\n");
+		ret = -ENODEV;
 		goto err_unreg_vdev;
 
 	}
