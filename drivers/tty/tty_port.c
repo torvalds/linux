@@ -73,6 +73,30 @@ struct device *tty_port_register_device(struct tty_port *port,
 }
 EXPORT_SYMBOL_GPL(tty_port_register_device);
 
+/**
+ * tty_port_register_device_attr - register tty device
+ * @port: tty_port of the device
+ * @driver: tty_driver for this device
+ * @index: index of the tty
+ * @device: parent if exists, otherwise NULL
+ * @drvdata: Driver data to be set to device.
+ * @attr_grp: Attribute group to be set on device.
+ *
+ * It is the same as tty_register_device_attr except the provided @port is
+ * linked to a concrete tty specified by @index. Use this or tty_port_install
+ * (or both). Call tty_port_link_device as a last resort.
+ */
+struct device *tty_port_register_device_attr(struct tty_port *port,
+		struct tty_driver *driver, unsigned index,
+		struct device *device, void *drvdata,
+		const struct attribute_group **attr_grp)
+{
+	tty_port_link_device(port, driver, index);
+	return tty_register_device_attr(driver, index, device, drvdata,
+			attr_grp);
+}
+EXPORT_SYMBOL_GPL(tty_port_register_device_attr);
+
 int tty_port_alloc_xmit_buf(struct tty_port *port)
 {
 	/* We may sleep in get_zeroed_page() */

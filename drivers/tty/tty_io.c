@@ -3045,6 +3045,12 @@ struct device *tty_register_device(struct tty_driver *driver, unsigned index,
 }
 EXPORT_SYMBOL(tty_register_device);
 
+static void tty_device_create_release(struct device *dev)
+{
+	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
+	kfree(dev);
+}
+
 /**
  *	tty_register_device_attr - register a tty device
  *	@driver: the tty driver that describes the tty device
@@ -3103,6 +3109,7 @@ struct device *tty_register_device_attr(struct tty_driver *driver,
 	dev->devt = devt;
 	dev->class = tty_class;
 	dev->parent = device;
+	dev->release = tty_device_create_release;
 	dev_set_name(dev, "%s", name);
 	dev->groups = attr_grp;
 	dev_set_drvdata(dev, drvdata);

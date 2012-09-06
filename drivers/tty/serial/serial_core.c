@@ -2313,9 +2313,9 @@ static ssize_t uart_get_attr_uartclk(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int ret;
-
 	struct tty_port *port = dev_get_drvdata(dev);
 	struct uart_state *state = container_of(port, struct uart_state, port);
+
 	mutex_lock(&state->port.mutex);
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", state->uart_port->uartclk);
 	mutex_unlock(&state->port.mutex);
@@ -2330,7 +2330,7 @@ static struct attribute *tty_dev_attrs[] = {
 	NULL,
 	};
 
-static struct attribute_group tty_dev_attr_group = {
+static const struct attribute_group tty_dev_attr_group = {
 	.attrs = tty_dev_attrs,
 	};
 
@@ -2392,8 +2392,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 * Register the port whether it's detected or not.  This allows
 	 * setserial to be used to alter this ports parameters.
 	 */
-	tty_dev = tty_register_device_attr(drv->tty_driver, uport->line,
-			uport->dev, port, tty_dev_attr_groups);
+	tty_dev = tty_port_register_device_attr(port, drv->tty_driver,
+			uport->line, uport->dev, port, tty_dev_attr_groups);
 	if (likely(!IS_ERR(tty_dev))) {
 		device_set_wakeup_capable(tty_dev, 1);
 	} else {
