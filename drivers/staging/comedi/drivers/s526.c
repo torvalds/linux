@@ -768,7 +768,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* GENERAL-PURPOSE COUNTER/TIME (GPCT) */
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
@@ -786,7 +786,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* s->do_cmdtest = s526_gpct_cmdtest; */
 	/* s->cancel = s526_gpct_cancel; */
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* dev->read_subdev=s; */
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
@@ -802,7 +802,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_read = s526_ai_rinsn;
 	s->insn_config = s526_ai_insn_config;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -812,7 +812,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = s526_ao_winsn;
 	s->insn_read = s526_ao_rinsn;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* digital i/o subdevice */
 	if (board->have_dio) {
 		s->type = COMEDI_SUBD_DIO;
