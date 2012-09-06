@@ -887,7 +887,6 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		intel_dp->DP |= intel_crtc->pipe << 29;
 
 		/* don't miss out required setting for eDP */
-		intel_dp->DP |= DP_PLL_ENABLE;
 		if (adjusted_mode->clock < 200000)
 			intel_dp->DP |= DP_PLL_FREQ_160MHZ;
 		else
@@ -909,7 +908,6 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 		if (is_cpu_edp(intel_dp)) {
 			/* don't miss out required setting for eDP */
-			intel_dp->DP |= DP_PLL_ENABLE;
 			if (adjusted_mode->clock < 200000)
 				intel_dp->DP |= DP_PLL_FREQ_160MHZ;
 			else
@@ -1192,8 +1190,15 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("\n");
 	dpa_ctl = I915_READ(DP_A);
-	dpa_ctl |= DP_PLL_ENABLE;
-	I915_WRITE(DP_A, dpa_ctl);
+	WARN(dpa_ctl & DP_PLL_ENABLE, "dp pll on, should be off\n");
+	WARN(dpa_ctl & DP_PORT_EN, "dp port still on, should be off\n");
+
+	/* We don't adjust intel_dp->DP while tearing down the link, to
+	 * facilitate link retraining (e.g. after hotplug). Hence clear all
+	 * enable bits here to ensure that we don't enable too much. */
+	intel_dp->DP &= ~(DP_PORT_EN | DP_AUDIO_OUTPUT_ENABLE);
+	intel_dp->DP |= DP_PLL_ENABLE;
+	I915_WRITE(DP_A, intel_dp->DP);
 	POSTING_READ(DP_A);
 	udelay(200);
 }
@@ -1209,6 +1214,13 @@ static void ironlake_edp_pll_off(struct intel_dp *intel_dp)
 			     to_intel_crtc(crtc)->pipe);
 
 	dpa_ctl = I915_READ(DP_A);
+	WARN((dpa_ctl & DP_PLL_ENABLE) == 0,
+	     "dp pll off, should be on\n");
+	WARN(dpa_ctl & DP_PORT_EN, "dp port still on, should be off\n");
+
+	/* We can't rely on the value tracked for the DP register in
+	 * intel_dp->DP because link_down must not change that (otherwise link
+	 * re-training will fail. */
 	dpa_ctl &= ~DP_PLL_ENABLE;
 	I915_WRITE(DP_A, dpa_ctl);
 	POSTING_READ(DP_A);
@@ -1893,13 +1905,6 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("\n");
 
-	if (is_edp(intel_dp)) {
-		DP &= ~DP_PLL_ENABLE;
-		I915_WRITE(intel_dp->output_reg, DP);
-		POSTING_READ(intel_dp->output_reg);
-		udelay(100);
-	}
-
 	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp))) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
@@ -2443,6 +2448,8 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	intel_dp->output_reg = output_reg;
 	intel_dp->port = port;
+	/* Preserve the current hw state. */
+	intel_dp->DP = I915_READ(intel_dp->output_reg);
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
