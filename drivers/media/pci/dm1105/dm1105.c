@@ -1128,8 +1128,10 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 	INIT_WORK(&dev->work, dm1105_dmx_buffer);
 	sprintf(dev->wqn, "%s/%d", dvb_adapter->name, dvb_adapter->num);
 	dev->wq = create_singlethread_workqueue(dev->wqn);
-	if (!dev->wq)
+	if (!dev->wq) {
+		ret = -ENOMEM;
 		goto err_dvb_net;
+	}
 
 	ret = request_irq(pdev->irq, dm1105_irq, IRQF_SHARED,
 						DRIVER_NAME, dev);
