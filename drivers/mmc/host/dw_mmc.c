@@ -627,6 +627,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot)
 {
 	struct dw_mci *host = slot->host;
 	u32 div;
+	u32 clk_en_a;
 
 	if (slot->clock != host->current_speed) {
 		div = host->bus_hz / slot->clock;
@@ -659,9 +660,11 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot)
 		mci_send_cmd(slot,
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
 
-		/* enable clock */
-		mci_writel(host, CLKENA, ((SDMMC_CLKEN_ENABLE |
-			   SDMMC_CLKEN_LOW_PWR) << slot->id));
+		/* enable clock; only low power if no SDIO */
+		clk_en_a = SDMMC_CLKEN_ENABLE << slot->id;
+		if (!(mci_readl(host, INTMASK) & SDMMC_INT_SDIO(slot->id)))
+			clk_en_a |= SDMMC_CLKEN_LOW_PWR << slot->id;
+		mci_writel(host, CLKENA, clk_en_a);
 
 		/* inform CIU */
 		mci_send_cmd(slot,
@@ -862,6 +865,30 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	return present;
 }
 
+/*
+ * Disable lower power mode.
+ *
+ * Low power mode will stop the card clock when idle.  According to the
+ * description of the CLKENA register we should disable low power mode
+ * for SDIO cards if we need SDIO interrupts to work.
+ *
+ * This function is fast if low power mode is already disabled.
+ */
+static void dw_mci_disable_low_power(struct dw_mci_slot *slot)
+{
+	struct dw_mci *host = slot->host;
+	u32 clk_en_a;
+	const u32 clken_low_pwr = SDMMC_CLKEN_LOW_PWR << slot->id;
+
+	clk_en_a = mci_readl(host, CLKENA);
+
+	if (clk_en_a & clken_low_pwr) {
+		mci_writel(host, CLKENA, clk_en_a & ~clken_low_pwr);
+		mci_send_cmd(slot, SDMMC_CMD_UPD_CLK |
+			     SDMMC_CMD_PRV_DAT_WAIT, 0);
+	}
+}
+
 static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
@@ -871,6 +898,14 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 	/* Enable/disable Slot Specific SDIO interrupt */
 	int_mask = mci_readl(host, INTMASK);
 	if (enb) {
+		/*
+		 * Turn off low power mode if it was enabled.  This is a bit of
+		 * a heavy operation and we disable / enable IRQs a lot, so
+		 * we'll leave low power mode disabled and it will get
+		 * re-enabled again in dw_mci_setup_bus().
+		 */
+		dw_mci_disable_low_power(slot);
+
 		mci_writel(host, INTMASK,
 			   (int_mask | SDMMC_INT_SDIO(slot->id)));
 	} else {
@@ -1429,22 +1464,10 @@ static void dw_mci_read_data_pio(struct dw_mci *host)
 			nbytes += len;
 			remain -= len;
 		} while (remain);
-		sg_miter->consumed = offset;
 
+		sg_miter->consumed = offset;
 		status = mci_readl(host, MINTSTS);
 		mci_writel(host, RINTSTS, SDMMC_INT_RXDR);
-		if (status & DW_MCI_DATA_ERROR_FLAGS) {
-			host->data_status = status;
-			data->bytes_xfered += nbytes;
-			sg_miter_stop(sg_miter);
-			host->sg = NULL;
-			smp_wmb();
-
-			set_bit(EVENT_DATA_ERROR, &host->pending_events);
-
-			tasklet_schedule(&host->tasklet);
-			return;
-		}
 	} while (status & SDMMC_INT_RXDR); /*if the RXDR is ready read again*/
 	data->bytes_xfered += nbytes;
 
@@ -1497,23 +1520,10 @@ static void dw_mci_write_data_pio(struct dw_mci *host)
 			nbytes += len;
 			remain -= len;
 		} while (remain);
-		sg_miter->consumed = offset;
 
+		sg_miter->consumed = offset;
 		status = mci_readl(host, MINTSTS);
 		mci_writel(host, RINTSTS, SDMMC_INT_TXDR);
-		if (status & DW_MCI_DATA_ERROR_FLAGS) {
-			host->data_status = status;
-			data->bytes_xfered += nbytes;
-			sg_miter_stop(sg_miter);
-			host->sg = NULL;
-
-			smp_wmb();
-
-			set_bit(EVENT_DATA_ERROR, &host->pending_events);
-
-			tasklet_schedule(&host->tasklet);
-			return;
-		}
 	} while (status & SDMMC_INT_TXDR); /* if TXDR write again */
 	data->bytes_xfered += nbytes;
 
@@ -1547,12 +1557,11 @@ static void dw_mci_cmd_interrupt(struct dw_mci *host, u32 status)
 static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 {
 	struct dw_mci *host = dev_id;
-	u32 status, pending;
+	u32 pending;
 	unsigned int pass_count = 0;
 	int i;
 
 	do {
-		status = mci_readl(host, RINTSTS);
 		pending = mci_readl(host, MINTSTS); /* read-only mask reg */
 
 		/*
@@ -1570,7 +1579,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 		if (pending & DW_MCI_CMD_ERROR_FLAGS) {
 			mci_writel(host, RINTSTS, DW_MCI_CMD_ERROR_FLAGS);
-			host->cmd_status = status;
+			host->cmd_status = pending;
 			smp_wmb();
 			set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
 		}
@@ -1578,18 +1587,16 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		if (pending & DW_MCI_DATA_ERROR_FLAGS) {
 			/* if there is an error report DATA_ERROR */
 			mci_writel(host, RINTSTS, DW_MCI_DATA_ERROR_FLAGS);
-			host->data_status = status;
+			host->data_status = pending;
 			smp_wmb();
 			set_bit(EVENT_DATA_ERROR, &host->pending_events);
-			if (!(pending & (SDMMC_INT_DTO | SDMMC_INT_DCRC |
-					 SDMMC_INT_SBE | SDMMC_INT_EBE)))
-				tasklet_schedule(&host->tasklet);
+			tasklet_schedule(&host->tasklet);
 		}
 
 		if (pending & SDMMC_INT_DATA_OVER) {
 			mci_writel(host, RINTSTS, SDMMC_INT_DATA_OVER);
 			if (!host->data_status)
-				host->data_status = status;
+				host->data_status = pending;
 			smp_wmb();
 			if (host->dir_status == DW_MCI_RECV_STATUS) {
 				if (host->sg != NULL)
@@ -1613,7 +1620,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 		if (pending & SDMMC_INT_CMD_DONE) {
 			mci_writel(host, RINTSTS, SDMMC_INT_CMD_DONE);
-			dw_mci_cmd_interrupt(host, status);
+			dw_mci_cmd_interrupt(host, pending);
 		}
 
 		if (pending & SDMMC_INT_CD) {
