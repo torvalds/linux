@@ -15,6 +15,8 @@
 #ifndef __GADGET_CHIPS_H
 #define __GADGET_CHIPS_H
 
+#include <linux/usb/gadget.h>
+
 /*
  * NOTICE: the entries below are alphabetical and should be kept
  * that way.

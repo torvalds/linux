@@ -44,7 +44,6 @@ MODULE_LICENSE("GPL");
  */
 
 #include "composite.c"
-#include "epautoconf.c"
 
 #include "f_mass_storage.c"
 

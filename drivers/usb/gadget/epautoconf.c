@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
@@ -315,6 +316,7 @@ found_ep:
 	ep->comp_desc = NULL;
 	return ep;
 }
+EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
 
 /**
  * usb_ep_autoconfig() - choose an endpoint matching the
@@ -354,7 +356,7 @@ struct usb_ep *usb_ep_autoconfig(
 {
 	return usb_ep_autoconfig_ss(gadget, desc, NULL);
 }
-
+EXPORT_SYMBOL_GPL(usb_ep_autoconfig);
 
 /**
  * usb_ep_autoconfig_reset - reset endpoint autoconfig state
@@ -375,4 +377,4 @@ void usb_ep_autoconfig_reset (struct usb_gadget *gadget)
 	gadget->in_epnum = 0;
 	gadget->out_epnum = 0;
 }
-
+EXPORT_SYMBOL_GPL(usb_ep_autoconfig_reset);

@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/list.h>
 
+#include "gadget_chips.h"
 #define DRIVER_DESC		"HID Gadget"
 #define DRIVER_VERSION		"2010/03/16"
 
@@ -35,7 +36,6 @@
  */
 
 #include "composite.c"
-#include "epautoconf.c"
 
 #include "f_hid.c"
 

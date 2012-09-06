@@ -13,9 +13,6 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
-/* See comments in "zero.c" */
-#include "epautoconf.c"
-
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 #include "u_serial.c"
 #endif

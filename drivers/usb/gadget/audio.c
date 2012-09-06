@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/utsname.h>
 
+#include "gadget_chips.h"
 #define DRIVER_DESC		"Linux USB Audio Gadget"
 #define DRIVER_VERSION		"Feb 2, 2012"
 
@@ -27,7 +28,6 @@
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 #include "composite.c"
-#include "epautoconf.c"
 
 /* string IDs are assigned dynamically */
 
