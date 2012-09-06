@@ -4414,10 +4414,10 @@ int btrfs_snap_reserve_metadata(struct btrfs_trans_handle *trans,
 	struct btrfs_block_rsv *src_rsv = get_block_rsv(trans, root);
 	struct btrfs_block_rsv *dst_rsv = &pending->block_rsv;
 	/*
-	 * two for root back/forward refs, two for directory entries
-	 * and one for root of the snapshot.
+	 * two for root back/forward refs, two for directory entries,
+	 * one for root of the snapshot and one for parent inode.
 	 */
-	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 5);
+	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 6);
 	dst_rsv->space_info = src_rsv->space_info;
 	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
 }

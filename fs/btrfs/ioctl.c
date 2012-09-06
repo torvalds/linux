@@ -526,7 +526,7 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 		*inherit = NULL;	/* take responsibility to free it */
 	}
 
-	trans = btrfs_start_transaction(root->fs_info->extent_root, 5);
+	trans = btrfs_start_transaction(root->fs_info->extent_root, 6);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		goto fail;
