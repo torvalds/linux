@@ -355,30 +355,13 @@ ENTRY(kernel_thread_starter)
 # kernel_execve function needs to deal with pt_regs that is not
 # at the usual place
 #
-ENTRY(kernel_execve)
-	stm	%r12,%r15,48(%r15)
-	lr	%r14,%r15
-	l	%r13,__LC_SVC_NEW_PSW+4
-	ahi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	st	%r14,__SF_BACKCHAIN(%r15)
-	la	%r12,STACK_FRAME_OVERHEAD(%r15)
-	xc	0(__PT_SIZE,%r12),0(%r12)
-	l	%r1,BASED(.Ldo_execve)
-	lr	%r5,%r12
-	basr	%r14,%r1		# call do_execve
-	ltr	%r2,%r2
-	je	0f
-	ahi	%r15,(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	lm	%r12,%r15,48(%r15)
-	br	%r14
-	# execve succeeded.
-0:	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
-	l	%r15,__LC_KERNEL_STACK	# load ksp
-	ahi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	mvc	0(__PT_SIZE,%r11),0(%r12)	# copy pt_regs
-	l	%r12,__LC_THREAD_INFO
+ENTRY(ret_from_kernel_execve)
+	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
+	lr	%r15,%r2
+	lr	%r11,%r2
+	ahi	%r15,-STACK_FRAME_OVERHEAD
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
+	l	%r12,__LC_THREAD_INFO
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
 	j	sysc_return
 
@@ -941,7 +924,6 @@ cleanup_idle_wait:
 .Ldo_signal:		.long	do_signal
 .Ldo_notify_resume:	.long	do_notify_resume
 .Ldo_per_trap:		.long	do_per_trap
-.Ldo_execve:		.long	do_execve
 .Ljump_table:		.long	pgm_check_table
 .Lschedule:		.long	schedule
 #ifdef CONFIG_PREEMPT

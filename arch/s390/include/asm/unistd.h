@@ -416,6 +416,7 @@
 #   define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 # endif
 #define __ARCH_WANT_SYS_EXECVE
+#define __ARCH_WANT_KERNEL_EXECVE
 
 /*
  * "Conditional" syscalls
