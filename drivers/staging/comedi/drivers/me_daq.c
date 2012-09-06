@@ -758,7 +758,7 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (error)
 		return error;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
 	s->n_chan = board->ai_channel_nbr;
@@ -770,7 +770,7 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->do_cmdtest = me_ai_do_cmd_test;
 	s->do_cmd = me_ai_do_cmd;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
 	s->n_chan = board->ao_channel_nbr;
@@ -780,7 +780,7 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_read = me_ao_insn_read;
 	s->insn_write = me_ao_insn_write;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
 	s->n_chan = board->dio_channel_nbr;
