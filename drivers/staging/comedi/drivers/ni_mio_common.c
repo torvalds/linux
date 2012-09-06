@@ -872,7 +872,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 #ifdef PCIDMA
 static void ni_sync_ai_dma(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -884,7 +884,7 @@ static void ni_sync_ai_dma(struct comedi_device *dev)
 static void mite_handle_b_linkc(struct mite_struct *mite,
 				struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AO_SUBDEV];
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -942,7 +942,7 @@ static void ni_handle_eos(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static void shutdown_ai_command(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
 
 #ifdef PCIDMA
 	ni_ai_drain_dma(dev);
@@ -984,8 +984,9 @@ static void handle_gpct_interrupt(struct comedi_device *dev,
 				  unsigned short counter_index)
 {
 #ifdef PCIDMA
-	struct comedi_subdevice *s =
-	    dev->subdevices + NI_GPCT_SUBDEV(counter_index);
+	struct comedi_subdevice *s;
+
+	s = &dev->subdevices[NI_GPCT_SUBDEV(counter_index)];
 
 	ni_tio_handle_interrupt(&devpriv->counter_dev->counters[counter_index],
 				s);
@@ -1018,7 +1019,7 @@ static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status)
 static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			       unsigned ai_mite_status)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
 
 	/* 67xx boards don't have ai subdevice, but their gpct0 might generate an a interrupt */
 	if (s->type == COMEDI_SUBD_UNUSED)
@@ -1150,7 +1151,7 @@ static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
 static void handle_b_interrupt(struct comedi_device *dev,
 			       unsigned short b_status, unsigned ao_mite_status)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AO_SUBDEV];
 	/* unsigned short ack=0; */
 #ifdef DEBUG_INTERRUPT
 	printk("ni_mio_common: interrupt: b_status=%04x m1_status=%08x\n",
@@ -1422,7 +1423,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 static void ni_handle_fifo_half_full(struct comedi_device *dev)
 {
 	int n;
-	struct comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
 
 	n = boardtype.ai_fifo_depth / 2;
 
@@ -1470,7 +1471,7 @@ static int ni_ai_drain_dma(struct comedi_device *dev)
 */
 static void ni_handle_fifo_dregs(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
 	short data[2];
 	u32 dl;
 	short fifo_empty;
@@ -1534,7 +1535,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 
 static void get_last_sample_611x(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
 	short data;
 	u32 dl;
 
@@ -1551,7 +1552,7 @@ static void get_last_sample_611x(struct comedi_device *dev)
 
 static void get_last_sample_6143(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
 	short data;
 	u32 dl;
 
@@ -1598,7 +1599,7 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AI_SUBDEV];
 	int retval;
 	unsigned long flags;
 
@@ -1637,7 +1638,7 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 
 static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_AO_SUBDEV];
 	int retval;
 	unsigned long flags;
 
@@ -3852,7 +3853,7 @@ static int ni_cdio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static void handle_cdio_interrupt(struct comedi_device *dev)
 {
 	unsigned cdio_status;
-	struct comedi_subdevice *s = dev->subdevices + NI_DIO_SUBDEV;
+	struct comedi_subdevice *s = &dev->subdevices[NI_DIO_SUBDEV];
 #ifdef PCIDMA
 	unsigned long flags;
 #endif
@@ -4101,13 +4102,17 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 
 static void mio_common_detach(struct comedi_device *dev)
 {
+	struct comedi_subdevice *s;
+
 	if (dev->private) {
 		if (devpriv->counter_dev) {
 			ni_gpct_device_destroy(devpriv->counter_dev);
 		}
 	}
-	if (dev->subdevices && boardtype.has_8255)
-		subdev_8255_cleanup(dev, dev->subdevices + NI_8255_DIO_SUBDEV);
+	if (dev->subdevices && boardtype.has_8255) {
+		s = &dev->subdevices[NI_8255_DIO_SUBDEV];
+		subdev_8255_cleanup(dev, s);
+	}
 }
 
 static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -4417,7 +4422,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* analog input subdevice */
 
-	s = dev->subdevices + NI_AI_SUBDEV;
+	s = &dev->subdevices[NI_AI_SUBDEV];
 	dev->read_subdev = s;
 	if (boardtype.n_adchan) {
 		s->type = COMEDI_SUBD_AI;
@@ -4449,7 +4454,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* analog output subdevice */
 
-	s = dev->subdevices + NI_AO_SUBDEV;
+	s = &dev->subdevices[NI_AO_SUBDEV];
 	if (boardtype.n_aochan) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_DEGLITCH | SDF_GROUND;
@@ -4488,7 +4493,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* digital i/o subdevice */
 
-	s = dev->subdevices + NI_DIO_SUBDEV;
+	s = &dev->subdevices[NI_DIO_SUBDEV];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->maxdata = 1;
@@ -4516,7 +4521,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* 8255 device */
-	s = dev->subdevices + NI_8255_DIO_SUBDEV;
+	s = &dev->subdevices[NI_8255_DIO_SUBDEV];
 	if (boardtype.has_8255) {
 		subdev_8255_init(dev, s, ni_8255_callback, (unsigned long)dev);
 	} else {
@@ -4524,11 +4529,11 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* formerly general purpose counter/timer device, but no longer used */
-	s = dev->subdevices + NI_UNUSED_SUBDEV;
+	s = &dev->subdevices[NI_UNUSED_SUBDEV];
 	s->type = COMEDI_SUBD_UNUSED;
 
 	/* calibration subdevice -- ai and ao */
-	s = dev->subdevices + NI_CALIBRATION_SUBDEV;
+	s = &dev->subdevices[NI_CALIBRATION_SUBDEV];
 	s->type = COMEDI_SUBD_CALIB;
 	if (boardtype.reg_type & ni_reg_m_series_mask) {
 		/*  internal PWM analog output used for AI nonlinearity calibration */
@@ -4551,7 +4556,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* EEPROM */
-	s = dev->subdevices + NI_EEPROM_SUBDEV;
+	s = &dev->subdevices[NI_EEPROM_SUBDEV];
 	s->type = COMEDI_SUBD_MEMORY;
 	s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
 	s->maxdata = 0xff;
@@ -4564,7 +4569,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* PFI */
-	s = dev->subdevices + NI_PFI_DIO_SUBDEV;
+	s = &dev->subdevices[NI_PFI_DIO_SUBDEV];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	if (boardtype.reg_type & ni_reg_m_series_mask) {
@@ -4586,7 +4591,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
 
 	/* cs5529 calibration adc */
-	s = dev->subdevices + NI_CS5529_CALIBRATION_SUBDEV;
+	s = &dev->subdevices[NI_CS5529_CALIBRATION_SUBDEV];
 	if (boardtype.reg_type & ni_reg_67xx_mask) {
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_INTERNAL;
@@ -4602,7 +4607,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* Serial */
-	s = dev->subdevices + NI_SERIAL_SUBDEV;
+	s = &dev->subdevices[NI_SERIAL_SUBDEV];
 	s->type = COMEDI_SUBD_SERIAL;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = 1;
@@ -4612,7 +4617,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->serial_hw_mode = 0;
 
 	/* RTSI */
-	s = dev->subdevices + NI_RTSI_SUBDEV;
+	s = &dev->subdevices[NI_RTSI_SUBDEV];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = 8;
@@ -4633,7 +4638,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 							NUM_GPCT);
 	/* General purpose counters */
 	for (j = 0; j < NUM_GPCT; ++j) {
-		s = dev->subdevices + NI_GPCT_SUBDEV(j);
+		s = &dev->subdevices[NI_GPCT_SUBDEV(j)];
 		s->type = COMEDI_SUBD_COUNTER;
 		s->subdev_flags =
 		    SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL | SDF_CMD_READ
@@ -4659,7 +4664,7 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* Frequency output */
-	s = dev->subdevices + NI_FREQ_OUT_SUBDEV;
+	s = &dev->subdevices[NI_FREQ_OUT_SUBDEV];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 1;
@@ -4669,7 +4674,8 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_config = &ni_freq_out_insn_config;
 
 	/* ai configuration */
-	ni_ai_reset(dev, dev->subdevices + NI_AI_SUBDEV);
+	s = &dev->subdevices[NI_AI_SUBDEV];
+	ni_ai_reset(dev, s);
 	if ((boardtype.reg_type & ni_reg_6xxx_mask) == 0) {
 		/*  BEAM is this needed for PCI-6143 ?? */
 		devpriv->clock_and_fout =
@@ -4688,7 +4694,8 @@ static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
 			    Clock_and_FOUT_Register);
 
 	/* analog output configuration */
-	ni_ao_reset(dev, dev->subdevices + NI_AO_SUBDEV);
+	s = &dev->subdevices[NI_AO_SUBDEV];
+	ni_ao_reset(dev, s);
 
 	if (dev->irq) {
 		devpriv->stc_writew(dev,
