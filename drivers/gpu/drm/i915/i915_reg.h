@@ -4037,6 +4037,8 @@
 #define  PORT_TRANS_C_SEL_CPT	(2<<29)
 #define  PORT_TRANS_SEL_MASK	(3<<29)
 #define  PORT_TRANS_SEL_CPT(pipe)	((pipe) << 29)
+#define  PORT_TO_PIPE(val)	(((val) & (1<<30)) >> 30)
+#define  PORT_TO_PIPE_CPT(val)	(((val) & PORT_TRANS_SEL_MASK) >> 29)
 
 #define TRANS_DP_CTL_A		0xe0300
 #define TRANS_DP_CTL_B		0xe1300

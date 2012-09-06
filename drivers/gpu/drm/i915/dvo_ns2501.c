@@ -493,6 +493,20 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 }
 
 /* set the NS2501 power state */
+static bool ns2501_get_hw_state(struct intel_dvo_device *dvo)
+{
+	unsigned char ch;
+
+	if (!ns2501_readb(dvo, NS2501_REG8, &ch))
+		return false;
+
+	if (ch & NS2501_8_PD)
+		return true;
+	else
+		return false;
+}
+
+/* set the NS2501 power state */
 static void ns2501_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	bool ok;
@@ -568,6 +582,7 @@ struct intel_dvo_dev_ops ns2501_ops = {
 	.mode_valid = ns2501_mode_valid,
 	.mode_set = ns2501_mode_set,
 	.dpms = ns2501_dpms,
+	.get_hw_state = ns2501_get_hw_state,
 	.dump_regs = ns2501_dump_regs,
 	.destroy = ns2501_destroy,
 };

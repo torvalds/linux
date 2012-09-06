@@ -61,41 +61,62 @@ static struct intel_crt *intel_encoder_to_crt(struct intel_encoder *encoder)
 	return container_of(encoder, struct intel_crt, base);
 }
 
-static void pch_crt_dpms(struct drm_encoder *encoder, int mode)
+static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
+				   enum pipe *pipe)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 temp;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	u32 tmp;
 
-	temp = I915_READ(PCH_ADPA);
-	temp &= ~ADPA_DAC_ENABLE;
+	tmp = I915_READ(crt->adpa_reg);
 
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		temp |= ADPA_DAC_ENABLE;
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		/* Just leave port enable cleared */
-		break;
-	}
+	if (!(tmp & ADPA_DAC_ENABLE))
+		return false;
 
-	I915_WRITE(PCH_ADPA, temp);
+	if (HAS_PCH_CPT(dev))
+		*pipe = PORT_TO_PIPE_CPT(tmp);
+	else
+		*pipe = PORT_TO_PIPE(tmp);
+
+	return true;
 }
 
-static void gmch_crt_dpms(struct drm_encoder *encoder, int mode)
+static void intel_disable_crt(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	u32 temp;
 
-	temp = I915_READ(ADPA);
+	temp = I915_READ(crt->adpa_reg);
 	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
 	temp &= ~ADPA_DAC_ENABLE;
+	I915_WRITE(crt->adpa_reg, temp);
+}
 
-	if (IS_VALLEYVIEW(dev) && mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
+static void intel_enable_crt(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	u32 temp;
+
+	temp = I915_READ(crt->adpa_reg);
+	temp |= ADPA_DAC_ENABLE;
+	I915_WRITE(crt->adpa_reg, temp);
+}
+
+/* Note: The caller is required to filter out dpms modes not supported by the
+ * platform. */
+static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crt *crt = intel_encoder_to_crt(encoder);
+	u32 temp;
+
+	temp = I915_READ(crt->adpa_reg);
+	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
+	temp &= ~ADPA_DAC_ENABLE;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -112,7 +133,51 @@ static void gmch_crt_dpms(struct drm_encoder *encoder, int mode)
 		break;
 	}
 
-	I915_WRITE(ADPA, temp);
+	I915_WRITE(crt->adpa_reg, temp);
+}
+
+static void intel_crt_dpms(struct drm_connector *connector, int mode)
+{
+	struct drm_device *dev = connector->dev;
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+	struct drm_crtc *crtc;
+	int old_dpms;
+
+	/* PCH platforms and VLV only support on/off. */
+	if (INTEL_INFO(dev)->gen < 5 && mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
+	if (mode == connector->dpms)
+		return;
+
+	old_dpms = connector->dpms;
+	connector->dpms = mode;
+
+	/* Only need to change hw state when actually enabled */
+	crtc = encoder->base.crtc;
+	if (!crtc) {
+		encoder->connectors_active = false;
+		return;
+	}
+
+	/* We need the pipe to run for anything but OFF. */
+	if (mode == DRM_MODE_DPMS_OFF)
+		encoder->connectors_active = false;
+	else
+		encoder->connectors_active = true;
+
+	if (mode < old_dpms) {
+		/* From off to on, enable the pipe first. */
+		intel_crtc_update_dpms(crtc);
+
+		intel_crt_set_dpms(encoder, mode);
+	} else {
+		intel_crt_set_dpms(encoder, mode);
+
+		intel_crtc_update_dpms(crtc);
+	}
+
+	intel_modeset_check_state(connector->dev);
 }
 
 static int intel_crt_mode_valid(struct drm_connector *connector,
@@ -603,25 +668,15 @@ static void intel_crt_reset(struct drm_connector *connector)
  * Routines for controlling stuff on the analog port
  */
 
-static const struct drm_encoder_helper_funcs pch_encoder_funcs = {
+static const struct drm_encoder_helper_funcs crt_encoder_funcs = {
 	.mode_fixup = intel_crt_mode_fixup,
-	.prepare = intel_encoder_prepare,
-	.commit = intel_encoder_commit,
 	.mode_set = intel_crt_mode_set,
-	.dpms = pch_crt_dpms,
-};
-
-static const struct drm_encoder_helper_funcs gmch_encoder_funcs = {
-	.mode_fixup = intel_crt_mode_fixup,
-	.prepare = intel_encoder_prepare,
-	.commit = intel_encoder_commit,
-	.mode_set = intel_crt_mode_set,
-	.dpms = gmch_crt_dpms,
+	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_crt_connector_funcs = {
 	.reset = intel_crt_reset,
-	.dpms = drm_helper_connector_dpms,
+	.dpms = intel_crt_dpms,
 	.detect = intel_crt_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = intel_crt_destroy,
@@ -662,7 +717,6 @@ void intel_crt_init(struct drm_device *dev)
 	struct intel_crt *crt;
 	struct intel_connector *intel_connector;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct drm_encoder_helper_funcs *encoder_helper_funcs;
 
 	/* Skip machines without VGA that falsely report hotplug events */
 	if (dmi_check_system(intel_no_crt))
@@ -701,18 +755,18 @@ void intel_crt_init(struct drm_device *dev)
 	connector->doublescan_allowed = 0;
 
 	if (HAS_PCH_SPLIT(dev))
-		encoder_helper_funcs = &pch_encoder_funcs;
-	else
-		encoder_helper_funcs = &gmch_encoder_funcs;
-
-	if (HAS_PCH_SPLIT(dev))
 		crt->adpa_reg = PCH_ADPA;
 	else if (IS_VALLEYVIEW(dev))
 		crt->adpa_reg = VLV_ADPA;
 	else
 		crt->adpa_reg = ADPA;
 
-	drm_encoder_helper_add(&crt->base.base, encoder_helper_funcs);
+	crt->base.disable = intel_disable_crt;
+	crt->base.enable = intel_enable_crt;
+	crt->base.get_hw_state = intel_crt_get_hw_state;
+	intel_connector->get_hw_state = intel_connector_get_hw_state;
+
+	drm_encoder_helper_add(&crt->base.base, &crt_encoder_funcs);
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
 
 	drm_sysfs_connector_add(connector);

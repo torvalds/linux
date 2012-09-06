@@ -323,6 +323,20 @@ static void ivch_dpms(struct intel_dvo_device *dvo, bool enable)
 	udelay(16 * 1000);
 }
 
+static bool ivch_get_hw_state(struct intel_dvo_device *dvo)
+{
+	uint16_t vr01;
+
+	/* Set the new power state of the panel. */
+	if (!ivch_read(dvo, VR01, &vr01))
+		return false;
+
+	if (vr01 & VR01_LCD_ENABLE)
+		return true;
+	else
+		return false;
+}
+
 static void ivch_mode_set(struct intel_dvo_device *dvo,
 			  struct drm_display_mode *mode,
 			  struct drm_display_mode *adjusted_mode)
@@ -413,6 +427,7 @@ static void ivch_destroy(struct intel_dvo_device *dvo)
 struct intel_dvo_dev_ops ivch_ops = {
 	.init = ivch_init,
 	.dpms = ivch_dpms,
+	.get_hw_state = ivch_get_hw_state,
 	.mode_valid = ivch_mode_valid,
 	.mode_set = ivch_mode_set,
 	.detect = ivch_detect,

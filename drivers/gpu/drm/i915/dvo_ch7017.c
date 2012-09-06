@@ -359,6 +359,18 @@ static void ch7017_dpms(struct intel_dvo_device *dvo, bool enable)
 	msleep(20);
 }
 
+static bool ch7017_get_hw_state(struct intel_dvo_device *dvo)
+{
+	uint8_t val;
+
+	ch7017_read(dvo, CH7017_LVDS_POWER_DOWN, &val);
+
+	if (val & CH7017_LVDS_POWER_DOWN_EN)
+		return false;
+	else
+		return true;
+}
+
 static void ch7017_dump_regs(struct intel_dvo_device *dvo)
 {
 	uint8_t val;
@@ -396,6 +408,7 @@ struct intel_dvo_dev_ops ch7017_ops = {
 	.mode_valid = ch7017_mode_valid,
 	.mode_set = ch7017_mode_set,
 	.dpms = ch7017_dpms,
+	.get_hw_state = ch7017_get_hw_state,
 	.dump_regs = ch7017_dump_regs,
 	.destroy = ch7017_destroy,
 };

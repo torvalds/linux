@@ -241,7 +241,6 @@ struct drm_i915_error_state {
 };
 
 struct drm_i915_display_funcs {
-	void (*dpms)(struct drm_crtc *crtc, int mode);
 	bool (*fbc_enabled)(struct drm_device *dev);
 	void (*enable_fbc)(struct drm_crtc *crtc, unsigned long interval);
 	void (*disable_fbc)(struct drm_device *dev);
@@ -257,6 +256,8 @@ struct drm_i915_display_funcs {
 			     struct drm_display_mode *adjusted_mode,
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);
+	void (*crtc_enable)(struct drm_crtc *crtc);
+	void (*crtc_disable)(struct drm_crtc *crtc);
 	void (*off)(struct drm_crtc *crtc);
 	void (*write_eld)(struct drm_connector *connector,
 			  struct drm_crtc *crtc);
@@ -1550,6 +1551,7 @@ extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_gem_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
+extern void intel_modeset_setup_hw_state(struct drm_device *dev);
 extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
