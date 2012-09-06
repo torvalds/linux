@@ -1322,7 +1322,7 @@ static int pci9111_attach(struct comedi_device *dev,
 	if (error)
 		return error;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 
 	s->type = COMEDI_SUBD_AI;
@@ -1342,7 +1342,7 @@ static int pci9111_attach(struct comedi_device *dev,
 	s->do_cmd = pci9111_ai_do_cmd;
 	s->munge = pci9111_ai_munge;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_COMMON;
 	s->n_chan = board->ao_channel_nbr;
@@ -1352,7 +1352,7 @@ static int pci9111_attach(struct comedi_device *dev,
 	s->insn_write = pci9111_ao_insn_write;
 	s->insn_read = pci9111_ao_insn_read;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = PCI9111_DI_CHANNEL_NBR;
@@ -1360,7 +1360,7 @@ static int pci9111_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = pci9111_di_insn_bits;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = PCI9111_DO_CHANNEL_NBR;
