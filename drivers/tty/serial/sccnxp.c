@@ -17,12 +17,12 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/console.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/io.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include <linux/console.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/sccnxp.h>
 
