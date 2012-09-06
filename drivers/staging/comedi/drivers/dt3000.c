@@ -330,7 +330,7 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	status = readw(devpriv->io_addr + DPR_Intr_Flag);
 #ifdef DEBUG
 	debug_intr_flags(status);
@@ -842,7 +842,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 
 	/* ai subdevice */
@@ -857,7 +857,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->do_cmdtest = dt3k_ai_cmdtest;
 	s->cancel = dt3k_ai_cancel;
 
-	s++;
+	s = &dev->subdevices[1];
 	/* ao subsystem */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -868,7 +868,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 1;
 	s->range_table = &range_bipolar10;
 
-	s++;
+	s = &dev->subdevices[2];
 	/* dio subsystem */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -879,7 +879,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
 
-	s++;
+	s = &dev->subdevices[3];
 	/* mem subsystem */
 	s->type = COMEDI_SUBD_MEMORY;
 	s->subdev_flags = SDF_READABLE;
@@ -890,7 +890,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_unknown;
 
 #if 0
-	s++;
+	s = &dev->subdevices[4];
 	/* proc subsystem */
 	s->type = COMEDI_SUBD_PROC;
 #endif
