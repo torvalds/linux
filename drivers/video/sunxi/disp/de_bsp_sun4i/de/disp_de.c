@@ -36,7 +36,6 @@ __s32 Image_init(__u32 sel)
 	DE_BE_Reg_Init(sel);
 	
     BSP_disp_sprite_init(sel);
-    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
     
     Image_open(sel);
 
@@ -76,7 +75,8 @@ __s32 Image_close(__u32 sel)
 __s32 BSP_disp_set_bright(__u32 sel, __u32 bright)
 {
     gdisp.screen[sel].bright = bright;
-    DE_BE_Set_Enhance(sel, gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
+   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
     return DIS_SUCCESS;
 }
@@ -89,7 +89,8 @@ __s32 BSP_disp_get_bright(__u32 sel)
 __s32 BSP_disp_set_contrast(__u32 sel, __u32 contrast)
 {
     gdisp.screen[sel].contrast = contrast;
-    DE_BE_Set_Enhance(sel, gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
+   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
     return DIS_SUCCESS;
 }
@@ -102,7 +103,8 @@ __s32 BSP_disp_get_contrast(__u32 sel)
 __s32 BSP_disp_set_saturation(__u32 sel, __u32 saturation)
 {
     gdisp.screen[sel].saturation = saturation;
-    DE_BE_Set_Enhance(sel, gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
+   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
     return DIS_SUCCESS;
 }
@@ -115,7 +117,8 @@ __s32 BSP_disp_get_saturation(__u32 sel)
 __s32 BSP_disp_set_hue(__u32 sel, __u32 hue)
 {
     gdisp.screen[sel].hue = hue;
-    DE_BE_Set_Enhance(sel, gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
+   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
     return DIS_SUCCESS;
 }
@@ -127,8 +130,10 @@ __s32 BSP_disp_get_hue(__u32 sel)
 
 __s32 BSP_disp_enhance_enable(__u32 sel, __bool enable)
 {
-    DE_BE_enhance_enable(sel, enable);
     gdisp.screen[sel].enhance_en = enable;
+
+   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, gdisp.screen[sel].enhance_en,
+            gdisp.screen[sel].bright, gdisp.screen[sel].contrast, gdisp.screen[sel].saturation, gdisp.screen[sel].hue);
 
     return DIS_SUCCESS;
 }
@@ -152,7 +157,14 @@ __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size)
 __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
 {
     __disp_color_range_t out_color_range = DISP_COLOR_RANGE_0_255;
-    __bool bout_yuv = FALSE;
+    __u32 out_csc = 0;
+    __u32 enhance_en, bright, contrast, saturation, hue;
+
+    enhance_en = gdisp.screen[sel].enhance_en;
+    bright = gdisp.screen[sel].bright;
+    contrast = gdisp.screen[sel].contrast;
+    saturation = gdisp.screen[sel].saturation;
+    hue = gdisp.screen[sel].hue;
 
     if(type == DISP_OUTPUT_TYPE_HDMI)
     {
@@ -174,12 +186,26 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
     }
     else if(type == DISP_OUTPUT_TYPE_TV)
     {
-        bout_yuv = TRUE;
+        out_csc = 1;
     }
-   
-    DE_BE_Output_Cfg_Csc_Coeff(sel, bout_yuv, out_color_range);
 
-    gdisp.screen[sel].bout_yuv = bout_yuv;
+    else if(type == DISP_OUTPUT_TYPE_LCD)
+    {
+        if(enhance_en == 0)
+        {
+            enhance_en = 1;
+            
+            bright = 50;
+            contrast = 50;
+            saturation = 57;
+            hue = 50;
+        }
+    }
+
+   gdisp.screen[sel].out_color_range = out_color_range;
+   gdisp.screen[sel].out_csc = out_csc;
+
+   DE_BE_Set_Enhance_ex(sel, gdisp.screen[sel].out_csc, gdisp.screen[sel].out_color_range, enhance_en, bright, contrast, saturation, hue);
 
     return DIS_SUCCESS;
 }
@@ -243,6 +269,7 @@ __s32 Disp_set_out_interlace(__u32 sel)
 	DE_BE_Set_Outitl_enable(sel, gdisp.screen[sel].b_out_interlace);
 
     BSP_disp_cfg_finish(sel);
+    
 	return DIS_SUCCESS;
 }
 

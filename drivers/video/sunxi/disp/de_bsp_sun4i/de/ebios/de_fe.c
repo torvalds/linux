@@ -1367,7 +1367,7 @@ __s32 iDE_SCAL_Matrix_Mul(__scal_matrix4x4 in1, __scal_matrix4x4 in2, __scal_mat
 
 
 //*********************************************************************************************
-// function         : iDE_SCAL_Csc_Lmt(__s32 *value, __s32 min, __s32 max, __s32 shift, __s32 validbit)
+// function         : iDE_SCAL_Csc_Lmt(__s64 *value, __s32 min, __s32 max, __s32 shift, __s32 validbit)
 // description      : csc coefficient and constant limited
 // parameters       :
 //                value<coefficient or constant>
@@ -1375,9 +1375,9 @@ __s32 iDE_SCAL_Matrix_Mul(__scal_matrix4x4 in1, __scal_matrix4x4 in2, __scal_mat
 // return           : 
 //               success
 //*********************************************************************************************** 
-__s32 iDE_SCAL_Csc_Lmt(__s32 *value, __s32 min, __s32 max, __s32 shift, __s32 validbit)
+__s32 iDE_SCAL_Csc_Lmt(__s64 *value, __s32 min, __s32 max, __s32 shift, __s32 validbit)
 {
-    __s32 tmp;
+    __s64 tmp;
     tmp = (*value)>>shift;
    if(tmp < min)
     *value = min & validbit;
@@ -1388,7 +1388,6 @@ __s32 iDE_SCAL_Csc_Lmt(__s32 *value, __s32 min, __s32 max, __s32 shift, __s32 va
 
    return 0;
 }
-
 
 //*********************************************************************************************
 // function         : DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode, __u8 incs, __u8 outcs,
@@ -1424,8 +1423,8 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
 {
 	__scal_matrix4x4 matrixEn;
 	__scal_matrix4x4 matrixconv, *ptmatrix;
-	__scal_matrix4x4 matrixresult;
-    __s32 *pt;
+	__scal_matrix4x4 matrixresult, tmpcoeff;
+    __s64 *pt;
 	__u32 i;
 	__s32 sinv, cosv;   //sin_tab: 7 bit fractional
 
@@ -1436,7 +1435,7 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
 
 	sinv = image_enhance_tab[8*12 + (hue&0x3f)];
 	cosv = image_enhance_tab[8*12 + 8*8 + (hue&0x3f)];
-	
+
 	matrixEn.x00 = contrast << 5;
 	matrixEn.x01 = 0;
 	matrixEn.x02 = 0;
@@ -1456,46 +1455,75 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
 
 	if((incs == 0) && (outcs == 0))  //rgb to rgb
 	{
-		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (in_csc_mode<<7) + 0x40);
+		for(i=0; i<16; i++)
+		{
+			*((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + (in_csc_mode<<5) + i) <<32)>>32;		//RGB2YUV
+
+		}
+
+		ptmatrix = &tmpcoeff;
+
+		//convolution of enhance matrix and rgb2yuv matrix
 		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixconv);
-		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (in_csc_mode<<7));
+
+		for(i=0; i<16; i++)
+		{
+			*((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + (in_csc_mode<<5) + 0x10 + i) <<32)>>32;	//YUV2RGB
+		}
+
+		ptmatrix = &tmpcoeff;
+
+		//convert to RGB
 		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixconv, &matrixconv);
-        matrixresult.x00 = matrixconv.x11;  matrixresult.x01 = matrixconv.x10;
-        matrixresult.x02 = matrixconv.x12;  matrixresult.x03 = matrixconv.x13;
-        matrixresult.x10 = matrixconv.x01;  matrixresult.x11 = matrixconv.x00;
-        matrixresult.x12 = matrixconv.x02;  matrixresult.x13 = matrixconv.x03;
-        matrixresult.x20 = matrixconv.x21;  matrixresult.x21 = matrixconv.x20;
-        matrixresult.x22 = matrixconv.x22;  matrixresult.x23 = matrixconv.x23;
-        matrixresult.x30 = matrixconv.x31;  matrixresult.x31 = matrixconv.x30;
-        matrixresult.x32 = matrixconv.x32;  matrixresult.x33 = matrixconv.x33;
-        
+
+        matrixresult.x00 = (matrixconv.x11+8)/16;  matrixresult.x01 = (matrixconv.x10+8)/16;
+        matrixresult.x02 = (matrixconv.x12+8)/16;  matrixresult.x03 = (matrixconv.x13+512)/1024;
+        matrixresult.x10 = (matrixconv.x01+8)/16;  matrixresult.x11 = (matrixconv.x00+8)/16;
+        matrixresult.x12 = (matrixconv.x02+8)/16;  matrixresult.x13 = (matrixconv.x03+512)/1024;
+        matrixresult.x20 = (matrixconv.x21+8)/16;  matrixresult.x21 = (matrixconv.x20+8)/16;
+        matrixresult.x22 = (matrixconv.x22+8)/16;  matrixresult.x23 = (matrixconv.x23+512)/1024;
+        matrixresult.x30 = (matrixconv.x31+8)/16;  matrixresult.x31 = (matrixconv.x30+8)/16;
+        matrixresult.x32 = (matrixconv.x32+8)/16;  matrixresult.x33 = (matrixconv.x33+8)/16;
+
 	}
 	else if((incs == 1) && (outcs == 0)) //yuv to rgb
 	{
-		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (in_csc_mode<<7) + 0x40);
+		for(i=0; i<16; i++)
+		{
+			*((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + (in_csc_mode<<5) + 0x10 + i) <<32)>>32;	//YUV2RGB
+		}
+
+		ptmatrix = &tmpcoeff;
+
 		iDE_SCAL_Matrix_Mul(*ptmatrix, matrixEn, &matrixconv);
-        matrixresult.x00 = matrixconv.x10;  matrixresult.x01 = matrixconv.x11;
-        matrixresult.x02 = matrixconv.x12;  matrixresult.x03 = matrixconv.x13;
-        matrixresult.x10 = matrixconv.x00;  matrixresult.x11 = matrixconv.x01;
-        matrixresult.x12 = matrixconv.x02;  matrixresult.x13 = matrixconv.x03;
-        matrixresult.x20 = matrixconv.x20;  matrixresult.x21 = matrixconv.x21;
-        matrixresult.x22 = matrixconv.x22;  matrixresult.x23 = matrixconv.x23;
-        matrixresult.x30 = matrixconv.x30;  matrixresult.x31 = matrixconv.x31;
-        matrixresult.x32 = matrixconv.x32;  matrixresult.x33 = matrixconv.x33;
-        
+        matrixresult.x00 = matrixconv.x10/4;  matrixresult.x01 = matrixconv.x11/4;
+        matrixresult.x02 = matrixconv.x12/4;  matrixresult.x03 = matrixconv.x13/256;
+        matrixresult.x10 = matrixconv.x00/4;  matrixresult.x11 = matrixconv.x01/4;
+        matrixresult.x12 = matrixconv.x02/4;  matrixresult.x13 = matrixconv.x03/256;
+        matrixresult.x20 = matrixconv.x20/4;  matrixresult.x21 = matrixconv.x21/4;
+        matrixresult.x22 = matrixconv.x22/4;  matrixresult.x23 = matrixconv.x23/256;
+        matrixresult.x30 = matrixconv.x30/4;  matrixresult.x31 = matrixconv.x31/4;
+        matrixresult.x32 = matrixconv.x32/4;  matrixresult.x33 = matrixconv.x33/4;
+
 	}
 	else if((incs == 0) && (outcs == 1)) //rgb to yuv
 	{
-		ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (in_csc_mode<<7));
+		for(i=0; i<16; i++)
+		{
+			*((__s64 *)(&tmpcoeff.x00) + i) = ((__s64)*(image_enhance_tab + (in_csc_mode<<5) + i) <<32)>>32;	//RGB2YUV
+		}
+
+		ptmatrix = &tmpcoeff;
+
 		iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixconv);
-        matrixresult.x00 = matrixconv.x01;  matrixresult.x01 = matrixconv.x00;
-        matrixresult.x02 = matrixconv.x02;  matrixresult.x03 = matrixconv.x03;
-        matrixresult.x10 = matrixconv.x11;  matrixresult.x11 = matrixconv.x10;
-        matrixresult.x12 = matrixconv.x12;  matrixresult.x13 = matrixconv.x13;
-        matrixresult.x20 = matrixconv.x21;  matrixresult.x21 = matrixconv.x20;
-        matrixresult.x22 = matrixconv.x22;  matrixresult.x23 = matrixconv.x23;
-        matrixresult.x30 = matrixconv.x31;  matrixresult.x31 = matrixconv.x30;
-        matrixresult.x32 = matrixconv.x32;  matrixresult.x33 = matrixconv.x33;
+        matrixresult.x00 = matrixconv.x01/4;  matrixresult.x01 = matrixconv.x00/4;
+        matrixresult.x02 = matrixconv.x02/4;  matrixresult.x03 = matrixconv.x03/256;
+        matrixresult.x10 = matrixconv.x11/4;  matrixresult.x11 = matrixconv.x10/4;
+        matrixresult.x12 = matrixconv.x12/4;  matrixresult.x13 = matrixconv.x13/256;
+        matrixresult.x20 = matrixconv.x21/4;  matrixresult.x21 = matrixconv.x20/4;
+        matrixresult.x22 = matrixconv.x22/4;  matrixresult.x23 = matrixconv.x23/256;
+        matrixresult.x30 = matrixconv.x31/4;  matrixresult.x31 = matrixconv.x30/4;
+        matrixresult.x32 = matrixconv.x32/4;  matrixresult.x33 = matrixconv.x33/4;
 	}
 	else  //yuv to yuv
 	{
@@ -1507,18 +1535,18 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
     iDE_SCAL_Csc_Lmt(&matrixresult.x00, -4095, 4095, 0, 8191);
     iDE_SCAL_Csc_Lmt(&matrixresult.x01, -4095, 4095, 0, 8191);
     iDE_SCAL_Csc_Lmt(&matrixresult.x02, -4095, 4095, 0, 8191);
-    iDE_SCAL_Csc_Lmt(&matrixresult.x03, -8191, 8191, 6, 16383);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x03, -8191, 8191, 0, 16383);
     iDE_SCAL_Csc_Lmt(&matrixresult.x10, -4095, 4095, 0, 8191);
     iDE_SCAL_Csc_Lmt(&matrixresult.x11, -4095, 4095, 0, 8191);
     iDE_SCAL_Csc_Lmt(&matrixresult.x12, -4095, 4095, 0, 8191);
-    iDE_SCAL_Csc_Lmt(&matrixresult.x13, -8191, 8191, 6, 16383);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x13, -8191, 8191, 0, 16383);
     iDE_SCAL_Csc_Lmt(&matrixresult.x20, -4095, 4095, 0, 8191);
     iDE_SCAL_Csc_Lmt(&matrixresult.x21, -4095, 4095, 0, 8191);
     iDE_SCAL_Csc_Lmt(&matrixresult.x22, -4095, 4095, 0, 8191);
-    iDE_SCAL_Csc_Lmt(&matrixresult.x23, -8191, 8191, 6, 16383);
+    iDE_SCAL_Csc_Lmt(&matrixresult.x23, -8191, 8191, 0, 16383);
 
     //write csc register
-    pt = &(matrixresult.x00);	
+    pt = (__s64 *)&(matrixresult.x00);
     for(i=0; i<4; i++)
     {
         scal_dev[sel]->csc_coef[i].dwval = *(pt + i);
@@ -1530,7 +1558,6 @@ __s32 DE_SCAL_Set_CSC_Coef_Enhance(__u8 sel, __u8 in_csc_mode, __u8 out_csc_mode
     
 	return 0;
 }
-
 
 //*********************************************************************************************
 // function         : DE_SCAL_Get_3D_In_Single_Size( __scal_3d_inmode_t inmode, __scal_src_size_t *fullsize,__scal_src_size_t *singlesize)

@@ -127,6 +127,7 @@ typedef struct
 
 	__u32                   lcd_bright;
 	__disp_color_range_t    out_color_range;
+	__u32                   out_csc;
 
 	__disp_lcd_cfg_t        lcd_cfg;
     __hdle                  gpio_hdl[4];
