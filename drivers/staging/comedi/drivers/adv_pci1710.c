@@ -744,7 +744,7 @@ static void interrupt_pci1710_every_sample(void *d)
 {
 	struct comedi_device *dev = d;
 	struct pci1710_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int m;
 #ifdef PCI171x_PARANOIDCHECK
 	const struct boardtype *this_board = comedi_board(dev);
@@ -873,7 +873,7 @@ static void interrupt_pci1710_half_fifo(void *d)
 	struct comedi_device *dev = d;
 	const struct boardtype *this_board = comedi_board(dev);
 	struct pci1710_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	int m, samplesinbuf;
 
 	m = inw(dev->iobase + PCI171x_STATUS);
@@ -1395,7 +1395,7 @@ static int pci1710_attach(struct comedi_device *dev,
 	subdev = 0;
 
 	if (this_board->n_aichan) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND;
@@ -1417,7 +1417,7 @@ static int pci1710_attach(struct comedi_device *dev,
 	}
 
 	if (this_board->n_aochan) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = this_board->n_aochan;
@@ -1437,7 +1437,7 @@ static int pci1710_attach(struct comedi_device *dev,
 	}
 
 	if (this_board->n_dichan) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = this_board->n_dichan;
@@ -1450,7 +1450,7 @@ static int pci1710_attach(struct comedi_device *dev,
 	}
 
 	if (this_board->n_dochan) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = this_board->n_dochan;
@@ -1465,7 +1465,7 @@ static int pci1710_attach(struct comedi_device *dev,
 	}
 
 	if (this_board->n_counter) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_COUNTER;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 		s->n_chan = this_board->n_counter;
