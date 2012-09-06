@@ -267,12 +267,6 @@ static void __init lpc3250_machine_init(void)
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     lpc32xx_auxdata_lookup, NULL);
-
-	/* Register GPIOs used on this board */
-	if (gpio_request(MMC_PWR_ENABLE_GPIO, "mmc_power_en"))
-		pr_err("Error requesting gpio %u", MMC_PWR_ENABLE_GPIO);
-	else if (gpio_direction_output(MMC_PWR_ENABLE_GPIO, 1))
-		pr_err("Error setting gpio %u to output", MMC_PWR_ENABLE_GPIO);
 }
 
 static char const *lpc32xx_dt_compat[] __initdata = {
