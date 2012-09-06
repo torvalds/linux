@@ -1330,6 +1330,13 @@ int dss_ovl_unset_manager(struct omap_overlay *ovl)
 		goto err;
 	}
 
+	spin_unlock_irqrestore(&data_lock, flags);
+
+	/* wait for pending extra_info updates to ensure the ovl is disabled */
+	wait_pending_extra_info_updates();
+
+	spin_lock_irqsave(&data_lock, flags);
+
 	op->channel = -1;
 
 	ovl->manager = NULL;
