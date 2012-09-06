@@ -312,7 +312,7 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
 	void *ptr;
 	int size;
 	int i;
-	struct comedi_subdevice *s = dev->subdevices + 1;
+	struct comedi_subdevice *s = &dev->subdevices[1];
 
 	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
 
@@ -345,7 +345,7 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
 	int size;
 	int i;
 	int ret;
-	struct comedi_subdevice *s = dev->subdevices;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
 
@@ -457,8 +457,8 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	s = dev->subdevices + 0;
-	s_ao = dev->subdevices + 1;
+	s = &dev->subdevices[0];
+	s_ao = &dev->subdevices[1];
 	adcsr = inw(dev->iobase + DT2821_ADCSR);
 	dacsr = inw(dev->iobase + DT2821_DACSR);
 	supcsr = inw(dev->iobase + DT2821_SUPCSR);
@@ -1275,7 +1275,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 
 	dev->read_subdev = s;
 	/* ai subdevice */
@@ -1294,7 +1294,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	    opt_ai_range_lkup(boardtype.ispgl, it->options[opt_ai_range]);
 	devpriv->ad_2scomp = it->options[opt_ai_twos];
 
-	s++;
+	s = &dev->subdevices[1];
 
 	s->n_chan = boardtype.dachan;
 	if (s->n_chan) {
@@ -1320,7 +1320,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s++;
+	s = &dev->subdevices[2];
 	/* dio subsystem */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
