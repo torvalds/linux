@@ -68,7 +68,7 @@ int do_rangeinfo_ioctl(struct comedi_device *dev,
 		return -EINVAL;
 	if (subd >= dev->n_subdevices)
 		return -EINVAL;
-	s = dev->subdevices + subd;
+	s = &dev->subdevices[subd];
 	if (s->range_table) {
 		lr = s->range_table;
 	} else if (s->range_table_list) {
