@@ -1268,7 +1268,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	/* ai */
 	if (board->ai) {
@@ -1300,7 +1300,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* ao */
 	if (board->ao) {
 		s->type = COMEDI_SUBD_AO;
@@ -1318,7 +1318,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* di */
 	if (board->di) {
 		s->type = COMEDI_SUBD_DI;
@@ -1331,7 +1331,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* do */
 	if (board->do_) {
 		s->type = COMEDI_SUBD_DO;
@@ -1346,7 +1346,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	/* 8255 */
 	if (board->i8255_offset != 0) {
 		subdev_8255_init(dev, s, NULL, (dev->iobase +
@@ -1376,7 +1376,7 @@ static void das16_detach(struct comedi_device *dev)
 
 	das16_reset(dev);
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 4);
+		subdev_8255_cleanup(dev, &dev->subdevices[4]);
 	if (devpriv) {
 		int i;
 		for (i = 0; i < 2; i++) {
