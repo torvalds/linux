@@ -436,7 +436,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	dev->read_subdev = s;
 /*	dev->write_subdev = s; */
