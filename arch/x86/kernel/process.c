@@ -156,7 +156,7 @@ void flush_thread(void)
 	 * Free the FPU state for non xsave platforms. They get reallocated
 	 * lazily at the first use.
 	 */
-	if (!use_xsave())
+	if (!use_eager_fpu())
 		free_thread_xstate(tsk);
 }
 

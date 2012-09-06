@@ -400,7 +400,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 			set_used_math();
 		}
 
-		if (use_xsave())
+		if (use_eager_fpu())
 			math_state_restore();
 
 		return err;
@@ -450,26 +450,8 @@ static void prepare_fx_sw_frame(void)
  */
 static inline void xstate_enable(void)
 {
-	clts();
 	set_in_cr4(X86_CR4_OSXSAVE);
 	xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
-}
-
-/*
- * This is same as math_state_restore(). But use_xsave() is not yet
- * patched to use math_state_restore().
- */
-static inline void init_restore_xstate(void)
-{
-	init_fpu(current);
-	__thread_fpu_begin(current);
-	xrstor_state(init_xstate_buf, -1);
-}
-
-static inline void xstate_enable_ap(void)
-{
-	xstate_enable();
-	init_restore_xstate();
 }
 
 /*
@@ -500,17 +482,20 @@ static void __init setup_xstate_features(void)
 /*
  * setup the xstate image representing the init state
  */
-static void __init setup_xstate_init(void)
+static void __init setup_init_fpu_buf(void)
 {
-	setup_xstate_features();
-
 	/*
 	 * Setup init_xstate_buf to represent the init state of
 	 * all the features managed by the xsave
 	 */
 	init_xstate_buf = alloc_bootmem_align(xstate_size,
 					      __alignof__(struct xsave_struct));
-	init_xstate_buf->i387.mxcsr = MXCSR_DEFAULT;
+	fx_finit(&init_xstate_buf->i387);
+
+	if (!cpu_has_xsave)
+		return;
+
+	setup_xstate_features();
 
 	/*
 	 * Init all the features state with header_bv being 0x0
@@ -522,6 +507,17 @@ static void __init setup_xstate_init(void)
 	 */
 	xsave_state(init_xstate_buf, -1);
 }
+
+static int disable_eagerfpu;
+static int __init eager_fpu_setup(char *s)
+{
+	if (!strcmp(s, "on"))
+		setup_force_cpu_cap(X86_FEATURE_EAGER_FPU);
+	else if (!strcmp(s, "off"))
+		disable_eagerfpu = 1;
+	return 1;
+}
+__setup("eagerfpu=", eager_fpu_setup);
 
 /*
  * Enable and initialize the xsave feature.
@@ -559,15 +555,10 @@ static void __init xstate_enable_boot_cpu(void)
 
 	update_regset_xstate_info(xstate_size, pcntxt_mask);
 	prepare_fx_sw_frame();
-
-	setup_xstate_init();
+	setup_init_fpu_buf();
 
 	pr_info("enabled xstate_bv 0x%llx, cntxt size 0x%x\n",
 		pcntxt_mask, xstate_size);
-
-	current->thread.fpu.state =
-	     alloc_bootmem_align(xstate_size, __alignof__(struct xsave_struct));
-	init_restore_xstate();
 }
 
 /*
@@ -586,6 +577,42 @@ void __cpuinit xsave_init(void)
 		return;
 
 	this_func = next_func;
-	next_func = xstate_enable_ap;
+	next_func = xstate_enable;
 	this_func();
+}
+
+static inline void __init eager_fpu_init_bp(void)
+{
+	current->thread.fpu.state =
+	    alloc_bootmem_align(xstate_size, __alignof__(struct xsave_struct));
+	if (!init_xstate_buf)
+		setup_init_fpu_buf();
+}
+
+void __cpuinit eager_fpu_init(void)
+{
+	static __refdata void (*boot_func)(void) = eager_fpu_init_bp;
+
+	clear_used_math();
+	current_thread_info()->status = 0;
+	if (!cpu_has_eager_fpu) {
+		stts();
+		return;
+	}
+
+	if (boot_func) {
+		boot_func();
+		boot_func = NULL;
+	}
+
+	/*
+	 * This is same as math_state_restore(). But use_xsave() is
+	 * not yet patched to use math_state_restore().
+	 */
+	init_fpu(current);
+	__thread_fpu_begin(current);
+	if (cpu_has_xsave)
+		xrstor_state(init_xstate_buf, -1);
+	else
+		fxrstor_checking(&init_xstate_buf->i387);
 }

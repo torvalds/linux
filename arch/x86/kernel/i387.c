@@ -22,9 +22,8 @@
 /*
  * Were we in an interrupt that interrupted kernel mode?
  *
- * For now, on xsave platforms we will return interrupted
- * kernel FPU as not-idle. TBD: As we use non-lazy FPU restore
- * for xsave platforms, ideally we can change the return value
+ * For now, with eagerfpu we will return interrupted kernel FPU
+ * state as not-idle. TBD: Ideally we can change the return value
  * to something like __thread_has_fpu(current). But we need to
  * be careful of doing __thread_clear_has_fpu() before saving
  * the FPU etc for supporting nested uses etc. For now, take
@@ -38,7 +37,7 @@
  */
 static inline bool interrupted_kernel_fpu_idle(void)
 {
-	if (use_xsave())
+	if (use_eager_fpu())
 		return 0;
 
 	return !__thread_has_fpu(current) &&
@@ -84,7 +83,7 @@ void kernel_fpu_begin(void)
 		__save_init_fpu(me);
 		__thread_clear_has_fpu(me);
 		/* We do 'stts()' in kernel_fpu_end() */
-	} else if (!use_xsave()) {
+	} else if (!use_eager_fpu()) {
 		this_cpu_write(fpu_owner_task, NULL);
 		clts();
 	}
@@ -93,7 +92,7 @@ EXPORT_SYMBOL(kernel_fpu_begin);
 
 void kernel_fpu_end(void)
 {
-	if (use_xsave())
+	if (use_eager_fpu())
 		math_state_restore();
 	else
 		stts();
@@ -122,7 +121,6 @@ static void __cpuinit mxcsr_feature_mask_init(void)
 {
 	unsigned long mask = 0;
 
-	clts();
 	if (cpu_has_fxsr) {
 		memset(&fx_scratch, 0, sizeof(struct i387_fxsave_struct));
 		asm volatile("fxsave %0" : : "m" (fx_scratch));
@@ -131,7 +129,6 @@ static void __cpuinit mxcsr_feature_mask_init(void)
 			mask = 0x0000ffbf;
 	}
 	mxcsr_feature_mask &= mask;
-	stts();
 }
 
 static void __cpuinit init_thread_xstate(void)
@@ -185,9 +182,8 @@ void __cpuinit fpu_init(void)
 		init_thread_xstate();
 
 	mxcsr_feature_mask_init();
-	/* clean state in init */
-	current_thread_info()->status = 0;
-	clear_used_math();
+	xsave_init();
+	eager_fpu_init();
 }
 
 void fpu_finit(struct fpu *fpu)
@@ -198,12 +194,7 @@ void fpu_finit(struct fpu *fpu)
 	}
 
 	if (cpu_has_fxsr) {
-		struct i387_fxsave_struct *fx = &fpu->state->fxsave;
-
-		memset(fx, 0, xstate_size);
-		fx->cwd = 0x37f;
-		if (cpu_has_xmm)
-			fx->mxcsr = MXCSR_DEFAULT;
+		fx_finit(&fpu->state->fxsave);
 	} else {
 		struct i387_fsave_struct *fp = &fpu->state->fsave;
 		memset(fp, 0, xstate_size);
