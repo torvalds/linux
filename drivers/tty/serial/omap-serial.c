@@ -56,8 +56,8 @@
 #define OMAP_UART_SCR_RX_TRIG_GRANU1_MASK		(1 << 7)
 
 /* FCR register bitmasks */
-#define OMAP_UART_FCR_RX_FIFO_TRIG_SHIFT		6
 #define OMAP_UART_FCR_RX_FIFO_TRIG_MASK			(0x3 << 6)
+#define OMAP_UART_FCR_TX_FIFO_TRIG_MASK			(0x3 << 4)
 
 /* MVR register bitmasks */
 #define OMAP_UART_MVR_SCHEME_SHIFT	30
@@ -834,9 +834,13 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	up->scr |= OMAP_UART_SCR_RX_TRIG_GRANU1_MASK;
 
-	/* Set receive FIFO threshold to 1 byte */
+	/* Set receive FIFO threshold to 16 characters and
+	 * transmit FIFO threshold to 16 spaces
+	 */
 	up->fcr &= ~OMAP_UART_FCR_RX_FIFO_TRIG_MASK;
-	up->fcr |= (0x1 << OMAP_UART_FCR_RX_FIFO_TRIG_SHIFT);
+	up->fcr &= ~OMAP_UART_FCR_TX_FIFO_TRIG_MASK;
+	up->fcr |= UART_FCR6_R_TRIGGER_16 | UART_FCR6_T_TRIGGER_24 |
+		UART_FCR_ENABLE_FIFO;
 
 	serial_out(up, UART_FCR, up->fcr);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
