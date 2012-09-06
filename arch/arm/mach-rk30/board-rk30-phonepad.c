@@ -1188,9 +1188,28 @@ static struct sensor_platform_data light_stk3171_info = {
 #define LCD_EN_PIN         RK30_PIN6_PB4
 #define LCD_EN_VALUE       GPIO_LOW
 
+#define HDMI11_MUX_NAME                GPIO3A6_SDMMC0RSTNOUT_NAME
+#define HDMI11_EN_PIN          RK30_PIN3_PA6
+#define HDMI11_EN_VALUE        GPIO_HIGH
+
+
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
+
+	rk30_mux_api_set(GPIO3A6_SDMMC0RSTNOUT_NAME, GPIO3A_GPIO3A6);
+	ret = gpio_request(HDMI11_EN_PIN, NULL);
+	if (ret != 0)
+	{
+		gpio_free(HDMI11_EN_PIN);
+		printk(KERN_ERR "hdmi gpio fail!\n");
+		return -1;
+	}
+	else
+	{
+		gpio_direction_output(HDMI11_EN_PIN, HDMI11_EN_VALUE);
+	}
+
 	rk30_mux_api_set(LCD_CS_MUX_NAME, GPIO4C_GPIO4C7);
 	ret = gpio_request(LCD_CS_PIN, NULL);
 	if (ret != 0)
@@ -1219,6 +1238,7 @@ static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 static int rk_fb_io_disable(void)
 {
 	msleep(30);		//Response Time (Rising + Falling)
+	gpio_set_value(HDMI11_EN_PIN, HDMI11_EN_VALUE? 0:1);
 	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE? 0:1);
 	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE? 0:1);
 	return 0;
@@ -1227,6 +1247,7 @@ static int rk_fb_io_enable(void)
 {
 	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);	
 	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
+	gpio_set_value(HDMI11_EN_PIN, HDMI11_EN_VALUE);
 	msleep(150);	//wait for power stable
 	return 0;
 }
