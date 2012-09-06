@@ -346,7 +346,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		return;
 	}
 	/* subdevice which is the AD converter */
-	s = this_comedidev->subdevices + SUBDEV_AD;
+	s = &this_comedidev->subdevices[SUBDEV_AD];
 
 	/* first we test if something unusual has just happened */
 	switch (urb->status) {
@@ -1453,7 +1453,7 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	/* private structure is also simply the usb-structure */
 	dev->private = udfs;
 	/* the first subdevice is the A/D converter */
-	s = dev->subdevices + SUBDEV_AD;
+	s = &dev->subdevices[SUBDEV_AD];
 	/*
 	 * the URBs get the comedi subdevice which is responsible for reading
 	 * this is the subdevice which reads data
