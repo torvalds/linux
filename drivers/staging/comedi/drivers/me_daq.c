@@ -341,7 +341,7 @@ static int me_dio_insn_bits(struct comedi_device *dev,
 
 /* Analog instant input */
 static int me_ai_insn_read(struct comedi_device *dev,
-			   struct comedi_subdevice *subdevice,
+			   struct comedi_subdevice *s,
 			   struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned short value;
@@ -435,7 +435,7 @@ static int me_ai_do_cmd_test(struct comedi_device *dev,
 
 /* Analog input command */
 static int me_ai_do_cmd(struct comedi_device *dev,
-			struct comedi_subdevice *subdevice)
+			struct comedi_subdevice *s)
 {
 	return 0;
 }
@@ -643,7 +643,7 @@ static struct pci_dev *me_find_pci_dev(struct comedi_device *dev,
 static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
-	struct comedi_subdevice *subdevice;
+	struct comedi_subdevice *s;
 	struct me_board *board;
 	resource_size_t plx_regbase_tmp;
 	unsigned long plx_regbase_size_tmp;
@@ -758,38 +758,38 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (error)
 		return error;
 
-	subdevice = dev->subdevices + 0;
-	subdevice->type = COMEDI_SUBD_AI;
-	subdevice->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
-	subdevice->n_chan = board->ai_channel_nbr;
-	subdevice->maxdata = board->ai_resolution_mask;
-	subdevice->len_chanlist = board->ai_channel_nbr;
-	subdevice->range_table = board->ai_range_list;
-	subdevice->cancel = me_ai_cancel;
-	subdevice->insn_read = me_ai_insn_read;
-	subdevice->do_cmdtest = me_ai_do_cmd_test;
-	subdevice->do_cmd = me_ai_do_cmd;
+	s = dev->subdevices + 0;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
+	s->n_chan = board->ai_channel_nbr;
+	s->maxdata = board->ai_resolution_mask;
+	s->len_chanlist = board->ai_channel_nbr;
+	s->range_table = board->ai_range_list;
+	s->cancel = me_ai_cancel;
+	s->insn_read = me_ai_insn_read;
+	s->do_cmdtest = me_ai_do_cmd_test;
+	s->do_cmd = me_ai_do_cmd;
 
-	subdevice = dev->subdevices + 1;
-	subdevice->type = COMEDI_SUBD_AO;
-	subdevice->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
-	subdevice->n_chan = board->ao_channel_nbr;
-	subdevice->maxdata = board->ao_resolution_mask;
-	subdevice->len_chanlist = board->ao_channel_nbr;
-	subdevice->range_table = board->ao_range_list;
-	subdevice->insn_read = me_ao_insn_read;
-	subdevice->insn_write = me_ao_insn_write;
+	s = dev->subdevices + 1;
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITEABLE | SDF_COMMON;
+	s->n_chan = board->ao_channel_nbr;
+	s->maxdata = board->ao_resolution_mask;
+	s->len_chanlist = board->ao_channel_nbr;
+	s->range_table = board->ao_range_list;
+	s->insn_read = me_ao_insn_read;
+	s->insn_write = me_ao_insn_write;
 
-	subdevice = dev->subdevices + 2;
-	subdevice->type = COMEDI_SUBD_DIO;
-	subdevice->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
-	subdevice->n_chan = board->dio_channel_nbr;
-	subdevice->maxdata = 1;
-	subdevice->len_chanlist = board->dio_channel_nbr;
-	subdevice->range_table = &range_digital;
-	subdevice->insn_bits = me_dio_insn_bits;
-	subdevice->insn_config = me_dio_insn_config;
-	subdevice->io_bits = 0;
+	s = dev->subdevices + 2;
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
+	s->n_chan = board->dio_channel_nbr;
+	s->maxdata = 1;
+	s->len_chanlist = board->dio_channel_nbr;
+	s->range_table = &range_digital;
+	s->insn_bits = me_dio_insn_bits;
+	s->insn_config = me_dio_insn_config;
+	s->io_bits = 0;
 
 	printk(KERN_INFO "comedi%d: " ME_DRIVER_NAME " attached.\n",
 	       dev->minor);
