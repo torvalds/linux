@@ -2295,33 +2295,39 @@ static int read_attr(int fd, struct perf_header *ph,
 	return ret <= 0 ? -1 : 0;
 }
 
-static int perf_evsel__set_tracepoint_name(struct perf_evsel *evsel,
-					   struct pevent *pevent)
+static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
+						struct pevent *pevent)
 {
-	struct event_format *event = pevent_find_event(pevent,
-						       evsel->attr.config);
+	struct event_format *event;
 	char bf[128];
 
+	/* already prepared */
+	if (evsel->tp_format)
+		return 0;
+
+	event = pevent_find_event(pevent, evsel->attr.config);
 	if (event == NULL)
 		return -1;
 
-	snprintf(bf, sizeof(bf), "%s:%s", event->system, event->name);
-	evsel->name = strdup(bf);
-	if (evsel->name == NULL)
-		return -1;
+	if (!evsel->name) {
+		snprintf(bf, sizeof(bf), "%s:%s", event->system, event->name);
+		evsel->name = strdup(bf);
+		if (evsel->name == NULL)
+			return -1;
+	}
 
 	evsel->tp_format = event;
 	return 0;
 }
 
-static int perf_evlist__set_tracepoint_names(struct perf_evlist *evlist,
-					     struct pevent *pevent)
+static int perf_evlist__prepare_tracepoint_events(struct perf_evlist *evlist,
+						  struct pevent *pevent)
 {
 	struct perf_evsel *pos;
 
 	list_for_each_entry(pos, &evlist->entries, node) {
-		if (pos->attr.type == PERF_TYPE_TRACEPOINT && !pos->name &&
-		    perf_evsel__set_tracepoint_name(pos, pevent))
+		if (pos->attr.type == PERF_TYPE_TRACEPOINT &&
+		    perf_evsel__prepare_tracepoint_event(pos, pevent))
 			return -1;
 	}
 
@@ -2409,7 +2415,8 @@ int perf_session__read_header(struct perf_session *session, int fd)
 
 	lseek(fd, header->data_offset, SEEK_SET);
 
-	if (perf_evlist__set_tracepoint_names(session->evlist, session->pevent))
+	if (perf_evlist__prepare_tracepoint_events(session->evlist,
+						   session->pevent))
 		goto out_delete_evlist;
 
 	header->frozen = 1;
@@ -2643,7 +2650,8 @@ int perf_event__process_tracing_data(union perf_event *event,
 	if (size_read + padding != size)
 		die("tracing data size mismatch");
 
-	perf_evlist__set_tracepoint_names(session->evlist, session->pevent);
+	perf_evlist__prepare_tracepoint_events(session->evlist,
+					       session->pevent);
 
 	return size_read + padding;
 }
