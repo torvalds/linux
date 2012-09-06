@@ -1375,7 +1375,7 @@ static int pci224_attach_common(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* Analog output subdevice. */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
@@ -1523,7 +1523,7 @@ static void pci224_detach(struct comedi_device *dev)
 	if (dev->subdevices) {
 		struct comedi_subdevice *s;
 
-		s = dev->subdevices + 0;
+		s = &dev->subdevices[0];
 		/* AO subdevice */
 		kfree(s->range_table_list);
 	}
