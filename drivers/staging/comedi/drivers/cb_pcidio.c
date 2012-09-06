@@ -119,7 +119,7 @@ static int pcidio_attach_pci(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < board->n_8255; i++) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 		ret = subdev_8255_init(dev, s, NULL, dev->iobase + i * 4);
 		if (ret)
 			return ret;
@@ -140,7 +140,7 @@ static void pcidio_detach(struct comedi_device *dev)
 
 	if (dev->subdevices) {
 		for (i = 0; i < board->n_8255; i++) {
-			s = dev->subdevices + i;
+			s = &dev->subdevices[i];
 			subdev_8255_cleanup(dev, s);
 		}
 	}
