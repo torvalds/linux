@@ -211,7 +211,7 @@ static int adl_pci7x3x_attach_pci(struct comedi_device *dev,
 	if (board->di_nchan) {
 		nchan = min(board->di_nchan, 32);
 
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		/* Isolated digital inputs 0 to 15/31 */
 		s->type		= COMEDI_SUBD_DI;
 		s->subdev_flags	= SDF_READABLE;
@@ -226,7 +226,7 @@ static int adl_pci7x3x_attach_pci(struct comedi_device *dev,
 
 		nchan = board->di_nchan - nchan;
 		if (nchan) {
-			s = dev->subdevices + subdev;
+			s = &dev->subdevices[subdev];
 			/* Isolated digital inputs 32 to 63 */
 			s->type		= COMEDI_SUBD_DI;
 			s->subdev_flags	= SDF_READABLE;
@@ -244,7 +244,7 @@ static int adl_pci7x3x_attach_pci(struct comedi_device *dev,
 	if (board->do_nchan) {
 		nchan = min(board->do_nchan, 32);
 
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		/* Isolated digital outputs 0 to 15/31 */
 		s->type		= COMEDI_SUBD_DO;
 		s->subdev_flags	= SDF_WRITABLE;
@@ -259,7 +259,7 @@ static int adl_pci7x3x_attach_pci(struct comedi_device *dev,
 
 		nchan = board->do_nchan - nchan;
 		if (nchan) {
-			s = dev->subdevices + subdev;
+			s = &dev->subdevices[subdev];
 			/* Isolated digital outputs 32 to 63 */
 			s->type		= COMEDI_SUBD_DO;
 			s->subdev_flags	= SDF_WRITABLE;
