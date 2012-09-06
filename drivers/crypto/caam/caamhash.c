@@ -430,6 +430,10 @@ static u32 hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 	int ret = 0;
 
 	desc = kmalloc(CAAM_CMD_SZ * 6 + CAAM_PTR_SZ * 2, GFP_KERNEL | GFP_DMA);
+	if (!desc) {
+		dev_err(jrdev, "unable to allocate key input memory\n");
+		return -ENOMEM;
+	}
 
 	init_job_desc(desc, 0);
 
