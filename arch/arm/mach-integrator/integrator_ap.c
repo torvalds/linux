@@ -34,6 +34,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/clk.h>
 #include <linux/platform_data/clk-integrator.h>
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
 #include <video/vga.h>
 
 #include <mach/hardware.h>
@@ -159,23 +161,6 @@ static void __init ap_map_io(void)
 {
 	iotable_init(ap_io_desc, ARRAY_SIZE(ap_io_desc));
 	vga_base = PCI_MEMORY_VADDR;
-}
-
-#define INTEGRATOR_SC_VALID_INT	0x003fffff
-
-static void __init ap_init_irq(void)
-{
-	/* Disable all interrupts initially. */
-	/* Do the core module ones */
-	writel(-1, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
-
-	/* do the header card stuff next */
-	writel(-1, VA_IC_BASE + IRQ_ENABLE_CLEAR);
-	writel(-1, VA_IC_BASE + FIQ_ENABLE_CLEAR);
-
-	fpga_irq_init(VA_IC_BASE, "SC", IRQ_PIC_START,
-		-1, INTEGRATOR_SC_VALID_INT, NULL);
-	integrator_clk_init(false);
 }
 
 #ifdef CONFIG_PM
@@ -330,9 +315,9 @@ static u32 notrace integrator_read_sched_clock(void)
 	return -readl((void __iomem *) TIMER2_VA_BASE + TIMER_VALUE);
 }
 
-static void integrator_clocksource_init(unsigned long inrate)
+static void integrator_clocksource_init(unsigned long inrate,
+					void __iomem *base)
 {
-	void __iomem *base = (void __iomem *)TIMER2_VA_BASE;
 	u32 ctrl = TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC;
 	unsigned long rate = inrate;
 
@@ -349,7 +334,7 @@ static void integrator_clocksource_init(unsigned long inrate)
 	setup_sched_clock(integrator_read_sched_clock, 16, rate);
 }
 
-static void __iomem * const clkevt_base = (void __iomem *)TIMER1_VA_BASE;
+static void __iomem * clkevt_base;
 
 /*
  * IRQ handler for the timer
@@ -421,11 +406,13 @@ static struct irqaction integrator_timer_irq = {
 	.dev_id		= &integrator_clockevent,
 };
 
-static void integrator_clockevent_init(unsigned long inrate)
+static void integrator_clockevent_init(unsigned long inrate,
+				void __iomem *base, int irq)
 {
 	unsigned long rate = inrate;
 	unsigned int ctrl = 0;
 
+	clkevt_base = base;
 	/* Calculate and program a divisor */
 	if (rate > 0x100000 * HZ) {
 		rate /= 256;
@@ -437,7 +424,7 @@ static void integrator_clockevent_init(unsigned long inrate)
 	timer_reload = rate / HZ;
 	writel(ctrl, clkevt_base + TIMER_CTRL);
 
-	setup_irq(IRQ_TIMERINT1, &integrator_timer_irq);
+	setup_irq(irq, &integrator_timer_irq);
 	clockevents_config_and_register(&integrator_clockevent,
 					rate,
 					1,
@@ -448,9 +435,91 @@ void __init ap_init_early(void)
 {
 }
 
+#ifdef CONFIG_OF
+
+static void __init ap_init_timer_of(void)
+{
+	struct device_node *node;
+	const char *path;
+	void __iomem *base;
+	int err;
+	int irq;
+	struct clk *clk;
+	unsigned long rate;
+
+	clk = clk_get_sys("ap_timer", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+	rate = clk_get_rate(clk);
+
+	err = of_property_read_string(of_aliases,
+				"arm,timer-primary", &path);
+	if (WARN_ON(err))
+		return;
+	node = of_find_node_by_path(path);
+	base = of_iomap(node, 0);
+	if (WARN_ON(!base))
+		return;
+	writel(0, base + TIMER_CTRL);
+	integrator_clocksource_init(rate, base);
+
+	err = of_property_read_string(of_aliases,
+				"arm,timer-secondary", &path);
+	if (WARN_ON(err))
+		return;
+	node = of_find_node_by_path(path);
+	base = of_iomap(node, 0);
+	if (WARN_ON(!base))
+		return;
+	irq = irq_of_parse_and_map(node, 0);
+	writel(0, base + TIMER_CTRL);
+	integrator_clockevent_init(rate, base, irq);
+}
+
+static struct sys_timer ap_of_timer = {
+	.init		= ap_init_timer_of,
+};
+
+static const struct of_device_id fpga_irq_of_match[] __initconst = {
+	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
+	{ /* Sentinel */ }
+};
+
+static void __init ap_init_irq_of(void)
+{
+	/* disable core module IRQs */
+	writel(0xffffffffU, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
+	of_irq_init(fpga_irq_of_match);
+	integrator_clk_init(false);
+}
+
+static const char * ap_dt_board_compat[] = {
+	"arm,integrator-ap",
+	NULL,
+};
+
+DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
+	.reserve	= integrator_reserve,
+	.map_io		= ap_map_io,
+	.nr_irqs	= NR_IRQS_INTEGRATOR_AP,
+	.init_early	= ap_init_early,
+	.init_irq	= ap_init_irq_of,
+	.handle_irq	= fpga_handle_irq,
+	.timer		= &ap_of_timer,
+	.init_machine	= ap_init,
+	.restart	= integrator_restart,
+	.dt_compat      = ap_dt_board_compat,
+MACHINE_END
+
+#endif
+
+#ifdef CONFIG_ATAGS
+
 /*
- * Set up timer(s).
+ * This is where non-devicetree initialization code is collected and stashed
+ * for eventual deletion.
  */
+
 static void __init ap_init_timer(void)
 {
 	struct clk *clk;
@@ -465,13 +534,31 @@ static void __init ap_init_timer(void)
 	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
 	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
 
-	integrator_clocksource_init(rate);
-	integrator_clockevent_init(rate);
+	integrator_clocksource_init(rate, (void __iomem *)TIMER2_VA_BASE);
+	integrator_clockevent_init(rate, (void __iomem *)TIMER1_VA_BASE,
+				IRQ_TIMERINT1);
 }
 
 static struct sys_timer ap_timer = {
 	.init		= ap_init_timer,
 };
+
+#define INTEGRATOR_SC_VALID_INT	0x003fffff
+
+static void __init ap_init_irq(void)
+{
+	/* Disable all interrupts initially. */
+	/* Do the core module ones */
+	writel(-1, VA_CMIC_BASE + IRQ_ENABLE_CLEAR);
+
+	/* do the header card stuff next */
+	writel(-1, VA_IC_BASE + IRQ_ENABLE_CLEAR);
+	writel(-1, VA_IC_BASE + FIQ_ENABLE_CLEAR);
+
+	fpga_irq_init(VA_IC_BASE, "SC", IRQ_PIC_START,
+		-1, INTEGRATOR_SC_VALID_INT, NULL);
+	integrator_clk_init(false);
+}
 
 MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
@@ -486,3 +573,5 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	.init_machine	= ap_init,
 	.restart	= integrator_restart,
 MACHINE_END
+
+#endif

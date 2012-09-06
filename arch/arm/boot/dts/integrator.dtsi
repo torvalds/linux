@@ -1,0 +1,33 @@
+/*
+ * SoC core Device Tree for the ARM Integrator platforms
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	timer@13000000 {
+		reg = <0x13000000 0x100>;
+		interrupt-parent = <&pic>;
+		interrupts = <5>;
+	};
+
+	timer@13000100 {
+		reg = <0x13000100 0x100>;
+		interrupt-parent = <&pic>;
+		interrupts = <6>;
+	};
+
+	timer@13000200 {
+		reg = <0x13000200 0x100>;
+		interrupt-parent = <&pic>;
+		interrupts = <7>;
+	};
+
+	pic@14000000 {
+		compatible = "arm,versatile-fpga-irq";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		reg = <0x14000000 0x100>;
+		clear-mask = <0xffffffff>;
+	};
+};

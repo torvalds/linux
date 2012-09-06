@@ -1,0 +1,54 @@
+/*
+ * Device Tree for the ARM Integrator/CP platform
+ */
+
+/dts-v1/;
+/include/ "integrator.dtsi"
+
+/ {
+	model = "ARM Integrator/CP";
+	compatible = "arm,integrator-cp";
+
+	aliases {
+		arm,timer-primary = &timer2;
+		arm,timer-secondary = &timer1;
+	};
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAMA0,38400n8 earlyprintk";
+	};
+
+	timer0: timer@13000000 {
+		compatible = "arm,sp804", "arm,primecell";
+	};
+
+	timer1: timer@13000100 {
+		compatible = "arm,sp804", "arm,primecell";
+	};
+
+	timer2: timer@13000200 {
+		compatible = "arm,sp804", "arm,primecell";
+	};
+
+	pic: pic@14000000 {
+		valid-mask = <0x1fc003ff>;
+	};
+
+	cic: cic@10000040 {
+		compatible = "arm,versatile-fpga-irq";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		reg = <0x10000040 0x100>;
+		clear-mask = <0xffffffff>;
+		valid-mask = <0x00000007>;
+	};
+
+	sic: sic@ca000000 {
+		compatible = "arm,versatile-fpga-irq";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		reg = <0xca000000 0x100>;
+		clear-mask = <0x00000fff>;
+		valid-mask = <0x00000fff>;
+	};
+};

@@ -1,0 +1,36 @@
+/*
+ * Device Tree for the ARM Integrator/AP platform
+ */
+
+/dts-v1/;
+/include/ "integrator.dtsi"
+
+/ {
+	model = "ARM Integrator/AP";
+	compatible = "arm,integrator-ap";
+
+	aliases {
+		arm,timer-primary = &timer2;
+		arm,timer-secondary = &timer1;
+	};
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAM0,38400n8 earlyprintk";
+	};
+
+	timer0: timer@13000000 {
+		compatible = "arm,integrator-timer";
+	};
+
+	timer1: timer@13000100 {
+		compatible = "arm,integrator-timer";
+	};
+
+	timer2: timer@13000200 {
+		compatible = "arm,integrator-timer";
+	};
+
+	pic: pic@14000000 {
+		valid-mask = <0x003fffff>;
+	};
+};
