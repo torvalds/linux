@@ -90,7 +90,7 @@ static int comedi_do_insn(struct comedi_device *dev, struct comedi_insn *insn)
 		ret = -EINVAL;
 		goto error;
 	}
-	s = dev->subdevices + insn->subdev;
+	s = &dev->subdevices[insn->subdev];
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
 		printk(KERN_ERR "%d not useable subdevice\n", insn->subdev);
@@ -175,11 +175,14 @@ EXPORT_SYMBOL(comedi_dio_bitfield);
 int comedi_find_subdevice_by_type(struct comedi_device *dev, int type,
 				  unsigned int subd)
 {
+	struct comedi_subdevice *s;
+
 	if (subd > dev->n_subdevices)
 		return -ENODEV;
 
 	for (; subd < dev->n_subdevices; subd++) {
-		if (dev->subdevices[subd].type == type)
+		s = &dev->subdevices[subd];
+		if (s->type == type)
 			return subd;
 	}
 	return -1;
@@ -188,7 +191,7 @@ EXPORT_SYMBOL(comedi_find_subdevice_by_type);
 
 int comedi_get_n_channels(struct comedi_device *dev, unsigned int subdevice)
 {
-	struct comedi_subdevice *s = dev->subdevices + subdevice;
+	struct comedi_subdevice *s = &dev->subdevices[subdevice];
 
 	return s->n_chan;
 }
