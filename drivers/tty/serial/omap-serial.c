@@ -1005,12 +1005,17 @@ static int serial_omap_poll_get_char(struct uart_port *port)
 
 	pm_runtime_get_sync(up->dev);
 	status = serial_in(up, UART_LSR);
-	if (!(status & UART_LSR_DR))
-		return NO_POLL_CHAR;
+	if (!(status & UART_LSR_DR)) {
+		status = NO_POLL_CHAR;
+		goto out;
+	}
 
 	status = serial_in(up, UART_RX);
+
+out:
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
+
 	return status;
 }
 
