@@ -125,7 +125,7 @@ static int cnt_attach_pci(struct comedi_device *dev,
 			  struct pci_dev *pcidev)
 {
 	const struct cnt_board_struct *board;
-	struct comedi_subdevice *subdevice;
+	struct comedi_subdevice *s;
 	int ret;
 
 	comedi_set_hw_dev(dev, &pcidev->dev);
@@ -145,15 +145,15 @@ static int cnt_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	subdevice = dev->subdevices + 0;
-	dev->read_subdev = subdevice;
+	s = dev->subdevices + 0;
+	dev->read_subdev = s;
 
-	subdevice->type = COMEDI_SUBD_COUNTER;
-	subdevice->subdev_flags = SDF_READABLE /* | SDF_COMMON */ ;
-	subdevice->n_chan = board->cnt_channel_nbr;
-	subdevice->maxdata = (1 << board->cnt_bits) - 1;
-	subdevice->insn_read = cnt_rinsn;
-	subdevice->insn_write = cnt_winsn;
+	s->type = COMEDI_SUBD_COUNTER;
+	s->subdev_flags = SDF_READABLE /* | SDF_COMMON */ ;
+	s->n_chan = board->cnt_channel_nbr;
+	s->maxdata = (1 << board->cnt_bits) - 1;
+	s->insn_read = cnt_rinsn;
+	s->insn_write = cnt_winsn;
 
 	/*  select 20MHz clock */
 	outb(3, dev->iobase + 248);
