@@ -398,31 +398,29 @@ device_set_bool_opt(unsigned int *opt, int val,bool def,u32 flag, char* name,cha
     }
 }
 */
-static void
-device_get_options(PSDevice pDevice, int index, char* devname) {
+static void device_get_options(PSDevice pDevice, int index, char* devname)
+{
+	POPTIONS pOpts = &(pDevice->sOpts);
 
-    POPTIONS pOpts = &(pDevice->sOpts);
-  pOpts->nRxDescs0=RX_DESC_DEF0;
-  pOpts->nRxDescs1=RX_DESC_DEF1;
-  pOpts->nTxDescs[0]=TX_DESC_DEF0;
-  pOpts->nTxDescs[1]=TX_DESC_DEF1;
-pOpts->flags|=DEVICE_FLAGS_IP_ALIGN;
-  pOpts->int_works=INT_WORKS_DEF;
-  pOpts->rts_thresh=RTS_THRESH_DEF;
-  pOpts->frag_thresh=FRAG_THRESH_DEF;
-  pOpts->data_rate=DATA_RATE_DEF;
-  pOpts->channel_num=CHANNEL_DEF;
+	pOpts->nRxDescs0 = RX_DESC_DEF0;
+	pOpts->nRxDescs1 = RX_DESC_DEF1;
+	pOpts->nTxDescs[0] = TX_DESC_DEF0;
+	pOpts->nTxDescs[1] = TX_DESC_DEF1;
+	pOpts->flags |= DEVICE_FLAGS_IP_ALIGN;
+	pOpts->int_works = INT_WORKS_DEF;
+	pOpts->rts_thresh = RTS_THRESH_DEF;
+	pOpts->frag_thresh = FRAG_THRESH_DEF;
+	pOpts->data_rate = DATA_RATE_DEF;
+	pOpts->channel_num = CHANNEL_DEF;
 
-pOpts->flags|=DEVICE_FLAGS_PREAMBLE_TYPE;
-pOpts->flags|=DEVICE_FLAGS_OP_MODE;
-//pOpts->flags|=DEVICE_FLAGS_PS_MODE;
-  pOpts->short_retry=SHORT_RETRY_DEF;
-  pOpts->long_retry=LONG_RETRY_DEF;
-  pOpts->bbp_type=BBP_TYPE_DEF;
-pOpts->flags|=DEVICE_FLAGS_80211h_MODE;
-pOpts->flags|=DEVICE_FLAGS_DiversityANT;
-
-
+	pOpts->flags |= DEVICE_FLAGS_PREAMBLE_TYPE;
+	pOpts->flags |= DEVICE_FLAGS_OP_MODE;
+	//pOpts->flags|=DEVICE_FLAGS_PS_MODE;
+	pOpts->short_retry = SHORT_RETRY_DEF;
+	pOpts->long_retry = LONG_RETRY_DEF;
+	pOpts->bbp_type = BBP_TYPE_DEF;
+	pOpts->flags |= DEVICE_FLAGS_80211h_MODE;
+	pOpts->flags |= DEVICE_FLAGS_DiversityANT;
 }
 
 static void
