@@ -1192,7 +1192,7 @@ int __sramdata g_pmic_type =  0;
 #endif
 #ifdef CONFIG_MFD_TPS65910
 #ifdef CONFIG_ARCH_RK3066B
-#define TPS65910_HOST_IRQ        RK30_PIN0_PA1
+#define TPS65910_HOST_IRQ        RK30_PIN0_PB3
 #else
 #define TPS65910_HOST_IRQ        RK30_PIN6_PA4
 #endif
