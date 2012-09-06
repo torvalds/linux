@@ -985,7 +985,7 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 	spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
 	smp_mb();
 	for (i = 0; i < ni_660x_num_counters(dev); ++i) {
-		s = dev->subdevices + NI_660X_GPCT_SUBDEV(i);
+		s = &dev->subdevices[NI_660X_GPCT_SUBDEV(i)];
 		ni_660x_handle_gpct_interrupt(dev, s);
 	}
 	spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
@@ -1097,11 +1097,11 @@ static int ni_660x_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
 	s->type = COMEDI_SUBD_UNUSED;
 
-	s = dev->subdevices + NI_660X_DIO_SUBDEV;
+	s = &dev->subdevices[NI_660X_DIO_SUBDEV];
 	/* DIGITAL I/O SUBDEVICE */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -1124,7 +1124,7 @@ static int ni_660x_attach(struct comedi_device *dev,
 	if (private(dev)->counter_dev == NULL)
 		return -ENOMEM;
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
-		s = dev->subdevices + NI_660X_GPCT_SUBDEV(i);
+		s = &dev->subdevices[NI_660X_GPCT_SUBDEV(i)];
 		if (i < ni_660x_num_counters(dev)) {
 			s->type = COMEDI_SUBD_COUNTER;
 			s->subdev_flags =
