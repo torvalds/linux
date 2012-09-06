@@ -238,7 +238,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* dev->read_subdev=s; */
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
@@ -256,7 +256,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 */
 	s->do_cmdtest = skel_ai_cmdtest;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -266,7 +266,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = skel_ao_winsn;
 	s->insn_read = skel_ao_rinsn;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 	if (thisboard->have_dio) {
 		s->type = COMEDI_SUBD_DIO;
