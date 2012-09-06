@@ -999,8 +999,9 @@ static int pci1760_attach(struct comedi_device *dev)
 /*
 ==============================================================================
 */
-static int pci_dio_add_di(struct comedi_device *dev, struct comedi_subdevice *s,
-			  const struct diosubd_data *d, int subdev)
+static int pci_dio_add_di(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  const struct diosubd_data *d)
 {
 	const struct dio_boardtype *this_board = comedi_board(dev);
 
@@ -1028,8 +1029,9 @@ static int pci_dio_add_di(struct comedi_device *dev, struct comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static int pci_dio_add_do(struct comedi_device *dev, struct comedi_subdevice *s,
-			  const struct diosubd_data *d, int subdev)
+static int pci_dio_add_do(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  const struct diosubd_data *d)
 {
 	const struct dio_boardtype *this_board = comedi_board(dev);
 
@@ -1060,7 +1062,7 @@ static int pci_dio_add_do(struct comedi_device *dev, struct comedi_subdevice *s,
 */
 static int pci_dio_add_8254(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    const struct diosubd_data *d, int subdev)
+			    const struct diosubd_data *d)
 {
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -1124,14 +1126,14 @@ static int pci_dio_attach_pci(struct comedi_device *dev,
 	for (i = 0; i < MAX_DI_SUBDEVS; i++)
 		if (this_board->sdi[i].chans) {
 			s = &dev->subdevices[subdev];
-			pci_dio_add_di(dev, s, &this_board->sdi[i], subdev);
+			pci_dio_add_di(dev, s, &this_board->sdi[i]);
 			subdev++;
 		}
 
 	for (i = 0; i < MAX_DO_SUBDEVS; i++)
 		if (this_board->sdo[i].chans) {
 			s = &dev->subdevices[subdev];
-			pci_dio_add_do(dev, s, &this_board->sdo[i], subdev);
+			pci_dio_add_do(dev, s, &this_board->sdo[i]);
 			subdev++;
 		}
 
@@ -1148,14 +1150,14 @@ static int pci_dio_attach_pci(struct comedi_device *dev,
 	if (this_board->boardid.chans) {
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DI;
-		pci_dio_add_di(dev, s, &this_board->boardid, subdev);
+		pci_dio_add_di(dev, s, &this_board->boardid);
 		subdev++;
 	}
 
 	for (i = 0; i < MAX_8254_SUBDEVS; i++)
 		if (this_board->s8254[i].chans) {
 			s = &dev->subdevices[subdev];
-			pci_dio_add_8254(dev, s, &this_board->s8254[i], subdev);
+			pci_dio_add_8254(dev, s, &this_board->s8254[i]);
 			subdev++;
 		}
 
