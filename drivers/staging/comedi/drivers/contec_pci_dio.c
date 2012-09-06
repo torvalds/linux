@@ -87,7 +87,7 @@ static int contec_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 16;
@@ -95,7 +95,7 @@ static int contec_attach_pci(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= contec_di_insn_bits;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
 	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 16;
