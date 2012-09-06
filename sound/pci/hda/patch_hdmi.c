@@ -780,6 +780,11 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, int pin_idx,
 		hdmi_fill_audio_infoframe(codec, pin_nid,
 					    ai.bytes, sizeof(ai));
 		hdmi_start_infoframe_trans(codec, pin_nid);
+	} else {
+		/* For non-pcm audio switch, setup new channel mapping
+		 * accordingly */
+		if (per_cvt->non_pcm != non_pcm)
+			hdmi_setup_channel_mapping(codec, pin_nid, cvt_nid, non_pcm, ca);
 	}
 
 	per_cvt->non_pcm = non_pcm;
