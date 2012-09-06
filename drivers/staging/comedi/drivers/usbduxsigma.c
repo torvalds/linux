@@ -356,7 +356,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 	/* subdevice which is the AD converter */
-	s = this_comedidev->subdevices + SUBDEV_AD;
+	s = &this_comedidev->subdevices[SUBDEV_AD];
 
 	/* first we test if something unusual has just happened */
 	switch (urb->status) {
@@ -558,7 +558,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 
-	s = this_comedidev->subdevices + SUBDEV_DA;
+	s = &this_comedidev->subdevices[SUBDEV_DA];
 
 	switch (urb->status) {
 	case 0:
@@ -1950,7 +1950,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 	/* the private structure of the subdevice is struct usbduxsub */
 	this_usbduxsub = this_comedidev->private;
 
-	s = this_comedidev->subdevices + SUBDEV_DA;
+	s = &this_comedidev->subdevices[SUBDEV_DA];
 
 	switch (urb->status) {
 	case 0:
@@ -2331,7 +2331,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	/* private structure is also simply the usb-structure */
 	dev->private = uds;
 	/* the first subdevice is the A/D converter */
-	s = dev->subdevices + SUBDEV_AD;
+	s = &dev->subdevices[SUBDEV_AD];
 	/* the URBs get the comedi subdevice */
 	/* which is responsible for reading */
 	/* this is the subdevice which reads data */
@@ -2358,7 +2358,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	/* range table to convert to physical units */
 	s->range_table = (&range_usbdux_ai_range);
 	/* analog output subdevice */
-	s = dev->subdevices + SUBDEV_DA;
+	s = &dev->subdevices[SUBDEV_DA];
 	/* analog out */
 	s->type = COMEDI_SUBD_AO;
 	/* backward pointer */
@@ -2383,7 +2383,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	s->insn_read = usbdux_ao_insn_read;
 	s->insn_write = usbdux_ao_insn_write;
 	/* digital I/O subdevice */
-	s = dev->subdevices + SUBDEV_DIO;
+	s = &dev->subdevices[SUBDEV_DIO];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	/* 8 external and 16 internal channels */
@@ -2396,7 +2396,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	s->private = NULL;
 	if (uds->high_speed) {
 		/* timer / pwm subdevice */
-		s = dev->subdevices + SUBDEV_PWM;
+		s = &dev->subdevices[SUBDEV_PWM];
 		s->type = COMEDI_SUBD_PWM;
 		s->subdev_flags = SDF_WRITABLE | SDF_PWM_HBRIDGE;
 		s->n_chan = 8;
