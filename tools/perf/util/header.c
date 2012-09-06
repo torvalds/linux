@@ -2307,7 +2307,7 @@ static int perf_evsel__set_tracepoint_name(struct perf_evsel *evsel,
 
 	snprintf(bf, sizeof(bf), "%s:%s", event->system, event->name);
 	evsel->name = strdup(bf);
-	if (event->name == NULL)
+	if (evsel->name == NULL)
 		return -1;
 
 	evsel->tp_format = event;
