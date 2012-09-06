@@ -164,7 +164,7 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	/* 8255 dio */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	subdev_8255_init(dev, s, NULL, dev->iobase);
 
 	return 0;
@@ -172,8 +172,12 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dio24_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 0);
+	struct comedi_subdevice *s;
+
+	if (dev->subdevices) {
+		s = &dev->subdevices[0];
+		subdev_8255_cleanup(dev, s);
+	}
 	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
 		release_region(dev->iobase, DIO24_SIZE);
 	if (dev->irq)
