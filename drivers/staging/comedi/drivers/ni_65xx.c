@@ -478,7 +478,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 static irqreturn_t ni_65xx_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 2;
+	struct comedi_subdevice *s = &dev->subdevices[2];
 	unsigned int status;
 
 	status = readb(private(dev)->mite->daq_io_addr + Change_Status);
@@ -678,7 +678,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	if (board(dev)->num_di_ports) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
@@ -696,7 +696,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (board(dev)->num_do_ports) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -713,7 +713,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	if (board(dev)->num_dio_ports) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -737,7 +737,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
@@ -791,10 +791,13 @@ static void ni_65xx_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (private(dev)) {
+		struct comedi_subdevice *s;
 		unsigned i;
+
 		for (i = 0; i < dev->n_subdevices; ++i) {
-			kfree(dev->subdevices[i].private);
-			dev->subdevices[i].private = NULL;
+			s = &dev->subdevices[i];
+			kfree(s->private);
+			s->private = NULL;
 		}
 		if (private(dev)->mite)
 			mite_unsetup(private(dev)->mite);
