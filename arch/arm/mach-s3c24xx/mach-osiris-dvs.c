@@ -175,18 +175,7 @@ static struct platform_driver osiris_dvs_driver = {
 	},
 };
 
-static int __init osiris_dvs_init(void)
-{
-	return platform_driver_register(&osiris_dvs_driver);
-}
-
-static void __exit osiris_dvs_exit(void)
-{
-	platform_driver_unregister(&osiris_dvs_driver);
-}
-
-module_init(osiris_dvs_init);
-module_exit(osiris_dvs_exit);
+module_platform_driver(osiris_dvs_driver);
 
 MODULE_DESCRIPTION("Simtec OSIRIS DVS support");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
