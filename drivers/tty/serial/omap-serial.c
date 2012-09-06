@@ -351,11 +351,10 @@ static inline irqreturn_t serial_omap_irq(int irq, void *dev_id)
 	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int iir, lsr;
 	unsigned int type;
-	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
 	int max_count = 256;
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	spin_lock(&up->port.lock);
 	pm_runtime_get_sync(up->dev);
 
 	do {
@@ -394,7 +393,7 @@ static inline irqreturn_t serial_omap_irq(int irq, void *dev_id)
 		}
 	} while (!(iir & UART_IIR_NO_INT) && max_count--);
 
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	spin_unlock(&up->port.lock);
 
 	tty_flip_buffer_push(tty);
 
