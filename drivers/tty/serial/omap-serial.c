@@ -224,8 +224,11 @@ static void transmit_chars(struct uart_omap_port *up, unsigned int lsr)
 			break;
 	} while (--count > 0);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS) {
+		spin_unlock(&up->port.lock);
 		uart_write_wakeup(&up->port);
+		spin_lock(&up->port.lock);
+	}
 
 	if (uart_circ_empty(xmit))
 		serial_omap_stop_tx(&up->port);
