@@ -84,7 +84,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* Isolated do */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -94,7 +94,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_IDIO_LO;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* Isolated di */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -104,7 +104,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_IDIO_LO;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* TTL do */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -114,7 +114,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_DIO_LO;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* TTL di */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
