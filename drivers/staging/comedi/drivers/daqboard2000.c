@@ -804,7 +804,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 
 	dev->board_name = this_board->name;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
@@ -813,7 +813,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	s->insn_read = daqboard2000_ai_insn_read;
 	s->range_table = &range_daqboard2000_ai;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -823,7 +823,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	s->insn_write = daqboard2000_ao_insn_write;
 	s->range_table = &range_daqboard2000_ao;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
 				  (unsigned long)(devpriv->daq + 0x40));
 
@@ -836,7 +836,7 @@ static void daqboard2000_detach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
+		subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
