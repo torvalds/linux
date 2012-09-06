@@ -835,8 +835,7 @@ int wl_tx( struct sk_buff *skb, struct net_device *dev, int port )
         txF->frame.port = port;
         /* Move the frame to the txQ */
         /* NOTE: Here's where we would do priority queueing */
-        list_del( &( txF->node ));
-        list_add( &( txF->node ), &( lp->txQ[0] ));
+        list_move(&(txF->node), &(lp->txQ[0]));
 
         lp->txQ_count++;
         if( lp->txQ_count >= DEFAULT_NUM_TX_FRAMES ) {
