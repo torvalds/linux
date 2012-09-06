@@ -224,6 +224,192 @@ nvc0_graph_ctxctl_isr(struct nvc0_graph_priv *priv)
 }
 
 static void
+nvc0_graph_trap_tpc(struct nvc0_graph_priv *priv, int gpc, int tpc)
+{
+	u32 stat = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x0508));
+
+	if (stat & 0x00000001) {
+		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x0224));
+		nv_error(priv, "GPC%d/TPC%d/TEX: 0x%08x\n", gpc, tpc, trap);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0224), 0xc0000000);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0508), 0x00000001);
+		stat &= ~0x00000001;
+	}
+
+	if (stat & 0x00000002) {
+		u32 trap0 = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x0644));
+		u32 trap1 = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x064c));
+		nv_error(priv, "GPC%d/TPC%d/MP: 0x%08x 0x%08x\n",
+			       gpc, tpc, trap0, trap1);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0644), 0x001ffffe);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x064c), 0x0000000f);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0508), 0x00000002);
+		stat &= ~0x00000002;
+	}
+
+	if (stat & 0x00000004) {
+		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x0084));
+		nv_error(priv, "GPC%d/TPC%d/POLY: 0x%08x\n", gpc, tpc, trap);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0084), 0xc0000000);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0508), 0x00000004);
+		stat &= ~0x00000004;
+	}
+
+	if (stat & 0x00000008) {
+		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x048c));
+		nv_error(priv, "GPC%d/TPC%d/L1C: 0x%08x\n", gpc, tpc, trap);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x048c), 0xc0000000);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0508), 0x00000008);
+		stat &= ~0x00000008;
+	}
+
+	if (stat) {
+		nv_error(priv, "GPC%d/TPC%d/0x%08x: unknown\n", gpc, tpc, stat);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0508), stat);
+	}
+}
+
+static void
+nvc0_graph_trap_gpc(struct nvc0_graph_priv *priv, int gpc)
+{
+	u32 stat = nv_rd32(priv, GPC_UNIT(gpc, 0x2c90));
+	int tpc;
+
+	if (stat & 0x00000001) {
+		u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x0420));
+		nv_error(priv, "GPC%d/PROP: 0x%08x\n", gpc, trap);
+		nv_wr32(priv, GPC_UNIT(gpc, 0x0420), 0xc0000000);
+		nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), 0x00000001);
+		stat &= ~0x00000001;
+	}
+
+	if (stat & 0x00000002) {
+		u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x0900));
+		nv_error(priv, "GPC%d/ZCULL: 0x%08x\n", gpc, trap);
+		nv_wr32(priv, GPC_UNIT(gpc, 0x0900), 0xc0000000);
+		nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), 0x00000002);
+		stat &= ~0x00000002;
+	}
+
+	if (stat & 0x00000004) {
+		u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x1028));
+		nv_error(priv, "GPC%d/CCACHE: 0x%08x\n", gpc, trap);
+		nv_wr32(priv, GPC_UNIT(gpc, 0x1028), 0xc0000000);
+		nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), 0x00000004);
+		stat &= ~0x00000004;
+	}
+
+	if (stat & 0x00000008) {
+		u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x0824));
+		nv_error(priv, "GPC%d/ESETUP: 0x%08x\n", gpc, trap);
+		nv_wr32(priv, GPC_UNIT(gpc, 0x0824), 0xc0000000);
+		nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), 0x00000008);
+		stat &= ~0x00000009;
+	}
+
+	for (tpc = 0; tpc < priv->tpc_nr[gpc]; tpc++) {
+		u32 mask = 0x00010000 << tpc;
+		if (stat & mask) {
+			nvc0_graph_trap_tpc(priv, gpc, tpc);
+			nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), mask);
+			stat &= ~mask;
+		}
+	}
+
+	if (stat) {
+		nv_error(priv, "GPC%d/0x%08x: unknown\n", gpc, stat);
+		nv_wr32(priv, GPC_UNIT(gpc, 0x2c90), stat);
+	}
+}
+
+static void
+nvc0_graph_trap_intr(struct nvc0_graph_priv *priv)
+{
+	u32 trap = nv_rd32(priv, 0x400108);
+	int rop, gpc;
+
+	if (trap & 0x00000001) {
+		u32 stat = nv_rd32(priv, 0x404000);
+		nv_error(priv, "DISPATCH 0x%08x\n", stat);
+		nv_wr32(priv, 0x404000, 0xc0000000);
+		nv_wr32(priv, 0x400108, 0x00000001);
+		trap &= ~0x00000001;
+	}
+
+	if (trap & 0x00000002) {
+		u32 stat = nv_rd32(priv, 0x404600);
+		nv_error(priv, "M2MF 0x%08x\n", stat);
+		nv_wr32(priv, 0x404600, 0xc0000000);
+		nv_wr32(priv, 0x400108, 0x00000002);
+		trap &= ~0x00000002;
+	}
+
+	if (trap & 0x00000008) {
+		u32 stat = nv_rd32(priv, 0x408030);
+		nv_error(priv, "CCACHE 0x%08x\n", stat);
+		nv_wr32(priv, 0x408030, 0xc0000000);
+		nv_wr32(priv, 0x400108, 0x00000008);
+		trap &= ~0x00000008;
+	}
+
+	if (trap & 0x00000010) {
+		u32 stat = nv_rd32(priv, 0x405840);
+		nv_error(priv, "SHADER 0x%08x\n", stat);
+		nv_wr32(priv, 0x405840, 0xc0000000);
+		nv_wr32(priv, 0x400108, 0x00000010);
+		trap &= ~0x00000010;
+	}
+
+	if (trap & 0x00000040) {
+		u32 stat = nv_rd32(priv, 0x40601c);
+		nv_error(priv, "UNK6 0x%08x\n", stat);
+		nv_wr32(priv, 0x40601c, 0xc0000000);
+		nv_wr32(priv, 0x400108, 0x00000040);
+		trap &= ~0x00000040;
+	}
+
+	if (trap & 0x00000080) {
+		u32 stat = nv_rd32(priv, 0x404490);
+		nv_error(priv, "MACRO 0x%08x\n", stat);
+		nv_wr32(priv, 0x404490, 0xc0000000);
+		nv_wr32(priv, 0x400108, 0x00000080);
+		trap &= ~0x00000080;
+	}
+
+	if (trap & 0x01000000) {
+		u32 stat = nv_rd32(priv, 0x400118);
+		for (gpc = 0; stat && gpc < priv->gpc_nr; gpc++) {
+			u32 mask = 0x00000001 << gpc;
+			if (stat & mask) {
+				nvc0_graph_trap_gpc(priv, gpc);
+				nv_wr32(priv, 0x400118, mask);
+				stat &= ~mask;
+			}
+		}
+		nv_wr32(priv, 0x400108, 0x01000000);
+		trap &= ~0x01000000;
+	}
+
+	if (trap & 0x02000000) {
+		for (rop = 0; rop < priv->rop_nr; rop++) {
+			u32 statz = nv_rd32(priv, ROP_UNIT(rop, 0x070));
+			u32 statc = nv_rd32(priv, ROP_UNIT(rop, 0x144));
+			nv_error(priv, "ROP%d 0x%08x 0x%08x\n",
+				 rop, statz, statc);
+			nv_wr32(priv, ROP_UNIT(rop, 0x070), 0xc0000000);
+			nv_wr32(priv, ROP_UNIT(rop, 0x144), 0xc0000000);
+		}
+		nv_wr32(priv, 0x400108, 0x02000000);
+		trap &= ~0x02000000;
+	}
+
+	if (trap) {
+		nv_error(priv, "TRAP UNHANDLED 0x%08x\n", trap);
+		nv_wr32(priv, 0x400108, trap);
+	}
+}
+
+static void
 nvc0_graph_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
@@ -276,10 +462,8 @@ nvc0_graph_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x00200000) {
-		u32 trap = nv_rd32(priv, 0x400108);
-		nv_error(priv, "TRAP ch %d [0x%010llx] status 0x%08x\n",
-			 chid, inst << 12, trap);
-		nv_wr32(priv, 0x400108, trap);
+		nv_error(priv, "TRAP ch %d [0x%010llx]\n", chid, inst << 12);
+		nvc0_graph_trap_intr(priv);
 		nv_wr32(priv, 0x400100, 0x00200000);
 		stat &= ~0x00200000;
 	}
