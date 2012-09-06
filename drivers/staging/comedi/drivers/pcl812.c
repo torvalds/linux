@@ -806,7 +806,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	char err = 1;
 	unsigned int mask, timeout;
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned int next_chan;
 
 	s->async->events = 0;
@@ -909,7 +909,7 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	unsigned long dma_flags;
 	int len, bufptr;
 	short *ptr;
@@ -1267,7 +1267,7 @@ no_dma:
 
 	/* analog input */
 	if (board->n_aichan > 0) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE;
 		switch (board->board_type) {
@@ -1409,7 +1409,7 @@ no_dma:
 
 	/* analog output */
 	if (board->n_aochan > 0) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board->n_aochan;
@@ -1438,7 +1438,7 @@ no_dma:
 
 	/* digital input */
 	if (board->n_dichan > 0) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
 		s->n_chan = board->n_dichan;
@@ -1451,7 +1451,7 @@ no_dma:
 
 	/* digital output */
 	if (board->n_dochan > 0) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = board->n_dochan;
