@@ -751,6 +751,7 @@ static int __devinit sgiseeq_probe(struct platform_device *pdev)
 	sp->srings = sr;
 	sp->rx_desc = sp->srings->rxvector;
 	sp->tx_desc = sp->srings->txvector;
+	spin_lock_init(&sp->tx_lock);
 
 	/* A couple calculations now, saves many cycles later. */
 	setup_rx_ring(dev, sp->rx_desc, SEEQ_RX_BUFFERS);
