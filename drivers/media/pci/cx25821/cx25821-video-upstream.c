@@ -757,7 +757,6 @@ int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev, int channel_select,
 {
 	struct sram_channel *sram_ch;
 	u32 tmp;
-	int retval = 0;
 	int err = 0;
 	int data_frame_size = 0;
 	int risc_buffer_size = 0;
@@ -800,15 +799,19 @@ int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev, int channel_select,
 		dev->_filename = kmemdup(dev->input_filename, str_length + 1,
 					 GFP_KERNEL);
 
-		if (!dev->_filename)
+		if (!dev->_filename) {
+			err = -ENOENT;
 			goto error;
+		}
 	} else {
 		str_length = strlen(dev->_defaultname);
 		dev->_filename = kmemdup(dev->_defaultname, str_length + 1,
 					 GFP_KERNEL);
 
-		if (!dev->_filename)
+		if (!dev->_filename) {
+			err = -ENOENT;
 			goto error;
+		}
 	}
 
 	/* Default if filename is empty string */
@@ -832,7 +835,7 @@ int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev, int channel_select,
 	dev->_line_size = (dev->_pixel_format == PIXEL_FRMT_422) ?
 		(WIDTH_D1 * 2) : (WIDTH_D1 * 3) / 2;
 
-	retval = cx25821_sram_channel_setup_upstream(dev, sram_ch,
+	err = cx25821_sram_channel_setup_upstream(dev, sram_ch,
 			dev->_line_size, 0);
 
 	/* setup fifo + format */
@@ -842,8 +845,8 @@ int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev, int channel_select,
 	dev->upstream_databuf_size = data_frame_size * 2;
 
 	/* Allocating buffers and prepare RISC program */
-	retval = cx25821_upstream_buffer_prepare(dev, sram_ch, dev->_line_size);
-	if (retval < 0) {
+	err = cx25821_upstream_buffer_prepare(dev, sram_ch, dev->_line_size);
+	if (err < 0) {
 		pr_err("%s: Failed to set up Video upstream buffers!\n",
 		       dev->name);
 		goto error;
