@@ -609,7 +609,10 @@ typedef struct dwc_otg_core_if
 	uint16_t rx_fifo_size;
 	/** Size of Non-periodic Tx FIFO (Bytes) */
 	uint16_t nperio_tx_fifo_size;
-
+		
+	/** 1 if wakeup in system sleep mode, 0 otherwise */
+	uint8_t usb_wakeup;
+	
 	/** 1 if DMA is enabled, 0 otherwise. */
 	uint8_t dma_enable;
 

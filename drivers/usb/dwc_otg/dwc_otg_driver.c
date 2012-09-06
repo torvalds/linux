@@ -356,6 +356,8 @@ void dwc_otg_force_host(dwc_otg_core_if_t *core_if)
     	printk("dwc_otg_force_host,already in A_HOST mode,everest\n");
     	return;
     }
+    if(pldata->phy_suspend)
+        pldata->phy_suspend(pldata,USB_PHY_ENABLED);
     del_timer(&otg_dev->pcd->check_vbus_timer);
     // force disconnect 
     /* soft disconnect */
@@ -392,6 +394,7 @@ void dwc_otg_force_device(dwc_otg_core_if_t *core_if)
     otg_dev->core_if->op_state = B_PERIPHERAL;
 	/* Reset the Controller */
 	dwc_otg_core_reset( core_if );
+    //otg_dev->pcd->phy_suspend = 1;
     otg_dev->pcd->vbus_status = 0;
     dwc_otg_pcd_start_vbus_timer( otg_dev->pcd );
 	
@@ -430,11 +433,6 @@ static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf
     if(core_if->usb_mode == new_mode)
     {
     	return _count;
-    }
-    
-    if(pldata->phy_status==USB_PHY_SUSPEND){
-        pldata->clock_enable(pldata, 1);
-        pldata->phy_suspend(pldata,USB_PHY_ENABLED);
     }
 
 	switch(new_mode)
@@ -484,6 +482,8 @@ static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf
 			if(USB_MODE_FORCE_DEVICE == core_if->usb_mode)
 			{
 				core_if->usb_mode = new_mode;
+                if(pldata->phy_suspend)
+                    pldata->phy_suspend(pldata,USB_PHY_ENABLED);
 				del_timer(&otg_dev->pcd->check_vbus_timer);
 				dwc_otg_set_gusbcfg(core_if, new_mode);
 				msleep(50);
@@ -502,6 +502,8 @@ static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf
 			}
 			else if(USB_MODE_FORCE_HOST == core_if->usb_mode)
 			{
+                if(pldata->phy_suspend)
+                    pldata->phy_suspend(pldata,USB_PHY_ENABLED);
 				core_if->usb_mode = new_mode;
 				dwc_otg_set_gusbcfg(core_if, new_mode);
 				msleep(100);
@@ -554,19 +556,16 @@ static ssize_t dwc_otg_enable_store( struct device *_dev,
         if (_core_if->hcd_cb && _core_if->hcd_cb->stop) {
                 _core_if->hcd_cb->stop( _core_if->hcd_cb->p );
         }
-        if(pldata->phy_status==USB_PHY_ENABLED){
+        if(pldata->phy_suspend)
             pldata->phy_suspend(pldata,USB_PHY_SUSPEND);
-            udelay(3);
-            pldata->clock_enable(pldata, 0);
-        }
+        udelay(3);
+        pldata->clock_enable(pldata, 0);
 	}
 	else if(val == 1)
 	{
 	    DWC_PRINT("enable host controller:%s\n",pdev->name);
-        if( pldata->phy_status == USB_PHY_SUSPEND ){ 
-            pldata->clock_enable( pldata, 1);		
-            pldata->phy_suspend(pldata, USB_PHY_ENABLED);
-        }
+        pldata->clock_enable(pldata, 1);
+        pldata->phy_suspend(pldata,USB_PHY_ENABLED);
         mdelay(5);
         if (_core_if->hcd_cb && _core_if->hcd_cb->start) {
                 _core_if->hcd_cb->start( _core_if->hcd_cb->p );
@@ -1160,9 +1159,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	struct dwc_otg_platform_data *pldata = dev->platform_data;
 
     // clock and hw init
-    if(pldata->hw_init)
-        pldata->hw_init();
-        
     if(pldata->soft_reset)
         pldata->soft_reset();
     
@@ -1171,6 +1167,8 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
         pldata->clock_enable(pldata, 1);
         }
 
+    if(pldata->hw_init)
+        pldata->hw_init();
     if(pldata->phy_suspend)
         pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 
@@ -1371,13 +1369,8 @@ static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t st
     /* Clear any pending interrupts */
     dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF);
     dwc_otg_disable_global_interrupts(core_if);
-    if( pldata->phy_status == 0 ){ 
-        /* no vbus detect here , close usb phy  */
-        pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
-        udelay(3);
-        pldata->clock_enable( pldata, 0);		
-    }
-//    del_timer(&otg_dev->pcd->check_vbus_timer); 
+    pldata->phy_suspend(pldata,USB_PHY_SUSPEND);
+    del_timer(&otg_dev->pcd->check_vbus_timer); 
 	
     return 0;
 }
@@ -1403,6 +1396,32 @@ static int dwc_otg_driver_resume(struct platform_device *_dev )
     	DWC_PRINT("%s,A_HOST mode\n", __func__);
     	return 0;
     }
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
+
+    pldata->phy_suspend(pldata,USB_PHY_ENABLED);
+
+    /* soft disconnect */
+    /* 20100226,HSL@RK,if not disconnect,when usb cable in,will auto reconnect 
+     *  besause now USB PHY is enable,and get USB RESET irq.
+    */
+    /* soft disconnect */
+    dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+    dctl.b.sftdiscon = 1;
+    dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+    
+    /* Clear any pending interrupts */
+    dwc_write_reg32( &global_regs->gintsts, 0xeFFFFFFF); 
+    
+    dwc_otg_enable_global_interrupts(core_if);
+    mod_timer(&otg_dev->pcd->check_vbus_timer , jiffies + HZ);
+
+//sendwakeup:        
+    if(core_if->usb_wakeup)
+    {
+        core_if->usb_wakeup = 0;
+    }
+    DWC_PRINT("%s gahbcfg:0x%x\n", __func__, global_regs->gahbcfg);
+#endif    
     return 0;
 }
 
@@ -1527,9 +1546,6 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	struct dwc_otg_platform_data *pldata = dev->platform_data;
     
     // clock and hw init
-    if(pldata->hw_init)
-        pldata->hw_init();
-        
     if(pldata->soft_reset)
         pldata->soft_reset();
     
@@ -1538,6 +1554,8 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
         pldata->clock_enable(pldata, 1);
         }
 
+    if(pldata->hw_init)
+        pldata->hw_init();
     if(pldata->phy_suspend)
         pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	/*

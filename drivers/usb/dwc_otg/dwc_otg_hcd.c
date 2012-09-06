@@ -70,7 +70,7 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
     	DWC_PRINT("%s, usb device mode\n", __func__);
     	return 0;
     }
-    if(!(dwc_otg_hcd->host_enabled&1))
+    if(!dwc_otg_hcd->host_enabled)
         return 0;
     hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
 #ifdef CONFIG_USB_SUSPEND    
@@ -136,7 +136,7 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     	return 0;
     }
 //#ifdef CONFIG_USB_SUSPEND    
-    if(!(dwc_otg_hcd->host_enabled&1))
+    if(!dwc_otg_hcd->host_enabled)
         return 0;
 //#endif
 #ifndef CONFIG_DWC_REMOTE_WAKEUP
@@ -650,7 +650,7 @@ static void dwc_otg_hcd_enable(struct work_struct *work)
 	}
 	    
 	dwc_otg_hcd->host_enabled = dwc_otg_hcd->host_setenable;
-	if(dwc_otg_hcd->host_setenable == 2)    // enable -> disable
+	if(dwc_otg_hcd->host_setenable == 0)    // enable -> disable
 	{
 	    DWC_PRINT("%s, disable host controller\n", __func__);
 	    #if 1
@@ -698,11 +698,11 @@ static void dwc_otg_hcd_connect_detect(unsigned long pdata)
     else{
     // no device, suspend host
         if((dwc_read_reg32(core_if->host_if->hprt0) & 1) == 0)
-            dwc_otg_hcd->host_setenable = 2;
+            dwc_otg_hcd->host_setenable = 0;
     
     }
-    if((dwc_otg_hcd->host_enabled)&&(dwc_otg_hcd->host_setenable != dwc_otg_hcd->host_enabled)){
-        schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 8);
+    if(dwc_otg_hcd->host_setenable != dwc_otg_hcd->host_enabled){
+    schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 8);
     }
 //    dwc_otg_hcd->connect_detect_timer.expires = jiffies + (HZ<<1); /* 1 s */
     mod_timer(&dwc_otg_hcd->connect_detect_timer,jiffies + (HZ<<1)); 

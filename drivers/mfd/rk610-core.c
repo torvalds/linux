@@ -10,9 +10,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#if defined(CONFIG_ARCH_RK3066B)
-#define RK610_RESET_PIN   RK30_PIN2_PC5
-#elif defined(CONFIG_ARCH_RK30)
+#ifdef CONFIG_ARCH_RK30
 #define RK610_RESET_PIN   RK30_PIN0_PC6
 #else
 #define RK610_RESET_PIN   RK29_PIN6_PC1
@@ -221,13 +219,8 @@ static int rk610_control_probe(struct i2c_client *client,
         return -ENOMEM;
     }
     memset(core_info, 0, sizeof(struct rk610_core_info));
-		#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)        
-        	iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
-		#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-		iis_clk = clk_get_sys("rk29_i2s.1", "i2s");
-		#else
-        	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
-		#endif
+    
+		iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
 		if (IS_ERR(iis_clk)) {
 			printk("failed to get i2s clk\n");
 			ret = PTR_ERR(iis_clk);
@@ -235,12 +228,10 @@ static int rk610_control_probe(struct i2c_client *client,
 			DBG("got i2s clk ok!\n");
 			clk_enable(iis_clk);
 			clk_set_rate(iis_clk, 11289600);
-			#if defined(CONFIG_ARCH_RK29)
+			#ifdef CONFIG_ARCH_RK29
 			rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
-			#elif defined(CONFIG_ARCH_RK3066B)
-			rk30_mux_api_set(GPIO1C0_I2SCLK_NAME, GPIO1C_I2SCLK);
-			#elif defined(CONFIG_ARCH_RK30)
-                        rk30_mux_api_set(GPIO0B0_I2S8CHCLK_NAME, GPIO0B_I2S_8CH_CLK);
+			#else
+			rk30_mux_api_set(GPIO0B0_I2S8CHCLK_NAME, GPIO0B_I2S_8CH_CLK);
 			#endif
 			clk_put(iis_clk);
 		}

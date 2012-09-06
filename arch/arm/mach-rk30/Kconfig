@@ -52,8 +52,6 @@ config MACH_RK3066B_FPGA
 
 config MACH_RK3066B_SDK
 	bool "RK3066B SDK board"
-config MACH_RK3066B_M701
-	bool "RK3066B M701 board"
 
 endchoice
 

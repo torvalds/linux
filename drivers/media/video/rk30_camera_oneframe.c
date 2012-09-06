@@ -147,16 +147,6 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define ENABLE_32BIT_BYPASS                (0x01<<6)
 #define DISABLE_32BIT_BYPASS               (0x00<<6)
 
-
-#define MIN(x,y)   ((x<y) ? x: y)
-#define MAX(x,y)    ((x>y) ? x: y)
-#define RK_SENSOR_24MHZ      24*1000*1000          /* MHz */
-#define RK_SENSOR_48MHZ      48
-
-#define write_cif_reg(base,addr, val)  __raw_writel(val, addr+(base))
-#define read_cif_reg(base,addr) __raw_readl(addr+(base))
-#define mask_cif_reg(addr, msk, val)    write_cif_reg(addr, (val)|((~(msk))&read_cif_reg(addr)))
-
 #if defined(CONFIG_ARCH_RK30)
 //CRU,PIXCLOCK
 #define CRU_PCLK_REG30                     0xbc
@@ -170,32 +160,21 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MASK_RST_CIF1                      (0x01 << 31)
 #define RQUEST_RST_CIF0                    (0x01 << 14)
 #define RQUEST_RST_CIF1                    (0x01 << 15)
+#endif
 
+#define MIN(x,y)   ((x<y) ? x: y)
+#define MAX(x,y)    ((x>y) ? x: y)
+#define RK_SENSOR_24MHZ      24*1000*1000          /* MHz */
+#define RK_SENSOR_48MHZ      48
+
+#define write_cif_reg(base,addr, val)  __raw_writel(val, addr+(base))
+#define read_cif_reg(base,addr) __raw_readl(addr+(base))
+#define mask_cif_reg(addr, msk, val)    write_cif_reg(addr, (val)|((~(msk))&read_cif_reg(addr)))
+
+#if defined(CONFIG_ARCH_RK30)
 #define write_cru_reg(addr, val)  __raw_writel(val, addr+RK30_CRU_BASE)
 #define read_cru_reg(addr) __raw_readl(addr+RK30_CRU_BASE)
 #define mask_cru_reg(addr, msk, val)	write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
-#endif
-
-#if defined(CONFIG_ARCH_RK3066B)
-//GRF_IO_CON3                        0x100
-#define CIF_DRIVER_STRENGTH_2MA            (0x00 << 12)
-#define CIF_DRIVER_STRENGTH_4MA            (0x01 << 12)
-#define CIF_DRIVER_STRENGTH_8MA            (0x02 << 12)
-#define CIF_DRIVER_STRENGTH_12MA           (0x03 << 12)
-#define CIF_DRIVER_STRENGTH_MASK           (0x03 << 28)
-
-//GRF_IO_CON4                        0x104
-#define CIF_CLKOUT_AMP_3V3                 (0x00 << 10)
-#define CIF_CLKOUT_AMP_1V8                 (0x01 << 10)
-#define CIF_CLKOUT_AMP_MASK                (0x01 << 26)
-
-#define write_grf_reg(addr, val)  __raw_writel(val, addr+RK30_GRF_BASE)
-#define read_grf_reg(addr) __raw_readl(addr+RK30_GRF_BASE)
-#define mask_grf_reg(addr, msk, val)	write_grf_reg(addr,(val)|((~(msk))&read_grf_reg(addr)))
-#else
-#define write_grf_reg(addr, val)  
-#define read_grf_reg(addr)                0
-#define mask_grf_reg(addr, msk, val)	
 #endif
 
 #if defined(CONFIG_ARCH_RK2928)
@@ -269,11 +248,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 		  3.fix bug in prob func:request mem twice. 
 		  4.video_vq may be null when reinit work,fix it
 		  5.arm scale algorithm has something wrong(may exceed the bound of width or height) ,fix it.
-*v0.x.15: 
-*         1. support rk3066b;
 
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x15)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x13)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -649,9 +626,7 @@ static void rk_videobuf_queue(struct videobuf_queue *vq,
     struct soc_camera_device *icd = vq->priv_data;
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk_camera_dev *pcdev = ici->priv;
-#if CAMERA_VIDEOBUF_ARM_ACCESS    
     struct rk29_camera_vbinfo *vb_info;
-#endif
 
     dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
             vb, vb->baddr, vb->bsize);
@@ -1265,10 +1240,7 @@ static void rk_videobuf_release(struct videobuf_queue *vq,
     struct soc_camera_device *icd = vq->priv_data;
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk_camera_dev *pcdev = ici->priv;
-#if CAMERA_VIDEOBUF_ARM_ACCESS    
     struct rk29_camera_vbinfo *vb_info =NULL;
-#endif
-
 #ifdef DEBUG
     dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
             vb, vb->baddr, vb->bsize);
@@ -1413,7 +1385,6 @@ static void rk_camera_deactivate(struct rk_camera_dev *pcdev)
 	clk_disable(pcdev->cif_clk_out);
     
 	clk_disable(pcdev->pd_cif);
- 
     return;
 }
 
@@ -1435,7 +1406,8 @@ static int rk_camera_add_device(struct soc_camera_device *icd)
         goto ebusy;
     }
 
-    RKCAMERA_DG("%s driver attached to %s\n",RK29_CAM_DRV_NAME,dev_name(icd->pdev));
+    dev_info(&icd->dev, "RK Camera driver attached to camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
 
 	pcdev->frame_inval = RK_CAM_FRAME_INVAL_INIT;
     pcdev->active = NULL;
@@ -1496,15 +1468,14 @@ static void rk_camera_remove_device(struct soc_camera_device *icd)
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk_camera_dev *pcdev = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-#if CAMERA_VIDEOBUF_ARM_ACCESS    
     struct rk29_camera_vbinfo *vb_info;
     unsigned int i;
-#endif    
 
 	mutex_lock(&camera_lock);
     BUG_ON(icd != pcdev->icd);
 
-    RKCAMERA_DG("%s driver detached from %s\n",RK29_CAM_DRV_NAME,dev_name(icd->pdev));
+    dev_info(&icd->dev, "RK Camera driver detached from camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
 
 	/* ddl@rock-chips.com: Application will call VIDIOC_STREAMOFF before close device, but
 	   stream may be turn on again before close device, if suspend and resume happened. */
@@ -2712,9 +2683,8 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
 	struct v4l2_crop a;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct rk_camera_dev *pcdev = ici->priv;
-#if CIF_DO_CROP    
 	unsigned long tmp_cifctrl; 
-#endif	
+	int flags;
 
 	//change the crop and scale parameters
 	
@@ -2860,35 +2830,18 @@ static void rk_camera_cif_iomux(int cif_index)
     switch(cif_index){
         case 0:
             rk30_mux_api_set(GPIO3B3_CIFCLKOUT_NAME, GPIO3B_CIFCLKOUT);
-            write_grf_reg(GRF_IO_CON3, (CIF_DRIVER_STRENGTH_MASK|CIF_DRIVER_STRENGTH_8MA));
-            write_grf_reg(GRF_IO_CON4, (CIF_CLKOUT_AMP_MASK|CIF_CLKOUT_AMP_1V8));
-            #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & (RK_CAM_INPUT_FMT_RAW10|RK_CAM_INPUT_FMT_RAW12))
-	        rk30_mux_api_set(GPIO3B4_CIFDATA0_HSADCDATA8_NAME, GPIO3B_CIFDATA0);
-	        rk30_mux_api_set(GPIO3B5_CIFDATA1_HSADCDATA9_NAME, GPIO3B_CIFDATA1);
-            #endif
-            #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & RK_CAM_INPUT_FMT_RAW12)
-	        rk30_mux_api_set(GPIO3B6_CIFDATA10_I2C3SDA_NAME, GPIO3B_CIFDATA10);
-	        rk30_mux_api_set(GPIO3B7_CIFDATA11_I2C3SCL_NAME, GPIO3B_CIFDATA11);
-            RKCAMERA_TR("%s(%d): WARNING: Cif 0 is configurated that support RAW 12bit, so I2C3 is invalidate!!\n",__FUNCTION__,__LINE__);
-            #endif
-            
+	    rk30_mux_api_set(GPIO3B4_CIFDATA0_HSADCDATA8_NAME, GPIO3B_CIFDATA0);
+	    rk30_mux_api_set(GPIO3B5_CIFDATA1_HSADCDATA9_NAME, GPIO3B_CIFDATA1);
+	    rk30_mux_api_set(GPIO3B6_CIFDATA10_I2C3SDA_NAME, GPIO3B_CIFDATA10);
+	    rk30_mux_api_set(GPIO3B7_CIFDATA11_I2C3SCL_NAME, GPIO3B_CIFDATA11);
             break;
         default:
-            RKCAMERA_TR("%s(%d): Cif index(%d) is invalidate!!!\n",__FUNCTION__,__LINE__, cif_index);
-            break;
-    }
+            printk("cif index is erro!!!\n");
+        }
 #elif defined(CONFIG_ARCH_RK30)
     switch(cif_index){
         case 0:
             rk30_mux_api_set(GPIO1B3_CIF0CLKOUT_NAME, GPIO1B_CIF0_CLKOUT);
-            #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & (RK_CAM_INPUT_FMT_RAW10|RK_CAM_INPUT_FMT_RAW12))
-	        rk30_mux_api_set(GPIO1B4_CIF0DATA0_NAME, GPIO1B_CIF0_DATA0);
-	        rk30_mux_api_set(GPIO1B5_CIF0DATA1_NAME, GPIO1B_CIF0_DATA1);
-            #endif
-            #if (CONFIG_CAMERA_INPUT_FMT_SUPPORT & RK_CAM_INPUT_FMT_RAW12)
-	        rk30_mux_api_set(GPIO1B6_CIFDATA10_NAME, GPIO1B_CIF_DATA10);
-	        rk30_mux_api_set(GPIO1B7_CIFDATA11_NAME, GPIO1B_CIF_DATA11);
-            #endif
             break;
         case 1:
             rk30_mux_api_set(GPIO1C0_CIF1DATA2_RMIICLKOUT_RMIICLKIN_NAME,GPIO1C_CIF1_DATA2);
@@ -2910,9 +2863,9 @@ static void rk_camera_cif_iomux(int cif_index)
             rk30_mux_api_set(GPIO1D7_CIF1CLKOUT_NAME,GPIO1D_CIF1_CLKOUT);
             break;
         default:
-            RKCAMERA_TR("%s(%d): Cif index(%d) is invalidate!!!\n",__FUNCTION__,__LINE__, cif_index);
-            break;
+            printk("cif index is erro!!!\n");
         }
+#else
 #endif
                 
             
@@ -2925,9 +2878,9 @@ static int rk_camera_probe(struct platform_device *pdev)
     struct rk29camera_mem_res *meminfo_ptr,*meminfo_ptrr;
     int irq,i;
     int err = 0;
+    static int ipp_mem = 0;
 
-    printk("%s version: v%d.%d.%d  Zoom by %s\n",RK29_CAM_DRV_NAME,(RK_CAM_VERSION_CODE&0xff0000)>>16,
-        (RK_CAM_VERSION_CODE&0xff00)>>8,RK_CAM_VERSION_CODE&0xff,CAMERA_SCALE_CROP_MACHINE);    
+    RKCAMERA_DG("%s(%d) Enter..\n",__FUNCTION__,__LINE__);    
 
     if ((pdev->id == RK_CAM_PLATFORM_DEV_ID_1) && (RK_SUPPORT_CIF1 == 0)) {
         RKCAMERA_TR("%s(%d): This chip is not support CIF1!!\n",__FUNCTION__,__LINE__);
@@ -3004,7 +2957,7 @@ static int rk_camera_probe(struct platform_device *pdev)
             }
             meminfo_ptr->vbase = pcdev->vipmem_virbase = ioremap_cached(meminfo_ptr->start,meminfo_ptr->size);
             if (pcdev->vipmem_virbase == NULL) {
-                RKCAMERA_TR("%s(%d): ioremap of CIF internal memory(Ex:IPP process/raw process) failed\n",__FUNCTION__,__LINE__);
+                dev_err(pcdev->dev, "ioremap() of vip internal memory(Ex:IPP process/raw process) failed\n");
                 err = -ENXIO;
                 goto exit_ioremap_vipmem;
             }
@@ -3203,6 +3156,7 @@ static struct platform_driver rk_camera_driver =
 
 static int rk_camera_init_async(void *unused)
 {
+    RKCAMERA_DG("%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
     platform_driver_register(&rk_camera_driver);
     return 0;
 }

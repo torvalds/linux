@@ -145,9 +145,11 @@ void usb20otg_phy_suspend(void* pdata, int suspend)
             usbpdata->phy_status = 0;
         }
 #endif
+
 }
 void usb20otg_soft_reset(void)
 {
+#if 1
     cru_set_soft_reset(SOFT_RST_USBOTG0, true);
     cru_set_soft_reset(SOFT_RST_USBPHY0, true);
     cru_set_soft_reset(SOFT_RST_OTGC0, true);
@@ -157,6 +159,7 @@ void usb20otg_soft_reset(void)
     cru_set_soft_reset(SOFT_RST_USBPHY0, false);
     cru_set_soft_reset(SOFT_RST_OTGC0, false);
     mdelay(1);
+#endif
 }
 void usb20otg_clock_init(void* pdata)
 {
@@ -170,7 +173,7 @@ void usb20otg_clock_init(void* pdata)
 void usb20otg_clock_enable(void* pdata, int enable)
 {
     struct dwc_otg_platform_data *usbpdata=pdata;
-
+    #if 1
     if(enable){
         clk_enable(usbpdata->ahbclk);
         clk_enable(usbpdata->phyclk);
@@ -179,6 +182,7 @@ void usb20otg_clock_enable(void* pdata, int enable)
         clk_disable(usbpdata->phyclk);
         clk_disable(usbpdata->ahbclk);
     }
+    #endif
 }
 int usb20otg_get_status(int id)
 {
@@ -254,9 +258,8 @@ struct dwc_otg_platform_data usb20otg_pdata = {
     .clock_init=usb20otg_clock_init,
     .clock_enable=usb20otg_clock_enable,
     .get_status=usb20otg_get_status,
-#ifdef CONFIG_ARCH_RK3066B
     .power_enable=usb20otg_power_enable,
-#endif    
+    
 };
 
 struct platform_device device_usb20_otg = {
@@ -328,6 +331,7 @@ void usb20host_phy_suspend(void* pdata, int suspend)
 }
 void usb20host_soft_reset(void)
 {
+#if 1
     cru_set_soft_reset(SOFT_RST_USBOTG1, true);
     cru_set_soft_reset(SOFT_RST_USBPHY1, true);
     cru_set_soft_reset(SOFT_RST_OTGC1, true);
@@ -337,6 +341,7 @@ void usb20host_soft_reset(void)
     cru_set_soft_reset(SOFT_RST_USBPHY1, false);
     cru_set_soft_reset(SOFT_RST_OTGC1, false);
     mdelay(1);
+#endif
 }
 void usb20host_clock_init(void* pdata)
 {
@@ -350,7 +355,7 @@ void usb20host_clock_init(void* pdata)
 void usb20host_clock_enable(void* pdata, int enable)
 {
     struct dwc_otg_platform_data *usbpdata=pdata;
-    
+    #if 1
     if(enable){
         clk_enable(usbpdata->ahbclk);
         clk_enable(usbpdata->phyclk);
@@ -359,6 +364,7 @@ void usb20host_clock_enable(void* pdata, int enable)
         clk_disable(usbpdata->phyclk);
         clk_disable(usbpdata->ahbclk);
     }
+    #endif
 }
 int usb20host_get_status(int id)
 {
@@ -435,9 +441,7 @@ struct dwc_otg_platform_data usb20host_pdata = {
     .clock_init=usb20host_clock_init,
     .clock_enable=usb20host_clock_enable,
     .get_status=usb20host_get_status,
-#ifdef CONFIG_ARCH_RK3066B
     .power_enable=usb20host_power_enable,
-#endif    
 };
 
 struct platform_device device_usb20_host = {
