@@ -922,7 +922,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
     if (dev == NULL) {
         printk(KERN_ERR DEVICE_NAME ": allocate net device failed \n");
-        return -ENODEV;
+        return -ENOMEM;
     }
 
     // Chain it all together
