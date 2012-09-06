@@ -1403,6 +1403,14 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
+	if (chip->match.type == V4L2_CHIP_MATCH_HOST) {
+		if (v4l2_chip_match_host(&chip->match))
+			chip->ident = V4L2_IDENT_NONE;
+		return 0;
+	}
+	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
+	    chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
+		return -EINVAL;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_chip_ident, chip);
 
