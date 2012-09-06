@@ -17,6 +17,7 @@
 #include <linux/poll.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
+#include <linux/sched.h>
 #include <linux/usb/g_hid.h>
 
 static int major, minors;

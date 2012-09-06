@@ -30,13 +30,13 @@
 #include <sound/rawmidi.h>
 
 #include <linux/usb/ch9.h>
+#include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/audio.h>
 #include <linux/usb/midi.h>
 
 #include "gadget_chips.h"
 
-#include "composite.c"
 #include "f_midi.c"
 
 /*-------------------------------------------------------------------------*/

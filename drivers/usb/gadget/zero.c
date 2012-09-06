@@ -57,8 +57,6 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#include "composite.c"
-
 #include "f_sourcesink.c"
 #include "f_loopback.c"
 

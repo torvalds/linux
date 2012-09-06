@@ -43,7 +43,6 @@ USB_GADGET_COMPOSITE_OPTIONS();
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 
-#include "composite.c"
 #include "u_serial.c"
 #include "f_acm.c"
 #include "f_ecm.c"

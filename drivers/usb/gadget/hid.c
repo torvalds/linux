@@ -15,6 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/list.h>
+#include <linux/module.h>
+#include <linux/usb/composite.h>
 
 #include "gadget_chips.h"
 #define DRIVER_DESC		"HID Gadget"
@@ -34,9 +36,6 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-
-#include "composite.c"
-
 #include "f_hid.c"
 
 

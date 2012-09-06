@@ -15,6 +15,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 
 #include "u_serial.h"
 
@@ -40,7 +41,6 @@
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 
-#include "composite.c"
 #include "u_serial.c"
 #include "f_acm.c"
 #include "f_mass_storage.c"

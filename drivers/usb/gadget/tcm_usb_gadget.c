@@ -25,8 +25,6 @@
 #include <target/configfs_macros.h>
 #include <asm/unaligned.h>
 
-#include "composite.c"
-
 #include "tcm_usb_gadget.h"
 
 USB_GADGET_COMPOSITE_OPTIONS();
