@@ -456,6 +456,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 {
 	int asic, got1 = 0;
 	struct comedi_device *dev = (struct comedi_device *)d;
+	int i;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		if (irq == devpriv->asics[asic].irq) {
@@ -507,9 +508,8 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 				printk
 				    ("PCMUIO DEBUG: got edge detect interrupt %d asic %d which_chans: %06x\n",
 				     irq, asic, triggered);
-				for (s = dev->subdevices;
-				     s < dev->subdevices + dev->n_subdevices;
-				     ++s) {
+				for (i = 0; i < dev->n_subdevices; i++) {
+					s = &dev->subdevices[i];
 					if (subpriv->intr.asic == asic) {	/* this is an interrupt subdev, and it matches this asic! */
 						unsigned long flags;
 						unsigned oldevents;
@@ -811,8 +811,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (sdev_no = 0; sdev_no < (int)dev->n_subdevices; ++sdev_no) {
 		int byte_no;
 
-		s = dev->subdevices + sdev_no;
-		s->private = devpriv->sprivs + sdev_no;
+		s = &dev->subdevices[sdev_no];
+		s->private = &devpriv->sprivs[sdev_no];
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
