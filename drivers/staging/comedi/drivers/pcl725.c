@@ -62,7 +62,7 @@ static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* do */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -71,7 +71,7 @@ static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_bits = pcl725_do_insn;
 	s->range_table = &range_digital;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* di */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
