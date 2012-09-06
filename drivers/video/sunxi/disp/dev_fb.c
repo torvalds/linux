@@ -27,7 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/fb.h>
 
-#ifdef CONFIG_SUN4I_FB_UMP
+#ifdef CONFIG_FB_SUNXI_UMP
 #include <ump/ump_kernel_interface.h>
 
 static ump_dd_handle ump_wrapped_buffer;
@@ -766,7 +766,7 @@ __s32 var_to_disp_fb(__disp_fb_t *fb, struct fb_var_screeninfo *var, struct fb_f
 
 static int Fb_open(struct fb_info *info, int user)
 {
-#ifdef CONFIG_SUN4I_FB_UMP
+#ifdef CONFIG_FB_SUNXI_UMP
 	ump_dd_physical_block ump_memory_description;
 	ump_memory_description.addr = info->fix.smem_start;
 	ump_memory_description.size = info->fix.smem_len;
@@ -1059,7 +1059,7 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 	long ret = 0;
 	unsigned long layer_hdl = 0;
 
-#ifdef CONFIG_SUN4I_FB_UMP
+#ifdef CONFIG_FB_SUNXI_UMP
 	u32 __user *psecureid = (u32 __user *) arg;
 	ump_secure_id secure_id;
 #endif
@@ -1127,7 +1127,7 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
         break;
     }
 
-#ifdef CONFIG_SUN4I_FB_UMP
+#ifdef CONFIG_FB_SUNXI_UMP
 	case GET_UMP_SECURE_ID:
 	{
 		secure_id = ump_dd_secure_id_get( ump_wrapped_buffer );

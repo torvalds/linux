@@ -284,7 +284,7 @@ config SUN3I_HDMI
 	---help---
 	default m
 
-config SUNXI_FB
+config FB_SUNXI
         tristate "DISP Driver Support(sunxi)"
         depends on FB && (ARCH_SUN5I || ARCH_SUN4I)
 	select FB_CFB_FILLRECT
@@ -293,20 +293,20 @@ config SUNXI_FB
         ---help---
         default m
 
-config SUN4I_FB_UMP
+config FB_SUNXI_UMP
 	bool "Enable FB/UMP Integration"
-	depends on MALI && SUNXI_FB=m
+	depends on MALI && FB_SUNXI=m
 	default y
 
-config SUNXI_LCD
+config FB_SUNXI_LCD
         tristate "LCD Driver Support(sunxi)"
-        depends on SUNXI_FB
+        depends on FB_SUNXI
         ---help---
         default m
 
-config SUNXI_HDMI
+config FB_SUNXI_HDMI
         tristate "HDMI Driver Support(sunxi)"
-        depends on SUNXI_FB
+        depends on FB_SUNXI_LCD
         ---help---
         default m
 

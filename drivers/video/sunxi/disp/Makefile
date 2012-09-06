@@ -1,4 +1,4 @@
-obj-$(CONFIG_LYCHEE_FB_SUNXI) += disp.o
+obj-$(CONFIG_FB_SUNXI) += disp.o
 
 disp-objs :=  dev_disp.o dev_fb.o
 disp-objs += OSAL/OSAL_Cache.o OSAL/OSAL_Clock.o OSAL/OSAL_Dma.o OSAL/OSAL_Int.o OSAL/OSAL_IrqLock.o\
@@ -20,6 +20,6 @@ disp-objs += de_bsp_sun5i/de/ebios/de_be.o de_bsp_sun5i/de/ebios/de_fe.o de_bsp_
 	de_bsp_sun5i/de/disp_vga.o de_bsp_sun5i/de/disp_video.o
 endif
 
-ifeq ($(CONFIG_LYCHEE_FB_UMP_SUN4I),y)
+ifeq ($(CONFIG_FB_SUNXI_UMP),y)
 EXTRA_CFLAGS += -Idrivers/gpu/mali/include
 endif

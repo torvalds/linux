@@ -32,9 +32,9 @@ obj-$(CONFIG_FB_WMT_GE_ROPS)   += wmt_ge_rops.o
 
 obj-$(CONFIG_SUN3I_FB)     += sun3i/disp/
 obj-$(CONFIG_SUN3I_HDMI)   += sun3i/hdmi/
-obj-$(CONFIG_SUNXI_FB)     += sunxi/disp/
-obj-$(CONFIG_SUNXI_LCD)    += sunxi/lcd/
-obj-$(CONFIG_SUNXI_HDMI)   += sunxi/hdmi/
+obj-$(CONFIG_FB_SUNXI)		+= sunxi/disp/
+obj-$(CONFIG_FB_SUNXI_LCD)	+= sunxi/lcd/
+obj-$(CONFIG_FB_SUNXI_HDMI)	+= sunxi/hdmi/
 
 # Hardware specific drivers go first
 obj-$(CONFIG_FB_AMIGA)            += amifb.o c2p_planar.o
