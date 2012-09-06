@@ -955,9 +955,8 @@ static int pci_dio_reset(struct comedi_device *dev)
 static int pci1760_attach(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
-	int subdev = 0;
 
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 8;
@@ -965,9 +964,8 @@ static int pci1760_attach(struct comedi_device *dev)
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
 	s->insn_bits = pci1760_insn_bits_di;
-	subdev++;
 
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 8;
@@ -976,18 +974,16 @@ static int pci1760_attach(struct comedi_device *dev)
 	s->range_table = &range_digital;
 	s->state = 0;
 	s->insn_bits = pci1760_insn_bits_do;
-	subdev++;
 
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_TIMER;
 	s->subdev_flags = SDF_WRITABLE | SDF_LSAMPL;
 	s->n_chan = 2;
 	s->maxdata = 0xffffffff;
 	s->len_chanlist = 2;
 /*       s->insn_config=pci1760_insn_pwm_cfg; */
-	subdev++;
 
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 8;
@@ -996,7 +992,6 @@ static int pci1760_attach(struct comedi_device *dev)
 	s->insn_read = pci1760_insn_cnt_read;
 	s->insn_write = pci1760_insn_cnt_write;
 /*       s->insn_config=pci1760_insn_cnt_cfg; */
-	subdev++;
 
 	return 0;
 }
