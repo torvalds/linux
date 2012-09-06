@@ -838,7 +838,7 @@ static int sierra_net_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 				netdev_err(dev->net, "HIP/ETH: Invalid pkt\n");
 
 			dev->net->stats.rx_frame_errors++;
-			/* dev->net->stats.rx_errors incremented by caller */;
+			/* dev->net->stats.rx_errors incremented by caller */
 			return 0;
 		}
 
