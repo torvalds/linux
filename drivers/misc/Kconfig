@@ -63,6 +63,7 @@ config AD525X_DPOT_SPI
 
 config SUN4I_VIBRATOR
 	tristate "Vibrator sun4i platform"
+	depends on ANDROID_TIMED_OUTPUT
 	help
 	  Say Y here if you have a vibrator on your board.
 
