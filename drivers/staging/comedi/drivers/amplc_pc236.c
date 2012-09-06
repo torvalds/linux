@@ -412,7 +412,7 @@ static int pc236_intr_cancel(struct comedi_device *dev,
 static irqreturn_t pc236_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 1;
+	struct comedi_subdevice *s = &dev->subdevices[1];
 	int handled;
 
 	handled = pc236_intr_check(dev);
@@ -464,14 +464,14 @@ static int pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* digital i/o subdevice (8255) */
 	ret = subdev_8255_init(dev, s, NULL, iobase);
 	if (ret < 0) {
 		dev_err(dev->class_dev, "error! out of memory!\n");
 		return ret;
 	}
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_UNUSED;
 	pc236_intr_disable(dev);
@@ -598,7 +598,7 @@ static void pc236_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 0);
+		subdev_8255_cleanup(dev, &dev->subdevices[0]);
 	if (is_isa_board(thisboard)) {
 		if (dev->iobase)
 			release_region(dev->iobase, PC236_IO_SIZE);
