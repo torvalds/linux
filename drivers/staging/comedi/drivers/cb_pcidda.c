@@ -716,7 +716,7 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -730,9 +730,9 @@ static int cb_pcidda_attach_pci(struct comedi_device *dev,
 	/* s->do_cmdtest = cb_pcidda_ai_cmdtest; */
 
 	/*  two 8255 digital io subdevices */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	subdev_8255_init(dev, s, NULL, devpriv->digitalio);
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	subdev_8255_init(dev, s, NULL, devpriv->digitalio + PORT2A);
 
 	dev_dbg(dev->class_dev, "eeprom:\n");
@@ -756,8 +756,8 @@ static void cb_pcidda_detach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (dev->subdevices) {
-		subdev_8255_cleanup(dev, dev->subdevices + 1);
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
+		subdev_8255_cleanup(dev, &dev->subdevices[1]);
+		subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	}
 	if (pcidev) {
 		if (dev->iobase)
