@@ -2821,7 +2821,8 @@ static void __init rcu_init_geometry(void)
 	int rcu_capacity[MAX_RCU_LVLS + 1];
 
 	/* If the compile-time values are accurate, just leave. */
-	if (rcu_fanout_leaf == CONFIG_RCU_FANOUT_LEAF)
+	if (rcu_fanout_leaf == CONFIG_RCU_FANOUT_LEAF &&
+	    nr_cpu_ids == NR_CPUS)
 		return;
 
 	/*
