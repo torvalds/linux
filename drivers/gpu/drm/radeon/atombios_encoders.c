@@ -1013,8 +1013,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 				args.v1.asMode.ucLaneSet = lane_set;
 			} else {
 				if (is_dp)
-					args.v1.usPixelClock =
-						cpu_to_le16(dp_clock / 10);
+					args.v1.usPixelClock = cpu_to_le16(dp_clock / 10);
 				else if (radeon_dig_monitor_is_duallink(encoder, radeon_encoder->pixel_clock))
 					args.v1.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
 				else
@@ -1071,8 +1070,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 				args.v2.asMode.ucLaneSet = lane_set;
 			} else {
 				if (is_dp)
-					args.v2.usPixelClock =
-						cpu_to_le16(dp_clock / 10);
+					args.v2.usPixelClock = cpu_to_le16(dp_clock / 10);
 				else if (radeon_dig_monitor_is_duallink(encoder, radeon_encoder->pixel_clock))
 					args.v2.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
 				else
@@ -1114,8 +1112,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 				args.v3.asMode.ucLaneSet = lane_set;
 			} else {
 				if (is_dp)
-					args.v3.usPixelClock =
-						cpu_to_le16(dp_clock / 10);
+					args.v3.usPixelClock = cpu_to_le16(dp_clock / 10);
 				else if (radeon_dig_monitor_is_duallink(encoder, radeon_encoder->pixel_clock))
 					args.v3.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
 				else
@@ -1174,8 +1171,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 				args.v4.asMode.ucLaneSet = lane_set;
 			} else {
 				if (is_dp)
-					args.v4.usPixelClock =
-						cpu_to_le16(dp_clock / 10);
+					args.v4.usPixelClock = cpu_to_le16(dp_clock / 10);
 				else if (radeon_dig_monitor_is_duallink(encoder, radeon_encoder->pixel_clock))
 					args.v4.usPixelClock = cpu_to_le16((radeon_encoder->pixel_clock / 2) / 10);
 				else
