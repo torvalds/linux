@@ -231,7 +231,7 @@ static int adl_pci8164_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_PROC;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 4;
@@ -241,7 +241,7 @@ static int adl_pci8164_attach_pci(struct comedi_device *dev,
 	s->insn_read = adl_pci8164_insn_read_msts;
 	s->insn_write = adl_pci8164_insn_write_cmd;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_PROC;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 4;
@@ -251,7 +251,7 @@ static int adl_pci8164_attach_pci(struct comedi_device *dev,
 	s->insn_read = adl_pci8164_insn_read_ssts;
 	s->insn_write = adl_pci8164_insn_write_otp;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_PROC;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 4;
@@ -261,7 +261,7 @@ static int adl_pci8164_attach_pci(struct comedi_device *dev,
 	s->insn_read = adl_pci8164_insn_read_buf0;
 	s->insn_write = adl_pci8164_insn_write_buf0;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_PROC;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 4;
