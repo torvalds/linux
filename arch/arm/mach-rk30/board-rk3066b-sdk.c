@@ -1191,7 +1191,11 @@ int __sramdata g_pmic_type =  0;
 #include "board-rk3066b-sdk-wm8326.c"
 #endif
 #ifdef CONFIG_MFD_TPS65910
+#ifdef CONFIG_ARCH_RK3066B
+#define TPS65910_HOST_IRQ        RK30_PIN0_PA1
+#else
 #define TPS65910_HOST_IRQ        RK30_PIN6_PA4
+#endif
 #include "board-rk3066b-sdk-tps65910.c"
 #endif
 
