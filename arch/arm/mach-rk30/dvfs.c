@@ -1072,12 +1072,8 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 			volt_dep_new = dvfs_vd_get_newvolt_bypd(&vd_core);
 			if (volt_dep_new <= 0) 
 				goto fail_roll_back;
-#ifdef CONFIG_ARCH_RK3066B
-			ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
-#else
 			ret = dvfs_scale_volt_bystep(dvfs_clk->vd, &vd_core, volt_new, volt_dep_new, 
 					ARM_HIGHER_LOGIC, LOGIC_HIGHER_ARM); 
-#endif
 			if (ret < 0) 
 				goto fail_roll_back;
 		} else {
@@ -1113,12 +1109,8 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 			volt_dep_new = dvfs_vd_get_newvolt_bypd(&vd_core);
 			if (volt_dep_new <= 0) 
 				goto out;
-#ifdef CONFIG_ARCH_RK3066B
-			ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
-#else
 			ret = dvfs_scale_volt_bystep(dvfs_clk->vd, &vd_core, volt_new, volt_dep_new, 
 					ARM_HIGHER_LOGIC, LOGIC_HIGHER_ARM); 
-#endif
 			if (ret < 0) 
 				goto out;
 		} else {
@@ -1202,12 +1194,8 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 
 		if (volt_dep_new < 0) 
 			goto fail_roll_back;
-#ifdef CONFIG_ARCH_RK3066B
-		ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
-#else
 		ret = dvfs_scale_volt_bystep(dvfs_clk->vd, dvfs_clk_cpu->vd, volt_new, volt_dep_new, 
 					LOGIC_HIGHER_ARM, ARM_HIGHER_LOGIC); 
-#endif
 		if (ret < 0) 
 			goto fail_roll_back;
 	}
@@ -1235,12 +1223,8 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 
 		if (volt_dep_new < 0) 
 			goto out;
-#ifdef CONFIG_ARCH_RK3066B
-		ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
-#else
 		ret = dvfs_scale_volt_bystep(dvfs_clk->vd, dvfs_clk_cpu->vd, volt_new, volt_dep_new, 
 					LOGIC_HIGHER_ARM, ARM_HIGHER_LOGIC); 
-#endif
 		if (ret < 0) 
 			goto out;
 	}
