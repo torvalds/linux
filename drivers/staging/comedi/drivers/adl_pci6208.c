@@ -205,7 +205,7 @@ static int pci6208_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog output subdevice */
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE;
@@ -215,7 +215,7 @@ static int pci6208_attach_pci(struct comedi_device *dev,
 	s->insn_write	= pci6208_ao_winsn;
 	s->insn_read	= pci6208_ao_rinsn;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* digital input subdevice */
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
@@ -224,7 +224,7 @@ static int pci6208_attach_pci(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= pci6208_di_insn_bits;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital output subdevice */
 	s->type		= COMEDI_SUBD_DO;
 	s->subdev_flags	= SDF_WRITABLE;
