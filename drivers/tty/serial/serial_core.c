@@ -2309,6 +2309,36 @@ struct tty_driver *uart_console_device(struct console *co, int *index)
 	return p->tty_driver;
 }
 
+static ssize_t uart_get_attr_uartclk(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int ret;
+
+	struct tty_port *port = dev_get_drvdata(dev);
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	mutex_lock(&state->port.mutex);
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", state->uart_port->uartclk);
+	mutex_unlock(&state->port.mutex);
+
+	return ret;
+}
+
+static DEVICE_ATTR(uartclk, S_IRUSR | S_IRGRP, uart_get_attr_uartclk, NULL);
+
+static struct attribute *tty_dev_attrs[] = {
+	&dev_attr_uartclk.attr,
+	NULL,
+	};
+
+static struct attribute_group tty_dev_attr_group = {
+	.attrs = tty_dev_attrs,
+	};
+
+static const struct attribute_group *tty_dev_attr_groups[] = {
+	&tty_dev_attr_group,
+	NULL
+	};
+
 /**
  *	uart_add_one_port - attach a driver-defined port structure
  *	@drv: pointer to the uart low level driver structure for this port
@@ -2362,8 +2392,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 * Register the port whether it's detected or not.  This allows
 	 * setserial to be used to alter this ports parameters.
 	 */
-	tty_dev = tty_port_register_device(port, drv->tty_driver, uport->line,
-			uport->dev);
+	tty_dev = tty_register_device_attr(drv->tty_driver, uport->line,
+			uport->dev, port, tty_dev_attr_groups);
 	if (likely(!IS_ERR(tty_dev))) {
 		device_set_wakeup_capable(tty_dev, 1);
 	} else {
