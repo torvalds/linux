@@ -942,10 +942,14 @@ static int __init rfbi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void __init rfbi_probe_pdata(struct platform_device *pdev)
+static struct omap_dss_device * __init rfbi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	int i, r;
+	const char *def_disp_name = dss_get_default_display_name();
+	struct omap_dss_device *def_dssdev;
+	int i;
+
+	def_dssdev = NULL;
 
 	for (i = 0; i < pdata->num_devices; ++i) {
 		struct omap_dss_device *dssdev = pdata->devices[i];
@@ -953,16 +957,39 @@ static void __init rfbi_probe_pdata(struct platform_device *pdev)
 		if (dssdev->type != OMAP_DISPLAY_TYPE_DBI)
 			continue;
 
-		r = rfbi_init_display(dssdev);
-		if (r) {
-			DSSERR("device %s init failed: %d\n", dssdev->name, r);
-			continue;
-		}
+		if (def_dssdev == NULL)
+			def_dssdev = dssdev;
 
-		r = omap_dss_register_device(dssdev, &pdev->dev);
-		if (r)
-			DSSERR("device %s register failed: %d\n",
-				dssdev->name, r);
+		if (def_disp_name != NULL &&
+				strcmp(dssdev->name, def_disp_name) == 0) {
+			def_dssdev = dssdev;
+			break;
+		}
+	}
+
+	return def_dssdev;
+}
+
+static void __init rfbi_probe_pdata(struct platform_device *pdev)
+{
+	struct omap_dss_device *dssdev;
+	int r;
+
+	dssdev = rfbi_find_dssdev(pdev);
+
+	if (!dssdev)
+		return;
+
+	r = rfbi_init_display(dssdev);
+	if (r) {
+		DSSERR("device %s init failed: %d\n", dssdev->name, r);
+		return;
+	}
+
+	r = omap_dss_register_device(dssdev, &pdev->dev);
+	if (r) {
+		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		return;
 	}
 }
 

@@ -175,6 +175,7 @@ struct seq_file;
 struct platform_device;
 
 /* core */
+const char *dss_get_default_display_name(void);
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);

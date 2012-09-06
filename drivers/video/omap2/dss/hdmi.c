@@ -901,32 +901,61 @@ int hdmi_audio_config(struct omap_dss_audio *audio)
 
 #endif
 
-static void __init hdmi_probe_pdata(struct platform_device *pdev)
+static struct omap_dss_device * __init hdmi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	int r, i;
+	const char *def_disp_name = dss_get_default_display_name();
+	struct omap_dss_device *def_dssdev;
+	int i;
+
+	def_dssdev = NULL;
 
 	for (i = 0; i < pdata->num_devices; ++i) {
 		struct omap_dss_device *dssdev = pdata->devices[i];
-		struct omap_dss_hdmi_data *priv = dssdev->data;
 
 		if (dssdev->type != OMAP_DISPLAY_TYPE_HDMI)
 			continue;
 
-		hdmi.ct_cp_hpd_gpio = priv->ct_cp_hpd_gpio;
-		hdmi.ls_oe_gpio = priv->ls_oe_gpio;
-		hdmi.hpd_gpio = priv->hpd_gpio;
+		if (def_dssdev == NULL)
+			def_dssdev = dssdev;
 
-		r = hdmi_init_display(dssdev);
-		if (r) {
-			DSSERR("device %s init failed: %d\n", dssdev->name, r);
-			continue;
+		if (def_disp_name != NULL &&
+				strcmp(dssdev->name, def_disp_name) == 0) {
+			def_dssdev = dssdev;
+			break;
 		}
+	}
 
-		r = omap_dss_register_device(dssdev, &pdev->dev);
-		if (r)
-			DSSERR("device %s register failed: %d\n",
-					dssdev->name, r);
+	return def_dssdev;
+}
+
+static void __init hdmi_probe_pdata(struct platform_device *pdev)
+{
+	struct omap_dss_device *dssdev;
+	struct omap_dss_hdmi_data *priv;
+	int r;
+
+	dssdev = hdmi_find_dssdev(pdev);
+
+	if (!dssdev)
+		return;
+
+	priv = dssdev->data;
+
+	hdmi.ct_cp_hpd_gpio = priv->ct_cp_hpd_gpio;
+	hdmi.ls_oe_gpio = priv->ls_oe_gpio;
+	hdmi.hpd_gpio = priv->hpd_gpio;
+
+	r = hdmi_init_display(dssdev);
+	if (r) {
+		DSSERR("device %s init failed: %d\n", dssdev->name, r);
+		return;
+	}
+
+	r = omap_dss_register_device(dssdev, &pdev->dev);
+	if (r) {
+		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		return;
 	}
 }
 
