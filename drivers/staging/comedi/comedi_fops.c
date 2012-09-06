@@ -426,7 +426,7 @@ static int do_bufconfig_ioctl(struct comedi_device *dev,
 	if (bc.subdevice >= dev->n_subdevices || bc.subdevice < 0)
 		return -EINVAL;
 
-	s = dev->subdevices + bc.subdevice;
+	s = &dev->subdevices[bc.subdevice];
 	async = s->async;
 
 	if (!async) {
@@ -539,7 +539,7 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
 
 	/* fill subdinfo structs */
 	for (i = 0; i < dev->n_subdevices; i++) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 		us = tmp + i;
 
 		us->type = s->type;
@@ -617,7 +617,7 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
 
 	if (it.subdev >= dev->n_subdevices)
 		return -EINVAL;
-	s = dev->subdevices + it.subdev;
+	s = &dev->subdevices[it.subdev];
 
 	if (it.maxdata_list) {
 		if (s->maxdata || !s->maxdata_list)
@@ -685,7 +685,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	if (bi.subdevice >= dev->n_subdevices || bi.subdevice < 0)
 		return -EINVAL;
 
-	s = dev->subdevices + bi.subdevice;
+	s = &dev->subdevices[bi.subdevice];
 
 	if (s->lock && s->lock != file)
 		return -EACCES;
@@ -938,7 +938,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 				ret = -EINVAL;
 				break;
 			}
-			s = dev->subdevices + insn->subdev;
+			s = &dev->subdevices[insn->subdev];
 			if (!s->async) {
 				DPRINTK("no async\n");
 				ret = -EINVAL;
@@ -967,7 +967,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 			ret = -EINVAL;
 			goto out;
 		}
-		s = dev->subdevices + insn->subdev;
+		s = &dev->subdevices[insn->subdev];
 
 		if (s->type == COMEDI_SUBD_UNUSED) {
 			DPRINTK("%d not usable subdevice\n", insn->subdev);
@@ -1151,7 +1151,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		return -ENODEV;
 	}
 
-	s = dev->subdevices + user_cmd.subdev;
+	s = &dev->subdevices[user_cmd.subdev];
 	async = s->async;
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
@@ -1301,7 +1301,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 		return -ENODEV;
 	}
 
-	s = dev->subdevices + user_cmd.subdev;
+	s = &dev->subdevices[user_cmd.subdev];
 	if (s->type == COMEDI_SUBD_UNUSED) {
 		DPRINTK("%d not valid subdevice\n", user_cmd.subdev);
 		return -EIO;
@@ -1388,7 +1388,7 @@ static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
 
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
-	s = dev->subdevices + arg;
+	s = &dev->subdevices[arg];
 
 	spin_lock_irqsave(&s->spin_lock, flags);
 	if (s->busy || s->lock)
@@ -1431,7 +1431,7 @@ static int do_unlock_ioctl(struct comedi_device *dev, unsigned int arg,
 
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
-	s = dev->subdevices + arg;
+	s = &dev->subdevices[arg];
 
 	if (s->busy)
 		return -EBUSY;
@@ -1472,7 +1472,7 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
-	s = dev->subdevices + arg;
+	s = &dev->subdevices[arg];
 	if (s->async == NULL)
 		return -EINVAL;
 
@@ -1509,7 +1509,7 @@ static int do_poll_ioctl(struct comedi_device *dev, unsigned int arg,
 
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
-	s = dev->subdevices + arg;
+	s = &dev->subdevices[arg];
 
 	if (s->lock && s->lock != file)
 		return -EACCES;
@@ -2138,7 +2138,7 @@ static int comedi_close(struct inode *inode, struct file *file)
 
 	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
-			s = dev->subdevices + i;
+			s = &dev->subdevices[i];
 
 			if (s->busy == file)
 				do_cancel(dev, s);
@@ -2359,7 +2359,7 @@ static int is_device_busy(struct comedi_device *dev)
 		return 0;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 		if (s->busy)
 			return 1;
 		if (s->async && s->async->mmap_count)
