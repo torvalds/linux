@@ -318,10 +318,10 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 		bssid = common->curbssid;
 
 		switch (vif->type) {
-		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_ADHOC:
 			cam_mode |= AR9170_MAC_CAM_IBSS;
 			break;
+		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_AP:
 			cam_mode |= AR9170_MAC_CAM_AP;
 

@@ -99,7 +99,7 @@ mwifiex_cfg80211_del_key(struct wiphy *wiphy, struct net_device *netdev,
 	const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	const u8 *peer_mac = pairwise ? mac_addr : bc_mac;
 
-	if (mwifiex_set_encode(priv, NULL, 0, key_index, peer_mac, 1)) {
+	if (mwifiex_set_encode(priv, NULL, NULL, 0, key_index, peer_mac, 1)) {
 		wiphy_err(wiphy, "deleting the crypto keys\n");
 		return -EFAULT;
 	}
@@ -171,7 +171,8 @@ mwifiex_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 
 	if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP) {
 		priv->wep_key_curr_index = key_index;
-	} else if (mwifiex_set_encode(priv, NULL, 0, key_index, NULL, 0)) {
+	} else if (mwifiex_set_encode(priv, NULL, NULL, 0, key_index,
+				      NULL, 0)) {
 		wiphy_err(wiphy, "set default Tx key index\n");
 		return -EFAULT;
 	}
@@ -207,7 +208,7 @@ mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
 		return 0;
 	}
 
-	if (mwifiex_set_encode(priv, params->key, params->key_len,
+	if (mwifiex_set_encode(priv, params, params->key, params->key_len,
 			       key_index, peer_mac, 0)) {
 		wiphy_err(wiphy, "crypto keys added\n");
 		return -EFAULT;
@@ -748,6 +749,7 @@ static const u32 mwifiex_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP104,
 	WLAN_CIPHER_SUITE_TKIP,
 	WLAN_CIPHER_SUITE_CCMP,
+	WLAN_CIPHER_SUITE_AES_CMAC,
 };
 
 /*
@@ -905,6 +907,8 @@ static int mwifiex_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 
 	if (mwifiex_del_mgmt_ies(priv))
 		wiphy_err(wiphy, "Failed to delete mgmt IEs!\n");
+
+	priv->ap_11n_enabled = 0;
 
 	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
 				  HostCmd_ACT_GEN_SET, 0, NULL)) {
@@ -1159,7 +1163,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	priv->wep_key_curr_index = 0;
 	priv->sec_info.encryption_mode = 0;
 	priv->sec_info.is_authtype_auto = 0;
-	ret = mwifiex_set_encode(priv, NULL, 0, 0, NULL, 1);
+	ret = mwifiex_set_encode(priv, NULL, NULL, 0, 0, NULL, 1);
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
 		/* "privacy" is set only for ad-hoc mode */
@@ -1206,8 +1210,9 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 				"info: setting wep encryption"
 				" with key len %d\n", sme->key_len);
 			priv->wep_key_curr_index = sme->key_idx;
-			ret = mwifiex_set_encode(priv, sme->key, sme->key_len,
-						 sme->key_idx, NULL, 0);
+			ret = mwifiex_set_encode(priv, NULL, sme->key,
+						 sme->key_len, sme->key_idx,
+						 NULL, 0);
 		}
 	}
 done:

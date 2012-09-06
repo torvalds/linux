@@ -521,7 +521,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	u16 copy_size, cmd_size;
 	bool had_nocopy = false;
 	int i;
-	u8 *cmd_dest;
+	u32 cmd_pos;
 #ifdef CONFIG_IWLWIFI_DEVICE_TRACING
 	const void *trace_bufs[IWL_MAX_CMD_TFDS + 1] = {};
 	int trace_lens[IWL_MAX_CMD_TFDS + 1] = {};
@@ -584,15 +584,31 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 					 INDEX_TO_SEQ(q->write_ptr));
 
 	/* and copy the data that needs to be copied */
-
-	cmd_dest = out_cmd->payload;
+	cmd_pos = offsetof(struct iwl_device_cmd, payload);
 	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
 		if (!cmd->len[i])
 			continue;
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY)
 			break;
-		memcpy(cmd_dest, cmd->data[i], cmd->len[i]);
-		cmd_dest += cmd->len[i];
+		memcpy((u8 *)out_cmd + cmd_pos, cmd->data[i], cmd->len[i]);
+		cmd_pos += cmd->len[i];
+	}
+
+	WARN_ON_ONCE(txq->entries[idx].copy_cmd);
+
+	/*
+	 * since out_cmd will be the source address of the FH, it will write
+	 * the retry count there. So when the user needs to receivce the HCMD
+	 * that corresponds to the response in the response handler, it needs
+	 * to set CMD_WANT_HCMD.
+	 */
+	if (cmd->flags & CMD_WANT_HCMD) {
+		txq->entries[idx].copy_cmd =
+			kmemdup(out_cmd, cmd_pos, GFP_ATOMIC);
+		if (unlikely(!txq->entries[idx].copy_cmd)) {
+			idx = -ENOMEM;
+			goto out;
+		}
 	}
 
 	IWL_DEBUG_HC(trans,

@@ -11,11 +11,13 @@
 #define  BCMA_CLKCTLST_HAVEHTREQ	0x00000010 /* HT available request */
 #define  BCMA_CLKCTLST_HWCROFF		0x00000020 /* Force HW clock request off */
 #define  BCMA_CLKCTLST_EXTRESREQ	0x00000700 /* Mask of external resource requests */
+#define  BCMA_CLKCTLST_EXTRESREQ_SHIFT	8
 #define  BCMA_CLKCTLST_HAVEALP		0x00010000 /* ALP available */
 #define  BCMA_CLKCTLST_HAVEHT		0x00020000 /* HT available */
 #define  BCMA_CLKCTLST_BP_ON_ALP	0x00040000 /* RO: running on ALP clock */
 #define  BCMA_CLKCTLST_BP_ON_HT		0x00080000 /* RO: running on HT clock */
 #define  BCMA_CLKCTLST_EXTRESST		0x07000000 /* Mask of external resource status */
+#define  BCMA_CLKCTLST_EXTRESST_SHIFT	24
 /* Is there any BCM4328 on BCMA bus? */
 #define  BCMA_CLKCTLST_4328A0_HAVEHT	0x00010000 /* 4328a0 has reversed bits */
 #define  BCMA_CLKCTLST_4328A0_HAVEALP	0x00020000 /* 4328a0 has reversed bits */
@@ -82,5 +84,7 @@
 #define BCMA_SOC_PCIE1_DMA_H32		0xc0000000U	/* PCIE Client Mode sb2pcitranslation2
 							 * (2 ZettaBytes), high 32 bits
 							 */
+
+#define BCMA_SFLASH			0x1c000000
 
 #endif /* LINUX_BCMA_REGS_H_ */

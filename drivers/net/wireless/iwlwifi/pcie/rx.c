@@ -421,12 +421,22 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = get_cmd_index(&txq->q, index);
 
-		if (reclaim)
-			cmd = txq->entries[cmd_index].cmd;
-		else
+		if (reclaim) {
+			struct iwl_pcie_tx_queue_entry *ent;
+			ent = &txq->entries[cmd_index];
+			cmd = ent->copy_cmd;
+			WARN_ON_ONCE(!cmd && ent->meta.flags & CMD_WANT_HCMD);
+		} else {
 			cmd = NULL;
+		}
 
 		err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
+
+		if (reclaim) {
+			/* The original command isn't needed any more */
+			kfree(txq->entries[cmd_index].copy_cmd);
+			txq->entries[cmd_index].copy_cmd = NULL;
+		}
 
 		/*
 		 * After here, we should always check rxcb._page_stolen,

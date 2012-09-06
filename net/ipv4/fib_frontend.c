@@ -1046,6 +1046,7 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 
 	if (event == NETDEV_UNREGISTER) {
 		fib_disable_ip(dev, 2, -1);
+		rt_flush_dev(dev);
 		return NOTIFY_DONE;
 	}
 

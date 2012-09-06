@@ -208,8 +208,8 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if ((changed & IEEE80211_CONF_CHANGE_POWER) &&
-	(ah->power_level != conf->power_level)) {
-		ah->power_level = conf->power_level;
+	(ah->ah_txpower.txp_requested != conf->power_level)) {
+		ah->ah_txpower.txp_requested = conf->power_level;
 
 		/* Half dB steps */
 		ath5k_hw_set_txpower_limit(ah, (conf->power_level * 2));

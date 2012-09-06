@@ -488,6 +488,58 @@ static int p54p_open(struct ieee80211_hw *dev)
 	return 0;
 }
 
+static void p54p_firmware_step2(const struct firmware *fw,
+				void *context)
+{
+	struct p54p_priv *priv = context;
+	struct ieee80211_hw *dev = priv->common.hw;
+	struct pci_dev *pdev = priv->pdev;
+	int err;
+
+	if (!fw) {
+		dev_err(&pdev->dev, "Cannot find firmware (isl3886pci)\n");
+		err = -ENOENT;
+		goto out;
+	}
+
+	priv->firmware = fw;
+
+	err = p54p_open(dev);
+	if (err)
+		goto out;
+	err = p54_read_eeprom(dev);
+	p54p_stop(dev);
+	if (err)
+		goto out;
+
+	err = p54_register_common(dev, &pdev->dev);
+	if (err)
+		goto out;
+
+out:
+
+	complete(&priv->fw_loaded);
+
+	if (err) {
+		struct device *parent = pdev->dev.parent;
+
+		if (parent)
+			device_lock(parent);
+
+		/*
+		 * This will indirectly result in a call to p54p_remove.
+		 * Hence, we don't need to bother with freeing any
+		 * allocated ressources at all.
+		 */
+		device_release_driver(&pdev->dev);
+
+		if (parent)
+			device_unlock(parent);
+	}
+
+	pci_dev_put(pdev);
+}
+
 static int __devinit p54p_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id)
 {
@@ -496,6 +548,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	unsigned long mem_addr, mem_len;
 	int err;
 
+	pci_dev_get(pdev);
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot enable new PCI device\n");
@@ -537,6 +590,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	priv = dev->priv;
 	priv->pdev = pdev;
 
+	init_completion(&priv->fw_loaded);
 	SET_IEEE80211_DEV(dev, &pdev->dev);
 	pci_set_drvdata(pdev, dev);
 
@@ -561,32 +615,12 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	spin_lock_init(&priv->lock);
 	tasklet_init(&priv->tasklet, p54p_tasklet, (unsigned long)dev);
 
-	err = request_firmware(&priv->firmware, "isl3886pci",
-			       &priv->pdev->dev);
-	if (err) {
-		dev_err(&pdev->dev, "Cannot find firmware (isl3886pci)\n");
-		err = request_firmware(&priv->firmware, "isl3886",
-				       &priv->pdev->dev);
-		if (err)
-			goto err_free_common;
-	}
+	err = request_firmware_nowait(THIS_MODULE, 1, "isl3886pci",
+				      &priv->pdev->dev, GFP_KERNEL,
+				      priv, p54p_firmware_step2);
+	if (!err)
+		return 0;
 
-	err = p54p_open(dev);
-	if (err)
-		goto err_free_common;
-	err = p54_read_eeprom(dev);
-	p54p_stop(dev);
-	if (err)
-		goto err_free_common;
-
-	err = p54_register_common(dev, &pdev->dev);
-	if (err)
-		goto err_free_common;
-
-	return 0;
-
- err_free_common:
-	release_firmware(priv->firmware);
 	pci_free_consistent(pdev, sizeof(*priv->ring_control),
 			    priv->ring_control, priv->ring_control_dma);
 
@@ -601,6 +635,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	pci_release_regions(pdev);
  err_disable_dev:
 	pci_disable_device(pdev);
+	pci_dev_put(pdev);
 	return err;
 }
 
@@ -612,8 +647,9 @@ static void __devexit p54p_remove(struct pci_dev *pdev)
 	if (!dev)
 		return;
 
-	p54_unregister_common(dev);
 	priv = dev->priv;
+	wait_for_completion(&priv->fw_loaded);
+	p54_unregister_common(dev);
 	release_firmware(priv->firmware);
 	pci_free_consistent(pdev, sizeof(*priv->ring_control),
 			    priv->ring_control, priv->ring_control_dma);

@@ -184,10 +184,9 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 int mwifiex_process_sta_event(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int len, ret = 0;
+	int ret = 0;
 	u32 eventcause = adapter->event_cause;
-	struct station_info sinfo;
-	struct mwifiex_assoc_event *event;
+	u16 ctrl;
 
 	switch (eventcause) {
 	case EVENT_DUMMY_HOST_WAKEUP_SIGNAL:
@@ -279,10 +278,16 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_MIC_ERR_UNICAST:
 		dev_dbg(adapter->dev, "event: UNICAST MIC ERROR\n");
+		cfg80211_michael_mic_failure(priv->netdev, priv->cfg_bssid,
+					     NL80211_KEYTYPE_PAIRWISE,
+					     -1, NULL, GFP_KERNEL);
 		break;
 
 	case EVENT_MIC_ERR_MULTICAST:
 		dev_dbg(adapter->dev, "event: MULTICAST MIC ERROR\n");
+		cfg80211_michael_mic_failure(priv->netdev, priv->cfg_bssid,
+					     NL80211_KEYTYPE_GROUP,
+					     -1, NULL, GFP_KERNEL);
 		break;
 	case EVENT_MIB_CHANGED:
 	case EVENT_INIT_DONE:
@@ -384,11 +389,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 					      adapter->event_body);
 		break;
 	case EVENT_AMSDU_AGGR_CTRL:
-		dev_dbg(adapter->dev, "event:  AMSDU_AGGR_CTRL %d\n",
-			*(u16 *) adapter->event_body);
+		ctrl = le16_to_cpu(*(__le16 *)adapter->event_body);
+		dev_dbg(adapter->dev, "event: AMSDU_AGGR_CTRL %d\n", ctrl);
+
 		adapter->tx_buf_size =
-			min(adapter->curr_tx_buf_size,
-			    le16_to_cpu(*(__le16 *) adapter->event_body));
+				min_t(u16, adapter->curr_tx_buf_size, ctrl);
 		dev_dbg(adapter->dev, "event: tx_buf_size %d\n",
 			adapter->tx_buf_size);
 		break;
@@ -405,51 +410,6 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "event: HOSTWAKE_STAIE %d\n", eventcause);
 		break;
 
-	case EVENT_UAP_STA_ASSOC:
-		memset(&sinfo, 0, sizeof(sinfo));
-		event = (struct mwifiex_assoc_event *)
-			(adapter->event_body + MWIFIEX_UAP_EVENT_EXTRA_HEADER);
-		if (le16_to_cpu(event->type) == TLV_TYPE_UAP_MGMT_FRAME) {
-			len = -1;
-
-			if (ieee80211_is_assoc_req(event->frame_control))
-				len = 0;
-			else if (ieee80211_is_reassoc_req(event->frame_control))
-				/* There will be ETH_ALEN bytes of
-				 * current_ap_addr before the re-assoc ies.
-				 */
-				len = ETH_ALEN;
-
-			if (len != -1) {
-				sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
-				sinfo.assoc_req_ies = &event->data[len];
-				len = (u8 *)sinfo.assoc_req_ies -
-				      (u8 *)&event->frame_control;
-				sinfo.assoc_req_ies_len =
-					le16_to_cpu(event->len) - (u16)len;
-			}
-		}
-		cfg80211_new_sta(priv->netdev, event->sta_addr, &sinfo,
-				 GFP_KERNEL);
-		break;
-	case EVENT_UAP_STA_DEAUTH:
-		cfg80211_del_sta(priv->netdev, adapter->event_body +
-				 MWIFIEX_UAP_EVENT_EXTRA_HEADER, GFP_KERNEL);
-		break;
-	case EVENT_UAP_BSS_IDLE:
-		priv->media_connected = false;
-		break;
-	case EVENT_UAP_BSS_ACTIVE:
-		priv->media_connected = true;
-		break;
-	case EVENT_UAP_BSS_START:
-		dev_dbg(adapter->dev, "AP EVENT: event id: %#x\n", eventcause);
-		memcpy(priv->netdev->dev_addr, adapter->event_body+2, ETH_ALEN);
-		break;
-	case EVENT_UAP_MIC_COUNTERMEASURES:
-		/* For future development */
-		dev_dbg(adapter->dev, "AP EVENT: event id: %#x\n", eventcause);
-		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);

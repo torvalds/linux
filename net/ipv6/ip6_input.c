@@ -52,11 +52,9 @@ int ip6_rcv_finish(struct sk_buff *skb)
 	if (sysctl_ip_early_demux && !skb_dst(skb)) {
 		const struct inet6_protocol *ipprot;
 
-		rcu_read_lock();
 		ipprot = rcu_dereference(inet6_protos[ipv6_hdr(skb)->nexthdr]);
 		if (ipprot && ipprot->early_demux)
 			ipprot->early_demux(skb);
-		rcu_read_unlock();
 	}
 	if (!skb_dst(skb))
 		ip6_route_input(skb);

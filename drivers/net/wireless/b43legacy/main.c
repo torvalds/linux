@@ -1920,7 +1920,7 @@ static int b43legacy_gpio_init(struct b43legacy_wldev *dev)
 		return 0;
 	ssb_write32(gpiodev, B43legacy_GPIO_CONTROL,
 		    (ssb_read32(gpiodev, B43legacy_GPIO_CONTROL)
-		     & mask) | set);
+		     & ~mask) | set);
 
 	return 0;
 }
