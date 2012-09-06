@@ -149,11 +149,8 @@ void inet_sock_destruct(struct sock *sk)
 		pr_err("Attempt to release alive inet socket %p\n", sk);
 		return;
 	}
-	if (sk->sk_type == SOCK_STREAM) {
-		struct fastopen_queue *fastopenq =
-			inet_csk(sk)->icsk_accept_queue.fastopenq;
-		kfree(fastopenq);
-	}
+	if (sk->sk_protocol == IPPROTO_TCP)
+		kfree(inet_csk(sk)->icsk_accept_queue.fastopenq);
 
 	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
 	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
