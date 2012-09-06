@@ -347,21 +347,22 @@ static int Config_FileGetParameter(unsigned char *string,
 
 
 
-static char* get_chip_name(int chip_id) {
-    int i;
-    for (i=0;chip_info_table[i].name!=NULL;i++)
-        if (chip_info_table[i].chip_id==chip_id)
-            break;
-    return chip_info_table[i].name;
+static char* get_chip_name(int chip_id)
+{
+	int i;
+	for (i = 0; chip_info_table[i].name != NULL; i++)
+		if (chip_info_table[i].chip_id == chip_id)
+			break;
+	return chip_info_table[i].name;
 }
 
 static void __devexit vt6655_remove(struct pci_dev *pcid)
 {
-    PSDevice pDevice=pci_get_drvdata(pcid);
+	PSDevice pDevice = pci_get_drvdata(pcid);
 
-    if (pDevice==NULL)
-        return;
-    device_free_info(pDevice);
+	if (pDevice == NULL)
+		return;
+	device_free_info(pDevice);
 
 }
 
