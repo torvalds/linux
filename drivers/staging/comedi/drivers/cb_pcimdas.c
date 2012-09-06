@@ -318,7 +318,7 @@ static int cb_pcimdas_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* dev->read_subdev=s; */
 	/*  analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
@@ -330,7 +330,7 @@ static int cb_pcimdas_attach_pci(struct comedi_device *dev,
 	/*  the board can handle */
 	s->insn_read = cb_pcimdas_ai_rinsn;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/*  analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -341,7 +341,7 @@ static int cb_pcimdas_attach_pci(struct comedi_device *dev,
 	s->insn_write = &cb_pcimdas_ao_winsn;
 	s->insn_read = &cb_pcimdas_ao_rinsn;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 	if (thisboard->has_dio)
 		subdev_8255_init(dev, s, NULL, iobase_8255);
