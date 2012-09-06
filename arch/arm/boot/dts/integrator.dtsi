@@ -31,6 +31,11 @@
 		clear-mask = <0xffffffff>;
 	};
 
+	flash@24000000 {
+		compatible = "cfi-flash";
+		reg = <0x24000000 0x02000000>;
+	};
+
 	fpga {
 		compatible = "arm,amba-bus", "simple-bus";
 		#address-cells = <1>;

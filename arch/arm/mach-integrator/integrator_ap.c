@@ -256,22 +256,6 @@ static struct physmap_flash_data ap_flash_data = {
 	.set_vpp	= ap_flash_set_vpp,
 };
 
-static struct resource cfi_flash_resource = {
-	.start		= INTEGRATOR_FLASH_BASE,
-	.end		= INTEGRATOR_FLASH_BASE + INTEGRATOR_FLASH_SIZE - 1,
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device cfi_flash_device = {
-	.name		= "physmap-flash",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &ap_flash_data,
-	},
-	.num_resources	= 1,
-	.resource	= &cfi_flash_resource,
-};
-
 /*
  * Where is the timer (VA)?
  */
@@ -476,6 +460,8 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 		"kmi0", NULL),
 	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
 		"kmi1", NULL),
+	OF_DEV_AUXDATA("cfi-flash", INTEGRATOR_FLASH_BASE,
+		"physmap-flash", &ap_flash_data),
 	{ /* sentinel */ },
 };
 
@@ -486,8 +472,6 @@ static void __init ap_init_of(void)
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			ap_auxdata_lookup, NULL);
-
-	platform_device_register(&cfi_flash_device);
 
 	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
@@ -536,6 +520,22 @@ MACHINE_END
  * This is where non-devicetree initialization code is collected and stashed
  * for eventual deletion.
  */
+
+static struct resource cfi_flash_resource = {
+	.start		= INTEGRATOR_FLASH_BASE,
+	.end		= INTEGRATOR_FLASH_BASE + INTEGRATOR_FLASH_SIZE - 1,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device cfi_flash_device = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &ap_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &cfi_flash_resource,
+};
 
 static void __init ap_init_timer(void)
 {

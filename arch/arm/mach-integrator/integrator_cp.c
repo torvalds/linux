@@ -52,11 +52,8 @@
 #include "common.h"
 
 #define INTCP_PA_FLASH_BASE		0x24000000
-#define INTCP_FLASH_SIZE		SZ_32M
 
 #define INTCP_PA_CLCD_BASE		0xc0000000
-
-#define INTCP_ETH_SIZE			0x10
 
 #define INTCP_VA_CTRL_BASE		IO_ADDRESS(INTEGRATOR_CP_CTL_BASE)
 #define INTCP_FLASHPROG			0x04
@@ -182,47 +179,6 @@ static struct physmap_flash_data intcp_flash_data = {
 	.init		= intcp_flash_init,
 	.exit		= intcp_flash_exit,
 	.set_vpp	= intcp_flash_set_vpp,
-};
-
-static struct resource intcp_flash_resource = {
-	.start		= INTCP_PA_FLASH_BASE,
-	.end		= INTCP_PA_FLASH_BASE + INTCP_FLASH_SIZE - 1,
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device intcp_flash_device = {
-	.name		= "physmap-flash",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &intcp_flash_data,
-	},
-	.num_resources	= 1,
-	.resource	= &intcp_flash_resource,
-};
-
-static struct resource smc91x_resources[] = {
-	[0] = {
-		.start	= INTEGRATOR_CP_ETH_BASE,
-		.end	= INTEGRATOR_CP_ETH_BASE + INTCP_ETH_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_CP_ETHINT,
-		.end	= IRQ_CP_ETHINT,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device smc91x_device = {
-	.name		= "smc91x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(smc91x_resources),
-	.resource	= smc91x_resources,
-};
-
-static struct platform_device *intcp_devs[] __initdata = {
-	&intcp_flash_device,
-	&smc91x_device,
 };
 
 /*
@@ -375,6 +331,8 @@ static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
 		"aaci", &mmc_data),
 	OF_DEV_AUXDATA("arm,primecell", INTCP_PA_CLCD_BASE,
 		"clcd", &clcd_data),
+	OF_DEV_AUXDATA("cfi-flash", INTCP_PA_FLASH_BASE,
+		"physmap-flash", &intcp_flash_data),
 	{ /* sentinel */ },
 };
 
@@ -382,7 +340,6 @@ static void __init intcp_init_of(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table,
 			intcp_auxdata_lookup, NULL);
-	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
 }
 
 static const char * intcp_dt_board_compat[] = {
@@ -411,6 +368,51 @@ MACHINE_END
  * This is where non-devicetree initialization code is collected and stashed
  * for eventual deletion.
  */
+
+#define INTCP_FLASH_SIZE		SZ_32M
+
+static struct resource intcp_flash_resource = {
+	.start		= INTCP_PA_FLASH_BASE,
+	.end		= INTCP_PA_FLASH_BASE + INTCP_FLASH_SIZE - 1,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device intcp_flash_device = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &intcp_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &intcp_flash_resource,
+};
+
+#define INTCP_ETH_SIZE			0x10
+
+static struct resource smc91x_resources[] = {
+	[0] = {
+		.start	= INTEGRATOR_CP_ETH_BASE,
+		.end	= INTEGRATOR_CP_ETH_BASE + INTCP_ETH_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_CP_ETHINT,
+		.end	= IRQ_CP_ETHINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device smc91x_device = {
+	.name		= "smc91x",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(smc91x_resources),
+	.resource	= smc91x_resources,
+};
+
+static struct platform_device *intcp_devs[] __initdata = {
+	&intcp_flash_device,
+	&smc91x_device,
+};
 
 #define INTCP_VA_CIC_BASE		__io_address(INTEGRATOR_HDR_BASE + 0x40)
 #define INTCP_VA_PIC_BASE		__io_address(INTEGRATOR_IC_BASE)
