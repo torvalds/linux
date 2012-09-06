@@ -435,7 +435,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	if (fifo_overflow) {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		comedi_error(dev, "DAS800 FIFO overflow");
-		das800_cancel(dev, dev->subdevices + 0);
+		das800_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		comedi_event(dev, s);
 		async->events = 0;
