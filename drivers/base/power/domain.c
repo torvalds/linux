@@ -93,12 +93,6 @@ static int genpd_start_dev(struct generic_pm_domain *genpd, struct device *dev)
 					start_latency_ns, "start");
 }
 
-static int genpd_start_dev_no_timing(struct generic_pm_domain *genpd,
-				     struct device *dev)
-{
-	return GENPD_DEV_CALLBACK(genpd, int, start, dev);
-}
-
 static bool genpd_sd_counter_dec(struct generic_pm_domain *genpd)
 {
 	bool ret = false;
@@ -295,6 +289,12 @@ int pm_genpd_name_poweron(const char *domain_name)
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_RUNTIME
+
+static int genpd_start_dev_no_timing(struct generic_pm_domain *genpd,
+				     struct device *dev)
+{
+	return GENPD_DEV_CALLBACK(genpd, int, start, dev);
+}
 
 static int genpd_save_dev(struct generic_pm_domain *genpd, struct device *dev)
 {
