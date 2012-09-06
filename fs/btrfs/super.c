@@ -248,7 +248,13 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 	/* Nothing used. The other threads that have joined this
 	 * transaction may be able to continue. */
 	if (!trans->blocks_used) {
-		btrfs_printk(root->fs_info, "Aborting unused transaction.\n");
+		char nbuf[16];
+		const char *errstr;
+
+		errstr = btrfs_decode_error(root->fs_info, errno, nbuf);
+		btrfs_printk(root->fs_info,
+			     "%s:%d: Aborting unused transaction(%s).\n",
+			     function, line, errstr);
 		return;
 	}
 	trans->transaction->aborted = errno;
