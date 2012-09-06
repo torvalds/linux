@@ -212,7 +212,7 @@ static int ni6527_do_insn_bits(struct comedi_device *dev,
 static irqreturn_t ni6527_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = dev->subdevices + 2;
+	struct comedi_subdevice *s = &dev->subdevices[2];
 	unsigned int status;
 
 	status = readb(devpriv->mite->daq_io_addr + Change_Status);
@@ -393,7 +393,7 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 24;
@@ -402,7 +402,7 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_config = ni6527_di_insn_config;
 	s->insn_bits = ni6527_di_insn_bits;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 24;
@@ -410,7 +410,7 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 1;
 	s->insn_bits = ni6527_do_insn_bits;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
