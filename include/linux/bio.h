@@ -212,10 +212,20 @@ extern void bio_pair_release(struct bio_pair *dbio);
 extern struct bio_set *bioset_create(unsigned int, unsigned int);
 extern void bioset_free(struct bio_set *);
 
-extern struct bio *bio_alloc(gfp_t, unsigned int);
-extern struct bio *bio_kmalloc(gfp_t, unsigned int);
 extern struct bio *bio_alloc_bioset(gfp_t, int, struct bio_set *);
 extern void bio_put(struct bio *);
+
+extern struct bio_set *fs_bio_set;
+
+static inline struct bio *bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
+{
+	return bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
+}
+
+static inline struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned int nr_iovecs)
+{
+	return bio_alloc_bioset(gfp_mask, nr_iovecs, NULL);
+}
 
 extern void bio_endio(struct bio *, int);
 struct request_queue;
@@ -303,8 +313,6 @@ struct biovec_slab {
 	char *name;
 	struct kmem_cache *slab;
 };
-
-extern struct bio_set *fs_bio_set;
 
 /*
  * a small number of entries is fine, not going to be performance critical.
