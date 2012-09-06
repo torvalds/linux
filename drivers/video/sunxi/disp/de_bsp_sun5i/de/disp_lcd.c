@@ -579,7 +579,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
                          "lcdd23", "lcdclk", "lcdde", "lcdhsync", "lcdvsync"};
     user_gpio_set_t  *gpio_info;
     int  value = 1;
-    char primary_key[20];
+	char primary_key[20], sub_name[20];
     int i = 0;
     int  ret;
 
@@ -671,7 +671,6 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 //lcd_gpio
     for(i=0; i<4; i++)
     {
-        char sub_name[20];
         sprintf(sub_name, "lcd_gpio_%d", i);
 
         gpio_info = &(lcd_cfg->lcd_gpio[i]);
@@ -705,6 +704,23 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
             lcd_cfg->lcd_io_used[i]= 1;
         }
     }
+
+/* init_brightness */
+	sprintf(primary_key, "disp_init");
+	sprintf(sub_name, "lcd%d_bright", sel);
+
+	ret = OSAL_Script_FetchParser_Data(primary_key, sub_name, &value, 1);
+	if (ret < 0) {
+		DE_INF("%s.%s not exit\n", primary_key,sub_name);
+		lcd_cfg->init_bright = 197;
+	} else {
+		DE_INF("%s.%s = %d\n", primary_key,sub_name, value);
+		if (value > 256) {
+			value = 256;
+		}
+		lcd_cfg->init_bright = value;
+	}
+
 }
 
 void LCD_delay_ms(__u32 ms)
@@ -1272,11 +1288,11 @@ __s32 Disp_lcdc_init(__u32 sel)
             pwm_info.period_ns = 1000000 / gpanel_info[sel].lcd_pwm_freq;
             if(gpanel_info[sel].lcd_pwm_pol == 0)
             {
-                pwm_info.duty_ns = (192 * pwm_info.period_ns) / 256;
+				pwm_info.duty_ns = (gdisp.screen[sel].lcd_cfg.init_bright * pwm_info.period_ns) / 256;
             }
             else
             {
-                pwm_info.duty_ns = ((256 - 192) * pwm_info.period_ns) / 256;
+				pwm_info.duty_ns = ((256 - gdisp.screen[sel].lcd_cfg.init_bright) * pwm_info.period_ns) / 256;
             }
             pwm_set_para(gpanel_info[sel].lcd_pwm_ch, &pwm_info);
         }
