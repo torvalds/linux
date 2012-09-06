@@ -16,12 +16,14 @@
 #define UASP_SS_EP_COMP_LOG_STREAMS 4
 #define UASP_SS_EP_COMP_NUM_STREAMS (1 << UASP_SS_EP_COMP_LOG_STREAMS)
 
-#define USB_G_STR_MANUFACTOR    1
-#define USB_G_STR_PRODUCT       2
-#define USB_G_STR_SERIAL        3
-#define USB_G_STR_CONFIG        4
-#define USB_G_STR_INT_UAS       5
-#define USB_G_STR_INT_BBB       6
+enum {
+	USB_G_STR_MANUFACTOR,
+	USB_G_STR_PRODUCT,
+	USB_G_STR_SERIAL,
+	USB_G_STR_CONFIG,
+	USB_G_STR_INT_UAS,
+	USB_G_STR_INT_BBB,
+};
 
 #define USB_G_ALT_INT_BBB       0
 #define USB_G_ALT_INT_UAS       1
