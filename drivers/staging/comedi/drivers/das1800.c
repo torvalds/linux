@@ -656,7 +656,7 @@ static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 /* the guts of the interrupt handler, that is shared with das1800_ai_poll */
 static void das1800_ai_handler(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s = dev->subdevices + 0;	/* analog input subdevice */
+	struct comedi_subdevice *s = &dev->subdevices[0];
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status = inb(dev->iobase + DAS1800_STATUS);
@@ -1653,7 +1653,7 @@ static int das1800_attach(struct comedi_device *dev,
 		return retval;
 
 	/* analog input subdevice */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND | SDF_CMD_READ;
@@ -1670,7 +1670,7 @@ static int das1800_attach(struct comedi_device *dev,
 	s->cancel = das1800_cancel;
 
 	/* analog out */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	if (thisboard->ao_ability == 1) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE;
@@ -1683,7 +1683,7 @@ static int das1800_attach(struct comedi_device *dev,
 	}
 
 	/* di */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 4;
@@ -1692,7 +1692,7 @@ static int das1800_attach(struct comedi_device *dev,
 	s->insn_bits = das1800_di_rbits;
 
 	/* do */
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->n_chan = thisboard->do_n_chan;
