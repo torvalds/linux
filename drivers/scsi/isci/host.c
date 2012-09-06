@@ -1079,7 +1079,6 @@ static void sci_controller_completion_handler(struct isci_host *ihost)
 
 void ireq_done(struct isci_host *ihost, struct isci_request *ireq, struct sas_task *task)
 {
-	task->lldd_task = NULL;
 	if (!test_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags) &&
 	    !(task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 		if (test_bit(IREQ_COMPLETE_IN_TARGET, &ireq->flags)) {
@@ -1087,16 +1086,19 @@ void ireq_done(struct isci_host *ihost, struct isci_request *ireq, struct sas_ta
 			dev_dbg(&ihost->pdev->dev,
 				"%s: Normal - ireq/task = %p/%p\n",
 				__func__, ireq, task);
-
+			task->lldd_task = NULL;
 			task->task_done(task);
 		} else {
 			dev_dbg(&ihost->pdev->dev,
 				"%s: Error - ireq/task = %p/%p\n",
 				__func__, ireq, task);
-
+			if (sas_protocol_ata(task->task_proto))
+				task->lldd_task = NULL;
 			sas_task_abort(task);
 		}
-	}
+	} else
+		task->lldd_task = NULL;
+
 	if (test_and_clear_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags))
 		wake_up_all(&ihost->eventq);
 
