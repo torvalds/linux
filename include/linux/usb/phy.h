@@ -26,6 +26,30 @@ enum usb_phy_type {
 	USB_PHY_TYPE_USB3,
 };
 
+/* OTG defines lots of enumeration states before device reset */
+enum usb_otg_state {
+	OTG_STATE_UNDEFINED = 0,
+
+	/* single-role peripheral, and dual-role default-b */
+	OTG_STATE_B_IDLE,
+	OTG_STATE_B_SRP_INIT,
+	OTG_STATE_B_PERIPHERAL,
+
+	/* extra dual-role default-b states */
+	OTG_STATE_B_WAIT_ACON,
+	OTG_STATE_B_HOST,
+
+	/* dual-role default-a */
+	OTG_STATE_A_IDLE,
+	OTG_STATE_A_WAIT_VRISE,
+	OTG_STATE_A_WAIT_BCON,
+	OTG_STATE_A_HOST,
+	OTG_STATE_A_SUSPEND,
+	OTG_STATE_A_PERIPHERAL,
+	OTG_STATE_A_WAIT_VFALL,
+	OTG_STATE_A_VBUS_ERR,
+};
+
 struct usb_phy;
 struct usb_otg;
 
@@ -43,6 +67,7 @@ struct usb_phy {
 	unsigned int		 flags;
 
 	enum usb_phy_type	type;
+	enum usb_otg_state	state;
 	enum usb_phy_events	last_event;
 
 	struct usb_otg		*otg;
