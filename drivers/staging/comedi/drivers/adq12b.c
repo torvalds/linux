@@ -272,7 +272,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	if (differential) {
@@ -294,7 +294,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				   the board can handle */
 	s->insn_read = adq12b_ai_rinsn;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* digital input subdevice */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -303,7 +303,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->insn_bits = adq12b_di_insn_bits;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital output subdevice */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
