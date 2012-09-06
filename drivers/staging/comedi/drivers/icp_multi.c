@@ -931,7 +931,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	subdev = 0;
 
 	if (this_board->n_aichan) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND;
@@ -946,7 +946,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	}
 
 	if (this_board->n_aochan) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = this_board->n_aochan;
@@ -959,7 +959,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	}
 
 	if (this_board->n_dichan) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
 		s->n_chan = this_board->n_dichan;
@@ -972,7 +972,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	}
 
 	if (this_board->n_dochan) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = this_board->n_dochan;
@@ -986,7 +986,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	}
 
 	if (this_board->n_ctrs) {
-		s = dev->subdevices + subdev;
+		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_COUNTER;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = this_board->n_ctrs;
