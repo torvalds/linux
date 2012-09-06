@@ -38,7 +38,6 @@
 #include "gadget_chips.h"
 
 #include "composite.c"
-#include "usbstring.c"
 #include "config.c"
 #include "epautoconf.c"
 #include "f_midi.c"

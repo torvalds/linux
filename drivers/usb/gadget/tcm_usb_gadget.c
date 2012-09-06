@@ -25,7 +25,6 @@
 #include <target/configfs_macros.h>
 #include <asm/unaligned.h>
 
-#include "usbstring.c"
 #include "epautoconf.c"
 #include "config.c"
 #include "composite.c"
