@@ -30,8 +30,6 @@
 #include <asm/smp_plat.h>
 #include <asm/cpu.h>
 
-#include <plat/omap_device.h>
-
 /* OPP tolerance in percentage */
 #define	OPP_TOLERANCE	4
 
@@ -255,10 +253,10 @@ static struct cpufreq_driver omap_driver = {
 
 static int __init omap_cpufreq_init(void)
 {
-	mpu_dev = omap_device_get_by_hwmod_name("mpu");
-	if (IS_ERR(mpu_dev)) {
+	mpu_dev = get_cpu_device(0);
+	if (!mpu_dev) {
 		pr_warning("%s: unable to get the mpu device\n", __func__);
-		return PTR_ERR(mpu_dev);
+		return -EINVAL;
 	}
 
 	mpu_reg = regulator_get(mpu_dev, "vcc");
