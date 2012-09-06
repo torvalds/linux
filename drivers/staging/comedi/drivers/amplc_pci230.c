@@ -2838,7 +2838,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 	if (rc)
 		return rc;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
@@ -2855,7 +2855,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 		s->do_cmdtest = &pci230_ai_cmdtest;
 		s->cancel = pci230_ai_cancel;
 	}
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* analog output subdevice */
 	if (thisboard->ao_chans > 0) {
 		s->type = COMEDI_SUBD_AO;
@@ -2878,7 +2878,7 @@ static int pci230_attach_common(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
 	if (thisboard->have_dio) {
 		rc = subdev_8255_init(dev, s, NULL,
@@ -2941,7 +2941,7 @@ static void pci230_detach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (dev->subdevices && thisboard->have_dio)
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
+		subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (pcidev) {
