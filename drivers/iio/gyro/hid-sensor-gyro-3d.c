@@ -212,7 +212,7 @@ static void hid_sensor_push_data(struct iio_dev *indio_dev, u8 *data, int len)
 				datum_sz);
 		return;
 	}
-	buffer->access->store_to(buffer, (u8 *)data, timestamp);
+	iio_push_to_buffer(buffer, (u8 *)data, timestamp);
 }
 
 /* Callback handler to send event after all samples are received and captured */
