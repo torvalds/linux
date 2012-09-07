@@ -3595,7 +3595,7 @@ static void dispc_error_worker(struct work_struct *work)
 		bit = mgr_desc[i].sync_lost_irq;
 
 		if (bit & errors) {
-			struct omap_dss_device *dssdev = mgr->device;
+			struct omap_dss_device *dssdev = mgr->get_device(mgr);
 			bool enable;
 
 			DSSERR("SYNC_LOST on channel %s, restarting the output "
@@ -3626,9 +3626,13 @@ static void dispc_error_worker(struct work_struct *work)
 		DSSERR("OCP_ERR\n");
 		for (i = 0; i < omap_dss_get_num_overlay_managers(); ++i) {
 			struct omap_overlay_manager *mgr;
+			struct omap_dss_device *dssdev;
+
 			mgr = omap_dss_get_overlay_manager(i);
-			if (mgr->device && mgr->device->driver)
-				mgr->device->driver->disable(mgr->device);
+			dssdev = mgr->get_device(mgr);
+
+			if (dssdev && dssdev->driver)
+				dssdev->driver->disable(dssdev);
 		}
 	}
 

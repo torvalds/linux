@@ -38,6 +38,11 @@
 static int num_overlays;
 static struct omap_overlay *overlays;
 
+static inline struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
+{
+	return ovl->manager ? ovl->manager->device : NULL;
+}
+
 int omap_dss_get_num_overlays(void)
 {
 	return num_overlays;
@@ -94,6 +99,7 @@ void dss_init_overlays(struct platform_device *pdev)
 		ovl->set_overlay_info = &dss_ovl_set_info;
 		ovl->get_overlay_info = &dss_ovl_get_info;
 		ovl->wait_for_go = &dss_mgr_wait_for_go_ovl;
+		ovl->get_device = &dss_ovl_get_device;
 
 		ovl->caps = dss_feat_get_overlay_caps(ovl->id);
 		ovl->supported_modes =

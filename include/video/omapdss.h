@@ -435,6 +435,8 @@ struct omap_overlay {
 			struct omap_overlay_info *info);
 
 	int (*wait_for_go)(struct omap_overlay *ovl);
+
+	struct omap_dss_device *(*get_device)(struct omap_overlay *ovl);
 };
 
 struct omap_overlay_manager_info {
@@ -491,6 +493,8 @@ struct omap_overlay_manager {
 	int (*apply)(struct omap_overlay_manager *mgr);
 	int (*wait_for_go)(struct omap_overlay_manager *mgr);
 	int (*wait_for_vsync)(struct omap_overlay_manager *mgr);
+
+	struct omap_dss_device *(*get_device)(struct omap_overlay_manager *mgr);
 };
 
 /* 22 pins means 1 clk lane and 10 data lanes */

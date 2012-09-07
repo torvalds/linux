@@ -1464,7 +1464,7 @@ int dss_ovl_enable(struct omap_overlay *ovl)
 		goto err1;
 	}
 
-	if (ovl->manager == NULL || ovl->manager->device == NULL) {
+	if (ovl->get_device(ovl) == NULL) {
 		r = -EINVAL;
 		goto err1;
 	}
@@ -1514,7 +1514,7 @@ int dss_ovl_disable(struct omap_overlay *ovl)
 		goto err;
 	}
 
-	if (ovl->manager == NULL || ovl->manager->device == NULL) {
+	if (ovl->get_device(ovl) == NULL) {
 		r = -EINVAL;
 		goto err;
 	}
