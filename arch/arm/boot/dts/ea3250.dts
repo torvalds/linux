@@ -166,9 +166,116 @@
 		#size-cells = <0>;
 		autorepeat;
 		button@21 {
-			label = "GPIO Key UP";
+			label = "Interrupt Key";
 			linux,code = <103>;
 			gpios = <&gpio 4 1 0>; /* GPI_P3 1 */
+		};
+		key1 {
+			label = "KEY1";
+			linux,code = <1>;
+			gpios = <&pca9532 0 0>;
+		};
+		key2 {
+			label = "KEY2";
+			linux,code = <2>;
+			gpios = <&pca9532 1 0>;
+		};
+		key3 {
+			label = "KEY3";
+			linux,code = <3>;
+			gpios = <&pca9532 2 0>;
+		};
+		key4 {
+			label = "KEY4";
+			linux,code = <4>;
+			gpios = <&pca9532 3 0>;
+		};
+		joy0 {
+			label = "Joystick Key 0";
+			linux,code = <10>;
+			gpios = <&gpio 2 0 0>; /* P2.0 */
+		};
+		joy1 {
+			label = "Joystick Key 1";
+			linux,code = <11>;
+			gpios = <&gpio 2 1 0>; /* P2.1 */
+		};
+		joy2 {
+			label = "Joystick Key 2";
+			linux,code = <12>;
+			gpios = <&gpio 2 2 0>; /* P2.2 */
+		};
+		joy3 {
+			label = "Joystick Key 3";
+			linux,code = <13>;
+			gpios = <&gpio 2 3 0>; /* P2.3 */
+		};
+		joy4 {
+			label = "Joystick Key 4";
+			linux,code = <14>;
+			gpios = <&gpio 2 4 0>; /* P2.4 */
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		/* LEDs on OEM Board */
+
+		led1 {
+			gpios = <&gpio 5 14 1>; /* GPO_P3 14, GPIO 93, active low */
+			linux,default-trigger = "timer";
+			default-state = "off";
+		};
+
+		led2 {
+			gpios = <&gpio 2 10 1>; /* P2.10, active low */
+			default-state = "off";
+		};
+
+		led3 {
+			gpios = <&gpio 2 11 1>; /* P2.11, active low */
+			default-state = "off";
+		};
+
+		led4 {
+			gpios = <&gpio 2 12 1>; /* P2.12, active low */
+			default-state = "off";
+		};
+
+		/* LEDs on Base Board */
+
+		lede1 {
+			gpios = <&pca9532 8 0>;
+			default-state = "off";
+		};
+		lede2 {
+			gpios = <&pca9532 9 0>;
+			default-state = "off";
+		};
+		lede3 {
+			gpios = <&pca9532 10 0>;
+			default-state = "off";
+		};
+		lede4 {
+			gpios = <&pca9532 11 0>;
+			default-state = "off";
+		};
+		lede5 {
+			gpios = <&pca9532 12 0>;
+			default-state = "off";
+		};
+		lede6 {
+			gpios = <&pca9532 13 0>;
+			default-state = "off";
+		};
+		lede7 {
+			gpios = <&pca9532 14 0>;
+			default-state = "off";
+		};
+		lede8 {
+			gpios = <&pca9532 15 0>;
+			default-state = "off";
 		};
 	};
 };
