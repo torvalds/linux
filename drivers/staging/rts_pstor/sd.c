@@ -866,9 +866,8 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 	if (tune_dir == TUNE_RX) {
 		SD_VP_CTL = SD_VPRX_CTL;
 		SD_DCMPS_CTL = SD_DCMPS_RX_CTL;
-		if (CHK_SD_DDR50(sd_card)) {
+		if (CHK_SD_DDR50(sd_card))
 			ddr_rx = 1;
-		}
 	} else {
 		SD_VP_CTL = SD_VPTX_CTL;
 		SD_DCMPS_CTL = SD_DCMPS_TX_CTL;
@@ -905,23 +904,22 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_DCMPS_CTL, DCMPS_CHANGE, DCMPS_CHANGE);
 		rtsx_add_cmd(chip, CHECK_REG_CMD, SD_DCMPS_CTL, DCMPS_CHANGE_DONE, DCMPS_CHANGE_DONE);
 		retval = rtsx_send_cmd(chip, SD_CARD, 100);
-		if (retval != STATUS_SUCCESS) {
+		if (retval != STATUS_SUCCESS)
 			TRACE_GOTO(chip, Fail);
-		}
 
 		val = *rtsx_get_cmd_data(chip);
-		if (val & DCMPS_ERROR) {
+		if (val & DCMPS_ERROR)
 			TRACE_GOTO(chip, Fail);
-		}
-		if ((val & DCMPS_CURRENT_PHASE) != sample_point) {
+
+		if ((val & DCMPS_CURRENT_PHASE) != sample_point)
 			TRACE_GOTO(chip, Fail);
-		}
+
 		RTSX_WRITE_REG(chip, SD_DCMPS_CTL, DCMPS_CHANGE, 0);
-		if (ddr_rx) {
+		if (ddr_rx)
 			RTSX_WRITE_REG(chip, SD_VP_CTL, PHASE_CHANGE, 0);
-		} else {
+		else
 			RTSX_WRITE_REG(chip, CLK_CTL, CHANGE_CLK, 0);
-		}
+
 		udelay(50);
 	}
 
