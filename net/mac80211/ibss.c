@@ -332,11 +332,27 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	return ieee80211_ibss_finish_sta(sta, auth);
 }
 
+static void ieee80211_rx_mgmt_deauth_ibss(struct ieee80211_sub_if_data *sdata,
+					  struct ieee80211_mgmt *mgmt,
+					  size_t len)
+{
+	u16 reason = le16_to_cpu(mgmt->u.deauth.reason_code);
+
+	if (len < IEEE80211_DEAUTH_FRAME_LEN)
+		return;
+
+	ibss_dbg(sdata, "RX DeAuth SA=%pM DA=%pM BSSID=%pM (reason: %d)\n",
+		 mgmt->sa, mgmt->da, mgmt->bssid, reason);
+	sta_info_destroy_addr(sdata, mgmt->sa);
+}
+
 static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_mgmt *mgmt,
 					size_t len)
 {
 	u16 auth_alg, auth_transaction;
+	struct sta_info *sta;
+	u8 deauth_frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
 	lockdep_assert_held(&sdata->u.ibss.mtx);
 
@@ -352,8 +368,20 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 		 "RX Auth SA=%pM DA=%pM BSSID=%pM (auth_transaction=%d)\n",
 		 mgmt->sa, mgmt->da, mgmt->bssid, auth_transaction);
 	sta_info_destroy_addr(sdata, mgmt->sa);
-	ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, 0, false);
+	sta = ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, 0, false);
 	rcu_read_unlock();
+
+	/*
+	 * if we have any problem in allocating the new station, we reply with a
+	 * DEAUTH frame to tell the other end that we had a problem
+	 */
+	if (!sta) {
+		ieee80211_send_deauth_disassoc(sdata, sdata->u.ibss.bssid,
+					       IEEE80211_STYPE_DEAUTH,
+					       WLAN_REASON_UNSPECIFIED, true,
+					       deauth_frame_buf);
+		return;
+	}
 
 	/*
 	 * IEEE 802.11 standard does not require authentication in IBSS
@@ -901,6 +929,9 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		break;
 	case IEEE80211_STYPE_AUTH:
 		ieee80211_rx_mgmt_auth_ibss(sdata, mgmt, skb->len);
+		break;
+	case IEEE80211_STYPE_DEAUTH:
+		ieee80211_rx_mgmt_deauth_ibss(sdata, mgmt, skb->len);
 		break;
 	}
 
