@@ -949,9 +949,8 @@ static int sd_check_spec(struct rtsx_chip *chip, u8 bus_width)
 	u8 cmd[5], buf[8];
 
 	retval = sd_send_cmd_get_rsp(chip, APP_CMD, sd_card->sd_addr, SD_RSP_TYPE_R1, NULL, 0);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	cmd[0] = 0x40 | SEND_SCR;
 	cmd[1] = 0;
@@ -967,9 +966,8 @@ static int sd_check_spec(struct rtsx_chip *chip, u8 bus_width)
 
 	memcpy(sd_card->raw_scr, buf, 8);
 
-	if ((buf[0] & 0x0F) == 0) {
+	if ((buf[0] & 0x0F) == 0)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	return STATUS_SUCCESS;
 }
