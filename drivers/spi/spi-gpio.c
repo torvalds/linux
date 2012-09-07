@@ -386,7 +386,7 @@ error_free:
 	return ret;
 }
 #else
-static inline int spi_probe_dt(struct platform_device *)
+static inline int spi_gpio_probe_dt(struct platform_device *pdev)
 {
 	return 0;
 }
