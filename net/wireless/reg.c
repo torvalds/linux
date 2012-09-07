@@ -1932,8 +1932,7 @@ static void restore_regulatory_settings(bool reset_user)
 			if (reg_request->initiator !=
 			    NL80211_REGDOM_SET_BY_USER)
 				continue;
-			list_del(&reg_request->list);
-			list_add_tail(&reg_request->list, &tmp_reg_req_list);
+			list_move_tail(&reg_request->list, &tmp_reg_req_list);
 		}
 	}
 	spin_unlock(&reg_requests_lock);
@@ -1992,8 +1991,7 @@ static void restore_regulatory_settings(bool reset_user)
 			      "into the queue\n",
 			      reg_request->alpha2[0],
 			      reg_request->alpha2[1]);
-		list_del(&reg_request->list);
-		list_add_tail(&reg_request->list, &reg_requests_list);
+		list_move_tail(&reg_request->list, &reg_requests_list);
 	}
 	spin_unlock(&reg_requests_lock);
 
