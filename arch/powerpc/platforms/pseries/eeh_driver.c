@@ -93,7 +93,7 @@ static void eeh_disable_irq(struct pci_dev *dev)
 	if (!irq_has_action(dev->irq))
 		return;
 
-	edev->mode |= EEH_MODE_IRQ_DISABLED;
+	edev->mode |= EEH_DEV_IRQ_DISABLED;
 	disable_irq_nosync(dev->irq);
 }
 
@@ -108,8 +108,8 @@ static void eeh_enable_irq(struct pci_dev *dev)
 {
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
 
-	if ((edev->mode) & EEH_MODE_IRQ_DISABLED) {
-		edev->mode &= ~EEH_MODE_IRQ_DISABLED;
+	if ((edev->mode) & EEH_DEV_IRQ_DISABLED) {
+		edev->mode &= ~EEH_DEV_IRQ_DISABLED;
 		enable_irq(dev->irq);
 	}
 }

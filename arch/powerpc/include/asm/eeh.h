@@ -77,20 +77,13 @@ struct eeh_pe {
  * another tree except the currently existing tree of PCI
  * buses and PCI devices
  */
-#define EEH_MODE_SUPPORTED	(1<<0)	/* EEH supported on the device	*/
-#define EEH_MODE_NOCHECK	(1<<1)	/* EEH check should be skipped	*/
-#define EEH_MODE_ISOLATED	(1<<2)	/* The device has been isolated	*/
-#define EEH_MODE_RECOVERING	(1<<3)	/* Recovering the device	*/
-#define EEH_MODE_IRQ_DISABLED	(1<<4)	/* Interrupt disabled		*/
+#define EEH_DEV_IRQ_DISABLED	(1<<0)	/* Interrupt disabled		*/
 
 struct eeh_dev {
 	int mode;			/* EEH mode			*/
 	int class_code;			/* Class code of the device	*/
 	int config_addr;		/* Config address		*/
 	int pe_config_addr;		/* PE config address		*/
-	int check_count;		/* Times of ignored error	*/
-	int freeze_count;		/* Times of froze up		*/
-	int false_positives;		/* Times of reported #ff's	*/
 	u32 config_space[16];		/* Saved PCI config space	*/
 	struct eeh_pe *pe;		/* Associated PE		*/
 	struct list_head list;		/* Form link list in the PE	*/

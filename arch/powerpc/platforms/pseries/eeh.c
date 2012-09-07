@@ -537,7 +537,7 @@ static void eeh_reset_pe_once(struct eeh_pe *pe)
 	 * pci slot reset line is dropped. Make sure we don't miss
 	 * these, and clear the flag now.
 	 */
-	eeh_pe_state_clear(pe, EEH_MODE_ISOLATED);
+	eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
 
 	eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
 
@@ -625,9 +625,6 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 
 	edev->class_code = 0;
 	edev->mode = 0;
-	edev->check_count = 0;
-	edev->freeze_count = 0;
-	edev->false_positives = 0;
 
 	if (!of_device_is_available(dn))
 		return NULL;
@@ -637,10 +634,8 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 		return NULL;
 
 	/* There is nothing to check on PCI to ISA bridges */
-	if (dn->type && !strcmp(dn->type, "isa")) {
-		edev->mode |= EEH_MODE_NOCHECK;
+	if (dn->type && !strcmp(dn->type, "isa"))
 		return NULL;
-	}
 	edev->class_code = *class_code;
 
 	/* Ok... see if this device supports EEH.  Some do, some don't,
@@ -679,7 +674,6 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 
 		if (enable) {
 			eeh_subsystem_enabled = 1;
-			edev->mode |= EEH_MODE_SUPPORTED;
 
 			eeh_add_to_parent_pe(edev);
 
@@ -692,9 +686,8 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 			 * EEH parent, in which case we mark it as supported.
 			 */
 			if (dn->parent && of_node_to_eeh_dev(dn->parent) &&
-			    (of_node_to_eeh_dev(dn->parent)->mode & EEH_MODE_SUPPORTED)) {
+			    of_node_to_eeh_dev(dn->parent)->pe) {
 				/* Parent supports EEH. */
-				edev->mode |= EEH_MODE_SUPPORTED;
 				edev->config_addr = of_node_to_eeh_dev(dn->parent)->config_addr;
 				edev->pe_config_addr = of_node_to_eeh_dev(dn->parent)->pe_config_addr;
 

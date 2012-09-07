@@ -192,8 +192,7 @@ static void __pci_addr_cache_insert_device(struct pci_dev *dev)
 	}
 
 	/* Skip any devices for which EEH is not enabled. */
-	if (!(edev->mode & EEH_MODE_SUPPORTED) ||
-	    edev->mode & EEH_MODE_NOCHECK) {
+	if (!edev->pe) {
 #ifdef DEBUG
 		pr_info("PCI: skip building address cache for=%s - %s\n",
 			pci_name(dev), dn->full_name);
