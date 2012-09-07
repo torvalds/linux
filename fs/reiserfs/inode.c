@@ -76,10 +76,10 @@ void reiserfs_evict_inode(struct inode *inode)
 		;
 	}
       out:
+	reiserfs_write_unlock_once(inode->i_sb, depth);
 	clear_inode(inode);	/* note this must go after the journal_end to prevent deadlock */
 	dquot_drop(inode);
 	inode->i_blocks = 0;
-	reiserfs_write_unlock_once(inode->i_sb, depth);
 	return;
 
 no_delete:
