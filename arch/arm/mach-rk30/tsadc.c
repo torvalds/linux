@@ -134,7 +134,6 @@ static void rk30_tsadc_get(unsigned int chn, int *temp, int *code)
 		}
 	}
 	tsadc_writel(0, TSADC_CTRL);
-	msleep(10);
 
 	clk_disable(g_dev->clk);
 	clk_disable(g_dev->pclk);
