@@ -687,16 +687,14 @@ static int sd_set_init_para(struct rtsx_chip *chip)
 	int retval;
 
 	retval = sd_set_sample_push_timing(chip);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	sd_choose_proper_clock(chip);
 
 	retval = switch_clock(chip, sd_card->sd_clock);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	return STATUS_SUCCESS;
 }
