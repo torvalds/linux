@@ -587,8 +587,9 @@ void dhd_enable_packet_filter(int value, dhd_pub_t *dhd)
 	DHD_TRACE(("%s: enter, value = %d\n", __FUNCTION__, value));
 	/* 1 - Enable packet filter, only allow unicast packet to send up */
 	/* 0 - Disable packet filter */
-	if ((dhd_pkt_filter_enable && !dhd->dhcp_in_progress) &&
-	    (!value || (dhd_check_ap_wfd_mode_set(dhd) == FALSE))) {
+	if (dhd_pkt_filter_enable && (!value ||
+	    ((dhd_check_ap_wfd_mode_set(dhd) == FALSE) &&
+	    !dhd->dhcp_in_progress))) {
 		for (i = 0; i < dhd->pktfilter_count; i++) {
 			dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
 				value, dhd_master_mode);
