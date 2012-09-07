@@ -240,8 +240,7 @@ static void nfc_shdlc_requeue_ack_pending(struct nfc_shdlc *shdlc)
 	pr_debug("ns reset to %d\n", shdlc->dnr);
 
 	while ((skb = skb_dequeue_tail(&shdlc->ack_pending_q))) {
-		skb_pull(skb, 2);	/* remove len+control */
-		skb_trim(skb, skb->len - 2);	/* remove crc */
+		skb_pull(skb, 1);  /* remove control field */
 		skb_queue_head(&shdlc->send_q, skb);
 	}
 	shdlc->ns = shdlc->dnr;
