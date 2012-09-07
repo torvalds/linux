@@ -48,7 +48,7 @@ static pci_ers_result_t aer_error_detected(struct pci_dev *dev,
 static void aer_error_resume(struct pci_dev *dev);
 static pci_ers_result_t aer_root_reset(struct pci_dev *dev);
 
-static struct pci_error_handlers aer_error_handlers = {
+static const struct pci_error_handlers aer_error_handlers = {
 	.error_detected = aer_error_detected,
 	.resume		= aer_error_resume,
 };

@@ -240,7 +240,7 @@ static bool find_source_device(struct pci_dev *parent,
 static int report_error_detected(struct pci_dev *dev, void *data)
 {
 	pci_ers_result_t vote;
-	struct pci_error_handlers *err_handler;
+	const struct pci_error_handlers *err_handler;
 	struct aer_broadcast_data *result_data;
 	result_data = (struct aer_broadcast_data *) data;
 
@@ -274,7 +274,7 @@ static int report_error_detected(struct pci_dev *dev, void *data)
 static int report_mmio_enabled(struct pci_dev *dev, void *data)
 {
 	pci_ers_result_t vote;
-	struct pci_error_handlers *err_handler;
+	const struct pci_error_handlers *err_handler;
 	struct aer_broadcast_data *result_data;
 	result_data = (struct aer_broadcast_data *) data;
 
@@ -292,7 +292,7 @@ static int report_mmio_enabled(struct pci_dev *dev, void *data)
 static int report_slot_reset(struct pci_dev *dev, void *data)
 {
 	pci_ers_result_t vote;
-	struct pci_error_handlers *err_handler;
+	const struct pci_error_handlers *err_handler;
 	struct aer_broadcast_data *result_data;
 	result_data = (struct aer_broadcast_data *) data;
 
@@ -309,7 +309,7 @@ static int report_slot_reset(struct pci_dev *dev, void *data)
 
 static int report_resume(struct pci_dev *dev, void *data)
 {
-	struct pci_error_handlers *err_handler;
+	const struct pci_error_handlers *err_handler;
 
 	dev->error_state = pci_channel_io_normal;
 
