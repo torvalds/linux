@@ -2278,7 +2278,7 @@ ssize_t vb2_fop_write(struct file *file, char __user *buf,
 		goto exit;
 	err = vb2_write(vdev->queue, buf, count, ppos,
 		       file->f_flags & O_NONBLOCK);
-	if (err >= 0)
+	if (vdev->queue->fileio)
 		vdev->queue->owner = file->private_data;
 exit:
 	if (lock)
@@ -2300,7 +2300,7 @@ ssize_t vb2_fop_read(struct file *file, char __user *buf,
 		goto exit;
 	err = vb2_read(vdev->queue, buf, count, ppos,
 		       file->f_flags & O_NONBLOCK);
-	if (err >= 0)
+	if (vdev->queue->fileio)
 		vdev->queue->owner = file->private_data;
 exit:
 	if (lock)
