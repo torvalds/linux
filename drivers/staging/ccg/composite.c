@@ -1422,7 +1422,8 @@ static u8 override_id(struct usb_composite_dev *cdev, u8 *desc)
 	return *desc;
 }
 
-static int composite_bind(struct usb_gadget *gadget)
+static int composite_bind(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
 	struct usb_composite_dev	*cdev;
 	int				status = -ENOMEM;

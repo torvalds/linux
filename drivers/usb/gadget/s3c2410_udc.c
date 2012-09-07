@@ -1539,7 +1539,7 @@ static int s3c2410_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 }
 
 static int s3c2410_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int s3c2410_udc_stop(struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops s3c2410_ops = {
@@ -1665,7 +1665,7 @@ static void s3c2410_udc_enable(struct s3c2410_udc *dev)
 }
 
 static int s3c2410_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct s3c2410_udc *udc = the_controller;
 	int		retval;
@@ -1705,7 +1705,7 @@ static int s3c2410_udc_start(struct usb_gadget_driver *driver,
 	dprintk(DEBUG_NORMAL, "binding gadget driver '%s'\n",
 		driver->driver.name);
 
-	retval = bind(&udc->gadget);
+	retval = bind(&udc->gadget, driver);
 	if (retval) {
 		device_del(&udc->gadget.dev);
 		goto register_error;

@@ -1269,7 +1269,7 @@ static int mv_udc_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int mv_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int mv_udc_stop(struct usb_gadget_driver *driver);
 /* device controller usb_gadget_ops structure */
 static const struct usb_gadget_ops mv_ops = {
@@ -1374,7 +1374,7 @@ static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver)
 }
 
 static int mv_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct mv_udc *udc = the_controller;
 	int retval = 0;
@@ -1399,7 +1399,7 @@ static int mv_udc_start(struct usb_gadget_driver *driver,
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	retval = bind(&udc->gadget);
+	retval = bind(&udc->gadget, driver);
 	if (retval) {
 		dev_err(&udc->dev->dev, "bind to driver %s --> %d\n",
 				driver->driver.name, retval);

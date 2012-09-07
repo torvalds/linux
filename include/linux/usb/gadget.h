@@ -474,7 +474,8 @@ struct usb_gadget_ops {
 
 	/* Those two are deprecated */
 	int	(*start)(struct usb_gadget_driver *,
-			int (*bind)(struct usb_gadget *));
+			int (*bind)(struct usb_gadget *,
+				struct usb_gadget_driver *driver));
 	int	(*stop)(struct usb_gadget_driver *);
 };
 
@@ -821,7 +822,8 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
 struct usb_gadget_driver {
 	char			*function;
 	enum usb_device_speed	max_speed;
-	int			(*bind)(struct usb_gadget *gadget);
+	int			(*bind)(struct usb_gadget *gadget,
+					struct usb_gadget_driver *driver);
 	void			(*unbind)(struct usb_gadget *);
 	int			(*setup)(struct usb_gadget *,
 					const struct usb_ctrlrequest *);

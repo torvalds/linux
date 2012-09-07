@@ -3331,7 +3331,8 @@ static int __init check_parameters(struct fsg_dev *fsg)
 }
 
 
-static int __init fsg_bind(struct usb_gadget *gadget)
+static int __init fsg_bind(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
 	struct fsg_dev		*fsg = the_fsg;
 	int			rc;

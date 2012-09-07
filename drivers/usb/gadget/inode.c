@@ -1679,8 +1679,8 @@ gadgetfs_unbind (struct usb_gadget *gadget)
 
 static struct dev_data		*the_device;
 
-static int
-gadgetfs_bind (struct usb_gadget *gadget)
+static int gadgetfs_bind(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
 	struct dev_data		*dev = the_device;
 
@@ -1773,7 +1773,8 @@ static struct usb_gadget_driver gadgetfs_driver = {
 
 static void gadgetfs_nop(struct usb_gadget *arg) { }
 
-static int gadgetfs_probe (struct usb_gadget *gadget)
+static int gadgetfs_probe(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
 	CHIP = gadget->name;
 	return -EISNAM;

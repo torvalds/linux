@@ -292,7 +292,8 @@ fail_1:
 	return -ENODEV;
 }
 
-static int __init dbgp_bind(struct usb_gadget *gadget)
+static int __init dbgp_bind(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
 	int err, stp;
 

@@ -1311,7 +1311,7 @@ static void init_controller(struct fusb300 *fusb300)
 static struct fusb300 *the_controller;
 
 static int fusb300_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct fusb300 *fusb300 = the_controller;
 	int retval;
@@ -1339,7 +1339,7 @@ static int fusb300_udc_start(struct usb_gadget_driver *driver,
 		goto error;
 	}
 
-	retval = bind(&fusb300->gadget);
+	retval = bind(&fusb300->gadget, driver);
 	if (retval) {
 		pr_err("bind to driver error (%d)\n", retval);
 		device_del(&fusb300->gadget.dev);

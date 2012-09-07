@@ -1255,7 +1255,7 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int fsl_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int fsl_stop(struct usb_gadget_driver *driver);
 /* defined in gadget.h */
 static struct usb_gadget_ops fsl_gadget_ops = {
@@ -1951,7 +1951,7 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
  * Called by initialization code of gadget drivers
 *----------------------------------------------------------------*/
 static int fsl_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	int retval = -ENODEV;
 	unsigned long flags = 0;
@@ -1976,7 +1976,7 @@ static int fsl_start(struct usb_gadget_driver *driver,
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
 
 	/* bind udc driver to gadget driver */
-	retval = bind(&udc_controller->gadget);
+	retval = bind(&udc_controller->gadget, driver);
 	if (retval) {
 		VDBG("bind to %s --> %d", driver->driver.name, retval);
 		udc_controller->gadget.dev.driver = NULL;
