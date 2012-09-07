@@ -2126,13 +2126,12 @@ static int sd_read_lba0(struct rtsx_chip *chip)
 	if (CHK_SD(sd_card)) {
 		bus_width = SD_BUS_WIDTH_4;
 	} else {
-		if (CHK_MMC_8BIT(sd_card)) {
+		if (CHK_MMC_8BIT(sd_card))
 			bus_width = SD_BUS_WIDTH_8;
-		} else if (CHK_MMC_4BIT(sd_card)) {
+		else if (CHK_MMC_4BIT(sd_card))
 			bus_width = SD_BUS_WIDTH_4;
-		} else {
+		else
 			bus_width = SD_BUS_WIDTH_1;
-		}
 	}
 
 	retval = sd_read_data(chip, SD_TM_NORMAL_READ, cmd,
