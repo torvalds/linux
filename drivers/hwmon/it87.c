@@ -19,6 +19,8 @@
  *            IT8726F  Super I/O chip w/LPC interface
  *            IT8728F  Super I/O chip w/LPC interface
  *            IT8758E  Super I/O chip w/LPC interface
+ *            IT8771E  Super I/O chip w/LPC interface
+ *            IT8772E  Super I/O chip w/LPC interface
  *            IT8782F  Super I/O chip w/LPC interface
  *            IT8783E/F Super I/O chip w/LPC interface
  *            Sis950   A clone of the IT8705F
@@ -61,8 +63,8 @@
 
 #define DRVNAME "it87"
 
-enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8782,
-	     it8783 };
+enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8771,
+	     it8772, it8782, it8783 };
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
@@ -140,6 +142,8 @@ static inline void superio_exit(void)
 #define IT8721F_DEVID 0x8721
 #define IT8726F_DEVID 0x8726
 #define IT8728F_DEVID 0x8728
+#define IT8771E_DEVID 0x8771
+#define IT8772E_DEVID 0x8772
 #define IT8782F_DEVID 0x8782
 #define IT8783E_DEVID 0x8783
 #define IT87_ACT_REG  0x30
@@ -279,6 +283,24 @@ static const struct it87_devices it87_devices[] = {
 		.name = "it8728",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI,
+		.peci_mask = 0x07,
+	},
+	[it8771] = {
+		.name = "it8771",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI,
+					/* PECI: guesswork */
+					/* 12mV ADC (OHM) */
+					/* 16 bit fans (OHM) */
+		.peci_mask = 0x07,
+	},
+	[it8772] = {
+		.name = "it8772",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI,
+					/* PECI (coreboot) */
+					/* 12mV ADC (HWSensors4, OHM) */
+					/* 16 bit fans (HWSensors4, OHM) */
 		.peci_mask = 0x07,
 	},
 	[it8782] = {
@@ -1708,6 +1730,12 @@ static int __init it87_find(unsigned short *address,
 	case IT8728F_DEVID:
 		sio_data->type = it8728;
 		break;
+	case IT8771E_DEVID:
+		sio_data->type = it8771;
+		break;
+	case IT8772E_DEVID:
+		sio_data->type = it8772;
+		break;
 	case IT8782F_DEVID:
 		sio_data->type = it8782;
 		break;
@@ -1825,10 +1853,11 @@ static int __init it87_find(unsigned short *address,
 
 		reg = superio_inb(IT87_SIO_GPIO3_REG);
 		if (sio_data->type == it8721 || sio_data->type == it8728 ||
+		    sio_data->type == it8771 || sio_data->type == it8772 ||
 		    sio_data->type == it8782) {
 			/*
 			 * IT8721F/IT8758E, and IT8782F don't have VID pins
-			 * at all, not sure about the IT8728F.
+			 * at all, not sure about the IT8728F and compatibles.
 			 */
 			sio_data->skip_vid = 1;
 		} else {
@@ -1882,7 +1911,9 @@ static int __init it87_find(unsigned short *address,
 		if (reg & (1 << 0))
 			sio_data->internal |= (1 << 0);
 		if ((reg & (1 << 1)) || sio_data->type == it8721 ||
-		    sio_data->type == it8728)
+		    sio_data->type == it8728 ||
+		    sio_data->type == it8771 ||
+		    sio_data->type == it8772)
 			sio_data->internal |= (1 << 1);
 
 		/*
