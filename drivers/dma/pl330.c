@@ -2896,11 +2896,6 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	amba_set_drvdata(adev, pdmac);
 
-#ifndef CONFIG_PM_RUNTIME
-	/* enable dma clk */
-	clk_enable(pdmac->clk);
-#endif
-
 	irq = adev->irq[0];
 	ret = request_irq(irq, pl330_irq_handler, 0,
 			dev_name(&adev->dev), pi);
@@ -2988,9 +2983,6 @@ probe_err5:
 probe_err4:
 	free_irq(irq, pi);
 probe_err3:
-#ifndef CONFIG_PM_RUNTIME
-	clk_disable(pdmac->clk);
-#endif
 	clk_put(pdmac->clk);
 probe_err2:
 	iounmap(pi->base);
@@ -3037,10 +3029,6 @@ static int __devexit pl330_remove(struct amba_device *adev)
 
 	res = &adev->res;
 	release_mem_region(res->start, resource_size(res));
-
-#ifndef CONFIG_PM_RUNTIME
-	clk_disable(pdmac->clk);
-#endif
 
 	kfree(pdmac);
 
