@@ -731,21 +731,18 @@ static int sd_update_lock_status(struct rtsx_chip *chip)
 	u8 rsp[5];
 
 	retval = sd_send_cmd_get_rsp(chip, SEND_STATUS, sd_card->sd_addr, SD_RSP_TYPE_R1, rsp, 5);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
-	if (rsp[1] & 0x02) {
+	if (rsp[1] & 0x02)
 		sd_card->sd_lock_status |= SD_LOCKED;
-	} else {
+	else
 		sd_card->sd_lock_status &= ~SD_LOCKED;
-	}
 
 	RTSX_DEBUGP("sd_card->sd_lock_status = 0x%x\n", sd_card->sd_lock_status);
 
-	if (rsp[1] & 0x01) {
+	if (rsp[1] & 0x01)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	return STATUS_SUCCESS;
 }
