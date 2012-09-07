@@ -51,7 +51,7 @@ int picolcd_raw_cir(struct picolcd_data *data,
 
 	/* ignore if rc_dev is NULL or status is shunned */
 	spin_lock_irqsave(&data->lock, flags);
-	if (data->rc_dev && (data->status & PICOLCD_CIR_SHUN)) {
+	if (!data->rc_dev || (data->status & PICOLCD_CIR_SHUN)) {
 		spin_unlock_irqrestore(&data->lock, flags);
 		return 1;
 	}
