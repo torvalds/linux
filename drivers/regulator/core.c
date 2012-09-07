@@ -3202,8 +3202,10 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	rdev->desc = regulator_desc;
 	if (config->regmap)
 		rdev->regmap = config->regmap;
-	else
+	else if (dev_get_regmap(dev, NULL))
 		rdev->regmap = dev_get_regmap(dev, NULL);
+	else if (dev->parent)
+		rdev->regmap = dev_get_regmap(dev->parent, NULL);
 	INIT_LIST_HEAD(&rdev->consumer_list);
 	INIT_LIST_HEAD(&rdev->list);
 	BLOCKING_INIT_NOTIFIER_HEAD(&rdev->notifier);
