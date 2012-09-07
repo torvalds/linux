@@ -3706,9 +3706,8 @@ int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 static inline int get_rsp_type(struct scsi_cmnd *srb, u8 *rsp_type, int *rsp_len)
 {
-	if (!rsp_type || !rsp_len) {
+	if (!rsp_type || !rsp_len)
 		return STATUS_FAIL;
-	}
 
 	switch (srb->cmnd[10]) {
 	case 0x03:
