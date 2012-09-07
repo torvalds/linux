@@ -447,23 +447,9 @@ static inline bool rt_is_expired(const struct rtable *rth)
 	return rth->rt_genid != rt_genid(dev_net(rth->dst.dev));
 }
 
-/*
- * Perturbation of rt_genid by a small quantity [1..256]
- * Using 8 bits of shuffling ensure we can call rt_cache_invalidate()
- * many times (2^24) without giving recent rt_genid.
- * Jenkins hash is strong enough that litle changes of rt_genid are OK.
- */
-static void rt_cache_invalidate(struct net *net)
-{
-	unsigned char shuffle;
-
-	get_random_bytes(&shuffle, sizeof(shuffle));
-	atomic_add(shuffle + 1U, &net->ipv4.rt_genid);
-}
-
 void rt_cache_flush(struct net *net)
 {
-	rt_cache_invalidate(net);
+	atomic_inc(&net->ipv4.rt_genid);
 }
 
 static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
@@ -2520,8 +2506,7 @@ static __net_initdata struct pernet_operations sysctl_route_ops = {
 
 static __net_init int rt_genid_init(struct net *net)
 {
-	get_random_bytes(&net->ipv4.rt_genid,
-			 sizeof(net->ipv4.rt_genid));
+	atomic_set(&net->ipv4.rt_genid, 0);
 	get_random_bytes(&net->ipv4.dev_addr_genid,
 			 sizeof(net->ipv4.dev_addr_genid));
 	return 0;
