@@ -2300,7 +2300,9 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	 * into the fabric for data transfers, go ahead and complete it right
 	 * away.
 	 */
-	if (!cmd->data_length) {
+	if (!cmd->data_length &&
+	    (cmd->se_dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV ||
+	     cmd->t_task_cdb[0] == REPORT_LUNS) {
 		spin_lock_irq(&cmd->t_state_lock);
 		cmd->t_state = TRANSPORT_COMPLETE;
 		cmd->transport_state |= CMD_T_ACTIVE;
