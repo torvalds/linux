@@ -12,7 +12,7 @@ static void rk_output_lvds(rk_screen *screen)
 					|m_OUT_FORMAT(screen->hw_format) 		\
 					|m_LCDC_SEL(screen->lcdc_id));
 
-       // printk("%s: reg = 0x%x\n",  __func__, LVDSRdReg());
+       printk("%s>>connect to lcdc output interface%d\n",__func__,screen->lcdc_id);
 }
 
 static void rk_output_lvttl(rk_screen *screen)
@@ -21,7 +21,7 @@ static void rk_output_lvttl(rk_screen *screen)
 					|m_DS(DS_10PF)|m_MSBSEL(DATA_D0_MSB) 	\
 					|m_OUT_FORMAT(screen->hw_format) 		\
 					|m_LCDC_SEL(screen->lcdc_id));
-        //printk("%s: reg = 0x%x\n",  __func__, LVDSRdReg());
+        printk("%s>>connect to lcdc output interface%d\n",__func__,screen->lcdc_id);
 }
 
 static void rk_output_disable(void)
