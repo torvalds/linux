@@ -121,6 +121,7 @@
 
 #define SE_INQUIRY_BUF				512
 #define SE_MODE_PAGE_BUF			512
+#define SE_SENSE_BUF				96
 
 /* struct se_hba->hba_flags */
 enum hba_flags_table {
