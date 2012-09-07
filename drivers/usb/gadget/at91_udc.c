@@ -469,7 +469,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 				const struct usb_endpoint_descriptor *desc)
 {
 	struct at91_ep	*ep = container_of(_ep, struct at91_ep, ep);
-	struct at91_udc	*udc = ep->udc;
+	struct at91_udc *udc;
 	u16		maxpacket;
 	u32		tmp;
 	unsigned long	flags;
@@ -484,6 +484,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 		return -EINVAL;
 	}
 
+	udc = ep->udc;
 	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN) {
 		DBG("bogus device state\n");
 		return -ESHUTDOWN;
