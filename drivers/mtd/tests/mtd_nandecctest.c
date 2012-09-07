@@ -48,6 +48,27 @@ static void single_bit_error_data(void *error_data, void *correct_data,
 	__change_bit_le(offset, error_data);
 }
 
+static void no_bit_error(void *error_data, void *error_ecc,
+		void *correct_data, void *correct_ecc, const size_t size)
+{
+	memcpy(error_data, correct_data, size);
+	memcpy(error_ecc, correct_ecc, 3);
+}
+
+static int no_bit_error_verify(void *error_data, void *error_ecc,
+				void *correct_data, const size_t size)
+{
+	unsigned char calc_ecc[3];
+	int ret;
+
+	__nand_calculate_ecc(error_data, size, calc_ecc);
+	ret = __nand_correct_data(error_data, error_ecc, calc_ecc, size);
+	if (ret == 0 && !memcmp(correct_data, error_data, size))
+		return 0;
+
+	return -EINVAL;
+}
+
 static void single_bit_error_in_data(void *error_data, void *error_ecc,
 		void *correct_data, void *correct_ecc, const size_t size)
 {
@@ -70,6 +91,11 @@ static int single_bit_error_correct(void *error_data, void *error_ecc,
 }
 
 static const struct nand_ecc_test nand_ecc_test[] = {
+	{
+		.name = "no-bit-error",
+		.prepare = no_bit_error,
+		.verify = no_bit_error_verify,
+	},
 	{
 		.name = "single-bit-error-in-data-correct",
 		.prepare = single_bit_error_in_data,
