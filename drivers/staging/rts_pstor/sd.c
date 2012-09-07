@@ -802,9 +802,8 @@ static int sd_voltage_switch(struct rtsx_chip *chip)
 	RTSX_WRITE_REG(chip, SD_BUS_STAT, SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP, SD_CLK_TOGGLE_EN);
 
 	retval = sd_send_cmd_get_rsp(chip, VOLTAGE_SWITCH, 0, SD_RSP_TYPE_R1, NULL, 0);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	udelay(chip->sd_voltage_switch_delay);
 
@@ -816,9 +815,9 @@ static int sd_voltage_switch(struct rtsx_chip *chip)
 
 	RTSX_WRITE_REG(chip, SD_BUS_STAT, 0xFF, SD_CLK_FORCE_STOP);
 	retval = sd_change_bank_voltage(chip, SD_IO_1V8);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
+
 	wait_timeout(50);
 
 	RTSX_WRITE_REG(chip, SD_BUS_STAT, 0xFF, SD_CLK_TOGGLE_EN);
