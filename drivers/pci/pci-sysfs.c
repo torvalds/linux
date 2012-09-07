@@ -458,6 +458,40 @@ boot_vga_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 struct device_attribute vga_attr = __ATTR_RO(boot_vga);
 
+static void
+pci_config_pm_runtime_get(struct pci_dev *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device *parent = dev->parent;
+
+	if (parent)
+		pm_runtime_get_sync(parent);
+	pm_runtime_get_noresume(dev);
+	/*
+	 * pdev->current_state is set to PCI_D3cold during suspending,
+	 * so wait until suspending completes
+	 */
+	pm_runtime_barrier(dev);
+	/*
+	 * Only need to resume devices in D3cold, because config
+	 * registers are still accessible for devices suspended but
+	 * not in D3cold.
+	 */
+	if (pdev->current_state == PCI_D3cold)
+		pm_runtime_resume(dev);
+}
+
+static void
+pci_config_pm_runtime_put(struct pci_dev *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device *parent = dev->parent;
+
+	pm_runtime_put(dev);
+	if (parent)
+		pm_runtime_put_sync(parent);
+}
+
 static ssize_t
 pci_read_config(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *bin_attr,
@@ -483,6 +517,8 @@ pci_read_config(struct file *filp, struct kobject *kobj,
 	} else {
 		size = count;
 	}
+
+	pci_config_pm_runtime_get(dev);
 
 	if ((off & 1) && size) {
 		u8 val;
@@ -529,6 +565,8 @@ pci_read_config(struct file *filp, struct kobject *kobj,
 		--size;
 	}
 
+	pci_config_pm_runtime_put(dev);
+
 	return count;
 }
 
@@ -549,6 +587,8 @@ pci_write_config(struct file* filp, struct kobject *kobj,
 		count = size;
 	}
 	
+	pci_config_pm_runtime_get(dev);
+
 	if ((off & 1) && size) {
 		pci_user_write_config_byte(dev, off, data[off - init_off]);
 		off++;
@@ -586,6 +626,8 @@ pci_write_config(struct file* filp, struct kobject *kobj,
 		off++;
 		--size;
 	}
+
+	pci_config_pm_runtime_put(dev);
 
 	return count;
 }
