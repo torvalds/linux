@@ -982,7 +982,7 @@ int __exit eeh_ops_unregister(const char *name)
  * Even if force-off is set, the EEH hardware is still enabled, so that
  * newer systems can boot.
  */
-void __init eeh_init(void)
+static int __init eeh_init(void)
 {
 	struct pci_controller *hose, *tmp;
 	struct device_node *phb;
@@ -992,11 +992,11 @@ void __init eeh_init(void)
 	if (!eeh_ops) {
 		pr_warning("%s: Platform EEH operation not found\n",
 			__func__);
-		return;
+		return -EEXIST;
 	} else if ((ret = eeh_ops->init())) {
 		pr_warning("%s: Failed to call platform init function (%d)\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
 
 	raw_spin_lock_init(&confirm_error_lock);
@@ -1011,7 +1011,11 @@ void __init eeh_init(void)
 		printk(KERN_INFO "EEH: PCI Enhanced I/O Error Handling Enabled\n");
 	else
 		printk(KERN_WARNING "EEH: No capable adapters found\n");
+
+	return ret;
 }
+
+core_initcall_sync(eeh_init);
 
 /**
  * eeh_add_device_early - Enable EEH for the indicated device_node

@@ -559,7 +559,9 @@ static struct eeh_ops pseries_eeh_ops = {
  * EEH initialization on pseries platform. This function should be
  * called before any EEH related functions.
  */
-int __init eeh_pseries_init(void)
+static int __init eeh_pseries_init(void)
 {
 	return eeh_ops_register(&pseries_eeh_ops);
 }
+
+early_initcall(eeh_pseries_init);

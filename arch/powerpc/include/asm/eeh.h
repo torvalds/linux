@@ -117,11 +117,6 @@ extern int eeh_subsystem_enabled;
 
 void * __devinit eeh_dev_init(struct device_node *dn, void *data);
 void __devinit eeh_dev_phb_init_dynamic(struct pci_controller *phb);
-void __init eeh_dev_phb_init(void);
-void __init eeh_init(void);
-#ifdef CONFIG_PPC_PSERIES
-int __init eeh_pseries_init(void);
-#endif
 int __init eeh_ops_register(struct eeh_ops *ops);
 int __exit eeh_ops_unregister(const char *name);
 unsigned long eeh_check_failure(const volatile void __iomem *token,
@@ -155,17 +150,6 @@ static inline void *eeh_dev_init(struct device_node *dn, void *data)
 }
 
 static inline void eeh_dev_phb_init_dynamic(struct pci_controller *phb) { }
-
-static inline void eeh_dev_phb_init(void) { }
-
-static inline void eeh_init(void) { }
-
-#ifdef CONFIG_PPC_PSERIES
-static inline int eeh_pseries_init(void)
-{
-	return 0;
-}
-#endif /* CONFIG_PPC_PSERIES */
 
 static inline unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned long val)
 {

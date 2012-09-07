@@ -93,10 +93,14 @@ void __devinit eeh_dev_phb_init_dynamic(struct pci_controller *phb)
  * Scan all the existing PHBs and create EEH devices for their OF
  * nodes and their children OF nodes
  */
-void __init eeh_dev_phb_init(void)
+static int __init eeh_dev_phb_init(void)
 {
 	struct pci_controller *phb, *tmp;
 
 	list_for_each_entry_safe(phb, tmp, &hose_list, list_node)
 		eeh_dev_phb_init_dynamic(phb);
+
+	return 0;
 }
+
+core_initcall(eeh_dev_phb_init);

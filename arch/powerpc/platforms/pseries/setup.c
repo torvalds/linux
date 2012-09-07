@@ -388,10 +388,8 @@ static void __init pSeries_setup_arch(void)
 
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
-	eeh_pseries_init();
 	find_and_init_phbs();
 	pSeries_reconfig_notifier_register(&pci_dn_reconfig_nb);
-	eeh_init();
 
 	pSeries_nvram_init();
 
