@@ -424,12 +424,12 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 				printk(KERN_INFO "TS speed %llu Kbits/sec \n",
 						div64_u64(speed_bytes,
 							speed_timedelta));
-			};
+			}
 
 			demux->speed_last_time = cur_time;
 			demux->speed_pkts_cnt = 0;
-		};
-	};
+		}
+	}
 
 	if (buf[1] & 0x80) {
 		dprintk_tscheck("TEI detected. "
@@ -451,9 +451,9 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 						buf[3] & 0xf);
 
 			demux->cnt_storage[pid] = ((buf[3] & 0xf) + 1)&0xf;
-		};
+		}
 		/* end check */
-	};
+	}
 
 	list_for_each_entry(feed, &demux->feed_list, list_head) {
 		if ((feed->pid != pid) && (feed->pid != 0x2000))
