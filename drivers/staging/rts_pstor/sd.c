@@ -3106,9 +3106,8 @@ static int wait_data_buf_ready(struct rtsx_chip *chip)
 
 		retval = sd_send_cmd_get_rsp(chip, SEND_STATUS,
 				sd_card->sd_addr, SD_RSP_TYPE_R1, NULL, 0);
-		if (retval != STATUS_SUCCESS) {
+		if (retval != STATUS_SUCCESS)
 			TRACE_RET(chip, STATUS_FAIL);
-		}
 
 		if (sd_card->sd_data_buf_ready) {
 			return sd_send_cmd_get_rsp(chip, SEND_STATUS,
