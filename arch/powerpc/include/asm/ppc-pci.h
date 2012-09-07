@@ -47,10 +47,9 @@ extern int rtas_setup_phb(struct pci_controller *phb);
 
 #ifdef CONFIG_EEH
 
-void pci_addr_cache_build(void);
-void pci_addr_cache_insert_device(struct pci_dev *dev);
-void pci_addr_cache_remove_device(struct pci_dev *dev);
-struct eeh_dev *pci_addr_cache_get_device(unsigned long addr);
+void eeh_addr_cache_insert_dev(struct pci_dev *dev);
+void eeh_addr_cache_rmv_dev(struct pci_dev *dev);
+struct eeh_dev *eeh_addr_cache_get_dev(unsigned long addr);
 void eeh_slot_error_detail(struct eeh_pe *pe, int severity);
 int eeh_pci_enable(struct eeh_pe *pe, int function);
 int eeh_reset_pe(struct eeh_pe *);

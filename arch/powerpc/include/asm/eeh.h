@@ -197,7 +197,7 @@ int __exit eeh_ops_unregister(const char *name);
 unsigned long eeh_check_failure(const volatile void __iomem *token,
 				unsigned long val);
 int eeh_dev_check_failure(struct eeh_dev *edev);
-void __init pci_addr_cache_build(void);
+void __init eeh_addr_cache_build(void);
 void eeh_add_device_tree_early(struct device_node *);
 void eeh_add_device_tree_late(struct pci_bus *);
 void eeh_remove_bus_device(struct pci_dev *);
@@ -233,7 +233,7 @@ static inline unsigned long eeh_check_failure(const volatile void __iomem *token
 
 #define eeh_dev_check_failure(x) (0)
 
-static inline void pci_addr_cache_build(void) { }
+static inline void eeh_addr_cache_build(void) { }
 
 static inline void eeh_add_device_tree_early(struct device_node *dn) { }
 

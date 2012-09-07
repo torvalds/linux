@@ -73,7 +73,7 @@ void __init pSeries_final_fixup(void)
 {
 	pSeries_request_regions();
 
-	pci_addr_cache_build();
+	eeh_addr_cache_build();
 }
 
 /*

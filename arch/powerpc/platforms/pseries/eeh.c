@@ -411,7 +411,7 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 
 	/* Finding the phys addr + pci device; this is pretty quick. */
 	addr = eeh_token_to_phys((unsigned long __force) token);
-	edev = pci_addr_cache_get_device(addr);
+	edev = eeh_addr_cache_get_dev(addr);
 	if (!edev) {
 		eeh_stats.no_device++;
 		return val;
@@ -787,7 +787,7 @@ static void eeh_add_device_late(struct pci_dev *dev)
 	edev->pdev = dev;
 	dev->dev.archdata.edev = edev;
 
-	pci_addr_cache_insert_device(dev);
+	eeh_addr_cache_insert_dev(dev);
 	eeh_sysfs_add_device(dev);
 }
 
@@ -844,7 +844,7 @@ static void eeh_remove_device(struct pci_dev *dev)
 	pci_dev_put(dev);
 
 	eeh_rmv_from_parent_pe(edev);
-	pci_addr_cache_remove_device(dev);
+	eeh_addr_cache_rmv_dev(dev);
 	eeh_sysfs_remove_device(dev);
 }
 
