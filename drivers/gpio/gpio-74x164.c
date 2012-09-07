@@ -75,12 +75,6 @@ static int __devinit gen_74x164_probe(struct spi_device *spi)
 	struct gen_74x164_chip_platform_data *pdata;
 	int ret;
 
-	pdata = spi->dev.platform_data;
-	if (!pdata || !pdata->base) {
-		dev_dbg(&spi->dev, "incorrect or missing platform data\n");
-		return -EINVAL;
-	}
-
 	/*
 	 * bits_per_word cannot be configured in platform data
 	 */
@@ -94,6 +88,12 @@ static int __devinit gen_74x164_probe(struct spi_device *spi)
 	if (!chip)
 		return -ENOMEM;
 
+	pdata = spi->dev.platform_data;
+	if (pdata && pdata->base)
+		chip->gpio_chip.base = pdata->base;
+	else
+		chip->gpio_chip.base = -1;
+
 	mutex_init(&chip->lock);
 
 	dev_set_drvdata(&spi->dev, chip);
@@ -104,7 +104,6 @@ static int __devinit gen_74x164_probe(struct spi_device *spi)
 	chip->gpio_chip.direction_output = gen_74x164_direction_output;
 	chip->gpio_chip.get = gen_74x164_get_value;
 	chip->gpio_chip.set = gen_74x164_set_value;
-	chip->gpio_chip.base = pdata->base;
 	chip->gpio_chip.ngpio = 8;
 	chip->gpio_chip.can_sleep = 1;
 	chip->gpio_chip.dev = &spi->dev;
