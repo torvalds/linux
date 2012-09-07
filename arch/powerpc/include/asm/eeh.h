@@ -164,6 +164,7 @@ static inline void eeh_unlock(void)
  */
 #define EEH_MAX_ALLOWED_FREEZES 5
 
+typedef void *(*eeh_traverse_func)(void *data, void *flag);
 int __devinit eeh_phb_pe_create(struct pci_controller *phb);
 
 void * __devinit eeh_dev_init(struct device_node *dn, void *data);

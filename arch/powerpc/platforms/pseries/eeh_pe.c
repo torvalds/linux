@@ -118,3 +118,146 @@ static struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb)
 
 	return NULL;
 }
+
+/**
+ * eeh_pe_next - Retrieve the next PE in the tree
+ * @pe: current PE
+ * @root: root PE
+ *
+ * The function is used to retrieve the next PE in the
+ * hierarchy PE tree.
+ */
+static struct eeh_pe *eeh_pe_next(struct eeh_pe *pe,
+				  struct eeh_pe *root)
+{
+	struct list_head *next = pe->child_list.next;
+
+	if (next == &pe->child_list) {
+		while (1) {
+			if (pe == root)
+				return NULL;
+			next = pe->child.next;
+			if (next != &pe->parent->child_list)
+				break;
+			pe = pe->parent;
+		}
+	}
+
+	return list_entry(next, struct eeh_pe, child);
+}
+
+/**
+ * eeh_pe_traverse - Traverse PEs in the specified PHB
+ * @root: root PE
+ * @fn: callback
+ * @flag: extra parameter to callback
+ *
+ * The function is used to traverse the specified PE and its
+ * child PEs. The traversing is to be terminated once the
+ * callback returns something other than NULL, or no more PEs
+ * to be traversed.
+ */
+static void *eeh_pe_traverse(struct eeh_pe *root,
+			eeh_traverse_func fn, void *flag)
+{
+	struct eeh_pe *pe;
+	void *ret;
+
+	for (pe = root; pe; pe = eeh_pe_next(pe, root)) {
+		ret = fn(pe, flag);
+		if (ret) return ret;
+	}
+
+	return NULL;
+}
+
+/**
+ * __eeh_pe_get - Check the PE address
+ * @data: EEH PE
+ * @flag: EEH device
+ *
+ * For one particular PE, it can be identified by PE address
+ * or tranditional BDF address. BDF address is composed of
+ * Bus/Device/Function number. The extra data referred by flag
+ * indicates which type of address should be used.
+ */
+static void *__eeh_pe_get(void *data, void *flag)
+{
+	struct eeh_pe *pe = (struct eeh_pe *)data;
+	struct eeh_dev *edev = (struct eeh_dev *)flag;
+
+	/* Unexpected PHB PE */
+	if (pe->type == EEH_PE_PHB)
+		return NULL;
+
+	/* We prefer PE address */
+	if (edev->pe_config_addr &&
+	   (edev->pe_config_addr == pe->addr))
+		return pe;
+
+	/* Try BDF address */
+	if (edev->pe_config_addr &&
+	   (edev->config_addr == pe->config_addr))
+		return pe;
+
+	return NULL;
+}
+
+/**
+ * eeh_pe_get - Search PE based on the given address
+ * @edev: EEH device
+ *
+ * Search the corresponding PE based on the specified address which
+ * is included in the eeh device. The function is used to check if
+ * the associated PE has been created against the PE address. It's
+ * notable that the PE address has 2 format: traditional PE address
+ * which is composed of PCI bus/device/function number, or unified
+ * PE address.
+ */
+static struct eeh_pe *eeh_pe_get(struct eeh_dev *edev)
+{
+	struct eeh_pe *root = eeh_phb_pe_get(edev->phb);
+	struct eeh_pe *pe;
+
+	eeh_lock();
+	pe = eeh_pe_traverse(root, __eeh_pe_get, edev);
+	eeh_unlock();
+
+	return pe;
+}
+
+/**
+ * eeh_pe_get_parent - Retrieve the parent PE
+ * @edev: EEH device
+ *
+ * The whole PEs existing in the system are organized as hierarchy
+ * tree. The function is used to retrieve the parent PE according
+ * to the parent EEH device.
+ */
+static struct eeh_pe *eeh_pe_get_parent(struct eeh_dev *edev)
+{
+	struct device_node *dn;
+	struct eeh_dev *parent;
+
+	/*
+	 * It might have the case for the indirect parent
+	 * EEH device already having associated PE, but
+	 * the direct parent EEH device doesn't have yet.
+	 */
+	dn = edev->dn->parent;
+	while (dn) {
+		/* We're poking out of PCI territory */
+		if (!PCI_DN(dn)) return NULL;
+
+		parent = of_node_to_eeh_dev(dn);
+		/* We're poking out of PCI territory */
+		if (!parent) return NULL;
+
+		if (parent->pe)
+			return parent->pe;
+
+		dn = dn->parent;
+	}
+
+	return NULL;
+}
