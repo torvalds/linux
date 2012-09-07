@@ -257,7 +257,7 @@ static int tda10071_set_voltage(struct dvb_frontend *fe,
 				__func__);
 		ret = -EINVAL;
 		goto error;
-	};
+	}
 
 	cmd.args[0] = CMD_LNB_SET_DC_LEVEL;
 	cmd.args[1] = 0;
@@ -369,7 +369,7 @@ static int tda10071_diseqc_recv_slave_reply(struct dvb_frontend *fe,
 	if (ret)
 		goto error;
 
-	reply->msg_len = tmp & 0x1f; /* [4:0] */;
+	reply->msg_len = tmp & 0x1f; /* [4:0] */
 	if (reply->msg_len > sizeof(reply->msg))
 		reply->msg_len = sizeof(reply->msg); /* truncate API max */
 
