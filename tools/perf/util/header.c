@@ -610,11 +610,10 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 			    struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
-	u32 nre = 0, nri, sz;
+	u32 nre, nri, sz;
 	int ret;
 
-	list_for_each_entry(evsel, &evlist->entries, node)
-		nre++;
+	nre = evlist->nr_entries;
 
 	/*
 	 * write number of events
@@ -1441,6 +1440,9 @@ static void print_pmu_mappings(struct perf_header *ph, int fd, FILE *fp)
 	if (ret != sizeof(pmu_num))
 		goto error;
 
+	if (ph->needs_swap)
+		pmu_num = bswap_32(pmu_num);
+
 	if (!pmu_num) {
 		fprintf(fp, "# pmu mappings: not available\n");
 		return;
@@ -1449,6 +1451,9 @@ static void print_pmu_mappings(struct perf_header *ph, int fd, FILE *fp)
 	while (pmu_num) {
 		if (read(fd, &type, sizeof(type)) != sizeof(type))
 			break;
+		if (ph->needs_swap)
+			type = bswap_32(type);
+
 		name = do_read_string(fd, ph);
 		if (!name)
 			break;
@@ -2290,33 +2295,39 @@ static int read_attr(int fd, struct perf_header *ph,
 	return ret <= 0 ? -1 : 0;
 }
 
-static int perf_evsel__set_tracepoint_name(struct perf_evsel *evsel,
-					   struct pevent *pevent)
+static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
+						struct pevent *pevent)
 {
-	struct event_format *event = pevent_find_event(pevent,
-						       evsel->attr.config);
+	struct event_format *event;
 	char bf[128];
 
+	/* already prepared */
+	if (evsel->tp_format)
+		return 0;
+
+	event = pevent_find_event(pevent, evsel->attr.config);
 	if (event == NULL)
 		return -1;
 
-	snprintf(bf, sizeof(bf), "%s:%s", event->system, event->name);
-	evsel->name = strdup(bf);
-	if (event->name == NULL)
-		return -1;
+	if (!evsel->name) {
+		snprintf(bf, sizeof(bf), "%s:%s", event->system, event->name);
+		evsel->name = strdup(bf);
+		if (evsel->name == NULL)
+			return -1;
+	}
 
 	evsel->tp_format = event;
 	return 0;
 }
 
-static int perf_evlist__set_tracepoint_names(struct perf_evlist *evlist,
-					     struct pevent *pevent)
+static int perf_evlist__prepare_tracepoint_events(struct perf_evlist *evlist,
+						  struct pevent *pevent)
 {
 	struct perf_evsel *pos;
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		if (pos->attr.type == PERF_TYPE_TRACEPOINT &&
-		    perf_evsel__set_tracepoint_name(pos, pevent))
+		    perf_evsel__prepare_tracepoint_event(pos, pevent))
 			return -1;
 	}
 
@@ -2404,7 +2415,8 @@ int perf_session__read_header(struct perf_session *session, int fd)
 
 	lseek(fd, header->data_offset, SEEK_SET);
 
-	if (perf_evlist__set_tracepoint_names(session->evlist, session->pevent))
+	if (perf_evlist__prepare_tracepoint_events(session->evlist,
+						   session->pevent))
 		goto out_delete_evlist;
 
 	header->frozen = 1;
@@ -2638,7 +2650,8 @@ int perf_event__process_tracing_data(union perf_event *event,
 	if (size_read + padding != size)
 		die("tracing data size mismatch");
 
-	perf_evlist__set_tracepoint_names(session->evlist, session->pevent);
+	perf_evlist__prepare_tracepoint_events(session->evlist,
+					       session->pevent);
 
 	return size_read + padding;
 }

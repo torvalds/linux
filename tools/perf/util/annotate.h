@@ -152,5 +152,6 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 #endif
 
 extern const char	*disassembler_style;
+extern const char	*objdump_path;
 
 #endif	/* __PERF_ANNOTATE_H */
