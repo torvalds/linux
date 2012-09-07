@@ -1368,7 +1368,6 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 int ieee80211_reconfig(struct ieee80211_local *local);
 void ieee80211_stop_device(struct ieee80211_local *local);
 
-#ifdef CONFIG_PM
 int __ieee80211_suspend(struct ieee80211_hw *hw,
 			struct cfg80211_wowlan *wowlan);
 
@@ -1382,18 +1381,6 @@ static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 
 	return ieee80211_reconfig(hw_to_local(hw));
 }
-#else
-static inline int __ieee80211_suspend(struct ieee80211_hw *hw,
-				      struct cfg80211_wowlan *wowlan)
-{
-	return 0;
-}
-
-static inline int __ieee80211_resume(struct ieee80211_hw *hw)
-{
-	return 0;
-}
-#endif
 
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
