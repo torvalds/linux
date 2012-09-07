@@ -973,7 +973,7 @@ static int do_ipack_entry(const char *filename,
 	id->vendor = TO_NATIVE(id->vendor);
 	id->device = TO_NATIVE(id->device);
 	strcpy(alias, "ipack:");
-	ADD(alias, "f", id->format != IPACK_ANY_ID, id->format);
+	ADD(alias, "f", id->format != IPACK_ANY_FORMAT, id->format);
 	ADD(alias, "v", id->vendor != IPACK_ANY_ID, id->vendor);
 	ADD(alias, "d", id->device != IPACK_ANY_ID, id->device);
 	add_wildcard(alias);

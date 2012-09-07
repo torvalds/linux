@@ -31,7 +31,8 @@ static inline const struct ipack_device_id *
 ipack_match_one_device(const struct ipack_device_id *id,
 		       const struct ipack_device *device)
 {
-	if ((id->format == IPACK_ANY_ID || id->format == device->id_format) &&
+	if ((id->format == IPACK_ANY_FORMAT ||
+				id->format == device->id_format) &&
 	    (id->vendor == IPACK_ANY_ID || id->vendor == device->id_vendor) &&
 	    (id->device == IPACK_ANY_ID || id->device == device->id_device))
 		return id;
