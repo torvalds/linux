@@ -3224,11 +3224,10 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector, u16 s
 		}
 	}
 
-	if (!CHK_SD_HCXC(sd_card) && !CHK_MMC_SECTOR_MODE(sd_card)) {
+	if (!CHK_SD_HCXC(sd_card) && !CHK_MMC_SECTOR_MODE(sd_card))
 		data_addr = start_sector << 9;
-	} else {
+	else
 		data_addr = start_sector;
-	}
 
 	sd_clr_err_code(chip);
 
@@ -3283,21 +3282,19 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector, u16 s
 
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE, 0x01, RING_BUFFER);
 
-	if (CHK_MMC_8BIT(sd_card)) {
+	if (CHK_MMC_8BIT(sd_card))
 		rtsx_add_cmd(chip, WRITE_REG_CMD, REG_SD_CFG1, 0x03, SD_BUS_WIDTH_8);
-	} else if (CHK_MMC_4BIT(sd_card) || CHK_SD(sd_card)) {
+	else if (CHK_MMC_4BIT(sd_card) || CHK_SD(sd_card))
 		rtsx_add_cmd(chip, WRITE_REG_CMD, REG_SD_CFG1, 0x03, SD_BUS_WIDTH_4);
-	} else {
+	else
 		rtsx_add_cmd(chip, WRITE_REG_CMD, REG_SD_CFG1, 0x03, SD_BUS_WIDTH_1);
-	}
 
 	if (sd_card->seq_mode) {
 		cfg2 = SD_NO_CALCULATE_CRC7 | SD_CHECK_CRC16 | SD_NO_WAIT_BUSY_END |
 				SD_NO_CHECK_CRC7 | SD_RSP_LEN_0;
 		if (CHECK_PID(chip, 0x5209)) {
-			if (!CHK_SD30_SPEED(sd_card)) {
+			if (!CHK_SD30_SPEED(sd_card))
 				cfg2 |= SD_NO_CHECK_WAIT_CRC_TO;
-			}
 		}
 		rtsx_add_cmd(chip, WRITE_REG_CMD, REG_SD_CFG2, 0xFF, cfg2);
 
@@ -3327,9 +3324,8 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector, u16 s
 			cfg2 = SD_CALCULATE_CRC7 | SD_CHECK_CRC16 | SD_NO_WAIT_BUSY_END |
 					SD_CHECK_CRC7 | SD_RSP_LEN_6;
 			if (CHECK_PID(chip, 0x5209)) {
-				if (!CHK_SD30_SPEED(sd_card)) {
+				if (!CHK_SD30_SPEED(sd_card))
 					cfg2 |= SD_NO_CHECK_WAIT_CRC_TO;
-				}
 			}
 			rtsx_add_cmd(chip, WRITE_REG_CMD, REG_SD_CFG2, 0xFF, cfg2);
 
@@ -3370,9 +3366,8 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector, u16 s
 			cfg2 = SD_NO_CALCULATE_CRC7 | SD_CHECK_CRC16 | SD_NO_WAIT_BUSY_END |
 					SD_NO_CHECK_CRC7 | SD_RSP_LEN_0;
 			if (CHECK_PID(chip, 0x5209)) {
-				if (!CHK_SD30_SPEED(sd_card)) {
+				if (!CHK_SD30_SPEED(sd_card))
 					cfg2 |= SD_NO_CHECK_WAIT_CRC_TO;
-				}
 			}
 			rtsx_add_cmd(chip, WRITE_REG_CMD, REG_SD_CFG2, 0xFF, cfg2);
 
@@ -3397,11 +3392,10 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector, u16 s
 
 		sd_card->seq_mode = 0;
 
-		if (retval == -ETIMEDOUT) {
+		if (retval == -ETIMEDOUT)
 			err = STATUS_TIMEDOUT;
-		} else {
+		else
 			err = STATUS_FAIL;
-		}
 
 		rtsx_read_register(chip, REG_SD_STAT1, &stat);
 		rtsx_clear_sd_error(chip);
