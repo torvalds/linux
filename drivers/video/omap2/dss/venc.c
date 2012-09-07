@@ -773,6 +773,8 @@ static void __init venc_probe_pdata(struct platform_device *pdev)
 	if (!dssdev)
 		return;
 
+	dssdev->channel = OMAP_DSS_CHANNEL_DIGIT;
+
 	r = venc_init_display(dssdev);
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
