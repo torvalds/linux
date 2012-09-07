@@ -38,8 +38,7 @@
 
 #define MSM_DEVICE(name) MSM_CHIP_DEVICE(name, MSM)
 
-#if defined(CONFIG_ARCH_MSM7X00A) || defined(CONFIG_ARCH_MSM7X27) \
-	|| defined(CONFIG_ARCH_MSM7X25)
+#if defined(CONFIG_ARCH_MSM7X00A)
 static struct map_desc msm_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
 	MSM_CHIP_DEVICE(CSR, MSM7X00),
