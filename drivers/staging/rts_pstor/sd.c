@@ -1743,15 +1743,13 @@ static int sd_ddr_pre_tuning_tx(struct rtsx_chip *chip)
 		}
 
 		retval = sd_change_phase(chip, (u8)i, TUNE_TX);
-		if (retval != STATUS_SUCCESS) {
+		if (retval != STATUS_SUCCESS)
 			continue;
-		}
 
 		retval = sd_send_cmd_get_rsp(chip, SEND_STATUS, sd_card->sd_addr,
 				SD_RSP_TYPE_R1, NULL, 0);
-		if ((retval == STATUS_SUCCESS) || !sd_check_err_code(chip, SD_RSP_TIMEOUT)) {
+		if ((retval == STATUS_SUCCESS) || !sd_check_err_code(chip, SD_RSP_TIMEOUT))
 			phase_map |= 1 << i;
-		}
 	}
 
 	RTSX_WRITE_REG(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN, 0);
@@ -1759,14 +1757,12 @@ static int sd_ddr_pre_tuning_tx(struct rtsx_chip *chip)
 	RTSX_DEBUGP("DDR TX pre tune phase_map = 0x%08x\n", phase_map);
 
 	final_phase = sd_search_final_phase(chip, phase_map, TUNE_TX);
-	if (final_phase == 0xFF) {
+	if (final_phase == 0xFF)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	retval = sd_change_phase(chip, final_phase, TUNE_TX);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	RTSX_DEBUGP("DDR TX pre tune phase: %d\n", (int)final_phase);
 
