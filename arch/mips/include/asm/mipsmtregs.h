@@ -28,6 +28,9 @@
 #define read_c0_vpeconf0()		__read_32bit_c0_register($1, 2)
 #define write_c0_vpeconf0(val)		__write_32bit_c0_register($1, 2, val)
 
+#define read_c0_vpeconf1()		__read_32bit_c0_register($1, 3)
+#define write_c0_vpeconf1(val)		__write_32bit_c0_register($1, 3, val)
+
 #define read_c0_tcstatus()		__read_32bit_c0_register($2, 1)
 #define write_c0_tcstatus(val)		__write_32bit_c0_register($2, 1, val)
 
@@ -123,6 +126,14 @@
 #define VPECONF0_MVP		(_ULCAST_(1) << VPECONF0_MVP_SHIFT)
 #define VPECONF0_XTC_SHIFT	21
 #define VPECONF0_XTC		(_ULCAST_(0xff) << VPECONF0_XTC_SHIFT)
+
+/* VPEConf1 fields (per VPE) */
+#define VPECONF1_NCP1_SHIFT	0
+#define VPECONF1_NCP1		(_ULCAST_(0xff) << VPECONF1_NCP1_SHIFT)
+#define VPECONF1_NCP2_SHIFT	10
+#define VPECONF1_NCP2		(_ULCAST_(0xff) << VPECONF1_NCP2_SHIFT)
+#define VPECONF1_NCX_SHIFT	20
+#define VPECONF1_NCX		(_ULCAST_(0xff) << VPECONF1_NCX_SHIFT)
 
 /* TCStatus fields (per TC) */
 #define TCSTATUS_TASID		(_ULCAST_(0xff))
@@ -350,6 +361,8 @@ do {									\
 #define write_vpe_c0_vpecontrol(val)	mttc0(1, 1, val)
 #define read_vpe_c0_vpeconf0()		mftc0(1, 2)
 #define write_vpe_c0_vpeconf0(val)	mttc0(1, 2, val)
+#define read_vpe_c0_vpeconf1()		mftc0(1, 3)
+#define write_vpe_c0_vpeconf1(val)	mttc0(1, 3, val)
 #define read_vpe_c0_count()		mftc0(9, 0)
 #define write_vpe_c0_count(val)		mttc0(9, 0, val)
 #define read_vpe_c0_status()		mftc0(12, 0)

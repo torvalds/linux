@@ -47,11 +47,13 @@ enum {
  * @ns_flags: flags
  * @ns_bdev: block device
  * @ns_sem: semaphore for shared states
+ * @ns_snapshot_mount_mutex: mutex to protect snapshot mounts
  * @ns_sbh: buffer heads of on-disk super blocks
  * @ns_sbp: pointers to super block data
  * @ns_sbwtime: previous write time of super block
  * @ns_sbwcount: write count of super block
  * @ns_sbsize: size of valid data in super block
+ * @ns_mount_state: file system state
  * @ns_seg_seq: segment sequence counter
  * @ns_segnum: index number of the latest full segment.
  * @ns_nextnum: index number of the full segment index to be used next
@@ -99,6 +101,7 @@ struct the_nilfs {
 
 	struct block_device    *ns_bdev;
 	struct rw_semaphore	ns_sem;
+	struct mutex		ns_snapshot_mount_mutex;
 
 	/*
 	 * used for
@@ -229,9 +232,8 @@ THE_NILFS_FNS(SB_DIRTY, sb_dirty)
  * @count: refcount of this structure
  * @nilfs: nilfs object
  * @ifile: inode file
- * @root: root inode
  * @inodes_count: number of inodes
- * @blocks_count: number of blocks (Reserved)
+ * @blocks_count: number of blocks
  */
 struct nilfs_root {
 	__u64 cno;

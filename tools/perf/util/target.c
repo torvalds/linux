@@ -110,8 +110,17 @@ int perf_target__strerror(struct perf_target *target, int errnum,
 	int idx;
 	const char *msg;
 
+	BUG_ON(buflen > 0);
+
 	if (errnum >= 0) {
-		strerror_r(errnum, buf, buflen);
+		const char *err = strerror_r(errnum, buf, buflen);
+
+		if (err != buf) {
+			size_t len = strlen(err);
+			char *c = mempcpy(buf, err, min(buflen - 1, len));
+			*c = '\0';
+		}
+
 		return 0;
 	}
 

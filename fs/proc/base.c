@@ -695,8 +695,6 @@ static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
 		mmput(mm);
 	}
 
-	/* OK to pass negative loff_t, we can catch out-of-range */
-	file->f_mode |= FMODE_UNSIGNED_OFFSET;
 	file->private_data = mm;
 
 	return 0;
@@ -704,7 +702,12 @@ static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
 
 static int mem_open(struct inode *inode, struct file *file)
 {
-	return __mem_open(inode, file, PTRACE_MODE_ATTACH);
+	int ret = __mem_open(inode, file, PTRACE_MODE_ATTACH);
+
+	/* OK to pass negative loff_t, we can catch out-of-range */
+	file->f_mode |= FMODE_UNSIGNED_OFFSET;
+
+	return ret;
 }
 
 static ssize_t mem_rw(struct file *file, char __user *buf,
@@ -827,15 +830,16 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 	if (!atomic_inc_not_zero(&mm->mm_users))
 		goto free;
 	while (count > 0) {
-		int this_len, retval, max_len;
+		size_t this_len, max_len;
+		int retval;
+
+		if (src >= (mm->env_end - mm->env_start))
+			break;
 
 		this_len = mm->env_end - (mm->env_start + src);
 
-		if (this_len <= 0)
-			break;
-
-		max_len = (count > PAGE_SIZE) ? PAGE_SIZE : count;
-		this_len = (this_len > max_len) ? max_len : this_len;
+		max_len = min_t(size_t, PAGE_SIZE, count);
+		this_len = min(max_len, this_len);
 
 		retval = access_remote_vm(mm, (mm->env_start + src),
 			page, this_len, 0);

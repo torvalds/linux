@@ -3015,8 +3015,6 @@ static void hotkey_exit(void)
 	if (hotkey_dev_attributes)
 		delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
 
-	kfree(hotkey_keycode_map);
-
 	dbg_printk(TPACPI_DBG_EXIT | TPACPI_DBG_HKEY,
 		   "restoring original HKEY status and mask\n");
 	/* yes, there is a bitwise or below, we want the
@@ -5217,6 +5215,7 @@ static void led_exit(void)
 			led_classdev_unregister(&tpacpi_leds[i].led_classdev);
 	}
 
+	flush_workqueue(tpacpi_wq);
 	kfree(tpacpi_leds);
 }
 
@@ -8936,6 +8935,7 @@ static void thinkpad_acpi_module_exit(void)
 			input_unregister_device(tpacpi_inputdev);
 		else
 			input_free_device(tpacpi_inputdev);
+		kfree(hotkey_keycode_map);
 	}
 
 	if (tpacpi_hwmon)
@@ -8969,6 +8969,7 @@ static void thinkpad_acpi_module_exit(void)
 	kfree(thinkpad_id.bios_version_str);
 	kfree(thinkpad_id.ec_version_str);
 	kfree(thinkpad_id.model_str);
+	kfree(thinkpad_id.nummodel_str);
 }
 
 

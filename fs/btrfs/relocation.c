@@ -1241,7 +1241,7 @@ static int __must_check __add_reloc_root(struct btrfs_root *root)
 	if (rb_node) {
 		btrfs_panic(root->fs_info, -EEXIST, "Duplicate root found "
 			    "for start=%llu while inserting into relocation "
-			    "tree\n");
+			    "tree\n", node->bytenr);
 		kfree(node);
 		return -EEXIST;
 	}

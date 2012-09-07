@@ -19,6 +19,7 @@
 #include <linux/rtc.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 #define DRV_VERSION "0.4.3"
 
@@ -285,9 +286,19 @@ static const struct i2c_device_id pcf8563_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pcf8563_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id pcf8563_of_match[] __devinitconst = {
+	{ .compatible = "nxp,pcf8563" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, pcf8563_of_match);
+#endif
+
 static struct i2c_driver pcf8563_driver = {
 	.driver		= {
 		.name	= "rtc-pcf8563",
+		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(pcf8563_of_match),
 	},
 	.probe		= pcf8563_probe,
 	.remove		= pcf8563_remove,

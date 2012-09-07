@@ -1188,7 +1188,11 @@ static void uvc_video_decode_bulk(struct urb *urb, struct uvc_streaming *stream,
 	u8 *mem;
 	int len, ret;
 
-	if (urb->actual_length == 0)
+	/*
+	 * Ignore ZLPs if they're not part of a frame, otherwise process them
+	 * to trigger the end of payload detection.
+	 */
+	if (urb->actual_length == 0 && stream->bulk.header_size == 0)
 		return;
 
 	mem = urb->transfer_buffer;
@@ -1594,7 +1598,7 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 			psize = le16_to_cpu(ep->desc.wMaxPacketSize);
 			psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
 			if (psize >= bandwidth && psize <= best_psize) {
-				altsetting = i;
+				altsetting = alts->desc.bAlternateSetting;
 				best_psize = psize;
 				best_ep = ep;
 			}

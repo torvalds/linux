@@ -95,9 +95,7 @@ static int r8a66597_clock_enable(struct r8a66597 *r8a66597)
 	int i = 0;
 
 	if (r8a66597->pdata->on_chip) {
-#ifdef CONFIG_HAVE_CLK
 		clk_enable(r8a66597->clk);
-#endif
 		do {
 			r8a66597_write(r8a66597, SCKE, SYSCFG0);
 			tmp = r8a66597_read(r8a66597, SYSCFG0);
@@ -141,9 +139,7 @@ static void r8a66597_clock_disable(struct r8a66597 *r8a66597)
 	udelay(1);
 
 	if (r8a66597->pdata->on_chip) {
-#ifdef CONFIG_HAVE_CLK
 		clk_disable(r8a66597->clk);
-#endif
 	} else {
 		r8a66597_bclr(r8a66597, PLLC, SYSCFG0);
 		r8a66597_bclr(r8a66597, XCKE, SYSCFG0);
@@ -2406,19 +2402,15 @@ static int __devexit r8a66597_remove(struct platform_device *pdev)
 	del_timer_sync(&r8a66597->rh_timer);
 	usb_remove_hcd(hcd);
 	iounmap(r8a66597->reg);
-#ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip)
 		clk_put(r8a66597->clk);
-#endif
 	usb_put_hcd(hcd);
 	return 0;
 }
 
 static int __devinit r8a66597_probe(struct platform_device *pdev)
 {
-#ifdef CONFIG_HAVE_CLK
 	char clk_name[8];
-#endif
 	struct resource *res = NULL, *ires;
 	int irq = -1;
 	void __iomem *reg = NULL;
@@ -2482,7 +2474,6 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	r8a66597->irq_sense_low = irq_trigger == IRQF_TRIGGER_LOW;
 
 	if (r8a66597->pdata->on_chip) {
-#ifdef CONFIG_HAVE_CLK
 		snprintf(clk_name, sizeof(clk_name), "usb%d", pdev->id);
 		r8a66597->clk = clk_get(&pdev->dev, clk_name);
 		if (IS_ERR(r8a66597->clk)) {
@@ -2491,7 +2482,6 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 			ret = PTR_ERR(r8a66597->clk);
 			goto clean_up2;
 		}
-#endif
 		r8a66597->max_root_hub = 1;
 	} else
 		r8a66597->max_root_hub = 2;
@@ -2531,11 +2521,9 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	return 0;
 
 clean_up3:
-#ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip)
 		clk_put(r8a66597->clk);
 clean_up2:
-#endif
 	usb_put_hcd(hcd);
 
 clean_up:

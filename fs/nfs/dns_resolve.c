@@ -8,6 +8,7 @@
 
 #ifdef CONFIG_NFS_USE_KERNEL_DNS
 
+#include <linux/module.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/dns_resolver.h>
 #include "dns_resolve.h"
@@ -27,9 +28,11 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name, size_t namelen,
 	kfree(ip_addr);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nfs_dns_resolve_name);
 
 #else
 
+#include <linux/module.h>
 #include <linux/hash.h>
 #include <linux/string.h>
 #include <linux/kmod.h>
@@ -345,6 +348,7 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name,
 		ret = -ESRCH;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nfs_dns_resolve_name);
 
 int nfs_dns_resolver_cache_init(struct net *net)
 {

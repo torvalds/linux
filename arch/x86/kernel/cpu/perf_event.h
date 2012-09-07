@@ -374,7 +374,7 @@ struct x86_pmu {
 	/*
 	 * Intel DebugStore bits
 	 */
-	int		bts		:1,
+	unsigned int	bts		:1,
 			bts_active	:1,
 			pebs		:1,
 			pebs_active	:1,

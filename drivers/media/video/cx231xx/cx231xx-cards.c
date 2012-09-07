@@ -1023,7 +1023,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	int nr = 0, ifnum;
 	int i, isoc_pipe = 0;
 	char *speed;
-	char descr[255] = "";
 	struct usb_interface_assoc_descriptor *assoc_desc;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
@@ -1098,20 +1097,10 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		speed = "unknown";
 	}
 
-	if (udev->manufacturer)
-		strlcpy(descr, udev->manufacturer, sizeof(descr));
-
-	if (udev->product) {
-		if (*descr)
-			strlcat(descr, " ", sizeof(descr));
-		strlcat(descr, udev->product, sizeof(descr));
-	}
-	if (*descr)
-		strlcat(descr, " ", sizeof(descr));
-
-	cx231xx_info("New device %s@ %s Mbps "
+	cx231xx_info("New device %s %s @ %s Mbps "
 	     "(%04x:%04x) with %d interfaces\n",
-	     descr,
+	     udev->manufacturer ? udev->manufacturer : "",
+	     udev->product ? udev->product : "",
 	     speed,
 	     le16_to_cpu(udev->descriptor.idVendor),
 	     le16_to_cpu(udev->descriptor.idProduct),

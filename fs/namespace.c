@@ -283,24 +283,22 @@ static int mnt_is_readonly(struct vfsmount *mnt)
 }
 
 /*
- * Most r/o checks on a fs are for operations that take
- * discrete amounts of time, like a write() or unlink().
- * We must keep track of when those operations start
- * (for permission checks) and when they end, so that
- * we can determine when writes are able to occur to
- * a filesystem.
+ * Most r/o & frozen checks on a fs are for operations that take discrete
+ * amounts of time, like a write() or unlink().  We must keep track of when
+ * those operations start (for permission checks) and when they end, so that we
+ * can determine when writes are able to occur to a filesystem.
  */
 /**
- * mnt_want_write - get write access to a mount
+ * __mnt_want_write - get write access to a mount without freeze protection
  * @m: the mount on which to take a write
  *
- * This tells the low-level filesystem that a write is
- * about to be performed to it, and makes sure that
- * writes are allowed before returning success.  When
- * the write operation is finished, mnt_drop_write()
- * must be called.  This is effectively a refcount.
+ * This tells the low-level filesystem that a write is about to be performed to
+ * it, and makes sure that writes are allowed (mnt it read-write) before
+ * returning success. This operation does not protect against filesystem being
+ * frozen. When the write operation is finished, __mnt_drop_write() must be
+ * called. This is effectively a refcount.
  */
-int mnt_want_write(struct vfsmount *m)
+int __mnt_want_write(struct vfsmount *m)
 {
 	struct mount *mnt = real_mount(m);
 	int ret = 0;
@@ -326,6 +324,27 @@ int mnt_want_write(struct vfsmount *m)
 		ret = -EROFS;
 	}
 	preempt_enable();
+
+	return ret;
+}
+
+/**
+ * mnt_want_write - get write access to a mount
+ * @m: the mount on which to take a write
+ *
+ * This tells the low-level filesystem that a write is about to be performed to
+ * it, and makes sure that writes are allowed (mount is read-write, filesystem
+ * is not frozen) before returning success.  When the write operation is
+ * finished, mnt_drop_write() must be called.  This is effectively a refcount.
+ */
+int mnt_want_write(struct vfsmount *m)
+{
+	int ret;
+
+	sb_start_write(m->mnt_sb);
+	ret = __mnt_want_write(m);
+	if (ret)
+		sb_end_write(m->mnt_sb);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mnt_want_write);
@@ -355,6 +374,23 @@ int mnt_clone_write(struct vfsmount *mnt)
 EXPORT_SYMBOL_GPL(mnt_clone_write);
 
 /**
+ * __mnt_want_write_file - get write access to a file's mount
+ * @file: the file who's mount on which to take a write
+ *
+ * This is like __mnt_want_write, but it takes a file and can
+ * do some optimisations if the file is open for write already
+ */
+int __mnt_want_write_file(struct file *file)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+
+	if (!(file->f_mode & FMODE_WRITE) || special_file(inode->i_mode))
+		return __mnt_want_write(file->f_path.mnt);
+	else
+		return mnt_clone_write(file->f_path.mnt);
+}
+
+/**
  * mnt_want_write_file - get write access to a file's mount
  * @file: the file who's mount on which to take a write
  *
@@ -363,29 +399,50 @@ EXPORT_SYMBOL_GPL(mnt_clone_write);
  */
 int mnt_want_write_file(struct file *file)
 {
-	struct inode *inode = file->f_dentry->d_inode;
-	if (!(file->f_mode & FMODE_WRITE) || special_file(inode->i_mode))
-		return mnt_want_write(file->f_path.mnt);
-	else
-		return mnt_clone_write(file->f_path.mnt);
+	int ret;
+
+	sb_start_write(file->f_path.mnt->mnt_sb);
+	ret = __mnt_want_write_file(file);
+	if (ret)
+		sb_end_write(file->f_path.mnt->mnt_sb);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mnt_want_write_file);
 
 /**
- * mnt_drop_write - give up write access to a mount
+ * __mnt_drop_write - give up write access to a mount
  * @mnt: the mount on which to give up write access
  *
  * Tells the low-level filesystem that we are done
  * performing writes to it.  Must be matched with
- * mnt_want_write() call above.
+ * __mnt_want_write() call above.
  */
-void mnt_drop_write(struct vfsmount *mnt)
+void __mnt_drop_write(struct vfsmount *mnt)
 {
 	preempt_disable();
 	mnt_dec_writers(real_mount(mnt));
 	preempt_enable();
 }
+
+/**
+ * mnt_drop_write - give up write access to a mount
+ * @mnt: the mount on which to give up write access
+ *
+ * Tells the low-level filesystem that we are done performing writes to it and
+ * also allows filesystem to be frozen again.  Must be matched with
+ * mnt_want_write() call above.
+ */
+void mnt_drop_write(struct vfsmount *mnt)
+{
+	__mnt_drop_write(mnt);
+	sb_end_write(mnt->mnt_sb);
+}
 EXPORT_SYMBOL_GPL(mnt_drop_write);
+
+void __mnt_drop_write_file(struct file *file)
+{
+	__mnt_drop_write(file->f_path.mnt);
+}
 
 void mnt_drop_write_file(struct file *file)
 {

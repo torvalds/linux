@@ -21,6 +21,9 @@
 #include <asm/mach-jz4740/base.h>
 #include <asm/mach-jz4740/timer.h>
 
+#include "reset.h"
+#include "clock.h"
+
 static void jz4740_halt(void)
 {
 	while (1) {
@@ -53,21 +56,57 @@ static void jz4740_restart(char *command)
 	jz4740_halt();
 }
 
-#define JZ_REG_RTC_CTRL		0x00
-#define JZ_REG_RTC_HIBERNATE	0x20
+#define JZ_REG_RTC_CTRL			0x00
+#define JZ_REG_RTC_HIBERNATE		0x20
+#define JZ_REG_RTC_WAKEUP_FILTER	0x24
+#define JZ_REG_RTC_RESET_COUNTER	0x28
 
-#define JZ_RTC_CTRL_WRDY	BIT(7)
+#define JZ_RTC_CTRL_WRDY		BIT(7)
+#define JZ_RTC_WAKEUP_FILTER_MASK	0x0000FFE0
+#define JZ_RTC_RESET_COUNTER_MASK	0x00000FE0
 
-static void jz4740_power_off(void)
+static inline void jz4740_rtc_wait_ready(void __iomem *rtc_base)
 {
-	void __iomem *rtc_base = ioremap(JZ4740_RTC_BASE_ADDR, 0x24);
 	uint32_t ctrl;
 
 	do {
 		ctrl = readl(rtc_base + JZ_REG_RTC_CTRL);
 	} while (!(ctrl & JZ_RTC_CTRL_WRDY));
+}
 
+static void jz4740_power_off(void)
+{
+	void __iomem *rtc_base = ioremap(JZ4740_RTC_BASE_ADDR, 0x38);
+	unsigned long wakeup_filter_ticks;
+	unsigned long reset_counter_ticks;
+
+	/*
+	 * Set minimum wakeup pin assertion time: 100 ms.
+	 * Range is 0 to 2 sec if RTC is clocked at 32 kHz.
+	 */
+	wakeup_filter_ticks = (100 * jz4740_clock_bdata.rtc_rate) / 1000;
+	if (wakeup_filter_ticks < JZ_RTC_WAKEUP_FILTER_MASK)
+		wakeup_filter_ticks &= JZ_RTC_WAKEUP_FILTER_MASK;
+	else
+		wakeup_filter_ticks = JZ_RTC_WAKEUP_FILTER_MASK;
+	jz4740_rtc_wait_ready(rtc_base);
+	writel(wakeup_filter_ticks, rtc_base + JZ_REG_RTC_WAKEUP_FILTER);
+
+	/*
+	 * Set reset pin low-level assertion time after wakeup: 60 ms.
+	 * Range is 0 to 125 ms if RTC is clocked at 32 kHz.
+	 */
+	reset_counter_ticks = (60 * jz4740_clock_bdata.rtc_rate) / 1000;
+	if (reset_counter_ticks < JZ_RTC_RESET_COUNTER_MASK)
+		reset_counter_ticks &= JZ_RTC_RESET_COUNTER_MASK;
+	else
+		reset_counter_ticks = JZ_RTC_RESET_COUNTER_MASK;
+	jz4740_rtc_wait_ready(rtc_base);
+	writel(reset_counter_ticks, rtc_base + JZ_REG_RTC_RESET_COUNTER);
+
+	jz4740_rtc_wait_ready(rtc_base);
 	writel(1, rtc_base + JZ_REG_RTC_HIBERNATE);
+
 	jz4740_halt();
 }
 

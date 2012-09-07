@@ -299,7 +299,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 	if (local->scan_req != local->int_scan_req)
 		cfg80211_scan_done(local->scan_req, aborted);
 	local->scan_req = NULL;
-	local->scan_sdata = NULL;
+	rcu_assign_pointer(local->scan_sdata, NULL);
 
 	local->scanning = 0;
 	local->scan_channel = NULL;
@@ -984,7 +984,6 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_sub_if_data *sdata)
 			kfree(local->sched_scan_ies.ie[i]);
 
 		drv_sched_scan_stop(local, sdata);
-		rcu_assign_pointer(local->sched_scan_sdata, NULL);
 	}
 out:
 	mutex_unlock(&local->mtx);

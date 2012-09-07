@@ -1583,7 +1583,7 @@ static struct kset *vmcmd_kset;
 
 static void vmcmd_run(struct shutdown_trigger *trigger)
 {
-	char *cmd, *next_cmd;
+	char *cmd;
 
 	if (strcmp(trigger->name, ON_REIPL_STR) == 0)
 		cmd = vmcmd_on_reboot;
@@ -1600,15 +1600,7 @@ static void vmcmd_run(struct shutdown_trigger *trigger)
 
 	if (strlen(cmd) == 0)
 		return;
-	do {
-		next_cmd = strchr(cmd, '\n');
-		if (next_cmd) {
-			next_cmd[0] = 0;
-			next_cmd += 1;
-		}
-		__cpcmd(cmd, NULL, 0, NULL);
-		cmd = next_cmd;
-	} while (cmd != NULL);
+	__cpcmd(cmd, NULL, 0, NULL);
 }
 
 static int vmcmd_init(void)

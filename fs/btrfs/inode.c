@@ -6629,6 +6629,7 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	u64 page_start;
 	u64 page_end;
 
+	sb_start_pagefault(inode->i_sb);
 	ret  = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
 	if (!ret) {
 		ret = file_update_time(vma->vm_file);
@@ -6718,12 +6719,15 @@ again:
 	unlock_extent_cached(io_tree, page_start, page_end, &cached_state, GFP_NOFS);
 
 out_unlock:
-	if (!ret)
+	if (!ret) {
+		sb_end_pagefault(inode->i_sb);
 		return VM_FAULT_LOCKED;
+	}
 	unlock_page(page);
 out:
 	btrfs_delalloc_release_space(inode, PAGE_CACHE_SIZE);
 out_noreserve:
+	sb_end_pagefault(inode->i_sb);
 	return ret;
 }
 

@@ -63,7 +63,6 @@ struct hdmi_context {
 	bool				dvi_mode;
 	struct mutex			hdmi_mutex;
 
-	struct resource			*regs_res;
 	void __iomem			*regs;
 	unsigned int			external_irq;
 	unsigned int			internal_irq;
@@ -2280,16 +2279,17 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	drm_hdmi_ctx = kzalloc(sizeof(*drm_hdmi_ctx), GFP_KERNEL);
+	drm_hdmi_ctx = devm_kzalloc(&pdev->dev, sizeof(*drm_hdmi_ctx),
+								GFP_KERNEL);
 	if (!drm_hdmi_ctx) {
 		DRM_ERROR("failed to allocate common hdmi context.\n");
 		return -ENOMEM;
 	}
 
-	hdata = kzalloc(sizeof(struct hdmi_context), GFP_KERNEL);
+	hdata = devm_kzalloc(&pdev->dev, sizeof(struct hdmi_context),
+								GFP_KERNEL);
 	if (!hdata) {
 		DRM_ERROR("out of memory\n");
-		kfree(drm_hdmi_ctx);
 		return -ENOMEM;
 	}
 
@@ -2318,26 +2318,18 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		goto err_resource;
 	}
 
-	hdata->regs_res = request_mem_region(res->start, resource_size(res),
-					   dev_name(dev));
-	if (!hdata->regs_res) {
-		DRM_ERROR("failed to claim register region\n");
-		ret = -ENOENT;
-		goto err_resource;
-	}
-
-	hdata->regs = ioremap(res->start, resource_size(res));
+	hdata->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!hdata->regs) {
 		DRM_ERROR("failed to map registers\n");
 		ret = -ENXIO;
-		goto err_req_region;
+		goto err_resource;
 	}
 
 	/* DDC i2c driver */
 	if (i2c_add_driver(&ddc_driver)) {
 		DRM_ERROR("failed to register ddc i2c driver\n");
 		ret = -ENOENT;
-		goto err_iomap;
+		goto err_resource;
 	}
 
 	hdata->ddc_port = hdmi_ddc;
@@ -2398,16 +2390,9 @@ err_hdmiphy:
 	i2c_del_driver(&hdmiphy_driver);
 err_ddc:
 	i2c_del_driver(&ddc_driver);
-err_iomap:
-	iounmap(hdata->regs);
-err_req_region:
-	release_mem_region(hdata->regs_res->start,
-			resource_size(hdata->regs_res));
 err_resource:
 	hdmi_resources_cleanup(hdata);
 err_data:
-	kfree(hdata);
-	kfree(drm_hdmi_ctx);
 	return ret;
 }
 
@@ -2425,17 +2410,10 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 
 	hdmi_resources_cleanup(hdata);
 
-	iounmap(hdata->regs);
-
-	release_mem_region(hdata->regs_res->start,
-			resource_size(hdata->regs_res));
-
 	/* hdmiphy i2c driver */
 	i2c_del_driver(&hdmiphy_driver);
 	/* DDC i2c driver */
 	i2c_del_driver(&ddc_driver);
-
-	kfree(hdata);
 
 	return 0;
 }

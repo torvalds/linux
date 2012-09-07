@@ -173,14 +173,12 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 	filp = filp_open(img_name, O_RDONLY | O_LARGEFILE, 0);
 	if (IS_ERR(filp)) {
 		printk(KERN_ERR "Can't find %s.\n", img_name);
-		set_fs(fs);
 		ret = PTR_ERR(filp);
 		goto restore_fs;
 	}
 
-	if (filp->f_dentry)
-		inode = filp->f_dentry->d_inode;
-	if (!inode || !S_ISREG(inode->i_mode)) {
+	inode = filp->f_dentry->d_inode;
+	if (!S_ISREG(inode->i_mode)) {
 		printk(KERN_ERR "Invalid file type: %s\n", img_name);
 		ret = -EINVAL;
 		goto out;
@@ -262,7 +260,7 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 		ret = -EINVAL;
 	}
 out:
-	filp_close(filp, current->files);
+	filp_close(filp, NULL);
 
 restore_fs:
 	set_fs(fs);
@@ -322,13 +320,11 @@ static int em_download_image(struct usb_device *usbdev, char *path,
 		goto restore_fs;
 	}
 
-	if (filp->f_dentry) {
-		inode = filp->f_dentry->d_inode;
-		if (!inode || !S_ISREG(inode->i_mode)) {
-			printk(KERN_ERR "Invalid file type: %s\n", path);
-			ret = -EINVAL;
-			goto out;
-		}
+	inode = filp->f_dentry->d_inode;
+	if (!S_ISREG(inode->i_mode)) {
+		printk(KERN_ERR "Invalid file type: %s\n", path);
+		ret = -EINVAL;
+		goto out;
 	}
 
 	buf = kmalloc(DOWNLOAD_CHUCK + pad_size, GFP_KERNEL);
@@ -364,7 +360,7 @@ static int em_download_image(struct usb_device *usbdev, char *path,
 		goto out;
 
 out:
-	filp_close(filp, current->files);
+	filp_close(filp, NULL);
 
 restore_fs:
 	set_fs(fs);

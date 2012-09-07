@@ -64,7 +64,7 @@ static inline int ds2781_battery_io(struct ds2781_device_info *dev_info,
 	return w1_ds2781_io(dev_info->w1_dev, buf, addr, count, io);
 }
 
-int w1_ds2781_read(struct ds2781_device_info *dev_info, char *buf,
+static int w1_ds2781_read(struct ds2781_device_info *dev_info, char *buf,
 		int addr, size_t count)
 {
 	return ds2781_battery_io(dev_info, buf, addr, count, 0);

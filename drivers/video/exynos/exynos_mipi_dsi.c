@@ -154,7 +154,7 @@ static int exynos_mipi_dsi_blank_mode(struct mipi_dsim_device *dsim, int power)
 		if (client_drv && client_drv->power_on)
 			client_drv->power_on(client_dev, 1);
 
-		exynos_mipi_regulator_disable(dsim);
+		exynos_mipi_regulator_enable(dsim);
 
 		/* enable MIPI-DSI PHY. */
 		if (dsim->pd->phy_enable)

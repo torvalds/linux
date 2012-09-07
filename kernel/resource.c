@@ -7,6 +7,8 @@
  * Arbitrary resource management.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
@@ -791,8 +793,28 @@ void __init reserve_region_with_split(struct resource *root,
 		resource_size_t start, resource_size_t end,
 		const char *name)
 {
+	int abort = 0;
+
 	write_lock(&resource_lock);
-	__reserve_region_with_split(root, start, end, name);
+	if (root->start > start || root->end < end) {
+		pr_err("requested range [0x%llx-0x%llx] not in root %pr\n",
+		       (unsigned long long)start, (unsigned long long)end,
+		       root);
+		if (start > root->end || end < root->start)
+			abort = 1;
+		else {
+			if (end > root->end)
+				end = root->end;
+			if (start < root->start)
+				start = root->start;
+			pr_err("fixing request to [0x%llx-0x%llx]\n",
+			       (unsigned long long)start,
+			       (unsigned long long)end);
+		}
+		dump_stack();
+	}
+	if (!abort)
+		__reserve_region_with_split(root, start, end, name);
 	write_unlock(&resource_lock);
 }
 

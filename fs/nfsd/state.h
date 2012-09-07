@@ -450,8 +450,10 @@ static inline struct nfs4_ol_stateid *openlockstateid(struct nfs4_stid *s)
 #define WR_STATE	        0x00000020
 
 struct nfsd4_compound_state;
+struct nfsd_net;
 
-extern __be32 nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
+extern __be32 nfs4_preprocess_stateid_op(struct net *net,
+		struct nfsd4_compound_state *cstate,
 		stateid_t *stateid, int flags, struct file **filp);
 extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);
@@ -475,7 +477,6 @@ extern __be32 nfs4_make_rec_clidname(char *clidname, struct xdr_netobj *clname);
 extern int nfs4_client_to_reclaim(const char *name);
 extern int nfs4_has_reclaimed_state(const char *name, bool use_exchange_id);
 extern void release_session_client(struct nfsd4_session *);
-extern __be32 nfs4_validate_stateid(struct nfs4_client *, stateid_t *);
 extern void nfsd4_purge_closed_stateid(struct nfs4_stateowner *);
 
 /* nfs4recover operations */

@@ -919,7 +919,7 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 	 * own time */
 	path.mnt = cache->mnt;
 	path.dentry = object->backer;
-	file = dentry_open(&path, O_RDWR, cache->cache_cred);
+	file = dentry_open(&path, O_RDWR | O_LARGEFILE, cache->cache_cred);
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
 	} else {

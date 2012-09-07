@@ -154,6 +154,7 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
 	struct msghdr msg;
 	struct kvec iov;
 	sigset_t blocked, oldset;
+	unsigned long pflags = current->flags;
 
 	if (unlikely(!sock)) {
 		dev_err(disk_to_dev(nbd->disk),
@@ -167,8 +168,9 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
 	siginitsetinv(&blocked, sigmask(SIGKILL));
 	sigprocmask(SIG_SETMASK, &blocked, &oldset);
 
+	current->flags |= PF_MEMALLOC;
 	do {
-		sock->sk->sk_allocation = GFP_NOIO;
+		sock->sk->sk_allocation = GFP_NOIO | __GFP_MEMALLOC;
 		iov.iov_base = buf;
 		iov.iov_len = size;
 		msg.msg_name = NULL;
@@ -214,6 +216,7 @@ static int sock_xmit(struct nbd_device *nbd, int send, void *buf, int size,
 	} while (size > 0);
 
 	sigprocmask(SIG_SETMASK, &oldset, NULL);
+	tsk_restore_flags(current, pflags, PF_MEMALLOC);
 
 	return result;
 }
@@ -405,6 +408,7 @@ static int nbd_do_it(struct nbd_device *nbd)
 
 	BUG_ON(nbd->magic != NBD_MAGIC);
 
+	sk_set_memalloc(nbd->sock->sk);
 	nbd->pid = task_pid_nr(current);
 	ret = device_create_file(disk_to_dev(nbd->disk), &pid_attr);
 	if (ret) {
@@ -481,7 +485,7 @@ static void nbd_handle_req(struct nbd_device *nbd, struct request *req)
 		nbd_end_request(req);
 	} else {
 		spin_lock(&nbd->queue_lock);
-		list_add(&req->queuelist, &nbd->queue_head);
+		list_add_tail(&req->queuelist, &nbd->queue_head);
 		spin_unlock(&nbd->queue_lock);
 	}
 

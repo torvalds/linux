@@ -272,7 +272,7 @@ config REGULATOR_S2MPS11
 
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"
-	depends on MFD_S5M_CORE
+	depends on MFD_SEC_CORE
 	help
 	 This driver supports a Samsung S5M8767A voltage output regulator
 	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and

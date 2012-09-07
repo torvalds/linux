@@ -285,7 +285,7 @@ xfs_iomap_eof_want_preallocate(
 	 * do any speculative allocation.
 	 */
 	start_fsb = XFS_B_TO_FSBT(mp, ((xfs_ufsize_t)(offset + count - 1)));
-	count_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
+	count_fsb = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	while (count_fsb > 0) {
 		imaps = nimaps;
 		firstblock = NULLFSBLOCK;
@@ -416,8 +416,8 @@ retry:
 	 * Make sure preallocation does not create extents beyond the range we
 	 * actually support in this filesystem.
 	 */
-	if (last_fsb > XFS_B_TO_FSB(mp, mp->m_maxioffset))
-		last_fsb = XFS_B_TO_FSB(mp, mp->m_maxioffset);
+	if (last_fsb > XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes))
+		last_fsb = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 
 	ASSERT(last_fsb > offset_fsb);
 
@@ -680,9 +680,9 @@ xfs_iomap_write_unwritten(
 		 * the same inode that we complete here and might deadlock
 		 * on the iolock.
 		 */
-		xfs_wait_for_freeze(mp, SB_FREEZE_TRANS);
+		sb_start_intwrite(mp->m_super);
 		tp = _xfs_trans_alloc(mp, XFS_TRANS_STRAT_WRITE, KM_NOFS);
-		tp->t_flags |= XFS_TRANS_RESERVE;
+		tp->t_flags |= XFS_TRANS_RESERVE | XFS_TRANS_FREEZE_PROT;
 		error = xfs_trans_reserve(tp, resblks,
 				XFS_WRITE_LOG_RES(mp), 0,
 				XFS_TRANS_PERM_LOG_RES,

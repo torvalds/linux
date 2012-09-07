@@ -2057,9 +2057,7 @@ ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf)
 void
 ath5k_beacon_config(struct ath5k_hw *ah)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ah->block, flags);
+	spin_lock_bh(&ah->block);
 	ah->bmisscount = 0;
 	ah->imask &= ~(AR5K_INT_BMISS | AR5K_INT_SWBA);
 
@@ -2086,7 +2084,7 @@ ath5k_beacon_config(struct ath5k_hw *ah)
 
 	ath5k_hw_set_imr(ah, ah->imask);
 	mmiowb();
-	spin_unlock_irqrestore(&ah->block, flags);
+	spin_unlock_bh(&ah->block);
 }
 
 static void ath5k_tasklet_beacon(unsigned long data)

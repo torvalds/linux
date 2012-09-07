@@ -465,6 +465,9 @@ static void __clk_disable(struct clk *clk)
 	if (!clk)
 		return;
 
+	if (WARN_ON(IS_ERR(clk)))
+		return;
+
 	if (WARN_ON(clk->enable_count == 0))
 		return;
 

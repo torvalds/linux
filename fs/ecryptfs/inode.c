@@ -318,21 +318,20 @@ static int ecryptfs_lookup_interpose(struct dentry *dentry,
 	struct vfsmount *lower_mnt;
 	int rc = 0;
 
-	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(dentry->d_parent));
-	fsstack_copy_attr_atime(dir_inode, lower_dentry->d_parent->d_inode);
-	BUG_ON(!lower_dentry->d_count);
-
 	dentry_info = kmem_cache_alloc(ecryptfs_dentry_info_cache, GFP_KERNEL);
-	ecryptfs_set_dentry_private(dentry, dentry_info);
 	if (!dentry_info) {
 		printk(KERN_ERR "%s: Out of memory whilst attempting "
 		       "to allocate ecryptfs_dentry_info struct\n",
 			__func__);
 		dput(lower_dentry);
-		mntput(lower_mnt);
-		d_drop(dentry);
 		return -ENOMEM;
 	}
+
+	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(dentry->d_parent));
+	fsstack_copy_attr_atime(dir_inode, lower_dentry->d_parent->d_inode);
+	BUG_ON(!lower_dentry->d_count);
+
+	ecryptfs_set_dentry_private(dentry, dentry_info);
 	ecryptfs_set_dentry_lower(dentry, lower_dentry);
 	ecryptfs_set_dentry_lower_mnt(dentry, lower_mnt);
 
@@ -381,12 +380,6 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	struct dentry *lower_dir_dentry, *lower_dentry;
 	int rc = 0;
 
-	if ((ecryptfs_dentry->d_name.len == 1
-	     && !strcmp(ecryptfs_dentry->d_name.name, "."))
-	    || (ecryptfs_dentry->d_name.len == 2
-		&& !strcmp(ecryptfs_dentry->d_name.name, ".."))) {
-		goto out_d_drop;
-	}
 	lower_dir_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry->d_parent);
 	mutex_lock(&lower_dir_dentry->d_inode->i_mutex);
 	lower_dentry = lookup_one_len(ecryptfs_dentry->d_name.name,
@@ -397,8 +390,8 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		rc = PTR_ERR(lower_dentry);
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
 				"[%d] on lower_dentry = [%s]\n", __func__, rc,
-				encrypted_and_encoded_name);
-		goto out_d_drop;
+				ecryptfs_dentry->d_name.name);
+		goto out;
 	}
 	if (lower_dentry->d_inode)
 		goto interpose;
@@ -415,7 +408,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to encrypt and encode "
 		       "filename; rc = [%d]\n", __func__, rc);
-		goto out_d_drop;
+		goto out;
 	}
 	mutex_lock(&lower_dir_dentry->d_inode->i_mutex);
 	lower_dentry = lookup_one_len(encrypted_and_encoded_name,
@@ -427,14 +420,11 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
 				"[%d] on lower_dentry = [%s]\n", __func__, rc,
 				encrypted_and_encoded_name);
-		goto out_d_drop;
+		goto out;
 	}
 interpose:
 	rc = ecryptfs_lookup_interpose(ecryptfs_dentry, lower_dentry,
 				       ecryptfs_dir_inode);
-	goto out;
-out_d_drop:
-	d_drop(ecryptfs_dentry);
 out:
 	kfree(encrypted_and_encoded_name);
 	return ERR_PTR(rc);

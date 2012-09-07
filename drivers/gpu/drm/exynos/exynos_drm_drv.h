@@ -59,12 +59,14 @@ enum exynos_drm_output_type {
  *
  * @mode_set: copy drm overlay info to hw specific overlay info.
  * @commit: apply hardware specific overlay data to registers.
+ * @enable: enable hardware specific overlay.
  * @disable: disable hardware specific overlay.
  */
 struct exynos_drm_overlay_ops {
 	void (*mode_set)(struct device *subdrv_dev,
 			 struct exynos_drm_overlay *overlay);
 	void (*commit)(struct device *subdrv_dev, int zpos);
+	void (*enable)(struct device *subdrv_dev, int zpos);
 	void (*disable)(struct device *subdrv_dev, int zpos);
 };
 
@@ -235,6 +237,8 @@ struct exynos_drm_private {
 	 * this array is used to be aware of which crtc did it request vblank.
 	 */
 	struct drm_crtc *crtc[MAX_CRTC];
+	struct drm_property *plane_zpos_property;
+	struct drm_property *crtc_mode_property;
 };
 
 /*

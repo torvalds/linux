@@ -7,6 +7,7 @@ menu "Multifunction device drivers"
 
 config MFD_CORE
 	tristate
+	select IRQ_DOMAIN
 	default n
 
 config MFD_88PM860X
@@ -19,6 +20,30 @@ config MFD_88PM860X
 	  This includes the I2C driver and the core APIs _only_, you have to
 	  select individual components like voltage regulators, RTC and
 	  battery-charger under the corresponding menus.
+
+config MFD_88PM800
+	tristate "Support Marvell 88PM800"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  This supports for Marvell 88PM800 Power Management IC.
+	  This includes the I2C driver and the core APIs _only_, you have to
+	  select individual components like voltage regulators, RTC and
+	  battery-charger under the corresponding menus.
+
+config MFD_88PM805
+	tristate "Support Marvell 88PM805"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  This supports for Marvell 88PM805 Power Management IC. This includes
+	  the I2C driver and the core APIs _only_, you have to select individual
+	  components like codec device, headset/Mic device under the
+	  corresponding menus.
 
 config MFD_SM501
 	tristate "Support for Silicon Motion SM501"
@@ -173,8 +198,9 @@ config MFD_TPS65217
 
 config MFD_TPS6586X
 	bool "TPS6586x Power Management chips"
-	depends on I2C=y && GPIOLIB && GENERIC_HARDIRQS
+	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
+	select REGMAP_I2C
 	depends on REGULATOR
 	help
 	  If you say yes here you get support for the TPS6586X series of
@@ -276,6 +302,7 @@ config TWL6030_PWM
 	tristate "TWL6030 PWM (Pulse Width Modulator) Support"
 	depends on TWL4030_CORE
 	select HAVE_PWM
+	depends on !PWM
 	default n
 	help
 	  Say yes here if you want support for TWL6030 PWM.
@@ -423,6 +450,19 @@ config PMIC_ADP5520
 	  individual components like LCD backlight, LEDs, GPIOs and Kepad
 	  under the corresponding menus.
 
+config MFD_MAX77686
+	bool "Maxim Semiconductor MAX77686 PMIC Support"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	select REGMAP_I2C
+	select IRQ_DOMAIN
+	help
+	  Say yes here to support for Maxim Semiconductor MAX77686.
+	  This is a Power Management IC with RTC on chip.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
 config MFD_MAX77693
 	bool "Maxim Semiconductor MAX77693 PMIC Support"
 	depends on I2C=y && GENERIC_HARDIRQS
@@ -450,6 +490,7 @@ config MFD_MAX8997
 	bool "Maxim Semiconductor MAX8997/8966 PMIC Support"
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
+	select IRQ_DOMAIN
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8997/8966.
 	  This is a Power Management IC with RTC, Flash, Fuel Gauge, Haptic,
@@ -469,16 +510,55 @@ config MFD_MAX8998
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
-config MFD_S5M_CORE
-	bool "SAMSUNG S5M Series Support"
+config MFD_SEC_CORE
+	bool "SAMSUNG Electronics PMIC Series Support"
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	select REGMAP_I2C
+	select REGMAP_IRQ
 	help
-	 Support for the Samsung Electronics S5M MFD series.
+	 Support for the Samsung Electronics MFD series.
 	 This driver provides common support for accessing the device,
 	 additional drivers must be enabled in order to use the functionality
 	 of the device
+
+config MFD_ARIZONA
+	select REGMAP
+	select REGMAP_IRQ
+	select MFD_CORE
+	bool
+
+config MFD_ARIZONA_I2C
+	tristate "Support Wolfson Microelectronics Arizona platform with I2C"
+	select MFD_ARIZONA
+	select MFD_CORE
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Support for the Wolfson Microelectronics Arizona platform audio SoC
+	  core functionality controlled via I2C.
+
+config MFD_ARIZONA_SPI
+	tristate "Support Wolfson Microelectronics Arizona platform with SPI"
+	select MFD_ARIZONA
+	select MFD_CORE
+	select REGMAP_SPI
+	depends on SPI_MASTER
+	help
+	  Support for the Wolfson Microelectronics Arizona platform audio SoC
+	  core functionality controlled via I2C.
+
+config MFD_WM5102
+	bool "Support Wolfson Microelectronics WM5102"
+	depends on MFD_ARIZONA
+	help
+	  Support for Wolfson Microelectronics WM5102 low power audio SoC
+
+config MFD_WM5110
+	bool "Support Wolfson Microelectronics WM5110"
+	depends on MFD_ARIZONA
+	help
+	  Support for Wolfson Microelectronics WM5110 low power audio SoC
 
 config MFD_WM8400
 	bool "Support Wolfson Microelectronics WM8400"
@@ -697,22 +777,13 @@ config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
 	depends on GENERIC_HARDIRQS && ABX500_CORE && MFD_DB8500_PRCMU
 	select MFD_CORE
+	select IRQ_DOMAIN
 	help
 	  Select this option to enable access to AB8500 power management
 	  chip. This connects to U8500 either on the SSP/SPI bus (deprecated
 	  since hardware version v1.0) or the I2C bus via PRCMU. It also adds
 	  the irq_chip parts for handling the Mixed Signal chip events.
 	  This chip embeds various other multimedia funtionalities as well.
-
-config AB8500_I2C_CORE
-	bool "AB8500 register access via PRCMU I2C"
-	depends on AB8500_CORE && MFD_DB8500_PRCMU
-	default y
-	help
-	  This enables register access to the AB8500 chip via PRCMU I2C.
-	  The AB8500 chip can be accessed via SPI or I2C. On DB8500 hardware
-	  the I2C bus is connected to the Power Reset
-	  and Mangagement Unit, PRCMU.
 
 config AB8500_DEBUG
        bool "Enable debug info via debugfs"

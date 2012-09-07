@@ -656,6 +656,11 @@ struct qib_pportdata {
 	/* 16 congestion entries with each entry corresponding to a SL */
 	struct ib_cc_congestion_entry_shadow *congestion_entries;
 
+	/* Maximum number of congestion control entries that the agent expects
+	 * the manager to send.
+	 */
+	u16 cc_supported_table_entries;
+
 	/* Total number of congestion control table entries */
 	u16 total_cct_entry;
 
@@ -667,11 +672,6 @@ struct qib_pportdata {
 
 	/* CA's max number of 64 entry units in the congestion control table */
 	u8 cc_max_table_entries;
-
-	/* Maximum number of congestion control entries that the agent expects
-	 * the manager to send.
-	 */
-	u8 cc_supported_table_entries;
 };
 
 /* Observers. Not to be taken lightly, possibly not to ship. */

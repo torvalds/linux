@@ -547,16 +547,10 @@ static int __exit db8500_regulator_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id db8500_prcmu_regulator_match[] = {
-        { .compatible = "stericsson,db8500-prcmu-regulator", },
-        {}
-};
-
 static struct platform_driver db8500_regulator_driver = {
 	.driver = {
 		.name = "db8500-prcmu-regulators",
 		.owner = THIS_MODULE,
-		.of_match_table = db8500_prcmu_regulator_match,
 	},
 	.probe = db8500_regulator_probe,
 	.remove = __exit_p(db8500_regulator_remove),

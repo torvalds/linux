@@ -47,7 +47,7 @@ void nfs_mark_delegation_referenced(struct nfs_delegation *delegation)
  *
  * Returns one if inode has the indicated delegation, otherwise zero.
  */
-int nfs_have_delegation(struct inode *inode, fmode_t flags)
+int nfs4_have_delegation(struct inode *inode, fmode_t flags)
 {
 	struct nfs_delegation *delegation;
 	int ret = 0;
@@ -388,7 +388,7 @@ void nfs_inode_return_delegation_noreclaim(struct inode *inode)
  *
  * Returns zero on success, or a negative errno value.
  */
-int nfs_inode_return_delegation(struct inode *inode)
+int nfs4_inode_return_delegation(struct inode *inode)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_inode *nfsi = NFS_I(inode);
@@ -417,9 +417,8 @@ static void nfs_mark_return_delegation(struct nfs_server *server,
  * @sb: sb to process
  *
  */
-void nfs_super_return_all_delegations(struct super_block *sb)
+void nfs_server_return_all_delegations(struct nfs_server *server)
 {
-	struct nfs_server *server = NFS_SB(sb);
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs_delegation *delegation;
 

@@ -1789,15 +1789,16 @@ F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
 
 CEPH DISTRIBUTED FILE SYSTEM CLIENT
-M:	Sage Weil <sage@newdream.net>
+M:	Sage Weil <sage@inktank.com>
 L:	ceph-devel@vger.kernel.org
-W:	http://ceph.newdream.net/
+W:	http://ceph.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 S:	Supported
 F:	Documentation/filesystems/ceph.txt
 F:	fs/ceph
 F:	net/ceph
 F:	include/linux/ceph
+F:	include/linux/crush
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 L:	linux-usb@vger.kernel.org
@@ -2750,6 +2751,7 @@ M:	Jingoo Han <jg1.han@samsung.com>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/exynos/exynos_dp*
+F:	include/video/exynos_dp*
 
 EXYNOS MIPI DISPLAY DRIVERS
 M:	Inki Dae <inki.dae@samsung.com>
@@ -3155,8 +3157,7 @@ S:	Maintained
 F:	drivers/media/video/gspca/t613.c
 
 GSPCA USB WEBCAM DRIVER
-M:	Jean-Francois Moine <moinejf@free.fr>
-W:	http://moinejf.free.fr
+M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
 S:	Maintained
@@ -5526,6 +5527,18 @@ S:	Maintained
 F:	Documentation/video4linux/README.pvrusb2
 F:	drivers/media/video/pvrusb2/
 
+PWM SUBSYSTEM
+M:	Thierry Reding <thierry.reding@avionic-design.de>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+W:	http://gitorious.org/linux-pwm
+T:	git git://gitorious.org/linux-pwm/linux-pwm.git
+F:	Documentation/pwm.txt
+F:	Documentation/devicetree/bindings/pwm/
+F:	include/linux/pwm.h
+F:	include/linux/of_pwm.h
+F:	drivers/pwm/
+
 PXA2xx/PXA3xx SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
 M:	Russell King <linux@arm.linux.org.uk>
@@ -5627,10 +5640,12 @@ S:	Supported
 F:	arch/hexagon/
 
 RADOS BLOCK DEVICE (RBD)
-F:	include/linux/qnxtypes.h
-M:	Yehuda Sadeh <yehuda@hq.newdream.net>
-M:	Sage Weil <sage@newdream.net>
+M:	Yehuda Sadeh <yehuda@inktank.com>
+M:	Sage Weil <sage@inktank.com>
+M:	Alex Elder <elder@inktank.com>
 M:	ceph-devel@vger.kernel.org
+W:	http://ceph.com/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 S:	Supported
 F:	drivers/block/rbd.c
 F:	drivers/block/rbd_types.h
@@ -5667,7 +5682,7 @@ F:	Documentation/blockdev/ramdisk.txt
 F:	drivers/block/brd.c
 
 RANDOM NUMBER DRIVER
-M:	Matt Mackall <mpm@selenic.com>
+M:	Theodore Ts'o" <tytso@mit.edu>
 S:	Maintained
 F:	drivers/char/random.c
 
@@ -5899,6 +5914,16 @@ M:	Jingoo Han <jg1.han@samsung.com>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/s3c-fb.c
+
+SAMSUNG MULTIFUNCTION DEVICE DRIVERS
+M:	Sangbeom Kim <sbkim73@samsung.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	drivers/mfd/sec*.c
+F:	drivers/regulator/s2m*.c
+F:	drivers/regulator/s5m*.c
+F:	drivers/rtc/rtc-sec.c
+F:	include/linux/mfd/samsung/
 
 SERIAL DRIVERS
 M:	Alan Cox <alan@linux.intel.com>
@@ -7357,6 +7382,7 @@ W:	http://user-mode-linux.sourceforge.net
 S:	Maintained
 F:	Documentation/virtual/uml/
 F:	arch/um/
+F:	arch/x86/um/
 F:	fs/hostfs/
 F:	fs/hppfs/
 
@@ -7388,6 +7414,14 @@ M:	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 S:	Maintained
 F:	Documentation/filesystems/vfat.txt
 F:	fs/fat/
+
+VFIO DRIVER
+M:	Alex Williamson <alex.williamson@redhat.com>
+L:	kvm@vger.kernel.org
+S:	Maintained
+F:	Documentation/vfio.txt
+F:	drivers/vfio/
+F:	include/linux/vfio.h
 
 VIDEOBUF2 FRAMEWORK
 M:	Pawel Osciak <pawel@osciak.com>

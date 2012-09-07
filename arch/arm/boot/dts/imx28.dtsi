@@ -660,6 +660,7 @@
 				compatible = "fsl,imx28-i2c";
 				reg = <0x80058000 2000>;
 				interrupts = <111 68>;
+				clock-frequency = <100000>;
 				status = "disabled";
 			};
 
@@ -669,6 +670,7 @@
 				compatible = "fsl,imx28-i2c";
 				reg = <0x8005a000 2000>;
 				interrupts = <110 69>;
+				clock-frequency = <100000>;
 				status = "disabled";
 			};
 
