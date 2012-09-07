@@ -874,17 +874,17 @@ It is recommended that the lower 21 bits of guest_phys_addr and userspace_addr
 be identical.  This allows large pages in the guest to be backed by large
 pages in the host.
 
-The flags field supports two flag, KVM_MEM_LOG_DIRTY_PAGES, which
-instructs kvm to keep track of writes to memory within the slot.  See
-the KVM_GET_DIRTY_LOG ioctl. Another flag is KVM_MEM_READONLY when the
-KVM_CAP_READONLY_MEM capability, it indicates the guest memory is read-only,
-that means, guest is only allowed to read it. Writes will be posted to
-userspace as KVM_EXIT_MMIO exits.
+The flags field supports two flag, KVM_MEM_LOG_DIRTY_PAGES, which instructs
+kvm to keep track of writes to memory within the slot.  See KVM_GET_DIRTY_LOG
+ioctl.  The KVM_CAP_READONLY_MEM capability indicates the availability of the
+KVM_MEM_READONLY flag.  When this flag is set for a memory region, KVM only
+allows read accesses.  Writes will be posted to userspace as KVM_EXIT_MMIO
+exits.
 
-When the KVM_CAP_SYNC_MMU capability, changes in the backing of the memory
-region are automatically reflected into the guest.  For example, an mmap()
-that affects the region will be made visible immediately.  Another example
-is madvise(MADV_DROP).
+When the KVM_CAP_SYNC_MMU capability is available, changes in the backing of
+the memory region are automatically reflected into the guest.  For example, an
+mmap() that affects the region will be made visible immediately.  Another
+example is madvise(MADV_DROP).
 
 It is recommended to use this API instead of the KVM_SET_MEMORY_REGION ioctl.
 The KVM_SET_MEMORY_REGION does not allow fine grained control over memory
