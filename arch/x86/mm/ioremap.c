@@ -50,6 +50,107 @@ int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 	return err;
 }
 
+#ifdef CONFIG_X86_64
+static void ident_pte_range(unsigned long paddr, unsigned long vaddr,
+			    pmd_t *ppmd, pmd_t *vpmd, unsigned long end)
+{
+	pte_t *ppte = pte_offset_kernel(ppmd, paddr);
+	pte_t *vpte = pte_offset_kernel(vpmd, vaddr);
+
+	do {
+		set_pte(ppte, *vpte);
+	} while (ppte++, vpte++, vaddr += PAGE_SIZE, vaddr != end);
+}
+
+static int ident_pmd_range(unsigned long paddr, unsigned long vaddr,
+			    pud_t *ppud, pud_t *vpud, unsigned long end)
+{
+	pmd_t *ppmd = pmd_offset(ppud, paddr);
+	pmd_t *vpmd = pmd_offset(vpud, vaddr);
+	unsigned long next;
+
+	do {
+		next = pmd_addr_end(vaddr, end);
+
+		if (!pmd_present(*ppmd)) {
+			pte_t *ppte = (pte_t *)get_zeroed_page(GFP_KERNEL);
+			if (!ppte)
+				return 1;
+
+			set_pmd(ppmd, __pmd(_KERNPG_TABLE | __pa(ppte)));
+		}
+
+		ident_pte_range(paddr, vaddr, ppmd, vpmd, next);
+	} while (ppmd++, vpmd++, vaddr = next, vaddr != end);
+
+	return 0;
+}
+
+static int ident_pud_range(unsigned long paddr, unsigned long vaddr,
+			    pgd_t *ppgd, pgd_t *vpgd, unsigned long end)
+{
+	pud_t *ppud = pud_offset(ppgd, paddr);
+	pud_t *vpud = pud_offset(vpgd, vaddr);
+	unsigned long next;
+
+	do {
+		next = pud_addr_end(vaddr, end);
+
+		if (!pud_present(*ppud)) {
+			pmd_t *ppmd = (pmd_t *)get_zeroed_page(GFP_KERNEL);
+			if (!ppmd)
+				return 1;
+
+			set_pud(ppud, __pud(_KERNPG_TABLE | __pa(ppmd)));
+		}
+
+		if (ident_pmd_range(paddr, vaddr, ppud, vpud, next))
+			return 1;
+	} while (ppud++, vpud++, vaddr = next, vaddr != end);
+
+	return 0;
+}
+
+static int insert_identity_mapping(resource_size_t paddr, unsigned long vaddr,
+				    unsigned long size)
+{
+	unsigned long end = vaddr + size;
+	unsigned long next;
+	pgd_t *vpgd, *ppgd;
+
+	/* Don't map over the guard hole. */
+	if (paddr >= 0x800000000000 || paddr + size > 0x800000000000)
+		return 1;
+
+	ppgd = __va(real_mode_header->trampoline_pgd) + pgd_index(paddr);
+
+	vpgd = pgd_offset_k(vaddr);
+	do {
+		next = pgd_addr_end(vaddr, end);
+
+		if (!pgd_present(*ppgd)) {
+			pud_t *ppud = (pud_t *)get_zeroed_page(GFP_KERNEL);
+			if (!ppud)
+				return 1;
+
+			set_pgd(ppgd, __pgd(_KERNPG_TABLE | __pa(ppud)));
+		}
+
+		if (ident_pud_range(paddr, vaddr, ppgd, vpgd, next))
+			return 1;
+	} while (ppgd++, vpgd++, vaddr = next, vaddr != end);
+
+	return 0;
+}
+#else
+static inline int insert_identity_mapping(resource_size_t paddr,
+					  unsigned long vaddr,
+					  unsigned long size)
+{
+	return 0;
+}
+#endif /* CONFIG_X86_64 */
+
 /*
  * Remap an arbitrary physical address space into the kernel virtual
  * address space. Needed when the kernel wants to access high addresses
@@ -162,6 +263,10 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 
 	ret_addr = (void __iomem *) (vaddr + offset);
 	mmiotrace_ioremap(unaligned_phys_addr, unaligned_size, ret_addr);
+
+	if (insert_identity_mapping(phys_addr, vaddr, size))
+		printk(KERN_WARNING "ioremap: unable to map 0x%llx in identity pagetable\n",
+					(unsigned long long)phys_addr);
 
 	/*
 	 * Check if the request spans more than any BAR in the iomem resource

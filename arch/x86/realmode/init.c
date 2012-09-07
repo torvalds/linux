@@ -78,8 +78,21 @@ void __init setup_real_mode(void)
 	*trampoline_cr4_features = read_cr4();
 
 	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
-	trampoline_pgd[0] = __pa(level3_ident_pgt) + _KERNPG_TABLE;
-	trampoline_pgd[511] = __pa(level3_kernel_pgt) + _KERNPG_TABLE;
+
+	/*
+	 * Create an identity mapping for all of physical memory.
+	 */
+	for (i = 0; i <= pgd_index(max_pfn << PAGE_SHIFT); i++) {
+		int index = pgd_index(PAGE_OFFSET) + i;
+
+		trampoline_pgd[i] = (u64)pgd_val(swapper_pg_dir[index]);
+	}
+
+	/*
+	 * Copy the upper-half of the kernel pages tables.
+	 */
+	for (i = pgd_index(PAGE_OFFSET); i < PTRS_PER_PGD; i++)
+		trampoline_pgd[i] = (u64)pgd_val(swapper_pg_dir[i]);
 #endif
 }
 

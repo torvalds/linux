@@ -108,13 +108,13 @@ void sync_global_pgds(unsigned long start, unsigned long end)
 	for (address = start; address <= end; address += PGDIR_SIZE) {
 		const pgd_t *pgd_ref = pgd_offset_k(address);
 		struct page *page;
+		pgd_t *pgd;
 
 		if (pgd_none(*pgd_ref))
 			continue;
 
 		spin_lock(&pgd_lock);
 		list_for_each_entry(page, &pgd_list, lru) {
-			pgd_t *pgd;
 			spinlock_t *pgt_lock;
 
 			pgd = (pgd_t *)page_address(page) + pgd_index(address);
@@ -130,6 +130,13 @@ void sync_global_pgds(unsigned long start, unsigned long end)
 
 			spin_unlock(pgt_lock);
 		}
+
+		pgd = __va(real_mode_header->trampoline_pgd);
+		pgd += pgd_index(address);
+
+		if (pgd_none(*pgd))
+			set_pgd(pgd, *pgd_ref);
+
 		spin_unlock(&pgd_lock);
 	}
 }
