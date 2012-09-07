@@ -320,7 +320,7 @@ static ssize_t tlbflush_write_file(struct file *file,
 	if (kstrtos8(buf, 0, &shift))
 		return -EINVAL;
 
-	if (shift > 64)
+	if (shift < -1 || shift >= BITS_PER_LONG)
 		return -EINVAL;
 
 	tlb_flushall_shift = shift;
