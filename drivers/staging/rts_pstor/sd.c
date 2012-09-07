@@ -1160,13 +1160,12 @@ static int sd_check_switch_mode(struct rtsx_chip *chip, u8 mode,
 static u8 downgrade_switch_mode(u8 func_group, u8 func_to_switch)
 {
 	if (func_group == SD_FUNC_GROUP_1) {
-		if (func_to_switch > HS_SUPPORT) {
+		if (func_to_switch > HS_SUPPORT)
 			func_to_switch--;
-		}
+
 	} else if (func_group == SD_FUNC_GROUP_4) {
-		if (func_to_switch > CURRENT_LIMIT_200) {
+		if (func_to_switch > CURRENT_LIMIT_200)
 			func_to_switch--;
-		}
 	}
 
 	return func_to_switch;
