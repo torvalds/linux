@@ -388,3 +388,82 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 
 	return 0;
 }
+
+/**
+ * __eeh_pe_state_mark - Mark the state for the PE
+ * @data: EEH PE
+ * @flag: state
+ *
+ * The function is used to mark the indicated state for the given
+ * PE. Also, the associated PCI devices will be put into IO frozen
+ * state as well.
+ */
+static void *__eeh_pe_state_mark(void *data, void *flag)
+{
+	struct eeh_pe *pe = (struct eeh_pe *)data;
+	int state = *((int *)flag);
+	struct eeh_dev *tmp;
+	struct pci_dev *pdev;
+
+	/*
+	 * Mark the PE with the indicated state. Also,
+	 * the associated PCI device will be put into
+	 * I/O frozen state to avoid I/O accesses from
+	 * the PCI device driver.
+	 */
+	pe->state |= state;
+	eeh_pe_for_each_dev(pe, tmp) {
+		pdev = eeh_dev_to_pci_dev(tmp);
+		if (pdev)
+			pdev->error_state = pci_channel_io_frozen;
+	}
+
+	return NULL;
+}
+
+/**
+ * eeh_pe_state_mark - Mark specified state for PE and its associated device
+ * @pe: EEH PE
+ *
+ * EEH error affects the current PE and its child PEs. The function
+ * is used to mark appropriate state for the affected PEs and the
+ * associated devices.
+ */
+void eeh_pe_state_mark(struct eeh_pe *pe, int state)
+{
+	eeh_pe_traverse(pe, __eeh_pe_state_mark, &state);
+}
+
+/**
+ * __eeh_pe_state_clear - Clear state for the PE
+ * @data: EEH PE
+ * @flag: state
+ *
+ * The function is used to clear the indicated state from the
+ * given PE. Besides, we also clear the check count of the PE
+ * as well.
+ */
+static void *__eeh_pe_state_clear(void *data, void *flag)
+{
+	struct eeh_pe *pe = (struct eeh_pe *)data;
+	int state = *((int *)flag);
+
+	pe->state &= ~state;
+	pe->check_count = 0;
+
+	return NULL;
+}
+
+/**
+ * eeh_pe_state_clear - Clear state for the PE and its children
+ * @pe: PE
+ * @state: state to be cleared
+ *
+ * When the PE and its children has been recovered from error,
+ * we need clear the error state for that. The function is used
+ * for the purpose.
+ */
+void eeh_pe_state_clear(struct eeh_pe *pe, int state)
+{
+	eeh_pe_traverse(pe, __eeh_pe_state_clear, &state);
+}

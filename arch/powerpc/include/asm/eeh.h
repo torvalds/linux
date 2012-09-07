@@ -67,6 +67,9 @@ struct eeh_pe {
 	struct list_head child;		/* Child PEs			*/
 };
 
+#define eeh_pe_for_each_dev(pe, edev) \
+		list_for_each_entry(edev, &pe->edevs, list)
+
 /*
  * The struct is used to trace EEH state for the associated
  * PCI device node or PCI device. In future, it might
