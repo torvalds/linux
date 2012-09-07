@@ -136,13 +136,13 @@ static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
 struct eeh_ops {
 	char *name;
 	int (*init)(void);
-	int (*set_option)(struct device_node *dn, int option);
-	int (*get_pe_addr)(struct device_node *dn);
-	int (*get_state)(struct device_node *dn, int *state);
-	int (*reset)(struct device_node *dn, int option);
-	int (*wait_state)(struct device_node *dn, int max_wait);
-	int (*get_log)(struct device_node *dn, int severity, char *drv_log, unsigned long len);
-	int (*configure_bridge)(struct device_node *dn);
+	int (*set_option)(struct eeh_pe *pe, int option);
+	int (*get_pe_addr)(struct eeh_pe *pe);
+	int (*get_state)(struct eeh_pe *pe, int *state);
+	int (*reset)(struct eeh_pe *pe, int option);
+	int (*wait_state)(struct eeh_pe *pe, int max_wait);
+	int (*get_log)(struct eeh_pe *pe, int severity, char *drv_log, unsigned long len);
+	int (*configure_bridge)(struct eeh_pe *pe);
 	int (*read_config)(struct device_node *dn, int where, int size, u32 *val);
 	int (*write_config)(struct device_node *dn, int where, int size, u32 val);
 };

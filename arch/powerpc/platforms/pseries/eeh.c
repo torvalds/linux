@@ -729,6 +729,7 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 	const u32 *regs;
 	int enable;
 	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	struct eeh_pe pe;
 
 	edev->class_code = 0;
 	edev->mode = 0;
@@ -755,9 +756,14 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 	 */
 	regs = of_get_property(dn, "reg", NULL);
 	if (regs) {
+		/* Initialize the fake PE */
+		memset(&pe, 0, sizeof(struct eeh_pe));
+		pe.phb = edev->phb;
+		pe.config_addr = regs[0];
+
 		/* First register entry is addr (00BBSS00)  */
 		/* Try to enable eeh */
-		ret = eeh_ops->set_option(dn, EEH_OPT_ENABLE);
+		ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
 
 		enable = 0;
 		if (ret == 0) {
@@ -766,14 +772,15 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 			/* If the newer, better, ibm,get-config-addr-info is supported, 
 			 * then use that instead.
 			 */
-			edev->pe_config_addr = eeh_ops->get_pe_addr(dn);
+			edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
+			pe.addr = edev->pe_config_addr;
 
 			/* Some older systems (Power4) allow the
 			 * ibm,set-eeh-option call to succeed even on nodes
 			 * where EEH is not supported. Verify support
 			 * explicitly.
 			 */
-			ret = eeh_ops->get_state(dn, NULL);
+			ret = eeh_ops->get_state(&pe, NULL);
 			if (ret > 0 && ret != EEH_STATE_NOT_SUPPORT)
 				enable = 1;
 		}
