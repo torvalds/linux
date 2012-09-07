@@ -6575,7 +6575,7 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	/* Exposing INVPCID only when PCID is exposed */
 	best = kvm_find_cpuid_entry(vcpu, 0x7, 0);
 	if (vmx_invpcid_supported() &&
-	    best && (best->ecx & bit(X86_FEATURE_INVPCID)) &&
+	    best && (best->ebx & bit(X86_FEATURE_INVPCID)) &&
 	    guest_cpuid_has_pcid(vcpu)) {
 		exec_control |= SECONDARY_EXEC_ENABLE_INVPCID;
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
@@ -6585,7 +6585,7 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
 			     exec_control);
 		if (best)
-			best->ecx &= ~bit(X86_FEATURE_INVPCID);
+			best->ebx &= ~bit(X86_FEATURE_INVPCID);
 	}
 }
 
