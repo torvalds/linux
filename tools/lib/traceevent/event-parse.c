@@ -5183,7 +5183,12 @@ int pevent_register_event_handler(struct pevent *pevent,
 
  not_found:
 	/* Save for later use. */
-	handle = malloc_or_die(sizeof(*handle));
+	handle = malloc(sizeof(*handle));
+	if (!handle) {
+		do_warning("Failed to allocate event handler");
+		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+	}
+
 	memset(handle, 0, sizeof(*handle));
 	handle->id = id;
 	if (event_name)
@@ -5193,7 +5198,11 @@ int pevent_register_event_handler(struct pevent *pevent,
 
 	if ((event_name && !handle->event_name) ||
 	    (sys_name && !handle->sys_name)) {
-		die("Failed to allocate event/sys name");
+		do_warning("Failed to allocate event/sys name");
+		free((void *)handle->event_name);
+		free((void *)handle->sys_name);
+		free(handle);
+		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 	}
 
 	handle->func = func;
