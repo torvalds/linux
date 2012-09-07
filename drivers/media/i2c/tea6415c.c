@@ -81,7 +81,7 @@ static int tea6415c_s_routing(struct v4l2_subdev *sd,
 	case 13:
 		byte = 0x28;
 		break;
-	};
+	}
 
 	switch (i) {
 	case 5:
@@ -108,7 +108,7 @@ static int tea6415c_s_routing(struct v4l2_subdev *sd,
 	case 11:
 		byte |= 0x07;
 		break;
-	};
+	}
 
 	ret = i2c_smbus_write_byte(client, byte);
 	if (ret) {
