@@ -2675,6 +2675,9 @@ static void __init serial8250_isa_init_ports(void)
 		return;
 	first = 0;
 
+	if (nr_uarts > UART_NR)
+		nr_uarts = UART_NR;
+
 	for (i = 0; i < nr_uarts; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 		struct uart_port *port = &up->port;
@@ -2684,6 +2687,7 @@ static void __init serial8250_isa_init_ports(void)
 
 		init_timer(&up->timer);
 		up->timer.function = serial8250_timeout;
+		up->cur_iotype = 0xFF;
 
 		/*
 		 * ALPHA_KLUDGE_MCR needs to be killed.
@@ -2735,13 +2739,9 @@ serial8250_register_ports(struct uart_driver *drv, struct device *dev)
 
 	for (i = 0; i < nr_uarts; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
-		up->cur_iotype = 0xFF;
-	}
 
-	serial8250_isa_init_ports();
-
-	for (i = 0; i < nr_uarts; i++) {
-		struct uart_8250_port *up = &serial8250_ports[i];
+		if (up->port.dev)
+			continue;
 
 		up->port.dev = dev;
 
@@ -2866,9 +2866,6 @@ static struct console serial8250_console = {
 
 static int __init serial8250_console_init(void)
 {
-	if (nr_uarts > UART_NR)
-		nr_uarts = UART_NR;
-
 	serial8250_isa_init_ports();
 	register_console(&serial8250_console);
 	return 0;
@@ -3151,7 +3148,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 	uart = serial8250_find_match_or_unused(&up->port);
 	if (uart) {
-		uart_remove_one_port(&serial8250_reg, &uart->port);
+		if (uart->port.dev)
+			uart_remove_one_port(&serial8250_reg, &uart->port);
 
 		uart->port.iobase       = up->port.iobase;
 		uart->port.membase      = up->port.membase;
@@ -3235,8 +3233,7 @@ static int __init serial8250_init(void)
 {
 	int ret;
 
-	if (nr_uarts > UART_NR)
-		nr_uarts = UART_NR;
+	serial8250_isa_init_ports();
 
 	printk(KERN_INFO "Serial: 8250/16550 driver, "
 		"%d ports, IRQ sharing %sabled\n", nr_uarts,
@@ -3251,11 +3248,15 @@ static int __init serial8250_init(void)
 	if (ret)
 		goto out;
 
+	ret = serial8250_pnp_init();
+	if (ret)
+		goto unreg_uart_drv;
+
 	serial8250_isa_devs = platform_device_alloc("serial8250",
 						    PLAT8250_DEV_LEGACY);
 	if (!serial8250_isa_devs) {
 		ret = -ENOMEM;
-		goto unreg_uart_drv;
+		goto unreg_pnp;
 	}
 
 	ret = platform_device_add(serial8250_isa_devs);
@@ -3271,6 +3272,8 @@ static int __init serial8250_init(void)
 	platform_device_del(serial8250_isa_devs);
 put_dev:
 	platform_device_put(serial8250_isa_devs);
+unreg_pnp:
+	serial8250_pnp_exit();
 unreg_uart_drv:
 #ifdef CONFIG_SPARC
 	sunserial_unregister_minors(&serial8250_reg, UART_NR);
@@ -3294,6 +3297,8 @@ static void __exit serial8250_exit(void)
 
 	platform_driver_unregister(&serial8250_isa_driver);
 	platform_device_unregister(isa_dev);
+
+	serial8250_pnp_exit();
 
 #ifdef CONFIG_SPARC
 	sunserial_unregister_minors(&serial8250_reg, UART_NR);

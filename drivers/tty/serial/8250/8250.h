@@ -97,3 +97,12 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 #else
 #define ALPHA_KLUDGE_MCR 0
 #endif
+
+#ifdef CONFIG_SERIAL_8250_PNP
+int serial8250_pnp_init(void);
+void serial8250_pnp_exit(void);
+#else
+static inline int serial8250_pnp_init(void) { return 0; }
+static inline void serial8250_pnp_exit(void) { }
+#endif
+

@@ -1,5 +1,5 @@
 /*
- *  Probe module for 8250/16550-type ISAPNP serial ports.
+ *  Probe for 8250/16550-type ISAPNP serial ports.
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *
@@ -507,18 +507,13 @@ static struct pnp_driver serial_pnp_driver = {
 	.id_table	= pnp_dev_table,
 };
 
-static int __init serial8250_pnp_init(void)
+int serial8250_pnp_init(void)
 {
 	return pnp_register_driver(&serial_pnp_driver);
 }
 
-static void __exit serial8250_pnp_exit(void)
+void serial8250_pnp_exit(void)
 {
 	pnp_unregister_driver(&serial_pnp_driver);
 }
 
-module_init(serial8250_pnp_init);
-module_exit(serial8250_pnp_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Generic 8250/16x50 PnP serial driver");
