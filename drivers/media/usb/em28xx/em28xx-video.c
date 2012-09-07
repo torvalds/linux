@@ -1521,6 +1521,7 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
 	format->fmt.vbi.count[0] = dev->vbi_height;
 	format->fmt.vbi.count[1] = dev->vbi_height;
+	memset(format->fmt.vbi.reserved, 0, sizeof(format->fmt.vbi.reserved));
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
 	if (dev->norm & V4L2_STD_525_60) {
@@ -1549,6 +1550,7 @@ static int vidioc_s_fmt_vbi_cap(struct file *file, void *priv,
 	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
 	format->fmt.vbi.count[0] = dev->vbi_height;
 	format->fmt.vbi.count[1] = dev->vbi_height;
+	memset(format->fmt.vbi.reserved, 0, sizeof(format->fmt.vbi.reserved));
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
 	if (dev->norm & V4L2_STD_525_60) {
@@ -1991,6 +1993,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap     = vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
 	.vidioc_g_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
+	.vidioc_try_fmt_vbi_cap     = vidioc_g_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap       = vidioc_s_fmt_vbi_cap,
 	.vidioc_enum_framesizes     = vidioc_enum_framesizes,
 	.vidioc_g_audio             = vidioc_g_audio,
