@@ -2724,11 +2724,10 @@ static int mmc_switch_timing_bus(struct rtsx_chip *chip, int switch_ddr)
 			card_type_mask = 0x03;
 		}
 #else
-		if (chip->sd_ctl & SUPPORT_MMC_DDR_MODE) {
+		if (chip->sd_ctl & SUPPORT_MMC_DDR_MODE)
 			card_type_mask = 0x07;
-		} else {
+		else
 			card_type_mask = 0x03;
-		}
 #endif
 	} else {
 		card_type_mask = 0x03;
@@ -2738,11 +2737,10 @@ static int mmc_switch_timing_bus(struct rtsx_chip *chip, int switch_ddr)
 		u8 rsp[5];
 
 		if (card_type & 0x04) {
-			if (switch_ddr) {
+			if (switch_ddr)
 				SET_MMC_DDR52(sd_card);
-			} else {
+			else
 				SET_MMC_52M(sd_card);
-			}
 		} else if (card_type & 0x02) {
 			SET_MMC_52M(sd_card);
 		} else {
@@ -2751,16 +2749,14 @@ static int mmc_switch_timing_bus(struct rtsx_chip *chip, int switch_ddr)
 
 		retval = sd_send_cmd_get_rsp(chip, SWITCH,
 				0x03B90100, SD_RSP_TYPE_R1b, rsp, 5);
-		if ((retval != STATUS_SUCCESS) || (rsp[4] & MMC_SWITCH_ERR)) {
+		if ((retval != STATUS_SUCCESS) || (rsp[4] & MMC_SWITCH_ERR))
 			CLR_MMC_HS(sd_card);
-		}
 	}
 
 	sd_choose_proper_clock(chip);
 	retval = switch_clock(chip, sd_card->sd_clock);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	/* Test Bus Procedure */
 	retval = mmc_test_switch_bus(chip, MMC_8BIT_BUS);
