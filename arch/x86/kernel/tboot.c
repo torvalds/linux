@@ -103,71 +103,13 @@ void __init tboot_probe(void)
 	pr_debug("tboot_size: 0x%x\n", tboot->tboot_size);
 }
 
-static pgd_t *tboot_pg_dir;
-static struct mm_struct tboot_mm = {
-	.mm_rb          = RB_ROOT,
-	.pgd            = swapper_pg_dir,
-	.mm_users       = ATOMIC_INIT(2),
-	.mm_count       = ATOMIC_INIT(1),
-	.mmap_sem       = __RWSEM_INITIALIZER(init_mm.mmap_sem),
-	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
-	.mmlist         = LIST_HEAD_INIT(init_mm.mmlist),
-};
-
 static inline void switch_to_tboot_pt(void)
 {
-	write_cr3(virt_to_phys(tboot_pg_dir));
-}
-
-static int map_tboot_page(unsigned long vaddr, unsigned long pfn,
-			  pgprot_t prot)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	pgd = pgd_offset(&tboot_mm, vaddr);
-	pud = pud_alloc(&tboot_mm, pgd, vaddr);
-	if (!pud)
-		return -1;
-	pmd = pmd_alloc(&tboot_mm, pud, vaddr);
-	if (!pmd)
-		return -1;
-	pte = pte_alloc_map(&tboot_mm, NULL, pmd, vaddr);
-	if (!pte)
-		return -1;
-	set_pte_at(&tboot_mm, vaddr, pte, pfn_pte(pfn, prot));
-	pte_unmap(pte);
-	return 0;
-}
-
-static int map_tboot_pages(unsigned long vaddr, unsigned long start_pfn,
-			   unsigned long nr)
-{
-	/* Reuse the original kernel mapping */
-	tboot_pg_dir = pgd_alloc(&tboot_mm);
-	if (!tboot_pg_dir)
-		return -1;
-
-	for (; nr > 0; nr--, vaddr += PAGE_SIZE, start_pfn++) {
-		if (map_tboot_page(vaddr, start_pfn, PAGE_KERNEL_EXEC))
-			return -1;
-	}
-
-	return 0;
-}
-
-static void tboot_create_trampoline(void)
-{
-	u32 map_base, map_size;
-
-	/* Create identity map for tboot shutdown code. */
-	map_base = PFN_DOWN(tboot->tboot_base);
-	map_size = PFN_UP(tboot->tboot_size);
-	if (map_tboot_pages(map_base << PAGE_SHIFT, map_base, map_size))
-		panic("tboot: Error mapping tboot pages (mfns) @ 0x%x, 0x%x\n",
-		      map_base, map_size);
+#ifdef CONFIG_X86_32
+	load_cr3(initial_page_table);
+#else
+	write_cr3(real_mode_header->trampoline_pgd);
+#endif
 }
 
 #ifdef CONFIG_ACPI_SLEEP
@@ -223,14 +165,6 @@ void tboot_shutdown(u32 shutdown_type)
 	void (*shutdown)(void);
 
 	if (!tboot_enabled())
-		return;
-
-	/*
-	 * if we're being called before the 1:1 mapping is set up then just
-	 * return and let the normal shutdown happen; this should only be
-	 * due to very early panic()
-	 */
-	if (!tboot_pg_dir)
 		return;
 
 	/* if this is S3 then set regions to MAC */
@@ -342,8 +276,6 @@ static __init int tboot_late_init(void)
 {
 	if (!tboot_enabled())
 		return 0;
-
-	tboot_create_trampoline();
 
 	atomic_set(&ap_wfs_count, 0);
 	register_hotcpu_notifier(&tboot_cpu_notifier);
