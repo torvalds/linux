@@ -226,6 +226,10 @@ int dss_ovl_set_manager(struct omap_overlay *ovl,
 		struct omap_overlay_manager *mgr);
 int dss_ovl_unset_manager(struct omap_overlay *ovl);
 
+/* output */
+void dss_register_output(struct omap_dss_output *out);
+void dss_unregister_output(struct omap_dss_output *out);
+
 /* display */
 int dss_suspend_all_devices(void);
 int dss_resume_all_devices(void);
