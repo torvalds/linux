@@ -275,7 +275,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	case TDA18271HDC2:
 		regs[R_ID]   = 0x84;
 		break;
-	};
+	}
 
 	regs[R_TM]   = 0x08;
 	regs[R_PL]   = 0x80;
@@ -300,7 +300,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	case TDA18271HDC2:
 		regs[R_EB1]  = 0xfc;
 		break;
-	};
+	}
 
 	regs[R_EB2]  = 0x01;
 	regs[R_EB3]  = 0x84;
@@ -320,7 +320,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	case TDA18271HDC2:
 		regs[R_EB12] = 0x33;
 		break;
-	};
+	}
 
 	regs[R_EB13] = 0xc1;
 	regs[R_EB14] = 0x00;
@@ -335,7 +335,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	case TDA18271HDC2:
 		regs[R_EB18] = 0x8c;
 		break;
-	};
+	}
 
 	regs[R_EB19] = 0x00;
 	regs[R_EB20] = 0x20;
@@ -347,7 +347,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	case TDA18271HDC2:
 		regs[R_EB21] = 0xb3;
 		break;
-	};
+	}
 
 	regs[R_EB22] = 0x48;
 	regs[R_EB23] = 0xb0;
