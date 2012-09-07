@@ -270,7 +270,7 @@ void fixup_irqs(void)
 
 		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			break_affinity = 1;
-			affinity = cpu_all_mask;
+			affinity = cpu_online_mask;
 		}
 
 		chip = irq_data_get_irq_chip(data);
