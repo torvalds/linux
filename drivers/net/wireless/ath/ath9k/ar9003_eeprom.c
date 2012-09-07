@@ -4015,6 +4015,24 @@ static void ar9003_hw_thermometer_apply(struct ath_hw *ah)
 	}
 }
 
+static void ar9003_hw_thermo_cal_apply(struct ath_hw *ah)
+{
+	u32 data, ko, kg;
+
+	if (!AR_SREV_9462_20(ah))
+		return;
+	ar9300_otp_read_word(ah, 1, &data);
+	ko = data & 0xff;
+	kg = (data >> 8) & 0xff;
+	if (ko || kg) {
+		REG_RMW_FIELD(ah, AR_PHY_BB_THERM_ADC_3,
+			      AR_PHY_BB_THERM_ADC_3_THERM_ADC_OFFSET, ko);
+		REG_RMW_FIELD(ah, AR_PHY_BB_THERM_ADC_3,
+			      AR_PHY_BB_THERM_ADC_3_THERM_ADC_SCALE_GAIN,
+			      kg + 256);
+	}
+}
+
 static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
@@ -4031,6 +4049,7 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	ar9003_hw_apply_tuning_caps(ah);
 	ar9003_hw_txend_to_xpa_off_apply(ah, is2ghz);
 	ar9003_hw_thermometer_apply(ah);
+	ar9003_hw_thermo_cal_apply(ah);
 }
 
 static void ath9k_hw_ar9300_set_addac(struct ath_hw *ah,
