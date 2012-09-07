@@ -105,8 +105,4 @@ struct uart_omap_dma {
 	unsigned int		rx_timeout;
 };
 
-
-	int			DTR_gpio;
-	int			DTR_inverted;
-	int			DTR_active;
 #endif /* __OMAP_SERIAL_H__ */
