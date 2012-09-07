@@ -141,7 +141,6 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	memset(sequences_hp, 0, sizeof(sequences_hp));
 	assoc_line_out = 0;
 
-	codec->ignore_misc_bit = true;
 	end_nid = codec->start_nid + codec->num_nodes;
 	for (nid = codec->start_nid; nid < end_nid; nid++) {
 		unsigned int wid_caps = get_wcaps(codec, nid);
@@ -157,9 +156,6 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			continue;
 
 		def_conf = snd_hda_codec_get_pincfg(codec, nid);
-		if (!(get_defcfg_misc(snd_hda_codec_get_pincfg(codec, nid)) &
-		      AC_DEFCFG_MISC_NO_PRESENCE))
-			codec->ignore_misc_bit = false;
 		conn = get_defcfg_connect(def_conf);
 		if (conn == AC_JACK_PORT_NONE)
 			continue;
