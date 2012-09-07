@@ -668,13 +668,12 @@ static int sd_set_clock_divider(struct rtsx_chip *chip, u8 clk_div)
 		val = clk_div;
 	} else {
 		mask = 0x60;
-		if (clk_div == SD_CLK_DIVIDE_0) {
+		if (clk_div == SD_CLK_DIVIDE_0)
 			val = 0x00;
-		} else if (clk_div == SD_CLK_DIVIDE_128) {
+		else if (clk_div == SD_CLK_DIVIDE_128)
 			val = 0x40;
-		} else if (clk_div == SD_CLK_DIVIDE_256) {
+		else if (clk_div == SD_CLK_DIVIDE_256)
 			val = 0x20;
-		}
 	}
 
 	RTSX_WRITE_REG(chip, REG_SD_CFG1, mask, val);
