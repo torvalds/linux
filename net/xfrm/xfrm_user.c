@@ -1930,7 +1930,7 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 		// reset the timers here?
 		WARN(1, "Dont know what to do with soft policy expire\n");
 	}
-	km_policy_expired(xp, p->dir, up->hard, current->pid);
+	km_policy_expired(xp, p->dir, up->hard, nlh->nlmsg_pid);
 
 out:
 	xfrm_pol_put(xp);
@@ -1958,7 +1958,7 @@ static int xfrm_add_sa_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = -EINVAL;
 	if (x->km.state != XFRM_STATE_VALID)
 		goto out;
-	km_state_expired(x, ue->hard, current->pid);
+	km_state_expired(x, ue->hard, nlh->nlmsg_pid);
 
 	if (ue->hard) {
 		uid_t loginuid = audit_get_loginuid(current);
