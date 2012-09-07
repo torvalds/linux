@@ -192,9 +192,9 @@ RTY_SEND_CMD:
 
 		stat_idx = 16;
 	} else if (rsp_type != SD_RSP_TYPE_R0) {
-		for (reg_addr = REG_SD_CMD0; reg_addr <= REG_SD_CMD4; reg_addr++) {
+		for (reg_addr = REG_SD_CMD0; reg_addr <= REG_SD_CMD4; reg_addr++)
 			rtsx_add_cmd(chip, READ_REG_CMD, reg_addr, 0, 0);
-		}
+
 		stat_idx = 5;
 	}
 
@@ -273,9 +273,8 @@ RTY_SEND_CMD:
 	if ((rsp_type == SD_RSP_TYPE_R1) || (rsp_type == SD_RSP_TYPE_R1b)) {
 		if ((cmd_idx != SEND_RELATIVE_ADDR) && (cmd_idx != SEND_IF_COND)) {
 			if (cmd_idx != STOP_TRANSMISSION) {
-				if (ptr[1] & 0x80) {
+				if (ptr[1] & 0x80)
 					TRACE_RET(chip, STATUS_FAIL);
-				}
 			}
 #ifdef SUPPORT_SD_LOCK
 			if (ptr[1] & 0x7D)
@@ -294,11 +293,10 @@ RTY_SEND_CMD:
 				RTSX_DEBUGP("ptr[3]: 0x%02x\n", ptr[3]);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
-			if (ptr[3] & 0x01) {
+			if (ptr[3] & 0x01)
 				sd_card->sd_data_buf_ready = 1;
-			} else {
+			else
 				sd_card->sd_data_buf_ready = 0;
-			}
 		}
 	}
 
