@@ -159,6 +159,7 @@ static void console_write(struct platform_device *pdev, const char *s, unsigned 
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
 
 	if (oops_in_progress || oops) {
+		debug_flush(pdev);
 		while (kfifo_get(&fifo, &c))
 			debug_putc(pdev, c);
 		while (count--) {
