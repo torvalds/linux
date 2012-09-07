@@ -77,7 +77,6 @@ struct vendor_data {
 	unsigned int		lcrh_tx;
 	unsigned int		lcrh_rx;
 	bool			oversampling;
-	bool			interrupt_may_hang;   /* vendor-specific */
 	bool			dma_threshold;
 	bool			cts_event_workaround;
 };
@@ -98,7 +97,6 @@ static struct vendor_data vendor_st = {
 	.lcrh_tx		= ST_UART011_LCRH_TX,
 	.lcrh_rx		= ST_UART011_LCRH_RX,
 	.oversampling		= true,
-	.interrupt_may_hang	= true,
 	.dma_threshold		= true,
 	.cts_event_workaround	= true,
 };
@@ -149,7 +147,6 @@ struct uart_amba_port {
 	unsigned int		old_cr;		/* state during shutdown */
 	bool			autorts;
 	char			type[12];
-	bool			interrupt_may_hang; /* vendor-specific */
 #ifdef CONFIG_DMA_ENGINE
 	/* DMA stuff */
 	bool			using_tx_dma;
@@ -1952,7 +1949,6 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	uap->lcrh_tx = vendor->lcrh_tx;
 	uap->old_cr = 0;
 	uap->fifosize = vendor->fifosize;
-	uap->interrupt_may_hang = vendor->interrupt_may_hang;
 	uap->port.dev = &dev->dev;
 	uap->port.mapbase = dev->res.start;
 	uap->port.membase = base;
