@@ -389,11 +389,25 @@ static const struct nouveau_bitfield nvc0_fifo_subfifo_intr[] = {
 static void
 nvc0_fifo_isr_vm_fault(struct nvc0_fifo_priv *priv, int unit)
 {
-	u32 inst = nv_rd32(priv, 0x2800 + (unit * 0x10));
-	u32 valo = nv_rd32(priv, 0x2804 + (unit * 0x10));
-	u32 vahi = nv_rd32(priv, 0x2808 + (unit * 0x10));
-	u32 stat = nv_rd32(priv, 0x280c + (unit * 0x10));
+	u32 inst = nv_rd32(priv, 0x002800 + (unit * 0x10));
+	u32 valo = nv_rd32(priv, 0x002804 + (unit * 0x10));
+	u32 vahi = nv_rd32(priv, 0x002808 + (unit * 0x10));
+	u32 stat = nv_rd32(priv, 0x00280c + (unit * 0x10));
 	u32 client = (stat & 0x00001f00) >> 8;
+
+	switch (unit) {
+	case 3: /* PEEPHOLE */
+		nv_mask(priv, 0x001718, 0x00000000, 0x00000000);
+		break;
+	case 4: /* BAR1 */
+		nv_mask(priv, 0x001704, 0x00000000, 0x00000000);
+		break;
+	case 5: /* BAR3 */
+		nv_mask(priv, 0x001714, 0x00000000, 0x00000000);
+		break;
+	default:
+		break;
+	}
 
 	nv_error(priv, "%s fault at 0x%010llx [", (stat & 0x00000080) ?
 		 "write" : "read", (u64)vahi << 32 | valo);
