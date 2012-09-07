@@ -1141,13 +1141,12 @@ static int sd_check_switch_mode(struct rtsx_chip *chip, u8 mode,
 		 */
 		u16 cc = ((u16)buf[0] << 8) | buf[1];
 		RTSX_DEBUGP("Maximum current consumption: %dmA\n", cc);
-		if ((cc == 0) || (cc > 800)) {
+		if ((cc == 0) || (cc > 800))
 			TRACE_RET(chip, STATUS_FAIL);
-		}
+
 		retval = sd_query_switch_result(chip, func_group, func_to_switch, buf, 64);
-		if (retval != STATUS_SUCCESS) {
+		if (retval != STATUS_SUCCESS)
 			TRACE_RET(chip, STATUS_FAIL);
-		}
 
 		if ((cc > 400) || (func_to_switch > CURRENT_LIMIT_400)) {
 			RTSX_WRITE_REG(chip, OCPPARA2, SD_OCP_THD_MASK, chip->sd_800mA_ocp_thd);
