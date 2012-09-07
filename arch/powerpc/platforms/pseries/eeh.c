@@ -455,17 +455,24 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
  */
 int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
 {
-	struct device_node *dn = pci_device_to_OF_node(dev);
+	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
+	struct eeh_pe *pe = edev->pe;
+
+	if (!pe) {
+		pr_err("%s: No PE found on PCI device %s\n",
+			__func__, pci_name(dev));
+		return -EINVAL;
+	}
 
 	switch (state) {
 	case pcie_deassert_reset:
-		eeh_ops->reset(dn, EEH_RESET_DEACTIVATE);
+		eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
 		break;
 	case pcie_hot_reset:
-		eeh_ops->reset(dn, EEH_RESET_HOT);
+		eeh_ops->reset(pe, EEH_RESET_HOT);
 		break;
 	case pcie_warm_reset:
-		eeh_ops->reset(dn, EEH_RESET_FUNDAMENTAL);
+		eeh_ops->reset(pe, EEH_RESET_FUNDAMENTAL);
 		break;
 	default:
 		return -EINVAL;
@@ -475,66 +482,37 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 }
 
 /**
- * __eeh_set_pe_freset - Check the required reset for child devices
- * @parent: parent device
- * @freset: return value
- *
- * Each device might have its preferred reset type: fundamental or
- * hot reset. The routine is used to collect the information from
- * the child devices so that they could be reset accordingly.
- */
-void __eeh_set_pe_freset(struct device_node *parent, unsigned int *freset)
-{
-	struct device_node *dn;
-
-	for_each_child_of_node(parent, dn) {
-		if (of_node_to_eeh_dev(dn)) {
-			struct pci_dev *dev = of_node_to_eeh_dev(dn)->pdev;
-
-			if (dev && dev->driver)
-				*freset |= dev->needs_freset;
-
-			__eeh_set_pe_freset(dn, freset);
-		}
-	}
-}
-
-/**
- * eeh_set_pe_freset - Check the required reset for the indicated device and its children
- * @dn: parent device
- * @freset: return value
+ * eeh_set_pe_freset - Check the required reset for the indicated device
+ * @data: EEH device
+ * @flag: return value
  *
  * Each device might have its preferred reset type: fundamental or
  * hot reset. The routine is used to collected the information for
  * the indicated device and its children so that the bunch of the
  * devices could be reset properly.
  */
-void eeh_set_pe_freset(struct device_node *dn, unsigned int *freset)
+static void *eeh_set_dev_freset(void *data, void *flag)
 {
 	struct pci_dev *dev;
-	dn = eeh_find_device_pe(dn);
+	unsigned int *freset = (unsigned int *)flag;
+	struct eeh_dev *edev = (struct eeh_dev *)data;
 
-	/* Back up one, since config addrs might be shared */
-	if (!pcibios_find_pci_bus(dn) && of_node_to_eeh_dev(dn->parent))
-		dn = dn->parent;
-
-	dev = of_node_to_eeh_dev(dn)->pdev;
+	dev = eeh_dev_to_pci_dev(edev);
 	if (dev)
 		*freset |= dev->needs_freset;
 
-	__eeh_set_pe_freset(dn, freset);
+	return NULL;
 }
 
 /**
  * eeh_reset_pe_once - Assert the pci #RST line for 1/4 second
- * @edev: pci device node to be reset.
+ * @pe: EEH PE
  *
  * Assert the PCI #RST line for 1/4 second.
  */
-static void eeh_reset_pe_once(struct eeh_dev *edev)
+static void eeh_reset_pe_once(struct eeh_pe *pe)
 {
 	unsigned int freset = 0;
-	struct device_node *dn = eeh_dev_to_of_node(edev);
 
 	/* Determine type of EEH reset required for
 	 * Partitionable Endpoint, a hot-reset (1)
@@ -542,12 +520,12 @@ static void eeh_reset_pe_once(struct eeh_dev *edev)
 	 * A fundamental reset required by any device under
 	 * Partitionable Endpoint trumps hot-reset.
   	 */
-	eeh_set_pe_freset(dn, &freset);
+	eeh_pe_dev_traverse(pe, eeh_set_dev_freset, &freset);
 
 	if (freset)
-		eeh_ops->reset(dn, EEH_RESET_FUNDAMENTAL);
+		eeh_ops->reset(pe, EEH_RESET_FUNDAMENTAL);
 	else
-		eeh_ops->reset(dn, EEH_RESET_HOT);
+		eeh_ops->reset(pe, EEH_RESET_HOT);
 
 	/* The PCI bus requires that the reset be held high for at least
 	 * a 100 milliseconds. We wait a bit longer 'just in case'.
@@ -559,9 +537,9 @@ static void eeh_reset_pe_once(struct eeh_dev *edev)
 	 * pci slot reset line is dropped. Make sure we don't miss
 	 * these, and clear the flag now.
 	 */
-	eeh_clear_slot(dn, EEH_MODE_ISOLATED);
+	eeh_pe_state_clear(pe, EEH_MODE_ISOLATED);
 
-	eeh_ops->reset(dn, EEH_RESET_DEACTIVATE);
+	eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
 
 	/* After a PCI slot has been reset, the PCI Express spec requires
 	 * a 1.5 second idle time for the bus to stabilize, before starting
@@ -573,32 +551,31 @@ static void eeh_reset_pe_once(struct eeh_dev *edev)
 
 /**
  * eeh_reset_pe - Reset the indicated PE
- * @edev: PCI device associated EEH device
+ * @pe: EEH PE
  *
  * This routine should be called to reset indicated device, including
  * PE. A PE might include multiple PCI devices and sometimes PCI bridges
  * might be involved as well.
  */
-int eeh_reset_pe(struct eeh_dev *edev)
+int eeh_reset_pe(struct eeh_pe *pe)
 {
 	int i, rc;
-	struct device_node *dn = eeh_dev_to_of_node(edev);
 
 	/* Take three shots at resetting the bus */
 	for (i=0; i<3; i++) {
-		eeh_reset_pe_once(edev);
+		eeh_reset_pe_once(pe);
 
-		rc = eeh_ops->wait_state(dn, PCI_BUS_RESET_WAIT_MSEC);
+		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
 		if (rc == (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE))
 			return 0;
 
 		if (rc < 0) {
-			printk(KERN_ERR "EEH: unrecoverable slot failure %s\n",
-			       dn->full_name);
+			pr_err("%s: Unrecoverable slot failure on PHB#%d-PE#%x",
+				__func__, pe->phb->global_number, pe->addr);
 			return -1;
 		}
-		printk(KERN_ERR "EEH: bus reset %d failed on slot %s, rc=%d\n",
-		       i+1, dn->full_name, rc);
+		pr_err("EEH: bus reset %d failed on PHB#%d-PE#%x, rc=%d\n",
+			i+1, pe->phb->global_number, pe->addr, rc);
 	}
 
 	return -1;
