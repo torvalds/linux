@@ -181,6 +181,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	int ret;
 	u64 ip_oldflags;
 	unsigned int i_oldflags;
+	umode_t mode;
 
 	if (btrfs_root_readonly(root))
 		return -EROFS;
@@ -203,6 +204,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 
 	ip_oldflags = ip->flags;
 	i_oldflags = inode->i_flags;
+	mode = inode->i_mode;
 
 	flags = btrfs_mask_flags(inode->i_mode, flags);
 	oldflags = btrfs_flags_to_ioctl(ip->flags);
@@ -237,10 +239,31 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		ip->flags |= BTRFS_INODE_DIRSYNC;
 	else
 		ip->flags &= ~BTRFS_INODE_DIRSYNC;
-	if (flags & FS_NOCOW_FL)
-		ip->flags |= BTRFS_INODE_NODATACOW;
-	else
-		ip->flags &= ~BTRFS_INODE_NODATACOW;
+	if (flags & FS_NOCOW_FL) {
+		if (S_ISREG(mode)) {
+			/*
+			 * It's safe to turn csums off here, no extents exist.
+			 * Otherwise we want the flag to reflect the real COW
+			 * status of the file and will not set it.
+			 */
+			if (inode->i_size == 0)
+				ip->flags |= BTRFS_INODE_NODATACOW
+					   | BTRFS_INODE_NODATASUM;
+		} else {
+			ip->flags |= BTRFS_INODE_NODATACOW;
+		}
+	} else {
+		/*
+		 * Revert back under same assuptions as above
+		 */
+		if (S_ISREG(mode)) {
+			if (inode->i_size == 0)
+				ip->flags &= ~(BTRFS_INODE_NODATACOW
+				             | BTRFS_INODE_NODATASUM);
+		} else {
+			ip->flags &= ~BTRFS_INODE_NODATACOW;
+		}
+	}
 
 	/*
 	 * The COMPRESS flag can only be changed by users, while the NOCOMPRESS
