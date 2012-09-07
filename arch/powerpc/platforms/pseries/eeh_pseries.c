@@ -561,7 +561,19 @@ static struct eeh_ops pseries_eeh_ops = {
  */
 static int __init eeh_pseries_init(void)
 {
-	return eeh_ops_register(&pseries_eeh_ops);
+	int ret = -EINVAL;
+
+	if (!machine_is(pseries))
+		return ret;
+
+	ret = eeh_ops_register(&pseries_eeh_ops);
+	if (!ret)
+		pr_info("EEH: pSeries platform initialized\n");
+	else
+		pr_info("EEH: pSeries platform initialization failure (%d)\n",
+			ret);
+
+	return ret;
 }
 
 early_initcall(eeh_pseries_init);

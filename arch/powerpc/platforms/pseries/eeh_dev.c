@@ -100,6 +100,8 @@ static int __init eeh_dev_phb_init(void)
 	list_for_each_entry_safe(phb, tmp, &hose_list, list_node)
 		eeh_dev_phb_init_dynamic(phb);
 
+	pr_info("EEH: devices created\n");
+
 	return 0;
 }
 
