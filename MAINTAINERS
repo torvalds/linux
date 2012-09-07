@@ -913,6 +913,12 @@ W:	http://www.digriz.org.uk/ts78xx/kernel
 S:	Maintained
 F:	arch/arm/mach-orion5x/ts78xx-*
 
+ARM/MICREL KS8695 ARCHITECTURE
+M:	Greg Ungerer <gerg@uclinux.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+F:	arch/arm/mach-ks8695
+S:	Odd Fixes
+
 ARM/MIOA701 MACHINE SUPPORT
 M:	Robert Jarzmik <robert.jarzmik@free.fr>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
