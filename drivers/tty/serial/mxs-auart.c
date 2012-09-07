@@ -457,10 +457,10 @@ static void mxs_auart_shutdown(struct uart_port *u)
 
 	writel(AUART_CTRL2_UARTEN, u->membase + AUART_CTRL2_CLR);
 
-	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_SET);
-
 	writel(AUART_INTR_RXIEN | AUART_INTR_RTIEN | AUART_INTR_CTSMIEN,
 			u->membase + AUART_INTR_CLR);
+
+	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_SET);
 
 	clk_disable_unprepare(s->clk);
 }
