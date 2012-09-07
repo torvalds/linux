@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/interrupt.h>
@@ -286,7 +287,8 @@ static struct irq_domain_ops tc3589x_irq_ops = {
         .xlate  = irq_domain_xlate_twocell,
 };
 
-static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio)
+static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio,
+				struct device_node *np)
 {
 	int base = tc3589x_gpio->irq_base;
 
@@ -297,7 +299,7 @@ static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio)
 	}
 	else {
 		tc3589x_gpio->domain = irq_domain_add_linear(
-			NULL, tc3589x_gpio->chip.ngpio,
+			np, tc3589x_gpio->chip.ngpio,
 			&tc3589x_irq_ops, tc3589x_gpio);
 	}
 
@@ -313,13 +315,17 @@ static int __devinit tc3589x_gpio_probe(struct platform_device *pdev)
 {
 	struct tc3589x *tc3589x = dev_get_drvdata(pdev->dev.parent);
 	struct tc3589x_gpio_platform_data *pdata;
+	struct device_node *np = pdev->dev.of_node;
 	struct tc3589x_gpio *tc3589x_gpio;
 	int ret;
 	int irq;
 
 	pdata = tc3589x->pdata->gpio;
-	if (!pdata)
-		return -ENODEV;
+
+	if (!(pdata || np)) {
+		dev_err(&pdev->dev, "No platform data or Device Tree found\n");
+		return -EINVAL;
+	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -337,9 +343,11 @@ static int __devinit tc3589x_gpio_probe(struct platform_device *pdev)
 	tc3589x_gpio->chip = template_chip;
 	tc3589x_gpio->chip.ngpio = tc3589x->num_gpio;
 	tc3589x_gpio->chip.dev = &pdev->dev;
-	tc3589x_gpio->chip.base = pdata->gpio_base;
+	tc3589x_gpio->chip.base = (pdata) ? pdata->gpio_base : -1;
 
-	tc3589x_gpio->irq_base = tc3589x->irq_base + TC3589x_INT_GPIO(0);
+#ifdef CONFIG_OF_GPIO
+        tc3589x_gpio->chip.of_node = np;
+#endif
 
 	tc3589x_gpio->irq_base = tc3589x->irq_base ?
 		tc3589x->irq_base + TC3589x_INT_GPIO(0) : 0;
@@ -350,7 +358,7 @@ static int __devinit tc3589x_gpio_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto out_free;
 
-	ret = tc3589x_gpio_irq_init(tc3589x_gpio);
+	ret = tc3589x_gpio_irq_init(tc3589x_gpio, np);
 	if (ret)
 		goto out_free;
 
@@ -367,7 +375,7 @@ static int __devinit tc3589x_gpio_probe(struct platform_device *pdev)
 		goto out_freeirq;
 	}
 
-	if (pdata->setup)
+	if (pdata && pdata->setup)
 		pdata->setup(tc3589x, tc3589x_gpio->chip.base);
 
 	platform_set_drvdata(pdev, tc3589x_gpio);
@@ -389,7 +397,7 @@ static int __devexit tc3589x_gpio_remove(struct platform_device *pdev)
 	int irq = platform_get_irq(pdev, 0);
 	int ret;
 
-	if (pdata->remove)
+	if (pdata && pdata->remove)
 		pdata->remove(tc3589x, tc3589x_gpio->chip.base);
 
 	ret = gpiochip_remove(&tc3589x_gpio->chip);
