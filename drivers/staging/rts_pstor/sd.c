@@ -774,18 +774,16 @@ static int sd_change_bank_voltage(struct rtsx_chip *chip, u8 voltage)
 	if (voltage == SD_IO_3V3) {
 		if (chip->asic_code) {
 			retval = rtsx_write_phy_register(chip, 0x08, 0x4FC0 | chip->phy_voltage);
-			if (retval != STATUS_SUCCESS) {
+			if (retval != STATUS_SUCCESS)
 				TRACE_RET(chip, STATUS_FAIL);
-			}
 		} else {
 			RTSX_WRITE_REG(chip, SD_PAD_CTL, SD_IO_USING_1V8, 0);
 		}
 	} else if (voltage == SD_IO_1V8) {
 		if (chip->asic_code) {
 			retval = rtsx_write_phy_register(chip, 0x08, 0x4C40 | chip->phy_voltage);
-			if (retval != STATUS_SUCCESS) {
+			if (retval != STATUS_SUCCESS)
 				TRACE_RET(chip, STATUS_FAIL);
-			}
 		} else {
 			RTSX_WRITE_REG(chip, SD_PAD_CTL, SD_IO_USING_1V8, SD_IO_USING_1V8);
 		}
