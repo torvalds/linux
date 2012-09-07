@@ -146,6 +146,17 @@ struct eeh_ops {
 
 extern struct eeh_ops *eeh_ops;
 extern int eeh_subsystem_enabled;
+extern struct mutex eeh_mutex;
+
+static inline void eeh_lock(void)
+{
+	mutex_lock(&eeh_mutex);
+}
+
+static inline void eeh_unlock(void)
+{
+	mutex_unlock(&eeh_mutex);
+}
 
 /*
  * Max number of EEH freezes allowed before we consider the device
@@ -206,6 +217,10 @@ static inline void eeh_add_device_tree_early(struct device_node *dn) { }
 static inline void eeh_add_device_tree_late(struct pci_bus *bus) { }
 
 static inline void eeh_remove_bus_device(struct pci_dev *dev) { }
+
+static inline void eeh_lock(void) { }
+static inline void eeh_unlock(void) { }
+
 #define EEH_POSSIBLE_ERROR(val, type) (0)
 #define EEH_IO_ERROR_VALUE(size) (-1UL)
 #endif /* CONFIG_EEH */

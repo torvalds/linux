@@ -92,6 +92,9 @@ struct eeh_ops *eeh_ops = NULL;
 int eeh_subsystem_enabled;
 EXPORT_SYMBOL(eeh_subsystem_enabled);
 
+/* Global EEH mutex */
+DEFINE_MUTEX(eeh_mutex);
+
 /* Lock to avoid races due to multiple reports of an error */
 static DEFINE_RAW_SPINLOCK(confirm_error_lock);
 
