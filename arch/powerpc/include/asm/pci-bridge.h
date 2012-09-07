@@ -184,6 +184,8 @@ static inline struct eeh_dev *of_node_to_eeh_dev(struct device_node *dn)
 {
 	return PCI_DN(dn)->edev;
 }
+#else
+#define of_node_to_eeh_dev(x) (NULL)
 #endif
 
 /** Find the bus corresponding to the indicated device node */

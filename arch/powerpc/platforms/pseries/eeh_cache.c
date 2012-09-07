@@ -50,6 +50,7 @@ struct pci_io_addr_range {
 	struct rb_node rb_node;
 	unsigned long addr_lo;
 	unsigned long addr_hi;
+	struct eeh_dev *edev;
 	struct pci_dev *pcidev;
 	unsigned int flags;
 };
@@ -59,7 +60,7 @@ static struct pci_io_addr_cache {
 	spinlock_t piar_lock;
 } pci_io_addr_cache_root;
 
-static inline struct pci_dev *__pci_addr_cache_get_device(unsigned long addr)
+static inline struct eeh_dev *__pci_addr_cache_get_device(unsigned long addr)
 {
 	struct rb_node *n = pci_io_addr_cache_root.rb_root.rb_node;
 
@@ -74,7 +75,7 @@ static inline struct pci_dev *__pci_addr_cache_get_device(unsigned long addr)
 				n = n->rb_right;
 			} else {
 				pci_dev_get(piar->pcidev);
-				return piar->pcidev;
+				return piar->edev;
 			}
 		}
 	}
@@ -92,15 +93,15 @@ static inline struct pci_dev *__pci_addr_cache_get_device(unsigned long addr)
  * from zero (that is, they do *not* have pci_io_addr added in).
  * It is safe to call this function within an interrupt.
  */
-struct pci_dev *pci_addr_cache_get_device(unsigned long addr)
+struct eeh_dev *pci_addr_cache_get_device(unsigned long addr)
 {
-	struct pci_dev *dev;
+	struct eeh_dev *edev;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pci_io_addr_cache_root.piar_lock, flags);
-	dev = __pci_addr_cache_get_device(addr);
+	edev = __pci_addr_cache_get_device(addr);
 	spin_unlock_irqrestore(&pci_io_addr_cache_root.piar_lock, flags);
-	return dev;
+	return edev;
 }
 
 #ifdef DEBUG
@@ -158,6 +159,7 @@ pci_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 	pci_dev_get(dev);
 	piar->addr_lo = alo;
 	piar->addr_hi = ahi;
+	piar->edev = pci_dev_to_eeh_dev(dev);
 	piar->pcidev = dev;
 	piar->flags = flags;
 

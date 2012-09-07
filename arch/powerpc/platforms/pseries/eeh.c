@@ -270,9 +270,8 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 }
 
 /**
- * eeh_dn_check_failure - Check if all 1's data is due to EEH slot freeze
- * @dn: device node
- * @dev: pci device, if known
+ * eeh_dev_check_failure - Check if all 1's data is due to EEH slot freeze
+ * @edev: eeh device
  *
  * Check for an EEH failure for the given device node.  Call this
  * routine if the result of a read was all 0xff's and you want to
@@ -284,12 +283,13 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
  *
  * It is safe to call this routine in an interrupt context.
  */
-int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
+int eeh_dev_check_failure(struct eeh_dev *edev)
 {
 	int ret;
 	unsigned long flags;
+	struct device_node *dn;
+	struct pci_dev *dev;
 	struct eeh_pe *pe;
-	struct eeh_dev *edev;
 	int rc = 0;
 	const char *location;
 
@@ -298,15 +298,12 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	if (!eeh_subsystem_enabled)
 		return 0;
 
-	if (dn) {
-		edev = of_node_to_eeh_dev(dn);
-	} else if (dev) {
-		edev = pci_dev_to_eeh_dev(dev);
-		dn = pci_device_to_OF_node(dev);
-	} else {
+	if (!edev) {
 		eeh_stats.no_dn++;
 		return 0;
 	}
+	dn = eeh_dev_to_of_node(edev);
+	dev = eeh_dev_to_pci_dev(edev);
 	pe = edev->pe;
 
 	/* Access to IO BARs might get this far and still not want checking. */
@@ -393,7 +390,7 @@ dn_unlock:
 	return rc;
 }
 
-EXPORT_SYMBOL_GPL(eeh_dn_check_failure);
+EXPORT_SYMBOL_GPL(eeh_dev_check_failure);
 
 /**
  * eeh_check_failure - Check if all 1's data is due to EEH slot freeze
@@ -410,21 +407,19 @@ EXPORT_SYMBOL_GPL(eeh_dn_check_failure);
 unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned long val)
 {
 	unsigned long addr;
-	struct pci_dev *dev;
-	struct device_node *dn;
+	struct eeh_dev *edev;
 
 	/* Finding the phys addr + pci device; this is pretty quick. */
 	addr = eeh_token_to_phys((unsigned long __force) token);
-	dev = pci_addr_cache_get_device(addr);
-	if (!dev) {
+	edev = pci_addr_cache_get_device(addr);
+	if (!edev) {
 		eeh_stats.no_device++;
 		return val;
 	}
 
-	dn = pci_device_to_OF_node(dev);
-	eeh_dn_check_failure(dn, dev);
+	eeh_dev_check_failure(edev);
 
-	pci_dev_put(dev);
+	pci_dev_put(eeh_dev_to_pci_dev(edev));
 	return val;
 }
 
