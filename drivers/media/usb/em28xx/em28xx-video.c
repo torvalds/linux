@@ -125,30 +125,6 @@ static struct em28xx_fmt format[] = {
 	},
 };
 
-/* supported controls */
-/* Common to all boards */
-static struct v4l2_queryctrl ac97_qctrl[] = {
-	{
-		.id = V4L2_CID_AUDIO_VOLUME,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Volume",
-		.minimum = 0x0,
-		.maximum = 0x1f,
-		.step = 0x1,
-		.default_value = 0x1f,
-		.flags = V4L2_CTRL_FLAG_SLIDER,
-	}, {
-		.id = V4L2_CID_AUDIO_MUTE,
-		.type = V4L2_CTRL_TYPE_BOOLEAN,
-		.name = "Mute",
-		.minimum = 0,
-		.maximum = 1,
-		.step = 1,
-		.default_value = 1,
-		.flags = 0,
-	}
-};
-
 /* ------------------------------------------------------------------
 	DMA and thread functions
    ------------------------------------------------------------------*/
@@ -718,75 +694,47 @@ static int get_ressource(struct em28xx_fh *fh)
 	}
 }
 
-/*
- * ac97_queryctrl()
- * return the ac97 supported controls
- */
-static int ac97_queryctrl(struct v4l2_queryctrl *qc)
+void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv)
 {
-	int i;
+	struct em28xx *dev = priv;
 
-	for (i = 0; i < ARRAY_SIZE(ac97_qctrl); i++) {
-		if (qc->id && qc->id == ac97_qctrl[i].id) {
-			memcpy(qc, &(ac97_qctrl[i]), sizeof(*qc));
-			return 0;
-		}
-	}
-
-	/* Control is not ac97 related */
-	return 1;
-}
-
-/*
- * ac97_get_ctrl()
- * return the current values for ac97 mute and volume
- */
-static int ac97_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
-{
+	/*
+	 * In the case of non-AC97 volume controls, we still need
+	 * to do some setups at em28xx, in order to mute/unmute
+	 * and to adjust audio volume. However, the value ranges
+	 * should be checked by the corresponding V4L subdriver.
+	 */
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = dev->mute;
-		return 0;
-	case V4L2_CID_AUDIO_VOLUME:
-		ctrl->value = dev->volume;
-		return 0;
-	default:
-		/* Control is not ac97 related */
-		return 1;
-	}
-}
-
-/*
- * ac97_set_ctrl()
- * set values for ac97 mute and volume
- */
-static int ac97_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(ac97_qctrl); i++)
-		if (ctrl->id == ac97_qctrl[i].id)
-			goto handle;
-
-	/* Announce that hasn't handle it */
-	return 1;
-
-handle:
-	if (ctrl->value < ac97_qctrl[i].minimum ||
-	    ctrl->value > ac97_qctrl[i].maximum)
-		return -ERANGE;
-
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		dev->mute = ctrl->value;
+		dev->mute = ctrl->val;
+		em28xx_audio_analog_set(dev);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
-		dev->volume = ctrl->value;
+		dev->volume = ctrl->val;
+		em28xx_audio_analog_set(dev);
+		break;
+	}
+}
+
+static int em28xx_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct em28xx *dev = container_of(ctrl->handler, struct em28xx, ctrl_handler);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		dev->mute = ctrl->val;
+		break;
+	case V4L2_CID_AUDIO_VOLUME:
+		dev->volume = ctrl->val;
 		break;
 	}
 
 	return em28xx_audio_analog_set(dev);
 }
+
+const struct v4l2_ctrl_ops em28xx_ctrl_ops = {
+	.s_ctrl = em28xx_s_ctrl,
+};
 
 static int check_dev(struct em28xx *dev)
 {
@@ -1180,131 +1128,6 @@ static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio
 		dev->ctl_aoutput = EM28XX_AOUT_MASTER;
 
 	return 0;
-}
-
-static int vidioc_queryctrl(struct file *file, void *priv,
-				struct v4l2_queryctrl *qc)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-	int                   id  = qc->id;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
-
-	memset(qc, 0, sizeof(*qc));
-
-	qc->id = id;
-
-	/* enumerate AC97 controls */
-	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
-		rc = ac97_queryctrl(qc);
-		if (!rc)
-			return 0;
-	}
-
-	/* enumerate V4L2 device controls */
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, queryctrl, qc);
-
-	if (qc->type)
-		return 0;
-	else
-		return -EINVAL;
-}
-
-/*
- * FIXME: This is an indirect way to check if a control exists at a
- * subdev. Instead of that hack, maybe the better would be to change all
- * subdevs to return -ENOIOCTLCMD, if an ioctl is not supported.
- */
-static int check_subdev_ctrl(struct em28xx *dev, int id)
-{
-	struct v4l2_queryctrl qc;
-
-	memset(&qc, 0, sizeof(qc));
-	qc.id = id;
-
-	/* enumerate V4L2 device controls */
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, queryctrl, &qc);
-
-	if (qc.type)
-		return 0;
-	else
-		return -EINVAL;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *priv,
-				struct v4l2_control *ctrl)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
-	rc = 0;
-
-	/* Set an AC97 control */
-	if (dev->audio_mode.ac97 != EM28XX_NO_AC97)
-		rc = ac97_get_ctrl(dev, ctrl);
-	else
-		rc = 1;
-
-	/* It were not an AC97 control. Sends it to the v4l2 dev interface */
-	if (rc == 1) {
-		if (check_subdev_ctrl(dev, ctrl->id))
-			return -EINVAL;
-
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_ctrl, ctrl);
-		rc = 0;
-	}
-
-	return rc;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-				struct v4l2_control *ctrl)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
-
-	/* Set an AC97 control */
-	if (dev->audio_mode.ac97 != EM28XX_NO_AC97)
-		rc = ac97_set_ctrl(dev, ctrl);
-	else
-		rc = 1;
-
-	/* It isn't an AC97 control. Sends it to the v4l2 dev interface */
-	if (rc == 1) {
-		rc = check_subdev_ctrl(dev, ctrl->id);
-		if (!rc)
-			v4l2_device_call_all(&dev->v4l2_dev, 0,
-					     core, s_ctrl, ctrl);
-		/*
-		 * In the case of non-AC97 volume controls, we still need
-		 * to do some setups at em28xx, in order to mute/unmute
-		 * and to adjust audio volume. However, the value ranges
-		 * should be checked by the corresponding V4L subdriver.
-		 */
-		switch (ctrl->id) {
-		case V4L2_CID_AUDIO_MUTE:
-			dev->mute = ctrl->value;
-			rc = em28xx_audio_analog_set(dev);
-			break;
-		case V4L2_CID_AUDIO_VOLUME:
-			dev->volume = ctrl->value;
-			rc = em28xx_audio_analog_set(dev);
-		}
-	}
-	return (rc < 0) ? rc : 0;
 }
 
 static int vidioc_g_tuner(struct file *file, void *priv,
@@ -1874,25 +1697,6 @@ static int radio_s_tuner(struct file *file, void *priv,
 	return 0;
 }
 
-static int radio_queryctrl(struct file *file, void *priv,
-			   struct v4l2_queryctrl *qc)
-{
-	int i;
-
-	if (qc->id <  V4L2_CID_BASE ||
-		qc->id >= V4L2_CID_LASTP1)
-		return -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(ac97_qctrl); i++) {
-		if (qc->id && qc->id == ac97_qctrl[i].id) {
-			memcpy(qc, &(ac97_qctrl[i]), sizeof(*qc));
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
-
 /*
  * em28xx_v4l2_open()
  * inits the device and starts isoc transfer
@@ -2218,9 +2022,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_input          = vidioc_enum_input,
 	.vidioc_g_input             = vidioc_g_input,
 	.vidioc_s_input             = vidioc_s_input,
-	.vidioc_queryctrl           = vidioc_queryctrl,
-	.vidioc_g_ctrl              = vidioc_g_ctrl,
-	.vidioc_s_ctrl              = vidioc_s_ctrl,
 	.vidioc_streamon            = vidioc_streamon,
 	.vidioc_streamoff           = vidioc_streamoff,
 	.vidioc_g_tuner             = vidioc_g_tuner,
@@ -2254,9 +2055,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_g_tuner       = radio_g_tuner,
 	.vidioc_s_tuner       = radio_s_tuner,
-	.vidioc_queryctrl     = radio_queryctrl,
-	.vidioc_g_ctrl        = vidioc_g_ctrl,
-	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -2300,7 +2098,7 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 
 int em28xx_register_analog_devices(struct em28xx *dev)
 {
-      u8 val;
+	u8 val;
 	int ret;
 	unsigned int maxw;
 

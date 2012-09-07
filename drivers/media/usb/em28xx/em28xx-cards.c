@@ -2941,6 +2941,8 @@ void em28xx_release_resources(struct em28xx *dev)
 
 	em28xx_i2c_unregister(dev);
 
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
+
 	v4l2_device_unregister(&dev->v4l2_dev);
 
 	usb_put_dev(dev->udev);
@@ -2957,6 +2959,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			   struct usb_interface *interface,
 			   int minor)
 {
+	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
 	int retval;
 	static const char *default_chip_name = "em28xx";
 	const char *chip_name = default_chip_name;
@@ -3084,6 +3087,9 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		return retval;
 	}
 
+	v4l2_ctrl_handler_init(hdl, 4);
+	dev->v4l2_dev.ctrl_handler = hdl;
+
 	/* register i2c bus */
 	retval = em28xx_i2c_register(dev);
 	if (retval < 0) {
@@ -3108,6 +3114,18 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		em28xx_errdev("%s: Error while setting audio - error [%d]!\n",
 			__func__, retval);
 		goto fail;
+	}
+	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+		v4l2_ctrl_new_std(hdl, &em28xx_ctrl_ops,
+			V4L2_CID_AUDIO_VOLUME, 0, 0x1f, 1, 0x1f);
+	} else {
+		/* install the em28xx notify callback */
+		v4l2_ctrl_notify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_MUTE),
+				em28xx_ctrl_notify, dev);
+		v4l2_ctrl_notify(v4l2_ctrl_find(hdl, V4L2_CID_AUDIO_VOLUME),
+				em28xx_ctrl_notify, dev);
 	}
 
 	/* wake i2c devices */
@@ -3138,6 +3156,11 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		msleep(3);
 	}
 
+	v4l2_ctrl_handler_setup(&dev->ctrl_handler);
+	retval = dev->ctrl_handler.error;
+	if (retval)
+		goto fail;
+
 	retval = em28xx_register_analog_devices(dev);
 	if (retval < 0) {
 		goto fail;
@@ -3150,6 +3173,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 
 fail:
 	em28xx_i2c_unregister(dev);
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 
 unregister_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);

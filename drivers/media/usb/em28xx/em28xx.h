@@ -33,6 +33,7 @@
 
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/rc-core.h>
 #if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
@@ -497,6 +498,9 @@ struct em28xx {
 	int audio_ifnum;
 
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler ctrl_handler;
+	/* provides ac97 mute and volume overrides */
+	struct v4l2_ctrl_handler ac97_ctrl_handler;
 	struct em28xx_board board;
 
 	/* Webcam specific fields */
@@ -705,6 +709,8 @@ void em28xx_close_extension(struct em28xx *dev);
 /* Provided by em28xx-video.c */
 int em28xx_register_analog_devices(struct em28xx *dev);
 void em28xx_release_analog_resources(struct em28xx *dev);
+void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv);
+extern const struct v4l2_ctrl_ops em28xx_ctrl_ops;
 
 /* Provided by em28xx-cards.c */
 extern int em2800_variant_detect(struct usb_device *udev, int model);
