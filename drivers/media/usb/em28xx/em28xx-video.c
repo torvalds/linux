@@ -1735,6 +1735,7 @@ static int em28xx_v4l2_open(struct file *filp)
 		mutex_unlock(&dev->lock);
 		return -ENOMEM;
 	}
+	v4l2_fh_init(&fh->fh, vdev);
 	fh->dev = dev;
 	fh->radio = radio;
 	fh->type = fh_type;
@@ -1774,6 +1775,7 @@ static int em28xx_v4l2_open(struct file *filp)
 				    V4L2_FIELD_SEQ_TB,
 				    sizeof(struct em28xx_buffer), fh, &dev->lock);
 	mutex_unlock(&dev->lock);
+	v4l2_fh_add(&fh->fh);
 
 	return errCode;
 }
@@ -1867,6 +1869,8 @@ static int em28xx_v4l2_close(struct file *filp)
 					"0 (error=%i)\n", errCode);
 		}
 	}
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 
 	videobuf_mmap_free(&fh->vb_vidq);
 	videobuf_mmap_free(&fh->vb_vbiq);
@@ -2088,6 +2092,7 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	vfd->release	= video_device_release;
 	vfd->debug	= video_debug;
 	vfd->lock	= &dev->lock;
+	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
 		 dev->name, type_name);

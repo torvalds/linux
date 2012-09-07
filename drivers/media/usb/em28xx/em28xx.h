@@ -34,6 +34,7 @@
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/rc-core.h>
 #if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
@@ -477,6 +478,7 @@ struct em28xx_audio {
 struct em28xx;
 
 struct em28xx_fh {
+	struct v4l2_fh fh;
 	struct em28xx *dev;
 	int           radio;
 	unsigned int  resources;
