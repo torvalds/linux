@@ -1938,11 +1938,10 @@ static int sd_prepare_reset(struct rtsx_chip *chip)
 	struct sd_info *sd_card = &(chip->sd_card);
 	int retval;
 
-	if (chip->asic_code) {
+	if (chip->asic_code)
 		sd_card->sd_clock = 29;
-	} else {
+	else
 		sd_card->sd_clock = CLK_30;
-	}
 
 	sd_card->sd_type = 0;
 	sd_card->seq_mode = 0;
@@ -1958,9 +1957,8 @@ static int sd_prepare_reset(struct rtsx_chip *chip)
 	chip->sd_io = 0;
 
 	retval = sd_set_init_para(chip);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, retval);
-	}
 
 	if (CHECK_PID(chip, 0x5209)) {
 		RTSX_WRITE_REG(chip, REG_SD_CFG1, 0xFF,
@@ -1974,9 +1972,8 @@ static int sd_prepare_reset(struct rtsx_chip *chip)
 	RTSX_WRITE_REG(chip, CARD_STOP, SD_STOP | SD_CLR_ERR, SD_STOP | SD_CLR_ERR);
 
 	retval = select_card(chip, SD_CARD);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	return STATUS_SUCCESS;
 }
