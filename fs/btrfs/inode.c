@@ -3834,15 +3834,10 @@ void btrfs_evict_inode(struct inode *inode)
 	btrfs_i_size_write(inode, 0);
 
 	/*
-	 * This is a bit simpler than btrfs_truncate since
-	 *
-	 * 1) We've already reserved our space for our orphan item in the
-	 *    unlink.
-	 * 2) We're going to delete the inode item, so we don't need to update
-	 *    it at all.
-	 *
-	 * So we just need to reserve some slack space in case we add bytes when
-	 * doing the truncate.
+	 * This is a bit simpler than btrfs_truncate since we've already
+	 * reserved our space for our orphan item in the unlink, so we just
+	 * need to reserve some slack space in case we add bytes and update
+	 * inode item when doing the truncate.
 	 */
 	while (1) {
 		ret = btrfs_block_rsv_refill_noflush(root, rsv, min_size);
@@ -3863,7 +3858,7 @@ void btrfs_evict_inode(struct inode *inode)
 			goto no_delete;
 		}
 
-		trans = btrfs_start_transaction(root, 0);
+		trans = btrfs_start_transaction_noflush(root, 1);
 		if (IS_ERR(trans)) {
 			btrfs_orphan_del(NULL, inode);
 			btrfs_free_block_rsv(root, rsv);
@@ -3875,6 +3870,10 @@ void btrfs_evict_inode(struct inode *inode)
 		ret = btrfs_truncate_inode_items(trans, root, inode, 0, 0);
 		if (ret != -ENOSPC)
 			break;
+
+		trans->block_rsv = &root->fs_info->trans_block_rsv;
+		ret = btrfs_update_inode(trans, root, inode);
+		BUG_ON(ret);
 
 		nr = trans->blocks_used;
 		btrfs_end_transaction(trans, root);
