@@ -218,6 +218,13 @@ int target_emulate_set_target_port_groups(struct se_cmd *cmd)
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return -EINVAL;
 	}
+	if (cmd->data_length < 4) {
+		pr_warn("SET TARGET PORT GROUPS parameter list length %u too"
+			" small\n", cmd->data_length);
+		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+		return -EINVAL;
+	}
+
 	buf = transport_kmap_data_sg(cmd);
 
 	/*
