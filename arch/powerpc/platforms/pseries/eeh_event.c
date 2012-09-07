@@ -119,36 +119,23 @@ static void eeh_thread_launcher(struct work_struct *dummy)
 
 /**
  * eeh_send_failure_event - Generate a PCI error event
- * @edev: EEH device
+ * @pe: EEH PE
  *
  * This routine can be called within an interrupt context;
  * the actual event will be delivered in a normal context
  * (from a workqueue).
  */
-int eeh_send_failure_event(struct eeh_dev *edev)
+int eeh_send_failure_event(struct eeh_pe *pe)
 {
 	unsigned long flags;
 	struct eeh_event *event;
-	struct device_node *dn = eeh_dev_to_of_node(edev);
-	const char *location;
 
-	if (!mem_init_done) {
-		printk(KERN_ERR "EEH: event during early boot not handled\n");
-		location = of_get_property(dn, "ibm,loc-code", NULL);
-		printk(KERN_ERR "EEH: device node = %s\n", dn->full_name);
-		printk(KERN_ERR "EEH: PCI location = %s\n", location);
-		return 1;
-	}
 	event = kzalloc(sizeof(*event), GFP_ATOMIC);
-	if (event == NULL) {
-		printk(KERN_ERR "EEH: out of memory, event not handled\n");
-		return 1;
- 	}
-
-	if (edev->pdev)
-		pci_dev_get(edev->pdev);
-
-	event->edev = edev;
+	if (!event) {
+		pr_err("EEH: out of memory, event not handled\n");
+		return -ENOMEM;
+	}
+	event->pe = pe;
 
 	/* We may or may not be called in an interrupt context */
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);

@@ -28,10 +28,10 @@
  */
 struct eeh_event {
 	struct list_head	list;	/* to form event queue	*/
-	struct eeh_dev		*edev;	/* EEH device		*/
+	struct eeh_pe		*pe;	/* EEH PE		*/
 };
 
-int eeh_send_failure_event(struct eeh_dev *edev);
+int eeh_send_failure_event(struct eeh_pe *pe);
 struct eeh_dev *handle_eeh_events(struct eeh_event *);
 
 #endif /* __KERNEL__ */
