@@ -6472,7 +6472,7 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 }
 
 /* PCI Error Recovery (ERS) */
-static struct pci_error_handlers e1000_err_handler = {
+static const struct pci_error_handlers e1000_err_handler = {
 	.error_detected = e1000_io_error_detected,
 	.slot_reset = e1000_io_slot_reset,
 	.resume = e1000_io_resume,

@@ -4104,7 +4104,7 @@ err:
 	dev_err(&adapter->pdev->dev, "EEH resume failed\n");
 }
 
-static struct pci_error_handlers be_eeh_handlers = {
+static const struct pci_error_handlers be_eeh_handlers = {
 	.error_detected = be_eeh_err_detected,
 	.slot_reset = be_eeh_reset,
 	.resume = be_eeh_resume,
