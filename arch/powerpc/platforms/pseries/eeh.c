@@ -1156,6 +1156,7 @@ static void eeh_remove_device(struct pci_dev *dev)
 	dev->dev.archdata.edev = NULL;
 	pci_dev_put(dev);
 
+	eeh_rmv_from_parent_pe(edev);
 	pci_addr_cache_remove_device(dev);
 	eeh_sysfs_remove_device(dev);
 }

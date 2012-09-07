@@ -341,3 +341,50 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 
 	return 0;
 }
+
+/**
+ * eeh_rmv_from_parent_pe - Remove one EEH device from the associated PE
+ * @edev: EEH device
+ *
+ * The PE hierarchy tree might be changed when doing PCI hotplug.
+ * Also, the PCI devices or buses could be removed from the system
+ * during EEH recovery. So we have to call the function remove the
+ * corresponding PE accordingly if necessary.
+ */
+int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
+{
+	struct eeh_pe *pe, *parent;
+
+	if (!edev->pe) {
+		pr_warning("%s: No PE found for EEH device %s\n",
+			__func__, edev->dn->full_name);
+		return -EEXIST;
+	}
+
+	/* Remove the EEH device */
+	pe = edev->pe;
+	edev->pe = NULL;
+	list_del(&edev->list);
+
+	/*
+	 * Check if the parent PE includes any EEH devices.
+	 * If not, we should delete that. Also, we should
+	 * delete the parent PE if it doesn't have associated
+	 * child PEs and EEH devices.
+	 */
+	while (1) {
+		parent = pe->parent;
+		if (pe->type == EEH_PE_PHB)
+			break;
+
+		if (list_empty(&pe->edevs) &&
+		    list_empty(&pe->child_list)) {
+			list_del(&pe->child);
+			kfree(pe);
+		}
+
+		pe = parent;
+	}
+
+	return 0;
+}
