@@ -1572,11 +1572,10 @@ static u8 sd_search_final_phase(struct rtsx_chip *chip, u32 phase_map, u8 tune_d
 	u8 final_phase = 0xFF;
 
 	if (phase_map == 0xFFFFFFFF) {
-		if (tune_dir == TUNE_RX) {
+		if (tune_dir == TUNE_RX)
 			final_phase = (u8)chip->sd_default_rx_phase;
-		} else {
+		else
 			final_phase = (u8)chip->sd_default_tx_phase;
-		}
 
 		goto Search_Finish;
 	}
@@ -1617,9 +1616,9 @@ static u8 sd_search_final_phase(struct rtsx_chip *chip, u32 phase_map, u8 tune_d
 		path[0].start = path[cont_path_cnt - 1].start - MAX_PHASE - 1;
 		path[0].len += path[cont_path_cnt - 1].len;
 		path[0].mid = path[0].start + path[0].len / 2;
-		if (path[0].mid < 0) {
+		if (path[0].mid < 0)
 			path[0].mid += MAX_PHASE + 1;
-		}
+
 		cont_path_cnt--;
 	}
 
@@ -1647,11 +1646,10 @@ static u8 sd_search_final_phase(struct rtsx_chip *chip, u32 phase_map, u8 tune_d
 				int temp_final_phase =
 					path[final_path_idx].end - (max_len - (6 + temp_mid));
 
-				if (temp_final_phase < 0) {
+				if (temp_final_phase < 0)
 					final_phase = (u8)(temp_final_phase + MAX_PHASE + 1);
-				} else {
+				else
 					final_phase = (u8)temp_final_phase;
-				}
 			}
 		} else if (CHK_SD_SDR50(sd_card)) {
 			if (max_len > 12) {
@@ -1659,11 +1657,10 @@ static u8 sd_search_final_phase(struct rtsx_chip *chip, u32 phase_map, u8 tune_d
 				int temp_final_phase =
 					path[final_path_idx].end - (max_len - (3 + temp_mid));
 
-				if (temp_final_phase < 0) {
+				if (temp_final_phase < 0)
 					final_phase = (u8)(temp_final_phase + MAX_PHASE + 1);
-				} else {
+				else
 					final_phase = (u8)temp_final_phase;
-				}
 			}
 		}
 	}
