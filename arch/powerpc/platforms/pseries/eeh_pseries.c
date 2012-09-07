@@ -129,7 +129,101 @@ static int pseries_eeh_init(void)
 		eeh_error_buf_size = RTAS_ERROR_LOG_MAX;
 	}
 
+	/* Set EEH probe mode */
+	eeh_probe_mode_set(EEH_PROBE_MODE_DEVTREE);
+
 	return 0;
+}
+
+/**
+ * pseries_eeh_of_probe - EEH probe on the given device
+ * @dn: OF node
+ * @flag: Unused
+ *
+ * When EEH module is installed during system boot, all PCI devices
+ * are checked one by one to see if it supports EEH. The function
+ * is introduced for the purpose.
+ */
+static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
+{
+	struct eeh_dev *edev;
+	struct eeh_pe pe;
+	const u32 *class_code, *vendor_id, *device_id;
+	const u32 *regs;
+	int enable = 0;
+	int ret;
+
+	/* Retrieve OF node and eeh device */
+	edev = of_node_to_eeh_dev(dn);
+	if (!of_device_is_available(dn))
+		return NULL;
+
+	/* Retrieve class/vendor/device IDs */
+	class_code = of_get_property(dn, "class-code", NULL);
+	vendor_id  = of_get_property(dn, "vendor-id", NULL);
+	device_id  = of_get_property(dn, "device-id", NULL);
+
+	/* Skip for bad OF node or PCI-ISA bridge */
+	if (!class_code || !vendor_id || !device_id)
+		return NULL;
+	if (dn->type && !strcmp(dn->type, "isa"))
+		return NULL;
+
+	/* Update class code and mode of eeh device */
+	edev->class_code = *class_code;
+	edev->mode = 0;
+
+	/* Retrieve the device address */
+	regs = of_get_property(dn, "reg", NULL);
+	if (!regs) {
+		pr_warning("%s: OF node property %s::reg not found\n",
+			__func__, dn->full_name);
+		return NULL;
+	}
+
+	/* Initialize the fake PE */
+	memset(&pe, 0, sizeof(struct eeh_pe));
+	pe.phb = edev->phb;
+	pe.config_addr = regs[0];
+
+	/* Enable EEH on the device */
+	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
+	if (!ret) {
+		edev->config_addr = regs[0];
+		/* Retrieve PE address */
+		edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
+		pe.addr = edev->pe_config_addr;
+
+		/* Some older systems (Power4) allow the ibm,set-eeh-option
+		 * call to succeed even on nodes where EEH is not supported.
+		 * Verify support explicitly.
+		 */
+		ret = eeh_ops->get_state(&pe, NULL);
+		if (ret > 0 && ret != EEH_STATE_NOT_SUPPORT)
+			enable = 1;
+
+		if (enable) {
+			eeh_subsystem_enabled = 1;
+			eeh_add_to_parent_pe(edev);
+
+			pr_debug("%s: EEH enabled on %s PHB#%d-PE#%x, config addr#%x\n",
+				__func__, dn->full_name, pe.phb->global_number,
+				pe.addr, pe.config_addr);
+		} else if (dn->parent && of_node_to_eeh_dev(dn->parent) &&
+			   (of_node_to_eeh_dev(dn->parent))->pe) {
+			/* This device doesn't support EEH, but it may have an
+			 * EEH parent, in which case we mark it as supported.
+			 */
+			edev->config_addr = of_node_to_eeh_dev(dn->parent)->config_addr;
+			edev->pe_config_addr = of_node_to_eeh_dev(dn->parent)->pe_config_addr;
+			eeh_add_to_parent_pe(edev);
+		}
+	}
+
+	/* Save memory bars */
+	eeh_save_bars(edev);
+
+	return NULL;
 }
 
 /**
@@ -523,6 +617,8 @@ static int pseries_eeh_write_config(struct device_node *dn, int where, int size,
 static struct eeh_ops pseries_eeh_ops = {
 	.name			= "pseries",
 	.init			= pseries_eeh_init,
+	.of_probe		= pseries_eeh_of_probe,
+	.dev_probe		= NULL,
 	.set_option		= pseries_eeh_set_option,
 	.get_pe_addr		= pseries_eeh_get_pe_addr,
 	.get_state		= pseries_eeh_get_state,

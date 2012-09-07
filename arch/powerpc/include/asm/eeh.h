@@ -129,6 +129,8 @@ static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
 struct eeh_ops {
 	char *name;
 	int (*init)(void);
+	void* (*of_probe)(struct device_node *dn, void *flag);
+	void* (*dev_probe)(struct pci_dev *dev, void *flag);
 	int (*set_option)(struct eeh_pe *pe, int option);
 	int (*get_pe_addr)(struct eeh_pe *pe);
 	int (*get_state)(struct eeh_pe *pe, int *state);
@@ -143,6 +145,25 @@ struct eeh_ops {
 extern struct eeh_ops *eeh_ops;
 extern int eeh_subsystem_enabled;
 extern struct mutex eeh_mutex;
+extern int eeh_probe_mode;
+
+#define EEH_PROBE_MODE_DEV	(1<<0)	/* From PCI device	*/
+#define EEH_PROBE_MODE_DEVTREE	(1<<1)	/* From device tree	*/
+
+static inline void eeh_probe_mode_set(int flag)
+{
+	eeh_probe_mode = flag;
+}
+
+static inline int eeh_probe_mode_devtree(void)
+{
+	return (eeh_probe_mode == EEH_PROBE_MODE_DEVTREE);
+}
+
+static inline int eeh_probe_mode_dev(void)
+{
+	return (eeh_probe_mode == EEH_PROBE_MODE_DEV);
+}
 
 static inline void eeh_lock(void)
 {

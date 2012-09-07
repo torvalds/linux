@@ -92,6 +92,17 @@ struct eeh_ops *eeh_ops = NULL;
 int eeh_subsystem_enabled;
 EXPORT_SYMBOL(eeh_subsystem_enabled);
 
+/*
+ * EEH probe mode support. The intention is to support multiple
+ * platforms for EEH. Some platforms like pSeries do PCI emunation
+ * based on device tree. However, other platforms like powernv probe
+ * PCI devices from hardware. The flag is used to distinguish that.
+ * In addition, struct eeh_ops::probe would be invoked for particular
+ * OF node or PCI device so that the corresponding PE would be created
+ * there.
+ */
+int eeh_probe_mode;
+
 /* Global EEH mutex */
 DEFINE_MUTEX(eeh_mutex);
 
@@ -590,7 +601,7 @@ int eeh_reset_pe(struct eeh_pe *pe)
  * PCI devices are added individually; but, for the restore,
  * an entire slot is reset at a time.
  */
-static void eeh_save_bars(struct eeh_dev *edev)
+void eeh_save_bars(struct eeh_dev *edev)
 {
 	int i;
 	struct device_node *dn;
@@ -601,108 +612,6 @@ static void eeh_save_bars(struct eeh_dev *edev)
 	
 	for (i = 0; i < 16; i++)
 		eeh_ops->read_config(dn, i * 4, 4, &edev->config_space[i]);
-}
-
-/**
- * eeh_early_enable - Early enable EEH on the indicated device
- * @dn: device node
- * @data: BUID
- *
- * Enable EEH functionality on the specified PCI device. The function
- * is expected to be called before real PCI probing is done. However,
- * the PHBs have been initialized at this point.
- */
-static void *eeh_early_enable(struct device_node *dn, void *data)
-{
-	int ret;
-	const u32 *class_code = of_get_property(dn, "class-code", NULL);
-	const u32 *vendor_id = of_get_property(dn, "vendor-id", NULL);
-	const u32 *device_id = of_get_property(dn, "device-id", NULL);
-	const u32 *regs;
-	int enable;
-	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
-	struct eeh_pe pe;
-
-	edev->class_code = 0;
-	edev->mode = 0;
-
-	if (!of_device_is_available(dn))
-		return NULL;
-
-	/* Ignore bad nodes. */
-	if (!class_code || !vendor_id || !device_id)
-		return NULL;
-
-	/* There is nothing to check on PCI to ISA bridges */
-	if (dn->type && !strcmp(dn->type, "isa"))
-		return NULL;
-	edev->class_code = *class_code;
-
-	/* Ok... see if this device supports EEH.  Some do, some don't,
-	 * and the only way to find out is to check each and every one.
-	 */
-	regs = of_get_property(dn, "reg", NULL);
-	if (regs) {
-		/* Initialize the fake PE */
-		memset(&pe, 0, sizeof(struct eeh_pe));
-		pe.phb = edev->phb;
-		pe.config_addr = regs[0];
-
-		/* First register entry is addr (00BBSS00)  */
-		/* Try to enable eeh */
-		ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
-
-		enable = 0;
-		if (ret == 0) {
-			edev->config_addr = regs[0];
-
-			/* If the newer, better, ibm,get-config-addr-info is supported, 
-			 * then use that instead.
-			 */
-			edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
-			pe.addr = edev->pe_config_addr;
-
-			/* Some older systems (Power4) allow the
-			 * ibm,set-eeh-option call to succeed even on nodes
-			 * where EEH is not supported. Verify support
-			 * explicitly.
-			 */
-			ret = eeh_ops->get_state(&pe, NULL);
-			if (ret > 0 && ret != EEH_STATE_NOT_SUPPORT)
-				enable = 1;
-		}
-
-		if (enable) {
-			eeh_subsystem_enabled = 1;
-
-			eeh_add_to_parent_pe(edev);
-
-			pr_debug("EEH: %s: eeh enabled, config=%x pe_config=%x\n",
-				 dn->full_name, edev->config_addr,
-				 edev->pe_config_addr);
-		} else {
-
-			/* This device doesn't support EEH, but it may have an
-			 * EEH parent, in which case we mark it as supported.
-			 */
-			if (dn->parent && of_node_to_eeh_dev(dn->parent) &&
-			    of_node_to_eeh_dev(dn->parent)->pe) {
-				/* Parent supports EEH. */
-				edev->config_addr = of_node_to_eeh_dev(dn->parent)->config_addr;
-				edev->pe_config_addr = of_node_to_eeh_dev(dn->parent)->pe_config_addr;
-
-				eeh_add_to_parent_pe(edev);
-
-				return NULL;
-			}
-		}
-	} else {
-		printk(KERN_WARNING "EEH: %s: unable to get reg property.\n",
-		       dn->full_name);
-	}
-
-	eeh_save_bars(edev);
-	return NULL;
 }
 
 /**
@@ -790,15 +699,18 @@ static int __init eeh_init(void)
 	raw_spin_lock_init(&confirm_error_lock);
 
 	/* Enable EEH for all adapters */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		phb = hose->dn;
-		traverse_pci_devices(phb, eeh_early_enable, NULL);
+	if (eeh_probe_mode_devtree()) {
+		list_for_each_entry_safe(hose, tmp,
+			&hose_list, list_node) {
+			phb = hose->dn;
+			traverse_pci_devices(phb, eeh_ops->of_probe, NULL);
+		}
 	}
 
 	if (eeh_subsystem_enabled)
-		printk(KERN_INFO "EEH: PCI Enhanced I/O Error Handling Enabled\n");
+		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
 	else
-		printk(KERN_WARNING "EEH: No capable adapters found\n");
+		pr_warning("EEH: No capable adapters found\n");
 
 	return ret;
 }
@@ -829,7 +741,8 @@ static void eeh_add_device_early(struct device_node *dn)
 	if (NULL == phb || 0 == phb->buid)
 		return;
 
-	eeh_early_enable(dn, NULL);
+	/* FIXME: hotplug support on POWERNV */
+	eeh_ops->of_probe(dn, NULL);
 }
 
 /**
