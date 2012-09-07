@@ -58,6 +58,21 @@ static void __init early_code_mapping_set_exec(int executable)
 	}
 }
 
+unsigned long efi_call_virt_prelog(void)
+{
+	unsigned long saved;
+
+	saved = read_cr3();
+	write_cr3(real_mode_header->trampoline_pgd);
+
+	return saved;
+}
+
+void efi_call_virt_epilog(unsigned long saved)
+{
+	write_cr3(saved);
+}
+
 void __init efi_call_phys_prelog(void)
 {
 	unsigned long vaddress;
