@@ -944,19 +944,19 @@ static int ptrace_syscall_trace(struct pt_regs *regs, int scno,
 
 asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 {
-	int ret = ptrace_syscall_trace(regs, scno, PTRACE_SYSCALL_ENTER);
+	scno = ptrace_syscall_trace(regs, scno, PTRACE_SYSCALL_ENTER);
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_enter(regs, ret);
+		trace_sys_enter(regs, scno);
 	audit_syscall_entry(AUDIT_ARCH_ARM, scno, regs->ARM_r0, regs->ARM_r1,
 			    regs->ARM_r2, regs->ARM_r3);
-	return ret;
+	return scno;
 }
 
 asmlinkage int syscall_trace_exit(struct pt_regs *regs, int scno)
 {
-	int ret = ptrace_syscall_trace(regs, scno, PTRACE_SYSCALL_EXIT);
+	scno = ptrace_syscall_trace(regs, scno, PTRACE_SYSCALL_EXIT);
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_exit(regs, ret);
+		trace_sys_exit(regs, scno);
 	audit_syscall_exit(regs);
-	return ret;
+	return scno;
 }
