@@ -21,6 +21,28 @@ config MACH_ACS5K
 	  say 'Y' here if you want your kernel to run on the Brivo
 	  Systems LLC, ACS-5000 Master board.
 
+config MACH_LITE300
+	bool "SecureComputing SG300"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  SecureComputing / SnapGear SG300 VPN Internet Router.
+	  See http://www.securecomputing.com for more details.
+
+config MACH_SG310
+	bool "McAfee SG310"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  McAfee / SnapGear SG310 VPN Internet Router.
+	  See http://www.mcafee.com for more details.
+
+config MACH_SE4200
+	bool "SecureComputing SE4200"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  SecureComputing / SnapGear SE4200 Secure Wireless VPN
+	  Internet Router.
+	  See http://www.securecomputing.com for more details.
+
 endmenu
 
 endif
