@@ -1900,9 +1900,8 @@ int sd_switch_clock(struct rtsx_chip *chip)
 	int re_tuning = 0;
 
 	retval = select_card(chip, SD_CARD);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	if (CHECK_PID(chip, 0x5209) &&
 			(CHK_SD30_SPEED(sd_card) || CHK_MMC_DDR52(sd_card))) {
@@ -1913,26 +1912,22 @@ int sd_switch_clock(struct rtsx_chip *chip)
 	}
 
 	retval = switch_clock(chip, sd_card->sd_clock);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	if (re_tuning) {
 		if (CHK_SD(sd_card)) {
-			if (CHK_SD_DDR50(sd_card)) {
+			if (CHK_SD_DDR50(sd_card))
 				retval = sd_ddr_tuning(chip);
-			} else {
+			else
 				retval = sd_sdr_tuning(chip);
-			}
 		} else {
-			if (CHK_MMC_DDR52(sd_card)) {
+			if (CHK_MMC_DDR52(sd_card))
 				retval = mmc_ddr_tuning(chip);
-			}
 		}
 
-		if (retval != STATUS_SUCCESS) {
+		if (retval != STATUS_SUCCESS)
 			TRACE_RET(chip, STATUS_FAIL);
-		}
 	}
 
 	return STATUS_SUCCESS;
