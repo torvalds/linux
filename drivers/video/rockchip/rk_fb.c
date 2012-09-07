@@ -204,7 +204,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 			{
 				if(inf->num_fb >= 2)
 				{
-					info2 = inf->fb[2];
+					info2 = inf->fb[inf->num_fb>>1];
 					dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
 					par2 = dev_drv1->layer_par[layer_id];
 					par2->y_offset = par->y_offset;
@@ -368,7 +368,7 @@ static int rk_fb_set_par(struct fb_info *info)
 			{
 				if(inf->num_fb >= 2)
 				{
-					info2 = inf->fb[2];
+					info2 = inf->fb[inf->num_fb>>1];
 					dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
 				}
 			}
@@ -671,6 +671,13 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 			
 		}
 	}
+	else
+	{
+		if(enable)
+		{
+			memcpy(dev_drv->cur_screen,screen,sizeof(rk_screen ));
+		}
+	}
 
 	
 	layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
@@ -744,7 +751,6 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	
 	char name[6];
 	int i;
-	printk("%s>>scale_x:%x>>scale_y:%d\n",__func__,scale_x,scale_y);
 	sprintf(name, "lcdc%d",lcdc_id);
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
@@ -822,7 +828,7 @@ static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 	            	fbi->fix.mmio_len = res->end - res->start + 1;
 	 	#endif
 		    	break;
-        	case 2:
+        	case 3:
 			#if !defined(CONFIG_THREE_FB_BUFFER)
             		res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb2 buf");
 			if (res == NULL)
