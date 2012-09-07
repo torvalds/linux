@@ -40,6 +40,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/gpio.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <plat/omap-serial.h>
 
@@ -108,6 +109,7 @@ struct uart_omap_port {
 	u32			latency;
 	u32			calc_latency;
 	struct work_struct	qos_work;
+	struct pinctrl		*pins;
 };
 
 #define to_uart_omap_port(p)	((container_of((p), struct uart_omap_port, port)))
@@ -1375,6 +1377,13 @@ static int __devinit serial_omap_probe(struct platform_device *pdev)
 								up->port.line);
 		ret = -ENODEV;
 		goto err_port_line;
+	}
+
+	up->pins = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(up->pins)) {
+		dev_warn(&pdev->dev, "did not get pins for uart%i error: %li\n",
+			 up->port.line, PTR_ERR(up->pins));
+		up->pins = NULL;
 	}
 
 	sprintf(up->name, "OMAP UART%d", up->port.line);
