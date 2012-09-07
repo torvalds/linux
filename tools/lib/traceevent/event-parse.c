@@ -3889,8 +3889,11 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				goto cont_process;
 			case '*':
 				/* The argument is the length. */
-				if (!arg)
-					die("no argument match");
+				if (!arg) {
+					do_warning("no argument match");
+					event->flags |= EVENT_FL_FAILED;
+					goto out_failed;
+				}
 				len_arg = eval_num_arg(data, size, event, arg);
 				len_as_arg = 1;
 				arg = arg->next;
@@ -3923,15 +3926,21 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case 'x':
 			case 'X':
 			case 'u':
-				if (!arg)
-					die("no argument match");
+				if (!arg) {
+					do_warning("no argument match");
+					event->flags |= EVENT_FL_FAILED;
+					goto out_failed;
+				}
 
 				len = ((unsigned long)ptr + 1) -
 					(unsigned long)saveptr;
 
 				/* should never happen */
-				if (len > 31)
-					die("bad format!");
+				if (len > 31) {
+					do_warning("bad format!");
+					event->flags |= EVENT_FL_FAILED;
+					len = 31;
+				}
 
 				memcpy(format, saveptr, len);
 				format[len] = 0;
@@ -3995,19 +4004,26 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 						trace_seq_printf(s, format, (long long)val);
 					break;
 				default:
-					die("bad count (%d)", ls);
+					do_warning("bad count (%d)", ls);
+					event->flags |= EVENT_FL_FAILED;
 				}
 				break;
 			case 's':
-				if (!arg)
-					die("no matching argument");
+				if (!arg) {
+					do_warning("no matching argument");
+					event->flags |= EVENT_FL_FAILED;
+					goto out_failed;
+				}
 
 				len = ((unsigned long)ptr + 1) -
 					(unsigned long)saveptr;
 
 				/* should never happen */
-				if (len > 31)
-					die("bad format!");
+				if (len > 31) {
+					do_warning("bad format!");
+					event->flags |= EVENT_FL_FAILED;
+					len = 31;
+				}
 
 				memcpy(format, saveptr, len);
 				format[len] = 0;
@@ -4023,6 +4039,11 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			}
 		} else
 			trace_seq_putc(s, *ptr);
+	}
+
+	if (event->flags & EVENT_FL_FAILED) {
+out_failed:
+		trace_seq_printf(s, "[FAILED TO PARSE]");
 	}
 
 	if (args) {
