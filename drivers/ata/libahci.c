@@ -45,6 +45,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
 #include "ahci.h"
+#include "libata.h"
 
 static int ahci_skip_host_reset;
 int ahci_ignore_sss;
@@ -76,6 +77,7 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc);
 static int ahci_pmp_qc_defer(struct ata_queued_cmd *qc);
 static void ahci_freeze(struct ata_port *ap);
 static void ahci_thaw(struct ata_port *ap);
+static void ahci_set_aggressive_devslp(struct ata_port *ap, bool sleep);
 static void ahci_enable_fbs(struct ata_port *ap);
 static void ahci_disable_fbs(struct ata_port *ap);
 static void ahci_pmp_attach(struct ata_port *ap);
@@ -192,6 +194,10 @@ module_param(ahci_em_messages, int, 0444);
 /* add other LED protocol types when they become supported */
 MODULE_PARM_DESC(ahci_em_messages,
 	"AHCI Enclosure Management Message control (0 = off, 1 = on)");
+
+int devslp_idle_timeout = 1000;	/* device sleep idle timeout in ms */
+module_param(devslp_idle_timeout, int, 0644);
+MODULE_PARM_DESC(devslp_idle_timeout, "device sleep idle timeout");
 
 static void ahci_enable_ahci(void __iomem *mmio)
 {
@@ -700,6 +706,16 @@ static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 			/* write out new cmd value */
 			writel(cmd, port_mmio + PORT_CMD);
 		}
+	}
+
+	/* set aggressive device sleep */
+	if ((hpriv->cap2 & HOST_CAP2_SDS) &&
+	    (hpriv->cap2 & HOST_CAP2_SADM) &&
+	    (link->device->flags & ATA_DFLAG_DEVSLP)) {
+		if (policy == ATA_LPM_MIN_POWER)
+			ahci_set_aggressive_devslp(ap, true);
+		else
+			ahci_set_aggressive_devslp(ap, false);
 	}
 
 	if (policy == ATA_LPM_MAX_POWER) {
@@ -1890,6 +1906,81 @@ static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)
 		ahci_kick_engine(ap);
 }
 
+static void ahci_set_aggressive_devslp(struct ata_port *ap, bool sleep)
+{
+	void __iomem *port_mmio = ahci_port_base(ap);
+	struct ata_device *dev = ap->link.device;
+	u32 devslp, dm, dito, mdat, deto;
+	int rc;
+	unsigned int err_mask;
+
+	devslp = readl(port_mmio + PORT_DEVSLP);
+	if (!(devslp & PORT_DEVSLP_DSP)) {
+		dev_err(ap->host->dev, "port does not support device sleep\n");
+		return;
+	}
+
+	/* disable device sleep */
+	if (!sleep) {
+		if (devslp & PORT_DEVSLP_ADSE) {
+			writel(devslp & ~PORT_DEVSLP_ADSE,
+			       port_mmio + PORT_DEVSLP);
+			err_mask = ata_dev_set_feature(dev,
+						       SETFEATURES_SATA_DISABLE,
+						       SATA_DEVSLP);
+			if (err_mask && err_mask != AC_ERR_DEV)
+				ata_dev_warn(dev, "failed to disable DEVSLP\n");
+		}
+		return;
+	}
+
+	/* device sleep was already enabled */
+	if (devslp & PORT_DEVSLP_ADSE)
+		return;
+
+	/* set DITO, MDAT, DETO and enable DevSlp, need to stop engine first */
+	rc = ahci_stop_engine(ap);
+	if (rc)
+		return;
+
+	dm = (devslp & PORT_DEVSLP_DM_MASK) >> PORT_DEVSLP_DM_OFFSET;
+	dito = devslp_idle_timeout / (dm + 1);
+	if (dito > 0x3ff)
+		dito = 0x3ff;
+
+	/* Use the nominal value 10 ms if the read MDAT is zero,
+	 * the nominal value of DETO is 20 ms.
+	 */
+	if (dev->sata_settings[ATA_LOG_DEVSLP_VALID] &
+	    ATA_LOG_DEVSLP_VALID_MASK) {
+		mdat = dev->sata_settings[ATA_LOG_DEVSLP_MDAT] &
+		       ATA_LOG_DEVSLP_MDAT_MASK;
+		if (!mdat)
+			mdat = 10;
+		deto = dev->sata_settings[ATA_LOG_DEVSLP_DETO];
+		if (!deto)
+			deto = 20;
+	} else {
+		mdat = 10;
+		deto = 20;
+	}
+
+	devslp |= ((dito << PORT_DEVSLP_DITO_OFFSET) |
+		   (mdat << PORT_DEVSLP_MDAT_OFFSET) |
+		   (deto << PORT_DEVSLP_DETO_OFFSET) |
+		   PORT_DEVSLP_ADSE);
+	writel(devslp, port_mmio + PORT_DEVSLP);
+
+	ahci_start_engine(ap);
+
+	/* enable device sleep feature for the drive */
+	err_mask = ata_dev_set_feature(dev,
+				       SETFEATURES_SATA_ENABLE,
+				       SATA_DEVSLP);
+	if (err_mask && err_mask != AC_ERR_DEV)
+		ata_dev_warn(dev, "failed to enable DEVSLP\n");
+}
+
 static void ahci_enable_fbs(struct ata_port *ap)
 {
 	struct ahci_port_priv *pp = ap->private_data;
@@ -2164,7 +2255,8 @@ void ahci_print_info(struct ata_host *host, const char *scc_s)
 		"flags: "
 		"%s%s%s%s%s%s%s"
 		"%s%s%s%s%s%s%s"
-		"%s%s%s%s%s%s\n"
+		"%s%s%s%s%s%s%s"
+		"%s%s\n"
 		,
 
 		cap & HOST_CAP_64 ? "64bit " : "",
@@ -2184,6 +2276,9 @@ void ahci_print_info(struct ata_host *host, const char *scc_s)
 		cap & HOST_CAP_CCC ? "ccc " : "",
 		cap & HOST_CAP_EMS ? "ems " : "",
 		cap & HOST_CAP_SXS ? "sxs " : "",
+		cap2 & HOST_CAP2_DESO ? "deso " : "",
+		cap2 & HOST_CAP2_SADM ? "sadm " : "",
+		cap2 & HOST_CAP2_SDS ? "sds " : "",
 		cap2 & HOST_CAP2_APST ? "apst " : "",
 		cap2 & HOST_CAP2_NVMHCI ? "nvmp " : "",
 		cap2 & HOST_CAP2_BOH ? "boh " : ""
