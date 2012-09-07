@@ -4236,7 +4236,7 @@ static void serial8250_io_resume(struct pci_dev *dev)
 		pciserial_resume_ports(priv);
 }
 
-static struct pci_error_handlers serial8250_err_handler = {
+static const struct pci_error_handlers serial8250_err_handler = {
 	.error_detected = serial8250_io_error_detected,
 	.slot_reset = serial8250_io_slot_reset,
 	.resume = serial8250_io_resume,
