@@ -264,21 +264,6 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 }
 
 /**
- * eeh_find_device_pe - Retrieve the PE for the given device
- * @dn: device node
- *
- * Return the PE under which this device lies
- */
-struct device_node *eeh_find_device_pe(struct device_node *dn)
-{
-	while (dn->parent && of_node_to_eeh_dev(dn->parent) &&
-	       (of_node_to_eeh_dev(dn->parent)->mode & EEH_MODE_SUPPORTED)) {
-		dn = dn->parent;
-	}
-	return dn;
-}
-
-/**
  * eeh_dn_check_failure - Check if all 1's data is due to EEH slot freeze
  * @dn: device node
  * @dev: pci device, if known
@@ -297,6 +282,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 {
 	int ret;
 	unsigned long flags;
+	struct eeh_pe *pe;
 	struct eeh_dev *edev;
 	int rc = 0;
 	const char *location;
@@ -306,23 +292,26 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	if (!eeh_subsystem_enabled)
 		return 0;
 
-	if (!dn) {
+	if (dn) {
+		edev = of_node_to_eeh_dev(dn);
+	} else if (dev) {
+		edev = pci_dev_to_eeh_dev(dev);
+		dn = pci_device_to_OF_node(dev);
+	} else {
 		eeh_stats.no_dn++;
 		return 0;
 	}
-	dn = eeh_find_device_pe(dn);
-	edev = of_node_to_eeh_dev(dn);
+	pe = edev->pe;
 
 	/* Access to IO BARs might get this far and still not want checking. */
-	if (!(edev->mode & EEH_MODE_SUPPORTED) ||
-	    edev->mode & EEH_MODE_NOCHECK) {
+	if (!pe) {
 		eeh_stats.ignored_check++;
-		pr_debug("EEH: Ignored check (%x) for %s %s\n",
-			edev->mode, eeh_pci_name(dev), dn->full_name);
+		pr_debug("EEH: Ignored check for %s %s\n",
+			eeh_pci_name(dev), dn->full_name);
 		return 0;
 	}
 
-	if (!edev->config_addr && !edev->pe_config_addr) {
+	if (!pe->addr && !pe->config_addr) {
 		eeh_stats.no_cfg_addr++;
 		return 0;
 	}
@@ -335,13 +324,13 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 */
 	raw_spin_lock_irqsave(&confirm_error_lock, flags);
 	rc = 1;
-	if (edev->mode & EEH_MODE_ISOLATED) {
-		edev->check_count++;
-		if (edev->check_count % EEH_MAX_FAILS == 0) {
+	if (pe->state & EEH_PE_ISOLATED) {
+		pe->check_count++;
+		if (pe->check_count % EEH_MAX_FAILS == 0) {
 			location = of_get_property(dn, "ibm,loc-code", NULL);
 			printk(KERN_ERR "EEH: %d reads ignored for recovering device at "
 				"location=%s driver=%s pci addr=%s\n",
-				edev->check_count, location,
+				pe->check_count, location,
 				eeh_driver_name(dev), eeh_pci_name(dev));
 			printk(KERN_ERR "EEH: Might be infinite loop in %s driver\n",
 				eeh_driver_name(dev));
@@ -357,7 +346,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 * function zero of a multi-function device.
 	 * In any case they must share a common PHB.
 	 */
-	ret = eeh_ops->get_state(dn, NULL);
+	ret = eeh_ops->get_state(pe, NULL);
 
 	/* Note that config-io to empty slots may fail;
 	 * they are empty when they don't have children.
@@ -370,7 +359,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	    (ret & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) ==
 	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) {
 		eeh_stats.false_positives++;
-		edev->false_positives ++;
+		pe->false_positives++;
 		rc = 0;
 		goto dn_unlock;
 	}
@@ -381,10 +370,10 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 * with other functions on this device, and functions under
 	 * bridges.
 	 */
-	eeh_mark_slot(dn, EEH_MODE_ISOLATED);
+	eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
 	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
 
-	eeh_send_failure_event(edev);
+	eeh_send_failure_event(pe);
 
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure

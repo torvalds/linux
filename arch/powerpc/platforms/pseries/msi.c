@@ -210,6 +210,7 @@ static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 {
 	struct device_node *dn;
+	struct eeh_dev *edev;
 
 	/* Found our PE and assume 8 at that point. */
 
@@ -217,7 +218,10 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 	if (!dn)
 		return NULL;
 
-	dn = eeh_find_device_pe(dn);
+	/* Get the top level device in the PE */
+	edev = of_node_to_eeh_dev(dn);
+	edev = list_first_entry(&edev->pe->edevs, struct eeh_dev, list);
+	dn = eeh_dev_to_of_node(edev);
 	if (!dn)
 		return NULL;
 
