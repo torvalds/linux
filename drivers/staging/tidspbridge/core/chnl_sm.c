@@ -94,7 +94,7 @@ int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *host_buf,
 	struct dev_object *dev_obj;
 	u8 dw_state;
 	bool is_eos;
-	struct chnl_mgr *chnl_mgr_obj = pchnl->chnl_mgr_obj;
+	struct chnl_mgr *chnl_mgr_obj;
 	u8 *host_sys_buf = NULL;
 	bool sched_dpc = false;
 	u16 mb_val = 0;
@@ -153,6 +153,7 @@ func_cont:
 	 * If DPC is scheduled in process context (iosm_schedule) and any
 	 * non-mailbox interrupt occurs, that DPC will run and break CS. Hence
 	 * we disable ALL DPCs. We will try to disable ONLY IO DPC later. */
+	chnl_mgr_obj = pchnl->chnl_mgr_obj;
 	spin_lock_bh(&chnl_mgr_obj->chnl_mgr_lock);
 	omap_mbox_disable_irq(dev_ctxt->mbox, IRQ_RX);
 	if (pchnl->chnl_type == CHNL_PCPY) {
