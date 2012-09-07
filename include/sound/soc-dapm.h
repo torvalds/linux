@@ -320,6 +320,9 @@ struct device;
 #define SND_SOC_DAPM_EVENT_OFF(e)	\
 	(e & (SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD))
 
+/* regulator widget flags */
+#define SND_SOC_DAPM_REGULATOR_BYPASS     0x1     /* bypass when disabled */
+
 struct snd_soc_dapm_widget;
 enum snd_soc_dapm_type;
 struct snd_soc_dapm_path;
