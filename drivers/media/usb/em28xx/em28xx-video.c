@@ -1438,8 +1438,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	else if (vdev->vfl_type == VFL_TYPE_RADIO)
 		cap->device_caps = V4L2_CAP_RADIO;
 	else
-		cap->device_caps = V4L2_CAP_READWRITE |
-			V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_CAPTURE;
+		cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE;
 
 	if (dev->audio_mode.has_audio)
 		cap->device_caps |= V4L2_CAP_AUDIO;
@@ -1450,8 +1449,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS |
 		V4L2_CAP_READWRITE | V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	if (dev->vbi_dev)
-		cap->capabilities |=
-			V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_CAPTURE;
+		cap->capabilities |= V4L2_CAP_VBI_CAPTURE;
 	if (dev->radio_dev)
 		cap->capabilities |= V4L2_CAP_RADIO;
 	return 0;
@@ -1505,46 +1503,6 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 	fsize->stepwise.max_height = maxh;
 	fsize->stepwise.step_width = 1;
 	fsize->stepwise.step_height = 1;
-	return 0;
-}
-
-/* Sliced VBI ioctls */
-static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
-					struct v4l2_format *f)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
-
-	f->fmt.sliced.service_set = 0;
-	v4l2_device_call_all(&dev->v4l2_dev, 0, vbi, g_sliced_fmt, &f->fmt.sliced);
-
-	if (f->fmt.sliced.service_set == 0)
-		rc = -EINVAL;
-
-	return rc;
-}
-
-static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
-			struct v4l2_format *f)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
-
-	v4l2_device_call_all(&dev->v4l2_dev, 0, vbi, g_sliced_fmt, &f->fmt.sliced);
-
-	if (f->fmt.sliced.service_set == 0)
-		return -EINVAL;
-
 	return 0;
 }
 
@@ -2038,9 +1996,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
 	.vidioc_cropcap             = vidioc_cropcap,
-	.vidioc_g_fmt_sliced_vbi_cap   = vidioc_g_fmt_sliced_vbi_cap,
-	.vidioc_try_fmt_sliced_vbi_cap = vidioc_try_set_sliced_vbi_cap,
-	.vidioc_s_fmt_sliced_vbi_cap   = vidioc_try_set_sliced_vbi_cap,
 
 	.vidioc_reqbufs             = vidioc_reqbufs,
 	.vidioc_querybuf            = vidioc_querybuf,
