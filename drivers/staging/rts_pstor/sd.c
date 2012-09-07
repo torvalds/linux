@@ -2154,9 +2154,8 @@ static int sd_check_wp_state(struct rtsx_chip *chip)
 
 	retval = sd_send_cmd_get_rsp(chip, APP_CMD,
 			sd_card->sd_addr, SD_RSP_TYPE_R1, NULL, 0);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	cmd[0] = 0x40 | SD_STATUS;
 	cmd[1] = 0;
@@ -2184,9 +2183,8 @@ static int sd_check_wp_state(struct rtsx_chip *chip)
 
 	/* Check SD Machanical Write-Protect Switch */
 	val = rtsx_readl(chip, RTSX_BIPR);
-	if (val & SD_WRITE_PROTECT) {
+	if (val & SD_WRITE_PROTECT)
 		chip->card_wp |= SD_CARD;
-	}
 
 	return STATUS_SUCCESS;
 }
