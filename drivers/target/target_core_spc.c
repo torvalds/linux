@@ -784,7 +784,7 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 	unsigned char *rbuf;
 	int type = dev->transport->get_device_type(dev);
 	int ten = (cmd->t_task_cdb[0] == MODE_SENSE_10);
-	int offset = ten ? 8 : 4;
+	u32 offset = ten ? 8 : 4;
 	int length = 0;
 	unsigned char buf[SE_MODE_PAGE_BUF];
 
@@ -817,6 +817,7 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		offset -= 2;
 		buf[0] = (offset >> 8) & 0xff;
 		buf[1] = offset & 0xff;
+		offset += 2;
 
 		if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
 		    (cmd->se_deve &&
@@ -826,13 +827,10 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		if ((dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0) &&
 		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0))
 			spc_modesense_dpofua(&buf[3], type);
-
-		if ((offset + 2) > cmd->data_length)
-			offset = cmd->data_length;
-
 	} else {
 		offset -= 1;
 		buf[0] = offset & 0xff;
+		offset += 1;
 
 		if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
 		    (cmd->se_deve &&
@@ -842,14 +840,13 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		if ((dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0) &&
 		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0))
 			spc_modesense_dpofua(&buf[2], type);
-
-		if ((offset + 1) > cmd->data_length)
-			offset = cmd->data_length;
 	}
 
 	rbuf = transport_kmap_data_sg(cmd);
-	memcpy(rbuf, buf, offset);
-	transport_kunmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min(offset, cmd->data_length));
+		transport_kunmap_data_sg(cmd);
+	}
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
