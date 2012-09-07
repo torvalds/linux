@@ -1680,17 +1680,16 @@ static int sd_tuning_rx(struct rtsx_chip *chip)
 	int (*tuning_cmd)(struct rtsx_chip *chip, u8 sample_point);
 
 	if (CHK_SD(sd_card)) {
-		if (CHK_SD_DDR50(sd_card)) {
+		if (CHK_SD_DDR50(sd_card))
 			tuning_cmd = sd_ddr_tuning_rx_cmd;
-		} else {
+		else
 			tuning_cmd = sd_sdr_tuning_rx_cmd;
-		}
+
 	} else {
-		if (CHK_MMC_DDR52(sd_card)) {
+		if (CHK_MMC_DDR52(sd_card))
 			tuning_cmd = mmc_ddr_tunning_rx_cmd;
-		} else {
+		else
 			TRACE_RET(chip, STATUS_FAIL);
-		}
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -1702,27 +1701,24 @@ static int sd_tuning_rx(struct rtsx_chip *chip)
 			}
 
 			retval = tuning_cmd(chip, (u8)j);
-			if (retval == STATUS_SUCCESS) {
+			if (retval == STATUS_SUCCESS)
 				raw_phase_map[i] |= 1 << j;
-			}
 		}
 	}
 
 	phase_map = raw_phase_map[0] & raw_phase_map[1] & raw_phase_map[2];
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++)
 		RTSX_DEBUGP("RX raw_phase_map[%d] = 0x%08x\n", i, raw_phase_map[i]);
-	}
+
 	RTSX_DEBUGP("RX phase_map = 0x%08x\n", phase_map);
 
 	final_phase = sd_search_final_phase(chip, phase_map, TUNE_RX);
-	if (final_phase == 0xFF) {
+	if (final_phase == 0xFF)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	retval = sd_change_phase(chip, final_phase, TUNE_RX);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	return STATUS_SUCCESS;
 }
