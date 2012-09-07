@@ -461,11 +461,7 @@ static void rt_cache_invalidate(struct net *net)
 	atomic_add(shuffle + 1U, &net->ipv4.rt_genid);
 }
 
-/*
- * delay < 0  : invalidate cache (fast : entries will be deleted later)
- * delay >= 0 : invalidate & flush cache (can be long)
- */
-void rt_cache_flush(struct net *net, int delay)
+void rt_cache_flush(struct net *net)
 {
 	rt_cache_invalidate(net);
 }
@@ -2345,7 +2341,7 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 
 void ip_rt_multicast_event(struct in_device *in_dev)
 {
-	rt_cache_flush(dev_net(in_dev->dev), 0);
+	rt_cache_flush(dev_net(in_dev->dev));
 }
 
 #ifdef CONFIG_SYSCTL
@@ -2354,16 +2350,7 @@ static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
 					size_t *lenp, loff_t *ppos)
 {
 	if (write) {
-		int flush_delay;
-		ctl_table ctl;
-		struct net *net;
-
-		memcpy(&ctl, __ctl, sizeof(ctl));
-		ctl.data = &flush_delay;
-		proc_dointvec(&ctl, write, buffer, lenp, ppos);
-
-		net = (struct net *)__ctl->extra1;
-		rt_cache_flush(net, flush_delay);
+		rt_cache_flush((struct net *)__ctl->extra1);
 		return 0;
 	}
 
