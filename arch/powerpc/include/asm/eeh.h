@@ -32,6 +32,42 @@ struct device_node;
 #ifdef CONFIG_EEH
 
 /*
+ * The struct is used to trace PE related EEH functionality.
+ * In theory, there will have one instance of the struct to
+ * be created against particular PE. In nature, PEs corelate
+ * to each other. the struct has to reflect that hierarchy in
+ * order to easily pick up those affected PEs when one particular
+ * PE has EEH errors.
+ *
+ * Also, one particular PE might be composed of PCI device, PCI
+ * bus and its subordinate components. The struct also need ship
+ * the information. Further more, one particular PE is only meaingful
+ * in the corresponding PHB. Therefore, the root PEs should be created
+ * against existing PHBs in on-to-one fashion.
+ */
+#define EEH_PE_PHB	1	/* PHB PE    */
+#define EEH_PE_DEVICE 	2	/* Device PE */
+#define EEH_PE_BUS	3	/* Bus PE    */
+
+#define EEH_PE_ISOLATED		(1 << 0)	/* Isolated PE		*/
+#define EEH_PE_RECOVERING	(1 << 1)	/* Recovering PE	*/
+
+struct eeh_pe {
+	int type;			/* PE type: PHB/Bus/Device	*/
+	int state;			/* PE EEH dependent mode	*/
+	int config_addr;		/* Traditional PCI address	*/
+	int addr;			/* PE configuration address	*/
+	struct pci_controller *phb;	/* Associated PHB		*/
+	int check_count;		/* Times of ignored error	*/
+	int freeze_count;		/* Times of froze up		*/
+	int false_positives;		/* Times of reported #ff's	*/
+	struct eeh_pe *parent;		/* Parent PE			*/
+	struct list_head child_list;	/* Link PE to the child list	*/
+	struct list_head edevs;		/* Link list of EEH devices	*/
+	struct list_head child;		/* Child PEs			*/
+};
+
+/*
  * The struct is used to trace EEH state for the associated
  * PCI device node or PCI device. In future, it might
  * represent PE as well so that the EEH device to form
@@ -53,6 +89,8 @@ struct eeh_dev {
 	int freeze_count;		/* Times of froze up		*/
 	int false_positives;		/* Times of reported #ff's	*/
 	u32 config_space[16];		/* Saved PCI config space	*/
+	struct eeh_pe *pe;		/* Associated PE		*/
+	struct list_head list;		/* Form link list in the PE	*/
 	struct pci_controller *phb;	/* Associated PHB		*/
 	struct device_node *dn;		/* Associated device node	*/
 	struct pci_dev *pdev;		/* Associated PCI device	*/
