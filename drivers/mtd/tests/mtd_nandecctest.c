@@ -9,11 +9,25 @@
 
 #if defined(CONFIG_MTD_NAND) || defined(CONFIG_MTD_NAND_MODULE)
 
+/*
+ * The reason for this __change_bit_le() instead of __change_bit() is to inject
+ * bit error properly within the region which is not a multiple of
+ * sizeof(unsigned long) on big-endian systems
+ */
+#ifdef __LITTLE_ENDIAN
+#define __change_bit_le(nr, addr) __change_bit(nr, addr)
+#elif defined(__BIG_ENDIAN)
+#define __change_bit_le(nr, addr) \
+		__change_bit((nr) ^ ((BITS_PER_LONG - 1) & ~0x7), addr)
+#else
+#error "Unknown byte order"
+#endif
+
 static void inject_single_bit_error(void *data, size_t size)
 {
-	unsigned long offset = random32() % (size * BITS_PER_BYTE);
+	unsigned int offset = random32() % (size * BITS_PER_BYTE);
 
-	__change_bit(offset, data);
+	__change_bit_le(offset, data);
 }
 
 static void dump_data_ecc(void *error_data, void *error_ecc, void *correct_data,
