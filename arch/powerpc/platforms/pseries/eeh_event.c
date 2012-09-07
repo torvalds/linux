@@ -139,7 +139,7 @@ int eeh_send_failure_event(struct eeh_dev *edev)
 		printk(KERN_ERR "EEH: PCI location = %s\n", location);
 		return 1;
 	}
-	event = kmalloc(sizeof(*event), GFP_ATOMIC);
+	event = kzalloc(sizeof(*event), GFP_ATOMIC);
 	if (event == NULL) {
 		printk(KERN_ERR "EEH: out of memory, event not handled\n");
 		return 1;
