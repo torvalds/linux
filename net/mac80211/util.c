@@ -1007,6 +1007,45 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb(sdata, skb);
 }
 
+void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
+				    const u8 *bssid, u16 stype, u16 reason,
+				    bool send_frame, u8 *frame_buf)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *mgmt = (void *)frame_buf;
+
+	/* build frame */
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | stype);
+	mgmt->duration = 0; /* initialize only */
+	mgmt->seq_ctrl = 0; /* initialize only */
+	memcpy(mgmt->da, bssid, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
+	memcpy(mgmt->bssid, bssid, ETH_ALEN);
+	/* u.deauth.reason_code == u.disassoc.reason_code */
+	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
+
+	if (send_frame) {
+		skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+				    IEEE80211_DEAUTH_FRAME_LEN);
+		if (!skb)
+			return;
+
+		skb_reserve(skb, local->hw.extra_tx_headroom);
+
+		/* copy in frame */
+		memcpy(skb_put(skb, IEEE80211_DEAUTH_FRAME_LEN),
+		       mgmt, IEEE80211_DEAUTH_FRAME_LEN);
+
+		if (sdata->vif.type != NL80211_IFTYPE_STATION ||
+		    !(sdata->u.mgd.flags & IEEE80211_STA_MFP_ENABLED))
+			IEEE80211_SKB_CB(skb)->flags |=
+				IEEE80211_TX_INTFL_DONT_ENCRYPT;
+
+		ieee80211_tx_skb(sdata, skb);
+	}
+}
+
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     const u8 *ie, size_t ie_len,
 			     enum ieee80211_band band, u32 rate_mask,
