@@ -83,6 +83,8 @@ unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
 extern struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
 #endif
 
+static unsigned long cpu_pgsz_mask;
+
 #define MAX_BANKS	32
 
 static struct linux_prom64_registers pavail[MAX_BANKS] __devinitdata;
@@ -419,6 +421,12 @@ EXPORT_SYMBOL(flush_icache_range);
 
 void mmu_info(struct seq_file *m)
 {
+	static const char *pgsz_strings[] = {
+		"8K", "64K", "512K", "4MB", "32MB",
+		"256MB", "2GB", "16GB",
+	};
+	int i, printed;
+
 	if (tlb_type == cheetah)
 		seq_printf(m, "MMU Type\t: Cheetah\n");
 	else if (tlb_type == cheetah_plus)
@@ -429,6 +437,17 @@ void mmu_info(struct seq_file *m)
 		seq_printf(m, "MMU Type\t: Hypervisor (sun4v)\n");
 	else
 		seq_printf(m, "MMU Type\t: ???\n");
+
+	seq_printf(m, "MMU PGSZs\t: ");
+	printed = 0;
+	for (i = 0; i < ARRAY_SIZE(pgsz_strings); i++) {
+		if (cpu_pgsz_mask & (1UL << i)) {
+			seq_printf(m, "%s%s",
+				   printed ? "," : "", pgsz_strings[i]);
+			printed++;
+		}
+	}
+	seq_putc(m, '\n');
 
 #ifdef CONFIG_DEBUG_DCFLUSH
 	seq_printf(m, "DCPageFlushes\t: %d\n",
@@ -1803,6 +1822,18 @@ void __init paging_init(void)
 #ifndef CONFIG_SMP
 		mdesc_fill_in_cpu_data(cpu_all_mask);
 #endif
+		mdesc_get_page_sizes(cpu_all_mask, &cpu_pgsz_mask);
+	} else {
+		unsigned long impl, ver;
+
+		cpu_pgsz_mask = (HV_PGSZ_MASK_8K | HV_PGSZ_MASK_64K |
+				 HV_PGSZ_MASK_512K | HV_PGSZ_MASK_4MB);
+
+		__asm__ __volatile__("rdpr %%ver, %0" : "=r" (ver));
+		impl = ((ver >> 32) & 0xffff);
+		if (impl == PANTHER_IMPL)
+			cpu_pgsz_mask |= (HV_PGSZ_MASK_32MB |
+					  HV_PGSZ_MASK_256MB);
 	}
 
 	/* Setup bootmem... */
