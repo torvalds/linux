@@ -3690,9 +3690,8 @@ int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	buf[5] = (1 == CHK_SD(sd_card)) ?  0x01 : 0x02;
-	if (chip->card_wp & SD_CARD) {
+	if (chip->card_wp & SD_CARD)
 		buf[5] |= 0x80;
-	}
 
 	buf[6] = (u8)(sd_card->sd_addr >> 16);
 	buf[7] = (u8)(sd_card->sd_addr >> 24);
