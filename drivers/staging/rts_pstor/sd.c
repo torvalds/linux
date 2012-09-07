@@ -3151,9 +3151,8 @@ static inline int sd_auto_tune_clock(struct rtsx_chip *chip)
 	int retval;
 
 	if (chip->asic_code) {
-		if (sd_card->sd_clock > 30) {
+		if (sd_card->sd_clock > 30)
 			sd_card->sd_clock -= 20;
-		}
 	} else {
 		switch (sd_card->sd_clock) {
 		case CLK_200:
@@ -3186,9 +3185,8 @@ static inline int sd_auto_tune_clock(struct rtsx_chip *chip)
 	}
 
 	retval = sd_switch_clock(chip);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	return STATUS_SUCCESS;
 }
