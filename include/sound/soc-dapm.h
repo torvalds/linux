@@ -244,10 +244,11 @@ struct device;
 {	.id = snd_soc_dapm_supply, .name = wname, .reg = wreg,	\
 	.shift = wshift, .invert = winvert, .event = wevent, \
 	.event_flags = wflags}
-#define SND_SOC_DAPM_REGULATOR_SUPPLY(wname, wdelay) \
+#define SND_SOC_DAPM_REGULATOR_SUPPLY(wname, wdelay, wflags)	    \
 {	.id = snd_soc_dapm_regulator_supply, .name = wname, \
 	.reg = SND_SOC_NOPM, .shift = wdelay, .event = dapm_regulator_event, \
-	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD }
+	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD, \
+	.invert = wflags}
 
 
 /* dapm kcontrol types */
