@@ -129,7 +129,7 @@ struct dp_upcall_info {
 	u8 cmd;
 	const struct sw_flow_key *key;
 	const struct nlattr *userdata;
-	u32 pid;
+	u32 portid;
 };
 
 static inline struct net *ovs_dp_get_net(struct datapath *dp)

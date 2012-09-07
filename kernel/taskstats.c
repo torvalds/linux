@@ -467,7 +467,7 @@ static int cmd_attr_register_cpumask(struct genl_info *info)
 	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_REGISTER_CPUMASK], mask);
 	if (rc < 0)
 		goto out;
-	rc = add_del_listener(info->snd_pid, mask, REGISTER);
+	rc = add_del_listener(info->snd_portid, mask, REGISTER);
 out:
 	free_cpumask_var(mask);
 	return rc;
@@ -483,7 +483,7 @@ static int cmd_attr_deregister_cpumask(struct genl_info *info)
 	rc = parse(info->attrs[TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK], mask);
 	if (rc < 0)
 		goto out;
-	rc = add_del_listener(info->snd_pid, mask, DEREGISTER);
+	rc = add_del_listener(info->snd_portid, mask, DEREGISTER);
 out:
 	free_cpumask_var(mask);
 	return rc;

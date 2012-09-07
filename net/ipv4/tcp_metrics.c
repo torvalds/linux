@@ -803,7 +803,7 @@ static int tcp_metrics_dump_info(struct sk_buff *skb,
 {
 	void *hdr;
 
-	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			  &tcp_metrics_nl_family, NLM_F_MULTI,
 			  TCP_METRICS_CMD_GET);
 	if (!hdr)

@@ -2458,7 +2458,7 @@ struct wireless_dev {
 
 	int beacon_interval;
 
-	u32 ap_unexpected_nlpid;
+	u32 ap_unexpected_nlportid;
 
 #ifdef CONFIG_CFG80211_WEXT
 	/* wext data */

@@ -89,7 +89,7 @@ struct nfc_target {
 };
 
 struct nfc_genl_data {
-	u32 poll_req_pid;
+	u32 poll_req_portid;
 	struct mutex genl_data_mutex;
 };
 

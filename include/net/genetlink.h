@@ -65,7 +65,7 @@ struct genl_family {
 /**
  * struct genl_info - receiving information
  * @snd_seq: sending sequence number
- * @snd_pid: netlink pid of sender
+ * @snd_portid: netlink portid of sender
  * @nlhdr: netlink message header
  * @genlhdr: generic netlink message header
  * @userhdr: user specific header
@@ -75,7 +75,7 @@ struct genl_family {
  */
 struct genl_info {
 	u32			snd_seq;
-	u32			snd_pid;
+	u32			snd_portid;
 	struct nlmsghdr *	nlhdr;
 	struct genlmsghdr *	genlhdr;
 	void *			userhdr;
@@ -130,10 +130,10 @@ extern int genl_register_mc_group(struct genl_family *family,
 				  struct genl_multicast_group *grp);
 extern void genl_unregister_mc_group(struct genl_family *family,
 				     struct genl_multicast_group *grp);
-extern void genl_notify(struct sk_buff *skb, struct net *net, u32 pid,
+extern void genl_notify(struct sk_buff *skb, struct net *net, u32 portid,
 			u32 group, struct nlmsghdr *nlh, gfp_t flags);
 
-void *genlmsg_put(struct sk_buff *skb, u32 pid, u32 seq,
+void *genlmsg_put(struct sk_buff *skb, u32 portid, u32 seq,
 				struct genl_family *family, int flags, u8 cmd);
 
 /**
@@ -183,7 +183,7 @@ static inline void *genlmsg_put_reply(struct sk_buff *skb,
 				      struct genl_family *family,
 				      int flags, u8 cmd)
 {
-	return genlmsg_put(skb, info->snd_pid, info->snd_seq, family,
+	return genlmsg_put(skb, info->snd_portid, info->snd_seq, family,
 			   flags, cmd);
 }
 
@@ -212,49 +212,49 @@ static inline void genlmsg_cancel(struct sk_buff *skb, void *hdr)
  * genlmsg_multicast_netns - multicast a netlink message to a specific netns
  * @net: the net namespace
  * @skb: netlink message as socket buffer
- * @pid: own netlink pid to avoid sending to yourself
+ * @portid: own netlink portid to avoid sending to yourself
  * @group: multicast group id
  * @flags: allocation flags
  */
 static inline int genlmsg_multicast_netns(struct net *net, struct sk_buff *skb,
-					  u32 pid, unsigned int group, gfp_t flags)
+					  u32 portid, unsigned int group, gfp_t flags)
 {
-	return nlmsg_multicast(net->genl_sock, skb, pid, group, flags);
+	return nlmsg_multicast(net->genl_sock, skb, portid, group, flags);
 }
 
 /**
  * genlmsg_multicast - multicast a netlink message to the default netns
  * @skb: netlink message as socket buffer
- * @pid: own netlink pid to avoid sending to yourself
+ * @portid: own netlink portid to avoid sending to yourself
  * @group: multicast group id
  * @flags: allocation flags
  */
-static inline int genlmsg_multicast(struct sk_buff *skb, u32 pid,
+static inline int genlmsg_multicast(struct sk_buff *skb, u32 portid,
 				    unsigned int group, gfp_t flags)
 {
-	return genlmsg_multicast_netns(&init_net, skb, pid, group, flags);
+	return genlmsg_multicast_netns(&init_net, skb, portid, group, flags);
 }
 
 /**
  * genlmsg_multicast_allns - multicast a netlink message to all net namespaces
  * @skb: netlink message as socket buffer
- * @pid: own netlink pid to avoid sending to yourself
+ * @portid: own netlink portid to avoid sending to yourself
  * @group: multicast group id
  * @flags: allocation flags
  *
  * This function must hold the RTNL or rcu_read_lock().
  */
-int genlmsg_multicast_allns(struct sk_buff *skb, u32 pid,
+int genlmsg_multicast_allns(struct sk_buff *skb, u32 portid,
 			    unsigned int group, gfp_t flags);
 
 /**
  * genlmsg_unicast - unicast a netlink message
  * @skb: netlink message as socket buffer
- * @pid: netlink pid of the destination socket
+ * @portid: netlink portid of the destination socket
  */
-static inline int genlmsg_unicast(struct net *net, struct sk_buff *skb, u32 pid)
+static inline int genlmsg_unicast(struct net *net, struct sk_buff *skb, u32 portid)
 {
-	return nlmsg_unicast(net->genl_sock, skb, pid);
+	return nlmsg_unicast(net->genl_sock, skb, portid);
 }
 
 /**
@@ -264,7 +264,7 @@ static inline int genlmsg_unicast(struct net *net, struct sk_buff *skb, u32 pid)
  */
 static inline int genlmsg_reply(struct sk_buff *skb, struct genl_info *info)
 {
-	return genlmsg_unicast(genl_info_net(info), skb, info->snd_pid);
+	return genlmsg_unicast(genl_info_net(info), skb, info->snd_portid);
 }
 
 /**

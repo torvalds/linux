@@ -67,8 +67,8 @@
 struct netlink_sock {
 	/* struct sock has to be the first member of netlink_sock */
 	struct sock		sk;
-	u32			pid;
-	u32			dst_pid;
+	u32			portid;
+	u32			dst_portid;
 	u32			dst_group;
 	u32			flags;
 	u32			subscriptions;
@@ -104,7 +104,7 @@ static inline int netlink_is_kernel(struct sock *sk)
 	return nlk_sk(sk)->flags & NETLINK_KERNEL_SOCKET;
 }
 
-struct nl_pid_hash {
+struct nl_portid_hash {
 	struct hlist_head	*table;
 	unsigned long		rehash_time;
 
@@ -118,7 +118,7 @@ struct nl_pid_hash {
 };
 
 struct netlink_table {
-	struct nl_pid_hash	hash;
+	struct nl_portid_hash	hash;
 	struct hlist_head	mc_list;
 	struct listeners __rcu	*listeners;
 	unsigned int		flags;
@@ -145,9 +145,9 @@ static inline u32 netlink_group_mask(u32 group)
 	return group ? 1 << (group - 1) : 0;
 }
 
-static inline struct hlist_head *nl_pid_hashfn(struct nl_pid_hash *hash, u32 pid)
+static inline struct hlist_head *nl_portid_hashfn(struct nl_portid_hash *hash, u32 portid)
 {
-	return &hash->table[jhash_1word(pid, hash->rnd) & hash->mask];
+	return &hash->table[jhash_1word(portid, hash->rnd) & hash->mask];
 }
 
 static void netlink_destroy_callback(struct netlink_callback *cb)
@@ -239,17 +239,17 @@ netlink_unlock_table(void)
 		wake_up(&nl_table_wait);
 }
 
-static struct sock *netlink_lookup(struct net *net, int protocol, u32 pid)
+static struct sock *netlink_lookup(struct net *net, int protocol, u32 portid)
 {
-	struct nl_pid_hash *hash = &nl_table[protocol].hash;
+	struct nl_portid_hash *hash = &nl_table[protocol].hash;
 	struct hlist_head *head;
 	struct sock *sk;
 	struct hlist_node *node;
 
 	read_lock(&nl_table_lock);
-	head = nl_pid_hashfn(hash, pid);
+	head = nl_portid_hashfn(hash, portid);
 	sk_for_each(sk, node, head) {
-		if (net_eq(sock_net(sk), net) && (nlk_sk(sk)->pid == pid)) {
+		if (net_eq(sock_net(sk), net) && (nlk_sk(sk)->portid == portid)) {
 			sock_hold(sk);
 			goto found;
 		}
@@ -260,7 +260,7 @@ found:
 	return sk;
 }
 
-static struct hlist_head *nl_pid_hash_zalloc(size_t size)
+static struct hlist_head *nl_portid_hash_zalloc(size_t size)
 {
 	if (size <= PAGE_SIZE)
 		return kzalloc(size, GFP_ATOMIC);
@@ -270,7 +270,7 @@ static struct hlist_head *nl_pid_hash_zalloc(size_t size)
 					 get_order(size));
 }
 
-static void nl_pid_hash_free(struct hlist_head *table, size_t size)
+static void nl_portid_hash_free(struct hlist_head *table, size_t size)
 {
 	if (size <= PAGE_SIZE)
 		kfree(table);
@@ -278,7 +278,7 @@ static void nl_pid_hash_free(struct hlist_head *table, size_t size)
 		free_pages((unsigned long)table, get_order(size));
 }
 
-static int nl_pid_hash_rehash(struct nl_pid_hash *hash, int grow)
+static int nl_portid_hash_rehash(struct nl_portid_hash *hash, int grow)
 {
 	unsigned int omask, mask, shift;
 	size_t osize, size;
@@ -296,7 +296,7 @@ static int nl_pid_hash_rehash(struct nl_pid_hash *hash, int grow)
 		size *= 2;
 	}
 
-	table = nl_pid_hash_zalloc(size);
+	table = nl_portid_hash_zalloc(size);
 	if (!table)
 		return 0;
 
@@ -311,23 +311,23 @@ static int nl_pid_hash_rehash(struct nl_pid_hash *hash, int grow)
 		struct hlist_node *node, *tmp;
 
 		sk_for_each_safe(sk, node, tmp, &otable[i])
-			__sk_add_node(sk, nl_pid_hashfn(hash, nlk_sk(sk)->pid));
+			__sk_add_node(sk, nl_portid_hashfn(hash, nlk_sk(sk)->portid));
 	}
 
-	nl_pid_hash_free(otable, osize);
+	nl_portid_hash_free(otable, osize);
 	hash->rehash_time = jiffies + 10 * 60 * HZ;
 	return 1;
 }
 
-static inline int nl_pid_hash_dilute(struct nl_pid_hash *hash, int len)
+static inline int nl_portid_hash_dilute(struct nl_portid_hash *hash, int len)
 {
 	int avg = hash->entries >> hash->shift;
 
-	if (unlikely(avg > 1) && nl_pid_hash_rehash(hash, 1))
+	if (unlikely(avg > 1) && nl_portid_hash_rehash(hash, 1))
 		return 1;
 
 	if (unlikely(len > avg) && time_after(jiffies, hash->rehash_time)) {
-		nl_pid_hash_rehash(hash, 0);
+		nl_portid_hash_rehash(hash, 0);
 		return 1;
 	}
 
@@ -356,9 +356,9 @@ netlink_update_listeners(struct sock *sk)
 	 * makes sure updates are visible before bind or setsockopt return. */
 }
 
-static int netlink_insert(struct sock *sk, struct net *net, u32 pid)
+static int netlink_insert(struct sock *sk, struct net *net, u32 portid)
 {
-	struct nl_pid_hash *hash = &nl_table[sk->sk_protocol].hash;
+	struct nl_portid_hash *hash = &nl_table[sk->sk_protocol].hash;
 	struct hlist_head *head;
 	int err = -EADDRINUSE;
 	struct sock *osk;
@@ -366,10 +366,10 @@ static int netlink_insert(struct sock *sk, struct net *net, u32 pid)
 	int len;
 
 	netlink_table_grab();
-	head = nl_pid_hashfn(hash, pid);
+	head = nl_portid_hashfn(hash, portid);
 	len = 0;
 	sk_for_each(osk, node, head) {
-		if (net_eq(sock_net(osk), net) && (nlk_sk(osk)->pid == pid))
+		if (net_eq(sock_net(osk), net) && (nlk_sk(osk)->portid == portid))
 			break;
 		len++;
 	}
@@ -377,17 +377,17 @@ static int netlink_insert(struct sock *sk, struct net *net, u32 pid)
 		goto err;
 
 	err = -EBUSY;
-	if (nlk_sk(sk)->pid)
+	if (nlk_sk(sk)->portid)
 		goto err;
 
 	err = -ENOMEM;
 	if (BITS_PER_LONG > 32 && unlikely(hash->entries >= UINT_MAX))
 		goto err;
 
-	if (len && nl_pid_hash_dilute(hash, len))
-		head = nl_pid_hashfn(hash, pid);
+	if (len && nl_portid_hash_dilute(hash, len))
+		head = nl_portid_hashfn(hash, portid);
 	hash->entries++;
-	nlk_sk(sk)->pid = pid;
+	nlk_sk(sk)->portid = portid;
 	sk_add_node(sk, head);
 	err = 0;
 
@@ -518,11 +518,11 @@ static int netlink_release(struct socket *sock)
 
 	skb_queue_purge(&sk->sk_write_queue);
 
-	if (nlk->pid) {
+	if (nlk->portid) {
 		struct netlink_notify n = {
 						.net = sock_net(sk),
 						.protocol = sk->sk_protocol,
-						.pid = nlk->pid,
+						.portid = nlk->portid,
 					  };
 		atomic_notifier_call_chain(&netlink_chain,
 				NETLINK_URELEASE, &n);
@@ -559,24 +559,24 @@ static int netlink_autobind(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 	struct net *net = sock_net(sk);
-	struct nl_pid_hash *hash = &nl_table[sk->sk_protocol].hash;
+	struct nl_portid_hash *hash = &nl_table[sk->sk_protocol].hash;
 	struct hlist_head *head;
 	struct sock *osk;
 	struct hlist_node *node;
-	s32 pid = task_tgid_vnr(current);
+	s32 portid = task_tgid_vnr(current);
 	int err;
 	static s32 rover = -4097;
 
 retry:
 	cond_resched();
 	netlink_table_grab();
-	head = nl_pid_hashfn(hash, pid);
+	head = nl_portid_hashfn(hash, portid);
 	sk_for_each(osk, node, head) {
 		if (!net_eq(sock_net(osk), net))
 			continue;
-		if (nlk_sk(osk)->pid == pid) {
-			/* Bind collision, search negative pid values. */
-			pid = rover--;
+		if (nlk_sk(osk)->portid == portid) {
+			/* Bind collision, search negative portid values. */
+			portid = rover--;
 			if (rover > -4097)
 				rover = -4097;
 			netlink_table_ungrab();
@@ -585,7 +585,7 @@ retry:
 	}
 	netlink_table_ungrab();
 
-	err = netlink_insert(sk, net, pid);
+	err = netlink_insert(sk, net, portid);
 	if (err == -EADDRINUSE)
 		goto retry;
 
@@ -668,8 +668,8 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			return err;
 	}
 
-	if (nlk->pid) {
-		if (nladdr->nl_pid != nlk->pid)
+	if (nlk->portid) {
+		if (nladdr->nl_pid != nlk->portid)
 			return -EINVAL;
 	} else {
 		err = nladdr->nl_pid ?
@@ -715,7 +715,7 @@ static int netlink_connect(struct socket *sock, struct sockaddr *addr,
 
 	if (addr->sa_family == AF_UNSPEC) {
 		sk->sk_state	= NETLINK_UNCONNECTED;
-		nlk->dst_pid	= 0;
+		nlk->dst_portid	= 0;
 		nlk->dst_group  = 0;
 		return 0;
 	}
@@ -726,12 +726,12 @@ static int netlink_connect(struct socket *sock, struct sockaddr *addr,
 	if (nladdr->nl_groups && !netlink_capable(sock, NL_CFG_F_NONROOT_SEND))
 		return -EPERM;
 
-	if (!nlk->pid)
+	if (!nlk->portid)
 		err = netlink_autobind(sock);
 
 	if (err == 0) {
 		sk->sk_state	= NETLINK_CONNECTED;
-		nlk->dst_pid 	= nladdr->nl_pid;
+		nlk->dst_portid = nladdr->nl_pid;
 		nlk->dst_group  = ffs(nladdr->nl_groups);
 	}
 
@@ -750,10 +750,10 @@ static int netlink_getname(struct socket *sock, struct sockaddr *addr,
 	*addr_len = sizeof(*nladdr);
 
 	if (peer) {
-		nladdr->nl_pid = nlk->dst_pid;
+		nladdr->nl_pid = nlk->dst_portid;
 		nladdr->nl_groups = netlink_group_mask(nlk->dst_group);
 	} else {
-		nladdr->nl_pid = nlk->pid;
+		nladdr->nl_pid = nlk->portid;
 		nladdr->nl_groups = nlk->groups ? nlk->groups[0] : 0;
 	}
 	return 0;
@@ -772,19 +772,19 @@ static void netlink_overrun(struct sock *sk)
 	atomic_inc(&sk->sk_drops);
 }
 
-static struct sock *netlink_getsockbypid(struct sock *ssk, u32 pid)
+static struct sock *netlink_getsockbyportid(struct sock *ssk, u32 portid)
 {
 	struct sock *sock;
 	struct netlink_sock *nlk;
 
-	sock = netlink_lookup(sock_net(ssk), ssk->sk_protocol, pid);
+	sock = netlink_lookup(sock_net(ssk), ssk->sk_protocol, portid);
 	if (!sock)
 		return ERR_PTR(-ECONNREFUSED);
 
 	/* Don't bother queuing skb if kernel socket has no input function */
 	nlk = nlk_sk(sock);
 	if (sock->sk_state == NETLINK_CONNECTED &&
-	    nlk->dst_pid != nlk_sk(ssk)->pid) {
+	    nlk->dst_portid != nlk_sk(ssk)->portid) {
 		sock_put(sock);
 		return ERR_PTR(-ECONNREFUSED);
 	}
@@ -935,7 +935,7 @@ static int netlink_unicast_kernel(struct sock *sk, struct sk_buff *skb,
 }
 
 int netlink_unicast(struct sock *ssk, struct sk_buff *skb,
-		    u32 pid, int nonblock)
+		    u32 portid, int nonblock)
 {
 	struct sock *sk;
 	int err;
@@ -945,7 +945,7 @@ int netlink_unicast(struct sock *ssk, struct sk_buff *skb,
 
 	timeo = sock_sndtimeo(ssk, nonblock);
 retry:
-	sk = netlink_getsockbypid(ssk, pid);
+	sk = netlink_getsockbyportid(ssk, portid);
 	if (IS_ERR(sk)) {
 		kfree_skb(skb);
 		return PTR_ERR(sk);
@@ -1005,7 +1005,7 @@ static int netlink_broadcast_deliver(struct sock *sk, struct sk_buff *skb)
 struct netlink_broadcast_data {
 	struct sock *exclude_sk;
 	struct net *net;
-	u32 pid;
+	u32 portid;
 	u32 group;
 	int failure;
 	int delivery_failure;
@@ -1026,7 +1026,7 @@ static int do_one_broadcast(struct sock *sk,
 	if (p->exclude_sk == sk)
 		goto out;
 
-	if (nlk->pid == p->pid || p->group - 1 >= nlk->ngroups ||
+	if (nlk->portid == p->portid || p->group - 1 >= nlk->ngroups ||
 	    !test_bit(p->group - 1, nlk->groups))
 		goto out;
 
@@ -1078,7 +1078,7 @@ out:
 	return 0;
 }
 
-int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb, u32 pid,
+int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb, u32 portid,
 	u32 group, gfp_t allocation,
 	int (*filter)(struct sock *dsk, struct sk_buff *skb, void *data),
 	void *filter_data)
@@ -1092,7 +1092,7 @@ int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb, u32 pid,
 
 	info.exclude_sk = ssk;
 	info.net = net;
-	info.pid = pid;
+	info.portid = portid;
 	info.group = group;
 	info.failure = 0;
 	info.delivery_failure = 0;
@@ -1130,17 +1130,17 @@ int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb, u32 pid,
 }
 EXPORT_SYMBOL(netlink_broadcast_filtered);
 
-int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
+int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 portid,
 		      u32 group, gfp_t allocation)
 {
-	return netlink_broadcast_filtered(ssk, skb, pid, group, allocation,
+	return netlink_broadcast_filtered(ssk, skb, portid, group, allocation,
 		NULL, NULL);
 }
 EXPORT_SYMBOL(netlink_broadcast);
 
 struct netlink_set_err_data {
 	struct sock *exclude_sk;
-	u32 pid;
+	u32 portid;
 	u32 group;
 	int code;
 };
@@ -1156,7 +1156,7 @@ static int do_one_set_err(struct sock *sk, struct netlink_set_err_data *p)
 	if (!net_eq(sock_net(sk), sock_net(p->exclude_sk)))
 		goto out;
 
-	if (nlk->pid == p->pid || p->group - 1 >= nlk->ngroups ||
+	if (nlk->portid == p->portid || p->group - 1 >= nlk->ngroups ||
 	    !test_bit(p->group - 1, nlk->groups))
 		goto out;
 
@@ -1174,14 +1174,14 @@ out:
 /**
  * netlink_set_err - report error to broadcast listeners
  * @ssk: the kernel netlink socket, as returned by netlink_kernel_create()
- * @pid: the PID of a process that we want to skip (if any)
+ * @portid: the PORTID of a process that we want to skip (if any)
  * @groups: the broadcast group that will notice the error
  * @code: error code, must be negative (as usual in kernelspace)
  *
  * This function returns the number of broadcast listeners that have set the
  * NETLINK_RECV_NO_ENOBUFS socket option.
  */
-int netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
+int netlink_set_err(struct sock *ssk, u32 portid, u32 group, int code)
 {
 	struct netlink_set_err_data info;
 	struct hlist_node *node;
@@ -1189,7 +1189,7 @@ int netlink_set_err(struct sock *ssk, u32 pid, u32 group, int code)
 	int ret = 0;
 
 	info.exclude_sk = ssk;
-	info.pid = pid;
+	info.portid = portid;
 	info.group = group;
 	/* sk->sk_err wants a positive error value */
 	info.code = -code;
@@ -1354,7 +1354,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *addr = msg->msg_name;
-	u32 dst_pid;
+	u32 dst_portid;
 	u32 dst_group;
 	struct sk_buff *skb;
 	int err;
@@ -1374,18 +1374,18 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		err = -EINVAL;
 		if (addr->nl_family != AF_NETLINK)
 			goto out;
-		dst_pid = addr->nl_pid;
+		dst_portid = addr->nl_pid;
 		dst_group = ffs(addr->nl_groups);
 		err =  -EPERM;
-		if ((dst_group || dst_pid) &&
+		if ((dst_group || dst_portid) &&
 		    !netlink_capable(sock, NL_CFG_F_NONROOT_SEND))
 			goto out;
 	} else {
-		dst_pid = nlk->dst_pid;
+		dst_portid = nlk->dst_portid;
 		dst_group = nlk->dst_group;
 	}
 
-	if (!nlk->pid) {
+	if (!nlk->portid) {
 		err = netlink_autobind(sock);
 		if (err)
 			goto out;
@@ -1399,7 +1399,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (skb == NULL)
 		goto out;
 
-	NETLINK_CB(skb).pid	= nlk->pid;
+	NETLINK_CB(skb).portid	= nlk->portid;
 	NETLINK_CB(skb).dst_group = dst_group;
 	NETLINK_CB(skb).creds	= siocb->scm->creds;
 
@@ -1417,9 +1417,9 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 	if (dst_group) {
 		atomic_inc(&skb->users);
-		netlink_broadcast(sk, skb, dst_pid, dst_group, GFP_KERNEL);
+		netlink_broadcast(sk, skb, dst_portid, dst_group, GFP_KERNEL);
 	}
-	err = netlink_unicast(sk, skb, dst_pid, msg->msg_flags&MSG_DONTWAIT);
+	err = netlink_unicast(sk, skb, dst_portid, msg->msg_flags&MSG_DONTWAIT);
 
 out:
 	scm_destroy(siocb->scm);
@@ -1482,7 +1482,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 		struct sockaddr_nl *addr = (struct sockaddr_nl *)msg->msg_name;
 		addr->nl_family = AF_NETLINK;
 		addr->nl_pad    = 0;
-		addr->nl_pid	= NETLINK_CB(skb).pid;
+		addr->nl_pid	= NETLINK_CB(skb).portid;
 		addr->nl_groups	= netlink_group_mask(NETLINK_CB(skb).dst_group);
 		msg->msg_namelen = sizeof(*addr);
 	}
@@ -1683,7 +1683,7 @@ void netlink_clear_multicast_users(struct sock *ksk, unsigned int group)
 }
 
 struct nlmsghdr *
-__nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
+__nlmsg_put(struct sk_buff *skb, u32 portid, u32 seq, int type, int len, int flags)
 {
 	struct nlmsghdr *nlh;
 	int size = NLMSG_LENGTH(len);
@@ -1692,7 +1692,7 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 	nlh->nlmsg_type = type;
 	nlh->nlmsg_len = size;
 	nlh->nlmsg_flags = flags;
-	nlh->nlmsg_pid = pid;
+	nlh->nlmsg_pid = portid;
 	nlh->nlmsg_seq = seq;
 	if (!__builtin_constant_p(size) || NLMSG_ALIGN(size) - size != 0)
 		memset(NLMSG_DATA(nlh) + len, 0, NLMSG_ALIGN(size) - size);
@@ -1788,7 +1788,7 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	atomic_inc(&skb->users);
 	cb->skb = skb;
 
-	sk = netlink_lookup(sock_net(ssk), ssk->sk_protocol, NETLINK_CB(skb).pid);
+	sk = netlink_lookup(sock_net(ssk), ssk->sk_protocol, NETLINK_CB(skb).portid);
 	if (sk == NULL) {
 		netlink_destroy_callback(cb);
 		return -ECONNREFUSED;
@@ -1836,7 +1836,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 
 		sk = netlink_lookup(sock_net(in_skb->sk),
 				    in_skb->sk->sk_protocol,
-				    NETLINK_CB(in_skb).pid);
+				    NETLINK_CB(in_skb).portid);
 		if (sk) {
 			sk->sk_err = ENOBUFS;
 			sk->sk_error_report(sk);
@@ -1845,12 +1845,12 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 		return;
 	}
 
-	rep = __nlmsg_put(skb, NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
+	rep = __nlmsg_put(skb, NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
 			  NLMSG_ERROR, payload, 0);
 	errmsg = nlmsg_data(rep);
 	errmsg->error = err;
 	memcpy(&errmsg->msg, nlh, err ? nlh->nlmsg_len : sizeof(*nlh));
-	netlink_unicast(in_skb->sk, skb, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
+	netlink_unicast(in_skb->sk, skb, NETLINK_CB(in_skb).portid, MSG_DONTWAIT);
 }
 EXPORT_SYMBOL(netlink_ack);
 
@@ -1900,33 +1900,33 @@ EXPORT_SYMBOL(netlink_rcv_skb);
  * nlmsg_notify - send a notification netlink message
  * @sk: netlink socket to use
  * @skb: notification message
- * @pid: destination netlink pid for reports or 0
+ * @portid: destination netlink portid for reports or 0
  * @group: destination multicast group or 0
  * @report: 1 to report back, 0 to disable
  * @flags: allocation flags
  */
-int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 pid,
+int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 portid,
 		 unsigned int group, int report, gfp_t flags)
 {
 	int err = 0;
 
 	if (group) {
-		int exclude_pid = 0;
+		int exclude_portid = 0;
 
 		if (report) {
 			atomic_inc(&skb->users);
-			exclude_pid = pid;
+			exclude_portid = portid;
 		}
 
 		/* errors reported via destination sk->sk_err, but propagate
 		 * delivery errors if NETLINK_BROADCAST_ERROR flag is set */
-		err = nlmsg_multicast(sk, skb, exclude_pid, group, flags);
+		err = nlmsg_multicast(sk, skb, exclude_portid, group, flags);
 	}
 
 	if (report) {
 		int err2;
 
-		err2 = nlmsg_unicast(sk, skb, pid);
+		err2 = nlmsg_unicast(sk, skb, portid);
 		if (!err || err == -ESRCH)
 			err = err2;
 	}
@@ -1951,7 +1951,7 @@ static struct sock *netlink_seq_socket_idx(struct seq_file *seq, loff_t pos)
 	loff_t off = 0;
 
 	for (i = 0; i < MAX_LINKS; i++) {
-		struct nl_pid_hash *hash = &nl_table[i].hash;
+		struct nl_portid_hash *hash = &nl_table[i].hash;
 
 		for (j = 0; j <= hash->mask; j++) {
 			sk_for_each(s, node, &hash->table[j]) {
@@ -1999,7 +1999,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	j = iter->hash_idx + 1;
 
 	do {
-		struct nl_pid_hash *hash = &nl_table[i].hash;
+		struct nl_portid_hash *hash = &nl_table[i].hash;
 
 		for (; j <= hash->mask; j++) {
 			s = sk_head(&hash->table[j]);
@@ -2038,7 +2038,7 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "%pK %-3d %-6d %08x %-8d %-8d %pK %-8d %-8d %-8lu\n",
 			   s,
 			   s->sk_protocol,
-			   nlk->pid,
+			   nlk->portid,
 			   nlk->groups ? (u32)nlk->groups[0] : 0,
 			   sk_rmem_alloc_get(s),
 			   sk_wmem_alloc_get(s),
@@ -2183,12 +2183,12 @@ static int __init netlink_proto_init(void)
 	order = get_bitmask_order(min(limit, (unsigned long)UINT_MAX)) - 1;
 
 	for (i = 0; i < MAX_LINKS; i++) {
-		struct nl_pid_hash *hash = &nl_table[i].hash;
+		struct nl_portid_hash *hash = &nl_table[i].hash;
 
-		hash->table = nl_pid_hash_zalloc(1 * sizeof(*hash->table));
+		hash->table = nl_portid_hash_zalloc(1 * sizeof(*hash->table));
 		if (!hash->table) {
 			while (i-- > 0)
-				nl_pid_hash_free(nl_table[i].hash.table,
+				nl_portid_hash_free(nl_table[i].hash.table,
 						 1 * sizeof(*hash->table));
 			kfree(nl_table);
 			goto panic;

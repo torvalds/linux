@@ -126,13 +126,13 @@ static int pdiag_put_fanout(struct packet_sock *po, struct sk_buff *nlskb)
 }
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag_req *req,
-		u32 pid, u32 seq, u32 flags, int sk_ino)
+		u32 portid, u32 seq, u32 flags, int sk_ino)
 {
 	struct nlmsghdr *nlh;
 	struct packet_diag_msg *rp;
 	struct packet_sock *po = pkt_sk(sk);
 
-	nlh = nlmsg_put(skb, pid, seq, SOCK_DIAG_BY_FAMILY, sizeof(*rp), flags);
+	nlh = nlmsg_put(skb, portid, seq, SOCK_DIAG_BY_FAMILY, sizeof(*rp), flags);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -184,7 +184,7 @@ static int packet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (num < s_num)
 			goto next;
 
-		if (sk_diag_fill(sk, skb, req, NETLINK_CB(cb->skb).pid,
+		if (sk_diag_fill(sk, skb, req, NETLINK_CB(cb->skb).portid,
 					cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					sock_i_ino(sk)) < 0)
 			goto done;

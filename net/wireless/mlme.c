@@ -615,7 +615,7 @@ EXPORT_SYMBOL(cfg80211_del_sta);
 struct cfg80211_mgmt_registration {
 	struct list_head list;
 
-	u32 nlpid;
+	u32 nlportid;
 
 	int match_len;
 
@@ -624,7 +624,7 @@ struct cfg80211_mgmt_registration {
 	u8 match[];
 };
 
-int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
+int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				u16 frame_type, const u8 *match_data,
 				int match_len)
 {
@@ -672,7 +672,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 
 	memcpy(nreg->match, match_data, match_len);
 	nreg->match_len = match_len;
-	nreg->nlpid = snd_pid;
+	nreg->nlportid = snd_portid;
 	nreg->frame_type = cpu_to_le16(frame_type);
 	list_add(&nreg->list, &wdev->mgmt_registrations);
 
@@ -685,7 +685,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 	return err;
 }
 
-void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
+void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 {
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
@@ -694,7 +694,7 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
 	spin_lock_bh(&wdev->mgmt_registrations_lock);
 
 	list_for_each_entry_safe(reg, tmp, &wdev->mgmt_registrations, list) {
-		if (reg->nlpid != nlpid)
+		if (reg->nlportid != nlportid)
 			continue;
 
 		if (rdev->ops->mgmt_frame_register) {
@@ -710,8 +710,8 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
-	if (nlpid == wdev->ap_unexpected_nlpid)
-		wdev->ap_unexpected_nlpid = 0;
+	if (nlportid == wdev->ap_unexpected_nlportid)
+		wdev->ap_unexpected_nlportid = 0;
 }
 
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
@@ -872,7 +872,7 @@ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
 		/* found match! */
 
 		/* Indicate the received Action frame to user space */
-		if (nl80211_send_mgmt(rdev, wdev, reg->nlpid,
+		if (nl80211_send_mgmt(rdev, wdev, reg->nlportid,
 				      freq, sig_mbm,
 				      buf, len, gfp))
 			continue;

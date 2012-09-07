@@ -470,10 +470,10 @@ static void ip6addrlbl_putmsg(struct nlmsghdr *nlh,
 static int ip6addrlbl_fill(struct sk_buff *skb,
 			   struct ip6addrlbl_entry *p,
 			   u32 lseq,
-			   u32 pid, u32 seq, int event,
+			   u32 portid, u32 seq, int event,
 			   unsigned int flags)
 {
-	struct nlmsghdr *nlh = nlmsg_put(skb, pid, seq, event,
+	struct nlmsghdr *nlh = nlmsg_put(skb, portid, seq, event,
 					 sizeof(struct ifaddrlblmsg), flags);
 	if (!nlh)
 		return -EMSGSIZE;
@@ -503,7 +503,7 @@ static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		    net_eq(ip6addrlbl_net(p), net)) {
 			if ((err = ip6addrlbl_fill(skb, p,
 						   ip6addrlbl_table.seq,
-						   NETLINK_CB(cb->skb).pid,
+						   NETLINK_CB(cb->skb).portid,
 						   cb->nlh->nlmsg_seq,
 						   RTM_NEWADDRLABEL,
 						   NLM_F_MULTI)) <= 0)
@@ -574,7 +574,7 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 	}
 
 	err = ip6addrlbl_fill(skb, p, lseq,
-			      NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
+			      NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
 			      RTM_NEWADDRLABEL, 0);
 
 	ip6addrlbl_put(p);
@@ -585,7 +585,7 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 		goto out;
 	}
 
-	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).pid);
+	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
 out:
 	return err;
 }

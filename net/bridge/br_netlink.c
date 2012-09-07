@@ -127,7 +127,7 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 			goto skip;
 
 		if (br_fill_ifinfo(skb, port,
-				   NETLINK_CB(cb->skb).pid,
+				   NETLINK_CB(cb->skb).portid,
 				   cb->nlh->nlmsg_seq, RTM_NEWLINK,
 				   NLM_F_MULTI) < 0)
 			break;

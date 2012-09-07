@@ -557,7 +557,7 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 	cfg->fc_flags = rtm->rtm_flags;
 	cfg->fc_nlflags = nlh->nlmsg_flags;
 
-	cfg->fc_nlinfo.pid = NETLINK_CB(skb).pid;
+	cfg->fc_nlinfo.portid = NETLINK_CB(skb).portid;
 	cfg->fc_nlinfo.nlh = nlh;
 	cfg->fc_nlinfo.nl_net = net;
 
@@ -955,7 +955,7 @@ static void nl_fib_input(struct sk_buff *skb)
 	struct fib_result_nl *frn;
 	struct nlmsghdr *nlh;
 	struct fib_table *tb;
-	u32 pid;
+	u32 portid;
 
 	net = sock_net(skb->sk);
 	nlh = nlmsg_hdr(skb);
@@ -973,10 +973,10 @@ static void nl_fib_input(struct sk_buff *skb)
 
 	nl_fib_lookup(frn, tb);
 
-	pid = NETLINK_CB(skb).pid;      /* pid of sending process */
-	NETLINK_CB(skb).pid = 0;        /* from kernel */
+	portid = NETLINK_CB(skb).portid;      /* pid of sending process */
+	NETLINK_CB(skb).portid = 0;        /* from kernel */
 	NETLINK_CB(skb).dst_group = 0;  /* unicast */
-	netlink_unicast(net->ipv4.fibnl, skb, pid, MSG_DONTWAIT);
+	netlink_unicast(net->ipv4.fibnl, skb, portid, MSG_DONTWAIT);
 }
 
 static int __net_init nl_fib_lookup_init(struct net *net)

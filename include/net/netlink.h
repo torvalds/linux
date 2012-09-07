@@ -217,19 +217,19 @@ struct nla_policy {
 /**
  * struct nl_info - netlink source information
  * @nlh: Netlink message header of original request
- * @pid: Netlink PID of requesting application
+ * @portid: Netlink PORTID of requesting application
  */
 struct nl_info {
 	struct nlmsghdr		*nlh;
 	struct net		*nl_net;
-	u32			pid;
+	u32			portid;
 };
 
 extern int		netlink_rcv_skb(struct sk_buff *skb,
 					int (*cb)(struct sk_buff *,
 						  struct nlmsghdr *));
 extern int		nlmsg_notify(struct sock *sk, struct sk_buff *skb,
-				     u32 pid, unsigned int group, int report,
+				     u32 portid, unsigned int group, int report,
 				     gfp_t flags);
 
 extern int		nla_validate(const struct nlattr *head,
@@ -444,7 +444,7 @@ static inline int nlmsg_report(const struct nlmsghdr *nlh)
 /**
  * nlmsg_put - Add a new netlink message to an skb
  * @skb: socket buffer to store message in
- * @pid: netlink process id
+ * @portid: netlink process id
  * @seq: sequence number of message
  * @type: message type
  * @payload: length of message payload
@@ -453,13 +453,13 @@ static inline int nlmsg_report(const struct nlmsghdr *nlh)
  * Returns NULL if the tailroom of the skb is insufficient to store
  * the message header and payload.
  */
-static inline struct nlmsghdr *nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq,
+static inline struct nlmsghdr *nlmsg_put(struct sk_buff *skb, u32 portid, u32 seq,
 					 int type, int payload, int flags)
 {
 	if (unlikely(skb_tailroom(skb) < nlmsg_total_size(payload)))
 		return NULL;
 
-	return __nlmsg_put(skb, pid, seq, type, payload, flags);
+	return __nlmsg_put(skb, portid, seq, type, payload, flags);
 }
 
 /**
@@ -478,7 +478,7 @@ static inline struct nlmsghdr *nlmsg_put_answer(struct sk_buff *skb,
 						int type, int payload,
 						int flags)
 {
-	return nlmsg_put(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
+	return nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			 type, payload, flags);
 }
 
@@ -563,18 +563,18 @@ static inline void nlmsg_free(struct sk_buff *skb)
  * nlmsg_multicast - multicast a netlink message
  * @sk: netlink socket to spread messages to
  * @skb: netlink message as socket buffer
- * @pid: own netlink pid to avoid sending to yourself
+ * @portid: own netlink portid to avoid sending to yourself
  * @group: multicast group id
  * @flags: allocation flags
  */
 static inline int nlmsg_multicast(struct sock *sk, struct sk_buff *skb,
-				  u32 pid, unsigned int group, gfp_t flags)
+				  u32 portid, unsigned int group, gfp_t flags)
 {
 	int err;
 
 	NETLINK_CB(skb).dst_group = group;
 
-	err = netlink_broadcast(sk, skb, pid, group, flags);
+	err = netlink_broadcast(sk, skb, portid, group, flags);
 	if (err > 0)
 		err = 0;
 
@@ -585,13 +585,13 @@ static inline int nlmsg_multicast(struct sock *sk, struct sk_buff *skb,
  * nlmsg_unicast - unicast a netlink message
  * @sk: netlink socket to spread message to
  * @skb: netlink message as socket buffer
- * @pid: netlink pid of the destination socket
+ * @portid: netlink portid of the destination socket
  */
-static inline int nlmsg_unicast(struct sock *sk, struct sk_buff *skb, u32 pid)
+static inline int nlmsg_unicast(struct sock *sk, struct sk_buff *skb, u32 portid)
 {
 	int err;
 
-	err = netlink_unicast(sk, skb, pid, MSG_DONTWAIT);
+	err = netlink_unicast(sk, skb, portid, MSG_DONTWAIT);
 	if (err > 0)
 		err = 0;
 
