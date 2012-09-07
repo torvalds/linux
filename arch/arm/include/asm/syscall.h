@@ -9,6 +9,10 @@
 
 #include <linux/err.h>
 
+#include <asm/unistd.h>
+
+#define NR_syscalls (__NR_syscalls)
+
 extern const unsigned long sys_call_table[];
 
 static inline int syscall_get_nr(struct task_struct *task,
