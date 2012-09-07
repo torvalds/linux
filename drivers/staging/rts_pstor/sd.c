@@ -757,13 +757,11 @@ static int sd_wait_state_data_ready(struct rtsx_chip *chip, u8 state, u8 data_re
 	for (i = 0; i < polling_cnt; i++) {
 		retval = sd_send_cmd_get_rsp(chip, SEND_STATUS,
 					     sd_card->sd_addr, SD_RSP_TYPE_R1, rsp, 5);
-		if (retval != STATUS_SUCCESS) {
+		if (retval != STATUS_SUCCESS)
 			TRACE_RET(chip, STATUS_FAIL);
-		}
 
-		if (((rsp[3] & 0x1E) == state) && ((rsp[3] & 0x01) == data_ready)) {
+		if (((rsp[3] & 0x1E) == state) && ((rsp[3] & 0x01) == data_ready))
 			return STATUS_SUCCESS;
-		}
 	}
 
 	TRACE_RET(chip, STATUS_FAIL);
