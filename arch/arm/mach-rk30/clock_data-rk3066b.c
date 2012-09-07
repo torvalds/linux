@@ -1288,7 +1288,6 @@ static struct clk *gpu_aclk_parents[2] = {&codec_pll_clk, &general_pll_clk};
 
 static struct clk aclk_gpu = {
 	.name		= "aclk_gpu",
-	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
 	.round_rate	= clk_freediv_round_autosel_parents_rate,
 	.set_rate	= clkset_rate_freediv_autosel_parents,
@@ -1978,7 +1977,7 @@ static struct clk clk_saradc = {
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_freediv,
-	.gate_idx	=  CLK_GATE_SARADC_SRC,
+	.gate_idx	= CLK_GATE_SARADC_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(24),
 	CRU_DIV_SET(0xff, 8, 256),
 };
