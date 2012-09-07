@@ -654,6 +654,12 @@ static int iblock_execute_rw(struct se_cmd *cmd)
 		goto fail;
 	cmd->priv = ibr;
 
+	if (!sgl_nents) {
+		atomic_set(&ibr->pending, 1);
+		iblock_complete_cmd(cmd);
+		return 0;
+	}
+
 	bio = iblock_get_bio(cmd, block_lba, sgl_nents);
 	if (!bio)
 		goto fail_free_ibr;
