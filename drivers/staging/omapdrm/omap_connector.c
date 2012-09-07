@@ -52,6 +52,16 @@ static inline void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 
 	if (timings->interlace)
 		mode->flags |= DRM_MODE_FLAG_INTERLACE;
+
+	if (timings->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
+		mode->flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		mode->flags |= DRM_MODE_FLAG_NHSYNC;
+
+	if (timings->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
+		mode->flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		mode->flags |= DRM_MODE_FLAG_NVSYNC;
 }
 
 static inline void copy_timings_drm_to_omap(struct omap_video_timings *timings,
@@ -70,6 +80,20 @@ static inline void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 	timings->vbp = mode->vtotal - mode->vsync_end;
 
 	timings->interlace = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
+
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
+		timings->hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	else
+		timings->hsync_level = OMAPDSS_SIG_ACTIVE_LOW;
+
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
+		timings->vsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	else
+		timings->vsync_level = OMAPDSS_SIG_ACTIVE_LOW;
+
+	timings->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	timings->de_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
 }
 
 static void omap_connector_dpms(struct drm_connector *connector, int mode)
