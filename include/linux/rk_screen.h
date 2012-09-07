@@ -103,7 +103,8 @@ typedef struct rk29fb_screen {
 	u16 type;
 	u16 hw_format;
 	u16 face;
-	u8 lcdc_id;//which lcdc the screeen connect to
+	u8 lcdc_id;    //which output interface the screeen connect to
+	u8 screen_id; //screen number
 
 	/* Screen size */
 	u16 x_res;
@@ -122,7 +123,7 @@ typedef struct rk29fb_screen {
 	u16 vsync_len;
 	u8  ft;	//the time need to display one frame,in ms
 	int *dsp_lut; //display lut 
-#ifdef CONFIG_HDMI_DUAL_DISP
+#if defined(CONFIG_HDMI_DUAL_DISP) || defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
     /* Scaler mode Timing */
 	u32 s_pixclock;
 	u16 s_left_margin;

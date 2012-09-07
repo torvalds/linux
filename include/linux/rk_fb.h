@@ -205,7 +205,7 @@ struct rk_lcdc_device_driver{
 	int fb_index_base;                     //the first fb index of the lcdc device
 	rk_screen *screen0;		      //some platform have only one lcdc,but extend
 	rk_screen *screen1;		      //two display devices for dual display,such as rk2918,rk2928
-	rk_screen *cur_screen;
+	rk_screen *cur_screen;		     //screen0 is primary screen ,like lcd panel,screen1 is  extend screen,like hdmi
 	u32 pixclock;
 
 	

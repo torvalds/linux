@@ -399,8 +399,8 @@ static int rk_fb_set_par(struct fb_info *info)
               	ysize = screen->y_res;
 	}
 
-	if(screen->lcdc_id == 0) //this is for device like rk2928 ,whic have one lcdc but two display outputs
-	{
+	if(screen->screen_id == 0) //this is for device like rk2928 ,whic have one lcdc but two display outputs
+	{			   //save parameter set by android
 		dev_drv->screen0->xsize = xsize;
 		dev_drv->screen0->ysize = ysize;
 		dev_drv->screen0->xpos  = xpos;
@@ -559,19 +559,19 @@ static struct fb_ops fb_ops = {
 
 
 static struct fb_var_screeninfo def_var = {
-    .red    = {11,5,0},//default set to rgb565,the boot logo is rgb565
-    .green  = {5,6,0},
-    .blue   = {0,5,0},
-    .transp = {0,0,0},	
-    #ifdef  CONFIG_LOGO_LINUX_BMP
+	.red    = {11,5,0},//default set to rgb565,the boot logo is rgb565
+	.green  = {5,6,0},
+	.blue   = {0,5,0},
+	.transp = {0,0,0},	
+#ifdef  CONFIG_LOGO_LINUX_BMP
 	.nonstd      = HAL_PIXEL_FORMAT_RGBA_8888,
-	#else
-    .nonstd      = HAL_PIXEL_FORMAT_RGB_565,   //(ypos<<20+xpos<<8+format) format
-    #endif
-    .grayscale   = 0,  //(ysize<<20+xsize<<8)
-    .activate    = FB_ACTIVATE_NOW,
-    .accel_flags = 0,
-    .vmode       = FB_VMODE_NONINTERLACED,
+#else
+	.nonstd      = HAL_PIXEL_FORMAT_RGB_565,   //(ypos<<20+xpos<<8+format) format
+#endif
+	.grayscale   = 0,  //(ysize<<20+xsize<<8)
+	.activate    = FB_ACTIVATE_NOW,
+	.accel_flags = 0,
+	.vmode       = FB_VMODE_NONINTERLACED,
 };
 
 static struct fb_fix_screeninfo def_fix = {
@@ -623,7 +623,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	int layer_id;
 	
 	sprintf(name, "lcdc%d",lcdc_id);
-	for(i = 0; i < inf->num_lcdc; i++)
+	for(i = 0; i < inf->num_lcdc; i++)  //find the driver the display device connected to
 	{
 		if(!strcmp(inf->lcdc_dev_drv[i]->name,name))
 		{
@@ -646,7 +646,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	}
 	else if((lcdc_id == 1)&&(inf->num_lcdc == 2))
 	{
-		info = inf->fb[2];
+		info = inf->fb[dev_drv->num_layer]; //the main fb of lcdc2
 	}
 
 	if(dev_drv->screen1) //device like rk2928 ,have only one lcdc but two outputs
@@ -654,12 +654,21 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		if(enable)
 		{
 			memcpy(dev_drv->screen1,screen,sizeof(rk_screen ));
-			dev_drv->screen1->lcdc_id = 1;
+			dev_drv->screen1->lcdc_id = 0; //connect screen1 to output interface 0
+			dev_drv->screen1->screen_id = 1;
+			dev_drv->screen0->lcdc_id = 1; //connect screen0 to output interface 1
 			dev_drv->cur_screen = dev_drv->screen1;
+			dev_drv->screen0->sscreen_get(dev_drv->screen0,dev_drv->cur_screen->hdmi_resolution);
+			
 		}
 		else
 		{
+			dev_drv->screen1->lcdc_id = 1; //connect screen1 to output interface 1
+			dev_drv->screen0->lcdc_id = 0; //connect screen0 to output interface 0
 			dev_drv->cur_screen = dev_drv->screen0;
+			dev_drv->screen_ctr_info->set_screen_info(dev_drv->cur_screen,
+			dev_drv->screen_ctr_info->lcd_info);
+			
 		}
 	}
 
@@ -735,7 +744,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	
 	char name[6];
 	int i;
-	printk("scale_x:%x>>scale_y:%d\n",scale_x,scale_y);
+	printk("%s>>scale_x:%x>>scale_y:%d\n",__func__,scale_x,scale_y);
 	sprintf(name, "lcdc%d",lcdc_id);
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
@@ -759,7 +768,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	}
 	else if( (inf->num_lcdc == 2)&&(lcdc_id == 1))
 	{
-		info = inf->fb[2];
+		info = inf->fb[dev_drv->num_layer];
 	}
 
 	var = &info->var;

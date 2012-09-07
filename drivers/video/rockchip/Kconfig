@@ -7,6 +7,25 @@ config FB_ROCKCHIP
         ---help---
           Framebuffer driver for rockchip based platform
 
+config DUAL_DISP_IN_KERNEL
+        bool "implement dual display in kernel"
+        depends on FB_ROCKCHIP
+        default y if HDMI_RK30
+        help
+          select y will implement dual screen display in kernel
+config ONE_LCDC_DUAL_OUTPUT_INF
+        bool "one lcdc dual output display interface support"
+        depends on FB_ROCKCHIP
+        default y if ARCH_RK2928
+        help
+          select y if on platform like rk2928 which have one lcdc but two output interface
+config THREE_FB_BUFFER
+        bool "Three fb buffer support"
+        depends on FB_ROCKCHIP
+        default y
+        help
+           select y if android support three buffer,like Jelly Bean
+
 config FB_WIMO
 	bool "WiMO support"
 	depends on FB_ROCKCHIP
@@ -60,19 +79,6 @@ config LCDC1_RK31
         help
            Support lcdc1 if you say y here
 
-config DUAL_DISP_IN_KERNEL
-	bool "implement dual display in kernel"
-	depends on FB_ROCKCHIP
-	default y if HDMI_RK30
-	help
-	  select y will implement dual screen display in kernel
-
-config THREE_FB_BUFFER
-	bool "Three fb buffer support"
-	depends on FB_ROCKCHIP
-	default y
-	help
-	   select y if android support three buffer,like Jelly Bean
 source "drivers/video/rockchip/hdmi/Kconfig"
 source "drivers/video/rockchip/rga/Kconfig"
 source "drivers/video/rockchip/lvds/Kconfig"
