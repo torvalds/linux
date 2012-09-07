@@ -51,18 +51,34 @@
 
 #include "init_64.h"
 
-unsigned long kern_linear_pte_xor[2] __read_mostly;
+unsigned long kern_linear_pte_xor[4] __read_mostly;
 
-/* A bitmap, one bit for every 256MB of physical memory.  If the bit
- * is clear, we should use a 4MB page (via kern_linear_pte_xor[0]) else
- * if set we should use a 256MB page (via kern_linear_pte_xor[1]).
+/* A bitmap, two bits for every 256MB of physical memory.  These two
+ * bits determine what page size we use for kernel linear
+ * translations.  They form an index into kern_linear_pte_xor[].  The
+ * value in the indexed slot is XOR'd with the TLB miss virtual
+ * address to form the resulting TTE.  The mapping is:
+ *
+ *	0	==>	4MB
+ *	1	==>	256MB
+ *	2	==>	2GB
+ *	3	==>	16GB
+ *
+ * All sun4v chips support 256MB pages.  Only SPARC-T4 and later
+ * support 2GB pages, and hopefully future cpus will support the 16GB
+ * pages as well.  For slots 2 and 3, we encode a 256MB TTE xor there
+ * if these larger page sizes are not supported by the cpu.
+ *
+ * It would be nice to determine this from the machine description
+ * 'cpu' properties, but we need to have this table setup before the
+ * MDESC is initialized.
  */
 unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
-/* A special kernel TSB for 4MB and 256MB linear mappings.
- * Space is allocated for this right after the trap table
- * in arch/sparc64/kernel/head.S
+/* A special kernel TSB for 4MB, 256MB, 2GB and 16GB linear mappings.
+ * Space is allocated for this right after the trap table in
+ * arch/sparc64/kernel/head.S
  */
 extern struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
 #endif
@@ -1358,32 +1374,75 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 extern unsigned int kvmap_linear_patch[1];
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
+static void __init kpte_set_val(unsigned long index, unsigned long val)
+{
+	unsigned long *ptr = kpte_linear_bitmap;
+
+	val <<= ((index % (BITS_PER_LONG / 2)) * 2);
+	ptr += (index / (BITS_PER_LONG / 2));
+
+	*ptr |= val;
+}
+
+static const unsigned long kpte_shift_min = 28; /* 256MB */
+static const unsigned long kpte_shift_max = 34; /* 16GB */
+static const unsigned long kpte_shift_incr = 3;
+
+static unsigned long kpte_mark_using_shift(unsigned long start, unsigned long end,
+					   unsigned long shift)
+{
+	unsigned long size = (1UL << shift);
+	unsigned long mask = (size - 1UL);
+	unsigned long remains = end - start;
+	unsigned long val;
+
+	if (remains < size || (start & mask))
+		return start;
+
+	/* VAL maps:
+	 *
+	 *	shift 28 --> kern_linear_pte_xor index 1
+	 *	shift 31 --> kern_linear_pte_xor index 2
+	 *	shift 34 --> kern_linear_pte_xor index 3
+	 */
+	val = ((shift - kpte_shift_min) / kpte_shift_incr) + 1;
+
+	remains &= ~mask;
+	if (shift != kpte_shift_max)
+		remains = size;
+
+	while (remains) {
+		unsigned long index = start >> kpte_shift_min;
+
+		kpte_set_val(index, val);
+
+		start += 1UL << kpte_shift_min;
+		remains -= 1UL << kpte_shift_min;
+	}
+
+	return start;
+}
+
 static void __init mark_kpte_bitmap(unsigned long start, unsigned long end)
 {
-	const unsigned long shift_256MB = 28;
-	const unsigned long mask_256MB = ((1UL << shift_256MB) - 1UL);
-	const unsigned long size_256MB = (1UL << shift_256MB);
+	unsigned long smallest_size, smallest_mask;
+	unsigned long s;
+
+	smallest_size = (1UL << kpte_shift_min);
+	smallest_mask = (smallest_size - 1UL);
 
 	while (start < end) {
-		long remains;
+		unsigned long orig_start = start;
 
-		remains = end - start;
-		if (remains < size_256MB)
-			break;
+		for (s = kpte_shift_max; s >= kpte_shift_min; s -= kpte_shift_incr) {
+			start = kpte_mark_using_shift(start, end, s);
 
-		if (start & mask_256MB) {
-			start = (start + size_256MB) & ~mask_256MB;
-			continue;
+			if (start != orig_start)
+				break;
 		}
 
-		while (remains >= size_256MB) {
-			unsigned long index = start >> shift_256MB;
-
-			__set_bit(index, kpte_linear_bitmap);
-
-			start += size_256MB;
-			remains -= size_256MB;
-		}
+		if (start == orig_start)
+			start = (start + smallest_size) & ~smallest_mask;
 	}
 }
 
@@ -1577,13 +1636,15 @@ static void __init sun4v_ktsb_init(void)
 	ktsb_descr[0].resv = 0;
 
 #ifndef CONFIG_DEBUG_PAGEALLOC
-	/* Second KTSB for 4MB/256MB mappings.  */
+	/* Second KTSB for 4MB/256MB/2GB/16GB mappings.  */
 	ktsb_pa = (kern_base +
 		   ((unsigned long)&swapper_4m_tsb[0] - KERNBASE));
 
 	ktsb_descr[1].pgsz_idx = HV_PGSZ_IDX_4MB;
 	ktsb_descr[1].pgsz_mask = (HV_PGSZ_MASK_4MB |
 				   HV_PGSZ_MASK_256MB);
+	if (sun4v_chip_type == SUN4V_CHIP_NIAGARA4)
+		ktsb_descr[1].pgsz_mask |= HV_PGSZ_MASK_2GB;
 	ktsb_descr[1].assoc = 1;
 	ktsb_descr[1].num_ttes = KERNEL_TSB4M_NENTRIES;
 	ktsb_descr[1].ctx_idx = 0;
@@ -2110,6 +2171,7 @@ static void __init sun4u_pgprot_init(void)
 {
 	unsigned long page_none, page_shared, page_copy, page_readonly;
 	unsigned long page_exec_bit;
+	int i;
 
 	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4U | _PAGE_VALID |
 				_PAGE_CACHE_4U | _PAGE_P_4U |
@@ -2138,7 +2200,8 @@ static void __init sun4u_pgprot_init(void)
 				   _PAGE_P_4U | _PAGE_W_4U);
 
 	/* XXX Should use 256MB on Panther. XXX */
-	kern_linear_pte_xor[1] = kern_linear_pte_xor[0];
+	for (i = 1; i < 4; i++)
+		kern_linear_pte_xor[i] = kern_linear_pte_xor[0];
 
 	_PAGE_SZBITS = _PAGE_SZBITS_4U;
 	_PAGE_ALL_SZ_BITS =  (_PAGE_SZ4MB_4U | _PAGE_SZ512K_4U |
@@ -2164,6 +2227,7 @@ static void __init sun4v_pgprot_init(void)
 {
 	unsigned long page_none, page_shared, page_copy, page_readonly;
 	unsigned long page_exec_bit;
+	int i;
 
 	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4V | _PAGE_VALID |
 				_PAGE_CACHE_4V | _PAGE_P_4V |
@@ -2194,6 +2258,25 @@ static void __init sun4v_pgprot_init(void)
 #endif
 	kern_linear_pte_xor[1] |= (_PAGE_CP_4V | _PAGE_CV_4V |
 				   _PAGE_P_4V | _PAGE_W_4V);
+
+	i = 2;
+
+	if (sun4v_chip_type == SUN4V_CHIP_NIAGARA4) {
+#ifdef CONFIG_DEBUG_PAGEALLOC
+		kern_linear_pte_xor[2] = (_PAGE_VALID | _PAGE_SZBITS_4V) ^
+			0xfffff80000000000UL;
+#else
+		kern_linear_pte_xor[2] = (_PAGE_VALID | _PAGE_SZ2GB_4V) ^
+			0xfffff80000000000UL;
+#endif
+		kern_linear_pte_xor[2] |= (_PAGE_CP_4V | _PAGE_CV_4V |
+					   _PAGE_P_4V | _PAGE_W_4V);
+
+		i = 3;
+	}
+
+	for (; i < 4; i++)
+		kern_linear_pte_xor[i] = kern_linear_pte_xor[i - 1];
 
 	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4V | __DIRTY_BITS_4V |
 		     __ACCESS_BITS_4V | _PAGE_E_4V);
