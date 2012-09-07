@@ -148,10 +148,17 @@ static int __devexit gen_74x164_remove(struct spi_device *spi)
 	return ret;
 }
 
+static const struct of_device_id gen_74x164_dt_ids[] = {
+	{ .compatible = "fairchild,74hc595" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, gen_74x164_dt_ids);
+
 static struct spi_driver gen_74x164_driver = {
 	.driver = {
 		.name		= "74x164",
 		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(gen_74x164_dt_ids),
 	},
 	.probe		= gen_74x164_probe,
 	.remove		= __devexit_p(gen_74x164_remove),
