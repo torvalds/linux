@@ -560,8 +560,8 @@ static int tpci200_install(struct tpci200_board *tpci200)
 	return 0;
 }
 
-static int tpci200_pciprobe(struct pci_dev *pdev,
-			    const struct pci_device_id *id)
+static int tpci200_pci_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *id)
 {
 	int ret, i;
 	struct tpci200_board *tpci200;
@@ -684,7 +684,7 @@ MODULE_DEVICE_TABLE(pci, tpci200_idtable);
 static struct pci_driver tpci200_pci_drv = {
 	.name = "tpci200",
 	.id_table = tpci200_idtable,
-	.probe = tpci200_pciprobe,
+	.probe = tpci200_pci_probe,
 	.remove = __devexit_p(tpci200_pci_remove),
 };
 
