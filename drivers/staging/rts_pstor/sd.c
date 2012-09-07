@@ -1459,18 +1459,16 @@ static int mmc_ddr_tunning_rx_cmd(struct rtsx_chip *chip, u8 sample_point)
 	int retval;
 	u8 cmd[5], bus_width;
 
-	if (CHK_MMC_8BIT(sd_card)) {
+	if (CHK_MMC_8BIT(sd_card))
 		bus_width = SD_BUS_WIDTH_8;
-	} else if (CHK_MMC_4BIT(sd_card)) {
+	else if (CHK_MMC_4BIT(sd_card))
 		bus_width = SD_BUS_WIDTH_4;
-	} else {
+	else
 		bus_width = SD_BUS_WIDTH_1;
-	}
 
 	retval = sd_change_phase(chip, sample_point, TUNE_RX);
-	if (retval != STATUS_SUCCESS) {
+	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	RTSX_DEBUGP("mmc ddr tuning rx\n");
 
