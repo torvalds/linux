@@ -172,6 +172,38 @@ static void *eeh_pe_traverse(struct eeh_pe *root,
 }
 
 /**
+ * eeh_pe_dev_traverse - Traverse the devices from the PE
+ * @root: EEH PE
+ * @fn: function callback
+ * @flag: extra parameter to callback
+ *
+ * The function is used to traverse the devices of the specified
+ * PE and its child PEs.
+ */
+void *eeh_pe_dev_traverse(struct eeh_pe *root,
+		eeh_traverse_func fn, void *flag)
+{
+	struct eeh_pe *pe;
+	struct eeh_dev *edev;
+	void *ret;
+
+	if (!root) {
+		pr_warning("%s: Invalid PE %p\n", __func__, root);
+		return NULL;
+	}
+
+	/* Traverse root PE */
+	for (pe = root; pe; pe = eeh_pe_next(pe, root)) {
+		eeh_pe_for_each_dev(pe, edev) {
+			ret = fn(edev, flag);
+			if (ret) return ret;
+		}
+	}
+
+	return NULL;
+}
+
+/**
  * __eeh_pe_get - Check the PE address
  * @data: EEH PE
  * @flag: EEH device
@@ -466,4 +498,66 @@ static void *__eeh_pe_state_clear(void *data, void *flag)
 void eeh_pe_state_clear(struct eeh_pe *pe, int state)
 {
 	eeh_pe_traverse(pe, __eeh_pe_state_clear, &state);
+}
+
+/**
+ * eeh_restore_one_device_bars - Restore the Base Address Registers for one device
+ * @data: EEH device
+ * @flag: Unused
+ *
+ * Loads the PCI configuration space base address registers,
+ * the expansion ROM base address, the latency timer, and etc.
+ * from the saved values in the device node.
+ */
+static void *eeh_restore_one_device_bars(void *data, void *flag)
+{
+	int i;
+	u32 cmd;
+	struct eeh_dev *edev = (struct eeh_dev *)data;
+	struct device_node *dn = eeh_dev_to_of_node(edev);
+
+	for (i = 4; i < 10; i++)
+		eeh_ops->write_config(dn, i*4, 4, edev->config_space[i]);
+	/* 12 == Expansion ROM Address */
+	eeh_ops->write_config(dn, 12*4, 4, edev->config_space[12]);
+
+#define BYTE_SWAP(OFF) (8*((OFF)/4)+3-(OFF))
+#define SAVED_BYTE(OFF) (((u8 *)(edev->config_space))[BYTE_SWAP(OFF)])
+
+	eeh_ops->write_config(dn, PCI_CACHE_LINE_SIZE, 1,
+		SAVED_BYTE(PCI_CACHE_LINE_SIZE));
+	eeh_ops->write_config(dn, PCI_LATENCY_TIMER, 1,
+		SAVED_BYTE(PCI_LATENCY_TIMER));
+
+	/* max latency, min grant, interrupt pin and line */
+	eeh_ops->write_config(dn, 15*4, 4, edev->config_space[15]);
+
+	/*
+	 * Restore PERR & SERR bits, some devices require it,
+	 * don't touch the other command bits
+	 */
+	eeh_ops->read_config(dn, PCI_COMMAND, 4, &cmd);
+	if (edev->config_space[1] & PCI_COMMAND_PARITY)
+		cmd |= PCI_COMMAND_PARITY;
+	else
+		cmd &= ~PCI_COMMAND_PARITY;
+	if (edev->config_space[1] & PCI_COMMAND_SERR)
+		cmd |= PCI_COMMAND_SERR;
+	else
+		cmd &= ~PCI_COMMAND_SERR;
+	eeh_ops->write_config(dn, PCI_COMMAND, 4, cmd);
+
+	return NULL;
+}
+
+/**
+ * eeh_pe_restore_bars - Restore the PCI config space info
+ * @pe: EEH PE
+ *
+ * This routine performs a recursive walk to the children
+ * of this device as well.
+ */
+void eeh_pe_restore_bars(struct eeh_pe *pe)
+{
+	eeh_pe_dev_traverse(pe, eeh_restore_one_device_bars, NULL);
 }
