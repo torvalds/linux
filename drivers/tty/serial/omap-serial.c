@@ -143,7 +143,7 @@ static int serial_omap_get_context_loss_count(struct uart_omap_port *up)
 {
 	struct omap_uart_port_info *pdata = up->dev->platform_data;
 
-	if (!pdata->get_context_loss_count)
+	if (!pdata || !pdata->get_context_loss_count)
 		return 0;
 
 	return pdata->get_context_loss_count(up->dev);
@@ -153,24 +153,30 @@ static void serial_omap_set_forceidle(struct uart_omap_port *up)
 {
 	struct omap_uart_port_info *pdata = up->dev->platform_data;
 
-	if (pdata->set_forceidle)
-		pdata->set_forceidle(up->dev);
+	if (!pdata || !pdata->set_forceidle)
+		return;
+
+	pdata->set_forceidle(up->dev);
 }
 
 static void serial_omap_set_noidle(struct uart_omap_port *up)
 {
 	struct omap_uart_port_info *pdata = up->dev->platform_data;
 
-	if (pdata->set_noidle)
-		pdata->set_noidle(up->dev);
+	if (!pdata || !pdata->set_noidle)
+		return;
+
+	pdata->set_noidle(up->dev);
 }
 
 static void serial_omap_enable_wakeup(struct uart_omap_port *up, bool enable)
 {
 	struct omap_uart_port_info *pdata = up->dev->platform_data;
 
-	if (pdata->enable_wakeup)
-		pdata->enable_wakeup(up->dev, enable);
+	if (!pdata || !pdata->enable_wakeup)
+		return;
+
+	pdata->enable_wakeup(up->dev, enable);
 }
 
 /*
