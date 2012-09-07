@@ -52,9 +52,12 @@
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
 
-
 #ifdef CONFIG_TOUCHSCREEN_GT82X_IIC
 #include <linux/goodix_touch_82x.h>
+#endif
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_S3202
+#include <linux/interrupt.h>
+#include <linux/rmi.h>
 #endif
 
 #if defined(CONFIG_SPIM_RK29)
@@ -638,6 +641,84 @@ struct platform_device rk_device_headset = {
 			    .platform_data = &rk_headset_info,
 		}
 };
+#endif
+
+#if defined (CONFIG_TOUCHSCREEN_SYNAPTICS_S3202)
+
+#define TOUCH_RESET_PIN RK30_PIN4_PD0
+#define TOUCH_INT_PIN	RK30_PIN4_PC2
+#define TOUCH_POWER_PIN -1
+#define TOUCH_IO_POWER_PIN -1
+
+struct syna_gpio_data {
+	u16 gpio_number;
+	char* gpio_name;
+};
+
+int syna_init_platform_hw(void)
+{
+    return 0;
+}
+
+static int synaptics_touchpad_gpio_setup(void *gpio_data, bool configure)
+{
+	int retval=0;
+	struct syna_gpio_data *data = gpio_data;
+
+	if (configure) {
+		retval = gpio_request(data->gpio_number, "rmi4_attn");
+		if (retval) {
+			pr_err("%s: Failed to get attn gpio %d. Code: %d.",
+			       __func__, data->gpio_number, retval);
+			return retval;
+		}
+		rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, 0);
+		retval = gpio_direction_input(data->gpio_number);
+		if (retval) {
+			pr_err("%s: Failed to setup attn gpio %d. Code: %d.",
+			       __func__, data->gpio_number, retval);
+			gpio_free(data->gpio_number);
+		}
+	} else {
+		printk("%s: No way to deconfigure gpio %d.",
+		       __func__, data->gpio_number);
+	}
+
+	return retval;
+
+}
+
+static struct syna_gpio_data s3202_gpiodata = {
+	.gpio_number = TOUCH_INT_PIN,
+	.gpio_name = "GPIO4_C2",
+};
+static unsigned char s3202_key_array[4]={ KEY_BACK, KEY_MENU, KEY_HOMEPAGE, KEY_SEARCH };
+
+struct rmi_f1a_button_map s3202_buttons = {
+		.nbuttons = 4,
+		.map = s3202_key_array,
+};
+
+static struct rmi_device_platform_data s3202_platformdata = {
+	.sensor_name = "Espresso",
+	.driver_name = "rmi_generic",
+	.attn_gpio = TOUCH_INT_PIN,
+	.attn_polarity = RMI_ATTN_ACTIVE_LOW,
+	.level_triggered = false,	/* For testing */
+	.gpio_data = &s3202_gpiodata,
+	.gpio_config = synaptics_touchpad_gpio_setup,
+	.init_hw = syna_init_platform_hw,
+	.axis_align = {
+		.flip_x = 1,
+		.flip_y = 1,
+		.clip_X_low = 0,
+		.clip_Y_low = 0,
+		.clip_X_high = 0,
+		.clip_Y_high = 0,
+	},
+	.f1a_button_map = &s3202_buttons,
+};
+
 #endif
 
 
@@ -2153,6 +2234,17 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.flags         = 0,
 		.platform_data = &cm3217_info,
 	},
+#endif
+
+
+#if defined (CONFIG_TOUCHSCREEN_SYNAPTICS_S3202)
+{
+	.type           = "rmi_i2c",
+	.addr           = 0x20,
+	.flags          = 0,
+	.irq            = RK30_PIN4_PC2,
+	.platform_data = &s3202_platformdata,
+},
 #endif
 };
 #endif
