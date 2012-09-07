@@ -429,6 +429,7 @@ static const struct venc_config *venc_timings_to_config(
 
 static int venc_power_on(struct omap_dss_device *dssdev)
 {
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	u32 l;
 	int r;
 
@@ -454,13 +455,13 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, l);
 
-	dss_mgr_set_timings(dssdev->manager, &venc.timings);
+	dss_mgr_set_timings(mgr, &venc.timings);
 
 	r = regulator_enable(venc.vdda_dac_reg);
 	if (r)
 		goto err1;
 
-	r = dss_mgr_enable(dssdev->manager);
+	r = dss_mgr_enable(mgr);
 	if (r)
 		goto err2;
 
@@ -479,10 +480,12 @@ err0:
 
 static void venc_power_off(struct omap_dss_device *dssdev)
 {
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
+
 	venc_write_reg(VENC_OUTPUT_CONTROL, 0);
 	dss_set_dac_pwrdn_bgz(0);
 
-	dss_mgr_disable(dssdev->manager);
+	dss_mgr_disable(mgr);
 
 	regulator_disable(venc.vdda_dac_reg);
 
@@ -497,14 +500,15 @@ unsigned long venc_get_pixel_clock(void)
 
 int omapdss_venc_display_enable(struct omap_dss_device *dssdev)
 {
+	struct omap_dss_output *out = dssdev->output;
 	int r;
 
 	DSSDBG("venc_display_enable\n");
 
 	mutex_lock(&venc.venc_lock);
 
-	if (dssdev->manager == NULL) {
-		DSSERR("Failed to enable display: no manager\n");
+	if (out == NULL || out->manager == NULL) {
+		DSSERR("Failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err0;
 	}
