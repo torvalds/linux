@@ -2306,19 +2306,12 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	 * away.
 	 */
 	if (!cmd->data_length &&
-	    (cmd->se_dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV ||
-	     cmd->t_task_cdb[0] == REPORT_LUNS) {
+	    cmd->t_task_cdb[0] != REQUEST_SENSE &&
+	    cmd->se_dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
 		spin_lock_irq(&cmd->t_state_lock);
 		cmd->t_state = TRANSPORT_COMPLETE;
 		cmd->transport_state |= CMD_T_ACTIVE;
 		spin_unlock_irq(&cmd->t_state_lock);
-
-		if (cmd->t_task_cdb[0] == REQUEST_SENSE) {
-			u8 ua_asc = 0, ua_ascq = 0;
-
-			core_scsi3_ua_clear_for_request_sense(cmd,
-					&ua_asc, &ua_ascq);
-		}
 
 		INIT_WORK(&cmd->work, target_complete_ok_work);
 		queue_work(target_completion_wq, &cmd->work);
