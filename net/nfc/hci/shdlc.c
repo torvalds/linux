@@ -22,7 +22,6 @@
 #include <linux/sched.h>
 #include <linux/export.h>
 #include <linux/wait.h>
-#include <linux/crc-ccitt.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 
@@ -30,7 +29,6 @@
 #include <net/nfc/shdlc.h>
 
 #define SHDLC_LLC_HEAD_ROOM	2
-#define SHDLC_LLC_TAIL_ROOM	2
 
 #define SHDLC_MAX_WINDOW	4
 #define SHDLC_SREJ_SUPPORT	false
@@ -94,26 +92,11 @@ static struct sk_buff *nfc_shdlc_alloc_skb(struct nfc_shdlc *shdlc,
 	struct sk_buff *skb;
 
 	skb = alloc_skb(shdlc->client_headroom + SHDLC_LLC_HEAD_ROOM +
-			shdlc->client_tailroom + SHDLC_LLC_TAIL_ROOM +
-			payload_len, GFP_KERNEL);
+			shdlc->client_tailroom + payload_len, GFP_KERNEL);
 	if (skb)
 		skb_reserve(skb, shdlc->client_headroom + SHDLC_LLC_HEAD_ROOM);
 
 	return skb;
-}
-
-static void nfc_shdlc_add_len_crc(struct sk_buff *skb)
-{
-	u16 crc;
-	int len;
-
-	len = skb->len + 2;
-	*skb_push(skb, 1) = len;
-
-	crc = crc_ccitt(0xffff, skb->data, skb->len);
-	crc = ~crc;
-	*skb_put(skb, 1) = crc & 0xff;
-	*skb_put(skb, 1) = crc >> 8;
 }
 
 /* immediately sends an S frame. */
@@ -130,8 +113,6 @@ static int nfc_shdlc_send_s_frame(struct nfc_shdlc *shdlc,
 		return -ENOMEM;
 
 	*skb_push(skb, 1) = SHDLC_CONTROL_HEAD_S | (sframe_type << 3) | nr;
-
-	nfc_shdlc_add_len_crc(skb);
 
 	r = shdlc->ops->xmit(shdlc, skb);
 
@@ -150,8 +131,6 @@ static int nfc_shdlc_send_u_frame(struct nfc_shdlc *shdlc,
 	pr_debug("uframe_modifier=%d\n", uframe_modifier);
 
 	*skb_push(skb, 1) = SHDLC_CONTROL_HEAD_U | uframe_modifier;
-
-	nfc_shdlc_add_len_crc(skb);
 
 	r = shdlc->ops->xmit(shdlc, skb);
 
@@ -508,8 +487,6 @@ static void nfc_shdlc_handle_send_queue(struct nfc_shdlc *shdlc)
 		pr_debug("Sending I-Frame %d, waiting to rcv %d\n", shdlc->ns,
 			 shdlc->nr);
 	/*	SHDLC_DUMP_SKB("shdlc frame written", skb); */
-
-		nfc_shdlc_add_len_crc(skb);
 
 		r = shdlc->ops->xmit(shdlc, skb);
 		if (r < 0) {
@@ -880,7 +857,7 @@ struct nfc_shdlc *nfc_shdlc_allocate(struct nfc_shdlc_ops *ops,
 
 	shdlc->hdev = nfc_hci_allocate_device(&shdlc_ops, init_data, protocols,
 					      tx_headroom + SHDLC_LLC_HEAD_ROOM,
-					      tx_tailroom + SHDLC_LLC_TAIL_ROOM,
+					      tx_tailroom,
 					      max_link_payload);
 	if (shdlc->hdev == NULL)
 		goto err_allocdev;

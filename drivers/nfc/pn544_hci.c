@@ -128,6 +128,8 @@ static struct nfc_hci_gate pn544_gates[] = {
 
 /* Largest headroom needed for outgoing custom commands */
 #define PN544_CMDS_HEADROOM	2
+#define PN544_FRAME_HEADROOM 1
+#define PN544_FRAME_TAILROOM 2
 
 struct pn544_hci_info {
 	struct i2c_client *i2c_dev;
@@ -576,15 +578,40 @@ static int pn544_hci_ready(struct nfc_shdlc *shdlc)
 	return 0;
 }
 
+static void pn544_hci_add_len_crc(struct sk_buff *skb)
+{
+	u16 crc;
+	int len;
+
+	len = skb->len + 2;
+	*skb_push(skb, 1) = len;
+
+	crc = crc_ccitt(0xffff, skb->data, skb->len);
+	crc = ~crc;
+	*skb_put(skb, 1) = crc & 0xff;
+	*skb_put(skb, 1) = crc >> 8;
+}
+
+static void pn544_hci_remove_len_crc(struct sk_buff *skb)
+{
+	skb_pull(skb, PN544_FRAME_HEADROOM);
+	skb_trim(skb, PN544_FRAME_TAILROOM);
+}
+
 static int pn544_hci_xmit(struct nfc_shdlc *shdlc, struct sk_buff *skb)
 {
 	struct pn544_hci_info *info = nfc_shdlc_get_clientdata(shdlc);
 	struct i2c_client *client = info->i2c_dev;
+	int r;
 
 	if (info->hard_fault != 0)
 		return info->hard_fault;
 
-	return pn544_hci_i2c_write(client, skb->data, skb->len);
+	pn544_hci_add_len_crc(skb);
+	r = pn544_hci_i2c_write(client, skb->data, skb->len);
+	pn544_hci_remove_len_crc(skb);
+
+	return r;
 }
 
 static int pn544_hci_start_poll(struct nfc_shdlc *shdlc,
@@ -874,7 +901,8 @@ static int __devinit pn544_hci_probe(struct i2c_client *client,
 
 	info->shdlc = nfc_shdlc_allocate(&pn544_shdlc_ops,
 					 &init_data, protocols,
-					 PN544_CMDS_HEADROOM, 0,
+					 PN544_FRAME_HEADROOM + PN544_CMDS_HEADROOM,
+					 PN544_FRAME_TAILROOM,
 					 PN544_HCI_LLC_MAX_PAYLOAD,
 					 dev_name(&client->dev));
 	if (!info->shdlc) {
