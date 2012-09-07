@@ -2190,7 +2190,6 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 	struct page **pages;
 	int i;
 
-	BUG_ON(!sg);
 	/*
 	 * We need to take into account a possible offset here for fabrics like
 	 * tcm_loop who may be using a contig buffer from the SCSI midlayer for
@@ -2198,13 +2197,17 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 	 */
 	if (!cmd->t_data_nents)
 		return NULL;
-	else if (cmd->t_data_nents == 1)
+
+	BUG_ON(!sg);
+	if (cmd->t_data_nents == 1)
 		return kmap(sg_page(sg)) + sg->offset;
 
 	/* >1 page. use vmap */
 	pages = kmalloc(sizeof(*pages) * cmd->t_data_nents, GFP_KERNEL);
-	if (!pages)
+	if (!pages) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return NULL;
+	}
 
 	/* convert sg[] to pages[] */
 	for_each_sg(cmd->t_data_sg, sg, cmd->t_data_nents, i) {
@@ -2213,8 +2216,10 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 
 	cmd->t_data_vmap = vmap(pages, cmd->t_data_nents,  VM_MAP, PAGE_KERNEL);
 	kfree(pages);
-	if (!cmd->t_data_vmap)
+	if (!cmd->t_data_vmap) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return NULL;
+	}
 
 	return cmd->t_data_vmap + cmd->t_data_sg[0].offset;
 }
