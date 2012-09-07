@@ -536,7 +536,7 @@
 
 		ssp@80002000 {
 			compatible = "arm,pl022", "arm,primecell";
-			reg = <80002000 0x1000>;
+			reg = <0x80002000 0x1000>;
 			interrupts = <0 14 0x4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
