@@ -4452,9 +4452,8 @@ int sd_hw_rst(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	switch (srb->cmnd[1] & 0x0F) {
 	case 0:
 #ifdef SUPPORT_SD_LOCK
-		if (0x64 == srb->cmnd[9]) {
+		if (0x64 == srb->cmnd[9])
 			sd_card->sd_lock_status |= SD_SDR_RST;
-		}
 #endif
 		retval = reset_sd_card(chip);
 		if (retval != STATUS_SUCCESS) {
