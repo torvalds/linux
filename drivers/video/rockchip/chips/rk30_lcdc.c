@@ -891,15 +891,15 @@ static int rk30_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char *i
 {
        int layer_id = 0;
        mutex_lock(&dev_drv->fb_win_id_mutex);
-       if(!strcmp(id,"fb0")||!strcmp(id,"fb4"))
+       if(!strcmp(id,"fb0")||!strcmp(id,"fb3"))
        {
                layer_id = dev_drv->fb0_win_id;
        }
-       else if(!strcmp(id,"fb1")||!strcmp(id,"fb5"))
+       else if(!strcmp(id,"fb1")||!strcmp(id,"fb4"))
        {
                layer_id = dev_drv->fb1_win_id;
        }
-       else if(!strcmp(id,"fb2")||!strcmp(id,"fb6"))
+       else if(!strcmp(id,"fb2")||!strcmp(id,"fb5"))
        {
                layer_id = dev_drv->fb2_win_id;
        }
