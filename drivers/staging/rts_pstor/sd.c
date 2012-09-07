@@ -444,15 +444,13 @@ static int sd_check_csd(struct rtsx_chip *chip, char check_wp)
 			break;
 	}
 
-	if (i == 6) {
+	if (i == 6)
 		TRACE_RET(chip, STATUS_FAIL);
-	}
 
 	memcpy(sd_card->raw_csd, rsp + 1, 15);
 
-	if (CHECK_PID(chip, 0x5209)) {
+	if (CHECK_PID(chip, 0x5209))
 		RTSX_READ_REG(chip, REG_SD_CMD5, sd_card->raw_csd + 15);
-	}
 
 	RTSX_DEBUGP("CSD Response:\n");
 	RTSX_DUMP(sd_card->raw_csd, 16);
@@ -463,35 +461,34 @@ static int sd_check_csd(struct rtsx_chip *chip, char check_wp)
 	trans_speed = rsp[4];
 	if ((trans_speed & 0x07) == 0x02) {
 		if ((trans_speed & 0xf8) >= 0x30) {
-			if (chip->asic_code) {
+			if (chip->asic_code)
 				sd_card->sd_clock = 47;
-			} else {
+			else
 				sd_card->sd_clock = CLK_50;
-			}
+
 		} else if ((trans_speed & 0xf8) == 0x28) {
-			if (chip->asic_code) {
+			if (chip->asic_code)
 				sd_card->sd_clock = 39;
-			} else {
+			else
 				sd_card->sd_clock = CLK_40;
-			}
+
 		} else if ((trans_speed & 0xf8) == 0x20) {
-			if (chip->asic_code) {
+			if (chip->asic_code)
 				sd_card->sd_clock = 29;
-			} else {
+			else
 				sd_card->sd_clock = CLK_30;
-			}
+
 		} else if ((trans_speed & 0xf8) >= 0x10) {
-			if (chip->asic_code) {
+			if (chip->asic_code)
 				sd_card->sd_clock = 23;
-			} else {
+			else
 				sd_card->sd_clock = CLK_20;
-			}
+
 		} else if ((trans_speed & 0x08) >= 0x08) {
-			if (chip->asic_code) {
+			if (chip->asic_code)
 				sd_card->sd_clock = 19;
-			} else {
+			else
 				sd_card->sd_clock = CLK_20;
-			}
 		} else {
 			TRACE_RET(chip, STATUS_FAIL);
 		}
@@ -521,9 +518,9 @@ static int sd_check_csd(struct rtsx_chip *chip, char check_wp)
 	}
 
 	if (check_wp) {
-		if (rsp[15] & 0x30) {
+		if (rsp[15] & 0x30)
 			chip->card_wp |= SD_CARD;
-		}
+
 		RTSX_DEBUGP("CSD WP Status: 0x%x\n", rsp[15]);
 	}
 
