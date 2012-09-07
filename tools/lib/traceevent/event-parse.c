@@ -5080,6 +5080,7 @@ int pevent_register_print_function(struct pevent *pevent,
 	struct pevent_func_params *param;
 	enum pevent_func_arg_type type;
 	va_list ap;
+	int ret;
 
 	func_handle = find_func_handler(pevent, name);
 	if (func_handle) {
@@ -5092,14 +5093,21 @@ int pevent_register_print_function(struct pevent *pevent,
 		remove_func_handler(pevent, name);
 	}
 
-	func_handle = malloc_or_die(sizeof(*func_handle));
+	func_handle = malloc(sizeof(*func_handle));
+	if (!func_handle) {
+		do_warning("Failed to allocate function handler");
+		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+	}
 	memset(func_handle, 0, sizeof(*func_handle));
 
 	func_handle->ret_type = ret_type;
 	func_handle->name = strdup(name);
 	func_handle->func = func;
-	if (!func_handle->name)
-		die("Failed to allocate function name");
+	if (!func_handle->name) {
+		do_warning("Failed to allocate function name");
+		free(func_handle);
+		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+	}
 
 	next_param = &(func_handle->params);
 	va_start(ap, name);
@@ -5109,11 +5117,17 @@ int pevent_register_print_function(struct pevent *pevent,
 			break;
 
 		if (type < 0 || type >= PEVENT_FUNC_ARG_MAX_TYPES) {
-			warning("Invalid argument type %d", type);
+			do_warning("Invalid argument type %d", type);
+			ret = PEVENT_ERRNO__INVALID_ARG_TYPE;
 			goto out_free;
 		}
 
-		param = malloc_or_die(sizeof(*param));
+		param = malloc(sizeof(*param));
+		if (!param) {
+			do_warning("Failed to allocate function param");
+			ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
+			goto out_free;
+		}
 		param->type = type;
 		param->next = NULL;
 
@@ -5131,7 +5145,7 @@ int pevent_register_print_function(struct pevent *pevent,
  out_free:
 	va_end(ap);
 	free_func_handle(func_handle);
-	return -1;
+	return ret;
 }
 
 /**
