@@ -3481,9 +3481,8 @@ int ext_sd_send_cmd_get_rsp(struct rtsx_chip *chip, u8 cmd_idx,
 
 	RTSX_DEBUGP("EXT SD/MMC CMD %d\n", cmd_idx);
 
-	if (rsp_type == SD_RSP_TYPE_R1b) {
+	if (rsp_type == SD_RSP_TYPE_R1b)
 		timeout = 3000;
-	}
 
 RTY_SEND_CMD:
 
@@ -3503,14 +3502,14 @@ RTY_SEND_CMD:
 	rtsx_add_cmd(chip, CHECK_REG_CMD, REG_SD_TRANSFER, SD_TRANSFER_END, SD_TRANSFER_END);
 
 	if (rsp_type == SD_RSP_TYPE_R2) {
-		for (reg_addr = PPBUF_BASE2; reg_addr < PPBUF_BASE2 + 16; reg_addr++) {
+		for (reg_addr = PPBUF_BASE2; reg_addr < PPBUF_BASE2 + 16; reg_addr++)
 			rtsx_add_cmd(chip, READ_REG_CMD, reg_addr, 0, 0);
-		}
+
 		stat_idx = 17;
 	} else if (rsp_type != SD_RSP_TYPE_R0) {
-		for (reg_addr = REG_SD_CMD0; reg_addr <= REG_SD_CMD4; reg_addr++) {
+		for (reg_addr = REG_SD_CMD0; reg_addr <= REG_SD_CMD4; reg_addr++)
 			rtsx_add_cmd(chip, READ_REG_CMD, reg_addr, 0, 0);
-		}
+
 		stat_idx = 6;
 	}
 	rtsx_add_cmd(chip, READ_REG_CMD, REG_SD_CMD5, 0, 0);
@@ -3524,9 +3523,8 @@ RTY_SEND_CMD:
 
 			if (rsp_type & SD_WAIT_BUSY_END) {
 				retval = sd_check_data0_status(chip);
-				if (retval != STATUS_SUCCESS) {
+				if (retval != STATUS_SUCCESS)
 					TRACE_RET(chip, retval);
-				}
 			} else {
 				sd_set_err_code(chip, SD_TO_ERR);
 			}
@@ -3534,9 +3532,8 @@ RTY_SEND_CMD:
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
-	if (rsp_type == SD_RSP_TYPE_R0) {
+	if (rsp_type == SD_RSP_TYPE_R0)
 		return STATUS_SUCCESS;
-	}
 
 	ptr = rtsx_get_cmd_data(chip) + 1;
 
@@ -3565,9 +3562,8 @@ RTY_SEND_CMD:
 	if ((cmd_idx == SELECT_CARD) || (cmd_idx == APP_CMD) ||
 			(cmd_idx == SEND_STATUS) || (cmd_idx == STOP_TRANSMISSION)) {
 		if ((cmd_idx != STOP_TRANSMISSION) && (special_check == 0)) {
-			if (ptr[1] & 0x80) {
+			if (ptr[1] & 0x80)
 				TRACE_RET(chip, STATUS_FAIL);
-			}
 		}
 #ifdef SUPPORT_SD_LOCK
 		if (ptr[1] & 0x7D)
@@ -3577,26 +3573,23 @@ RTY_SEND_CMD:
 		{
 			TRACE_RET(chip, STATUS_FAIL);
 		}
-		if (ptr[2] & 0xF8) {
+		if (ptr[2] & 0xF8)
 			TRACE_RET(chip, STATUS_FAIL);
-		}
 
 		if (cmd_idx == SELECT_CARD) {
 			if (rsp_type == SD_RSP_TYPE_R2) {
-				if ((ptr[3] & 0x1E) != 0x04) {
+				if ((ptr[3] & 0x1E) != 0x04)
 					TRACE_RET(chip, STATUS_FAIL);
-				}
+
 			} else if (rsp_type == SD_RSP_TYPE_R0) {
-				if ((ptr[3] & 0x1E) != 0x03) {
+				if ((ptr[3] & 0x1E) != 0x03)
 					TRACE_RET(chip, STATUS_FAIL);
-				}
 			}
 		}
 	}
 
-	if (rsp && rsp_len) {
+	if (rsp && rsp_len)
 		memcpy(rsp, ptr, rsp_len);
-	}
 
 	return STATUS_SUCCESS;
 }
