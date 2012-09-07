@@ -103,6 +103,7 @@ int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic)
 	screen->upper_margin = hdmi_mode[i].upper_margin;
 	screen->lower_margin = hdmi_mode[i].lower_margin;
 	screen->vsync_len = hdmi_mode[i].vsync_len;
+	screen->hdmi_resolution = hdmi_mode[i].flag;
 
 	/* Pin polarity */
 	if(FB_SYNC_HOR_HIGH_ACT & hdmi_mode[i].sync)
