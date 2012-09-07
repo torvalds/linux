@@ -385,9 +385,8 @@ static int sd_write_data(struct rtsx_chip *chip, u8 trans_mode,
 
 	if (buf && buf_len) {
 		retval = rtsx_write_ppbuf(chip, buf, buf_len);
-		if (retval != STATUS_SUCCESS) {
+		if (retval != STATUS_SUCCESS)
 			TRACE_RET(chip, STATUS_FAIL);
-		}
 	}
 
 	rtsx_init_cmd(chip);
