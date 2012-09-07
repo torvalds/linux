@@ -373,6 +373,8 @@ void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
 		sc->debug.stats.istats.tsfoor++;
 	if (status & ATH9K_INT_MCI)
 		sc->debug.stats.istats.mci++;
+	if (status & ATH9K_INT_GENTIMER)
+		sc->debug.stats.istats.gen_timer++;
 }
 
 static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
@@ -418,6 +420,7 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 	PR_IS("DTIM", dtim);
 	PR_IS("TSFOOR", tsfoor);
 	PR_IS("MCI", mci);
+	PR_IS("GENTIMER", gen_timer);
 	PR_IS("TOTAL", total);
 
 	len += snprintf(buf + len, mxlen - len,
