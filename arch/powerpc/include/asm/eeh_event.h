@@ -32,7 +32,7 @@ struct eeh_event {
 };
 
 int eeh_send_failure_event(struct eeh_pe *pe);
-struct eeh_dev *handle_eeh_events(struct eeh_event *);
+void eeh_handle_event(struct eeh_pe *pe);
 
 #endif /* __KERNEL__ */
 #endif /* ASM_POWERPC_EEH_EVENT_H */

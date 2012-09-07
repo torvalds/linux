@@ -82,7 +82,7 @@ static int eeh_event_handler(void * dummy)
 		pe->phb->global_number, pe->addr);
 
 	set_current_state(TASK_INTERRUPTIBLE);	/* Don't add to load average */
-	handle_eeh_events(event);
+	eeh_handle_event(pe);
 	eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
 
 	kfree(event);

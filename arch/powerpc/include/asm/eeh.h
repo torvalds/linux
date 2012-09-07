@@ -174,6 +174,7 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev);
 void *eeh_pe_dev_traverse(struct eeh_pe *root,
 		eeh_traverse_func fn, void *flag);
 void eeh_pe_restore_bars(struct eeh_pe *pe);
+struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe);
 
 void * __devinit eeh_dev_init(struct device_node *dn, void *data);
 void __devinit eeh_dev_phb_init_dynamic(struct pci_controller *phb);

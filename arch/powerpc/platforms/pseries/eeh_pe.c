@@ -561,3 +561,31 @@ void eeh_pe_restore_bars(struct eeh_pe *pe)
 {
 	eeh_pe_dev_traverse(pe, eeh_restore_one_device_bars, NULL);
 }
+
+/**
+ * eeh_pe_bus_get - Retrieve PCI bus according to the given PE
+ * @pe: EEH PE
+ *
+ * Retrieve the PCI bus according to the given PE. Basically,
+ * there're 3 types of PEs: PHB/Bus/Device. For PHB PE, the
+ * primary PCI bus will be retrieved. The parent bus will be
+ * returned for BUS PE. However, we don't have associated PCI
+ * bus for DEVICE PE.
+ */
+struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe)
+{
+	struct pci_bus *bus = NULL;
+	struct eeh_dev *edev;
+	struct pci_dev *pdev;
+
+	if (pe->type == EEH_PE_PHB) {
+		bus = pe->phb->bus;
+	} else if (pe->type == EEH_PE_BUS) {
+		edev = list_first_entry(&pe->edevs, struct eeh_dev, list);
+		pdev = eeh_dev_to_pci_dev(edev);
+		if (pdev)
+			bus = pdev->bus;
+	}
+
+	return bus;
+}
