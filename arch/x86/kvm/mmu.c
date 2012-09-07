@@ -2616,11 +2616,6 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 			sp = kvm_mmu_get_page(vcpu, pseudo_gfn, iterator.addr,
 					      iterator.level - 1,
 					      1, ACC_ALL, iterator.sptep);
-			if (!sp) {
-				pgprintk("nonpaging_map: ENOMEM\n");
-				kvm_release_pfn_clean(pfn);
-				return -ENOMEM;
-			}
 
 			mmu_spte_set(iterator.sptep,
 				     __pa(sp->spt)
