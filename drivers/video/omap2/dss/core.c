@@ -352,7 +352,6 @@ static int dss_driver_probe(struct device *dev)
 	int r;
 	struct omap_dss_driver *dssdrv = to_dss_driver(dev->driver);
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	bool force;
 
 	DSSDBG("driver_probe: dev %s/%s, drv %s\n",
 				dev_name(dev), dssdev->driver_name,
@@ -361,10 +360,6 @@ static int dss_driver_probe(struct device *dev)
 	r = dss_init_device(core.pdev, dssdev);
 	if (r)
 		return r;
-
-	force = core.default_display_name &&
-		strcmp(core.default_display_name, dssdev->name) == 0;
-	dss_recheck_connections(dssdev, force);
 
 	r = dssdrv->probe(dssdev);
 

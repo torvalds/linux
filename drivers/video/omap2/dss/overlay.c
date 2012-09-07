@@ -105,38 +105,6 @@ void dss_init_overlays(struct platform_device *pdev)
 	}
 }
 
-/* connect overlays to the new device, if not already connected. if force
- * selected, connect always. */
-void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
-{
-	struct omap_overlay_manager *mgr = NULL;
-	int i;
-
-	mgr =  omap_dss_get_overlay_manager(dssdev->channel);
-
-	if (!mgr->device || force) {
-		if (mgr->device)
-			mgr->unset_device(mgr);
-		mgr->set_device(mgr, dssdev);
-	}
-
-	if (mgr) {
-		dispc_runtime_get();
-
-		for (i = 0; i < dss_feat_get_num_ovls(); i++) {
-			struct omap_overlay *ovl;
-			ovl = omap_dss_get_overlay(i);
-			if (!ovl->manager || force) {
-				if (ovl->manager)
-					ovl->unset_manager(ovl);
-				ovl->set_manager(ovl, mgr);
-			}
-		}
-
-		dispc_runtime_put();
-	}
-}
-
 void dss_uninit_overlays(struct platform_device *pdev)
 {
 	int i;
