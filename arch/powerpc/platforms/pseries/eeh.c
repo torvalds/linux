@@ -895,6 +895,8 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 			eeh_subsystem_enabled = 1;
 			edev->mode |= EEH_MODE_SUPPORTED;
 
+			eeh_add_to_parent_pe(edev);
+
 			pr_debug("EEH: %s: eeh enabled, config=%x pe_config=%x\n",
 				 dn->full_name, edev->config_addr,
 				 edev->pe_config_addr);
@@ -908,6 +910,10 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 				/* Parent supports EEH. */
 				edev->mode |= EEH_MODE_SUPPORTED;
 				edev->config_addr = of_node_to_eeh_dev(dn->parent)->config_addr;
+				edev->pe_config_addr = of_node_to_eeh_dev(dn->parent)->pe_config_addr;
+
+				eeh_add_to_parent_pe(edev);
+
 				return NULL;
 			}
 		}

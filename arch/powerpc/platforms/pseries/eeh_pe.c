@@ -261,3 +261,83 @@ static struct eeh_pe *eeh_pe_get_parent(struct eeh_dev *edev)
 
 	return NULL;
 }
+
+/**
+ * eeh_add_to_parent_pe - Add EEH device to parent PE
+ * @edev: EEH device
+ *
+ * Add EEH device to the parent PE. If the parent PE already
+ * exists, the PE type will be changed to EEH_PE_BUS. Otherwise,
+ * we have to create new PE to hold the EEH device and the new
+ * PE will be linked to its parent PE as well.
+ */
+int eeh_add_to_parent_pe(struct eeh_dev *edev)
+{
+	struct eeh_pe *pe, *parent;
+
+	/*
+	 * Search the PE has been existing or not according
+	 * to the PE address. If that has been existing, the
+	 * PE should be composed of PCI bus and its subordinate
+	 * components.
+	 */
+	pe = eeh_pe_get(edev);
+	if (pe) {
+		if (!edev->pe_config_addr) {
+			pr_err("%s: PE with addr 0x%x already exists\n",
+				__func__, edev->config_addr);
+			return -EEXIST;
+		}
+
+		/* Mark the PE as type of PCI bus */
+		pe->type = EEH_PE_BUS;
+		edev->pe = pe;
+
+		/* Put the edev to PE */
+		list_add_tail(&edev->list, &pe->edevs);
+		pr_debug("EEH: Add %s to Bus PE#%x\n",
+			edev->dn->full_name, pe->addr);
+
+		return 0;
+	}
+
+	/* Create a new EEH PE */
+	pe = eeh_pe_alloc(edev->phb, EEH_PE_DEVICE);
+	if (!pe) {
+		pr_err("%s: out of memory!\n", __func__);
+		return -ENOMEM;
+	}
+	pe->addr	= edev->pe_config_addr;
+	pe->config_addr	= edev->config_addr;
+
+	/*
+	 * Put the new EEH PE into hierarchy tree. If the parent
+	 * can't be found, the newly created PE will be attached
+	 * to PHB directly. Otherwise, we have to associate the
+	 * PE with its parent.
+	 */
+	parent = eeh_pe_get_parent(edev);
+	if (!parent) {
+		parent = eeh_phb_pe_get(edev->phb);
+		if (!parent) {
+			pr_err("%s: No PHB PE is found (PHB Domain=%d)\n",
+				__func__, edev->phb->global_number);
+			edev->pe = NULL;
+			kfree(pe);
+			return -EEXIST;
+		}
+	}
+	pe->parent = parent;
+
+	/*
+	 * Put the newly created PE into the child list and
+	 * link the EEH device accordingly.
+	 */
+	list_add_tail(&pe->child, &parent->child_list);
+	list_add_tail(&edev->list, &pe->edevs);
+	edev->pe = pe;
+	pr_debug("EEH: Add %s to Device PE#%x, Parent PE#%x\n",
+		edev->dn->full_name, pe->addr, pe->parent->addr);
+
+	return 0;
+}
