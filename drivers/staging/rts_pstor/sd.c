@@ -559,22 +559,21 @@ static int sd_set_sample_push_timing(struct rtsx_chip *chip)
 					CRC_FIX_CLK | SD30_VAR_CLK0 | SAMPLE_VAR_CLK1);
 			RTSX_WRITE_REG(chip, CLK_CTL, CLK_LOW_FREQ, 0);
 
-			if ((chip->sd_ctl & SD_PUSH_POINT_CTL_MASK) == SD_PUSH_POINT_AUTO) {
+			if ((chip->sd_ctl & SD_PUSH_POINT_CTL_MASK) == SD_PUSH_POINT_AUTO)
 				val = SD20_TX_NEG_EDGE;
-			} else if ((chip->sd_ctl & SD_PUSH_POINT_CTL_MASK) == SD_PUSH_POINT_DELAY) {
+			else if ((chip->sd_ctl & SD_PUSH_POINT_CTL_MASK) == SD_PUSH_POINT_DELAY)
 				val = SD20_TX_14_AHEAD;
-			} else {
+			else
 				val = SD20_TX_NEG_EDGE;
-			}
+
 			RTSX_WRITE_REG(chip, SD_PUSH_POINT_CTL, SD20_TX_SEL_MASK, val);
 
 			if ((chip->sd_ctl & SD_SAMPLE_POINT_CTL_MASK) == SD_SAMPLE_POINT_AUTO) {
 				if (chip->asic_code) {
-					if (CHK_SD_HS(sd_card) || CHK_MMC_52M(sd_card)) {
+					if (CHK_SD_HS(sd_card) || CHK_MMC_52M(sd_card))
 						val = SD20_RX_14_DELAY;
-					} else {
+					else
 						val = SD20_RX_POS_EDGE;
-					}
 				} else {
 					val = SD20_RX_14_DELAY;
 				}
@@ -588,32 +587,28 @@ static int sd_set_sample_push_timing(struct rtsx_chip *chip)
 	} else {
 		u8 val = 0;
 
-		if ((chip->sd_ctl & SD_PUSH_POINT_CTL_MASK) == SD_PUSH_POINT_DELAY) {
+		if ((chip->sd_ctl & SD_PUSH_POINT_CTL_MASK) == SD_PUSH_POINT_DELAY)
 			val |= 0x10;
-		}
 
 		if ((chip->sd_ctl & SD_SAMPLE_POINT_CTL_MASK) == SD_SAMPLE_POINT_AUTO) {
 			if (chip->asic_code) {
 				if (CHK_SD_HS(sd_card) || CHK_MMC_52M(sd_card)) {
-					if (val & 0x10) {
+					if (val & 0x10)
 						val |= 0x04;
-					} else {
+					else
 						val |= 0x08;
-					}
 				}
 			} else {
-				if (val & 0x10) {
+				if (val & 0x10)
 					val |= 0x04;
-				} else {
+				else
 					val |= 0x08;
-				}
 			}
 		} else if ((chip->sd_ctl & SD_SAMPLE_POINT_CTL_MASK) == SD_SAMPLE_POINT_DELAY) {
-			if (val & 0x10) {
+			if (val & 0x10)
 				val |= 0x04;
-			} else {
+			else
 				val |= 0x08;
-			}
 		}
 
 		RTSX_WRITE_REG(chip, REG_SD_CFG1, 0x1C, val);
