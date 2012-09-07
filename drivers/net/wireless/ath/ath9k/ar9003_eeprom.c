@@ -3977,6 +3977,44 @@ static void ar9003_hw_xlna_bias_strength_apply(struct ath_hw *ah, bool is2ghz)
 		      bias & 0x3);
 }
 
+static int ar9003_hw_get_thermometer(struct ath_hw *ah)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	struct ar9300_base_eep_hdr *pBase = &eep->baseEepHeader;
+	int thermometer =  (pBase->miscConfiguration >> 1) & 0x3;
+
+	return --thermometer;
+}
+
+static void ar9003_hw_thermometer_apply(struct ath_hw *ah)
+{
+	int thermometer = ar9003_hw_get_thermometer(ah);
+	u8 therm_on = (thermometer < 0) ? 0 : 1;
+
+	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_RXTX4,
+		      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
+	if (ah->caps.tx_chainmask & BIT(1))
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH1_RXTX4,
+			      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
+	if (ah->caps.tx_chainmask & BIT(2))
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
+			      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
+
+	therm_on = (thermometer < 0) ? 0 : (thermometer == 0);
+	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_RXTX4,
+		      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
+	if (ah->caps.tx_chainmask & BIT(1)) {
+		therm_on = (thermometer < 0) ? 0 : (thermometer == 1);
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH1_RXTX4,
+			      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
+	}
+	if (ah->caps.tx_chainmask & BIT(2)) {
+		therm_on = (thermometer < 0) ? 0 : (thermometer == 2);
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
+			      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
+	}
+}
+
 static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
@@ -3992,6 +4030,7 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 		ar9003_hw_internal_regulator_apply(ah);
 	ar9003_hw_apply_tuning_caps(ah);
 	ar9003_hw_txend_to_xpa_off_apply(ah, is2ghz);
+	ar9003_hw_thermometer_apply(ah);
 }
 
 static void ath9k_hw_ar9300_set_addac(struct ath_hw *ah,
