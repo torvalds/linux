@@ -320,26 +320,39 @@ void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_default_get_timings);
 
-void dss_init_device(struct platform_device *pdev,
+int dss_init_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev)
 {
 	struct device_attribute *attr;
-	int i;
-	int r;
+	int i, r;
 
 	/* create device sysfs files */
 	i = 0;
 	while ((attr = display_sysfs_attrs[i++]) != NULL) {
 		r = device_create_file(&dssdev->dev, attr);
-		if (r)
+		if (r) {
+			for (i = i - 2; i >= 0; i--) {
+				attr = display_sysfs_attrs[i];
+				device_remove_file(&dssdev->dev, attr);
+			}
+
 			DSSERR("failed to create sysfs file\n");
+			return r;
+		}
 	}
 
 	/* create display? sysfs links */
 	r = sysfs_create_link(&pdev->dev.kobj, &dssdev->dev.kobj,
 			dev_name(&dssdev->dev));
-	if (r)
+	if (r) {
+		while ((attr = display_sysfs_attrs[i++]) != NULL)
+			device_remove_file(&dssdev->dev, attr);
+
 		DSSERR("failed to create sysfs display link\n");
+		return r;
+	}
+
+	return 0;
 }
 
 void dss_uninit_device(struct platform_device *pdev,

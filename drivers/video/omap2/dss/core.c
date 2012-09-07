@@ -358,7 +358,9 @@ static int dss_driver_probe(struct device *dev)
 				dev_name(dev), dssdev->driver_name,
 				dssdrv->driver.name);
 
-	dss_init_device(core.pdev, dssdev);
+	r = dss_init_device(core.pdev, dssdev);
+	if (r)
+		return r;
 
 	force = core.default_display_name &&
 		strcmp(core.default_display_name, dssdev->name) == 0;
