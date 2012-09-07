@@ -25,7 +25,7 @@
 #include "8250.h"
 
 #define UNKNOWN_DEV 0x3000
-
+#define CIR_PORT	0x0800
 
 static const struct pnp_device_id pnp_dev_table[] = {
 	/* Archtek America Corp. */
@@ -362,6 +362,9 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"PNPCXXX",		UNKNOWN_DEV	},
 	/* More unknown PnP modems */
 	{	"PNPDXXX",		UNKNOWN_DEV	},
+	/* Winbond CIR port, should not be probed. We should keep track
+	   of it to prevent the legacy serial driver from probing it */
+	{	"WEC1022",		CIR_PORT	},
 	{	"",			0	}
 };
 
@@ -409,7 +412,7 @@ static int __devinit check_resources(struct pnp_dev *dev)
  * PnP modems, alternatively we must hardcode all modems in pnp_devices[]
  * table.
  */
-static int __devinit serial_pnp_guess_board(struct pnp_dev *dev, int *flags)
+static int __devinit serial_pnp_guess_board(struct pnp_dev *dev)
 {
 	if (!(check_name(pnp_dev_name(dev)) ||
 		(dev->card && check_name(dev->card->name))))
@@ -428,7 +431,7 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	int ret, line, flags = dev_id->driver_data;
 
 	if (flags & UNKNOWN_DEV) {
-		ret = serial_pnp_guess_board(dev, &flags);
+		ret = serial_pnp_guess_board(dev);
 		if (ret < 0)
 			return ret;
 	}
@@ -436,7 +439,10 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	memset(&uart, 0, sizeof(uart));
 	if (pnp_irq_valid(dev, 0))
 		uart.port.irq = pnp_irq(dev, 0);
-	if (pnp_port_valid(dev, 0)) {
+	if ((flags & CIR_PORT) && pnp_port_valid(dev, 2)) {
+		uart.port.iobase = pnp_port_start(dev, 2);
+		uart.port.iotype = UPIO_PORT;
+	} else if (pnp_port_valid(dev, 0)) {
 		uart.port.iobase = pnp_port_start(dev, 0);
 		uart.port.iotype = UPIO_PORT;
 	} else if (pnp_mem_valid(dev, 0)) {
@@ -451,6 +457,10 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 		"Setup PNP port: port %x, mem 0x%lx, irq %d, type %d\n",
 		       uart.port.iobase, uart.port.mapbase, uart.port.irq, uart.port.iotype);
 #endif
+	if (flags & CIR_PORT) {
+		uart.port.flags |= UPF_FIXED_PORT | UPF_FIXED_TYPE;
+		uart.port.type = PORT_8250_CIR;
+	}
 
 	uart.port.flags |= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
 	if (pnp_irq_flags(dev, 0) & IORESOURCE_IRQ_SHAREABLE)
@@ -459,7 +469,7 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	uart.port.dev = &dev->dev;
 
 	line = serial8250_register_8250_port(&uart);
-	if (line < 0)
+	if (line < 0 || (flags & CIR_PORT))
 		return -ENODEV;
 
 	pnp_set_drvdata(dev, (void *)((long)line + 1));

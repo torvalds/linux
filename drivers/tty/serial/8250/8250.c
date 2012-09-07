@@ -290,6 +290,9 @@ static const struct serial8250_config uart_config[] = {
 				  UART_FCR_R_TRIG_00 | UART_FCR_T_TRIG_00,
 		.flags		= UART_CAP_FIFO,
 	},
+	[PORT_8250_CIR] = {
+		.name		= "CIR port"
+	}
 };
 
 /* Uart divisor latch read */
@@ -1900,6 +1903,9 @@ static int serial8250_startup(struct uart_port *port)
 	unsigned char lsr, iir;
 	int retval;
 
+	if (port->type == PORT_8250_CIR)
+		return -ENODEV;
+
 	port->fifosize = uart_config[up->port.type].fifo_size;
 	up->tx_loadsz = uart_config[up->port.type].tx_loadsz;
 	up->capabilities = uart_config[up->port.type].flags;
@@ -2557,7 +2563,10 @@ static int serial8250_request_port(struct uart_port *port)
 {
 	struct uart_8250_port *up =
 		container_of(port, struct uart_8250_port, port);
-	int ret = 0;
+	int ret;
+
+	if (port->type == PORT_8250_CIR)
+		return -ENODEV;
 
 	ret = serial8250_request_std_resource(up);
 	if (ret == 0 && port->type == PORT_RSA) {
@@ -2575,6 +2584,9 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 		container_of(port, struct uart_8250_port, port);
 	int probeflags = PROBE_ANY;
 	int ret;
+
+	if (port->type == PORT_8250_CIR)
+		return;
 
 	/*
 	 * Find the region that we can probe for.  This in turn
@@ -3147,7 +3159,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 	mutex_lock(&serial_mutex);
 
 	uart = serial8250_find_match_or_unused(&up->port);
-	if (uart) {
+	if (uart && uart->port.type != PORT_8250_CIR) {
 		if (uart->port.dev)
 			uart_remove_one_port(&serial8250_reg, &uart->port);
 
