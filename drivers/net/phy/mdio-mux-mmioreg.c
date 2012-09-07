@@ -12,6 +12,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/device.h>
+#include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <linux/module.h>
 #include <linux/init.h>
