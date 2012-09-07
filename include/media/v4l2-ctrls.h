@@ -53,6 +53,8 @@ struct v4l2_ctrl_ops {
 	int (*s_ctrl)(struct v4l2_ctrl *ctrl);
 };
 
+typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
+
 /** struct v4l2_ctrl - The control structure.
   * @node:	The list node.
   * @ev_subs:	The list of control event subscriptions.
@@ -72,6 +74,8 @@ struct v4l2_ctrl_ops {
   *		set this flag directly.
   * @has_volatiles: If set, then one or more members of the cluster are volatile.
   *		Drivers should never touch this flag.
+  * @call_notify: If set, then call the handler's notify function whenever the
+  *		control's value changes.
   * @manual_mode_value: If the is_auto flag is set, then this is the value
   *		of the auto control that determines if that control is in
   *		manual mode. So if the value of the auto control equals this
@@ -119,6 +123,7 @@ struct v4l2_ctrl {
 	unsigned int is_private:1;
 	unsigned int is_auto:1;
 	unsigned int has_volatiles:1;
+	unsigned int call_notify:1;
 	unsigned int manual_mode_value:8;
 
 	const struct v4l2_ctrl_ops *ops;
@@ -177,6 +182,10 @@ struct v4l2_ctrl_ref {
   *		control is needed multiple times, so this is a simple
   *		optimization.
   * @buckets:	Buckets for the hashing. Allows for quick control lookup.
+  * @notify:	A notify callback that is called whenever the control changes value.
+  *		Note that the handler's lock is held when the notify function
+  *		is called!
+  * @notify_priv: Passed as argument to the v4l2_ctrl notify callback.
   * @nr_of_buckets: Total number of buckets in the array.
   * @error:	The error code of the first failed control addition.
   */
@@ -187,6 +196,8 @@ struct v4l2_ctrl_handler {
 	struct list_head ctrl_refs;
 	struct v4l2_ctrl_ref *cached;
 	struct v4l2_ctrl_ref **buckets;
+	v4l2_ctrl_notify_fnc notify;
+	void *notify_priv;
 	u16 nr_of_buckets;
 	int error;
 };
@@ -524,6 +535,20 @@ static inline void v4l2_ctrl_unlock(struct v4l2_ctrl *ctrl)
 {
 	mutex_unlock(ctrl->handler->lock);
 }
+
+/** v4l2_ctrl_notify() - Function to set a notify callback for a control.
+  * @ctrl:	The control.
+  * @notify:	The callback function.
+  * @priv:	The callback private handle, passed as argument to the callback.
+  *
+  * This function sets a callback function for the control. If @ctrl is NULL,
+  * then it will do nothing. If @notify is NULL, then the notify callback will
+  * be removed.
+  *
+  * There can be only one notify. If another already exists, then a WARN_ON
+  * will be issued and the function will do nothing.
+  */
+void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv);
 
 /** v4l2_ctrl_g_ctrl() - Helper function to get the control's value from within a driver.
   * @ctrl:	The control.
