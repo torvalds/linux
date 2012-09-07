@@ -127,7 +127,7 @@ __s32 hdmi_main_task_loop(void)
 	    		       (1<<25)+ (0<<24)+ (0<<23)+ (4<<20)+ (7<<17)+
 	    		       (15<<12)+ (7<<8)+ (0x0f<<4)+(8<<0) );
          	HDMI_WUINT32(0x200,0xfe800000);   			//txen enable
-        	HDMI_WUINT32(0x204,0x00D8C850);   			//ckss = 1
+        	HDMI_WUINT32(0x204,0x00D8C860);   			//ckss = 1
 
             HDMI_WUINT32(0x20c, 0 << 21);
 
@@ -264,12 +264,12 @@ __s32 get_audio_info(__s32 sample_rate)
 __s32 video_config(__s32 vic)
 {
 
-	__s32 i, clk_div,reg_val;
+	__s32 vic_tab, clk_div,reg_val;
 
 	__inf("video_config, vic:%d\n", vic);
 
-	i = get_video_info(vic);
-	if(  i == -1)
+	vic_tab = get_video_info(vic);
+	if(  vic_tab == -1)
 		return 0;
 	else
 	    video_mode = vic;
@@ -292,38 +292,36 @@ __s32 video_config(__s32 vic)
 
     if( (vic == HDMI1440_480I) || (vic == HDMI1440_576I) )			//need to use repeation
     {
-     	HDMI_WUINT16(0x014,(video_timing[i].INPUTX<<1) -1);             	//active H
-     	HDMI_WUINT16(0x018,(video_timing[i].HBP<<1)    -1);           		//active HBP
-     	HDMI_WUINT16(0x01c,(video_timing[i].HFP<<1)    -1);         		//active HFP
-     	HDMI_WUINT16(0x020,(video_timing[i].HPSW<<1)   -1);        			//active HSPW
+     	HDMI_WUINT16(0x014,(video_timing[vic_tab].INPUTX<<1) -1);             	//active H
+     	HDMI_WUINT16(0x018,(video_timing[vic_tab].HBP<<1)    -1);           	//active HBP
+     	HDMI_WUINT16(0x01c,(video_timing[vic_tab].HFP<<1)    -1);         		//active HFP
+     	HDMI_WUINT16(0x020,(video_timing[vic_tab].HPSW<<1)   -1);        		//active HSPW
     }
     else
     {
-     	HDMI_WUINT16(0x014,(video_timing[i].INPUTX<<0) -1);              	//active H
-     	HDMI_WUINT16(0x018,(video_timing[i].HBP<<0)    -1);            		//active HBP
-     	HDMI_WUINT16(0x01c,(video_timing[i].HFP<<0)    -1);         		//active HFP
-     	HDMI_WUINT16(0x020,(video_timing[i].HPSW<<0)   -1);               	//active HSPW
+     	HDMI_WUINT16(0x014,(video_timing[vic_tab].INPUTX<<0) -1);              	//active H
+     	HDMI_WUINT16(0x018,(video_timing[vic_tab].HBP<<0)    -1);            		//active HBP
+     	HDMI_WUINT16(0x01c,(video_timing[vic_tab].HFP<<0)    -1);         		//active HFP
+     	HDMI_WUINT16(0x020,(video_timing[vic_tab].HPSW<<0)   -1);               	//active HSPW
     }
 
     if( ( vic == HDMI1080P_24_3D_FP) || (vic == HDMI720P_50_3D_FP ) || (vic == HDMI720P_60_3D_FP ) )
     {
-    	//HDMI_WUINT16(0x016,video_timing[i].INPUTY + 45 -1);             		//active V
-    	HDMI_WUINT16(0x016,video_timing[i].INPUTY + video_timing[i].VBP + video_timing[i].VFP -1);             		//active V
+    	HDMI_WUINT16(0x016,video_timing[vic_tab].INPUTY + video_timing[vic_tab].VBP + video_timing[vic_tab].VFP -1);             		//active V
     }else
     {
-    	HDMI_WUINT16(0x016,video_timing[i].INPUTY   -1);             			//active V
+    	HDMI_WUINT16(0x016,video_timing[vic_tab].INPUTY   -1);             			//active V
 	}
 
-    HDMI_WUINT16(0x01a,video_timing[i].VBP    -1);               			//active VBP
-    HDMI_WUINT16(0x01e,video_timing[i].VFP    -1);                			//active VFP
-    HDMI_WUINT16(0x022,video_timing[i].VPSW   -1);              			//active VSPW
+    HDMI_WUINT16(0x01a,video_timing[vic_tab].VBP    -1);               			//active VBP
+    HDMI_WUINT16(0x01e,video_timing[vic_tab].VFP    -1);                		//active VFP
+    HDMI_WUINT16(0x022,video_timing[vic_tab].VPSW   -1);              			//active VSPW
 
-    if( (vic == HDMI1440_480I) || (vic == HDMI1440_576I) ||
-        (vic == HDMI480P)      || (vic == HDMI576P)       )
+    if( video_timing[vic_tab].PCLK < 74250000)				//SD format
     {
     	HDMI_WUINT16(0x024,0x00   );                		//Vsync/Hsync pol
     }
-    else
+    else													//HD format		
     {
     	HDMI_WUINT16(0x024,0x03   );                		//Vsync/Hsync pol
     }
@@ -335,12 +333,18 @@ __s32 video_config(__s32 vic)
     HDMI_WUINT8 (0x080,0x82);
     HDMI_WUINT8 (0x081,0x02);
     HDMI_WUINT8 (0x082,0x0d);
-    HDMI_WUINT8 (0x083,0xF7);
-    HDMI_WUINT8 (0x084,0x1E);
-    HDMI_WUINT8 (0x085,0x58);
+    HDMI_WUINT8 (0x083,0x00);
+    HDMI_WUINT8 (0x084,0x50);
+    if( video_timing[vic_tab].PCLK < 74250000)				//SD format
+    {
+    	HDMI_WUINT8 (0x085,0x58);							//4:3 601
+    }else													//HD format
+    {
+    	HDMI_WUINT8 (0x085,0xa8);							//16:9 709
+    }
     HDMI_WUINT8 (0x086,0x00);
-    HDMI_WUINT8 (0x087,video_timing[i].VIC	 );
-    HDMI_WUINT8 (0x088,video_timing[i].AVI_PR);
+    HDMI_WUINT8 (0x087,video_timing[vic_tab].VIC	 );
+    HDMI_WUINT8 (0x088,video_timing[vic_tab].AVI_PR);
     HDMI_WUINT8 (0x089,0x00);
     HDMI_WUINT8 (0x08a,0x00);
     HDMI_WUINT8 (0x08b,0x00);
@@ -350,12 +354,26 @@ __s32 video_config(__s32 vic)
     HDMI_WUINT8 (0x08f,0x00);
     HDMI_WUINT8 (0x090,0x00);
 
-    reg_val = 0x82 + 0x02 + 0x0d + 0x1E + 0x58 +
-              video_timing[i].VIC + video_timing[i].AVI_PR;
+	reg_val = HDMI_RUINT8(0x080) +
+		HDMI_RUINT8(0x081) +
+		HDMI_RUINT8(0x082) +
+		HDMI_RUINT8(0x084) +
+		HDMI_RUINT8(0x085) +
+		HDMI_RUINT8(0x086) +
+		HDMI_RUINT8(0x087) +
+		HDMI_RUINT8(0x088) +
+		HDMI_RUINT8(0x089) +
+		HDMI_RUINT8(0x08a) +
+		HDMI_RUINT8(0x08b) +
+		HDMI_RUINT8(0x08c) +
+		HDMI_RUINT8(0x08d) +
+		HDMI_RUINT8(0x08e) +
+		HDMI_RUINT8(0x08f) +
+		HDMI_RUINT8(0x090);
     reg_val = reg_val & 0xff;
     if(reg_val != 0)
     	reg_val = 0x100 - reg_val;
-    HDMI_WUINT8 (0x083,reg_val);
+    HDMI_WUINT8 (0x083,reg_val);		//checksum
     //gcp packet
     HDMI_WUINT32(0x0e0,0x00000003);
     HDMI_WUINT32(0x0e4,0x00000000);
@@ -403,12 +421,12 @@ __s32 video_config(__s32 vic)
     //hdmi pll setting
     if( (vic == HDMI1440_480I) || (vic == HDMI1440_576I))
     {
-        clk_div = hdmi_clk/video_timing[i].PCLK;
+        clk_div = hdmi_clk/video_timing[vic_tab].PCLK;
         clk_div /= 2;
     }
     else
     {
-        clk_div = hdmi_clk/video_timing[i].PCLK;
+        clk_div = hdmi_clk/video_timing[vic_tab].PCLK;
     }
 	clk_div &= 0x0f;
 	HDMI_WUINT32(0x208,(1<<31)+ (1<<30)+ (1<<29)+ (3<<27)+ (0<<26)+
@@ -416,7 +434,7 @@ __s32 video_config(__s32 vic)
 	    		       (15<<12)+ (7<<8)+ (clk_div<<4)+(8<<0) );
 	// tx driver setting
  	HDMI_WUINT32(0x200,0xfe800000);   			//txen enable
-	HDMI_WUINT32(0x204,0x00D8C850);   			//ckss = 1
+	HDMI_WUINT32(0x204,0x00D8C860);   			//ckss = 1
 
     HDMI_WUINT32(0x20c, hdmi_pll << 21);
 
