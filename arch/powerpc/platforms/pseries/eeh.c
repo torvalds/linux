@@ -207,22 +207,12 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 		}
 	}
 
-	/* Gather status on devices under the bridge */
-	if (dev->class >> 16 == PCI_BASE_CLASS_BRIDGE) {
-		struct device_node *child;
-
-		for_each_child_of_node(dn, child) {
-			if (of_node_to_eeh_dev(child))
-				n += eeh_gather_pci_data(of_node_to_eeh_dev(child), buf+n, len-n);
-		}
-	}
-
 	return n;
 }
 
 /**
  * eeh_slot_error_detail - Generate combined log including driver log and error log
- * @edev: device to report error log for
+ * @pe: EEH PE
  * @severity: temporary or permanent error log
  *
  * This routine should be called to generate the combined log, which
@@ -230,17 +220,22 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
  * out from the config space of the corresponding PCI device, while
  * the error log is fetched through platform dependent function call.
  */
-void eeh_slot_error_detail(struct eeh_dev *edev, int severity)
+void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 {
 	size_t loglen = 0;
+	struct eeh_dev *edev;
+
+	eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
+	eeh_ops->configure_bridge(pe);
+	eeh_pe_restore_bars(pe);
+
 	pci_regs_buf[0] = 0;
+	eeh_pe_for_each_dev(pe, edev) {
+		loglen += eeh_gather_pci_data(edev, pci_regs_buf,
+				EEH_PCI_REGS_LOG_LEN);
+        }
 
-	eeh_pci_enable(edev, EEH_OPT_THAW_MMIO);
-	eeh_ops->configure_bridge(eeh_dev_to_of_node(edev));
-	eeh_restore_bars(edev);
-	loglen = eeh_gather_pci_data(edev, pci_regs_buf, EEH_PCI_REGS_LOG_LEN);
-
-	eeh_ops->get_log(eeh_dev_to_of_node(edev), severity, pci_regs_buf, loglen);
+	eeh_ops->get_log(pe, severity, pci_regs_buf, loglen);
 }
 
 /**
@@ -427,23 +422,22 @@ EXPORT_SYMBOL(eeh_check_failure);
 
 /**
  * eeh_pci_enable - Enable MMIO or DMA transfers for this slot
- * @edev: pci device node
+ * @pe: EEH PE
  *
  * This routine should be called to reenable frozen MMIO or DMA
  * so that it would work correctly again. It's useful while doing
  * recovery or log collection on the indicated device.
  */
-int eeh_pci_enable(struct eeh_dev *edev, int function)
+int eeh_pci_enable(struct eeh_pe *pe, int function)
 {
 	int rc;
-	struct device_node *dn = eeh_dev_to_of_node(edev);
 
-	rc = eeh_ops->set_option(dn, function);
+	rc = eeh_ops->set_option(pe, function);
 	if (rc)
-		printk(KERN_WARNING "EEH: Unexpected state change %d, err=%d dn=%s\n",
-		        function, rc, dn->full_name);
+		pr_warning("%s: Unexpected state change %d on PHB#%d-PE#%x, err=%d\n",
+			__func__, function, pe->phb->global_number, pe->addr, rc);
 
-	rc = eeh_ops->wait_state(dn, PCI_BUS_RESET_WAIT_MSEC);
+	rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
 	if (rc > 0 && (rc & EEH_STATE_MMIO_ENABLED) &&
 	   (function == EEH_OPT_THAW_MMIO))
 		return 0;
