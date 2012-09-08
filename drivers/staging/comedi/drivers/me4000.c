@@ -336,12 +336,6 @@ static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 	/* spin_lock_init(&info->preload_lock); */
 	/* spin_lock_init(&info->ai_ctrl_lock); */
 
-	/* Get the vendor id */
-	info->vendor_id = pci_dev_p->vendor;
-
-	/* Get the device id */
-	info->device_id = pci_dev_p->device;
-
 	/* Get the irq assigned to the board */
 	info->irq = pci_dev_p->irq;
 
