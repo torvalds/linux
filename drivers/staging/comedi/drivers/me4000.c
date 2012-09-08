@@ -332,16 +332,9 @@ found:
 
 static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 {
-	int result;
-
 	/* Init spin locks */
 	/* spin_lock_init(&info->preload_lock); */
 	/* spin_lock_init(&info->ai_ctrl_lock); */
-
-	/* Get the hardware revision */
-	result = pci_read_config_byte(pci_dev_p, 0x08, &info->hw_revision);
-	if (result != PCIBIOS_SUCCESSFUL)
-		return result;
 
 	/* Get the vendor id */
 	info->vendor_id = pci_dev_p->vendor;
