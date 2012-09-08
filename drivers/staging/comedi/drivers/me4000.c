@@ -241,13 +241,16 @@ static const struct comedi_lrange me4000_ao_range = {
 
 static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct me4000_info *info;
 	struct pci_dev *pci_device = NULL;
 	int result, i;
 	const struct me4000_board *board;
 
 	/* Allocate private memory */
-	if (alloc_private(dev, sizeof(struct me4000_info)) < 0)
-		return -ENOMEM;
+	result = alloc_private(dev, sizeof(*info));
+	if (result)
+		return result;
+	info = dev->private;
 
 	/*
 	 * Probe the device to determine what device in the series it is.
@@ -328,6 +331,7 @@ extern unsigned char *xilinx_firm;
 
 static int xilinx_download(struct comedi_device *dev)
 {
+	struct me4000_info *info = dev->private;
 	u32 value = 0;
 	wait_queue_head_t queue;
 	int idx = 0;
@@ -409,6 +413,7 @@ static int xilinx_download(struct comedi_device *dev)
 
 static int reset_board(struct comedi_device *dev)
 {
+	struct me4000_info *info = dev->private;
 	unsigned long val;
 	int chan;
 
@@ -1392,6 +1397,7 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	const struct me4000_board *thisboard = comedi_board(dev);
+	struct me4000_info *info = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
@@ -1448,6 +1454,7 @@ static int me4000_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct me4000_info *info = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 
 	if (insn->n == 0) {
@@ -1609,6 +1616,8 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 
 static int cnt_reset(struct comedi_device *dev, unsigned int channel)
 {
+	struct me4000_info *info = dev->private;
+
 	switch (channel) {
 	case 0:
 		outb(0x30, info->timer_regbase + ME4000_CNT_CTRL_REG);
@@ -1638,6 +1647,7 @@ static int cnt_reset(struct comedi_device *dev, unsigned int channel)
 static int cnt_config(struct comedi_device *dev, unsigned int channel,
 		      unsigned int mode)
 {
+	struct me4000_info *info = dev->private;
 	int tmp = 0;
 
 	switch (channel) {
@@ -1738,7 +1748,7 @@ static int me4000_cnt_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-
+	struct me4000_info *info = dev->private;
 	unsigned short tmp;
 
 	if (insn->n == 0)
@@ -1786,7 +1796,7 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
-
+	struct me4000_info *info = dev->private;
 	unsigned short tmp;
 
 	if (insn->n == 0) {
@@ -1951,6 +1961,8 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void me4000_detach(struct comedi_device *dev)
 {
+	struct me4000_info *info = dev->private;
+
 	if (info) {
 		if (info->pci_dev_p) {
 			reset_board(dev);
