@@ -280,11 +280,6 @@ struct me4000_info {
 	unsigned long timer_regbase;	/*  Base address of the timer circuit */
 	unsigned long program_regbase;	/*  Base address to set the program pin for the xilinx */
 
-	unsigned long plx_regbase_size;	/*  PLX register set space */
-	unsigned long me4000_regbase_size;	/*  ME4000 register set space */
-	unsigned long timer_regbase_size;	/*  Timer circuit register set space */
-	unsigned long program_regbase_size;	/*  Size of program base address of the ME4000 */
-
 	unsigned int serial_no;	/*  Serial number of the board */
 	unsigned char hw_revision;	/*  Hardware revision of the board */
 	unsigned short vendor_id;	/*  Meilhaus vendor id */

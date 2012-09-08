@@ -392,7 +392,6 @@ static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 		       "PCI base address 1 is not available\n", dev->minor);
 		return -ENODEV;
 	}
-	info->plx_regbase_size = pci_resource_len(pci_dev_p, 1);
 
     /*--------------------------- me4000 regbase ----------------------------*/
 
@@ -403,7 +402,6 @@ static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 		       "PCI base address 2 is not available\n", dev->minor);
 		return -ENODEV;
 	}
-	info->me4000_regbase_size = pci_resource_len(pci_dev_p, 2);
 
     /*--------------------------- timer regbase ------------------------------*/
 
@@ -414,7 +412,6 @@ static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 		       "PCI base address 3 is not available\n", dev->minor);
 		return -ENODEV;
 	}
-	info->timer_regbase_size = pci_resource_len(pci_dev_p, 3);
 
     /*--------------------------- program regbase ----------------------------*/
 
@@ -425,7 +422,6 @@ static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 		       "PCI base address 5 is not available\n", dev->minor);
 		return -ENODEV;
 	}
-	info->program_regbase_size = pci_resource_len(pci_dev_p, 5);
 
 	return 0;
 }
