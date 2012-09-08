@@ -151,6 +151,17 @@ static inline void eth_broadcast_addr(u8 *addr)
 }
 
 /**
+ * eth_zero_addr - Assign zero address
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Assign the zero address to the given address array.
+ */
+static inline void eth_zero_addr(u8 *addr)
+{
+	memset(addr, 0x00, ETH_ALEN);
+}
+
+/**
  * eth_hw_addr_random - Generate software assigned random Ethernet and
  * set device flag
  * @dev: pointer to net_device structure
