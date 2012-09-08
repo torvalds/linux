@@ -519,7 +519,7 @@ static int rk_fb_io_enable(void)
 	return 0;
 }
 
-#if defined(CONFIG_LCDC0_RK31)
+#if defined(CONFIG_LCDC0_RK3066B)
 struct rk29fb_info lcdc0_screen_info = {
 	.prop	   = PRMRY,		//primary display device
 	.io_init   = rk_fb_io_init,
@@ -529,7 +529,7 @@ struct rk29fb_info lcdc0_screen_info = {
 };
 #endif
 
-#if defined(CONFIG_LCDC1_RK31)
+#if defined(CONFIG_LCDC1_RK3066B)
 struct rk29fb_info lcdc1_screen_info = {
 	#if defined(CONFIG_HDMI_RK30)
 	.prop		= EXTEND,	//extend display device
@@ -568,7 +568,7 @@ static struct platform_device device_fb = {
 };
 #endif
 
-#if defined(CONFIG_LCDC0_RK31)
+#if defined(CONFIG_LCDC0_RK3066B)
 static struct resource resource_lcdc0[] = {
 	[0] = {
 		.name  = "lcdc0 reg",
@@ -595,7 +595,7 @@ static struct platform_device device_lcdc0 = {
 	},
 };
 #endif
-#if defined(CONFIG_LCDC1_RK31) 
+#if defined(CONFIG_LCDC1_RK3066B) 
 static struct resource resource_lcdc1[] = {
 	[0] = {
 		.name  = "lcdc1 reg",
@@ -1045,10 +1045,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
 #endif
-#if defined(CONFIG_LCDC0_RK31)
+#if defined(CONFIG_LCDC0_RK3066B)
 	&device_lcdc0,
 #endif
-#if defined(CONFIG_LCDC1_RK31)
+#if defined(CONFIG_LCDC1_RK3066B)
 	&device_lcdc1,
 #endif
 		
