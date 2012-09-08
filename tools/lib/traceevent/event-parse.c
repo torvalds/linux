@@ -4833,8 +4833,8 @@ int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
 		msg = strerror_r(errnum, buf, buflen);
 		if (msg != buf) {
 			size_t len = strlen(msg);
-			char *c = mempcpy(buf, msg, min(buflen-1, len));
-			*c = '\0';
+			memcpy(buf, msg, min(buflen - 1, len));
+			*(buf + min(buflen - 1, len)) = '\0';
 		}
 		return 0;
 	}
