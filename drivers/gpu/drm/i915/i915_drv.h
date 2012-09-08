@@ -1179,6 +1179,8 @@ struct drm_i915_file_private {
 
 #define HAS_L3_GPU_CACHE(dev) (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 
+#define GT_FREQUENCY_MULTIPLIER 50
+
 #include "i915_trace.h"
 
 /**

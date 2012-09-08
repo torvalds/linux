@@ -914,7 +914,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		seq_printf(m, "Render p-state limit: %d\n",
 			   rp_state_limits & 0xff);
 		seq_printf(m, "CAGF: %dMHz\n", ((rpstat & GEN6_CAGF_MASK) >>
-						GEN6_CAGF_SHIFT) * 50);
+						GEN6_CAGF_SHIFT) * GT_FREQUENCY_MULTIPLIER);
 		seq_printf(m, "RP CUR UP EI: %dus\n", rpupei &
 			   GEN6_CURICONT_MASK);
 		seq_printf(m, "RP CUR UP: %dus\n", rpcurup &
@@ -930,15 +930,15 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 
 		max_freq = (rp_state_cap & 0xff0000) >> 16;
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
-			   max_freq * 50);
+			   max_freq * GT_FREQUENCY_MULTIPLIER);
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
-			   max_freq * 50);
+			   max_freq * GT_FREQUENCY_MULTIPLIER);
 
 		max_freq = rp_state_cap & 0xff;
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
-			   max_freq * 50);
+			   max_freq * GT_FREQUENCY_MULTIPLIER);
 	} else {
 		seq_printf(m, "no P-state info available\n");
 	}
@@ -1292,7 +1292,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 			continue;
 		}
 		ia_freq = I915_READ(GEN6_PCODE_DATA);
-		seq_printf(m, "%d\t\t%d\n", gpu_freq * 50, ia_freq * 100);
+		seq_printf(m, "%d\t\t%d\n", gpu_freq * GT_FREQUENCY_MULTIPLIER, ia_freq * 100);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -1717,7 +1717,7 @@ i915_max_freq_read(struct file *filp,
 		return ret;
 
 	len = snprintf(buf, sizeof(buf),
-		       "max freq: %d\n", dev_priv->rps.max_delay * 50);
+		       "max freq: %d\n", dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (len > sizeof(buf))
@@ -1760,9 +1760,9 @@ i915_max_freq_write(struct file *filp,
 	/*
 	 * Turbo will still be enabled, but won't go above the set value.
 	 */
-	dev_priv->rps.max_delay = val / 50;
+	dev_priv->rps.max_delay = val / GT_FREQUENCY_MULTIPLIER;
 
-	gen6_set_rps(dev, val / 50);
+	gen6_set_rps(dev, val / GT_FREQUENCY_MULTIPLIER);
 	mutex_unlock(&dev->struct_mutex);
 
 	return cnt;
@@ -1793,7 +1793,7 @@ i915_min_freq_read(struct file *filp, char __user *ubuf, size_t max,
 		return ret;
 
 	len = snprintf(buf, sizeof(buf),
-		       "min freq: %d\n", dev_priv->rps.min_delay * 50);
+		       "min freq: %d\n", dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (len > sizeof(buf))
@@ -1834,9 +1834,9 @@ i915_min_freq_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	/*
 	 * Turbo will still be enabled, but won't go below the set value.
 	 */
-	dev_priv->rps.min_delay = val / 50;
+	dev_priv->rps.min_delay = val / GT_FREQUENCY_MULTIPLIER;
 
-	gen6_set_rps(dev, val / 50);
+	gen6_set_rps(dev, val / GT_FREQUENCY_MULTIPLIER);
 	mutex_unlock(&dev->struct_mutex);
 
 	return cnt;
