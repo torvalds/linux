@@ -755,6 +755,7 @@ EXPORT_SYMBOL_GPL(usb_is_intel_switchable_xhci);
  */
 void usb_enable_xhci_ports(struct pci_dev *xhci_pdev)
 {
+#if defined(CONFIG_USB_XHCI_HCD) || defined(CONFIG_USB_XHCI_HCD_MODULE)
 	u32		ports_available;
 
 	ports_available = 0xffffffff;
@@ -782,8 +783,27 @@ void usb_enable_xhci_ports(struct pci_dev *xhci_pdev)
 			&ports_available);
 	dev_dbg(&xhci_pdev->dev, "USB 2.0 ports that are now switched over "
 			"to xHCI: 0x%x\n", ports_available);
+#else
+	/* Don't switchover the ports if the user hasn't compiled the xHCI
+	 * driver.  Otherwise they will see "dead" USB ports that don't power
+	 * the devices.
+	 */
+	dev_warn(&xhci_pdev->dev,
+			"CONFIG_USB_XHCI_HCD is turned off, "
+			"defaulting to EHCI.\n");
+	dev_warn(&xhci_pdev->dev,
+			"USB 3.0 devices will work at USB 2.0 speeds.\n");
+#endif	/* CONFIG_USB_XHCI_HCD || CONFIG_USB_XHCI_HCD_MODULE */
+
 }
 EXPORT_SYMBOL_GPL(usb_enable_xhci_ports);
+
+void usb_disable_xhci_ports(struct pci_dev *xhci_pdev)
+{
+	pci_write_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN, 0x0);
+	pci_write_config_dword(xhci_pdev, USB_INTEL_XUSB2PR, 0x0);
+}
+EXPORT_SYMBOL_GPL(usb_disable_xhci_ports);
 
 /**
  * PCI Quirks for xHCI.
