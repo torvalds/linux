@@ -3889,8 +3889,11 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				goto cont_process;
 			case '*':
 				/* The argument is the length. */
-				if (!arg)
-					die("no argument match");
+				if (!arg) {
+					do_warning("no argument match");
+					event->flags |= EVENT_FL_FAILED;
+					goto out_failed;
+				}
 				len_arg = eval_num_arg(data, size, event, arg);
 				len_as_arg = 1;
 				arg = arg->next;
@@ -3923,15 +3926,21 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case 'x':
 			case 'X':
 			case 'u':
-				if (!arg)
-					die("no argument match");
+				if (!arg) {
+					do_warning("no argument match");
+					event->flags |= EVENT_FL_FAILED;
+					goto out_failed;
+				}
 
 				len = ((unsigned long)ptr + 1) -
 					(unsigned long)saveptr;
 
 				/* should never happen */
-				if (len > 31)
-					die("bad format!");
+				if (len > 31) {
+					do_warning("bad format!");
+					event->flags |= EVENT_FL_FAILED;
+					len = 31;
+				}
 
 				memcpy(format, saveptr, len);
 				format[len] = 0;
@@ -3995,19 +4004,26 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 						trace_seq_printf(s, format, (long long)val);
 					break;
 				default:
-					die("bad count (%d)", ls);
+					do_warning("bad count (%d)", ls);
+					event->flags |= EVENT_FL_FAILED;
 				}
 				break;
 			case 's':
-				if (!arg)
-					die("no matching argument");
+				if (!arg) {
+					do_warning("no matching argument");
+					event->flags |= EVENT_FL_FAILED;
+					goto out_failed;
+				}
 
 				len = ((unsigned long)ptr + 1) -
 					(unsigned long)saveptr;
 
 				/* should never happen */
-				if (len > 31)
-					die("bad format!");
+				if (len > 31) {
+					do_warning("bad format!");
+					event->flags |= EVENT_FL_FAILED;
+					len = 31;
+				}
 
 				memcpy(format, saveptr, len);
 				format[len] = 0;
@@ -4023,6 +4039,11 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			}
 		} else
 			trace_seq_putc(s, *ptr);
+	}
+
+	if (event->flags & EVENT_FL_FAILED) {
+out_failed:
+		trace_seq_printf(s, "[FAILED TO PARSE]");
 	}
 
 	if (args) {
@@ -4812,8 +4833,8 @@ int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
 		msg = strerror_r(errnum, buf, buflen);
 		if (msg != buf) {
 			size_t len = strlen(msg);
-			char *c = mempcpy(buf, msg, min(buflen-1, len));
-			*c = '\0';
+			memcpy(buf, msg, min(buflen - 1, len));
+			*(buf + min(buflen - 1, len)) = '\0';
 		}
 		return 0;
 	}
@@ -5059,6 +5080,7 @@ int pevent_register_print_function(struct pevent *pevent,
 	struct pevent_func_params *param;
 	enum pevent_func_arg_type type;
 	va_list ap;
+	int ret;
 
 	func_handle = find_func_handler(pevent, name);
 	if (func_handle) {
@@ -5071,14 +5093,21 @@ int pevent_register_print_function(struct pevent *pevent,
 		remove_func_handler(pevent, name);
 	}
 
-	func_handle = malloc_or_die(sizeof(*func_handle));
+	func_handle = malloc(sizeof(*func_handle));
+	if (!func_handle) {
+		do_warning("Failed to allocate function handler");
+		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+	}
 	memset(func_handle, 0, sizeof(*func_handle));
 
 	func_handle->ret_type = ret_type;
 	func_handle->name = strdup(name);
 	func_handle->func = func;
-	if (!func_handle->name)
-		die("Failed to allocate function name");
+	if (!func_handle->name) {
+		do_warning("Failed to allocate function name");
+		free(func_handle);
+		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+	}
 
 	next_param = &(func_handle->params);
 	va_start(ap, name);
@@ -5088,11 +5117,17 @@ int pevent_register_print_function(struct pevent *pevent,
 			break;
 
 		if (type < 0 || type >= PEVENT_FUNC_ARG_MAX_TYPES) {
-			warning("Invalid argument type %d", type);
+			do_warning("Invalid argument type %d", type);
+			ret = PEVENT_ERRNO__INVALID_ARG_TYPE;
 			goto out_free;
 		}
 
-		param = malloc_or_die(sizeof(*param));
+		param = malloc(sizeof(*param));
+		if (!param) {
+			do_warning("Failed to allocate function param");
+			ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
+			goto out_free;
+		}
 		param->type = type;
 		param->next = NULL;
 
@@ -5110,7 +5145,7 @@ int pevent_register_print_function(struct pevent *pevent,
  out_free:
 	va_end(ap);
 	free_func_handle(func_handle);
-	return -1;
+	return ret;
 }
 
 /**
@@ -5162,7 +5197,12 @@ int pevent_register_event_handler(struct pevent *pevent,
 
  not_found:
 	/* Save for later use. */
-	handle = malloc_or_die(sizeof(*handle));
+	handle = malloc(sizeof(*handle));
+	if (!handle) {
+		do_warning("Failed to allocate event handler");
+		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
+	}
+
 	memset(handle, 0, sizeof(*handle));
 	handle->id = id;
 	if (event_name)
@@ -5172,7 +5212,11 @@ int pevent_register_event_handler(struct pevent *pevent,
 
 	if ((event_name && !handle->event_name) ||
 	    (sys_name && !handle->sys_name)) {
-		die("Failed to allocate event/sys name");
+		do_warning("Failed to allocate event/sys name");
+		free((void *)handle->event_name);
+		free((void *)handle->sys_name);
+		free(handle);
+		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 	}
 
 	handle->func = func;

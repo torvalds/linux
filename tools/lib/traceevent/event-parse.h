@@ -351,7 +351,8 @@ enum pevent_flag {
 	_PE(READ_ID_FAILED,	"failed to read event id"),		      \
 	_PE(READ_FORMAT_FAILED,	"failed to read event format"),		      \
 	_PE(READ_PRINT_FAILED,	"failed to read event print fmt"), 	      \
-	_PE(OLD_FTRACE_ARG_FAILED,"failed to allocate field name for ftrace")
+	_PE(OLD_FTRACE_ARG_FAILED,"failed to allocate field name for ftrace"),\
+	_PE(INVALID_ARG_TYPE,	"invalid argument type")
 
 #undef _PE
 #define _PE(__code, __str) PEVENT_ERRNO__ ## __code

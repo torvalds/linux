@@ -755,6 +755,14 @@ else
 	endif
 endif
 
+ifdef NO_BACKTRACE
+       BASIC_CFLAGS += -DNO_BACKTRACE
+else
+       ifneq ($(call try-cc,$(SOURCE_BACKTRACE),),y)
+               BASIC_CFLAGS += -DNO_BACKTRACE
+       endif
+endif
+
 ifdef ASCIIDOC8
 	export ASCIIDOC8
 endif

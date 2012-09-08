@@ -10,6 +10,7 @@
 #include "util/event.h"
 #include "util/hist.h"
 #include "util/evsel.h"
+#include "util/evlist.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/sort.h"
@@ -24,11 +25,6 @@ static char	  diff__default_sort_order[] = "dso,symbol";
 static bool  force;
 static bool show_displacement;
 
-struct perf_diff {
-	struct perf_tool tool;
-	struct perf_session *session;
-};
-
 static int hists__add_entry(struct hists *self,
 			    struct addr_location *al, u64 period)
 {
@@ -37,14 +33,12 @@ static int hists__add_entry(struct hists *self,
 	return -ENOMEM;
 }
 
-static int diff__process_sample_event(struct perf_tool *tool,
+static int diff__process_sample_event(struct perf_tool *tool __used,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct perf_evsel *evsel __used,
+				      struct perf_evsel *evsel,
 				      struct machine *machine)
 {
-	struct perf_diff *_diff = container_of(tool, struct perf_diff, tool);
-	struct perf_session *session = _diff->session;
 	struct addr_location al;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample, NULL) < 0) {
@@ -56,26 +50,24 @@ static int diff__process_sample_event(struct perf_tool *tool,
 	if (al.filtered || al.sym == NULL)
 		return 0;
 
-	if (hists__add_entry(&session->hists, &al, sample->period)) {
+	if (hists__add_entry(&evsel->hists, &al, sample->period)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}
 
-	session->hists.stats.total_period += sample->period;
+	evsel->hists.stats.total_period += sample->period;
 	return 0;
 }
 
-static struct perf_diff diff = {
-	.tool = {
-		.sample	= diff__process_sample_event,
-		.mmap	= perf_event__process_mmap,
-		.comm	= perf_event__process_comm,
-		.exit	= perf_event__process_task,
-		.fork	= perf_event__process_task,
-		.lost	= perf_event__process_lost,
-		.ordered_samples = true,
-		.ordering_requires_timestamps = true,
-	},
+static struct perf_tool tool = {
+	.sample	= diff__process_sample_event,
+	.mmap	= perf_event__process_mmap,
+	.comm	= perf_event__process_comm,
+	.exit	= perf_event__process_task,
+	.fork	= perf_event__process_task,
+	.lost	= perf_event__process_lost,
+	.ordered_samples = true,
+	.ordering_requires_timestamps = true,
 };
 
 static void perf_session__insert_hist_entry_by_name(struct rb_root *root,
@@ -146,34 +138,71 @@ static void hists__match(struct hists *older, struct hists *newer)
 	}
 }
 
+static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
+				      struct perf_evlist *evlist)
+{
+	struct perf_evsel *e;
+
+	list_for_each_entry(e, &evlist->entries, node)
+		if (perf_evsel__match2(evsel, e))
+			return e;
+
+	return NULL;
+}
+
 static int __cmd_diff(void)
 {
 	int ret, i;
 #define older (session[0])
 #define newer (session[1])
 	struct perf_session *session[2];
+	struct perf_evlist *evlist_new, *evlist_old;
+	struct perf_evsel *evsel;
+	bool first = true;
 
 	older = perf_session__new(input_old, O_RDONLY, force, false,
-				  &diff.tool);
+				  &tool);
 	newer = perf_session__new(input_new, O_RDONLY, force, false,
-				  &diff.tool);
+				  &tool);
 	if (session[0] == NULL || session[1] == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < 2; ++i) {
-		diff.session = session[i];
-		ret = perf_session__process_events(session[i], &diff.tool);
+		ret = perf_session__process_events(session[i], &tool);
 		if (ret)
 			goto out_delete;
-		hists__output_resort(&session[i]->hists);
 	}
 
-	if (show_displacement)
-		hists__resort_entries(&older->hists);
+	evlist_old = older->evlist;
+	evlist_new = newer->evlist;
 
-	hists__match(&older->hists, &newer->hists);
-	hists__fprintf(&newer->hists, &older->hists,
-		       show_displacement, true, 0, 0, stdout);
+	list_for_each_entry(evsel, &evlist_new->entries, node)
+		hists__output_resort(&evsel->hists);
+
+	list_for_each_entry(evsel, &evlist_old->entries, node) {
+		hists__output_resort(&evsel->hists);
+
+		if (show_displacement)
+			hists__resort_entries(&evsel->hists);
+	}
+
+	list_for_each_entry(evsel, &evlist_new->entries, node) {
+		struct perf_evsel *evsel_old;
+
+		evsel_old = evsel_match(evsel, evlist_old);
+		if (!evsel_old)
+			continue;
+
+		fprintf(stdout, "%s# Event '%s'\n#\n", first ? "" : "\n",
+			perf_evsel__name(evsel));
+
+		first = false;
+
+		hists__match(&evsel_old->hists, &evsel->hists);
+		hists__fprintf(&evsel->hists, &evsel_old->hists,
+			       show_displacement, true, 0, 0, stdout);
+	}
+
 out_delete:
 	for (i = 0; i < 2; ++i)
 		perf_session__delete(session[i]);
