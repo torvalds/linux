@@ -224,8 +224,6 @@ struct me4000_info {
 
 	struct pci_dev *pci_dev_p;	/*  General PCI information */
 
-	unsigned int irq;	/*  IRQ assigned from the PCI BIOS */
-
 	unsigned int ao_readback[4];
 };
 

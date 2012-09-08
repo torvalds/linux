@@ -332,7 +332,7 @@ static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 	/* spin_lock_init(&info->ai_ctrl_lock); */
 
 	/* Get the irq assigned to the board */
-	info->irq = pci_dev_p->irq;
+	dev->irq = pci_dev_p->irq;
 
 	return 0;
 }
@@ -1266,7 +1266,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	s->async->events = 0;
 
 	/* Check if irq number is right */
-	if (irq != info->irq) {
+	if (irq != dev->irq) {
 		printk(KERN_ERR
 		       "comedi%d: me4000: me4000_ai_isr(): "
 		       "Incorrect interrupt num: %d\n", dev->minor, irq);
@@ -1876,8 +1876,8 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->range_table = &me4000_ai_range;
 		s->insn_read = me4000_ai_insn_read;
 
-		if (info->irq > 0) {
-			if (request_irq(info->irq, me4000_ai_isr,
+		if (dev->irq > 0) {
+			if (request_irq(dev->irq, me4000_ai_isr,
 					IRQF_SHARED, "ME-4000", dev)) {
 				printk
 				    ("comedi%d: me4000: me4000_attach(): "
