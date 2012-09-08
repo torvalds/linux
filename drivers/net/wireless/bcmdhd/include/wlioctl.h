@@ -180,6 +180,7 @@ typedef struct wlc_ssid {
 	uchar       SSID[32];
 } wlc_ssid_t;
 
+#define WL_BSS_FLAGS_FROM_BEACON    0x01
 
 #define WL_BSSTYPE_INFRA 1
 #define WL_BSSTYPE_INDEP 0

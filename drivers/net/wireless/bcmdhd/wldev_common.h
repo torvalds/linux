@@ -85,6 +85,7 @@ s32 wldev_iovar_setint_bsscfg(
 
 extern void get_customized_country_code(char *country_iso_code, wl_country_t *cspec);
 extern void dhd_bus_country_set(struct net_device *dev, wl_country_t *cspec);
+extern void dhd_bus_band_set(struct net_device *dev, uint band);
 extern int wldev_set_country(struct net_device *dev, char *country_code);
 extern int net_os_wake_lock(struct net_device *dev);
 extern int net_os_wake_unlock(struct net_device *dev);
