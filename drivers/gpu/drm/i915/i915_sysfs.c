@@ -203,6 +203,69 @@ static struct bin_attribute dpf_attrs = {
 	.mmap = NULL
 };
 
+static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = dev_priv->rps.cur_delay * GT_FREQUENCY_MULTIPLIER;
+	mutex_unlock(&dev->struct_mutex);
+
+	return snprintf(buf, PAGE_SIZE, "%d", ret);
+}
+
+static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
+	mutex_unlock(&dev->struct_mutex);
+
+	return snprintf(buf, PAGE_SIZE, "%d", ret);
+}
+
+static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
+	mutex_unlock(&dev->struct_mutex);
+
+	return snprintf(buf, PAGE_SIZE, "%d", ret);
+}
+
+static DEVICE_ATTR(gt_cur_freq_mhz, S_IRUGO, gt_cur_freq_mhz_show, NULL);
+static DEVICE_ATTR(gt_max_freq_mhz, S_IRUGO | S_IWUSR, gt_max_freq_mhz_show, NULL);
+static DEVICE_ATTR(gt_min_freq_mhz, S_IRUGO | S_IWUSR, gt_min_freq_mhz_show, NULL);
+
+static const struct attribute *gen6_attrs[] = {
+	&dev_attr_gt_cur_freq_mhz.attr,
+	&dev_attr_gt_max_freq_mhz.attr,
+	&dev_attr_gt_min_freq_mhz.attr,
+	NULL,
+};
+
 void i915_setup_sysfs(struct drm_device *dev)
 {
 	int ret;
@@ -220,10 +283,17 @@ void i915_setup_sysfs(struct drm_device *dev)
 		if (ret)
 			DRM_ERROR("l3 parity sysfs setup failed\n");
 	}
+
+	if (INTEL_INFO(dev)->gen >= 6) {
+		ret = sysfs_create_files(&dev->primary->kdev.kobj, gen6_attrs);
+		if (ret)
+			DRM_ERROR("gen6 sysfs setup failed\n");
+	}
 }
 
 void i915_teardown_sysfs(struct drm_device *dev)
 {
+	sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
 	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
 	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
 }
