@@ -1226,12 +1226,6 @@ config NETFILTER_XT_MATCH_STATE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config NETFILTER_XT_MATCH_LAYER7_DEBUG
-	bool 'Layer 7 debugging output'
-	depends on NETFILTER_XT_MATCH_LAYER7
-	help
-	  Say Y to get lots of debugging output.
-
 config NETFILTER_XT_MATCH_STATISTIC
 	tristate '"statistic" match support'
 	depends on NETFILTER_ADVANCED
