@@ -68,34 +68,18 @@ static const struct me4000_board me4000_boards[] = {
 	{
 		.name		= "ME-4650",
 		.device_id	= 0x4650,
-		.ao		= {
-			.count		= 0,
-			.fifo_count	= 0,
-		},
 		.ai		= {
 			.count		= 16,
-			.sh_count	= 0,
-			.diff_count	= 0,
-			.ex_trig_analog	= 0,
 		},
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 0,
-		},
 	}, {
 		.name		= "ME-4660",
 		.device_id	= 0x4660,
-		.ao		= {
-			.count		= 0,
-			.fifo_count	= 0,
-		},
 		.ai		= {
 			.count		= 32,
-			.sh_count	= 0,
 			.diff_count	= 16,
-			.ex_trig_analog	= 0,
 		},
 		.dio		= {
 			.count		= 4,
@@ -106,15 +90,9 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4660i",
 		.device_id	= 0x4661,
-		.ao		= {
-			.count		= 0,
-			.fifo_count	= 0,
-		},
 		.ai		= {
 			.count		= 32,
-			.sh_count	= 0,
 			.diff_count	= 16,
-			.ex_trig_analog	= 0,
 		},
 		.dio		= {
 			.count		= 4,
@@ -125,15 +103,10 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4660s",
 		.device_id	= 0x4662,
-		.ao		= {
-			.count		= 0,
-			.fifo_count	= 0,
-		},
 		.ai		= {
 			.count		= 32,
 			.sh_count	= 8,
 			.diff_count	= 16,
-			.ex_trig_analog	= 0,
 		},
 		.dio		= {
 			.count		= 4,
@@ -144,15 +117,10 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4660is",
 		.device_id	= 0x4663,
-		.ao		= {
-			.count		= 0,
-			.fifo_count	= 0,
-		},
 		.ai		= {
 			.count		= 32,
 			.sh_count	= 8,
 			.diff_count	= 16,
-			.ex_trig_analog	= 0,
 		},
 		.dio		= {
 			.count		= 4,
@@ -165,11 +133,9 @@ static const struct me4000_board me4000_boards[] = {
 		.device_id	= 0x4670,
 		.ao		= {
 			.count		= 4,
-			.fifo_count	= 0,
 		},
 		.ai		= {
 			.count		= 32,
-			.sh_count	= 0,
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
@@ -184,11 +150,9 @@ static const struct me4000_board me4000_boards[] = {
 		.device_id	= 0x4671,
 		.ao		= {
 			.count		= 4,
-			.fifo_count	= 0,
 		},
 		.ai		= {
 			.count		= 32,
-			.sh_count	= 0,
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
@@ -203,7 +167,6 @@ static const struct me4000_board me4000_boards[] = {
 		.device_id	= 0x4672,
 		.ao		= {
 			.count		= 4,
-			.fifo_count	= 0,
 		},
 		.ai		= {
 			.count		= 32,
@@ -222,7 +185,6 @@ static const struct me4000_board me4000_boards[] = {
 		.device_id	= 0x4673,
 		.ao		= {
 			.count		= 4,
-			.fifo_count	= 0,
 		},
 		.ai		= {
 			.count		= 32,
@@ -245,7 +207,6 @@ static const struct me4000_board me4000_boards[] = {
 		},
 		.ai		= {
 			.count		= 32,
-			.sh_count	= 0,
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
@@ -264,7 +225,6 @@ static const struct me4000_board me4000_boards[] = {
 		},
 		.ai		= {
 			.count		= 32,
-			.sh_count	= 0,
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
