@@ -268,16 +268,12 @@ struct me4000_ai_info {
 	int ex_trig_analog;
 };
 
-struct me4000_dio_info {
-	int count;
-};
-
 struct me4000_board {
 	const char *name;
 	unsigned short device_id;
 	struct me4000_ao_info ao;
 	struct me4000_ai_info ai;
-	struct me4000_dio_info dio;
+	int dio_nchan;
 	int has_counter;
 };
 

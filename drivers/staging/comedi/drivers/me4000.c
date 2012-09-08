@@ -71,9 +71,7 @@ static const struct me4000_board me4000_boards[] = {
 		.ai		= {
 			.count		= 16,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 	}, {
 		.name		= "ME-4660",
 		.device_id	= 0x4660,
@@ -81,9 +79,7 @@ static const struct me4000_board me4000_boards[] = {
 			.count		= 32,
 			.diff_count	= 16,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4660i",
@@ -92,9 +88,7 @@ static const struct me4000_board me4000_boards[] = {
 			.count		= 32,
 			.diff_count	= 16,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4660s",
@@ -104,9 +98,7 @@ static const struct me4000_board me4000_boards[] = {
 			.sh_count	= 8,
 			.diff_count	= 16,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4660is",
@@ -116,9 +108,7 @@ static const struct me4000_board me4000_boards[] = {
 			.sh_count	= 8,
 			.diff_count	= 16,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4670",
@@ -131,9 +121,7 @@ static const struct me4000_board me4000_boards[] = {
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4670i",
@@ -146,9 +134,7 @@ static const struct me4000_board me4000_boards[] = {
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4670s",
@@ -162,9 +148,7 @@ static const struct me4000_board me4000_boards[] = {
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4670is",
@@ -178,9 +162,7 @@ static const struct me4000_board me4000_boards[] = {
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4680",
@@ -194,9 +176,7 @@ static const struct me4000_board me4000_boards[] = {
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4680i",
@@ -210,9 +190,7 @@ static const struct me4000_board me4000_boards[] = {
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4680s",
@@ -227,9 +205,7 @@ static const struct me4000_board me4000_boards[] = {
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4680is",
@@ -244,9 +220,7 @@ static const struct me4000_board me4000_boards[] = {
 			.diff_count	= 16,
 			.ex_trig_analog	= 1,
 		},
-		.dio		= {
-			.count		= 4,
-		},
+		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
 };
@@ -2239,10 +2213,10 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = &dev->subdevices[2];
 
-	if (thisboard->dio.count) {
+	if (thisboard->dio_nchan) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = thisboard->dio.count * 8;
+		s->n_chan = thisboard->dio_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = me4000_dio_insn_bits;
