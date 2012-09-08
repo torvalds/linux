@@ -3,6 +3,7 @@
 #include "exec_cmd.h"
 #include "levenshtein.h"
 #include "help.h"
+#include <termios.h>
 
 void add_cmdname(struct cmdnames *cmds, const char *name, size_t len)
 {
