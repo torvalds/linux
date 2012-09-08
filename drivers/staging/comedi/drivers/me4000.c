@@ -1510,69 +1510,38 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
   Counter section
   ===========================================================================*/
 
-static int cnt_reset(struct comedi_device *dev, unsigned int channel)
-{
-	struct me4000_info *info = dev->private;
-
-	i8254_load(info->timer_regbase, 0, channel, 0,
-			I8254_MODE0 | I8254_BINARY);
-
-	return 0;
-}
-
-static int cnt_config(struct comedi_device *dev, unsigned int channel,
-		      unsigned int mode)
-{
-	struct me4000_info *info = dev->private;
-
-	i8254_set_mode(info->timer_regbase, 0, channel,
-			(mode << 1) | I8254_BINARY);
-
-	return 0;
-}
-
 static int me4000_cnt_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-
+	struct me4000_info *info = dev->private;
 	int err;
 
 	switch (data[0]) {
 	case GPCT_RESET:
-		if (insn->n != 1) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_cnt_insn_config(): "
-			       "Invalid instruction length%d\n",
-			       dev->minor, insn->n);
+		if (insn->n != 1)
 			return -EINVAL;
-		}
 
-		err = cnt_reset(dev, insn->chanspec);
+		err = i8254_load(info->timer_regbase, 0, insn->chanspec, 0,
+				I8254_MODE0 | I8254_BINARY);
 		if (err)
 			return err;
 		break;
 	case GPCT_SET_OPERATION:
-		if (insn->n != 2) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_cnt_insn_config(): "
-			       "Invalid instruction length%d\n",
-			       dev->minor, insn->n);
+		if (insn->n != 2)
 			return -EINVAL;
-		}
 
-		err = cnt_config(dev, insn->chanspec, data[1]);
+		err = i8254_set_mode(info->timer_regbase, 0, insn->chanspec,
+				(data[1] << 1) | I8254_BINARY);
 		if (err)
 			return err;
 		break;
 	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_cnt_insn_config(): "
-		       "Invalid instruction\n", dev->minor);
 		return -EINVAL;
 	}
 
-	return 2;
+	return insn->n;
 }
 
 static int me4000_cnt_insn_read(struct comedi_device *dev,
