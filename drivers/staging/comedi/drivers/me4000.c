@@ -65,22 +65,254 @@ broken.
 #endif
 
 static const struct me4000_board me4000_boards[] = {
-	{"ME-4650", 0x4650, {0, 0}, {16, 0, 0, 0}, {4}, {0} },
-
-	{"ME-4660", 0x4660, {0, 0}, {32, 0, 16, 0}, {4}, {3} },
-	{"ME-4660i", 0x4661, {0, 0}, {32, 0, 16, 0}, {4}, {3} },
-	{"ME-4660s", 0x4662, {0, 0}, {32, 8, 16, 0}, {4}, {3} },
-	{"ME-4660is", 0x4663, {0, 0}, {32, 8, 16, 0}, {4}, {3} },
-
-	{"ME-4670", 0x4670, {4, 0}, {32, 0, 16, 1}, {4}, {3} },
-	{"ME-4670i", 0x4671, {4, 0}, {32, 0, 16, 1}, {4}, {3} },
-	{"ME-4670s", 0x4672, {4, 0}, {32, 8, 16, 1}, {4}, {3} },
-	{"ME-4670is", 0x4673, {4, 0}, {32, 8, 16, 1}, {4}, {3} },
-
-	{"ME-4680", 0x4680, {4, 4}, {32, 0, 16, 1}, {4}, {3} },
-	{"ME-4680i", 0x4681, {4, 4}, {32, 0, 16, 1}, {4}, {3} },
-	{"ME-4680s", 0x4682, {4, 4}, {32, 8, 16, 1}, {4}, {3} },
-	{"ME-4680is", 0x4683, {4, 4}, {32, 8, 16, 1}, {4}, {3} },
+	{
+		.name		= "ME-4650",
+		.device_id	= 0x4650,
+		.ao		= {
+			.count		= 0,
+			.fifo_count	= 0,
+		},
+		.ai		= {
+			.count		= 16,
+			.sh_count	= 0,
+			.diff_count	= 0,
+			.ex_trig_analog	= 0,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 0,
+		},
+	}, {
+		.name		= "ME-4660",
+		.device_id	= 0x4660,
+		.ao		= {
+			.count		= 0,
+			.fifo_count	= 0,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 0,
+			.diff_count	= 16,
+			.ex_trig_analog	= 0,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4660i",
+		.device_id	= 0x4661,
+		.ao		= {
+			.count		= 0,
+			.fifo_count	= 0,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 0,
+			.diff_count	= 16,
+			.ex_trig_analog	= 0,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4660s",
+		.device_id	= 0x4662,
+		.ao		= {
+			.count		= 0,
+			.fifo_count	= 0,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 8,
+			.diff_count	= 16,
+			.ex_trig_analog	= 0,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4660is",
+		.device_id	= 0x4663,
+		.ao		= {
+			.count		= 0,
+			.fifo_count	= 0,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 8,
+			.diff_count	= 16,
+			.ex_trig_analog	= 0,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4670",
+		.device_id	= 0x4670,
+		.ao		= {
+			.count		= 4,
+			.fifo_count	= 0,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 0,
+			.diff_count	= 16,
+			.ex_trig_analog	= 1,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4670i",
+		.device_id	= 0x4671,
+		.ao		= {
+			.count		= 4,
+			.fifo_count	= 0,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 0,
+			.diff_count	= 16,
+			.ex_trig_analog	= 1,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4670s",
+		.device_id	= 0x4672,
+		.ao		= {
+			.count		= 4,
+			.fifo_count	= 0,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 8,
+			.diff_count	= 16,
+			.ex_trig_analog	= 1,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4670is",
+		.device_id	= 0x4673,
+		.ao		= {
+			.count		= 4,
+			.fifo_count	= 0,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 8,
+			.diff_count	= 16,
+			.ex_trig_analog	= 1,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4680",
+		.device_id	= 0x4680,
+		.ao		= {
+			.count		= 4,
+			.fifo_count	= 4,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 0,
+			.diff_count	= 16,
+			.ex_trig_analog	= 1,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4680i",
+		.device_id	= 0x4681,
+		.ao		= {
+			.count		= 4,
+			.fifo_count	= 4,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 0,
+			.diff_count	= 16,
+			.ex_trig_analog	= 1,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4680s",
+		.device_id	= 0x4682,
+		.ao		= {
+			.count		= 4,
+			.fifo_count	= 4,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 8,
+			.diff_count	= 16,
+			.ex_trig_analog	= 1,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	}, {
+		.name		= "ME-4680is",
+		.device_id	= 0x4683,
+		.ao		= {
+			.count		= 4,
+			.fifo_count	= 4,
+		},
+		.ai		= {
+			.count		= 32,
+			.sh_count	= 8,
+			.diff_count	= 16,
+			.ex_trig_analog	= 1,
+		},
+		.dio		= {
+			.count		= 4,
+		},
+		.cnt		= {
+			.count		= 3,
+		},
+	},
 };
 
 /*-----------------------------------------------------------------------------
