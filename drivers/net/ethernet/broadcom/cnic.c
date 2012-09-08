@@ -868,6 +868,8 @@ static void cnic_free_resc(struct cnic_dev *dev)
 	if (udev) {
 		udev->dev = NULL;
 		cp->udev = NULL;
+		if (udev->uio_dev == -1)
+			__cnic_free_uio_rings(udev);
 	}
 
 	cnic_free_context(dev);
@@ -1039,6 +1041,11 @@ static int cnic_alloc_uio_rings(struct cnic_dev *dev, int pages)
 	list_for_each_entry(udev, &cnic_udev_list, list) {
 		if (udev->pdev == dev->pcidev) {
 			udev->dev = dev;
+			if (__cnic_alloc_uio_rings(udev, pages)) {
+				udev->dev = NULL;
+				read_unlock(&cnic_dev_lock);
+				return -ENOMEM;
+			}
 			cp->udev = udev;
 			read_unlock(&cnic_dev_lock);
 			return 0;
