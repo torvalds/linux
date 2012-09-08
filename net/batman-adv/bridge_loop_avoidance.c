@@ -354,7 +354,7 @@ out:
  */
 static struct batadv_backbone_gw *
 batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
-			   short vid)
+			   short vid, bool own_backbone)
 {
 	struct batadv_backbone_gw *entry;
 	struct batadv_orig_node *orig_node;
@@ -401,6 +401,10 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 					  "became a backbone gateway");
 		batadv_orig_node_free_ref(orig_node);
 	}
+
+	if (own_backbone)
+		batadv_bla_send_announce(bat_priv, entry);
+
 	return entry;
 }
 
@@ -416,7 +420,7 @@ batadv_bla_update_own_backbone_gw(struct batadv_priv *bat_priv,
 
 	backbone_gw = batadv_bla_get_backbone_gw(bat_priv,
 						 primary_if->net_dev->dev_addr,
-						 vid);
+						 vid, true);
 	if (unlikely(!backbone_gw))
 		return;
 
@@ -624,7 +628,8 @@ static int batadv_handle_announce(struct batadv_priv *bat_priv,
 	if (memcmp(an_addr, batadv_announce_mac, 4) != 0)
 		return 0;
 
-	backbone_gw = batadv_bla_get_backbone_gw(bat_priv, backbone_addr, vid);
+	backbone_gw = batadv_bla_get_backbone_gw(bat_priv, backbone_addr, vid,
+						 false);
 
 	if (unlikely(!backbone_gw))
 		return 1;
@@ -722,7 +727,8 @@ static int batadv_handle_claim(struct batadv_priv *bat_priv,
 
 	/* register the gateway if not yet available, and add the claim. */
 
-	backbone_gw = batadv_bla_get_backbone_gw(bat_priv, backbone_addr, vid);
+	backbone_gw = batadv_bla_get_backbone_gw(bat_priv, backbone_addr, vid,
+						 false);
 
 	if (unlikely(!backbone_gw))
 		return 1;
