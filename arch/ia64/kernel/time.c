@@ -83,6 +83,18 @@ static struct clocksource *itc_clocksource;
 
 extern cputime_t cycle_to_cputime(u64 cyc);
 
+static void vtime_account_user(struct task_struct *tsk)
+{
+	cputime_t delta_utime;
+	struct thread_info *ti = task_thread_info(tsk);
+
+	if (ti->ac_utime) {
+		delta_utime = cycle_to_cputime(ti->ac_utime);
+		account_user_time(tsk, delta_utime, delta_utime);
+		ti->ac_utime = 0;
+	}
+}
+
 /*
  * Called from the context switch with interrupts disabled, to charge all
  * accumulated times to the current process, and to prepare accounting on
@@ -92,7 +104,7 @@ void vtime_task_switch(struct task_struct *prev)
 {
 	struct thread_info *pi = task_thread_info(prev);
 	struct thread_info *ni = task_thread_info(current);
-	cputime_t delta_stime, delta_utime;
+	cputime_t delta_stime;
 	__u64 now;
 
 	now = ia64_get_itc();
@@ -103,10 +115,7 @@ void vtime_task_switch(struct task_struct *prev)
 	else
 		account_idle_time(delta_stime);
 
-	if (pi->ac_utime) {
-		delta_utime = cycle_to_cputime(pi->ac_utime);
-		account_user_time(prev, delta_utime, delta_utime);
-	}
+	vtime_account_user(prev);
 
 	pi->ac_stamp = ni->ac_stamp = now;
 	ni->ac_stime = ni->ac_utime = 0;
@@ -149,14 +158,7 @@ void vtime_account_idle(struct task_struct *tsk)
  */
 void account_process_tick(struct task_struct *p, int user_tick)
 {
-	struct thread_info *ti = task_thread_info(p);
-	cputime_t delta_utime;
-
-	if (ti->ac_utime) {
-		delta_utime = cycle_to_cputime(ti->ac_utime);
-		account_user_time(p, delta_utime, delta_utime);
-		ti->ac_utime = 0;
-	}
+	vtime_account_user(p);
 }
 
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING */
