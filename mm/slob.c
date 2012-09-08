@@ -425,7 +425,8 @@ out:
  * End of slob allocator proper. Begin kmem_cache_alloc and kmalloc frontend.
  */
 
-void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+static __always_inline void *
+__do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
 {
 	unsigned int *m;
 	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
@@ -446,7 +447,7 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 		*m = size;
 		ret = (void *)m + align;
 
-		trace_kmalloc_node(_RET_IP_, ret,
+		trace_kmalloc_node(caller, ret,
 				   size, size + align, gfp, node);
 	} else {
 		unsigned int order = get_order(size);
@@ -460,14 +461,34 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 			page->private = size;
 		}
 
-		trace_kmalloc_node(_RET_IP_, ret,
+		trace_kmalloc_node(caller, ret,
 				   size, PAGE_SIZE << order, gfp, node);
 	}
 
 	kmemleak_alloc(ret, size, 1, gfp);
 	return ret;
 }
+
+void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+{
+	return __do_kmalloc_node(size, gfp, node, _RET_IP_);
+}
 EXPORT_SYMBOL(__kmalloc_node);
+
+#ifdef CONFIG_TRACING
+void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
+{
+	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, caller);
+}
+
+#ifdef CONFIG_NUMA
+void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
+					int node, unsigned long caller)
+{
+	return __do_kmalloc_node(size, gfp, node, caller);
+}
+#endif
+#endif
 
 void kfree(const void *block)
 {
