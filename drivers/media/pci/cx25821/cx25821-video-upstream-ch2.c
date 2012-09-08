@@ -708,11 +708,9 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 {
 	struct sram_channel *sram_ch;
 	u32 tmp;
-	int retval = 0;
 	int err = 0;
 	int data_frame_size = 0;
 	int risc_buffer_size = 0;
-	int str_length = 0;
 
 	if (dev->_is_running_ch2) {
 		pr_info("Video Channel is still running so return!\n");
@@ -748,20 +746,16 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 	risc_buffer_size = dev->_isNTSC_ch2 ?
 		NTSC_RISC_BUF_SIZE : PAL_RISC_BUF_SIZE;
 
-	if (dev->input_filename_ch2) {
-		str_length = strlen(dev->input_filename_ch2);
-		dev->_filename_ch2 = kmemdup(dev->input_filename_ch2,
-					     str_length + 1, GFP_KERNEL);
+	if (dev->input_filename_ch2)
+		dev->_filename_ch2 = kstrdup(dev->input_filename_ch2,
+								GFP_KERNEL);
+	else
+		dev->_filename_ch2 = kstrdup(dev->_defaultname_ch2,
+								GFP_KERNEL);
 
-		if (!dev->_filename_ch2)
-			goto error;
-	} else {
-		str_length = strlen(dev->_defaultname_ch2);
-		dev->_filename_ch2 = kmemdup(dev->_defaultname_ch2,
-					     str_length + 1, GFP_KERNEL);
-
-		if (!dev->_filename_ch2)
-			goto error;
+	if (!dev->_filename_ch2) {
+		err = -ENOENT;
+		goto error;
 	}
 
 	/* Default if filename is empty string */
@@ -777,7 +771,7 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 		}
 	}
 
-	retval = cx25821_sram_channel_setup_upstream(dev, sram_ch,
+	err = cx25821_sram_channel_setup_upstream(dev, sram_ch,
 						dev->_line_size_ch2, 0);
 
 	/* setup fifo + format */
@@ -787,9 +781,9 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 	dev->upstream_databuf_size_ch2 = data_frame_size * 2;
 
 	/* Allocating buffers and prepare RISC program */
-	retval = cx25821_upstream_buffer_prepare_ch2(dev, sram_ch,
+	err = cx25821_upstream_buffer_prepare_ch2(dev, sram_ch,
 						dev->_line_size_ch2);
-	if (retval < 0) {
+	if (err < 0) {
 		pr_err("%s: Failed to set up Video upstream buffers!\n",
 		       dev->name);
 		goto error;
