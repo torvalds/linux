@@ -399,9 +399,7 @@ static int xilinx_download(struct comedi_device *dev)
 	/* Wait until /INIT pin is set */
 	udelay(20);
 	if (!(inl(info->plx_regbase + PLX_INTCSR) & 0x20)) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: xilinx_download(): "
-		       "Can't init Xilinx\n", dev->minor);
+		dev_err(dev->class_dev, "Can't init Xilinx\n");
 		return -EIO;
 	}
 
@@ -410,8 +408,8 @@ static int xilinx_download(struct comedi_device *dev)
 	value &= ~0x100;
 	outl(value, info->plx_regbase + PLX_ICR);
 	if (FIRMWARE_NOT_AVAILABLE) {
-		comedi_error(dev, "xilinx firmware unavailable "
-			     "due to licensing, aborting");
+		dev_err(dev->class_dev,
+			"xilinx firmware unavailable due to licensing, aborting");
 		return -EIO;
 	} else {
 		/* Download Xilinx firmware */
@@ -425,10 +423,9 @@ static int xilinx_download(struct comedi_device *dev)
 
 			/* Check if BUSY flag is low */
 			if (inl(info->plx_regbase + PLX_ICR) & 0x20) {
-				printk(KERN_ERR
-				       "comedi%d: me4000: xilinx_download(): "
-				       "Xilinx is still busy (idx = %d)\n",
-				       dev->minor, idx);
+				dev_err(dev->class_dev,
+					"Xilinx is still busy (idx = %d)\n",
+					idx);
 				return -EIO;
 			}
 		}
@@ -437,12 +434,8 @@ static int xilinx_download(struct comedi_device *dev)
 	/* If done flag is high download was successful */
 	if (inl(info->plx_regbase + PLX_ICR) & 0x4) {
 	} else {
-		printk(KERN_ERR
-		       "comedi%d: me4000: xilinx_download(): "
-		       "DONE flag is not set\n", dev->minor);
-		printk(KERN_ERR
-		       "comedi%d: me4000: xilinx_download(): "
-		       "Download not successful\n", dev->minor);
+		dev_err(dev->class_dev, "DONE flag is not set\n");
+		dev_err(dev->class_dev, "Download not successful\n");
 		return -EIO;
 	}
 
@@ -515,9 +508,8 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	if (insn->n == 0) {
 		return 0;
 	} else if (insn->n > 1) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_insn_read(): "
-		       "Invalid instruction length %d\n", dev->minor, insn->n);
+		dev_err(dev->class_dev, "Invalid instruction length %d\n",
+			insn->n);
 		return -EINVAL;
 	}
 
@@ -535,9 +527,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 		entry |= ME4000_AI_LIST_RANGE_BIPOLAR_10;
 		break;
 	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_insn_read(): "
-		       "Invalid range specified\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid range specified\n");
 		return -EINVAL;
 	}
 
@@ -545,9 +535,8 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	case AREF_GROUND:
 	case AREF_COMMON:
 		if (chan >= thisboard->ai_nchan) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_insn_read(): "
-			       "Analog input is not available\n", dev->minor);
+			dev_err(dev->class_dev,
+				"Analog input is not available\n");
 			return -EINVAL;
 		}
 		entry |= ME4000_AI_LIST_INPUT_SINGLE_ENDED | chan;
@@ -555,25 +544,20 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 
 	case AREF_DIFF:
 		if (rang == 0 || rang == 1) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_insn_read(): "
-			       "Range must be bipolar when aref = diff\n",
-			       dev->minor);
+			dev_err(dev->class_dev,
+				"Range must be bipolar when aref = diff\n");
 			return -EINVAL;
 		}
 
 		if (chan >= thisboard->ai_diff_nchan) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_insn_read(): "
-			       "Analog input is not available\n", dev->minor);
+			dev_err(dev->class_dev,
+				"Analog input is not available\n");
 			return -EINVAL;
 		}
 		entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL | chan;
 		break;
 	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_insn_read(): "
-		       "Invalid aref specified\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid aref specified\n");
 		return -EINVAL;
 	}
 
@@ -609,9 +593,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	udelay(10);
 	if (!(inl(dev->iobase + ME4000_AI_STATUS_REG) &
 	     ME4000_AI_STATUS_BIT_EF_DATA)) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_insn_read(): "
-		       "Value not available after wait\n", dev->minor);
+		dev_err(dev->class_dev, "Value not available after wait\n");
 		return -EIO;
 	}
 
@@ -647,25 +629,19 @@ static int ai_check_chanlist(struct comedi_device *dev,
 
 	/* Check whether a channel list is available */
 	if (!cmd->chanlist_len) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: ai_check_chanlist(): "
-		       "No channel list available\n", dev->minor);
+		dev_err(dev->class_dev, "No channel list available\n");
 		return -EINVAL;
 	}
 
 	/* Check the channel list size */
 	if (cmd->chanlist_len > ME4000_AI_CHANNEL_LIST_COUNT) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: ai_check_chanlist(): "
-		       "Channel list is to large\n", dev->minor);
+		dev_err(dev->class_dev, "Channel list is to large\n");
 		return -EINVAL;
 	}
 
 	/* Check the pointer */
 	if (!cmd->chanlist) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: ai_check_chanlist(): "
-		       "NULL pointer to channel list\n", dev->minor);
+		dev_err(dev->class_dev, "NULL pointer to channel list\n");
 		return -EFAULT;
 	}
 
@@ -673,10 +649,8 @@ static int ai_check_chanlist(struct comedi_device *dev,
 	aref = CR_AREF(cmd->chanlist[0]);
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		if (CR_AREF(cmd->chanlist[i]) != aref) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: ai_check_chanlist(): "
-			       "Mode is not equal for all entries\n",
-			       dev->minor);
+			dev_err(dev->class_dev,
+				"Mode is not equal for all entries\n");
 			return -EINVAL;
 		}
 	}
@@ -686,18 +660,16 @@ static int ai_check_chanlist(struct comedi_device *dev,
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			if (CR_CHAN(cmd->chanlist[i]) >=
 			    thisboard->ai_diff_nchan) {
-				printk(KERN_ERR
-				       "comedi%d: me4000: ai_check_chanlist():"
-				       " Channel number to high\n", dev->minor);
+				dev_err(dev->class_dev,
+					"Channel number to high\n");
 				return -EINVAL;
 			}
 		}
 	} else {
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			if (CR_CHAN(cmd->chanlist[i]) >= thisboard->ai_nchan) {
-				printk(KERN_ERR
-				       "comedi%d: me4000: ai_check_chanlist(): "
-				       "Channel number to high\n", dev->minor);
+				dev_err(dev->class_dev,
+					"Channel number to high\n");
 				return -EINVAL;
 			}
 		}
@@ -708,11 +680,8 @@ static int ai_check_chanlist(struct comedi_device *dev,
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			if (CR_RANGE(cmd->chanlist[i]) != 1 &&
 			    CR_RANGE(cmd->chanlist[i]) != 2) {
-				printk(KERN_ERR
-				       "comedi%d: me4000: ai_check_chanlist(): "
-				       "Bipolar is not selected in "
-				       "differential mode\n",
-				       dev->minor);
+				dev_err(dev->class_dev,
+				       "Bipolar is not selected in differential mode\n");
 				return -EINVAL;
 			}
 		}
@@ -966,9 +935,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		err++;
 		break;
 	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Invalid start source\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid start source\n");
 		cmd->start_src = TRIG_NOW;
 		err++;
 	}
@@ -982,9 +949,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		err++;
 		break;
 	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Invalid scan begin source\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid scan begin source\n");
 		cmd->scan_begin_src = TRIG_FOLLOW;
 		err++;
 	}
@@ -997,9 +962,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		err++;
 		break;
 	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Invalid convert source\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid convert source\n");
 		cmd->convert_src = TRIG_TIMER;
 		err++;
 	}
@@ -1012,9 +975,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		err++;
 		break;
 	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Invalid scan end source\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid scan end source\n");
 		cmd->scan_end_src = TRIG_NONE;
 		err++;
 	}
@@ -1027,9 +988,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		err++;
 		break;
 	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Invalid stop source\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid stop source\n");
 		cmd->stop_src = TRIG_NONE;
 		err++;
 	}
@@ -1058,9 +1017,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_EXT) {
 	} else {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Invalid start trigger combination\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid start trigger combination\n");
 		cmd->start_src = TRIG_NOW;
 		cmd->scan_begin_src = TRIG_FOLLOW;
 		cmd->convert_src = TRIG_TIMER;
@@ -1075,9 +1032,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->stop_src == TRIG_COUNT &&
 		   cmd->scan_end_src == TRIG_COUNT) {
 	} else {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Invalid stop trigger combination\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid stop trigger combination\n");
 		cmd->stop_src = TRIG_NONE;
 		cmd->scan_end_src = TRIG_NONE;
 		err++;
@@ -1089,30 +1044,22 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	 * Stage 3. Check if arguments are generally valid.
 	 */
 	if (cmd->chanlist_len < 1) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "No channel list\n", dev->minor);
+		dev_err(dev->class_dev, "No channel list\n");
 		cmd->chanlist_len = 1;
 		err++;
 	}
 	if (init_ticks < 66) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Start arg to low\n", dev->minor);
+		dev_err(dev->class_dev, "Start arg to low\n");
 		cmd->start_arg = 2000;
 		err++;
 	}
 	if (scan_ticks && scan_ticks < 67) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Scan begin arg to low\n", dev->minor);
+		dev_err(dev->class_dev, "Scan begin arg to low\n");
 		cmd->scan_begin_arg = 2031;
 		err++;
 	}
 	if (chan_ticks < 66) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-		       "Convert arg to low\n", dev->minor);
+		dev_err(dev->class_dev, "Convert arg to low\n");
 		cmd->convert_arg = 2000;
 		err++;
 	}
@@ -1129,23 +1076,17 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid start arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid convert arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (scan_ticks <= cmd->chanlist_len * chan_ticks) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid scan end arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid scan end arg\n");
 
 			/*  At least one tick more */
 			cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31;
@@ -1157,16 +1098,12 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid start arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid convert arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
@@ -1176,23 +1113,17 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid start arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid convert arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (scan_ticks <= cmd->chanlist_len * chan_ticks) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid scan end arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid scan end arg\n");
 
 			/*  At least one tick more */
 			cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31;
@@ -1204,16 +1135,12 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid start arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid convert arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
@@ -1223,16 +1150,12 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid start arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 		if (chan_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid convert arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid convert arg\n");
 			cmd->convert_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
@@ -1242,27 +1165,21 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid start arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid start arg\n");
 			cmd->start_arg = 2000;	/*  66 ticks at least */
 			err++;
 		}
 	}
 	if (cmd->stop_src == TRIG_COUNT) {
 		if (cmd->stop_arg == 0) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid stop arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid stop arg\n");
 			cmd->stop_arg = 1;
 			err++;
 		}
 	}
 	if (cmd->scan_end_src == TRIG_COUNT) {
 		if (cmd->scan_end_arg == 0) {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_do_cmd_test(): "
-			       "Invalid scan end arg\n", dev->minor);
+			dev_err(dev->class_dev, "Invalid scan end arg\n");
 			cmd->scan_end_arg = 1;
 			err++;
 		}
@@ -1297,9 +1214,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 	/* Check if irq number is right */
 	if (irq != dev->irq) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ai_isr(): "
-		       "Incorrect interrupt num: %d\n", dev->minor, irq);
+		dev_err(dev->class_dev, "Incorrect interrupt num: %d\n", irq);
 		return IRQ_HANDLED;
 	}
 
@@ -1324,9 +1239,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_isr(): "
-			       "FIFO overflow\n", dev->minor);
+			dev_err(dev->class_dev, "FIFO overflow\n");
 		} else if ((tmp & ME4000_AI_STATUS_BIT_FF_DATA)
 			   && !(tmp & ME4000_AI_STATUS_BIT_HF_DATA)
 			   && (tmp & ME4000_AI_STATUS_BIT_EF_DATA)) {
@@ -1334,9 +1247,8 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 			c = ME4000_AI_FIFO_COUNT / 2;
 		} else {
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_isr(): "
-			       "Can't determine state of fifo\n", dev->minor);
+			dev_err(dev->class_dev,
+				"Can't determine state of fifo\n");
 			c = 0;
 
 			/*
@@ -1350,9 +1262,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 
-			printk(KERN_ERR
-			       "comedi%d: me4000: me4000_ai_isr(): "
-			       "Undefined FIFO state\n", dev->minor);
+			dev_err(dev->class_dev, "Undefined FIFO state\n");
 		}
 
 		for (i = 0; i < c; i++) {
@@ -1372,9 +1282,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 				s->async->events |= COMEDI_CB_OVERFLOW;
 
-				printk(KERN_ERR
-				       "comedi%d: me4000: me4000_ai_isr(): "
-				       "Buffer overflow\n", dev->minor);
+				dev_err(dev->class_dev, "Buffer overflow\n");
 
 				break;
 			}
@@ -1408,9 +1316,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval ^= 0x8000;
 
 			if (!comedi_buf_put(s->async, lval)) {
-				printk(KERN_ERR
-				       "comedi%d: me4000: me4000_ai_isr(): "
-				       "Buffer overflow\n", dev->minor);
+				dev_err(dev->class_dev, "Buffer overflow\n");
 				s->async->events |= COMEDI_CB_OVERFLOW;
 				break;
 			}
@@ -1447,30 +1353,23 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 	if (insn->n == 0) {
 		return 0;
 	} else if (insn->n > 1) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ao_insn_write(): "
-		       "Invalid instruction length %d\n", dev->minor, insn->n);
+		dev_err(dev->class_dev, "Invalid instruction length %d\n",
+			insn->n);
 		return -EINVAL;
 	}
 
 	if (chan >= thisboard->ao_nchan) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ao_insn_write(): "
-		       "Invalid channel %d\n", dev->minor, insn->n);
+		dev_err(dev->class_dev, "Invalid channel %d\n", insn->n);
 		return -EINVAL;
 	}
 
 	if (rang != 0) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ao_insn_write(): "
-		       "Invalid range %d\n", dev->minor, insn->n);
+		dev_err(dev->class_dev, "Invalid range %d\n", insn->n);
 		return -EINVAL;
 	}
 
 	if (aref != AREF_GROUND && aref != AREF_COMMON) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_ao_insn_write(): "
-		       "Invalid aref %d\n", dev->minor, insn->n);
+		dev_err(dev->class_dev, "Invalid aref %d\n", insn->n);
 		return -EINVAL;
 	}
 
@@ -1501,9 +1400,7 @@ static int me4000_ao_insn_read(struct comedi_device *dev,
 	if (insn->n == 0) {
 		return 0;
 	} else if (insn->n > 1) {
-		printk
-		    ("comedi%d: me4000: me4000_ao_insn_read(): "
-		     "Invalid instruction length\n", dev->minor);
+		dev_err(dev->class_dev, "Invalid instruction length\n");
 		return -EINVAL;
 	}
 
@@ -1699,10 +1596,8 @@ static int me4000_cnt_insn_read(struct comedi_device *dev,
 		return 0;
 
 	if (insn->n > 1) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_cnt_insn_read(): "
-		       "Invalid instruction length %d\n",
-		       dev->minor, insn->n);
+		dev_err(dev->class_dev, "Invalid instruction length %d\n",
+			insn->n);
 		return -EINVAL;
 	}
 
@@ -1720,10 +1615,8 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 	if (insn->n == 0) {
 		return 0;
 	} else if (insn->n > 1) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_cnt_insn_write(): "
-		       "Invalid instruction length %d\n",
-		       dev->minor, insn->n);
+		dev_err(dev->class_dev, "Invalid instruction length %d\n",
+			insn->n);
 		return -EINVAL;
 	}
 
