@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 331292 2012-05-04 09:04:23Z $
+ * $Id: wlioctl.h 353331 2012-08-27 06:04:47Z $
  */
 
 
@@ -83,44 +83,6 @@ typedef struct wl_af_params {
 #include <packed_section_start.h>
 
 
-
-
-
-#define LEGACY2_WL_BSS_INFO_VERSION 108     
-
-
-typedef struct wl_bss_info_108 {
-	uint32      version;        
-	uint32      length;         
-	struct ether_addr BSSID;
-	uint16      beacon_period;      
-	uint16      capability;     
-	uint8       SSID_len;
-	uint8       SSID[32];
-	struct {
-		uint    count;          
-		uint8   rates[16];      
-	} rateset;              
-	chanspec_t  chanspec;       
-	uint16      atim_window;        
-	uint8       dtim_period;        
-	int16       RSSI;           
-	int8        phy_noise;      
-
-	uint8       n_cap;          
-	uint32      nbss_cap;       
-	uint8       ctl_ch;         
-	uint32      reserved32[1];      
-	uint8       flags;          
-	uint8       reserved[3];        
-	uint8       basic_mcs[MCSSET_LEN];  
-
-	uint16      ie_offset;      
-	uint32      ie_length;      
-	
-	
-} wl_bss_info_108_t;
-
 #define WL_BSS_INFO_VERSION 109     
 
 
@@ -157,30 +119,19 @@ typedef struct wl_bss_info {
 	
 } wl_bss_info_t;
 
-typedef struct wl_bsscfg {
-	uint32  wsec;
-	uint32  WPA_auth;
-	uint32  wsec_index;
-	uint32  associated;
-	uint32  BSS;
-	uint32  phytest_on;
-	struct ether_addr   prev_BSSID;
-	struct ether_addr   BSSID;
-} wl_bsscfg_t;
 
-typedef struct wl_bss_config {
-	uint32  atim_window;
-	uint32  beacon_period;
-	uint32  chanspec;
-} wl_bss_config_t;
+#define WL_BSS_FLAGS_FROM_BEACON	0x01
+#define WL_BSS_FLAGS_FROM_CACHE		0x02
+#define WL_BSS_FLAGS_RSSI_ONCHANNEL	0x04
 
+
+#define VHT_BI_SGI_80MHZ			0x00000100
 
 typedef struct wlc_ssid {
 	uint32      SSID_len;
 	uchar       SSID[32];
 } wlc_ssid_t;
 
-#define WL_BSS_FLAGS_FROM_BEACON    0x01
 
 #define WL_BSSTYPE_INFRA 1
 #define WL_BSSTYPE_INDEP 0
