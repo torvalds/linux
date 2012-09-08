@@ -40,7 +40,8 @@ int inode_item_info(u64 inum, u64 ioff, struct btrfs_root *fs_root,
 			struct btrfs_path *path);
 
 int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
-			struct btrfs_path *path, struct btrfs_key *found_key);
+			struct btrfs_path *path, struct btrfs_key *found_key,
+			u64 *flags);
 
 int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 				struct btrfs_extent_item *ei, u32 item_size,

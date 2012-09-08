@@ -352,13 +352,14 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	struct extent_buffer *eb;
 	struct btrfs_extent_item *ei;
 	struct scrub_warning swarn;
-	u32 item_size;
-	int ret;
-	u64 ref_root;
-	u8 ref_level;
 	unsigned long ptr = 0;
-	const int bufsize = 4096;
 	u64 extent_item_pos;
+	u64 flags = 0;
+	u64 ref_root;
+	u32 item_size;
+	u8 ref_level;
+	const int bufsize = 4096;
+	int ret;
 
 	path = btrfs_alloc_path();
 
@@ -375,7 +376,8 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	if (!path || !swarn.scratch_buf || !swarn.msg_buf)
 		goto out;
 
-	ret = extent_from_logical(fs_info, swarn.logical, path, &found_key);
+	ret = extent_from_logical(fs_info, swarn.logical, path, &found_key,
+				  &flags);
 	if (ret < 0)
 		goto out;
 
@@ -387,7 +389,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	item_size = btrfs_item_size_nr(eb, path->slots[0]);
 	btrfs_release_path(path);
 
-	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
+	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
 		do {
 			ret = tree_backref_for_extent(&ptr, eb, ei, item_size,
 							&ref_root, &ref_level);

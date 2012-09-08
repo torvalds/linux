@@ -3211,6 +3211,7 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_root *root,
 	int ret = 0;
 	int size;
 	u64 extent_item_pos;
+	u64 flags = 0;
 	struct btrfs_ioctl_logical_ino_args *loi;
 	struct btrfs_data_container *inodes = NULL;
 	struct btrfs_path *path = NULL;
@@ -3240,10 +3241,11 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_root *root,
 		goto out;
 	}
 
-	ret = extent_from_logical(root->fs_info, loi->logical, path, &key);
+	ret = extent_from_logical(root->fs_info, loi->logical, path, &key,
+				  &flags);
 	btrfs_release_path(path);
 
-	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK)
+	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
 		ret = -ENOENT;
 	if (ret < 0)
 		goto out;

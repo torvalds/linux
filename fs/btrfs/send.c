@@ -1152,6 +1152,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	u64 disk_byte;
 	u64 num_bytes;
 	u64 extent_item_pos;
+	u64 flags = 0;
 	struct btrfs_file_extent_item *fi;
 	struct extent_buffer *eb = path->nodes[0];
 	struct backref_ctx *backref_ctx = NULL;
@@ -1198,13 +1199,13 @@ static int find_extent_clone(struct send_ctx *sctx,
 	}
 	logical = disk_byte + btrfs_file_extent_offset(eb, fi);
 
-	ret = extent_from_logical(sctx->send_root->fs_info,
-			disk_byte, tmp_path, &found_key);
+	ret = extent_from_logical(sctx->send_root->fs_info, disk_byte, tmp_path,
+				  &found_key, &flags);
 	btrfs_release_path(tmp_path);
 
 	if (ret < 0)
 		goto out;
-	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
+	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
 		ret = -EIO;
 		goto out;
 	}

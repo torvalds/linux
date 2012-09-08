@@ -1193,7 +1193,8 @@ char *btrfs_iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
  * tree blocks and <0 on error.
  */
 int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
-			struct btrfs_path *path, struct btrfs_key *found_key)
+			struct btrfs_path *path, struct btrfs_key *found_key,
+			u64 *flags_ret)
 {
 	int ret;
 	u64 flags;
@@ -1237,10 +1238,17 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 		 (unsigned long long)found_key->objectid,
 		 (unsigned long long)found_key->offset,
 		 (unsigned long long)flags, item_size);
-	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
-		return BTRFS_EXTENT_FLAG_TREE_BLOCK;
-	if (flags & BTRFS_EXTENT_FLAG_DATA)
-		return BTRFS_EXTENT_FLAG_DATA;
+
+	WARN_ON(!flags_ret);
+	if (flags_ret) {
+		if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
+			*flags_ret = BTRFS_EXTENT_FLAG_TREE_BLOCK;
+		else if (flags & BTRFS_EXTENT_FLAG_DATA)
+			*flags_ret = BTRFS_EXTENT_FLAG_DATA;
+		else
+			BUG_ON(1);
+		return 0;
+	}
 
 	return -EIO;
 }
@@ -1433,15 +1441,15 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 {
 	int ret;
 	u64 extent_item_pos;
+	u64 flags = 0;
 	struct btrfs_key found_key;
 	int search_commit_root = path->search_commit_root;
 
-	ret = extent_from_logical(fs_info, logical, path,
-					&found_key);
+	ret = extent_from_logical(fs_info, logical, path, &found_key, &flags);
 	btrfs_release_path(path);
 	if (ret < 0)
 		return ret;
-	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK)
+	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
 		return -EINVAL;
 
 	extent_item_pos = logical - found_key.objectid;
