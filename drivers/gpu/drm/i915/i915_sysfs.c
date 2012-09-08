@@ -338,10 +338,46 @@ static DEVICE_ATTR(gt_cur_freq_mhz, S_IRUGO, gt_cur_freq_mhz_show, NULL);
 static DEVICE_ATTR(gt_max_freq_mhz, S_IRUGO | S_IWUSR, gt_max_freq_mhz_show, gt_max_freq_mhz_store);
 static DEVICE_ATTR(gt_min_freq_mhz, S_IRUGO | S_IWUSR, gt_min_freq_mhz_show, gt_min_freq_mhz_store);
 
+
+static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf);
+static DEVICE_ATTR(gt_RP0_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
+static DEVICE_ATTR(gt_RP1_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
+static DEVICE_ATTR(gt_RPn_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
+
+/* For now we have a static number of RP states */
+static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, rp_state_cap;
+	ssize_t ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	mutex_unlock(&dev->struct_mutex);
+
+	if (attr == &dev_attr_gt_RP0_freq_mhz) {
+		val = ((rp_state_cap & 0x0000ff) >> 0) * GT_FREQUENCY_MULTIPLIER;
+	} else if (attr == &dev_attr_gt_RP1_freq_mhz) {
+		val = ((rp_state_cap & 0x00ff00) >> 8) * GT_FREQUENCY_MULTIPLIER;
+	} else if (attr == &dev_attr_gt_RPn_freq_mhz) {
+		val = ((rp_state_cap & 0xff0000) >> 16) * GT_FREQUENCY_MULTIPLIER;
+	} else {
+		BUG();
+	}
+	return snprintf(buf, PAGE_SIZE, "%d", val);
+}
+
 static const struct attribute *gen6_attrs[] = {
 	&dev_attr_gt_cur_freq_mhz.attr,
 	&dev_attr_gt_max_freq_mhz.attr,
 	&dev_attr_gt_min_freq_mhz.attr,
+	&dev_attr_gt_RP0_freq_mhz.attr,
+	&dev_attr_gt_RP1_freq_mhz.attr,
+	&dev_attr_gt_RPn_freq_mhz.attr,
 	NULL,
 };
 
