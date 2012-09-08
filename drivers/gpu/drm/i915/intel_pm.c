@@ -2324,6 +2324,8 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	u32 limits = gen6_rps_limits(dev_priv, &val);
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(val > dev_priv->rps.max_delay);
+	WARN_ON(val < dev_priv->rps.min_delay);
 
 	if (val == dev_priv->rps.cur_delay)
 		return;
