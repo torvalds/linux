@@ -217,7 +217,6 @@ static const struct me4000_board me4000_boards[] = {
   ---------------------------------------------------------------------------*/
 static int init_board_info(struct comedi_device *dev,
 			   struct pci_dev *pci_dev_p);
-static int init_ao_context(struct comedi_device *dev);
 static int xilinx_download(struct comedi_device *dev);
 static int reset_board(struct comedi_device *dev);
 
@@ -315,10 +314,6 @@ found:
 	if (result)
 		return result;
 
-	result = init_ao_context(dev);
-	if (result)
-		return result;
-
 	result = xilinx_download(dev);
 	if (result)
 		return result;
@@ -338,88 +333,6 @@ static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 
 	/* Get the irq assigned to the board */
 	info->irq = pci_dev_p->irq;
-
-	return 0;
-}
-
-static int init_ao_context(struct comedi_device *dev)
-{
-	const struct me4000_board *thisboard = comedi_board(dev);
-	int i;
-
-	for (i = 0; i < thisboard->ao_nchan; i++) {
-		/* spin_lock_init(&info->ao_context[i].use_lock); */
-		info->ao_context[i].irq = info->irq;
-
-		switch (i) {
-		case 0:
-			info->ao_context[i].ctrl_reg =
-			    dev->iobase + ME4000_AO_00_CTRL_REG;
-			info->ao_context[i].status_reg =
-			    dev->iobase + ME4000_AO_00_STATUS_REG;
-			info->ao_context[i].fifo_reg =
-			    dev->iobase + ME4000_AO_00_FIFO_REG;
-			info->ao_context[i].single_reg =
-			    dev->iobase + ME4000_AO_00_SINGLE_REG;
-			info->ao_context[i].timer_reg =
-			    dev->iobase + ME4000_AO_00_TIMER_REG;
-			info->ao_context[i].irq_status_reg =
-			    dev->iobase + ME4000_IRQ_STATUS_REG;
-			info->ao_context[i].preload_reg =
-			    dev->iobase + ME4000_AO_LOADSETREG_XX;
-			break;
-		case 1:
-			info->ao_context[i].ctrl_reg =
-			    dev->iobase + ME4000_AO_01_CTRL_REG;
-			info->ao_context[i].status_reg =
-			    dev->iobase + ME4000_AO_01_STATUS_REG;
-			info->ao_context[i].fifo_reg =
-			    dev->iobase + ME4000_AO_01_FIFO_REG;
-			info->ao_context[i].single_reg =
-			    dev->iobase + ME4000_AO_01_SINGLE_REG;
-			info->ao_context[i].timer_reg =
-			    dev->iobase + ME4000_AO_01_TIMER_REG;
-			info->ao_context[i].irq_status_reg =
-			    dev->iobase + ME4000_IRQ_STATUS_REG;
-			info->ao_context[i].preload_reg =
-			    dev->iobase + ME4000_AO_LOADSETREG_XX;
-			break;
-		case 2:
-			info->ao_context[i].ctrl_reg =
-			    dev->iobase + ME4000_AO_02_CTRL_REG;
-			info->ao_context[i].status_reg =
-			    dev->iobase + ME4000_AO_02_STATUS_REG;
-			info->ao_context[i].fifo_reg =
-			    dev->iobase + ME4000_AO_02_FIFO_REG;
-			info->ao_context[i].single_reg =
-			    dev->iobase + ME4000_AO_02_SINGLE_REG;
-			info->ao_context[i].timer_reg =
-			    dev->iobase + ME4000_AO_02_TIMER_REG;
-			info->ao_context[i].irq_status_reg =
-			    dev->iobase + ME4000_IRQ_STATUS_REG;
-			info->ao_context[i].preload_reg =
-			    dev->iobase + ME4000_AO_LOADSETREG_XX;
-			break;
-		case 3:
-			info->ao_context[i].ctrl_reg =
-			    dev->iobase + ME4000_AO_03_CTRL_REG;
-			info->ao_context[i].status_reg =
-			    dev->iobase + ME4000_AO_03_STATUS_REG;
-			info->ao_context[i].fifo_reg =
-			    dev->iobase + ME4000_AO_03_FIFO_REG;
-			info->ao_context[i].single_reg =
-			    dev->iobase + ME4000_AO_03_SINGLE_REG;
-			info->ao_context[i].timer_reg =
-			    dev->iobase + ME4000_AO_03_TIMER_REG;
-			info->ao_context[i].irq_status_reg =
-			    dev->iobase + ME4000_IRQ_STATUS_REG;
-			info->ao_context[i].preload_reg =
-			    dev->iobase + ME4000_AO_LOADSETREG_XX;
-			break;
-		default:
-			break;
-		}
-	}
 
 	return 0;
 }
@@ -512,34 +425,28 @@ static int xilinx_download(struct comedi_device *dev)
 
 static int reset_board(struct comedi_device *dev)
 {
-	unsigned long icr;
+	unsigned long val;
+	int chan;
 
 	/* Make a hardware reset */
-	icr = inl(info->plx_regbase + PLX_ICR);
-	icr |= 0x40000000;
-	outl(icr, info->plx_regbase + PLX_ICR);
-	icr &= ~0x40000000;
-	outl(icr, info->plx_regbase + PLX_ICR);
+	val = inl(info->plx_regbase + PLX_ICR);
+	val |= 0x40000000;
+	outl(val, info->plx_regbase + PLX_ICR);
+	val &= ~0x40000000;
+	outl(val , info->plx_regbase + PLX_ICR);
 
 	/* 0x8000 to the DACs means an output voltage of 0V */
-	outl(0x8000, dev->iobase + ME4000_AO_00_SINGLE_REG);
-	outl(0x8000, dev->iobase + ME4000_AO_01_SINGLE_REG);
-	outl(0x8000, dev->iobase + ME4000_AO_02_SINGLE_REG);
-	outl(0x8000, dev->iobase + ME4000_AO_03_SINGLE_REG);
+	for (chan = 0; chan < 4; chan++)
+		outl(0x8000, dev->iobase + ME4000_AO_SINGLE_REG(chan));
 
 	/* Set both stop bits in the analog input control register */
 	outl(ME4000_AI_CTRL_BIT_IMMEDIATE_STOP | ME4000_AI_CTRL_BIT_STOP,
 		dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Set both stop bits in the analog output control register */
-	outl(ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP,
-		dev->iobase + ME4000_AO_00_CTRL_REG);
-	outl(ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP,
-		dev->iobase + ME4000_AO_01_CTRL_REG);
-	outl(ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP,
-		dev->iobase + ME4000_AO_02_CTRL_REG);
-	outl(ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP,
-		dev->iobase + ME4000_AO_03_CTRL_REG);
+	val = ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP;
+	for (chan = 0; chan < 4; chan++)
+		outl(val, dev->iobase + ME4000_AO_CTRL_REG(chan));
 
 	/* Enable interrupts on the PLX */
 	outl(0x43, info->plx_regbase + PLX_INTCSR);
@@ -1537,18 +1444,18 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 	}
 
 	/* Stop any running conversion */
-	tmp = inl(info->ao_context[chan].ctrl_reg);
+	tmp = inl(dev->iobase + ME4000_AO_CTRL_REG(chan));
 	tmp |= ME4000_AO_CTRL_BIT_IMMEDIATE_STOP;
-	outl(tmp, info->ao_context[chan].ctrl_reg);
+	outl(tmp, dev->iobase + ME4000_AO_CTRL_REG(chan));
 
 	/* Clear control register and set to single mode */
-	outl(0x0, info->ao_context[chan].ctrl_reg);
+	outl(0x0, dev->iobase + ME4000_AO_CTRL_REG(chan));
 
 	/* Write data value */
-	outl(data[0], info->ao_context[chan].single_reg);
+	outl(data[0], dev->iobase + ME4000_AO_SINGLE_REG(chan));
 
 	/* Store in the mirror */
-	info->ao_context[chan].mirror = data[0];
+	info->ao_readback[chan] = data[0];
 
 	return 1;
 }
@@ -1568,7 +1475,7 @@ static int me4000_ao_insn_read(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	data[0] = info->ao_context[chan].mirror;
+	data[0] = info->ao_readback[chan];
 
 	return 1;
 }

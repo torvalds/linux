@@ -28,29 +28,13 @@
   ME-4000 base register offsets
   ===========================================================================*/
 
-#define ME4000_AO_00_CTRL_REG			0x00	/*  R/W */
-#define ME4000_AO_00_STATUS_REG			0x04	/*  R/_ */
-#define ME4000_AO_00_FIFO_REG			0x08	/*  _/W */
-#define ME4000_AO_00_SINGLE_REG			0x0C	/*  R/W */
-#define ME4000_AO_00_TIMER_REG			0x10	/*  _/W */
+#define ME4000_AO_CHAN(x)			((x) * 0x18)
 
-#define ME4000_AO_01_CTRL_REG			0x18	/*  R/W */
-#define ME4000_AO_01_STATUS_REG			0x1C	/*  R/_ */
-#define ME4000_AO_01_FIFO_REG			0x20	/*  _/W */
-#define ME4000_AO_01_SINGLE_REG			0x24	/*  R/W */
-#define ME4000_AO_01_TIMER_REG			0x28	/*  _/W */
-
-#define ME4000_AO_02_CTRL_REG			0x30	/*  R/W */
-#define ME4000_AO_02_STATUS_REG			0x34	/*  R/_ */
-#define ME4000_AO_02_FIFO_REG			0x38	/*  _/W */
-#define ME4000_AO_02_SINGLE_REG			0x3C	/*  R/W */
-#define ME4000_AO_02_TIMER_REG			0x40	/*  _/W */
-
-#define ME4000_AO_03_CTRL_REG			0x48	/*  R/W */
-#define ME4000_AO_03_STATUS_REG			0x4C	/*  R/_ */
-#define ME4000_AO_03_FIFO_REG			0x50	/*  _/W */
-#define ME4000_AO_03_SINGLE_REG			0x54	/*  R/W */
-#define ME4000_AO_03_TIMER_REG			0x58	/*  _/W */
+#define ME4000_AO_CTRL_REG(x)			(0x00 + ME4000_AO_CHAN(x))
+#define ME4000_AO_STATUS_REG(x)			(0x04 + ME4000_AO_CHAN(x))
+#define ME4000_AO_FIFO_REG(x)			(0x08 + ME4000_AO_CHAN(x))
+#define ME4000_AO_SINGLE_REG(x)			(0x0c + ME4000_AO_CHAN(x))
+#define ME4000_AO_TIMER_REG(x)			(0x10 + ME4000_AO_CHAN(x))
 
 #define ME4000_AI_CTRL_REG			0x74	/*  _/W */
 #define ME4000_AI_STATUS_REG			0x74	/*  R/_ */
@@ -233,20 +217,6 @@
   Global board and subdevice information structures
   ===========================================================================*/
 
-struct me4000_ao_context {
-	int irq;
-
-	unsigned long mirror;	/*  Store the last written value */
-
-	unsigned long ctrl_reg;
-	unsigned long status_reg;
-	unsigned long fifo_reg;
-	unsigned long single_reg;
-	unsigned long timer_reg;
-	unsigned long irq_status_reg;
-	unsigned long preload_reg;
-};
-
 struct me4000_info {
 	unsigned long plx_regbase;	/*  PLX configuration space base address */
 	unsigned long timer_regbase;	/*  Base address of the timer circuit */
@@ -256,7 +226,7 @@ struct me4000_info {
 
 	unsigned int irq;	/*  IRQ assigned from the PCI BIOS */
 
-	struct me4000_ao_context ao_context[4];	/*  Vector with analog output specific context */
+	unsigned int ao_readback[4];
 };
 
 #define info	((struct me4000_info *)dev->private)
