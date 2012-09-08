@@ -71,15 +71,6 @@
 #define ME4000_AO_DEMUX_ADJUST_VALUE            0x4C
 
 /*=============================================================================
-  Counter base register offsets
-  ===========================================================================*/
-
-#define ME4000_CNT_COUNTER_0_REG		0x00
-#define ME4000_CNT_COUNTER_1_REG		0x01
-#define ME4000_CNT_COUNTER_2_REG		0x02
-#define ME4000_CNT_CTRL_REG			0x03
-
-/*=============================================================================
   PLX base register offsets
   ===========================================================================*/
 
@@ -247,20 +238,5 @@ struct me4000_info {
 #define ME4000_AI_LIST_RANGE_UNIPOLAR_2_5	0x0C0
 
 #define ME4000_AI_LIST_LAST_ENTRY		0x100
-
-/*-----------------------------------------------------------------------------
-  Defines for counters
- ----------------------------------------------------------------------------*/
-
-#define ME4000_CNT_COUNTER_0  0x00
-#define ME4000_CNT_COUNTER_1  0x40
-#define ME4000_CNT_COUNTER_2  0x80
-
-#define ME4000_CNT_MODE_0     0x00	/*  Change state if zero crossing */
-#define ME4000_CNT_MODE_1     0x02	/*  Retriggerable One-Shot */
-#define ME4000_CNT_MODE_2     0x04	/*  Asymmetrical divider */
-#define ME4000_CNT_MODE_3     0x06	/*  Symmetrical divider */
-#define ME4000_CNT_MODE_4     0x08	/*  Counter start by software trigger */
-#define ME4000_CNT_MODE_5     0x0A	/*  Counter start by hardware trigger */
 
 #endif
