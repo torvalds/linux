@@ -223,11 +223,16 @@ extern unsigned char *xilinx_firm;
 
 static int xilinx_download(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct me4000_info *info = dev->private;
+	unsigned long xilinx_iobase = pci_resource_start(pcidev, 5);
 	u32 value = 0;
 	wait_queue_head_t queue;
 	int idx = 0;
 	int size = 0;
+
+	if (!xilinx_iobase)
+		return -ENODEV;
 
 	init_waitqueue_head(&queue);
 
@@ -243,7 +248,7 @@ static int xilinx_download(struct comedi_device *dev)
 	outl(value, info->plx_regbase + PLX_ICR);
 
 	/* Init Xilinx with CS1 */
-	inb(info->program_regbase + 0xC8);
+	inb(xilinx_iobase + 0xC8);
 
 	/* Wait until /INIT pin is set */
 	udelay(20);
@@ -269,7 +274,7 @@ static int xilinx_download(struct comedi_device *dev)
 		udelay(10);
 
 		for (idx = 0; idx < size; idx++) {
-			outb(xilinx_firm[16 + idx], info->program_regbase);
+			outb(xilinx_firm[16 + idx], xilinx_iobase);
 			udelay(10);
 
 			/* Check if BUSY flag is low */
@@ -1780,10 +1785,6 @@ static int me4000_attach_pci(struct comedi_device *dev,
 
 	info->timer_regbase = pci_resource_start(pcidev, 3);
 	if (!info->timer_regbase)
-		return -ENODEV;
-
-	info->program_regbase = pci_resource_start(pcidev, 5);
-	if (!info->program_regbase)
 		return -ENODEV;
 
 	dev->irq = pcidev->irq;
