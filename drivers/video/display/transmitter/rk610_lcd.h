@@ -163,6 +163,51 @@ Y   TX11    G7              G1              GND             GND
 //SCL_CON25
 #define SCL_V_BORD_END_MSB(x)        (((x)>>8)&0xf)      //dsp_vbord_end[11:8]
 
+/* Scaler PLL CONFIG */
+#define S_PLL_NO_1	0
+#define S_PLL_NO_2	1
+#define S_PLL_NO_4	2
+#define S_PLL_NO_8	3
+#define S_PLL_M(x)  (((x)&0xff)<<8)
+#define S_PLL_N(x)  (((x)&0xf)<<4)
+#define S_PLL_NO(x) ((S_PLL_NO_##x)&0x3)
+
+enum{
+    HDMI_RATE_148500000,
+    HDMI_RATE_74250000,
+    HDMI_RATE_27000000,
+};
+/*     Scaler   clk setting */
+#define SCALE_PLL(_parent_rate,_rate,_m,_n,_no) \
+        HDMI_RATE_ ## _parent_rate ##_S_RATE_ ## _rate \
+        =  S_PLL_M(_m) | S_PLL_N(_n) | S_PLL_NO(_no)    
+#define SCALE_RATE(_parent_rate , _rate) \
+        (HDMI_RATE_ ## _parent_rate ## _S_RATE_ ## _rate)
+        
+enum{
+    SCALE_PLL(148500000,    66000000,   16, 9,  4),
+    SCALE_PLL(148500000,    57375000,   17, 11, 4),
+    SCALE_PLL(148500000,    54000000,   16, 11, 4),    
+    SCALE_PLL(148500000,    33000000,   16, 9,  8),
+    SCALE_PLL(148500000,    30375000,   18, 11, 8),
+    SCALE_PLL(148500000,    29700000,   16, 10, 8),
+    SCALE_PLL(148500000,    25312500,   15, 11, 8),
+
+    SCALE_PLL(74250000,     66000000,   32, 9,  4),
+    SCALE_PLL(74250000,     57375000,   34, 11, 4),
+    SCALE_PLL(74250000,     54000000,   32, 11, 4),
+    SCALE_PLL(74250000,     33000000,   32, 9,  8),
+    SCALE_PLL(74250000,     30375000,   36, 11, 8),
+    SCALE_PLL(74250000,     25312500,   30, 11, 8),
+
+    SCALE_PLL(27000000,     75000000,   100, 9,  4),
+    SCALE_PLL(27000000,     72000000,   32, 3,  4),
+    SCALE_PLL(27000000,     63281250,   75, 4,  8),
+    SCALE_PLL(27000000,     54375000,   145, 9,  8),
+    SCALE_PLL(27000000,     31500000,   28, 3,  8),
+    SCALE_PLL(27000000,     30000000,   80, 9,  8),
+};
+
 enum {
     LCD_OUT_SCL,
     LCD_OUT_BYPASS,
