@@ -1778,7 +1778,6 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 					}
 					dev->board_ptr = me4000_boards + i;
 					board = comedi_board(dev);
-					info->pci_dev_p = pci_device;
 					goto found;
 				}
 			}
@@ -1787,6 +1786,7 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 	return -ENODEV;
 
 found:
+	comedi_set_hw_dev(dev, &pci_device->dev);
 	dev->board_name = board->name;
 
 	result = comedi_pci_enable(pci_device, dev->board_name);
@@ -1944,15 +1944,14 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void me4000_detach(struct comedi_device *dev)
 {
-	struct me4000_info *info = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (info) {
-		if (info->pci_dev_p) {
+	if (pcidev) {
+		if (dev->iobase) {
 			reset_board(dev);
-			if (info->plx_regbase)
-				comedi_pci_disable(info->pci_dev_p);
-			pci_dev_put(info->pci_dev_p);
+			comedi_pci_disable(pcidev);
 		}
+		pci_dev_put(pcidev);
 	}
 }
 

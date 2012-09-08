@@ -222,8 +222,6 @@ struct me4000_info {
 	unsigned long timer_regbase;	/*  Base address of the timer circuit */
 	unsigned long program_regbase;	/*  Base address to set the program pin for the xilinx */
 
-	struct pci_dev *pci_dev_p;	/*  General PCI information */
-
 	unsigned int ao_readback[4];
 };
 
