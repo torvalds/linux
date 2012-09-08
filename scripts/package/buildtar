@@ -28,15 +28,15 @@ case "${1}" in
 		file_ext=""
 		;;
 	targz-pkg)
-		compress="gzip -c9"
+		compress="gzip"
 		file_ext=".gz"
 		;;
 	tarbz2-pkg)
-		compress="bzip2 -c9"
+		compress="bzip2"
 		file_ext=".bz2"
 		;;
 	tarxz-pkg)
-		compress="xz -c9"
+		compress="xz"
 		file_ext=".xz"
 		;;
 	*)
