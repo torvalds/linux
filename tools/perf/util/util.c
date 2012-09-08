@@ -1,7 +1,9 @@
 #include "../perf.h"
 #include "util.h"
 #include <sys/mman.h>
+#ifndef NO_BACKTRACE
 #include <execinfo.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -163,6 +165,7 @@ size_t hex_width(u64 v)
 }
 
 /* Obtain a backtrace and print it to stdout. */
+#ifndef NO_BACKTRACE
 void dump_stack(void)
 {
 	void *array[16];
@@ -177,3 +180,6 @@ void dump_stack(void)
 
 	free(strings);
 }
+#else
+void dump_stack(void) {}
+#endif

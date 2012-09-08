@@ -179,3 +179,17 @@ int main(void)
 }
 endef
 endif
+
+ifndef NO_BACKTRACE
+define SOURCE_BACKTRACE
+#include <execinfo.h>
+#include <stdio.h>
+
+int main(void)
+{
+	backtrace(NULL, 0);
+	backtrace_symbols(NULL, 0);
+	return 0;
+}
+endef
+endif
