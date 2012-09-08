@@ -334,6 +334,7 @@ struct cnic_local {
 	void			(*enable_int)(struct cnic_dev *);
 	void			(*disable_int_sync)(struct cnic_dev *);
 	void			(*ack_int)(struct cnic_dev *);
+	void			(*arm_int)(struct cnic_dev *, u32 index);
 	void			(*close_conn)(struct cnic_sock *, u32 opcode);
 };
 

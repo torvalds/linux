@@ -3078,6 +3078,22 @@ static void cnic_ack_bnx2x_e2_msix(struct cnic_dev *dev)
 			IGU_INT_DISABLE, 0);
 }
 
+static void cnic_arm_bnx2x_msix(struct cnic_dev *dev, u32 idx)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+
+	cnic_ack_bnx2x_int(dev, cp->bnx2x_igu_sb_id, CSTORM_ID, idx,
+			   IGU_INT_ENABLE, 1);
+}
+
+static void cnic_arm_bnx2x_e2_msix(struct cnic_dev *dev, u32 idx)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+
+	cnic_ack_igu_sb(dev, cp->bnx2x_igu_sb_id, IGU_SEG_ACCESS_DEF, idx,
+			IGU_INT_ENABLE, 1);
+}
+
 static u32 cnic_service_bnx2x_kcq(struct cnic_dev *dev, struct kcq_info *info)
 {
 	u32 last_status = *info->status_idx_ptr;
@@ -3115,8 +3131,7 @@ static void cnic_service_bnx2x_bh(unsigned long data)
 			  cp->kcq1.sw_prod_idx + MAX_KCQ_IDX);
 
 		if (!BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
-			cnic_ack_bnx2x_int(dev, cp->bnx2x_igu_sb_id, USTORM_ID,
-					   status_idx, IGU_INT_ENABLE, 1);
+			cp->arm_int(dev, status_idx);
 			break;
 		}
 
@@ -5520,10 +5535,13 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 	cp->stop_cm = cnic_cm_stop_bnx2x_hw;
 	cp->enable_int = cnic_enable_bnx2x_int;
 	cp->disable_int_sync = cnic_disable_bnx2x_int_sync;
-	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id))
+	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
 		cp->ack_int = cnic_ack_bnx2x_e2_msix;
-	else
+		cp->arm_int = cnic_arm_bnx2x_e2_msix;
+	} else {
 		cp->ack_int = cnic_ack_bnx2x_msix;
+		cp->arm_int = cnic_arm_bnx2x_msix;
+	}
 	cp->close_conn = cnic_close_bnx2x_conn;
 	return cdev;
 }
