@@ -338,11 +338,6 @@ static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 	/* spin_lock_init(&info->preload_lock); */
 	/* spin_lock_init(&info->ai_ctrl_lock); */
 
-	/* Get the serial number */
-	result = pci_read_config_dword(pci_dev_p, 0x2C, &info->serial_no);
-	if (result != PCIBIOS_SUCCESSFUL)
-		return result;
-
 	/* Get the hardware revision */
 	result = pci_read_config_byte(pci_dev_p, 0x08, &info->hw_revision);
 	if (result != PCIBIOS_SUCCESSFUL)
