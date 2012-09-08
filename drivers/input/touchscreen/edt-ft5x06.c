@@ -602,6 +602,7 @@ edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 {
 	if (tsdata->debug_dir)
 		debugfs_remove_recursive(tsdata->debug_dir);
+	kfree(tsdata->raw_buffer);
 }
 
 #else
@@ -843,7 +844,6 @@ static int __devexit edt_ft5x06_ts_remove(struct i2c_client *client)
 	if (gpio_is_valid(pdata->reset_pin))
 		gpio_free(pdata->reset_pin);
 
-	kfree(tsdata->raw_buffer);
 	kfree(tsdata);
 
 	return 0;
