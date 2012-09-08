@@ -383,45 +383,21 @@ found:
 
 static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 {
-    /*--------------------------- plx regbase -------------------------------*/
-
 	info->plx_regbase = pci_resource_start(pci_dev_p, 1);
-	if (info->plx_regbase == 0) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: get_registers(): "
-		       "PCI base address 1 is not available\n", dev->minor);
+	if (!info->plx_regbase)
 		return -ENODEV;
-	}
-
-    /*--------------------------- me4000 regbase ----------------------------*/
 
 	info->me4000_regbase = pci_resource_start(pci_dev_p, 2);
-	if (info->me4000_regbase == 0) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: get_registers(): "
-		       "PCI base address 2 is not available\n", dev->minor);
+	if (!info->me4000_regbase)
 		return -ENODEV;
-	}
-
-    /*--------------------------- timer regbase ------------------------------*/
 
 	info->timer_regbase = pci_resource_start(pci_dev_p, 3);
-	if (info->timer_regbase == 0) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: get_registers(): "
-		       "PCI base address 3 is not available\n", dev->minor);
+	if (!info->timer_regbase)
 		return -ENODEV;
-	}
-
-    /*--------------------------- program regbase ----------------------------*/
 
 	info->program_regbase = pci_resource_start(pci_dev_p, 5);
-	if (info->program_regbase == 0) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: get_registers(): "
-		       "PCI base address 5 is not available\n", dev->minor);
+	if (!info->program_regbase)
 		return -ENODEV;
-	}
 
 	return 0;
 }
