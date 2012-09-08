@@ -301,8 +301,8 @@ found:
 	if (!info->plx_regbase)
 		return -ENODEV;
 
-	info->me4000_regbase = pci_resource_start(pci_device, 2);
-	if (!info->me4000_regbase)
+	dev->iobase = pci_resource_start(pci_device, 2);
+	if (!dev->iobase)
 		return -ENODEV;
 
 	info->timer_regbase = pci_resource_start(pci_device, 3);
@@ -382,67 +382,67 @@ static int init_ao_context(struct comedi_device *dev)
 		switch (i) {
 		case 0:
 			info->ao_context[i].ctrl_reg =
-			    info->me4000_regbase + ME4000_AO_00_CTRL_REG;
+			    dev->iobase + ME4000_AO_00_CTRL_REG;
 			info->ao_context[i].status_reg =
-			    info->me4000_regbase + ME4000_AO_00_STATUS_REG;
+			    dev->iobase + ME4000_AO_00_STATUS_REG;
 			info->ao_context[i].fifo_reg =
-			    info->me4000_regbase + ME4000_AO_00_FIFO_REG;
+			    dev->iobase + ME4000_AO_00_FIFO_REG;
 			info->ao_context[i].single_reg =
-			    info->me4000_regbase + ME4000_AO_00_SINGLE_REG;
+			    dev->iobase + ME4000_AO_00_SINGLE_REG;
 			info->ao_context[i].timer_reg =
-			    info->me4000_regbase + ME4000_AO_00_TIMER_REG;
+			    dev->iobase + ME4000_AO_00_TIMER_REG;
 			info->ao_context[i].irq_status_reg =
-			    info->me4000_regbase + ME4000_IRQ_STATUS_REG;
+			    dev->iobase + ME4000_IRQ_STATUS_REG;
 			info->ao_context[i].preload_reg =
-			    info->me4000_regbase + ME4000_AO_LOADSETREG_XX;
+			    dev->iobase + ME4000_AO_LOADSETREG_XX;
 			break;
 		case 1:
 			info->ao_context[i].ctrl_reg =
-			    info->me4000_regbase + ME4000_AO_01_CTRL_REG;
+			    dev->iobase + ME4000_AO_01_CTRL_REG;
 			info->ao_context[i].status_reg =
-			    info->me4000_regbase + ME4000_AO_01_STATUS_REG;
+			    dev->iobase + ME4000_AO_01_STATUS_REG;
 			info->ao_context[i].fifo_reg =
-			    info->me4000_regbase + ME4000_AO_01_FIFO_REG;
+			    dev->iobase + ME4000_AO_01_FIFO_REG;
 			info->ao_context[i].single_reg =
-			    info->me4000_regbase + ME4000_AO_01_SINGLE_REG;
+			    dev->iobase + ME4000_AO_01_SINGLE_REG;
 			info->ao_context[i].timer_reg =
-			    info->me4000_regbase + ME4000_AO_01_TIMER_REG;
+			    dev->iobase + ME4000_AO_01_TIMER_REG;
 			info->ao_context[i].irq_status_reg =
-			    info->me4000_regbase + ME4000_IRQ_STATUS_REG;
+			    dev->iobase + ME4000_IRQ_STATUS_REG;
 			info->ao_context[i].preload_reg =
-			    info->me4000_regbase + ME4000_AO_LOADSETREG_XX;
+			    dev->iobase + ME4000_AO_LOADSETREG_XX;
 			break;
 		case 2:
 			info->ao_context[i].ctrl_reg =
-			    info->me4000_regbase + ME4000_AO_02_CTRL_REG;
+			    dev->iobase + ME4000_AO_02_CTRL_REG;
 			info->ao_context[i].status_reg =
-			    info->me4000_regbase + ME4000_AO_02_STATUS_REG;
+			    dev->iobase + ME4000_AO_02_STATUS_REG;
 			info->ao_context[i].fifo_reg =
-			    info->me4000_regbase + ME4000_AO_02_FIFO_REG;
+			    dev->iobase + ME4000_AO_02_FIFO_REG;
 			info->ao_context[i].single_reg =
-			    info->me4000_regbase + ME4000_AO_02_SINGLE_REG;
+			    dev->iobase + ME4000_AO_02_SINGLE_REG;
 			info->ao_context[i].timer_reg =
-			    info->me4000_regbase + ME4000_AO_02_TIMER_REG;
+			    dev->iobase + ME4000_AO_02_TIMER_REG;
 			info->ao_context[i].irq_status_reg =
-			    info->me4000_regbase + ME4000_IRQ_STATUS_REG;
+			    dev->iobase + ME4000_IRQ_STATUS_REG;
 			info->ao_context[i].preload_reg =
-			    info->me4000_regbase + ME4000_AO_LOADSETREG_XX;
+			    dev->iobase + ME4000_AO_LOADSETREG_XX;
 			break;
 		case 3:
 			info->ao_context[i].ctrl_reg =
-			    info->me4000_regbase + ME4000_AO_03_CTRL_REG;
+			    dev->iobase + ME4000_AO_03_CTRL_REG;
 			info->ao_context[i].status_reg =
-			    info->me4000_regbase + ME4000_AO_03_STATUS_REG;
+			    dev->iobase + ME4000_AO_03_STATUS_REG;
 			info->ao_context[i].fifo_reg =
-			    info->me4000_regbase + ME4000_AO_03_FIFO_REG;
+			    dev->iobase + ME4000_AO_03_FIFO_REG;
 			info->ao_context[i].single_reg =
-			    info->me4000_regbase + ME4000_AO_03_SINGLE_REG;
+			    dev->iobase + ME4000_AO_03_SINGLE_REG;
 			info->ao_context[i].timer_reg =
-			    info->me4000_regbase + ME4000_AO_03_TIMER_REG;
+			    dev->iobase + ME4000_AO_03_TIMER_REG;
 			info->ao_context[i].irq_status_reg =
-			    info->me4000_regbase + ME4000_IRQ_STATUS_REG;
+			    dev->iobase + ME4000_IRQ_STATUS_REG;
 			info->ao_context[i].preload_reg =
-			    info->me4000_regbase + ME4000_AO_LOADSETREG_XX;
+			    dev->iobase + ME4000_AO_LOADSETREG_XX;
 			break;
 		default:
 			break;
@@ -456,45 +456,45 @@ static int init_ai_context(struct comedi_device *dev)
 {
 	info->ai_context.irq = info->irq;
 
-	info->ai_context.ctrl_reg = info->me4000_regbase + ME4000_AI_CTRL_REG;
+	info->ai_context.ctrl_reg = dev->iobase + ME4000_AI_CTRL_REG;
 	info->ai_context.status_reg =
-	    info->me4000_regbase + ME4000_AI_STATUS_REG;
+	    dev->iobase + ME4000_AI_STATUS_REG;
 	info->ai_context.channel_list_reg =
-	    info->me4000_regbase + ME4000_AI_CHANNEL_LIST_REG;
-	info->ai_context.data_reg = info->me4000_regbase + ME4000_AI_DATA_REG;
+	    dev->iobase + ME4000_AI_CHANNEL_LIST_REG;
+	info->ai_context.data_reg = dev->iobase + ME4000_AI_DATA_REG;
 	info->ai_context.chan_timer_reg =
-	    info->me4000_regbase + ME4000_AI_CHAN_TIMER_REG;
+	    dev->iobase + ME4000_AI_CHAN_TIMER_REG;
 	info->ai_context.chan_pre_timer_reg =
-	    info->me4000_regbase + ME4000_AI_CHAN_PRE_TIMER_REG;
+	    dev->iobase + ME4000_AI_CHAN_PRE_TIMER_REG;
 	info->ai_context.scan_timer_low_reg =
-	    info->me4000_regbase + ME4000_AI_SCAN_TIMER_LOW_REG;
+	    dev->iobase + ME4000_AI_SCAN_TIMER_LOW_REG;
 	info->ai_context.scan_timer_high_reg =
-	    info->me4000_regbase + ME4000_AI_SCAN_TIMER_HIGH_REG;
+	    dev->iobase + ME4000_AI_SCAN_TIMER_HIGH_REG;
 	info->ai_context.scan_pre_timer_low_reg =
-	    info->me4000_regbase + ME4000_AI_SCAN_PRE_TIMER_LOW_REG;
+	    dev->iobase + ME4000_AI_SCAN_PRE_TIMER_LOW_REG;
 	info->ai_context.scan_pre_timer_high_reg =
-	    info->me4000_regbase + ME4000_AI_SCAN_PRE_TIMER_HIGH_REG;
-	info->ai_context.start_reg = info->me4000_regbase + ME4000_AI_START_REG;
+	    dev->iobase + ME4000_AI_SCAN_PRE_TIMER_HIGH_REG;
+	info->ai_context.start_reg = dev->iobase + ME4000_AI_START_REG;
 	info->ai_context.irq_status_reg =
-	    info->me4000_regbase + ME4000_IRQ_STATUS_REG;
+	    dev->iobase + ME4000_IRQ_STATUS_REG;
 	info->ai_context.sample_counter_reg =
-	    info->me4000_regbase + ME4000_AI_SAMPLE_COUNTER_REG;
+	    dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG;
 
 	return 0;
 }
 
 static int init_dio_context(struct comedi_device *dev)
 {
-	info->dio_context.dir_reg = info->me4000_regbase + ME4000_DIO_DIR_REG;
-	info->dio_context.ctrl_reg = info->me4000_regbase + ME4000_DIO_CTRL_REG;
+	info->dio_context.dir_reg = dev->iobase + ME4000_DIO_DIR_REG;
+	info->dio_context.ctrl_reg = dev->iobase + ME4000_DIO_CTRL_REG;
 	info->dio_context.port_0_reg =
-	    info->me4000_regbase + ME4000_DIO_PORT_0_REG;
+	    dev->iobase + ME4000_DIO_PORT_0_REG;
 	info->dio_context.port_1_reg =
-	    info->me4000_regbase + ME4000_DIO_PORT_1_REG;
+	    dev->iobase + ME4000_DIO_PORT_1_REG;
 	info->dio_context.port_2_reg =
-	    info->me4000_regbase + ME4000_DIO_PORT_2_REG;
+	    dev->iobase + ME4000_DIO_PORT_2_REG;
 	info->dio_context.port_3_reg =
-	    info->me4000_regbase + ME4000_DIO_PORT_3_REG;
+	    dev->iobase + ME4000_DIO_PORT_3_REG;
 
 	return 0;
 }
@@ -597,38 +597,38 @@ static int reset_board(struct comedi_device *dev)
 	outl(icr, info->plx_regbase + PLX_ICR);
 
 	/* 0x8000 to the DACs means an output voltage of 0V */
-	outl(0x8000, info->me4000_regbase + ME4000_AO_00_SINGLE_REG);
-	outl(0x8000, info->me4000_regbase + ME4000_AO_01_SINGLE_REG);
-	outl(0x8000, info->me4000_regbase + ME4000_AO_02_SINGLE_REG);
-	outl(0x8000, info->me4000_regbase + ME4000_AO_03_SINGLE_REG);
+	outl(0x8000, dev->iobase + ME4000_AO_00_SINGLE_REG);
+	outl(0x8000, dev->iobase + ME4000_AO_01_SINGLE_REG);
+	outl(0x8000, dev->iobase + ME4000_AO_02_SINGLE_REG);
+	outl(0x8000, dev->iobase + ME4000_AO_03_SINGLE_REG);
 
 	/* Set both stop bits in the analog input control register */
 	outl(ME4000_AI_CTRL_BIT_IMMEDIATE_STOP | ME4000_AI_CTRL_BIT_STOP,
-		info->me4000_regbase + ME4000_AI_CTRL_REG);
+		dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Set both stop bits in the analog output control register */
 	outl(ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP,
-		info->me4000_regbase + ME4000_AO_00_CTRL_REG);
+		dev->iobase + ME4000_AO_00_CTRL_REG);
 	outl(ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP,
-		info->me4000_regbase + ME4000_AO_01_CTRL_REG);
+		dev->iobase + ME4000_AO_01_CTRL_REG);
 	outl(ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP,
-		info->me4000_regbase + ME4000_AO_02_CTRL_REG);
+		dev->iobase + ME4000_AO_02_CTRL_REG);
 	outl(ME4000_AO_CTRL_BIT_IMMEDIATE_STOP | ME4000_AO_CTRL_BIT_STOP,
-		info->me4000_regbase + ME4000_AO_03_CTRL_REG);
+		dev->iobase + ME4000_AO_03_CTRL_REG);
 
 	/* Enable interrupts on the PLX */
 	outl(0x43, info->plx_regbase + PLX_INTCSR);
 
 	/* Set the adustment register for AO demux */
 	outl(ME4000_AO_DEMUX_ADJUST_VALUE,
-		    info->me4000_regbase + ME4000_AO_DEMUX_ADJUST_REG);
+		    dev->iobase + ME4000_AO_DEMUX_ADJUST_REG);
 
 	/*
 	 * Set digital I/O direction for port 0
 	 * to output on isolated versions
 	 */
-	if (!(inl(info->me4000_regbase + ME4000_DIO_DIR_REG) & 0x1))
-		outl(0x1, info->me4000_regbase + ME4000_DIO_CTRL_REG);
+	if (!(inl(dev->iobase + ME4000_DIO_DIR_REG) & 0x1))
+		outl(0x1, dev->iobase + ME4000_DIO_CTRL_REG);
 
 	return 0;
 }

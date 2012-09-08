@@ -276,7 +276,6 @@ struct me4000_dio_context {
 
 struct me4000_info {
 	unsigned long plx_regbase;	/*  PLX configuration space base address */
-	unsigned long me4000_regbase;	/*  Base address of the ME4000 */
 	unsigned long timer_regbase;	/*  Base address of the timer circuit */
 	unsigned long program_regbase;	/*  Base address to set the program pin for the xilinx */
 
