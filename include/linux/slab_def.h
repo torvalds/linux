@@ -113,16 +113,11 @@ void *__kmalloc(size_t size, gfp_t flags);
 #ifdef CONFIG_TRACING
 extern void *kmem_cache_alloc_trace(size_t size,
 				    struct kmem_cache *cachep, gfp_t flags);
-extern size_t slab_buffer_size(struct kmem_cache *cachep);
 #else
 static __always_inline void *
 kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
 {
 	return kmem_cache_alloc(cachep, flags);
-}
-static inline size_t slab_buffer_size(struct kmem_cache *cachep)
-{
-	return 0;
 }
 #endif
 
