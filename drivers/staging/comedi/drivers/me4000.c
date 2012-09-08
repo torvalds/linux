@@ -1781,8 +1781,6 @@ static int me4000_attach_pci(struct comedi_device *dev,
 	if (!info->plx_regbase || !dev->iobase || !info->timer_regbase)
 		return -ENODEV;
 
-	dev->irq = pcidev->irq;
-
 	result = xilinx_download(dev);
 	if (result)
 		return result;
@@ -1811,23 +1809,22 @@ static int me4000_attach_pci(struct comedi_device *dev,
 		s->range_table = &me4000_ai_range;
 		s->insn_read = me4000_ai_insn_read;
 
-		if (dev->irq > 0) {
-			if (request_irq(dev->irq, me4000_ai_isr,
-					IRQF_SHARED, "ME-4000", dev)) {
-				printk
-				    ("comedi%d: me4000: me4000_attach(): "
-				     "Unable to allocate irq\n", dev->minor);
+		if (pcidev->irq > 0) {
+			if (request_irq(pcidev->irq, me4000_ai_isr,
+					IRQF_SHARED, dev->board_name, dev)) {
+				dev_warn(dev->class_dev,
+					"request_irq failed\n");
 			} else {
 				dev->read_subdev = s;
 				s->subdev_flags |= SDF_CMD_READ;
 				s->cancel = me4000_ai_cancel;
 				s->do_cmdtest = me4000_ai_do_cmd_test;
 				s->do_cmd = me4000_ai_do_cmd;
+
+				dev->irq = pcidev->irq;
 			}
 		} else {
-			printk(KERN_WARNING
-			       "comedi%d: me4000: me4000_attach(): "
-			       "No interrupt available\n", dev->minor);
+			dev_warn(dev->class_dev, "No interrupt available\n");
 		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -1904,6 +1901,8 @@ static void me4000_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 	if (pcidev) {
 		if (dev->iobase) {
 			reset_board(dev);
