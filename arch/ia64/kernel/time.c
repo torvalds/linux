@@ -104,20 +104,15 @@ void vtime_task_switch(struct task_struct *prev)
 {
 	struct thread_info *pi = task_thread_info(prev);
 	struct thread_info *ni = task_thread_info(current);
-	cputime_t delta_stime;
-	__u64 now;
 
-	now = ia64_get_itc();
-
-	delta_stime = cycle_to_cputime(pi->ac_stime + (now - pi->ac_stamp));
 	if (idle_task(smp_processor_id()) != prev)
-		account_system_time(prev, 0, delta_stime, delta_stime);
+		vtime_account_system(prev);
 	else
-		account_idle_time(delta_stime);
+		vtime_account_idle(prev);
 
 	vtime_account_user(prev);
 
-	pi->ac_stamp = ni->ac_stamp = now;
+	pi->ac_stamp = ni->ac_stamp;
 	ni->ac_stime = ni->ac_utime = 0;
 }
 
