@@ -706,14 +706,20 @@ void arch_uprobe_disable_step(struct arch_uprobe *auprobe)
 {
 	struct task_struct *task = current;
 	struct arch_uprobe_task	*autask	= &task->utask->autask;
+	bool trapped = (task->utask->state == UTASK_SSTEP_TRAPPED);
 	struct pt_regs *regs = task_pt_regs(task);
 	/*
 	 * The state of TIF_BLOCKSTEP was not saved so we can get an extra
 	 * SIGTRAP if we do not clear TF. We need to examine the opcode to
 	 * make it right.
 	 */
-	if (autask->saved_tf)
-		send_sig(SIGTRAP, task, 0);
-	else if (!(auprobe->fixups & UPROBE_FIX_SETF))
-		regs->flags &= ~X86_EFLAGS_TF;
+	if (unlikely(trapped)) {
+		if (!autask->saved_tf)
+			regs->flags &= ~X86_EFLAGS_TF;
+	} else {
+		if (autask->saved_tf)
+			send_sig(SIGTRAP, task, 0);
+		else if (!(auprobe->fixups & UPROBE_FIX_SETF))
+			regs->flags &= ~X86_EFLAGS_TF;
+	}
 }
