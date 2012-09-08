@@ -95,7 +95,7 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 {
 	struct arizona *arizona = data;
 	unsigned int val;
-	int i, ret;
+	int ret;
 
 	ret = pm_runtime_get_sync(arizona->dev);
 	if (ret < 0) {
