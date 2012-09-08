@@ -221,7 +221,6 @@ static int init_board_info(struct comedi_device *dev,
 static int init_ao_context(struct comedi_device *dev);
 static int init_ai_context(struct comedi_device *dev);
 static int init_dio_context(struct comedi_device *dev);
-static int init_cnt_context(struct comedi_device *dev);
 static int xilinx_download(struct comedi_device *dev);
 static int reset_board(struct comedi_device *dev);
 
@@ -358,15 +357,6 @@ found:
 		printk(KERN_ERR
 		       "comedi%d: me4000: me4000_probe(): "
 		       "Cannot init dio context\n", dev->minor);
-		return result;
-	}
-
-	/* Init counter context */
-	result = init_cnt_context(dev);
-	if (result) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_probe(): "
-		       "Cannot init cnt context\n", dev->minor);
 		return result;
 	}
 
@@ -595,19 +585,6 @@ static int init_dio_context(struct comedi_device *dev)
 	    info->me4000_regbase + ME4000_DIO_PORT_2_REG;
 	info->dio_context.port_3_reg =
 	    info->me4000_regbase + ME4000_DIO_PORT_3_REG;
-
-	return 0;
-}
-
-static int init_cnt_context(struct comedi_device *dev)
-{
-	info->cnt_context.ctrl_reg = info->timer_regbase + ME4000_CNT_CTRL_REG;
-	info->cnt_context.counter_0_reg =
-	    info->timer_regbase + ME4000_CNT_COUNTER_0_REG;
-	info->cnt_context.counter_1_reg =
-	    info->timer_regbase + ME4000_CNT_COUNTER_1_REG;
-	info->cnt_context.counter_2_reg =
-	    info->timer_regbase + ME4000_CNT_COUNTER_2_REG;
 
 	return 0;
 }
@@ -1907,19 +1884,19 @@ static int cnt_reset(struct comedi_device *dev, unsigned int channel)
 {
 	switch (channel) {
 	case 0:
-		outb(0x30, info->cnt_context.ctrl_reg);
-		outb(0x00, info->cnt_context.counter_0_reg);
-		outb(0x00, info->cnt_context.counter_0_reg);
+		outb(0x30, info->timer_regbase + ME4000_CNT_CTRL_REG);
+		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
+		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
 		break;
 	case 1:
-		outb(0x70, info->cnt_context.ctrl_reg);
-		outb(0x00, info->cnt_context.counter_1_reg);
-		outb(0x00, info->cnt_context.counter_1_reg);
+		outb(0x70, info->timer_regbase + ME4000_CNT_CTRL_REG);
+		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
+		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
 		break;
 	case 2:
-		outb(0xB0, info->cnt_context.ctrl_reg);
-		outb(0x00, info->cnt_context.counter_2_reg);
-		outb(0x00, info->cnt_context.counter_2_reg);
+		outb(0xB0, info->timer_regbase + ME4000_CNT_CTRL_REG);
+		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
+		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
 		break;
 	default:
 		printk(KERN_ERR
@@ -1981,7 +1958,7 @@ static int cnt_config(struct comedi_device *dev, unsigned int channel,
 
 	/* Write the control word */
 	tmp |= 0x30;
-	outb(tmp, info->cnt_context.ctrl_reg);
+	outb(tmp, info->timer_regbase + ME4000_CNT_CTRL_REG);
 
 	return 0;
 }
@@ -2050,21 +2027,21 @@ static int me4000_cnt_insn_read(struct comedi_device *dev,
 
 	switch (insn->chanspec) {
 	case 0:
-		tmp = inb(info->cnt_context.counter_0_reg);
+		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
 		data[0] = tmp;
-		tmp = inb(info->cnt_context.counter_0_reg);
+		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
 		data[0] |= tmp << 8;
 		break;
 	case 1:
-		tmp = inb(info->cnt_context.counter_1_reg);
+		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
 		data[0] = tmp;
-		tmp = inb(info->cnt_context.counter_1_reg);
+		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
 		data[0] |= tmp << 8;
 		break;
 	case 2:
-		tmp = inb(info->cnt_context.counter_2_reg);
+		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
 		data[0] = tmp;
-		tmp = inb(info->cnt_context.counter_2_reg);
+		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
 		data[0] |= tmp << 8;
 		break;
 	default:
@@ -2098,21 +2075,21 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 	switch (insn->chanspec) {
 	case 0:
 		tmp = data[0] & 0xFF;
-		outb(tmp, info->cnt_context.counter_0_reg);
+		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
 		tmp = (data[0] >> 8) & 0xFF;
-		outb(tmp, info->cnt_context.counter_0_reg);
+		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
 		break;
 	case 1:
 		tmp = data[0] & 0xFF;
-		outb(tmp, info->cnt_context.counter_1_reg);
+		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
 		tmp = (data[0] >> 8) & 0xFF;
-		outb(tmp, info->cnt_context.counter_1_reg);
+		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
 		break;
 	case 2:
 		tmp = data[0] & 0xFF;
-		outb(tmp, info->cnt_context.counter_2_reg);
+		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
 		tmp = (data[0] >> 8) & 0xFF;
-		outb(tmp, info->cnt_context.counter_2_reg);
+		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
 		break;
 	default:
 		printk(KERN_ERR
