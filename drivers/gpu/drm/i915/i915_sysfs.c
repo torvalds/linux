@@ -46,32 +46,32 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 }
 
 static ssize_t
-show_rc6_mask(struct device *dev, struct device_attribute *attr, char *buf)
+show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	return snprintf(buf, PAGE_SIZE, "%x", intel_enable_rc6(dminor->dev));
 }
 
 static ssize_t
-show_rc6_ms(struct device *dev, struct device_attribute *attr, char *buf)
+show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6);
 	return snprintf(buf, PAGE_SIZE, "%u", rc6_residency);
 }
 
 static ssize_t
-show_rc6p_ms(struct device *dev, struct device_attribute *attr, char *buf)
+show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6p_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6p);
 	return snprintf(buf, PAGE_SIZE, "%u", rc6p_residency);
 }
 
 static ssize_t
-show_rc6pp_ms(struct device *dev, struct device_attribute *attr, char *buf)
+show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6pp_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6pp);
 	return snprintf(buf, PAGE_SIZE, "%u", rc6pp_residency);
 }
