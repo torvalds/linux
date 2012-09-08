@@ -81,11 +81,7 @@ static const struct me4000_board me4000_boards[] = {
 	{"ME-4680i", 0x4681, {4, 4}, {32, 0, 16, 1}, {4}, {3} },
 	{"ME-4680s", 0x4682, {4, 4}, {32, 8, 16, 1}, {4}, {3} },
 	{"ME-4680is", 0x4683, {4, 4}, {32, 8, 16, 1}, {4}, {3} },
-
-	{0},
 };
-
-#define ME4000_BOARD_VERSIONS (ARRAY_SIZE(me4000_boards) - 1)
 
 /*-----------------------------------------------------------------------------
   Meilhaus function prototypes
@@ -136,7 +132,7 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 	 */
 	for_each_pci_dev(pci_device) {
 		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
-			for (i = 0; i < ME4000_BOARD_VERSIONS; i++) {
+			for (i = 0; i < ARRAY_SIZE(me4000_boards); i++) {
 				if (me4000_boards[i].device_id ==
 				    pci_device->device) {
 					/*
