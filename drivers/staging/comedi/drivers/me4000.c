@@ -215,7 +215,6 @@ static const struct me4000_board me4000_boards[] = {
 /*-----------------------------------------------------------------------------
   Meilhaus function prototypes
   ---------------------------------------------------------------------------*/
-static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p);
 static int init_board_info(struct comedi_device *dev,
 			   struct pci_dev *pci_dev_p);
 static int init_ao_context(struct comedi_device *dev);
@@ -316,14 +315,22 @@ found:
 		return result;
 	}
 
-	/* Get the PCI base registers */
-	result = get_registers(dev, pci_device);
-	if (result) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_probe(): "
-		       "Cannot get registers\n", dev->minor);
-		return result;
-	}
+	info->plx_regbase = pci_resource_start(pci_device, 1);
+	if (!info->plx_regbase)
+		return -ENODEV;
+
+	info->me4000_regbase = pci_resource_start(pci_device, 2);
+	if (!info->me4000_regbase)
+		return -ENODEV;
+
+	info->timer_regbase = pci_resource_start(pci_device, 3);
+	if (!info->timer_regbase)
+		return -ENODEV;
+
+	info->program_regbase = pci_resource_start(pci_device, 5);
+	if (!info->program_regbase)
+		return -ENODEV;
+
 	/* Initialize board info */
 	result = init_board_info(dev, pci_device);
 	if (result) {
@@ -377,27 +384,6 @@ found:
 		       dev->minor);
 		return result;
 	}
-
-	return 0;
-}
-
-static int get_registers(struct comedi_device *dev, struct pci_dev *pci_dev_p)
-{
-	info->plx_regbase = pci_resource_start(pci_dev_p, 1);
-	if (!info->plx_regbase)
-		return -ENODEV;
-
-	info->me4000_regbase = pci_resource_start(pci_dev_p, 2);
-	if (!info->me4000_regbase)
-		return -ENODEV;
-
-	info->timer_regbase = pci_resource_start(pci_dev_p, 3);
-	if (!info->timer_regbase)
-		return -ENODEV;
-
-	info->program_regbase = pci_resource_start(pci_dev_p, 5);
-	if (!info->program_regbase)
-		return -ENODEV;
 
 	return 0;
 }
