@@ -212,16 +212,6 @@ static const struct me4000_board me4000_boards[] = {
 	},
 };
 
-/*-----------------------------------------------------------------------------
-  Meilhaus function prototypes
-  ---------------------------------------------------------------------------*/
-static int xilinx_download(struct comedi_device *dev);
-static int reset_board(struct comedi_device *dev);
-
-static int ai_write_chanlist(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd);
-
 static const struct comedi_lrange me4000_ai_range = {
 	4,
 	{
@@ -231,91 +221,6 @@ static const struct comedi_lrange me4000_ai_range = {
 	 BIP_RANGE(10),
 	 }
 };
-
-static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	struct me4000_info *info;
-	struct pci_dev *pci_device = NULL;
-	int result, i;
-	const struct me4000_board *board;
-
-	/* Allocate private memory */
-	result = alloc_private(dev, sizeof(*info));
-	if (result)
-		return result;
-	info = dev->private;
-
-	/*
-	 * Probe the device to determine what device in the series it is.
-	 */
-	for_each_pci_dev(pci_device) {
-		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
-			for (i = 0; i < ARRAY_SIZE(me4000_boards); i++) {
-				if (me4000_boards[i].device_id ==
-				    pci_device->device) {
-					/*
-					 * Was a particular
-					 * bus/slot requested?
-					 */
-					if ((it->options[0] != 0)
-					    || (it->options[1] != 0)) {
-						/*
-						 * Are we on the wrong
-						 * bus/slot?
-						 */
-						if (pci_device->bus->number !=
-						    it->options[0]
-						    ||
-						    PCI_SLOT(pci_device->devfn)
-						    != it->options[1]) {
-							continue;
-						}
-					}
-					dev->board_ptr = me4000_boards + i;
-					board = comedi_board(dev);
-					info->pci_dev_p = pci_device;
-					goto found;
-				}
-			}
-		}
-	}
-	return -ENODEV;
-
-found:
-	dev->board_name = board->name;
-
-	result = comedi_pci_enable(pci_device, dev->board_name);
-	if (result)
-		return result;
-
-	info->plx_regbase = pci_resource_start(pci_device, 1);
-	if (!info->plx_regbase)
-		return -ENODEV;
-
-	dev->iobase = pci_resource_start(pci_device, 2);
-	if (!dev->iobase)
-		return -ENODEV;
-
-	info->timer_regbase = pci_resource_start(pci_device, 3);
-	if (!info->timer_regbase)
-		return -ENODEV;
-
-	info->program_regbase = pci_resource_start(pci_device, 5);
-	if (!info->program_regbase)
-		return -ENODEV;
-
-	dev->irq = pci_device->irq;
-
-	result = xilinx_download(dev);
-	if (result)
-		return result;
-
-	result = reset_board(dev);
-	if (result)
-		return result;
-
-	return 0;
-}
 
 #define FIRMWARE_NOT_AVAILABLE 1
 #if FIRMWARE_NOT_AVAILABLE
@@ -744,6 +649,42 @@ static void ai_write_timer(struct comedi_device *dev,
 	outl(chan_ticks - 1, dev->iobase + ME4000_AI_CHAN_TIMER_REG);
 }
 
+static int ai_write_chanlist(struct comedi_device *dev,
+			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
+{
+	unsigned int entry;
+	unsigned int chan;
+	unsigned int rang;
+	unsigned int aref;
+	int i;
+
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		chan = CR_CHAN(cmd->chanlist[i]);
+		rang = CR_RANGE(cmd->chanlist[i]);
+		aref = CR_AREF(cmd->chanlist[i]);
+
+		entry = chan;
+
+		if (rang == 0)
+			entry |= ME4000_AI_LIST_RANGE_UNIPOLAR_2_5;
+		else if (rang == 1)
+			entry |= ME4000_AI_LIST_RANGE_UNIPOLAR_10;
+		else if (rang == 2)
+			entry |= ME4000_AI_LIST_RANGE_BIPOLAR_2_5;
+		else
+			entry |= ME4000_AI_LIST_RANGE_BIPOLAR_10;
+
+		if (aref == SDF_DIFF)
+			entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL;
+		else
+			entry |= ME4000_AI_LIST_INPUT_SINGLE_ENDED;
+
+		outl(entry, dev->iobase + ME4000_AI_CHANNEL_LIST_REG);
+	}
+
+	return 0;
+}
+
 static int ai_prepare(struct comedi_device *dev,
 		      struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd,
@@ -807,42 +748,6 @@ static int ai_prepare(struct comedi_device *dev,
 
 	/* Write the channel list */
 	ai_write_chanlist(dev, s, cmd);
-
-	return 0;
-}
-
-static int ai_write_chanlist(struct comedi_device *dev,
-			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
-{
-	unsigned int entry;
-	unsigned int chan;
-	unsigned int rang;
-	unsigned int aref;
-	int i;
-
-	for (i = 0; i < cmd->chanlist_len; i++) {
-		chan = CR_CHAN(cmd->chanlist[i]);
-		rang = CR_RANGE(cmd->chanlist[i]);
-		aref = CR_AREF(cmd->chanlist[i]);
-
-		entry = chan;
-
-		if (rang == 0)
-			entry |= ME4000_AI_LIST_RANGE_UNIPOLAR_2_5;
-		else if (rang == 1)
-			entry |= ME4000_AI_LIST_RANGE_UNIPOLAR_10;
-		else if (rang == 2)
-			entry |= ME4000_AI_LIST_RANGE_BIPOLAR_2_5;
-		else
-			entry |= ME4000_AI_LIST_RANGE_BIPOLAR_10;
-
-		if (aref == SDF_DIFF)
-			entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL;
-		else
-			entry |= ME4000_AI_LIST_INPUT_SINGLE_ENDED;
-
-		outl(entry, dev->iobase + ME4000_AI_CHANNEL_LIST_REG);
-	}
 
 	return 0;
 }
@@ -1830,6 +1735,91 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 	}
 
 	return 1;
+}
+
+static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	struct me4000_info *info;
+	struct pci_dev *pci_device = NULL;
+	int result, i;
+	const struct me4000_board *board;
+
+	/* Allocate private memory */
+	result = alloc_private(dev, sizeof(*info));
+	if (result)
+		return result;
+	info = dev->private;
+
+	/*
+	 * Probe the device to determine what device in the series it is.
+	 */
+	for_each_pci_dev(pci_device) {
+		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
+			for (i = 0; i < ARRAY_SIZE(me4000_boards); i++) {
+				if (me4000_boards[i].device_id ==
+				    pci_device->device) {
+					/*
+					 * Was a particular
+					 * bus/slot requested?
+					 */
+					if ((it->options[0] != 0)
+					    || (it->options[1] != 0)) {
+						/*
+						 * Are we on the wrong
+						 * bus/slot?
+						 */
+						if (pci_device->bus->number !=
+						    it->options[0]
+						    ||
+						    PCI_SLOT(pci_device->devfn)
+						    != it->options[1]) {
+							continue;
+						}
+					}
+					dev->board_ptr = me4000_boards + i;
+					board = comedi_board(dev);
+					info->pci_dev_p = pci_device;
+					goto found;
+				}
+			}
+		}
+	}
+	return -ENODEV;
+
+found:
+	dev->board_name = board->name;
+
+	result = comedi_pci_enable(pci_device, dev->board_name);
+	if (result)
+		return result;
+
+	info->plx_regbase = pci_resource_start(pci_device, 1);
+	if (!info->plx_regbase)
+		return -ENODEV;
+
+	dev->iobase = pci_resource_start(pci_device, 2);
+	if (!dev->iobase)
+		return -ENODEV;
+
+	info->timer_regbase = pci_resource_start(pci_device, 3);
+	if (!info->timer_regbase)
+		return -ENODEV;
+
+	info->program_regbase = pci_resource_start(pci_device, 5);
+	if (!info->program_regbase)
+		return -ENODEV;
+
+	dev->irq = pci_device->irq;
+
+	result = xilinx_download(dev);
+	if (result)
+		return result;
+
+	result = reset_board(dev);
+	if (result)
+		return result;
+
+	return 0;
 }
 
 static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
