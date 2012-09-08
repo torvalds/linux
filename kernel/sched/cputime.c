@@ -432,6 +432,32 @@ void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 	*ut = cputime.utime;
 	*st = cputime.stime;
 }
+
+/*
+ * Archs that account the whole time spent in the idle task
+ * (outside irq) as idle time can rely on this and just implement
+ * vtime_account_system() and vtime_account_idle(). Archs that
+ * have other meaning of the idle time (s390 only includes the
+ * time spent by the CPU when it's in low power mode) must override
+ * vtime_account().
+ */
+#ifndef __ARCH_HAS_VTIME_ACCOUNT
+void vtime_account(struct task_struct *tsk)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	if (in_interrupt() || !is_idle_task(tsk))
+		vtime_account_system(tsk);
+	else
+		vtime_account_idle(tsk);
+
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(vtime_account);
+#endif /* __ARCH_HAS_VTIME_ACCOUNT */
+
 #else
 
 #ifndef nsecs_to_cputime

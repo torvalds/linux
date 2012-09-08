@@ -291,13 +291,12 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
  * Account time for a transition between system, hard irq
  * or soft irq state.
  */
-void vtime_account(struct task_struct *tsk)
+static u64 vtime_delta(struct task_struct *tsk,
+			u64 *sys_scaled, u64 *stolen)
 {
-	u64 now, nowscaled, delta, deltascaled;
-	unsigned long flags;
-	u64 stolen, udelta, sys_scaled, user_scaled;
+	u64 now, nowscaled, deltascaled;
+	u64 udelta, delta, user_scaled;
 
-	local_irq_save(flags);
 	now = mftb();
 	nowscaled = read_spurr(now);
 	get_paca()->system_time += now - get_paca()->starttime;
@@ -305,7 +304,7 @@ void vtime_account(struct task_struct *tsk)
 	deltascaled = nowscaled - get_paca()->startspurr;
 	get_paca()->startspurr = nowscaled;
 
-	stolen = calculate_stolen_time(now);
+	*stolen = calculate_stolen_time(now);
 
 	delta = get_paca()->system_time;
 	get_paca()->system_time = 0;
@@ -322,28 +321,38 @@ void vtime_account(struct task_struct *tsk)
 	 * the user ticks get saved up in paca->user_time_scaled to be
 	 * used by account_process_tick.
 	 */
-	sys_scaled = delta;
+	*sys_scaled = delta;
 	user_scaled = udelta;
 	if (deltascaled != delta + udelta) {
 		if (udelta) {
-			sys_scaled = deltascaled * delta / (delta + udelta);
-			user_scaled = deltascaled - sys_scaled;
+			*sys_scaled = deltascaled * delta / (delta + udelta);
+			user_scaled = deltascaled - *sys_scaled;
 		} else {
-			sys_scaled = deltascaled;
+			*sys_scaled = deltascaled;
 		}
 	}
 	get_paca()->user_time_scaled += user_scaled;
 
-	if (in_interrupt() || idle_task(smp_processor_id()) != tsk) {
-		account_system_time(tsk, 0, delta, sys_scaled);
-		if (stolen)
-			account_steal_time(stolen);
-	} else {
-		account_idle_time(delta + stolen);
-	}
-	local_irq_restore(flags);
+	return delta;
 }
-EXPORT_SYMBOL_GPL(vtime_account);
+
+void vtime_account_system(struct task_struct *tsk)
+{
+	u64 delta, sys_scaled, stolen;
+
+	delta = vtime_delta(tsk, &sys_scaled, &stolen);
+	account_system_time(tsk, 0, delta, sys_scaled);
+	if (stolen)
+		account_steal_time(stolen);
+}
+
+void vtime_account_idle(struct task_struct *tsk)
+{
+	u64 delta, sys_scaled, stolen;
+
+	delta = vtime_delta(tsk, &sys_scaled, &stolen);
+	account_idle_time(delta + stolen);
+}
 
 /*
  * Transfer the user and system times accumulated in the paca
