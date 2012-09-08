@@ -48,11 +48,11 @@ There are then a number of functions that can be used to get information
 about this channel such as it's current reading.
 
 e.g.
-iio_st_read_channel_raw() - get a reading
-iio_st_read_channel_type() - get the type of channel
+iio_read_channel_raw() - get a reading
+iio_get_channel_type() - get the type of channel
 
 There is also provision for retrieving all of the channels associated
 with a given consumer.  This is useful for generic drivers such as
 iio_hwmon where the number and naming of channels is not known by the
-consumer driver.  To do this, use iio_st_channel_get_all.
+consumer driver.  To do this, use iio_channel_get_all.
 
