@@ -580,18 +580,19 @@ static int pll_clk_set_rate(struct pll_clk_set *clk_set, u8 pll_id)
 {
 	//enter slowmode
 	cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
-	//enter rest
-	//cru_writel(PLL_REST_W_MSK | PLL_REST, PLL_CONS(pll_id, 3));
+	cru_writel((0x1<<(16+1))|(0x1<<1), PLL_CONS(pll_id, 3));
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
 	cru_writel(clk_set->pllcon0, PLL_CONS(pll_id, 0));
 	cru_writel(clk_set->pllcon1, PLL_CONS(pll_id, 1));
-	cru_writel(clk_set->pllcon2, PLL_CONS(pll_id, 2));
-	rk30_clock_udelay(5);
 
-	//return form rest
-	//cru_writel(PLL_REST_W_MSK | PLL_REST_RESM, PLL_CONS(pll_id, 3));
+	rk30_clock_udelay(1);
+	cru_writel((0x1<<(16+1)), PLL_CONS(pll_id, 3));
 
-	//wating lock state
-	rk30_clock_udelay(clk_set->rst_dly);
 	pll_wait_lock(pll_id);
 
 	//return form slow
@@ -601,7 +602,6 @@ static int pll_clk_set_rate(struct pll_clk_set *clk_set, u8 pll_id)
 	   CLKDATA_ERR("pll reg id=%d,con0=%x,con1=%x,mode=%x\n",pll_id,
 	   cru_readl(PLL_CONS(pll_id,0)),(PLL_CONS(pll_id,1)),cru_readl(CRU_MODE_CON));
 	   */
-
 
 	return 0;
 }
@@ -835,9 +835,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	const struct apll_clk_set *ps;
 	u32 pll_id = clk->pll->id;
 	u32 temp_div;
-	u32 old_aclk_div = 0, new_aclk_div, gpll_arm_aclk_div;
-	struct arm_clks_div_set *temp_clk_div;
-	unsigned long arm_gpll_rate, arm_gpll_lpj;
+	u32 old_aclk_div = 0, new_aclk_div;
 
 	ps = arm_pll_clk_get_best_pll_set(rate, (struct apll_clk_set *)clk->pll->table);
 
@@ -847,57 +845,61 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	CLKDATA_LOG("apll will set rate(%lu) tlb con(%x,%x,%x),sel(%x,%x)\n",
 			ps->rate, ps->pllcon0, ps->pllcon1, ps->pllcon2, ps->clksel0, ps->clksel1);
 
-	//rk30_l2_cache_latency(ps->rate/MHZ);
-
 	if(general_pll_clk.rate > clk->rate) {
 		temp_div = clk_get_freediv(clk->rate, general_pll_clk.rate, 10);
 	} else {
 		temp_div = 1;
 	}
-	//sel gpll
-	//cru_writel(CORE_CLK_DIV(temp_div)|CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
 
-	arm_gpll_rate = general_pll_clk.rate / temp_div;
-	arm_gpll_lpj = lpj_gpll / temp_div;
-	temp_clk_div = arm_clks_get_div(arm_gpll_rate / MHZ);
-	if(!temp_clk_div)
-		temp_clk_div = &arm_clk_div_tlb[4];
-
-	CLKDATA_LOG("gpll_arm_rate=%lu,sel rate%u,sel0%x,sel1%x\n", arm_gpll_rate, temp_clk_div->rate,
-			temp_clk_div->clksel0, temp_clk_div->clksel1);
+	// ungating cpu gpll path
+	//cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH) | CLK_UN_GATE(CLK_GATE_CPU_GPLL_PATH), 
+	//	CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
 
 	local_irq_save(flags);
+	//div arm clk for gpll
 
-	// open gpu gpll path
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH) | CLK_UN_GATE(CLK_GATE_CPU_GPLL_PATH), 
-			CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
-	cru_writel(CORE_SEL_GPLL | CORE_SEL_PLL_W_MSK, CRU_CLKSELS_CON(0));
-	loops_per_jiffy = arm_gpll_lpj;
+	cru_writel(CORE_CLK_DIV_W_MSK|CORE_CLK_DIV(temp_div), CRU_CLKSELS_CON(0));
+	cru_writel(CORE_SEL_PLL_W_MSK|CORE_SEL_GPLL, CRU_CLKSELS_CON(0));
+
+	loops_per_jiffy = lpj_gpll / temp_div;
 	smp_wmb();
 
 	/*if core src don't select gpll ,apll neet to enter slow mode */
 	//cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
 
-	//enter rest
-	//cru_writel(PLL_REST_W_MSK | PLL_REST, PLL_CONS(pll_id, 3));
+
+	cru_writel((0x1<<(16+1))|(0x1<<1), PLL_CONS(pll_id, 3));
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
 	cru_writel(ps->pllcon0, PLL_CONS(pll_id, 0));
 	cru_writel(ps->pllcon1, PLL_CONS(pll_id, 1));
-	cru_writel(ps->pllcon2, PLL_CONS(pll_id, 2));
-	cru_writel(ps->clksel1, CRU_CLKSELS_CON(1));
-	rk30_clock_udelay(5);
 
-	//return form rest
-	//cru_writel(PLL_REST_W_MSK | PLL_REST_RESM, PLL_CONS(pll_id, 3));
-
-	//wating lock state
-	///rk30_clock_udelay(ps->rst_dly);//lcdc flash
+	rk30_clock_udelay(1);
+	cru_writel((0x1<<(16+1)), PLL_CONS(pll_id, 3));
 
 	pll_wait_lock(pll_id);
 
 	//return form slow
 	//cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
 	//reparent to apll
+
+	if(new_aclk_div>=old_aclk_div) {
+		cru_writel(ps->clksel0, CRU_CLKSELS_CON(0));
+		cru_writel(ps->clksel1, CRU_CLKSELS_CON(1));
+	}
+
 	cru_writel(CORE_SEL_PLL_W_MSK | CORE_SEL_APLL, CRU_CLKSELS_CON(0));
+	if(old_aclk_div>new_aclk_div) {
+		cru_writel(ps->clksel0, CRU_CLKSELS_CON(0));
+		cru_writel(ps->clksel1, CRU_CLKSELS_CON(1));
+	}
+
+	cru_writel(CORE_CLK_DIV_W_MSK|CORE_CLK_DIV(1), CRU_CLKSELS_CON(0));
+
 	loops_per_jiffy = ps->lpj;
 	smp_wmb();
 
