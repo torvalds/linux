@@ -10,11 +10,11 @@
 
 /*
  * There are no locks covering percpu hardirq/softirq time.
- * They are only modified in account_system_vtime, on corresponding CPU
+ * They are only modified in vtime_account, on corresponding CPU
  * with interrupts disabled. So, writes are safe.
  * They are read and saved off onto struct rq in update_rq_clock().
  * This may result in other CPU reading this CPU's irq time and can
- * race with irq/account_system_vtime on this CPU. We would either get old
+ * race with irq/vtime_account on this CPU. We would either get old
  * or new value with a side effect of accounting a slice of irq time to wrong
  * task when irq is in progress while we read rq->clock. That is a worthy
  * compromise in place of having locks on each irq in account_system_time.
@@ -43,7 +43,7 @@ DEFINE_PER_CPU(seqcount_t, irq_time_seq);
  * Called before incrementing preempt_count on {soft,}irq_enter
  * and before decrementing preempt_count on {soft,}irq_exit.
  */
-void account_system_vtime(struct task_struct *curr)
+void vtime_account(struct task_struct *curr)
 {
 	unsigned long flags;
 	s64 delta;
@@ -73,7 +73,7 @@ void account_system_vtime(struct task_struct *curr)
 	irq_time_write_end();
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(account_system_vtime);
+EXPORT_SYMBOL_GPL(vtime_account);
 
 static int irqtime_account_hi_update(void)
 {

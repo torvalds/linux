@@ -99,7 +99,7 @@ static int do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 	return virt_timer_forward(user + system);
 }
 
-void account_switch_vtime(struct task_struct *prev)
+void vtime_task_switch(struct task_struct *prev)
 {
 	struct thread_info *ti;
 
@@ -122,7 +122,7 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
  * Update process times based on virtual cpu times stored by entry.S
  * to the lowcore fields user_timer, system_timer & steal_clock.
  */
-void account_system_vtime(struct task_struct *tsk)
+void vtime_account(struct task_struct *tsk)
 {
 	struct thread_info *ti = task_thread_info(tsk);
 	u64 timer, system;
@@ -138,7 +138,7 @@ void account_system_vtime(struct task_struct *tsk)
 
 	virt_timer_forward(system);
 }
-EXPORT_SYMBOL_GPL(account_system_vtime);
+EXPORT_SYMBOL_GPL(vtime_account);
 
 void __kprobes vtime_stop_cpu(void)
 {

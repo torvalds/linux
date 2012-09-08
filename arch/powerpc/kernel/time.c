@@ -291,7 +291,7 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
  * Account time for a transition between system, hard irq
  * or soft irq state.
  */
-void account_system_vtime(struct task_struct *tsk)
+void vtime_account(struct task_struct *tsk)
 {
 	u64 now, nowscaled, delta, deltascaled;
 	unsigned long flags;
@@ -343,14 +343,14 @@ void account_system_vtime(struct task_struct *tsk)
 	}
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(account_system_vtime);
+EXPORT_SYMBOL_GPL(vtime_account);
 
 /*
  * Transfer the user and system times accumulated in the paca
  * by the exception entry and exit code to the generic process
  * user and system time records.
  * Must be called with interrupts disabled.
- * Assumes that account_system_vtime() has been called recently
+ * Assumes that vtime_account() has been called recently
  * (i.e. since the last entry from usermode) so that
  * get_paca()->user_time_scaled is up to date.
  */
@@ -366,9 +366,9 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 	account_user_time(tsk, utime, utimescaled);
 }
 
-void account_switch_vtime(struct task_struct *prev)
+void vtime_task_switch(struct task_struct *prev)
 {
-	account_system_vtime(prev);
+	vtime_account(prev);
 	account_process_tick(prev, 0);
 }
 

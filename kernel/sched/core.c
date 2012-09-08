@@ -1764,7 +1764,7 @@ static void finish_task_switch(struct rq *rq, struct task_struct *prev)
 	 *		Manfred Spraul <manfred@colorfullife.com>
 	 */
 	prev_state = prev->state;
-	account_switch_vtime(prev);
+	vtime_task_switch(prev);
 	finish_arch_switch(prev);
 	perf_event_task_sched_in(prev, current);
 	finish_lock_switch(rq, prev);
