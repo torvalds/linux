@@ -31,6 +31,8 @@
 struct wl_priv;
 extern u32 wl_dbg_level;
 
+typedef struct wifi_p2p_ie wifi_wfd_ie_t;
+
 /* Enumeration of the usages of the BSSCFGs used by the P2P Library.  Do not
  * confuse this with a bsscfg index.  This value is an index into the
  * saved_ie[] array of structures which in turn contains a bsscfg index field.
@@ -191,6 +193,9 @@ wl_cfgp2p_find_wpsie(u8 *parse, u32 len);
 
 extern wifi_p2p_ie_t *
 wl_cfgp2p_find_p2pie(u8 *parse, u32 len);
+
+extern wifi_wfd_ie_t *
+wl_cfgp2p_find_wfdie(u8 *parse, u32 len);
 
 extern s32
 wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssidx,
