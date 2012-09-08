@@ -1776,15 +1776,9 @@ static int me4000_attach_pci(struct comedi_device *dev,
 		return result;
 
 	info->plx_regbase = pci_resource_start(pcidev, 1);
-	if (!info->plx_regbase)
-		return -ENODEV;
-
 	dev->iobase = pci_resource_start(pcidev, 2);
-	if (!dev->iobase)
-		return -ENODEV;
-
 	info->timer_regbase = pci_resource_start(pcidev, 3);
-	if (!info->timer_regbase)
+	if (!info->plx_regbase || !dev->iobase || !info->timer_regbase)
 		return -ENODEV;
 
 	dev->irq = pcidev->irq;
