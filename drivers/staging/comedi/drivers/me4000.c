@@ -232,13 +232,6 @@ static const struct comedi_lrange me4000_ai_range = {
 	 }
 };
 
-static const struct comedi_lrange me4000_ao_range = {
-	1,
-	{
-	 BIP_RANGE(10),
-	 }
-};
-
 static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct me4000_info *info;
@@ -1903,7 +1896,7 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags = SDF_WRITEABLE | SDF_COMMON | SDF_GROUND;
 		s->n_chan = thisboard->ao_nchan;
 		s->maxdata = 0xFFFF;	/*  16 bit DAC */
-		s->range_table = &me4000_ao_range;
+		s->range_table = &range_bipolar10;
 		s->insn_write = me4000_ao_insn_write;
 		s->insn_read = me4000_ao_insn_read;
 	} else {
