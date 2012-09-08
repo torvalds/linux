@@ -75,6 +75,13 @@ broken.
 #define PCI_DEVICE_ID_MEILHAUS_ME4680S	0x4682
 #define PCI_DEVICE_ID_MEILHAUS_ME4680IS	0x4683
 
+struct me4000_info {
+	unsigned long plx_regbase;
+	unsigned long timer_regbase;
+
+	unsigned int ao_readback[4];
+};
+
 struct me4000_board {
 	const char *name;
 	unsigned short device_id;

@@ -204,17 +204,6 @@
 #define ME4000_DIO_CTRL_BIT_FIFO_HIGH_2		0x1000
 #define ME4000_DIO_CTRL_BIT_FIFO_HIGH_3		0x2000
 
-/*=============================================================================
-  Global board and subdevice information structures
-  ===========================================================================*/
-
-struct me4000_info {
-	unsigned long plx_regbase;	/*  PLX configuration space base address */
-	unsigned long timer_regbase;	/*  Base address of the timer circuit */
-
-	unsigned int ao_readback[4];
-};
-
 /*-----------------------------------------------------------------------------
   Defines for analog input
  ----------------------------------------------------------------------------*/
