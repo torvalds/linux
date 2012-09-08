@@ -265,15 +265,6 @@ struct me4000_ai_context {
 	unsigned long sample_counter_reg;
 };
 
-struct me4000_dio_context {
-	unsigned long dir_reg;
-	unsigned long ctrl_reg;
-	unsigned long port_0_reg;
-	unsigned long port_1_reg;
-	unsigned long port_2_reg;
-	unsigned long port_3_reg;
-};
-
 struct me4000_info {
 	unsigned long plx_regbase;	/*  PLX configuration space base address */
 	unsigned long timer_regbase;	/*  Base address of the timer circuit */
@@ -290,7 +281,6 @@ struct me4000_info {
 
 	struct me4000_ai_context ai_context;	/*  Analog input  specific context */
 	struct me4000_ao_context ao_context[4];	/*  Vector with analog output specific context */
-	struct me4000_dio_context dio_context;	/*  Digital I/O specific context */
 };
 
 #define info	((struct me4000_info *)dev->private)

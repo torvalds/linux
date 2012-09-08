@@ -219,7 +219,6 @@ static int init_board_info(struct comedi_device *dev,
 			   struct pci_dev *pci_dev_p);
 static int init_ao_context(struct comedi_device *dev);
 static int init_ai_context(struct comedi_device *dev);
-static int init_dio_context(struct comedi_device *dev);
 static int xilinx_download(struct comedi_device *dev);
 static int reset_board(struct comedi_device *dev);
 
@@ -322,10 +321,6 @@ found:
 		return result;
 
 	result = init_ai_context(dev);
-	if (result)
-		return result;
-
-	result = init_dio_context(dev);
 	if (result)
 		return result;
 
@@ -479,22 +474,6 @@ static int init_ai_context(struct comedi_device *dev)
 	    dev->iobase + ME4000_IRQ_STATUS_REG;
 	info->ai_context.sample_counter_reg =
 	    dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG;
-
-	return 0;
-}
-
-static int init_dio_context(struct comedi_device *dev)
-{
-	info->dio_context.dir_reg = dev->iobase + ME4000_DIO_DIR_REG;
-	info->dio_context.ctrl_reg = dev->iobase + ME4000_DIO_CTRL_REG;
-	info->dio_context.port_0_reg =
-	    dev->iobase + ME4000_DIO_PORT_0_REG;
-	info->dio_context.port_1_reg =
-	    dev->iobase + ME4000_DIO_PORT_1_REG;
-	info->dio_context.port_2_reg =
-	    dev->iobase + ME4000_DIO_PORT_2_REG;
-	info->dio_context.port_3_reg =
-	    dev->iobase + ME4000_DIO_PORT_3_REG;
 
 	return 0;
 }
@@ -1671,21 +1650,21 @@ static int me4000_dio_insn_bits(struct comedi_device *dev,
 
 		/* Write out the new digital output lines */
 		outl((s->state >> 0) & 0xFF,
-			    info->dio_context.port_0_reg);
+			    dev->iobase + ME4000_DIO_PORT_0_REG);
 		outl((s->state >> 8) & 0xFF,
-			    info->dio_context.port_1_reg);
+			    dev->iobase + ME4000_DIO_PORT_1_REG);
 		outl((s->state >> 16) & 0xFF,
-			    info->dio_context.port_2_reg);
+			    dev->iobase + ME4000_DIO_PORT_2_REG);
 		outl((s->state >> 24) & 0xFF,
-			    info->dio_context.port_3_reg);
+			    dev->iobase + ME4000_DIO_PORT_3_REG);
 	}
 
 	/* On return, data[1] contains the value of
 	   the digital input and output lines. */
-	data[1] = ((inl(info->dio_context.port_0_reg) & 0xFF) << 0) |
-		  ((inl(info->dio_context.port_1_reg) & 0xFF) << 8) |
-		  ((inl(info->dio_context.port_2_reg) & 0xFF) << 16) |
-		  ((inl(info->dio_context.port_3_reg) & 0xFF) << 24);
+	data[1] = ((inl(dev->iobase + ME4000_DIO_PORT_0_REG) & 0xFF) << 0) |
+		  ((inl(dev->iobase + ME4000_DIO_PORT_1_REG) & 0xFF) << 8) |
+		  ((inl(dev->iobase + ME4000_DIO_PORT_2_REG) & 0xFF) << 16) |
+		  ((inl(dev->iobase + ME4000_DIO_PORT_3_REG) & 0xFF) << 24);
 
 	return insn->n;
 }
@@ -1717,7 +1696,7 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 	 * On the ME-4000 it is only possible to switch port wise (8 bit)
 	 */
 
-	tmp = inl(info->dio_context.ctrl_reg);
+	tmp = inl(dev->iobase + ME4000_DIO_CTRL_REG);
 
 	if (data[0] == INSN_CONFIG_DIO_OUTPUT) {
 		if (chan < 8) {
@@ -1731,7 +1710,7 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 			 * If one the first port is a fixed output
 			 * port and the second is a fixed input port.
 			 */
-			if (!inl(info->dio_context.dir_reg))
+			if (!inl(dev->iobase + ME4000_DIO_DIR_REG))
 				return -ENODEV;
 
 			s->io_bits |= 0xFF00;
@@ -1758,7 +1737,7 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 			 * If one the first port is a fixed output
 			 * port and the second is a fixed input port.
 			 */
-			if (!inl(info->dio_context.dir_reg))
+			if (!inl(dev->iobase + ME4000_DIO_DIR_REG))
 				return -ENODEV;
 
 			s->io_bits &= ~0xFF;
@@ -1781,7 +1760,7 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 		}
 	}
 
-	outl(tmp, info->dio_context.ctrl_reg);
+	outl(tmp, dev->iobase + ME4000_DIO_CTRL_REG);
 
 	return 1;
 }
@@ -2105,9 +2084,10 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 * Check for optoisolated ME-4000 version. If one the first
 	 * port is a fixed output port and the second is a fixed input port.
 	 */
-	if (!inl(info->dio_context.dir_reg)) {
+	if (!inl(dev->iobase + ME4000_DIO_DIR_REG)) {
 		s->io_bits |= 0xFF;
-		outl(ME4000_DIO_CTRL_BIT_MODE_0, info->dio_context.dir_reg);
+		outl(ME4000_DIO_CTRL_BIT_MODE_0,
+			dev->iobase + ME4000_DIO_DIR_REG);
 	}
 
     /*=========================================================================
