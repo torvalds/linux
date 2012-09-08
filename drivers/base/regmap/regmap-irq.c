@@ -226,7 +226,7 @@ static int regmap_irq_map(struct irq_domain *h, unsigned int virq,
 	struct regmap_irq_chip_data *data = h->host_data;
 
 	irq_set_chip_data(virq, data);
-	irq_set_chip_and_handler(virq, &data->irq_chip, handle_edge_irq);
+	irq_set_chip(virq, &data->irq_chip);
 	irq_set_nested_thread(virq, 1);
 
 	/* ARM needs us to explicitly flag the IRQ as valid
