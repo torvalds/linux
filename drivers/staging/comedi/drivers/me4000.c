@@ -52,6 +52,7 @@ broken.
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+#include "8253.h"
 #include "me4000.h"
 #if 0
 /* file removed due to GPL incompatibility */
@@ -1513,28 +1514,8 @@ static int cnt_reset(struct comedi_device *dev, unsigned int channel)
 {
 	struct me4000_info *info = dev->private;
 
-	switch (channel) {
-	case 0:
-		outb(0x30, info->timer_regbase + ME4000_CNT_CTRL_REG);
-		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
-		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
-		break;
-	case 1:
-		outb(0x70, info->timer_regbase + ME4000_CNT_CTRL_REG);
-		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
-		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
-		break;
-	case 2:
-		outb(0xB0, info->timer_regbase + ME4000_CNT_CTRL_REG);
-		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
-		outb(0x00, info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
-		break;
-	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: cnt_reset(): Invalid channel\n",
-		       dev->minor);
-		return -EINVAL;
-	}
+	i8254_load(info->timer_regbase, 0, channel, 0,
+			I8254_MODE0 | I8254_BINARY);
 
 	return 0;
 }
@@ -1543,54 +1524,9 @@ static int cnt_config(struct comedi_device *dev, unsigned int channel,
 		      unsigned int mode)
 {
 	struct me4000_info *info = dev->private;
-	int tmp = 0;
 
-	switch (channel) {
-	case 0:
-		tmp |= ME4000_CNT_COUNTER_0;
-		break;
-	case 1:
-		tmp |= ME4000_CNT_COUNTER_1;
-		break;
-	case 2:
-		tmp |= ME4000_CNT_COUNTER_2;
-		break;
-	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: cnt_config(): Invalid channel\n",
-		       dev->minor);
-		return -EINVAL;
-	}
-
-	switch (mode) {
-	case 0:
-		tmp |= ME4000_CNT_MODE_0;
-		break;
-	case 1:
-		tmp |= ME4000_CNT_MODE_1;
-		break;
-	case 2:
-		tmp |= ME4000_CNT_MODE_2;
-		break;
-	case 3:
-		tmp |= ME4000_CNT_MODE_3;
-		break;
-	case 4:
-		tmp |= ME4000_CNT_MODE_4;
-		break;
-	case 5:
-		tmp |= ME4000_CNT_MODE_5;
-		break;
-	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: cnt_config(): Invalid counter mode\n",
-		       dev->minor);
-		return -EINVAL;
-	}
-
-	/* Write the control word */
-	tmp |= 0x30;
-	outb(tmp, info->timer_regbase + ME4000_CNT_CTRL_REG);
+	i8254_set_mode(info->timer_regbase, 0, channel,
+			(mode << 1) | I8254_BINARY);
 
 	return 0;
 }
@@ -1644,7 +1580,6 @@ static int me4000_cnt_insn_read(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	struct me4000_info *info = dev->private;
-	unsigned short tmp;
 
 	if (insn->n == 0)
 		return 0;
@@ -1657,32 +1592,7 @@ static int me4000_cnt_insn_read(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	switch (insn->chanspec) {
-	case 0:
-		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
-		data[0] = tmp;
-		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
-		data[0] |= tmp << 8;
-		break;
-	case 1:
-		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
-		data[0] = tmp;
-		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
-		data[0] |= tmp << 8;
-		break;
-	case 2:
-		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
-		data[0] = tmp;
-		tmp = inb(info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
-		data[0] |= tmp << 8;
-		break;
-	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_cnt_insn_read(): "
-		       "Invalid channel %d\n",
-		       dev->minor, insn->chanspec);
-		return -EINVAL;
-	}
+	data[0] = i8254_read(info->timer_regbase, 0, insn->chanspec);
 
 	return 1;
 }
@@ -1692,7 +1602,6 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 	struct me4000_info *info = dev->private;
-	unsigned short tmp;
 
 	if (insn->n == 0) {
 		return 0;
@@ -1704,32 +1613,7 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	switch (insn->chanspec) {
-	case 0:
-		tmp = data[0] & 0xFF;
-		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
-		tmp = (data[0] >> 8) & 0xFF;
-		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_0_REG);
-		break;
-	case 1:
-		tmp = data[0] & 0xFF;
-		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
-		tmp = (data[0] >> 8) & 0xFF;
-		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_1_REG);
-		break;
-	case 2:
-		tmp = data[0] & 0xFF;
-		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
-		tmp = (data[0] >> 8) & 0xFF;
-		outb(tmp, info->timer_regbase + ME4000_CNT_COUNTER_2_REG);
-		break;
-	default:
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_cnt_insn_write(): "
-		       "Invalid channel %d\n",
-		       dev->minor, insn->chanspec);
-		return -EINVAL;
-	}
+	i8254_write(info->timer_regbase, 0, insn->chanspec, data[0]);
 
 	return 1;
 }
