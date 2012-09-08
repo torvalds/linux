@@ -1737,18 +1737,11 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 	return 1;
 }
 
-static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
+static struct pci_dev *me4000_probe(struct comedi_device *dev,
+				    struct comedi_devconfig *it)
 {
-	struct me4000_info *info;
 	struct pci_dev *pci_device = NULL;
-	int result, i;
-	const struct me4000_board *board;
-
-	/* Allocate private memory */
-	result = alloc_private(dev, sizeof(*info));
-	if (result)
-		return result;
-	info = dev->private;
+	int i;
 
 	/*
 	 * Probe the device to determine what device in the series it is.
@@ -1777,39 +1770,55 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 						}
 					}
 					dev->board_ptr = me4000_boards + i;
-					board = comedi_board(dev);
-					goto found;
+					return pci_device;
 				}
 			}
 		}
 	}
-	return -ENODEV;
+	return NULL;
+}
 
-found:
-	comedi_set_hw_dev(dev, &pci_device->dev);
-	dev->board_name = board->name;
+static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	const struct me4000_board *thisboard;
+	struct me4000_info *info;
+	struct pci_dev *pcidev;
+	struct comedi_subdevice *s;
+	int result;
 
-	result = comedi_pci_enable(pci_device, dev->board_name);
+	pcidev = me4000_probe(dev, it);
+	if (!pcidev)
+		return -ENODEV;
+	comedi_set_hw_dev(dev, &pcidev->dev);
+	thisboard = comedi_board(dev);
+	dev->board_name = thisboard->name;
+
+	result = alloc_private(dev, sizeof(*info));
+	if (result)
+		return result;
+	info = dev->private;
+
+	result = comedi_pci_enable(pcidev, dev->board_name);
 	if (result)
 		return result;
 
-	info->plx_regbase = pci_resource_start(pci_device, 1);
+	info->plx_regbase = pci_resource_start(pcidev, 1);
 	if (!info->plx_regbase)
 		return -ENODEV;
 
-	dev->iobase = pci_resource_start(pci_device, 2);
+	dev->iobase = pci_resource_start(pcidev, 2);
 	if (!dev->iobase)
 		return -ENODEV;
 
-	info->timer_regbase = pci_resource_start(pci_device, 3);
+	info->timer_regbase = pci_resource_start(pcidev, 3);
 	if (!info->timer_regbase)
 		return -ENODEV;
 
-	info->program_regbase = pci_resource_start(pci_device, 5);
+	info->program_regbase = pci_resource_start(pcidev, 5);
 	if (!info->program_regbase)
 		return -ENODEV;
 
-	dev->irq = pci_device->irq;
+	dev->irq = pcidev->irq;
 
 	result = xilinx_download(dev);
 	if (result)
@@ -1818,20 +1827,6 @@ found:
 	result = reset_board(dev);
 	if (result)
 		return result;
-
-	return 0;
-}
-
-static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	const struct me4000_board *thisboard;
-	struct comedi_subdevice *s;
-	int result;
-
-	result = me4000_probe(dev, it);
-	if (result)
-		return result;
-	thisboard = comedi_board(dev);
 
 	result = comedi_alloc_subdevices(dev, 4);
 	if (result)
