@@ -59,23 +59,23 @@ config LCDC1_RK30
         help
            Support rk30 lcdc1 if you say y here
 
-config LCDC_RK31
-	tristate "rk3066b/rk31 lcdc support"
+config LCDC_RK3066B
+	tristate "rk3066b lcdc support"
         depends on FB_ROCKCHIP && ARCH_RK3066B
         help
-          Driver for rk3066b/rk31 lcdc.
+          Driver for rk3066b  lcdc.
 
-config LCDC0_RK31
+config LCDC0_RK3066B
         bool "lcdc0 support"
-        depends on LCDC_RK31
+        depends on LCDC_RK3066B
         default y
         help
            Support lcdc0 if you say y here
 
-config LCDC1_RK31
+config LCDC1_RK3066B
         bool "lcdc1 support"
-        depends on LCDC_RK31
-        default y if HDMI_RK31
+        depends on LCDC_RK3066B
+        default n
         help
            Support lcdc1 if you say y here
 

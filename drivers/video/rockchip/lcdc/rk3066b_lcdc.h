@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef __RK31_LCDC_H
-#define __RK31_LCDC_H
+#ifndef __RK3066B_LCDC_H
+#define __RK3066B_LCDC_H
 
 #include<linux/rk_fb.h>
 
@@ -489,7 +489,7 @@ typedef volatile struct tagLCDC_REG
 
 
 #define CalScale(x, y)	             (((u32)x*0x1000)/y)
-struct rk31_lcdc_device{
+struct rk3066b_lcdc_device{
 	int id;
 	struct rk_lcdc_device_driver driver;
 	rk_screen *screen;
@@ -520,8 +520,8 @@ struct rk31_lcdc_device{
 
 struct lcdc_info{
 /*LCD CLK*/
-	struct rk31_lcdc_device lcdc0;
-	struct rk31_lcdc_device lcdc1;
+	struct rk3066b_lcdc_device lcdc0;
+	struct rk3066b_lcdc_device lcdc1;
 
 };
 

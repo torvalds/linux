@@ -1,5 +1,5 @@
 /*
- * drivers/video/rockchip/chips/rk31_lcdc.c
+ * drivers/video/rockchip/chips/rk3066b_lcdc.c
  *
  * Copyright (C) 2012 ROCKCHIP, Inc.
  *Author:yzq<yzq@rock-chips.com>
@@ -30,7 +30,7 @@
 #include <linux/earlysuspend.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
-#include "rk31_lcdc.h"
+#include "rk3066b_lcdc.h"
 
 
 
@@ -42,9 +42,9 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 #define DBG(level,x...) do { if(unlikely(dbg_thresd >= level)) printk(KERN_INFO x); } while (0)
 
 
-static int init_rk31_lcdc(struct rk_lcdc_device_driver *dev_drv)
+static int init_rk3066b_lcdc(struct rk_lcdc_device_driver *dev_drv)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	if(lcdc_dev->id == 0) //lcdc0
 	{
 		lcdc_dev->pd = clk_get(NULL,"pd_lcdc0");
@@ -87,7 +87,7 @@ static int init_rk31_lcdc(struct rk_lcdc_device_driver *dev_drv)
 	return 0;
 }
 
-static int rk31_lcdc_deinit(struct rk31_lcdc_device *lcdc_dev)
+static int rk3066b_lcdc_deinit(struct rk3066b_lcdc_device *lcdc_dev)
 {
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
@@ -111,10 +111,10 @@ static int rk31_lcdc_deinit(struct rk31_lcdc_device *lcdc_dev)
 	return 0;
 }
 
-static int rk31_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscreen)
+static int rk3066b_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscreen)
 {
 	int ret = -EINVAL;
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	rk_screen *screen = dev_drv->cur_screen;
 	u64 ft;
 	int fps;
@@ -241,7 +241,7 @@ static int rk31_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
 	return 0;
 }
 
-static int mcu_refresh(struct rk31_lcdc_device *lcdc_dev)
+static int mcu_refresh(struct rk3066b_lcdc_device *lcdc_dev)
 {
    
     return 0;
@@ -250,7 +250,7 @@ static int mcu_refresh(struct rk31_lcdc_device *lcdc_dev)
 
 
 //enable layer,open:1,enable;0 disable
-static int win0_open(struct rk31_lcdc_device *lcdc_dev,bool open)
+static int win0_open(struct rk3066b_lcdc_device *lcdc_dev,bool open)
 {
 	
 	spin_lock(&lcdc_dev->reg_lock);
@@ -281,7 +281,7 @@ static int win0_open(struct rk31_lcdc_device *lcdc_dev,bool open)
 	printk(KERN_INFO "lcdc%d win0 %s\n",lcdc_dev->id,open?"open":"closed");
 	return 0;
 }
-static int win1_open(struct rk31_lcdc_device *lcdc_dev,bool open)
+static int win1_open(struct rk3066b_lcdc_device *lcdc_dev,bool open)
 {
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
@@ -315,9 +315,9 @@ static int win1_open(struct rk31_lcdc_device *lcdc_dev,bool open)
 }
 
 
-static int rk31_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id,int blank_mode)
+static int rk3066b_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id,int blank_mode)
 {
-	struct rk31_lcdc_device * lcdc_dev = container_of(lcdc_drv,struct rk31_lcdc_device ,driver);
+	struct rk3066b_lcdc_device * lcdc_dev = container_of(lcdc_drv,struct rk3066b_lcdc_device ,driver);
 
 	printk(KERN_INFO "%s>>>>>%d\n",__func__, blank_mode);
 
@@ -343,7 +343,7 @@ static int rk31_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id,in
     	return 0;
 }
 
-static  int win0_display(struct rk31_lcdc_device *lcdc_dev,struct layer_par *par )
+static  int win0_display(struct rk3066b_lcdc_device *lcdc_dev,struct layer_par *par )
 {
 	u32 y_addr;
 	u32 uv_addr;
@@ -364,7 +364,7 @@ static  int win0_display(struct rk31_lcdc_device *lcdc_dev,struct layer_par *par
 	
 }
 
-static  int win1_display(struct rk31_lcdc_device *lcdc_dev,struct layer_par *par )
+static  int win1_display(struct rk3066b_lcdc_device *lcdc_dev,struct layer_par *par )
 {
 	u32 y_addr;
 	u32 uv_addr;
@@ -383,7 +383,7 @@ static  int win1_display(struct rk31_lcdc_device *lcdc_dev,struct layer_par *par
 	return 0;
 }
 
-static  int win0_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
+static  int win0_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 	struct layer_par *par )
 {
 	u32 xact, yact, xvir, yvir, xpos, ypos;
@@ -453,7 +453,7 @@ static  int win0_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
 
 }
 
-static int win1_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
+static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 	struct layer_par *par )
 {
 	u32 xact, yact, xvir, yvir, xpos, ypos;
@@ -504,9 +504,9 @@ static int win1_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
     return 0;
 }
 
-static int rk31_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open)
+static int rk3066b_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	if(layer_id == 0)
 	{
 		win0_open(lcdc_dev,open);	
@@ -519,9 +519,9 @@ static int rk31_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,boo
 	return 0;
 }
 
-static int rk31_lcdc_set_par(struct rk_lcdc_device_driver *dev_drv,int layer_id)
+static int rk3066b_lcdc_set_par(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	struct layer_par *par = NULL;
 	rk_screen *screen = dev_drv->cur_screen;
 	if(!screen)
@@ -543,9 +543,9 @@ static int rk31_lcdc_set_par(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 	return 0;
 }
 
-int rk31_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
+int rk3066b_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	struct layer_par *par = NULL;
 	rk_screen *screen = dev_drv->cur_screen;
 	unsigned long flags;
@@ -590,9 +590,9 @@ int rk31_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 	return 0;
 }
 
-int rk31_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, unsigned long arg,int layer_id)
+int rk3066b_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, unsigned long arg,int layer_id)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	u32 panel_size[2];
 	void __user *argp = (void __user *)arg;
 	int ret = 0;
@@ -610,9 +610,9 @@ int rk31_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, uns
 
 	return ret;
 }
-static int rk31_lcdc_get_layer_state(struct rk_lcdc_device_driver *dev_drv,int layer_id)
+static int rk3066b_lcdc_get_layer_state(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	struct layer_par *par = dev_drv->layer_par[layer_id];
 
 	spin_lock(&lcdc_dev->reg_lock);
@@ -640,9 +640,9 @@ swap:1 win0 on the top of win1
 set  : 1 set overlay 
         0 get overlay state
 ************************************/
-static int rk31_lcdc_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bool set)
+static int rk3066b_lcdc_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bool set)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	int ovl;
 	spin_lock(&lcdc_dev->reg_lock);
 	if(lcdc_dev->clk_on)
@@ -667,9 +667,9 @@ static int rk31_lcdc_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bool
 
 	return ovl;
 }
-static int rk31_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,int layer_id)
+static int rk3066b_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	return 0;
 }
 
@@ -679,9 +679,9 @@ lcdc fps manager,set or get lcdc fps
 set:0 get
      1 set
 ********************************************/
-static int rk31_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool set)
+static int rk3066b_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool set)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	rk_screen * screen = dev_drv->cur_screen;
 	u64 ft = 0;
 	u32 dotclk;
@@ -710,7 +710,7 @@ static int rk31_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool 
 	return fps;
 }
 
-static int rk31_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,
+static int rk3066b_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,
         enum fb_win_map_order order)
 {
         mutex_lock(&dev_drv->fb_win_id_mutex);
@@ -729,7 +729,7 @@ static int rk31_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,
         return 0;
 }
 
-static int rk31_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char *id)
+static int rk3066b_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char *id)
 {
         int layer_id = 0;
         mutex_lock(&dev_drv->fb_win_id_mutex);
@@ -755,9 +755,9 @@ static int rk31_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char *i
         return  layer_id;
 }
 
-int rk31_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
+int rk3066b_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
@@ -785,9 +785,9 @@ int rk31_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 }
 
 
-int rk31_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
+int rk3066b_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 {  
-	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	
 	if(!lcdc_dev->clk_on)
 	{
@@ -809,9 +809,9 @@ int rk31_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	
     	return 0;
 }
-static irqreturn_t rk31_lcdc_isr(int irq, void *dev_id)
+static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 {
-	struct rk31_lcdc_device *lcdc_dev = (struct rk31_lcdc_device *)dev_id;
+	struct rk3066b_lcdc_device *lcdc_dev = (struct rk3066b_lcdc_device *)dev_id;
 	
 	LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_STARTCLEAR, v_FRM_STARTCLEAR(1));
 	LCDC_REG_CFG_DONE();
@@ -843,41 +843,41 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.name			= "lcdc",
 	.def_layer_par		= lcdc_layer,
 	.num_layer		= ARRAY_SIZE(lcdc_layer),
-	.open			= rk31_lcdc_open,
-	.init_lcdc		= init_rk31_lcdc,
-	.ioctl			= rk31_lcdc_ioctl,
-	.suspend		= rk31_lcdc_early_suspend,
-	.resume			= rk31_lcdc_early_resume,
-	.set_par       		= rk31_lcdc_set_par,
-	.blank         		= rk31_lcdc_blank,
-	.pan_display            = rk31_lcdc_pan_display,
-	.load_screen		= rk31_load_screen,
-	.get_layer_state	= rk31_lcdc_get_layer_state,
-	.ovl_mgr		= rk31_lcdc_ovl_mgr,
-	.get_disp_info		= rk31_lcdc_get_disp_info,
-	.fps_mgr		= rk31_lcdc_fps_mgr,
-	.fb_get_layer           = rk31_fb_get_layer,
-	.fb_layer_remap         = rk31_fb_layer_remap,
+	.open			= rk3066b_lcdc_open,
+	.init_lcdc		= init_rk3066b_lcdc,
+	.ioctl			= rk3066b_lcdc_ioctl,
+	.suspend		= rk3066b_lcdc_early_suspend,
+	.resume			= rk3066b_lcdc_early_resume,
+	.set_par       		= rk3066b_lcdc_set_par,
+	.blank         		= rk3066b_lcdc_blank,
+	.pan_display            = rk3066b_lcdc_pan_display,
+	.load_screen		= rk3066b_load_screen,
+	.get_layer_state	= rk3066b_lcdc_get_layer_state,
+	.ovl_mgr		= rk3066b_lcdc_ovl_mgr,
+	.get_disp_info		= rk3066b_lcdc_get_disp_info,
+	.fps_mgr		= rk3066b_lcdc_fps_mgr,
+	.fb_get_layer           = rk3066b_fb_get_layer,
+	.fb_layer_remap         = rk3066b_fb_layer_remap,
 };
 #ifdef CONFIG_PM
-static int rk31_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
+static int rk3066b_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	return 0;
 }
 
-static int rk31_lcdc_resume(struct platform_device *pdev)
+static int rk3066b_lcdc_resume(struct platform_device *pdev)
 {
 	return 0;
 }
 
 #else
-#define rk31_lcdc_suspend NULL
-#define rk31_lcdc_resume NULL
+#define rk3066b_lcdc_suspend NULL
+#define rk3066b_lcdc_resume NULL
 #endif
 
-static int __devinit rk31_lcdc_probe (struct platform_device *pdev)
+static int __devinit rk3066b_lcdc_probe (struct platform_device *pdev)
 {
-	struct rk31_lcdc_device *lcdc_dev=NULL;
+	struct rk3066b_lcdc_device *lcdc_dev=NULL;
 	rk_screen *screen;
 	rk_screen *screen1;
 	struct rk29fb_info *screen_ctr_info;
@@ -885,11 +885,11 @@ static int __devinit rk31_lcdc_probe (struct platform_device *pdev)
 	struct resource *mem;
 	int ret = 0;
 	
-	/*************Malloc rk31lcdc_inf and set it to pdev for drvdata**********/
-	lcdc_dev = kzalloc(sizeof(struct rk31_lcdc_device), GFP_KERNEL);
+	/*************Malloc rk3066blcdc_inf and set it to pdev for drvdata**********/
+	lcdc_dev = kzalloc(sizeof(struct rk3066b_lcdc_device), GFP_KERNEL);
     	if(!lcdc_dev)
     	{
-        	dev_err(&pdev->dev, ">>rk31 lcdc device kmalloc fail!");
+        	dev_err(&pdev->dev, ">>rk3066b lcdc device kmalloc fail!");
         	return -ENOMEM;
     	}
 	platform_set_drvdata(pdev, lcdc_dev);
@@ -898,7 +898,7 @@ static int __devinit rk31_lcdc_probe (struct platform_device *pdev)
 	screen =  kzalloc(sizeof(rk_screen), GFP_KERNEL);
 	if(!screen)
 	{
-		dev_err(&pdev->dev, ">>rk31 lcdc screen kmalloc fail!");
+		dev_err(&pdev->dev, ">>rk3066b lcdc screen kmalloc fail!");
         	ret =  -ENOMEM;
 		goto err0;
 	}
@@ -913,7 +913,7 @@ static int __devinit rk31_lcdc_probe (struct platform_device *pdev)
 	screen1 =  kzalloc(sizeof(rk_screen), GFP_KERNEL);
 	if(!screen1)
 	{
-		dev_err(&pdev->dev, ">>rk31 lcdc screen1 kmalloc fail!");
+		dev_err(&pdev->dev, ">>rk3066b lcdc screen1 kmalloc fail!");
         	ret =  -ENOMEM;
 		goto err0;
 	}
@@ -963,7 +963,7 @@ static int __devinit rk31_lcdc_probe (struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot find IRQ\n");
 		goto err3;
 	}
-	ret = request_irq(lcdc_dev->irq, rk31_lcdc_isr, IRQF_DISABLED,dev_name(&pdev->dev),lcdc_dev);
+	ret = request_irq(lcdc_dev->irq, rk3066b_lcdc_isr, IRQF_DISABLED,dev_name(&pdev->dev),lcdc_dev);
 	if (ret)
 	{
 	       dev_err(&pdev->dev, "cannot requeset irq %d - err %d\n", lcdc_dev->irq, ret);
@@ -976,7 +976,7 @@ static int __devinit rk31_lcdc_probe (struct platform_device *pdev)
 		printk(KERN_ERR "register fb for lcdc%d failed!\n",lcdc_dev->id);
 		goto err4;
 	}
-	printk("rk31 lcdc%d probe ok!\n",lcdc_dev->id);
+	printk("rk3066b lcdc%d probe ok!\n",lcdc_dev->id);
 
 	return 0;
 
@@ -994,11 +994,11 @@ err0:
 	return ret;
     
 }
-static int __devexit rk31_lcdc_remove(struct platform_device *pdev)
+static int __devexit rk3066b_lcdc_remove(struct platform_device *pdev)
 {
-	struct rk31_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	struct rk3066b_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
 	rk_fb_unregister(&(lcdc_dev->driver));
-	rk31_lcdc_deinit(lcdc_dev);
+	rk3066b_lcdc_deinit(lcdc_dev);
 	iounmap(lcdc_dev->reg_vir_base);
 	release_mem_region(lcdc_dev->reg_phy_base,lcdc_dev->len);
 	kfree(lcdc_dev->screen);
@@ -1006,9 +1006,9 @@ static int __devexit rk31_lcdc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void rk31_lcdc_shutdown(struct platform_device *pdev)
+static void rk3066b_lcdc_shutdown(struct platform_device *pdev)
 {
-	struct rk31_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	struct rk3066b_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
 	if(lcdc_dev->driver.cur_screen->standby) //standby the screen if necessary
 		lcdc_dev->driver.cur_screen->standby(1);
 	if(lcdc_dev->driver.screen_ctr_info->io_disable) //power off the screen if necessary
@@ -1016,7 +1016,7 @@ static void rk31_lcdc_shutdown(struct platform_device *pdev)
 	if(lcdc_dev->driver.cur_screen->sscreen_set) //turn off  lvds if necessary
 		lcdc_dev->driver.cur_screen->sscreen_set(lcdc_dev->driver.cur_screen , 0);
 	rk_fb_unregister(&(lcdc_dev->driver));
-	rk31_lcdc_deinit(lcdc_dev);
+	rk3066b_lcdc_deinit(lcdc_dev);
 	/*iounmap(lcdc_dev->reg_vir_base);
 	release_mem_region(lcdc_dev->reg_phy_base,lcdc_dev->len);
 	kfree(lcdc_dev->screen);
@@ -1024,32 +1024,32 @@ static void rk31_lcdc_shutdown(struct platform_device *pdev)
 }
 
 
-static struct platform_driver rk31_lcdc_driver = {
-	.probe		= rk31_lcdc_probe,
-	.remove		= __devexit_p(rk31_lcdc_remove),
+static struct platform_driver rk3066b_lcdc_driver = {
+	.probe		= rk3066b_lcdc_probe,
+	.remove		= __devexit_p(rk3066b_lcdc_remove),
 	.driver		= {
 		.name	= "rk30-lcdc",
 		.owner	= THIS_MODULE,
 	},
-	.suspend	= rk31_lcdc_suspend,
-	.resume		= rk31_lcdc_resume,
-	.shutdown   = rk31_lcdc_shutdown,
+	.suspend	= rk3066b_lcdc_suspend,
+	.resume		= rk3066b_lcdc_resume,
+	.shutdown   = rk3066b_lcdc_shutdown,
 };
 
-static int __init rk31_lcdc_init(void)
+static int __init rk3066b_lcdc_init(void)
 {
-    return platform_driver_register(&rk31_lcdc_driver);
+    return platform_driver_register(&rk3066b_lcdc_driver);
 }
 
-static void __exit rk31_lcdc_exit(void)
+static void __exit rk3066b_lcdc_exit(void)
 {
-    platform_driver_unregister(&rk31_lcdc_driver);
+    platform_driver_unregister(&rk3066b_lcdc_driver);
 }
 
 
 
-fs_initcall(rk31_lcdc_init);
-module_exit(rk31_lcdc_exit);
+fs_initcall(rk3066b_lcdc_init);
+module_exit(rk3066b_lcdc_exit);
 
 
 
