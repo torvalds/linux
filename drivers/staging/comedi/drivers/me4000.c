@@ -35,13 +35,7 @@ Supports:
     - Digital I/O
     - Counter
 
-Configuration Options:
-
-    [0] - PCI bus number (optional)
-    [1] - PCI slot number (optional)
-
-    If bus/slot is not specified, the first available PCI
-    device will be used.
+Configuration Options: not applicable, uses PCI auto config
 
 The firmware required by these boards is available in the
 comedi_nonfree_firmware tarball available from
@@ -1737,60 +1731,34 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 	return 1;
 }
 
-static struct pci_dev *me4000_probe(struct comedi_device *dev,
-				    struct comedi_devconfig *it)
+static const void *me4000_find_boardinfo(struct comedi_device *dev,
+					 struct pci_dev *pcidev)
 {
-	struct pci_dev *pci_device = NULL;
+	const struct me4000_board *thisboard;
 	int i;
 
-	/*
-	 * Probe the device to determine what device in the series it is.
-	 */
-	for_each_pci_dev(pci_device) {
-		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
-			for (i = 0; i < ARRAY_SIZE(me4000_boards); i++) {
-				if (me4000_boards[i].device_id ==
-				    pci_device->device) {
-					/*
-					 * Was a particular
-					 * bus/slot requested?
-					 */
-					if ((it->options[0] != 0)
-					    || (it->options[1] != 0)) {
-						/*
-						 * Are we on the wrong
-						 * bus/slot?
-						 */
-						if (pci_device->bus->number !=
-						    it->options[0]
-						    ||
-						    PCI_SLOT(pci_device->devfn)
-						    != it->options[1]) {
-							continue;
-						}
-					}
-					dev->board_ptr = me4000_boards + i;
-					return pci_device;
-				}
-			}
-		}
+	for (i = 0; i < ARRAY_SIZE(me4000_boards); i++) {
+		thisboard = &me4000_boards[i];
+		if (thisboard->device_id == pcidev->device)
+			return thisboard;
 	}
 	return NULL;
 }
 
-static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int me4000_attach_pci(struct comedi_device *dev,
+			     struct pci_dev *pcidev)
 {
 	const struct me4000_board *thisboard;
 	struct me4000_info *info;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int result;
 
-	pcidev = me4000_probe(dev, it);
-	if (!pcidev)
-		return -ENODEV;
 	comedi_set_hw_dev(dev, &pcidev->dev);
-	thisboard = comedi_board(dev);
+
+	thisboard = me4000_find_boardinfo(dev, pcidev);
+	if (!thisboard)
+		return -ENODEV;
+	dev->board_ptr = thisboard;
 	dev->board_name = thisboard->name;
 
 	result = alloc_private(dev, sizeof(*info));
@@ -1946,14 +1914,13 @@ static void me4000_detach(struct comedi_device *dev)
 			reset_board(dev);
 			comedi_pci_disable(pcidev);
 		}
-		pci_dev_put(pcidev);
 	}
 }
 
 static struct comedi_driver me4000_driver = {
 	.driver_name	= "me4000",
 	.module		= THIS_MODULE,
-	.attach		= me4000_attach,
+	.attach_pci	= me4000_attach_pci,
 	.detach		= me4000_detach,
 };
 
