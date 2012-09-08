@@ -288,32 +288,14 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 			}
 		}
 	}
-
-	printk(KERN_ERR
-	       "comedi%d: me4000: me4000_probe(): "
-	       "No supported board found (req. bus/slot : %d/%d)\n",
-	       dev->minor, it->options[0], it->options[1]);
 	return -ENODEV;
 
 found:
-
-	printk(KERN_INFO
-	       "comedi%d: me4000: me4000_probe(): "
-	       "Found %s at PCI bus %d, slot %d\n",
-	       dev->minor, me4000_boards[i].name, pci_device->bus->number,
-	       PCI_SLOT(pci_device->devfn));
-
-	/* Set data in device structure */
 	dev->board_name = board->name;
 
-	/* Enable PCI device and request regions */
 	result = comedi_pci_enable(pci_device, dev->board_name);
-	if (result) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_probe(): Cannot enable PCI "
-		       "device and request I/O regions\n", dev->minor);
+	if (result)
 		return result;
-	}
 
 	info->plx_regbase = pci_resource_start(pci_device, 1);
 	if (!info->plx_regbase)
@@ -331,59 +313,29 @@ found:
 	if (!info->program_regbase)
 		return -ENODEV;
 
-	/* Initialize board info */
 	result = init_board_info(dev, pci_device);
-	if (result) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_probe(): "
-		       "Cannot init baord info\n", dev->minor);
+	if (result)
 		return result;
-	}
 
-	/* Init analog output context */
 	result = init_ao_context(dev);
-	if (result) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_probe(): "
-		       "Cannot init ao context\n", dev->minor);
+	if (result)
 		return result;
-	}
 
-	/* Init analog input context */
 	result = init_ai_context(dev);
-	if (result) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_probe(): "
-		       "Cannot init ai context\n", dev->minor);
+	if (result)
 		return result;
-	}
 
-	/* Init digital I/O context */
 	result = init_dio_context(dev);
-	if (result) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_probe(): "
-		       "Cannot init dio context\n", dev->minor);
+	if (result)
 		return result;
-	}
 
-	/* Download the xilinx firmware */
 	result = xilinx_download(dev);
-	if (result) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_probe(): "
-		       "Can't download firmware\n", dev->minor);
+	if (result)
 		return result;
-	}
 
-	/* Make a hardware reset */
 	result = reset_board(dev);
-	if (result) {
-		printk(KERN_ERR
-		       "comedi%d: me4000: me4000_probe(): Can't reset board\n",
-		       dev->minor);
+	if (result)
 		return result;
-	}
 
 	return 0;
 }
