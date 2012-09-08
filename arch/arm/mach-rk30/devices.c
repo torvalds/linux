@@ -824,6 +824,21 @@ static int spi_io_resume_leakage_bug(void)
  */
 #ifdef CONFIG_SPIM0_RK29
 static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
+#if defined(CONFIG_ARCH_RK3066B)
+	{
+		.name = "spi0 cs0",
+		.cs_gpio = RK30_PIN1_PA7,
+		.cs_iomux_name = GPIO1A7_UART1RTSN_SPI0CSN0_NAME,
+		.cs_iomux_mode = GPIO1A_SPI0CSN0,
+	},
+	{
+		.name = "spi0 cs1",
+		.cs_gpio = RK30_PIN1_PB7,
+		.cs_iomux_name = GPIO1B7_SPI0CSN1_NAME,//if no iomux,set it NULL
+		.cs_iomux_mode = GPIO1B_SPI0CSN1,
+	}
+
+#else
 	{
 		.name = "spi0 cs0",
 		.cs_gpio = RK30_PIN1_PA4,
@@ -836,6 +851,7 @@ static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
 		.cs_iomux_name = GPIO4B7_SPI0CSN1_NAME,//if no iomux,set it NULL
 		.cs_iomux_mode = GPIO4B_SPI0_CSN1,
 	}
+#endif
 };
 
 static struct rk29xx_spi_platform_data rk29xx_spi0_platdata = {
@@ -885,6 +901,21 @@ struct platform_device rk29xx_device_spi0m = {
 
 #ifdef CONFIG_SPIM1_RK29
 static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
+#if defined(CONFIG_ARCH_RK3066B)			
+	{
+		.name = "spi1 cs0",
+		.cs_gpio = RK30_PIN0_PD7,
+		.cs_iomux_name = GPIO0D7_SPI1CSN0_NAME,
+		.cs_iomux_mode = GPIO0D_SPI1CSN0,
+	},
+	{
+		.name = "spi1 cs1",
+		.cs_gpio = RK30_PIN1_PB6,
+		.cs_iomux_name = GPIO1B6_SPDIFTX_SPI1CSN1_NAME,//if no iomux,set it NULL
+		.cs_iomux_mode = GPIO1B_SPI1CSN1,
+	}
+	
+#else
 	{
 		.name = "spi1 cs0",
 		.cs_gpio = RK30_PIN2_PC4,
@@ -897,6 +928,7 @@ static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
 		.cs_iomux_name = GPIO2C7_LCDC1DATA23_SPI1CSN1_HSADCDATA4_NAME,//if no iomux,set it NULL
 		.cs_iomux_mode = GPIO2C_SPI1_CSN1,
 	}
+#endif
 };
 
 static struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {

@@ -141,7 +141,7 @@ static int __devinit spi_test_probe(struct spi_device *spi)
 
 	g_spi_test_data = spi_test_data;
 
-	printk("%s:bus_num=%d,ok\n",__func__,spi->bus_num);
+	printk("%s:bus_num=%d,ok\n",__func__,spi->master->bus_num);
 
 	return ret;
 
