@@ -500,8 +500,7 @@ static int __init crypto_user_init(void)
 		.input	= crypto_netlink_rcv,
 	};
 
-	crypto_nlsk = netlink_kernel_create(&init_net, NETLINK_CRYPTO,
-					    THIS_MODULE, &cfg);
+	crypto_nlsk = netlink_kernel_create(&init_net, NETLINK_CRYPTO, &cfg);
 	if (!crypto_nlsk)
 		return -ENOMEM;
 

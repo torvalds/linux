@@ -2384,7 +2384,7 @@ static int __net_init rtnetlink_net_init(struct net *net)
 		.flags		= NL_CFG_F_NONROOT_RECV,
 	};
 
-	sk = netlink_kernel_create(net, NETLINK_ROUTE, THIS_MODULE, &cfg);
+	sk = netlink_kernel_create(net, NETLINK_ROUTE, &cfg);
 	if (!sk)
 		return -ENOMEM;
 	net->rtnl = sk;

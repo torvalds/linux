@@ -177,7 +177,7 @@ int __init ibnl_init(void)
 		.input	= ibnl_rcv,
 	};
 
-	nls = netlink_kernel_create(&init_net, NETLINK_RDMA, THIS_MODULE, &cfg);
+	nls = netlink_kernel_create(&init_net, NETLINK_RDMA, &cfg);
 	if (!nls) {
 		pr_warn("Failed to create netlink socket\n");
 		return -ENOMEM;

@@ -2963,7 +2963,7 @@ static int __net_init xfrm_user_net_init(struct net *net)
 		.input	= xfrm_netlink_rcv,
 	};
 
-	nlsk = netlink_kernel_create(net, NETLINK_XFRM, THIS_MODULE, &cfg);
+	nlsk = netlink_kernel_create(net, NETLINK_XFRM, &cfg);
 	if (nlsk == NULL)
 		return -ENOMEM;
 	net->xfrm.nlsk_stash = nlsk; /* Don't set to NULL */

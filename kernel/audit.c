@@ -971,8 +971,7 @@ static int __init audit_init(void)
 
 	printk(KERN_INFO "audit: initializing netlink socket (%s)\n",
 	       audit_default ? "enabled" : "disabled");
-	audit_sock = netlink_kernel_create(&init_net, NETLINK_AUDIT,
-					   THIS_MODULE, &cfg);
+	audit_sock = netlink_kernel_create(&init_net, NETLINK_AUDIT, &cfg);
 	if (!audit_sock)
 		audit_panic("cannot initialize netlink socket");
 	else

@@ -922,8 +922,7 @@ static int __net_init genl_pernet_init(struct net *net)
 	};
 
 	/* we'll bump the group number right afterwards */
-	net->genl_sock = netlink_kernel_create(net, NETLINK_GENERIC,
-					       THIS_MODULE, &cfg);
+	net->genl_sock = netlink_kernel_create(net, NETLINK_GENERIC, &cfg);
 
 	if (!net->genl_sock && net_eq(net, &init_net))
 		panic("GENL: Cannot initialize generic netlink\n");

@@ -2969,8 +2969,7 @@ static __init int iscsi_transport_init(void)
 	if (err)
 		goto unregister_conn_class;
 
-	nls = netlink_kernel_create(&init_net, NETLINK_ISCSI,
-				    THIS_MODULE, &cfg);
+	nls = netlink_kernel_create(&init_net, NETLINK_ISCSI, &cfg);
 	if (!nls) {
 		err = -ENOBUFS;
 		goto unregister_session_class;

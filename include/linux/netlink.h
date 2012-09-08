@@ -153,6 +153,7 @@ struct nlattr {
 
 #include <linux/capability.h>
 #include <linux/skbuff.h>
+#include <linux/module.h>
 #include <net/scm.h>
 
 struct net;
@@ -188,9 +189,15 @@ struct netlink_kernel_cfg {
 	unsigned int	flags;
 };
 
-extern struct sock *netlink_kernel_create(struct net *net, int unit,
-					  struct module *module,
-					  struct netlink_kernel_cfg *cfg);
+extern struct sock *__netlink_kernel_create(struct net *net, int unit,
+					    struct module *module,
+					    struct netlink_kernel_cfg *cfg);
+static inline struct sock *
+netlink_kernel_create(struct net *net, int unit, struct netlink_kernel_cfg *cfg)
+{
+	return __netlink_kernel_create(net, unit, THIS_MODULE, cfg);
+}
+
 extern void netlink_kernel_release(struct sock *sk);
 extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);

@@ -986,7 +986,7 @@ static int __net_init nl_fib_lookup_init(struct net *net)
 		.input	= nl_fib_input,
 	};
 
-	sk = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, THIS_MODULE, &cfg);
+	sk = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, &cfg);
 	if (sk == NULL)
 		return -EAFNOSUPPORT;
 	net->ipv4.fibnl = sk;

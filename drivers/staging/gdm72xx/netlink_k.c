@@ -95,7 +95,7 @@ struct sock *netlink_init(int unit, void (*cb)(struct net_device *dev, u16 type,
 	init_MUTEX(&netlink_mutex);
 #endif
 
-	sock = netlink_kernel_create(&init_net, unit, THIS_MODULE, &cfg);
+	sock = netlink_kernel_create(&init_net, unit, &cfg);
 
 	if (sock)
 		rcv_cb = cb;
