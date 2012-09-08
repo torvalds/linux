@@ -215,8 +215,6 @@ static const struct me4000_board me4000_boards[] = {
 /*-----------------------------------------------------------------------------
   Meilhaus function prototypes
   ---------------------------------------------------------------------------*/
-static int init_board_info(struct comedi_device *dev,
-			   struct pci_dev *pci_dev_p);
 static int xilinx_download(struct comedi_device *dev);
 static int reset_board(struct comedi_device *dev);
 
@@ -310,9 +308,7 @@ found:
 	if (!info->program_regbase)
 		return -ENODEV;
 
-	result = init_board_info(dev, pci_device);
-	if (result)
-		return result;
+	dev->irq = pci_device->irq;
 
 	result = xilinx_download(dev);
 	if (result)
@@ -321,18 +317,6 @@ found:
 	result = reset_board(dev);
 	if (result)
 		return result;
-
-	return 0;
-}
-
-static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p)
-{
-	/* Init spin locks */
-	/* spin_lock_init(&info->preload_lock); */
-	/* spin_lock_init(&info->ai_ctrl_lock); */
-
-	/* Get the irq assigned to the board */
-	dev->irq = pci_dev_p->irq;
 
 	return 0;
 }
