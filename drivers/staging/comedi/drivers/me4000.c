@@ -84,9 +84,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4660i",
 		.device_id	= 0x4661,
@@ -97,9 +95,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4660s",
 		.device_id	= 0x4662,
@@ -111,9 +107,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4660is",
 		.device_id	= 0x4663,
@@ -125,9 +119,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4670",
 		.device_id	= 0x4670,
@@ -142,9 +134,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4670i",
 		.device_id	= 0x4671,
@@ -159,9 +149,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4670s",
 		.device_id	= 0x4672,
@@ -177,9 +165,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4670is",
 		.device_id	= 0x4673,
@@ -195,9 +181,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4680",
 		.device_id	= 0x4680,
@@ -213,9 +197,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4680i",
 		.device_id	= 0x4681,
@@ -231,9 +213,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4680s",
 		.device_id	= 0x4682,
@@ -250,9 +230,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	}, {
 		.name		= "ME-4680is",
 		.device_id	= 0x4683,
@@ -269,9 +247,7 @@ static const struct me4000_board me4000_boards[] = {
 		.dio		= {
 			.count		= 4,
 		},
-		.cnt		= {
-			.count		= 3,
-		},
+		.has_counter	= 1,
 	},
 };
 
@@ -2290,10 +2266,10 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = &dev->subdevices[3];
 
-	if (thisboard->cnt.count) {
+	if (thisboard->has_counter) {
 		s->type = COMEDI_SUBD_COUNTER;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = thisboard->cnt.count;
+		s->n_chan = 3;
 		s->maxdata = 0xFFFF;	/*  16 bit counters */
 		s->insn_read = me4000_cnt_insn_read;
 		s->insn_write = me4000_cnt_insn_write;

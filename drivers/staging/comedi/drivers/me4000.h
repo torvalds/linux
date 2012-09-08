@@ -272,17 +272,13 @@ struct me4000_dio_info {
 	int count;
 };
 
-struct me4000_cnt_info {
-	int count;
-};
-
 struct me4000_board {
 	const char *name;
 	unsigned short device_id;
 	struct me4000_ao_info ao;
 	struct me4000_ai_info ai;
 	struct me4000_dio_info dio;
-	struct me4000_cnt_info cnt;
+	int has_counter;
 };
 
 #define thisboard ((const struct me4000_board *)dev->board_ptr)
