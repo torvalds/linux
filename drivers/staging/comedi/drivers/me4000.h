@@ -25,29 +25,6 @@
 #define _ME4000_H_
 
 /*=============================================================================
-  PCI vendor and device IDs
-  ===========================================================================*/
-
-#define PCI_VENDOR_ID_MEILHAUS 0x1402
-
-#define PCI_DEVICE_ID_MEILHAUS_ME4650	0x4650	/*  Low Cost version */
-
-#define PCI_DEVICE_ID_MEILHAUS_ME4660	0x4660	/*  Standard version */
-#define PCI_DEVICE_ID_MEILHAUS_ME4660I	0x4661	/*  Isolated version */
-#define PCI_DEVICE_ID_MEILHAUS_ME4660S	0x4662	/*  Standard version with Sample and Hold */
-#define PCI_DEVICE_ID_MEILHAUS_ME4660IS	0x4663	/*  Isolated version with Sample and Hold */
-
-#define PCI_DEVICE_ID_MEILHAUS_ME4670	0x4670	/*  Standard version */
-#define PCI_DEVICE_ID_MEILHAUS_ME4670I	0x4671	/*  Isolated version */
-#define PCI_DEVICE_ID_MEILHAUS_ME4670S	0x4672	/*  Standard version with Sample and Hold */
-#define PCI_DEVICE_ID_MEILHAUS_ME4670IS	0x4673	/*  Isolated version with Sample and Hold */
-
-#define PCI_DEVICE_ID_MEILHAUS_ME4680	0x4680	/*  Standard version */
-#define PCI_DEVICE_ID_MEILHAUS_ME4680I	0x4681	/*  Isolated version */
-#define PCI_DEVICE_ID_MEILHAUS_ME4680S	0x4682	/*  Standard version with Sample and Hold */
-#define PCI_DEVICE_ID_MEILHAUS_ME4680IS	0x4683	/*  Isolated version with Sample and Hold */
-
-/*=============================================================================
   ME-4000 base register offsets
   ===========================================================================*/
 
