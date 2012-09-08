@@ -3707,7 +3707,7 @@ void __init kmem_cache_init(void)
 	/* Allocate two kmem_caches from the page allocator */
 	kmalloc_size = ALIGN(kmem_size, cache_line_size());
 	order = get_order(2 * kmalloc_size);
-	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT, order);
+	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT | __GFP_ZERO, order);
 
 	/*
 	 * Must first have the slab cache available for the allocations of the
