@@ -113,13 +113,13 @@ static int __init selnl_init(void)
 {
 	struct netlink_kernel_cfg cfg = {
 		.groups	= SELNLGRP_MAX,
+		.flags	= NL_CFG_F_NONROOT_RECV,
 	};
 
 	selnl = netlink_kernel_create(&init_net, NETLINK_SELINUX,
 				      THIS_MODULE, &cfg);
 	if (selnl == NULL)
 		panic("SELinux:  Cannot create netlink socket.");
-	netlink_set_nonroot(NETLINK_SELINUX, NL_NONROOT_RECV);
 	return 0;
 }
 

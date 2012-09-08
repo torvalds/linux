@@ -176,12 +176,16 @@ struct netlink_skb_parms {
 extern void netlink_table_grab(void);
 extern void netlink_table_ungrab(void);
 
+#define NL_CFG_F_NONROOT_RECV	(1 << 0)
+#define NL_CFG_F_NONROOT_SEND	(1 << 1)
+
 /* optional Netlink kernel configuration parameters */
 struct netlink_kernel_cfg {
 	unsigned int	groups;
 	void		(*input)(struct sk_buff *skb);
 	struct mutex	*cb_mutex;
 	void		(*bind)(int group);
+	unsigned int	flags;
 };
 
 extern struct sock *netlink_kernel_create(struct net *net, int unit,
@@ -259,11 +263,6 @@ struct netlink_dump_control {
 extern int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 			      const struct nlmsghdr *nlh,
 			      struct netlink_dump_control *control);
-
-
-#define NL_NONROOT_RECV 0x1
-#define NL_NONROOT_SEND 0x2
-extern void netlink_set_nonroot(int protocol, unsigned flag);
 
 #endif /* __KERNEL__ */
 

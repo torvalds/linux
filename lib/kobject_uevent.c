@@ -375,6 +375,7 @@ static int uevent_net_init(struct net *net)
 	struct uevent_sock *ue_sk;
 	struct netlink_kernel_cfg cfg = {
 		.groups	= 1,
+		.flags	= NL_CFG_F_NONROOT_RECV,
 	};
 
 	ue_sk = kzalloc(sizeof(*ue_sk), GFP_KERNEL);
@@ -422,7 +423,6 @@ static struct pernet_operations uevent_net_ops = {
 
 static int __init kobject_uevent_init(void)
 {
-	netlink_set_nonroot(NETLINK_KOBJECT_UEVENT, NL_NONROOT_RECV);
 	return register_pernet_subsys(&uevent_net_ops);
 }
 
