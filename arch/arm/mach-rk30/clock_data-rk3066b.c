@@ -1520,7 +1520,7 @@ static struct clk dclk_lcdc0 = {
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC0_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(27),
-	CRU_SRC_SET(0x1, 4),
+	CRU_SRC_SET(0x1, 0),
 	CRU_DIV_SET(0xff, 8, 256),
 	CRU_PARENTS_SET(dclk_lcdc0_parents),
 };
@@ -1533,7 +1533,7 @@ static struct clk dclk_lcdc1 = {
 	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC1_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(28),
-	CRU_SRC_SET(0x1, 4),
+	CRU_SRC_SET(0x1, 0),
 	CRU_DIV_SET(0xff, 8, 256),
 	CRU_PARENTS_SET(dclk_lcdc1_parents),
 };
