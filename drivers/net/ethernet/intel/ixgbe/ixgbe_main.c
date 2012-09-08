@@ -3289,9 +3289,6 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_MHADD, mhadd);
 	}
 
-	/* MHADD will allow an extra 4 bytes past for vlan tagged frames */
-	max_frame += VLAN_HLEN;
-
 	hlreg0 = IXGBE_READ_REG(hw, IXGBE_HLREG0);
 	/* set jumbo enable since MHADD.MFS is keeping size locked at max_frame */
 	hlreg0 |= IXGBE_HLREG0_JUMBOEN;
