@@ -389,8 +389,11 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 		state.err      = err_array;
 		ret = traverse_pages(m.num, sizeof(xen_pfn_t),
 				     &pagelist, mmap_return_errors_v1, &state);
-	} else if (version == 2)
+	} else if (version == 2) {
 		ret = __copy_to_user(m.err, err_array, m.num * sizeof(int));
+		if (ret)
+			ret = -EFAULT;
+	}
 
 	/* If we have not had any EFAULT-like global errors then set the global
 	 * error to -ENOENT if necessary. */
