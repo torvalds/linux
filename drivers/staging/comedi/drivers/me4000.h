@@ -256,15 +256,11 @@
   Information about the hardware capabilities
   ===========================================================================*/
 
-struct me4000_ao_info {
-	int count;
-	int fifo_count;
-};
-
 struct me4000_board {
 	const char *name;
 	unsigned short device_id;
-	struct me4000_ao_info ao;
+	int ao_nchan;
+	int ao_fifo;
 	int ai_nchan;
 	int ai_diff_nchan;
 	int ai_sh_nchan;

@@ -103,9 +103,7 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4670",
 		.device_id	= 0x4670,
-		.ao		= {
-			.count		= 4,
-		},
+		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
@@ -114,9 +112,7 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4670i",
 		.device_id	= 0x4671,
-		.ao		= {
-			.count		= 4,
-		},
+		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
@@ -125,9 +121,7 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4670s",
 		.device_id	= 0x4672,
-		.ao		= {
-			.count		= 4,
-		},
+		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
@@ -137,9 +131,7 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4670is",
 		.device_id	= 0x4673,
-		.ao		= {
-			.count		= 4,
-		},
+		.ao_nchan	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
@@ -149,10 +141,8 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4680",
 		.device_id	= 0x4680,
-		.ao		= {
-			.count		= 4,
-			.fifo_count	= 4,
-		},
+		.ao_nchan	= 4,
+		.ao_fifo	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
@@ -161,10 +151,8 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4680i",
 		.device_id	= 0x4681,
-		.ao		= {
-			.count		= 4,
-			.fifo_count	= 4,
-		},
+		.ao_nchan	= 4,
+		.ao_fifo	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ex_trig_analog	= 1,
@@ -173,10 +161,8 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4680s",
 		.device_id	= 0x4682,
-		.ao		= {
-			.count		= 4,
-			.fifo_count	= 4,
-		},
+		.ao_nchan	= 4,
+		.ao_fifo	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
@@ -186,10 +172,8 @@ static const struct me4000_board me4000_boards[] = {
 	}, {
 		.name		= "ME-4680is",
 		.device_id	= 0x4683,
-		.ao		= {
-			.count		= 4,
-			.fifo_count	= 4,
-		},
+		.ao_nchan	= 4,
+		.ao_fifo	= 4,
 		.ai_nchan	= 32,
 		.ai_diff_nchan	= 16,
 		.ai_sh_nchan	= 8,
@@ -463,7 +447,7 @@ static int init_ao_context(struct comedi_device *dev)
 {
 	int i;
 
-	for (i = 0; i < thisboard->ao.count; i++) {
+	for (i = 0; i < thisboard->ao_nchan; i++) {
 		/* spin_lock_init(&info->ao_context[i].use_lock); */
 		info->ao_context[i].irq = info->irq;
 
@@ -1689,7 +1673,7 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	if (chan >= thisboard->ao.count) {
+	if (chan >= thisboard->ao_nchan) {
 		printk(KERN_ERR
 		       "comedi%d: me4000: me4000_ao_insn_write(): "
 		       "Invalid channel %d\n", dev->minor, insn->n);
@@ -2169,10 +2153,10 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = &dev->subdevices[1];
 
-	if (thisboard->ao.count) {
+	if (thisboard->ao_nchan) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITEABLE | SDF_COMMON | SDF_GROUND;
-		s->n_chan = thisboard->ao.count;
+		s->n_chan = thisboard->ao_nchan;
 		s->maxdata = 0xFFFF;	/*  16 bit DAC */
 		s->range_table = &me4000_ao_range;
 		s->insn_write = me4000_ao_insn_write;
