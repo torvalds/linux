@@ -33,44 +33,44 @@
 #define PIC_SIGN_VALUE         0xcd
 
 #define STATUS_REG_ADDR           0
-#define WDT_EN_MASK            0x01	//BIT_0
-#define CMND_EN_MASK           0x02	//BIT_1
-#define DIS_BYPASS_CAP_MASK    0x04	//BIT_2 /* Bypass Cap is disable*/
-#define DFLT_PWRON_MASK        0x08	//BIT_3
-#define BYPASS_OFF_MASK        0x10	//BIT_4
-#define BYPASS_FLAG_MASK       0x20	//BIT_5
+#define WDT_EN_MASK            0x01	/* BIT_0 */
+#define CMND_EN_MASK           0x02	/* BIT_1 */
+#define DIS_BYPASS_CAP_MASK    0x04	/* BIT_2    Bypass Cap is disable*/
+#define DFLT_PWRON_MASK        0x08	/* BIT_3 */
+#define BYPASS_OFF_MASK        0x10	/* BIT_4 */ 
+#define BYPASS_FLAG_MASK       0x20	/* BIT_5 */
 #define STD_NIC_MASK           (DIS_BYPASS_CAP_MASK | BYPASS_OFF_MASK | DFLT_PWRON_MASK)
-#define WD_EXP_FLAG_MASK       0x40	//BIT_6
-#define DFLT_PWROFF_MASK       0x80	//BIT_7
+#define WD_EXP_FLAG_MASK       0x40	/* BIT_6 */
+#define DFLT_PWROFF_MASK       0x80	/* BIT_7 */
 #define STD_NIC_PWOFF_MASK     (DIS_BYPASS_CAP_MASK | BYPASS_OFF_MASK | DFLT_PWRON_MASK | DFLT_PWROFF_MASK)
 
 #define PRODUCT_CAP_REG_ADDR   0x5
-#define BYPASS_SUPPORT_MASK    0x01	//BIT_0
-#define TAP_SUPPORT_MASK       0x02	//BIT_1
-#define NORMAL_UNSUPPORT_MASK  0x04	/*BIT_2 */
-#define DISC_SUPPORT_MASK      0x08	//BIT_3
-#define TPL2_SUPPORT_MASK      0x10	//BIT_4
-#define DISC_PORT_SUPPORT_MASK 0x20	//BIT_5
+#define BYPASS_SUPPORT_MASK    0x01	/* BIT_0 */
+#define TAP_SUPPORT_MASK       0x02	/* BIT_1 */
+#define NORMAL_UNSUPPORT_MASK  0x04	/* BIT_2 */
+#define DISC_SUPPORT_MASK      0x08	/* BIT_3 */
+#define TPL2_SUPPORT_MASK      0x10	/* BIT_4 */
+#define DISC_PORT_SUPPORT_MASK 0x20	/* BIT_5 */
 
 #define STATUS_TAP_REG_ADDR    0x6
-#define WDTE_TAP_BPN_MASK      0x01	//BIT_1 /* 1 when wdt expired -> TAP, 0 - Bypass */
-#define DIS_TAP_CAP_MASK       0x04	//BIT_2 /* TAP Cap is disable*/
-#define DFLT_PWRON_TAP_MASK    0x08	//BIT_3
-#define TAP_OFF_MASK           0x10	//BIT_4
-#define TAP_FLAG_MASK          0x20	//BIT_5
+#define WDTE_TAP_BPN_MASK      0x01	/* BIT_1    1 when wdt expired -> TAP, 0 - Bypass */
+#define DIS_TAP_CAP_MASK       0x04	/* BIT_2    TAP Cap is disable*/
+#define DFLT_PWRON_TAP_MASK    0x08	/* BIT_3    */
+#define TAP_OFF_MASK           0x10	/* BIT_4    */
+#define TAP_FLAG_MASK          0x20	/* BIT_5    */
 #define TX_DISA_MASK            0x40
 #define TX_DISB_MASK            0x80
 
 #define STD_NIC_TAP_MASK       (DIS_TAP_CAP_MASK | TAP_OFF_MASK | DFLT_PWRON_TAP_MASK)
 
 #define STATUS_DISC_REG_ADDR    13
-#define WDTE_DISC_BPN_MASK      0x01	//BIT_0 /* 1 when wdt expired -> TAP, 0 - Bypass */
-#define STD_NIC_ON_MASK         0x02	//BIT_1
-#define DIS_DISC_CAP_MASK       0x04	//BIT_2 /* TAP Cap is disable*/
-#define DFLT_PWRON_DISC_MASK    0x08	//BIT_3
-#define DISC_OFF_MASK           0x10	//BIT_4
-#define DISC_FLAG_MASK          0x20	//BIT_5
-#define TPL2_FLAG_MASK          0x40	//BIT_6
+#define WDTE_DISC_BPN_MASK      0x01	/* BIT_0    1 when wdt expired -> TAP, 0 - Bypass */
+#define STD_NIC_ON_MASK         0x02	/* BIT_1    */ 
+#define DIS_DISC_CAP_MASK       0x04	/* BIT_2    TAP Cap is disable*/
+#define DFLT_PWRON_DISC_MASK    0x08	/* BIT_3    */
+#define DISC_OFF_MASK           0x10	/* BIT_4    */
+#define DISC_FLAG_MASK          0x20	/* BIT_5    */
+#define TPL2_FLAG_MASK          0x40	/* BIT_6    */
 #define STD_NIC_DISC_MASK       DIS_DISC_CAP_MASK
 
 #define CONT_CONFIG_REG_ADDR    12
@@ -100,9 +100,9 @@
 #define TMRH_REG_ADDR              3
 
 /* NEW_FW */
-#define WDT_INTERVAL               1	//5     //8
-#define WDT_CMND_INTERVAL          200	//50
-#define CMND_INTERVAL              200	//100  /* usec */
+#define WDT_INTERVAL               1	/* 5     //8   */
+#define WDT_CMND_INTERVAL          200	/* 50          */
+#define CMND_INTERVAL              200	/* 100    usec */
 #define PULSE_TIME                 100
 
 /* OLD_FW */
