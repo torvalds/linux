@@ -1,14 +1,23 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include "../../rk29_fb.h"
+#include <linux/rk_fb.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
 #include "screen.h"
 
+#ifdef CONFIG_RK610_LCD
+#include "../lcd/rk610_lcd.h"
+#endif
+
 
 /* Base */
+#ifdef CONFIG_RK610_LCD
+#define OUT_TYPE	    SCREEN_LVDS
+#define OUT_FORMAT      LVDS_8BIT_2
+#else
 #define OUT_TYPE	    SCREEN_RGB
+#endif
 
 #define OUT_FACE	    OUT_D888_P666
 
@@ -30,7 +39,12 @@
 #define LCD_WIDTH          216
 #define LCD_HEIGHT         135
 /* Other */
-#define DCLK_POL		0
+#ifdef CONFIG_RK610_LCD
+#define DCLK_POL	1
+#else
+#define DCLK_POL	0
+
+#endif
 #define SWAP_RB		0
 
 int dsp_lut[256] ={
@@ -70,20 +84,21 @@ int dsp_lut[256] ={
 
 void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 {
-    /* screen type & face */
-    screen->type = OUT_TYPE;
-    screen->face = OUT_FACE;
+	/* screen type & face */
+	screen->type = OUT_TYPE;
+	screen->face = OUT_FACE;
+	screen->hw_format = OUT_FORMAT;
+	
+	/* Screen size */
+	screen->x_res = H_VD;
+	screen->y_res = V_VD;
 
-    /* Screen size */
-    screen->x_res = H_VD;
-    screen->y_res = V_VD;
-
-    screen->width = LCD_WIDTH;
-    screen->height = LCD_HEIGHT;
+	screen->width = LCD_WIDTH;
+	screen->height = LCD_HEIGHT;
 
     /* Timing */
-    screen->lcdc_aclk = LCDC_ACLK;
-    screen->pixclock = OUT_CLK;
+	screen->lcdc_aclk = LCDC_ACLK;
+	screen->pixclock = OUT_CLK;
 	screen->left_margin = H_BP;
 	screen->right_margin = H_FP;
 	screen->hsync_len = H_PW;
@@ -98,14 +113,18 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->pin_dclk = DCLK_POL;
 
 	/* Swap rule */
-    screen->swap_rb = SWAP_RB;
-    screen->swap_rg = 0;
-    screen->swap_gb = 0;
-    screen->swap_delta = 0;
-    screen->swap_dumy = 0;
+	screen->swap_rb = SWAP_RB;
+	screen->swap_rg = 0;
+	screen->swap_gb = 0;
+	screen->swap_delta = 0;
+	screen->swap_dumy = 0;
 
-    /* Operation function*/
-    screen->init = NULL;
-    screen->standby = NULL;
-    screen->dsp_lut = dsp_lut;
+	/* Operation function*/
+	screen->init = NULL;
+	screen->standby = NULL;
+	screen->dsp_lut = dsp_lut;
+	screen->sscreen_get = NULL;//set_scaler_info;
+#ifdef CONFIG_RK610_LCD
+    	screen->sscreen_set = rk610_lcd_scaler_set_param;
+#endif
 }
