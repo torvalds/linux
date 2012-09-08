@@ -221,7 +221,7 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_device = NULL;
 	int result, i;
-	struct me4000_board *board;
+	const struct me4000_board *board;
 
 	/* Allocate private memory */
 	if (alloc_private(dev, sizeof(struct me4000_info)) < 0)
@@ -254,9 +254,7 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 						}
 					}
 					dev->board_ptr = me4000_boards + i;
-					board =
-					    (struct me4000_board *)
-					    dev->board_ptr;
+					board = comedi_board(dev);
 					info->pci_dev_p = pci_device;
 					goto found;
 				}
@@ -445,6 +443,7 @@ static int init_board_info(struct comedi_device *dev, struct pci_dev *pci_dev_p)
 
 static int init_ao_context(struct comedi_device *dev)
 {
+	const struct me4000_board *thisboard = comedi_board(dev);
 	int i;
 
 	for (i = 0; i < thisboard->ao_nchan; i++) {
@@ -726,7 +725,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *subdevice,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-
+	const struct me4000_board *thisboard = comedi_board(dev);
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
@@ -864,6 +863,7 @@ static int me4000_ai_cancel(struct comedi_device *dev,
 static int ai_check_chanlist(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	const struct me4000_board *thisboard = comedi_board(dev);
 	int aref;
 	int i;
 
@@ -1658,7 +1658,7 @@ static int me4000_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-
+	const struct me4000_board *thisboard = comedi_board(dev);
 	int chan = CR_CHAN(insn->chanspec);
 	int rang = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
@@ -2098,12 +2098,14 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 
 static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct me4000_board *thisboard;
 	struct comedi_subdevice *s;
 	int result;
 
 	result = me4000_probe(dev, it);
 	if (result)
 		return result;
+	thisboard = comedi_board(dev);
 
 	result = comedi_alloc_subdevices(dev, 4);
 	if (result)

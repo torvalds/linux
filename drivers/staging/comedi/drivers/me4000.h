@@ -269,8 +269,6 @@ struct me4000_board {
 	int has_counter;
 };
 
-#define thisboard ((const struct me4000_board *)dev->board_ptr)
-
 /*=============================================================================
   Global board and subdevice information structures
   ===========================================================================*/
