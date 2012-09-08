@@ -308,7 +308,7 @@ static int xilinx_download(struct comedi_device *dev)
 	return 0;
 }
 
-static int reset_board(struct comedi_device *dev)
+static void me4000_reset(struct comedi_device *dev)
 {
 	struct me4000_info *info = dev->private;
 	unsigned long val;
@@ -347,8 +347,6 @@ static int reset_board(struct comedi_device *dev)
 	 */
 	if (!(inl(dev->iobase + ME4000_DIO_DIR_REG) & 0x1))
 		outl(0x1, dev->iobase + ME4000_DIO_CTRL_REG);
-
-	return 0;
 }
 
 /*=============================================================================
@@ -1785,9 +1783,7 @@ static int me4000_attach_pci(struct comedi_device *dev,
 	if (result)
 		return result;
 
-	result = reset_board(dev);
-	if (result)
-		return result;
+	me4000_reset(dev);
 
 	result = comedi_alloc_subdevices(dev, 4);
 	if (result)
@@ -1905,7 +1901,7 @@ static void me4000_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (pcidev) {
 		if (dev->iobase) {
-			reset_board(dev);
+			me4000_reset(dev);
 			comedi_pci_disable(pcidev);
 		}
 	}
