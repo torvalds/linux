@@ -218,7 +218,6 @@ static const struct me4000_board me4000_boards[] = {
 static int init_board_info(struct comedi_device *dev,
 			   struct pci_dev *pci_dev_p);
 static int init_ao_context(struct comedi_device *dev);
-static int init_ai_context(struct comedi_device *dev);
 static int xilinx_download(struct comedi_device *dev);
 static int reset_board(struct comedi_device *dev);
 
@@ -317,10 +316,6 @@ found:
 		return result;
 
 	result = init_ao_context(dev);
-	if (result)
-		return result;
-
-	result = init_ai_context(dev);
 	if (result)
 		return result;
 
@@ -443,37 +438,6 @@ static int init_ao_context(struct comedi_device *dev)
 			break;
 		}
 	}
-
-	return 0;
-}
-
-static int init_ai_context(struct comedi_device *dev)
-{
-	info->ai_context.irq = info->irq;
-
-	info->ai_context.ctrl_reg = dev->iobase + ME4000_AI_CTRL_REG;
-	info->ai_context.status_reg =
-	    dev->iobase + ME4000_AI_STATUS_REG;
-	info->ai_context.channel_list_reg =
-	    dev->iobase + ME4000_AI_CHANNEL_LIST_REG;
-	info->ai_context.data_reg = dev->iobase + ME4000_AI_DATA_REG;
-	info->ai_context.chan_timer_reg =
-	    dev->iobase + ME4000_AI_CHAN_TIMER_REG;
-	info->ai_context.chan_pre_timer_reg =
-	    dev->iobase + ME4000_AI_CHAN_PRE_TIMER_REG;
-	info->ai_context.scan_timer_low_reg =
-	    dev->iobase + ME4000_AI_SCAN_TIMER_LOW_REG;
-	info->ai_context.scan_timer_high_reg =
-	    dev->iobase + ME4000_AI_SCAN_TIMER_HIGH_REG;
-	info->ai_context.scan_pre_timer_low_reg =
-	    dev->iobase + ME4000_AI_SCAN_PRE_TIMER_LOW_REG;
-	info->ai_context.scan_pre_timer_high_reg =
-	    dev->iobase + ME4000_AI_SCAN_PRE_TIMER_HIGH_REG;
-	info->ai_context.start_reg = dev->iobase + ME4000_AI_START_REG;
-	info->ai_context.irq_status_reg =
-	    dev->iobase + ME4000_IRQ_STATUS_REG;
-	info->ai_context.sample_counter_reg =
-	    dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG;
 
 	return 0;
 }
@@ -697,34 +661,34 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	entry |= ME4000_AI_LIST_LAST_ENTRY;
 
 	/* Clear channel list, data fifo and both stop bits */
-	tmp = inl(info->ai_context.ctrl_reg);
+	tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
 	tmp &= ~(ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
 		 ME4000_AI_CTRL_BIT_DATA_FIFO |
 		 ME4000_AI_CTRL_BIT_STOP | ME4000_AI_CTRL_BIT_IMMEDIATE_STOP);
-	outl(tmp, info->ai_context.ctrl_reg);
+	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Set the acquisition mode to single */
 	tmp &= ~(ME4000_AI_CTRL_BIT_MODE_0 | ME4000_AI_CTRL_BIT_MODE_1 |
 		 ME4000_AI_CTRL_BIT_MODE_2);
-	outl(tmp, info->ai_context.ctrl_reg);
+	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Enable channel list and data fifo */
 	tmp |= ME4000_AI_CTRL_BIT_CHANNEL_FIFO | ME4000_AI_CTRL_BIT_DATA_FIFO;
-	outl(tmp, info->ai_context.ctrl_reg);
+	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Generate channel list entry */
-	outl(entry, info->ai_context.channel_list_reg);
+	outl(entry, dev->iobase + ME4000_AI_CHANNEL_LIST_REG);
 
 	/* Set the timer to maximum sample rate */
-	outl(ME4000_AI_MIN_TICKS, info->ai_context.chan_timer_reg);
-	outl(ME4000_AI_MIN_TICKS, info->ai_context.chan_pre_timer_reg);
+	outl(ME4000_AI_MIN_TICKS, dev->iobase + ME4000_AI_CHAN_TIMER_REG);
+	outl(ME4000_AI_MIN_TICKS, dev->iobase + ME4000_AI_CHAN_PRE_TIMER_REG);
 
 	/* Start conversion by dummy read */
-	inl(info->ai_context.start_reg);
+	inl(dev->iobase + ME4000_AI_START_REG);
 
 	/* Wait until ready */
 	udelay(10);
-	if (!(inl(info->ai_context.status_reg) &
+	if (!(inl(dev->iobase + ME4000_AI_STATUS_REG) &
 	     ME4000_AI_STATUS_BIT_EF_DATA)) {
 		printk(KERN_ERR
 		       "comedi%d: me4000: me4000_ai_insn_read(): "
@@ -733,7 +697,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	}
 
 	/* Read value from data fifo */
-	lval = inl(info->ai_context.data_reg) & 0xFFFF;
+	lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 	data[0] = lval ^ 0x8000;
 
 	return 1;
@@ -745,12 +709,12 @@ static int me4000_ai_cancel(struct comedi_device *dev,
 	unsigned long tmp;
 
 	/* Stop any running conversion */
-	tmp = inl(info->ai_context.ctrl_reg);
+	tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
 	tmp &= ~(ME4000_AI_CTRL_BIT_STOP | ME4000_AI_CTRL_BIT_IMMEDIATE_STOP);
-	outl(tmp, info->ai_context.ctrl_reg);
+	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Clear the control register */
-	outl(0x0, info->ai_context.ctrl_reg);
+	outl(0x0, dev->iobase + ME4000_AI_CTRL_REG);
 
 	return 0;
 }
@@ -897,16 +861,16 @@ static void ai_write_timer(struct comedi_device *dev,
 			   unsigned int init_ticks,
 			   unsigned int scan_ticks, unsigned int chan_ticks)
 {
-	outl(init_ticks - 1, info->ai_context.scan_pre_timer_low_reg);
-	outl(0x0, info->ai_context.scan_pre_timer_high_reg);
+	outl(init_ticks - 1, dev->iobase + ME4000_AI_SCAN_PRE_TIMER_LOW_REG);
+	outl(0x0, dev->iobase + ME4000_AI_SCAN_PRE_TIMER_HIGH_REG);
 
 	if (scan_ticks) {
-		outl(scan_ticks - 1, info->ai_context.scan_timer_low_reg);
-		outl(0x0, info->ai_context.scan_timer_high_reg);
+		outl(scan_ticks - 1, dev->iobase + ME4000_AI_SCAN_TIMER_LOW_REG);
+		outl(0x0, dev->iobase + ME4000_AI_SCAN_TIMER_HIGH_REG);
 	}
 
-	outl(chan_ticks - 1, info->ai_context.chan_pre_timer_reg);
-	outl(chan_ticks - 1, info->ai_context.chan_timer_reg);
+	outl(chan_ticks - 1, dev->iobase + ME4000_AI_CHAN_PRE_TIMER_REG);
+	outl(chan_ticks - 1, dev->iobase + ME4000_AI_CHAN_TIMER_REG);
 }
 
 static int ai_prepare(struct comedi_device *dev,
@@ -922,7 +886,7 @@ static int ai_prepare(struct comedi_device *dev,
 	ai_write_timer(dev, init_ticks, scan_ticks, chan_ticks);
 
 	/* Reset control register */
-	outl(tmp, info->ai_context.ctrl_reg);
+	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Start sources */
 	if ((cmd->start_src == TRIG_EXT &&
@@ -956,19 +920,19 @@ static int ai_prepare(struct comedi_device *dev,
 	/* Stop triggers */
 	if (cmd->stop_src == TRIG_COUNT) {
 		outl(cmd->chanlist_len * cmd->stop_arg,
-			    info->ai_context.sample_counter_reg);
+			    dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
 		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ | ME4000_AI_CTRL_BIT_SC_IRQ;
 	} else if (cmd->stop_src == TRIG_NONE &&
 		   cmd->scan_end_src == TRIG_COUNT) {
 		outl(cmd->scan_end_arg,
-			    info->ai_context.sample_counter_reg);
+			    dev->iobase + ME4000_AI_SAMPLE_COUNTER_REG);
 		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ | ME4000_AI_CTRL_BIT_SC_IRQ;
 	} else {
 		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ;
 	}
 
 	/* Write the setup to the control register */
-	outl(tmp, info->ai_context.ctrl_reg);
+	outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 	/* Write the channel list */
 	ai_write_chanlist(dev, s, cmd);
@@ -1006,7 +970,7 @@ static int ai_write_chanlist(struct comedi_device *dev,
 		else
 			entry |= ME4000_AI_LIST_INPUT_SINGLE_ENDED;
 
-		outl(entry, info->ai_context.channel_list_reg);
+		outl(entry, dev->iobase + ME4000_AI_CHANNEL_LIST_REG);
 	}
 
 	return 0;
@@ -1038,7 +1002,7 @@ static int me4000_ai_do_cmd(struct comedi_device *dev,
 		return err;
 
 	/* Start acquistion by dummy read */
-	inl(info->ai_context.start_reg);
+	inl(dev->iobase + ME4000_AI_START_REG);
 
 	return 0;
 }
@@ -1402,7 +1366,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	unsigned int tmp;
 	struct comedi_device *dev = dev_id;
 	struct comedi_subdevice *s = &dev->subdevices[0];
-	struct me4000_ai_context *ai_context = &info->ai_context;
 	int i;
 	int c = 0;
 	long lval;
@@ -1414,17 +1377,17 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 	s->async->events = 0;
 
 	/* Check if irq number is right */
-	if (irq != ai_context->irq) {
+	if (irq != info->irq) {
 		printk(KERN_ERR
 		       "comedi%d: me4000: me4000_ai_isr(): "
 		       "Incorrect interrupt num: %d\n", dev->minor, irq);
 		return IRQ_HANDLED;
 	}
 
-	if (inl(ai_context->irq_status_reg) &
+	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_BIT_AI_HF) {
 		/* Read status register to find out what happened */
-		tmp = inl(ai_context->ctrl_reg);
+		tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
 
 		if (!(tmp & ME4000_AI_STATUS_BIT_FF_DATA) &&
 		    !(tmp & ME4000_AI_STATUS_BIT_HF_DATA) &&
@@ -1438,7 +1401,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			tmp |= ME4000_AI_CTRL_BIT_IMMEDIATE_STOP;
 			tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ |
 				 ME4000_AI_CTRL_BIT_SC_IRQ);
-			outl(tmp, ai_context->ctrl_reg);
+			outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 
@@ -1464,7 +1427,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			tmp |= ME4000_AI_CTRL_BIT_IMMEDIATE_STOP;
 			tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ |
 				 ME4000_AI_CTRL_BIT_SC_IRQ);
-			outl(tmp, ai_context->ctrl_reg);
+			outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 
@@ -1475,7 +1438,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 		for (i = 0; i < c; i++) {
 			/* Read value from data fifo */
-			lval = inl(ai_context->data_reg) & 0xFFFF;
+			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
 			if (!comedi_buf_put(s->async, lval)) {
@@ -1486,7 +1449,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 				tmp |= ME4000_AI_CTRL_BIT_IMMEDIATE_STOP;
 				tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ |
 					 ME4000_AI_CTRL_BIT_SC_IRQ);
-				outl(tmp, ai_context->ctrl_reg);
+				outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 				s->async->events |= COMEDI_CB_OVERFLOW;
 
@@ -1500,27 +1463,29 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 		/* Work is done, so reset the interrupt */
 		tmp |= ME4000_AI_CTRL_BIT_HF_IRQ_RESET;
-		outl(tmp, ai_context->ctrl_reg);
+		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 		tmp &= ~ME4000_AI_CTRL_BIT_HF_IRQ_RESET;
-		outl(tmp, ai_context->ctrl_reg);
+		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 	}
 
-	if (inl(ai_context->irq_status_reg) & ME4000_IRQ_STATUS_BIT_SC) {
+	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
+	    ME4000_IRQ_STATUS_BIT_SC) {
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOA;
 
 		/*
 		 * Acquisition is complete, so stop
 		 * conversion and disable all interrupts
 		 */
-		tmp = inl(ai_context->ctrl_reg);
+		tmp = inl(dev->iobase + ME4000_AI_CTRL_REG);
 		tmp |= ME4000_AI_CTRL_BIT_IMMEDIATE_STOP;
 		tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ | ME4000_AI_CTRL_BIT_SC_IRQ);
-		outl(tmp, ai_context->ctrl_reg);
+		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 
 		/* Poll data until fifo empty */
-		while (inl(ai_context->ctrl_reg) & ME4000_AI_STATUS_BIT_EF_DATA) {
+		while (inl(dev->iobase + ME4000_AI_CTRL_REG) &
+		       ME4000_AI_STATUS_BIT_EF_DATA) {
 			/* Read value from data fifo */
-			lval = inl(ai_context->data_reg) & 0xFFFF;
+			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
 			if (!comedi_buf_put(s->async, lval)) {
@@ -1534,9 +1499,9 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 		/* Work is done, so reset the interrupt */
 		tmp |= ME4000_AI_CTRL_BIT_SC_IRQ_RESET;
-		outl(tmp, ai_context->ctrl_reg);
+		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 		tmp &= ~ME4000_AI_CTRL_BIT_SC_IRQ_RESET;
-		outl(tmp, ai_context->ctrl_reg);
+		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 	}
 
 	if (s->async->events)

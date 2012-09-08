@@ -247,24 +247,6 @@ struct me4000_ao_context {
 	unsigned long preload_reg;
 };
 
-struct me4000_ai_context {
-	int irq;
-
-	unsigned long ctrl_reg;
-	unsigned long status_reg;
-	unsigned long channel_list_reg;
-	unsigned long data_reg;
-	unsigned long chan_timer_reg;
-	unsigned long chan_pre_timer_reg;
-	unsigned long scan_timer_low_reg;
-	unsigned long scan_timer_high_reg;
-	unsigned long scan_pre_timer_low_reg;
-	unsigned long scan_pre_timer_high_reg;
-	unsigned long start_reg;
-	unsigned long irq_status_reg;
-	unsigned long sample_counter_reg;
-};
-
 struct me4000_info {
 	unsigned long plx_regbase;	/*  PLX configuration space base address */
 	unsigned long timer_regbase;	/*  Base address of the timer circuit */
@@ -279,7 +261,6 @@ struct me4000_info {
 
 	unsigned int irq;	/*  IRQ assigned from the PCI BIOS */
 
-	struct me4000_ai_context ai_context;	/*  Analog input  specific context */
 	struct me4000_ao_context ao_context[4];	/*  Vector with analog output specific context */
 };
 
