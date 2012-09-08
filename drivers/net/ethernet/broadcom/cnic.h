@@ -475,6 +475,10 @@ struct bnx2x_bd_chain_next {
 	  MAX_STAT_COUNTER_ID_E1))
 #endif
 
+#define CNIC_SUPPORTS_FCOE(cp)					\
+	(BNX2X_CHIP_IS_E2_PLUS((cp)->chip_id) &&		\
+	 !((cp)->ethdev->drv_state & CNIC_DRV_STATE_NO_FCOE))
+
 #define CNIC_RAMROD_TMO			(HZ / 4)
 
 #endif

@@ -1288,7 +1288,7 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 	if (ret)
 		goto error;
 
-	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
+	if (CNIC_SUPPORTS_FCOE(cp)) {
 		ret = cnic_alloc_kcq(dev, &cp->kcq2, true);
 		if (ret)
 			goto error;
@@ -3130,7 +3130,7 @@ static void cnic_service_bnx2x_bh(unsigned long data)
 		CNIC_WR16(dev, cp->kcq1.io_addr,
 			  cp->kcq1.sw_prod_idx + MAX_KCQ_IDX);
 
-		if (!BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
+		if (cp->ethdev->drv_state & CNIC_DRV_STATE_NO_FCOE) {
 			cp->arm_int(dev, status_idx);
 			break;
 		}
@@ -5516,8 +5516,7 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 
 	if (!(ethdev->drv_state & CNIC_DRV_STATE_NO_ISCSI))
 		cdev->max_iscsi_conn = ethdev->max_iscsi_conn;
-	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id) &&
-	    !(ethdev->drv_state & CNIC_DRV_STATE_NO_FCOE))
+	if (CNIC_SUPPORTS_FCOE(cp))
 		cdev->max_fcoe_conn = ethdev->max_fcoe_conn;
 
 	if (cdev->max_fcoe_conn > BNX2X_FCOE_NUM_CONNECTIONS)
