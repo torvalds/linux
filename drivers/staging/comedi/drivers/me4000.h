@@ -261,18 +261,14 @@ struct me4000_ao_info {
 	int fifo_count;
 };
 
-struct me4000_ai_info {
-	int count;
-	int sh_count;
-	int diff_count;
-	int ex_trig_analog;
-};
-
 struct me4000_board {
 	const char *name;
 	unsigned short device_id;
 	struct me4000_ao_info ao;
-	struct me4000_ai_info ai;
+	int ai_nchan;
+	int ai_diff_nchan;
+	int ai_sh_nchan;
+	int ex_trig_analog;
 	int dio_nchan;
 	int has_counter;
 };

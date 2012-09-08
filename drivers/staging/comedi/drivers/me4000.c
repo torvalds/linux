@@ -68,46 +68,36 @@ static const struct me4000_board me4000_boards[] = {
 	{
 		.name		= "ME-4650",
 		.device_id	= 0x4650,
-		.ai		= {
-			.count		= 16,
-		},
+		.ai_nchan	= 16,
 		.dio_nchan	= 32,
 	}, {
 		.name		= "ME-4660",
 		.device_id	= 0x4660,
-		.ai		= {
-			.count		= 32,
-			.diff_count	= 16,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4660i",
 		.device_id	= 0x4661,
-		.ai		= {
-			.count		= 32,
-			.diff_count	= 16,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4660s",
 		.device_id	= 0x4662,
-		.ai		= {
-			.count		= 32,
-			.sh_count	= 8,
-			.diff_count	= 16,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ai_sh_nchan	= 8,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
 		.name		= "ME-4660is",
 		.device_id	= 0x4663,
-		.ai		= {
-			.count		= 32,
-			.sh_count	= 8,
-			.diff_count	= 16,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ai_sh_nchan	= 8,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
@@ -116,11 +106,9 @@ static const struct me4000_board me4000_boards[] = {
 		.ao		= {
 			.count		= 4,
 		},
-		.ai		= {
-			.count		= 32,
-			.diff_count	= 16,
-			.ex_trig_analog	= 1,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
@@ -129,11 +117,9 @@ static const struct me4000_board me4000_boards[] = {
 		.ao		= {
 			.count		= 4,
 		},
-		.ai		= {
-			.count		= 32,
-			.diff_count	= 16,
-			.ex_trig_analog	= 1,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
@@ -142,12 +128,10 @@ static const struct me4000_board me4000_boards[] = {
 		.ao		= {
 			.count		= 4,
 		},
-		.ai		= {
-			.count		= 32,
-			.sh_count	= 8,
-			.diff_count	= 16,
-			.ex_trig_analog	= 1,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ai_sh_nchan	= 8,
+		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
@@ -156,12 +140,10 @@ static const struct me4000_board me4000_boards[] = {
 		.ao		= {
 			.count		= 4,
 		},
-		.ai		= {
-			.count		= 32,
-			.sh_count	= 8,
-			.diff_count	= 16,
-			.ex_trig_analog	= 1,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ai_sh_nchan	= 8,
+		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
@@ -171,11 +153,9 @@ static const struct me4000_board me4000_boards[] = {
 			.count		= 4,
 			.fifo_count	= 4,
 		},
-		.ai		= {
-			.count		= 32,
-			.diff_count	= 16,
-			.ex_trig_analog	= 1,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
@@ -185,11 +165,9 @@ static const struct me4000_board me4000_boards[] = {
 			.count		= 4,
 			.fifo_count	= 4,
 		},
-		.ai		= {
-			.count		= 32,
-			.diff_count	= 16,
-			.ex_trig_analog	= 1,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
@@ -199,12 +177,10 @@ static const struct me4000_board me4000_boards[] = {
 			.count		= 4,
 			.fifo_count	= 4,
 		},
-		.ai		= {
-			.count		= 32,
-			.sh_count	= 8,
-			.diff_count	= 16,
-			.ex_trig_analog	= 1,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ai_sh_nchan	= 8,
+		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	}, {
@@ -214,12 +190,10 @@ static const struct me4000_board me4000_boards[] = {
 			.count		= 4,
 			.fifo_count	= 4,
 		},
-		.ai		= {
-			.count		= 32,
-			.sh_count	= 8,
-			.diff_count	= 16,
-			.ex_trig_analog	= 1,
-		},
+		.ai_nchan	= 32,
+		.ai_diff_nchan	= 16,
+		.ai_sh_nchan	= 8,
+		.ex_trig_analog	= 1,
 		.dio_nchan	= 32,
 		.has_counter	= 1,
 	},
@@ -809,7 +783,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	switch (aref) {
 	case AREF_GROUND:
 	case AREF_COMMON:
-		if (chan >= thisboard->ai.count) {
+		if (chan >= thisboard->ai_nchan) {
 			printk(KERN_ERR
 			       "comedi%d: me4000: me4000_ai_insn_read(): "
 			       "Analog input is not available\n", dev->minor);
@@ -827,7 +801,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 			return -EINVAL;
 		}
 
-		if (chan >= thisboard->ai.diff_count) {
+		if (chan >= thisboard->ai_diff_nchan) {
 			printk(KERN_ERR
 			       "comedi%d: me4000: me4000_ai_insn_read(): "
 			       "Analog input is not available\n", dev->minor);
@@ -949,7 +923,7 @@ static int ai_check_chanlist(struct comedi_device *dev,
 	if (aref == SDF_DIFF) {
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			if (CR_CHAN(cmd->chanlist[i]) >=
-			    thisboard->ai.diff_count) {
+			    thisboard->ai_diff_nchan) {
 				printk(KERN_ERR
 				       "comedi%d: me4000: ai_check_chanlist():"
 				       " Channel number to high\n", dev->minor);
@@ -958,7 +932,7 @@ static int ai_check_chanlist(struct comedi_device *dev,
 		}
 	} else {
 		for (i = 0; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) >= thisboard->ai.count) {
+			if (CR_CHAN(cmd->chanlist[i]) >= thisboard->ai_nchan) {
 				printk(KERN_ERR
 				       "comedi%d: me4000: ai_check_chanlist(): "
 				       "Channel number to high\n", dev->minor);
@@ -2157,11 +2131,11 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = &dev->subdevices[0];
 
-	if (thisboard->ai.count) {
+	if (thisboard->ai_nchan) {
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags =
 		    SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
-		s->n_chan = thisboard->ai.count;
+		s->n_chan = thisboard->ai_nchan;
 		s->maxdata = 0xFFFF;	/*  16 bit ADC */
 		s->len_chanlist = ME4000_AI_CHANNEL_LIST_COUNT;
 		s->range_table = &me4000_ai_range;
