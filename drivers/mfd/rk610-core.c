@@ -28,7 +28,7 @@
 #endif
 
 static struct i2c_client *rk610_control_client = NULL;
-#ifdef CONFIG_RK610_LCD
+#ifdef CONFIG_RK610_LVDS
 extern int rk610_lcd_init(struct rk610_core_info *rk610_core_info);
 #else
 int rk610_lcd_init(struct rk610_core_info *rk610_core_info){}

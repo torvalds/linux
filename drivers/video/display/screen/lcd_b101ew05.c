@@ -6,15 +6,15 @@
 #include <mach/board.h>
 #include "screen.h"
 
-#ifdef CONFIG_RK610_LCD
-#include "../lcd/rk610_lcd.h"
+#ifdef CONFIG_RK610_LVDS
+#include "../transmitter/rk610_lcd.h"
 #endif
 
 
 /* Base */
-#ifdef CONFIG_RK610_LCD
-#define OUT_TYPE	    SCREEN_LVDS
-#define OUT_FORMAT      LVDS_8BIT_2
+#ifdef CONFIG_RK610_LVDS
+#define OUT_TYPE	    	SCREEN_LVDS
+#define OUT_FORMAT      	LVDS_8BIT_2
 #else
 #define OUT_TYPE	    SCREEN_RGB
 #endif
@@ -39,12 +39,12 @@
 #define LCD_WIDTH          216
 #define LCD_HEIGHT         135
 /* Other */
-#ifdef CONFIG_RK610_LCD
+#ifdef CONFIG_RK610_LVDS
 #define DCLK_POL	1
 #else
 #define DCLK_POL	0
-
 #endif
+
 #define SWAP_RB		0
 
 int dsp_lut[256] ={
@@ -124,7 +124,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->standby = NULL;
 	screen->dsp_lut = dsp_lut;
 	screen->sscreen_get = NULL;//set_scaler_info;
-#ifdef CONFIG_RK610_LCD
+#ifdef CONFIG_RK610_LVDS
     	screen->sscreen_set = rk610_lcd_scaler_set_param;
 #endif
 }

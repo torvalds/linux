@@ -63,7 +63,7 @@
 #include "./display/screen/screen.h"
 
 #ifdef CONFIG_MFD_RK610
-#include "./display/lcd/rk610_lcd.h"
+#include "./display/transmitter/rk610_lcd.h"
 #endif
 #define ANDROID_USE_THREE_BUFS  0       //android use three buffers to accelerate UI display in rgb plane
 #define CURSOR_BUF_SIZE         256     //RK2818 cursor need 256B buf

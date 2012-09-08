@@ -1,5 +1,5 @@
-config RK610_LCD
-	bool "RK610(Jetta) lcd support"
+config RK610_LVDS
+	bool "RK610(Jetta) lvds transmitter support"
 	depends on MFD_RK610
 	default y if MFD_RK610
 	help

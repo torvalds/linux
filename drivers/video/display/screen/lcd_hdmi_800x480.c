@@ -6,7 +6,7 @@
 #include "screen.h"
 #include <linux/hdmi.h>
 #include "../../rk29_fb.h"
-#include "../lcd/rk610_lcd.h"
+#include "../transmitter/rk610_lcd.h"
 
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
@@ -269,7 +269,7 @@ void set_lcd_info(struct rk29fb_screen *screen,  struct rk29lcd_info *lcd_info )
     screen->init = NULL;
     screen->standby = NULL;
     screen->sscreen_get = set_scaler_info;
-#ifdef CONFIG_RK610_LCD
+#ifdef CONFIG_RK610_LVDS
     screen->sscreen_set = rk610_lcd_scaler_set_param;
 #endif
 }

@@ -6,7 +6,7 @@
 #include "screen.h"
 #include <linux/hdmi.h>
 #include "../../rk29_fb.h"
-#include "../lcd/rk610_lcd.h"
+#include "../transmitter/rk610_lcd.h"
 
 
 /* Base */
