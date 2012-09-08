@@ -253,23 +253,6 @@
 #define ME4000_DIO_CTRL_BIT_FIFO_HIGH_3		0x2000
 
 /*=============================================================================
-  Information about the hardware capabilities
-  ===========================================================================*/
-
-struct me4000_board {
-	const char *name;
-	unsigned short device_id;
-	int ao_nchan;
-	int ao_fifo;
-	int ai_nchan;
-	int ai_diff_nchan;
-	int ai_sh_nchan;
-	int ex_trig_analog;
-	int dio_nchan;
-	int has_counter;
-};
-
-/*=============================================================================
   Global board and subdevice information structures
   ===========================================================================*/
 

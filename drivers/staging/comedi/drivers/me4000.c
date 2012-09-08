@@ -64,6 +64,19 @@ broken.
 #include "me4000_fw.h"
 #endif
 
+struct me4000_board {
+	const char *name;
+	unsigned short device_id;
+	int ao_nchan;
+	int ao_fifo;
+	int ai_nchan;
+	int ai_diff_nchan;
+	int ai_sh_nchan;
+	int ex_trig_analog;
+	int dio_nchan;
+	int has_counter;
+};
+
 static const struct me4000_board me4000_boards[] = {
 	{
 		.name		= "ME-4650",
