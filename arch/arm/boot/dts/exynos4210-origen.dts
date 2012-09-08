@@ -91,6 +91,14 @@
 		};
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		status {
+			gpios = <&gpx1 3 0 0x10000 2>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
 	keypad@100A0000 {
 		status = "disabled";
 	};
