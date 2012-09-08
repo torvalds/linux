@@ -13,44 +13,44 @@
 #ifndef BP_IOCTL_H
 #define BP_IOCTL_H
 
-#define BP_CAP                   0x01	//BIT_0
-#define BP_STATUS_CAP            0x02	//BIT_1
-#define BP_STATUS_CHANGE_CAP     0x04	//BIT_2
-#define SW_CTL_CAP               0x08	//BIT_3
-#define BP_DIS_CAP               0x10	//BIT_4
-#define BP_DIS_STATUS_CAP        0x20	//BIT_5
-#define STD_NIC_CAP              0x40	//BIT_6
-#define BP_PWOFF_ON_CAP          0x80	//BIT_7
-#define BP_PWOFF_OFF_CAP         0x0100	//BIT_8
-#define BP_PWOFF_CTL_CAP         0x0200	//BIT_9
-#define BP_PWUP_ON_CAP           0x0400	//BIT_10
-#define BP_PWUP_OFF_CAP          0x0800	//BIT_11
-#define BP_PWUP_CTL_CAP          0x1000	//BIT_12
-#define WD_CTL_CAP               0x2000	//BIT_13
-#define WD_STATUS_CAP            0x4000	//BIT_14
-#define WD_TIMEOUT_CAP           0x8000	//BIT_15
-#define TX_CTL_CAP               0x10000	//BIT_16
-#define TX_STATUS_CAP            0x20000	//BIT_17
-#define TAP_CAP                  0x40000	//BIT_18
-#define TAP_STATUS_CAP           0x80000	//BIT_19
-#define TAP_STATUS_CHANGE_CAP    0x100000	//BIT_20
-#define TAP_DIS_CAP              0x200000	//BIT_21
-#define TAP_DIS_STATUS_CAP       0x400000	//BIT_22
-#define TAP_PWUP_ON_CAP          0x800000	//BIT_23
-#define TAP_PWUP_OFF_CAP         0x1000000	//BIT 24
-#define TAP_PWUP_CTL_CAP         0x2000000	//BIT 25
-#define NIC_CAP_NEG              0x4000000	//BIT 26
-#define TPL_CAP                  0x8000000	//BIT 27
-#define DISC_CAP                 0x10000000	//BIT 28
-#define DISC_DIS_CAP             0x20000000	//BIT 29
-#define DISC_PWUP_CTL_CAP        0x40000000	//BIT 30
+#define BP_CAP                   0x01	/* BIT_0 */
+#define BP_STATUS_CAP            0x02
+#define BP_STATUS_CHANGE_CAP     0x04
+#define SW_CTL_CAP               0x08
+#define BP_DIS_CAP               0x10
+#define BP_DIS_STATUS_CAP        0x20
+#define STD_NIC_CAP              0x40
+#define BP_PWOFF_ON_CAP          0x80
+#define BP_PWOFF_OFF_CAP         0x0100
+#define BP_PWOFF_CTL_CAP         0x0200
+#define BP_PWUP_ON_CAP           0x0400
+#define BP_PWUP_OFF_CAP          0x0800
+#define BP_PWUP_CTL_CAP          0x1000
+#define WD_CTL_CAP               0x2000
+#define WD_STATUS_CAP            0x4000
+#define WD_TIMEOUT_CAP           0x8000
+#define TX_CTL_CAP               0x10000
+#define TX_STATUS_CAP            0x20000
+#define TAP_CAP                  0x40000
+#define TAP_STATUS_CAP           0x80000
+#define TAP_STATUS_CHANGE_CAP    0x100000
+#define TAP_DIS_CAP              0x200000
+#define TAP_DIS_STATUS_CAP       0x400000
+#define TAP_PWUP_ON_CAP          0x800000
+#define TAP_PWUP_OFF_CAP         0x1000000
+#define TAP_PWUP_CTL_CAP         0x2000000
+#define NIC_CAP_NEG              0x4000000
+#define TPL_CAP                  0x8000000
+#define DISC_CAP                 0x10000000
+#define DISC_DIS_CAP             0x20000000
+#define DISC_PWUP_CTL_CAP        0x40000000
 
 #define TPL2_CAP_EX              0x01
 #define DISC_PORT_CAP_EX         0x02
 
 #define WD_MIN_TIME_MASK(val)      (val & 0xf)
 #define WD_STEP_COUNT_MASK(val)    ((val & 0xf) << 5)
-#define WDT_STEP_TIME              0x10	//BIT_4
+#define WDT_STEP_TIME              0x10	/* BIT_4 */
 
 #define WD_MIN_TIME_GET(desc)   (desc & 0xf)
 #define WD_STEP_COUNT_GET(desc) (desc>>5) & 0xf
