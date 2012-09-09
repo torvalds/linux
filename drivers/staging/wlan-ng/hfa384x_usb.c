@@ -3790,7 +3790,7 @@ static void hfa384x_ctlxout_callback(struct urb *urb)
 #endif
 	if ((urb->status == -ESHUTDOWN) ||
 	    (urb->status == -ENODEV) || (hw == NULL))
-		goto done;
+		return;
 
 retry:
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
@@ -3803,7 +3803,7 @@ retry:
 	 */
 	if (list_empty(&hw->ctlxq.active)) {
 		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-		goto done;
+		return;
 	}
 
 	/*
@@ -3886,9 +3886,6 @@ delresp:
 
 	if (run_queue)
 		hfa384x_usbctlxq_run(hw);
-
-done:
-	;
 }
 
 /*----------------------------------------------------------------
