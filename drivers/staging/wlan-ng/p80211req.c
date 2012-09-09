@@ -173,11 +173,7 @@ static void p80211req_handlemsg(wlandevice_t *wlandev, struct p80211msg *msg)
 			    (struct p80211msg_dot11req_mibget *) msg;
 			p80211req_mibset_mibget(wlandev, mib_msg, isget);
 		}
-	default:
-		;
 	}			/* switch msg->msgcode */
-
-	return;
 }
 
 static int p80211req_mibset_mibget(wlandevice_t *wlandev,
