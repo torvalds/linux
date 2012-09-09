@@ -1255,7 +1255,6 @@ static void dump_wm87x6_registers(struct oxygen *chip,
 }
 
 static const struct oxygen_model model_xonar_ds = {
-	.shortname = "Xonar DS",
 	.longname = "Asus Virtuoso 66",
 	.chip = "AV200",
 	.init = xonar_ds_init,
@@ -1327,6 +1326,11 @@ int __devinit get_xonar_wm87x6_model(struct oxygen *chip,
 	switch (id->subdevice) {
 	case 0x838e:
 		chip->model = model_xonar_ds;
+		chip->model.shortname = "Xonar DS";
+		break;
+	case 0x8522:
+		chip->model = model_xonar_ds;
+		chip->model.shortname = "Xonar DSX";
 		break;
 	case 0x835e:
 		chip->model = model_xonar_hdav_slim;
