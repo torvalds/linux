@@ -1921,13 +1921,6 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	msleep(17);
 
-	if (is_edp(intel_dp)) {
-		if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp)))
-			DP |= DP_LINK_TRAIN_OFF_CPT;
-		else
-			DP |= DP_LINK_TRAIN_OFF;
-	}
-
 	if (HAS_PCH_IBX(dev) &&
 	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
 		struct drm_crtc *crtc = intel_dp->base.base.crtc;
