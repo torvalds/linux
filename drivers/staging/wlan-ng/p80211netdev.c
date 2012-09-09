@@ -852,13 +852,7 @@ int wlan_unsetup(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 int register_wlandev(wlandevice_t *wlandev)
 {
-	int i = 0;
-
-	i = register_netdev(wlandev->netdev);
-	if (i)
-		return i;
-
-	return 0;
+	return register_netdev(wlandev->netdev);
 }
 
 /*----------------------------------------------------------------
