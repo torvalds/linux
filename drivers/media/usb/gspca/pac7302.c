@@ -632,7 +632,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 					V4L2_CID_SATURATION, 0, 255, 1, 127);
 	sd->white_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 					V4L2_CID_WHITE_BALANCE_TEMPERATURE,
-					0, 255, 1, 4);
+					0, 255, 1, 55);
 	sd->red_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 					V4L2_CID_RED_BALANCE, 0, 3, 1, 1);
 	sd->blue_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
