@@ -69,4 +69,8 @@ SUBSYS(perf)
 SUBSYS(bfqio)
 #endif
 
+#ifdef CONFIG_CGROUP_TIMER_SLACK
+SUBSYS(timer_slack)
+#endif
+
 /* */

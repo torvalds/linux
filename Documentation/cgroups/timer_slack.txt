@@ -1,0 +1,72 @@
+Timer Slack Controller
+======================
+
+Overview
+--------
+
+Every task_struct has timer_slack_ns value. This value is used to round
+up poll() and select() timeout values. This feature can be useful in
+mobile environment where combined wakeups are desired.
+
+Originally, prctl() was the only way to change timer slack value of
+a process. So you was not able change timer slack value of another
+process.
+
+cgroup subsys "timer_slack" implements timer slack controller. It
+provides a way to set minimal timer slack value for a group of tasks.
+If a task belongs to a cgroup with minimal timer slack value higher than
+task's value, cgroup's value will be applied.
+
+Timer slack controller allows to implement setting timer slack value of
+a process based on a policy. For example, you can create foreground and
+background cgroups and move tasks between them based on system state.
+
+User interface
+--------------
+
+To get timer slack controller functionality you need to enable it in
+kernel configuration:
+
+CONFIG_CGROUP_TIMER_SLACK=y
+
+The controller provides two files:
+
+# mount -t cgroup -o timer_slack none /sys/fs/cgroup
+# ls /sys/fs/cgroup/timer_slack.*
+/sys/fs/cgroup/timer_slack.effective_slack_ns
+/sys/fs/cgroup/timer_slack.min_slack_ns
+
+By default timer_slack.min_slack_ns is 0:
+
+# cat /sys/fs/cgroup/timer_slack.min_slack_ns
+0
+
+You can set it to some value:
+
+# echo 50000 > /sys/fs/cgroup/timer_slack.min_slack_ns
+# cat /sys/fs/cgroup/timer_slack.min_slack_ns
+50000
+
+Tasks still can set task's value below 50000 using prctl(), but in this
+case cgroup's value will be applied.
+
+Timer slack controller supports hierarchical groups.
+
+# mkdir /sys/fs/cgroup/a
+# cat /sys/fs/cgroup/a/timer_slack.min_slack_ns
+50000
+# echo 70000 > /sys/fs/cgroup/a/timer_slack.min_slack_ns
+# cat /sys/fs/cgroup/a/timer_slack.min_slack_ns
+70000
+
+You can set any value you want, but effective value will the highest value
+up by hierarchy. You can see effective timer slack value for the cgroup from
+timer_slack.effective_slack_ns file:
+
+# cat /sys/fs/cgroup/a/timer_slack.effective_slack_ns
+70000
+# echo 100000 > /sys/fs/cgroup/timer_slack.min_slack_ns
+# cat /sys/fs/cgroup/a/timer_slack.min_slack_ns
+70000
+# cat /sys/fs/cgroup/a/timer_slack.effective_slack_ns
+100000
