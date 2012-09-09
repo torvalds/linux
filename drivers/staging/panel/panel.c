@@ -757,38 +757,38 @@ static void lcd_backlight(int on)
 		return;
 
 	/* The backlight is activated by setting the AUTOFEED line to +5V  */
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	bits.bl = on;
 	panel_set_bits();
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 }
 
 /* send a command to the LCD panel in serial mode */
 static void lcd_write_cmd_s(int cmd)
 {
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	lcd_send_serial(0x1F);	/* R/W=W, RS=0 */
 	lcd_send_serial(cmd & 0x0F);
 	lcd_send_serial((cmd >> 4) & 0x0F);
 	udelay(40);		/* the shortest command takes at least 40 us */
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 }
 
 /* send data to the LCD panel in serial mode */
 static void lcd_write_data_s(int data)
 {
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	lcd_send_serial(0x5F);	/* R/W=W, RS=1 */
 	lcd_send_serial(data & 0x0F);
 	lcd_send_serial((data >> 4) & 0x0F);
 	udelay(40);		/* the shortest data takes at least 40 us */
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 }
 
 /* send a command to the LCD panel in 8 bits parallel mode */
 static void lcd_write_cmd_p8(int cmd)
 {
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
 	w_dtr(pprt, cmd);
 	udelay(20);	/* maintain the data during 20 us before the strobe */
@@ -804,13 +804,13 @@ static void lcd_write_cmd_p8(int cmd)
 	set_ctrl_bits();
 
 	udelay(120);	/* the shortest command takes at least 120 us */
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 }
 
 /* send data to the LCD panel in 8 bits parallel mode */
 static void lcd_write_data_p8(int data)
 {
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
 	w_dtr(pprt, data);
 	udelay(20);	/* maintain the data during 20 us before the strobe */
@@ -826,27 +826,27 @@ static void lcd_write_data_p8(int data)
 	set_ctrl_bits();
 
 	udelay(45);	/* the shortest data takes at least 45 us */
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 }
 
 /* send a command to the TI LCD panel */
 static void lcd_write_cmd_tilcd(int cmd)
 {
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	/* present the data to the control port */
 	w_ctr(pprt, cmd);
 	udelay(60);
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 }
 
 /* send data to the TI LCD panel */
 static void lcd_write_data_tilcd(int data)
 {
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	/* present the data to the data port */
 	w_dtr(pprt, data);
 	udelay(60);
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 }
 
 static void lcd_gotoxy(void)
@@ -879,14 +879,14 @@ static void lcd_clear_fast_s(void)
 	lcd_addr_x = lcd_addr_y = 0;
 	lcd_gotoxy();
 
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	for (pos = 0; pos < lcd_height * lcd_hwidth; pos++) {
 		lcd_send_serial(0x5F);	/* R/W=W, RS=1 */
 		lcd_send_serial(' ' & 0x0F);
 		lcd_send_serial((' ' >> 4) & 0x0F);
 		udelay(40);	/* the shortest data takes at least 40 us */
 	}
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 
 	lcd_addr_x = lcd_addr_y = 0;
 	lcd_gotoxy();
@@ -899,7 +899,7 @@ static void lcd_clear_fast_p8(void)
 	lcd_addr_x = lcd_addr_y = 0;
 	lcd_gotoxy();
 
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	for (pos = 0; pos < lcd_height * lcd_hwidth; pos++) {
 		/* present the data to the data port */
 		w_dtr(pprt, ' ');
@@ -921,7 +921,7 @@ static void lcd_clear_fast_p8(void)
 		/* the shortest data takes at least 45 us */
 		udelay(45);
 	}
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 
 	lcd_addr_x = lcd_addr_y = 0;
 	lcd_gotoxy();
@@ -934,14 +934,14 @@ static void lcd_clear_fast_tilcd(void)
 	lcd_addr_x = lcd_addr_y = 0;
 	lcd_gotoxy();
 
-	spin_lock(&pprt_lock);
+	spin_lock_irq(&pprt_lock);
 	for (pos = 0; pos < lcd_height * lcd_hwidth; pos++) {
 		/* present the data to the data port */
 		w_dtr(pprt, ' ');
 		udelay(60);
 	}
 
-	spin_unlock(&pprt_lock);
+	spin_unlock_irq(&pprt_lock);
 
 	lcd_addr_x = lcd_addr_y = 0;
 	lcd_gotoxy();
@@ -1886,11 +1886,11 @@ static void panel_process_inputs(void)
 static void panel_scan_timer(void)
 {
 	if (keypad_enabled && keypad_initialized) {
-		if (spin_trylock(&pprt_lock)) {
+		if (spin_trylock_irq(&pprt_lock)) {
 			phys_scan_contacts();
 
 			/* no need for the parport anymore */
-			spin_unlock(&pprt_lock);
+			spin_unlock_irq(&pprt_lock);
 		}
 
 		if (!inputs_stable || phys_curr != phys_prev)
