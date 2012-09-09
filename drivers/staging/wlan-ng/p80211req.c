@@ -155,24 +155,25 @@ static void p80211req_handlemsg(wlandevice_t *wlandev, struct p80211msg *msg)
 	switch (msg->msgcode) {
 
 	case DIDmsg_lnxreq_hostwep:{
-			struct p80211msg_lnxreq_hostwep *req =
-			    (struct p80211msg_lnxreq_hostwep *) msg;
-			wlandev->hostwep &=
-			    ~(HOSTWEP_DECRYPT | HOSTWEP_ENCRYPT);
-			if (req->decrypt.data == P80211ENUM_truth_true)
-				wlandev->hostwep |= HOSTWEP_DECRYPT;
-			if (req->encrypt.data == P80211ENUM_truth_true)
-				wlandev->hostwep |= HOSTWEP_ENCRYPT;
+		struct p80211msg_lnxreq_hostwep *req =
+			(struct p80211msg_lnxreq_hostwep *) msg;
+		wlandev->hostwep &=
+				~(HOSTWEP_DECRYPT | HOSTWEP_ENCRYPT);
+		if (req->decrypt.data == P80211ENUM_truth_true)
+			wlandev->hostwep |= HOSTWEP_DECRYPT;
+		if (req->encrypt.data == P80211ENUM_truth_true)
+			wlandev->hostwep |= HOSTWEP_ENCRYPT;
 
-			break;
-		}
+	break;
+	}
 	case DIDmsg_dot11req_mibget:
 	case DIDmsg_dot11req_mibset:{
-			int isget = (msg->msgcode == DIDmsg_dot11req_mibget);
-			struct p80211msg_dot11req_mibget *mib_msg =
-			    (struct p80211msg_dot11req_mibget *) msg;
-			p80211req_mibset_mibget(wlandev, mib_msg, isget);
-		}
+		int isget = (msg->msgcode == DIDmsg_dot11req_mibget);
+		struct p80211msg_dot11req_mibget *mib_msg =
+			(struct p80211msg_dot11req_mibget *) msg;
+		p80211req_mibset_mibget(wlandev, mib_msg, isget);
+	break;
+	}
 	}			/* switch msg->msgcode */
 }
 
