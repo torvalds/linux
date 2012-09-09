@@ -187,72 +187,65 @@ static void p80211req_mibset_mibget(wlandevice_t *wlandev,
 
 	switch (mibitem->did) {
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0:{
-			if (!isget)
-				wep_change_key(wlandev, 0, key, pstr->len);
-			break;
-		}
+		if (!isget)
+			wep_change_key(wlandev, 0, key, pstr->len);
+	break;
+	}
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1:{
-			if (!isget)
-				wep_change_key(wlandev, 1, key, pstr->len);
-			break;
-		}
+		if (!isget)
+			wep_change_key(wlandev, 1, key, pstr->len);
+	break;
+	}
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey2:{
-			if (!isget)
-				wep_change_key(wlandev, 2, key, pstr->len);
-			break;
-		}
+		if (!isget)
+			wep_change_key(wlandev, 2, key, pstr->len);
+	break;
+	}
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey3:{
-			if (!isget)
-				wep_change_key(wlandev, 3, key, pstr->len);
-			break;
-		}
+		if (!isget)
+			wep_change_key(wlandev, 3, key, pstr->len);
+	break;
+	}
 	case DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID:{
-			u32 *data = (u32 *) mibitem->data;
+		u32 *data = (u32 *) mibitem->data;
 
-			if (isget) {
-				*data =
-				    wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK;
-			} else {
-				wlandev->hostwep &= ~(HOSTWEP_DEFAULTKEY_MASK);
-
-				wlandev->hostwep |=
-				    (*data & HOSTWEP_DEFAULTKEY_MASK);
-			}
-			break;
+		if (isget) {
+			*data = wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK;
+		} else {
+			wlandev->hostwep &= ~(HOSTWEP_DEFAULTKEY_MASK);
+			wlandev->hostwep |= (*data & HOSTWEP_DEFAULTKEY_MASK);
 		}
+	break;
+	}
 	case DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked:{
-			u32 *data = (u32 *) mibitem->data;
+		u32 *data = (u32 *) mibitem->data;
 
-			if (isget) {
-				if (wlandev->hostwep & HOSTWEP_PRIVACYINVOKED)
-					*data = P80211ENUM_truth_true;
-				else
-					*data = P80211ENUM_truth_false;
-			} else {
-				wlandev->hostwep &= ~(HOSTWEP_PRIVACYINVOKED);
-				if (*data == P80211ENUM_truth_true)
-					wlandev->hostwep |=
-					    HOSTWEP_PRIVACYINVOKED;
-			}
-			break;
+		if (isget) {
+			if (wlandev->hostwep & HOSTWEP_PRIVACYINVOKED)
+				*data = P80211ENUM_truth_true;
+			else
+				*data = P80211ENUM_truth_false;
+		} else {
+			wlandev->hostwep &= ~(HOSTWEP_PRIVACYINVOKED);
+			if (*data == P80211ENUM_truth_true)
+				wlandev->hostwep |= HOSTWEP_PRIVACYINVOKED;
 		}
+	break;
+	}
 	case DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted:{
-			u32 *data = (u32 *) mibitem->data;
+		u32 *data = (u32 *) mibitem->data;
 
-			if (isget) {
-				if (wlandev->hostwep &
-				    HOSTWEP_EXCLUDEUNENCRYPTED)
-					*data = P80211ENUM_truth_true;
-				else
-					*data = P80211ENUM_truth_false;
-			} else {
-				wlandev->hostwep &=
-				    ~(HOSTWEP_EXCLUDEUNENCRYPTED);
-				if (*data == P80211ENUM_truth_true)
-					wlandev->hostwep |=
-					    HOSTWEP_EXCLUDEUNENCRYPTED;
-			}
-			break;
+		if (isget) {
+			if (wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED)
+				*data = P80211ENUM_truth_true;
+			else
+				*data = P80211ENUM_truth_false;
+		} else {
+			wlandev->hostwep &= ~(HOSTWEP_EXCLUDEUNENCRYPTED);
+			if (*data == P80211ENUM_truth_true)
+				wlandev->hostwep |= HOSTWEP_EXCLUDEUNENCRYPTED;
 		}
+	break;
+	}
 	}
 }
