@@ -1943,6 +1943,11 @@ struct mac_iveiv_entry {
 #define BBP47_TSSI_ADC6			FIELD8(0x80)
 
 /*
+ * BBP 49
+ */
+#define BBP49_UPDATE_FLAG		FIELD8(0x01)
+
+/*
  * BBP 109
  */
 #define BBP109_TX0_POWER		FIELD8(0x0f)
