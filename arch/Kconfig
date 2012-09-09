@@ -284,4 +284,10 @@ config SECCOMP_FILTER
 config HAVE_VIRT_CPU_ACCOUNTING
 	bool
 
+config HAVE_IRQ_TIME_ACCOUNTING
+	bool
+	help
+	  Archs need to ensure they use a high enough resolution clock to
+	  support irq time accounting and then call enable_sched_clock_irqtime().
+
 source "kernel/gcov/Kconfig"

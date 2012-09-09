@@ -326,10 +326,25 @@ source "kernel/time/Kconfig"
 
 menu "CPU/Task time and stats accounting"
 
+choice
+	prompt "Cputime accounting"
+	default TICK_CPU_ACCOUNTING if !PPC64
+	default VIRT_CPU_ACCOUNTING if PPC64
+
+# Kind of a stub config for the pure tick based cputime accounting
+config TICK_CPU_ACCOUNTING
+	bool "Simple tick based cputime accounting"
+	depends on !S390
+	help
+	  This is the basic tick based cputime accounting that maintains
+	  statistics about user, system and idle time spent on per jiffies
+	  granularity.
+
+	  If unsure, say Y.
+
 config VIRT_CPU_ACCOUNTING
 	bool "Deterministic task and CPU time accounting"
 	depends on HAVE_VIRT_CPU_ACCOUNTING
-	default y if PPC64
 	help
 	  Select this option to enable more accurate task and CPU time
 	  accounting.  This is done by reading a CPU counter on each
@@ -338,6 +353,19 @@ config VIRT_CPU_ACCOUNTING
 	  small performance impact.  In the case of s390 or IBM POWER > 5,
 	  this also enables accounting of stolen time on logically-partitioned
 	  systems.
+
+config IRQ_TIME_ACCOUNTING
+	bool "Fine granularity task level IRQ time accounting"
+	depends on HAVE_IRQ_TIME_ACCOUNTING
+	help
+	  Select this option to enable fine granularity task irq time
+	  accounting. This is done by reading a timestamp on each
+	  transitions between softirq and hardirq state, so there can be a
+	  small performance impact.
+
+	  If in doubt, say N here.
+
+endchoice
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
