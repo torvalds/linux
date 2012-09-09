@@ -632,23 +632,10 @@ static int __devinit jzfb_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "Failed to get register memory resource\n");
-		return -ENXIO;
-	}
-
-	mem = request_mem_region(mem->start, resource_size(mem), pdev->name);
-	if (!mem) {
-		dev_err(&pdev->dev, "Failed to request register memory region\n");
-		return -EBUSY;
-	}
-
 	fb = framebuffer_alloc(sizeof(struct jzfb), &pdev->dev);
 	if (!fb) {
 		dev_err(&pdev->dev, "Failed to allocate framebuffer device\n");
-		ret = -ENOMEM;
-		goto err_release_mem_region;
+		return -ENOMEM;
 	}
 
 	fb->fbops = &jzfb_ops;
@@ -657,7 +644,6 @@ static int __devinit jzfb_probe(struct platform_device *pdev)
 	jzfb = fb->par;
 	jzfb->pdev = pdev;
 	jzfb->pdata = pdata;
-	jzfb->mem = mem;
 
 	jzfb->ldclk = devm_clk_get(&pdev->dev, "lcd");
 	if (IS_ERR(jzfb->ldclk)) {
@@ -673,9 +659,9 @@ static int __devinit jzfb_probe(struct platform_device *pdev)
 		goto err_framebuffer_release;
 	}
 
-	jzfb->base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	jzfb->base = devm_request_and_ioremap(&pdev->dev, mem);
 	if (!jzfb->base) {
-		dev_err(&pdev->dev, "Failed to ioremap register memory region\n");
 		ret = -EBUSY;
 		goto err_framebuffer_release;
 	}
@@ -736,8 +722,6 @@ err_free_devmem:
 	jzfb_free_devmem(jzfb);
 err_framebuffer_release:
 	framebuffer_release(fb);
-err_release_mem_region:
-	release_mem_region(mem->start, resource_size(mem));
 	return ret;
 }
 
@@ -749,8 +733,6 @@ static int __devexit jzfb_remove(struct platform_device *pdev)
 
 	jz_gpio_bulk_free(jz_lcd_ctrl_pins, jzfb_num_ctrl_pins(jzfb));
 	jz_gpio_bulk_free(jz_lcd_data_pins, jzfb_num_data_pins(jzfb));
-
-	release_mem_region(jzfb->mem->start, resource_size(jzfb->mem));
 
 	fb_dealloc_cmap(&jzfb->fb->cmap);
 	jzfb_free_devmem(jzfb);
