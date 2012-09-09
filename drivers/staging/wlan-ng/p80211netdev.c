@@ -240,10 +240,7 @@ void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 {
 	/* Enqueue for post-irq processing */
 	skb_queue_tail(&wlandev->nsd_rxq, skb);
-
 	tasklet_schedule(&wlandev->rx_bh);
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -644,7 +641,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	p80211item_unk392_t *mibattr;
 	p80211item_pstr6_t *macaddr;
 	p80211item_uint32_t *resultcode;
-	int result = 0;
+	int result;
 
 	/* If we're running, we don't allow MAC address changes */
 	if (netif_running(dev))
