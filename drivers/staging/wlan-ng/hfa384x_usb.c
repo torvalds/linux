@@ -3985,15 +3985,10 @@ static void hfa384x_usbctlx_resptimerfn(unsigned long data)
 		if (unlocked_usbctlx_cancel_async(hw, ctlx) == 0) {
 			spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 			hfa384x_usbctlxq_run(hw);
-			goto done;
+			return;
 		}
 	}
-
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-
-done:
-	;
-
 }
 
 /*----------------------------------------------------------------
