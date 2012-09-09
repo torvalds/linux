@@ -402,8 +402,13 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 		batadv_orig_node_free_ref(orig_node);
 	}
 
-	if (own_backbone)
+	if (own_backbone) {
 		batadv_bla_send_announce(bat_priv, entry);
+
+		/* this will be decreased in the worker thread */
+		atomic_inc(&entry->request_sent);
+		atomic_inc(&bat_priv->bla.num_requests);
+	}
 
 	return entry;
 }
@@ -1138,6 +1143,19 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 			backbone_gw->lasttime = jiffies;
 
 			batadv_bla_send_announce(bat_priv, backbone_gw);
+
+			/* request_sent is only set after creation to avoid
+			 * problems when we are not yet known as backbone gw
+			 * in the backbone.
+			 *
+			 * We can reset this now and allow traffic again.
+			 */
+
+			if (atomic_read(&backbone_gw->request_sent) == 0)
+				continue;
+
+			atomic_dec(&backbone_gw->bat_priv->bla.num_requests);
+			atomic_set(&backbone_gw->request_sent, 0);
 		}
 		rcu_read_unlock();
 	}
