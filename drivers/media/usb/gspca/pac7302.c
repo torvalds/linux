@@ -673,14 +673,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	reg_w_var(gspca_dev, start_7302,
 		page3_7302, sizeof(page3_7302));
-	setbrightcont(gspca_dev);
-	setcolors(gspca_dev);
-	setwhitebalance(gspca_dev);
-	setredbalance(gspca_dev);
-	setbluebalance(gspca_dev);
-	setexposure(gspca_dev);
-	setgain(gspca_dev);
-	sethvflip(gspca_dev);
 
 	sd->sof_read = 0;
 	sd->autogain_ignore_frames = 0;
