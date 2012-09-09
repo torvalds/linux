@@ -31,6 +31,7 @@
 #include "fc0012.h"
 #include "fc0013.h"
 #include "e4000.h"
+#include "fc2580.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -576,10 +577,11 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 	ret = rtl28xxu_ctrl_msg(d, &req_fc2580);
 	if (ret == 0 && buf[0] == 0x56) {
 		priv->tuner = TUNER_RTL2832_FC2580;
-		/* TODO implement tuner */
+		/* FIXME: do not abuse fc0012 settings */
+		rtl2832_config = &rtl28xxu_rtl2832_fc0012_config;
 		dev_info(&d->udev->dev, "%s: FC2580 tuner found",
 				KBUILD_MODNAME);
-		goto unsupported;
+		goto found;
 	}
 
 	/* check MT2063 ID register; reg=00 val=9e || 9c */
@@ -753,6 +755,11 @@ static const struct e4000_config rtl2832u_e4000_config = {
 	.clock = 28800000,
 };
 
+static const struct fc2580_config rtl2832u_fc2580_config = {
+	.i2c_addr = 0x56,
+	.clock = 16384000,
+};
+
 static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
@@ -784,6 +791,10 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 	case TUNER_RTL2832_E4000:
 		fe = dvb_attach(e4000_attach, adap->fe[0], &d->i2c_adap,
 				&rtl2832u_e4000_config);
+		break;
+	case TUNER_RTL2832_FC2580:
+		fe = dvb_attach(fc2580_attach, adap->fe[0], &d->i2c_adap,
+				&rtl2832u_fc2580_config);
 		break;
 	default:
 		fe = NULL;
