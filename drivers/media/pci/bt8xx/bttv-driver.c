@@ -49,6 +49,7 @@
 #include "bttvp.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/tvaudio.h>
 #include <media/msp3400.h>
 
@@ -2059,6 +2060,28 @@ static int bttv_log_status(struct file *file, void *f)
 	return 0;
 }
 
+static int bttv_g_chip_ident(struct file *file, void *f, struct v4l2_dbg_chip_ident *chip)
+{
+	struct bttv_fh *fh  = f;
+	struct bttv *btv = fh->btv;
+
+	chip->ident = V4L2_IDENT_NONE;
+	chip->revision = 0;
+	if (chip->match.type == V4L2_CHIP_MATCH_HOST) {
+		if (v4l2_chip_match_host(&chip->match)) {
+			chip->ident = btv->id;
+			if (chip->ident == PCI_DEVICE_ID_FUSION879)
+				chip->ident = V4L2_IDENT_BT879;
+		}
+		return 0;
+	}
+	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
+	    chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
+		return -EINVAL;
+	/* TODO: is this correct? */
+	return bttv_call_all_err(btv, core, g_chip_ident, chip);
+}
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int bttv_g_register(struct file *file, void *f,
 					struct v4l2_dbg_register *reg)
@@ -2069,8 +2092,12 @@ static int bttv_g_register(struct file *file, void *f,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
+	if (!v4l2_chip_match_host(&reg->match)) {
+		/* TODO: subdev errors should not be ignored, this should become a
+		   subdev helper function. */
+		bttv_call_all(btv, core, g_register, reg);
+		return 0;
+	}
 
 	/* bt848 has a 12-bit register space */
 	reg->reg &= 0xfff;
@@ -2089,8 +2116,12 @@ static int bttv_s_register(struct file *file, void *f,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
+	if (!v4l2_chip_match_host(&reg->match)) {
+		/* TODO: subdev errors should not be ignored, this should become a
+		   subdev helper function. */
+		bttv_call_all(btv, core, s_register, reg);
+		return 0;
+	}
 
 	/* bt848 has a 12-bit register space */
 	reg->reg &= 0xfff;
@@ -3394,6 +3425,7 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_s_frequency             = bttv_s_frequency,
 	.vidioc_log_status		= bttv_log_status,
 	.vidioc_querystd		= bttv_querystd,
+	.vidioc_g_chip_ident		= bttv_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register		= bttv_g_register,
 	.vidioc_s_register		= bttv_s_register,
