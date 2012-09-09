@@ -87,9 +87,6 @@ static void dostream(struct work_struct *work)
 	int ret = 0;
 	int len;
 
-	/* synchronize with the main driver */
-	mutex_lock(&gspca_dev->usb_lock);
-	mutex_unlock(&gspca_dev->usb_lock);
 	PDEBUG(D_STREAM, "dostream started");
 
 	/* loop reading a frame */
