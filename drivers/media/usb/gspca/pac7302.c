@@ -26,6 +26,11 @@
 /*
  * Some documentation about various registers as determined by trial and error.
  *
+ * Register page 0:
+ *
+ * Address	Description
+ * 0xb6		Sharpness control (bits 0-4)
+ *
  * Register page 1:
  *
  * Address	Description
@@ -66,6 +71,7 @@
  * -----+------------+---------------------------------------------------
  *  0   | 0x0f..0x20 | setcolors()
  *  0   | 0xa2..0xab | setbrightcont()
+ *  0   | 0xb6       | setsharpness()
  *  0   | 0xc5       | setredbalance()
  *  0   | 0xc6       | setwhitebalance()
  *  0   | 0xc7       | setbluebalance()
@@ -109,6 +115,7 @@ struct sd {
 		struct v4l2_ctrl *hflip;
 		struct v4l2_ctrl *vflip;
 	};
+	struct v4l2_ctrl *sharpness;
 	u8 flags;
 #define FL_HFLIP 0x01		/* mirrored by default */
 #define FL_VFLIP 0x02		/* vertical flipped by default */
@@ -531,6 +538,16 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x11, 0x01);
 }
 
+static void setsharpness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	reg_w(gspca_dev, 0xff, 0x00);		/* page 0 */
+	reg_w(gspca_dev, 0xb6, sd->sharpness->val);
+
+	reg_w(gspca_dev, 0xdc, 0x01);
+}
+
 /* this function is called at probe and resume time for pac7302 */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
@@ -584,6 +601,9 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_HFLIP:
 		sethvflip(gspca_dev);
 		break;
+	case V4L2_CID_SHARPNESS:
+		setsharpness(gspca_dev);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -601,7 +621,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 
 	gspca_dev->vdev.ctrl_handler = hdl;
-	v4l2_ctrl_handler_init(hdl, 11);
+	v4l2_ctrl_handler_init(hdl, 12);
 
 	sd->brightness = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 					V4L2_CID_BRIGHTNESS, 0, 32, 1, 16);
@@ -631,6 +651,9 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 		V4L2_CID_HFLIP, 0, 1, 1, 0);
 	sd->vflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 		V4L2_CID_VFLIP, 0, 1, 1, 0);
+
+	sd->sharpness = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_SHARPNESS, 0, 15, 1, 8);
 
 	if (hdl->error) {
 		pr_err("Could not initialize controls\n");
