@@ -2380,8 +2380,10 @@ static void qual_upd(struct work_struct *work)
 	struct sd *sd = container_of(work, struct sd, work);
 	struct gspca_dev *gspca_dev = &sd->gspca_dev;
 
+	/* To protect gspca_dev->usb_buf and gspca_dev->usb_err */
 	mutex_lock(&gspca_dev->usb_lock);
 	PDEBUG(D_STREAM, "qual_upd %d%%", sd->quality);
+	gspca_dev->usb_err = 0;
 	setjpegqual(gspca_dev);
 	mutex_unlock(&gspca_dev->usb_lock);
 }

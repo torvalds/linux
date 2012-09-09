@@ -77,7 +77,14 @@ static int command(struct gspca_dev *gspca_dev,
 			12, FPIX_TIMEOUT);
 }
 
-/* workqueue */
+/*
+ * This function is called as a workqueue function and runs whenever the camera
+ * is streaming data. Because it is a workqueue function it is allowed to sleep
+ * so we can use synchronous USB calls. To avoid possible collisions with other
+ * threads attempting to use gspca_dev->usb_buf we take the usb_lock when
+ * performing USB operations using it. In practice we don't really need this
+ * as the camera doesn't provide any controls.
+ */
 static void dostream(struct work_struct *work)
 {
 	struct usb_fpix *dev = container_of(work, struct usb_fpix, work_struct);

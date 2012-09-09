@@ -123,15 +123,13 @@ static int sq905c_read(struct gspca_dev *gspca_dev, u16 command, u16 index,
 	return 0;
 }
 
-/* This function is called as a workqueue function and runs whenever the camera
+/*
+ * This function is called as a workqueue function and runs whenever the camera
  * is streaming data. Because it is a workqueue function it is allowed to sleep
  * so we can use synchronous USB calls. To avoid possible collisions with other
- * threads attempting to use the camera's USB interface the gspca usb_lock is
- * used when performing the one USB control operation inside the workqueue,
- * which tells the camera to close the stream. In practice the only thing
- * which needs to be protected against is the usb_set_interface call that
- * gspca makes during stream_off. Otherwise the camera doesn't provide any
- * controls that the user could try to change.
+ * threads attempting to use gspca_dev->usb_buf we take the usb_lock when
+ * performing USB operations using it. In practice we don't really need this
+ * as the camera doesn't provide any controls.
  */
 static void sq905c_dostream(struct work_struct *work)
 {
