@@ -24,6 +24,7 @@
 #define USB_VID_COMPRO_UNK			0x145f
 #define USB_VID_CONEXANT			0x0572
 #define USB_VID_CYPRESS				0x04b4
+#define USB_VID_DEXATEK				0x1d19
 #define USB_VID_DIBCOM				0x10b8
 #define USB_VID_DPOSH				0x1498
 #define USB_VID_DVICO				0x0fe9
