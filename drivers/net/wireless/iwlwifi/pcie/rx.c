@@ -177,15 +177,15 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 }
 
 /**
- * iwlagn_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
+ * iwl_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
  */
-static inline __le32 iwlagn_dma_addr2rbd_ptr(dma_addr_t dma_addr)
+static inline __le32 iwl_dma_addr2rbd_ptr(dma_addr_t dma_addr)
 {
 	return cpu_to_le32((u32)(dma_addr >> 8));
 }
 
 /**
- * iwlagn_rx_queue_restock - refill RX queue from pre-allocated pool
+ * iwl_rx_queue_restock - refill RX queue from pre-allocated pool
  *
  * If there are slots in the RX queue that need to be restocked,
  * and we have free pre-allocated buffers, fill the ranks as much
@@ -195,7 +195,7 @@ static inline __le32 iwlagn_dma_addr2rbd_ptr(dma_addr_t dma_addr)
  * also updates the memory address in the firmware to reference the new
  * target buffer.
  */
-static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
+static void iwl_rx_queue_restock(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
@@ -215,7 +215,7 @@ static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 		list_del(element);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
-		rxq->bd[rxq->write] = iwlagn_dma_addr2rbd_ptr(rxb->page_dma);
+		rxq->bd[rxq->write] = iwl_dma_addr2rbd_ptr(rxb->page_dma);
 		rxq->queue[rxq->write] = rxb;
 		rxq->write = (rxq->write + 1) & RX_QUEUE_MASK;
 		rxq->free_count--;
@@ -225,7 +225,6 @@ static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 	 * refill it */
 	if (rxq->free_count <= RX_LOW_WATERMARK)
 		schedule_work(&trans_pcie->rx_replenish);
-
 
 	/* If we've added more space for the firmware to place data, tell it.
 	 * Increment device's write pointer in multiples of 8. */
@@ -237,15 +236,16 @@ static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 	}
 }
 
-/**
- * iwlagn_rx_replenish - Move all used packet from rx_used to rx_free
+/*
+ * iwl_rx_allocate - allocate a page for each used RBD
  *
- * When moving to rx_free an SKB is allocated for the slot.
- *
- * Also restock the Rx queue via iwl_rx_queue_restock.
- * This is called as a scheduled work item (except for during initialization)
+ * A used RBD is an Rx buffer that has been given to the stack. To use it again
+ * a page must be allocated and the RBD must point to the page. This function
+ * doesn't change the HW pointer but handles the list of pages that is used by
+ * iwl_rx_queue_restock. The latter function will update the HW to use the newly
+ * allocated buffers.
  */
-static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
+static void iwl_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
@@ -324,23 +324,31 @@ static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 	}
 }
 
-void iwlagn_rx_replenish(struct iwl_trans *trans)
+/*
+ * iwl_rx_replenish - Move all used buffers from rx_used to rx_free
+ *
+ * When moving to rx_free an page is allocated for the slot.
+ *
+ * Also restock the Rx queue via iwl_rx_queue_restock.
+ * This is called as a scheduled work item (except for during initialization)
+ */
+void iwl_rx_replenish(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long flags;
 
-	iwlagn_rx_allocate(trans, GFP_KERNEL);
+	iwl_rx_allocate(trans, GFP_KERNEL);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
-	iwlagn_rx_queue_restock(trans);
+	iwl_rx_queue_restock(trans);
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
-static void iwlagn_rx_replenish_now(struct iwl_trans *trans)
+static void iwl_rx_replenish_now(struct iwl_trans *trans)
 {
-	iwlagn_rx_allocate(trans, GFP_ATOMIC);
+	iwl_rx_allocate(trans, GFP_ATOMIC);
 
-	iwlagn_rx_queue_restock(trans);
+	iwl_rx_queue_restock(trans);
 }
 
 void iwl_bg_rx_replenish(struct work_struct *data)
@@ -348,7 +356,7 @@ void iwl_bg_rx_replenish(struct work_struct *data)
 	struct iwl_trans_pcie *trans_pcie =
 	    container_of(data, struct iwl_trans_pcie, rx_replenish);
 
-	iwlagn_rx_replenish(trans_pcie->trans);
+	iwl_rx_replenish(trans_pcie->trans);
 }
 
 static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
@@ -526,7 +534,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 			count++;
 			if (count >= 8) {
 				rxq->read = i;
-				iwlagn_rx_replenish_now(trans);
+				iwl_rx_replenish_now(trans);
 				count = 0;
 			}
 		}
@@ -535,9 +543,9 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 	/* Backtrack one entry */
 	rxq->read = i;
 	if (fill_rx)
-		iwlagn_rx_replenish_now(trans);
+		iwl_rx_replenish_now(trans);
 	else
-		iwlagn_rx_queue_restock(trans);
+		iwl_rx_queue_restock(trans);
 }
 
 /**

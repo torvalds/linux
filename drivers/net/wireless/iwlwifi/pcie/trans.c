@@ -216,7 +216,7 @@ static int iwl_rx_init(struct iwl_trans *trans)
 	rxq->free_count = 0;
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
-	iwlagn_rx_replenish(trans);
+	iwl_rx_replenish(trans);
 
 	iwl_trans_rx_hw_init(trans, rxq);
 
