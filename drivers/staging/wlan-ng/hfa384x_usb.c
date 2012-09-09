@@ -2140,11 +2140,7 @@ exit_proc:
 ----------------------------------------------------------------*/
 int hfa384x_drvr_getconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len)
 {
-	int result;
-
-	result = hfa384x_dorrid_wait(hw, rid, buf, len);
-
-	return result;
+	return hfa384x_dorrid_wait(hw, rid, buf, len);
 }
 
 /*----------------------------------------------------------------

@@ -1988,12 +1988,12 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	int result = 0;
 
 	if (hw->wlandev->hwremoved)
-		goto done;
+		return;
 
 	/* we don't care if we're in AP mode */
 	if ((wlandev->macmode == WLAN_MACMODE_NONE) ||
 	    (wlandev->macmode == WLAN_MACMODE_ESS_AP)) {
-		goto done;
+		return;
 	}
 
 	/* It only makes sense to poll these in non-IBSS */
@@ -2004,7 +2004,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 
 		if (result) {
 			printk(KERN_ERR "error fetching commsqual\n");
-			goto done;
+			return;
 		}
 
 		pr_debug("commsqual %d %d %d\n",
@@ -2021,7 +2021,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	if (result) {
 		pr_debug("get signal rate failed, result = %d\n",
 			 result);
-		goto done;
+		return;
 	}
 
 	switch (mibitem->data) {
@@ -2048,7 +2048,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	if (result) {
 		pr_debug("getconfig(0x%02x) failed, result = %d\n",
 			 HFA384x_RID_CURRENTBSSID, result);
-		goto done;
+		return;
 	}
 
 	result = hfa384x_drvr_getconfig(hw,
@@ -2057,16 +2057,13 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	if (result) {
 		pr_debug("getconfig(0x%02x) failed, result = %d\n",
 			 HFA384x_RID_CURRENTSSID, result);
-		goto done;
+		return;
 	}
 	prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) &ssid,
 				(p80211pstrd_t *) &wlandev->ssid);
 
 	/* Reschedule timer */
 	mod_timer(&hw->commsqual_timer, jiffies + HZ);
-
-done:
-	;
 }
 
 void prism2sta_commsqual_timer(unsigned long data)
