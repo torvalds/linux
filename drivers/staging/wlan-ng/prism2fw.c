@@ -123,27 +123,27 @@ struct imgchunk {
 /* s-record image processing */
 
 /* Data records */
-unsigned int ns3data;
-struct s3datarec s3data[S3DATA_MAX];
+static unsigned int ns3data;
+static struct s3datarec s3data[S3DATA_MAX];
 
 /* Plug records */
-unsigned int ns3plug;
-struct s3plugrec s3plug[S3PLUG_MAX];
+static unsigned int ns3plug;
+static struct s3plugrec s3plug[S3PLUG_MAX];
 
 /* CRC records */
-unsigned int ns3crc;
-struct s3crcrec s3crc[S3CRC_MAX];
+static unsigned int ns3crc;
+static struct s3crcrec s3crc[S3CRC_MAX];
 
 /* Info records */
-unsigned int ns3info;
-struct s3inforec s3info[S3INFO_MAX];
+static unsigned int ns3info;
+static struct s3inforec s3info[S3INFO_MAX];
 
 /* S7 record (there _better_ be only one) */
-u32 startaddr;
+static u32 startaddr;
 
 /* Load image chunks */
-unsigned int nfchunks;
-struct imgchunk fchunk[CHUNKS_MAX];
+static unsigned int nfchunks;
+static struct imgchunk fchunk[CHUNKS_MAX];
 
 /* Note that for the following pdrec_t arrays, the len and code */
 /*   fields are stored in HOST byte order. The mkpdrlist() function */
@@ -151,11 +151,11 @@ struct imgchunk fchunk[CHUNKS_MAX];
 /*----------------------------------------------------------------*/
 /* PDA, built from [card|newfile]+[addfile1+addfile2...] */
 
-struct pda pda;
-hfa384x_compident_t nicid;
-hfa384x_caplevel_t rfid;
-hfa384x_caplevel_t macid;
-hfa384x_caplevel_t priid;
+static struct pda pda;
+static hfa384x_compident_t nicid;
+static hfa384x_caplevel_t rfid;
+static hfa384x_caplevel_t macid;
+static hfa384x_caplevel_t priid;
 
 /*================================================================*/
 /* Local Function Declarations */
