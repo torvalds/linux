@@ -203,6 +203,17 @@ static void iwl_rx_queue_restock(struct iwl_trans *trans)
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
 
+	/*
+	 * If the device isn't enabled - not need to try to add buffers...
+	 * This can happen when we stop the device and still have an interrupt
+	 * pending. We stop the APM before we sync the interrupts / tasklets
+	 * because we have to (see comment there). On the other hand, since
+	 * the APM is stopped, we cannot access the HW (in particular not prph).
+	 * So don't try to restock if the APM has been already stopped.
+	 */
+	if (!test_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status))
+		return;
+
 	spin_lock_irqsave(&rxq->lock, flags);
 	while ((iwl_rx_queue_space(rxq) > 0) && (rxq->free_count)) {
 		/* The overwritten rxb must be a used one */
