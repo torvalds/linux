@@ -979,17 +979,16 @@ static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
 static int iwl_load_given_ucode(struct iwl_trans *trans,
 				const struct fw_img *image)
 {
-	int ret = 0;
-		int i;
+	int i, ret = 0;
 
-		for (i = 0; i < IWL_UCODE_SECTION_MAX; i++) {
-			if (!image->sec[i].p_addr)
-				break;
+	for (i = 0; i < IWL_UCODE_SECTION_MAX; i++) {
+		if (!image->sec[i].p_addr)
+			break;
 
-			ret = iwl_load_section(trans, i, &image->sec[i]);
-			if (ret)
-				return ret;
-		}
+		ret = iwl_load_section(trans, i, &image->sec[i]);
+		if (ret)
+			return ret;
+	}
 
 	/* Remove all resets to allow NIC to operate */
 	iwl_write32(trans, CSR_RESET, 0);
