@@ -237,7 +237,7 @@ int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
+static int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
 {
 	signed int result = 0;
 	struct p80211msg_dot11req_mibget getmsg;
@@ -376,7 +376,7 @@ int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
+static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	     struct s3crcrec *s3crc, unsigned int ns3crc)
 {
 	int result = 0;
@@ -440,7 +440,7 @@ int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 * Returns:
 *	nothing
 ----------------------------------------------------------------*/
-void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
+static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 {
 	int i;
 	for (i = 0; i < *nfchunks; i++)
@@ -462,7 +462,7 @@ void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 * Returns:
 *	nothing
 ----------------------------------------------------------------*/
-void free_srecs(void)
+static void free_srecs(void)
 {
 	ns3data = 0;
 	memset(s3data, 0, sizeof(s3data));
@@ -489,7 +489,7 @@ void free_srecs(void)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int mkimage(struct imgchunk *clist, unsigned int *ccnt)
+static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 {
 	int result = 0;
 	int i;
@@ -582,7 +582,7 @@ int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int mkpdrlist(struct pda *pda)
+static int mkpdrlist(struct pda *pda)
 {
 	int result = 0;
 	u16 *pda16 = (u16 *) pda->buf;
@@ -656,7 +656,7 @@ int mkpdrlist(struct pda *pda)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
+static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	      struct s3plugrec *s3plug, unsigned int ns3plug, struct pda *pda)
 {
 	int result = 0;
@@ -764,7 +764,7 @@ int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
+static int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
 {
 	int result = 0;
 	struct p80211msg_p2req_readpda msg;
@@ -854,7 +854,7 @@ int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int read_fwfile(const struct ihex_binrec *record)
+static int read_fwfile(const struct ihex_binrec *record)
 {
 	int		i;
 	int		rcnt = 0;
@@ -978,7 +978,7 @@ int read_fwfile(const struct ihex_binrec *record)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
+static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	       unsigned int nfchunks)
 {
 	int result = 0;
@@ -1130,7 +1130,7 @@ free_result:
 	return result;
 }
 
-int validate_identity(void)
+static int validate_identity(void)
 {
 	int i;
 	int result = 1;
