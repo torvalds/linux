@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/moduleparam.h>
 #include <linux/sched.h>
 #include <linux/syscore_ops.h>
 #include <linux/timer.h>
@@ -25,6 +26,9 @@ struct clock_data {
 
 static void sched_clock_poll(unsigned long wrap_ticks);
 static DEFINE_TIMER(sched_clock_timer, sched_clock_poll, 0, 0);
+static int irqtime = -1;
+
+core_param(irqtime, irqtime, int, 0400);
 
 static struct clock_data cd = {
 	.mult	= NSEC_PER_SEC / HZ,
@@ -144,6 +148,10 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 	 * Ensure that sched_clock() starts off at 0ns
 	 */
 	cd.epoch_ns = 0;
+
+	/* Enable IRQ time accounting if we have a fast enough sched_clock */
+	if (irqtime > 0 || (irqtime == -1 && rate >= 1000000))
+		enable_sched_clock_irqtime();
 
 	pr_debug("Registered %pF as sched_clock source\n", read);
 }
