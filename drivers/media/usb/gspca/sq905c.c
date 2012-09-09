@@ -150,7 +150,7 @@ static void sq905c_dostream(struct work_struct *work)
 		goto quit_stream;
 	}
 
-	while (gspca_dev->dev && gspca_dev->streaming) {
+	while (gspca_dev->present && gspca_dev->streaming) {
 #ifdef CONFIG_PM
 		if (gspca_dev->frozen)
 			break;
@@ -173,7 +173,7 @@ static void sq905c_dostream(struct work_struct *work)
 		packet_type = FIRST_PACKET;
 		gspca_frame_add(gspca_dev, packet_type,
 				buffer, FRAME_HEADER_LEN);
-		while (bytes_left > 0 && gspca_dev->dev) {
+		while (bytes_left > 0 && gspca_dev->present) {
 			data_len = bytes_left > SQ905C_MAX_TRANSFER ?
 				SQ905C_MAX_TRANSFER : bytes_left;
 			ret = usb_bulk_msg(gspca_dev->dev,
@@ -195,7 +195,7 @@ static void sq905c_dostream(struct work_struct *work)
 		}
 	}
 quit_stream:
-	if (gspca_dev->dev) {
+	if (gspca_dev->present) {
 		mutex_lock(&gspca_dev->usb_lock);
 		sq905c_command(gspca_dev, SQ905C_CLEAR, 0);
 		mutex_unlock(&gspca_dev->usb_lock);

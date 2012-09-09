@@ -94,7 +94,7 @@ static void dostream(struct work_struct *work)
 
 	/* loop reading a frame */
 again:
-	while (gspca_dev->dev && gspca_dev->streaming) {
+	while (gspca_dev->present && gspca_dev->streaming) {
 #ifdef CONFIG_PM
 		if (gspca_dev->frozen)
 			break;
@@ -110,7 +110,7 @@ again:
 		if (gspca_dev->frozen)
 			break;
 #endif
-		if (!gspca_dev->dev || !gspca_dev->streaming)
+		if (!gspca_dev->present || !gspca_dev->streaming)
 			break;
 
 		/* the frame comes in parts */
@@ -129,7 +129,7 @@ again:
 			if (gspca_dev->frozen)
 				goto out;
 #endif
-			if (!gspca_dev->dev || !gspca_dev->streaming)
+			if (!gspca_dev->present || !gspca_dev->streaming)
 				goto out;
 			if (len < FPIX_MAX_TRANSFER ||
 				(data[len - 2] == 0xff &&

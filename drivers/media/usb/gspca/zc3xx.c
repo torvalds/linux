@@ -5950,7 +5950,7 @@ static void transfer_update(struct work_struct *work)
 		if (gspca_dev->frozen)
 			goto err;
 #endif
-		if (!gspca_dev->dev || !gspca_dev->streaming)
+		if (!gspca_dev->present || !gspca_dev->streaming)
 			goto err;
 
 		/* Bit 0 of register 11 indicates FIFO overflow */
@@ -6842,7 +6842,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		mutex_lock(&gspca_dev->usb_lock);
 		sd->work_thread = NULL;
 	}
-	if (!gspca_dev->dev)
+	if (!gspca_dev->present)
 		return;
 	send_unknown(gspca_dev, sd->sensor);
 }

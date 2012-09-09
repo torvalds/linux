@@ -232,7 +232,7 @@ static void sq905_dostream(struct work_struct *work)
 	frame_sz = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].sizeimage
 			+ FRAME_HEADER_LEN;
 
-	while (gspca_dev->dev && gspca_dev->streaming) {
+	while (gspca_dev->present && gspca_dev->streaming) {
 #ifdef CONFIG_PM
 		if (gspca_dev->frozen)
 			break;
@@ -246,7 +246,7 @@ static void sq905_dostream(struct work_struct *work)
 		   we must finish reading an entire frame, otherwise the
 		   next time we stream we start reading in the middle of a
 		   frame. */
-		while (bytes_left > 0 && gspca_dev->dev) {
+		while (bytes_left > 0 && gspca_dev->present) {
 			data_len = bytes_left > SQ905_MAX_TRANSFER ?
 				SQ905_MAX_TRANSFER : bytes_left;
 			ret = sq905_read_data(gspca_dev, buffer, data_len, 1);
@@ -278,7 +278,7 @@ static void sq905_dostream(struct work_struct *work)
 				gspca_frame_add(gspca_dev, LAST_PACKET,
 						NULL, 0);
 		}
-		if (gspca_dev->dev) {
+		if (gspca_dev->present) {
 			/* acknowledge the frame */
 			mutex_lock(&gspca_dev->usb_lock);
 			ret = sq905_ack_frame(gspca_dev);
@@ -288,7 +288,7 @@ static void sq905_dostream(struct work_struct *work)
 		}
 	}
 quit_stream:
-	if (gspca_dev->dev) {
+	if (gspca_dev->present) {
 		mutex_lock(&gspca_dev->usb_lock);
 		sq905_command(gspca_dev, SQ905_CLEAR);
 		mutex_unlock(&gspca_dev->usb_lock);

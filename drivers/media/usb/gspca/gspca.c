@@ -2358,8 +2358,6 @@ void gspca_disconnect(struct usb_interface *intf)
 
 	mutex_lock(&gspca_dev->usb_lock);
 
-	usb_set_intfdata(intf, NULL);
-	gspca_dev->dev = NULL;
 	gspca_dev->present = 0;
 	destroy_urbs(gspca_dev);
 
@@ -2375,6 +2373,7 @@ void gspca_disconnect(struct usb_interface *intf)
 	if (gspca_dev->sd_desc->stop0 && gspca_dev->streaming)
 		gspca_dev->sd_desc->stop0(gspca_dev);
 	gspca_dev->streaming = 0;
+	gspca_dev->dev = NULL;
 	wake_up_interruptible(&gspca_dev->wq);
 
 	v4l2_device_disconnect(&gspca_dev->v4l2_dev);

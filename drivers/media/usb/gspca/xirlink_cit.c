@@ -2697,9 +2697,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	/* We cannot use gspca_dev->present here as that is not set when
-	   sd_init gets called and we get called from sd_init */
-	if (!gspca_dev->dev)
+	if (!gspca_dev->present)
 		return;
 
 	switch (sd->model) {
