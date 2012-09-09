@@ -650,13 +650,6 @@ static struct regulator_ops twl6030fixed_ops = {
 	.get_status	= twl6030reg_get_status,
 };
 
-static struct regulator_ops twl6030_fixed_resource = {
-	.enable		= twl6030reg_enable,
-	.disable	= twl6030reg_disable,
-	.is_enabled	= twl6030reg_is_enabled,
-	.get_status	= twl6030reg_get_status,
-};
-
 /*
  * SMPS status and control
  */
