@@ -56,13 +56,13 @@ int bench_sched_pipe(int argc, const char **argv,
 	 * causes error in building environment for perf
 	 */
 	int __used ret, wait_stat;
-	pid_t pid, retpid;
+	pid_t pid, retpid __used;
 
 	argc = parse_options(argc, argv, options,
 			     bench_sched_pipe_usage, 0);
 
-	assert(!pipe(pipe_1));
-	assert(!pipe(pipe_2));
+	BUG_ON(pipe(pipe_1));
+	BUG_ON(pipe(pipe_2));
 
 	pid = fork();
 	assert(pid >= 0);

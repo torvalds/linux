@@ -2307,10 +2307,17 @@ static int convert_name_to_addr(struct perf_probe_event *pev, const char *exec)
 		function = NULL;
 	}
 	if (!pev->group) {
-		char *ptr1, *ptr2;
+		char *ptr1, *ptr2, *exec_copy;
 
 		pev->group = zalloc(sizeof(char *) * 64);
-		ptr1 = strdup(basename(exec));
+		exec_copy = strdup(exec);
+		if (!exec_copy) {
+			ret = -ENOMEM;
+			pr_warning("Failed to copy exec string.\n");
+			goto out;
+		}
+
+		ptr1 = strdup(basename(exec_copy));
 		if (ptr1) {
 			ptr2 = strpbrk(ptr1, "-._");
 			if (ptr2)
@@ -2319,6 +2326,7 @@ static int convert_name_to_addr(struct perf_probe_event *pev, const char *exec)
 					ptr1);
 			free(ptr1);
 		}
+		free(exec_copy);
 	}
 	free(pp->function);
 	pp->function = zalloc(sizeof(char *) * MAX_PROBE_ARGS);

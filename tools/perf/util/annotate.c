@@ -984,13 +984,18 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			    int context)
 {
 	struct dso *dso = map->dso;
-	const char *filename = dso->long_name, *d_filename;
+	char *filename;
+	const char *d_filename;
 	struct annotation *notes = symbol__annotation(sym);
 	struct disasm_line *pos, *queue = NULL;
 	u64 start = map__rip_2objdump(map, sym->start);
 	int printed = 2, queue_len = 0;
 	int more = 0;
 	u64 len;
+
+	filename = strdup(dso->long_name);
+	if (!filename)
+		return -ENOMEM;
 
 	if (full_paths)
 		d_filename = filename;
@@ -1041,6 +1046,8 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			break;
 		}
 	}
+
+	free(filename);
 
 	return more;
 }

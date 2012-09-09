@@ -10,9 +10,7 @@
 #include <linux/rbtree.h>
 #include <stdio.h>
 #include <byteswap.h>
-#if defined(__BIONIC__)
 #include <libgen.h>
-#endif
 
 #ifndef NO_LIBELF_SUPPORT
 #include <libelf.h>

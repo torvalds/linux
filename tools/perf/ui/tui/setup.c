@@ -15,6 +15,8 @@ static volatile int ui__need_resize;
 
 extern struct perf_error_ops perf_tui_eops;
 
+extern void hist_browser__init_hpp(void);
+
 void ui__refresh_dimensions(bool force)
 {
 	if (force || ui__need_resize) {
@@ -124,6 +126,8 @@ int ui__init(void)
 	signal(SIGTERM, ui__signal);
 
 	perf_error__register(&perf_tui_eops);
+
+	hist_browser__init_hpp();
 out:
 	return err;
 }

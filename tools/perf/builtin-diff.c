@@ -264,6 +264,7 @@ int cmd_diff(int argc, const char **argv, const char *prefix __used)
 	if (symbol__init() < 0)
 		return -1;
 
+	perf_hpp__init(true, show_displacement);
 	setup_sorting(diff_usage, options);
 	setup_pager();
 

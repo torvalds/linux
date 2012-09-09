@@ -115,6 +115,43 @@ bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
 void hists__reset_col_len(struct hists *hists);
 void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
 
+struct perf_hpp {
+	char *buf;
+	size_t size;
+	u64 total_period;
+	const char *sep;
+	long displacement;
+	void *ptr;
+};
+
+struct perf_hpp_fmt {
+	bool cond;
+	int (*header)(struct perf_hpp *hpp);
+	int (*width)(struct perf_hpp *hpp);
+	int (*color)(struct perf_hpp *hpp, struct hist_entry *he);
+	int (*entry)(struct perf_hpp *hpp, struct hist_entry *he);
+};
+
+extern struct perf_hpp_fmt perf_hpp__format[];
+
+enum {
+	PERF_HPP__OVERHEAD,
+	PERF_HPP__OVERHEAD_SYS,
+	PERF_HPP__OVERHEAD_US,
+	PERF_HPP__OVERHEAD_GUEST_SYS,
+	PERF_HPP__OVERHEAD_GUEST_US,
+	PERF_HPP__SAMPLES,
+	PERF_HPP__PERIOD,
+	PERF_HPP__DELTA,
+	PERF_HPP__DISPL,
+
+	PERF_HPP__MAX_INDEX
+};
+
+void perf_hpp__init(bool need_pair, bool show_displacement);
+int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
+				bool color);
+
 struct perf_evlist;
 
 #ifdef NO_NEWT_SUPPORT
