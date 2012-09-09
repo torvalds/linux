@@ -616,7 +616,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	sd->red_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 					V4L2_CID_RED_BALANCE, 0, 3, 1, 1);
 	sd->blue_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
-					V4L2_CID_RED_BALANCE, 0, 3, 1, 1);
+					V4L2_CID_BLUE_BALANCE, 0, 3, 1, 1);
 
 	gspca_dev->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 					V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
