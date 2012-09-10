@@ -221,17 +221,10 @@ static int mei_irq_thread_read_client_message(struct mei_io_list *complete_list,
 				cl->status = 0;
 				list_del(&cb_pos->cb_list);
 				dev_dbg(&dev->pdev->dev,
-					"completed read host client = %d,"
-					"ME client = %d, "
-					"data length = %lu\n",
+					"completed read H cl = %d, ME cl = %d, length = %lu\n",
 					cl->host_client_id,
 					cl->me_client_id,
 					cb_pos->information);
-
-				*(cb_pos->response_buffer.data +
-					cb_pos->information) = '\0';
-				dev_dbg(&dev->pdev->dev, "cb_pos->res_buffer - %s\n",
-					cb_pos->response_buffer.data);
 				list_add_tail(&cb_pos->cb_list,
 					&complete_list->mei_cb.cb_list);
 			}
