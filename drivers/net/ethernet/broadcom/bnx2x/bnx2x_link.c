@@ -10203,8 +10203,9 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 			MDIO_84833_TOP_CFG_FW_REV, &val);
 
 	/* Configure EEE support */
-	if ((val >= MDIO_84833_TOP_CFG_FW_EEE) && bnx2x_eee_has_cap(params)) {
-		phy->flags |= FLAGS_EEE_10GBT;
+	if ((val >= MDIO_84833_TOP_CFG_FW_EEE) &&
+	    (val != MDIO_84833_TOP_CFG_FW_NO_EEE) &&
+	    bnx2x_eee_has_cap(params)) {
 		rc = bnx2x_eee_initial_config(params, vars, SHMEM_EEE_10G_ADV);
 		if (rc) {
 			DP(NETIF_MSG_LINK, "Failed to configure EEE timers\n");
@@ -10224,7 +10225,6 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 			return rc;
 		}
 	} else {
-		phy->flags &= ~FLAGS_EEE_10GBT;
 		vars->eee_status &= ~SHMEM_EEE_SUPPORTED_MASK;
 	}
 
@@ -11619,8 +11619,7 @@ static struct bnx2x_phy phy_84833 = {
 	.def_md_devad	= 0,
 	.flags		= (FLAGS_FAN_FAILURE_DET_REQ |
 			   FLAGS_REARM_LATCH_SIGNAL |
-			   FLAGS_TX_ERROR_CHECK |
-			   FLAGS_EEE_10GBT),
+			   FLAGS_TX_ERROR_CHECK),
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
