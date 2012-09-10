@@ -117,7 +117,7 @@ static const struct usb_descriptor_header *gfs_otg_desc[] = {
 /* String IDs are assigned dynamically */
 static struct usb_string gfs_strings[] = {
 	[USB_GADGET_MANUFACTURER_IDX].s = "",
-	[USB_GADGET_PRODUCT_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
 	[USB_GADGET_SERIAL_IDX].s = "",
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{ .s = "FunctionFS + RNDIS" },
@@ -172,7 +172,6 @@ static __refdata struct usb_composite_driver gfs_driver = {
 	.max_speed	= USB_SPEED_HIGH,
 	.bind		= gfs_bind,
 	.unbind		= gfs_unbind,
-	.iProduct	= DRIVER_DESC,
 };
 
 static DEFINE_MUTEX(gfs_lock);
@@ -360,6 +359,7 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 	ret = usb_string_ids_tab(cdev, gfs_strings);
 	if (unlikely(ret < 0))
 		goto error;
+	gfs_dev_desc.iProduct = gfs_strings[USB_GADGET_PRODUCT_IDX].id;
 
 	for (i = func_num; --i; ) {
 		ret = functionfs_bind(ffs_tab[i].ffs_data, cdev);

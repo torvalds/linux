@@ -259,13 +259,6 @@ enum {
 /**
  * struct usb_composite_driver - groups configurations into a gadget
  * @name: For diagnostics, identifies the driver.
- * @iProduct: Used as iProduct override if @dev->iProduct is not set.
- *	If NULL value of @name is taken.
- * @iManufacturer: Used as iManufacturer override if @dev->iManufacturer is
- *	not set. If NULL a default "<system> <release> with <udc>" value
- *	will be used.
- * @iSerialNumber: Used as iSerialNumber override if @dev->iSerialNumber is
- *	not set.
  * @dev: Template descriptor for the device, including default device
  *	identifiers.
  * @strings: tables of strings, keyed by identifiers assigned during @bind
@@ -300,9 +293,6 @@ enum {
  */
 struct usb_composite_driver {
 	const char				*name;
-	const char				*iProduct;
-	const char				*iManufacturer;
-	const char				*iSerialNumber;
 	const struct usb_device_descriptor	*dev;
 	struct usb_gadget_strings		**strings;
 	enum usb_device_speed			max_speed;
@@ -369,8 +359,6 @@ struct usb_composite_dev {
 	struct usb_composite_driver	*driver;
 	u8				next_string_id;
 	u8				manufacturer_override;
-	u8				product_override;
-	u8				serial_override;
 
 	/* the gadget driver won't enable the data pullup
 	 * while the deactivation count is nonzero.

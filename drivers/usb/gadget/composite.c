@@ -904,11 +904,7 @@ static int get_string(struct usb_composite_dev *cdev,
 	 * check if the string has not been overridden.
 	 */
 	if (cdev->manufacturer_override == id)
-		str = composite->iManufacturer ?: composite_manufacturer;
-	else if (cdev->product_override == id)
-		str = composite->iProduct;
-	else if (cdev->serial_override == id)
-		str = composite->iSerialNumber;
+		str = composite_manufacturer;
 	else
 		str = NULL;
 	if (str) {
@@ -1483,25 +1479,16 @@ static int composite_bind(struct usb_gadget *gadget,
 
 	/* string overrides */
 	if (!cdev->desc.iManufacturer) {
-		if (!composite->iManufacturer)
-			snprintf(composite_manufacturer,
-				 sizeof composite_manufacturer,
-				 "%s %s with %s",
-				 init_utsname()->sysname,
-				 init_utsname()->release,
-				 gadget->name);
+		snprintf(composite_manufacturer,
+				sizeof composite_manufacturer,
+				"%s %s with %s",
+				init_utsname()->sysname,
+				init_utsname()->release,
+				gadget->name);
 
 		cdev->manufacturer_override =
 			override_id(cdev, &cdev->desc.iManufacturer);
 	}
-
-	if (!cdev->desc.iProduct && composite->iProduct)
-		cdev->product_override =
-			override_id(cdev, &cdev->desc.iProduct);
-
-	if (composite->iSerialNumber)
-		cdev->serial_override =
-			override_id(cdev, &cdev->desc.iSerialNumber);
 
 	/* has userspace failed to provide a serial number? */
 	if (composite->needs_serial && !cdev->desc.iSerialNumber)
@@ -1619,8 +1606,6 @@ int usb_composite_probe(struct usb_composite_driver *driver)
 
 	if (!driver->name)
 		driver->name = "composite";
-	if (!driver->iProduct)
-		driver->iProduct = driver->name;
 
 	driver->gadget_driver = composite_driver_template;
 	gadget_driver = &driver->gadget_driver;

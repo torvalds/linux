@@ -115,7 +115,7 @@ enum {
 
 static struct usb_string strings_dev[] = {
 	[USB_GADGET_MANUFACTURER_IDX].s = "",
-	[USB_GADGET_PRODUCT_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
 	[USB_GADGET_SERIAL_IDX].s = "",
 	[MULTI_STRING_RNDIS_CONFIG_IDX].s = "Multifunction with RNDIS",
 	[MULTI_STRING_CDC_CONFIG_IDX].s   = "Multifunction with CDC ECM",
@@ -293,6 +293,7 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (unlikely(status < 0))
 		goto fail2;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
 	/* register configurations */
 	status = rndis_config_register(cdev);
@@ -338,7 +339,6 @@ static __refdata struct usb_composite_driver multi_driver = {
 	.max_speed	= USB_SPEED_HIGH,
 	.bind		= multi_bind,
 	.unbind		= __exit_p(multi_unbind),
-	.iProduct	= DRIVER_DESC,
 	.needs_serial	= 1,
 };
 

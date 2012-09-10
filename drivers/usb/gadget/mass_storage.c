@@ -85,7 +85,7 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 static struct usb_string strings_dev[] = {
 	[USB_GADGET_MANUFACTURER_IDX].s = "",
-	[USB_GADGET_PRODUCT_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
 	[USB_GADGET_SERIAL_IDX].s = "",
 	{  } /* end of list */
 };
@@ -160,6 +160,7 @@ static int __init msg_bind(struct usb_composite_dev *cdev)
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		return status;
+	msg_device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 
 	status = usb_add_config(cdev, &msg_config_driver, msg_do_config);
 	if (status < 0)
@@ -177,7 +178,6 @@ static int __init msg_bind(struct usb_composite_dev *cdev)
 static __refdata struct usb_composite_driver msg_driver = {
 	.name		= "g_mass_storage",
 	.dev		= &msg_device_desc,
-	.iProduct	= DRIVER_DESC,
 	.max_speed	= USB_SPEED_SUPER,
 	.needs_serial	= 1,
 	.strings	= dev_strings,
