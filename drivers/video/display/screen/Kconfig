@@ -94,6 +94,9 @@ config LCD_COMMON
 	bool "LCD COMMON"
 config LCD_RK2928_A720
         bool "RK2928 A720 panel 800x480"
+config LCD_HSD07PFW1
+	depends on MFD_RK610
+	bool "RGB lcd panel HSD07PFW1"
 
 endchoice
 

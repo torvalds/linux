@@ -2,7 +2,7 @@
 #define __RK610_CONTROL_H_
 
 #define INVALID_GPIO -1
-//#define RK610_DEBUG
+#define RK610_DEBUG
 
 #ifdef RK610_DEBUG
 #define RK610_DBG(dev, format, arg...)		\

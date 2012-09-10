@@ -12,6 +12,23 @@
 #include <mach/sram.h>
 #include <linux/i2c-gpio.h>
 
+struct hdmi_platform_data {
+	u32 hdmi_on_pin;
+		u32 hdmi_on_level;
+			int (*io_init)(void);
+				int (*io_deinit)(void);
+				};
+struct gs_platform_data {
+        u16     model;
+        u16     swap_xy;
+        u16             swap_xyz;
+        signed char orientation[9];
+        int     (*get_pendown_state)(void);
+        int     (*init_platform_hw)(void);
+        int     (*gs_platform_sleep)(void);
+        int     (*gs_platform_wakeup)(void);
+        void    (*exit_platform_hw)(void);
+};
 /* adc battery */
 struct rk30_adc_battery_platform_data {
         int (*io_init)(void);
@@ -41,13 +58,12 @@ struct wifi_platform_data {
 #endif
 
 #if defined (CONFIG_TOUCHSCREEN_FT5306)
-struct ft5x0x_platform_data{
-	  u16     model;
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*ft5x0x_platform_sleep)(void);
-    int     (*ft5x0x_platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
+struct ft5606_platform_data{
+    	int     (*get_pendown_state)(void);
+	int     (*init_platform_hw)(void);
+	int     (*platform_sleep)(void);
+	int     (*platform_wakeup)(void);
+	void    (*exit_platform_hw)(void);
 };
 #endif
 

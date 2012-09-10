@@ -567,7 +567,7 @@ static int  mma7660_probe(struct i2c_client *client, const struct i2c_device_id 
 	/* z-axis acceleration */
 	input_set_abs_params(mma7660->input_dev, ABS_Z, -MMA7660_RANGE, MMA7660_RANGE, 0, 0);
 
-	mma7660->input_dev->name = "compass";
+	mma7660->input_dev->name = "gsensor";
 	mma7660->input_dev->dev.parent = &client->dev;
 
 	err = input_register_device(mma7660->input_dev);

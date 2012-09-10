@@ -266,6 +266,8 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	ret = mfd_add_devices(tps65910->dev, -1,
 			      tps65910s, ARRAY_SIZE(tps65910s),
 			      NULL, 0);
+
+
 	if (ret < 0)
 		goto err;
 	
@@ -282,6 +284,8 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	tps65910_gpio_init(tps65910, pmic_plat_data->gpio_base);
 
 	ret = tps65910_irq_init(tps65910, init_data->irq, init_data);
+
+
 	if (ret < 0)
 		goto err;
 
