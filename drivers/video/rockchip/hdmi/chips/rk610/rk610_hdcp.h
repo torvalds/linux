@@ -175,7 +175,9 @@ struct hdcp {
 
 extern struct hdcp *hdcp;
 
-#define HDCP_DEBUG
+#ifdef DBG
+#undef DBG
+#endif
 
 #ifdef HDCP_DEBUG
 #define DBG(format, ...) \

@@ -165,6 +165,7 @@ static int rk610_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_devic
 #ifdef HDMI_USE_IRQ
 	if(client->irq != INVALID_GPIO) {
 		INIT_WORK(&rk610_hdmi->irq_work, rk610_irq_work_func);
+		schedule_work(&rk610_hdmi->irq_work);
 		if((rc = gpio_request(client->irq, "hdmi gpio")) < 0)
 	    {
 	        dev_err(&client->dev, "fail to request gpio %d\n", client->irq);
@@ -174,7 +175,7 @@ static int rk610_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_devic
 		rk610_hdmi->gpio = client->irq;
 	    gpio_pull_updown(client->irq, GPIOPullUp);
 	    gpio_direction_input(client->irq);
-	    if((rc = request_irq(rk610_hdmi->irq, rk610_irq, IRQF_TRIGGER_RISING, NULL, hdmi)) < 0)
+	    if((rc = request_irq(hdmi->irq, rk610_irq, IRQF_TRIGGER_RISING, NULL, hdmi)) < 0)
 	    {
 	        dev_err(&client->dev, "fail to request hdmi irq\n");
 	        goto err_request_irq;

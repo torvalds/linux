@@ -42,8 +42,9 @@ static int hdmi_set_enable(struct rk_display_device *device, int enable)
 	else {
 		if(hdmi->irq)
 			enable_irq(hdmi->irq);
-		else
+		#ifdef CONFIG_HDMI_RK610
 			queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
+		#endif
 		mutex_unlock(&hdmi->enable_mutex);
 	}
 	return 0;

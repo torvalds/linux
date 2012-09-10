@@ -3,12 +3,15 @@
 #include "../../rk_hdmi.h"
 
 #define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC0
+//#define HDMI_USE_IRQ
 
 struct rk610_hdmi_pdata {
 	int gpio;
 	struct i2c_client *client;
 	struct delayed_work delay_work;
-	#ifndef HDMI_USE_IRQ
+	#ifdef HDMI_USE_IRQ
+	struct work_struct	irq_work;
+	#else
 	struct workqueue_struct *workqueue;
 	#endif
 };
