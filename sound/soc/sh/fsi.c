@@ -1738,7 +1738,6 @@ exit_iounmap:
 	iounmap(master->base);
 exit_kfree:
 	kfree(master);
-	master = NULL;
 exit:
 	return ret;
 }
