@@ -57,7 +57,7 @@ struct net *ip6addrlbl_net(const struct ip6addrlbl_entry *lbl)
 }
 
 /*
- * Default policy table (RFC3484 + extensions)
+ * Default policy table (RFC6724 + extensions)
  *
  * prefix		addr_type	label
  * -------------------------------------------------------------------------
@@ -69,8 +69,12 @@ struct net *ip6addrlbl_net(const struct ip6addrlbl_entry *lbl)
  * fc00::/7		N/A		5		ULA (RFC 4193)
  * 2001::/32		N/A		6		Teredo (RFC 4380)
  * 2001:10::/28		N/A		7		ORCHID (RFC 4843)
+ * fec0::/10		N/A		11		Site-local
+ *							(deprecated by RFC3879)
+ * 3ffe::/16		N/A		12		6bone
  *
  * Note: 0xffffffff is used if we do not have any policies.
+ * Note: Labels for ULA and 6to4 are different from labels listed in RFC6724.
  */
 
 #define IPV6_ADDR_LABEL_DEFAULT	0xffffffffUL
@@ -88,10 +92,18 @@ static const __net_initdata struct ip6addrlbl_init_table
 		.prefix = &(struct in6_addr){{{ 0xfc }}},
 		.prefixlen = 7,
 		.label = 5,
+	},{	/* fec0::/10 */
+		.prefix = &(struct in6_addr){{{ 0xfe, 0xc0 }}},
+		.prefixlen = 10,
+		.label = 11,
 	},{	/* 2002::/16 */
 		.prefix = &(struct in6_addr){{{ 0x20, 0x02 }}},
 		.prefixlen = 16,
 		.label = 2,
+	},{	/* 3ffe::/16 */
+		.prefix = &(struct in6_addr){{{ 0x3f, 0xfe }}},
+		.prefixlen = 16,
+		.label = 12,
 	},{	/* 2001::/32 */
 		.prefix = &(struct in6_addr){{{ 0x20, 0x01 }}},
 		.prefixlen = 32,
