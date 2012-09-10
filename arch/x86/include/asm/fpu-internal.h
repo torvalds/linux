@@ -109,8 +109,7 @@ static inline void fx_finit(struct i387_fxsave_struct *fx)
 {
 	memset(fx, 0, xstate_size);
 	fx->cwd = 0x37f;
-	if (cpu_has_xmm)
-		fx->mxcsr = MXCSR_DEFAULT;
+	fx->mxcsr = MXCSR_DEFAULT;
 }
 
 extern void __sanitize_i387_state(struct task_struct *);
