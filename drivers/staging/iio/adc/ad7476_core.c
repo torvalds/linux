@@ -93,22 +93,6 @@ static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 		.channel[0] = AD7476_CHAN(8),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
-	[ID_AD7475] = {
-		.channel[0] = AD7476_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_AD7476] = {
-		.channel[0] = AD7476_CHAN(12),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_AD7477] = {
-		.channel[0] = AD7476_CHAN(10),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
-	[ID_AD7478] = {
-		.channel[0] = AD7476_CHAN(8),
-		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-	},
 	[ID_AD7495] = {
 		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
@@ -216,13 +200,13 @@ static const struct spi_device_id ad7476_id[] = {
 	{"ad7466", ID_AD7466},
 	{"ad7467", ID_AD7467},
 	{"ad7468", ID_AD7468},
-	{"ad7475", ID_AD7475},
-	{"ad7476", ID_AD7476},
-	{"ad7476a", ID_AD7476},
-	{"ad7477", ID_AD7477},
-	{"ad7477a", ID_AD7477},
-	{"ad7478", ID_AD7478},
-	{"ad7478a", ID_AD7478},
+	{"ad7475", ID_AD7466},
+	{"ad7476", ID_AD7466},
+	{"ad7476a", ID_AD7466},
+	{"ad7477", ID_AD7467},
+	{"ad7477a", ID_AD7467},
+	{"ad7478", ID_AD7468},
+	{"ad7478a", ID_AD7468},
 	{"ad7495", ID_AD7495},
 	{}
 };

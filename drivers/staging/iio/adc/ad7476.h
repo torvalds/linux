@@ -41,10 +41,6 @@ enum ad7476_supported_device_ids {
 	ID_AD7466,
 	ID_AD7467,
 	ID_AD7468,
-	ID_AD7475,
-	ID_AD7476,
-	ID_AD7477,
-	ID_AD7478,
 	ID_AD7495
 };
 
