@@ -3,11 +3,11 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
-
-#include <linux/hdmi.h>
 #include "rk610_lcd.h"
 #include <linux/mfd/rk610_core.h>
-#include "../../rk29_fb.h"
+#include <linux/rk_fb.h>
+#include "../../rockchip/hdmi/rk_hdmi.h"
+
 static struct rk610_lcd_info *g_lcd_inf = NULL;
 //static int rk610_scaler_read_p0_reg(struct i2c_client *client, char reg, char *val)
 //{
@@ -44,7 +44,7 @@ static void rk610_scaler_enable(struct i2c_client *client)
     bool den_inv = 0,hv_sync_inv = 0,clk_inv = 0;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
     g_lcd_inf->scl_inf.scl_pwr = ENABLE;
-    #ifdef CONFIG_HDMI_DUAL_DISP
+    #if defined(CONFIG_HDMI_DUAL_DISP) || defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
     if(g_lcd_inf->screen !=NULL){
         den_inv = g_lcd_inf->screen->s_den_inv;
         hv_sync_inv = g_lcd_inf->screen->s_hv_sync_inv;
@@ -61,7 +61,7 @@ static void rk610_scaler_disable(struct i2c_client *client)
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
     
     g_lcd_inf->scl_inf.scl_pwr = DISABLE;
-    #ifdef CONFIG_HDMI_DUAL_DISP
+    #if defined(CONFIG_HDMI_DUAL_DISP) || defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
     if(g_lcd_inf->screen !=NULL){
         den_inv = g_lcd_inf->screen->s_den_inv;
         hv_sync_inv = g_lcd_inf->screen->s_hv_sync_inv;
@@ -106,7 +106,7 @@ static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *s
 	}
 	return 0;
 }
-#ifdef CONFIG_HDMI_DUAL_DISP
+#if defined(CONFIG_HDMI_DUAL_DISP) || defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 static int rk610_scaler_pll_set(struct i2c_client *client,struct rk29fb_screen *screen,u32 clkin )
 {
     char c=0;
@@ -189,14 +189,14 @@ static int rk610_scaler_fator_config(struct i2c_client *client ,struct rk29fb_sc
             /***************set scaler factor********************/
             scale_hv_factor(client,1280,screen->x_res,720,screen->y_res);
         break;
-        case HDMI_720x576p_50Hz_16x9:
-        case HDMI_720x576p_50Hz_4x3:
+        case HDMI_720x576p_50Hz_16_9:
+        case HDMI_720x576p_50Hz_4_3:
             rk610_scaler_pll_set(client,screen,27000000);
             /***************set scaler factor********************/
             scale_hv_factor(client,720,screen->x_res,576,screen->y_res);
             break;
-        case HDMI_720x480p_60Hz_16x9:
-        case HDMI_720x480p_60Hz_4x3:
+        case HDMI_720x480p_60Hz_16_9:
+        case HDMI_720x480p_60Hz_4_3:
             rk610_scaler_pll_set(client,screen,27000000);
             /***************set scaler factor********************/
             scale_hv_factor(client,720,screen->x_res,480,screen->y_res);
@@ -363,11 +363,11 @@ int rk610_lcd_scaler_set_param(struct rk29fb_screen *screen,bool enable )//enabl
         printk("%s screen == NULL FAIL\n",__FUNCTION__);
         return -1;
     }
-    RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
+    RK610_DBG(&client->dev,"%s \n",__FUNCTION__,);
     
     g_lcd_inf->screen = screen;
     
-#ifdef CONFIG_HDMI_DUAL_DISP
+#if defined(CONFIG_HDMI_DUAL_DISP) || defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
     if(enable == 1){
         g_lcd_inf->disp_mode = LCD_OUT_SCL;
         rk610_output_config(client,screen,LCD_OUT_SCL);
