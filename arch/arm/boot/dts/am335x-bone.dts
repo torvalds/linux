@@ -19,11 +19,11 @@
 	};
 
 	ocp {
-		uart1: serial@44E09000 {
+		uart1: serial@44e09000 {
 			status = "okay";
 		};
 
-		i2c1: i2c@44E0B000 {
+		i2c1: i2c@44e0b000 {
 			status = "okay";
 			clock-frequency = <400000>;
 

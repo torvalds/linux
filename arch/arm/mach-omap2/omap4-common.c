@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/memblock.h>
+#include <linux/of.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -171,7 +172,10 @@ static int __init omap_l2_cache_init(void)
 	/* Enable PL310 L2 Cache controller */
 	omap_smc1(0x102, 0x1);
 
-	l2x0_init(l2cache_base, aux_ctrl, L2X0_AUX_CTRL_MASK);
+	if (of_have_populated_dt())
+		l2x0_of_init(aux_ctrl, L2X0_AUX_CTRL_MASK);
+	else
+		l2x0_init(l2cache_base, aux_ctrl, L2X0_AUX_CTRL_MASK);
 
 	/*
 	 * Override default outer_cache.disable with a OMAP4

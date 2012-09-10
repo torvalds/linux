@@ -17,6 +17,34 @@
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		pmu_stat {
+			label = "beagleboard::pmu_stat";
+			gpios = <&twl_gpio 19 0>; /* LEDB */
+		};
+
+		heartbeat {
+			label = "beagleboard::usr0";
+			gpios = <&gpio5 22 0>; /* 150 -> D6 LED */
+			linux,default-trigger = "heartbeat";
+		};
+
+		mmc {
+			label = "beagleboard::usr1";
+			gpios = <&gpio5 21 0>; /* 149 -> D7 LED */
+			linux,default-trigger = "mmc0";
+		};
+	};
+
+	sound {
+		compatible = "ti,omap-twl4030";
+		ti,model = "omap3beagle";
+
+		ti,mcbsp = <&mcbsp2>;
+		ti,codec = <&twl_audio>;
+	};
 };
 
 &i2c1 {
@@ -31,6 +59,12 @@
 			compatible = "ti,twl4030-vsim";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3000000>;
+		};
+
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+			codec {
+			};
 		};
 	};
 };
@@ -66,4 +100,16 @@
 
 &mmc3 {
 	status = "disabled";
+};
+
+&twl_gpio {
+	ti,use-leds;
+	/* pullups: BIT(1) */
+	ti,pullups = <0x000002>;
+	/*
+	 * pulldowns:
+	 * BIT(2), BIT(6), BIT(7), BIT(8), BIT(13)
+	 * BIT(15), BIT(16), BIT(17)
+	 */
+	ti,pulldowns = <0x03a1c4>;
 };

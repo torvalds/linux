@@ -395,6 +395,31 @@ static int __devinit gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
 
 static int gpio_twl4030_remove(struct platform_device *pdev);
 
+static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev)
+{
+	struct twl4030_gpio_platform_data *omap_twl_info;
+
+	omap_twl_info = devm_kzalloc(dev, sizeof(*omap_twl_info), GFP_KERNEL);
+	if (!omap_twl_info)
+		return NULL;
+
+	omap_twl_info->gpio_base = -1;
+
+	omap_twl_info->use_leds = of_property_read_bool(dev->of_node,
+			"ti,use-leds");
+
+	of_property_read_u32(dev->of_node, "ti,debounce",
+			     &omap_twl_info->debounce);
+	of_property_read_u32(dev->of_node, "ti,mmc-cd",
+			     (u32 *)&omap_twl_info->mmc_cd);
+	of_property_read_u32(dev->of_node, "ti,pullups",
+			     &omap_twl_info->pullups);
+	of_property_read_u32(dev->of_node, "ti,pulldowns",
+			     &omap_twl_info->pulldowns);
+
+	return omap_twl_info;
+}
+
 static int __devinit gpio_twl4030_probe(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;
@@ -423,38 +448,41 @@ static int __devinit gpio_twl4030_probe(struct platform_device *pdev)
 	twl4030_gpio_irq_base = irq_base;
 
 no_irqs:
-	twl_gpiochip.base = -1;
 	twl_gpiochip.ngpio = TWL4030_GPIO_MAX;
 	twl_gpiochip.dev = &pdev->dev;
 
-	if (pdata) {
-		twl_gpiochip.base = pdata->gpio_base;
+	if (node)
+		pdata = of_gpio_twl4030(&pdev->dev);
 
-		/*
-		 * NOTE:  boards may waste power if they don't set pullups
-		 * and pulldowns correctly ... default for non-ULPI pins is
-		 * pulldown, and some other pins may have external pullups
-		 * or pulldowns.  Careful!
-		 */
-		ret = gpio_twl4030_pulls(pdata->pullups, pdata->pulldowns);
-		if (ret)
-			dev_dbg(&pdev->dev, "pullups %.05x %.05x --> %d\n",
-					pdata->pullups, pdata->pulldowns,
-					ret);
-
-		ret = gpio_twl4030_debounce(pdata->debounce, pdata->mmc_cd);
-		if (ret)
-			dev_dbg(&pdev->dev, "debounce %.03x %.01x --> %d\n",
-					pdata->debounce, pdata->mmc_cd,
-					ret);
-
-		/*
-		 * NOTE: we assume VIBRA_CTL.VIBRA_EN, in MODULE_AUDIO_VOICE,
-		 * is (still) clear if use_leds is set.
-		 */
-		if (pdata->use_leds)
-			twl_gpiochip.ngpio += 2;
+	if (pdata == NULL) {
+		dev_err(&pdev->dev, "Platform data is missing\n");
+		return -ENXIO;
 	}
+
+	twl_gpiochip.base = pdata->gpio_base;
+
+	/*
+	 * NOTE:  boards may waste power if they don't set pullups
+	 * and pulldowns correctly ... default for non-ULPI pins is
+	 * pulldown, and some other pins may have external pullups
+	 * or pulldowns.  Careful!
+	 */
+	ret = gpio_twl4030_pulls(pdata->pullups, pdata->pulldowns);
+	if (ret)
+		dev_dbg(&pdev->dev, "pullups %.05x %.05x --> %d\n",
+			pdata->pullups, pdata->pulldowns, ret);
+
+	ret = gpio_twl4030_debounce(pdata->debounce, pdata->mmc_cd);
+	if (ret)
+		dev_dbg(&pdev->dev, "debounce %.03x %.01x --> %d\n",
+			pdata->debounce, pdata->mmc_cd, ret);
+
+	/*
+	 * NOTE: we assume VIBRA_CTL.VIBRA_EN, in MODULE_AUDIO_VOICE,
+	 * is (still) clear if use_leds is set.
+	 */
+	if (pdata->use_leds)
+		twl_gpiochip.ngpio += 2;
 
 	ret = gpiochip_add(&twl_gpiochip);
 	if (ret < 0) {

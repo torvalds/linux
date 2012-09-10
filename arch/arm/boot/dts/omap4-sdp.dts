@@ -8,6 +8,7 @@
 /dts-v1/;
 
 /include/ "omap4.dtsi"
+/include/ "elpida_ecb240abacn.dtsi"
 
 / {
 	model = "TI OMAP4 SDP board";
@@ -225,4 +226,84 @@
 &mmc5 {
 	bus-width = <4>;
 	ti,non-removable;
+};
+
+&emif1 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
+};
+
+&emif2 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
+};
+
+&keypad {
+	keypad,num-rows = <8>;
+	keypad,num-columns = <8>;
+	linux,keymap = <0x00000012	/* KEY_E */
+			0x00010013	/* KEY_R */
+			0x00020014	/* KEY_T */
+			0x00030066	/* KEY_HOME */
+			0x0004003f	/* KEY_F5 */
+			0x000500f0	/* KEY_UNKNOWN */
+			0x00060017	/* KEY_I */
+			0x0007002a	/* KEY_LEFTSHIFT */
+			0x01000020	/* KEY_D*/
+			0x01010021	/* KEY_F */
+			0x01020022	/* KEY_G */
+			0x010300e7	/* KEY_SEND */
+			0x01040040	/* KEY_F6 */
+			0x010500f0	/* KEY_UNKNOWN */
+			0x01060025	/* KEY_K */
+			0x0107001c	/* KEY_ENTER */
+			0x0200002d	/* KEY_X */
+			0x0201002e	/* KEY_C */
+			0x0202002f	/* KEY_V */
+			0x0203006b	/* KEY_END */
+			0x02040041	/* KEY_F7 */
+			0x020500f0	/* KEY_UNKNOWN */
+			0x02060034	/* KEY_DOT */
+			0x0207003a	/* KEY_CAPSLOCK */
+			0x0300002c	/* KEY_Z */
+			0x0301004e	/* KEY_KPLUS */
+			0x03020030	/* KEY_B */
+			0x0303003b	/* KEY_F1 */
+			0x03040042	/* KEY_F8 */
+			0x030500f0	/* KEY_UNKNOWN */
+			0x03060018	/* KEY_O */
+			0x03070039	/* KEY_SPACE */
+			0x04000011	/* KEY_W */
+			0x04010015	/* KEY_Y */
+			0x04020016	/* KEY_U */
+			0x0403003c	/* KEY_F2 */
+			0x04040073	/* KEY_VOLUMEUP */
+			0x040500f0	/* KEY_UNKNOWN */
+			0x04060026	/* KEY_L */
+			0x04070069	/* KEY_LEFT */
+			0x0500001f	/* KEY_S */
+			0x05010023	/* KEY_H */
+			0x05020024	/* KEY_J */
+			0x0503003d	/* KEY_F3 */
+			0x05040043	/* KEY_F9 */
+			0x05050072	/* KEY_VOLUMEDOWN */
+			0x05060032	/* KEY_M */
+			0x0507006a	/* KEY_RIGHT */
+			0x06000010	/* KEY_Q */
+			0x0601001e	/* KEY_A */
+			0x06020031	/* KEY_N */
+			0x0603009e	/* KEY_BACK */
+			0x0604000e	/* KEY_BACKSPACE */
+			0x060500f0	/* KEY_UNKNOWN */
+			0x06060019	/* KEY_P */
+			0x06070067	/* KEY_UP */
+			0x07000094	/* KEY_PROG1 */
+			0x07010095	/* KEY_PROG2 */
+			0x070200ca	/* KEY_PROG3 */
+			0x070300cb	/* KEY_PROG4 */
+			0x0704003e	/* KEY_F4 */
+			0x070500f0	/* KEY_UNKNOWN */
+			0x07060160	/* KEY_OK */
+			0x0707006c>;	/* KEY_DOWN */
+	linux,input-no-autorepeat;
 };

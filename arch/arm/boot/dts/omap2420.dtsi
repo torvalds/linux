@@ -1,0 +1,39 @@
+/*
+ * Device Tree Source for OMAP2420 SoC
+ *
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/include/ "omap2.dtsi"
+
+/ {
+	compatible = "ti,omap2420", "ti,omap2";
+
+	ocp {
+		mcbsp1: mcbsp@48074000 {
+			compatible = "ti,omap2420-mcbsp";
+			reg = <0x48074000 0xff>;
+			reg-names = "mpu";
+			interrupts = <59>, /* TX interrupt */
+				     <60>; /* RX interrupt */
+			interrupt-names = "tx", "rx";
+			interrupt-parent = <&intc>;
+			ti,hwmods = "mcbsp1";
+		};
+
+		mcbsp2: mcbsp@48076000 {
+			compatible = "ti,omap2420-mcbsp";
+			reg = <0x48076000 0xff>;
+			reg-names = "mpu";
+			interrupts = <62>, /* TX interrupt */
+				     <63>; /* RX interrupt */
+			interrupt-names = "tx", "rx";
+			interrupt-parent = <&intc>;
+			ti,hwmods = "mcbsp2";
+		};
+	};
+};
