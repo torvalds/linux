@@ -140,7 +140,7 @@ enum mei_cb_major_types {
 struct mei_message_data {
 	u32 size;
 	unsigned char *data;
-} __packed;
+};
 
 
 struct mei_cl_cb {
