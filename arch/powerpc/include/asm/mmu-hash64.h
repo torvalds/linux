@@ -154,8 +154,24 @@ struct mmu_psize_def
 #define MMU_SEGSIZE_256M	0
 #define MMU_SEGSIZE_1T		1
 
+/*
+ * encode page number shift.
+ * in order to fit the 78 bit va in a 64 bit variable we shift the va by
+ * 12 bits. This enable us to address upto 76 bit va.
+ * For hpt hash from a va we can ignore the page size bits of va and for
+ * hpte encoding we ignore up to 23 bits of va. So ignoring lower 12 bits ensure
+ * we work in all cases including 4k page size.
+ */
+#define VPN_SHIFT	12
 
 #ifndef __ASSEMBLY__
+
+static inline int segment_shift(int ssize)
+{
+	if (ssize == MMU_SEGSIZE_256M)
+		return SID_SHIFT;
+	return SID_SHIFT_1T;
+}
 
 /*
  * The current system page and segment sizes
@@ -180,18 +196,39 @@ extern unsigned long tce_alloc_start, tce_alloc_end;
 extern int mmu_ci_restrictions;
 
 /*
+ * This computes the AVPN and B fields of the first dword of a HPTE,
+ * for use when we want to match an existing PTE.  The bottom 7 bits
+ * of the returned value are zero.
+ */
+static inline unsigned long hpte_encode_avpn(unsigned long vpn, int psize,
+					     int ssize)
+{
+	unsigned long v;
+	/*
+	 * The AVA field omits the low-order 23 bits of the 78 bits VA.
+	 * These bits are not needed in the PTE, because the
+	 * low-order b of these bits are part of the byte offset
+	 * into the virtual page and, if b < 23, the high-order
+	 * 23-b of these bits are always used in selecting the
+	 * PTEGs to be searched
+	 */
+	v = (vpn >> (23 - VPN_SHIFT)) & ~(mmu_psize_defs[psize].avpnm);
+	v <<= HPTE_V_AVPN_SHIFT;
+	v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
+	return v;
+}
+
+/*
  * This function sets the AVPN and L fields of the HPTE  appropriately
  * for the page size
  */
-static inline unsigned long hpte_encode_v(unsigned long va, int psize,
-					  int ssize)
+static inline unsigned long hpte_encode_v(unsigned long vpn,
+					  int psize, int ssize)
 {
 	unsigned long v;
-	v = (va >> 23) & ~(mmu_psize_defs[psize].avpnm);
-	v <<= HPTE_V_AVPN_SHIFT;
+	v = hpte_encode_avpn(vpn, psize, ssize);
 	if (psize != MMU_PAGE_4K)
 		v |= HPTE_V_LARGE;
-	v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
 	return v;
 }
 
@@ -216,30 +253,37 @@ static inline unsigned long hpte_encode_r(unsigned long pa, int psize)
 }
 
 /*
- * Build a VA given VSID, EA and segment size
+ * Build a VPN_SHIFT bit shifted va given VSID, EA and segment size.
  */
-static inline unsigned long hpt_va(unsigned long ea, unsigned long vsid,
-				   int ssize)
+static inline unsigned long hpt_vpn(unsigned long ea,
+				    unsigned long vsid, int ssize)
 {
-	if (ssize == MMU_SEGSIZE_256M)
-		return (vsid << 28) | (ea & 0xfffffffUL);
-	return (vsid << 40) | (ea & 0xffffffffffUL);
+	unsigned long mask;
+	int s_shift = segment_shift(ssize);
+
+	mask = (1ul << (s_shift - VPN_SHIFT)) - 1;
+	return (vsid << (s_shift - VPN_SHIFT)) | ((ea >> VPN_SHIFT) & mask);
 }
 
 /*
  * This hashes a virtual address
  */
-
-static inline unsigned long hpt_hash(unsigned long va, unsigned int shift,
-				     int ssize)
+static inline unsigned long hpt_hash(unsigned long vpn,
+				     unsigned int shift, int ssize)
 {
+	int mask;
 	unsigned long hash, vsid;
 
+	/* VPN_SHIFT can be atmost 12 */
 	if (ssize == MMU_SEGSIZE_256M) {
-		hash = (va >> 28) ^ ((va & 0x0fffffffUL) >> shift);
+		mask = (1ul << (SID_SHIFT - VPN_SHIFT)) - 1;
+		hash = (vpn >> (SID_SHIFT - VPN_SHIFT)) ^
+			((vpn & mask) >> (shift - VPN_SHIFT));
 	} else {
-		vsid = va >> 40;
-		hash = vsid ^ (vsid << 25) ^ ((va & 0xffffffffffUL) >> shift);
+		mask = (1ul << (SID_SHIFT_1T - VPN_SHIFT)) - 1;
+		vsid = vpn >> (SID_SHIFT_1T - VPN_SHIFT);
+		hash = vsid ^ (vsid << 25) ^
+			((vpn & mask) >> (shift - VPN_SHIFT)) ;
 	}
 	return hash & 0x7fffffffffUL;
 }
