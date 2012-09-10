@@ -62,49 +62,6 @@ out:
 	return error;
 }
 
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	struct pt_regs regs;
-	int ret;
-
-	memset(&regs, 0, sizeof(struct pt_regs));
-	ret = do_execve(filename,
-			(const char __user *const __user *)argv,
-			(const char __user *const __user *)envp, &regs);
-	if (ret < 0)
-		goto out;
-
-	/*
-	 * Save argc to the register structure for userspace.
-	 */
-	regs.regs[0] = ret;
-
-	/*
-	 * We were successful.  We won't be returning to our caller, but
-	 * instead to user space by manipulating the kernel stack.
-	 */
-	asm(	"add	x0, %0, %1\n\t"
-		"mov	x1, %2\n\t"
-		"mov	x2, %3\n\t"
-		"bl	memmove\n\t"	/* copy regs to top of stack */
-		"mov	x27, #0\n\t"	/* not a syscall */
-		"mov	x28, %0\n\t"	/* thread structure */
-		"mov	sp, x0\n\t"	/* reposition stack pointer */
-		"b	ret_to_user"
-		:
-		: "r" (current_thread_info()),
-		  "Ir" (THREAD_START_SP - sizeof(regs)),
-		  "r" (&regs),
-		  "Ir" (sizeof(regs))
-		: "x0", "x1", "x2", "x27", "x28", "x30", "memory");
-
- out:
-	return ret;
-}
-EXPORT_SYMBOL(kernel_execve);
-
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			 unsigned long prot, unsigned long flags,
 			 unsigned long fd, off_t off)

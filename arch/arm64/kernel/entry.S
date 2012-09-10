@@ -594,7 +594,7 @@ work_resched:
 /*
  * "slow" syscall return path.
  */
-ENTRY(ret_to_user)
+ret_to_user:
 	disable_irq				// disable interrupts
 	ldr	x1, [tsk, #TI_FLAGS]
 	and	x2, x1, #_TIF_WORK_MASK
