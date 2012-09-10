@@ -460,7 +460,11 @@ typedef struct {
 
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;	/* SLB page size encodings */
-	u64 high_slices_psize;  /* 4 bits per slice for now */
+	/*
+	 * Right now we support 64TB and 4 bits for each
+	 * 1TB slice we need 32 bytes for 64TB.
+	 */
+	unsigned char high_slices_psize[32];  /* 4 bits per slice for now */
 #else
 	u16 sllp;		/* SLB page size encoding */
 #endif

@@ -82,7 +82,11 @@ extern u64 ppc64_pft_size;
 
 struct slice_mask {
 	u16 low_slices;
-	u16 high_slices;
+	/*
+	 * This should be derived out of PGTABLE_RANGE. For the current
+	 * max 64TB, u64 should be ok.
+	 */
+	u64 high_slices;
 };
 
 struct mm_struct;

@@ -108,17 +108,31 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 	 * between 4k and 64k standard page size
 	 */
 #ifdef CONFIG_PPC_MM_SLICES
+	/* r10 have esid */
 	cmpldi	r10,16
-
-	/* Get the slice index * 4 in r11 and matching slice size mask in r9 */
-	ld	r9,PACALOWSLICESPSIZE(r13)
-	sldi	r11,r10,2
+	/* below SLICE_LOW_TOP */
 	blt	5f
-	ld	r9,PACAHIGHSLICEPSIZE(r13)
-	srdi	r11,r10,(SLICE_HIGH_SHIFT - SLICE_LOW_SHIFT - 2)
-	andi.	r11,r11,0x3c
+	/*
+	 * Handle hpsizes,
+	 * r9 is get_paca()->context.high_slices_psize[index], r11 is mask_index
+	 */
+	srdi    r11,r10,(SLICE_HIGH_SHIFT - SLICE_LOW_SHIFT + 1) /* index */
+	addi	r9,r11,PACAHIGHSLICEPSIZE
+	lbzx	r9,r13,r9		/* r9 is hpsizes[r11] */
+	/* r11 = (r10 >> (SLICE_HIGH_SHIFT - SLICE_LOW_SHIFT)) & 0x1 */
+	rldicl	r11,r10,(64 - (SLICE_HIGH_SHIFT - SLICE_LOW_SHIFT)),63
+	b	6f
 
-5:	/* Extract the psize and multiply to get an array offset */
+5:
+	/*
+	 * Handle lpsizes
+	 * r9 is get_paca()->context.low_slices_psize, r11 is index
+	 */
+	ld	r9,PACALOWSLICESPSIZE(r13)
+	mr	r11,r10
+6:
+	sldi	r11,r11,2  /* index * 4 */
+	/* Extract the psize and multiply to get an array offset */
 	srd	r9,r9,r11
 	andi.	r9,r9,0xf
 	mulli	r9,r9,MMUPSIZEDEFSIZE

@@ -803,16 +803,19 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 #ifdef CONFIG_PPC_MM_SLICES
 unsigned int get_paca_psize(unsigned long addr)
 {
-	unsigned long index, slices;
+	u64 lpsizes;
+	unsigned char *hpsizes;
+	unsigned long index, mask_index;
 
 	if (addr < SLICE_LOW_TOP) {
-		slices = get_paca()->context.low_slices_psize;
+		lpsizes = get_paca()->context.low_slices_psize;
 		index = GET_LOW_SLICE_INDEX(addr);
-	} else {
-		slices = get_paca()->context.high_slices_psize;
-		index = GET_HIGH_SLICE_INDEX(addr);
+		return (lpsizes >> (index * 4)) & 0xF;
 	}
-	return (slices >> (index * 4)) & 0xF;
+	hpsizes = get_paca()->context.high_slices_psize;
+	index = GET_HIGH_SLICE_INDEX(addr);
+	mask_index = index & 0x1;
+	return (hpsizes[index >> 1] >> (mask_index * 4)) & 0xF;
 }
 
 #else
