@@ -253,9 +253,6 @@ static int find_testdev(const char *name, const struct stat *sb, int flag)
 
 	if (flag != FTW_F)
 		return 0;
-	/* ignore /proc/bus/usb/{devices,drivers} */
-	if (strrchr(name, '/')[1] == 'd')
-		return 0;
 
 	fd = fopen(name, "rb");
 	if (!fd) {
@@ -356,28 +353,8 @@ restart:
 
 static const char *usbfs_dir_find(void)
 {
-	static char usbfs_path_0[] = "/dev/usb/devices";
-	static char usbfs_path_1[] = "/proc/bus/usb/devices";
 	static char udev_usb_path[] = "/dev/bus/usb";
 
-	static char *const usbfs_paths[] = {
-		usbfs_path_0, usbfs_path_1
-	};
-
-	static char *const *
-		end = usbfs_paths + sizeof usbfs_paths / sizeof *usbfs_paths;
-
-	char *const *it = usbfs_paths;
-	do {
-		int fd = open(*it, O_RDONLY);
-		close(fd);
-		if (fd >= 0) {
-			strrchr(*it, '/')[0] = '\0';
-			return *it;
-		}
-	} while (++it != end);
-
-	/* real device-nodes managed by udev */
 	if (access(udev_usb_path, F_OK) == 0)
 		return udev_usb_path;
 
@@ -489,7 +466,7 @@ usage:
 		goto usage;
 	if (!all && !device) {
 		fprintf (stderr, "must specify '-a' or '-D dev', "
-			"or DEVICE=/proc/bus/usb/BBB/DDD in env\n");
+			"or DEVICE=/dev/bus/usb/BBB/DDD in env\n");
 		goto usage;
 	}
 
