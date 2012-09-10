@@ -403,17 +403,6 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 {
 	struct wm8741_priv *wm8741 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
-		wm8741->supplies[i].supply = wm8741_supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8741->supplies),
-				 wm8741->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		goto err;
-	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8741->supplies),
 				    wm8741->supplies);
@@ -450,7 +439,6 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
 err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
 err:
 	return ret;
 }
@@ -460,7 +448,6 @@ static int wm8741_remove(struct snd_soc_codec *codec)
 	struct wm8741_priv *wm8741 = snd_soc_codec_get_drvdata(codec);
 
 	regulator_bulk_disable(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
-	regulator_bulk_free(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
 
 	return 0;
 }
@@ -492,12 +479,22 @@ static int wm8741_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8741_priv *wm8741;
-	int ret;
+	int ret, i;
 
 	wm8741 = devm_kzalloc(&i2c->dev, sizeof(struct wm8741_priv),
 			      GFP_KERNEL);
 	if (wm8741 == NULL)
 		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
+		wm8741->supplies[i].supply = wm8741_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8741->supplies),
+				      wm8741->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		goto err;
+	}
 
 	i2c_set_clientdata(i2c, wm8741);
 	wm8741->control_type = SND_SOC_I2C;
@@ -536,12 +533,22 @@ static struct i2c_driver wm8741_i2c_driver = {
 static int __devinit wm8741_spi_probe(struct spi_device *spi)
 {
 	struct wm8741_priv *wm8741;
-	int ret;
+	int ret, i;
 
 	wm8741 = devm_kzalloc(&spi->dev, sizeof(struct wm8741_priv),
 			     GFP_KERNEL);
 	if (wm8741 == NULL)
 		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
+		wm8741->supplies[i].supply = wm8741_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8741->supplies),
+				      wm8741->supplies);
+	if (ret != 0) {
+		dev_err(&spi->dev, "Failed to request supplies: %d\n", ret);
+		goto err;
+	}
 
 	wm8741->control_type = SND_SOC_SPI;
 	spi_set_drvdata(spi, wm8741);
