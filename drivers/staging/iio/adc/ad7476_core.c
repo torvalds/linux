@@ -40,7 +40,7 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad7476_state *st = iio_priv(indio_dev);
-	unsigned int scale_uv;
+	int scale_uv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
@@ -57,10 +57,16 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 			RES_MASK(st->chip_info->channel[0].scan_type.realbits);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = (st->int_vref_mv * 1000)
-			>> st->chip_info->channel[0].scan_type.realbits;
-		*val =  scale_uv/1000;
-		*val2 = (scale_uv%1000)*1000;
+		if (!st->chip_info->int_vref_uv) {
+			scale_uv = regulator_get_voltage(st->reg);
+			if (scale_uv < 0)
+				return scale_uv;
+		} else {
+			scale_uv = st->chip_info->int_vref_uv;
+		}
+		scale_uv >>= chan->scan_type.realbits;
+		*val =  scale_uv / 1000;
+		*val2 = (scale_uv % 1000) * 1000;
 		return IIO_VAL_INT_PLUS_MICRO;
 	}
 	return -EINVAL;
@@ -96,7 +102,7 @@ static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	[ID_AD7495] = {
 		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
-		.int_vref_mv = 2500,
+		.int_vref_uv = 2500000,
 	},
 };
 
@@ -107,10 +113,9 @@ static const struct iio_info ad7476_info = {
 
 static int __devinit ad7476_probe(struct spi_device *spi)
 {
-	struct ad7476_platform_data *pdata = spi->dev.platform_data;
 	struct ad7476_state *st;
 	struct iio_dev *indio_dev;
-	int ret, voltage_uv = 0;
+	int ret;
 
 	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
@@ -118,25 +123,18 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 		goto error_ret;
 	}
 	st = iio_priv(indio_dev);
-	st->reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			goto error_put_reg;
-
-		voltage_uv = regulator_get_voltage(st->reg);
-	}
 	st->chip_info =
 		&ad7476_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
-	if (st->chip_info->int_vref_mv)
-		st->int_vref_mv = st->chip_info->int_vref_mv;
-	else if (pdata && pdata->vref_mv)
-		st->int_vref_mv = pdata->vref_mv;
-	else if (voltage_uv)
-		st->int_vref_mv = voltage_uv / 1000;
-	else
-		dev_warn(&spi->dev, "reference voltage unspecified\n");
+	st->reg = regulator_get(&spi->dev, "vcc");
+	if (IS_ERR(st->reg)) {
+		ret = PTR_ERR(st->reg);
+		goto error_free_dev;
+	}
+
+	ret = regulator_enable(st->reg);
+	if (ret)
+		goto error_put_reg;
 
 	spi_set_drvdata(spi, indio_dev);
 
@@ -169,11 +167,10 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 error_ring_unregister:
 	ad7476_ring_cleanup(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	regulator_disable(st->reg);
 error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
+	regulator_put(st->reg);
+error_free_dev:
 	iio_device_free(indio_dev);
 
 error_ret:
@@ -187,10 +184,8 @@ static int __devexit ad7476_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 	ad7476_ring_cleanup(indio_dev);
-	if (!IS_ERR(st->reg)) {
-		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
+	regulator_disable(st->reg);
+	regulator_put(st->reg);
 	iio_device_free(indio_dev);
 
 	return 0;

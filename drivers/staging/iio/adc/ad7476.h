@@ -10,16 +10,8 @@
 
 #define RES_MASK(bits)	((1 << (bits)) - 1)
 
-/*
- * TODO: struct ad7476_platform_data needs to go into include/linux/iio
- */
-
-struct ad7476_platform_data {
-	u16				vref_mv;
-};
-
 struct ad7476_chip_info {
-	u16				int_vref_mv;
+	unsigned int			int_vref_uv;
 	struct iio_chan_spec		channel[2];
 };
 
@@ -27,7 +19,6 @@ struct ad7476_state {
 	struct spi_device		*spi;
 	const struct ad7476_chip_info	*chip_info;
 	struct regulator		*reg;
-	u16				int_vref_mv;
 	struct spi_transfer		xfer;
 	struct spi_message		msg;
 	/*
