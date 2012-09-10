@@ -76,7 +76,7 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 		.sign = 'u',					\
 		.realbits = bits,				\
 		.storagebits = 16,				\
-		.shift = 12 - bits,				\
+		.shift = 13 - bits,				\
 	},							\
 }
 
