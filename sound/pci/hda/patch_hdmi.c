@@ -1441,7 +1441,7 @@ static int hdmi_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 		return -EFAULT;
 	size -= 8;
 	dst = tlv + 2;
-	for (chs = 2; chs <= spec->channels_max; chs += 2) {
+	for (chs = 2; chs <= spec->channels_max; chs++) {
 		int i, c;
 		struct cea_channel_speaker_allocation *cap;
 		cap = channel_allocations;
