@@ -122,46 +122,24 @@ static void LCD_cfg_panel_info(__panel_para_t * info)
 
 static __s32 LCD_open_flow(__u32 sel)
 {
-	LCD_OPEN_FUNC(sel, LCD_power_on	, 50); 	//open lcd power, and delay 10ms
+	LCD_OPEN_FUNC(sel, LCD_power_on_generic	, 50);  /* open lcd power, and delay 10ms */
 	LCD_OPEN_FUNC(sel, LCD_io_init	, 20); 	//request and init gpio, and delay 20ms
 	LCD_OPEN_FUNC(sel, TCON_open	, 500);   //open lcd controller, and delay 200ms
 	LCD_OPEN_FUNC(sel, LCD_open_cmd	, 10); 	//use gpio to config lcd module to the  work mode, and delay 10ms
-	LCD_OPEN_FUNC(sel, LCD_bl_open	, 0); 	//open lcd backlight, and delay 0ms
+	LCD_OPEN_FUNC(sel, LCD_bl_open_generic	, 0);  /* open lcd backlight, and delay 0ms */
 
 	return 0;
 }
 
 static __s32 LCD_close_flow(__u32 sel)
 {
-	LCD_CLOSE_FUNC(sel, LCD_bl_close    , 0); 	 //close lcd backlight, and delay 0ms
+	LCD_CLOSE_FUNC(sel, LCD_bl_close_generic    , 0); 	 /* close lcd backlight, and delay 0ms */
 	LCD_CLOSE_FUNC(sel, LCD_close_cmd   , 0); 	 //use gpio to config lcd module to the powerdown/sleep mode, and delay 0ms
 	LCD_CLOSE_FUNC(sel, TCON_close	    , 0); 	 //close lcd controller, and delay 0ms
 	LCD_CLOSE_FUNC(sel, LCD_io_exit	    , 0); 	 //release gpio, and delay 0ms
-	LCD_CLOSE_FUNC(sel, LCD_power_off   , 1000); //close lcd power, and delay 1000ms
+	LCD_CLOSE_FUNC(sel, LCD_power_off_generic   , 1000); /* close lcd power, and delay 1000ms */
 
 	return 0;
-}
-
-static void LCD_power_on(__u32 sel)
-{
-    LCD_POWER_EN(sel, 1);//config lcd_power pin to open lcd power
-}
-
-static void LCD_power_off(__u32 sel)
-{
-    LCD_POWER_EN(sel, 0);//config lcd_power pin to close lcd power
-}
-
-static void LCD_bl_open(__u32 sel)
-{
-    LCD_PWM_EN(sel, 1);//open pwm module
-    LCD_BL_EN(sel, 1);//config lcd_bl_en pin to open lcd backlight
-}
-
-static void LCD_bl_close(__u32 sel)
-{
-    LCD_BL_EN(sel, 0);//config lcd_bl_en pin to close lcd backlight
-    LCD_PWM_EN(sel, 0);//close pwm module
 }
 
 #define IIC_SCLB_LOW()	        LCD_GPIO_write(0, 0, 0)
@@ -371,12 +349,6 @@ static void  LCD_close_cmd(__u32 sel)
 {
 }
 
-//sel: 0:lcd0; 1:lcd1
-static __s32 LCD_user_defined_func(__u32 sel, __u32 para1, __u32 para2, __u32 para3)
-{
-    return 0;
-}
-
 void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun)
 {
 #ifdef LCD_PARA_USE_CONFIG
@@ -384,6 +356,5 @@ void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun)
 #endif
     fun->cfg_open_flow = LCD_open_flow;
     fun->cfg_close_flow = LCD_close_flow;
-    fun->lcd_user_defined_func = LCD_user_defined_func;
 }
 

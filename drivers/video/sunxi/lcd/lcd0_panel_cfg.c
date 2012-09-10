@@ -27,14 +27,6 @@
 //delete this line if you want to use the lcd para define in sys_config1.fex
 //#define LCD_PARA_USE_CONFIG
 
-#ifdef CONFIG_ARCH_SUN5I
-#include "../../../power/axp_power/axp-gpio.h"
-extern int axp_gpio_set_io(int gpio, int io_state);
-extern int axp_gpio_get_io(int gpio, int *io_state);
-extern int axp_gpio_set_value(int gpio, int value);
-extern int axp_gpio_get_value(int gpio, int *value);
-#endif
-
 #ifdef LCD_PARA_USE_CONFIG
 static __u8 g_gamma_tbl[][2] = 
 {
@@ -123,80 +115,10 @@ static void LCD_cfg_panel_info(__panel_para_t * info)
 }
 #endif
 
-static __s32 LCD_open_flow(__u32 sel)
-{
-	LCD_OPEN_FUNC(sel, LCD_power_on, 50);   //open lcd power, and delay 50ms
-	LCD_OPEN_FUNC(sel, TCON_open, 500);     //open lcd controller, and delay 500ms
-	LCD_OPEN_FUNC(sel, LCD_bl_open, 0);     //open lcd backlight, and delay 0ms
-
-	return 0;
-}
-
-static __s32 LCD_close_flow(__u32 sel)
-{	
-	LCD_CLOSE_FUNC(sel, LCD_bl_close, 0);       //close lcd backlight, and delay 0ms
-	LCD_CLOSE_FUNC(sel, TCON_close, 0);         //close lcd controller, and delay 0ms
-	LCD_CLOSE_FUNC(sel, LCD_power_off, 1000);   //close lcd power, and delay 1000ms
-
-	return 0;
-}
-
-static void LCD_power_on(__u32 sel)
-{
-#ifdef CONFIG_ARCH_SUN5I
-    axp_gpio_set_io(0, 1);
-    axp_gpio_set_value(0, 1);
-
-#else
-    LCD_POWER_EN(sel, 1);//config lcd_power pin to open lcd power
-#endif
-}
-
-static void LCD_power_off(__u32 sel)
-{
-#ifdef CONFIG_ARCH_SUN5I
-    axp_gpio_set_io(0, 1);
-    axp_gpio_set_value(0, 0);
-#else
-    LCD_POWER_EN(sel, 0);//config lcd_power pin to close lcd power
-#endif
-}
-
-static void LCD_bl_open(__u32 sel)
-{
-    LCD_PWM_EN(sel, 1);//open pwm module
-#ifdef CONFIG_ARCH_SUN5I
-    axp_gpio_set_io(1, 1);
-    axp_gpio_set_value(1, 1);
-#else
-    LCD_BL_EN(sel, 1);//config lcd_bl_en pin to open lcd backlight
-#endif
-}
-
-static void LCD_bl_close(__u32 sel)
-{
-#ifdef CONFIG_ARCH_SUN5I
-    axp_gpio_set_io(1, 1);
-    axp_gpio_set_value(1, 0);
-#else
-    LCD_BL_EN(sel, 0);//config lcd_bl_en pin to close lcd backlight
-#endif
-    LCD_PWM_EN(sel, 0);//close pwm module
-}
-
-//sel: 0:lcd0; 1:lcd1
-static __s32 LCD_user_defined_func(__u32 sel, __u32 para1, __u32 para2, __u32 para3)
-{
-    return 0;
-}
-
 void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun)
 {
 #ifdef LCD_PARA_USE_CONFIG
     fun->cfg_panel_info = LCD_cfg_panel_info;//delete this line if you want to use the lcd para define in sys_config1.fex
 #endif
-    fun->cfg_open_flow = LCD_open_flow;
-    fun->cfg_close_flow = LCD_close_flow;
-    fun->lcd_user_defined_func = LCD_user_defined_func;
 }
 

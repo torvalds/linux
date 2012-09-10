@@ -28,10 +28,14 @@
 #include "dev_lcd.h"
 
 
-static void LCD_power_on(__u32 sel);
-static void LCD_power_off(__u32 sel);
-static void LCD_bl_open(__u32 sel);
-static void LCD_bl_close(__u32 sel);
+void LCD_power_on_generic(__u32 sel);
+void LCD_power_off_generic(__u32 sel);
+void LCD_bl_open_generic(__u32 sel);
+void LCD_bl_close_generic(__u32 sel);
+__s32 LCD_open_flow_generic(__u32 sel);
+__s32 LCD_close_flow_generic(__u32 sel);
+__s32 LCD_user_defined_func_generic(__u32 sel, __u32 para1, __u32 para2, __u32 para3);
+void LCD_get_panel_funs_generic(__lcd_panel_fun_t * fun);
 
 void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun);
 void LCD_get_panel_funs_1(__lcd_panel_fun_t * fun);
@@ -63,6 +67,14 @@ extern __s32 pwm_get_para(__u32 channel, __pwm_info_t * pwm_info);
 #define OSAL_Script_FetchParser_Data script_parser_fetch
 #define OSAL_GPIO_Request gpio_request
 #define OSAL_GPIO_Release gpio_release
+#define OSAL_GPIO_Request_Ex gpio_request_ex
+#define OSAL_GPIO_DevGetAllPins_Status gpio_get_all_pin_status
+#define OSAL_GPIO_DevGetONEPins_Status gpio_get_one_pin_status
+#define OSAL_GPIO_DevSetONEPin_Status gpio_set_one_pin_status
+#define OSAL_GPIO_DevSetONEPIN_IO_STATUS gpio_set_one_pin_io_status
+#define OSAL_GPIO_DevSetONEPIN_PULL_STATUS gpio_set_one_pin_pull
+#define OSAL_GPIO_DevREAD_ONEPIN_DATA gpio_read_one_pin_value
+#define OSAL_GPIO_DevWRITE_ONEPIN_DATA gpio_write_one_pin_value
 
 #define BIT0		  0x00000001  
 #define BIT1		  0x00000002  

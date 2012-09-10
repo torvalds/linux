@@ -78,52 +78,23 @@ static void LCD_cfg_panel_info(__panel_para_t * info)
  *********************************************************/
 static __s32 LCD_open_flow(__u32 sel)
 {
-	LCD_OPEN_FUNC(sel, LCD_power_on, 	50);   //open lcd power, than delay 50ms
+	LCD_OPEN_FUNC(sel, LCD_power_on_generic, 	50);   /* open lcd power, than delay 50ms */
 	LCD_OPEN_FUNC(sel, TCON_open,		500);  //open lcd controller, than delay 500ms
 	LCD_OPEN_FUNC(sel, LCD_panel_init,	50);   //lcd panel initial, than delay 50ms	
-	LCD_OPEN_FUNC(sel, LCD_bl_open, 	0);    //open lcd backlight, than delay 0ms
+	LCD_OPEN_FUNC(sel, LCD_bl_open_generic, 	0);    /* open lcd backlight, than delay 0ms */
 
 	return 0;
 }
 
 static __s32 LCD_close_flow(__u32 sel)
 {	
-	LCD_CLOSE_FUNC(sel, LCD_bl_close, 	0);		//close lcd backlight, than delay 0ms
+	LCD_CLOSE_FUNC(sel, LCD_bl_close_generic, 	0);		/* close lcd backlight, than delay 0ms */
 	LCD_CLOSE_FUNC(sel, LCD_panel_exit, 0);		//lcd panel exit, than delay 0ms	
 	LCD_CLOSE_FUNC(sel, TCON_close, 	0);		//close lcd controller, than delay 0ms	
-	LCD_CLOSE_FUNC(sel, LCD_power_off, 	1000);	//close lcd power, than delay 1000ms
+	LCD_CLOSE_FUNC(sel, LCD_power_off_generic, 	1000);	/* close lcd power, than delay 1000ms */
 
 	return 0;
 }
-
-
-/*********************************************************
- *
- *  lcd step function
- *	
- *********************************************************/
-static void LCD_power_on(__u32 sel)
-{
-    LCD_POWER_EN(sel, 1);
-}
-
-static void LCD_power_off(__u32 sel)
-{
-    LCD_POWER_EN(sel, 0);
-}
-
-static void LCD_bl_open(__u32 sel)
-{
-    LCD_PWM_EN(sel, 1);
-    LCD_BL_EN(sel, 1);
-}
-
-static void LCD_bl_close(__u32 sel)
-{
-    LCD_BL_EN(sel, 0);
-    LCD_PWM_EN(sel, 0);
-}
-
 
 /*********************************************************
  *
@@ -229,15 +200,7 @@ static void LCD_panel_exit(__u32 sel)
 {
 
 }
-/*********************************************************
- *
- *  user define function
- *
- *********************************************************/
-static __s32 LCD_user_defined_func(__u32 sel, __u32 para1, __u32 para2, __u32 para3)
-{
-    return 0;
-}
+
 
 /*********************************************************
  *
@@ -251,5 +214,4 @@ void LCD_get_panel_funs_0(__lcd_panel_fun_t * fun)
 #endif
     fun->cfg_open_flow = LCD_open_flow;
     fun->cfg_close_flow = LCD_close_flow;
-    fun->lcd_user_defined_func = LCD_user_defined_func;
 }
