@@ -403,13 +403,6 @@ static struct XGI_CRT1TableStruct XGI_CRT1Table[] = {
 	  0x03, 0xDE, 0xC0, 0x84, 0xBF, 0x04, 0x90} }  /* 0x47 */
 };
 
-static unsigned char XGI_CH7017LV1024x768[] = {
-	0x60, 0x02, 0x00, 0x07, 0x40, 0xED,
-	0xA3, 0xC8, 0xC7, 0xAC, 0xE0, 0x02};
-static unsigned char XGI_CH7017LV1400x1050[] = {
-	0x60, 0x03, 0x11, 0x00, 0x40, 0xE3,
-	0xAD, 0xDB, 0xF6, 0xAC, 0xE0, 0x02};
-
 /*add for new UNIVGABIOS*/
 static struct SiS_LCDData  XGI_StLCD1024x768Data[] = {
 	{62,  25, 800,  546, 1344, 806},
@@ -1863,12 +1856,6 @@ static struct XGI330_LCDDataTablStruct XGI_EPLLCDDesDataPtr[] = {
 	/* XGI_LVDS1280x1024Des_2x75 */
 	{Panel_1280x1024x75, 0x0018, 0x0010, 13},
 	{PanelRef75Hz, 0x0008, 0x0008, 14}, /* XGI_LVDSNoScalingDesDatax75 */
-	{0xFF, 0x0000, 0x0000, 0}
-};
-
-static struct XGI330_LCDDataTablStruct XGI_EPLCHLCDRegPtr[] = {
-	{Panel_1024x768, 0x0000, 0x0000, 0}, /* XGI_CH7017LV1024x768 */
-	{Panel_1400x1050, 0x0000, 0x0000, 1}, /* XGI_CH7017LV1400x1050 */
 	{0xFF, 0x0000, 0x0000, 0}
 };
 

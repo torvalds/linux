@@ -1389,8 +1389,6 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 		tempdi = XGI_LCDDesDataTable;
 		break;
 	case 6:
-		tempdi = XGI_EPLCHLCDRegPtr;
-		break;
 	case 7:
 	case 8:
 	case 9:
@@ -1745,17 +1743,6 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 			break;
 		case 19:
 			return &XGI_NoScalingDesDatax75[tempal];
-			break;
-		default:
-			break;
-		}
-	} else if (table == 6) {
-		switch (tempdi[i].DATAPTR) {
-		case 0:
-			return &XGI_CH7017LV1024x768[tempal];
-			break;
-		case 1:
-			return &XGI_CH7017LV1400x1050[tempal];
 			break;
 		default:
 			break;
