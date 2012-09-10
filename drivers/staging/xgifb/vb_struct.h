@@ -135,7 +135,6 @@ struct XGI301C_Tap4TimingStruct {
 };
 
 struct vb_device_info {
-	unsigned char  ISXPDOS;
 	unsigned long   P3c4, P3d4, P3c0, P3ce, P3c2, P3cc;
 	unsigned long   P3ca, P3c6, P3c7, P3c8, P3c9, P3da;
 	unsigned long   Part0Port, Part1Port, Part2Port;

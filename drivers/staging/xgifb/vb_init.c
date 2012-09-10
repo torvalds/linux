@@ -1299,8 +1299,6 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	outb(0x67, (pVBInfo->BaseAddr + 0x12)); /* 3c2 <- 67 ,ynlai */
 
-	pVBInfo->ISXPDOS = 0;
-
 	pVBInfo->P3c4 = pVBInfo->BaseAddr + 0x14;
 	pVBInfo->P3d4 = pVBInfo->BaseAddr + 0x24;
 	pVBInfo->P3c0 = pVBInfo->BaseAddr + 0x10;

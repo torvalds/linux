@@ -4872,9 +4872,7 @@ static void XGI_SetGroup4(unsigned short ModeNo, unsigned short ModeIdIndex,
 	}
 	/* end 301b */
 
-	if (pVBInfo->ISXPDOS == 0)
-		XGI_SetCRT2VCLK(ModeNo, ModeIdIndex, RefreshRateTableIndex,
-				pVBInfo);
+	XGI_SetCRT2VCLK(ModeNo, ModeIdIndex, RefreshRateTableIndex, pVBInfo);
 }
 
 static void XGINew_EnableCRT2(struct vb_device_info *pVBInfo)
