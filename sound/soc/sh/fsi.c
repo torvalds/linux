@@ -1655,22 +1655,20 @@ static int fsi_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (!res || (int)irq <= 0) {
 		dev_err(&pdev->dev, "Not enough FSI platform resources.\n");
-		ret = -ENODEV;
-		goto exit;
+		return -ENODEV;
 	}
 
-	master = kzalloc(sizeof(*master), GFP_KERNEL);
+	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
 	if (!master) {
 		dev_err(&pdev->dev, "Could not allocate master\n");
-		ret = -ENOMEM;
-		goto exit;
+		return -ENOMEM;
 	}
 
-	master->base = ioremap_nocache(res->start, resource_size(res));
+	master->base = devm_ioremap_nocache(&pdev->dev,
+					    res->start, resource_size(res));
 	if (!master->base) {
-		ret = -ENXIO;
 		dev_err(&pdev->dev, "Unable to ioremap FSI registers.\n");
-		goto exit_kfree;
+		return -ENXIO;
 	}
 
 	/* master setting */
@@ -1686,7 +1684,7 @@ static int fsi_probe(struct platform_device *pdev)
 	ret = fsi_stream_probe(&master->fsia, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIA stream probe failed\n");
-		goto exit_iounmap;
+		return ret;
 	}
 
 	/* FSI B setting */
@@ -1734,11 +1732,7 @@ exit_fsib:
 	fsi_stream_remove(&master->fsib);
 exit_fsia:
 	fsi_stream_remove(&master->fsia);
-exit_iounmap:
-	iounmap(master->base);
-exit_kfree:
-	kfree(master);
-exit:
+
 	return ret;
 }
 
@@ -1756,9 +1750,6 @@ static int fsi_remove(struct platform_device *pdev)
 
 	fsi_stream_remove(&master->fsia);
 	fsi_stream_remove(&master->fsib);
-
-	iounmap(master->base);
-	kfree(master);
 
 	return 0;
 }
