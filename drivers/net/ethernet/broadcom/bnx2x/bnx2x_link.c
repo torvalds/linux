@@ -1584,6 +1584,16 @@ static void bnx2x_umac_enable(struct link_params *params,
 	REG_WR(bp, umac_base + UMAC_REG_COMMAND_CONFIG, val);
 	udelay(50);
 
+	/* Configure UMAC for EEE */
+	if (vars->eee_status & SHMEM_EEE_ADV_STATUS_MASK) {
+		DP(NETIF_MSG_LINK, "configured UMAC for EEE\n");
+		REG_WR(bp, umac_base + UMAC_REG_UMAC_EEE_CTRL,
+		       UMAC_UMAC_EEE_CTRL_REG_EEE_EN);
+		REG_WR(bp, umac_base + UMAC_REG_EEE_WAKE_TIMER, 0x11);
+	} else {
+		REG_WR(bp, umac_base + UMAC_REG_UMAC_EEE_CTRL, 0x0);
+	}
+
 	/* Set MAC address for source TX Pause/PFC frames (under SW reset) */
 	REG_WR(bp, umac_base + UMAC_REG_MAC_ADDR0,
 	       ((params->mac_addr[2] << 24) |
@@ -4262,6 +4272,8 @@ static void bnx2x_warpcore_set_sgmii_speed(struct bnx2x_phy *phy,
 			MDIO_WC_REG_RX66_CONTROL, &val16);
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 			 MDIO_WC_REG_RX66_CONTROL, val16 & ~(3<<13));
+
+	bnx2x_warpcore_set_lpi_passthrough(phy, params);
 
 	if (always_autoneg || phy->req_line_speed == SPEED_AUTO_NEG) {
 		/* SGMII Autoneg */
@@ -10792,28 +10804,52 @@ static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 		DP(NETIF_MSG_LINK, "Setting 10M force\n");
 	}
 
-	/* Check if we should turn on Auto-GrEEEn */
-	bnx2x_cl22_read(bp, phy, MDIO_REG_GPHY_PHYID_LSB, &temp);
-	if (temp == MDIO_REG_GPHY_ID_54618SE) {
-		if (params->feature_config_flags &
-		    FEATURE_CONFIG_AUTOGREEEN_ENABLED) {
-			temp = 6;
-			DP(NETIF_MSG_LINK, "Enabling Auto-GrEEEn\n");
+	if ((phy->flags & FLAGS_EEE) && bnx2x_eee_has_cap(params)) {
+		int rc;
+
+		bnx2x_cl22_write(bp, phy, MDIO_REG_GPHY_EXP_ACCESS,
+				 MDIO_REG_GPHY_EXP_ACCESS_TOP |
+				 MDIO_REG_GPHY_EXP_TOP_2K_BUF);
+		bnx2x_cl22_read(bp, phy, MDIO_REG_GPHY_EXP_ACCESS_GATE, &temp);
+		temp &= 0xfffe;
+		bnx2x_cl22_write(bp, phy, MDIO_REG_GPHY_EXP_ACCESS_GATE, temp);
+
+		rc = bnx2x_eee_initial_config(params, vars, SHMEM_EEE_1G_ADV);
+		if (rc) {
+			DP(NETIF_MSG_LINK, "Failed to configure EEE timers\n");
+			bnx2x_eee_disable(phy, params, vars);
+		} else if ((params->eee_mode & EEE_MODE_ADV_LPI) &&
+			   (phy->req_duplex == DUPLEX_FULL) &&
+			   (bnx2x_eee_calc_timer(params) ||
+			    !(params->eee_mode & EEE_MODE_ENABLE_LPI))) {
+			/* Need to advertise EEE only when requested,
+			 * and either no LPI assertion was requested,
+			 * or it was requested and a valid timer was set.
+			 * Also notice full duplex is required for EEE.
+			 */
+			bnx2x_eee_advertise(phy, params, vars,
+					    SHMEM_EEE_1G_ADV);
 		} else {
-			temp = 0;
-			DP(NETIF_MSG_LINK, "Disabling Auto-GrEEEn\n");
+			DP(NETIF_MSG_LINK, "Don't Advertise 1GBase-T EEE\n");
+			bnx2x_eee_disable(phy, params, vars);
 		}
-		bnx2x_cl22_write(bp, phy,
-				 MDIO_REG_GPHY_CL45_ADDR_REG, MDIO_AN_DEVAD);
-		bnx2x_cl22_write(bp, phy,
-				 MDIO_REG_GPHY_CL45_DATA_REG,
-				 MDIO_REG_GPHY_EEE_ADV);
-		bnx2x_cl22_write(bp, phy,
-				 MDIO_REG_GPHY_CL45_ADDR_REG,
-				 (0x1 << 14) | MDIO_AN_DEVAD);
-		bnx2x_cl22_write(bp, phy,
-				 MDIO_REG_GPHY_CL45_DATA_REG,
-				 temp);
+	} else {
+		vars->eee_status &= ~SHMEM_EEE_1G_ADV <<
+				    SHMEM_EEE_SUPPORTED_SHIFT;
+
+		if (phy->flags & FLAGS_EEE) {
+			/* Handle legacy auto-grEEEn */
+			if (params->feature_config_flags &
+			    FEATURE_CONFIG_AUTOGREEEN_ENABLED) {
+				temp = 6;
+				DP(NETIF_MSG_LINK, "Enabling Auto-GrEEEn\n");
+			} else {
+				temp = 0;
+				DP(NETIF_MSG_LINK, "Don't Adv. EEE\n");
+			}
+			bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+					 MDIO_AN_REG_EEE_ADV, temp);
+		}
 	}
 
 	bnx2x_cl22_write(bp, phy,
@@ -10960,29 +10996,6 @@ static u8 bnx2x_54618se_read_status(struct bnx2x_phy *phy,
 		DP(NETIF_MSG_LINK, "BCM54618SE: link speed is %d\n",
 			   vars->line_speed);
 
-		/* Report whether EEE is resolved. */
-		bnx2x_cl22_read(bp, phy, MDIO_REG_GPHY_PHYID_LSB, &val);
-		if (val == MDIO_REG_GPHY_ID_54618SE) {
-			if (vars->link_status &
-			    LINK_STATUS_AUTO_NEGOTIATE_COMPLETE)
-				val = 0;
-			else {
-				bnx2x_cl22_write(bp, phy,
-					MDIO_REG_GPHY_CL45_ADDR_REG,
-					MDIO_AN_DEVAD);
-				bnx2x_cl22_write(bp, phy,
-					MDIO_REG_GPHY_CL45_DATA_REG,
-					MDIO_REG_GPHY_EEE_RESOLVED);
-				bnx2x_cl22_write(bp, phy,
-					MDIO_REG_GPHY_CL45_ADDR_REG,
-					(0x1 << 14) | MDIO_AN_DEVAD);
-				bnx2x_cl22_read(bp, phy,
-					MDIO_REG_GPHY_CL45_DATA_REG,
-					&val);
-			}
-			DP(NETIF_MSG_LINK, "EEE resolution: 0x%x\n", val);
-		}
-
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
 
 		if (vars->link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE) {
@@ -11012,6 +11025,10 @@ static u8 bnx2x_54618se_read_status(struct bnx2x_phy *phy,
 			if (val & (1<<11))
 				vars->link_status |=
 				  LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE;
+
+			if ((phy->flags & FLAGS_EEE) &&
+			    bnx2x_eee_has_cap(params))
+				bnx2x_eee_an_resolve(phy, params, vars);
 		}
 	}
 	return link_up;
@@ -11925,6 +11942,8 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54616:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE:
 		*phy = phy_54618se;
+		if (phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE)
+			phy->flags |= FLAGS_EEE;
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		*phy = phy_7101;
