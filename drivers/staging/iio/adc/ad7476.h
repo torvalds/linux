@@ -33,8 +33,11 @@ struct ad7476_state {
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
+	 * Make the buffer large enough for one 16 bit sample and one 64 bit
+	 * aligned 64 bit timestamp.
 	 */
-	unsigned char			data[2] ____cacheline_aligned;
+	unsigned char data[ALIGN(2, sizeof(s64)) + sizeof(s64)]
+			____cacheline_aligned;
 };
 
 enum ad7476_supported_device_ids {
