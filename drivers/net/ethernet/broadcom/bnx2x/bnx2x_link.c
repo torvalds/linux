@@ -6540,7 +6540,6 @@ static int bnx2x_update_link_down(struct link_params *params,
 		/* Prevent LPI Generation by chip */
 		REG_WR(bp, MISC_REG_CPMU_LP_FW_ENABLE_P0 + (params->port << 2),
 		       0);
-		REG_WR(bp, MISC_REG_CPMU_LP_DR_ENABLE, 0);
 		REG_WR(bp, MISC_REG_CPMU_LP_MASK_ENT_P0 + (params->port << 2),
 		       0);
 		vars->eee_status &= ~(SHMEM_EEE_LP_ADV_STATUS_MASK |
@@ -9932,7 +9931,6 @@ static int bnx2x_8483x_disable_eee(struct bnx2x_phy *phy,
 
 	/* Make Certain LPI is disabled */
 	REG_WR(bp, MISC_REG_CPMU_LP_FW_ENABLE_P0 + (params->port << 2), 0);
-	REG_WR(bp, MISC_REG_CPMU_LP_DR_ENABLE, 0);
 
 	/* Prevent Phy from working in EEE and advertising it */
 	rc = bnx2x_84833_cmd_hdlr(phy, params,
