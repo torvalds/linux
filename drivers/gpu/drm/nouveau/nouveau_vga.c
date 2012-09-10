@@ -79,7 +79,7 @@ nouveau_vga_init(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
-	vga_switcheroo_register_client(dev->pdev, &nouveau_switcheroo_ops);
+	vga_switcheroo_register_client(dev->pdev, &nouveau_switcheroo_ops, false);
 }
 
 void
