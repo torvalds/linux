@@ -46,6 +46,9 @@
  */
 #define USB_GADGET_DELAYED_STATUS       0x7fff	/* Impossibly large value */
 
+/* big enough to hold our biggest descriptor */
+#define USB_COMP_EP0_BUFSIZ	1024
+
 struct usb_configuration;
 
 /**
