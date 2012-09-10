@@ -24,7 +24,7 @@
 
 
 #define OUT_CLK	          71000000
-#define LCDC_ACLK        300000000           //29 lcdc axi DMA ÆµÂÊ
+#define LCDC_ACLK         300000000           //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
 #define H_PW			10
@@ -37,8 +37,8 @@
 #define V_VD			800
 #define V_FP			6
 
-#define LCD_WIDTH          216
-#define LCD_HEIGHT         135
+#define LCD_WIDTH          	216
+#define LCD_HEIGHT         	135
 /* Other */
 #ifdef CONFIG_RK610_LVDS
 #define DCLK_POL	1
@@ -118,19 +118,19 @@ int dsp_lut[256] ={
 #define S1_V_ST			13
 
 //1280*720*60
-#define S2_OUT_CLK		SCALE_RATE(74250000,66000000)  //m=32 n=9 no=4
-#define S2_H_PW			10
-#define S2_H_BP			10
+#define S2_OUT_CLK		SCALE_RATE(74250000,74250000)  //m=32 n=9 no=4
+#define S2_H_PW			48
+#define S2_H_BP			98
 #define S2_H_VD			1280
-#define S2_H_FP			20
+#define S2_H_FP			59
 
-#define S2_V_PW			10
-#define S2_V_BP			10
+#define S2_V_PW			6
+#define S2_V_BP			25
 #define S2_V_VD			800
-#define S2_V_FP			13
+#define S2_V_FP			2
 
-#define S2_H_ST			440
-#define S2_V_ST			13
+#define S2_H_ST			495
+#define S2_V_ST			5
 
 //1280*720*50
 
@@ -140,10 +140,10 @@ int dsp_lut[256] ={
 #define S3_H_VD			1280
 #define S3_H_FP			77
 
-#define S3_V_PW			10
-#define S3_V_BP			10
+#define S3_V_PW			2
+#define S3_V_BP			8
 #define S3_V_VD			800
-#define S3_V_FP			13
+#define S3_V_FP			6
 
 #define S3_H_ST			459
 #define S3_V_ST			13
@@ -178,7 +178,7 @@ int dsp_lut[256] ={
 #define S5_H_ST			476
 #define S5_V_ST			48
 
-#define S_DCLK_POL       0
+#define S_DCLK_POL       1
 
 
 static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
@@ -288,6 +288,7 @@ static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 {
 	/* screen type & face */
+	screen->face = OUT_FACE;
 	screen->type = OUT_TYPE;
 #ifdef CONFIG_RK610_LVDS
 	screen->hw_format = OUT_FORMAT;
