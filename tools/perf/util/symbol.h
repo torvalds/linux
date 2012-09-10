@@ -294,6 +294,7 @@ static inline void dso__set_loaded(struct dso *dso, enum map_type type)
 void dso__sort_by_name(struct dso *dso, enum map_type type);
 
 void dsos__add(struct list_head *head, struct dso *dso);
+struct dso *dsos__find(struct list_head *head, const char *name);
 struct dso *__dsos__findnew(struct list_head *head, const char *name);
 
 int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter);
