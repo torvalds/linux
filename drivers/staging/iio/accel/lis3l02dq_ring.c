@@ -135,7 +135,6 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	struct iio_buffer *buffer = indio_dev->buffer;
 	int len = 0;
 	char *data;
 
@@ -153,7 +152,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
 			= pf->timestamp;
-	buffer->access->store_to(buffer, (u8 *)data, pf->timestamp);
+	iio_push_to_buffer(indio_dev->buffer, (u8 *)data);
 
 	kfree(data);
 done:

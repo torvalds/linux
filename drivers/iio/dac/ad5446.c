@@ -321,6 +321,9 @@ static int ad5660_write(struct ad5446_state *st, unsigned val)
  * parts are supported here.
  */
 enum ad5446_supported_spi_device_ids {
+	ID_AD5300,
+	ID_AD5310,
+	ID_AD5320,
 	ID_AD5444,
 	ID_AD5446,
 	ID_AD5450,
@@ -341,6 +344,18 @@ enum ad5446_supported_spi_device_ids {
 };
 
 static const struct ad5446_chip_info ad5446_spi_chip_info[] = {
+	[ID_AD5300] = {
+		.channel = AD5446_CHANNEL_POWERDOWN(8, 16, 4),
+		.write = ad5446_write,
+	},
+	[ID_AD5310] = {
+		.channel = AD5446_CHANNEL_POWERDOWN(10, 16, 2),
+		.write = ad5446_write,
+	},
+	[ID_AD5320] = {
+		.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 0),
+		.write = ad5446_write,
+	},
 	[ID_AD5444] = {
 		.channel = AD5446_CHANNEL(12, 16, 2),
 		.write = ad5446_write,
@@ -418,6 +433,9 @@ static const struct ad5446_chip_info ad5446_spi_chip_info[] = {
 };
 
 static const struct spi_device_id ad5446_spi_ids[] = {
+	{"ad5300", ID_AD5300},
+	{"ad5310", ID_AD5310},
+	{"ad5320", ID_AD5320},
 	{"ad5444", ID_AD5444},
 	{"ad5446", ID_AD5446},
 	{"ad5450", ID_AD5450},
@@ -534,6 +552,9 @@ static int __devexit ad5446_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ad5446_i2c_ids[] = {
+	{"ad5301", ID_AD5602},
+	{"ad5311", ID_AD5612},
+	{"ad5321", ID_AD5622},
 	{"ad5602", ID_AD5602},
 	{"ad5612", ID_AD5612},
 	{"ad5622", ID_AD5622},

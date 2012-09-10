@@ -54,10 +54,15 @@ config IIO_CONSUMERS_PER_TRIGGER
 	This value controls the maximum number of consumers that a
 	given trigger may handle. Default is 2.
 
+source "drivers/iio/accel/Kconfig"
 source "drivers/iio/adc/Kconfig"
 source "drivers/iio/amplifiers/Kconfig"
 source "drivers/iio/light/Kconfig"
 source "drivers/iio/frequency/Kconfig"
 source "drivers/iio/dac/Kconfig"
+source "drivers/iio/common/Kconfig"
+source "drivers/iio/gyro/Kconfig"
+source "drivers/iio/light/Kconfig"
+source "drivers/iio/magnetometer/Kconfig"
 
 endif # IIO

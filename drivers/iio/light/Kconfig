@@ -42,4 +42,14 @@ config VCNL4000
 	 To compile this driver as a module, choose M here: the
 	 module will be called vcnl4000.
 
+config HID_SENSOR_ALS
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	tristate "HID ALS"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  Ambient light sensor.
+
 endmenu

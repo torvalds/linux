@@ -21,6 +21,8 @@ config IIO_GPIO_TRIGGER
 config IIO_SYSFS_TRIGGER
 	tristate "SYSFS trigger"
 	depends on SYSFS
+	depends on HAVE_IRQ_WORK
+	select IRQ_WORK
 	help
 	  Provides support for using SYSFS entry as IIO triggers.
 	  If unsure, say N (but it's safe to say "Y").
