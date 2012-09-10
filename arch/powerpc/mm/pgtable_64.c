@@ -55,8 +55,18 @@
 
 #include "mmu_decl.h"
 
-unsigned long ioremap_bot = IOREMAP_BASE;
+/* Some sanity checking */
+#if TASK_SIZE_USER64 > PGTABLE_RANGE
+#error TASK_SIZE_USER64 exceeds pagetable range
+#endif
 
+#ifdef CONFIG_PPC_STD_MMU_64
+#if TASK_SIZE_USER64 > (1UL << (USER_ESID_BITS + SID_SHIFT))
+#error TASK_SIZE_USER64 exceeds user VSID range
+#endif
+#endif
+
+unsigned long ioremap_bot = IOREMAP_BASE;
 
 #ifdef CONFIG_PPC_MMU_NOHASH
 static void *early_alloc_pgtable(unsigned long size)

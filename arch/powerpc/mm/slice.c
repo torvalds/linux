@@ -34,6 +34,11 @@
 #include <asm/mmu.h>
 #include <asm/spu.h>
 
+/* some sanity checks */
+#if (PGTABLE_RANGE >> 43) > SLICE_MASK_SIZE
+#error PGTABLE_RANGE exceeds slice_mask high_slices size
+#endif
+
 static DEFINE_SPINLOCK(slice_convert_lock);
 
 

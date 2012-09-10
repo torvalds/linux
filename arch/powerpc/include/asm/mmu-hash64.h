@@ -16,6 +16,13 @@
 #include <asm/page.h>
 
 /*
+ * This is necessary to get the definition of PGTABLE_RANGE which we
+ * need for various slices related matters. Note that this isn't the
+ * complete pgtable.h but only a portion of it.
+ */
+#include <asm/pgtable-ppc64.h>
+
+/*
  * Segment table
  */
 
@@ -414,6 +421,8 @@ extern void slb_set_size(u16 size);
 	srdi	rx,rx,VSID_BITS_##size;	/* extract 2^VSID_BITS bit */	\
 	add	rt,rt,rx
 
+/* 4 bits per slice and we have one slice per 1TB */
+#define SLICE_ARRAY_SIZE  (PGTABLE_RANGE >> 41)
 
 #ifndef __ASSEMBLY__
 
@@ -458,11 +467,7 @@ typedef struct {
 
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;	/* SLB page size encodings */
-	/*
-	 * Right now we support 64TB and 4 bits for each
-	 * 1TB slice we need 32 bytes for 64TB.
-	 */
-	unsigned char high_slices_psize[32];  /* 4 bits per slice for now */
+	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
 #else
 	u16 sllp;		/* SLB page size encoding */
 #endif
