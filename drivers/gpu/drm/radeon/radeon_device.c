@@ -1269,7 +1269,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* this will fail for cards that aren't VGA class devices, just
 	 * ignore it */
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
-	vga_switcheroo_register_client(rdev->pdev, &radeon_switcheroo_ops);
+	vga_switcheroo_register_client(rdev->pdev, &radeon_switcheroo_ops, false);
 
 	r = radeon_init(rdev);
 	if (r)
