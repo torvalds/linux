@@ -470,7 +470,8 @@ struct edac_pci_ctl_info *edac_pci_create_generic_ctl(struct device *dev,
 
 	pci->mod_name = mod_name;
 	pci->ctl_name = EDAC_PCI_GENCTL_NAME;
-	pci->edac_check = edac_pci_generic_check;
+	if (edac_op_state == EDAC_OPSTATE_POLL)
+		pci->edac_check = edac_pci_generic_check;
 
 	pdata->edac_idx = edac_pci_idx++;
 
