@@ -41,7 +41,7 @@
 #else
 #define KERN_VIRT_START ASM_CONST(0xD000000000000000)
 #endif
-#define KERN_VIRT_SIZE	PGTABLE_RANGE
+#define KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
 
 /*
  * The vmalloc space starts at the beginning of that region, and
