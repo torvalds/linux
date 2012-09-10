@@ -12,4 +12,8 @@
 #define __used		__attribute__((__unused__))
 #define __packed	__attribute__((__packed__))
 
+#ifndef __force
+#define __force
+#endif
+
 #endif
