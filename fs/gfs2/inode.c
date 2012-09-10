@@ -712,14 +712,9 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock2;
 
-	/* The newly created inode needs a reservation so it can allocate
-	   xattrs. At the same time, we want new blocks allocated to the new
-	   dinode to be as contiguous as possible. Since we allocated the
-	   dinode block under the directory's reservation, we transfer
-	   ownership of that reservation to the new inode. The directory
-	   doesn't need a reservation unless it needs a new allocation. */
-	ip->i_res = dip->i_res;
-	dip->i_res = NULL;
+	error = gfs2_rs_alloc(ip);
+	if (error)
+		goto fail_gunlock2;
 
 	error = gfs2_acl_create(dip, inode);
 	if (error)

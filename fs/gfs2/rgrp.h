@@ -79,10 +79,4 @@ static inline bool gfs2_rs_active(struct gfs2_blkreserv *rs)
 	return rs && !RB_EMPTY_NODE(&rs->rs_node);
 }
 
-
-static inline u32 gfs2_bi2rgd_blk(const struct gfs2_bitmap *bi, u32 blk)
-{
-	return (bi->bi_start * GFS2_NBBY) + blk;
-}
-
 #endif /* __RGRP_DOT_H__ */

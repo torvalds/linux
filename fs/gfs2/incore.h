@@ -99,7 +99,6 @@ struct gfs2_rgrpd {
 #define GFS2_RDF_MASK		0xf0000000 /* mask for internal flags */
 	spinlock_t rd_rsspin;           /* protects reservation related vars */
 	struct rb_root rd_rstree;       /* multi-block reservation tree */
-	u32 rd_rs_cnt;                  /* count of current reservations */
 };
 
 struct gfs2_rbm {
