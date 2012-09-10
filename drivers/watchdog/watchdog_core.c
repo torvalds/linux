@@ -128,11 +128,12 @@ EXPORT_SYMBOL_GPL(watchdog_register_device);
 void watchdog_unregister_device(struct watchdog_device *wdd)
 {
 	int ret;
-	int devno = wdd->cdev.dev;
+	int devno;
 
 	if (wdd == NULL)
 		return;
 
+	devno = wdd->cdev.dev;
 	ret = watchdog_dev_unregister(wdd);
 	if (ret)
 		pr_err("error unregistering /dev/watchdog (err=%d)\n", ret);
