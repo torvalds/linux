@@ -56,21 +56,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->SR21 = 0xa3;
 	pVBInfo->SR22 = 0xfb;
 
-	pVBInfo->NTSCTiming = XGI330_NTSCTiming;
-	pVBInfo->PALTiming = XGI330_PALTiming;
-	pVBInfo->HiTVExtTiming = XGI330_HiTVExtTiming;
-	pVBInfo->HiTVSt1Timing = XGI330_HiTVSt1Timing;
-	pVBInfo->HiTVSt2Timing = XGI330_HiTVSt2Timing;
-	pVBInfo->HiTVTextTiming = XGI330_HiTVTextTiming;
-	pVBInfo->YPbPr750pTiming = XGI330_YPbPr750pTiming;
-	pVBInfo->YPbPr525pTiming = XGI330_YPbPr525pTiming;
-	pVBInfo->YPbPr525iTiming = XGI330_YPbPr525iTiming;
-	pVBInfo->HiTVGroup3Data = XGI330_HiTVGroup3Data;
-	pVBInfo->HiTVGroup3Simu = XGI330_HiTVGroup3Simu;
-	pVBInfo->HiTVGroup3Text = XGI330_HiTVGroup3Text;
-	pVBInfo->Ren525pGroup3 = XGI330_Ren525pGroup3;
-	pVBInfo->Ren750pGroup3 = XGI330_Ren750pGroup3;
-
 	pVBInfo->TimingH = (struct XGI_TimingHStruct *) XGI_TimingH;
 	pVBInfo->TimingV = (struct XGI_TimingVStruct *) XGI_TimingV;
 	pVBInfo->UpdateCRT1 = (struct XGI_XG21CRT1Struct *) XGI_UpdateCRT1Table;
@@ -3976,33 +3961,33 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempax = (tempax & 0xff00) >> 8;
 
 	xgifb_reg_set(pVBInfo->Part2Port, 0x0, tempax);
-	TimingPoint = pVBInfo->NTSCTiming;
+	TimingPoint = XGI330_NTSCTiming;
 
 	if (pVBInfo->TVInfo & TVSetPAL)
-		TimingPoint = pVBInfo->PALTiming;
+		TimingPoint = XGI330_PALTiming;
 
 	if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
-		TimingPoint = pVBInfo->HiTVExtTiming;
+		TimingPoint = XGI330_HiTVExtTiming;
 
 		if (pVBInfo->VBInfo & SetInSlaveMode)
-			TimingPoint = pVBInfo->HiTVSt2Timing;
+			TimingPoint = XGI330_HiTVSt2Timing;
 
 		if (pVBInfo->SetFlag & TVSimuMode)
-			TimingPoint = pVBInfo->HiTVSt1Timing;
+			TimingPoint = XGI330_HiTVSt1Timing;
 
 		if (!(modeflag & Charx8Dot))
-			TimingPoint = pVBInfo->HiTVTextTiming;
+			TimingPoint = XGI330_HiTVTextTiming;
 	}
 
 	if (pVBInfo->VBInfo & SetCRT2ToYPbPr525750) {
 		if (pVBInfo->TVInfo & TVSetYPbPr525i)
-			TimingPoint = pVBInfo->YPbPr525iTiming;
+			TimingPoint = XGI330_YPbPr525iTiming;
 
 		if (pVBInfo->TVInfo & TVSetYPbPr525p)
-			TimingPoint = pVBInfo->YPbPr525pTiming;
+			TimingPoint = XGI330_YPbPr525pTiming;
 
 		if (pVBInfo->TVInfo & TVSetYPbPr750p)
-			TimingPoint = pVBInfo->YPbPr750pTiming;
+			TimingPoint = XGI330_YPbPr750pTiming;
 	}
 
 	for (i = 0x01, j = 0; i <= 0x2D; i++, j++)
@@ -4693,18 +4678,18 @@ static void XGI_SetGroup3(unsigned short ModeNo, unsigned short ModeIdIndex,
 		if (pVBInfo->TVInfo & TVSetYPbPr525i)
 			return;
 
-		tempdi = pVBInfo->HiTVGroup3Data;
+		tempdi = XGI330_HiTVGroup3Data;
 		if (pVBInfo->SetFlag & TVSimuMode) {
-			tempdi = pVBInfo->HiTVGroup3Simu;
+			tempdi = XGI330_HiTVGroup3Simu;
 			if (!(modeflag & Charx8Dot))
-				tempdi = pVBInfo->HiTVGroup3Text;
+				tempdi = XGI330_HiTVGroup3Text;
 		}
 
 		if (pVBInfo->TVInfo & TVSetYPbPr525p)
-			tempdi = pVBInfo->Ren525pGroup3;
+			tempdi = XGI330_Ren525pGroup3;
 
 		if (pVBInfo->TVInfo & TVSetYPbPr750p)
-			tempdi = pVBInfo->Ren750pGroup3;
+			tempdi = XGI330_Ren750pGroup3;
 
 		for (i = 0; i <= 0x3E; i++)
 			xgifb_reg_set(pVBInfo->Part3Port, i, tempdi[i]);

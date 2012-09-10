@@ -175,20 +175,6 @@ struct vb_device_info {
 	struct SiS_MCLKData  *MCLKData;
 	struct XGI_ECLKDataStruct  *ECLKData;
 
-	unsigned char   *NTSCTiming;
-	unsigned char   *PALTiming;
-	unsigned char   *HiTVExtTiming;
-	unsigned char   *HiTVSt1Timing;
-	unsigned char   *HiTVSt2Timing;
-	unsigned char   *HiTVTextTiming;
-	unsigned char   *YPbPr750pTiming;
-	unsigned char   *YPbPr525pTiming;
-	unsigned char   *YPbPr525iTiming;
-	unsigned char   *HiTVGroup3Data;
-	unsigned char   *HiTVGroup3Simu;
-	unsigned char   *HiTVGroup3Text;
-	unsigned char   *Ren525pGroup3;
-	unsigned char   *Ren750pGroup3;
 	unsigned char   *ScreenOffset;
 	unsigned char   *pXGINew_DRAMTypeDefinition;
 	unsigned char   XGINew_CR97;
