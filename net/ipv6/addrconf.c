@@ -1070,8 +1070,10 @@ static int ipv6_get_saddr_eval(struct net *net,
 		break;
 	case IPV6_SADDR_RULE_PREFIX:
 		/* Rule 8: Use longest matching prefix */
-		score->matchlen = ret = ipv6_addr_diff(&score->ifa->addr,
-						       dst->addr);
+		ret = ipv6_addr_diff(&score->ifa->addr, dst->addr);
+		if (ret > score->ifa->prefix_len)
+			ret = score->ifa->prefix_len;
+		score->matchlen = ret;
 		break;
 	default:
 		ret = 0;
