@@ -137,10 +137,10 @@ struct XGI21_LVDSCapStruct {
 	unsigned short LVDSVSYNC;
 	unsigned char  VCLKData1;
 	unsigned char  VCLKData2;
-	unsigned char  PSC_S1;
-	unsigned char  PSC_S2;
-	unsigned char  PSC_S3;
-	unsigned char  PSC_S4;
+	unsigned char  PSC_S1; /* Duration between CPL on and signal on */
+	unsigned char  PSC_S2; /* Duration signal on and Vdd on */
+	unsigned char  PSC_S3; /* Duration between CPL off and signal off */
+	unsigned char  PSC_S4; /* Duration signal off and Vdd off */
 	unsigned char  PSC_S5;
 };
 
