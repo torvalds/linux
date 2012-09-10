@@ -83,7 +83,7 @@ static int ad7476_scan_direct(struct ad7476_state *st)
 	if (ret)
 		return ret;
 
-	return (st->data[0] << 8) | st->data[1];
+	return be16_to_cpup((__be16 *)st->data);
 }
 
 static int ad7476_read_raw(struct iio_dev *indio_dev,
