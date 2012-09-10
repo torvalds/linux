@@ -352,12 +352,22 @@ ENTRY(ret_from_fork)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	lg	%r12,__LC_THREAD_INFO
 	tm	__PT_PSW+1(%r11),0x01	# forking a kernel thread ?
-	jo	0f
-	stg	%r15,__PT_R15(%r11)	# store stack pointer for new kthread
-0:	brasl	%r14,schedule_tail
+	je	1f
+	brasl	%r14,schedule_tail
 	TRACE_IRQS_ON
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
 	j	sysc_tracenogo
+1:	# it's a kernel thread
+	stg	%r15,__PT_R15(%r11)	# store stack pointer for new kthread
+	brasl	%r14,schedule_tail
+	TRACE_IRQS_ON
+	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
+	lmg	%r9,%r11,__PT_R9(%r11)	# load gprs
+ENTRY(kernel_thread_starter)
+	la	%r2,0(%r10)
+	basr	%r14,%r9
+	la	%r2,0
+	br	%r11			# do_exit
 
 #
 # kernel_execve function needs to deal with pt_regs that is not
