@@ -148,7 +148,6 @@ static struct usb_configuration acm_ms_config_driver = {
 
 static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
 	void			*retp;
@@ -163,18 +162,6 @@ static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 	if (IS_ERR(retp)) {
 		status = PTR_ERR(retp);
 		goto fail0;
-	}
-
-	/* set bcdDevice */
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0) {
-		device_desc.bcdDevice = cpu_to_le16(0x0300 | gcnum);
-	} else {
-		WARNING(cdev, "controller '%s' not recognized; trying %s\n",
-				gadget->name,
-				acm_ms_config_driver.label);
-		device_desc.bcdDevice =
-			cpu_to_le16(0x0300 | 0x0099);
 	}
 
 	/*

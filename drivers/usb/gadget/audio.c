@@ -135,19 +135,7 @@ static struct usb_configuration audio_config_driver = {
 
 static int __init audio_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
 	int			status;
-
-	gcnum = usb_gadget_controller_number(cdev->gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(0x0300 | gcnum);
-	else {
-		ERROR(cdev, "controller '%s' not recognized; trying %s\n",
-			cdev->gadget->name,
-			audio_config_driver.label);
-		device_desc.bcdDevice =
-			__constant_cpu_to_le16(0x0300 | 0x0099);
-	}
 
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)

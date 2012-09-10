@@ -86,7 +86,7 @@ static struct usb_device_descriptor device_desc = {
 	/* .bMaxPacketSize0 = f(hardware) */
 	.idVendor =		cpu_to_le16(GS_VENDOR_ID),
 	/* .idProduct =	f(use_acm) */
-	/* .bcdDevice = f(hardware) */
+	.bcdDevice = cpu_to_le16(GS_VERSION_NUM << 16),
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
 	.bNumConfigurations =	1,
@@ -154,8 +154,6 @@ static struct usb_configuration serial_config_driver = {
 
 static int __init gs_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
-	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
 
 	status = gserial_setup(cdev->gadget, n_ports);
@@ -173,24 +171,6 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 	status = strings_dev[STRING_DESCRIPTION_IDX].id;
 	serial_config_driver.iConfiguration = status;
-
-	/* set up other descriptors */
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(GS_VERSION_NUM | gcnum);
-	else {
-		/* this is so simple (for now, no altsettings) that it
-		 * SHOULD NOT have problems with bulk-capable hardware.
-		 * so warn about unrcognized controllers -- don't panic.
-		 *
-		 * things like configuration and altsetting numbering
-		 * can need hardware-specific attention though.
-		 */
-		pr_warning("gs_bind: controller '%s' not recognized\n",
-			gadget->name);
-		device_desc.bcdDevice =
-			cpu_to_le16(GS_VERSION_NUM | 0x0099);
-	}
 
 	if (gadget_is_otg(cdev->gadget)) {
 		serial_config_driver.descriptors = otg_desc;

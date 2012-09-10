@@ -84,6 +84,7 @@ static struct usb_device_descriptor device_desc = {
 	.bDeviceClass		= USB_CLASS_COMM,
 	.idVendor		= __constant_cpu_to_le16(NOKIA_VENDOR_ID),
 	.idProduct		= __constant_cpu_to_le16(NOKIA_PRODUCT_ID),
+	.bcdDevice		= cpu_to_le16(NOKIA_VERSION_NUM),
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
 	.bNumConfigurations =	1,
@@ -145,7 +146,6 @@ static struct usb_configuration nokia_config_100ma_driver = {
 
 static int __init nokia_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
 
@@ -170,18 +170,8 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 	nokia_config_500ma_driver.iConfiguration = status;
 	nokia_config_100ma_driver.iConfiguration = status;
 
-	/* set up other descriptors */
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(NOKIA_VERSION_NUM);
-	else {
-		/* this should only work with hw that supports altsettings
-		 * and several endpoints, anything else, panic.
-		 */
-		pr_err("nokia_bind: controller '%s' not recognized\n",
-			gadget->name);
+	if (!gadget_supports_altsettings(gadget))
 		goto err_usb;
-	}
 
 	/* finally register the configuration */
 	status = usb_add_config(cdev, &nokia_config_500ma_driver,

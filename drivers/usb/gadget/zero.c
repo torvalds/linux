@@ -253,8 +253,6 @@ static void zero_resume(struct usb_composite_dev *cdev)
 
 static int __init zero_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
-	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
 
 	/* Allocate string descriptor numbers ... note that string
@@ -281,21 +279,6 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 		loopback_add(cdev, autoresume != 0);
 	}
 
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(0x0200 + gcnum);
-	else {
-		/* gadget zero is so simple (for now, no altsettings) that
-		 * it SHOULD NOT have problems with bulk-capable hardware.
-		 * so just warn about unrcognized controllers -- don't panic.
-		 *
-		 * things like configuration and altsetting numbering
-		 * can need hardware-specific attention though.
-		 */
-		pr_warning("%s: controller '%s' not recognized\n",
-			longname, gadget->name);
-		device_desc.bcdDevice = cpu_to_le16(0x9999);
-	}
 	usb_composite_overwrite_options(cdev, &coverwrite);
 
 	INFO(cdev, "%s, version: " DRIVER_VERSION "\n", longname);

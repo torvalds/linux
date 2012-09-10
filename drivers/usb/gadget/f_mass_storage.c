@@ -348,7 +348,6 @@ struct fsg_config {
 
 	const char *vendor_name;		/*  8 characters or less */
 	const char *product_name;		/* 16 characters or less */
-	u16 release;
 
 	char			can_stall;
 };
@@ -2772,18 +2771,7 @@ buffhds_first_it:
 	bh->next = common->buffhds;
 
 	/* Prepare inquiryString */
-	if (cfg->release != 0xffff) {
-		i = cfg->release;
-	} else {
-		i = usb_gadget_controller_number(gadget);
-		if (i >= 0) {
-			i = 0x0300 + i;
-		} else {
-			WARNING(common, "controller '%s' not recognized\n",
-				gadget->name);
-			i = 0x0399;
-		}
-	}
+	i = get_default_bcdDevice();
 	snprintf(common->inquiry_string, sizeof common->inquiry_string,
 		 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
 		 /* Assume product name dependent on the first LUN */
@@ -3109,7 +3097,6 @@ fsg_config_from_params(struct fsg_config *cfg,
 	/* Let MSF use defaults */
 	cfg->vendor_name = 0;
 	cfg->product_name = 0;
-	cfg->release = 0xffff;
 
 	cfg->ops = NULL;
 	cfg->private_data = NULL;

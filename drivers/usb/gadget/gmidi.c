@@ -137,8 +137,7 @@ static int __init midi_bind_config(struct usb_configuration *c)
 
 static int __init midi_bind(struct usb_composite_dev *cdev)
 {
-	struct usb_gadget *gadget = cdev->gadget;
-	int gcnum, status;
+	int status;
 
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
@@ -146,19 +145,6 @@ static int __init midi_bind(struct usb_composite_dev *cdev)
 	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
 	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
 	midi_config.iConfiguration = strings_dev[STRING_DESCRIPTION_IDX].id;
-
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum < 0) {
-		/* gmidi is so simple (no altsettings) that
-		 * it SHOULD NOT have problems with bulk-capable hardware.
-		 * so warn about unrecognized controllers, don't panic.
-		 */
-		pr_warning("%s: controller '%s' not recognized\n",
-			   __func__, gadget->name);
-		device_desc.bcdDevice = cpu_to_le16(0x9999);
-	} else {
-		device_desc.bcdDevice = cpu_to_le16(0x0200 + gcnum);
-	}
 
 	status = usb_add_config(cdev, &midi_config, midi_bind_config);
 	if (status < 0)

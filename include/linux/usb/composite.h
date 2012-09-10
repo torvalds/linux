@@ -34,6 +34,8 @@
  * the composite model the host can use both functions at the same time.
  */
 
+#include <linux/bcd.h>
+#include <linux/version.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
@@ -417,6 +419,15 @@ struct usb_composite_overwrite {
 
 void usb_composite_overwrite_options(struct usb_composite_dev *cdev,
 		struct usb_composite_overwrite *covr);
+
+static inline u16 get_default_bcdDevice(void)
+{
+	u16 bcdDevice;
+
+	bcdDevice = bin2bcd((LINUX_VERSION_CODE >> 16 & 0xff)) << 8;
+	bcdDevice |= bin2bcd((LINUX_VERSION_CODE >> 8 & 0xff));
+	return bcdDevice;
+}
 
 /* messaging utils */
 #define DBG(d, fmt, args...) \

@@ -143,7 +143,7 @@ static int __init hid_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
 	struct list_head *tmp;
-	int status, gcnum, funcs = 0;
+	int status, funcs = 0;
 
 	list_for_each(tmp, &hidg_func_list)
 		funcs++;
@@ -155,12 +155,6 @@ static int __init hid_bind(struct usb_composite_dev *cdev)
 	status = ghid_setup(cdev->gadget, funcs);
 	if (status < 0)
 		return status;
-
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(0x0300 | gcnum);
-	else
-		device_desc.bcdDevice = cpu_to_le16(0x0300 | 0x0099);
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.

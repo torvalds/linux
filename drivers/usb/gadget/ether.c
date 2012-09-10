@@ -275,7 +275,6 @@ static struct usb_configuration eth_config_driver = {
 
 static int __init eth_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
 
@@ -308,22 +307,6 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 		device_desc.idVendor = cpu_to_le16(RNDIS_VENDOR_NUM);
 		device_desc.idProduct = cpu_to_le16(RNDIS_PRODUCT_NUM);
 		device_desc.bNumConfigurations = 2;
-	}
-
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(0x0300 | gcnum);
-	else {
-		/* We assume that can_support_ecm() tells the truth;
-		 * but if the controller isn't recognized at all then
-		 * that assumption is a bit more likely to be wrong.
-		 */
-		dev_warn(&gadget->dev,
-				"controller '%s' not recognized; trying %s\n",
-				gadget->name,
-				eth_config_driver.label);
-		device_desc.bcdDevice =
-			cpu_to_le16(0x0300 | 0x0099);
 	}
 
 	/* Allocate string descriptor numbers ... note that string

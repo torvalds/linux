@@ -1101,7 +1101,6 @@ static int __init printer_bind_config(struct usb_configuration *c)
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	struct printer_dev	*dev;
 	int			status = -ENOMEM;
-	int			gcnum;
 	size_t			len;
 	u32			i;
 	struct usb_request	*req;
@@ -1143,16 +1142,6 @@ static int __init printer_bind_config(struct usb_configuration *c)
 		goto fail;
 	}
 
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0) {
-		device_desc.bcdDevice = cpu_to_le16(0x0200 + gcnum);
-	} else {
-		dev_warn(&gadget->dev, "controller '%s' not recognized\n",
-			gadget->name);
-		/* unrecognized, but safe unless bulk is REALLY quirky */
-		device_desc.bcdDevice =
-			cpu_to_le16(0xFFFF);
-	}
 	if (iPNPstring)
 		strlcpy(&pnp_string[2], iPNPstring, (sizeof pnp_string)-2);
 

@@ -1389,6 +1389,8 @@ static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
 		new->idProduct = idProduct;
 	if (bcdDevice)
 		new->bcdDevice = bcdDevice;
+	else
+		new->bcdDevice = cpu_to_le16(get_default_bcdDevice());
 	if (iSerialNumber)
 		new->iSerialNumber = iSerialNumber;
 	if (iManufacturer)

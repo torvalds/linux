@@ -251,6 +251,7 @@
 #include <linux/freezer.h>
 #include <linux/utsname.h>
 
+#include <linux/usb/composite.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
@@ -3198,7 +3199,6 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 static int __init check_parameters(struct fsg_dev *fsg)
 {
 	int	prot;
-	int	gcnum;
 
 	/* Store the default values */
 	mod_data.transport_type = USB_PR_BULK;
@@ -3213,16 +3213,8 @@ static int __init check_parameters(struct fsg_dev *fsg)
 	if (gadget_is_at91(fsg->gadget))
 		mod_data.can_stall = 0;
 
-	if (mod_data.release == 0xffff) {	// Parameter wasn't set
-		gcnum = usb_gadget_controller_number(fsg->gadget);
-		if (gcnum >= 0)
-			mod_data.release = 0x0300 + gcnum;
-		else {
-			WARNING(fsg, "controller '%s' not recognized\n",
-				fsg->gadget->name);
-			mod_data.release = 0x0399;
-		}
-	}
+	if (mod_data.release == 0xffff)
+		mod_data.release = get_default_bcdDevice();
 
 	prot = simple_strtol(mod_data.protocol_parm, NULL, 0);
 
