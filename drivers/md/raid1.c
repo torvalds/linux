@@ -2063,8 +2063,6 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 	struct mddev *mddev = r1_bio->mddev;
 	struct r1conf *conf = mddev->private;
 	struct md_rdev *rdev = conf->mirrors[i].rdev;
-	int vcnt, idx;
-	struct bio_vec *vec;
 
 	/* bio has the data to be written to device 'i' where
 	 * we just recently had a write error.
@@ -2092,30 +2090,32 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 		   & ~(sector_t)(block_sectors - 1))
 		- sector;
 
-	if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
-		vcnt = r1_bio->behind_page_count;
-		vec = r1_bio->behind_bvecs;
-		idx = 0;
-		while (vec[idx].bv_page == NULL)
-			idx++;
-	} else {
-		vcnt = r1_bio->master_bio->bi_vcnt;
-		vec = r1_bio->master_bio->bi_io_vec;
-		idx = r1_bio->master_bio->bi_idx;
-	}
 	while (sect_to_write) {
 		struct bio *wbio;
 		if (sectors > sect_to_write)
 			sectors = sect_to_write;
 		/* Write at 'sector' for 'sectors'*/
 
-		wbio = bio_alloc_mddev(GFP_NOIO, vcnt, mddev);
-		memcpy(wbio->bi_io_vec, vec, vcnt * sizeof(struct bio_vec));
-		wbio->bi_sector = r1_bio->sector;
+		if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
+			unsigned vcnt = r1_bio->behind_page_count;
+			struct bio_vec *vec = r1_bio->behind_bvecs;
+
+			while (!vec->bv_page) {
+				vec++;
+				vcnt--;
+			}
+
+			wbio = bio_alloc_mddev(GFP_NOIO, vcnt, mddev);
+			memcpy(wbio->bi_io_vec, vec, vcnt * sizeof(struct bio_vec));
+
+			wbio->bi_vcnt = vcnt;
+		} else {
+			wbio = bio_clone_mddev(r1_bio->master_bio, GFP_NOIO, mddev);
+		}
+
 		wbio->bi_rw = WRITE;
-		wbio->bi_vcnt = vcnt;
+		wbio->bi_sector = r1_bio->sector;
 		wbio->bi_size = r1_bio->sectors << 9;
-		wbio->bi_idx = idx;
 
 		md_trim_bio(wbio, sector - r1_bio->sector, sectors);
 		wbio->bi_sector += rdev->data_offset;
