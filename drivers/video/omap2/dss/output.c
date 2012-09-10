@@ -113,3 +113,36 @@ struct omap_dss_output *omap_dss_get_output(enum omap_dss_output_id id)
 
 	return NULL;
 }
+
+struct omap_dss_output *omapdss_get_output_from_dssdev(struct omap_dss_device *dssdev)
+{
+	struct omap_dss_output *out = NULL;
+	enum omap_dss_output_id id;
+
+	switch (dssdev->type) {
+	case OMAP_DISPLAY_TYPE_DPI:
+		out = omap_dss_get_output(OMAP_DSS_OUTPUT_DPI);
+		break;
+	case OMAP_DISPLAY_TYPE_DBI:
+		out = omap_dss_get_output(OMAP_DSS_OUTPUT_DBI);
+		break;
+	case OMAP_DISPLAY_TYPE_SDI:
+		out = omap_dss_get_output(OMAP_DSS_OUTPUT_SDI);
+		break;
+	case OMAP_DISPLAY_TYPE_VENC:
+		out = omap_dss_get_output(OMAP_DSS_OUTPUT_VENC);
+		break;
+	case OMAP_DISPLAY_TYPE_HDMI:
+		out = omap_dss_get_output(OMAP_DSS_OUTPUT_HDMI);
+		break;
+	case OMAP_DISPLAY_TYPE_DSI:
+		id = dssdev->phy.dsi.module == 0 ? OMAP_DSS_OUTPUT_DSI1 :
+					OMAP_DSS_OUTPUT_DSI2;
+		out = omap_dss_get_output(id);
+		break;
+	default:
+		break;
+	}
+
+	return out;
+}
