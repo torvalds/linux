@@ -527,7 +527,7 @@ static void perf_event__comm_swap(union perf_event *event, bool sample_id_all)
 	if (sample_id_all) {
 		void *data = &event->comm.comm;
 
-		data += ALIGN(strlen(data) + 1, sizeof(u64));
+		data += PERF_ALIGN(strlen(data) + 1, sizeof(u64));
 		swap_sample_id_all(event, data);
 	}
 }
@@ -544,7 +544,7 @@ static void perf_event__mmap_swap(union perf_event *event,
 	if (sample_id_all) {
 		void *data = &event->mmap.filename;
 
-		data += ALIGN(strlen(data) + 1, sizeof(u64));
+		data += PERF_ALIGN(strlen(data) + 1, sizeof(u64));
 		swap_sample_id_all(event, data);
 	}
 }

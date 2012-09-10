@@ -129,7 +129,7 @@ static int do_write_string(int fd, const char *str)
 	int ret;
 
 	olen = strlen(str) + 1;
-	len = ALIGN(olen, NAME_ALIGN);
+	len = PERF_ALIGN(olen, NAME_ALIGN);
 
 	/* write len, incl. \0 */
 	ret = do_write(fd, &len, sizeof(len));
@@ -220,7 +220,7 @@ static int __dsos__write_buildid_table(struct list_head *head, pid_t pid,
 		if (!pos->hit)
 			continue;
 		len = pos->long_name_len + 1;
-		len = ALIGN(len, NAME_ALIGN);
+		len = PERF_ALIGN(len, NAME_ALIGN);
 		memset(&b, 0, sizeof(b));
 		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
 		b.pid = pid;
@@ -1532,7 +1532,7 @@ static int perf_header__read_build_ids_abi_quirk(struct perf_header *header,
 	struct perf_session *session = container_of(header, struct perf_session, header);
 	struct {
 		struct perf_event_header   header;
-		u8			   build_id[ALIGN(BUILD_ID_SIZE, sizeof(u64))];
+		u8			   build_id[PERF_ALIGN(BUILD_ID_SIZE, sizeof(u64))];
 		char			   filename[0];
 	} old_bev;
 	struct build_id_event bev;
@@ -2439,7 +2439,7 @@ int perf_event__synthesize_attr(struct perf_tool *tool,
 	int err;
 
 	size = sizeof(struct perf_event_attr);
-	size = ALIGN(size, sizeof(u64));
+	size = PERF_ALIGN(size, sizeof(u64));
 	size += sizeof(struct perf_event_header);
 	size += ids * sizeof(u64);
 
@@ -2537,7 +2537,7 @@ int perf_event__synthesize_event_type(struct perf_tool *tool,
 
 	ev.event_type.header.type = PERF_RECORD_HEADER_EVENT_TYPE;
 	size = strlen(ev.event_type.event_type.name);
-	size = ALIGN(size, sizeof(u64));
+	size = PERF_ALIGN(size, sizeof(u64));
 	ev.event_type.header.size = sizeof(ev.event_type) -
 		(sizeof(ev.event_type.event_type.name) - size);
 
@@ -2606,7 +2606,7 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
 
 	ev.tracing_data.header.type = PERF_RECORD_HEADER_TRACING_DATA;
 	size = tdata->size;
-	aligned_size = ALIGN(size, sizeof(u64));
+	aligned_size = PERF_ALIGN(size, sizeof(u64));
 	padding = aligned_size - size;
 	ev.tracing_data.header.size = sizeof(ev.tracing_data);
 	ev.tracing_data.size = aligned_size;
@@ -2637,7 +2637,7 @@ int perf_event__process_tracing_data(union perf_event *event,
 
 	size_read = trace_report(session->fd, &session->pevent,
 				 session->repipe);
-	padding = ALIGN(size_read, sizeof(u64)) - size_read;
+	padding = PERF_ALIGN(size_read, sizeof(u64)) - size_read;
 
 	if (read(session->fd, buf, padding) < 0)
 		die("reading input file");
@@ -2671,7 +2671,7 @@ int perf_event__synthesize_build_id(struct perf_tool *tool,
 	memset(&ev, 0, sizeof(ev));
 
 	len = pos->long_name_len + 1;
-	len = ALIGN(len, NAME_ALIGN);
+	len = PERF_ALIGN(len, NAME_ALIGN);
 	memcpy(&ev.build_id.build_id, pos->build_id, sizeof(pos->build_id));
 	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
 	ev.build_id.header.misc = misc;

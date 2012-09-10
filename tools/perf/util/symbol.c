@@ -1991,7 +1991,7 @@ int symbol__init(void)
 	if (symbol_conf.initialized)
 		return 0;
 
-	symbol_conf.priv_size = ALIGN(symbol_conf.priv_size, sizeof(u64));
+	symbol_conf.priv_size = PERF_ALIGN(symbol_conf.priv_size, sizeof(u64));
 
 	symbol__elf_init();
 

@@ -112,7 +112,7 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 	event->comm.header.type = PERF_RECORD_COMM;
 
 	size = strlen(event->comm.comm) + 1;
-	size = ALIGN(size, sizeof(u64));
+	size = PERF_ALIGN(size, sizeof(u64));
 	memset(event->comm.comm + size, 0, machine->id_hdr_size);
 	event->comm.header.size = (sizeof(event->comm) -
 				(sizeof(event->comm.comm) - size) +
@@ -145,7 +145,7 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 					 sizeof(event->comm.comm));
 
 		size = strlen(event->comm.comm) + 1;
-		size = ALIGN(size, sizeof(u64));
+		size = PERF_ALIGN(size, sizeof(u64));
 		memset(event->comm.comm + size, 0, machine->id_hdr_size);
 		event->comm.header.size = (sizeof(event->comm) -
 					  (sizeof(event->comm.comm) - size) +
@@ -228,7 +228,7 @@ static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			size = strlen(execname);
 			execname[size - 1] = '\0'; /* Remove \n */
 			memcpy(event->mmap.filename, execname, size);
-			size = ALIGN(size, sizeof(u64));
+			size = PERF_ALIGN(size, sizeof(u64));
 			event->mmap.len -= event->mmap.start;
 			event->mmap.header.size = (sizeof(event->mmap) -
 					        (sizeof(event->mmap.filename) - size));
@@ -282,7 +282,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 		if (pos->dso->kernel)
 			continue;
 
-		size = ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
+		size = PERF_ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
 		event->mmap.header.type = PERF_RECORD_MMAP;
 		event->mmap.header.size = (sizeof(event->mmap) -
 				        (sizeof(event->mmap.filename) - size));
@@ -494,7 +494,7 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	map = machine->vmlinux_maps[MAP__FUNCTION];
 	size = snprintf(event->mmap.filename, sizeof(event->mmap.filename),
 			"%s%s", mmap_name, symbol_name) + 1;
-	size = ALIGN(size, sizeof(u64));
+	size = PERF_ALIGN(size, sizeof(u64));
 	event->mmap.header.type = PERF_RECORD_MMAP;
 	event->mmap.header.size = (sizeof(event->mmap) -
 			(sizeof(event->mmap.filename) - size) + machine->id_hdr_size);
