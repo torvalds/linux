@@ -118,8 +118,7 @@ static struct printer_dev usb_printer_gadget;
  * parameters are in UTF-8 (superset of ASCII's 7 bit characters).
  */
 
-static char *iSerialNum;
-module_param(iSerialNum, charp, S_IRUGO);
+module_param_named(iSerialNum, coverwrite.serial_number, charp, S_IRUGO);
 MODULE_PARM_DESC(iSerialNum, "1");
 
 static char *iPNPstring;
@@ -1169,9 +1168,6 @@ static int __init printer_bind_config(struct usb_configuration *c)
 	snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
 		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
-
-	if (iSerialNum)
-		strlcpy(serial_num, iSerialNum, sizeof serial_num);
 
 	if (iPNPstring)
 		strlcpy(&pnp_string[2], iPNPstring, (sizeof pnp_string)-2);

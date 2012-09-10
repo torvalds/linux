@@ -40,10 +40,6 @@ static char *iProduct;
 module_param(iProduct, charp, S_IRUGO);
 MODULE_PARM_DESC(iProduct, "USB Product string");
 
-static char *iSerialNumber;
-module_param(iSerialNumber, charp, S_IRUGO);
-MODULE_PARM_DESC(iSerialNumber, "SerialNumber string");
-
 static char composite_manufacturer[50];
 
 /*-------------------------------------------------------------------------*/
@@ -925,7 +921,7 @@ static int get_string(struct usb_composite_dev *cdev,
 	else if (cdev->product_override == id)
 		str = iProduct ?: composite->iProduct;
 	else if (cdev->serial_override == id)
-		str = iSerialNumber ?: composite->iSerialNumber;
+		str = composite->iSerialNumber;
 	else
 		str = NULL;
 	if (str) {
@@ -1411,6 +1407,7 @@ static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
 	__le16 idVendor;
 	__le16 idProduct;
 	__le16 bcdDevice;
+	u8 iSerialNumber;
 
 	/*
 	 * these variables may have been set in
@@ -1419,6 +1416,7 @@ static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
 	idVendor = new->idVendor;
 	idProduct = new->idProduct;
 	bcdDevice = new->bcdDevice;
+	iSerialNumber = new->iSerialNumber;
 
 	*new = *old;
 	if (idVendor)
@@ -1427,6 +1425,8 @@ static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
 		new->idProduct = idProduct;
 	if (bcdDevice)
 		new->bcdDevice = bcdDevice;
+	if (iSerialNumber)
+		new->iSerialNumber = iSerialNumber;
 }
 
 static struct usb_composite_driver *to_cdriver(struct usb_gadget_driver *gdrv)
@@ -1505,8 +1505,7 @@ static int composite_bind(struct usb_gadget *gadget,
 		cdev->product_override =
 			override_id(cdev, &cdev->desc.iProduct);
 
-	if (iSerialNumber ||
-	    (!cdev->desc.iSerialNumber && composite->iSerialNumber))
+	if (composite->iSerialNumber)
 		cdev->serial_override =
 			override_id(cdev, &cdev->desc.iSerialNumber);
 
@@ -1691,6 +1690,8 @@ void usb_composite_overwrite_options(struct usb_composite_dev *cdev,
 		struct usb_composite_overwrite *covr)
 {
 	struct usb_device_descriptor	*desc = &cdev->desc;
+	struct usb_gadget_strings	*gstr = cdev->driver->strings[0];
+	struct usb_string		*dev_str = gstr->strings;
 
 	if (covr->idVendor)
 		desc->idVendor = cpu_to_le16(covr->idVendor);
@@ -1700,4 +1701,9 @@ void usb_composite_overwrite_options(struct usb_composite_dev *cdev,
 
 	if (covr->bcdDevice)
 		desc->bcdDevice = cpu_to_le16(covr->bcdDevice);
+
+	if (covr->serial_number) {
+		desc->iSerialNumber = dev_str[USB_GADGET_SERIAL_IDX].id;
+		dev_str[USB_GADGET_SERIAL_IDX].s = covr->serial_number;
+	}
 }

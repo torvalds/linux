@@ -83,6 +83,22 @@ static const struct usb_descriptor_header *otg_desc[] = {
 	NULL,
 };
 
+static struct usb_string strings_dev[] = {
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = "",
+	[USB_GADGET_SERIAL_IDX].s = "",
+	{  } /* end of list */
+};
+
+static struct usb_gadget_strings stringtab_dev = {
+	.language       = 0x0409,       /* en-us */
+	.strings        = strings_dev,
+};
+
+static struct usb_gadget_strings *dev_strings[] = {
+	&stringtab_dev,
+	NULL,
+};
 
 /****************************** Configurations ******************************/
 
@@ -141,6 +157,10 @@ static int __init msg_bind(struct usb_composite_dev *cdev)
 {
 	int status;
 
+	status = usb_string_ids_tab(cdev, strings_dev);
+	if (status < 0)
+		return status;
+
 	status = usb_add_config(cdev, &msg_config_driver, msg_do_config);
 	if (status < 0)
 		return status;
@@ -160,6 +180,7 @@ static __refdata struct usb_composite_driver msg_driver = {
 	.iProduct	= DRIVER_DESC,
 	.max_speed	= USB_SPEED_SUPER,
 	.needs_serial	= 1,
+	.strings	= dev_strings,
 	.bind		= msg_bind,
 };
 
