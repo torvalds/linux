@@ -2190,7 +2190,8 @@ static void set_usb_port_removable(struct usb_device *udev)
 		return;
 
 	if (hub_is_superspeed(hdev)) {
-		if (hub->descriptor->u.ss.DeviceRemovable & (1 << port))
+		if (le16_to_cpu(hub->descriptor->u.ss.DeviceRemovable)
+				& (1 << port))
 			removable = false;
 	} else {
 		if (hub->descriptor->u.hs.DeviceRemovable[port / 8] & (1 << (port % 8)))
