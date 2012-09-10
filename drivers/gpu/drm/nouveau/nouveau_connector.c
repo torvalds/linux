@@ -26,6 +26,8 @@
 
 #include <acpi/button.h>
 
+#include <linux/pm_runtime.h>
+
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
@@ -240,6 +242,8 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 	struct nouveau_encoder *nv_partner;
 	struct nouveau_i2c_port *i2c;
 	int type;
+	int ret;
+	enum drm_connector_status conn_status = connector_status_disconnected;
 
 	/* Cleanup the previous EDID block. */
 	if (nv_connector->edid) {
@@ -247,6 +251,10 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 		kfree(nv_connector->edid);
 		nv_connector->edid = NULL;
 	}
+
+	ret = pm_runtime_get_sync(connector->dev->dev);
+	if (ret < 0)
+		return conn_status;
 
 	i2c = nouveau_connector_ddc_detect(connector, &nv_encoder);
 	if (i2c) {
@@ -263,7 +271,8 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 		    !nouveau_dp_detect(to_drm_encoder(nv_encoder))) {
 			NV_ERROR(drm, "Detected %s, but failed init\n",
 				 drm_get_connector_name(connector));
-			return connector_status_disconnected;
+			conn_status = connector_status_disconnected;
+			goto out;
 		}
 
 		/* Override encoder type for DVI-I based on whether EDID
@@ -290,13 +299,15 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 		}
 
 		nouveau_connector_set_encoder(connector, nv_encoder);
-		return connector_status_connected;
+		conn_status = connector_status_connected;
+		goto out;
 	}
 
 	nv_encoder = nouveau_connector_of_detect(connector);
 	if (nv_encoder) {
 		nouveau_connector_set_encoder(connector, nv_encoder);
-		return connector_status_connected;
+		conn_status = connector_status_connected;
+		goto out;
 	}
 
 detect_analog:
@@ -311,12 +322,18 @@ detect_analog:
 		if (helper->detect(encoder, connector) ==
 						connector_status_connected) {
 			nouveau_connector_set_encoder(connector, nv_encoder);
-			return connector_status_connected;
+			conn_status = connector_status_connected;
+			goto out;
 		}
 
 	}
 
-	return connector_status_disconnected;
+ out:
+
+	pm_runtime_mark_last_busy(connector->dev->dev);
+	pm_runtime_put_autosuspend(connector->dev->dev);
+
+	return conn_status;
 }
 
 static enum drm_connector_status

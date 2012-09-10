@@ -15,6 +15,12 @@ struct nouveau_object;
 #define NV_PRINTK_TRACE    KERN_DEBUG
 #define NV_PRINTK_SPAM     KERN_DEBUG
 
+extern int nv_printk_suspend_level;
+
+#define NV_DBG_SUSPEND (nv_printk_suspend_level)
+#define NV_PRINTK_SUSPEND  (nv_printk_level_to_pfx(nv_printk_suspend_level))
+
+const char *nv_printk_level_to_pfx(int level);
 void __printf(4, 5)
 nv_printk_(struct nouveau_object *, const char *, int, const char *, ...);
 
@@ -30,6 +36,13 @@ nv_printk_(struct nouveau_object *, const char *, int, const char *, ...);
 #define nv_debug(o,f,a...) nv_printk((o), DEBUG, f, ##a)
 #define nv_trace(o,f,a...) nv_printk((o), TRACE, f, ##a)
 #define nv_spam(o,f,a...) nv_printk((o), SPAM, f, ##a)
+
+#define nv_suspend(o,f,a...) nv_printk((o), SUSPEND, f, ##a)
+
+static inline void nv_suspend_set_printk_level(int level)
+{
+	nv_printk_suspend_level = level;
+}
 
 #define nv_assert(f,a...) do {                                                 \
 	if (NV_DBG_FATAL <= CONFIG_NOUVEAU_DEBUG)                              \
