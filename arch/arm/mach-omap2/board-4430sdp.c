@@ -601,29 +601,6 @@ static void __init omap_sfh7741prox_init(void)
 			__func__, OMAP4_SFH7741_ENABLE_GPIO, error);
 }
 
-static struct gpio sdp4430_hdmi_gpios[] = {
-	{ HDMI_GPIO_CT_CP_HPD, GPIOF_OUT_INIT_HIGH, "hdmi_gpio_ct_cp_hpd" },
-	{ HDMI_GPIO_LS_OE,	GPIOF_OUT_INIT_HIGH,	"hdmi_gpio_ls_oe" },
-	{ HDMI_GPIO_HPD, GPIOF_DIR_IN, "hdmi_gpio_hpd" },
-};
-
-static int sdp4430_panel_enable_hdmi(struct omap_dss_device *dssdev)
-{
-	int status;
-
-	status = gpio_request_array(sdp4430_hdmi_gpios,
-				    ARRAY_SIZE(sdp4430_hdmi_gpios));
-	if (status)
-		pr_err("%s: Cannot request HDMI GPIOs\n", __func__);
-
-	return status;
-}
-
-static void sdp4430_panel_disable_hdmi(struct omap_dss_device *dssdev)
-{
-	gpio_free_array(sdp4430_hdmi_gpios, ARRAY_SIZE(sdp4430_hdmi_gpios));
-}
-
 static struct nokia_dsi_panel_data dsi1_panel = {
 		.name		= "taal",
 		.reset_gpio	= 102,
@@ -643,29 +620,6 @@ static struct omap_dss_device sdp4430_lcd_device = {
 	.data			= &dsi1_panel,
 	.phy.dsi		= {
 		.module		= 0,
-	},
-
-	.clocks = {
-		.dispc = {
-			.channel = {
-				/* Logic Clock = 172.8 MHz */
-				.lck_div	= 1,
-				/* Pixel Clock = 34.56 MHz */
-				.pck_div	= 5,
-				.lcd_clk_src	= OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,
-			},
-			.dispc_fclk_src	= OMAP_DSS_CLK_SRC_FCK,
-		},
-
-		.dsi = {
-			.regn		= 16,	/* Fint = 2.4 MHz */
-			.regm		= 180,	/* DDR Clock = 216 MHz */
-			.regm_dispc	= 5,	/* PLL1_CLK1 = 172.8 MHz */
-			.regm_dsi	= 5,	/* PLL1_CLK2 = 172.8 MHz */
-
-			.lp_clk_div	= 10,	/* LP Clock = 8.64 MHz */
-			.dsi_fclk_src	= OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI,
-		},
 	},
 	.channel		= OMAP_DSS_CHANNEL_LCD,
 };
@@ -691,33 +645,12 @@ static struct omap_dss_device sdp4430_lcd2_device = {
 
 		.module		= 1,
 	},
-
-	.clocks = {
-		.dispc = {
-			.channel = {
-				/* Logic Clock = 172.8 MHz */
-				.lck_div	= 1,
-				/* Pixel Clock = 34.56 MHz */
-				.pck_div	= 5,
-				.lcd_clk_src	= OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC,
-			},
-			.dispc_fclk_src	= OMAP_DSS_CLK_SRC_FCK,
-		},
-
-		.dsi = {
-			.regn		= 16,	/* Fint = 2.4 MHz */
-			.regm		= 180,	/* DDR Clock = 216 MHz */
-			.regm_dispc	= 5,	/* PLL1_CLK1 = 172.8 MHz */
-			.regm_dsi	= 5,	/* PLL1_CLK2 = 172.8 MHz */
-
-			.lp_clk_div	= 10,	/* LP Clock = 8.64 MHz */
-			.dsi_fclk_src	= OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI,
-		},
-	},
 	.channel		= OMAP_DSS_CHANNEL_LCD2,
 };
 
 static struct omap_dss_hdmi_data sdp4430_hdmi_data = {
+	.ct_cp_hpd_gpio = HDMI_GPIO_CT_CP_HPD,
+	.ls_oe_gpio = HDMI_GPIO_LS_OE,
 	.hpd_gpio = HDMI_GPIO_HPD,
 };
 
@@ -725,8 +658,6 @@ static struct omap_dss_device sdp4430_hdmi_device = {
 	.name = "hdmi",
 	.driver_name = "hdmi_panel",
 	.type = OMAP_DISPLAY_TYPE_HDMI,
-	.platform_enable = sdp4430_panel_enable_hdmi,
-	.platform_disable = sdp4430_panel_disable_hdmi,
 	.channel = OMAP_DSS_CHANNEL_DIGIT,
 	.data = &sdp4430_hdmi_data,
 };

@@ -37,8 +37,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <plat/clock.h>
-
 #include <video/omapdss.h>
 
 #include "dss.h"
@@ -96,7 +94,13 @@ struct dispc_features {
 		u16 pos_x, unsigned long *core_clk);
 	unsigned long (*calc_core_clk) (enum omap_channel channel,
 		u16 width, u16 height, u16 out_width, u16 out_height);
+	u8 num_fifos;
+
+	/* swap GFX & WB fifos */
+	bool gfx_fifo_workaround:1;
 };
+
+#define DISPC_MAX_NR_FIFOS 5
 
 static struct {
 	struct platform_device *pdev;
@@ -107,7 +111,9 @@ static struct {
 	int irq;
 	struct clk *dss_clk;
 
-	u32	fifo_size[MAX_DSS_OVERLAYS];
+	u32 fifo_size[DISPC_MAX_NR_FIFOS];
+	/* maps which plane is using a fifo. fifo-id -> plane-id */
+	int fifo_assignment[DISPC_MAX_NR_FIFOS];
 
 	spinlock_t irq_lock;
 	u32 irq_error_mask;
@@ -1063,10 +1069,10 @@ static void dispc_mgr_set_size(enum omap_channel channel, u16 width,
 	dispc_write_reg(DISPC_SIZE_MGR(channel), val);
 }
 
-static void dispc_read_plane_fifo_sizes(void)
+static void dispc_init_fifos(void)
 {
 	u32 size;
-	int plane;
+	int fifo;
 	u8 start, end;
 	u32 unit;
 
@@ -1074,16 +1080,53 @@ static void dispc_read_plane_fifo_sizes(void)
 
 	dss_feat_get_reg_field(FEAT_REG_FIFOSIZE, &start, &end);
 
-	for (plane = 0; plane < dss_feat_get_num_ovls(); ++plane) {
-		size = REG_GET(DISPC_OVL_FIFO_SIZE_STATUS(plane), start, end);
+	for (fifo = 0; fifo < dispc.feat->num_fifos; ++fifo) {
+		size = REG_GET(DISPC_OVL_FIFO_SIZE_STATUS(fifo), start, end);
 		size *= unit;
-		dispc.fifo_size[plane] = size;
+		dispc.fifo_size[fifo] = size;
+
+		/*
+		 * By default fifos are mapped directly to overlays, fifo 0 to
+		 * ovl 0, fifo 1 to ovl 1, etc.
+		 */
+		dispc.fifo_assignment[fifo] = fifo;
+	}
+
+	/*
+	 * The GFX fifo on OMAP4 is smaller than the other fifos. The small fifo
+	 * causes problems with certain use cases, like using the tiler in 2D
+	 * mode. The below hack swaps the fifos of GFX and WB planes, thus
+	 * giving GFX plane a larger fifo. WB but should work fine with a
+	 * smaller fifo.
+	 */
+	if (dispc.feat->gfx_fifo_workaround) {
+		u32 v;
+
+		v = dispc_read_reg(DISPC_GLOBAL_BUFFER);
+
+		v = FLD_MOD(v, 4, 2, 0); /* GFX BUF top to WB */
+		v = FLD_MOD(v, 4, 5, 3); /* GFX BUF bottom to WB */
+		v = FLD_MOD(v, 0, 26, 24); /* WB BUF top to GFX */
+		v = FLD_MOD(v, 0, 29, 27); /* WB BUF bottom to GFX */
+
+		dispc_write_reg(DISPC_GLOBAL_BUFFER, v);
+
+		dispc.fifo_assignment[OMAP_DSS_GFX] = OMAP_DSS_WB;
+		dispc.fifo_assignment[OMAP_DSS_WB] = OMAP_DSS_GFX;
 	}
 }
 
 static u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
 {
-	return dispc.fifo_size[plane];
+	int fifo;
+	u32 size = 0;
+
+	for (fifo = 0; fifo < dispc.feat->num_fifos; ++fifo) {
+		if (dispc.fifo_assignment[fifo] == plane)
+			size += dispc.fifo_size[fifo];
+	}
+
+	return size;
 }
 
 void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
@@ -3710,7 +3753,7 @@ static void _omap_dispc_initial_config(void)
 
 	dispc_set_loadmode(OMAP_DSS_LOAD_FRAME_ONLY);
 
-	dispc_read_plane_fifo_sizes();
+	dispc_init_fifos();
 
 	dispc_configure_burst_sizes();
 
@@ -3726,6 +3769,7 @@ static const struct dispc_features omap24xx_dispc_feats __initconst = {
 	.hp_max			=	256,
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
+	.num_fifos		=	3,
 };
 
 static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
@@ -3737,6 +3781,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
 	.hp_max			=	256,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
+	.num_fifos		=	3,
 };
 
 static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
@@ -3748,6 +3793,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
 	.hp_max			=	4096,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
+	.num_fifos		=	3,
 };
 
 static const struct dispc_features omap44xx_dispc_feats __initconst = {
@@ -3759,6 +3805,8 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 	.hp_max			=	4096,
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
+	.num_fifos		=	5,
+	.gfx_fifo_workaround	=	true,
 };
 
 static int __init dispc_init_features(struct device *dev)

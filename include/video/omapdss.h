@@ -73,6 +73,7 @@ enum omap_plane {
 	OMAP_DSS_VIDEO1	= 1,
 	OMAP_DSS_VIDEO2	= 2,
 	OMAP_DSS_VIDEO3	= 3,
+	OMAP_DSS_WB	= 4,
 };
 
 enum omap_channel {
@@ -605,6 +606,8 @@ struct omap_dss_device {
 
 struct omap_dss_hdmi_data
 {
+	int ct_cp_hpd_gpio;
+	int ls_oe_gpio;
 	int hpd_gpio;
 };
 
@@ -736,6 +739,8 @@ int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id);
 void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel);
 int omapdss_dsi_configure_pins(struct omap_dss_device *dssdev,
 		const struct omap_dsi_pin_config *pin_cfg);
+int omapdss_dsi_set_clocks(struct omap_dss_device *dssdev,
+		unsigned long ddr_clk, unsigned long lp_clk);
 
 int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,

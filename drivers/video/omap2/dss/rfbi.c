@@ -939,7 +939,6 @@ EXPORT_SYMBOL(omapdss_rfbi_display_disable);
 static int __init rfbi_init_display(struct omap_dss_device *dssdev)
 {
 	rfbi.dssdev[dssdev->phy.rfbi.channel] = dssdev;
-	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
 	return 0;
 }
 

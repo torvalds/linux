@@ -36,7 +36,6 @@
 #include <linux/pm_runtime.h>
 
 #include <video/omapdss.h>
-#include <plat/cpu.h>
 
 #include "dss.h"
 #include "dss_features.h"
@@ -564,19 +563,6 @@ void omapdss_venc_set_timings(struct omap_dss_device *dssdev,
 		venc.wss_data = 0;
 
 	venc.timings = *timings;
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		int r;
-
-		/* turn the venc off and on to get new timings to use */
-		venc_power_off(dssdev);
-
-		r = venc_power_on(dssdev);
-		if (r)
-			DSSERR("failed to power on VENC\n");
-	} else {
-		dss_mgr_set_timings(dssdev->manager, timings);
-	}
 
 	mutex_unlock(&venc.venc_lock);
 }

@@ -31,7 +31,6 @@
 #include <linux/regulator/consumer.h>
 
 #include <video/omapdss.h>
-#include <plat/cpu.h>
 
 #include "dss.h"
 #include "dss_features.h"
@@ -278,25 +277,11 @@ EXPORT_SYMBOL(omapdss_dpi_display_disable);
 void omapdss_dpi_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	int r;
-
 	DSSDBG("dpi_set_timings\n");
 
 	mutex_lock(&dpi.lock);
 
 	dpi.timings = *timings;
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		r = dispc_runtime_get();
-		if (r)
-			return;
-
-		dpi_set_mode(dssdev);
-
-		dispc_runtime_put();
-	} else {
-		dss_mgr_set_timings(dssdev->manager, timings);
-	}
 
 	mutex_unlock(&dpi.lock);
 }

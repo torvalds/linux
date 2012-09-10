@@ -254,6 +254,10 @@ static inline bool dss_mgr_is_lcd(enum omap_channel id)
 		return false;
 }
 
+int dss_manager_kobj_init(struct omap_overlay_manager *mgr,
+		struct platform_device *pdev);
+void dss_manager_kobj_uninit(struct omap_overlay_manager *mgr);
+
 /* overlay */
 void dss_init_overlays(struct platform_device *pdev);
 void dss_uninit_overlays(struct platform_device *pdev);
@@ -265,6 +269,9 @@ int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
 		const struct omap_video_timings *mgr_timings);
 bool dss_ovl_use_replication(struct dss_lcd_mgr_config config,
 		enum omap_color_mode mode);
+int dss_overlay_kobj_init(struct omap_overlay *ovl,
+		struct platform_device *pdev);
+void dss_overlay_kobj_uninit(struct omap_overlay *ovl);
 
 /* DSS */
 int dss_init_platform_driver(void) __init;

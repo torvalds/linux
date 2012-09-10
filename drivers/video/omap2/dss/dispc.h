@@ -36,6 +36,7 @@
 #define DISPC_CONTROL2			0x0238
 #define DISPC_CONFIG2			0x0620
 #define DISPC_DIVISOR			0x0804
+#define DISPC_GLOBAL_BUFFER		0x0800
 #define DISPC_CONTROL3                  0x0848
 #define DISPC_CONFIG3                   0x084C
 
@@ -355,6 +356,8 @@ static inline u16 DISPC_OVL_BASE(enum omap_plane plane)
 		return 0x014C;
 	case OMAP_DSS_VIDEO3:
 		return 0x0300;
+	case OMAP_DSS_WB:
+		return 0x0500;
 	default:
 		BUG();
 		return 0;
@@ -517,6 +520,7 @@ static inline u16 DISPC_FIFO_SIZE_STATUS_OFFSET(enum omap_plane plane)
 	case OMAP_DSS_VIDEO2:
 		return 0x0018;
 	case OMAP_DSS_VIDEO3:
+	case OMAP_DSS_WB:
 		return 0x0088;
 	default:
 		BUG();

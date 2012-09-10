@@ -152,17 +152,7 @@ EXPORT_SYMBOL(omapdss_sdi_display_disable);
 void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	int r;
-
 	sdi.timings = *timings;
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		omapdss_sdi_display_disable(dssdev);
-
-		r = omapdss_sdi_display_enable(dssdev);
-		if (r)
-			DSSERR("failed to set new timings\n");
-	}
 }
 EXPORT_SYMBOL(omapdss_sdi_set_timings);
 
