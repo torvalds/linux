@@ -1617,7 +1617,8 @@ static struct CHIPDESC chiplist[] = {
 
 		.inputreg   = -1,
 		.inputmap   = { TEA6420_S_SA, TEA6420_S_SB, TEA6420_S_SC },
-		.inputmute  = TEA6300_S_GMU,
+		.inputmute  = TEA6420_S_GMU,
+		.inputmask  = 0x07,
 	},
 	{
 		.name       = "tda8425",
