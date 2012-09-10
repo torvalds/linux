@@ -239,12 +239,18 @@ static int mei_open(struct inode *inode, struct file *file)
 		goto out_unlock;
 	}
 	err = -EMFILE;
-	if (dev->open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT)
+	if (dev->open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
+		dev_err(&dev->pdev->dev, "open_handle_count exceded %d",
+			MEI_MAX_OPEN_HANDLE_COUNT);
 		goto out_unlock;
+	}
 
 	cl_id = find_first_zero_bit(dev->host_clients_map, MEI_CLIENTS_MAX);
-	if (cl_id >= MEI_CLIENTS_MAX)
+	if (cl_id >= MEI_CLIENTS_MAX) {
+		dev_err(&dev->pdev->dev, "client_id exceded %d",
+				MEI_CLIENTS_MAX) ;
 		goto out_unlock;
+	}
 
 	cl->host_client_id  = cl_id;
 
