@@ -552,6 +552,38 @@ int twl_get_version(void)
 }
 EXPORT_SYMBOL_GPL(twl_get_version);
 
+/**
+ * twl_get_hfclk_rate - API to get TWL external HFCLK clock rate.
+ *
+ * Api to get the TWL HFCLK rate based on BOOT_CFG register.
+ */
+int twl_get_hfclk_rate(void)
+{
+	u8 ctrl;
+	int rate;
+
+	twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &ctrl, R_CFG_BOOT);
+
+	switch (ctrl & 0x3) {
+	case HFCLK_FREQ_19p2_MHZ:
+		rate = 19200000;
+		break;
+	case HFCLK_FREQ_26_MHZ:
+		rate = 26000000;
+		break;
+	case HFCLK_FREQ_38p4_MHZ:
+		rate = 38400000;
+		break;
+	default:
+		pr_err("TWL4030: HFCLK is not configured\n");
+		rate = -EINVAL;
+		break;
+	}
+
+	return rate;
+}
+EXPORT_SYMBOL_GPL(twl_get_hfclk_rate);
+
 static struct device *
 add_numbered_child(unsigned chip, const char *name, int num,
 		void *pdata, unsigned pdata_len,
