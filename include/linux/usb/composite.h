@@ -402,6 +402,7 @@ struct usb_composite_overwrite {
 	u16	bcdDevice;
 	char	*serial_number;
 	char	*manufacturer;
+	char	*product;
 };
 #define USB_GADGET_COMPOSITE_OPTIONS()					\
 	static struct usb_composite_overwrite coverwrite;		\
@@ -421,7 +422,10 @@ struct usb_composite_overwrite {
 									\
 	module_param_named(iManufacturer, coverwrite.manufacturer, charp, \
 			S_IRUGO); \
-	MODULE_PARM_DESC(iManufacturer, "USB Manufacturer string")
+	MODULE_PARM_DESC(iManufacturer, "USB Manufacturer string");	\
+									\
+	module_param_named(iProduct, coverwrite.product, charp, S_IRUGO); \
+	MODULE_PARM_DESC(iProduct, "USB Product string")
 
 void usb_composite_overwrite_options(struct usb_composite_dev *cdev,
 		struct usb_composite_overwrite *covr);
