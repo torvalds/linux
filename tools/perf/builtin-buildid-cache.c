@@ -43,7 +43,8 @@ static int build_id_cache__add_file(const char *filename, const char *debugdir)
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
-	err = build_id_cache__add_s(sbuild_id, debugdir, filename, false);
+	err = build_id_cache__add_s(sbuild_id, debugdir, filename,
+				    false, false);
 	if (verbose)
 		pr_info("Adding %s %s: %s\n", sbuild_id, filename,
 			err ? "FAIL" : "Ok");

@@ -21,6 +21,7 @@
 #include "debug.h"
 #include "cpumap.h"
 #include "pmu.h"
+#include "vdso.h"
 
 static bool no_buildid_cache = false;
 
@@ -207,6 +208,29 @@ perf_header__set_cmdline(int argc, const char **argv)
 			continue;		\
 		else
 
+static int write_buildid(char *name, size_t name_len, u8 *build_id,
+			 pid_t pid, u16 misc, int fd)
+{
+	int err;
+	struct build_id_event b;
+	size_t len;
+
+	len = name_len + 1;
+	len = PERF_ALIGN(len, NAME_ALIGN);
+
+	memset(&b, 0, sizeof(b));
+	memcpy(&b.build_id, build_id, BUILD_ID_SIZE);
+	b.pid = pid;
+	b.header.misc = misc;
+	b.header.size = sizeof(b) + len;
+
+	err = do_write(fd, &b, sizeof(b));
+	if (err < 0)
+		return err;
+
+	return write_padded(fd, name, name_len + 1, len);
+}
+
 static int __dsos__write_buildid_table(struct list_head *head, pid_t pid,
 				u16 misc, int fd)
 {
@@ -214,24 +238,23 @@ static int __dsos__write_buildid_table(struct list_head *head, pid_t pid,
 
 	dsos__for_each_with_build_id(pos, head) {
 		int err;
-		struct build_id_event b;
-		size_t len;
+		char  *name;
+		size_t name_len;
 
 		if (!pos->hit)
 			continue;
-		len = pos->long_name_len + 1;
-		len = PERF_ALIGN(len, NAME_ALIGN);
-		memset(&b, 0, sizeof(b));
-		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
-		b.pid = pid;
-		b.header.misc = misc;
-		b.header.size = sizeof(b) + len;
-		err = do_write(fd, &b, sizeof(b));
-		if (err < 0)
-			return err;
-		err = write_padded(fd, pos->long_name,
-				   pos->long_name_len + 1, len);
-		if (err < 0)
+
+		if (is_vdso_map(pos->short_name)) {
+			name = (char *) VDSO__MAP_NAME;
+			name_len = sizeof(VDSO__MAP_NAME) + 1;
+		} else {
+			name = pos->long_name;
+			name_len = pos->long_name_len + 1;
+		}
+
+		err = write_buildid(name, name_len, pos->build_id,
+				    pid, misc, fd);
+		if (err)
 			return err;
 	}
 
@@ -277,19 +300,20 @@ static int dsos__write_buildid_table(struct perf_header *header, int fd)
 }
 
 int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
-			  const char *name, bool is_kallsyms)
+			  const char *name, bool is_kallsyms, bool is_vdso)
 {
 	const size_t size = PATH_MAX;
 	char *realname, *filename = zalloc(size),
 	     *linkname = zalloc(size), *targetname;
 	int len, err = -1;
+	bool slash = is_kallsyms || is_vdso;
 
 	if (is_kallsyms) {
 		if (symbol_conf.kptr_restrict) {
 			pr_debug("Not caching a kptr_restrict'ed /proc/kallsyms\n");
 			return 0;
 		}
-		realname = (char *)name;
+		realname = (char *) name;
 	} else
 		realname = realpath(name, NULL);
 
@@ -297,7 +321,8 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 		goto out_free;
 
 	len = scnprintf(filename, size, "%s%s%s",
-		       debugdir, is_kallsyms ? "/" : "", realname);
+		       debugdir, slash ? "/" : "",
+		       is_vdso ? VDSO__MAP_NAME : realname);
 	if (mkdir_p(filename, 0755))
 		goto out_free;
 
@@ -333,13 +358,14 @@ out_free:
 
 static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
 				 const char *name, const char *debugdir,
-				 bool is_kallsyms)
+				 bool is_kallsyms, bool is_vdso)
 {
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
 	build_id__sprintf(build_id, build_id_size, sbuild_id);
 
-	return build_id_cache__add_s(sbuild_id, debugdir, name, is_kallsyms);
+	return build_id_cache__add_s(sbuild_id, debugdir, name,
+				     is_kallsyms, is_vdso);
 }
 
 int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir)
@@ -383,9 +409,11 @@ out_free:
 static int dso__cache_build_id(struct dso *dso, const char *debugdir)
 {
 	bool is_kallsyms = dso->kernel && dso->long_name[0] != '/';
+	bool is_vdso = is_vdso_map(dso->short_name);
 
 	return build_id_cache__add_b(dso->build_id, sizeof(dso->build_id),
-				     dso->long_name, debugdir, is_kallsyms);
+				     dso->long_name, debugdir,
+				     is_kallsyms, is_vdso);
 }
 
 static int __dsos__cache_build_ids(struct list_head *head, const char *debugdir)

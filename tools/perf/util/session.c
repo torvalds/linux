@@ -17,6 +17,7 @@
 #include "event-parse.h"
 #include "perf_regs.h"
 #include "unwind.h"
+#include "vdso.h"
 
 static int perf_session__open(struct perf_session *self, bool force)
 {
@@ -211,6 +212,7 @@ void perf_session__delete(struct perf_session *self)
 	machine__exit(&self->host_machine);
 	close(self->fd);
 	free(self);
+	vdso__exit();
 }
 
 void machine__remove_thread(struct machine *self, struct thread *th)
