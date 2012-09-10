@@ -658,7 +658,15 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 			dev_drv->screen1->screen_id = 1;
 			dev_drv->screen0->lcdc_id = 1; //connect screen0 to output interface 1
 			dev_drv->cur_screen = dev_drv->screen1;
-			dev_drv->screen0->sscreen_get(dev_drv->screen0,dev_drv->cur_screen->hdmi_resolution);
+			if(dev_drv->screen0->sscreen_get)
+			{
+				dev_drv->screen0->sscreen_get(dev_drv->screen0,
+					dev_drv->cur_screen->hdmi_resolution);
+			}
+			if(dev_drv->screen0->sscreen_set)
+			{
+				dev_drv->screen0->sscreen_set(dev_drv->screen0,enable);
+			}
 			
 		}
 		else
