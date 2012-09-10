@@ -17,7 +17,6 @@
 		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
-		serial3 = &uart4;
 	};
 
 	cpus {
@@ -138,12 +137,6 @@
 		uart3: serial@49020000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart3";
-			clock-frequency = <48000000>;
-		};
-
-		uart4: serial@49042000 {
-			compatible = "ti,omap3-uart";
-			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
 		};
 

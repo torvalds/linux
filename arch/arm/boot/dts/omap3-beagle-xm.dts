@@ -7,11 +7,11 @@
  */
 /dts-v1/;
 
-/include/ "omap3.dtsi"
+/include/ "omap36xx.dtsi"
 
 / {
-	model = "TI OMAP3 BeagleBoard";
-	compatible = "ti,omap3-beagle", "ti,omap3";
+	model = "TI OMAP3 BeagleBoard xM";
+	compatible = "ti,omap3-beagle-xm, ti,omap3-beagle", "ti,omap3";
 
 	memory {
 		device_type = "memory";
