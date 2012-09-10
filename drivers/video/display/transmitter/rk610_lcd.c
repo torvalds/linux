@@ -363,7 +363,7 @@ int rk610_lcd_scaler_set_param(struct rk29fb_screen *screen,bool enable )//enabl
         printk("%s screen == NULL FAIL\n",__FUNCTION__);
         return -1;
     }
-    RK610_DBG(&client->dev,"%s \n",__FUNCTION__,);
+    RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
     
     g_lcd_inf->screen = screen;
     
