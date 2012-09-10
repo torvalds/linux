@@ -2619,9 +2619,7 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	temp = xgifb_reg_get(pVBInfo->P3d4, 0x38);
 
-	if (((HwDeviceExtension->jChipType >= XG20) ||
-	     (HwDeviceExtension->jChipType >= XG40)) &&
-	    (pVBInfo->IF_DEF_LVDS == 0)) {
+	if (pVBInfo->IF_DEF_LVDS == 0) {
 		if (pVBInfo->VBType &
 		    (VB_SIS302B |
 		     VB_SIS301LV |
