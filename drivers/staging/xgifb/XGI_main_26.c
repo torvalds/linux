@@ -1397,11 +1397,10 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 		if (var->yoffset < 0 || var->yoffset >= info->var.yres_virtual
 				|| var->xoffset)
 			return -EINVAL;
-	} else {
-		if (var->xoffset + info->var.xres > info->var.xres_virtual
+	} else if (var->xoffset + info->var.xres > info->var.xres_virtual
 				|| var->yoffset + info->var.yres
-						> info->var.yres_virtual)
-			return -EINVAL;
+						> info->var.yres_virtual) {
+		return -EINVAL;
 	}
 	err = XGIfb_pan_var(var, info);
 	if (err < 0)

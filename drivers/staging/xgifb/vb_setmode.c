@@ -116,11 +116,9 @@ static void XGI_SetSeqRegs(unsigned short ModeNo,
 	i = XGI_SetCRT2ToLCDA;
 	if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
 		tempah |= 0x01;
-	} else {
-		if (pVBInfo->VBInfo & (SetCRT2ToTV | SetCRT2ToLCD)) {
-			if (pVBInfo->VBInfo & SetInSlaveMode)
-				tempah |= 0x01;
-		}
+	} else if (pVBInfo->VBInfo & (SetCRT2ToTV | SetCRT2ToLCD)) {
+		if (pVBInfo->VBInfo & SetInSlaveMode)
+			tempah |= 0x01;
 	}
 
 	tempah |= 0x20; /* screen off */
@@ -165,10 +163,9 @@ static void XGI_SetATTRegs(unsigned short ModeNo,
 		if ((modeflag & Charx8Dot) && i == 0x13) { /* ifndef Dot9 */
 			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
 				ARdata = 0;
-			} else {
-				if ((pVBInfo->VBInfo &
+			} else if ((pVBInfo->VBInfo &
 				     (SetCRT2ToTV | SetCRT2ToLCD)) &&
-				    (pVBInfo->VBInfo & SetInSlaveMode))
+				    (pVBInfo->VBInfo & SetInSlaveMode)) {
 					ARdata = 0;
 			}
 		}
@@ -265,42 +262,38 @@ static unsigned char XGI_AjustCRT2Rate(unsigned short ModeNo,
 			      (pVBInfo->SetFlag & TVSimuMode)) ||
 			     (resinfo > 7)))
 					return 0;
-		} else {
-			if (pVBInfo->VBInfo & (SetCRT2ToAVIDEO |
+		} else if (pVBInfo->VBInfo & (SetCRT2ToAVIDEO |
 					       SetCRT2ToSVIDEO |
 					       SetCRT2ToSCART |
 					       SetCRT2ToYPbPr525750 |
 					       SetCRT2ToHiVision)) {
-				tempax |= SupportTV;
+			tempax |= SupportTV;
 
-				if (pVBInfo->VBType & (VB_SIS301B |
-						       VB_SIS302B |
-						       VB_SIS301LV |
-						       VB_SIS302LV |
-						       VB_XGI301C))
-					tempax |= SupportTV1024;
+			if (pVBInfo->VBType & (VB_SIS301B |
+					       VB_SIS302B |
+					       VB_SIS301LV |
+					       VB_SIS302LV |
+					       VB_XGI301C))
+				tempax |= SupportTV1024;
 
-				if (!(pVBInfo->VBInfo & TVSetPAL) &&
-				    (modeflag & NoSupportSimuTV) &&
-				    (pVBInfo->VBInfo & SetInSlaveMode) &&
-				    (!(pVBInfo->VBInfo & SetNotSimuMode)))
-					return 0;
-			}
+			if (!(pVBInfo->VBInfo & TVSetPAL) &&
+			    (modeflag & NoSupportSimuTV) &&
+			    (pVBInfo->VBInfo & SetInSlaveMode) &&
+			    (!(pVBInfo->VBInfo & SetNotSimuMode)))
+				return 0;
 		}
-	} else { /* for LVDS */
-		if (pVBInfo->VBInfo & SetCRT2ToLCD) {
-			tempax |= SupportLCD;
+	} else if (pVBInfo->VBInfo & SetCRT2ToLCD) { /* for LVDS */
+		tempax |= SupportLCD;
 
-			if (resinfo > 0x08)
-				return 0; /* 1024x768 */
+		if (resinfo > 0x08)
+			return 0; /* 1024x768 */
 
-			if (pVBInfo->LCDResInfo < Panel_1024x768) {
-				if (resinfo > 0x07)
-					return 0; /* 800x600 */
+		if (pVBInfo->LCDResInfo < Panel_1024x768) {
+			if (resinfo > 0x07)
+				return 0; /* 800x600 */
 
-				if (resinfo == 0x04)
-					return 0; /* 512x384 */
-			}
+			if (resinfo == 0x04)
+				return 0; /* 512x384 */
 		}
 	}
 
@@ -976,13 +969,11 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 								Ext_CRTVCLK;
 			VCLKIndex &= IndexMask;
 		}
-	} else { /* LVDS */
-		if ((pVBInfo->LCDResInfo == Panel_800x600) ||
-		    (pVBInfo->LCDResInfo == Panel_320x480))
-			VCLKIndex = VCLK40; /* LVDSXlat1VCLK */
-		else
-			VCLKIndex = VCLK65_315 + 2; /* LVDSXlat2VCLK,
-						       LVDSXlat3VCLK  */
+	} else if ((pVBInfo->LCDResInfo == Panel_800x600) ||
+		   (pVBInfo->LCDResInfo == Panel_320x480)) { /* LVDS */
+		VCLKIndex = VCLK40; /* LVDSXlat1VCLK */
+	} else {
+		VCLKIndex = VCLK65_315 + 2; /* LVDSXlat2VCLK, LVDSXlat3VCLK */
 	}
 
 	return VCLKIndex;
@@ -2544,11 +2535,10 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 				temp = 0x09FC;
 			else
 				temp = 0x097C;
+		} else if (pVBInfo->IF_DEF_HiVision == 1) {
+			temp = 0x01FC;
 		} else {
-			if (pVBInfo->IF_DEF_HiVision == 1)
-				temp = 0x01FC;
-			else
-				temp = 0x017C;
+			temp = 0x017C;
 		}
 	} else { /* 3nd party chip */
 		temp = SetCRT2ToLCD;
@@ -2720,19 +2710,17 @@ static void XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 			if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
 				if (pVBInfo->VBInfo & SetInSlaveMode)
 					tempbx &= (~RPLLDIV2XO);
-			} else {
-				if (tempbx &
-				    (TVSetYPbPr525p | TVSetYPbPr750p))
+			} else if (tempbx &
+				    (TVSetYPbPr525p | TVSetYPbPr750p)) {
 					tempbx &= (~RPLLDIV2XO);
-				else if (!(pVBInfo->VBType &
+			} else if (!(pVBInfo->VBType &
 					 (VB_SIS301B |
 					  VB_SIS302B |
 					  VB_SIS301LV |
 					  VB_SIS302LV |
 					  VB_XGI301C))) {
-					if (tempbx & TVSimuMode)
-						tempbx &= (~RPLLDIV2XO);
-				}
+				if (tempbx & TVSimuMode)
+					tempbx &= (~RPLLDIV2XO);
 			}
 		}
 	}
@@ -3865,18 +3853,16 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 		} else {
 			tempbx -= 10;
 		}
-	} else {
-		if (pVBInfo->TVInfo & TVSimuMode) {
-			if (pVBInfo->TVInfo & TVSetPAL) {
-				if (pVBInfo->VBType & VB_SIS301LV) {
-					if (!(pVBInfo->TVInfo &
-					    (TVSetYPbPr525p |
-					     TVSetYPbPr750p |
-					     TVSetHiVision)))
-						tempbx += 40;
-				} else {
+	} else if (pVBInfo->TVInfo & TVSimuMode) {
+		if (pVBInfo->TVInfo & TVSetPAL) {
+			if (pVBInfo->VBType & VB_SIS301LV) {
+				if (!(pVBInfo->TVInfo &
+				    (TVSetYPbPr525p |
+				     TVSetYPbPr750p |
+				     TVSetHiVision)))
 					tempbx += 40;
-				}
+			} else {
+				tempbx += 40;
 			}
 		}
 	}
@@ -4189,11 +4175,9 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 						temp += 1;
 				}
 			}
-		} else {
-			if (pVBInfo->VBInfo & SetInSlaveMode) {
-				if (ModeNo == 0x2f)
-					temp += 1;
-			}
+		} else if (pVBInfo->VBInfo & SetInSlaveMode) {
+			if (ModeNo == 0x2f)
+				temp += 1;
 		}
 	}
 
@@ -4858,13 +4842,11 @@ static void XGI_SetGroup4(unsigned short ModeNo, unsigned short ModeIdIndex,
 		if (pVBInfo->VBInfo & SetCRT2ToLCD) {
 			if (tempax > 800)
 				tempax -= 800;
-		} else {
-			if (pVBInfo->VGAHDE > 800) {
-				if (pVBInfo->VGAHDE == 1024)
-					tempax = (tempax * 25 / 32) - 1;
-				else
-					tempax = (tempax * 20 / 32) - 1;
-			}
+		} else if (pVBInfo->VGAHDE > 800) {
+			if (pVBInfo->VGAHDE == 1024)
+				tempax = (tempax * 25 / 32) - 1;
+			else
+				tempax = (tempax * 20 / 32) - 1;
 		}
 		tempax -= 1;
 
@@ -6218,12 +6200,10 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 			if (pVBInfo->SetFlag & EnableChA) {
 				/* Power on */
 				xgifb_reg_set(pVBInfo->Part1Port, 0x1E, 0x20);
-			} else {
-				if (pVBInfo->VBInfo & SetCRT2ToDualEdge) {
-					/* Power on */
-					xgifb_reg_set(pVBInfo->Part1Port,
-							0x1E, 0x20);
-				}
+			} else if (pVBInfo->VBInfo & SetCRT2ToDualEdge) {
+				/* Power on */
+				xgifb_reg_set(pVBInfo->Part1Port,
+						0x1E, 0x20);
 			}
 		}
 
@@ -6481,16 +6461,14 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 				XGI_SetLCDAGroup(ModeNo, ModeIdIndex,
 						HwDeviceExtension, pVBInfo);
 			}
-		} else {
-			if (!(pVBInfo->VBInfo & SwitchCRT2)) {
-				XGI_SetCRT1Group(xgifb_info,
-						HwDeviceExtension, ModeNo,
-						ModeIdIndex, pVBInfo);
-				if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
-					XGI_SetLCDAGroup(ModeNo, ModeIdIndex,
-							HwDeviceExtension,
-							pVBInfo);
-				}
+		} else if (!(pVBInfo->VBInfo & SwitchCRT2)) {
+			XGI_SetCRT1Group(xgifb_info,
+					HwDeviceExtension, ModeNo,
+					ModeIdIndex, pVBInfo);
+			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
+				XGI_SetLCDAGroup(ModeNo, ModeIdIndex,
+						HwDeviceExtension,
+						pVBInfo);
 			}
 		}
 
