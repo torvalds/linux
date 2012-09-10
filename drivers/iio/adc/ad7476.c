@@ -48,7 +48,8 @@ enum ad7476_supported_device_ids {
 	ID_AD7466,
 	ID_AD7467,
 	ID_AD7468,
-	ID_AD7495
+	ID_AD7495,
+	ID_AD7940,
 };
 
 static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
@@ -126,7 +127,7 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-#define AD7476_CHAN(bits)					\
+#define _AD7476_CHAN(bits, _shift)				\
 	{							\
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
@@ -134,11 +135,15 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 	IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
 	.scan_type = {						\
 		.sign = 'u',					\
-		.realbits = bits,				\
+		.realbits = (bits),				\
 		.storagebits = 16,				\
-		.shift = 13 - bits,				\
+		.shift = (_shift),				\
+		.endianness = IIO_BE,				\
 	},							\
 }
+
+#define AD7476_CHAN(bits) _AD7476_CHAN((bits), 13 - (bits))
+#define AD7940_CHAN(bits) _AD7476_CHAN((bits), 15 - (bits))
 
 static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	[ID_AD7466] = {
@@ -157,6 +162,10 @@ static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 		.int_vref_uv = 2500000,
+	},
+	[ID_AD7940] = {
+		.channel[0] = AD7940_CHAN(14),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 };
 
@@ -260,6 +269,7 @@ static const struct spi_device_id ad7476_id[] = {
 	{"ad7495", ID_AD7495},
 	{"ad7910", ID_AD7467},
 	{"ad7920", ID_AD7466},
+	{"ad7940", ID_AD7940},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7476_id);
