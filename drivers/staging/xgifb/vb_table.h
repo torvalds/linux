@@ -1872,21 +1872,21 @@ static struct XGI330_LCDDataTablStruct XGI_EPLCHLCDRegPtr[] = {
 	{0xFF, 0x0000, 0x0000, 0}
 };
 
-static struct XGI330_TVDataTablStruct XGI_TVDataTable[] = {
-	{0x09E1, 0x0001, 0}, /* XGI_ExtPALData */
-	{0x09E1, 0x0000, 1}, /* XGI_ExtNTSCData */
-	{0x09E1, 0x0801, 2}, /* XGI_StPALData */
-	{0x09E1, 0x0800, 3}, /* XGI_StNTSCData */
-	{0x49E0, 0x0100, 4}, /* XGI_ExtHiTVData */
-	{0x49E0, 0x4100, 5}, /* XGI_St2HiTVData */
-	{0x49E0, 0x4900, 13}, /* XGI_St1HiTVData */
-	{0x09E0, 0x0020, 6}, /* XGI_ExtYPbPr525iData */
-	{0x09E0, 0x0040, 7}, /* XGI_ExtYPbPr525pData */
-	{0x09E0, 0x0080, 8}, /* XGI_ExtYPbPr750pData */
-	{0x09E0, 0x0820, 9}, /* XGI_StYPbPr525iData */
-	{0x09E0, 0x0840, 10}, /* XGI_StYPbPr525pData */
-	{0x09E0, 0x0880, 11}, /* XGI_StYPbPr750pData */
-	{0xffff, 0x0000, 12}  /* END */
+static const struct XGI330_TVDataTablStruct XGI_TVDataTable[] = {
+	{0x09E1, 0x0001, XGI_ExtPALData},
+	{0x09E1, 0x0000, XGI_ExtNTSCData},
+	{0x09E1, 0x0801, XGI_StPALData},
+	{0x09E1, 0x0800, XGI_StNTSCData},
+	{0x49E0, 0x0100, XGI_ExtHiTVData},
+	{0x49E0, 0x4100, XGI_St2HiTVData},
+	{0x49E0, 0x4900, XGI_St1HiTVData},
+	{0x09E0, 0x0020, XGI_ExtYPbPr525iData},
+	{0x09E0, 0x0040, XGI_ExtYPbPr525pData},
+	{0x09E0, 0x0080, XGI_ExtYPbPr750pData},
+	{0x09E0, 0x0820, XGI_StYPbPr525iData},
+	{0x09E0, 0x0840, XGI_StYPbPr525pData},
+	{0x09E0, 0x0880, XGI_StYPbPr750pData},
+	{0xffff, 0x0000, XGI_ExtNTSCData},
 };
 
 static unsigned short LCDLenList[] = {

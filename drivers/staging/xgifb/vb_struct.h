@@ -69,7 +69,7 @@ struct XGI330_LCDDataTablStruct {
 struct XGI330_TVDataTablStruct {
 	unsigned short MASK;
 	unsigned short CAP;
-	unsigned short DATAPTR;
+	struct SiS_TVData const *DATAPTR;
 };
 
 

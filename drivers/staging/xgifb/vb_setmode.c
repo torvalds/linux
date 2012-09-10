@@ -1791,53 +1791,7 @@ static struct SiS_TVData const *XGI_GetTVPtr(unsigned short ModeNo,
 		i++;
 	}
 
-	switch (XGI_TVDataTable[i].DATAPTR) {
-	case 0:
-		return &XGI_ExtPALData[tempal];
-		break;
-	case 1:
-		return &XGI_ExtNTSCData[tempal];
-		break;
-	case 2:
-		return &XGI_StPALData[tempal];
-		break;
-	case 3:
-		return &XGI_StNTSCData[tempal];
-		break;
-	case 4:
-		return &XGI_ExtHiTVData[tempal];
-		break;
-	case 5:
-		return &XGI_St2HiTVData[tempal];
-		break;
-	case 6:
-		return &XGI_ExtYPbPr525iData[tempal];
-		break;
-	case 7:
-		return &XGI_ExtYPbPr525pData[tempal];
-		break;
-	case 8:
-		return &XGI_ExtYPbPr750pData[tempal];
-		break;
-	case 9:
-		return &XGI_StYPbPr525iData[tempal];
-		break;
-	case 10:
-		return &XGI_StYPbPr525pData[tempal];
-		break;
-	case 11:
-		return &XGI_StYPbPr750pData[tempal];
-		break;
-	case 12: /* avoid system hang */
-		return &XGI_ExtNTSCData[tempal];
-		break;
-	case 13:
-		return &XGI_St1HiTVData[tempal];
-		break;
-	default:
-		break;
-	}
-	return NULL;
+	return &XGI_TVDataTable[i].DATAPTR[tempal];
 }
 
 static void XGI_GetLVDSData(unsigned short ModeNo, unsigned short ModeIdIndex,
