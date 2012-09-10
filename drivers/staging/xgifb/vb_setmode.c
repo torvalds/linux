@@ -3929,7 +3929,7 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 {
 	unsigned short i, j, tempax, tempbx, tempcx, temp, push1, push2,
 			modeflag, resinfo, crt2crtc;
-	unsigned char *TimingPoint;
+	unsigned char const *TimingPoint;
 
 	unsigned long longtemp, tempeax, tempebx, temp2, tempecx;
 
@@ -4649,7 +4649,7 @@ static void XGI_SetGroup3(unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short i;
-	unsigned char *tempdi;
+	unsigned char const *tempdi;
 	unsigned short modeflag;
 
 	/* si+Ext_ResInfo */
