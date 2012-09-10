@@ -32,10 +32,6 @@
  * published in the device descriptor, either numbers or strings or both.
  * String parameters are in UTF-8 (superset of ASCII's 7 bit characters).
  */
-static char *iManufacturer;
-module_param(iManufacturer, charp, S_IRUGO);
-MODULE_PARM_DESC(iManufacturer, "USB Manufacturer string");
-
 static char *iProduct;
 module_param(iProduct, charp, S_IRUGO);
 MODULE_PARM_DESC(iProduct, "USB Product string");
@@ -916,8 +912,7 @@ static int get_string(struct usb_composite_dev *cdev,
 	 * check if the string has not been overridden.
 	 */
 	if (cdev->manufacturer_override == id)
-		str = iManufacturer ?: composite->iManufacturer ?:
-			composite_manufacturer;
+		str = composite->iManufacturer ?: composite_manufacturer;
 	else if (cdev->product_override == id)
 		str = iProduct ?: composite->iProduct;
 	else if (cdev->serial_override == id)
@@ -1408,6 +1403,7 @@ static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
 	__le16 idProduct;
 	__le16 bcdDevice;
 	u8 iSerialNumber;
+	u8 iManufacturer;
 
 	/*
 	 * these variables may have been set in
@@ -1417,6 +1413,7 @@ static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
 	idProduct = new->idProduct;
 	bcdDevice = new->bcdDevice;
 	iSerialNumber = new->iSerialNumber;
+	iManufacturer = new->iManufacturer;
 
 	*new = *old;
 	if (idVendor)
@@ -1427,6 +1424,8 @@ static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
 		new->bcdDevice = bcdDevice;
 	if (iSerialNumber)
 		new->iSerialNumber = iSerialNumber;
+	if (iManufacturer)
+		new->iManufacturer = iManufacturer;
 }
 
 static struct usb_composite_driver *to_cdriver(struct usb_gadget_driver *gdrv)
@@ -1487,9 +1486,8 @@ static int composite_bind(struct usb_gadget *gadget,
 	update_unchanged_dev_desc(&cdev->desc, composite->dev);
 
 	/* string overrides */
-	if (iManufacturer || !cdev->desc.iManufacturer) {
-		if (!iManufacturer && !composite->iManufacturer &&
-		    !*composite_manufacturer)
+	if (!cdev->desc.iManufacturer) {
+		if (!composite->iManufacturer)
 			snprintf(composite_manufacturer,
 				 sizeof composite_manufacturer,
 				 "%s %s with %s",
@@ -1705,5 +1703,9 @@ void usb_composite_overwrite_options(struct usb_composite_dev *cdev,
 	if (covr->serial_number) {
 		desc->iSerialNumber = dev_str[USB_GADGET_SERIAL_IDX].id;
 		dev_str[USB_GADGET_SERIAL_IDX].s = covr->serial_number;
+	}
+	if (covr->manufacturer) {
+		desc->iManufacturer = dev_str[USB_GADGET_MANUFACTURER_IDX].id;
+		dev_str[USB_GADGET_MANUFACTURER_IDX].s = covr->manufacturer;
 	}
 }
