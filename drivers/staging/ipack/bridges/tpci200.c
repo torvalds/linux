@@ -14,10 +14,8 @@
 #include <linux/module.h>
 #include "tpci200.h"
 
-static struct ipack_bus_ops tpci200_bus_ops;
-
 /* TPCI200 controls registers */
-static int control_reg[] = {
+static const int control_reg[] = {
 	TPCI200_CONTROL_A_REG,
 	TPCI200_CONTROL_B_REG,
 	TPCI200_CONTROL_C_REG,
@@ -532,7 +530,7 @@ static void tpci200_uninstall(struct tpci200_board *tpci200)
 	kfree(tpci200->slots);
 }
 
-static struct ipack_bus_ops tpci200_bus_ops = {
+static const struct ipack_bus_ops tpci200_bus_ops = {
 	.map_space = tpci200_slot_map_space,
 	.unmap_space = tpci200_slot_unmap_space,
 	.request_irq = tpci200_request_irq,

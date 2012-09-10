@@ -209,7 +209,7 @@ static struct bus_type ipack_bus_type = {
 };
 
 struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
-					    struct ipack_bus_ops *ops)
+					    const struct ipack_bus_ops *ops)
 {
 	int bus_nr;
 	struct ipack_bus_device *bus;
@@ -241,7 +241,7 @@ int ipack_bus_unregister(struct ipack_bus_device *bus)
 EXPORT_SYMBOL_GPL(ipack_bus_unregister);
 
 int ipack_driver_register(struct ipack_driver *edrv, struct module *owner,
-			  char *name)
+			  const char *name)
 {
 	edrv->driver.owner = owner;
 	edrv->driver.name = name;

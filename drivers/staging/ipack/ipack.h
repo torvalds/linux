@@ -134,7 +134,7 @@ struct ipack_bus_device {
 	struct device *parent;
 	int slots;
 	int bus_nr;
-	struct ipack_bus_ops *ops;
+	const struct ipack_bus_ops *ops;
 };
 
 /**
@@ -148,7 +148,7 @@ struct ipack_bus_device {
  * available bus device in ipack.
  */
 struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
-					    struct ipack_bus_ops *ops);
+					    const struct ipack_bus_ops *ops);
 
 /**
  *	ipack_bus_unregister -- unregister an ipack bus
@@ -161,7 +161,8 @@ int ipack_bus_unregister(struct ipack_bus_device *bus);
  * Called by a ipack driver to register itself as a driver
  * that can manage ipack devices.
  */
-int ipack_driver_register(struct ipack_driver *edrv, struct module *owner, char *name);
+int ipack_driver_register(struct ipack_driver *edrv, struct module *owner,
+			  const char *name);
 void ipack_driver_unregister(struct ipack_driver *edrv);
 
 /**
@@ -174,7 +175,8 @@ void ipack_driver_unregister(struct ipack_driver *edrv);
  * Register a new ipack device (mezzanine device). The call is done by
  * the carrier device driver.
  */
-struct ipack_device *ipack_device_register(struct ipack_bus_device *bus, int slot, int irqv);
+struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
+					   int slot, int irqv);
 void ipack_device_unregister(struct ipack_device *dev);
 
 /**
