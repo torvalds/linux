@@ -28,6 +28,8 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/i2c/twl.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/twl4030-audio.h>
@@ -156,15 +158,42 @@ unsigned int twl4030_audio_get_mclk(void)
 }
 EXPORT_SYMBOL_GPL(twl4030_audio_get_mclk);
 
+static bool twl4030_audio_has_codec(struct twl4030_audio_data *pdata,
+			      struct device_node *node)
+{
+	if (pdata && pdata->codec)
+		return true;
+
+	if (of_find_node_by_name(node, "codec"))
+		return true;
+
+	return false;
+}
+
+static bool twl4030_audio_has_vibra(struct twl4030_audio_data *pdata,
+			      struct device_node *node)
+{
+	int vibra;
+
+	if (pdata && pdata->vibra)
+		return true;
+
+	if (!of_property_read_u32(node, "ti,enable-vibra", &vibra) && vibra)
+		return true;
+
+	return false;
+}
+
 static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 {
 	struct twl4030_audio *audio;
 	struct twl4030_audio_data *pdata = pdev->dev.platform_data;
+	struct device_node *node = pdev->dev.of_node;
 	struct mfd_cell *cell = NULL;
 	int ret, childs = 0;
 	u8 val;
 
-	if (!pdata) {
+	if (!pdata && !node) {
 		dev_err(&pdev->dev, "Platform data is missing\n");
 		return -EINVAL;
 	}
@@ -202,18 +231,22 @@ static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 	audio->resource[TWL4030_AUDIO_RES_APLL].reg = TWL4030_REG_APLL_CTL;
 	audio->resource[TWL4030_AUDIO_RES_APLL].mask = TWL4030_APLL_EN;
 
-	if (pdata->codec) {
+	if (twl4030_audio_has_codec(pdata, node)) {
 		cell = &audio->cells[childs];
 		cell->name = "twl4030-codec";
-		cell->platform_data = pdata->codec;
-		cell->pdata_size = sizeof(*pdata->codec);
+		if (pdata) {
+			cell->platform_data = pdata->codec;
+			cell->pdata_size = sizeof(*pdata->codec);
+		}
 		childs++;
 	}
-	if (pdata->vibra) {
+	if (twl4030_audio_has_vibra(pdata, node)) {
 		cell = &audio->cells[childs];
 		cell->name = "twl4030-vibra";
-		cell->platform_data = pdata->vibra;
-		cell->pdata_size = sizeof(*pdata->vibra);
+		if (pdata) {
+			cell->platform_data = pdata->vibra;
+			cell->pdata_size = sizeof(*pdata->vibra);
+		}
 		childs++;
 	}
 
@@ -245,10 +278,17 @@ static int __devexit twl4030_audio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id twl4030_audio_of_match[] = {
+	{.compatible = "ti,twl4030-audio", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, twl4030_audio_of_match);
+
 static struct platform_driver twl4030_audio_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "twl4030-audio",
+		.of_match_table = twl4030_audio_of_match,
 	},
 	.probe		= twl4030_audio_probe,
 	.remove		= __devexit_p(twl4030_audio_remove),
