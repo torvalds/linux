@@ -26,6 +26,8 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/i2c/twl.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
@@ -295,12 +297,56 @@ static inline void twl4030_reset_registers(struct snd_soc_codec *codec)
 
 }
 
-static void twl4030_init_chip(struct snd_soc_codec *codec)
+static void twl4030_setup_pdata_of(struct twl4030_codec_data *pdata,
+				   struct device_node *node)
+{
+	int value;
+
+	of_property_read_u32(node, "ti,digimic_delay",
+			     &pdata->digimic_delay);
+	of_property_read_u32(node, "ti,ramp_delay_value",
+			     &pdata->ramp_delay_value);
+	of_property_read_u32(node, "ti,offset_cncl_path",
+			     &pdata->offset_cncl_path);
+	if (!of_property_read_u32(node, "ti,hs_extmute", &value))
+		pdata->hs_extmute = value;
+
+	pdata->hs_extmute_gpio = of_get_named_gpio(node,
+						   "ti,hs_extmute_gpio", 0);
+	if (gpio_is_valid(pdata->hs_extmute_gpio))
+		pdata->hs_extmute = 1;
+}
+
+static struct twl4030_codec_data *twl4030_get_pdata(struct snd_soc_codec *codec)
 {
 	struct twl4030_codec_data *pdata = dev_get_platdata(codec->dev);
+	struct device_node *twl4030_codec_node = NULL;
+
+	twl4030_codec_node = of_find_node_by_name(codec->dev->parent->of_node,
+						  "codec");
+
+	if (!pdata && twl4030_codec_node) {
+		pdata = devm_kzalloc(codec->dev,
+				     sizeof(struct twl4030_codec_data),
+				     GFP_KERNEL);
+		if (!pdata) {
+			dev_err(codec->dev, "Can not allocate memory\n");
+			return NULL;
+		}
+		twl4030_setup_pdata_of(pdata, twl4030_codec_node);
+	}
+
+	return pdata;
+}
+
+static void twl4030_init_chip(struct snd_soc_codec *codec)
+{
+	struct twl4030_codec_data *pdata;
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	u8 reg, byte;
 	int i = 0;
+
+	pdata = twl4030_get_pdata(codec);
 
 	if (pdata && pdata->hs_extmute &&
 	    gpio_is_valid(pdata->hs_extmute_gpio)) {
@@ -2290,13 +2336,6 @@ static struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 
 static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 {
-	struct twl4030_codec_data *pdata = pdev->dev.platform_data;
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "platform_data is missing\n");
-		return -EINVAL;
-	}
-
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_twl4030,
 			twl4030_dai, ARRAY_SIZE(twl4030_dai));
 }
