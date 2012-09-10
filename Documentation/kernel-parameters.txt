@@ -1834,8 +1834,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			enabling legacy floating-point and sse state.
 
 	eagerfpu=	[X86]
-			on	enable eager fpu restore (default for xsaveopt)
+			on	enable eager fpu restore
 			off	disable eager fpu restore
+			auto	selects the default scheme, which automatically
+				enables eagerfpu restore for xsaveopt.
 
 	nohlt		[BUGS=ARM,SH] Tells the kernel that the sleep(SH) or
 			wfi(ARM) instruction doesn't work correctly and not to
