@@ -114,6 +114,7 @@ static inline bool has_rndis(void)
 #include "u_ether.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 /* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
  * Instead:  allocate your own, using normal USB-IF procedures.
@@ -363,6 +364,7 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto fail;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, "%s, version: " DRIVER_VERSION "\n",
 			DRIVER_DESC);
 

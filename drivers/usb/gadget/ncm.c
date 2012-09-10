@@ -54,6 +54,7 @@
 #define CDC_PRODUCT_NUM		0xa4a1	/* Linux-USB Ethernet Gadget */
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
@@ -191,6 +192,7 @@ static int __init gncm_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto fail;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, "%s\n", DRIVER_DESC);
 
 	return 0;

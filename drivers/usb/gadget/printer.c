@@ -54,6 +54,7 @@
 #include "composite.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 #define DRIVER_DESC		"Printer Gadget"
 #define DRIVER_VERSION		"2007 OCT 06"
@@ -1265,6 +1266,9 @@ static int __init printer_bind(struct usb_composite_dev *cdev)
 	device_desc.iSerialNumber = strings[STRING_SERIALNUM].id;
 
 	ret = usb_add_config(cdev, &printer_cfg_driver, printer_bind_config);
+	if (ret)
+		return ret;
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	return ret;
 }
 

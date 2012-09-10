@@ -34,6 +34,7 @@
 #define CDC_PRODUCT_NUM		0xa4aa	/* CDC Composite: ECM + ACM */
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 /*
  * Kbuild is not very cooperative with respect to linking separately
@@ -204,6 +205,7 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto fail1;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, "%s, version: " DRIVER_VERSION "\n",
 			DRIVER_DESC);
 

@@ -29,6 +29,8 @@
 
 #include "tcm_usb_gadget.h"
 
+USB_GADGET_COMPOSITE_OPTIONS();
+
 static struct target_fabric_configfs *usbg_fabric_configfs;
 
 static inline struct f_uas *to_f_uas(struct usb_function *f)
@@ -2437,6 +2439,9 @@ static int usb_target_bind(struct usb_composite_dev *cdev)
 
 	ret = usb_add_config(cdev, &usbg_config_driver,
 			usbg_cfg_bind);
+	if (ret)
+		return ret;
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	return 0;
 }
 

@@ -381,6 +381,30 @@ extern int usb_string_ids_tab(struct usb_composite_dev *c,
 			      struct usb_string *str);
 extern int usb_string_ids_n(struct usb_composite_dev *c, unsigned n);
 
+/*
+ * Some systems will need runtime overrides for the  product identifiers
+ * published in the device descriptor, either numbers or strings or both.
+ * String parameters are in UTF-8 (superset of ASCII's 7 bit characters).
+ */
+struct usb_composite_overwrite {
+	u16	idVendor;
+	u16	idProduct;
+	u16	bcdDevice;
+};
+#define USB_GADGET_COMPOSITE_OPTIONS()					\
+	static struct usb_composite_overwrite coverwrite;		\
+									\
+	module_param_named(idVendor, coverwrite.idVendor, ushort, S_IRUGO); \
+	MODULE_PARM_DESC(idVendor, "USB Vendor ID");			\
+									\
+	module_param_named(idProduct, coverwrite.idProduct, ushort, S_IRUGO); \
+	MODULE_PARM_DESC(idProduct, "USB Product ID");			\
+									\
+	module_param_named(bcdDevice, coverwrite.bcdDevice, ushort, S_IRUGO); \
+	MODULE_PARM_DESC(bcdDevice, "USB Device version (BCD)")
+
+void usb_composite_overwrite_options(struct usb_composite_dev *cdev,
+		struct usb_composite_overwrite *covr);
 
 /* messaging utils */
 #define DBG(d, fmt, args...) \

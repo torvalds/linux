@@ -64,6 +64,7 @@
 #include "f_loopback.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 #define DRIVER_VERSION		"Cinco de Mayo 2008"
 
@@ -305,6 +306,7 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 			longname, gadget->name);
 		device_desc.bcdDevice = cpu_to_le16(0x9999);
 	}
+	usb_composite_overwrite_options(cdev, &coverwrite);
 
 	INFO(cdev, "%s, version: " DRIVER_VERSION "\n", longname);
 

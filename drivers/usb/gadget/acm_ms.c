@@ -47,6 +47,7 @@
 #include "f_mass_storage.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
@@ -203,6 +204,7 @@ static int __init acm_ms_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto fail1;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, "%s, version: " DRIVER_VERSION "\n",
 			DRIVER_DESC);
 	fsg_common_put(&fsg_common);

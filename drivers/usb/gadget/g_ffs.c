@@ -73,6 +73,8 @@ struct gfs_ffs_obj {
 	struct ffs_data *ffs_data;
 };
 
+USB_GADGET_COMPOSITE_OPTIONS();
+
 static struct usb_device_descriptor gfs_dev_desc = {
 	.bLength		= sizeof gfs_dev_desc,
 	.bDescriptorType	= USB_DT_DEVICE,
@@ -377,7 +379,7 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		if (unlikely(ret < 0))
 			goto error_unbind;
 	}
-
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	return 0;
 
 error_unbind:

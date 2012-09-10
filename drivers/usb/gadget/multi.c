@@ -58,7 +58,7 @@ MODULE_LICENSE("GPL");
 #endif
 #include "u_ether.c"
 
-
+USB_GADGET_COMPOSITE_OPTIONS();
 
 /***************************** Device Descriptor ****************************/
 
@@ -307,6 +307,7 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 	status = cdc_config_register(cdev);
 	if (unlikely(status < 0))
 		goto fail2;
+	usb_composite_overwrite_options(cdev, &coverwrite);
 
 	/* we're done */
 	dev_info(&gadget->dev, DRIVER_DESC "\n");

@@ -30,6 +30,7 @@
 #include "uvc_v4l2.c"
 #include "f_uvc.c"
 
+USB_GADGET_COMPOSITE_OPTIONS();
 /* --------------------------------------------------------------------------
  * Device descriptor
  */
@@ -370,6 +371,7 @@ webcam_bind(struct usb_composite_dev *cdev)
 					webcam_config_bind)) < 0)
 		goto error;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	INFO(cdev, "Webcam Video Gadget\n");
 	return 0;
 

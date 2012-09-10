@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/utsname.h>
+#include <linux/usb/composite.h>
 
 #include "gadget_chips.h"
 #define DRIVER_DESC		"Linux USB Audio Gadget"
@@ -28,6 +29,7 @@
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 #include "composite.c"
+USB_GADGET_COMPOSITE_OPTIONS();
 
 /* string IDs are assigned dynamically */
 
@@ -174,6 +176,7 @@ static int __init audio_bind(struct usb_composite_dev *cdev)
 	status = usb_add_config(cdev, &audio_config_driver, audio_do_config);
 	if (status < 0)
 		goto fail;
+	usb_composite_overwrite_options(cdev, &coverwrite);
 
 	INFO(cdev, "%s, version: %s\n", DRIVER_DESC, DRIVER_VERSION);
 	return 0;

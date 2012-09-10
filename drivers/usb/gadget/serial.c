@@ -45,6 +45,7 @@
 #include "u_serial.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 /* Thanks to NetChip Technologies for donating this product ID.
 *
@@ -212,6 +213,7 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto fail;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	INFO(cdev, "%s\n", GS_VERSION_NAME);
 
 	return 0;

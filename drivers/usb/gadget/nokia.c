@@ -49,6 +49,7 @@
 #include "u_ether.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 #define NOKIA_VENDOR_ID			0x0421	/* Nokia */
 #define NOKIA_PRODUCT_ID		0x01c8	/* Nokia Gadget */
@@ -197,6 +198,7 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto err_usb;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&gadget->dev, "%s\n", NOKIA_LONG_NAME);
 
 	return 0;

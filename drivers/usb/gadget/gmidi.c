@@ -48,6 +48,8 @@ MODULE_LICENSE("GPL v2");
 static const char shortname[] = "g_midi";
 static const char longname[] = "MIDI Gadget";
 
+USB_GADGET_COMPOSITE_OPTIONS();
+
 static int index = SNDRV_DEFAULT_IDX1;
 module_param(index, int, S_IRUGO);
 MODULE_PARM_DESC(index, "Index value for the USB MIDI Gadget adapter.");
@@ -163,7 +165,7 @@ static int __init midi_bind(struct usb_composite_dev *cdev)
 	status = usb_add_config(cdev, &midi_config, midi_bind_config);
 	if (status < 0)
 		return status;
-
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	pr_info("%s\n", longname);
 	return 0;
 }
