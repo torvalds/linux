@@ -170,7 +170,7 @@ static int hist_entry__dso_snprintf(struct hist_entry *self, char *bf,
 
 static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 				     u64 ip, char level, char *bf, size_t size,
-				     unsigned int width __used)
+				     unsigned int width __maybe_unused)
 {
 	size_t ret = 0;
 
@@ -205,7 +205,8 @@ struct sort_entry sort_dso = {
 };
 
 static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
-				    size_t size, unsigned int width __used)
+				    size_t size,
+				    unsigned int width __maybe_unused)
 {
 	return _hist_entry__sym_snprintf(self->ms.map, self->ms.sym, self->ip,
 					 self->level, bf, size, width);
@@ -248,7 +249,8 @@ sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
-				   size_t size, unsigned int width __used)
+					size_t size,
+					unsigned int width __maybe_unused)
 {
 	FILE *fp;
 	char cmd[PATH_MAX + 2], *path = self->srcline, *nl;
@@ -397,7 +399,8 @@ sort__sym_to_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static int hist_entry__sym_from_snprintf(struct hist_entry *self, char *bf,
-				    size_t size, unsigned int width __used)
+					size_t size,
+					unsigned int width __maybe_unused)
 {
 	struct addr_map_symbol *from = &self->branch_info->from;
 	return _hist_entry__sym_snprintf(from->map, from->sym, from->addr,
@@ -406,7 +409,8 @@ static int hist_entry__sym_from_snprintf(struct hist_entry *self, char *bf,
 }
 
 static int hist_entry__sym_to_snprintf(struct hist_entry *self, char *bf,
-				    size_t size, unsigned int width __used)
+				       size_t size,
+				       unsigned int width __maybe_unused)
 {
 	struct addr_map_symbol *to = &self->branch_info->to;
 	return _hist_entry__sym_snprintf(to->map, to->sym, to->addr,

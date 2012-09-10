@@ -275,28 +275,28 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int process_comm_event(struct perf_tool *tool __used,
+static int process_comm_event(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
-			      struct perf_sample *sample __used,
-			      struct machine *machine __used)
+			      struct perf_sample *sample __maybe_unused,
+			      struct machine *machine __maybe_unused)
 {
 	pid_set_comm(event->comm.tid, event->comm.comm);
 	return 0;
 }
 
-static int process_fork_event(struct perf_tool *tool __used,
+static int process_fork_event(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
-			      struct perf_sample *sample __used,
-			      struct machine *machine __used)
+			      struct perf_sample *sample __maybe_unused,
+			      struct machine *machine __maybe_unused)
 {
 	pid_fork(event->fork.pid, event->fork.ppid, event->fork.time);
 	return 0;
 }
 
-static int process_exit_event(struct perf_tool *tool __used,
+static int process_exit_event(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
-			      struct perf_sample *sample __used,
-			      struct machine *machine __used)
+			      struct perf_sample *sample __maybe_unused,
+			      struct machine *machine __maybe_unused)
 {
 	pid_exit(event->fork.pid, event->fork.time);
 	return 0;
@@ -491,11 +491,11 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 }
 
 
-static int process_sample_event(struct perf_tool *tool __used,
-				union perf_event *event __used,
+static int process_sample_event(struct perf_tool *tool __maybe_unused,
+				union perf_event *event __maybe_unused,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
-				struct machine *machine __used)
+				struct machine *machine __maybe_unused)
 {
 	struct trace_entry *te;
 
@@ -1081,7 +1081,8 @@ static int __cmd_record(int argc, const char **argv)
 }
 
 static int
-parse_process(const struct option *opt __used, const char *arg, int __used unset)
+parse_process(const struct option *opt __maybe_unused, const char *arg,
+	      int __maybe_unused unset)
 {
 	if (arg)
 		add_process_filter(arg);
@@ -1106,7 +1107,8 @@ static const struct option options[] = {
 };
 
 
-int cmd_timechart(int argc, const char **argv, const char *prefix __used)
+int cmd_timechart(int argc, const char **argv,
+		  const char *prefix __maybe_unused)
 {
 	argc = parse_options(argc, argv, options, timechart_usage,
 			PARSE_OPT_STOP_AT_NON_OPTION);

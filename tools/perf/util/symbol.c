@@ -1755,7 +1755,7 @@ struct process_args {
 };
 
 static int symbol__in_kernel(void *arg, const char *name,
-			     char type __used, u64 start)
+			     char type __maybe_unused, u64 start)
 {
 	struct process_args *args = arg;
 

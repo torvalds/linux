@@ -33,7 +33,7 @@ static int hists__add_entry(struct hists *self,
 	return -ENOMEM;
 }
 
-static int diff__process_sample_event(struct perf_tool *tool __used,
+static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 				      union perf_event *event,
 				      struct perf_sample *sample,
 				      struct perf_evsel *evsel,
@@ -242,7 +242,7 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-int cmd_diff(int argc, const char **argv, const char *prefix __used)
+int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	sort_order = diff__default_sort_order;
 	argc = parse_options(argc, argv, options, diff_usage, 0);

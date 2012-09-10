@@ -103,7 +103,8 @@ static int __cmd_buildid_list(void)
 	return perf_session__list_build_ids();
 }
 
-int cmd_buildid_list(int argc, const char **argv, const char *prefix __used)
+int cmd_buildid_list(int argc, const char **argv,
+		     const char *prefix __maybe_unused)
 {
 	argc = parse_options(argc, argv, options, buildid_list_usage, 0);
 	setup_pager();

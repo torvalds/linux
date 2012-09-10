@@ -28,7 +28,7 @@ void ui__refresh_dimensions(bool force)
 	}
 }
 
-static void ui__sigwinch(int sig __used)
+static void ui__sigwinch(int sig __maybe_unused)
 {
 	ui__need_resize = 1;
 }
@@ -88,7 +88,7 @@ int ui__getch(int delay_secs)
 	return SLkp_getkey();
 }
 
-static void newt_suspend(void *d __used)
+static void newt_suspend(void *d __maybe_unused)
 {
 	newtSuspend();
 	raise(SIGTSTP);

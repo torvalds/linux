@@ -24,8 +24,8 @@
 #include <stdarg.h>
 #include <regex.h>
 
-#ifndef __unused
-#define __unused __attribute__ ((unused))
+#ifndef __maybe_unused
+#define __maybe_unused __attribute__((unused))
 #endif
 
 /* ----------------------- trace_seq ----------------------- */

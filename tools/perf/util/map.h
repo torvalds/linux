@@ -96,7 +96,7 @@ static inline u64 map__unmap_ip(struct map *map, u64 ip)
 	return ip + map->start - map->pgoff;
 }
 
-static inline u64 identity__map_ip(struct map *map __used, u64 ip)
+static inline u64 identity__map_ip(struct map *map __maybe_unused, u64 ip)
 {
 	return ip;
 }

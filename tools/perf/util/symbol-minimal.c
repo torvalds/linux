@@ -69,8 +69,9 @@ static int read_build_id(void *note_data, size_t note_len, void *bf,
 	return -1;
 }
 
-int filename__read_debuglink(const char *filename __used,
-			     char *debuglink __used, size_t size __used)
+int filename__read_debuglink(const char *filename __maybe_unused,
+			     char *debuglink __maybe_unused,
+			     size_t size __maybe_unused)
 {
 	return -1;
 }
@@ -241,7 +242,8 @@ out:
 	return ret;
 }
 
-int symsrc__init(struct symsrc *ss, struct dso *dso __used, const char *name,
+int symsrc__init(struct symsrc *ss, struct dso *dso __maybe_unused,
+		 const char *name,
 	         enum dso_binary_type type)
 {
 	int fd = open(name, O_RDONLY);
@@ -260,13 +262,13 @@ out_close:
 	return -1;
 }
 
-bool symsrc__possibly_runtime(struct symsrc *ss __used)
+bool symsrc__possibly_runtime(struct symsrc *ss __maybe_unused)
 {
 	/* Assume all sym sources could be a runtime image. */
 	return true;
 }
 
-bool symsrc__has_symtab(struct symsrc *ss __used)
+bool symsrc__has_symtab(struct symsrc *ss __maybe_unused)
 {
 	return false;
 }
@@ -277,17 +279,19 @@ void symsrc__destroy(struct symsrc *ss)
 	close(ss->fd);
 }
 
-int dso__synthesize_plt_symbols(struct dso *dso __used,
-				struct symsrc *ss __used,
-				struct map *map __used,
-				symbol_filter_t filter __used)
+int dso__synthesize_plt_symbols(struct dso *dso __maybe_unused,
+				struct symsrc *ss __maybe_unused,
+				struct map *map __maybe_unused,
+				symbol_filter_t filter __maybe_unused)
 {
 	return 0;
 }
 
-int dso__load_sym(struct dso *dso, struct map *map __used, struct symsrc *ss,
-		  struct symsrc *runtime_ss __used,
-		  symbol_filter_t filter __used, int kmodule __used)
+int dso__load_sym(struct dso *dso, struct map *map __maybe_unused,
+		  struct symsrc *ss,
+		  struct symsrc *runtime_ss __maybe_unused,
+		  symbol_filter_t filter __maybe_unused,
+		  int kmodule __maybe_unused)
 {
 	unsigned char *build_id[BUILD_ID_SIZE];
 

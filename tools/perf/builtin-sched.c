@@ -299,7 +299,7 @@ add_sched_event_wakeup(struct task_desc *task, u64 timestamp,
 
 static void
 add_sched_event_sleep(struct task_desc *task, u64 timestamp,
-		      u64 task_state __used)
+		      u64 task_state __maybe_unused)
 {
 	struct sched_atom *event = get_new_event(task, timestamp);
 
@@ -369,8 +369,8 @@ static void add_cross_task_wakeups(void)
 	}
 }
 
-static void
-process_sched_event(struct task_desc *this_task __used, struct sched_atom *atom)
+static void process_sched_event(struct task_desc *this_task __maybe_unused,
+				struct sched_atom *atom)
 {
 	int ret = 0;
 
@@ -752,7 +752,7 @@ struct trace_sched_handler {
 
 static int
 replay_wakeup_event(struct trace_wakeup_event *wakeup_event,
-		    struct machine *machine __used,
+		    struct machine *machine __maybe_unused,
 		    struct event_format *event, struct perf_sample *sample)
 {
 	struct task_desc *waker, *wakee;
@@ -777,11 +777,11 @@ static u64 cpu_last_switched[MAX_CPUS];
 
 static int
 replay_switch_event(struct trace_switch_event *switch_event,
-		    struct machine *machine __used,
+		    struct machine *machine __maybe_unused,
 		    struct event_format *event,
 		    struct perf_sample *sample)
 {
-	struct task_desc *prev, __used *next;
+	struct task_desc *prev, __maybe_unused *next;
 	u64 timestamp0, timestamp = sample->time;
 	int cpu = sample->cpu;
 	s64 delta;
@@ -932,15 +932,13 @@ static int thread_atoms_insert(struct thread *thread)
 	return 0;
 }
 
-static int
-latency_fork_event(struct trace_fork_event *fork_event __used,
-		   struct event_format *event __used)
+static int latency_fork_event(struct trace_fork_event *fork_event __maybe_unused,
+			      struct event_format *event __maybe_unused)
 {
 	/* should insert the newcomer */
 	return 0;
 }
 
-__used
 static char sched_out_state(struct trace_switch_event *switch_event)
 {
 	const char *str = TASK_STATE_TO_CHAR_STR;
@@ -971,7 +969,8 @@ add_sched_out_event(struct work_atoms *atoms,
 }
 
 static void
-add_runtime_event(struct work_atoms *atoms, u64 delta, u64 timestamp __used)
+add_runtime_event(struct work_atoms *atoms, u64 delta,
+		  u64 timestamp __maybe_unused)
 {
 	struct work_atom *atom;
 
@@ -1017,7 +1016,7 @@ add_sched_in_event(struct work_atoms *atoms, u64 timestamp)
 static int
 latency_switch_event(struct trace_switch_event *switch_event,
 		     struct machine *machine,
-		     struct event_format *event __used,
+		     struct event_format *event __maybe_unused,
 		     struct perf_sample *sample)
 {
 	struct work_atoms *out_events, *in_events;
@@ -1105,7 +1104,8 @@ latency_runtime_event(struct trace_runtime_event *runtime_event,
 
 static int
 latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
-		     struct machine *machine, struct event_format *event __used,
+		     struct machine *machine,
+		     struct event_format *event __maybe_unused,
 		     struct perf_sample *sample)
 {
 	struct work_atoms *atoms;
@@ -1369,12 +1369,11 @@ static void sort_lat(void)
 
 static struct trace_sched_handler *trace_handler;
 
-static int
-process_sched_wakeup_event(struct perf_tool *tool __used,
-			   struct event_format *event,
-			   struct perf_sample *sample,
-			   struct machine *machine,
-			   struct thread *thread __used)
+static int process_sched_wakeup_event(struct perf_tool *tool __maybe_unused,
+				      struct event_format *event,
+				      struct perf_sample *sample,
+				      struct machine *machine,
+				      struct thread *thread __maybe_unused)
 {
 	void *data = sample->raw_data;
 	struct trace_wakeup_event wakeup_event;
@@ -1410,10 +1409,10 @@ static char next_shortname2 = '0';
 static int
 map_switch_event(struct trace_switch_event *switch_event,
 		 struct machine *machine,
-		 struct event_format *event __used,
+		 struct event_format *event __maybe_unused,
 		 struct perf_sample *sample)
 {
-	struct thread *sched_out __used, *sched_in;
+	struct thread *sched_out __maybe_unused, *sched_in;
 	int new_shortname;
 	u64 timestamp0, timestamp = sample->time;
 	s64 delta;
@@ -1487,12 +1486,11 @@ map_switch_event(struct trace_switch_event *switch_event,
 	return 0;
 }
 
-static int
-process_sched_switch_event(struct perf_tool *tool __used,
-			   struct event_format *event,
-			   struct perf_sample *sample,
-			   struct machine *machine,
-			   struct thread *thread __used)
+static int process_sched_switch_event(struct perf_tool *tool __maybe_unused,
+				      struct event_format *event,
+				      struct perf_sample *sample,
+				      struct machine *machine,
+				      struct thread *thread __maybe_unused)
 {
 	int this_cpu = sample->cpu, err = 0;
 	void *data = sample->raw_data;
@@ -1523,12 +1521,11 @@ process_sched_switch_event(struct perf_tool *tool __used,
 	return err;
 }
 
-static int
-process_sched_runtime_event(struct perf_tool *tool __used,
-			    struct event_format *event,
-			    struct perf_sample *sample,
-			    struct machine *machine,
-			    struct thread *thread __used)
+static int process_sched_runtime_event(struct perf_tool *tool __maybe_unused,
+				       struct event_format *event,
+				       struct perf_sample *sample,
+				       struct machine *machine,
+				       struct thread *thread __maybe_unused)
 {
 	void *data = sample->raw_data;
 	struct trace_runtime_event runtime_event;
@@ -1545,12 +1542,11 @@ process_sched_runtime_event(struct perf_tool *tool __used,
 	return err;
 }
 
-static int
-process_sched_fork_event(struct perf_tool *tool __used,
-			 struct event_format *event,
-			 struct perf_sample *sample,
-			 struct machine *machine __used,
-			 struct thread *thread __used)
+static int process_sched_fork_event(struct perf_tool *tool __maybe_unused,
+				    struct event_format *event,
+				    struct perf_sample *sample,
+				    struct machine *machine __maybe_unused,
+				    struct thread *thread __maybe_unused)
 {
 	void *data = sample->raw_data;
 	struct trace_fork_event fork_event;
@@ -1569,12 +1565,11 @@ process_sched_fork_event(struct perf_tool *tool __used,
 	return err;
 }
 
-static int
-process_sched_exit_event(struct perf_tool *tool __used,
-			 struct event_format *event,
-			 struct perf_sample *sample __used,
-			 struct machine *machine __used,
-			 struct thread *thread __used)
+static int process_sched_exit_event(struct perf_tool *tool __maybe_unused,
+				    struct event_format *event,
+				    struct perf_sample *sample __maybe_unused,
+				    struct machine *machine __maybe_unused,
+				    struct thread *thread __maybe_unused)
 {
 	if (verbose)
 		printf("sched_exit event %p\n", event);
@@ -1582,12 +1577,11 @@ process_sched_exit_event(struct perf_tool *tool __used,
 	return 0;
 }
 
-static int
-process_sched_migrate_task_event(struct perf_tool *tool __used,
-				 struct event_format *event,
-				 struct perf_sample *sample,
-				 struct machine *machine,
-				 struct thread *thread __used)
+static int process_sched_migrate_task_event(struct perf_tool *tool __maybe_unused,
+					    struct event_format *event,
+					    struct perf_sample *sample,
+					    struct machine *machine,
+					    struct thread *thread __maybe_unused)
 {
 	void *data = sample->raw_data;
 	struct trace_migrate_task_event migrate_task_event;
@@ -1612,8 +1606,8 @@ typedef int (*tracepoint_handler)(struct perf_tool *tool,
 				  struct machine *machine,
 				  struct thread *thread);
 
-static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __used,
-						 union perf_event *event __used,
+static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __maybe_unused,
+						 union perf_event *event __maybe_unused,
 						 struct perf_sample *sample,
 						 struct perf_evsel *evsel,
 						 struct machine *machine)
@@ -1918,7 +1912,7 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
-int cmd_sched(int argc, const char **argv, const char *prefix __used)
+int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	argc = parse_options(argc, argv, sched_options, sched_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);

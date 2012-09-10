@@ -475,7 +475,7 @@ static bool perf_session__read_build_ids(struct perf_session *session, bool with
 	return ret;
 }
 
-static int write_tracing_data(int fd, struct perf_header *h __used,
+static int write_tracing_data(int fd, struct perf_header *h __maybe_unused,
 			    struct perf_evlist *evlist)
 {
 	return read_tracing_data(fd, &evlist->entries);
@@ -483,7 +483,7 @@ static int write_tracing_data(int fd, struct perf_header *h __used,
 
 
 static int write_build_id(int fd, struct perf_header *h,
-			  struct perf_evlist *evlist __used)
+			  struct perf_evlist *evlist __maybe_unused)
 {
 	struct perf_session *session;
 	int err;
@@ -504,8 +504,8 @@ static int write_build_id(int fd, struct perf_header *h,
 	return 0;
 }
 
-static int write_hostname(int fd, struct perf_header *h __used,
-			  struct perf_evlist *evlist __used)
+static int write_hostname(int fd, struct perf_header *h __maybe_unused,
+			  struct perf_evlist *evlist __maybe_unused)
 {
 	struct utsname uts;
 	int ret;
@@ -517,8 +517,8 @@ static int write_hostname(int fd, struct perf_header *h __used,
 	return do_write_string(fd, uts.nodename);
 }
 
-static int write_osrelease(int fd, struct perf_header *h __used,
-			   struct perf_evlist *evlist __used)
+static int write_osrelease(int fd, struct perf_header *h __maybe_unused,
+			   struct perf_evlist *evlist __maybe_unused)
 {
 	struct utsname uts;
 	int ret;
@@ -530,8 +530,8 @@ static int write_osrelease(int fd, struct perf_header *h __used,
 	return do_write_string(fd, uts.release);
 }
 
-static int write_arch(int fd, struct perf_header *h __used,
-		      struct perf_evlist *evlist __used)
+static int write_arch(int fd, struct perf_header *h __maybe_unused,
+		      struct perf_evlist *evlist __maybe_unused)
 {
 	struct utsname uts;
 	int ret;
@@ -543,14 +543,14 @@ static int write_arch(int fd, struct perf_header *h __used,
 	return do_write_string(fd, uts.machine);
 }
 
-static int write_version(int fd, struct perf_header *h __used,
-			 struct perf_evlist *evlist __used)
+static int write_version(int fd, struct perf_header *h __maybe_unused,
+			 struct perf_evlist *evlist __maybe_unused)
 {
 	return do_write_string(fd, perf_version_string);
 }
 
-static int write_cpudesc(int fd, struct perf_header *h __used,
-		       struct perf_evlist *evlist __used)
+static int write_cpudesc(int fd, struct perf_header *h __maybe_unused,
+		       struct perf_evlist *evlist __maybe_unused)
 {
 #ifndef CPUINFO_PROC
 #define CPUINFO_PROC NULL
@@ -608,8 +608,8 @@ done:
 	return ret;
 }
 
-static int write_nrcpus(int fd, struct perf_header *h __used,
-			struct perf_evlist *evlist __used)
+static int write_nrcpus(int fd, struct perf_header *h __maybe_unused,
+			struct perf_evlist *evlist __maybe_unused)
 {
 	long nr;
 	u32 nrc, nra;
@@ -634,7 +634,7 @@ static int write_nrcpus(int fd, struct perf_header *h __used,
 	return do_write(fd, &nra, sizeof(nra));
 }
 
-static int write_event_desc(int fd, struct perf_header *h __used,
+static int write_event_desc(int fd, struct perf_header *h __maybe_unused,
 			    struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
@@ -691,8 +691,8 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 	return 0;
 }
 
-static int write_cmdline(int fd, struct perf_header *h __used,
-			 struct perf_evlist *evlist __used)
+static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
+			 struct perf_evlist *evlist __maybe_unused)
 {
 	char buf[MAXPATHLEN];
 	char proc[32];
@@ -860,8 +860,8 @@ static struct cpu_topo *build_cpu_topology(void)
 	return tp;
 }
 
-static int write_cpu_topology(int fd, struct perf_header *h __used,
-			  struct perf_evlist *evlist __used)
+static int write_cpu_topology(int fd, struct perf_header *h __maybe_unused,
+			  struct perf_evlist *evlist __maybe_unused)
 {
 	struct cpu_topo *tp;
 	u32 i;
@@ -896,8 +896,8 @@ done:
 
 
 
-static int write_total_mem(int fd, struct perf_header *h __used,
-			  struct perf_evlist *evlist __used)
+static int write_total_mem(int fd, struct perf_header *h __maybe_unused,
+			  struct perf_evlist *evlist __maybe_unused)
 {
 	char *buf = NULL;
 	FILE *fp;
@@ -982,8 +982,8 @@ done:
 	return ret;
 }
 
-static int write_numa_topology(int fd, struct perf_header *h __used,
-			  struct perf_evlist *evlist __used)
+static int write_numa_topology(int fd, struct perf_header *h __maybe_unused,
+			  struct perf_evlist *evlist __maybe_unused)
 {
 	char *buf = NULL;
 	size_t len = 0;
@@ -1043,8 +1043,8 @@ done:
  * };
  */
 
-static int write_pmu_mappings(int fd, struct perf_header *h __used,
-			      struct perf_evlist *evlist __used)
+static int write_pmu_mappings(int fd, struct perf_header *h __maybe_unused,
+			      struct perf_evlist *evlist __maybe_unused)
 {
 	struct perf_pmu *pmu = NULL;
 	off_t offset = lseek(fd, 0, SEEK_CUR);
@@ -1074,13 +1074,14 @@ static int write_pmu_mappings(int fd, struct perf_header *h __used,
  * default get_cpuid(): nothing gets recorded
  * actual implementation must be in arch/$(ARCH)/util/header.c
  */
-int __attribute__((weak)) get_cpuid(char *buffer __used, size_t sz __used)
+int __attribute__ ((weak)) get_cpuid(char *buffer __maybe_unused,
+				     size_t sz __maybe_unused)
 {
 	return -1;
 }
 
-static int write_cpuid(int fd, struct perf_header *h __used,
-		       struct perf_evlist *evlist __used)
+static int write_cpuid(int fd, struct perf_header *h __maybe_unused,
+		       struct perf_evlist *evlist __maybe_unused)
 {
 	char buffer[64];
 	int ret;
@@ -1094,8 +1095,9 @@ write_it:
 	return do_write_string(fd, buffer);
 }
 
-static int write_branch_stack(int fd __used, struct perf_header *h __used,
-		       struct perf_evlist *evlist __used)
+static int write_branch_stack(int fd __maybe_unused,
+			      struct perf_header *h __maybe_unused,
+		       struct perf_evlist *evlist __maybe_unused)
 {
 	return 0;
 }
@@ -1372,7 +1374,8 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	free_event_desc(events);
 }
 
-static void print_total_mem(struct perf_header *h __used, int fd, FILE *fp)
+static void print_total_mem(struct perf_header *h __maybe_unused, int fd,
+			    FILE *fp)
 {
 	uint64_t mem;
 	ssize_t ret;
@@ -1390,7 +1393,8 @@ error:
 	fprintf(fp, "# total memory : unknown\n");
 }
 
-static void print_numa_topology(struct perf_header *h __used, int fd, FILE *fp)
+static void print_numa_topology(struct perf_header *h __maybe_unused, int fd,
+				FILE *fp)
 {
 	ssize_t ret;
 	u32 nr, c, i;
@@ -1450,7 +1454,8 @@ static void print_cpuid(struct perf_header *ph, int fd, FILE *fp)
 	free(str);
 }
 
-static void print_branch_stack(struct perf_header *ph __used, int fd __used,
+static void print_branch_stack(struct perf_header *ph __maybe_unused,
+			       int fd __maybe_unused,
 			       FILE *fp)
 {
 	fprintf(fp, "# contains samples with branch stack\n");
@@ -1649,9 +1654,10 @@ out:
 	return err;
 }
 
-static int process_tracing_data(struct perf_file_section *section __unused,
-			      struct perf_header *ph __unused,
-			      int feat __unused, int fd, void *data)
+static int process_tracing_data(struct perf_file_section *section
+				__maybe_unused,
+			      struct perf_header *ph __maybe_unused,
+			      int feat __maybe_unused, int fd, void *data)
 {
 	trace_report(fd, data, false);
 	return 0;
@@ -1659,7 +1665,8 @@ static int process_tracing_data(struct perf_file_section *section __unused,
 
 static int process_build_id(struct perf_file_section *section,
 			    struct perf_header *ph,
-			    int feat __unused, int fd, void *data __used)
+			    int feat __maybe_unused, int fd,
+			    void *data __maybe_unused)
 {
 	if (perf_header__read_build_ids(ph, fd, section->offset, section->size))
 		pr_debug("Failed to read buildids, continuing...\n");
@@ -1698,9 +1705,9 @@ perf_evlist__set_event_name(struct perf_evlist *evlist, struct perf_evsel *event
 }
 
 static int
-process_event_desc(struct perf_file_section *section __unused,
-		   struct perf_header *header, int feat __unused, int fd,
-		   void *data __used)
+process_event_desc(struct perf_file_section *section __maybe_unused,
+		   struct perf_header *header, int feat __maybe_unused, int fd,
+		   void *data __maybe_unused)
 {
 	struct perf_session *session = container_of(header, struct perf_session, header);
 	struct perf_evsel *evsel, *events = read_event_desc(header, fd);
@@ -2596,7 +2603,7 @@ int perf_event__synthesize_event_types(struct perf_tool *tool,
 	return err;
 }
 
-int perf_event__process_event_type(struct perf_tool *tool __unused,
+int perf_event__process_event_type(struct perf_tool *tool __maybe_unused,
 				   union perf_event *event)
 {
 	if (perf_header__push_event(event->event_type.event_type.event_id,
@@ -2613,7 +2620,7 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
 	union perf_event ev;
 	struct tracing_data *tdata;
 	ssize_t size = 0, aligned_size = 0, padding;
-	int err __used = 0;
+	int err __maybe_unused = 0;
 
 	/*
 	 * We are going to store the size of the data followed
@@ -2712,7 +2719,7 @@ int perf_event__synthesize_build_id(struct perf_tool *tool,
 	return err;
 }
 
-int perf_event__process_build_id(struct perf_tool *tool __used,
+int perf_event__process_build_id(struct perf_tool *tool __maybe_unused,
 				 union perf_event *event,
 				 struct perf_session *session)
 {

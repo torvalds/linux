@@ -102,7 +102,7 @@ static int __cmd_buildid_list(int argc, const char **argv)
 	return cmd_buildid_list(i, rec_argv, NULL);
 }
 
-int cmd_kvm(int argc, const char **argv, const char *prefix __used)
+int cmd_kvm(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	perf_host  = 0;
 	perf_guest = 1;

@@ -41,7 +41,7 @@
 #include "symbol.h"
 #include "thread.h"
 #include "debugfs.h"
-#include "trace-event.h"	/* For __unused */
+#include "trace-event.h"	/* For __maybe_unused */
 #include "probe-event.h"
 #include "probe-finder.h"
 #include "session.h"
@@ -647,8 +647,8 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 }
 
 static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
-				struct probe_trace_event **tevs __unused,
-				int max_tevs __unused, const char *target)
+				struct probe_trace_event **tevs __maybe_unused,
+				int max_tevs __maybe_unused, const char *target)
 {
 	if (perf_probe_event_need_dwarf(pev)) {
 		pr_warning("Debuginfo-analysis is not supported.\n");
@@ -661,17 +661,18 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	return 0;
 }
 
-int show_line_range(struct line_range *lr __unused, const char *module __unused)
+int show_line_range(struct line_range *lr __maybe_unused,
+		    const char *module __maybe_unused)
 {
 	pr_warning("Debuginfo-analysis is not supported.\n");
 	return -ENOSYS;
 }
 
-int show_available_vars(struct perf_probe_event *pevs __unused,
-			int npevs __unused, int max_vls __unused,
-			const char *module __unused,
-			struct strfilter *filter __unused,
-			bool externs __unused)
+int show_available_vars(struct perf_probe_event *pevs __maybe_unused,
+			int npevs __maybe_unused, int max_vls __maybe_unused,
+			const char *module __maybe_unused,
+			struct strfilter *filter __maybe_unused,
+			bool externs __maybe_unused)
 {
 	pr_warning("Debuginfo-analysis is not supported.\n");
 	return -ENOSYS;
@@ -2183,7 +2184,7 @@ static struct strfilter *available_func_filter;
  * If a symbol corresponds to a function with global binding and
  * matches filter return 0. For all others return 1.
  */
-static int filter_available_functions(struct map *map __unused,
+static int filter_available_functions(struct map *map __maybe_unused,
 				      struct symbol *sym)
 {
 	if (sym->binding == STB_GLOBAL &&

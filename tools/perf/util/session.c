@@ -401,49 +401,53 @@ int machine__resolve_callchain(struct machine *machine,
 
 }
 
-static int process_event_synth_tracing_data_stub(union perf_event *event __used,
-						 struct perf_session *session __used)
+static int process_event_synth_tracing_data_stub(union perf_event *event
+						 __maybe_unused,
+						 struct perf_session *session
+						__maybe_unused)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
 }
 
-static int process_event_synth_attr_stub(union perf_event *event __used,
-					 struct perf_evlist **pevlist __used)
+static int process_event_synth_attr_stub(union perf_event *event __maybe_unused,
+					 struct perf_evlist **pevlist
+					 __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
 }
 
-static int process_event_sample_stub(struct perf_tool *tool __used,
-				     union perf_event *event __used,
-				     struct perf_sample *sample __used,
-				     struct perf_evsel *evsel __used,
-				     struct machine *machine __used)
+static int process_event_sample_stub(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event __maybe_unused,
+				     struct perf_sample *sample __maybe_unused,
+				     struct perf_evsel *evsel __maybe_unused,
+				     struct machine *machine __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
 }
 
-static int process_event_stub(struct perf_tool *tool __used,
-			      union perf_event *event __used,
-			      struct perf_sample *sample __used,
-			      struct machine *machine __used)
+static int process_event_stub(struct perf_tool *tool __maybe_unused,
+			      union perf_event *event __maybe_unused,
+			      struct perf_sample *sample __maybe_unused,
+			      struct machine *machine __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
 }
 
-static int process_finished_round_stub(struct perf_tool *tool __used,
-				       union perf_event *event __used,
-				       struct perf_session *perf_session __used)
+static int process_finished_round_stub(struct perf_tool *tool __maybe_unused,
+				       union perf_event *event __maybe_unused,
+				       struct perf_session *perf_session
+				       __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
 }
 
-static int process_event_type_stub(struct perf_tool *tool __used,
-				   union perf_event *event __used)
+static int process_event_type_stub(struct perf_tool *tool __maybe_unused,
+				   union perf_event *event __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
@@ -520,7 +524,7 @@ static void swap_sample_id_all(union perf_event *event, void *data)
 }
 
 static void perf_event__all64_swap(union perf_event *event,
-				   bool sample_id_all __used)
+				   bool sample_id_all __maybe_unused)
 {
 	struct perf_event_header *hdr = &event->header;
 	mem_bswap_64(hdr + 1, event->header.size - sizeof(*hdr));
@@ -631,7 +635,7 @@ void perf_event__attr_swap(struct perf_event_attr *attr)
 }
 
 static void perf_event__hdr_attr_swap(union perf_event *event,
-				      bool sample_id_all __used)
+				      bool sample_id_all __maybe_unused)
 {
 	size_t size;
 
@@ -643,14 +647,14 @@ static void perf_event__hdr_attr_swap(union perf_event *event,
 }
 
 static void perf_event__event_type_swap(union perf_event *event,
-					bool sample_id_all __used)
+					bool sample_id_all __maybe_unused)
 {
 	event->event_type.event_type.event_id =
 		bswap_64(event->event_type.event_type.event_id);
 }
 
 static void perf_event__tracing_data_swap(union perf_event *event,
-					  bool sample_id_all __used)
+					  bool sample_id_all __maybe_unused)
 {
 	event->tracing_data.size = bswap_32(event->tracing_data.size);
 }
@@ -791,7 +795,7 @@ static int flush_sample_queue(struct perf_session *s,
  *      etc...
  */
 static int process_finished_round(struct perf_tool *tool,
-				  union perf_event *event __used,
+				  union perf_event *event __maybe_unused,
 				  struct perf_session *session)
 {
 	int ret = flush_sample_queue(session, tool);

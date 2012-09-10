@@ -391,7 +391,7 @@ sep_slash_dc: '/' | ':' |
 
 %%
 
-void parse_events_error(void *data __used, void *scanner __used,
-			char const *msg __used)
+void parse_events_error(void *data __maybe_unused, void *scanner __maybe_unused,
+			char const *msg __maybe_unused)
 {
 }

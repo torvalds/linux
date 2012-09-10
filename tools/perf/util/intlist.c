@@ -11,7 +11,7 @@
 
 #include "intlist.h"
 
-static struct rb_node *intlist__node_new(struct rblist *rblist __used,
+static struct rb_node *intlist__node_new(struct rblist *rblist __maybe_unused,
 					 const void *entry)
 {
 	int i = (int)((long)entry);
@@ -31,7 +31,7 @@ static void int_node__delete(struct int_node *ilist)
 	free(ilist);
 }
 
-static void intlist__node_delete(struct rblist *rblist __used,
+static void intlist__node_delete(struct rblist *rblist __maybe_unused,
 				 struct rb_node *rb_node)
 {
 	struct int_node *node = container_of(rb_node, struct int_node, rb_node);

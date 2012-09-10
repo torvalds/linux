@@ -92,8 +92,8 @@ static int write_output(struct perf_record *rec, void *buf, size_t size)
 
 static int process_synthesized_event(struct perf_tool *tool,
 				     union perf_event *event,
-				     struct perf_sample *sample __used,
-				     struct machine *machine __used)
+				     struct perf_sample *sample __maybe_unused,
+				     struct machine *machine __maybe_unused)
 {
 	struct perf_record *rec = container_of(tool, struct perf_record, tool);
 	if (write_output(rec, event, event->header.size) < 0)
@@ -159,7 +159,7 @@ static void sig_handler(int sig)
 	signr = sig;
 }
 
-static void perf_record__sig_exit(int exit_status __used, void *arg)
+static void perf_record__sig_exit(int exit_status __maybe_unused, void *arg)
 {
 	struct perf_record *rec = arg;
 	int status;
@@ -827,7 +827,7 @@ static int get_stack_size(char *str, unsigned long *_size)
 #endif /* !NO_LIBUNWIND_SUPPORT */
 
 static int
-parse_callchain_opt(const struct option *opt __used, const char *arg,
+parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 		    int unset)
 {
 	struct perf_record *rec = (struct perf_record *)opt->value;
@@ -1003,7 +1003,7 @@ const struct option record_options[] = {
 	OPT_END()
 };
 
-int cmd_record(int argc, const char **argv, const char *prefix __used)
+int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int err = -ENOMEM;
 	struct perf_evsel *pos;

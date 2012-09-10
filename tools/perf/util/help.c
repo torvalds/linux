@@ -332,7 +332,8 @@ const char *help_unknown_cmd(const char *cmd)
 	exit(1);
 }
 
-int cmd_version(int argc __used, const char **argv __used, const char *prefix __used)
+int cmd_version(int argc __maybe_unused, const char **argv __maybe_unused,
+		const char *prefix __maybe_unused)
 {
 	printf("perf version %s\n", perf_version_string);
 	return 0;

@@ -430,9 +430,9 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 	printf("\n");
 }
 
-static int default_start_script(const char *script __unused,
-				int argc __unused,
-				const char **argv __unused)
+static int default_start_script(const char *script __maybe_unused,
+				int argc __maybe_unused,
+				const char **argv __maybe_unused)
 {
 	return 0;
 }
@@ -442,8 +442,8 @@ static int default_stop_script(void)
 	return 0;
 }
 
-static int default_generate_script(struct pevent *pevent __unused,
-				   const char *outfile __unused)
+static int default_generate_script(struct pevent *pevent __maybe_unused,
+				   const char *outfile __maybe_unused)
 {
 	return 0;
 }
@@ -474,7 +474,7 @@ static int cleanup_scripting(void)
 
 static const char *input_name;
 
-static int process_sample_event(struct perf_tool *tool __used,
+static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
@@ -534,7 +534,7 @@ static struct perf_tool perf_script = {
 
 extern volatile int session_done;
 
-static void sig_handler(int sig __unused)
+static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;
 }
@@ -644,8 +644,8 @@ static void list_available_languages(void)
 	fprintf(stderr, "\n");
 }
 
-static int parse_scriptname(const struct option *opt __used,
-			    const char *str, int unset __used)
+static int parse_scriptname(const struct option *opt __maybe_unused,
+			    const char *str, int unset __maybe_unused)
 {
 	char spec[PATH_MAX];
 	const char *script, *ext;
@@ -690,8 +690,8 @@ static int parse_scriptname(const struct option *opt __used,
 	return 0;
 }
 
-static int parse_output_fields(const struct option *opt __used,
-			    const char *arg, int unset __used)
+static int parse_output_fields(const struct option *opt __maybe_unused,
+			    const char *arg, int unset __maybe_unused)
 {
 	char *tok;
 	int i, imax = sizeof(all_output_options) / sizeof(struct output_option);
@@ -982,8 +982,9 @@ static char *get_script_root(struct dirent *script_dirent, const char *suffix)
 	return script_root;
 }
 
-static int list_available_scripts(const struct option *opt __used,
-				  const char *s __used, int unset __used)
+static int list_available_scripts(const struct option *opt __maybe_unused,
+				  const char *s __maybe_unused,
+				  int unset __maybe_unused)
 {
 	struct dirent *script_next, *lang_next, script_dirent, lang_dirent;
 	char scripts_path[MAXPATHLEN];
@@ -1172,7 +1173,7 @@ static int have_cmd(int argc, const char **argv)
 	return 0;
 }
 
-int cmd_script(int argc, const char **argv, const char *prefix __used)
+int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	char *rec_script_path = NULL;
 	char *rep_script_path = NULL;

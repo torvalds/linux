@@ -320,7 +320,7 @@ static int perf_evsel__process_kmem_event(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int process_sample_event(struct perf_tool *tool __used,
+static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
@@ -672,8 +672,8 @@ static int setup_sorting(struct list_head *sort_list, const char *arg)
 	return 0;
 }
 
-static int parse_sort_opt(const struct option *opt __used,
-			  const char *arg, int unset __used)
+static int parse_sort_opt(const struct option *opt __maybe_unused,
+			  const char *arg, int unset __maybe_unused)
 {
 	if (!arg)
 		return -1;
@@ -686,22 +686,24 @@ static int parse_sort_opt(const struct option *opt __used,
 	return 0;
 }
 
-static int parse_caller_opt(const struct option *opt __used,
-			  const char *arg __used, int unset __used)
+static int parse_caller_opt(const struct option *opt __maybe_unused,
+			    const char *arg __maybe_unused,
+			    int unset __maybe_unused)
 {
 	caller_flag = (alloc_flag + 1);
 	return 0;
 }
 
-static int parse_alloc_opt(const struct option *opt __used,
-			  const char *arg __used, int unset __used)
+static int parse_alloc_opt(const struct option *opt __maybe_unused,
+			   const char *arg __maybe_unused,
+			   int unset __maybe_unused)
 {
 	alloc_flag = (caller_flag + 1);
 	return 0;
 }
 
-static int parse_line_opt(const struct option *opt __used,
-			  const char *arg, int unset __used)
+static int parse_line_opt(const struct option *opt __maybe_unused,
+			  const char *arg, int unset __maybe_unused)
 {
 	int lines;
 
@@ -771,7 +773,7 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
-int cmd_kmem(int argc, const char **argv, const char *prefix __used)
+int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	argc = parse_options(argc, argv, kmem_options, kmem_usage, 0);
 

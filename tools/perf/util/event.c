@@ -514,9 +514,9 @@ size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp)
 	return fprintf(fp, ": %s:%d\n", event->comm.comm, event->comm.tid);
 }
 
-int perf_event__process_comm(struct perf_tool *tool __used,
+int perf_event__process_comm(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_sample *sample __used,
+			     struct perf_sample *sample __maybe_unused,
 			     struct machine *machine)
 {
 	struct thread *thread = machine__findnew_thread(machine, event->comm.tid);
@@ -532,10 +532,10 @@ int perf_event__process_comm(struct perf_tool *tool __used,
 	return 0;
 }
 
-int perf_event__process_lost(struct perf_tool *tool __used,
+int perf_event__process_lost(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_sample *sample __used,
-			     struct machine *machine __used)
+			     struct perf_sample *sample __maybe_unused,
+			     struct machine *machine __maybe_unused)
 {
 	dump_printf(": id:%" PRIu64 ": lost:%" PRIu64 "\n",
 		    event->lost.id, event->lost.lost);
@@ -555,7 +555,8 @@ static void perf_event__set_kernel_mmap_len(union perf_event *event,
 		maps[MAP__FUNCTION]->end = ~0ULL;
 }
 
-static int perf_event__process_kernel_mmap(struct perf_tool *tool __used,
+static int perf_event__process_kernel_mmap(struct perf_tool *tool
+					   __maybe_unused,
 					   union perf_event *event,
 					   struct machine *machine)
 {
@@ -657,7 +658,7 @@ size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
 
 int perf_event__process_mmap(struct perf_tool *tool,
 			     union perf_event *event,
-			     struct perf_sample *sample __used,
+			     struct perf_sample *sample __maybe_unused,
 			     struct machine *machine)
 {
 	struct thread *thread;
@@ -701,9 +702,9 @@ size_t perf_event__fprintf_task(union perf_event *event, FILE *fp)
 		       event->fork.ppid, event->fork.ptid);
 }
 
-int perf_event__process_task(struct perf_tool *tool __used,
+int perf_event__process_task(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_sample *sample __used,
+			     struct perf_sample *sample __maybe_unused,
 			      struct machine *machine)
 {
 	struct thread *thread = machine__findnew_thread(machine, event->fork.tid);

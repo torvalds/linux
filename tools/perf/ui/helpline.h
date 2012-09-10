@@ -24,8 +24,8 @@ void ui_helpline__puts(const char *msg);
 extern char ui_helpline__current[512];
 
 #ifdef NO_NEWT_SUPPORT
-static inline int ui_helpline__show_help(const char *format __used,
-					 va_list ap __used)
+static inline int ui_helpline__show_help(const char *format __maybe_unused,
+					 va_list ap __maybe_unused)
 {
 	return 0;
 }
@@ -35,8 +35,8 @@ int ui_helpline__show_help(const char *format, va_list ap);
 #endif /* NO_NEWT_SUPPORT */
 
 #ifdef NO_GTK2_SUPPORT
-static inline int perf_gtk__show_helpline(const char *format __used,
-					  va_list ap __used)
+static inline int perf_gtk__show_helpline(const char *format __maybe_unused,
+					  va_list ap __maybe_unused)
 {
 	return 0;
 }

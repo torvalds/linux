@@ -569,7 +569,7 @@ static int test__group2(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__group3(struct perf_evlist *evlist __used)
+static int test__group3(struct perf_evlist *evlist __maybe_unused)
 {
 	struct perf_evsel *evsel, *leader;
 
@@ -648,7 +648,7 @@ static int test__group3(struct perf_evlist *evlist __used)
 	return 0;
 }
 
-static int test__group4(struct perf_evlist *evlist __used)
+static int test__group4(struct perf_evlist *evlist __maybe_unused)
 {
 	struct perf_evsel *evsel, *leader;
 
@@ -684,7 +684,7 @@ static int test__group4(struct perf_evlist *evlist __used)
 	return 0;
 }
 
-static int test__group5(struct perf_evlist *evlist __used)
+static int test__group5(struct perf_evlist *evlist __maybe_unused)
 {
 	struct perf_evsel *evsel, *leader;
 

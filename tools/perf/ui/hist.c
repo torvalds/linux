@@ -13,7 +13,7 @@ static int hpp__header_overhead(struct perf_hpp *hpp)
 	return scnprintf(hpp->buf, hpp->size, fmt);
 }
 
-static int hpp__width_overhead(struct perf_hpp *hpp __used)
+static int hpp__width_overhead(struct perf_hpp *hpp __maybe_unused)
 {
 	return 8;
 }
@@ -62,7 +62,7 @@ static int hpp__header_overhead_sys(struct perf_hpp *hpp)
 	return scnprintf(hpp->buf, hpp->size, fmt, "sys");
 }
 
-static int hpp__width_overhead_sys(struct perf_hpp *hpp __used)
+static int hpp__width_overhead_sys(struct perf_hpp *hpp __maybe_unused)
 {
 	return 6;
 }
@@ -88,7 +88,7 @@ static int hpp__header_overhead_us(struct perf_hpp *hpp)
 	return scnprintf(hpp->buf, hpp->size, fmt, "user");
 }
 
-static int hpp__width_overhead_us(struct perf_hpp *hpp __used)
+static int hpp__width_overhead_us(struct perf_hpp *hpp __maybe_unused)
 {
 	return 6;
 }
@@ -112,7 +112,7 @@ static int hpp__header_overhead_guest_sys(struct perf_hpp *hpp)
 	return scnprintf(hpp->buf, hpp->size, "guest sys");
 }
 
-static int hpp__width_overhead_guest_sys(struct perf_hpp *hpp __used)
+static int hpp__width_overhead_guest_sys(struct perf_hpp *hpp __maybe_unused)
 {
 	return 9;
 }
@@ -138,7 +138,7 @@ static int hpp__header_overhead_guest_us(struct perf_hpp *hpp)
 	return scnprintf(hpp->buf, hpp->size, "guest usr");
 }
 
-static int hpp__width_overhead_guest_us(struct perf_hpp *hpp __used)
+static int hpp__width_overhead_guest_us(struct perf_hpp *hpp __maybe_unused)
 {
 	return 9;
 }
@@ -166,7 +166,7 @@ static int hpp__header_samples(struct perf_hpp *hpp)
 	return scnprintf(hpp->buf, hpp->size, fmt, "Samples");
 }
 
-static int hpp__width_samples(struct perf_hpp *hpp __used)
+static int hpp__width_samples(struct perf_hpp *hpp __maybe_unused)
 {
 	return 11;
 }
@@ -185,7 +185,7 @@ static int hpp__header_period(struct perf_hpp *hpp)
 	return scnprintf(hpp->buf, hpp->size, fmt, "Period");
 }
 
-static int hpp__width_period(struct perf_hpp *hpp __used)
+static int hpp__width_period(struct perf_hpp *hpp __maybe_unused)
 {
 	return 12;
 }
@@ -204,7 +204,7 @@ static int hpp__header_delta(struct perf_hpp *hpp)
 	return scnprintf(hpp->buf, hpp->size, fmt, "Delta");
 }
 
-static int hpp__width_delta(struct perf_hpp *hpp __used)
+static int hpp__width_delta(struct perf_hpp *hpp __maybe_unused)
 {
 	return 7;
 }
@@ -238,12 +238,13 @@ static int hpp__header_displ(struct perf_hpp *hpp)
 	return scnprintf(hpp->buf, hpp->size, "Displ.");
 }
 
-static int hpp__width_displ(struct perf_hpp *hpp __used)
+static int hpp__width_displ(struct perf_hpp *hpp __maybe_unused)
 {
 	return 6;
 }
 
-static int hpp__entry_displ(struct perf_hpp *hpp, struct hist_entry *he __used)
+static int hpp__entry_displ(struct perf_hpp *hpp,
+			    struct hist_entry *he __maybe_unused)
 {
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%6.6s";
 	char buf[32] = " ";

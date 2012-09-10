@@ -394,7 +394,7 @@ void hist_entry__free(struct hist_entry *he)
  * collapse the histogram
  */
 
-static bool hists__collapse_insert_entry(struct hists *hists __used,
+static bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
 					 struct rb_root *root,
 					 struct hist_entry *he)
 {

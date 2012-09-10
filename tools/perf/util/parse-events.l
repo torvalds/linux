@@ -207,7 +207,7 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 
 %%
 
-int parse_events_wrap(void *scanner __used)
+int parse_events_wrap(void *scanner __maybe_unused)
 {
 	return 1;
 }

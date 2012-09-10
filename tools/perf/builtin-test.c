@@ -18,7 +18,8 @@
 
 #include <sys/mman.h>
 
-static int vmlinux_matches_kallsyms_filter(struct map *map __used, struct symbol *sym)
+static int vmlinux_matches_kallsyms_filter(struct map *map __maybe_unused,
+					   struct symbol *sym)
 {
 	bool *visited = symbol__priv(sym);
 	*visited = true;
@@ -996,7 +997,9 @@ static u64 mmap_read_self(void *addr)
 /*
  * If the RDPMC instruction faults then signal this back to the test parent task:
  */
-static void segfault_handler(int sig __used, siginfo_t *info __used, void *uc __used)
+static void segfault_handler(int sig __maybe_unused,
+			     siginfo_t *info __maybe_unused,
+			     void *uc __maybe_unused)
 {
 	exit(-1);
 }
@@ -1315,7 +1318,7 @@ static int perf_test__list(int argc, const char **argv)
 	return 0;
 }
 
-int cmd_test(int argc, const char **argv, const char *prefix __used)
+int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const test_usage[] = {
 	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",
