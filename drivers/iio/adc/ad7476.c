@@ -258,6 +258,8 @@ static const struct spi_device_id ad7476_id[] = {
 	{"ad7478", ID_AD7468},
 	{"ad7478a", ID_AD7468},
 	{"ad7495", ID_AD7495},
+	{"ad7910", ID_AD7467},
+	{"ad7920", ID_AD7466},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7476_id);
@@ -274,5 +276,5 @@ static struct spi_driver ad7476_driver = {
 module_spi_driver(ad7476_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("Analog Devices AD7475/6/7/8(A) AD7466/7/8 ADC");
+MODULE_DESCRIPTION("Analog Devices AD7476 and similar 1-channel ADCs");
 MODULE_LICENSE("GPL v2");
