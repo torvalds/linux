@@ -43,13 +43,6 @@ struct XGI_LCDDesStruct {
 	unsigned short LCDVRS;
 };
 
-struct XGI_LCDDataTablStruct {
-	unsigned char  PANELID;
-	unsigned short MASK;
-	unsigned short CAP;
-	unsigned short DATAPTR;
-};
-
 struct XGI330_LCDDataDesStruct2 {
 	unsigned short LCDHDES;
 	unsigned short LCDHRS;
