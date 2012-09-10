@@ -290,6 +290,33 @@ void store_cpu_topology(unsigned int cpuid)
 }
 
 /*
+ * cluster_to_logical_mask - return cpu logical mask of CPUs in a cluster
+ * @socket_id:		cluster HW identifier
+ * @cluster_mask:	the cpumask location to be initialized, modified by the
+ *			function only if return value == 0
+ *
+ * Return:
+ *
+ * 0 on success
+ * -EINVAL if cluster_mask is NULL or there is no record matching socket_id
+ */
+int cluster_to_logical_mask(unsigned int socket_id, cpumask_t *cluster_mask)
+{
+	int cpu;
+
+	if (!cluster_mask)
+		return -EINVAL;
+
+	for_each_online_cpu(cpu)
+		if (socket_id == topology_physical_package_id(cpu)) {
+			cpumask_copy(cluster_mask, topology_core_cpumask(cpu));
+			return 0;
+		}
+
+	return -EINVAL;
+}
+
+/*
  * init_cpu_topology is called at boot when only one cpu is running
  * which prevent simultaneous write access to cpu_topology array
  */
