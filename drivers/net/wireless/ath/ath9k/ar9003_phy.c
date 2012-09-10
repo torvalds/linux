@@ -1312,10 +1312,10 @@ static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 	ar9003_hw_prog_ini(ah, &ah->iniMac[ATH_INI_POST], modesIndex);
 	ar9003_hw_prog_ini(ah, &ah->iniBB[ATH_INI_POST], modesIndex);
 	ar9003_hw_prog_ini(ah, &ah->iniRadio[ATH_INI_POST], modesIndex);
+
 	if (AR_SREV_9462_20(ah))
-		ar9003_hw_prog_ini(ah,
-				&ah->ini_radio_post_sys2ant,
-				modesIndex);
+		ar9003_hw_prog_ini(ah, &ah->ini_radio_post_sys2ant,
+				   modesIndex);
 
 	REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
 
@@ -1325,6 +1325,9 @@ static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 	 */
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		REG_WRITE_ARRAY(&ah->iniModesFastClock, modesIndex, regWrites);
+
+	if (AR_SREV_9565(ah))
+		REG_WRITE_ARRAY(&ah->iniModesFastClock, 1, regWrites);
 
 	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
