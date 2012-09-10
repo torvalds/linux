@@ -116,6 +116,33 @@
 	};
 };
 
+&omap4_pmx_core {
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			0xd8 0x118	/* uart2_cts.uart2_cts INPUT_PULLUP | MODE0 */
+			0xda 0		/* uart2_rts.uart2_rts OUTPUT | MODE0 */
+			0xdc 0x118	/* uart2_rx.uart2_rx INPUT_PULLUP | MODE0 */
+			0xde 0		/* uart2_tx.uart2_tx OUTPUT | MODE0 */
+		>;
+	};
+
+	uart3_pins: pinmux_uart3_pins {
+		pinctrl-single,pins = <
+			0x100 0x118	/* uart3_cts_rctx.uart3_cts_rctx INPUT_PULLUP | MODE0 */
+			0x102 0		/* uart3_rts_sd.uart3_rts_sd OUTPUT | MODE0 */
+			0x104 0x100	/* uart3_rx_irrx.uart3_rx_irrx INPUT | MODE0 */
+			0x106 0		/* uart3_tx_irtx.uart3_tx_irtx OUTPUT | MODE0 */
+		>;
+	};
+
+	uart4_pins: pinmux_uart4_pins {
+		pinctrl-single,pins = <
+			0x11c 0x100	/* uart4_rx.uart4_rx INPUT | MODE0 */
+			0x11e 0		/* uart4_tx.uart4_tx OUTPUT | MODE0 */
+		>;
+	};
+};
+
 &i2c1 {
 	clock-frequency = <400000>;
 
@@ -306,4 +333,19 @@
 			0x07060160	/* KEY_OK */
 			0x0707006c>;	/* KEY_DOWN */
 	linux,input-no-autorepeat;
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_pins>;
 };
