@@ -825,22 +825,11 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 	sta32x->codec = codec;
 	sta32x->pdata = dev_get_platdata(codec->dev);
 
-	/* regulators */
-	for (i = 0; i < ARRAY_SIZE(sta32x->supplies); i++)
-		sta32x->supplies[i].supply = sta32x_supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(sta32x->supplies),
-				 sta32x->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		goto err;
-	}
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(sta32x->supplies),
 				    sta32x->supplies);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
+		return ret;
 	}
 
 	/* Tell ASoC what kind of I/O to use to read the registers.  ASoC will
@@ -849,7 +838,7 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to set cache I/O (ret=%i)\n", ret);
-		return ret;
+		goto err;
 	}
 
 	/* Chip documentation explicitly requires that the reset values
@@ -915,9 +904,8 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 
 	return 0;
 
-err_get:
-	regulator_bulk_free(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 err:
+	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 	return ret;
 }
 
@@ -928,7 +916,6 @@ static int sta32x_remove(struct snd_soc_codec *codec)
 	sta32x_watchdog_stop(sta32x);
 	sta32x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
-	regulator_bulk_free(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 
 	return 0;
 }
@@ -966,12 +953,23 @@ static __devinit int sta32x_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct sta32x_priv *sta32x;
-	int ret;
+	int ret, i;
 
 	sta32x = devm_kzalloc(&i2c->dev, sizeof(struct sta32x_priv),
 			      GFP_KERNEL);
 	if (!sta32x)
 		return -ENOMEM;
+
+	/* regulators */
+	for (i = 0; i < ARRAY_SIZE(sta32x->supplies); i++)
+		sta32x->supplies[i].supply = sta32x_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(sta32x->supplies),
+				      sta32x->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
 
 	i2c_set_clientdata(i2c, sta32x);
 
