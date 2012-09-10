@@ -59,19 +59,6 @@ struct XGI330_LCDDataDesStruct2 {
 	unsigned short LCDVSync;
 };
 
-
-struct XGI330_TVDataStruct {
-	unsigned short RVBHCMAX;
-	unsigned short RVBHCFACT;
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short TVHDE;
-	unsigned short TVVDE;
-	unsigned short RVBHRS;
-	unsigned char FlickerMode;
-	unsigned short HALFRVBHRS;
-};
-
 struct XGI330_LCDDataTablStruct {
 	unsigned char  PANELID;
 	unsigned short MASK;

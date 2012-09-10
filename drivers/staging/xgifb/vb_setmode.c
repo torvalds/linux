@@ -1764,7 +1764,7 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 	return NULL;
 }
 
-static void *XGI_GetTVPtr(unsigned short ModeNo,
+static struct SiS_TVData const *XGI_GetTVPtr(unsigned short ModeNo,
 		unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex,
 		struct vb_device_info *pVBInfo)
@@ -3264,7 +3264,6 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 	unsigned short tempax = 0, tempbx, modeflag, resinfo;
 
 	struct SiS_LCDData *LCDPtr = NULL;
-	struct SiS_TVData *TVPtr = NULL;
 
 	/* si+Ext_ResInfo */
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
@@ -3365,8 +3364,10 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 	}
 
 	if (pVBInfo->VBInfo & (SetCRT2ToTV)) {
-		TVPtr = (struct SiS_TVData *) XGI_GetTVPtr(ModeNo, ModeIdIndex,
-				RefreshRateTableIndex, pVBInfo);
+		struct SiS_TVData const *TVPtr;
+
+		TVPtr = XGI_GetTVPtr(ModeNo, ModeIdIndex, RefreshRateTableIndex,
+				     pVBInfo);
 
 		pVBInfo->RVBHCMAX = TVPtr->RVBHCMAX;
 		pVBInfo->RVBHCFACT = TVPtr->RVBHCFACT;

@@ -882,7 +882,7 @@ static struct XGI330_LCDDataDesStruct2 XGI_NoScalingDesDatax75[] =  {
 	{9, 1337, 0,   771,  112, 6}  /* ; 0A (1280x768x60Hz) */
 };
 
-static struct XGI330_TVDataStruct  XGI_StPALData[] = {
+static const struct SiS_TVData XGI_StPALData[] = {
 	{1, 1, 864, 525, 1270, 400, 100, 0, 760},
 	{1, 1, 864, 525, 1270, 350, 100, 0, 760},
 	{1, 1, 864, 525, 1270, 400,   0, 0, 720},
@@ -891,7 +891,7 @@ static struct XGI330_TVDataStruct  XGI_StPALData[] = {
 	{1, 1, 864, 525, 1270, 600,  50, 0,   0}
 };
 
-static struct XGI330_TVDataStruct  XGI_ExtPALData[] = {
+static const struct SiS_TVData XGI_ExtPALData[] = {
 	{2,  1, 1080, 463, 1270, 500,  50, 0,  50},
 	{15, 7, 1152, 413, 1270, 500,  50, 0,  50},
 	{2,  1, 1080, 463, 1270, 500,  50, 0,  50},
@@ -902,7 +902,7 @@ static struct XGI330_TVDataStruct  XGI_ExtPALData[] = {
 	{3,  2, 1080, 619, 1270, 540, 438, 0, 438}
 };
 
-static struct XGI330_TVDataStruct  XGI_StNTSCData[] = {
+static const struct SiS_TVData XGI_StNTSCData[] = {
 	{1, 1, 858, 525, 1270, 400, 50, 0, 760},
 	{1, 1, 858, 525, 1270, 350, 50, 0, 640},
 	{1, 1, 858, 525, 1270, 400,  0, 0, 720},
@@ -910,7 +910,7 @@ static struct XGI330_TVDataStruct  XGI_StNTSCData[] = {
 	{1, 1, 858, 525, 1270, 480,  0, 0, 760}
 };
 
-static struct XGI330_TVDataStruct  XGI_ExtNTSCData[] = {
+static const struct SiS_TVData XGI_ExtNTSCData[] = {
 	{9,     5, 1001, 453, 1270, 420, 171, 0, 171},
 	{12,    5,  858, 403, 1270, 420, 171, 0, 171},
 	{9,     5, 1001, 453, 1270, 420, 171, 0, 171},
@@ -922,7 +922,7 @@ static struct XGI330_TVDataStruct  XGI_ExtNTSCData[] = {
 	{3,     2, 1001, 533, 1270, 420,   0, 0,   0}
 };
 
-static struct XGI330_TVDataStruct  XGI_St1HiTVData[] = {
+static const struct SiS_TVData XGI_St1HiTVData[] = {
 	{1, 1, 892,  563, 690,  800, 0,     0, 0}, /* 00 (320x200,320x400,
 							  640x200,640x400) */
 	{1, 1, 892,  563, 690,  700, 0,     0, 0}, /* 01 (320x350,640x350) */
@@ -932,7 +932,7 @@ static struct XGI330_TVDataStruct  XGI_St1HiTVData[] = {
 	{8, 5, 1050, 683, 1648, 960, 0x150, 1, 0}  /* 05 (400x300,800x600) */
 };
 
-static struct XGI330_TVDataStruct  XGI_St2HiTVData[] = {
+static const struct SiS_TVData XGI_St2HiTVData[] = {
 	{3, 1, 840,  483, 1648, 960, 0x032, 0, 0}, /* 00 (320x200,320x400,
 							  640x200,640x400) */
 	{1, 1, 892,  563, 690,  700, 0,     0, 0}, /* 01 (320x350,640x350) */
@@ -942,7 +942,7 @@ static struct XGI330_TVDataStruct  XGI_St2HiTVData[] = {
 	{8, 5, 1050, 683, 1648, 960, 0x17C, 1, 0}  /* 05 (400x300,800x600) */
 };
 
-static struct XGI330_TVDataStruct  XGI_ExtHiTVData[] = {
+static const struct SiS_TVData XGI_ExtHiTVData[] = {
 	{6,  1,  840,  563,  1632, 960, 0,     0, 0}, /* 00 (320x200,320x400,
 							     640x200,640x400) */
 	{3,  1,  960,  563,  1632, 960, 0,     0, 0}, /* 01 (320x350,640x350) */
@@ -957,7 +957,7 @@ static struct XGI330_TVDataStruct  XGI_ExtHiTVData[] = {
 	{8,  5,  1750, 803,  1648, 960, 0x128, 0, 0}  /* 0A (1280x720) */
 };
 
-static struct XGI330_TVDataStruct  XGI_ExtYPbPr525iData[] = {
+static const struct SiS_TVData XGI_ExtYPbPr525iData[] = {
 	{  9,  5,  1001, 453, 1270, 420, 171,   0, 171},
 	{ 12,  5,   858, 403, 1270, 420, 171,   0, 171},
 	{  9,  5,  1001, 453, 1270, 420, 171,   0, 171},
@@ -969,7 +969,7 @@ static struct XGI330_TVDataStruct  XGI_ExtYPbPr525iData[] = {
 	{  3,   2, 1001, 533, 1250, 420,   0,   0,   0}
 };
 
-static struct XGI330_TVDataStruct  XGI_StYPbPr525iData[] = {
+static const struct SiS_TVData XGI_StYPbPr525iData[] = {
 	{1, 1, 858, 525, 1270, 400, 50, 0, 760},
 	{1, 1, 858, 525, 1270, 350, 50, 0, 640},
 	{1, 1, 858, 525, 1270, 400,  0, 0, 720},
@@ -977,7 +977,7 @@ static struct XGI330_TVDataStruct  XGI_StYPbPr525iData[] = {
 	{1, 1, 858, 525, 1270, 480,  0, 0, 760},
 };
 
-static struct XGI330_TVDataStruct  XGI_ExtYPbPr525pData[] = {
+static const struct SiS_TVData XGI_ExtYPbPr525pData[] = {
 	{  9,   5,  1001, 453, 1270, 420, 171, 0, 171},
 	{ 12,   5,   858, 403, 1270, 420, 171, 0, 171},
 	{  9,   5,  1001, 453, 1270, 420, 171, 0, 171},
@@ -989,7 +989,7 @@ static struct XGI330_TVDataStruct  XGI_ExtYPbPr525pData[] = {
 	{  3,   2,  1001, 533, 1270, 420,   0, 0,   0}
 };
 
-static struct XGI330_TVDataStruct  XGI_StYPbPr525pData[] = {
+static const struct SiS_TVData XGI_StYPbPr525pData[] = {
 	{1, 1, 1716, 525, 1270, 400, 50, 0, 760},
 	{1, 1, 1716, 525, 1270, 350, 50, 0, 640},
 	{1, 1, 1716, 525, 1270, 400,  0, 0, 720},
@@ -997,7 +997,7 @@ static struct XGI330_TVDataStruct  XGI_StYPbPr525pData[] = {
 	{1, 1, 1716, 525, 1270, 480,  0, 0, 760},
 };
 
-static struct XGI330_TVDataStruct  XGI_ExtYPbPr750pData[] = {
+static const struct SiS_TVData XGI_ExtYPbPr750pData[] = {
 	{ 3, 1,  935, 470, 1130, 680,  50, 0, 0}, /* 00 (320x200,320x400,
 							 640x200,640x400) */
 	{24, 7,  935, 420, 1130, 680,  50, 0, 0}, /* 01 (320x350,640x350) */
@@ -1012,7 +1012,7 @@ static struct XGI330_TVDataStruct  XGI_ExtYPbPr750pData[] = {
 	{10, 9, 1320, 830, 1130, 640,  50, 0, 0}
 };
 
-static struct XGI330_TVDataStruct  XGI_StYPbPr750pData[] = {
+static const struct SiS_TVData XGI_StYPbPr750pData[] = {
 	{1, 1, 1650, 750, 1280, 400, 50, 0, 760},
 	{1, 1, 1650, 750, 1280, 350, 50, 0, 640},
 	{1, 1, 1650, 750, 1280, 400,  0, 0, 720},
