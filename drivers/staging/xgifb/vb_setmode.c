@@ -23,20 +23,18 @@ static const unsigned short XGINew_VGA_DAC[] = {
 
 void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 {
-	pVBInfo->StandTable = (struct SiS_StandTable_S *) &XGI330_StandTable;
-	pVBInfo->EModeIDTable = (struct XGI_ExtStruct *) XGI330_EModeIDTable;
-	pVBInfo->RefIndex = (struct XGI_Ext2Struct *) XGI330_RefIndex;
-	pVBInfo->XGINEWUB_CRT1Table
-			= (struct XGI_CRT1TableStruct *) XGI_CRT1Table;
+	pVBInfo->StandTable = &XGI330_StandTable;
+	pVBInfo->EModeIDTable = XGI330_EModeIDTable;
+	pVBInfo->RefIndex = XGI330_RefIndex;
+	pVBInfo->XGINEWUB_CRT1Table = XGI_CRT1Table;
 
-	pVBInfo->MCLKData = (struct SiS_MCLKData *) XGI340New_MCLKData;
-	pVBInfo->ECLKData = (struct XGI_ECLKDataStruct *) XGI340_ECLKData;
-	pVBInfo->VCLKData = (struct SiS_VCLKData *) XGI_VCLKData;
+	pVBInfo->MCLKData = XGI340New_MCLKData;
+	pVBInfo->ECLKData = XGI340_ECLKData;
+	pVBInfo->VCLKData = XGI_VCLKData;
 	pVBInfo->VBVCLKData = XGI_VBVCLKData;
 	pVBInfo->ScreenOffset = XGI330_ScreenOffset;
-	pVBInfo->StResInfo = (struct SiS_StResInfo_S *) XGI330_StResInfo;
-	pVBInfo->ModeResInfo
-			= (struct SiS_ModeResInfo_S *) XGI330_ModeResInfo;
+	pVBInfo->StResInfo = XGI330_StResInfo;
+	pVBInfo->ModeResInfo = XGI330_ModeResInfo;
 
 	pVBInfo->LCDResInfo = 0;
 	pVBInfo->LCDTypeInfo = 0;
@@ -56,9 +54,9 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->SR21 = 0xa3;
 	pVBInfo->SR22 = 0xfb;
 
-	pVBInfo->TimingH = (struct XGI_TimingHStruct *) XGI_TimingH;
-	pVBInfo->TimingV = (struct XGI_TimingVStruct *) XGI_TimingV;
-	pVBInfo->UpdateCRT1 = (struct XGI_XG21CRT1Struct *) XGI_UpdateCRT1Table;
+	pVBInfo->TimingH = XGI_TimingH;
+	pVBInfo->TimingV = XGI_TimingV;
+	pVBInfo->UpdateCRT1 = XGI_UpdateCRT1Table;
 
 	/* 310 customization related */
 	if ((pVBInfo->VBType & VB_SIS301LV) || (pVBInfo->VBType & VB_SIS302LV))
@@ -71,8 +69,7 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 
 	if (ChipType == XG27) {
 		unsigned char temp;
-		pVBInfo->MCLKData
-			= (struct SiS_MCLKData *) XGI27New_MCLKData;
+		pVBInfo->MCLKData = XGI27New_MCLKData;
 		pVBInfo->CR40 = XGI27_cr41;
 		pVBInfo->XGINew_CR97 = 0xc1;
 		pVBInfo->SR15 = XG27_SR13;
@@ -1752,9 +1749,8 @@ static void XGI_GetLVDSData(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempbx = 2;
 
 	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
-		LCDPtr = (struct SiS_LVDSData *)XGI_GetLcdPtr(tempbx,
-				ModeNo, ModeIdIndex, RefreshRateTableIndex,
-				pVBInfo);
+		LCDPtr = XGI_GetLcdPtr(tempbx, ModeNo, ModeIdIndex,
+				       RefreshRateTableIndex, pVBInfo);
 		pVBInfo->VGAHT = LCDPtr->VGAHT;
 		pVBInfo->VGAVT = LCDPtr->VGAVT;
 		pVBInfo->HT = LCDPtr->LCDHT;
@@ -1800,11 +1796,8 @@ static void XGI_ModCRT1Regs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempbx = 0;
 
 	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
-		LCDPtr = (struct XGI_LVDSCRT1HDataStruct *)
-				XGI_GetLcdPtr(tempbx, ModeNo,
-					      ModeIdIndex,
-					      RefreshRateTableIndex,
-					      pVBInfo);
+		LCDPtr = XGI_GetLcdPtr(tempbx, ModeNo, ModeIdIndex,
+				       RefreshRateTableIndex, pVBInfo);
 
 		for (i = 0; i < 8; i++)
 			pVBInfo->TimingH[0].data[i] = LCDPtr[0].Reg[i];
@@ -1815,13 +1808,8 @@ static void XGI_ModCRT1Regs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempbx = 1;
 
 	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
-		LCDPtr1 = (struct XGI_LVDSCRT1VDataStruct *)
-				XGI_GetLcdPtr(
-					tempbx,
-					ModeNo,
-					ModeIdIndex,
-					RefreshRateTableIndex,
-					pVBInfo);
+		LCDPtr1 = XGI_GetLcdPtr(tempbx, ModeNo, ModeIdIndex,
+					RefreshRateTableIndex, pVBInfo);
 		for (i = 0; i < 7; i++)
 			pVBInfo->TimingV[0].data[i] = LCDPtr1[0].Reg[i];
 	}
@@ -1913,23 +1901,11 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 	tempbx = 3;
 	if (pVBInfo->LCDInfo & EnableScalingLCD)
-		LCDPtr1 =
-		    (struct XGI330_LCDDataDesStruct2 *)
-				XGI_GetLcdPtr(
-					  tempbx,
-					  ModeNo,
-					  ModeIdIndex,
-					  RefreshRateTableIndex,
-					  pVBInfo);
+		LCDPtr1 = XGI_GetLcdPtr(tempbx, ModeNo, ModeIdIndex,
+					RefreshRateTableIndex, pVBInfo);
 	else
-		LCDPtr =
-		    (struct XGI_LCDDesStruct *)
-				XGI_GetLcdPtr(
-					  tempbx,
-					  ModeNo,
-					  ModeIdIndex,
-					  RefreshRateTableIndex,
-					  pVBInfo);
+		LCDPtr = XGI_GetLcdPtr(tempbx, ModeNo, ModeIdIndex,
+				       RefreshRateTableIndex, pVBInfo);
 
 	XGI_GetLCDSync(&tempax, &tempbx, pVBInfo);
 	push1 = tempbx;
@@ -2277,7 +2253,7 @@ static void XGI_GetVCLKLen(unsigned char tempal, unsigned char *di_0,
 		if ((!(pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)) &&
 		    (pVBInfo->SetFlag & ProgrammingCRT2)) {
 			*di_0 = XGI_VBVCLKData[tempal].Part4_A;
-			*di_1 = XGI_VBVCLKData[tempal].Part4_C;
+			*di_1 = XGI_VBVCLKData[tempal].Part4_B;
 		}
 	} else {
 		*di_0 = XGI_VCLKData[tempal].SR2B;
@@ -3179,9 +3155,8 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempbx = 4;
 
 	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
-		LCDPtr = (struct SiS_LCDData *) XGI_GetLcdPtr(tempbx,
-				ModeNo, ModeIdIndex, RefreshRateTableIndex,
-				pVBInfo);
+		LCDPtr = XGI_GetLcdPtr(tempbx, ModeNo, ModeIdIndex,
+				       RefreshRateTableIndex, pVBInfo);
 
 		pVBInfo->RVBHCMAX = LCDPtr->RVBHCMAX;
 		pVBInfo->RVBHCFACT = LCDPtr->RVBHCFACT;
@@ -4417,8 +4392,8 @@ static void XGI_SetLCDRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	/* Customized LCDB Des no add */
 	tempbx = 5;
-	LCDBDesPtr = (struct XGI_LCDDesStruct *) XGI_GetLcdPtr(tempbx, ModeNo,
-			ModeIdIndex, RefreshRateTableIndex, pVBInfo);
+	LCDBDesPtr = XGI_GetLcdPtr(tempbx, ModeNo, ModeIdIndex,
+				   RefreshRateTableIndex, pVBInfo);
 	tempah = pVBInfo->LCDResInfo;
 	tempah &= PanelResInfo;
 
