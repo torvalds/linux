@@ -32,7 +32,7 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->MCLKData = (struct SiS_MCLKData *) XGI340New_MCLKData;
 	pVBInfo->ECLKData = (struct XGI_ECLKDataStruct *) XGI340_ECLKData;
 	pVBInfo->VCLKData = (struct SiS_VCLKData *) XGI_VCLKData;
-	pVBInfo->VBVCLKData = (struct SiS_VBVCLKData *) XGI_VBVCLKData;
+	pVBInfo->VBVCLKData = XGI_VBVCLKData;
 	pVBInfo->ScreenOffset = XGI330_ScreenOffset;
 	pVBInfo->StResInfo = (struct SiS_StResInfo_S *) XGI330_StResInfo;
 	pVBInfo->ModeResInfo
@@ -2276,8 +2276,8 @@ static void XGI_GetVCLKLen(unsigned char tempal, unsigned char *di_0,
 			| VB_SIS301LV | VB_SIS302LV | VB_XGI301C)) {
 		if ((!(pVBInfo->VBInfo & XGI_SetCRT2ToLCDA)) &&
 		    (pVBInfo->SetFlag & ProgrammingCRT2)) {
-			*di_0 = (unsigned char) XGI_VBVCLKData[tempal].SR2B;
-			*di_1 = XGI_VBVCLKData[tempal].SR2C;
+			*di_0 = XGI_VBVCLKData[tempal].Part4_A;
+			*di_1 = XGI_VBVCLKData[tempal].Part4_C;
 		}
 	} else {
 		*di_0 = XGI_VCLKData[tempal].SR2B;

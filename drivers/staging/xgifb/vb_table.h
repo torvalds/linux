@@ -2234,7 +2234,7 @@ static struct SiS_VCLKData XGI_VCLKData[] = {
 	{0xFF, 0x00,   0}  /* End mark */
 };
 
-static struct SiS_VCLKData XGI_VBVCLKData[] = {
+static struct SiS_VBVCLKData XGI_VBVCLKData[] = {
 	{0x1B, 0xE1,  25}, /* 00 (25.175MHz) */
 	{0x4E, 0xE4,  28}, /* 01 (28.322MHz) */
 	{0x57, 0xE4,  31}, /* 02 (31.500MHz) */
