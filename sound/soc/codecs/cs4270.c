@@ -521,14 +521,6 @@ static int cs4270_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/* Add the non-DAPM controls */
-	ret = snd_soc_add_codec_controls(codec, cs4270_snd_controls,
-				ARRAY_SIZE(cs4270_snd_controls));
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to add controls\n");
-		return ret;
-	}
-
 	/* get the power supply regulators */
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
 		cs4270->supplies[i].supply = supply_names[i];
@@ -634,6 +626,9 @@ static const struct snd_soc_codec_driver soc_codec_device_cs4270 = {
 	.remove =		cs4270_remove,
 	.suspend =		cs4270_soc_suspend,
 	.resume =		cs4270_soc_resume,
+
+	.controls =		cs4270_snd_controls,
+	.num_controls =		ARRAY_SIZE(cs4270_snd_controls),
 	.volatile_register =	cs4270_reg_is_volatile,
 	.readable_register =	cs4270_reg_is_readable,
 	.reg_cache_size =	CS4270_LASTREG + 1,
