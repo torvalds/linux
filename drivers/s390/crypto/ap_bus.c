@@ -950,6 +950,20 @@ void ap_driver_unregister(struct ap_driver *ap_drv)
 }
 EXPORT_SYMBOL(ap_driver_unregister);
 
+void ap_bus_force_rescan(void)
+{
+	/* Delete the AP bus rescan timer. */
+	del_timer(&ap_config_timer);
+
+	/* processing a synchonuous bus rescan */
+	ap_scan_bus(NULL);
+
+	/* Setup the AP bus rescan timer again. */
+	ap_config_timer.expires = jiffies + ap_config_time * HZ;
+	add_timer(&ap_config_timer);
+}
+EXPORT_SYMBOL(ap_bus_force_rescan);
+
 /*
  * AP bus attributes.
  */
