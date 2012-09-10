@@ -36,11 +36,6 @@ compat_sys_vfork_wrapper:
 	b	compat_sys_vfork
 ENDPROC(compat_sys_vfork_wrapper)
 
-compat_sys_execve_wrapper:
-	mov	x3, sp
-	b	compat_sys_execve
-ENDPROC(compat_sys_execve_wrapper)
-
 compat_sys_clone_wrapper:
 	mov	x5, sp
 	b	compat_sys_clone

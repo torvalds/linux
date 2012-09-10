@@ -41,27 +41,6 @@ asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
 	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
 }
 
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage long sys_execve(const char __user *filenamei,
-			   const char __user *const __user *argv,
-			   const char __user *const __user *envp,
-			   struct pt_regs *regs)
-{
-	long error;
-	struct filename *filename;
-
-	filename = getname(filenamei);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
-}
-
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			 unsigned long prot, unsigned long flags,
 			 unsigned long fd, off_t off)
@@ -75,7 +54,6 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 /*
  * Wrappers to pass the pt_regs argument.
  */
-#define sys_execve		sys_execve_wrapper
 #define sys_clone		sys_clone_wrapper
 #define sys_rt_sigreturn	sys_rt_sigreturn_wrapper
 #define sys_sigaltstack		sys_sigaltstack_wrapper

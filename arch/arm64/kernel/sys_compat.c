@@ -49,24 +49,6 @@ asmlinkage int compat_sys_vfork(struct pt_regs *regs)
 		       regs, 0, NULL, NULL);
 }
 
-asmlinkage int compat_sys_execve(const char __user *filenamei,
-				 compat_uptr_t argv, compat_uptr_t envp,
-				 struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(filenamei);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = compat_do_execve(filename->name, compat_ptr(argv),
-					compat_ptr(envp), regs);
-	putname(filename);
-out:
-	return error;
-}
-
 asmlinkage int compat_sys_sched_rr_get_interval(compat_pid_t pid,
 						struct compat_timespec __user *interval)
 {
