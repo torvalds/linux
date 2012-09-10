@@ -318,7 +318,6 @@ extern void usb_composite_setup_continue(struct usb_composite_dev *cdev);
  * struct usb_composite_device - represents one composite usb gadget
  * @gadget: read-only, abstracts the gadget's usb peripheral controller
  * @req: used for control responses; buffer is pre-allocated
- * @bufsiz: size of buffer pre-allocated in @req
  * @config: the currently active configuration
  *
  * One of these devices is allocated and initialized before the
@@ -349,7 +348,6 @@ extern void usb_composite_setup_continue(struct usb_composite_dev *cdev);
 struct usb_composite_dev {
 	struct usb_gadget		*gadget;
 	struct usb_request		*req;
-	unsigned			bufsiz;
 
 	struct usb_configuration	*config;
 
