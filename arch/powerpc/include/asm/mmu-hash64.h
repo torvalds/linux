@@ -370,17 +370,21 @@ extern void slb_set_size(u16 size);
  * (head.S) and ASM_VSID_SCRAMBLE (below) are changed accordingly.
  */
 
-#define VSID_MULTIPLIER_256M	ASM_CONST(200730139)	/* 28-bit prime */
-#define VSID_BITS_256M		36
+/*
+ * This should be computed such that protovosid * vsid_mulitplier
+ * doesn't overflow 64 bits. It should also be co-prime to vsid_modulus
+ */
+#define VSID_MULTIPLIER_256M	ASM_CONST(12538073)	/* 24-bit prime */
+#define VSID_BITS_256M		38
 #define VSID_MODULUS_256M	((1UL<<VSID_BITS_256M)-1)
 
 #define VSID_MULTIPLIER_1T	ASM_CONST(12538073)	/* 24-bit prime */
-#define VSID_BITS_1T		24
+#define VSID_BITS_1T		26
 #define VSID_MODULUS_1T		((1UL<<VSID_BITS_1T)-1)
 
 #define CONTEXT_BITS		19
-#define USER_ESID_BITS		16
-#define USER_ESID_BITS_1T	4
+#define USER_ESID_BITS		18
+#define USER_ESID_BITS_1T	6
 
 #define USER_VSID_RANGE	(1UL << (USER_ESID_BITS + SID_SHIFT))
 
@@ -500,12 +504,32 @@ typedef struct {
 	})
 #endif /* 1 */
 
-/* This is only valid for addresses >= PAGE_OFFSET */
+/*
+ * This is only valid for addresses >= PAGE_OFFSET
+ * The proto-VSID space is divided into two class
+ * User:   0 to 2^(CONTEXT_BITS + USER_ESID_BITS) -1
+ * kernel: 2^(CONTEXT_BITS + USER_ESID_BITS) to 2^(VSID_BITS) - 1
+ *
+ * With KERNEL_START at 0xc000000000000000, the proto vsid for
+ * the kernel ends up with 0xc00000000 (36 bits). With 64TB
+ * support we need to have kernel proto-VSID in the
+ * [2^37 to 2^38 - 1] range due to the increased USER_ESID_BITS.
+ */
 static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 {
-	if (ssize == MMU_SEGSIZE_256M)
-		return vsid_scramble(ea >> SID_SHIFT, 256M);
-	return vsid_scramble(ea >> SID_SHIFT_1T, 1T);
+	unsigned long proto_vsid;
+	/*
+	 * We need to make sure proto_vsid for the kernel is
+	 * >= 2^(CONTEXT_BITS + USER_ESID_BITS[_1T])
+	 */
+	if (ssize == MMU_SEGSIZE_256M) {
+		proto_vsid = ea >> SID_SHIFT;
+		proto_vsid |= (1UL << (CONTEXT_BITS + USER_ESID_BITS));
+		return vsid_scramble(proto_vsid, 256M);
+	}
+	proto_vsid = ea >> SID_SHIFT_1T;
+	proto_vsid |= (1UL << (CONTEXT_BITS + USER_ESID_BITS_1T));
+	return vsid_scramble(proto_vsid, 1T);
 }
 
 /* Returns the segment size indicator for a user address */
