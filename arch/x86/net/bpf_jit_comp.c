@@ -280,6 +280,31 @@ void bpf_jit_compile(struct sk_filter *fp)
 				}
 				EMIT4(0x31, 0xd2, 0xf7, 0xf3); /* xor %edx,%edx; div %ebx */
 				break;
+			case BPF_S_ALU_MOD_X: /* A %= X; */
+				seen |= SEEN_XREG;
+				EMIT2(0x85, 0xdb);	/* test %ebx,%ebx */
+				if (pc_ret0 > 0) {
+					/* addrs[pc_ret0 - 1] is start address of target
+					 * (addrs[i] - 6) is the address following this jmp
+					 * ("xor %edx,%edx; div %ebx;mov %edx,%eax" being 6 bytes long)
+					 */
+					EMIT_COND_JMP(X86_JE, addrs[pc_ret0 - 1] -
+								(addrs[i] - 6));
+				} else {
+					EMIT_COND_JMP(X86_JNE, 2 + 5);
+					CLEAR_A();
+					EMIT1_off32(0xe9, cleanup_addr - (addrs[i] - 6)); /* jmp .+off32 */
+				}
+				EMIT2(0x31, 0xd2);	/* xor %edx,%edx */
+				EMIT2(0xf7, 0xf3);	/* div %ebx */
+				EMIT2(0x89, 0xd0);	/* mov %edx,%eax */
+				break;
+			case BPF_S_ALU_MOD_K: /* A %= K; */
+				EMIT2(0x31, 0xd2);	/* xor %edx,%edx */
+				EMIT1(0xb9);EMIT(K, 4);	/* mov imm32,%ecx */
+				EMIT2(0xf7, 0xf1);	/* div %ecx */
+				EMIT2(0x89, 0xd0);	/* mov %edx,%eax */
+				break;
 			case BPF_S_ALU_DIV_K: /* A = reciprocal_divide(A, K); */
 				EMIT3(0x48, 0x69, 0xc0); /* imul imm32,%rax,%rax */
 				EMIT(K, 4);
