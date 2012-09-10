@@ -88,7 +88,7 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			channelSel = (freq * 4) / div;
 			chan_frac = (((freq * 4) % div) * 0x20000) / div;
 			channelSel = (channelSel << 17) | chan_frac;
-		} else if (AR_SREV_9485(ah)) {
+		} else if (AR_SREV_9485(ah) || AR_SREV_9565(ah)) {
 			u32 chan_frac;
 
 			/*
@@ -736,7 +736,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	if (chan->channel == 2484)
 		ar9003_hw_prog_ini(ah, &ah->ini_japan2484, 1);
 
-	if (AR_SREV_9462(ah))
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
 		REG_WRITE(ah, AR_GLB_SWREG_DISCONT_MODE,
 			  AR_GLB_SWREG_DISCONT_EN_BT_WLAN);
 
@@ -746,9 +746,9 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
 	ath9k_hw_apply_txpower(ah, chan, false);
 
-	if (AR_SREV_9462(ah)) {
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		if (REG_READ_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_0,
-				AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL))
+				   AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL))
 			ah->enabled_cals |= TX_IQ_CAL;
 		else
 			ah->enabled_cals &= ~TX_IQ_CAL;
@@ -1111,7 +1111,7 @@ static void ar9003_hw_set_nf_limits(struct ath_hw *ah)
 	if (AR_SREV_9330(ah))
 		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9330_2GHZ;
 
-	if (AR_SREV_9462(ah)) {
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9462_2GHZ;
 		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9462_2GHZ;
 		ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9462_5GHZ;
