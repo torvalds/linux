@@ -3,9 +3,7 @@
 #include "../../video/sis/initdef.h"
 
 #define VB_XGI301C      0x0020 /* for 301C */
-#define VB_YPbPr1080i   0x03
 
-#define LVDSCRT1Len     15
 #define SupportCRT2in301C       0x0100  /* for 301C */
 #define SetCHTVOverScan         0x8000
 
@@ -21,15 +19,6 @@
 #define YPbPr525iVCLK_2         0x03A
 
 #define XGI_CRT2_PORT_00        (0x00 - 0x030)
-
-/* =============================================================
-   for 310
-============================================================== */
-#define ModeSoftSetting              0x04
-
-/* ---------------- SetMode Stack */
-#define CRT1Len           15
-#define VCLKLen           4
 
 #define SupportAllCRT2      0x0078
 #define NoSupportTV         0x0070
