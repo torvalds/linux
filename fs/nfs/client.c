@@ -93,10 +93,10 @@ static struct nfs_subversion *find_nfs_version(unsigned int version)
 			spin_unlock(&nfs_version_lock);
 			return nfs;
 		}
-	};
+	}
 
 	spin_unlock(&nfs_version_lock);
-	return ERR_PTR(-EPROTONOSUPPORT);;
+	return ERR_PTR(-EPROTONOSUPPORT);
 }
 
 struct nfs_subversion *get_nfs_version(unsigned int version)
