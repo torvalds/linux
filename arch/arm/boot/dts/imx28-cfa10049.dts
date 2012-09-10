@@ -27,6 +27,8 @@
 					fsl,pinmux-ids = <
 						0x0181 /* MX28_PAD_GPMI_RDN__SSP3_SCK */
 						0x01c1 /* MX28_PAD_GPMI_RESETN__SSP3_CMD */
+						0x0111 /* MX28_PAD_GPMI_CE1N__SSP3_D3 */
+						0x01a2 /* MX28_PAD_GPMI_ALE__SSP3_D4 */
 					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
@@ -39,6 +41,25 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&spi3_pins_cfa10049>;
 				status = "okay";
+
+				gpio5: gpio5@0 {
+					compatible = "fairchild,74hc595";
+					gpio-controller;
+					#gpio-cells = <2>;
+					reg = <0>;
+					registers-number = <2>;
+					spi-max-frequency = <100000>;
+				};
+
+				gpio6: gpio6@1 {
+					compatible = "fairchild,74hc595";
+					gpio-controller;
+					#gpio-cells = <2>;
+					reg = <1>;
+					registers-number = <4>;
+					spi-max-frequency = <100000>;
+				};
+
 			};
 		};
 
