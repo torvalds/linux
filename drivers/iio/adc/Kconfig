@@ -36,9 +36,9 @@ config AD7476
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for Analog Devices AD7475, AD7476, AD7477,
-	  AD7478, AD7466, AD7467, AD7468, AD7495, AD7910, AD7920, AD7920 SPI analog
-	  to digital converters (ADC).
+	  Say yes here to build support for Analog Devices AD7273, AD7274, AD7276,
+	  AD7277, AD7278, AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468,
+	  AD7495, AD7910, AD7920, AD7920 SPI analog to digital converters (ADC).
 
 	  If unsure, say N (but it's safe to say "Y").
 

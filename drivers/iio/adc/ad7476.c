@@ -45,6 +45,9 @@ struct ad7476_state {
 };
 
 enum ad7476_supported_device_ids {
+	ID_AD7276,
+	ID_AD7277,
+	ID_AD7278,
 	ID_AD7466,
 	ID_AD7467,
 	ID_AD7468,
@@ -146,6 +149,18 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 #define AD7940_CHAN(bits) _AD7476_CHAN((bits), 15 - (bits))
 
 static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
+	[ID_AD7276] = {
+		.channel[0] = AD7940_CHAN(12),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	},
+	[ID_AD7277] = {
+		.channel[0] = AD7940_CHAN(10),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	},
+	[ID_AD7278] = {
+		.channel[0] = AD7940_CHAN(8),
+		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+	},
 	[ID_AD7466] = {
 		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
@@ -256,6 +271,11 @@ static int __devexit ad7476_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7476_id[] = {
+	{"ad7273", ID_AD7277},
+	{"ad7274", ID_AD7276},
+	{"ad7276", ID_AD7276},
+	{"ad7277", ID_AD7277},
+	{"ad7278", ID_AD7278},
 	{"ad7466", ID_AD7466},
 	{"ad7467", ID_AD7467},
 	{"ad7468", ID_AD7468},
