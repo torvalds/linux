@@ -789,7 +789,7 @@ static long tegra20_pll_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_tegra *c = to_clk_tegra(hw);
 	const struct clk_pll_freq_table *sel;
 	unsigned long input_rate = *prate;
-	unsigned long output_rate = *prate;
+	u64 output_rate = *prate;
 	int mul;
 	int div;
 
