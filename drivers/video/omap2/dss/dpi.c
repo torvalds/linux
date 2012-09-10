@@ -399,25 +399,34 @@ static struct omap_dss_device * __init dpi_find_dssdev(struct platform_device *p
 	return def_dssdev;
 }
 
-static void __init dpi_probe_pdata(struct platform_device *pdev)
+static void __init dpi_probe_pdata(struct platform_device *dpidev)
 {
+	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
 	int r;
 
-	dssdev = dpi_find_dssdev(pdev);
+	plat_dssdev = dpi_find_dssdev(dpidev);
 
+	if (!plat_dssdev)
+		return;
+
+	dssdev = dss_alloc_and_init_device(&dpidev->dev);
 	if (!dssdev)
 		return;
+
+	dss_copy_device_pdata(dssdev, plat_dssdev);
 
 	r = dpi_init_display(dssdev);
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
 		return;
 	}
 
-	r = omap_dss_register_device(dssdev, &pdev->dev);
+	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
 		return;
 	}
 }
@@ -433,7 +442,7 @@ static int __init omap_dpi_probe(struct platform_device *pdev)
 
 static int __exit omap_dpi_remove(struct platform_device *pdev)
 {
-	omap_dss_unregister_child_devices(&pdev->dev);
+	dss_unregister_child_devices(&pdev->dev);
 
 	return 0;
 }

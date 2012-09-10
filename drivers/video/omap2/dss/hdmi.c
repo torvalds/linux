@@ -931,14 +931,21 @@ static struct omap_dss_device * __init hdmi_find_dssdev(struct platform_device *
 
 static void __init hdmi_probe_pdata(struct platform_device *pdev)
 {
+	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
 	struct omap_dss_hdmi_data *priv;
 	int r;
 
-	dssdev = hdmi_find_dssdev(pdev);
+	plat_dssdev = hdmi_find_dssdev(pdev);
 
+	if (!plat_dssdev)
+		return;
+
+	dssdev = dss_alloc_and_init_device(&pdev->dev);
 	if (!dssdev)
 		return;
+
+	dss_copy_device_pdata(dssdev, plat_dssdev);
 
 	priv = dssdev->data;
 
@@ -951,12 +958,14 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 	r = hdmi_init_display(dssdev);
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
 		return;
 	}
 
-	r = omap_dss_register_device(dssdev, &pdev->dev);
+	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
 		return;
 	}
 }
@@ -1020,7 +1029,7 @@ static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 {
 	device_for_each_child(&pdev->dev, NULL, hdmi_remove_child);
 
-	omap_dss_unregister_child_devices(&pdev->dev);
+	dss_unregister_child_devices(&pdev->dev);
 
 	hdmi_panel_exit();
 

@@ -970,25 +970,34 @@ static struct omap_dss_device * __init rfbi_find_dssdev(struct platform_device *
 	return def_dssdev;
 }
 
-static void __init rfbi_probe_pdata(struct platform_device *pdev)
+static void __init rfbi_probe_pdata(struct platform_device *rfbidev)
 {
+	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
 	int r;
 
-	dssdev = rfbi_find_dssdev(pdev);
+	plat_dssdev = rfbi_find_dssdev(rfbidev);
 
+	if (!plat_dssdev)
+		return;
+
+	dssdev = dss_alloc_and_init_device(&rfbidev->dev);
 	if (!dssdev)
 		return;
+
+	dss_copy_device_pdata(dssdev, plat_dssdev);
 
 	r = rfbi_init_display(dssdev);
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
 		return;
 	}
 
-	r = omap_dss_register_device(dssdev, &pdev->dev);
+	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
 		return;
 	}
 }
@@ -1055,7 +1064,7 @@ err_runtime_get:
 
 static int __exit omap_rfbihw_remove(struct platform_device *pdev)
 {
-	omap_dss_unregister_child_devices(&pdev->dev);
+	dss_unregister_child_devices(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }

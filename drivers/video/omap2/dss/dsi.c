@@ -5040,23 +5040,32 @@ static struct omap_dss_device * __init dsi_find_dssdev(struct platform_device *p
 
 static void __init dsi_probe_pdata(struct platform_device *dsidev)
 {
+	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
 	int r;
 
-	dssdev = dsi_find_dssdev(dsidev);
+	plat_dssdev = dsi_find_dssdev(dsidev);
 
+	if (!plat_dssdev)
+		return;
+
+	dssdev = dss_alloc_and_init_device(&dsidev->dev);
 	if (!dssdev)
 		return;
+
+	dss_copy_device_pdata(dssdev, plat_dssdev);
 
 	r = dsi_init_display(dssdev);
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
 		return;
 	}
 
-	r = omap_dss_register_device(dssdev, &dsidev->dev);
+	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
 		return;
 	}
 }
@@ -5184,7 +5193,7 @@ static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 
 	WARN_ON(dsi->scp_clk_refcount > 0);
 
-	omap_dss_unregister_child_devices(&dsidev->dev);
+	dss_unregister_child_devices(&dsidev->dev);
 
 	pm_runtime_disable(&dsidev->dev);
 
