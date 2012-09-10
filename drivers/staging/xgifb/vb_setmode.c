@@ -1764,47 +1764,18 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 	return NULL;
 }
 
-static void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
+static void *XGI_GetTVPtr(unsigned short ModeNo,
 		unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short i, tempdx, tempbx, tempal, modeflag, table;
+	unsigned short i, tempdx, tempal, modeflag;
 	struct XGI330_TVDataTablStruct *tempdi = NULL;
 
-	tempbx = BX;
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 	tempal = pVBInfo->RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
 	tempal = tempal & 0x3f;
-	table = tempbx;
-
-	switch (tempbx) {
-	case 0:
-		tempdi = NULL;
-		break;
-	case 1:
-		tempdi = NULL;
-		break;
-	case 2:
-	case 6:
-		tempdi = xgifb_chrontel_tv;
-		break;
-	case 3:
-		tempdi = NULL;
-		break;
-	case 4:
-		tempdi = XGI_TVDataTable;
-		break;
-	case 5:
-		tempdi = NULL;
-		break;
-	default:
-		break;
-	}
-
-	if (tempdi == NULL) /* OEMUtil */
-		return NULL;
-
+	tempdi = XGI_TVDataTable;
 	tempdx = pVBInfo->TVInfo;
 
 	if (pVBInfo->VBInfo & SetInSlaveMode)
@@ -1821,70 +1792,51 @@ static void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
 		i++;
 	}
 
-	if (table == 0x04) {
-		switch (tempdi[i].DATAPTR) {
-		case 0:
-			return &XGI_ExtPALData[tempal];
-			break;
-		case 1:
-			return &XGI_ExtNTSCData[tempal];
-			break;
-		case 2:
-			return &XGI_StPALData[tempal];
-			break;
-		case 3:
-			return &XGI_StNTSCData[tempal];
-			break;
-		case 4:
-			return &XGI_ExtHiTVData[tempal];
-			break;
-		case 5:
-			return &XGI_St2HiTVData[tempal];
-			break;
-		case 6:
-			return &XGI_ExtYPbPr525iData[tempal];
-			break;
-		case 7:
-			return &XGI_ExtYPbPr525pData[tempal];
-			break;
-		case 8:
-			return &XGI_ExtYPbPr750pData[tempal];
-			break;
-		case 9:
-			return &XGI_StYPbPr525iData[tempal];
-			break;
-		case 10:
-			return &XGI_StYPbPr525pData[tempal];
-			break;
-		case 11:
-			return &XGI_StYPbPr750pData[tempal];
-			break;
-		case 12: /* avoid system hang */
-			return &XGI_ExtNTSCData[tempal];
-			break;
-		case 13:
-			return &XGI_St1HiTVData[tempal];
-			break;
-		default:
-			break;
-		}
-	} else if (table == 0x02) {
-		switch (tempdi[i].DATAPTR) {
-		case 0:
-			return &XGI_CHTVUNTSCData[tempal];
-			break;
-		case 1:
-			return &XGI_CHTVONTSCData[tempal];
-			break;
-		case 2:
-			return &XGI_CHTVUPALData[tempal];
-			break;
-		case 3:
-			return &XGI_CHTVOPALData[tempal];
-			break;
-		default:
-			break;
-		}
+	switch (tempdi[i].DATAPTR) {
+	case 0:
+		return &XGI_ExtPALData[tempal];
+		break;
+	case 1:
+		return &XGI_ExtNTSCData[tempal];
+		break;
+	case 2:
+		return &XGI_StPALData[tempal];
+		break;
+	case 3:
+		return &XGI_StNTSCData[tempal];
+		break;
+	case 4:
+		return &XGI_ExtHiTVData[tempal];
+		break;
+	case 5:
+		return &XGI_St2HiTVData[tempal];
+		break;
+	case 6:
+		return &XGI_ExtYPbPr525iData[tempal];
+		break;
+	case 7:
+		return &XGI_ExtYPbPr525pData[tempal];
+		break;
+	case 8:
+		return &XGI_ExtYPbPr750pData[tempal];
+		break;
+	case 9:
+		return &XGI_StYPbPr525iData[tempal];
+		break;
+	case 10:
+		return &XGI_StYPbPr525pData[tempal];
+		break;
+	case 11:
+		return &XGI_StYPbPr750pData[tempal];
+		break;
+	case 12: /* avoid system hang */
+		return &XGI_ExtNTSCData[tempal];
+		break;
+	case 13:
+		return &XGI_St1HiTVData[tempal];
+		break;
+	default:
+		break;
 	}
 	return NULL;
 }
@@ -3414,10 +3366,8 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 	}
 
 	if (pVBInfo->VBInfo & (SetCRT2ToTV)) {
-		tempbx = 4;
-		TVPtr = (struct SiS_TVData *) XGI_GetTVPtr(tempbx,
-				ModeNo, ModeIdIndex, RefreshRateTableIndex,
-				pVBInfo);
+		TVPtr = (struct SiS_TVData *) XGI_GetTVPtr(ModeNo, ModeIdIndex,
+				RefreshRateTableIndex, pVBInfo);
 
 		pVBInfo->RVBHCMAX = TVPtr->RVBHCMAX;
 		pVBInfo->RVBHCFACT = TVPtr->RVBHCFACT;
