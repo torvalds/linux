@@ -487,7 +487,7 @@ static struct snd_soc_dai_driver cs4270_dai = {
 static int cs4270_probe(struct snd_soc_codec *codec)
 {
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	int i, ret;
+	int ret;
 
 	/* Tell ASoC what kind of I/O to use to read the registers.  ASoC will
 	 * then do the I2C transactions itself.
@@ -521,25 +521,8 @@ static int cs4270_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/* get the power supply regulators */
-	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
-		cs4270->supplies[i].supply = supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(cs4270->supplies),
-				 cs4270->supplies);
-	if (ret < 0)
-		return ret;
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
 				    cs4270->supplies);
-	if (ret < 0)
-		goto error_free_regulators;
-
-	return 0;
-
-error_free_regulators:
-	regulator_bulk_free(ARRAY_SIZE(cs4270->supplies),
-			    cs4270->supplies);
 
 	return ret;
 }
@@ -555,7 +538,6 @@ static int cs4270_remove(struct snd_soc_codec *codec)
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 
 	regulator_bulk_disable(ARRAY_SIZE(cs4270->supplies), cs4270->supplies);
-	regulator_bulk_free(ARRAY_SIZE(cs4270->supplies), cs4270->supplies);
 
 	return 0;
 };
@@ -658,7 +640,24 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 {
 	struct device_node *np = i2c_client->dev.of_node;
 	struct cs4270_private *cs4270;
-	int ret;
+	int ret, i;
+
+	cs4270 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs4270_private),
+			      GFP_KERNEL);
+	if (!cs4270) {
+		dev_err(&i2c_client->dev, "could not allocate codec\n");
+		return -ENOMEM;
+	}
+
+	/* get the power supply regulators */
+	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
+		cs4270->supplies[i].supply = supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c_client->dev,
+				      ARRAY_SIZE(cs4270->supplies),
+				      cs4270->supplies);
+	if (ret < 0)
+		return ret;
 
 	/* See if we have a way to bring the codec out of reset */
 	if (np) {
@@ -693,13 +692,6 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 	dev_info(&i2c_client->dev, "found device at i2c address %X\n",
 		i2c_client->addr);
 	dev_info(&i2c_client->dev, "hardware revision %X\n", ret & 0xF);
-
-	cs4270 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs4270_private),
-			      GFP_KERNEL);
-	if (!cs4270) {
-		dev_err(&i2c_client->dev, "could not allocate codec\n");
-		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c_client, cs4270);
 	cs4270->control_type = SND_SOC_I2C;
