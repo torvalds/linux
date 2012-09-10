@@ -966,20 +966,22 @@ static void edac_ce_error(struct mem_ctl_info *mci,
 			  long grain)
 {
 	unsigned long remapped_page;
+	char *msg_aux = "";
+
+	if (*msg)
+		msg_aux = " ";
 
 	if (edac_mc_get_log_ce()) {
 		if (other_detail && *other_detail)
 			edac_mc_printk(mci, KERN_WARNING,
-				       "%d CE %s on %s (%s %s - %s)\n",
-				       error_count,
-				       msg, label, location,
-				       detail, other_detail);
+				       "%d CE %s%son %s (%s %s - %s)\n",
+				       error_count, msg, msg_aux, label,
+				       location, detail, other_detail);
 		else
 			edac_mc_printk(mci, KERN_WARNING,
-				       "%d CE %s on %s (%s %s)\n",
-				       error_count,
-				       msg, label, location,
-				       detail);
+				       "%d CE %s%son %s (%s %s)\n",
+				       error_count, msg, msg_aux, label,
+				       location, detail);
 	}
 	edac_inc_ce_error(mci, enable_per_layer_report, pos, error_count);
 
@@ -1014,27 +1016,31 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 			  const char *other_detail,
 			  const bool enable_per_layer_report)
 {
+	char *msg_aux = "";
+
+	if (*msg)
+		msg_aux = " ";
+
 	if (edac_mc_get_log_ue()) {
 		if (other_detail && *other_detail)
 			edac_mc_printk(mci, KERN_WARNING,
-				       "%d UE %s on %s (%s %s - %s)\n",
-				       error_count,
-			               msg, label, location, detail,
-				       other_detail);
+				       "%d UE %s%son %s (%s %s - %s)\n",
+				       error_count, msg, msg_aux, label,
+				       location, detail, other_detail);
 		else
 			edac_mc_printk(mci, KERN_WARNING,
-				       "%d UE %s on %s (%s %s)\n",
-				       error_count,
-			               msg, label, location, detail);
+				       "%d UE %s%son %s (%s %s)\n",
+				       error_count, msg, msg_aux, label,
+				       location, detail);
 	}
 
 	if (edac_mc_get_panic_on_ue()) {
 		if (other_detail && *other_detail)
-			panic("UE %s on %s (%s%s - %s)\n",
-			      msg, label, location, detail, other_detail);
+			panic("UE %s%son %s (%s%s - %s)\n",
+			      msg, msg_aux, label, location, detail, other_detail);
 		else
-			panic("UE %s on %s (%s%s)\n",
-			      msg, label, location, detail);
+			panic("UE %s%son %s (%s%s)\n",
+			      msg, msg_aux, label, location, detail);
 	}
 
 	edac_inc_ue_error(mci, enable_per_layer_report, pos, error_count);
