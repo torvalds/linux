@@ -402,7 +402,7 @@ static int wm8523_resume(struct snd_soc_codec *codec)
 static int wm8523_probe(struct snd_soc_codec *codec)
 {
 	struct wm8523_priv *wm8523 = snd_soc_codec_get_drvdata(codec);
-	int ret, i;
+	int ret;
 
 	wm8523->rate_constraint.list = &wm8523->rate_constraint_list[0];
 	wm8523->rate_constraint.count =
@@ -411,16 +411,6 @@ static int wm8523_probe(struct snd_soc_codec *codec)
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, wm8523->control_type);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(wm8523->supplies); i++)
-		wm8523->supplies[i].supply = wm8523_supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8523->supplies),
-				 wm8523->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
 		return ret;
 	}
 
@@ -471,7 +461,6 @@ static int wm8523_probe(struct snd_soc_codec *codec)
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8523->supplies), wm8523->supplies);
 err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8523->supplies), wm8523->supplies);
 
 	return ret;
 }
@@ -481,7 +470,6 @@ static int wm8523_remove(struct snd_soc_codec *codec)
 	struct wm8523_priv *wm8523 = snd_soc_codec_get_drvdata(codec);
 
 	wm8523_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	regulator_bulk_free(ARRAY_SIZE(wm8523->supplies), wm8523->supplies);
 	return 0;
 }
 
@@ -514,12 +502,22 @@ static __devinit int wm8523_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8523_priv *wm8523;
-	int ret;
+	int ret, i;
 
 	wm8523 = devm_kzalloc(&i2c->dev, sizeof(struct wm8523_priv),
 			      GFP_KERNEL);
 	if (wm8523 == NULL)
 		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(wm8523->supplies); i++)
+		wm8523->supplies[i].supply = wm8523_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8523->supplies),
+				      wm8523->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
 
 	i2c_set_clientdata(i2c, wm8523);
 	wm8523->control_type = SND_SOC_I2C;
