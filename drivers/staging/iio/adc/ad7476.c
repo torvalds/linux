@@ -18,8 +18,62 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
-#include "ad7476.h"
+#define RES_MASK(bits)	((1 << (bits)) - 1)
+
+struct ad7476_chip_info {
+	unsigned int			int_vref_uv;
+	struct iio_chan_spec		channel[2];
+};
+
+struct ad7476_state {
+	struct spi_device		*spi;
+	const struct ad7476_chip_info	*chip_info;
+	struct regulator		*reg;
+	struct spi_transfer		xfer;
+	struct spi_message		msg;
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 * Make the buffer large enough for one 16 bit sample and one 64 bit
+	 * aligned 64 bit timestamp.
+	 */
+	unsigned char data[ALIGN(2, sizeof(s64)) + sizeof(s64)]
+			____cacheline_aligned;
+};
+
+enum ad7476_supported_device_ids {
+	ID_AD7466,
+	ID_AD7467,
+	ID_AD7468,
+	ID_AD7495
+};
+
+static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ad7476_state *st = iio_priv(indio_dev);
+	s64 time_ns;
+	int b_sent;
+
+	b_sent = spi_sync(st->spi, &st->msg);
+	if (b_sent < 0)
+		goto done;
+
+	time_ns = iio_get_time_ns();
+
+	if (indio_dev->scan_timestamp)
+		((s64 *)st->data)[1] = time_ns;
+
+	iio_push_to_buffer(indio_dev->buffer, st->data);
+done:
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
 
 static int ad7476_scan_direct(struct ad7476_state *st)
 {
@@ -155,7 +209,8 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	spi_message_init(&st->msg);
 	spi_message_add_tail(&st->xfer, &st->msg);
 
-	ret = ad7476_register_ring_funcs_and_init(indio_dev);
+	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+			&ad7476_trigger_handler, NULL);
 	if (ret)
 		goto error_disable_reg;
 
@@ -165,7 +220,7 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	return 0;
 
 error_ring_unregister:
-	ad7476_ring_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 error_disable_reg:
 	regulator_disable(st->reg);
 error_put_reg:
@@ -183,7 +238,7 @@ static int __devexit ad7476_remove(struct spi_device *spi)
 	struct ad7476_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	ad7476_ring_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(st->reg);
 	regulator_put(st->reg);
 	iio_device_free(indio_dev);
