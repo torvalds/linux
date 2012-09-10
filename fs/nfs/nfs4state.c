@@ -865,7 +865,7 @@ void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 	if (list_empty(&state->lock_states))
 		clear_bit(LK_STATE_IN_USE, &state->flags);
 	spin_unlock(&state->state_lock);
-	if (lsp->ls_flags & NFS_LOCK_INITIALIZED) {
+	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags)) {
 		if (nfs4_release_lockowner(lsp) == 0)
 			return;
 	}
@@ -929,7 +929,7 @@ static bool nfs4_copy_lock_stateid(nfs4_stateid *dst, struct nfs4_state *state,
 	fl_pid = lockowner->l_pid;
 	spin_lock(&state->state_lock);
 	lsp = __nfs4_find_lock_state(state, fl_owner, fl_pid, NFS4_ANY_LOCK_TYPE);
-	if (lsp != NULL && (lsp->ls_flags & NFS_LOCK_INITIALIZED) != 0) {
+	if (lsp != NULL && test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) != 0) {
 		nfs4_stateid_copy(dst, &lsp->ls_stateid);
 		ret = true;
 	}
@@ -1297,7 +1297,7 @@ restart:
 			if (status >= 0) {
 				spin_lock(&state->state_lock);
 				list_for_each_entry(lock, &state->lock_states, ls_locks) {
-					if (!(lock->ls_flags & NFS_LOCK_INITIALIZED))
+					if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags))
 						pr_warn_ratelimited("NFS: "
 							"%s: Lock reclaim "
 							"failed!\n", __func__);
@@ -1369,7 +1369,7 @@ static void nfs4_clear_open_state(struct nfs4_state *state)
 	spin_lock(&state->state_lock);
 	list_for_each_entry(lock, &state->lock_states, ls_locks) {
 		lock->ls_seqid.flags = 0;
-		lock->ls_flags &= ~NFS_LOCK_INITIALIZED;
+		clear_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags);
 	}
 	spin_unlock(&state->state_lock);
 }
