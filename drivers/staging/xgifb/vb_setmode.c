@@ -1365,9 +1365,9 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 	tempcx = LCDLenList[tempbx];
 
 	if (pVBInfo->LCDInfo & EnableScalingLCD) { /* ScaleLCD */
-		if ((tempbx == 5) || (tempbx) == 7)
+		if (tempbx == 5)
 			tempcx = LCDDesDataLen2;
-		else if ((tempbx == 3) || (tempbx == 8))
+		else if (tempbx == 3)
 			tempcx = LVDSDesDataLen2;
 	}
 
@@ -1387,12 +1387,6 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 		break;
 	case 5:
 		tempdi = XGI_LCDDesDataTable;
-		break;
-	case 6:
-	case 7:
-	case 8:
-	case 9:
-		tempdi = NULL;
 		break;
 	default:
 		break;
