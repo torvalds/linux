@@ -162,7 +162,7 @@ static struct aat2870_regulator *aat2870_get_regulator(int id)
 static int aat2870_regulator_probe(struct platform_device *pdev)
 {
 	struct aat2870_regulator *ri;
-	struct regulator_config config = { 0 };
+	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 
 	ri = aat2870_get_regulator(pdev->id);
