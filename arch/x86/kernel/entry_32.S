@@ -994,15 +994,20 @@ END(spurious_interrupt_bug)
  */
 	.popsection
 
-ENTRY(kernel_thread_helper)
-	pushl $0		# fake return address for unwinder
+ENTRY(ret_from_kernel_thread)
 	CFI_STARTPROC
-	movl %edi,%eax
-	call *%esi
+	pushl_cfi %eax
+	call schedule_tail
+	GET_THREAD_INFO(%ebp)
+	popl_cfi %eax
+	pushl_cfi $0x0202		# Reset kernel eflags
+	popfl_cfi
+	movl PT_EBP(%esp),%eax
+	call *PT_EBX(%esp)
 	call do_exit
 	ud2			# padding for call trace
 	CFI_ENDPROC
-ENDPROC(kernel_thread_helper)
+ENDPROC(ret_from_kernel_thread)
 
 #ifdef CONFIG_XEN
 /* Xen doesn't set %esp to be precisely what the normal sysenter
