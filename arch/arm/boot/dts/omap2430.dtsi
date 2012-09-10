@@ -14,6 +14,15 @@
 	compatible = "ti,omap2430", "ti,omap2";
 
 	ocp {
+		omap2430_pmx: pinmux@49002030 {
+			compatible = "ti,omap2430-padconf", "pinctrl-single";
+			reg = <0x49002030 0x0154>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,register-width = <8>;
+			pinctrl-single,function-mask = <0x3f>;
+		};
+
 		mcbsp1: mcbsp@48074000 {
 			compatible = "ti,omap2430-mcbsp";
 			reg = <0x48074000 0xff>;

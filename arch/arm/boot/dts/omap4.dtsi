@@ -95,6 +95,23 @@
 		ranges;
 		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
 
+		omap4_pmx_core: pinmux@4a100040 {
+			compatible = "ti,omap4-padconf", "pinctrl-single";
+			reg = <0x4a100040 0x0196>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,register-width = <16>;
+			pinctrl-single,function-mask = <0x7fff>;
+		};
+		omap4_pmx_wkup: pinmux@4a31e040 {
+			compatible = "ti,omap4-padconf", "pinctrl-single";
+			reg = <0x4a31e040 0x0038>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,register-width = <16>;
+			pinctrl-single,function-mask = <0x7fff>;
+		};
+
 		gpio1: gpio@4a310000 {
 			compatible = "ti,omap4-gpio";
 			reg = <0x4a310000 0x200>;

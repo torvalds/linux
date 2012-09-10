@@ -68,6 +68,24 @@
 			reg = <0x48200000 0x1000>;
 		};
 
+		omap3_pmx_core: pinmux@48002030 {
+			compatible = "ti,omap3-padconf", "pinctrl-single";
+			reg = <0x48002030 0x05cc>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,register-width = <16>;
+			pinctrl-single,function-mask = <0x7fff>;
+		};
+
+		omap3_pmx_wkup: pinmux@0x48002a58 {
+			compatible = "ti,omap3-padconf", "pinctrl-single";
+			reg = <0x48002a58 0x5c>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,register-width = <16>;
+			pinctrl-single,function-mask = <0x7fff>;
+		};
+
 		gpio1: gpio@48310000 {
 			compatible = "ti,omap3-gpio";
 			ti,hwmods = "gpio1";
