@@ -74,7 +74,6 @@ struct fan53555_device_info {
 	unsigned int sleep_reg;
 	/* Voltage range and step(linear) */
 	unsigned int vsel_min;
-	unsigned int vsel_max;
 	unsigned int vsel_step;
 	/* Voltage slew rate limiting */
 	unsigned int slew_rate;
@@ -180,12 +179,10 @@ static int fan53555_device_setup(struct fan53555_device_info *di,
 	case FAN53555_CHIP_ID_03:
 	case FAN53555_CHIP_ID_05:
 		di->vsel_min = 600000;
-		di->vsel_max = 1230000;
 		di->vsel_step = 10000;
 		break;
 	case FAN53555_CHIP_ID_04:
 		di->vsel_min = 603000;
-		di->vsel_max = 1411000;
 		di->vsel_step = 12826;
 		break;
 	default:
