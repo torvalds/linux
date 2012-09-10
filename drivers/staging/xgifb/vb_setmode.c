@@ -1337,7 +1337,7 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 		unsigned short RefreshRateTableIndex,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short i, tempdx, tempcx, tempbx, tempal, modeflag, table;
+	unsigned short i, tempdx, tempbx, tempal, modeflag, table;
 
 	struct XGI330_LCDDataTablStruct *tempdi = NULL;
 
@@ -1360,15 +1360,6 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 			tempal = (tempal >> 4);
 
 		tempal = (tempal & 0x0f);
-	}
-
-	tempcx = LCDLenList[tempbx];
-
-	if (pVBInfo->LCDInfo & EnableScalingLCD) { /* ScaleLCD */
-		if (tempbx == 5)
-			tempcx = LCDDesDataLen2;
-		else if (tempbx == 3)
-			tempcx = LVDSDesDataLen2;
 	}
 
 	switch (tempbx) {

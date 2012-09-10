@@ -104,16 +104,6 @@
 #define ActiveHiTV            0x08
 #define ActiveYPbPr           0x10
 
-/* --------------------------------------------------------- */
-/* translated from asm code 301def.h */
-/*  */
-/* --------------------------------------------------------- */
-#define LVDSCRT1Len_H        8
-#define LVDSCRT1Len_V        7
-#define LCDDesDataLen        6
-#define LVDSDesDataLen2      8
-#define LCDDesDataLen2       8
-
 #define NTSC1024x768HT       1908
 
 #define YPbPrTV525iHT        1716 /* YPbPr */

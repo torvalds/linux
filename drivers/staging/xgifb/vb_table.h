@@ -1876,19 +1876,6 @@ static const struct XGI330_TVDataTablStruct XGI_TVDataTable[] = {
 	{0xffff, 0x0000, XGI_ExtNTSCData},
 };
 
-static unsigned short LCDLenList[] = {
-	LVDSCRT1Len_H,
-	LVDSCRT1Len_V,
-	LVDSDataLen,
-	LCDDesDataLen,
-	LCDDataLen,
-	LCDDesDataLen,
-	0,
-	LCDDesDataLen,
-	LCDDesDataLen,
-	0
-};
-
 /* Dual link only */
 static struct XGI330_LCDCapStruct  XGI_LCDDLCapList[] = {
 /* LCDCap1024x768 */
