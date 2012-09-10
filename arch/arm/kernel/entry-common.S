@@ -91,6 +91,18 @@ ENTRY(ret_from_fork)
 	b	ret_slow_syscall
 ENDPROC(ret_from_fork)
 
+ENTRY(ret_from_kernel_thread)
+ UNWIND(.fnstart)
+ UNWIND(.cantunwind)
+	bl	schedule_tail
+	mov	r0, r4
+	adr	lr, BSYM(1f)	@ kernel threads should not exit
+	mov	pc, r5
+1:	bl	do_exit
+	nop
+ UNWIND(.fnend)
+ENDPROC(ret_from_kernel_thread)
+
 	.equ NR_syscalls,0
 #define CALL(x) .equ NR_syscalls,NR_syscalls+1
 #include "calls.S"
