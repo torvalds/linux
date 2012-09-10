@@ -1501,42 +1501,6 @@ static struct XGI330_LCDDataDesStruct2 XGI_LVDSNoScalingDesDatax75[] = {
 	{0, 1328,   0,  771, 112, 6}  /* ; 0A (1280x768x75Hz) */
 };
 
-static struct SiS_LVDSData  XGI_CHTVUNTSCData[] = {
-	{ 840, 600,  840, 600},
-	{ 840, 600,  840, 600},
-	{ 840, 600,  840, 600},
-	{ 840, 600,  840, 600},
-	{ 784, 600,  784, 600},
-	{1064, 750, 1064, 750}
-};
-
-static struct SiS_LVDSData  XGI_CHTVONTSCData[] = {
-	{ 840, 525,  840, 525},
-	{ 840, 525,  840, 525},
-	{ 840, 525,  840, 525},
-	{ 840, 525,  840, 525},
-	{ 784, 525,  784, 525},
-	{1040, 700, 1040, 700}
-};
-
-static struct SiS_LVDSData  XGI_CHTVUPALData[] = {
-	{1008, 625, 1008, 625},
-	{1008, 625, 1008, 625},
-	{1008, 625, 1008, 625},
-	{1008, 625, 1008, 625},
-	{ 840, 750,  840, 750},
-	{ 936, 836,  936, 836}
-};
-
-static struct SiS_LVDSData  XGI_CHTVOPALData[] = {
-	{1008, 625, 1008, 625},
-	{1008, 625, 1008, 625},
-	{1008, 625, 1008, 625},
-	{1008, 625, 1008, 625},
-	{840,  625,  840, 625},
-	{960,  750,  960, 750}
-};
-
 /* CR00,CR02,CR03,CR04,CR05,SR0B,SR0C,SR0E */
 static struct XGI_LVDSCRT1HDataStruct  XGI_LVDSCRT11024x768_1_H[] = {
 	{ {0x4B, 0x27, 0x8F, 0x32, 0x1B, 0x00, 0x45, 0x00} }, /* 00 (320x) */
@@ -1923,15 +1887,6 @@ static struct XGI330_TVDataTablStruct XGI_TVDataTable[] = {
 	{0x09E0, 0x0840, 10}, /* XGI_StYPbPr525pData */
 	{0x09E0, 0x0880, 11}, /* XGI_StYPbPr750pData */
 	{0xffff, 0x0000, 12}  /* END */
-};
-
-/* Chrontel 7017 TV List */
-static struct XGI330_TVDataTablStruct xgifb_chrontel_tv[] = {
-	{0x0011, 0x0000, 0}, /* UNTSC */
-	{0x0011, 0x0010, 1}, /* ONTSC */
-	{0x0011, 0x0001, 2}, /* UPAL */
-	{0x0011, 0x0011, 3}, /* OPAL */
-	{0xFFFF, 0x0000, 4}
 };
 
 static unsigned short LCDLenList[] = {

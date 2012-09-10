@@ -1770,12 +1770,10 @@ static void *XGI_GetTVPtr(unsigned short ModeNo,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short i, tempdx, tempal, modeflag;
-	struct XGI330_TVDataTablStruct *tempdi = NULL;
 
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 	tempal = pVBInfo->RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
 	tempal = tempal & 0x3f;
-	tempdi = XGI_TVDataTable;
 	tempdx = pVBInfo->TVInfo;
 
 	if (pVBInfo->VBInfo & SetInSlaveMode)
@@ -1786,13 +1784,14 @@ static void *XGI_GetTVPtr(unsigned short ModeNo,
 
 	i = 0;
 
-	while (tempdi[i].MASK != 0xffff) {
-		if ((tempdx & tempdi[i].MASK) == tempdi[i].CAP)
+	while (XGI_TVDataTable[i].MASK != 0xffff) {
+		if ((tempdx & XGI_TVDataTable[i].MASK) ==
+			XGI_TVDataTable[i].CAP)
 			break;
 		i++;
 	}
 
-	switch (tempdi[i].DATAPTR) {
+	switch (XGI_TVDataTable[i].DATAPTR) {
 	case 0:
 		return &XGI_ExtPALData[tempal];
 		break;
