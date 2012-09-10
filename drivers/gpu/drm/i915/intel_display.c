@@ -2246,6 +2246,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	old_fb = crtc->fb;
 	crtc->fb = fb;
+	crtc->x = x;
+	crtc->y = y;
 
 	if (old_fb) {
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
@@ -7020,11 +7022,11 @@ bool intel_set_mode(struct drm_crtc *crtc,
 			dev_priv->display.crtc_disable(&intel_crtc->base);
 	}
 
-	if (modeset_pipes) {
+	/* crtc->mode is already used by the ->mode_set callbacks, hence we need
+	 * to set it here already despite that we pass it down the callchain.
+	 */
+	if (modeset_pipes)
 		crtc->mode = *mode;
-		crtc->x = x;
-		crtc->y = y;
-	}
 
 	/* Only after disabling all output pipelines that will be changed can we
 	 * update the the output configuration. */
