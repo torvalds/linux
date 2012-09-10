@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c/twl.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -301,6 +302,22 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	u8 reg, byte;
 	int i = 0;
+
+	if (pdata && pdata->hs_extmute &&
+	    gpio_is_valid(pdata->hs_extmute_gpio)) {
+		int ret;
+
+		if (!pdata->hs_extmute_gpio)
+			dev_warn(codec->dev,
+				 "Extmute GPIO is 0 is this correct?\n");
+
+		ret = gpio_request_one(pdata->hs_extmute_gpio,
+				       GPIOF_OUT_INIT_LOW, "hs_extmute");
+		if (ret) {
+			dev_err(codec->dev, "Failed to get hs_extmute GPIO\n");
+			pdata->hs_extmute_gpio = -1;
+		}
+	}
 
 	/* Check defaults, if instructed before anything else */
 	if (pdata && pdata->check_defaults)
@@ -748,7 +765,10 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 	/* Enable external mute control, this dramatically reduces
 	 * the pop-noise */
 	if (pdata && pdata->hs_extmute) {
-		if (pdata->set_hs_extmute) {
+		if (gpio_is_valid(pdata->hs_extmute_gpio)) {
+			gpio_set_value(pdata->hs_extmute_gpio, 1);
+		} else if (pdata->set_hs_extmute) {
+			dev_warn(codec->dev, "set_hs_extmute is deprecated\n");
 			pdata->set_hs_extmute(1);
 		} else {
 			hs_pop |= TWL4030_EXTMUTE;
@@ -786,7 +806,10 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 
 	/* Disable external mute */
 	if (pdata && pdata->hs_extmute) {
-		if (pdata->set_hs_extmute) {
+		if (gpio_is_valid(pdata->hs_extmute_gpio)) {
+			gpio_set_value(pdata->hs_extmute_gpio, 0);
+		} else if (pdata->set_hs_extmute) {
+			dev_warn(codec->dev, "set_hs_extmute is deprecated\n");
 			pdata->set_hs_extmute(0);
 		} else {
 			hs_pop &= ~TWL4030_EXTMUTE;
@@ -2236,12 +2259,17 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 
 static int twl4030_soc_remove(struct snd_soc_codec *codec)
 {
+	struct twl4030_codec_data *pdata = dev_get_platdata(codec->dev);
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 
 	/* Reset registers to their chip default before leaving */
 	twl4030_reset_registers(codec);
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	kfree(twl4030);
+
+	if (pdata && pdata->hs_extmute && gpio_is_valid(pdata->hs_extmute_gpio))
+		gpio_free(pdata->hs_extmute_gpio);
+
 	return 0;
 }
 
