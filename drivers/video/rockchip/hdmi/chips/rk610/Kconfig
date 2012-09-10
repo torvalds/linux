@@ -1,0 +1,14 @@
+config HDCP_RK610
+	bool "RK610 HDCP support"
+        depends on HDMI_RK610
+        default n
+	help
+	  HDCP Interface. This adds the High Definition Content Protection Interface.
+	  See http://www.digital-cp.com/ for HDCP specification.
+
+config HDCP_RK610_DEBUG
+	bool "RK610 HDCP Debugging"
+        depends on HDCP_RK610
+        default n
+	help
+	  Enableds verbose debugging the the HDCP drivers

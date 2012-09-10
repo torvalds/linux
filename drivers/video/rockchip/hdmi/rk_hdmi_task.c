@@ -93,11 +93,11 @@ void hdmi_sys_remove(void)
 static void hdmi_sys_sleep(void)
 {
 	mutex_lock(&hdmi->enable_mutex);
-	if(hdmi->enable)
+	if(hdmi->enable && hdmi->irq)
 		disable_irq(hdmi->irq);				
 	hdmi->state = HDMI_SLEEP;
 	hdmi->remove();
-	if(hdmi->enable)
+	if(hdmi->enable && hdmi->irq)
 		enable_irq(hdmi->irq);
 	mutex_unlock(&hdmi->enable_mutex);
 }

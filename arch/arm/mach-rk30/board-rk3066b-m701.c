@@ -1330,12 +1330,12 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 			.flags			= 0,
 		},
 #endif
-#ifdef CONFIG_RK610_HDMI
+#ifdef CONFIG_HDMI_RK610
 		{
 			.type			= "rk610_hdmi",
 			.addr			= 0x46,
 			.flags			= 0,
-			.irq			= RK29_PIN5_PA2,
+			.irq			= INVALID_GPIO,
 		},
 #endif
 #ifdef CONFIG_SND_SOC_RK610

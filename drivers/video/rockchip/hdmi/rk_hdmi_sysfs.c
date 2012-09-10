@@ -33,13 +33,17 @@ static int hdmi_set_enable(struct rk_display_device *device, int enable)
 	}
 	
 	if(enable == 0) {
-		disable_irq(hdmi->irq);
+		if(hdmi->irq)
+			disable_irq(hdmi->irq);
 		mutex_unlock(&hdmi->enable_mutex);
 		hdmi->command = HDMI_CONFIG_ENABLE;
 		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
 	}
 	else {
-		enable_irq(hdmi->irq);
+		if(hdmi->irq)
+			enable_irq(hdmi->irq);
+		else
+			queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
 		mutex_unlock(&hdmi->enable_mutex);
 	}
 	return 0;

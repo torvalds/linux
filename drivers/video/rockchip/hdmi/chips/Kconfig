@@ -1,21 +1,30 @@
-choice
-	prompt "HDMI chips select"
 config  HDMI_RK30
         bool "RK30 HDMI support"
         depends on LCDC_RK30
         help
            Support rk30 hdmi if you say y here
-config  HDMI_RK2928
-        bool "RK2928 HDMI support"
-        depends on LCDC_RK2928
-        help
-           Support rk2928 hdmi if you say y here
-endchoice
 
 if HDMI_RK30
 source "drivers/video/rockchip/hdmi/chips/rk30/Kconfig"
 endif
 
+config  HDMI_RK2928
+        bool "RK2928 HDMI support"
+        depends on LCDC_RK2928
+        help
+           Support rk2928 hdmi if you say y here
+
 if HDMI_RK2928
 source "drivers/video/rockchip/hdmi/chips/rk2928/Kconfig"
 endif
+
+config  HDMI_RK610
+        bool "RK610 HDMI support"
+        depends on MFD_RK610
+        help
+           Support rk610 hdmi if you say y here
+
+if HDMI_RK610
+source "drivers/video/rockchip/hdmi/chips/rk610/Kconfig"
+endif
+
