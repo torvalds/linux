@@ -13,6 +13,17 @@
 
 /include/ "omap3.dtsi"
 
+/ {
+	leds {
+		compatible = "gpio-leds";
+		overo {
+			label = "overo:blue:COM";
+			gpios = <&twl_gpio 19 0>;
+			linux,default-trigger = "mmc0";
+		};
+	};
+};
+
 &i2c1 {
 	clock-frequency = <2600000>;
 
@@ -39,4 +50,8 @@
 /* optional on board WiFi */
 &mmc2 {
 	bus-width = <4>;
+};
+
+&twl_gpio {
+	ti,use-leds;
 };
