@@ -215,6 +215,16 @@ static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 	evsel->priv = NULL;
 }
 
+static inline struct cpu_map *perf_evsel__cpus(struct perf_evsel *evsel)
+{
+	return (evsel->cpus && !target.cpu_list) ? evsel->cpus : evsel_list->cpus;
+}
+
+static inline int perf_evsel__nr_cpus(struct perf_evsel *evsel)
+{
+	return perf_evsel__cpus(evsel)->nr;
+}
+
 static struct stats runtime_nsecs_stats[MAX_NR_CPUS];
 static struct stats runtime_cycles_stats[MAX_NR_CPUS];
 static struct stats runtime_stalled_cycles_front_stats[MAX_NR_CPUS];
@@ -246,7 +256,7 @@ retry:
 		evsel->attr.exclude_guest = evsel->attr.exclude_host = 0;
 
 	if (perf_target__has_cpu(&target)) {
-		ret = perf_evsel__open_per_cpu(evsel, evsel_list->cpus);
+		ret = perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
 		if (ret)
 			goto check_ret;
 		return 0;
@@ -327,7 +337,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	u64 *count = counter->counts->aggr.values;
 	int i;
 
-	if (__perf_evsel__read(counter, evsel_list->cpus->nr,
+	if (__perf_evsel__read(counter, perf_evsel__nr_cpus(counter),
 			       evsel_list->threads->nr, scale) < 0)
 		return -1;
 
@@ -356,7 +366,7 @@ static int read_counter(struct perf_evsel *counter)
 	u64 *count;
 	int cpu;
 
-	for (cpu = 0; cpu < evsel_list->cpus->nr; cpu++) {
+	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
 		if (__perf_evsel__read_on_cpu(counter, cpu, 0, scale) < 0)
 			return -1;
 
@@ -495,12 +505,12 @@ static int run_perf_stat(int argc __maybe_unused, const char **argv)
 	if (no_aggr) {
 		list_for_each_entry(counter, &evsel_list->entries, node) {
 			read_counter(counter);
-			perf_evsel__close_fd(counter, evsel_list->cpus->nr, 1);
+			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter), 1);
 		}
 	} else {
 		list_for_each_entry(counter, &evsel_list->entries, node) {
 			read_counter_aggr(counter);
-			perf_evsel__close_fd(counter, evsel_list->cpus->nr,
+			perf_evsel__close_fd(counter, perf_evsel__nr_cpus(counter),
 					     evsel_list->threads->nr);
 		}
 	}
@@ -538,7 +548,7 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
 			csv_output ? 0 : -4,
-			evsel_list->cpus->map[cpu], csv_sep);
+			perf_evsel__cpus(evsel)->map[cpu], csv_sep);
 
 	fprintf(output, fmt, cpustr, msecs, csv_sep, perf_evsel__name(evsel));
 
@@ -750,7 +760,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
 			csv_output ? 0 : -4,
-			evsel_list->cpus->map[cpu], csv_sep);
+			perf_evsel__cpus(evsel)->map[cpu], csv_sep);
 	else
 		cpu = 0;
 
@@ -911,14 +921,14 @@ static void print_counter(struct perf_evsel *counter)
 	u64 ena, run, val;
 	int cpu;
 
-	for (cpu = 0; cpu < evsel_list->cpus->nr; cpu++) {
+	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
 		val = counter->counts->cpu[cpu].val;
 		ena = counter->counts->cpu[cpu].ena;
 		run = counter->counts->cpu[cpu].run;
 		if (run == 0 || ena == 0) {
 			fprintf(output, "CPU%*d%s%*s%s%*s",
 				csv_output ? 0 : -4,
-				evsel_list->cpus->map[cpu], csv_sep,
+				perf_evsel__cpus(counter)->map[cpu], csv_sep,
 				csv_output ? 0 : 18,
 				counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
 				csv_sep,
@@ -1217,7 +1227,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
 		if (perf_evsel__alloc_stat_priv(pos) < 0 ||
-		    perf_evsel__alloc_counts(pos, evsel_list->cpus->nr) < 0)
+		    perf_evsel__alloc_counts(pos, perf_evsel__nr_cpus(pos)) < 0)
 			goto out_free_fd;
 	}
 
