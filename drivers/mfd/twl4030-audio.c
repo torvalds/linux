@@ -169,35 +169,30 @@ static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* Configure APLL_INFREQ and disable APLL if enabled */
-	val = 0;
-	switch (pdata->audio_mclk) {
-	case 19200000:
-		val |= TWL4030_APLL_INFREQ_19200KHZ;
-		break;
-	case 26000000:
-		val |= TWL4030_APLL_INFREQ_26000KHZ;
-		break;
-	case 38400000:
-		val |= TWL4030_APLL_INFREQ_38400KHZ;
-		break;
-	default:
-		dev_err(&pdev->dev, "Invalid audio_mclk\n");
-		return -EINVAL;
-	}
-	twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
-					val, TWL4030_REG_APLL_CTL);
-
 	audio = devm_kzalloc(&pdev->dev, sizeof(struct twl4030_audio),
 			     GFP_KERNEL);
 	if (!audio)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, audio);
-
-	twl4030_audio_dev = pdev;
 	mutex_init(&audio->mutex);
 	audio->audio_mclk = pdata->audio_mclk;
+
+	/* Configure APLL_INFREQ and disable APLL if enabled */
+	switch (audio->audio_mclk) {
+	case 19200000:
+		val = TWL4030_APLL_INFREQ_19200KHZ;
+		break;
+	case 26000000:
+		val = TWL4030_APLL_INFREQ_26000KHZ;
+		break;
+	case 38400000:
+		val = TWL4030_APLL_INFREQ_38400KHZ;
+		break;
+	default:
+		dev_err(&pdev->dev, "Invalid audio_mclk\n");
+		return -EINVAL;
+	}
+	twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, val, TWL4030_REG_APLL_CTL);
 
 	/* Codec power */
 	audio->resource[TWL4030_AUDIO_RES_POWER].reg = TWL4030_REG_CODEC_MODE;
@@ -221,6 +216,9 @@ static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 		cell->pdata_size = sizeof(*pdata->vibra);
 		childs++;
 	}
+
+	platform_set_drvdata(pdev, audio);
+	twl4030_audio_dev = pdev;
 
 	if (childs)
 		ret = mfd_add_devices(&pdev->dev, pdev->id, audio->cells,
