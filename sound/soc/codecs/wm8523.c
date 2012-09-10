@@ -516,7 +516,8 @@ static __devinit int wm8523_i2c_probe(struct i2c_client *i2c,
 	struct wm8523_priv *wm8523;
 	int ret;
 
-	wm8523 = kzalloc(sizeof(struct wm8523_priv), GFP_KERNEL);
+	wm8523 = devm_kzalloc(&i2c->dev, sizeof(struct wm8523_priv),
+			      GFP_KERNEL);
 	if (wm8523 == NULL)
 		return -ENOMEM;
 
@@ -525,8 +526,7 @@ static __devinit int wm8523_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8523, &wm8523_dai, 1);
-	if (ret < 0)
-		kfree(wm8523);
+
 	return ret;
 
 }
@@ -534,7 +534,6 @@ static __devinit int wm8523_i2c_probe(struct i2c_client *i2c,
 static __devexit int wm8523_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
