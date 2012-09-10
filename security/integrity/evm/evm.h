@@ -24,6 +24,7 @@
 extern int evm_initialized;
 extern char *evm_hmac;
 extern char *evm_hash;
+extern int evm_hmac_version;
 
 extern struct crypto_shash *hmac_tfm;
 extern struct crypto_shash *hash_tfm;
