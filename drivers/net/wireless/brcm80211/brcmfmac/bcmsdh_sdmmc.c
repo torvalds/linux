@@ -638,6 +638,8 @@ static int brcmf_sdio_pd_probe(struct platform_device *pdev)
 
 		oobirq_entry = kzalloc(sizeof(struct brcmf_sdio_oobirq),
 				       GFP_KERNEL);
+		if (!oobirq_entry)
+			return -ENOMEM;
 		oobirq_entry->irq = res->start;
 		oobirq_entry->flags = res->flags & IRQF_TRIGGER_MASK;
 		list_add_tail(&oobirq_entry->list, &oobirq_lh);
