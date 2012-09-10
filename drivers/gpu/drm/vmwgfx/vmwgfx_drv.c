@@ -182,8 +182,9 @@ static struct pci_device_id vmw_pci_id_list[] = {
 	{0x15ad, 0x0405, PCI_ANY_ID, PCI_ANY_ID, 0, 0, VMWGFX_CHIP_SVGAII},
 	{0, 0, 0}
 };
+MODULE_DEVICE_TABLE(pci, vmw_pci_id_list);
 
-static int enable_fbdev;
+static int enable_fbdev = IS_ENABLED(CONFIG_DRM_VMWGFX_FBCON);
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
 static void vmw_master_init(struct vmw_master *);
