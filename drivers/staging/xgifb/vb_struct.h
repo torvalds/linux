@@ -169,7 +169,6 @@ struct vb_device_info {
 	unsigned short   IF_DEF_LVDS, IF_DEF_TRUMPION, IF_DEF_DSTN;
 	unsigned short   IF_DEF_CRT2Monitor;
 	unsigned short   IF_DEF_LCDA, IF_DEF_YPbPr;
-	unsigned short   IF_DEF_ExpLink;
 	unsigned short   IF_DEF_HiVision;
 	unsigned short   LCDResInfo, LCDTypeInfo, VBType;/*301b*/
 	unsigned short   VBInfo, TVInfo, LCDInfo;

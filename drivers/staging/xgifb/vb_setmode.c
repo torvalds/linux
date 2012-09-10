@@ -2960,20 +2960,6 @@ static unsigned char XGI_GetLCDInfo(unsigned short ModeNo,
 			tempbx |= SetLCDtoNonExpanding;
 	}
 
-	if (pVBInfo->IF_DEF_ExpLink == 1) {
-		if (modeflag & HalfDCLK) {
-			if (!(tempbx & SetLCDtoNonExpanding)) {
-				tempbx |= XGI_EnableLVDSDDA;
-			} else {
-				if (pVBInfo->LCDResInfo == Panel_1024x768) {
-					if (resinfo == 4) {/* 512x384 */
-						tempbx |= XGI_EnableLVDSDDA;
-					}
-				}
-			}
-		}
-	}
-
 	if (pVBInfo->VBInfo & SetInSlaveMode) {
 		if (pVBInfo->VBInfo & SetNotSimuMode)
 			tempbx |= XGI_LCDVESATiming;
