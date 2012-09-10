@@ -3122,33 +3122,6 @@ static void XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x48, ~tempbh, tempbl);
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_XG21SetPanelDelay */
-/* Input : */
-/* Output : */
-/* Description : */
-/* I/P : bl : 1 ; T1 : the duration between CPL on and signal on */
-/* : bl : 2 ; T2 : the duration signal on and Vdd on */
-/* : bl : 3 ; T3 : the duration between CPL off and signal off */
-/* : bl : 4 ; T4 : the duration signal off and Vdd off */
-/* --------------------------------------------------------------------- */
-static void XGI_XG21SetPanelDelay(struct xgifb_video_info *xgifb_info,
-		unsigned short tempbl,
-		struct vb_device_info *pVBInfo)
-{
-	if (tempbl == 1)
-		mdelay(xgifb_info->lvds_data.PSC_S1);
-
-	if (tempbl == 2)
-		mdelay(xgifb_info->lvds_data.PSC_S2);
-
-	if (tempbl == 3)
-		mdelay(xgifb_info->lvds_data.PSC_S3);
-
-	if (tempbl == 4)
-		mdelay(xgifb_info->lvds_data.PSC_S4);
-}
-
 static void XGI_DisplayOn(struct xgifb_video_info *xgifb_info,
 		struct xgi_hw_device_info *pXGIHWDE,
 		struct vb_device_info *pVBInfo)
@@ -3160,12 +3133,12 @@ static void XGI_DisplayOn(struct xgifb_video_info *xgifb_info,
 			if (!(XGI_XG21GetPSCValue(pVBInfo) & 0x1)) {
 				/* LVDS VDD on */
 				XGI_XG21BLSignalVDD(0x01, 0x01, pVBInfo);
-				XGI_XG21SetPanelDelay(xgifb_info, 2, pVBInfo);
+				mdelay(xgifb_info->lvds_data.PSC_S2);
 			}
 			if (!(XGI_XG21GetPSCValue(pVBInfo) & 0x20))
 				/* LVDS signal on */
 				XGI_XG21BLSignalVDD(0x20, 0x20, pVBInfo);
-			XGI_XG21SetPanelDelay(xgifb_info, 3, pVBInfo);
+			mdelay(xgifb_info->lvds_data.PSC_S3);
 			/* LVDS backlight on */
 			XGI_XG21BLSignalVDD(0x02, 0x02, pVBInfo);
 		} else {
@@ -3180,12 +3153,12 @@ static void XGI_DisplayOn(struct xgifb_video_info *xgifb_info,
 			if (!(XGI_XG27GetPSCValue(pVBInfo) & 0x1)) {
 				/* LVDS VDD on */
 				XGI_XG27BLSignalVDD(0x01, 0x01, pVBInfo);
-				XGI_XG21SetPanelDelay(xgifb_info, 2, pVBInfo);
+				mdelay(xgifb_info->lvds_data.PSC_S2);
 			}
 			if (!(XGI_XG27GetPSCValue(pVBInfo) & 0x20))
 				/* LVDS signal on */
 				XGI_XG27BLSignalVDD(0x20, 0x20, pVBInfo);
-			XGI_XG21SetPanelDelay(xgifb_info, 3, pVBInfo);
+			mdelay(xgifb_info->lvds_data.PSC_S3);
 			/* LVDS backlight on */
 			XGI_XG27BLSignalVDD(0x02, 0x02, pVBInfo);
 		} else {
@@ -3205,7 +3178,7 @@ void XGI_DisplayOff(struct xgifb_video_info *xgifb_info,
 		if (pVBInfo->IF_DEF_LVDS == 1) {
 			/* LVDS backlight off */
 			XGI_XG21BLSignalVDD(0x02, 0x00, pVBInfo);
-			XGI_XG21SetPanelDelay(xgifb_info, 3, pVBInfo);
+			mdelay(xgifb_info->lvds_data.PSC_S3);
 		} else {
 			/* DVO/DVI signal off */
 			XGI_XG21BLSignalVDD(0x20, 0x00, pVBInfo);
@@ -3216,7 +3189,7 @@ void XGI_DisplayOff(struct xgifb_video_info *xgifb_info,
 		if ((XGI_XG27GetPSCValue(pVBInfo) & 0x2)) {
 			/* LVDS backlight off */
 			XGI_XG27BLSignalVDD(0x02, 0x00, pVBInfo);
-			XGI_XG21SetPanelDelay(xgifb_info, 3, pVBInfo);
+			mdelay(xgifb_info->lvds_data.PSC_S3);
 		}
 
 		if (pVBInfo->IF_DEF_LVDS == 0)
