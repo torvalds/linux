@@ -1307,93 +1307,6 @@ int bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos)
 }
 
 /******************************************************************/
-/*			EEE section				   */
-/******************************************************************/
-static u8 bnx2x_eee_has_cap(struct link_params *params)
-{
-	struct bnx2x *bp = params->bp;
-
-	if (REG_RD(bp, params->shmem2_base) <=
-		   offsetof(struct shmem2_region, eee_status[params->port]))
-		return 0;
-
-	return 1;
-}
-
-static int bnx2x_eee_nvram_to_time(u32 nvram_mode, u32 *idle_timer)
-{
-	switch (nvram_mode) {
-	case PORT_FEAT_CFG_EEE_POWER_MODE_BALANCED:
-		*idle_timer = EEE_MODE_NVRAM_BALANCED_TIME;
-		break;
-	case PORT_FEAT_CFG_EEE_POWER_MODE_AGGRESSIVE:
-		*idle_timer = EEE_MODE_NVRAM_AGGRESSIVE_TIME;
-		break;
-	case PORT_FEAT_CFG_EEE_POWER_MODE_LOW_LATENCY:
-		*idle_timer = EEE_MODE_NVRAM_LATENCY_TIME;
-		break;
-	default:
-		*idle_timer = 0;
-		break;
-	}
-
-	return 0;
-}
-
-static int bnx2x_eee_time_to_nvram(u32 idle_timer, u32 *nvram_mode)
-{
-	switch (idle_timer) {
-	case EEE_MODE_NVRAM_BALANCED_TIME:
-		*nvram_mode = PORT_FEAT_CFG_EEE_POWER_MODE_BALANCED;
-		break;
-	case EEE_MODE_NVRAM_AGGRESSIVE_TIME:
-		*nvram_mode = PORT_FEAT_CFG_EEE_POWER_MODE_AGGRESSIVE;
-		break;
-	case EEE_MODE_NVRAM_LATENCY_TIME:
-		*nvram_mode = PORT_FEAT_CFG_EEE_POWER_MODE_LOW_LATENCY;
-		break;
-	default:
-		*nvram_mode = PORT_FEAT_CFG_EEE_POWER_MODE_DISABLED;
-		break;
-	}
-
-	return 0;
-}
-
-static u32 bnx2x_eee_calc_timer(struct link_params *params)
-{
-	u32 eee_mode, eee_idle;
-	struct bnx2x *bp = params->bp;
-
-	if (params->eee_mode & EEE_MODE_OVERRIDE_NVRAM) {
-		if (params->eee_mode & EEE_MODE_OUTPUT_TIME) {
-			/* time value in eee_mode --> used directly*/
-			eee_idle = params->eee_mode & EEE_MODE_TIMER_MASK;
-		} else {
-			/* hsi value in eee_mode --> time */
-			if (bnx2x_eee_nvram_to_time(params->eee_mode &
-						    EEE_MODE_NVRAM_MASK,
-						    &eee_idle))
-				return 0;
-		}
-	} else {
-		/* hsi values in nvram --> time*/
-		eee_mode = ((REG_RD(bp, params->shmem_base +
-				    offsetof(struct shmem_region, dev_info.
-				    port_feature_config[params->port].
-				    eee_power_mode)) &
-			     PORT_FEAT_CFG_EEE_POWER_MODE_MASK) >>
-			    PORT_FEAT_CFG_EEE_POWER_MODE_SHIFT);
-
-		if (bnx2x_eee_nvram_to_time(eee_mode, &eee_idle))
-			return 0;
-	}
-
-	return eee_idle;
-}
-
-
-/******************************************************************/
 /*			PFC section				  */
 /******************************************************************/
 static void bnx2x_update_pfc_xmac(struct link_params *params,
@@ -2529,16 +2442,6 @@ static void bnx2x_update_mng(struct link_params *params, u32 link_status)
 			port_mb[params->port].link_status), link_status);
 }
 
-static void bnx2x_update_mng_eee(struct link_params *params, u32 eee_status)
-{
-	struct bnx2x *bp = params->bp;
-
-	if (bnx2x_eee_has_cap(params))
-		REG_WR(bp, params->shmem2_base +
-		       offsetof(struct shmem2_region,
-				eee_status[params->port]), eee_status);
-}
-
 static void bnx2x_update_pfc_nig(struct link_params *params,
 		struct link_vars *vars,
 		struct bnx2x_nig_brb_pfc_port_params *nig_params)
@@ -3231,6 +3134,245 @@ static int bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
 			       EMAC_MDIO_STATUS_10MB);
 	return rc;
 }
+
+/******************************************************************/
+/*			EEE section				   */
+/******************************************************************/
+static u8 bnx2x_eee_has_cap(struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+
+	if (REG_RD(bp, params->shmem2_base) <=
+		   offsetof(struct shmem2_region, eee_status[params->port]))
+		return 0;
+
+	return 1;
+}
+
+static int bnx2x_eee_nvram_to_time(u32 nvram_mode, u32 *idle_timer)
+{
+	switch (nvram_mode) {
+	case PORT_FEAT_CFG_EEE_POWER_MODE_BALANCED:
+		*idle_timer = EEE_MODE_NVRAM_BALANCED_TIME;
+		break;
+	case PORT_FEAT_CFG_EEE_POWER_MODE_AGGRESSIVE:
+		*idle_timer = EEE_MODE_NVRAM_AGGRESSIVE_TIME;
+		break;
+	case PORT_FEAT_CFG_EEE_POWER_MODE_LOW_LATENCY:
+		*idle_timer = EEE_MODE_NVRAM_LATENCY_TIME;
+		break;
+	default:
+		*idle_timer = 0;
+		break;
+	}
+
+	return 0;
+}
+
+static int bnx2x_eee_time_to_nvram(u32 idle_timer, u32 *nvram_mode)
+{
+	switch (idle_timer) {
+	case EEE_MODE_NVRAM_BALANCED_TIME:
+		*nvram_mode = PORT_FEAT_CFG_EEE_POWER_MODE_BALANCED;
+		break;
+	case EEE_MODE_NVRAM_AGGRESSIVE_TIME:
+		*nvram_mode = PORT_FEAT_CFG_EEE_POWER_MODE_AGGRESSIVE;
+		break;
+	case EEE_MODE_NVRAM_LATENCY_TIME:
+		*nvram_mode = PORT_FEAT_CFG_EEE_POWER_MODE_LOW_LATENCY;
+		break;
+	default:
+		*nvram_mode = PORT_FEAT_CFG_EEE_POWER_MODE_DISABLED;
+		break;
+	}
+
+	return 0;
+}
+
+static u32 bnx2x_eee_calc_timer(struct link_params *params)
+{
+	u32 eee_mode, eee_idle;
+	struct bnx2x *bp = params->bp;
+
+	if (params->eee_mode & EEE_MODE_OVERRIDE_NVRAM) {
+		if (params->eee_mode & EEE_MODE_OUTPUT_TIME) {
+			/* time value in eee_mode --> used directly*/
+			eee_idle = params->eee_mode & EEE_MODE_TIMER_MASK;
+		} else {
+			/* hsi value in eee_mode --> time */
+			if (bnx2x_eee_nvram_to_time(params->eee_mode &
+						    EEE_MODE_NVRAM_MASK,
+						    &eee_idle))
+				return 0;
+		}
+	} else {
+		/* hsi values in nvram --> time*/
+		eee_mode = ((REG_RD(bp, params->shmem_base +
+				    offsetof(struct shmem_region, dev_info.
+				    port_feature_config[params->port].
+				    eee_power_mode)) &
+			     PORT_FEAT_CFG_EEE_POWER_MODE_MASK) >>
+			    PORT_FEAT_CFG_EEE_POWER_MODE_SHIFT);
+
+		if (bnx2x_eee_nvram_to_time(eee_mode, &eee_idle))
+			return 0;
+	}
+
+	return eee_idle;
+}
+
+static int bnx2x_eee_set_timers(struct link_params *params,
+				   struct link_vars *vars)
+{
+	u32 eee_idle = 0, eee_mode;
+	struct bnx2x *bp = params->bp;
+
+	eee_idle = bnx2x_eee_calc_timer(params);
+
+	if (eee_idle) {
+		REG_WR(bp, MISC_REG_CPMU_LP_IDLE_THR_P0 + (params->port << 2),
+		       eee_idle);
+	} else if ((params->eee_mode & EEE_MODE_ENABLE_LPI) &&
+		   (params->eee_mode & EEE_MODE_OVERRIDE_NVRAM) &&
+		   (params->eee_mode & EEE_MODE_OUTPUT_TIME)) {
+		DP(NETIF_MSG_LINK, "Error: Tx LPI is enabled with timer 0\n");
+		return -EINVAL;
+	}
+
+	vars->eee_status &= ~(SHMEM_EEE_TIMER_MASK | SHMEM_EEE_TIME_OUTPUT_BIT);
+	if (params->eee_mode & EEE_MODE_OUTPUT_TIME) {
+		/* eee_idle in 1u --> eee_status in 16u */
+		eee_idle >>= 4;
+		vars->eee_status |= (eee_idle & SHMEM_EEE_TIMER_MASK) |
+				    SHMEM_EEE_TIME_OUTPUT_BIT;
+	} else {
+		if (bnx2x_eee_time_to_nvram(eee_idle, &eee_mode))
+			return -EINVAL;
+		vars->eee_status |= eee_mode;
+	}
+
+	return 0;
+}
+
+static int bnx2x_eee_initial_config(struct link_params *params,
+				     struct link_vars *vars, u8 mode)
+{
+	vars->eee_status |= ((u32) mode) << SHMEM_EEE_SUPPORTED_SHIFT;
+
+	/* Propogate params' bits --> vars (for migration exposure) */
+	if (params->eee_mode & EEE_MODE_ENABLE_LPI)
+		vars->eee_status |= SHMEM_EEE_LPI_REQUESTED_BIT;
+	else
+		vars->eee_status &= ~SHMEM_EEE_LPI_REQUESTED_BIT;
+
+	if (params->eee_mode & EEE_MODE_ADV_LPI)
+		vars->eee_status |= SHMEM_EEE_REQUESTED_BIT;
+	else
+		vars->eee_status &= ~SHMEM_EEE_REQUESTED_BIT;
+
+	return bnx2x_eee_set_timers(params, vars);
+}
+
+static int bnx2x_eee_disable(struct bnx2x_phy *phy,
+				struct link_params *params,
+				struct link_vars *vars)
+{
+	struct bnx2x *bp = params->bp;
+
+	/* Make Certain LPI is disabled */
+	REG_WR(bp, MISC_REG_CPMU_LP_FW_ENABLE_P0 + (params->port << 2), 0);
+
+	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD, MDIO_AN_REG_EEE_ADV, 0x0);
+
+	vars->eee_status &= ~SHMEM_EEE_ADV_STATUS_MASK;
+
+	return 0;
+}
+
+static int bnx2x_eee_advertise(struct bnx2x_phy *phy,
+				  struct link_params *params,
+				  struct link_vars *vars, u8 modes)
+{
+	struct bnx2x *bp = params->bp;
+	u16 val = 0;
+
+	/* Mask events preventing LPI generation */
+	REG_WR(bp, MISC_REG_CPMU_LP_MASK_EXT_P0 + (params->port << 2), 0xfc20);
+
+	if (modes & SHMEM_EEE_10G_ADV) {
+		DP(NETIF_MSG_LINK, "Advertise 10GBase-T EEE\n");
+		val |= 0x8;
+	}
+	if (modes & SHMEM_EEE_1G_ADV) {
+		DP(NETIF_MSG_LINK, "Advertise 1GBase-T EEE\n");
+		val |= 0x4;
+	}
+
+	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD, MDIO_AN_REG_EEE_ADV, val);
+
+	vars->eee_status &= ~SHMEM_EEE_ADV_STATUS_MASK;
+	vars->eee_status |= (modes << SHMEM_EEE_ADV_STATUS_SHIFT);
+
+	return 0;
+}
+
+static void bnx2x_update_mng_eee(struct link_params *params, u32 eee_status)
+{
+	struct bnx2x *bp = params->bp;
+
+	if (bnx2x_eee_has_cap(params))
+		REG_WR(bp, params->shmem2_base +
+		       offsetof(struct shmem2_region,
+				eee_status[params->port]), eee_status);
+}
+
+static void bnx2x_eee_an_resolve(struct bnx2x_phy *phy,
+				  struct link_params *params,
+				  struct link_vars *vars)
+{
+	struct bnx2x *bp = params->bp;
+	u16 adv = 0, lp = 0;
+	u32 lp_adv = 0;
+	u8 neg = 0;
+
+	bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD, MDIO_AN_REG_EEE_ADV, &adv);
+	bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD, MDIO_AN_REG_LP_EEE_ADV, &lp);
+
+	if (lp & 0x2) {
+		lp_adv |= SHMEM_EEE_100M_ADV;
+		if (adv & 0x2) {
+			if (vars->line_speed == SPEED_100)
+				neg = 1;
+			DP(NETIF_MSG_LINK, "EEE negotiated - 100M\n");
+		}
+	}
+	if (lp & 0x14) {
+		lp_adv |= SHMEM_EEE_1G_ADV;
+		if (adv & 0x14) {
+			if (vars->line_speed == SPEED_1000)
+				neg = 1;
+			DP(NETIF_MSG_LINK, "EEE negotiated - 1G\n");
+		}
+	}
+	if (lp & 0x68) {
+		lp_adv |= SHMEM_EEE_10G_ADV;
+		if (adv & 0x68) {
+			if (vars->line_speed == SPEED_10000)
+				neg = 1;
+			DP(NETIF_MSG_LINK, "EEE negotiated - 10G\n");
+		}
+	}
+
+	vars->eee_status &= ~SHMEM_EEE_LP_ADV_STATUS_MASK;
+	vars->eee_status |= (lp_adv << SHMEM_EEE_LP_ADV_STATUS_SHIFT);
+
+	if (neg) {
+		DP(NETIF_MSG_LINK, "EEE is active\n");
+		vars->eee_status |= SHMEM_EEE_ACTIVE_BIT;
+	}
+
+}
+
 /******************************************************************/
 /*			BSC access functions from E3	          */
 /******************************************************************/
@@ -3752,6 +3894,19 @@ static u8 bnx2x_ext_phy_resolve_fc(struct bnx2x_phy *phy,
  * init configuration, and set/clear SGMII flag. Internal
  * phy init is done purely in phy_init stage.
  */
+
+static void bnx2x_warpcore_set_lpi_passthrough(struct bnx2x_phy *phy,
+					       struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+
+	DP(NETIF_MSG_LINK, "Configure WC for LPI pass through\n");
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_EEE_COMBO_CONTROL0, 0x7c);
+	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_DIGITAL4_MISC5, 0xc000);
+}
+
 static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 					struct link_params *params,
 					struct link_vars *vars) {
@@ -4011,13 +4166,7 @@ static void bnx2x_warpcore_set_10G_XFI(struct bnx2x_phy *phy,
 	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
 				 MDIO_WC_REG_DIGITAL4_MISC3, 0x8080);
 
-	/* Enable LPI pass through */
-	DP(NETIF_MSG_LINK, "Configure WC for LPI pass through\n");
-	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
-			 MDIO_WC_REG_EEE_COMBO_CONTROL0,
-			 0x7c);
-	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
-				 MDIO_WC_REG_DIGITAL4_MISC5, 0xc000);
+	bnx2x_warpcore_set_lpi_passthrough(phy, params);
 
 	/* 10G XFI Full Duplex */
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
@@ -9886,39 +10035,6 @@ static int bnx2x_84833_hw_reset_phy(struct bnx2x_phy *phy,
 	return 0;
 }
 
-static int bnx2x_8483x_eee_timers(struct link_params *params,
-				   struct link_vars *vars)
-{
-	u32 eee_idle = 0, eee_mode;
-	struct bnx2x *bp = params->bp;
-
-	eee_idle = bnx2x_eee_calc_timer(params);
-
-	if (eee_idle) {
-		REG_WR(bp, MISC_REG_CPMU_LP_IDLE_THR_P0 + (params->port << 2),
-		       eee_idle);
-	} else if ((params->eee_mode & EEE_MODE_ENABLE_LPI) &&
-		   (params->eee_mode & EEE_MODE_OVERRIDE_NVRAM) &&
-		   (params->eee_mode & EEE_MODE_OUTPUT_TIME)) {
-		DP(NETIF_MSG_LINK, "Error: Tx LPI is enabled with timer 0\n");
-		return -EINVAL;
-	}
-
-	vars->eee_status &= ~(SHMEM_EEE_TIMER_MASK | SHMEM_EEE_TIME_OUTPUT_BIT);
-	if (params->eee_mode & EEE_MODE_OUTPUT_TIME) {
-		/* eee_idle in 1u --> eee_status in 16u */
-		eee_idle >>= 4;
-		vars->eee_status |= (eee_idle & SHMEM_EEE_TIMER_MASK) |
-				    SHMEM_EEE_TIME_OUTPUT_BIT;
-	} else {
-		if (bnx2x_eee_time_to_nvram(eee_idle, &eee_mode))
-			return -EINVAL;
-		vars->eee_status |= eee_mode;
-	}
-
-	return 0;
-}
-
 static int bnx2x_8483x_disable_eee(struct bnx2x_phy *phy,
 				   struct link_params *params,
 				   struct link_vars *vars)
@@ -9929,9 +10045,6 @@ static int bnx2x_8483x_disable_eee(struct bnx2x_phy *phy,
 
 	DP(NETIF_MSG_LINK, "Don't Advertise 10GBase-T EEE\n");
 
-	/* Make Certain LPI is disabled */
-	REG_WR(bp, MISC_REG_CPMU_LP_FW_ENABLE_P0 + (params->port << 2), 0);
-
 	/* Prevent Phy from working in EEE and advertising it */
 	rc = bnx2x_84833_cmd_hdlr(phy, params,
 		PHY84833_CMD_SET_EEE_MODE, &cmd_args, 1);
@@ -9940,10 +10053,7 @@ static int bnx2x_8483x_disable_eee(struct bnx2x_phy *phy,
 		return rc;
 	}
 
-	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD, MDIO_AN_REG_EEE_ADV, 0);
-	vars->eee_status &= ~SHMEM_EEE_ADV_STATUS_MASK;
-
-	return 0;
+	return bnx2x_eee_disable(phy, params, vars);
 }
 
 static int bnx2x_8483x_enable_eee(struct bnx2x_phy *phy,
@@ -9954,8 +10064,6 @@ static int bnx2x_8483x_enable_eee(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	u16 cmd_args = 1;
 
-	DP(NETIF_MSG_LINK, "Advertise 10GBase-T EEE\n");
-
 	rc = bnx2x_84833_cmd_hdlr(phy, params,
 		PHY84833_CMD_SET_EEE_MODE, &cmd_args, 1);
 	if (rc) {
@@ -9963,15 +10071,7 @@ static int bnx2x_8483x_enable_eee(struct bnx2x_phy *phy,
 		return rc;
 	}
 
-	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD, MDIO_AN_REG_EEE_ADV, 0x8);
-
-	/* Mask events preventing LPI generation */
-	REG_WR(bp, MISC_REG_CPMU_LP_MASK_EXT_P0 + (params->port << 2), 0xfc20);
-
-	vars->eee_status &= ~SHMEM_EEE_ADV_STATUS_MASK;
-	vars->eee_status |= (SHMEM_EEE_10G_ADV << SHMEM_EEE_ADV_STATUS_SHIFT);
-
-	return 0;
+	return bnx2x_eee_advertise(phy, params, vars, SHMEM_EEE_10G_ADV);
 }
 
 #define PHY84833_CONSTANT_LATENCY 1193
@@ -10105,20 +10205,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	/* Configure EEE support */
 	if ((val >= MDIO_84833_TOP_CFG_FW_EEE) && bnx2x_eee_has_cap(params)) {
 		phy->flags |= FLAGS_EEE_10GBT;
-		vars->eee_status |= SHMEM_EEE_10G_ADV <<
-				    SHMEM_EEE_SUPPORTED_SHIFT;
-		/* Propogate params' bits --> vars (for migration exposure) */
-		if (params->eee_mode & EEE_MODE_ENABLE_LPI)
-			vars->eee_status |= SHMEM_EEE_LPI_REQUESTED_BIT;
-		else
-			vars->eee_status &= ~SHMEM_EEE_LPI_REQUESTED_BIT;
-
-		if (params->eee_mode & EEE_MODE_ADV_LPI)
-			vars->eee_status |= SHMEM_EEE_REQUESTED_BIT;
-		else
-			vars->eee_status &= ~SHMEM_EEE_REQUESTED_BIT;
-
-		rc = bnx2x_8483x_eee_timers(params, vars);
+		rc = bnx2x_eee_initial_config(params, vars, SHMEM_EEE_10G_ADV);
 		if (rc) {
 			DP(NETIF_MSG_LINK, "Failed to configure EEE timers\n");
 			bnx2x_8483x_disable_eee(phy, params, vars);
@@ -10276,29 +10363,8 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
 
 		/* Determine if EEE was negotiated */
-		if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
-			u32 eee_shmem = 0;
-
-			bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
-					MDIO_AN_REG_EEE_ADV, &val1);
-			bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
-					MDIO_AN_REG_LP_EEE_ADV, &val2);
-			if ((val1 & val2) & 0x8) {
-				DP(NETIF_MSG_LINK, "EEE negotiated\n");
-				vars->eee_status |= SHMEM_EEE_ACTIVE_BIT;
-			}
-
-			if (val2 & 0x12)
-				eee_shmem |= SHMEM_EEE_100M_ADV;
-			if (val2 & 0x4)
-				eee_shmem |= SHMEM_EEE_1G_ADV;
-			if (val2 & 0x68)
-				eee_shmem |= SHMEM_EEE_10G_ADV;
-
-			vars->eee_status &= ~SHMEM_EEE_LP_ADV_STATUS_MASK;
-			vars->eee_status |= (eee_shmem <<
-					     SHMEM_EEE_LP_ADV_STATUS_SHIFT);
-		}
+		if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
+			bnx2x_eee_an_resolve(phy, params, vars);
 	}
 
 	return link_up;
