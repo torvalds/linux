@@ -111,9 +111,8 @@ struct rt6_info {
 	struct inet6_dev		*rt6i_idev;
 	unsigned long			_rt6i_peer;
 
-#ifdef CONFIG_XFRM
-	u32				rt6i_flow_cache_genid;
-#endif
+	u32				rt6i_genid;
+
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
 
