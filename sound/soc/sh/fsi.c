@@ -1730,12 +1730,12 @@ exit_snd_soc:
 exit_free_irq:
 	free_irq(irq, master);
 exit_fsib:
+	pm_runtime_disable(&pdev->dev);
 	fsi_stream_remove(&master->fsib);
 exit_fsia:
 	fsi_stream_remove(&master->fsia);
 exit_iounmap:
 	iounmap(master->base);
-	pm_runtime_disable(&pdev->dev);
 exit_kfree:
 	kfree(master);
 	master = NULL;
