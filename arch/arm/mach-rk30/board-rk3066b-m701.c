@@ -132,24 +132,23 @@ struct goodix_platform_data goodix_info = {
 #define TOUCH_INT_PIN	 RK30_PIN0_PD4
 #define TOUCH_PWR_PIN    RK30_PIN2_PB4
 
-static int ft5306_init_platform_hw(void)
+static int ft5x0x_init_platform_hw(void)
 {
 
 	rk30_mux_api_set(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME, GPIO2C_GPIO2C0);
-	rk30_mux_api_set(GPIO0D4_SPI1RXD_NAME, GPIO0D_GPIO0D4);
         rk30_mux_api_set(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME, GPIO2B_GPIO2B4);
        //printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME),rk30_mux_api_get(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME));
 
-	printk("ft5306_init_platform_hw \n");
+	printk("==ft5x0x_init_platform_hw =\n");
 	if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
 	  gpio_free(TOUCH_RESET_PIN);
-	  printk("ft5306_init_platform_hw gpio_request error\n");
+	  printk("ft5606_init_platform_hw gpio_request error\n");
 	  return -EIO;
 	}
 
 	if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
 	  gpio_free(TOUCH_INT_PIN);
-	  printk("ift5306_init_platform_hw gpio_request error\n");
+	  printk("ift5606_init_platform_hw gpio_request error\n");
 	  return -EIO;
 	}
 
@@ -163,21 +162,21 @@ static int ft5306_init_platform_hw(void)
 	return 0;
 }
 
-void ft5306_exit_platform_hw(void)
+void ft5x0x_exit_platform_hw(void)
 {
 	printk("ft5606_exit_platform_hw\n");
 	gpio_free(TOUCH_RESET_PIN);
 	gpio_free(TOUCH_INT_PIN);
 }
 
-int ft5306_platform_sleep(void)
+int ft5x0x_platform_sleep(void)
 {
 	printk("ft5606_platform_sleep\n");
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	return 0;
 }
 
-int ft5306_platform_wakeup(void)
+int ft5x0x_platform_wakeup(void)
 {
 	printk("ft5606_platform_wakeup\n");
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
@@ -185,12 +184,11 @@ int ft5306_platform_wakeup(void)
 	return 0;
 }
 
-struct ft5606_platform_data ft5306_info = {
-
-  .init_platform_hw= ft5306_init_platform_hw,
-  .exit_platform_hw= ft5306_exit_platform_hw,
-  .platform_sleep= ft5306_platform_sleep,
-  .platform_wakeup= ft5306_platform_wakeup,
+static struct ft5606_platform_data ft5x0x_info = {
+	.init_platform_hw= ft5x0x_init_platform_hw,
+	.exit_platform_hw= ft5x0x_exit_platform_hw,
+	.platform_sleep  = ft5x0x_platform_sleep,
+	.platform_wakeup = ft5x0x_platform_wakeup,
 };
 #endif
 
@@ -452,27 +450,26 @@ struct platform_device rk30_device_sew868 = {
 #endif
 
 
-/*MMA7660 gsensor*/
 #if defined (CONFIG_GS_MMA7660)
-#define MMA7660_INT_PIN   RK30_PIN3_PD7
-
-static int mma7660_init_platform_hw(void)
+#define MMA7660_INT_PIN                      	RK30_PIN4_PC0
+static int gs_init_platform_hw(void)
 {
-      if(gpio_request(MMA7660_INT_PIN, NULL) != 0){
+	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+    if(gpio_request(MMA7660_INT_PIN, NULL) != 0){
       gpio_free(MMA7660_INT_PIN);
       printk("gsensor gpio_request error\n");
       return -EIO;
     }
-      //gpio_direction_input(MMA7660_INT_PIN);
-      return 0;
+	//gpio_direction_input(MMA7660_INT_PIN);
+    gpio_pull_updown(MMA7660_INT_PIN, 1);
+    return 0;
 }
 
-static struct sensor_platform_data mma7660_info = {
-        .type = SENSOR_TYPE_ACCEL,
-        .irq_enable = 1,
-        .poll_delay_ms = 30,
-        .init_platform_hw = mma7660_init_platform_hw,
-        .orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
+
+static struct gs_platform_data mma7660_info = {
+  .model= 7660,
+  .swap_xy = 0,
+  .init_platform_hw= gs_init_platform_hw,
 };
 #endif
 
@@ -581,14 +578,11 @@ static struct sensor_platform_data cm3217_info = {
 
 #ifdef CONFIG_FB_ROCKCHIP
 
-#define LCD_CS_PIN         RK30_PIN2_PB6
+#define LCD_CS_PIN         INVALID_GPIO
 #define LCD_CS_VALUE       GPIO_HIGH
 
 #define LCD_EN_PIN         RK30_PIN0_PB0
-#define LCD_EN_VALUE       GPIO_LOW
-
-#define LCD_STB_PIN	   RK30_PIN2_PB3
-#define LCD_STB_VALUE	   GPIO_HIGH
+#define LCD_EN_VALUE       GPIO_HIGH
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
@@ -623,25 +617,7 @@ static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 			gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
 		}
 	}
-
-	if(LCD_STB_PIN !=INVALID_GPIO)
-        {
-                ret = gpio_request(LCD_STB_PIN, NULL);
-                if (ret != 0)
-                {
-                        gpio_free(LCD_STB_PIN);
-                        printk(KERN_ERR "request lcd en pin fail!\n");
-                        return -1;
-                }
-                else
-                {
-                        gpio_direction_output(LCD_STB_PIN, LCD_STB_VALUE);
-                }
-        }
-
 	return 0;
-
-	
 }
 static int rk_fb_io_disable(void)
 {
@@ -1358,7 +1334,7 @@ int __sramdata g_pmic_type =  0;
 #include "board-rk3066b-sdk-wm8326.c"
 #endif
 #ifdef CONFIG_MFD_TPS65910
-#define TPS65910_HOST_IRQ        RK30_PIN0_PB3
+#define TPS65910_HOST_IRQ        RK30_PIN6_PA4
 #include "board-rk3066b-sdk-tps65910.c"
 #endif
 
@@ -1472,7 +1448,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 			.addr			= 0x38,
 			.flags			= 0,
 			.irq			= RK30_PIN0_PD4,
-			.platform_data	= &ft5306_info,
+			.platform_data	= &ft5x0x_info,
 		},
 #endif
 #if defined (CONFIG_LS_CM3217)

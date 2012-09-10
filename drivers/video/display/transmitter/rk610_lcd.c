@@ -353,7 +353,6 @@ static void rk610_lcd_early_resume(struct early_suspend *h)
 #endif
 int rk610_lcd_scaler_set_param(struct rk29fb_screen *screen,bool enable )//enable:0 bypass 1: scale
 {
-	printk("%s>>>>>>>>>\n",__func__);
     int ret=0;
     struct i2c_client *client = g_lcd_inf->client;
     if(client == NULL){
@@ -381,8 +380,6 @@ int rk610_lcd_scaler_set_param(struct rk29fb_screen *screen,bool enable )//enabl
 	    rk610_output_config(client,screen,LCD_OUT_BYPASS);
 	    ret = rk610_lcd_scaler_bypass(client,enable);
 	}
-
-	printk("%s>>>>>>>>>>\n",__func__);
 	return ret;
 }
 int rk610_lcd_init(struct rk610_core_info *rk610_core_info)
