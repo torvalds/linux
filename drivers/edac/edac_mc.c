@@ -1093,10 +1093,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	 */
 	for (i = 0; i < mci->n_layers; i++) {
 		if (pos[i] >= (int)mci->layers[i].size) {
-			if (type == HW_EVENT_ERR_CORRECTED)
-				p = "CE";
-			else
-				p = "UE";
 
 			edac_mc_printk(mci, KERN_ERR,
 				       "INTERNAL ERROR: %s value is out of range (%d >= %d)\n",
@@ -1128,6 +1124,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	grain = 0;
 	p = label;
 	*p = '\0';
+
 	for (i = 0; i < mci->tot_dimms; i++) {
 		struct dimm_info *dimm = mci->dimms[i];
 
@@ -1195,6 +1192,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/* Fill the RAM location data */
 	p = location;
+
 	for (i = 0; i < mci->n_layers; i++) {
 		if (pos[i] < 0)
 			continue;
@@ -1207,7 +1205,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 		*(p - 1) = '\0';
 
 	/* Report the error via the trace interface */
-
 	grain_bits = fls_long(grain) + 1;
 	trace_mc_event(type, msg, label, error_count,
 		       mci->mc_idx, top_layer, mid_layer, low_layer,
