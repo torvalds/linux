@@ -324,50 +324,44 @@ extern void slb_set_size(u16 size);
 #endif /* __ASSEMBLY__ */
 
 /*
- * VSID allocation
+ * VSID allocation (256MB segment)
  *
- * We first generate a 36-bit "proto-VSID".  For kernel addresses this
- * is equal to the ESID, for user addresses it is:
- *	(context << 15) | (esid & 0x7fff)
+ * We first generate a 38-bit "proto-VSID".  For kernel addresses this
+ * is equal to the ESID | 1 << 37, for user addresses it is:
+ *	(context << USER_ESID_BITS) | (esid & ((1U << USER_ESID_BITS) - 1)
  *
- * The two forms are distinguishable because the top bit is 0 for user
- * addresses, whereas the top two bits are 1 for kernel addresses.
- * Proto-VSIDs with the top two bits equal to 0b10 are reserved for
- * now.
+ * This splits the proto-VSID into the below range
+ *  0 - (2^(CONTEXT_BITS + USER_ESID_BITS) - 1) : User proto-VSID range
+ *  2^(CONTEXT_BITS + USER_ESID_BITS) - 2^(VSID_BITS) : Kernel proto-VSID range
+ *
+ * We also have CONTEXT_BITS + USER_ESID_BITS = VSID_BITS - 1
+ * That is, we assign half of the space to user processes and half
+ * to the kernel.
  *
  * The proto-VSIDs are then scrambled into real VSIDs with the
  * multiplicative hash:
  *
  *	VSID = (proto-VSID * VSID_MULTIPLIER) % VSID_MODULUS
- *	where	VSID_MULTIPLIER = 268435399 = 0xFFFFFC7
- *		VSID_MODULUS = 2^36-1 = 0xFFFFFFFFF
  *
- * This scramble is only well defined for proto-VSIDs below
- * 0xFFFFFFFFF, so both proto-VSID and actual VSID 0xFFFFFFFFF are
- * reserved.  VSID_MULTIPLIER is prime, so in particular it is
+ * VSID_MULTIPLIER is prime, so in particular it is
  * co-prime to VSID_MODULUS, making this a 1:1 scrambling function.
  * Because the modulus is 2^n-1 we can compute it efficiently without
  * a divide or extra multiply (see below).
  *
  * This scheme has several advantages over older methods:
  *
- * 	- We have VSIDs allocated for every kernel address
+ *	- We have VSIDs allocated for every kernel address
  * (i.e. everything above 0xC000000000000000), except the very top
  * segment, which simplifies several things.
  *
- *	- We allow for 16 significant bits of ESID and 19 bits of
- * context for user addresses.  i.e. 16T (44 bits) of address space for
- * up to half a million contexts.
+ *	- We allow for USER_ESID_BITS significant bits of ESID and
+ * CONTEXT_BITS  bits of context for user addresses.
+ *  i.e. 64T (46 bits) of address space for up to half a million contexts.
  *
- * 	- The scramble function gives robust scattering in the hash
+ *	- The scramble function gives robust scattering in the hash
  * table (at least based on some initial results).  The previous
  * method was more susceptible to pathological cases giving excessive
  * hash collisions.
- */
-/*
- * WARNING - If you change these you must make sure the asm
- * implementations in slb_allocate (slb_low.S), do_stab_bolted
- * (head.S) and ASM_VSID_SCRAMBLE (below) are changed accordingly.
  */
 
 /*
