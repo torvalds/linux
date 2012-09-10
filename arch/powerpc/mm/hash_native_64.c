@@ -351,9 +351,10 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long va,
 static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 			int *psize, int *ssize, unsigned long *va)
 {
+	unsigned long avpn, pteg, vpi;
 	unsigned long hpte_r = hpte->r;
 	unsigned long hpte_v = hpte->v;
-	unsigned long avpn;
+	unsigned long vsid, seg_off;
 	int i, size, shift, penc;
 
 	if (!(hpte_v & HPTE_V_LARGE))
@@ -380,32 +381,38 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 	}
 
 	/* This works for all page sizes, and for 256M and 1T segments */
-	shift = mmu_psize_defs[size].shift;
-	avpn = (HPTE_V_AVPN_VAL(hpte_v) & ~mmu_psize_defs[size].avpnm) << 23;
-
-	if (shift < 23) {
-		unsigned long vpi, vsid, pteg;
-
-		pteg = slot / HPTES_PER_GROUP;
-		if (hpte_v & HPTE_V_SECONDARY)
-			pteg = ~pteg;
-		switch (hpte_v >> HPTE_V_SSIZE_SHIFT) {
-		case MMU_SEGSIZE_256M:
-			vpi = ((avpn >> 28) ^ pteg) & htab_hash_mask;
-			break;
-		case MMU_SEGSIZE_1T:
-			vsid = avpn >> 40;
-			vpi = (vsid ^ (vsid << 25) ^ pteg) & htab_hash_mask;
-			break;
-		default:
-			avpn = vpi = size = 0;
-		}
-		avpn |= (vpi << mmu_psize_defs[size].shift);
-	}
-
-	*va = avpn;
-	*psize = size;
 	*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
+	shift = mmu_psize_defs[size].shift;
+
+	avpn = (HPTE_V_AVPN_VAL(hpte_v) & ~mmu_psize_defs[size].avpnm);
+	pteg = slot / HPTES_PER_GROUP;
+	if (hpte_v & HPTE_V_SECONDARY)
+		pteg = ~pteg;
+
+	switch (*ssize) {
+	case MMU_SEGSIZE_256M:
+		/* We only have 28 - 23 bits of seg_off in avpn */
+		seg_off = (avpn & 0x1f) << 23;
+		vsid    =  avpn >> 5;
+		/* We can find more bits from the pteg value */
+		if (shift < 23) {
+			vpi = (vsid ^ pteg) & htab_hash_mask;
+			seg_off |= vpi << shift;
+		}
+		*va = vsid << SID_SHIFT | seg_off;
+	case MMU_SEGSIZE_1T:
+		/* We only have 40 - 23 bits of seg_off in avpn */
+		seg_off = (avpn & 0x1ffff) << 23;
+		vsid    = avpn >> 17;
+		if (shift < 23) {
+			vpi = (vsid ^ (vsid << 25) ^ pteg) & htab_hash_mask;
+			seg_off |= vpi << shift;
+		}
+		*va = vsid << SID_SHIFT_1T | seg_off;
+	default:
+		*va = size = 0;
+	}
+	*psize = size;
 }
 
 /*
