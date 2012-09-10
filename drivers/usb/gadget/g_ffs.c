@@ -13,7 +13,6 @@
 #define pr_fmt(fmt) "g_ffs: " fmt
 
 #include <linux/module.h>
-#include <linux/utsname.h>
 
 /*
  * kbuild is not very cooperative with respect to linking separately

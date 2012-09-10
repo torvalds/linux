@@ -14,9 +14,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/module.h>
-
 
 #if defined USB_ETH_RNDIS
 #  undef USB_ETH_RNDIS

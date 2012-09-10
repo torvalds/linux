@@ -10,7 +10,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/module.h>
 #include <linux/hid.h>
 #include <linux/cdev.h>

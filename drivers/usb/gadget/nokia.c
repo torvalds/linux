@@ -16,7 +16,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/device.h>
 
 #include "u_serial.h"

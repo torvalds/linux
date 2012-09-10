@@ -29,9 +29,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/usb/ch9.h>
-
 
 /*-------------------------------------------------------------------------*/
 

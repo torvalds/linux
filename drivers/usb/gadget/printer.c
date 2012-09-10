@@ -22,7 +22,6 @@
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
-#include <linux/utsname.h>
 #include <linux/device.h>
 #include <linux/moduleparam.h>
 #include <linux/fs.h>
@@ -237,7 +236,6 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 /* descriptors that are built on-demand */
 
-static char				manufacturer [50];
 static char				product_desc [40] = DRIVER_DESC;
 static char				serial_num [40] = "1";
 static char				pnp_string [1024] =
@@ -245,7 +243,7 @@ static char				pnp_string [1024] =
 
 /* static strings, in UTF-8 */
 static struct usb_string		strings [] = {
-	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer,
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
 	[USB_GADGET_PRODUCT_IDX].s = product_desc,
 	[USB_GADGET_SERIAL_IDX].s =	serial_num,
 	{  }		/* end of list */
@@ -1165,10 +1163,6 @@ static int __init printer_bind_config(struct usb_configuration *c)
 		device_desc.bcdDevice =
 			cpu_to_le16(0xFFFF);
 	}
-	snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
-		init_utsname()->sysname, init_utsname()->release,
-		gadget->name);
-
 	if (iPNPstring)
 		strlcpy(&pnp_string[2], iPNPstring, (sizeof pnp_string)-2);
 

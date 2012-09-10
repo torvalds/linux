@@ -42,7 +42,6 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/utsname.h>
 #include <linux/device.h>
 
 #include "g_zero.h"
@@ -139,13 +138,11 @@ const struct usb_descriptor_header *otg_desc[] = {
 #endif
 
 /* string IDs are assigned dynamically */
-static char manufacturer[50];
-
 /* default serial number takes at least two packets */
 static char serial[] = "0123456789.0123456789.0123456789";
 
 static struct usb_string strings_dev[] = {
-	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer,
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
 	[USB_GADGET_PRODUCT_IDX].s = longname,
 	[USB_GADGET_SERIAL_IDX].s = serial,
 	{  }			/* end of list */
@@ -304,10 +301,6 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	usb_composite_overwrite_options(cdev, &coverwrite);
 
 	INFO(cdev, "%s, version: " DRIVER_VERSION "\n", longname);
-
-	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
-		init_utsname()->sysname, init_utsname()->release,
-		gadget->name);
 
 	return 0;
 }

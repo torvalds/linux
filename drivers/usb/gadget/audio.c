@@ -12,7 +12,6 @@
 /* #define VERBOSE_DEBUG */
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/usb/composite.h>
 
 #include "gadget_chips.h"
@@ -33,10 +32,8 @@ USB_GADGET_COMPOSITE_OPTIONS();
 
 /* string IDs are assigned dynamically */
 
-static char manufacturer[50];
-
 static struct usb_string strings_dev[] = {
-	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer,
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
 	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
 	[USB_GADGET_SERIAL_IDX].s = "",
 	{  } /* end of list */
@@ -161,10 +158,6 @@ static int __init audio_bind(struct usb_composite_dev *cdev)
 			__constant_cpu_to_le16(0x0300 | 0x0099);
 	}
 
-	/* device descriptor strings: manufacturer, product */
-	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
-		init_utsname()->sysname, init_utsname()->release,
-		cdev->gadget->name);
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		goto fail;

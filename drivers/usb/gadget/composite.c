@@ -28,9 +28,6 @@
  * with the relevant device-wide data.
  */
 
-static char composite_manufacturer[50];
-
-/*-------------------------------------------------------------------------*/
 /**
  * next_ep_desc() - advance to the next EP descriptor
  * @t: currect pointer within descriptor array
@@ -860,7 +857,6 @@ static int get_string(struct usb_composite_dev *cdev,
 	struct usb_configuration	*c;
 	struct usb_function		*f;
 	int				len;
-	const char			*str;
 
 	/* Yes, not only is USB's I18N support probably more than most
 	 * folk will ever care about ... also, it's all supported here.
@@ -898,21 +894,6 @@ static int get_string(struct usb_composite_dev *cdev,
 
 		s->bLength = 2 * (len + 1);
 		return s->bLength;
-	}
-
-	/* Otherwise, look up and return a specified string.  First
-	 * check if the string has not been overridden.
-	 */
-	if (cdev->manufacturer_override == id)
-		str = composite_manufacturer;
-	else
-		str = NULL;
-	if (str) {
-		struct usb_gadget_strings strings = {
-			.language = language,
-			.strings  = &(struct usb_string) { 0xff, str }
-		};
-		return usb_gadget_get_string(&strings, 0xff, buf);
 	}
 
 	/* String IDs are device-scoped, so we look up each string
@@ -1367,21 +1348,9 @@ composite_unbind(struct usb_gadget *gadget)
 		usb_ep_free_request(gadget->ep0, cdev->req);
 	}
 	device_remove_file(&gadget->dev, &dev_attr_suspended);
+	kfree(cdev->def_manufacturer);
 	kfree(cdev);
 	set_gadget_data(gadget, NULL);
-}
-
-static u8 override_id(struct usb_composite_dev *cdev, u8 *desc)
-{
-	if (!*desc) {
-		int ret = usb_string_id(cdev);
-		if (unlikely(ret < 0))
-			WARNING(cdev, "failed to override string ID\n");
-		else
-			*desc = ret;
-	}
-
-	return *desc;
 }
 
 static void update_unchanged_dev_desc(struct usb_device_descriptor *new,
@@ -1476,19 +1445,6 @@ static int composite_bind(struct usb_gadget *gadget,
 		goto fail;
 
 	update_unchanged_dev_desc(&cdev->desc, composite->dev);
-
-	/* string overrides */
-	if (!cdev->desc.iManufacturer) {
-		snprintf(composite_manufacturer,
-				sizeof composite_manufacturer,
-				"%s %s with %s",
-				init_utsname()->sysname,
-				init_utsname()->release,
-				gadget->name);
-
-		cdev->manufacturer_override =
-			override_id(cdev, &cdev->desc.iManufacturer);
-	}
 
 	/* has userspace failed to provide a serial number? */
 	if (composite->needs_serial && !cdev->desc.iSerialNumber)
@@ -1665,6 +1621,22 @@ void usb_composite_setup_continue(struct usb_composite_dev *cdev)
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
 
+static char *composite_default_mfr(struct usb_gadget *gadget)
+{
+	char *mfr;
+	int len;
+
+	len = snprintf(NULL, 0, "%s %s with %s", init_utsname()->sysname,
+			init_utsname()->release, gadget->name);
+	len++;
+	mfr = kmalloc(len, GFP_KERNEL);
+	if (!mfr)
+		return NULL;
+	snprintf(mfr, len, "%s %s with %s", init_utsname()->sysname,
+			init_utsname()->release, gadget->name);
+	return mfr;
+}
+
 void usb_composite_overwrite_options(struct usb_composite_dev *cdev,
 		struct usb_composite_overwrite *covr)
 {
@@ -1688,6 +1660,11 @@ void usb_composite_overwrite_options(struct usb_composite_dev *cdev,
 	if (covr->manufacturer) {
 		desc->iManufacturer = dev_str[USB_GADGET_MANUFACTURER_IDX].id;
 		dev_str[USB_GADGET_MANUFACTURER_IDX].s = covr->manufacturer;
+
+	} else if (!strlen(dev_str[USB_GADGET_MANUFACTURER_IDX].s)) {
+		desc->iManufacturer = dev_str[USB_GADGET_MANUFACTURER_IDX].id;
+		cdev->def_manufacturer = composite_default_mfr(cdev->gadget);
+		dev_str[USB_GADGET_MANUFACTURER_IDX].s = cdev->def_manufacturer;
 	}
 
 	if (covr->product) {

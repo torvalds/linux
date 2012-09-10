@@ -11,7 +11,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/module.h>
 
 #include "u_ether.h"
@@ -90,10 +89,8 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 
 /* string IDs are assigned dynamically */
-static char manufacturer[50];
-
 static struct usb_string strings_dev[] = {
-	[USB_GADGET_MANUFACTURER_IDX].s = manufacturer,
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
 	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
 	[USB_GADGET_SERIAL_IDX].s = "",
 	{  } /* end of list */
@@ -182,15 +179,10 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 			cpu_to_le16(0x0300 | 0x0099);
 	}
 
-
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 
-	/* device descriptor strings: manufacturer, product */
-	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
-		init_utsname()->sysname, init_utsname()->release,
-		gadget->name);
 	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		goto fail1;
