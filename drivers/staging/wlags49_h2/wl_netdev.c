@@ -1599,7 +1599,7 @@ void wl_wds_device_dealloc( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to start the netif queues of all the "virtual" network devices
- *      which repesent the WDS ports.
+ *      which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1634,7 +1634,7 @@ void wl_wds_netif_start_queue( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to stop the netif queues of all the "virtual" network devices
- *      which repesent the WDS ports.
+ *      which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1669,7 +1669,7 @@ void wl_wds_netif_stop_queue( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to wake the netif queues of all the "virtual" network devices
- *      which repesent the WDS ports.
+ *      which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1704,7 +1704,7 @@ void wl_wds_netif_wake_queue( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to signal the network layer that carrier is present on all of the
- *      "virtual" network devices which repesent the WDS ports.
+ *      "virtual" network devices which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1737,7 +1737,7 @@ void wl_wds_netif_carrier_on( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to signal the network layer that carrier is NOT present on all of
- *      the "virtual" network devices which repesent the WDS ports.
+ *      the "virtual" network devices which represent the WDS ports.
  *
  *  PARAMETERS:
  *

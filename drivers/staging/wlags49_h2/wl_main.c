@@ -63,7 +63,7 @@
  *  constant definitions
  ******************************************************************************/
 
-/* Allow support for calling system fcns to access F/W iamge file */
+/* Allow support for calling system fcns to access F/W image file */
 #define __KERNEL_SYSCALLS__
 
 /*******************************************************************************
@@ -1163,7 +1163,7 @@ int 			rc;
 				CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.version_major ),
 				CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.version_minor ));
 
-	/* now we wil get the MAC address of the card */
+	/* now we will get the MAC address of the card */
 	lp->ltvRecord.len = 4;
 	if ( CNV_INT_TO_LITTLE( lp->hcfCtx.IFB_FWIdentity.comp_id ) == COMP_ID_FW_AP  ) {
 		lp->ltvRecord.typ = CFG_NIC_MAC_ADDR;
@@ -1374,7 +1374,7 @@ int wl_put_ltv_init( struct wl_private *lp )
 	lp->ltvRecord.len = 2;
 	lp->ltvRecord.typ = CFG_CNTL_OPT;
 
-	/* The Card Services build must ALWAYS configure for 16-bit I/O. PCI or
+	/* The Card Services build must ALWAYS be configured for 16-bit I/O. PCI or
 	   CardBus can be set to either 16/32 bit I/O, or Bus Master DMA, but only
 	   for Hermes-2.5 */
 #ifdef BUS_PCMCIA
@@ -2474,7 +2474,7 @@ void wl_resume(struct net_device *dev)
  *
  *  DESCRIPTION:
  *
- *      This function perfroms a check on the device and calls wl_remove() if
+ *      This function performs a check on the device and calls wl_remove() if
  *  necessary. This function can be used for all bus types, but exists mostly
  *  for the benefit of the Card Services driver, as there are times when
  *  wl_remove() does not get called.
@@ -2596,7 +2596,7 @@ int wl_enable( struct wl_private *lp )
 			lp->portState = WVLAN_PORT_STATE_ENABLED;   //;?bad mnemonic, NIC iso PORT
 #ifdef ENABLE_DMA
 			if ( lp->use_dma ) {
-				wl_pci_dma_hcf_supply( lp );  //;?always succes?
+				wl_pci_dma_hcf_supply( lp );  //;?always successful?
 			}
 #endif
 		}
@@ -2874,7 +2874,7 @@ int wl_mbx( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      This function will perform the tedious task of endian translating all
- *  fields withtin a mailbox message which need translating.
+ *  fields within a mailbox message which need translating.
  *
  *  PARAMETERS:
  *
@@ -2989,7 +2989,7 @@ void wl_endian_translate_mailbox( ltv_t *ltv )
  *
  *  DESCRIPTION:
  *
- *      This function will process the mailbox data.
+ *      This function processes the mailbox data.
  *
  *  PARAMETERS:
  *

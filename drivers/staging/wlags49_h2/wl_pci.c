@@ -223,7 +223,7 @@ int wl_adapter_init_module( void )
  ******************************************************************************/
 void wl_adapter_cleanup_module( void )
 {
-	//;?how comes wl_adapter_cleanup_module is located in a seemingly pci specific module
+	//;?how come wl_adapter_cleanup_module is located in a seemingly pci specific module
     DBG_FUNC( "wl_adapter_cleanup_module" );
     DBG_ENTER( DbgInfo );
 
@@ -899,7 +899,7 @@ int wl_pci_dma_free_tx_packet( struct pci_dev *pdev, struct wl_private *lp,
  *  DESCRIPTION:
  *
  *      Allocates a single Rx packet, consisting of two descriptors and one
- *      contiguous buffer. THe buffer starts with the hermes-specific header.
+ *      contiguous buffer. The buffer starts with the hermes-specific header.
  *      One descriptor points at the start, the other at offset 0x3a of the
  *      buffer.
  *

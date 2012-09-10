@@ -606,7 +606,7 @@ retry:
 		if (retries < 10) {
 			retries++;
 
-			/* Holding the lock too long, make a gap to allow other processes */
+			/* Holding the lock too long, makes a gap to allow other processes */
 			wl_unlock(lp, &flags);
 			wl_lock( lp, &flags );
 
@@ -618,7 +618,7 @@ retry:
 				goto out_unlock;
 			}
 
-			/* Holding the lock too long, make a gap to allow other processes */
+			/* Holding the lock too long, makes a gap to allow other processes */
 			wl_unlock(lp, &flags);
 			wl_lock( lp, &flags );
 
@@ -631,7 +631,7 @@ retry:
 		}
 	}
 
-	/* Holding the lock too long, make a gap to allow other processes */
+	/* Holding the lock too long, makes a gap to allow other processes */
 	wl_unlock(lp, &flags);
 	wl_lock( lp, &flags );
 
@@ -694,7 +694,7 @@ retry:
 
 	/* Encryption */
 
-	/* Holding the lock too long, make a gap to allow other processes */
+	/* Holding the lock too long, makes a gap to allow other processes */
 	wl_unlock(lp, &flags);
 	wl_lock( lp, &flags );
 
@@ -721,7 +721,7 @@ retry:
 
 	// Retry Limits and Lifetime - NOT SUPPORTED
 
-	/* Holding the lock too long, make a gap to allow other processes */
+	/* Holding the lock too long, makes a gap to allow other processes */
 	wl_unlock(lp, &flags);
 	wl_lock( lp, &flags );
 
@@ -2646,7 +2646,7 @@ retry:
 
 	DBG_TRACE( DbgInfo, "CFG_SCAN_CHANNEL result      : 0x%x\n", status );
 
-	// Holding the lock too long, make a gap to allow other processes
+	// Holding the lock too long, makes a gap to allow other processes
 	wl_unlock(lp, &flags);
 	wl_lock( lp, &flags );
 
@@ -2657,7 +2657,7 @@ retry:
 			DBG_TRACE( DbgInfo, "Reset card to recover, attempt: %d\n", retries );
 			wl_reset( dev );
 
-			// Holding the lock too long, make a gap to allow other processes
+			// Holding the lock too long, makes a gap to allow other processes
 			wl_unlock(lp, &flags);
 			wl_lock( lp, &flags );
 
@@ -2674,7 +2674,7 @@ retry:
 
 	status = hcf_put_info( &( lp->hcfCtx ), (LTVP)&( lp->ltvRecord ));
 
-	// Holding the lock too long, make a gap to allow other processes
+	// Holding the lock too long, makes a gap to allow other processes
 	wl_unlock(lp, &flags);
 	wl_lock( lp, &flags );
 
@@ -2682,7 +2682,7 @@ retry:
 
 	/* Initiate the scan */
 	/* NOTE: Using HCF_ACT_SCAN has been removed, as using HCF_ACT_ACS_SCAN to
-	   retrieve probe responses must always be used to support WPA */
+	   retrieve probe response must always be used to support WPA */
 	status = hcf_action( &( lp->hcfCtx ), HCF_ACT_ACS_SCAN );
 
 	if( status == HCF_SUCCESS ) {
@@ -3055,7 +3055,7 @@ static void flush_tx(struct wl_private *lp)
 	 * Make sure that there is no data queued up in the firmware
 	 * before setting the TKIP keys. If this check is not
 	 * performed, some data may be sent out with incorrect MIC
-	 * and cause synchronizarion errors with the AP
+	 * and cause synchronization errors with the AP
 	 */
 	/* Check every 1ms for 100ms */
 	for (count = 0; count < 100; count++) {
@@ -3655,7 +3655,7 @@ void wl_wext_event_ap( struct net_device *dev )
 	   this event BEFORE sending the association event, as there are timing
 	   issues with the hostap supplicant. The supplicant will attempt to process
 	   an EAPOL-Key frame from an AP before receiving this information, which
-	   is required properly process the said frame. */
+	   is required for a proper processed frame. */
 	wl_wext_event_assoc_ie( dev );
 
 	/* Get the BSSID */

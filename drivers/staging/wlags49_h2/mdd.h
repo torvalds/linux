@@ -652,7 +652,7 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 #define CFG_CNF_WDS_ADDR6				0xFC16		//[AP] Port 6 MAC Adrs of corresponding WDS Link node
 #define CFG_CNF_PM_MCAST_BUF			0xFC17		//[AP] Switch for PM buffereing of Multicast Messages
 #define CFG_CNF_MCAST_PM_BUF			CFG_CNF_PM_MCAST_BUF	//name does not match H-II spec
-#define CFG_CNF_REJECT_ANY				0xFC18		//[AP] Switch for PM buffereing of Multicast Messages
+#define CFG_CNF_REJECT_ANY				0xFC18		//[AP] Switch for PM buffering of Multicast Messages
 
 #define CFG_CNF_ENCRYPTION				0xFC20		//select en/de-cryption of Tx/Rx messages
 #define CFG_CNF_AUTHENTICATION			0xFC21		//[STA] selects Authentication algorithm
@@ -1004,7 +1004,7 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 #define CFG_CURRENT_LINK_STATUS			0x090B		//Latest link status got through 0xF200 LinkEvent
 
 /*============================================================ INFORMATION FRAMES =========================*/
-#define CFG_INFO_FRAME_MIN				0xF000		//lowest value representing an Informatio Frame
+#define CFG_INFO_FRAME_MIN				0xF000		//lowest value representing an Information Frame
 
 #define CFG_TALLIES						0xF100		//Communications Tallies
 #define CFG_SCAN						0xF101		//Scan results
