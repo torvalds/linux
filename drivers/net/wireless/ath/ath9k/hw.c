@@ -2407,7 +2407,10 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	if (eeval & AR5416_OPFLAGS_11G)
 		pCap->hw_caps |= ATH9K_HW_CAP_2GHZ;
 
-	if (AR_SREV_9485(ah) || AR_SREV_9285(ah) || AR_SREV_9330(ah))
+	if (AR_SREV_9485(ah) ||
+	    AR_SREV_9285(ah) ||
+	    AR_SREV_9330(ah) ||
+	    AR_SREV_9565(ah))
 		chip_chainmask = 1;
 	else if (AR_SREV_9462(ah))
 		chip_chainmask = 3;
