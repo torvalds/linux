@@ -121,6 +121,7 @@ struct tpci200_regs {
  *
  */
 struct slot_irq {
+	struct ipack_device *holder;
 	int		vector;
 	int		(*handler)(void *);
 	void		*arg;
@@ -136,7 +137,6 @@ struct slot_irq {
  *
  */
 struct tpci200_slot {
-	struct ipack_device	*dev;
 	struct slot_irq		*irq;
 	struct ipack_addr_space io_phys;
 	struct ipack_addr_space id_phys;

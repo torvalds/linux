@@ -89,6 +89,7 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 	unsigned short status_reg, reg_value;
 	unsigned short unhandled_ints = 0;
 	irqreturn_t ret = IRQ_NONE;
+	struct slot_irq *slot_irq;
 
 	/* Read status register */
 	status_reg = readw(&tpci200->info->interface_regs->status);
@@ -97,15 +98,17 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 		unhandled_ints = status_reg & TPCI200_SLOT_INT_MASK;
 		/* callback to the IRQ handler for the corresponding slot */
 		for (i = 0; i < TPCI200_NB_SLOT; i++) {
-			if ((tpci200->slots[i].irq != NULL) &&
+			slot_irq = tpci200->slots[i].irq;
+
+			if ((slot_irq != NULL) &&
 			    (status_reg & ((TPCI200_A_INT0 | TPCI200_A_INT1) << (2*i)))) {
 
-				ret = tpci200->slots[i].irq->handler(tpci200->slots[i].irq->arg);
+				ret = slot_irq->handler(slot_irq->arg);
 
 				/* Dummy reads */
-				readw(tpci200->slots[i].dev->io_space.address +
+				readw(slot_irq->holder->io_space.address +
 				      0xC0);
-				readw(tpci200->slots[i].dev->io_space.address +
+				readw(slot_irq->holder->io_space.address +
 				      0xC2);
 
 				unhandled_ints &= ~(((TPCI200_A_INT0 | TPCI200_A_INT1) << (2*i)));
@@ -115,8 +118,10 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 	/* Interrupts not handled are disabled */
 	if (unhandled_ints) {
 		for (i = 0; i < TPCI200_NB_SLOT; i++) {
+			slot_irq = tpci200->slots[i].irq;
+
 			if (unhandled_ints & ((TPCI200_INT0_EN | TPCI200_INT1_EN) << (2*i))) {
-				dev_info(&tpci200->slots[i].dev->dev,
+				dev_info(&slot_irq->holder->dev,
 					 "No registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
 					 tpci200->number, i);
 				reg_value = readw(
@@ -487,6 +492,7 @@ static int tpci200_request_irq(struct ipack_device *dev, int vector,
 	slot_irq->vector = vector;
 	slot_irq->handler = handler;
 	slot_irq->arg = arg;
+	slot_irq->holder = dev;
 
 	tpci200->slots[dev->slot].irq = slot_irq;
 	res = __tpci200_request_irq(tpci200, dev);
@@ -701,8 +707,7 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 	 * The TPCI200 has assigned his own two IRQ by PCI bus driver
 	 */
 	for (i = 0; i < TPCI200_NB_SLOT; i++)
-		tpci200->slots[i].dev =
-			ipack_device_register(tpci200->info->ipack_bus, i, i);
+		ipack_device_register(tpci200->info->ipack_bus, i, i);
 	return 0;
 
 out_err_bus_register:
