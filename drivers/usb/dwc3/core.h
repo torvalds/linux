@@ -457,7 +457,6 @@ enum dwc3_phy {
 enum dwc3_ep0_next {
 	DWC3_EP0_UNKNOWN = 0,
 	DWC3_EP0_COMPLETE,
-	DWC3_EP0_NRDY_SETUP,
 	DWC3_EP0_NRDY_DATA,
 	DWC3_EP0_NRDY_STATUS,
 };
@@ -784,7 +783,6 @@ struct dwc3_event_depevt {
 #define DEPEVT_STREAMEVT_NOTFOUND	2
 
 /* Control-only Status */
-#define DEPEVT_STATUS_CONTROL_SETUP	0
 #define DEPEVT_STATUS_CONTROL_DATA	1
 #define DEPEVT_STATUS_CONTROL_STATUS	2
 
