@@ -852,14 +852,10 @@ static int nfsd4_register_conn(struct nfsd4_conn *conn)
 	return register_xpt_user(conn->cn_xprt, &conn->cn_xpt_user);
 }
 
-static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses, u32 dir)
+static void nfsd4_init_conn(struct svc_rqst *rqstp, struct nfsd4_conn *conn, struct nfsd4_session *ses, u32 dir)
 {
-	struct nfsd4_conn *conn;
 	int ret;
 
-	conn = alloc_conn(rqstp, dir);
-	if (!conn)
-		return nfserr_jukebox;
 	nfsd4_hash_conn(conn, ses);
 	ret = nfsd4_register_conn(conn);
 	if (ret)
@@ -870,17 +866,21 @@ static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses, 
 		/* callback channel may be back up */
 		nfsd4_probe_callback(ses->se_client);
 	}
-	return nfs_ok;
 }
 
 static __be32 nfsd4_new_conn_from_crses(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 {
+	struct nfsd4_conn *conn;
 	u32 dir = NFS4_CDFC4_FORE;
 
 	if (ses->se_flags & SESSION4_BACK_CHAN)
 		dir |= NFS4_CDFC4_BACK;
 
-	return nfsd4_new_conn(rqstp, ses, dir);
+	conn = alloc_conn(rqstp, dir);
+	if (!conn)
+		return nfserr_jukebox;
+	nfsd4_init_conn(rqstp, conn, ses, dir);
+	return nfs_ok;
 }
 
 /* must be called under client_lock */
@@ -1868,6 +1868,7 @@ __be32 nfsd4_bind_conn_to_session(struct svc_rqst *rqstp,
 		     struct nfsd4_bind_conn_to_session *bcts)
 {
 	__be32 status;
+	struct nfsd4_conn *conn;
 
 	if (!nfsd4_last_compound_op(rqstp))
 		return nfserr_not_only_op;
@@ -1884,9 +1885,13 @@ __be32 nfsd4_bind_conn_to_session(struct svc_rqst *rqstp,
 		return nfserr_badsession;
 
 	status = nfsd4_map_bcts_dir(&bcts->dir);
-	if (!status)
-		nfsd4_new_conn(rqstp, cstate->session, bcts->dir);
-	return status;
+	if (status)
+		return status;
+	conn = alloc_conn(rqstp, bcts->dir);
+	if (!conn)
+		return nfserr_jukebox;
+	nfsd4_init_conn(rqstp, conn, cstate->session, bcts->dir);
+	return nfs_ok;
 }
 
 static bool nfsd4_compound_in_session(struct nfsd4_session *session, struct nfs4_sessionid *sid)
