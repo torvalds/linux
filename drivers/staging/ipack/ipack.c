@@ -387,6 +387,11 @@ struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
 		return NULL;
 	}
 
+	/* if the device supports 32 MHz operation, use it. */
+	ret = bus->ops->set_clockrate(dev, dev->speed_32mhz ? 32 : 8);
+	if (ret < 0)
+		dev_err(&dev->dev, "failed to perform set_clock_rate operation.\n");
+
 	ret = device_register(&dev->dev);
 	if (ret < 0) {
 		kfree(dev->id);
