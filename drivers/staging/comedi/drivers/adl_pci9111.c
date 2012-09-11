@@ -342,18 +342,9 @@ static int pci9111_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/*  Test analog input command */
-
-#define pci9111_check_trigger_src(src, flags)	do {			\
-		tmp = src;						\
-		src &= flags;						\
-		if (!src || tmp != src)					\
-			error++;					\
-	} while (false);
-
-static int
-pci9111_ai_do_cmd_test(struct comedi_device *dev,
-		       struct comedi_subdevice *s, struct comedi_cmd *cmd)
+static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_cmd *cmd)
 {
 	struct pci9111_private_data *dev_private = dev->private;
 	int tmp;
@@ -361,14 +352,16 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	int range, reference;
 	int i;
 
-	/*  Step 1 : check if trigger are trivialy valid */
+	/* Step 1 : check if trigger are trivialy valid */
 
-	pci9111_check_trigger_src(cmd->start_src, TRIG_NOW);
-	pci9111_check_trigger_src(cmd->scan_begin_src,
-				  TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT);
-	pci9111_check_trigger_src(cmd->convert_src, TRIG_TIMER | TRIG_EXT);
-	pci9111_check_trigger_src(cmd->scan_end_src, TRIG_COUNT);
-	pci9111_check_trigger_src(cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	error |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	error |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT);
+	error |= cfc_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_EXT);
+	error |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	error |= cfc_check_trigger_src(&cmd->stop_src,
+					TRIG_COUNT | TRIG_NONE);
 
 	if (error)
 		return 1;
