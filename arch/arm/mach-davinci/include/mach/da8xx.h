@@ -82,8 +82,7 @@ void __init da850_init(void);
 int da830_register_edma(struct edma_rsv_info *rsv);
 int da850_register_edma(struct edma_rsv_info *rsv[2]);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
-int da8xx_register_spi(int instance,
-		const struct spi_board_info *info, unsigned len);
+int da8xx_register_spi_bus(int instance, unsigned num_chipselect);
 int da8xx_register_watchdog(void);
 int da8xx_register_usb20(unsigned mA, unsigned potpgt);
 int da8xx_register_usb11(struct da8xx_ohci_root_hub *pdata);
@@ -110,7 +109,6 @@ extern struct platform_device da8xx_serial_device;
 extern struct emac_platform_data da8xx_emac_pdata;
 extern struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata;
 extern struct da8xx_lcdc_platform_data sharp_lk043t1dg01_pdata;
-extern struct davinci_spi_platform_data da8xx_spi_pdata[];
 
 extern struct platform_device da8xx_wdt_device;
 

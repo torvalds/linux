@@ -832,7 +832,7 @@ static struct resource da8xx_spi1_resources[] = {
 	},
 };
 
-struct davinci_spi_platform_data da8xx_spi_pdata[] = {
+static struct davinci_spi_platform_data da8xx_spi_pdata[] = {
 	[0] = {
 		.version	= SPI_VERSION_2,
 		.intr_line	= 1,
@@ -866,20 +866,12 @@ static struct platform_device da8xx_spi_device[] = {
 	},
 };
 
-int __init da8xx_register_spi(int instance, const struct spi_board_info *info,
-			      unsigned len)
+int __init da8xx_register_spi_bus(int instance, unsigned num_chipselect)
 {
-	int ret;
-
 	if (instance < 0 || instance > 1)
 		return -EINVAL;
 
-	ret = spi_register_board_info(info, len);
-	if (ret)
-		pr_warning("%s: failed to register board info for spi %d :"
-			   " %d\n", __func__, instance, ret);
-
-	da8xx_spi_pdata[instance].num_chipselect = len;
+	da8xx_spi_pdata[instance].num_chipselect = num_chipselect;
 
 	if (instance == 1 && cpu_is_davinci_da850()) {
 		da8xx_spi1_resources[0].start = DA850_SPI1_BASE;
