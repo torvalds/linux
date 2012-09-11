@@ -130,11 +130,8 @@ static const struct comedi_lrange pci9111_ai_range = {
 	}
 };
 
-/*  Private data structure */
-
 struct pci9111_private_data {
-	unsigned long lcr_io_base; /* Local configuration register base
-				    * address */
+	unsigned long lcr_io_base;
 
 	int stop_counter;
 	int stop_is_none;
@@ -144,17 +141,13 @@ struct pci9111_private_data {
 	unsigned int chunk_counter;
 	unsigned int chunk_num_samples;
 
-	int ao_readback;	/*  Last written analog output data */
+	int ao_readback;
 
 	unsigned int div1;
 	unsigned int div2;
 
 	short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
 };
-
-/*  ------------------------------------------------------------------ */
-/*  PLX9050 SECTION */
-/*  ------------------------------------------------------------------ */
 
 #define PLX9050_REGISTER_INTERRUPT_CONTROL 0x4c
 
@@ -190,12 +183,6 @@ static void plx9050_interrupt_control(unsigned long io_base,
 
 	outb(flags, io_base + PLX9050_REGISTER_INTERRUPT_CONTROL);
 }
-
-/*  ------------------------------------------------------------------ */
-/*  MISCELLANEOUS SECTION */
-/*  ------------------------------------------------------------------ */
-
-/*  8254 timer */
 
 static void pci9111_timer_set(struct comedi_device *dev)
 {
@@ -317,19 +304,12 @@ static void pci9111_fifo_reset(struct comedi_device *dev)
 	outb(0, int_ctrl_reg);
 }
 
-/*  ------------------------------------------------------------------ */
-/*  HARDWARE TRIGGERED ANALOG INPUT SECTION */
-/*  ------------------------------------------------------------------ */
-
-/*  Cancel analog input autoscan */
-
 static int pci9111_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct pci9111_private_data *dev_private = dev->private;
 
 	/*  Disable interrupts */
-
 	plx9050_interrupt_control(dev_private->lcr_io_base, true, true, true,
 				  true, false);
 
@@ -514,8 +494,6 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 
 }
 
-/*  Analog input command */
-
 static int pci9111_ai_do_cmd(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -629,10 +607,6 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 	for (i = 0; i < num_samples; i++)
 		array[i] = ((array[i] >> shift) & maxdata) ^ invert;
 }
-
-/*  ------------------------------------------------------------------ */
-/*  INTERRUPT SECTION */
-/*  ------------------------------------------------------------------ */
 
 static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 {
@@ -773,12 +747,6 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	return IRQ_HANDLED;
 }
 
-/*  ------------------------------------------------------------------ */
-/*  INSTANT ANALOG INPUT OUTPUT SECTION */
-/*  ------------------------------------------------------------------ */
-
-/*  analog instant input */
-
 static int pci9111_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -891,18 +859,11 @@ static int pci9111_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*  ------------------------------------------------------------------ */
-/*  INITIALISATION SECTION */
-/*  ------------------------------------------------------------------ */
-
-/*  Reset device */
-
 static int pci9111_reset(struct comedi_device *dev)
 {
 	struct pci9111_private_data *dev_private = dev->private;
 
 	/*  Set trigger source to software */
-
 	plx9050_interrupt_control(dev_private->lcr_io_base, true, true, true,
 				  true, false);
 
