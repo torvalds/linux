@@ -141,10 +141,7 @@ static ssize_t adcxx_set_max(struct device *dev,
 static ssize_t adcxx_show_name(struct device *dev, struct device_attribute
 			      *devattr, char *buf)
 {
-	struct spi_device *spi = to_spi_device(dev);
-	struct adcxx *adc = spi_get_drvdata(spi);
-
-	return sprintf(buf, "adcxx%ds\n", adc->channels);
+	return sprintf(buf, "%s\n", to_spi_device(dev)->modalias);
 }
 
 static struct sensor_device_attribute ad_input[] = {
