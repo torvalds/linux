@@ -1583,6 +1583,7 @@ static struct video_device tm6000_template = {
 static const struct v4l2_file_operations radio_fops = {
 	.owner		= THIS_MODULE,
 	.open		= tm6000_open,
+	.poll		= v4l2_ctrl_poll,
 	.release	= tm6000_release,
 	.unlocked_ioctl	= video_ioctl2,
 };
