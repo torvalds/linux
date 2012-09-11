@@ -37,6 +37,12 @@
 		regulator-max-microvolt = <3150000>;
 	};
 
+	vsim: regulator-vsim {
+		compatible = "ti,twl4030-vsim";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
 	twl_gpio: gpio {
 		compatible = "ti,twl4030-gpio";
 		gpio-controller;
