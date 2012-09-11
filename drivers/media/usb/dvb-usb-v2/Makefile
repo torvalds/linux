@@ -1,5 +1,5 @@
-dvb_usbv2-objs := dvb_usb_core.o dvb_usb_urb.o usb_urb.o
-obj-$(CONFIG_DVB_USB_V2) += dvb_usbv2.o
+dvb_usb_v2-objs := dvb_usb_core.o dvb_usb_urb.o usb_urb.o
+obj-$(CONFIG_DVB_USB_V2) += dvb_usb_v2.o
 
 dvb_usb_cypress_firmware-objs := cypress_firmware.o
 obj-$(CONFIG_DVB_USB_CYPRESS_FIRMWARE) += dvb_usb_cypress_firmware.o
