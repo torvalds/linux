@@ -158,7 +158,7 @@ static struct resource rtc_resources[] __devinitdata = {
 	{PM8607_IRQ_RTC, PM8607_IRQ_RTC, "rtc", IORESOURCE_IRQ,},
 };
 
-static struct mfd_cell bk_devs[] = {
+static struct mfd_cell bk_devs[] __devinitdata = {
 	{
 		.name = "88pm860x-backlight",
 		.id = 0,
@@ -177,7 +177,7 @@ static struct mfd_cell bk_devs[] = {
 	},
 };
 
-static struct mfd_cell led_devs[] = {
+static struct mfd_cell led_devs[] __devinitdata = {
 	{
 		.name = "88pm860x-led",
 		.id = 0,
@@ -211,7 +211,7 @@ static struct mfd_cell led_devs[] = {
 	},
 };
 
-static struct mfd_cell reg_devs[] = {
+static struct mfd_cell reg_devs[] __devinitdata = {
 	{
 		.name = "88pm860x-regulator",
 		.id = 0,
