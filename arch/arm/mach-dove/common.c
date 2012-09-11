@@ -40,22 +40,22 @@ static int get_tclk(void);
  ****************************************************************************/
 static struct map_desc dove_io_desc[] __initdata = {
 	{
-		.virtual	= DOVE_SB_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) DOVE_SB_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(DOVE_SB_REGS_PHYS_BASE),
 		.length		= DOVE_SB_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= DOVE_NB_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) DOVE_NB_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(DOVE_NB_REGS_PHYS_BASE),
 		.length		= DOVE_NB_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= DOVE_PCIE0_IO_VIRT_BASE,
+		.virtual	= (unsigned long) DOVE_PCIE0_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(DOVE_PCIE0_IO_PHYS_BASE),
 		.length		= DOVE_PCIE0_IO_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= DOVE_PCIE1_IO_VIRT_BASE,
+		.virtual	= (unsigned long) DOVE_PCIE1_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(DOVE_PCIE1_IO_PHYS_BASE),
 		.length		= DOVE_PCIE1_IO_SIZE,
 		.type		= MT_DEVICE,
@@ -128,7 +128,8 @@ void __init dove_sata_init(struct mv_sata_platform_data *sata_data)
  ****************************************************************************/
 void __init dove_uart0_init(void)
 {
-	orion_uart0_init(DOVE_UART0_VIRT_BASE, DOVE_UART0_PHYS_BASE,
+	orion_uart0_init((unsigned long) DOVE_UART0_VIRT_BASE,
+			 DOVE_UART0_PHYS_BASE,
 			 IRQ_DOVE_UART_0, tclk);
 }
 
@@ -137,7 +138,8 @@ void __init dove_uart0_init(void)
  ****************************************************************************/
 void __init dove_uart1_init(void)
 {
-	orion_uart1_init(DOVE_UART1_VIRT_BASE, DOVE_UART1_PHYS_BASE,
+	orion_uart1_init((unsigned long) DOVE_UART1_VIRT_BASE,
+			 DOVE_UART1_PHYS_BASE,
 			 IRQ_DOVE_UART_1, tclk);
 }
 
@@ -146,7 +148,8 @@ void __init dove_uart1_init(void)
  ****************************************************************************/
 void __init dove_uart2_init(void)
 {
-	orion_uart2_init(DOVE_UART2_VIRT_BASE, DOVE_UART2_PHYS_BASE,
+	orion_uart2_init((unsigned long) DOVE_UART2_VIRT_BASE,
+			 DOVE_UART2_PHYS_BASE,
 			 IRQ_DOVE_UART_2, tclk);
 }
 
@@ -155,7 +158,8 @@ void __init dove_uart2_init(void)
  ****************************************************************************/
 void __init dove_uart3_init(void)
 {
-	orion_uart3_init(DOVE_UART3_VIRT_BASE, DOVE_UART3_PHYS_BASE,
+	orion_uart3_init((unsigned long) DOVE_UART3_VIRT_BASE,
+			 DOVE_UART3_PHYS_BASE,
 			 IRQ_DOVE_UART_3, tclk);
 }
 
@@ -185,7 +189,7 @@ void __init dove_i2c_init(void)
  ****************************************************************************/
 void __init dove_init_early(void)
 {
-	orion_time_set_base(TIMER_VIRT_BASE);
+	orion_time_set_base((unsigned long) TIMER_VIRT_BASE);
 }
 
 static int get_tclk(void)
@@ -196,7 +200,8 @@ static int get_tclk(void)
 
 static void __init dove_timer_init(void)
 {
-	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
+	orion_time_init((unsigned long) BRIDGE_VIRT_BASE,
+			BRIDGE_INT_TIMER1_CLR,
 			IRQ_DOVE_BRIDGE, get_tclk());
 }
 
