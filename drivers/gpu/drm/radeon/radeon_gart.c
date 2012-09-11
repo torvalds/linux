@@ -662,7 +662,31 @@ void radeon_vm_fence(struct radeon_device *rdev,
 	vm->fence = radeon_fence_ref(fence);
 }
 
-/* object have to be reserved */
+/**
+ * radeon_vm_bo_find - find the bo_va for a specific vm & bo
+ *
+ * @vm: requested vm
+ * @bo: requested buffer object
+ *
+ * Find @bo inside the requested vm (cayman+).
+ * Search inside the @bos vm list for the requested vm
+ * Returns the found bo_va or NULL if none is found
+ *
+ * Object has to be reserved!
+ */
+struct radeon_bo_va *radeon_vm_bo_find(struct radeon_vm *vm,
+				       struct radeon_bo *bo)
+{
+	struct radeon_bo_va *bo_va;
+
+	list_for_each_entry(bo_va, &bo->va, bo_list) {
+		if (bo_va->vm == vm) {
+			return bo_va;
+		}
+	}
+	return NULL;
+}
+
 /**
  * radeon_vm_bo_add - add a bo to a specific vm
  *
@@ -676,6 +700,8 @@ void radeon_vm_fence(struct radeon_device *rdev,
  * Add @bo to the list of bos associated with the vm and validate
  * the offset requested within the vm address space.
  * Returns 0 for success, error for failure.
+ *
+ * Object has to be reserved!
  */
 int radeon_vm_bo_add(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
@@ -823,7 +849,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	if (vm->sa_bo == NULL)
 		return 0;
 
-	bo_va = radeon_bo_va(bo, vm);
+	bo_va = radeon_vm_bo_find(vm, bo);
 	if (bo_va == NULL) {
 		dev_err(rdev->dev, "bo %p not in vm %p\n", bo, vm);
 		return -EINVAL;
@@ -912,7 +938,7 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 	struct radeon_bo_va *bo_va;
 	int r;
 
-	bo_va = radeon_bo_va(bo, vm);
+	bo_va = radeon_vm_bo_find(vm, bo);
 	if (bo_va == NULL)
 		return 0;
 
@@ -1009,7 +1035,7 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	 */
 	r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
 	if (!r) {
-		bo_va = radeon_bo_va(rdev->ring_tmp_bo.bo, vm);
+		bo_va = radeon_vm_bo_find(vm, rdev->ring_tmp_bo.bo);
 		list_del_init(&bo_va->bo_list);
 		list_del_init(&bo_va->vm_list);
 		radeon_bo_unreserve(rdev->ring_tmp_bo.bo);

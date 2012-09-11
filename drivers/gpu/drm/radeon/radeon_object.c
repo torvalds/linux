@@ -646,16 +646,3 @@ int radeon_bo_reserve(struct radeon_bo *bo, bool no_wait)
 	}
 	return 0;
 }
-
-/* object have to be reserved */
-struct radeon_bo_va *radeon_bo_va(struct radeon_bo *rbo, struct radeon_vm *vm)
-{
-	struct radeon_bo_va *bo_va;
-
-	list_for_each_entry(bo_va, &rbo->va, bo_list) {
-		if (bo_va->vm == vm) {
-			return bo_va;
-		}
-	}
-	return NULL;
-}

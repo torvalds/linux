@@ -461,7 +461,7 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 	}
 	switch (args->operation) {
 	case RADEON_VA_MAP:
-		bo_va = radeon_bo_va(rbo, &fpriv->vm);
+		bo_va = radeon_vm_bo_find(&fpriv->vm, rbo);
 		if (bo_va) {
 			args->operation = RADEON_VA_RESULT_VA_EXIST;
 			args->offset = bo_va->soffset;

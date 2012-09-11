@@ -1846,6 +1846,8 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			    struct ttm_mem_reg *mem);
 void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 			     struct radeon_bo *bo);
+struct radeon_bo_va *radeon_vm_bo_find(struct radeon_vm *vm,
+				       struct radeon_bo *bo);
 int radeon_vm_bo_add(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_bo *bo,
