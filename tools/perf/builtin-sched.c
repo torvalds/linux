@@ -1372,8 +1372,7 @@ static struct trace_sched_handler *trace_handler;
 static int process_sched_wakeup_event(struct perf_tool *tool __maybe_unused,
 				      struct event_format *event,
 				      struct perf_sample *sample,
-				      struct machine *machine,
-				      struct thread *thread __maybe_unused)
+				      struct machine *machine)
 {
 	void *data = sample->raw_data;
 	struct trace_wakeup_event wakeup_event;
@@ -1489,8 +1488,7 @@ map_switch_event(struct trace_switch_event *switch_event,
 static int process_sched_switch_event(struct perf_tool *tool __maybe_unused,
 				      struct event_format *event,
 				      struct perf_sample *sample,
-				      struct machine *machine,
-				      struct thread *thread __maybe_unused)
+				      struct machine *machine)
 {
 	int this_cpu = sample->cpu, err = 0;
 	void *data = sample->raw_data;
@@ -1524,8 +1522,7 @@ static int process_sched_switch_event(struct perf_tool *tool __maybe_unused,
 static int process_sched_runtime_event(struct perf_tool *tool __maybe_unused,
 				       struct event_format *event,
 				       struct perf_sample *sample,
-				       struct machine *machine,
-				       struct thread *thread __maybe_unused)
+				       struct machine *machine)
 {
 	void *data = sample->raw_data;
 	struct trace_runtime_event runtime_event;
@@ -1545,8 +1542,7 @@ static int process_sched_runtime_event(struct perf_tool *tool __maybe_unused,
 static int process_sched_fork_event(struct perf_tool *tool __maybe_unused,
 				    struct event_format *event,
 				    struct perf_sample *sample,
-				    struct machine *machine __maybe_unused,
-				    struct thread *thread __maybe_unused)
+				    struct machine *machine __maybe_unused)
 {
 	void *data = sample->raw_data;
 	struct trace_fork_event fork_event;
@@ -1568,8 +1564,7 @@ static int process_sched_fork_event(struct perf_tool *tool __maybe_unused,
 static int process_sched_exit_event(struct perf_tool *tool __maybe_unused,
 				    struct event_format *event,
 				    struct perf_sample *sample __maybe_unused,
-				    struct machine *machine __maybe_unused,
-				    struct thread *thread __maybe_unused)
+				    struct machine *machine __maybe_unused)
 {
 	if (verbose)
 		printf("sched_exit event %p\n", event);
@@ -1580,8 +1575,7 @@ static int process_sched_exit_event(struct perf_tool *tool __maybe_unused,
 static int process_sched_migrate_task_event(struct perf_tool *tool __maybe_unused,
 					    struct event_format *event,
 					    struct perf_sample *sample,
-					    struct machine *machine,
-					    struct thread *thread __maybe_unused)
+					    struct machine *machine)
 {
 	void *data = sample->raw_data;
 	struct trace_migrate_task_event migrate_task_event;
@@ -1603,8 +1597,7 @@ static int process_sched_migrate_task_event(struct perf_tool *tool __maybe_unuse
 typedef int (*tracepoint_handler)(struct perf_tool *tool,
 				  struct event_format *tp_format,
 				  struct perf_sample *sample,
-				  struct machine *machine,
-				  struct thread *thread);
+				  struct machine *machine);
 
 static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __maybe_unused,
 						 union perf_event *event __maybe_unused,
@@ -1626,7 +1619,7 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __maybe_
 
 	if (evsel->handler.func != NULL) {
 		tracepoint_handler f = evsel->handler.func;
-		err = f(tool, evsel->tp_format, sample, machine, thread);
+		err = f(tool, evsel->tp_format, sample, machine);
 	}
 
 	return err;
