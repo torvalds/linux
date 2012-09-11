@@ -146,9 +146,8 @@ struct pci9111_private_data {
 
 	int ao_readback;	/*  Last written analog output data */
 
-	unsigned int timer_divisor_1; /* Divisor values for the 8254 timer
-				       * pacer */
-	unsigned int timer_divisor_2;
+	unsigned int div1;
+	unsigned int div2;
 
 	int is_valid;		/*  Is device valid */
 
@@ -211,8 +210,8 @@ static void pci9111_timer_set(struct comedi_device *dev)
 
 	udelay(1);
 
-	i8254_write(timer_base, 1, 2, dev_private->timer_divisor_2);
-	i8254_write(timer_base, 1, 1, dev_private->timer_divisor_1);
+	i8254_write(timer_base, 1, 2, dev_private->div2);
+	i8254_write(timer_base, 1, 1, dev_private->div1);
 }
 
 enum pci9111_trigger_sources {
@@ -462,8 +461,8 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer_2div(PCI9111_8254_CLOCK_PERIOD_NS,
-					       &(dev_private->timer_divisor_1),
-					       &(dev_private->timer_divisor_2),
+					       &dev_private->div1,
+					       &dev_private->div2,
 					       &(cmd->convert_arg),
 					       cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
@@ -593,8 +592,8 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	switch (async_cmd->convert_src) {
 	case TRIG_TIMER:
 		i8253_cascade_ns_to_timer_2div(PCI9111_8254_CLOCK_PERIOD_NS,
-					       &(dev_private->timer_divisor_1),
-					       &(dev_private->timer_divisor_2),
+					       &dev_private->div1,
+					       &dev_private->div2,
 					       &(async_cmd->convert_arg),
 					       async_cmd->
 					       flags & TRIG_ROUND_MASK);
@@ -938,11 +937,9 @@ static int pci9111_reset(struct comedi_device *dev)
 	pci9111_pretrigger_set(dev, false);
 	pci9111_autoscan_set(dev, false);
 
-	/*  Reset 8254 chip */
-
-	dev_private->timer_divisor_1 = 0;
-	dev_private->timer_divisor_2 = 0;
-
+	/* Reset 8254 chip */
+	dev_private->div1 = 0;
+	dev_private->div2 = 0;
 	pci9111_timer_set(dev);
 
 	return 0;
