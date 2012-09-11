@@ -424,7 +424,7 @@ static int aat2870_i2c_probe(struct i2c_client *client,
 	}
 
 	ret = mfd_add_devices(aat2870->dev, 0, aat2870_devs,
-			      ARRAY_SIZE(aat2870_devs), NULL, 0);
+			      ARRAY_SIZE(aat2870_devs), NULL, 0, NULL);
 	if (ret != 0) {
 		dev_err(aat2870->dev, "Failed to add subdev: %d\n", ret);
 		goto out_disable;

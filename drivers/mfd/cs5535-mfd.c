@@ -149,7 +149,7 @@ static int __devinit cs5535_mfd_probe(struct pci_dev *pdev,
 	}
 
 	err = mfd_add_devices(&pdev->dev, -1, cs5535_mfd_cells,
-			ARRAY_SIZE(cs5535_mfd_cells), NULL, 0);
+			      ARRAY_SIZE(cs5535_mfd_cells), NULL, 0, NULL);
 	if (err) {
 		dev_err(&pdev->dev, "MFD add devices failed: %d\n", err);
 		goto err_disable;

@@ -407,7 +407,7 @@ static int __devinit sta2x11_mfd_probe(struct pci_dev *pdev,
 			      sta2x11_mfd_bar0,
 			      ARRAY_SIZE(sta2x11_mfd_bar0),
 			      &pdev->resource[0],
-			      0);
+			      0, NULL);
 	if (err) {
 		dev_err(&pdev->dev, "mfd_add_devices[0] failed: %d\n", err);
 		goto err_disable;
@@ -417,7 +417,7 @@ static int __devinit sta2x11_mfd_probe(struct pci_dev *pdev,
 			      sta2x11_mfd_bar1,
 			      ARRAY_SIZE(sta2x11_mfd_bar1),
 			      &pdev->resource[1],
-			      0);
+			      0, NULL);
 	if (err) {
 		dev_err(&pdev->dev, "mfd_add_devices[1] failed: %d\n", err);
 		goto err_disable;

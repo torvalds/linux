@@ -287,7 +287,8 @@ static int __devinit jz4740_adc_probe(struct platform_device *pdev)
 	writeb(0xff, adc->base + JZ_REG_ADC_CTRL);
 
 	ret = mfd_add_devices(&pdev->dev, 0, jz4740_adc_cells,
-		ARRAY_SIZE(jz4740_adc_cells), mem_base, irq_base);
+			      ARRAY_SIZE(jz4740_adc_cells), mem_base,
+			      irq_base, NULL);
 	if (ret < 0)
 		goto err_clk_put;
 
