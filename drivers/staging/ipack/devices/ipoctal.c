@@ -853,11 +853,6 @@ static int __init ipoctal_init(void)
 
 static void __exit ipoctal_exit(void)
 {
-	struct ipoctal *p, *next;
-
-	list_for_each_entry_safe(p, next, &ipoctal_list, list)
-		p->dev->bus->ops->remove_device(p->dev);
-
 	ipack_driver_unregister(&driver);
 }
 
