@@ -443,7 +443,7 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 		i8253_cascade_ns_to_timer_2div(PCI9111_8254_CLOCK_PERIOD_NS,
 					       &dev_private->div1,
 					       &dev_private->div2,
-					       &(cmd->convert_arg),
+					       &cmd->convert_arg,
 					       cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			error++;
@@ -571,13 +571,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	dev_private->scan_delay = 0;
 	switch (async_cmd->convert_src) {
 	case TRIG_TIMER:
-		i8253_cascade_ns_to_timer_2div(PCI9111_8254_CLOCK_PERIOD_NS,
-					       &dev_private->div1,
-					       &dev_private->div2,
-					       &(async_cmd->convert_arg),
-					       async_cmd->
-					       flags & TRIG_ROUND_MASK);
-
 		pci9111_trigger_source_set(dev, software);
 		pci9111_timer_set(dev);
 		pci9111_fifo_reset(dev);
