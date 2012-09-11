@@ -113,7 +113,7 @@ static int ehci_hcd_ls1x_probe(struct platform_device *pdev)
 		goto err_put_hcd;
 	}
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto err_put_hcd;
 
