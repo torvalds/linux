@@ -130,7 +130,6 @@ struct boardtype {
 	int iorange;		/*  I/O range len */
 	char have_irq;		/*  1=card support IRQ */
 	char cardtype;		/*  0=ICP Multi */
-	int ai_maxdata;		/*  resolution of A/D */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode;	/*  range codes for programming */
 	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
@@ -804,7 +803,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
 	s->n_chan = 16;
-	s->maxdata = this_board->ai_maxdata;
+	s->maxdata = 0x0fff;
 	s->len_chanlist = 16;
 	s->range_table = this_board->rangelist_ai;
 	s->insn_read = icp_multi_insn_read_ai;
@@ -882,7 +881,6 @@ static const struct boardtype boardtypes[] = {
 		.iorange	= IORANGE_ICP_MULTI,
 		.have_irq	= 1,
 		.cardtype	= TYPE_ICP_MULTI,
-		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_analog,
 		.rangecode	= range_codes_analog,
 		.rangelist_ao	= &range_analog,
