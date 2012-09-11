@@ -1098,10 +1098,6 @@ static int pci9111_attach(struct comedi_device *dev,
 	dev_private = dev->private;
 
 	/*  Probe the device to determine what device in the series it is. */
-
-	printk(KERN_ERR "comedi%d: " PCI9111_DRIVER_NAME " driver\n",
-								dev->minor);
-
 	pcidev = pci9111_find_pci(dev, it);
 	if (!pcidev)
 		return -EIO;
@@ -1116,10 +1112,6 @@ static int pci9111_attach(struct comedi_device *dev,
 	lcr_io_base = pci_resource_start(pcidev, 1);
 	lcr_io_range = pci_resource_len(pcidev, 1);
 
-	printk
-	    ("comedi%d: local configuration registers at address 0x%4lx [0x%4lx]\n",
-	     dev->minor, lcr_io_base, lcr_io_range);
-
 	/*  Enable PCI device and request regions */
 	if (comedi_pci_enable(pcidev, PCI9111_DRIVER_NAME) < 0) {
 		printk
@@ -1131,9 +1123,6 @@ static int pci9111_attach(struct comedi_device *dev,
 
 	io_base = pci_resource_start(pcidev, 2);
 	io_range = pci_resource_len(pcidev, 2);
-
-	printk(KERN_ERR "comedi%d: 6503 registers at address 0x%4lx [0x%4lx]\n",
-	       dev->minor, io_base, io_range);
 
 	dev->iobase = io_base;
 	dev->board_name = board->name;
@@ -1206,6 +1195,8 @@ static int pci9111_attach(struct comedi_device *dev,
 	s->insn_bits	= pci9111_do_insn_bits;
 
 	dev_private->is_valid = 1;
+
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 0;
 }
