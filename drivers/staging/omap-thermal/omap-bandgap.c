@@ -1037,20 +1037,20 @@ static int omap_bandgap_save_ctxt(struct omap_bandgap *bg_ptr)
 
 		if (OMAP_BANDGAP_HAS(bg_ptr, MODE_CONFIG))
 			rval->bg_mode_ctrl = omap_bandgap_readl(bg_ptr,
-								tsr->bgap_mode_ctrl);
+							tsr->bgap_mode_ctrl);
 		if (OMAP_BANDGAP_HAS(bg_ptr, COUNTER))
 			rval->bg_counter = omap_bandgap_readl(bg_ptr,
-							      tsr->bgap_counter);
+							tsr->bgap_counter);
 		if (OMAP_BANDGAP_HAS(bg_ptr, TALERT)) {
 			rval->bg_threshold = omap_bandgap_readl(bg_ptr,
-								tsr->bgap_threshold);
+							tsr->bgap_threshold);
 			rval->bg_ctrl = omap_bandgap_readl(bg_ptr,
-							   tsr->bgap_mask_ctrl);
+						   tsr->bgap_mask_ctrl);
 		}
 
 		if (OMAP_BANDGAP_HAS(bg_ptr, TSHUT_CONFIG))
 			rval->tshut_threshold = omap_bandgap_readl(bg_ptr,
-								   tsr->tshut_threshold);
+						   tsr->tshut_threshold);
 	}
 
 	return 0;
@@ -1074,8 +1074,9 @@ static int omap_bandgap_restore_ctxt(struct omap_bandgap *bg_ptr)
 
 		if (val == 0) {
 			if (OMAP_BANDGAP_HAS(bg_ptr, TSHUT_CONFIG))
-				omap_bandgap_writel(bg_ptr, rval->tshut_threshold,
-							   tsr->tshut_threshold);
+				omap_bandgap_writel(bg_ptr,
+					rval->tshut_threshold,
+						   tsr->tshut_threshold);
 			/* Force immediate temperature measurement and update
 			 * of the DTEMP field
 			 */
