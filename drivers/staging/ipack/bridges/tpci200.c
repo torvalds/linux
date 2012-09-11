@@ -385,7 +385,6 @@ static int tpci200_slot_unregister(struct ipack_device *dev)
 		return -ERESTARTSYS;
 
 	tpci200->slots[dev->slot].dev = NULL;
-	ipack_device_unregister(dev);
 	mutex_unlock(&tpci200->mutex);
 
 	return 0;
@@ -614,7 +613,7 @@ static void tpci200_uninstall(struct tpci200_board *tpci200)
 	int i;
 
 	for (i = 0; i < TPCI200_NB_SLOT; i++)
-		tpci200_slot_unregister(tpci200->slots[i].dev);
+		ipack_device_unregister(tpci200->slots[i].dev);
 
 	tpci200_unregister(tpci200);
 	kfree(tpci200->slots);
