@@ -803,6 +803,7 @@ static void cache_estimate(unsigned long gfporder, size_t buffer_size,
 	*left_over = slab_size - nr_objs*buffer_size - mgmt_size;
 }
 
+#if DEBUG
 #define slab_error(cachep, msg) __slab_error(__func__, cachep, msg)
 
 static void __slab_error(const char *function, struct kmem_cache *cachep,
@@ -812,6 +813,7 @@ static void __slab_error(const char *function, struct kmem_cache *cachep,
 	       function, cachep->name, msg);
 	dump_stack();
 }
+#endif
 
 /*
  * By default on NUMA we use alien caches to stage the freeing of
