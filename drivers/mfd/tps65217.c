@@ -191,7 +191,7 @@ static int __devinit tps65217_probe(struct i2c_client *client,
 	}
 
 	ret = mfd_add_devices(tps->dev, -1, tps65217s,
-					ARRAY_SIZE(tps65217s), NULL, 0);
+			      ARRAY_SIZE(tps65217s), NULL, 0, NULL);
 	if (ret < 0) {
 		dev_err(tps->dev, "mfd_add_devices failed: %d\n", ret);
 		return ret;

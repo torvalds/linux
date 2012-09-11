@@ -129,7 +129,7 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	cell->pdata_size = sizeof(*davinci_vc);
 
 	ret = mfd_add_devices(&pdev->dev, pdev->id, davinci_vc->cells,
-			      DAVINCI_VC_CELLS, NULL, 0);
+			      DAVINCI_VC_CELLS, NULL, 0, NULL);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "fail to register client devices\n");
 		goto fail4;

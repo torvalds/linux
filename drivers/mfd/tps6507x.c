@@ -100,7 +100,7 @@ static int tps6507x_i2c_probe(struct i2c_client *i2c,
 
 	ret = mfd_add_devices(tps6507x->dev, -1,
 			      tps6507x_devs, ARRAY_SIZE(tps6507x_devs),
-			      NULL, 0);
+			      NULL, 0, NULL);
 
 	if (ret < 0)
 		goto err;

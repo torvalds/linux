@@ -289,7 +289,7 @@ static int __devinit rc5t583_i2c_probe(struct i2c_client *i2c,
 	}
 
 	ret = mfd_add_devices(rc5t583->dev, -1, rc5t583_subdevs,
-			ARRAY_SIZE(rc5t583_subdevs), NULL, 0);
+			      ARRAY_SIZE(rc5t583_subdevs), NULL, 0, NULL);
 	if (ret) {
 		dev_err(&i2c->dev, "add mfd devices failed: %d\n", ret);
 		goto err_add_devs;

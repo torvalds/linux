@@ -750,7 +750,7 @@ gpe0_done:
 
 	lpc_ich_finalize_cell(&lpc_ich_cells[LPC_GPIO], id);
 	ret = mfd_add_devices(&dev->dev, -1, &lpc_ich_cells[LPC_GPIO],
-				1, NULL, 0);
+			      1, NULL, 0, NULL);
 
 gpio_done:
 	if (acpi_conflict)
@@ -807,7 +807,7 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 
 	lpc_ich_finalize_cell(&lpc_ich_cells[LPC_WDT], id);
 	ret = mfd_add_devices(&dev->dev, -1, &lpc_ich_cells[LPC_WDT],
-				1, NULL, 0);
+			      1, NULL, 0, NULL);
 
 wdt_done:
 	return ret;
