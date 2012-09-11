@@ -57,12 +57,11 @@ static void nfc_hci_msg_tx_work(struct work_struct *work)
 	if (hdev->cmd_pending_msg) {
 		if (timer_pending(&hdev->cmd_timer) == 0) {
 			if (hdev->cmd_pending_msg->cb)
-				hdev->cmd_pending_msg->cb(hdev,
-							  -ETIME,
-							  NULL,
-							  hdev->
+				hdev->cmd_pending_msg->cb(hdev->
 							  cmd_pending_msg->
-							  cb_context);
+							  cb_context,
+							  NULL,
+							  -ETIME);
 			kfree(hdev->cmd_pending_msg);
 			hdev->cmd_pending_msg = NULL;
 		} else
@@ -83,7 +82,7 @@ next_msg:
 			kfree_skb(skb);
 			skb_queue_purge(&msg->msg_frags);
 			if (msg->cb)
-				msg->cb(hdev, r, NULL, msg->cb_context);
+				msg->cb(msg->cb_context, NULL, r);
 			kfree(msg);
 			break;
 		}
@@ -133,8 +132,8 @@ static void __nfc_hci_cmd_completion(struct nfc_hci_dev *hdev, int err,
 	del_timer_sync(&hdev->cmd_timer);
 
 	if (hdev->cmd_pending_msg->cb)
-		hdev->cmd_pending_msg->cb(hdev, err, skb,
-					  hdev->cmd_pending_msg->cb_context);
+		hdev->cmd_pending_msg->cb(hdev->cmd_pending_msg->cb_context,
+					  skb, err);
 	else
 		kfree_skb(skb);
 

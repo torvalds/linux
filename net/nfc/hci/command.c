@@ -28,10 +28,15 @@
 
 #include "hci.h"
 
-static void nfc_hci_execute_cb(struct nfc_hci_dev *hdev, int err,
-			       struct sk_buff *skb, void *cb_data)
+/*
+ * HCI command execution completion callback.
+ * err will be a standard linux error (may be converted from HCI response)
+ * skb contains the response data and must be disposed, or may be NULL if
+ * an error occured
+ */
+static void nfc_hci_execute_cb(void *context, struct sk_buff *skb, int err)
 {
-	struct hcp_exec_waiter *hcp_ew = (struct hcp_exec_waiter *)cb_data;
+	struct hcp_exec_waiter *hcp_ew = (struct hcp_exec_waiter *)context;
 
 	pr_debug("HCI Cmd completed with result=%d\n", err);
 
