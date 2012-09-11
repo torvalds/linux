@@ -1157,7 +1157,6 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 			      ~priv->adapter->fw_bands))
 				priv->adapter->config_bands = config_bands;
 		}
-		mwifiex_send_domain_info_cmd_fw(priv->wdev->wiphy);
 	}
 
 	/* As this is new association, clear locally stored
