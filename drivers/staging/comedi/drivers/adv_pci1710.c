@@ -300,7 +300,6 @@ static const struct boardtype boardtypes[] = {
 };
 
 struct pci1710_private {
-	char valid;		/*  card is usable */
 	char neverending_ai;	/*  we do unlimited AI */
 	unsigned int CntrlReg;	/*  Control register */
 	unsigned int i8254_osc_base;	/*  frequence of onboard oscilator */
@@ -1433,8 +1432,6 @@ static int pci1710_attach_pci(struct comedi_device *dev,
 		subdev++;
 	}
 
-	devpriv->valid = 1;
-
 	dev_info(dev->class_dev, "%s attached, irq %sabled\n",
 		dev->board_name, dev->irq ? "en" : "dis");
 
@@ -1443,15 +1440,12 @@ static int pci1710_attach_pci(struct comedi_device *dev,
 
 static void pci1710_detach(struct comedi_device *dev)
 {
-	struct pci1710_private *devpriv = dev->private;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (devpriv) {
-		if (devpriv->valid)
-			pci1710_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-	}
+	if (dev->iobase)
+		pci1710_reset(dev);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
