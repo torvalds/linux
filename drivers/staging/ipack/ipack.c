@@ -379,6 +379,8 @@ struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
 
 	if (bus->ops->set_clockrate(dev, 8))
 		dev_warn(&dev->dev, "failed to switch to 8 MHz operation for reading of device ID.\n");
+	if (bus->ops->reset_timeout(dev))
+		dev_warn(&dev->dev, "failed to reset potential timeout.");
 
 	ret = ipack_device_read_id(dev);
 	if (ret < 0) {
