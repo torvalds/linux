@@ -1151,9 +1151,11 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 	if (bp->port.pmf)
 		bnx2x_hw_stats_update(bp);
 
-	if (bnx2x_storm_stats_update(bp) && (bp->stats_pending++ == 3)) {
-		BNX2X_ERR("storm stats were not updated for 3 times\n");
-		bnx2x_panic();
+	if (bnx2x_storm_stats_update(bp)) {
+		if (bp->stats_pending++ == 3) {
+			BNX2X_ERR("storm stats were not updated for 3 times\n");
+			bnx2x_panic();
+		}
 		return;
 	}
 
