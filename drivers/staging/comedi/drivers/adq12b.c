@@ -133,8 +133,6 @@ struct adq12b_private {
 	unsigned int digital_state;
 };
 
-#define devpriv ((struct adq12b_private *)dev->private)
-
 /*
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
@@ -144,6 +142,7 @@ static int adq12b_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct adq12b_private *devpriv = dev->private;
 	int n, i;
 	int range, channel;
 	unsigned char hi, lo, status;
@@ -200,6 +199,7 @@ static int adq12b_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct adq12b_private *devpriv = dev->private;
 	int channel;
 
 	for (channel = 0; channel < 8; channel++)
@@ -221,6 +221,7 @@ static int adq12b_do_insn_bits(struct comedi_device *dev,
 static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct adq12b_board *board = comedi_board(dev);
+	struct adq12b_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int unipolar, differential;
@@ -252,19 +253,18 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = board->name;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct adq12b_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
-/* fill in devpriv structure */
 	devpriv->unipolar = unipolar;
 	devpriv->differential = differential;
 	devpriv->digital_state = 0;
-/* initialize channel and range to -1 so we make sure we always write
-   at least once to the CTREG in the instruction */
+	/*
+	 * initialize channel and range to -1 so we make sure we
+	 * always write at least once to the CTREG in the instruction
+	 */
 	devpriv->last_channel = -1;
 	devpriv->last_range = -1;
 
@@ -321,7 +321,6 @@ static void adq12b_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, ADQ12B_SIZE);
-	kfree(devpriv);
 }
 
 static const struct adq12b_board adq12b_boards[] = {
