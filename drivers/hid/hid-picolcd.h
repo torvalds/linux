@@ -159,6 +159,10 @@ void picolcd_init_devfs(struct picolcd_data *data,
 
 void picolcd_exit_devfs(struct picolcd_data *data);
 #else
+static inline void picolcd_debug_out_report(struct picolcd_data *data,
+		struct hid_device *hdev, struct hid_report *report)
+{
+}
 static inline void picolcd_debug_raw_event(struct picolcd_data *data,
 		struct hid_device *hdev, struct hid_report *report,
 		u8 *raw_data, int size)
@@ -171,11 +175,6 @@ static inline void picolcd_init_devfs(struct picolcd_data *data,
 {
 }
 static inline void picolcd_exit_devfs(struct picolcd_data *data)
-{
-}
-static inline void picolcd_debug_raw_event(struct picolcd_data *data,
-		struct hid_device *hdev, struct hid_report *report,
-		u8 *raw_data, int size)
 {
 }
 #endif /* CONFIG_DEBUG_FS */
