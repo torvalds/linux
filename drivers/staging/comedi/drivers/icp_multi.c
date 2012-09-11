@@ -44,10 +44,7 @@ There are 4 x 12-bit Analogue Outputs.  Ranges : 5V, 10V, +/-5V, +/-10V
 
 4 x 16-bit counters
 
-Options:
- [0] - PCI bus number - if bus number and slot number are 0,
-			then driver search for first unused card
- [1] - PCI slot number
+Configuration options: not applicable, uses PCI auto config
 */
 
 #include <linux/interrupt.h>
@@ -55,8 +52,6 @@ Options:
 
 #include <linux/delay.h>
 #include <linux/pci.h>
-
-#include "icp_multi.h"
 
 #define PCI_DEVICE_ID_ICP_MULTI	0x8000
 
@@ -117,18 +112,10 @@ static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 	Data & Structure declarations
 ==============================================================================
 */
-static unsigned short pci_list_builded;	/*>0 list of card is known */
-
-struct boardtype {
-	const char *name;	/*  driver name */
-	int device_id;
-};
 
 struct icp_multi_private {
-	struct pcilst_struct *card;	/*  pointer to card */
 	char valid;		/*  card is usable */
 	void __iomem *io_addr;		/*  Pointer to mapped io address */
-	resource_size_t phys_iobase;	/*  Physical io address */
 	unsigned int AdcCmdStatus;	/*  ADC Command/Status register */
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
 	unsigned int IntEnable;	/*  Interrupt Enable register */
@@ -144,7 +131,6 @@ struct icp_multi_private {
 };
 
 #define devpriv ((struct icp_multi_private *)dev->private)
-#define this_board ((const struct boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================
@@ -696,44 +682,29 @@ static int icp_multi_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int icp_multi_attach(struct comedi_device *dev,
-			    struct comedi_devconfig *it)
+static int icp_multi_attach_pci(struct comedi_device *dev,
+				struct pci_dev *pcidev)
 {
 	struct comedi_subdevice *s;
+	resource_size_t iobase;
 	int ret;
-	unsigned int irq;
-	struct pcilst_struct *card = NULL;
-	resource_size_t io_addr[5], iobase;
-	unsigned char pci_bus, pci_slot, pci_func;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+	dev->board_name = dev->driver->driver_name;
 
 	ret = alloc_private(dev, sizeof(struct icp_multi_private));
 	if (ret < 0)
 		return ret;
 
-	/*  Initialise list of PCI cards in system, if not already done so */
-	if (pci_list_builded++ == 0)
-		pci_card_list_init(PCI_VENDOR_ID_ICP, 0);
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
+	iobase = pci_resource_start(pcidev, 2);
+	dev->iobase = iobase;
 
-	card = select_and_alloc_pci_card(PCI_VENDOR_ID_ICP,
-					 this_board->device_id, it->options[0],
-					 it->options[1]);
-
-	if (card == NULL)
-		return -EIO;
-
-	devpriv->card = card;
-
-	if ((pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
-			   &irq)) < 0)
-		return -EIO;
-
-	iobase = io_addr[2];
-	devpriv->phys_iobase = iobase;
 	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
-	if (devpriv->io_addr == NULL)
+	if (!devpriv->io_addr)
 		return -ENOMEM;
-
-	dev->board_name = this_board->name;
 
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
@@ -741,14 +712,12 @@ static int icp_multi_attach(struct comedi_device *dev,
 
 	icp_multi_reset(dev);
 
-	if (irq) {
-		if (request_irq(irq, interrupt_service_icp_multi,
-				IRQF_SHARED, "Inova Icp Multi", dev)) {
-			irq = 0;	/* Can't use IRQ */
-		}
+	if (pcidev->irq) {
+		ret = request_irq(pcidev->irq, interrupt_service_icp_multi,
+				  IRQF_SHARED, dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = pcidev->irq;
 	}
-
-	dev->irq = irq;
 
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
@@ -811,6 +780,8 @@ static int icp_multi_attach(struct comedi_device *dev,
 
 static void icp_multi_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->private)
 		if (devpriv->valid)
 			icp_multi_reset(dev);
@@ -818,27 +789,17 @@ static void icp_multi_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (dev->private && devpriv->io_addr)
 		iounmap(devpriv->io_addr);
-	if (dev->private && devpriv->card)
-		pci_card_free(devpriv->card);
-	if (--pci_list_builded == 0)
-		pci_card_list_cleanup(PCI_VENDOR_ID_ICP);
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+	}
 }
-
-static const struct boardtype boardtypes[] = {
-	{
-		.name		= "icp_multi",
-		.device_id	= PCI_DEVICE_ID_ICP_MULTI,
-	},
-};
 
 static struct comedi_driver icp_multi_driver = {
 	.driver_name	= "icp_multi",
 	.module		= THIS_MODULE,
-	.attach		= icp_multi_attach,
+	.attach_pci	= icp_multi_attach_pci,
 	.detach		= icp_multi_detach,
-	.num_names	= ARRAY_SIZE(boardtypes),
-	.board_name	= &boardtypes[0].name,
-	.offset		= sizeof(struct boardtype),
 };
 
 static int __devinit icp_multi_pci_probe(struct pci_dev *dev,
