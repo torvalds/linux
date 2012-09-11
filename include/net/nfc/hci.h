@@ -200,6 +200,9 @@ int nfc_hci_set_param(struct nfc_hci_dev *hdev, u8 gate, u8 idx,
 		      const u8 *param, size_t param_len);
 int nfc_hci_send_cmd(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
 		     const u8 *param, size_t param_len, struct sk_buff **skb);
+int nfc_hci_send_cmd_async(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
+			   const u8 *param, size_t param_len,
+			   data_exchange_cb_t cb, void *cb_context);
 int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
 			  const u8 *param, size_t param_len);
 int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
