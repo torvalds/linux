@@ -207,6 +207,12 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	/* when the page flip is requested, crtc's dpms should be on */
+	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
+		DRM_ERROR("failed page flip request.\n");
+		return -EINVAL;
+	}
+
 	mutex_lock(&dev->struct_mutex);
 
 	if (event) {
