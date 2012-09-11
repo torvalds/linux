@@ -630,14 +630,6 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 					error++;
 				}
 			}
-		} else {
-			if ((CR_CHAN(cmd->chanlist[0]) >
-			     (board->ai_channel_nbr - 1))
-			    || (CR_CHAN(cmd->chanlist[0]) < 0)) {
-				comedi_error(dev,
-					     "channel number is out of limits\n");
-				error++;
-			}
 		}
 	}
 
