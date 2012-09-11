@@ -363,8 +363,6 @@ struct pci9111_private_data {
 	short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
 };
 
-#define dev_private	((struct pci9111_private_data *)dev->private)
-
 /*  ------------------------------------------------------------------ */
 /*  PLX9050 SECTION */
 /*  ------------------------------------------------------------------ */
@@ -412,6 +410,8 @@ static void plx9050_interrupt_control(unsigned long io_base,
 
 static void pci9111_timer_set(struct comedi_device *dev)
 {
+	struct pci9111_private_data *dev_private = dev->private;
+
 	pci9111_8254_control_set(PCI9111_8254_COUNTER_0 |
 				 PCI9111_8254_READ_LOAD_LSB_MSB |
 				 PCI9111_8254_MODE_0 |
@@ -525,6 +525,8 @@ static void pci9111_interrupt_source_set(struct comedi_device *dev,
 static int pci9111_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pci9111_private_data *dev_private = dev->private;
+
 	/*  Disable interrupts */
 
 	plx9050_interrupt_control(dev_private->lcr_io_base, true, true, true,
@@ -556,6 +558,7 @@ static int
 pci9111_ai_do_cmd_test(struct comedi_device *dev,
 		       struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	struct pci9111_private_data *dev_private = dev->private;
 	int tmp;
 	int error = 0;
 	int range, reference;
@@ -756,6 +759,7 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 static int pci9111_ai_do_cmd(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pci9111_private_data *dev_private = dev->private;
 	struct comedi_cmd *async_cmd = &s->async->cmd;
 
 	if (!dev->irq) {
@@ -907,6 +911,7 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 {
 	struct comedi_device *dev = p_device;
+	struct pci9111_private_data *dev_private = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
 	unsigned long irq_flags;
@@ -1113,6 +1118,7 @@ pci9111_ao_insn_write(struct comedi_device *dev,
 		      struct comedi_subdevice *s, struct comedi_insn *insn,
 		      unsigned int *data)
 {
+	struct pci9111_private_data *dev_private = dev->private;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
@@ -1129,6 +1135,7 @@ static int pci9111_ao_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci9111_private_data *dev_private = dev->private;
 	int i;
 
 	for (i = 0; i < insn->n; i++)
@@ -1189,6 +1196,8 @@ static int pci9111_do_insn_bits(struct comedi_device *dev,
 
 static int pci9111_reset(struct comedi_device *dev)
 {
+	struct pci9111_private_data *dev_private = dev->private;
+
 	/*  Set trigger source to software */
 
 	plx9050_interrupt_control(dev_private->lcr_io_base, true, true, true,
@@ -1246,14 +1255,18 @@ static struct pci_dev *pci9111_find_pci(struct comedi_device *dev,
 static int pci9111_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct pci9111_private_data *dev_private;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
-	int error;
+	int ret;
 	const struct pci9111_board *board;
 
-	if (alloc_private(dev, sizeof(struct pci9111_private_data)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*dev_private));
+	if (ret)
+		return ret;
+	dev_private = dev->private;
+
 	/*  Probe the device to determine what device in the series it is. */
 
 	printk(KERN_ERR "comedi%d: " PCI9111_DRIVER_NAME " driver\n",
@@ -1318,9 +1331,9 @@ static int pci9111_attach(struct comedi_device *dev,
 
 	/*  TODO: Add external multiplexer setup (according to option[2]). */
 
-	error = comedi_alloc_subdevices(dev, 4);
-	if (error)
-		return error;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
@@ -1376,8 +1389,9 @@ static int pci9111_attach(struct comedi_device *dev,
 static void pci9111_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pci9111_private_data *dev_private = dev->private;
 
-	if (dev->private != NULL) {
+	if (dev_private) {
 		if (dev_private->is_valid)
 			pci9111_reset(dev);
 	}
