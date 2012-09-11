@@ -732,7 +732,7 @@ int radeon_vm_bo_add(struct radeon_device *rdev,
 	head = &vm->va;
 	last_offset = 0;
 	list_for_each_entry(tmp, &vm->va, vm_list) {
-		if (bo_va->soffset >= last_offset && bo_va->eoffset < tmp->soffset) {
+		if (bo_va->soffset >= last_offset && bo_va->eoffset <= tmp->soffset) {
 			/* bo can be added before this one */
 			break;
 		}
