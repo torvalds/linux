@@ -61,7 +61,7 @@ static void tty_audit_buf_put(struct tty_audit_buf *buf)
 }
 
 static void tty_audit_log(const char *description, struct task_struct *tsk,
-			  uid_t loginuid, unsigned sessionid, int major,
+			  kuid_t loginuid, unsigned sessionid, int major,
 			  int minor, unsigned char *data, size_t size)
 {
 	struct audit_buffer *ab;
@@ -73,7 +73,9 @@ static void tty_audit_log(const char *description, struct task_struct *tsk,
 
 		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u "
 				 "major=%d minor=%d comm=", description,
-				 tsk->pid, uid, loginuid, sessionid,
+				 tsk->pid, uid,
+				 from_kuid(&init_user_ns, loginuid),
+				 sessionid,
 				 major, minor);
 		get_task_comm(name, tsk);
 		audit_log_untrustedstring(ab, name);
@@ -89,7 +91,7 @@ static void tty_audit_log(const char *description, struct task_struct *tsk,
  *	Generate an audit message from the contents of @buf, which is owned by
  *	@tsk with @loginuid.  @buf->mutex must be locked.
  */
-static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
+static void tty_audit_buf_push(struct task_struct *tsk, kuid_t loginuid,
 			       unsigned int sessionid,
 			       struct tty_audit_buf *buf)
 {
@@ -112,7 +114,7 @@ static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
  */
 static void tty_audit_buf_push_current(struct tty_audit_buf *buf)
 {
-	uid_t auid = audit_get_loginuid(current);
+	kuid_t auid = audit_get_loginuid(current);
 	unsigned int sessionid = audit_get_sessionid(current);
 	tty_audit_buf_push(current, auid, sessionid, buf);
 }
@@ -179,7 +181,7 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 	}
 
 	if (should_audit && audit_enabled) {
-		uid_t auid;
+		kuid_t auid;
 		unsigned int sessionid;
 
 		auid = audit_get_loginuid(current);
@@ -199,7 +201,7 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
  * reference to the tty audit buffer if available.
  * Flush the buffer or return an appropriate error code.
  */
-int tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid)
+int tty_audit_push_task(struct task_struct *tsk, kuid_t loginuid, u32 sessionid)
 {
 	struct tty_audit_buf *buf = ERR_PTR(-EPERM);
 	unsigned long flags;

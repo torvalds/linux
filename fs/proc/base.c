@@ -1089,7 +1089,8 @@ static ssize_t proc_loginuid_read(struct file * file, char __user * buf,
 	if (!task)
 		return -ESRCH;
 	length = scnprintf(tmpbuf, TMPBUFLEN, "%u",
-				audit_get_loginuid(task));
+			   from_kuid(file->f_cred->user_ns,
+				     audit_get_loginuid(task)));
 	put_task_struct(task);
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
 }
@@ -1101,6 +1102,7 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 	char *page, *tmp;
 	ssize_t length;
 	uid_t loginuid;
+	kuid_t kloginuid;
 
 	rcu_read_lock();
 	if (current != pid_task(proc_pid(inode), PIDTYPE_PID)) {
@@ -1130,7 +1132,13 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 		goto out_free_page;
 
 	}
-	length = audit_set_loginuid(loginuid);
+	kloginuid = make_kuid(file->f_cred->user_ns, loginuid);
+	if (!uid_valid(kloginuid)) {
+		length = -EINVAL;
+		goto out_free_page;
+	}
+
+	length = audit_set_loginuid(kloginuid);
 	if (likely(length == 0))
 		length = count;
 

@@ -527,7 +527,7 @@ static inline void audit_ptrace(struct task_struct *t)
 extern unsigned int audit_serial(void);
 extern int auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
-extern int  audit_set_loginuid(uid_t loginuid);
+extern int  audit_set_loginuid(kuid_t loginuid);
 #define audit_get_loginuid(t) ((t)->loginuid)
 #define audit_get_sessionid(t) ((t)->sessionid)
 extern void audit_log_task_context(struct audit_buffer *ab);
@@ -639,7 +639,7 @@ extern int audit_signals;
 #define audit_core_dumps(i) do { ; } while (0)
 #define audit_seccomp(i,s,c) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) (0)
-#define audit_get_loginuid(t) (-1)
+#define audit_get_loginuid(t) (INVALID_UID)
 #define audit_get_sessionid(t) (-1)
 #define audit_log_task_context(b) do { ; } while (0)
 #define audit_ipc_obj(i) ((void)0)
@@ -705,7 +705,7 @@ extern int		    audit_update_lsm_rules(void);
 extern int audit_filter_user(void);
 extern int audit_filter_type(int type);
 extern int  audit_receive_filter(int type, int pid, int seq,
-				void *data, size_t datasz, uid_t loginuid,
+				void *data, size_t datasz, kuid_t loginuid,
 				u32 sessionid, u32 sid);
 extern int audit_enabled;
 #else

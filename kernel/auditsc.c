@@ -149,7 +149,7 @@ struct audit_aux_data_execve {
 struct audit_aux_data_pids {
 	struct audit_aux_data	d;
 	pid_t			target_pid[AUDIT_AUX_PIDS];
-	uid_t			target_auid[AUDIT_AUX_PIDS];
+	kuid_t			target_auid[AUDIT_AUX_PIDS];
 	uid_t			target_uid[AUDIT_AUX_PIDS];
 	unsigned int		target_sessionid[AUDIT_AUX_PIDS];
 	u32			target_sid[AUDIT_AUX_PIDS];
@@ -214,7 +214,7 @@ struct audit_context {
 	int		    arch;
 
 	pid_t		    target_pid;
-	uid_t		    target_auid;
+	kuid_t		    target_auid;
 	uid_t		    target_uid;
 	unsigned int	    target_sessionid;
 	u32		    target_sid;
@@ -1176,7 +1176,7 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 }
 
 static int audit_log_pid_context(struct audit_context *context, pid_t pid,
-				 uid_t auid, uid_t uid, unsigned int sessionid,
+				 kuid_t auid, uid_t uid, unsigned int sessionid,
 				 u32 sid, char *comm)
 {
 	struct audit_buffer *ab;
@@ -1188,7 +1188,8 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 	if (!ab)
 		return rc;
 
-	audit_log_format(ab, "opid=%d oauid=%d ouid=%d oses=%d", pid, auid,
+	audit_log_format(ab, "opid=%d oauid=%d ouid=%d oses=%d", pid,
+			 from_kuid(&init_user_ns, auid),
 			 uid, sessionid);
 	if (security_secid_to_secctx(sid, &ctx, &len)) {
 		audit_log_format(ab, " obj=(none)");
@@ -1630,7 +1631,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->name_count,
 		  context->ppid,
 		  context->pid,
-		  tsk->loginuid,
+		  from_kuid(&init_user_ns, tsk->loginuid),
 		  context->uid,
 		  context->gid,
 		  context->euid, context->suid, context->fsuid,
@@ -2291,14 +2292,14 @@ static atomic_t session_id = ATOMIC_INIT(0);
  *
  * Called (set) from fs/proc/base.c::proc_loginuid_write().
  */
-int audit_set_loginuid(uid_t loginuid)
+int audit_set_loginuid(kuid_t loginuid)
 {
 	struct task_struct *task = current;
 	struct audit_context *context = task->audit_context;
 	unsigned int sessionid;
 
 #ifdef CONFIG_AUDIT_LOGINUID_IMMUTABLE
-	if (task->loginuid != -1)
+	if (uid_valid(task->loginuid))
 		return -EPERM;
 #else /* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
 	if (!capable(CAP_AUDIT_CONTROL))
@@ -2315,7 +2316,8 @@ int audit_set_loginuid(uid_t loginuid)
 				"old auid=%u new auid=%u"
 				" old ses=%u new ses=%u",
 				task->pid, task_uid(task),
-				task->loginuid, loginuid,
+				from_kuid(&init_user_ns, task->loginuid),
+				from_kuid(&init_user_ns, loginuid),
 				task->sessionid, sessionid);
 			audit_log_end(ab);
 		}
@@ -2543,7 +2545,7 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	if (audit_pid && t->tgid == audit_pid) {
 		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1 || sig == SIGUSR2) {
 			audit_sig_pid = tsk->pid;
-			if (tsk->loginuid != -1)
+			if (uid_valid(tsk->loginuid))
 				audit_sig_uid = tsk->loginuid;
 			else
 				audit_sig_uid = uid;
