@@ -74,8 +74,13 @@ kallsyms()
 	info KSYM ${2}
 	local kallsymopt;
 
+	if [ -n "${CONFIG_SYMBOL_PREFIX}" ]; then
+		kallsymopt="${kallsymopt} \
+			    --symbol-prefix=${CONFIG_SYMBOL_PREFIX}"
+	fi
+
 	if [ -n "${CONFIG_KALLSYMS_ALL}" ]; then
-		kallsymopt=--all-symbols
+		kallsymopt="${kallsymopt} --all-symbols"
 	fi
 
 	local aflags="${KBUILD_AFLAGS} ${KBUILD_AFLAGS_KERNEL}               \
