@@ -53,6 +53,7 @@ struct intel_lvds_encoder {
 	u32 pfit_pgm_ratios;
 	bool pfit_dirty;
 	bool is_dual_link;
+	u32 reg;
 
 	struct intel_lvds_connector *attached_connector;
 };
@@ -72,15 +73,10 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 lvds_reg, tmp;
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	u32 tmp;
 
-	if (HAS_PCH_SPLIT(dev)) {
-		lvds_reg = PCH_LVDS;
-	} else {
-		lvds_reg = LVDS;
-	}
-
-	tmp = I915_READ(lvds_reg);
+	tmp = I915_READ(lvds_encoder->reg);
 
 	if (!(tmp & LVDS_PORT_EN))
 		return false;
@@ -102,19 +98,17 @@ static void intel_enable_lvds(struct intel_encoder *encoder)
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 ctl_reg, lvds_reg, stat_reg;
+	u32 ctl_reg, stat_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
-		lvds_reg = PCH_LVDS;
 		stat_reg = PCH_PP_STATUS;
 	} else {
 		ctl_reg = PP_CONTROL;
-		lvds_reg = LVDS;
 		stat_reg = PP_STATUS;
 	}
 
-	I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
+	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) | LVDS_PORT_EN);
 
 	if (lvds_encoder->pfit_dirty) {
 		/*
@@ -133,7 +127,7 @@ static void intel_enable_lvds(struct intel_encoder *encoder)
 	}
 
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
-	POSTING_READ(lvds_reg);
+	POSTING_READ(lvds_encoder->reg);
 	if (wait_for((I915_READ(stat_reg) & PP_ON) != 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power on\n");
 
@@ -145,15 +139,13 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 ctl_reg, lvds_reg, stat_reg;
+	u32 ctl_reg, stat_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
-		lvds_reg = PCH_LVDS;
 		stat_reg = PCH_PP_STATUS;
 	} else {
 		ctl_reg = PP_CONTROL;
-		lvds_reg = LVDS;
 		stat_reg = PP_STATUS;
 	}
 
@@ -168,8 +160,8 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 		lvds_encoder->pfit_dirty = true;
 	}
 
-	I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
-	POSTING_READ(lvds_reg);
+	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) & ~LVDS_PORT_EN);
+	POSTING_READ(lvds_encoder->reg);
 }
 
 static int intel_lvds_mode_valid(struct drm_connector *connector,
@@ -939,17 +931,11 @@ bool intel_is_dual_link_lvds(struct drm_device *dev)
 	return false;
 }
 
-static bool compute_is_dual_link_lvds(struct drm_device *dev)
+static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 {
+	struct drm_device *dev = lvds_encoder->base.base.dev;
 	unsigned int val;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 lvds_reg;
-
-	if (HAS_PCH_SPLIT(dev)) {
-		lvds_reg = PCH_LVDS;
-	} else {
-		lvds_reg = LVDS;
-	}
 
 	/* use the module option value if specified */
 	if (i915_lvds_channel_mode > 0)
@@ -963,7 +949,7 @@ static bool compute_is_dual_link_lvds(struct drm_device *dev)
 	 * we need to check "the value to be set" in VBT when LVDS
 	 * register is uninitialized.
 	 */
-	val = I915_READ(lvds_reg);
+	val = I915_READ(lvds_encoder->reg);
 	if (!(val & ~(LVDS_PIPE_MASK | LVDS_DETECTED)))
 		val = dev_priv->bios_lvds_val;
 
@@ -1076,6 +1062,12 @@ bool intel_lvds_init(struct drm_device *dev)
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
+	if (HAS_PCH_SPLIT(dev)) {
+		lvds_encoder->reg = PCH_LVDS;
+	} else {
+		lvds_encoder->reg = LVDS;
+	}
+
 	/* create the scaling mode property */
 	drm_mode_create_scaling_mode_property(dev);
 	drm_object_attach_property(&connector->base,
@@ -1176,7 +1168,7 @@ bool intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
-	lvds_encoder->is_dual_link = compute_is_dual_link_lvds(dev);
+	lvds_encoder->is_dual_link = compute_is_dual_link_lvds(lvds_encoder);
 	DRM_DEBUG_KMS("detected %s-link lvds configuration\n",
 		      lvds_encoder->is_dual_link ? "dual" : "single");
 
