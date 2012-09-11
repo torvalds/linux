@@ -1139,6 +1139,44 @@ static void __devinit pnv_pci_ioda_fixup_phb(struct pci_controller *hose)
 	}
 }
 
+/*
+ * Returns the alignment for I/O or memory windows for P2P
+ * bridges. That actually depends on how PEs are segmented.
+ * For now, we return I/O or M32 segment size for PE sensitive
+ * P2P bridges. Otherwise, the default values (4KiB for I/O,
+ * 1MiB for memory) will be returned.
+ *
+ * The current PCI bus might be put into one PE, which was
+ * create against the parent PCI bridge. For that case, we
+ * needn't enlarge the alignment so that we can save some
+ * resources.
+ */
+static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
+						unsigned long type)
+{
+	struct pci_dev *bridge;
+	struct pci_controller *hose = pci_bus_to_host(bus);
+	struct pnv_phb *phb = hose->private_data;
+	int num_pci_bridges = 0;
+
+	bridge = bus->self;
+	while (bridge) {
+		if (pci_pcie_type(bridge) == PCI_EXP_TYPE_PCI_BRIDGE) {
+			num_pci_bridges++;
+			if (num_pci_bridges >= 2)
+				return 1;
+		}
+
+		bridge = bridge->bus->self;
+	}
+
+	/* We need support prefetchable memory window later */
+	if (type & IORESOURCE_MEM)
+		return phb->ioda.m32_segsize;
+
+	return phb->ioda.io_segsize;
+}
+
 /* Prevent enabling devices for which we couldn't properly
  * assign a PE
  */
@@ -1306,6 +1344,7 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	 */
 	ppc_md.pcibios_fixup_phb = pnv_pci_ioda_fixup_phb;
 	ppc_md.pcibios_enable_device_hook = pnv_pci_enable_device_hook;
+	ppc_md.pcibios_window_alignment = pnv_pci_window_alignment;
 	pci_add_flags(PCI_PROBE_ONLY | PCI_REASSIGN_ALL_RSRC);
 
 	/* Reset IODA tables to a clean state */
