@@ -817,6 +817,7 @@ EXPORT_SYMBOL_GPL(eeh_add_device_tree_late);
 /**
  * eeh_remove_device - Undo EEH setup for the indicated pci device
  * @dev: pci device to be removed
+ * @purge_pe: remove the PE or not
  *
  * This routine should be called when a device is removed from
  * a running system (e.g. by hotplug or dlpar).  It unregisters
@@ -824,7 +825,7 @@ EXPORT_SYMBOL_GPL(eeh_add_device_tree_late);
  * this device will no longer be detected after this call; thus,
  * i/o errors affecting this slot may leave this device unusable.
  */
-static void eeh_remove_device(struct pci_dev *dev)
+static void eeh_remove_device(struct pci_dev *dev, int purge_pe)
 {
 	struct eeh_dev *edev;
 
@@ -843,7 +844,7 @@ static void eeh_remove_device(struct pci_dev *dev)
 	dev->dev.archdata.edev = NULL;
 	pci_dev_put(dev);
 
-	eeh_rmv_from_parent_pe(edev);
+	eeh_rmv_from_parent_pe(edev, purge_pe);
 	eeh_addr_cache_rmv_dev(dev);
 	eeh_sysfs_remove_device(dev);
 }
@@ -851,21 +852,22 @@ static void eeh_remove_device(struct pci_dev *dev)
 /**
  * eeh_remove_bus_device - Undo EEH setup for the indicated PCI device
  * @dev: PCI device
+ * @purge_pe: remove the corresponding PE or not
  *
  * This routine must be called when a device is removed from the
  * running system through hotplug or dlpar. The corresponding
  * PCI address cache will be removed.
  */
-void eeh_remove_bus_device(struct pci_dev *dev)
+void eeh_remove_bus_device(struct pci_dev *dev, int purge_pe)
 {
 	struct pci_bus *bus = dev->subordinate;
 	struct pci_dev *child, *tmp;
 
-	eeh_remove_device(dev);
+	eeh_remove_device(dev, purge_pe);
 
 	if (bus && dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
 		list_for_each_entry_safe(child, tmp, &bus->devices, bus_list)
-			 eeh_remove_bus_device(child);
+			 eeh_remove_bus_device(child, purge_pe);
 	}
 }
 EXPORT_SYMBOL_GPL(eeh_remove_bus_device);

@@ -395,13 +395,14 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 /**
  * eeh_rmv_from_parent_pe - Remove one EEH device from the associated PE
  * @edev: EEH device
+ * @purge_pe: remove PE or not
  *
  * The PE hierarchy tree might be changed when doing PCI hotplug.
  * Also, the PCI devices or buses could be removed from the system
  * during EEH recovery. So we have to call the function remove the
  * corresponding PE accordingly if necessary.
  */
-int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
+int eeh_rmv_from_parent_pe(struct eeh_dev *edev, int purge_pe)
 {
 	struct eeh_pe *pe, *parent, *child;
 	int cnt;
@@ -428,19 +429,29 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 		if (pe->type & EEH_PE_PHB)
 			break;
 
-		if (list_empty(&pe->edevs)) {
-			cnt = 0;
-			list_for_each_entry(child, &pe->child_list, child) {
-				if (!(pe->type & EEH_PE_INVALID)) {
-					cnt++;
-					break;
-				}
-			}
-
-			if (!cnt)
-				pe->type |= EEH_PE_INVALID;
-			else
+		if (purge_pe) {
+			if (list_empty(&pe->edevs) &&
+			    list_empty(&pe->child_list)) {
+				list_del(&pe->child);
+				kfree(pe);
+			} else {
 				break;
+			}
+		} else {
+			if (list_empty(&pe->edevs)) {
+				cnt = 0;
+				list_for_each_entry(child, &pe->child_list, child) {
+					if (!(pe->type & EEH_PE_INVALID)) {
+						cnt++;
+						break;
+					}
+				}
+
+				if (!cnt)
+					pe->type |= EEH_PE_INVALID;
+				else
+					break;
+			}
 		}
 
 		pe = parent;

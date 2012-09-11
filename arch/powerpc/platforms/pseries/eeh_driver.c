@@ -305,8 +305,14 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	/* pcibios will clear the counter; save the value */
 	cnt = pe->freeze_count;
 
+	/*
+	 * We don't remove the corresponding PE instances because
+	 * we need the information afterwords. The attached EEH
+	 * devices are expected to be attached soon when calling
+	 * into pcibios_add_pci_devices().
+	 */
 	if (bus)
-		pcibios_remove_pci_devices(bus);
+		__pcibios_remove_pci_devices(bus, 0);
 
 	/* Reset the pci controller. (Asserts RST#; resets config space).
 	 * Reconfigure bridges and devices. Don't try to bring the system

@@ -65,6 +65,35 @@ pcibios_find_pci_bus(struct device_node *dn)
 EXPORT_SYMBOL_GPL(pcibios_find_pci_bus);
 
 /**
+ * __pcibios_remove_pci_devices - remove all devices under this bus
+ * @bus: the indicated PCI bus
+ * @purge_pe: destroy the PE on removal of PCI devices
+ *
+ * Remove all of the PCI devices under this bus both from the
+ * linux pci device tree, and from the powerpc EEH address cache.
+ * By default, the corresponding PE will be destroied during the
+ * normal PCI hotplug path. For PCI hotplug during EEH recovery,
+ * the corresponding PE won't be destroied and deallocated.
+ */
+void __pcibios_remove_pci_devices(struct pci_bus *bus, int purge_pe)
+{
+	struct pci_dev *dev, *tmp;
+	struct pci_bus *child_bus;
+
+	/* First go down child busses */
+	list_for_each_entry(child_bus, &bus->children, node)
+		__pcibios_remove_pci_devices(child_bus, purge_pe);
+
+	pr_debug("PCI: Removing devices on bus %04x:%02x\n",
+		pci_domain_nr(bus),  bus->number);
+	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
+		pr_debug("     * Removing %s...\n", pci_name(dev));
+		eeh_remove_bus_device(dev, purge_pe);
+		pci_stop_and_remove_bus_device(dev);
+	}
+}
+
+/**
  * pcibios_remove_pci_devices - remove all devices under this bus
  *
  * Remove all of the PCI devices under this bus both from the
@@ -72,20 +101,7 @@ EXPORT_SYMBOL_GPL(pcibios_find_pci_bus);
  */
 void pcibios_remove_pci_devices(struct pci_bus *bus)
 {
- 	struct pci_dev *dev, *tmp;
-	struct pci_bus *child_bus;
-
-	/* First go down child busses */
-	list_for_each_entry(child_bus, &bus->children, node)
-		pcibios_remove_pci_devices(child_bus);
-
-	pr_debug("PCI: Removing devices on bus %04x:%02x\n",
-		 pci_domain_nr(bus),  bus->number);
-	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
-		pr_debug("     * Removing %s...\n", pci_name(dev));
-		eeh_remove_bus_device(dev);
- 		pci_stop_and_remove_bus_device(dev);
- 	}
+	__pcibios_remove_pci_devices(bus, 1);
 }
 EXPORT_SYMBOL_GPL(pcibios_remove_pci_devices);
 
