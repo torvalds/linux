@@ -130,7 +130,6 @@ struct boardtype {
 	int iorange;		/*  I/O range len */
 	char have_irq;		/*  1=card support IRQ */
 	char cardtype;		/*  0=ICP Multi */
-	int n_aichan;		/*  num of A/D chans */
 	int n_aichand;		/*  num of A/D chans in diff mode */
 	int ai_maxdata;		/*  resolution of A/D */
 	int ao_maxdata;		/*  resolution of D/A */
@@ -650,7 +649,7 @@ static int check_channel_list(struct comedi_device *dev,
 				return 0;
 			}
 		} else {
-			if (CR_CHAN(chanlist[i]) > this_board->n_aichan) {
+			if (CR_CHAN(chanlist[i]) > s->n_chan) {
 				comedi_error(dev,
 					     "Incorrect ai channel number");
 				return 0;
@@ -769,8 +768,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	dev->board_name = this_board->name;
 
 	n_subdevices = 0;
-	if (this_board->n_aichan)
-		n_subdevices++;
+	n_subdevices++;
 	n_subdevices++;
 	n_subdevices++;
 	n_subdevices++;
@@ -803,20 +801,18 @@ static int icp_multi_attach(struct comedi_device *dev,
 
 	subdev = 0;
 
-	if (this_board->n_aichan) {
-		s = &dev->subdevices[subdev];
-		dev->read_subdev = s;
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND;
-		if (this_board->n_aichand)
-			s->subdev_flags |= SDF_DIFF;
-		s->n_chan = this_board->n_aichan;
-		s->maxdata = this_board->ai_maxdata;
-		s->len_chanlist = this_board->n_aichan;
-		s->range_table = this_board->rangelist_ai;
-		s->insn_read = icp_multi_insn_read_ai;
-		subdev++;
-	}
+	s = &dev->subdevices[subdev];
+	dev->read_subdev = s;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND;
+	if (this_board->n_aichand)
+		s->subdev_flags |= SDF_DIFF;
+	s->n_chan = 16;
+	s->maxdata = this_board->ai_maxdata;
+	s->len_chanlist = 16;
+	s->range_table = this_board->rangelist_ai;
+	s->insn_read = icp_multi_insn_read_ai;
+	subdev++;
 
 	s = &dev->subdevices[subdev];
 	s->type = COMEDI_SUBD_AO;
@@ -890,7 +886,6 @@ static const struct boardtype boardtypes[] = {
 		.iorange	= IORANGE_ICP_MULTI,
 		.have_irq	= 1,
 		.cardtype	= TYPE_ICP_MULTI,
-		.n_aichan	= 16,
 		.n_aichand	= 8,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
