@@ -176,23 +176,6 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 }
 
 /*
- * This function handles the command response of 11n configuration request.
- *
- * Handling includes changing the header fields into CPU format.
- */
-int mwifiex_ret_11n_cfg(struct host_cmd_ds_command *resp,
-			struct mwifiex_ds_11n_tx_cfg *tx_cfg)
-{
-	struct host_cmd_ds_11n_cfg *htcfg = &resp->params.htcfg;
-
-	if (tx_cfg) {
-		tx_cfg->tx_htcap = le16_to_cpu(htcfg->ht_tx_cap);
-		tx_cfg->tx_htinfo = le16_to_cpu(htcfg->ht_tx_info);
-	}
-	return 0;
-}
-
-/*
  * This function prepares command of reconfigure Tx buffer.
  *
  * Preparation includes -
