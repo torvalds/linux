@@ -700,7 +700,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 			    struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	int ret, subdev, n_subdevices;
+	int ret;
 	unsigned int irq;
 	struct pcilst_struct *card = NULL;
 	resource_size_t io_addr[5], iobase;
@@ -753,14 +753,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 
 	dev->board_name = this_board->name;
 
-	n_subdevices = 0;
-	n_subdevices++;
-	n_subdevices++;
-	n_subdevices++;
-	n_subdevices++;
-	n_subdevices++;
-
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
 		return ret;
 
@@ -782,9 +775,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 
 	printk(KERN_WARNING ".\n");
 
-	subdev = 0;
-
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
@@ -793,9 +784,8 @@ static int icp_multi_attach(struct comedi_device *dev,
 	s->len_chanlist = 16;
 	s->range_table = &range_analog;
 	s->insn_read = icp_multi_insn_read_ai;
-	subdev++;
 
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 4;
@@ -804,9 +794,8 @@ static int icp_multi_attach(struct comedi_device *dev,
 	s->range_table = &range_analog;
 	s->insn_write = icp_multi_insn_write_ao;
 	s->insn_read = icp_multi_insn_read_ao;
-	subdev++;
 
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 16;
@@ -815,9 +804,8 @@ static int icp_multi_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->io_bits = 0;
 	s->insn_bits = icp_multi_insn_bits_di;
-	subdev++;
 
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->n_chan = 8;
@@ -827,9 +815,8 @@ static int icp_multi_attach(struct comedi_device *dev,
 	s->io_bits = 0xff;
 	s->state = 0;
 	s->insn_bits = icp_multi_insn_bits_do;
-	subdev++;
 
-	s = &dev->subdevices[subdev];
+	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 4;
@@ -838,7 +825,6 @@ static int icp_multi_attach(struct comedi_device *dev,
 	s->state = 0;
 	s->insn_read = icp_multi_insn_read_ctr;
 	s->insn_write = icp_multi_insn_write_ctr;
-	subdev++;
 
 	devpriv->valid = 1;
 
