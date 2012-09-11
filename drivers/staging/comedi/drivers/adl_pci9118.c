@@ -344,10 +344,6 @@ struct pci9118_private {
 	unsigned int ai_inttrig_start;	/* TRIG_INT for start */
 };
 
-/*
-==============================================================================
-*/
-
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s, int n_chan,
 			      unsigned int *chanlist, int frontadd,
@@ -370,9 +366,6 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 				  unsigned int *div1, unsigned int *div2,
 				  char usessh, unsigned int chnsshfront);
 
-/*
-==============================================================================
-*/
 static int pci9118_insn_read_ai(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -427,9 +420,6 @@ conv_finish:
 
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_insn_write_ao(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -452,9 +442,6 @@ static int pci9118_insn_write_ao(struct comedi_device *dev,
 	return n;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_insn_read_ao(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -469,9 +456,6 @@ static int pci9118_insn_read_ao(struct comedi_device *dev,
 	return n;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_insn_bits_di(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -481,9 +465,6 @@ static int pci9118_insn_bits_di(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_insn_bits_do(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -498,9 +479,6 @@ static int pci9118_insn_bits_do(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
 static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -541,9 +519,6 @@ static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 	return j;
 }
 
-/*
-==============================================================================
-*/
 static int move_block_from_dma(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					short *dma_buffer,
@@ -565,9 +540,6 @@ static int move_block_from_dma(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static char pci9118_decode_error_status(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					unsigned char m)
@@ -621,9 +593,6 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 	}
 }
 
-/*
-==============================================================================
-*/
 static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 					   struct comedi_subdevice *s,
 					   unsigned short int_adstat,
@@ -675,9 +644,6 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 		comedi_event(dev, s);
 }
 
-/*
-==============================================================================
-*/
 static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     unsigned short int_adstat,
@@ -758,9 +724,6 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	comedi_event(dev, s);
 }
 
-/*
-==============================================================================
-*/
 static irqreturn_t interrupt_pci9118(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -827,9 +790,6 @@ static irqreturn_t interrupt_pci9118(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_ai_inttrig(struct comedi_device *dev,
 			      struct comedi_subdevice *s, unsigned int trignum)
 {
@@ -853,9 +813,6 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 	return 1;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
@@ -1118,9 +1075,6 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int Compute_and_setup_dma(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -1273,9 +1227,6 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
@@ -1330,9 +1281,6 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
@@ -1403,9 +1351,6 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	const struct boardtype *this_board = comedi_board(dev);
@@ -1641,9 +1586,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return ret;
 }
 
-/*
-==============================================================================
-*/
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s, int n_chan,
 			      unsigned int *chanlist, int frontadd, int backadd)
@@ -1697,9 +1639,6 @@ static int check_channel_list(struct comedi_device *dev,
 	return 1;
 }
 
-/*
-==============================================================================
-*/
 static int setup_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s, int n_chan,
 			      unsigned int *chanlist, int rot, int frontadd,
@@ -1806,10 +1745,6 @@ static int setup_channel_list(struct comedi_device *dev,
 	return 1;		/* we can serve this with scan logic */
 }
 
-/*
-==============================================================================
-  calculate 8254 divisors if they are used for dual timing
-*/
 static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned int *tim1, unsigned int *tim2,
@@ -1852,9 +1787,6 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 	}
 }
 
-/*
-==============================================================================
-*/
 static void start_pacer(struct comedi_device *dev, int mode,
 			unsigned int divisor1, unsigned int divisor2)
 {
@@ -1871,9 +1803,6 @@ static void start_pacer(struct comedi_device *dev, int mode,
 	}
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_exttrg_add(struct comedi_device *dev, unsigned char source)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -1889,9 +1818,6 @@ static int pci9118_exttrg_add(struct comedi_device *dev, unsigned char source)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_exttrg_del(struct comedi_device *dev, unsigned char source)
 {
 	struct pci9118_private *devpriv = dev->private;
@@ -1911,9 +1837,6 @@ static int pci9118_exttrg_del(struct comedi_device *dev, unsigned char source)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -1963,9 +1886,6 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci9118_reset(struct comedi_device *dev)
 {
 	struct pci9118_private *devpriv = dev->private;
