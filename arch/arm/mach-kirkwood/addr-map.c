@@ -41,7 +41,7 @@
 static struct __initdata orion_addr_map_cfg addr_map_cfg = {
 	.num_wins = 8,
 	.remappable_wins = 4,
-	.bridge_virt_base = BRIDGE_VIRT_BASE,
+	.bridge_virt_base = (unsigned long) BRIDGE_VIRT_BASE,
 };
 
 static const struct __initdata orion_addr_map_info addr_map_info[] = {

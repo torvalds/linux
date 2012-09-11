@@ -38,5 +38,6 @@ static unsigned int __init kirkwood_variant(void)
 void __init kirkwood_mpp_conf(unsigned int *mpp_list)
 {
 	orion_mpp_conf(mpp_list, kirkwood_variant(),
-		       MPP_MAX, DEV_BUS_VIRT_BASE);
+		       MPP_MAX,
+		       (unsigned long) DEV_BUS_VIRT_BASE);
 }
