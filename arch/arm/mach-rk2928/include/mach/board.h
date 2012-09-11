@@ -29,6 +29,10 @@ void board_gpio_suspend(void);
 void board_gpio_resume(void);
 void __sramfunc board_pmu_suspend(void);
 void __sramfunc board_pmu_resume(void);
+#ifdef CONFIG_MACH_RK2928_A720
+void rk2928_usb_wifi_on(void);
+void rk2928_usb_wifi_off(void);
+#endif
 
 extern struct sys_timer rk2928_timer;
 

@@ -224,6 +224,28 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	return 0;
 
 }
+void rk2928_usb_wifi_on(void)
+{
+	struct regulator *ldo;
+        ldo = regulator_get(NULL, "vmmc");  //vccio_wl
+	regulator_enable(ldo); 
+	printk("%s: vccio_wl enable\n", __func__);
+	regulator_put(ldo);
+	udelay(100);
+}
+EXPORT_SYMBOL(rk2928_usb_wifi_on);
+void rk2928_usb_wifi_off(void)
+{
+	struct regulator *ldo;
+        ldo = regulator_get(NULL, "vmmc");  //vccio_wl
+	printk("%s: vccio_wl disable\n", __func__);
+	regulator_disable(ldo); 
+	regulator_put(ldo);
+	udelay(100);
+}
+EXPORT_SYMBOL(rk2928_usb_wifi_off);
+
+
 int tps65910_post_init(struct tps65910 *tps65910)
 {
 	struct regulator *dcdc;
@@ -308,6 +330,7 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	regulator_set_voltage(ldo,3300000,3300000);
 	regulator_enable(ldo); 
 	printk("%s set vmmc vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
+	regulator_disable(ldo); 
 	regulator_put(ldo);
 	udelay(100);
 
@@ -315,7 +338,6 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	
 	return 0;
 }
-
 static struct regulator_consumer_supply tps65910_smps1_supply[] = {
 	{
 		.supply = "vdd1",
