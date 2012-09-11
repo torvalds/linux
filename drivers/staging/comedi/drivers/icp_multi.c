@@ -122,7 +122,6 @@ static unsigned short pci_list_builded;	/*>0 list of card is known */
 struct boardtype {
 	const char *name;	/*  driver name */
 	int device_id;
-	char have_irq;		/*  1=card support IRQ */
 };
 
 struct icp_multi_private {
@@ -767,20 +766,17 @@ static int icp_multi_attach(struct comedi_device *dev,
 
 	icp_multi_reset(dev);
 
-	if (this_board->have_irq) {
-		if (irq) {
-			if (request_irq(irq, interrupt_service_icp_multi,
-					IRQF_SHARED, "Inova Icp Multi", dev)) {
-				printk(KERN_WARNING
-				    "unable to allocate IRQ %u, DISABLING IT",
-				     irq);
-				irq = 0;	/* Can't use IRQ */
-			} else
-				printk(KERN_WARNING ", irq=%u", irq);
+	if (irq) {
+		if (request_irq(irq, interrupt_service_icp_multi,
+				IRQF_SHARED, "Inova Icp Multi", dev)) {
+			printk(KERN_WARNING
+				"unable to allocate IRQ %u, DISABLING IT",
+				irq);
+			irq = 0;	/* Can't use IRQ */
 		} else
-			printk(KERN_WARNING ", IRQ disabled");
+			printk(KERN_WARNING ", irq=%u", irq);
 	} else
-		irq = 0;
+		printk(KERN_WARNING ", IRQ disabled");
 
 	dev->irq = irq;
 
@@ -868,7 +864,6 @@ static const struct boardtype boardtypes[] = {
 	{
 		.name		= "icp_multi",
 		.device_id	= PCI_DEVICE_ID_ICP_MULTI,
-		.have_irq	= 1,
 	},
 };
 
