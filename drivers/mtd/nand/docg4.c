@@ -776,6 +776,8 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 	}
 
 	writew(0, docptr + DOC_DATAEND);
+	if (bits_corrected == -EBADMSG)	  /* uncorrectable errors */
+		return 0;
 	return bits_corrected;
 }
 
