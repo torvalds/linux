@@ -1078,20 +1078,12 @@ static int pci9111_ao_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-/*  ------------------------------------------------------------------ */
-/*  DIGITAL INPUT OUTPUT SECTION */
-/*  ------------------------------------------------------------------ */
-
-/*  Digital inputs */
-
 static int pci9111_di_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	unsigned int bits;
-
-	bits = inw(dev->iobase + PCI9111_DIO_REG);
-	data[1] = bits;
+	data[1] = inw(dev->iobase + PCI9111_DIO_REG);
 
 	return insn->n;
 }
