@@ -1332,8 +1332,6 @@ static int pci1710_attach(struct comedi_device *dev,
 	int ret, subdev, n_subdevices;
 	unsigned int irq;
 
-	dev_info(dev->class_dev, DRV_NAME ": attach\n");
-
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0)
 		return -ENOMEM;
@@ -1377,15 +1375,8 @@ static int pci1710_attach(struct comedi_device *dev,
 			if (request_irq(irq, interrupt_service_pci1710,
 					IRQF_SHARED, "Advantech PCI-1710",
 					dev)) {
-				dev_dbg(dev->class_dev,
-					"unable to allocate IRQ %d, DISABLING IT",
-					irq);
 				irq = 0;	/* Can't use IRQ */
-			} else {
-				dev_dbg(dev->class_dev, "irq=%u", irq);
 			}
-		} else {
-			dev_dbg(dev->class_dev, "IRQ disabled");
 		}
 	} else {
 		irq = 0;
@@ -1479,6 +1470,9 @@ static int pci1710_attach(struct comedi_device *dev,
 	}
 
 	devpriv->valid = 1;
+
+	dev_info(dev->class_dev, "%s attached, irq %sabled\n",
+		dev->board_name, dev->irq ? "en" : "dis");
 
 	return 0;
 }
