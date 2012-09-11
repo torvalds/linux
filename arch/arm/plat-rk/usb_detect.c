@@ -84,6 +84,10 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 #ifdef CONFIG_ARCH_RK2928
 	writel_relaxed((1 << 31) | (1 << 15), RK2928_GRF_BASE + GRF_UOC0_CON5);
 #endif
+#ifdef CONFIG_RK_USB_UART 
+    /* usb otg dp/dm switch to usb phy */
+    writel_relaxed((3 << (12 + 16)),RK2928_GRF_BASE + GRF_UOC1_CON4);
+#endif
 
 	wake_lock_timeout(&usb_wakelock, WAKE_LOCK_TIMEOUT);
 	rk28_send_wakeup_key();

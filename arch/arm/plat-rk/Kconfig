@@ -166,7 +166,7 @@ config RK_DEBUG_UART
 config RK_USB_UART
 	bool "Support USB UART Bypass Function"
 	depends on ARCH_RK2928 && (RK_DEBUG_UART = 2)
-	default y
+	default n
 
 config RK_CONSOLE_THREAD
 	bool "Console write by thread"
