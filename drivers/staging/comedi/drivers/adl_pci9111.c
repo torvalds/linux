@@ -1058,19 +1058,18 @@ pci9111_ao_insn_write(struct comedi_device *dev,
 	return i;
 }
 
-/*  Analog output readback */
-
 static int pci9111_ao_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pci9111_private_data *dev_private = dev->private;
 	int i;
 
 	for (i = 0; i < insn->n; i++)
-		data[i] = dev_private->ao_readback & PCI9111_AO_RESOLUTION_MASK;
+		data[i] = dev_private->ao_readback;
 
-	return i;
+	return insn->n;
 }
 
 static int pci9111_di_insn_bits(struct comedi_device *dev,
