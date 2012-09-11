@@ -415,6 +415,7 @@ struct azx_dev {
 	 */
 	unsigned int insufficient :1;
 	unsigned int wc_marked:1;
+	unsigned int no_period_wakeup:1;
 };
 
 /* CORB/RIRB */
@@ -1419,7 +1420,7 @@ static int azx_setup_periods(struct azx *chip,
 	ofs = 0;
 	azx_dev->frags = 0;
 	pos_adj = bdl_pos_adj[chip->dev_index];
-	if (pos_adj > 0) {
+	if (!azx_dev->no_period_wakeup && pos_adj > 0) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
 		int pos_align = pos_adj;
 		pos_adj = (pos_adj * runtime->rate + 47999) / 48000;
@@ -1435,8 +1436,7 @@ static int azx_setup_periods(struct azx *chip,
 			pos_adj = 0;
 		} else {
 			ofs = setup_bdle(chip, substream, azx_dev,
-					 &bdl, ofs, pos_adj,
-					 !substream->runtime->no_period_wakeup);
+					 &bdl, ofs, pos_adj, true);
 			if (ofs < 0)
 				goto error;
 		}
@@ -1449,7 +1449,7 @@ static int azx_setup_periods(struct azx *chip,
 		else
 			ofs = setup_bdle(chip, substream, azx_dev, &bdl, ofs,
 					 period_bytes,
-					 !substream->runtime->no_period_wakeup);
+					 !azx_dev->no_period_wakeup);
 		if (ofs < 0)
 			goto error;
 	}
@@ -1922,10 +1922,12 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 
 	if (bufsize != azx_dev->bufsize ||
 	    period_bytes != azx_dev->period_bytes ||
-	    format_val != azx_dev->format_val) {
+	    format_val != azx_dev->format_val ||
+	    runtime->no_period_wakeup != azx_dev->no_period_wakeup) {
 		azx_dev->bufsize = bufsize;
 		azx_dev->period_bytes = period_bytes;
 		azx_dev->format_val = format_val;
+		azx_dev->no_period_wakeup = runtime->no_period_wakeup;
 		err = azx_setup_periods(chip, substream, azx_dev);
 		if (err < 0)
 			return err;
