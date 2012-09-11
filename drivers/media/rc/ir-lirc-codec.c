@@ -203,13 +203,13 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	/* TX settings */
 	case LIRC_SET_TRANSMITTER_MASK:
 		if (!dev->s_tx_mask)
-			return -EINVAL;
+			return -ENOSYS;
 
 		return dev->s_tx_mask(dev, val);
 
 	case LIRC_SET_SEND_CARRIER:
 		if (!dev->s_tx_carrier)
-			return -EINVAL;
+			return -ENOSYS;
 
 		return dev->s_tx_carrier(dev, val);
 
