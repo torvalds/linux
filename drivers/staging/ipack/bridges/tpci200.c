@@ -14,14 +14,6 @@
 #include <linux/module.h>
 #include "tpci200.h"
 
-/* TPCI200 controls registers */
-static const int control_reg[] = {
-	TPCI200_CONTROL_A_REG,
-	TPCI200_CONTROL_B_REG,
-	TPCI200_CONTROL_C_REG,
-	TPCI200_CONTROL_D_REG
-};
-
 static int tpci200_slot_unregister(struct ipack_device *dev);
 
 static struct tpci200_board *check_slot(struct ipack_device *dev)
@@ -85,8 +77,7 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 	irqreturn_t ret = IRQ_NONE;
 
 	/* Read status register */
-	status_reg = readw(tpci200->info->interface_regs +
-			   TPCI200_STATUS_REG);
+	status_reg = readw(&tpci200->info->interface_regs->status);
 
 	if (status_reg & TPCI200_SLOT_INT_MASK) {
 		unhandled_ints = status_reg & TPCI200_SLOT_INT_MASK;
@@ -107,7 +98,7 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 			}
 		}
 	}
-	/* Interrupt not handled are disabled */
+	/* Interrupts not handled are disabled */
 	if (unhandled_ints) {
 		for (i = 0; i < TPCI200_NB_SLOT; i++) {
 			if (unhandled_ints & ((TPCI200_INT0_EN | TPCI200_INT1_EN) << (2*i))) {
@@ -115,13 +106,11 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 					 "No registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
 					 tpci200->number, i);
 				reg_value = readw(
-					tpci200->info->interface_regs +
-					control_reg[i]);
+					&tpci200->info->interface_regs->control[i]);
 				reg_value &=
 					~(TPCI200_INT0_EN | TPCI200_INT1_EN);
 				writew(reg_value,
-				       (tpci200->info->interface_regs +
-					control_reg[i]));
+				       &tpci200->info->interface_regs->control[i]);
 			}
 		}
 	}
@@ -219,8 +208,7 @@ static int tpci200_register(struct tpci200_board *tpci200)
 			(void __iomem *)mem_base + TPCI200_MEM8_GAP*i;
 		tpci200->slots[i].mem_phys.size = TPCI200_MEM8_SIZE;
 
-		writew(slot_ctrl, (tpci200->info->interface_regs +
-				   control_reg[i]));
+		writew(slot_ctrl, &tpci200->info->interface_regs->control[i]);
 	}
 
 	res = request_irq(tpci200->info->pdev->irq,
@@ -259,8 +247,7 @@ static int __tpci200_request_irq(struct tpci200_board *tpci200,
 	 * clock rate 8 MHz
 	 */
 	slot_ctrl = TPCI200_INT0_EN | TPCI200_INT1_EN;
-	writew(slot_ctrl, (tpci200->info->interface_regs +
-			   control_reg[dev->slot]));
+	writew(slot_ctrl, &tpci200->info->interface_regs->control[dev->slot]);
 
 	return 0;
 }
@@ -279,8 +266,7 @@ static void __tpci200_free_irq(struct tpci200_board *tpci200,
 	 * clock rate 8 MHz
 	 */
 	slot_ctrl = 0;
-	writew(slot_ctrl, (tpci200->info->interface_regs +
-			   control_reg[dev->slot]));
+	writew(slot_ctrl, &tpci200->info->interface_regs->control[dev->slot]);
 }
 
 static int tpci200_free_irq(struct ipack_device *dev)

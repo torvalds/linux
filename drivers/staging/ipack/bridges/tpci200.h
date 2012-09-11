@@ -37,13 +37,15 @@
 #define TPCI200_MEM16_SPACE_BAR       4
 #define TPCI200_MEM8_SPACE_BAR        5
 
-#define TPCI200_REVISION_REG          0x00
-#define TPCI200_CONTROL_A_REG         0x02
-#define TPCI200_CONTROL_B_REG         0x04
-#define TPCI200_CONTROL_C_REG         0x06
-#define TPCI200_CONTROL_D_REG         0x08
-#define TPCI200_RESET_REG             0x0A
-#define TPCI200_STATUS_REG            0x0C
+struct tpci200_regs {
+	u16	revision;
+	/* writes to control should occur with the mutex held to protect
+	 * read-modify-write operations */
+	u16  control[4];
+	u16	reset;
+	u16	status;
+	u8	reserved[242];
+} __packed;
 
 #define TPCI200_IFACE_SIZE            0x100
 
@@ -63,6 +65,7 @@
 #define TPCI200_MEM16_GAP             0x00800000
 #define TPCI200_MEM16_SIZE            0x00800000
 
+/* control field in tpci200_regs */
 #define TPCI200_INT0_EN               0x0040
 #define TPCI200_INT1_EN               0x0080
 #define TPCI200_INT0_EDGE             0x0010
@@ -72,11 +75,13 @@
 #define TPCI200_RECOVER_EN            0x0002
 #define TPCI200_CLK32                 0x0001
 
+/* reset field in tpci200_regs */
 #define TPCI200_A_RESET               0x0001
 #define TPCI200_B_RESET               0x0002
 #define TPCI200_C_RESET               0x0004
 #define TPCI200_D_RESET               0x0008
 
+/* status field in tpci200_regs */
 #define TPCI200_A_TIMEOUT             0x1000
 #define TPCI200_B_TIMEOUT             0x2000
 #define TPCI200_C_TIMEOUT             0x4000
@@ -149,7 +154,7 @@ struct tpci200_slot {
 struct tpci200_infos {
 	struct pci_dev			*pdev;
 	struct pci_device_id		*id_table;
-	void __iomem			*interface_regs;
+	struct tpci200_regs __iomem	*interface_regs;
 	void __iomem			*ioidint_space;
 	void __iomem			*mem8_space;
 	void __iomem			*cfg_regs;
