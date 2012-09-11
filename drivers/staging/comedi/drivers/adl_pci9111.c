@@ -100,9 +100,9 @@ TODO:
 #define PCI9111_AI_RANGE_REG				0x08
 #define PCI9111_RANGE_STATUS_REG			0x08
 #define PCI9111_REGISTER_TRIGGER_MODE_CONTROL		0x0A
-#define PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK	0x0A
+#define PCI9111_AI_MODE_INT_RB_REG			0x0A
 #define PCI9111_SOFTWARE_TRIGGER_REG			0x0E
-#define PCI9111_REGISTER_INTERRUPT_CONTROL		0x0C
+#define PCI9111_INT_CTRL_REG				0x0C
 #define PCI9111_8254_BASE_REG				0x40
 #define PCI9111_INT_CLR_REG				0x48
 
@@ -134,25 +134,18 @@ TODO:
  */
 
 #define pci9111_trigger_and_autoscan_get() \
-	(inb(dev->iobase + PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK)&0x0F)
+	(inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG)&0x0F)
 
 #define pci9111_trigger_and_autoscan_set(flags) \
 	outb(flags, dev->iobase + PCI9111_REGISTER_TRIGGER_MODE_CONTROL)
 
-#define pci9111_interrupt_and_fifo_get() \
-	((inb(dev->iobase + PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK) \
-		>> 4) & 0x03)
-
-#define pci9111_interrupt_and_fifo_set(flags) \
-	outb(flags, dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL)
-
 #define pci9111_fifo_reset() do { \
 	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
-		dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL); \
+		dev->iobase + PCI9111_INT_CTRL_REG); \
 	outb(PCI9111_FFEN_SET_FIFO_DISABLE, \
-		dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL); \
+		dev->iobase + PCI9111_INT_CTRL_REG); \
 	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
-		dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL); \
+		dev->iobase + PCI9111_INT_CTRL_REG); \
 	} while (0)
 
 
@@ -322,15 +315,21 @@ static void pci9111_interrupt_source_set(struct comedi_device *dev,
 {
 	int flags;
 
-	flags = pci9111_interrupt_and_fifo_get() & 0x04;
+	/* Read the current interrupt control bits */
+	flags = inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG);
+	/* Shift the bits so they are compatible with the write register */
+	flags >>= 4;
+	/* Mask off the ISCx bits */
+	flags &= 0xc0;
 
+	/* Now set the new ISCx bits */
 	if (irq_0_source == irq_on_fifo_half_full)
 		flags |= PCI9111_ISC0_SET_IRQ_ON_FIFO_HALF_FULL;
 
 	if (irq_1_source == irq_on_external_trigger)
 		flags |= PCI9111_ISC1_SET_IRQ_ON_EXT_TRG;
 
-	pci9111_interrupt_and_fifo_set(flags);
+	outb(flags, dev->iobase + PCI9111_INT_CTRL_REG);
 }
 
 /*  ------------------------------------------------------------------ */
