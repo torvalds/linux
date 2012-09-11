@@ -95,8 +95,7 @@ TODO:
 #define PCI9111_AO_REG					0x00
 #define PCI9111_DIO_REG					0x02
 #define PCI9111_REGISTER_EXTENDED_IO_PORTS		0x04
-#define PCI9111_REGISTER_AD_CHANNEL_CONTROL		0x06 /* Channel
-								selection */
+#define PCI9111_AI_CHANNEL_REG				0x06
 #define PCI9111_REGISTER_AD_CHANNEL_READBACK		0x06
 #define PCI9111_AI_RANGE_REG				0x08
 #define PCI9111_RANGE_STATUS_REG			0x08
@@ -123,8 +122,6 @@ TODO:
 #define PCI9111_ISC1_SET_IRQ_ON_EXT_TRG			(1 << 1)
 #define PCI9111_FFEN_SET_FIFO_ENABLE			(0 << 2)
 #define PCI9111_FFEN_SET_FIFO_DISABLE			(1 << 2)
-
-#define PCI9111_CHANNEL_MASK				0x0F
 
 #define PCI9111_RANGE_MASK				0x07
 #define PCI9111_FIFO_EMPTY_MASK				0x10
@@ -175,14 +172,6 @@ TODO:
 #define pci9111_is_fifo_empty() \
 	((inb(dev->iobase + PCI9111_RANGE_STATUS_REG)& \
 		PCI9111_FIFO_EMPTY_MASK) == 0)
-
-#define pci9111_ai_channel_set(channel) \
-	outb((channel)&PCI9111_CHANNEL_MASK, \
-		dev->iobase + PCI9111_REGISTER_AD_CHANNEL_CONTROL)
-
-#define pci9111_ai_channel_get() \
-	(inb(dev->iobase + PCI9111_REGISTER_AD_CHANNEL_READBACK) \
-		&PCI9111_CHANNEL_MASK)
 
 static const struct comedi_lrange pci9111_hr_ai_range = {
 	5,
@@ -594,10 +583,12 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	/*  TODO: handle the case of an external multiplexer */
 
 	if (async_cmd->chanlist_len > 1) {
-		pci9111_ai_channel_set((async_cmd->chanlist_len) - 1);
+		outb(async_cmd->chanlist_len - 1,
+			dev->iobase + PCI9111_AI_CHANNEL_REG);
 		pci9111_autoscan_set(dev, true);
 	} else {
-		pci9111_ai_channel_set(CR_CHAN(async_cmd->chanlist[0]));
+		outb(CR_CHAN(async_cmd->chanlist[0]),
+			dev->iobase + PCI9111_AI_CHANNEL_REG);
 		pci9111_autoscan_set(dev, false);
 	}
 
@@ -857,7 +848,7 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 	int timeout;
 	int i;
 
-	pci9111_ai_channel_set(chan);
+	outb(chan, dev->iobase + PCI9111_AI_CHANNEL_REG);
 
 	current_range = inb(dev->iobase + PCI9111_RANGE_STATUS_REG);
 	if ((current_range & PCI9111_RANGE_MASK) != range) {
