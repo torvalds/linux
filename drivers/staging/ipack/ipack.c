@@ -262,15 +262,21 @@ static void ipack_parse_id1(struct ipack_device *dev)
 
 	dev->id_vendor = id[4];
 	dev->id_device = id[5];
+	dev->speed_8mhz = 1;
+	dev->speed_32mhz = (id[7] == 'H');
 }
 
 static void ipack_parse_id2(struct ipack_device *dev)
 {
 	__be16 *id = (__be16 *) dev->id;
+	u16 flags;
 
 	dev->id_vendor = ((be16_to_cpu(id[3]) & 0xff) << 16)
 			 + be16_to_cpu(id[4]);
 	dev->id_device = be16_to_cpu(id[5]);
+	flags = be16_to_cpu(id[10]);
+	dev->speed_8mhz = !!(flags & 2);
+	dev->speed_32mhz = !!(flags & 4);
 }
 
 static int ipack_device_read_id(struct ipack_device *dev)
