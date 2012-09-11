@@ -966,10 +966,11 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	int resolution =
-	    ((struct pci9111_board *)dev->board_ptr)->ai_resolution;
-
-	int timeout, i;
+	unsigned int maxdata = s->maxdata;
+	unsigned int invert = (maxdata + 1) >> 1;
+	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
+	int timeout;
+	int i;
 
 	pci9111_ai_channel_set(CR_CHAN((&insn->chanspec)[0]));
 
@@ -995,14 +996,8 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 
 conversion_done:
 
-		if (resolution == PCI9111_HR_AI_RESOLUTION)
-			data[i] = (inw(dev->iobase + PCI9111_AI_FIFO_REG)
-					& PCI9111_HR_AI_RESOLUTION_MASK)
-					^ PCI9111_HR_AI_RESOLUTION_2_CMP_BIT;
-		else
-			data[i] = ((inw(dev->iobase + PCI9111_AI_FIFO_REG) >> 4)
-					& PCI9111_AI_RESOLUTION_MASK)
-					^ PCI9111_AI_RESOLUTION_2_CMP_BIT;
+		data[i] = inw(dev->iobase + PCI9111_AI_FIFO_REG);
+		data[i] = ((data[i] >> shift) & maxdata) ^ invert;
 	}
 
 	return i;
