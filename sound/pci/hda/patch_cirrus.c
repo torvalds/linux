@@ -85,6 +85,8 @@ enum {
 	CS420X_GPIO_23,
 	CS420X_IMAC27_122 = CS420X_GPIO_23,
 	CS420X_APPLE = CS420X_GPIO_13,
+	CS420X_MBP101,
+	CS420X_MBP101_COEF,
 	CS420X_AUTO,
 };
 
@@ -1159,6 +1161,14 @@ static const struct hda_verb cs_errata_init_verbs[] = {
 	{} /* terminator */
 };
 
+static const struct hda_verb mbp101_init_verbs[] = {
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0002},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x100a},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0004},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x000f},
+	{}
+};
+
 /* SPDIF setup */
 static void init_digital(struct hda_codec *codec)
 {
@@ -1286,6 +1296,7 @@ static const struct hda_model_fixup cs420x_models[] = {
 	{ .id = CS420X_IMAC27, .name = "imac27" },
 	{ .id = CS420X_IMAC27_122, .name = "imac27_122" },
 	{ .id = CS420X_APPLE, .name = "apple" },
+	{ .id = CS420X_MBP101, .name = "mbp101" },
 	{}
 };
 
@@ -1299,6 +1310,7 @@ static const struct snd_pci_quirk cs420x_fixup_tbl[] = {
 
 	/* codec SSID */
 	SND_PCI_QUIRK(0x106b, 0x2000, "iMac 12,2", CS420X_IMAC27_122),
+	SND_PCI_QUIRK(0x106b, 0x2800, "MacBookPro 10,1", CS420X_MBP101),
 	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS420X_APPLE),
 	{} /* terminator */
 };
@@ -1342,6 +1354,13 @@ static const struct hda_pintbl imac27_pincfgs[] = {
 	{ 0x10, 0x014be060 },
 	{ 0x12, 0x01ab9070 },
 	{ 0x15, 0x400000f0 },
+	{} /* terminator */
+};
+
+static const struct hda_pintbl mbp101_pincfgs[] = {
+	{ 0x0d, 0x40ab90f0 },
+	{ 0x0e, 0x90a600f0 },
+	{ 0x12, 0x50a600f0 },
 	{} /* terminator */
 };
 
@@ -1395,6 +1414,18 @@ static const struct hda_fixup cs420x_fixups[] = {
 	[CS420X_GPIO_23] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cs420x_fixup_gpio_23,
+	},
+	[CS420X_MBP101] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = mbp101_pincfgs,
+		.chained = true,
+		.chain_id = CS420X_MBP101_COEF,
+	},
+	[CS420X_MBP101_COEF] = {
+		.type = HDA_FIXUP_VERBS,
+		.v.verbs = mbp101_init_verbs,
+		.chained = true,
+		.chain_id = CS420X_GPIO_13,
 	},
 };
 
