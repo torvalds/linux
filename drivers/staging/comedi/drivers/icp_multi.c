@@ -60,8 +60,6 @@ Options:
 
 #define PCI_DEVICE_ID_ICP_MULTI	0x8000
 
-#define IORANGE_ICP_MULTI 	32
-
 #define ICP_MULTI_ADC_CSR	0	/* R/W: ADC command/status register */
 #define ICP_MULTI_AI		2	/* R:   Analogue input data */
 #define ICP_MULTI_DAC_CSR	4	/* R/W: DAC command/status register */
@@ -124,7 +122,6 @@ static unsigned short pci_list_builded;	/*>0 list of card is known */
 struct boardtype {
 	const char *name;	/*  driver name */
 	int device_id;
-	int iorange;		/*  I/O range len */
 	char have_irq;		/*  1=card support IRQ */
 };
 
@@ -871,7 +868,6 @@ static const struct boardtype boardtypes[] = {
 	{
 		.name		= "icp_multi",
 		.device_id	= PCI_DEVICE_ID_ICP_MULTI,
-		.iorange	= IORANGE_ICP_MULTI,
 		.have_irq	= 1,
 	},
 };
