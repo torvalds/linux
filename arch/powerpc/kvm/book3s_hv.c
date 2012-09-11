@@ -30,6 +30,7 @@
 #include <linux/cpumask.h>
 #include <linux/spinlock.h>
 #include <linux/page-flags.h>
+#include <linux/srcu.h>
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -366,13 +367,16 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	unsigned long req = kvmppc_get_gpr(vcpu, 3);
 	unsigned long target, ret = H_SUCCESS;
 	struct kvm_vcpu *tvcpu;
+	int idx;
 
 	switch (req) {
 	case H_ENTER:
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		ret = kvmppc_virtmode_h_enter(vcpu, kvmppc_get_gpr(vcpu, 4),
 					      kvmppc_get_gpr(vcpu, 5),
 					      kvmppc_get_gpr(vcpu, 6),
 					      kvmppc_get_gpr(vcpu, 7));
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
 	case H_CEDE:
 		break;
@@ -411,6 +415,7 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			      struct task_struct *tsk)
 {
 	int r = RESUME_HOST;
+	int srcu_idx;
 
 	vcpu->stat.sum_exits++;
 
@@ -470,12 +475,16 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * have been handled already.
 	 */
 	case BOOK3S_INTERRUPT_H_DATA_STORAGE:
+		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = kvmppc_book3s_hv_page_fault(run, vcpu,
 				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
+		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 		break;
 	case BOOK3S_INTERRUPT_H_INST_STORAGE:
+		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = kvmppc_book3s_hv_page_fault(run, vcpu,
 				kvmppc_get_pc(vcpu), 0);
+		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 		break;
 	/*
 	 * This occurs if the guest executes an illegal instruction.
@@ -820,6 +829,7 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	long ret;
 	u64 now;
 	int ptid, i, need_vpa_update;
+	int srcu_idx;
 
 	/* don't start if any threads have a signal pending */
 	need_vpa_update = 0;
@@ -898,6 +908,9 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	spin_unlock(&vc->lock);
 
 	kvm_guest_enter();
+
+	srcu_idx = srcu_read_lock(&vcpu0->kvm->srcu);
+
 	__kvmppc_vcore_entry(NULL, vcpu0);
 	for (i = 0; i < threads_per_core; ++i)
 		kvmppc_release_hwthread(vc->pcpu + i);
@@ -912,6 +925,8 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	/* prevent other vcpu threads from doing kvmppc_start_thread() now */
 	vc->vcore_state = VCORE_EXITING;
 	spin_unlock(&vc->lock);
+
+	srcu_read_unlock(&vcpu0->kvm->srcu, srcu_idx);
 
 	/* make sure updates to secondary vcpu structs are visible now */
 	smp_mb();
@@ -1362,6 +1377,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	unsigned long rmls;
 	unsigned long *physp;
 	unsigned long i, npages;
+	int srcu_idx;
 
 	mutex_lock(&kvm->lock);
 	if (kvm->arch.rma_setup_done)
@@ -1377,12 +1393,13 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	}
 
 	/* Look up the memslot for guest physical address 0 */
+	srcu_idx = srcu_read_lock(&kvm->srcu);
 	memslot = gfn_to_memslot(kvm, 0);
 
 	/* We must have some memory at 0 by now */
 	err = -EINVAL;
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
-		goto out;
+		goto out_srcu;
 
 	/* Look up the VMA for the start of this memory slot */
 	hva = memslot->userspace_addr;
@@ -1406,14 +1423,14 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		err = -EPERM;
 		if (cpu_has_feature(CPU_FTR_ARCH_201)) {
 			pr_err("KVM: CPU requires an RMO\n");
-			goto out;
+			goto out_srcu;
 		}
 
 		/* We can handle 4k, 64k or 16M pages in the VRMA */
 		err = -EINVAL;
 		if (!(psize == 0x1000 || psize == 0x10000 ||
 		      psize == 0x1000000))
-			goto out;
+			goto out_srcu;
 
 		/* Update VRMASD field in the LPCR */
 		senc = slb_pgsize_encoding(psize);
@@ -1436,7 +1453,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		err = -EINVAL;
 		if (rmls < 0) {
 			pr_err("KVM: Can't use RMA of 0x%lx bytes\n", rma_size);
-			goto out;
+			goto out_srcu;
 		}
 		atomic_inc(&ri->use_count);
 		kvm->arch.rma = ri;
@@ -1476,6 +1493,8 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	smp_wmb();
 	kvm->arch.rma_setup_done = 1;
 	err = 0;
+ out_srcu:
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
  out:
 	mutex_unlock(&kvm->lock);
 	return err;

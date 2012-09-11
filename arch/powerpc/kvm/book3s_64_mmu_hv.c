@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/hugetlb.h>
 #include <linux/vmalloc.h>
+#include <linux/srcu.h>
 
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
@@ -1057,20 +1058,22 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	unsigned long hva, psize, offset;
 	unsigned long pa;
 	unsigned long *physp;
+	int srcu_idx;
 
+	srcu_idx = srcu_read_lock(&kvm->srcu);
 	memslot = gfn_to_memslot(kvm, gfn);
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
-		return NULL;
+		goto err;
 	if (!kvm->arch.using_mmu_notifiers) {
 		physp = kvm->arch.slot_phys[memslot->id];
 		if (!physp)
-			return NULL;
+			goto err;
 		physp += gfn - memslot->base_gfn;
 		pa = *physp;
 		if (!pa) {
 			if (kvmppc_get_guest_page(kvm, gfn, memslot,
 						  PAGE_SIZE) < 0)
-				return NULL;
+				goto err;
 			pa = *physp;
 		}
 		page = pfn_to_page(pa >> PAGE_SHIFT);
@@ -1079,9 +1082,11 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 		hva = gfn_to_hva_memslot(memslot, gfn);
 		npages = get_user_pages_fast(hva, 1, 1, pages);
 		if (npages < 1)
-			return NULL;
+			goto err;
 		page = pages[0];
 	}
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+
 	psize = PAGE_SIZE;
 	if (PageHuge(page)) {
 		page = compound_head(page);
@@ -1091,6 +1096,10 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	if (nb_ret)
 		*nb_ret = psize - offset;
 	return page_address(page) + offset;
+
+ err:
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+	return NULL;
 }
 
 void kvmppc_unpin_guest_page(struct kvm *kvm, void *va)
