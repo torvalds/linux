@@ -610,11 +610,6 @@ static int tpci200_reset_timeout(struct ipack_device *dev)
 
 static void tpci200_uninstall(struct tpci200_board *tpci200)
 {
-	int i;
-
-	for (i = 0; i < TPCI200_NB_SLOT; i++)
-		ipack_device_unregister(tpci200->slots[i].dev);
-
 	tpci200_unregister(tpci200);
 	kfree(tpci200->slots);
 }
@@ -751,8 +746,8 @@ out_err_info:
 
 static void __tpci200_pci_remove(struct tpci200_board *tpci200)
 {
-	tpci200_uninstall(tpci200);
 	ipack_bus_unregister(tpci200->info->ipack_bus);
+	tpci200_uninstall(tpci200);
 
 	kfree(tpci200->info);
 	kfree(tpci200);
