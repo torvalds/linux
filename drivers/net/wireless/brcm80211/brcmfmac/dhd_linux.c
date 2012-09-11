@@ -350,19 +350,23 @@ done:
 	return 0;
 }
 
-void brcmf_txflowcontrol(struct device *dev, int ifidx, bool state)
+void brcmf_txflowblock(struct device *dev, bool state)
 {
 	struct net_device *ndev;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
+	int i;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	ndev = drvr->iflist[ifidx]->ndev;
-	if (state == ON)
-		netif_stop_queue(ndev);
-	else
-		netif_wake_queue(ndev);
+	for (i = 0; i < BRCMF_MAX_IFS; i++)
+		if (drvr->iflist[i]) {
+			ndev = drvr->iflist[i]->ndev;
+			if (state)
+				netif_stop_queue(ndev);
+			else
+				netif_wake_queue(ndev);
+		}
 }
 
 static int brcmf_host_event(struct brcmf_pub *drvr, int *ifidx,
