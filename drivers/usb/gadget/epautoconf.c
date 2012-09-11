@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
@@ -21,17 +22,6 @@
 #include <linux/usb/gadget.h>
 
 #include "gadget_chips.h"
-
-
-/* we must assign addresses for configurable endpoints (like net2280) */
-static unsigned epnum;
-
-// #define MANY_ENDPOINTS
-#ifdef MANY_ENDPOINTS
-/* more than 15 configurable endpoints */
-static unsigned in_epnum;
-#endif
-
 
 /*
  * This should work with endpoints from controller drivers sharing the
@@ -176,16 +166,14 @@ ep_matches (
 	if (isdigit (ep->name [2])) {
 		u8	num = simple_strtoul (&ep->name [2], NULL, 10);
 		desc->bEndpointAddress |= num;
-#ifdef	MANY_ENDPOINTS
 	} else if (desc->bEndpointAddress & USB_DIR_IN) {
-		if (++in_epnum > 15)
+		if (++gadget->in_epnum > 15)
 			return 0;
-		desc->bEndpointAddress = USB_DIR_IN | in_epnum;
-#endif
+		desc->bEndpointAddress = USB_DIR_IN | gadget->in_epnum;
 	} else {
-		if (++epnum > 15)
+		if (++gadget->out_epnum > 15)
 			return 0;
-		desc->bEndpointAddress |= epnum;
+		desc->bEndpointAddress |= gadget->out_epnum;
 	}
 
 	/* report (variable) full speed bulk maxpacket */
@@ -328,6 +316,7 @@ found_ep:
 	ep->comp_desc = NULL;
 	return ep;
 }
+EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
 
 /**
  * usb_ep_autoconfig() - choose an endpoint matching the
@@ -367,7 +356,7 @@ struct usb_ep *usb_ep_autoconfig(
 {
 	return usb_ep_autoconfig_ss(gadget, desc, NULL);
 }
-
+EXPORT_SYMBOL_GPL(usb_ep_autoconfig);
 
 /**
  * usb_ep_autoconfig_reset - reset endpoint autoconfig state
@@ -385,9 +374,7 @@ void usb_ep_autoconfig_reset (struct usb_gadget *gadget)
 	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
 		ep->driver_data = NULL;
 	}
-#ifdef	MANY_ENDPOINTS
-	in_epnum = 0;
-#endif
-	epnum = 0;
+	gadget->in_epnum = 0;
+	gadget->out_epnum = 0;
 }
-
+EXPORT_SYMBOL_GPL(usb_ep_autoconfig_reset);

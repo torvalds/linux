@@ -897,10 +897,7 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 		return -ENOMEM;
 
 	/* export host's Ethernet address in CDC format */
-	snprintf(ecm->ethaddr, sizeof ecm->ethaddr,
-		"%02X%02X%02X%02X%02X%02X",
-		ethaddr[0], ethaddr[1], ethaddr[2],
-		ethaddr[3], ethaddr[4], ethaddr[5]);
+	snprintf(ecm->ethaddr, sizeof ecm->ethaddr, "%pm", ethaddr);
 	ecm_string_defs[1].s = ecm->ethaddr;
 
 	ecm->port.cdc_filter = DEFAULT_FILTER;

@@ -1308,7 +1308,7 @@ static int omap_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int omap_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int omap_udc_stop(struct usb_gadget_driver *driver);
 
 static struct usb_gadget_ops omap_gadget_ops = {
@@ -2040,7 +2040,7 @@ static inline int machine_without_vbus_sense(void)
 }
 
 static int omap_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	int		status = -ENODEV;
 	struct omap_ep	*ep;
@@ -2082,7 +2082,7 @@ static int omap_udc_start(struct usb_gadget_driver *driver,
 	if (udc->dc_clk != NULL)
 		omap_udc_enable_clock(1);
 
-	status = bind(&udc->gadget);
+	status = bind(&udc->gadget, driver);
 	if (status) {
 		DBG("bind to %s --> %d\n", driver->driver.name, status);
 		udc->gadget.dev.driver = NULL;
