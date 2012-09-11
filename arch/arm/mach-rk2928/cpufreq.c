@@ -257,9 +257,7 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 		clk_enable_dvfs(cpu_clk);
 
 		/* Limit gpu frequency between 133M to 400M */
-#if 0
 		dvfs_clk_enable_limit(gpu_clk, 133000000, 400000000);
-#endif
 
 		freq_wq = create_singlethread_workqueue("rk30_cpufreqd");
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
