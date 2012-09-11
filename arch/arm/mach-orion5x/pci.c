@@ -38,7 +38,7 @@
 /*****************************************************************************
  * PCIe controller
  ****************************************************************************/
-#define PCIE_BASE	((void __iomem *)ORION5X_PCIE_VIRT_BASE)
+#define PCIE_BASE	(ORION5X_PCIE_VIRT_BASE)
 
 void __init orion5x_pcie_id(u32 *dev, u32 *rev)
 {
@@ -111,7 +111,7 @@ static int pcie_rd_conf_wa(struct pci_bus *bus, u32 devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
-	ret = orion_pcie_rd_conf_wa((void __iomem *)ORION5X_PCIE_WA_VIRT_BASE,
+	ret = orion_pcie_rd_conf_wa(ORION5X_PCIE_WA_VIRT_BASE,
 				    bus, devfn, where, size, val);
 
 	return ret;

@@ -42,22 +42,22 @@
  ****************************************************************************/
 static struct map_desc orion5x_io_desc[] __initdata = {
 	{
-		.virtual	= ORION5X_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_REGS_PHYS_BASE),
 		.length		= ORION5X_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= ORION5X_PCIE_IO_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_PCIE_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_PCIE_IO_PHYS_BASE),
 		.length		= ORION5X_PCIE_IO_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= ORION5X_PCI_IO_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_PCI_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_PCI_IO_PHYS_BASE),
 		.length		= ORION5X_PCI_IO_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= ORION5X_PCIE_WA_VIRT_BASE,
+		.virtual	= (unsigned long) ORION5X_PCIE_WA_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ORION5X_PCIE_WA_PHYS_BASE),
 		.length		= ORION5X_PCIE_WA_SIZE,
 		.type		= MT_DEVICE,
@@ -156,7 +156,8 @@ void __init orion5x_spi_init()
  ****************************************************************************/
 void __init orion5x_uart0_init(void)
 {
-	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
+	orion_uart0_init((unsigned long) UART0_VIRT_BASE,
+			 UART0_PHYS_BASE,
 			 IRQ_ORION5X_UART0, tclk);
 }
 
@@ -165,7 +166,8 @@ void __init orion5x_uart0_init(void)
  ****************************************************************************/
 void __init orion5x_uart1_init(void)
 {
-	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
+	orion_uart1_init((unsigned long) UART1_VIRT_BASE,
+			 UART1_PHYS_BASE,
 			 IRQ_ORION5X_UART1, tclk);
 }
 
@@ -203,7 +205,7 @@ void __init orion5x_wdt_init(void)
  ****************************************************************************/
 void __init orion5x_init_early(void)
 {
-	orion_time_set_base(TIMER_VIRT_BASE);
+	orion_time_set_base((unsigned long) TIMER_VIRT_BASE);
 }
 
 int orion5x_tclk;
@@ -224,7 +226,8 @@ static void __init orion5x_timer_init(void)
 {
 	orion5x_tclk = orion5x_find_tclk();
 
-	orion_time_init(ORION5X_BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
+	orion_time_init((unsigned long) ORION5X_BRIDGE_VIRT_BASE,
+			BRIDGE_INT_TIMER1_CLR,
 			IRQ_ORION5X_BRIDGE, orion5x_tclk);
 }
 

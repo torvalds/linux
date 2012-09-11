@@ -79,7 +79,7 @@ static int __init cpu_win_can_remap(const struct orion_addr_map_cfg *cfg,
 static struct orion_addr_map_cfg addr_map_cfg __initdata = {
 	.num_wins = 8,
 	.cpu_win_can_remap = cpu_win_can_remap,
-	.bridge_virt_base = ORION5X_BRIDGE_VIRT_BASE,
+	.bridge_virt_base = (unsigned long) ORION5X_BRIDGE_VIRT_BASE,
 };
 
 static const struct __initdata orion_addr_map_info addr_map_info[] = {
