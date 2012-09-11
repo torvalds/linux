@@ -329,6 +329,7 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 {
 	u16 xres, yres;
 	struct xgi_hw_device_info *hw_info = &xgifb_info->hw_info;
+	unsigned long required_mem;
 
 	if (xgifb_info->chip == XG21) {
 		if (xgifb_info->display2 == XGIFB_DISP_LCD) {
@@ -345,13 +346,13 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 			}
 
 		}
-		return myindex;
+		goto check_memory;
 
 	}
 
 	/* FIXME: for now, all is valid on XG27 */
 	if (xgifb_info->chip == XG27)
-		return myindex;
+		goto check_memory;
 
 	if (!(XGIbios_mode[myindex].chipset & MD_XGI315))
 		return -1;
@@ -539,6 +540,12 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 	case XGIFB_DISP_NONE:
 		break;
 	}
+
+check_memory:
+	required_mem = XGIbios_mode[myindex].xres * XGIbios_mode[myindex].yres *
+		       XGIbios_mode[myindex].bpp / 8;
+	if (required_mem > xgifb_info->video_size)
+		return -1;
 	return myindex;
 
 }
