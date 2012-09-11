@@ -66,7 +66,6 @@ struct exynos_drm_crtc {
 
 static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
-	struct drm_device *dev = crtc->dev;
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
 	DRM_DEBUG_KMS("crtc[%d] mode[%d]\n", crtc->base.id, mode);
@@ -76,12 +75,8 @@ static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 		return;
 	}
 
-	mutex_lock(&dev->struct_mutex);
-
 	exynos_drm_fn_encoder(crtc, &mode, exynos_drm_encoder_crtc_dpms);
 	exynos_crtc->dpms = mode;
-
-	mutex_unlock(&dev->struct_mutex);
 }
 
 static void exynos_drm_crtc_prepare(struct drm_crtc *crtc)
