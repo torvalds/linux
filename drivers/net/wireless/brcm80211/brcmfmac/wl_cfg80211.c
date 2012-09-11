@@ -490,8 +490,8 @@ static void brcmf_set_mpc(struct net_device *ndev, int mpc)
 	}
 }
 
-static void wl_iscan_prep(struct brcmf_scan_params_le *params_le,
-			  struct brcmf_ssid *ssid)
+static void brcmf_iscan_prep(struct brcmf_scan_params_le *params_le,
+			     struct brcmf_ssid *ssid)
 {
 	memcpy(params_le->bssid, ether_bcast, ETH_ALEN);
 	params_le->bss_type = DOT11_BSSTYPE_ANY;
@@ -545,7 +545,7 @@ brcmf_run_iscan(struct brcmf_cfg80211_iscan_ctrl *iscan,
 		return -ENOMEM;
 	BUG_ON(params_size >= BRCMF_DCMD_SMLEN);
 
-	wl_iscan_prep(&params->params_le, ssid);
+	brcmf_iscan_prep(&params->params_le, ssid);
 
 	params->version = cpu_to_le32(BRCMF_ISCAN_REQ_VERSION);
 	params->action = cpu_to_le16(action);
@@ -598,9 +598,9 @@ static s32 brcmf_do_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 }
 
 static s32
-__brcmf_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
-		   struct cfg80211_scan_request *request,
-		   struct cfg80211_ssid *this_ssid)
+brcmf_cfg80211_iscan(struct wiphy *wiphy, struct net_device *ndev,
+		     struct cfg80211_scan_request *request,
+		     struct cfg80211_ssid *this_ssid)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	struct cfg80211_ssid *ssids;
@@ -703,7 +703,7 @@ brcmf_cfg80211_scan(struct wiphy *wiphy,
 	if (!check_sys_up(wiphy))
 		return -EIO;
 
-	err = __brcmf_cfg80211_scan(wiphy, ndev, request, NULL);
+	err = brcmf_cfg80211_iscan(wiphy, ndev, request, NULL);
 	if (err)
 		WL_ERR("scan error (%d)\n", err);
 
@@ -2547,10 +2547,8 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 	clear_bit(WL_STATUS_SCAN_ABORTING, &cfg_priv->status);
 
 	/* Turn off watchdog timer */
-	if (test_bit(WL_STATUS_READY, &cfg_priv->status)) {
-		WL_INFO("Enable MPC\n");
+	if (test_bit(WL_STATUS_READY, &cfg_priv->status))
 		brcmf_set_mpc(ndev, 1);
-	}
 
 	WL_TRACE("Exit\n");
 
@@ -3194,10 +3192,8 @@ brcmf_notify_scan_status(struct brcmf_cfg80211_priv *cfg_priv,
 	cfg_priv->scan_results->count = le32_to_cpu(bss_list_le->count);
 
 	err = brcmf_inform_bss(cfg_priv);
-	if (err) {
+	if (err)
 		scan_abort = true;
-		goto scan_done_out;
-	}
 
 scan_done_out:
 	if (cfg_priv->scan_request) {
