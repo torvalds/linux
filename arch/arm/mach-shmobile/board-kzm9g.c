@@ -482,12 +482,10 @@ static struct gpio_keys_button gpio_buttons[] = {
 static struct gpio_keys_platform_data gpio_key_info = {
 	.buttons	= gpio_buttons,
 	.nbuttons	= ARRAY_SIZE(gpio_buttons),
-	.poll_interval	= 250, /* poling at this point */
 };
 
 static struct platform_device gpio_keys_device = {
-	/* gpio-pcf857x.c driver doesn't support gpio_to_irq() */
-	.name	= "gpio-keys-polled",
+	.name	= "gpio-keys",
 	.dev	= {
 		.platform_data  = &gpio_key_info,
 	},
@@ -550,6 +548,7 @@ static struct platform_device fsi_ak4648_device = {
 /* I2C */
 static struct pcf857x_platform_data pcf8575_pdata = {
 	.gpio_base	= GPIO_PCF8575_BASE,
+	.irq		= intcs_evt2irq(0x3260), /* IRQ19 */
 };
 
 static struct i2c_board_info i2c0_devices[] = {
