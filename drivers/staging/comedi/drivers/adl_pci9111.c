@@ -108,7 +108,6 @@ TODO:
 #define PCI9111_AO_RESOLUTION_MASK		0x0FFF
 #define PCI9111_DI_CHANNEL_NBR			16
 #define	PCI9111_DO_CHANNEL_NBR			16
-#define PCI9111_DO_MASK				0xFFFF
 
 #define PCI9111_RANGE_SETTING_DELAY		10
 #define PCI9111_AI_INSTANT_READ_UDELAY_US	2
@@ -1088,28 +1087,22 @@ static int pci9111_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*  Digital outputs */
-
 static int pci9111_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	unsigned int bits;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	/*  Only set bits that have been masked */
-	/*  data[0] = mask */
-	/*  data[1] = bit state */
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-	data[0] &= PCI9111_DO_MASK;
+		outw(s->state, dev->iobase + PCI9111_DIO_REG);
+	}
 
-	bits = s->state;
-	bits &= ~data[0];
-	bits |= data[0] & data[1];
-	s->state = bits;
-
-	outw(bits, dev->iobase + PCI9111_DIO_REG);
-
-	data[1] = bits;
+	data[1] = s->state;
 
 	return insn->n;
 }
