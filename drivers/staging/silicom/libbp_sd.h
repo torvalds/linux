@@ -42,7 +42,6 @@
 #define NIC_CAP_NEG              0x4000000	/* BIT 26 */
 
 #define WD_MIN_TIME_GET(desc)   (desc & 0xf)
-#define WD_STEP_COUNT_GET(desc) (desc>>5) & 0xf
 #define WDT_STEP_TIME           0x10
 
 struct bp_info {

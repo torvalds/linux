@@ -53,7 +53,7 @@
 #define WDT_STEP_TIME              0x10	/* BIT_4 */
 
 #define WD_MIN_TIME_GET(desc)   (desc & 0xf)
-#define WD_STEP_COUNT_GET(desc) (desc>>5) & 0xf
+#define WD_STEP_COUNT_GET(desc) ((desc>>5) & 0xf)
 
 typedef enum {
 	IF_SCAN,
