@@ -76,6 +76,8 @@ static inline int audit_hash_ino(u32 ino)
 
 extern int audit_match_class(int class, unsigned syscall);
 extern int audit_comparator(const u32 left, const u32 op, const u32 right);
+extern int audit_uid_comparator(kuid_t left, u32 op, kuid_t right);
+extern int audit_gid_comparator(kgid_t left, u32 op, kgid_t right);
 extern int audit_compare_dname_path(const char *dname, const char *path,
 				    int *dirlen);
 extern struct sk_buff *	    audit_make_reply(int pid, int seq, int type,
