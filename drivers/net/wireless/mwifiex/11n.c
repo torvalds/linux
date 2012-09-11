@@ -241,27 +241,6 @@ int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
 }
 
 /*
- * This function handles the command response of AMSDU aggregation
- * control request.
- *
- * Handling includes changing the header fields into CPU format.
- */
-int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
-				struct mwifiex_ds_11n_amsdu_aggr_ctrl
-				*amsdu_aggr_ctrl)
-{
-	struct host_cmd_ds_amsdu_aggr_ctrl *amsdu_ctrl =
-		&resp->params.amsdu_aggr_ctrl;
-
-	if (amsdu_aggr_ctrl) {
-		amsdu_aggr_ctrl->enable = le16_to_cpu(amsdu_ctrl->enable);
-		amsdu_aggr_ctrl->curr_buf_size =
-			le16_to_cpu(amsdu_ctrl->curr_buf_size);
-	}
-	return 0;
-}
-
-/*
  * This function prepares 11n configuration command.
  *
  * Preparation includes -

@@ -58,9 +58,6 @@ int mwifiex_get_rx_reorder_tbl(struct mwifiex_private *priv,
 			      struct mwifiex_ds_rx_reorder_tbl *buf);
 int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 			       struct mwifiex_ds_tx_ba_stream_tbl *buf);
-int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
-				struct mwifiex_ds_11n_amsdu_aggr_ctrl
-				*amsdu_aggr_ctrl);
 int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
 			     struct host_cmd_ds_command *cmd,
 			     int cmd_action, u16 *buf_size);

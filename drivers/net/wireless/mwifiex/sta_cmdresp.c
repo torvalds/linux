@@ -909,7 +909,6 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 				le16_to_cpu(resp->params.tx_buf.mp_end_port));
 		break;
 	case HostCmd_CMD_AMSDU_AGGR_CTRL:
-		ret = mwifiex_ret_amsdu_aggr_ctrl(resp, data_buf);
 		break;
 	case HostCmd_CMD_WMM_GET_STATUS:
 		ret = mwifiex_ret_wmm_get_status(priv, resp);
