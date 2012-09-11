@@ -22,7 +22,6 @@
 #include <linux/hardirq.h>
 #include <linux/delay.h>
 #include <mach/clock.h>
-#include "clock.h"
 #include <mach/dvfs.h>
 #include <linux/delay.h>
 

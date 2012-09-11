@@ -23,7 +23,7 @@
 #include <linux/hardirq.h>
 #include <mach/cru.h>
 #include <mach/iomux.h>
-#include "clock.h"
+#include <mach/clock.h>
 #include <mach/pmu.h>
 #include <mach/dvfs.h>
 #include <mach/ddr.h>
