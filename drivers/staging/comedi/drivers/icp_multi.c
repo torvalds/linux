@@ -130,8 +130,6 @@ struct icp_multi_private {
 	unsigned int do_data;	/*  Remember digital output data */
 };
 
-#define devpriv ((struct icp_multi_private *)dev->private)
-
 /*
 ==============================================================================
 
@@ -156,6 +154,7 @@ static void setup_channel_list(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       unsigned int *chanlist, unsigned int n_chan)
 {
+	struct icp_multi_private *devpriv = dev->private;
 	unsigned int i, range, chanprog;
 	unsigned int diff;
 
@@ -221,6 +220,7 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct icp_multi_private *devpriv = dev->private;
 	int n, timeout;
 
 	/*  Disable A/D conversion ready interrupt */
@@ -308,6 +308,7 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct icp_multi_private *devpriv = dev->private;
 	int n, chan, range, timeout;
 
 	/*  Disable D/A conversion ready interrupt */
@@ -401,6 +402,7 @@ static int icp_multi_insn_read_ao(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct icp_multi_private *devpriv = dev->private;
 	int n, chan;
 
 	/*  Get channel number */
@@ -435,6 +437,8 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct icp_multi_private *devpriv = dev->private;
+
 	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 
 	return insn->n;
@@ -462,6 +466,8 @@ static int icp_multi_insn_bits_do(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct icp_multi_private *devpriv = dev->private;
+
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -545,6 +551,7 @@ Parameters:
 static irqreturn_t interrupt_service_icp_multi(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct icp_multi_private *devpriv = dev->private;
 	int int_no;
 
 	/*  Is this interrupt from our board? */
@@ -649,6 +656,7 @@ Returns:int	0 = success
 */
 static int icp_multi_reset(struct comedi_device *dev)
 {
+	struct icp_multi_private *devpriv = dev->private;
 	unsigned int i;
 
 	/*  Clear INT enables and requests */
@@ -685,6 +693,7 @@ static int icp_multi_reset(struct comedi_device *dev)
 static int icp_multi_attach_pci(struct comedi_device *dev,
 				struct pci_dev *pcidev)
 {
+	struct icp_multi_private *devpriv;
 	struct comedi_subdevice *s;
 	resource_size_t iobase;
 	int ret;
@@ -692,9 +701,10 @@ static int icp_multi_attach_pci(struct comedi_device *dev,
 	comedi_set_hw_dev(dev, &pcidev->dev);
 	dev->board_name = dev->driver->driver_name;
 
-	ret = alloc_private(dev, sizeof(struct icp_multi_private));
+	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0)
 		return ret;
+	devpriv = dev->private;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -781,13 +791,14 @@ static int icp_multi_attach_pci(struct comedi_device *dev,
 static void icp_multi_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct icp_multi_private *devpriv = dev->private;
 
-	if (dev->private)
+	if (devpriv)
 		if (devpriv->valid)
 			icp_multi_reset(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->private && devpriv->io_addr)
+	if (devpriv && devpriv->io_addr)
 		iounmap(devpriv->io_addr);
 	if (pcidev) {
 		if (dev->iobase)
