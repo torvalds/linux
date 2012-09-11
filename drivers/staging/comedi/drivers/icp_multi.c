@@ -130,26 +130,6 @@ struct icp_multi_private {
 	unsigned int do_data;	/*  Remember digital output data */
 };
 
-/*
-==============================================================================
-
-Name:	setup_channel_list
-
-Description:
-	This function sets the appropriate channel selection,
-	differential input mode and range bits in the ADC Command/
-	Status register.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current service structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	unsigned int *chanlist	Pointer to packed channel list
-	unsigned int n_chan	Number of channels to scan
-
-Returns:Void
-
-==============================================================================
-*/
 static void setup_channel_list(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       unsigned int *chanlist, unsigned int n_chan)
@@ -198,24 +178,6 @@ static void setup_channel_list(struct comedi_device *dev,
 	}
 }
 
-/*
-==============================================================================
-
-Name:	icp_multi_insn_read_ai
-
-Description:
-	This function reads a single analogue input.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current device structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	struct comedi_insn *insn	Pointer to current comedi instruction
-	unsigned int *data		Pointer to analogue input data
-
-Returns:int			Nmuber of instructions executed
-
-==============================================================================
-*/
 static int icp_multi_insn_read_ai(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
@@ -286,24 +248,6 @@ conv_finish:
 	return n;
 }
 
-/*
-==============================================================================
-
-Name:	icp_multi_insn_write_ao
-
-Description:
-	This function writes a single analogue output.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current device structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	struct comedi_insn *insn	Pointer to current comedi instruction
-	unsigned int *data		Pointer to analogue output data
-
-Returns:int			Nmuber of instructions executed
-
-==============================================================================
-*/
 static int icp_multi_insn_write_ao(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
@@ -380,24 +324,6 @@ dac_ready:
 	return n;
 }
 
-/*
-==============================================================================
-
-Name:	icp_multi_insn_read_ao
-
-Description:
-	This function reads a single analogue output.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current device structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	struct comedi_insn *insn	Pointer to current comedi instruction
-	unsigned int *data		Pointer to analogue output data
-
-Returns:int			Nmuber of instructions executed
-
-==============================================================================
-*/
 static int icp_multi_insn_read_ao(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
@@ -415,24 +341,6 @@ static int icp_multi_insn_read_ao(struct comedi_device *dev,
 	return n;
 }
 
-/*
-==============================================================================
-
-Name:	icp_multi_insn_bits_di
-
-Description:
-	This function reads the digital inputs.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current device structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	struct comedi_insn *insn	Pointer to current comedi instruction
-	unsigned int *data		Pointer to analogue output data
-
-Returns:int			Nmuber of instructions executed
-
-==============================================================================
-*/
 static int icp_multi_insn_bits_di(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
@@ -444,24 +352,6 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-
-Name:	icp_multi_insn_bits_do
-
-Description:
-	This function writes the appropriate digital outputs.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current device structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	struct comedi_insn *insn	Pointer to current comedi instruction
-	unsigned int *data		Pointer to analogue output data
-
-Returns:int			Nmuber of instructions executed
-
-==============================================================================
-*/
 static int icp_multi_insn_bits_do(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
@@ -482,24 +372,6 @@ static int icp_multi_insn_bits_do(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-
-Name:	icp_multi_insn_read_ctr
-
-Description:
-	This function reads the specified counter.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current device structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	struct comedi_insn *insn	Pointer to current comedi instruction
-	unsigned int *data		Pointer to counter data
-
-Returns:int			Nmuber of instructions executed
-
-==============================================================================
-*/
 static int icp_multi_insn_read_ctr(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
@@ -507,24 +379,6 @@ static int icp_multi_insn_read_ctr(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-
-Name:	icp_multi_insn_write_ctr
-
-Description:
-	This function write to the specified counter.
-
-Parameters:
-	struct comedi_device *dev	Pointer to current device structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	struct comedi_insn *insn	Pointer to current comedi instruction
-	unsigned int *data		Pointer to counter data
-
-Returns:int			Nmuber of instructions executed
-
-==============================================================================
-*/
 static int icp_multi_insn_write_ctr(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
@@ -533,21 +387,6 @@ static int icp_multi_insn_write_ctr(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-
-Name:	interrupt_service_icp_multi
-
-Description:
-	This function is the interrupt service routine for all
-	interrupts generated by the icp multi board.
-
-Parameters:
-	int irq
-	void *d			Pointer to current device
-
-==============================================================================
-*/
 static irqreturn_t interrupt_service_icp_multi(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -587,26 +426,6 @@ static irqreturn_t interrupt_service_icp_multi(int irq, void *d)
 }
 
 #if 0
-/*
-==============================================================================
-
-Name:	check_channel_list
-
-Description:
-	This function checks if the channel list, provided by user
-	is built correctly
-
-Parameters:
-	struct comedi_device *dev	Pointer to current service structure
-	struct comedi_subdevice *s	Pointer to current subdevice structure
-	unsigned int *chanlist	Pointer to packed channel list
-	unsigned int n_chan	Number of channels to scan
-
-Returns:int 0 = failure
-	    1 = success
-
-==============================================================================
-*/
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      unsigned int *chanlist, unsigned int n_chan)
@@ -639,21 +458,6 @@ static int check_channel_list(struct comedi_device *dev,
 }
 #endif
 
-/*
-==============================================================================
-
-Name:	icp_multi_reset
-
-Description:
-	This function resets the icp multi device to a 'safe' state
-
-Parameters:
-	struct comedi_device *dev	Pointer to current service structure
-
-Returns:int	0 = success
-
-==============================================================================
-*/
 static int icp_multi_reset(struct comedi_device *dev)
 {
 	struct icp_multi_private *devpriv = dev->private;
