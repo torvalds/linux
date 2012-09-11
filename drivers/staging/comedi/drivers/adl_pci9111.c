@@ -332,9 +332,6 @@ static const struct pci9111_board pci9111_boards[] = {
 	 .ai_acquisition_period_min_ns = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS}
 };
 
-#define pci9111_board_nbr \
-	(sizeof(pci9111_boards)/sizeof(struct pci9111_board))
-
 /*  Private data structure */
 
 struct pci9111_private_data {
@@ -1228,7 +1225,7 @@ static struct pci_dev *pci9111_find_pci(struct comedi_device *dev,
 	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor != PCI_VENDOR_ID_ADLINK)
 			continue;
-		for (i = 0; i < pci9111_board_nbr; i++) {
+		for (i = 0; i < ARRAY_SIZE(pci9111_boards); i++) {
 			if (pcidev->device != pci9111_boards[i].device_id)
 				continue;
 			if (bus || slot) {
