@@ -159,9 +159,8 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EBUSY;
 
 	for (driv = comedi_drivers; driv; driv = driv->next) {
-		if (!try_module_get(driv->module)) {
+		if (!try_module_get(driv->module))
 			continue;
-		}
 		if (driv->num_names) {
 			dev->board_ptr = comedi_recognize(driv, it->board_name);
 			if (dev->board_ptr)
@@ -174,9 +173,8 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/*  recognize has failed if we get here */
 		/*  report valid board names before returning error */
 		for (driv = comedi_drivers; driv; driv = driv->next) {
-			if (!try_module_get(driv->module)) {
+			if (!try_module_get(driv->module))
 				continue;
-			}
 			comedi_report_boards(driv);
 			module_put(driv->module);
 		}
