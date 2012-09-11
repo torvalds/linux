@@ -3627,19 +3627,16 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		regval &= (~AR_ANT_DIV_CTRL_ALL);
 		regval |= (value & 0x3f) << AR_ANT_DIV_CTRL_ALL_S;
 		/* enable_lnadiv */
-		regval &= (~AR_PHY_9485_ANT_DIV_LNADIV);
-		regval |= ((value >> 6) & 0x1) <<
-				AR_PHY_9485_ANT_DIV_LNADIV_S;
+		regval &= (~AR_PHY_ANT_DIV_LNADIV);
+		regval |= ((value >> 6) & 0x1) << AR_PHY_ANT_DIV_LNADIV_S;
 		REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 
 		/*enable fast_div */
 		regval = REG_READ(ah, AR_PHY_CCK_DETECT);
 		regval &= (~AR_FAST_DIV_ENABLE);
-		regval |= ((value >> 7) & 0x1) <<
-				AR_FAST_DIV_ENABLE_S;
+		regval |= ((value >> 7) & 0x1) << AR_FAST_DIV_ENABLE_S;
 		REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
-		ant_div_ctl1 =
-			ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
+		ant_div_ctl1 = ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
 		/* check whether antenna diversity is enabled */
 		if ((ant_div_ctl1 >> 0x6) == 0x3) {
 			regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
@@ -3647,15 +3644,15 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 			 * clear bits 25-30 main_lnaconf, alt_lnaconf,
 			 * main_tb, alt_tb
 			 */
-			regval &= (~(AR_PHY_9485_ANT_DIV_MAIN_LNACONF |
-					AR_PHY_9485_ANT_DIV_ALT_LNACONF |
-					AR_PHY_9485_ANT_DIV_ALT_GAINTB |
-					AR_PHY_9485_ANT_DIV_MAIN_GAINTB));
+			regval &= (~(AR_PHY_ANT_DIV_MAIN_LNACONF |
+				     AR_PHY_ANT_DIV_ALT_LNACONF |
+				     AR_PHY_ANT_DIV_ALT_GAINTB |
+				     AR_PHY_ANT_DIV_MAIN_GAINTB));
 			/* by default use LNA1 for the main antenna */
-			regval |= (AR_PHY_9485_ANT_DIV_LNA1 <<
-					AR_PHY_9485_ANT_DIV_MAIN_LNACONF_S);
-			regval |= (AR_PHY_9485_ANT_DIV_LNA2 <<
-					AR_PHY_9485_ANT_DIV_ALT_LNACONF_S);
+			regval |= (AR_PHY_ANT_DIV_LNA1 <<
+				   AR_PHY_ANT_DIV_MAIN_LNACONF_S);
+			regval |= (AR_PHY_ANT_DIV_LNA2 <<
+				   AR_PHY_ANT_DIV_ALT_LNACONF_S);
 			REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 		}
 
