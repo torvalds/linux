@@ -113,6 +113,15 @@ struct ipack_driver {
  *	@request_irq: request IRQ
  *	@free_irq: free IRQ
  *	@remove_device: tell the bridge module that the device has been removed
+ *	@get_clockrate: Returns the clockrate the carrier is currently
+ *		communicating with the device at.
+ *	@set_clockrate: Sets the clock-rate for carrier / module communication.
+ *		Should return -EINVAL if the requested speed is not supported.
+ *	@get_error: Returns the error state for the slot the device is attached
+ *		to.
+ *	@get_timeout: Returns 1 if the communication with the device has
+ *		previously timed out.
+ *	@reset_timeout: Resets the state returned by get_timeout.
  */
 struct ipack_bus_ops {
 	int (*map_space) (struct ipack_device *dev, unsigned int memory_size, int space);
@@ -120,6 +129,12 @@ struct ipack_bus_ops {
 	int (*request_irq) (struct ipack_device *dev, int vector, int (*handler)(void *), void *arg);
 	int (*free_irq) (struct ipack_device *dev);
 	int (*remove_device) (struct ipack_device *dev);
+
+	int (*get_clockrate) (struct ipack_device *dev);
+	int (*set_clockrate) (struct ipack_device *dev, int mherz);
+	int (*get_error) (struct ipack_device *dev);
+	int (*get_timeout) (struct ipack_device *dev);
+	int (*reset_timeout) (struct ipack_device *dev);
 };
 
 /**
