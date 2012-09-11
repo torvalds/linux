@@ -151,6 +151,10 @@ static bool __ath6kl_cfg80211_sscan_stop(struct ath6kl_vif *vif)
 		return false;
 
 	del_timer_sync(&vif->sched_scan_timer);
+
+	if (ar->state == ATH6KL_STATE_RECOVERY)
+		return true;
+
 	ath6kl_wmi_enable_sched_scan_cmd(ar->wmi, vif->fw_vif_idx, false);
 
 	return true;
@@ -3435,8 +3439,9 @@ void ath6kl_cfg80211_stop(struct ath6kl_vif *vif)
 		break;
 	}
 
-	if (test_bit(CONNECTED, &vif->flags) ||
-	    test_bit(CONNECT_PEND, &vif->flags))
+	if (vif->ar->state != ATH6KL_STATE_RECOVERY &&
+	    (test_bit(CONNECTED, &vif->flags) ||
+	    test_bit(CONNECT_PEND, &vif->flags)))
 		ath6kl_wmi_disconnect_cmd(vif->ar->wmi, vif->fw_vif_idx);
 
 	vif->sme_state = SME_DISCONNECTED;
@@ -3448,7 +3453,8 @@ void ath6kl_cfg80211_stop(struct ath6kl_vif *vif)
 	netif_carrier_off(vif->ndev);
 
 	/* disable scanning */
-	if (ath6kl_wmi_scanparams_cmd(vif->ar->wmi, vif->fw_vif_idx, 0xFFFF,
+	if (vif->ar->state != ATH6KL_STATE_RECOVERY &&
+	    ath6kl_wmi_scanparams_cmd(vif->ar->wmi, vif->fw_vif_idx, 0xFFFF,
 				      0, 0, 0, 0, 0, 0, 0, 0, 0) != 0)
 		ath6kl_warn("failed to disable scan during stop\n");
 
