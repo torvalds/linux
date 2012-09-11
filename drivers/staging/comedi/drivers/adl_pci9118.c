@@ -1098,43 +1098,28 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	const struct boardtype *this_board = comedi_board(dev);
 	struct pci9118_private *devpriv = dev->private;
 	int err = 0;
+	unsigned int flags;
 	int tmp;
 	unsigned int divisor1 = 0, divisor2 = 0;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src,
+					TRIG_NOW | TRIG_EXT | TRIG_INT);
 
-	tmp = cmd->scan_begin_src;
+	flags = TRIG_FOLLOW;
 	if (devpriv->master)
-		cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT | TRIG_FOLLOW;
-	else
-		cmd->scan_begin_src &= TRIG_FOLLOW;
+		flags |= TRIG_TIMER | TRIG_EXT;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, flags);
 
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
+	flags = TRIG_TIMER | TRIG_EXT;
 	if (devpriv->master)
-		cmd->convert_src &= TRIG_TIMER | TRIG_EXT | TRIG_NOW;
-	else
-		cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
+		flags |= TRIG_NOW;
+	err |= cfc_check_trigger_src(&cmd->convert_src, flags);
 
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE | TRIG_EXT;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src,
+					TRIG_COUNT | TRIG_NONE | TRIG_EXT);
 
 	if (err)
 		return 1;
