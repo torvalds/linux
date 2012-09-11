@@ -47,14 +47,7 @@ Supports:
 The scanned channels must be consecutive and start from 0. They must
 all have the same range and aref.
 
-Configuration options:
-
-	[0] - PCI bus number (optional)
-	[1] - PCI slot number (optional)
-
-If bus/slot is not specified, the first available PCI
-device will be used.
-
+Configuration options: not applicable, uses PCI auto config
 */
 
 /*
@@ -85,10 +78,6 @@ TODO:
 
 #define PCI9111_DRIVER_NAME	"adl_pci9111"
 #define PCI9111_HR_DEVICE_ID	0x9111
-
-/*  TODO: Add other pci9111 board id */
-
-#define PCI9111_IO_RANGE	0x0100
 
 #define PCI9111_FIFO_HALF_SIZE	512
 
@@ -212,22 +201,6 @@ static const struct comedi_lrange pci9111_hr_ai_range = {
 	 BIP_RANGE(1.25),
 	 BIP_RANGE(0.625)
 	 }
-};
-
-/*  */
-/*  Board specification structure */
-/*  */
-
-struct pci9111_board {
-	const char *name;	/*  driver name */
-	int device_id;
-};
-
-static const struct pci9111_board pci9111_boards[] = {
-	{
-	 .name = "pci9111_hr",
-	 .device_id = PCI9111_HR_DEVICE_ID,
-	},
 };
 
 /*  Private data structure */
@@ -1044,104 +1017,36 @@ static int pci9111_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static struct pci_dev *pci9111_find_pci(struct comedi_device *dev,
-					struct comedi_devconfig *it)
-{
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-	int i;
-
-	for_each_pci_dev(pcidev) {
-		if (pcidev->vendor != PCI_VENDOR_ID_ADLINK)
-			continue;
-		for (i = 0; i < ARRAY_SIZE(pci9111_boards); i++) {
-			if (pcidev->device != pci9111_boards[i].device_id)
-				continue;
-			if (bus || slot) {
-				/* requested particular bus/slot */
-				if (pcidev->bus->number != bus ||
-				    PCI_SLOT(pcidev->devfn) != slot)
-					continue;
-			}
-			dev->board_ptr = pci9111_boards + i;
-			printk(KERN_ERR
-				"comedi%d: found %s (b:s:f=%d:%d:%d), irq=%d\n",
-				dev->minor, pci9111_boards[i].name,
-				pcidev->bus->number, PCI_SLOT(pcidev->devfn),
-				PCI_FUNC(pcidev->devfn), pcidev->irq);
-			return pcidev;
-		}
-	}
-	printk(KERN_ERR
-		"comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-		dev->minor, bus, slot);
-	return NULL;
-}
-
-static int pci9111_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int pci9111_attach_pci(struct comedi_device *dev,
+			      struct pci_dev *pcidev)
 {
 	struct pci9111_private_data *dev_private;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
-	unsigned long io_base, lcr_io_base;
 	int ret;
-	const struct pci9111_board *board;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+	dev->board_name = dev->driver->driver_name;
 
 	ret = alloc_private(dev, sizeof(*dev_private));
 	if (ret)
 		return ret;
 	dev_private = dev->private;
 
-	/*  Probe the device to determine what device in the series it is. */
-	pcidev = pci9111_find_pci(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	board = (struct pci9111_board *)dev->board_ptr;
-
-	/*  TODO: Warn about non-tested boards. */
-
-	/*  Read local configuration register base address
-	 *  [PCI_BASE_ADDRESS #1]. */
-
-	lcr_io_base = pci_resource_start(pcidev, 1);
-
-	/*  Enable PCI device and request regions */
-	if (comedi_pci_enable(pcidev, PCI9111_DRIVER_NAME) < 0) {
-		printk
-		    ("comedi%d: Failed to enable PCI device and request regions\n",
-		     dev->minor);
-		return -EIO;
-	}
-	/*  Read PCI6308 register base address [PCI_BASE_ADDRESS #2]. */
-
-	io_base = pci_resource_start(pcidev, 2);
-
-	dev->iobase = io_base;
-	dev->board_name = board->name;
-	dev_private->is_valid = 0;
-	dev_private->lcr_io_base = lcr_io_base;
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
+	dev_private->lcr_io_base = pci_resource_start(pcidev, 1);
+	dev->iobase = pci_resource_start(pcidev, 2);
 
 	pci9111_reset(dev);
 
-	/*  Irq setup */
-
-	dev->irq = 0;
 	if (pcidev->irq > 0) {
+		ret = request_irq(dev->irq, pci9111_interrupt,
+				  IRQF_SHARED, dev->board_name, dev);
+		if (ret)
+			return ret;
 		dev->irq = pcidev->irq;
-
-		if (request_irq(dev->irq, pci9111_interrupt,
-				IRQF_SHARED, PCI9111_DRIVER_NAME, dev) != 0) {
-			printk(KERN_ERR
-				"comedi%d: unable to allocate irq  %u\n",
-					dev->minor, dev->irq);
-			return -EINVAL;
-		}
 	}
-
-	/*  TODO: Add external multiplexer setup (according to option[2]). */
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -1215,7 +1120,7 @@ static void pci9111_detach(struct comedi_device *dev)
 static struct comedi_driver adl_pci9111_driver = {
 	.driver_name	= "adl_pci9111",
 	.module		= THIS_MODULE,
-	.attach		= pci9111_attach,
+	.attach_pci	= pci9111_attach_pci,
 	.detach		= pci9111_detach,
 };
 
