@@ -1862,8 +1862,9 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 		return ret;
 	}
 	country_code = mwifiex_11d_code_2_region(priv->adapter->region_code);
-	if (country_code && regulatory_hint(wiphy, country_code))
-		dev_err(adapter->dev, "regulatory_hint() failed\n");
+	if (country_code)
+		dev_info(adapter->dev,
+			 "ignoring F/W country code %2.2s\n", country_code);
 
 	adapter->wiphy = wiphy;
 	return ret;
