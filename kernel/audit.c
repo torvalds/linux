@@ -866,41 +866,29 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case AUDIT_TTY_GET: {
 		struct audit_tty_status s;
-		struct task_struct *tsk;
-		unsigned long flags;
+		struct task_struct *tsk = current;
 
-		rcu_read_lock();
-		tsk = find_task_by_vpid(pid);
-		if (tsk && lock_task_sighand(tsk, &flags)) {
-			s.enabled = tsk->signal->audit_tty != 0;
-			unlock_task_sighand(tsk, &flags);
-		} else
-			err = -ESRCH;
-		rcu_read_unlock();
+		spin_lock_irq(&tsk->sighand->siglock);
+		s.enabled = tsk->signal->audit_tty != 0;
+		spin_unlock_irq(&tsk->sighand->siglock);
 
-		if (!err)
-			audit_send_reply(NETLINK_CB(skb).pid, seq,
-					 AUDIT_TTY_GET, 0, 0, &s, sizeof(s));
+		audit_send_reply(NETLINK_CB(skb).pid, seq,
+				 AUDIT_TTY_GET, 0, 0, &s, sizeof(s));
 		break;
 	}
 	case AUDIT_TTY_SET: {
 		struct audit_tty_status *s;
-		struct task_struct *tsk;
-		unsigned long flags;
+		struct task_struct *tsk = current;
 
 		if (nlh->nlmsg_len < sizeof(struct audit_tty_status))
 			return -EINVAL;
 		s = data;
 		if (s->enabled != 0 && s->enabled != 1)
 			return -EINVAL;
-		rcu_read_lock();
-		tsk = find_task_by_vpid(pid);
-		if (tsk && lock_task_sighand(tsk, &flags)) {
-			tsk->signal->audit_tty = s->enabled != 0;
-			unlock_task_sighand(tsk, &flags);
-		} else
-			err = -ESRCH;
-		rcu_read_unlock();
+
+		spin_lock_irq(&tsk->sighand->siglock);
+		tsk->signal->audit_tty = s->enabled != 0;
+		spin_unlock_irq(&tsk->sighand->siglock);
 		break;
 	}
 	default:
