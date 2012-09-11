@@ -98,8 +98,8 @@ TODO:
 #define PCI9111_REGISTER_AD_CHANNEL_CONTROL		0x06 /* Channel
 								selection */
 #define PCI9111_REGISTER_AD_CHANNEL_READBACK		0x06
-#define PCI9111_REGISTER_INPUT_SIGNAL_RANGE		0x08
-#define PCI9111_REGISTER_RANGE_STATUS_READBACK		0x08
+#define PCI9111_AI_RANGE_REG				0x08
+#define PCI9111_RANGE_STATUS_REG			0x08
 #define PCI9111_REGISTER_TRIGGER_MODE_CONTROL		0x0A
 #define PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK	0x0A
 #define PCI9111_REGISTER_SOFTWARE_TRIGGER		0x0E
@@ -165,15 +165,15 @@ TODO:
 	} while (0)
 
 #define pci9111_is_fifo_full() \
-	((inb(dev->iobase + PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
+	((inb(dev->iobase + PCI9111_RANGE_STATUS_REG)& \
 		PCI9111_FIFO_FULL_MASK) == 0)
 
 #define pci9111_is_fifo_half_full() \
-	((inb(dev->iobase + PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
+	((inb(dev->iobase + PCI9111_RANGE_STATUS_REG)& \
 		PCI9111_FIFO_HALF_FULL_MASK) == 0)
 
 #define pci9111_is_fifo_empty() \
-	((inb(dev->iobase + PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
+	((inb(dev->iobase + PCI9111_RANGE_STATUS_REG)& \
 		PCI9111_FIFO_EMPTY_MASK) == 0)
 
 #define pci9111_ai_channel_set(channel) \
@@ -183,14 +183,6 @@ TODO:
 #define pci9111_ai_channel_get() \
 	(inb(dev->iobase + PCI9111_REGISTER_AD_CHANNEL_READBACK) \
 		&PCI9111_CHANNEL_MASK)
-
-#define pci9111_ai_range_set(range) \
-	outb((range)&PCI9111_RANGE_MASK, \
-		dev->iobase + PCI9111_REGISTER_INPUT_SIGNAL_RANGE)
-
-#define pci9111_ai_range_get() \
-	(inb(dev->iobase + PCI9111_REGISTER_RANGE_STATUS_READBACK) \
-		&PCI9111_RANGE_MASK)
 
 static const struct comedi_lrange pci9111_hr_ai_range = {
 	5,
@@ -612,7 +604,8 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	/*  Set gain */
 	/*  This is the same gain on every channel */
 
-	pci9111_ai_range_set(CR_RANGE(async_cmd->chanlist[0]));
+	outb(CR_RANGE(async_cmd->chanlist[0]) & PCI9111_RANGE_MASK,
+		dev->iobase + PCI9111_AI_RANGE_REG);
 
 	/* Set counter */
 
@@ -860,13 +853,17 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 	unsigned int maxdata = s->maxdata;
 	unsigned int invert = (maxdata + 1) >> 1;
 	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
+	unsigned int current_range;
 	int timeout;
 	int i;
 
 	pci9111_ai_channel_set(chan);
 
-	if ((pci9111_ai_range_get()) != range)
-		pci9111_ai_range_set(range);
+	current_range = inb(dev->iobase + PCI9111_RANGE_STATUS_REG);
+	if ((current_range & PCI9111_RANGE_MASK) != range) {
+		outb(range & PCI9111_RANGE_MASK,
+			dev->iobase + PCI9111_AI_RANGE_REG);
+	}
 
 	pci9111_fifo_reset();
 
