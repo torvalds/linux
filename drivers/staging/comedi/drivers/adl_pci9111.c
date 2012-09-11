@@ -99,7 +99,7 @@ TODO:
 #define PCI9111_REGISTER_AD_CHANNEL_READBACK		0x06
 #define PCI9111_AI_RANGE_REG				0x08
 #define PCI9111_RANGE_STATUS_REG			0x08
-#define PCI9111_REGISTER_TRIGGER_MODE_CONTROL		0x0A
+#define PCI9111_AI_MODE_CTRL_REG			0x0A
 #define PCI9111_AI_MODE_INT_RB_REG			0x0A
 #define PCI9111_SOFTWARE_TRIGGER_REG			0x0E
 #define PCI9111_INT_CTRL_REG				0x0C
@@ -132,12 +132,6 @@ TODO:
 /*
  * Define inlined function
  */
-
-#define pci9111_trigger_and_autoscan_get() \
-	(inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG)&0x0F)
-
-#define pci9111_trigger_and_autoscan_set(flags) \
-	outb(flags, dev->iobase + PCI9111_REGISTER_TRIGGER_MODE_CONTROL)
 
 #define pci9111_fifo_reset() do { \
 	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
@@ -256,7 +250,10 @@ static void pci9111_trigger_source_set(struct comedi_device *dev,
 {
 	int flags;
 
-	flags = pci9111_trigger_and_autoscan_get() & 0x09;
+	/* Read the current trigger mode control bits */
+	flags = inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG);
+	/* Mask off the EITS and TPST bits */
+	flags &= 0x9;
 
 	switch (source) {
 	case software:
@@ -272,31 +269,37 @@ static void pci9111_trigger_source_set(struct comedi_device *dev,
 		break;
 	}
 
-	pci9111_trigger_and_autoscan_set(flags);
+	outb(flags, dev->iobase + PCI9111_AI_MODE_CTRL_REG);
 }
 
 static void pci9111_pretrigger_set(struct comedi_device *dev, bool pretrigger)
 {
 	int flags;
 
-	flags = pci9111_trigger_and_autoscan_get() & 0x07;
+	/* Read the current trigger mode control bits */
+	flags = inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG);
+	/* Mask off the PTRG bit */
+	flags &= 0x7;
 
 	if (pretrigger)
 		flags |= PCI9111_PTRG_ON;
 
-	pci9111_trigger_and_autoscan_set(flags);
+	outb(flags, dev->iobase + PCI9111_AI_MODE_CTRL_REG);
 }
 
 static void pci9111_autoscan_set(struct comedi_device *dev, bool autoscan)
 {
 	int flags;
 
-	flags = pci9111_trigger_and_autoscan_get() & 0x0e;
+	/* Read the current trigger mode control bits */
+	flags = inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG);
+	/* Mask off the ASCAN bit */
+	flags &= 0xe;
 
 	if (autoscan)
 		flags |= PCI9111_ASCAN_ON;
 
-	pci9111_trigger_and_autoscan_set(flags);
+	outb(flags, dev->iobase + PCI9111_AI_MODE_CTRL_REG);
 }
 
 enum pci9111_ISC0_sources {
