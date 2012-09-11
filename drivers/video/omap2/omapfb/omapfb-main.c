@@ -1961,6 +1961,16 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 		}
 	}
 
+	for (i = 0; i < fbdev->num_fbs; i++) {
+		struct fb_info *fbi = fbdev->fbs[i];
+		struct omapfb_info *ofbi = FB2OFB(fbi);
+
+		if (ofbi->region->size == 0)
+			continue;
+
+		omapfb_clear_fb(fbi);
+	}
+
 	DBG("fb_infos initialized\n");
 
 	for (i = 0; i < fbdev->num_fbs; i++) {
@@ -1986,16 +1996,6 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 			dev_err(fbdev->dev, "failed to change mode\n");
 			return r;
 		}
-	}
-
-	for (i = 0; i < fbdev->num_fbs; i++) {
-		struct fb_info *fbi = fbdev->fbs[i];
-		struct omapfb_info *ofbi = FB2OFB(fbi);
-
-		if (ofbi->region->size == 0)
-			continue;
-
-		omapfb_clear_fb(fbi);
 	}
 
 	/* Enable fb0 */
