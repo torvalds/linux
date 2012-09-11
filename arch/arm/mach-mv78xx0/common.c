@@ -130,17 +130,17 @@ static int get_tclk(void)
  ****************************************************************************/
 static struct map_desc mv78xx0_io_desc[] __initdata = {
 	{
-		.virtual	= MV78XX0_CORE_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) MV78XX0_CORE_REGS_VIRT_BASE,
 		.pfn		= 0,
 		.length		= MV78XX0_CORE_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= MV78XX0_PCIE_IO_VIRT_BASE(0),
+		.virtual	= (unsigned long) MV78XX0_PCIE_IO_VIRT_BASE(0),
 		.pfn		= __phys_to_pfn(MV78XX0_PCIE_IO_PHYS_BASE(0)),
 		.length		= MV78XX0_PCIE_IO_SIZE * 8,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= MV78XX0_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) MV78XX0_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(MV78XX0_REGS_PHYS_BASE),
 		.length		= MV78XX0_REGS_SIZE,
 		.type		= MT_DEVICE,
@@ -300,7 +300,8 @@ void __init mv78xx0_sata_init(struct mv_sata_platform_data *sata_data)
  ****************************************************************************/
 void __init mv78xx0_uart0_init(void)
 {
-	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
+	orion_uart0_init((unsigned long) UART0_VIRT_BASE,
+			 UART0_PHYS_BASE,
 			 IRQ_MV78XX0_UART_0, tclk);
 }
 
@@ -310,7 +311,8 @@ void __init mv78xx0_uart0_init(void)
  ****************************************************************************/
 void __init mv78xx0_uart1_init(void)
 {
-	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
+	orion_uart1_init((unsigned long) UART1_VIRT_BASE,
+			 UART1_PHYS_BASE,
 			 IRQ_MV78XX0_UART_1, tclk);
 }
 
@@ -320,7 +322,8 @@ void __init mv78xx0_uart1_init(void)
  ****************************************************************************/
 void __init mv78xx0_uart2_init(void)
 {
-	orion_uart2_init(UART2_VIRT_BASE, UART2_PHYS_BASE,
+	orion_uart2_init((unsigned long) UART2_VIRT_BASE,
+			 UART2_PHYS_BASE,
 			 IRQ_MV78XX0_UART_2, tclk);
 }
 
@@ -329,7 +332,8 @@ void __init mv78xx0_uart2_init(void)
  ****************************************************************************/
 void __init mv78xx0_uart3_init(void)
 {
-	orion_uart3_init(UART3_VIRT_BASE, UART3_PHYS_BASE,
+	orion_uart3_init((unsigned long) UART3_VIRT_BASE,
+			 UART3_PHYS_BASE,
 			 IRQ_MV78XX0_UART_3, tclk);
 }
 
@@ -338,12 +342,13 @@ void __init mv78xx0_uart3_init(void)
  ****************************************************************************/
 void __init mv78xx0_init_early(void)
 {
-	orion_time_set_base(TIMER_VIRT_BASE);
+	orion_time_set_base((unsigned long) TIMER_VIRT_BASE);
 }
 
 static void mv78xx0_timer_init(void)
 {
-	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
+	orion_time_init((unsigned long) BRIDGE_VIRT_BASE,
+			BRIDGE_INT_TIMER1_CLR,
 			IRQ_MV78XX0_TIMER_1, get_tclk());
 }
 

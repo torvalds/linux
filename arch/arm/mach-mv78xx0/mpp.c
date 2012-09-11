@@ -33,5 +33,6 @@ static unsigned int __init mv78xx0_variant(void)
 void __init mv78xx0_mpp_conf(unsigned int *mpp_list)
 {
 	orion_mpp_conf(mpp_list, mv78xx0_variant(),
-		       MPP_MAX, DEV_BUS_VIRT_BASE);
+		       MPP_MAX,
+		       (unsigned long) DEV_BUS_VIRT_BASE);
 }

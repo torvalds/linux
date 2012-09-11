@@ -47,7 +47,7 @@ static void __init __iomem *win_cfg_base(const struct orion_addr_map_cfg *cfg, i
 	 * so we don't need to take that into account here.
 	 */
 
-	return (void __iomem *)((win < 8) ? WIN0_OFF(win) : WIN8_OFF(win));
+	return (win < 8) ? WIN0_OFF(win) : WIN8_OFF(win);
 }
 
 /*
