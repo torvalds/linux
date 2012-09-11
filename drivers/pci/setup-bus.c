@@ -749,17 +749,12 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	struct resource *b_res = find_free_bus_resource(bus, IORESOURCE_IO);
 	unsigned long size = 0, size0 = 0, size1 = 0;
 	resource_size_t children_add_size = 0;
-	resource_size_t min_align = 4096, align;
+	resource_size_t min_align, io_align, align;
 
 	if (!b_res)
  		return;
 
-	/*
-	 * Per spec, I/O windows are 4K-aligned, but some bridges have an
-	 * extension to support 1K alignment.
-	 */
-	if (bus->self->io_window_1k)
-		min_align = 1024;
+	io_align = min_align = window_alignment(bus, IORESOURCE_IO);
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		int i;
 
@@ -786,8 +781,8 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 		}
 	}
 
-	if (min_align > 4096)
-		min_align = 4096;
+	if (min_align > io_align)
+		min_align = io_align;
 
 	size0 = calculate_iosize(size, min_size, size1,
 			resource_size(b_res), min_align);
@@ -909,6 +904,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			min_align = align1 >> 1;
 		align += aligns[order];
 	}
+
+	min_align = max(min_align, window_alignment(bus, b_res->flags & mask));
 	size0 = calculate_memsize(size, min_size, 0, resource_size(b_res), min_align);
 	if (children_add_size > add_size)
 		add_size = children_add_size;
