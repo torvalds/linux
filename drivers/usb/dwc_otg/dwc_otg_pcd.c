@@ -1590,7 +1590,6 @@ int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
 {
     dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
     dwc_otg_disable_global_interrupts( core_if );
-    //
 #ifdef CONFIG_ARCH_RK29
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, true);
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, true);
@@ -1762,34 +1761,44 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
 	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)_dev->platform_data));
     dwc_otg_pcd_t * _pcd = otg_dev->pcd;
     unsigned long flags;
-
-	local_irq_save(flags);
+    local_irq_save(flags);
     _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
-    if(!pldata->get_status(USB_STATUS_ID)){  // id low
-        if( pldata->phy_status){ 
+    if(!pldata->get_status(USB_STATUS_ID))
+    {  // id low
+        if( pldata->dwc_otg_uart_mode != NULL )
+        {//exit phy bypass to uart & enable usb phy
+            pldata->dwc_otg_uart_mode( pldata, PHY_USB_MODE);
+        }
+        if( pldata->phy_status)
+        { 
             pldata->clock_enable( pldata, 1);		
             pldata->phy_suspend(pldata, USB_PHY_ENABLED);
         } 
     }
-	else if(pldata->get_status(USB_STATUS_BVABLID)){  // bvalid
+	else if(pldata->get_status(USB_STATUS_BVABLID))
+	{  // bvalid
         /* if usb not connect before ,then start connect */
-         if( _pcd->vbus_status == 0 ) {
+         if( _pcd->vbus_status == 0 ) 
+         {
             DWC_PRINT("********vbus detect*********************************************\n");
     	    _pcd->vbus_status = 1;
             if(_pcd->conn_en)
                 goto connect;
-            else if( pldata->phy_status == USB_PHY_ENABLED ){
+            else if( pldata->phy_status == USB_PHY_ENABLED )
+            {
                 // not connect, suspend phy
                 pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
                 udelay(3);
                 pldata->clock_enable( pldata, 0);
             }
         } 
-        else if((_pcd->conn_en)&&(_pcd->conn_status>=0)&&(_pcd->conn_status <3)){
+        else if((_pcd->conn_en)&&(_pcd->conn_status>=0)&&(_pcd->conn_status <3))
+        {
             DWC_PRINT("********soft reconnect******************************************\n");
     	    goto connect;
         }
-        else if(_pcd->conn_status ==3){
+        else if(_pcd->conn_status ==3)
+        {
 			//*连接不上时释放锁，允许系统进入二级睡眠，yk@rk,20100331*//
             dwc_otg_msc_unlock(_pcd);
             _pcd->conn_status++;
@@ -1797,24 +1806,32 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
                 _pcd->vbus_status = 2;
                 
             // not connect, suspend phy
-            if( pldata->phy_status == USB_PHY_ENABLED ){
+            if( pldata->phy_status == USB_PHY_ENABLED )
+            {
                 pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
                 udelay(3);
                 pldata->clock_enable( pldata, 0);
             }
         }
-	}else {
+	}
+    else 
+    {
         _pcd->vbus_status = 0;
-        if(_pcd->conn_status){
+        if(_pcd->conn_status)
+        {
              _pcd->conn_status = 0;
              dwc_otg_msc_unlock(_pcd);
         }
-        else if( pldata->phy_status == USB_PHY_ENABLED ){ 
+        else if( pldata->phy_status == USB_PHY_ENABLED )
+        { 
             /* no vbus detect here , close usb phy  */
             pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
             udelay(3);
-            pldata->clock_enable( pldata, 0);		
-        }
+            pldata->clock_enable( pldata, 0);
+            /* usb phy bypass to uart mode  */
+            if( pldata->dwc_otg_uart_mode != NULL )
+                pldata->dwc_otg_uart_mode( pldata, PHY_UART_MODE);    
+        }  
     }
     add_timer(&_pcd->check_vbus_timer); 
 	local_irq_restore(flags);
@@ -1823,7 +1840,8 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
 connect:
     if(_pcd->conn_status==0)
         dwc_otg_msc_lock(_pcd);
-    if( pldata->phy_status){
+    if( pldata->phy_status)
+    {
         pldata->clock_enable( pldata, 1);	
         pldata->phy_suspend(pldata, USB_PHY_ENABLED);
     }
@@ -1873,7 +1891,8 @@ int dwc_otg_pcd_init(struct device *dev)
 	static char pcd_name[] = "dwc_otg_pcd";
 	dwc_otg_pcd_t *pcd;
 	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
-    dwc_otg_core_if_t *core_if = otg_dev->core_if;
+    dwc_otg_core_if_t *core_if = otg_dev->core_if; 
+	struct dwc_otg_platform_data *pldata = dev->platform_data;
 	int retval = 0;
 	int irq;
 	 /*
@@ -1970,9 +1989,26 @@ int dwc_otg_pcd_init(struct device *dev)
     
     INIT_DELAYED_WORK(&pcd->reconnect , dwc_phy_reconnect);
     pcd->vbus_status  = 0;
-    pcd->phy_suspend  = 0;
-    if(dwc_otg_is_device_mode(core_if))
-        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<4)); // delay 16 S  
+    pcd->phy_suspend  = 0; 
+    if(dwc_otg_is_device_mode(core_if)){
+#ifdef CONFIG_RK_USB_UART        
+        if(pldata->get_status(USB_STATUS_BVABLID))
+        {
+             pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
+        }//phy usb mode
+        else
+        {
+            pldata->phy_suspend(pldata,USB_PHY_SUSPEND);
+            pldata->dwc_otg_uart_mode(pldata, PHY_UART_MODE);
+        }//phy bypass to uart mode
+#endif
+        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<4)); // delay 16 S 
+    }
+#ifdef CONFIG_RK_USB_UART
+    else if(pldata->dwc_otg_uart_mode != NULL)
+        pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);//disable phy bypass uart  
+#endif
+
 	return 0;
 }
 /**
