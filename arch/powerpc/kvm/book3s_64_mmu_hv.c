@@ -851,7 +851,8 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 		psize = hpte_page_size(hptep[0], ptel);
 		if ((hptep[0] & HPTE_V_VALID) &&
 		    hpte_rpn(ptel, psize) == gfn) {
-			hptep[0] |= HPTE_V_ABSENT;
+			if (kvm->arch.using_mmu_notifiers)
+				hptep[0] |= HPTE_V_ABSENT;
 			kvmppc_invalidate_hpte(kvm, hptep, i);
 			/* Harvest R and C */
 			rcbits = hptep[1] & (HPTE_R_R | HPTE_R_C);
@@ -876,6 +877,28 @@ int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
 	if (kvm->arch.using_mmu_notifiers)
 		kvm_handle_hva_range(kvm, start, end, kvm_unmap_rmapp);
 	return 0;
+}
+
+void kvmppc_core_flush_memslot(struct kvm *kvm, struct kvm_memory_slot *memslot)
+{
+	unsigned long *rmapp;
+	unsigned long gfn;
+	unsigned long n;
+
+	rmapp = memslot->arch.rmap;
+	gfn = memslot->base_gfn;
+	for (n = memslot->npages; n; --n) {
+		/*
+		 * Testing the present bit without locking is OK because
+		 * the memslot has been marked invalid already, and hence
+		 * no new HPTEs referencing this page can be created,
+		 * thus the present bit can't go from 0 to 1.
+		 */
+		if (*rmapp & KVMPPC_RMAP_PRESENT)
+			kvm_unmap_rmapp(kvm, rmapp, gfn);
+		++rmapp;
+		++gfn;
+	}
 }
 
 static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
@@ -1031,16 +1054,16 @@ static int kvm_test_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
 	return ret;
 }
 
-long kvmppc_hv_get_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
+long kvmppc_hv_get_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			     unsigned long *map)
 {
 	unsigned long i;
-	unsigned long *rmapp, *map;
+	unsigned long *rmapp;
 
 	preempt_disable();
 	rmapp = memslot->arch.rmap;
-	map = memslot->dirty_bitmap;
 	for (i = 0; i < memslot->npages; ++i) {
-		if (kvm_test_clear_dirty(kvm, rmapp))
+		if (kvm_test_clear_dirty(kvm, rmapp) && map)
 			__set_bit_le(i, map);
 		++rmapp;
 	}

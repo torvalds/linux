@@ -81,7 +81,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	ptel = rev->guest_rpte |= rcbits;
 	gfn = hpte_rpn(ptel, hpte_page_size(hpte_v, ptel));
 	memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
-	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
+	if (!memslot)
 		return;
 
 	rmap = real_vmalloc_addr(&memslot->arch.rmap[gfn - memslot->base_gfn]);

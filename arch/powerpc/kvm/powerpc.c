@@ -411,7 +411,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
                struct kvm_memory_slot old,
                int user_alloc)
 {
-	kvmppc_core_commit_memory_region(kvm, mem);
+	kvmppc_core_commit_memory_region(kvm, mem, old);
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
@@ -421,6 +421,7 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm)
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 				   struct kvm_memory_slot *slot)
 {
+	kvmppc_core_flush_memslot(kvm, slot);
 }
 
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)

@@ -1288,7 +1288,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 	n = kvm_dirty_bitmap_bytes(memslot);
 	memset(memslot->dirty_bitmap, 0, n);
 
-	r = kvmppc_hv_get_dirty_log(kvm, memslot);
+	r = kvmppc_hv_get_dirty_log(kvm, memslot, memslot->dirty_bitmap);
 	if (r)
 		goto out;
 
@@ -1378,8 +1378,22 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 }
 
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem)
+				      struct kvm_userspace_memory_region *mem,
+				      struct kvm_memory_slot old)
 {
+	unsigned long npages = mem->memory_size >> PAGE_SHIFT;
+	struct kvm_memory_slot *memslot;
+
+	if (npages && old.npages) {
+		/*
+		 * If modifying a memslot, reset all the rmap dirty bits.
+		 * If this is a new memslot, we don't need to do anything
+		 * since the rmap array starts out as all zeroes,
+		 * i.e. no pages are dirty.
+		 */
+		memslot = id_to_memslot(kvm->memslots, mem->slot);
+		kvmppc_hv_get_dirty_log(kvm, memslot, NULL);
+	}
 }
 
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
