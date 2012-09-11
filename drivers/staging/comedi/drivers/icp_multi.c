@@ -706,10 +706,6 @@ static int icp_multi_attach(struct comedi_device *dev,
 	resource_size_t io_addr[5], iobase;
 	unsigned char pci_bus, pci_slot, pci_func;
 
-	printk(KERN_WARNING
-	       "icp_multi EDBG: BGN: icp_multi_attach(...)\n");
-
-	/*  Allocate private data storage space */
 	ret = alloc_private(dev, sizeof(struct icp_multi_private));
 	if (ret < 0)
 		return ret;
@@ -717,10 +713,6 @@ static int icp_multi_attach(struct comedi_device *dev,
 	/*  Initialise list of PCI cards in system, if not already done so */
 	if (pci_list_builded++ == 0)
 		pci_card_list_init(PCI_VENDOR_ID_ICP, 0);
-
-	printk(KERN_WARNING
-	       "Anne's comedi%d: icp_multi: board=%s", dev->minor,
-	       this_board->name);
 
 	card = select_and_alloc_pci_card(PCI_VENDOR_ID_ICP,
 					 this_board->device_id, it->options[0],
@@ -732,24 +724,14 @@ static int icp_multi_attach(struct comedi_device *dev,
 	devpriv->card = card;
 
 	if ((pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
-			   &irq)) < 0) {
-		printk(KERN_WARNING " - Can't get configuration data!\n");
+			   &irq)) < 0)
 		return -EIO;
-	}
 
 	iobase = io_addr[2];
 	devpriv->phys_iobase = iobase;
-
-	printk(KERN_WARNING
-	       ", b:s:f=%d:%d:%d, io=0x%8llx \n", pci_bus, pci_slot, pci_func,
-	       (unsigned long long)iobase);
-
 	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
-
-	if (devpriv->io_addr == NULL) {
-		printk(KERN_WARNING "ioremap failed.\n");
+	if (devpriv->io_addr == NULL)
 		return -ENOMEM;
-	}
 
 	dev->board_name = this_board->name;
 
@@ -762,18 +744,11 @@ static int icp_multi_attach(struct comedi_device *dev,
 	if (irq) {
 		if (request_irq(irq, interrupt_service_icp_multi,
 				IRQF_SHARED, "Inova Icp Multi", dev)) {
-			printk(KERN_WARNING
-				"unable to allocate IRQ %u, DISABLING IT",
-				irq);
 			irq = 0;	/* Can't use IRQ */
-		} else
-			printk(KERN_WARNING ", irq=%u", irq);
-	} else
-		printk(KERN_WARNING ", IRQ disabled");
+		}
+	}
 
 	dev->irq = irq;
-
-	printk(KERN_WARNING ".\n");
 
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
@@ -827,6 +802,9 @@ static int icp_multi_attach(struct comedi_device *dev,
 	s->insn_write = icp_multi_insn_write_ctr;
 
 	devpriv->valid = 1;
+
+	dev_info(dev->class_dev, "%s attached, irq %sabled\n",
+		dev->board_name, dev->irq ? "en" : "dis");
 
 	return 0;
 }
