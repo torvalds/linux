@@ -107,7 +107,7 @@ static struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb)
 		 * the PE for PHB has been determined when that
 		 * was created.
 		 */
-		if (pe->type == EEH_PE_PHB &&
+		if ((pe->type & EEH_PE_PHB) &&
 		    pe->phb == phb) {
 			eeh_unlock();
 			return pe;
@@ -219,7 +219,7 @@ static void *__eeh_pe_get(void *data, void *flag)
 	struct eeh_dev *edev = (struct eeh_dev *)flag;
 
 	/* Unexpected PHB PE */
-	if (pe->type == EEH_PE_PHB)
+	if (pe->type & EEH_PE_PHB)
 		return NULL;
 
 	/* We prefer PE address */
@@ -314,7 +314,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 * components.
 	 */
 	pe = eeh_pe_get(edev);
-	if (pe) {
+	if (pe && !(pe->type & EEH_PE_INVALID)) {
 		if (!edev->pe_config_addr) {
 			pr_err("%s: PE with addr 0x%x already exists\n",
 				__func__, edev->config_addr);
@@ -329,6 +329,24 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 		list_add_tail(&edev->list, &pe->edevs);
 		pr_debug("EEH: Add %s to Bus PE#%x\n",
 			edev->dn->full_name, pe->addr);
+
+		return 0;
+	} else if (pe && (pe->type & EEH_PE_INVALID)) {
+		list_add_tail(&edev->list, &pe->edevs);
+		edev->pe = pe;
+		/*
+		 * We're running to here because of PCI hotplug caused by
+		 * EEH recovery. We need clear EEH_PE_INVALID until the top.
+		 */
+		parent = pe;
+		while (parent) {
+			if (!(parent->type & EEH_PE_INVALID))
+				break;
+			parent->type &= ~EEH_PE_INVALID;
+			parent = parent->parent;
+		}
+		pr_debug("EEH: Add %s to Device PE#%x, Parent PE#%x\n",
+			edev->dn->full_name, pe->addr, pe->parent->addr);
 
 		return 0;
 	}
@@ -385,7 +403,8 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
  */
 int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 {
-	struct eeh_pe *pe, *parent;
+	struct eeh_pe *pe, *parent, *child;
+	int cnt;
 
 	if (!edev->pe) {
 		pr_warning("%s: No PE found for EEH device %s\n",
@@ -406,13 +425,22 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	 */
 	while (1) {
 		parent = pe->parent;
-		if (pe->type == EEH_PE_PHB)
+		if (pe->type & EEH_PE_PHB)
 			break;
 
-		if (list_empty(&pe->edevs) &&
-		    list_empty(&pe->child_list)) {
-			list_del(&pe->child);
-			kfree(pe);
+		if (list_empty(&pe->edevs)) {
+			cnt = 0;
+			list_for_each_entry(child, &pe->child_list, child) {
+				if (!(pe->type & EEH_PE_INVALID)) {
+					cnt++;
+					break;
+				}
+			}
+
+			if (!cnt)
+				pe->type |= EEH_PE_INVALID;
+			else
+				break;
 		}
 
 		pe = parent;
@@ -578,9 +606,9 @@ struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe)
 	struct eeh_dev *edev;
 	struct pci_dev *pdev;
 
-	if (pe->type == EEH_PE_PHB) {
+	if (pe->type & EEH_PE_PHB) {
 		bus = pe->phb->bus;
-	} else if (pe->type == EEH_PE_BUS) {
+	} else if (pe->type & EEH_PE_BUS) {
 		edev = list_first_entry(&pe->edevs, struct eeh_dev, list);
 		pdev = eeh_dev_to_pci_dev(edev);
 		if (pdev)

@@ -45,9 +45,10 @@ struct device_node;
  * in the corresponding PHB. Therefore, the root PEs should be created
  * against existing PHBs in on-to-one fashion.
  */
-#define EEH_PE_PHB	1	/* PHB PE    */
-#define EEH_PE_DEVICE 	2	/* Device PE */
-#define EEH_PE_BUS	3	/* Bus PE    */
+#define EEH_PE_INVALID	(1 << 0)	/* Invalid   */
+#define EEH_PE_PHB	(1 << 1)	/* PHB PE    */
+#define EEH_PE_DEVICE 	(1 << 2)	/* Device PE */
+#define EEH_PE_BUS	(1 << 3)	/* Bus PE    */
 
 #define EEH_PE_ISOLATED		(1 << 0)	/* Isolated PE		*/
 #define EEH_PE_RECOVERING	(1 << 1)	/* Recovering PE	*/
