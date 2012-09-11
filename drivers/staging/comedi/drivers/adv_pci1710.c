@@ -1282,75 +1282,45 @@ static int pci1710_reset(struct comedi_device *dev)
 	}
 }
 
-static struct pci_dev *pci1710_find_pci_dev(struct comedi_device *dev,
-					    struct comedi_devconfig *it)
+static const void *pci1710_find_boardinfo(struct comedi_device *dev,
+					  struct pci_dev *pcidev)
 {
-	const struct boardtype *this_board = comedi_board(dev);
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-	int board_index = this_board - boardtypes;
+	const struct boardtype *this_board;
 	int i;
 
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (bus != pcidev->bus->number ||
-			    slot != PCI_SLOT(pcidev->devfn))
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
-			continue;
-		if (strcmp(this_board->name, DRV_NAME) == 0) {
-			for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
-				if (pcidev->device == boardtypes[i].device_id) {
-					board_index = i;
-					break;
-				}
-			}
-			if (i == ARRAY_SIZE(boardtypes))
-				continue;
-		} else {
-			if (pcidev->device != boardtypes[board_index].device_id)
-				continue;
-		}
-		dev->board_ptr = &boardtypes[board_index];
-		return pcidev;
+	for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
+		this_board = &boardtypes[i];
+		if (pcidev->device == this_board->device_id)
+			return this_board;
 	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
-static int pci1710_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int pci1710_attach_pci(struct comedi_device *dev,
+			      struct pci_dev *pcidev)
 {
 	const struct boardtype *this_board;
 	struct pci1710_private *devpriv;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
-	unsigned int irq;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	this_board = pci1710_find_boardinfo(dev, pcidev);
+	if (!this_board)
+		return -ENODEV;
+	dev->board_ptr = this_board;
+	dev->board_name = this_board->name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0)
-		return -ENOMEM;
+		return ret;
 	devpriv = dev->private;
 
-	pcidev = pci1710_find_pci_dev(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	this_board = comedi_board(dev);
-
-	ret = comedi_pci_enable(pcidev, DRV_NAME);
+	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
-
 	dev->iobase = pci_resource_start(pcidev, 2);
-	irq = pcidev->irq;
-
-	dev->board_name = this_board->name;
 
 	n_subdevices = 0;
 	if (this_board->n_aichan)
@@ -1370,19 +1340,13 @@ static int pci1710_attach(struct comedi_device *dev,
 
 	pci1710_reset(dev);
 
-	if (this_board->have_irq) {
-		if (irq) {
-			if (request_irq(irq, interrupt_service_pci1710,
-					IRQF_SHARED, "Advantech PCI-1710",
-					dev)) {
-				irq = 0;	/* Can't use IRQ */
-			}
-		}
-	} else {
-		irq = 0;
+	if (this_board->have_irq && pcidev->irq) {
+		ret = request_irq(pcidev->irq, interrupt_service_pci1710,
+				  IRQF_SHARED, dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = pcidev->irq;
 	}
 
-	dev->irq = irq;
 	subdev = 0;
 
 	if (this_board->n_aichan) {
@@ -1398,7 +1362,7 @@ static int pci1710_attach(struct comedi_device *dev,
 		s->range_table = this_board->rangelist_ai;
 		s->cancel = pci171x_ai_cancel;
 		s->insn_read = pci171x_insn_read_ai;
-		if (irq) {
+		if (dev->irq) {
 			s->subdev_flags |= SDF_CMD_READ;
 			s->do_cmdtest = pci171x_ai_cmdtest;
 			s->do_cmd = pci171x_ai_cmd;
@@ -1491,18 +1455,14 @@ static void pci1710_detach(struct comedi_device *dev)
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
 	}
 }
 
 static struct comedi_driver adv_pci1710_driver = {
 	.driver_name	= "adv_pci1710",
 	.module		= THIS_MODULE,
-	.attach		= pci1710_attach,
+	.attach_pci	= pci1710_attach_pci,
 	.detach		= pci1710_detach,
-	.num_names	= ARRAY_SIZE(boardtypes),
-	.board_name	= &boardtypes[0].name,
-	.offset		= sizeof(struct boardtype),
 };
 
 static int __devinit adv_pci1710_pci_probe(struct pci_dev *dev,
