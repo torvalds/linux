@@ -511,7 +511,13 @@ static int balanced_start(void)
 	down_delay = msecs_to_jiffies(2000);
 
 	table = cpufreq_frequency_get_table(0);
+	if (!table)
+		return -EINVAL;
+
 	for (count = 0; table[count].frequency != CPUFREQ_TABLE_END; count++);
+
+	if (count < 4)
+		return -EINVAL;
 
 	idle_top_freq = table[(count / 2) - 1].frequency;
 	idle_bottom_freq = table[(count / 2) - 2].frequency;
