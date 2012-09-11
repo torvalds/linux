@@ -58,7 +58,7 @@ Options:
 
 #include "icp_multi.h"
 
-#define DEVICE_ID	0x8000	/* Device ID */
+#define PCI_DEVICE_ID_ICP_MULTI	0x8000
 
 #define ICP_MULTI_EXTDEBUG
 
@@ -1025,7 +1025,7 @@ static void icp_multi_detach(struct comedi_device *dev)
 static const struct boardtype boardtypes[] = {
 	{
 		.name		= "icp_multi",
-		.device_id	= DEVICE_ID,
+		.device_id	= PCI_DEVICE_ID_ICP_MULTI,
 		.iorange	= IORANGE_ICP_MULTI,
 		.have_irq	= 1,
 		.cardtype	= TYPE_ICP_MULTI,
@@ -1052,7 +1052,31 @@ static struct comedi_driver icp_multi_driver = {
 	.board_name	= &boardtypes[0].name,
 	.offset		= sizeof(struct boardtype),
 };
-module_comedi_driver(icp_multi_driver);
+
+static int __devinit icp_multi_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &icp_multi_driver);
+}
+
+static void __devexit icp_multi_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(icp_multi_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ICP, PCI_DEVICE_ID_ICP_MULTI) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, icp_multi_pci_table);
+
+static struct pci_driver icp_multi_pci_driver = {
+	.name		= "icp_multi",
+	.id_table	= icp_multi_pci_table,
+	.probe		= icp_multi_pci_probe,
+	.remove		= __devexit_p(icp_multi_pci_remove),
+};
+module_comedi_pci_driver(icp_multi_driver, icp_multi_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
