@@ -26,7 +26,8 @@
 #include "core.h"
 
 #define DRIVER_NAME			"pinctrl-single"
-#define PCS_MUX_NAME			"pinctrl-single,pins"
+#define PCS_MUX_PINS_NAME		"pinctrl-single,pins"
+#define PCS_MUX_BITS_NAME		"pinctrl-single,bits"
 #define PCS_REG_NAME_LEN		((sizeof(unsigned long) * 2) + 1)
 #define PCS_OFF_DISABLED		~0U
 
@@ -54,6 +55,7 @@ struct pcs_pingroup {
 struct pcs_func_vals {
 	void __iomem *reg;
 	unsigned val;
+	unsigned mask;
 };
 
 /**
@@ -139,6 +141,7 @@ struct pcs_device {
 	unsigned fshift;
 	unsigned foff;
 	unsigned fmax;
+	bool bits_per_mux;
 	struct pcs_name *names;
 	struct pcs_data pins;
 	struct radix_tree_root pgtree;
@@ -332,12 +335,17 @@ static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 
 	for (i = 0; i < func->nvals; i++) {
 		struct pcs_func_vals *vals;
-		unsigned val;
+		unsigned val, mask;
 
 		vals = &func->vals[i];
 		val = pcs->read(vals->reg);
-		val &= ~pcs->fmask;
-		val |= (vals->val & pcs->fmask);
+		if (!vals->mask)
+			mask = pcs->fmask;
+		else
+			mask = pcs->fmask & vals->mask;
+
+		val &= ~mask;
+		val |= (vals->val & mask);
 		pcs->write(val, vals->reg);
 	}
 
@@ -657,18 +665,29 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 {
 	struct pcs_func_vals *vals;
 	const __be32 *mux;
-	int size, rows, *pins, index = 0, found = 0, res = -ENOMEM;
+	int size, params, rows, *pins, index = 0, found = 0, res = -ENOMEM;
 	struct pcs_function *function;
 
-	mux = of_get_property(np, PCS_MUX_NAME, &size);
-	if ((!mux) || (size < sizeof(*mux) * 2)) {
-		dev_err(pcs->dev, "bad data for mux %s\n",
-			np->name);
+	if (pcs->bits_per_mux) {
+		params = 3;
+		mux = of_get_property(np, PCS_MUX_BITS_NAME, &size);
+	} else {
+		params = 2;
+		mux = of_get_property(np, PCS_MUX_PINS_NAME, &size);
+	}
+
+	if (!mux) {
+		dev_err(pcs->dev, "no valid property for %s\n", np->name);
+		return -EINVAL;
+	}
+
+	if (size < (sizeof(*mux) * params)) {
+		dev_err(pcs->dev, "bad data for %s\n", np->name);
 		return -EINVAL;
 	}
 
 	size /= sizeof(*mux);	/* Number of elements in array */
-	rows = size / 2;	/* Each row is a key value pair */
+	rows = size / params;
 
 	vals = devm_kzalloc(pcs->dev, sizeof(*vals) * rows, GFP_KERNEL);
 	if (!vals)
@@ -686,6 +705,10 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 		val = be32_to_cpup(mux + index++);
 		vals[found].reg = pcs->base + offset;
 		vals[found].val = val;
+		if (params == 3) {
+			val = be32_to_cpup(mux + index++);
+			vals[found].mask = val;
+		}
 
 		pin = pcs_get_pin_by_offset(pcs, offset);
 		if (pin < 0) {
@@ -882,6 +905,9 @@ static int __devinit pcs_probe(struct platform_device *pdev)
 					&pcs->foff);
 	if (ret)
 		pcs->foff = PCS_OFF_DISABLED;
+
+	pcs->bits_per_mux = of_property_read_bool(np,
+						  "pinctrl-single,bit-per-mux");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
