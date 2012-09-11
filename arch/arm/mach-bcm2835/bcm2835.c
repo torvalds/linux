@@ -16,6 +16,7 @@
 #include <linux/irqchip/bcm2835.h>
 #include <linux/of_platform.h>
 #include <linux/bcm2835_timer.h>
+#include <linux/clk/bcm2835.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -37,6 +38,8 @@ void __init bcm2835_map_io(void)
 void __init bcm2835_init(void)
 {
 	int ret;
+
+	bcm2835_init_clocks();
 
 	ret = of_platform_populate(NULL, of_default_bus_match_table, NULL,
 				   NULL);
