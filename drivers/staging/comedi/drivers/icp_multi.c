@@ -132,7 +132,6 @@ struct boardtype {
 	char cardtype;		/*  0=ICP Multi */
 	int n_aichan;		/*  num of A/D chans */
 	int n_aichand;		/*  num of A/D chans in diff mode */
-	int n_aochan;		/*  num of D/A chans */
 	int ai_maxdata;		/*  resolution of A/D */
 	int ao_maxdata;		/*  resolution of D/A */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
@@ -685,28 +684,28 @@ static int icp_multi_reset(struct comedi_device *dev)
 	writew(0, devpriv->io_addr + ICP_MULTI_INT_EN);
 	writew(0x00ff, devpriv->io_addr + ICP_MULTI_INT_STAT);
 
-	if (this_board->n_aochan)
-		/*  Set DACs to 0..5V range and 0V output */
-		for (i = 0; i < this_board->n_aochan; i++) {
-			devpriv->DacCmdStatus &= 0xfcce;
+	/* Set DACs to 0..5V range and 0V output */
+	for (i = 0; i < 4; i++) {
+		devpriv->DacCmdStatus &= 0xfcce;
 
-			/*  Set channel number */
-			devpriv->DacCmdStatus |= (i << 8);
+		/*  Set channel number */
+		devpriv->DacCmdStatus |= (i << 8);
 
-			/*  Output 0V */
-			writew(0, devpriv->io_addr + ICP_MULTI_AO);
+		/*  Output 0V */
+		writew(0, devpriv->io_addr + ICP_MULTI_AO);
 
-			/*  Set start conversion bit */
-			devpriv->DacCmdStatus |= DAC_ST;
+		/*  Set start conversion bit */
+		devpriv->DacCmdStatus |= DAC_ST;
 
-			/*  Output to command / status register */
-			writew(devpriv->DacCmdStatus,
-			       devpriv->io_addr + ICP_MULTI_DAC_CSR);
+		/*  Output to command / status register */
+		writew(devpriv->DacCmdStatus,
+			devpriv->io_addr + ICP_MULTI_DAC_CSR);
 
-			/*  Delay to allow DAC time to recover */
-			udelay(1);
-		}
-	/*  Digital outputs to 0 */
+		/*  Delay to allow DAC time to recover */
+		udelay(1);
+	}
+
+	/* Digital outputs to 0 */
 	writew(0, devpriv->io_addr + ICP_MULTI_DO);
 
 	return 0;
@@ -772,8 +771,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	n_subdevices = 0;
 	if (this_board->n_aichan)
 		n_subdevices++;
-	if (this_board->n_aochan)
-		n_subdevices++;
+	n_subdevices++;
 	n_subdevices++;
 	n_subdevices++;
 	n_subdevices++;
@@ -820,18 +818,16 @@ static int icp_multi_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (this_board->n_aochan) {
-		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->n_aochan;
-		s->maxdata = this_board->ao_maxdata;
-		s->len_chanlist = this_board->n_aochan;
-		s->range_table = &range_analog;
-		s->insn_write = icp_multi_insn_write_ao;
-		s->insn_read = icp_multi_insn_read_ao;
-		subdev++;
-	}
+	s = &dev->subdevices[subdev];
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 4;
+	s->maxdata = this_board->ao_maxdata;
+	s->len_chanlist = 4;
+	s->range_table = &range_analog;
+	s->insn_write = icp_multi_insn_write_ao;
+	s->insn_read = icp_multi_insn_read_ao;
+	subdev++;
 
 	s = &dev->subdevices[subdev];
 	s->type = COMEDI_SUBD_DI;
@@ -896,7 +892,6 @@ static const struct boardtype boardtypes[] = {
 		.cardtype	= TYPE_ICP_MULTI,
 		.n_aichan	= 16,
 		.n_aichand	= 8,
-		.n_aochan	= 4,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_analog,
