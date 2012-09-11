@@ -119,15 +119,15 @@ TODO:
 #define PCI9111_8254_BASE_REG		0x40
 #define PCI9111_INT_CLR_REG		0x48
 
-static const struct comedi_lrange pci9111_hr_ai_range = {
+static const struct comedi_lrange pci9111_ai_range = {
 	5,
 	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1.25),
-	 BIP_RANGE(0.625)
-	 }
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625)
+	}
 };
 
 /*  Private data structure */
@@ -990,7 +990,7 @@ static int pci9111_attach_pci(struct comedi_device *dev,
 	s->n_chan	= 16;
 	s->maxdata	= 0xffff;
 	s->len_chanlist	= 16;
-	s->range_table	= &pci9111_hr_ai_range;
+	s->range_table	= &pci9111_ai_range;
 	s->cancel	= pci9111_ai_cancel;
 	s->insn_read	= pci9111_ai_insn_read;
 	s->do_cmdtest	= pci9111_ai_do_cmd_test;
