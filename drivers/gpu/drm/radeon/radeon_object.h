@@ -52,7 +52,7 @@ static inline unsigned radeon_mem_type_to_domain(u32 mem_type)
 	return 0;
 }
 
-int radeon_bo_reserve(struct radeon_bo *bo, bool no_wait);
+int radeon_bo_reserve(struct radeon_bo *bo, bool no_intr);
 
 static inline void radeon_bo_unreserve(struct radeon_bo *bo)
 {

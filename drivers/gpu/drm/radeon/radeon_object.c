@@ -627,18 +627,17 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 /**
  * radeon_bo_reserve - reserve bo
  * @bo:		bo structure
- * @no_wait:		don't sleep while trying to reserve (return -EBUSY)
+ * @no_intr:	don't return -ERESTARTSYS on pending signal
  *
  * Returns:
- * -EBUSY: buffer is busy and @no_wait is true
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  */
-int radeon_bo_reserve(struct radeon_bo *bo, bool no_wait)
+int radeon_bo_reserve(struct radeon_bo *bo, bool no_intr)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
+	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, false, 0);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(bo->rdev->dev, "%p reserve failed\n", bo);
