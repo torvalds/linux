@@ -134,7 +134,6 @@ struct boardtype {
 	int n_aichand;		/*  num of A/D chans in diff mode */
 	int n_aochan;		/*  num of D/A chans */
 	int n_dichan;		/*  num of DI chans */
-	int n_dochan;		/*  num of DO chans */
 	int ai_maxdata;		/*  resolution of A/D */
 	int ao_maxdata;		/*  resolution of D/A */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
@@ -778,8 +777,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 		n_subdevices++;
 	if (this_board->n_dichan)
 		n_subdevices++;
-	if (this_board->n_dochan)
-		n_subdevices++;
+	n_subdevices++;
 	n_subdevices++;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
@@ -850,19 +848,17 @@ static int icp_multi_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (this_board->n_dochan) {
-		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-		s->n_chan = this_board->n_dochan;
-		s->maxdata = 1;
-		s->len_chanlist = this_board->n_dochan;
-		s->range_table = &range_digital;
-		s->io_bits = (1 << this_board->n_dochan) - 1;
-		s->state = 0;
-		s->insn_bits = icp_multi_insn_bits_do;
-		subdev++;
-	}
+	s = &dev->subdevices[subdev];
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = 8;
+	s->maxdata = 1;
+	s->len_chanlist = 8;
+	s->range_table = &range_digital;
+	s->io_bits = 0xff;
+	s->state = 0;
+	s->insn_bits = icp_multi_insn_bits_do;
+	subdev++;
 
 	s = &dev->subdevices[subdev];
 	s->type = COMEDI_SUBD_COUNTER;
@@ -906,7 +902,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichand	= 8,
 		.n_aochan	= 4,
 		.n_dichan	= 16,
-		.n_dochan	= 8,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_analog,
