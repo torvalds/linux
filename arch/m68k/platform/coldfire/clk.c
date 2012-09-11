@@ -146,9 +146,3 @@ struct clk_ops clk_ops1 = {
 };
 #endif /* MCFPM_PPMCR1 */
 #endif /* MCFPM_PPMCR0 */
-
-struct clk *devm_clk_get(struct device *dev, const char *id)
-{
-	return NULL;
-}
-EXPORT_SYMBOL(devm_clk_get);
