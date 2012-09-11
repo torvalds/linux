@@ -953,12 +953,12 @@ int __devinit omap_bandgap_probe(struct platform_device *pdev)
 	for (i = 0; i < bg_ptr->conf->sensor_count; i++) {
 		char *domain;
 
+		if (bg_ptr->conf->sensors[i].register_cooling)
+			bg_ptr->conf->sensors[i].register_cooling(bg_ptr, i);
+
 		domain = bg_ptr->conf->sensors[i].domain;
 		if (bg_ptr->conf->expose_sensor)
 			bg_ptr->conf->expose_sensor(bg_ptr, i, domain);
-
-		if (bg_ptr->conf->sensors[i].register_cooling)
-			bg_ptr->conf->sensors[i].register_cooling(bg_ptr, i);
 	}
 
 	/*
