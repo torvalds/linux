@@ -1018,11 +1018,9 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-/* printk("S1 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 					  &divisor2, &cmd->scan_begin_arg,
 					  cmd->flags & TRIG_ROUND_MASK);
-/* printk("S2 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 		if (cmd->scan_begin_arg < this_board->ai_ns_min)
 			cmd->scan_begin_arg = this_board->ai_ns_min;
 		if (tmp != cmd->scan_begin_arg)
@@ -1034,7 +1032,6 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 					  &divisor2, &cmd->convert_arg,
 					  cmd->flags & TRIG_ROUND_MASK);
-/* printk("s1 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
@@ -1048,7 +1045,6 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 					cmd->scan_begin_arg =
 					    this_board->ai_ns_min *
 					    (cmd->scan_end_arg + 2);
-/* printk("s2 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 					err++;
 				}
 			} else {
@@ -1057,7 +1053,6 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 					cmd->scan_begin_arg =
 					    cmd->convert_arg *
 					    cmd->chanlist_len;
-/* printk("s3 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 					err++;
 				}
 			}
