@@ -261,7 +261,7 @@ static void kvmppc_mmu_book3s_64_hv_reset_msr(struct kvm_vcpu *vcpu)
 
 /*
  * This is called to get a reference to a guest page if there isn't
- * one already in the kvm->arch.slot_phys[][] arrays.
+ * one already in the memslot->arch.slot_phys[] array.
  */
 static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 				  struct kvm_memory_slot *memslot,
@@ -276,7 +276,7 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 	struct vm_area_struct *vma;
 	unsigned long pfn, i, npages;
 
-	physp = kvm->arch.slot_phys[memslot->id];
+	physp = memslot->arch.slot_phys;
 	if (!physp)
 		return -EINVAL;
 	if (physp[gfn - memslot->base_gfn])
@@ -1065,7 +1065,7 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
 		goto err;
 	if (!kvm->arch.using_mmu_notifiers) {
-		physp = kvm->arch.slot_phys[memslot->id];
+		physp = memslot->arch.slot_phys;
 		if (!physp)
 			goto err;
 		physp += gfn - memslot->base_gfn;

@@ -1438,7 +1438,19 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 	return -ENOTSUPP;
 }
 
+void kvmppc_core_free_memslot(struct kvm_memory_slot *free,
+			      struct kvm_memory_slot *dont)
+{
+}
+
+int kvmppc_core_create_memslot(struct kvm_memory_slot *slot,
+			       unsigned long npages)
+{
+	return 0;
+}
+
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
+				      struct kvm_memory_slot *memslot,
 				      struct kvm_userspace_memory_region *mem)
 {
 	return 0;

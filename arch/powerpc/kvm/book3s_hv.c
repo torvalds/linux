@@ -1314,48 +1314,67 @@ static unsigned long slb_pgsize_encoding(unsigned long psize)
 	return senc;
 }
 
-int kvmppc_core_prepare_memory_region(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem)
-{
-	unsigned long npages;
-	unsigned long *phys;
-
-	/* Allocate a slot_phys array */
-	phys = kvm->arch.slot_phys[mem->slot];
-	if (!kvm->arch.using_mmu_notifiers && !phys) {
-		npages = mem->memory_size >> PAGE_SHIFT;
-		phys = vzalloc(npages * sizeof(unsigned long));
-		if (!phys)
-			return -ENOMEM;
-		kvm->arch.slot_phys[mem->slot] = phys;
-		kvm->arch.slot_npages[mem->slot] = npages;
-	}
-
-	return 0;
-}
-
-static void unpin_slot(struct kvm *kvm, int slot_id)
+static void unpin_slot(struct kvm_memory_slot *memslot)
 {
 	unsigned long *physp;
 	unsigned long j, npages, pfn;
 	struct page *page;
 
-	physp = kvm->arch.slot_phys[slot_id];
-	npages = kvm->arch.slot_npages[slot_id];
-	if (physp) {
-		spin_lock(&kvm->arch.slot_phys_lock);
-		for (j = 0; j < npages; j++) {
-			if (!(physp[j] & KVMPPC_GOT_PAGE))
-				continue;
-			pfn = physp[j] >> PAGE_SHIFT;
-			page = pfn_to_page(pfn);
-			SetPageDirty(page);
-			put_page(page);
-		}
-		kvm->arch.slot_phys[slot_id] = NULL;
-		spin_unlock(&kvm->arch.slot_phys_lock);
-		vfree(physp);
+	physp = memslot->arch.slot_phys;
+	npages = memslot->npages;
+	if (!physp)
+		return;
+	for (j = 0; j < npages; j++) {
+		if (!(physp[j] & KVMPPC_GOT_PAGE))
+			continue;
+		pfn = physp[j] >> PAGE_SHIFT;
+		page = pfn_to_page(pfn);
+		SetPageDirty(page);
+		put_page(page);
 	}
+}
+
+void kvmppc_core_free_memslot(struct kvm_memory_slot *free,
+			      struct kvm_memory_slot *dont)
+{
+	if (!dont || free->arch.rmap != dont->arch.rmap) {
+		vfree(free->arch.rmap);
+		free->arch.rmap = NULL;
+	}
+	if (!dont || free->arch.slot_phys != dont->arch.slot_phys) {
+		unpin_slot(free);
+		vfree(free->arch.slot_phys);
+		free->arch.slot_phys = NULL;
+	}
+}
+
+int kvmppc_core_create_memslot(struct kvm_memory_slot *slot,
+			       unsigned long npages)
+{
+	slot->arch.rmap = vzalloc(npages * sizeof(*slot->arch.rmap));
+	if (!slot->arch.rmap)
+		return -ENOMEM;
+	slot->arch.slot_phys = NULL;
+
+	return 0;
+}
+
+int kvmppc_core_prepare_memory_region(struct kvm *kvm,
+				      struct kvm_memory_slot *memslot,
+				      struct kvm_userspace_memory_region *mem)
+{
+	unsigned long *phys;
+
+	/* Allocate a slot_phys array if needed */
+	phys = memslot->arch.slot_phys;
+	if (!kvm->arch.using_mmu_notifiers && !phys && memslot->npages) {
+		phys = vzalloc(memslot->npages * sizeof(unsigned long));
+		if (!phys)
+			return -ENOMEM;
+		memslot->arch.slot_phys = phys;
+	}
+
+	return 0;
 }
 
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
@@ -1482,11 +1501,16 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		/* Initialize phys addrs of pages in RMO */
 		npages = ri->npages;
 		porder = __ilog2(npages);
-		physp = kvm->arch.slot_phys[memslot->id];
-		spin_lock(&kvm->arch.slot_phys_lock);
-		for (i = 0; i < npages; ++i)
-			physp[i] = ((ri->base_pfn + i) << PAGE_SHIFT) + porder;
-		spin_unlock(&kvm->arch.slot_phys_lock);
+		physp = memslot->arch.slot_phys;
+		if (physp) {
+			if (npages > memslot->npages)
+				npages = memslot->npages;
+			spin_lock(&kvm->arch.slot_phys_lock);
+			for (i = 0; i < npages; ++i)
+				physp[i] = ((ri->base_pfn + i) << PAGE_SHIFT) +
+					porder;
+			spin_unlock(&kvm->arch.slot_phys_lock);
+		}
 	}
 
 	/* Order updates to kvm->arch.lpcr etc. vs. rma_setup_done */
@@ -1547,12 +1571,6 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 
 void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
-	unsigned long i;
-
-	if (!kvm->arch.using_mmu_notifiers)
-		for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
-			unpin_slot(kvm, i);
-
 	if (kvm->arch.rma) {
 		kvm_release_rma(kvm->arch.rma);
 		kvm->arch.rma = NULL;

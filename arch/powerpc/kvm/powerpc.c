@@ -389,19 +389,12 @@ long kvm_arch_dev_ioctl(struct file *filp,
 void kvm_arch_free_memslot(struct kvm_memory_slot *free,
 			   struct kvm_memory_slot *dont)
 {
-	if (!dont || free->arch.rmap != dont->arch.rmap) {
-		vfree(free->arch.rmap);
-		free->arch.rmap = NULL;
-	}
+	kvmppc_core_free_memslot(free, dont);
 }
 
 int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 {
-	slot->arch.rmap = vzalloc(npages * sizeof(*slot->arch.rmap));
-	if (!slot->arch.rmap)
-		return -ENOMEM;
-
-	return 0;
+	return kvmppc_core_create_memslot(slot, npages);
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
@@ -410,7 +403,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
                                    struct kvm_userspace_memory_region *mem,
                                    int user_alloc)
 {
-	return kvmppc_core_prepare_memory_region(kvm, mem);
+	return kvmppc_core_prepare_memory_region(kvm, memslot, mem);
 }
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,

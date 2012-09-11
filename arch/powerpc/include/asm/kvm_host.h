@@ -204,7 +204,7 @@ struct revmap_entry {
 };
 
 /*
- * We use the top bit of each memslot->rmap entry as a lock bit,
+ * We use the top bit of each memslot->arch.rmap entry as a lock bit,
  * and bit 32 as a present flag.  The bottom 32 bits are the
  * index in the guest HPT of a HPTE that points to the page.
  */
@@ -215,14 +215,17 @@ struct revmap_entry {
 #define KVMPPC_RMAP_PRESENT	0x100000000ul
 #define KVMPPC_RMAP_INDEX	0xfffffffful
 
-/* Low-order bits in kvm->arch.slot_phys[][] */
+/* Low-order bits in memslot->arch.slot_phys[] */
 #define KVMPPC_PAGE_ORDER_MASK	0x1f
 #define KVMPPC_PAGE_NO_CACHE	HPTE_R_I	/* 0x20 */
 #define KVMPPC_PAGE_WRITETHRU	HPTE_R_W	/* 0x40 */
 #define KVMPPC_GOT_PAGE		0x80
 
 struct kvm_arch_memory_slot {
+#ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long *rmap;
+	unsigned long *slot_phys;
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
 };
 
 struct kvm_arch {
@@ -246,8 +249,6 @@ struct kvm_arch {
 	unsigned long hpt_npte;
 	unsigned long hpt_mask;
 	spinlock_t slot_phys_lock;
-	unsigned long *slot_phys[KVM_MEM_SLOTS_NUM];
-	int slot_npages[KVM_MEM_SLOTS_NUM];
 	unsigned short last_vcpu[NR_CPUS];
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 	struct kvmppc_linear_info *hpt_li;

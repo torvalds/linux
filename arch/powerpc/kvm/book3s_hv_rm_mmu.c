@@ -183,7 +183,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	rmap = &memslot->arch.rmap[slot_fn];
 
 	if (!kvm->arch.using_mmu_notifiers) {
-		physp = kvm->arch.slot_phys[memslot->id];
+		physp = memslot->arch.slot_phys;
 		if (!physp)
 			return H_PARAMETER;
 		physp += slot_fn;
