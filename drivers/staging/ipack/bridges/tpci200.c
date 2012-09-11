@@ -14,6 +14,20 @@
 #include <linux/module.h>
 #include "tpci200.h"
 
+static u16 tpci200_status_timeout[] = {
+	TPCI200_A_TIMEOUT,
+	TPCI200_B_TIMEOUT,
+	TPCI200_C_TIMEOUT,
+	TPCI200_D_TIMEOUT,
+};
+
+static u16 tpci200_status_error[] = {
+	TPCI200_A_ERROR,
+	TPCI200_B_ERROR,
+	TPCI200_C_ERROR,
+	TPCI200_D_ERROR,
+};
+
 static int tpci200_slot_unregister(struct ipack_device *dev);
 
 static struct tpci200_board *check_slot(struct ipack_device *dev)
@@ -505,6 +519,94 @@ out_unlock:
 	return res;
 }
 
+static int tpci200_get_clockrate(struct ipack_device *dev)
+{
+	struct tpci200_board *tpci200 = check_slot(dev);
+	u16 __iomem *addr;
+
+	if (!tpci200)
+		return -ENODEV;
+
+	addr = &tpci200->info->interface_regs->control[dev->slot];
+	return (ioread16(addr) & TPCI200_CLK32) ? 32 : 8;
+}
+
+static int tpci200_set_clockrate(struct ipack_device *dev, int mherz)
+{
+	struct tpci200_board *tpci200 = check_slot(dev);
+	u16 __iomem *addr;
+	u16 reg;
+
+	if (!tpci200)
+		return -ENODEV;
+
+	addr = &tpci200->info->interface_regs->control[dev->slot];
+
+	/* Ensure the control register is not changed by another task after we
+	 * have read it. */
+	mutex_lock(&tpci200->mutex);
+	reg = ioread16(addr);
+	switch (mherz) {
+	case 8:
+		reg &= ~(TPCI200_CLK32);
+		break;
+	case 32:
+		reg |= TPCI200_CLK32;
+		break;
+	default:
+		mutex_unlock(&tpci200->mutex);
+		return -EINVAL;
+	}
+	iowrite16(reg, addr);
+	mutex_unlock(&tpci200->mutex);
+	return 0;
+}
+
+static int tpci200_get_error(struct ipack_device *dev)
+{
+	struct tpci200_board *tpci200 = check_slot(dev);
+	u16 __iomem *addr;
+	u16 mask;
+
+	if (!tpci200)
+		return -ENODEV;
+
+	addr = &tpci200->info->interface_regs->status;
+	mask = tpci200_status_error[dev->slot];
+	return (ioread16(addr) & mask) ? 1 : 0;
+}
+
+static int tpci200_get_timeout(struct ipack_device *dev)
+{
+	struct tpci200_board *tpci200 = check_slot(dev);
+	u16 __iomem *addr;
+	u16 mask;
+
+	if (!tpci200)
+		return -ENODEV;
+
+	addr = &tpci200->info->interface_regs->status;
+	mask = tpci200_status_timeout[dev->slot];
+
+	return (ioread16(addr) & mask) ? 1 : 0;
+}
+
+static int tpci200_reset_timeout(struct ipack_device *dev)
+{
+	struct tpci200_board *tpci200 = check_slot(dev);
+	u16 __iomem *addr;
+	u16 mask;
+
+	if (!tpci200)
+		return -ENODEV;
+
+	addr = &tpci200->info->interface_regs->status;
+	mask = tpci200_status_timeout[dev->slot];
+
+	iowrite16(mask, addr);
+	return 0;
+}
+
 static void tpci200_uninstall(struct tpci200_board *tpci200)
 {
 	int i;
@@ -522,6 +624,11 @@ static const struct ipack_bus_ops tpci200_bus_ops = {
 	.request_irq = tpci200_request_irq,
 	.free_irq = tpci200_free_irq,
 	.remove_device = tpci200_slot_unregister,
+	.get_clockrate = tpci200_get_clockrate,
+	.set_clockrate = tpci200_set_clockrate,
+	.get_error     = tpci200_get_error,
+	.get_timeout   = tpci200_get_timeout,
+	.reset_timeout = tpci200_reset_timeout,
 };
 
 static int tpci200_install(struct tpci200_board *tpci200)
@@ -549,7 +656,7 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 {
 	int ret, i;
 	struct tpci200_board *tpci200;
-	__le32 reg32;
+	u32 reg32;
 
 	tpci200 = kzalloc(sizeof(struct tpci200_board), GFP_KERNEL);
 	if (!tpci200)
