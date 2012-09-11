@@ -326,8 +326,10 @@ struct nand_hw_control {
  * @read_page_raw:	function to read a raw page without ECC
  * @write_page_raw:	function to write a raw page without ECC
  * @read_page:	function to read a page according to the ECC generator
- *		requirements.
- * @read_subpage:	function to read parts of the page covered by ECC.
+ *		requirements; returns maximum number of bitflips corrected in
+ *		any single ECC step, 0 if bitflips uncorrectable, -EIO hw error
+ * @read_subpage:	function to read parts of the page covered by ECC;
+ *			returns same as read_page()
  * @write_page:	function to write a page according to the ECC generator
  *		requirements.
  * @write_oob_raw:	function to write chip OOB data without ECC
