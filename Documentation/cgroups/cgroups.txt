@@ -29,7 +29,8 @@ CONTENTS:
   3.1 Overview
   3.2 Synchronization
   3.3 Subsystem API
-4. Questions
+4. Extended attributes usage
+5. Questions
 
 1. Control Groups
 =================
@@ -650,7 +651,26 @@ and root cgroup. Currently this will only involve movement between
 the default hierarchy (which never has sub-cgroups) and a hierarchy
 that is being created/destroyed (and hence has no sub-cgroups).
 
-4. Questions
+4. Extended attribute usage
+===========================
+
+cgroup filesystem supports certain types of extended attributes in its
+directories and files.  The current supported types are:
+	- Trusted (XATTR_TRUSTED)
+	- Security (XATTR_SECURITY)
+
+Both require CAP_SYS_ADMIN capability to set.
+
+Like in tmpfs, the extended attributes in cgroup filesystem are stored
+using kernel memory and it's advised to keep the usage at minimum.  This
+is the reason why user defined extended attributes are not supported, since
+any user can do it and there's no limit in the value size.
+
+The current known users for this feature are SELinux to limit cgroup usage
+in containers and systemd for assorted meta data like main PID in a cgroup
+(systemd creates a cgroup per service).
+
+5. Questions
 ============
 
 Q: what's up with this '/bin/echo' ?
