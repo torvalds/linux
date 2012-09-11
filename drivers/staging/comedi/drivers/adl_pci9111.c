@@ -179,113 +179,111 @@ TODO:
 #define PCI9111_FIFO_FULL_MASK				0x40
 #define PCI9111_AD_BUSY_MASK				0x80
 
-#define PCI9111_IO_BASE (dev->iobase)
-
 /*
  * Define inlined function
  */
 
 #define pci9111_trigger_and_autoscan_get() \
-	(inb(PCI9111_IO_BASE+PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK)&0x0F)
+	(inb(dev->iobase + PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK)&0x0F)
 
 #define pci9111_trigger_and_autoscan_set(flags) \
-	outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_TRIGGER_MODE_CONTROL)
+	outb(flags, dev->iobase + PCI9111_REGISTER_TRIGGER_MODE_CONTROL)
 
 #define pci9111_interrupt_and_fifo_get() \
-	((inb(PCI9111_IO_BASE+PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK) \
+	((inb(dev->iobase + PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK) \
 		>> 4) & 0x03)
 
 #define pci9111_interrupt_and_fifo_set(flags) \
-	outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL)
+	outb(flags, dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL)
 
 #define pci9111_interrupt_clear() \
-	outb(0, PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CLEAR)
+	outb(0, dev->iobase + PCI9111_REGISTER_INTERRUPT_CLEAR)
 
 #define pci9111_software_trigger() \
-	outb(0, PCI9111_IO_BASE+PCI9111_REGISTER_SOFTWARE_TRIGGER)
+	outb(0, dev->iobase + PCI9111_REGISTER_SOFTWARE_TRIGGER)
 
 #define pci9111_fifo_reset() do { \
 	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
-		PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL); \
+		dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL); \
 	outb(PCI9111_FFEN_SET_FIFO_DISABLE, \
-		PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL); \
+		dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL); \
 	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
-		PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL); \
+		dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL); \
 	} while (0)
 
 #define pci9111_is_fifo_full() \
-	((inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
+	((inb(dev->iobase + PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
 		PCI9111_FIFO_FULL_MASK) == 0)
 
 #define pci9111_is_fifo_half_full() \
-	((inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
+	((inb(dev->iobase + PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
 		PCI9111_FIFO_HALF_FULL_MASK) == 0)
 
 #define pci9111_is_fifo_empty() \
-	((inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
+	((inb(dev->iobase + PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
 		PCI9111_FIFO_EMPTY_MASK) == 0)
 
 #define pci9111_ai_channel_set(channel) \
 	outb((channel)&PCI9111_CHANNEL_MASK, \
-		PCI9111_IO_BASE+PCI9111_REGISTER_AD_CHANNEL_CONTROL)
+		dev->iobase + PCI9111_REGISTER_AD_CHANNEL_CONTROL)
 
 #define pci9111_ai_channel_get() \
-	(inb(PCI9111_IO_BASE+PCI9111_REGISTER_AD_CHANNEL_READBACK) \
+	(inb(dev->iobase + PCI9111_REGISTER_AD_CHANNEL_READBACK) \
 		&PCI9111_CHANNEL_MASK)
 
 #define pci9111_ai_range_set(range) \
 	outb((range)&PCI9111_RANGE_MASK, \
-		PCI9111_IO_BASE+PCI9111_REGISTER_INPUT_SIGNAL_RANGE)
+		dev->iobase + PCI9111_REGISTER_INPUT_SIGNAL_RANGE)
 
 #define pci9111_ai_range_get() \
-	(inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK) \
+	(inb(dev->iobase + PCI9111_REGISTER_RANGE_STATUS_READBACK) \
 		&PCI9111_RANGE_MASK)
 
 #define pci9111_ai_get_data() \
-	(((inw(PCI9111_IO_BASE+PCI9111_REGISTER_AD_FIFO_VALUE)>>4) \
+	(((inw(dev->iobase + PCI9111_REGISTER_AD_FIFO_VALUE)>>4) \
 		&PCI9111_AI_RESOLUTION_MASK) \
 			^ PCI9111_AI_RESOLUTION_2_CMP_BIT)
 
 #define pci9111_hr_ai_get_data() \
-	((inw(PCI9111_IO_BASE+PCI9111_REGISTER_AD_FIFO_VALUE) \
+	((inw(dev->iobase + PCI9111_REGISTER_AD_FIFO_VALUE) \
 		&PCI9111_HR_AI_RESOLUTION_MASK) \
 			^ PCI9111_HR_AI_RESOLUTION_2_CMP_BIT)
 
 #define pci9111_ao_set_data(data) \
 	outw(data&PCI9111_AO_RESOLUTION_MASK, \
-		PCI9111_IO_BASE+PCI9111_REGISTER_DA_OUTPUT)
+		dev->iobase + PCI9111_REGISTER_DA_OUTPUT)
 
 #define pci9111_di_get_bits() \
-	inw(PCI9111_IO_BASE+PCI9111_REGISTER_DIGITAL_IO)
+	inw(dev->iobase + PCI9111_REGISTER_DIGITAL_IO)
 
 #define pci9111_do_set_bits(bits) \
-	outw(bits, PCI9111_IO_BASE+PCI9111_REGISTER_DIGITAL_IO)
+	outw(bits, dev->iobase + PCI9111_REGISTER_DIGITAL_IO)
 
 #define pci9111_8254_control_set(flags) \
-	outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_8254_CONTROL)
+	outb(flags, dev->iobase + PCI9111_REGISTER_8254_CONTROL)
 
 #define pci9111_8254_counter_0_set(data) \
 	do { \
 		outb(data & 0xFF, \
-			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0); \
+			dev->iobase + PCI9111_REGISTER_8254_COUNTER_0); \
 		outb((data >> 8) & 0xFF, \
-			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0); \
+			dev->iobase + PCI9111_REGISTER_8254_COUNTER_0); \
 	} while (0)
 
 #define pci9111_8254_counter_1_set(data) \
 	do { \
 		outb(data & 0xFF, \
-			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1); \
+			dev->iobase + PCI9111_REGISTER_8254_COUNTER_1); \
 		outb((data >> 8) & 0xFF, \
-			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1); \
+			dev->iobase + PCI9111_REGISTER_8254_COUNTER_1); \
 	} while (0)
 
 #define pci9111_8254_counter_2_set(data) \
 	do { \
 		outb(data & 0xFF, \
-			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2); \
+			dev->iobase + PCI9111_REGISTER_8254_COUNTER_2); \
 		outb((data >> 8) & 0xFF, \
-			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2); \
+			dev->iobase + PCI9111_REGISTER_8254_COUNTER_2); \
 	} while (0)
 
 static const struct comedi_lrange pci9111_hr_ai_range = {
@@ -967,7 +965,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			    && !dev_private->
 			    stop_is_none ? dev_private->stop_counter :
 			    PCI9111_FIFO_HALF_SIZE;
-			insw(PCI9111_IO_BASE + PCI9111_REGISTER_AD_FIFO_VALUE,
+			insw(dev->iobase + PCI9111_REGISTER_AD_FIFO_VALUE,
 			     dev_private->ai_bounce_buffer, num_samples);
 
 			if (dev_private->scan_delay < 1) {
