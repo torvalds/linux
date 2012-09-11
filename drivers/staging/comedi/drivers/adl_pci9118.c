@@ -356,9 +356,6 @@ struct pci9118_private {
 	unsigned int ai_inttrig_start;	/* TRIG_INT for start */
 };
 
-#define devpriv ((struct pci9118_private *)dev->private)
-#define this_board ((struct boardtype *)dev->board_ptr)
-
 /*
 ==============================================================================
 */
@@ -392,7 +389,7 @@ static int pci9118_insn_read_ai(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-
+	struct pci9118_private *devpriv = dev->private;
 	int n, timeout;
 
 	devpriv->AdControlReg = AdControl_Int & 0xff;
@@ -449,6 +446,7 @@ static int pci9118_insn_write_ao(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci9118_private *devpriv = dev->private;
 	int n, chanreg, ch;
 
 	ch = CR_CHAN(insn->chanspec);
@@ -473,6 +471,7 @@ static int pci9118_insn_read_ao(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci9118_private *devpriv = dev->private;
 	int n, chan;
 
 	chan = CR_CHAN(insn->chanspec);
@@ -516,6 +515,8 @@ static int pci9118_insn_bits_do(struct comedi_device *dev,
 */
 static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev)
 {
+	struct pci9118_private *devpriv = dev->private;
+
 	devpriv->AdFunctionReg =
 	    AdFunction_PDTrg | AdFunction_PETrg | AdFunction_AM;
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
@@ -533,6 +534,7 @@ static unsigned int defragment_dma_buffer(struct comedi_device *dev,
 					  short *dma_buffer,
 					  unsigned int num_samples)
 {
+	struct pci9118_private *devpriv = dev->private;
 	unsigned int i = 0, j = 0;
 	unsigned int start_pos = devpriv->ai_add_front,
 	    stop_pos = devpriv->ai_add_front + devpriv->ai_n_chan;
@@ -559,6 +561,7 @@ static int move_block_from_dma(struct comedi_device *dev,
 					short *dma_buffer,
 					unsigned int num_samples)
 {
+	struct pci9118_private *devpriv = dev->private;
 	unsigned int num_bytes;
 
 	num_samples = defragment_dma_buffer(dev, s, dma_buffer, num_samples);
@@ -581,6 +584,8 @@ static char pci9118_decode_error_status(struct comedi_device *dev,
 					struct comedi_subdevice *s,
 					unsigned char m)
 {
+	struct pci9118_private *devpriv = dev->private;
+
 	if (m & 0x100) {
 		comedi_error(dev, "A/D FIFO Full status (Fatal Error!)");
 		devpriv->ai_maskerr &= ~0x100L;
@@ -613,6 +618,7 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 			     unsigned int num_bytes,
 			     unsigned int start_chan_index)
 {
+	struct pci9118_private *devpriv = dev->private;
 	unsigned int i, num_samples = num_bytes / sizeof(short);
 	short *array = data;
 
@@ -636,6 +642,7 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 					   unsigned int int_amcc,
 					   unsigned short int_daq)
 {
+	struct pci9118_private *devpriv = dev->private;
 	register short sampl;
 
 	s->async->events = 0;
@@ -689,6 +696,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 				     unsigned int int_amcc,
 				     unsigned short int_daq)
 {
+	struct pci9118_private *devpriv = dev->private;
 	unsigned int next_dma_buf, samplesinbuf, sampls, m;
 
 	if (int_amcc & MASTER_ABORT_INT) {
@@ -774,6 +782,7 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 static irqreturn_t interrupt_pci9118(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct pci9118_private *devpriv = dev->private;
 	unsigned int int_daq = 0, int_amcc, int_adstat;
 
 	if (!dev->attached)
@@ -850,6 +859,8 @@ static irqreturn_t interrupt_pci9118(int irq, void *d)
 static int pci9118_ai_inttrig(struct comedi_device *dev,
 			      struct comedi_subdevice *s, unsigned int trignum)
 {
+	struct pci9118_private *devpriv = dev->private;
+
 	if (trignum != devpriv->ai_inttrig_start)
 		return -EINVAL;
 
@@ -875,6 +886,8 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
 {
+	const struct boardtype *this_board = comedi_board(dev);
+	struct pci9118_private *devpriv = dev->private;
 	int err = 0;
 	int tmp;
 	unsigned int divisor1 = 0, divisor2 = 0;
@@ -1136,6 +1149,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 */
 static int Compute_and_setup_dma(struct comedi_device *dev)
 {
+	struct pci9118_private *devpriv = dev->private;
 	unsigned int dmalen0, dmalen1, i;
 
 	DPRINTK("adl_pci9118 EDBG: BGN: Compute_and_setup_dma()\n");
@@ -1318,6 +1332,8 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
+	struct pci9118_private *devpriv = dev->private;
+
 	DPRINTK("adl_pci9118 EDBG: BGN: pci9118_ai_docmd_sampl(%d,) [%d]\n",
 		dev->minor, devpriv->ai_do);
 	switch (devpriv->ai_do) {
@@ -1376,6 +1392,8 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
+	struct pci9118_private *devpriv = dev->private;
+
 	DPRINTK("adl_pci9118 EDBG: BGN: pci9118_ai_docmd_dma(%d,) [%d,%d]\n",
 		dev->minor, devpriv->ai_do, devpriv->usedma);
 	Compute_and_setup_dma(dev);
@@ -1449,6 +1467,8 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 */
 static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	const struct boardtype *this_board = comedi_board(dev);
+	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int addchans = 0;
 	int ret = 0;
@@ -1699,6 +1719,8 @@ static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s, int n_chan,
 			      unsigned int *chanlist, int frontadd, int backadd)
 {
+	const struct boardtype *this_board = comedi_board(dev);
+	struct pci9118_private *devpriv = dev->private;
 	unsigned int i, differencial = 0, bipolar = 0;
 
 	/* correct channel and range number check itself comedi/range.c */
@@ -1754,6 +1776,7 @@ static int setup_channel_list(struct comedi_device *dev,
 			      unsigned int *chanlist, int rot, int frontadd,
 			      int backadd, int usedma, char useeos)
 {
+	struct pci9118_private *devpriv = dev->private;
 	unsigned int i, differencial = 0, bipolar = 0;
 	unsigned int scanquad, gain, ssh = 0x00;
 
@@ -1887,6 +1910,9 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 				  unsigned int *div1, unsigned int *div2,
 				  char usessh, unsigned int chnsshfront)
 {
+	const struct boardtype *this_board = comedi_board(dev);
+	struct pci9118_private *devpriv = dev->private;
+
 	DPRINTK
 	    ("adl_pci9118 EDBG: BGN: pci9118_calc_divisors"
 					"(%d,%d,.,%u,%u,%u,%d,.,.,,%u,%u)\n",
@@ -1967,6 +1993,8 @@ static void start_pacer(struct comedi_device *dev, int mode,
 */
 static int pci9118_exttrg_add(struct comedi_device *dev, unsigned char source)
 {
+	struct pci9118_private *devpriv = dev->private;
+
 	if (source > 3)
 		return -1;				/* incorrect source */
 	devpriv->exttrg_users |= (1 << source);
@@ -1983,6 +2011,8 @@ static int pci9118_exttrg_add(struct comedi_device *dev, unsigned char source)
 */
 static int pci9118_exttrg_del(struct comedi_device *dev, unsigned char source)
 {
+	struct pci9118_private *devpriv = dev->private;
+
 	if (source > 3)
 		return -1;			/* incorrect source */
 	devpriv->exttrg_users &= ~(1 << source);
@@ -2004,6 +2034,8 @@ static int pci9118_exttrg_del(struct comedi_device *dev, unsigned char source)
 static int pci9118_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pci9118_private *devpriv = dev->private;
+
 	if (devpriv->usedma)
 		outl(inl(devpriv->iobase_a + AMCC_OP_REG_MCSR) &
 			(~EN_A2P_TRANSFERS),
@@ -2053,6 +2085,8 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 */
 static int pci9118_reset(struct comedi_device *dev)
 {
+	struct pci9118_private *devpriv = dev->private;
+
 	devpriv->IntControlReg = 0;
 	devpriv->exttrg_users = 0;
 	inl(dev->iobase + PCI9118_INTCTRL);
@@ -2112,6 +2146,7 @@ static int pci9118_reset(struct comedi_device *dev)
 static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 					struct comedi_devconfig *it)
 {
+	const struct boardtype *this_board = comedi_board(dev);
 	struct pci_dev *pcidev = NULL;
 	int bus = it->options[0];
 	int slot = it->options[1];
@@ -2150,6 +2185,8 @@ static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 static int pci9118_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct boardtype *this_board = comedi_board(dev);
+	struct pci9118_private *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret, pages, i;
@@ -2164,11 +2201,12 @@ static int pci9118_attach(struct comedi_device *dev,
 	else
 		master = 1;
 
-	ret = alloc_private(dev, sizeof(struct pci9118_private));
+	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0) {
 		printk(" - Allocation failed!\n");
 		return -ENOMEM;
 	}
+	devpriv = dev->private;
 
 	pcidev = pci9118_find_pci(dev, it);
 	if (!pcidev)
@@ -2345,8 +2383,9 @@ static int pci9118_attach(struct comedi_device *dev,
 static void pci9118_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pci9118_private *devpriv = dev->private;
 
-	if (dev->private) {
+	if (devpriv) {
 		if (devpriv->valid)
 			pci9118_reset(dev);
 		if (dev->irq)
