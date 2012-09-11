@@ -149,8 +149,6 @@ struct pci9111_private_data {
 	unsigned int div1;
 	unsigned int div2;
 
-	int is_valid;		/*  Is device valid */
-
 	short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
 };
 
@@ -1020,8 +1018,6 @@ static int pci9111_attach_pci(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= pci9111_do_insn_bits;
 
-	dev_private->is_valid = 1;
-
 	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 0;
@@ -1030,12 +1026,9 @@ static int pci9111_attach_pci(struct comedi_device *dev,
 static void pci9111_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct pci9111_private_data *dev_private = dev->private;
 
-	if (dev_private) {
-		if (dev_private->is_valid)
-			pci9111_reset(dev);
-	}
+	if (dev->iobase)
+		pci9111_reset(dev);
 	if (dev->irq != 0)
 		free_irq(dev->irq, dev);
 	if (pcidev) {
