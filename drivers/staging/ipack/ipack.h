@@ -53,7 +53,6 @@ struct ipack_addr_space {
  *	@bus_nr: IP bus number where the device is plugged
  *	@slot: Slot where the device is plugged in the carrier board
  *	@irq: IRQ vector
- *	@driver: Pointer to the ipack_driver that manages the device
  *	@bus: ipack_bus_device where the device is plugged to.
  *	@id_space: Virtual address to ID space.
  *	@io_space: Virtual address to IO space.
@@ -68,7 +67,6 @@ struct ipack_device {
 	unsigned int bus_nr;
 	unsigned int slot;
 	unsigned int irq;
-	struct ipack_driver *driver;
 	struct ipack_bus_device *bus;
 	struct ipack_addr_space id_space;
 	struct ipack_addr_space io_space;

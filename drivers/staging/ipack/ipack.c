@@ -59,32 +59,29 @@ static int ipack_bus_match(struct device *dev, struct device_driver *drv)
 	const struct ipack_device_id *found_id;
 
 	found_id = ipack_match_id(idrv->id_table, idev);
-	if (found_id) {
-		idev->driver = idrv;
-		return 1;
-	}
-
-	return 0;
+	return found_id ? 1 : 0;
 }
 
 static int ipack_bus_probe(struct device *device)
 {
 	struct ipack_device *dev = to_ipack_dev(device);
+	struct ipack_driver *drv = to_ipack_driver(device->driver);
 
-	if (!dev->driver->ops->probe)
+	if (!drv->ops->probe)
 		return -EINVAL;
 
-	return dev->driver->ops->probe(dev);
+	return drv->ops->probe(dev);
 }
 
 static int ipack_bus_remove(struct device *device)
 {
 	struct ipack_device *dev = to_ipack_dev(device);
+	struct ipack_driver *drv = to_ipack_driver(device->driver);
 
-	if (!dev->driver->ops->remove)
+	if (!drv->ops->remove)
 		return -EINVAL;
 
-	dev->driver->ops->remove(dev);
+	drv->ops->remove(dev);
 	return 0;
 }
 
