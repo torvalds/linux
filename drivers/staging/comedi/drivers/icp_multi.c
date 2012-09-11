@@ -60,9 +60,6 @@ Options:
 
 #define PCI_DEVICE_ID_ICP_MULTI	0x8000
 
-/*  Hardware types of the cards */
-#define TYPE_ICP_MULTI	0
-
 #define IORANGE_ICP_MULTI 	32
 
 #define ICP_MULTI_ADC_CSR	0	/* R/W: ADC command/status register */
@@ -129,7 +126,6 @@ struct boardtype {
 	int device_id;
 	int iorange;		/*  I/O range len */
 	char have_irq;		/*  1=card support IRQ */
-	char cardtype;		/*  0=ICP Multi */
 };
 
 struct icp_multi_private {
@@ -877,7 +873,6 @@ static const struct boardtype boardtypes[] = {
 		.device_id	= PCI_DEVICE_ID_ICP_MULTI,
 		.iorange	= IORANGE_ICP_MULTI,
 		.have_irq	= 1,
-		.cardtype	= TYPE_ICP_MULTI,
 	},
 };
 
