@@ -151,8 +151,7 @@ void __init dove_mpp_conf(unsigned int *mpp_list,
 	dove_mpp_dump_regs();
 
 	/* Use platform code for pins 0-23 */
-	orion_mpp_conf(mpp_list, 0, MPP_MAX,
-		       (unsigned long) DOVE_MPP_VIRT_BASE);
+	orion_mpp_conf(mpp_list, 0, MPP_MAX, DOVE_MPP_VIRT_BASE);
 
 	dove_mpp_conf_grp(mpp_grp_list);
 	dove_mpp_cfg_au1(grp_au1_52_57);

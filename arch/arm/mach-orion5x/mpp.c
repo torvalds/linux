@@ -40,6 +40,5 @@ static unsigned int __init orion5x_variant(void)
 void __init orion5x_mpp_conf(unsigned int *mpp_list)
 {
 	orion_mpp_conf(mpp_list, orion5x_variant(),
-		       MPP_MAX,
-		       (unsigned long) ORION5X_DEV_BUS_VIRT_BASE);
+		       MPP_MAX, ORION5X_DEV_BUS_VIRT_BASE);
 }
