@@ -6,7 +6,7 @@
 	interrupt-parent = <&intc>;
 
 	chosen {
-		bootargs = "earlyprintk";
+		bootargs = "earlyprintk console=ttyAMA0";
 	};
 
 	soc {
@@ -27,6 +27,13 @@
 			reg = <0x7e00b200 0x200>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+		};
+
+		uart@20201000 {
+			compatible = "brcm,bcm2835-pl011", "arm,pl011", "arm,primecell";
+			reg = <0x7e201000 0x1000>;
+			interrupts = <2 25>;
+			clock-frequency = <3000000>;
 		};
 	};
 };
