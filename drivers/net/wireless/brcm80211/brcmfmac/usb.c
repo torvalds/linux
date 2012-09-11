@@ -552,12 +552,10 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 		if (brcmf_proto_hdrpull(devinfo->dev, &ifidx, skb) != 0) {
 			brcmf_dbg(ERROR, "rx protocol error\n");
 			brcmu_pkt_buf_free_skb(skb);
-			brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);
 			devinfo->bus_pub.bus->dstats.rx_errors++;
-		} else {
+		} else
 			brcmf_rx_packet(devinfo->dev, ifidx, skb);
-			brcmf_usb_rx_refill(devinfo, req);
-		}
+		brcmf_usb_rx_refill(devinfo, req);
 	} else {
 		brcmu_pkt_buf_free_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);
