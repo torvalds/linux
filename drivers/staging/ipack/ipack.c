@@ -377,6 +377,9 @@ struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
 	dev_set_name(&dev->dev,
 		     "ipack-dev.%u.%u", dev->bus_nr, dev->slot);
 
+	if (bus->ops->set_clockrate(dev, 8))
+		dev_warn(&dev->dev, "failed to switch to 8 MHz operation for reading of device ID.\n");
+
 	ret = ipack_device_read_id(dev);
 	if (ret < 0) {
 		dev_err(&dev->dev, "error reading device id section.\n");
@@ -385,9 +388,11 @@ struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
 	}
 
 	/* if the device supports 32 MHz operation, use it. */
-	ret = bus->ops->set_clockrate(dev, dev->speed_32mhz ? 32 : 8);
-	if (ret < 0)
-		dev_err(&dev->dev, "failed to perform set_clock_rate operation.\n");
+	if (dev->speed_32mhz) {
+		ret = bus->ops->set_clockrate(dev, 32);
+		if (ret < 0)
+			dev_err(&dev->dev, "failed to switch to 32 MHz operation.\n");
+	}
 
 	ret = device_register(&dev->dev);
 	if (ret < 0) {
