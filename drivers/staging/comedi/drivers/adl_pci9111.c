@@ -104,8 +104,6 @@ TODO:
 
 #define PCI9111_AI_ACQUISITION_PERIOD_MIN_NS	10000
 #define PCI9111_AO_CHANNEL_NBR			1
-#define	PCI9111_AO_RESOLUTION			12
-#define PCI9111_AO_RESOLUTION_MASK		0x0FFF
 #define PCI9111_DI_CHANNEL_NBR			16
 #define	PCI9111_DO_CHANNEL_NBR			16
 
@@ -251,8 +249,7 @@ struct pci9111_board {
 	int ao_channel_nbr;	/*  num of D/A chans */
 	int ai_resolution;	/*  resolution of A/D */
 	int ai_resolution_mask;
-	int ao_resolution;	/*  resolution of D/A */
-	int ao_resolution_mask;
+	int ao_maxdata;
 	const struct comedi_lrange *ai_range_list;	/*  rangelist for A/D */
 	const struct comedi_lrange *ao_range_list;	/*  rangelist for D/A */
 	unsigned int ai_acquisition_period_min_ns;
@@ -266,8 +263,7 @@ static const struct pci9111_board pci9111_boards[] = {
 	 .ao_channel_nbr = PCI9111_AO_CHANNEL_NBR,
 	 .ai_resolution = PCI9111_HR_AI_RESOLUTION,
 	 .ai_resolution_mask = PCI9111_HR_AI_RESOLUTION_MASK,
-	 .ao_resolution = PCI9111_AO_RESOLUTION,
-	 .ao_resolution_mask = PCI9111_AO_RESOLUTION_MASK,
+	 .ao_maxdata = 0x0fff,
 	 .ai_range_list = &pci9111_hr_ai_range,
 	 .ao_range_list = &range_bipolar10,
 	 .ai_acquisition_period_min_ns = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS}
@@ -1050,8 +1046,7 @@ pci9111_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		outw(data[i] & PCI9111_AO_RESOLUTION_MASK,
-			dev->iobase + PCI9111_AO_REG);
+		outw(data[i], dev->iobase + PCI9111_AO_REG);
 		dev_private->ao_readback = data[i];
 	}
 
@@ -1273,7 +1268,7 @@ static int pci9111_attach(struct comedi_device *dev,
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_COMMON;
 	s->n_chan = board->ao_channel_nbr;
-	s->maxdata = board->ao_resolution_mask;
+	s->maxdata = board->ao_maxdata;
 	s->len_chanlist = board->ao_channel_nbr;
 	s->range_table = board->ao_range_list;
 	s->insn_write = pci9111_ao_insn_write;
