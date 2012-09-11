@@ -92,16 +92,6 @@ TODO:
 
 #define PCI9111_FIFO_HALF_SIZE	512
 
-#define PCI9111_AI_CHANNEL_NBR			16
-
-#define PCI9111_AI_RESOLUTION			12
-#define PCI9111_AI_RESOLUTION_MASK		0x0FFF
-#define PCI9111_AI_RESOLUTION_2_CMP_BIT		0x0800
-
-#define PCI9111_HR_AI_RESOLUTION		16
-#define PCI9111_HR_AI_RESOLUTION_MASK		0xFFFF
-#define PCI9111_HR_AI_RESOLUTION_2_CMP_BIT	0x8000
-
 #define PCI9111_AI_ACQUISITION_PERIOD_MIN_NS	10000
 
 #define PCI9111_RANGE_SETTING_DELAY		10
@@ -231,22 +221,13 @@ static const struct comedi_lrange pci9111_hr_ai_range = {
 struct pci9111_board {
 	const char *name;	/*  driver name */
 	int device_id;
-	int ai_channel_nbr;	/*  num of A/D chans */
-	int ai_resolution;	/*  resolution of A/D */
-	int ai_resolution_mask;
-	const struct comedi_lrange *ai_range_list;	/*  rangelist for A/D */
-	unsigned int ai_acquisition_period_min_ns;
 };
 
 static const struct pci9111_board pci9111_boards[] = {
 	{
 	 .name = "pci9111_hr",
 	 .device_id = PCI9111_HR_DEVICE_ID,
-	 .ai_channel_nbr = PCI9111_AI_CHANNEL_NBR,
-	 .ai_resolution = PCI9111_HR_AI_RESOLUTION,
-	 .ai_resolution_mask = PCI9111_HR_AI_RESOLUTION_MASK,
-	 .ai_range_list = &pci9111_hr_ai_range,
-	 .ai_acquisition_period_min_ns = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS}
+	},
 };
 
 /*  Private data structure */
@@ -467,7 +448,6 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	int error = 0;
 	int range, reference;
 	int i;
-	struct pci9111_board *board = (struct pci9111_board *)dev->board_ptr;
 
 	/*  Step 1 : check if trigger are trivialy valid */
 
@@ -520,8 +500,8 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	}
 
 	if ((cmd->convert_src == TRIG_TIMER) &&
-	    (cmd->convert_arg < board->ai_acquisition_period_min_ns)) {
-		cmd->convert_arg = board->ai_acquisition_period_min_ns;
+	    (cmd->convert_arg < PCI9111_AI_ACQUISITION_PERIOD_MIN_NS)) {
+		cmd->convert_arg = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS;
 		error++;
 	}
 	if ((cmd->convert_src == TRIG_EXT) && (cmd->convert_arg != 0)) {
@@ -530,8 +510,8 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	}
 
 	if ((cmd->scan_begin_src == TRIG_TIMER) &&
-	    (cmd->scan_begin_arg < board->ai_acquisition_period_min_ns)) {
-		cmd->scan_begin_arg = board->ai_acquisition_period_min_ns;
+	    (cmd->scan_begin_arg < PCI9111_AI_ACQUISITION_PERIOD_MIN_NS)) {
+		cmd->scan_begin_arg = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS;
 		error++;
 	}
 	if ((cmd->scan_begin_src == TRIG_FOLLOW)
@@ -1187,23 +1167,17 @@ static int pci9111_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
-
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
-
-	/*  TODO: Add external multiplexer data */
-	/*     if (devpriv->usemux) { s->n_chan = devpriv->usemux; } */
-	/*     else { s->n_chan = this_board->n_aichan; } */
-
-	s->n_chan = board->ai_channel_nbr;
-	s->maxdata = board->ai_resolution_mask;
-	s->len_chanlist = board->ai_channel_nbr;
-	s->range_table = board->ai_range_list;
-	s->cancel = pci9111_ai_cancel;
-	s->insn_read = pci9111_ai_insn_read;
-	s->do_cmdtest = pci9111_ai_do_cmd_test;
-	s->do_cmd = pci9111_ai_do_cmd;
-	s->munge = pci9111_ai_munge;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
+	s->n_chan	= 16;
+	s->maxdata	= 0xffff;
+	s->len_chanlist	= 16;
+	s->range_table	= &pci9111_hr_ai_range;
+	s->cancel	= pci9111_ai_cancel;
+	s->insn_read	= pci9111_ai_insn_read;
+	s->do_cmdtest	= pci9111_ai_do_cmd_test;
+	s->do_cmd	= pci9111_ai_do_cmd;
+	s->munge	= pci9111_ai_munge;
 
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_AO;
