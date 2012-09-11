@@ -130,7 +130,6 @@ struct boardtype {
 	int iorange;		/*  I/O range len */
 	char have_irq;		/*  1=card support IRQ */
 	char cardtype;		/*  0=ICP Multi */
-	int n_aichand;		/*  num of A/D chans in diff mode */
 	int ai_maxdata;		/*  resolution of A/D */
 	int ao_maxdata;		/*  resolution of D/A */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
@@ -643,7 +642,7 @@ static int check_channel_list(struct comedi_device *dev,
 	for (i = 0; i < n_chan; i++) {
 		/*  Check that channel number is < maximum */
 		if (CR_AREF(chanlist[i]) == AREF_DIFF) {
-			if (CR_CHAN(chanlist[i]) > this_board->n_aichand) {
+			if (CR_CHAN(chanlist[i]) > (s->nchan / 2)) {
 				comedi_error(dev,
 					     "Incorrect differential ai ch-nr");
 				return 0;
@@ -804,9 +803,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	s = &dev->subdevices[subdev];
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND;
-	if (this_board->n_aichand)
-		s->subdev_flags |= SDF_DIFF;
+	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
 	s->n_chan = 16;
 	s->maxdata = this_board->ai_maxdata;
 	s->len_chanlist = 16;
@@ -886,7 +883,6 @@ static const struct boardtype boardtypes[] = {
 		.iorange	= IORANGE_ICP_MULTI,
 		.have_irq	= 1,
 		.cardtype	= TYPE_ICP_MULTI,
-		.n_aichand	= 8,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_analog,
