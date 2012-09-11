@@ -2340,7 +2340,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 			serial_port_out(port, UART_EFR, efr);
 	}
 
-#ifdef CONFIG_ARCH_OMAP
+#ifdef CONFIG_ARCH_OMAP1
 	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
 	if (cpu_is_omap1510() && is_omap_port(up)) {
 		if (baud == 115200) {
@@ -2430,7 +2430,7 @@ static unsigned int serial8250_port_size(struct uart_8250_port *pt)
 {
 	if (pt->port.iotype == UPIO_AU)
 		return 0x1000;
-#ifdef CONFIG_ARCH_OMAP
+#ifdef CONFIG_ARCH_OMAP1
 	if (is_omap_port(pt))
 		return 0x16 << pt->port.regshift;
 #endif
