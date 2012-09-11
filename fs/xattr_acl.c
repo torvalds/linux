@@ -73,7 +73,8 @@ void posix_acl_fix_xattr_to_user(void *value, size_t size)
  * Convert from extended attribute to in-memory representation.
  */
 struct posix_acl *
-posix_acl_from_xattr(const void *value, size_t size)
+posix_acl_from_xattr(struct user_namespace *user_ns,
+		     const void *value, size_t size)
 {
 	posix_acl_xattr_header *header = (posix_acl_xattr_header *)value;
 	posix_acl_xattr_entry *entry = (posix_acl_xattr_entry *)(header+1), *end;
@@ -112,14 +113,14 @@ posix_acl_from_xattr(const void *value, size_t size)
 
 			case ACL_USER:
 				acl_e->e_uid =
-					make_kuid(&init_user_ns,
+					make_kuid(user_ns,
 						  le32_to_cpu(entry->e_id));
 				if (!uid_valid(acl_e->e_uid))
 					goto fail;
 				break;
 			case ACL_GROUP:
 				acl_e->e_gid =
-					make_kgid(&init_user_ns,
+					make_kgid(user_ns,
 						  le32_to_cpu(entry->e_id));
 				if (!gid_valid(acl_e->e_gid))
 					goto fail;
@@ -141,7 +142,8 @@ EXPORT_SYMBOL (posix_acl_from_xattr);
  * Convert from in-memory to extended attribute representation.
  */
 int
-posix_acl_to_xattr(const struct posix_acl *acl, void *buffer, size_t size)
+posix_acl_to_xattr(struct user_namespace *user_ns, const struct posix_acl *acl,
+		   void *buffer, size_t size)
 {
 	posix_acl_xattr_header *ext_acl = (posix_acl_xattr_header *)buffer;
 	posix_acl_xattr_entry *ext_entry = ext_acl->a_entries;
@@ -162,11 +164,11 @@ posix_acl_to_xattr(const struct posix_acl *acl, void *buffer, size_t size)
 		switch(acl_e->e_tag) {
 		case ACL_USER:
 			ext_entry->e_id =
-				cpu_to_le32(from_kuid(&init_user_ns, acl_e->e_uid));
+				cpu_to_le32(from_kuid(user_ns, acl_e->e_uid));
 			break;
 		case ACL_GROUP:
 			ext_entry->e_id =
-				cpu_to_le32(from_kgid(&init_user_ns, acl_e->e_gid));
+				cpu_to_le32(from_kgid(user_ns, acl_e->e_gid));
 			break;
 		default:
 			ext_entry->e_id = cpu_to_le32(ACL_UNDEFINED_ID);
