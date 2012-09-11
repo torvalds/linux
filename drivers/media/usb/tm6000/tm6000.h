@@ -28,6 +28,7 @@
 #include <linux/mutex.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 
 #include <linux/dvb/frontend.h>
 #include "dvb_demux.h"
@@ -290,6 +291,7 @@ struct tm6000_ops {
 };
 
 struct tm6000_fh {
+	struct v4l2_fh		     fh;
 	struct tm6000_core           *dev;
 	unsigned int                 radio;
 
