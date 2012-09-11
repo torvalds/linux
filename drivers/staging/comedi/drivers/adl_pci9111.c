@@ -375,8 +375,6 @@ static void pci9111_interrupt_source_set(struct comedi_device *dev,
 
 /*  Cancel analog input autoscan */
 
-#undef AI_DO_CMD_DEBUG
-
 static int pci9111_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -392,10 +390,6 @@ static int pci9111_ai_cancel(struct comedi_device *dev,
 	pci9111_autoscan_set(dev, false);
 
 	pci9111_fifo_reset();
-
-#ifdef AI_DO_CMD_DEBUG
-	printk(PCI9111_DRIVER_NAME ": ai_cancel\n");
-#endif
 
 	return 0;
 }
@@ -650,11 +644,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 					       &(async_cmd->convert_arg),
 					       async_cmd->
 					       flags & TRIG_ROUND_MASK);
-#ifdef AI_DO_CMD_DEBUG
-		printk(PCI9111_DRIVER_NAME ": divisors = %d, %d\n",
-		       dev_private->timer_divisor_1,
-		       dev_private->timer_divisor_2);
-#endif
 
 		pci9111_trigger_source_set(dev, software);
 		pci9111_timer_set(dev);
@@ -695,23 +684,6 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	dev_private->chunk_counter = 0;
 	dev_private->chunk_num_samples =
 	    dev_private->chanlist_len * (1 + dev_private->scan_delay);
-
-#ifdef AI_DO_CMD_DEBUG
-	printk(PCI9111_DRIVER_NAME ": start interruptions!\n");
-	printk(PCI9111_DRIVER_NAME ": trigger source = %2x\n",
-	       pci9111_trigger_and_autoscan_get());
-	printk(PCI9111_DRIVER_NAME ": irq source     = %2x\n",
-	       pci9111_interrupt_and_fifo_get());
-	printk(PCI9111_DRIVER_NAME ": ai_do_cmd\n");
-	printk(PCI9111_DRIVER_NAME ": stop counter   = %d\n",
-	       dev_private->stop_counter);
-	printk(PCI9111_DRIVER_NAME ": scan delay     = %d\n",
-	       dev_private->scan_delay);
-	printk(PCI9111_DRIVER_NAME ": chanlist_len   = %d\n",
-	       dev_private->chanlist_len);
-	printk(PCI9111_DRIVER_NAME ": chunk num samples = %d\n",
-	       dev_private->chunk_num_samples);
-#endif
 
 	return 0;
 }
