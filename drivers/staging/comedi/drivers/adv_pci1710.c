@@ -52,8 +52,6 @@ Configuration options:
 				 * correct channel number on every 12 bit
 				 * sample */
 
-#define DRV_NAME "adv_pci1710"
-
 #define PCI_VENDOR_ID_ADVANTECH		0x13fe
 
 /* hardware types of the cards */
@@ -293,9 +291,6 @@ static const struct boardtype boardtypes[] = {
 		.rangecode_ai	= range_codes_pci17x1,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
-	}, {
-		/* dummy entry corresponding to driver name */
-		.name		= DRV_NAME,
 	},
 };
 
