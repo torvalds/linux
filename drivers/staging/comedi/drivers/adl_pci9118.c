@@ -81,18 +81,6 @@ Configuration options:
 				 * correct channel number on every 12 bit sample
 				 */
 
-#undef PCI9118_EXTDEBUG		/*
-				 * if defined then driver prints
-				 * a lot of messages
-				 */
-
-#undef DPRINTK
-#ifdef PCI9118_EXTDEBUG
-#define DPRINTK(fmt, args...) printk(fmt, ## args)
-#else
-#define DPRINTK(fmt, args...)
-#endif
-
 #define IORANGE_9118 	64	/* I hope */
 #define PCI9118_CHANLEN	255	/*
 				 * len of chanlist, some source say 256,
@@ -721,7 +709,6 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 
 	samplesinbuf = devpriv->dmabuf_use_size[devpriv->dma_actbuf] >> 1;
 					/* number of received real samples */
-/* DPRINTK("dma_actbuf=%d\n",devpriv->dma_actbuf); */
 
 	if (devpriv->dma_doublebuf) {	/*
 					 * switch DMA buffers if is used
@@ -743,17 +730,12 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 						 * how many samples is to
 						 * end of buffer
 						 */
-/*
- * DPRINTK("samps=%d m=%d %d %d\n",
- * samplesinbuf,m,s->async->buf_int_count,s->async->buf_int_ptr);
- */
 		sampls = m;
 		move_block_from_dma(dev, s,
 				    devpriv->dmabuf_virt[devpriv->dma_actbuf],
 				    samplesinbuf);
 		m = m - sampls;		/* m= how many samples was transferred */
 	}
-/* DPRINTK("YYY\n"); */
 
 	if (!devpriv->ai_neverending)
 		if (devpriv->ai_act_scan >= devpriv->ai_scans) {
@@ -792,14 +774,6 @@ static irqreturn_t interrupt_pci9118(int irq, void *d)
 					/* get IRQ reasons from card */
 	int_amcc = inl(devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 					/* get INT register from AMCC chip */
-
-/*
- * DPRINTK("INT daq=0x%01x amcc=0x%08x MWAR=0x%08x
- * MWTC=0x%08x ADSTAT=0x%02x ai_do=%d\n",
- * int_daq, int_amcc, inl(devpriv->iobase_a+AMCC_OP_REG_MWAR),
- * inl(devpriv->iobase_a+AMCC_OP_REG_MWTC),
- * inw(dev->iobase+PCI9118_ADSTAT)&0x1ff,devpriv->ai_do);
- */
 
 	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT)))
 		return IRQ_NONE;	/* interrupt from other source */
@@ -1152,11 +1126,8 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 	struct pci9118_private *devpriv = dev->private;
 	unsigned int dmalen0, dmalen1, i;
 
-	DPRINTK("adl_pci9118 EDBG: BGN: Compute_and_setup_dma()\n");
 	dmalen0 = devpriv->dmabuf_size[0];
 	dmalen1 = devpriv->dmabuf_size[1];
-	DPRINTK("1 dmalen0=%d dmalen1=%d ai_data_len=%d\n", dmalen0, dmalen1,
-		devpriv->ai_data_len);
 	/* isn't output buff smaller that our DMA buff? */
 	if (dmalen0 > (devpriv->ai_data_len)) {
 		dmalen0 = devpriv->ai_data_len & ~3L;	/*
@@ -1168,7 +1139,6 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 							 * align to 32bit down
 							 */
 	}
-	DPRINTK("2 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 
 	/* we want wake up every scan? */
 	if (devpriv->ai_flags & TRIG_WAKE_EOS) {
@@ -1183,11 +1153,6 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		} else {
 			/* short first DMA buffer to one scan */
 			dmalen0 = devpriv->ai_n_realscanlen << 1;
-			DPRINTK
-				("21 dmalen0=%d ai_n_realscanlen=%d "
-							"useeoshandle=%d\n",
-				dmalen0, devpriv->ai_n_realscanlen,
-				devpriv->useeoshandle);
 			if (devpriv->useeoshandle)
 				dmalen0 += 2;
 			if (dmalen0 < 4) {
@@ -1211,11 +1176,6 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		} else {
 			/* short second DMA buffer to one scan */
 			dmalen1 = devpriv->ai_n_realscanlen << 1;
-			DPRINTK
-			    ("22 dmalen1=%d ai_n_realscanlen=%d "
-							"useeoshandle=%d\n",
-			     dmalen1, devpriv->ai_n_realscanlen,
-			     devpriv->useeoshandle);
 			if (devpriv->useeoshandle)
 				dmalen1 -= 2;
 			if (dmalen1 < 4) {
@@ -1228,7 +1188,6 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		}
 	}
 
-	DPRINTK("3 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 	/* transfer without TRIG_WAKE_EOS */
 	if (!(devpriv->ai_flags & TRIG_WAKE_EOS)) {
 		/* if it's possible then align DMA buffers to length of scan */
@@ -1255,15 +1214,9 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 			if (dmalen0 >
 			    ((devpriv->ai_n_realscanlen << 1) *
 			     devpriv->ai_scans)) {
-				DPRINTK
-				    ("3.0 ai_n_realscanlen=%d ai_scans=%d\n",
-				     devpriv->ai_n_realscanlen,
-				     devpriv->ai_scans);
 				dmalen0 =
 				    (devpriv->ai_n_realscanlen << 1) *
 				    devpriv->ai_scans;
-				DPRINTK("3.1 dmalen0=%d dmalen1=%d\n", dmalen0,
-					dmalen1);
 				dmalen0 &= ~3L;
 			} else {	/*
 					 * fits whole measure into
@@ -1275,21 +1228,16 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 					dmalen1 =
 					    (devpriv->ai_n_realscanlen << 1) *
 					    devpriv->ai_scans - dmalen0;
-				DPRINTK("3.2 dmalen0=%d dmalen1=%d\n", dmalen0,
-					dmalen1);
 				dmalen1 &= ~3L;
 			}
 		}
 	}
-
-	DPRINTK("4 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 
 	/* these DMA buffer size will be used */
 	devpriv->dma_actbuf = 0;
 	devpriv->dmabuf_use_size[0] = dmalen0;
 	devpriv->dmabuf_use_size[1] = dmalen1;
 
-	DPRINTK("5 dmalen0=%d dmalen1=%d\n", dmalen0, dmalen1);
 #if 0
 	if (devpriv->ai_n_scanlen < this_board->half_fifo_size) {
 		devpriv->dmabuf_panic_size[0] =
@@ -1322,7 +1270,6 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 			devpriv->iobase_a + AMCC_OP_REG_INTCSR);
 						/* allow bus mastering */
 
-	DPRINTK("adl_pci9118 EDBG: END: Compute_and_setup_dma()\n");
 	return 0;
 }
 
@@ -1334,8 +1281,6 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 {
 	struct pci9118_private *devpriv = dev->private;
 
-	DPRINTK("adl_pci9118 EDBG: BGN: pci9118_ai_docmd_sampl(%d,) [%d]\n",
-		dev->minor, devpriv->ai_do);
 	switch (devpriv->ai_do) {
 	case 1:
 		devpriv->AdControlReg |= AdControl_TmrTr;
@@ -1382,7 +1327,6 @@ static int pci9118_ai_docmd_sampl(struct comedi_device *dev,
 		outl(devpriv->IntControlReg, dev->iobase + PCI9118_INTCTRL);
 	}
 
-	DPRINTK("adl_pci9118 EDBG: END: pci9118_ai_docmd_sampl()\n");
 	return 0;
 }
 
@@ -1394,8 +1338,6 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 {
 	struct pci9118_private *devpriv = dev->private;
 
-	DPRINTK("adl_pci9118 EDBG: BGN: pci9118_ai_docmd_dma(%d,) [%d,%d]\n",
-		dev->minor, devpriv->ai_do, devpriv->usedma);
 	Compute_and_setup_dma(dev);
 
 	switch (devpriv->ai_do) {
@@ -1458,7 +1400,6 @@ static int pci9118_ai_docmd_dma(struct comedi_device *dev,
 		outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
 	}
 
-	DPRINTK("adl_pci9118 EDBG: BGN: pci9118_ai_docmd_dma()\n");
 	return 0;
 }
 
@@ -1473,7 +1414,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int addchans = 0;
 	int ret = 0;
 
-	DPRINTK("adl_pci9118 EDBG: BGN: pci9118_ai_cmd(%d,)\n", dev->minor);
 	devpriv->ai12_startstop = 0;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_n_chan = cmd->chanlist_len;
@@ -1521,10 +1461,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	else
 		devpriv->usessh = 0;
 				/*  no */
-
-	DPRINTK("1 neverending=%d scans=%u usessh=%d ai_startstop=0x%2x\n",
-		devpriv->ai_neverending, devpriv->ai_scans, devpriv->usessh,
-		devpriv->ai12_startstop);
 
 	/*
 	 * use additional sample at end of every scan
@@ -1605,12 +1541,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	    (devpriv->ai_add_front + devpriv->ai_n_chan +
 	     devpriv->ai_add_back) * (devpriv->ai_n_scanlen /
 				      devpriv->ai_n_chan);
-
-	DPRINTK("2 usedma=%d realscan=%d af=%u n_chan=%d ab=%d n_scanlen=%d\n",
-		devpriv->usedma,
-		devpriv->ai_n_realscanlen, devpriv->ai_add_front,
-		devpriv->ai_n_chan, devpriv->ai_add_back,
-		devpriv->ai_n_scanlen);
 
 	/* check and setup channel list */
 	if (!check_channel_list(dev, s, devpriv->ai_n_chan,
@@ -1708,7 +1638,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	else
 		ret = pci9118_ai_docmd_sampl(dev, s);
 
-	DPRINTK("adl_pci9118 EDBG: END: pci9118_ai_cmd()\n");
 	return ret;
 }
 
@@ -1780,11 +1709,6 @@ static int setup_channel_list(struct comedi_device *dev,
 	unsigned int i, differencial = 0, bipolar = 0;
 	unsigned int scanquad, gain, ssh = 0x00;
 
-	DPRINTK
-	    ("adl_pci9118 EDBG: BGN: setup_channel_list"
-						"(%d,.,%d,.,%d,%d,%d,%d)\n",
-	     dev->minor, n_chan, rot, frontadd, backadd, usedma);
-
 	if (usedma == 1) {
 		rot = 8;
 		usedma = 0;
@@ -1829,7 +1753,6 @@ static int setup_channel_list(struct comedi_device *dev,
 
 	if (frontadd) {		/* insert channels for S&H */
 		ssh = devpriv->softsshsample;
-		DPRINTK("FA: %04x: ", ssh);
 		for (i = 0; i < frontadd; i++) {
 						/* store range list to card */
 			scanquad = CR_CHAN(chanlist[0]);
@@ -1838,13 +1761,10 @@ static int setup_channel_list(struct comedi_device *dev,
 						/* get gain number */
 			scanquad |= ((gain & 0x03) << 8);
 			outl(scanquad | ssh, dev->iobase + PCI9118_GAIN);
-			DPRINTK("%02x ", scanquad | ssh);
 			ssh = devpriv->softsshhold;
 		}
-		DPRINTK("\n ");
 	}
 
-	DPRINTK("SL: ", ssh);
 	for (i = 0; i < n_chan; i++) {	/* store range list to card */
 		scanquad = CR_CHAN(chanlist[i]);	/* get channel number */
 #ifdef PCI9118_PARANOIDCHECK
@@ -1853,21 +1773,16 @@ static int setup_channel_list(struct comedi_device *dev,
 		gain = CR_RANGE(chanlist[i]);		/* get gain number */
 		scanquad |= ((gain & 0x03) << 8);
 		outl(scanquad | ssh, dev->iobase + PCI9118_GAIN);
-		DPRINTK("%02x ", scanquad | ssh);
 	}
-	DPRINTK("\n ");
 
 	if (backadd) {		/* insert channels for fit onto 32bit DMA */
-		DPRINTK("BA: %04x: ", ssh);
 		for (i = 0; i < backadd; i++) {	/* store range list to card */
 			scanquad = CR_CHAN(chanlist[0]);
 							/* get channel number */
 			gain = CR_RANGE(chanlist[0]);	/* get gain number */
 			scanquad |= ((gain & 0x03) << 8);
 			outl(scanquad | ssh, dev->iobase + PCI9118_GAIN);
-			DPRINTK("%02x ", scanquad | ssh);
 		}
-		DPRINTK("\n ");
 	}
 #ifdef PCI9118_PARANOIDCHECK
 	devpriv->chanlist[n_chan ^ usedma] = devpriv->chanlist[0 ^ usedma];
@@ -1884,18 +1799,10 @@ static int setup_channel_list(struct comedi_device *dev,
 	} else {
 		useeos = 1;
 	}
-#ifdef PCI9118_EXTDEBUG
-	DPRINTK("CHL: ");
-	for (i = 0; i <= (useeos * n_chan); i++)
-		DPRINTK("%04x ", devpriv->chanlist[i]);
-
-	DPRINTK("\n ");
-#endif
 #endif
 	outl(0, dev->iobase + PCI9118_SCANMOD);	/* close scan queue */
 	/* udelay(100); important delay, or first sample will be crippled */
 
-	DPRINTK("adl_pci9118 EDBG: END: setup_channel_list()\n");
 	return 1;		/* we can serve this with scan logic */
 }
 
@@ -1913,10 +1820,6 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 	const struct boardtype *this_board = comedi_board(dev);
 	struct pci9118_private *devpriv = dev->private;
 
-	DPRINTK
-	    ("adl_pci9118 EDBG: BGN: pci9118_calc_divisors"
-					"(%d,%d,.,%u,%u,%u,%d,.,.,,%u,%u)\n",
-	     mode, dev->minor, *tim1, *tim2, flags, chans, usessh, chnsshfront);
 	switch (mode) {
 	case 1:
 	case 4:
@@ -1924,32 +1827,18 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 			*tim2 = this_board->ai_ns_min;
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, div1, div2,
 					  tim2, flags & TRIG_ROUND_NEAREST);
-		DPRINTK("OSC base=%u div1=%u div2=%u timer1=%u\n",
-			devpriv->i8254_osc_base, *div1, *div2, *tim1);
 		break;
 	case 2:
 		if (*tim2 < this_board->ai_ns_min)
 			*tim2 = this_board->ai_ns_min;
-		DPRINTK("1 div1=%u div2=%u timer1=%u timer2=%u\n", *div1, *div2,
-			*tim1, *tim2);
 		*div1 = *tim2 / devpriv->i8254_osc_base;
 						/* convert timer (burst) */
-		DPRINTK("2 div1=%u div2=%u timer1=%u timer2=%u\n", *div1, *div2,
-			*tim1, *tim2);
 		if (*div1 < this_board->ai_pacer_min)
 			*div1 = this_board->ai_pacer_min;
-		DPRINTK("3 div1=%u div2=%u timer1=%u timer2=%u\n", *div1, *div2,
-			*tim1, *tim2);
 		*div2 = *tim1 / devpriv->i8254_osc_base;	/* scan timer */
-		DPRINTK("4 div1=%u div2=%u timer1=%u timer2=%u\n", *div1, *div2,
-			*tim1, *tim2);
 		*div2 = *div2 / *div1;		/* major timer is c1*c2 */
-		DPRINTK("5 div1=%u div2=%u timer1=%u timer2=%u\n", *div1, *div2,
-			*tim1, *tim2);
 		if (*div2 < chans)
 			*div2 = chans;
-		DPRINTK("6 div1=%u div2=%u timer1=%u timer2=%u\n", *div1, *div2,
-			*tim1, *tim2);
 
 		*tim2 = *div1 * devpriv->i8254_osc_base;
 							/* real convert timer */
@@ -1958,15 +1847,9 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 			if (*div2 < (chans + 2))
 				*div2 = chans + 2;
 
-		DPRINTK("7 div1=%u div2=%u timer1=%u timer2=%u\n", *div1, *div2,
-			*tim1, *tim2);
 		*tim1 = *div1 * *div2 * devpriv->i8254_osc_base;
-		DPRINTK("OSC base=%u div1=%u div2=%u timer1=%u timer2=%u\n",
-			devpriv->i8254_osc_base, *div1, *div2, *tim1, *tim2);
 		break;
 	}
-	DPRINTK("adl_pci9118 EDBG: END: pci9118_calc_divisors(%u,%u)\n",
-		*div1, *div2);
 }
 
 /*
