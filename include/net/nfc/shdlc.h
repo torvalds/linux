@@ -34,8 +34,8 @@ struct nfc_shdlc_ops {
 	int (*complete_target_discovered) (struct nfc_shdlc *shdlc, u8 gate,
 					   struct nfc_target *target);
 	int (*data_exchange) (struct nfc_shdlc *shdlc,
-			      struct nfc_target *target,
-			      struct sk_buff *skb, struct sk_buff **res_skb);
+			      struct nfc_target *target, struct sk_buff *skb,
+			      data_exchange_cb_t cb, void *cb_context);
 	int (*check_presence)(struct nfc_shdlc *shdlc,
 			      struct nfc_target *target);
 };

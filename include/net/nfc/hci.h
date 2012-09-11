@@ -38,8 +38,8 @@ struct nfc_hci_ops {
 	int (*complete_target_discovered) (struct nfc_hci_dev *hdev, u8 gate,
 					   struct nfc_target *target);
 	int (*data_exchange) (struct nfc_hci_dev *hdev,
-			      struct nfc_target *target,
-			      struct sk_buff *skb, struct sk_buff **res_skb);
+			      struct nfc_target *target, struct sk_buff *skb,
+			      data_exchange_cb_t cb, void *cb_context);
 	int (*check_presence)(struct nfc_hci_dev *hdev,
 			      struct nfc_target *target);
 };
@@ -103,6 +103,10 @@ struct nfc_hci_dev {
 	u8 hw_mpw;
 	u8 hw_software;
 	u8 hw_bsid;
+
+	int async_cb_type;
+	data_exchange_cb_t async_cb;
+	void *async_cb_context;
 };
 
 /* hci device allocation */

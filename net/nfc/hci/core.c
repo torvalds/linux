@@ -537,13 +537,37 @@ static void hci_deactivate_target(struct nfc_dev *nfc_dev,
 {
 }
 
+#define HCI_CB_TYPE_TRANSCEIVE 1
+
+static void hci_transceive_cb(void *context, struct sk_buff *skb, int err)
+{
+	struct nfc_hci_dev *hdev = context;
+
+	switch (hdev->async_cb_type) {
+	case HCI_CB_TYPE_TRANSCEIVE:
+		/*
+		 * TODO: Check RF Error indicator to make sure data is valid.
+		 * It seems that HCI cmd can complete without error, but data
+		 * can be invalid if an RF error occured? Ignore for now.
+		 */
+		if (err == 0)
+			skb_trim(skb, skb->len - 1); /* RF Err ind */
+
+		hdev->async_cb(hdev->async_cb_context, skb, err);
+		break;
+	default:
+		if (err == 0)
+			kfree_skb(skb);
+		break;
+	}
+}
+
 static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			  struct sk_buff *skb, data_exchange_cb_t cb,
 			  void *cb_context)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 	int r;
-	struct sk_buff *res_skb = NULL;
 
 	pr_debug("target_idx=%d\n", target->idx);
 
@@ -551,40 +575,37 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	case NFC_HCI_RF_READER_A_GATE:
 	case NFC_HCI_RF_READER_B_GATE:
 		if (hdev->ops->data_exchange) {
-			r = hdev->ops->data_exchange(hdev, target, skb,
-						     &res_skb);
+			r = hdev->ops->data_exchange(hdev, target, skb, cb,
+						     cb_context);
 			if (r <= 0)	/* handled */
 				break;
 		}
 
 		*skb_push(skb, 1) = 0;	/* CTR, see spec:10.2.2.1 */
-		r = nfc_hci_send_cmd(hdev, target->hci_reader_gate,
-				     NFC_HCI_WR_XCHG_DATA,
-				     skb->data, skb->len, &res_skb);
-		/*
-		 * TODO: Check RF Error indicator to make sure data is valid.
-		 * It seems that HCI cmd can complete without error, but data
-		 * can be invalid if an RF error occured? Ignore for now.
-		 */
-		if (r == 0)
-			skb_trim(res_skb, res_skb->len - 1); /* RF Err ind */
+
+		hdev->async_cb_type = HCI_CB_TYPE_TRANSCEIVE;
+		hdev->async_cb = cb;
+		hdev->async_cb_context = cb_context;
+
+		r = nfc_hci_send_cmd_async(hdev, target->hci_reader_gate,
+					   NFC_HCI_WR_XCHG_DATA, skb->data,
+					   skb->len, hci_transceive_cb, hdev);
 		break;
 	default:
 		if (hdev->ops->data_exchange) {
-			r = hdev->ops->data_exchange(hdev, target, skb,
-						     &res_skb);
+			r = hdev->ops->data_exchange(hdev, target, skb, cb,
+						     cb_context);
 			if (r == 1)
 				r = -ENOTSUPP;
 		}
 		else
 			r = -ENOTSUPP;
+		break;
 	}
 
 	kfree_skb(skb);
 
-	cb(cb_context, res_skb, r);
-
-	return 0;
+	return r;
 }
 
 static int hci_check_presence(struct nfc_dev *nfc_dev,

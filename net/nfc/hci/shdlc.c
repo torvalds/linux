@@ -777,12 +777,13 @@ static int nfc_shdlc_complete_target_discovered(struct nfc_hci_dev *hdev,
 static int nfc_shdlc_data_exchange(struct nfc_hci_dev *hdev,
 				   struct nfc_target *target,
 				   struct sk_buff *skb,
-				   struct sk_buff **res_skb)
+				   data_exchange_cb_t cb, void *cb_context)
 {
 	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
 
 	if (shdlc->ops->data_exchange)
-		return shdlc->ops->data_exchange(shdlc, target, skb, res_skb);
+		return shdlc->ops->data_exchange(shdlc, target, skb, cb,
+						 cb_context);
 
 	return -EPERM;
 }
