@@ -1641,7 +1641,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 		priv->bss_type = MWIFIEX_BSS_TYPE_STA;
 		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
-		priv->bss_priority = MWIFIEX_BSS_ROLE_STA;
+		priv->bss_priority = 0;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_num = 0;
 
@@ -1664,7 +1664,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 		priv->bss_type = MWIFIEX_BSS_TYPE_UAP;
 		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
-		priv->bss_priority = MWIFIEX_BSS_ROLE_UAP;
+		priv->bss_priority = 0;
 		priv->bss_role = MWIFIEX_BSS_ROLE_UAP;
 		priv->bss_started = 0;
 		priv->bss_num = 0;
