@@ -416,7 +416,7 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, drvdata);
 
-	drvdata->regulator = regulator_get(&client->dev, "vin");
+	drvdata->regulator = devm_regulator_get(&client->dev, "vin");
 	if (IS_ERR(drvdata->regulator)) {
 		dev_err(&client->dev, "regulator get failed\n");
 		err = PTR_ERR(drvdata->regulator);
@@ -429,15 +429,13 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 		if (err < 0) {
 			dev_err(&client->dev,
 				"Register Init failed: %d\n", err);
-			err = -ENODEV;
-			goto err_reg_init;
+			return -ENODEV;
 		}
 	}
 	err = led_classdev_register(&client->dev, &drvdata->led_dev);
 	if (err < 0) {
 		dev_err(&client->dev, "Register led class failed: %d\n", err);
-		err = -ENODEV;
-		goto err_class_register;
+		return -ENODEV;
 	}
 
 	err = device_create_file(drvdata->led_dev.dev, &dev_attr_mode);
@@ -451,9 +449,6 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 
 err_create_file:
 	led_classdev_unregister(&drvdata->led_dev);
-err_class_register:
-err_reg_init:
-	regulator_put(drvdata->regulator);
 	return err;
 }
 
@@ -465,7 +460,6 @@ static int __devexit lm3530_remove(struct i2c_client *client)
 
 	if (drvdata->enable)
 		regulator_disable(drvdata->regulator);
-	regulator_put(drvdata->regulator);
 	led_classdev_unregister(&drvdata->led_dev);
 	return 0;
 }
