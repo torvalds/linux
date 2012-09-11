@@ -310,7 +310,7 @@ enum ENH_PS_MODES {
 #define HostCmd_SCAN_RADIO_TYPE_A           1
 
 #define HOST_SLEEP_CFG_CANCEL		0xffffffff
-#define HOST_SLEEP_CFG_COND_DEF		0x0000000f
+#define HOST_SLEEP_CFG_COND_DEF		0x00000000
 #define HOST_SLEEP_CFG_GPIO_DEF		0xff
 #define HOST_SLEEP_CFG_GAP_DEF		0
 
