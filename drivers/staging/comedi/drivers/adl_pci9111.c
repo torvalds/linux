@@ -129,20 +129,6 @@ TODO:
 #define PCI9111_FIFO_FULL_MASK				0x40
 #define PCI9111_AD_BUSY_MASK				0x80
 
-/*
- * Define inlined function
- */
-
-#define pci9111_fifo_reset() do { \
-	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
-		dev->iobase + PCI9111_INT_CTRL_REG); \
-	outb(PCI9111_FFEN_SET_FIFO_DISABLE, \
-		dev->iobase + PCI9111_INT_CTRL_REG); \
-	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
-		dev->iobase + PCI9111_INT_CTRL_REG); \
-	} while (0)
-
-
 static const struct comedi_lrange pci9111_hr_ai_range = {
 	5,
 	{
@@ -335,6 +321,16 @@ static void pci9111_interrupt_source_set(struct comedi_device *dev,
 	outb(flags, dev->iobase + PCI9111_INT_CTRL_REG);
 }
 
+static void pci9111_fifo_reset(struct comedi_device *dev)
+{
+	unsigned long int_ctrl_reg = dev->iobase + PCI9111_INT_CTRL_REG;
+
+	/* To reset the FIFO, set FFEN sequence as 0 -> 1 -> 0 */
+	outb(PCI9111_FFEN_SET_FIFO_ENABLE, int_ctrl_reg);
+	outb(PCI9111_FFEN_SET_FIFO_DISABLE, int_ctrl_reg);
+	outb(PCI9111_FFEN_SET_FIFO_ENABLE, int_ctrl_reg);
+}
+
 /*  ------------------------------------------------------------------ */
 /*  HARDWARE TRIGGERED ANALOG INPUT SECTION */
 /*  ------------------------------------------------------------------ */
@@ -355,7 +351,7 @@ static int pci9111_ai_cancel(struct comedi_device *dev,
 
 	pci9111_autoscan_set(dev, false);
 
-	pci9111_fifo_reset();
+	pci9111_fifo_reset(dev);
 
 	return 0;
 }
@@ -616,7 +612,7 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 
 		pci9111_trigger_source_set(dev, software);
 		pci9111_timer_set(dev);
-		pci9111_fifo_reset();
+		pci9111_fifo_reset(dev);
 		pci9111_interrupt_source_set(dev, irq_on_fifo_half_full,
 					     irq_on_timer_tick);
 		pci9111_trigger_source_set(dev, timer_pacer);
@@ -635,7 +631,7 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	case TRIG_EXT:
 
 		pci9111_trigger_source_set(dev, external);
-		pci9111_fifo_reset();
+		pci9111_fifo_reset(dev);
 		pci9111_interrupt_source_set(dev, irq_on_fifo_half_full,
 					     irq_on_timer_tick);
 		plx9050_interrupt_control(dev_private->lcr_io_base, true, true,
@@ -843,7 +839,7 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 			dev->iobase + PCI9111_AI_RANGE_REG);
 	}
 
-	pci9111_fifo_reset();
+	pci9111_fifo_reset(dev);
 
 	for (i = 0; i < insn->n; i++) {
 		/* Generate a software trigger */
@@ -860,7 +856,7 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 
 		comedi_error(dev, "A/D read timeout");
 		data[i] = 0;
-		pci9111_fifo_reset();
+		pci9111_fifo_reset(dev);
 		return -ETIME;
 
 conversion_done:
