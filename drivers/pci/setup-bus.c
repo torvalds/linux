@@ -697,6 +697,38 @@ static resource_size_t calculate_memsize(resource_size_t size,
 	return size;
 }
 
+resource_size_t __weak pcibios_window_alignment(struct pci_bus *bus,
+						unsigned long type)
+{
+	return 1;
+}
+
+#define PCI_P2P_DEFAULT_MEM_ALIGN	0x100000	/* 1MiB */
+#define PCI_P2P_DEFAULT_IO_ALIGN	0x1000		/* 4KiB */
+#define PCI_P2P_DEFAULT_IO_ALIGN_1K	0x400		/* 1KiB */
+
+static resource_size_t window_alignment(struct pci_bus *bus,
+					unsigned long type)
+{
+	resource_size_t align = 1, arch_align;
+
+	if (type & IORESOURCE_MEM)
+		align = PCI_P2P_DEFAULT_MEM_ALIGN;
+	else if (type & IORESOURCE_IO) {
+		/*
+		 * Per spec, I/O windows are 4K-aligned, but some
+		 * bridges have an extension to support 1K alignment.
+		 */
+		if (bus->self->io_window_1k)
+			align = PCI_P2P_DEFAULT_IO_ALIGN_1K;
+		else
+			align = PCI_P2P_DEFAULT_IO_ALIGN;
+	}
+
+	arch_align = pcibios_window_alignment(bus, type);
+	return max(align, arch_align);
+}
+
 /**
  * pbus_size_io() - size the io window of a given bus
  *
