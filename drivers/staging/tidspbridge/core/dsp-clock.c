@@ -16,6 +16,8 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#define L4_34XX_BASE		0x48000000
+
 #include <linux/types.h>
 
 /*  ----------------------------------- Host OS */
