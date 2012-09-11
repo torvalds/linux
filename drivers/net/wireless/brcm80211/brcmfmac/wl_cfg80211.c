@@ -3321,18 +3321,28 @@ static struct brcmf_cfg80211_event_q *brcmf_deq_event(
 
 static s32
 brcmf_enq_event(struct brcmf_cfg80211_priv *cfg_priv, u32 event,
-		const struct brcmf_event_msg *msg)
+		const struct brcmf_event_msg *msg, void *data)
 {
 	struct brcmf_cfg80211_event_q *e;
 	s32 err = 0;
 	ulong flags;
+	u32 data_len;
+	u32 total_len;
 
-	e = kzalloc(sizeof(struct brcmf_cfg80211_event_q), GFP_ATOMIC);
+	total_len = sizeof(struct brcmf_cfg80211_event_q);
+	if (data)
+		data_len = be32_to_cpu(msg->datalen);
+	else
+		data_len = 0;
+	total_len += data_len;
+	e = kzalloc(total_len, GFP_ATOMIC);
 	if (!e)
 		return -ENOMEM;
 
 	e->etype = event;
 	memcpy(&e->emsg, msg, sizeof(struct brcmf_event_msg));
+	if (data)
+		memcpy(&e->edata, data, data_len);
 
 	spin_lock_irqsave(&cfg_priv->evt_q_lock, flags);
 	list_add_tail(&e->evt_q_list, &cfg_priv->evt_q_list);
@@ -3501,7 +3511,7 @@ brcmf_cfg80211_event(struct net_device *ndev,
 	u32 event_type = be32_to_cpu(e->event_type);
 	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 
-	if (!brcmf_enq_event(cfg_priv, event_type, e))
+	if (!brcmf_enq_event(cfg_priv, event_type, e, data))
 		schedule_work(&cfg_priv->event_work);
 }
 

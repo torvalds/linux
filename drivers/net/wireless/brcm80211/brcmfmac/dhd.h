@@ -140,6 +140,8 @@ struct brcmf_event_msg {
 	__be32 datalen;
 	u8 addr[ETH_ALEN];
 	char ifname[IFNAMSIZ];
+	u8 ifidx;
+	u8 bsscfgidx;
 } __packed;
 
 struct brcm_ethhdr {
