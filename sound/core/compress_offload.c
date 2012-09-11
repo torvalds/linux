@@ -80,14 +80,12 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 	int maj = imajor(inode);
 	int ret;
 
-	if (f->f_flags & O_WRONLY)
+	if ((f->f_flags & O_ACCMODE) == O_WRONLY)
 		dirn = SND_COMPRESS_PLAYBACK;
-	else if (f->f_flags & O_RDONLY)
+	else if ((f->f_flags & O_ACCMODE) == O_RDONLY)
 		dirn = SND_COMPRESS_CAPTURE;
-	else {
-		pr_err("invalid direction\n");
+	else
 		return -EINVAL;
-	}
 
 	if (maj == snd_major)
 		compr = snd_lookup_minor_data(iminor(inode),
