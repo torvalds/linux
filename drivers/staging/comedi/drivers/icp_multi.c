@@ -132,7 +132,6 @@ struct boardtype {
 	char cardtype;		/*  0=ICP Multi */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode;	/*  range codes for programming */
-	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
 };
 
 struct icp_multi_private {
@@ -883,7 +882,6 @@ static const struct boardtype boardtypes[] = {
 		.cardtype	= TYPE_ICP_MULTI,
 		.rangelist_ai	= &range_analog,
 		.rangecode	= range_codes_analog,
-		.rangelist_ao	= &range_analog,
 	},
 };
 
