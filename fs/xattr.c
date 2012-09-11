@@ -892,8 +892,19 @@ out:
 
 }
 
-/*
- * xattr SET operation for in-memory/pseudo filesystems
+/**
+ * simple_xattr_set - xattr SET operation for in-memory/pseudo filesystems
+ * @xattrs: target simple_xattr list
+ * @name: name of the new extended attribute
+ * @value: value of the new xattr. If %NULL, will remove the attribute
+ * @size: size of the new xattr
+ * @flags: %XATTR_{CREATE|REPLACE}
+ *
+ * %XATTR_CREATE is set, the xattr shouldn't exist already; otherwise fails
+ * with -EEXIST.  If %XATTR_REPLACE is set, the xattr should exist;
+ * otherwise, fails with -ENODATA.
+ *
+ * Returns 0 on success, -errno on failure.
  */
 int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
 		     const void *value, size_t size, int flags)
@@ -950,6 +961,9 @@ ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer,
 	return used;
 }
 
+/*
+ * Adds an extended attribute to the list
+ */
 void simple_xattr_list_add(struct simple_xattrs *xattrs,
 			   struct simple_xattr *new_xattr)
 {
