@@ -736,7 +736,7 @@ int radeon_vm_bo_add(struct radeon_device *rdev,
 			/* bo can be added before this one */
 			break;
 		}
-		if (bo_va->soffset >= tmp->soffset && bo_va->soffset < tmp->eoffset) {
+		if (bo_va->eoffset > tmp->soffset && bo_va->soffset < tmp->eoffset) {
 			/* bo and tmp overlap, invalid offset */
 			dev_err(rdev->dev, "bo %p va 0x%08X conflict with (bo %p 0x%08X 0x%08X)\n",
 				bo, (unsigned)bo_va->soffset, tmp->bo,
