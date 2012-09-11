@@ -161,7 +161,6 @@ struct tpci200_infos {
 	struct ipack_bus_device		*ipack_bus;
 };
 struct tpci200_board {
-	struct list_head	list;
 	unsigned int		number;
 	struct mutex		mutex;
 	struct tpci200_slot	*slots;
