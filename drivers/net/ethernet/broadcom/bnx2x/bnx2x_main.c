@@ -7561,8 +7561,14 @@ int bnx2x_set_mac_one(struct bnx2x *bp, u8 *mac,
 	}
 
 	rc = bnx2x_config_vlan_mac(bp, &ramrod_param);
-	if (rc < 0)
+
+	if (rc == -EEXIST) {
+		DP(BNX2X_MSG_SP, "Failed to schedule ADD operations: %d\n", rc);
+		/* do not treat adding same MAC as error */
+		rc = 0;
+	} else if (rc < 0)
 		BNX2X_ERR("%s MAC failed\n", (set ? "Set" : "Del"));
+
 	return rc;
 }
 
@@ -10294,13 +10300,11 @@ static void __devinit bnx2x_get_fcoe_info(struct bnx2x *bp)
 				dev_info.port_hw_config[port].
 				 fcoe_wwn_node_name_lower);
 	} else if (!IS_MF_SD(bp)) {
-		u32 cfg = MF_CFG_RD(bp, func_ext_config[func].func_cfg);
-
 		/*
 		 * Read the WWN info only if the FCoE feature is enabled for
 		 * this function.
 		 */
-		if (cfg & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD)
+		if (BNX2X_MF_EXT_PROTOCOL_FCOE(bp) && !CHIP_IS_E1x(bp))
 			bnx2x_get_ext_wwn_info(bp, func);
 
 	} else if (IS_MF_FCOE_SD(bp))
@@ -11073,7 +11077,14 @@ static int bnx2x_set_uc_list(struct bnx2x *bp)
 	netdev_for_each_uc_addr(ha, dev) {
 		rc = bnx2x_set_mac_one(bp, bnx2x_uc_addr(ha), mac_obj, true,
 				       BNX2X_UC_LIST_MAC, &ramrod_flags);
-		if (rc < 0) {
+		if (rc == -EEXIST) {
+			DP(BNX2X_MSG_SP,
+			   "Failed to schedule ADD operations: %d\n", rc);
+			/* do not treat adding same MAC as error */
+			rc = 0;
+
+		} else if (rc < 0) {
+
 			BNX2X_ERR("Failed to schedule ADD operations: %d\n",
 				  rc);
 			return rc;
