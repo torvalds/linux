@@ -229,8 +229,20 @@ struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 }
 EXPORT_SYMBOL_GPL(ipack_bus_register);
 
+static int ipack_unregister_bus_member(struct device *dev, void *data)
+{
+	struct ipack_device *idev = to_ipack_dev(dev);
+	struct ipack_bus_device *bus = data;
+
+	if (idev->bus_nr == bus->bus_nr)
+		ipack_device_unregister(idev);
+
+	return 1;
+}
+
 int ipack_bus_unregister(struct ipack_bus_device *bus)
 {
+	bus_for_each_dev(&ipack_bus_type, NULL, bus, ipack_unregister_bus_member);
 	ida_simple_remove(&ipack_ida, bus->bus_nr);
 	kfree(bus);
 	return 0;
