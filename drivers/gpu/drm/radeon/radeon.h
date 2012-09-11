@@ -123,6 +123,7 @@ extern int radeon_lockup_timeout;
 #define CAYMAN_RING_TYPE_CP2_INDEX		2
 
 /* hardcode those limit for now */
+#define RADEON_VA_IB_OFFSET			(1 << 20)
 #define RADEON_VA_RESERVED_SIZE			(8 << 20)
 #define RADEON_IB_VM_MAX_SIZE			(64 << 10)
 

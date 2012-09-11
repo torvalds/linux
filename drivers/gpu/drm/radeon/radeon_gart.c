@@ -980,7 +980,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	/* map the ib pool buffer at 0 in virtual address space, set
 	 * read only
 	 */
-	r = radeon_vm_bo_add(rdev, vm, rdev->ring_tmp_bo.bo, 0,
+	r = radeon_vm_bo_add(rdev, vm, rdev->ring_tmp_bo.bo, RADEON_VA_IB_OFFSET,
 			     RADEON_VM_PAGE_READABLE | RADEON_VM_PAGE_SNOOPED);
 	return r;
 }
