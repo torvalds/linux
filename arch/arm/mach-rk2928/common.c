@@ -117,6 +117,18 @@ extern int __init clk_disable_unused(void);
 void __init rk2928_map_io(void)
 {
 	rk2928_map_common_io();
+#ifdef DEBUG_UART_BASE
+        #ifdef CONFIG_RK_USB_UART
+        writel_relaxed(0x30003000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+        #endif
+        writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
+        writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
+        writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
+        writel_relaxed(0x83, DEBUG_UART_BASE + 0x0c);
+        writel_relaxed(0x0d, DEBUG_UART_BASE + 0x00);
+        writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
+        writel_relaxed(0x03, DEBUG_UART_BASE + 0x0c);
+#endif
 	rk29_setup_early_printk();
 	rk2928_cpu_axi_init();
 	rk29_sram_init();
