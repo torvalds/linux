@@ -2361,10 +2361,6 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		}
 
 next:
-		do_chunk_alloc(trans, fs_info->extent_root,
-			       2 * 1024 * 1024,
-			       btrfs_get_alloc_profile(root, 0),
-			       CHUNK_ALLOC_NO_FORCE);
 		cond_resched();
 		spin_lock(&delayed_refs->lock);
 	}
@@ -2478,10 +2474,6 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 	if (root == root->fs_info->extent_root)
 		root = root->fs_info->tree_root;
 
-	do_chunk_alloc(trans, root->fs_info->extent_root,
-		       2 * 1024 * 1024, btrfs_get_alloc_profile(root, 0),
-		       CHUNK_ALLOC_NO_FORCE);
-
 	btrfs_delayed_refs_qgroup_accounting(trans, root->fs_info);
 
 	delayed_refs = &trans->transaction->delayed_refs;
@@ -2551,6 +2543,12 @@ again:
 	}
 
 	if (run_all) {
+		if (!list_empty(&trans->new_bgs)) {
+			spin_unlock(&delayed_refs->lock);
+			btrfs_create_pending_block_groups(trans, root);
+			spin_lock(&delayed_refs->lock);
+		}
+
 		node = rb_first(&delayed_refs->root);
 		if (!node)
 			goto out;
@@ -3826,7 +3824,8 @@ enum flush_state {
 	FLUSH_DELALLOC_WAIT	=	2,
 	FLUSH_DELAYED_ITEMS_NR	=	3,
 	FLUSH_DELAYED_ITEMS	=	4,
-	COMMIT_TRANS		=	5,
+	ALLOC_CHUNK		=	5,
+	COMMIT_TRANS		=	6,
 };
 
 static int flush_space(struct btrfs_root *root,
@@ -3862,6 +3861,20 @@ static int flush_space(struct btrfs_root *root,
 		}
 		ret = btrfs_run_delayed_items_nr(trans, root, nr);
 		btrfs_end_transaction(trans, root);
+		break;
+	case ALLOC_CHUNK:
+		trans = btrfs_join_transaction(root);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			break;
+		}
+		ret = do_chunk_alloc(trans, root->fs_info->extent_root,
+				     num_bytes,
+				     btrfs_get_alloc_profile(root, 0),
+				     CHUNK_ALLOC_NO_FORCE);
+		btrfs_end_transaction(trans, root);
+		if (ret == -ENOSPC)
+			ret = 0;
 		break;
 	case COMMIT_TRANS:
 		ret = may_commit_transaction(root, space_info, orig_bytes, 0);
@@ -5515,8 +5528,6 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_cache *used_block_group;
 	u64 search_start = 0;
 	int empty_cluster = 2 * 1024 * 1024;
-	int allowed_chunk_alloc = 0;
-	int done_chunk_alloc = 0;
 	struct btrfs_space_info *space_info;
 	int loop = 0;
 	int index = 0;
@@ -5547,9 +5558,6 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	 */
 	if (btrfs_mixed_space_info(space_info))
 		use_cluster = false;
-
-	if (orig_root->ref_cows || empty_size)
-		allowed_chunk_alloc = 1;
 
 	if (data & BTRFS_BLOCK_GROUP_METADATA && use_cluster) {
 		last_ptr = &root->fs_info->meta_alloc_cluster;
@@ -5860,34 +5868,18 @@ loop:
 		index = 0;
 		loop++;
 		if (loop == LOOP_ALLOC_CHUNK) {
-		       if (allowed_chunk_alloc) {
-				ret = do_chunk_alloc(trans, root, num_bytes +
-						     2 * 1024 * 1024, data,
-						     CHUNK_ALLOC_LIMITED);
-				/*
-				 * Do not bail out on ENOSPC since we
-				 * can do more things.
-				 */
-				if (ret < 0 && ret != -ENOSPC) {
-					btrfs_abort_transaction(trans,
-								root, ret);
-					goto out;
-				}
-				allowed_chunk_alloc = 0;
-				if (ret == 1)
-					done_chunk_alloc = 1;
-			} else if (!done_chunk_alloc &&
-				   space_info->force_alloc ==
-				   CHUNK_ALLOC_NO_FORCE) {
-				space_info->force_alloc = CHUNK_ALLOC_LIMITED;
+			ret = do_chunk_alloc(trans, root, num_bytes +
+					     2 * 1024 * 1024, data,
+					     CHUNK_ALLOC_FORCE);
+			/*
+			 * Do not bail out on ENOSPC since we
+			 * can do more things.
+			 */
+			if (ret < 0 && ret != -ENOSPC) {
+				btrfs_abort_transaction(trans,
+							root, ret);
+				goto out;
 			}
-
-		       /*
-			* We didn't allocate a chunk, go ahead and drop the
-			* empty size and loop again.
-			*/
-		       if (!done_chunk_alloc)
-			       loop = LOOP_NO_EMPTY_SIZE;
 		}
 
 		if (loop == LOOP_NO_EMPTY_SIZE) {
@@ -5962,20 +5954,6 @@ int btrfs_reserve_extent(struct btrfs_trans_handle *trans,
 
 	data = btrfs_get_alloc_profile(root, data);
 again:
-	/*
-	 * the only place that sets empty_size is btrfs_realloc_node, which
-	 * is not called recursively on allocations
-	 */
-	if (empty_size || root->ref_cows) {
-		ret = do_chunk_alloc(trans, root->fs_info->extent_root,
-				     num_bytes + 2 * 1024 * 1024, data,
-				     CHUNK_ALLOC_NO_FORCE);
-		if (ret < 0 && ret != -ENOSPC) {
-			btrfs_abort_transaction(trans, root, ret);
-			return ret;
-		}
-	}
-
 	WARN_ON(num_bytes < root->sectorsize);
 	ret = find_free_extent(trans, root, num_bytes, empty_size,
 			       hint_byte, ins, data);
@@ -5985,12 +5963,6 @@ again:
 			num_bytes = num_bytes >> 1;
 			num_bytes = num_bytes & ~(root->sectorsize - 1);
 			num_bytes = max(num_bytes, min_alloc_size);
-			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
-				       num_bytes, data, CHUNK_ALLOC_FORCE);
-			if (ret < 0 && ret != -ENOSPC) {
-				btrfs_abort_transaction(trans, root, ret);
-				return ret;
-			}
 			if (num_bytes == min_alloc_size)
 				final_tried = true;
 			goto again;
@@ -7828,6 +7800,34 @@ error:
 	return ret;
 }
 
+void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans,
+				       struct btrfs_root *root)
+{
+	struct btrfs_block_group_cache *block_group, *tmp;
+	struct btrfs_root *extent_root = root->fs_info->extent_root;
+	struct btrfs_block_group_item item;
+	struct btrfs_key key;
+	int ret = 0;
+
+	list_for_each_entry_safe(block_group, tmp, &trans->new_bgs,
+				 new_bg_list) {
+		list_del_init(&block_group->new_bg_list);
+
+		if (ret)
+			continue;
+
+		spin_lock(&block_group->lock);
+		memcpy(&item, &block_group->item, sizeof(item));
+		memcpy(&key, &block_group->key, sizeof(key));
+		spin_unlock(&block_group->lock);
+
+		ret = btrfs_insert_item(trans, extent_root, &key, &item,
+					sizeof(item));
+		if (ret)
+			btrfs_abort_transaction(trans, extent_root, ret);
+	}
+}
+
 int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, u64 bytes_used,
 			   u64 type, u64 chunk_objectid, u64 chunk_offset,
@@ -7861,6 +7861,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	spin_lock_init(&cache->lock);
 	INIT_LIST_HEAD(&cache->list);
 	INIT_LIST_HEAD(&cache->cluster_list);
+	INIT_LIST_HEAD(&cache->new_bg_list);
 
 	btrfs_init_free_space_ctl(cache);
 
@@ -7892,12 +7893,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	ret = btrfs_add_block_group_cache(root->fs_info, cache);
 	BUG_ON(ret); /* Logic error */
 
-	ret = btrfs_insert_item(trans, extent_root, &cache->key, &cache->item,
-				sizeof(cache->item));
-	if (ret) {
-		btrfs_abort_transaction(trans, extent_root, ret);
-		return ret;
-	}
+	list_add_tail(&cache->new_bg_list, &trans->new_bgs);
 
 	set_avail_alloc_bits(extent_root->fs_info, type);
 

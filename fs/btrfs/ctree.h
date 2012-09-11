@@ -1137,6 +1137,9 @@ struct btrfs_block_group_cache {
 	 * Today it will only have one thing on it, but that may change
 	 */
 	struct list_head cluster_list;
+
+	/* For delayed block group creation */
+	struct list_head new_bg_list;
 };
 
 /* delayed seq elem */
@@ -2865,6 +2868,8 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 			   u64 size);
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root, u64 group_start);
+void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans,
+				       struct btrfs_root *root);
 u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags);
 u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);

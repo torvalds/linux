@@ -68,6 +68,7 @@ struct btrfs_trans_handle {
 	struct btrfs_root *root;
 	struct seq_list delayed_ref_elem;
 	struct list_head qgroup_ref_list;
+	struct list_head new_bgs;
 };
 
 struct btrfs_pending_snapshot {
