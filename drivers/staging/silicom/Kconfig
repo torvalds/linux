@@ -5,7 +5,7 @@
 config NET_VENDOR_SILICOM
 	bool "Silicom devices"
 	default y
-	depends on (SSB_POSSIBLE && HAS_DMA) || PCI 
+	depends on PCI
 	---help---
 	  If you have a network card (Ethernet) belonging to this class,
 	  say Y.
@@ -19,6 +19,8 @@ if NET_VENDOR_SILICOM
 
 config SBYPASS
 	tristate "Silicom BypassCTL library support"
+	depends on PCI
+	depends on m
 	---help---
 	  If you have a network (Ethernet) controller of this type, say Y
 
@@ -28,6 +30,7 @@ config SBYPASS
 config BPCTL
 	tristate "Silicom BypassCTL net support"
 	depends on PCI
+	depends on m
 	select SBYPASS
 	select NET_CORE
 	select MII
