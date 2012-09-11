@@ -803,6 +803,8 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 {
 	int i;
 
+	ipoctal->dev->bus->ops->free_irq(ipoctal->dev);
+
 	for (i = 0; i < NR_CHANNELS; i++) {
 		tty_unregister_device(ipoctal->tty_drv, i);
 		tty_port_free_xmit_buf(&ipoctal->tty_port[i]);
