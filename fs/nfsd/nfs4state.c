@@ -1771,6 +1771,8 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 
 	if (cr_ses->flags & ~SESSION4_FLAG_MASK_A)
 		return nfserr_inval;
+	if (check_forechannel_attrs(cr_ses->fore_channel))
+		return nfserr_toosmall;
 
 	nfs4_lock_state();
 	unconf = find_unconfirmed_client(&cr_ses->clientid, true);
@@ -1810,10 +1812,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	 */
 	cr_ses->flags &= ~SESSION4_PERSIST;
 	cr_ses->flags &= ~SESSION4_RDMA;
-
-	status = nfserr_toosmall;
-	if (check_forechannel_attrs(cr_ses->fore_channel))
-		goto out;
 
 	status = nfserr_jukebox;
 	new = alloc_init_session(rqstp, conf, cr_ses);
