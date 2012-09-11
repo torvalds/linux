@@ -708,8 +708,6 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 /*  INTERRUPT SECTION */
 /*  ------------------------------------------------------------------ */
 
-#undef INTERRUPT_DEBUG
-
 static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 {
 	struct comedi_device *dev = p_device;
@@ -761,10 +759,6 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		if (pci9111_is_fifo_half_full()) {
 			unsigned int num_samples;
 			unsigned int bytes_written = 0;
-
-#ifdef INTERRUPT_DEBUG
-			printk(PCI9111_DRIVER_NAME ": fifo is half full\n");
-#endif
 
 			num_samples =
 			    PCI9111_FIFO_HALF_SIZE >
