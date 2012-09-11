@@ -124,26 +124,7 @@ static DEVICE_ATTR(temp1_input, S_IRUGO, lm70_sense_temp, NULL);
 static ssize_t lm70_show_name(struct device *dev, struct device_attribute
 			      *devattr, char *buf)
 {
-	struct lm70 *p_lm70 = dev_get_drvdata(dev);
-	int ret;
-
-	switch (p_lm70->chip) {
-	case LM70_CHIP_LM70:
-		ret = sprintf(buf, "lm70\n");
-		break;
-	case LM70_CHIP_TMP121:
-		ret = sprintf(buf, "tmp121\n");
-		break;
-	case LM70_CHIP_LM71:
-		ret = sprintf(buf, "lm71\n");
-		break;
-	case LM70_CHIP_LM74:
-		ret = sprintf(buf, "lm74\n");
-		break;
-	default:
-		ret = -EINVAL;
-	}
-	return ret;
+	return sprintf(buf, "%s\n", to_spi_device(dev)->modalias);
 }
 
 static DEVICE_ATTR(name, S_IRUGO, lm70_show_name, NULL);
