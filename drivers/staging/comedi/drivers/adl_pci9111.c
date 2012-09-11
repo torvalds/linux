@@ -103,8 +103,6 @@ TODO:
 #define PCI9111_HR_AI_RESOLUTION_2_CMP_BIT	0x8000
 
 #define PCI9111_AI_ACQUISITION_PERIOD_MIN_NS	10000
-#define PCI9111_DI_CHANNEL_NBR			16
-#define	PCI9111_DO_CHANNEL_NBR			16
 
 #define PCI9111_RANGE_SETTING_DELAY		10
 #define PCI9111_AI_INSTANT_READ_UDELAY_US	2
@@ -1236,20 +1234,20 @@ static int pci9111_attach(struct comedi_device *dev,
 	s->insn_read	= pci9111_ao_insn_read;
 
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = PCI9111_DI_CHANNEL_NBR;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = pci9111_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pci9111_di_insn_bits;
 
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = PCI9111_DO_CHANNEL_NBR;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = pci9111_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pci9111_do_insn_bits;
 
 	dev_private->is_valid = 1;
 
