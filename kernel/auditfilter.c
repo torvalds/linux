@@ -1098,7 +1098,7 @@ static void audit_log_rule_change(uid_t loginuid, u32 sessionid, u32 sid,
  * @sessionid: sessionid for netlink audit message
  * @sid: SE Linux Security ID of sender
  */
-int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
+int audit_receive_filter(int type, int pid, int seq, void *data,
 			 size_t datasz, uid_t loginuid, u32 sessionid, u32 sid)
 {
 	struct task_struct *tsk;
