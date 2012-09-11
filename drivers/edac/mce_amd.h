@@ -78,14 +78,13 @@ extern const char * const ii_msgs[];
  * per-family decoder ops
  */
 struct amd_decoder_ops {
-	bool (*dc_mce)(u16, u8);
-	bool (*ic_mce)(u16, u8);
+	bool (*mc0_mce)(u16, u8);
+	bool (*mc1_mce)(u16, u8);
 };
 
 void amd_report_gart_errors(bool);
 void amd_register_ecc_decoder(void (*f)(int, struct mce *));
 void amd_unregister_ecc_decoder(void (*f)(int, struct mce *));
-void amd_decode_nb_mce(struct mce *);
 int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data);
 
 #endif /* _EDAC_MCE_AMD_H */
