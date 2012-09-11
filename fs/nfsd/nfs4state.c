@@ -1667,6 +1667,7 @@ out_new:
 		status = nfserr_jukebox;
 		goto out;
 	}
+	new->cl_minorversion = 1;
 
 	gen_clid(new);
 	add_to_unconfirmed(new, strhashval);
@@ -1799,12 +1800,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		status = nfserr_stale_clientid;
 		goto out;
 	}
-
-	/*
-	 * XXX: we should probably set this at creation time, and check
-	 * for consistent minorversion use throughout:
-	 */
-	conf->cl_minorversion = 1;
 	/*
 	 * We do not support RDMA or persistent sessions
 	 */
@@ -2216,10 +2211,6 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		copy_clid(new, conf);
 	else /* case 4 (new client) or cases 2, 3 (client reboot): */
 		gen_clid(new);
-	/*
-	 * XXX: we should probably set this at creation time, and check
-	 * for consistent minorversion use throughout:
-	 */
 	new->cl_minorversion = 0;
 	gen_callback(new, setclid, rqstp);
 	add_to_unconfirmed(new, strhashval);
