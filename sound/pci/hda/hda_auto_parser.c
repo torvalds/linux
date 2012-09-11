@@ -735,7 +735,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		for (q = quirk; q->subvendor; q++) {
 			unsigned int vendorid =
 				q->subdevice | (q->subvendor << 16);
-			if (vendorid == codec->subsystem_id) {
+			unsigned int mask = 0xffff0000 | q->subdevice_mask;
+			if ((codec->subsystem_id & mask) == (vendorid & mask)) {
 				id = q->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 				name = q->name;
