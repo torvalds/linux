@@ -775,7 +775,7 @@ static void bnx2x_get_regs(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 	struct dump_hdr dump_hdr = {0};
 
-	regs->version = 0;
+	regs->version = 1;
 	memset(p, 0, regs->len);
 
 	if (!netif_running(bp->dev))
