@@ -281,6 +281,8 @@
 			reg = <0x34>;
 			interrupts = <0 86 0x4>;
 
+			ti,system-power-controller;
+
 			#gpio-cells = <2>;
 			gpio-controller;
 
