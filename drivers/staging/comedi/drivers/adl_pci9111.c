@@ -233,11 +233,8 @@ static const struct pci9111_board pci9111_boards[] = {
 /*  Private data structure */
 
 struct pci9111_private_data {
-	unsigned long io_range;	/*  PCI6503 io range */
-
 	unsigned long lcr_io_base; /* Local configuration register base
 				    * address */
-	unsigned long lcr_io_range;
 
 	int stop_counter;
 	int stop_is_none;
@@ -1088,7 +1085,7 @@ static int pci9111_attach(struct comedi_device *dev,
 	struct pci9111_private_data *dev_private;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
-	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
+	unsigned long io_base, lcr_io_base;
 	int ret;
 	const struct pci9111_board *board;
 
@@ -1110,7 +1107,6 @@ static int pci9111_attach(struct comedi_device *dev,
 	 *  [PCI_BASE_ADDRESS #1]. */
 
 	lcr_io_base = pci_resource_start(pcidev, 1);
-	lcr_io_range = pci_resource_len(pcidev, 1);
 
 	/*  Enable PCI device and request regions */
 	if (comedi_pci_enable(pcidev, PCI9111_DRIVER_NAME) < 0) {
@@ -1122,14 +1118,11 @@ static int pci9111_attach(struct comedi_device *dev,
 	/*  Read PCI6308 register base address [PCI_BASE_ADDRESS #2]. */
 
 	io_base = pci_resource_start(pcidev, 2);
-	io_range = pci_resource_len(pcidev, 2);
 
 	dev->iobase = io_base;
 	dev->board_name = board->name;
-	dev_private->io_range = io_range;
 	dev_private->is_valid = 0;
 	dev_private->lcr_io_base = lcr_io_base;
-	dev_private->lcr_io_range = lcr_io_range;
 
 	pci9111_reset(dev);
 
