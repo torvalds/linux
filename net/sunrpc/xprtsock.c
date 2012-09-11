@@ -917,9 +917,6 @@ static void xs_local_data_ready(struct sock *sk, int len)
 	if (skb == NULL)
 		goto out;
 
-	if (xprt->shutdown)
-		goto dropit;
-
 	repsize = skb->len - sizeof(rpc_fraghdr);
 	if (repsize < 4) {
 		dprintk("RPC:       impossible RPC reply size %d\n", repsize);
@@ -980,9 +977,6 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 
 	if ((skb = skb_recv_datagram(sk, 0, 1, &err)) == NULL)
 		goto out;
-
-	if (xprt->shutdown)
-		goto dropit;
 
 	repsize = skb->len - sizeof(struct udphdr);
 	if (repsize < 4) {
@@ -1412,9 +1406,6 @@ static void xs_tcp_data_ready(struct sock *sk, int bytes)
 	read_lock_bh(&sk->sk_callback_lock);
 	if (!(xprt = xprt_from_sock(sk)))
 		goto out;
-	if (xprt->shutdown)
-		goto out;
-
 	/* Any data means we had a useful conversation, so
 	 * the we don't need to delay the next reconnect
 	 */
@@ -1901,9 +1892,6 @@ static void xs_local_setup_socket(struct work_struct *work)
 	struct socket *sock;
 	int status = -EIO;
 
-	if (xprt->shutdown)
-		goto out;
-
 	current->flags |= PF_FSTRANS;
 
 	clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
@@ -2019,9 +2007,6 @@ static void xs_udp_setup_socket(struct work_struct *work)
 	struct rpc_xprt *xprt = &transport->xprt;
 	struct socket *sock = transport->sock;
 	int status = -EIO;
-
-	if (xprt->shutdown)
-		goto out;
 
 	current->flags |= PF_FSTRANS;
 
@@ -2167,9 +2152,6 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	struct socket *sock = transport->sock;
 	struct rpc_xprt *xprt = &transport->xprt;
 	int status = -EIO;
-
-	if (xprt->shutdown)
-		goto out;
 
 	current->flags |= PF_FSTRANS;
 
