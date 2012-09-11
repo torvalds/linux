@@ -1057,18 +1057,13 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step2: make sure trigger srcs are unique and mutually compatible */
+	/* step 2a: make sure trigger sources are unique */
 
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT) {
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
-
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
+	/* step 2b: and mutually compatible */
 
 	if (err)
 		return 2;
