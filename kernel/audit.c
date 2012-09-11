@@ -61,6 +61,7 @@
 #include <linux/netlink.h>
 #include <linux/freezer.h>
 #include <linux/tty.h>
+#include <linux/pid_namespace.h>
 
 #include "audit.h"
 
@@ -587,6 +588,11 @@ out:
 static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 {
 	int err = 0;
+
+	/* Only support the initial namespaces for now. */
+	if ((current_user_ns() != &init_user_ns) ||
+	    (task_active_pid_ns(current) != &init_pid_ns))
+		return -EPERM;
 
 	switch (msg_type) {
 	case AUDIT_GET:
