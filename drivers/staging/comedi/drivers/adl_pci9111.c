@@ -89,45 +89,35 @@ TODO:
 
 #define PCI9111_8254_CLOCK_PERIOD_NS		500
 
-/* IO address map */
-
-#define PCI9111_AI_FIFO_REG				0x00
-#define PCI9111_AO_REG					0x00
-#define PCI9111_DIO_REG					0x02
-#define PCI9111_REGISTER_EXTENDED_IO_PORTS		0x04
-#define PCI9111_AI_CHANNEL_REG				0x06
-#define PCI9111_REGISTER_AD_CHANNEL_READBACK		0x06
-#define PCI9111_AI_RANGE_REG				0x08
-#define PCI9111_RANGE_STATUS_REG			0x08
-#define PCI9111_AI_MODE_CTRL_REG			0x0A
-#define PCI9111_AI_MODE_INT_RB_REG			0x0A
-#define PCI9111_SOFTWARE_TRIGGER_REG			0x0E
-#define PCI9111_INT_CTRL_REG				0x0C
-#define PCI9111_8254_BASE_REG				0x40
-#define PCI9111_INT_CLR_REG				0x48
-
-#define PCI9111_TRIGGER_MASK				0x0F
-#define PCI9111_PTRG_OFF				(0 << 3)
-#define PCI9111_PTRG_ON					(1 << 3)
-#define PCI9111_EITS_EXTERNAL				(1 << 2)
-#define PCI9111_EITS_INTERNAL				(0 << 2)
-#define PCI9111_TPST_SOFTWARE_TRIGGER			(0 << 1)
-#define PCI9111_TPST_TIMER_PACER			(1 << 1)
-#define PCI9111_ASCAN_ON				(1 << 0)
-#define PCI9111_ASCAN_OFF				(0 << 0)
-
-#define PCI9111_ISC0_SET_IRQ_ON_ENDING_OF_AD_CONVERSION (0 << 0)
-#define PCI9111_ISC0_SET_IRQ_ON_FIFO_HALF_FULL		(1 << 0)
-#define PCI9111_ISC1_SET_IRQ_ON_TIMER_TICK		(0 << 1)
-#define PCI9111_ISC1_SET_IRQ_ON_EXT_TRG			(1 << 1)
-#define PCI9111_FFEN_SET_FIFO_ENABLE			(0 << 2)
-#define PCI9111_FFEN_SET_FIFO_DISABLE			(1 << 2)
-
-#define PCI9111_RANGE_MASK				0x07
-#define PCI9111_FIFO_EMPTY_MASK				0x10
-#define PCI9111_FIFO_HALF_FULL_MASK			0x20
-#define PCI9111_FIFO_FULL_MASK				0x40
-#define PCI9111_AD_BUSY_MASK				0x80
+/*
+ * IO address map and bit defines
+ */
+#define PCI9111_AI_FIFO_REG		0x00
+#define PCI9111_AO_REG			0x00
+#define PCI9111_DIO_REG			0x02
+#define PCI9111_EDIO_REG		0x04
+#define PCI9111_AI_CHANNEL_REG		0x06
+#define PCI9111_AI_RANGE_STAT_REG	0x08
+#define PCI9111_AI_STAT_AD_BUSY		(1 << 7)
+#define PCI9111_AI_STAT_FF_FF		(1 << 6)
+#define PCI9111_AI_STAT_FF_HF		(1 << 5)
+#define PCI9111_AI_STAT_FF_EF		(1 << 4)
+#define PCI9111_AI_RANGE_MASK		(7 << 0)
+#define PCI9111_AI_TRIG_CTRL_REG	0x0a
+#define PCI9111_AI_TRIG_CTRL_TRGEVENT	(1 << 5)
+#define PCI9111_AI_TRIG_CTRL_POTRG	(1 << 4)
+#define PCI9111_AI_TRIG_CTRL_PTRG	(1 << 3)
+#define PCI9111_AI_TRIG_CTRL_ETIS	(1 << 2)
+#define PCI9111_AI_TRIG_CTRL_TPST	(1 << 1)
+#define PCI9111_AI_TRIG_CTRL_ASCAN	(1 << 0)
+#define PCI9111_INT_CTRL_REG		0x0c
+#define PCI9111_INT_CTRL_ISC2		(1 << 3)
+#define PCI9111_INT_CTRL_FFEN		(1 << 2)
+#define PCI9111_INT_CTRL_ISC1		(1 << 1)
+#define PCI9111_INT_CTRL_ISC0		(1 << 0)
+#define PCI9111_SOFT_TRIG_REG		0x0e
+#define PCI9111_8254_BASE_REG		0x40
+#define PCI9111_INT_CLR_REG		0x48
 
 static const struct comedi_lrange pci9111_hr_ai_range = {
 	5,
@@ -237,25 +227,24 @@ static void pci9111_trigger_source_set(struct comedi_device *dev,
 	int flags;
 
 	/* Read the current trigger mode control bits */
-	flags = inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG);
+	flags = inb(dev->iobase + PCI9111_AI_TRIG_CTRL_REG);
 	/* Mask off the EITS and TPST bits */
 	flags &= 0x9;
 
 	switch (source) {
 	case software:
-		flags |= PCI9111_EITS_INTERNAL | PCI9111_TPST_SOFTWARE_TRIGGER;
 		break;
 
 	case timer_pacer:
-		flags |= PCI9111_EITS_INTERNAL | PCI9111_TPST_TIMER_PACER;
+		flags |= PCI9111_AI_TRIG_CTRL_TPST;
 		break;
 
 	case external:
-		flags |= PCI9111_EITS_EXTERNAL;
+		flags |= PCI9111_AI_TRIG_CTRL_ETIS;
 		break;
 	}
 
-	outb(flags, dev->iobase + PCI9111_AI_MODE_CTRL_REG);
+	outb(flags, dev->iobase + PCI9111_AI_TRIG_CTRL_REG);
 }
 
 static void pci9111_pretrigger_set(struct comedi_device *dev, bool pretrigger)
@@ -263,14 +252,14 @@ static void pci9111_pretrigger_set(struct comedi_device *dev, bool pretrigger)
 	int flags;
 
 	/* Read the current trigger mode control bits */
-	flags = inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG);
+	flags = inb(dev->iobase + PCI9111_AI_TRIG_CTRL_REG);
 	/* Mask off the PTRG bit */
 	flags &= 0x7;
 
 	if (pretrigger)
-		flags |= PCI9111_PTRG_ON;
+		flags |= PCI9111_AI_TRIG_CTRL_PTRG;
 
-	outb(flags, dev->iobase + PCI9111_AI_MODE_CTRL_REG);
+	outb(flags, dev->iobase + PCI9111_AI_TRIG_CTRL_REG);
 }
 
 static void pci9111_autoscan_set(struct comedi_device *dev, bool autoscan)
@@ -278,14 +267,14 @@ static void pci9111_autoscan_set(struct comedi_device *dev, bool autoscan)
 	int flags;
 
 	/* Read the current trigger mode control bits */
-	flags = inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG);
+	flags = inb(dev->iobase + PCI9111_AI_TRIG_CTRL_REG);
 	/* Mask off the ASCAN bit */
 	flags &= 0xe;
 
 	if (autoscan)
-		flags |= PCI9111_ASCAN_ON;
+		flags |= PCI9111_AI_TRIG_CTRL_ASCAN;
 
-	outb(flags, dev->iobase + PCI9111_AI_MODE_CTRL_REG);
+	outb(flags, dev->iobase + PCI9111_AI_TRIG_CTRL_REG);
 }
 
 enum pci9111_ISC0_sources {
@@ -305,7 +294,7 @@ static void pci9111_interrupt_source_set(struct comedi_device *dev,
 	int flags;
 
 	/* Read the current interrupt control bits */
-	flags = inb(dev->iobase + PCI9111_AI_MODE_INT_RB_REG);
+	flags = inb(dev->iobase + PCI9111_AI_TRIG_CTRL_REG);
 	/* Shift the bits so they are compatible with the write register */
 	flags >>= 4;
 	/* Mask off the ISCx bits */
@@ -313,10 +302,10 @@ static void pci9111_interrupt_source_set(struct comedi_device *dev,
 
 	/* Now set the new ISCx bits */
 	if (irq_0_source == irq_on_fifo_half_full)
-		flags |= PCI9111_ISC0_SET_IRQ_ON_FIFO_HALF_FULL;
+		flags |= PCI9111_INT_CTRL_ISC0;
 
 	if (irq_1_source == irq_on_external_trigger)
-		flags |= PCI9111_ISC1_SET_IRQ_ON_EXT_TRG;
+		flags |= PCI9111_INT_CTRL_ISC1;
 
 	outb(flags, dev->iobase + PCI9111_INT_CTRL_REG);
 }
@@ -326,9 +315,9 @@ static void pci9111_fifo_reset(struct comedi_device *dev)
 	unsigned long int_ctrl_reg = dev->iobase + PCI9111_INT_CTRL_REG;
 
 	/* To reset the FIFO, set FFEN sequence as 0 -> 1 -> 0 */
-	outb(PCI9111_FFEN_SET_FIFO_ENABLE, int_ctrl_reg);
-	outb(PCI9111_FFEN_SET_FIFO_DISABLE, int_ctrl_reg);
-	outb(PCI9111_FFEN_SET_FIFO_ENABLE, int_ctrl_reg);
+	outb(0, int_ctrl_reg);
+	outb(PCI9111_INT_CTRL_FFEN, int_ctrl_reg);
+	outb(0, int_ctrl_reg);
 }
 
 /*  ------------------------------------------------------------------ */
@@ -576,8 +565,8 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	/*  Set gain */
 	/*  This is the same gain on every channel */
 
-	outb(CR_RANGE(async_cmd->chanlist[0]) & PCI9111_RANGE_MASK,
-		dev->iobase + PCI9111_AI_RANGE_REG);
+	outb(CR_RANGE(async_cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
+		dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
 	/* Set counter */
 
@@ -711,10 +700,10 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	    (PLX9050_LINTI1_ENABLE | PLX9050_LINTI1_STATUS)) {
 		/*  Interrupt comes from fifo_half-full signal */
 
-		status = inb(dev->iobase + PCI9111_RANGE_STATUS_REG);
+		status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
 		/* '0' means FIFO is full, data may have been lost */
-		if (!(status & PCI9111_FIFO_FULL_MASK)) {
+		if (!(status & PCI9111_AI_STAT_FF_FF)) {
 			spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 			comedi_error(dev, PCI9111_DRIVER_NAME " fifo overflow");
 			outb(0, dev->iobase + PCI9111_INT_CLR_REG);
@@ -726,7 +715,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		}
 
 		/* '0' means FIFO is half-full */
-		if (!(status & PCI9111_FIFO_HALF_FULL_MASK)) {
+		if (!(status & PCI9111_AI_STAT_FF_HF)) {
 			unsigned int num_samples;
 			unsigned int bytes_written = 0;
 
@@ -833,24 +822,24 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 
 	outb(chan, dev->iobase + PCI9111_AI_CHANNEL_REG);
 
-	status = inb(dev->iobase + PCI9111_RANGE_STATUS_REG);
-	if ((status & PCI9111_RANGE_MASK) != range) {
-		outb(range & PCI9111_RANGE_MASK,
-			dev->iobase + PCI9111_AI_RANGE_REG);
+	status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
+	if ((status & PCI9111_AI_RANGE_MASK) != range) {
+		outb(range & PCI9111_AI_RANGE_MASK,
+			dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 	}
 
 	pci9111_fifo_reset(dev);
 
 	for (i = 0; i < insn->n; i++) {
 		/* Generate a software trigger */
-		outb(0, dev->iobase + PCI9111_SOFTWARE_TRIGGER_REG);
+		outb(0, dev->iobase + PCI9111_SOFT_TRIG_REG);
 
 		timeout = PCI9111_AI_INSTANT_READ_TIMEOUT;
 
 		while (timeout--) {
-			status = inb(dev->iobase + PCI9111_RANGE_STATUS_REG);
+			status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 			/* '1' means FIFO is not empty */
-			if (status & PCI9111_FIFO_EMPTY_MASK)
+			if (status & PCI9111_AI_STAT_FF_EF)
 				goto conversion_done;
 		}
 
