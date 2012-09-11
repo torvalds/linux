@@ -119,7 +119,7 @@ TODO:
 
 #define PCI9111_REGISTER_AD_FIFO_VALUE			0x00 /* AD Data stored
 								in FIFO */
-#define PCI9111_REGISTER_DA_OUTPUT			0x00
+#define PCI9111_AO_REG					0x00
 #define PCI9111_DIO_REG					0x02
 #define PCI9111_REGISTER_EXTENDED_IO_PORTS		0x04
 #define PCI9111_REGISTER_AD_CHANNEL_CONTROL		0x06 /* Channel
@@ -228,11 +228,6 @@ TODO:
 	((inw(dev->iobase + PCI9111_REGISTER_AD_FIFO_VALUE) \
 		&PCI9111_HR_AI_RESOLUTION_MASK) \
 			^ PCI9111_HR_AI_RESOLUTION_2_CMP_BIT)
-
-#define pci9111_ao_set_data(data) \
-	outw(data&PCI9111_AO_RESOLUTION_MASK, \
-		dev->iobase + PCI9111_REGISTER_DA_OUTPUT)
-
 
 static const struct comedi_lrange pci9111_hr_ai_range = {
 	5,
@@ -1055,7 +1050,8 @@ pci9111_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		pci9111_ao_set_data(data[i]);
+		outw(data[i] & PCI9111_AO_RESOLUTION_MASK,
+			dev->iobase + PCI9111_AO_REG);
 		dev_private->ao_readback = data[i];
 	}
 
