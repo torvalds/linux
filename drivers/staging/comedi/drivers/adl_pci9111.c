@@ -104,7 +104,7 @@ TODO:
 #define PCI9111_SOFTWARE_TRIGGER_REG			0x0E
 #define PCI9111_REGISTER_INTERRUPT_CONTROL		0x0C
 #define PCI9111_8254_BASE_REG				0x40
-#define PCI9111_REGISTER_INTERRUPT_CLEAR		0x48
+#define PCI9111_INT_CLR_REG				0x48
 
 #define PCI9111_TRIGGER_MASK				0x0F
 #define PCI9111_PTRG_OFF				(0 << 3)
@@ -145,9 +145,6 @@ TODO:
 
 #define pci9111_interrupt_and_fifo_set(flags) \
 	outb(flags, dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL)
-
-#define pci9111_interrupt_clear() \
-	outb(0, dev->iobase + PCI9111_REGISTER_INTERRUPT_CLEAR)
 
 #define pci9111_fifo_reset() do { \
 	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
@@ -722,7 +719,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		if (!(status & PCI9111_FIFO_FULL_MASK)) {
 			spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 			comedi_error(dev, PCI9111_DRIVER_NAME " fifo overflow");
-			pci9111_interrupt_clear();
+			outb(0, dev->iobase + PCI9111_INT_CLR_REG);
 			pci9111_ai_cancel(dev, s);
 			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 			comedi_event(dev, s);
@@ -808,10 +805,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		pci9111_ai_cancel(dev, s);
 	}
 
-	/* Very important, otherwise another interrupt request will be inserted
-	 * and will cause driver hangs on processing interrupt event. */
-
-	pci9111_interrupt_clear();
+	outb(0, dev->iobase + PCI9111_INT_CLR_REG);
 
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
