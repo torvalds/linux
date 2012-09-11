@@ -101,7 +101,7 @@ TODO:
 #define PCI9111_RANGE_STATUS_REG			0x08
 #define PCI9111_REGISTER_TRIGGER_MODE_CONTROL		0x0A
 #define PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK	0x0A
-#define PCI9111_REGISTER_SOFTWARE_TRIGGER		0x0E
+#define PCI9111_SOFTWARE_TRIGGER_REG			0x0E
 #define PCI9111_REGISTER_INTERRUPT_CONTROL		0x0C
 #define PCI9111_8254_BASE_REG				0x40
 #define PCI9111_REGISTER_INTERRUPT_CLEAR		0x48
@@ -148,9 +148,6 @@ TODO:
 
 #define pci9111_interrupt_clear() \
 	outb(0, dev->iobase + PCI9111_REGISTER_INTERRUPT_CLEAR)
-
-#define pci9111_software_trigger() \
-	outb(0, dev->iobase + PCI9111_REGISTER_SOFTWARE_TRIGGER)
 
 #define pci9111_fifo_reset() do { \
 	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
@@ -853,7 +850,8 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 	pci9111_fifo_reset();
 
 	for (i = 0; i < insn->n; i++) {
-		pci9111_software_trigger();
+		/* Generate a software trigger */
+		outb(0, dev->iobase + PCI9111_SOFTWARE_TRIGGER_REG);
 
 		timeout = PCI9111_AI_INSTANT_READ_TIMEOUT;
 
