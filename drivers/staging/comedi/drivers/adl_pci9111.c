@@ -161,17 +161,6 @@ TODO:
 		dev->iobase + PCI9111_REGISTER_INTERRUPT_CONTROL); \
 	} while (0)
 
-#define pci9111_is_fifo_full() \
-	((inb(dev->iobase + PCI9111_RANGE_STATUS_REG)& \
-		PCI9111_FIFO_FULL_MASK) == 0)
-
-#define pci9111_is_fifo_half_full() \
-	((inb(dev->iobase + PCI9111_RANGE_STATUS_REG)& \
-		PCI9111_FIFO_HALF_FULL_MASK) == 0)
-
-#define pci9111_is_fifo_empty() \
-	((inb(dev->iobase + PCI9111_RANGE_STATUS_REG)& \
-		PCI9111_FIFO_EMPTY_MASK) == 0)
 
 static const struct comedi_lrange pci9111_hr_ai_range = {
 	5,
@@ -698,6 +687,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	struct pci9111_private_data *dev_private = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
+	unsigned int status;
 	unsigned long irq_flags;
 	unsigned char intcsr;
 
@@ -729,7 +719,10 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	    (PLX9050_LINTI1_ENABLE | PLX9050_LINTI1_STATUS)) {
 		/*  Interrupt comes from fifo_half-full signal */
 
-		if (pci9111_is_fifo_full()) {
+		status = inb(dev->iobase + PCI9111_RANGE_STATUS_REG);
+
+		/* '0' means FIFO is full, data may have been lost */
+		if (!(status & PCI9111_FIFO_FULL_MASK)) {
 			spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 			comedi_error(dev, PCI9111_DRIVER_NAME " fifo overflow");
 			pci9111_interrupt_clear();
@@ -740,7 +733,8 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			return IRQ_HANDLED;
 		}
 
-		if (pci9111_is_fifo_half_full()) {
+		/* '0' means FIFO is half-full */
+		if (!(status & PCI9111_FIFO_HALF_FULL_MASK)) {
 			unsigned int num_samples;
 			unsigned int bytes_written = 0;
 
@@ -844,14 +838,14 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 	unsigned int maxdata = s->maxdata;
 	unsigned int invert = (maxdata + 1) >> 1;
 	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
-	unsigned int current_range;
+	unsigned int status;
 	int timeout;
 	int i;
 
 	outb(chan, dev->iobase + PCI9111_AI_CHANNEL_REG);
 
-	current_range = inb(dev->iobase + PCI9111_RANGE_STATUS_REG);
-	if ((current_range & PCI9111_RANGE_MASK) != range) {
+	status = inb(dev->iobase + PCI9111_RANGE_STATUS_REG);
+	if ((status & PCI9111_RANGE_MASK) != range) {
 		outb(range & PCI9111_RANGE_MASK,
 			dev->iobase + PCI9111_AI_RANGE_REG);
 	}
@@ -864,7 +858,9 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 		timeout = PCI9111_AI_INSTANT_READ_TIMEOUT;
 
 		while (timeout--) {
-			if (!pci9111_is_fifo_empty())
+			status = inb(dev->iobase + PCI9111_RANGE_STATUS_REG);
+			/* '1' means FIFO is not empty */
+			if (status & PCI9111_FIFO_EMPTY_MASK)
 				goto conversion_done;
 		}
 
