@@ -1035,22 +1035,22 @@ conversion_done:
 	return i;
 }
 
-/*  Analog instant output */
-
-static int
-pci9111_ao_insn_write(struct comedi_device *dev,
-		      struct comedi_subdevice *s, struct comedi_insn *insn,
-		      unsigned int *data)
+static int pci9111_ao_insn_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct pci9111_private_data *dev_private = dev->private;
+	unsigned int val = 0;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		outw(data[i], dev->iobase + PCI9111_AO_REG);
-		dev_private->ao_readback = data[i];
+		val = data[i];
+		outw(val, dev->iobase + PCI9111_AO_REG);
 	}
+	dev_private->ao_readback = val;
 
-	return i;
+	return insn->n;
 }
 
 static int pci9111_ao_insn_read(struct comedi_device *dev,
