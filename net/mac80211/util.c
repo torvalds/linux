@@ -1606,14 +1606,13 @@ static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
 	return 0;
 }
 
-/* must hold iflist_mtx */
 void ieee80211_recalc_smps(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_OFF;
 	int count = 0;
 
-	lockdep_assert_held(&local->iflist_mtx);
+	mutex_lock(&local->iflist_mtx);
 
 	/*
 	 * This function could be improved to handle multiple
@@ -1642,12 +1641,14 @@ void ieee80211_recalc_smps(struct ieee80211_local *local)
 	}
 
 	if (smps_mode == local->smps_mode)
-		return;
+		goto unlock;
 
  set:
 	local->smps_mode = smps_mode;
 	/* changed flag is auto-detected for this */
 	ieee80211_hw_config(local, 0);
+ unlock:
+	mutex_unlock(&local->iflist_mtx);
 }
 
 static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)
