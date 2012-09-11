@@ -93,4 +93,16 @@ static inline int cfc_check_trigger_src(unsigned int *src, unsigned int flags)
 	return 0;
 }
 
+/**
+ * cfc_check_trigger_is_unique() - make sure a trigger source is unique
+ * @src: the trigger source to check
+ */
+static inline int cfc_check_trigger_is_unique(unsigned int src)
+{
+	/* this test is true if more than one _src bit is set */
+	if ((src & (src - 1)) != 0)
+		return -EINVAL;
+	return 0;
+}
+
 #endif /* _COMEDI_FC_H */
