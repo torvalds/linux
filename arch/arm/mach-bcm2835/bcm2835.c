@@ -15,10 +15,10 @@
 #include <linux/init.h>
 #include <linux/irqchip/bcm2835.h>
 #include <linux/of_platform.h>
+#include <linux/bcm2835_timer.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/time.h>
 
 #include <mach/bcm2835_soc.h>
 
@@ -45,14 +45,6 @@ void __init bcm2835_init(void)
 		BUG();
 	}
 }
-
-static void __init bcm2835_timer_init(void)
-{
-}
-
-struct sys_timer bcm2835_timer = {
-	.init = bcm2835_timer_init
-};
 
 static const char * const bcm2835_compat[] = {
 	"brcm,bcm2835",
