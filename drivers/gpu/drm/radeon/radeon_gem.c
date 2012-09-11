@@ -134,13 +134,16 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 	struct radeon_device *rdev = rbo->rdev;
 	struct radeon_fpriv *fpriv = file_priv->driver_priv;
 	struct radeon_vm *vm = &fpriv->vm;
+	int r;
 
 	if (rdev->family < CHIP_CAYMAN) {
 		return;
 	}
 
-	if (radeon_bo_reserve(rbo, false)) {
-		dev_err(rdev->dev, "leaking bo va because we fail to reserve bo\n");
+	r = radeon_bo_reserve(rbo, true);
+	if (r) {
+		dev_err(rdev->dev, "leaking bo va because "
+			"we fail to reserve bo (%d)\n", r);
 		return;
 	}
 	radeon_vm_bo_rmv(rdev, vm, rbo);
