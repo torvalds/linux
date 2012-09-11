@@ -1700,6 +1700,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	struct fb_info *fb_info;
 	struct xgifb_video_info *xgifb_info;
 	struct xgi_hw_device_info *hw_info;
+	unsigned long video_size_max;
 
 	fb_info = framebuffer_alloc(sizeof(*xgifb_info), &pdev->dev);
 	if (!fb_info)
@@ -1720,6 +1721,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	xgifb_info->subsysvendor = pdev->subsystem_vendor;
 	xgifb_info->subsysdevice = pdev->subsystem_device;
 
+	video_size_max = pci_resource_len(pdev, 0);
 	xgifb_info->video_base = pci_resource_start(pdev, 0);
 	xgifb_info->mmio_base = pci_resource_start(pdev, 1);
 	xgifb_info->mmio_size = pci_resource_len(pdev, 1);
@@ -1780,6 +1782,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			"Fatal error: Unable to determine RAM size.\n");
 		ret = -ENODEV;
 		goto error_disable;
+	} else if (xgifb_info->video_size > video_size_max) {
+		xgifb_info->video_size = video_size_max;
 	}
 
 	/* Enable PCI_LINEAR_ADDRESSING and MMIO_ENABLE  */
