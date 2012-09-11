@@ -1075,7 +1075,7 @@ static struct snd_kcontrol_new stac_smux_mixer = {
 
 static const char * const slave_pfxs[] = {
 	"Front", "Surround", "Center", "LFE", "Side",
-	"Headphone", "Speaker", "IEC958",
+	"Headphone", "Speaker", "IEC958", "PCM",
 	NULL
 };
 
