@@ -3084,6 +3084,16 @@ void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 	REG_CLR_BIT(ah, gen_tmr_configuration[timer->index].mode_addr,
 			gen_tmr_configuration[timer->index].mode_mask);
 
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
+		/*
+		 * Need to switch back to TSF if it was using TSF2.
+		 */
+		if ((timer->index >= AR_GEN_TIMER_BANK_1_LEN)) {
+			REG_CLR_BIT(ah, AR_MAC_PCU_GEN_TIMER_TSF_SEL,
+				    (1 << timer->index));
+		}
+	}
+
 	/* Disable both trigger and thresh interrupt masks */
 	REG_CLR_BIT(ah, AR_IMR_S5,
 		(SM(AR_GENTMR_BIT(timer->index), AR_IMR_S5_GENTIMER_THRESH) |
