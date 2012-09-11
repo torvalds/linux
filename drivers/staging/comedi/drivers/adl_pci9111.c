@@ -116,22 +116,6 @@ TODO:
 
 #define PCI9111_8254_CLOCK_PERIOD_NS		500
 
-#define PCI9111_8254_COUNTER_0			0x00
-#define PCI9111_8254_COUNTER_1			0x40
-#define PCI9111_8254_COUNTER_2			0x80
-#define PCI9111_8254_COUNTER_LATCH		0x00
-#define PCI9111_8254_READ_LOAD_LSB_ONLY		0x10
-#define PCI9111_8254_READ_LOAD_MSB_ONLY		0x20
-#define PCI9111_8254_READ_LOAD_LSB_MSB		0x30
-#define PCI9111_8254_MODE_0			0x00
-#define PCI9111_8254_MODE_1			0x02
-#define PCI9111_8254_MODE_2			0x04
-#define PCI9111_8254_MODE_3			0x06
-#define PCI9111_8254_MODE_4			0x08
-#define PCI9111_8254_MODE_5			0x0A
-#define PCI9111_8254_BINARY_COUNTER		0x00
-#define PCI9111_8254_BCD_COUNTER		0x01
-
 /* IO address map */
 
 #define PCI9111_REGISTER_AD_FIFO_VALUE			0x00 /* AD Data stored
@@ -148,10 +132,7 @@ TODO:
 #define PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK	0x0A
 #define PCI9111_REGISTER_SOFTWARE_TRIGGER		0x0E
 #define PCI9111_REGISTER_INTERRUPT_CONTROL		0x0C
-#define PCI9111_REGISTER_8254_COUNTER_0			0x40
-#define PCI9111_REGISTER_8254_COUNTER_1			0x42
-#define PCI9111_REGISTER_8254_COUNTER_2			0X44
-#define PCI9111_REGISTER_8254_CONTROL			0x46
+#define PCI9111_8254_BASE_REG				0x40
 #define PCI9111_REGISTER_INTERRUPT_CLEAR		0x48
 
 #define PCI9111_TRIGGER_MASK				0x0F
@@ -379,36 +360,16 @@ static void plx9050_interrupt_control(unsigned long io_base,
 static void pci9111_timer_set(struct comedi_device *dev)
 {
 	struct pci9111_private_data *dev_private = dev->private;
+	unsigned long timer_base = dev->iobase + PCI9111_8254_BASE_REG;
 
-	outb(PCI9111_8254_COUNTER_0 |
-	     PCI9111_8254_READ_LOAD_LSB_MSB |
-	     PCI9111_8254_MODE_0 |
-	     PCI9111_8254_BINARY_COUNTER,
-	     dev->iobase + PCI9111_REGISTER_8254_CONTROL);
-
-	outb(PCI9111_8254_COUNTER_1 |
-	     PCI9111_8254_READ_LOAD_LSB_MSB |
-	     PCI9111_8254_MODE_2 |
-	     PCI9111_8254_BINARY_COUNTER,
-	     dev->iobase + PCI9111_REGISTER_8254_CONTROL);
-
-	outb(PCI9111_8254_COUNTER_2 |
-	     PCI9111_8254_READ_LOAD_LSB_MSB |
-	     PCI9111_8254_MODE_2 |
-	     PCI9111_8254_BINARY_COUNTER,
-	     dev->iobase + PCI9111_REGISTER_8254_CONTROL);
+	i8254_set_mode(timer_base, 1, 0, I8254_MODE0 | I8254_BINARY);
+	i8254_set_mode(timer_base, 1, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 1, 2, I8254_MODE2 | I8254_BINARY);
 
 	udelay(1);
 
-	outb(dev_private->timer_divisor_2 & 0xff,
-		dev->iobase + PCI9111_REGISTER_8254_COUNTER_2);
-	outb((dev_private->timer_divisor_2 >> 8) & 0xff,
-		dev->iobase + PCI9111_REGISTER_8254_COUNTER_2);
-
-	outb(dev_private->timer_divisor_1 & 0xff,
-		dev->iobase + PCI9111_REGISTER_8254_COUNTER_1);
-	outb((dev_private->timer_divisor_1 >> 8) & 0xff,
-		dev->iobase + PCI9111_REGISTER_8254_COUNTER_1);
+	i8254_write(timer_base, 1, 2, dev_private->timer_divisor_2);
+	i8254_write(timer_base, 1, 1, dev_private->timer_divisor_1);
 }
 
 enum pci9111_trigger_sources {
