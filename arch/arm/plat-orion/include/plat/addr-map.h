@@ -16,7 +16,7 @@ extern struct mbus_dram_target_info orion_mbus_dram_info;
 struct orion_addr_map_cfg {
 	const int num_wins;	/* Total number of windows */
 	const int remappable_wins;
-	void __iomem * const bridge_virt_base;
+	void __iomem *bridge_virt_base;
 
 	/* If NULL, the default cpu_win_can_remap will be used, using
 	   the value in remappable_wins */
