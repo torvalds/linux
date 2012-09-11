@@ -41,7 +41,7 @@
 static struct __initdata orion_addr_map_cfg addr_map_cfg = {
 	.num_wins = 8,
 	.remappable_wins = 4,
-	.bridge_virt_base = (unsigned long) BRIDGE_VIRT_BASE,
+	.bridge_virt_base = BRIDGE_VIRT_BASE,
 };
 
 static const struct __initdata orion_addr_map_info addr_map_info[] = {
@@ -86,5 +86,6 @@ void __init kirkwood_setup_cpu_mbus(void)
 	/*
 	 * Setup MBUS dram target info.
 	 */
-	orion_setup_cpu_mbus_target(&addr_map_cfg, DDR_WINDOW_CPU_BASE);
+	orion_setup_cpu_mbus_target(&addr_map_cfg,
+				    (void __iomem *) DDR_WINDOW_CPU_BASE);
 }

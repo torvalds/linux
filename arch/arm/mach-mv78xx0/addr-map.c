@@ -71,10 +71,10 @@ void __init mv78xx0_setup_cpu_mbus(void)
 	 */
 	if (mv78xx0_core_index() == 0)
 		orion_setup_cpu_mbus_target(&addr_map_cfg,
-					    DDR_WINDOW_CPU0_BASE);
+					    (void __iomem *) DDR_WINDOW_CPU0_BASE);
 	else
 		orion_setup_cpu_mbus_target(&addr_map_cfg,
-					    DDR_WINDOW_CPU1_BASE);
+					    (void __iomem *) DDR_WINDOW_CPU1_BASE);
 }
 
 void __init mv78xx0_setup_pcie_io_win(int window, u32 base, u32 size,
