@@ -979,8 +979,6 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 
 /*  analog instant input */
 
-#undef AI_INSN_DEBUG
-
 static int pci9111_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -989,12 +987,6 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 	    ((struct pci9111_board *)dev->board_ptr)->ai_resolution;
 
 	int timeout, i;
-
-#ifdef AI_INSN_DEBUG
-	printk(PCI9111_DRIVER_NAME ": ai_insn set c/r/n = %2x/%2x/%2x\n",
-	       CR_CHAN((&insn->chanspec)[0]),
-	       CR_RANGE((&insn->chanspec)[0]), insn->n);
-#endif
 
 	pci9111_ai_channel_set(CR_CHAN((&insn->chanspec)[0]));
 
@@ -1025,12 +1017,6 @@ conversion_done:
 		else
 			data[i] = pci9111_ai_get_data();
 	}
-
-#ifdef AI_INSN_DEBUG
-	printk(PCI9111_DRIVER_NAME ": ai_insn get c/r/t = %2x/%2x/%2x\n",
-	       pci9111_ai_channel_get(),
-	       pci9111_ai_range_get(), pci9111_trigger_and_autoscan_get());
-#endif
 
 	return i;
 }
