@@ -25,7 +25,6 @@
 #include <mach/iomux.h>
 #include <mach/clock.h>
 #include <mach/dvfs.h>
-#include "clock.h"
 //#include <mach/pmu.h>
 
 #define MHZ	(1000 * 1000)

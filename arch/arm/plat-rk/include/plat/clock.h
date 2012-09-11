@@ -1,9 +1,7 @@
 #ifndef __PLAT_CLOCK_H__
 #define __PLAT_CLOCK_H__
 
-#ifndef CONFIG_ARCH_RK30
-#define RK30_CLK_OFFBOARD_TEST
-#endif
+//#define RK30_CLK_OFFBOARD_TEST
 
 
 /* Clock flags */

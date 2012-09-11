@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
-#include "clock.h"
 #include <mach/dvfs.h>
 #include <mach/clock.h>
 #include <linux/regulator/consumer.h>
