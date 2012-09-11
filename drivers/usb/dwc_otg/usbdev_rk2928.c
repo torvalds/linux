@@ -17,8 +17,8 @@
 #define USBOTG_SIZE    RK2928_USBOTG20_SIZE
 #define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x14c)
 #define USBGRF_UOC0_CON5	(GRF_REG_BASE+0x17c)
+#define USBGRF_UOC1_CON4    (GRF_REG_BASE+0X190)
 #define USBGRF_UOC1_CON5	(GRF_REG_BASE+0x194)
-
 
 int dwc_otg_check_dpdm(void)
 {
@@ -27,23 +27,22 @@ int dwc_otg_check_dpdm(void)
     volatile unsigned int * otg_gotgctl;
     volatile unsigned int * otg_hprt0;
     int bus_status = 0;
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);//@lyz modify UOC0_CON2 to CON5
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5) ;
     
-    // softreset & clockgate //@lyz modify RK2928_CRU_BASE
     *(unsigned int*)(RK2928_CRU_BASE+0x120) = ((7<<5)<<16)|(7<<5);    // otg0 phy clkgate
     udelay(3);
     *(unsigned int*)(RK2928_CRU_BASE+0x120) = ((7<<5)<<16)|(0<<5);    // otg0 phy clkgate
     dsb();
     *(unsigned int*)(RK2928_CRU_BASE+0xd4) = ((1<<5)<<16);    // otg0 phy clkgate
     *(unsigned int*)(RK2928_CRU_BASE+0xe4) = ((1<<13)<<16);   // otg0 hclk clkgate
-    *(unsigned int*)(RK2928_CRU_BASE+0xf4) = ((3<<10)<<16);    // hclk usb clkgate//@lyz to be check
-    
+    *(unsigned int*)(RK2928_CRU_BASE+0xf4) = ((3<<10)<<16);    // hclk usb clkgat
+   
     // exit phy suspend 
-        *otg_phy_con1 = ((0x01<<0)<<16);    // exit suspend.@lyz
+        *otg_phy_con1 = ((0x01<<0)<<16);  
     
     // soft connect
     if(reg_base == 0){
-        reg_base = ioremap(RK2928_USBOTG20_PHYS,USBOTG_SIZE);//@lyz
+        reg_base = ioremap(RK2928_USBOTG20_PHYS,USBOTG_SIZE);
         if(!reg_base){
             bus_status = -1;
             goto out;
@@ -103,7 +102,7 @@ void usb20otg_phy_suspend(void* pdata, int suspend)
     struct dwc_otg_platform_data *usbpdata=pdata;
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
     if(suspend){
-        *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.
+        *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
         usbpdata->phy_status = 1;
     }
     else{
@@ -152,6 +151,7 @@ int usb20otg_get_status(int id)
 {
     int ret = -1;
     unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
+    unsigned int uoc1_con4 = *(unsigned int*)(USBGRF_UOC1_CON4);
     switch(id)
     {
         case USB_STATUS_BVABLID:
@@ -166,11 +166,34 @@ int usb20otg_get_status(int id)
             // id in grf
             ret = (usbgrf_status &(1<<10));
             break;
+        case USB_STATUS_UARTMODE:
+            // usb_uart_mode in grf
+            ret = (uoc1_con4 &(1<<13));
         default:
             break;
     }
     return ret;
 }
+void dwc_otg_uart_mode(void* pdata, int enter_usb_uart_mode)
+{
+#ifdef CONFIG_RK_USB_UART
+    //struct dwc_otg_platform_data *usbpdata=pdata;//1:uart 0:usb
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON4);
+    //printk("usb_uart_mode = %d,enter_usb_uart_mode = %d\n",otg_phy_con1,enter_usb_uart_mode);
+    if(1 == enter_usb_uart_mode)   //uart mode
+    {
+        *otg_phy_con1 = (0x03 << 12 | (0x03<<(16+12)));//bypass dm
+        //printk("phy enter uart mode USBGRF_UOC1_CON4 = %08x\n",*otg_phy_con1);
+        
+    }
+    if(0 == enter_usb_uart_mode)   //usb mode
+    {   
+        *otg_phy_con1 = (0x03<<(12+16)); //bypass dm disable 
+        //printk("phy enter usb mode USBGRF_UOC1_CON4 = %8x\n",*otg_phy_con1);
+    }
+#endif
+}
+
 void usb20otg_power_enable(int enable)
 {
 }
@@ -185,6 +208,7 @@ struct dwc_otg_platform_data usb20otg_pdata = {
     .clock_init=usb20otg_clock_init,
     .clock_enable=usb20otg_clock_enable,
     .get_status=usb20otg_get_status,
+    .dwc_otg_uart_mode=dwc_otg_uart_mode,
 };
 
 struct platform_device device_usb20_otg = {
