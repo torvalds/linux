@@ -203,7 +203,7 @@ void __init orion5x_wdt_init(void)
  ****************************************************************************/
 void __init orion5x_init_early(void)
 {
-	orion_time_set_base((unsigned long) TIMER_VIRT_BASE);
+	orion_time_set_base(TIMER_VIRT_BASE);
 }
 
 int orion5x_tclk;
@@ -224,8 +224,7 @@ static void __init orion5x_timer_init(void)
 {
 	orion5x_tclk = orion5x_find_tclk();
 
-	orion_time_init((unsigned long) ORION5X_BRIDGE_VIRT_BASE,
-			BRIDGE_INT_TIMER1_CLR,
+	orion_time_init(ORION5X_BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_ORION5X_BRIDGE, orion5x_tclk);
 }
 

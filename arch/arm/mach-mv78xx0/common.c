@@ -338,13 +338,12 @@ void __init mv78xx0_uart3_init(void)
  ****************************************************************************/
 void __init mv78xx0_init_early(void)
 {
-	orion_time_set_base((unsigned long) TIMER_VIRT_BASE);
+	orion_time_set_base(TIMER_VIRT_BASE);
 }
 
 static void mv78xx0_timer_init(void)
 {
-	orion_time_init((unsigned long) BRIDGE_VIRT_BASE,
-			BRIDGE_INT_TIMER1_CLR,
+	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_MV78XX0_TIMER_1, get_tclk());
 }
 

@@ -185,7 +185,7 @@ void __init dove_i2c_init(void)
  ****************************************************************************/
 void __init dove_init_early(void)
 {
-	orion_time_set_base((unsigned long) TIMER_VIRT_BASE);
+	orion_time_set_base(TIMER_VIRT_BASE);
 }
 
 static int get_tclk(void)
@@ -196,8 +196,7 @@ static int get_tclk(void)
 
 static void __init dove_timer_init(void)
 {
-	orion_time_init((unsigned long) BRIDGE_VIRT_BASE,
-			BRIDGE_INT_TIMER1_CLR,
+	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_DOVE_BRIDGE, get_tclk());
 }
 

@@ -514,7 +514,7 @@ void __init kirkwood_wdt_init(void)
  ****************************************************************************/
 void __init kirkwood_init_early(void)
 {
-	orion_time_set_base((unsigned long) TIMER_VIRT_BASE);
+	orion_time_set_base(TIMER_VIRT_BASE);
 
 	/*
 	 * Some Kirkwood devices allocate their coherent buffers from atomic
@@ -543,8 +543,7 @@ static void __init kirkwood_timer_init(void)
 {
 	kirkwood_tclk = kirkwood_find_tclk();
 
-	orion_time_init((unsigned long) BRIDGE_VIRT_BASE,
-			BRIDGE_INT_TIMER1_CLR,
+	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
 }
 
