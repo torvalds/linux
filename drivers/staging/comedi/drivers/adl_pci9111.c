@@ -855,16 +855,18 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int maxdata = s->maxdata;
 	unsigned int invert = (maxdata + 1) >> 1;
 	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
 	int timeout;
 	int i;
 
-	pci9111_ai_channel_set(CR_CHAN((&insn->chanspec)[0]));
+	pci9111_ai_channel_set(chan);
 
-	if ((pci9111_ai_range_get()) != CR_RANGE((&insn->chanspec)[0]))
-		pci9111_ai_range_set(CR_RANGE((&insn->chanspec)[0]));
+	if ((pci9111_ai_range_get()) != range)
+		pci9111_ai_range_set(range);
 
 	pci9111_fifo_reset();
 
