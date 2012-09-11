@@ -1236,8 +1236,7 @@ int audit_compare_dname_path(const char *dname, const char *path,
 	return strncmp(p, dname, dlen);
 }
 
-static int audit_filter_user_rules(struct netlink_skb_parms *cb,
-				   struct audit_krule *rule,
+static int audit_filter_user_rules(struct audit_krule *rule,
 				   enum audit_state *state)
 {
 	int i;
@@ -1249,13 +1248,13 @@ static int audit_filter_user_rules(struct netlink_skb_parms *cb,
 
 		switch (f->type) {
 		case AUDIT_PID:
-			result = audit_comparator(cb->creds.pid, f->op, f->val);
+			result = audit_comparator(task_pid_vnr(current), f->op, f->val);
 			break;
 		case AUDIT_UID:
-			result = audit_comparator(cb->creds.uid, f->op, f->val);
+			result = audit_comparator(current_uid(), f->op, f->val);
 			break;
 		case AUDIT_GID:
-			result = audit_comparator(cb->creds.gid, f->op, f->val);
+			result = audit_comparator(current_gid(), f->op, f->val);
 			break;
 		case AUDIT_LOGINUID:
 			result = audit_comparator(audit_get_loginuid(current),
@@ -1287,7 +1286,7 @@ static int audit_filter_user_rules(struct netlink_skb_parms *cb,
 	return 1;
 }
 
-int audit_filter_user(struct netlink_skb_parms *cb)
+int audit_filter_user(void)
 {
 	enum audit_state state = AUDIT_DISABLED;
 	struct audit_entry *e;
@@ -1295,7 +1294,7 @@ int audit_filter_user(struct netlink_skb_parms *cb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_USER], list) {
-		if (audit_filter_user_rules(cb, &e->rule, &state)) {
+		if (audit_filter_user_rules(&e->rule, &state)) {
 			if (state == AUDIT_DISABLED)
 				ret = 0;
 			break;
