@@ -369,9 +369,6 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	/*  step 2 : make sure trigger sources are unique and mutually
 	 *  compatible */
 
-	if (cmd->start_src != TRIG_NOW)
-		error++;
-
 	if ((cmd->scan_begin_src != TRIG_TIMER) &&
 	    (cmd->scan_begin_src != TRIG_FOLLOW) &&
 	    (cmd->scan_begin_src != TRIG_EXT))
@@ -388,9 +385,6 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	      (cmd->scan_begin_src == TRIG_FOLLOW)))
 		error++;
 
-
-	if (cmd->scan_end_src != TRIG_COUNT)
-		error++;
 	if ((cmd->stop_src != TRIG_COUNT) && (cmd->stop_src != TRIG_NONE))
 		error++;
 
