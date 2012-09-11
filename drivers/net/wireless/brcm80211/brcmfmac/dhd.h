@@ -130,6 +130,10 @@
 #define BRCMF_EVENT_MSG_FLUSHTXQ	0x02
 #define BRCMF_EVENT_MSG_GROUP		0x04
 
+#define BRCMF_ESCAN_REQ_VERSION 1
+
+#define WLC_BSS_RSSI_ON_CHANNEL		0x0002
+
 struct brcmf_event_msg {
 	__be16 version;
 	__be16 flags;
@@ -455,6 +459,24 @@ struct brcmf_scan_results_le {
 	__le32 version;
 	__le32 count;
 };
+
+struct brcmf_escan_params_le {
+	__le32 version;
+	__le16 action;
+	__le16 sync_id;
+	struct brcmf_scan_params_le params_le;
+};
+
+struct brcmf_escan_result_le {
+	__le32 buflen;
+	__le32 version;
+	__le16 sync_id;
+	__le16 bss_count;
+	struct brcmf_bss_info_le bss_info_le;
+};
+
+#define WL_ESCAN_RESULTS_FIXED_SIZE (sizeof(struct brcmf_escan_result_le) - \
+	sizeof(struct brcmf_bss_info_le))
 
 /* used for association with a specific BSSID and chanspec list */
 struct brcmf_assoc_params_le {
