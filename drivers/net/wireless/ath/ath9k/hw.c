@@ -355,7 +355,7 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 			(val & AR_SREV_VERSION2) >> AR_SREV_TYPE2_S;
 		ah->hw_version.macRev = MS(val, AR_SREV_REVISION2);
 
-		if (AR_SREV_9462(ah))
+		if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
 			ah->is_pciexpress = true;
 		else
 			ah->is_pciexpress = (val &
@@ -647,6 +647,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	case AR_SREV_VERSION_9340:
 	case AR_SREV_VERSION_9462:
 	case AR_SREV_VERSION_9550:
+	case AR_SREV_VERSION_9565:
 		break;
 	default:
 		ath_err(common,
@@ -708,7 +709,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	int ret;
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	/* These are all the AR5008/AR9001/AR9002 hardware family of chipsets */
+	/* These are all the AR5008/AR9001/AR9002/AR9003 hardware family of chipsets */
 	switch (ah->hw_version.devid) {
 	case AR5416_DEVID_PCI:
 	case AR5416_DEVID_PCIE:
@@ -728,6 +729,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	case AR9300_DEVID_AR9580:
 	case AR9300_DEVID_AR9462:
 	case AR9485_DEVID_AR1111:
+	case AR9300_DEVID_AR9565:
 		break;
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -3157,6 +3159,7 @@ static struct {
 	{ AR_SREV_VERSION_9485,         "9485" },
 	{ AR_SREV_VERSION_9462,         "9462" },
 	{ AR_SREV_VERSION_9550,         "9550" },
+	{ AR_SREV_VERSION_9565,         "9565" },
 };
 
 /* For devices with external radios */
