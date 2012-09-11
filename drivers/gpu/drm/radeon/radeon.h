@@ -292,17 +292,20 @@ struct radeon_mman {
 
 /* bo virtual address in a specific vm */
 struct radeon_bo_va {
-	/* bo list is protected by bo being reserved */
+	/* protected by bo being reserved */
 	struct list_head		bo_list;
-	/* vm list is protected by vm mutex */
-	struct list_head		vm_list;
-	/* constant after initialization */
-	struct radeon_vm		*vm;
-	struct radeon_bo		*bo;
 	uint64_t			soffset;
 	uint64_t			eoffset;
 	uint32_t			flags;
 	bool				valid;
+	unsigned			ref_count;
+
+	/* protected by vm mutex */
+	struct list_head		vm_list;
+
+	/* constant after initialization */
+	struct radeon_vm		*vm;
+	struct radeon_bo		*bo;
 };
 
 struct radeon_bo {
@@ -1848,14 +1851,15 @@ void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 			     struct radeon_bo *bo);
 struct radeon_bo_va *radeon_vm_bo_find(struct radeon_vm *vm,
 				       struct radeon_bo *bo);
-int radeon_vm_bo_add(struct radeon_device *rdev,
-		     struct radeon_vm *vm,
-		     struct radeon_bo *bo,
-		     uint64_t offset,
-		     uint32_t flags);
+struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
+				      struct radeon_vm *vm,
+				      struct radeon_bo *bo);
+int radeon_vm_bo_set_addr(struct radeon_device *rdev,
+			  struct radeon_bo_va *bo_va,
+			  uint64_t offset,
+			  uint32_t flags);
 int radeon_vm_bo_rmv(struct radeon_device *rdev,
-		     struct radeon_vm *vm,
-		     struct radeon_bo *bo);
+		     struct radeon_bo_va *bo_va);
 
 /* audio */
 void r600_audio_update_hdmi(struct work_struct *work);
