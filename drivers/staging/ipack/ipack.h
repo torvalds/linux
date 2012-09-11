@@ -113,7 +113,6 @@ struct ipack_driver {
  *	@unmap_space: unmap IP address space
  *	@request_irq: request IRQ
  *	@free_irq: free IRQ
- *	@remove_device: tell the bridge module that the device has been removed
  *	@get_clockrate: Returns the clockrate the carrier is currently
  *		communicating with the device at.
  *	@set_clockrate: Sets the clock-rate for carrier / module communication.
@@ -129,8 +128,6 @@ struct ipack_bus_ops {
 	int (*unmap_space) (struct ipack_device *dev, int space);
 	int (*request_irq) (struct ipack_device *dev, int vector, int (*handler)(void *), void *arg);
 	int (*free_irq) (struct ipack_device *dev);
-	int (*remove_device) (struct ipack_device *dev);
-
 	int (*get_clockrate) (struct ipack_device *dev);
 	int (*set_clockrate) (struct ipack_device *dev, int mherz);
 	int (*get_error) (struct ipack_device *dev);

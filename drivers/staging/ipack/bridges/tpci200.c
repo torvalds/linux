@@ -595,7 +595,6 @@ static const struct ipack_bus_ops tpci200_bus_ops = {
 	.unmap_space = tpci200_slot_unmap_space,
 	.request_irq = tpci200_request_irq,
 	.free_irq = tpci200_free_irq,
-	.remove_device = NULL,
 	.get_clockrate = tpci200_get_clockrate,
 	.set_clockrate = tpci200_set_clockrate,
 	.get_error     = tpci200_get_error,
