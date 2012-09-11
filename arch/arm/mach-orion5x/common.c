@@ -156,8 +156,7 @@ void __init orion5x_spi_init()
  ****************************************************************************/
 void __init orion5x_uart0_init(void)
 {
-	orion_uart0_init((unsigned long) UART0_VIRT_BASE,
-			 UART0_PHYS_BASE,
+	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
 			 IRQ_ORION5X_UART0, tclk);
 }
 
@@ -166,8 +165,7 @@ void __init orion5x_uart0_init(void)
  ****************************************************************************/
 void __init orion5x_uart1_init(void)
 {
-	orion_uart1_init((unsigned long) UART1_VIRT_BASE,
-			 UART1_PHYS_BASE,
+	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
 			 IRQ_ORION5X_UART1, tclk);
 }
 
