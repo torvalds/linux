@@ -253,20 +253,71 @@ void ipack_driver_unregister(struct ipack_driver *edrv)
 }
 EXPORT_SYMBOL_GPL(ipack_driver_unregister);
 
+static u16 ipack_crc_byte(u16 crc, u8 c)
+{
+	int i;
+
+	crc ^= c << 8;
+	for (i = 0; i < 8; i++)
+		crc = (crc << 1) ^ ((crc & 0x8000) ? 0x1021 : 0);
+	return crc;
+}
+
+/*
+ * The algorithm in lib/crc-ccitt.c does not seem to apply since it uses the
+ * opposite bit ordering.
+ */
+static u8 ipack_calc_crc1(struct ipack_device *dev)
+{
+	u8 c;
+	u16 crc;
+	unsigned int i;
+
+	crc = 0xffff;
+	for (i = 0; i < dev->id_avail; i++) {
+		c = (i != 11) ? dev->id[i] : 0;
+		crc = ipack_crc_byte(crc, c);
+	}
+	crc = ~crc;
+	return crc & 0xff;
+}
+
+static u16 ipack_calc_crc2(struct ipack_device *dev)
+{
+	u8 c;
+	u16 crc;
+	unsigned int i;
+
+	crc = 0xffff;
+	for (i = 0; i < dev->id_avail; i++) {
+		c = ((i != 0x18) && (i != 0x19)) ? dev->id[i] : 0;
+		crc = ipack_crc_byte(crc, c);
+	}
+	crc = ~crc;
+	return crc;
+}
+
 static void ipack_parse_id1(struct ipack_device *dev)
 {
 	u8 *id = dev->id;
+	u8 crc;
 
 	dev->id_vendor = id[4];
 	dev->id_device = id[5];
 	dev->speed_8mhz = 1;
 	dev->speed_32mhz = (id[7] == 'H');
+	crc = ipack_calc_crc1(dev);
+	dev->id_crc_correct = (crc == id[11]);
+	if (!dev->id_crc_correct) {
+		dev_warn(&dev->dev, "ID CRC invalid found 0x%x, expected 0x%x.\n",
+				id[11], crc);
+	}
 }
 
 static void ipack_parse_id2(struct ipack_device *dev)
 {
 	__be16 *id = (__be16 *) dev->id;
-	u16 flags;
+	u16 flags, crc;
 
 	dev->id_vendor = ((be16_to_cpu(id[3]) & 0xff) << 16)
 			 + be16_to_cpu(id[4]);
@@ -274,6 +325,12 @@ static void ipack_parse_id2(struct ipack_device *dev)
 	flags = be16_to_cpu(id[10]);
 	dev->speed_8mhz = !!(flags & 2);
 	dev->speed_32mhz = !!(flags & 4);
+	crc = ipack_calc_crc2(dev);
+	dev->id_crc_correct = (crc == be16_to_cpu(id[12]));
+	if (!dev->id_crc_correct) {
+		dev_warn(&dev->dev, "ID CRC invalid found 0x%x, expected 0x%x.\n",
+				id[11], crc);
+	}
 }
 
 static int ipack_device_read_id(struct ipack_device *dev)
