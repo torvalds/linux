@@ -1669,21 +1669,6 @@ static void scrub_bio_end_io_worker(struct btrfs_work *work)
 		scrub_block_put(sblock);
 	}
 
-	if (sbio->err) {
-		/* what is this good for??? */
-		sbio->bio->bi_flags &= ~(BIO_POOL_MASK - 1);
-		sbio->bio->bi_flags |= 1 << BIO_UPTODATE;
-		sbio->bio->bi_phys_segments = 0;
-		sbio->bio->bi_idx = 0;
-
-		for (i = 0; i < sbio->page_count; i++) {
-			struct bio_vec *bi;
-			bi = &sbio->bio->bi_io_vec[i];
-			bi->bv_offset = 0;
-			bi->bv_len = PAGE_SIZE;
-		}
-	}
-
 	bio_put(sbio->bio);
 	sbio->bio = NULL;
 	spin_lock(&sdev->list_lock);

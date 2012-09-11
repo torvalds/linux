@@ -2306,8 +2306,8 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		struct extent_state *cached = NULL;
 		struct extent_state *state;
 
-		pr_debug("end_bio_extent_readpage: bi_vcnt=%d, idx=%d, err=%d, "
-			 "mirror=%ld\n", bio->bi_vcnt, bio->bi_idx, err,
+		pr_debug("end_bio_extent_readpage: bi_sector=%llu, err=%d, "
+			 "mirror=%ld\n", (u64)bio->bi_sector, err,
 			 (long int)bio->bi_bdev);
 		tree = &BTRFS_I(page->mapping->host)->io_tree;
 
