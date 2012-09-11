@@ -468,24 +468,6 @@ static int kauditd_thread(void *dummy)
 	return 0;
 }
 
-static int audit_prepare_user_tty(pid_t pid, uid_t loginuid, u32 sessionid)
-{
-	struct task_struct *tsk;
-	int err;
-
-	rcu_read_lock();
-	tsk = find_task_by_vpid(pid);
-	if (!tsk) {
-		rcu_read_unlock();
-		return -ESRCH;
-	}
-	get_task_struct(tsk);
-	rcu_read_unlock();
-	err = tty_audit_push_task(tsk, loginuid, sessionid);
-	put_task_struct(tsk);
-	return err;
-}
-
 int audit_send_list(void *_dest)
 {
 	struct audit_netlink_list *dest = _dest;
@@ -748,7 +730,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (err == 1) {
 			err = 0;
 			if (msg_type == AUDIT_USER_TTY) {
-				err = audit_prepare_user_tty(pid, loginuid,
+				err = tty_audit_push_task(current, loginuid,
 							     sessionid);
 				if (err)
 					break;
