@@ -28,8 +28,6 @@ static u16 tpci200_status_error[] = {
 	TPCI200_D_ERROR,
 };
 
-static int tpci200_slot_unregister(struct ipack_device *dev);
-
 static struct tpci200_board *check_slot(struct ipack_device *dev)
 {
 	struct tpci200_board *tpci200;
@@ -368,28 +366,6 @@ out_unlock:
 	return 0;
 }
 
-static int tpci200_slot_unregister(struct ipack_device *dev)
-{
-	struct tpci200_board *tpci200;
-
-	if (dev == NULL)
-		return -ENODEV;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	tpci200_free_irq(dev);
-
-	if (mutex_lock_interruptible(&tpci200->mutex))
-		return -ERESTARTSYS;
-
-	tpci200->slots[dev->slot].dev = NULL;
-	mutex_unlock(&tpci200->mutex);
-
-	return 0;
-}
-
 static int tpci200_slot_map_space(struct ipack_device *dev,
 				  unsigned int memory_size, int space)
 {
@@ -619,7 +595,7 @@ static const struct ipack_bus_ops tpci200_bus_ops = {
 	.unmap_space = tpci200_slot_unmap_space,
 	.request_irq = tpci200_request_irq,
 	.free_irq = tpci200_free_irq,
-	.remove_device = tpci200_slot_unregister,
+	.remove_device = NULL,
 	.get_clockrate = tpci200_get_clockrate,
 	.set_clockrate = tpci200_set_clockrate,
 	.get_error     = tpci200_get_error,
