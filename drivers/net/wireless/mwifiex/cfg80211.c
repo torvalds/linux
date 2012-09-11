@@ -37,6 +37,36 @@ static const struct ieee80211_iface_combination mwifiex_iface_comb_ap_sta = {
 	.beacon_int_infra_match = true,
 };
 
+static const struct ieee80211_regdomain mwifiex_world_regdom_custom = {
+	.n_reg_rules = 7,
+	.alpha2 =  "99",
+	.reg_rules = {
+		/* Channel 1 - 11 */
+		REG_RULE(2412-10, 2462+10, 40, 3, 20, 0),
+		/* Channel 12 - 13 */
+		REG_RULE(2467-10, 2472+10, 20, 3, 20,
+			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+		/* Channel 14 */
+		REG_RULE(2484-10, 2484+10, 20, 3, 20,
+			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS |
+			 NL80211_RRF_NO_OFDM),
+		/* Channel 36 - 48 */
+		REG_RULE(5180-10, 5240+10, 40, 3, 20,
+			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+		/* Channel 149 - 165 */
+		REG_RULE(5745-10, 5825+10, 40, 3, 20,
+			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+		/* Channel 52 - 64 */
+		REG_RULE(5260-10, 5320+10, 40, 3, 30,
+			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS |
+			 NL80211_RRF_DFS),
+		/* Channel 100 - 140 */
+		REG_RULE(5500-10, 5700+10, 40, 3, 30,
+			 NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS |
+			 NL80211_RRF_DFS),
+	}
+};
+
 /*
  * This function maps the nl802.11 channel type into driver channel type.
  *
@@ -1833,7 +1863,10 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	memcpy(wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
-			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
+			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
+			WIPHY_FLAG_CUSTOM_REGULATORY;
+
+	wiphy_apply_custom_regulatory(wiphy, &mwifiex_world_regdom_custom);
 
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2;
