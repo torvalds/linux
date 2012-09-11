@@ -83,7 +83,7 @@ static int init_rk3066b_lcdc(struct rk_lcdc_device_driver *dev_drv)
     	      m_SCANNING_MASK, v_HOR_STARTMASK(1) | v_FRM_STARTMASK(1) | 
     	      v_SCANNING_MASK(1));  //mask all interrupt in init
 	LcdMskReg(lcdc_dev,FIFO_WATER_MARK,m_WIN1_FIFO_FULL_LEVEL,v_WIN1_FIFO_FULL_LEVEL(0x1e0));
-	LCDC_REG_CFG_DONE();  // write any value to  REG_CFG_DONE let config become effective
+	//LCDC_REG_CFG_DONE();  // write any value to  REG_CFG_DONE let config become effective
 	return 0;
 }
 
@@ -210,7 +210,7 @@ static int rk3066b_load_screen(struct rk_lcdc_device_driver *dev_drv, bool inits
 		LcdWrReg(lcdc_dev, DSP_VACT_ST_END,  v_VAEP(screen->vsync_len + screen->upper_margin+y_res)|
 	              v_VASP(screen->vsync_len + screen->upper_margin));
 		// let above to take effect
-		LCDC_REG_CFG_DONE();
+		//LCDC_REG_CFG_DONE();
 	}
  	spin_unlock(&lcdc_dev->reg_lock);
 
@@ -275,7 +275,7 @@ static int win0_open(struct rk3066b_lcdc_device *lcdc_dev,bool open)
 		{
 			LcdMskReg(lcdc_dev, SYS_CFG,m_LCDC_STANDBY,v_LCDC_STANDBY(1));
 		}
-		LCDC_REG_CFG_DONE();	
+		//LCDC_REG_CFG_DONE();	
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	printk(KERN_INFO "lcdc%d win0 %s\n",lcdc_dev->id,open?"open":"closed");
@@ -445,7 +445,7 @@ static  int win0_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 		LcdMskReg(lcdc_dev, WIN0_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,
 			v_COLORKEY_EN(0) | v_KEYCOLOR(0));
 		LcdWrReg(lcdc_dev,WIN0_VIR,v_VIRWIDTH(xvir));
-		LCDC_REG_CFG_DONE();
+		//LCDC_REG_CFG_DONE();
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
@@ -498,7 +498,7 @@ static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 		LcdMskReg(lcdc_dev,WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,v_COLORKEY_EN(0) | v_KEYCOLOR(0));
 		LcdWrReg(lcdc_dev,WIN1_VIR,v_VIRWIDTH(xvir));
 		
-		LCDC_REG_CFG_DONE(); 
+		//LCDC_REG_CFG_DONE(); 
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
     return 0;
