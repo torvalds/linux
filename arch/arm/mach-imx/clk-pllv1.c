@@ -6,7 +6,7 @@
 #include <linux/err.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/clock.h>
+
 #include "clk.h"
 
 /**
