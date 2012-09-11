@@ -58,7 +58,7 @@ static ssize_t show_disp_info(struct device *dev,
 		(struct rk_lcdc_device_driver * )fbi->par;
 	int layer_id = dev_drv->fb_get_layer(dev_drv,fbi->fix.id);
 	if(dev_drv->get_disp_info)
-		dev_drv->get_disp_info(dev_drv,layer_id);
+		return dev_drv->get_disp_info(dev_drv,buf,layer_id);
 
 	return 0;
 }
