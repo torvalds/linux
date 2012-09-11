@@ -514,16 +514,6 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 
 	/*  Step 3 : make sure arguments are trivialy compatible */
 
-	if (cmd->chanlist_len < 1) {
-		cmd->chanlist_len = 1;
-		error++;
-	}
-
-	if (cmd->chanlist_len > board->ai_channel_nbr) {
-		cmd->chanlist_len = board->ai_channel_nbr;
-		error++;
-	}
-
 	if ((cmd->start_src == TRIG_NOW) && (cmd->start_arg != 0)) {
 		cmd->start_arg = 0;
 		error++;
