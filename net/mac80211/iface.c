@@ -739,6 +739,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	del_timer_sync(&local->dynamic_ps_timer);
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 
+	cancel_work_sync(&sdata->recalc_smps);
+
 	/* APs need special treatment */
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		struct ieee80211_sub_if_data *vlan, *tmpsdata;
@@ -1125,6 +1127,13 @@ static void ieee80211_iface_work(struct work_struct *work)
 	}
 }
 
+static void ieee80211_recalc_smps_work(struct work_struct *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data, recalc_smps);
+
+	ieee80211_recalc_smps(sdata);
+}
 
 /*
  * Helper function to initialise an interface to a specific type.
@@ -1153,6 +1162,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 
 	skb_queue_head_init(&sdata->skb_queue);
 	INIT_WORK(&sdata->work, ieee80211_iface_work);
+	INIT_WORK(&sdata->recalc_smps, ieee80211_recalc_smps_work);
 
 	switch (type) {
 	case NL80211_IFTYPE_P2P_GO:

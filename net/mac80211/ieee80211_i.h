@@ -433,7 +433,6 @@ struct ieee80211_if_managed {
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
 	enum ieee80211_smps_mode req_smps, /* requested smps mode */
-				 ap_smps, /* smps mode AP thinks we're in */
 				 driver_smps_mode; /* smps mode request */
 
 	struct work_struct request_smps_work;
@@ -728,10 +727,16 @@ struct ieee80211_sub_if_data {
 
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 
+	/* used to reconfigure hardware SM PS */
+	struct work_struct recalc_smps;
+
 	struct work_struct work;
 	struct sk_buff_head skb_queue;
 
 	bool arp_filter_state;
+
+	u8 needed_rx_chains;
+	enum ieee80211_smps_mode smps_mode;
 
 	/*
 	 * AP this belongs to: self in AP mode and
@@ -905,9 +910,6 @@ struct ieee80211_local {
 	/* used for uploading changed mc list */
 	struct work_struct reconfig_filter;
 
-	/* used to reconfigure hardware SM PS */
-	struct work_struct recalc_smps;
-
 	/* aggregated multicast list */
 	struct netdev_hw_addr_list mc_list;
 
@@ -943,6 +945,9 @@ struct ieee80211_local {
 
 	/* wowlan is enabled -- don't reconfig on resume */
 	bool wowlan;
+
+	/* number of RX chains the hardware has */
+	u8 rx_chains;
 
 	int tx_headroom; /* required headroom for hardware/radiotap */
 
@@ -1408,6 +1413,8 @@ void ieee80211_ba_session_work(struct work_struct *work);
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid);
 void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid);
 
+u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs);
+
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_mgmt *mgmt,
@@ -1554,7 +1561,7 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    enum ieee80211_band band, u32 *basic_rates);
 int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 			     enum ieee80211_smps_mode smps_mode);
-void ieee80211_recalc_smps(struct ieee80211_local *local);
+void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata);
 
 size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
 			  const u8 *ids, int n_ids, size_t offset);
@@ -1584,6 +1591,9 @@ ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 			  enum nl80211_channel_type channel_type,
 			  enum ieee80211_chanctx_mode mode);
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
+
+void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
+				   struct ieee80211_chanctx *chanctx);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

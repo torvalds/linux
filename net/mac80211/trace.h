@@ -29,11 +29,16 @@
 #define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type, __entry->p2p ? "/p2p" : ""
 
 #define CHANCTX_ENTRY	__field(int, freq)					\
-			__field(int, chantype)
+			__field(int, chantype)					\
+			__field(u8, rx_chains_static)				\
+			__field(u8, rx_chains_dynamic)
 #define CHANCTX_ASSIGN	__entry->freq = ctx->conf.channel->center_freq;		\
-			__entry->chantype = ctx->conf.channel_type
-#define CHANCTX_PR_FMT	" freq:%d MHz chantype:%d"
-#define CHANCTX_PR_ARG	__entry->freq, __entry->chantype
+			__entry->chantype = ctx->conf.channel_type;		\
+			__entry->rx_chains_static = ctx->conf.rx_chains_static;	\
+			__entry->rx_chains_dynamic = ctx->conf.rx_chains_dynamic
+#define CHANCTX_PR_FMT	" freq:%d MHz chantype:%d chains:%d/%d"
+#define CHANCTX_PR_ARG	__entry->freq, __entry->chantype,			\
+			__entry->rx_chains_static, __entry->rx_chains_dynamic
 
 
 

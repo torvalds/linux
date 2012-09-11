@@ -543,7 +543,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
 		ieee80211_add_ht_ie(sdata, skb, assoc_data->ap_ht_param,
-				    sband, chan, ifmgd->ap_smps);
+				    sband, chan, sdata->smps_mode);
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 		ieee80211_add_vht_ie(sdata, skb, sband);
@@ -1392,7 +1392,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_ps(local, -1);
 	mutex_unlock(&local->iflist_mtx);
 
-	ieee80211_recalc_smps(local);
+	ieee80211_recalc_smps(sdata);
 	ieee80211_recalc_ps_vif(sdata);
 
 	netif_tx_start_all_queues(sdata->dev);
@@ -3157,6 +3157,10 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (ht_oper) {
+		const u8 *ht_cap_ie;
+		const struct ieee80211_ht_cap *ht_cap;
+		u8 chains = 1;
+
 		channel_type = NL80211_CHAN_HT20;
 
 		if (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
@@ -3170,7 +3174,21 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				break;
 			}
 		}
+
+		ht_cap_ie = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
+					     cbss->information_elements,
+					     cbss->len_information_elements);
+		if (ht_cap_ie && ht_cap_ie[1] >= sizeof(*ht_cap)) {
+			ht_cap = (void *)(ht_cap_ie + 2);
+			chains = ieee80211_mcs_to_chains(&ht_cap->mcs);
+		}
+		sdata->needed_rx_chains = min(chains, local->rx_chains);
+	} else {
+		sdata->needed_rx_chains = 1;
 	}
+
+	/* will change later if needed */
+	sdata->smps_mode = IEEE80211_SMPS_OFF;
 
 	ieee80211_vif_release_channel(sdata);
 	return ieee80211_vif_use_channel(sdata, cbss->channel, channel_type,
@@ -3485,11 +3503,11 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	if (ifmgd->req_smps == IEEE80211_SMPS_AUTOMATIC) {
 		if (ifmgd->powersave)
-			ifmgd->ap_smps = IEEE80211_SMPS_DYNAMIC;
+			sdata->smps_mode = IEEE80211_SMPS_DYNAMIC;
 		else
-			ifmgd->ap_smps = IEEE80211_SMPS_OFF;
+			sdata->smps_mode = IEEE80211_SMPS_OFF;
 	} else
-		ifmgd->ap_smps = ifmgd->req_smps;
+		sdata->smps_mode = ifmgd->req_smps;
 
 	assoc_data->capability = req->bss->capability;
 	assoc_data->wmm = bss->wmm_used &&

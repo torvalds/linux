@@ -1618,68 +1618,24 @@ void ieee80211_resume_disconnect(struct ieee80211_vif *vif)
 }
 EXPORT_SYMBOL_GPL(ieee80211_resume_disconnect);
 
-static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
-			  enum ieee80211_smps_mode *smps_mode)
+void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata)
 {
-	if (ifmgd->associated) {
-		*smps_mode = ifmgd->ap_smps;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_chanctx *chanctx;
 
-		if (*smps_mode == IEEE80211_SMPS_AUTOMATIC) {
-			if (ifmgd->powersave)
-				*smps_mode = IEEE80211_SMPS_DYNAMIC;
-			else
-				*smps_mode = IEEE80211_SMPS_OFF;
-		}
+	mutex_lock(&local->chanctx_mtx);
 
-		return 1;
-	}
+	chanctx_conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					lockdep_is_held(&local->chanctx_mtx));
 
-	return 0;
-}
-
-void ieee80211_recalc_smps(struct ieee80211_local *local)
-{
-	struct ieee80211_sub_if_data *sdata;
-	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_OFF;
-	int count = 0;
-
-	mutex_lock(&local->iflist_mtx);
-
-	/*
-	 * This function could be improved to handle multiple
-	 * interfaces better, but right now it makes any
-	 * non-station interfaces force SM PS to be turned
-	 * off. If there are multiple station interfaces it
-	 * could also use the best possible mode, e.g. if
-	 * one is in static and the other in dynamic then
-	 * dynamic is ok.
-	 */
-
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!ieee80211_sdata_running(sdata))
-			continue;
-		if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE)
-			continue;
-		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			goto set;
-
-		count += check_mgd_smps(&sdata->u.mgd, &smps_mode);
-
-		if (count > 1) {
-			smps_mode = IEEE80211_SMPS_OFF;
-			break;
-		}
-	}
-
-	if (smps_mode == local->smps_mode)
+	if (WARN_ON_ONCE(!chanctx_conf))
 		goto unlock;
 
- set:
-	local->smps_mode = smps_mode;
-	/* changed flag is auto-detected for this */
-	ieee80211_hw_config(local, 0);
+	chanctx = container_of(chanctx_conf, struct ieee80211_chanctx, conf);
+	ieee80211_recalc_smps_chanctx(local, chanctx);
  unlock:
-	mutex_unlock(&local->iflist_mtx);
+	mutex_unlock(&local->chanctx_mtx);
 }
 
 static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)
@@ -1978,3 +1934,19 @@ int ieee80211_ave_rssi(struct ieee80211_vif *vif)
 	return ifmgd->ave_beacon_signal;
 }
 EXPORT_SYMBOL_GPL(ieee80211_ave_rssi);
+
+u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs)
+{
+	if (!mcs)
+		return 1;
+
+	/* TODO: consider rx_highest */
+
+	if (mcs->rx_mask[3])
+		return 4;
+	if (mcs->rx_mask[2])
+		return 3;
+	if (mcs->rx_mask[1])
+		return 2;
+	return 1;
+}

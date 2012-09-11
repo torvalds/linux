@@ -217,7 +217,7 @@ static ssize_t ieee80211_if_fmt_smps(const struct ieee80211_sub_if_data *sdata,
 
 	return snprintf(buf, buflen, "request: %s\nused: %s\n",
 			smps_modes[sdata->u.mgd.req_smps],
-			smps_modes[sdata->u.mgd.ap_smps]);
+			smps_modes[sdata->smps_mode]);
 }
 
 static ssize_t ieee80211_if_parse_smps(struct ieee80211_sub_if_data *sdata,

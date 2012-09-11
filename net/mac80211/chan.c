@@ -118,6 +118,8 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 
 	ctx->conf.channel = channel;
 	ctx->conf.channel_type = channel_type;
+	ctx->conf.rx_chains_static = 1;
+	ctx->conf.rx_chains_dynamic = 1;
 	ctx->mode = mode;
 
 	if (!local->use_chanctx) {
@@ -222,8 +224,10 @@ static void ieee80211_unassign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 
 	drv_unassign_vif_chanctx(local, sdata, ctx);
 
-	if (ctx->refcount > 0)
+	if (ctx->refcount > 0) {
 		ieee80211_recalc_chanctx_chantype(sdata->local, ctx);
+		ieee80211_recalc_smps_chanctx(local, ctx);
+	}
 }
 
 static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
@@ -244,6 +248,89 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 	ieee80211_unassign_vif_chanctx(sdata, ctx);
 	if (ctx->refcount == 0)
 		ieee80211_free_chanctx(local, ctx);
+}
+
+void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
+				   struct ieee80211_chanctx *chanctx)
+{
+	struct ieee80211_sub_if_data *sdata;
+	u8 rx_chains_static, rx_chains_dynamic;
+
+	lockdep_assert_held(&local->chanctx_mtx);
+
+	rx_chains_static = 1;
+	rx_chains_dynamic = 1;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		u8 needed_static, needed_dynamic;
+
+		if (!ieee80211_sdata_running(sdata))
+			continue;
+
+		if (rcu_access_pointer(sdata->vif.chanctx_conf) !=
+						&chanctx->conf)
+			continue;
+
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_P2P_DEVICE:
+			continue;
+		case NL80211_IFTYPE_STATION:
+			if (!sdata->u.mgd.associated)
+				continue;
+			break;
+		case NL80211_IFTYPE_AP_VLAN:
+			continue;
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_WDS:
+		case NL80211_IFTYPE_MESH_POINT:
+			break;
+		default:
+			WARN_ON_ONCE(1);
+		}
+
+		switch (sdata->smps_mode) {
+		default:
+			WARN_ONCE(1, "Invalid SMPS mode %d\n",
+				  sdata->smps_mode);
+			/* fall through */
+		case IEEE80211_SMPS_OFF:
+			needed_static = sdata->needed_rx_chains;
+			needed_dynamic = sdata->needed_rx_chains;
+			break;
+		case IEEE80211_SMPS_DYNAMIC:
+			needed_static = 1;
+			needed_dynamic = sdata->needed_rx_chains;
+			break;
+		case IEEE80211_SMPS_STATIC:
+			needed_static = 1;
+			needed_dynamic = 1;
+			break;
+		}
+
+		rx_chains_static = max(rx_chains_static, needed_static);
+		rx_chains_dynamic = max(rx_chains_dynamic, needed_dynamic);
+	}
+	rcu_read_unlock();
+
+	if (!local->use_chanctx) {
+		if (rx_chains_static > 1)
+			local->smps_mode = IEEE80211_SMPS_OFF;
+		else if (rx_chains_dynamic > 1)
+			local->smps_mode = IEEE80211_SMPS_DYNAMIC;
+		else
+			local->smps_mode = IEEE80211_SMPS_STATIC;
+		ieee80211_hw_config(local, 0);
+	}
+
+	if (rx_chains_static == chanctx->conf.rx_chains_static &&
+	    rx_chains_dynamic == chanctx->conf.rx_chains_dynamic)
+		return;
+
+	chanctx->conf.rx_chains_static = rx_chains_static;
+	chanctx->conf.rx_chains_dynamic = rx_chains_dynamic;
+	drv_change_chanctx(local, chanctx, IEEE80211_CHANCTX_CHANGE_RX_CHAINS);
 }
 
 int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
@@ -278,6 +365,7 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
+	ieee80211_recalc_smps_chanctx(local, ctx);
  out:
 	mutex_unlock(&local->chanctx_mtx);
 	return ret;

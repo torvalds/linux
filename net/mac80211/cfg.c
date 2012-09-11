@@ -884,6 +884,10 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (old)
 		return -EALREADY;
 
+	/* TODO: make hostapd tell us what it wants */
+	sdata->smps_mode = IEEE80211_SMPS_OFF;
+	sdata->needed_rx_chains = sdata->local->rx_chains;
+
 	err = ieee80211_vif_use_channel(sdata, params->channel,
 					params->channel_type,
 					IEEE80211_CHANCTX_SHARED);
@@ -1673,6 +1677,10 @@ static int ieee80211_join_mesh(struct wiphy *wiphy, struct net_device *dev,
 	if (err)
 		return err;
 
+	/* can mesh use other SMPS modes? */
+	sdata->smps_mode = IEEE80211_SMPS_OFF;
+	sdata->needed_rx_chains = sdata->local->rx_chains;
+
 	err = ieee80211_vif_use_channel(sdata, setup->channel,
 					setup->channel_type,
 					IEEE80211_CHANCTX_SHARED);
@@ -2052,13 +2060,12 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * If not associated, or current association is not an HT
-	 * association, there's no need to send an action frame.
+	 * association, there's no need to do anything, just store
+	 * the new value until we associate.
 	 */
 	if (!sdata->u.mgd.associated ||
-	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT) {
-		ieee80211_recalc_smps(sdata->local);
+	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT)
 		return 0;
-	}
 
 	ap = sdata->u.mgd.associated->bssid;
 

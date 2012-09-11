@@ -146,9 +146,11 @@ struct ieee80211_low_level_stats {
 /**
  * enum ieee80211_chanctx_change - change flag for channel context
  * @IEEE80211_CHANCTX_CHANGE_CHANNEL_TYPE: The channel type was changed
+ * @IEEE80211_CHANCTX_CHANGE_RX_CHAINS: The number of RX chains changed
  */
 enum ieee80211_chanctx_change {
 	IEEE80211_CHANCTX_CHANGE_CHANNEL_TYPE	= BIT(0),
+	IEEE80211_CHANCTX_CHANGE_RX_CHAINS	= BIT(1),
 };
 
 /**
@@ -159,12 +161,19 @@ enum ieee80211_chanctx_change {
  *
  * @channel: the channel to tune to
  * @channel_type: the channel (HT) type
+ * @rx_chains_static: The number of RX chains that must always be
+ *	active on the channel to receive MIMO transmissions
+ * @rx_chains_dynamic: The number of RX chains that must be enabled
+ *	after RTS/CTS handshake to receive SMPS MIMO transmissions;
+ *	this will always be >= @rx_chains_always.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
  */
 struct ieee80211_chanctx_conf {
 	struct ieee80211_channel *channel;
 	enum nl80211_channel_type channel_type;
+
+	u8 rx_chains_static, rx_chains_dynamic;
 
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
@@ -820,6 +829,8 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
  * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  * @IEEE80211_CONF_CHANGE_SMPS: Spatial multiplexing powersave mode changed
+ *	Note that this is only valid if channel contexts are not used,
+ *	otherwise each channel context has the number of chains listed.
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_SMPS		= BIT(1),
@@ -885,7 +896,9 @@ enum ieee80211_smps_mode {
  *
  * @smps_mode: spatial multiplexing powersave mode; note that
  *	%IEEE80211_SMPS_STATIC is used when the device is not
- *	configured for an HT channel
+ *	configured for an HT channel.
+ *	Note that this is only valid if channel contexts are not used,
+ *	otherwise each channel context has the number of chains listed.
  */
 struct ieee80211_conf {
 	u32 flags;

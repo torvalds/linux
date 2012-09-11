@@ -1132,6 +1132,9 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_HT;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
+	sdata->smps_mode = IEEE80211_SMPS_OFF;
+	sdata->needed_rx_chains = sdata->local->rx_chains;
+
 	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 
 	return 0;
