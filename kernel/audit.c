@@ -751,7 +751,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 					size--;
 				audit_log_n_untrustedstring(ab, data, size);
 			}
-			audit_set_pid(ab, pid);
+			audit_set_pid(ab, NETLINK_CB(skb).pid);
 			audit_log_end(ab);
 		}
 		break;
