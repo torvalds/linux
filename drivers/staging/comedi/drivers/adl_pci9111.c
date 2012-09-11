@@ -115,8 +115,7 @@ TODO:
 
 /* IO address map */
 
-#define PCI9111_REGISTER_AD_FIFO_VALUE			0x00 /* AD Data stored
-								in FIFO */
+#define PCI9111_AI_FIFO_REG				0x00
 #define PCI9111_AO_REG					0x00
 #define PCI9111_DIO_REG					0x02
 #define PCI9111_REGISTER_EXTENDED_IO_PORTS		0x04
@@ -216,16 +215,6 @@ TODO:
 #define pci9111_ai_range_get() \
 	(inb(dev->iobase + PCI9111_REGISTER_RANGE_STATUS_READBACK) \
 		&PCI9111_RANGE_MASK)
-
-#define pci9111_ai_get_data() \
-	(((inw(dev->iobase + PCI9111_REGISTER_AD_FIFO_VALUE)>>4) \
-		&PCI9111_AI_RESOLUTION_MASK) \
-			^ PCI9111_AI_RESOLUTION_2_CMP_BIT)
-
-#define pci9111_hr_ai_get_data() \
-	((inw(dev->iobase + PCI9111_REGISTER_AD_FIFO_VALUE) \
-		&PCI9111_HR_AI_RESOLUTION_MASK) \
-			^ PCI9111_HR_AI_RESOLUTION_2_CMP_BIT)
 
 static const struct comedi_lrange pci9111_hr_ai_range = {
 	5,
@@ -888,7 +877,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			    && !dev_private->
 			    stop_is_none ? dev_private->stop_counter :
 			    PCI9111_FIFO_HALF_SIZE;
-			insw(dev->iobase + PCI9111_REGISTER_AD_FIFO_VALUE,
+			insw(dev->iobase + PCI9111_AI_FIFO_REG,
 			     dev_private->ai_bounce_buffer, num_samples);
 
 			if (dev_private->scan_delay < 1) {
@@ -1007,9 +996,13 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 conversion_done:
 
 		if (resolution == PCI9111_HR_AI_RESOLUTION)
-			data[i] = pci9111_hr_ai_get_data();
+			data[i] = (inw(dev->iobase + PCI9111_AI_FIFO_REG)
+					& PCI9111_HR_AI_RESOLUTION_MASK)
+					^ PCI9111_HR_AI_RESOLUTION_2_CMP_BIT;
 		else
-			data[i] = pci9111_ai_get_data();
+			data[i] = ((inw(dev->iobase + PCI9111_AI_FIFO_REG) >> 4)
+					& PCI9111_AI_RESOLUTION_MASK)
+					^ PCI9111_AI_RESOLUTION_2_CMP_BIT;
 	}
 
 	return i;
