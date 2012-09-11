@@ -670,6 +670,8 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 		goto out_err_info;
 	}
 
+	pci_dev_get(pdev);
+
 	/* Obtain a mapping of the carrier's PCI configuration registers */
 	ret = pci_request_region(pdev, TPCI200_CFG_MEM_BAR,
 				 KBUILD_MODNAME " Configuration Memory");
@@ -741,6 +743,7 @@ out_err_install:
 out_err_ioremap:
 	pci_release_region(pdev, TPCI200_CFG_MEM_BAR);
 out_err_pci_request:
+	pci_dev_put(pdev);
 	kfree(tpci200->info);
 out_err_info:
 	kfree(tpci200);
