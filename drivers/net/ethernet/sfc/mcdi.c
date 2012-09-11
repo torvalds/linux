@@ -1216,7 +1216,7 @@ int efx_mcdi_flush_rxqs(struct efx_nic *efx)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, (u8 *)qid,
 			  count * sizeof(*qid), NULL, 0, NULL);
-	WARN_ON(rc > 0);
+	WARN_ON(rc < 0);
 
 	kfree(qid);
 
