@@ -130,7 +130,6 @@ struct boardtype {
 	int iorange;		/*  I/O range len */
 	char have_irq;		/*  1=card support IRQ */
 	char cardtype;		/*  0=ICP Multi */
-	const char *rangecode;	/*  range codes for programming */
 };
 
 struct icp_multi_private {
@@ -212,7 +211,7 @@ static void setup_channel_list(struct comedi_device *dev,
 			devpriv->AdcCmdStatus |= (chanprog << 8);
 
 		/*  Get range for current channel */
-		range = this_board->rangecode[CR_RANGE(chanlist[i])];
+		range = range_codes_analog[CR_RANGE(chanlist[i])];
 		/*  Set range. bits 4-5 */
 		devpriv->AdcCmdStatus |= range;
 
@@ -351,7 +350,7 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev,
 	/*  Bit 5 = 1 : 10V */
 	/*  Bits 8-9 : Channel number */
 	devpriv->DacCmdStatus &= 0xfccf;
-	devpriv->DacCmdStatus |= this_board->rangecode[range];
+	devpriv->DacCmdStatus |= range_codes_analog[range];
 	devpriv->DacCmdStatus |= (chan << 8);
 
 	writew(devpriv->DacCmdStatus, devpriv->io_addr + ICP_MULTI_DAC_CSR);
@@ -879,7 +878,6 @@ static const struct boardtype boardtypes[] = {
 		.iorange	= IORANGE_ICP_MULTI,
 		.have_irq	= 1,
 		.cardtype	= TYPE_ICP_MULTI,
-		.rangecode	= range_codes_analog,
 	},
 };
 
