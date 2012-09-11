@@ -3,6 +3,7 @@
  */
 
 #include <linux/nl80211.h>
+#include <linux/export.h>
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
@@ -134,7 +135,7 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 		}
 	}
 
-	list_add(&ctx->list, &local->chanctx_list);
+	list_add_rcu(&ctx->list, &local->chanctx_list);
 
 	return ctx;
 }
@@ -153,7 +154,7 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 		drv_remove_chanctx(local, ctx);
 	}
 
-	list_del(&ctx->list);
+	list_del_rcu(&ctx->list);
 	kfree_rcu(ctx, rcu_head);
 }
 
@@ -379,3 +380,20 @@ void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 	__ieee80211_vif_release_channel(sdata);
 	mutex_unlock(&sdata->local->chanctx_mtx);
 }
+
+void ieee80211_iter_chan_contexts_atomic(
+	struct ieee80211_hw *hw,
+	void (*iter)(struct ieee80211_hw *hw,
+		     struct ieee80211_chanctx_conf *chanctx_conf,
+		     void *data),
+	void *iter_data)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_chanctx *ctx;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ctx, &local->chanctx_list, list)
+		iter(hw, &ctx->conf, iter_data);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(ieee80211_iter_chan_contexts_atomic);
