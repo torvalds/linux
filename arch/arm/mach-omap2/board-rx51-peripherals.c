@@ -748,7 +748,7 @@ static struct radio_si4713_platform_data rx51_si4713_data __initdata_or_module =
 	.subdev_board_info = &rx51_si4713_board_info,
 };
 
-static struct platform_device rx51_si4713_dev = {
+static struct platform_device rx51_si4713_dev __initdata_or_module = {
 	.name	= "radio-si4713",
 	.id	= -1,
 	.dev	= {
