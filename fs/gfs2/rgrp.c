@@ -329,6 +329,7 @@ static u32 gfs2_free_extlen(const struct gfs2_rbm *rrbm, u32 len)
 	    gfs2_unaligned_extlen(&rbm, 4 - n_unaligned, &len))
 		goto out;
 
+	n_unaligned = len & 3;
 	/* Start is now byte aligned */
 	while (len > 3) {
 		start = rbm.bi->bi_bh->b_data;
