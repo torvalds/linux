@@ -278,37 +278,18 @@ out_disable_pci:
 static int __tpci200_request_irq(struct tpci200_board *tpci200,
 				 struct ipack_device *dev)
 {
-	unsigned short slot_ctrl;
-
-	/* Set the default parameters of the slot
-	 * INT0 enabled, level sensitive
-	 * INT1 enabled, level sensitive
-	 * error interrupt disabled
-	 * timeout interrupt disabled
-	 * recover time disabled
-	 * clock rate 8 MHz
-	 */
-	slot_ctrl = TPCI200_INT0_EN | TPCI200_INT1_EN;
-	writew(slot_ctrl, &tpci200->info->interface_regs->control[dev->slot]);
-
+	__tpci200_set_mask(
+			&tpci200->info->interface_regs->control[dev->slot],
+			TPCI200_INT0_EN | TPCI200_INT1_EN);
 	return 0;
 }
 
 static void __tpci200_free_irq(struct tpci200_board *tpci200,
 			       struct ipack_device *dev)
 {
-	unsigned short slot_ctrl;
-
-	/* Set the default parameters of the slot
-	 * INT0 disabled, level sensitive
-	 * INT1 disabled, level sensitive
-	 * error interrupt disabled
-	 * timeout interrupt disabled
-	 * recover time disabled
-	 * clock rate 8 MHz
-	 */
-	slot_ctrl = 0;
-	writew(slot_ctrl, &tpci200->info->interface_regs->control[dev->slot]);
+	__tpci200_clear_mask(
+			&tpci200->info->interface_regs->control[dev->slot],
+			TPCI200_INT0_EN | TPCI200_INT1_EN);
 }
 
 static int tpci200_free_irq(struct ipack_device *dev)
