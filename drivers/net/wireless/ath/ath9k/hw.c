@@ -1733,11 +1733,11 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (!ret)
 		goto fail;
 
-	ath9k_hw_loadnf(ah, ah->curchan);
-	ath9k_hw_start_nfcal(ah, true);
-
 	if (ath9k_hw_mci_is_enabled(ah))
 		ar9003_mci_2g5g_switch(ah, false);
+
+	ath9k_hw_loadnf(ah, ah->curchan);
+	ath9k_hw_start_nfcal(ah, true);
 
 	if (AR_SREV_9271(ah))
 		ar9002_hw_load_ani_reg(ah, chan);
