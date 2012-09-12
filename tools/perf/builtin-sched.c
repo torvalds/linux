@@ -438,8 +438,8 @@ static int self_open_counters(void)
 	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
 
 	if (fd < 0)
-		pr_debug("Error: sys_perf_event_open() syscall returned"
-			 "with %d (%s)\n", fd, strerror(errno));
+		pr_err("Error: sys_perf_event_open() syscall returned "
+		       "with %d (%s)\n", fd, strerror(errno));
 	return fd;
 }
 
@@ -700,7 +700,7 @@ static int replay_switch_event(struct perf_sched *sched,
 		delta = 0;
 
 	if (delta < 0) {
-		pr_debug("hm, delta: %" PRIu64 " < 0 ?\n", delta);
+		pr_err("hm, delta: %" PRIu64 " < 0 ?\n", delta);
 		return -1;
 	}
 
@@ -990,7 +990,7 @@ static int latency_runtime_event(struct perf_sched *sched,
 			return -1;
 		atoms = thread_atoms_search(&sched->atom_root, thread, &sched->cmp_pid);
 		if (!atoms) {
-			pr_debug("in-event: Internal tree error");
+			pr_err("in-event: Internal tree error");
 			return -1;
 		}
 		if (add_sched_out_event(atoms, 'R', timestamp))
@@ -1024,7 +1024,7 @@ static int latency_wakeup_event(struct perf_sched *sched,
 			return -1;
 		atoms = thread_atoms_search(&sched->atom_root, wakee, &sched->cmp_pid);
 		if (!atoms) {
-			pr_debug("wakeup-event: Internal tree error");
+			pr_err("wakeup-event: Internal tree error");
 			return -1;
 		}
 		if (add_sched_out_event(atoms, 'S', timestamp))
@@ -1079,7 +1079,7 @@ static int latency_migrate_task_event(struct perf_sched *sched,
 		register_pid(sched, migrant->pid, migrant->comm);
 		atoms = thread_atoms_search(&sched->atom_root, migrant, &sched->cmp_pid);
 		if (!atoms) {
-			pr_debug("migration-event: Internal tree error");
+			pr_err("migration-event: Internal tree error");
 			return -1;
 		}
 		if (add_sched_out_event(atoms, 'R', timestamp))
@@ -1286,7 +1286,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 		delta = 0;
 
 	if (delta < 0) {
-		pr_debug("hm, delta: %" PRIu64 " < 0 ?\n", delta);
+		pr_err("hm, delta: %" PRIu64 " < 0 ?\n", delta);
 		return -1;
 	}
 
