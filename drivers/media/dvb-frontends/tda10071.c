@@ -850,7 +850,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 	struct tda10071_cmd cmd;
 	int ret, i, len, remaining, fw_size;
 	const struct firmware *fw;
-	u8 *fw_file = TDA10071_DEFAULT_FIRMWARE;
+	u8 *fw_file = TDA10071_FIRMWARE;
 	u8 tmp, buf[4];
 	struct tda10071_reg_val_mask tab[] = {
 		{ 0xcd, 0x00, 0x07 },
@@ -1282,3 +1282,4 @@ static struct dvb_frontend_ops tda10071_ops = {
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("NXP TDA10071 DVB-S/S2 demodulator driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(TDA10071_FIRMWARE);
