@@ -1536,6 +1536,49 @@ static int radeon_get_shared_dp_ppll(struct drm_crtc *crtc)
 }
 
 /**
+ * radeon_get_shared_nondp_ppll - return the PPLL used by another non-DP crtc
+ *
+ * @crtc: drm crtc
+ * @encoder: drm encoder
+ *
+ * Returns the PPLL (Pixel PLL) used by another non-DP crtc/encoder which can
+ * be shared (i.e., same clock).
+ */
+static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc,
+					struct drm_encoder *encoder)
+{
+	struct drm_device *dev = crtc->dev;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_encoder *test_encoder;
+	struct radeon_crtc *radeon_test_crtc;
+	struct radeon_encoder *test_radeon_encoder;
+	u32 target_clock, test_clock;
+
+	if (radeon_encoder->native_mode.clock)
+		target_clock = radeon_encoder->native_mode.clock;
+	else
+		target_clock = crtc->mode.clock;
+
+	list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
+		if (test_encoder->crtc && (test_encoder->crtc != crtc)) {
+			if (!ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
+				test_radeon_encoder = to_radeon_encoder(test_encoder);
+				radeon_test_crtc = to_radeon_crtc(test_encoder->crtc);
+				/* for non-DP check the clock */
+				if (test_radeon_encoder->native_mode.clock)
+					test_clock = test_radeon_encoder->native_mode.clock;
+				else
+					test_clock = test_encoder->crtc->mode.clock;
+				if ((target_clock == test_clock) &&
+				    (radeon_test_crtc->pll_id != ATOM_PPLL_INVALID))
+					return radeon_test_crtc->pll_id;
+			}
+		}
+	}
+	return ATOM_PPLL_INVALID;
+}
+
+/**
  * radeon_atom_pick_pll - Allocate a PPLL for use by the crtc.
  *
  * @crtc: drm crtc
@@ -1568,7 +1611,6 @@ static int radeon_get_shared_dp_ppll(struct drm_crtc *crtc)
  */
 static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 {
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *test_encoder;
@@ -1599,6 +1641,11 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 						if (pll != ATOM_PPLL_INVALID)
 							return pll;
 					}
+				} else {
+					/* use the same PPLL for all monitors with the same clock */
+					pll = radeon_get_shared_nondp_ppll(crtc, test_encoder);
+					if (pll != ATOM_PPLL_INVALID)
+						return pll;
 				}
 				break;
 			}
@@ -1640,28 +1687,9 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 						if (pll != ATOM_PPLL_INVALID)
 							return pll;
 					}
-				}
-				break;
-			}
-		}
-		/* all other cases */
-		pll_in_use = radeon_get_pll_use_mask(crtc);
-		if (!(pll_in_use & (1 << ATOM_PPLL2)))
-			return ATOM_PPLL2;
-		if (!(pll_in_use & (1 << ATOM_PPLL1)))
-			return ATOM_PPLL1;
-		DRM_ERROR("unable to allocate a PPLL\n");
-		return ATOM_PPLL_INVALID;
-	} else if (ASIC_IS_DCE3(rdev)) {
-		list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
-			if (test_encoder->crtc && (test_encoder->crtc == crtc)) {
-				/* in DP mode, the DP ref clock can come from either PPLL
-				 * depending on the asic:
-				 * DCE3: PPLL1 or PPLL2
-				 */
-				if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
-					/* use the same PPLL for all DP monitors */
-					pll = radeon_get_shared_dp_ppll(crtc);
+				} else {
+					/* use the same PPLL for all monitors with the same clock */
+					pll = radeon_get_shared_nondp_ppll(crtc, test_encoder);
 					if (pll != ATOM_PPLL_INVALID)
 						return pll;
 				}
@@ -1676,10 +1704,41 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			return ATOM_PPLL1;
 		DRM_ERROR("unable to allocate a PPLL\n");
 		return ATOM_PPLL_INVALID;
-	} else
-		/* use PPLL1 or PPLL2 */
-		return radeon_crtc->crtc_id;
-
+	} else {
+		/* on pre-R5xx asics, the crtc to pll mapping is hardcoded */
+		if (!ASIC_IS_AVIVO(rdev)) {
+			struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+			return radeon_crtc->crtc_id;
+		}
+		list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
+			if (test_encoder->crtc && (test_encoder->crtc == crtc)) {
+				/* in DP mode, the DP ref clock can come from either PPLL
+				 * depending on the asic:
+				 * DCE3: PPLL1 or PPLL2
+				 */
+				if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
+					/* use the same PPLL for all DP monitors */
+					pll = radeon_get_shared_dp_ppll(crtc);
+					if (pll != ATOM_PPLL_INVALID)
+						return pll;
+				} else {
+					/* use the same PPLL for all monitors with the same clock */
+					pll = radeon_get_shared_nondp_ppll(crtc, test_encoder);
+					if (pll != ATOM_PPLL_INVALID)
+						return pll;
+				}
+				break;
+			}
+		}
+		/* all other cases */
+		pll_in_use = radeon_get_pll_use_mask(crtc);
+		if (!(pll_in_use & (1 << ATOM_PPLL2)))
+			return ATOM_PPLL2;
+		if (!(pll_in_use & (1 << ATOM_PPLL1)))
+			return ATOM_PPLL1;
+		DRM_ERROR("unable to allocate a PPLL\n");
+		return ATOM_PPLL_INVALID;
+	}
 }
 
 void radeon_atom_disp_eng_pll_init(struct radeon_device *rdev)
