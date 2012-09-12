@@ -1584,9 +1584,6 @@ static void hub_disconnect(struct usb_interface *intf)
 	struct usb_device *hdev = interface_to_usbdev(intf);
 	int i;
 
-	for (i = 0; i < hdev->maxchild; i++)
-		usb_hub_remove_port_device(hub, i + 1);
-
 	/* Take the hub off the event list and don't let it be added again */
 	spin_lock_irq(&hub_event_lock);
 	if (!list_empty(&hub->event_list)) {
@@ -1601,6 +1598,9 @@ static void hub_disconnect(struct usb_interface *intf)
 	hub_quiesce(hub, HUB_DISCONNECT);
 
 	usb_set_intfdata (intf, NULL);
+
+	for (i = 0; i < hdev->maxchild; i++)
+		usb_hub_remove_port_device(hub, i + 1);
 	hub->hdev->maxchild = 0;
 
 	if (hub->hdev->speed == USB_SPEED_HIGH)
