@@ -1978,6 +1978,8 @@ void ddr_set_auto_self_refresh(bool en)
 {
     //set auto self-refresh idle
     ddr_sr_idle = en ? SR_IDLE : 0;
+    ddr_move_to_Config_state();
+    ddr_move_to_Access_state();
 }
 EXPORT_SYMBOL(ddr_set_auto_self_refresh);
 
