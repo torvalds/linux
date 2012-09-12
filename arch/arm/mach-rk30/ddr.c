@@ -1485,6 +1485,7 @@ uint32_t __sramlocalfunc ddr_set_pll_rk3600b(uint32_t nMHz, uint32_t set)
         dsb();
 
         pCRU_Reg->CRU_PLL_CON[pll_id][3] = PLL_RESET_RK3066B;
+	ddr_delayus(1);
         pCRU_Reg->CRU_PLL_CON[pll_id][0] = NR_RK3066B(clkr) | NO_RK3066B(clkod);
         pCRU_Reg->CRU_PLL_CON[pll_id][1] = NF_RK3066B(clkf);
 //     pCRU_Reg->CRU_PLL_CON[pll_id][2] = NB(clkf>>1);
@@ -2923,6 +2924,14 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     n= pCRU_Reg->CRU_PLL_CON[0][0];
     n= pPMU_Reg->PMU_WAKEUP_CFG[0];
     n= *(volatile uint32_t *)SysSrv_DdrConf;
+    if(chip_rk3066b_flag == true)
+    {
+        n= pGRF_Reg_RK3066B->GRF_SOC_STATUS0;
+    }
+    else
+    {
+        n= pGRF_Reg->GRF_SOC_STATUS0;
+    }
     dsb();
     
     //enter config state
@@ -3206,8 +3215,8 @@ void __sramfunc ddr_suspend(void)
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
     
     /** 1. Make sure there is no host access */
-    //flush_cache_all();
-    //outer_flush_all();
+    flush_cache_all();
+    outer_flush_all();
     //flush_tlb_all();
     
     for(i=0;i<16;i++)
@@ -3220,6 +3229,14 @@ void __sramfunc ddr_suspend(void)
     n= pCRU_Reg->CRU_PLL_CON[0][0];
     n= pPMU_Reg->PMU_WAKEUP_CFG[0];
     n= *(volatile uint32_t *)SysSrv_DdrConf;
+    if(chip_rk3066b_flag == true)
+    {
+        n= pGRF_Reg_RK3066B->GRF_SOC_STATUS0;
+    }
+    else
+    {
+        n= pGRF_Reg->GRF_SOC_STATUS0;
+    }
     dsb();
     
     ddr_selfrefresh_enter(0);
