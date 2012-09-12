@@ -1220,6 +1220,7 @@ struct drm_device {
 #define DRM_SWITCH_POWER_ON 0
 #define DRM_SWITCH_POWER_OFF 1
 #define DRM_SWITCH_POWER_CHANGING 2
+#define DRM_SWITCH_POWER_DYNAMIC_OFF 3
 
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
 					     int feature)
