@@ -58,7 +58,7 @@ extern struct dvb_frontend *hd29l2_attach(const struct hd29l2_config *config,
 static inline struct dvb_frontend *hd29l2_attach(
 const struct hd29l2_config *config, struct i2c_adapter *i2c)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif
