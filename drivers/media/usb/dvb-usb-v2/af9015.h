@@ -57,6 +57,8 @@
 #define warn(format, arg...) \
 	printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
 
+#define AF9015_FIRMWARE "dvb-usb-af9015.fw"
+
 /* Windows driver uses packet count 21 for USB1.1 and 348 for USB2.0.
    We use smaller - about 1/4 from the original, 5 and 87. */
 #define TS_PACKET_SIZE            188

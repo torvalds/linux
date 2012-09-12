@@ -1307,7 +1307,7 @@ static struct dvb_usb_device_properties af9015_props = {
 	.generic_bulk_ctrl_endpoint_response = 0x81,
 
 	.identify_state = af9015_identify_state,
-	.firmware = "dvb-usb-af9015.fw",
+	.firmware = AF9015_FIRMWARE,
 	.download_firmware = af9015_download_firmware,
 
 	.i2c_algo = &af9015_i2c_algo,
@@ -1433,3 +1433,4 @@ module_usb_driver(af9015_usb_driver);
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Afatech AF9015 driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(AF9015_FIRMWARE);
