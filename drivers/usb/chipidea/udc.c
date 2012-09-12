@@ -1503,6 +1503,17 @@ static int init_eps(struct ci13xxx *ci)
 	return retval;
 }
 
+static void destroy_eps(struct ci13xxx *ci)
+{
+	int i;
+
+	for (i = 0; i < ci->hw_ep_max; i++) {
+		struct ci13xxx_ep *mEp = &ci->ci13xxx_ep[i];
+
+		dma_pool_free(ci->qh_pool, mEp->qh.ptr, mEp->qh.dma);
+	}
+}
+
 /**
  * ci13xxx_start: register a gadget driver
  * @gadget: our gadget
@@ -1710,7 +1721,7 @@ static int udc_start(struct ci13xxx *ci)
 	if (ci->platdata->flags & CI13XXX_REQUIRE_TRANSCEIVER) {
 		if (ci->transceiver == NULL) {
 			retval = -ENODEV;
-			goto free_pools;
+			goto destroy_eps;
 		}
 	}
 
@@ -1761,6 +1772,8 @@ unreg_device:
 put_transceiver:
 	if (!IS_ERR_OR_NULL(ci->transceiver) && ci->global_phy)
 		usb_put_phy(ci->transceiver);
+destroy_eps:
+	destroy_eps(ci);
 free_pools:
 	dma_pool_destroy(ci->td_pool);
 free_qh_pool:
@@ -1775,18 +1788,12 @@ free_qh_pool:
  */
 static void udc_stop(struct ci13xxx *ci)
 {
-	int i;
-
 	if (ci == NULL)
 		return;
 
 	usb_del_gadget_udc(&ci->gadget);
 
-	for (i = 0; i < ci->hw_ep_max; i++) {
-		struct ci13xxx_ep *mEp = &ci->ci13xxx_ep[i];
-
-		dma_pool_free(ci->qh_pool, mEp->qh.ptr, mEp->qh.dma);
-	}
+	destroy_eps(ci);
 
 	dma_pool_destroy(ci->td_pool);
 	dma_pool_destroy(ci->qh_pool);
