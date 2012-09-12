@@ -398,43 +398,34 @@ error:
 static int af9015_eeprom_hash(struct dvb_usb_device *d)
 {
 	struct af9015_state *state = d_to_priv(d);
-	int ret;
-	static const unsigned int eeprom_size = 256;
-	unsigned int reg;
-	u8 val, *eeprom;
-	struct req_t req = {READ_I2C, AF9015_I2C_EEPROM, 0, 0, 1, 1, &val};
+	int ret, i;
+	static const unsigned int AF9015_EEPROM_SIZE = 256;
+	u8 buf[AF9015_EEPROM_SIZE];
+	struct req_t req = {READ_I2C, AF9015_I2C_EEPROM, 0, 0, 1, 1, NULL};
 
-	eeprom = kmalloc(eeprom_size, GFP_KERNEL);
-	if (eeprom == NULL)
-		return -ENOMEM;
-
-	for (reg = 0; reg < eeprom_size; reg++) {
-		req.addr = reg;
+	/* read eeprom */
+	for (i = 0; i < AF9015_EEPROM_SIZE; i++) {
+		req.addr = i;
+		req.data = &buf[i];
 		ret = af9015_ctrl_msg(d, &req);
-		if (ret)
-			goto free;
-
-		eeprom[reg] = val;
+		if (ret < 0)
+			goto err;
 	}
 
-	for (reg = 0; reg < eeprom_size; reg += 16)
-		dev_dbg(&d->udev->dev, "%s: %*ph\n", __func__, 16,
-				eeprom + reg);
-
-	BUG_ON(eeprom_size % 4);
-
-	state->eeprom_sum = 0;
-	for (reg = 0; reg < eeprom_size / sizeof(u32); reg++) {
+	/* calculate checksum */
+	for (i = 0; i < AF9015_EEPROM_SIZE / sizeof(u32); i++) {
 		state->eeprom_sum *= GOLDEN_RATIO_PRIME_32;
-		state->eeprom_sum += le32_to_cpu(((u32 *)eeprom)[reg]);
+		state->eeprom_sum += le32_to_cpu(((u32 *)buf)[i]);
 	}
+
+	for (i = 0; i < AF9015_EEPROM_SIZE; i += 16)
+		dev_dbg(&d->udev->dev, "%s: %*ph\n", __func__, 16, buf + i);
 
 	dev_dbg(&d->udev->dev, "%s: eeprom sum=%.8x\n",
 			__func__, state->eeprom_sum);
-
-	ret = 0;
-free:
-	kfree(eeprom);
+	return 0;
+err:
+	dev_err(&d->udev->dev, "%s: eeprom failed=%d\n", KBUILD_MODNAME, ret);
 	return ret;
 }
 
