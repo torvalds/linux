@@ -26,7 +26,7 @@
 #define GPIO6_PB1_UNEN_MASK  0x02000000
 
 #ifdef CONFIG_MFD_TPS65910
-#define PMU_POWER_SLEEP RK30_PIN6_PB1	
+#define PMU_POWER_SLEEP RK30_PIN0_PA1	
 extern int platform_device_register(struct platform_device *pdev);
 
 int tps65910_pre_init(struct tps65910 *tps65910){
@@ -38,6 +38,20 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	printk("%s,line=%d\n", __func__,__LINE__);	
 	//gpio_request(PMU_POWER_SLEEP, "NULL");
 	//gpio_direction_output(PMU_POWER_SLEEP, GPIO_HIGH);
+
+	/*************set vdd11 (pll) voltage 1.0v********************/
+	val = tps65910_reg_read(tps65910, TPS65910_VDIG2);
+	if (val<0) {
+		printk(KERN_ERR "Unable to read TPS65910_VDIG2 reg\n");
+		return val;
+	}
+	val &= (~(0x3<<2));
+	err = tps65910_reg_write(tps65910, TPS65910_VDIG2, val);
+	if (err) {
+		printk(KERN_ERR "Unable to write TPS65910_VDIG2 reg\n");
+		return err;
+	}
+	/****************************************/
 	
 	val = tps65910_reg_read(tps65910, TPS65910_DEVCTRL2);
 	if (val<0) {
@@ -583,12 +597,15 @@ static struct regulator_init_data tps65910_ldo8 = {
 
 void __sramfunc board_pmu_tps65910_suspend(void)
 {	
+#if 0 
 	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
 	grf_writel(GPIO6_PB1_DO_HIGH, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
 	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
+#endif
 }
 void __sramfunc board_pmu_tps65910_resume(void)
 {
+#if 0
 	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
 	grf_writel(GPIO6_PB1_DO_LOW, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
 	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
@@ -597,6 +614,7 @@ void __sramfunc board_pmu_tps65910_resume(void)
 	#else
 	sram_udelay(2000);
 	#endif
+#endif
 }
 
 static struct tps65910_board tps65910_data = {
