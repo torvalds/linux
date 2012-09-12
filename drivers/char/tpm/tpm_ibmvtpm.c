@@ -38,8 +38,6 @@ static struct vio_device_id tpm_ibmvtpm_device_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(vio, tpm_ibmvtpm_device_table);
 
-DECLARE_WAIT_QUEUE_HEAD(wq);
-
 /**
  * ibmvtpm_send_crq - Send a CRQ request
  * @vdev:	vio device struct
@@ -83,6 +81,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	struct ibmvtpm_dev *ibmvtpm;
 	u16 len;
+	int sig;
 
 	ibmvtpm = (struct ibmvtpm_dev *)chip->vendor.data;
 
@@ -91,22 +90,23 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		return 0;
 	}
 
-	wait_event_interruptible(wq, ibmvtpm->crq_res.len != 0);
+	sig = wait_event_interruptible(ibmvtpm->wq, ibmvtpm->res_len != 0);
+	if (sig)
+		return -EINTR;
 
-	if (count < ibmvtpm->crq_res.len) {
+	len = ibmvtpm->res_len;
+
+	if (count < len) {
 		dev_err(ibmvtpm->dev,
 			"Invalid size in recv: count=%ld, crq_size=%d\n",
-			count, ibmvtpm->crq_res.len);
+			count, len);
 		return -EIO;
 	}
 
 	spin_lock(&ibmvtpm->rtce_lock);
-	memcpy((void *)buf, (void *)ibmvtpm->rtce_buf, ibmvtpm->crq_res.len);
-	memset(ibmvtpm->rtce_buf, 0, ibmvtpm->crq_res.len);
-	ibmvtpm->crq_res.valid = 0;
-	ibmvtpm->crq_res.msg = 0;
-	len = ibmvtpm->crq_res.len;
-	ibmvtpm->crq_res.len = 0;
+	memcpy((void *)buf, (void *)ibmvtpm->rtce_buf, len);
+	memset(ibmvtpm->rtce_buf, 0, len);
+	ibmvtpm->res_len = 0;
 	spin_unlock(&ibmvtpm->rtce_lock);
 	return len;
 }
@@ -273,7 +273,6 @@ static int __devexit tpm_ibmvtpm_remove(struct vio_dev *vdev)
 	int rc = 0;
 
 	free_irq(vdev->irq, ibmvtpm);
-	tasklet_kill(&ibmvtpm->tasklet);
 
 	do {
 		if (rc)
@@ -372,7 +371,6 @@ static int ibmvtpm_reset_crq(struct ibmvtpm_dev *ibmvtpm)
 static int tpm_ibmvtpm_resume(struct device *dev)
 {
 	struct ibmvtpm_dev *ibmvtpm = ibmvtpm_get_data(dev);
-	unsigned long flags;
 	int rc = 0;
 
 	do {
@@ -387,10 +385,11 @@ static int tpm_ibmvtpm_resume(struct device *dev)
 		return rc;
 	}
 
-	spin_lock_irqsave(&ibmvtpm->lock, flags);
-	vio_disable_interrupts(ibmvtpm->vdev);
-	tasklet_schedule(&ibmvtpm->tasklet);
-	spin_unlock_irqrestore(&ibmvtpm->lock, flags);
+	rc = vio_enable_interrupts(ibmvtpm->vdev);
+	if (rc) {
+		dev_err(dev, "Error vio_enable_interrupts rc=%d\n", rc);
+		return rc;
+	}
 
 	rc = ibmvtpm_crq_send_init(ibmvtpm);
 	if (rc)
@@ -467,7 +466,7 @@ static struct ibmvtpm_crq *ibmvtpm_crq_get_next(struct ibmvtpm_dev *ibmvtpm)
 	if (crq->valid & VTPM_MSG_RES) {
 		if (++crq_q->index == crq_q->num_entry)
 			crq_q->index = 0;
-		rmb();
+		smp_rmb();
 	} else
 		crq = NULL;
 	return crq;
@@ -535,11 +534,9 @@ static void ibmvtpm_crq_process(struct ibmvtpm_crq *crq,
 			ibmvtpm->vtpm_version = crq->data;
 			return;
 		case VTPM_TPM_COMMAND_RES:
-			ibmvtpm->crq_res.valid = crq->valid;
-			ibmvtpm->crq_res.msg = crq->msg;
-			ibmvtpm->crq_res.len = crq->len;
-			ibmvtpm->crq_res.data = crq->data;
-			wake_up_interruptible(&wq);
+			/* len of the data in rtce buffer */
+			ibmvtpm->res_len = crq->len;
+			wake_up_interruptible(&ibmvtpm->wq);
 			return;
 		default:
 			return;
@@ -559,38 +556,19 @@ static void ibmvtpm_crq_process(struct ibmvtpm_crq *crq,
 static irqreturn_t ibmvtpm_interrupt(int irq, void *vtpm_instance)
 {
 	struct ibmvtpm_dev *ibmvtpm = (struct ibmvtpm_dev *) vtpm_instance;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ibmvtpm->lock, flags);
-	vio_disable_interrupts(ibmvtpm->vdev);
-	tasklet_schedule(&ibmvtpm->tasklet);
-	spin_unlock_irqrestore(&ibmvtpm->lock, flags);
-
-	return IRQ_HANDLED;
-}
-
-/**
- * ibmvtpm_tasklet - Interrupt handler tasklet
- * @data:	ibm vtpm device struct
- *
- * Returns:
- *	Nothing
- **/
-static void ibmvtpm_tasklet(void *data)
-{
-	struct ibmvtpm_dev *ibmvtpm = data;
 	struct ibmvtpm_crq *crq;
-	unsigned long flags;
 
-	spin_lock_irqsave(&ibmvtpm->lock, flags);
+	/* while loop is needed for initial setup (get version and
+	 * get rtce_size). There should be only one tpm request at any
+	 * given time.
+	 */
 	while ((crq = ibmvtpm_crq_get_next(ibmvtpm)) != NULL) {
 		ibmvtpm_crq_process(crq, ibmvtpm);
 		crq->valid = 0;
-		wmb();
+		smp_wmb();
 	}
 
-	vio_enable_interrupts(ibmvtpm->vdev);
-	spin_unlock_irqrestore(&ibmvtpm->lock, flags);
+	return IRQ_HANDLED;
 }
 
 /**
@@ -650,9 +628,6 @@ static int __devinit tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 		goto reg_crq_cleanup;
 	}
 
-	tasklet_init(&ibmvtpm->tasklet, (void *)ibmvtpm_tasklet,
-		     (unsigned long)ibmvtpm);
-
 	rc = request_irq(vio_dev->irq, ibmvtpm_interrupt, 0,
 			 tpm_ibmvtpm_driver_name, ibmvtpm);
 	if (rc) {
@@ -666,13 +641,14 @@ static int __devinit tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 		goto init_irq_cleanup;
 	}
 
+	init_waitqueue_head(&ibmvtpm->wq);
+
 	crq_q->index = 0;
 
 	ibmvtpm->dev = dev;
 	ibmvtpm->vdev = vio_dev;
 	chip->vendor.data = (void *)ibmvtpm;
 
-	spin_lock_init(&ibmvtpm->lock);
 	spin_lock_init(&ibmvtpm->rtce_lock);
 
 	rc = ibmvtpm_crq_send_init(ibmvtpm);
@@ -689,7 +665,6 @@ static int __devinit tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 
 	return rc;
 init_irq_cleanup:
-	tasklet_kill(&ibmvtpm->tasklet);
 	do {
 		rc1 = plpar_hcall_norets(H_FREE_CRQ, vio_dev->unit_address);
 	} while (rc1 == H_BUSY || H_IS_LONG_BUSY(rc1));
