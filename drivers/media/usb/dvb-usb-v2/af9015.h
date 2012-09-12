@@ -36,27 +36,6 @@
 #include "tda18218.h"
 #include "mxl5007t.h"
 
-#define DVB_USB_LOG_PREFIX "af9015"
-
-#ifdef CONFIG_DVB_USB_DEBUG
-#define dprintk(var, level, args...) \
-	do { if ((var & level)) printk(args); } while (0)
-#define DVB_USB_DEBUG_STATUS
-#else
-#define dprintk(args...)
-#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
-#endif
-
-#define deb_info(args...) dprintk(dvb_usb_af9015_debug, 0x01, args)
-#define deb_rc(args...)   dprintk(dvb_usb_af9015_debug, 0x02, args)
-
-#undef err
-#define err(format, arg...) \
-	printk(KERN_ERR     DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
-#undef warn
-#define warn(format, arg...) \
-	printk(KERN_WARNING DVB_USB_LOG_PREFIX ": " format "\n" , ## arg)
-
 #define AF9015_FIRMWARE "dvb-usb-af9015.fw"
 
 /* Windows driver uses packet count 21 for USB1.1 and 348 for USB2.0.
