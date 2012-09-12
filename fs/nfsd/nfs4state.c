@@ -1756,7 +1756,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	struct nfsd4_session *new;
 	struct nfsd4_conn *conn;
 	struct nfsd4_clid_slot *cs_slot = NULL;
-	bool confirm_me = false;
 	__be32 status = 0;
 
 	if (cr_ses->flags & ~SESSION4_FLAG_MASK_A)
@@ -1786,6 +1785,8 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			goto out_free_conn;
 		}
 	} else if (unconf) {
+		unsigned int hash;
+		struct nfs4_client *old;
 		if (!same_creds(&unconf->cl_cred, &rqstp->rq_cred) ||
 		    !rpc_cmp_addr(sa, (struct sockaddr *) &unconf->cl_addr)) {
 			status = nfserr_clid_inuse;
@@ -1798,7 +1799,11 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			status = nfserr_seq_misordered;
 			goto out_free_conn;
 		}
-		confirm_me = true;
+		hash = clientstr_hashval(unconf->cl_recdir);
+		old = find_confirmed_client_by_str(unconf->cl_recdir, hash);
+		if (old)
+			expire_client(old);
+		move_to_confirmed(unconf);
 		conf = unconf;
 	} else {
 		status = nfserr_stale_clientid;
@@ -1823,14 +1828,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 
 	/* cache solo and embedded create sessions under the state lock */
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
-	if (confirm_me) {
-		unsigned int hash = clientstr_hashval(unconf->cl_recdir);
-		struct nfs4_client *old =
-			find_confirmed_client_by_str(conf->cl_recdir, hash);
-		if (old)
-			expire_client(old);
-		move_to_confirmed(conf);
-	}
 out:
 	nfs4_unlock_state();
 	dprintk("%s returns %d\n", __func__, ntohl(status));
