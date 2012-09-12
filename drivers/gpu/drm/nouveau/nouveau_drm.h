@@ -132,20 +132,13 @@ nouveau_dev(struct drm_device *dev)
 int nouveau_drm_suspend(struct pci_dev *, pm_message_t);
 int nouveau_drm_resume(struct pci_dev *);
 
-#define NV_PRINTK(level, code, drm, fmt, args...)                              \
-	printk(level "nouveau " code "[     DRM][%s] " fmt,                    \
-	       pci_name((drm)->dev->pdev), ##args)
-#define NV_FATAL(drm, fmt, args...)                                            \
-	NV_PRINTK(KERN_CRIT, "!", (drm), fmt, ##args)
-#define NV_ERROR(drm, fmt, args...)                                            \
-	NV_PRINTK(KERN_ERR, "E", (drm), fmt, ##args)
-#define NV_WARN(drm, fmt, args...)                                             \
-	NV_PRINTK(KERN_WARNING, "W", (drm), fmt, ##args)
-#define NV_INFO(drm, fmt, args...)                                             \
-	NV_PRINTK(KERN_INFO, " ", (drm), fmt, ##args)
-#define NV_DEBUG(drm, fmt, args...) do {                                       \
+#define NV_FATAL(cli, fmt, args...) nv_fatal((cli), fmt, ##args)
+#define NV_ERROR(cli, fmt, args...) nv_error((cli), fmt, ##args)
+#define NV_WARN(cli, fmt, args...) nv_warn((cli), fmt, ##args)
+#define NV_INFO(cli, fmt, args...) nv_info((cli), fmt, ##args)
+#define NV_DEBUG(cli, fmt, args...) do {                                       \
 	if (drm_debug & DRM_UT_DRIVER)                                         \
-		NV_PRINTK(KERN_DEBUG, "D", drm, fmt, ##args);                  \
+		nv_info((cli), fmt, ##args);                                   \
 } while (0)
 
 #endif
