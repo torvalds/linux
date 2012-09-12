@@ -985,17 +985,17 @@ static struct clk ddr_pll_clk = {
 };
 
 static const struct pll_clk_set cpll_clks[] = {
-	_PLL_SET_CLKS(360000, 1,  15, 1),
-	_PLL_SET_CLKS(408000, 1,  17, 1),
-	_PLL_SET_CLKS(456000, 1,  19, 1),
-	_PLL_SET_CLKS(504000, 1,  21, 1),
-	_PLL_SET_CLKS(552000, 1,  23, 1),
-	_PLL_SET_CLKS(600000, 1,  25, 1),
-	_PLL_SET_CLKS(742500, 8,  495, 2),
-	_PLL_SET_CLKS(768000, 1,  32, 1),
-	_PLL_SET_CLKS(798000, 4,  133, 1),
-	_PLL_SET_CLKS(1188000, 2,  99,	1),
-	_PLL_SET_CLKS(     0, 4,  133, 1),
+	_PLL_SET_CLKS(360000, 1,  60,	4),
+	_PLL_SET_CLKS(408000, 1,  68,	4),
+	_PLL_SET_CLKS(456000, 1,  76,	4),
+	_PLL_SET_CLKS(504000, 1,  84,	4),
+	_PLL_SET_CLKS(552000, 1,  46,	2),
+	_PLL_SET_CLKS(600000, 1,  50,	2),
+	_PLL_SET_CLKS(742500, 8,  495,	2),
+	_PLL_SET_CLKS(768000, 1,  64,	2),
+	_PLL_SET_CLKS(798000, 2,  133,	2),
+	_PLL_SET_CLKS(1188000, 2, 99,	1),
+	_PLL_SET_CLKS(     0, 4,  133,	1),
 };
 static struct _pll_data cpll_data = SET_PLL_DATA(CPLL_ID, (void *)cpll_clks);
 static struct clk codec_pll_clk = {
@@ -1008,9 +1008,9 @@ static struct clk codec_pll_clk = {
 };
 
 static const struct pll_clk_set gpll_clks[] = {
-	_PLL_SET_CLKS(148500,	4,	99,	4),
+	_PLL_SET_CLKS(148500,	2,	99,	8),
 	_PLL_SET_CLKS(297000,	2,	99,	4),
-	_PLL_SET_CLKS(300000,	1,	25,	2),
+	_PLL_SET_CLKS(300000,	1,	50,	4),
 	_PLL_SET_CLKS(1188000,	2,	99,	1),
 	_PLL_SET_CLKS(0,	0,	 0,	0),
 };
