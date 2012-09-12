@@ -134,33 +134,45 @@ static int ipoctal_get_icount(struct tty_struct *tty,
 static void ipoctal_irq_rx(struct ipoctal_channel *channel,
 			   struct tty_struct *tty, u8 sr)
 {
-	unsigned char value = ioread8(&channel->regs->r.rhr);
+	unsigned char value;
 	unsigned char flag = TTY_NORMAL;
+	u8 isr;
 
-	/* Error: count statistics */
-	if (sr & SR_ERROR) {
-		iowrite8(CR_CMD_RESET_ERR_STATUS, &channel->regs->w.cr);
+	do {
+		value = ioread8(&channel->regs->r.rhr);
+		/* Error: count statistics */
+		if (sr & SR_ERROR) {
+			iowrite8(CR_CMD_RESET_ERR_STATUS, &channel->regs->w.cr);
 
-		if (sr & SR_OVERRUN_ERROR) {
-			channel->stats.overrun_err++;
-			/* Overrun doesn't affect the current character*/
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			if (sr & SR_OVERRUN_ERROR) {
+				channel->stats.overrun_err++;
+				/* Overrun doesn't affect the current character*/
+				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			}
+			if (sr & SR_PARITY_ERROR) {
+				channel->stats.parity_err++;
+				flag = TTY_PARITY;
+			}
+			if (sr & SR_FRAMING_ERROR) {
+				channel->stats.framing_err++;
+				flag = TTY_FRAME;
+			}
+			if (sr & SR_RECEIVED_BREAK) {
+				channel->stats.rcv_break++;
+				flag = TTY_BREAK;
+			}
 		}
-		if (sr & SR_PARITY_ERROR) {
-			channel->stats.parity_err++;
-			flag = TTY_PARITY;
-		}
-		if (sr & SR_FRAMING_ERROR) {
-			channel->stats.framing_err++;
-			flag = TTY_FRAME;
-		}
-		if (sr & SR_RECEIVED_BREAK) {
-			channel->stats.rcv_break++;
-			flag = TTY_BREAK;
-		}
-	}
+		tty_insert_flip_char(tty, value, flag);
 
-	tty_insert_flip_char(tty, value, flag);
+		/* Check if there are more characters in RX FIFO
+		 * If there are more, the isr register for this channel
+		 * has enabled the RxRDY|FFULL bit.
+		 */
+		isr = ioread8(&channel->block_regs->r.isr);
+		sr = ioread8(&channel->regs->r.sr);
+	} while (isr & channel->isr_rx_rdy_mask);
+
+	tty_flip_buffer_push(tty);
 }
 
 static void ipoctal_irq_tx(struct ipoctal_channel *channel)
