@@ -3437,6 +3437,16 @@ static bool sync_mmio_spte(u64 *sptep, gfn_t gfn, unsigned access,
 	return false;
 }
 
+static inline unsigned gpte_access(struct kvm_vcpu *vcpu, u64 gpte)
+{
+	unsigned access;
+
+	access = (gpte & (PT_WRITABLE_MASK | PT_USER_MASK)) | ACC_EXEC_MASK;
+	access &= ~(gpte >> PT64_NX_SHIFT);
+
+	return access;
+}
+
 #define PTTYPE 64
 #include "paging_tmpl.h"
 #undef PTTYPE

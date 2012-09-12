@@ -101,17 +101,6 @@ static int FNAME(cmpxchg_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	return (ret != orig_pte);
 }
 
-static unsigned FNAME(gpte_access)(struct kvm_vcpu *vcpu, pt_element_t gpte)
-{
-	unsigned access;
-
-	access = (gpte & (PT_WRITABLE_MASK | PT_USER_MASK)) | ACC_EXEC_MASK;
-#if PTTYPE == 64
-	access &= ~(gpte >> PT64_NX_SHIFT);
-#endif
-	return access;
-}
-
 static bool FNAME(is_last_gpte)(struct guest_walker *walker,
 				struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 				pt_element_t gpte)
@@ -217,7 +206,7 @@ retry_walk:
 
 		last_gpte = FNAME(is_last_gpte)(walker, vcpu, mmu, pte);
 		if (last_gpte) {
-			pte_access = pt_access & FNAME(gpte_access)(vcpu, pte);
+			pte_access = pt_access & gpte_access(vcpu, pte);
 			/* check if the kernel is fetching from user page */
 			if (unlikely(pte_access & PT_USER_MASK) &&
 			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP))
@@ -268,7 +257,7 @@ retry_walk:
 			break;
 		}
 
-		pt_access &= FNAME(gpte_access)(vcpu, pte);
+		pt_access &= gpte_access(vcpu, pte);
 		--walker->level;
 	}
 
@@ -364,7 +353,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		return;
 
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
-	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
+	pte_access = sp->role.access & gpte_access(vcpu, gpte);
 	protect_clean_gpte(&pte_access, gpte);
 	pfn = gfn_to_pfn_atomic(vcpu->kvm, gpte_to_gfn(gpte));
 	if (mmu_invalid_pfn(pfn))
@@ -438,7 +427,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, spte, gpte))
 			continue;
 
-		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
+		pte_access = sp->role.access & gpte_access(vcpu, gpte);
 		protect_clean_gpte(&pte_access, gpte);
 		gfn = gpte_to_gfn(gpte);
 		pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
@@ -791,7 +780,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		gfn = gpte_to_gfn(gpte);
 		pte_access = sp->role.access;
-		pte_access &= FNAME(gpte_access)(vcpu, gpte);
+		pte_access &= gpte_access(vcpu, gpte);
 		protect_clean_gpte(&pte_access, gpte);
 
 		if (sync_mmio_spte(&sp->spt[i], gfn, pte_access, &nr_present))
