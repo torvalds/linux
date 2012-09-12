@@ -1684,7 +1684,7 @@ static int __init s3c24xx_serial_modinit(void)
 	ret = uart_register_driver(&s3c24xx_uart_drv);
 	if (ret < 0) {
 		pr_err("Failed to register Samsung UART driver\n");
-		return -1;
+		return ret;
 	}
 
 	return platform_driver_register(&samsung_serial_driver);
