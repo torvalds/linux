@@ -666,22 +666,8 @@ static void dss_mgr_write_regs_extra(struct omap_overlay_manager *mgr)
 	dispc_mgr_set_timings(mgr->id, &mp->timings);
 
 	/* lcd_config parameters */
-	if (dss_mgr_is_lcd(mgr->id)) {
-		dispc_mgr_set_io_pad_mode(mp->lcd_config.io_pad_mode);
-
-		dispc_mgr_enable_stallmode(mgr->id, mp->lcd_config.stallmode);
-		dispc_mgr_enable_fifohandcheck(mgr->id,
-			mp->lcd_config.fifohandcheck);
-
-		dispc_mgr_set_clock_div(mgr->id, &mp->lcd_config.clock_info);
-
-		dispc_mgr_set_tft_data_lines(mgr->id,
-			mp->lcd_config.video_port_width);
-
-		dispc_lcd_enable_signal_polarity(mp->lcd_config.lcden_sig_polarity);
-
-		dispc_mgr_set_lcd_type_tft(mgr->id);
-	}
+	if (dss_mgr_is_lcd(mgr->id))
+		dispc_mgr_set_lcd_config(mgr->id, &mp->lcd_config);
 
 	mp->extra_info_dirty = false;
 	if (mp->updating)

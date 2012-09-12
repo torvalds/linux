@@ -2768,7 +2768,7 @@ bool dispc_wb_is_enabled(void)
 	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
 }
 
-void dispc_lcd_enable_signal_polarity(bool act_high)
+static void dispc_lcd_enable_signal_polarity(bool act_high)
 {
 	if (!dss_has_feature(FEAT_LCDENABLEPOL))
 		return;
@@ -2792,13 +2792,13 @@ void dispc_pck_free_enable(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 27, 27);
 }
 
-void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable)
+static void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_FIFOHANDCHECK, enable);
 }
 
 
-void dispc_mgr_set_lcd_type_tft(enum omap_channel channel)
+static void dispc_mgr_set_lcd_type_tft(enum omap_channel channel)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_STNTFT, 1);
 }
@@ -2854,7 +2854,7 @@ void dispc_mgr_setup(enum omap_channel channel,
 	}
 }
 
-void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
+static void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
 {
 	int code;
 
@@ -2879,7 +2879,7 @@ void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
 	mgr_fld_write(channel, DISPC_MGR_FLD_TFTDATALINES, code);
 }
 
-void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode)
+static void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode)
 {
 	u32 l;
 	int gpout0, gpout1;
@@ -2908,9 +2908,26 @@ void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode)
 	dispc_write_reg(DISPC_CONTROL, l);
 }
 
-void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable)
+static void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_STALLMODE, enable);
+}
+
+void dispc_mgr_set_lcd_config(enum omap_channel channel,
+		const struct dss_lcd_mgr_config *config)
+{
+	dispc_mgr_set_io_pad_mode(config->io_pad_mode);
+
+	dispc_mgr_enable_stallmode(channel, config->stallmode);
+	dispc_mgr_enable_fifohandcheck(channel, config->fifohandcheck);
+
+	dispc_mgr_set_clock_div(channel, &config->clock_info);
+
+	dispc_mgr_set_tft_data_lines(channel, config->video_port_width);
+
+	dispc_lcd_enable_signal_polarity(config->lcden_sig_polarity);
+
+	dispc_mgr_set_lcd_type_tft(channel);
 }
 
 static bool _dispc_mgr_size_ok(u16 width, u16 height)
