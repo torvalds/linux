@@ -273,8 +273,6 @@ static void ci_role_work(struct work_struct *work)
 	struct ci13xxx *ci = container_of(work, struct ci13xxx, work);
 	enum ci_role role = ci_otg_role(ci);
 
-	hw_write(ci, OP_OTGSC, OTGSC_IDIS, OTGSC_IDIS);
-
 	if (role != ci->role) {
 		dev_dbg(ci->dev, "switching from %s to %s\n",
 			ci_role(ci)->name, ci->roles[role]->name);
@@ -325,6 +323,7 @@ static irqreturn_t ci_irq(int irq, void *data)
 		u32 sts = hw_read(ci, OP_OTGSC, ~0);
 
 		if (sts & OTGSC_IDIS) {
+			hw_write(ci, OP_OTGSC, OTGSC_IDIS, OTGSC_IDIS);
 			queue_work(ci->wq, &ci->work);
 			ret = IRQ_HANDLED;
 		}
