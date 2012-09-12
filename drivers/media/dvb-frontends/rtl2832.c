@@ -382,10 +382,10 @@ err:
 static int rtl2832_init(struct dvb_frontend *fe)
 {
 	struct rtl2832_priv *priv = fe->demodulator_priv;
-	int i, ret;
-
+	int i, ret, len;
 	u8 en_bbin;
 	u64 pset_iffreq;
+	const struct rtl2832_reg_value *init;
 
 	/* initialization values for the demodulator registers */
 	struct rtl2832_reg_value rtl2832_initial_regs[] = {
@@ -432,38 +432,7 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		{DVBT_TRK_KC_I2,		0x5},
 		{DVBT_CR_THD_SET2,		0x1},
 		{DVBT_SPEC_INV,			0x0},
-		{DVBT_DAGC_TRG_VAL,		0x5a},
-		{DVBT_AGC_TARG_VAL_0,		0x0},
-		{DVBT_AGC_TARG_VAL_8_1,		0x5a},
-		{DVBT_AAGC_LOOP_GAIN,		0x16},
-		{DVBT_LOOP_GAIN2_3_0,		0x6},
-		{DVBT_LOOP_GAIN2_4,		0x1},
-		{DVBT_LOOP_GAIN3,		0x16},
-		{DVBT_VTOP1,			0x35},
-		{DVBT_VTOP2,			0x21},
-		{DVBT_VTOP3,			0x21},
-		{DVBT_KRF1,			0x0},
-		{DVBT_KRF2,			0x40},
-		{DVBT_KRF3,			0x10},
-		{DVBT_KRF4,			0x10},
-		{DVBT_IF_AGC_MIN,		0x80},
-		{DVBT_IF_AGC_MAX,		0x7f},
-		{DVBT_RF_AGC_MIN,		0x80},
-		{DVBT_RF_AGC_MAX,		0x7f},
-		{DVBT_POLAR_RF_AGC,		0x0},
-		{DVBT_POLAR_IF_AGC,		0x0},
-		{DVBT_AD7_SETTING,		0xe9bf},
-		{DVBT_EN_GI_PGA,		0x0},
-		{DVBT_THD_LOCK_UP,		0x0},
-		{DVBT_THD_LOCK_DW,		0x0},
-		{DVBT_THD_UP1,			0x11},
-		{DVBT_THD_DW1,			0xef},
-		{DVBT_INTER_CNT_LEN,		0xc},
-		{DVBT_GI_PGA_STATE,		0x0},
-		{DVBT_EN_AGC_PGA,		0x1},
-		{DVBT_IF_AGC_MAN,		0x0},
 	};
-
 
 	dbg("%s", __func__);
 
@@ -478,11 +447,30 @@ static int rtl2832_init(struct dvb_frontend *fe)
 	pset_iffreq = div_u64(pset_iffreq, priv->cfg.xtal);
 	pset_iffreq = pset_iffreq & 0x3fffff;
 
-
-
 	for (i = 0; i < ARRAY_SIZE(rtl2832_initial_regs); i++) {
 		ret = rtl2832_wr_demod_reg(priv, rtl2832_initial_regs[i].reg,
 			rtl2832_initial_regs[i].value);
+		if (ret)
+			goto err;
+	}
+
+	/* load tuner specific settings */
+	dbg("%s: load settings for tuner=%02x", __func__, priv->cfg.tuner);
+	switch (priv->cfg.tuner) {
+	case RTL2832_TUNER_FC0012:
+	case RTL2832_TUNER_FC0013:
+		len = ARRAY_SIZE(rtl2832_tuner_init_fc0012);
+		init = rtl2832_tuner_init_fc0012;
+		break;
+	default:
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = 0; i < len; i++) {
+		ret = rtl2832_wr_demod_reg(priv,
+				rtl2832_tuner_init_fc0012[i].reg,
+				rtl2832_tuner_init_fc0012[i].value);
 		if (ret)
 			goto err;
 	}

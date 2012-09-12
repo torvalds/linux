@@ -63,14 +63,15 @@ enum rtl28xxu_chip_id {
 	CHIP_ID_RTL2832U,
 };
 
+/* XXX: Hack. This must be keep sync with rtl2832 demod driver. */
 enum rtl28xxu_tuner {
 	TUNER_NONE,
 
-	TUNER_RTL2830_QT1010,
+	TUNER_RTL2830_QT1010          = 0x10,
 	TUNER_RTL2830_MT2060,
 	TUNER_RTL2830_MXL5005S,
 
-	TUNER_RTL2832_MT2266,
+	TUNER_RTL2832_MT2266          = 0x20,
 	TUNER_RTL2832_FC2580,
 	TUNER_RTL2832_MT2063,
 	TUNER_RTL2832_MAX3543,
