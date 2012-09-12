@@ -724,7 +724,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ret = clk_enable(info->clk);
+	ret = clk_prepare_enable(info->clk);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "unable to enable AEMIF clock, err %d\n",
 			ret);
@@ -835,7 +835,7 @@ syndrome_done:
 
 err_scan:
 err_timing:
-	clk_disable(info->clk);
+	clk_disable_unprepare(info->clk);
 
 err_clk_enable:
 	clk_put(info->clk);
@@ -872,7 +872,7 @@ static int __exit nand_davinci_remove(struct platform_device *pdev)
 
 	nand_release(&info->mtd);
 
-	clk_disable(info->clk);
+	clk_disable_unprepare(info->clk);
 	clk_put(info->clk);
 
 	kfree(info);
