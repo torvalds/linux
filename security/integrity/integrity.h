@@ -16,7 +16,12 @@
 #include <crypto/sha.h>
 
 /* iint cache flags */
-#define IMA_MEASURED		0x01
+#define IMA_MEASURE		0x01
+#define IMA_MEASURED		0x02
+#define IMA_APPRAISE		0x04
+#define IMA_APPRAISED		0x08
+#define IMA_COLLECTED		0x10
+#define IMA_DIGSIG		0x20
 
 enum evm_ima_xattr_type {
 	IMA_XATTR_DIGEST = 0x01,
@@ -35,8 +40,8 @@ struct integrity_iint_cache {
 	struct inode *inode;	/* back pointer to inode in question */
 	u64 version;		/* track inode changes */
 	unsigned char flags;
-	u8 digest[SHA1_DIGEST_SIZE];
-	struct mutex mutex;	/* protects: version, flags, digest */
+	struct evm_ima_xattr_data ima_xattr;
+	enum integrity_status ima_status;
 	enum integrity_status evm_status;
 };
 

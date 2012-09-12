@@ -48,7 +48,7 @@ int ima_calc_hash(struct file *file, char *digest)
 	struct scatterlist sg[1];
 	loff_t i_size, offset = 0;
 	char *rbuf;
-	int rc;
+	int rc, read = 0;
 
 	rc = init_desc(&desc);
 	if (rc != 0)
@@ -58,6 +58,10 @@ int ima_calc_hash(struct file *file, char *digest)
 	if (!rbuf) {
 		rc = -ENOMEM;
 		goto out;
+	}
+	if (!(file->f_mode & FMODE_READ)) {
+		file->f_mode |= FMODE_READ;
+		read = 1;
 	}
 	i_size = i_size_read(file->f_dentry->d_inode);
 	while (offset < i_size) {
@@ -80,6 +84,8 @@ int ima_calc_hash(struct file *file, char *digest)
 	kfree(rbuf);
 	if (!rc)
 		rc = crypto_hash_final(&desc, digest);
+	if (read)
+		file->f_mode &= ~FMODE_READ;
 out:
 	crypto_free_hash(desc.tfm);
 	return rc;
