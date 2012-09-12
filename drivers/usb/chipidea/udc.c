@@ -771,10 +771,7 @@ __acquires(mEp->lock)
 {
 	struct ci13xxx_req *mReq, *mReqTemp;
 	struct ci13xxx_ep *mEpTemp = mEp;
-	int uninitialized_var(retval);
-
-	if (list_empty(&mEp->qh.queue))
-		return -EINVAL;
+	int retval = 0;
 
 	list_for_each_entry_safe(mReq, mReqTemp, &mEp->qh.queue,
 			queue) {
