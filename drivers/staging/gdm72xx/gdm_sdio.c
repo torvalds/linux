@@ -94,17 +94,14 @@ static struct sdio_rx *alloc_rx_struct(struct rx_cxt *rx)
 	struct sdio_rx *r = NULL;
 
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
-	if (r == NULL)
-		goto out;
+	if (!r)
+		return NULL;
 
 	memset(r, 0, sizeof(*r));
 
 	r->rx_cxt = rx;
 
 	return r;
-out:
-	kfree(r);
-	return NULL;
 }
 
 static void free_rx_struct(struct sdio_rx *r)
