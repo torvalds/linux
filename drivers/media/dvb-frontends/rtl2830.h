@@ -82,7 +82,7 @@ static inline struct dvb_frontend *rtl2830_attach(
 	struct i2c_adapter *i2c
 )
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 

@@ -25,19 +25,6 @@
 #include "dvb_math.h"
 #include "rtl2830.h"
 
-#define LOG_PREFIX "rtl2830"
-
-#undef dbg
-#define dbg(f, arg...) \
-	if (rtl2830_debug) \
-		printk(KERN_INFO            LOG_PREFIX": " f "\n" , ## arg)
-#undef err
-#define err(f, arg...)  printk(KERN_ERR     LOG_PREFIX": " f "\n" , ## arg)
-#undef info
-#define info(f, arg...) printk(KERN_INFO    LOG_PREFIX": " f "\n" , ## arg)
-#undef warn
-#define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
-
 struct rtl2830_priv {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
