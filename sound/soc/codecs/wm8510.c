@@ -592,7 +592,8 @@ static int __devinit wm8510_spi_probe(struct spi_device *spi)
 	struct wm8510_priv *wm8510;
 	int ret;
 
-	wm8510 = kzalloc(sizeof(struct wm8510_priv), GFP_KERNEL);
+	wm8510 = devm_kzalloc(&spi->dev, sizeof(struct wm8510_priv),
+			      GFP_KERNEL);
 	if (wm8510 == NULL)
 		return -ENOMEM;
 
@@ -601,8 +602,7 @@ static int __devinit wm8510_spi_probe(struct spi_device *spi)
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_dev_wm8510, &wm8510_dai, 1);
-	if (ret < 0)
-		kfree(wm8510);
+
 	return ret;
 }
 
@@ -630,7 +630,8 @@ static __devinit int wm8510_i2c_probe(struct i2c_client *i2c,
 	struct wm8510_priv *wm8510;
 	int ret;
 
-	wm8510 = kzalloc(sizeof(struct wm8510_priv), GFP_KERNEL);
+	wm8510 = devm_kzalloc(&i2c->dev, sizeof(struct wm8510_priv),
+			      GFP_KERNEL);
 	if (wm8510 == NULL)
 		return -ENOMEM;
 
@@ -639,8 +640,7 @@ static __devinit int wm8510_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8510, &wm8510_dai, 1);
-	if (ret < 0)
-		kfree(wm8510);
+
 	return ret;
 }
 
