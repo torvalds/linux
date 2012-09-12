@@ -314,8 +314,9 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 		}
 	}
 
-	err = gnttab_unmap_refs(map->unmap_ops + offset, map->pages + offset,
-				pages, true);
+	err = gnttab_unmap_refs(map->unmap_ops + offset,
+			use_ptemod ? map->kmap_ops + offset : NULL, map->pages + offset,
+			pages);
 	if (err)
 		return err;
 
