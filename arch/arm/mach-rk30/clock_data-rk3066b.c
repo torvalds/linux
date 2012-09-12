@@ -2474,16 +2474,18 @@ GATE_CLK(i2c4, pclk_periph, PCLK_I2C4);
 GATE_CLK(gpio3, pclk_periph, PCLK_GPIO3);
 GATE_CLK(pclk_saradc, pclk_periph, PCLK_SARADC);
 /*************************aclk_lcdc0***********************/
+
 GATE_CLK(aclk_vio0, aclk_lcdc0_pre, ACLK_VIO0);
-GATE_CLK(aclk_lcdc0, aclk_lcdc0_pre, ACLK_LCDC0);
-GATE_CLK(aclk_cif0, aclk_lcdc0_pre, ACLK_CIF0);
-GATE_CLK(aclk_ipp,  aclk_lcdc0_pre, ACLK_IPP);
+
+GATE_CLK(aclk_lcdc0, clk_aclk_vio0, ACLK_LCDC0);
+GATE_CLK(aclk_cif0, clk_aclk_vio0, ACLK_CIF0);
+GATE_CLK(aclk_ipp,  clk_aclk_vio0, ACLK_IPP);
 
 /*************************aclk_lcdc0***********************/
 
 GATE_CLK(aclk_vio1, aclk_lcdc1_pre, ACLK_VIO1);
-GATE_CLK(aclk_lcdc1, aclk_lcdc1_pre, ACLK_LCDC1);
-GATE_CLK(aclk_rga,  aclk_lcdc1_pre, ACLK_RGA);
+GATE_CLK(aclk_lcdc1, clk_aclk_vio1, ACLK_LCDC1);
+GATE_CLK(aclk_rga,  clk_aclk_vio1, ACLK_RGA);
 
 
 #if 1
@@ -2537,8 +2539,8 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "aclk_vdpu", 	&aclk_vdpu),
 	CLK(NULL, "hclk_vdpu", 	&hclk_vdpu),
 
-	CLK(NULL, "aclk_lcdc0", &aclk_lcdc0_pre),
-	CLK(NULL, "aclk_lcdc1", &aclk_lcdc1_pre),
+	CLK(NULL, "aclk_lcdc0_pre", &aclk_lcdc0_pre),
+	CLK(NULL, "aclk_lcdc1_pre", &aclk_lcdc1_pre),
 
 	CLK(NULL, "aclk_periph", &aclk_periph),
 	CLK(NULL, "pclk_periph", &pclk_periph),
@@ -2727,199 +2729,190 @@ static struct clk_lookup clks[] = {
 };
 static void __init rk30_init_enable_clocks(void)
 {
+	#if 0
 	//clk_enable_nolock(&xin24m);
-	//clk_enable_nolock(&xin27m);
 	//clk_enable_nolock(&clk_12m);
 	//clk_enable_nolock(&arm_pll_clk);
 	//clk_enable_nolock(&ddr_pll_clk);
 	//clk_enable_nolock(&codec_pll_clk);
 	//clk_enable_nolock(&general_pll_clk);
-	//clk_enable_nolock(&clk_ddr);
-
-	clk_enable_nolock(&clk_core);
+	#endif
+	clk_enable_nolock(&clk_ddr);
+	//clk_enable_nolock(&clk_core);
+	clk_enable_nolock(&clk_cpu_div);
+	clk_enable_nolock(&clk_core_gpll_path);
+	clk_enable_nolock(&clk_l2c);
+	clk_enable_nolock(&clk_core_dbg);
 	clk_enable_nolock(&core_periph);
-	clk_enable_nolock(&aclk_cpu);
-	clk_enable_nolock(&hclk_cpu);
-	clk_enable_nolock(&pclk_cpu);
+	clk_enable_nolock(&aclk_core);
+	//clk_enable_nolock(&aclk_cpu);
+	//clk_enable_nolock(&pclk_cpu);
 	clk_enable_nolock(&atclk_cpu);
+	//clk_enable_nolock(&hclk_cpu);
+	clk_enable_nolock(&ahb2apb_cpu);
+	#if 0
+	 clk_enable_nolock(&clk_gpu);
+	 clk_enable_nolock(&aclk_gpu);
+	 clk_enable_nolock(&aclk_gpu_slv);
+	 clk_enable_nolock(&aclk_gpu_mst);
 
-#if 0
-	clk_enable_nolock(&clk_i2s_pll);
-	clk_enable_nolock(&clk_i2s0_div);
-	clk_enable_nolock(&clk_i2s0_frac_div);
-	clk_enable_nolock(&clk_i2s0);
-	clk_enable_nolock(&clk_hclk_i2s_8ch);
+	 clk_enable_nolock(&aclk_vepu);
+	 clk_enable_nolock(&hclk_vepu);
+	 clk_enable_nolock(&aclk_vdpu);
+	 clk_enable_nolock(&hclk_vdpu);
 
-	clk_enable_nolock(&clk_i2s1_div);
-	clk_enable_nolock(&clk_i2s1_frac_div);
-	clk_enable_nolock(&clk_i2s1);
-	clk_enable_nolock(&clk_hclk_i2s0_2ch);
+	 clk_enable_nolock(&aclk_lcdc0_pre);
+	 clk_enable_nolock(&aclk_lcdc1_pre);
 
-	clk_enable_nolock(&clk_i2s2_div);
-	clk_enable_nolock(&clk_i2s2_frac_div);
-	clk_enable_nolock(&clk_i2s2);
-	clk_enable_nolock(&clk_hclk_i2s1_2ch);
+	 clk_enable_nolock(&aclk_periph);
+	clk_enable_nolock(&pclk_periph);
+	clk_enable_nolock(&hclk_periph);
+	#endif
+	#if 0
+	 clk_enable_nolock(&dclk_lcdc0);
+	 clk_enable_nolock(&dclk_lcdc1);
+	
+	 clk_enable_nolock(&cif_out_pll);
+	 clk_enable_nolock(&cif0_out_div);
+
+	 clk_enable_nolock(&cif0_out);
+	 clk_enable_nolock(&pclkin_cif0);
+	 clk_enable_nolock(&inv_cif0);
+	 clk_enable_nolock(&cif0_in);
+
+	 clk_enable_nolock(&clk_i2s_pll);
+	 clk_enable_nolock(&clk_i2s0_div);
+	 clk_enable_nolock(&clk_i2s0_frac_div);
+	 clk_enable_nolock(&clk_i2s0);
+	
+	  actually no i2s1
+	 clk_enable_nolock(&clk_i2s0_div);
+	 clk_enable_nolock(&clk_i2s0_frac_div);
+	 clk_enable_nolock(&clk_i2s0);
 
 	clk_enable_nolock(&clk_spdif_div);
 	clk_enable_nolock(&clk_spdif_frac_div);
 	clk_enable_nolock(&clk_spdif);
-	clk_enable_nolock(&clk_hclk_spdif);
-#endif
-	clk_enable_nolock(&aclk_periph);
-	clk_enable_nolock(&pclk_periph);
-	clk_enable_nolock(&hclk_periph);
-
-#if 0
-	clk_enable_nolock(&clk_spi0);
-	clk_enable_nolock(&clk_pclk_spi0);
-
-	clk_enable_nolock(&clk_spi1);
-	clk_enable_nolock(&clk_pclk_spi1);
-	clk_enable_nolock(&clk_saradc);
-	clk_enable_nolock(&clk_pclk_saradc);
-	clk_enable_nolock(&clk_tsadc);
-	clk_enable_nolock(&clk_pclk_tsadc);
-#endif
-#if 0
+	#endif
+	#if 0
 	clk_enable_nolock(&clk_otgphy0);
 	clk_enable_nolock(&clk_otgphy1);
-	clk_enable_nolock(&clk_hclk_usb_peri);
-	clk_enable_nolock(&clk_hclk_otg0);
-	clk_enable_nolock(&clk_hclk_otg1);
-#endif
-#if 0
-	clk_enable_nolock(&clk_smc);
-	clk_enable_nolock(&clk_aclk_smc);
-
-	clk_enable_nolock(&clk_sdmmc);
-	clk_enable_nolock(&clk_hclk_sdmmc);
-	clk_enable_nolock(&clk_sdio);
-	clk_enable_nolock(&clk_hclk_sdio);
-
-	clk_enable_nolock(&clk_emmc);
-	clk_enable_nolock(&clk_hclk_emmc);
-
-#endif
-
-#if CONFIG_RK_DEBUG_UART == 0
-	clk_enable_nolock(&clk_uart0);
-	clk_enable_nolock(&clk_pclk_uart0);
-#elif CONFIG_RK_DEBUG_UART == 1
-	clk_enable_nolock(&clk_uart1);
-	clk_enable_nolock(&clk_pclk_uart1);
-
-#elif CONFIG_RK_DEBUG_UART == 2
-	clk_enable_nolock(&clk_uart2);
-	clk_enable_nolock(&clk_pclk_uart2);
-
-#elif CONFIG_RK_DEBUG_UART == 3
-	clk_enable_nolock(&clk_uart3);
-	clk_enable_nolock(&clk_pclk_uart3);
-
-#endif
-
-#if 0
-	clk_enable_nolock(&clk_timer0);
-	clk_enable_nolock(&clk_pclk_timer0);
-
-	clk_enable_nolock(&clk_timer1);
-	clk_enable_nolock(&clk_pclk_timer1);
-
-	clk_enable_nolock(&clk_timer2);
-	clk_enable_nolock(&clk_pclk_timer2);
-#endif
-#if 0
+	clk_enable_nolock(&clk_otgphy0_480m);
+	clk_enable_nolock(&clk_otgphy1_480m);
+	clk_enable_nolock(&clk_hsicphy_480m);
+	clk_enable_nolock(&clk_hsicphy_12m);
+	#endif	
+	
+	#if 0
 	clk_enable_nolock(&rmii_clkin);
-	clk_enable_nolock(&clk_mac_pll_div);
+	clk_enable_nolock(&clk_mac_pll_div); // compatible with rk29
 	clk_enable_nolock(&clk_mac_ref);
-	clk_enable_nolock(&clk_mii_tx);
-#endif
+	clk_enable_nolock(&clk_mii_tx);	
+	#endif
 
-#if 0
+	#if 0
 	clk_enable_nolock(&clk_hsadc_pll_div);
 	clk_enable_nolock(&clk_hsadc_frac_div);
 	clk_enable_nolock(&clk_hsadc_ext);
+	clk_enable_nolock(&clk_hsadc_out);
+	clk_enable_nolock(&clk_hsadc_out_inv);
 	clk_enable_nolock(&clk_hsadc);
-	clk_enable_nolock(&clk_hclk_hsadc);
-#endif
 
-#if 0
-	clk_enable_nolock(&aclk_lcdc0_ipp_parent);
-	clk_enable_nolock(&aclk_lcdc1_rga_parent);
+	clk_enable_nolock(&clk_saradc);
+	#endif
+	/*
+	clk_enable_nolock(&clk_smc);
+	clk_enable_nolock(&clkn_smc);
+	*/
+	/*
+	clk_enable_nolock(&clk_spi0);
+	clk_enable_nolock(&clk_spi1);
+	*/
+	/*
+	clk_enable_nolock(&clk_sdmmc);
+	clk_enable_nolock(&clk_sdio);
+	clk_enable_nolock(&clk_emmc);
+	*/
+	#if 0
+	clk_enable_nolock(&clk_uart_pll);
+	clk_enable_nolock(&clk_uart0_div);
+	clk_enable_nolock(&clk_uart0_frac_div);
+	clk_enable_nolock(&clk_uart0);
+	clk_enable_nolock(&clk_uart1_div);
+	clk_enable_nolock(&clk_uart1_frac_div);
+	clk_enable_nolock(&clk_uart1);
+	clk_enable_nolock(&clk_uart2_div);
+	clk_enable_nolock(&clk_uart2_frac_div);
+	clk_enable_nolock(&clk_uart2);
+	clk_enable_nolock(&clk_uart3_div);
+	clk_enable_nolock(&clk_uart3_frac_div);
+	clk_enable_nolock(&clk_uart3);
+	#endif
+	#if CONFIG_RK_DEBUG_UART == 0
+		clk_enable_nolock(&clk_uart0);
+		clk_enable_nolock(&clk_pclk_uart0);
+	#elif CONFIG_RK_DEBUG_UART == 1
+		clk_enable_nolock(&clk_uart1);
+		clk_enable_nolock(&clk_pclk_uart1);
 
-	clk_enable_nolock(&dclk_lcdc0_div);
-	clk_enable_nolock(&dclk_lcdc1_div);
+	#elif CONFIG_RK_DEBUG_UART == 2
+		clk_enable_nolock(&clk_uart2);
+		clk_enable_nolock(&clk_pclk_uart2);
 
-	clk_enable_nolock(&dclk_lcdc0);
-	clk_enable_nolock(&clk_aclk_lcdc0);
-	clk_enable_nolock(&clk_hclk_lcdc0);
+	#elif CONFIG_RK_DEBUG_UART == 3
+		clk_enable_nolock(&clk_uart3);
+		clk_enable_nolock(&clk_pclk_uart3);
 
-	clk_enable_nolock(&dclk_lcdc1);
-	clk_enable_nolock(&clk_aclk_lcdc1);
-	clk_enable_nolock(&clk_hclk_lcdc1);
-
-	clk_enable_nolock(&cif_out_pll);
-	clk_enable_nolock(&cif0_out_div);
-	clk_enable_nolock(&cif1_out_div);
-
-	clk_enable_nolock(&cif0_out);
-	clk_enable_nolock(&clk_hclk_cif0);
-
-	clk_enable_nolock(&cif1_out);
-	clk_enable_nolock(&clk_hclk_cif1);
-
-	clk_enable_nolock(&clk_hclk_ipp);
-	clk_enable_nolock(&clk_hclk_rga);
-	clk_enable_nolock(&clk_hclk_hdmi);
-
-	clk_enable_nolock(&pclkin_cif0);
-	clk_enable_nolock(&inv_cif0);
-	clk_enable_nolock(&cif0_in);
-	clk_enable_nolock(&pclkin_cif1);
-	clk_enable_nolock(&inv_cif1);
-	clk_enable_nolock(&cif1_in);
-	//CLK(NULL, "aclk_lcdc0",	&aclk_lcdc0),
-	//CLK(NULL, "aclk_lcdc1",	&aclk_lcdc1),
-	clk_enable_nolock(&aclk_vepu);
-	clk_enable_nolock(&hclk_vepu);
-	clk_enable_nolock(&aclk_vdpu);
-	clk_enable_nolock(&hclk_vdpu);
-	clk_enable_nolock(&clk_gpu);
-#endif
-
+	#endif
+	#if 0
+	clk_enable_nolock(&clk_timer0);
+	clk_enable_nolock(&clk_timer1);
+	clk_enable_nolock(&clk_timer2);
+	#endif
+	
+	/*************************aclk_cpu***********************/
 	clk_enable_nolock(&clk_dma1);
 	clk_enable_nolock(&clk_l2mem_con);
 	clk_enable_nolock(&clk_intmem);
-
 	clk_enable_nolock(&clk_aclk_strc_sys);
-
+	
 	/*************************hclk_cpu***********************/
-
 	clk_enable_nolock(&clk_rom);
-
+	#if 0
+	clk_enable_nolock(&clk_hclk_i2s0_2ch);
+	// actually no i2s1
+	clk_enable_nolock(&clk_hclk_i2s0_2ch);
+	clk_enable_nolock(&clk_hclk_spdif);
+	#endif
 	clk_enable_nolock(&clk_hclk_cpubus);
 	clk_enable_nolock(&clk_hclk_ahb2apb);
 	clk_enable_nolock(&clk_hclk_vio_bus);
+	#if 0
+	clk_enable_nolock(&clk_hclk_lcdc0);
+	clk_enable_nolock(&clk_hclk_lcdc1);
+	clk_enable_nolock(&clk_hclk_cif0);
+	clk_enable_nolock(&clk_hclk_ipp);
+	clk_enable_nolock(&clk_hclk_rga);
+	#endif
+	clk_enable_nolock(&clk_hclk_video_h2h);
+	clk_enable_nolock(&clk_hclk_l2mem);
 
 	/*************************pclk_cpu***********************/
-
-	//clk_enable_nolock(&clk_pwm01);//pwm 0¡¢1
-#if 0
-
-
+	#if 0
+	clk_enable_nolock(&clk_pwm01);
+	clk_enable_nolock(&clk_pclk_timer0);
+	clk_enable_nolock(&clk_pclk_timer1);
+	clk_enable_nolock(&clk_pclk_timer2);
 	clk_enable_nolock(&clk_i2c0);
 	clk_enable_nolock(&clk_i2c1);
-
 	clk_enable_nolock(&clk_gpio0);
 	clk_enable_nolock(&clk_gpio1);
 	clk_enable_nolock(&clk_gpio2);
-	clk_enable_nolock(&clk_gpio6);
 	clk_enable_nolock(&clk_efuse);
-#endif
+	#endif
 	clk_enable_nolock(&clk_tzpc);
-
-	//CLK1(pclk_uart0),
-	//CLK1(pclk_uart1),
+	//clk_enable_nolock(&clk_pclk_uart0);
+	//clk_enable_nolock(&clk_pclk_uart1);
 	clk_enable_nolock(&clk_pclk_ddrupctl);
 	clk_enable_nolock(&clk_pclk_ddrpubl);
 	clk_enable_nolock(&clk_dbg);
@@ -2927,9 +2920,8 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_pmu);
 
 	/*************************aclk_periph***********************/
-
 	clk_enable_nolock(&clk_dma2);
-	//CLK1(aclk_smc),
+	clk_enable_nolock(&clk_aclk_smc);
 	clk_enable_nolock(&clk_aclk_peri_niu);
 	clk_enable_nolock(&clk_aclk_cpu_peri);
 	clk_enable_nolock(&clk_aclk_peri_axi_matrix);
@@ -2938,39 +2930,53 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_hclk_peri_axi_matrix);
 	clk_enable_nolock(&clk_hclk_peri_ahb_arbi);
 	clk_enable_nolock(&clk_hclk_emem_peri);
-	clk_enable_nolock(&clk_hclk_emac);
-	clk_enable_nolock(&clk_nandc);
-	//CLK1(hclk_usb_peri),
-	//CLK1(hclk_usbotg0),
-	//CLK1(hclk_usbotg1),
-	//CLK1(hclk_hsadc),
+	//clk_enable_nolock(&clk_hclk_emac);
+	//clk_enable_nolock(&clk_nandc);
+	clk_enable_nolock(&clk_hclk_usb_peri);
+	#if 0
+	clk_enable_nolock(&clk_hclk_otg0);
+	clk_enable_nolock(&clk_hclk_otg1);
+	clk_enable_nolock(&clk_hclk_hsic);
+	clk_enable_nolock(&clk_hclk_gps);
+	clk_enable_nolock(&clk_hclk_hsadc);
 	clk_enable_nolock(&clk_hclk_pidfilter);
+	clk_enable_nolock(&clk_hclk_sdmmc);
+	clk_enable_nolock(&clk_hclk_sdio);
+	clk_enable_nolock(&clk_hclk_emmc);
+	#endif
 
 	/*************************pclk_periph***********************/
 	clk_enable_nolock(&clk_pclk_peri_axi_matrix);
-	//clk_enable_nolock(&clk_pwm23);
-
-	//clk_enable_nolock(&clk_wdt);
-
-#if 0
-
+	#if 0
+	clk_enable_nolock(&clk_pwm23);
+	clk_enable_nolock(&clk_wdt);
+	clk_enable_nolock(&clk_pclk_spi0);
+	clk_enable_nolock(&clk_pclk_spi1);
+	clk_enable_nolock(&clk_pclk_uart2);
+	clk_enable_nolock(&clk_pclk_uart3);
+	#endif
+	#if 0
 	clk_enable_nolock(&clk_i2c2);
 	clk_enable_nolock(&clk_i2c3);
 	clk_enable_nolock(&clk_i2c4);
-
 	clk_enable_nolock(&clk_gpio3);
-	clk_enable_nolock(&clk_gpio4);
-#endif
+	clk_enable_nolock(&clk_pclk_saradc);
+	#endif
 	/*************************aclk_lcdc0***********************/
+#if 1
 	//clk_enable_nolock(&clk_aclk_vio0);
+	//clk_enable_nolock(&clk_aclk_lcdc0);
 	//clk_enable_nolock(&clk_aclk_cif0);
 	//clk_enable_nolock(&clk_aclk_ipp);
-
-	/*************************aclk_lcdc0***********************/
+#endif
+	/*************************aclk_lcdc1***********************/
+#if 1
 	//clk_enable_nolock(&clk_aclk_vio1);
-	//clk_enable_nolock(&clk_aclk_cif1);
+	//clk_enable_nolock(&clk_aclk_lcdc1);
 	//clk_enable_nolock(&clk_aclk_rga);
+#endif
 	/************************power domain**********************/
+
 }
 static void periph_clk_set_init(void)
 {
