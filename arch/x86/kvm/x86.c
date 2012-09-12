@@ -3672,19 +3672,16 @@ static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
 				gpa_t *gpa, struct x86_exception *exception,
 				bool write)
 {
-	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
+	u32 access = ((kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0)
+		| (write ? PFERR_WRITE_MASK : 0);
 
-	if (vcpu_match_mmio_gva(vcpu, gva) &&
-		  check_write_user_access(vcpu, write, access,
-		  vcpu->arch.access)) {
+	if (vcpu_match_mmio_gva(vcpu, gva)
+	    && !permission_fault(vcpu->arch.walk_mmu, vcpu->arch.access, access)) {
 		*gpa = vcpu->arch.mmio_gfn << PAGE_SHIFT |
 					(gva & (PAGE_SIZE - 1));
 		trace_vcpu_match_mmio(gva, *gpa, write, false);
 		return 1;
 	}
-
-	if (write)
-		access |= PFERR_WRITE_MASK;
 
 	*gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, exception);
 

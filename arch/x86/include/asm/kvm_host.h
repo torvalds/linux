@@ -287,6 +287,13 @@ struct kvm_mmu {
 	union kvm_mmu_page_role base_role;
 	bool direct_map;
 
+	/*
+	 * Bitmap; bit set = permission fault
+	 * Byte index: page fault error code [4:1]
+	 * Bit index: pte permissions in ACC_* format
+	 */
+	u8 permissions[16];
+
 	u64 *pae_root;
 	u64 *lm_root;
 	u64 rsvd_bits_mask[2][4];

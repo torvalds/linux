@@ -169,7 +169,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	pt_element_t pte;
 	pt_element_t __user *uninitialized_var(ptep_user);
 	gfn_t table_gfn;
-	unsigned index, pt_access, uninitialized_var(pte_access);
+	unsigned index, pt_access, pte_access;
 	gpa_t pte_gpa;
 	bool eperm, last_gpte;
 	int offset;
@@ -237,24 +237,9 @@ retry_walk:
 			goto error;
 		}
 
-		if (!check_write_user_access(vcpu, write_fault, user_fault,
-					  pte))
-			eperm = true;
-
-#if PTTYPE == 64
-		if (unlikely(fetch_fault && (pte & PT64_NX_MASK)))
-			eperm = true;
-#endif
+		pte_access = pt_access & gpte_access(vcpu, pte);
 
 		last_gpte = FNAME(is_last_gpte)(walker, vcpu, mmu, pte);
-		if (last_gpte) {
-			pte_access = pt_access & gpte_access(vcpu, pte);
-			/* check if the kernel is fetching from user page */
-			if (unlikely(pte_access & PT_USER_MASK) &&
-			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP))
-				if (fetch_fault && !user_fault)
-					eperm = true;
-		}
 
 		walker->ptes[walker->level - 1] = pte;
 
@@ -284,10 +269,11 @@ retry_walk:
 			break;
 		}
 
-		pt_access &= gpte_access(vcpu, pte);
+		pt_access &= pte_access;
 		--walker->level;
 	}
 
+	eperm |= permission_fault(mmu, pte_access, access);
 	if (unlikely(eperm)) {
 		errcode |= PFERR_PRESENT_MASK;
 		goto error;

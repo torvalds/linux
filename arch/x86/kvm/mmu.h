@@ -89,17 +89,14 @@ static inline bool is_write_protection(struct kvm_vcpu *vcpu)
 	return kvm_read_cr0_bits(vcpu, X86_CR0_WP);
 }
 
-static inline bool check_write_user_access(struct kvm_vcpu *vcpu,
-					   bool write_fault, bool user_fault,
-					   unsigned long pte)
+/*
+ * Will a fault with a given page-fault error code (pfec) cause a permission
+ * fault with the given access (in ACC_* format)?
+ */
+static inline bool permission_fault(struct kvm_mmu *mmu, unsigned pte_access,
+				    unsigned pfec)
 {
-	if (unlikely(write_fault && !is_writable_pte(pte)
-	      && (user_fault || is_write_protection(vcpu))))
-		return false;
-
-	if (unlikely(user_fault && !(pte & PT_USER_MASK)))
-		return false;
-
-	return true;
+	return (mmu->permissions[pfec >> 1] >> pte_access) & 1;
 }
+
 #endif

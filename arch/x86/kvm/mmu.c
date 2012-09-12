@@ -3516,6 +3516,38 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 	}
 }
 
+static void update_permission_bitmask(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
+{
+	unsigned bit, byte, pfec;
+	u8 map;
+	bool fault, x, w, u, wf, uf, ff, smep;
+
+	smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
+	for (byte = 0; byte < ARRAY_SIZE(mmu->permissions); ++byte) {
+		pfec = byte << 1;
+		map = 0;
+		wf = pfec & PFERR_WRITE_MASK;
+		uf = pfec & PFERR_USER_MASK;
+		ff = pfec & PFERR_FETCH_MASK;
+		for (bit = 0; bit < 8; ++bit) {
+			x = bit & ACC_EXEC_MASK;
+			w = bit & ACC_WRITE_MASK;
+			u = bit & ACC_USER_MASK;
+
+			/* Not really needed: !nx will cause pte.nx to fault */
+			x |= !mmu->nx;
+			/* Allow supervisor writes if !cr0.wp */
+			w |= !is_write_protection(vcpu) && !uf;
+			/* Disallow supervisor fetches of user code if cr4.smep */
+			x &= !(smep && u && !uf);
+
+			fault = (ff && !x) || (uf && !u) || (wf && !w);
+			map |= fault << bit;
+		}
+		mmu->permissions[byte] = map;
+	}
+}
+
 static int paging64_init_context_common(struct kvm_vcpu *vcpu,
 					struct kvm_mmu *context,
 					int level)
@@ -3524,6 +3556,7 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu,
 	context->root_level = level;
 
 	reset_rsvds_bits_mask(vcpu, context);
+	update_permission_bitmask(vcpu, context);
 
 	ASSERT(is_pae(vcpu));
 	context->new_cr3 = paging_new_cr3;
@@ -3552,6 +3585,7 @@ static int paging32_init_context(struct kvm_vcpu *vcpu,
 	context->root_level = PT32_ROOT_LEVEL;
 
 	reset_rsvds_bits_mask(vcpu, context);
+	update_permission_bitmask(vcpu, context);
 
 	context->new_cr3 = paging_new_cr3;
 	context->page_fault = paging32_page_fault;
@@ -3611,6 +3645,8 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 		reset_rsvds_bits_mask(vcpu, context);
 		context->gva_to_gpa = paging32_gva_to_gpa;
 	}
+
+	update_permission_bitmask(vcpu, context);
 
 	return 0;
 }
@@ -3686,6 +3722,8 @@ static int init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 		reset_rsvds_bits_mask(vcpu, g_context);
 		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;
 	}
+
+	update_permission_bitmask(vcpu, g_context);
 
 	return 0;
 }
