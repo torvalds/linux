@@ -84,6 +84,7 @@
  */
 DEFINE_SPINLOCK(xen_reservation_lock);
 
+#ifdef CONFIG_X86_32
 /*
  * Identity map, in addition to plain kernel map.  This needs to be
  * large enough to allocate page table pages to allocate the rest.
@@ -91,7 +92,7 @@ DEFINE_SPINLOCK(xen_reservation_lock);
  */
 #define LEVEL1_IDENT_ENTRIES	(PTRS_PER_PTE * 4)
 static RESERVE_BRK_ARRAY(pte_t, level1_ident_pgt, LEVEL1_IDENT_ENTRIES);
-
+#endif
 #ifdef CONFIG_X86_64
 /* l3 pud for userspace vsyscall mapping */
 static pud_t level3_user_vsyscall[PTRS_PER_PUD] __page_aligned_bss;
@@ -1176,13 +1177,6 @@ static void xen_exit_mmap(struct mm_struct *mm)
 
 static void xen_post_allocator_init(void);
 
-static void __init xen_pagetable_init(void)
-{
-	paging_init();
-	xen_setup_shared_info();
-	xen_post_allocator_init();
-}
-
 static __init void xen_mapping_pagetable_reserve(u64 start, u64 end)
 {
 	/* reserve the range used */
@@ -1197,6 +1191,87 @@ static __init void xen_mapping_pagetable_reserve(u64 start, u64 end)
 	}
 }
 
+#ifdef CONFIG_X86_64
+static void __init xen_cleanhighmap(unsigned long vaddr,
+				    unsigned long vaddr_end)
+{
+	unsigned long kernel_end = roundup((unsigned long)_brk_end, PMD_SIZE) - 1;
+	pmd_t *pmd = level2_kernel_pgt + pmd_index(vaddr);
+
+	/* NOTE: The loop is more greedy than the cleanup_highmap variant.
+	 * We include the PMD passed in on _both_ boundaries. */
+	for (; vaddr <= vaddr_end && (pmd < (level2_kernel_pgt + PAGE_SIZE));
+			pmd++, vaddr += PMD_SIZE) {
+		if (pmd_none(*pmd))
+			continue;
+		if (vaddr < (unsigned long) _text || vaddr > kernel_end)
+			set_pmd(pmd, __pmd(0));
+	}
+	/* In case we did something silly, we should crash in this function
+	 * instead of somewhere later and be confusing. */
+	xen_mc_flush();
+}
+#endif
+static void __init xen_pagetable_init(void)
+{
+#ifdef CONFIG_X86_64
+	unsigned long size;
+	unsigned long addr;
+#endif
+	paging_init();
+	xen_setup_shared_info();
+#ifdef CONFIG_X86_64
+	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		unsigned long new_mfn_list;
+
+		size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+
+		/* On 32-bit, we get zero so this never gets executed. */
+		new_mfn_list = xen_revector_p2m_tree();
+		if (new_mfn_list && new_mfn_list != xen_start_info->mfn_list) {
+			/* using __ka address and sticking INVALID_P2M_ENTRY! */
+			memset((void *)xen_start_info->mfn_list, 0xff, size);
+
+			/* We should be in __ka space. */
+			BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
+			addr = xen_start_info->mfn_list;
+			/* We roundup to the PMD, which means that if anybody at this stage is
+			 * using the __ka address of xen_start_info or xen_start_info->shared_info
+			 * they are in going to crash. Fortunatly we have already revectored
+			 * in xen_setup_kernel_pagetable and in xen_setup_shared_info. */
+			size = roundup(size, PMD_SIZE);
+			xen_cleanhighmap(addr, addr + size);
+
+			size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
+			memblock_free(__pa(xen_start_info->mfn_list), size);
+			/* And revector! Bye bye old array */
+			xen_start_info->mfn_list = new_mfn_list;
+		} else
+			goto skip;
+	}
+	/* At this stage, cleanup_highmap has already cleaned __ka space
+	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
+	 * the ramdisk). We continue on, erasing PMD entries that point to page
+	 * tables - do note that they are accessible at this stage via __va.
+	 * For good measure we also round up to the PMD - which means that if
+	 * anybody is using __ka address to the initial boot-stack - and try
+	 * to use it - they are going to crash. The xen_start_info has been
+	 * taken care of already in xen_setup_kernel_pagetable. */
+	addr = xen_start_info->pt_base;
+	size = roundup(xen_start_info->nr_pt_frames * PAGE_SIZE, PMD_SIZE);
+
+	xen_cleanhighmap(addr, addr + size);
+	xen_start_info->pt_base = (unsigned long)__va(__pa(xen_start_info->pt_base));
+#ifdef DEBUG
+	/* This is superflous and is not neccessary, but you know what
+	 * lets do it. The MODULES_VADDR -> MODULES_END should be clear of
+	 * anything at this stage. */
+	xen_cleanhighmap(MODULES_VADDR, roundup(MODULES_VADDR, PUD_SIZE) - 1);
+#endif
+skip:
+#endif
+	xen_post_allocator_init();
+}
 static void xen_write_cr2(unsigned long cr2)
 {
 	this_cpu_read(xen_vcpu)->arch.cr2 = cr2;
@@ -1652,7 +1727,7 @@ static void set_page_prot(void *addr, pgprot_t prot)
 	if (HYPERVISOR_update_va_mapping((unsigned long)addr, pte, 0))
 		BUG();
 }
-
+#ifdef CONFIG_X86_32
 static void __init xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 {
 	unsigned pmdidx, pteidx;
@@ -1703,7 +1778,7 @@ static void __init xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 
 	set_page_prot(pmd, PAGE_KERNEL_RO);
 }
-
+#endif
 void __init xen_setup_machphys_mapping(void)
 {
 	struct xen_machphys_mapping mapping;
@@ -1731,7 +1806,20 @@ static void convert_pfn_mfn(void *v)
 	for (i = 0; i < PTRS_PER_PTE; i++)
 		pte[i] = xen_make_pte(pte[i].pte);
 }
-
+static void __init check_pt_base(unsigned long *pt_base, unsigned long *pt_end,
+				 unsigned long addr)
+{
+	if (*pt_base == PFN_DOWN(__pa(addr))) {
+		set_page_prot((void *)addr, PAGE_KERNEL);
+		clear_page((void *)addr);
+		(*pt_base)++;
+	}
+	if (*pt_end == PFN_DOWN(__pa(addr))) {
+		set_page_prot((void *)addr, PAGE_KERNEL);
+		clear_page((void *)addr);
+		(*pt_end)--;
+	}
+}
 /*
  * Set up the initial kernel pagetable.
  *
@@ -1743,11 +1831,13 @@ static void convert_pfn_mfn(void *v)
  * of the physical mapping once some sort of allocator has been set
  * up.
  */
-pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
-					 unsigned long max_pfn)
+void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 {
 	pud_t *l3;
 	pmd_t *l2;
+	unsigned long addr[3];
+	unsigned long pt_base, pt_end;
+	unsigned i;
 
 	/* max_pfn_mapped is the last pfn mapped in the initial memory
 	 * mappings. Considering that on Xen after the kernel mappings we
@@ -1755,32 +1845,53 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 	 * set max_pfn_mapped to the last real pfn mapped. */
 	max_pfn_mapped = PFN_DOWN(__pa(xen_start_info->mfn_list));
 
+	pt_base = PFN_DOWN(__pa(xen_start_info->pt_base));
+	pt_end = pt_base + xen_start_info->nr_pt_frames;
+
 	/* Zap identity mapping */
 	init_level4_pgt[0] = __pgd(0);
 
 	/* Pre-constructed entries are in pfn, so convert to mfn */
+	/* L4[272] -> level3_ident_pgt
+	 * L4[511] -> level3_kernel_pgt */
 	convert_pfn_mfn(init_level4_pgt);
+
+	/* L3_i[0] -> level2_ident_pgt */
 	convert_pfn_mfn(level3_ident_pgt);
+	/* L3_k[510] -> level2_kernel_pgt
+	 * L3_i[511] -> level2_fixmap_pgt */
 	convert_pfn_mfn(level3_kernel_pgt);
 
+	/* We get [511][511] and have Xen's version of level2_kernel_pgt */
 	l3 = m2v(pgd[pgd_index(__START_KERNEL_map)].pgd);
 	l2 = m2v(l3[pud_index(__START_KERNEL_map)].pud);
 
-	memcpy(level2_ident_pgt, l2, sizeof(pmd_t) * PTRS_PER_PMD);
-	memcpy(level2_kernel_pgt, l2, sizeof(pmd_t) * PTRS_PER_PMD);
+	addr[0] = (unsigned long)pgd;
+	addr[1] = (unsigned long)l3;
+	addr[2] = (unsigned long)l2;
+	/* Graft it onto L4[272][0]. Note that we creating an aliasing problem:
+	 * Both L4[272][0] and L4[511][511] have entries that point to the same
+	 * L2 (PMD) tables. Meaning that if you modify it in __va space
+	 * it will be also modified in the __ka space! (But if you just
+	 * modify the PMD table to point to other PTE's or none, then you
+	 * are OK - which is what cleanup_highmap does) */
+	copy_page(level2_ident_pgt, l2);
+	/* Graft it onto L4[511][511] */
+	copy_page(level2_kernel_pgt, l2);
 
+	/* Get [511][510] and graft that in level2_fixmap_pgt */
 	l3 = m2v(pgd[pgd_index(__START_KERNEL_map + PMD_SIZE)].pgd);
 	l2 = m2v(l3[pud_index(__START_KERNEL_map + PMD_SIZE)].pud);
-	memcpy(level2_fixmap_pgt, l2, sizeof(pmd_t) * PTRS_PER_PMD);
-
-	/* Set up identity map */
-	xen_map_identity_early(level2_ident_pgt, max_pfn);
+	copy_page(level2_fixmap_pgt, l2);
+	/* Note that we don't do anything with level1_fixmap_pgt which
+	 * we don't need. */
 
 	/* Make pagetable pieces RO */
 	set_page_prot(init_level4_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_ident_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_kernel_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_user_vsyscall, PAGE_KERNEL_RO);
+	set_page_prot(level2_ident_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level2_kernel_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level2_fixmap_pgt, PAGE_KERNEL_RO);
 
@@ -1791,22 +1902,28 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 	/* Unpin Xen-provided one */
 	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
 
-	/* Switch over */
-	pgd = init_level4_pgt;
-
 	/*
 	 * At this stage there can be no user pgd, and no page
 	 * structure to attach it to, so make sure we just set kernel
 	 * pgd.
 	 */
 	xen_mc_batch();
-	__xen_write_cr3(true, __pa(pgd));
+	__xen_write_cr3(true, __pa(init_level4_pgt));
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 
-	memblock_reserve(__pa(xen_start_info->pt_base),
-			 xen_start_info->nr_pt_frames * PAGE_SIZE);
+	/* We can't that easily rip out L3 and L2, as the Xen pagetables are
+	 * set out this way: [L4], [L1], [L2], [L3], [L1], [L1] ...  for
+	 * the initial domain. For guests using the toolstack, they are in:
+	 * [L4], [L3], [L2], [L1], [L1], order .. So for dom0 we can only
+	 * rip out the [L4] (pgd), but for guests we shave off three pages.
+	 */
+	for (i = 0; i < ARRAY_SIZE(addr); i++)
+		check_pt_base(&pt_base, &pt_end, addr[i]);
 
-	return pgd;
+	/* Our (by three pages) smaller Xen pagetable that we are using */
+	memblock_reserve(PFN_PHYS(pt_base), (pt_end - pt_base) * PAGE_SIZE);
+	/* Revector the xen_start_info */
+	xen_start_info = (struct start_info *)__va(__pa(xen_start_info));
 }
 #else	/* !CONFIG_X86_64 */
 static RESERVE_BRK_ARRAY(pmd_t, initial_kernel_pmd, PTRS_PER_PMD);
@@ -1831,8 +1948,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
 	 */
 	swapper_kernel_pmd =
 		extend_brk(sizeof(pmd_t) * PTRS_PER_PMD, PAGE_SIZE);
-	memcpy(swapper_kernel_pmd, initial_kernel_pmd,
-	       sizeof(pmd_t) * PTRS_PER_PMD);
+	copy_page(swapper_kernel_pmd, initial_kernel_pmd);
 	swapper_pg_dir[KERNEL_PGD_BOUNDARY] =
 		__pgd(__pa(swapper_kernel_pmd) | _PAGE_PRESENT);
 	set_page_prot(swapper_kernel_pmd, PAGE_KERNEL_RO);
@@ -1849,8 +1965,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
 	pv_mmu_ops.write_cr3 = &xen_write_cr3;
 }
 
-pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
-					 unsigned long max_pfn)
+void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 {
 	pmd_t *kernel_pmd;
 
@@ -1862,11 +1977,11 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 				  512*1024);
 
 	kernel_pmd = m2v(pgd[KERNEL_PGD_BOUNDARY].pgd);
-	memcpy(initial_kernel_pmd, kernel_pmd, sizeof(pmd_t) * PTRS_PER_PMD);
+	copy_page(initial_kernel_pmd, kernel_pmd);
 
 	xen_map_identity_early(initial_kernel_pmd, max_pfn);
 
-	memcpy(initial_page_table, pgd, sizeof(pgd_t) * PTRS_PER_PGD);
+	copy_page(initial_page_table, pgd);
 	initial_page_table[KERNEL_PGD_BOUNDARY] =
 		__pgd(__pa(initial_kernel_pmd) | _PAGE_PRESENT);
 
@@ -1882,8 +1997,6 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 
 	memblock_reserve(__pa(xen_start_info->pt_base),
 			 xen_start_info->nr_pt_frames * PAGE_SIZE);
-
-	return initial_page_table;
 }
 #endif	/* CONFIG_X86_64 */
 
