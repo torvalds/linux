@@ -662,7 +662,7 @@ retry:
 					   async_extent->compressed_size,
 					   async_extent->compressed_size,
 					   0, alloc_hint, &ins, 1);
-			if (ret)
+			if (ret && ret != -ENOSPC)
 				btrfs_abort_transaction(trans, root, ret);
 			btrfs_end_transaction(trans, root);
 		}
