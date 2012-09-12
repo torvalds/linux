@@ -4692,6 +4692,69 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 	POSTING_READ(PIPECONF(pipe));
 }
 
+static bool ironlake_compute_clocks(struct drm_crtc *crtc,
+				    struct drm_display_mode *adjusted_mode,
+				    intel_clock_t *clock,
+				    bool *has_reduced_clock,
+				    intel_clock_t *reduced_clock)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_encoder *intel_encoder;
+	int refclk;
+	const intel_limit_t *limit;
+	bool ret, is_sdvo = false, is_tv = false, is_lvds = false;
+
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
+		switch (intel_encoder->type) {
+		case INTEL_OUTPUT_LVDS:
+			is_lvds = true;
+			break;
+		case INTEL_OUTPUT_SDVO:
+		case INTEL_OUTPUT_HDMI:
+			is_sdvo = true;
+			if (intel_encoder->needs_tv_clock)
+				is_tv = true;
+			break;
+		case INTEL_OUTPUT_TVOUT:
+			is_tv = true;
+			break;
+		}
+	}
+
+	refclk = ironlake_get_refclk(crtc);
+
+	/*
+	 * Returns a set of divisors for the desired target clock with the given
+	 * refclk, or FALSE.  The returned values represent the clock equation:
+	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
+	 */
+	limit = intel_limit(crtc, refclk);
+	ret = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, NULL,
+			      clock);
+	if (!ret)
+		return false;
+
+	if (is_lvds && dev_priv->lvds_downclock_avail) {
+		/*
+		 * Ensure we match the reduced clock's P to the target clock.
+		 * If the clocks don't match, we can't switch the display clock
+		 * by using the FP0/FP1. In such case we will disable the LVDS
+		 * downclock feature.
+		*/
+		*has_reduced_clock = limit->find_pll(limit, crtc,
+						     dev_priv->lvds_downclock,
+						     refclk,
+						     clock,
+						     reduced_clock);
+	}
+
+	if (is_sdvo && is_tv)
+		i9xx_adjust_sdvo_tv_clock(adjusted_mode, clock);
+
+	return true;
+}
+
 static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode,
@@ -4703,13 +4766,12 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	int refclk, num_connectors = 0;
+	int num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
 	u32 dpll, fp = 0, fp2 = 0;
 	bool ok, has_reduced_clock = false, is_sdvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	struct intel_encoder *encoder, *edp_encoder = NULL;
-	const intel_limit_t *limit;
 	int ret;
 	struct fdi_m_n m_n = {0};
 	u32 temp;
@@ -4751,16 +4813,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
-	refclk = ironlake_get_refclk(crtc);
-
-	/*
-	 * Returns a set of divisors for the desired target clock with the given
-	 * refclk, or FALSE.  The returned values represent the clock equation:
-	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
-	 */
-	limit = intel_limit(crtc, refclk);
-	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, NULL,
-			     &clock);
+	ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
+				     &has_reduced_clock, &reduced_clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
 		return -EINVAL;
@@ -4768,24 +4822,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Ensure that the cursor is valid for the new mode before changing... */
 	intel_crtc_update_cursor(crtc, true);
-
-	if (is_lvds && dev_priv->lvds_downclock_avail) {
-		/*
-		 * Ensure we match the reduced clock's P to the target clock.
-		 * If the clocks don't match, we can't switch the display clock
-		 * by using the FP0/FP1. In such case we will disable the LVDS
-		 * downclock feature.
-		*/
-		has_reduced_clock = limit->find_pll(limit, crtc,
-						    dev_priv->lvds_downclock,
-						    refclk,
-						    &clock,
-						    &reduced_clock);
-	}
-
-	if (is_sdvo && is_tv)
-		i9xx_adjust_sdvo_tv_clock(adjusted_mode, &clock);
-
 
 	/* FDI link */
 	pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
