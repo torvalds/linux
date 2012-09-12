@@ -837,7 +837,10 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v3.ucFracFbDiv = frac_fb_div;
 			args.v3.ucPostDiv = post_div;
 			args.v3.ucPpll = pll_id;
-			args.v3.ucMiscInfo = (pll_id << 2);
+			if (crtc_id == ATOM_CRTC2)
+				args.v3.ucMiscInfo = PIXEL_CLOCK_MISC_CRTC_SEL_CRTC2;
+			else
+				args.v3.ucMiscInfo = PIXEL_CLOCK_MISC_CRTC_SEL_CRTC1;
 			if (ss_enabled && (ss->type & ATOM_EXTERNAL_SS_MASK))
 				args.v3.ucMiscInfo |= PIXEL_CLOCK_MISC_REF_DIV_SRC;
 			args.v3.ucTransmitterId = encoder_id;
