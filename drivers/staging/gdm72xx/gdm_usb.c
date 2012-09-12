@@ -26,11 +26,11 @@
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-#define TX_BUF_SIZE	2048
+#define TX_BUF_SIZE		2048
 #if defined(CONFIG_WIMAX_GDM72XX_WIMAX2)
-#define RX_BUF_SIZE	(128*1024)	/* For packet aggregation */
+#define RX_BUF_SIZE		(128*1024)	/* For packet aggregation */
 #else
-#define RX_BUF_SIZE	2048
+#define RX_BUF_SIZE		2048
 #endif
 
 #define GDM7205_PADDING		256
@@ -39,7 +39,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define B2H(x)		__be16_to_cpu(x)
 #define DB2H(x)		__be32_to_cpu(x)
 
-#define DOWNLOAD_CONF_VALUE		0x21
+#define DOWNLOAD_CONF_VALUE	0x21
 
 #ifdef CONFIG_WIMAX_GDM72XX_K_MODE
 
@@ -48,7 +48,7 @@ static LIST_HEAD(k_list);
 static DEFINE_SPINLOCK(k_lock);
 static int k_mode_stop;
 
-#define K_WAIT_TIME	(2 * HZ / 100)
+#define K_WAIT_TIME		(2 * HZ / 100)
 
 #endif /* CONFIG_WIMAX_GDM72XX_K_MODE */
 
