@@ -117,7 +117,7 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
 	mutex_lock(&inode->i_mutex);
 	if (atomic_read(&inode->i_writecount) == 1 &&
 	    iint->version != inode->i_version) {
-		iint->flags &= ~(IMA_COLLECTED | IMA_APPRAISED | IMA_MEASURED);
+		iint->flags &= ~IMA_DONE_MASK;
 		if (iint->flags & IMA_APPRAISE)
 			ima_update_xattr(iint, file);
 	}
@@ -173,7 +173,7 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 	/* Determine if already appraised/measured based on bitmask
 	 * (IMA_MEASURE, IMA_MEASURED, IMA_APPRAISE, IMA_APPRAISED) */
 	iint->flags |= action;
-	action &= ~((iint->flags & (IMA_MEASURED | IMA_APPRAISED)) >> 1);
+	action &= ~((iint->flags & IMA_DONE_MASK) >> 1);
 
 	/* Nothing to do, just return existing appraised status */
 	if (!action) {

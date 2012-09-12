@@ -15,13 +15,19 @@
 #include <linux/integrity.h>
 #include <crypto/sha.h>
 
+/* iint action cache flags */
+#define IMA_MEASURE		0x0001
+#define IMA_MEASURED		0x0002
+#define IMA_APPRAISE		0x0004
+#define IMA_APPRAISED		0x0008
+/*#define IMA_COLLECT		0x0010  do not use this flag */
+#define IMA_COLLECTED		0x0020
+
 /* iint cache flags */
-#define IMA_MEASURE		0x01
-#define IMA_MEASURED		0x02
-#define IMA_APPRAISE		0x04
-#define IMA_APPRAISED		0x08
-#define IMA_COLLECTED		0x10
-#define IMA_DIGSIG		0x20
+#define IMA_DIGSIG		0x0100
+
+#define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE)
+#define IMA_DONE_MASK		(IMA_MEASURED | IMA_APPRAISED | IMA_COLLECTED)
 
 enum evm_ima_xattr_type {
 	IMA_XATTR_DIGEST = 0x01,

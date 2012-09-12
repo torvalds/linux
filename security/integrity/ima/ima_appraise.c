@@ -232,7 +232,7 @@ static void ima_reset_appraise_flags(struct inode *inode)
 	if (!iint)
 		return;
 
-	iint->flags &= ~(IMA_COLLECTED | IMA_APPRAISED | IMA_MEASURED);
+	iint->flags &= ~IMA_DONE_MASK;
 	return;
 }
 

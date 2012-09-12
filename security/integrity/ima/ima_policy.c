@@ -26,13 +26,11 @@
 #define IMA_UID		0x0008
 #define IMA_FOWNER	0x0010
 
-#define UNKNOWN			0
-#define MEASURE			1	/* same as IMA_MEASURE */
-#define DONT_MEASURE		2
-#define MEASURE_MASK		3
-#define APPRAISE		4	/* same as IMA_APPRAISE */
-#define DONT_APPRAISE		8
-#define APPRAISE_MASK		12
+#define UNKNOWN		0
+#define MEASURE		0x0001	/* same as IMA_MEASURE */
+#define DONT_MEASURE	0x0002
+#define APPRAISE	0x0004	/* same as IMA_APPRAISE */
+#define DONT_APPRAISE	0x0008
 
 #define MAX_LSM_RULES 6
 enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
@@ -209,9 +207,12 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		if (!ima_match_rules(entry, inode, func, mask))
 			continue;
 
-		action |= (entry->action & (IMA_APPRAISE | IMA_MEASURE));
-		actmask &= (entry->action & APPRAISE_MASK) ?
-		    ~APPRAISE_MASK : ~MEASURE_MASK;
+		action |= entry->action & IMA_DO_MASK;
+		if (entry->action & IMA_DO_MASK)
+			actmask &= ~(entry->action | entry->action << 1);
+		else
+			actmask &= ~(entry->action | entry->action >> 1);
+
 		if (!actmask)
 			break;
 	}
