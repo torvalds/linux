@@ -47,6 +47,7 @@ struct rtl2832_config {
 	 * tuner
 	 * XXX: This must be keep sync with dvb_usb_rtl28xxu demod driver.
 	 */
+#define RTL2832_TUNER_TUA9001   0x24
 #define RTL2832_TUNER_FC0012    0x26
 #define RTL2832_TUNER_FC0013    0x29
 	u8 tuner;

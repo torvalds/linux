@@ -462,15 +462,17 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		len = ARRAY_SIZE(rtl2832_tuner_init_fc0012);
 		init = rtl2832_tuner_init_fc0012;
 		break;
+	case RTL2832_TUNER_TUA9001:
+		len = ARRAY_SIZE(rtl2832_tuner_init_tua9001);
+		init = rtl2832_tuner_init_tua9001;
+		break;
 	default:
 		ret = -EINVAL;
 		goto err;
 	}
 
 	for (i = 0; i < len; i++) {
-		ret = rtl2832_wr_demod_reg(priv,
-				rtl2832_tuner_init_fc0012[i].reg,
-				rtl2832_tuner_init_fc0012[i].value);
+		ret = rtl2832_wr_demod_reg(priv, init[i].reg, init[i].value);
 		if (ret)
 			goto err;
 	}
