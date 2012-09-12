@@ -6148,7 +6148,7 @@ qla4xxx_pci_resume(struct pci_dev *pdev)
 	clear_bit(AF_EEH_BUSY, &ha->flags);
 }
 
-static struct pci_error_handlers qla4xxx_err_handler = {
+static const struct pci_error_handlers qla4xxx_err_handler = {
 	.error_detected = qla4xxx_pci_error_detected,
 	.mmio_enabled = qla4xxx_pci_mmio_enabled,
 	.slot_reset = qla4xxx_pci_slot_reset,

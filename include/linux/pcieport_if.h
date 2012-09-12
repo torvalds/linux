@@ -49,7 +49,7 @@ struct pcie_port_service_driver {
 	int (*resume) (struct pcie_device *dev);
 
 	/* Service Error Recovery Handler */
-	struct pci_error_handlers *err_handler;
+	const struct pci_error_handlers *err_handler;
 
 	/* Link Reset Capability - AER service driver specific */
 	pci_ers_result_t (*reset_link) (struct pci_dev *dev);

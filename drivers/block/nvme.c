@@ -1675,7 +1675,7 @@ static void __devexit nvme_remove(struct pci_dev *pdev)
 #define nvme_suspend NULL
 #define nvme_resume NULL
 
-static struct pci_error_handlers nvme_err_handler = {
+static const struct pci_error_handlers nvme_err_handler = {
 	.error_detected	= nvme_error_detected,
 	.mmio_enabled	= nvme_dump_registers,
 	.link_reset	= nvme_link_reset,

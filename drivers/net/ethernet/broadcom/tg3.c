@@ -16373,7 +16373,7 @@ done:
 	rtnl_unlock();
 }
 
-static struct pci_error_handlers tg3_err_handler = {
+static const struct pci_error_handlers tg3_err_handler = {
 	.error_detected	= tg3_io_error_detected,
 	.slot_reset	= tg3_io_slot_reset,
 	.resume		= tg3_io_resume
