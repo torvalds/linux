@@ -53,30 +53,22 @@ static struct tpci200_board *check_slot(struct ipack_device *dev)
 	return tpci200;
 }
 
-static void __tpci200_clear_mask(__le16 __iomem *addr, u16 mask)
-{
-	iowrite16(ioread16(addr) & (~mask), addr);
-}
-
 static void tpci200_clear_mask(struct tpci200_board *tpci200,
 			       __le16 __iomem *addr, u16 mask)
 {
-	mutex_lock(&tpci200->mutex);
-	__tpci200_clear_mask(addr, mask);
-	mutex_unlock(&tpci200->mutex);
-}
-
-static void __tpci200_set_mask(__le16 __iomem *addr, u16 mask)
-{
-	iowrite16(ioread16(addr) | mask, addr);
+	unsigned long flags;
+	spin_lock_irqsave(&tpci200->regs_lock, flags);
+	iowrite16(ioread16(addr) & (~mask), addr);
+	spin_unlock_irqrestore(&tpci200->regs_lock, flags);
 }
 
 static void tpci200_set_mask(struct tpci200_board *tpci200,
 			     __le16 __iomem *addr, u16 mask)
 {
-	mutex_lock(&tpci200->mutex);
-	__tpci200_set_mask(addr, mask);
-	mutex_unlock(&tpci200->mutex);
+	unsigned long flags;
+	spin_lock_irqsave(&tpci200->regs_lock, flags);
+	iowrite16(ioread16(addr) | mask, addr);
+	spin_unlock_irqrestore(&tpci200->regs_lock, flags);
 }
 
 static void tpci200_unregister(struct tpci200_board *tpci200)
@@ -143,7 +135,7 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 				dev_info(&tpci200->info->pdev->dev,
 					 "No registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
 					 tpci200->number, i);
-				__tpci200_clear_mask(
+				tpci200_clear_mask(tpci200,
 					&tpci200->info->interface_regs->control[i],
 					TPCI200_INT0_EN | TPCI200_INT1_EN);
 			}
@@ -213,6 +205,9 @@ static int tpci200_register(struct tpci200_board *tpci200)
 					   TPCI200_MEM8_SPACE_BAR),
 			TPCI200_MEM8_SIZE);
 
+	/* Initialize lock that protects interface_regs */
+	spin_lock_init(&tpci200->regs_lock);
+
 	ioidint_base = pci_resource_start(tpci200->info->pdev,
 					  TPCI200_IO_ID_INT_SPACES_BAR);
 	mem_base = pci_resource_start(tpci200->info->pdev,
@@ -272,7 +267,7 @@ out_disable_pci:
 static int __tpci200_request_irq(struct tpci200_board *tpci200,
 				 struct ipack_device *dev)
 {
-	__tpci200_set_mask(
+	tpci200_set_mask(tpci200,
 			&tpci200->info->interface_regs->control[dev->slot],
 			TPCI200_INT0_EN | TPCI200_INT1_EN);
 	return 0;
@@ -281,7 +276,7 @@ static int __tpci200_request_irq(struct tpci200_board *tpci200,
 static void __tpci200_free_irq(struct tpci200_board *tpci200,
 			       struct ipack_device *dev)
 {
-	__tpci200_clear_mask(
+	tpci200_clear_mask(tpci200,
 			&tpci200->info->interface_regs->control[dev->slot],
 			TPCI200_INT0_EN | TPCI200_INT1_EN);
 }

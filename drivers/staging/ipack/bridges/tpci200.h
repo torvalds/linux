@@ -163,6 +163,7 @@ struct tpci200_infos {
 struct tpci200_board {
 	unsigned int		number;
 	struct mutex		mutex;
+	spinlock_t		regs_lock;
 	struct tpci200_slot	*slots;
 	struct tpci200_infos	*info;
 };
