@@ -549,6 +549,19 @@ menuconfig COMEDI_PCI_DRIVERS
 
 if COMEDI_PCI_DRIVERS
 
+config COMEDI_8255_PCI
+	tristate "Generic PCI based 8255 digital i/o board support"
+	select COMEDI_8255
+	---help---
+	  Enable support for PCI based 8255 digital i/o boards. This driver
+	  provides a PCI wrapper around the generic 8255 driver.
+
+	  Supported boards:
+	    ADlink - PCI-7224, PCI-7248, and PCI-7296
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called 8255_pci.
+
 config COMEDI_ADDI_APCI_035
 	tristate "ADDI-DATA APCI_035 support"
 	depends on VIRT_TO_BUS
@@ -686,17 +699,6 @@ config COMEDI_ADL_PCI7X3X
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called adl_pci7x3x.
-
-config COMEDI_ADL_PCI7296
-	tristate "ADLink PCI-72xx opto-22 compatible digital i/o board support"
-	select COMEDI_8255
-	---help---
-	  Enable support for ADlink PCI-72xx opto-22 compatible digital i/o
-	  boards. Supported boards include the 24-channel PCI-7224, 48-channel
-	  PCI-7248, and 96-channel PCI-7296.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called adl_pci7296.
 
 config COMEDI_ADL_PCI8164
 	tristate "ADLink PCI-8164 4 Axes Motion Control board support"
@@ -1259,8 +1261,8 @@ config COMEDI_8255
 	  that has an 8255 chip. For multifunction boards, the main driver will
 	  configure the 8255 subdevice automatically.
 
-	  Note that most PCI 8255 boards do NOT work with this driver, and
-	  need a separate driver as a wrapper.
+	  Note that most PCI based 8255 boards use the 8255_pci driver as a
+	  wrapper around this driver.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called 8255.
