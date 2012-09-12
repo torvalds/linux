@@ -2087,6 +2087,7 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 	u32 cs_mode, nr_pages;
 	u32 dbam = dct ? pvt->dbam1 : pvt->dbam0;
 
+
 	/*
 	 * The math on this doesn't look right on the surface because x/2*4 can
 	 * be simplified to x*2 but this expression makes use of the fact that
@@ -2098,9 +2099,9 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 
 	nr_pages = pvt->ops->dbam_to_cs(pvt, dct, cs_mode) << (20 - PAGE_SHIFT);
 
-	edac_dbg(0, "  (csrow=%d) DBAM map index= %d\n", csrow_nr, cs_mode);
-	edac_dbg(0, "    nr_pages/channel= %u  channel-count = %d\n",
-		 nr_pages, pvt->channel_count);
+	edac_dbg(0, "csrow: %d, channel: %d, DBAM idx: %d\n",
+		    csrow_nr, dct,  cs_mode);
+	edac_dbg(0, "nr_pages/channel: %u\n", nr_pages);
 
 	return nr_pages;
 }
@@ -2111,15 +2112,14 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
  */
 static int init_csrows(struct mem_ctl_info *mci)
 {
+	struct amd64_pvt *pvt = mci->pvt_info;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
-	struct amd64_pvt *pvt = mci->pvt_info;
-	u64 base, mask;
-	u32 val;
-	int i, j, empty = 1;
-	enum mem_type mtype;
 	enum edac_type edac_mode;
+	enum mem_type mtype;
+	int i, j, empty = 1;
 	int nr_pages = 0;
+	u32 val;
 
 	amd64_read_pci_cfg(pvt->F3, NBCFG, &val);
 
@@ -2129,29 +2129,35 @@ static int init_csrows(struct mem_ctl_info *mci)
 		 pvt->mc_node_id, val,
 		 !!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
 
+	/*
+	 * We iterate over DCT0 here but we look at DCT1 in parallel, if needed.
+	 */
 	for_each_chip_select(i, 0, pvt) {
-		csrow = mci->csrows[i];
+		bool row_dct0 = !!csrow_enabled(i, 0, pvt);
+		bool row_dct1 = false;
 
-		if (!csrow_enabled(i, 0, pvt) && !csrow_enabled(i, 1, pvt)) {
-			edac_dbg(1, "----CSROW %d VALID for MC node %d\n",
-				 i, pvt->mc_node_id);
+		if (boot_cpu_data.x86 != 0xf)
+			row_dct1 = !!csrow_enabled(i, 1, pvt);
+
+		if (!row_dct0 && !row_dct1)
 			continue;
-		}
 
+		csrow = mci->csrows[i];
 		empty = 0;
-		if (csrow_enabled(i, 0, pvt))
-			nr_pages = amd64_csrow_nr_pages(pvt, 0, i);
-		if (csrow_enabled(i, 1, pvt))
-			nr_pages += amd64_csrow_nr_pages(pvt, 1, i);
 
-		get_cs_base_and_mask(pvt, i, 0, &base, &mask);
-		/* 8 bytes of resolution */
+		edac_dbg(1, "MC node: %d, csrow: %d\n",
+			    pvt->mc_node_id, i);
+
+		if (row_dct0)
+			nr_pages = amd64_csrow_nr_pages(pvt, 0, i);
+
+		/* K8 has only one DCT */
+		if (boot_cpu_data.x86 != 0xf && row_dct1)
+			nr_pages += amd64_csrow_nr_pages(pvt, 1, i);
 
 		mtype = amd64_determine_memory_type(pvt, i);
 
-		edac_dbg(1, "  for MC node %d csrow %d:\n", pvt->mc_node_id, i);
-		edac_dbg(1, "    nr_pages: %u\n",
-			 nr_pages * pvt->channel_count);
+		edac_dbg(1, "Total csrow%d pages: %u\n", i, nr_pages);
 
 		/*
 		 * determine whether CHIPKILL or JUST ECC or NO ECC is operating
