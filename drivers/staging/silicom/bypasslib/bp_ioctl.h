@@ -193,7 +193,6 @@ struct bpctl_cmd {
 
 #define IOCTL_TX_MSG(cmd) _IOWR(MAGIC_NUM, cmd, struct bpctl_cmd)
 
-#define DEVICE_NODE "/dev/bpctl0"
 #define DEVICE_NAME "bpctl"
 
 #endif
