@@ -47,7 +47,7 @@ module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 int
 nouveau_channel_idle(struct nouveau_channel *chan)
 {
-	struct nouveau_drm *drm = chan->drm;
+	struct nouveau_cli *cli = chan->cli;
 	struct nouveau_fence *fence = NULL;
 	int ret;
 
@@ -58,7 +58,7 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 	}
 
 	if (ret)
-		NV_ERROR(drm, "failed to idle channel 0x%08x\n", chan->handle);
+		NV_ERROR(cli, "failed to idle channel 0x%08x\n", chan->handle);
 	return ret;
 }
 
@@ -381,17 +381,17 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nouveau_cli *cli,
 
 	ret = nouveau_channel_ind(drm, cli, parent, handle, arg0, pchan);
 	if (ret) {
-		NV_DEBUG(drm, "ib channel create, %d\n", ret);
+		NV_DEBUG(cli, "ib channel create, %d\n", ret);
 		ret = nouveau_channel_dma(drm, cli, parent, handle, pchan);
 		if (ret) {
-			NV_DEBUG(drm, "dma channel create, %d\n", ret);
+			NV_DEBUG(cli, "dma channel create, %d\n", ret);
 			return ret;
 		}
 	}
 
 	ret = nouveau_channel_init(*pchan, arg0, arg1);
 	if (ret) {
-		NV_ERROR(drm, "channel failed to initialise, %d\n", ret);
+		NV_ERROR(cli, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);
 		return ret;
 	}
