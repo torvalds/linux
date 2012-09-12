@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/platform_data/mmc-sdhci-tegra.h>
 
 #include <sound/wm8903.h>
 
@@ -38,7 +39,6 @@
 #include <mach/tegra_wm8903_pdata.h>
 #include <mach/iomap.h>
 #include <mach/irqs.h>
-#include <mach/sdhci.h>
 
 #include "board.h"
 #include "board-harmony.h"

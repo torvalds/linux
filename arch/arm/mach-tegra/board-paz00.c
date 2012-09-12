@@ -31,6 +31,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/rfkill-gpio.h>
+#include <linux/platform_data/mmc-sdhci-tegra.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
@@ -40,7 +41,6 @@
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
-#include <mach/sdhci.h>
 
 #include "board.h"
 #include "board-paz00.h"
