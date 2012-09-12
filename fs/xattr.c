@@ -845,7 +845,7 @@ static int __simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
 			      const void *value, size_t size, int flags)
 {
 	struct simple_xattr *xattr;
-	struct simple_xattr *new_xattr = NULL;
+	struct simple_xattr *uninitialized_var(new_xattr);
 	int err = 0;
 
 	/* value == NULL means remove */
