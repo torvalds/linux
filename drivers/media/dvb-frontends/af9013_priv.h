@@ -42,7 +42,7 @@
 #undef warn
 #define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
 
-#define AF9013_DEFAULT_FIRMWARE     "dvb-fe-af9013.fw"
+#define AF9013_FIRMWARE "dvb-fe-af9013.fw"
 
 struct af9013_reg_bit {
 	u16 addr;

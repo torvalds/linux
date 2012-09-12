@@ -1332,7 +1332,7 @@ static int af9013_download_firmware(struct af9013_state *state)
 	u16 checksum = 0;
 	u8 val;
 	u8 fw_params[4];
-	u8 *fw_file = AF9013_DEFAULT_FIRMWARE;
+	u8 *fw_file = AF9013_FIRMWARE;
 
 	msleep(100);
 	/* check whether firmware is already running */
@@ -1524,3 +1524,4 @@ static struct dvb_frontend_ops af9013_ops = {
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Afatech AF9013 DVB-T demodulator driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(AF9013_FIRMWARE);
