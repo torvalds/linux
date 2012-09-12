@@ -24,21 +24,6 @@
 #include "dvb_frontend.h"
 #include "rtl2832.h"
 
-#define LOG_PREFIX "rtl2832"
-
-#undef dbg
-#define dbg(f, arg...) \
-do { \
-	if (rtl2832_debug)  \
-		printk(KERN_INFO     LOG_PREFIX": " f "\n" , ## arg); \
-} while (0)
-#undef err
-#define err(f, arg...)  printk(KERN_ERR     LOG_PREFIX": " f "\n" , ## arg)
-#undef info
-#define info(f, arg...) printk(KERN_INFO    LOG_PREFIX": " f "\n" , ## arg)
-#undef warn
-#define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
-
 struct rtl2832_priv {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
