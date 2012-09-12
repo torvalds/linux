@@ -4054,8 +4054,6 @@ int snd_soc_register_codec(struct device *dev,
 	return 0;
 
 fail:
-	kfree(codec->reg_def_copy);
-	codec->reg_def_copy = NULL;
 	kfree(codec->name);
 	kfree(codec);
 	return ret;
