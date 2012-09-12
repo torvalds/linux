@@ -37,12 +37,12 @@
 #define TPCI200_MEM8_SPACE_BAR        5
 
 struct tpci200_regs {
-	u16	revision;
+	__le16	revision;
 	/* writes to control should occur with the mutex held to protect
 	 * read-modify-write operations */
-	u16  control[4];
-	u16	reset;
-	u16	status;
+	__le16  control[4];
+	__le16	reset;
+	__le16	status;
 	u8	reserved[242];
 } __packed;
 

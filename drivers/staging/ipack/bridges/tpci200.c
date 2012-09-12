@@ -501,7 +501,7 @@ out_unlock:
 static int tpci200_get_clockrate(struct ipack_device *dev)
 {
 	struct tpci200_board *tpci200 = check_slot(dev);
-	u16 __iomem *addr;
+	__le16 __iomem *addr;
 
 	if (!tpci200)
 		return -ENODEV;
@@ -513,7 +513,7 @@ static int tpci200_get_clockrate(struct ipack_device *dev)
 static int tpci200_set_clockrate(struct ipack_device *dev, int mherz)
 {
 	struct tpci200_board *tpci200 = check_slot(dev);
-	u16 __iomem *addr;
+	__le16 __iomem *addr;
 
 	if (!tpci200)
 		return -ENODEV;
@@ -536,7 +536,7 @@ static int tpci200_set_clockrate(struct ipack_device *dev, int mherz)
 static int tpci200_get_error(struct ipack_device *dev)
 {
 	struct tpci200_board *tpci200 = check_slot(dev);
-	u16 __iomem *addr;
+	__le16 __iomem *addr;
 	u16 mask;
 
 	if (!tpci200)
@@ -550,7 +550,7 @@ static int tpci200_get_error(struct ipack_device *dev)
 static int tpci200_get_timeout(struct ipack_device *dev)
 {
 	struct tpci200_board *tpci200 = check_slot(dev);
-	u16 __iomem *addr;
+	__le16 __iomem *addr;
 	u16 mask;
 
 	if (!tpci200)
@@ -565,7 +565,7 @@ static int tpci200_get_timeout(struct ipack_device *dev)
 static int tpci200_reset_timeout(struct ipack_device *dev)
 {
 	struct tpci200_board *tpci200 = check_slot(dev);
-	u16 __iomem *addr;
+	__le16 __iomem *addr;
 	u16 mask;
 
 	if (!tpci200)
