@@ -100,6 +100,22 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 	}
 }
 
+static void tpci200_enable_irq(struct tpci200_board *tpci200,
+			       int islot)
+{
+	tpci200_set_mask(tpci200,
+			&tpci200->info->interface_regs->control[islot],
+			TPCI200_INT0_EN | TPCI200_INT1_EN);
+}
+
+static void tpci200_disable_irq(struct tpci200_board *tpci200,
+				int islot)
+{
+	tpci200_clear_mask(tpci200,
+			&tpci200->info->interface_regs->control[islot],
+			TPCI200_INT0_EN | TPCI200_INT1_EN);
+}
+
 static irqreturn_t tpci200_slot_irq(struct slot_irq *slot_irq)
 {
 	irqreturn_t ret;
@@ -141,9 +157,7 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 			dev_info(&tpci200->info->pdev->dev,
 				 "No registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
 				 tpci200->number, i);
-			tpci200_clear_mask(tpci200,
-				&tpci200->info->interface_regs->control[i],
-				TPCI200_INT0_EN | TPCI200_INT1_EN);
+			tpci200_disable_irq(tpci200, i);
 		}
 	}
 	rcu_read_unlock();
@@ -269,23 +283,6 @@ out_disable_pci:
 	return res;
 }
 
-static int __tpci200_request_irq(struct tpci200_board *tpci200,
-				 struct ipack_device *dev)
-{
-	tpci200_set_mask(tpci200,
-			&tpci200->info->interface_regs->control[dev->slot],
-			TPCI200_INT0_EN | TPCI200_INT1_EN);
-	return 0;
-}
-
-static void __tpci200_free_irq(struct tpci200_board *tpci200,
-			       struct ipack_device *dev)
-{
-	tpci200_clear_mask(tpci200,
-			&tpci200->info->interface_regs->control[dev->slot],
-			TPCI200_INT0_EN | TPCI200_INT1_EN);
-}
-
 static int tpci200_free_irq(struct ipack_device *dev)
 {
 	struct slot_irq *slot_irq;
@@ -303,8 +300,9 @@ static int tpci200_free_irq(struct ipack_device *dev)
 		return -EINVAL;
 	}
 
-	__tpci200_free_irq(tpci200, dev);
+	tpci200_disable_irq(tpci200, dev->slot);
 	slot_irq = tpci200->slots[dev->slot].irq;
+	/* uninstall handler */
 	RCU_INIT_POINTER(tpci200->slots[dev->slot].irq, NULL);
 	synchronize_rcu();
 	kfree(slot_irq);
@@ -453,7 +451,7 @@ out_unlock:
 static int tpci200_request_irq(struct ipack_device *dev, int vector,
 			       int (*handler)(void *), void *arg)
 {
-	int res;
+	int res = 0;
 	struct slot_irq *slot_irq;
 	struct tpci200_board *tpci200;
 
@@ -493,7 +491,7 @@ static int tpci200_request_irq(struct ipack_device *dev, int vector,
 	slot_irq->holder = dev;
 
 	rcu_assign_pointer(tpci200->slots[dev->slot].irq, slot_irq);
-	res = __tpci200_request_irq(tpci200, dev);
+	tpci200_enable_irq(tpci200, dev->slot);
 
 out_unlock:
 	mutex_unlock(&tpci200->mutex);
