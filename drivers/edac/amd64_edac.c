@@ -1596,14 +1596,11 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
  */
 static void amd64_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 {
-	int dimm, size0, size1, factor = 0;
+	int dimm, size0, size1;
 	u32 *dcsb = ctrl ? pvt->csels[1].csbases : pvt->csels[0].csbases;
 	u32 dbam  = ctrl ? pvt->dbam1 : pvt->dbam0;
 
 	if (boot_cpu_data.x86 == 0xf) {
-		if (pvt->dclr0 & WIDTH_128)
-			factor = 1;
-
 		/* K8 families < revF not supported yet */
 	       if (pvt->ext_model < K8_REV_F)
 			return;
@@ -1634,8 +1631,8 @@ static void amd64_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 						     DBAM_DIMM(dimm, dbam));
 
 		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
-				dimm * 2,     size0 << factor,
-				dimm * 2 + 1, size1 << factor);
+				dimm * 2,     size0,
+				dimm * 2 + 1, size1);
 	}
 }
 
