@@ -895,7 +895,9 @@ void exynos_dp_set_lane0_pre_emphasis(struct exynos_dp_device *dp, u32 level)
 {
 	u32 reg;
 
-	reg = level << PRE_EMPHASIS_SET_SHIFT;
+	reg = readl(dp->reg_base + EXYNOS_DP_LN0_LINK_TRAINING_CTL);
+	reg &= ~PRE_EMPHASIS_SET_MASK;
+	reg |= level << PRE_EMPHASIS_SET_SHIFT;
 	writel(reg, dp->reg_base + EXYNOS_DP_LN0_LINK_TRAINING_CTL);
 }
 
@@ -903,7 +905,9 @@ void exynos_dp_set_lane1_pre_emphasis(struct exynos_dp_device *dp, u32 level)
 {
 	u32 reg;
 
-	reg = level << PRE_EMPHASIS_SET_SHIFT;
+	reg = readl(dp->reg_base + EXYNOS_DP_LN1_LINK_TRAINING_CTL);
+	reg &= ~PRE_EMPHASIS_SET_MASK;
+	reg |= level << PRE_EMPHASIS_SET_SHIFT;
 	writel(reg, dp->reg_base + EXYNOS_DP_LN1_LINK_TRAINING_CTL);
 }
 
@@ -911,7 +915,9 @@ void exynos_dp_set_lane2_pre_emphasis(struct exynos_dp_device *dp, u32 level)
 {
 	u32 reg;
 
-	reg = level << PRE_EMPHASIS_SET_SHIFT;
+	reg = readl(dp->reg_base + EXYNOS_DP_LN2_LINK_TRAINING_CTL);
+	reg &= ~PRE_EMPHASIS_SET_MASK;
+	reg |= level << PRE_EMPHASIS_SET_SHIFT;
 	writel(reg, dp->reg_base + EXYNOS_DP_LN2_LINK_TRAINING_CTL);
 }
 
@@ -919,7 +925,9 @@ void exynos_dp_set_lane3_pre_emphasis(struct exynos_dp_device *dp, u32 level)
 {
 	u32 reg;
 
-	reg = level << PRE_EMPHASIS_SET_SHIFT;
+	reg = readl(dp->reg_base + EXYNOS_DP_LN3_LINK_TRAINING_CTL);
+	reg &= ~PRE_EMPHASIS_SET_MASK;
+	reg |= level << PRE_EMPHASIS_SET_SHIFT;
 	writel(reg, dp->reg_base + EXYNOS_DP_LN3_LINK_TRAINING_CTL);
 }
 
