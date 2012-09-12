@@ -77,7 +77,7 @@ void exynos_dp_init_analog_param(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_ANALOG_CTL_3);
 
 	reg = PD_RING_OSC | AUX_TERMINAL_CTRL_50_OHM |
-		TX_CUR1_2X | TX_CUR_8_MA;
+		TX_CUR1_2X | TX_CUR_16_MA;
 	writel(reg, dp->reg_base + EXYNOS_DP_PLL_FILTER_CTL_1);
 
 	reg = CH3_AMP_400_MV | CH2_AMP_400_MV |
