@@ -63,6 +63,17 @@ config LEDS_LM3533
 	  hardware-accelerated blinking with maximum on and off periods of 9.8
 	  and 77 seconds respectively.
 
+config LEDS_LM3642
+	tristate "LED support for LM3642 Chip"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for LEDs connected to LM3642.
+	  The LM3642 is a 4MHz fixed-frequency synchronous boost
+	  converter plus 1.5A constant current driver for a high-current
+	  white LED.
+
+
 config LEDS_LOCOMO
 	tristate "LED Support for Locomo device"
 	depends on LEDS_CLASS
