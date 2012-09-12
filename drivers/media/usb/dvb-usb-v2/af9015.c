@@ -71,7 +71,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 	default:
 		dev_err(&d->udev->dev, "%s: unknown command=%d\n",
 				KBUILD_MODNAME, req->cmd);
-		ret = -1;
+		ret = -EIO;
 		goto error;
 	}
 
@@ -107,7 +107,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 	if (rlen && buf[1]) {
 		dev_err(&d->udev->dev, "%s: command failed=%d\n",
 				KBUILD_MODNAME, buf[1]);
-		ret = -1;
+		ret = -EIO;
 		goto error;
 	}
 
@@ -791,11 +791,11 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 	if (val == 0x04) {
 		dev_err(&d->udev->dev, "%s: firmware did not run\n",
 				KBUILD_MODNAME);
-		ret = -1;
+		ret = -ETIMEDOUT;
 	} else if (val != 0x0c) {
 		dev_err(&d->udev->dev, "%s: firmware boot timeout\n",
 				KBUILD_MODNAME);
-		ret = -1;
+		ret = -ETIMEDOUT;
 	}
 
 error:
