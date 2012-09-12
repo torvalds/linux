@@ -2249,8 +2249,8 @@ struct dvb_frontend *mt2063_attach(struct dvb_frontend *fe,
 	dprintk(2, "\n");
 
 	state = kzalloc(sizeof(struct mt2063_state), GFP_KERNEL);
-	if (state == NULL)
-		goto error;
+	if (!state)
+		return NULL;
 
 	state->config = config;
 	state->i2c = i2c;
@@ -2261,10 +2261,6 @@ struct dvb_frontend *mt2063_attach(struct dvb_frontend *fe,
 
 	printk(KERN_INFO "%s: Attaching MT2063\n", __func__);
 	return fe;
-
-error:
-	kfree(state);
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(mt2063_attach);
 
