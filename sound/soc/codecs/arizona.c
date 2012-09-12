@@ -732,7 +732,7 @@ static irqreturn_t arizona_fll_lock(int irq, void *data)
 {
 	struct arizona_fll *fll = data;
 
-	arizona_fll_dbg(fll, "Locked\n");
+	arizona_fll_dbg(fll, "Lock status changed\n");
 
 	complete(&fll->lock);
 
