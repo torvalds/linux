@@ -725,6 +725,7 @@ static int ipoctal_probe(struct ipack_device *dev)
 	if (res)
 		goto out_uninst;
 
+	dev_set_drvdata(&dev->dev, ipoctal);
 	list_add_tail(&ipoctal->list, &ipoctal_list);
 	return 0;
 
@@ -751,14 +752,9 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 	kfree(ipoctal);
 }
 
-static void ipoctal_remove(struct ipack_device *device)
+static void ipoctal_remove(struct ipack_device *idev)
 {
-	struct ipoctal *ipoctal, *next;
-
-	list_for_each_entry_safe(ipoctal, next, &ipoctal_list, list) {
-		if (ipoctal->dev == device)
-			__ipoctal_remove(ipoctal);
-	}
+	__ipoctal_remove(dev_get_drvdata(&idev->dev));
 }
 
 static DEFINE_IPACK_DEVICE_TABLE(ipoctal_ids) = {
