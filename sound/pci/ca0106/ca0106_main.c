@@ -1334,10 +1334,29 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static const struct snd_pcm_chmap_elem surround_map[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
+	{ }
+};
+
+static const struct snd_pcm_chmap_elem clfe_map[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_FC, SNDRV_CHMAP_LFE } },
+	{ }
+};
+
+static const struct snd_pcm_chmap_elem side_map[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_SL, SNDRV_CHMAP_SR } },
+	{ }
+};
+
 static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
+	const struct snd_pcm_chmap_elem *map = NULL;
 	int err;
   
 	err = snd_pcm_new(emu->card, "ca0106", device, 1, 1, &pcm);
@@ -1350,18 +1369,22 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 	case 0:
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_front_ops);
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ca0106_capture_0_ops);
+	  map = snd_pcm_std_chmaps;
           break;
 	case 1:
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_rear_ops);
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ca0106_capture_1_ops);
+	  map = surround_map;
           break;
 	case 2:
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_center_lfe_ops);
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ca0106_capture_2_ops);
+	  map = clfe_map;
           break;
 	case 3:
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ca0106_playback_unknown_ops);
 	  snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ca0106_capture_3_ops);
+	  map = side_map;
           break;
         }
 
@@ -1388,6 +1411,11 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 			return err;
 	}
   
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, map, 2,
+				     1 << 2, NULL);
+	if (err < 0)
+		return err;
+
 	emu->pcm[device] = pcm;
   
 	return 0;
