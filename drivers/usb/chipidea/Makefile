@@ -1,3 +1,5 @@
+ccflags-$(CONFIG_USB_CHIPIDEA_DEBUG) := -DDEBUG
+
 obj-$(CONFIG_USB_CHIPIDEA)		+= ci_hdrc.o
 
 ci_hdrc-y				:= core.o
