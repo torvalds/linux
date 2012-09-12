@@ -435,6 +435,17 @@ ret_from_fork:
 	li	r3,0
 	b	ret_from_syscall
 
+	.globl	ret_from_kernel_thread
+ret_from_kernel_thread:
+	REST_NVGPRS(r1)
+	bl	schedule_tail
+	mtlr	r14
+	mr	r3,r15
+	PPC440EP_ERR42
+	blrl
+	li	r3,0
+	b	do_exit		# no return
+
 /* Traced system call support */
 syscall_dotrace:
 	SAVE_NVGPRS(r1)

@@ -734,30 +734,39 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 extern unsigned long dscr_default; /* defined in arch/powerpc/kernel/sysfs.c */
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long unused, struct task_struct *p,
+		unsigned long arg, struct task_struct *p,
 		struct pt_regs *regs)
 {
 	struct pt_regs *childregs, *kregs;
 	extern void ret_from_fork(void);
+	extern void ret_from_kernel_thread(void);
+	void (*f)(void);
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 
-	CHECK_FULL_REGS(regs);
 	/* Copy registers */
 	sp -= sizeof(struct pt_regs);
 	childregs = (struct pt_regs *) sp;
-	*childregs = *regs;
-	if ((childregs->msr & MSR_PR) == 0) {
+	if (!regs) {
 		/* for kernel thread, set `current' and stackptr in new task */
+		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
-#ifdef CONFIG_PPC32
-		childregs->gpr[2] = (unsigned long) p;
-#else
+#ifdef CONFIG_PPC64
+		childregs->gpr[14] = *(unsigned long *)usp;
+		childregs->gpr[2] = ((unsigned long *)usp)[1],
 		clear_tsk_thread_flag(p, TIF_32BIT);
+#else
+		childregs->gpr[14] = usp;	/* function */
+		childregs->gpr[2] = (unsigned long) p;
 #endif
+		childregs->gpr[15] = arg;
 		p->thread.regs = NULL;	/* no user register state */
+		f = ret_from_kernel_thread;
 	} else {
+		CHECK_FULL_REGS(regs);
+		*childregs = *regs;
 		childregs->gpr[1] = usp;
 		p->thread.regs = childregs;
+		childregs->gpr[3] = 0;  /* Result from fork() */
 		if (clone_flags & CLONE_SETTLS) {
 #ifdef CONFIG_PPC64
 			if (!is_32bit_task())
@@ -766,8 +775,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #endif
 				childregs->gpr[2] = childregs->gpr[6];
 		}
+
+		f = ret_from_fork;
 	}
-	childregs->gpr[3] = 0;  /* Result from fork() */
 	sp -= STACK_FRAME_OVERHEAD;
 
 	/*
@@ -806,19 +816,17 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.dscr = current->thread.dscr;
 	}
 #endif
-
 	/*
 	 * The PPC64 ABI makes use of a TOC to contain function 
 	 * pointers.  The function (ret_from_except) is actually a pointer
 	 * to the TOC entry.  The first entry is a pointer to the actual
 	 * function.
- 	 */
+	 */
 #ifdef CONFIG_PPC64
-	kregs->nip = *((unsigned long *)ret_from_fork);
+	kregs->nip = *((unsigned long *)f);
 #else
-	kregs->nip = (unsigned long)ret_from_fork;
+	kregs->nip = (unsigned long)f;
 #endif
-
 	return 0;
 }
 

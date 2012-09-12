@@ -370,6 +370,16 @@ _GLOBAL(ret_from_fork)
 	li	r3,0
 	b	syscall_exit
 
+_GLOBAL(ret_from_kernel_thread)
+	bl	.schedule_tail
+	REST_NVGPRS(r1)
+	REST_GPR(2,r1)
+	mtlr	r14
+	mr	r3,r15
+	blrl
+	li	r3,0
+	b	.do_exit	# no return
+
 	.section	".toc","aw"
 DSCR_DEFAULT:
 	.tc dscr_default[TC],dscr_default
