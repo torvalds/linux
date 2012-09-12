@@ -1224,6 +1224,27 @@ static struct sensor_platform_data kxtik_info = {
 };
 
 #endif
+
+/*MMA7660 gsensor*/
+#if defined (CONFIG_GS_MMA7660)
+#define MMA7660_INT_PIN   RK30_PIN4_PC0
+
+static int mma7660_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+
+	return 0;
+}
+
+static struct sensor_platform_data mma7660_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+        .init_platform_hw = mma7660_init_platform_hw,
+        .orientation = {1, 0, 0, 0, 0, -1, 0, -1, 0},
+};
+#endif
+
 #if defined (CONFIG_COMPASS_AK8975)
 static struct sensor_platform_data akm8975_info =
 {
@@ -2034,6 +2055,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 	},
 #endif
 
+#if defined (CONFIG_GS_MMA7660)
+	{
+		.type		= "gs_mma7660",
+		.addr		= 0x4c,
+		.flags		= 0,
+		.irq		= MMA7660_INT_PIN,
+		.platform_data = &mma7660_info,
+	},
+#endif
 
 #if defined (CONFIG_COMPASS_AK8975)
 	{
