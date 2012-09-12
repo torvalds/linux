@@ -33,24 +33,33 @@ struct ec100_state {
 /* write single register */
 static int ec100_write_reg(struct ec100_state *state, u8 reg, u8 val)
 {
+	int ret;
 	u8 buf[2] = {reg, val};
-	struct i2c_msg msg = {
-		.addr = state->config.demod_address,
-		.flags = 0,
-		.len = 2,
-		.buf = buf};
+	struct i2c_msg msg[1] = {
+		{
+			.addr = state->config.demod_address,
+			.flags = 0,
+			.len = sizeof(buf),
+			.buf = buf,
+		}
+	};
 
-	if (i2c_transfer(state->i2c, &msg, 1) != 1) {
-		dev_warn(&state->i2c->dev, "%s: i2c wr failed reg=%02x\n",
-				KBUILD_MODNAME, reg);
-		return -EREMOTEIO;
+	ret = i2c_transfer(state->i2c, msg, 1);
+	if (ret == 1) {
+		ret = 0;
+	} else {
+		dev_warn(&state->i2c->dev, "%s: i2c wr failed=%d reg=%02x\n",
+				KBUILD_MODNAME, ret, reg);
+		ret = -EREMOTEIO;
 	}
-	return 0;
+
+	return ret;
 }
 
 /* read single register */
 static int ec100_read_reg(struct ec100_state *state, u8 reg, u8 *val)
 {
+	int ret;
 	struct i2c_msg msg[2] = {
 		{
 			.addr = state->config.demod_address,
@@ -65,12 +74,16 @@ static int ec100_read_reg(struct ec100_state *state, u8 reg, u8 *val)
 		}
 	};
 
-	if (i2c_transfer(state->i2c, msg, 2) != 2) {
-		dev_warn(&state->i2c->dev, "%s: i2c rd failed reg=%02x\n",
-				KBUILD_MODNAME, reg);
-		return -EREMOTEIO;
+	ret = i2c_transfer(state->i2c, msg, 2);
+	if (ret == 2) {
+		ret = 0;
+	} else {
+		dev_warn(&state->i2c->dev, "%s: i2c rd failed=%d reg=%02x\n",
+				KBUILD_MODNAME, ret, reg);
+		ret = -EREMOTEIO;
 	}
-	return 0;
+
+	return ret;
 }
 
 static int ec100_set_frontend(struct dvb_frontend *fe)
