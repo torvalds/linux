@@ -29,19 +29,6 @@
 #include "af9013.h"
 #include <linux/firmware.h>
 
-#define LOG_PREFIX "af9013"
-
-#undef dbg
-#define dbg(f, arg...) \
-	if (af9013_debug) \
-		printk(KERN_INFO   LOG_PREFIX": " f "\n" , ## arg)
-#undef err
-#define err(f, arg...)  printk(KERN_ERR     LOG_PREFIX": " f "\n" , ## arg)
-#undef info
-#define info(f, arg...) printk(KERN_INFO    LOG_PREFIX": " f "\n" , ## arg)
-#undef warn
-#define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
-
 #define AF9013_FIRMWARE "dvb-fe-af9013.fw"
 
 struct af9013_reg_bit {
