@@ -76,8 +76,10 @@ here is a cut:
 
 /* channel positions */
 enum {
-	/* this follows the alsa-lib mixer channel value + 1 */
 	SNDRV_CHMAP_UNKNOWN = 0,
+	SNDRV_CHMAP_NA,		/* N/A, silent */
+	SNDRV_CHMAP_MONO,	/* mono stream */
+	/* this follows the alsa-lib mixer channel value + 3 */
 	SNDRV_CHMAP_FL,		/* front left */
 	SNDRV_CHMAP_FR,		/* front right */
 	SNDRV_CHMAP_RL,		/* rear left */
@@ -98,8 +100,13 @@ enum {
 	SNDRV_CHMAP_FCH,	/* front center high */
 	SNDRV_CHMAP_FRH,	/* front right high */
 	SNDRV_CHMAP_TC,		/* top center */
-	SNDRV_CHMAP_NA,		/* N/A, silent */
-	SNDRV_CHMAP_LAST = SNDRV_CHMAP_NA,
+	SNDRV_CHMAP_TFL,	/* top front left */
+	SNDRV_CHMAP_TFR,	/* top front right */
+	SNDRV_CHMAP_TFC,	/* top front center */
+	SNDRV_CHMAP_TRL,	/* top rear left */
+	SNDRV_CHMAP_TRR,	/* top rear right */
+	SNDRV_CHMAP_TRC,	/* top rear center */
+	SNDRV_CHMAP_LAST = SNDRV_CHMAP_TRC,
 };
 
 When a PCM stream can provide more than one channel map, you can
