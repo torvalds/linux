@@ -24,6 +24,9 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_i2c.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -347,6 +350,12 @@ static struct at91_twi_pdata at91sam9g10_config = {
 	.has_unre_flag = false,
 };
 
+static struct at91_twi_pdata at91sam9x5_config = {
+	.clk_max_div = 7,
+	.clk_offset = 4,
+	.has_unre_flag = false,
+};
+
 static const struct platform_device_id at91_twi_devtypes[] = {
 	{
 		.name = "i2c-at91rm9200",
@@ -367,6 +376,42 @@ static const struct platform_device_id at91_twi_devtypes[] = {
 		/* sentinel */
 	}
 };
+
+#if defined(CONFIG_OF)
+static const struct of_device_id atmel_twi_dt_ids[] = {
+	{
+		.compatible = "atmel,at91sam9260-i2c",
+		.data = &at91sam9260_config,
+	} , {
+		.compatible = "atmel,at91sam9g20-i2c",
+		.data = &at91sam9g20_config,
+	} , {
+		.compatible = "atmel,at91sam9g10-i2c",
+		.data = &at91sam9g10_config,
+	}, {
+		.compatible = "atmel,at91sam9x5-i2c",
+		.data = &at91sam9x5_config,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(of, atmel_twi_dt_ids);
+#else
+#define atmel_twi_dt_ids NULL
+#endif
+
+static struct at91_twi_pdata * __devinit at91_twi_get_driver_data(
+					struct platform_device *pdev)
+{
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(atmel_twi_dt_ids, pdev->dev.of_node);
+		if (!match)
+			return NULL;
+		return match->data;
+	}
+	return (struct at91_twi_pdata *) platform_get_device_id(pdev)->driver_data;
+}
 
 static int __devinit at91_twi_probe(struct platform_device *pdev)
 {
@@ -423,6 +468,7 @@ static int __devinit at91_twi_probe(struct platform_device *pdev)
 	dev->adapter.dev.parent = dev->dev;
 	dev->adapter.nr = pdev->id;
 	dev->adapter.timeout = AT91_I2C_TIMEOUT;
+	dev->adapter.dev.of_node = pdev->dev.of_node;
 
 	rc = i2c_add_numbered_adapter(&dev->adapter);
 	if (rc) {
@@ -431,6 +477,8 @@ static int __devinit at91_twi_probe(struct platform_device *pdev)
 		clk_disable_unprepare(dev->clk);
 		return rc;
 	}
+
+	of_i2c_register_devices(&dev->adapter);
 
 	dev_info(dev->dev, "AT91 i2c bus driver.\n");
 	return 0;
@@ -482,6 +530,7 @@ static struct platform_driver at91_twi_driver = {
 	.driver		= {
 		.name	= "at91_i2c",
 		.owner	= THIS_MODULE,
+		.of_match_table = atmel_twi_dt_ids,
 		.pm	= at91_twi_pm_ops,
 	},
 };

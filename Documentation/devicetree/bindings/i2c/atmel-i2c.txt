@@ -1,0 +1,30 @@
+I2C for Atmel platforms
+
+Required properties :
+- compatible : Must be "atmel,at91rm9200-i2c", "atmel,at91sam9261-i2c",
+     "atmel,at91sam9260-i2c", "atmel,at91sam9g20-i2c", "atmel,at91sam9g10-i2c"
+     or "atmel,at91sam9x5-i2c"
+- reg: physical base address of the controller and length of memory mapped
+     region.
+- interrupts: interrupt number to the cpu.
+- #address-cells = <1>;
+- #size-cells = <0>;
+
+Optional properties:
+- Child nodes conforming to i2c bus binding
+
+Examples :
+
+i2c0: i2c@fff84000 {
+	compatible = "atmel,at91sam9g20-i2c";
+	reg = <0xfff84000 0x100>;
+	interrupts = <12 4 6>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	24c512@50 {
+		compatible = "24c512";
+		reg = <0x50>;
+		pagesize = <128>;
+	}
+}
