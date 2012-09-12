@@ -39,6 +39,12 @@ static const struct omap_video_timings tfp410_default_timings = {
 	.vfp		= 3,
 	.vsw		= 4,
 	.vbp		= 7,
+
+	.vsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 };
 
 struct panel_drv_data {
@@ -95,7 +101,6 @@ static int tfp410_probe(struct omap_dss_device *dssdev)
 		return -ENOMEM;
 
 	dssdev->panel.timings = tfp410_default_timings;
-	dssdev->panel.config = OMAP_DSS_LCD_TFT;
 
 	ddata->dssdev = dssdev;
 	mutex_init(&ddata->lock);

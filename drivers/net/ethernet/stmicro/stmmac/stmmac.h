@@ -20,6 +20,9 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#ifndef __STMMAC_H__
+#define __STMMAC_H__
+
 #define STMMAC_RESOURCE_NAME   "stmmaceth"
 #define DRV_MODULE_VERSION	"March_2012"
 
@@ -82,11 +85,15 @@ struct stmmac_priv {
 	struct stmmac_counters mmc;
 	struct dma_features dma_cap;
 	int hw_cap_support;
-#ifdef CONFIG_HAVE_CLK
 	struct clk *stmmac_clk;
-#endif
 	int clk_csr;
 	int synopsys_id;
+	struct timer_list eee_ctrl_timer;
+	bool tx_path_in_lpi_mode;
+	int lpi_irq;
+	int eee_enabled;
+	int eee_active;
+	int tx_lpi_timer;
 };
 
 extern int phyaddr;
@@ -104,46 +111,8 @@ int stmmac_dvr_remove(struct net_device *ndev);
 struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 				     struct plat_stmmacenet_data *plat_dat,
 				     void __iomem *addr);
-
-#ifdef CONFIG_HAVE_CLK
-static inline int stmmac_clk_enable(struct stmmac_priv *priv)
-{
-	if (!IS_ERR(priv->stmmac_clk))
-		return clk_prepare_enable(priv->stmmac_clk);
-
-	return 0;
-}
-
-static inline void stmmac_clk_disable(struct stmmac_priv *priv)
-{
-	if (IS_ERR(priv->stmmac_clk))
-		return;
-
-	clk_disable_unprepare(priv->stmmac_clk);
-}
-static inline int stmmac_clk_get(struct stmmac_priv *priv)
-{
-	priv->stmmac_clk = clk_get(priv->device, NULL);
-
-	if (IS_ERR(priv->stmmac_clk))
-		return PTR_ERR(priv->stmmac_clk);
-
-	return 0;
-}
-#else
-static inline int stmmac_clk_enable(struct stmmac_priv *priv)
-{
-	return 0;
-}
-static inline void stmmac_clk_disable(struct stmmac_priv *priv)
-{
-}
-static inline int stmmac_clk_get(struct stmmac_priv *priv)
-{
-	return 0;
-}
-#endif /* CONFIG_HAVE_CLK */
-
+void stmmac_disable_eee_mode(struct stmmac_priv *priv);
+bool stmmac_eee_init(struct stmmac_priv *priv);
 
 #ifdef CONFIG_STMMAC_PLATFORM
 extern struct platform_driver stmmac_pltfr_driver;
@@ -200,3 +169,5 @@ static inline void stmmac_unregister_pci(void)
 {
 }
 #endif /* CONFIG_STMMAC_PCI */
+
+#endif /* __STMMAC_H__ */

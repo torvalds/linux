@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -212,7 +212,7 @@ struct acpi_table_fadt {
 	u32 smi_command;	/* 32-bit Port address of SMI command port */
 	u8 acpi_enable;		/* Value to write to smi_cmd to enable ACPI */
 	u8 acpi_disable;	/* Value to write to smi_cmd to disable ACPI */
-	u8 S4bios_request;	/* Value to write to SMI CMD to enter S4BIOS state */
+	u8 s4_bios_request;	/* Value to write to SMI CMD to enter S4BIOS state */
 	u8 pstate_control;	/* Processor performance state control */
 	u32 pm1a_event_block;	/* 32-bit Port address of Power Mgt 1a Event Reg Blk */
 	u32 pm1b_event_block;	/* 32-bit Port address of Power Mgt 1b Event Reg Blk */
@@ -230,8 +230,8 @@ struct acpi_table_fadt {
 	u8 gpe1_block_length;	/* Byte Length of ports at gpe1_block */
 	u8 gpe1_base;		/* Offset in GPE number space where GPE1 events start */
 	u8 cst_control;		/* Support for the _CST object and C States change notification */
-	u16 C2latency;		/* Worst case HW latency to enter/exit C2 state */
-	u16 C3latency;		/* Worst case HW latency to enter/exit C3 state */
+	u16 c2_latency;		/* Worst case HW latency to enter/exit C2 state */
+	u16 c3_latency;		/* Worst case HW latency to enter/exit C3 state */
 	u16 flush_size;		/* Processor's memory cache line width, in bytes */
 	u16 flush_stride;	/* Number of flush strides that need to be read */
 	u8 duty_offset;		/* Processor duty cycle index in processor's P_CNT reg */
@@ -291,7 +291,7 @@ struct acpi_table_fadt {
 #define ACPI_FADT_S4_RTC_VALID      (1<<16)	/* 16: [V4] Contents of RTC_STS valid after S4 wake (ACPI 3.0) */
 #define ACPI_FADT_REMOTE_POWER_ON   (1<<17)	/* 17: [V4] System is compatible with remote power on (ACPI 3.0) */
 #define ACPI_FADT_APIC_CLUSTER      (1<<18)	/* 18: [V4] All local APICs must use cluster model (ACPI 3.0) */
-#define ACPI_FADT_APIC_PHYSICAL     (1<<19)	/* 19: [V4] All local x_aPICs must use physical dest mode (ACPI 3.0) */
+#define ACPI_FADT_APIC_PHYSICAL     (1<<19)	/* 19: [V4] All local xAPICs must use physical dest mode (ACPI 3.0) */
 #define ACPI_FADT_HW_REDUCED        (1<<20)	/* 20: [V5] ACPI hardware is not implemented (ACPI 5.0) */
 #define ACPI_FADT_LOW_POWER_S0      (1<<21)	/* 21: [V5] S0 power savings are equal or better than S3 (ACPI 5.0) */
 

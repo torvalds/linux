@@ -1305,7 +1305,7 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 			prepare_to_wait(&bitmap->overflow_wait, &__wait,
 					TASK_UNINTERRUPTIBLE);
 			spin_unlock_irq(&bitmap->counts.lock);
-			io_schedule();
+			schedule();
 			finish_wait(&bitmap->overflow_wait, &__wait);
 			continue;
 		}

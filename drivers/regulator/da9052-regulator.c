@@ -405,12 +405,12 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 		if (!nproot)
 			return -ENODEV;
 
-		for (np = of_get_next_child(nproot, NULL); np;
-		     np = of_get_next_child(nproot, np)) {
+		for_each_child_of_node(nproot, np) {
 			if (!of_node_cmp(np->name,
 					 regulator->info->reg_desc.name)) {
 				config.init_data = of_get_regulator_init_data(
 					&pdev->dev, np);
+				config.of_node = np;
 				break;
 			}
 		}

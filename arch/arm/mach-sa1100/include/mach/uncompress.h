@@ -8,6 +8,8 @@
 
 #include "hardware.h"
 
+#define IOMEM(x)	(x)
+
 /*
  * The following code assumes the serial port has already been
  * initialized by the bootloader.  We search for the first enabled

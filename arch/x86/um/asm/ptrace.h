@@ -30,10 +30,10 @@
 #define profile_pc(regs) PT_REGS_IP(regs)
 
 #define UPT_RESTART_SYSCALL(r) (UPT_IP(r) -= 2)
-#define UPT_SET_SYSCALL_RETURN(r, res) (UPT_AX(r) = (res))
+#define PT_REGS_SET_SYSCALL_RETURN(r, res) (PT_REGS_AX(r) = (res))
 
-static inline long regs_return_value(struct uml_pt_regs *regs)
+static inline long regs_return_value(struct pt_regs *regs)
 {
-	return UPT_AX(regs);
+	return PT_REGS_AX(regs);
 }
 #endif /* __UM_X86_PTRACE_H */

@@ -25,6 +25,8 @@
 #include <net/sock.h>
 #include <net/netprio_cgroup.h>
 
+#include <linux/fdtable.h>
+
 #define PRIOIDX_SZ 128
 
 static unsigned long prioidx_map[PRIOIDX_SZ];
@@ -99,12 +101,10 @@ static int write_update_netdev_table(struct net_device *dev)
 	u32 max_len;
 	struct netprio_map *map;
 
-	rtnl_lock();
 	max_len = atomic_read(&max_prioidx) + 1;
 	map = rtnl_dereference(dev->priomap);
 	if (!map || map->priomap_len < max_len)
 		ret = extend_netdev_table(dev, max_len);
-	rtnl_unlock();
 
 	return ret;
 }
@@ -232,7 +232,7 @@ static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 
 	/*
 	 *Separate the devname from the associated priority
-	 *and advance the priostr poitner to the priority value
+	 *and advance the priostr pointer to the priority value
 	 */
 	*priostr = '\0';
 	priostr++;
@@ -254,22 +254,58 @@ static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 	if (!dev)
 		goto out_free_devname;
 
+	rtnl_lock();
 	ret = write_update_netdev_table(dev);
 	if (ret < 0)
 		goto out_put_dev;
 
-	rcu_read_lock();
-	map = rcu_dereference(dev->priomap);
+	map = rtnl_dereference(dev->priomap);
 	if (map)
 		map->priomap[prioidx] = priority;
-	rcu_read_unlock();
 
 out_put_dev:
+	rtnl_unlock();
 	dev_put(dev);
 
 out_free_devname:
 	kfree(devname);
 	return ret;
+}
+
+void net_prio_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+{
+	struct task_struct *p;
+
+	cgroup_taskset_for_each(p, cgrp, tset) {
+		unsigned int fd;
+		struct fdtable *fdt;
+		struct files_struct *files;
+
+		task_lock(p);
+		files = p->files;
+		if (!files) {
+			task_unlock(p);
+			continue;
+		}
+
+		spin_lock(&files->file_lock);
+		fdt = files_fdtable(files);
+		for (fd = 0; fd < fdt->max_fds; fd++) {
+			struct file *file;
+			struct socket *sock;
+			int err;
+
+			file = fcheck_files(files, fd);
+			if (!file)
+				continue;
+
+			sock = sock_from_file(file, &err);
+			if (sock)
+				sock_update_netprioidx(sock->sk, p);
+		}
+		spin_unlock(&files->file_lock);
+		task_unlock(p);
+	}
 }
 
 static struct cftype ss_files[] = {
@@ -289,6 +325,7 @@ struct cgroup_subsys net_prio_subsys = {
 	.name		= "net_prio",
 	.create		= cgrp_create,
 	.destroy	= cgrp_destroy,
+	.attach		= net_prio_attach,
 #ifdef CONFIG_NETPRIO_CGROUP
 	.subsys_id	= net_prio_subsys_id,
 #endif

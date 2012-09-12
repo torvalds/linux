@@ -796,7 +796,15 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_siwfreq(dev, info, wextfreq, extra);
 	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_WDS:
+		freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
+		if (freq < 0)
+			return freq;
+		if (freq == 0)
+			return -EINVAL;
+		mutex_lock(&rdev->devlist_mtx);
+		err = cfg80211_set_monitor_channel(rdev, freq, NL80211_CHAN_NO_HT);
+		mutex_unlock(&rdev->devlist_mtx);
+		return err;
 	case NL80211_IFTYPE_MESH_POINT:
 		freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
 		if (freq < 0)
@@ -804,9 +812,8 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 		if (freq == 0)
 			return -EINVAL;
 		mutex_lock(&rdev->devlist_mtx);
-		wdev_lock(wdev);
-		err = cfg80211_set_freq(rdev, wdev, freq, NL80211_CHAN_NO_HT);
-		wdev_unlock(wdev);
+		err = cfg80211_set_mesh_freq(rdev, wdev, freq,
+					     NL80211_CHAN_NO_HT);
 		mutex_unlock(&rdev->devlist_mtx);
 		return err;
 	default:
@@ -832,18 +839,14 @@ static int cfg80211_wext_giwfreq(struct net_device *dev,
 		if (!rdev->ops->get_channel)
 			return -EINVAL;
 
-		chan = rdev->ops->get_channel(wdev->wiphy, &channel_type);
+		chan = rdev->ops->get_channel(wdev->wiphy, wdev, &channel_type);
 		if (!chan)
 			return -EINVAL;
 		freq->m = chan->center_freq;
 		freq->e = 6;
 		return 0;
 	default:
-		if (!wdev->channel)
-			return -EINVAL;
-		freq->m = wdev->channel->center_freq;
-		freq->e = 6;
-		return 0;
+		return -EINVAL;
 	}
 }
 

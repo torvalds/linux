@@ -257,7 +257,7 @@ static ssize_t adt7410_store_resolution(struct device *dev,
 
 	chip->config = config;
 
-	return ret;
+	return len;
 }
 
 static IIO_DEVICE_ATTR(resolution, S_IRUGO | S_IWUSR,
@@ -293,26 +293,17 @@ static ssize_t adt7410_convert_temperature(struct adt7410_chip_info *chip,
 {
 	char sign = ' ';
 
-	if (chip->config & ADT7410_RESOLUTION) {
-		if (data & ADT7410_T16_VALUE_SIGN) {
-			/* convert supplement to positive value */
-			data = (u16)((ADT7410_T16_VALUE_SIGN << 1) - (u32)data);
-			sign = '-';
-		}
-		return sprintf(buf, "%c%d.%.7d\n", sign,
-				(data >> ADT7410_T16_VALUE_FLOAT_OFFSET),
-				(data & ADT7410_T16_VALUE_FLOAT_MASK) * 78125);
-	} else {
-		if (data & ADT7410_T13_VALUE_SIGN) {
-			/* convert supplement to positive value */
-			data >>= ADT7410_T13_VALUE_OFFSET;
-			data = (ADT7410_T13_VALUE_SIGN << 1) - data;
-			sign = '-';
-		}
-		return sprintf(buf, "%c%d.%.4d\n", sign,
-				(data >> ADT7410_T13_VALUE_FLOAT_OFFSET),
-				(data & ADT7410_T13_VALUE_FLOAT_MASK) * 625);
+	if (!(chip->config & ADT7410_RESOLUTION))
+		data &= ~0x7;
+
+	if (data & ADT7410_T16_VALUE_SIGN) {
+		/* convert supplement to positive value */
+		data = (u16)((ADT7410_T16_VALUE_SIGN << 1) - (u32)data);
+		sign = '-';
 	}
+	return sprintf(buf, "%c%d.%.7d\n", sign,
+			(data >> ADT7410_T16_VALUE_FLOAT_OFFSET),
+			(data & ADT7410_T16_VALUE_FLOAT_MASK) * 78125);
 }
 
 static ssize_t adt7410_show_value(struct device *dev,
@@ -720,6 +711,7 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret = 0;
 	unsigned long *adt7410_platform_data = client->dev.platform_data;
+	unsigned long local_pdata[] = {0, 0};
 
 	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
@@ -737,12 +729,15 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 	indio_dev->info = &adt7410_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
+	if (!adt7410_platform_data)
+		adt7410_platform_data = local_pdata;
+
 	/* CT critcal temperature event. line 0 */
 	if (client->irq) {
 		ret = request_threaded_irq(client->irq,
 					   NULL,
 					   &adt7410_event_handler,
-					   IRQF_TRIGGER_LOW,
+					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 					   id->name,
 					   indio_dev);
 		if (ret)
@@ -754,20 +749,23 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 		ret = request_threaded_irq(adt7410_platform_data[0],
 					   NULL,
 					   &adt7410_event_handler,
-					   adt7410_platform_data[1],
+					   adt7410_platform_data[1] |
+					   IRQF_ONESHOT,
 					   id->name,
 					   indio_dev);
 		if (ret)
 			goto error_unreg_ct_irq;
 	}
 
-	if (client->irq && adt7410_platform_data[0]) {
+	ret = adt7410_i2c_read_byte(chip, ADT7410_CONFIG, &chip->config);
+	if (ret) {
+		ret = -EIO;
+		goto error_unreg_int_irq;
+	}
 
-		ret = adt7410_i2c_read_byte(chip, ADT7410_CONFIG, &chip->config);
-		if (ret) {
-			ret = -EIO;
-			goto error_unreg_int_irq;
-		}
+	chip->config |= ADT7410_RESOLUTION;
+
+	if (client->irq && adt7410_platform_data[0]) {
 
 		/* set irq polarity low level */
 		chip->config &= ~ADT7410_CT_POLARITY;
@@ -776,12 +774,12 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 			chip->config |= ADT7410_INT_POLARITY;
 		else
 			chip->config &= ~ADT7410_INT_POLARITY;
+	}
 
-		ret = adt7410_i2c_write_byte(chip, ADT7410_CONFIG, chip->config);
-		if (ret) {
-			ret = -EIO;
-			goto error_unreg_int_irq;
-		}
+	ret = adt7410_i2c_write_byte(chip, ADT7410_CONFIG, chip->config);
+	if (ret) {
+		ret = -EIO;
+		goto error_unreg_int_irq;
 	}
 	ret = iio_device_register(indio_dev);
 	if (ret)

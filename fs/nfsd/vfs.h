@@ -110,12 +110,19 @@ int nfsd_set_posix_acl(struct svc_fh *, int, struct posix_acl *);
 
 static inline int fh_want_write(struct svc_fh *fh)
 {
-	return mnt_want_write(fh->fh_export->ex_path.mnt);
+	int ret = mnt_want_write(fh->fh_export->ex_path.mnt);
+
+	if (!ret)
+		fh->fh_want_write = 1;
+	return ret;
 }
 
 static inline void fh_drop_write(struct svc_fh *fh)
 {
-	mnt_drop_write(fh->fh_export->ex_path.mnt);
+	if (fh->fh_want_write) {
+		fh->fh_want_write = 0;
+		mnt_drop_write(fh->fh_export->ex_path.mnt);
+	}
 }
 
 #endif /* LINUX_NFSD_VFS_H */

@@ -335,6 +335,68 @@ static void __init c6474_setup_clocks(struct device_node *node)
 }
 #endif /* CONFIG_SOC_TMS320C6474 */
 
+#ifdef CONFIG_SOC_TMS320C6678
+static struct clk_lookup c6678_clks[] = {
+	CLK(NULL, "pll1", &c6x_soc_pll1.sysclks[0]),
+	CLK(NULL, "pll1_refclk", &c6x_soc_pll1.sysclks[1]),
+	CLK(NULL, "pll1_sysclk2", &c6x_soc_pll1.sysclks[2]),
+	CLK(NULL, "pll1_sysclk3", &c6x_soc_pll1.sysclks[3]),
+	CLK(NULL, "pll1_sysclk4", &c6x_soc_pll1.sysclks[4]),
+	CLK(NULL, "pll1_sysclk5", &c6x_soc_pll1.sysclks[5]),
+	CLK(NULL, "pll1_sysclk6", &c6x_soc_pll1.sysclks[6]),
+	CLK(NULL, "pll1_sysclk7", &c6x_soc_pll1.sysclks[7]),
+	CLK(NULL, "pll1_sysclk8", &c6x_soc_pll1.sysclks[8]),
+	CLK(NULL, "pll1_sysclk9", &c6x_soc_pll1.sysclks[9]),
+	CLK(NULL, "pll1_sysclk10", &c6x_soc_pll1.sysclks[10]),
+	CLK(NULL, "pll1_sysclk11", &c6x_soc_pll1.sysclks[11]),
+	CLK(NULL, "core", &c6x_core_clk),
+	CLK("", NULL, NULL)
+};
+
+static void __init c6678_setup_clocks(struct device_node *node)
+{
+	struct pll_data *pll = &c6x_soc_pll1;
+	struct clk *sysclks = pll->sysclks;
+
+	pll->flags = PLL_HAS_MUL;
+
+	sysclks[1].flags |= FIXED_DIV_PLL;
+	sysclks[1].div = 1;
+
+	sysclks[2].div = PLLDIV2;
+
+	sysclks[3].flags |= FIXED_DIV_PLL;
+	sysclks[3].div = 2;
+
+	sysclks[4].flags |= FIXED_DIV_PLL;
+	sysclks[4].div = 3;
+
+	sysclks[5].div = PLLDIV5;
+
+	sysclks[6].flags |= FIXED_DIV_PLL;
+	sysclks[6].div = 64;
+
+	sysclks[7].flags |= FIXED_DIV_PLL;
+	sysclks[7].div = 6;
+
+	sysclks[8].div = PLLDIV8;
+
+	sysclks[9].flags |= FIXED_DIV_PLL;
+	sysclks[9].div = 12;
+
+	sysclks[10].flags |= FIXED_DIV_PLL;
+	sysclks[10].div = 3;
+
+	sysclks[11].flags |= FIXED_DIV_PLL;
+	sysclks[11].div = 6;
+
+	c6x_core_clk.parent = &sysclks[0];
+	c6x_i2c_clk.parent = &sysclks[7];
+
+	c6x_clks_init(c6678_clks);
+}
+#endif /* CONFIG_SOC_TMS320C6678 */
+
 static struct of_device_id c6x_clkc_match[] __initdata = {
 #ifdef CONFIG_SOC_TMS320C6455
 	{ .compatible = "ti,c6455-pll", .data = c6455_setup_clocks },
@@ -347,6 +409,9 @@ static struct of_device_id c6x_clkc_match[] __initdata = {
 #endif
 #ifdef CONFIG_SOC_TMS320C6474
 	{ .compatible = "ti,c6474-pll", .data = c6474_setup_clocks },
+#endif
+#ifdef CONFIG_SOC_TMS320C6678
+	{ .compatible = "ti,c6678-pll", .data = c6678_setup_clocks },
 #endif
 	{ .compatible = "ti,c64x+pll" },
 	{}

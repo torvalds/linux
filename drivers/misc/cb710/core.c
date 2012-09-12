@@ -180,7 +180,7 @@ static int cb710_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	if (state.event & PM_EVENT_SLEEP)
-		pci_set_power_state(pdev, PCI_D3cold);
+		pci_set_power_state(pdev, PCI_D3hot);
 	return 0;
 }
 

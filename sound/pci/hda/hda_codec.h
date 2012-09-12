@@ -323,6 +323,9 @@ enum {
 #define AC_PWRST_D1			0x01
 #define AC_PWRST_D2			0x02
 #define AC_PWRST_D3			0x03
+#define AC_PWRST_ERROR                  (1<<8)
+#define AC_PWRST_CLK_STOP_OK            (1<<9)
+#define AC_PWRST_SETTING_RESET          (1<<10)
 
 /* Processing capabilies */
 #define AC_PCAP_BENIGN			(1<<0)
@@ -703,7 +706,7 @@ struct hda_codec_ops {
 	void (*set_power_state)(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state);
 #ifdef CONFIG_PM
-	int (*suspend)(struct hda_codec *codec, pm_message_t state);
+	int (*suspend)(struct hda_codec *codec);
 	int (*resume)(struct hda_codec *codec);
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -858,6 +861,8 @@ struct hda_codec {
 	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
 	unsigned int ignore_misc_bit:1; /* ignore MISC_NO_PRESENCE bit */
 	unsigned int no_jack_detect:1;	/* Machine has no jack-detection */
+	unsigned int pcm_format_first:1; /* PCM format must be set first */
+	unsigned int epss:1;		/* supporting EPSS? */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
 	int power_transition;	/* power-state in transition */

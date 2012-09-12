@@ -31,27 +31,55 @@ static void exynos4210_usb_phy_clkset(struct platform_device *pdev)
 	struct clk *xusbxti_clk;
 	u32 phyclk;
 
-	/* set clock frequency for PLL */
-	phyclk = readl(EXYNOS4_PHYCLK) & ~CLKSEL_MASK;
-
 	xusbxti_clk = clk_get(&pdev->dev, "xusbxti");
 	if (xusbxti_clk && !IS_ERR(xusbxti_clk)) {
-		switch (clk_get_rate(xusbxti_clk)) {
-		case 12 * MHZ:
-			phyclk |= CLKSEL_12M;
-			break;
-		case 24 * MHZ:
-			phyclk |= CLKSEL_24M;
-			break;
-		default:
-		case 48 * MHZ:
-			/* default reference clock */
-			break;
+		if (soc_is_exynos4210()) {
+			/* set clock frequency for PLL */
+			phyclk = readl(EXYNOS4_PHYCLK) & ~EXYNOS4210_CLKSEL_MASK;
+
+			switch (clk_get_rate(xusbxti_clk)) {
+			case 12 * MHZ:
+				phyclk |= EXYNOS4210_CLKSEL_12M;
+				break;
+			case 48 * MHZ:
+				phyclk |= EXYNOS4210_CLKSEL_48M;
+				break;
+			default:
+			case 24 * MHZ:
+				phyclk |= EXYNOS4210_CLKSEL_24M;
+				break;
+			}
+			writel(phyclk, EXYNOS4_PHYCLK);
+		} else if (soc_is_exynos4212() || soc_is_exynos4412()) {
+			/* set clock frequency for PLL */
+			phyclk = readl(EXYNOS4_PHYCLK) & ~EXYNOS4X12_CLKSEL_MASK;
+
+			switch (clk_get_rate(xusbxti_clk)) {
+			case 9600 * KHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_9600K;
+				break;
+			case 10 * MHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_10M;
+				break;
+			case 12 * MHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_12M;
+				break;
+			case 19200 * KHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_19200K;
+				break;
+			case 20 * MHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_20M;
+				break;
+			default:
+			case 24 * MHZ:
+				/* default reference clock */
+				phyclk |= EXYNOS4X12_CLKSEL_24M;
+				break;
+			}
+			writel(phyclk, EXYNOS4_PHYCLK);
 		}
 		clk_put(xusbxti_clk);
 	}
-
-	writel(phyclk, EXYNOS4_PHYCLK);
 }
 
 static int exynos4210_usb_phy0_init(struct platform_device *pdev)

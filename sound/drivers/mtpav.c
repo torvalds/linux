@@ -759,7 +759,8 @@ static struct platform_driver snd_mtpav_driver = {
 	.probe		= snd_mtpav_probe,
 	.remove		= __devexit_p(snd_mtpav_remove),
 	.driver		= {
-		.name	= SND_MTPAV_DRIVER
+		.name	= SND_MTPAV_DRIVER,
+		.owner	= THIS_MODULE,
 	},
 };
 

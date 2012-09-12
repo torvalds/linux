@@ -44,7 +44,7 @@ struct bfin_can_priv {
 /*
  * bfin can timing parameters
  */
-static struct can_bittiming_const bfin_can_bittiming_const = {
+static const struct can_bittiming_const bfin_can_bittiming_const = {
 	.name = DRV_NAME,
 	.tseg1_min = 1,
 	.tseg1_max = 16,
@@ -597,7 +597,7 @@ static int __devinit bfin_can_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev,
 		"%s device registered"
 		"(&reg_base=%p, rx_irq=%d, tx_irq=%d, err_irq=%d, sclk=%d)\n",
-		DRV_NAME, (void *)priv->membase, priv->rx_irq,
+		DRV_NAME, priv->membase, priv->rx_irq,
 		priv->tx_irq, priv->err_irq, priv->can.clock.freq);
 	return 0;
 

@@ -56,14 +56,14 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 	md5 = crypto_alloc_shash("md5", 0, 0);
 	if (IS_ERR(md5)) {
 		rc = PTR_ERR(md5);
-		cERROR(1, "%s: Crypto md5 allocation error %d\n", __func__, rc);
+		cERROR(1, "%s: Crypto md5 allocation error %d", __func__, rc);
 		return rc;
 	}
 	size = sizeof(struct shash_desc) + crypto_shash_descsize(md5);
 	sdescmd5 = kmalloc(size, GFP_KERNEL);
 	if (!sdescmd5) {
 		rc = -ENOMEM;
-		cERROR(1, "%s: Memory allocation failure\n", __func__);
+		cERROR(1, "%s: Memory allocation failure", __func__);
 		goto symlink_hash_err;
 	}
 	sdescmd5->shash.tfm = md5;
@@ -71,17 +71,17 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 
 	rc = crypto_shash_init(&sdescmd5->shash);
 	if (rc) {
-		cERROR(1, "%s: Could not init md5 shash\n", __func__);
+		cERROR(1, "%s: Could not init md5 shash", __func__);
 		goto symlink_hash_err;
 	}
 	rc = crypto_shash_update(&sdescmd5->shash, link_str, link_len);
 	if (rc) {
-		cERROR(1, "%s: Could not update iwth link_str\n", __func__);
+		cERROR(1, "%s: Could not update iwth link_str", __func__);
 		goto symlink_hash_err;
 	}
 	rc = crypto_shash_final(&sdescmd5->shash, md5_hash);
 	if (rc)
-		cERROR(1, "%s: Could not generate md5 hash\n", __func__);
+		cERROR(1, "%s: Could not generate md5 hash", __func__);
 
 symlink_hash_err:
 	crypto_free_shash(md5);
@@ -115,7 +115,7 @@ CIFSParseMFSymlink(const u8 *buf,
 
 	rc = symlink_hash(link_len, link_str, md5_hash);
 	if (rc) {
-		cFYI(1, "%s: MD5 hash failure: %d\n", __func__, rc);
+		cFYI(1, "%s: MD5 hash failure: %d", __func__, rc);
 		return rc;
 	}
 
@@ -154,7 +154,7 @@ CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 
 	rc = symlink_hash(link_len, link_str, md5_hash);
 	if (rc) {
-		cFYI(1, "%s: MD5 hash failure: %d\n", __func__, rc);
+		cFYI(1, "%s: MD5 hash failure: %d", __func__, rc);
 		return rc;
 	}
 
@@ -181,7 +181,7 @@ CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 }
 
 static int
-CIFSCreateMFSymLink(const int xid, struct cifs_tcon *tcon,
+CIFSCreateMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 		    const char *fromName, const char *toName,
 		    struct cifs_sb_info *cifs_sb)
 {
@@ -238,7 +238,7 @@ CIFSCreateMFSymLink(const int xid, struct cifs_tcon *tcon,
 }
 
 static int
-CIFSQueryMFSymLink(const int xid, struct cifs_tcon *tcon,
+CIFSQueryMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 		   const unsigned char *searchName, char **symlinkinfo,
 		   const struct nls_table *nls_codepage, int remap)
 {
@@ -307,7 +307,7 @@ CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr)
 int
 CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 		   const unsigned char *path,
-		   struct cifs_sb_info *cifs_sb, int xid)
+		   struct cifs_sb_info *cifs_sb, unsigned int xid)
 {
 	int rc;
 	int oplock = 0;
@@ -390,7 +390,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	      struct dentry *direntry)
 {
 	int rc = -EACCES;
-	int xid;
+	unsigned int xid;
 	char *fromName = NULL;
 	char *toName = NULL;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
@@ -403,7 +403,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 		return PTR_ERR(tlink);
 	pTcon = tlink_tcon(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	fromName = build_path_from_dentry(old_file);
 	toName = build_path_from_dentry(direntry);
@@ -433,7 +433,9 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	if (old_file->d_inode) {
 		cifsInode = CIFS_I(old_file->d_inode);
 		if (rc == 0) {
+			spin_lock(&old_file->d_inode->i_lock);
 			inc_nlink(old_file->d_inode);
+			spin_unlock(&old_file->d_inode->i_lock);
 /* BB should we make this contingent on superblock flag NOATIME? */
 /*			old_file->d_inode->i_ctime = CURRENT_TIME;*/
 			/* parent dir timestamps will update from srv
@@ -455,7 +457,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 cifs_hl_exit:
 	kfree(fromName);
 	kfree(toName);
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;
 }
@@ -465,14 +467,14 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 {
 	struct inode *inode = direntry->d_inode;
 	int rc = -ENOMEM;
-	int xid;
+	unsigned int xid;
 	char *full_path = NULL;
 	char *target_path = NULL;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
@@ -495,8 +497,8 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	 * but there doesn't seem to be any harm in allowing the client to
 	 * read them.
 	 */
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
-	    && !(tcon->ses->capabilities & CAP_UNIX)) {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) &&
+	    !cap_unix(tcon->ses)) {
 		rc = -EACCES;
 		goto out;
 	}
@@ -518,7 +520,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 
-	if ((rc != 0) && (tcon->ses->capabilities & CAP_UNIX))
+	if ((rc != 0) && cap_unix(tcon->ses))
 		rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, &target_path,
 					     cifs_sb->local_nls);
 
@@ -529,7 +531,7 @@ out:
 		target_path = ERR_PTR(rc);
 	}
 
-	FreeXid(xid);
+	free_xid(xid);
 	if (tlink)
 		cifs_put_tlink(tlink);
 	nd_set_link(nd, target_path);
@@ -540,14 +542,14 @@ int
 cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 {
 	int rc = -EOPNOTSUPP;
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
@@ -594,7 +596,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 symlink_exit:
 	kfree(full_path);
 	cifs_put_tlink(tlink);
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }
 

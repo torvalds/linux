@@ -1,8 +1,7 @@
 /*
- *  drivers/s390/cio/airq.c
  *    Support for adapter interruptions
  *
- *    Copyright IBM Corp. 1999,2007
+ *    Copyright IBM Corp. 1999, 2007
  *    Author(s): Ingo Adlung <adlung@de.ibm.com>
  *		 Cornelia Huck <cornelia.huck@de.ibm.com>
  *		 Arnd Bergmann <arndb@de.ibm.com>

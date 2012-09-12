@@ -83,22 +83,22 @@ acpi_status acpi_hw_clear_acpi_status(void);
 /*
  * hwsleep - sleep/wake support (Legacy sleep registers)
  */
-acpi_status acpi_hw_legacy_sleep(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_legacy_sleep(u8 sleep_state);
 
-acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state);
 
-acpi_status acpi_hw_legacy_wake(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_legacy_wake(u8 sleep_state);
 
 /*
  * hwesleep - sleep/wake support (Extended FADT-V5 sleep registers)
  */
 void acpi_hw_execute_sleep_method(char *method_name, u32 integer_argument);
 
-acpi_status acpi_hw_extended_sleep(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_extended_sleep(u8 sleep_state);
 
-acpi_status acpi_hw_extended_wake_prep(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_extended_wake_prep(u8 sleep_state);
 
-acpi_status acpi_hw_extended_wake(u8 sleep_state, u8 flags);
+acpi_status acpi_hw_extended_wake(u8 sleep_state);
 
 /*
  * hwvalid - Port I/O with validation

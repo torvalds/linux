@@ -59,6 +59,9 @@ extern void __flush_dcache_page(struct address_space *mapping, struct page *page
 #define VM_ARM_MTYPE(mt)		((mt) << 20)
 #define VM_ARM_MTYPE_MASK	(0x1f << 20)
 
+/* consistent regions used by dma_alloc_attrs() */
+#define VM_ARM_DMA_CONSISTENT	0x20000000
+
 #endif
 
 #ifdef CONFIG_ZONE_DMA

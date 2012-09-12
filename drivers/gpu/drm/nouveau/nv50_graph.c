@@ -299,7 +299,7 @@ static struct nouveau_bitfield nv50_graph_trap_ccache[] = {
 
 /* There must be a *lot* of these. Will take some time to gather them up. */
 struct nouveau_enum nv50_data_error_names[] = {
-	{ 0x00000003, "INVALID_QUERY_OR_TEXTURE", NULL },
+	{ 0x00000003, "INVALID_OPERATION", NULL },
 	{ 0x00000004, "INVALID_VALUE", NULL },
 	{ 0x00000005, "INVALID_ENUM", NULL },
 	{ 0x00000008, "INVALID_OBJECT", NULL },

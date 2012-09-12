@@ -18,6 +18,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/irqdomain.h>
+#include <linux/of.h>
 
 int mfd_cell_enable(struct platform_device *pdev)
 {
@@ -76,6 +78,8 @@ static int mfd_add_device(struct device *parent, int id,
 {
 	struct resource *res;
 	struct platform_device *pdev;
+	struct device_node *np = NULL;
+	struct irq_domain *domain = NULL;
 	int ret = -ENOMEM;
 	int r;
 
@@ -88,6 +92,16 @@ static int mfd_add_device(struct device *parent, int id,
 		goto fail_device;
 
 	pdev->dev.parent = parent;
+
+	if (parent->of_node && cell->of_compatible) {
+		for_each_child_of_node(parent->of_node, np) {
+			if (of_device_is_compatible(np, cell->of_compatible)) {
+				pdev->dev.of_node = np;
+				domain = irq_find_host(parent->of_node);
+				break;
+			}
+		}
+	}
 
 	if (cell->pdata_size) {
 		ret = platform_device_add_data(pdev,
@@ -112,10 +126,18 @@ static int mfd_add_device(struct device *parent, int id,
 			res[r].end = mem_base->start +
 				cell->resources[r].end;
 		} else if (cell->resources[r].flags & IORESOURCE_IRQ) {
-			res[r].start = irq_base +
-				cell->resources[r].start;
-			res[r].end   = irq_base +
-				cell->resources[r].end;
+			if (domain) {
+				/* Unable to create mappings for IRQ ranges. */
+				WARN_ON(cell->resources[r].start !=
+					cell->resources[r].end);
+				res[r].start = res[r].end = irq_create_mapping(
+					domain, cell->resources[r].start);
+			} else {
+				res[r].start = irq_base +
+					cell->resources[r].start;
+				res[r].end   = irq_base +
+					cell->resources[r].end;
+			}
 		} else {
 			res[r].parent = cell->resources[r].parent;
 			res[r].start = cell->resources[r].start;

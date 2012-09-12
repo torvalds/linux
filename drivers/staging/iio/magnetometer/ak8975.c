@@ -92,7 +92,6 @@ struct ak8975_data {
 	struct mutex		lock;
 	u8			asa[3];
 	long			raw_to_gauss[3];
-	bool			mode;
 	u8			reg_cache[AK8975_MAX_REGS];
 	int			eoc_gpio;
 	int			eoc_irq;
@@ -194,6 +193,17 @@ static int ak8975_setup(struct i2c_client *client)
 		return ret;
 	}
 
+	/* After reading fuse ROM data set power-down mode */
+	ret = ak8975_write_data(client,
+				AK8975_REG_CNTL,
+				AK8975_REG_CNTL_MODE_POWER_DOWN,
+				AK8975_REG_CNTL_MODE_MASK,
+				AK8975_REG_CNTL_MODE_SHIFT);
+	if (ret < 0) {
+		dev_err(&client->dev, "Error in setting power-down mode\n");
+		return ret;
+	}
+
 /*
  * Precalculate scale factor (in Gauss units) for each axis and
  * store in the device data.
@@ -234,60 +244,6 @@ static int ak8975_setup(struct i2c_client *client)
 	data->raw_to_gauss[2] = ((data->asa[2] + 128) * 30) >> 8;
 
 	return 0;
-}
-
-/*
- * Shows the device's mode.  0 = off, 1 = on.
- */
-static ssize_t show_mode(struct device *dev, struct device_attribute *devattr,
-			 char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ak8975_data *data = iio_priv(indio_dev);
-
-	return sprintf(buf, "%u\n", data->mode);
-}
-
-/*
- * Sets the device's mode.  0 = off, 1 = on.  The device's mode must be on
- * for the magn raw attributes to be available.
- */
-static ssize_t store_mode(struct device *dev, struct device_attribute *devattr,
-			  const char *buf, size_t count)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ak8975_data *data = iio_priv(indio_dev);
-	struct i2c_client *client = data->client;
-	bool value;
-	int ret;
-
-	/* Convert mode string and do some basic sanity checking on it.
-	   only 0 or 1 are valid. */
-	ret = strtobool(buf, &value);
-	if (ret < 0)
-		return ret;
-
-	mutex_lock(&data->lock);
-
-	/* Write the mode to the device. */
-	if (data->mode != value) {
-		ret = ak8975_write_data(client,
-					AK8975_REG_CNTL,
-					(u8)value,
-					AK8975_REG_CNTL_MODE_MASK,
-					AK8975_REG_CNTL_MODE_SHIFT);
-
-		if (ret < 0) {
-			dev_err(&client->dev, "Error in setting mode\n");
-			mutex_unlock(&data->lock);
-			return ret;
-		}
-		data->mode = value;
-	}
-
-	mutex_unlock(&data->lock);
-
-	return count;
 }
 
 static int wait_conversion_complete_gpio(struct ak8975_data *data)
@@ -356,12 +312,6 @@ static int ak8975_read_axis(struct iio_dev *indio_dev, int index, int *val)
 	int ret;
 
 	mutex_lock(&data->lock);
-
-	if (data->mode == 0) {
-		dev_err(&client->dev, "Operating mode is in power down mode\n");
-		ret = -EBUSY;
-		goto exit;
-	}
 
 	/* Set up the device for taking a sample. */
 	ret = ak8975_write_data(client,
@@ -454,24 +404,12 @@ static const struct iio_chan_spec ak8975_channels[] = {
 	AK8975_CHANNEL(X, 0), AK8975_CHANNEL(Y, 1), AK8975_CHANNEL(Z, 2),
 };
 
-static IIO_DEVICE_ATTR(mode, S_IRUGO | S_IWUSR, show_mode, store_mode, 0);
-
-static struct attribute *ak8975_attr[] = {
-	&iio_dev_attr_mode.dev_attr.attr,
-	NULL
-};
-
-static struct attribute_group ak8975_attr_group = {
-	.attrs = ak8975_attr,
-};
-
 static const struct iio_info ak8975_info = {
-	.attrs = &ak8975_attr_group,
 	.read_raw = &ak8975_read_raw,
 	.driver_module = THIS_MODULE,
 };
 
-static int ak8975_probe(struct i2c_client *client,
+static int __devinit ak8975_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct ak8975_data *data;
@@ -488,20 +426,12 @@ static int ak8975_probe(struct i2c_client *client,
 	/* We may not have a GPIO based IRQ to scan, that is fine, we will
 	   poll if so */
 	if (gpio_is_valid(eoc_gpio)) {
-		err = gpio_request(eoc_gpio, "ak_8975");
+		err = gpio_request_one(eoc_gpio, GPIOF_IN, "ak_8975");
 		if (err < 0) {
 			dev_err(&client->dev,
 				"failed to request GPIO %d, error %d\n",
 							eoc_gpio, err);
 			goto exit;
-		}
-
-		err = gpio_direction_input(eoc_gpio);
-		if (err < 0) {
-			dev_err(&client->dev,
-				"Failed to configure input direction for GPIO %d, error %d\n",
-						eoc_gpio, err);
-			goto exit_gpio;
 		}
 	}
 
@@ -545,7 +475,7 @@ exit:
 	return err;
 }
 
-static int ak8975_remove(struct i2c_client *client)
+static int __devexit ak8975_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ak8975_data *data = iio_priv(indio_dev);

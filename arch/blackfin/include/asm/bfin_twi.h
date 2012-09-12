@@ -66,9 +66,9 @@ struct bfin_twi_iface {
 
 #define DEFINE_TWI_REG(reg_name, reg) \
 static inline u16 read_##reg_name(struct bfin_twi_iface *iface) \
-	{ return iface->regs_base->reg; } \
+	{ return bfin_read16(&iface->regs_base->reg); } \
 static inline void write_##reg_name(struct bfin_twi_iface *iface, u16 v) \
-	{ iface->regs_base->reg = v; }
+	{ bfin_write16(&iface->regs_base->reg, v); }
 
 DEFINE_TWI_REG(CLKDIV, clkdiv)
 DEFINE_TWI_REG(CONTROL, control)
@@ -84,7 +84,7 @@ DEFINE_TWI_REG(FIFO_CTL, fifo_ctl)
 DEFINE_TWI_REG(FIFO_STAT, fifo_stat)
 DEFINE_TWI_REG(XMT_DATA8, xmt_data8)
 DEFINE_TWI_REG(XMT_DATA16, xmt_data16)
-#if !ANOMALY_05001001
+#if !ANOMALY_16000030
 DEFINE_TWI_REG(RCV_DATA8, rcv_data8)
 DEFINE_TWI_REG(RCV_DATA16, rcv_data16)
 #else
@@ -94,7 +94,7 @@ static inline u16 read_RCV_DATA8(struct bfin_twi_iface *iface)
 	unsigned long flags;
 
 	flags = hard_local_irq_save();
-	ret = iface->regs_base->rcv_data8;
+	ret = bfin_read16(&iface->regs_base->rcv_data8);
 	hard_local_irq_restore(flags);
 
 	return ret;
@@ -106,7 +106,7 @@ static inline u16 read_RCV_DATA16(struct bfin_twi_iface *iface)
 	unsigned long flags;
 
 	flags = hard_local_irq_save();
-	ret = iface->regs_base->rcv_data16;
+	ret = bfin_read16(&iface->regs_base->rcv_data16);
 	hard_local_irq_restore(flags);
 
 	return ret;

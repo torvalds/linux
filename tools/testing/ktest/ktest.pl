@@ -52,6 +52,7 @@ my %default = (
     "STOP_AFTER_SUCCESS"	=> 10,
     "STOP_AFTER_FAILURE"	=> 60,
     "STOP_TEST_AFTER"		=> 600,
+    "MAX_MONITOR_WAIT"		=> 1800,
 
 # required, and we will ask users if they don't have them but we keep the default
 # value something that is common.
@@ -77,6 +78,11 @@ my $output_config;
 my $test_type;
 my $build_type;
 my $build_options;
+my $final_post_ktest;
+my $pre_ktest;
+my $post_ktest;
+my $pre_test;
+my $post_test;
 my $pre_build;
 my $post_build;
 my $pre_build_die;
@@ -93,6 +99,7 @@ my $reboot_on_success;
 my $die_on_failure;
 my $powercycle_after_reboot;
 my $poweroff_after_halt;
+my $max_monitor_wait;
 my $ssh_exec;
 my $scp_to_target;
 my $scp_to_target_install;
@@ -101,6 +108,7 @@ my $grub_menu;
 my $grub_number;
 my $target;
 my $make;
+my $pre_install;
 my $post_install;
 my $no_install;
 my $noclean;
@@ -167,6 +175,7 @@ my $bisect_check;
 
 my $config_bisect;
 my $config_bisect_type;
+my $config_bisect_check;
 
 my $patchcheck_type;
 my $patchcheck_start;
@@ -182,6 +191,9 @@ my $newconfig = 0;
 my %entered_configs;
 my %config_help;
 my %variable;
+
+# force_config is the list of configs that we force enabled (or disabled)
+# in a .config file. The MIN_CONFIG and ADD_CONFIG configs.
 my %force_config;
 
 # do not force reboots on config problems
@@ -197,6 +209,10 @@ my %option_map = (
     "OUTPUT_DIR"		=> \$outputdir,
     "BUILD_DIR"			=> \$builddir,
     "TEST_TYPE"			=> \$test_type,
+    "PRE_KTEST"			=> \$pre_ktest,
+    "POST_KTEST"		=> \$post_ktest,
+    "PRE_TEST"			=> \$pre_test,
+    "POST_TEST"			=> \$post_test,
     "BUILD_TYPE"		=> \$build_type,
     "BUILD_OPTIONS"		=> \$build_options,
     "PRE_BUILD"			=> \$pre_build,
@@ -216,6 +232,7 @@ my %option_map = (
     "ADD_CONFIG"		=> \$addconfig,
     "REBOOT_TYPE"		=> \$reboot_type,
     "GRUB_MENU"			=> \$grub_menu,
+    "PRE_INSTALL"		=> \$pre_install,
     "POST_INSTALL"		=> \$post_install,
     "NO_INSTALL"		=> \$no_install,
     "REBOOT_SCRIPT"		=> \$reboot_script,
@@ -228,6 +245,7 @@ my %option_map = (
     "POWER_OFF"			=> \$power_off,
     "POWERCYCLE_AFTER_REBOOT"	=> \$powercycle_after_reboot,
     "POWEROFF_AFTER_HALT"	=> \$poweroff_after_halt,
+    "MAX_MONITOR_WAIT"		=> \$max_monitor_wait,
     "SLEEP_TIME"		=> \$sleep_time,
     "BISECT_SLEEP_TIME"		=> \$bisect_sleep_time,
     "PATCHCHECK_SLEEP_TIME"	=> \$patchcheck_sleep_time,
@@ -272,6 +290,7 @@ my %option_map = (
 
     "CONFIG_BISECT"		=> \$config_bisect,
     "CONFIG_BISECT_TYPE"	=> \$config_bisect_type,
+    "CONFIG_BISECT_CHECK"	=> \$config_bisect_check,
 
     "PATCHCHECK_TYPE"		=> \$patchcheck_type,
     "PATCHCHECK_START"		=> \$patchcheck_start,
@@ -604,6 +623,10 @@ sub process_compare {
 	return $lval eq $rval;
     } elsif ($cmp eq "!=") {
 	return $lval ne $rval;
+    } elsif ($cmp eq "=~") {
+	return $lval =~ m/$rval/;
+    } elsif ($cmp eq "!~") {
+	return $lval !~ m/$rval/;
     }
 
     my $statement = "$lval $cmp $rval";
@@ -659,7 +682,7 @@ sub process_expression {
 	}
     }
 
-    if ($val =~ /(.*)(==|\!=|>=|<=|>|<)(.*)/) {
+    if ($val =~ /(.*)(==|\!=|>=|<=|>|<|=~|\!~)(.*)/) {
 	my $ret = process_compare($1, $2, $3);
 	if ($ret < 0) {
 	    die "$name: $.: Unable to process comparison\n";
@@ -1117,7 +1140,11 @@ sub reboot {
     }
 
     if (defined($time)) {
-	wait_for_monitor($time, $reboot_success_line);
+	if (wait_for_monitor($time, $reboot_success_line)) {
+	    # reboot got stuck?
+	    doprint "Reboot did not finish. Forcing power cycle\n";
+	    run_command "$power_cycle";
+	}
 	end_monitor;
     }
 }
@@ -1212,6 +1239,11 @@ sub wait_for_monitor {
     my $full_line = "";
     my $line;
     my $booted = 0;
+    my $start_time = time;
+    my $skip_call_trace = 0;
+    my $bug = 0;
+    my $bug_ignored = 0;
+    my $now;
 
     doprint "** Wait for monitor to settle down **\n";
 
@@ -1227,11 +1259,39 @@ sub wait_for_monitor {
 	    $booted = 1;
 	}
 
+	if ($full_line =~ /\[ backtrace testing \]/) {
+	    $skip_call_trace = 1;
+	}
+
+	if ($full_line =~ /call trace:/i) {
+	    if (!$bug && !$skip_call_trace) {
+		if ($ignore_errors) {
+		    $bug_ignored = 1;
+		} else {
+		    $bug = 1;
+		}
+	    }
+	}
+
+	if ($full_line =~ /\[ end of backtrace testing \]/) {
+	    $skip_call_trace = 0;
+	}
+
+	if ($full_line =~ /Kernel panic -/) {
+	    $bug = 1;
+	}
+
 	if ($line =~ /\n/) {
 	    $full_line = "";
 	}
+	$now = time;
+	if ($now - $start_time >= $max_monitor_wait) {
+	    doprint "Exiting monitor flush due to hitting MAX_MONITOR_WAIT\n";
+	    return 1;
+	}
     }
     print "** Monitor flushed **\n";
+    return $bug;
 }
 
 sub save_logs {
@@ -1272,6 +1332,10 @@ sub save_logs {
 }
 
 sub fail {
+
+	if (defined($post_test)) {
+		run_command $post_test;
+	}
 
 	if ($die_on_failure) {
 		dodie @_;
@@ -1656,6 +1720,12 @@ sub install {
 
     return if ($no_install);
 
+    if (defined($pre_install)) {
+	my $cp_pre_install = eval_kernel_version $pre_install;
+	run_command "$cp_pre_install" or
+	    dodie "Failed to run pre install";
+    }
+
     my $cp_target = eval_kernel_version $target_image;
 
     run_scp_install "$outputdir/$build_target", "$cp_target" or
@@ -1814,6 +1884,7 @@ sub make_oldconfig {
 sub load_force_config {
     my ($config) = @_;
 
+    doprint "Loading force configs from $config\n";
     open(IN, $config) or
 	dodie "failed to read $config";
     while (<IN>) {
@@ -1937,6 +2008,10 @@ sub halt {
 sub success {
     my ($i) = @_;
 
+    if (defined($post_test)) {
+	run_command $post_test;
+    }
+
     $successes++;
 
     my $name = "";
@@ -2003,6 +2078,7 @@ sub do_run_test {
     my $line;
     my $full_line;
     my $bug = 0;
+    my $bug_ignored = 0;
 
     wait_for_monitor 1;
 
@@ -2027,7 +2103,11 @@ sub do_run_test {
 	    doprint $line;
 
 	    if ($full_line =~ /call trace:/i) {
-		$bug = 1;
+		if ($ignore_errors) {
+		    $bug_ignored = 1;
+		} else {
+		    $bug = 1;
+		}
 	    }
 
 	    if ($full_line =~ /Kernel panic -/) {
@@ -2039,6 +2119,10 @@ sub do_run_test {
 	    }
 	}
     } while (!$child_done && !$bug);
+
+    if (!$bug && $bug_ignored) {
+	doprint "WARNING: Call Trace detected but ignored due to IGNORE_ERRORS=1\n";
+    }
 
     if ($bug) {
 	my $failure_start = time;
@@ -2362,9 +2446,24 @@ sub bisect {
     success $i;
 }
 
+# config_ignore holds the configs that were set (or unset) for
+# a good config and we will ignore these configs for the rest
+# of a config bisect. These configs stay as they were.
 my %config_ignore;
+
+# config_set holds what all configs were set as.
 my %config_set;
 
+# config_off holds the set of configs that the bad config had disabled.
+# We need to record them and set them in the .config when running
+# oldnoconfig, because oldnoconfig does not turn off new symbols, but
+# instead just keeps the defaults.
+my %config_off;
+
+# config_off_tmp holds a set of configs to turn off for now
+my @config_off_tmp;
+
+# config_list is the set of configs that are being tested
 my %config_list;
 my %null_config;
 
@@ -2443,12 +2542,21 @@ sub create_config {
 	}
     }
 
+    # turn off configs to keep off
+    foreach my $config (keys %config_off) {
+	print OUT "# $config is not set\n";
+    }
+
+    # turn off configs that should be off for now
+    foreach my $config (@config_off_tmp) {
+	print OUT "# $config is not set\n";
+    }
+
     foreach my $config (keys %config_ignore) {
 	print OUT "$config_ignore{$config}\n";
     }
     close(OUT);
 
-#    exit;
     make_oldconfig;
 }
 
@@ -2525,6 +2633,13 @@ sub run_config_bisect {
     do {
 	my @tophalf = @start_list[0 .. $half];
 
+	# keep the bottom half off
+	if ($half < $#start_list) {
+	    @config_off_tmp = @start_list[$half + 1 .. $#start_list];
+	} else {
+	    @config_off_tmp = ();
+	}
+
 	create_config @tophalf;
 	read_current_config \%current_config;
 
@@ -2541,7 +2656,11 @@ sub run_config_bisect {
 	if (!$found) {
 	    # try the other half
 	    doprint "Top half produced no set configs, trying bottom half\n";
+
+	    # keep the top half off
+	    @config_off_tmp = @tophalf;
 	    @tophalf = @start_list[$half + 1 .. $#start_list];
+
 	    create_config @tophalf;
 	    read_current_config \%current_config;
 	    foreach my $config (@tophalf) {
@@ -2679,6 +2798,10 @@ sub config_bisect {
 		$added_configs{$2} = $1;
 		$config_list{$2} = $1;
 	    }
+	} elsif (/^# ((CONFIG\S*).*)/) {
+	    # Keep these configs disabled
+	    $config_set{$2} = $1;
+	    $config_off{$2} = $1;
 	}
     }
     close(IN);
@@ -2701,6 +2824,8 @@ sub config_bisect {
     my %config_test;
     my $once = 0;
 
+    @config_off_tmp = ();
+
     # Sometimes kconfig does weird things. We must make sure
     # that the config we autocreate has everything we need
     # to test, otherwise we may miss testing configs, or
@@ -2719,6 +2844,18 @@ sub config_bisect {
 	}
     }
     my $ret;
+
+    if (defined($config_bisect_check) && $config_bisect_check) {
+	doprint " Checking to make sure bad config with min config fails\n";
+	create_config keys %config_list;
+	$ret = run_config_bisect_test $config_bisect_type;
+	if ($ret) {
+	    doprint " FAILED! Bad config with min config boots fine\n";
+	    return -1;
+	}
+	doprint " Bad config with min config fails as expected\n";
+    }
+
     do {
 	$ret = run_config_bisect;
     } while (!$ret);
@@ -3510,6 +3647,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     $iteration = $i;
 
+    undef %force_config;
+
     my $makecmd = set_test_option("MAKE_CMD", $i);
 
     # Load all the options into their mapped variable names
@@ -3518,6 +3657,18 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     }
 
     $start_minconfig_defined = 1;
+
+    # The first test may override the PRE_KTEST option
+    if (defined($pre_ktest) && $i == 1) {
+	doprint "\n";
+	run_command $pre_ktest;
+    }
+
+    # Any test can override the POST_KTEST option
+    # The last test takes precedence.
+    if (defined($post_ktest)) {
+	$final_post_ktest = $post_ktest;
+    }
 
     if (!defined($start_minconfig)) {
 	$start_minconfig_defined = 0;
@@ -3572,6 +3723,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     doprint "\n\n";
     doprint "RUNNING TEST $i of $opt{NUM_TESTS} with option $test_type $run_type$installme\n\n";
+
+    if (defined($pre_test)) {
+	run_command $pre_test;
+    }
 
     unlink $dmesg;
     unlink $buildlog;
@@ -3636,6 +3791,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     }
 
     success $i;
+}
+
+if (defined($final_post_ktest)) {
+    run_command $final_post_ktest;
 }
 
 if ($opt{"POWEROFF_ON_SUCCESS"}) {

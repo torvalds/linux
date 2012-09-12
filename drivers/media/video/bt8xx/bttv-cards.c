@@ -345,7 +345,7 @@ static struct CARD {
 	{ 0x15401836, BTTV_BOARD_PV183,         "Provideo PV183-7" },
 	{ 0x15401837, BTTV_BOARD_PV183,         "Provideo PV183-8" },
 	{ 0x3116f200, BTTV_BOARD_TVT_TD3116,	"Tongwei Video Technology TD-3116" },
-
+	{ 0x02280279, BTTV_BOARD_APOSONIC_WDVR, "Aposonic W-DVR" },
 	{ 0, -1, NULL }
 };
 
@@ -676,6 +676,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.has_remote     = 1,
+		.has_radio	= 1,  /* not every card has radio */
 	},
 	[BTTV_BOARD_VOBIS_BOOSTAR] = {
 		.name           = "Terratec TerraTV+ Version 1.0 (Bt848)/ Terra TValue Version 1.0/ Vobis TV-Boostar",
@@ -2817,6 +2818,14 @@ struct tvcard bttv_tvcards[] = {
 		.pll		= PLL_28,
 		.tuner_type     = TUNER_ABSENT,
 	},
+	[BTTV_BOARD_APOSONIC_WDVR] = {
+		.name           = "Aposonic W-DVR",
+		.video_inputs   = 4,
+		.svhs           = NO_SVHS,
+		.muxsel         = MUXSEL(2, 3, 1, 0),
+		.tuner_type     = TUNER_ABSENT,
+	},
+
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);

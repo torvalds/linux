@@ -193,7 +193,7 @@ cifs_std_info_to_fattr(struct cifs_fattr *fattr, FIND_FILE_STANDARD_INFO *info,
       we try to do FindFirst on (NTFS) directory symlinks */
 /*
 int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
-			     int xid)
+			     unsigned int xid)
 {
 	__u16 fid;
 	int len;
@@ -220,7 +220,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 }
  */
 
-static int initiate_cifs_search(const int xid, struct file *file)
+static int initiate_cifs_search(const unsigned int xid, struct file *file)
 {
 	__u16 search_flags;
 	int rc = 0;
@@ -228,7 +228,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	struct cifsFileInfo *cifsFile;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	struct tcon_link *tlink = NULL;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *tcon;
 
 	if (file->private_data == NULL) {
 		tlink = cifs_sb_tlink(cifs_sb);
@@ -242,10 +242,10 @@ static int initiate_cifs_search(const int xid, struct file *file)
 		}
 		file->private_data = cifsFile;
 		cifsFile->tlink = cifs_get_tlink(tlink);
-		pTcon = tlink_tcon(tlink);
+		tcon = tlink_tcon(tlink);
 	} else {
 		cifsFile = file->private_data;
-		pTcon = tlink_tcon(cifsFile->tlink);
+		tcon = tlink_tcon(cifsFile->tlink);
 	}
 
 	cifsFile->invalidHandle = true;
@@ -262,11 +262,11 @@ static int initiate_cifs_search(const int xid, struct file *file)
 ffirst_retry:
 	/* test for Unix extensions */
 	/* but now check for them on the share/mount not on the SMB session */
-/*	if (pTcon->ses->capabilities & CAP_UNIX) { */
-	if (pTcon->unix_ext)
+	/* if (cap_unix(tcon->ses) { */
+	if (tcon->unix_ext)
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_UNIX;
-	else if ((pTcon->ses->capabilities &
-			(CAP_NT_SMBS | CAP_NT_FIND)) == 0) {
+	else if ((tcon->ses->capabilities &
+		  tcon->ses->server->vals->cap_nt_find) == 0) {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_INFO_STANDARD;
 	} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_ID_FULL_DIR_INFO;
@@ -278,7 +278,7 @@ ffirst_retry:
 	if (backup_cred(cifs_sb))
 		search_flags |= CIFS_SEARCH_BACKUP_SEARCH;
 
-	rc = CIFSFindFirst(xid, pTcon, full_path, cifs_sb->local_nls,
+	rc = CIFSFindFirst(xid, tcon, full_path, cifs_sb->local_nls,
 		&cifsFile->netfid, search_flags, &cifsFile->srch_inf,
 		cifs_sb->mnt_cifs_flags &
 			CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
@@ -507,7 +507,7 @@ static int cifs_save_resume_key(const char *current_entry,
    assume that they are located in the findfirst return buffer.*/
 /* We start counting in the buffer with entry 2 and increment for every
    entry (do not increment for . or .. entry) */
-static int find_cifs_entry(const int xid, struct cifs_tcon *pTcon,
+static int find_cifs_entry(const unsigned int xid, struct cifs_tcon *pTcon,
 	struct file *file, char **ppCurrentEntry, int *num_to_ret)
 {
 	__u16 search_flags;
@@ -721,7 +721,8 @@ static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
 int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 {
 	int rc = 0;
-	int xid, i;
+	unsigned int xid;
+	int i;
 	struct cifs_tcon *pTcon;
 	struct cifsFileInfo *cifsFile = NULL;
 	char *current_entry;
@@ -730,7 +731,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	char *end_of_smb;
 	unsigned int max_len;
 
-	xid = GetXid();
+	xid = get_xid();
 
 	/*
 	 * Ensure FindFirst doesn't fail before doing filldir() for '.' and
@@ -768,7 +769,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 
 		if (file->private_data == NULL) {
 			rc = -EINVAL;
-			FreeXid(xid);
+			free_xid(xid);
 			return rc;
 		}
 		cifsFile = file->private_data;
@@ -840,6 +841,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	} /* end switch */
 
 rddir2_exit:
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }

@@ -19,9 +19,11 @@ static irqreturn_t line_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
+	struct tty_struct *tty = tty_port_tty_get(&line->port);
 
 	if (line)
-		chan_interrupt(line, line->tty, irq);
+		chan_interrupt(line, tty, irq);
+	tty_kref_put(tty);
 	return IRQ_HANDLED;
 }
 
@@ -219,92 +221,6 @@ void line_set_termios(struct tty_struct *tty, struct ktermios * old)
 	/* nothing */
 }
 
-static const struct {
-	int  cmd;
-	char *level;
-	char *name;
-} tty_ioctls[] = {
-	/* don't print these, they flood the log ... */
-	{ TCGETS,      NULL,       "TCGETS"      },
-	{ TCSETS,      NULL,       "TCSETS"      },
-	{ TCSETSW,     NULL,       "TCSETSW"     },
-	{ TCFLSH,      NULL,       "TCFLSH"      },
-	{ TCSBRK,      NULL,       "TCSBRK"      },
-
-	/* general tty stuff */
-	{ TCSETSF,     KERN_DEBUG, "TCSETSF"     },
-	{ TCGETA,      KERN_DEBUG, "TCGETA"      },
-	{ TIOCMGET,    KERN_DEBUG, "TIOCMGET"    },
-	{ TCSBRKP,     KERN_DEBUG, "TCSBRKP"     },
-	{ TIOCMSET,    KERN_DEBUG, "TIOCMSET"    },
-
-	/* linux-specific ones */
-	{ TIOCLINUX,   KERN_INFO,  "TIOCLINUX"   },
-	{ KDGKBMODE,   KERN_INFO,  "KDGKBMODE"   },
-	{ KDGKBTYPE,   KERN_INFO,  "KDGKBTYPE"   },
-	{ KDSIGACCEPT, KERN_INFO,  "KDSIGACCEPT" },
-};
-
-int line_ioctl(struct tty_struct *tty, unsigned int cmd,
-				unsigned long arg)
-{
-	int ret;
-	int i;
-
-	ret = 0;
-	switch(cmd) {
-#ifdef TIOCGETP
-	case TIOCGETP:
-	case TIOCSETP:
-	case TIOCSETN:
-#endif
-#ifdef TIOCGETC
-	case TIOCGETC:
-	case TIOCSETC:
-#endif
-#ifdef TIOCGLTC
-	case TIOCGLTC:
-	case TIOCSLTC:
-#endif
-	/* Note: these are out of date as we now have TCGETS2 etc but this
-	   whole lot should probably go away */
-	case TCGETS:
-	case TCSETSF:
-	case TCSETSW:
-	case TCSETS:
-	case TCGETA:
-	case TCSETAF:
-	case TCSETAW:
-	case TCSETA:
-	case TCXONC:
-	case TCFLSH:
-	case TIOCOUTQ:
-	case TIOCINQ:
-	case TIOCGLCKTRMIOS:
-	case TIOCSLCKTRMIOS:
-	case TIOCPKT:
-	case TIOCGSOFTCAR:
-	case TIOCSSOFTCAR:
-		return -ENOIOCTLCMD;
-#if 0
-	case TCwhatever:
-		/* do something */
-		break;
-#endif
-	default:
-		for (i = 0; i < ARRAY_SIZE(tty_ioctls); i++)
-			if (cmd == tty_ioctls[i].cmd)
-				break;
-		if (i == ARRAY_SIZE(tty_ioctls)) {
-			printk(KERN_ERR "%s: %s: unknown ioctl: 0x%x\n",
-			       __func__, tty->name, cmd);
-		}
-		ret = -ENOIOCTLCMD;
-		break;
-	}
-	return ret;
-}
-
 void line_throttle(struct tty_struct *tty)
 {
 	struct line *line = tty->driver_data;
@@ -333,7 +249,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
-	struct tty_struct *tty = line->tty;
+	struct tty_struct *tty;
 	int err;
 
 	/*
@@ -352,68 +268,42 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 	}
 	spin_unlock(&line->lock);
 
+	tty = tty_port_tty_get(&line->port);
 	if (tty == NULL)
 		return IRQ_NONE;
 
 	tty_wakeup(tty);
+	tty_kref_put(tty);
+
 	return IRQ_HANDLED;
 }
 
 int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 {
 	const struct line_driver *driver = line->driver;
-	int err = 0, flags = IRQF_SHARED | IRQF_SAMPLE_RANDOM;
+	int err = 0;
 
 	if (input)
 		err = um_request_irq(driver->read_irq, fd, IRQ_READ,
-				       line_interrupt, flags,
-				       driver->read_irq_name, data);
+				     line_interrupt, IRQF_SHARED,
+				     driver->read_irq_name, data);
 	if (err)
 		return err;
 	if (output)
 		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
-					line_write_interrupt, flags,
-					driver->write_irq_name, data);
+				     line_write_interrupt, IRQF_SHARED,
+				     driver->write_irq_name, data);
 	return err;
 }
 
-/*
- * Normally, a driver like this can rely mostly on the tty layer
- * locking, particularly when it comes to the driver structure.
- * However, in this case, mconsole requests can come in "from the
- * side", and race with opens and closes.
- *
- * mconsole config requests will want to be sure the device isn't in
- * use, and get_config, open, and close will want a stable
- * configuration.  The checking and modification of the configuration
- * is done under a spinlock.  Checking whether the device is in use is
- * line->tty->count > 1, also under the spinlock.
- *
- * line->count serves to decide whether the device should be enabled or
- * disabled on the host.  If it's equal to 0, then we are doing the
- * first open or last close.  Otherwise, open and close just return.
- */
-
-int line_open(struct line *lines, struct tty_struct *tty)
+static int line_activate(struct tty_port *port, struct tty_struct *tty)
 {
-	struct line *line = &lines[tty->index];
-	int err = -ENODEV;
+	int ret;
+	struct line *line = tty->driver_data;
 
-	mutex_lock(&line->count_lock);
-	if (!line->valid)
-		goto out_unlock;
-
-	err = 0;
-	if (line->count++)
-		goto out_unlock;
-
-	BUG_ON(tty->driver_data);
-	tty->driver_data = line;
-	line->tty = tty;
-
-	err = enable_chan(line);
-	if (err) /* line_close() will be called by our caller */
-		goto out_unlock;
+	ret = enable_chan(line);
+	if (ret)
+		return ret;
 
 	if (!line->sigio) {
 		chan_enable_winch(line->chan_out, tty);
@@ -421,44 +311,60 @@ int line_open(struct line *lines, struct tty_struct *tty)
 	}
 
 	chan_window_size(line, &tty->winsize.ws_row,
-			 &tty->winsize.ws_col);
-out_unlock:
-	mutex_unlock(&line->count_lock);
-	return err;
+		&tty->winsize.ws_col);
+
+	return 0;
+}
+
+static const struct tty_port_operations line_port_ops = {
+	.activate = line_activate,
+};
+
+int line_open(struct tty_struct *tty, struct file *filp)
+{
+	struct line *line = tty->driver_data;
+
+	return tty_port_open(&line->port, tty, filp);
+}
+
+int line_install(struct tty_driver *driver, struct tty_struct *tty,
+		 struct line *line)
+{
+	int ret;
+
+	ret = tty_standard_install(driver, tty);
+	if (ret)
+		return ret;
+
+	tty->driver_data = line;
+
+	return 0;
 }
 
 static void unregister_winch(struct tty_struct *tty);
 
-void line_close(struct tty_struct *tty, struct file * filp)
+void line_cleanup(struct tty_struct *tty)
 {
 	struct line *line = tty->driver_data;
-
-	/*
-	 * If line_open fails (and tty->driver_data is never set),
-	 * tty_open will call line_close.  So just return in this case.
-	 */
-	if (line == NULL)
-		return;
-
-	/* We ignore the error anyway! */
-	flush_buffer(line);
-
-	mutex_lock(&line->count_lock);
-	BUG_ON(!line->valid);
-
-	if (--line->count)
-		goto out_unlock;
-
-	line->tty = NULL;
-	tty->driver_data = NULL;
 
 	if (line->sigio) {
 		unregister_winch(tty);
 		line->sigio = 0;
 	}
+}
 
-out_unlock:
-	mutex_unlock(&line->count_lock);
+void line_close(struct tty_struct *tty, struct file * filp)
+{
+	struct line *line = tty->driver_data;
+
+	tty_port_close(&line->port, tty, filp);
+}
+
+void line_hangup(struct tty_struct *tty)
+{
+	struct line *line = tty->driver_data;
+
+	tty_port_hangup(&line->port);
 }
 
 void close_lines(struct line *lines, int nlines)
@@ -476,9 +382,7 @@ int setup_one_line(struct line *lines, int n, char *init,
 	struct tty_driver *driver = line->driver->driver;
 	int err = -EINVAL;
 
-	mutex_lock(&line->count_lock);
-
-	if (line->count) {
+	if (line->port.count) {
 		*error_out = "Device is already open";
 		goto out;
 	}
@@ -519,7 +423,6 @@ int setup_one_line(struct line *lines, int n, char *init,
 		}
 	}
 out:
-	mutex_unlock(&line->count_lock);
 	return err;
 }
 
@@ -607,13 +510,17 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 
 	line = &lines[dev];
 
-	mutex_lock(&line->count_lock);
 	if (!line->valid)
 		CONFIG_CHUNK(str, size, n, "none", 1);
-	else if (line->tty == NULL)
-		CONFIG_CHUNK(str, size, n, line->init_str, 1);
-	else n = chan_config_string(line, str, size, error_out);
-	mutex_unlock(&line->count_lock);
+	else {
+		struct tty_struct *tty = tty_port_tty_get(&line->port);
+		if (tty == NULL) {
+			CONFIG_CHUNK(str, size, n, line->init_str, 1);
+		} else {
+			n = chan_config_string(line, str, size, error_out);
+			tty_kref_put(tty);
+		}
+	}
 
 	return n;
 }
@@ -663,8 +570,9 @@ int register_lines(struct line_driver *line_driver,
 	driver->init_termios = tty_std_termios;
 	
 	for (i = 0; i < nlines; i++) {
+		tty_port_init(&lines[i].port);
+		lines[i].port.ops = &line_port_ops;
 		spin_lock_init(&lines[i].lock);
-		mutex_init(&lines[i].count_lock);
 		lines[i].driver = line_driver;
 		INIT_LIST_HEAD(&lines[i].chan_list);
 	}
@@ -779,8 +687,7 @@ void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty,
 				   .stack	= stack });
 
 	if (um_request_irq(WINCH_IRQ, fd, IRQ_READ, winch_interrupt,
-			   IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			   "winch", winch) < 0) {
+			   IRQF_SHARED, "winch", winch) < 0) {
 		printk(KERN_ERR "register_winch_irq - failed to register "
 		       "IRQ\n");
 		goto out_free;

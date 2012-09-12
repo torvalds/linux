@@ -61,7 +61,7 @@ acpi_ds_create_method_mutex(union acpi_operand_object *method_desc);
  *
  * FUNCTION:    acpi_ds_method_error
  *
- * PARAMETERS:  Status          - Execution status
+ * PARAMETERS:  status          - Execution status
  *              walk_state      - Current state
  *
  * RETURN:      Status
@@ -306,9 +306,9 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
  *
  * FUNCTION:    acpi_ds_call_control_method
  *
- * PARAMETERS:  Thread              - Info for this thread
+ * PARAMETERS:  thread              - Info for this thread
  *              this_walk_state     - Current walk state
- *              Op                  - Current Op to be walked
+ *              op                  - Current Op to be walked
  *
  * RETURN:      Status
  *

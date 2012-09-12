@@ -1748,10 +1748,18 @@ static void via_unsol_event(struct hda_codec *codec,
 }
 
 #ifdef CONFIG_PM
-static int via_suspend(struct hda_codec *codec, pm_message_t state)
+static int via_suspend(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	vt1708_stop_hp_work(spec);
+
+	if (spec->codec_type == VT1802) {
+		/* Fix pop noise on headphones */
+		int i;
+		for (i = 0; i < spec->autocfg.hp_outs; i++)
+			snd_hda_set_pin_ctl(codec, spec->autocfg.hp_pins[i], 0);
+	}
+
 	return 0;
 }
 #endif
@@ -3226,7 +3234,7 @@ static void set_widgets_power_state_vt1718S(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	int imux_is_smixer;
-	unsigned int parm;
+	unsigned int parm, parm2;
 	/* MUX6 (1eh) = stereo mixer */
 	imux_is_smixer =
 	snd_hda_codec_read(codec, 0x1e, 0, AC_VERB_GET_CONNECT_SEL, 0x00) == 5;
@@ -3249,7 +3257,7 @@ static void set_widgets_power_state_vt1718S(struct hda_codec *codec)
 	parm = AC_PWRST_D3;
 	set_pin_power_state(codec, 0x27, &parm);
 	update_power_state(codec, 0x1a, parm);
-	update_power_state(codec, 0xb, parm);
+	parm2 = parm; /* for pin 0x0b */
 
 	/* PW2 (26h), AOW2 (ah) */
 	parm = AC_PWRST_D3;
@@ -3264,6 +3272,9 @@ static void set_widgets_power_state_vt1718S(struct hda_codec *codec)
 	if (!spec->hp_independent_mode) /* check for redirected HP */
 		set_pin_power_state(codec, 0x28, &parm);
 	update_power_state(codec, 0x8, parm);
+	if (!spec->hp_independent_mode && parm2 != AC_PWRST_D3)
+		parm = parm2;
+	update_power_state(codec, 0xb, parm);
 	/* MW9 (21h), Mw2 (1ah), AOW0 (8h) */
 	update_power_state(codec, 0x21, imux_is_smixer ? AC_PWRST_D0 : parm);
 

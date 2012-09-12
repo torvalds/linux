@@ -4,13 +4,15 @@
 struct nouveau_software_priv {
 	struct nouveau_exec_engine base;
 	struct list_head vblank;
+	spinlock_t peephole_lock;
 };
 
 struct nouveau_software_chan {
 	struct list_head flip;
 	struct {
 		struct list_head list;
-		struct nouveau_bo *bo;
+		u32 channel;
+		u32 ctxdma;
 		u32 offset;
 		u32 value;
 		u32 head;
@@ -18,32 +20,17 @@ struct nouveau_software_chan {
 };
 
 static inline void
-nouveau_software_vblank(struct drm_device *dev, int crtc)
-{
-	struct nouveau_software_priv *psw = nv_engine(dev, NVOBJ_ENGINE_SW);
-	struct nouveau_software_chan *pch, *tmp;
-
-	list_for_each_entry_safe(pch, tmp, &psw->vblank, vblank.list) {
-		if (pch->vblank.head != crtc)
-			continue;
-
-		nouveau_bo_wr32(pch->vblank.bo, pch->vblank.offset,
-						pch->vblank.value);
-		list_del(&pch->vblank.list);
-		drm_vblank_put(dev, crtc);
-	}
-}
-
-static inline void
 nouveau_software_context_new(struct nouveau_software_chan *pch)
 {
 	INIT_LIST_HEAD(&pch->flip);
+	INIT_LIST_HEAD(&pch->vblank.list);
 }
 
 static inline void
 nouveau_software_create(struct nouveau_software_priv *psw)
 {
 	INIT_LIST_HEAD(&psw->vblank);
+	spin_lock_init(&psw->peephole_lock);
 }
 
 static inline u16

@@ -55,10 +55,10 @@ static ssize_t pod_set_param_int(struct device *dev, const char *buf,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	unsigned long value;
+	u8 value;
 	int retval;
 
-	retval = strict_strtoul(buf, 10, &value);
+	retval = kstrtou8(buf, 10, &value);
 	if (retval)
 		return retval;
 

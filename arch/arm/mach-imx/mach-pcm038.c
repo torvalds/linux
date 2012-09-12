@@ -27,6 +27,7 @@
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>
 #include <linux/irq.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -274,7 +275,7 @@ static struct mc13xxx_platform_data pcm038_pmic = {
 static struct spi_board_info pcm038_spi_board_info[] __initdata = {
 	{
 		.modalias = "mc13783",
-		.irq = IRQ_GPIOB(23),
+		/* irq number is run-time assigned */
 		.max_speed_hz = 300000,
 		.bus_num = 0,
 		.chip_select = 0,
@@ -325,6 +326,7 @@ static void __init pcm038_init(void)
 	mxc_gpio_mode(GPIO_PORTB | 23 | GPIO_GPIO | GPIO_IN);
 
 	imx27_add_spi_imx0(&pcm038_spi0_data);
+	pcm038_spi_board_info[0].irq = gpio_to_irq(IMX_GPIO_NR(2, 23));
 	spi_register_board_info(pcm038_spi_board_info,
 				ARRAY_SIZE(pcm038_spi_board_info));
 
@@ -332,8 +334,8 @@ static void __init pcm038_init(void)
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-	imx27_add_imx2_wdt(NULL);
-	imx27_add_mxc_w1(NULL);
+	imx27_add_imx2_wdt();
+	imx27_add_mxc_w1();
 
 #ifdef CONFIG_MACH_PCM970_BASEBOARD
 	pcm970_baseboard_init();

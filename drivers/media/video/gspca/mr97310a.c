@@ -67,6 +67,7 @@
 #define MR97310A_CS_GAIN_MAX		0x7ff
 #define MR97310A_CS_GAIN_DEFAULT	0x110
 
+#define MR97310A_CID_CLOCKDIV (V4L2_CTRL_CLASS_USER + 0x1000)
 #define MR97310A_MIN_CLOCKDIV_MIN	3
 #define MR97310A_MIN_CLOCKDIV_MAX	8
 #define MR97310A_MIN_CLOCKDIV_DEFAULT	3
@@ -84,17 +85,15 @@ MODULE_PARM_DESC(force_sensor_type, "Force sensor type (-1 (auto), 0 or 1)");
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;  /* !! must be the first item */
+	struct { /* exposure/min_clockdiv control cluster */
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *min_clockdiv;
+	};
 	u8 sof_read;
 	u8 cam_type;	/* 0 is CIF and 1 is VGA */
 	u8 sensor_type;	/* We use 0 and 1 here, too. */
 	u8 do_lcd_stop;
 	u8 adj_colors;
-
-	int brightness;
-	u16 exposure;
-	u32 gain;
-	u8 contrast;
-	u8 min_clockdiv;
 };
 
 struct sensor_w_data {
@@ -105,132 +104,6 @@ struct sensor_w_data {
 };
 
 static void sd_stopN(struct gspca_dev *gspca_dev);
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setmin_clockdiv(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getmin_clockdiv(struct gspca_dev *gspca_dev, __s32 *val);
-static void setbrightness(struct gspca_dev *gspca_dev);
-static void setexposure(struct gspca_dev *gspca_dev);
-static void setgain(struct gspca_dev *gspca_dev);
-static void setcontrast(struct gspca_dev *gspca_dev);
-
-/* V4L2 controls supported by the driver */
-static const struct ctrl sd_ctrls[] = {
-/* Separate brightness control description for Argus QuickClix as it has
- * different limits from the other mr97310a cameras, and separate gain
- * control for Sakar CyberPix camera. */
-	{
-#define NORM_BRIGHTNESS_IDX 0
-		{
-			.id = V4L2_CID_BRIGHTNESS,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Brightness",
-			.minimum = -254,
-			.maximum = 255,
-			.step = 1,
-			.default_value = MR97310A_BRIGHTNESS_DEFAULT,
-			.flags = 0,
-		},
-		.set = sd_setbrightness,
-		.get = sd_getbrightness,
-	},
-	{
-#define ARGUS_QC_BRIGHTNESS_IDX 1
-		{
-			.id = V4L2_CID_BRIGHTNESS,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Brightness",
-			.minimum = 0,
-			.maximum = 15,
-			.step = 1,
-			.default_value = MR97310A_BRIGHTNESS_DEFAULT,
-			.flags = 0,
-		},
-		.set = sd_setbrightness,
-		.get = sd_getbrightness,
-	},
-	{
-#define EXPOSURE_IDX 2
-		{
-			.id = V4L2_CID_EXPOSURE,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Exposure",
-			.minimum = MR97310A_EXPOSURE_MIN,
-			.maximum = MR97310A_EXPOSURE_MAX,
-			.step = 1,
-			.default_value = MR97310A_EXPOSURE_DEFAULT,
-			.flags = 0,
-		},
-		.set = sd_setexposure,
-		.get = sd_getexposure,
-	},
-	{
-#define GAIN_IDX 3
-		{
-			.id = V4L2_CID_GAIN,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Gain",
-			.minimum = MR97310A_GAIN_MIN,
-			.maximum = MR97310A_GAIN_MAX,
-			.step = 1,
-			.default_value = MR97310A_GAIN_DEFAULT,
-			.flags = 0,
-		},
-		.set = sd_setgain,
-		.get = sd_getgain,
-	},
-	{
-#define SAKAR_CS_GAIN_IDX 4
-		{
-			.id = V4L2_CID_GAIN,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Gain",
-			.minimum = MR97310A_CS_GAIN_MIN,
-			.maximum = MR97310A_CS_GAIN_MAX,
-			.step = 1,
-			.default_value = MR97310A_CS_GAIN_DEFAULT,
-			.flags = 0,
-		},
-		.set = sd_setgain,
-		.get = sd_getgain,
-	},
-	{
-#define CONTRAST_IDX 5
-		{
-			.id = V4L2_CID_CONTRAST,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Contrast",
-			.minimum = MR97310A_CONTRAST_MIN,
-			.maximum = MR97310A_CONTRAST_MAX,
-			.step = 1,
-			.default_value = MR97310A_CONTRAST_DEFAULT,
-			.flags = 0,
-		},
-		.set = sd_setcontrast,
-		.get = sd_getcontrast,
-	},
-	{
-#define MIN_CLOCKDIV_IDX 6
-		{
-			.id = V4L2_CID_PRIVATE_BASE,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Minimum Clock Divider",
-			.minimum = MR97310A_MIN_CLOCKDIV_MIN,
-			.maximum = MR97310A_MIN_CLOCKDIV_MAX,
-			.step = 1,
-			.default_value = MR97310A_MIN_CLOCKDIV_DEFAULT,
-			.flags = 0,
-		},
-		.set = sd_setmin_clockdiv,
-		.get = sd_getmin_clockdiv,
-	},
-};
 
 static const struct v4l2_pix_format vga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_MR97310A, V4L2_FIELD_NONE,
@@ -481,7 +354,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	int gain_default = MR97310A_GAIN_DEFAULT;
 	int err_code;
 
 	cam = &gspca_dev->cam;
@@ -614,52 +486,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		PDEBUG(D_PROBE, "Forcing sensor type to: %d",
 		       sd->sensor_type);
 	}
-
-	/* Setup controls depending on camera type */
-	if (sd->cam_type == CAM_TYPE_CIF) {
-		/* No brightness for sensor_type 0 */
-		if (sd->sensor_type == 0)
-			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
-					      (1 << ARGUS_QC_BRIGHTNESS_IDX) |
-					      (1 << CONTRAST_IDX) |
-					      (1 << SAKAR_CS_GAIN_IDX);
-		else
-			gspca_dev->ctrl_dis = (1 << ARGUS_QC_BRIGHTNESS_IDX) |
-					      (1 << CONTRAST_IDX) |
-					      (1 << SAKAR_CS_GAIN_IDX) |
-					      (1 << MIN_CLOCKDIV_IDX);
-	} else {
-		/* All controls need to be disabled if VGA sensor_type is 0 */
-		if (sd->sensor_type == 0)
-			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
-					      (1 << ARGUS_QC_BRIGHTNESS_IDX) |
-					      (1 << EXPOSURE_IDX) |
-					      (1 << GAIN_IDX) |
-					      (1 << CONTRAST_IDX) |
-					      (1 << SAKAR_CS_GAIN_IDX) |
-					      (1 << MIN_CLOCKDIV_IDX);
-		else if (sd->sensor_type == 2) {
-			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
-					      (1 << ARGUS_QC_BRIGHTNESS_IDX) |
-					      (1 << GAIN_IDX) |
-					      (1 << MIN_CLOCKDIV_IDX);
-			gain_default = MR97310A_CS_GAIN_DEFAULT;
-		} else if (sd->do_lcd_stop)
-			/* Argus QuickClix has different brightness limits */
-			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
-					      (1 << CONTRAST_IDX) |
-					      (1 << SAKAR_CS_GAIN_IDX);
-		else
-			gspca_dev->ctrl_dis = (1 << ARGUS_QC_BRIGHTNESS_IDX) |
-					      (1 << CONTRAST_IDX) |
-					      (1 << SAKAR_CS_GAIN_IDX);
-	}
-
-	sd->brightness = MR97310A_BRIGHTNESS_DEFAULT;
-	sd->exposure = MR97310A_EXPOSURE_DEFAULT;
-	sd->gain = gain_default;
-	sd->contrast = MR97310A_CONTRAST_DEFAULT;
-	sd->min_clockdiv = MR97310A_MIN_CLOCKDIV_DEFAULT;
 
 	return 0;
 }
@@ -952,11 +778,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	if (err_code < 0)
 		return err_code;
 
-	setbrightness(gspca_dev);
-	setcontrast(gspca_dev);
-	setexposure(gspca_dev);
-	setgain(gspca_dev);
-
 	return isoc_enable(gspca_dev);
 }
 
@@ -971,37 +792,25 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		lcd_stop(gspca_dev);
 }
 
-static void setbrightness(struct gspca_dev *gspca_dev)
+static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 val;
 	u8 sign_reg = 7;  /* This reg and the next one used on CIF cams. */
 	u8 value_reg = 8; /* VGA cams seem to use regs 0x0b and 0x0c */
 	static const u8 quick_clix_table[] =
 	/*	  0  1  2   3  4  5  6  7  8  9  10  11  12  13  14  15 */
 		{ 0, 4, 8, 12, 1, 2, 3, 5, 6, 9,  7, 10, 13, 11, 14, 15};
-	/*
-	 * This control is disabled for CIF type 1 and VGA type 0 cameras.
-	 * It does not quite act linearly for the Argus QuickClix camera,
-	 * but it does control brightness. The values are 0 - 15 only, and
-	 * the table above makes them act consecutively.
-	 */
-	if ((gspca_dev->ctrl_dis & (1 << NORM_BRIGHTNESS_IDX)) &&
-	    (gspca_dev->ctrl_dis & (1 << ARGUS_QC_BRIGHTNESS_IDX)))
-		return;
-
 	if (sd->cam_type == CAM_TYPE_VGA) {
 		sign_reg += 4;
 		value_reg += 4;
 	}
 
 	/* Note register 7 is also seen as 0x8x or 0xCx in some dumps */
-	if (sd->brightness > 0) {
+	if (val > 0) {
 		sensor_write1(gspca_dev, sign_reg, 0x00);
-		val = sd->brightness;
 	} else {
 		sensor_write1(gspca_dev, sign_reg, 0x01);
-		val = (257 - sd->brightness);
+		val = 257 - val;
 	}
 	/* Use lookup table for funky Argus QuickClix brightness */
 	if (sd->do_lcd_stop)
@@ -1010,23 +819,20 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	sensor_write1(gspca_dev, value_reg, val);
 }
 
-static void setexposure(struct gspca_dev *gspca_dev)
+static void setexposure(struct gspca_dev *gspca_dev, s32 expo, s32 min_clockdiv)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int exposure = MR97310A_EXPOSURE_DEFAULT;
 	u8 buf[2];
 
-	if (gspca_dev->ctrl_dis & (1 << EXPOSURE_IDX))
-		return;
-
 	if (sd->cam_type == CAM_TYPE_CIF && sd->sensor_type == 1) {
 		/* This cam does not like exposure settings < 300,
 		   so scale 0 - 4095 to 300 - 4095 */
-		exposure = (sd->exposure * 9267) / 10000 + 300;
+		exposure = (expo * 9267) / 10000 + 300;
 		sensor_write1(gspca_dev, 3, exposure >> 4);
 		sensor_write1(gspca_dev, 4, exposure & 0x0f);
 	} else if (sd->sensor_type == 2) {
-		exposure = sd->exposure;
+		exposure = expo;
 		exposure >>= 3;
 		sensor_write1(gspca_dev, 3, exposure >> 8);
 		sensor_write1(gspca_dev, 4, exposure & 0xff);
@@ -1038,11 +844,11 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 		   Note our 0 - 4095 exposure is mapped to 0 - 511
 		   milliseconds exposure time */
-		u8 clockdiv = (60 * sd->exposure + 7999) / 8000;
+		u8 clockdiv = (60 * expo + 7999) / 8000;
 
 		/* Limit framerate to not exceed usb bandwidth */
-		if (clockdiv < sd->min_clockdiv && gspca_dev->width >= 320)
-			clockdiv = sd->min_clockdiv;
+		if (clockdiv < min_clockdiv && gspca_dev->width >= 320)
+			clockdiv = min_clockdiv;
 		else if (clockdiv < 2)
 			clockdiv = 2;
 
@@ -1051,7 +857,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 		/* Frame exposure time in ms = 1000 * clockdiv / 60 ->
 		exposure = (sd->exposure / 8) * 511 / (1000 * clockdiv / 60) */
-		exposure = (60 * 511 * sd->exposure) / (8000 * clockdiv);
+		exposure = (60 * 511 * expo) / (8000 * clockdiv);
 		if (exposure > 511)
 			exposure = 511;
 
@@ -1065,125 +871,148 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	}
 }
 
-static void setgain(struct gspca_dev *gspca_dev)
+static void setgain(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 gainreg;
 
-	if ((gspca_dev->ctrl_dis & (1 << GAIN_IDX)) &&
-	    (gspca_dev->ctrl_dis & (1 << SAKAR_CS_GAIN_IDX)))
-		return;
-
 	if (sd->cam_type == CAM_TYPE_CIF && sd->sensor_type == 1)
-		sensor_write1(gspca_dev, 0x0e, sd->gain);
+		sensor_write1(gspca_dev, 0x0e, val);
 	else if (sd->cam_type == CAM_TYPE_VGA && sd->sensor_type == 2)
 		for (gainreg = 0x0a; gainreg < 0x11; gainreg += 2) {
-			sensor_write1(gspca_dev, gainreg, sd->gain >> 8);
-			sensor_write1(gspca_dev, gainreg + 1, sd->gain & 0xff);
+			sensor_write1(gspca_dev, gainreg, val >> 8);
+			sensor_write1(gspca_dev, gainreg + 1, val & 0xff);
 		}
 	else
-		sensor_write1(gspca_dev, 0x10, sd->gain);
+		sensor_write1(gspca_dev, 0x10, val);
 }
 
-static void setcontrast(struct gspca_dev *gspca_dev)
+static void setcontrast(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (gspca_dev->ctrl_dis & (1 << CONTRAST_IDX))
-		return;
-
-	sensor_write1(gspca_dev, 0x1c, sd->contrast);
+	sensor_write1(gspca_dev, 0x1c, val);
 }
 
-
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
 
-	sd->brightness = val;
-	if (gspca_dev->streaming)
-		setbrightness(gspca_dev);
-	return 0;
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		setbrightness(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		setcontrast(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_EXPOSURE:
+		setexposure(gspca_dev, sd->exposure->val,
+			    sd->min_clockdiv ? sd->min_clockdiv->val : 0);
+		break;
+	case V4L2_CID_GAIN:
+		setgain(gspca_dev, ctrl->val);
+		break;
+	}
+	return gspca_dev->usb_err;
 }
 
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
+	struct sd *sd = (struct sd *)gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+	static const struct v4l2_ctrl_config clockdiv = {
+		.ops = &sd_ctrl_ops,
+		.id = MR97310A_CID_CLOCKDIV,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Minimum Clock Divider",
+		.min = MR97310A_MIN_CLOCKDIV_MIN,
+		.max = MR97310A_MIN_CLOCKDIV_MAX,
+		.step = 1,
+		.def = MR97310A_MIN_CLOCKDIV_DEFAULT,
+	};
+	bool has_brightness = false;
+	bool has_argus_brightness = false;
+	bool has_contrast = false;
+	bool has_gain = false;
+	bool has_cs_gain = false;
+	bool has_exposure = false;
+	bool has_clockdiv = false;
 
-	*val = sd->brightness;
-	return 0;
-}
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 4);
 
-static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
+	/* Setup controls depending on camera type */
+	if (sd->cam_type == CAM_TYPE_CIF) {
+		/* No brightness for sensor_type 0 */
+		if (sd->sensor_type == 0)
+			has_exposure = has_gain = has_clockdiv = true;
+		else
+			has_exposure = has_gain = has_brightness = true;
+	} else {
+		/* All controls need to be disabled if VGA sensor_type is 0 */
+		if (sd->sensor_type == 0)
+			; /* no controls! */
+		else if (sd->sensor_type == 2)
+			has_exposure = has_cs_gain = has_contrast = true;
+		else if (sd->do_lcd_stop)
+			has_exposure = has_gain = has_argus_brightness =
+				has_clockdiv = true;
+		else
+			has_exposure = has_gain = has_brightness =
+				has_clockdiv = true;
+	}
 
-	sd->exposure = val;
-	if (gspca_dev->streaming)
-		setexposure(gspca_dev);
-	return 0;
-}
+	/* Separate brightness control description for Argus QuickClix as it has
+	 * different limits from the other mr97310a cameras, and separate gain
+	 * control for Sakar CyberPix camera. */
+	/*
+	 * This control is disabled for CIF type 1 and VGA type 0 cameras.
+	 * It does not quite act linearly for the Argus QuickClix camera,
+	 * but it does control brightness. The values are 0 - 15 only, and
+	 * the table above makes them act consecutively.
+	 */
+	if (has_brightness)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, -254, 255, 1,
+			MR97310A_BRIGHTNESS_DEFAULT);
+	else if (has_argus_brightness)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 15, 1,
+			MR97310A_BRIGHTNESS_DEFAULT);
+	if (has_contrast)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_CONTRAST, MR97310A_CONTRAST_MIN,
+			MR97310A_CONTRAST_MAX, 1, MR97310A_CONTRAST_DEFAULT);
+	if (has_gain)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, MR97310A_GAIN_MIN, MR97310A_GAIN_MAX,
+			1, MR97310A_GAIN_DEFAULT);
+	else if (has_cs_gain)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops, V4L2_CID_GAIN,
+			MR97310A_CS_GAIN_MIN, MR97310A_CS_GAIN_MAX,
+			1, MR97310A_CS_GAIN_DEFAULT);
+	if (has_exposure)
+		sd->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_EXPOSURE, MR97310A_EXPOSURE_MIN,
+			MR97310A_EXPOSURE_MAX, 1, MR97310A_EXPOSURE_DEFAULT);
+	if (has_clockdiv)
+		sd->min_clockdiv = v4l2_ctrl_new_custom(hdl, &clockdiv, NULL);
 
-static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->exposure;
-	return 0;
-}
-
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->gain = val;
-	if (gspca_dev->streaming)
-		setgain(gspca_dev);
-	return 0;
-}
-
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->gain;
-	return 0;
-}
-
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->contrast = val;
-	if (gspca_dev->streaming)
-		setcontrast(gspca_dev);
-	return 0;
-}
-
-
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->contrast;
-	return 0;
-}
-
-static int sd_setmin_clockdiv(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->min_clockdiv = val;
-	if (gspca_dev->streaming)
-		setexposure(gspca_dev);
-	return 0;
-}
-
-static int sd_getmin_clockdiv(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->min_clockdiv;
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+	if (has_exposure && has_clockdiv)
+		v4l2_ctrl_cluster(2, &sd->exposure);
 	return 0;
 }
 
@@ -1221,10 +1050,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
@@ -1256,6 +1084,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

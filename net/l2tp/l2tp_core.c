@@ -1128,6 +1128,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	int headroom;
 	int uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
 	int udp_len;
+	int ret = NET_XMIT_SUCCESS;
 
 	/* Check that there's enough headroom in the skb to insert IP,
 	 * UDP and L2TP headers. If not enough, expand it to
@@ -1137,8 +1138,8 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 		uhlen + hdr_len;
 	old_headroom = skb_headroom(skb);
 	if (skb_cow_head(skb, headroom)) {
-		dev_kfree_skb(skb);
-		goto abort;
+		kfree_skb(skb);
+		return NET_XMIT_DROP;
 	}
 
 	new_headroom = skb_headroom(skb);
@@ -1156,7 +1157,8 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
+		ret = NET_XMIT_DROP;
 		goto out_unlock;
 	}
 
@@ -1215,8 +1217,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 out_unlock:
 	bh_unlock_sock(sk);
 
-abort:
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
 
@@ -1346,11 +1347,10 @@ static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 	/* Remove from tunnel list */
 	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
 	list_del_rcu(&tunnel->list);
+	kfree_rcu(tunnel, rcu);
 	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
-	synchronize_rcu();
 
 	atomic_dec(&l2tp_tunnel_count);
-	kfree(tunnel);
 }
 
 /* Create a socket for the tunnel, if one isn't set up by

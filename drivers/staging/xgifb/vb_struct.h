@@ -28,7 +28,6 @@ struct XGI_Ext2Struct {
 	unsigned char  ModeID;
 	unsigned short XRes;
 	unsigned short YRes;
-	/* unsigned short ROM_OFFSET; */
 };
 
 struct XGI_ECLKDataStruct {
@@ -51,13 +50,6 @@ struct XGI_LCDDataTablStruct {
 	unsigned short DATAPTR;
 };
 
-struct XGI330_LVDSDataStruct {
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short LCDHT;
-	unsigned short LCDVT;
-};
-
 struct XGI330_LCDDataDesStruct2 {
 	unsigned short LCDHDES;
 	unsigned short LCDHRS;
@@ -65,15 +57,6 @@ struct XGI330_LCDDataDesStruct2 {
 	unsigned short LCDVRS;
 	unsigned short LCDHSync;
 	unsigned short LCDVSync;
-};
-
-struct XGI330_LCDDataStruct {
-	unsigned short RVBHCMAX;
-	unsigned short RVBHCFACT;
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short LCDHT;
-	unsigned short LCDVT;
 };
 
 
@@ -103,13 +86,6 @@ struct XGI330_TVDataTablStruct {
 };
 
 
-struct XGI330_CHTVDataStruct {
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short LCDHT;
-	unsigned short LCDVT;
-};
-
 struct XGI_TimingHStruct {
 	unsigned char data[8];
 };
@@ -126,7 +102,6 @@ struct XGI330_LCDCapStruct {
 	unsigned char	LCD_ID;
 	unsigned short	LCD_Capability;
 	unsigned char	LCD_SetFlag;
-	unsigned char	LCD_DelayCompensation;
 	unsigned char	LCD_HSyncWidth;
 	unsigned char	LCD_VSyncWidth;
 	unsigned char	LCD_VCLK;
@@ -174,11 +149,6 @@ struct XGI_CRT1TableStruct {
 };
 
 
-struct XGI330_VCLKDataStruct {
-	unsigned char SR2B, SR2C;
-	unsigned short CLOCK;
-};
-
 struct XGI301C_Tap4TimingStruct {
 	unsigned short DE;
 	unsigned char  Reg[64];   /* C0-FF */
@@ -196,7 +166,6 @@ struct vb_device_info {
 	unsigned short   LCDHRS, LCDVRS, LCDHDES, LCDVDES;
 
 	unsigned short   ModeType;
-	/* ,IF_DEF_FSTN; add for dstn */
 	unsigned short   IF_DEF_LVDS, IF_DEF_TRUMPION, IF_DEF_DSTN;
 	unsigned short   IF_DEF_CRT2Monitor;
 	unsigned short   IF_DEF_LCDA, IF_DEF_YPbPr;
@@ -220,50 +189,14 @@ struct vb_device_info {
 	unsigned char (*SR15)[8];
 	unsigned char (*CR40)[8];
 
-	unsigned char  *pSoftSetting;
-	unsigned char  *pOutputSelect;
-
-	unsigned short *pRGBSenseData;
-	unsigned short *pRGBSenseData2; /*301b*/
-	unsigned short *pVideoSenseData;
-	unsigned short *pVideoSenseData2;
-	unsigned short *pYCSenseData;
-	unsigned short *pYCSenseData2;
-
-	unsigned char  *pSR07;
-	unsigned char  *CR49;
-	unsigned char  *pSR1F;
 	unsigned char  *AGPReg;
 	unsigned char  *SR16;
-	unsigned char  *pSR21;
-	unsigned char  *pSR22;
-	unsigned char  *pSR23;
-	unsigned char  *pSR24;
-	unsigned char  *SR25;
-	unsigned char  *pSR31;
-	unsigned char  *pSR32;
-	unsigned char  *pSR33;
-	unsigned char  *pSR36;      /* alan 12/07/2006 */
-	unsigned char  *pCRCF;
-	unsigned char  *pCRD0;      /* alan 12/07/2006 */
-	unsigned char  *pCRDE;      /* alan 12/07/2006 */
-	unsigned char  *pCR8F;      /* alan 12/07/2006 */
-	unsigned char  *pSR40;      /* alan 12/07/2006 */
-	unsigned char  *pSR41;      /* alan 12/07/2006 */
-	unsigned char  *pDVOSetting;
-	unsigned char  *pCR2E;
-	unsigned char  *pCR2F;
-	unsigned char  *pCR46;
-	unsigned char  *pCR47;
-	unsigned char  *pCRT2Data_1_2;
-	unsigned char  *pCRT2Data_4_D;
-	unsigned char  *pCRT2Data_4_E;
-	unsigned char  *pCRT2Data_4_10;
+	unsigned char  SR21;
+	unsigned char  SR22;
+	unsigned char  SR25;
 	struct SiS_MCLKData  *MCLKData;
 	struct XGI_ECLKDataStruct  *ECLKData;
 
-	unsigned char   *XGI_TVDelayList;
-	unsigned char   *XGI_TVDelayList2;
 	unsigned char   *NTSCTiming;
 	unsigned char   *PALTiming;
 	unsigned char   *HiTVExtTiming;
@@ -280,8 +213,7 @@ struct vb_device_info {
 	unsigned char   *Ren750pGroup3;
 	unsigned char   *ScreenOffset;
 	unsigned char   *pXGINew_DRAMTypeDefinition;
-	unsigned char   *pXGINew_I2CDefinition ;
-	unsigned char   *pXGINew_CR97 ;
+	unsigned char   XGINew_CR97;
 
 	struct XGI330_LCDCapStruct  *LCDCapList;
 
@@ -291,7 +223,6 @@ struct vb_device_info {
 	struct SiS_StandTable_S  *StandTable;
 	struct XGI_ExtStruct         *EModeIDTable;
 	struct XGI_Ext2Struct        *RefIndex;
-	/* XGINew_CRT1TableStruct *CRT1Table; */
 	struct XGI_CRT1TableStruct    *XGINEWUB_CRT1Table;
 	struct SiS_VCLKData    *VCLKData;
 	struct SiS_VBVCLKData  *VBVCLKData;

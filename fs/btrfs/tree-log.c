@@ -637,7 +637,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	}
 
 	inode_set_bytes(inode, saved_nbytes);
-	btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, root, inode);
 out:
 	if (inode)
 		iput(inode);
@@ -1133,7 +1133,7 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 	if (ret == 0) {
 		btrfs_inc_nlink(inode);
-		btrfs_update_inode(trans, root, inode);
+		ret = btrfs_update_inode(trans, root, inode);
 	} else if (ret == -EEXIST) {
 		ret = 0;
 	} else {

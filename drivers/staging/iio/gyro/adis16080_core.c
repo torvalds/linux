@@ -82,7 +82,7 @@ static int adis16080_read_raw(struct iio_dev *indio_dev,
 			     long mask)
 {
 	int ret = -EINVAL;
-	u16 ut;
+	u16 ut = 0;
 	/* Take the iio_dev status lock */
 
 	mutex_lock(&indio_dev->mlock);

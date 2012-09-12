@@ -1,7 +1,7 @@
 /*
  * MPC83xx/85xx/86xx PCI/PCIE support routing.
  *
- * Copyright 2007-2011 Freescale Semiconductor, Inc.
+ * Copyright 2007-2012 Freescale Semiconductor, Inc.
  * Copyright 2008-2009 MontaVista Software, Inc.
  *
  * Initial author: Xianghua Xiao <x.xiao@freescale.com>
@@ -36,7 +36,7 @@
 
 static int fsl_pcie_bus_fixup, is_mpc83xx_pci;
 
-static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
+static void __devinit quirk_fsl_pcie_header(struct pci_dev *dev)
 {
 	u8 progif;
 
@@ -465,7 +465,7 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 			iounmap(hose->cfg_data);
 		iounmap(hose->cfg_addr);
 		pcibios_free_controller(hose);
-		return 0;
+		return -ENODEV;
 	}
 
 	setup_pci_cmd(hose);
@@ -807,3 +807,75 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose)
 
 	return 0;
 }
+
+#if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
+static const struct of_device_id pci_ids[] = {
+	{ .compatible = "fsl,mpc8540-pci", },
+	{ .compatible = "fsl,mpc8548-pcie", },
+	{ .compatible = "fsl,mpc8610-pci", },
+	{ .compatible = "fsl,mpc8641-pcie", },
+	{ .compatible = "fsl,p1022-pcie", },
+	{ .compatible = "fsl,p1010-pcie", },
+	{ .compatible = "fsl,p1023-pcie", },
+	{ .compatible = "fsl,p4080-pcie", },
+	{ .compatible = "fsl,qoriq-pcie-v2.3", },
+	{ .compatible = "fsl,qoriq-pcie-v2.2", },
+	{},
+};
+
+struct device_node *fsl_pci_primary;
+
+void __devinit fsl_pci_init(void)
+{
+	int ret;
+	struct device_node *node;
+	struct pci_controller *hose;
+	dma_addr_t max = 0xffffffff;
+
+	/* Callers can specify the primary bus using other means. */
+	if (!fsl_pci_primary) {
+		/* If a PCI host bridge contains an ISA node, it's primary. */
+		node = of_find_node_by_type(NULL, "isa");
+		while ((fsl_pci_primary = of_get_parent(node))) {
+			of_node_put(node);
+			node = fsl_pci_primary;
+
+			if (of_match_node(pci_ids, node))
+				break;
+		}
+	}
+
+	node = NULL;
+	for_each_node_by_type(node, "pci") {
+		if (of_match_node(pci_ids, node)) {
+			/*
+			 * If there's no PCI host bridge with ISA, arbitrarily
+			 * designate one as primary.  This can go away once
+			 * various bugs with primary-less systems are fixed.
+			 */
+			if (!fsl_pci_primary)
+				fsl_pci_primary = node;
+
+			ret = fsl_add_bridge(node, fsl_pci_primary == node);
+			if (ret == 0) {
+				hose = pci_find_hose_for_OF_device(node);
+				max = min(max, hose->dma_window_base_cur +
+						hose->dma_window_size);
+			}
+		}
+	}
+
+#ifdef CONFIG_SWIOTLB
+	/*
+	 * if we couldn't map all of DRAM via the dma windows
+	 * we need SWIOTLB to handle buffers located outside of
+	 * dma capable memory region
+	 */
+	if (memblock_end_of_DRAM() - 1 > max) {
+		ppc_swiotlb_enable = 1;
+		set_pci_dma_ops(&swiotlb_dma_ops);
+		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
+	}
+#endif
+}
+#endif

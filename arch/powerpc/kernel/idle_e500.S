@@ -21,7 +21,7 @@
 	.text
 
 _GLOBAL(e500_idle)
-	rlwinm	r3,r1,0,0,31-THREAD_SHIFT	/* current thread_info */
+	CURRENT_THREAD_INFO(r3, r1)
 	lwz	r4,TI_LOCAL_FLAGS(r3)	/* set napping bit */
 	ori	r4,r4,_TLF_NAPPING	/* so when we take an exception */
 	stw	r4,TI_LOCAL_FLAGS(r3)	/* it will return to our caller */
@@ -96,7 +96,7 @@ _GLOBAL(power_save_ppc32_restore)
 	stw	r9,_NIP(r11)		/* make it do a blr */
 
 #ifdef CONFIG_SMP
-	rlwinm	r12,r1,0,0,31-THREAD_SHIFT
+	CURRENT_THREAD_INFO(r12, r1)
 	lwz	r11,TI_CPU(r12)		/* get cpu number * 4 */
 	slwi	r11,r11,2
 #else

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -676,7 +676,7 @@ struct acpi_madt_local_apic {
 struct acpi_madt_io_apic {
 	struct acpi_subtable_header header;
 	u8 id;			/* I/O APIC ID */
-	u8 reserved;		/* Reserved - must be zero */
+	u8 reserved;		/* reserved - must be zero */
 	u32 address;		/* APIC physical address */
 	u32 global_irq_base;	/* Global system interrupt where INTI lines start */
 };
@@ -794,11 +794,11 @@ struct acpi_madt_generic_interrupt {
 
 struct acpi_madt_generic_distributor {
 	struct acpi_subtable_header header;
-	u16 reserved;		/* Reserved - must be zero */
+	u16 reserved;		/* reserved - must be zero */
 	u32 gic_id;
 	u64 base_address;
 	u32 global_irq_base;
-	u32 reserved2;		/* Reserved - must be zero */
+	u32 reserved2;		/* reserved - must be zero */
 };
 
 /*
@@ -841,7 +841,7 @@ struct acpi_table_msct {
 	u64 max_address;	/* Max physical address in system */
 };
 
-/* Subtable - Maximum Proximity Domain Information. Version 1 */
+/* subtable - Maximum Proximity Domain Information. Version 1 */
 
 struct acpi_msct_proximity {
 	u8 revision;

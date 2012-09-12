@@ -300,9 +300,7 @@ smp_cpu_init(int cpunum)
 
 	notify_cpu_starting(cpunum);
 
-	ipi_call_lock();
 	set_cpu_online(cpunum, true);
-	ipi_call_unlock();
 
 	/* Initialise the idle task for this CPU */
 	atomic_inc(&init_mm.mm_count);

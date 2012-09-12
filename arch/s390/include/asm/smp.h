@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 1999,2012
+ *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Denis Joseph Barrow,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
@@ -44,6 +44,7 @@ static inline void smp_call_online_cpu(void (*func)(void *), void *data)
 }
 
 static inline int smp_find_processor_id(int address) { return 0; }
+static inline int smp_store_status(int cpu) { return 0; }
 static inline int smp_vcpu_scheduled(int cpu) { return 1; }
 static inline void smp_yield_cpu(int cpu) { }
 static inline void smp_yield(void) { }

@@ -45,7 +45,7 @@ static int __init blackfin_dma_init(void)
 		atomic_set(&dma_ch[i].chan_status, 0);
 		dma_ch[i].regs = dma_io_base_addr[i];
 	}
-#ifdef CH_MEM_STREAM3_SRC
+#if defined(CH_MEM_STREAM3_SRC) && defined(CONFIG_BF60x)
 	/* Mark MEMDMA Channel 3 as requested since we're using it internally */
 	request_dma(CH_MEM_STREAM3_DEST, "Blackfin dma_memcpy");
 	request_dma(CH_MEM_STREAM3_SRC, "Blackfin dma_memcpy");
@@ -361,7 +361,7 @@ void __init early_dma_memcpy_done(void)
 	__builtin_bfin_ssync();
 }
 
-#ifdef CH_MEM_STREAM3_SRC
+#if defined(CH_MEM_STREAM3_SRC) && defined(CONFIG_BF60x)
 #define bfin_read_MDMA_S_CONFIG bfin_read_MDMA_S3_CONFIG
 #define bfin_write_MDMA_S_CONFIG bfin_write_MDMA_S3_CONFIG
 #define bfin_write_MDMA_S_START_ADDR bfin_write_MDMA_S3_START_ADDR

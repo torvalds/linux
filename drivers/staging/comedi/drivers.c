@@ -24,7 +24,6 @@
 #define _GNU_SOURCE
 
 #define __NO_VERSION__
-#include "comedi_fops.h"
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -45,7 +44,7 @@
 #include <linux/io.h>
 
 #include "comedidev.h"
-#include "internal.h"
+#include "comedi_internal.h"
 
 static int postconfig(struct comedi_device *dev);
 static int insn_rw_emulate_bits(struct comedi_device *dev,
@@ -56,6 +55,31 @@ static void comedi_report_boards(struct comedi_driver *driv);
 static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s);
 
 struct comedi_driver *comedi_drivers;
+
+int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
+{
+	struct comedi_subdevice *s;
+	int i;
+
+	if (num_subdevices < 1)
+		return -EINVAL;
+
+	s = kcalloc(num_subdevices, sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+	dev->subdevices = s;
+	dev->n_subdevices = num_subdevices;
+
+	for (i = 0; i < num_subdevices; ++i) {
+		s = dev->subdevices + i;
+		s->device = dev;
+		s->async_dma_dir = DMA_NONE;
+		spin_lock_init(&s->spin_lock);
+		s->minor = -1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(comedi_alloc_subdevices);
 
 static void cleanup_device(struct comedi_device *dev)
 {
@@ -144,7 +168,7 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->board_ptr = comedi_recognize(driv, it->board_name);
 			if (dev->board_ptr)
 				break;
-		} else if (strcmp(driv->driver_name, it->board_name))
+		} else if (strcmp(driv->driver_name, it->board_name) == 0)
 			break;
 		module_put(driv->module);
 	}
@@ -301,18 +325,41 @@ static int postconfig(struct comedi_device *dev)
 	return 0;
 }
 
-/* generic recognize function for drivers
- * that register their supported board names */
+/*
+ * Generic recognize function for drivers that register their supported
+ * board names.
+ *
+ * 'driv->board_name' points to a 'const char *' member within the
+ * zeroth element of an array of some private board information
+ * structure, say 'struct foo_board' containing a member 'const char
+ * *board_name' that is initialized to point to a board name string that
+ * is one of the candidates matched against this function's 'name'
+ * parameter.
+ *
+ * 'driv->offset' is the size of the private board information
+ * structure, say 'sizeof(struct foo_board)', and 'driv->num_names' is
+ * the length of the array of private board information structures.
+ *
+ * If one of the board names in the array of private board information
+ * structures matches the name supplied to this function, the function
+ * returns a pointer to the pointer to the board name, otherwise it
+ * returns NULL.  The return value ends up in the 'board_ptr' member of
+ * a 'struct comedi_device' that the low-level comedi driver's
+ * 'attach()' hook can convert to a point to a particular element of its
+ * array of private board information structures by subtracting the
+ * offset of the member that points to the board name.  (No subtraction
+ * is required if the board name pointer is the first member of the
+ * private board information structure, which is generally the case.)
+ */
 static void *comedi_recognize(struct comedi_driver *driv, const char *name)
 {
-	unsigned i;
-	const char *const *name_ptr = driv->board_name;
+	char **name_ptr = (char **)driv->board_name;
+	int i;
+
 	for (i = 0; i < driv->num_names; i++) {
 		if (strcmp(*name_ptr, name) == 0)
-			return (void *)name_ptr;
-		name_ptr =
-		    (const char *const *)((const char *)name_ptr +
-					  driv->offset);
+			return name_ptr;
+		name_ptr = (void *)name_ptr + driv->offset;
 	}
 
 	return NULL;
@@ -383,39 +430,6 @@ static int insn_rw_emulate_bits(struct comedi_device *dev,
 		data[0] = (new_data[1] >> (chan - base_bitfield_channel)) & 1;
 
 	return 1;
-}
-
-static inline unsigned long uvirt_to_kva(pgd_t *pgd, unsigned long adr)
-{
-	unsigned long ret = 0UL;
-	pmd_t *pmd;
-	pte_t *ptep, pte;
-	pud_t *pud;
-
-	if (!pgd_none(*pgd)) {
-		pud = pud_offset(pgd, adr);
-		pmd = pmd_offset(pud, adr);
-		if (!pmd_none(*pmd)) {
-			ptep = pte_offset_kernel(pmd, adr);
-			pte = *ptep;
-			if (pte_present(pte)) {
-				ret = (unsigned long)
-				    page_address(pte_page(pte));
-				ret |= (adr & (PAGE_SIZE - 1));
-			}
-		}
-	}
-	return ret;
-}
-
-static inline unsigned long kvirt_to_kva(unsigned long adr)
-{
-	unsigned long va, kva;
-
-	va = adr;
-	kva = uvirt_to_kva(pgd_offset_k(va), va);
-
-	return kva;
 }
 
 int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -908,6 +922,40 @@ static void comedi_auto_unconfig(struct device *hardware_device)
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
 	comedi_free_board_minor(minor);
 }
+
+/**
+ * comedi_pci_enable() - Enable the PCI device and request the regions.
+ * @pdev: pci_dev struct
+ * @res_name: name for the requested reqource
+ */
+int comedi_pci_enable(struct pci_dev *pdev, const char *res_name)
+{
+	int rc;
+
+	rc = pci_enable_device(pdev);
+	if (rc < 0)
+		return rc;
+
+	rc = pci_request_regions(pdev, res_name);
+	if (rc < 0)
+		pci_disable_device(pdev);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(comedi_pci_enable);
+
+/**
+ * comedi_pci_disable() - Release the regions and disable the PCI device.
+ * @pdev: pci_dev struct
+ *
+ * This must be matched with a previous successful call to comedi_pci_enable().
+ */
+void comedi_pci_disable(struct pci_dev *pdev)
+{
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+}
+EXPORT_SYMBOL_GPL(comedi_pci_disable);
 
 static int comedi_old_pci_auto_config(struct pci_dev *pcidev,
 				      struct comedi_driver *driver)

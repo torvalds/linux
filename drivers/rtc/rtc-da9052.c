@@ -245,7 +245,7 @@ static int __devinit da9052_rtc_probe(struct platform_device *pdev)
 				   "ALM", rtc);
 	if (ret != 0) {
 		rtc_err(rtc->da9052, "irq registration failed: %d\n", ret);
-		goto err_mem;
+		return ret;
 	}
 
 	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
@@ -259,8 +259,6 @@ static int __devinit da9052_rtc_probe(struct platform_device *pdev)
 
 err_free_irq:
 	free_irq(rtc->irq, rtc);
-err_mem:
-	devm_kfree(&pdev->dev, rtc);
 	return ret;
 }
 
@@ -271,7 +269,6 @@ static int __devexit da9052_rtc_remove(struct platform_device *pdev)
 	rtc_device_unregister(rtc->rtc);
 	free_irq(rtc->irq, rtc);
 	platform_set_drvdata(pdev, NULL);
-	devm_kfree(&pdev->dev, rtc);
 
 	return 0;
 }

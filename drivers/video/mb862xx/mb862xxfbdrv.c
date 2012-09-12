@@ -328,6 +328,8 @@ static int mb862xxfb_ioctl(struct fb_info *fbi, unsigned int cmd,
 	case MB862XX_L1_SET_CFG:
 		if (copy_from_user(l1_cfg, argp, sizeof(*l1_cfg)))
 			return -EFAULT;
+		if (l1_cfg->dh == 0 || l1_cfg->dw == 0)
+			return -EINVAL;
 		if ((l1_cfg->sw >= l1_cfg->dw) && (l1_cfg->sh >= l1_cfg->dh)) {
 			/* downscaling */
 			outreg(cap, GC_CAP_CSC,

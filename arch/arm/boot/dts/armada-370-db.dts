@@ -1,0 +1,42 @@
+/*
+ * Device Tree file for Marvell Armada 370 evaluation board
+ * (DB-88F6710-BP-DDR3)
+ *
+ *  Copyright (C) 2012 Marvell
+ *
+ * Lior Amsalem <alior@marvell.com>
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "armada-370.dtsi"
+
+/ {
+	model = "Marvell Armada 370 Evaluation Board";
+	compatible = "marvell,a370-db", "marvell,armada370", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>; /* 512 MB */
+	};
+
+	soc {
+		serial@d0012000 {
+			clock-frequency = <200000000>;
+			status = "okay";
+		};
+		timer@d0020300 {
+			clock-frequency = <600000000>;
+			status = "okay";
+		};
+	};
+};

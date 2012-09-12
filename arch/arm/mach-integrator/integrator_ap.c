@@ -33,6 +33,7 @@
 #include <linux/io.h>
 #include <linux/mtd/physmap.h>
 #include <linux/clk.h>
+#include <linux/platform_data/clk-integrator.h>
 #include <video/vga.h>
 
 #include <mach/hardware.h>
@@ -174,6 +175,7 @@ static void __init ap_init_irq(void)
 
 	fpga_irq_init(VA_IC_BASE, "SC", IRQ_PIC_START,
 		-1, INTEGRATOR_SC_VALID_INT, NULL);
+	integrator_clk_init(false);
 }
 
 #ifdef CONFIG_PM
@@ -440,6 +442,10 @@ static void integrator_clockevent_init(unsigned long inrate)
 					0xffffU);
 }
 
+void __init ap_init_early(void)
+{
+}
+
 /*
  * Set up timer(s).
  */
@@ -450,7 +456,7 @@ static void __init ap_init_timer(void)
 
 	clk = clk_get_sys("ap_timer", NULL);
 	BUG_ON(IS_ERR(clk));
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 	rate = clk_get_rate(clk);
 
 	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
@@ -471,7 +477,7 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	.reserve	= integrator_reserve,
 	.map_io		= ap_map_io,
 	.nr_irqs	= NR_IRQS_INTEGRATOR_AP,
-	.init_early	= integrator_init_early,
+	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq,
 	.handle_irq	= fpga_handle_irq,
 	.timer		= &ap_timer,

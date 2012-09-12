@@ -112,6 +112,8 @@ source "drivers/auxdisplay/Kconfig"
 
 source "drivers/uio/Kconfig"
 
+source "drivers/vfio/Kconfig"
+
 source "drivers/vlynq/Kconfig"
 
 source "drivers/virtio/Kconfig"
@@ -147,5 +149,7 @@ source "drivers/memory/Kconfig"
 source "drivers/iio/Kconfig"
 
 source "drivers/vme/Kconfig"
+
+source "drivers/pwm/Kconfig"
 
 endmenu

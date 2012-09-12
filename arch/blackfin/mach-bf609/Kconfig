@@ -51,6 +51,14 @@ config PINT5_ASSIGN
 
 endmenu
 
+config SEC_IRQ_PRIORITY_LEVELS
+	int "SEC interrupt priority levels"
+	default 7
+	range 0 7
+	help
+	  Devide the total number of interrupt priority levels into sub-levels.
+	  There is 2 ^ (SEC_IRQ_PRIORITY_LEVELS + 1) different levels.
+
 endmenu
 
 endif

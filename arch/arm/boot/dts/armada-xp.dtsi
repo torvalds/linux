@@ -1,0 +1,55 @@
+/*
+ * Device Tree Include file for Marvell Armada XP family SoC
+ *
+ * Copyright (C) 2012 Marvell
+ *
+ * Lior Amsalem <alior@marvell.com>
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * Ben Dooks <ben.dooks@codethink.co.uk>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * Contains definitions specific to the Armada XP SoC that are not
+ * common to all Armada SoCs.
+ */
+
+/include/ "armada-370-xp.dtsi"
+
+/ {
+	model = "Marvell Armada XP family SoC";
+	compatible = "marvell,armadaxp", "marvell,armada-370-xp";
+
+	mpic: interrupt-controller@d0020000 {
+	      reg = <0xd0020a00 0x1d0>,
+		    <0xd0021870 0x58>;
+	};
+
+	soc {
+		serial@d0012200 {
+				compatible = "ns16550";
+				reg = <0xd0012200 0x100>;
+				reg-shift = <2>;
+				interrupts = <43>;
+				status = "disabled";
+		};
+		serial@d0012300 {
+				compatible = "ns16550";
+				reg = <0xd0012300 0x100>;
+				reg-shift = <2>;
+				interrupts = <44>;
+				status = "disabled";
+		};
+
+		timer@d0020300 {
+				marvell,timer-25Mhz;
+		};
+
+		system-controller@d0018200 {
+				compatible = "marvell,armada-370-xp-system-controller";
+				reg = <0xd0018200 0x500>;
+		};
+	};
+};

@@ -222,13 +222,13 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 	/* Try to find some space for it.
 	 *
 	 * WARNING: We assume that either slab_is_available() and we use it or
-	 * we use MEMBLOCK for allocations. That means that this is unsafe to use
-	 * when bootmem is currently active (unless bootmem itself is implemented
-	 * on top of MEMBLOCK which isn't the case yet)
+	 * we use MEMBLOCK for allocations. That means that this is unsafe to
+	 * use when bootmem is currently active (unless bootmem itself is
+	 * implemented on top of MEMBLOCK which isn't the case yet)
 	 *
 	 * This should however not be an issue for now, as we currently only
-	 * call into MEMBLOCK while it's still active, or much later when slab is
-	 * active for memory hotplug operations
+	 * call into MEMBLOCK while it's still active, or much later when slab
+	 * is active for memory hotplug operations
 	 */
 	if (use_slab) {
 		new_array = kmalloc(new_size, GFP_KERNEL);
@@ -243,8 +243,8 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 						new_alloc_size, PAGE_SIZE);
 		if (!addr && new_area_size)
 			addr = memblock_find_in_range(0,
-					min(new_area_start, memblock.current_limit),
-					new_alloc_size, PAGE_SIZE);
+				min(new_area_start, memblock.current_limit),
+				new_alloc_size, PAGE_SIZE);
 
 		new_array = addr ? __va(addr) : 0;
 	}
@@ -254,12 +254,14 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 		return -1;
 	}
 
-	memblock_dbg("memblock: %s array is doubled to %ld at [%#010llx-%#010llx]",
-		 memblock_type_name(type), type->max * 2, (u64)addr, (u64)addr + new_size - 1);
+	memblock_dbg("memblock: %s is doubled to %ld at [%#010llx-%#010llx]",
+			memblock_type_name(type), type->max * 2, (u64)addr,
+			(u64)addr + new_size - 1);
 
-	/* Found space, we now need to move the array over before
-	 * we add the reserved region since it may be our reserved
-	 * array itself that is full.
+	/*
+	 * Found space, we now need to move the array over before we add the
+	 * reserved region since it may be our reserved array itself that is
+	 * full.
 	 */
 	memcpy(new_array, type->regions, old_size);
 	memset(new_array + type->max, 0, old_size);
@@ -267,17 +269,16 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 	type->regions = new_array;
 	type->max <<= 1;
 
-	/* Free old array. We needn't free it if the array is the
-	 * static one
-	 */
+	/* Free old array. We needn't free it if the array is the static one */
 	if (*in_slab)
 		kfree(old_array);
 	else if (old_array != memblock_memory_init_regions &&
 		 old_array != memblock_reserved_init_regions)
 		memblock_free(__pa(old_array), old_alloc_size);
 
-	/* Reserve the new array if that comes from the memblock.
-	 * Otherwise, we needn't do it
+	/*
+	 * Reserve the new array if that comes from the memblock.  Otherwise, we
+	 * needn't do it
 	 */
 	if (!use_slab)
 		BUG_ON(memblock_reserve(addr, new_alloc_size));

@@ -146,7 +146,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	REST_2GPRS(7,r1)
 	addi	r9,r1,STACK_FRAME_OVERHEAD
 #endif
-	clrrdi	r11,r1,THREAD_SHIFT
+	CURRENT_THREAD_INFO(r11, r1)
 	ld	r10,TI_FLAGS(r11)
 	andi.	r11,r10,_TIF_SYSCALL_T_OR_A
 	bne-	syscall_dotrace
@@ -181,7 +181,7 @@ syscall_exit:
 	bl	.do_show_syscall_exit
 	ld	r3,RESULT(r1)
 #endif
-	clrrdi	r12,r1,THREAD_SHIFT
+	CURRENT_THREAD_INFO(r12, r1)
 
 	ld	r8,_MSR(r1)
 #ifdef CONFIG_PPC_BOOK3S
@@ -197,7 +197,16 @@ syscall_exit:
 	wrteei	0
 #else
 	ld	r10,PACAKMSR(r13)
-	mtmsrd	r10,1
+	/*
+	 * For performance reasons we clear RI the same time that we
+	 * clear EE. We only need to clear RI just before we restore r13
+	 * below, but batching it with EE saves us one expensive mtmsrd call.
+	 * We have to be careful to restore RI if we branch anywhere from
+	 * here (eg syscall_exit_work).
+	 */
+	li	r9,MSR_RI
+	andc	r11,r10,r9
+	mtmsrd	r11,1
 #endif /* CONFIG_PPC_BOOK3E */
 
 	ld	r9,TI_FLAGS(r12)
@@ -214,17 +223,6 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	andi.	r6,r8,MSR_PR
 	ld	r4,_LINK(r1)
-	/*
-	 * Clear RI before restoring r13.  If we are returning to
-	 * userspace and we take an exception after restoring r13,
-	 * we end up corrupting the userspace r13 value.
-	 */
-#ifdef CONFIG_PPC_BOOK3S
-	/* No MSR:RI on BookE */
-	li	r12,MSR_RI
-	andc	r11,r10,r12
-	mtmsrd	r11,1			/* clear MSR.RI */
-#endif /* CONFIG_PPC_BOOK3S */
 
 	beq-	1f
 	ACCOUNT_CPU_USER_EXIT(r11, r12)
@@ -262,7 +260,7 @@ syscall_dotrace:
 	ld	r7,GPR7(r1)
 	ld	r8,GPR8(r1)
 	addi	r9,r1,STACK_FRAME_OVERHEAD
-	clrrdi	r10,r1,THREAD_SHIFT
+	CURRENT_THREAD_INFO(r10, r1)
 	ld	r10,TI_FLAGS(r10)
 	b	.Lsyscall_dotrace_cont
 
@@ -271,6 +269,9 @@ syscall_enosys:
 	b	syscall_exit
 	
 syscall_exit_work:
+#ifdef CONFIG_PPC_BOOK3S
+	mtmsrd	r10,1		/* Restore RI */
+#endif
 	/* If TIF_RESTOREALL is set, don't scribble on either r3 or ccr.
 	 If TIF_NOERROR is set, just save r3 as it is. */
 
@@ -368,6 +369,12 @@ _GLOBAL(ret_from_fork)
 	REST_NVGPRS(r1)
 	li	r3,0
 	b	syscall_exit
+
+	.section	".toc","aw"
+DSCR_DEFAULT:
+	.tc dscr_default[TC],dscr_default
+
+	.section	".text"
 
 /*
  * This routine switches between two different tasks.  The process
@@ -499,7 +506,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 2:
 #endif /* !CONFIG_PPC_BOOK3S */
 
-	clrrdi	r7,r8,THREAD_SHIFT	/* base of new stack */
+	CURRENT_THREAD_INFO(r7, r8)  /* base of new stack */
 	/* Note: this uses SWITCH_FRAME_SIZE rather than INT_FRAME_SIZE
 	   because we don't need to leave the 288-byte ABI gap at the
 	   top of the kernel stack. */
@@ -507,9 +514,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 
 	mr	r1,r8		/* start using new stack pointer */
 	std	r7,PACAKSAVE(r13)
-
-	ld	r6,_CCR(r1)
-	mtcrf	0xFF,r6
 
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
@@ -519,13 +523,21 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_PPC64
 BEGIN_FTR_SECTION
+	lwz	r6,THREAD_DSCR_INHERIT(r4)
+	ld	r7,DSCR_DEFAULT@toc(2)
 	ld	r0,THREAD_DSCR(r4)
-	cmpd	r0,r25
-	beq	1f
+	cmpwi	r6,0
+	bne	1f
+	ld	r0,0(r7)
+1:	cmpd	r0,r25
+	beq	2f
 	mtspr	SPRN_DSCR,r0
-1:	
+2:
 END_FTR_SECTION_IFSET(CPU_FTR_DSCR)
 #endif
+
+	ld	r6,_CCR(r1)
+	mtcrf	0xFF,r6
 
 	/* r3-r13 are destroyed -- Cort */
 	REST_8GPRS(14, r1)
@@ -558,7 +570,7 @@ _GLOBAL(ret_from_except_lite)
 	mtmsrd	r10,1		  /* Update machine state */
 #endif /* CONFIG_PPC_BOOK3E */
 
-	clrrdi	r9,r1,THREAD_SHIFT	/* current_thread_info() */
+	CURRENT_THREAD_INFO(r9, r1)
 	ld	r3,_MSR(r1)
 	ld	r4,TI_FLAGS(r9)
 	andi.	r3,r3,MSR_PR
@@ -601,7 +613,7 @@ resume_kernel:
 1:	bl	.preempt_schedule_irq
 
 	/* Re-test flags and eventually loop */
-	clrrdi	r9,r1,THREAD_SHIFT
+	CURRENT_THREAD_INFO(r9, r1)
 	ld	r4,TI_FLAGS(r9)
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	bne	1b

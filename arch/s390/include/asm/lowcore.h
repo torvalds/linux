@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 1999,2012
+ *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Hartmut Penner <hp@de.ibm.com>,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Denis Joseph Barrow,
@@ -302,12 +302,7 @@ struct _lowcore {
 	 */
 	__u64	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e08 */
-	/*
-	 * Because the vmcore_info pointer is not 8 byte aligned it never
-	 * should not be accessed directly. For accessing the pointer, first
-	 * copy it to a local pointer variable.
-	 */
-	__u8	vmcore_info[8];			/* 0x0e0c */
+	__u64	vmcore_info;			/* 0x0e0c */
 	__u8	pad_0x0e14[0x0e18-0x0e14];	/* 0x0e14 */
 	__u64	os_info;			/* 0x0e18 */
 	__u8	pad_0x0e20[0x0f00-0x0e20];	/* 0x0e20 */

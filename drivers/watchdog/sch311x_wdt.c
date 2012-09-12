@@ -136,6 +136,8 @@ static void sch311x_wdt_set_timeout(int t)
 
 static void sch311x_wdt_start(void)
 {
+	unsigned char t;
+
 	spin_lock(&sch311x_wdt_data.io_lock);
 
 	/* set watchdog's timeout */
@@ -149,7 +151,8 @@ static void sch311x_wdt_start(void)
 	 * Bit 4-6  (Reserved)
 	 * Bit 7,   Output Type: 0 = Push Pull Bit, 1 = Open Drain
 	 */
-	outb(0x0e, sch311x_wdt_data.runtime_reg + GP60);
+	t = inb(sch311x_wdt_data.runtime_reg + GP60);
+	outb((t & ~0x0d) | 0x0c, sch311x_wdt_data.runtime_reg + GP60);
 
 	spin_unlock(&sch311x_wdt_data.io_lock);
 
@@ -157,10 +160,13 @@ static void sch311x_wdt_start(void)
 
 static void sch311x_wdt_stop(void)
 {
+	unsigned char t;
+
 	spin_lock(&sch311x_wdt_data.io_lock);
 
 	/* stop the watchdog */
-	outb(0x01, sch311x_wdt_data.runtime_reg + GP60);
+	t = inb(sch311x_wdt_data.runtime_reg + GP60);
+	outb((t & ~0x0d) | 0x01, sch311x_wdt_data.runtime_reg + GP60);
 	/* disable timeout by setting it to 0 */
 	sch311x_wdt_set_timeout(0);
 

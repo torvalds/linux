@@ -57,13 +57,12 @@ static const struct file_operations i810_driver_fops = {
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | DRIVER_USE_MTRR |
-	    DRIVER_HAVE_DMA | DRIVER_DMA_QUEUE,
+	    DRIVER_HAVE_DMA,
 	.dev_priv_size = sizeof(drm_i810_buf_priv_t),
 	.load = i810_driver_load,
 	.lastclose = i810_driver_lastclose,
 	.preclose = i810_driver_preclose,
 	.device_is_agp = i810_driver_device_is_agp,
-	.reclaim_buffers_locked = i810_driver_reclaim_buffers_locked,
 	.dma_quiescent = i810_driver_dma_quiescent,
 	.ioctls = i810_ioctls,
 	.fops = &i810_driver_fops,

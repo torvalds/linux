@@ -1161,6 +1161,8 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		    BIT(NL80211_IFTYPE_MESH_POINT) |
 		    BIT(NL80211_IFTYPE_WDS);
 
+	rt2x00dev->hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+
 	/*
 	 * Initialize work.
 	 */

@@ -55,6 +55,8 @@ struct ad7298_state {
 #ifdef CONFIG_IIO_BUFFER
 int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void ad7298_ring_cleanup(struct iio_dev *indio_dev);
+int ad7298_update_scan_mode(struct iio_dev *indio_dev,
+	const unsigned long *active_scan_mask);
 #else /* CONFIG_IIO_BUFFER */
 
 static inline int
@@ -66,5 +68,8 @@ ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 static inline void ad7298_ring_cleanup(struct iio_dev *indio_dev)
 {
 }
+
+#define ad7298_update_scan_mode NULL
+
 #endif /* CONFIG_IIO_BUFFER */
 #endif /* IIO_ADC_AD7298_H_ */

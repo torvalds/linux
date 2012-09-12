@@ -173,9 +173,9 @@ struct property *of_find_property(const struct device_node *np,
 		return NULL;
 
 	read_lock(&devtree_lock);
-	for (pp = np->properties; pp != 0; pp = pp->next) {
+	for (pp = np->properties; pp; pp = pp->next) {
 		if (of_prop_cmp(pp->name, name) == 0) {
-			if (lenp != 0)
+			if (lenp)
 				*lenp = pp->length;
 			break;
 		}
@@ -364,6 +364,33 @@ struct device_node *of_get_next_child(const struct device_node *node,
 EXPORT_SYMBOL(of_get_next_child);
 
 /**
+ *	of_get_next_available_child - Find the next available child node
+ *	@node:	parent node
+ *	@prev:	previous child of the parent node, or NULL to get first
+ *
+ *      This function is like of_get_next_child(), except that it
+ *      automatically skips any disabled nodes (i.e. status = "disabled").
+ */
+struct device_node *of_get_next_available_child(const struct device_node *node,
+	struct device_node *prev)
+{
+	struct device_node *next;
+
+	read_lock(&devtree_lock);
+	next = prev ? prev->sibling : node->child;
+	for (; next; next = next->sibling) {
+		if (!of_device_is_available(next))
+			continue;
+		if (of_node_get(next))
+			break;
+	}
+	of_node_put(prev);
+	read_unlock(&devtree_lock);
+	return next;
+}
+EXPORT_SYMBOL(of_get_next_available_child);
+
+/**
  *	of_find_node_by_path - Find a node matching a full OF path
  *	@path:	The full path to match
  *
@@ -497,7 +524,7 @@ struct device_node *of_find_node_with_property(struct device_node *from,
 	read_lock(&devtree_lock);
 	np = from ? from->allnext : allnodes;
 	for (; np; np = np->allnext) {
-		for (pp = np->properties; pp != 0; pp = pp->next) {
+		for (pp = np->properties; pp; pp = pp->next) {
 			if (of_prop_cmp(pp->name, prop_name) == 0) {
 				of_node_get(np);
 				goto out;
@@ -902,7 +929,7 @@ int of_parse_phandle_with_args(struct device_node *np, const char *list_name,
 	/* Retrieve the phandle list property */
 	list = of_get_property(np, list_name, &size);
 	if (!list)
-		return -EINVAL;
+		return -ENOENT;
 	list_end = list + size / sizeof(*list);
 
 	/* Loop over the phandles until all the requested entry is found */
@@ -1051,7 +1078,8 @@ int prom_remove_property(struct device_node *np, struct property *prop)
 }
 
 /*
- * prom_update_property - Update a property in a node.
+ * prom_update_property - Update a property in a node, if the property does
+ * not exist, add it.
  *
  * Note that we don't actually remove it, since we have given out
  * who-knows-how-many pointers to the data using get-property.
@@ -1059,12 +1087,18 @@ int prom_remove_property(struct device_node *np, struct property *prop)
  * and add the new property to the property list
  */
 int prom_update_property(struct device_node *np,
-			 struct property *newprop,
-			 struct property *oldprop)
+			 struct property *newprop)
 {
-	struct property **next;
+	struct property **next, *oldprop;
 	unsigned long flags;
 	int found = 0;
+
+	if (!newprop->name)
+		return -EINVAL;
+
+	oldprop = of_find_property(np, newprop->name, NULL);
+	if (!oldprop)
+		return prom_add_property(np, newprop);
 
 	write_lock_irqsave(&devtree_lock, flags);
 	next = &np->properties;
@@ -1173,7 +1207,7 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
 	ap->stem[stem_len] = 0;
 	list_add_tail(&ap->link, &aliases_lookup);
 	pr_debug("adding DT alias:%s: stem=%s id=%i node=%s\n",
-		 ap->alias, ap->stem, ap->id, np ? np->full_name : NULL);
+		 ap->alias, ap->stem, ap->id, of_node_full_name(np));
 }
 
 /**

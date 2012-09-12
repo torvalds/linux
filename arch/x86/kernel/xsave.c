@@ -3,6 +3,9 @@
  *
  * Author: Suresh Siddha <suresh.b.siddha@intel.com>
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bootmem.h>
 #include <linux/compat.h>
 #include <asm/i387.h>
@@ -162,7 +165,7 @@ int save_i387_xstate(void __user *buf)
 	BUG_ON(sig_xstate_size < xstate_size);
 
 	if ((unsigned long)buf % 64)
-		printk("save_i387_xstate: bad fpstate %p\n", buf);
+		pr_err("%s: bad fpstate %p\n", __func__, buf);
 
 	if (!used_math())
 		return 0;
@@ -422,7 +425,7 @@ static void __init xstate_enable_boot_cpu(void)
 	pcntxt_mask = eax + ((u64)edx << 32);
 
 	if ((pcntxt_mask & XSTATE_FPSSE) != XSTATE_FPSSE) {
-		printk(KERN_ERR "FP/SSE not shown under xsave features 0x%llx\n",
+		pr_err("FP/SSE not shown under xsave features 0x%llx\n",
 		       pcntxt_mask);
 		BUG();
 	}
@@ -445,9 +448,8 @@ static void __init xstate_enable_boot_cpu(void)
 
 	setup_xstate_init();
 
-	printk(KERN_INFO "xsave/xrstor: enabled xstate_bv 0x%llx, "
-	       "cntxt size 0x%x\n",
-	       pcntxt_mask, xstate_size);
+	pr_info("enabled xstate_bv 0x%llx, cntxt size 0x%x\n",
+		pcntxt_mask, xstate_size);
 }
 
 /*

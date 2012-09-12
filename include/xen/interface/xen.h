@@ -79,6 +79,7 @@
 #define VIRQ_CONSOLE    2  /* (DOM0) Bytes received on emergency console. */
 #define VIRQ_DOM_EXC    3  /* (DOM0) Exceptional event for some domain.   */
 #define VIRQ_DEBUGGER   6  /* (DOM0) A domain has paused for debugging.   */
+#define VIRQ_PCPU_STATE 9  /* (DOM0) PCPU state changed                   */
 
 /* Architecture-specific VIRQ definitions. */
 #define VIRQ_ARCH_0    16

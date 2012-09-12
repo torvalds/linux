@@ -55,6 +55,7 @@ static void register_buffer(u8 *buf, size_t size)
 
 static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
 {
+	int ret;
 
 	if (!busy) {
 		busy = true;
@@ -65,7 +66,9 @@ static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
 	if (!wait)
 		return 0;
 
-	wait_for_completion(&have_data);
+	ret = wait_for_completion_killable(&have_data);
+	if (ret < 0)
+		return ret;
 
 	busy = false;
 
@@ -85,7 +88,7 @@ static struct hwrng virtio_hwrng = {
 	.read		= virtio_read,
 };
 
-static int virtrng_probe(struct virtio_device *vdev)
+static int probe_common(struct virtio_device *vdev)
 {
 	int err;
 
@@ -103,12 +106,36 @@ static int virtrng_probe(struct virtio_device *vdev)
 	return 0;
 }
 
-static void __devexit virtrng_remove(struct virtio_device *vdev)
+static void remove_common(struct virtio_device *vdev)
 {
 	vdev->config->reset(vdev);
+	busy = false;
 	hwrng_unregister(&virtio_hwrng);
 	vdev->config->del_vqs(vdev);
 }
+
+static int virtrng_probe(struct virtio_device *vdev)
+{
+	return probe_common(vdev);
+}
+
+static void __devexit virtrng_remove(struct virtio_device *vdev)
+{
+	remove_common(vdev);
+}
+
+#ifdef CONFIG_PM
+static int virtrng_freeze(struct virtio_device *vdev)
+{
+	remove_common(vdev);
+	return 0;
+}
+
+static int virtrng_restore(struct virtio_device *vdev)
+{
+	return probe_common(vdev);
+}
+#endif
 
 static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_RNG, VIRTIO_DEV_ANY_ID },
@@ -121,6 +148,10 @@ static struct virtio_driver virtio_rng_driver = {
 	.id_table =	id_table,
 	.probe =	virtrng_probe,
 	.remove =	__devexit_p(virtrng_remove),
+#ifdef CONFIG_PM
+	.freeze =	virtrng_freeze,
+	.restore =	virtrng_restore,
+#endif
 };
 
 static int __init init(void)

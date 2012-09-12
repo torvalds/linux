@@ -1384,18 +1384,17 @@ static int w83791d_probe(struct i2c_client *client,
 			(val1 >> 5) & 0x07, (val1 >> 1) & 0x0f, val1);
 #endif
 
-	data = kzalloc(sizeof(struct w83791d_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto error0;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct w83791d_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 
 	err = w83791d_detect_subclients(client);
 	if (err)
-		goto error1;
+		return err;
 
 	/* Initialize the chip */
 	w83791d_init_client(client);
@@ -1440,9 +1439,6 @@ error3:
 		i2c_unregister_device(data->lm75[0]);
 	if (data->lm75[1] != NULL)
 		i2c_unregister_device(data->lm75[1]);
-error1:
-	kfree(data);
-error0:
 	return err;
 }
 
@@ -1458,7 +1454,6 @@ static int w83791d_remove(struct i2c_client *client)
 	if (data->lm75[1] != NULL)
 		i2c_unregister_device(data->lm75[1]);
 
-	kfree(data);
 	return 0;
 }
 

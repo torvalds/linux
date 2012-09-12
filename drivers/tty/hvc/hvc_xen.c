@@ -211,11 +211,10 @@ static int xen_hvm_console_init(void)
 		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL | __GFP_ZERO);
 		if (!info)
 			return -ENOMEM;
-	}
-
-	/* already configured */
-	if (info->intf != NULL)
+	} else if (info->intf != NULL) {
+		/* already configured */
 		return 0;
+	}
 	/*
 	 * If the toolstack (or the hypervisor) hasn't set these values, the
 	 * default value is 0. Even though mfn = 0 and evtchn = 0 are
@@ -261,12 +260,10 @@ static int xen_pv_console_init(void)
 		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL | __GFP_ZERO);
 		if (!info)
 			return -ENOMEM;
-	}
-
-	/* already configured */
-	if (info->intf != NULL)
+	} else if (info->intf != NULL) {
+		/* already configured */
 		return 0;
-
+	}
 	info->evtchn = xen_start_info->console.domU.evtchn;
 	info->intf = mfn_to_virt(xen_start_info->console.domU.mfn);
 	info->vtermno = HVC_COOKIE;

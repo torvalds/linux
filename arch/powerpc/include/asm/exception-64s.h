@@ -293,7 +293,7 @@ label##_hv:								\
 
 #define RUNLATCH_ON				\
 BEGIN_FTR_SECTION				\
-	clrrdi	r3,r1,THREAD_SHIFT;		\
+	CURRENT_THREAD_INFO(r3, r1);		\
 	ld	r4,TI_LOCAL_FLAGS(r3);		\
 	andi.	r0,r4,_TLF_RUNLATCH;		\
 	beql	ppc64_runlatch_on_trampoline;	\
@@ -332,7 +332,7 @@ label##_common:							\
 #ifdef CONFIG_PPC_970_NAP
 #define FINISH_NAP				\
 BEGIN_FTR_SECTION				\
-	clrrdi	r11,r1,THREAD_SHIFT;		\
+	CURRENT_THREAD_INFO(r11, r1);		\
 	ld	r9,TI_LOCAL_FLAGS(r11);		\
 	andi.	r10,r9,_TLF_NAPPING;		\
 	bnel	power4_fixup_nap;		\

@@ -1,5 +1,4 @@
 
-//   vim:tw=110:ts=4:
 #ifndef MDD_H
 #define MDD_H 1
 

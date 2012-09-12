@@ -1,0 +1,13 @@
+config FB_SM7XX
+	tristate "Silicon Motion SM7XX framebuffer support"
+	depends on FB && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  Frame buffer driver for the Silicon Motion SM710, SM712, SM721
+	  and SM722 chips.
+
+	  This driver is also available as a module. The module will be
+	  called sm7xxfb. If you want to compile it as a module, say M
+	  here and read <file:Documentation/kbuild/modules.txt>.

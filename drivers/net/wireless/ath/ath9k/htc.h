@@ -453,7 +453,6 @@ struct ath9k_htc_priv {
 	u8 num_sta_assoc_vif;
 	u8 num_ap_vif;
 
-	u16 op_flags;
 	u16 curtxpow;
 	u16 txpowlimit;
 	u16 nvifs;
@@ -461,6 +460,7 @@ struct ath9k_htc_priv {
 	bool rearm_ani;
 	bool reconfig_beacon;
 	unsigned int rxfilter;
+	unsigned long op_flags;
 
 	struct ath9k_hw_cal_data caldata;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
@@ -572,8 +572,6 @@ bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
 
 void ath9k_start_rfkill_poll(struct ath9k_htc_priv *priv);
 void ath9k_htc_rfkill_poll_state(struct ieee80211_hw *hw);
-void ath9k_htc_radio_enable(struct ieee80211_hw *hw);
-void ath9k_htc_radio_disable(struct ieee80211_hw *hw);
 
 #ifdef CONFIG_MAC80211_LEDS
 void ath9k_init_leds(struct ath9k_htc_priv *priv);

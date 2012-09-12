@@ -270,6 +270,7 @@
 #include <linux/slab.h>
 
 #include <net/icmp.h>
+#include <net/inet_common.h>
 #include <net/tcp.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
@@ -376,6 +377,7 @@ void tcp_init_sock(struct sock *sk)
 	skb_queue_head_init(&tp->out_of_order_queue);
 	tcp_init_xmit_timers(sk);
 	tcp_prequeue_init(tp);
+	INIT_LIST_HEAD(&tp->tsq_node);
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev = TCP_TIMEOUT_INIT;
@@ -796,6 +798,10 @@ static unsigned int tcp_xmit_size_goal(struct sock *sk, u32 mss_now,
 				  inet_csk(sk)->icsk_ext_hdr_len -
 				  tp->tcp_header_len);
 
+		/* TSQ : try to have two TSO segments in flight */
+		xmit_size_goal = min_t(u32, xmit_size_goal,
+				       sysctl_tcp_limit_output_bytes >> 1);
+
 		xmit_size_goal = tcp_bound_to_half_wnd(tp, xmit_size_goal);
 
 		/* We try hard to avoid divides here */
@@ -805,7 +811,9 @@ static unsigned int tcp_xmit_size_goal(struct sock *sk, u32 mss_now,
 			   old_size_goal + mss_now > xmit_size_goal)) {
 			xmit_size_goal = old_size_goal;
 		} else {
-			tp->xmit_size_goal_segs = xmit_size_goal / mss_now;
+			tp->xmit_size_goal_segs =
+				min_t(u16, xmit_size_goal / mss_now,
+				      sk->sk_gso_max_segs);
 			xmit_size_goal = tp->xmit_size_goal_segs * mss_now;
 		}
 	}
@@ -977,26 +985,67 @@ static inline int select_size(const struct sock *sk, bool sg)
 	return tmp;
 }
 
+void tcp_free_fastopen_req(struct tcp_sock *tp)
+{
+	if (tp->fastopen_req != NULL) {
+		kfree(tp->fastopen_req);
+		tp->fastopen_req = NULL;
+	}
+}
+
+static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg, int *size)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	int err, flags;
+
+	if (!(sysctl_tcp_fastopen & TFO_CLIENT_ENABLE))
+		return -EOPNOTSUPP;
+	if (tp->fastopen_req != NULL)
+		return -EALREADY; /* Another Fast Open is in progress */
+
+	tp->fastopen_req = kzalloc(sizeof(struct tcp_fastopen_request),
+				   sk->sk_allocation);
+	if (unlikely(tp->fastopen_req == NULL))
+		return -ENOBUFS;
+	tp->fastopen_req->data = msg;
+
+	flags = (msg->msg_flags & MSG_DONTWAIT) ? O_NONBLOCK : 0;
+	err = __inet_stream_connect(sk->sk_socket, msg->msg_name,
+				    msg->msg_namelen, flags);
+	*size = tp->fastopen_req->copied;
+	tcp_free_fastopen_req(tp);
+	return err;
+}
+
 int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		size_t size)
 {
 	struct iovec *iov;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	int iovlen, flags, err, copied;
-	int mss_now = 0, size_goal;
+	int iovlen, flags, err, copied = 0;
+	int mss_now = 0, size_goal, copied_syn = 0, offset = 0;
 	bool sg;
 	long timeo;
 
 	lock_sock(sk);
 
 	flags = msg->msg_flags;
+	if (flags & MSG_FASTOPEN) {
+		err = tcp_sendmsg_fastopen(sk, msg, &copied_syn);
+		if (err == -EINPROGRESS && copied_syn > 0)
+			goto out;
+		else if (err)
+			goto out_err;
+		offset = copied_syn;
+	}
+
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 
 	/* Wait for a connection to finish. */
 	if ((1 << sk->sk_state) & ~(TCPF_ESTABLISHED | TCPF_CLOSE_WAIT))
 		if ((err = sk_stream_wait_connect(sk, &timeo)) != 0)
-			goto out_err;
+			goto do_error;
 
 	if (unlikely(tp->repair)) {
 		if (tp->repair_queue == TCP_RECV_QUEUE) {
@@ -1032,6 +1081,15 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		unsigned char __user *from = iov->iov_base;
 
 		iov++;
+		if (unlikely(offset > 0)) {  /* Skip bytes copied in SYN */
+			if (offset >= seglen) {
+				offset -= seglen;
+				continue;
+			}
+			seglen -= offset;
+			from += offset;
+			offset = 0;
+		}
 
 		while (seglen > 0) {
 			int copy = 0;
@@ -1194,7 +1252,7 @@ out:
 	if (copied && likely(!tp->repair))
 		tcp_push(sk, flags, mss_now, tp->nonagle);
 	release_sock(sk);
-	return copied;
+	return copied + copied_syn;
 
 do_fault:
 	if (!skb->len) {
@@ -1207,7 +1265,7 @@ do_fault:
 	}
 
 do_error:
-	if (copied)
+	if (copied + copied_syn)
 		goto out;
 out_err:
 	err = sk_stream_error(sk, flags, err);
@@ -2625,7 +2683,10 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		/* Cap the max timeout in ms TCP will retry/retrans
 		 * before giving up and aborting (ETIMEDOUT) a connection.
 		 */
-		icsk->icsk_user_timeout = msecs_to_jiffies(val);
+		if (val < 0)
+			err = -EINVAL;
+		else
+			icsk->icsk_user_timeout = msecs_to_jiffies(val);
 		break;
 	default:
 		err = -ENOPROTOOPT;
@@ -3310,8 +3371,7 @@ EXPORT_SYMBOL(tcp_md5_hash_key);
 
 #endif
 
-/**
- * Each Responder maintains up to two secret values concurrently for
+/* Each Responder maintains up to two secret values concurrently for
  * efficient secret rollover.  Each secret value has 4 states:
  *
  * Generating.  (tcp_secret_generating != tcp_secret_primary)
@@ -3563,6 +3623,8 @@ void __init tcp_init(void)
 	pr_info("Hash tables configured (established %u bind %u)\n",
 		tcp_hashinfo.ehash_mask + 1, tcp_hashinfo.bhash_size);
 
+	tcp_metrics_init();
+
 	tcp_register_congestion_control(&tcp_reno);
 
 	memset(&tcp_secret_one.secrets[0], 0, sizeof(tcp_secret_one.secrets));
@@ -3573,4 +3635,5 @@ void __init tcp_init(void)
 	tcp_secret_primary = &tcp_secret_one;
 	tcp_secret_retiring = &tcp_secret_two;
 	tcp_secret_secondary = &tcp_secret_two;
+	tcp_tasklet_init();
 }

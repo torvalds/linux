@@ -175,15 +175,17 @@ static void init_info(struct caif_payload_info *info, struct cfctrl *cfctrl)
 
 void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 {
+	struct cfpkt *pkt;
 	struct cfctrl *cfctrl = container_obj(layer);
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
 	struct cflayer *dn = cfctrl->serv.layer.dn;
-	if (!pkt)
-		return;
+
 	if (!dn) {
 		pr_debug("not able to send enum request\n");
 		return;
 	}
+	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
+	if (!pkt)
+		return;
 	caif_assert(offsetof(struct cfctrl, serv.layer) == 0);
 	init_info(cfpkt_info(pkt), cfctrl);
 	cfpkt_info(pkt)->dev_info->id = physlinkid;
@@ -302,18 +304,17 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 				struct cflayer *client)
 {
 	int ret;
+	struct cfpkt *pkt;
 	struct cfctrl *cfctrl = container_obj(layer);
-	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
 	struct cflayer *dn = cfctrl->serv.layer.dn;
-
-	if (!pkt)
-		return -ENOMEM;
 
 	if (!dn) {
 		pr_debug("not able to send link-down request\n");
 		return -ENODEV;
 	}
-
+	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
+	if (!pkt)
+		return -ENOMEM;
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_DESTROY);
 	cfpkt_addbdy(pkt, channelid);
 	init_info(cfpkt_info(pkt), cfctrl);

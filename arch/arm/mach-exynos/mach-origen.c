@@ -9,6 +9,7 @@
 */
 
 #include <linux/serial_core.h>
+#include <linux/leds.h>
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
@@ -21,6 +22,7 @@
 #include <linux/mfd/max8997.h>
 #include <linux/lcd.h>
 #include <linux/rfkill-gpio.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -38,9 +40,9 @@
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
-#include <plat/pd.h>
 #include <plat/fb.h>
 #include <plat/mfc.h>
+#include <plat/hdmi.h>
 
 #include <mach/ohci.h>
 #include <mach/map.h>
@@ -425,7 +427,6 @@ static struct max8997_platform_data __initdata origen_max8997_pdata = {
 	.buck1_gpiodvs	= false,
 	.buck2_gpiodvs	= false,
 	.buck5_gpiodvs	= false,
-	.irq_base	= IRQ_GPIO_END + 1,
 
 	.ignore_gpiodvs_side_effect = true,
 	.buck125_default_idx = 0x0,
@@ -498,6 +499,37 @@ static void __init origen_ohci_init(void)
 
 	exynos4_ohci_set_platdata(pdata);
 }
+
+/* USB OTG */
+static struct s3c_hsotg_plat origen_hsotg_pdata;
+
+static struct gpio_led origen_gpio_leds[] = {
+	{
+		.name			= "origen::status1",
+		.default_trigger	= "heartbeat",
+		.gpio			= EXYNOS4_GPX1(3),
+		.active_low		= 1,
+	},
+	{
+		.name			= "origen::status2",
+		.default_trigger	= "mmc0",
+		.gpio			= EXYNOS4_GPX1(4),
+		.active_low		= 1,
+	},
+};
+
+static struct gpio_led_platform_data origen_gpio_led_info = {
+	.leds		= origen_gpio_leds,
+	.num_leds	= ARRAY_SIZE(origen_gpio_leds),
+};
+
+static struct platform_device origen_leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &origen_gpio_led_info,
+	},
+};
 
 static struct gpio_keys_button origen_gpio_keys_table[] = {
 	{
@@ -655,6 +687,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_i2c0,
 	&s3c_device_rtc,
+	&s3c_device_usb_hsotg,
 	&s3c_device_wdt,
 	&s5p_device_ehci,
 	&s5p_device_fimc0,
@@ -677,6 +710,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&exynos4_device_ohci,
 	&origen_device_gpiokeys,
 	&origen_lcd_hv070wsa,
+	&origen_leds_gpio,
 	&origen_device_bluetooth,
 };
 
@@ -701,6 +735,11 @@ static void __init origen_bt_setup(void)
 	s3c_gpio_setpull(EXYNOS4_GPX2(2), S3C_GPIO_PULL_NONE);
 }
 
+/* I2C module and id for HDMIPHY */
+static struct i2c_board_info hdmiphy_info = {
+	I2C_BOARD_INFO("hdmiphy-exynos4210", 0x38),
+};
+
 static void s5p_tv_setup(void)
 {
 	/* Direct HPD to HDMI chip */
@@ -712,7 +751,7 @@ static void s5p_tv_setup(void)
 static void __init origen_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(24000000);
+	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(origen_uartcfgs, ARRAY_SIZE(origen_uartcfgs));
 }
 
@@ -744,10 +783,11 @@ static void __init origen_machine_init(void)
 
 	origen_ehci_init();
 	origen_ohci_init();
-	clk_xusbxti.rate = 24000000;
+	s3c_hsotg_set_platdata(&origen_hsotg_pdata);
 
 	s5p_tv_setup();
 	s5p_i2c_hdmiphy_set_platdata(NULL);
+	s5p_hdmi_set_platdata(&hdmiphy_info, NULL, 0);
 
 #ifdef CONFIG_DRM_EXYNOS
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;

@@ -87,9 +87,6 @@ struct btrfs_inode {
 	/* node for the red-black tree that links inodes in subvolume root */
 	struct rb_node rb_node;
 
-	/* the space_info for where this inode's data allocations are done */
-	struct btrfs_space_info *space_info;
-
 	unsigned long runtime_flags;
 
 	/* full 64 bit generation number, struct vfs_inode doesn't have a big
@@ -191,11 +188,14 @@ static inline void btrfs_i_size_write(struct inode *inode, u64 size)
 	BTRFS_I(inode)->disk_i_size = size;
 }
 
-static inline bool btrfs_is_free_space_inode(struct btrfs_root *root,
-				       struct inode *inode)
+static inline bool btrfs_is_free_space_inode(struct inode *inode)
 {
-	if (root == root->fs_info->tree_root ||
-	    BTRFS_I(inode)->location.objectid == BTRFS_FREE_INO_OBJECTID)
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
+	if (root == root->fs_info->tree_root &&
+	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
+		return true;
+	if (BTRFS_I(inode)->location.objectid == BTRFS_FREE_INO_OBJECTID)
 		return true;
 	return false;
 }

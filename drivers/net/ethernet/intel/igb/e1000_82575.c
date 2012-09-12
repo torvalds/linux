@@ -254,6 +254,14 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	 */
 	size += NVM_WORD_SIZE_BASE_SHIFT;
 
+	/*
+	 * Check for invalid size
+	 */
+	if ((hw->mac.type == e1000_82576) && (size > 15)) {
+		pr_notice("The NVM size is not valid, defaulting to 32K\n");
+		size = 15;
+	}
+
 	nvm->word_size = 1 << size;
 	if (hw->mac.type < e1000_i210) {
 		nvm->opcode_bits        = 8;
@@ -280,14 +288,6 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		nvm->type = e1000_nvm_eeprom_spi;
 	} else
 		nvm->type = e1000_nvm_flash_hw;
-
-	/*
-	 * Check for invalid size
-	 */
-	if ((hw->mac.type == e1000_82576) && (size > 15)) {
-		pr_notice("The NVM size is not valid, defaulting to 32K\n");
-		size = 15;
-	}
 
 	/* NVM Function Pointers */
 	switch (hw->mac.type) {

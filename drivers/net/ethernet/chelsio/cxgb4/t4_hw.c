@@ -2010,7 +2010,7 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
-/*
+/**
  *     t4_mem_win_read_len - read memory through PCIE memory window
  *     @adap: the adapter
  *     @addr: address of first byte requested aligned on 32b.
