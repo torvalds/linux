@@ -18,7 +18,6 @@
 #include <asm/mach/arch.h>
 
 #include "common.h"
-#include "core.h"
 
 static const struct of_device_id msm_dt_gic_match[] __initconst = {
 	{ .compatible = "qcom,msm-qgic2", .data = gic_of_init },
