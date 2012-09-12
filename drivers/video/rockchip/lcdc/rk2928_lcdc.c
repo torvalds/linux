@@ -814,11 +814,106 @@ static int rk2928_lcdc_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bo
 
 	return ovl;
 }
-static int rk2928_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,int layer_id)
+
+static ssize_t dump_win0_disp_info(struct rk2928_lcdc_device *lcdc_dev,char *buf)
 {
-	struct rk2928_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk2928_lcdc_device,driver);
-	return 0;
+        char format[9] = "NULL";
+        u32 fmt_id = LcdRdReg(lcdc_dev,SYS_CFG);
+        u32 xvir,act_info,dsp_info,dsp_st,factor;
+        u16 x_act,y_act,x_dsp,y_dsp,x_factor,y_factor;
+        u16 x_scale,y_scale;
+        switch((fmt_id&m_W0_FORMAT)>>3)
+        {
+                case 0:
+                        strcpy(format,"ARGB888");
+                        break;
+                case 1:
+                        strcpy(format,"RGB888");
+                        break;
+                case 2:
+                        strcpy(format,"RGB565");
+                        break;
+                case 4:
+                        strcpy(format,"YCbCr422");
+                        break;
+                case 5:
+                        strcpy(format,"YCbCr420");
+                        break;
+                case 6:
+                        strcpy(format,"YCbCr444");
+                        break;
+                default:
+                        strcpy(format,"inval\n");
+                        break;
+        }
+
+        xvir = LcdRdReg(lcdc_dev,WIN_VIR)&0xffff;
+        act_info = LcdRdReg(lcdc_dev,WIN0_ACT_INFO);
+        dsp_info = LcdRdReg(lcdc_dev,WIN0_DSP_INFO);
+        dsp_st = LcdRdReg(lcdc_dev,WIN0_DSP_ST);
+        factor = LcdRdReg(lcdc_dev,WIN0_SCL_FACTOR_YRGB);
+        x_act =  (act_info&0xffff) + 1;
+        y_act = (act_info>>16) + 1;
+        x_dsp = (dsp_info&0xffff) + 1;
+        y_dsp = (dsp_info>>16) + 1;
+	x_factor = factor&0xffff;
+        y_factor = factor>>16;
+        x_scale = 4096*100/x_factor;
+        y_scale = 4096*100/y_factor;
+        return snprintf(buf,PAGE_SIZE,"xvir:%d\nxact:%d\nyact:%d\nxdsp:%d\nydsp:%d\nx_st:%d\ny_st:%d\nx_scale:%d.%d\ny_scale:%d.%d\nformat:%s\n",
+                xvir,x_act,y_act,x_dsp,y_dsp,dsp_st&0xffff,dsp_st>>16,x_scale/100,x_scale%100,y_scale/100,y_scale%100,format);
+
 }
+
+static ssize_t dump_win1_disp_info(struct rk2928_lcdc_device *lcdc_dev,char *buf)
+{
+        char format[9] = "NULL";
+        u32 fmt_id = LcdRdReg(lcdc_dev,SYS_CFG);
+        u32 xvir,act_info,dsp_info,dsp_st,factor;
+        u16 x_act,y_act,x_dsp,y_dsp,x_factor,y_factor;
+        u16 x_scale,y_scale;
+        switch((fmt_id&m_W1_FORMAT)>>6)
+        {
+                case 0:
+                        strcpy(format,"ARGB888");
+                        break;
+                case 1:
+                        strcpy(format,"RGB888");
+                        break;
+                case 2:
+                        strcpy(format,"RGB565");
+                        break;
+                default:
+                        strcpy(format,"inval\n");
+                        break;
+        }
+
+        xvir = (LcdRdReg(lcdc_dev,WIN_VIR)>>16)&0xfff;
+        dsp_info = LcdRdReg(lcdc_dev,WIN1_DSP_INFO);
+        dsp_st = LcdRdReg(lcdc_dev,WIN1_DSP_ST);
+
+        x_dsp = dsp_info&0xffff;
+        y_dsp = dsp_info>>16;
+
+        return snprintf(buf,PAGE_SIZE,"xvir:%d\nxdsp:%d\nydsp:%d\nx_st:%d\ny_st:%d\nformat:%s\n",
+                xvir,x_dsp,y_dsp,dsp_st&0xffff,dsp_st>>16,format);
+}
+
+static ssize_t  rk2928_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,char *buf,int layer_id)
+{
+        struct rk2928_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk2928_lcdc_device,driver);
+        if(layer_id == 0)
+        {
+                return dump_win0_disp_info(lcdc_dev,buf);
+        }
+        else if(layer_id == 1)
+        {
+                return dump_win1_disp_info(lcdc_dev,buf);
+        }
+       
+        return 0;
+}
+
 
 
 /*******************************************
