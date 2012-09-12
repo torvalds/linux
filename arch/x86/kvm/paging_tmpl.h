@@ -103,24 +103,6 @@ static int FNAME(cmpxchg_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	return (ret != orig_pte);
 }
 
-static bool FNAME(is_last_gpte)(struct guest_walker *walker,
-				struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-				pt_element_t gpte)
-{
-	if (walker->level == PT_PAGE_TABLE_LEVEL)
-		return true;
-
-	if ((walker->level == PT_DIRECTORY_LEVEL) && is_large_pte(gpte) &&
-	    (PTTYPE == 64 || is_pse(vcpu)))
-		return true;
-
-	if ((walker->level == PT_PDPE_LEVEL) && is_large_pte(gpte) &&
-	    (mmu->root_level == PT64_ROOT_LEVEL))
-		return true;
-
-	return false;
-}
-
 static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 					     struct kvm_mmu *mmu,
 					     struct guest_walker *walker,
@@ -247,7 +229,7 @@ retry_walk:
 		pte_access = pt_access & gpte_access(vcpu, pte);
 
 		walker->ptes[walker->level - 1] = pte;
-	} while (!FNAME(is_last_gpte)(walker, vcpu, mmu, pte));
+	} while (!is_last_gpte(mmu, walker->level, pte));
 
 	eperm |= permission_fault(mmu, pte_access, access);
 	if (unlikely(eperm)) {

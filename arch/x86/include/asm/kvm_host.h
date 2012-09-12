@@ -298,6 +298,13 @@ struct kvm_mmu {
 	u64 *lm_root;
 	u64 rsvd_bits_mask[2][4];
 
+	/*
+	 * Bitmap: bit set = last pte in walk
+	 * index[0:1]: level (zero-based)
+	 * index[2]: pte.ps
+	 */
+	u8 last_pte_bitmap;
+
 	bool nx;
 
 	u64 pdptrs[4]; /* pae */
