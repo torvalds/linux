@@ -2721,7 +2721,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	/* Eth + IPh + UDPh + mpls */
 	datalen = pkt_dev->cur_pkt_size - 14 - 20 - 8 -
 		  pkt_dev->pkt_overhead;
-	if (datalen < sizeof(struct pktgen_hdr))
+	if (datalen < 0 || datalen < sizeof(struct pktgen_hdr))
 		datalen = sizeof(struct pktgen_hdr);
 
 	udph->source = htons(pkt_dev->cur_udp_src);
