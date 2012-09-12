@@ -1492,7 +1492,6 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	XGINew_SetModeScratch(HwDeviceExtension, pVBInfo);
 
 	xgifb_reg_set(pVBInfo->P3d4, 0x8c, 0x87);
-	xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x31);
 
 	return 1;
 } /* end of init */
