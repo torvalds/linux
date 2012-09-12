@@ -17,7 +17,6 @@
 #include <linux/limits.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
-#include <linux/interrupt.h>
 #include <linux/swab.h>
 #include <linux/io.h>
 
@@ -123,7 +122,7 @@ struct tpci200_regs {
 struct slot_irq {
 	struct ipack_device *holder;
 	int		vector;
-	int		(*handler)(void *);
+	irqreturn_t	(*handler)(void *);
 	void		*arg;
 };
 

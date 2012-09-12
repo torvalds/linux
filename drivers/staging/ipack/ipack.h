@@ -11,6 +11,7 @@
 
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>
+#include <linux/interrupt.h>
 
 #include "ipack_ids.h"
 
@@ -126,7 +127,8 @@ struct ipack_driver {
 struct ipack_bus_ops {
 	int (*map_space) (struct ipack_device *dev, unsigned int memory_size, int space);
 	int (*unmap_space) (struct ipack_device *dev, int space);
-	int (*request_irq) (struct ipack_device *dev, int vector, int (*handler)(void *), void *arg);
+	int (*request_irq) (struct ipack_device *dev, int vector,
+			    irqreturn_t (*handler)(void *), void *arg);
 	int (*free_irq) (struct ipack_device *dev);
 	int (*get_clockrate) (struct ipack_device *dev);
 	int (*set_clockrate) (struct ipack_device *dev, int mherz);

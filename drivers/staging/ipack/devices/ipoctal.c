@@ -263,7 +263,7 @@ static void ipoctal_irq_channel(struct ipoctal_channel *channel)
 	tty_kref_put(tty);
 }
 
-static int ipoctal_irq_handler(void *arg)
+static irqreturn_t ipoctal_irq_handler(void *arg)
 {
 	unsigned int i;
 	struct ipoctal *ipoctal = (struct ipoctal *) arg;

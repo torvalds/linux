@@ -193,7 +193,7 @@ static int tpci200_free_irq(struct ipack_device *dev)
 }
 
 static int tpci200_request_irq(struct ipack_device *dev, int vector,
-			       int (*handler)(void *), void *arg)
+			       irqreturn_t (*handler)(void *), void *arg)
 {
 	int res = 0;
 	struct slot_irq *slot_irq;
