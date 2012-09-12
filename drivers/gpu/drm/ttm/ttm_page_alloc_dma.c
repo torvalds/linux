@@ -1060,7 +1060,7 @@ int ttm_dma_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 
 	_manager = kzalloc(sizeof(*_manager), GFP_KERNEL);
 	if (!_manager)
-		goto err_manager;
+		goto err;
 
 	mutex_init(&_manager->lock);
 	INIT_LIST_HEAD(&_manager->pools);
@@ -1078,9 +1078,6 @@ int ttm_dma_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 	}
 	ttm_dma_pool_mm_shrink_init(_manager);
 	return 0;
-err_manager:
-	kfree(_manager);
-	_manager = NULL;
 err:
 	return ret;
 }
