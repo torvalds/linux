@@ -424,7 +424,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
 		return ret;
 
-	if (clk->set_parent==NULL||clk->parents == NULL)
+	if (clk->parents == NULL)
 		return ret;
 
 	LOCK();
@@ -443,7 +443,7 @@ int clk_set_parent_force(struct clk *clk, struct clk *parent)
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
 		return ret;
 
-	if (clk->set_parent==NULL||clk->parents == NULL)
+	if (clk->parents == NULL)
 		return ret;
 	LOCK();
 		ret = clk_set_parent_nolock(clk, parent);	
