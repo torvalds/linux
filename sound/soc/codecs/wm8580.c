@@ -899,7 +899,8 @@ static int wm8580_i2c_probe(struct i2c_client *i2c,
 	struct wm8580_priv *wm8580;
 	int ret;
 
-	wm8580 = kzalloc(sizeof(struct wm8580_priv), GFP_KERNEL);
+	wm8580 = devm_kzalloc(&i2c->dev, sizeof(struct wm8580_priv),
+			      GFP_KERNEL);
 	if (wm8580 == NULL)
 		return -ENOMEM;
 
@@ -908,15 +909,13 @@ static int wm8580_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8580, wm8580_dai, ARRAY_SIZE(wm8580_dai));
-	if (ret < 0)
-		kfree(wm8580);
+
 	return ret;
 }
 
 static int wm8580_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
