@@ -108,12 +108,22 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 	}
 }
 
+static irqreturn_t tpci200_slot_irq(struct slot_irq *slot_irq)
+{
+	irqreturn_t ret = slot_irq->handler(slot_irq->arg);
+
+	/* Dummy reads */
+	readw(slot_irq->holder->io_space.address + 0xC0);
+	readw(slot_irq->holder->io_space.address + 0xC2);
+
+	return ret;
+}
+
 static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 {
 	struct tpci200_board *tpci200 = (struct tpci200_board *) dev_id;
 	int i;
 	unsigned short status_reg;
-	unsigned short unhandled_ints = 0;
 	irqreturn_t ret = IRQ_NONE;
 	struct slot_irq *slot_irq;
 
@@ -121,33 +131,15 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 	status_reg = readw(&tpci200->info->interface_regs->status);
 
 	if (status_reg & TPCI200_SLOT_INT_MASK) {
-		unhandled_ints = status_reg & TPCI200_SLOT_INT_MASK;
 		/* callback to the IRQ handler for the corresponding slot */
 		for (i = 0; i < TPCI200_NB_SLOT; i++) {
+			if (!(status_reg & ((TPCI200_A_INT0 | TPCI200_A_INT1) << (2*i))))
+				continue;
 			slot_irq = tpci200->slots[i].irq;
-
-			if ((slot_irq != NULL) &&
-			    (status_reg & ((TPCI200_A_INT0 | TPCI200_A_INT1) << (2*i)))) {
-
-				ret = slot_irq->handler(slot_irq->arg);
-
-				/* Dummy reads */
-				readw(slot_irq->holder->io_space.address +
-				      0xC0);
-				readw(slot_irq->holder->io_space.address +
-				      0xC2);
-
-				unhandled_ints &= ~(((TPCI200_A_INT0 | TPCI200_A_INT1) << (2*i)));
-			}
-		}
-	}
-	/* Interrupts not handled are disabled */
-	if (unhandled_ints) {
-		for (i = 0; i < TPCI200_NB_SLOT; i++) {
-			slot_irq = tpci200->slots[i].irq;
-
-			if (unhandled_ints & ((TPCI200_INT0_EN | TPCI200_INT1_EN) << (2*i))) {
-				dev_info(&slot_irq->holder->dev,
+			if (slot_irq) {
+				ret = tpci200_slot_irq(slot_irq);
+			} else {
+				dev_info(&tpci200->info->pdev->dev,
 					 "No registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
 					 tpci200->number, i);
 				__tpci200_clear_mask(
