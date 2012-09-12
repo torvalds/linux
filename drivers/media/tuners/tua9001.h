@@ -30,6 +30,26 @@ struct tua9001_config {
 	u8 i2c_addr;
 };
 
+/*
+ * TUA9001 I/O PINs:
+ *
+ * CEN - chip enable
+ * 0 = chip disabled (chip off)
+ * 1 = chip enabled (chip on)
+ *
+ * RESETN - chip reset
+ * 0 = reset disabled (chip reset off)
+ * 1 = reset enabled (chip reset on)
+ *
+ * RXEN - RX enable
+ * 0 = RX disabled (chip idle)
+ * 1 = RX enabled (chip tuned)
+ */
+
+#define TUA9001_CMD_CEN     0
+#define TUA9001_CMD_RESETN  1
+#define TUA9001_CMD_RXEN    2
+
 #if defined(CONFIG_MEDIA_TUNER_TUA9001) || \
 	(defined(CONFIG_MEDIA_TUNER_TUA9001_MODULE) && defined(MODULE))
 extern struct dvb_frontend *tua9001_attach(struct dvb_frontend *fe,
