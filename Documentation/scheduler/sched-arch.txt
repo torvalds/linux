@@ -17,16 +17,6 @@ you must `#define __ARCH_WANT_UNLOCKED_CTXSW` in a header file
 Unlocked context switches introduce only a very minor performance
 penalty to the core scheduler implementation in the CONFIG_SMP case.
 
-2. Interrupt status
-By default, the switch_to arch function is called with interrupts
-disabled. Interrupts may be enabled over the call if it is likely to
-introduce a significant interrupt latency by adding the line
-`#define __ARCH_WANT_INTERRUPTS_ON_CTXSW` in the same place as for
-unlocked context switches. This define also implies
-`__ARCH_WANT_UNLOCKED_CTXSW`. See arch/arm/include/asm/system.h for an
-example.
-
-
 CPU idle
 ========
 Your cpu_idle routines need to obey the following rules:
