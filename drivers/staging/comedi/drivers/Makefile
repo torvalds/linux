@@ -95,7 +95,6 @@ obj-$(CONFIG_COMEDI_KE_COUNTER)		+= ke_counter.o
 obj-$(CONFIG_COMEDI_CB_PCIDAS64)	+= cb_pcidas64.o
 obj-$(CONFIG_COMEDI_CB_PCIDAS)		+= cb_pcidas.o
 obj-$(CONFIG_COMEDI_CB_PCIDDA)		+= cb_pcidda.o
-obj-$(CONFIG_COMEDI_CB_PCIDIO)		+= cb_pcidio.o
 obj-$(CONFIG_COMEDI_CB_PCIMDAS)		+= cb_pcimdas.o
 obj-$(CONFIG_COMEDI_CB_PCIMDDA)		+= cb_pcimdda.o
 obj-$(CONFIG_COMEDI_ME4000)		+= me4000.o

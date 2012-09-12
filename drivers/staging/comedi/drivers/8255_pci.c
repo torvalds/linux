@@ -4,6 +4,8 @@
  *
  * Based on the tested adl_pci7296 driver written by:
  *	Jon Grierson <jd@renko.co.uk>
+ * and the experimental cb_pcidio driver written by:
+ *	Yoshiya Matsuzaka
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -29,6 +31,9 @@ Description: Generic PCI based 8255 Digital I/O boards
 Devices: (ADLink) PCI-7224 [adl_pci-7224] - 24 channels
 	 (ADLink) PCI-7248 [adl_pci-7248] - 48 channels
 	 (ADLink) PCI-7296 [adl_pci-7296] - 96 channels
+	 (Measurement Computing) PCI-DIO24 [cb_pci-dio24] - 24 channels
+	 (Measurement Computing) PCI-DIO24H [cb_pci-dio24h] - 24 channels
+	 (Measurement Computing) PCI-DIO48H [cb_pci-dio48h] - 48 channels
 Author: H Hartley Sweeten <hsweeten@visionengravers.com>
 Updated: Wed, 12 Sep 2012 11:52:01 -0700
 Status: untested
@@ -52,9 +57,17 @@ Configuration Options: not applicable, uses PCI auto config
 #define PCI_DEVICE_ID_ADLINK_PCI7248	0x7248
 #define PCI_DEVICE_ID_ADLINK_PCI7296	0x7296
 
+/* ComputerBoards is now known as Measurement Computing */
+#define PCI_VENDOR_ID_CB		0x1307
+
+#define PCI_DEVICE_ID_CB_PCIDIO48H	0x000b
+#define PCI_DEVICE_ID_CB_PCIDIO24H	0x0014
+#define PCI_DEVICE_ID_CB_PCIDIO24	0x0028
+
 struct pci_8255_boardinfo {
 	const char *name;
 	unsigned short device;
+	int dio_badr;
 	int n_8255;
 };
 
@@ -62,15 +75,33 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 	{
 		.name		= "adl_pci-7224",
 		.device		= PCI_DEVICE_ID_ADLINK_PCI7224,
+		.dio_badr	= 2,
 		.n_8255		= 1,
 	}, {
 		.name		= "adl_pci-7248",
 		.device		= PCI_DEVICE_ID_ADLINK_PCI7248,
+		.dio_badr	= 2,
 		.n_8255		= 2,
 	}, {
 		.name		= "adl_pci-7296",
 		.device		= PCI_DEVICE_ID_ADLINK_PCI7296,
+		.dio_badr	= 2,
 		.n_8255		= 4,
+	}, {
+		.name		= "cb_pci-dio24",
+		.device		= PCI_DEVICE_ID_CB_PCIDIO24,
+		.dio_badr	= 2,
+		.n_8255		= 1,
+	}, {
+		.name		= "cb_pci-dio24h",
+		.device		= PCI_DEVICE_ID_CB_PCIDIO24H,
+		.dio_badr	= 2,
+		.n_8255		= 1,
+	}, {
+		.name		= "cb_pci-dio48h",
+		.device		= PCI_DEVICE_ID_CB_PCIDIO48H,
+		.dio_badr	= 1,
+		.n_8255		= 2,
 	},
 };
 
@@ -107,7 +138,7 @@ static int pci_8255_attach_pci(struct comedi_device *dev,
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
-	dev->iobase = pci_resource_start(pcidev, 2);
+	dev->iobase = pci_resource_start(pcidev, board->dio_badr);
 
 	/*
 	 * One, two, or four subdevices are setup by this driver depending
@@ -172,6 +203,9 @@ static DEFINE_PCI_DEVICE_TABLE(pci_8255_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7224) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7248) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7296) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO24) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO24H) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO48H) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, pci_8255_pci_table);
