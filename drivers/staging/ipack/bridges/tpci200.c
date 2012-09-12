@@ -165,6 +165,83 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int tpci200_free_irq(struct ipack_device *dev)
+{
+	struct slot_irq *slot_irq;
+	struct tpci200_board *tpci200;
+
+	tpci200 = check_slot(dev);
+	if (tpci200 == NULL)
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&tpci200->mutex))
+		return -ERESTARTSYS;
+
+	if (tpci200->slots[dev->slot].irq == NULL) {
+		mutex_unlock(&tpci200->mutex);
+		return -EINVAL;
+	}
+
+	tpci200_disable_irq(tpci200, dev->slot);
+	slot_irq = tpci200->slots[dev->slot].irq;
+	/* uninstall handler */
+	RCU_INIT_POINTER(tpci200->slots[dev->slot].irq, NULL);
+	synchronize_rcu();
+	kfree(slot_irq);
+	mutex_unlock(&tpci200->mutex);
+	return 0;
+}
+
+static int tpci200_request_irq(struct ipack_device *dev, int vector,
+			       int (*handler)(void *), void *arg)
+{
+	int res = 0;
+	struct slot_irq *slot_irq;
+	struct tpci200_board *tpci200;
+
+	tpci200 = check_slot(dev);
+	if (tpci200 == NULL)
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&tpci200->mutex))
+		return -ERESTARTSYS;
+
+	if (tpci200->slots[dev->slot].irq != NULL) {
+		dev_err(&dev->dev,
+			"Slot [%d:%d] IRQ already registered !\n", dev->bus_nr,
+			dev->slot);
+		res = -EINVAL;
+		goto out_unlock;
+	}
+
+	slot_irq = kzalloc(sizeof(struct slot_irq), GFP_KERNEL);
+	if (slot_irq == NULL) {
+		dev_err(&dev->dev,
+			"Slot [%d:%d] unable to allocate memory for IRQ !\n",
+			dev->bus_nr, dev->slot);
+		res = -ENOMEM;
+		goto out_unlock;
+	}
+
+	/*
+	 * WARNING: Setup Interrupt Vector in the IndustryPack device
+	 * before an IRQ request.
+	 * Read the User Manual of your IndustryPack device to know
+	 * where to write the vector in memory.
+	 */
+	slot_irq->vector = vector;
+	slot_irq->handler = handler;
+	slot_irq->arg = arg;
+	slot_irq->holder = dev;
+
+	rcu_assign_pointer(tpci200->slots[dev->slot].irq, slot_irq);
+	tpci200_enable_irq(tpci200, dev->slot);
+
+out_unlock:
+	mutex_unlock(&tpci200->mutex);
+	return res;
+}
+
 static int tpci200_register(struct tpci200_board *tpci200)
 {
 	int i;
@@ -281,33 +358,6 @@ out_release_ip_space:
 out_disable_pci:
 	pci_disable_device(tpci200->info->pdev);
 	return res;
-}
-
-static int tpci200_free_irq(struct ipack_device *dev)
-{
-	struct slot_irq *slot_irq;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	if (mutex_lock_interruptible(&tpci200->mutex))
-		return -ERESTARTSYS;
-
-	if (tpci200->slots[dev->slot].irq == NULL) {
-		mutex_unlock(&tpci200->mutex);
-		return -EINVAL;
-	}
-
-	tpci200_disable_irq(tpci200, dev->slot);
-	slot_irq = tpci200->slots[dev->slot].irq;
-	/* uninstall handler */
-	RCU_INIT_POINTER(tpci200->slots[dev->slot].irq, NULL);
-	synchronize_rcu();
-	kfree(slot_irq);
-	mutex_unlock(&tpci200->mutex);
-	return 0;
 }
 
 static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
@@ -442,56 +492,6 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 	virt_addr_space->size = size_to_map;
 	virt_addr_space->address =
 		ioremap_nocache((unsigned long)phys_address, size_to_map);
-
-out_unlock:
-	mutex_unlock(&tpci200->mutex);
-	return res;
-}
-
-static int tpci200_request_irq(struct ipack_device *dev, int vector,
-			       int (*handler)(void *), void *arg)
-{
-	int res = 0;
-	struct slot_irq *slot_irq;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	if (mutex_lock_interruptible(&tpci200->mutex))
-		return -ERESTARTSYS;
-
-	if (tpci200->slots[dev->slot].irq != NULL) {
-		dev_err(&dev->dev,
-			"Slot [%d:%d] IRQ already registered !\n", dev->bus_nr,
-			dev->slot);
-		res = -EINVAL;
-		goto out_unlock;
-	}
-
-	slot_irq = kzalloc(sizeof(struct slot_irq), GFP_KERNEL);
-	if (slot_irq == NULL) {
-		dev_err(&dev->dev,
-			"Slot [%d:%d] unable to allocate memory for IRQ !\n",
-			dev->bus_nr, dev->slot);
-		res = -ENOMEM;
-		goto out_unlock;
-	}
-
-	/*
-	 * WARNING: Setup Interrupt Vector in the IndustryPack device
-	 * before an IRQ request.
-	 * Read the User Manual of your IndustryPack device to know
-	 * where to write the vector in memory.
-	 */
-	slot_irq->vector = vector;
-	slot_irq->handler = handler;
-	slot_irq->arg = arg;
-	slot_irq->holder = dev;
-
-	rcu_assign_pointer(tpci200->slots[dev->slot].irq, slot_irq);
-	tpci200_enable_irq(tpci200, dev->slot);
 
 out_unlock:
 	mutex_unlock(&tpci200->mutex);
