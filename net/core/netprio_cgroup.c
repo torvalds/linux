@@ -109,32 +109,6 @@ static int write_update_netdev_table(struct net_device *dev)
 	return ret;
 }
 
-static int update_netdev_tables(void)
-{
-	int ret = 0;
-	struct net_device *dev;
-	u32 max_len;
-	struct netprio_map *map;
-
-	rtnl_lock();
-	max_len = atomic_read(&max_prioidx) + 1;
-	for_each_netdev(&init_net, dev) {
-		map = rtnl_dereference(dev->priomap);
-		/*
-		 * don't allocate priomap if we didn't
-		 * change net_prio.ifpriomap (map == NULL),
-		 * this will speed up skb_update_prio.
-		 */
-		if (map && map->priomap_len < max_len) {
-			ret = extend_netdev_table(dev, max_len);
-			if (ret < 0)
-				break;
-		}
-	}
-	rtnl_unlock();
-	return ret;
-}
-
 static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp)
 {
 	struct cgroup_netprio_state *cs;
@@ -150,12 +124,6 @@ static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp)
 	ret = get_prioidx(&cs->prioidx);
 	if (ret < 0) {
 		pr_warn("No space in priority index array\n");
-		goto out;
-	}
-
-	ret = update_netdev_tables();
-	if (ret < 0) {
-		put_prioidx(cs->prioidx);
 		goto out;
 	}
 
