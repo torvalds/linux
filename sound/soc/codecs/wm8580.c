@@ -867,21 +867,11 @@ static struct snd_soc_dai_driver wm8580_dai[] = {
 static int wm8580_probe(struct snd_soc_codec *codec)
 {
 	struct wm8580_priv *wm8580 = snd_soc_codec_get_drvdata(codec);
-	int ret = 0,i;
+	int ret = 0;
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(wm8580->supplies); i++)
-		wm8580->supplies[i].supply = wm8580_supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8580->supplies),
-				 wm8580->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
 		return ret;
 	}
 
@@ -906,7 +896,6 @@ static int wm8580_probe(struct snd_soc_codec *codec)
 err_regulator_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8580->supplies), wm8580->supplies);
 err_regulator_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8580->supplies), wm8580->supplies);
 	return ret;
 }
 
@@ -918,7 +907,6 @@ static int wm8580_remove(struct snd_soc_codec *codec)
 	wm8580_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	regulator_bulk_disable(ARRAY_SIZE(wm8580->supplies), wm8580->supplies);
-	regulator_bulk_free(ARRAY_SIZE(wm8580->supplies), wm8580->supplies);
 
 	return 0;
 }
@@ -958,7 +946,7 @@ static int wm8580_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8580_priv *wm8580;
-	int ret;
+	int ret, i;
 
 	wm8580 = devm_kzalloc(&i2c->dev, sizeof(struct wm8580_priv),
 			      GFP_KERNEL);
@@ -968,6 +956,16 @@ static int wm8580_i2c_probe(struct i2c_client *i2c,
 	wm8580->regmap = devm_regmap_init_i2c(i2c, &wm8580_regmap);
 	if (IS_ERR(wm8580->regmap))
 		return PTR_ERR(wm8580->regmap);
+
+	for (i = 0; i < ARRAY_SIZE(wm8580->supplies); i++)
+		wm8580->supplies[i].supply = wm8580_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8580->supplies),
+				      wm8580->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
 
 	i2c_set_clientdata(i2c, wm8580);
 
