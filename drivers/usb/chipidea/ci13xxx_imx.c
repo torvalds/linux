@@ -20,6 +20,7 @@
 #include <linux/usb/chipidea.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "ci.h"
 #include "ci13xxx_imx.h"
@@ -99,6 +100,7 @@ static int __devinit ci13xxx_imx_probe(struct platform_device *pdev)
 	struct device_node *phy_np;
 	struct resource *res;
 	struct regulator *reg_vbus;
+	struct pinctrl *pinctrl;
 	int ret;
 
 	if (of_find_property(pdev->dev.of_node, "fsl,usbmisc", NULL)
@@ -116,6 +118,11 @@ static int __devinit ci13xxx_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't get device resources!\n");
 		return -ENOENT;
 	}
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl))
+		dev_warn(&pdev->dev, "pinctrl get/select failed, err=%ld\n",
+			PTR_ERR(pinctrl));
 
 	data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->clk)) {
