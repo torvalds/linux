@@ -22,6 +22,7 @@
 #include <linux/regulator/consumer.h>
 
 #include "ci.h"
+#include "ci13xxx_imx.h"
 
 #define pdev_to_phy(pdev) \
 	((struct usb_phy *)platform_get_drvdata(pdev))
@@ -33,6 +34,55 @@ struct ci13xxx_imx_data {
 	struct clk *clk;
 	struct regulator *reg_vbus;
 };
+
+static const struct usbmisc_ops *usbmisc_ops;
+
+/* Common functions shared by usbmisc drivers */
+
+int usbmisc_set_ops(const struct usbmisc_ops *ops)
+{
+	if (usbmisc_ops)
+		return -EBUSY;
+
+	usbmisc_ops = ops;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usbmisc_set_ops);
+
+void usbmisc_unset_ops(const struct usbmisc_ops *ops)
+{
+	usbmisc_ops = NULL;
+}
+EXPORT_SYMBOL_GPL(usbmisc_unset_ops);
+
+int usbmisc_get_init_data(struct device *dev, struct usbmisc_usb_device *usbdev)
+{
+	struct device_node *np = dev->of_node;
+	struct of_phandle_args args;
+	int ret;
+
+	usbdev->dev = dev;
+
+	ret = of_parse_phandle_with_args(np, "fsl,usbmisc", "#index-cells",
+					0, &args);
+	if (ret) {
+		dev_err(dev, "Failed to parse property fsl,usbmisc, errno %d\n",
+			ret);
+		memset(usbdev, 0, sizeof(*usbdev));
+		return ret;
+	}
+	usbdev->index = args.args[0];
+	of_node_put(args.np);
+
+	if (of_find_property(np, "disable-over-current", NULL))
+		usbdev->disable_oc = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usbmisc_get_init_data);
+
+/* End of common functions shared by usbmisc drivers*/
 
 static struct ci13xxx_platform_data ci13xxx_imx_platdata __devinitdata  = {
 	.name			= "ci13xxx_imx",
@@ -50,6 +100,10 @@ static int __devinit ci13xxx_imx_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct regulator *reg_vbus;
 	int ret;
+
+	if (of_find_property(pdev->dev.of_node, "fsl,usbmisc", NULL)
+		&& !usbmisc_ops)
+		return -EPROBE_DEFER;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
@@ -120,6 +174,16 @@ static int __devinit ci13xxx_imx_probe(struct platform_device *pdev)
 		*pdev->dev.dma_mask = DMA_BIT_MASK(32);
 		dma_set_coherent_mask(&pdev->dev, *pdev->dev.dma_mask);
 	}
+
+	if (usbmisc_ops && usbmisc_ops->init) {
+		ret = usbmisc_ops->init(&pdev->dev);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"usbmisc init failed, ret=%d\n", ret);
+			goto err;
+		}
+	}
+
 	plat_ci = ci13xxx_add_device(&pdev->dev,
 				pdev->resource, pdev->num_resources,
 				&ci13xxx_imx_platdata);
