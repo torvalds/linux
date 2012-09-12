@@ -1743,24 +1743,11 @@ static void
 intel_dp_start_link_train(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
 	int i;
 	uint8_t voltage;
 	bool clock_recovery = false;
 	int voltage_tries, loop_tries;
 	uint32_t DP = intel_dp->DP;
-
-	/*
-	 * On CPT we have to enable the port in training pattern 1, which
-	 * will happen below in intel_dp_set_link_train.  Otherwise, enable
-	 * the port and wait for it to become active.
-	 */
-	if (!HAS_PCH_CPT(dev)) {
-		I915_WRITE(intel_dp->output_reg, intel_dp->DP);
-		POSTING_READ(intel_dp->output_reg);
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
-	}
 
 	/* Write the link configuration data */
 	intel_dp_aux_native_write(intel_dp, DP_LINK_BW_SET,
