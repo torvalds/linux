@@ -1270,7 +1270,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 		}
 
 		if (!field->type) {
-			die("no type found");
+			do_warning("%s: no type found", __func__);
 			goto fail;
 		}
 		field->name = last_token;
@@ -1317,7 +1317,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 				free_token(token);
 				type = read_token(&token);
 				if (type == EVENT_NONE) {
-					die("failed to find token");
+					do_warning("failed to find token");
 					goto fail;
 				}
 			}
@@ -1669,7 +1669,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 	if (arg->type == PRINT_OP && !arg->op.left) {
 		/* handle single op */
 		if (token[1]) {
-			die("bad op token %s", token);
+			do_warning("bad op token %s", token);
 			goto out_free;
 		}
 		switch (token[0]) {
