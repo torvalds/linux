@@ -997,6 +997,9 @@ static int lp5523_remove(struct i2c_client *client)
 	struct lp5523_chip *chip = i2c_get_clientdata(client);
 	int i;
 
+	/* Disable engine mode */
+	lp5523_write(client, LP5523_REG_OP_MODE, LP5523_CMD_DISABLED);
+
 	lp5523_unregister_sysfs(client);
 
 	for (i = 0; i < chip->num_leds; i++) {
