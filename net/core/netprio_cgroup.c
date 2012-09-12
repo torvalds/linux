@@ -73,7 +73,6 @@ static int extend_netdev_table(struct net_device *dev, u32 new_len)
 			   ((sizeof(u32) * new_len));
 	struct netprio_map *new_priomap = kzalloc(new_size, GFP_KERNEL);
 	struct netprio_map *old_priomap;
-	int i;
 
 	old_priomap  = rtnl_dereference(dev->priomap);
 
@@ -82,10 +81,10 @@ static int extend_netdev_table(struct net_device *dev, u32 new_len)
 		return -ENOMEM;
 	}
 
-	for (i = 0;
-	     old_priomap && (i < old_priomap->priomap_len);
-	     i++)
-		new_priomap->priomap[i] = old_priomap->priomap[i];
+	if (old_priomap)
+		memcpy(new_priomap->priomap, old_priomap->priomap,
+		       old_priomap->priomap_len *
+		       sizeof(old_priomap->priomap[0]));
 
 	new_priomap->priomap_len = new_len;
 
