@@ -100,13 +100,17 @@ dcb_gpio_parse(struct nouveau_bios *bios, int idx, u8 func, u8 line,
 	/* DCB 2.2, fixed TVDAC GPIO data */
 	if ((entry = dcb_table(bios, &ver, &hdr, &cnt, &len)) && ver >= 0x22) {
 		if (func == DCB_GPIO_TVDAC0) {
-			*gpio = (struct dcb_gpio_func) {
-				.func = DCB_GPIO_TVDAC0,
-				.line = nv_ro08(bios, entry - 4) >> 4,
-				.log[0] = !!(nv_ro08(bios, entry - 5) & 2),
-				.log[1] =  !(nv_ro08(bios, entry - 5) & 2),
-			};
-			return 0;
+			u8 conf = nv_ro08(bios, entry - 5);
+			u8 addr = nv_ro08(bios, entry - 4);
+			if (conf & 0x01) {
+				*gpio = (struct dcb_gpio_func) {
+					.func = DCB_GPIO_TVDAC0,
+					.line = addr >> 4,
+					.log[0] = !!(conf & 0x02),
+					.log[1] =  !(conf & 0x02),
+				};
+				return 0;
+			}
 		}
 	}
 
