@@ -34,6 +34,7 @@ Devices: (ADLink) PCI-7224 [adl_pci-7224] - 24 channels
 	 (Measurement Computing) PCI-DIO24 [cb_pci-dio24] - 24 channels
 	 (Measurement Computing) PCI-DIO24H [cb_pci-dio24h] - 24 channels
 	 (Measurement Computing) PCI-DIO48H [cb_pci-dio48h] - 48 channels
+	 (Measurement Computing) PCI-DIO96H [cb_pci-dio96h] - 96 channels
 Author: H Hartley Sweeten <hsweeten@visionengravers.com>
 Updated: Wed, 12 Sep 2012 11:52:01 -0700
 Status: untested
@@ -62,6 +63,7 @@ Configuration Options: not applicable, uses PCI auto config
 
 #define PCI_DEVICE_ID_CB_PCIDIO48H	0x000b
 #define PCI_DEVICE_ID_CB_PCIDIO24H	0x0014
+#define PCI_DEVICE_ID_CB_PCIDIO96H	0x0017
 #define PCI_DEVICE_ID_CB_PCIDIO24	0x0028
 
 struct pci_8255_boardinfo {
@@ -102,6 +104,11 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 		.device		= PCI_DEVICE_ID_CB_PCIDIO48H,
 		.dio_badr	= 1,
 		.n_8255		= 2,
+	}, {
+		.name		= "cb_pci-dio96h",
+		.device		= PCI_DEVICE_ID_CB_PCIDIO96H,
+		.dio_badr	= 2,
+		.n_8255		= 4,
 	},
 };
 
@@ -206,6 +213,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci_8255_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO24) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO24H) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO48H) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO96H) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, pci_8255_pci_table);

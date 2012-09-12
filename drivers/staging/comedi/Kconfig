@@ -558,7 +558,8 @@ config COMEDI_8255_PCI
 
 	  Supported boards:
 	    ADlink - PCI-7224, PCI-7248, and PCI-7296
-	    Measurement Computing - PCI-DIO24, PCI-DIO24H and PCI-DIO48H
+	    Measurement Computing - PCI-DIO24, PCI-DIO24H, PCI-DIO48H and
+	                            PCI-DIO96H
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called 8255_pci.
