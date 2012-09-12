@@ -78,8 +78,7 @@ static inline int ep_to_bit(struct ci13xxx *ci, int n)
 }
 
 /**
- * hw_device_state: enables/disables interrupts & starts/stops device (execute
- *                  without interruption)
+ * hw_device_state: enables/disables interrupts (execute without interruption)
  * @dma: 0 => disable, !0 => enable and set dma engine
  *
  * This function returns an error code
@@ -91,9 +90,7 @@ static int hw_device_state(struct ci13xxx *ci, u32 dma)
 		/* interrupt, error, port change, reset, sleep/suspend */
 		hw_write(ci, OP_USBINTR, ~0,
 			     USBi_UI|USBi_UEI|USBi_PCI|USBi_URI|USBi_SLI);
-		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
 	} else {
-		hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
 		hw_write(ci, OP_USBINTR, ~0, 0);
 	}
 	return 0;
@@ -1420,6 +1417,21 @@ static int ci13xxx_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	return -ENOTSUPP;
 }
 
+/* Change Data+ pullup status
+ * this func is used by usb_gadget_connect/disconnet
+ */
+static int ci13xxx_pullup(struct usb_gadget *_gadget, int is_on)
+{
+	struct ci13xxx *ci = container_of(_gadget, struct ci13xxx, gadget);
+
+	if (is_on)
+		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
+	else
+		hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
+
+	return 0;
+}
+
 static int ci13xxx_start(struct usb_gadget *gadget,
 			 struct usb_gadget_driver *driver);
 static int ci13xxx_stop(struct usb_gadget *gadget,
@@ -1432,6 +1444,7 @@ static int ci13xxx_stop(struct usb_gadget *gadget,
 static const struct usb_gadget_ops usb_gadget_ops = {
 	.vbus_session	= ci13xxx_vbus_session,
 	.wakeup		= ci13xxx_wakeup,
+	.pullup		= ci13xxx_pullup,
 	.vbus_draw	= ci13xxx_vbus_draw,
 	.udc_start	= ci13xxx_start,
 	.udc_stop	= ci13xxx_stop,
