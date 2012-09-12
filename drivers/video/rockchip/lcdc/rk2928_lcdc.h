@@ -77,6 +77,7 @@ typedef volatile struct tagLCDC_REG
 #define m_LCDC_STANDBY		     (1<<22)
 
 #define m_LCDC_AXICLK_AUTO_ENABLE    (1<<24) //eanble for low power
+#define m_DSP_OUT_ZERO		     (1<<25)
 
 #define v_W0_EN(x)          		(((x)&1)<<0)
 #define v_W1_EN(x)          		(((x)&1)<<1)
@@ -86,6 +87,8 @@ typedef volatile struct tagLCDC_REG
 #define v_LCDC_STANDBY(x)		(((x)&1)<<22)
 
 #define v_LCDC_AXICLK_AUTO_ENABLE(x)    (((x)&1)<<24)
+#define v_DSP_OUT_ZERO(x)    		(((x)&1)<<25)
+
 
 #define v_LCDC_DMA_STOP(x)              (((x)&1)<<0)
 #define v_HWC_RELOAD_EN(x)             (((x)&1)<<2)
@@ -138,7 +141,7 @@ typedef volatile struct tagLCDC_REG
 
 #define v_DISPLAY_FORMAT(x)           (((x)&0x3)<<0)
 #define v_BLANK_MODE(x)               (((x)&1)<<2)
-#define v_BLACK_MODE(x)               (((x)&1)<<2)
+#define v_BLACK_MODE(x)               (((x)&1)<<3)
 #define v_HSYNC_POLARITY(x)           (((x)&1)<<4)
 #define v_VSYNC_POLARITY(x)           (((x)&1)<<5)
 #define v_DEN_POLARITY(x)             (((x)&1)<<6)

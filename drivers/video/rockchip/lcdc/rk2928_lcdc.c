@@ -31,6 +31,7 @@
 #include <asm/div64.h>
 #include <asm/uaccess.h>
 #include <mach/iomux.h>
+#include <mach/gpio.h>
 #include "rk2928_lcdc.h"
 #include "../lvds/rk_lvds.h"
 
@@ -43,6 +44,82 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 #define DBG(level,x...) do { if(unlikely(dbg_thresd > level)) printk(KERN_INFO x); } while (0)
 
 
+
+//rk2928 lcdc iomux,mode:0,gpio,1 lcdc io
+static int rk2928_lcdc_iomux(rk_screen *screen,int mode)
+{
+	int ret = 0;
+	int i=0;
+	if((screen->type == SCREEN_RGB)&&(mode)) //iomux for RGB screen
+	{
+
+		if(screen->lcdc_id == 0)
+		{
+			rk30_mux_api_set(GPIO2B0_LCDC0_DCLK_LCDC1_DCLK_NAME, GPIO2B_LCDC0_DCLK);
+			rk30_mux_api_set(GPIO2B1_LCDC0_HSYNC_LCDC1_HSYNC_NAME, GPIO2B_LCDC0_HSYNC);
+			rk30_mux_api_set(GPIO2B2_LCDC0_VSYNC_LCDC1_VSYNC_NAME, GPIO2B_LCDC0_VSYNC);
+			rk30_mux_api_set(GPIO2B3_LCDC0_DEN_LCDC1_DEN_NAME, GPIO2B_LCDC0_DEN);
+			rk30_mux_api_set(GPIO2B4_LCDC0_D10_LCDC1_D10_NAME, GPIO2B_LCDC0_D10);
+			rk30_mux_api_set(GPIO2B5_LCDC0_D11_LCDC1_D11_NAME, GPIO2B_LCDC0_D11);
+			rk30_mux_api_set(GPIO2B6_LCDC0_D12_LCDC1_D12_NAME, GPIO2B_LCDC0_D12);
+			rk30_mux_api_set(GPIO2B7_LCDC0_D13_LCDC1_D13_NAME, GPIO2B_LCDC0_D13);
+			rk30_mux_api_set(GPIO2C0_LCDC0_D14_LCDC1_D14_NAME, GPIO2C_LCDC0_D14);
+			rk30_mux_api_set(GPIO2C1_LCDC0_D15_LCDC1_D15_NAME, GPIO2C_LCDC0_D15);
+			rk30_mux_api_set(GPIO2C2_LCDC0_D16_LCDC1_D16_NAME, GPIO2C_LCDC0_D16);
+			rk30_mux_api_set(GPIO2C3_LCDC0_D17_LCDC1_D17_NAME, GPIO2C_LCDC0_D17);
+		}
+		else if(screen->lcdc_id == 1)
+		{
+			rk30_mux_api_set(GPIO2B0_LCDC0_DCLK_LCDC1_DCLK_NAME, GPIO2B_LCDC1_DCLK);
+			rk30_mux_api_set(GPIO2B1_LCDC0_HSYNC_LCDC1_HSYNC_NAME, GPIO2B_LCDC1_HSYNC);
+			rk30_mux_api_set(GPIO2B2_LCDC0_VSYNC_LCDC1_VSYNC_NAME, GPIO2B_LCDC1_VSYNC);
+			rk30_mux_api_set(GPIO2B3_LCDC0_DEN_LCDC1_DEN_NAME, GPIO2B_LCDC1_DEN);
+			rk30_mux_api_set(GPIO2B4_LCDC0_D10_LCDC1_D10_NAME, GPIO2B_LCDC1_D10);
+			rk30_mux_api_set(GPIO2B5_LCDC0_D11_LCDC1_D11_NAME, GPIO2B_LCDC1_D11);
+			rk30_mux_api_set(GPIO2B6_LCDC0_D12_LCDC1_D12_NAME, GPIO2B_LCDC1_D12);
+			rk30_mux_api_set(GPIO2B7_LCDC0_D13_LCDC1_D13_NAME, GPIO2B_LCDC1_D13);
+			rk30_mux_api_set(GPIO2C0_LCDC0_D14_LCDC1_D14_NAME, GPIO2C_LCDC1_D14);
+			rk30_mux_api_set(GPIO2C1_LCDC0_D15_LCDC1_D15_NAME, GPIO2C_LCDC1_D15);
+			rk30_mux_api_set(GPIO2C2_LCDC0_D16_LCDC1_D16_NAME, GPIO2C_LCDC1_D16);
+			rk30_mux_api_set(GPIO2C3_LCDC0_D17_LCDC1_D17_NAME, GPIO2C_LCDC1_D17);
+		}
+		else
+		{
+			printk(KERN_WARNING "%s>>>no such interface:%d\n",__func__,screen->lcdc_id);
+			return -1;
+		}	
+	}
+	else if((screen->type == SCREEN_RGB)&&(!mode))
+	{
+		rk30_mux_api_set(GPIO2B0_LCDC0_DCLK_LCDC1_DCLK_NAME, GPIO2B_GPIO2B0 );
+		rk30_mux_api_set(GPIO2B1_LCDC0_HSYNC_LCDC1_HSYNC_NAME,GPIO2B_GPIO2B1);
+		rk30_mux_api_set(GPIO2B2_LCDC0_VSYNC_LCDC1_VSYNC_NAME, 	GPIO2B_GPIO2B2);
+		rk30_mux_api_set(GPIO2B3_LCDC0_DEN_LCDC1_DEN_NAME, GPIO2B_GPIO2B3);
+		rk30_mux_api_set(GPIO2B4_LCDC0_D10_LCDC1_D10_NAME, GPIO2B_GPIO2B4 );
+		rk30_mux_api_set(GPIO2B5_LCDC0_D11_LCDC1_D11_NAME, GPIO2B_GPIO2B5 );
+		rk30_mux_api_set(GPIO2B6_LCDC0_D12_LCDC1_D12_NAME, GPIO2B_GPIO2B6 );
+		rk30_mux_api_set(GPIO2B7_LCDC0_D13_LCDC1_D13_NAME, GPIO2B_GPIO2B7 );
+		rk30_mux_api_set(GPIO2C0_LCDC0_D14_LCDC1_D14_NAME, GPIO2C_GPIO2C0);
+		rk30_mux_api_set(GPIO2C1_LCDC0_D15_LCDC1_D15_NAME, GPIO2C_GPIO2C1);
+		rk30_mux_api_set(GPIO2C2_LCDC0_D16_LCDC1_D16_NAME, GPIO2C_GPIO2C2);
+		rk30_mux_api_set(GPIO2C3_LCDC0_D17_LCDC1_D17_NAME, GPIO2C_GPIO2C3);
+		for(i=0;i<8;i++)
+		{
+			ret += gpio_request(RK2928_PIN2_PB0 + i, NULL);
+			gpio_direction_output(RK2928_PIN2_PB0 + i, 0); 
+		}
+		for(i=0;i<4;i++)
+		{
+			ret += gpio_request(RK2928_PIN2_PC0 + i, NULL);
+			gpio_direction_output(RK2928_PIN2_PC0 + i, 0); 
+		}
+		if(ret < 0)
+		{
+			printk("%s:some gpio request fail\n",__func__);
+		}
+	}
+	return 0;
+}
 static int init_rk2928_lcdc(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk2928_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk2928_lcdc_device,driver);
@@ -245,7 +322,7 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 		}
 		else
 		{
-			printk(KERN_WARNING "%s>>>no such interface:%d\n",dev_drv->cur_screen->lcdc_id);
+			printk(KERN_WARNING "%s>>>no such interface:%d\n",__func__,dev_drv->cur_screen->lcdc_id);
 			return -1;
 		}
 		
@@ -837,7 +914,9 @@ int rk2928_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 	{
 		lcdc_dev->clk_on = 0;
 		LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_START_INT_CLEAR, v_FRM_START_INT_CLEAR(1));
-		LcdSetBit(lcdc_dev, SYS_CFG,m_LCDC_STANDBY);
+		LcdSetBit(lcdc_dev,DSP_CTRL,m_BLACK_MODE);
+		LcdMskReg(lcdc_dev, SYS_CFG,m_DSP_OUT_ZERO | m_LCDC_STANDBY,
+			v_DSP_OUT_ZERO(1) | v_LCDC_STANDBY(1));
 		LCDC_REG_CFG_DONE();
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
@@ -848,7 +927,8 @@ int rk2928_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 	}
 	
 		
-	mdelay(1);
+	mdelay(10);
+ 	rk2928_lcdc_iomux(dev_drv->screen0,0); //switch to gpio mode,to avoid  current leakage
 	clk_disable(lcdc_dev->dclk);
 	clk_disable(lcdc_dev->hclk);
 	clk_disable(lcdc_dev->aclk);
@@ -869,12 +949,15 @@ int rk2928_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 		clk_enable(lcdc_dev->dclk);
 		clk_enable(lcdc_dev->aclk);
 	}
+	rk2928_lcdc_iomux(dev_drv->screen0,1); //switch to lcdc io
 	memcpy((u8*)lcdc_dev->preg, (u8*)&lcdc_dev->regbak, 0xc4);  //resume reg
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if(lcdc_dev->atv_layer_cnt)
 	{
-		LcdClrBit(lcdc_dev, SYS_CFG,m_LCDC_STANDBY);
+		LcdMskReg(lcdc_dev, SYS_CFG,m_DSP_OUT_ZERO | m_LCDC_STANDBY,
+			v_DSP_OUT_ZERO(0) | v_LCDC_STANDBY(0));
+		LcdClrBit(lcdc_dev,DSP_CTRL,m_BLACK_MODE);
 		LCDC_REG_CFG_DONE();
 	}
 	lcdc_dev->clk_on = 1;
