@@ -1171,12 +1171,15 @@ static void rkfb_early_resume(struct early_suspend *h)
 	{
 		if (!inf->lcdc_dev_drv[i])
 			continue;
-		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable)
+		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable) 		//power on
 			inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable();
-		if(inf->lcdc_dev_drv[i]->screen0->standby)
-			inf->lcdc_dev_drv[i]->screen0->standby(0);
 		
-		inf->lcdc_dev_drv[i]->resume(inf->lcdc_dev_drv[i]);
+		inf->lcdc_dev_drv[i]->resume(inf->lcdc_dev_drv[i]);	       // data out
+		
+		if(inf->lcdc_dev_drv[i]->screen0->standby)
+			inf->lcdc_dev_drv[i]->screen0->standby(0);	      //screen wake up
+		
+		
 	}
 
 }
