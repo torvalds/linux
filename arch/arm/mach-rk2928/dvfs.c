@@ -32,6 +32,10 @@
 #else
 #define DVFS_DBG(fmt, args...) printk(KERN_DEBUG "DVFS DBG:\t"fmt, ##args)
 #endif
+
+#define DVFS_SET_VOLT_FAILURE 	1
+#define DVFS_SET_VOLT_SUCCESS	0
+
 #define DVFS_ERR(fmt, args...) printk(KERN_ERR "DVFS ERR:\t"fmt, ##args)
 #define DVFS_LOG(fmt, args...) printk(KERN_DEBUG "DVFS LOG:\t"fmt, ##args)
 
@@ -101,12 +105,18 @@ struct regulator* dvfs_get_regulator(char *regulator_name)
 int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate)
 {
 	struct clk_node* dvfs_clk;
+	u32 rate = 0;
 	dvfs_clk = clk->dvfs_info;
 
 	dvfs_clk->freq_limit_en = 1;
 	dvfs_clk->min_rate = min_rate;
 	dvfs_clk->max_rate = max_rate;
 	
+	rate = clk_get_rate(clk);
+	if (rate < min_rate) 
+		dvfs_clk_set_rate(clk, min_rate);
+	else if (rate > max_rate)
+		dvfs_clk_set_rate(clk, max_rate);
 	return 0;
 }
 
@@ -255,6 +265,10 @@ static int dvfs_vd_get_newvolt_byclk(struct clk_node *dvfs_clk)
 void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callback clk_dvfs_target)
 {
 	struct clk_node *dvfs_clk = clk_get_dvfs_info(clk);
+	if (IS_ERR_OR_NULL(dvfs_clk)){
+		DVFS_ERR("%s %s get dvfs_clk err\n", __func__, clk->name);
+		return ;
+	}
 	dvfs_clk->clk_dvfs_target = clk_dvfs_target;
 }
 
@@ -393,6 +407,21 @@ int clk_enable_dvfs(struct clk *clk)
 		}
 #endif
 		dvfs_vd_get_newvolt_byclk(dvfs_clk);
+		if(dvfs_clk->vd->cur_volt<dvfs_clk->set_volt) {
+			int ret;
+			mutex_lock(&rk_dvfs_mutex);
+			ret = dvfs_regulator_set_voltage_readback(dvfs_clk->vd->regulator, 
+					dvfs_clk->set_volt, dvfs_clk->set_volt);
+			if (ret < 0) {
+				dvfs_clk->vd->volt_set_flag = DVFS_SET_VOLT_FAILURE;
+				dvfs_clk->enable_dvfs = 0;
+				DVFS_ERR("dvfs enable clk %s,set volt error \n", dvfs_clk->name);
+				mutex_unlock(&rk_dvfs_mutex);
+				return -1;
+			}
+			dvfs_clk->vd->volt_set_flag = DVFS_SET_VOLT_SUCCESS;
+			mutex_unlock(&rk_dvfs_mutex);
+		}
 		dvfs_clk->enable_dvfs++;
 	} else {
 		DVFS_ERR("dvfs already enable clk enable = %d!\n", dvfs_clk->enable_dvfs);
@@ -693,8 +722,7 @@ static int dvfs_set_depend_post(struct clk_node *dvfs_clk, unsigned long rate_ol
 	return 0;
 }
 #endif
-#define DVFS_SET_VOLT_FAILURE	1
-#define DVFS_SET_VOLT_SUCCESS	0
+
 #define ARM_HIGHER_LOGIC	(150 * 1000)
 #define LOGIC_HIGHER_ARM	(100 * 1000)
 
@@ -1018,6 +1046,8 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	/* need round rate */
 	rate_old = clk_get_rate(clk);
 	rate_new = clk_round_rate_nolock(clk, rate_hz);
+	if(rate_new == rate_old)
+		return 0;
 	DVFS_DBG("dvfs(%s) round rate (%lu)(rount %lu) old (%lu)\n", 
 			dvfs_clk->name, rate_hz, rate_new, rate_old);
 
@@ -1146,6 +1176,8 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 	/* need round rate */
 	rate_old = clk_get_rate(clk);
 	rate_new = clk_round_rate_nolock(clk, rate_hz);
+	if(rate_new == rate_old)
+		return 0;
 	DVFS_DBG("dvfs(%s) round rate (%lu)(rount %lu) old (%lu)\n", 
 			dvfs_clk->name, rate_hz, rate_new, rate_old);
 
@@ -1273,18 +1305,21 @@ static struct cpufreq_frequency_table dep_cpu2core_table[] = {
 static struct vd_node vd_cpu = {
 	.name 		= "vd_cpu",
 	.regulator_name	= "vdd_cpu",
+	.volt_set_flag	= DVFS_SET_VOLT_FAILURE,
 	.vd_dvfs_target	= dvfs_target_cpu,
 };
 
 static struct vd_node vd_core = {
 	.name 		= "vd_core",
 	.regulator_name = "vdd_core",
+	.volt_set_flag	= DVFS_SET_VOLT_FAILURE,
 	.vd_dvfs_target	= dvfs_target_core,
 };
 
 static struct vd_node vd_rtc = {
 	.name 		= "vd_rtc",
 	.regulator_name	= "vdd_rtc",
+	.volt_set_flag	= DVFS_SET_VOLT_FAILURE,
 	.vd_dvfs_target	= NULL,
 };
 
@@ -1675,6 +1710,9 @@ static ssize_t avs_dyn_show(struct kobject *kobj, struct kobj_attribute *attr,
 	char *s = buf;
 	u32 i;
 
+	if(avs_dyn_data==NULL)
+		return (s - buf);
+		
 	if(avs_dyn_start) {
 		int start_cnt;
 		int end_cnt;
@@ -1746,6 +1784,11 @@ static ssize_t avs_dyn_store(struct kobject *kobj, struct kobj_attribute *attr,
 	const char *pbuf;
 
 	if((strncmp(buf, "start", strlen("start")) == 0)) {
+		if(avs_dyn_data==NULL)	
+			avs_dyn_data = kmalloc(avs_dyn_data_num, GFP_KERNEL);
+		if(avs_dyn_data==NULL)
+			return n;
+		
 		pbuf = &buf[strlen("start")];
 		avs_dyn_data_cnt = 0;
 		show_line_cnt = 0;
@@ -1844,7 +1887,7 @@ static int __init dvfs_init(void)
 	dvfs_hrtimer.function = dvfs_hrtimer_timer_func;
 	//hrtimer_start(&dvfs_hrtimer,ktime_set(0, 5*1000*1000),HRTIMER_MODE_REL);
 #endif
-	avs_dyn_data = kmalloc(avs_dyn_data_num, GFP_KERNEL);
+
 
 	dvfs_kobj = kobject_create_and_add("dvfs", NULL);
 	if (!dvfs_kobj)
