@@ -7724,8 +7724,7 @@ bypass_proc_create_entry_sd(struct pfs_unit_sd *pfs_unit_curr,
 	pfs_unit_curr->proc_entry = create_proc_entry(pfs_unit_curr->proc_name,
 						      S_IFREG | S_IRUSR |
 						      S_IWUSR | S_IRGRP |
-						      S_IWGRP | S_IROTH |
-						      S_IWOTH, parent_pfs);
+						      S_IROTH, parent_pfs);
 	if (pfs_unit_curr->proc_entry == 0) {
 
 		return -1;
