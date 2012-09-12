@@ -437,6 +437,8 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	ipoctal->tty_drv = tty;
 
 	for (i = 0; i < NR_CHANNELS; i++) {
+		struct device *tty_dev;
+
 		channel = &ipoctal->channel[i];
 		tty_port_init(&channel->tty_port);
 		tty_port_alloc_xmit_buf(&channel->tty_port);
@@ -450,7 +452,11 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		channel->pointer_read = 0;
 		channel->pointer_write = 0;
 		channel->nb_bytes = 0;
-		tty_register_device(tty, i, NULL);
+		tty_dev = tty_register_device(tty, i, NULL);
+		if (IS_ERR(tty_dev)) {
+			dev_err(&ipoctal->dev->dev, "Failed to register tty device.\n");
+			continue;
+		}
 
 		/*
 		 * Enable again the RX. TX will be enabled when
