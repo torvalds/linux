@@ -596,7 +596,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 		}
 	}
 	ret = mfd_add_devices(&hdev->dev, 0, sd->hid_sensor_hub_client_devs,
-		sd->hid_sensor_client_cnt, NULL, 0);
+		sd->hid_sensor_client_cnt, NULL, 0, NULL);
 	if (ret < 0)
 		goto err_free_names;
 
