@@ -1033,7 +1033,7 @@ static const struct dvb_usb_device_properties af9035_props = {
 	.generic_bulk_ctrl_endpoint_response = 0x81,
 
 	.identify_state = af9035_identify_state,
-	.firmware = "dvb-usb-af9035-02.fw",
+	.firmware = AF9035_FIRMWARE_AF9035,
 	.download_firmware = af9035_download_firmware,
 
 	.i2c_algo = &af9035_i2c_algo,
@@ -1063,7 +1063,7 @@ static const struct dvb_usb_device_properties it9135_props = {
 	.generic_bulk_ctrl_endpoint_response = 0x81,
 
 	.identify_state = af9035_identify_state,
-	.firmware = "dvb-usb-it9135-01.fw",
+	.firmware = AF9035_FIRMWARE_IT9135,
 	.download_firmware = af9035_download_firmware_it9135,
 
 	.i2c_algo = &af9035_i2c_algo,
@@ -1127,3 +1127,5 @@ module_usb_driver(af9035_usb_driver);
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Afatech AF9035 driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(AF9035_FIRMWARE_AF9035);
+MODULE_FIRMWARE(AF9035_FIRMWARE_IT9135);

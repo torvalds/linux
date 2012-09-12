@@ -84,6 +84,9 @@ u32 clock_lut_it9135[] = {
 	22000000, /* 22.00 MHz */
 };
 
+#define AF9035_FIRMWARE_AF9035 "dvb-usb-af9035-02.fw"
+#define AF9035_FIRMWARE_IT9135 "dvb-usb-it9135-01.fw"
+
 /* EEPROM locations */
 #define EEPROM_IR_MODE            0x430d
 #define EEPROM_DUAL_MODE          0x4326
