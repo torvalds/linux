@@ -171,12 +171,15 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	gfn_t table_gfn;
 	unsigned index, pt_access, pte_access;
 	gpa_t pte_gpa;
-	bool eperm, last_gpte;
+	bool eperm;
 	int offset;
 	const int write_fault = access & PFERR_WRITE_MASK;
 	const int user_fault  = access & PFERR_USER_MASK;
 	const int fetch_fault = access & PFERR_FETCH_MASK;
 	u16 errcode = 0;
+	gpa_t real_gpa;
+	gfn_t gfn;
+	u32 ac;
 
 	trace_kvm_mmu_pagetable_walk(addr, access);
 retry_walk:
@@ -197,11 +200,15 @@ retry_walk:
 	ASSERT((!is_long_mode(vcpu) && is_pae(vcpu)) ||
 	       (mmu->get_cr3(vcpu) & CR3_NONPAE_RESERVED_BITS) == 0);
 
-	pt_access = ACC_ALL;
+	pt_access = pte_access = ACC_ALL;
+	++walker->level;
 
-	for (;;) {
+	do {
 		gfn_t real_gfn;
 		unsigned long host_addr;
+
+		pt_access &= pte_access;
+		--walker->level;
 
 		index = PT_INDEX(addr, walker->level);
 
@@ -239,45 +246,28 @@ retry_walk:
 
 		pte_access = pt_access & gpte_access(vcpu, pte);
 
-		last_gpte = FNAME(is_last_gpte)(walker, vcpu, mmu, pte);
-
 		walker->ptes[walker->level - 1] = pte;
-
-		if (last_gpte) {
-			int lvl = walker->level;
-			gpa_t real_gpa;
-			gfn_t gfn;
-			u32 ac;
-
-			gfn = gpte_to_gfn_lvl(pte, lvl);
-			gfn += (addr & PT_LVL_OFFSET_MASK(lvl)) >> PAGE_SHIFT;
-
-			if (PTTYPE == 32 &&
-			    walker->level == PT_DIRECTORY_LEVEL &&
-			    is_cpuid_PSE36())
-				gfn += pse36_gfn_delta(pte);
-
-			ac = write_fault | fetch_fault | user_fault;
-
-			real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn),
-						      ac);
-			if (real_gpa == UNMAPPED_GVA)
-				return 0;
-
-			walker->gfn = real_gpa >> PAGE_SHIFT;
-
-			break;
-		}
-
-		pt_access &= pte_access;
-		--walker->level;
-	}
+	} while (!FNAME(is_last_gpte)(walker, vcpu, mmu, pte));
 
 	eperm |= permission_fault(mmu, pte_access, access);
 	if (unlikely(eperm)) {
 		errcode |= PFERR_PRESENT_MASK;
 		goto error;
 	}
+
+	gfn = gpte_to_gfn_lvl(pte, walker->level);
+	gfn += (addr & PT_LVL_OFFSET_MASK(walker->level)) >> PAGE_SHIFT;
+
+	if (PTTYPE == 32 && walker->level == PT_DIRECTORY_LEVEL && is_cpuid_PSE36())
+		gfn += pse36_gfn_delta(pte);
+
+	ac = write_fault | fetch_fault | user_fault;
+
+	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn), ac);
+	if (real_gpa == UNMAPPED_GVA)
+		return 0;
+
+	walker->gfn = real_gpa >> PAGE_SHIFT;
 
 	if (!write_fault)
 		protect_clean_gpte(&pte_access, pte);
