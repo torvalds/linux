@@ -861,8 +861,7 @@ static void nfsd4_init_conn(struct svc_rqst *rqstp, struct nfsd4_conn *conn, str
 	if (ret)
 		/* oops; xprt is already down: */
 		nfsd4_conn_lost(&conn->cn_xpt_user);
-	if (ses->se_client->cl_cb_state == NFSD4_CB_DOWN &&
-			conn->cn_flags & NFS4_CDFC4_BACK) {
+	if (conn->cn_flags & NFS4_CDFC4_BACK) {
 		/* callback channel may be back up */
 		nfsd4_probe_callback(ses->se_client);
 	}
@@ -979,7 +978,6 @@ static struct nfsd4_session *init_session(struct svc_rqst *rqstp, struct nfsd4_s
 		rpc_copy_addr((struct sockaddr *)&clp->cl_cb_conn.cb_addr, sa);
 		clp->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
 	}
-	nfsd4_probe_callback(clp);
 	return new;
 }
 
