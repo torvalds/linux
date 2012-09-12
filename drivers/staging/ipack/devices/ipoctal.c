@@ -411,8 +411,8 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	/* Fill struct tty_driver with ipoctal data */
 	tty->owner = THIS_MODULE;
-	tty->driver_name = "ipoctal";
-	sprintf(name, "ipoctal.%d.%d.", bus_nr, slot);
+	tty->driver_name = KBUILD_MODNAME;
+	sprintf(name, KBUILD_MODNAME ".%d.%d.", bus_nr, slot);
 	tty->name = name;
 	tty->major = 0;
 
