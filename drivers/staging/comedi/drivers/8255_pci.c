@@ -1,5 +1,9 @@
 /*
- * COMEDI driver for the ADLINK PCI-72xx series boards.
+ * COMEDI driver for generic PCI based 8255 digital i/o boards
+ * Copyright (C) 2012 H Hartley Sweeten <hsweeten@visionengravers.com>
+ *
+ * Based on the tested adl_pci7296 driver written by:
+ *	Jon Grierson <jd@renko.co.uk>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -20,27 +24,21 @@
  */
 
 /*
-Driver: adl_pci7296
-Description: 24/48/96-Channel Opto-22 Compatible Digital I/O Boards
-Devices: (ADLink) PCI-7224 [adl_pci7224] - 24 channels
-	 (ADLink) PCI-7248 [adl_pci7248] - 48 channels
-	 (ADLink) PCI-7296 [adl_pci7296] - 96 channels
-Author: Jon Grierson <jd@renko.co.uk>
-Updated: Mon, 14 Apr 2008 15:05:56 +0100
-Status: testing
+Driver: 8255_pci
+Description: Generic PCI based 8255 Digital I/O boards
+Devices: (ADLink) PCI-7224 [adl_pci-7224] - 24 channels
+	 (ADLink) PCI-7248 [adl_pci-7248] - 48 channels
+	 (ADLink) PCI-7296 [adl_pci-7296] - 96 channels
+Author: H Hartley Sweeten <hsweeten@visionengravers.com>
+Updated: Wed, 12 Sep 2012 11:52:01 -0700
+Status: untested
 
-This driver only attaches using the PCI PnP auto config support
-in the comedi core. The module parameter 'comedi_autoconfig'
-must be 1 (default) to enable this feature. The COMEDI_DEVCONFIG
-ioctl, used by the comedi_config utility, is not supported by
-this driver.
-
-These boards also have an 8254 programmable timer/counter chip.
-This chip is not currently supported by this driver.
+Some of these boards also have an 8254 programmable timer/counter
+chip. This chip is not currently supported by this driver.
 
 Interrupt support for these boards is also not currently supported.
 
-Configuration Options: not applicable
+Configuration Options: not applicable, uses PCI auto config
 */
 
 #include "../comedidev.h"
@@ -50,57 +48,57 @@ Configuration Options: not applicable
 /*
  * PCI Device ID's supported by this driver
  */
-#define PCI_DEVICE_ID_PCI7224	0x7224
-#define PCI_DEVICE_ID_PCI7248	0x7248
-#define PCI_DEVICE_ID_PCI7296	0x7296
+#define PCI_DEVICE_ID_ADLINK_PCI7224	0x7224
+#define PCI_DEVICE_ID_ADLINK_PCI7248	0x7248
+#define PCI_DEVICE_ID_ADLINK_PCI7296	0x7296
 
-struct adl_pci7296_boardinfo {
+struct pci_8255_boardinfo {
 	const char *name;
 	unsigned short device;
-	int nsubdevs;
+	int n_8255;
 };
 
-static const struct adl_pci7296_boardinfo adl_pci7296_boards[] = {
+static const struct pci_8255_boardinfo pci_8255_boards[] = {
 	{
-		.name		= "adl_pci7224",
-		.device		= PCI_DEVICE_ID_PCI7224,
-		.nsubdevs	= 1,
+		.name		= "adl_pci-7224",
+		.device		= PCI_DEVICE_ID_ADLINK_PCI7224,
+		.n_8255		= 1,
 	}, {
-		.name		= "adl_pci7248",
-		.device		= PCI_DEVICE_ID_PCI7248,
-		.nsubdevs	= 2,
+		.name		= "adl_pci-7248",
+		.device		= PCI_DEVICE_ID_ADLINK_PCI7248,
+		.n_8255		= 2,
 	}, {
-		.name		= "adl_pci7296",
-		.device		= PCI_DEVICE_ID_PCI7296,
-		.nsubdevs	= 4,
+		.name		= "adl_pci-7296",
+		.device		= PCI_DEVICE_ID_ADLINK_PCI7296,
+		.n_8255		= 4,
 	},
 };
 
-static const void *adl_pci7296_find_boardinfo(struct comedi_device *dev,
+static const void *pci_8255_find_boardinfo(struct comedi_device *dev,
 					      struct pci_dev *pcidev)
 {
-	const struct adl_pci7296_boardinfo *board;
+	const struct pci_8255_boardinfo *board;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(adl_pci7296_boards); i++) {
-		board = &adl_pci7296_boards[i];
+	for (i = 0; i < ARRAY_SIZE(pci_8255_boards); i++) {
+		board = &pci_8255_boards[i];
 		if (pcidev->device == board->device)
 			return board;
 	}
 	return NULL;
 }
 
-static int adl_pci7296_attach_pci(struct comedi_device *dev,
-				  struct pci_dev *pcidev)
+static int pci_8255_attach_pci(struct comedi_device *dev,
+			       struct pci_dev *pcidev)
 {
-	const struct adl_pci7296_boardinfo *board;
+	const struct pci_8255_boardinfo *board;
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
 
 	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	board = adl_pci7296_find_boardinfo(dev, pcidev);
+	board = pci_8255_find_boardinfo(dev, pcidev);
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
@@ -116,11 +114,11 @@ static int adl_pci7296_attach_pci(struct comedi_device *dev,
 	 * on the number of channels provided by the board. Each subdevice
 	 * has 24 channels supported by the 8255 module.
 	 */
-	ret = comedi_alloc_subdevices(dev, board->nsubdevs);
+	ret = comedi_alloc_subdevices(dev, board->n_8255);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < board->nsubdevs; i++) {
+	for (i = 0; i < board->n_8255; i++) {
 		s = &dev->subdevices[i];
 		ret = subdev_8255_init(dev, s, NULL, dev->iobase + (i * 4));
 		if (ret)
@@ -128,20 +126,20 @@ static int adl_pci7296_attach_pci(struct comedi_device *dev,
 	}
 
 	dev_info(dev->class_dev, "%s attached (%d digital i/o channels)\n",
-		dev->board_name, board->nsubdevs * 24);
+		dev->board_name, board->n_8255 * 24);
 
 	return 0;
 }
 
-static void adl_pci7296_detach(struct comedi_device *dev)
+static void pci_8255_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct adl_pci7296_boardinfo *board = comedi_board(dev);
+	const struct pci_8255_boardinfo *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int i;
 
 	if (dev->subdevices) {
-		for (i = 0; i < board->nsubdevs; i++) {
+		for (i = 0; i < board->n_8255; i++) {
 			s = &dev->subdevices[i];
 			subdev_8255_cleanup(dev, s);
 		}
@@ -152,40 +150,40 @@ static void adl_pci7296_detach(struct comedi_device *dev)
 	}
 }
 
-static struct comedi_driver adl_pci7296_driver = {
-	.driver_name	= "adl_pci7296",
+static struct comedi_driver pci_8255_driver = {
+	.driver_name	= "8255_pci",
 	.module		= THIS_MODULE,
-	.attach_pci	= adl_pci7296_attach_pci,
-	.detach		= adl_pci7296_detach,
+	.attach_pci	= pci_8255_attach_pci,
+	.detach		= pci_8255_detach,
 };
 
-static int __devinit adl_pci7296_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+static int __devinit pci_8255_pci_probe(struct pci_dev *dev,
+					const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &adl_pci7296_driver);
+	return comedi_pci_auto_config(dev, &pci_8255_driver);
 }
 
-static void __devexit adl_pci7296_pci_remove(struct pci_dev *dev)
+static void __devexit pci_8255_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(adl_pci7296_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7224) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7248) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7296) },
+static DEFINE_PCI_DEVICE_TABLE(pci_8255_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7224) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7248) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_ADLINK_PCI7296) },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, adl_pci7296_pci_table);
+MODULE_DEVICE_TABLE(pci, pci_8255_pci_table);
 
-static struct pci_driver adl_pci7296_pci_driver = {
-	.name		= "adl_pci7296",
-	.id_table	= adl_pci7296_pci_table,
-	.probe		= adl_pci7296_pci_probe,
-	.remove		= __devexit_p(adl_pci7296_pci_remove),
+static struct pci_driver pci_8255_pci_driver = {
+	.name		= "8255_pci",
+	.id_table	= pci_8255_pci_table,
+	.probe		= pci_8255_pci_probe,
+	.remove		= __devexit_p(pci_8255_pci_remove),
 };
-module_comedi_pci_driver(adl_pci7296_driver, adl_pci7296_pci_driver);
+module_comedi_pci_driver(pci_8255_driver, pci_8255_pci_driver);
 
-MODULE_DESCRIPTION("ADLINK PCI-72xx Opto-22 Compatible Digital I/O Boards");
+MODULE_DESCRIPTION("COMEDI - Generic PCI based 8255 Digital I/O boards");
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_LICENSE("GPL");
