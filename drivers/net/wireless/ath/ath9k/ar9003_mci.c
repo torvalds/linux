@@ -1236,6 +1236,10 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 	case MCI_STATE_NEED_FTP_STOMP:
 		value = !(mci->config & ATH_MCI_CONFIG_DISABLE_FTP_STOMP);
 		break;
+	case MCI_STATE_NEED_FLUSH_BT_INFO:
+		value = (!mci->unhalt_bt_gpm && mci->need_flush_btinfo) ? 1 : 0;
+		mci->need_flush_btinfo = false;
+		break;
 	default:
 		break;
 	}

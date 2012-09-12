@@ -80,6 +80,7 @@ void ath_mci_flush_profile(struct ath_mci_profile *mci)
 	struct ath_mci_profile_info *info, *tinfo;
 
 	mci->aggr_limit = 0;
+	mci->num_mgmt = 0;
 
 	if (list_empty(&mci->info))
 		return;
@@ -328,6 +329,13 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	u8 major, minor;
 	u32 seq_num;
 
+	if (ar9003_mci_state(ah, MCI_STATE_NEED_FLUSH_BT_INFO) &&
+	    ar9003_mci_state(ah, MCI_STATE_ENABLE)) {
+		ath_dbg(common, MCI, "(MCI) Need to flush BT profiles\n");
+		ath_mci_flush_profile(&sc->btcoex.mci);
+		ar9003_mci_state(ah, MCI_STATE_SEND_STATUS_QUERY);
+	}
+
 	switch (opcode) {
 	case MCI_GPM_COEX_VERSION_QUERY:
 		ar9003_mci_state(ah, MCI_STATE_SEND_WLAN_COEX_VERSION);
@@ -568,9 +576,11 @@ void ath_mci_intr(struct ath_softc *sc)
 	}
 
 	if ((mci_int & AR_MCI_INTERRUPT_RX_INVALID_HDR) ||
-	    (mci_int & AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT))
+	    (mci_int & AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT)) {
 		mci_int &= ~(AR_MCI_INTERRUPT_RX_INVALID_HDR |
 			     AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT);
+		ath_mci_msg(sc, MCI_GPM_COEX_NOOP, NULL);
+	}
 }
 
 void ath_mci_enable(struct ath_softc *sc)
