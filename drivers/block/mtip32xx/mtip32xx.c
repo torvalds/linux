@@ -1904,7 +1904,7 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 	int rv = 0, xfer_sz = command[3];
 
 	if (xfer_sz) {
-		if (user_buffer)
+		if (!user_buffer)
 			return -EFAULT;
 
 		buf = dmam_alloc_coherent(&port->dd->pdev->dev,
