@@ -132,10 +132,11 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 
 	if (status_reg & TPCI200_SLOT_INT_MASK) {
 		/* callback to the IRQ handler for the corresponding slot */
+		rcu_read_lock();
 		for (i = 0; i < TPCI200_NB_SLOT; i++) {
 			if (!(status_reg & ((TPCI200_A_INT0 | TPCI200_A_INT1) << (2*i))))
 				continue;
-			slot_irq = tpci200->slots[i].irq;
+			slot_irq = rcu_dereference(tpci200->slots[i].irq);
 			if (slot_irq) {
 				ret = tpci200_slot_irq(slot_irq);
 			} else {
@@ -147,6 +148,7 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 					TPCI200_INT0_EN | TPCI200_INT1_EN);
 			}
 		}
+		rcu_read_unlock();
 	}
 
 	return ret;
@@ -303,9 +305,9 @@ static int tpci200_free_irq(struct ipack_device *dev)
 
 	__tpci200_free_irq(tpci200, dev);
 	slot_irq = tpci200->slots[dev->slot].irq;
-	tpci200->slots[dev->slot].irq = NULL;
+	RCU_INIT_POINTER(tpci200->slots[dev->slot].irq, NULL);
+	synchronize_rcu();
 	kfree(slot_irq);
-
 	mutex_unlock(&tpci200->mutex);
 	return 0;
 }
@@ -490,7 +492,7 @@ static int tpci200_request_irq(struct ipack_device *dev, int vector,
 	slot_irq->arg = arg;
 	slot_irq->holder = dev;
 
-	tpci200->slots[dev->slot].irq = slot_irq;
+	rcu_assign_pointer(tpci200->slots[dev->slot].irq, slot_irq);
 	res = __tpci200_request_irq(tpci200, dev);
 
 out_unlock:
