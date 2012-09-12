@@ -1652,6 +1652,30 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			return ATOM_PPLL1;
 		DRM_ERROR("unable to allocate a PPLL\n");
 		return ATOM_PPLL_INVALID;
+	} else if (ASIC_IS_DCE3(rdev)) {
+		list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
+			if (test_encoder->crtc && (test_encoder->crtc == crtc)) {
+				/* in DP mode, the DP ref clock can come from either PPLL
+				 * depending on the asic:
+				 * DCE3: PPLL1 or PPLL2
+				 */
+				if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
+					/* use the same PPLL for all DP monitors */
+					pll = radeon_get_shared_dp_ppll(crtc);
+					if (pll != ATOM_PPLL_INVALID)
+						return pll;
+				}
+				break;
+			}
+		}
+		/* all other cases */
+		pll_in_use = radeon_get_pll_use_mask(crtc);
+		if (!(pll_in_use & (1 << ATOM_PPLL2)))
+			return ATOM_PPLL2;
+		if (!(pll_in_use & (1 << ATOM_PPLL1)))
+			return ATOM_PPLL1;
+		DRM_ERROR("unable to allocate a PPLL\n");
+		return ATOM_PPLL_INVALID;
 	} else
 		/* use PPLL1 or PPLL2 */
 		return radeon_crtc->crtc_id;
