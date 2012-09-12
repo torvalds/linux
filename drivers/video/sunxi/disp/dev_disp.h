@@ -26,6 +26,10 @@
 
 #include "drv_disp_i.h"
 
+#ifdef CONFIG_FB_SUNXI_UMP
+#include <ump/ump_kernel_interface.h>
+#endif
+
 // 1M + 64M(ve) + 16M(fb)
 #define FB_RESERVED_MEM
 
@@ -67,6 +71,9 @@ typedef struct
 	wait_queue_head_t       wait[2];
 	unsigned long           wait_count[2];
 	__u32 pseudo_palette [FB_MAX][16];
+#ifdef CONFIG_FB_SUNXI_UMP
+	ump_dd_handle ump_wrapped_buffer[FB_MAX];
+#endif
 }fb_info_t;
 
 typedef struct
@@ -118,5 +125,8 @@ extern __s32 DRV_lcd_open(__u32 sel);
 extern __s32 DRV_lcd_close(__u32 sel);
 extern __s32 Fb_Init(__u32 from);
 extern __s32 Fb_Exit(void);
+#ifdef CONFIG_FB_SUNXI_UMP
+extern int (*disp_get_ump_secure_id)(struct fb_info *info, fb_info_t *g_fbi, unsigned long arg);
+#endif
 
 #endif
