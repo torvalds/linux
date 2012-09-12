@@ -313,6 +313,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_WAIT_TIMEOUT	 19
 #define I915_PARAM_HAS_SEMAPHORES	 20
 #define I915_PARAM_HAS_PRIME_VMAP_FLUSH	 21
+#define I915_PARAM_RSVD_FOR_FUTURE_USE	 22
 
 typedef struct drm_i915_getparam {
 	int param;
