@@ -755,7 +755,6 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	return 0;
 
 vpbe_fail_amp_register:
-	kfree(vpbe_dev->amp);
 vpbe_fail_sd_register:
 	kfree(vpbe_dev->encoders);
 vpbe_fail_v4l2_device:
