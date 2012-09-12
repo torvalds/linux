@@ -25,6 +25,7 @@
 #include "dvb_usb.h"
 
 #define EC168_USB_TIMEOUT 1000
+#define EC168_FIRMWARE "dvb-usb-ec168.fw"
 
 struct ec168_req {
 	u8  cmd;       /* [1] */

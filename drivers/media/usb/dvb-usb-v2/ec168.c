@@ -322,7 +322,7 @@ static struct dvb_usb_device_properties ec168_props = {
 	.bInterfaceNumber = 1,
 
 	.identify_state = ec168_identify_state,
-	.firmware = "dvb-usb-ec168.fw",
+	.firmware = EC168_FIRMWARE,
 	.download_firmware = ec168_download_firmware,
 
 	.i2c_algo = &ec168_i2c_algo,
@@ -374,3 +374,4 @@ module_usb_driver(ec168_driver);
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("E3C EC168 driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(EC168_FIRMWARE);
