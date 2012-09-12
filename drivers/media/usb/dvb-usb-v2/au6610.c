@@ -48,7 +48,8 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 		index += wbuf[1];
 		break;
 	default:
-		pr_err("%s: wlen = %d, aborting\n", KBUILD_MODNAME, wlen);
+		dev_err(&d->udev->dev, "%s: wlen=%d, aborting\n",
+				KBUILD_MODNAME, wlen);
 		ret = -EINVAL;
 		goto error;
 	}
