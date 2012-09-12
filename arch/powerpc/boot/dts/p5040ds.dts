@@ -95,6 +95,10 @@
 				reg = <0x68>;
 				interrupts = <0x1 0x1 0 0>;
 			};
+			adt7461@4c {
+				compatible = "adi,adt7461";
+				reg = <0x4c>;
+			};
 		};
 	};
 
@@ -145,10 +149,6 @@
 			partition@1f000000 {
 				label = "NAND Writable User area";
 				reg = <0x1f000000 0x01000000>;
-			};
-			adt7461@4c {
-				compatible = "adi,adt7461";
-				reg = <0x4c>;
 			};
 		};
 
