@@ -493,9 +493,11 @@ static inline int ipoctal_copy_write_buffer(struct ipoctal_channel *channel,
 	return i;
 }
 
-static int ipoctal_write(struct ipoctal_channel *channel,
-			 const unsigned char *buf, int count)
+static int ipoctal_write_tty(struct tty_struct *tty,
+			     const unsigned char *buf, int count)
 {
+	struct ipoctal_channel *channel = tty->driver_data;
+
 	channel->nb_bytes = 0;
 	channel->count_wr = 0;
 
@@ -517,14 +519,6 @@ static int ipoctal_write(struct ipoctal_channel *channel,
 
 	*channel->board_write = 0;
 	return channel->count_wr;
-}
-
-static int ipoctal_write_tty(struct tty_struct *tty,
-			     const unsigned char *buf, int count)
-{
-	struct ipoctal_channel *channel = tty->driver_data;
-
-	return ipoctal_write(channel, buf, count);
 }
 
 static int ipoctal_write_room(struct tty_struct *tty)
