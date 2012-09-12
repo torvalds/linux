@@ -652,7 +652,7 @@ static int af9035_tuner_callback(struct dvb_usb_device *d, int cmd, int arg)
 		break;
 	}
 
-	return -ENODEV;
+	return 0;
 }
 
 static int af9035_frontend_callback(void *adapter_priv, int component,
@@ -661,6 +661,9 @@ static int af9035_frontend_callback(void *adapter_priv, int component,
 	struct i2c_adapter *adap = adapter_priv;
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 
+	dev_dbg(&d->udev->dev, "%s: component=%d cmd=%d arg=%d\n",
+			__func__, component, cmd, arg);
+
 	switch (component) {
 	case DVB_FRONTEND_COMPONENT_TUNER:
 		return af9035_tuner_callback(d, cmd, arg);
@@ -668,7 +671,7 @@ static int af9035_frontend_callback(void *adapter_priv, int component,
 		break;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
