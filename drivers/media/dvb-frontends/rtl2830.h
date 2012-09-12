@@ -47,13 +47,6 @@ struct rtl2830_config {
 	bool spec_inv;
 
 	/*
-	 * IFs for all used modes.
-	 * Hz
-	 * 4570000, 4571429, 36000000, 36125000, 36166667, 44000000
-	 */
-	u32 if_dvbt;
-
-	/*
 	 */
 	u8 vtop;
 

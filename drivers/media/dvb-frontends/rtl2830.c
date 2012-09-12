@@ -182,9 +182,6 @@ static int rtl2830_init(struct dvb_frontend *fe)
 {
 	struct rtl2830_priv *priv = fe->demodulator_priv;
 	int ret, i;
-	u64 num;
-	u8 buf[3], tmp;
-	u32 if_ctl;
 	struct rtl2830_reg_val_mask tab[] = {
 		{ 0x00d, 0x01, 0x03 },
 		{ 0x00d, 0x10, 0x10 },
@@ -240,26 +237,6 @@ static int rtl2830_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	num = priv->cfg.if_dvbt % priv->cfg.xtal;
-	num *= 0x400000;
-	num = div_u64(num, priv->cfg.xtal);
-	num = -num;
-	if_ctl = num & 0x3fffff;
-	dev_dbg(&priv->i2c->dev, "%s: if_ctl=%08x\n", __func__, if_ctl);
-
-	ret = rtl2830_rd_reg_mask(priv, 0x119, &tmp, 0xc0); /* b[7:6] */
-	if (ret)
-		goto err;
-
-	buf[0] = tmp << 6;
-	buf[0] = (if_ctl >> 16) & 0x3f;
-	buf[1] = (if_ctl >>  8) & 0xff;
-	buf[2] = (if_ctl >>  0) & 0xff;
-
-	ret = rtl2830_wr_regs(priv, 0x119, buf, 3);
-	if (ret)
-		goto err;
-
 	/* TODO: spec init */
 
 	/* soft reset */
@@ -301,6 +278,9 @@ static int rtl2830_set_frontend(struct dvb_frontend *fe)
 	struct rtl2830_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
+	u64 num;
+	u8 buf[3], tmp;
+	u32 if_ctl, if_frequency;
 	static u8 bw_params1[3][34] = {
 		{
 		0x1f, 0xf0, 0x1f, 0xf0, 0x1f, 0xfa, 0x00, 0x17, 0x00, 0x41,
@@ -324,7 +304,6 @@ static int rtl2830_set_frontend(struct dvb_frontend *fe)
 		{0xb8, 0xe3, 0x93, 0x99, 0x99, 0x98,}, /* 7 MHz */
 		{0xae, 0xba, 0xf3, 0x26, 0x66, 0x64,}, /* 8 MHz */
 	};
-
 
 	dev_dbg(&priv->i2c->dev,
 			"%s: frequency=%d bandwidth_hz=%d inversion=%d\n",
@@ -350,6 +329,36 @@ static int rtl2830_set_frontend(struct dvb_frontend *fe)
 	}
 
 	ret = rtl2830_wr_reg_mask(priv, 0x008, i << 1, 0x06);
+	if (ret)
+		goto err;
+
+	/* program if frequency */
+	if (fe->ops.tuner_ops.get_if_frequency)
+		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_frequency);
+	else
+		ret = -EINVAL;
+
+	if (ret < 0)
+		goto err;
+
+	num = if_frequency % priv->cfg.xtal;
+	num *= 0x400000;
+	num = div_u64(num, priv->cfg.xtal);
+	num = -num;
+	if_ctl = num & 0x3fffff;
+	dev_dbg(&priv->i2c->dev, "%s: if_frequency=%d if_ctl=%08x\n",
+			__func__, if_frequency, if_ctl);
+
+	ret = rtl2830_rd_reg_mask(priv, 0x119, &tmp, 0xc0); /* b[7:6] */
+	if (ret)
+		goto err;
+
+	buf[0] = tmp << 6;
+	buf[0] |= (if_ctl >> 16) & 0x3f;
+	buf[1] = (if_ctl >>  8) & 0xff;
+	buf[2] = (if_ctl >>  0) & 0xff;
+
+	ret = rtl2830_wr_regs(priv, 0x119, buf, 3);
 	if (ret)
 		goto err;
 
