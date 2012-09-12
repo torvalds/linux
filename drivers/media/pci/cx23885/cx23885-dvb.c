@@ -63,6 +63,9 @@
 #include "stv0367.h"
 #include "drxk.h"
 #include "mt2063.h"
+#include "stv090x.h"
+#include "stb6100.h"
+#include "stb6100_cfg.h"
 
 static unsigned int debug;
 
@@ -488,6 +491,42 @@ static struct xc5000_config mygica_x8506_xc5000_config = {
 	.i2c_address = 0x61,
 	.if_khz = 5380,
 };
+
+static struct stv090x_config prof_8000_stv090x_config = {
+        .device                 = STV0903,
+        .demod_mode             = STV090x_SINGLE,
+        .clk_mode               = STV090x_CLK_EXT,
+        .xtal                   = 27000000,
+        .address                = 0x6A,
+        .ts1_mode               = STV090x_TSMODE_PARALLEL_PUNCTURED,
+        .repeater_level         = STV090x_RPTLEVEL_64,
+        .adc1_range             = STV090x_ADC_2Vpp,
+        .diseqc_envelope_mode   = false,
+
+        .tuner_get_frequency    = stb6100_get_frequency,
+        .tuner_set_frequency    = stb6100_set_frequency,
+        .tuner_set_bandwidth    = stb6100_set_bandwidth,
+        .tuner_get_bandwidth    = stb6100_get_bandwidth,
+};
+
+static struct stb6100_config prof_8000_stb6100_config = {
+	.tuner_address = 0x60,
+	.refclock = 27000000,
+};
+
+static int p8000_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+{
+	struct cx23885_tsport *port = fe->dvb->priv;
+	struct cx23885_dev *dev = port->dev;
+
+	if (voltage == SEC_VOLTAGE_18)
+		cx_write(MC417_RWD, 0x00001e00);
+	else if (voltage == SEC_VOLTAGE_13)
+		cx_write(MC417_RWD, 0x00001a00);
+	else
+		cx_write(MC417_RWD, 0x00001800);
+	return 0;
+}
 
 static int cx23885_dvb_set_frontend(struct dvb_frontend *fe)
 {
@@ -1185,6 +1224,23 @@ static int dvb_register(struct cx23885_tsport *port)
 		fe0->dvb.frontend = dvb_attach(ds3000_attach,
 					&tevii_ds3000_config,
 					&i2c_bus->i2c_adap);
+		break;
+	case CX23885_BOARD_PROF_8000:
+		i2c_bus = &dev->i2c_bus[0];
+
+		fe0->dvb.frontend = dvb_attach(stv090x_attach,
+						&prof_8000_stv090x_config,
+						&i2c_bus->i2c_adap,
+						STV090x_DEMODULATOR_0);
+		if (fe0->dvb.frontend != NULL) {
+			if (!dvb_attach(stb6100_attach,
+					fe0->dvb.frontend,
+					&prof_8000_stb6100_config,
+					&i2c_bus->i2c_adap))
+				goto frontend_detach;
+
+			fe0->dvb.frontend->ops.set_voltage = p8000_set_voltage;
+		}
 		break;
 	default:
 		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card "
