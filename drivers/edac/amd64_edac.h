@@ -219,7 +219,7 @@
 #define DBAM1				0x180
 
 /* Extract the DIMM 'type' on the i'th DIMM from the DBAM reg value passed */
-#define DBAM_DIMM(i, reg)		((((reg) >> (4*i))) & 0xF)
+#define DBAM_DIMM(i, reg)		((((reg) >> (4*(i)))) & 0xF)
 
 #define DBAM_MAX_VALUE			11
 

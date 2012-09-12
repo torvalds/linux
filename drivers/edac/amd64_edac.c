@@ -2094,7 +2094,7 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 	 * number of bits to shift the DBAM register to extract the proper CSROW
 	 * field.
 	 */
-	cs_mode =  (dbam >> ((csrow_nr / 2) * 4)) & 0xF;
+	cs_mode = DBAM_DIMM(csrow_nr / 2, dbam);
 
 	nr_pages = pvt->ops->dbam_to_cs(pvt, dct, cs_mode) << (20 - PAGE_SHIFT);
 
