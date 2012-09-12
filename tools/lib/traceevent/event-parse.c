@@ -117,14 +117,7 @@ void breakpoint(void)
 
 struct print_arg *alloc_arg(void)
 {
-	struct print_arg *arg;
-
-	arg = malloc_or_die(sizeof(*arg));
-	if (!arg)
-		return NULL;
-	memset(arg, 0, sizeof(*arg));
-
-	return arg;
+	return calloc(1, sizeof(struct print_arg));
 }
 
 struct cmdline {
@@ -619,14 +612,7 @@ void pevent_print_printk(struct pevent *pevent)
 
 static struct event_format *alloc_event(void)
 {
-	struct event_format *event;
-
-	event = malloc(sizeof(*event));
-	if (!event)
-		return NULL;
-	memset(event, 0, sizeof(*event));
-
-	return event;
+	return calloc(1, sizeof(struct event_format));
 }
 
 static void add_event(struct pevent *pevent, struct event_format *event)
@@ -1240,8 +1226,10 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 
 		last_token = token;
 
-		field = malloc_or_die(sizeof(*field));
-		memset(field, 0, sizeof(*field));
+		field = calloc(1, sizeof(*field));
+		if (!field)
+			goto fail;
+
 		field->event = event;
 
 		/* read the rest of the type */
@@ -2181,8 +2169,9 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 		if (test_type_token(type, token, EVENT_DELIM, ","))
 			goto out_free;
 
-		field = malloc_or_die(sizeof(*field));
-		memset(field, 0, sizeof(*field));
+		field = calloc(1, sizeof(*field));
+		if (!field)
+			goto out_free;
 
 		value = arg_eval(arg);
 		if (value == NULL)
@@ -5106,12 +5095,11 @@ int pevent_register_print_function(struct pevent *pevent,
 		remove_func_handler(pevent, name);
 	}
 
-	func_handle = malloc(sizeof(*func_handle));
+	func_handle = calloc(1, sizeof(*func_handle));
 	if (!func_handle) {
 		do_warning("Failed to allocate function handler");
 		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 	}
-	memset(func_handle, 0, sizeof(*func_handle));
 
 	func_handle->ret_type = ret_type;
 	func_handle->name = strdup(name);
@@ -5210,13 +5198,12 @@ int pevent_register_event_handler(struct pevent *pevent,
 
  not_found:
 	/* Save for later use. */
-	handle = malloc(sizeof(*handle));
+	handle = calloc(1, sizeof(*handle));
 	if (!handle) {
 		do_warning("Failed to allocate event handler");
 		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 	}
 
-	memset(handle, 0, sizeof(*handle));
 	handle->id = id;
 	if (event_name)
 		handle->event_name = strdup(event_name);
@@ -5245,13 +5232,10 @@ int pevent_register_event_handler(struct pevent *pevent,
  */
 struct pevent *pevent_alloc(void)
 {
-	struct pevent *pevent;
+	struct pevent *pevent = calloc(1, sizeof(*pevent));
 
-	pevent = malloc(sizeof(*pevent));
-	if (!pevent)
-		return NULL;
-	memset(pevent, 0, sizeof(*pevent));
-	pevent->ref_count = 1;
+	if (pevent)
+		pevent->ref_count = 1;
 
 	return pevent;
 }
