@@ -121,7 +121,14 @@ static void ath_mci_update_scheme(struct ath_softc *sc)
 	if (mci_hw->config & ATH_MCI_CONFIG_DISABLE_TUNING)
 		goto skip_tuning;
 
+	mci->aggr_limit = 0;
 	btcoex->duty_cycle = ath_mci_duty_cycle[num_profile];
+	btcoex->btcoex_period = ATH_MCI_DEF_BT_PERIOD;
+	if (NUM_PROF(mci))
+		btcoex->bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+	else
+		btcoex->bt_stomp_type = mci->num_mgmt ? ATH_BTCOEX_STOMP_ALL :
+							ATH_BTCOEX_STOMP_LOW;
 
 	if (num_profile == 1) {
 		info = list_first_entry(&mci->info,
@@ -133,7 +140,8 @@ static void ath_mci_update_scheme(struct ath_softc *sc)
 			else if (info->T == 6) {
 				mci->aggr_limit = 6;
 				btcoex->duty_cycle = 30;
-			}
+			} else
+				mci->aggr_limit = 6;
 			ath_dbg(common, MCI,
 				"Single SCO, aggregation limit %d 1/4 ms\n",
 				mci->aggr_limit);
@@ -272,16 +280,6 @@ static void ath_mci_process_profile(struct ath_softc *sc,
 			return;
 	} else
 		ath_mci_del_profile(common, mci, entry);
-
-	btcoex->btcoex_period = ATH_MCI_DEF_BT_PERIOD;
-	mci->aggr_limit = mci->num_sco ? 6 : 0;
-
-	btcoex->duty_cycle = ath_mci_duty_cycle[NUM_PROF(mci)];
-	if (NUM_PROF(mci))
-		btcoex->bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
-	else
-		btcoex->bt_stomp_type = mci->num_mgmt ? ATH_BTCOEX_STOMP_ALL :
-							ATH_BTCOEX_STOMP_LOW;
 
 	ieee80211_queue_work(sc->hw, &sc->mci_work);
 }
