@@ -2232,24 +2232,15 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 	memset(priv->rx_urb, 0, sizeof(struct urb*) * MAX_RX_URB);
 	priv->pp_rxskb = kcalloc(MAX_RX_URB, sizeof(struct sk_buff *),
 				 GFP_KERNEL);
-	if (priv->pp_rxskb == NULL)
-		goto destroy;
+	if (!priv->pp_rxskb) {
+		kfree(priv->rx_urb);
 
-	goto _middle;
+		priv->pp_rxskb = NULL;
+		priv->rx_urb = NULL;
 
-
-destroy:
-	kfree(priv->pp_rxskb);
-	kfree(priv->rx_urb);
-
-	priv->pp_rxskb = NULL;
-	priv->rx_urb = NULL;
-
-	DMESGE("Endpoint Alloc Failure");
-	return -ENOMEM;
-
-
-_middle:
+		DMESGE("Endpoint Alloc Failure");
+		return -ENOMEM;
+	}
 
 	printk("End of initendpoints\n");
 	return 0;
