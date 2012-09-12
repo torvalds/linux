@@ -770,6 +770,77 @@ struct goodix_platform_data goodix_info = {
 };
 #endif
 
+#if defined(CONFIG_TOUCHSCREEN_FT5306)
+
+#define TOUCH_RESET_PIN	 RK30_PIN4_PD0
+#define TOUCH_INT_PIN 	 RK30_PIN4_PC2
+int ft5306_init_platform_hw(void)
+{
+	printk("ft5406_init_platform_hw\n");
+
+	rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, 0);
+	if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+		gpio_free(TOUCH_RESET_PIN);
+		printk("ft5406_init_platform_hw gpio_request error\n");
+		return -EIO;
+	}
+
+	if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+		gpio_free(TOUCH_INT_PIN);
+		printk("ift5406_init_platform_hw gpio_request error\n");
+		return -EIO;
+	}
+	
+	rk30_mux_api_set(GPIO4D0_SMCDATA8_TRACEDATA8_NAME, 0);
+
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	mdelay(10);
+	gpio_direction_input(TOUCH_INT_PIN);
+	mdelay(10);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+	return 0;
+
+}
+
+void ft5306_exit_platform_hw(void)
+{
+	printk("ft5306_exit_platform_hw\n");
+	gpio_free(TOUCH_RESET_PIN);
+	gpio_free(TOUCH_INT_PIN);
+}
+
+int ft5306_platform_sleep(void)
+{
+	//printk("ft5306_platform_sleep\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	return 0;
+}
+
+int ft5306_platform_wakeup(void)
+{
+	//printk("ft5306_platform_wakeup\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
+	return 0;
+}
+
+struct ft5x0x_platform_data ft5306_info = {
+	.max_x = 1024,
+	.max_y = 768,
+	.key_min_x = 1024,
+	.init_platform_hw= ft5306_init_platform_hw,
+	.exit_platform_hw= ft5306_exit_platform_hw,
+	.ft5x0x_platform_sleep  = ft5306_platform_sleep,
+	.ft5x0x_platform_wakeup = ft5306_platform_wakeup,
+
+};
+
+
+#endif
+
+
 static struct spi_board_info board_spi_devices[] = {
 };
 
@@ -2246,6 +2317,17 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 	.platform_data = &s3202_platformdata,
 },
 #endif
+
+#if defined (CONFIG_TOUCHSCREEN_FT5306)
+{
+	.type           = "ft5x0x_ts",
+	.addr           = 0x3e,
+	.flags          = 0,
+	.irq            = RK30_PIN4_PC2,
+	.platform_data = &ft5306_info,
+},
+#endif
+
 };
 #endif
 
