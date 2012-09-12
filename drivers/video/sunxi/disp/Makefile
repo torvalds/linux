@@ -21,5 +21,6 @@ disp-objs += de_bsp_sun5i/de/ebios/de_be.o de_bsp_sun5i/de/ebios/de_fe.o de_bsp_
 endif
 
 ifeq ($(CONFIG_FB_SUNXI_UMP),y)
+obj-m += disp_ump.o
 EXTRA_CFLAGS += -Idrivers/gpu/mali/include
 endif
