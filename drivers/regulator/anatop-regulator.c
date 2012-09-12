@@ -64,14 +64,15 @@ static int anatop_set_voltage_sel(struct regulator_dev *reg, unsigned selector)
 static int anatop_get_voltage_sel(struct regulator_dev *reg)
 {
 	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
-	u32 val;
+	u32 val, mask;
 
 	if (!anatop_reg->control_reg)
 		return -ENOTSUPP;
 
 	val = anatop_read_reg(anatop_reg->mfd, anatop_reg->control_reg);
-	val = (val & ((1 << anatop_reg->vol_bit_width) - 1)) >>
+	mask = ((1 << anatop_reg->vol_bit_width) - 1) <<
 		anatop_reg->vol_bit_shift;
+	val = (val & mask) >> anatop_reg->vol_bit_shift;
 
 	return val - anatop_reg->min_bit_val;
 }
