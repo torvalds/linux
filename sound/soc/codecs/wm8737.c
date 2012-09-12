@@ -647,7 +647,8 @@ static __devinit int wm8737_i2c_probe(struct i2c_client *i2c,
 	struct wm8737_priv *wm8737;
 	int ret;
 
-	wm8737 = kzalloc(sizeof(struct wm8737_priv), GFP_KERNEL);
+	wm8737 = devm_kzalloc(&i2c->dev, sizeof(struct wm8737_priv),
+			      GFP_KERNEL);
 	if (wm8737 == NULL)
 		return -ENOMEM;
 
@@ -656,8 +657,7 @@ static __devinit int wm8737_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 				      &soc_codec_dev_wm8737, &wm8737_dai, 1);
-	if (ret < 0)
-		kfree(wm8737);
+
 	return ret;
 
 }
@@ -665,7 +665,7 @@ static __devinit int wm8737_i2c_probe(struct i2c_client *i2c,
 static __devexit int wm8737_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
@@ -693,7 +693,8 @@ static int __devinit wm8737_spi_probe(struct spi_device *spi)
 	struct wm8737_priv *wm8737;
 	int ret;
 
-	wm8737 = kzalloc(sizeof(struct wm8737_priv), GFP_KERNEL);
+	wm8737 = devm_kzalloc(&spi->dev, sizeof(struct wm8737_priv),
+			      GFP_KERNEL);
 	if (wm8737 == NULL)
 		return -ENOMEM;
 
@@ -702,15 +703,14 @@ static int __devinit wm8737_spi_probe(struct spi_device *spi)
 
 	ret = snd_soc_register_codec(&spi->dev,
 				     &soc_codec_dev_wm8737, &wm8737_dai, 1);
-	if (ret < 0)
-		kfree(wm8737);
+
 	return ret;
 }
 
 static int __devexit wm8737_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
+
 	return 0;
 }
 
