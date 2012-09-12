@@ -6,7 +6,6 @@
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/i2c/pxa-i2c.h>
 
-#include <asm/pmu.h>
 #include <mach/udc.h>
 #include <mach/pxa3xx-u2d.h>
 #include <mach/pxafb.h>
@@ -42,7 +41,7 @@ static struct resource pxa_resource_pmu = {
 
 struct platform_device pxa_device_pmu = {
 	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
+	.id		= -1,
 	.resource	= &pxa_resource_pmu,
 	.num_resources	= 1,
 };
