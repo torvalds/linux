@@ -250,8 +250,8 @@ static void ath9k_mci_work(struct work_struct *work)
 	ath_mci_update_scheme(sc);
 }
 
-static void ath_mci_process_profile(struct ath_softc *sc,
-				    struct ath_mci_profile_info *info)
+static u8 ath_mci_process_profile(struct ath_softc *sc,
+				  struct ath_mci_profile_info *info)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_btcoex *btcoex = &sc->btcoex;
@@ -277,15 +277,15 @@ static void ath_mci_process_profile(struct ath_softc *sc,
 
 	if (info->start) {
 		if (!entry && !ath_mci_add_profile(common, mci, info))
-			return;
+			return 0;
 	} else
 		ath_mci_del_profile(common, mci, entry);
 
-	ieee80211_queue_work(sc->hw, &sc->mci_work);
+	return 1;
 }
 
-static void ath_mci_process_status(struct ath_softc *sc,
-				   struct ath_mci_profile_status *status)
+static u8 ath_mci_process_status(struct ath_softc *sc,
+				 struct ath_mci_profile_status *status)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_mci_profile *mci = &btcoex->mci;
@@ -294,14 +294,14 @@ static void ath_mci_process_status(struct ath_softc *sc,
 
 	/* Link status type are not handled */
 	if (status->is_link)
-		return;
+		return 0;
 
 	info.conn_handle = status->conn_handle;
 	if (ath_mci_find_profile(mci, &info))
-		return;
+		return 0;
 
 	if (status->conn_handle >= ATH_MCI_MAX_PROFILE)
-		return;
+		return 0;
 
 	if (status->is_critical)
 		__set_bit(status->conn_handle, mci->status);
@@ -315,7 +315,9 @@ static void ath_mci_process_status(struct ath_softc *sc,
 	} while (++i < ATH_MCI_MAX_PROFILE);
 
 	if (old_num_mgmt != mci->num_mgmt)
-		ieee80211_queue_work(sc->hw, &sc->mci_work);
+		return 1;
+
+	return 0;
 }
 
 static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
@@ -324,7 +326,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	struct ath_mci_profile_info profile_info;
 	struct ath_mci_profile_status profile_status;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	u8 major, minor;
+	u8 major, minor, update_scheme = 0;
 	u32 seq_num;
 
 	if (ar9003_mci_state(ah, MCI_STATE_NEED_FLUSH_BT_INFO) &&
@@ -359,7 +361,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 			break;
 		}
 
-		ath_mci_process_profile(sc, &profile_info);
+		update_scheme += ath_mci_process_profile(sc, &profile_info);
 		break;
 	case MCI_GPM_COEX_BT_STATUS_UPDATE:
 		profile_status.is_link = *(rx_payload +
@@ -375,12 +377,14 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 			profile_status.is_link, profile_status.conn_handle,
 			profile_status.is_critical, seq_num);
 
-		ath_mci_process_status(sc, &profile_status);
+		update_scheme += ath_mci_process_status(sc, &profile_status);
 		break;
 	default:
 		ath_dbg(common, MCI, "Unknown GPM COEX message = 0x%02x\n", opcode);
 		break;
 	}
+	if (update_scheme)
+		ieee80211_queue_work(sc->hw, &sc->mci_work);
 }
 
 int ath_mci_setup(struct ath_softc *sc)
