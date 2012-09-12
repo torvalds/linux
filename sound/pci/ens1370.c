@@ -55,8 +55,10 @@
 
 #ifdef CHIP1370
 #define DRIVER_NAME "ENS1370"
+#define CHIP_NAME "ES1370" /* it can be ENS but just to keep compatibility... */
 #else
 #define DRIVER_NAME "ENS1371"
+#define CHIP_NAME "ES1371"
 #endif
 
 
@@ -1266,11 +1268,7 @@ static int __devinit snd_ensoniq_pcm(struct ensoniq * ensoniq, int device,
 
 	if (rpcm)
 		*rpcm = NULL;
-#ifdef CHIP1370
-	err = snd_pcm_new(ensoniq->card, "ES1370/1", device, 1, 1, &pcm);
-#else
-	err = snd_pcm_new(ensoniq->card, "ES1371/1", device, 1, 1, &pcm);
-#endif
+	err = snd_pcm_new(ensoniq->card, CHIP_NAME "/1", device, 1, 1, &pcm);
 	if (err < 0)
 		return err;
 
@@ -1283,11 +1281,7 @@ static int __devinit snd_ensoniq_pcm(struct ensoniq * ensoniq, int device,
 
 	pcm->private_data = ensoniq;
 	pcm->info_flags = 0;
-#ifdef CHIP1370
-	strcpy(pcm->name, "ES1370 DAC2/ADC");
-#else
-	strcpy(pcm->name, "ES1371 DAC2/ADC");
-#endif
+	strcpy(pcm->name, CHIP_NAME " DAC2/ADC");
 	ensoniq->pcm1 = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1306,11 +1300,7 @@ static int __devinit snd_ensoniq_pcm2(struct ensoniq * ensoniq, int device,
 
 	if (rpcm)
 		*rpcm = NULL;
-#ifdef CHIP1370
-	err = snd_pcm_new(ensoniq->card, "ES1370/2", device, 1, 0, &pcm);
-#else
-	err = snd_pcm_new(ensoniq->card, "ES1371/2", device, 1, 0, &pcm);
-#endif
+	err = snd_pcm_new(ensoniq->card, CHIP_NAME "/2", device, 1, 0, &pcm);
 	if (err < 0)
 		return err;
 
@@ -1321,11 +1311,7 @@ static int __devinit snd_ensoniq_pcm2(struct ensoniq * ensoniq, int device,
 #endif
 	pcm->private_data = ensoniq;
 	pcm->info_flags = 0;
-#ifdef CHIP1370
-	strcpy(pcm->name, "ES1370 DAC1");
-#else
-	strcpy(pcm->name, "ES1371 DAC1");
-#endif
+	strcpy(pcm->name, CHIP_NAME " DAC1");
 	ensoniq->pcm2 = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1885,11 +1871,7 @@ static void snd_ensoniq_proc_read(struct snd_info_entry *entry,
 {
 	struct ensoniq *ensoniq = entry->private_data;
 
-#ifdef CHIP1370
-	snd_iprintf(buffer, "Ensoniq AudioPCI ES1370\n\n");
-#else
-	snd_iprintf(buffer, "Ensoniq AudioPCI ES1371\n\n");
-#endif
+	snd_iprintf(buffer, "Ensoniq AudioPCI " CHIP_NAME "\n\n");
 	snd_iprintf(buffer, "Joystick enable  : %s\n",
 		    ensoniq->ctrl & ES_JYSTK_EN ? "on" : "off");
 #ifdef CHIP1370
@@ -2361,11 +2343,7 @@ static int __devinit snd_ensoniq_midi(struct ensoniq * ensoniq, int device,
 		*rrawmidi = NULL;
 	if ((err = snd_rawmidi_new(ensoniq->card, "ES1370/1", device, 1, 1, &rmidi)) < 0)
 		return err;
-#ifdef CHIP1370
-	strcpy(rmidi->name, "ES1370");
-#else
-	strcpy(rmidi->name, "ES1371");
-#endif
+	strcpy(rmidi->name, CHIP_NAME);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &snd_ensoniq_midi_output);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT, &snd_ensoniq_midi_input);
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT | SNDRV_RAWMIDI_INFO_INPUT |
