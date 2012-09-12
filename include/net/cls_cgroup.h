@@ -42,22 +42,18 @@ static inline u32 task_cls_classid(struct task_struct *p)
 	return classid;
 }
 #elif IS_MODULE(CONFIG_NET_CLS_CGROUP)
-
-extern int net_cls_subsys_id;
-
 static inline u32 task_cls_classid(struct task_struct *p)
 {
-	int id;
+	struct cgroup_subsys_state *css;
 	u32 classid = 0;
 
 	if (in_interrupt())
 		return 0;
 
 	rcu_read_lock();
-	id = rcu_dereference_index_check(net_cls_subsys_id,
-					 rcu_read_lock_held());
-	if (id >= 0)
-		classid = container_of(task_subsys_state(p, id),
+	css = task_subsys_state(p, net_cls_subsys_id);
+	if (css)
+		classid = container_of(css,
 				       struct cgroup_cls_state, css)->classid;
 	rcu_read_unlock();
 
