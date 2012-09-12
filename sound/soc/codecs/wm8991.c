@@ -1363,7 +1363,7 @@ static __devinit int wm8991_i2c_probe(struct i2c_client *i2c,
 	struct wm8991_priv *wm8991;
 	int ret;
 
-	wm8991 = kzalloc(sizeof *wm8991, GFP_KERNEL);
+	wm8991 = devm_kzalloc(&i2c->dev, sizeof(*wm8991), GFP_KERNEL);
 	if (!wm8991)
 		return -ENOMEM;
 
@@ -1372,15 +1372,14 @@ static __devinit int wm8991_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm8991, &wm8991_dai, 1);
-	if (ret < 0)
-		kfree(wm8991);
+
 	return ret;
 }
 
 static __devexit int wm8991_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
