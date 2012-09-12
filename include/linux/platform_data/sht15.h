@@ -31,4 +31,3 @@ struct sht15_platform_data {
 	bool no_otp_reload;
 	bool low_resolution;
 };
-
