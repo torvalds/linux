@@ -279,6 +279,7 @@ static void ci_role_work(struct work_struct *work)
 
 		ci_role_stop(ci);
 		ci_role_start(ci, role);
+		enable_irq(ci->irq);
 	}
 }
 
@@ -318,18 +319,22 @@ static irqreturn_t ci_irq(int irq, void *data)
 {
 	struct ci13xxx *ci = data;
 	irqreturn_t ret = IRQ_NONE;
+	u32 otgsc = 0;
 
-	if (ci->is_otg) {
-		u32 sts = hw_read(ci, OP_OTGSC, ~0);
+	if (ci->is_otg)
+		otgsc = hw_read(ci, OP_OTGSC, ~0);
 
-		if (sts & OTGSC_IDIS) {
-			hw_write(ci, OP_OTGSC, OTGSC_IDIS, OTGSC_IDIS);
-			queue_work(ci->wq, &ci->work);
-			ret = IRQ_HANDLED;
-		}
+	if (ci->role != CI_ROLE_END)
+		ret = ci_role(ci)->irq(ci);
+
+	if (ci->is_otg && (otgsc & OTGSC_IDIS)) {
+		hw_write(ci, OP_OTGSC, OTGSC_IDIS, OTGSC_IDIS);
+		disable_irq_nosync(ci->irq);
+		queue_work(ci->wq, &ci->work);
+		ret = IRQ_HANDLED;
 	}
 
-	return ci->role == CI_ROLE_END ? ret : ci_role(ci)->irq(ci);
+	return ret;
 }
 
 static DEFINE_IDA(ci_ida);
