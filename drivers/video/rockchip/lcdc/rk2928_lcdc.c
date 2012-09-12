@@ -253,7 +253,7 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 		LcdWrReg(lcdc_dev, DSP_VACT_ST_END,  v_VAEP(screen->vsync_len + screen->upper_margin+y_res)|
 	              v_VASP(screen->vsync_len + screen->upper_margin));
 
-
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	 if(dev_drv->screen0->lcdc_id == 1)
 	 {
 		//set register for scaller
@@ -279,6 +279,7 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 			 v_HAEP(screen0->s_hsync_len + screen0->s_left_margin + screen0->x_res ));
 		LcdWrReg(lcdc_dev,SCL_REG1,v_SCL_V_FACTOR(0x1000)|v_SCL_H_FACTOR(0x1000));
 	 }
+#endif
 		// let above to take effect
 		//LCDC_REG_CFG_DONE();
 	}
@@ -343,6 +344,8 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 	}
 	lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
 	clk_enable(lcdc_dev->dclk);
+#if  defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+
 	if(dev_drv->screen0->lcdc_id == 1)  //if connect to output interface 1,need scale
 	{
 		ret = clk_set_rate(lcdc_dev->sclk, screen0->s_pixclock);
@@ -354,16 +357,14 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 		//printk("%s: sclk:%lu>>need:%d",lcdc_dev->driver.name,,screen0->s_pixclock);
 		clk_enable(lcdc_dev->sclk);
 	}
-    	
-	
-	
+#endif
 	ft = (u64)(screen->upper_margin + screen->lower_margin + screen->y_res +screen->vsync_len)*
 		(screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len)*
 		(dev_drv->pixclock);       // one frame time ,(pico seconds)
 	fps = div64_u64(1000000000000llu,ft);
 	screen->ft = 1000/fps;
-    	printk("%s: dclk:%lu>>sclk:%lu>>fps:%d ",lcdc_dev->driver.name,clk_get_rate(lcdc_dev->dclk), 
-		clk_get_rate(lcdc_dev->sclk),fps);
+    	printk("%s: dclk:%lu>>fps:%d ",lcdc_dev->driver.name,clk_get_rate(lcdc_dev->dclk), 
+		fps);
 
     	if(screen->init)
     	{
