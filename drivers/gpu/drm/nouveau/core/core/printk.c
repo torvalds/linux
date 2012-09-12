@@ -62,8 +62,8 @@ nv_printk_(struct nouveau_object *object, const char *pfx, int level,
 		if (level > nv_client(object)->debug)
 			return;
 
-		snprintf(mfmt, sizeof(mfmt), "%snouveau %c[%8d] %s", pfx,
-			 name[level], nv_client(object)->handle, fmt);
+		snprintf(mfmt, sizeof(mfmt), "%snouveau %c[%8s] %s", pfx,
+			 name[level], nv_client(object)->name, fmt);
 	} else {
 		snprintf(mfmt, sizeof(mfmt), "%snouveau: %s", pfx, fmt);
 	}

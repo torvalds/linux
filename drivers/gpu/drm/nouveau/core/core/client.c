@@ -46,8 +46,8 @@ nouveau_client_oclass = {
 };
 
 int
-nouveau_client_create_(u32 name, u64 devname, const char *cfg, const char *dbg,
-		       int length, void **pobject)
+nouveau_client_create_(const char *name, u64 devname, const char *cfg,
+		       const char *dbg, int length, void **pobject)
 {
 	struct nouveau_object *device;
 	struct nouveau_client *client;
@@ -75,7 +75,7 @@ nouveau_client_create_(u32 name, u64 devname, const char *cfg, const char *dbg,
 	atomic_set(&nv_object(client)->usecount, 2);
 
 	nouveau_object_ref(device, &client->device);
-	client->handle = name;
+	snprintf(client->name, sizeof(client->name), "%s", name);
 	client->debug = nouveau_dbgopt(dbg, "CLIENT");
 	return 0;
 }

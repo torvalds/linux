@@ -79,7 +79,8 @@ nouveau_name(struct pci_dev *pdev)
 }
 
 static int
-nouveau_cli_create(struct pci_dev *pdev, u32 name, int size, void **pcli)
+nouveau_cli_create(struct pci_dev *pdev, const char *name,
+		   int size, void **pcli)
 {
 	struct nouveau_cli *cli;
 	int ret;
@@ -246,7 +247,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	struct nouveau_drm *drm;
 	int ret;
 
-	ret = nouveau_cli_create(pdev, 0, sizeof(*drm), (void**)&drm);
+	ret = nouveau_cli_create(pdev, "DRM", sizeof(*drm), (void**)&drm);
 	if (ret)
 		return ret;
 
@@ -496,9 +497,12 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	struct pci_dev *pdev = dev->pdev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli;
+	char name[16];
 	int ret;
 
-	ret = nouveau_cli_create(pdev, fpriv->pid, sizeof(*cli), (void **)&cli);
+	snprintf(name, sizeof(name), "%d", fpriv->pid);
+
+	ret = nouveau_cli_create(pdev, name, sizeof(*cli), (void **)&cli);
 	if (ret)
 		return ret;
 
