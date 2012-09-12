@@ -6,6 +6,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/sizes.h>
 #include <linux/module.h>
 
 #ifdef CONFIG_MTRR
@@ -1470,6 +1471,9 @@ static int XGIfb_get_dram_size(struct xgifb_video_info *xgifb_info)
 		xgifb_reg_set(XGISR, IND_SIS_DRAM_SIZE, 0x51);
 
 	reg = xgifb_reg_get(XGISR, IND_SIS_DRAM_SIZE);
+	if (!reg)
+		return -1;
+
 	switch ((reg & XGI_DRAM_SIZE_MASK) >> 4) {
 	case XGI_DRAM_SIZE_1MB:
 		xgifb_info->video_size = 0x100000;
@@ -1778,10 +1782,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	hw_info->jChipType = xgifb_info->chip;
 
 	if (XGIfb_get_dram_size(xgifb_info)) {
-		dev_err(&pdev->dev,
-			"Fatal error: Unable to determine RAM size.\n");
-		ret = -ENODEV;
-		goto error_disable;
+		xgifb_info->video_size = min_t(unsigned long, video_size_max,
+						SZ_16M);
 	} else if (xgifb_info->video_size > video_size_max) {
 		xgifb_info->video_size = video_size_max;
 	}
