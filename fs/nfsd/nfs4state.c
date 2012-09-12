@@ -897,20 +897,21 @@ static void nfsd4_del_conns(struct nfsd4_session *s)
 	spin_unlock(&clp->cl_lock);
 }
 
+static void __free_session(struct nfsd4_session *ses)
+{
+	nfsd4_put_drc_mem(slot_bytes(&ses->se_fchannel), ses->se_fchannel.maxreqs);
+	free_session_slots(ses);
+	kfree(ses);
+}
+
 static void free_session(struct kref *kref)
 {
 	struct nfsd4_session *ses;
-	int mem;
 
 	lockdep_assert_held(&client_lock);
 	ses = container_of(kref, struct nfsd4_session, se_ref);
 	nfsd4_del_conns(ses);
-	spin_lock(&nfsd_drc_lock);
-	mem = ses->se_fchannel.maxreqs * slot_bytes(&ses->se_fchannel);
-	nfsd_drc_mem_used -= mem;
-	spin_unlock(&nfsd_drc_lock);
-	free_session_slots(ses);
-	kfree(ses);
+	__free_session(ses);
 }
 
 void nfsd4_put_session(struct nfsd4_session *ses)
@@ -966,9 +967,7 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 
 	conn = alloc_conn_from_crses(rqstp, cses);
 	if (!conn) {
-		spin_lock(&client_lock);
-		free_session(&new->se_ref);
-		spin_unlock(&client_lock);
+		__free_session(new);
 		return NULL;
 	}
 	nfsd4_init_conn(rqstp, conn, new);
