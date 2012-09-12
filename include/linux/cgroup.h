@@ -46,10 +46,12 @@ extern const struct file_operations proc_cgroup_operations;
 
 /* Define the enumeration of all builtin cgroup subsystems */
 #define SUBSYS(_x) _x ## _subsys_id,
+#define IS_SUBSYS_ENABLED(option) IS_BUILTIN(option)
 enum cgroup_subsys_id {
 #include <linux/cgroup_subsys.h>
 	__CGROUP_TEMPORARY_PLACEHOLDER
 };
+#undef IS_SUBSYS_ENABLED
 #undef SUBSYS
 /*
  * This define indicates the maximum number of subsystems that can be loaded
@@ -528,7 +530,9 @@ struct cgroup_subsys {
 };
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _subsys;
+#define IS_SUBSYS_ENABLED(option) IS_BUILTIN(option)
 #include <linux/cgroup_subsys.h>
+#undef IS_SUBSYS_ENABLED
 #undef SUBSYS
 
 static inline struct cgroup_subsys_state *cgroup_subsys_state(
