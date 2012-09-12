@@ -571,7 +571,7 @@ static int hist_browser__hpp_color_ ## _name(struct perf_hpp *hpp,	\
 {									\
 	double percent = 100.0 * he->_field / hpp->total_period;	\
 	*(double *)hpp->ptr = percent;					\
-	return scnprintf(hpp->buf, hpp->size, "%5.2f%%", percent);	\
+	return scnprintf(hpp->buf, hpp->size, "%6.2f%%", percent);	\
 }
 
 HPP__COLOR_FN(overhead, period)
