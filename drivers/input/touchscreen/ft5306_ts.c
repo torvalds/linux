@@ -238,6 +238,7 @@ static int ft5x0x_set_reg(u8 addr, u8 para)
 static int ft5x0x_read_data(void)
 {
 	struct ft5x0x_ts_dev *data = i2c_get_clientdata(g_dev->client);
+	struct ft5x0x_platform_data *pdata = g_dev->client->dev.platform_data;
 	struct ts_event *event = &data->event;
 
 	u8 buf[32]= {0};//set send addr to 0x00 *important*
@@ -373,7 +374,8 @@ static int ft5x0x_read_data(void)
 
 			event->point[0].y = (s16)(buf[0x03] & 0x0f)<<8 | (s16)buf[0x04];
 			event->point[0].x = (s16)(buf[0x05] & 0x0f)<<8 | (s16)buf[0x06];
-			event->point[0].x = 480 - event->point[0].x;
+			
+			event->point[0].x = pdata->max_x - event->point[0].x;
 			if(event->point[0].x < 0){
 				event->point[0].x = 0;
 			}
@@ -387,6 +389,7 @@ static int ft5x0x_read_data(void)
 static void ft5x0x_report_value(void)
 {
 	struct ft5x0x_ts_dev *data = i2c_get_clientdata(g_dev->client);
+	struct ft5x0x_platform_data *pdata = g_dev->client->dev.platform_data;
 	struct ts_event *event = &data->event;
 	u8 j;
 	u8 i = 0;
@@ -406,7 +409,7 @@ static void ft5x0x_report_value(void)
 		for(i=0; i<event->touch_point; i++) {
 		//================
 		//printk("event->x[%d]:%d,event->y[%d]:%d\n", i,event->x[i],i,event->y[i]);
-		if((event->point[i].y > KEY_MIN_X) && (debug1)/*&&(posx[i]<KEY_MAX_X)*/)
+		if((event->point[i].y > pdata->key_min_x) && (debug1)/*&&(posx[i]<KEY_MAX_X)*/)
 				{
 				 for(j=0;j<KEY_NUM;j++)
 				   {
@@ -458,7 +461,7 @@ static void ft5x0x_report_value(void)
 					input_report_abs(data->input_dev, ABS_MT_POSITION_X, event->point[i].x);
 					input_report_abs(data->input_dev, ABS_MT_POSITION_Y, event->point[i].y);
 					input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, 100);
-				  // printk("ABS_MT_TRACKING_ID == %d, ABS_MT_POSITION_X == %d, ABS_MT_POSITION_Y == %d\n",event->point[i].id,event->point[i].x,event->point[i].y);
+				   //printk("ABS_MT_TRACKING_ID == %d, ABS_MT_POSITION_X == %d, ABS_MT_POSITION_Y == %d\n",event->point[i].id,event->point[i].x,event->point[i].y);
 
 				}
 
@@ -662,7 +665,7 @@ static void Touch_timer_release(unsigned long ft_ts_pdev)
 static int ft5x0x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct ft5x0x_ts_dev *ft5x0x_ts;
-	struct ft5x0x_platform_data *pdata = pdata = client->dev.platform_data;
+	struct ft5x0x_platform_data *pdata = client->dev.platform_data;
 	struct input_dev *input_dev;
 	int err = 0;
 	u8 buf_w[1];
@@ -693,7 +696,8 @@ static int ft5x0x_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		printk("%s:i2c_transfer fail =%d\n",__FUNCTION__,err);
 		return err;
 	}
-
+	
+	/*pdata->max_x and pdata->max_y should be read from touch*/
 
 	ft5x0x_ts = (struct ft5x0x_ts_dev *)kzalloc(sizeof(*ft5x0x_ts), GFP_KERNEL);
 	if (!ft5x0x_ts)	{
@@ -723,8 +727,19 @@ static int ft5x0x_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 	input_mt_init_slots(input_dev, MAX_CONTACTS);
 
-	input_set_abs_params(input_dev,ABS_MT_POSITION_X, 0, SCREEN_MAX_X, 0, 0);
-	input_set_abs_params(input_dev,ABS_MT_POSITION_Y, 0, SCREEN_MAX_Y, 0, 0);
+	if((pdata->max_x <= 0) || (pdata->max_y <= 0))
+	{
+		pdata->max_x = SCREEN_MAX_X;
+		pdata->max_y = SCREEN_MAX_Y;
+	}
+
+	if(pdata->key_min_x <= 0)
+	{
+		pdata->key_min_x = KEY_MIN_X;
+	}
+
+	input_set_abs_params(input_dev,ABS_MT_POSITION_X, 0, pdata->max_x, 0, 0);
+	input_set_abs_params(input_dev,ABS_MT_POSITION_Y, 0, pdata->max_y, 0, 0);
 	input_set_abs_params(input_dev,ABS_MT_TOUCH_MAJOR, 0, PRESS_MAX, 0, 0);
 	input_set_abs_params(input_dev,ABS_MT_WIDTH_MAJOR, 0, 200, 0, 0);
 #if  CONFIG_TOUCH_PANEL_KEY
@@ -809,7 +824,7 @@ static int ft5x0x_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
     enable_irq(g_dev->irq);
 
-printk("==ft5x0x_ts_probe = %0x\n", buf_r[0]);
+	printk("==ft5x0x_ts_probe = %0x,max_x=%d,max_y=%d\n", buf_r[0],pdata->max_x,pdata->max_y);
 
     return 0;
 

@@ -42,12 +42,17 @@ struct wifi_platform_data {
 
 #if defined (CONFIG_TOUCHSCREEN_FT5306)
 struct ft5x0x_platform_data{
-	  u16     model;
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*ft5x0x_platform_sleep)(void);
-    int     (*ft5x0x_platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
+	u16     model;
+	int	max_x;
+	int	max_y;
+	int	key_min_x;
+	int	key_min_y;
+	int     (*get_pendown_state)(void);
+	int     (*init_platform_hw)(void);
+	int     (*ft5x0x_platform_sleep)(void);
+	int     (*ft5x0x_platform_wakeup)(void);  
+	void    (*exit_platform_hw)(void);
+
 };
 #endif
 
