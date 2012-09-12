@@ -2140,14 +2140,16 @@ config FB_UDL
 	  To compile as a module, choose M here: the module name is udlfb.
 
 config FB_IBM_GXT4500
-	tristate "Framebuffer support for IBM GXT4500P adaptor"
+	tristate "Framebuffer support for IBM GXT4000P/4500P/6000P/6500P adaptors"
 	depends on FB && PPC
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	---help---
-	  Say Y here to enable support for the IBM GXT4500P display
-	  adaptor, found on some IBM System P (pSeries) machines.
+	  Say Y here to enable support for the IBM GXT4000P/6000P and
+	  GXT4500P/6500P display adaptor based on Raster Engine RC1000,
+	  found on some IBM System P (pSeries) machines. This driver
+	  doesn't use Geometry Engine GT1000.
 
 config FB_PS3
 	tristate "PS3 GPU framebuffer driver"
