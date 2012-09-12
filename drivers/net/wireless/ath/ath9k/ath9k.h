@@ -537,12 +537,16 @@ struct ath9k_wow_pattern {
 #ifdef CONFIG_MAC80211_LEDS
 void ath_init_leds(struct ath_softc *sc);
 void ath_deinit_leds(struct ath_softc *sc);
+void ath_fill_led_pin(struct ath_softc *sc);
 #else
 static inline void ath_init_leds(struct ath_softc *sc)
 {
 }
 
 static inline void ath_deinit_leds(struct ath_softc *sc)
+{
+}
+static inline void ath_fill_led_pin(struct ath_softc *sc)
 {
 }
 #endif

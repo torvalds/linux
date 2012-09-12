@@ -44,25 +44,6 @@ void ath_init_leds(struct ath_softc *sc)
 	if (AR_SREV_9100(sc->sc_ah))
 		return;
 
-	if (sc->sc_ah->led_pin < 0) {
-		if (AR_SREV_9287(sc->sc_ah))
-			sc->sc_ah->led_pin = ATH_LED_PIN_9287;
-		else if (AR_SREV_9485(sc->sc_ah))
-			sc->sc_ah->led_pin = ATH_LED_PIN_9485;
-		else if (AR_SREV_9300(sc->sc_ah))
-			sc->sc_ah->led_pin = ATH_LED_PIN_9300;
-		else if (AR_SREV_9462(sc->sc_ah) || AR_SREV_9565(sc->sc_ah))
-			sc->sc_ah->led_pin = ATH_LED_PIN_9462;
-		else
-			sc->sc_ah->led_pin = ATH_LED_PIN_DEF;
-	}
-
-	/* Configure gpio 1 for output */
-	ath9k_hw_cfg_output(sc->sc_ah, sc->sc_ah->led_pin,
-			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	/* LED off, active low */
-	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
-
 	if (!led_blink)
 		sc->led_cdev.default_trigger =
 			ieee80211_get_radio_led_name(sc->hw);
@@ -77,6 +58,31 @@ void ath_init_leds(struct ath_softc *sc)
 		return;
 
 	sc->led_registered = true;
+}
+
+void ath_fill_led_pin(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+
+	if (AR_SREV_9100(ah) || (ah->led_pin >= 0))
+		return;
+
+	if (AR_SREV_9287(ah))
+		ah->led_pin = ATH_LED_PIN_9287;
+	else if (AR_SREV_9485(sc->sc_ah))
+		ah->led_pin = ATH_LED_PIN_9485;
+	else if (AR_SREV_9300(sc->sc_ah))
+		ah->led_pin = ATH_LED_PIN_9300;
+	else if (AR_SREV_9462(sc->sc_ah) || AR_SREV_9565(sc->sc_ah))
+		ah->led_pin = ATH_LED_PIN_9462;
+	else
+		ah->led_pin = ATH_LED_PIN_DEF;
+
+	/* Configure gpio 1 for output */
+	ath9k_hw_cfg_output(ah, ah->led_pin, AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+
+	/* LED off, active low */
+	ath9k_hw_set_gpio(ah, ah->led_pin, 1);
 }
 #endif
 
