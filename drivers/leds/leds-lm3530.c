@@ -150,7 +150,7 @@ static int lm3530_get_mode_from_str(const char *str)
 		if (sysfs_streq(str, mode_map[i].mode))
 			return mode_map[i].mode_val;
 
-	return -1;
+	return -EINVAL;
 }
 
 static void lm3530_als_configure(struct lm3530_platform_data *pdata,
@@ -358,7 +358,7 @@ static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 	mode = lm3530_get_mode_from_str(buf);
 	if (mode < 0) {
 		dev_err(dev, "Invalid mode\n");
-		return -EINVAL;
+		return mode;
 	}
 
 	drvdata->mode = mode;
@@ -429,13 +429,13 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 		if (err < 0) {
 			dev_err(&client->dev,
 				"Register Init failed: %d\n", err);
-			return -ENODEV;
+			return err;
 		}
 	}
 	err = led_classdev_register(&client->dev, &drvdata->led_dev);
 	if (err < 0) {
 		dev_err(&client->dev, "Register led class failed: %d\n", err);
-		return -ENODEV;
+		return err;
 	}
 
 	err = device_create_file(drvdata->led_dev.dev, &dev_attr_mode);
