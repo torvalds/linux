@@ -49,7 +49,8 @@ static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 		requesttype = (USB_TYPE_VENDOR | USB_DIR_OUT);
 		break;
 	default:
-		pr_debug("%s: unknown command=%02x\n", __func__, req->cmd);
+		dev_err(&d->udev->dev, "%s: unknown command=%02x\n",
+				KBUILD_MODNAME, req->cmd);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -78,8 +79,8 @@ static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 			buf, req->data_len);
 
 	if (ret < 0)
-		pr_err("%s: usb_control_msg() failed=%d\n", KBUILD_MODNAME,
-				ret);
+		dev_err(&d->udev->dev, "%s: usb_control_msg() failed=%d\n",
+				KBUILD_MODNAME, ret);
 	else
 		ret = 0;
 
@@ -121,7 +122,8 @@ static int ce6230_i2c_master_xfer(struct i2c_adapter *adap,
 				req.data = &msg[i+1].buf[0];
 				ret = ce6230_ctrl_msg(d, &req);
 			} else {
-				pr_err("%s: I2C read not implemented\n",
+				dev_err(&d->udev->dev, "%s: I2C read not " \
+						"implemented\n",
 						KBUILD_MODNAME);
 				ret = -EOPNOTSUPP;
 			}
@@ -176,10 +178,12 @@ static struct zl10353_config ce6230_zl10353_config = {
 
 static int ce6230_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	pr_debug("%s:\n", __func__);
+	struct dvb_usb_device *d = adap_to_d(adap);
+
+	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	adap->fe[0] = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
-			&adap_to_d(adap)->i2c_adap);
+			&d->i2c_adap);
 	if (adap->fe[0] == NULL)
 		return -ENODEV;
 
@@ -205,12 +209,12 @@ static struct mxl5005s_config ce6230_mxl5003s_config = {
 
 static int ce6230_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 {
+	struct dvb_usb_device *d = adap_to_d(adap);
 	int ret;
 
-	pr_debug("%s:\n", __func__);
+	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
-	ret = dvb_attach(mxl5005s_attach, adap->fe[0],
-			&adap_to_d(adap)->i2c_adap,
+	ret = dvb_attach(mxl5005s_attach, adap->fe[0], &d->i2c_adap,
 			&ce6230_mxl5003s_config) == NULL ? -ENODEV : 0;
 	return ret;
 }
@@ -219,14 +223,14 @@ static int ce6230_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	int ret;
 
-	pr_debug("%s: onoff=%d\n", __func__, onoff);
+	dev_dbg(&d->udev->dev, "%s: onoff=%d\n", __func__, onoff);
 
 	/* InterfaceNumber 1 / AlternateSetting 0     idle
 	   InterfaceNumber 1 / AlternateSetting 1     streaming */
 	ret = usb_set_interface(d->udev, 1, onoff);
 	if (ret)
-		pr_err("%s: usb_set_interface() failed=%d\n", KBUILD_MODNAME,
-				ret);
+		dev_err(&d->udev->dev, "%s: usb_set_interface() failed=%d\n",
+				KBUILD_MODNAME, ret);
 
 	return ret;
 }
