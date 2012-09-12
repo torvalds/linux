@@ -414,7 +414,8 @@ static int __devinit wm8711_spi_probe(struct spi_device *spi)
 	struct wm8711_priv *wm8711;
 	int ret;
 
-	wm8711 = kzalloc(sizeof(struct wm8711_priv), GFP_KERNEL);
+	wm8711 = devm_kzalloc(&spi->dev, sizeof(struct wm8711_priv),
+			      GFP_KERNEL);
 	if (wm8711 == NULL)
 		return -ENOMEM;
 
@@ -423,15 +424,14 @@ static int __devinit wm8711_spi_probe(struct spi_device *spi)
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_dev_wm8711, &wm8711_dai, 1);
-	if (ret < 0)
-		kfree(wm8711);
+
 	return ret;
 }
 
 static int __devexit wm8711_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
+
 	return 0;
 }
 
@@ -453,7 +453,8 @@ static __devinit int wm8711_i2c_probe(struct i2c_client *client,
 	struct wm8711_priv *wm8711;
 	int ret;
 
-	wm8711 = kzalloc(sizeof(struct wm8711_priv), GFP_KERNEL);
+	wm8711 = devm_kzalloc(&client->dev, sizeof(struct wm8711_priv),
+			      GFP_KERNEL);
 	if (wm8711 == NULL)
 		return -ENOMEM;
 
@@ -462,15 +463,13 @@ static __devinit int wm8711_i2c_probe(struct i2c_client *client,
 
 	ret =  snd_soc_register_codec(&client->dev,
 			&soc_codec_dev_wm8711, &wm8711_dai, 1);
-	if (ret < 0)
-		kfree(wm8711);
+
 	return ret;
 }
 
 static __devexit int wm8711_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
