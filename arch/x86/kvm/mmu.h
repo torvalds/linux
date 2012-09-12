@@ -18,7 +18,8 @@
 #define PT_PCD_MASK (1ULL << 4)
 #define PT_ACCESSED_SHIFT 5
 #define PT_ACCESSED_MASK (1ULL << PT_ACCESSED_SHIFT)
-#define PT_DIRTY_MASK (1ULL << 6)
+#define PT_DIRTY_SHIFT 6
+#define PT_DIRTY_MASK (1ULL << PT_DIRTY_SHIFT)
 #define PT_PAGE_SIZE_MASK (1ULL << 7)
 #define PT_PAT_MASK (1ULL << 7)
 #define PT_GLOBAL_MASK (1ULL << 8)
