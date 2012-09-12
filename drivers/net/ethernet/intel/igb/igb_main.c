@@ -4776,7 +4776,11 @@ void igb_update_stats(struct igb_adapter *adapter,
 	reg = rd32(E1000_CTRL_EXT);
 	if (!(reg & E1000_CTRL_EXT_LINK_MODE_MASK)) {
 		adapter->stats.rxerrc += rd32(E1000_RXERRC);
-		adapter->stats.tncrs += rd32(E1000_TNCRS);
+
+		/* this stat has invalid values on i210/i211 */
+		if ((hw->mac.type != e1000_i210) &&
+		    (hw->mac.type != e1000_i211))
+			adapter->stats.tncrs += rd32(E1000_TNCRS);
 	}
 
 	adapter->stats.tsctc += rd32(E1000_TSCTC);
