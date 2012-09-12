@@ -150,7 +150,7 @@ static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			regs |= D7S_FLIP;
 		writeb(regs, p->regs);
 		break;
-	};
+	}
 	mutex_unlock(&d7s_mutex);
 
 	return error;
