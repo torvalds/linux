@@ -199,7 +199,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     	}
 
 	#if defined(CONFIG_HDMI_RK30)
-		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
 				if(inf->num_fb >= 2)
@@ -363,7 +363,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	var->pixclock = dev_drv->pixclock;
  	
 	#if defined(CONFIG_HDMI_RK30)
-		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
 				if(inf->num_fb >= 2)
@@ -488,7 +488,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	par->yvir =  var->yres_virtual;
 
 	#if defined(CONFIG_HDMI_RK30)
-		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
 				if(info != info2)
@@ -701,7 +701,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	
 	hdmi_var = &info->var;
 	hdmi_fix = &info->fix;
-	#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+	#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 		if(likely(inf->num_lcdc == 2))
 		{
 			pmy_var = &inf->fb[0]->var;
@@ -731,7 +731,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	ret = info->fbops->fb_open(info,1);
 	ret = dev_drv->load_screen(dev_drv,1);
 	ret = info->fbops->fb_set_par(info);
-	#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+	#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 		if(likely(inf->num_lcdc == 2))
 		{
 			pmy_info = inf->fb[0];
@@ -1204,7 +1204,7 @@ static int __devinit rk_fb_probe (struct platform_device *pdev)
     	}
 	platform_set_drvdata(pdev,fb_inf);
 #if defined(CONFIG_HDMI_RK30)
-		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)		
+		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)		
 			fb_inf->workqueue = create_singlethread_workqueue("hdmi_post");
 			INIT_DELAYED_WORK(&(fb_inf->delay_work), hdmi_post_work);
 		#endif

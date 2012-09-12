@@ -7,18 +7,32 @@ config FB_ROCKCHIP
         ---help---
           Framebuffer driver for rockchip based platform
 
-config DUAL_DISP_IN_KERNEL
-        bool "implement dual display in kernel"
+choice
+        bool "Dual display ploy select"
+	depends on FB_ROCKCHIP
+	default NO_DUAL_DISP
+        help
+	  If you use dual lcdc for dual display ,select "implement dual display in kernel with dual lcdc"
+	  If you use one lcdc like rk2928 or one lcdc with RK Jetta,select "one lcdc dual output display interface support"
+	
+config DUAL_LCDC_DUAL_DISP_IN_KERNEL
+        bool "implement dual display in kernel with dual lcdc"
         depends on FB_ROCKCHIP
-        default y if HDMI_RK30
         help
           select y will implement dual screen display in kernel
+
 config ONE_LCDC_DUAL_OUTPUT_INF
         bool "one lcdc dual output display interface support"
         depends on FB_ROCKCHIP
-        default y if ARCH_RK2928
         help
           select y if on platform like rk2928 which have one lcdc but two output interface
+config NO_DUAL_DISP
+	bool "NO dual display needed"
+	depends on FB_ROCKCHIP
+	help
+	  No dual display needed
+endchoice
+
 config THREE_FB_BUFFER
         bool "Three fb buffer support"
         depends on FB_ROCKCHIP
