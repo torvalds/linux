@@ -38,7 +38,7 @@ extern struct dvb_frontend *ec100_attach(const struct ec100_config *config,
 static inline struct dvb_frontend *ec100_attach(
 	const struct ec100_config *config, struct i2c_adapter *i2c)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif
