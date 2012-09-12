@@ -605,7 +605,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 	char s[256];
 	double percent;
 	int i, printed = 0;
-	int width = browser->b.width - 1;
+	int width = browser->b.width;
 	char folded_sign = ' ';
 	bool current_entry = ui_browser__is_current_entry(&browser->b, row);
 	off_t row_offset = entry->row_offset;
@@ -627,7 +627,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			.total_period	= browser->hists->stats.total_period,
 		};
 
-		ui_browser__gotorc(&browser->b, row, 1);
+		ui_browser__gotorc(&browser->b, row, 0);
 
 		for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
 			if (!perf_hpp__format[i].cond)
