@@ -116,7 +116,6 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 	struct tpci200_board *tpci200 = (struct tpci200_board *) dev_id;
 	int i;
 	unsigned short status_reg;
-	irqreturn_t ret = IRQ_NONE;
 	struct slot_irq *slot_irq;
 
 	/* Read status register */
@@ -130,7 +129,7 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 				continue;
 			slot_irq = rcu_dereference(tpci200->slots[i].irq);
 			if (slot_irq) {
-				ret = tpci200_slot_irq(slot_irq);
+				tpci200_slot_irq(slot_irq);
 			} else {
 				dev_info(&tpci200->info->pdev->dev,
 					 "No registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
@@ -141,9 +140,11 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 			}
 		}
 		rcu_read_unlock();
-	}
 
-	return ret;
+		return IRQ_HANDLED;
+	} else {
+		return IRQ_NONE;
+	}
 }
 
 static int tpci200_register(struct tpci200_board *tpci200)
