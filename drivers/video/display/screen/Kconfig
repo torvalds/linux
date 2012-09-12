@@ -94,6 +94,8 @@ config LCD_COMMON
 	bool "LCD COMMON"
 config LCD_RK2928_A720
         bool "RK2928 A720 panel 800x480"
+config LCD_HJ080NA
+	bool "HJ080NA_4J 1024X768"
 
 endchoice
 
