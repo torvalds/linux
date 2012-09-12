@@ -759,6 +759,7 @@ static struct attribute *lp5523_attributes[] = {
 	&dev_attr_engine2_leds.attr,
 	&dev_attr_engine3_load.attr,
 	&dev_attr_engine3_leds.attr,
+	NULL,
 };
 
 static const struct attribute_group lp5523_group = {
