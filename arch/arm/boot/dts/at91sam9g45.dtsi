@@ -29,6 +29,8 @@
 		gpio4 = &pioE;
 		tcb0 = &tcb0;
 		tcb1 = &tcb1;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 	};
 	cpus {
 		cpu@0 {
@@ -198,6 +200,24 @@
 				compatible = "cdns,at32ap7000-macb", "cdns,macb";
 				reg = <0xfffbc000 0x100>;
 				interrupts = <25 4 3>;
+				status = "disabled";
+			};
+
+			i2c0: i2c@fff84000 {
+				compatible = "atmel,at91sam9g10-i2c";
+				reg = <0xfff84000 0x100>;
+				interrupts = <12 4 6>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			i2c1: i2c@fff88000 {
+				compatible = "atmel,at91sam9g10-i2c";
+				reg = <0xfff88000 0x100>;
+				interrupts = <13 4 6>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
