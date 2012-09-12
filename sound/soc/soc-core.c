@@ -635,6 +635,8 @@ int snd_soc_suspend(struct device *dev)
 				codec->driver->suspend(codec);
 				codec->suspended = 1;
 				codec->cache_sync = 1;
+				if (codec->using_regmap)
+					regcache_mark_dirty(codec->control_data);
 				break;
 			default:
 				dev_dbg(codec->dev, "CODEC is on over suspend\n");
