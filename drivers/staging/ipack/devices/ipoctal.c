@@ -49,7 +49,6 @@ struct ipoctal_channel {
 };
 
 struct ipoctal {
-	struct list_head		list;
 	struct ipack_device		*dev;
 	unsigned int			board_id;
 	struct ipoctal_channel		channel[NR_CHANNELS];
@@ -57,34 +56,11 @@ struct ipoctal {
 	struct tty_driver		*tty_drv;
 };
 
-/* Linked list to save the registered devices */
-static LIST_HEAD(ipoctal_list);
-
-static struct ipoctal *ipoctal_find_board(struct tty_struct *tty)
-{
-	struct ipoctal *p;
-
-	list_for_each_entry(p, &ipoctal_list, list) {
-		if (tty->driver->major == p->tty_drv->major)
-			return p;
-	}
-
-	return NULL;
-}
-
 static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 {
-	struct ipoctal *ipoctal;
 	struct ipoctal_channel *channel;
 
-	ipoctal = ipoctal_find_board(tty);
-
-	if (ipoctal == NULL) {
-		dev_err(tty->dev, "Device not found. Major %d\n",
-			tty->driver->major);
-		return -ENODEV;
-	}
-	channel = &ipoctal->channel[tty->index];
+	channel = dev_get_drvdata(tty->dev);
 
 	iowrite8(CR_ENABLE_RX, &channel->regs->w.cr);
 	return 0;
@@ -93,17 +69,9 @@ static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 static int ipoctal_open(struct tty_struct *tty, struct file *file)
 {
 	int res;
-	struct ipoctal *ipoctal;
 	struct ipoctal_channel *channel;
 
-	ipoctal = ipoctal_find_board(tty);
-
-	if (ipoctal == NULL) {
-		dev_err(tty->dev, "Device not found. Major %d\n",
-			tty->driver->major);
-		return -ENODEV;
-	}
-	channel = &ipoctal->channel[tty->index];
+	channel = dev_get_drvdata(tty->dev);
 
 	if (atomic_read(&channel->open))
 		return -EBUSY;
@@ -457,6 +425,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 			dev_err(&ipoctal->dev->dev, "Failed to register tty device.\n");
 			continue;
 		}
+		dev_set_drvdata(tty_dev, channel);
 
 		/*
 		 * Enable again the RX. TX will be enabled when
@@ -732,7 +701,6 @@ static int ipoctal_probe(struct ipack_device *dev)
 		goto out_uninst;
 
 	dev_set_drvdata(&dev->dev, ipoctal);
-	list_add_tail(&ipoctal->list, &ipoctal_list);
 	return 0;
 
 out_uninst:
@@ -754,7 +722,6 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 
 	tty_unregister_driver(ipoctal->tty_drv);
 	put_tty_driver(ipoctal->tty_drv);
-	list_del(&ipoctal->list);
 	kfree(ipoctal);
 }
 
