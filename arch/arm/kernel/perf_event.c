@@ -77,8 +77,12 @@ armpmu_map_event(struct perf_event *event,
 		 u32 raw_event_mask)
 {
 	u64 config = event->attr.config;
+	int type = event->attr.type;
 
-	switch (event->attr.type) {
+	if (type == event->pmu->type)
+		return armpmu_map_raw_event(raw_event_mask, config);
+
+	switch (type) {
 	case PERF_TYPE_HARDWARE:
 		return armpmu_map_hw_event(event_map, config);
 	case PERF_TYPE_HW_CACHE:
