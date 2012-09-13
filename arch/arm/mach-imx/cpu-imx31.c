@@ -12,9 +12,9 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <mach/hardware.h>
-#include <mach/iim.h>
 
 #include "common.h"
+#include "iim.h"
 
 static int mx31_cpu_rev = -1;
 
