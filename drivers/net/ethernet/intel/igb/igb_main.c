@@ -2835,20 +2835,14 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 mrqc, rxcsum;
 	u32 j, num_rx_queues, shift = 0;
-	static const u8 rsshash[40] = {
-		0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2, 0x41, 0x67,
-		0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0, 0xd0, 0xca, 0x2b, 0xcb,
-		0xae, 0x7b, 0x30, 0xb4,	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30,
-		0xf2, 0x0c, 0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa };
+	static const u32 rsskey[10] = { 0xDA565A6D, 0xC20E5B25, 0x3D256741,
+					0xB08FA343, 0xCB2BCAD0, 0xB4307BAE,
+					0xA32DCB77, 0x0CF23080, 0x3BB7426A,
+					0xFA01ACBE };
 
 	/* Fill out hash function seeds */
-	for (j = 0; j < 10; j++) {
-		u32 rsskey = rsshash[(j * 4)];
-		rsskey |= rsshash[(j * 4) + 1] << 8;
-		rsskey |= rsshash[(j * 4) + 2] << 16;
-		rsskey |= rsshash[(j * 4) + 3] << 24;
-		array_wr32(E1000_RSSRK(0), j, rsskey);
-	}
+	for (j = 0; j < 10; j++)
+		wr32(E1000_RSSRK(j), rsskey[j]);
 
 	num_rx_queues = adapter->rss_queues;
 
