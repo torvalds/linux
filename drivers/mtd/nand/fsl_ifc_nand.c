@@ -193,7 +193,7 @@ static int is_blank(struct mtd_info *mtd, unsigned int bufnum)
 	struct nand_chip *chip = mtd->priv;
 	struct fsl_ifc_mtd *priv = chip->priv;
 	u8 __iomem *addr = priv->vbase + bufnum * (mtd->writesize * 2);
-	u32 __iomem *mainarea = (u32 *)addr;
+	u32 __iomem *mainarea = (u32 __iomem *)addr;
 	u8 __iomem *oob = addr + mtd->writesize;
 	int i;
 
@@ -591,8 +591,8 @@ static uint8_t fsl_ifc_read_byte16(struct mtd_info *mtd)
 	 * next byte.
 	 */
 	if (ifc_nand_ctrl->index < ifc_nand_ctrl->read_bytes) {
-		data = in_be16((uint16_t *)&ifc_nand_ctrl->
-					addr[ifc_nand_ctrl->index]);
+		data = in_be16((uint16_t __iomem *)&ifc_nand_ctrl->
+			       addr[ifc_nand_ctrl->index]);
 		ifc_nand_ctrl->index += 2;
 		return (uint8_t) data;
 	}
