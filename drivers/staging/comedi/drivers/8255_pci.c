@@ -68,6 +68,7 @@ Configuration Options: not applicable, uses PCI auto config
 
 struct pci_8255_boardinfo {
 	const char *name;
+	unsigned short vendor;
 	unsigned short device;
 	int dio_badr;
 	int n_8255;
@@ -76,36 +77,43 @@ struct pci_8255_boardinfo {
 static const struct pci_8255_boardinfo pci_8255_boards[] = {
 	{
 		.name		= "adl_pci-7224",
+		.vendor		= PCI_VENDOR_ID_ADLINK,
 		.device		= PCI_DEVICE_ID_ADLINK_PCI7224,
 		.dio_badr	= 2,
 		.n_8255		= 1,
 	}, {
 		.name		= "adl_pci-7248",
+		.vendor		= PCI_VENDOR_ID_ADLINK,
 		.device		= PCI_DEVICE_ID_ADLINK_PCI7248,
 		.dio_badr	= 2,
 		.n_8255		= 2,
 	}, {
 		.name		= "adl_pci-7296",
+		.vendor		= PCI_VENDOR_ID_ADLINK,
 		.device		= PCI_DEVICE_ID_ADLINK_PCI7296,
 		.dio_badr	= 2,
 		.n_8255		= 4,
 	}, {
 		.name		= "cb_pci-dio24",
+		.vendor		= PCI_VENDOR_ID_CB,
 		.device		= PCI_DEVICE_ID_CB_PCIDIO24,
 		.dio_badr	= 2,
 		.n_8255		= 1,
 	}, {
 		.name		= "cb_pci-dio24h",
+		.vendor		= PCI_VENDOR_ID_CB,
 		.device		= PCI_DEVICE_ID_CB_PCIDIO24H,
 		.dio_badr	= 2,
 		.n_8255		= 1,
 	}, {
 		.name		= "cb_pci-dio48h",
+		.vendor		= PCI_VENDOR_ID_CB,
 		.device		= PCI_DEVICE_ID_CB_PCIDIO48H,
 		.dio_badr	= 1,
 		.n_8255		= 2,
 	}, {
 		.name		= "cb_pci-dio96h",
+		.vendor		= PCI_VENDOR_ID_CB,
 		.device		= PCI_DEVICE_ID_CB_PCIDIO96H,
 		.dio_badr	= 2,
 		.n_8255		= 4,
@@ -120,7 +128,8 @@ static const void *pci_8255_find_boardinfo(struct comedi_device *dev,
 
 	for (i = 0; i < ARRAY_SIZE(pci_8255_boards); i++) {
 		board = &pci_8255_boards[i];
-		if (pcidev->device == board->device)
+		if (pcidev->vendor == board->vendor &&
+		    pcidev->device == board->device)
 			return board;
 	}
 	return NULL;
