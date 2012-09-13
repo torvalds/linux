@@ -33,7 +33,6 @@ static const struct tty_operations ipoctal_fops;
 struct ipoctal_channel {
 	struct ipoctal_stats		stats;
 	unsigned int			nb_bytes;
-	unsigned int			count_wr;
 	wait_queue_head_t		queue;
 	spinlock_t			lock;
 	unsigned int			pointer_read;
@@ -189,7 +188,6 @@ static void ipoctal_irq_tx(struct ipoctal_channel *channel)
 	value = channel->tty_port.xmit_buf[*pointer_write];
 	iowrite8(value, &channel->regs->w.thr);
 	channel->stats.tx++;
-	channel->count_wr++;
 	(*pointer_write)++;
 	*pointer_write = *pointer_write % PAGE_SIZE;
 	channel->nb_bytes--;
@@ -445,7 +443,6 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		spin_lock_init(&channel->lock);
 		channel->pointer_read = 0;
 		channel->pointer_write = 0;
-		channel->nb_bytes = 0;
 		tty_dev = tty_register_device(tty, i, NULL);
 		if (IS_ERR(tty_dev)) {
 			dev_err(&ipoctal->dev->dev, "Failed to register tty device.\n");
@@ -500,11 +497,9 @@ static int ipoctal_write_tty(struct tty_struct *tty,
 			     const unsigned char *buf, int count)
 {
 	struct ipoctal_channel *channel = tty->driver_data;
+	unsigned int char_copied;
 
-	channel->nb_bytes = 0;
-	channel->count_wr = 0;
-
-	ipoctal_copy_write_buffer(channel, buf, count);
+	char_copied = ipoctal_copy_write_buffer(channel, buf, count);
 
 	/* As the IP-OCTAL 485 only supports half duplex, do it manually */
 	if (channel->board_id == IPACK1_DEVICE_ID_SBS_OCTAL_485) {
@@ -521,7 +516,7 @@ static int ipoctal_write_tty(struct tty_struct *tty,
 	iowrite8(CR_DISABLE_TX, &channel->regs->w.cr);
 
 	*channel->board_write = 0;
-	return channel->count_wr;
+	return char_copied;
 }
 
 static int ipoctal_write_room(struct tty_struct *tty)
