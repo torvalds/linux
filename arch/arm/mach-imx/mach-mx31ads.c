@@ -29,6 +29,7 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <mach/common.h>
+#include <mach/hardware.h>
 
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
 #include <linux/mfd/wm8350/audio.h>
