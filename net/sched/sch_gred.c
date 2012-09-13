@@ -176,7 +176,7 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		skb->tc_index = (skb->tc_index & ~GRED_VQ_MASK) | dp;
 	}
 
-	/* sum up all the qaves of prios <= to ours to get the new qave */
+	/* sum up all the qaves of prios < ours to get the new qave */
 	if (!gred_wred_mode(t) && gred_rio_mode(t)) {
 		int i;
 
