@@ -1,4 +1,5 @@
 obj-y += common.o
+CFLAGS_common.o += -DTEXT_OFFSET=$(TEXT_OFFSET)
 obj-y += io.o
 obj-y += reset.o
 obj-y += timer.o
