@@ -3200,9 +3200,10 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct btrfs_trans_handle *trans;
 	unsigned long nr = 0;
 
-	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE ||
-	    btrfs_ino(inode) == BTRFS_FIRST_FREE_OBJECTID)
+	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE)
 		return -ENOTEMPTY;
+	if (btrfs_ino(inode) == BTRFS_FIRST_FREE_OBJECTID)
+		return -EPERM;
 
 	trans = __unlink_start_trans(dir, dentry);
 	if (IS_ERR(trans))
