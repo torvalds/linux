@@ -360,15 +360,9 @@ static inline void usb_serial_debug_data(int debug,
 					 const char *function, int size,
 					 const unsigned char *data)
 {
-	int i;
-
-	if (debug) {
-		dev_printk(KERN_DEBUG, dev, "%s - length = %d, data = ",
-			   function, size);
-		for (i = 0; i < size; ++i)
-			printk("%.2x ", data[i]);
-		printk("\n");
-	}
+	if (debug)
+		dev_printk(KERN_DEBUG, dev, "%s - length = %d, data = %*ph\n",
+			   function, size, size, data);
 }
 
 /* Use our own dbg macro */
