@@ -313,8 +313,8 @@ static struct ins_ops dec_ops = {
 	.scnprintf = dec__scnprintf,
 };
 
-static int nop__scnprintf(struct ins *ins __used, char *bf, size_t size,
-			  struct ins_operands *ops __used)
+static int nop__scnprintf(struct ins *ins __maybe_unused, char *bf, size_t size,
+			  struct ins_operands *ops __maybe_unused)
 {
 	return scnprintf(bf, size, "%-6.6s", "nop");
 }
@@ -416,7 +416,7 @@ static struct ins *ins__find(const char *name)
 	return bsearch(name, instructions, nmemb, sizeof(struct ins), ins__cmp);
 }
 
-int symbol__annotate_init(struct map *map __used, struct symbol *sym)
+int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	pthread_mutex_init(&notes->lock, NULL);

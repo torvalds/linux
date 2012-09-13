@@ -12,7 +12,7 @@ static void nop_helpline__pop(void)
 {
 }
 
-static void nop_helpline__push(const char *msg __used)
+static void nop_helpline__push(const char *msg __maybe_unused)
 {
 }
 

@@ -10,6 +10,7 @@
 #include <byteswap.h>
 #include <linux/bitops.h>
 #include "asm/bug.h"
+#include "event-parse.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"
@@ -999,4 +1000,38 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 	}
 
 	return 0;
+}
+
+char *perf_evsel__strval(struct perf_evsel *evsel, struct perf_sample *sample,
+			 const char *name)
+{
+	struct format_field *field = pevent_find_field(evsel->tp_format, name);
+	int offset;
+
+        if (!field)
+                return NULL;
+
+	offset = field->offset;
+
+	if (field->flags & FIELD_IS_DYNAMIC) {
+		offset = *(int *)(sample->raw_data + field->offset);
+		offset &= 0xffff;
+	}
+
+	return sample->raw_data + offset;
+}
+
+u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
+		       const char *name)
+{
+	struct format_field *field = pevent_find_field(evsel->tp_format, name);
+	u64 val;
+
+        if (!field)
+                return 0;
+
+	val = pevent_read_number(evsel->tp_format->pevent,
+				 sample->raw_data + field->offset, field->size);
+	return val;
+
 }

@@ -43,15 +43,16 @@ static int build_id_cache__add_file(const char *filename, const char *debugdir)
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
-	err = build_id_cache__add_s(sbuild_id, debugdir, filename, false);
+	err = build_id_cache__add_s(sbuild_id, debugdir, filename,
+				    false, false);
 	if (verbose)
 		pr_info("Adding %s %s: %s\n", sbuild_id, filename,
 			err ? "FAIL" : "Ok");
 	return err;
 }
 
-static int build_id_cache__remove_file(const char *filename __used,
-				       const char *debugdir __used)
+static int build_id_cache__remove_file(const char *filename __maybe_unused,
+				       const char *debugdir __maybe_unused)
 {
 	u8 build_id[BUILD_ID_SIZE];
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
@@ -119,7 +120,8 @@ static int __cmd_buildid_cache(void)
 	return 0;
 }
 
-int cmd_buildid_cache(int argc, const char **argv, const char *prefix __used)
+int cmd_buildid_cache(int argc, const char **argv,
+		      const char *prefix __maybe_unused)
 {
 	argc = parse_options(argc, argv, buildid_cache_options,
 			     buildid_cache_usage, 0);

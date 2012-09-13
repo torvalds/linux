@@ -221,10 +221,11 @@ static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
 	return event;
 }
 
-static void python_process_tracepoint(union perf_event *perf_event __unused,
+static void python_process_tracepoint(union perf_event *perf_event
+				      __maybe_unused,
 				 struct perf_sample *sample,
 				 struct perf_evsel *evsel,
-				 struct machine *machine __unused,
+				 struct machine *machine __maybe_unused,
 				 struct addr_location *al)
 {
 	PyObject *handler, *retval, *context, *t, *obj, *dict = NULL;
@@ -339,10 +340,11 @@ static void python_process_tracepoint(union perf_event *perf_event __unused,
 	Py_DECREF(t);
 }
 
-static void python_process_general_event(union perf_event *perf_event __unused,
+static void python_process_general_event(union perf_event *perf_event
+					 __maybe_unused,
 					 struct perf_sample *sample,
 					 struct perf_evsel *evsel,
-					 struct machine *machine __unused,
+					 struct machine *machine __maybe_unused,
 					 struct addr_location *al)
 {
 	PyObject *handler, *retval, *t, *dict;

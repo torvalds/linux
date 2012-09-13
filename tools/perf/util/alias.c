@@ -3,7 +3,8 @@
 static const char *alias_key;
 static char *alias_val;
 
-static int alias_lookup_cb(const char *k, const char *v, void *cb __used)
+static int alias_lookup_cb(const char *k, const char *v,
+			   void *cb __maybe_unused)
 {
 	if (!prefixcmp(k, "alias.") && !strcmp(k+6, alias_key)) {
 		if (!v)

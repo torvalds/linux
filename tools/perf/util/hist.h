@@ -156,20 +156,22 @@ struct perf_evlist;
 
 #ifdef NO_NEWT_SUPPORT
 static inline
-int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __used,
-				  const char *help __used,
-				  void(*timer)(void *arg) __used,
-				  void *arg __used,
-				  int refresh __used)
+int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
+				  const char *help __maybe_unused,
+				  void(*timer)(void *arg) __maybe_unused,
+				  void *arg __maybe_unused,
+				  int refresh __maybe_unused)
 {
 	return 0;
 }
 
-static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
-					   int evidx __used,
-					   void(*timer)(void *arg) __used,
-					   void *arg __used,
-					   int delay_secs __used)
+static inline int hist_entry__tui_annotate(struct hist_entry *self
+					   __maybe_unused,
+					   int evidx __maybe_unused,
+					   void(*timer)(void *arg)
+					   __maybe_unused,
+					   void *arg __maybe_unused,
+					   int delay_secs __maybe_unused)
 {
 	return 0;
 }
@@ -187,11 +189,11 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 
 #ifdef NO_GTK2_SUPPORT
 static inline
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __used,
-				  const char *help __used,
-				  void(*timer)(void *arg) __used,
-				  void *arg __used,
-				  int refresh __used)
+int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
+				  const char *help __maybe_unused,
+				  void(*timer)(void *arg) __maybe_unused,
+				  void *arg __maybe_unused,
+				  int refresh __maybe_unused)
 {
 	return 0;
 }

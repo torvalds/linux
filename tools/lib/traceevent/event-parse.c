@@ -1824,7 +1824,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 }
 
 static enum event_type
-process_entry(struct event_format *event __unused, struct print_arg *arg,
+process_entry(struct event_format *event __maybe_unused, struct print_arg *arg,
 	      char **tok)
 {
 	enum event_type type;
@@ -2458,7 +2458,8 @@ process_paren(struct event_format *event, struct print_arg *arg, char **tok)
 
 
 static enum event_type
-process_str(struct event_format *event __unused, struct print_arg *arg, char **tok)
+process_str(struct event_format *event __maybe_unused, struct print_arg *arg,
+	    char **tok)
 {
 	enum event_type type;
 	char *token;
@@ -3653,7 +3654,8 @@ static void free_args(struct print_arg *args)
 }
 
 static char *
-get_bprint_format(void *data, int size __unused, struct event_format *event)
+get_bprint_format(void *data, int size __maybe_unused,
+		  struct event_format *event)
 {
 	struct pevent *pevent = event->pevent;
 	unsigned long long addr;

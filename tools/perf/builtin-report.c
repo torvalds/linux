@@ -223,9 +223,9 @@ static int process_sample_event(struct perf_tool *tool,
 
 static int process_read_event(struct perf_tool *tool,
 			      union perf_event *event,
-			      struct perf_sample *sample __used,
+			      struct perf_sample *sample __maybe_unused,
 			      struct perf_evsel *evsel,
-			      struct machine *machine __used)
+			      struct machine *machine __maybe_unused)
 {
 	struct perf_report *rep = container_of(tool, struct perf_report, tool);
 
@@ -287,7 +287,7 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 
 extern volatile int session_done;
 
-static void sig_handler(int sig __used)
+static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;
 }
@@ -533,13 +533,14 @@ setup:
 }
 
 static int
-parse_branch_mode(const struct option *opt __used, const char *str __used, int unset)
+parse_branch_mode(const struct option *opt __maybe_unused,
+		  const char *str __maybe_unused, int unset)
 {
 	sort__branch_mode = !unset;
 	return 0;
 }
 
-int cmd_report(int argc, const char **argv, const char *prefix __used)
+int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_session *session;
 	struct stat st;

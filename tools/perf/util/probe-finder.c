@@ -207,7 +207,7 @@ static int debuginfo__init_online_kernel_dwarf(struct debuginfo *self,
 #else
 /* With older elfutils, this just support kernel module... */
 static int debuginfo__init_online_kernel_dwarf(struct debuginfo *self,
-					       Dwarf_Addr addr __used)
+					       Dwarf_Addr addr __maybe_unused)
 {
 	const char *path = kernel_get_module_path("kernel");
 
@@ -1419,7 +1419,7 @@ static int line_range_add_line(const char *src, unsigned int lineno,
 }
 
 static int line_range_walk_cb(const char *fname, int lineno,
-			      Dwarf_Addr addr __used,
+			      Dwarf_Addr addr __maybe_unused,
 			      void *data)
 {
 	struct line_finder *lf = data;

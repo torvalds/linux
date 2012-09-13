@@ -14,7 +14,7 @@
 #include "util/parse-events.h"
 #include "util/cache.h"
 
-int cmd_list(int argc, const char **argv, const char *prefix __used)
+int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	setup_pager();
 

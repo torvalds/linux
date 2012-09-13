@@ -257,10 +257,10 @@ static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
 	return event;
 }
 
-static void perl_process_tracepoint(union perf_event *perf_event __unused,
+static void perl_process_tracepoint(union perf_event *perf_event __maybe_unused,
 				    struct perf_sample *sample,
 				    struct perf_evsel *evsel,
-				    struct machine *machine __unused,
+				    struct machine *machine __maybe_unused,
 				    struct addr_location *al)
 {
 	struct format_field *field;
@@ -349,8 +349,8 @@ static void perl_process_tracepoint(union perf_event *perf_event __unused,
 static void perl_process_event_generic(union perf_event *event,
 				       struct perf_sample *sample,
 				       struct perf_evsel *evsel,
-				       struct machine *machine __unused,
-				       struct addr_location *al __unused)
+				       struct machine *machine __maybe_unused,
+				       struct addr_location *al __maybe_unused)
 {
 	dSP;
 

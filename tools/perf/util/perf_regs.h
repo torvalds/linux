@@ -6,7 +6,7 @@
 #else
 #define PERF_REGS_MASK	0
 
-static inline const char *perf_reg_name(int id __used)
+static inline const char *perf_reg_name(int id __maybe_unused)
 {
 	return NULL;
 }

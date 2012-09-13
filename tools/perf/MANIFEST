@@ -10,6 +10,7 @@ include/linux/stringify.h
 lib/rbtree.c
 include/linux/swab.h
 arch/*/include/asm/unistd*.h
+arch/*/include/asm/perf_regs.h
 arch/*/lib/memcpy*.S
 arch/*/lib/memset*.S
 include/linux/poison.h

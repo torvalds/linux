@@ -221,7 +221,7 @@ void print_event(struct pevent *pevent, int cpu, void *data, int size,
 }
 
 void parse_proc_kallsyms(struct pevent *pevent,
-			 char *file, unsigned int size __unused)
+			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;
 	char *func;
@@ -253,7 +253,7 @@ void parse_proc_kallsyms(struct pevent *pevent,
 }
 
 void parse_ftrace_printk(struct pevent *pevent,
-			 char *file, unsigned int size __unused)
+			 char *file, unsigned int size __maybe_unused)
 {
 	unsigned long long addr;
 	char *printk;

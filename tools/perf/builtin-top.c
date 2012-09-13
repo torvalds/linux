@@ -95,7 +95,8 @@ static void perf_top__update_print_entries(struct perf_top *top)
 		top->print_entries -= 9;
 }
 
-static void perf_top__sig_winch(int sig __used, siginfo_t *info __used, void *arg)
+static void perf_top__sig_winch(int sig __maybe_unused,
+				siginfo_t *info __maybe_unused, void *arg)
 {
 	struct perf_top *top = arg;
 
@@ -663,7 +664,7 @@ static const char *skip_symbols[] = {
 	NULL
 };
 
-static int symbol_filter(struct map *map __used, struct symbol *sym)
+static int symbol_filter(struct map *map __maybe_unused, struct symbol *sym)
 {
 	const char *name = sym->name;
 	int i;
@@ -1163,7 +1164,7 @@ static const char * const top_usage[] = {
 	NULL
 };
 
-int cmd_top(int argc, const char **argv, const char *prefix __used)
+int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_evsel *pos;
 	int status;

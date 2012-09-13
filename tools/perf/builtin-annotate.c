@@ -239,7 +239,7 @@ static const char * const annotate_usage[] = {
 	NULL
 };
 
-int cmd_annotate(int argc, const char **argv, const char *prefix __used)
+int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_annotate annotate = {
 		.tool = {

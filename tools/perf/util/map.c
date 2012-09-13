@@ -9,6 +9,7 @@
 #include "map.h"
 #include "thread.h"
 #include "strlist.h"
+#include "vdso.h"
 
 const char *map_type__name[MAP__NR_TYPES] = {
 	[MAP__FUNCTION] = "Functions",
@@ -23,7 +24,6 @@ static inline int is_anon_memory(const char *filename)
 static inline int is_no_dso_memory(const char *filename)
 {
 	return !strcmp(filename, "[stack]") ||
-	       !strcmp(filename, "[vdso]")  ||
 	       !strcmp(filename, "[heap]");
 }
 
@@ -52,9 +52,10 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 	if (self != NULL) {
 		char newfilename[PATH_MAX];
 		struct dso *dso;
-		int anon, no_dso;
+		int anon, no_dso, vdso;
 
 		anon = is_anon_memory(filename);
+		vdso = is_vdso_map(filename);
 		no_dso = is_no_dso_memory(filename);
 
 		if (anon) {
@@ -62,7 +63,12 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 			filename = newfilename;
 		}
 
-		dso = __dsos__findnew(dsos__list, filename);
+		if (vdso) {
+			pgoff = 0;
+			dso = vdso__dso_findnew(dsos__list);
+		} else
+			dso = __dsos__findnew(dsos__list, filename);
+
 		if (dso == NULL)
 			goto out_delete;
 

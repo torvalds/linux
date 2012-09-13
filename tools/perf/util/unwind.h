@@ -22,11 +22,12 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 int unwind__arch_reg_id(int regnum);
 #else
 static inline int
-unwind__get_entries(unwind_entry_cb_t cb __used, void *arg __used,
-		    struct machine *machine __used,
-		    struct thread *thread __used,
-		    u64 sample_uregs __used,
-		    struct perf_sample *data __used)
+unwind__get_entries(unwind_entry_cb_t cb __maybe_unused,
+		    void *arg __maybe_unused,
+		    struct machine *machine __maybe_unused,
+		    struct thread *thread __maybe_unused,
+		    u64 sample_uregs __maybe_unused,
+		    struct perf_sample *data __maybe_unused)
 {
 	return 0;
 }

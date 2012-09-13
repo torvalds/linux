@@ -18,7 +18,8 @@
 
 #include <sys/mman.h>
 
-static int vmlinux_matches_kallsyms_filter(struct map *map __used, struct symbol *sym)
+static int vmlinux_matches_kallsyms_filter(struct map *map __maybe_unused,
+					   struct symbol *sym)
 {
 	bool *visited = symbol__priv(sym);
 	*visited = true;
@@ -996,7 +997,9 @@ static u64 mmap_read_self(void *addr)
 /*
  * If the RDPMC instruction faults then signal this back to the test parent task:
  */
-static void segfault_handler(int sig __used, siginfo_t *info __used, void *uc __used)
+static void segfault_handler(int sig __maybe_unused,
+			     siginfo_t *info __maybe_unused,
+			     void *uc __maybe_unused)
 {
 	exit(-1);
 }
@@ -1023,14 +1026,16 @@ static int __test__rdpmc(void)
 
 	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
 	if (fd < 0) {
-		die("Error: sys_perf_event_open() syscall returned "
-		    "with %d (%s)\n", fd, strerror(errno));
+		pr_debug("Error: sys_perf_event_open() syscall returned "
+			 "with %d (%s)\n", fd, strerror(errno));
+		return -1;
 	}
 
 	addr = mmap(NULL, page_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (addr == (void *)(-1)) {
-		die("Error: mmap() syscall returned "
-		    "with (%s)\n", strerror(errno));
+		pr_debug("Error: mmap() syscall returned with (%s)\n",
+			 strerror(errno));
+		goto out_close;
 	}
 
 	for (n = 0; n < 6; n++) {
@@ -1051,9 +1056,9 @@ static int __test__rdpmc(void)
 	}
 
 	munmap(addr, page_size);
-	close(fd);
-
 	pr_debug("   ");
+out_close:
+	close(fd);
 
 	if (!delta_sum)
 		return -1;
@@ -1313,7 +1318,7 @@ static int perf_test__list(int argc, const char **argv)
 	return 0;
 }
 
-int cmd_test(int argc, const char **argv, const char *prefix __used)
+int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const test_usage[] = {
 	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",

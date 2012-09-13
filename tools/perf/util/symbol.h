@@ -21,14 +21,15 @@
 #ifdef HAVE_CPLUS_DEMANGLE
 extern char *cplus_demangle(const char *, int);
 
-static inline char *bfd_demangle(void __used *v, const char *c, int i)
+static inline char *bfd_demangle(void __maybe_unused *v, const char *c, int i)
 {
 	return cplus_demangle(c, i);
 }
 #else
 #ifdef NO_DEMANGLE
-static inline char *bfd_demangle(void __used *v, const char __used *c,
-				 int __used i)
+static inline char *bfd_demangle(void __maybe_unused *v,
+				 const char __maybe_unused *c,
+				 int __maybe_unused i)
 {
 	return NULL;
 }
@@ -294,6 +295,7 @@ static inline void dso__set_loaded(struct dso *dso, enum map_type type)
 void dso__sort_by_name(struct dso *dso, enum map_type type);
 
 void dsos__add(struct list_head *head, struct dso *dso);
+struct dso *dsos__find(struct list_head *head, const char *name);
 struct dso *__dsos__findnew(struct list_head *head, const char *name);
 
 int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter);

@@ -1596,7 +1596,7 @@ void dsos__add(struct list_head *head, struct dso *dso)
 	list_add_tail(&dso->node, head);
 }
 
-static struct dso *dsos__find(struct list_head *head, const char *name)
+struct dso *dsos__find(struct list_head *head, const char *name)
 {
 	struct dso *pos;
 
@@ -1755,7 +1755,7 @@ struct process_args {
 };
 
 static int symbol__in_kernel(void *arg, const char *name,
-			     char type __used, u64 start)
+			     char type __maybe_unused, u64 start)
 {
 	struct process_args *args = arg;
 
@@ -1991,7 +1991,7 @@ int symbol__init(void)
 	if (symbol_conf.initialized)
 		return 0;
 
-	symbol_conf.priv_size = ALIGN(symbol_conf.priv_size, sizeof(u64));
+	symbol_conf.priv_size = PERF_ALIGN(symbol_conf.priv_size, sizeof(u64));
 
 	symbol__elf_init();
 

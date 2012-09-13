@@ -870,7 +870,7 @@ static int dump_info(void)
 	return rc;
 }
 
-static int process_sample_event(struct perf_tool *tool __used,
+static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
@@ -1020,7 +1020,7 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
-int cmd_lock(int argc, const char **argv, const char *prefix __used)
+int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	unsigned int i;
 	int rc = 0;

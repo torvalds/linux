@@ -426,7 +426,7 @@ static int show_html_page(const char *perf_cmd)
 	return 0;
 }
 
-int cmd_help(int argc, const char **argv, const char *prefix __used)
+int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char *alias;
 	int rc = 0;

@@ -307,32 +307,36 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 					 need_unwind_info, arg);
 }
 
-static int access_fpreg(unw_addr_space_t __used as, unw_regnum_t __used num,
-			unw_fpreg_t __used *val, int __used __write,
-			void __used *arg)
+static int access_fpreg(unw_addr_space_t __maybe_unused as,
+			unw_regnum_t __maybe_unused num,
+			unw_fpreg_t __maybe_unused *val,
+			int __maybe_unused __write,
+			void __maybe_unused *arg)
 {
 	pr_err("unwind: access_fpreg unsupported\n");
 	return -UNW_EINVAL;
 }
 
-static int get_dyn_info_list_addr(unw_addr_space_t __used as,
-				  unw_word_t __used *dil_addr,
-				  void __used *arg)
+static int get_dyn_info_list_addr(unw_addr_space_t __maybe_unused as,
+				  unw_word_t __maybe_unused *dil_addr,
+				  void __maybe_unused *arg)
 {
 	return -UNW_ENOINFO;
 }
 
-static int resume(unw_addr_space_t __used as, unw_cursor_t __used *cu,
-		  void __used *arg)
+static int resume(unw_addr_space_t __maybe_unused as,
+		  unw_cursor_t __maybe_unused *cu,
+		  void __maybe_unused *arg)
 {
 	pr_err("unwind: resume unsupported\n");
 	return -UNW_EINVAL;
 }
 
 static int
-get_proc_name(unw_addr_space_t __used as, unw_word_t __used addr,
-		char __used *bufp, size_t __used buf_len,
-		unw_word_t __used *offp, void __used *arg)
+get_proc_name(unw_addr_space_t __maybe_unused as,
+	      unw_word_t __maybe_unused addr,
+		char __maybe_unused *bufp, size_t __maybe_unused buf_len,
+		unw_word_t __maybe_unused *offp, void __maybe_unused *arg)
 {
 	pr_err("unwind: get_proc_name unsupported\n");
 	return -UNW_EINVAL;
@@ -377,7 +381,7 @@ static int reg_value(unw_word_t *valp, struct regs_dump *regs, int id,
 	return 0;
 }
 
-static int access_mem(unw_addr_space_t __used as,
+static int access_mem(unw_addr_space_t __maybe_unused as,
 		      unw_word_t addr, unw_word_t *valp,
 		      int __write, void *arg)
 {
@@ -422,7 +426,7 @@ static int access_mem(unw_addr_space_t __used as,
 	return 0;
 }
 
-static int access_reg(unw_addr_space_t __used as,
+static int access_reg(unw_addr_space_t __maybe_unused as,
 		      unw_regnum_t regnum, unw_word_t *valp,
 		      int __write, void *arg)
 {
@@ -454,9 +458,9 @@ static int access_reg(unw_addr_space_t __used as,
 	return 0;
 }
 
-static void put_unwind_info(unw_addr_space_t __used as,
-			    unw_proc_info_t *pi __used,
-			    void *arg __used)
+static void put_unwind_info(unw_addr_space_t __maybe_unused as,
+			    unw_proc_info_t *pi __maybe_unused,
+			    void *arg __maybe_unused)
 {
 	pr_debug("unwind: put_unwind_info called\n");
 }

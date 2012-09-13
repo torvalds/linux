@@ -557,7 +557,8 @@ int parse_options_usage(const char * const *usagestr,
 }
 
 
-int parse_opt_verbosity_cb(const struct option *opt, const char *arg __used,
+int parse_opt_verbosity_cb(const struct option *opt,
+			   const char *arg __maybe_unused,
 			   int unset)
 {
 	int *target = opt->value;
