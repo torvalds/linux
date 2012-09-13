@@ -1869,6 +1869,7 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 	ext4_group_t n_group;
 	ext4_fsblk_t o_blocks_count;
 	ext4_fsblk_t n_blocks_count_retry = 0;
+	unsigned long last_update_time = 0;
 	int err = 0, flexbg_size = 1 << sbi->s_log_groups_per_flex;
 	int meta_bg;
 
@@ -1977,6 +1978,13 @@ retry:
 	 */
 	while (ext4_setup_next_flex_gd(sb, flex_gd, n_blocks_count,
 					      flexbg_size)) {
+		if (jiffies - last_update_time > HZ * 10) {
+			if (last_update_time)
+				ext4_msg(sb, KERN_INFO,
+					 "resized to %llu blocks",
+					 ext4_blocks_count(es));
+			last_update_time = jiffies;
+		}
 		if (ext4_alloc_group_tables(sb, flex_gd, flexbg_size) != 0)
 			break;
 		err = ext4_flex_group_add(sb, resize_inode, flex_gd);
