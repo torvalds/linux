@@ -4045,23 +4045,20 @@ static void hfa384x_usb_throttlefn(unsigned long data)
 static int hfa384x_usbctlx_submit(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 {
 	unsigned long flags;
-	int ret;
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
 
 	if (hw->wlandev->hwremoved) {
 		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-		ret = -ENODEV;
-	} else {
-		ctlx->state = CTLX_PENDING;
-		list_add_tail(&ctlx->list, &hw->ctlxq.pending);
-
-		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
-		hfa384x_usbctlxq_run(hw);
-		ret = 0;
+		return -ENODEV;
 	}
 
-	return ret;
+	ctlx->state = CTLX_PENDING;
+	list_add_tail(&ctlx->list, &hw->ctlxq.pending);
+	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
+	hfa384x_usbctlxq_run(hw);
+
+	return 0;
 }
 
 /*----------------------------------------------------------------
