@@ -1547,29 +1547,28 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct radeon_encoder *radeon_encoder =
-		to_radeon_encoder(radeon_crtc->encoder);
 	struct drm_encoder *test_encoder;
+	struct drm_crtc *test_crtc;
 	struct radeon_crtc *test_radeon_crtc;
 	struct radeon_encoder *test_radeon_encoder;
-	u32 target_clock, test_clock;
+	u32 adjusted_clock, test_adjusted_clock;
 
-	if (radeon_encoder->native_mode.clock)
-		target_clock = radeon_encoder->native_mode.clock;
-	else
-		target_clock = crtc->mode.clock;
+	adjusted_clock = radeon_crtc->adjusted_clock;
+
+	if (adjusted_clock == 0)
+		return ATOM_PPLL_INVALID;
 
 	list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
 		if (test_encoder->crtc && (test_encoder->crtc != crtc)) {
 			if (!ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
 				test_radeon_encoder = to_radeon_encoder(test_encoder);
-				test_radeon_crtc = to_radeon_crtc(test_encoder->crtc);
+				test_crtc = test_encoder->crtc;
+				test_radeon_crtc = to_radeon_crtc(test_crtc);
 				/* for non-DP check the clock */
-				if (test_radeon_encoder->native_mode.clock)
-					test_clock = test_radeon_encoder->native_mode.clock;
-				else
-					test_clock = test_encoder->crtc->mode.clock;
-				if ((target_clock == test_clock) &&
+				test_adjusted_clock = test_radeon_crtc->adjusted_clock;
+				if ((crtc->mode.clock == test_crtc->mode.clock) &&
+				    (adjusted_clock == test_adjusted_clock) &&
+				    (radeon_crtc->ss_enabled == test_radeon_crtc->ss_enabled) &&
 				    (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID))
 					return test_radeon_crtc->pll_id;
 			}
@@ -1873,6 +1872,7 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	}
 done:
 	radeon_crtc->pll_id = ATOM_PPLL_INVALID;
+	radeon_crtc->adjusted_clock = 0;
 	radeon_crtc->encoder = NULL;
 }
 
@@ -1923,6 +1923,7 @@ void radeon_atombios_init_crtc(struct drm_device *dev,
 			radeon_crtc->crtc_offset = 0;
 	}
 	radeon_crtc->pll_id = ATOM_PPLL_INVALID;
+	radeon_crtc->adjusted_clock = 0;
 	radeon_crtc->encoder = NULL;
 	drm_crtc_helper_add(&radeon_crtc->base, &atombios_helper_funcs);
 }
