@@ -26,12 +26,6 @@
 #include <prom.h>
 #include "platform.h"
 
-
-const char *get_system_type(void)
-{
-	return "DB1550";
-}
-
 static void __init db1550_hw_setup(void)
 {
 	void __iomem *base;
@@ -61,7 +55,7 @@ static void __init db1550_hw_setup(void)
 	alchemy_gpio_direction_output(202, 0);	/* green led on */
 }
 
-void __init board_setup(void)
+int __init db1550_board_setup(void)
 {
 	unsigned short whoami;
 
@@ -74,6 +68,7 @@ void __init board_setup(void)
 		(whoami >> 4) & 0xf, (whoami >> 8) & 0xf, whoami & 0xf);
 
 	db1550_hw_setup();
+	return 0;
 }
 
 /*****************************************************************************/
@@ -430,13 +425,12 @@ static struct platform_device *db1550_devs[] __initdata = {
 };
 
 /* must be arch_initcall; MIPS PCI scans busses in a subsys_initcall */
-static int __init db1550_pci_init(void)
+int __init db1550_pci_setup(void)
 {
 	return platform_device_register(&db1550_pci_host_dev);
 }
-arch_initcall(db1550_pci_init);
 
-static int __init db1550_dev_init(void)
+int __init db1550_dev_setup(void)
 {
 	int swapped;
 
@@ -492,4 +486,3 @@ static int __init db1550_dev_init(void)
 
 	return platform_add_devices(db1550_devs, ARRAY_SIZE(db1550_devs));
 }
-device_initcall(db1550_dev_init);
