@@ -282,6 +282,18 @@ struct radeon_tv_regs {
 	uint16_t v_code_timing[MAX_V_CODE_TIMING_LEN];
 };
 
+struct radeon_atom_ss {
+	uint16_t percentage;
+	uint8_t type;
+	uint16_t step;
+	uint8_t delay;
+	uint8_t range;
+	uint8_t refdiv;
+	/* asic_ss */
+	uint16_t rate;
+	uint16_t amount;
+};
+
 struct radeon_crtc {
 	struct drm_crtc base;
 	int crtc_id;
@@ -306,6 +318,14 @@ struct radeon_crtc {
 	/* page flipping */
 	struct radeon_unpin_work *unpin_work;
 	int deferred_flip_completion;
+	/* pll sharing */
+	struct radeon_atom_ss ss;
+	bool ss_enabled;
+	u32 adjusted_clock;
+	int bpc;
+	u32 pll_reference_div;
+	u32 pll_post_div;
+	u32 pll_flags;
 };
 
 struct radeon_encoder_primary_dac {
@@ -359,18 +379,6 @@ struct radeon_encoder_ext_tmds {
 };
 
 /* spread spectrum */
-struct radeon_atom_ss {
-	uint16_t percentage;
-	uint8_t type;
-	uint16_t step;
-	uint8_t delay;
-	uint8_t range;
-	uint8_t refdiv;
-	/* asic_ss */
-	uint16_t rate;
-	uint16_t amount;
-};
-
 struct radeon_encoder_atom_dig {
 	bool linkb;
 	/* atom dig */
