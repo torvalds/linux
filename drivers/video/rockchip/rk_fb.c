@@ -809,57 +809,43 @@ static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 	struct resource *mem;
 	int ret = 0;
 	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
-	switch(fb_id)
+	if (!strcmp(fbi->fix.id,"fb0"))
 	{
-        	case 0:
-            		res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb0 buf");
-            		if (res == NULL)
-            		{
-                		dev_err(&g_fb_pdev->dev, "failed to get win0 memory \n");
-                		ret = -ENOENT;
-            		}
-		 	fbi->fix.smem_start = res->start;
-	            	fbi->fix.smem_len = res->end - res->start + 1;
-		    	mem = request_mem_region(res->start, resource_size(res), g_fb_pdev->name);
-	            	fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
-	            	memset(fbi->screen_base, 0, fbi->fix.smem_len);
-		    	printk("fb%d:phy:%lx>>vir:%p>>len:0x%x\n",fb_id,
-				fbi->fix.smem_start,fbi->screen_base,fbi->fix.smem_len);
-        	#ifdef CONFIG_FB_WORK_IPP // alloc ipp buf for rotate
-	            	res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "ipp buf");
-	            	if (res == NULL)
-	            	{
-	                	dev_err(&g_fb_pdev->dev, "failed to get win1 ipp memory \n");
-	               		ret = -ENOENT;
-	            	}
-	            	fbi->fix.mmio_start = res->start;
-	            	fbi->fix.mmio_len = res->end - res->start + 1;
-	 	#endif
-		    	break;
-        	case 3:
-			#if !defined(CONFIG_THREE_FB_BUFFER)
-            		res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb2 buf");
-			if (res == NULL)
-			{
+		res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb0 buf");
+		if (res == NULL)
+		{
+			dev_err(&g_fb_pdev->dev, "failed to get memory for fb0 \n");
+			ret = -ENOENT;
+		}
+		fbi->fix.smem_start = res->start;
+		fbi->fix.smem_len = res->end - res->start + 1;
+		mem = request_mem_region(res->start, resource_size(res), g_fb_pdev->name);
+		fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
+		memset(fbi->screen_base, 0, fbi->fix.smem_len);
+		printk("fb%d:phy:%lx>>vir:%p>>len:0x%x\n",fb_id,
+		fbi->fix.smem_start,fbi->screen_base,fbi->fix.smem_len);
+	}
+	else
+	{	
+#if !defined(CONFIG_THREE_FB_BUFFER)
+		res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb2 buf");
+		if (res == NULL)
+		{
 			dev_err(&g_fb_pdev->dev, "failed to get win0 memory \n");
 			ret = -ENOENT;
-			}
-			fbi->fix.smem_start = res->start;
-			fbi->fix.smem_len = res->end - res->start + 1;
-			mem = request_mem_region(res->start, resource_size(res), g_fb_pdev->name);
-			fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
-			memset(fbi->screen_base, 0, fbi->fix.smem_len);
-			#else    //three buffer no need to copy
-			fbi->fix.smem_start = fb_inf->fb[0]->fix.smem_start;
-			fbi->fix.smem_len   = fb_inf->fb[0]->fix.smem_len;
-			fbi->screen_base    = fb_inf->fb[0]->screen_base;
-			#endif
-			printk("fb%d:phy:%lx>>vir:%p>>len:0x%x\n",fb_id,
-				fbi->fix.smem_start,fbi->screen_base,fbi->fix.smem_len);
-			break;
-        	default:
-            		ret = -EINVAL;
-            		break;		
+		}
+		fbi->fix.smem_start = res->start;
+		fbi->fix.smem_len = res->end - res->start + 1;
+		mem = request_mem_region(res->start, resource_size(res), g_fb_pdev->name);
+		fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
+		memset(fbi->screen_base, 0, fbi->fix.smem_len);
+#else    //three buffer no need to copy
+		fbi->fix.smem_start = fb_inf->fb[0]->fix.smem_start;
+		fbi->fix.smem_len   = fb_inf->fb[0]->fix.smem_len;
+		fbi->screen_base    = fb_inf->fb[0]->screen_base;
+#endif
+		printk("fb%d:phy:%lx>>vir:%p>>len:0x%x\n",fb_id,
+			fbi->fix.smem_start,fbi->screen_base,fbi->fix.smem_len);	
 	}
     return ret;
 }
@@ -1037,53 +1023,56 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	dev_drv->load_screen(dev_drv,1);
 	/************fb set,one layer one fb ***********/
 	dev_drv->fb_index_base = fb_inf->num_fb;
-    for(i=0;i<dev_drv->num_layer;i++)
-    {
-        fbi= framebuffer_alloc(0, &g_fb_pdev->dev);
-        if(!fbi)
-        {
-            dev_err(&g_fb_pdev->dev,">> fb framebuffer_alloc fail!");
-            fbi = NULL;
-            ret = -ENOMEM;
-        }
-	fbi->par = dev_drv;
-        fbi->var = def_var;
-        fbi->fix = def_fix;
-        sprintf(fbi->fix.id,"fb%d",fb_inf->num_fb);
-        fbi->var.xres = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->x_res;
-        fbi->var.yres = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->y_res;
-	fbi->var.grayscale |= (fbi->var.xres<<8) + (fbi->var.yres<<20);
-        #ifdef  CONFIG_LOGO_LINUX_BMP
-    		fbi->var.bits_per_pixel = 32; 
-	#else
+	for(i=0;i<dev_drv->num_layer;i++)
+	{
+		fbi= framebuffer_alloc(0, &g_fb_pdev->dev);
+		if(!fbi)
+		{
+		    dev_err(&g_fb_pdev->dev,">> fb framebuffer_alloc fail!");
+		    fbi = NULL;
+		    ret = -ENOMEM;
+		}
+		fbi->par = dev_drv;
+		fbi->var = def_var;
+		fbi->fix = def_fix;
+		sprintf(fbi->fix.id,"fb%d",fb_inf->num_fb);
+		fbi->var.xres = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->x_res;
+		fbi->var.yres = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->y_res;
+		fbi->var.grayscale |= (fbi->var.xres<<8) + (fbi->var.yres<<20);
+#ifdef  CONFIG_LOGO_LINUX_BMP
+		fbi->var.bits_per_pixel = 32; 
+#else
 		fbi->var.bits_per_pixel = 16; 
-	#endif
-	fbi->fix.line_length  = (fbi->var.xres)*(fbi->var.bits_per_pixel>>3);
-        fbi->var.xres_virtual = fbi->var.xres;
-        fbi->var.yres_virtual = fbi->var.yres;
-        fbi->var.width =  fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->width;
-        fbi->var.height = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->height;
-        fbi->var.pixclock = fb_inf->lcdc_dev_drv[lcdc_id]->pixclock;
-        fbi->var.left_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->left_margin;
-        fbi->var.right_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->right_margin;
-        fbi->var.upper_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->upper_margin;
-        fbi->var.lower_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->lower_margin;
-        fbi->var.vsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->vsync_len;
-        fbi->var.hsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->hsync_len;
-        fbi->fbops			 = &fb_ops;
-        fbi->flags			 = FBINFO_FLAG_DEFAULT;
-        fbi->pseudo_palette  = fb_inf->lcdc_dev_drv[lcdc_id]->layer_par[i]->pseudo_pal;
-        rk_request_fb_buffer(fbi,fb_inf->num_fb);
-        ret = register_framebuffer(fbi);
-        if(ret<0)
-        {
-            printk("%s>>fb%d register_framebuffer fail!\n",__func__,fb_inf->num_fb);
-            ret = -EINVAL;
-        }
-	rkfb_create_sysfs(fbi);
-        fb_inf->fb[fb_inf->num_fb] = fbi;
-        printk("%s>>>>>%s\n",__func__,fb_inf->fb[fb_inf->num_fb]->fix.id);
-        fb_inf->num_fb++;	
+#endif
+		fbi->fix.line_length  = (fbi->var.xres)*(fbi->var.bits_per_pixel>>3);
+		fbi->var.xres_virtual = fbi->var.xres;
+		fbi->var.yres_virtual = fbi->var.yres;
+		fbi->var.width =  fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->width;
+		fbi->var.height = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->height;
+		fbi->var.pixclock = fb_inf->lcdc_dev_drv[lcdc_id]->pixclock;
+		fbi->var.left_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->left_margin;
+		fbi->var.right_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->right_margin;
+		fbi->var.upper_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->upper_margin;
+		fbi->var.lower_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->lower_margin;
+		fbi->var.vsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->vsync_len;
+		fbi->var.hsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->hsync_len;
+		fbi->fbops			 = &fb_ops;
+		fbi->flags			 = FBINFO_FLAG_DEFAULT;
+		fbi->pseudo_palette  = fb_inf->lcdc_dev_drv[lcdc_id]->layer_par[i]->pseudo_pal;
+		if (i == 0) //only alloc memory for main fb
+		{
+			rk_request_fb_buffer(fbi,fb_inf->num_fb);
+		}
+		ret = register_framebuffer(fbi);
+		if(ret<0)
+		{
+		    printk("%s>>fb%d register_framebuffer fail!\n",__func__,fb_inf->num_fb);
+		    ret = -EINVAL;
+		}
+		rkfb_create_sysfs(fbi);
+		fb_inf->fb[fb_inf->num_fb] = fbi;
+	        printk("%s>>>>>%s\n",__func__,fb_inf->fb[fb_inf->num_fb]->fix.id);
+	        fb_inf->num_fb++;	
 	}
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
 
