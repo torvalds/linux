@@ -26,6 +26,7 @@
 
 #include <net/nfc/nfc.h>
 #include <net/nfc/hci.h>
+#include <net/nfc/llc.h>
 
 #include "hci.h"
 
@@ -820,5 +821,18 @@ void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	}
 }
 EXPORT_SYMBOL(nfc_hci_recv_frame);
+
+static int __init nfc_hci_init(void)
+{
+	return nfc_llc_init();
+}
+
+static void __exit nfc_hci_exit(void)
+{
+	nfc_llc_exit();
+}
+
+module_init(nfc_hci_init);
+module_exit(nfc_hci_exit);
 
 MODULE_LICENSE("GPL");
