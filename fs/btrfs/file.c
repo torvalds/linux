@@ -1544,12 +1544,20 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	trace_btrfs_sync_file(file, datasync);
 
+	/*
+	 * We write the dirty pages in the range and wait until they complete
+	 * out of the ->i_mutex. If so, we can flush the dirty pages by
+	 * multi-task, and make the performance up.
+	 */
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+
 	mutex_lock(&inode->i_mutex);
 
 	/*
-	 * we wait first, since the writeback may change the inode, also wait
-	 * ordered range does a filemape_write_and_wait_range which is why we
-	 * don't do it above like other file systems.
+	 * We flush the dirty pages again to avoid some dirty pages in the
+	 * range being left.
 	 */
 	atomic_inc(&root->log_batch);
 	btrfs_wait_ordered_range(inode, start, end);
