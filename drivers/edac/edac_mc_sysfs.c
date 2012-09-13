@@ -373,6 +373,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	csrow->dev.bus = &mci->bus;
 	device_initialize(&csrow->dev);
 	csrow->dev.parent = &mci->dev;
+	csrow->mci = mci;
 	dev_set_name(&csrow->dev, "csrow%d", index);
 	dev_set_drvdata(&csrow->dev, csrow);
 
