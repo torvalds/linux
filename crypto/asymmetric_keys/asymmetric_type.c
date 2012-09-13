@@ -11,12 +11,16 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 #include <keys/asymmetric-subtype.h>
+#include <keys/asymmetric-parser.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "asymmetric_keys.h"
 
 MODULE_LICENSE("GPL");
+
+static LIST_HEAD(asymmetric_key_parsers);
+static DECLARE_RWSEM(asymmetric_key_parsers_sem);
 
 /*
  * Match asymmetric keys on (part of) their name
@@ -107,12 +111,79 @@ static void asymmetric_key_describe(const struct key *key, struct seq_file *m)
 }
 
 /*
+ * Preparse a asymmetric payload to get format the contents appropriately for the
+ * internal payload to cut down on the number of scans of the data performed.
+ *
+ * We also generate a proposed description from the contents of the key that
+ * can be used to name the key if the user doesn't want to provide one.
+ */
+static int asymmetric_key_preparse(struct key_preparsed_payload *prep)
+{
+	struct asymmetric_key_parser *parser;
+	int ret;
+
+	pr_devel("==>%s()\n", __func__);
+
+	if (prep->datalen == 0)
+		return -EINVAL;
+
+	down_read(&asymmetric_key_parsers_sem);
+
+	ret = -EBADMSG;
+	list_for_each_entry(parser, &asymmetric_key_parsers, link) {
+		pr_debug("Trying parser '%s'\n", parser->name);
+
+		ret = parser->parse(prep);
+		if (ret != -EBADMSG) {
+			pr_debug("Parser recognised the format (ret %d)\n",
+				 ret);
+			break;
+		}
+	}
+
+	up_read(&asymmetric_key_parsers_sem);
+	pr_devel("<==%s() = %d\n", __func__, ret);
+	return ret;
+}
+
+/*
+ * Clean up the preparse data
+ */
+static void asymmetric_key_free_preparse(struct key_preparsed_payload *prep)
+{
+	struct asymmetric_key_subtype *subtype = prep->type_data[0];
+
+	pr_devel("==>%s()\n", __func__);
+
+	if (subtype) {
+		subtype->destroy(prep->payload);
+		module_put(subtype->owner);
+	}
+	kfree(prep->type_data[1]);
+	kfree(prep->description);
+}
+
+/*
  * Instantiate a asymmetric_key defined key.  The key was preparsed, so we just
  * have to transfer the data here.
  */
 static int asymmetric_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 {
-	return -EOPNOTSUPP;
+	int ret;
+
+	pr_devel("==>%s()\n", __func__);
+
+	ret = key_payload_reserve(key, prep->quotalen);
+	if (ret == 0) {
+		key->type_data.p[0] = prep->type_data[0];
+		key->type_data.p[1] = prep->type_data[1];
+		key->payload.data = prep->payload;
+		prep->type_data[0] = NULL;
+		prep->type_data[1] = NULL;
+		prep->payload = NULL;
+	}
+	pr_devel("<==%s() = %d\n", __func__, ret);
+	return ret;
 }
 
 /*
@@ -132,12 +203,59 @@ static void asymmetric_key_destroy(struct key *key)
 
 struct key_type key_type_asymmetric = {
 	.name		= "asymmetric",
+	.preparse	= asymmetric_key_preparse,
+	.free_preparse	= asymmetric_key_free_preparse,
 	.instantiate	= asymmetric_key_instantiate,
 	.match		= asymmetric_key_match,
 	.destroy	= asymmetric_key_destroy,
 	.describe	= asymmetric_key_describe,
 };
 EXPORT_SYMBOL_GPL(key_type_asymmetric);
+
+/**
+ * register_asymmetric_key_parser - Register a asymmetric key blob parser
+ * @parser: The parser to register
+ */
+int register_asymmetric_key_parser(struct asymmetric_key_parser *parser)
+{
+	struct asymmetric_key_parser *cursor;
+	int ret;
+
+	down_write(&asymmetric_key_parsers_sem);
+
+	list_for_each_entry(cursor, &asymmetric_key_parsers, link) {
+		if (strcmp(cursor->name, parser->name) == 0) {
+			pr_err("Asymmetric key parser '%s' already registered\n",
+			       parser->name);
+			ret = -EEXIST;
+			goto out;
+		}
+	}
+
+	list_add_tail(&parser->link, &asymmetric_key_parsers);
+
+	pr_notice("Asymmetric key parser '%s' registered\n", parser->name);
+	ret = 0;
+
+out:
+	up_write(&asymmetric_key_parsers_sem);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(register_asymmetric_key_parser);
+
+/**
+ * unregister_asymmetric_key_parser - Unregister a asymmetric key blob parser
+ * @parser: The parser to unregister
+ */
+void unregister_asymmetric_key_parser(struct asymmetric_key_parser *parser)
+{
+	down_write(&asymmetric_key_parsers_sem);
+	list_del(&parser->link);
+	up_write(&asymmetric_key_parsers_sem);
+
+	pr_notice("Asymmetric key parser '%s' unregistered\n", parser->name);
+}
+EXPORT_SYMBOL_GPL(unregister_asymmetric_key_parser);
 
 /*
  * Module stuff
