@@ -15,10 +15,8 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/init.h>
-#include <linux/irqdomain.h>
 #include <linux/micrel_phy.h>
 #include <linux/mxsfb.h>
-#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <asm/mach/arch.h>
@@ -104,37 +102,6 @@ static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("fsl,imx28-lcdif", 0x80030000, NULL, &mxsfb_pdata),
 	{ /* sentinel */ }
 };
-
-static int __init mxs_icoll_add_irq_domain(struct device_node *np,
-				struct device_node *interrupt_parent)
-{
-	irq_domain_add_legacy(np, 128, 0, 0, &irq_domain_simple_ops, NULL);
-
-	return 0;
-}
-
-static int __init mxs_gpio_add_irq_domain(struct device_node *np,
-				struct device_node *interrupt_parent)
-{
-	static int gpio_irq_base = MXS_GPIO_IRQ_START;
-
-	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops, NULL);
-	gpio_irq_base += 32;
-
-	return 0;
-}
-
-static const struct of_device_id mxs_irq_match[] __initconst = {
-	{ .compatible = "fsl,mxs-icoll", .data = mxs_icoll_add_irq_domain, },
-	{ .compatible = "fsl,mxs-gpio", .data = mxs_gpio_add_irq_domain, },
-	{ /* sentinel */ }
-};
-
-static void __init mxs_dt_init_irq(void)
-{
-	icoll_init_irq();
-	of_irq_init(mxs_irq_match);
-}
 
 static void __init imx23_timer_init(void)
 {
@@ -305,7 +272,8 @@ static const char *imx28_dt_compat[] __initdata = {
 
 DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
 	.map_io		= mx23_map_io,
-	.init_irq	= mxs_dt_init_irq,
+	.init_irq	= icoll_init_irq,
+	.handle_irq	= icoll_handle_irq,
 	.timer		= &imx23_timer,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx23_dt_compat,
@@ -314,7 +282,8 @@ MACHINE_END
 
 DT_MACHINE_START(IMX28, "Freescale i.MX28 (Device Tree)")
 	.map_io		= mx28_map_io,
-	.init_irq	= mxs_dt_init_irq,
+	.init_irq	= icoll_init_irq,
+	.handle_irq	= icoll_handle_irq,
 	.timer		= &imx28_timer,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx28_dt_compat,

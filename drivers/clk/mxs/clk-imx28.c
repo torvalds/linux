@@ -337,7 +337,7 @@ int __init mx28_clocks_init(void)
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
 
-	mxs_timer_init(MX28_INT_TIMER0);
+	mxs_timer_init();
 
 	return 0;
 }
