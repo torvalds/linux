@@ -1865,26 +1865,19 @@ void device_shutdown(void)
  */
 
 #ifdef CONFIG_PRINTK
-int __dev_printk(const char *level, const struct device *dev,
-		 struct va_format *vaf)
+int create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
 {
-	char dict[128];
-	const char *level_extra = "";
-	size_t dictlen = 0;
 	const char *subsys;
-
-	if (!dev)
-		return printk("%s(NULL device *): %pV", level, vaf);
+	size_t pos = 0;
 
 	if (dev->class)
 		subsys = dev->class->name;
 	else if (dev->bus)
 		subsys = dev->bus->name;
 	else
-		goto skip;
+		return 0;
 
-	dictlen += snprintf(dict + dictlen, sizeof(dict) - dictlen,
-			    "SUBSYSTEM=%s", subsys);
+	pos += snprintf(hdr + pos, hdrlen - pos, "SUBSYSTEM=%s", subsys);
 
 	/*
 	 * Add device identifier DEVICE=:
@@ -1900,32 +1893,41 @@ int __dev_printk(const char *level, const struct device *dev,
 			c = 'b';
 		else
 			c = 'c';
-		dictlen++;
-		dictlen += snprintf(dict + dictlen, sizeof(dict) - dictlen,
-				   "DEVICE=%c%u:%u",
-				   c, MAJOR(dev->devt), MINOR(dev->devt));
+		pos++;
+		pos += snprintf(hdr + pos, hdrlen - pos,
+				"DEVICE=%c%u:%u",
+				c, MAJOR(dev->devt), MINOR(dev->devt));
 	} else if (strcmp(subsys, "net") == 0) {
 		struct net_device *net = to_net_dev(dev);
 
-		dictlen++;
-		dictlen += snprintf(dict + dictlen, sizeof(dict) - dictlen,
-				    "DEVICE=n%u", net->ifindex);
+		pos++;
+		pos += snprintf(hdr + pos, hdrlen - pos,
+				"DEVICE=n%u", net->ifindex);
 	} else {
-		dictlen++;
-		dictlen += snprintf(dict + dictlen, sizeof(dict) - dictlen,
-				    "DEVICE=+%s:%s", subsys, dev_name(dev));
+		pos++;
+		pos += snprintf(hdr + pos, hdrlen - pos,
+				"DEVICE=+%s:%s", subsys, dev_name(dev));
 	}
-skip:
-	if (level[2])
-		level_extra = &level[2]; /* skip past KERN_SOH "L" */
 
-	return printk_emit(0, level[1] - '0',
-			   dictlen ? dict : NULL, dictlen,
-			   "%s %s: %s%pV",
-			   dev_driver_string(dev), dev_name(dev),
-			   level_extra, vaf);
+	return pos;
 }
-EXPORT_SYMBOL(__dev_printk);
+EXPORT_SYMBOL(create_syslog_header);
+
+static int __dev_printk(const char *level, const struct device *dev,
+			struct va_format *vaf)
+{
+	char hdr[128];
+	size_t hdrlen;
+
+	if (!dev)
+		return printk("%s(NULL device *): %pV", level, vaf);
+
+	hdrlen = create_syslog_header(dev, hdr, sizeof(hdr));
+
+	return printk_emit(0, level[1] - '0', hdrlen ? hdr : NULL, hdrlen,
+			   "%s %s: %pV",
+			   dev_driver_string(dev), dev_name(dev), vaf);
+}
 
 int dev_printk(const char *level, const struct device *dev,
 	       const char *fmt, ...)
@@ -1940,6 +1942,7 @@ int dev_printk(const char *level, const struct device *dev,
 	vaf.va = &args;
 
 	r = __dev_printk(level, dev, &vaf);
+
 	va_end(args);
 
 	return r;
@@ -1959,6 +1962,7 @@ int func(const struct device *dev, const char *fmt, ...)	\
 	vaf.va = &args;						\
 								\
 	r = __dev_printk(kern_level, dev, &vaf);		\
+								\
 	va_end(args);						\
 								\
 	return r;						\

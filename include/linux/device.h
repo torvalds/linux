@@ -895,12 +895,12 @@ extern const char *dev_driver_string(const struct device *dev);
 
 #ifdef CONFIG_PRINTK
 
-extern int __dev_printk(const char *level, const struct device *dev,
-			struct va_format *vaf);
+extern int create_syslog_header(const struct device *dev,
+				char *hdr, size_t hdrlen);
+
 extern __printf(3, 4)
 int dev_printk(const char *level, const struct device *dev,
-	       const char *fmt, ...)
-	;
+	       const char *fmt, ...);
 extern __printf(2, 3)
 int dev_emerg(const struct device *dev, const char *fmt, ...);
 extern __printf(2, 3)
