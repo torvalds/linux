@@ -1165,6 +1165,8 @@ static int mtp_function_set_alt(struct usb_function *f,
 		return ret;
 	}
 	dev->state = STATE_READY;
+	
+	atomic_set(&dev->open_excl, 0); // solve open_excl lock problem, add by Huweiguo
 
 	/* readers may be blocked waiting for us to go online */
 	wake_up(&dev->read_wq);
