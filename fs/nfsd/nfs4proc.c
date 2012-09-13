@@ -370,7 +370,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			break;
 		case NFS4_OPEN_CLAIM_PREVIOUS:
 			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
-			status = nfs4_check_open_reclaim(&open->op_clientid);
+			status = nfs4_check_open_reclaim(&open->op_clientid, cstate->minorversion);
 			if (status)
 				goto out;
 		case NFS4_OPEN_CLAIM_FH:
