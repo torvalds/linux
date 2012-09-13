@@ -327,7 +327,7 @@ static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	 }
  
 	 if( ((var->xoffset+var->xres) > info->var.xres_virtual) ||
-	     ((var->yoffset+var->yres) > (info->var.yres_virtual*2)) )
+	     ((var->yoffset+var->yres) > (info->var.yres_virtual)) )
 	 {
 		 printk("%s check_var fail 2!!! \n",info->fix.id);
 		 printk("xoffset:%d>>xres:%d>>xres_vir:%d\n",var->xoffset,var->xres,info->var.xres_virtual);
