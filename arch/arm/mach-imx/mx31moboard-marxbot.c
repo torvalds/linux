@@ -25,13 +25,13 @@
 #include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
-#include <mach/ulpi.h>
 
 #include <media/soc_camera.h>
 
 #include "common.h"
 #include "devices-imx31.h"
 #include "iomux-mx3.h"
+#include "ulpi.h"
 
 static unsigned int marxbot_pins[] = {
 	/* SDHC2 */

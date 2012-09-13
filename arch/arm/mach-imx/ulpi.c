@@ -24,7 +24,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 
-#include <mach/ulpi.h>
+#include "ulpi.h"
 
 /* ULPIVIEW register bits */
 #define ULPIVW_WU		(1 << 31)	/* Wakeup */

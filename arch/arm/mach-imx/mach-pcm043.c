@@ -34,11 +34,11 @@
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
-#include <mach/ulpi.h>
 
 #include "common.h"
 #include "devices-imx35.h"
 #include "iomux-mx35.h"
+#include "ulpi.h"
 
 static const struct fb_videomode fb_modedb[] = {
 	{

@@ -48,12 +48,11 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 
-#include <mach/ulpi.h>
-
 #include "common.h"
 #include "devices-imx31.h"
 #include "crmregs-imx3.h"
 #include "iomux-mx3.h"
+#include "ulpi.h"
 
 static int armadillo5x0_pins[] = {
 	/* UART1 */

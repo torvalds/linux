@@ -43,12 +43,12 @@
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
-#include <mach/ulpi.h>
 
 #include "board-mx31lilly.h"
 #include "common.h"
 #include "devices-imx31.h"
 #include "iomux-mx3.h"
+#include "ulpi.h"
 
 /*
  * This file contains module-specific initialization routines for LILLY-1131.

@@ -34,12 +34,12 @@
 #include <asm/mach/time.h>
 
 #include <mach/hardware.h>
-#include <mach/ulpi.h>
 
 #include "board-pcm038.h"
 #include "common.h"
 #include "devices-imx27.h"
 #include "iomux-mx27.h"
+#include "ulpi.h"
 
 static const int pcm038_pins[] __initconst = {
 	/* UART1 */
