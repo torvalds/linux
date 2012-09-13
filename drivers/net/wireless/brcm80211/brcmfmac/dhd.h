@@ -682,10 +682,6 @@ extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
 
 extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
 
-/* Send packet to dongle via data channel */
-extern int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx,\
-			 struct sk_buff *pkt);
-
 extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 					     int enable, int master_mode);
