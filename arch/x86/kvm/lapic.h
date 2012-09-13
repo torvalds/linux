@@ -52,6 +52,9 @@ int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda);
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq);
 int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type);
 
+bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
+		struct kvm_lapic_irq *irq, int *r);
+
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu);
 void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data);
 void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
