@@ -27,6 +27,8 @@
 		serial2 = &auart2;
 		serial3 = &auart3;
 		serial4 = &auart4;
+		ethernet0 = &mac0;
+		ethernet1 = &mac1;
 	};
 
 	cpus {
