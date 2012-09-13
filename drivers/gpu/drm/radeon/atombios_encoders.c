@@ -662,7 +662,8 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		return ATOM_ENCODER_MODE_DP;
 
 	/* DVO is always DVO */
-	if (radeon_encoder->encoder_id == ATOM_ENCODER_MODE_DVO)
+	if ((radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DVO1) ||
+	    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1))
 		return ATOM_ENCODER_MODE_DVO;
 
 	connector = radeon_get_connector_for_encoder(encoder);
