@@ -12,22 +12,13 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <linux/dma-mapping.h>
 
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/initval.h>
 #include <sound/soc.h>
 
 #include "mpc5200_dma.h"
-#include "mpc5200_psc_ac97.h"
-#include "../codecs/wm9712.h"
 
 #define DRV_NAME "pcm030-audio-fabric"
 
