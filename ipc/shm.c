@@ -1042,7 +1042,8 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 			  is_file_hugepages(shp->shm_file) ?
 				&shm_file_operations_huge :
 				&shm_file_operations);
-	if (!file)
+	err = PTR_ERR(file);
+	if (IS_ERR(file))
 		goto out_free;
 
 	file->private_data = sfd;

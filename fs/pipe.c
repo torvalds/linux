@@ -1037,13 +1037,13 @@ int create_pipe_files(struct file **res, int flags)
 
 	err = -ENFILE;
 	f = alloc_file(&path, FMODE_WRITE, &write_pipefifo_fops);
-	if (!f)
+	if (IS_ERR(f))
 		goto err_dentry;
 
 	f->f_flags = O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT));
 
 	res[0] = alloc_file(&path, FMODE_READ, &read_pipefifo_fops);
-	if (!res[0])
+	if (IS_ERR(res[0]))
 		goto err_file;
 
 	path_get(&path);

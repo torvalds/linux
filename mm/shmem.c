@@ -2913,10 +2913,10 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 		goto put_dentry;
 #endif
 
-	error = -ENFILE;
 	file = alloc_file(&path, FMODE_WRITE | FMODE_READ,
 		  &shmem_file_operations);
-	if (!file)
+	error = PTR_ERR(file);
+	if (IS_ERR(file))
 		goto put_dentry;
 
 	return file;
