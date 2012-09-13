@@ -2518,6 +2518,7 @@ static int amd64_init_one_instance(struct pci_dev *F2)
 
 	mci->pvt_info = pvt;
 	mci->pdev = &pvt->F2->dev;
+	mci->csbased = 1;
 
 	setup_mci_misc_attrs(mci, fam_type);
 

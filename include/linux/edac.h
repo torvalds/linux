@@ -667,6 +667,8 @@ struct mem_ctl_info {
 	u32 fake_inject_ue;
 	u16 fake_inject_count;
 #endif
+	__u8 csbased : 1,	/* csrow-based memory controller */
+	     __resv  : 7;
 };
 
 #endif
