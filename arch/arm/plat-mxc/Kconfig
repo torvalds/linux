@@ -76,12 +76,6 @@ config MXC_ULPI
 config ARCH_HAS_RNGA
 	bool
 
-config IMX_HAVE_IOMUX_V1
-	bool
-
-config ARCH_MXC_IOMUX_V3
-	bool
-
 config IRAM_ALLOC
 	bool
 	select GENERIC_ALLOCATOR

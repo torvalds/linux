@@ -21,7 +21,8 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/devices-common.h>
-#include <mach/iomux-v3.h>
+
+#include "iomux-v3.h"
 
 /*
  * Define the MX50 memory map.

@@ -29,9 +29,9 @@
 #include <mach/common.h>
 #include <mach/devices-common.h>
 #include <mach/hardware.h>
-#include <mach/iomux-v3.h>
 
 #include "crmregs-imx3.h"
+#include "iomux-v3.h"
 
 void __iomem *mx3_ccm_base;
 

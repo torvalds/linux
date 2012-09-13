@@ -7,6 +7,12 @@ config HAVE_IMX_MMDC
 config HAVE_IMX_SRC
 	bool
 
+config IMX_HAVE_IOMUX_V1
+	bool
+
+config ARCH_MXC_IOMUX_V3
+	bool
+
 config ARCH_MX1
 	bool
 

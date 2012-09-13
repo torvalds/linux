@@ -35,11 +35,11 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux-mx27.h>
 #include <mach/ulpi.h>
 
 #include "board-pcm038.h"
 #include "devices-imx27.h"
+#include "iomux-mx27.h"
 
 static const int pcm038_pins[] __initconst = {
 	/* UART1 */

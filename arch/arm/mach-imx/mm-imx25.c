@@ -28,7 +28,8 @@
 #include <mach/devices-common.h>
 #include <mach/hardware.h>
 #include <mach/mx25.h>
-#include <mach/iomux-v3.h>
+
+#include "iomux-v3.h"
 
 /*
  * This table defines static virtual address mappings for I/O regions.

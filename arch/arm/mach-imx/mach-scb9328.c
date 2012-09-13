@@ -22,9 +22,9 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux-mx1.h>
 
 #include "devices-imx1.h"
+#include "iomux-mx1.h"
 
 /*
  * This scb9328 has a 32MiB flash

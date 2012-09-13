@@ -23,11 +23,11 @@
 #include <linux/usb/otg.h>
 
 #include <mach/common.h>
-#include <mach/iomux-mx3.h>
 #include <mach/hardware.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
+#include "iomux-mx3.h"
 
 static unsigned int devboard_pins[] = {
 	/* UART1 */

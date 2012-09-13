@@ -42,9 +42,9 @@
 #include <asm/memblock.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux-mx27.h>
 
 #include "devices-imx27.h"
+#include "iomux-mx27.h"
 
 #define TVP5150_RSTN (GPIO_PORTC + 18)
 #define TVP5150_PWDN (GPIO_PORTC + 19)

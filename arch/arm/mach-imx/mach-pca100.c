@@ -34,11 +34,11 @@
 #include <asm/mach-types.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux-mx27.h>
 #include <asm/mach/time.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx27.h"
+#include "iomux-mx27.h"
 
 #define OTG_PHY_CS_GPIO (GPIO_PORTB + 23)
 #define USBH2_PHY_CS_GPIO (GPIO_PORTB + 24)

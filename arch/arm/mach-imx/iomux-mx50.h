@@ -19,7 +19,7 @@
 #ifndef __MACH_IOMUX_MX50_H__
 #define __MACH_IOMUX_MX50_H__
 
-#include <mach/iomux-v3.h>
+#include "iomux-v3.h"
 
 #define MX50_ELCDIF_PAD_CTRL	(PAD_CTL_PKE | PAD_CTL_DSE_HIGH)
 

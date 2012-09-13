@@ -26,7 +26,8 @@
 #include <mach/devices-common.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-v1.h>
+
+#include "iomux-v1.h"
 
 /* MX21 memory map definition */
 static struct map_desc imx21_io_desc[] __initdata = {

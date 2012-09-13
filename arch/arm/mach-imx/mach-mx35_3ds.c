@@ -45,13 +45,13 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/iomux-mx35.h>
 #include <video/platform_lcd.h>
 
 #include <media/soc_camera.h>
 
 #include "3ds_debugboard.h"
 #include "devices-imx35.h"
+#include "iomux-mx35.h"
 
 #define GPIO_MC9S08DZ60_GPS_ENABLE 0
 #define GPIO_MC9S08DZ60_HDD_ENABLE 4

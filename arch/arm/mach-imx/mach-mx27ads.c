@@ -27,9 +27,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-mx27.h>
 
 #include "devices-imx27.h"
+#include "iomux-mx27.h"
 
 /*
  * Base address of PBC controller, CS4

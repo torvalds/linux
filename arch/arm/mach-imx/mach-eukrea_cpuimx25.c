@@ -35,10 +35,10 @@
 #include <asm/mach/map.h>
 #include <mach/common.h>
 #include <mach/mx25.h>
-#include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
 #include "eukrea-baseboards.h"
+#include "iomux-mx25.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,

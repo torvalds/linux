@@ -38,9 +38,9 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/iomux-mx51.h>
 
 #include "devices-imx51.h"
+#include "iomux-mx51.h"
 
 static iomux_v3_cfg_t eukrea_mbimxsd51_pads[] = {
 	/* LED */

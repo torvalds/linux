@@ -39,9 +39,9 @@
 #include <asm/mach/map.h>
 #include <mach/common.h>
 #include <mach/mx25.h>
-#include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
+#include "iomux-mx25.h"
 
 #define MX25PDK_CAN_PWDN	IMX_GPIO_NR(4, 6)
 

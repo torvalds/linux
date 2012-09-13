@@ -27,7 +27,8 @@
 
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-v3.h>
+
+#include "iomux-v3.h"
 
 static void __iomem *base;
 

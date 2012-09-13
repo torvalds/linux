@@ -29,9 +29,9 @@
 #include <mach/common.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-#include <mach/iomux-mx3.h>
 
 #include "devices-imx31.h"
+#include "iomux-mx3.h"
 
 /* FPGA defines */
 #define QONG_FPGA_VERSION(major, minor, rev)	\

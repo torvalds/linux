@@ -21,10 +21,10 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/iomux-mx51.h>
 
 #include "3ds_debugboard.h"
 #include "devices-imx51.h"
+#include "iomux-mx51.h"
 
 #define MX51_3DS_ECSPI2_CS	(GPIO_PORTC + 28)
 

@@ -13,7 +13,7 @@
 #ifndef __MACH_IOMUX_MX51_H__
 #define __MACH_IOMUX_MX51_H__
 
-#include <mach/iomux-v3.h>
+#include "iomux-v3.h"
 #define __NA_	0x000
 
 

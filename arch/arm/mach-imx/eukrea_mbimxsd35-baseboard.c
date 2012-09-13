@@ -38,9 +38,9 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/iomux-mx35.h>
 
 #include "devices-imx35.h"
+#include "iomux-mx35.h"
 
 static const struct fb_videomode fb_modedb[] = {
 	{

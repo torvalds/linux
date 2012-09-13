@@ -24,9 +24,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-mx21.h>
 
 #include "devices-imx21.h"
+#include "iomux-mx21.h"
 
 /*
  * Memory-mapped I/O on MX21ADS base board

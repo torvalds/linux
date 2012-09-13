@@ -25,13 +25,13 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux-mx3.h>
 #include <mach/ulpi.h>
 
 #include <media/soc_camera.h>
 
 #include "board-mx31moboard.h"
 #include "devices-imx31.h"
+#include "iomux-mx3.h"
 
 static unsigned int smartbot_pins[] = {
 	/* UART1 */

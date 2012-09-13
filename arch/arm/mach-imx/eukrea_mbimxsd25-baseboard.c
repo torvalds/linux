@@ -27,13 +27,13 @@
 #include <video/platform_lcd.h>
 
 #include <mach/hardware.h>
-#include <mach/iomux-mx25.h>
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/mx25.h>
 
 #include "devices-imx25.h"
+#include "iomux-mx25.h"
 
 static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	/* LCD */

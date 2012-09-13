@@ -19,7 +19,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <mach/iomux-mx3.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 
@@ -28,6 +27,7 @@
 #include <asm/mach-types.h>
 
 #include "devices-imx31.h"
+#include "iomux-mx3.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,

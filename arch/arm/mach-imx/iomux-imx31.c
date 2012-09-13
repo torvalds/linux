@@ -23,7 +23,8 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <mach/hardware.h>
-#include <mach/iomux-mx3.h>
+
+#include "iomux-mx3.h"
 
 /*
  * IOMUX register (base) addresses

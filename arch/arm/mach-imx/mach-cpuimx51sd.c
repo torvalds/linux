@@ -28,7 +28,6 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux-mx51.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -38,6 +37,7 @@
 #include "devices-imx51.h"
 #include "cpu_op-mx51.h"
 #include "eukrea-baseboards.h"
+#include "iomux-mx51.h"
 
 #define USBH1_RST		IMX_GPIO_NR(2, 28)
 #define ETH_RST			IMX_GPIO_NR(2, 31)

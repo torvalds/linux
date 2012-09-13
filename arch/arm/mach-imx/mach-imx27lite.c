@@ -22,9 +22,9 @@
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/iomux-mx27.h>
 
 #include "devices-imx27.h"
+#include "iomux-mx27.h"
 
 static const int mx27lite_pins[] __initconst = {
 	/* UART1 */

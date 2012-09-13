@@ -30,7 +30,8 @@
 
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-v1.h>
+
+#include "iomux-v1.h"
 
 static void __iomem *imx_iomuxv1_baseaddr;
 static unsigned imx_iomuxv1_numports;
