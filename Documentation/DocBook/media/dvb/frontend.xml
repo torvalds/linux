@@ -101,6 +101,7 @@ a specific frontend type.</para>
 	FE_CAN_8VSB                   = 0x200000,
 	FE_CAN_16VSB                  = 0x400000,
 	FE_HAS_EXTENDED_CAPS          = 0x800000,
+	FE_CAN_MULTISTREAM            = 0x4000000,
 	FE_CAN_TURBO_FEC              = 0x8000000,
 	FE_CAN_2G_MODULATION          = 0x10000000,
 	FE_NEEDS_BENDING              = 0x20000000,
