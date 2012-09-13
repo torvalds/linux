@@ -360,7 +360,7 @@ static void lg4ff_led_set_brightness(struct led_classdev *led_cdev,
 {
 	struct device *dev = led_cdev->dev->parent;
 	struct hid_device *hid = container_of(dev, struct hid_device, dev);
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hid);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hid);
 	struct lg4ff_device_entry *entry;
 	int i, state = 0;
 
@@ -395,7 +395,7 @@ static enum led_brightness lg4ff_led_get_brightness(struct led_classdev *led_cde
 {
 	struct device *dev = led_cdev->dev->parent;
 	struct hid_device *hid = container_of(dev, struct hid_device, dev);
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hid);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hid);
 	struct lg4ff_device_entry *entry;
 	int i, value = 0;
 
