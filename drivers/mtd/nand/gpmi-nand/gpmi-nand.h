@@ -122,6 +122,10 @@ struct nand_timing {
 };
 
 struct gpmi_nand_data {
+	/* flags */
+#define GPMI_ASYNC_EDO_ENABLED	(1 << 0)
+	int			flags;
+
 	/* System Interface */
 	struct device		*dev;
 	struct platform_device	*pdev;
@@ -132,6 +136,7 @@ struct gpmi_nand_data {
 
 	/* Flash Hardware */
 	struct nand_timing	timing;
+	int			timing_mode;
 
 	/* BCH */
 	struct bch_geometry	bch_geometry;
@@ -259,6 +264,7 @@ extern int start_dma_with_bch_irq(struct gpmi_nand_data *,
 
 /* GPMI-NAND helper function library */
 extern int gpmi_init(struct gpmi_nand_data *);
+extern int gpmi_extra_init(struct gpmi_nand_data *);
 extern void gpmi_clear_bch(struct gpmi_nand_data *);
 extern void gpmi_dump_info(struct gpmi_nand_data *);
 extern int bch_set_geometry(struct gpmi_nand_data *);

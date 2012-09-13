@@ -1517,6 +1517,14 @@ static int gpmi_scan_bbt(struct mtd_info *mtd)
 	if (ret)
 		return ret;
 
+	/*
+	 * Can we enable the extra features? such as EDO or Sync mode.
+	 *
+	 * We do not check the return value now. That's means if we fail in
+	 * enable the extra features, we still can run in the normal way.
+	 */
+	gpmi_extra_init(this);
+
 	/* use the default BBT implementation */
 	return nand_default_bbt(mtd);
 }
