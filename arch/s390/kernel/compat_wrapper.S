@@ -1651,3 +1651,11 @@ ENTRY(sys_s390_runtime_instr_wrapper)
 	lgfr	%r2,%r2			# int
 	lgfr	%r3,%r3			# int
 	jg	sys_s390_runtime_instr
+
+ENTRY(sys_kcmp_wrapper)
+	lgfr	%r2,%r2			# pid_t
+	lgfr	%r3,%r3			# pid_t
+	lgfr	%r4,%r4			# int
+	llgfr	%r5,%r5			# unsigned long
+	llgfr	%r6,%r6			# unsigned long
+	jg	sys_kcmp
