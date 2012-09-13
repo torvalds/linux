@@ -2311,7 +2311,7 @@ EXPORT_SYMBOL(snd_pcm_lib_readv);
 /* default channel maps for multi-channel playbacks, up to 8 channels */
 const struct snd_pcm_chmap_elem snd_pcm_std_chmaps[] = {
 	{ .channels = 1,
-	  .map = { SNDRV_CHMAP_UNKNOWN } },
+	  .map = { SNDRV_CHMAP_MONO } },
 	{ .channels = 2,
 	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
 	{ .channels = 4,
@@ -2333,7 +2333,7 @@ EXPORT_SYMBOL_GPL(snd_pcm_std_chmaps);
 /* alternative channel maps with CLFE <-> surround swapped for 6/8 channels */
 const struct snd_pcm_chmap_elem snd_pcm_alt_chmaps[] = {
 	{ .channels = 1,
-	  .map = { SNDRV_CHMAP_UNKNOWN } },
+	  .map = { SNDRV_CHMAP_MONO } },
 	{ .channels = 2,
 	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
 	{ .channels = 4,

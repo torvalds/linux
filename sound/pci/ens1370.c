@@ -1262,7 +1262,7 @@ static struct snd_pcm_ops snd_ensoniq_capture_ops = {
 
 static const struct snd_pcm_chmap_elem surround_map[] = {
 	{ .channels = 1,
-	  .map = { SNDRV_CHMAP_UNKNOWN } },
+	  .map = { SNDRV_CHMAP_MONO } },
 	{ .channels = 2,
 	  .map = { SNDRV_CHMAP_RL, SNDRV_CHMAP_RR } },
 	{ }
