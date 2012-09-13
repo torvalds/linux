@@ -2564,6 +2564,8 @@ brcmf_sdbrcm_membytes(struct brcmf_sdio *bus, bool write, u32 address, u8 *data,
 	else
 		dsize = size;
 
+	sdio_claim_host(bus->sdiodev->func[1]);
+
 	/* Set the backplane window to include the start address */
 	bcmerror = brcmf_sdcard_set_sbaddr_window(bus->sdiodev, address);
 	if (bcmerror) {
@@ -2604,6 +2606,8 @@ xfer_done:
 	if (brcmf_sdcard_set_sbaddr_window(bus->sdiodev, bus->sdiodev->sbwad))
 		brcmf_dbg(ERROR, "FAILED to set window back to 0x%x\n",
 			  bus->sdiodev->sbwad);
+
+	sdio_release_host(bus->sdiodev->func[1]);
 
 	return bcmerror;
 }
