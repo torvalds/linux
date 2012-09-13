@@ -728,6 +728,7 @@ return_results:
 	hw->address_setup_in_cycles = address_setup_in_cycles;
 	hw->use_half_periods        = dll_use_half_periods;
 	hw->sample_delay_factor     = sample_delay_factor;
+	hw->device_busy_timeout     = GPMI_DEFAULT_BUSY_TIMEOUT;
 
 	/* Return success. */
 	return 0;
@@ -752,26 +753,26 @@ void gpmi_begin(struct gpmi_nand_data *this)
 		goto err_out;
 	}
 
-	/* set ready/busy timeout */
-	writel(0x500 << BP_GPMI_TIMING1_BUSY_TIMEOUT,
-		gpmi_regs + HW_GPMI_TIMING1);
-
 	/* Get the timing information we need. */
 	nfc->clock_frequency_in_hz = clk_get_rate(r->clock[0]);
 	clock_period_in_ns = 1000000000 / nfc->clock_frequency_in_hz;
 
 	gpmi_nfc_compute_hardware_timing(this, &hw);
 
-	/* Set up all the simple timing parameters. */
+	/* [1] Set HW_GPMI_TIMING0 */
 	reg = BF_GPMI_TIMING0_ADDRESS_SETUP(hw.address_setup_in_cycles) |
 		BF_GPMI_TIMING0_DATA_HOLD(hw.data_hold_in_cycles)         |
 		BF_GPMI_TIMING0_DATA_SETUP(hw.data_setup_in_cycles)       ;
 
 	writel(reg, gpmi_regs + HW_GPMI_TIMING0);
 
-	/*
-	 * DLL_ENABLE must be set to 0 when setting RDN_DELAY or HALF_PERIOD.
-	 */
+	/* [2] Set HW_GPMI_TIMING1 */
+	writel(BF_GPMI_TIMING1_BUSY_TIMEOUT(hw.device_busy_timeout),
+		gpmi_regs + HW_GPMI_TIMING1);
+
+	/* [3] The following code is to set the HW_GPMI_CTRL1. */
+
+	/* DLL_ENABLE must be set to 0 when setting RDN_DELAY or HALF_PERIOD. */
 	writel(BM_GPMI_CTRL1_DLL_ENABLE, gpmi_regs + HW_GPMI_CTRL1_CLR);
 
 	/* Clear out the DLL control fields. */

@@ -189,14 +189,24 @@ struct gpmi_nand_data {
  * @data_setup_in_cycles:      The data setup time, in cycles.
  * @data_hold_in_cycles:       The data hold time, in cycles.
  * @address_setup_in_cycles:   The address setup time, in cycles.
+ * @device_busy_timeout:       The timeout waiting for NAND Ready/Busy,
+ *                             this value is the number of cycles multiplied
+ *                             by 4096.
  * @use_half_periods:          Indicates the clock is running slowly, so the
  *                             NFC DLL should use half-periods.
  * @sample_delay_factor:       The sample delay factor.
  */
 struct gpmi_nfc_hardware_timing {
+	/* for HW_GPMI_TIMING0 */
 	uint8_t  data_setup_in_cycles;
 	uint8_t  data_hold_in_cycles;
 	uint8_t  address_setup_in_cycles;
+
+	/* for HW_GPMI_TIMING1 */
+	uint16_t device_busy_timeout;
+#define GPMI_DEFAULT_BUSY_TIMEOUT	0x500 /* default busy timeout value.*/
+
+	/* for HW_GPMI_CTRL1 */
 	bool     use_half_periods;
 	uint8_t  sample_delay_factor;
 };
