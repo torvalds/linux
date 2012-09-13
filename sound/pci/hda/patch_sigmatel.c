@@ -4272,7 +4272,8 @@ static int stac92xx_init(struct hda_codec *codec)
 	unsigned int gpio;
 	int i;
 
-	snd_hda_sequence_write(codec, spec->init);
+	if (spec->init)
+		snd_hda_sequence_write(codec, spec->init);
 
 	/* power down adcs initially */
 	if (spec->powerdown_adcs)
@@ -4541,6 +4542,9 @@ static void stac92xx_line_out_detect(struct hda_codec *codec,
 	struct sigmatel_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
+
+	if (cfg->speaker_outs == 0)
+		return;
 
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (presence)
@@ -5530,6 +5534,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 		snd_hda_codec_set_pincfg(codec, 0xf, 0x2181205e);
 	}
 
+	codec->epss = 0; /* longer delay needed for D3 */
 	codec->no_trigger_sense = 1;
 	codec->spec = spec;
 
@@ -5748,7 +5753,6 @@ again:
 		/* fallthru */
 	case 0x111d76b4: /* 6 Port without Analog Mixer */
 	case 0x111d76b5:
-		spec->init = stac92hd71bxx_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		spec->num_dmics = stac92xx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
@@ -5773,7 +5777,6 @@ again:
 			spec->stream_delay = 40; /* 40 milliseconds */
 
 		/* disable VSW */
-		spec->init = stac92hd71bxx_core_init;
 		unmute_init++;
 		snd_hda_codec_set_pincfg(codec, 0x0f, 0x40f000f0);
 		snd_hda_codec_set_pincfg(codec, 0x19, 0x40f000f3);
@@ -5788,13 +5791,15 @@ again:
 
 		/* fallthru */
 	default:
-		spec->init = stac92hd71bxx_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		spec->num_dmics = stac92xx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
 					STAC92HD71BXX_NUM_DMICS);
 		break;
 	}
+
+	if (get_wcaps_type(get_wcaps(codec, 0x28)) == AC_WID_VOL_KNB)
+		spec->init = stac92hd71bxx_core_init;
 
 	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
 		snd_hda_sequence_write_cache(codec, unmute_init);

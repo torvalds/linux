@@ -248,7 +248,6 @@ struct mlx4_en_tx_ring {
 	u32 doorbell_qpn;
 	void *buf;
 	u16 poll_cnt;
-	int blocked;
 	struct mlx4_en_tx_info *tx_info;
 	u8 *bounce_buf;
 	u32 last_nr_txbb;

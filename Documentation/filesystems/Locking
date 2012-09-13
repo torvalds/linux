@@ -114,7 +114,6 @@ prototypes:
 	int (*drop_inode) (struct inode *);
 	void (*evict_inode) (struct inode *);
 	void (*put_super) (struct super_block *);
-	void (*write_super) (struct super_block *);
 	int (*sync_fs)(struct super_block *sb, int wait);
 	int (*freeze_fs) (struct super_block *);
 	int (*unfreeze_fs) (struct super_block *);
@@ -136,7 +135,6 @@ write_inode:
 drop_inode:				!!!inode->i_lock!!!
 evict_inode:
 put_super:		write
-write_super:		read
 sync_fs:		read
 freeze_fs:		write
 unfreeze_fs:		write

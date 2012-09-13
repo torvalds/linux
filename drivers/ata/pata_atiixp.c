@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
+#include <linux/dmi.h>
 
 #define DRV_NAME "pata_atiixp"
 #define DRV_VERSION "0.4.6"
@@ -33,10 +34,25 @@ enum {
 	ATIIXP_IDE_UDMA_MODE 	= 0x56
 };
 
+static const struct dmi_system_id attixp_cable_override_dmi_table[] = {
+	{
+		/* Board has onboard PATA<->SATA converters */
+		.ident = "MSI E350DM-E33",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "MSI"),
+			DMI_MATCH(DMI_BOARD_NAME, "E350DM-E33(MS-7720)"),
+		},
+	},
+	{ }
+};
+
 static int atiixp_cable_detect(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 udma;
+
+	if (dmi_check_system(attixp_cable_override_dmi_table))
+		return ATA_CBL_PATA40_SHORT;
 
 	/* Hack from drivers/ide/pci. Really we want to know how to do the
 	   raw detection not play follow the bios mode guess */

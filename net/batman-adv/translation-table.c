@@ -197,6 +197,7 @@ static void batadv_tt_local_event(struct batadv_priv *bat_priv,
 del:
 		list_del(&entry->list);
 		kfree(entry);
+		kfree(tt_change_node);
 		event_removed = true;
 		goto unlock;
 	}

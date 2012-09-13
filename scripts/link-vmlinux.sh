@@ -211,7 +211,7 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 
 	if ! cmp -s System.map .tmp_System.map; then
 		echo >&2 Inconsistent kallsyms data
-		echo >&2 echo Try "make KALLSYMS_EXTRA_PASS=1" as a workaround
+		echo >&2 Try "make KALLSYMS_EXTRA_PASS=1" as a workaround
 		cleanup
 		exit 1
 	fi

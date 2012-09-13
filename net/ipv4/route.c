@@ -70,7 +70,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
 #include <linux/string.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -80,7 +79,6 @@
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
-#include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
@@ -88,11 +86,9 @@
 #include <linux/mroute.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/random.h>
-#include <linux/jhash.h>
 #include <linux/rcupdate.h>
 #include <linux/times.h>
 #include <linux/slab.h>
-#include <linux/prefetch.h>
 #include <net/dst.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
@@ -938,12 +934,14 @@ static u32 __ip_rt_update_pmtu(struct rtable *rt, struct flowi4 *fl4, u32 mtu)
 	if (mtu < ip_rt_min_pmtu)
 		mtu = ip_rt_min_pmtu;
 
+	rcu_read_lock();
 	if (fib_lookup(dev_net(rt->dst.dev), fl4, &res) == 0) {
 		struct fib_nh *nh = &FIB_RES_NH(res);
 
 		update_or_create_fnhe(nh, fl4->daddr, 0, mtu,
 				      jiffies + ip_rt_mtu_expires);
 	}
+	rcu_read_unlock();
 	return mtu;
 }
 
@@ -960,7 +958,7 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
 		dst->obsolete = DST_OBSOLETE_KILL;
 	} else {
 		rt->rt_pmtu = mtu;
-		dst_set_expires(&rt->dst, ip_rt_mtu_expires);
+		rt->dst.expires = max(1UL, jiffies + ip_rt_mtu_expires);
 	}
 }
 
@@ -1267,7 +1265,7 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 {
 	struct rtable *rt = (struct rtable *) dst;
 
-	if (dst->flags & DST_NOCACHE) {
+	if (!list_empty(&rt->rt_uncached)) {
 		spin_lock_bh(&rt_uncached_lock);
 		list_del(&rt->rt_uncached);
 		spin_unlock_bh(&rt_uncached_lock);
@@ -2032,7 +2030,6 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *fl4)
 		}
 		dev_out = net->loopback_dev;
 		fl4->flowi4_oif = dev_out->ifindex;
-		res.fi = NULL;
 		flags |= RTCF_LOCAL;
 		goto make_route;
 	}

@@ -31,7 +31,6 @@
 #include <linux/pci.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
-#include <linux/syscore_ops.h>
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
@@ -1470,130 +1469,38 @@ asmlinkage void __init xen_start_kernel(void)
 #endif
 }
 
-#ifdef CONFIG_XEN_PVHVM
-/*
- * The pfn containing the shared_info is located somewhere in RAM. This
- * will cause trouble if the current kernel is doing a kexec boot into a
- * new kernel. The new kernel (and its startup code) can not know where
- * the pfn is, so it can not reserve the page. The hypervisor will
- * continue to update the pfn, and as a result memory corruption occours
- * in the new kernel.
- *
- * One way to work around this issue is to allocate a page in the
- * xen-platform pci device's BAR memory range. But pci init is done very
- * late and the shared_info page is already in use very early to read
- * the pvclock. So moving the pfn from RAM to MMIO is racy because some
- * code paths on other vcpus could access the pfn during the small
- * window when the old pfn is moved to the new pfn. There is even a
- * small window were the old pfn is not backed by a mfn, and during that
- * time all reads return -1.
- *
- * Because it is not known upfront where the MMIO region is located it
- * can not be used right from the start in xen_hvm_init_shared_info.
- *
- * To minimise trouble the move of the pfn is done shortly before kexec.
- * This does not eliminate the race because all vcpus are still online
- * when the syscore_ops will be called. But hopefully there is no work
- * pending at this point in time. Also the syscore_op is run last which
- * reduces the risk further.
- */
-
-static struct shared_info *xen_hvm_shared_info;
-
-static void xen_hvm_connect_shared_info(unsigned long pfn)
+void __ref xen_hvm_init_shared_info(void)
 {
+	int cpu;
 	struct xen_add_to_physmap xatp;
+	static struct shared_info *shared_info_page = 0;
 
+	if (!shared_info_page)
+		shared_info_page = (struct shared_info *)
+			extend_brk(PAGE_SIZE, PAGE_SIZE);
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = pfn;
+	xatp.gpfn = __pa(shared_info_page) >> PAGE_SHIFT;
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		BUG();
 
-}
-static void xen_hvm_set_shared_info(struct shared_info *sip)
-{
-	int cpu;
-
-	HYPERVISOR_shared_info = sip;
+	HYPERVISOR_shared_info = (struct shared_info *)shared_info_page;
 
 	/* xen_vcpu is a pointer to the vcpu_info struct in the shared_info
 	 * page, we use it in the event channel upcall and in some pvclock
 	 * related functions. We don't need the vcpu_info placement
 	 * optimizations because we don't use any pv_mmu or pv_irq op on
 	 * HVM.
-	 * When xen_hvm_set_shared_info is run at boot time only vcpu 0 is
-	 * online but xen_hvm_set_shared_info is run at resume time too and
+	 * When xen_hvm_init_shared_info is run at boot time only vcpu 0 is
+	 * online but xen_hvm_init_shared_info is run at resume time too and
 	 * in that case multiple vcpus might be online. */
 	for_each_online_cpu(cpu) {
 		per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
 	}
 }
 
-/* Reconnect the shared_info pfn to a mfn */
-void xen_hvm_resume_shared_info(void)
-{
-	xen_hvm_connect_shared_info(__pa(xen_hvm_shared_info) >> PAGE_SHIFT);
-}
-
-#ifdef CONFIG_KEXEC
-static struct shared_info *xen_hvm_shared_info_kexec;
-static unsigned long xen_hvm_shared_info_pfn_kexec;
-
-/* Remember a pfn in MMIO space for kexec reboot */
-void __devinit xen_hvm_prepare_kexec(struct shared_info *sip, unsigned long pfn)
-{
-	xen_hvm_shared_info_kexec = sip;
-	xen_hvm_shared_info_pfn_kexec = pfn;
-}
-
-static void xen_hvm_syscore_shutdown(void)
-{
-	struct xen_memory_reservation reservation = {
-		.domid = DOMID_SELF,
-		.nr_extents = 1,
-	};
-	unsigned long prev_pfn;
-	int rc;
-
-	if (!xen_hvm_shared_info_kexec)
-		return;
-
-	prev_pfn = __pa(xen_hvm_shared_info) >> PAGE_SHIFT;
-	set_xen_guest_handle(reservation.extent_start, &prev_pfn);
-
-	/* Move pfn to MMIO, disconnects previous pfn from mfn */
-	xen_hvm_connect_shared_info(xen_hvm_shared_info_pfn_kexec);
-
-	/* Update pointers, following hypercall is also a memory barrier */
-	xen_hvm_set_shared_info(xen_hvm_shared_info_kexec);
-
-	/* Allocate new mfn for previous pfn */
-	do {
-		rc = HYPERVISOR_memory_op(XENMEM_populate_physmap, &reservation);
-		if (rc == 0)
-			msleep(123);
-	} while (rc == 0);
-
-	/* Make sure the previous pfn is really connected to a (new) mfn */
-	BUG_ON(rc != 1);
-}
-
-static struct syscore_ops xen_hvm_syscore_ops = {
-	.shutdown = xen_hvm_syscore_shutdown,
-};
-#endif
-
-/* Use a pfn in RAM, may move to MMIO before kexec. */
-static void __init xen_hvm_init_shared_info(void)
-{
-	/* Remember pointer for resume */
-	xen_hvm_shared_info = extend_brk(PAGE_SIZE, PAGE_SIZE);
-	xen_hvm_connect_shared_info(__pa(xen_hvm_shared_info) >> PAGE_SHIFT);
-	xen_hvm_set_shared_info(xen_hvm_shared_info);
-}
-
+#ifdef CONFIG_XEN_PVHVM
 static void __init init_hvm_pv_info(void)
 {
 	int major, minor;
@@ -1644,9 +1551,6 @@ static void __init xen_hvm_guest_init(void)
 	init_hvm_pv_info();
 
 	xen_hvm_init_shared_info();
-#ifdef CONFIG_KEXEC
-	register_syscore_ops(&xen_hvm_syscore_ops);
-#endif
 
 	if (xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;
