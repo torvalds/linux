@@ -591,15 +591,11 @@ int __dynamic_dev_dbg(struct _ddebug *descriptor,
 		res = printk(KERN_DEBUG "(NULL device *): %pV", &vaf);
 	} else {
 		char buf[PREFIX_SIZE];
-		char dict[128];
-		size_t dictlen;
 
-		dictlen = create_syslog_header(dev, dict, sizeof(dict));
-
-		res = printk_emit(0, 7, dictlen ? dict : NULL, dictlen,
-				  "%s%s %s: %pV",
-				  dynamic_emit_prefix(descriptor, buf),
-				  dev_driver_string(dev), dev_name(dev), &vaf);
+		res = dev_printk_emit(7, dev, "%s%s %s: %pV",
+				      dynamic_emit_prefix(descriptor, buf),
+				      dev_driver_string(dev), dev_name(dev),
+				      &vaf);
 	}
 
 	va_end(args);
@@ -627,18 +623,13 @@ int __dynamic_netdev_dbg(struct _ddebug *descriptor,
 
 	if (dev && dev->dev.parent) {
 		char buf[PREFIX_SIZE];
-		char dict[128];
-		size_t dictlen;
 
-		dictlen = create_syslog_header(dev->dev.parent,
-					       dict, sizeof(dict));
-
-		res = printk_emit(0, 7, dictlen ? dict : NULL, dictlen,
-				  "%s%s %s %s: %pV",
-				  dynamic_emit_prefix(descriptor, buf),
-				  dev_driver_string(dev->dev.parent),
-				  dev_name(dev->dev.parent),
-				  netdev_name(dev), &vaf);
+		res = dev_printk_emit(7, dev->dev.parent,
+				      "%s%s %s %s: %pV",
+				      dynamic_emit_prefix(descriptor, buf),
+				      dev_driver_string(dev->dev.parent),
+				      dev_name(dev->dev.parent),
+				      netdev_name(dev), &vaf);
 	} else if (dev) {
 		res = printk(KERN_DEBUG "%s: %pV", netdev_name(dev), &vaf);
 	} else {

@@ -895,8 +895,6 @@ extern const char *dev_driver_string(const struct device *dev);
 
 #ifdef CONFIG_PRINTK
 
-extern int create_syslog_header(const struct device *dev,
-				char *hdr, size_t hdrlen);
 extern int dev_vprintk_emit(int level, const struct device *dev,
 			    const char *fmt, va_list args);
 extern __printf(3, 4)

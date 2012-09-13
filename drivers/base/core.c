@@ -1865,7 +1865,8 @@ void device_shutdown(void)
  */
 
 #ifdef CONFIG_PRINTK
-int create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
+static int
+create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
 {
 	const char *subsys;
 	size_t pos = 0;
@@ -1943,17 +1944,12 @@ EXPORT_SYMBOL(dev_printk_emit);
 static int __dev_printk(const char *level, const struct device *dev,
 			struct va_format *vaf)
 {
-	char hdr[128];
-	size_t hdrlen;
-
 	if (!dev)
 		return printk("%s(NULL device *): %pV", level, vaf);
 
-	hdrlen = create_syslog_header(dev, hdr, sizeof(hdr));
-
-	return printk_emit(0, level[1] - '0', hdrlen ? hdr : NULL, hdrlen,
-			   "%s %s: %pV",
-			   dev_driver_string(dev), dev_name(dev), vaf);
+	return dev_printk_emit(level[1] - '0', dev,
+			       "%s %s: %pV",
+			       dev_driver_string(dev), dev_name(dev), vaf);
 }
 
 int dev_printk(const char *level, const struct device *dev,
