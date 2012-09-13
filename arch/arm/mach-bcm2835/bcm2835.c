@@ -13,12 +13,12 @@
  */
 
 #include <linux/init.h>
+#include <linux/irqchip/bcm2835.h>
 #include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/exception.h>
 
 #include <mach/bcm2835_soc.h>
 
@@ -32,14 +32,6 @@ static struct map_desc io_map __initdata = {
 void __init bcm2835_map_io(void)
 {
 	iotable_init(&io_map, 1);
-}
-
-void __init bcm2835_init_irq(void)
-{
-}
-
-asmlinkage void __exception_irq_entry bcm2835_handle_irq(struct pt_regs *regs)
-{
 }
 
 void __init bcm2835_init(void)

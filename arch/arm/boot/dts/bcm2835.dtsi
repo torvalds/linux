@@ -3,6 +3,7 @@
 / {
 	compatible = "brcm,bcm2835";
 	model = "BCM2835";
+	interrupt-parent = <&intc>;
 
 	chosen {
 		bootargs = "earlyprintk";
@@ -13,5 +14,12 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x7e000000 0x20000000 0x02000000>;
+
+		intc: interrupt-controller {
+			compatible = "brcm,bcm2835-armctrl-ic";
+			reg = <0x7e00b200 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 };
