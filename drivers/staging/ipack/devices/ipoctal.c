@@ -288,7 +288,7 @@ static const struct tty_port_operations ipoctal_tty_port_ops = {
 };
 
 static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
-			     unsigned int slot, unsigned int vector)
+			     unsigned int slot)
 {
 	int res = 0;
 	int i;
@@ -387,9 +387,10 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	 * Depending of the carrier these addresses are accesible or not.
 	 * More info in the datasheet.
 	 */
-	ipoctal->dev->bus->ops->request_irq(ipoctal->dev, vector,
+	ipoctal->dev->bus->ops->request_irq(ipoctal->dev,
 				       ipoctal_irq_handler, ipoctal);
-	iowrite8(vector, ipoctal->dev->mem_space.address + 1);
+	/* Dummy write */
+	iowrite8(1, ipoctal->dev->mem_space.address + 1);
 
 	/* Register the TTY device */
 
@@ -722,7 +723,7 @@ static int ipoctal_probe(struct ipack_device *dev)
 		return -ENOMEM;
 
 	ipoctal->dev = dev;
-	res = ipoctal_inst_slot(ipoctal, dev->bus_nr, dev->slot, dev->irq);
+	res = ipoctal_inst_slot(ipoctal, dev->bus_nr, dev->slot);
 	if (res)
 		goto out_uninst;
 

@@ -54,7 +54,6 @@ struct ipack_addr_space {
  *
  *	@bus_nr: IP bus number where the device is plugged
  *	@slot: Slot where the device is plugged in the carrier board
- *	@irq: IRQ vector
  *	@bus: ipack_bus_device where the device is plugged to.
  *	@id_space: Virtual address to ID space.
  *	@io_space: Virtual address to IO space.
@@ -68,7 +67,6 @@ struct ipack_addr_space {
 struct ipack_device {
 	unsigned int bus_nr;
 	unsigned int slot;
-	unsigned int irq;
 	struct ipack_bus_device *bus;
 	struct ipack_addr_space id_space;
 	struct ipack_addr_space io_space;
@@ -129,7 +127,7 @@ struct ipack_driver {
 struct ipack_bus_ops {
 	int (*map_space) (struct ipack_device *dev, unsigned int memory_size, int space);
 	int (*unmap_space) (struct ipack_device *dev, int space);
-	int (*request_irq) (struct ipack_device *dev, int vector,
+	int (*request_irq) (struct ipack_device *dev,
 			    irqreturn_t (*handler)(void *), void *arg);
 	int (*free_irq) (struct ipack_device *dev);
 	int (*get_clockrate) (struct ipack_device *dev);
@@ -187,13 +185,11 @@ void ipack_driver_unregister(struct ipack_driver *edrv);
  *
  * @bus: ipack bus device it is plugged to.
  * @slot: slot position in the bus device.
- * @irqv: IRQ vector for the mezzanine.
  *
  * Register a new ipack device (mezzanine device). The call is done by
  * the carrier device driver.
  */
-struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
-					   int slot, int irqv);
+struct ipack_device *ipack_device_register(struct ipack_bus_device *bus, int slot);
 void ipack_device_unregister(struct ipack_device *dev);
 
 /**

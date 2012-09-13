@@ -427,7 +427,7 @@ out:
 }
 
 struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
-					   int slot, int irqv)
+					   int slot)
 {
 	int ret;
 	struct ipack_device *dev;
@@ -441,7 +441,6 @@ struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
 	dev->dev.parent = bus->parent;
 	dev->slot = slot;
 	dev->bus_nr = bus->bus_nr;
-	dev->irq = irqv;
 	dev->bus = bus;
 	dev_set_name(&dev->dev,
 		     "ipack-dev.%u.%u", dev->bus_nr, dev->slot);

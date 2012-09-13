@@ -190,7 +190,7 @@ static int tpci200_free_irq(struct ipack_device *dev)
 	return 0;
 }
 
-static int tpci200_request_irq(struct ipack_device *dev, int vector,
+static int tpci200_request_irq(struct ipack_device *dev,
 			       irqreturn_t (*handler)(void *), void *arg)
 {
 	int res = 0;
@@ -227,7 +227,6 @@ static int tpci200_request_irq(struct ipack_device *dev, int vector,
 	 * Read the User Manual of your IndustryPack device to know
 	 * where to write the vector in memory.
 	 */
-	slot_irq->vector = vector;
 	slot_irq->handler = handler;
 	slot_irq->arg = arg;
 	slot_irq->holder = dev;
@@ -715,12 +714,8 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 	tpci200->number = tpci200->info->ipack_bus->bus_nr;
 	dev_set_drvdata(&pdev->dev, tpci200);
 
-	/*
-	 * Give the same IRQ number as the slot number.
-	 * The TPCI200 has assigned his own two IRQ by PCI bus driver
-	 */
 	for (i = 0; i < TPCI200_NB_SLOT; i++)
-		ipack_device_register(tpci200->info->ipack_bus, i, i);
+		ipack_device_register(tpci200->info->ipack_bus, i);
 	return 0;
 
 out_err_bus_register:
