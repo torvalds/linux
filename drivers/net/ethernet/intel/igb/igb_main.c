@@ -2834,11 +2834,7 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 mrqc, rxcsum;
-	u32 j, num_rx_queues, shift = 0, shift2 = 0;
-	union e1000_reta {
-		u32 dword;
-		u8  bytes[4];
-	} reta;
+	u32 j, num_rx_queues, shift = 0;
 	static const u8 rsshash[40] = {
 		0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2, 0x41, 0x67,
 		0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0, 0xd0, 0xca, 0x2b, 0xcb,
@@ -2856,35 +2852,36 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 
 	num_rx_queues = adapter->rss_queues;
 
-	if (adapter->vfs_allocated_count) {
-		/* 82575 and 82576 supports 2 RSS queues for VMDq */
-		switch (hw->mac.type) {
-		case e1000_i350:
-		case e1000_82580:
-			num_rx_queues = 1;
-			shift = 0;
-			break;
-		case e1000_82576:
+	switch (hw->mac.type) {
+	case e1000_82575:
+		shift = 6;
+		break;
+	case e1000_82576:
+		/* 82576 supports 2 RSS queues for SR-IOV */
+		if (adapter->vfs_allocated_count) {
 			shift = 3;
 			num_rx_queues = 2;
-			break;
-		case e1000_82575:
-			shift = 2;
-			shift2 = 6;
-		default:
-			break;
 		}
-	} else {
-		if (hw->mac.type == e1000_82575)
-			shift = 6;
+		break;
+	default:
+		break;
 	}
 
-	for (j = 0; j < (32 * 4); j++) {
-		reta.bytes[j & 3] = (j % num_rx_queues) << shift;
-		if (shift2)
-			reta.bytes[j & 3] |= num_rx_queues << shift2;
-		if ((j & 3) == 3)
-			wr32(E1000_RETA(j >> 2), reta.dword);
+	/*
+	 * Populate the indirection table 4 entries at a time.  To do this
+	 * we are generating the results for n and n+2 and then interleaving
+	 * those with the results with n+1 and n+3.
+	 */
+	for (j = 0; j < 32; j++) {
+		/* first pass generates n and n+2 */
+		u32 base = ((j * 0x00040004) + 0x00020000) * num_rx_queues;
+		u32 reta = (base & 0x07800780) >> (7 - shift);
+
+		/* second pass generates n+1 and n+3 */
+		base += 0x00010001 * num_rx_queues;
+		reta |= (base & 0x07800780) << (1 + shift);
+
+		wr32(E1000_RETA(j), reta);
 	}
 
 	/*
