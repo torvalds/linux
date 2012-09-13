@@ -233,12 +233,6 @@ static inline void omap4_irq_save_context(void)
 	__raw_writel(val, sar_base + AUXCOREBOOT1_OFFSET);
 
 	/* Save SyncReq generation logic */
-	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
-	__raw_writel(val, sar_base + AUXCOREBOOT0_OFFSET);
-	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
-	__raw_writel(val, sar_base + AUXCOREBOOT1_OFFSET);
-
-	/* Save SyncReq generation logic */
 	val = __raw_readl(wakeupgen_base + OMAP_PTMSYNCREQ_MASK);
 	__raw_writel(val, sar_base + PTMSYNCREQ_MASK_OFFSET);
 	val = __raw_readl(wakeupgen_base + OMAP_PTMSYNCREQ_EN);
