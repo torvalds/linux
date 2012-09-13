@@ -3954,8 +3954,9 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		set_bit(CGRP_CLONE_CHILDREN, &cgrp->flags);
 
 	for_each_subsys(root, ss) {
-		struct cgroup_subsys_state *css = ss->create(cgrp);
+		struct cgroup_subsys_state *css;
 
+		css = ss->create(cgrp);
 		if (IS_ERR(css)) {
 			err = PTR_ERR(css);
 			goto err_destroy;
@@ -3969,6 +3970,15 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		/* At error, ->destroy() callback has to free assigned ID. */
 		if (clone_children(parent) && ss->post_clone)
 			ss->post_clone(cgrp);
+
+		if (ss->broken_hierarchy && !ss->warned_broken_hierarchy &&
+		    parent->parent) {
+			pr_warning("cgroup: %s (%d) created nested cgroup for controller \"%s\" which has incomplete hierarchy support. Nested cgroups may change behavior in the future.\n",
+				   current->comm, current->pid, ss->name);
+			if (!strcmp(ss->name, "memory"))
+				pr_warning("cgroup: \"memory\" requires setting use_hierarchy to 1 on the root.\n");
+			ss->warned_broken_hierarchy = true;
+		}
 	}
 
 	list_add(&cgrp->sibling, &cgrp->parent->children);

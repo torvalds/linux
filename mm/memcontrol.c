@@ -4973,6 +4973,13 @@ mem_cgroup_create(struct cgroup *cont)
 	} else {
 		res_counter_init(&memcg->res, NULL);
 		res_counter_init(&memcg->memsw, NULL);
+		/*
+		 * Deeper hierachy with use_hierarchy == false doesn't make
+		 * much sense so let cgroup subsystem know about this
+		 * unfortunate state in our controller.
+		 */
+		if (parent && parent != root_mem_cgroup)
+			mem_cgroup_subsys.broken_hierarchy = true;
 	}
 	memcg->last_scanned_node = MAX_NUMNODES;
 	INIT_LIST_HEAD(&memcg->oom_notify);

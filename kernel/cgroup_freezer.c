@@ -373,4 +373,12 @@ struct cgroup_subsys freezer_subsys = {
 	.can_attach	= freezer_can_attach,
 	.fork		= freezer_fork,
 	.base_cftypes	= files,
+
+	/*
+	 * freezer subsys doesn't handle hierarchy at all.  Frozen state
+	 * should be inherited through the hierarchy - if a parent is
+	 * frozen, all its children should be frozen.  Fix it and remove
+	 * the following.
+	 */
+	.broken_hierarchy = true,
 };

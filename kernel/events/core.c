@@ -7285,5 +7285,12 @@ struct cgroup_subsys perf_subsys = {
 	.destroy	= perf_cgroup_destroy,
 	.exit		= perf_cgroup_exit,
 	.attach		= perf_cgroup_attach,
+
+	/*
+	 * perf_event cgroup doesn't handle nesting correctly.
+	 * ctx->nr_cgroups adjustments should be propagated through the
+	 * cgroup hierarchy.  Fix it and remove the following.
+	 */
+	.broken_hierarchy = true,
 };
 #endif /* CONFIG_CGROUP_PERF */
