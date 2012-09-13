@@ -143,6 +143,7 @@ core-y				+= arch/powerpc/kernel/ \
 				   arch/powerpc/sysdev/ \
 				   arch/powerpc/platforms/ \
 				   arch/powerpc/math-emu/ \
+				   arch/powerpc/crypto/ \
 				   arch/powerpc/net/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_KVM) 		+= arch/powerpc/kvm/

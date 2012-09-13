@@ -479,6 +479,13 @@ config CRYPTO_SHA1_ARM
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
 	  using optimized ARM assembler.
 
+config CRYPTO_SHA1_PPC
+	tristate "SHA1 digest algorithm (powerpc)"
+	depends on PPC
+	help
+	  This is the powerpc hardware accelerated implementation of the
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_HASH
