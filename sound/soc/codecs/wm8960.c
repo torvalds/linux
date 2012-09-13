@@ -1036,6 +1036,7 @@ static const struct regmap_config wm8960_regmap = {
 static __devinit int wm8960_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
+	struct wm8960_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8960_priv *wm8960;
 	int ret;
 
@@ -1047,6 +1048,16 @@ static __devinit int wm8960_i2c_probe(struct i2c_client *i2c,
 	wm8960->regmap = regmap_init_i2c(i2c, &wm8960_regmap);
 	if (IS_ERR(wm8960->regmap))
 		return PTR_ERR(wm8960->regmap);
+
+	if (pdata && pdata->shared_lrclk) {
+		ret = regmap_update_bits(wm8960->regmap, WM8960_ADDCTL2,
+					 0x4, 0x4);
+		if (ret != 0) {
+			dev_err(&i2c->dev, "Failed to enable LRCM: %d\n",
+				ret);
+			return ret;
+		}
+	}
 
 	i2c_set_clientdata(i2c, wm8960);
 
