@@ -217,16 +217,10 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
 	if (ret == -EEXIST) {
-		u64 failed_start = em->start;
-		u64 failed_len = em->len;
-
 		free_extent_map(em);
 		em = lookup_extent_mapping(em_tree, start, len);
-		if (!em) {
-			lookup_extent_mapping(em_tree, failed_start,
-					      failed_len);
+		if (!em)
 			em = ERR_PTR(-EIO);
-		}
 	} else if (ret) {
 		free_extent_map(em);
 		em = ERR_PTR(ret);
