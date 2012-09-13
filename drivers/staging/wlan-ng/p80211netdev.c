@@ -803,15 +803,13 @@ int wlan_setup(wlandevice_t *wlandev, struct device *physdev)
 * Arguments:
 *	wlandev		ptr to the wlandev structure for the
 *			interface.
-* Returns:
-*	zero on success, non-zero otherwise.
 * Call Context:
 *	Should be process thread.  We'll assume it might be
 *	interrupt though.  When we add support for statically
 *	compiled drivers, this function will be called in the
 *	context of the kernel startup code.
 ----------------------------------------------------------------*/
-int wlan_unsetup(wlandevice_t *wlandev)
+void wlan_unsetup(wlandevice_t *wlandev)
 {
 	struct wireless_dev *wdev;
 
@@ -824,8 +822,6 @@ int wlan_unsetup(wlandevice_t *wlandev)
 		free_netdev(wlandev->netdev);
 		wlandev->netdev = NULL;
 	}
-
-	return 0;
 }
 
 /*----------------------------------------------------------------
