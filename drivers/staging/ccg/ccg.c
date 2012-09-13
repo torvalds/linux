@@ -1254,8 +1254,10 @@ static int __init init(void)
 		return PTR_ERR(ccg_class);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
+	if (!dev) {
+		class_destroy(ccg_class);
 		return -ENOMEM;
+	}
 
 	dev->functions = supported_functions;
 	INIT_LIST_HEAD(&dev->enabled_functions);
