@@ -185,10 +185,12 @@ static void omninet_read_bulk_callback(struct urb *urb)
 
 	if (urb->actual_length && header->oh_len) {
 		struct tty_struct *tty = tty_port_tty_get(&port->port);
-		tty_insert_flip_string(tty, data + OMNINET_DATAOFFSET,
+		if (tty) {
+			tty_insert_flip_string(tty, data + OMNINET_DATAOFFSET,
 							header->oh_len);
-		tty_flip_buffer_push(tty);
-		tty_kref_put(tty);
+			tty_flip_buffer_push(tty);
+			tty_kref_put(tty);
+		}
 	}
 
 	/* Continue trying to always read  */
