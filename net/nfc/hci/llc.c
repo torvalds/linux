@@ -26,9 +26,23 @@ static struct list_head llc_engines;
 
 int nfc_llc_init(void)
 {
+	int r;
+
 	INIT_LIST_HEAD(&llc_engines);
 
-	return nfc_llc_nop_register();
+	r = nfc_llc_nop_register();
+	if (r)
+		goto exit;
+
+	r = nfc_llc_shdlc_register();
+	if (r)
+		goto exit;
+
+	return 0;
+
+exit:
+	nfc_llc_exit();
+	return r;
 }
 EXPORT_SYMBOL(nfc_llc_init);
 
