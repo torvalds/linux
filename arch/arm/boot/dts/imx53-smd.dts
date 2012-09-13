@@ -25,22 +25,30 @@
 		aips@50000000 { /* AIPS1 */
 			spba@50000000 {
 				esdhc@50004000 { /* ESDHC1 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_esdhc1_1>;
 					cd-gpios = <&gpio3 13 0>;
 					wp-gpios = <&gpio4 11 0>;
 					status = "okay";
 				};
 
 				esdhc@50008000 { /* ESDHC2 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_esdhc2_1>;
 					non-removable;
 					status = "okay";
 				};
 
 				uart3: serial@5000c000 {
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_uart3_1>;
 					fsl,uart-has-rtscts;
 					status = "okay";
 				};
 
 				ecspi@50010000 { /* ECSPI1 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_ecspi1_1>;
 					fsl,spi-num-chipselects = <2>;
 					cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>;
 					status = "okay";
@@ -72,35 +80,49 @@
 				};
 
 				esdhc@50020000 { /* ESDHC3 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_esdhc3_1>;
 					non-removable;
 					status = "okay";
 				};
 			};
 
-			wdog@53f98000 { /* WDOG1 */
-				status = "okay";
-			};
-
 			iomuxc@53fa8000 {
-				compatible = "fsl,imx53-iomuxc-smd";
-				reg = <0x53fa8000 0x4000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_hog>;
+
+				hog {
+					pinctrl_hog: hoggrp {
+						fsl,pins = <
+							982  0x80000000	/* MX53_PAD_PATA_DATA14__GPIO2_14 */
+							989  0x80000000	/* MX53_PAD_PATA_DATA15__GPIO2_15 */
+							424  0x80000000	/* MX53_PAD_EIM_EB2__GPIO2_30 */
+							701  0x80000000	/* MX53_PAD_EIM_DA13__GPIO3_13 */
+							449  0x80000000	/* MX53_PAD_EIM_D19__GPIO3_19 */
+							43   0x80000000	/* MX53_PAD_KEY_ROW2__GPIO4_11 */
+							868  0x80000000	/* MX53_PAD_PATA_DA_0__GPIO7_6 */
+						>;
+					};
+				};
 			};
 
 			uart1: serial@53fbc000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1_1>;
 				status = "okay";
 			};
 
 			uart2: serial@53fc0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart2_1>;
 				status = "okay";
 			};
 		};
 
 		aips@60000000 {	/* AIPS2 */
-			sdma@63fb0000 {
-				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
-			};
-
 			i2c@63fc4000 { /* I2C2 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c2_1>;
 				status = "okay";
 
 				codec: sgtl5000@0a {
@@ -120,6 +142,8 @@
 			};
 
 			i2c@63fc8000 { /* I2C1 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c1_1>;
 				status = "okay";
 
 				accelerometer: mma8450@1c {
@@ -139,6 +163,8 @@
 			};
 
 			ethernet@63fec000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_fec_1>;
 				phy-mode = "rmii";
 				phy-reset-gpios = <&gpio7 6 0>;
 				status = "okay";
