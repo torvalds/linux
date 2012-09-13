@@ -30,6 +30,7 @@
 #include <linux/omapfb.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/platform_data/omap1_bl.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,7 +40,6 @@
 #include <plat/mux.h>
 #include <plat/dma.h>
 #include <plat/tc.h>
-#include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
 

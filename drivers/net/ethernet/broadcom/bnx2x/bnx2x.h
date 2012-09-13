@@ -1708,9 +1708,6 @@ struct bnx2x_func_init_params {
 			continue;		\
 		else
 
-#define for_each_napi_rx_queue(bp, var) \
-	for ((var) = 0; (var) < bp->num_napi_queues; (var)++)
-
 /* Skip OOO FP */
 #define for_each_tx_queue(bp, var) \
 	for ((var) = 0; (var) < BNX2X_NUM_QUEUES(bp); (var)++) \

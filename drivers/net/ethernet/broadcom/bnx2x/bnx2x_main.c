@@ -8427,6 +8427,8 @@ unload_error:
 
 	/* Disable HW interrupts, NAPI */
 	bnx2x_netif_stop(bp, 1);
+	/* Delete all NAPI objects */
+	bnx2x_del_all_napi(bp);
 
 	/* Release IRQs */
 	bnx2x_free_irq(bp);
@@ -11229,10 +11231,12 @@ static int bnx2x_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static void poll_bnx2x(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
+	int i;
 
-	disable_irq(bp->pdev->irq);
-	bnx2x_interrupt(bp->pdev->irq, dev);
-	enable_irq(bp->pdev->irq);
+	for_each_eth_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+		napi_schedule(&bnx2x_fp(bp, fp->index, napi));
+	}
 }
 #endif
 
@@ -11899,9 +11903,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	 */
 	bnx2x_set_int_mode(bp);
 
-	/* Add all NAPI objects */
-	bnx2x_add_all_napi(bp);
-
 	rc = register_netdev(dev);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
@@ -11976,9 +11977,6 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 
-	/* Delete all NAPI objects */
-	bnx2x_del_all_napi(bp);
-
 	/* Power on: we can't let PCI layer write to us while we are in D3 */
 	bnx2x_set_power_state(bp, PCI_D0);
 
@@ -12025,6 +12023,8 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	bnx2x_tx_disable(bp);
 
 	bnx2x_netif_stop(bp, 0);
+	/* Delete all NAPI objects */
+	bnx2x_del_all_napi(bp);
 
 	del_timer_sync(&bp->timer);
 

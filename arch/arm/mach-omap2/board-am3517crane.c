@@ -26,7 +26,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/usb.h>
 
@@ -36,11 +35,6 @@
 
 #define GPIO_USB_POWER		35
 #define GPIO_USB_NRESET		38
-
-
-/* Board initialization */
-static struct omap_board_config_kernel am3517_crane_config[] __initdata = {
-};
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
@@ -66,9 +60,6 @@ static void __init am3517_crane_init(void)
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
-
-	omap_board_config = am3517_crane_config;
-	omap_board_config_size = ARRAY_SIZE(am3517_crane_config);
 
 	/* Configure GPIO for EHCI port */
 	if (omap_mux_init_gpio(GPIO_USB_NRESET, OMAP_PIN_OUTPUT)) {

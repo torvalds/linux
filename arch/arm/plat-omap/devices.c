@@ -23,7 +23,6 @@
 #include <asm/memblock.h>
 
 #include <plat/tc.h>
-#include <plat/board.h>
 #include <plat/mmc.h>
 #include <plat/menelaus.h>
 #include <plat/omap44xx.h>
