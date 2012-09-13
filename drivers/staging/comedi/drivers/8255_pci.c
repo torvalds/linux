@@ -71,6 +71,7 @@ struct pci_8255_boardinfo {
 	unsigned short vendor;
 	unsigned short device;
 	int dio_badr;
+	int is_mmio;
 	int n_8255;
 };
 
@@ -120,6 +121,22 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 	},
 };
 
+struct pci_8255_private {
+	void __iomem *mmio_base;
+};
+
+static int pci_8255_mmio(int dir, int port, int data, unsigned long iobase)
+{
+	void __iomem *mmio_base = (void __iomem *)iobase;
+
+	if (dir) {
+		writeb(data, mmio_base + port);
+		return 0;
+	} else {
+		return readb(mmio_base  + port);
+	}
+}
+
 static const void *pci_8255_find_boardinfo(struct comedi_device *dev,
 					      struct pci_dev *pcidev)
 {
@@ -139,7 +156,10 @@ static int pci_8255_attach_pci(struct comedi_device *dev,
 			       struct pci_dev *pcidev)
 {
 	const struct pci_8255_boardinfo *board;
+	struct pci_8255_private *devpriv;
 	struct comedi_subdevice *s;
+	resource_size_t iobase;
+	unsigned long len;
 	int ret;
 	int i;
 
@@ -151,10 +171,23 @@ static int pci_8255_attach_pci(struct comedi_device *dev,
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret < 0)
+		return ret;
+	devpriv = dev->private;
+
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
-	dev->iobase = pci_resource_start(pcidev, board->dio_badr);
+	iobase = pci_resource_start(pcidev, board->dio_badr);
+	len = pci_resource_len(pcidev, board->dio_badr);
+
+	if (board->is_mmio) {
+		devpriv->mmio_base = ioremap(iobase, len);
+		if (!devpriv->mmio_base)
+			return -ENOMEM;
+	}
+	dev->iobase = iobase;
 
 	/*
 	 * One, two, or four subdevices are setup by this driver depending
@@ -167,7 +200,13 @@ static int pci_8255_attach_pci(struct comedi_device *dev,
 
 	for (i = 0; i < board->n_8255; i++) {
 		s = &dev->subdevices[i];
-		ret = subdev_8255_init(dev, s, NULL, dev->iobase + (i * 4));
+		if (board->is_mmio) {
+			iobase = (unsigned long)(devpriv->mmio_base + (i * 4));
+			ret = subdev_8255_init(dev, s, pci_8255_mmio, iobase);
+		} else {
+			iobase = dev->iobase + (i * 4);
+			ret = subdev_8255_init(dev, s, NULL, iobase);
+		}
 		if (ret)
 			return ret;
 	}
@@ -182,6 +221,7 @@ static void pci_8255_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct pci_8255_boardinfo *board = comedi_board(dev);
+	struct pci_8255_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int i;
 
@@ -192,6 +232,8 @@ static void pci_8255_detach(struct comedi_device *dev)
 		}
 	}
 	if (pcidev) {
+		if (devpriv->mmio_base)
+			iounmap(devpriv->mmio_base);
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
 	}
