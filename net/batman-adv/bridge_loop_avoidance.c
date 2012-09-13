@@ -378,6 +378,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 	entry->crc = BATADV_BLA_CRC_INIT;
 	entry->bat_priv = bat_priv;
 	atomic_set(&entry->request_sent, 0);
+	atomic_set(&entry->wait_periods, 0);
 	memcpy(entry->orig, orig, ETH_ALEN);
 
 	/* one for the hash, one for returning */
@@ -407,6 +408,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 
 		/* this will be decreased in the worker thread */
 		atomic_inc(&entry->request_sent);
+		atomic_set(&entry->wait_periods, BATADV_BLA_WAIT_PERIODS);
 		atomic_inc(&bat_priv->bla.num_requests);
 	}
 
@@ -1148,10 +1150,15 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 			 * problems when we are not yet known as backbone gw
 			 * in the backbone.
 			 *
-			 * We can reset this now and allow traffic again.
+			 * We can reset this now after we waited some periods
+			 * to give bridge forward delays and bla group forming
+			 * some grace time.
 			 */
 
 			if (atomic_read(&backbone_gw->request_sent) == 0)
+				continue;
+
+			if (!atomic_dec_and_test(&backbone_gw->wait_periods))
 				continue;
 
 			atomic_dec(&backbone_gw->bat_priv->bla.num_requests);

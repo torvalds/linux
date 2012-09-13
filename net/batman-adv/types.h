@@ -369,6 +369,7 @@ struct batadv_backbone_gw {
 	struct hlist_node hash_entry;
 	struct batadv_priv *bat_priv;
 	unsigned long lasttime;	/* last time we heard of this backbone gw */
+	atomic_t wait_periods;
 	atomic_t request_sent;
 	atomic_t refcount;
 	struct rcu_head rcu;
