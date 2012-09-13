@@ -689,8 +689,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (strcmp(report.input_name, "-") != 0)
 		setup_browser(true);
-	else
+	else {
 		use_browser = 0;
+		perf_hpp__init(false, false);
+	}
 
 	setup_sorting(report_usage, options);
 
