@@ -1,0 +1,28 @@
+/*
+ * Device Tree Include file for Marvell Armada XP family SoC
+ *
+ * Copyright (C) 2012 Marvell
+ *
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * Contains definitions specific to the Armada XP MV78460 SoC that are not
+ * common to all Armada XP SoCs.
+ */
+
+/include/ "armada-xp.dtsi"
+
+/ {
+	model = "Marvell Armada XP MV78460 SoC";
+	compatible = "marvell,armadaxp-mv78460", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	soc {
+		pinctrl {
+			compatible = "marvell,mv78460-pinctrl";
+			reg = <0xd0018000 0x38>;
+		};
+	};
+ };
