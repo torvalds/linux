@@ -583,6 +583,34 @@ static struct clk_tegra tegra_cclk_hw = {
 DEFINE_CLK_TEGRA(cclk, 0, &tegra_super_ops, 0, mux_cclk,
 		mux_cclk_p, NULL);
 
+static const char *mux_twd[] = {
+	"cclk",
+};
+
+static struct clk *mux_twd_p[] = {
+	&tegra_cclk,
+};
+
+static struct clk tegra_clk_twd;
+static struct clk_tegra tegra_clk_twd_hw = {
+	.hw = {
+		.clk = &tegra_clk_twd,
+	},
+	.max_rate = 1000000000,
+	.mul = 1,
+	.div = 4,
+};
+
+static struct clk tegra_clk_twd = {
+	.name = "twd",
+	.ops = &tegra_twd_ops,
+	.hw = &tegra_clk_twd_hw.hw,
+	.parent = &tegra_cclk,
+	.parent_names = mux_twd,
+	.parents = mux_twd_p,
+	.num_parents = ARRAY_SIZE(mux_twd),
+};
+
 static struct clk tegra_sclk;
 static struct clk_tegra tegra_sclk_hw = {
 	.hw = {
@@ -1027,6 +1055,7 @@ static struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("cop",	"tegra-avp",	"cop"),
 	CLK_DUPLICATE("vde",	"tegra-aes",	"vde"),
 	CLK_DUPLICATE("cclk",	NULL,		"cpu"),
+	CLK_DUPLICATE("twd",	"smp_twd",	NULL),
 };
 
 #define CLK(dev, con, ck)	\
@@ -1057,6 +1086,7 @@ static struct clk *tegra_ptr_clks[] = {
 	&tegra_pll_x,
 	&tegra_pll_e,
 	&tegra_cclk,
+	&tegra_clk_twd,
 	&tegra_sclk,
 	&tegra_hclk,
 	&tegra_pclk,

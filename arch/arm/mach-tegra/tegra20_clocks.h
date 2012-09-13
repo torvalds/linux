@@ -28,6 +28,7 @@ extern struct clk_ops tegra_cdev_clk_ops;
 extern struct clk_ops tegra_audio_sync_clk_ops;
 extern struct clk_ops tegra_super_ops;
 extern struct clk_ops tegra_cpu_ops;
+extern struct clk_ops tegra_twd_ops;
 extern struct clk_ops tegra_cop_ops;
 extern struct clk_ops tegra_bus_ops;
 extern struct clk_ops tegra_blink_clk_ops;

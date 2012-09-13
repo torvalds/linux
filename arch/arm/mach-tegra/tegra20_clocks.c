@@ -376,6 +376,25 @@ struct clk_ops tegra_super_ops = {
 	.recalc_rate = tegra20_super_clk_recalc_rate,
 };
 
+static unsigned long tegra20_twd_clk_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	struct clk_tegra *c = to_clk_tegra(hw);
+	u64 rate = parent_rate;
+
+	if (c->mul != 0 && c->div != 0) {
+		rate *= c->mul;
+		rate += c->div - 1; /* round up */
+		do_div(rate, c->div);
+	}
+
+	return rate;
+}
+
+struct clk_ops tegra_twd_ops = {
+	.recalc_rate = tegra20_twd_clk_recalc_rate,
+};
+
 static u8 tegra20_cop_clk_get_parent(struct clk_hw *hw)
 {
 	return 0;
