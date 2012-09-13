@@ -337,7 +337,8 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
 				  unsigned int test_index,
 				  struct ethtool_string *strings, u64 *data)
 {
-	struct efx_channel *channel = efx_get_channel(efx, 0);
+	struct efx_channel *channel =
+		efx_get_channel(efx, efx->tx_channel_offset);
 	struct efx_tx_queue *tx_queue;
 
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
