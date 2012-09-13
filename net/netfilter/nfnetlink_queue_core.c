@@ -406,8 +406,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	return skb;
 
 nla_put_failure:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 	net_err_ratelimited("nf_queue: error creating packet message\n");
 	return NULL;
 }
