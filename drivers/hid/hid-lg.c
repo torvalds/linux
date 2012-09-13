@@ -108,7 +108,7 @@ static __u8 dfp_rdesc_fixed[] = {
 static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 
 	if ((drv_data->quirks & LG_RDESC) && *rsize >= 90 && rdesc[83] == 0x26 &&
 			rdesc[84] == 0x8c && rdesc[85] == 0x02) {
@@ -277,7 +277,7 @@ static int lg_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		  0,  0,  0,  0,  0,183,184,185,186,187,
 		188,189,190,191,192,193,194,  0,  0,  0
 	};
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 	unsigned int hid = usage->hid;
 
 	if (hdev->product == USB_DEVICE_ID_LOGITECH_RECEIVER &&
@@ -318,7 +318,7 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 
 	if ((drv_data->quirks & LG_BAD_RELATIVE_KEYS) && usage->type == EV_KEY &&
 			(field->flags & HID_MAIN_ITEM_RELATIVE))
@@ -334,7 +334,7 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 static int lg_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value)
 {
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 
 	if ((drv_data->quirks & LG_INVERT_HWHEEL) && usage->code == REL_HWHEEL) {
 		input_event(field->hidinput->input, usage->type, usage->code,
@@ -415,7 +415,7 @@ err_free:
 
 static void lg_remove(struct hid_device *hdev)
 {
-	struct lg_drv_data *drv_data = (struct lg_drv_data *)hid_get_drvdata(hdev);
+	struct lg_drv_data *drv_data = hid_get_drvdata(hdev);
 	if (drv_data->quirks & LG_FF4)
 		lg4ff_deinit(hdev);
 
