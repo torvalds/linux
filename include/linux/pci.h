@@ -1504,7 +1504,7 @@ enum pci_fixup_pass {
 /* Anonymous variables would be nice... */
 #define DECLARE_PCI_FIXUP_SECTION(section, name, vendor, device, class,	\
 				  class_shift, hook)			\
-	static const struct pci_fixup const __pci_fixup_##name __used	\
+	static const struct pci_fixup __pci_fixup_##name __used		\
 	__attribute__((__section__(#section), aligned((sizeof(void *)))))    \
 		= { vendor, device, class, class_shift, hook };
 

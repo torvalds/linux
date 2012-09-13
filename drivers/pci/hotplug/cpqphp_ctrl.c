@@ -2890,27 +2890,8 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 						func->mem_head = mem_node;
 					} else
 						return -ENOMEM;
-				} else if ((temp_register & 0x0BL) == 0x04) {
-					/* Map memory */
-					base = temp_register & 0xFFFFFFF0;
-					base = ~base + 1;
-
-					dbg("CND:      length = 0x%x\n", base);
-					mem_node = get_resource(&(resources->mem_head), base);
-
-					/* allocate the resource to the board */
-					if (mem_node) {
-						base = mem_node->base;
-
-						mem_node->next = func->mem_head;
-						func->mem_head = mem_node;
-					} else
-						return -ENOMEM;
-				} else if ((temp_register & 0x0BL) == 0x06) {
-					/* Those bits are reserved, we can't handle this */
-					return 1;
 				} else {
-					/* Requesting space below 1M */
+					/* Reserved bits or requesting space below 1M */
 					return NOT_ENOUGH_RESOURCES;
 				}
 

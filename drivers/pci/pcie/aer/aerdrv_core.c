@@ -509,14 +509,12 @@ static void do_recovery(struct pci_dev *dev, int severity)
 				"resume",
 				report_resume);
 
-	dev_printk(KERN_DEBUG, &dev->dev,
-		"AER driver successfully recovered\n");
+	dev_info(&dev->dev, "AER: Device recovery successful\n");
 	return;
 
 failed:
 	/* TODO: Should kernel panic here? */
-	dev_printk(KERN_DEBUG, &dev->dev,
-		"AER driver didn't recover\n");
+	dev_info(&dev->dev, "AER: Device recovery failed\n");
 }
 
 /**

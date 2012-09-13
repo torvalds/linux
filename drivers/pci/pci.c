@@ -1491,7 +1491,7 @@ void pci_pme_wakeup_bus(struct pci_bus *bus)
 
 /**
  * pci_wakeup - Wake up a PCI device
- * @dev: Device to handle.
+ * @pci_dev: Device to handle.
  * @ign: ignored parameter
  */
 static int pci_wakeup(struct pci_dev *pci_dev, void *ign)

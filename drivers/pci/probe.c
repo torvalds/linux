@@ -1748,11 +1748,6 @@ int pci_bus_insert_busn_res(struct pci_bus *b, int bus, int bus_max)
 			   "busn_res: can not insert %pR under %s%pR (conflicts with %s %pR)\n",
 			    res, pci_is_root_bus(b) ? "domain " : "",
 			    parent_res, conflict->name, conflict);
-	else
-		dev_printk(KERN_DEBUG, &b->dev,
-			   "busn_res: %pR is inserted under %s%pR\n",
-			   res, pci_is_root_bus(b) ? "domain " : "",
-			   parent_res);
 
 	return conflict == NULL;
 }
