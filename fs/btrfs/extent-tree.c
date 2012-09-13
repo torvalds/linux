@@ -33,6 +33,7 @@
 #include "volumes.h"
 #include "locking.h"
 #include "free-space-cache.h"
+#include "math.h"
 
 #undef SCRAMBLE_DELAYED_REFS
 
@@ -647,24 +648,6 @@ void btrfs_clear_space_info_full(struct btrfs_fs_info *info)
 	list_for_each_entry_rcu(found, head, list)
 		found->full = 0;
 	rcu_read_unlock();
-}
-
-static u64 div_factor(u64 num, int factor)
-{
-	if (factor == 10)
-		return num;
-	num *= factor;
-	do_div(num, 10);
-	return num;
-}
-
-static u64 div_factor_fine(u64 num, int factor)
-{
-	if (factor == 100)
-		return num;
-	num *= factor;
-	do_div(num, 100);
-	return num;
 }
 
 u64 btrfs_find_block_group(struct btrfs_root *root,
