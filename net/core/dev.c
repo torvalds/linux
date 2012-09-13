@@ -6435,7 +6435,7 @@ static int __netdev_printk(const char *level, const struct net_device *dev,
 
 		r = printk_emit(0, level[1] - '0',
 				dictlen ? dict : NULL, dictlen,
-				"%s %s: %s: %pV",
+				"%s %s %s: %pV",
 				dev_driver_string(dev->dev.parent),
 				dev_name(dev->dev.parent),
 				netdev_name(dev), vaf);

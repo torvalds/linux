@@ -634,7 +634,7 @@ int __dynamic_netdev_dbg(struct _ddebug *descriptor,
 					       dict, sizeof(dict));
 
 		res = printk_emit(0, 7, dictlen ? dict : NULL, dictlen,
-				  "%s%s %s: %s: %pV",
+				  "%s%s %s %s: %pV",
 				  dynamic_emit_prefix(descriptor, buf),
 				  dev_driver_string(dev->dev.parent),
 				  dev_name(dev->dev.parent),
