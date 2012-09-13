@@ -68,8 +68,6 @@ static int usb_console_setup(struct console *co, char *options)
 	struct tty_struct *tty = NULL;
 	struct ktermios dummy;
 
-	dbg("%s", __func__);
-
 	if (options) {
 		baud = simple_strtoul(options, NULL, 10);
 		s = options;

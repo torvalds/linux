@@ -123,8 +123,6 @@ static void return_serial(struct usb_serial *serial)
 {
 	int i;
 
-	dbg("%s", __func__);
-
 	mutex_lock(&table_lock);
 	for (i = 0; i < serial->num_ports; ++i)
 		serial_table[serial->minor + i] = NULL;
@@ -190,8 +188,6 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
 	int retval = -ENODEV;
-
-	dbg("%s", __func__);
 
 	serial = usb_serial_get_by_index(idx);
 	if (!serial)
@@ -445,7 +441,6 @@ static int serial_proc_show(struct seq_file *m, void *v)
 	int i;
 	char tmp[40];
 
-	dbg("%s", __func__);
 	seq_puts(m, "usbserinfo:1.0 driver:2.0\n");
 	for (i = 0; i < SERIAL_TTY_MINORS; ++i) {
 		serial = usb_serial_get_by_index(i);
@@ -1100,7 +1095,6 @@ static void usb_serial_disconnect(struct usb_interface *interface)
 	struct usb_serial_port *port;
 
 	usb_serial_console_disconnect(serial);
-	dbg("%s", __func__);
 
 	mutex_lock(&serial->disc_mutex);
 	/* must set a flag, to signal subdrivers */
