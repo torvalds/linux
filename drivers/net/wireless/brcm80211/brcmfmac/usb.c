@@ -1340,10 +1340,8 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo,
 	struct device *dev = devinfo->dev;
 
 	bus_pub = brcmf_usb_attach(devinfo, BRCMF_USB_NRXQ, BRCMF_USB_NTXQ);
-	if (!bus_pub) {
-		ret = -ENODEV;
-		goto fail;
-	}
+	if (!bus_pub)
+		return -ENODEV;
 
 	bus = kzalloc(sizeof(struct brcmf_bus), GFP_ATOMIC);
 	if (!bus) {
