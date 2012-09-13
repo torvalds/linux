@@ -1211,7 +1211,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 	/* Now let's handle the linkstatus stuff */
 	if (hw->link_status == hw->link_status_new)
-		goto failed;
+		return;
 
 	hw->link_status = hw->link_status_new;
 
@@ -1265,7 +1265,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 				pr_debug
 				    ("getconfig(0x%02x) failed, result = %d\n",
 				     HFA384x_RID_CURRENTBSSID, result);
-				goto failed;
+				return;
 			}
 
 			result = hfa384x_drvr_getconfig(hw,
@@ -1275,7 +1275,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 				pr_debug
 				    ("getconfig(0x%02x) failed, result = %d\n",
 				     HFA384x_RID_CURRENTSSID, result);
-				goto failed;
+				return;
 			}
 			prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) &ssid,
 						(p80211pstrd_t *) &
@@ -1289,7 +1289,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 				pr_debug
 				    ("getconfig(0x%02x) failed, result = %d\n",
 				     HFA384x_RID_PORTSTATUS, result);
-				goto failed;
+				return;
 			}
 			wlandev->macmode =
 			    (portstatus == HFA384x_PSTATUS_CONN_IBSS) ?
@@ -1348,7 +1348,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		if (result) {
 			pr_debug("getconfig(0x%02x) failed, result = %d\n",
 				 HFA384x_RID_CURRENTBSSID, result);
-			goto failed;
+			return;
 		}
 
 		result = hfa384x_drvr_getconfig(hw,
@@ -1357,7 +1357,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		if (result) {
 			pr_debug("getconfig(0x%02x) failed, result = %d\n",
 				 HFA384x_RID_CURRENTSSID, result);
-			goto failed;
+			return;
 		}
 		prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) &ssid,
 					(p80211pstrd_t *) &wlandev->ssid);
@@ -1436,14 +1436,10 @@ void prism2sta_processing_defer(struct work_struct *data)
 		/* This is bad, IO port problems? */
 		printk(KERN_WARNING
 		       "unknown linkstatus=0x%02x\n", hw->link_status);
-		goto failed;
-		break;
+		return;
 	}
 
 	wlandev->linkstatus = (hw->link_status == HFA384x_LINK_CONNECTED);
-
-failed:
-	return;
 }
 
 /*----------------------------------------------------------------
