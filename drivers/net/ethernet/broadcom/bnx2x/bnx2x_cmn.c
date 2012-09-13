@@ -2283,7 +2283,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Wait for all pending SP commands to complete */
 	if (!bnx2x_wait_sp_comp(bp, ~0x0UL)) {
 		BNX2X_ERR("Timeout waiting for SP elements to complete\n");
-		bnx2x_nic_unload(bp, UNLOAD_CLOSE);
+		bnx2x_nic_unload(bp, UNLOAD_CLOSE, false);
 		return -EBUSY;
 	}
 
@@ -2331,7 +2331,7 @@ load_error0:
 }
 
 /* must be called with rtnl_lock */
-int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
+int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 {
 	int i;
 	bool global = false;
@@ -2393,7 +2393,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	/* Cleanup the chip if needed */
 	if (unload_mode != UNLOAD_RECOVERY)
-		bnx2x_chip_cleanup(bp, unload_mode);
+		bnx2x_chip_cleanup(bp, unload_mode, keep_link);
 	else {
 		/* Send the UNLOAD_REQUEST to the MCP */
 		bnx2x_send_unload_req(bp, unload_mode);
@@ -2417,7 +2417,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 		bnx2x_free_irq(bp);
 
 		/* Report UNLOAD_DONE to MCP */
-		bnx2x_send_unload_done(bp);
+		bnx2x_send_unload_done(bp, false);
 	}
 
 	/*
@@ -3768,7 +3768,7 @@ int bnx2x_reload_if_running(struct net_device *dev)
 	if (unlikely(!netif_running(dev)))
 		return 0;
 
-	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+	bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
 	return bnx2x_nic_load(bp, LOAD_NORMAL);
 }
 
@@ -3965,7 +3965,7 @@ int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	netif_device_detach(dev);
 
-	bnx2x_nic_unload(bp, UNLOAD_CLOSE);
+	bnx2x_nic_unload(bp, UNLOAD_CLOSE, false);
 
 	bnx2x_set_power_state(bp, pci_choose_state(pdev, state));
 
