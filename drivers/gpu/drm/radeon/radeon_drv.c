@@ -87,8 +87,8 @@ void radeon_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv);
 void radeon_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv);
-int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
-int radeon_resume_kms(struct drm_device *dev);
+int radeon_suspend_kms(struct drm_device *dev, bool suspend);
+int radeon_resume_kms(struct drm_device *dev, bool resume);
 u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc);
 int radeon_enable_vblank_kms(struct drm_device *dev, int crtc);
 void radeon_disable_vblank_kms(struct drm_device *dev, int crtc);
@@ -352,19 +352,42 @@ radeon_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static int
-radeon_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int radeon_pmops_suspend(struct device *dev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	return radeon_suspend_kms(dev, state);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	return radeon_suspend_kms(drm_dev, 1);
 }
 
-static int
-radeon_pci_resume(struct pci_dev *pdev)
+static int radeon_pmops_resume(struct device *dev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
-	return radeon_resume_kms(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	return radeon_resume_kms(drm_dev, 1);
 }
+
+static int radeon_pmops_freeze(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	return radeon_suspend_kms(drm_dev, 0);
+}
+
+static int radeon_pmops_thaw(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	return radeon_resume_kms(drm_dev, 0);
+}
+
+static const struct dev_pm_ops radeon_pm_ops = {
+	.suspend = radeon_pmops_suspend,
+	.resume = radeon_pmops_resume,
+	.freeze = radeon_pmops_freeze,
+	.thaw = radeon_pmops_thaw,
+	.poweroff = radeon_pmops_freeze,
+	.restore = radeon_pmops_resume,
+};
 
 static const struct file_operations radeon_driver_kms_fops = {
 	.owner = THIS_MODULE,
@@ -391,8 +414,6 @@ static struct drm_driver kms_driver = {
 	.postclose = radeon_driver_postclose_kms,
 	.lastclose = radeon_driver_lastclose_kms,
 	.unload = radeon_driver_unload_kms,
-	.suspend = radeon_suspend_kms,
-	.resume = radeon_resume_kms,
 	.get_vblank_counter = radeon_get_vblank_counter_kms,
 	.enable_vblank = radeon_enable_vblank_kms,
 	.disable_vblank = radeon_disable_vblank_kms,
@@ -449,8 +470,7 @@ static struct pci_driver radeon_kms_pci_driver = {
 	.id_table = pciidlist,
 	.probe = radeon_pci_probe,
 	.remove = radeon_pci_remove,
-	.suspend = radeon_pci_suspend,
-	.resume = radeon_pci_resume,
+	.driver.pm = &radeon_pm_ops,
 };
 
 static int __init radeon_init(void)
