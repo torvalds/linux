@@ -568,6 +568,7 @@ config ARCH_MVEBU
 	select IRQ_DOMAIN
 	select COMMON_CLK
 	select PLAT_ORION
+	select PINCTRL
 	help
 	  Support for the Marvell SoC Family with device tree support
 
