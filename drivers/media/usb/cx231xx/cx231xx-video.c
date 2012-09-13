@@ -1231,44 +1231,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
-{
-	struct cx231xx_fh *fh = priv;
-	struct cx231xx *dev = fh->dev;
-
-	switch (a->index) {
-	case CX231XX_AMUX_VIDEO:
-		strcpy(a->name, "Television");
-		break;
-	case CX231XX_AMUX_LINE_IN:
-		strcpy(a->name, "Line In");
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	a->index = dev->ctl_ainput;
-	a->capability = V4L2_AUDCAP_STEREO;
-
-	return 0;
-}
-
-static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio *a)
-{
-	struct cx231xx_fh *fh = priv;
-	struct cx231xx *dev = fh->dev;
-	int status = 0;
-
-	/* Doesn't allow manual routing */
-	if (a->index != dev->ctl_ainput)
-		return -EINVAL;
-
-	dev->ctl_ainput = INPUT(a->index)->amux;
-	status = cx231xx_set_audio_input(dev, dev->ctl_ainput);
-
-	return status;
-}
-
 static int vidioc_queryctrl(struct file *file, void *priv,
 			    struct v4l2_queryctrl *qc)
 {
@@ -1878,8 +1840,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 	if (vdev->vfl_type == VFL_TYPE_RADIO)
 		cap->device_caps = V4L2_CAP_RADIO;
 	else {
-		cap->device_caps = V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
-			V4L2_CAP_STREAMING;
+		cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 		if (vdev->vfl_type == VFL_TYPE_VBI)
 			cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
 		else
@@ -1887,9 +1848,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 	}
 	if (dev->tuner_type != TUNER_ABSENT)
 		cap->device_caps |= V4L2_CAP_TUNER;
-	cap->capabilities = cap->device_caps |
+	cap->capabilities = cap->device_caps | V4L2_CAP_READWRITE |
 		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
 	if (dev->radio_dev)
 		cap->capabilities |= V4L2_CAP_RADIO;
@@ -2464,8 +2424,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vbi_cap          = vidioc_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap        = vidioc_try_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap          = vidioc_try_fmt_vbi_cap,
-	.vidioc_g_audio                =  vidioc_g_audio,
-	.vidioc_s_audio                = vidioc_s_audio,
 	.vidioc_cropcap                = vidioc_cropcap,
 	.vidioc_g_fmt_sliced_vbi_cap   = vidioc_g_fmt_sliced_vbi_cap,
 	.vidioc_try_fmt_sliced_vbi_cap = vidioc_try_set_sliced_vbi_cap,
@@ -2554,6 +2512,12 @@ static struct video_device *cx231xx_vdev_init(struct cx231xx *dev,
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);
 
 	video_set_drvdata(vfd, dev);
+	if (dev->tuner_type == TUNER_ABSENT) {
+		v4l2_disable_ioctl(vfd, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(vfd, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(vfd, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(vfd, VIDIOC_S_TUNER);
+	}
 	return vfd;
 }
 
