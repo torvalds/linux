@@ -17,6 +17,7 @@
 #include <linux/mfd/max8997.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/machine.h>
 #include <linux/serial_core.h>
@@ -222,6 +223,10 @@ static struct platform_pwm_backlight_data smdk4x12_bl_data = {
 	.pwm_period_ns  = 1000,
 };
 
+static struct pwm_lookup smdk4x12_pwm_lookup[] = {
+	PWM_LOOKUP("s3c24xx-pwm.1", 0, "pwm-backlight.0", NULL),
+};
+
 static uint32_t smdk4x12_keymap[] __initdata = {
 	/* KEY(row, col, keycode) */
 	KEY(1, 3, KEY_1), KEY(1, 4, KEY_2), KEY(1, 5, KEY_3),
@@ -349,6 +354,7 @@ static void __init smdk4x12_machine_init(void)
 				ARRAY_SIZE(smdk4x12_i2c_devs7));
 
 	samsung_bl_set(&smdk4x12_bl_gpio_info, &smdk4x12_bl_data);
+	pwm_add_table(smdk4x12_pwm_lookup, ARRAY_SIZE(smdk4x12_pwm_lookup));
 
 	samsung_keypad_set_platdata(&smdk4x12_keypad_data);
 

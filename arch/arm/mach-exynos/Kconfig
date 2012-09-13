@@ -384,6 +384,7 @@ config MACH_SMDK4212
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
+	select S3C24XX_PWM
 	help
 	  Machine support for Samsung SMDK4212
 
