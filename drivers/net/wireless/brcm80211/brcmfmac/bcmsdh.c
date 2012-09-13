@@ -185,7 +185,7 @@ brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 	return err;
 }
 
-static int
+int
 brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 			void *data, bool write)
 {
