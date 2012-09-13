@@ -24,6 +24,8 @@
 #include <net/nfc/hci.h>
 #include <linux/skbuff.h>
 
+#define LLC_NOP_NAME "nop"
+
 typedef void (*rcv_to_hci_t) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
 typedef int (*xmit_to_drv_t) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
 typedef void (*llc_failure_t) (struct nfc_hci_dev *hdev, int err);

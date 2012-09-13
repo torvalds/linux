@@ -28,7 +28,7 @@ int nfc_llc_init(void)
 {
 	INIT_LIST_HEAD(&llc_engines);
 
-	return 0;
+	return nfc_llc_nop_register();
 }
 EXPORT_SYMBOL(nfc_llc_init);
 
