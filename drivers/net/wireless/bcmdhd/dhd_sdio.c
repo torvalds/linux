@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 354488 2012-08-31 07:18:10Z $
+ * $Id: dhd_sdio.c 355144 2012-09-05 14:04:28Z $
  */
 
 #include <typedefs.h>
@@ -4666,18 +4666,12 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 
 			if (PKTLEN(osh, pfirst) == 0) {
 				PKTFREE(bus->dhd->osh, pfirst, FALSE);
-				if (plast) {
-					PKTSETNEXT(osh, plast, pnext);
-				}
 				continue;
 			} else if (dhd_prot_hdrpull(bus->dhd, &ifidx, pfirst, reorder_info_buf,
 				&reorder_info_len) != 0) {
 				DHD_ERROR(("%s: rx protocol error\n", __FUNCTION__));
 				bus->dhd->rx_errors++;
 				PKTFREE(osh, pfirst, FALSE);
-				if (plast) {
-					PKTSETNEXT(osh, plast, pnext);
-				}
 				continue;
 			}
 			if (reorder_info_len) {
@@ -4690,9 +4684,6 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 					reorder_info_len, &ppfirst, &free_buf_count);
 
 				if (free_buf_count == 0) {
-					if (plast) {
-						PKTSETNEXT(osh, plast, pnext);
-					}
 					continue;
 				}
 				else {
@@ -4712,14 +4703,12 @@ dhdsdio_rxglom(dhd_bus_t *bus, uint8 rxseq)
 						PKTSETNEXT(osh, list_tail[ifidx], ppfirst);
 						list_tail[ifidx] = pfirst;
 					}
-					plast = pfirst;
 				}
 
 				num += (uint8)free_buf_count;
 			}
 			else {
 				/* this packet will go up, link back into chain and count it */
-				plast = pfirst;
 
 				if (list_tail[ifidx] == NULL) {
 					list_head[ifidx] = list_tail[ifidx] = pfirst;
