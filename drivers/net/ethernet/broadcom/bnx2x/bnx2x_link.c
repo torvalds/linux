@@ -7367,6 +7367,22 @@ static void bnx2x_8073_set_pause_cl37(struct link_params *params,
 	msleep(500);
 }
 
+static void bnx2x_8073_specific_func(struct bnx2x_phy *phy,
+				     struct link_params *params,
+				     u32 action)
+{
+	struct bnx2x *bp = params->bp;
+	switch (action) {
+	case PHY_INIT:
+		/* Enable LASI */
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL, (1<<2));
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL,  0x0004);
+		break;
+	}
+}
+
 static int bnx2x_8073_config_init(struct bnx2x_phy *phy,
 				  struct link_params *params,
 				  struct link_vars *vars)
@@ -7387,12 +7403,7 @@ static int bnx2x_8073_config_init(struct bnx2x_phy *phy,
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
 		       MISC_REGISTERS_GPIO_OUTPUT_HIGH, gpio_port);
 
-	/* Enable LASI */
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL, (1<<2));
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL,  0x0004);
-
+	bnx2x_8073_specific_func(phy, params, PHY_INIT);
 	bnx2x_8073_set_pause_cl37(params, phy, vars);
 
 	bnx2x_cl45_read(bp, phy,
@@ -8427,7 +8438,7 @@ static void bnx2x_8727_specific_func(struct bnx2x_phy *phy,
 				     u32 action)
 {
 	struct bnx2x *bp = params->bp;
-
+	u16 val;
 	switch (action) {
 	case DISABLE_TX:
 		bnx2x_sfp_set_transmitter(params, phy, 0);
@@ -8435,6 +8446,40 @@ static void bnx2x_8727_specific_func(struct bnx2x_phy *phy,
 	case ENABLE_TX:
 		if (!(phy->flags & FLAGS_SFP_NOT_APPROVED))
 			bnx2x_sfp_set_transmitter(params, phy, 1);
+		break;
+	case PHY_INIT:
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL,
+				 (1<<2) | (1<<5));
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_TXCTRL,
+				 0);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL, 0x0006);
+		/* Make MOD_ABS give interrupt on change */
+		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_8727_PCS_OPT_CTRL,
+				&val);
+		val |= (1<<12);
+		if (phy->flags & FLAGS_NOC)
+			val |= (3<<5);
+		/* Set 8727 GPIOs to input to allow reading from the 8727 GPIO0
+		 * status which reflect SFP+ module over-current
+		 */
+		if (!(phy->flags & FLAGS_NOC))
+			val &= 0xff8f; /* Reset bits 4-6 */
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_REG_8727_PCS_OPT_CTRL,
+				 val);
+
+		/* Set 2-wire transfer rate of SFP+ module EEPROM
+		 * to 100Khz since some DACs(direct attached cables) do
+		 * not work at 400Khz.
+		 */
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD,
+				 MDIO_PMA_REG_8727_TWO_WIRE_SLAVE_ADDR,
+				 0xa001);
 		break;
 	default:
 		DP(NETIF_MSG_LINK, "Function 0x%x not supported by 8727\n",
@@ -9218,28 +9263,15 @@ static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 				  struct link_vars *vars)
 {
 	u32 tx_en_mode;
-	u16 tmp1, val, mod_abs, tmp2;
-	u16 rx_alarm_ctrl_val;
-	u16 lasi_ctrl_val;
+	u16 tmp1, mod_abs, tmp2;
 	struct bnx2x *bp = params->bp;
 	/* Enable PMD link, MOD_ABS_FLT, and 1G link alarm */
 
 	bnx2x_wait_reset_complete(bp, phy, params);
-	rx_alarm_ctrl_val = (1<<2) | (1<<5) ;
-	/* Should be 0x6 to enable XS on Tx side. */
-	lasi_ctrl_val = 0x0006;
 
 	DP(NETIF_MSG_LINK, "Initializing BCM8727\n");
-	/* Enable LASI */
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL,
-			 rx_alarm_ctrl_val);
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_TXCTRL,
-			 0);
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL, lasi_ctrl_val);
 
+	bnx2x_8727_specific_func(phy, params, PHY_INIT);
 	/* Initially configure MOD_ABS to interrupt when module is
 	 * presence( bit 8)
 	 */
@@ -9255,24 +9287,8 @@ static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD, MDIO_PMA_REG_PHY_IDENTIFIER, mod_abs);
 
-
 	/* Enable/Disable PHY transmitter output */
 	bnx2x_set_disable_pmd_transmit(params, phy, 0);
-
-	/* Make MOD_ABS give interrupt on change */
-	bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, MDIO_PMA_REG_8727_PCS_OPT_CTRL,
-			&val);
-	val |= (1<<12);
-	if (phy->flags & FLAGS_NOC)
-		val |= (3<<5);
-
-	/* Set 8727 GPIOs to input to allow reading from the 8727 GPIO0
-	 * status which reflect SFP+ module over-current
-	 */
-	if (!(phy->flags & FLAGS_NOC))
-		val &= 0xff8f; /* Reset bits 4-6 */
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_REG_8727_PCS_OPT_CTRL, val);
 
 	bnx2x_8727_power_module(bp, phy, 1);
 
@@ -9283,13 +9299,7 @@ static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXSTAT, &tmp1);
 
 	bnx2x_8727_config_speed(phy, params);
-	/* Set 2-wire transfer rate of SFP+ module EEPROM
-	 * to 100Khz since some DACs(direct attached cables) do
-	 * not work at 400Khz.
-	 */
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_REG_8727_TWO_WIRE_SLAVE_ADDR,
-			 0xa001);
+
 
 	/* Set TX PreEmphasis if needed */
 	if ((params->feature_config_flags &
@@ -9718,6 +9728,29 @@ static void bnx2x_848xx_set_led(struct bnx2x *bp,
 			 0xFFFB, 0xFFFD);
 }
 
+static void bnx2x_848xx_specific_func(struct bnx2x_phy *phy,
+				      struct link_params *params,
+				      u32 action)
+{
+	struct bnx2x *bp = params->bp;
+	switch (action) {
+	case PHY_INIT:
+		if (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+			/* Save spirom version */
+			bnx2x_save_848xx_spirom_version(phy, bp, params->port);
+		}
+		/* This phy uses the NIG latch mechanism since link indication
+		 * arrives through its LED4 and not via its LASI signal, so we
+		 * get steady signal instead of clear on read
+		 */
+		bnx2x_bits_en(bp, NIG_REG_LATCH_BC_0 + params->port*4,
+			      1 << NIG_LATCH_BC_ENABLE_MI_INT);
+
+		bnx2x_848xx_set_led(bp, phy);
+		break;
+	}
+}
+
 static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 				       struct link_params *params,
 				       struct link_vars *vars)
@@ -9725,21 +9758,9 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	u16 autoneg_val, an_1000_val, an_10_100_val, an_10g_val;
 
-	if (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
-		/* Save spirom version */
-		bnx2x_save_848xx_spirom_version(phy, bp, params->port);
-	}
-	/* This phy uses the NIG latch mechanism since link indication
-	 * arrives through its LED4 and not via its LASI signal, so we
-	 * get steady signal instead of clear on read
-	 */
-	bnx2x_bits_en(bp, NIG_REG_LATCH_BC_0 + params->port*4,
-		      1 << NIG_LATCH_BC_ENABLE_MI_INT);
-
+	bnx2x_848xx_specific_func(phy, params, PHY_INIT);
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, 0x0000);
-
-	bnx2x_848xx_set_led(bp, phy);
 
 	/* set 1000 speed advertisement */
 	bnx2x_cl45_read(bp, phy,
@@ -10645,6 +10666,35 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 /******************************************************************/
 /*			54618SE PHY SECTION			  */
 /******************************************************************/
+static void bnx2x_54618se_specific_func(struct bnx2x_phy *phy,
+					struct link_params *params,
+					u32 action)
+{
+	struct bnx2x *bp = params->bp;
+	u16 temp;
+	switch (action) {
+	case PHY_INIT:
+		/* Configure LED4: set to INTR (0x6). */
+		/* Accessing shadow register 0xe. */
+		bnx2x_cl22_write(bp, phy,
+				 MDIO_REG_GPHY_SHADOW,
+				 MDIO_REG_GPHY_SHADOW_LED_SEL2);
+		bnx2x_cl22_read(bp, phy,
+				MDIO_REG_GPHY_SHADOW,
+				&temp);
+		temp &= ~(0xf << 4);
+		temp |= (0x6 << 4);
+		bnx2x_cl22_write(bp, phy,
+				 MDIO_REG_GPHY_SHADOW,
+				 MDIO_REG_GPHY_SHADOW_WR_ENA | temp);
+		/* Configure INTR based on link status change. */
+		bnx2x_cl22_write(bp, phy,
+				 MDIO_REG_INTR_MASK,
+				 ~MDIO_REG_INTR_MASK_LINK_STATUS);
+		break;
+	}
+}
+
 static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 					       struct link_params *params,
 					       struct link_vars *vars)
@@ -10682,24 +10732,8 @@ static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 	/* Wait for GPHY to reset */
 	msleep(50);
 
-	/* Configure LED4: set to INTR (0x6). */
-	/* Accessing shadow register 0xe. */
-	bnx2x_cl22_write(bp, phy,
-			MDIO_REG_GPHY_SHADOW,
-			MDIO_REG_GPHY_SHADOW_LED_SEL2);
-	bnx2x_cl22_read(bp, phy,
-			MDIO_REG_GPHY_SHADOW,
-			&temp);
-	temp &= ~(0xf << 4);
-	temp |= (0x6 << 4);
-	bnx2x_cl22_write(bp, phy,
-			MDIO_REG_GPHY_SHADOW,
-			MDIO_REG_GPHY_SHADOW_WR_ENA | temp);
-	/* Configure INTR based on link status change. */
-	bnx2x_cl22_write(bp, phy,
-			MDIO_REG_INTR_MASK,
-			~MDIO_REG_INTR_MASK_LINK_STATUS);
 
+	bnx2x_54618se_specific_func(phy, params, PHY_INIT);
 	/* Flip the signal detect polarity (set 0x1c.0x1e[8]). */
 	bnx2x_cl22_write(bp, phy,
 			MDIO_REG_GPHY_SHADOW,
@@ -11434,7 +11468,7 @@ static struct bnx2x_phy phy_8073 = {
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_format_ver,
 	.hw_reset	= (hw_reset_t)NULL,
 	.set_link_led	= (set_link_led_t)NULL,
-	.phy_specific_func = (phy_specific_func_t)NULL
+	.phy_specific_func = (phy_specific_func_t)bnx2x_8073_specific_func
 };
 static struct bnx2x_phy phy_8705 = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705,
@@ -11627,7 +11661,7 @@ static struct bnx2x_phy phy_84823 = {
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_848xx_format_ver,
 	.hw_reset	= (hw_reset_t)NULL,
 	.set_link_led	= (set_link_led_t)bnx2x_848xx_set_link_led,
-	.phy_specific_func = (phy_specific_func_t)NULL
+	.phy_specific_func = (phy_specific_func_t)bnx2x_848xx_specific_func
 };
 
 static struct bnx2x_phy phy_84833 = {
@@ -11662,7 +11696,7 @@ static struct bnx2x_phy phy_84833 = {
 	.format_fw_ver	= (format_fw_ver_t)bnx2x_848xx_format_ver,
 	.hw_reset	= (hw_reset_t)bnx2x_84833_hw_reset_phy,
 	.set_link_led	= (set_link_led_t)bnx2x_848xx_set_link_led,
-	.phy_specific_func = (phy_specific_func_t)NULL
+	.phy_specific_func = (phy_specific_func_t)bnx2x_848xx_specific_func
 };
 
 static struct bnx2x_phy phy_54618se = {
@@ -11696,7 +11730,7 @@ static struct bnx2x_phy phy_54618se = {
 	.format_fw_ver	= (format_fw_ver_t)NULL,
 	.hw_reset	= (hw_reset_t)NULL,
 	.set_link_led	= (set_link_led_t)bnx2x_5461x_set_link_led,
-	.phy_specific_func = (phy_specific_func_t)NULL
+	.phy_specific_func = (phy_specific_func_t)bnx2x_54618se_specific_func
 };
 /*****************************************************************/
 /*                                                               */

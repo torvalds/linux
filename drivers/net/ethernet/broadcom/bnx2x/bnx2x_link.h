@@ -216,6 +216,7 @@ struct bnx2x_phy {
 	phy_specific_func_t phy_specific_func;
 #define DISABLE_TX	1
 #define ENABLE_TX	2
+#define PHY_INIT	3
 };
 
 /* Inputs parameters to the CLC */
