@@ -976,7 +976,8 @@ err_msgq:
 	spi_set_ctldata(spi, NULL);
 
 err_gpio_req:
-	kfree(cs);
+	if (spi->dev.of_node)
+		kfree(cs);
 
 	return err;
 }
