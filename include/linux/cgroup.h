@@ -48,7 +48,7 @@ extern const struct file_operations proc_cgroup_operations;
 #define SUBSYS(_x) _x ## _subsys_id,
 enum cgroup_subsys_id {
 #include <linux/cgroup_subsys.h>
-	CGROUP_BUILTIN_SUBSYS_COUNT
+	__CGROUP_TEMPORARY_PLACEHOLDER
 };
 #undef SUBSYS
 /*
