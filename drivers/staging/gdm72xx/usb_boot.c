@@ -18,6 +18,7 @@
 #include <linux/usb.h>
 #include <linux/unistd.h>
 #include <linux/slab.h>
+#include <linux/firmware.h>
 
 #include <asm/byteorder.h>
 #include "gdm_usb.h"
@@ -28,11 +29,9 @@
 
 #define DOWNLOAD_SIZE		1024
 
-#define DH2B(x)			__cpu_to_be32(x)
-#define DL2H(x)			__le32_to_cpu(x)
-
 #define MAX_IMG_CNT		16
-#define UIMG_PATH		"/lib/firmware/gdm72xx/gdmuimg.bin"
+#define FW_DIR			"gdm72xx/"
+#define FW_UIMG			"gdmuimg.bin"
 #define KERN_PATH		"/lib/firmware/gdm72xx/zImage"
 #define FS_PATH			"/lib/firmware/gdm72xx/ramdisk.jffs2"
 
@@ -69,7 +68,7 @@ static void array_le32_to_cpu(u32 *arr, int num)
 {
 	int i;
 	for (i = 0; i < num; i++, arr++)
-		*arr = DL2H(*arr);
+		*arr = __le32_to_cpu(*arr);
 }
 
 static u8 *tx_buf;
@@ -105,44 +104,37 @@ static int gdm_wibro_recv(struct usb_device *usbdev, void *data, int len)
 	return 0;
 }
 
-static int download_image(struct usb_device *usbdev, struct file *filp,
-				loff_t *pos, u32 img_len, u32 magic_num)
+static int download_image(struct usb_device *usbdev,
+				const struct firmware *firm,
+				loff_t pos, u32 img_len, u32 magic_num)
 {
 	struct dn_header h;
 	int ret = 0;
 	u32 size;
-	int len, readn;
 
-	size = (img_len + DOWNLOAD_SIZE - 1) & ~(DOWNLOAD_SIZE - 1);
-	h.magic_num = DH2B(magic_num);
-	h.file_size = DH2B(size);
+	size = ALIGN(img_len, DOWNLOAD_SIZE);
+	h.magic_num = __cpu_to_be32(magic_num);
+	h.file_size = __cpu_to_be32(size);
 
 	ret = gdm_wibro_send(usbdev, &h, sizeof(h));
 	if (ret < 0)
-		goto out;
+		return ret;
 
-	readn = 0;
-	while ((len = filp->f_op->read(filp, tx_buf, DOWNLOAD_SIZE, pos))) {
+	while (img_len > 0) {
+		if (img_len > DOWNLOAD_SIZE)
+			size = DOWNLOAD_SIZE;
+		else
+			size = img_len;	/* the last chunk of data */
 
-		if (len < 0) {
-			ret = -1;
-			goto out;
-		}
-		readn += len;
+		memcpy(tx_buf, firm->data + pos, size);
+		ret = gdm_wibro_send(usbdev, tx_buf, size);
 
-		ret = gdm_wibro_send(usbdev, tx_buf, DOWNLOAD_SIZE);
 		if (ret < 0)
-			goto out;
-		if (readn >= img_len)
-			break;
-	}
+			return ret;
 
-	if (readn < img_len) {
-		printk(KERN_ERR "gdmwm: Cannot read to the requested size. "
-			"Read = %d Requested = %d\n", readn, img_len);
-		ret = -EIO;
+		img_len -= size;
+		pos += size;
 	}
-out:
 
 	return ret;
 }
@@ -150,14 +142,19 @@ out:
 int usb_boot(struct usb_device *usbdev, u16 pid)
 {
 	int i, ret = 0;
-	struct file *filp = NULL;
-	struct inode *inode = NULL;
-	static mm_segment_t fs;
 	struct img_header hdr;
 	struct fw_info fw_info;
 	loff_t pos = 0;
-	char *img_name = UIMG_PATH;
-	int len;
+	char *img_name = FW_DIR FW_UIMG;
+	const struct firmware *firm;
+
+	ret = request_firmware(&firm, img_name, &usbdev->dev);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "requesting firmware %s failed with error %d\n",
+			img_name, ret);
+		return ret;
+	}
 
 	tx_buf = kmalloc(DOWNLOAD_SIZE, GFP_KERNEL);
 	if (tx_buf == NULL) {
@@ -165,29 +162,12 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 		return -ENOMEM;
 	}
 
-	fs = get_fs();
-	set_fs(get_ds());
-
-	filp = filp_open(img_name, O_RDONLY | O_LARGEFILE, 0);
-	if (IS_ERR(filp)) {
-		printk(KERN_ERR "Can't find %s.\n", img_name);
-		ret = PTR_ERR(filp);
-		goto restore_fs;
-	}
-
-	inode = filp->f_dentry->d_inode;
-	if (!S_ISREG(inode->i_mode)) {
-		printk(KERN_ERR "Invalid file type: %s\n", img_name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	len = filp->f_op->read(filp, (u8 *)&hdr, sizeof(hdr), &pos);
-	if (len != sizeof(hdr)) {
+	if (firm->size < sizeof(hdr)) {
 		printk(KERN_ERR "gdmwm: Cannot read the image info.\n");
 		ret = -EIO;
 		goto out;
 	}
+	memcpy(&hdr, firm->data, sizeof(hdr));
 
 	array_le32_to_cpu((u32 *)&hdr, 19);
 #if 0
@@ -215,13 +195,12 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 		}
 
 		pos = hdr.offset[i];
-		len = filp->f_op->read(filp, (u8 *)&fw_info, sizeof(fw_info),
-					&pos);
-		if (len != sizeof(fw_info)) {
+		if (firm->size < sizeof(fw_info) + pos) {
 			printk(KERN_ERR "gdmwm: Cannot read the FW info.\n");
 			ret = -EIO;
 			goto out;
 		}
+		memcpy(&fw_info, firm->data + pos, sizeof(fw_info));
 
 		array_le32_to_cpu((u32 *)&fw_info, 8);
 #if 0
@@ -237,14 +216,23 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 			continue;
 
 		pos = hdr.offset[i] + fw_info.kernel_offset;
-		ret = download_image(usbdev, filp, &pos, fw_info.kernel_len,
-				DN_KERNEL_MAGIC_NUMBER);
+		if (firm->size < fw_info.kernel_len + pos) {
+			printk(KERN_ERR "gdmwm: Kernel FW is too small.\n");
+			goto out;
+		}
+
+		ret = download_image(usbdev, firm, pos,
+				fw_info.kernel_len, DN_KERNEL_MAGIC_NUMBER);
 		if (ret < 0)
 			goto out;
 		printk(KERN_INFO "GCT: Kernel download success.\n");
 
 		pos = hdr.offset[i] + fw_info.rootfs_offset;
-		ret = download_image(usbdev, filp, &pos, fw_info.rootfs_len,
+		if (firm->size < fw_info.rootfs_len + pos) {
+			printk(KERN_ERR "gdmwm: Filesystem FW is too small.\n");
+			goto out;
+		}
+		ret = download_image(usbdev, firm, pos, fw_info.rootfs_len,
 				DN_ROOTFS_MAGIC_NUMBER);
 		if (ret < 0)
 			goto out;
@@ -258,10 +246,7 @@ int usb_boot(struct usb_device *usbdev, u16 pid)
 		ret = -EINVAL;
 	}
 out:
-	filp_close(filp, NULL);
-
-restore_fs:
-	set_fs(fs);
+	release_firmware(firm);
 	kfree(tx_buf);
 	return ret;
 }
