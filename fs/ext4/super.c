@@ -2585,10 +2585,12 @@ static struct attribute *ext4_attrs[] = {
 /* Features this copy of ext4 supports */
 EXT4_INFO_ATTR(lazy_itable_init);
 EXT4_INFO_ATTR(batched_discard);
+EXT4_INFO_ATTR(meta_bg_resize);
 
 static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(lazy_itable_init),
 	ATTR_LIST(batched_discard),
+	ATTR_LIST(meta_bg_resize),
 	NULL,
 };
 
