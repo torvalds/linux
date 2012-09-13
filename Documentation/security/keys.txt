@@ -412,6 +412,10 @@ The main syscalls are:
      to the keyring. In this case, an error will be generated if the process
      does not have permission to write to the keyring.
 
+     If the key type supports it, if the description is NULL or an empty
+     string, the key type will try and generate a description from the content
+     of the payload.
+
      The payload is optional, and the pointer can be NULL if not required by
      the type. The payload is plen in size, and plen can be zero for an empty
      payload.
@@ -1114,11 +1118,52 @@ The structure has a number of fields, some of which are mandatory:
      it should return 0.
 
 
- (*) int (*instantiate)(struct key *key, const void *data, size_t datalen);
+ (*) int (*preparse)(struct key_preparsed_payload *prep);
+
+     This optional method permits the key type to attempt to parse payload
+     before a key is created (add key) or the key semaphore is taken (update or
+     instantiate key).  The structure pointed to by prep looks like:
+
+	struct key_preparsed_payload {
+		char		*description;
+		void		*type_data[2];
+		void		*payload;
+		const void	*data;
+		size_t		datalen;
+		size_t		quotalen;
+	};
+
+     Before calling the method, the caller will fill in data and datalen with
+     the payload blob parameters; quotalen will be filled in with the default
+     quota size from the key type and the rest will be cleared.
+
+     If a description can be proposed from the payload contents, that should be
+     attached as a string to the description field.  This will be used for the
+     key description if the caller of add_key() passes NULL or "".
+
+     The method can attach anything it likes to type_data[] and payload.  These
+     are merely passed along to the instantiate() or update() operations.
+
+     The method should return 0 if success ful or a negative error code
+     otherwise.
+
+     
+ (*) void (*free_preparse)(struct key_preparsed_payload *prep);
+
+     This method is only required if the preparse() method is provided,
+     otherwise it is unused.  It cleans up anything attached to the
+     description, type_data and payload fields of the key_preparsed_payload
+     struct as filled in by the preparse() method.
+
+
+ (*) int (*instantiate)(struct key *key, struct key_preparsed_payload *prep);
 
      This method is called to attach a payload to a key during construction.
      The payload attached need not bear any relation to the data passed to this
      function.
+
+     The prep->data and prep->datalen fields will define the original payload
+     blob.  If preparse() was supplied then other fields may be filled in also.
 
      If the amount of data attached to the key differs from the size in
      keytype->def_datalen, then key_payload_reserve() should be called.
@@ -1134,6 +1179,9 @@ The structure has a number of fields, some of which are mandatory:
 
      If this type of key can be updated, then this method should be provided.
      It is called to update a key's payload from the blob of data provided.
+
+     The prep->data and prep->datalen fields will define the original payload
+     blob.  If preparse() was supplied then other fields may be filled in also.
 
      key_payload_reserve() should be called if the data length might change
      before any changes are actually made. Note that if this succeeds, the type

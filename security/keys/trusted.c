@@ -927,22 +927,23 @@ static struct trusted_key_payload *trusted_payload_alloc(struct key *key)
  *
  * On success, return 0. Otherwise return errno.
  */
-static int trusted_instantiate(struct key *key, const void *data,
-			       size_t datalen)
+static int trusted_instantiate(struct key *key,
+			       struct key_preparsed_payload *prep)
 {
 	struct trusted_key_payload *payload = NULL;
 	struct trusted_key_options *options = NULL;
+	size_t datalen = prep->datalen;
 	char *datablob;
 	int ret = 0;
 	int key_cmd;
 
-	if (datalen <= 0 || datalen > 32767 || !data)
+	if (datalen <= 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
 
 	datablob = kmalloc(datalen + 1, GFP_KERNEL);
 	if (!datablob)
 		return -ENOMEM;
-	memcpy(datablob, data, datalen);
+	memcpy(datablob, prep->data, datalen);
 	datablob[datalen] = '\0';
 
 	options = trusted_options_alloc();
@@ -1011,17 +1012,18 @@ static void trusted_rcu_free(struct rcu_head *rcu)
 /*
  * trusted_update - reseal an existing key with new PCR values
  */
-static int trusted_update(struct key *key, const void *data, size_t datalen)
+static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 {
 	struct trusted_key_payload *p = key->payload.data;
 	struct trusted_key_payload *new_p;
 	struct trusted_key_options *new_o;
+	size_t datalen = prep->datalen;
 	char *datablob;
 	int ret = 0;
 
 	if (!p->migratable)
 		return -EPERM;
-	if (datalen <= 0 || datalen > 32767 || !data)
+	if (datalen <= 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
 
 	datablob = kmalloc(datalen + 1, GFP_KERNEL);
@@ -1038,7 +1040,7 @@ static int trusted_update(struct key *key, const void *data, size_t datalen)
 		goto out;
 	}
 
-	memcpy(datablob, data, datalen);
+	memcpy(datablob, prep->data, datalen);
 	datablob[datalen] = '\0';
 	ret = datablob_parse(datablob, new_p, new_o);
 	if (ret != Opt_update) {
