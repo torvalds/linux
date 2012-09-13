@@ -400,8 +400,7 @@ fail:
 
 void efx_mcdi_mon_remove(struct efx_nic *efx)
 {
-	struct siena_nic_data *nic_data = efx->nic_data;
-	struct efx_mcdi_mon *hwmon = &nic_data->hwmon;
+	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
 	unsigned int i;
 
 	for (i = 0; i < hwmon->n_attrs; i++)
