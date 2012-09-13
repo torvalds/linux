@@ -159,6 +159,10 @@ config PINCTRL_KIRKWOOD
 	bool
 	select PINCTRL_MVEBU
 
+config PINCTRL_ARMADA_370
+	bool
+	select PINCTRL_MVEBU
+
 source "drivers/pinctrl/spear/Kconfig"
 
 endmenu
