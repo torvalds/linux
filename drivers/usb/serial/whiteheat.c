@@ -213,13 +213,13 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 		goto out;
 	}
 	ret = 0;
-	response = ezusb_set_reset (serial, 1);
+	response = ezusb_set_reset(serial->dev, 1);
 
 	record = (const struct ihex_binrec *)loader_fw->data;
 	while (record) {
-		response = ezusb_writememory (serial, be32_to_cpu(record->addr),
-					      (unsigned char *)record->data,
-					      be16_to_cpu(record->len), 0xa0);
+		response = ezusb_writememory(serial->dev, be32_to_cpu(record->addr),
+					     (unsigned char *)record->data,
+					     be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
 			dev_err(&serial->dev->dev, "%s - ezusb_writememory "
 				"failed for loader (%d %04X %p %d)\n",
@@ -230,15 +230,15 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 		record = ihex_next_binrec(record);
 	}
 
-	response = ezusb_set_reset(serial, 0);
+	response = ezusb_set_reset(serial->dev, 0);
 
 	record = (const struct ihex_binrec *)firmware_fw->data;
 	while (record && be32_to_cpu(record->addr) < 0x1b40)
 		record = ihex_next_binrec(record);
 	while (record) {
-		response = ezusb_writememory (serial, be32_to_cpu(record->addr),
-					      (unsigned char *)record->data,
-					      be16_to_cpu(record->len), 0xa3);
+		response = ezusb_writememory(serial->dev, be32_to_cpu(record->addr),
+					     (unsigned char *)record->data,
+					     be16_to_cpu(record->len), 0xa3);
 		if (response < 0) {
 			dev_err(&serial->dev->dev, "%s - ezusb_writememory "
 				"failed for first firmware step "
@@ -250,13 +250,13 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 		++record;
 	}
 
-	response = ezusb_set_reset(serial, 1);
+	response = ezusb_set_reset(serial->dev, 1);
 
 	record = (const struct ihex_binrec *)firmware_fw->data;
 	while (record && be32_to_cpu(record->addr) < 0x1b40) {
-		response = ezusb_writememory (serial, be32_to_cpu(record->addr),
-					      (unsigned char *)record->data,
-					      be16_to_cpu(record->len), 0xa0);
+		response = ezusb_writememory(serial->dev, be32_to_cpu(record->addr),
+					     (unsigned char *)record->data,
+					     be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
 			dev_err(&serial->dev->dev, "%s - ezusb_writememory "
 				"failed for second firmware step "
@@ -268,7 +268,7 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 		++record;
 	}
 	ret = 0;
-	response = ezusb_set_reset (serial, 0);
+	response = ezusb_set_reset(serial->dev, 0);
  out:
 	release_firmware(loader_fw);
 	release_firmware(firmware_fw);

@@ -301,9 +301,9 @@ extern void usb_serial_port_softint(struct usb_serial_port *port);
 extern int usb_serial_suspend(struct usb_interface *intf, pm_message_t message);
 extern int usb_serial_resume(struct usb_interface *intf);
 
-extern int ezusb_writememory(struct usb_serial *serial, int address,
+extern int ezusb_writememory(struct usb_device *dev, int address,
 			     unsigned char *data, int length, __u8 bRequest);
-extern int ezusb_set_reset(struct usb_serial *serial, unsigned char reset_bit);
+extern int ezusb_set_reset(struct usb_device *dev, unsigned char reset_bit);
 
 /* USB Serial console functions */
 #ifdef CONFIG_USB_SERIAL_CONSOLE

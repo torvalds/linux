@@ -1241,12 +1241,12 @@ static int keyspan_fake_startup(struct usb_serial *serial)
 	dbg("Uploading Keyspan %s firmware.", fw_name);
 
 		/* download the firmware image */
-	response = ezusb_set_reset(serial, 1);
+	response = ezusb_set_reset(serial->dev, 1);
 
 	record = (const struct ihex_binrec *)fw->data;
 
 	while (record) {
-		response = ezusb_writememory(serial, be32_to_cpu(record->addr),
+		response = ezusb_writememory(serial->dev, be32_to_cpu(record->addr),
 					     (unsigned char *)record->data,
 					     be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
@@ -1260,7 +1260,7 @@ static int keyspan_fake_startup(struct usb_serial *serial)
 	release_firmware(fw);
 		/* bring device out of reset. Renumeration will occur in a
 		   moment and the new device will bind to the real driver */
-	response = ezusb_set_reset(serial, 0);
+	response = ezusb_set_reset(serial->dev, 0);
 
 	/* we don't want this device to have a driver assigned to it. */
 	return 1;
