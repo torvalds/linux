@@ -242,7 +242,6 @@ static int prism2sta_close(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 static void prism2sta_reset(wlandevice_t *wlandev)
 {
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -988,7 +987,6 @@ static void prism2sta_inf_handover(wlandevice_t *wlandev,
 				   hfa384x_InfFrame_t *inf)
 {
 	pr_debug("received infoframe:HANDOVER (unhandled)\n");
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1035,8 +1033,6 @@ static void prism2sta_inf_tallies(wlandevice_t *wlandev,
 		for (i = 0; i < cnt; i++, dst++, src16++)
 			*dst += le16_to_cpu(*src16);
 	}
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1093,8 +1089,6 @@ static void prism2sta_inf_scanresults(wlandevice_t *wlandev,
 		printk(KERN_ERR "setconfig(joinreq) failed, result=%d\n",
 		       result);
 	}
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1194,7 +1188,6 @@ static void prism2sta_inf_chinforesults(wlandevice_t *wlandev,
 	atomic_set(&hw->channel_info.done, 2);
 
 	hw->channel_info.count = n;
-	return;
 }
 
 void prism2sta_processing_defer(struct work_struct *data)
@@ -1478,8 +1471,6 @@ static void prism2sta_inf_linkstatus(wlandevice_t *wlandev,
 	hw->link_status_new = le16_to_cpu(inf->info.linkstatus.linkstatus);
 
 	schedule_work(&hw->link_bh);
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1540,8 +1531,6 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 			printk(KERN_WARNING
 "authfail assocstatus info frame received for authenticated station.\n");
 	}
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1731,7 +1720,6 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 		       "setconfig(authenticatestation) failed, result=%d\n",
 		       result);
 	}
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1758,8 +1746,6 @@ static void prism2sta_inf_psusercnt(wlandevice_t *wlandev,
 	hfa384x_t *hw = (hfa384x_t *) wlandev->priv;
 
 	hw->psusercount = le16_to_cpu(inf->info.psusercnt.usercnt);
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1825,7 +1811,6 @@ void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 		       "Unknown info type=0x%02x\n", inf->infotype);
 		break;
 	}
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1850,8 +1835,6 @@ void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 void prism2sta_ev_txexc(wlandevice_t *wlandev, u16 status)
 {
 	pr_debug("TxExc status=0x%x.\n", status);
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1875,7 +1858,6 @@ void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status)
 	pr_debug("Tx Complete, status=0x%04x\n", status);
 	/* update linux network stats */
 	wlandev->linux_stats.tx_packets++;
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1897,7 +1879,6 @@ void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status)
 void prism2sta_ev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 {
 	p80211netdev_rx(wlandev, skb);
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -1919,7 +1900,6 @@ void prism2sta_ev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 void prism2sta_ev_alloc(wlandevice_t *wlandev)
 {
 	netif_wake_queue(wlandev->netdev);
-	return;
 }
 
 /*----------------------------------------------------------------
