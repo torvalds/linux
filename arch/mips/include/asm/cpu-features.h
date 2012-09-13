@@ -98,9 +98,6 @@
 #ifndef cpu_has_rixi
 #define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
 #endif
-#ifndef kernel_uses_smartmips_rixi
-#define kernel_uses_smartmips_rixi 0
-#endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
 #endif
