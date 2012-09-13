@@ -3,7 +3,7 @@
 #
 
 # Common support
-obj-y := time.o devices.o cpu.o system.o irq-common.o
+obj-y := time.o cpu.o system.o irq-common.o
 
 obj-$(CONFIG_MXC_TZIC) += tzic.o
 obj-$(CONFIG_MXC_AVIC) += avic.o
@@ -18,5 +18,3 @@ ifdef CONFIG_SND_IMX_SOC
 obj-y += ssi-fiq.o
 obj-y += ssi-fiq-ksym.o
 endif
-
-obj-y += devices/

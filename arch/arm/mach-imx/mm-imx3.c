@@ -27,10 +27,10 @@
 #include <asm/mach/map.h>
 
 #include <mach/common.h>
-#include <mach/devices-common.h>
 #include <mach/hardware.h>
 
 #include "crmregs-imx3.h"
+#include "devices/devices-common.h"
 #include "iomux-v3.h"
 
 void __iomem *mx3_ccm_base;

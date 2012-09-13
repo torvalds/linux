@@ -6,7 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_imx_fb_data imx1_imx_fb_data;
 #define imx1_add_imx_fb(pdata) \

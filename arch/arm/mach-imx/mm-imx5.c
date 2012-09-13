@@ -20,8 +20,8 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/devices-common.h>
 
+#include "devices/devices-common.h"
 #include "iomux-v3.h"
 
 /*

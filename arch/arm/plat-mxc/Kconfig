@@ -1,7 +1,5 @@
 if ARCH_MXC
 
-source "arch/arm/plat-mxc/devices/Kconfig"
-
 menu "Freescale MXC Implementations"
 
 choice

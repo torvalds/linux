@@ -772,3 +772,5 @@ config SOC_IMX6Q
 	  This enables support for Freescale i.MX6 Quad processor.
 
 endif
+
+source "arch/arm/mach-imx/devices/Kconfig"
