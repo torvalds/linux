@@ -255,7 +255,10 @@ static int rk610_control_probe(struct i2c_client *client,
 	    else {
 	    	DBG("rk610_control_probe request gpio ok\n");
 	    	gpio_direction_output(RK610_RESET_PIN, GPIO_HIGH);
-		    gpio_direction_output(RK610_RESET_PIN, GPIO_LOW);
+#if defined(CONFIG_ARCH_RK3066B)
+			msleep(100);
+#endif
+			gpio_direction_output(RK610_RESET_PIN, GPIO_LOW);
 			msleep(100);
 		    gpio_set_value(RK610_RESET_PIN, GPIO_HIGH);
 		}
