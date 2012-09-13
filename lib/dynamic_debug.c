@@ -611,20 +611,40 @@ EXPORT_SYMBOL(__dynamic_dev_dbg);
 #ifdef CONFIG_NET
 
 int __dynamic_netdev_dbg(struct _ddebug *descriptor,
-		      const struct net_device *dev, const char *fmt, ...)
+			 const struct net_device *dev, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
 	int res;
-	char buf[PREFIX_SIZE];
 
 	BUG_ON(!descriptor);
 	BUG_ON(!fmt);
 
 	va_start(args, fmt);
+
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	res = __netdev_printk(dynamic_emit_prefix(descriptor, buf), dev, &vaf);
+
+	if (dev && dev->dev.parent) {
+		char buf[PREFIX_SIZE];
+		char dict[128];
+		size_t dictlen;
+
+		dictlen = create_syslog_header(dev->dev.parent,
+					       dict, sizeof(dict));
+
+		res = printk_emit(0, 7, dictlen ? dict : NULL, dictlen,
+				  "%s%s %s: %s: %pV",
+				  dynamic_emit_prefix(descriptor, buf),
+				  dev_driver_string(dev->dev.parent),
+				  dev_name(dev->dev.parent),
+				  netdev_name(dev), &vaf);
+	} else if (dev) {
+		res = printk(KERN_DEBUG "%s: %pV", netdev_name(dev), &vaf);
+	} else {
+		res = printk(KERN_DEBUG "(NULL net_device): %pV", &vaf);
+	}
+
 	va_end(args);
 
 	return res;
