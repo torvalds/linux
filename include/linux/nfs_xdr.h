@@ -652,7 +652,7 @@ struct nfs_getaclargs {
 };
 
 /* getxattr ACL interface flags */
-#define NFS4_ACL_LEN_REQUEST	0x0001	/* zero length getxattr buffer */
+#define NFS4_ACL_TRUNC		0x0001	/* ACL was truncated */
 struct nfs_getaclres {
 	size_t				acl_len;
 	size_t				acl_data_offset;

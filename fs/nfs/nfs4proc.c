@@ -3215,11 +3215,11 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 			dentry->d_parent->d_name.name,
 			dentry->d_name.name,
 			(unsigned long long)cookie);
-	nfs4_setup_readdir(cookie, NFS_COOKIEVERF(dir), dentry, &args);
+	nfs4_setup_readdir(cookie, NFS_I(dir)->cookieverf, dentry, &args);
 	res.pgbase = args.pgbase;
 	status = nfs4_call_sync(NFS_SERVER(dir)->client, NFS_SERVER(dir), &msg, &args.seq_args, &res.seq_res, 0);
 	if (status >= 0) {
-		memcpy(NFS_COOKIEVERF(dir), res.verifier.data, NFS4_VERIFIER_SIZE);
+		memcpy(NFS_I(dir)->cookieverf, res.verifier.data, NFS4_VERIFIER_SIZE);
 		status += args.pgbase;
 	}
 
@@ -3653,11 +3653,11 @@ static inline int nfs4_server_supports_acls(struct nfs_server *server)
 		&& (server->acl_bitmask & ACL4_SUPPORT_DENY_ACL);
 }
 
-/* Assuming that XATTR_SIZE_MAX is a multiple of PAGE_CACHE_SIZE, and that
- * it's OK to put sizeof(void) * (XATTR_SIZE_MAX/PAGE_CACHE_SIZE) bytes on
+/* Assuming that XATTR_SIZE_MAX is a multiple of PAGE_SIZE, and that
+ * it's OK to put sizeof(void) * (XATTR_SIZE_MAX/PAGE_SIZE) bytes on
  * the stack.
  */
-#define NFS4ACL_MAXPAGES (XATTR_SIZE_MAX >> PAGE_CACHE_SHIFT)
+#define NFS4ACL_MAXPAGES DIV_ROUND_UP(XATTR_SIZE_MAX, PAGE_SIZE)
 
 static int buf_to_pages_noslab(const void *buf, size_t buflen,
 		struct page **pages, unsigned int *pgbase)
@@ -3668,7 +3668,7 @@ static int buf_to_pages_noslab(const void *buf, size_t buflen,
 	spages = pages;
 
 	do {
-		len = min_t(size_t, PAGE_CACHE_SIZE, buflen);
+		len = min_t(size_t, PAGE_SIZE, buflen);
 		newpage = alloc_page(GFP_KERNEL);
 
 		if (newpage == NULL)
@@ -3739,7 +3739,7 @@ static void nfs4_write_cached_acl(struct inode *inode, struct page **pages, size
 	struct nfs4_cached_acl *acl;
 	size_t buflen = sizeof(*acl) + acl_len;
 
-	if (pages && buflen <= PAGE_SIZE) {
+	if (buflen <= PAGE_SIZE) {
 		acl = kmalloc(buflen, GFP_KERNEL);
 		if (acl == NULL)
 			goto out;
@@ -3782,17 +3782,15 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
-	int ret = -ENOMEM, npages, i;
-	size_t acl_len = 0;
+	unsigned int npages = DIV_ROUND_UP(buflen, PAGE_SIZE);
+	int ret = -ENOMEM, i;
 
-	npages = (buflen + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	/* As long as we're doing a round trip to the server anyway,
 	 * let's be prepared for a page of acl data. */
 	if (npages == 0)
 		npages = 1;
-
-	/* Add an extra page to handle the bitmap returned */
-	npages++;
+	if (npages > ARRAY_SIZE(pages))
+		return -ERANGE;
 
 	for (i = 0; i < npages; i++) {
 		pages[i] = alloc_page(GFP_KERNEL);
@@ -3808,11 +3806,6 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 	args.acl_len = npages * PAGE_SIZE;
 	args.acl_pgbase = 0;
 
-	/* Let decode_getfacl know not to fail if the ACL data is larger than
-	 * the page we send as a guess */
-	if (buf == NULL)
-		res.acl_flags |= NFS4_ACL_LEN_REQUEST;
-
 	dprintk("%s  buf %p buflen %zu npages %d args.acl_len %zu\n",
 		__func__, buf, buflen, npages, args.acl_len);
 	ret = nfs4_call_sync(NFS_SERVER(inode)->client, NFS_SERVER(inode),
@@ -3820,20 +3813,19 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 	if (ret)
 		goto out_free;
 
-	acl_len = res.acl_len;
-	if (acl_len > args.acl_len)
-		nfs4_write_cached_acl(inode, NULL, 0, acl_len);
-	else
-		nfs4_write_cached_acl(inode, pages, res.acl_data_offset,
-				      acl_len);
-	if (buf) {
+	/* Handle the case where the passed-in buffer is too short */
+	if (res.acl_flags & NFS4_ACL_TRUNC) {
+		/* Did the user only issue a request for the acl length? */
+		if (buf == NULL)
+			goto out_ok;
 		ret = -ERANGE;
-		if (acl_len > buflen)
-			goto out_free;
-		_copy_from_pages(buf, pages, res.acl_data_offset,
-				acl_len);
+		goto out_free;
 	}
-	ret = acl_len;
+	nfs4_write_cached_acl(inode, pages, res.acl_data_offset, res.acl_len);
+	if (buf)
+		_copy_from_pages(buf, pages, res.acl_data_offset, res.acl_len);
+out_ok:
+	ret = res.acl_len;
 out_free:
 	for (i = 0; i < npages; i++)
 		if (pages[i])
@@ -3891,10 +3883,13 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t bufl
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
 	};
+	unsigned int npages = DIV_ROUND_UP(buflen, PAGE_SIZE);
 	int ret, i;
 
 	if (!nfs4_server_supports_acls(server))
 		return -EOPNOTSUPP;
+	if (npages > ARRAY_SIZE(pages))
+		return -ERANGE;
 	i = buf_to_pages_noslab(buf, buflen, arg.acl_pages, &arg.acl_pgbase);
 	if (i < 0)
 		return i;
