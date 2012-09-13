@@ -1322,6 +1322,7 @@ static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	t->capability = V4L2_TUNER_CAP_NORM;
 	t->rangehigh = 0xffffffffUL;
 	t->signal = 0xffff;	/* LOCKED */
+	call_all(dev, tuner, g_tuner, t);
 
 	return 0;
 }
@@ -1349,6 +1350,9 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
+
+	if (f->tuner)
+		return -EINVAL;
 
 	f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	f->frequency = dev->ctl_freq;

@@ -2133,7 +2133,7 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 
 	status = vid_blk_write_word(dev, DIF_AGC_IF_REF, dwval);
 
-	return status;
+	return status == sizeof(dwval) ? 0 : -EIO;
 }
 
 /******************************************************************************
