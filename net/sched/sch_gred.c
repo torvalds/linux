@@ -102,9 +102,8 @@ static inline int gred_wred_mode_check(struct Qdisc *sch)
 		if (q == NULL)
 			continue;
 
-		for (n = 0; n < table->DPs; n++)
-			if (table->tab[n] && table->tab[n] != q &&
-			    table->tab[n]->prio == q->prio)
+		for (n = i + 1; n < table->DPs; n++)
+			if (table->tab[n] && table->tab[n]->prio == q->prio)
 				return 1;
 	}
 
