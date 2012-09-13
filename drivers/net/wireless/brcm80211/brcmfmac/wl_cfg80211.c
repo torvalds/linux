@@ -2871,6 +2871,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_cfg80211_priv *cfg_priv,
 	u32 bi_length;
 	struct brcmf_scan_results *list;
 	u32 i;
+	bool aborted;
 
 	status = be32_to_cpu(e->status);
 
@@ -2943,16 +2944,9 @@ brcmf_cfg80211_escan_handler(struct brcmf_cfg80211_priv *cfg_priv,
 			cfg_priv->bss_list = (struct brcmf_scan_results *)
 				cfg_priv->escan_info.escan_buf;
 			brcmf_inform_bss(cfg_priv);
-			if (status == BRCMF_E_STATUS_SUCCESS) {
-				WL_SCAN("ESCAN Completed\n");
-				brcmf_notify_escan_complete(cfg_priv, ndev,
-					false, false);
-			} else {
-				WL_ERR("ESCAN Aborted, Event 0x%x\n", status);
-				brcmf_notify_escan_complete(cfg_priv, ndev,
-					true, false);
-			}
-			brcmf_set_mpc(ndev, 1);
+			aborted = status != BRCMF_E_STATUS_SUCCESS;
+			brcmf_notify_escan_complete(cfg_priv, ndev, aborted,
+						    false);
 		} else
 			WL_ERR("Unexpected scan result 0x%x\n", status);
 	}
