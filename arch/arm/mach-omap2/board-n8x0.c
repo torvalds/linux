@@ -550,8 +550,8 @@ static int n8x0_auto_sleep_regulators(void)
 
 	ret = menelaus_set_regulator_sleep(1, val);
 	if (ret < 0) {
-		printk(KERN_ERR "Could not set regulators to sleep on "
-			"menelaus: %u\n", ret);
+		pr_err("Could not set regulators to sleep on menelaus: %u\n",
+		       ret);
 		return ret;
 	}
 	return 0;
@@ -563,8 +563,7 @@ static int n8x0_auto_voltage_scale(void)
 
 	ret = menelaus_set_vcore_hw(1400, 1050);
 	if (ret < 0) {
-		printk(KERN_ERR "Could not set VCORE voltage on "
-			"menelaus: %u\n", ret);
+		pr_err("Could not set VCORE voltage on menelaus: %u\n", ret);
 		return ret;
 	}
 	return 0;

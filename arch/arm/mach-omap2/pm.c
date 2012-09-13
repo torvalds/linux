@@ -203,8 +203,8 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 	bootup_volt = opp_get_voltage(opp);
 	rcu_read_unlock();
 	if (!bootup_volt) {
-		pr_err("%s: unable to find voltage corresponding "
-			"to the bootup OPP for vdd_%s\n", __func__, vdd_name);
+		pr_err("%s: unable to find voltage corresponding to the bootup OPP for vdd_%s\n",
+		       __func__, vdd_name);
 		goto exit;
 	}
 

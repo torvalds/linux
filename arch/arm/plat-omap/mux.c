@@ -76,7 +76,7 @@ int __init_or_module omap_cfg_reg(const unsigned long index)
 		return -ENODEV;
 	}
 
-	reg = (struct pin_config *)&mux_cfg->pins[index];
+	reg = &mux_cfg->pins[index];
 
 	if (!mux_cfg->cfg_reg)
 		return -ENODEV;

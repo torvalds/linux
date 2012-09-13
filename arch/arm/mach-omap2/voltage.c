@@ -195,8 +195,8 @@ struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 			return &voltdm->volt_data[i];
 	}
 
-	pr_notice("%s: Unable to match the current voltage with the voltage"
-		"table for vdd_%s\n", __func__, voltdm->name);
+	pr_notice("%s: Unable to match the current voltage with the voltage table for vdd_%s\n",
+		  __func__, voltdm->name);
 
 	return ERR_PTR(-ENODATA);
 }
@@ -249,8 +249,8 @@ void omap_change_voltscale_method(struct voltagedomain *voltdm,
 		voltdm->scale = omap_vc_bypass_scale;
 		return;
 	default:
-		pr_warning("%s: Trying to change the method of voltage scaling"
-			"to an unsupported one!\n", __func__);
+		pr_warn("%s: Trying to change the method of voltage scaling to an unsupported one!\n",
+			__func__);
 	}
 }
 
@@ -331,8 +331,8 @@ int voltdm_add_pwrdm(struct voltagedomain *voltdm, struct powerdomain *pwrdm)
 	if (!voltdm || !pwrdm)
 		return -EINVAL;
 
-	pr_debug("voltagedomain: associating powerdomain %s with voltagedomain "
-		 "%s\n", pwrdm->name, voltdm->name);
+	pr_debug("voltagedomain: %s: associating powerdomain %s\n",
+		 voltdm->name, pwrdm->name);
 
 	list_add(&pwrdm->voltdm_node, &voltdm->pwrdm_list);
 

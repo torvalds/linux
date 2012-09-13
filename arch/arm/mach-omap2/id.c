@@ -161,9 +161,8 @@ void __init omap2xxx_check_revision(void)
 	}
 
 	if (j == ARRAY_SIZE(omap_ids)) {
-		printk(KERN_ERR "Unknown OMAP device type. "
-				"Handling it as OMAP%04x\n",
-				omap_ids[i].type >> 16);
+		pr_err("Unknown OMAP device type. Handling it as OMAP%04x\n",
+		       omap_ids[i].type >> 16);
 		j = i;
 	}
 

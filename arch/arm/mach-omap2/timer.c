@@ -213,7 +213,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source);
 	BUG_ON(res);
 
-	omap2_gp_timer_irq.dev_id = (void *)&clkev;
+	omap2_gp_timer_irq.dev_id = &clkev;
 	setup_irq(clkev.irq, &omap2_gp_timer_irq);
 
 	__omap_dm_timer_int_enable(&clkev, OMAP_TIMER_INT_OVERFLOW);

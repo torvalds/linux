@@ -113,8 +113,7 @@ EXPORT_SYMBOL(omap_set_lcd_dma_b1_mirror);
 void omap_set_lcd_dma_b1_vxres(unsigned long vxres)
 {
 	if (cpu_is_omap15xx()) {
-		printk(KERN_ERR "DMA virtual resolution is not supported "
-				"in 1510 mode\n");
+		pr_err("DMA virtual resolution is not supported in 1510 mode\n");
 		BUG();
 	}
 	lcd_dma.vxres = vxres;
@@ -437,8 +436,7 @@ static int __init omap_init_lcd_dma(void)
 	r = request_irq(INT_DMA_LCD, lcd_dma_irq_handler, 0,
 			"LCD DMA", NULL);
 	if (r != 0)
-		printk(KERN_ERR "unable to request IRQ for LCD DMA "
-			       "(error %d)\n", r);
+		pr_err("unable to request IRQ for LCD DMA (error %d)\n", r);
 
 	return r;
 }

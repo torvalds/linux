@@ -104,8 +104,8 @@ void omap2_init_clk_clkdm(struct clk *clk)
 			 clk->name, clk->clkdm_name);
 		clk->clkdm = clkdm;
 	} else {
-		pr_debug("clock: could not associate clk %s to "
-			 "clkdm %s\n", clk->name, clk->clkdm_name);
+		pr_debug("clock: could not associate clk %s to clkdm %s\n",
+			 clk->name, clk->clkdm_name);
 	}
 }
 
@@ -228,8 +228,7 @@ void omap2_dflt_clk_disable(struct clk *clk)
 		 * 'Independent' here refers to a clock which is not
 		 * controlled by its parent.
 		 */
-		printk(KERN_ERR "clock: clk_disable called on independent "
-		       "clock %s which has no enable_reg\n", clk->name);
+		pr_err("clock: clk_disable called on independent clock %s which has no enable_reg\n", clk->name);
 		return;
 	}
 
@@ -272,8 +271,7 @@ const struct clkops clkops_omap2_dflt = {
 void omap2_clk_disable(struct clk *clk)
 {
 	if (clk->usecount == 0) {
-		WARN(1, "clock: %s: omap2_clk_disable() called, but usecount "
-		     "already 0?", clk->name);
+		WARN(1, "clock: %s: omap2_clk_disable() called, but usecount already 0?", clk->name);
 		return;
 	}
 
@@ -334,8 +332,8 @@ int omap2_clk_enable(struct clk *clk)
 	if (clkdm_control && clk->clkdm) {
 		ret = clkdm_clk_enable(clk->clkdm, clk);
 		if (ret) {
-			WARN(1, "clock: %s: could not enable clockdomain %s: "
-			     "%d\n", clk->name, clk->clkdm->name, ret);
+			WARN(1, "clock: %s: could not enable clockdomain %s: %d\n",
+			     clk->name, clk->clkdm->name, ret);
 			goto oce_err2;
 		}
 	}
@@ -503,10 +501,8 @@ void __init omap2_clk_print_new_rates(const char *hfclkin_ck_name,
 
 	hfclkin_rate = clk_get_rate(hfclkin_ck);
 
-	pr_info("Switched to new clocking rate (Crystal/Core/MPU): "
-		"%ld.%01ld/%ld/%ld MHz\n",
-		(hfclkin_rate / 1000000),
-		((hfclkin_rate / 100000) % 10),
+	pr_info("Switched to new clocking rate (Crystal/Core/MPU): %ld.%01ld/%ld/%ld MHz\n",
+		(hfclkin_rate / 1000000), ((hfclkin_rate / 100000) % 10),
 		(clk_get_rate(core_ck) / 1000000),
 		(clk_get_rate(mpu_ck) / 1000000));
 }
