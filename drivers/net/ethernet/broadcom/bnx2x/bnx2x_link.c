@@ -321,6 +321,127 @@ static u32 bnx2x_bits_dis(struct bnx2x *bp, u32 reg, u32 bits)
 	return val;
 }
 
+/*
+ * bnx2x_check_lfa - This function checks if link reinitialization is required,
+ *                   or link flap can be avoided.
+ *
+ * @params:	link parameters
+ * Returns 0 if Link Flap Avoidance conditions are met otherwise, the failed
+ *         condition code.
+ */
+static int bnx2x_check_lfa(struct link_params *params)
+{
+	u32 link_status, cfg_idx, lfa_mask, cfg_size;
+	u32 cur_speed_cap_mask, cur_req_fc_auto_adv, additional_config;
+	u32 saved_val, req_val, eee_status;
+	struct bnx2x *bp = params->bp;
+
+	additional_config =
+		REG_RD(bp, params->lfa_base +
+			   offsetof(struct shmem_lfa, additional_config));
+
+	/* NOTE: must be first condition checked -
+	* to verify DCC bit is cleared in any case!
+	*/
+	if (additional_config & NO_LFA_DUE_TO_DCC_MASK) {
+		DP(NETIF_MSG_LINK, "No LFA due to DCC flap after clp exit\n");
+		REG_WR(bp, params->lfa_base +
+			   offsetof(struct shmem_lfa, additional_config),
+		       additional_config & ~NO_LFA_DUE_TO_DCC_MASK);
+		return LFA_DCC_LFA_DISABLED;
+	}
+
+	/* Verify that link is up */
+	link_status = REG_RD(bp, params->shmem_base +
+			     offsetof(struct shmem_region,
+				      port_mb[params->port].link_status));
+	if (!(link_status & LINK_STATUS_LINK_UP))
+		return LFA_LINK_DOWN;
+
+	/* Verify that loopback mode is not set */
+	if (params->loopback_mode)
+		return LFA_LOOPBACK_ENABLED;
+
+	/* Verify that MFW supports LFA */
+	if (!params->lfa_base)
+		return LFA_MFW_IS_TOO_OLD;
+
+	if (params->num_phys == 3) {
+		cfg_size = 2;
+		lfa_mask = 0xffffffff;
+	} else {
+		cfg_size = 1;
+		lfa_mask = 0xffff;
+	}
+
+	/* Compare Duplex */
+	saved_val = REG_RD(bp, params->lfa_base +
+			   offsetof(struct shmem_lfa, req_duplex));
+	req_val = params->req_duplex[0] | (params->req_duplex[1] << 16);
+	if ((saved_val & lfa_mask) != (req_val & lfa_mask)) {
+		DP(NETIF_MSG_LINK, "Duplex mismatch %x vs. %x\n",
+			       (saved_val & lfa_mask), (req_val & lfa_mask));
+		return LFA_DUPLEX_MISMATCH;
+	}
+	/* Compare Flow Control */
+	saved_val = REG_RD(bp, params->lfa_base +
+			   offsetof(struct shmem_lfa, req_flow_ctrl));
+	req_val = params->req_flow_ctrl[0] | (params->req_flow_ctrl[1] << 16);
+	if ((saved_val & lfa_mask) != (req_val & lfa_mask)) {
+		DP(NETIF_MSG_LINK, "Flow control mismatch %x vs. %x\n",
+			       (saved_val & lfa_mask), (req_val & lfa_mask));
+		return LFA_FLOW_CTRL_MISMATCH;
+	}
+	/* Compare Link Speed */
+	saved_val = REG_RD(bp, params->lfa_base +
+			   offsetof(struct shmem_lfa, req_line_speed));
+	req_val = params->req_line_speed[0] | (params->req_line_speed[1] << 16);
+	if ((saved_val & lfa_mask) != (req_val & lfa_mask)) {
+		DP(NETIF_MSG_LINK, "Link speed mismatch %x vs. %x\n",
+			       (saved_val & lfa_mask), (req_val & lfa_mask));
+		return LFA_LINK_SPEED_MISMATCH;
+	}
+
+	for (cfg_idx = 0; cfg_idx < cfg_size; cfg_idx++) {
+		cur_speed_cap_mask = REG_RD(bp, params->lfa_base +
+					    offsetof(struct shmem_lfa,
+						     speed_cap_mask[cfg_idx]));
+
+		if (cur_speed_cap_mask != params->speed_cap_mask[cfg_idx]) {
+			DP(NETIF_MSG_LINK, "Speed Cap mismatch %x vs. %x\n",
+				       cur_speed_cap_mask,
+				       params->speed_cap_mask[cfg_idx]);
+			return LFA_SPEED_CAP_MISMATCH;
+		}
+	}
+
+	cur_req_fc_auto_adv =
+		REG_RD(bp, params->lfa_base +
+		       offsetof(struct shmem_lfa, additional_config)) &
+		REQ_FC_AUTO_ADV_MASK;
+
+	if ((u16)cur_req_fc_auto_adv != params->req_fc_auto_adv) {
+		DP(NETIF_MSG_LINK, "Flow Ctrl AN mismatch %x vs. %x\n",
+			       cur_req_fc_auto_adv, params->req_fc_auto_adv);
+		return LFA_FLOW_CTRL_MISMATCH;
+	}
+
+	eee_status = REG_RD(bp, params->shmem2_base +
+			    offsetof(struct shmem2_region,
+				     eee_status[params->port]));
+
+	if (((eee_status & SHMEM_EEE_LPI_REQUESTED_BIT) ^
+	     (params->eee_mode & EEE_MODE_ENABLE_LPI)) ||
+	    ((eee_status & SHMEM_EEE_REQUESTED_BIT) ^
+	     (params->eee_mode & EEE_MODE_ADV_LPI))) {
+		DP(NETIF_MSG_LINK, "EEE mismatch %x vs. %x\n", params->eee_mode,
+			       eee_status);
+		return LFA_EEE_MISMATCH;
+	}
+
+	/* LFA conditions are met */
+	return 0;
+}
 /******************************************************************/
 /*			EPIO/GPIO section			  */
 /******************************************************************/
@@ -1519,16 +1640,23 @@ static void bnx2x_set_xumac_nig(struct link_params *params,
 	       NIG_REG_P0_MAC_PAUSE_OUT_EN, tx_pause_en);
 }
 
-static void bnx2x_umac_disable(struct link_params *params)
+static void bnx2x_set_umac_rxtx(struct link_params *params, u8 en)
 {
 	u32 umac_base = params->port ? GRCBASE_UMAC1 : GRCBASE_UMAC0;
+	u32 val;
 	struct bnx2x *bp = params->bp;
 	if (!(REG_RD(bp, MISC_REG_RESET_REG_2) &
 		   (MISC_REGISTERS_RESET_REG_2_UMAC0 << params->port)))
 		return;
-
+	val = REG_RD(bp, umac_base + UMAC_REG_COMMAND_CONFIG);
+	if (en)
+		val |= (UMAC_COMMAND_CONFIG_REG_TX_ENA |
+			UMAC_COMMAND_CONFIG_REG_RX_ENA);
+	else
+		val &= ~(UMAC_COMMAND_CONFIG_REG_TX_ENA |
+			 UMAC_COMMAND_CONFIG_REG_RX_ENA);
 	/* Disable RX and TX */
-	REG_WR(bp, umac_base + UMAC_REG_COMMAND_CONFIG, 0);
+	REG_WR(bp, umac_base + UMAC_REG_COMMAND_CONFIG, val);
 }
 
 static void bnx2x_umac_enable(struct link_params *params,
@@ -1689,11 +1817,12 @@ static void bnx2x_xmac_init(struct link_params *params, u32 max_speed)
 
 }
 
-static void bnx2x_xmac_disable(struct link_params *params)
+static void bnx2x_set_xmac_rxtx(struct link_params *params, u8 en)
 {
 	u8 port = params->port;
 	struct bnx2x *bp = params->bp;
 	u32 pfc_ctrl, xmac_base = (port) ? GRCBASE_XMAC1 : GRCBASE_XMAC0;
+	u32 val;
 
 	if (REG_RD(bp, MISC_REG_RESET_REG_2) &
 	    MISC_REGISTERS_RESET_REG_2_XMAC) {
@@ -1707,7 +1836,12 @@ static void bnx2x_xmac_disable(struct link_params *params)
 		REG_WR(bp, xmac_base + XMAC_REG_PFC_CTRL_HI,
 		       (pfc_ctrl | (1<<1)));
 		DP(NETIF_MSG_LINK, "Disable XMAC on port %x\n", port);
-		REG_WR(bp, xmac_base + XMAC_REG_CTRL, 0);
+		val = REG_RD(bp, xmac_base + XMAC_REG_CTRL);
+		if (en)
+			val |= (XMAC_CTRL_REG_TX_EN | XMAC_CTRL_REG_RX_EN);
+		else
+			val &= ~(XMAC_CTRL_REG_TX_EN | XMAC_CTRL_REG_RX_EN);
+		REG_WR(bp, xmac_base + XMAC_REG_CTRL, val);
 	}
 }
 
@@ -2738,16 +2872,18 @@ static int bnx2x_bmac2_enable(struct link_params *params,
 
 static int bnx2x_bmac_enable(struct link_params *params,
 			     struct link_vars *vars,
-			     u8 is_lb)
+			     u8 is_lb, u8 reset_bmac)
 {
 	int rc = 0;
 	u8 port = params->port;
 	struct bnx2x *bp = params->bp;
 	u32 val;
 	/* Reset and unreset the BigMac */
-	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
-	       (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
-	usleep_range(1000, 2000);
+	if (reset_bmac) {
+		REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
+		       (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
+		usleep_range(1000, 2000);
+	}
 
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET,
 	       (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
@@ -2779,37 +2915,28 @@ static int bnx2x_bmac_enable(struct link_params *params,
 	return rc;
 }
 
-static void bnx2x_bmac_rx_disable(struct bnx2x *bp, u8 port)
+static void bnx2x_set_bmac_rx(struct bnx2x *bp, u32 chip_id, u8 port, u8 en)
 {
 	u32 bmac_addr = port ? NIG_REG_INGRESS_BMAC1_MEM :
 			NIG_REG_INGRESS_BMAC0_MEM;
 	u32 wb_data[2];
 	u32 nig_bmac_enable = REG_RD(bp, NIG_REG_BMAC0_REGS_OUT_EN + port*4);
 
+	if (CHIP_IS_E2(bp))
+		bmac_addr += BIGMAC2_REGISTER_BMAC_CONTROL;
+	else
+		bmac_addr += BIGMAC_REGISTER_BMAC_CONTROL;
 	/* Only if the bmac is out of reset */
 	if (REG_RD(bp, MISC_REG_RESET_REG_2) &
 			(MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port) &&
 	    nig_bmac_enable) {
-
-		if (CHIP_IS_E2(bp)) {
-			/* Clear Rx Enable bit in BMAC_CONTROL register */
-			REG_RD_DMAE(bp, bmac_addr +
-				    BIGMAC2_REGISTER_BMAC_CONTROL,
-				    wb_data, 2);
+		/* Clear Rx Enable bit in BMAC_CONTROL register */
+		REG_RD_DMAE(bp, bmac_addr, wb_data, 2);
+		if (en)
+			wb_data[0] |= BMAC_CONTROL_RX_ENABLE;
+		else
 			wb_data[0] &= ~BMAC_CONTROL_RX_ENABLE;
-			REG_WR_DMAE(bp, bmac_addr +
-				    BIGMAC2_REGISTER_BMAC_CONTROL,
-				    wb_data, 2);
-		} else {
-			/* Clear Rx Enable bit in BMAC_CONTROL register */
-			REG_RD_DMAE(bp, bmac_addr +
-					BIGMAC_REGISTER_BMAC_CONTROL,
-					wb_data, 2);
-			wb_data[0] &= ~BMAC_CONTROL_RX_ENABLE;
-			REG_WR_DMAE(bp, bmac_addr +
-					BIGMAC_REGISTER_BMAC_CONTROL,
-					wb_data, 2);
-		}
+		REG_WR_DMAE(bp, bmac_addr, wb_data, 2);
 		usleep_range(1000, 2000);
 	}
 }
@@ -4568,7 +4695,7 @@ static void bnx2x_warpcore_config_init(struct bnx2x_phy *phy,
 			   "serdes_net_if = 0x%x\n",
 		       vars->line_speed, serdes_net_if);
 	bnx2x_set_aer_mmd(params, phy);
-
+	bnx2x_warpcore_reset_lane(bp, phy, 1);
 	vars->phy_flags |= PHY_XGXS_FLAG;
 	if ((serdes_net_if == PORT_HW_CFG_NET_SERDES_IF_SGMII) ||
 	    (phy->req_line_speed &&
@@ -6691,12 +6818,9 @@ static int bnx2x_update_link_down(struct link_params *params,
 	usleep_range(10000, 20000);
 	/* Reset BigMac/Xmac */
 	if (CHIP_IS_E1x(bp) ||
-	    CHIP_IS_E2(bp)) {
-		bnx2x_bmac_rx_disable(bp, params->port);
-		REG_WR(bp, GRCBASE_MISC +
-		       MISC_REGISTERS_RESET_REG_2_CLEAR,
-	       (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
-	}
+	    CHIP_IS_E2(bp))
+		bnx2x_set_bmac_rx(bp, params->chip_id, params->port, 0);
+
 	if (CHIP_IS_E3(bp)) {
 		/* Prevent LPI Generation by chip */
 		REG_WR(bp, MISC_REG_CPMU_LP_FW_ENABLE_P0 + (params->port << 2),
@@ -6707,8 +6831,8 @@ static int bnx2x_update_link_down(struct link_params *params,
 				      SHMEM_EEE_ACTIVE_BIT);
 
 		bnx2x_update_mng_eee(params, vars->eee_status);
-		bnx2x_xmac_disable(params);
-		bnx2x_umac_disable(params);
+		bnx2x_set_xmac_rxtx(params, 0);
+		bnx2x_set_umac_rxtx(params, 0);
 	}
 
 	return 0;
@@ -6760,7 +6884,7 @@ static int bnx2x_update_link_up(struct link_params *params,
 	if ((CHIP_IS_E1x(bp) ||
 	     CHIP_IS_E2(bp))) {
 		if (link_10g) {
-			if (bnx2x_bmac_enable(params, vars, 0) ==
+			if (bnx2x_bmac_enable(params, vars, 0, 1) ==
 			    -ESRCH) {
 				DP(NETIF_MSG_LINK, "Found errors on BMAC\n");
 				vars->link_up = 0;
@@ -12257,7 +12381,7 @@ void bnx2x_init_bmac_loopback(struct link_params *params,
 		bnx2x_xgxs_deassert(params);
 
 		/* set bmac loopback */
-		bnx2x_bmac_enable(params, vars, 1);
+		bnx2x_bmac_enable(params, vars, 1, 1);
 
 		REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
 }
@@ -12349,7 +12473,7 @@ void bnx2x_init_xgxs_loopback(struct link_params *params,
 		if (USES_WARPCORE(bp))
 			bnx2x_xmac_enable(params, vars, 0);
 		else
-			bnx2x_bmac_enable(params, vars, 0);
+			bnx2x_bmac_enable(params, vars, 0, 1);
 	}
 
 		if (params->loopback_mode == LOOPBACK_XGXS) {
@@ -12374,8 +12498,161 @@ void bnx2x_init_xgxs_loopback(struct link_params *params,
 	bnx2x_set_led(params, vars, LED_MODE_OPER, vars->line_speed);
 }
 
+static void bnx2x_set_rx_filter(struct link_params *params, u8 en)
+{
+	struct bnx2x *bp = params->bp;
+	u8 val = en * 0x1F;
+
+	/* Open the gate between the NIG to the BRB */
+	if (!CHIP_IS_E1x(bp))
+		val |= en * 0x20;
+	REG_WR(bp, NIG_REG_LLH0_BRB1_DRV_MASK + params->port*4, val);
+
+	if (!CHIP_IS_E1(bp)) {
+		REG_WR(bp, NIG_REG_LLH0_BRB1_DRV_MASK_MF + params->port*4,
+		       en*0x3);
+	}
+
+	REG_WR(bp, (params->port ? NIG_REG_LLH1_BRB1_NOT_MCP :
+		    NIG_REG_LLH0_BRB1_NOT_MCP), en);
+}
+static int bnx2x_avoid_link_flap(struct link_params *params,
+					    struct link_vars *vars)
+{
+	u32 phy_idx;
+	u32 dont_clear_stat, lfa_sts;
+	struct bnx2x *bp = params->bp;
+
+	/* Sync the link parameters */
+	bnx2x_link_status_update(params, vars);
+
+	/*
+	 * The module verification was already done by previous link owner,
+	 * so this call is meant only to get warning message
+	 */
+
+	for (phy_idx = INT_PHY; phy_idx < params->num_phys; phy_idx++) {
+		struct bnx2x_phy *phy = &params->phy[phy_idx];
+		if (phy->phy_specific_func) {
+			DP(NETIF_MSG_LINK, "Calling PHY specific func\n");
+			phy->phy_specific_func(phy, params, PHY_INIT);
+		}
+		if ((phy->media_type == ETH_PHY_SFPP_10G_FIBER) ||
+		    (phy->media_type == ETH_PHY_SFP_1G_FIBER) ||
+		    (phy->media_type == ETH_PHY_DA_TWINAX))
+			bnx2x_verify_sfp_module(phy, params);
+	}
+	lfa_sts = REG_RD(bp, params->lfa_base +
+			 offsetof(struct shmem_lfa,
+				  lfa_sts));
+
+	dont_clear_stat = lfa_sts & SHMEM_LFA_DONT_CLEAR_STAT;
+
+	/* Re-enable the NIG/MAC */
+	if (CHIP_IS_E3(bp)) {
+		if (!dont_clear_stat) {
+			REG_WR(bp, GRCBASE_MISC +
+			       MISC_REGISTERS_RESET_REG_2_CLEAR,
+			       (MISC_REGISTERS_RESET_REG_2_MSTAT0 <<
+				params->port));
+			REG_WR(bp, GRCBASE_MISC +
+			       MISC_REGISTERS_RESET_REG_2_SET,
+			       (MISC_REGISTERS_RESET_REG_2_MSTAT0 <<
+				params->port));
+		}
+		if (vars->line_speed < SPEED_10000)
+			bnx2x_umac_enable(params, vars, 0);
+		else
+			bnx2x_xmac_enable(params, vars, 0);
+	} else {
+		if (vars->line_speed < SPEED_10000)
+			bnx2x_emac_enable(params, vars, 0);
+		else
+			bnx2x_bmac_enable(params, vars, 0, !dont_clear_stat);
+	}
+
+	/* Increment LFA count */
+	lfa_sts = ((lfa_sts & ~LINK_FLAP_AVOIDANCE_COUNT_MASK) |
+		   (((((lfa_sts & LINK_FLAP_AVOIDANCE_COUNT_MASK) >>
+		       LINK_FLAP_AVOIDANCE_COUNT_OFFSET) + 1) & 0xff)
+		    << LINK_FLAP_AVOIDANCE_COUNT_OFFSET));
+	/* Clear link flap reason */
+	lfa_sts &= ~LFA_LINK_FLAP_REASON_MASK;
+
+	REG_WR(bp, params->lfa_base +
+	       offsetof(struct shmem_lfa, lfa_sts), lfa_sts);
+
+	/* Disable NIG DRAIN */
+	REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
+
+	/* Enable interrupts */
+	bnx2x_link_int_enable(params);
+	return 0;
+}
+
+static void bnx2x_cannot_avoid_link_flap(struct link_params *params,
+					 struct link_vars *vars,
+					 int lfa_status)
+{
+	u32 lfa_sts, cfg_idx, tmp_val;
+	struct bnx2x *bp = params->bp;
+
+	bnx2x_link_reset(params, vars, 1);
+
+	if (!params->lfa_base)
+		return;
+	/* Store the new link parameters */
+	REG_WR(bp, params->lfa_base +
+	       offsetof(struct shmem_lfa, req_duplex),
+	       params->req_duplex[0] | (params->req_duplex[1] << 16));
+
+	REG_WR(bp, params->lfa_base +
+	       offsetof(struct shmem_lfa, req_flow_ctrl),
+	       params->req_flow_ctrl[0] | (params->req_flow_ctrl[1] << 16));
+
+	REG_WR(bp, params->lfa_base +
+	       offsetof(struct shmem_lfa, req_line_speed),
+	       params->req_line_speed[0] | (params->req_line_speed[1] << 16));
+
+	for (cfg_idx = 0; cfg_idx < SHMEM_LINK_CONFIG_SIZE; cfg_idx++) {
+		REG_WR(bp, params->lfa_base +
+		       offsetof(struct shmem_lfa,
+				speed_cap_mask[cfg_idx]),
+		       params->speed_cap_mask[cfg_idx]);
+	}
+
+	tmp_val = REG_RD(bp, params->lfa_base +
+			 offsetof(struct shmem_lfa, additional_config));
+	tmp_val &= ~REQ_FC_AUTO_ADV_MASK;
+	tmp_val |= params->req_fc_auto_adv;
+
+	REG_WR(bp, params->lfa_base +
+	       offsetof(struct shmem_lfa, additional_config), tmp_val);
+
+	lfa_sts = REG_RD(bp, params->lfa_base +
+			 offsetof(struct shmem_lfa, lfa_sts));
+
+	/* Clear the "Don't Clear Statistics" bit, and set reason */
+	lfa_sts &= ~SHMEM_LFA_DONT_CLEAR_STAT;
+
+	/* Set link flap reason */
+	lfa_sts &= ~LFA_LINK_FLAP_REASON_MASK;
+	lfa_sts |= ((lfa_status & LFA_LINK_FLAP_REASON_MASK) <<
+		    LFA_LINK_FLAP_REASON_OFFSET);
+
+	/* Increment link flap counter */
+	lfa_sts = ((lfa_sts & ~LINK_FLAP_COUNT_MASK) |
+		   (((((lfa_sts & LINK_FLAP_COUNT_MASK) >>
+		       LINK_FLAP_COUNT_OFFSET) + 1) & 0xff)
+		    << LINK_FLAP_COUNT_OFFSET));
+	REG_WR(bp, params->lfa_base +
+	       offsetof(struct shmem_lfa, lfa_sts), lfa_sts);
+	/* Proceed with regular link initialization */
+}
+
 int bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 {
+	int lfa_status;
 	struct bnx2x *bp = params->bp;
 	DP(NETIF_MSG_LINK, "Phy Initialization started\n");
 	DP(NETIF_MSG_LINK, "(1) req_speed %d, req_flowctrl %d\n",
@@ -12390,6 +12667,19 @@ int bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 	vars->flow_ctrl = BNX2X_FLOW_CTRL_NONE;
 	vars->mac_type = MAC_TYPE_NONE;
 	vars->phy_flags = 0;
+	/* Driver opens NIG-BRB filters */
+	bnx2x_set_rx_filter(params, 1);
+	/* Check if link flap can be avoided */
+	lfa_status = bnx2x_check_lfa(params);
+
+	if (lfa_status == 0) {
+		DP(NETIF_MSG_LINK, "Link Flap Avoidance in progress\n");
+		return bnx2x_avoid_link_flap(params, vars);
+	}
+
+	DP(NETIF_MSG_LINK, "Cannot avoid link flap lfa_sta=0x%x\n",
+		       lfa_status);
+	bnx2x_cannot_avoid_link_flap(params, vars, lfa_status);
 
 	/* Disable attentions */
 	bnx2x_bits_dis(bp, NIG_REG_MASK_INTERRUPT_PORT0 + params->port*4,
@@ -12472,13 +12762,12 @@ int bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 		REG_WR(bp, NIG_REG_EGRESS_EMAC0_OUT_EN + port*4, 0);
 	}
 
-	/* Stop BigMac rx */
-	if (!CHIP_IS_E3(bp))
-		bnx2x_bmac_rx_disable(bp, port);
-	else {
-		bnx2x_xmac_disable(params);
-		bnx2x_umac_disable(params);
-	}
+		if (!CHIP_IS_E3(bp)) {
+			bnx2x_set_bmac_rx(bp, params->chip_id, port, 0);
+		} else {
+			bnx2x_set_xmac_rxtx(params, 0);
+			bnx2x_set_umac_rxtx(params, 0);
+		}
 	/* Disable emac */
 	if (!CHIP_IS_E3(bp))
 		REG_WR(bp, NIG_REG_NIG_EMAC0_EN + port*4, 0);
@@ -12534,6 +12823,56 @@ int bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 	}
 	vars->link_up = 0;
 	vars->phy_flags = 0;
+	return 0;
+}
+int bnx2x_lfa_reset(struct link_params *params,
+			       struct link_vars *vars)
+{
+	struct bnx2x *bp = params->bp;
+	vars->link_up = 0;
+	vars->phy_flags = 0;
+	if (!params->lfa_base)
+		return bnx2x_link_reset(params, vars, 1);
+	/*
+	 * Activate NIG drain so that during this time the device won't send
+	 * anything while it is unable to response.
+	 */
+	REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 1);
+
+	/*
+	 * Close gracefully the gate from BMAC to NIG such that no half packets
+	 * are passed.
+	 */
+	if (!CHIP_IS_E3(bp))
+		bnx2x_set_bmac_rx(bp, params->chip_id, params->port, 0);
+
+	if (CHIP_IS_E3(bp)) {
+		bnx2x_set_xmac_rxtx(params, 0);
+		bnx2x_set_umac_rxtx(params, 0);
+	}
+	/* Wait 10ms for the pipe to clean up*/
+	usleep_range(10000, 20000);
+
+	/* Clean the NIG-BRB using the network filters in a way that will
+	 * not cut a packet in the middle.
+	 */
+	bnx2x_set_rx_filter(params, 0);
+
+	/*
+	 * Re-open the gate between the BMAC and the NIG, after verifying the
+	 * gate to the BRB is closed, otherwise packets may arrive to the
+	 * firmware before driver had initialized it. The target is to achieve
+	 * minimum management protocol down time.
+	 */
+	if (!CHIP_IS_E3(bp))
+		bnx2x_set_bmac_rx(bp, params->chip_id, params->port, 1);
+
+	if (CHIP_IS_E3(bp)) {
+		bnx2x_set_xmac_rxtx(params, 1);
+		bnx2x_set_umac_rxtx(params, 1);
+	}
+	/* Disable NIG drain */
+	REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
 	return 0;
 }
 

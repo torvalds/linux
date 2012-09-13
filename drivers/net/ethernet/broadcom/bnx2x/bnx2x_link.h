@@ -305,6 +305,8 @@ struct link_params {
 	struct bnx2x *bp;
 	u16 req_fc_auto_adv; /* Should be set to TX / BOTH when
 				req_flow_ctrl is set to AUTO */
+	u16 rsrv1;
+	u32 lfa_base;
 };
 
 /* Output parameters */
