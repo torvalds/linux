@@ -370,11 +370,8 @@ struct dtv_frontend_properties {
 	    u8			interleaving;
 	} layer[3];
 
-	/* ISDB-T specifics */
-	u32			isdbs_ts_id;
-
-	/* DVB-T2 specifics */
-	u32                     dvbt2_plp_id;
+	/* Multistream specifics */
+	u32			stream_id;
 
 	/* ATSC-MH specifics */
 	u8			atscmh_fic_ver;

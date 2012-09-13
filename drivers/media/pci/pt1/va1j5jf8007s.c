@@ -329,8 +329,8 @@ va1j5jf8007s_set_ts_id(struct va1j5jf8007s_state *state)
 	u8 buf[3];
 	struct i2c_msg msg;
 
-	ts_id = state->fe.dtv_property_cache.isdbs_ts_id;
-	if (!ts_id)
+	ts_id = state->fe.dtv_property_cache.stream_id;
+	if (!ts_id || ts_id == NO_STREAM_ID_FILTER)
 		return 0;
 
 	buf[0] = 0x8f;
@@ -356,8 +356,8 @@ va1j5jf8007s_check_ts_id(struct va1j5jf8007s_state *state, int *lock)
 	struct i2c_msg msgs[2];
 	u32 ts_id;
 
-	ts_id = state->fe.dtv_property_cache.isdbs_ts_id;
-	if (!ts_id) {
+	ts_id = state->fe.dtv_property_cache.stream_id;
+	if (!ts_id || ts_id == NO_STREAM_ID_FILTER) {
 		*lock = 1;
 		return 0;
 	}
@@ -587,7 +587,8 @@ static struct dvb_frontend_ops va1j5jf8007s_ops = {
 		.frequency_stepsize = 1000,
 		.caps = FE_CAN_INVERSION_AUTO | FE_CAN_FEC_AUTO |
 			FE_CAN_QAM_AUTO | FE_CAN_TRANSMISSION_MODE_AUTO |
-			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO,
+			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO |
+			FE_CAN_MULTISTREAM,
 	},
 
 	.read_snr = va1j5jf8007s_read_snr,

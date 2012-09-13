@@ -949,8 +949,7 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 		c->layer[i].segment_count = 0;
 	}
 
-	c->isdbs_ts_id = 0;
-	c->dvbt2_plp_id = 0;
+	c->stream_id = NO_STREAM_ID_FILTER;
 
 	switch (c->delivery_system) {
 	case SYS_DVBS:
@@ -1021,8 +1020,8 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_ISDBT_LAYERC_SEGMENT_COUNT, 1, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERC_TIME_INTERLEAVING, 1, 0),
 
-	_DTV_CMD(DTV_ISDBS_TS_ID, 1, 0),
-	_DTV_CMD(DTV_DVBT2_PLP_ID, 1, 0),
+	_DTV_CMD(DTV_STREAM_ID, 1, 0),
+	_DTV_CMD(DTV_DVBT2_PLP_ID_LEGACY, 1, 0),
 
 	/* Get */
 	_DTV_CMD(DTV_DISEQC_SLAVE_REPLY, 0, 1),
@@ -1386,11 +1385,11 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	case DTV_ISDBT_LAYERC_TIME_INTERLEAVING:
 		tvp->u.data = c->layer[2].interleaving;
 		break;
-	case DTV_ISDBS_TS_ID:
-		tvp->u.data = c->isdbs_ts_id;
-		break;
-	case DTV_DVBT2_PLP_ID:
-		tvp->u.data = c->dvbt2_plp_id;
+
+	/* Multistream support */
+	case DTV_STREAM_ID:
+	case DTV_DVBT2_PLP_ID_LEGACY:
+		tvp->u.data = c->stream_id;
 		break;
 
 	/* ATSC-MH */
@@ -1787,11 +1786,11 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 	case DTV_ISDBT_LAYERC_TIME_INTERLEAVING:
 		c->layer[2].interleaving = tvp->u.data;
 		break;
-	case DTV_ISDBS_TS_ID:
-		c->isdbs_ts_id = tvp->u.data;
-		break;
-	case DTV_DVBT2_PLP_ID:
-		c->dvbt2_plp_id = tvp->u.data;
+
+	/* Multistream support */
+	case DTV_STREAM_ID:
+	case DTV_DVBT2_PLP_ID_LEGACY:
+		c->stream_id = tvp->u.data;
 		break;
 
 	/* ATSC-MH */
