@@ -516,20 +516,15 @@ static int __devinit gpmi_get_clks(struct gpmi_nand_data *this)
 		r->clock[i] = clk;
 	}
 
-	if (GPMI_IS_MX6Q(this)) {
+	if (GPMI_IS_MX6Q(this))
 		/*
-		 * Set the default values for the clocks in mx6q:
-		 *    The main clock(enfc) : 22MHz
-		 *    The others           : 44.5MHz
+		 * Set the default value for the gpmi clock in mx6q:
 		 *
-		 * These are just the default values. If you want to use
-		 * the ONFI nand which is in the Synchronous Mode, you should
-		 * change the clocks's frequencies as you need.
+		 * If you want to use the ONFI nand which is in the
+		 * Synchronous Mode, you should change the clock as you need.
 		 */
 		clk_set_rate(r->clock[0], 22000000);
-		for (i = 1; i < GPMI_CLK_MAX && r->clock[i]; i++)
-			clk_set_rate(r->clock[i], 44500000);
-	}
+
 	return 0;
 
 err_clock:
