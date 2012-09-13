@@ -170,6 +170,7 @@ static int __devinit rdc321x_gpio_probe(struct platform_device *pdev)
 	rdc321x_gpio_dev->reg2_data_base = r->start + 0x4;
 
 	rdc321x_gpio_dev->chip.label = "rdc321x-gpio";
+	rdc321x_gpio_dev->chip.owner = THIS_MODULE;
 	rdc321x_gpio_dev->chip.direction_input = rdc_gpio_direction_input;
 	rdc321x_gpio_dev->chip.direction_output = rdc_gpio_config;
 	rdc321x_gpio_dev->chip.get = rdc_gpio_get_value;

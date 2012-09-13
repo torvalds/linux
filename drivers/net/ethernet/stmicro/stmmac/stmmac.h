@@ -20,6 +20,9 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#ifndef __STMMAC_H__
+#define __STMMAC_H__
+
 #define STMMAC_RESOURCE_NAME   "stmmaceth"
 #define DRV_MODULE_VERSION	"March_2012"
 
@@ -166,3 +169,5 @@ static inline void stmmac_unregister_pci(void)
 {
 }
 #endif /* CONFIG_STMMAC_PCI */
+
+#endif /* __STMMAC_H__ */

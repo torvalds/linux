@@ -186,7 +186,7 @@ hardware_interrupt_hv:
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x800)
 
 	MASKABLE_EXCEPTION_PSERIES(0x900, 0x900, decrementer)
-	MASKABLE_EXCEPTION_HV(0x980, 0x982, decrementer)
+	STD_EXCEPTION_HV(0x980, 0x982, hdecrementer)
 
 	STD_EXCEPTION_PSERIES(0xa00, 0xa00, trap_0a)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xa00)
@@ -486,6 +486,7 @@ machine_check_common:
 
 	STD_EXCEPTION_COMMON_ASYNC(0x500, hardware_interrupt, do_IRQ)
 	STD_EXCEPTION_COMMON_ASYNC(0x900, decrementer, .timer_interrupt)
+	STD_EXCEPTION_COMMON(0x980, hdecrementer, .hdec_interrupt)
 	STD_EXCEPTION_COMMON(0xa00, trap_0a, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
