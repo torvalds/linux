@@ -497,7 +497,7 @@ static void falcon_reset_macs(struct efx_nic *efx)
 	falcon_setup_xaui(efx);
 }
 
-void falcon_drain_tx_fifo(struct efx_nic *efx)
+static void falcon_drain_tx_fifo(struct efx_nic *efx)
 {
 	efx_oword_t reg;
 
@@ -676,6 +676,28 @@ static int falcon_reconfigure_port(struct efx_nic *efx)
 	efx_link_status_changed(efx);
 
 	return 0;
+}
+
+/* TX flow control may automatically turn itself off if the link
+ * partner (intermittently) stops responding to pause frames. There
+ * isn't any indication that this has happened, so the best we do is
+ * leave it up to the user to spot this and fix it by cycling transmit
+ * flow control on this end.
+ */
+
+static void falcon_a1_prepare_enable_fc_tx(struct efx_nic *efx)
+{
+	/* Schedule a reset to recover */
+	efx_schedule_reset(efx, RESET_TYPE_INVISIBLE);
+}
+
+static void falcon_b0_prepare_enable_fc_tx(struct efx_nic *efx)
+{
+	/* Recover by resetting the EM block */
+	falcon_stop_nic_stats(efx);
+	falcon_drain_tx_fifo(efx);
+	falcon_reconfigure_xmac(efx);
+	falcon_start_nic_stats(efx);
 }
 
 /**************************************************************************
@@ -1798,6 +1820,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.set_id_led = falcon_set_id_led,
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.reconfigure_port = falcon_reconfigure_port,
+	.prepare_enable_fc_tx = falcon_a1_prepare_enable_fc_tx,
 	.reconfigure_mac = falcon_reconfigure_xmac,
 	.check_mac_fault = falcon_xmac_check_fault,
 	.get_wol = falcon_get_wol,
@@ -1842,6 +1865,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.set_id_led = falcon_set_id_led,
 	.push_irq_moderation = falcon_push_irq_moderation,
 	.reconfigure_port = falcon_reconfigure_port,
+	.prepare_enable_fc_tx = falcon_b0_prepare_enable_fc_tx,
 	.reconfigure_mac = falcon_reconfigure_xmac,
 	.check_mac_fault = falcon_xmac_check_fault,
 	.get_wol = falcon_get_wol,

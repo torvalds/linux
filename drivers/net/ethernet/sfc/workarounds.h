@@ -30,8 +30,6 @@
 /* TX_EV_PKT_ERR can be caused by a dangling TX descriptor
  * or a PCIe error (bug 11028) */
 #define EFX_WORKAROUND_10727 EFX_WORKAROUND_ALWAYS
-/* Transmit flow control may get disabled */
-#define EFX_WORKAROUND_11482 EFX_WORKAROUND_FALCON_AB
 /* Truncated IPv4 packets can confuse the TX packet parser */
 #define EFX_WORKAROUND_15592 EFX_WORKAROUND_FALCON_AB
 /* Legacy ISR read can return zero once */
