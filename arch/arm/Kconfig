@@ -1058,7 +1058,7 @@ source "arch/arm/mach-msm/Kconfig"
 
 source "arch/arm/mach-mv78xx0/Kconfig"
 
-source "arch/arm/plat-mxc/Kconfig"
+source "arch/arm/mach-imx/Kconfig"
 
 source "arch/arm/mach-mxs/Kconfig"
 
