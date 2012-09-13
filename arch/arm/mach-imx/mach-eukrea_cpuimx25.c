@@ -27,7 +27,6 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 
-#include <mach/eukrea-baseboards.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,6 +38,7 @@
 #include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
+#include "eukrea-baseboards.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,

@@ -42,13 +42,13 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
-#include <mach/board-mx31moboard.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ulpi.h>
 #include <linux/platform_data/asoc-imx-ssi.h>
 
+#include "board-mx31moboard.h"
 #include "devices-imx31.h"
 
 static unsigned int moboard_pins[] = {

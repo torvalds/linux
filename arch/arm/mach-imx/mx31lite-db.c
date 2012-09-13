@@ -34,8 +34,8 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
-#include <mach/board-mx31lite.h>
 
+#include "board-mx31lite.h"
 #include "devices-imx31.h"
 
 /*

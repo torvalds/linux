@@ -40,8 +40,8 @@
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
 #include <mach/ulpi.h>
-#include <mach/3ds_debugboard.h>
 
+#include "3ds_debugboard.h"
 #include "devices-imx27.h"
 
 #define SD1_EN_GPIO		IMX_GPIO_NR(2, 25)

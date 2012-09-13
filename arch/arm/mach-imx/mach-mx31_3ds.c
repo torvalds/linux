@@ -39,9 +39,9 @@
 #include <asm/memblock.h>
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
-#include <mach/3ds_debugboard.h>
 #include <mach/ulpi.h>
 
+#include "3ds_debugboard.h"
 #include "devices-imx31.h"
 
 static int mx31_3ds_pins[] = {

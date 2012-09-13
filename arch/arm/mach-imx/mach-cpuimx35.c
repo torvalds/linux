@@ -37,12 +37,12 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/eukrea-baseboards.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
 
 #include "devices-imx35.h"
+#include "eukrea-baseboards.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,

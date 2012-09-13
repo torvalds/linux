@@ -34,13 +34,13 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/eukrea-baseboards.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx27.h"
+#include "eukrea-baseboards.h"
 
 static const int eukrea_cpuimx27_pins[] __initconst = {
 	/* UART1 */

@@ -33,8 +33,8 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
-#include <mach/board-mx31lilly.h>
 
+#include "board-mx31lilly.h"
 #include "devices-imx31.h"
 
 /*
