@@ -731,6 +731,7 @@ return_results:
 	hw->use_half_periods        = dll_use_half_periods;
 	hw->sample_delay_factor     = sample_delay_factor;
 	hw->device_busy_timeout     = GPMI_DEFAULT_BUSY_TIMEOUT;
+	hw->wrn_dly_sel             = BV_GPMI_CTRL1_WRN_DLY_SEL_4_TO_8NS;
 
 	/* Return success. */
 	return 0;
@@ -768,6 +769,11 @@ void gpmi_begin(struct gpmi_nand_data *this)
 		gpmi_regs + HW_GPMI_TIMING1);
 
 	/* [3] The following code is to set the HW_GPMI_CTRL1. */
+
+	/* Set the WRN_DLY_SEL */
+	writel(BM_GPMI_CTRL1_WRN_DLY_SEL, gpmi_regs + HW_GPMI_CTRL1_CLR);
+	writel(BF_GPMI_CTRL1_WRN_DLY_SEL(hw.wrn_dly_sel),
+					gpmi_regs + HW_GPMI_CTRL1_SET);
 
 	/* DLL_ENABLE must be set to 0 when setting RDN_DELAY or HALF_PERIOD. */
 	writel(BM_GPMI_CTRL1_DLL_ENABLE, gpmi_regs + HW_GPMI_CTRL1_CLR);
