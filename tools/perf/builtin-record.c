@@ -317,6 +317,11 @@ try_again:
 					  perf_evsel__name(pos));
 				rc = -err;
 				goto out;
+			} else if ((err == EOPNOTSUPP) && (attr->precise_ip)) {
+				ui__error("\'precise\' request may not be supported. "
+					  "Try removing 'p' modifier\n");
+				rc = -err;
+				goto out;
 			}
 
 			printf("\n");
