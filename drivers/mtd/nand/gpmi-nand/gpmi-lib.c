@@ -914,6 +914,9 @@ static int enable_edo_mode(struct gpmi_nand_data *this, int mode)
 	rate = (mode == 5) ? 100000000 : 80000000;
 	clk_set_rate(r->clock[0], rate);
 
+	/* Let the gpmi_begin() re-compute the timing again. */
+	this->flags &= ~GPMI_TIMING_INIT_OK;
+
 	this->flags |= GPMI_ASYNC_EDO_ENABLED;
 	this->timing_mode = mode;
 	dev_info(this->dev, "enable the asynchronous EDO mode %d\n", mode);
@@ -963,6 +966,11 @@ void gpmi_begin(struct gpmi_nand_data *this)
 		pr_err("We failed in enable the clk\n");
 		goto err_out;
 	}
+
+	/* Only initialize the timing once */
+	if (this->flags & GPMI_TIMING_INIT_OK)
+		return;
+	this->flags |= GPMI_TIMING_INIT_OK;
 
 	if (this->flags & GPMI_ASYNC_EDO_ENABLED)
 		gpmi_compute_edo_timing(this, &hw);

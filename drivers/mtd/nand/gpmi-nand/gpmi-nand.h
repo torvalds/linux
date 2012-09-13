@@ -124,6 +124,7 @@ struct nand_timing {
 struct gpmi_nand_data {
 	/* flags */
 #define GPMI_ASYNC_EDO_ENABLED	(1 << 0)
+#define GPMI_TIMING_INIT_OK	(1 << 1)
 	int			flags;
 
 	/* System Interface */
