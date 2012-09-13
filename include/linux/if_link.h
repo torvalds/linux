@@ -398,4 +398,15 @@ struct ifla_port_vsi {
 	__u8 pad[3];
 };
 
+
+/* IPoIB section */
+
+enum {
+	IFLA_IPOIB_UNSPEC,
+	IFLA_IPOIB_PKEY,
+	__IFLA_IPOIB_MAX
+};
+
+#define IFLA_IPOIB_MAX (__IFLA_IPOIB_MAX - 1)
+
 #endif /* _LINUX_IF_LINK_H */

@@ -1,0 +1,114 @@
+/*
+ * Copyright (c) 2012 Mellanox Technologies. -  All rights reserved.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#include <linux/netdevice.h>
+#include <linux/module.h>
+#include <net/rtnetlink.h>
+#include "ipoib.h"
+
+static const struct nla_policy ipoib_policy[IFLA_IPOIB_MAX + 1] = {
+	[IFLA_IPOIB_PKEY]	= { .type = NLA_U16 },
+};
+
+static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
+			       struct nlattr *tb[], struct nlattr *data[])
+{
+	struct net_device *pdev;
+	struct ipoib_dev_priv *ppriv;
+	u16 child_pkey;
+	int err;
+
+	if (!tb[IFLA_LINK])
+		return -EINVAL;
+
+	pdev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
+	if (!pdev)
+		return -ENODEV;
+
+	ppriv = netdev_priv(pdev);
+
+	if (test_bit(IPOIB_FLAG_SUBINTERFACE, &ppriv->flags)) {
+		ipoib_warn(ppriv, "child creation disallowed for child devices\n");
+		return -EINVAL;
+	}
+
+	if (!data || !data[IFLA_IPOIB_PKEY]) {
+		ipoib_dbg(ppriv, "no pkey specified, using parent pkey\n");
+		child_pkey  = ppriv->pkey;
+	} else
+		child_pkey  = nla_get_u16(data[IFLA_IPOIB_PKEY]);
+
+	err = __ipoib_vlan_add(ppriv, netdev_priv(dev), child_pkey, IPOIB_RTNL_CHILD);
+
+	return err;
+}
+
+static void ipoib_unregister_child_dev(struct net_device *dev, struct list_head *head)
+{
+	struct ipoib_dev_priv *priv, *ppriv;
+
+	priv = netdev_priv(dev);
+	ppriv = netdev_priv(priv->parent);
+
+	mutex_lock(&ppriv->vlan_mutex);
+	unregister_netdevice_queue(dev, head);
+	list_del(&priv->list);
+	mutex_unlock(&ppriv->vlan_mutex);
+}
+
+static size_t ipoib_get_size(const struct net_device *dev)
+{
+	return nla_total_size(2);	/* IFLA_IPOIB_PKEY */
+}
+
+static struct rtnl_link_ops ipoib_link_ops __read_mostly = {
+	.kind		= "ipoib",
+	.maxtype	= IFLA_IPOIB_MAX,
+	.policy		= ipoib_policy,
+	.priv_size	= sizeof(struct ipoib_dev_priv),
+	.setup		= ipoib_setup,
+	.newlink	= ipoib_new_child_link,
+	.dellink	= ipoib_unregister_child_dev,
+	.get_size	= ipoib_get_size,
+};
+
+int __init ipoib_netlink_init(void)
+{
+	return rtnl_link_register(&ipoib_link_ops);
+}
+
+void __exit ipoib_netlink_fini(void)
+{
+	rtnl_link_unregister(&ipoib_link_ops);
+}
+
+MODULE_ALIAS_RTNL_LINK("ipoib");

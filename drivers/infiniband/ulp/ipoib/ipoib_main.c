@@ -173,6 +173,11 @@ static int ipoib_stop(struct net_device *dev)
 	return 0;
 }
 
+static void ipoib_uninit(struct net_device *dev)
+{
+	ipoib_dev_cleanup(dev);
+}
+
 static netdev_features_t ipoib_fix_features(struct net_device *dev, netdev_features_t features)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -1262,6 +1267,9 @@ out:
 void ipoib_dev_cleanup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev), *cpriv, *tcpriv;
+	LIST_HEAD(head);
+
+	ASSERT_RTNL();
 
 	ipoib_delete_debug_files(dev);
 
@@ -1270,10 +1278,9 @@ void ipoib_dev_cleanup(struct net_device *dev)
 		/* Stop GC on child */
 		set_bit(IPOIB_STOP_NEIGH_GC, &cpriv->flags);
 		cancel_delayed_work(&cpriv->neigh_reap_task);
-		unregister_netdev(cpriv->dev);
-		ipoib_dev_cleanup(cpriv->dev);
-		free_netdev(cpriv->dev);
+		unregister_netdevice_queue(cpriv->dev, &head);
 	}
+	unregister_netdevice_many(&head);
 
 	ipoib_ib_dev_cleanup(dev);
 
@@ -1291,6 +1298,7 @@ static const struct header_ops ipoib_header_ops = {
 };
 
 static const struct net_device_ops ipoib_netdev_ops = {
+	.ndo_uninit		 = ipoib_uninit,
 	.ndo_open		 = ipoib_open,
 	.ndo_stop		 = ipoib_stop,
 	.ndo_change_mtu		 = ipoib_change_mtu,
@@ -1300,7 +1308,7 @@ static const struct net_device_ops ipoib_netdev_ops = {
 	.ndo_set_rx_mode	 = ipoib_set_mcast_list,
 };
 
-static void ipoib_setup(struct net_device *dev)
+void ipoib_setup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -1662,7 +1670,6 @@ static void ipoib_remove_one(struct ib_device *device)
 		flush_workqueue(ipoib_workqueue);
 
 		unregister_netdev(priv->dev);
-		ipoib_dev_cleanup(priv->dev);
 		free_netdev(priv->dev);
 	}
 
@@ -1714,7 +1721,14 @@ static int __init ipoib_init_module(void)
 	if (ret)
 		goto err_sa;
 
+	ret = ipoib_netlink_init();
+	if (ret)
+		goto err_client;
+
 	return 0;
+
+err_client:
+	ib_unregister_client(&ipoib_client);
 
 err_sa:
 	ib_sa_unregister_client(&ipoib_sa_client);
@@ -1728,6 +1742,7 @@ err_fs:
 
 static void __exit ipoib_cleanup_module(void)
 {
+	ipoib_netlink_fini();
 	ib_unregister_client(&ipoib_client);
 	ib_sa_unregister_client(&ipoib_sa_client);
 	ipoib_unregister_debugfs();
