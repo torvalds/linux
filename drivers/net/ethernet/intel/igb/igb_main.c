@@ -682,52 +682,29 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 {
 	struct igb_ring *ring;
 	int i;
-	int orig_node = adapter->node;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		if (orig_node == -1) {
-			int cur_node = next_online_node(adapter->node);
-			if (cur_node == MAX_NUMNODES)
-				cur_node = first_online_node;
-			adapter->node = cur_node;
-		}
-		ring = kzalloc_node(sizeof(struct igb_ring), GFP_KERNEL,
-				    adapter->node);
-		if (!ring)
-			ring = kzalloc(sizeof(struct igb_ring), GFP_KERNEL);
+		ring = kzalloc(sizeof(struct igb_ring), GFP_KERNEL);
 		if (!ring)
 			goto err;
 		ring->count = adapter->tx_ring_count;
 		ring->queue_index = i;
 		ring->dev = &adapter->pdev->dev;
 		ring->netdev = adapter->netdev;
-		ring->numa_node = adapter->node;
 		/* For 82575, context index must be unique per ring. */
 		if (adapter->hw.mac.type == e1000_82575)
 			set_bit(IGB_RING_FLAG_TX_CTX_IDX, &ring->flags);
 		adapter->tx_ring[i] = ring;
 	}
-	/* Restore the adapter's original node */
-	adapter->node = orig_node;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		if (orig_node == -1) {
-			int cur_node = next_online_node(adapter->node);
-			if (cur_node == MAX_NUMNODES)
-				cur_node = first_online_node;
-			adapter->node = cur_node;
-		}
-		ring = kzalloc_node(sizeof(struct igb_ring), GFP_KERNEL,
-				    adapter->node);
-		if (!ring)
-			ring = kzalloc(sizeof(struct igb_ring), GFP_KERNEL);
+		ring = kzalloc(sizeof(struct igb_ring), GFP_KERNEL);
 		if (!ring)
 			goto err;
 		ring->count = adapter->rx_ring_count;
 		ring->queue_index = i;
 		ring->dev = &adapter->pdev->dev;
 		ring->netdev = adapter->netdev;
-		ring->numa_node = adapter->node;
 		/* set flag indicating ring supports SCTP checksum offload */
 		if (adapter->hw.mac.type >= e1000_82576)
 			set_bit(IGB_RING_FLAG_RX_SCTP_CSUM, &ring->flags);
@@ -741,16 +718,12 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 
 		adapter->rx_ring[i] = ring;
 	}
-	/* Restore the adapter's original node */
-	adapter->node = orig_node;
 
 	igb_cache_ring_register(adapter);
 
 	return 0;
 
 err:
-	/* Restore the adapter's original node */
-	adapter->node = orig_node;
 	igb_free_queues(adapter);
 
 	return -ENOMEM;
@@ -1116,24 +1089,10 @@ static int igb_alloc_q_vectors(struct igb_adapter *adapter)
 	struct igb_q_vector *q_vector;
 	struct e1000_hw *hw = &adapter->hw;
 	int v_idx;
-	int orig_node = adapter->node;
 
 	for (v_idx = 0; v_idx < adapter->num_q_vectors; v_idx++) {
-		if ((adapter->num_q_vectors == (adapter->num_rx_queues +
-						adapter->num_tx_queues)) &&
-		    (adapter->num_rx_queues == v_idx))
-			adapter->node = orig_node;
-		if (orig_node == -1) {
-			int cur_node = next_online_node(adapter->node);
-			if (cur_node == MAX_NUMNODES)
-				cur_node = first_online_node;
-			adapter->node = cur_node;
-		}
-		q_vector = kzalloc_node(sizeof(struct igb_q_vector), GFP_KERNEL,
-					adapter->node);
-		if (!q_vector)
-			q_vector = kzalloc(sizeof(struct igb_q_vector),
-					   GFP_KERNEL);
+		q_vector = kzalloc(sizeof(struct igb_q_vector),
+				   GFP_KERNEL);
 		if (!q_vector)
 			goto err_out;
 		q_vector->adapter = adapter;
@@ -1142,14 +1101,10 @@ static int igb_alloc_q_vectors(struct igb_adapter *adapter)
 		netif_napi_add(adapter->netdev, &q_vector->napi, igb_poll, 64);
 		adapter->q_vector[v_idx] = q_vector;
 	}
-	/* Restore the adapter's original node */
-	adapter->node = orig_node;
 
 	return 0;
 
 err_out:
-	/* Restore the adapter's original node */
-	adapter->node = orig_node;
 	igb_free_q_vectors(adapter);
 	return -ENOMEM;
 }
@@ -2423,8 +2378,6 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 				  VLAN_HLEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
-	adapter->node = -1;
-
 	spin_lock_init(&adapter->stats64_lock);
 #ifdef CONFIG_PCI_IOV
 	switch (hw->mac.type) {
@@ -2671,13 +2624,11 @@ static int igb_close(struct net_device *netdev)
 int igb_setup_tx_resources(struct igb_ring *tx_ring)
 {
 	struct device *dev = tx_ring->dev;
-	int orig_node = dev_to_node(dev);
 	int size;
 
 	size = sizeof(struct igb_tx_buffer) * tx_ring->count;
-	tx_ring->tx_buffer_info = vzalloc_node(size, tx_ring->numa_node);
-	if (!tx_ring->tx_buffer_info)
-		tx_ring->tx_buffer_info = vzalloc(size);
+
+	tx_ring->tx_buffer_info = vzalloc(size);
 	if (!tx_ring->tx_buffer_info)
 		goto err;
 
@@ -2685,18 +2636,10 @@ int igb_setup_tx_resources(struct igb_ring *tx_ring)
 	tx_ring->size = tx_ring->count * sizeof(union e1000_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
-	set_dev_node(dev, tx_ring->numa_node);
 	tx_ring->desc = dma_alloc_coherent(dev,
 					   tx_ring->size,
 					   &tx_ring->dma,
 					   GFP_KERNEL);
-	set_dev_node(dev, orig_node);
-	if (!tx_ring->desc)
-		tx_ring->desc = dma_alloc_coherent(dev,
-						   tx_ring->size,
-						   &tx_ring->dma,
-						   GFP_KERNEL);
-
 	if (!tx_ring->desc)
 		goto err;
 
@@ -2707,8 +2650,8 @@ int igb_setup_tx_resources(struct igb_ring *tx_ring)
 
 err:
 	vfree(tx_ring->tx_buffer_info);
-	dev_err(dev,
-		"Unable to allocate memory for the transmit descriptor ring\n");
+	tx_ring->tx_buffer_info = NULL;
+	dev_err(dev, "Unable to allocate memory for the Tx descriptor ring\n");
 	return -ENOMEM;
 }
 
@@ -2825,34 +2768,23 @@ static void igb_configure_tx(struct igb_adapter *adapter)
 int igb_setup_rx_resources(struct igb_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	int orig_node = dev_to_node(dev);
-	int size, desc_len;
+	int size;
 
 	size = sizeof(struct igb_rx_buffer) * rx_ring->count;
-	rx_ring->rx_buffer_info = vzalloc_node(size, rx_ring->numa_node);
-	if (!rx_ring->rx_buffer_info)
-		rx_ring->rx_buffer_info = vzalloc(size);
+
+	rx_ring->rx_buffer_info = vzalloc(size);
 	if (!rx_ring->rx_buffer_info)
 		goto err;
 
-	desc_len = sizeof(union e1000_adv_rx_desc);
 
 	/* Round up to nearest 4K */
-	rx_ring->size = rx_ring->count * desc_len;
+	rx_ring->size = rx_ring->count * sizeof(union e1000_adv_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 
-	set_dev_node(dev, rx_ring->numa_node);
 	rx_ring->desc = dma_alloc_coherent(dev,
 					   rx_ring->size,
 					   &rx_ring->dma,
 					   GFP_KERNEL);
-	set_dev_node(dev, orig_node);
-	if (!rx_ring->desc)
-		rx_ring->desc = dma_alloc_coherent(dev,
-						   rx_ring->size,
-						   &rx_ring->dma,
-						   GFP_KERNEL);
-
 	if (!rx_ring->desc)
 		goto err;
 
@@ -2864,8 +2796,7 @@ int igb_setup_rx_resources(struct igb_ring *rx_ring)
 err:
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
-	dev_err(dev, "Unable to allocate memory for the receive descriptor"
-		" ring\n");
+	dev_err(dev, "Unable to allocate memory for the Rx descriptor ring\n");
 	return -ENOMEM;
 }
 
