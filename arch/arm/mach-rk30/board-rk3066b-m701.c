@@ -126,7 +126,7 @@ struct goodix_platform_data goodix_info = {
 };
 #endif
 
-#if defined (CONFIG_TOUCHSCREEN_FT5306)
+#if defined (CONFIG_TOUCHSCREEN_FT5306_AV)
 
 #define TOUCH_RESET_PIN  RK30_PIN2_PC0
 #define TOUCH_INT_PIN	 RK30_PIN0_PD4
@@ -1466,7 +1466,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.platform_data = &goodix_info,
 	},
 #endif
-#if defined (CONFIG_TOUCHSCREEN_FT5306)
+#if defined (CONFIG_TOUCHSCREEN_FT5306_AV)
 		{
 			.type			= "ft5x0x_ts",
 			.addr			= 0x38,
