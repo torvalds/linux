@@ -37,9 +37,9 @@
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
 #include <mach/mx25.h>
 
+#include "common.h"
 #include "devices-imx25.h"
 #include "iomux-mx25.h"
 

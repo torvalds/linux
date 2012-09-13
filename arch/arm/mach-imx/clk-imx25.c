@@ -25,9 +25,10 @@
 #include <linux/err.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 #include <mach/mx25.h>
+
 #include "clk.h"
+#include "common.h"
 
 #define CRM_BASE	MX25_IO_ADDRESS(MX25_CRM_BASE_ADDR)
 

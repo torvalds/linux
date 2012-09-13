@@ -29,9 +29,9 @@
 
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
 #include <mach/hardware.h>
 
+#include "common.h"
 #include "devices-imx27.h"
 #include "iomux-mx27.h"
 

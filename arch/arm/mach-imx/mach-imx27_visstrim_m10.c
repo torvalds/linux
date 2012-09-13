@@ -40,9 +40,9 @@
 #include <asm/mach/time.h>
 #include <asm/system_info.h>
 #include <asm/memblock.h>
-#include <mach/common.h>
 #include <mach/hardware.h>
 
+#include "common.h"
 #include "devices-imx27.h"
 #include "iomux-mx27.h"
 

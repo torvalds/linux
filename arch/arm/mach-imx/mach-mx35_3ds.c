@@ -44,12 +44,12 @@
 #include <asm/memblock.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 #include <video/platform_lcd.h>
 
 #include <media/soc_camera.h>
 
 #include "3ds_debugboard.h"
+#include "common.h"
 #include "devices-imx35.h"
 #include "iomux-mx35.h"
 

@@ -36,9 +36,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/common.h>
 #include <mach/hardware.h>
 
+#include "common.h"
 #include "devices-imx31.h"
 #include "iomux-mx3.h"
 

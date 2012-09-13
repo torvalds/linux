@@ -26,10 +26,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
 #include <asm/page.h>
 #include <asm/setup.h>
 
+#include "common.h"
 #include "devices-imx31.h"
 #include "iomux-mx3.h"
 

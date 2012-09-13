@@ -16,9 +16,10 @@
 #include <asm/cacheflush.h>
 #include <asm/system_misc.h>
 #include <asm/tlbflush.h>
-#include <mach/common.h>
 #include <mach/cpuidle.h>
 #include <mach/hardware.h>
+
+#include "common.h"
 #include "crm-regs-imx5.h"
 
 /*

@@ -27,11 +27,11 @@
 #include <video/platform_lcd.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/mx25.h>
 
+#include "common.h"
 #include "devices-imx25.h"
 #include "iomux-mx25.h"
 

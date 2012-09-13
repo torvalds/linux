@@ -37,8 +37,8 @@
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 
+#include "common.h"
 #include "devices-imx35.h"
 #include "iomux-mx35.h"
 

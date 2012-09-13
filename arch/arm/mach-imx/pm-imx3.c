@@ -9,8 +9,9 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 #include <linux/io.h>
-#include <mach/common.h>
 #include <mach/hardware.h>
+
+#include "common.h"
 #include "crmregs-imx3.h"
 #include "devices/devices-common.h"
 

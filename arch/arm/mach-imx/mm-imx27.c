@@ -22,10 +22,10 @@
 #include <linux/init.h>
 #include <linux/pinctrl/machine.h>
 #include <mach/hardware.h>
-#include <mach/common.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 
+#include "common.h"
 #include "devices/devices-common.h"
 #include "iomux-v1.h"
 

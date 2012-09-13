@@ -22,12 +22,12 @@
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <mach/common.h>
 #include <asm/mach/irq.h>
 #include <asm/exception.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 
+#include "common.h"
 #include "irq-common.h"
 
 #define AVIC_INTCNTL		0x00	/* int control reg */

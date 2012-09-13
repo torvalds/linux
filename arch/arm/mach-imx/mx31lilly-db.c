@@ -31,9 +31,9 @@
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 
 #include "board-mx31lilly.h"
+#include "common.h"
 #include "devices-imx31.h"
 #include "iomux-mx3.h"
 

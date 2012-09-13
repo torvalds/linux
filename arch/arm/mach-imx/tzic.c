@@ -22,9 +22,9 @@
 #include <asm/exception.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 #include <mach/irqs.h>
 
+#include "common.h"
 #include "irq-common.h"
 
 /*

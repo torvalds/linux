@@ -34,10 +34,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/ulpi.h>
 
+#include "common.h"
 #include "devices-imx27.h"
 #include "eukrea-baseboards.h"
 #include "iomux-mx27.h"

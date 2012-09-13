@@ -20,12 +20,12 @@
 #include <linux/platform_device.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 
 #include <asm/mach/time.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include "common.h"
 #include "devices-imx31.h"
 #include "iomux-mx3.h"
 

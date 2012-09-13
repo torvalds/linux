@@ -30,7 +30,8 @@
 #include <mach/hardware.h>
 #include <asm/sched_clock.h>
 #include <asm/mach/time.h>
-#include <mach/common.h>
+
+#include "common.h"
 
 /*
  * There are 2 versions of the timer hardware on Freescale MXC hardware.

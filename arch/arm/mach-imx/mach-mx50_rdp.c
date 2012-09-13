@@ -24,7 +24,6 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include <mach/common.h>
 #include <mach/hardware.h>
 
 #include <asm/irq.h>
@@ -33,6 +32,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include "common.h"
 #include "devices-imx50.h"
 #include "iomux-mx50.h"
 

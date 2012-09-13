@@ -20,9 +20,9 @@
 #include <asm/mach/time.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 
 #include "3ds_debugboard.h"
+#include "common.h"
 #include "devices-imx51.h"
 #include "iomux-mx51.h"
 

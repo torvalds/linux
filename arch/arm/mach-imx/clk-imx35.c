@@ -15,10 +15,10 @@
 #include <linux/err.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 
 #include "crmregs-imx3.h"
 #include "clk.h"
+#include "common.h"
 
 struct arm_ahb_div {
 	unsigned char arm, ahb, sel;

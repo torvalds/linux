@@ -15,10 +15,10 @@
 #include <linux/err.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 
 #include "crm-regs-imx5.h"
 #include "clk.h"
+#include "common.h"
 
 /* Low-power Audio Playback Mode clock */
 static const char *lp_apm_sel[] = { "osc", };

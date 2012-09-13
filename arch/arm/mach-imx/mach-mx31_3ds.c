@@ -37,10 +37,10 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
-#include <mach/common.h>
 #include <mach/ulpi.h>
 
 #include "3ds_debugboard.h"
+#include "common.h"
 #include "devices-imx31.h"
 #include "iomux-mx3.h"
 

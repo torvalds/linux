@@ -54,7 +54,8 @@
 
 #include <mach/hardware.h>
 #include <asm/mach/time.h>
-#include <mach/common.h>
+
+#include "common.h"
 
 static struct clock_event_device clockevent_epit;
 static enum clock_event_mode clockevent_mode = CLOCK_EVT_MODE_UNUSED;

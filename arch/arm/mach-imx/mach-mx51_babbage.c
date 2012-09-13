@@ -20,7 +20,6 @@
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
 
-#include <mach/common.h>
 #include <mach/hardware.h>
 
 #include <asm/setup.h>
@@ -28,6 +27,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include "common.h"
 #include "devices-imx51.h"
 #include "cpu_op-mx51.h"
 #include "iomux-mx51.h"

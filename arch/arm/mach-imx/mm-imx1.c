@@ -22,9 +22,9 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
 #include <mach/hardware.h>
 
+#include "common.h"
 #include "iomux-v1.h"
 
 static struct map_desc imx_io_desc[] __initdata = {

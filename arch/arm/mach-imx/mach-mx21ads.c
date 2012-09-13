@@ -18,13 +18,13 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
-#include <mach/common.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
+#include "common.h"
 #include "devices-imx21.h"
 #include "iomux-mx21.h"
 

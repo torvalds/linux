@@ -24,9 +24,9 @@
 
 #include <mach/hardware.h>
 #include <mach/mx31.h>
-#include <mach/common.h>
 
 #include "clk.h"
+#include "common.h"
 #include "crmregs-imx3.h"
 
 static const char *mcu_main_sel[] = { "spll", "mpll", };

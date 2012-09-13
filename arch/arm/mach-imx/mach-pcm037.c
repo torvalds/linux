@@ -42,10 +42,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
-#include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/ulpi.h>
 
+#include "common.h"
 #include "devices-imx31.h"
 #include "iomux-mx3.h"
 #include "pcm037.h"

@@ -48,9 +48,9 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
 #include <mach/ulpi.h>
 
+#include "common.h"
 #include "devices-imx31.h"
 #include "crmregs-imx3.h"
 #include "iomux-mx3.h"

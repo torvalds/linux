@@ -20,9 +20,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include <mach/common.h>
 #include <mach/hardware.h>
 
+#include "common.h"
 #include "devices-imx1.h"
 #include "iomux-mx1.h"
 

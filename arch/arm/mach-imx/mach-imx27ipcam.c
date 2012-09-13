@@ -18,8 +18,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/hardware.h>
-#include <mach/common.h>
 
+#include "common.h"
 #include "devices-imx27.h"
 #include "iomux-mx27.h"
 

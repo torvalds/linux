@@ -40,10 +40,10 @@
 #include <asm/setup.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 #include <mach/ulpi.h>
 
 #include "board-mx31lite.h"
+#include "common.h"
 #include "devices-imx31.h"
 #include "iomux-mx3.h"
 

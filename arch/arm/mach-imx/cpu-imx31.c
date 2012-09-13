@@ -13,7 +13,8 @@
 #include <linux/io.h>
 #include <mach/hardware.h>
 #include <mach/iim.h>
-#include <mach/common.h>
+
+#include "common.h"
 
 static int mx31_cpu_rev = -1;
 

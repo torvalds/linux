@@ -29,12 +29,12 @@
 #include <asm/mach/time.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/mfd/mc13xxx.h>
 
+#include "common.h"
 #include "devices-imx35.h"
 #include "iomux-mx35.h"
 

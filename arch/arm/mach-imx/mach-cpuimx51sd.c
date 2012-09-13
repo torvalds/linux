@@ -26,7 +26,6 @@
 #include <linux/spi/spi.h>
 #include <linux/can/platform/mcp251x.h>
 
-#include <mach/common.h>
 #include <mach/hardware.h>
 
 #include <asm/setup.h>
@@ -34,6 +33,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include "common.h"
 #include "devices-imx51.h"
 #include "cpu_op-mx51.h"
 #include "eukrea-baseboards.h"

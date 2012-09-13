@@ -23,10 +23,11 @@
 #include <linux/delay.h>
 
 #include <mach/hardware.h>
-#include <mach/common.h>
 #include <asm/system_misc.h>
 #include <asm/proc-fns.h>
 #include <asm/mach-types.h>
+
+#include "common.h"
 
 static void __iomem *wdog_base;
 
