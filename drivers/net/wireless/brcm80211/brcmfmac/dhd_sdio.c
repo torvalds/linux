@@ -531,7 +531,7 @@ struct brcmf_sdio {
 
 	bool intr;		/* Use interrupts */
 	bool poll;		/* Use polling */
-	bool ipend;		/* Device interrupt is pending */
+	atomic_t ipend;		/* Device interrupt is pending */
 	uint spurious;		/* Count of spurious interrupts */
 	uint pollrate;		/* Ticks between device polls */
 	uint polltick;		/* Tick counter */
@@ -2151,7 +2151,7 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 			if (ret != 0)
 				break;
 			if (intstatus & bus->hostintmask)
-				bus->ipend = true;
+				atomic_set(&bus->ipend, 1);
 		}
 	}
 
@@ -2249,7 +2249,7 @@ static inline void brcmf_sdbrcm_clrintr(struct brcmf_sdio *bus)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bus->sdiodev->irq_en_lock, flags);
-	if (!bus->sdiodev->irq_en && !bus->ipend) {
+	if (!bus->sdiodev->irq_en && !atomic_read(&bus->ipend)) {
 		enable_irq(bus->sdiodev->irq);
 		bus->sdiodev->irq_en = true;
 	}
@@ -2332,8 +2332,8 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 		goto clkwait;
 
 	/* Pending interrupt indicates new device status */
-	if (bus->ipend) {
-		bus->ipend = false;
+	if (atomic_read(&bus->ipend) > 0) {
+		atomic_set(&bus->ipend, 0);
 		err = r_sdreg32(bus, &newstatus,
 				offsetof(struct sdpcmd_regs, intstatus));
 		bus->sdcnt.f1regdata++;
@@ -2478,7 +2478,7 @@ clkwait:
 	} else if (bus->clkstate == CLK_PENDING) {
 		brcmf_dbg(INFO, "rescheduled due to CLK_PENDING awaiting I_CHIPACTIVE interrupt\n");
 		resched = true;
-	} else if (bus->intstatus || bus->ipend ||
+	} else if (bus->intstatus || atomic_read(&bus->ipend) > 0 ||
 		(!bus->fcstate && brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol)
 		 && data_ok(bus)) || PKT_AVAILABLE()) {
 		resched = true;
@@ -3692,7 +3692,7 @@ void brcmf_sdbrcm_isr(void *arg)
 	}
 	/* Count the interrupt call */
 	bus->sdcnt.intrcount++;
-	bus->ipend = true;
+	atomic_set(&bus->ipend, 1);
 
 	/* Disable additional interrupts (is this needed now)? */
 	if (!bus->intr)
@@ -3740,7 +3740,7 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 				 schedule the DPC */
 			if (intstatus) {
 				bus->sdcnt.pollcnt++;
-				bus->ipend = true;
+				atomic_set(&bus->ipend, 1);
 
 				bus->dpc_sched = true;
 				if (bus->dpc_tsk) {
@@ -3784,7 +3784,7 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 
 	up(&bus->sdsem);
 
-	return bus->ipend;
+	return (atomic_read(&bus->ipend) > 0);
 }
 
 static bool brcmf_sdbrcm_chipmatch(u16 chipid)
