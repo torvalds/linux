@@ -1913,6 +1913,33 @@ int create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
 }
 EXPORT_SYMBOL(create_syslog_header);
 
+int dev_vprintk_emit(int level, const struct device *dev,
+		     const char *fmt, va_list args)
+{
+	char hdr[128];
+	size_t hdrlen;
+
+	hdrlen = create_syslog_header(dev, hdr, sizeof(hdr));
+
+	return vprintk_emit(0, level, hdrlen ? hdr : NULL, hdrlen, fmt, args);
+}
+EXPORT_SYMBOL(dev_vprintk_emit);
+
+int dev_printk_emit(int level, const struct device *dev, const char *fmt, ...)
+{
+	va_list args;
+	int r;
+
+	va_start(args, fmt);
+
+	r = dev_vprintk_emit(level, dev, fmt, args);
+
+	va_end(args);
+
+	return r;
+}
+EXPORT_SYMBOL(dev_printk_emit);
+
 static int __dev_printk(const char *level, const struct device *dev,
 			struct va_format *vaf)
 {

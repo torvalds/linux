@@ -897,6 +897,10 @@ extern const char *dev_driver_string(const struct device *dev);
 
 extern int create_syslog_header(const struct device *dev,
 				char *hdr, size_t hdrlen);
+extern int dev_vprintk_emit(int level, const struct device *dev,
+			    const char *fmt, va_list args);
+extern __printf(3, 4)
+int dev_printk_emit(int level, const struct device *dev, const char *fmt, ...);
 
 extern __printf(3, 4)
 int dev_printk(const char *level, const struct device *dev,
@@ -917,6 +921,13 @@ extern __printf(2, 3)
 int _dev_info(const struct device *dev, const char *fmt, ...);
 
 #else
+
+static int dev_vprintk_emit(int level, const struct device *dev,
+			    const char *fmt, va_list args)
+{ return 0; }
+static inline __printf(3, 4)
+int dev_printk_emit(int level, const struct device *dev, const char *fmt, ...)
+{ return 0; }
 
 static inline int __dev_printk(const char *level, const struct device *dev,
 			       struct va_format *vaf)
