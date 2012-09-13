@@ -380,7 +380,7 @@ int h1940_led_blink_set(unsigned gpio, int state,
 	default:
 		blink_gpio = S3C2410_GPA(3);
 		check_gpio1 = S3C2410_GPA(1);
-		check_gpio1 = S3C2410_GPA(7);
+		check_gpio2 = S3C2410_GPA(7);
 		break;
 	}
 
