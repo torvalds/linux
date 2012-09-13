@@ -670,14 +670,16 @@ static bool amd_filter_mce(struct mce *m)
 int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *m = (struct mce *)data;
-	struct cpuinfo_x86 *c = &boot_cpu_data;
+	struct cpuinfo_x86 *c = &cpu_data(m->extcpu);
 	int ecc;
 
 	if (amd_filter_mce(m))
 		return NOTIFY_STOP;
 
-	pr_emerg(HW_ERR "CPU:%d\tMC%d_STATUS[%s|%s|%s|%s|%s",
-		m->extcpu, m->bank,
+	pr_emerg(HW_ERR "CPU:%d (%x:%x:%x) MC%d_STATUS[%s|%s|%s|%s|%s",
+		m->extcpu,
+		c->x86, c->x86_model, c->x86_mask,
+		m->bank,
 		((m->status & MCI_STATUS_OVER)	? "Over"  : "-"),
 		((m->status & MCI_STATUS_UC)	? "UE"	  : "CE"),
 		((m->status & MCI_STATUS_MISCV)	? "MiscV" : "-"),
@@ -697,7 +699,7 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	pr_cont("]: 0x%016llx\n", m->status);
 
 	if (m->status & MCI_STATUS_ADDRV)
-		pr_emerg(HW_ERR "\tMC%d_ADDR: 0x%016llx\n", m->bank, m->addr);
+		pr_emerg(HW_ERR "MC%d_ADDR: 0x%016llx\n", m->bank, m->addr);
 
 	switch (m->bank) {
 	case 0:
