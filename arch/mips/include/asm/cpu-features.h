@@ -95,6 +95,9 @@
 #ifndef cpu_has_smartmips
 #define cpu_has_smartmips      (cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
 #endif
+#ifndef cpu_has_rixi
+#define cpu_has_rixi		(cpu_data[0].options & MIPS_CPU_RIXI)
+#endif
 #ifndef kernel_uses_smartmips_rixi
 #define kernel_uses_smartmips_rixi 0
 #endif
