@@ -35,6 +35,7 @@ enum alarmtimer_restart {
  */
 struct alarm {
 	struct timerqueue_node	node;
+	struct hrtimer		timer;
 	enum alarmtimer_restart	(*function)(struct alarm *, ktime_t now);
 	enum alarmtimer_type	type;
 	int			state;
@@ -43,7 +44,7 @@ struct alarm {
 
 void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 		enum alarmtimer_restart (*function)(struct alarm *, ktime_t));
-void alarm_start(struct alarm *alarm, ktime_t start);
+int alarm_start(struct alarm *alarm, ktime_t start);
 int alarm_try_to_cancel(struct alarm *alarm);
 int alarm_cancel(struct alarm *alarm);
 
