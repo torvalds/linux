@@ -1,0 +1,13 @@
+menuconfig ASYMMETRIC_KEY_TYPE
+	tristate "Asymmetric (public-key cryptographic) key type"
+	depends on KEYS
+	help
+	  This option provides support for a key type that holds the data for
+	  the asymmetric keys used for public key cryptographic operations such
+	  as encryption, decryption, signature generation and signature
+	  verification.
+
+if ASYMMETRIC_KEY_TYPE
+
+
+endif # ASYMMETRIC_KEY_TYPE
