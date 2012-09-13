@@ -831,11 +831,6 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "failed to find registers\n");
-		ret = -ENOENT;
-		goto err_clk;
-	}
 
 	ctx->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!ctx->regs) {
