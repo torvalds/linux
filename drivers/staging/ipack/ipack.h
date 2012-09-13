@@ -35,6 +35,7 @@ enum ipack_space {
 	IPACK_IO_SPACE    = 0,
 	IPACK_ID_SPACE    = 1,
 	IPACK_MEM_SPACE   = 2,
+	IPACK_INT_SPACE,
 };
 
 /**
@@ -71,6 +72,7 @@ struct ipack_device {
 	struct ipack_bus_device *bus;
 	struct ipack_addr_space id_space;
 	struct ipack_addr_space io_space;
+	struct ipack_addr_space int_space;
 	struct ipack_addr_space mem_space;
 	struct device dev;
 	u8                      *id;

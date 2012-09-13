@@ -95,6 +95,8 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 		tpci200->slots[i].io_phys.size = 0;
 		tpci200->slots[i].id_phys.address = NULL;
 		tpci200->slots[i].id_phys.size = 0;
+		tpci200->slots[i].int_phys.address = NULL;
+		tpci200->slots[i].int_phys.size = 0;
 		tpci200->slots[i].mem_phys.address = NULL;
 		tpci200->slots[i].mem_phys.size = 0;
 	}
@@ -331,6 +333,11 @@ static int tpci200_register(struct tpci200_board *tpci200)
 			TPCI200_ID_SPACE_OFF + TPCI200_ID_SPACE_GAP*i;
 		tpci200->slots[i].id_phys.size = TPCI200_ID_SPACE_SIZE;
 
+		tpci200->slots[i].int_phys.address =
+			(void __iomem *)ioidint_base +
+			TPCI200_INT_SPACE_OFF + TPCI200_INT_SPACE_GAP * i;
+		tpci200->slots[i].int_phys.size = TPCI200_INT_SPACE_SIZE;
+
 		tpci200->slots[i].mem_phys.address =
 			(void __iomem *)mem_base + TPCI200_MEM8_GAP*i;
 		tpci200->slots[i].mem_phys.size = TPCI200_MEM8_SIZE;
@@ -390,6 +397,15 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 			goto out_unlock;
 		}
 		virt_addr_space = &dev->id_space;
+		break;
+	case IPACK_INT_SPACE:
+		if (dev->int_space.address == NULL) {
+			dev_info(&dev->dev,
+				 "Slot [%d:%d] INT space not mapped !\n",
+				 dev->bus_nr, dev->slot);
+			goto out_unlock;
+		}
+		virt_addr_space = &dev->int_space;
 		break;
 	case IPACK_MEM_SPACE:
 		if (dev->mem_space.address == NULL) {
@@ -459,6 +475,19 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 
 		phys_address = tpci200->slots[dev->slot].id_phys.address;
 		size_to_map = tpci200->slots[dev->slot].id_phys.size;
+		break;
+	case IPACK_INT_SPACE:
+		if (dev->int_space.address != NULL) {
+			dev_err(&dev->dev,
+				"Slot [%d:%d] INT space already mapped !\n",
+				tpci200->number, dev->slot);
+			res = -EINVAL;
+			goto out_unlock;
+		}
+		virt_addr_space = &dev->int_space;
+
+		phys_address = tpci200->slots[dev->slot].int_phys.address;
+		size_to_map = tpci200->slots[dev->slot].int_phys.size;
 		break;
 	case IPACK_MEM_SPACE:
 		if (dev->mem_space.address != NULL) {

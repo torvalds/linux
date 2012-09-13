@@ -132,6 +132,7 @@ struct slot_irq {
  * @irq		Slot IRQ infos
  * @io_phys	IO physical base address register of the slot
  * @id_phys	ID physical base address register of the slot
+ * @int_phys	INT physical base address register of the slot
  * @mem_phys	MEM physical base address register of the slot
  *
  */
@@ -139,6 +140,7 @@ struct tpci200_slot {
 	struct slot_irq		*irq;
 	struct ipack_addr_space io_phys;
 	struct ipack_addr_space id_phys;
+	struct ipack_addr_space int_phys;
 	struct ipack_addr_space mem_phys;
 };
 
