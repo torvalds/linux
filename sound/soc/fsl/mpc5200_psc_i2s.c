@@ -130,13 +130,16 @@ static const struct snd_soc_dai_ops psc_i2s_dai_ops = {
 };
 
 static struct snd_soc_dai_driver psc_i2s_dai[] = {{
+	.name = "mpc5200-psc-i2s.0",
 	.playback = {
+		.stream_name = "I2S Playback",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = PSC_I2S_RATES,
 		.formats = PSC_I2S_FORMATS,
 	},
 	.capture = {
+		.stream_name = "I2S Capture",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = PSC_I2S_RATES,

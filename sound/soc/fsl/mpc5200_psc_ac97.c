@@ -237,15 +237,18 @@ static const struct snd_soc_dai_ops psc_ac97_digital_ops = {
 
 static struct snd_soc_dai_driver psc_ac97_dai[] = {
 {
+	.name = "mpc5200-psc-ac97.0",
 	.ac97_control = 1,
 	.probe	= psc_ac97_probe,
 	.playback = {
+		.stream_name	= "AC97 Playback",
 		.channels_min   = 1,
 		.channels_max   = 6,
 		.rates          = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S32_BE,
 	},
 	.capture = {
+		.stream_name	= "AC97 Capture",
 		.channels_min   = 1,
 		.channels_max   = 2,
 		.rates          = SNDRV_PCM_RATE_8000_48000,
@@ -254,8 +257,10 @@ static struct snd_soc_dai_driver psc_ac97_dai[] = {
 	.ops = &psc_ac97_analog_ops,
 },
 {
+	.name = "mpc5200-psc-ac97.1",
 	.ac97_control = 1,
 	.playback = {
+		.stream_name	= "AC97 SPDIF",
 		.channels_min   = 1,
 		.channels_max   = 2,
 		.rates          = SNDRV_PCM_RATE_32000 | \
