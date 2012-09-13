@@ -155,6 +155,10 @@ config PINCTRL_DOVE
 	bool
 	select PINCTRL_MVEBU
 
+config PINCTRL_KIRKWOOD
+	bool
+	select PINCTRL_MVEBU
+
 source "drivers/pinctrl/spear/Kconfig"
 
 endmenu

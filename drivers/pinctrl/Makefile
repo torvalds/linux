@@ -31,5 +31,6 @@ obj-$(CONFIG_PINCTRL_U300)	+= pinctrl-u300.o
 obj-$(CONFIG_PINCTRL_COH901)	+= pinctrl-coh901.o
 obj-$(CONFIG_PINCTRL_MVEBU)	+= pinctrl-mvebu.o
 obj-$(CONFIG_PINCTRL_DOVE)	+= pinctrl-dove.o
+obj-$(CONFIG_PINCTRL_KIRKWOOD)	+= pinctrl-kirkwood.o
 
 obj-$(CONFIG_PLAT_SPEAR)	+= spear/
