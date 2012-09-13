@@ -1456,6 +1456,19 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return rc;
 }
 
+static int vidioc_g_chip_ident(struct file *file, void *fh,
+				struct v4l2_dbg_chip_ident *chip)
+{
+	chip->ident = V4L2_IDENT_NONE;
+	chip->revision = 0;
+	if (chip->match.type == V4L2_CHIP_MATCH_HOST) {
+		if (v4l2_chip_match_host(&chip->match))
+			chip->ident = V4L2_IDENT_CX23100;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 
 /*
@@ -2514,6 +2527,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_tuner                = vidioc_s_tuner,
 	.vidioc_g_frequency            = vidioc_g_frequency,
 	.vidioc_s_frequency            = vidioc_s_frequency,
+	.vidioc_g_chip_ident           = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register             = vidioc_g_register,
 	.vidioc_s_register             = vidioc_s_register,
