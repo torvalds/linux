@@ -23,15 +23,13 @@
 #include "gdm_usb.h"
 #include "usb_boot.h"
 
-#define DN_KERNEL_MAGIC_NUMBER		0x10760001
-#define DN_ROOTFS_MAGIC_NUMBER		0x10760002
+#define DN_KERNEL_MAGIC_NUMBER	0x10760001
+#define DN_ROOTFS_MAGIC_NUMBER	0x10760002
 
-#define DOWNLOAD_SIZE	1024
+#define DOWNLOAD_SIZE		1024
 
-#define DH2B(x)		__cpu_to_be32(x)
-#define DL2H(x)		__le32_to_cpu(x)
-
-#define MIN(a, b)	((a) > (b) ? (b) : (a))
+#define DH2B(x)			__cpu_to_be32(x)
+#define DL2H(x)			__le32_to_cpu(x)
 
 #define MAX_IMG_CNT		16
 #define UIMG_PATH		"/lib/firmware/gdm72xx/gdmuimg.bin"
@@ -44,23 +42,23 @@ struct dn_header {
 };
 
 struct img_header {
-	u32		magic_code;
-	u32		count;
-	u32		len;
-	u32		offset[MAX_IMG_CNT];
+	u32	magic_code;
+	u32	count;
+	u32	len;
+	u32	offset[MAX_IMG_CNT];
 	char	hostname[32];
 	char	date[32];
 };
 
 struct fw_info {
-	u32		id;
-	u32		len;
-	u32		kernel_len;
-	u32		rootfs_len;
-	u32		kernel_offset;
-	u32		rootfs_offset;
-	u32		fw_ver;
-	u32		mac_ver;
+	u32	id;
+	u32	len;
+	u32	kernel_len;
+	u32	rootfs_len;
+	u32	kernel_offset;
+	u32	rootfs_offset;
+	u32	fw_ver;
+	u32	mac_ver;
 	char	hostname[32];
 	char	userid[16];
 	char	date[32];
