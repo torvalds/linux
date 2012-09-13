@@ -1,8 +1,6 @@
 /*
     comedi/drivers/ni_pcidio.c
-    driver for National Instruments PCI-DIO-96/PCI-6508
-		National Instruments PCI-DIO-32HS
-		National Instruments PCI-6503
+    driver for National Instruments PCI-DIO-32HS
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1999,2002 David A. Schleef <ds@schleef.org>
@@ -24,16 +22,13 @@
 */
 /*
 Driver: ni_pcidio
-Description: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503
+Description: National Instruments PCI-DIO32HS, PCI-6533
 Author: ds
 Status: works
-Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio), PXI-6533,
-  PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
-  PXI-6503, PCI-6533, PCI-6534
+Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio)
+	 [National Instruments] PXI-6533, PCI-6533 (pxi-6533)
+	 [National Instruments] PCI-6534 (pci-6534)
 Updated: Mon, 09 Jan 2012 14:27:23 +0000
-
-The DIO-96 appears as four 8255 subdevices.  See the 8255
-driver notes for details.
 
 The DIO32HS board appears as one subdevice, with 32 channels.
 Each channel is individually I/O configurable.  The channel order
@@ -56,20 +51,6 @@ it are contained in the
 comedi_nonfree_firmware tarball available from http://www.comedi.org
 */
 
-/*
-   This driver is for both the NI PCI-DIO-32HS and the PCI-DIO-96,
-   which have very different architectures.  But, since the '96 is
-   so simple, it is included here.
-
-   Manuals (available from ftp://ftp.natinst.com/support/manuals)
-
-	320938c.pdf	PCI-DIO-96/PXI-6508/PCI-6503 User Manual
-	321464b.pdf	AT/PCI-DIO-32HS User Manual
-	341329A.pdf	PCI-6533 Register-Level Programmer Manual
-	341330A.pdf	DAQ-DIO Technical Reference Manual
-
- */
-
 #define USE_DMA
 /* #define DEBUG 1 */
 /* #define DEBUG_FLAGS */
@@ -79,7 +60,6 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #include "../comedidev.h"
 
 #include "mite.h"
-#include "8255.h"
 
 #undef DPRINTK
 #ifdef DEBUG
@@ -90,14 +70,6 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 
 #define PCI_DIO_SIZE 4096
 #define PCI_MITE_SIZE 4096
-
-/* defines for the PCI-DIO-96 */
-
-#define NIDIO_8255_BASE(x)	((x)*4)
-#define NIDIO_A 0
-#define NIDIO_B 4
-#define NIDIO_C 8
-#define NIDIO_D 12
 
 /* defines for the PCI-DIO-32HS */
 
@@ -297,76 +269,23 @@ static int ni_pcidio_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
 
 struct nidio_board {
-
 	int dev_id;
 	const char *name;
-	int n_8255;
-	unsigned int is_diodaq:1;
 	unsigned int uses_firmware:1;
 };
 
 static const struct nidio_board nidio_boards[] = {
 	{
-	 .dev_id = 0x1150,
-	 .name = "pci-dio-32hs",
-	 .n_8255 = 0,
-	 .is_diodaq = 1,
-	 },
-	{
-	 .dev_id = 0x1320,
-	 .name = "pxi-6533",
-	 .n_8255 = 0,
-	 .is_diodaq = 1,
-	 },
-	{
-	 .dev_id = 0x12b0,
-	 .name = "pci-6534",
-	 .n_8255 = 0,
-	 .is_diodaq = 1,
-	 .uses_firmware = 1,
-	 },
-	{
-	 .dev_id = 0x0160,
-	 .name = "pci-dio-96",
-	 .n_8255 = 4,
-	 .is_diodaq = 0,
-	 },
-	{
-	 .dev_id = 0x1630,
-	 .name = "pci-dio-96b",
-	 .n_8255 = 4,
-	 .is_diodaq = 0,
-	 },
-	{
-	 .dev_id = 0x13c0,
-	 .name = "pxi-6508",
-	 .n_8255 = 4,
-	 .is_diodaq = 0,
-	 },
-	{
-	 .dev_id = 0x0400,
-	 .name = "pci-6503",
-	 .n_8255 = 1,
-	 .is_diodaq = 0,
-	 },
-	{
-	 .dev_id = 0x1250,
-	 .name = "pci-6503b",
-	 .n_8255 = 1,
-	 .is_diodaq = 0,
-	 },
-	{
-	 .dev_id = 0x17d0,
-	 .name = "pci-6503x",
-	 .n_8255 = 1,
-	 .is_diodaq = 0,
-	 },
-	{
-	 .dev_id = 0x1800,
-	 .name = "pxi-6503",
-	 .n_8255 = 1,
-	 .is_diodaq = 0,
-	 },
+		.dev_id		= 0x1150,
+		.name		= "pci-dio-32hs",
+	}, {
+		.dev_id		= 0x1320,
+		.name		= "pxi-6533",
+	}, {
+		.dev_id		= 0x12b0,
+		.name		= "pci-6534",
+		.uses_firmware	= 1,
+	},
 };
 
 #define n_nidio_boards ARRAY_SIZE(nidio_boards)
@@ -440,16 +359,6 @@ static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 		mmiowb();
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-}
-
-static int nidio96_8255_cb(int dir, int port, int data, unsigned long iobase)
-{
-	if (dir) {
-		writeb(data, (void *)(iobase + port));
-		return 0;
-	} else {
-		return readb((void *)(iobase + port));
-	}
 }
 
 void ni_pcidio_event(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -1207,9 +1116,7 @@ static int nidio_find_device(struct comedi_device *dev, int bus, int slot)
 static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	int i;
 	int ret;
-	int n_subdevices;
 	unsigned int irq;
 
 	printk(KERN_INFO "comedi%d: nidio:", dev->minor);
@@ -1241,64 +1148,49 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (ret < 0)
 			return ret;
 	}
-	if (!this_board->is_diodaq)
-		n_subdevices = this_board->n_8255;
-	else
-		n_subdevices = 1;
 
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
 
-	if (!this_board->is_diodaq) {
-		for (i = 0; i < this_board->n_8255; i++) {
-			s = &dev->subdevices[i];
-			subdev_8255_init(dev, s, nidio96_8255_cb,
-					 (unsigned long)(devpriv->mite->
-							 daq_io_addr +
-							 NIDIO_8255_BASE(i)));
-		}
-	} else {
+	printk(KERN_INFO " rev=%d",
+		readb(devpriv->mite->daq_io_addr + Chip_Version));
 
-		printk(KERN_INFO " rev=%d",
-		       readb(devpriv->mite->daq_io_addr + Chip_Version));
+	s = &dev->subdevices[0];
 
-		s = &dev->subdevices[0];
+	dev->read_subdev = s;
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags =
+		SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL | SDF_PACKED |
+		SDF_CMD_READ;
+	s->n_chan = 32;
+	s->range_table = &range_digital;
+	s->maxdata = 1;
+	s->insn_config = &ni_pcidio_insn_config;
+	s->insn_bits = &ni_pcidio_insn_bits;
+	s->do_cmd = &ni_pcidio_cmd;
+	s->do_cmdtest = &ni_pcidio_cmdtest;
+	s->cancel = &ni_pcidio_cancel;
+	s->len_chanlist = 32;	/* XXX */
+	s->buf_change = &ni_pcidio_change;
+	s->async_dma_dir = DMA_BIDIRECTIONAL;
+	s->poll = &ni_pcidio_poll;
 
-		dev->read_subdev = s;
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags =
-		    SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL | SDF_PACKED |
-		    SDF_CMD_READ;
-		s->n_chan = 32;
-		s->range_table = &range_digital;
-		s->maxdata = 1;
-		s->insn_config = &ni_pcidio_insn_config;
-		s->insn_bits = &ni_pcidio_insn_bits;
-		s->do_cmd = &ni_pcidio_cmd;
-		s->do_cmdtest = &ni_pcidio_cmdtest;
-		s->cancel = &ni_pcidio_cancel;
-		s->len_chanlist = 32;	/* XXX */
-		s->buf_change = &ni_pcidio_change;
-		s->async_dma_dir = DMA_BIDIRECTIONAL;
-		s->poll = &ni_pcidio_poll;
+	writel(0, devpriv->mite->daq_io_addr + Port_IO(0));
+	writel(0, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));
+	writel(0, devpriv->mite->daq_io_addr + Port_Pin_Mask(0));
 
-		writel(0, devpriv->mite->daq_io_addr + Port_IO(0));
-		writel(0, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));
-		writel(0, devpriv->mite->daq_io_addr + Port_Pin_Mask(0));
+	/* disable interrupts on board */
+	writeb(0x00,
+		devpriv->mite->daq_io_addr +
+		Master_DMA_And_Interrupt_Control);
 
-		/* disable interrupts on board */
-		writeb(0x00,
-		       devpriv->mite->daq_io_addr +
-		       Master_DMA_And_Interrupt_Control);
+	ret = request_irq(irq, nidio_interrupt, IRQF_SHARED,
+				"ni_pcidio", dev);
+	if (ret < 0)
+		printk(KERN_WARNING " irq not available");
 
-		ret = request_irq(irq, nidio_interrupt, IRQF_SHARED,
-				  "ni_pcidio", dev);
-		if (ret < 0)
-			printk(KERN_WARNING " irq not available");
-
-		dev->irq = irq;
-	}
+	dev->irq = irq;
 
 	printk("\n");
 
@@ -1307,15 +1199,6 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void nidio_detach(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s;
-	int i;
-
-	if (this_board && !this_board->is_diodaq) {
-		for (i = 0; i < this_board->n_8255; i++) {
-			s = &dev->subdevices[i];
-			subdev_8255_cleanup(dev, s);
-		}
-	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
@@ -1350,13 +1233,6 @@ static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1150) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1320) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x12b0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0160) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1630) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x13c0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0400) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1250) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x17d0) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1800) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pcidio_pci_table);

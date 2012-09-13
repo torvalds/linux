@@ -560,6 +560,8 @@ config COMEDI_8255_PCI
 	    ADlink - PCI-7224, PCI-7248, and PCI-7296
 	    Measurement Computing - PCI-DIO24, PCI-DIO24H, PCI-DIO48H and
 	                            PCI-DIO96H
+	    National Instruments - PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503,
+	                           PCI-6503B, PCI-6503X, and PXI-6503
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called 8255_pci.
@@ -1030,15 +1032,12 @@ config COMEDI_NI_LABPC
 	  called ni_labpc.
 
 config COMEDI_NI_PCIDIO
-	tristate "NI PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503 support"
+	tristate "NI PCI-DIO32HS, PCI-6533, PCI-6534 support"
 	select COMEDI_MITE
 	select COMEDI_8255
 	---help---
 	  Enable support for National Instruments PCI-DIO-32HS, PXI-6533,
-	  PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
-	  PXI-6503, PCI-6533 and PCI-6534
-	  The DIO-96 appears as four 8255 subdevices. See the 8255
-	  driver notes for details.
+	  PCI-6533 and PCI-6534
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_pcidio.

@@ -35,6 +35,13 @@ Devices: (ADLink) PCI-7224 [adl_pci-7224] - 24 channels
 	 (Measurement Computing) PCI-DIO24H [cb_pci-dio24h] - 24 channels
 	 (Measurement Computing) PCI-DIO48H [cb_pci-dio48h] - 48 channels
 	 (Measurement Computing) PCI-DIO96H [cb_pci-dio96h] - 96 channels
+	 (National Instruments) PCI-DIO-96 [ni_pci-dio-96] - 96 channels
+	 (National Instruments) PCI-DIO-96B [ni_pci-dio-96b] - 96 channels
+	 (National Instruments) PXI-6508 [ni_pxi-6508] - 96 channels
+	 (National Instruments) PCI-6503 [ni_pci-6503] - 24 channels
+	 (National Instruments) PCI-6503B [ni_pci-6503b] - 24 channels
+	 (National Instruments) PCI-6503X [ni_pci-6503x] - 24 channels
+	 (National Instruments) PXI-6503 [ni_pxi-6503] - 24 channels
 Author: H Hartley Sweeten <hsweeten@visionengravers.com>
 Updated: Wed, 12 Sep 2012 11:52:01 -0700
 Status: untested
@@ -65,6 +72,14 @@ Configuration Options: not applicable, uses PCI auto config
 #define PCI_DEVICE_ID_CB_PCIDIO24H	0x0014
 #define PCI_DEVICE_ID_CB_PCIDIO96H	0x0017
 #define PCI_DEVICE_ID_CB_PCIDIO24	0x0028
+
+#define PCI_DEVICE_ID_NI_PCIDIO96	0x0160
+#define PCI_DEVICE_ID_NI_PCI6503	0x0400
+#define PCI_DEVICE_ID_NI_PCI6503B	0x1250
+#define PCI_DEVICE_ID_NI_PXI6508	0x13c0
+#define PCI_DEVICE_ID_NI_PCIDIO96B	0x1630
+#define PCI_DEVICE_ID_NI_PCI6503X	0x17d0
+#define PCI_DEVICE_ID_NI_PXI_6503	0x1800
 
 struct pci_8255_boardinfo {
 	const char *name;
@@ -118,6 +133,55 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 		.device		= PCI_DEVICE_ID_CB_PCIDIO96H,
 		.dio_badr	= 2,
 		.n_8255		= 4,
+	}, {
+		.name		= "ni_pci-dio-96",
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCIDIO96,
+		.dio_badr	= 1,
+		.is_mmio	= 1,
+		.n_8255		= 4,
+	}, {
+		.name		= "ni_pci-dio-96b",
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCIDIO96B,
+		.dio_badr	= 1,
+		.is_mmio	= 1,
+		.n_8255		= 4,
+	}, {
+		.name		= "ni_pxi-6508",
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PXI6508,
+		.dio_badr	= 1,
+		.is_mmio	= 1,
+		.n_8255		= 4,
+	}, {
+		.name		= "ni_pci-6503",
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCI6503,
+		.dio_badr	= 1,
+		.is_mmio	= 1,
+		.n_8255		= 1,
+	}, {
+		.name		= "ni_pci-6503b",
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCI6503B,
+		.dio_badr	= 1,
+		.is_mmio	= 1,
+		.n_8255		= 1,
+	}, {
+		.name		= "ni_pci-6503x",
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PCI6503X,
+		.dio_badr	= 1,
+		.is_mmio	= 1,
+		.n_8255		= 1,
+	}, {
+		.name		= "ni_pxi-6503",
+		.vendor		= PCI_VENDOR_ID_NI,
+		.device		= PCI_DEVICE_ID_NI_PXI_6503,
+		.dio_badr	= 1,
+		.is_mmio	= 1,
+		.n_8255		= 1,
 	},
 };
 
@@ -265,6 +329,13 @@ static DEFINE_PCI_DEVICE_TABLE(pci_8255_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO24H) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO48H) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_CB_PCIDIO96H) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCIDIO96) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCIDIO96B) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI6508) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI6503) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI6503B) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PCI6503X) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NI, PCI_DEVICE_ID_NI_PXI_6503) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, pci_8255_pci_table);
