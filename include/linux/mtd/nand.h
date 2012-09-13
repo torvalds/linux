@@ -92,6 +92,8 @@ extern int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 #define NAND_CMD_READID		0x90
 #define NAND_CMD_ERASE2		0xd0
 #define NAND_CMD_PARAM		0xec
+#define NAND_CMD_GET_FEATURES	0xee
+#define NAND_CMD_SET_FEATURES	0xef
 #define NAND_CMD_RESET		0xff
 
 #define NAND_CMD_LOCK		0x2a
@@ -228,6 +230,12 @@ typedef enum {
 
 /* Keep gcc happy */
 struct nand_chip;
+
+/* ONFI feature address */
+#define ONFI_FEATURE_ADDR_TIMING_MODE	0x1
+
+/* ONFI subfeature parameters length */
+#define ONFI_SUBFEATURE_PARAM_LEN	4
 
 struct nand_onfi_params {
 	/* rev info and features block */
@@ -454,6 +462,8 @@ struct nand_buffers {
  *			non 0 if ONFI supported.
  * @onfi_params:	[INTERN] holds the ONFI page parameter when ONFI is
  *			supported, 0 otherwise.
+ * @onfi_set_features	[REPLACEABLE] set the features for ONFI nand
+ * @onfi_get_features	[REPLACEABLE] get the features for ONFI nand
  * @ecclayout:		[REPLACEABLE] the default ECC placement scheme
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash
@@ -496,6 +506,10 @@ struct nand_chip {
 	int (*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
 			const uint8_t *buf, int oob_required, int page,
 			int cached, int raw);
+	int (*onfi_set_features)(struct mtd_info *mtd, struct nand_chip *chip,
+			int feature_addr, uint8_t *subfeature_para);
+	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,
+			int feature_addr, uint8_t *subfeature_para);
 
 	int chip_delay;
 	unsigned int options;
