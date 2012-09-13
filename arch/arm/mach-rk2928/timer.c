@@ -125,9 +125,9 @@ static __init int rk2928_timer_init_clockevent(void)
 	struct clock_event_device *ce = &rk2928_timer_clockevent;
 	struct clk *clk = clk_get(NULL, TIMER_CLKEVT_NAME);
 	struct clk *pclk = clk_get(NULL, "pclk_" TIMER_CLKEVT_NAME);
-	struct clk *pclk_periph = clk_get(NULL, "pclk_periph");
+	struct clk *peri_pclk = clk_get(NULL, "peri_pclk");
 
-	clk_set_parent(clk, pclk_periph);
+	clk_set_parent(clk, peri_pclk);
 	clk_enable(pclk);
 	clk_enable(clk);
 
@@ -163,9 +163,9 @@ static void __init rk2928_timer_init_clocksource(void)
 	struct clocksource *cs = &rk2928_timer_clocksource;
 	struct clk *clk = clk_get(NULL, TIMER_CLKSRC_NAME);
 	struct clk *pclk = clk_get(NULL, "pclk_" TIMER_CLKSRC_NAME);
-	struct clk *pclk_periph = clk_get(NULL, "pclk_periph");
+	struct clk *peri_pclk = clk_get(NULL, "peri_pclk");
 
-	clk_set_parent(clk, pclk_periph);
+	clk_set_parent(clk, peri_pclk);
 	clk_enable(pclk);
 	clk_enable(clk);
 
