@@ -222,21 +222,17 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 
 		free_extent_map(em);
 		em = lookup_extent_mapping(em_tree, start, len);
-		if (em) {
-			ret = 0;
-		} else {
-			em = lookup_extent_mapping(em_tree, failed_start,
-						   failed_len);
-			ret = -EIO;
+		if (!em) {
+			lookup_extent_mapping(em_tree, failed_start,
+					      failed_len);
+			em = ERR_PTR(-EIO);
 		}
 	} else if (ret) {
 		free_extent_map(em);
-		em = NULL;
+		em = ERR_PTR(ret);
 	}
 	write_unlock(&em_tree->lock);
 
-	if (ret)
-		em = ERR_PTR(ret);
 out:
 	return em;
 }
