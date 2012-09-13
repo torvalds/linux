@@ -1756,6 +1756,99 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	return err;
 } /* ext4_group_extend */
 
+
+static int num_desc_blocks(struct super_block *sb, ext4_group_t groups)
+{
+	return (groups + EXT4_DESC_PER_BLOCK(sb) - 1) / EXT4_DESC_PER_BLOCK(sb);
+}
+
+/*
+ * Release the resize inode and drop the resize_inode feature if there
+ * are no more reserved gdt blocks, and then convert the file system
+ * to enable meta_bg
+ */
+static int ext4_convert_meta_bg(struct super_block *sb, struct inode *inode)
+{
+	handle_t *handle;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_super_block *es = sbi->s_es;
+	struct ext4_inode_info *ei = 0;
+	ext4_fsblk_t nr;
+	int i, ret, err = 0;
+	int credits = 1;
+
+	ext4_msg(sb, KERN_INFO, "Converting file system to meta_bg");
+	if (EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_RESIZE_INODE)) {
+		if (es->s_reserved_gdt_blocks) {
+			ext4_error(sb, "Unexpected non-zero "
+				   "s_reserved_gdt_blocks");
+			return -EPERM;
+		}
+		if (!inode) {
+			ext4_error(sb, "Unexpected NULL resize_inode");
+			return -EPERM;
+		}
+		ei = EXT4_I(inode);
+
+		/* Do a quick sanity check of the resize inode */
+		if (inode->i_blocks != 1 << (inode->i_blkbits - 9))
+			goto invalid_resize_inode;
+		for (i = 0; i < EXT4_N_BLOCKS; i++) {
+			if (i == EXT4_DIND_BLOCK) {
+				if (ei->i_data[i])
+					continue;
+				else
+					goto invalid_resize_inode;
+			}
+			if (ei->i_data[i])
+				goto invalid_resize_inode;
+		}
+		credits += 3;	/* block bitmap, bg descriptor, resize inode */
+	}
+
+	handle = ext4_journal_start_sb(sb, credits);
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
+	err = ext4_journal_get_write_access(handle, sbi->s_sbh);
+	if (err)
+		goto errout;
+
+	EXT4_CLEAR_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_RESIZE_INODE);
+	EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_META_BG);
+	sbi->s_es->s_first_meta_bg =
+		cpu_to_le32(num_desc_blocks(sb, sbi->s_groups_count));
+
+	err = ext4_handle_dirty_super(handle, sb);
+	if (err) {
+		ext4_std_error(sb, err);
+		goto errout;
+	}
+
+	if (inode) {
+		nr = le32_to_cpu(ei->i_data[EXT4_DIND_BLOCK]);
+		ext4_free_blocks(handle, inode, NULL, nr, 1,
+				 EXT4_FREE_BLOCKS_METADATA |
+				 EXT4_FREE_BLOCKS_FORGET);
+		ei->i_data[EXT4_DIND_BLOCK] = 0;
+		inode->i_blocks = 0;
+
+		err = ext4_mark_inode_dirty(handle, inode);
+		if (err)
+			ext4_std_error(sb, err);
+	}
+
+errout:
+	ret = ext4_journal_stop(handle);
+	if (!err)
+		err = ret;
+	return ret;
+
+invalid_resize_inode:
+	ext4_error(sb, "corrupted/inconsistent resize inode");
+	return -EINVAL;
+}
+
 /*
  * ext4_resize_fs() resizes a fs to new size specified by @n_blocks_count
  *
@@ -1772,13 +1865,14 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 	ext4_grpblk_t add, offset;
 	unsigned long n_desc_blocks;
 	unsigned long o_desc_blocks;
-	unsigned long desc_blocks;
 	ext4_group_t o_group;
 	ext4_group_t n_group;
 	ext4_fsblk_t o_blocks_count;
+	ext4_fsblk_t n_blocks_count_retry = 0;
 	int err = 0, flexbg_size = 1 << sbi->s_log_groups_per_flex;
 	int meta_bg;
 
+retry:
 	o_blocks_count = ext4_blocks_count(es);
 
 	if (test_opt(sb, DEBUG))
@@ -1798,11 +1892,8 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 	ext4_get_group_no_and_offset(sb, n_blocks_count - 1, &n_group, &offset);
 	ext4_get_group_no_and_offset(sb, o_blocks_count - 1, &o_group, &offset);
 
-	n_desc_blocks = (n_group + EXT4_DESC_PER_BLOCK(sb)) /
-			 EXT4_DESC_PER_BLOCK(sb);
-	o_desc_blocks = (sbi->s_groups_count + EXT4_DESC_PER_BLOCK(sb) - 1) /
-			 EXT4_DESC_PER_BLOCK(sb);
-	desc_blocks = n_desc_blocks - o_desc_blocks;
+	n_desc_blocks = num_desc_blocks(sb, n_group + 1);
+	o_desc_blocks = num_desc_blocks(sb, sbi->s_groups_count);
 
 	meta_bg = EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_META_BG);
 
@@ -1812,20 +1903,37 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 				   "simultaneously");
 			return -EINVAL;
 		}
-		if (le16_to_cpu(es->s_reserved_gdt_blocks) < desc_blocks) {
-			ext4_warning(sb,
-				     "No reserved GDT blocks, can't resize");
-			return -EPERM;
+		if (n_desc_blocks > o_desc_blocks +
+		    le16_to_cpu(es->s_reserved_gdt_blocks)) {
+			n_blocks_count_retry = n_blocks_count;
+			n_desc_blocks = o_desc_blocks +
+				le16_to_cpu(es->s_reserved_gdt_blocks);
+			n_group = n_desc_blocks * EXT4_DESC_PER_BLOCK(sb);
+			n_blocks_count = n_group * EXT4_BLOCKS_PER_GROUP(sb);
+			n_group--; /* set to last group number */
 		}
-		resize_inode = ext4_iget(sb, EXT4_RESIZE_INO);
+
+		if (!resize_inode)
+			resize_inode = ext4_iget(sb, EXT4_RESIZE_INO);
 		if (IS_ERR(resize_inode)) {
 			ext4_warning(sb, "Error opening resize inode");
 			return PTR_ERR(resize_inode);
 		}
-	} else if (!meta_bg) {
-		ext4_warning(sb, "File system features do not permit "
-			     "online resize");
-		return -EPERM;
+	}
+
+	if ((!resize_inode && !meta_bg) || n_group == o_group) {
+		err = ext4_convert_meta_bg(sb, resize_inode);
+		if (err)
+			goto out;
+		if (resize_inode) {
+			iput(resize_inode);
+			resize_inode = NULL;
+		}
+		if (n_blocks_count_retry) {
+			n_blocks_count = n_blocks_count_retry;
+			n_blocks_count_retry = 0;
+			goto retry;
+		}
 	}
 
 	/* See if the device is actually as big as what was requested */
@@ -1876,13 +1984,21 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 			break;
 	}
 
+	if (!err && n_blocks_count_retry) {
+		n_blocks_count = n_blocks_count_retry;
+		n_blocks_count_retry = 0;
+		free_flex_gd(flex_gd);
+		flex_gd = NULL;
+		goto retry;
+	}
+
 out:
 	if (flex_gd)
 		free_flex_gd(flex_gd);
 	if (resize_inode != NULL)
 		iput(resize_inode);
 	if (test_opt(sb, DEBUG))
-		ext4_msg(sb, KERN_DEBUG, "resized filesystem from %llu "
-		       "upto %llu blocks", o_blocks_count, n_blocks_count);
+		ext4_msg(sb, KERN_DEBUG, "resized filesystem to %llu",
+			 n_blocks_count);
 	return err;
 }
