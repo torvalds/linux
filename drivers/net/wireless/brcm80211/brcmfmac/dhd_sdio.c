@@ -549,7 +549,6 @@ struct brcmf_sdio {
 	s32 idleclock;	/* How to set bus driver when idle */
 	s32 sd_rxchain;
 	bool use_rxchain;	/* If brcmf should use PKT chains */
-	bool sleeping;		/* Is SDIO bus sleeping? */
 	bool rxflow_mode;	/* Rx flow control mode */
 	bool rxflow;		/* Is rx flow control on */
 	bool alp_only;		/* Don't use HT clock (ALP only) */
@@ -851,81 +850,6 @@ static int brcmf_sdbrcm_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 #endif				/* DEBUG */
 
 	return 0;
-}
-
-static int brcmf_sdbrcm_bussleep(struct brcmf_sdio *bus, bool sleep)
-{
-	int ret;
-
-	brcmf_dbg(INFO, "request %s (currently %s)\n",
-		  sleep ? "SLEEP" : "WAKE",
-		  bus->sleeping ? "SLEEP" : "WAKE");
-
-	/* Done if we're already in the requested state */
-	if (sleep == bus->sleeping)
-		return 0;
-
-	/* Going to sleep: set the alarm and turn off the lights... */
-	if (sleep) {
-		/* Don't sleep if something is pending */
-		if (bus->dpc_sched || bus->rxskip || pktq_len(&bus->txq))
-			return -EBUSY;
-
-		/* Make sure the controller has the bus up */
-		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
-
-		/* Tell device to start using OOB wakeup */
-		ret = w_sdreg32(bus, SMB_USE_OOB,
-				offsetof(struct sdpcmd_regs, tosbmailbox));
-		if (ret != 0)
-			brcmf_dbg(ERROR, "CANNOT SIGNAL CHIP, WILL NOT WAKE UP!!\n");
-
-		/* Turn off our contribution to the HT clock request */
-		brcmf_sdbrcm_clkctl(bus, CLK_SDONLY, false);
-
-		brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
-				 SBSDIO_FORCE_HW_CLKREQ_OFF, NULL);
-
-		/* Isolate the bus */
-		brcmf_sdio_regwb(bus->sdiodev, SBSDIO_DEVICE_CTL,
-				 SBSDIO_DEVCTL_PADS_ISO, NULL);
-
-		/* Change state */
-		bus->sleeping = true;
-
-	} else {
-		/* Waking up: bus power up is ok, set local state */
-
-		brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
-				 0, NULL);
-
-		/* Make sure the controller has the bus up */
-		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
-
-		/* Send misc interrupt to indicate OOB not needed */
-		ret = w_sdreg32(bus, 0,
-				offsetof(struct sdpcmd_regs, tosbmailboxdata));
-		if (ret == 0)
-			ret = w_sdreg32(bus, SMB_DEV_INT,
-				offsetof(struct sdpcmd_regs, tosbmailbox));
-
-		if (ret != 0)
-			brcmf_dbg(ERROR, "CANNOT SIGNAL CHIP TO CLEAR OOB!!\n");
-
-		/* Make sure we have SD bus access */
-		brcmf_sdbrcm_clkctl(bus, CLK_SDONLY, false);
-
-		/* Change state */
-		bus->sleeping = false;
-	}
-
-	return 0;
-}
-
-static void bus_wake(struct brcmf_sdio *bus)
-{
-	if (bus->sleeping)
-		brcmf_sdbrcm_bussleep(bus, false);
 }
 
 static u32 brcmf_sdbrcm_hostmail(struct brcmf_sdio *bus)
@@ -2267,8 +2191,6 @@ static void brcmf_sdbrcm_bus_stop(struct device *dev)
 
 	down(&bus->sdsem);
 
-	bus_wake(bus);
-
 	/* Enable clock for device interrupts */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 
@@ -2403,8 +2325,6 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 			goto clkwait;
 		}
 	}
-
-	bus_wake(bus);
 
 	/* Make sure backplane clock is on */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, true);
@@ -2917,8 +2837,6 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 
 	/* Need to lock here to protect txseq and SDIO tx calls */
 	down(&bus->sdsem);
-
-	bus_wake(bus);
 
 	/* Make sure backplane clock is on */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
@@ -3776,12 +3694,6 @@ void brcmf_sdbrcm_isr(void *arg)
 	bus->sdcnt.intrcount++;
 	bus->ipend = true;
 
-	/* Shouldn't get this interrupt if we're sleeping? */
-	if (bus->sleeping) {
-		brcmf_dbg(ERROR, "INTERRUPT WHILE SLEEPING??\n");
-		return;
-	}
-
 	/* Disable additional interrupts (is this needed now)? */
 	if (!bus->intr)
 		brcmf_dbg(ERROR, "isr w/o interrupt configured!\n");
@@ -3800,10 +3712,6 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 #endif	/* DEBUG */
 
 	brcmf_dbg(TIMER, "Enter\n");
-
-	/* Ignore the timer if simulating bus down */
-	if (bus->sleeping)
-		return false;
 
 	down(&bus->sdsem);
 
@@ -4024,7 +3932,6 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_sdio *bus)
 			 SDIO_FUNC_ENABLE_1, NULL);
 
 	bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
-	bus->sleeping = false;
 	bus->rxflow = false;
 
 	/* Done with backplane-dependent accesses, can drop clock... */
