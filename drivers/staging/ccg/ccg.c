@@ -1101,13 +1101,7 @@ static struct device_attribute *ccg_usb_attributes[] = {
 static int ccg_bind_config(struct usb_configuration *c)
 {
 	struct ccg_dev *dev = _ccg_dev;
-	int ret = 0;
-
-	ret = ccg_bind_enabled_functions(dev, c);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ccg_bind_enabled_functions(dev, c);
 }
 
 static void ccg_unbind_config(struct usb_configuration *c)
