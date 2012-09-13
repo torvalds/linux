@@ -3672,6 +3672,9 @@ static void gen3_init_clock_gating(struct drm_device *dev)
 
 	if (IS_PINEVIEW(dev))
 		I915_WRITE(ECOSKPD, _MASKED_BIT_ENABLE(ECO_GATING_CX_ONLY));
+
+	/* IIR "flip pending" means done if this bit is set */
+	I915_WRITE(ECOSKPD, _MASKED_BIT_DISABLE(ECO_FLIP_DONE));
 }
 
 static void i85x_init_clock_gating(struct drm_device *dev)
