@@ -129,6 +129,7 @@ gpio_keys_polled_get_devtree_pdata(struct device *dev)
 	}
 
 	pdata->buttons = (struct gpio_keys_button *)(pdata + 1);
+	pdata->nbuttons = nbuttons;
 
 	pdata->rep = !!of_get_property(node, "autorepeat", NULL);
 	of_property_read_u32(node, "poll-interval", &pdata->poll_interval);
