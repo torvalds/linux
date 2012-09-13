@@ -238,6 +238,45 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 	return snprintf(buf, PAGE_SIZE, "%d", ret);
 }
 
+static ssize_t gt_max_freq_mhz_store(struct device *kdev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, rp_state_cap, hw_max, hw_min;
+	ssize_t ret;
+
+	ret = kstrtou32(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	val /= GT_FREQUENCY_MULTIPLIER;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	hw_max = (rp_state_cap & 0xff);
+	hw_min = ((rp_state_cap & 0xff0000) >> 16);
+
+	if (val < hw_min || val > hw_max || val < dev_priv->rps.min_delay) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+	if (dev_priv->rps.cur_delay > val)
+		gen6_set_rps(dev_priv->dev, val);
+
+	dev_priv->rps.max_delay = val;
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return count;
+}
+
 static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
@@ -255,9 +294,49 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 	return snprintf(buf, PAGE_SIZE, "%d", ret);
 }
 
+static ssize_t gt_min_freq_mhz_store(struct device *kdev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct drm_minor *minor = container_of(kdev, struct drm_minor, kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, rp_state_cap, hw_max, hw_min;
+	ssize_t ret;
+
+	ret = kstrtou32(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	val /= GT_FREQUENCY_MULTIPLIER;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	hw_max = (rp_state_cap & 0xff);
+	hw_min = ((rp_state_cap & 0xff0000) >> 16);
+
+	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_delay) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+	if (dev_priv->rps.cur_delay < val)
+		gen6_set_rps(dev_priv->dev, val);
+
+	dev_priv->rps.min_delay = val;
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return count;
+
+}
+
 static DEVICE_ATTR(gt_cur_freq_mhz, S_IRUGO, gt_cur_freq_mhz_show, NULL);
-static DEVICE_ATTR(gt_max_freq_mhz, S_IRUGO | S_IWUSR, gt_max_freq_mhz_show, NULL);
-static DEVICE_ATTR(gt_min_freq_mhz, S_IRUGO | S_IWUSR, gt_min_freq_mhz_show, NULL);
+static DEVICE_ATTR(gt_max_freq_mhz, S_IRUGO | S_IWUSR, gt_max_freq_mhz_show, gt_max_freq_mhz_store);
+static DEVICE_ATTR(gt_min_freq_mhz, S_IRUGO | S_IWUSR, gt_min_freq_mhz_show, gt_min_freq_mhz_store);
 
 static const struct attribute *gen6_attrs[] = {
 	&dev_attr_gt_cur_freq_mhz.attr,
