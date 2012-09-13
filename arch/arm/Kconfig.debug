@@ -224,6 +224,20 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX6Q UART4.
 
+	config DEBUG_MMP_UART2
+		bool "Kernel low-level debugging message via MMP UART2"
+		depends on ARCH_MMP
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on MMP UART2.
+
+	config DEBUG_MMP_UART3
+		bool "Kernel low-level debugging message via MMP UART3"
+		depends on ARCH_MMP
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on MMP UART3.
+
 	config DEBUG_MSM_UART1
 		bool "Kernel low-level debugging messages via MSM UART1"
 		depends on ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50
