@@ -180,6 +180,9 @@ static ssize_t csrow_size_show(struct device *dev,
 	int i;
 	u32 nr_pages = 0;
 
+	if (csrow->mci->csbased)
+		return sprintf(data, "%u\n", PAGES_TO_MiB(csrow->nr_pages));
+
 	for (i = 0; i < csrow->nr_channels; i++)
 		nr_pages += csrow->channels[i]->dimm->nr_pages;
 	return sprintf(data, "%u\n", PAGES_TO_MiB(nr_pages));

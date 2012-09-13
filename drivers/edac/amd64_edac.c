@@ -2174,6 +2174,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 			dimm->edac_mode = edac_mode;
 			dimm->nr_pages = nr_pages;
 		}
+		csrow->nr_pages = nr_pages;
 	}
 
 	return empty;
