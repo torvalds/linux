@@ -136,6 +136,7 @@ static inline void gred_store_wred_set(struct gred_sched *table,
 				       struct gred_sched_data *q)
 {
 	table->wred_set.qavg = q->vars.qavg;
+	table->wred_set.qidlestart = q->vars.qidlestart;
 }
 
 static inline int gred_use_ecn(struct gred_sched *t)
@@ -259,15 +260,17 @@ static struct sk_buff *gred_dequeue(struct Qdisc *sch)
 		} else {
 			q->backlog -= qdisc_pkt_len(skb);
 
-			if (!q->backlog && !gred_wred_mode(t))
-				red_start_of_idle_period(&q->vars);
+			if (gred_wred_mode(t)) {
+				if (!sch->qstats.backlog)
+					red_start_of_idle_period(&t->wred_set);
+			} else {
+				if (!q->backlog)
+					red_start_of_idle_period(&q->vars);
+			}
 		}
 
 		return skb;
 	}
-
-	if (gred_wred_mode(t) && !red_is_idling(&t->wred_set))
-		red_start_of_idle_period(&t->wred_set);
 
 	return NULL;
 }
@@ -290,19 +293,20 @@ static unsigned int gred_drop(struct Qdisc *sch)
 			q->backlog -= len;
 			q->stats.other++;
 
-			if (!q->backlog && !gred_wred_mode(t))
-				red_start_of_idle_period(&q->vars);
+			if (gred_wred_mode(t)) {
+				if (!sch->qstats.backlog)
+					red_start_of_idle_period(&t->wred_set);
+			} else {
+				if (!q->backlog)
+					red_start_of_idle_period(&q->vars);
+			}
 		}
 
 		qdisc_drop(skb, sch);
 		return len;
 	}
 
-	if (gred_wred_mode(t) && !red_is_idling(&t->wred_set))
-		red_start_of_idle_period(&t->wred_set);
-
 	return 0;
-
 }
 
 static void gred_reset(struct Qdisc *sch)
