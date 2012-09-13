@@ -126,10 +126,6 @@ static irqreturn_t tpci200_slot_irq(struct slot_irq *slot_irq)
 		return -ENODEV;
 	ret = slot_irq->handler(slot_irq->arg);
 
-	/* Clear the IPack device interrupt */
-	readw(slot_irq->holder->io_space.address + 0xC0);
-	readw(slot_irq->holder->io_space.address + 0xC2);
-
 	return ret;
 }
 

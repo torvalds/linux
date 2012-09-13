@@ -252,6 +252,10 @@ static irqreturn_t ipoctal_irq_handler(void *arg)
 	for (i = 0; i < NR_CHANNELS; i++)
 		ipoctal_irq_channel(&ipoctal->channel[i]);
 
+	/* Clear the IPack device interrupt */
+	readw(ipoctal->dev->int_space.address + ACK_INT_REQ0);
+	readw(ipoctal->dev->int_space.address + ACK_INT_REQ1);
+
 	return IRQ_HANDLED;
 }
 
@@ -264,7 +268,6 @@ static int ipoctal_check_model(struct ipack_device *dev, unsigned char *id)
 	manufacturerID = ioread8(dev->id_space.address + IPACK_IDPROM_OFFSET_MANUFACTURER_ID);
 	if (manufacturerID != IPACK1_VENDOR_ID_SBS)
 		return -ENODEV;
-
 	board_id = ioread8(dev->id_space.address + IPACK_IDPROM_OFFSET_MODEL);
 	switch (board_id) {
 	case IPACK1_DEVICE_ID_SBS_OCTAL_232:
@@ -322,13 +325,22 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		goto out_unregister_id_space;
 	}
 
+	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev, 0,
+						IPACK_INT_SPACE);
+	if (res) {
+		dev_err(&ipoctal->dev->dev,
+			"Unable to map slot [%d:%d] INT space!\n",
+			bus_nr, slot);
+		goto out_unregister_io_space;
+	}
+
 	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev,
 					   0x8000, IPACK_MEM_SPACE);
 	if (res) {
 		dev_err(&ipoctal->dev->dev,
 			"Unable to map slot [%d:%d] MEM space!\n",
 			bus_nr, slot);
-		goto out_unregister_io_space;
+		goto out_unregister_int_space;
 	}
 
 	/* Save the virtual address to access the registers easily */
@@ -450,6 +462,8 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 out_unregister_slot_unmap:
 	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_ID_SPACE);
+out_unregister_int_space:
+	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_INT_SPACE);
 out_unregister_io_space:
 	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_IO_SPACE);
 out_unregister_id_space:
@@ -735,6 +749,7 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 	tty_unregister_driver(ipoctal->tty_drv);
 	put_tty_driver(ipoctal->tty_drv);
 	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_MEM_SPACE);
+	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_INT_SPACE);
 	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_IO_SPACE);
 	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_ID_SPACE);
 	kfree(ipoctal);

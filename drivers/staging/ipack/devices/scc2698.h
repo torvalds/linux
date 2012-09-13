@@ -221,4 +221,7 @@ union scc2698_block {
 #define ISR_DELTA_BREAK_B           (0x1 << 6)
 #define ISR_INPUT_PORT_CHANGE       (0x1 << 7)
 
+#define ACK_INT_REQ0			0
+#define ACK_INT_REQ1			2
+
 #endif /* SCC2698_H_ */
