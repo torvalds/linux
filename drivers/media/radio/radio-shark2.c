@@ -340,12 +340,12 @@ err_alloc_buffer:
 }
 
 #ifdef CONFIG_PM
-int usb_shark_suspend(struct usb_interface *intf, pm_message_t message)
+static int usb_shark_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	return 0;
 }
 
-int usb_shark_resume(struct usb_interface *intf)
+static int usb_shark_resume(struct usb_interface *intf)
 {
 	struct v4l2_device *v4l2_dev = usb_get_intfdata(intf);
 	struct shark_device *shark = v4l2_dev_to_shark(v4l2_dev);
