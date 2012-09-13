@@ -158,6 +158,7 @@ static void ipoctal_irq_rx(struct ipoctal_channel *channel,
 				flag = TTY_FRAME;
 			}
 			if (sr & SR_RECEIVED_BREAK) {
+				iowrite8(CR_CMD_RESET_BREAK_CHANGE, &channel->regs->w.cr);
 				channel->stats.rcv_break++;
 				flag = TTY_BREAK;
 			}
