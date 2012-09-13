@@ -229,7 +229,7 @@ nouveau_i2c_init(struct drm_device *dev)
 			}
 			break;
 		case 6: /* NV50- DP AUX */
-			port->drive = entry[0];
+			port->drive = entry[0] & 0x0f;
 			port->sense = port->drive;
 			port->adapter.algo = &nouveau_dp_i2c_algo;
 			break;

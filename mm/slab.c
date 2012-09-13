@@ -3260,6 +3260,7 @@ force_grow:
 
 		/* cache_grow can reenable interrupts, then ac could change. */
 		ac = cpu_cache_get(cachep);
+		node = numa_mem_id();
 
 		/* no objects in sight? abort */
 		if (!x && (ac->avail == 0 || force_refill))

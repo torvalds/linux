@@ -185,7 +185,12 @@ err3:
 err2:
 	kfree(tname);
 err1:
-	kfree(pc);
+	if (ret == ACT_P_CREATED) {
+		if (est)
+			gen_kill_estimator(&pc->tcfc_bstats,
+					   &pc->tcfc_rate_est);
+		kfree_rcu(pc, tcfc_rcu);
+	}
 	return err;
 }
 

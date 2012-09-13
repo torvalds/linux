@@ -478,7 +478,6 @@ static int test__basic_mmap(void)
 	unsigned int nr_events[nsyscalls],
 		     expected_nr_events[nsyscalls], i, j;
 	struct perf_evsel *evsels[nsyscalls], *evsel;
-	int sample_size = __perf_evsel__sample_size(attr.sample_type);
 
 	for (i = 0; i < nsyscalls; ++i) {
 		char name[64];
@@ -563,8 +562,7 @@ static int test__basic_mmap(void)
 			goto out_munmap;
 		}
 
-		err = perf_event__parse_sample(event, attr.sample_type, sample_size,
-					       false, &sample, false);
+		err = perf_evlist__parse_sample(evlist, event, &sample, false);
 		if (err) {
 			pr_err("Can't parse sample, err = %d\n", err);
 			goto out_munmap;
@@ -661,12 +659,12 @@ static int test__PERF_RECORD(void)
 	const char *cmd = "sleep";
 	const char *argv[] = { cmd, "1", NULL, };
 	char *bname;
-	u64 sample_type, prev_time = 0;
+	u64 prev_time = 0;
 	bool found_cmd_mmap = false,
 	     found_libc_mmap = false,
 	     found_vdso_mmap = false,
 	     found_ld_mmap = false;
-	int err = -1, errs = 0, i, wakeups = 0, sample_size;
+	int err = -1, errs = 0, i, wakeups = 0;
 	u32 cpu;
 	int total_events = 0, nr_events[PERF_RECORD_MAX] = { 0, };
 
@@ -757,13 +755,6 @@ static int test__PERF_RECORD(void)
 	}
 
 	/*
-	 * We'll need these two to parse the PERF_SAMPLE_* fields in each
-	 * event.
-	 */
-	sample_type = perf_evlist__sample_type(evlist);
-	sample_size = __perf_evsel__sample_size(sample_type);
-
-	/*
 	 * Now that all is properly set up, enable the events, they will
 	 * count just on workload.pid, which will start...
 	 */
@@ -788,9 +779,7 @@ static int test__PERF_RECORD(void)
 				if (type < PERF_RECORD_MAX)
 					nr_events[type]++;
 
-				err = perf_event__parse_sample(event, sample_type,
-							       sample_size, true,
-							       &sample, false);
+				err = perf_evlist__parse_sample(evlist, event, &sample, false);
 				if (err < 0) {
 					if (verbose)
 						perf_event__fprintf(event, stderr);

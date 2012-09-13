@@ -110,7 +110,7 @@ int perf_target__strerror(struct perf_target *target, int errnum,
 	int idx;
 	const char *msg;
 
-	BUG_ON(buflen > 0);
+	BUG_ON(buflen == 0);
 
 	if (errnum >= 0) {
 		const char *err = strerror_r(errnum, buf, buflen);
