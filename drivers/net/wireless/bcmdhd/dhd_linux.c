@@ -2990,6 +2990,8 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	char *ptr;
 	uint32 listen_interval = LISTEN_INTERVAL; /* Default Listen Interval in Beacons */
 	uint16 chipID;
+	int roam_trigger[2] = {CUSTOM_ROAM_TRIGGER_SETTING, WLC_BAND_ALL};
+	int roam_delta[2] = {CUSTOM_ROAM_DELTA_SETTING, WLC_BAND_ALL};
 #if defined(SOFTAP)
 	uint dtim = 1;
 #endif
@@ -3156,6 +3158,14 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	bcm_mkiovar("assoc_listen", (char *)&listen_interval, 4, iovbuf, sizeof(iovbuf));
 	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0)) < 0)
 		DHD_ERROR(("%s assoc_listen failed %d\n", __FUNCTION__, ret));
+
+	/* custom romaing setting */
+	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_ROAM_TRIGGER, roam_trigger,
+		sizeof(roam_trigger), TRUE, 0)) < 0)
+		DHD_ERROR(("%s: roam trigger set failed %d\n", __FUNCTION__, ret));
+	if ((dhd_wl_ioctl_cmd(dhd, WLC_SET_ROAM_DELTA, roam_delta,
+		sizeof(roam_delta), TRUE, 0)) < 0)
+		DHD_ERROR(("%s: roam delta set failed %d\n", __FUNCTION__, ret));
 
 	/* Set PowerSave mode */
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode, sizeof(power_mode), TRUE, 0);
