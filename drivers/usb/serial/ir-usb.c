@@ -45,8 +45,6 @@
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "USB IR Dongle driver"
 
-static bool debug;
-
 /* if overridden by the user, then use their value for the size of the read and
  * write urbs */
 static int buffer_size;
@@ -457,8 +455,6 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 module_param(xbof, int, 0);
 MODULE_PARM_DESC(xbof, "Force specific number of XBOFs");
 module_param(buffer_size, int, 0);
