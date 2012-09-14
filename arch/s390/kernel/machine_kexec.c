@@ -21,6 +21,7 @@
 #include <asm/reset.h>
 #include <asm/ipl.h>
 #include <asm/diag.h>
+#include <asm/elf.h>
 #include <asm/asm-offsets.h>
 #include <asm/os_info.h>
 
@@ -30,8 +31,6 @@ extern const unsigned char relocate_kernel[];
 extern const unsigned long long relocate_kernel_len;
 
 #ifdef CONFIG_CRASH_DUMP
-
-void *fill_cpu_elf_notes(void *ptr, struct save_area *sa);
 
 /*
  * Create ELF notes for one CPU
