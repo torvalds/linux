@@ -67,7 +67,7 @@ void efx_mcdi_init(struct efx_nic *efx)
 }
 
 static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
-			    const u8 *inbuf, size_t inlen)
+			    const efx_dword_t *inbuf, size_t inlen)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	unsigned pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
@@ -75,9 +75,10 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 	unsigned int i;
 	efx_dword_t hdr;
 	u32 xflags, seqno;
+	unsigned int inlen_dw = DIV_ROUND_UP(inlen, 4);
 
 	BUG_ON(atomic_read(&mcdi->state) == MCDI_STATE_QUIESCENT);
-	BUG_ON(inlen & 3 || inlen >= MC_SMEM_PDU_LEN);
+	BUG_ON(inlen > MCDI_CTL_SDU_LEN_MAX_V1);
 
 	seqno = mcdi->seqno & SEQ_MASK;
 	xflags = 0;
@@ -94,8 +95,8 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 
 	efx_writed(efx, &hdr, pdu);
 
-	for (i = 0; i < inlen; i += 4)
-		_efx_writed(efx, *((__le32 *)(inbuf + i)), pdu + 4 + i);
+	for (i = 0; i < inlen_dw; i++)
+		efx_writed(efx, &inbuf[i], pdu + 4 + 4 * i);
 
 	/* Ensure the payload is written out before the header */
 	wmb();
@@ -104,17 +105,19 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 	_efx_writed(efx, (__force __le32) 0x45789abc, doorbell);
 }
 
-static void efx_mcdi_copyout(struct efx_nic *efx, u8 *outbuf, size_t outlen)
+static void
+efx_mcdi_copyout(struct efx_nic *efx, efx_dword_t *outbuf, size_t outlen)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	unsigned int pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
+	unsigned int outlen_dw = DIV_ROUND_UP(outlen, 4);
 	int i;
 
 	BUG_ON(atomic_read(&mcdi->state) == MCDI_STATE_QUIESCENT);
-	BUG_ON(outlen & 3 || outlen >= MC_SMEM_PDU_LEN);
+	BUG_ON(outlen > MCDI_CTL_SDU_LEN_MAX_V1);
 
-	for (i = 0; i < outlen; i += 4)
-		*((__le32 *)(outbuf + i)) = _efx_readd(efx, pdu + 4 + i);
+	for (i = 0; i < outlen_dw; i++)
+		efx_readd(efx, &outbuf[i], pdu + 4 + 4 * i);
 }
 
 static int efx_mcdi_poll(struct efx_nic *efx)
@@ -328,7 +331,8 @@ static void efx_mcdi_ev_cpl(struct efx_nic *efx, unsigned int seqno,
 }
 
 int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
-		 const u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen,
+		 const efx_dword_t *inbuf, size_t inlen,
+		 efx_dword_t *outbuf, size_t outlen,
 		 size_t *outlen_actual)
 {
 	efx_mcdi_rpc_start(efx, cmd, inbuf, inlen);
@@ -336,8 +340,8 @@ int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 				   outbuf, outlen, outlen_actual);
 }
 
-void efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd, const u8 *inbuf,
-			size_t inlen)
+void efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
+			const efx_dword_t *inbuf, size_t inlen)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 
@@ -354,7 +358,8 @@ void efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd, const u8 *inbuf,
 }
 
 int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
-			u8 *outbuf, size_t outlen, size_t *outlen_actual)
+			efx_dword_t *outbuf, size_t outlen,
+			size_t *outlen_actual)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	int rc;
@@ -393,7 +398,7 @@ int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 
 		if (rc == 0) {
 			efx_mcdi_copyout(efx, outbuf,
-					 min(outlen, mcdi->resplen + 3) & ~0x3);
+					 min(outlen, mcdi->resplen));
 			if (outlen_actual != NULL)
 				*outlen_actual = resplen;
 		} else if (cmd == MC_CMD_REBOOT && rc == -EIO)

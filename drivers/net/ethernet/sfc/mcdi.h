@@ -67,15 +67,17 @@ struct efx_mcdi_mon {
 
 extern void efx_mcdi_init(struct efx_nic *efx);
 
-extern int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd, const u8 *inbuf,
-			size_t inlen, u8 *outbuf, size_t outlen,
+extern int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
+			const efx_dword_t *inbuf, size_t inlen,
+			efx_dword_t *outbuf, size_t outlen,
 			size_t *outlen_actual);
 
 extern void efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
-			       const u8 *inbuf, size_t inlen);
+			       const efx_dword_t *inbuf, size_t inlen);
 extern int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
-			       u8 *outbuf, size_t outlen,
+			       efx_dword_t *outbuf, size_t outlen,
 			       size_t *outlen_actual);
+
 
 extern int efx_mcdi_poll_reboot(struct efx_nic *efx);
 extern void efx_mcdi_mode_poll(struct efx_nic *efx);
@@ -85,14 +87,21 @@ extern void efx_mcdi_process_event(struct efx_channel *channel,
 				   efx_qword_t *event);
 extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 
+/* We expect that 16- and 32-bit fields in MCDI requests and responses
+ * are appropriately aligned.  Also, on Siena we must copy to the MC
+ * shared memory strictly 32 bits at a time, so add any necessary
+ * padding.
+ */
 #define MCDI_DECLARE_BUF(_name, _len)					\
-	u8 _name[ALIGN(_len, 4)]
+	efx_dword_t _name[DIV_ROUND_UP(_len, 4)]
 #define _MCDI_PTR(_buf, _offset)					\
 	((u8 *)(_buf) + (_offset))
 #define MCDI_PTR(_buf, _field)						\
 	_MCDI_PTR(_buf, MC_CMD_ ## _field ## _OFST)
+#define _MCDI_CHECK_ALIGN(_ofst, _align)				\
+	((_ofst) + BUILD_BUG_ON_ZERO((_ofst) & (_align - 1)))
 #define _MCDI_DWORD(_buf, _field)					\
-	((efx_dword_t *)MCDI_PTR(_buf, _field))
+	((_buf) + (_MCDI_CHECK_ALIGN(MC_CMD_ ## _field ## _OFST, 4) >> 2))
 
 #define MCDI_SET_DWORD(_buf, _field, _value)				\
 	EFX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field), EFX_DWORD_0, _value)
@@ -109,22 +118,23 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 		(MC_CMD_ ## _type ## _ ## _field ## _LBN & 0x1f) +	\
 		MC_CMD_ ## _type ## _ ## _field ## _WIDTH - 1)
 
-#define _MCDI_ARRAY_PTR(_buf, _field, _index)				\
-	(MCDI_PTR(_buf, _field) +					\
-	 (_index) * MC_CMD_ ## _field ## _LEN)
+#define _MCDI_ARRAY_PTR(_buf, _field, _index, _align)			\
+	(_MCDI_PTR(_buf, _MCDI_CHECK_ALIGN(MC_CMD_ ## _field ## _OFST, _align))\
+	 + (_index) * _MCDI_CHECK_ALIGN(MC_CMD_ ## _field ## _LEN, _align))
 #define MCDI_DECLARE_STRUCT_PTR(_name)					\
-	u8 *_name
-#define MCDI_ARRAY_STRUCT_PTR _MCDI_ARRAY_PTR
+	efx_dword_t *_name
+#define MCDI_ARRAY_STRUCT_PTR(_buf, _field, _index)			\
+	((efx_dword_t *)_MCDI_ARRAY_PTR(_buf, _field, _index, 4))
 #define MCDI_VAR_ARRAY_LEN(_len, _field)				\
 	min_t(size_t, MC_CMD_ ## _field ## _MAXNUM,			\
 	      ((_len) - MC_CMD_ ## _field ## _OFST) / MC_CMD_ ## _field ## _LEN)
 #define MCDI_ARRAY_WORD(_buf, _field, _index)				\
 	(BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 2) +		\
 	 le16_to_cpu(*(__force const __le16 *)				\
-		     _MCDI_ARRAY_PTR(_buf, _field, _index)))
+		     _MCDI_ARRAY_PTR(_buf, _field, _index, 2)))
 #define _MCDI_ARRAY_DWORD(_buf, _field, _index)				\
 	(BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 4) +		\
-	 (efx_dword_t *)_MCDI_ARRAY_PTR(_buf, _field, _index))
+	 (efx_dword_t *)_MCDI_ARRAY_PTR(_buf, _field, _index, 4))
 #define MCDI_SET_ARRAY_DWORD(_buf, _field, _index, _value)		\
 	EFX_SET_DWORD_FIELD(*_MCDI_ARRAY_DWORD(_buf, _field, _index),	\
 			    EFX_DWORD_0, _value)
