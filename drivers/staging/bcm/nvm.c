@@ -577,7 +577,7 @@ static int FlashSectorErase(struct bcm_mini_adapter *Adapter,
 			 * the sector erase cycle is 500 ms to 40000 msec. hence sleeping 10 ms
 			 * won't hamper performance in any case.
 			 */
-			udelay(10000);
+			mdelay(10);
 		} while ((uiStatus & 0x1) && (iRetries < 400));
 
 		if (uiStatus & 0x1) {
