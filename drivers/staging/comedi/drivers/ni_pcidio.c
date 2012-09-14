@@ -63,9 +63,9 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 
 #undef DPRINTK
 #ifdef DEBUG
-#define DPRINTK(format, args...)	printk(format, ## args)
+#define DPRINTK(format, args...) pr_debug(format, ## args)
 #else
-#define DPRINTK(format, args...)
+#define DPRINTK(format, args...) do { } while (0)
 #endif
 
 #define PCI_DIO_SIZE 4096
@@ -420,18 +420,12 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	ni_pcidio_print_flags(flags);
 	ni_pcidio_print_status(status);
 
-	/* printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf); */
-	/* printk("buf[4096]=%08x\n",
-	       *(unsigned int *)(async->prealloc_buf+4096)); */
-
 	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
 		m_status = mite_get_status(devpriv->di_mite_chan);
 #ifdef MITE_DEBUG
 	mite_print_chsr(m_status);
 #endif
-	/* printk("mite_bytes_transferred: %d\n",
-	       mite_bytes_transferred(mite,DI_DMA_CHAN)); */
 
 	/* mite_dump_regs(mite); */
 	if (m_status & CHSR_INT) {
@@ -526,7 +520,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 		}
 #if 0
 		else {
-			printk("ni_pcidio: unknown interrupt\n");
+			DPRINTK("ni_pcidio: unknown interrupt\n");
 			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 			writeb(0x00,
 			       devpriv->mite->daq_io_addr +
@@ -557,38 +551,47 @@ out:
 }
 
 #ifdef DEBUG_FLAGS
+static const char *bit_set_string(unsigned int bits, unsigned int bit,
+				  const char *const strings[])
+{
+	return (bits & (1U << bit)) ? strings[bit] : "";
+}
+
 static const char *const flags_strings[] = {
-	"TransferReady", "CountExpired", "2", "3",
-	"4", "Waited", "PrimaryTC", "SecondaryTC",
+	" TransferReady", " CountExpired", " 2", " 3",
+	" 4", " Waited", " PrimaryTC", " SecondaryTC",
 };
+
 
 static void ni_pcidio_print_flags(unsigned int flags)
 {
-	int i;
-
-	printk(KERN_INFO "group_1_flags:");
-	for (i = 7; i >= 0; i--) {
-		if (flags & (1 << i))
-			printk(" %s", flags_strings[i]);
-	}
-	printk("\n");
+	pr_debug("group_1_flags:%s%s%s%s%s%s%s%s\n",
+		 bit_set_string(flags, 7, flags_strings),
+		 bit_set_string(flags, 6, flags_strings),
+		 bit_set_string(flags, 5, flags_strings),
+		 bit_set_string(flags, 4, flags_strings),
+		 bit_set_string(flags, 3, flags_strings),
+		 bit_set_string(flags, 2, flags_strings),
+		 bit_set_string(flags, 1, flags_strings),
+		 bit_set_string(flags, 0, flags_strings));
 }
 
-static char *status_strings[] = {
-	"DataLeft1", "Reserved1", "Req1", "StopTrig1",
-	"DataLeft2", "Reserved2", "Req2", "StopTrig2",
+static const char *const status_strings[] = {
+	" DataLeft1", " Reserved1", " Req1", " StopTrig1",
+	" DataLeft2", " Reserved2", " Req2", " StopTrig2",
 };
 
 static void ni_pcidio_print_status(unsigned int flags)
 {
-	int i;
-
-	printk(KERN_INFO "group_status:");
-	for (i = 7; i >= 0; i--) {
-		if (flags & (1 << i))
-			printk(" %s", status_strings[i]);
-	}
-	printk("\n");
+	pr_debug("group_status:%s%s%s%s%s%s%s%s\n",
+		 bit_set_string(flags, 7, status_strings),
+		 bit_set_string(flags, 6, status_strings),
+		 bit_set_string(flags, 5, status_strings),
+		 bit_set_string(flags, 4, status_strings),
+		 bit_set_string(flags, 3, status_strings),
+		 bit_set_string(flags, 2, status_strings),
+		 bit_set_string(flags, 1, status_strings),
+		 bit_set_string(flags, 0, status_strings));
 }
 #endif
 
@@ -988,8 +991,9 @@ static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
 		udelay(1);
 	}
 	if (i == timeout) {
-		printk(KERN_WARNING "ni_pcidio: failed to load fpga %i, "
-		       "waiting for status 0x2\n", fpga_index);
+		dev_warn(dev->class_dev,
+			 "ni_pcidio: failed to load fpga %i, waiting for status 0x2\n",
+			 fpga_index);
 		return -EIO;
 	}
 	writew(0x80 | fpga_index,
@@ -1000,8 +1004,9 @@ static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
 		udelay(1);
 	}
 	if (i == timeout) {
-		printk(KERN_WARNING "ni_pcidio: failed to load fpga %i, "
-		       "waiting for status 0x3\n", fpga_index);
+		dev_warn(dev->class_dev,
+			 "ni_pcidio: failed to load fpga %i, waiting for status 0x3\n",
+			 fpga_index);
 		return -EIO;
 	}
 	for (j = 0; j + 1 < data_len;) {
@@ -1016,8 +1021,9 @@ static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
 			udelay(1);
 		}
 		if (i == timeout) {
-			printk("ni_pcidio: failed to load word into fpga %i\n",
-			       fpga_index);
+			dev_warn(dev->class_dev,
+				 "ni_pcidio: failed to load word into fpga %i\n",
+				 fpga_index);
 			return -EIO;
 		}
 		if (need_resched())
@@ -1108,7 +1114,7 @@ static int nidio_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk(KERN_WARNING "no device found\n");
+	dev_warn(dev->class_dev, "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
@@ -1118,8 +1124,6 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned int irq;
-
-	printk(KERN_INFO "comedi%d: nidio:", dev->minor);
 
 	ret = alloc_private(dev, sizeof(struct nidio96_private));
 	if (ret < 0)
@@ -1132,7 +1136,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
-		printk(KERN_WARNING "error setting up mite\n");
+		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
 	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
@@ -1142,7 +1146,6 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = this_board->name;
 	irq = mite_irq(devpriv->mite);
-	printk(KERN_INFO " %s", dev->board_name);
 	if (this_board->uses_firmware) {
 		ret = pci_6534_upload_firmware(dev, it->options);
 		if (ret < 0)
@@ -1153,8 +1156,8 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	printk(KERN_INFO " rev=%d",
-		readb(devpriv->mite->daq_io_addr + Chip_Version));
+	dev_info(dev->class_dev, "%s rev=%d\n", dev->board_name,
+		 readb(devpriv->mite->daq_io_addr + Chip_Version));
 
 	s = &dev->subdevices[0];
 
@@ -1188,11 +1191,9 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = request_irq(irq, nidio_interrupt, IRQF_SHARED,
 				"ni_pcidio", dev);
 	if (ret < 0)
-		printk(KERN_WARNING " irq not available");
+		dev_warn(dev->class_dev, "irq not available\n");
 
 	dev->irq = irq;
-
-	printk("\n");
 
 	return 0;
 }
