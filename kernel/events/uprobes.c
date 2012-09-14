@@ -1496,22 +1496,19 @@ static void handle_swbp(struct pt_regs *regs)
 		if (!utask)
 			goto cleanup_ret;
 	}
-	utask->active_uprobe = uprobe;
+
 	handler_chain(uprobe, regs);
 	if (uprobe->flags & UPROBE_SKIP_SSTEP && can_skip_sstep(uprobe, regs))
 		goto cleanup_ret;
 
-	utask->state = UTASK_SSTEP;
 	if (!pre_ssout(uprobe, regs, bp_vaddr)) {
 		arch_uprobe_enable_step(&uprobe->arch);
+		utask->active_uprobe = uprobe;
+		utask->state = UTASK_SSTEP;
 		return;
 	}
 
 cleanup_ret:
-	if (utask) {
-		utask->active_uprobe = NULL;
-		utask->state = UTASK_RUNNING;
-	}
 	if (!(uprobe->flags & UPROBE_SKIP_SSTEP))
 
 		/*
