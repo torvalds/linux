@@ -1054,4 +1054,4 @@ The first event type in the class is reserved for future use, so the first
 available event type is 'class base + 1'.
 
 An example on how the V4L2 events may be used can be found in the OMAP
-3 ISP driver (drivers/media/video/omap3isp).
+3 ISP driver (drivers/media/platform/omap3isp).
