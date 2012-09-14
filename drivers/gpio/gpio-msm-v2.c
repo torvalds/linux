@@ -317,9 +317,7 @@ static void msm_summary_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	chained_irq_enter(chip, desc);
 
-	for (i = find_first_bit(msm_gpio.enabled_irqs, NR_GPIO_IRQS);
-	     i < NR_GPIO_IRQS;
-	     i = find_next_bit(msm_gpio.enabled_irqs, NR_GPIO_IRQS, i + 1)) {
+	for_each_set_bit(i, msm_gpio.enabled_irqs, NR_GPIO_IRQS) {
 		if (readl(GPIO_INTR_STATUS(i)) & BIT(INTR_STATUS))
 			generic_handle_irq(msm_gpio_to_irq(&msm_gpio.gpio_chip,
 							   i));
