@@ -453,11 +453,9 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 			writeb(bits,
 			       private(dev)->mite->daq_io_addr +
 			       Port_Data(port));
-/* printk("wrote 0x%x to port %i\n", bits, port); */
 		}
 		port_read_bits =
 		    readb(private(dev)->mite->daq_io_addr + Port_Data(port));
-/* printk("read 0x%x from port %i\n", port_read_bits, port); */
 		if (s->type == COMEDI_SUBD_DO && board(dev)->invert_outputs) {
 			/* Outputs inverted, so invert value read back from
 			 * DO subdevice.  (Does not apply to boards with DIO
@@ -651,8 +649,6 @@ static int ni_65xx_attach(struct comedi_device *dev,
 	unsigned i;
 	int ret;
 
-	printk(KERN_INFO "comedi%d: ni_65xx:", dev->minor);
-
 	ret = alloc_private(dev, sizeof(struct ni_65xx_private));
 	if (ret < 0)
 		return ret;
@@ -663,15 +659,13 @@ static int ni_65xx_attach(struct comedi_device *dev,
 
 	ret = mite_setup(private(dev)->mite);
 	if (ret < 0) {
-		printk(KERN_WARNING "error setting up mite\n");
+		dev_warn(dev->class_dev, "error setting up mite\n");
 		return ret;
 	}
 
 	dev->board_name = board(dev)->name;
 	dev->irq = mite_irq(private(dev)->mite);
-	printk(KERN_INFO " %s", dev->board_name);
-
-	printk(KERN_INFO " ID=0x%02x",
+	dev_info(dev->class_dev, "board: %s, ID=0x%02x", dev->board_name,
 	       readb(private(dev)->mite->daq_io_addr + ID_Register));
 
 	ret = comedi_alloc_subdevices(dev, 4);
@@ -772,10 +766,8 @@ static int ni_65xx_attach(struct comedi_device *dev,
 			  "ni_65xx", dev);
 	if (ret < 0) {
 		dev->irq = 0;
-		printk(KERN_WARNING " irq not available");
+		dev_warn(dev->class_dev, "irq not available\n");
 	}
-
-	printk("\n");
 
 	return 0;
 }
@@ -825,7 +817,7 @@ static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk(KERN_WARNING "no device found\n");
+	dev_warn(dev->class_dev, "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
