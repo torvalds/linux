@@ -143,11 +143,11 @@ static struct platform_device *db8500_add_msp_i2s(struct device *parent,
 
 /* Platform device for ASoC MOP500 machine */
 static struct platform_device snd_soc_mop500 = {
-		.name = "snd-soc-mop500",
-		.id = 0,
-		.dev = {
-			.platform_data = NULL,
-		},
+	.name = "snd-soc-mop500",
+	.id = 0,
+	.dev = {
+		.platform_data = NULL,
+	},
 };
 
 /* Platform device for Ux500-PCM */
@@ -171,7 +171,7 @@ static struct msp_i2s_platform_data msp3_platform_data = {
 	.msp_i2s_dma_tx	= NULL,
 };
 
-int mop500_msp_init(struct device *parent)
+void mop500_msp_init(struct device *parent)
 {
 	pr_info("%s: Register platform-device 'snd-soc-mop500'.\n", __func__);
 	platform_device_register(&snd_soc_mop500);
@@ -185,6 +185,4 @@ int mop500_msp_init(struct device *parent)
 			   &msp2_platform_data);
 	db8500_add_msp_i2s(parent, 3, U8500_MSP3_BASE, IRQ_DB8500_MSP1,
 			   &msp3_platform_data);
-
-	return 0;
 }
