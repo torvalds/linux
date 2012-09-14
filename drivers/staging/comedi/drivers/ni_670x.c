@@ -228,7 +228,6 @@ static int __devinit ni_670x_attach_pci(struct comedi_device *dev,
 		return ret;
 	}
 	dev->board_name = thisboard->name;
-	dev->irq = mite_irq(devpriv->mite);
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -293,8 +292,6 @@ static void ni_670x_detach(struct comedi_device *dev)
 		mite_unsetup(devpriv->mite);
 		mite_free(devpriv->mite);
 	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 }
 
 static struct comedi_driver ni_670x_driver = {
