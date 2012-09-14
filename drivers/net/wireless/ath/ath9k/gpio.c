@@ -320,8 +320,10 @@ void ath9k_btcoex_timer_resume(struct ath_softc *sc)
 	ath_dbg(ath9k_hw_common(ah), BTCOEX, "Starting btcoex timers\n");
 
 	/* make sure duty cycle timer is also stopped when resuming */
-	if (btcoex->hw_timer_enabled)
+	if (btcoex->hw_timer_enabled) {
 		ath9k_gen_timer_stop(sc->sc_ah, btcoex->no_stomp_timer);
+		btcoex->hw_timer_enabled = false;
+	}
 
 	btcoex->bt_priority_cnt = 0;
 	btcoex->bt_priority_time = jiffies;
@@ -342,18 +344,20 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc)
 
 	del_timer_sync(&btcoex->period_timer);
 
-	if (btcoex->hw_timer_enabled)
+	if (btcoex->hw_timer_enabled) {
 		ath9k_gen_timer_stop(ah, btcoex->no_stomp_timer);
-
-	btcoex->hw_timer_enabled = false;
+		btcoex->hw_timer_enabled = false;
+	}
 }
 
 void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
 
-	if (btcoex->hw_timer_enabled)
+	if (btcoex->hw_timer_enabled) {
 		ath9k_gen_timer_stop(sc->sc_ah, btcoex->no_stomp_timer);
+		btcoex->hw_timer_enabled = false;
+	}
 }
 
 u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen)
