@@ -8071,20 +8071,13 @@ int
 set_bypass_wd_pfs(struct file *file, const char *buffer,
 		  unsigned long count, void *data)
 {
-
-	char kbuf[256];
 	bpctl_dev_t *pbp_device_block = (bpctl_dev_t *) data;
+	int timeout;
+	int ret;
 
-	unsigned int timeout = 0;
-	char *timeout_ptr = kbuf;
-
-	if (copy_from_user(&kbuf, buffer, count)) {
-		return -1;
-	}
-
-	timeout_ptr = kbuf;
-	timeout = atoi(&timeout_ptr);
-
+	ret = kstrtoint_from_user(buffer, count, 10, &timeout);
+	if (ret)
+		return ret;
 	set_bypass_wd_fn(pbp_device_block, timeout);
 
 	return count;
@@ -8712,18 +8705,13 @@ int
 set_wd_autoreset_pfs(struct file *file, const char *buffer,
 		     unsigned long count, void *data)
 {
-	char kbuf[256];
 	bpctl_dev_t *pbp_device_block = (bpctl_dev_t *) data;
-	u32 timeout = 0;
-	char *timeout_ptr = kbuf;
+	int timeout;
+	int ret;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
-		return -1;
-	}
-
-	timeout_ptr = kbuf;
-	timeout = atoi(&timeout_ptr);
-
+	ret = kstrtoint_from_user(buffer, count, 10, &timeout);
+	if (ret)
+		return ret;
 	set_wd_autoreset_fn(pbp_device_block, timeout);
 
 	return count;
