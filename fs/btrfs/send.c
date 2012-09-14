@@ -386,7 +386,7 @@ static struct btrfs_path *alloc_path_for_send(void)
 	return path;
 }
 
-static int write_buf(struct send_ctx *sctx, const void *buf, u32 len)
+int write_buf(struct file *filp, const void *buf, u32 len, loff_t *off)
 {
 	int ret;
 	mm_segment_t old_fs;
@@ -396,8 +396,7 @@ static int write_buf(struct send_ctx *sctx, const void *buf, u32 len)
 	set_fs(KERNEL_DS);
 
 	while (pos < len) {
-		ret = vfs_write(sctx->send_filp, (char *)buf + pos, len - pos,
-				&sctx->send_off);
+		ret = vfs_write(filp, (char *)buf + pos, len - pos, off);
 		/* TODO handle that correctly */
 		/*if (ret == -ERESTARTSYS) {
 			continue;
@@ -553,7 +552,8 @@ static int send_header(struct send_ctx *sctx)
 	strcpy(hdr.magic, BTRFS_SEND_STREAM_MAGIC);
 	hdr.version = cpu_to_le32(BTRFS_SEND_STREAM_VERSION);
 
-	return write_buf(sctx, &hdr, sizeof(hdr));
+	return write_buf(sctx->send_filp, &hdr, sizeof(hdr),
+					&sctx->send_off);
 }
 
 /*
@@ -590,7 +590,8 @@ static int send_cmd(struct send_ctx *sctx)
 	crc = crc32c(0, (unsigned char *)sctx->send_buf, sctx->send_size);
 	hdr->crc = cpu_to_le32(crc);
 
-	ret = write_buf(sctx, sctx->send_buf, sctx->send_size);
+	ret = write_buf(sctx->send_filp, sctx->send_buf, sctx->send_size,
+					&sctx->send_off);
 
 	sctx->total_send_size += sctx->send_size;
 	sctx->cmd_send_size[le16_to_cpu(hdr->cmd)] += sctx->send_size;
