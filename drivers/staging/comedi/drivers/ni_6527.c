@@ -353,20 +353,6 @@ static int ni6527_intr_insn_config(struct comedi_device *dev,
 	return 2;
 }
 
-/* FIXME: remove this when dynamic MITE allocation implemented. */
-static struct mite_struct *ni6527_find_mite(struct pci_dev *pcidev)
-{
-	struct mite_struct *mite;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (mite->pcidev == pcidev)
-			return mite;
-	}
-	return NULL;
-}
-
 static const struct ni6527_board *
 ni6527_find_boardinfo(struct pci_dev *pcidev)
 {
@@ -395,9 +381,9 @@ static int __devinit ni6527_attach_pci(struct comedi_device *dev,
 	if (!dev->board_ptr)
 		return -ENODEV;
 
-	devpriv->mite = ni6527_find_mite(pcidev);
+	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
-		return -ENODEV;
+		return -ENOMEM;
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
@@ -468,8 +454,10 @@ static void ni6527_detach(struct comedi_device *dev)
 		       devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (devpriv && devpriv->mite)
+	if (devpriv && devpriv->mite) {
 		mite_unsetup(devpriv->mite);
+		mite_free(devpriv->mite);
+	}
 }
 
 static struct comedi_driver ni6527_driver = {
