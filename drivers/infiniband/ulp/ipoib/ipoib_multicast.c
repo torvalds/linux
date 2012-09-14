@@ -707,9 +707,7 @@ out:
 		neigh = ipoib_neigh_get(dev, daddr);
 		spin_lock_irqsave(&priv->lock, flags);
 		if (!neigh) {
-			spin_unlock_irqrestore(&priv->lock, flags);
 			neigh = ipoib_neigh_alloc(daddr, dev);
-			spin_lock_irqsave(&priv->lock, flags);
 			if (neigh) {
 				kref_get(&mcast->ah->ref);
 				neigh->ah	= mcast->ah;
