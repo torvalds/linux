@@ -3347,52 +3347,6 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 	return btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 }
 
-int btree_lock_page_hook(struct page *page, void *data,
-				void (*flush_fn)(void *))
-{
-	struct inode *inode = page->mapping->host;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct extent_buffer *eb;
-
-	/*
-	 * We culled this eb but the page is still hanging out on the mapping,
-	 * carry on.
-	 */
-	if (!PagePrivate(page))
-		goto out;
-
-	eb = (struct extent_buffer *)page->private;
-	if (!eb) {
-		WARN_ON(1);
-		goto out;
-	}
-	if (page != eb->pages[0])
-		goto out;
-
-	if (!btrfs_try_tree_write_lock(eb)) {
-		flush_fn(data);
-		btrfs_tree_lock(eb);
-	}
-	btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
-
-	if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
-		spin_lock(&root->fs_info->delalloc_lock);
-		if (root->fs_info->dirty_metadata_bytes >= eb->len)
-			root->fs_info->dirty_metadata_bytes -= eb->len;
-		else
-			WARN_ON(1);
-		spin_unlock(&root->fs_info->delalloc_lock);
-	}
-
-	btrfs_tree_unlock(eb);
-out:
-	if (!trylock_page(page)) {
-		flush_fn(data);
-		lock_page(page);
-	}
-	return 0;
-}
-
 static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 			      int read_only)
 {
@@ -3787,7 +3741,6 @@ int btrfs_cleanup_transaction(struct btrfs_root *root)
 }
 
 static struct extent_io_ops btree_extent_io_ops = {
-	.write_cache_pages_lock_hook = btree_lock_page_hook,
 	.readpage_end_io_hook = btree_readpage_end_io_hook,
 	.readpage_io_failed_hook = btree_io_failed_hook,
 	.submit_bio_hook = btree_submit_bio_hook,
