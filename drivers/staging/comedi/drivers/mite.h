@@ -62,23 +62,17 @@ struct mite_channel {
 };
 
 struct mite_struct {
-	struct mite_struct *next;
-	int used;
-
 	struct pci_dev *pcidev;
 	resource_size_t mite_phys_addr;
 	void __iomem *mite_io_addr;
 	resource_size_t daq_phys_addr;
 	void __iomem *daq_io_addr;
-
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
 	short channel_allocated[MAX_MITE_DMA_CHANNELS];
 	int num_channels;
 	unsigned fifo_size;
 	spinlock_t lock;
 };
-
-extern struct mite_struct *mite_devices;
 
 struct mite_struct *mite_alloc(struct pci_dev *pcidev);
 
@@ -100,7 +94,6 @@ static inline unsigned int mite_device_id(struct mite_struct *mite)
 int mite_setup(struct mite_struct *mite);
 int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1);
 void mite_unsetup(struct mite_struct *mite);
-void mite_list_devices(void);
 struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite);
 void mite_free_ring(struct mite_dma_descriptor_ring *ring);
 struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
