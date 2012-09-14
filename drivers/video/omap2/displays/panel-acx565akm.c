@@ -336,8 +336,6 @@ static int acx565akm_bl_update_status(struct backlight_device *dev)
 	r = 0;
 	if (md->has_bc)
 		acx565akm_set_brightness(md, level);
-	else if (md->dssdev->set_backlight)
-		r = md->dssdev->set_backlight(md->dssdev, level);
 	else
 		r = -ENODEV;
 
@@ -352,7 +350,7 @@ static int acx565akm_bl_get_intensity(struct backlight_device *dev)
 
 	dev_dbg(&dev->dev, "%s\n", __func__);
 
-	if (!md->has_bc && md->dssdev->set_backlight == NULL)
+	if (!md->has_bc)
 		return -ENODEV;
 
 	if (dev->props.fb_blank == FB_BLANK_UNBLANK &&
@@ -564,8 +562,6 @@ static int acx_panel_probe(struct omap_dss_device *dssdev)
 
 	if (md->has_bc)
 		brightness = acx565akm_get_actual_brightness(md);
-	else if (dssdev->get_backlight)
-		brightness = dssdev->get_backlight(dssdev);
 	else
 		brightness = 0;
 
