@@ -225,7 +225,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp->cfg_regs;
 	struct omap_pcm_dma_data *dma_data;
-	int wlen, channels, wpf, sync_mode = OMAP_DMA_SYNC_ELEMENT;
+	int wlen, channels, wpf;
 	int pkt_size = 0;
 	unsigned int format, div, framesize, master;
 
@@ -272,15 +272,12 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 				return -EINVAL;
 
 			pkt_size = period_words / divider;
-			sync_mode = OMAP_DMA_SYNC_PACKET;
 		} else if (channels > 1) {
 			/* Use packet mode for non mono streams */
 			pkt_size = channels;
-			sync_mode = OMAP_DMA_SYNC_PACKET;
 		}
 	}
 
-	dma_data->sync_mode = sync_mode;
 	dma_data->packet_size = pkt_size;
 
 	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);

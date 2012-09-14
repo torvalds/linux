@@ -290,7 +290,6 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 
 	hdmi_data->dma_params.dma_req =  hdmi_rsrc->start;
 	hdmi_data->dma_params.name = "HDMI playback";
-	hdmi_data->dma_params.sync_mode = OMAP_DMA_SYNC_PACKET;
 
 	/*
 	 * TODO: We assume that there is only one DSS HDMI device. Future

@@ -64,7 +64,6 @@ struct omap_dmic {
 static struct omap_pcm_dma_data omap_dmic_dai_dma_params = {
 	.name		= "DMIC capture",
 	.data_type	= OMAP_DMA_DATA_TYPE_S32,
-	.sync_mode	= OMAP_DMA_SYNC_PACKET,
 };
 
 static inline void omap_dmic_write(struct omap_dmic *dmic, u16 reg, u32 val)
