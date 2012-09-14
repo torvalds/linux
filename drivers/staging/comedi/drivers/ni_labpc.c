@@ -206,7 +206,6 @@ NI manuals:
 #define   INIT_A1_BITS	0x70
 #define COUNTER_B_BASE_REG	0x18
 
-static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static irqreturn_t labpc_interrupt(int irq, void *d);
 static int labpc_drain_fifo(struct comedi_device *dev);
@@ -492,25 +491,6 @@ static const int sample_size = 2;
 
 #define devpriv ((struct labpc_private *)dev->private)
 
-static struct comedi_driver labpc_driver = {
-	.driver_name = DRV_NAME,
-	.module = THIS_MODULE,
-	.attach = labpc_attach,
-	.detach = labpc_common_detach,
-	.num_names = ARRAY_SIZE(labpc_boards),
-	.board_name = &labpc_boards[0].name,
-	.offset = sizeof(struct labpc_board_struct),
-};
-
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x161)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, labpc_pci_table);
-#endif /* CONFIG_COMEDI_PCI_DRIVERS */
-
 static inline int labpc_counter_load(struct comedi_device *dev,
 				     unsigned long base_address,
 				     unsigned int counter_number,
@@ -543,8 +523,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	/*  request io regions for isa boards */
 	if (thisboard->bustype == isa_bustype) {
 		/* check if io addresses are available */
-		if (!request_region(iobase, LABPC_SIZE,
-				    labpc_driver.driver_name)) {
+		if (!request_region(iobase, LABPC_SIZE, DRV_NAME)) {
 			dev_err(dev->class_dev, "I/O port conflict\n");
 			return -EIO;
 		}
@@ -577,7 +556,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		    || thisboard->bustype == pcmcia_bustype)
 			isr_flags |= IRQF_SHARED;
 		if (request_irq(irq, labpc_interrupt, isr_flags,
-				labpc_driver.driver_name, dev)) {
+				DRV_NAME, dev)) {
 			dev_err(dev->class_dev, "unable to allocate irq %u\n",
 				irq);
 			return -EINVAL;
@@ -599,7 +578,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 				"failed to allocate dma buffer\n");
 			return -ENOMEM;
 		}
-		if (request_dma(dma_chan, labpc_driver.driver_name)) {
+		if (request_dma(dma_chan, DRV_NAME)) {
 			dev_err(dev->class_dev,
 				"failed to allocate dma channel %u\n",
 				dma_chan);
@@ -772,7 +751,7 @@ static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 			    || slot != PCI_SLOT(mite->pcidev->devfn))
 				continue;
 		}
-		for (i = 0; i < labpc_driver.num_names; i++) {
+		for (i = 0; i < ARRAY_SIZE(labpc_boards); i++) {
 			if (labpc_boards[i].bustype != pci_bustype)
 				continue;
 			if (mite_device_id(mite) == labpc_boards[i].device_id) {
@@ -2122,7 +2101,23 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
 
+static struct comedi_driver labpc_driver = {
+	.driver_name = DRV_NAME,
+	.module = THIS_MODULE,
+	.attach = labpc_attach,
+	.detach = labpc_common_detach,
+	.num_names = ARRAY_SIZE(labpc_boards),
+	.board_name = &labpc_boards[0].name,
+	.offset = sizeof(struct labpc_board_struct),
+};
+
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
+static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x161)},
+	{0}
+};
+MODULE_DEVICE_TABLE(pci, labpc_pci_table);
+
 static int __devinit labpc_pci_probe(struct pci_dev *dev,
 				     const struct pci_device_id *ent)
 {
