@@ -1468,6 +1468,10 @@ static void handle_swbp(struct pt_regs *regs)
 	bp_vaddr = uprobe_get_swbp_addr(regs);
 	uprobe = find_active_uprobe(bp_vaddr, &is_swbp);
 
+	utask = current->utask;
+	if (utask)
+		utask->state = UTASK_RUNNING;
+
 	if (!uprobe) {
 		if (is_swbp > 0) {
 			/* No matching uprobe; signal SIGTRAP. */
@@ -1486,7 +1490,6 @@ static void handle_swbp(struct pt_regs *regs)
 		return;
 	}
 
-	utask = current->utask;
 	if (!utask) {
 		utask = add_utask();
 		/* Cannot allocate; re-execute the instruction. */
