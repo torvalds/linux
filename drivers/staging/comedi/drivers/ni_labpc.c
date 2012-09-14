@@ -696,20 +696,6 @@ labpc_pci_find_boardinfo(struct pci_dev *pcidev)
 	return NULL;
 }
 
-/* FIXME: remove this when dynamic MITE allocation implemented. */
-static struct mite_struct *labpc_pci_find_mite(struct pci_dev *pcidev)
-{
-	struct mite_struct *mite;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (mite->pcidev == pcidev)
-			return mite;
-	}
-	return NULL;
-}
-
 static int __devinit labpc_attach_pci(struct comedi_device *dev,
 				      struct pci_dev *pcidev)
 {
@@ -725,9 +711,9 @@ static int __devinit labpc_attach_pci(struct comedi_device *dev,
 	dev->board_ptr = labpc_pci_find_boardinfo(pcidev);
 	if (!dev->board_ptr)
 		return -ENODEV;
-	devpriv->mite = labpc_pci_find_mite(pcidev);
+	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
-		return -ENODEV;
+		return -ENOMEM;
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0)
 		return ret;
@@ -800,8 +786,10 @@ void labpc_common_detach(struct comedi_device *dev)
 	if (thisboard->bustype == isa_bustype && dev->iobase)
 		release_region(dev->iobase, LABPC_SIZE);
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
-	if (devpriv->mite)
+	if (devpriv->mite) {
 		mite_unsetup(devpriv->mite);
+		mite_free(devpriv->mite);
+	}
 #endif
 };
 EXPORT_SYMBOL_GPL(labpc_common_detach);
