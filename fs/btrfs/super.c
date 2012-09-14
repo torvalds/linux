@@ -854,16 +854,13 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 
 	btrfs_wait_ordered_extents(root, 0, 0);
 
-	spin_lock(&fs_info->trans_lock);
-	if (!fs_info->running_transaction) {
-		spin_unlock(&fs_info->trans_lock);
-		return 0;
-	}
-	spin_unlock(&fs_info->trans_lock);
-
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans))
+	trans = btrfs_join_transaction_freeze(root);
+	if (IS_ERR(trans)) {
+		/* Frozen, don't bother */
+		if (PTR_ERR(trans) == -EPERM)
+			return 0;
 		return PTR_ERR(trans);
+	}
 	return btrfs_commit_transaction(trans, root);
 }
 

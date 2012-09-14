@@ -272,6 +272,7 @@ enum btrfs_trans_type {
 	TRANS_JOIN,
 	TRANS_USERSPACE,
 	TRANS_JOIN_NOLOCK,
+	TRANS_JOIN_FREEZE,
 };
 
 static int may_wait_transaction(struct btrfs_root *root, int type)
@@ -341,7 +342,11 @@ again:
 	if (!h)
 		return ERR_PTR(-ENOMEM);
 
-	sb_start_intwrite(root->fs_info->sb);
+	if (!__sb_start_write(root->fs_info->sb, SB_FREEZE_FS, false)) {
+		if (type == TRANS_JOIN_FREEZE)
+			return ERR_PTR(-EPERM);
+		sb_start_intwrite(root->fs_info->sb);
+	}
 
 	if (may_wait_transaction(root, type))
 		wait_current_trans(root);
@@ -422,6 +427,11 @@ struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root
 struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root)
 {
 	return start_transaction(root, 0, TRANS_USERSPACE, 0);
+}
+
+struct btrfs_trans_handle *btrfs_join_transaction_freeze(struct btrfs_root *root)
+{
+	return start_transaction(root, 0, TRANS_JOIN_FREEZE, 0);
 }
 
 /* wait for a transaction commit to be fully complete */
