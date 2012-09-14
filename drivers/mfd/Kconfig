@@ -430,6 +430,23 @@ config MFD_DA9052_I2C
 	  for accessing the device, additional drivers must be enabled in
 	  order to use the functionality of the device.
 
+config MFD_DA9055
+	bool "Dialog Semiconductor DA9055 PMIC Support"
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select PMIC_DA9055
+	select MFD_CORE
+	depends on I2C=y
+	help
+	  Say yes here for support of Dialog Semiconductor DA9055. This is
+	  a Power Management IC. This driver provides common support for
+	  accessing the device as well as the I2C interface to the chip itself.
+	  Additional drivers must be enabled in order to use the functionality
+	  of the device.
+
+	  This driver can be built as a module. If built as a module it will be
+	  called "da9055"
+
 config PMIC_ADP5520
 	bool "Analog Devices ADP5520/01 MFD PMIC Core Support"
 	depends on I2C=y
