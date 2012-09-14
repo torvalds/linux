@@ -1255,8 +1255,6 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&option_1port_device, NULL
 };
 
-static bool debug;
-
 struct option_private {
 	u8 bInterfaceNumber;
 };
@@ -1449,6 +1447,3 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug messages");
