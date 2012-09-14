@@ -208,9 +208,11 @@ static void sdhci_s3c_set_clock(struct sdhci_host *host, unsigned int clock)
 		 best_src, clock, best);
 
 	/* select the new clock source */
-
 	if (ourhost->cur_clk != best_src) {
 		struct clk *clk = ourhost->clk_bus[best_src];
+
+		clk_enable(clk);
+		clk_disable(ourhost->clk_bus[ourhost->cur_clk]);
 
 		/* turn clock off to card before changing clock source */
 		writew(0, host->ioaddr + SDHCI_CLOCK_CONTROL);
@@ -625,8 +627,6 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		 */
 		sc->cur_clk = ptr;
 
-		clk_enable(clk);
-
 		dev_info(dev, "clock source %d: %s (%ld Hz)\n",
 			 ptr, name, clk_get_rate(clk));
 	}
@@ -636,6 +636,8 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err_no_busclks;
 	}
+
+	clk_enable(sc->clk_bus[sc->cur_clk]);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->ioaddr = devm_request_and_ioremap(&pdev->dev, res);
@@ -745,9 +747,9 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	return 0;
 
  err_req_regs:
+	clk_disable(sc->clk_bus[sc->cur_clk]);
 	for (ptr = 0; ptr < MAX_BUS_CLK; ptr++) {
 		if (sc->clk_bus[ptr]) {
-			clk_disable(sc->clk_bus[ptr]);
 			clk_put(sc->clk_bus[ptr]);
 		}
 	}
@@ -788,9 +790,9 @@ static int __devexit sdhci_s3c_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
+	clk_disable(sc->clk_bus[sc->cur_clk]);
 	for (ptr = 0; ptr < 3; ptr++) {
 		if (sc->clk_bus[ptr]) {
-			clk_disable(sc->clk_bus[ptr]);
 			clk_put(sc->clk_bus[ptr]);
 		}
 	}
