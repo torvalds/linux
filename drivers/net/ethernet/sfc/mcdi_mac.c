@@ -17,7 +17,7 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 	u32 reject, fcntl;
 	MCDI_DECLARE_BUF(cmdbytes, MC_CMD_SET_MAC_IN_LEN);
 
-	memcpy(cmdbytes + MC_CMD_SET_MAC_IN_ADDR_OFST,
+	memcpy(MCDI_PTR(cmdbytes, SET_MAC_IN_ADDR),
 	       efx->net_dev->dev_addr, ETH_ALEN);
 
 	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_MTU,

@@ -240,25 +240,22 @@ static void efx_sriov_usrev(struct efx_nic *efx, bool enabled)
 static int efx_sriov_memcpy(struct efx_nic *efx, struct efx_memcpy_req *req,
 			    unsigned int count)
 {
-	u8 *inbuf, *record;
-	unsigned int used;
+	MCDI_DECLARE_BUF(inbuf, MCDI_CTL_SDU_LEN_MAX_V1);
+	MCDI_DECLARE_STRUCT_PTR(record);
+	unsigned int index, used;
 	u32 from_rid, from_hi, from_lo;
 	int rc;
 
 	mb();	/* Finish writing source/reading dest before DMA starts */
 
-	used = MC_CMD_MEMCPY_IN_LEN(count);
-	if (WARN_ON(used > MCDI_CTL_SDU_LEN_MAX_V1))
+	if (WARN_ON(count > MC_CMD_MEMCPY_IN_RECORD_MAXNUM))
 		return -ENOBUFS;
+	used = MC_CMD_MEMCPY_IN_LEN(count);
 
-	/* Allocate room for the largest request */
-	inbuf = kzalloc(MCDI_CTL_SDU_LEN_MAX_V1, GFP_KERNEL);
-	if (inbuf == NULL)
-		return -ENOMEM;
-
-	record = inbuf;
-	MCDI_SET_DWORD(record, MEMCPY_IN_RECORD, count);
-	while (count-- > 0) {
+	for (index = 0; index < count; index++) {
+		record = MCDI_ARRAY_STRUCT_PTR(inbuf, MEMCPY_IN_RECORD, index);
+		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_NUM_RECORDS,
+			       count);
 		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_TO_RID,
 			       req->to_rid);
 		MCDI_SET_DWORD(record, MEMCPY_RECORD_TYPEDEF_TO_ADDR_LO,
@@ -279,7 +276,8 @@ static int efx_sriov_memcpy(struct efx_nic *efx, struct efx_memcpy_req *req,
 			from_rid = MC_CMD_MEMCPY_RECORD_TYPEDEF_RID_INLINE;
 			from_lo = used;
 			from_hi = 0;
-			memcpy(inbuf + used, req->from_buf, req->length);
+			memcpy(_MCDI_PTR(inbuf, used), req->from_buf,
+			       req->length);
 			used += req->length;
 		}
 
@@ -292,13 +290,10 @@ static int efx_sriov_memcpy(struct efx_nic *efx, struct efx_memcpy_req *req,
 			       req->length);
 
 		++req;
-		record += MC_CMD_MEMCPY_IN_RECORD_LEN;
 	}
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_MEMCPY, inbuf, used, NULL, 0, NULL);
 out:
-	kfree(inbuf);
-
 	mb();	/* Don't write source/read dest before DMA is complete */
 
 	return rc;
@@ -685,15 +680,11 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 	unsigned vf_offset = EFX_VI_BASE + vf->index * efx_vf_size(efx);
 	unsigned timeout = HZ;
 	unsigned index, rxqs_count;
-	__le32 *rxqs;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_FLUSH_RX_QUEUES_IN_LENMAX);
 	int rc;
 
 	BUILD_BUG_ON(VF_MAX_RX_QUEUES >
 		     MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MAXNUM);
-
-	rxqs = kmalloc(count * sizeof(*rxqs), GFP_KERNEL);
-	if (rxqs == NULL)
-		return VFDI_RC_ENOMEM;
 
 	rtnl_lock();
 	siena_prepare_flush(efx);
@@ -709,14 +700,19 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 					     vf_offset + index);
 			efx_writeo(efx, &reg, FR_AZ_TX_FLUSH_DESCQ);
 		}
-		if (test_bit(index, vf->rxq_mask))
-			rxqs[rxqs_count++] = cpu_to_le32(vf_offset + index);
+		if (test_bit(index, vf->rxq_mask)) {
+			MCDI_SET_ARRAY_DWORD(
+				inbuf, FLUSH_RX_QUEUES_IN_QID_OFST,
+				rxqs_count, vf_offset + index);
+			rxqs_count++;
+		}
 	}
 
 	atomic_set(&vf->rxq_retry_count, 0);
 	while (timeout && (vf->rxq_count || vf->txq_count)) {
-		rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, (u8 *)rxqs,
-				  rxqs_count * sizeof(*rxqs), NULL, 0, NULL);
+		rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
+				  MC_CMD_FLUSH_RX_QUEUES_IN_LEN(rxqs_count),
+				  NULL, 0, NULL);
 		WARN_ON(rc < 0);
 
 		timeout = wait_event_timeout(vf->flush_waitq,
@@ -726,8 +722,10 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 		for (index = 0; index < count; ++index) {
 			if (test_and_clear_bit(index, vf->rxq_retry_mask)) {
 				atomic_dec(&vf->rxq_retry_count);
-				rxqs[rxqs_count++] =
-					cpu_to_le32(vf_offset + index);
+				MCDI_SET_ARRAY_DWORD(
+					inbuf, FLUSH_RX_QUEUES_IN_QID_OFST,
+					rxqs_count, vf_offset + index);
+				rxqs_count++;
 			}
 		}
 	}
@@ -750,7 +748,6 @@ static int efx_vfdi_fini_all_queues(struct efx_vf *vf)
 	}
 	efx_sriov_bufs(efx, vf->buftbl_base, NULL,
 		       EFX_VF_BUFTBL_PER_VI * efx_vf_size(efx));
-	kfree(rxqs);
 	efx_vfdi_flush_clear(vf);
 
 	vf->evq0_count = 0;

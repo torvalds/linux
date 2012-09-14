@@ -615,17 +615,15 @@ static int efx_mcdi_bist(struct efx_nic *efx, unsigned int bist_mode,
 	unsigned int retry, i, count = 0;
 	size_t outlen;
 	u32 status;
-	u8 *buf, *ptr;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_START_BIST_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_POLL_BIST_OUT_SFT9001_LEN);
+	u8 *ptr;
 	int rc;
 
-	buf = kzalloc(0x100, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
 	BUILD_BUG_ON(MC_CMD_START_BIST_OUT_LEN != 0);
-	MCDI_SET_DWORD(buf, START_BIST_IN_TYPE, bist_mode);
-	rc = efx_mcdi_rpc(efx, MC_CMD_START_BIST, buf, MC_CMD_START_BIST_IN_LEN,
-			  NULL, 0, NULL);
+	MCDI_SET_DWORD(inbuf, START_BIST_IN_TYPE, bist_mode);
+	rc = efx_mcdi_rpc(efx, MC_CMD_START_BIST,
+			  inbuf, MC_CMD_START_BIST_IN_LEN, NULL, 0, NULL);
 	if (rc)
 		goto out;
 
@@ -633,11 +631,11 @@ static int efx_mcdi_bist(struct efx_nic *efx, unsigned int bist_mode,
 	for (retry = 0; retry < 100; ++retry) {
 		BUILD_BUG_ON(MC_CMD_POLL_BIST_IN_LEN != 0);
 		rc = efx_mcdi_rpc(efx, MC_CMD_POLL_BIST, NULL, 0,
-				  buf, 0x100, &outlen);
+				  outbuf, sizeof(outbuf), &outlen);
 		if (rc)
 			goto out;
 
-		status = MCDI_DWORD(buf, POLL_BIST_OUT_RESULT);
+		status = MCDI_DWORD(outbuf, POLL_BIST_OUT_RESULT);
 		if (status != MC_CMD_POLL_BIST_RUNNING)
 			goto finished;
 
@@ -654,7 +652,7 @@ finished:
 	if (efx->phy_type == PHY_TYPE_SFT9001B &&
 	    (bist_mode == MC_CMD_PHY_BIST_CABLE_SHORT ||
 	     bist_mode == MC_CMD_PHY_BIST_CABLE_LONG)) {
-		ptr = MCDI_PTR(buf, POLL_BIST_OUT_SFT9001_CABLE_LENGTH_A);
+		ptr = MCDI_PTR(outbuf, POLL_BIST_OUT_SFT9001_CABLE_LENGTH_A);
 		if (status == MC_CMD_POLL_BIST_PASSED &&
 		    outlen >= MC_CMD_POLL_BIST_OUT_SFT9001_LEN) {
 			for (i = 0; i < 8; i++) {
@@ -668,8 +666,6 @@ finished:
 	rc = count;
 
 out:
-	kfree(buf);
-
 	return rc;
 }
 
@@ -785,8 +781,7 @@ static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
 			space_remaining : payload_len;
 
 		memcpy(user_data,
-		       outbuf + page_off +
-		       MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_OFST,
+		       MCDI_PTR(outbuf, GET_PHY_MEDIA_INFO_OUT_DATA) + page_off,
 		       to_copy);
 
 		space_remaining -= to_copy;

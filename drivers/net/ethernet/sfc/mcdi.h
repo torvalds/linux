@@ -94,9 +94,6 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define _MCDI_DWORD(_buf, _field)					\
 	((efx_dword_t *)MCDI_PTR(_buf, _field))
 
-#define MCDI_DWORD2(_buf, _ofst)                                       \
-	EFX_DWORD_FIELD(*(efx_dword_t *)((u8 *)(_buf) + (_ofst)), EFX_DWORD_0)
-
 #define MCDI_SET_DWORD(_buf, _field, _value)				\
 	EFX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field), EFX_DWORD_0, _value)
 #define MCDI_DWORD(_buf, _field)					\

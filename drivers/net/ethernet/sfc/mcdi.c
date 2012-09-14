@@ -668,7 +668,7 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 			   u16 *fw_subtype_list, u32 *capabilities)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_BOARD_CFG_OUT_LENMAX);
-	size_t outlen, offset, i;
+	size_t outlen, i;
 	int port_num = efx_port_num(efx);
 	int rc;
 
@@ -684,22 +684,21 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 		goto fail;
 	}
 
-	offset = (port_num)
-		? MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT1_OFST
-		: MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT0_OFST;
 	if (mac_address)
-		memcpy(mac_address, outbuf + offset, ETH_ALEN);
+		memcpy(mac_address,
+		       port_num ?
+		       MCDI_PTR(outbuf, GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT1) :
+		       MCDI_PTR(outbuf, GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT0),
+		       ETH_ALEN);
 	if (fw_subtype_list) {
-		/* Byte-swap and truncate or zero-pad as necessary */
-		offset = MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_OFST;
 		for (i = 0;
-		     i < MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MAXNUM;
-		     i++) {
-			fw_subtype_list[i] =
-				(offset + 2 <= outlen) ?
-				le16_to_cpup((__le16 *)(outbuf + offset)) : 0;
-			offset += 2;
-		}
+		     i < MCDI_VAR_ARRAY_LEN(outlen,
+					    GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST);
+		     i++)
+			fw_subtype_list[i] = MCDI_ARRAY_WORD(
+				outbuf, GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST, i);
+		for (; i < MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MAXNUM; i++)
+			fw_subtype_list[i] = 0;
 	}
 	if (capabilities) {
 		if (port_num)
@@ -980,7 +979,7 @@ static int efx_mcdi_read_assertion(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_ASSERTS_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_ASSERTS_OUT_LEN);
-	unsigned int flags, index, ofst;
+	unsigned int flags, index;
 	const char *reason;
 	size_t outlen;
 	int retry;
@@ -1022,12 +1021,13 @@ static int efx_mcdi_read_assertion(struct efx_nic *efx)
 		  MCDI_DWORD(outbuf, GET_ASSERTS_OUT_THREAD_OFFS));
 
 	/* Print out the registers */
-	ofst = MC_CMD_GET_ASSERTS_OUT_GP_REGS_OFFS_OFST;
-	for (index = 1; index < 32; index++) {
-		netif_err(efx, hw, efx->net_dev, "R%.2d (?): 0x%.8x\n", index,
-			MCDI_DWORD2(outbuf, ofst));
-		ofst += sizeof(efx_dword_t);
-	}
+	for (index = 0;
+	     index < MC_CMD_GET_ASSERTS_OUT_GP_REGS_OFFS_NUM;
+	     index++)
+		netif_err(efx, hw, efx->net_dev, "R%.2d (?): 0x%.8x\n",
+			  1 + index,
+			  MCDI_ARRAY_DWORD(outbuf, GET_ASSERTS_OUT_GP_REGS_OFFS,
+					   index));
 
 	return 0;
 }
@@ -1201,15 +1201,12 @@ int efx_mcdi_flush_rxqs(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	struct efx_rx_queue *rx_queue;
-	__le32 *qid;
+	MCDI_DECLARE_BUF(inbuf,
+			 MC_CMD_FLUSH_RX_QUEUES_IN_LEN(EFX_MAX_CHANNELS));
 	int rc, count;
 
 	BUILD_BUG_ON(EFX_MAX_CHANNELS >
 		     MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MAXNUM);
-
-	qid = kmalloc(EFX_MAX_CHANNELS * sizeof(*qid), GFP_KERNEL);
-	if (qid == NULL)
-		return -ENOMEM;
 
 	count = 0;
 	efx_for_each_channel(channel, efx) {
@@ -1217,17 +1214,17 @@ int efx_mcdi_flush_rxqs(struct efx_nic *efx)
 			if (rx_queue->flush_pending) {
 				rx_queue->flush_pending = false;
 				atomic_dec(&efx->rxq_flush_pending);
-				qid[count++] = cpu_to_le32(
-					efx_rx_queue_index(rx_queue));
+				MCDI_SET_ARRAY_DWORD(
+					inbuf, FLUSH_RX_QUEUES_IN_QID_OFST,
+					count, efx_rx_queue_index(rx_queue));
+				count++;
 			}
 		}
 	}
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, (u8 *)qid,
-			  count * sizeof(*qid), NULL, 0, NULL);
+	rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
+			  MC_CMD_FLUSH_RX_QUEUES_IN_LEN(count), NULL, 0, NULL);
 	WARN_ON(rc < 0);
-
-	kfree(qid);
 
 	return rc;
 }
