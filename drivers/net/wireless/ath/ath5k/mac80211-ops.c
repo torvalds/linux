@@ -489,6 +489,9 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (ath5k_modparam_nohwcrypt)
 		return -EOPNOTSUPP;
 
+	if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT)
+		return -EOPNOTSUPP;
+
 	if (vif->type == NL80211_IFTYPE_ADHOC &&
 	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
