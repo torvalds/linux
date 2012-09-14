@@ -1511,6 +1511,19 @@ config SCHED_HMP
 	  !SCHED_AUTOGROUP. Furthermore, normal load-balancing must be disabled
 	  between cpus of different type (DISABLE_CPU_SCHED_DOMAIN_BALANCE).
 
+config SCHED_HMP_PRIO_FILTER
+	bool "(EXPERIMENTAL) Filter HMP migrations by task priority"
+	depends on SCHED_HMP
+	help
+	  Enables task priority based HMP migration filter. Any task with
+	  a NICE value above the threshold will always be on low-power cpus
+	  with less compute capacity.
+
+config SCHED_HMP_PRIO_FILTER_VAL
+	int "NICE priority threshold"
+	default 5
+	depends on SCHED_HMP_PRIO_FILTER
+
 config HAVE_ARM_SCU
 	bool
 	help

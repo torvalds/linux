@@ -3392,9 +3392,14 @@ static int __init hmp_cpu_mask_setup(void)
  * hmp_down_threshold: max. load allowed for tasks migrating to a slower cpu
  * The default values (512, 256) offer good responsiveness, but may need
  * tweaking suit particular needs.
+ *
+ * hmp_up_prio: Only up migrate task with high priority (<hmp_up_prio)
  */
 unsigned int hmp_up_threshold = 512;
 unsigned int hmp_down_threshold = 256;
+#ifdef CONFIG_SCHED_HMP_PRIO_FILTER
+unsigned int hmp_up_prio = NICE_TO_PRIO(CONFIG_SCHED_HMP_PRIO_FILTER_VAL);
+#endif
 
 static unsigned int hmp_up_migration(int cpu, struct sched_entity *se);
 static unsigned int hmp_down_migration(int cpu, struct sched_entity *se);
@@ -5845,6 +5850,12 @@ static unsigned int hmp_up_migration(int cpu, struct sched_entity *se)
 	if (hmp_cpu_is_fastest(cpu))
 		return 0;
 
+#ifdef CONFIG_SCHED_HMP_PRIO_FILTER
+	/* Filter by task priority */
+	if (p->prio >= hmp_up_prio)
+		return 0;
+#endif
+
 	if (cpumask_intersects(&hmp_faster_domain(cpu)->cpus,
 					tsk_cpus_allowed(p))
 		&& se->avg.load_avg_ratio > hmp_up_threshold) {
@@ -5860,6 +5871,12 @@ static unsigned int hmp_down_migration(int cpu, struct sched_entity *se)
 
 	if (hmp_cpu_is_slowest(cpu))
 		return 0;
+
+#ifdef CONFIG_SCHED_HMP_PRIO_FILTER
+	/* Filter by task priority */
+	if (p->prio >= hmp_up_prio)
+		return 1;
+#endif
 
 	if (cpumask_intersects(&hmp_slower_domain(cpu)->cpus,
 					tsk_cpus_allowed(p))
