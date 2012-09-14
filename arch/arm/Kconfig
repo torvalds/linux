@@ -1524,6 +1524,20 @@ config SCHED_HMP_PRIO_FILTER_VAL
 	default 5
 	depends on SCHED_HMP_PRIO_FILTER
 
+config HMP_FAST_CPU_MASK
+	string "HMP scheduler fast CPU mask"
+	depends on SCHED_HMP
+	help
+          Specify the cpuids of the fast CPUs in the system as a list string,
+	  e.g. cpuid 0+1 should be specified as 0-1.
+
+config HMP_SLOW_CPU_MASK
+	string "HMP scheduler slow CPU mask"
+	depends on SCHED_HMP
+	help
+	  Specify the cpuids of the slow CPUs in the system as a list string,
+	  e.g. cpuid 0+1 should be specified as 0-1.
+
 config HAVE_ARM_SCU
 	bool
 	help

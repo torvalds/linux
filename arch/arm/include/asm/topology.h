@@ -27,6 +27,37 @@ void init_cpu_topology(void);
 void store_cpu_topology(unsigned int cpuid);
 const struct cpumask *cpu_coregroup_mask(int cpu);
 
+#ifdef CONFIG_DISABLE_CPU_SCHED_DOMAIN_BALANCE
+/* Common values for CPUs */
+#ifndef SD_CPU_INIT
+#define SD_CPU_INIT (struct sched_domain) {				\
+	.min_interval		= 1,					\
+	.max_interval		= 4,					\
+	.busy_factor		= 64,					\
+	.imbalance_pct		= 125,					\
+	.cache_nice_tries	= 1,					\
+	.busy_idx		= 2,					\
+	.idle_idx		= 1,					\
+	.newidle_idx		= 0,					\
+	.wake_idx		= 0,					\
+	.forkexec_idx		= 0,					\
+									\
+	.flags			= 0*SD_LOAD_BALANCE			\
+				| 1*SD_BALANCE_NEWIDLE			\
+				| 1*SD_BALANCE_EXEC			\
+				| 1*SD_BALANCE_FORK			\
+				| 0*SD_BALANCE_WAKE			\
+				| 1*SD_WAKE_AFFINE			\
+				| 0*SD_SHARE_CPUPOWER			\
+				| 0*SD_SHARE_PKG_RESOURCES		\
+				| 0*SD_SERIALIZE			\
+				,					\
+	.last_balance		 = jiffies,				\
+	.balance_interval	= 1,					\
+}
+#endif
+#endif /* CONFIG_DISABLE_CPU_SCHED_DOMAIN_BALANCE */
+
 #else
 
 static inline void init_cpu_topology(void) { }
