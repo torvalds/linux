@@ -1621,6 +1621,12 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
  *
  * Asic specific PLL information
  *
+ * DCE 8.x
+ * KB/KV
+ * - PPLL1, PPLL2 are available for all UNIPHY (both DP and non-DP)
+ * CI
+ * - PPLL0, PPLL1, PPLL2 are available for all UNIPHY (both DP and non-DP) and DAC
+ *
  * DCE 6.1
  * - PPLL2 is only available to UNIPHYA (both DP and non-DP)
  * - PPLL0, PPLL1 are available for UNIPHYB/C/D/E/F (both DP and non-DP)
@@ -1647,7 +1653,47 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 	u32 pll_in_use;
 	int pll;
 
-	if (ASIC_IS_DCE61(rdev)) {
+	if (ASIC_IS_DCE8(rdev)) {
+		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(radeon_crtc->encoder))) {
+			if (rdev->clock.dp_extclk)
+				/* skip PPLL programming if using ext clock */
+				return ATOM_PPLL_INVALID;
+			else {
+				/* use the same PPLL for all DP monitors */
+				pll = radeon_get_shared_dp_ppll(crtc);
+				if (pll != ATOM_PPLL_INVALID)
+					return pll;
+			}
+		} else {
+			/* use the same PPLL for all monitors with the same clock */
+			pll = radeon_get_shared_nondp_ppll(crtc);
+			if (pll != ATOM_PPLL_INVALID)
+				return pll;
+		}
+		/* otherwise, pick one of the plls */
+		if ((rdev->family == CHIP_KAVERI) ||
+		    (rdev->family == CHIP_KABINI)) {
+			/* KB/KV has PPLL1 and PPLL2 */
+			pll_in_use = radeon_get_pll_use_mask(crtc);
+			if (!(pll_in_use & (1 << ATOM_PPLL2)))
+				return ATOM_PPLL2;
+			if (!(pll_in_use & (1 << ATOM_PPLL1)))
+				return ATOM_PPLL1;
+			DRM_ERROR("unable to allocate a PPLL\n");
+			return ATOM_PPLL_INVALID;
+		} else {
+			/* CI has PPLL0, PPLL1, and PPLL2 */
+			pll_in_use = radeon_get_pll_use_mask(crtc);
+			if (!(pll_in_use & (1 << ATOM_PPLL2)))
+				return ATOM_PPLL2;
+			if (!(pll_in_use & (1 << ATOM_PPLL1)))
+				return ATOM_PPLL1;
+			if (!(pll_in_use & (1 << ATOM_PPLL0)))
+				return ATOM_PPLL0;
+			DRM_ERROR("unable to allocate a PPLL\n");
+			return ATOM_PPLL_INVALID;
+		}
+	} else if (ASIC_IS_DCE61(rdev)) {
 		struct radeon_encoder_atom_dig *dig =
 			radeon_encoder->enc_priv;
 
