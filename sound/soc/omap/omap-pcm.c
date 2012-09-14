@@ -183,7 +183,8 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	memset(&dma_params, 0, sizeof(dma_params));
 
 	if (dma_data->data_type)
-		dma_params.data_type = dma_data->data_type;
+		dma_params.data_type = omap_pcm_get_dma_type(
+				dma_data->data_type);
 	else
 		dma_params.data_type = omap_pcm_get_dma_type(
 				snd_pcm_format_physical_width(runtime->format));

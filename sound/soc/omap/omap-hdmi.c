@@ -34,7 +34,6 @@
 #include <sound/asoundef.h>
 #include <video/omapdss.h>
 
-#include <plat/dma.h>
 #include "omap-pcm.h"
 #include "omap-hdmi.h"
 
@@ -100,7 +99,7 @@ static int omap_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	priv->dma_params.data_type = OMAP_DMA_DATA_TYPE_S32;
+	priv->dma_params.data_type = 32;
 
 	snd_soc_dai_set_dma_data(dai, substream,
 				 &priv->dma_params);
