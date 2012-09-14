@@ -1034,20 +1034,6 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 	}
 }
 
-/* FIXME: remove this when dynamic MITE allocation implemented. */
-static struct mite_struct *ni_660x_find_mite(struct pci_dev *pcidev)
-{
-	struct mite_struct *mite;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (mite->pcidev == pcidev)
-			return mite;
-	}
-	return NULL;
-}
-
 static const struct ni_660x_board *
 ni_660x_find_boardinfo(struct pci_dev *pcidev)
 {
@@ -1076,9 +1062,9 @@ static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
 	dev->board_ptr = ni_660x_find_boardinfo(pcidev);
 	if (!dev->board_ptr)
 		return -ENODEV;
-	private(dev)->mite = ni_660x_find_mite(pcidev);
+	private(dev)->mite = mite_alloc(pcidev);
 	if (!private(dev)->mite)
-		return -ENODEV;
+		return -ENOMEM;
 
 	dev->board_name = board(dev)->name;
 
@@ -1196,6 +1182,7 @@ static void ni_660x_detach(struct comedi_device *dev)
 		if (private(dev)->mite) {
 			ni_660x_free_mite_rings(dev);
 			mite_unsetup(private(dev)->mite);
+			mite_free(private(dev)->mite);
 		}
 	}
 }
