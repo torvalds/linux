@@ -380,6 +380,9 @@ extern bool nfs4_disable_idmapping;
 extern unsigned short max_session_slots;
 extern unsigned short send_implementation_id;
 
+#define NFS4_CLIENT_ID_UNIQ_LEN		(64)
+extern char nfs4_client_id_uniquifier[NFS4_CLIENT_ID_UNIQ_LEN];
+
 /* nfs4sysctl.c */
 #ifdef CONFIG_SYSCTL
 int nfs4_register_sysctl(void);

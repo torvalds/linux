@@ -2662,6 +2662,7 @@ unsigned int nfs_idmap_cache_timeout = 600;
 bool nfs4_disable_idmapping = true;
 unsigned short max_session_slots = NFS4_DEF_SLOT_TABLE_SIZE;
 unsigned short send_implementation_id = 1;
+char nfs4_client_id_uniquifier[NFS4_CLIENT_ID_UNIQ_LEN] = "";
 
 EXPORT_SYMBOL_GPL(nfs_callback_set_tcpport);
 EXPORT_SYMBOL_GPL(nfs_callback_tcpport);
@@ -2669,6 +2670,7 @@ EXPORT_SYMBOL_GPL(nfs_idmap_cache_timeout);
 EXPORT_SYMBOL_GPL(nfs4_disable_idmapping);
 EXPORT_SYMBOL_GPL(max_session_slots);
 EXPORT_SYMBOL_GPL(send_implementation_id);
+EXPORT_SYMBOL_GPL(nfs4_client_id_uniquifier);
 
 #define NFS_CALLBACK_MAXPORTNR (65535U)
 
@@ -2694,6 +2696,8 @@ static struct kernel_param_ops param_ops_portnr = {
 module_param_named(callback_tcpport, nfs_callback_set_tcpport, portnr, 0644);
 module_param(nfs_idmap_cache_timeout, int, 0644);
 module_param(nfs4_disable_idmapping, bool, 0644);
+module_param_string(nfs4_unique_id, nfs4_client_id_uniquifier,
+			NFS4_CLIENT_ID_UNIQ_LEN, 0600);
 MODULE_PARM_DESC(nfs4_disable_idmapping,
 		"Turn off NFSv4 idmapping when using 'sec=sys'");
 module_param(max_session_slots, ushort, 0644);
@@ -2702,6 +2706,7 @@ MODULE_PARM_DESC(max_session_slots, "Maximum number of outstanding NFSv4.1 "
 module_param(send_implementation_id, ushort, 0644);
 MODULE_PARM_DESC(send_implementation_id,
 		"Send implementation ID with NFSv4.1 exchange_id");
+MODULE_PARM_DESC(nfs4_unique_id, "nfs_client_id4 uniquifier string");
 MODULE_ALIAS("nfs4");
 
 #endif /* CONFIG_NFS_V4 */
