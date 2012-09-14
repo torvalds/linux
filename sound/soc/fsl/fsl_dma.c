@@ -823,12 +823,6 @@ static int fsl_dma_close(struct snd_pcm_substream *substream)
 		if (dma_private->irq)
 			free_irq(dma_private->irq, dma_private);
 
-		if (dma_private->ld_buf_phys) {
-			dma_unmap_single(dev, dma_private->ld_buf_phys,
-					 sizeof(dma_private->link),
-					 DMA_TO_DEVICE);
-		}
-
 		/* Deallocate the fsl_dma_private structure */
 		dma_free_coherent(dev, sizeof(struct fsl_dma_private),
 				  dma_private, dma_private->ld_buf_phys);
