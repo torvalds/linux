@@ -590,6 +590,21 @@ static struct platform_device i2c1_device = {
 	.num_resources	= ARRAY_SIZE(i2c1_resources),
 };
 
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start	= evt2irq(0x19a0),
+		.end	= evt2irq(0x19a0),
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pmu_device = {
+	.name	= "arm-pmu",
+	.id	= -1,
+	.num_resources = ARRAY_SIZE(pmu_resources),
+	.resource = pmu_resources,
+};
+
 static struct platform_device *r8a7740_late_devices[] __initdata = {
 	&i2c0_device,
 	&i2c1_device,
@@ -597,6 +612,7 @@ static struct platform_device *r8a7740_late_devices[] __initdata = {
 	&dma1_device,
 	&dma2_device,
 	&usb_dma_device,
+	&pmu_device,
 };
 
 /*
