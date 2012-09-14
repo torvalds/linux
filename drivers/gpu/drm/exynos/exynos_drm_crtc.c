@@ -155,6 +155,12 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	/* when framebuffer changing is requested, crtc's dpms should be on */
+	if (exynos_crtc->dpms > DRM_MODE_DPMS_ON) {
+		DRM_ERROR("failed framebuffer changing request.\n");
+		return -EPERM;
+	}
+
 	crtc_w = crtc->fb->width - x;
 	crtc_h = crtc->fb->height - y;
 
