@@ -583,8 +583,8 @@ out:
 #define USBHS0_POLL_INTERVAL (HZ * 5)
 
 struct usbhs_private {
-	unsigned int usbphyaddr;
-	unsigned int usbcrcaddr;
+	void __iomem *usbphyaddr;
+	void __iomem *usbcrcaddr;
 	struct renesas_usbhs_platform_info info;
 	struct delayed_work work;
 	struct platform_device *pdev;
@@ -642,7 +642,7 @@ static void usbhs0_hardware_exit(struct platform_device *pdev)
 }
 
 static struct usbhs_private usbhs0_private = {
-	.usbcrcaddr	= 0xe605810c,		/* USBCR2 */
+	.usbcrcaddr	= IOMEM(0xe605810c),		/* USBCR2 */
 	.info = {
 		.platform_callback = {
 			.hardware_init	= usbhs0_hardware_init,
@@ -775,8 +775,8 @@ static u32 usbhs1_pipe_cfg[] = {
 };
 
 static struct usbhs_private usbhs1_private = {
-	.usbphyaddr	= 0xe60581e2,		/* USBPHY1INTAP */
-	.usbcrcaddr	= 0xe6058130,		/* USBCR4 */
+	.usbphyaddr	= IOMEM(0xe60581e2),	/* USBPHY1INTAP */
+	.usbcrcaddr	= IOMEM(0xe6058130),	/* USBCR4 */
 	.info = {
 		.platform_callback = {
 			.hardware_init	= usbhs1_hardware_init,
@@ -1401,12 +1401,12 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
-#define GPIO_PORT9CR	0xE6051009
-#define GPIO_PORT10CR	0xE605100A
-#define GPIO_PORT167CR	0xE60520A7
-#define GPIO_PORT168CR	0xE60520A8
-#define SRCR4		0xe61580bc
-#define USCCR1		0xE6058144
+#define GPIO_PORT9CR	IOMEM(0xE6051009)
+#define GPIO_PORT10CR	IOMEM(0xE605100A)
+#define GPIO_PORT167CR	IOMEM(0xE60520A7)
+#define GPIO_PORT168CR	IOMEM(0xE60520A8)
+#define SRCR4		IOMEM(0xe61580bc)
+#define USCCR1		IOMEM(0xE6058144)
 static void __init mackerel_init(void)
 {
 	u32 srcr4;

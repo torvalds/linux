@@ -432,7 +432,7 @@ static void usb1_host_port_power(int port, int power)
 		return;
 
 	/* set VBOUT/PWEN and EXTLP1 in DVSTCTR */
-	__raw_writew(__raw_readw(0xE68B0008) | 0x600, 0xE68B0008);
+	__raw_writew(__raw_readw(IOMEM(0xE68B0008)) | 0x600, IOMEM(0xE68B0008));
 }
 
 static struct r8a66597_platdata usb1_host_data = {
@@ -1224,9 +1224,9 @@ static struct i2c_board_info i2c1_devices[] = {
 };
 
 
-#define GPIO_PORT9CR	0xE6051009
-#define GPIO_PORT10CR	0xE605100A
-#define USCCR1		0xE6058144
+#define GPIO_PORT9CR	IOMEM(0xE6051009)
+#define GPIO_PORT10CR	IOMEM(0xE605100A)
+#define USCCR1		IOMEM(0xE6058144)
 static void __init ap4evb_init(void)
 {
 	u32 srcr4;
@@ -1304,7 +1304,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_OVCN2_1,    NULL);
 
 	/* setup USB phy */
-	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR4 */
+	__raw_writew(0x8a0a, IOMEM(0xE6058130));	/* USBCR4 */
 
 	/* enable FSI2 port A (ak4643) */
 	gpio_request(GPIO_FN_FSIAIBT,	NULL);
@@ -1453,7 +1453,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_HDMI_CEC, NULL);
 
 	/* Reset HDMI, must be held at least one EXTALR (32768Hz) period */
-#define SRCR4 0xe61580bc
+#define SRCR4 IOMEM(0xe61580bc)
 	srcr4 = __raw_readl(SRCR4);
 	__raw_writel(srcr4 | (1 << 13), SRCR4);
 	udelay(50);

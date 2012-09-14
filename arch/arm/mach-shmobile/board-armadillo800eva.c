@@ -135,7 +135,7 @@
  *	usbhsf_power_ctrl()
  */
 #define IRQ7		evt2irq(0x02e0)
-#define USBCR1		0xe605810a
+#define USBCR1		IOMEM(0xe605810a)
 #define USBH		0xC6700000
 #define USBH_USBCTR	0x10834
 
@@ -949,8 +949,8 @@ clock_error:
 /*
  * board init
  */
-#define GPIO_PORT7CR	0xe6050007
-#define GPIO_PORT8CR	0xe6050008
+#define GPIO_PORT7CR	IOMEM(0xe6050007)
+#define GPIO_PORT8CR	IOMEM(0xe6050008)
 static void __init eva_init(void)
 {
 	struct platform_device *usb = NULL;
