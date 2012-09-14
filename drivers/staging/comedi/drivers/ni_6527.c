@@ -46,6 +46,8 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 
 #include "mite.h"
 
+#define DRIVER_NAME "ni_6527"
+
 #define NI6527_DIO_SIZE 4096
 #define NI6527_MITE_SIZE 4096
 
@@ -80,7 +82,7 @@ static int ni6527_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
 static void ni6527_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni6527 = {
-	.driver_name = "ni6527",
+	.driver_name = DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = ni6527_attach,
 	.detach = ni6527_detach,
@@ -430,7 +432,7 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
 	ret = request_irq(mite_irq(devpriv->mite), ni6527_interrupt,
-			  IRQF_SHARED, "ni6527", dev);
+			  IRQF_SHARED, DRIVER_NAME, dev);
 	if (ret < 0)
 		dev_warn(dev->class_dev, "irq not available\n");
 	else
@@ -471,7 +473,7 @@ static int ni6527_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	dev_err(dev->class_dev, "ni6527: no device found\n");
+	dev_err(dev->class_dev, DRIVER_NAME ": no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
