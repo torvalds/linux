@@ -423,7 +423,7 @@ set_timer:
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) && ah->caldata) {
+	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD) && ah->caldata) {
 		if (!ah->caldata->paprd_done)
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
 		else if (!ah->paprd_table_write_done)
