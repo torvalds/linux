@@ -533,7 +533,7 @@ static int whiteheat_ioctl(struct tty_struct *tty,
 	struct serial_struct serstruct;
 	void __user *user_arg = (void __user *)arg;
 
-	dbg("%s - port %d, cmd 0x%.4x", __func__, port->number, cmd);
+	dev_dbg(&port->dev, "%s - cmd 0x%.4x\n", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCGSERIAL:
@@ -580,7 +580,7 @@ static void command_port_write_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (status) {
-		dbg("nonzero urb status: %d", status);
+		dev_dbg(&urb->dev->dev, "nonzero urb status: %d\n", status);
 		return;
 	}
 }
@@ -596,11 +596,11 @@ static void command_port_read_callback(struct urb *urb)
 
 	command_info = usb_get_serial_port_data(command_port);
 	if (!command_info) {
-		dbg("%s - command_info is NULL, exiting.", __func__);
+		dev_dbg(&urb->dev->dev, "%s - command_info is NULL, exiting.\n", __func__);
 		return;
 	}
 	if (status) {
-		dbg("%s - nonzero urb status: %d", __func__, status);
+		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n", __func__, status);
 		if (status != -ENOENT)
 			command_info->command_finished = WHITEHEAT_CMD_FAILURE;
 		wake_up(&command_info->wait_command);
@@ -619,19 +619,19 @@ static void command_port_read_callback(struct urb *urb)
 	} else if (data[0] == WHITEHEAT_EVENT) {
 		/* These are unsolicited reports from the firmware, hence no
 		   waiting command to wakeup */
-		dbg("%s - event received", __func__);
+		dev_dbg(&urb->dev->dev, "%s - event received\n", __func__);
 	} else if (data[0] == WHITEHEAT_GET_DTR_RTS) {
 		memcpy(command_info->result_buffer, &data[1],
 						urb->actual_length - 1);
 		command_info->command_finished = WHITEHEAT_CMD_COMPLETE;
 		wake_up(&command_info->wait_command);
 	} else
-		dbg("%s - bad reply from firmware", __func__);
+		dev_dbg(&urb->dev->dev, "%s - bad reply from firmware\n", __func__);
 
 	/* Continue trying to always read */
 	result = usb_submit_urb(command_port->read_urb, GFP_ATOMIC);
 	if (result)
-		dbg("%s - failed resubmitting read urb, error %d",
+		dev_dbg(&urb->dev->dev, "%s - failed resubmitting read urb, error %d\n",
 			__func__, result);
 }
 
@@ -645,11 +645,12 @@ static int firm_send_command(struct usb_serial_port *port, __u8 command,
 	struct usb_serial_port *command_port;
 	struct whiteheat_command_private *command_info;
 	struct whiteheat_private *info;
+	struct device *dev = &port->dev;
 	__u8 *transfer_buffer;
 	int retval = 0;
 	int t;
 
-	dbg("%s - command %d", __func__, command);
+	dev_dbg(dev, "%s - command %d\n", __func__, command);
 
 	command_port = port->serial->port[COMMAND_PORT];
 	command_info = usb_get_serial_port_data(command_port);
@@ -662,7 +663,7 @@ static int firm_send_command(struct usb_serial_port *port, __u8 command,
 	command_port->write_urb->transfer_buffer_length = datasize + 1;
 	retval = usb_submit_urb(command_port->write_urb, GFP_NOIO);
 	if (retval) {
-		dbg("%s - submit urb failed", __func__);
+		dev_dbg(dev, "%s - submit urb failed\n", __func__);
 		goto exit;
 	}
 
@@ -673,19 +674,19 @@ static int firm_send_command(struct usb_serial_port *port, __u8 command,
 		usb_kill_urb(command_port->write_urb);
 
 	if (command_info->command_finished == false) {
-		dbg("%s - command timed out.", __func__);
+		dev_dbg(dev, "%s - command timed out.\n", __func__);
 		retval = -ETIMEDOUT;
 		goto exit;
 	}
 
 	if (command_info->command_finished == WHITEHEAT_CMD_FAILURE) {
-		dbg("%s - command failed.", __func__);
+		dev_dbg(dev, "%s - command failed.\n", __func__);
 		retval = -EIO;
 		goto exit;
 	}
 
 	if (command_info->command_finished == WHITEHEAT_CMD_COMPLETE) {
-		dbg("%s - command completed.", __func__);
+		dev_dbg(dev, "%s - command completed.\n", __func__);
 		switch (command) {
 		case WHITEHEAT_GET_DTR_RTS:
 			info = usb_get_serial_port_data(port);
@@ -723,6 +724,7 @@ static int firm_close(struct usb_serial_port *port)
 static void firm_setup_port(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct device *dev = &port->dev;
 	struct whiteheat_port_settings port_settings;
 	unsigned int cflag = tty->termios->c_cflag;
 
@@ -736,7 +738,7 @@ static void firm_setup_port(struct tty_struct *tty)
 	default:
 	case CS8:	port_settings.bits = 8;   break;
 	}
-	dbg("%s - data bits = %d", __func__, port_settings.bits);
+	dev_dbg(dev, "%s - data bits = %d\n", __func__, port_settings.bits);
 
 	/* determine the parity */
 	if (cflag & PARENB)
@@ -752,14 +754,14 @@ static void firm_setup_port(struct tty_struct *tty)
 				port_settings.parity = WHITEHEAT_PAR_EVEN;
 	else
 		port_settings.parity = WHITEHEAT_PAR_NONE;
-	dbg("%s - parity = %c", __func__, port_settings.parity);
+	dev_dbg(dev, "%s - parity = %c\n", __func__, port_settings.parity);
 
 	/* figure out the stop bits requested */
 	if (cflag & CSTOPB)
 		port_settings.stop = 2;
 	else
 		port_settings.stop = 1;
-	dbg("%s - stop bits = %d", __func__, port_settings.stop);
+	dev_dbg(dev, "%s - stop bits = %d\n", __func__, port_settings.stop);
 
 	/* figure out the flow control settings */
 	if (cflag & CRTSCTS)
@@ -767,7 +769,7 @@ static void firm_setup_port(struct tty_struct *tty)
 						WHITEHEAT_HFLOW_RTS);
 	else
 		port_settings.hflow = WHITEHEAT_HFLOW_NONE;
-	dbg("%s - hardware flow control = %s %s %s %s", __func__,
+	dev_dbg(dev, "%s - hardware flow control = %s %s %s %s\n", __func__,
 	    (port_settings.hflow & WHITEHEAT_HFLOW_CTS) ? "CTS" : "",
 	    (port_settings.hflow & WHITEHEAT_HFLOW_RTS) ? "RTS" : "",
 	    (port_settings.hflow & WHITEHEAT_HFLOW_DSR) ? "DSR" : "",
@@ -778,16 +780,15 @@ static void firm_setup_port(struct tty_struct *tty)
 		port_settings.sflow = WHITEHEAT_SFLOW_RXTX;
 	else
 		port_settings.sflow = WHITEHEAT_SFLOW_NONE;
-	dbg("%s - software flow control = %c", __func__, port_settings.sflow);
+	dev_dbg(dev, "%s - software flow control = %c\n", __func__, port_settings.sflow);
 
 	port_settings.xon = START_CHAR(tty);
 	port_settings.xoff = STOP_CHAR(tty);
-	dbg("%s - XON = %2x, XOFF = %2x",
-			__func__, port_settings.xon, port_settings.xoff);
+	dev_dbg(dev, "%s - XON = %2x, XOFF = %2x\n", __func__, port_settings.xon, port_settings.xoff);
 
 	/* get the baud rate wanted */
 	port_settings.baud = tty_get_baud_rate(tty);
-	dbg("%s - baud rate = %d", __func__, port_settings.baud);
+	dev_dbg(dev, "%s - baud rate = %d\n", __func__, port_settings.baud);
 
 	/* fixme: should set validated settings */
 	tty_encode_baud_rate(tty, port_settings.baud, port_settings.baud);
