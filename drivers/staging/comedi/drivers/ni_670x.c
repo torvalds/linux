@@ -187,20 +187,6 @@ static int ni_670x_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* FIXME: remove this when dynamic MITE allocation implemented. */
-static struct mite_struct *ni_670x_find_mite(struct pci_dev *pcidev)
-{
-	struct mite_struct *mite;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (mite->pcidev == pcidev)
-			return mite;
-	}
-	return NULL;
-}
-
 static const struct ni_670x_board *
 ni_670x_find_boardinfo(struct pci_dev *pcidev)
 {
@@ -231,9 +217,9 @@ static int __devinit ni_670x_attach_pci(struct comedi_device *dev,
 	dev->board_ptr = ni_670x_find_boardinfo(pcidev);
 	if (!dev->board_ptr)
 		return -ENODEV;
-	devpriv->mite = ni_670x_find_mite(pcidev);
+	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
-		return -ENODEV;
+		return -ENOMEM;
 	thisboard = comedi_board(dev);
 
 	ret = mite_setup(devpriv->mite);
@@ -303,8 +289,10 @@ static void ni_670x_detach(struct comedi_device *dev)
 		if (s)
 			kfree(s->range_table_list);
 	}
-	if (devpriv && devpriv->mite)
+	if (devpriv && devpriv->mite) {
 		mite_unsetup(devpriv->mite);
+		mite_free(devpriv->mite);
+	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 }
