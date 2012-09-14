@@ -557,7 +557,11 @@ static struct i2c_board_info i2c0_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("r2025sd", 0x32),
-	}
+	},
+	{
+		I2C_BOARD_INFO("ak8975", 0x0c),
+		.irq = intcs_evt2irq(0x3380), /* IRQ28 */
+	},
 };
 
 static struct i2c_board_info i2c1_devices[] = {
