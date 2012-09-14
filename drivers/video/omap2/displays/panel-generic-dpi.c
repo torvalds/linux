@@ -608,7 +608,7 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 
 	dssdev->panel.timings = panel_config->timings;
 
-	drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc(&dssdev->dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)
 		return -ENOMEM;
 
@@ -624,11 +624,7 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 
 static void __exit generic_dpi_panel_remove(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
-
 	dev_dbg(&dssdev->dev, "remove\n");
-
-	kfree(drv_data);
 
 	dev_set_drvdata(&dssdev->dev, NULL);
 }
