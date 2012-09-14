@@ -646,3 +646,12 @@ Who:	Russell King <linux@arm.linux.org.uk>,
 	Santosh Shilimkar <santosh.shilimkar@ti.com>
 
 ----------------------------
+
+What:	Remove deprecated DV timings capability defines V4L2_IN_CAP_CUSTOM_TIMINGS
+	and V4L2_OUT_CAP_CUSTOM_TIMINGS.
+When:	3.9
+Why:	These defines have been replaced by V4L2_IN_CAP_TIMINGS and
+	V4L2_OUT_CAP_TIMINGS respectively.
+Who:	Hans Verkuil <hans.verkuil@cisco.com>
+
+----------------------------
