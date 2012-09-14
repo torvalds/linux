@@ -1,1 +1,1 @@
-obj-y		:= enlighten.o
+obj-y		:= enlighten.o hypercall.o
