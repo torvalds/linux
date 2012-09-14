@@ -16,9 +16,9 @@
 #include <asm/smp_scu.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
-#include <mach/hardware.h>
 
 #include "common.h"
+#include "hardware.h"
 
 static void __iomem *scu_base;
 

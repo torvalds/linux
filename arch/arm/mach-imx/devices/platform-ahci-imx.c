@@ -24,7 +24,8 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <asm/sizes.h>
-#include <mach/hardware.h>
+
+#include "../hardware.h"
 #include "devices-common.h"
 
 #define imx_ahci_imx_data_entry_single(soc, _devid)		\

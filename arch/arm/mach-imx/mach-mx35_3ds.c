@@ -43,7 +43,6 @@
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
 
-#include <mach/hardware.h>
 #include <video/platform_lcd.h>
 
 #include <media/soc_camera.h>
@@ -51,6 +50,7 @@
 #include "3ds_debugboard.h"
 #include "common.h"
 #include "devices-imx35.h"
+#include "hardware.h"
 #include "iomux-mx35.h"
 
 #define GPIO_MC9S08DZ60_GPS_ENABLE 0

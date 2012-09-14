@@ -41,7 +41,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -51,6 +50,7 @@
 #include "common.h"
 #include "devices-imx31.h"
 #include "crmregs-imx3.h"
+#include "hardware.h"
 #include "iomux-mx3.h"
 #include "ulpi.h"
 

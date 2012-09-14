@@ -28,9 +28,9 @@
 #include <linux/string.h>
 #include <linux/gpio.h>
 
-#include <mach/hardware.h>
 #include <asm/mach/map.h>
 
+#include "hardware.h"
 #include "iomux-v1.h"
 
 static void __iomem *imx_iomuxv1_baseaddr;

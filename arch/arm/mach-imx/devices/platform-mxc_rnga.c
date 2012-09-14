@@ -6,7 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/hardware.h>
+#include "../hardware.h"
 #include "devices-common.h"
 
 struct imx_mxc_rnga_data {

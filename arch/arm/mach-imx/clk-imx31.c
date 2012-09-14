@@ -22,12 +22,11 @@
 #include <linux/err.h>
 #include <linux/of.h>
 
-#include <mach/hardware.h>
-#include <mach/mx31.h>
-
 #include "clk.h"
 #include "common.h"
 #include "crmregs-imx3.h"
+#include "hardware.h"
+#include "mx31.h"
 
 static const char *mcu_main_sel[] = { "spll", "mpll", };
 static const char *per_sel[] = { "per_div", "ipg", };

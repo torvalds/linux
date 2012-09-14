@@ -36,10 +36,9 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-
 #include "common.h"
 #include "devices-imx51.h"
+#include "hardware.h"
 #include "iomux-mx51.h"
 
 static iomux_v3_cfg_t eukrea_mbimxsd51_pads[] = {

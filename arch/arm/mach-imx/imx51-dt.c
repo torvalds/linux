@@ -15,9 +15,9 @@
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-#include <mach/mx51.h>
 
 #include "common.h"
+#include "mx51.h"
 
 /*
  * Lookup table for attaching a specific name and platform_data pointer to

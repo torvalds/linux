@@ -37,11 +37,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-
 #include "common.h"
 #include "devices-imx35.h"
 #include "eukrea-baseboards.h"
+#include "hardware.h"
 #include "iomux-mx35.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {

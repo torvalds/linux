@@ -14,11 +14,10 @@
 #include <linux/of.h>
 #include <linux/err.h>
 
-#include <mach/hardware.h>
-
 #include "crmregs-imx3.h"
 #include "clk.h"
 #include "common.h"
+#include "hardware.h"
 
 struct arm_ahb_div {
 	unsigned char arm, ahb, sel;

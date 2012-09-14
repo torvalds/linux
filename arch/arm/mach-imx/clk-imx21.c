@@ -25,10 +25,9 @@
 #include <linux/module.h>
 #include <linux/err.h>
 
-#include <mach/hardware.h>
-
 #include "clk.h"
 #include "common.h"
+#include "hardware.h"
 
 #define IO_ADDR_CCM(off)	(MX21_IO_ADDRESS(MX21_CCM_BASE_ADDR + (off)))
 

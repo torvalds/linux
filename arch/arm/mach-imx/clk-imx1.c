@@ -22,10 +22,9 @@
 #include <linux/clkdev.h>
 #include <linux/err.h>
 
-#include <mach/hardware.h>
-
 #include "clk.h"
 #include "common.h"
+#include "hardware.h"
 
 /* CCM register addresses */
 #define IO_ADDR_CCM(off)	(MX1_IO_ADDRESS(MX1_CCM_BASE_ADDR + (off)))

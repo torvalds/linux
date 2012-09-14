@@ -39,11 +39,10 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 
-#include <mach/hardware.h>
-
 #include "board-mx31lite.h"
 #include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
 #include "iomux-mx3.h"
 #include "ulpi.h"
 

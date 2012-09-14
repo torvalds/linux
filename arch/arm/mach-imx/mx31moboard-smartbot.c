@@ -23,13 +23,12 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 
-#include <mach/hardware.h>
-
 #include <media/soc_camera.h>
 
 #include "board-mx31moboard.h"
 #include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
 #include "iomux-mx3.h"
 #include "ulpi.h"
 

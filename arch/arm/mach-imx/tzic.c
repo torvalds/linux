@@ -21,10 +21,10 @@
 #include <asm/mach/irq.h>
 #include <asm/exception.h>
 
-#include <mach/hardware.h>
 #include <mach/irqs.h>
 
 #include "common.h"
+#include "hardware.h"
 #include "irq-common.h"
 
 /*

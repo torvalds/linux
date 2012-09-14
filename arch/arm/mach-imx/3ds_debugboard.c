@@ -21,7 +21,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 
 /* LAN9217 ethernet base address */
 #define LAN9217_BASE_ADDR(n)	(n + 0x0)

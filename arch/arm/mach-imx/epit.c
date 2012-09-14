@@ -51,11 +51,10 @@
 #include <linux/clockchips.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-
-#include <mach/hardware.h>
 #include <asm/mach/time.h>
 
 #include "common.h"
+#include "hardware.h"
 
 static struct clock_event_device clockevent_epit;
 static enum clock_event_mode clockevent_mode = CLOCK_EVT_MODE_UNUSED;

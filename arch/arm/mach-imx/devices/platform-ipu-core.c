@@ -7,7 +7,8 @@
  * Free Software Foundation.
  */
 #include <linux/dma-mapping.h>
-#include <mach/hardware.h>
+
+#include "../hardware.h"
 #include "devices-common.h"
 
 #define imx_ipu_core_entry_single(soc)					\

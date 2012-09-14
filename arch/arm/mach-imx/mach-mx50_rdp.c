@@ -24,8 +24,6 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
-
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -34,6 +32,7 @@
 
 #include "common.h"
 #include "devices-imx50.h"
+#include "hardware.h"
 #include "iomux-mx50.h"
 
 #define FEC_EN		IMX_GPIO_NR(6, 23)

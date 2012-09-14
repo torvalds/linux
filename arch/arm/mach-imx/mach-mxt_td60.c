@@ -21,7 +21,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -31,6 +30,7 @@
 
 #include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
 #include "iomux-mx27.h"
 
 static const int mxt_td60_pins[] __initconst = {

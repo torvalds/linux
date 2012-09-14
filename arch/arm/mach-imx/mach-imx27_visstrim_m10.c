@@ -40,10 +40,10 @@
 #include <asm/mach/time.h>
 #include <asm/system_info.h>
 #include <asm/memblock.h>
-#include <mach/hardware.h>
 
 #include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
 #include "iomux-mx27.h"
 
 #define TVP5150_RSTN (GPIO_PORTC + 18)

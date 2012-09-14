@@ -18,10 +18,9 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-
 #include "common.h"
 #include "devices/devices-common.h"
+#include "hardware.h"
 #include "iomux-v3.h"
 
 /*

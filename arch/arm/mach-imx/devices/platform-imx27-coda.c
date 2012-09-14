@@ -7,7 +7,7 @@
  * Free Software Foundation.
  */
 
-#include <mach/hardware.h>
+#include "../hardware.h"
 #include "devices-common.h"
 
 #ifdef CONFIG_SOC_IMX27

@@ -22,12 +22,12 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 
-#include <mach/hardware.h>
 #include <asm/system_misc.h>
 #include <asm/proc-fns.h>
 #include <asm/mach-types.h>
 
 #include "common.h"
+#include "hardware.h"
 
 static void __iomem *wdog_base;
 

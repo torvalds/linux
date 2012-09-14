@@ -25,10 +25,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include <mach/hardware.h>
-
 #include "common.h"
 #include "devices-imx1.h"
+#include "hardware.h"
 #include "iomux-mx1.h"
 
 static const int apf9328_pins[] __initconst = {

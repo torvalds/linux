@@ -36,10 +36,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/hardware.h>
-
 #include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
 #include "iomux-mx3.h"
 
 #define KZM_ARM11_IO_ADDRESS(x) (IOMEM(					\

@@ -24,12 +24,11 @@
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/mx25.h>
-
 #include "common.h"
 #include "devices/devices-common.h"
+#include "hardware.h"
 #include "iomux-v3.h"
+#include "mx25.h"
 
 /*
  * This table defines static virtual address mappings for I/O regions.

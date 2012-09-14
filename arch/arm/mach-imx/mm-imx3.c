@@ -26,11 +26,10 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-
 #include "common.h"
 #include "crmregs-imx3.h"
 #include "devices/devices-common.h"
+#include "hardware.h"
 #include "iomux-v3.h"
 
 void __iomem *mx3_ccm_base;

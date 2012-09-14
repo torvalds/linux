@@ -21,7 +21,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/gpio.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -31,6 +30,7 @@
 
 #include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
 #include "iomux-mx3.h"
 
 /* FPGA defines */

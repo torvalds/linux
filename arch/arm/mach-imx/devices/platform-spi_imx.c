@@ -6,7 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/hardware.h>
+#include "../hardware.h"
 #include "devices-common.h"
 
 #define imx_spi_imx_data_entry_single(soc, type, _devid, _id, hwid, _size) \

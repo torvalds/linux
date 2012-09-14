@@ -11,9 +11,9 @@
  */
 #include <linux/module.h>
 #include <linux/io.h>
-#include <mach/hardware.h>
 
 #include "iim.h"
+#include "hardware.h"
 
 static int mx25_cpu_rev = -1;
 

@@ -27,11 +27,11 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
-#include <mach/hardware.h>
 #include <asm/sched_clock.h>
 #include <asm/mach/time.h>
 
 #include "common.h"
+#include "hardware.h"
 
 /*
  * There are 2 versions of the timer hardware on Freescale MXC hardware.

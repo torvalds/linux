@@ -7,7 +7,8 @@
  * Free Software Foundation.
  */
 #include <asm/sizes.h>
-#include <mach/hardware.h>
+
+#include "../hardware.h"
 #include "devices-common.h"
 
 #define imx_mxc_nand_data_entry_single(soc, _devid, _size)		\

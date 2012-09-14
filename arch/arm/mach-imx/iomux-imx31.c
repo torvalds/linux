@@ -22,8 +22,8 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <mach/hardware.h>
 
+#include "hardware.h"
 #include "iomux-mx3.h"
 
 /*

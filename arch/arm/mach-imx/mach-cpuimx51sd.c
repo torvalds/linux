@@ -26,8 +26,6 @@
 #include <linux/spi/spi.h>
 #include <linux/can/platform/mcp251x.h>
 
-#include <mach/hardware.h>
-
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -37,6 +35,7 @@
 #include "devices-imx51.h"
 #include "cpu_op-mx51.h"
 #include "eukrea-baseboards.h"
+#include "hardware.h"
 #include "iomux-mx51.h"
 
 #define USBH1_RST		IMX_GPIO_NR(2, 28)

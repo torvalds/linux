@@ -7,7 +7,8 @@
  * Free Software Foundation.
  */
 #include <linux/dma-mapping.h>
-#include <mach/hardware.h>
+
+#include "../hardware.h"
 #include "devices-common.h"
 
 #define imx_mxc_mmc_data_entry_single(soc, _devid, _id, _hwid, _size)	\
