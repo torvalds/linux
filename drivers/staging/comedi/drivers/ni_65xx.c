@@ -314,8 +314,6 @@ static struct ni_65xx_subdevice_private *ni_65xx_alloc_subdevice_private(void)
 	return subdev_private;
 }
 
-static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot);
-
 static int ni_65xx_config_filter(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -631,8 +629,36 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 	return 2;
 }
 
-static int ni_65xx_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+/* FIXME: remove this when dynamic MITE allocation implemented. */
+static struct mite_struct *ni_65xx_find_mite(struct pci_dev *pcidev)
+{
+	struct mite_struct *mite;
+
+	for (mite = mite_devices; mite; mite = mite->next) {
+		if (mite->used)
+			continue;
+		if (mite->pcidev == pcidev)
+			return mite;
+	}
+	return NULL;
+}
+
+static const struct ni_65xx_board *
+ni_65xx_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int dev_id = pcidev->device;
+	unsigned int n;
+
+	for (n = 0; n < ARRAY_SIZE(ni_65xx_boards); n++) {
+		const struct ni_65xx_board *board = &ni_65xx_boards[n];
+		if (board->dev_id == dev_id)
+			return board;
+	}
+	return NULL;
+}
+
+static int __devinit ni_65xx_attach_pci(struct comedi_device *dev,
+					struct pci_dev *pcidev)
 {
 	struct comedi_subdevice *s;
 	unsigned i;
@@ -642,9 +668,13 @@ static int ni_65xx_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = ni_65xx_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
+	dev->board_ptr = ni_65xx_find_boardinfo(pcidev);
+	if (!dev->board_ptr)
+		return -ENODEV;
+
+	private(dev)->mite = ni_65xx_find_mite(pcidev);
+	if (!private(dev)->mite)
+		return -ENODEV;
 
 	ret = mite_setup(private(dev)->mite);
 	if (ret < 0) {
@@ -785,36 +815,10 @@ static void ni_65xx_detach(struct comedi_device *dev)
 	}
 }
 
-static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)
-{
-	struct mite_struct *mite;
-	int i;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-			    slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-		for (i = 0; i < n_ni_65xx_boards; i++) {
-			if (mite_device_id(mite) == ni_65xx_boards[i].dev_id) {
-				dev->board_ptr = ni_65xx_boards + i;
-				private(dev)->mite = mite;
-				return 0;
-			}
-		}
-	}
-	dev_warn(dev->class_dev, "no device found\n");
-	mite_list_devices();
-	return -EIO;
-}
-
 static struct comedi_driver ni_65xx_driver = {
 	.driver_name = "ni_65xx",
 	.module = THIS_MODULE,
-	.attach = ni_65xx_attach,
+	.attach_pci = ni_65xx_attach_pci,
 	.detach = ni_65xx_detach,
 };
 
