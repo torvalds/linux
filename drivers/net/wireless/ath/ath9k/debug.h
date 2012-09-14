@@ -41,7 +41,6 @@ enum ath_reset_type {
 	RESET_TYPE_PLL_HANG,
 	RESET_TYPE_MAC_HANG,
 	RESET_TYPE_BEACON_STUCK,
-	RESET_TYPE_MCI,
 	__RESET_TYPE_MAX
 };
 
@@ -74,6 +73,8 @@ enum ath_reset_type {
  * from a beacon differs from the PCU's internal TSF by more than a
  * (programmable) threshold
  * @local_timeout: Internal bus timeout.
+ * @mci: MCI interrupt, specific to MCI based BTCOEX chipsets
+ * @gen_timer: Generic hardware timer interrupt
  */
 struct ath_interrupt_stats {
 	u32 total;
@@ -100,6 +101,7 @@ struct ath_interrupt_stats {
 	u32 bb_watchdog;
 	u32 tsfoor;
 	u32 mci;
+	u32 gen_timer;
 
 	/* Sync-cause stats */
 	u32 sync_cause_all;

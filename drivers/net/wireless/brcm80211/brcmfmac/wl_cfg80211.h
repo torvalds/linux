@@ -123,6 +123,13 @@ do {								\
 #define WL_SCAN_UNASSOC_TIME		40
 #define WL_SCAN_PASSIVE_TIME		120
 
+#define WL_ESCAN_BUF_SIZE		(1024 * 64)
+#define WL_ESCAN_TIMER_INTERVAL_MS	8000 /* E-Scan timeout */
+
+#define WL_ESCAN_ACTION_START		1
+#define WL_ESCAN_ACTION_CONTINUE	2
+#define WL_ESCAN_ACTION_ABORT		3
+
 /* dongle status */
 enum wl_status {
 	WL_STATUS_READY,
@@ -275,6 +282,19 @@ struct brcmf_cfg80211_pmk_list {
 	struct pmkid foo[MAXPMKID - 1];
 };
 
+/* dongle escan state */
+enum wl_escan_state {
+	WL_ESCAN_STATE_IDLE,
+	WL_ESCAN_STATE_SCANNING
+};
+
+struct escan_info {
+	u32 escan_state;
+	u8 escan_buf[WL_ESCAN_BUF_SIZE];
+	struct wiphy *wiphy;
+	struct net_device *ndev;
+};
+
 /* dongle private data of cfg80211 interface */
 struct brcmf_cfg80211_priv {
 	struct wireless_dev *wdev;	/* representing wl cfg80211 device */
@@ -315,6 +335,11 @@ struct brcmf_cfg80211_priv {
 	u8 *dcmd_buf;		/* dcmd buffer */
 	u8 *extra_buf;		/* maily to grab assoc information */
 	struct dentry *debugfsdir;
+	bool escan_on;		/* escan on/off switch */
+	struct escan_info escan_info;   /* escan information */
+	struct timer_list escan_timeout;   /* Timer for catch scan timeout */
+	struct work_struct escan_timeout_work;	/* scan timeout worker */
+	u8 *escan_ioctl_buf;
 	u8 ci[0] __aligned(NETDEV_ALIGN);
 };
 

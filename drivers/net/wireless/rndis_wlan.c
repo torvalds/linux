@@ -1959,9 +1959,6 @@ static int rndis_scan(struct wiphy *wiphy,
 	 */
 	rndis_check_bssid_list(usbdev, NULL, NULL);
 
-	if (!request)
-		return -EINVAL;
-
 	if (priv->scan_request && priv->scan_request != request)
 		return -EBUSY;
 

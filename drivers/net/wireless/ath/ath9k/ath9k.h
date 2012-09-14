@@ -423,7 +423,6 @@ void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_set_tsfadjust(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_set_beacon(struct ath_softc *sc);
-void ath9k_set_beaconing_status(struct ath_softc *sc, bool status);
 
 /*******************/
 /* Link Monitoring */
@@ -473,7 +472,7 @@ struct ath_btcoex {
 	unsigned long op_flags;
 	int bt_stomp_type; /* Types of BT stomping */
 	u32 btcoex_no_stomp; /* in usec */
-	u32 btcoex_period; /* in usec */
+	u32 btcoex_period; /* in msec */
 	u32 btscan_no_stomp; /* in usec */
 	u32 duty_cycle;
 	u32 bt_wait_time;

@@ -73,7 +73,6 @@ static void scan_delay_timer_fn(unsigned long data)
 		list_for_each_entry_safe(cmd_node, tmp_node,
 					 &adapter->scan_pending_q, list) {
 			list_del(&cmd_node->list);
-			cmd_node->wait_q_enabled = false;
 			mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
 		}
 		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
@@ -91,6 +90,11 @@ static void scan_delay_timer_fn(unsigned long data)
 			priv->scan_request = NULL;
 			kfree(priv->user_scan_cfg);
 			priv->user_scan_cfg = NULL;
+		}
+
+		if (priv->scan_pending_on_block) {
+			priv->scan_pending_on_block = false;
+			up(&priv->async_sem);
 		}
 		goto done;
 	}

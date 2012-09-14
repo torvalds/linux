@@ -205,7 +205,8 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 		BRCMF_E_ACTION_FRAME_COMPLETE, "ACTION FRAME TX COMPLETE"}, {
 		BRCMF_E_IF, "IF"}, {
 		BRCMF_E_RSSI, "RSSI"}, {
-		BRCMF_E_PFN_SCAN_COMPLETE, "SCAN_COMPLETE"}
+		BRCMF_E_PFN_SCAN_COMPLETE, "SCAN_COMPLETE"}, {
+		BRCMF_E_ESCAN_RESULT, "ESCAN_RESULT"}
 	};
 	uint event_type, flags, auth_type, datalen;
 	static u32 seqnum_prev;
@@ -348,6 +349,11 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 	case BRCMF_E_SCAN_COMPLETE:
 	case BRCMF_E_PMKID_CACHE:
 		brcmf_dbg(EVENT, "MACEVENT: %s\n", event_name);
+		break;
+
+	case BRCMF_E_ESCAN_RESULT:
+		brcmf_dbg(EVENT, "MACEVENT: %s\n", event_name);
+		datalen = 0;
 		break;
 
 	case BRCMF_E_PFN_NET_FOUND:

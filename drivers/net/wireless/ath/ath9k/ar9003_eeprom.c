@@ -138,7 +138,8 @@ static const struct ar9300_eeprom ar9300_default = {
 	 },
 	.base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0},
+		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	},
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
@@ -713,7 +714,8 @@ static const struct ar9300_eeprom ar9300_x113 = {
 	 },
 	 .base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0},
+		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	 },
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
@@ -1289,7 +1291,8 @@ static const struct ar9300_eeprom ar9300_h112 = {
 	},
 	.base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0},
+		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	},
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
@@ -1865,7 +1868,8 @@ static const struct ar9300_eeprom ar9300_x112 = {
 	},
 	.base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0},
+		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	},
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
@@ -2440,7 +2444,8 @@ static const struct ar9300_eeprom ar9300_h116 = {
 	 },
 	 .base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0},
+		.tempslopextension = {0, 0, 0, 0, 0, 0, 0, 0}
 	 },
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
@@ -3520,7 +3525,7 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 
 	if (AR_SREV_9485(ah) || AR_SREV_9330(ah) || AR_SREV_9340(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP2, AR_CH0_TOP2_XPABIASLVL, bias);
-	else if (AR_SREV_9462(ah) || AR_SREV_9550(ah))
+	else if (AR_SREV_9462(ah) || AR_SREV_9550(ah) || AR_SREV_9565(ah))
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
 	else {
 		REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
@@ -3568,7 +3573,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 
 	u32 value = ar9003_hw_ant_ctrl_common_get(ah, is2ghz);
 
-	if (AR_SREV_9462(ah)) {
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM,
 				AR_SWITCH_TABLE_COM_AR9462_ALL, value);
 	} else if (AR_SREV_9550(ah)) {
@@ -3612,7 +3617,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		}
 	}
 
-	if (AR_SREV_9330(ah) || AR_SREV_9485(ah)) {
+	if (AR_SREV_9330(ah) || AR_SREV_9485(ah) || AR_SREV_9565(ah)) {
 		value = ath9k_hw_ar9300_get_eeprom(ah, EEP_ANT_DIV_CTL1);
 		/*
 		 * main_lnaconf, alt_lnaconf, main_tb, alt_tb
@@ -3622,19 +3627,16 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		regval &= (~AR_ANT_DIV_CTRL_ALL);
 		regval |= (value & 0x3f) << AR_ANT_DIV_CTRL_ALL_S;
 		/* enable_lnadiv */
-		regval &= (~AR_PHY_9485_ANT_DIV_LNADIV);
-		regval |= ((value >> 6) & 0x1) <<
-				AR_PHY_9485_ANT_DIV_LNADIV_S;
+		regval &= (~AR_PHY_ANT_DIV_LNADIV);
+		regval |= ((value >> 6) & 0x1) << AR_PHY_ANT_DIV_LNADIV_S;
 		REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 
 		/*enable fast_div */
 		regval = REG_READ(ah, AR_PHY_CCK_DETECT);
 		regval &= (~AR_FAST_DIV_ENABLE);
-		regval |= ((value >> 7) & 0x1) <<
-				AR_FAST_DIV_ENABLE_S;
+		regval |= ((value >> 7) & 0x1) << AR_FAST_DIV_ENABLE_S;
 		REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
-		ant_div_ctl1 =
-			ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
+		ant_div_ctl1 = ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
 		/* check whether antenna diversity is enabled */
 		if ((ant_div_ctl1 >> 0x6) == 0x3) {
 			regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
@@ -3642,15 +3644,15 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 			 * clear bits 25-30 main_lnaconf, alt_lnaconf,
 			 * main_tb, alt_tb
 			 */
-			regval &= (~(AR_PHY_9485_ANT_DIV_MAIN_LNACONF |
-					AR_PHY_9485_ANT_DIV_ALT_LNACONF |
-					AR_PHY_9485_ANT_DIV_ALT_GAINTB |
-					AR_PHY_9485_ANT_DIV_MAIN_GAINTB));
+			regval &= (~(AR_PHY_ANT_DIV_MAIN_LNACONF |
+				     AR_PHY_ANT_DIV_ALT_LNACONF |
+				     AR_PHY_ANT_DIV_ALT_GAINTB |
+				     AR_PHY_ANT_DIV_MAIN_GAINTB));
 			/* by default use LNA1 for the main antenna */
-			regval |= (AR_PHY_9485_ANT_DIV_LNA1 <<
-					AR_PHY_9485_ANT_DIV_MAIN_LNACONF_S);
-			regval |= (AR_PHY_9485_ANT_DIV_LNA2 <<
-					AR_PHY_9485_ANT_DIV_ALT_LNACONF_S);
+			regval |= (AR_PHY_ANT_DIV_LNA1 <<
+				   AR_PHY_ANT_DIV_MAIN_LNACONF_S);
+			regval |= (AR_PHY_ANT_DIV_LNA2 <<
+				   AR_PHY_ANT_DIV_ALT_LNACONF_S);
 			REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 		}
 
@@ -3843,7 +3845,7 @@ void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 			REG_WRITE(ah, AR_PHY_PMU2, reg_pmu_set);
 			if (!is_pmu_set(ah, AR_PHY_PMU2, reg_pmu_set))
 				return;
-		} else if (AR_SREV_9462(ah)) {
+		} else if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 			reg_val = le32_to_cpu(pBase->swreg);
 			REG_WRITE(ah, AR_PHY_PMU1, reg_val);
 		} else {
@@ -3874,7 +3876,7 @@ void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 			while (!REG_READ_FIELD(ah, AR_PHY_PMU2,
 						AR_PHY_PMU2_PGM))
 				udelay(10);
-		} else if (AR_SREV_9462(ah))
+		} else if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
 			REG_RMW_FIELD(ah, AR_PHY_PMU1, AR_PHY_PMU1_PWD, 0x1);
 		else {
 			reg_val = REG_READ(ah, AR_RTC_SLEEP_CLK) |
@@ -3977,6 +3979,62 @@ static void ar9003_hw_xlna_bias_strength_apply(struct ath_hw *ah, bool is2ghz)
 		      bias & 0x3);
 }
 
+static int ar9003_hw_get_thermometer(struct ath_hw *ah)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	struct ar9300_base_eep_hdr *pBase = &eep->baseEepHeader;
+	int thermometer =  (pBase->miscConfiguration >> 1) & 0x3;
+
+	return --thermometer;
+}
+
+static void ar9003_hw_thermometer_apply(struct ath_hw *ah)
+{
+	int thermometer = ar9003_hw_get_thermometer(ah);
+	u8 therm_on = (thermometer < 0) ? 0 : 1;
+
+	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_RXTX4,
+		      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
+	if (ah->caps.tx_chainmask & BIT(1))
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH1_RXTX4,
+			      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
+	if (ah->caps.tx_chainmask & BIT(2))
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
+			      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
+
+	therm_on = (thermometer < 0) ? 0 : (thermometer == 0);
+	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_RXTX4,
+		      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
+	if (ah->caps.tx_chainmask & BIT(1)) {
+		therm_on = (thermometer < 0) ? 0 : (thermometer == 1);
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH1_RXTX4,
+			      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
+	}
+	if (ah->caps.tx_chainmask & BIT(2)) {
+		therm_on = (thermometer < 0) ? 0 : (thermometer == 2);
+		REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
+			      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
+	}
+}
+
+static void ar9003_hw_thermo_cal_apply(struct ath_hw *ah)
+{
+	u32 data, ko, kg;
+
+	if (!AR_SREV_9462_20(ah))
+		return;
+	ar9300_otp_read_word(ah, 1, &data);
+	ko = data & 0xff;
+	kg = (data >> 8) & 0xff;
+	if (ko || kg) {
+		REG_RMW_FIELD(ah, AR_PHY_BB_THERM_ADC_3,
+			      AR_PHY_BB_THERM_ADC_3_THERM_ADC_OFFSET, ko);
+		REG_RMW_FIELD(ah, AR_PHY_BB_THERM_ADC_3,
+			      AR_PHY_BB_THERM_ADC_3_THERM_ADC_SCALE_GAIN,
+			      kg + 256);
+	}
+}
+
 static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
@@ -3992,6 +4050,8 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 		ar9003_hw_internal_regulator_apply(ah);
 	ar9003_hw_apply_tuning_caps(ah);
 	ar9003_hw_txend_to_xpa_off_apply(ah, is2ghz);
+	ar9003_hw_thermometer_apply(ah);
+	ar9003_hw_thermo_cal_apply(ah);
 }
 
 static void ath9k_hw_ar9300_set_addac(struct ath_hw *ah,
@@ -4528,7 +4588,7 @@ static int ar9003_hw_power_control_override(struct ath_hw *ah,
 {
 	int tempSlope = 0;
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
-	int f[3], t[3];
+	int f[8], t[8], i;
 
 	REG_RMW(ah, AR_PHY_TPC_11_B0,
 		(correction[0] << AR_PHY_TPC_OLPC_GAIN_DELTA_S),
@@ -4561,7 +4621,14 @@ static int ar9003_hw_power_control_override(struct ath_hw *ah,
 	 */
 	if (frequency < 4000)
 		tempSlope = eep->modalHeader2G.tempSlope;
-	else if (eep->base_ext2.tempSlopeLow != 0) {
+	else if ((eep->baseEepHeader.miscConfiguration & 0x20) != 0) {
+		for (i = 0; i < 8; i++) {
+			t[i] = eep->base_ext1.tempslopextension[i];
+			f[i] = FBIN2FREQ(eep->calFreqPier5G[i], 0);
+		}
+		tempSlope = ar9003_hw_power_interpolate((s32) frequency,
+							f, t, 8);
+	} else if (eep->base_ext2.tempSlopeLow != 0) {
 		t[0] = eep->base_ext2.tempSlopeLow;
 		f[0] = 5180;
 		t[1] = eep->modalHeader5G.tempSlope;

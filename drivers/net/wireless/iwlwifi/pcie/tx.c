@@ -522,11 +522,6 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	bool had_nocopy = false;
 	int i;
 	u32 cmd_pos;
-#ifdef CONFIG_IWLWIFI_DEVICE_TRACING
-	const void *trace_bufs[IWL_MAX_CMD_TFDS + 1] = {};
-	int trace_lens[IWL_MAX_CMD_TFDS + 1] = {};
-	int trace_idx;
-#endif
 
 	copy_size = sizeof(out_cmd->hdr);
 	cmd_size = sizeof(out_cmd->hdr);
@@ -628,11 +623,6 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	dma_unmap_len_set(out_meta, len, copy_size);
 
 	iwlagn_txq_attach_buf_to_tfd(trans, txq, phys_addr, copy_size, 1);
-#ifdef CONFIG_IWLWIFI_DEVICE_TRACING
-	trace_bufs[0] = &out_cmd->hdr;
-	trace_lens[0] = copy_size;
-	trace_idx = 1;
-#endif
 
 	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
 		if (!cmd->len[i])
@@ -651,25 +641,14 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 		iwlagn_txq_attach_buf_to_tfd(trans, txq, phys_addr,
 					     cmd->len[i], 0);
-#ifdef CONFIG_IWLWIFI_DEVICE_TRACING
-		trace_bufs[trace_idx] = cmd->data[i];
-		trace_lens[trace_idx] = cmd->len[i];
-		trace_idx++;
-#endif
 	}
 
 	out_meta->flags = cmd->flags;
 
 	txq->need_update = 1;
 
-	/* check that tracing gets all possible blocks */
-	BUILD_BUG_ON(IWL_MAX_CMD_TFDS + 1 != 3);
-#ifdef CONFIG_IWLWIFI_DEVICE_TRACING
-	trace_iwlwifi_dev_hcmd(trans->dev, cmd->flags,
-			       trace_bufs[0], trace_lens[0],
-			       trace_bufs[1], trace_lens[1],
-			       trace_bufs[2], trace_lens[2]);
-#endif
+	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size,
+			       &out_cmd->hdr, copy_size);
 
 	/* start timer if queue currently empty */
 	if (q->read_ptr == q->write_ptr && trans_pcie->wd_timeout)

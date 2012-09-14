@@ -568,7 +568,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		if (!an->sleeping) {
 			ath_tx_queue_tid(txq, tid);
 
-			if (ts->ts_status & ATH9K_TXERR_FILT)
+			if (ts->ts_status & (ATH9K_TXERR_FILT | ATH9K_TXERR_XRETRY))
 				tid->ac->clear_ps_filter = true;
 		}
 	}
@@ -2018,6 +2018,9 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	unsigned long flags;
 
 	ath_dbg(common, XMIT, "TX complete: skb: %p\n", skb);
+
+	if (sc->sc_ah->caldata)
+		sc->sc_ah->caldata->paprd_packet_sent = true;
 
 	if (!(tx_flags & ATH_TX_ERROR))
 		/* Frame was ACKed */

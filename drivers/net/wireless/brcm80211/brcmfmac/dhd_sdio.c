@@ -2235,8 +2235,8 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	if (bus->sdiodev->bus_if->drvr_up &&
 	    (bus->sdiodev->bus_if->state == BRCMF_BUS_DATA) &&
 	    bus->txoff && (pktq_len(&bus->txq) < TXLOW)) {
-		bus->txoff = OFF;
-		brcmf_txflowcontrol(bus->sdiodev->dev, 0, OFF);
+		bus->txoff = false;
+		brcmf_txflowblock(bus->sdiodev->dev, false);
 	}
 
 	return cnt;
@@ -2672,8 +2672,8 @@ static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	spin_unlock_bh(&bus->txqlock);
 
 	if (pktq_len(&bus->txq) >= TXHI) {
-		bus->txoff = ON;
-		brcmf_txflowcontrol(bus->sdiodev->dev, 0, ON);
+		bus->txoff = true;
+		brcmf_txflowblock(bus->sdiodev->dev, true);
 	}
 
 #ifdef DEBUG
@@ -3881,6 +3881,8 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 
 static bool brcmf_sdbrcm_chipmatch(u16 chipid)
 {
+	if (chipid == BCM43241_CHIP_ID)
+		return true;
 	if (chipid == BCM4329_CHIP_ID)
 		return true;
 	if (chipid == BCM4330_CHIP_ID)
