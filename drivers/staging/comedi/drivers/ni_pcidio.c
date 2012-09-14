@@ -1103,34 +1103,36 @@ static int pci_6534_upload_firmware(struct comedi_device *dev)
 	return ret;
 }
 
-static int nidio_find_device(struct comedi_device *dev, int bus, int slot)
+/* FIXME: remove this when dynamic MITE allocation implemented. */
+static struct mite_struct *nidio_find_mite(struct pci_dev *pcidev)
 {
 	struct mite_struct *mite;
-	int i;
 
 	for (mite = mite_devices; mite; mite = mite->next) {
 		if (mite->used)
 			continue;
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-			    slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-		for (i = 0; i < n_nidio_boards; i++) {
-			if (mite_device_id(mite) == nidio_boards[i].dev_id) {
-				dev->board_ptr = nidio_boards + i;
-				devpriv->mite = mite;
-
-				return 0;
-			}
-		}
+		if (mite->pcidev == pcidev)
+			return mite;
 	}
-	dev_warn(dev->class_dev, "no device found\n");
-	mite_list_devices();
-	return -EIO;
+	return NULL;
 }
 
-static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static const struct nidio_board *
+nidio_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int dev_id = pcidev->device;
+	unsigned int n;
+
+	for (n = 0; n < ARRAY_SIZE(nidio_boards); n++) {
+		const struct nidio_board *board = &nidio_boards[n];
+		if (board->dev_id == dev_id)
+			return board;
+	}
+	return NULL;
+}
+
+static int __devinit nidio_attach_pci(struct comedi_device *dev,
+				      struct pci_dev *pcidev)
 {
 	struct comedi_subdevice *s;
 	int ret;
@@ -1141,9 +1143,12 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 	spin_lock_init(&devpriv->mite_channel_lock);
 
-	ret = nidio_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
+	dev->board_ptr = nidio_find_boardinfo(pcidev);
+	if (!dev->board_ptr)
+		return -ENODEV;
+	devpriv->mite = nidio_find_mite(pcidev);
+	if (!devpriv->mite)
+		return -ENODEV;
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
@@ -1226,7 +1231,7 @@ static void nidio_detach(struct comedi_device *dev)
 static struct comedi_driver ni_pcidio_driver = {
 	.driver_name	= "ni_pcidio",
 	.module		= THIS_MODULE,
-	.attach		= nidio_attach,
+	.attach_pci	= nidio_attach_pci,
 	.detach		= nidio_detach,
 };
 
