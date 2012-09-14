@@ -548,6 +548,28 @@ struct rpc_clnt *rpc_clone_client(struct rpc_clnt *clnt)
 }
 EXPORT_SYMBOL_GPL(rpc_clone_client);
 
+/**
+ * rpc_clone_client_set_auth - Clone an RPC client structure and set its auth
+ *
+ * @clnt: RPC client whose parameters are copied
+ * @auth: security flavor for new client
+ *
+ * Returns a fresh RPC client or an ERR_PTR.
+ */
+struct rpc_clnt *
+rpc_clone_client_set_auth(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
+{
+	struct rpc_create_args args = {
+		.program	= clnt->cl_program,
+		.prognumber	= clnt->cl_prog,
+		.version	= clnt->cl_vers,
+		.authflavor	= flavor,
+		.client_name	= clnt->cl_principal,
+	};
+	return __rpc_clone_client(&args, clnt);
+}
+EXPORT_SYMBOL_GPL(rpc_clone_client_set_auth);
+
 /*
  * Kill all tasks for the given client.
  * XXX: kill their descendants as well?
