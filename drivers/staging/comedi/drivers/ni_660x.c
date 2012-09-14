@@ -448,16 +448,14 @@ static inline struct ni_660x_private *private(struct comedi_device *dev)
 	return dev->private;
 }
 
-/* initialized in ni_660x_find_device() */
+/* initialized in ni_660x_attach_pci() */
 static inline const struct ni_660x_board *board(struct comedi_device *dev)
 {
 	return dev->board_ptr;
 }
 
-#define n_ni_660x_boards ARRAY_SIZE(ni_660x_boards)
-
-static int ni_660x_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
+static int ni_660x_attach_pci(struct comedi_device *dev,
+			      struct pci_dev *pcidev);
 static void ni_660x_detach(struct comedi_device *dev);
 static void init_tio_chip(struct comedi_device *dev, int chipset);
 static void ni_660x_select_pfi_output(struct comedi_device *dev,
@@ -467,7 +465,7 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 static struct comedi_driver ni_660x_driver = {
 	.driver_name = "ni_660x",
 	.module = THIS_MODULE,
-	.attach = ni_660x_attach,
+	.attach_pci = ni_660x_attach_pci,
 	.detach = ni_660x_detach,
 };
 
@@ -490,7 +488,6 @@ static struct pci_driver ni_660x_pci_driver = {
 };
 module_comedi_pci_driver(ni_660x_driver, ni_660x_pci_driver);
 
-static int ni_660x_find_device(struct comedi_device *dev, int bus, int slot);
 static int ni_660x_set_pfi_routing(struct comedi_device *dev, unsigned chan,
 				   unsigned source);
 
@@ -1037,8 +1034,36 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 	}
 }
 
-static int ni_660x_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+/* FIXME: remove this when dynamic MITE allocation implemented. */
+static struct mite_struct *ni_660x_find_mite(struct pci_dev *pcidev)
+{
+	struct mite_struct *mite;
+
+	for (mite = mite_devices; mite; mite = mite->next) {
+		if (mite->used)
+			continue;
+		if (mite->pcidev == pcidev)
+			return mite;
+	}
+	return NULL;
+}
+
+static const struct ni_660x_board *
+ni_660x_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int dev_id = pcidev->device;
+	unsigned int n;
+
+	for (n = 0; n < ARRAY_SIZE(ni_660x_boards); n++) {
+		const struct ni_660x_board *board = &ni_660x_boards[n];
+		if (board->dev_id == dev_id)
+			return board;
+	}
+	return NULL;
+}
+
+static int __devinit ni_660x_attach_pci(struct comedi_device *dev,
+					struct pci_dev *pcidev)
 {
 	struct comedi_subdevice *s;
 	int ret;
@@ -1048,9 +1073,12 @@ static int ni_660x_attach(struct comedi_device *dev,
 	ret = ni_660x_allocate_private(dev);
 	if (ret < 0)
 		return ret;
-	ret = ni_660x_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
+	dev->board_ptr = ni_660x_find_boardinfo(pcidev);
+	if (!dev->board_ptr)
+		return -ENODEV;
+	private(dev)->mite = ni_660x_find_mite(pcidev);
+	if (!private(dev)->mite)
+		return -ENODEV;
 
 	dev->board_name = board(dev)->name;
 
@@ -1209,33 +1237,6 @@ static int ni_660x_GPCT_winsn(struct comedi_device *dev,
 			      struct comedi_insn *insn, unsigned int *data)
 {
 	return ni_tio_winsn(subdev_to_counter(s), insn, data);
-}
-
-static int ni_660x_find_device(struct comedi_device *dev, int bus, int slot)
-{
-	struct mite_struct *mite;
-	int i;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-			    slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-
-		for (i = 0; i < n_ni_660x_boards; i++) {
-			if (mite_device_id(mite) == ni_660x_boards[i].dev_id) {
-				dev->board_ptr = ni_660x_boards + i;
-				private(dev)->mite = mite;
-				return 0;
-			}
-		}
-	}
-	dev_warn(dev->class_dev, "no device found\n");
-	mite_list_devices();
-	return -EIO;
 }
 
 static int ni_660x_dio_insn_bits(struct comedi_device *dev,
