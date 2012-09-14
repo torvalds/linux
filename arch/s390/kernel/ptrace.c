@@ -53,6 +53,7 @@ void update_per_regs(struct task_struct *task)
 	struct thread_struct *thread = &task->thread;
 	struct per_regs old, new;
 
+#ifdef CONFIG_64BIT
 	/* Take care of the enable/disable of transactional execution. */
 	if (MACHINE_HAS_TE) {
 		unsigned long cr0, cr0_new;
@@ -67,7 +68,7 @@ void update_per_regs(struct task_struct *task)
 		if (cr0 != cr0_new)
 			__ctl_load(cr0_new, 0, 0);
 	}
-
+#endif
 	/* Copy user specified PER registers */
 	new.control = thread->per_user.control;
 	new.start = thread->per_user.start;
