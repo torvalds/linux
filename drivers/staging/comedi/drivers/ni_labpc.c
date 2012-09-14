@@ -73,9 +73,6 @@ NI manuals:
 
 */
 
-#undef LABPC_DEBUG
-/* #define LABPC_DEBUG    enable debugging messages */
-
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -538,17 +535,9 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	short lsb, msb;
 	int ret;
 
-	printk(KERN_ERR "comedi%d: ni_labpc: %s, io 0x%lx", dev->minor,
-								thisboard->name,
-	       iobase);
-	if (irq)
-		printk(", irq %u", irq);
-	if (dma_chan)
-		printk(", dma %u", dma_chan);
-	printk("\n");
-
+	dev_info(dev->class_dev, "ni_labpc: %s\n", thisboard->name);
 	if (iobase == 0) {
-		printk(KERN_ERR "io base address is zero!\n");
+		dev_err(dev->class_dev, "io base address is zero!\n");
 		return -EINVAL;
 	}
 	/*  request io regions for isa boards */
@@ -556,7 +545,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		/* check if io addresses are available */
 		if (!request_region(iobase, LABPC_SIZE,
 				    driver_labpc.driver_name)) {
-			printk(KERN_ERR "I/O port conflict\n");
+			dev_err(dev->class_dev, "I/O port conflict\n");
 			return -EIO;
 		}
 	}
@@ -589,7 +578,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 			isr_flags |= IRQF_SHARED;
 		if (request_irq(irq, labpc_interrupt, isr_flags,
 				driver_labpc.driver_name, dev)) {
-			printk(KERN_ERR "unable to allocate irq %u\n", irq);
+			dev_err(dev->class_dev, "unable to allocate irq %u\n",
+				irq);
 			return -EINVAL;
 		}
 	}
@@ -598,19 +588,21 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 #ifdef CONFIG_ISA_DMA_API
 	/* grab dma channel */
 	if (dma_chan > 3) {
-		printk(KERN_ERR " invalid dma channel %u\n", dma_chan);
+		dev_err(dev->class_dev, "invalid dma channel %u\n", dma_chan);
 		return -EINVAL;
 	} else if (dma_chan) {
 		/* allocate dma buffer */
 		devpriv->dma_buffer =
 		    kmalloc(dma_buffer_size, GFP_KERNEL | GFP_DMA);
 		if (devpriv->dma_buffer == NULL) {
-			printk(KERN_ERR " failed to allocate dma buffer\n");
+			dev_err(dev->class_dev,
+				"failed to allocate dma buffer\n");
 			return -ENOMEM;
 		}
 		if (request_dma(dma_chan, driver_labpc.driver_name)) {
-			printk(KERN_ERR " failed to allocate dma channel %u\n",
-			       dma_chan);
+			dev_err(dev->class_dev,
+				"failed to allocate dma channel %u\n",
+				dma_chan);
 			return -EINVAL;
 		}
 		devpriv->dma_chan = dma_chan;
@@ -706,12 +698,6 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 		for (i = 0; i < EEPROM_SIZE; i++)
 			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
-#ifdef LABPC_DEBUG
-		printk(KERN_ERR " eeprom:");
-		for (i = 0; i < EEPROM_SIZE; i++)
-			printk(" %i:0x%x ", i, devpriv->eeprom_data[i]);
-		printk("\n");
-#endif
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
 
@@ -740,8 +726,8 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		irq = it->options[1];
 		dma_chan = it->options[2];
 #else
-		printk(KERN_ERR " this driver has not been built with ISA DMA "
-								"support.\n");
+		dev_err(dev->class_dev,
+			"ni_labpc driver has not been built with ISA DMA support.\n");
 		return -EINVAL;
 #endif
 		break;
@@ -756,18 +742,14 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		iobase = (unsigned long)devpriv->mite->daq_io_addr;
 		irq = mite_irq(devpriv->mite);
 #else
-		printk(KERN_ERR " this driver has not been built with PCI "
-								"support.\n");
+		dev_err(dev->class_dev,
+			"ni_labpc driver has not been built with PCI support.\n");
 		return -EINVAL;
 #endif
 		break;
-	case pcmcia_bustype:
-		printk
-		    (" this driver does not support pcmcia cards, use ni_labpc_cs.o\n");
-		return -EINVAL;
-		break;
 	default:
-		printk(KERN_ERR "bug! couldn't determine board type\n");
+		dev_err(dev->class_dev,
+			"ni_labpc: bug! couldn't determine board type\n");
 		return -EINVAL;
 		break;
 	}
@@ -801,7 +783,7 @@ static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk(KERN_ERR "no device found\n");
+	dev_err(dev->class_dev, "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
@@ -872,8 +854,7 @@ static enum scan_mode labpc_ai_scan_mode(const struct comedi_cmd *cmd)
 	if (CR_CHAN(cmd->chanlist[0]) > CR_CHAN(cmd->chanlist[1]))
 		return MODE_MULT_CHAN_DOWN;
 
-	printk(KERN_ERR "ni_labpc: bug! this should never happen\n");
-
+	pr_err("ni_labpc: bug! cannot determine AI scan mode\n");
 	return 0;
 }
 
@@ -928,7 +909,8 @@ static int labpc_ai_chanlist_invalid(const struct comedi_device *dev,
 			}
 			break;
 		default:
-			printk(KERN_ERR "ni_labpc: bug! in chanlist check\n");
+			dev_err(dev->class_dev,
+				"ni_labpc: bug! in chanlist check\n");
 			return 1;
 			break;
 		}
@@ -1790,8 +1772,8 @@ static int labpc_eeprom_write_insn(struct comedi_device *dev,
 
 	/*  only allow writes to user area of eeprom */
 	if (channel < 16 || channel > 127) {
-		printk
-		    ("eeprom writes are only allowed to channels 16 through 127 (the pointer and user areas)");
+		dev_dbg(dev->class_dev,
+			"eeprom writes are only allowed to channels 16 through 127 (the pointer and user areas)\n");
 		return -EINVAL;
 	}
 
