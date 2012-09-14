@@ -109,4 +109,6 @@ int xen_irq_from_gsi(unsigned gsi);
 /* Determine whether to ignore this IRQ if it is passed to a guest. */
 int xen_test_irq_shared(int irq);
 
+/* initialize Xen IRQ subsystem */
+void xen_init_IRQ(void);
 #endif	/* _XEN_EVENTS_H */

@@ -1,4 +1,5 @@
 #include <xen/xen.h>
+#include <xen/events.h>
 #include <xen/grant_table.h>
 #include <xen/hvm.h>
 #include <xen/interface/xen.h>
@@ -9,6 +10,8 @@
 #include <xen/xenbus.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
+#include <linux/interrupt.h>
+#include <linux/irqreturn.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -32,6 +35,8 @@ EXPORT_SYMBOL_GPL(xen_have_vector_callback);
 
 int xen_platform_pci_unplug = XEN_UNPLUG_ALL;
 EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
+
+static __read_mostly int xen_events_irq = -1;
 
 int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 			       unsigned long addr,
@@ -74,6 +79,9 @@ static int __init xen_guest_init(void)
 	if (of_address_to_resource(node, GRANT_TABLE_PHYSADDR, &res))
 		return 0;
 	xen_hvm_resume_frames = res.start >> PAGE_SHIFT;
+	xen_events_irq = irq_of_parse_and_map(node, 0);
+	pr_info("Xen %s support found, events_irq=%d gnttab_frame_pfn=%lx\n",
+			version, xen_events_irq, xen_hvm_resume_frames);
 	xen_domain_type = XEN_HVM_DOMAIN;
 
 	xen_setup_features();
@@ -115,3 +123,28 @@ static int __init xen_guest_init(void)
 	return 0;
 }
 core_initcall(xen_guest_init);
+
+static irqreturn_t xen_arm_callback(int irq, void *arg)
+{
+	xen_hvm_evtchn_do_upcall();
+	return IRQ_HANDLED;
+}
+
+static int __init xen_init_events(void)
+{
+	if (!xen_domain() || xen_events_irq < 0)
+		return -ENODEV;
+
+	xen_init_IRQ();
+
+	if (request_percpu_irq(xen_events_irq, xen_arm_callback,
+			"events", xen_vcpu)) {
+		pr_err("Error requesting IRQ %d\n", xen_events_irq);
+		return -EINVAL;
+	}
+
+	enable_percpu_irq(xen_events_irq, 0);
+
+	return 0;
+}
+postcore_initcall(xen_init_events);

@@ -31,14 +31,16 @@
 #include <linux/irqnr.h>
 #include <linux/pci.h>
 
+#ifdef CONFIG_X86
 #include <asm/desc.h>
 #include <asm/ptrace.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
 #include <asm/io_apic.h>
-#include <asm/sync_bitops.h>
 #include <asm/xen/page.h>
 #include <asm/xen/pci.h>
+#endif
+#include <asm/sync_bitops.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
 
@@ -50,6 +52,9 @@
 #include <xen/interface/event_channel.h>
 #include <xen/interface/hvm/hvm_op.h>
 #include <xen/interface/hvm/params.h>
+#include <xen/interface/physdev.h>
+#include <xen/interface/sched.h>
+#include <asm/hw_irq.h>
 
 /*
  * This lock protects updates to the following mapping and reference-count
@@ -1386,7 +1391,9 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
+#ifdef CONFIG_X86
 	exit_idle();
+#endif
 	irq_enter();
 
 	__xen_evtchn_do_upcall();
@@ -1795,9 +1802,9 @@ void xen_callback_vector(void)
 void xen_callback_vector(void) {}
 #endif
 
-void __init xen_init_IRQ(void)
+void xen_init_IRQ(void)
 {
-	int i, rc;
+	int i;
 
 	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),
 				    GFP_KERNEL);
@@ -1813,6 +1820,7 @@ void __init xen_init_IRQ(void)
 
 	pirq_needs_eoi = pirq_needs_eoi_flag;
 
+#ifdef CONFIG_X86
 	if (xen_hvm_domain()) {
 		xen_callback_vector();
 		native_init_IRQ();
@@ -1820,6 +1828,7 @@ void __init xen_init_IRQ(void)
 		 * __acpi_register_gsi can point at the right function */
 		pci_xen_hvm_init();
 	} else {
+		int rc;
 		struct physdev_pirq_eoi_gmfn eoi_gmfn;
 
 		irq_ctx_init(smp_processor_id());
@@ -1835,4 +1844,6 @@ void __init xen_init_IRQ(void)
 		} else
 			pirq_needs_eoi = pirq_check_eoi_map;
 	}
+#endif
 }
+EXPORT_SYMBOL_GPL(xen_init_IRQ);

@@ -35,7 +35,6 @@ void xen_set_pat(u64);
 
 char * __init xen_memory_setup(void);
 void __init xen_arch_setup(void);
-void __init xen_init_IRQ(void);
 void xen_enable_sysenter(void);
 void xen_enable_syscall(void);
 void xen_vcpu_restore(void);
