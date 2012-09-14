@@ -3256,19 +3256,34 @@ retry:
 				break;
 			}
 
+			spin_lock(&mapping->private_lock);
+			if (!PagePrivate(page)) {
+				spin_unlock(&mapping->private_lock);
+				continue;
+			}
+
 			eb = (struct extent_buffer *)page->private;
+
+			/*
+			 * Shouldn't happen and normally this would be a BUG_ON
+			 * but no sense in crashing the users box for something
+			 * we can survive anyway.
+			 */
 			if (!eb) {
+				spin_unlock(&mapping->private_lock);
 				WARN_ON(1);
 				continue;
 			}
 
-			if (eb == prev_eb)
-				continue;
-
-			if (!atomic_inc_not_zero(&eb->refs)) {
-				WARN_ON(1);
+			if (eb == prev_eb) {
+				spin_unlock(&mapping->private_lock);
 				continue;
 			}
+
+			ret = atomic_inc_not_zero(&eb->refs);
+			spin_unlock(&mapping->private_lock);
+			if (!ret)
+				continue;
 
 			prev_eb = eb;
 			ret = lock_extent_buffer_for_io(eb, fs_info, &epd);
