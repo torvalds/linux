@@ -134,23 +134,23 @@
 #define	MCFSIM2_GPIO1ENABLE	(MCF_MBAR2 + 0x0B8)	/* GPIO1 enabled */
 #define	MCFSIM2_GPIO1FUNC	(MCF_MBAR2 + 0x0BC)	/* GPIO1 function */
 
-#define	MCFSIM2_GPIOINTSTAT	0xc0		/* GPIO interrupt status */
-#define	MCFSIM2_GPIOINTCLEAR	0xc0		/* GPIO interrupt clear */
-#define	MCFSIM2_GPIOINTENABLE	0xc4		/* GPIO interrupt enable */
+#define	MCFSIM2_GPIOINTSTAT	(MCF_MBAR2 + 0xc0)	/* GPIO intr status */
+#define	MCFSIM2_GPIOINTCLEAR	(MCF_MBAR2 + 0xc0)	/* GPIO intr clear */
+#define	MCFSIM2_GPIOINTENABLE	(MCF_MBAR2 + 0xc4)	/* GPIO intr enable */
 
-#define	MCFSIM2_INTLEVEL1	0x140		/* Interrupt level reg 1 */
-#define	MCFSIM2_INTLEVEL2	0x144		/* Interrupt level reg 2 */
-#define	MCFSIM2_INTLEVEL3	0x148		/* Interrupt level reg 3 */
-#define	MCFSIM2_INTLEVEL4	0x14c		/* Interrupt level reg 4 */
-#define	MCFSIM2_INTLEVEL5	0x150		/* Interrupt level reg 5 */
-#define	MCFSIM2_INTLEVEL6	0x154		/* Interrupt level reg 6 */
-#define	MCFSIM2_INTLEVEL7	0x158		/* Interrupt level reg 7 */
-#define	MCFSIM2_INTLEVEL8	0x15c		/* Interrupt level reg 8 */
+#define	MCFSIM2_INTLEVEL1	(MCF_MBAR2 + 0x140)	/* Intr level reg 1 */
+#define	MCFSIM2_INTLEVEL2	(MCF_MBAR2 + 0x144)	/* Intr level reg 2 */
+#define	MCFSIM2_INTLEVEL3	(MCF_MBAR2 + 0x148)	/* Intr level reg 3 */
+#define	MCFSIM2_INTLEVEL4	(MCF_MBAR2 + 0x14c)	/* Intr level reg 4 */
+#define	MCFSIM2_INTLEVEL5	(MCF_MBAR2 + 0x150)	/* Intr level reg 5 */
+#define	MCFSIM2_INTLEVEL6	(MCF_MBAR2 + 0x154)	/* Intr level reg 6 */
+#define	MCFSIM2_INTLEVEL7	(MCF_MBAR2 + 0x158)	/* Intr level reg 7 */
+#define	MCFSIM2_INTLEVEL8	(MCF_MBAR2 + 0x15c)	/* Intr level reg 8 */
 
-#define	MCFSIM2_DMAROUTE	0x188		/* DMA routing */
+#define	MCFSIM2_DMAROUTE	(MCF_MBAR2 + 0x188)	/* DMA routing */
 
-#define	MCFSIM2_IDECONFIG1	0x18c		/* IDEconfig1 */
-#define	MCFSIM2_IDECONFIG2	0x190		/* IDEconfig2 */
+#define	MCFSIM2_IDECONFIG1	(MCF_MBAR2 + 0x18c)	/* IDEconfig1 */
+#define	MCFSIM2_IDECONFIG2	(MCF_MBAR2 + 0x190)	/* IDEconfig2 */
 
 /*
  * Define the base interrupt for the second interrupt controller.
