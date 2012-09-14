@@ -342,7 +342,15 @@ again:
 	if (!h)
 		return ERR_PTR(-ENOMEM);
 
-	if (!__sb_start_write(root->fs_info->sb, SB_FREEZE_FS, false)) {
+	/*
+	 * If we are JOIN_NOLOCK we're already committing a transaction and
+	 * waiting on this guy, so we don't need to do the sb_start_intwrite
+	 * because we're already holding a ref.  We need this because we could
+	 * have raced in and did an fsync() on a file which can kick a commit
+	 * and then we deadlock with somebody doing a freeze.
+	 */
+	if (type != TRANS_JOIN_NOLOCK &&
+	    !__sb_start_write(root->fs_info->sb, SB_FREEZE_FS, false)) {
 		if (type == TRANS_JOIN_FREEZE)
 			return ERR_PTR(-EPERM);
 		sb_start_intwrite(root->fs_info->sb);
@@ -601,7 +609,8 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	sb_end_intwrite(root->fs_info->sb);
+	if (lock)
+		sb_end_intwrite(root->fs_info->sb);
 
 	WARN_ON(cur_trans != info->running_transaction);
 	WARN_ON(atomic_read(&cur_trans->num_writers) < 1);
