@@ -384,14 +384,28 @@ struct v4l2_ctrl *v4l2_ctrl_add_ctrl(struct v4l2_ctrl_handler *hdl,
   * @hdl:	The control handler.
   * @add:	The control handler whose controls you want to add to
   *		the @hdl control handler.
+  * @filter:	This function will filter which controls should be added.
   *
-  * Does nothing if either of the two is a NULL pointer.
+  * Does nothing if either of the two handlers is a NULL pointer.
+  * If @filter is NULL, then all controls are added. Otherwise only those
+  * controls for which @filter returns true will be added.
   * In case of an error @hdl->error will be set to the error code (if it
   * wasn't set already).
   */
 int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
-			  struct v4l2_ctrl_handler *add);
+			  struct v4l2_ctrl_handler *add,
+			  bool (*filter)(const struct v4l2_ctrl *ctrl));
 
+/** v4l2_ctrl_radio_filter() - Standard filter for radio controls.
+  * @ctrl:	The control that is filtered.
+  *
+  * This will return true for any controls that are valid for radio device
+  * nodes. Those are all of the V4L2_CID_AUDIO_* user controls and all FM
+  * transmitter class controls.
+  *
+  * This function is to be used with v4l2_ctrl_add_handler().
+  */
+bool v4l2_ctrl_radio_filter(const struct v4l2_ctrl *ctrl);
 
 /** v4l2_ctrl_cluster() - Mark all controls in the cluster as belonging to that cluster.
   * @ncontrols:	The number of controls in this cluster.

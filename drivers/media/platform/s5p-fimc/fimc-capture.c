@@ -472,7 +472,7 @@ int fimc_capture_ctrls_create(struct fimc_dev *fimc)
 		return ret;
 
 	return v4l2_ctrl_add_handler(&vid_cap->ctx->ctrls.handler,
-		    fimc->pipeline.subdevs[IDX_SENSOR]->ctrl_handler);
+		    fimc->pipeline.subdevs[IDX_SENSOR]->ctrl_handler, NULL);
 }
 
 static int fimc_capture_set_default_format(struct fimc_dev *fimc);

@@ -1687,7 +1687,8 @@ EXPORT_SYMBOL(v4l2_ctrl_add_ctrl);
 
 /* Add the controls from another handler to our own. */
 int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
-			  struct v4l2_ctrl_handler *add)
+			  struct v4l2_ctrl_handler *add,
+			  bool (*filter)(const struct v4l2_ctrl *ctrl))
 {
 	struct v4l2_ctrl_ref *ref;
 	int ret = 0;
@@ -1707,6 +1708,9 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 		/* And control classes */
 		if (ctrl->type == V4L2_CTRL_TYPE_CTRL_CLASS)
 			continue;
+		/* Filter any unwanted controls */
+		if (filter && !filter(ctrl))
+			continue;
 		ret = handler_new_ref(hdl, ctrl);
 		if (ret)
 			break;
@@ -1715,6 +1719,25 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 	return ret;
 }
 EXPORT_SYMBOL(v4l2_ctrl_add_handler);
+
+bool v4l2_ctrl_radio_filter(const struct v4l2_ctrl *ctrl)
+{
+	if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_FM_TX)
+		return true;
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+	case V4L2_CID_AUDIO_VOLUME:
+	case V4L2_CID_AUDIO_BALANCE:
+	case V4L2_CID_AUDIO_BASS:
+	case V4L2_CID_AUDIO_TREBLE:
+	case V4L2_CID_AUDIO_LOUDNESS:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+EXPORT_SYMBOL(v4l2_ctrl_radio_filter);
 
 /* Cluster controls */
 void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls)

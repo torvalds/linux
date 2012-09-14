@@ -1795,7 +1795,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		if (vc->id == V4L2_CID_CHROMA_AGC)
 			core->chroma_agc = vc;
 	}
-	v4l2_ctrl_add_handler(&core->video_hdl, &core->audio_hdl);
+	v4l2_ctrl_add_handler(&core->video_hdl, &core->audio_hdl, NULL);
 
 	/* load and configure helper modules */
 
