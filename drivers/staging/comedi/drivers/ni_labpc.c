@@ -492,7 +492,7 @@ static const int sample_size = 2;
 
 #define devpriv ((struct labpc_private *)dev->private)
 
-static struct comedi_driver driver_labpc = {
+static struct comedi_driver labpc_driver = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = labpc_attach,
@@ -544,7 +544,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	if (thisboard->bustype == isa_bustype) {
 		/* check if io addresses are available */
 		if (!request_region(iobase, LABPC_SIZE,
-				    driver_labpc.driver_name)) {
+				    labpc_driver.driver_name)) {
 			dev_err(dev->class_dev, "I/O port conflict\n");
 			return -EIO;
 		}
@@ -577,7 +577,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		    || thisboard->bustype == pcmcia_bustype)
 			isr_flags |= IRQF_SHARED;
 		if (request_irq(irq, labpc_interrupt, isr_flags,
-				driver_labpc.driver_name, dev)) {
+				labpc_driver.driver_name, dev)) {
 			dev_err(dev->class_dev, "unable to allocate irq %u\n",
 				irq);
 			return -EINVAL;
@@ -599,7 +599,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 				"failed to allocate dma buffer\n");
 			return -ENOMEM;
 		}
-		if (request_dma(dma_chan, driver_labpc.driver_name)) {
+		if (request_dma(dma_chan, labpc_driver.driver_name)) {
 			dev_err(dev->class_dev,
 				"failed to allocate dma channel %u\n",
 				dma_chan);
@@ -772,7 +772,7 @@ static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 			    || slot != PCI_SLOT(mite->pcidev->devfn))
 				continue;
 		}
-		for (i = 0; i < driver_labpc.num_names; i++) {
+		for (i = 0; i < labpc_driver.num_names; i++) {
 			if (labpc_boards[i].bustype != pci_bustype)
 				continue;
 			if (mite_device_id(mite) == labpc_boards[i].device_id) {
@@ -2123,56 +2123,26 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 }
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
-static int __devinit driver_labpc_pci_probe(struct pci_dev *dev,
-					    const struct pci_device_id *ent)
+static int __devinit labpc_pci_probe(struct pci_dev *dev,
+				     const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_labpc);
+	return comedi_pci_auto_config(dev, &labpc_driver);
 }
 
-static void __devexit driver_labpc_pci_remove(struct pci_dev *dev)
+static void __devexit labpc_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_labpc_pci_driver = {
+static struct pci_driver labpc_pci_driver = {
+	.name = DRV_NAME,
 	.id_table = labpc_pci_table,
-	.probe = &driver_labpc_pci_probe,
-	.remove = __devexit_p(&driver_labpc_pci_remove)
+	.probe = labpc_pci_probe,
+	.remove = __devexit_p(labpc_pci_remove)
 };
-
-static int __init driver_labpc_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_labpc);
-	if (retval < 0)
-		return retval;
-
-	driver_labpc_pci_driver.name = (char *)driver_labpc.driver_name;
-	return pci_register_driver(&driver_labpc_pci_driver);
-}
-
-static void __exit driver_labpc_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_labpc_pci_driver);
-	comedi_driver_unregister(&driver_labpc);
-}
-
-module_init(driver_labpc_init_module);
-module_exit(driver_labpc_cleanup_module);
+module_comedi_pci_driver(labpc_driver, labpc_pci_driver);
 #else
-static int __init driver_labpc_init_module(void)
-{
-	return comedi_driver_register(&driver_labpc);
-}
-
-static void __exit driver_labpc_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_labpc);
-}
-
-module_init(driver_labpc_init_module);
-module_exit(driver_labpc_cleanup_module);
+module_comedi_driver(labpc_driver);
 #endif
 
 
