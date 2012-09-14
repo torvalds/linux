@@ -1103,20 +1103,6 @@ static int pci_6534_upload_firmware(struct comedi_device *dev)
 	return ret;
 }
 
-/* FIXME: remove this when dynamic MITE allocation implemented. */
-static struct mite_struct *nidio_find_mite(struct pci_dev *pcidev)
-{
-	struct mite_struct *mite;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (mite->pcidev == pcidev)
-			return mite;
-	}
-	return NULL;
-}
-
 static const struct nidio_board *
 nidio_find_boardinfo(struct pci_dev *pcidev)
 {
@@ -1146,9 +1132,9 @@ static int __devinit nidio_attach_pci(struct comedi_device *dev,
 	dev->board_ptr = nidio_find_boardinfo(pcidev);
 	if (!dev->board_ptr)
 		return -ENODEV;
-	devpriv->mite = nidio_find_mite(pcidev);
+	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
-		return -ENODEV;
+		return -ENOMEM;
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
@@ -1223,8 +1209,10 @@ static void nidio_detach(struct comedi_device *dev)
 			mite_free_ring(devpriv->di_mite_ring);
 			devpriv->di_mite_ring = NULL;
 		}
-		if (devpriv->mite)
+		if (devpriv->mite) {
 			mite_unsetup(devpriv->mite);
+			mite_free(devpriv->mite);
+		}
 	}
 }
 
