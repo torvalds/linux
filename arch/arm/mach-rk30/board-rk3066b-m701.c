@@ -180,9 +180,11 @@ int ft5306_platform_sleep(void)
 int ft5306_platform_wakeup(void)
 {
 	printk("ft5606_platform_wakeup\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	mdelay(20);
 	gpio_direction_output(TOUCH_RESET_PIN,GPIO_LOW);
-        mdelay(300);
-        gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	mdelay(300);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 	mdelay(200);
 	return 0;
 }
