@@ -77,40 +77,6 @@ struct mite_struct {
 	spinlock_t lock;
 };
 
-static inline struct mite_dma_descriptor_ring *mite_alloc_ring(struct
-							       mite_struct
-							       *mite)
-{
-	struct mite_dma_descriptor_ring *ring =
-	    kmalloc(sizeof(struct mite_dma_descriptor_ring), GFP_KERNEL);
-	if (ring == NULL)
-		return ring;
-	ring->hw_dev = get_device(&mite->pcidev->dev);
-	if (ring->hw_dev == NULL) {
-		kfree(ring);
-		return NULL;
-	}
-	ring->n_links = 0;
-	ring->descriptors = NULL;
-	ring->descriptors_dma_addr = 0;
-	return ring;
-};
-
-static inline void mite_free_ring(struct mite_dma_descriptor_ring *ring)
-{
-	if (ring) {
-		if (ring->descriptors) {
-			dma_free_coherent(ring->hw_dev,
-					  ring->n_links *
-					  sizeof(struct mite_dma_descriptor),
-					  ring->descriptors,
-					  ring->descriptors_dma_addr);
-		}
-		put_device(ring->hw_dev);
-		kfree(ring);
-	}
-};
-
 extern struct mite_struct *mite_devices;
 
 static inline unsigned int mite_irq(struct mite_struct *mite)
@@ -127,6 +93,8 @@ int mite_setup(struct mite_struct *mite);
 int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1);
 void mite_unsetup(struct mite_struct *mite);
 void mite_list_devices(void);
+struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite);
+void mite_free_ring(struct mite_dma_descriptor_ring *ring);
 struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
 						   struct
 						   mite_dma_descriptor_ring
