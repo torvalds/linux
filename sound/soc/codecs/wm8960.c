@@ -557,18 +557,25 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8960_IFACE1) & 0xfff3;
+	snd_pcm_format_t format = params_format(params);
 	int i;
 
 	/* bit size */
-	switch (params_format(params)) {
+	switch (format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
+	case SNDRV_PCM_FORMAT_S16_BE:
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
+	case SNDRV_PCM_FORMAT_S20_3BE:
 		iface |= 0x0004;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_BE:
 		iface |= 0x0008;
 		break;
+	default:
+		dev_err(codec->dev, "unsupported format %i\n", format);
+		return -EINVAL;
 	}
 
 	/* Update filters for the new rate */
