@@ -151,6 +151,9 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 					   SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 2);
 	}
 
+	snd_soc_dai_set_dma_data(cpu_dai, substream,
+				 &mcbsp->dma_data[substream->stream]);
+
 	return err;
 }
 
@@ -228,7 +231,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	int pkt_size = 0;
 	unsigned int format, div, framesize, master;
 
-	dma_data = &mcbsp->dma_data[substream->stream];
+	dma_data = snd_soc_dai_get_dma_data(cpu_dai, substream);
 	channels = params_channels(params);
 
 	switch (params_format(params)) {
@@ -276,8 +279,6 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	dma_data->packet_size = pkt_size;
-
-	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 	if (mcbsp->configured) {
 		/* McBSP already configured by another stream */

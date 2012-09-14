@@ -118,6 +118,7 @@ static int omap_dmic_dai_startup(struct snd_pcm_substream *substream,
 
 	mutex_unlock(&dmic->mutex);
 
+	snd_soc_dai_set_dma_data(dai, substream, &omap_dmic_dai_dma_params);
 	return ret;
 }
 
@@ -202,6 +203,7 @@ static int omap_dmic_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
 	struct omap_dmic *dmic = snd_soc_dai_get_drvdata(dai);
+	struct omap_pcm_dma_data *dma_data;
 	int channels;
 
 	dmic->clk_div = omap_dmic_select_divider(dmic, params_rate(params));
@@ -227,8 +229,8 @@ static int omap_dmic_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* packet size is threshold * channels */
-	omap_dmic_dai_dma_params.packet_size = dmic->threshold * channels;
-	snd_soc_dai_set_dma_data(dai, substream, &omap_dmic_dai_dma_params);
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
+	dma_data->packet_size = dmic->threshold * channels;
 
 	return 0;
 }

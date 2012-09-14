@@ -267,8 +267,10 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 		}
 		omap_mcpdm_open_streams(mcpdm);
 	}
-
 	mutex_unlock(&mcpdm->mutex);
+
+	snd_soc_dai_set_dma_data(dai, substream,
+				 &omap_mcpdm_dai_dma_params[substream->stream]);
 
 	return 0;
 }
@@ -324,7 +326,7 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	dma_data = &omap_mcpdm_dai_dma_params[stream];
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 
 	/* Configure McPDM channels, and DMA packet size */
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -335,8 +337,6 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 		mcpdm->up_channels = link_mask << 0;
 		dma_data->packet_size = mcpdm->up_threshold * channels;
 	}
-
-	snd_soc_dai_set_dma_data(dai, substream, dma_data);
 
 	return 0;
 }
