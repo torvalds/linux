@@ -42,22 +42,22 @@
 #define	MCFSIM_WCR		(MCF_MBAR + 0x288)	/* Watchdog counter */
 #define	MCFSIM_WER		(MCF_MBAR + 0x28c)	/* Watchdog event */
 
-#define	MCFSIM_CSBR0		0x40		/* CS0 Base Address (r/w) */
-#define	MCFSIM_CSOR0		0x44		/* CS0 Option (r/w) */
-#define	MCFSIM_CSBR1		0x48		/* CS1 Base Address (r/w) */
-#define	MCFSIM_CSOR1		0x4c		/* CS1 Option (r/w) */
-#define	MCFSIM_CSBR2		0x50		/* CS2 Base Address (r/w) */
-#define	MCFSIM_CSOR2		0x54		/* CS2 Option (r/w) */
-#define	MCFSIM_CSBR3		0x58		/* CS3 Base Address (r/w) */
-#define	MCFSIM_CSOR3		0x5c		/* CS3 Option (r/w) */
-#define	MCFSIM_CSBR4		0x60		/* CS4 Base Address (r/w) */
-#define	MCFSIM_CSOR4		0x64		/* CS4 Option (r/w) */
-#define	MCFSIM_CSBR5		0x68		/* CS5 Base Address (r/w) */
-#define	MCFSIM_CSOR5		0x6c		/* CS5 Option (r/w) */
-#define	MCFSIM_CSBR6		0x70		/* CS6 Base Address (r/w) */
-#define	MCFSIM_CSOR6		0x74		/* CS6 Option (r/w) */
-#define	MCFSIM_CSBR7		0x78		/* CS7 Base Address (r/w) */
-#define	MCFSIM_CSOR7		0x7c		/* CS7 Option (r/w) */
+#define	MCFSIM_CSBR0		(MCF_MBAR + 0x40)	/* CS0 Base Address */
+#define	MCFSIM_CSOR0		(MCF_MBAR + 0x44)	/* CS0 Option */
+#define	MCFSIM_CSBR1		(MCF_MBAR + 0x48)	/* CS1 Base Address */
+#define	MCFSIM_CSOR1		(MCF_MBAR + 0x4c)	/* CS1 Option */
+#define	MCFSIM_CSBR2		(MCF_MBAR + 0x50)	/* CS2 Base Address */
+#define	MCFSIM_CSOR2		(MCF_MBAR + 0x54)	/* CS2 Option */
+#define	MCFSIM_CSBR3		(MCF_MBAR + 0x58)	/* CS3 Base Address */
+#define	MCFSIM_CSOR3		(MCF_MBAR + 0x5c)	/* CS3 Option */
+#define	MCFSIM_CSBR4		(MCF_MBAR + 0x60)	/* CS4 Base Address */
+#define	MCFSIM_CSOR4		(MCF_MBAR + 0x64)	/* CS4 Option */
+#define	MCFSIM_CSBR5		(MCF_MBAR + 0x68)	/* CS5 Base Address */
+#define	MCFSIM_CSOR5		(MCF_MBAR + 0x6c)	/* CS5 Option */
+#define	MCFSIM_CSBR6		(MCF_MBAR + 0x70)	/* CS6 Base Address */
+#define	MCFSIM_CSOR6		(MCF_MBAR + 0x74)	/* CS6 Option */
+#define	MCFSIM_CSBR7		(MCF_MBAR + 0x78)	/* CS7 Base Address */
+#define	MCFSIM_CSOR7		(MCF_MBAR + 0x7c)	/* CS7 Option */
 
 #define	MCFSIM_SDCR		0x180		/* SDRAM Configuration (r/w) */
 #define	MCFSIM_SDTR		0x184		/* SDRAM Timing (r/w) */
