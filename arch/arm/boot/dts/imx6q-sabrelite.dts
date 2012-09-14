@@ -68,6 +68,7 @@
 		aips-bus@02100000 { /* AIPS2 */
 			usb@02184000 { /* USB OTG */
 				vbus-supply = <&reg_usb_otg_vbus>;
+				disable-over-current;
 				status = "okay";
 			};
 
