@@ -21,11 +21,11 @@
 /*
  *	Define the 5272 SIM register set addresses.
  */
-#define	MCFSIM_SCR		0x04		/* SIM Config reg (r/w) */
-#define	MCFSIM_SPR		0x06		/* System Protection reg (r/w)*/
-#define	MCFSIM_PMR		0x08		/* Power Management reg (r/w) */
-#define	MCFSIM_APMR		0x0e		/* Active Low Power reg (r/w) */
-#define	MCFSIM_DIR		0x10		/* Device Identity reg (r/w) */
+#define	MCFSIM_SCR		(MCF_MBAR + 0x04)	/* SIM Config reg */
+#define	MCFSIM_SPR		(MCF_MBAR + 0x06)	/* System Protection */
+#define	MCFSIM_PMR		(MCF_MBAR + 0x08)	/* Power Management */
+#define	MCFSIM_APMR		(MCF_MBAR + 0x0e)	/* Active Low Power */
+#define	MCFSIM_DIR		(MCF_MBAR + 0x10)	/* Device Identity */
 
 #define	MCFSIM_ICR1		(MCF_MBAR + 0x20)	/* Intr Ctrl reg 1 */
 #define	MCFSIM_ICR2		(MCF_MBAR + 0x24)	/* Intr Ctrl reg 2 */
@@ -59,14 +59,14 @@
 #define	MCFSIM_CSBR7		(MCF_MBAR + 0x78)	/* CS7 Base Address */
 #define	MCFSIM_CSOR7		(MCF_MBAR + 0x7c)	/* CS7 Option */
 
-#define	MCFSIM_SDCR		0x180		/* SDRAM Configuration (r/w) */
-#define	MCFSIM_SDTR		0x184		/* SDRAM Timing (r/w) */
-#define	MCFSIM_DCAR0		0x4c		/* DRAM 0 Address reg(r/w) */
-#define	MCFSIM_DCMR0		0x50		/* DRAM 0 Mask reg (r/w) */
-#define	MCFSIM_DCCR0		0x57		/* DRAM 0 Control reg (r/w) */
-#define	MCFSIM_DCAR1		0x58		/* DRAM 1 Address reg (r/w) */
-#define	MCFSIM_DCMR1		0x5c		/* DRAM 1 Mask reg (r/w) */
-#define	MCFSIM_DCCR1		0x63		/* DRAM 1 Control reg (r/w) */
+#define	MCFSIM_SDCR		(MCF_MBAR + 0x180)	/* SDRAM Config */
+#define	MCFSIM_SDTR		(MCF_MBAR + 0x184)	/* SDRAM Timing */
+#define	MCFSIM_DCAR0		(MCF_MBAR + 0x4c)	/* DRAM 0 Address */
+#define	MCFSIM_DCMR0		(MCF_MBAR + 0x50)	/* DRAM 0 Mask */
+#define	MCFSIM_DCCR0		(MCF_MBAR + 0x57)	/* DRAM 0 Control */
+#define	MCFSIM_DCAR1		(MCF_MBAR + 0x58)	/* DRAM 1 Address */
+#define	MCFSIM_DCMR1		(MCF_MBAR + 0x5c)	/* DRAM 1 Mask reg */
+#define	MCFSIM_DCCR1		(MCF_MBAR + 0x63)	/* DRAM 1 Control */
 
 #define	MCFUART_BASE0		(MCF_MBAR + 0x100) /* Base address UART0 */
 #define	MCFUART_BASE1		(MCF_MBAR + 0x140) /* Base address UART1 */

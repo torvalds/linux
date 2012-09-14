@@ -62,11 +62,8 @@ static void m5272_cpu_reset(void)
 void __init config_BSP(char *commandp, int size)
 {
 #if defined (CONFIG_MOD5272)
-	volatile unsigned char	*pivrp;
-
 	/* Set base of device vectors to be 64 */
-	pivrp = (volatile unsigned char *) (MCF_MBAR + MCFSIM_PIVR);
-	*pivrp = 0x40;
+	writeb(0x40, MCFSIM_PIVR);
 #endif
 
 #if defined(CONFIG_NETtel) || defined(CONFIG_SCALES)
