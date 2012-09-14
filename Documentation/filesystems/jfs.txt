@@ -48,7 +48,5 @@ nodiscard(*)	block device when blocks are freed. This is useful for SSD
 		The minlen value of discard overrides the minlen value given
 		on an FITRIM ioctl().
 
-Please send bugs, comments, cards and letters to shaggy@linux.vnet.ibm.com.
-
 The JFS mailing list can be subscribed to by using the link labeled
 "Mail list Subscribe" at our web page http://jfs.sourceforge.net/
