@@ -40,7 +40,7 @@
  * This function dispatches control packet to the h/w interface
  * @return zero(success) or -ve value(failure)
  */
-INT SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
+int SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
 {
 	struct bcm_leader *PLeader = (struct bcm_leader *)pControlPacket;
 
@@ -81,7 +81,7 @@ INT SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
  * to the target via the host h/w interface.
  * @return  zero(success) or -ve value(failure)
  */
-INT SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USHORT Vcid)
+int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USHORT Vcid)
 {
 	int	status = 0;
 	BOOLEAN	bHeaderSupressionEnabled = FALSE;
