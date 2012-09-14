@@ -213,9 +213,9 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[per10], "per", "mxc_pwm.3");
 	clk_register_clkdev(clk[kpp_ipg], NULL, "imx-keypad");
 	clk_register_clkdev(clk[tsc_ipg], NULL, "mx25-adc");
-	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx-i2c.0");
-	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx-i2c.1");
-	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx-i2c.2");
+	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.0");
+	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.1");
+	clk_register_clkdev(clk[i2c_ipg_per], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[fec_ipg], "ipg", "imx25-fec.0");
 	clk_register_clkdev(clk[fec_ahb], "ahb", "imx25-fec.0");
 	clk_register_clkdev(clk[dryice_ipg], NULL, "imxdi_rtc.0");

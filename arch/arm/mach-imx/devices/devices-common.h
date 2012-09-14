@@ -118,6 +118,7 @@ struct platform_device *__init imx_add_imx_fb(
 
 #include <linux/platform_data/i2c-imx.h>
 struct imx_imx_i2c_data {
+	const char *devid;
 	int id;
 	resource_size_t iobase;
 	resource_size_t iosize;

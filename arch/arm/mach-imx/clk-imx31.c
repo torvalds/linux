@@ -155,9 +155,9 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[ipg], "ipg", "imx21-uart.3");
 	clk_register_clkdev(clk[uart5_gate], "per", "imx21-uart.4");
 	clk_register_clkdev(clk[ipg], "ipg", "imx21-uart.4");
-	clk_register_clkdev(clk[i2c1_gate], NULL, "imx-i2c.0");
-	clk_register_clkdev(clk[i2c2_gate], NULL, "imx-i2c.1");
-	clk_register_clkdev(clk[i2c3_gate], NULL, "imx-i2c.2");
+	clk_register_clkdev(clk[i2c1_gate], NULL, "imx21-i2c.0");
+	clk_register_clkdev(clk[i2c2_gate], NULL, "imx21-i2c.1");
+	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[owire_gate], NULL, "mxc_w1.0");
 	clk_register_clkdev(clk[sdhc1_gate], NULL, "mxc-mmc.0");
 	clk_register_clkdev(clk[sdhc2_gate], NULL, "mxc-mmc.1");

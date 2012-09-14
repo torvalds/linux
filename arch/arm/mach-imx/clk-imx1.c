@@ -95,7 +95,7 @@ int __init mx1_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[hclk], "ipg", "imx1-uart.1");
 	clk_register_clkdev(clk[per1], "per", "imx1-uart.2");
 	clk_register_clkdev(clk[hclk], "ipg", "imx1-uart.2");
-	clk_register_clkdev(clk[hclk], NULL, "imx-i2c.0");
+	clk_register_clkdev(clk[hclk], NULL, "imx1-i2c.0");
 	clk_register_clkdev(clk[per2], "per", "imx1-cspi.0");
 	clk_register_clkdev(clk[dummy], "ipg", "imx1-cspi.0");
 	clk_register_clkdev(clk[per2], "per", "imx1-cspi.1");

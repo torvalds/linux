@@ -166,7 +166,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_register_clkdev(clk[dma_hclk_gate], "ahb", "imx-dma");
 	clk_register_clkdev(clk[dma_gate], "ipg", "imx-dma");
 	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[i2c_gate], NULL, "imx-i2c.0");
+	clk_register_clkdev(clk[i2c_gate], NULL, "imx21-i2c.0");
 	clk_register_clkdev(clk[kpp_gate], NULL, "mxc-keypad");
 	clk_register_clkdev(clk[owire_gate], NULL, "mxc_w1.0");
 	clk_register_clkdev(clk[brom_gate], "brom", NULL);
