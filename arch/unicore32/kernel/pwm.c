@@ -27,6 +27,8 @@ struct pwm_device {
 	struct list_head	node;
 	struct platform_device *pdev;
 
+	void __iomem	*base;
+
 	const char	*label;
 	struct clk	*clk;
 	int		clk_enabled;
@@ -69,9 +71,11 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 	 * before writing to the registers
 	 */
 	clk_enable(pwm->clk);
-	OST_PWMPWCR = prescale;
-	OST_PWMDCCR = pv - dc;
-	OST_PWMPCR  = pv;
+
+	writel(prescale, pwm->base + OST_PWM_PWCR);
+	writel(pv - dc, pwm->base + OST_PWM_DCCR);
+	writel(pv, pwm->base + OST_PWM_PCR);
+
 	clk_disable(pwm->clk);
 
 	return 0;
@@ -190,10 +194,19 @@ static struct pwm_device *pwm_probe(struct platform_device *pdev,
 		goto err_free_clk;
 	}
 
+	pwm->base = ioremap_nocache(r->start, resource_size(r));
+	if (pwm->base == NULL) {
+		dev_err(&pdev->dev, "failed to remap memory resource\n");
+		ret = -EADDRNOTAVAIL;
+		goto err_release_mem;
+	}
+
 	__add_pwm(pwm);
 	platform_set_drvdata(pdev, pwm);
 	return pwm;
 
+err_release_mem:
+	release_mem_region(r->start, resource_size(r));
 err_free_clk:
 	clk_put(pwm->clk);
 err_free:
@@ -223,6 +236,8 @@ static int __devexit pwm_remove(struct platform_device *pdev)
 	mutex_lock(&pwm_lock);
 	list_del(&pwm->node);
 	mutex_unlock(&pwm_lock);
+
+	iounmap(pwm->base);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(r->start, resource_size(r));
