@@ -133,17 +133,17 @@ static struct map_desc ap_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= PCI_MEMORY_VADDR,
+		.virtual	= (unsigned long)PCI_MEMORY_VADDR,
 		.pfn		= __phys_to_pfn(PHYS_PCI_MEM_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= PCI_CONFIG_VADDR,
+		.virtual	= (unsigned long)PCI_CONFIG_VADDR,
 		.pfn		= __phys_to_pfn(PHYS_PCI_CONFIG_BASE),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= PCI_V3_VADDR,
+		.virtual	= (unsigned long)PCI_V3_VADDR,
 		.pfn		= __phys_to_pfn(PHYS_PCI_V3_BASE),
 		.length		= SZ_64K,
 		.type		= MT_DEVICE
@@ -317,9 +317,9 @@ static void __init ap_init(void)
 /*
  * Where is the timer (VA)?
  */
-#define TIMER0_VA_BASE IO_ADDRESS(INTEGRATOR_TIMER0_BASE)
-#define TIMER1_VA_BASE IO_ADDRESS(INTEGRATOR_TIMER1_BASE)
-#define TIMER2_VA_BASE IO_ADDRESS(INTEGRATOR_TIMER2_BASE)
+#define TIMER0_VA_BASE __io_address(INTEGRATOR_TIMER0_BASE)
+#define TIMER1_VA_BASE __io_address(INTEGRATOR_TIMER1_BASE)
+#define TIMER2_VA_BASE __io_address(INTEGRATOR_TIMER2_BASE)
 
 static unsigned long timer_reload;
 
