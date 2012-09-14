@@ -85,6 +85,9 @@ extern void efx_mcdi_process_event(struct efx_channel *channel,
 				   efx_qword_t *event);
 extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 
+#define MCDI_DECLARE_BUF(_name, _len)					\
+	u8 _name[ALIGN(_len, 4)]
+
 #define MCDI_PTR2(_buf, _ofst)						\
 	(((u8 *)_buf) + _ofst)
 #define MCDI_SET_DWORD2(_buf, _ofst, _value)				\

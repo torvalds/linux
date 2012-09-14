@@ -15,7 +15,7 @@
 int efx_mcdi_set_mac(struct efx_nic *efx)
 {
 	u32 reject, fcntl;
-	u8 cmdbytes[MC_CMD_SET_MAC_IN_LEN];
+	MCDI_DECLARE_BUF(cmdbytes, MC_CMD_SET_MAC_IN_LEN);
 
 	memcpy(cmdbytes + MC_CMD_SET_MAC_IN_ADDR_OFST,
 	       efx->net_dev->dev_addr, ETH_ALEN);
@@ -55,7 +55,7 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 
 bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
 {
-	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);
 	size_t outlength;
 	int rc;
 
@@ -75,7 +75,7 @@ bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
 int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 		       u32 dma_len, int enable, int clear)
 {
-	u8 inbuf[MC_CMD_MAC_STATS_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAC_STATS_IN_LEN);
 	int rc;
 	efx_dword_t *cmd_ptr;
 	int period = enable ? 1000 : 0;
@@ -115,7 +115,12 @@ fail:
 
 int efx_mcdi_mac_reconfigure(struct efx_nic *efx)
 {
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_MCAST_HASH_IN_LEN);
 	int rc;
+
+	BUILD_BUG_ON(MC_CMD_SET_MCAST_HASH_IN_LEN !=
+		     MC_CMD_SET_MCAST_HASH_IN_HASH0_OFST +
+		     sizeof(efx->multicast_hash));
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
@@ -123,8 +128,8 @@ int efx_mcdi_mac_reconfigure(struct efx_nic *efx)
 	if (rc != 0)
 		return rc;
 
+	memcpy(MCDI_PTR(inbuf, SET_MCAST_HASH_IN_HASH0),
+	       efx->multicast_hash.byte, sizeof(efx->multicast_hash));
 	return efx_mcdi_rpc(efx, MC_CMD_SET_MCAST_HASH,
-			    efx->multicast_hash.byte,
-			    sizeof(efx->multicast_hash),
-			    NULL, 0, NULL);
+			    inbuf, sizeof(inbuf), NULL, 0, NULL);
 }

@@ -606,7 +606,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 
 void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 {
-	u8 outbuf[ALIGN(MC_CMD_GET_VERSION_OUT_LEN, 4)];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_VERSION_OUT_LEN);
 	size_t outlength;
 	const __le16 *ver_words;
 	int rc;
@@ -637,8 +637,8 @@ fail:
 int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 			bool *was_attached)
 {
-	u8 inbuf[MC_CMD_DRV_ATTACH_IN_LEN];
-	u8 outbuf[MC_CMD_DRV_ATTACH_OUT_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_DRV_ATTACH_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_DRV_ATTACH_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -667,7 +667,7 @@ fail:
 int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 			   u16 *fw_subtype_list, u32 *capabilities)
 {
-	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LENMAX];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_BOARD_CFG_OUT_LENMAX);
 	size_t outlen, offset, i;
 	int port_num = efx_port_num(efx);
 	int rc;
@@ -721,7 +721,7 @@ fail:
 
 int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart, u32 dest_evq)
 {
-	u8 inbuf[MC_CMD_LOG_CTRL_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_LOG_CTRL_IN_LEN);
 	u32 dest = 0;
 	int rc;
 
@@ -749,7 +749,7 @@ fail:
 
 int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out)
 {
-	u8 outbuf[MC_CMD_NVRAM_TYPES_OUT_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_NVRAM_TYPES_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -777,8 +777,8 @@ int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 			size_t *size_out, size_t *erase_size_out,
 			bool *protected_out)
 {
-	u8 inbuf[MC_CMD_NVRAM_INFO_IN_LEN];
-	u8 outbuf[MC_CMD_NVRAM_INFO_OUT_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_INFO_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_NVRAM_INFO_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -806,7 +806,7 @@ fail:
 
 int efx_mcdi_nvram_update_start(struct efx_nic *efx, unsigned int type)
 {
-	u8 inbuf[MC_CMD_NVRAM_UPDATE_START_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_START_IN_LEN);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, NVRAM_UPDATE_START_IN_TYPE, type);
@@ -828,8 +828,9 @@ fail:
 int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
 			loff_t offset, u8 *buffer, size_t length)
 {
-	u8 inbuf[MC_CMD_NVRAM_READ_IN_LEN];
-	u8 outbuf[MC_CMD_NVRAM_READ_OUT_LEN(EFX_MCDI_NVRAM_LEN_MAX)];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_READ_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf,
+			 MC_CMD_NVRAM_READ_OUT_LEN(EFX_MCDI_NVRAM_LEN_MAX));
 	size_t outlen;
 	int rc;
 
@@ -853,7 +854,8 @@ fail:
 int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
 			   loff_t offset, const u8 *buffer, size_t length)
 {
-	u8 inbuf[MC_CMD_NVRAM_WRITE_IN_LEN(EFX_MCDI_NVRAM_LEN_MAX)];
+	MCDI_DECLARE_BUF(inbuf,
+			 MC_CMD_NVRAM_WRITE_IN_LEN(EFX_MCDI_NVRAM_LEN_MAX));
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, NVRAM_WRITE_IN_TYPE, type);
@@ -879,7 +881,7 @@ fail:
 int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
 			 loff_t offset, size_t length)
 {
-	u8 inbuf[MC_CMD_NVRAM_ERASE_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_ERASE_IN_LEN);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, NVRAM_ERASE_IN_TYPE, type);
@@ -902,7 +904,7 @@ fail:
 
 int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
 {
-	u8 inbuf[MC_CMD_NVRAM_UPDATE_FINISH_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_FINISH_IN_LEN);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, NVRAM_UPDATE_FINISH_IN_TYPE, type);
@@ -923,8 +925,8 @@ fail:
 
 static int efx_mcdi_nvram_test(struct efx_nic *efx, unsigned int type)
 {
-	u8 inbuf[MC_CMD_NVRAM_TEST_IN_LEN];
-	u8 outbuf[MC_CMD_NVRAM_TEST_OUT_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_TEST_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_NVRAM_TEST_OUT_LEN);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, NVRAM_TEST_IN_TYPE, type);
@@ -976,8 +978,8 @@ fail1:
 
 static int efx_mcdi_read_assertion(struct efx_nic *efx)
 {
-	u8 inbuf[MC_CMD_GET_ASSERTS_IN_LEN];
-	u8 outbuf[MC_CMD_GET_ASSERTS_OUT_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_ASSERTS_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_ASSERTS_OUT_LEN);
 	unsigned int flags, index, ofst;
 	const char *reason;
 	size_t outlen;
@@ -1032,7 +1034,7 @@ static int efx_mcdi_read_assertion(struct efx_nic *efx)
 
 static void efx_mcdi_exit_assertion(struct efx_nic *efx)
 {
-	u8 inbuf[MC_CMD_REBOOT_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_REBOOT_IN_LEN);
 
 	/* If the MC is running debug firmware, it might now be
 	 * waiting for a debugger to attach, but we just want it to
@@ -1062,7 +1064,7 @@ int efx_mcdi_handle_assertion(struct efx_nic *efx)
 
 void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 {
-	u8 inbuf[MC_CMD_SET_ID_LED_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_ID_LED_IN_LEN);
 	int rc;
 
 	BUILD_BUG_ON(EFX_LED_OFF != MC_CMD_LED_OFF);
@@ -1091,7 +1093,7 @@ int efx_mcdi_reset_port(struct efx_nic *efx)
 
 int efx_mcdi_reset_mc(struct efx_nic *efx)
 {
-	u8 inbuf[MC_CMD_REBOOT_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_REBOOT_IN_LEN);
 	int rc;
 
 	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
@@ -1110,8 +1112,8 @@ int efx_mcdi_reset_mc(struct efx_nic *efx)
 static int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
 				   const u8 *mac, int *id_out)
 {
-	u8 inbuf[MC_CMD_WOL_FILTER_SET_IN_LEN];
-	u8 outbuf[MC_CMD_WOL_FILTER_SET_OUT_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_WOL_FILTER_SET_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_WOL_FILTER_SET_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -1151,7 +1153,7 @@ efx_mcdi_wol_filter_set_magic(struct efx_nic *efx,  const u8 *mac, int *id_out)
 
 int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out)
 {
-	u8 outbuf[MC_CMD_WOL_FILTER_GET_OUT_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_WOL_FILTER_GET_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -1178,7 +1180,7 @@ fail:
 
 int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id)
 {
-	u8 inbuf[MC_CMD_WOL_FILTER_REMOVE_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_WOL_FILTER_REMOVE_IN_LEN);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, WOL_FILTER_REMOVE_IN_FILTER_ID, (u32)id);

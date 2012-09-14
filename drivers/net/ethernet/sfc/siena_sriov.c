@@ -197,8 +197,8 @@ static unsigned abs_index(struct efx_vf *vf, unsigned index)
 static int efx_sriov_cmd(struct efx_nic *efx, bool enable,
 			 unsigned *vi_scale_out, unsigned *vf_total_out)
 {
-	u8 inbuf[MC_CMD_SRIOV_IN_LEN];
-	u8 outbuf[MC_CMD_SRIOV_OUT_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SRIOV_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_SRIOV_OUT_LEN);
 	unsigned vi_scale, vf_total;
 	size_t outlen;
 	int rc;

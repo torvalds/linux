@@ -36,7 +36,7 @@ struct efx_mcdi_phy_data {
 static int
 efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg)
 {
-	u8 outbuf[MC_CMD_GET_PHY_CFG_OUT_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_CFG_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -78,7 +78,7 @@ static int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
 			     u32 flags, u32 loopback_mode,
 			     u32 loopback_speed)
 {
-	u8 inbuf[MC_CMD_SET_LINK_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_LINK_IN_LEN);
 	int rc;
 
 	BUILD_BUG_ON(MC_CMD_SET_LINK_OUT_LEN != 0);
@@ -102,7 +102,7 @@ fail:
 
 static int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)
 {
-	u8 outbuf[MC_CMD_GET_LOOPBACK_MODES_OUT_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LOOPBACK_MODES_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -129,8 +129,8 @@ int efx_mcdi_mdio_read(struct efx_nic *efx, unsigned int bus,
 			 unsigned int prtad, unsigned int devad, u16 addr,
 			 u16 *value_out, u32 *status_out)
 {
-	u8 inbuf[MC_CMD_MDIO_READ_IN_LEN];
-	u8 outbuf[MC_CMD_MDIO_READ_OUT_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MDIO_READ_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MDIO_READ_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -157,8 +157,8 @@ int efx_mcdi_mdio_write(struct efx_nic *efx, unsigned int bus,
 			  unsigned int prtad, unsigned int devad, u16 addr,
 			  u16 value, u32 *status_out)
 {
-	u8 inbuf[MC_CMD_MDIO_WRITE_IN_LEN];
-	u8 outbuf[MC_CMD_MDIO_WRITE_OUT_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MDIO_WRITE_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MDIO_WRITE_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -307,7 +307,7 @@ static u32 mcdi_to_ethtool_media(u32 media)
 static int efx_mcdi_phy_probe(struct efx_nic *efx)
 {
 	struct efx_mcdi_phy_data *phy_data;
-	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);
 	u32 caps;
 	int rc;
 
@@ -472,7 +472,7 @@ void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 static bool efx_mcdi_phy_poll(struct efx_nic *efx)
 {
 	struct efx_link_state old_state = efx->link_state;
-	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);
 	int rc;
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
@@ -507,7 +507,7 @@ static void efx_mcdi_phy_remove(struct efx_nic *efx)
 static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
 	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
-	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_LINK_OUT_LEN);
 	int rc;
 
 	ecmd->supported =
@@ -579,7 +579,7 @@ static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ec
 
 static int efx_mcdi_phy_test_alive(struct efx_nic *efx)
 {
-	u8 outbuf[MC_CMD_GET_PHY_STATE_OUT_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_STATE_OUT_LEN);
 	size_t outlen;
 	int rc;
 
@@ -744,8 +744,8 @@ static const char *efx_mcdi_phy_test_name(struct efx_nic *efx,
 static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
 					  struct ethtool_eeprom *ee, u8 *data)
 {
-	u8 outbuf[MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMAX];
-	u8 inbuf[MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMAX);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN);
 	size_t outlen;
 	int rc;
 	unsigned int payload_len;
