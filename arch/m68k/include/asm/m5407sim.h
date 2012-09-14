@@ -28,9 +28,9 @@
 #define	MCFSIM_SWIVR		(MCF_MBAR + 0x02)	/* SW Watchdog intr */
 #define	MCFSIM_SWSR		(MCF_MBAR + 0x03)	/* SW Watchdog service*/
 #define	MCFSIM_PAR		(MCF_MBAR + 0x04)	/* Pin Assignment */
-#define	MCFSIM_IRQPAR		0x06		/* Interrupt Assignment reg (r/w) */
-#define	MCFSIM_PLLCR		0x08		/* PLL Control Reg*/
-#define	MCFSIM_MPARK		0x0C		/* BUS Master Control Reg*/
+#define	MCFSIM_IRQPAR		(MCF_MBAR + 0x06)	/* Intr Assignment */
+#define	MCFSIM_PLLCR		(MCF_MBAR + 0x08)	/* PLL Ctrl */
+#define	MCFSIM_MPARK		(MCF_MBAR + 0x0C)	/* BUS Master Ctrl */
 #define	MCFSIM_IPR		(MCF_MBAR + 0x40)	/* Interrupt Pending */
 #define	MCFSIM_IMR		(MCF_MBAR + 0x44)	/* Interrupt Mask */
 #define	MCFSIM_AVR		(MCF_MBAR + 0x4b)	/* Autovector Ctrl */
