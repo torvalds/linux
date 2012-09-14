@@ -331,7 +331,7 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 
 config MTD_NAND_DOCG4
 	tristate "Support for DiskOnChip G4 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && HAS_IOMEM
 	select BCH
 	select BITREVERSE
 	help
