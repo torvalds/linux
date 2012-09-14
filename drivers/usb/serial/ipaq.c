@@ -33,7 +33,6 @@
 #define DRIVER_AUTHOR "Ganesh Varadarajan <ganesh@veritas.com>"
 #define DRIVER_DESC "USB PocketPC PDA driver"
 
-static bool debug;
 static int connect_retries = KP_RETRIES;
 static int initial_wait;
 
@@ -615,9 +614,6 @@ module_usb_serial_driver(serial_drivers, ipaq_id_table);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 module_param(connect_retries, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(connect_retries,
