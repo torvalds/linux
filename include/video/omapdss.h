@@ -608,9 +608,6 @@ struct omap_dss_device {
 
 		struct {
 			int module;
-
-			bool ext_te;
-			u8 ext_te_gpio;
 		} dsi;
 
 		struct {
@@ -631,10 +628,6 @@ struct omap_dss_device {
 		struct rfbi_timings rfbi_timings;
 	} ctrl;
 
-	int reset_gpio;
-
-	int max_backlight_level;
-
 	const char *name;
 
 	/* used to match device to driver */
@@ -654,13 +647,6 @@ struct omap_dss_device {
 	enum omap_dss_display_state state;
 
 	enum omap_dss_audio_state audio_state;
-
-	/* platform specific  */
-	int (*platform_enable)(struct omap_dss_device *dssdev);
-	void (*platform_disable)(struct omap_dss_device *dssdev);
-	int (*set_backlight)(struct omap_dss_device *dssdev, int level);
-	int (*get_backlight)(struct omap_dss_device *dssdev);
-
 
 	/* OMAP DSS output specific fields */
 
