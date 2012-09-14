@@ -483,6 +483,12 @@ extern int _nfs4_call_sync_session(struct rpc_clnt *clnt,
 				   struct nfs4_sequence_args *args,
 				   struct nfs4_sequence_res *res,
 				   int cache_reply);
+extern int nfs40_walk_client_list(struct nfs_client *clp,
+				struct nfs_client **result,
+				struct rpc_cred *cred);
+extern int nfs41_walk_client_list(struct nfs_client *clp,
+				struct nfs_client **result,
+				struct rpc_cred *cred);
 
 /*
  * Determine the device name as a string

@@ -498,7 +498,8 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 			return nfs_found_client(cl_init, clp);
 		}
 		if (new) {
-			list_add(&new->cl_share_link, &nn->nfs_client_list);
+			list_add_tail(&new->cl_share_link,
+					&nn->nfs_client_list);
 			spin_unlock(&nn->nfs_client_lock);
 			new->cl_flags = cl_init->init_flags;
 			return rpc_ops->init_client(new, timeparms, ip_addr,
