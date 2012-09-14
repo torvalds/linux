@@ -52,9 +52,6 @@ static struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-/* Input parameter constants. */
-static bool debug;
-
 /* UNI-Directional mode commands for device configure */
 #define UNI_CMD_OPEN	0x80
 #define UNI_CMD_CLOSE	0xFF
@@ -442,7 +439,3 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Philip Nicastro");
 MODULE_AUTHOR("Aleksey Babahin <tamerlan311@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
-
-/* Module input parameters */
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Print debug info (bool 1=on, 0=off)");
