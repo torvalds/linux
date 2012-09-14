@@ -190,8 +190,7 @@ void btrfs_run_ordered_operations(struct btrfs_root *root, int wait);
 void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct inode *inode);
-void btrfs_wait_ordered_extents(struct btrfs_root *root,
-				int nocow_only, int delay_iput);
+void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput);
 int __init ordered_data_init(void);
 void ordered_data_exit(void);
 #endif
