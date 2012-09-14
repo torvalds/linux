@@ -33,7 +33,6 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_device.h>
-#include <plat/dma.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -63,7 +62,6 @@ struct omap_dmic {
  */
 static struct omap_pcm_dma_data omap_dmic_dai_dma_params = {
 	.name		= "DMIC capture",
-	.data_type	= OMAP_DMA_DATA_TYPE_S32,
 };
 
 static inline void omap_dmic_write(struct omap_dmic *dmic, u16 reg, u32 val)

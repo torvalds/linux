@@ -40,7 +40,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include "omap-mcpdm.h"
 #include "omap-pcm.h"
@@ -71,11 +70,9 @@ struct omap_mcpdm {
 static struct omap_pcm_dma_data omap_mcpdm_dai_dma_params[] = {
 	{
 		.name = "Audio playback",
-		.data_type = OMAP_DMA_DATA_TYPE_S32,
 	},
 	{
 		.name = "Audio capture",
-		.data_type = OMAP_DMA_DATA_TYPE_S32,
 	},
 };
 
