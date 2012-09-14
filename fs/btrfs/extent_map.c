@@ -407,7 +407,8 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
 	rb_erase(&em->rb_node, &tree->map);
-	list_del_init(&em->list);
+	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
+		list_del_init(&em->list);
 	em->in_tree = 0;
 	return ret;
 }

@@ -2945,6 +2945,9 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		list_del_init(&em->list);
 		if (em->generation <= test_gen)
 			continue;
+		/* Need a ref to keep it from getting evicted from cache */
+		atomic_inc(&em->refs);
+		set_bit(EXTENT_FLAG_LOGGING, &em->flags);
 		list_add_tail(&em->list, &extents);
 	}
 
@@ -2954,13 +2957,18 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		em = list_entry(extents.next, struct extent_map, list);
 
 		list_del_init(&em->list);
+		clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
 
 		/*
 		 * If we had an error we just need to delete everybody from our
 		 * private list.
 		 */
-		if (ret)
+		if (ret) {
+			free_extent_map(em);
 			continue;
+		}
+
+		write_unlock(&tree->lock);
 
 		/*
 		 * If the previous EM and the last extent we left off on aren't
@@ -2971,21 +2979,26 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 			ret = copy_items(trans, inode, dst_path, args.src,
 					 args.start_slot, args.nr,
 					 LOG_INODE_ALL);
-			if (ret)
+			if (ret) {
+				free_extent_map(em);
+				write_lock(&tree->lock);
 				continue;
+			}
 			btrfs_release_path(path);
 			args.nr = 0;
 		}
 
 		ret = log_one_extent(trans, inode, root, em, path, dst_path, &args);
+		free_extent_map(em);
+		write_lock(&tree->lock);
 	}
+	WARN_ON(!list_empty(&extents));
+	write_unlock(&tree->lock);
 
 	if (!ret && args.nr)
 		ret = copy_items(trans, inode, dst_path, args.src,
 				 args.start_slot, args.nr, LOG_INODE_ALL);
 	btrfs_release_path(path);
-	WARN_ON(!list_empty(&extents));
-	write_unlock(&tree->lock);
 	return ret;
 }
 
