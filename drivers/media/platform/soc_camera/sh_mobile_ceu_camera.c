@@ -572,7 +572,7 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 
 	ret = v4l2_subdev_call(csi2_sd, core, s_power, 1);
 	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV) {
-		pm_runtime_put_sync(ici->v4l2_dev.dev);
+		pm_runtime_put(ici->v4l2_dev.dev);
 		return ret;
 	}
 
@@ -612,7 +612,7 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 	}
 	spin_unlock_irq(&pcdev->lock);
 
-	pm_runtime_put_sync(ici->v4l2_dev.dev);
+	pm_runtime_put(ici->v4l2_dev.dev);
 
 	dev_info(icd->parent,
 		 "SuperH Mobile CEU driver detached from camera %d\n",
