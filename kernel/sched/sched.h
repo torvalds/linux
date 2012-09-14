@@ -464,6 +464,9 @@ struct rq {
 	int active_balance;
 	int push_cpu;
 	struct cpu_stop_work active_balance_work;
+#ifdef CONFIG_SCHED_HMP
+	struct task_struct *migrate_task;
+#endif
 	/* cpu of this runqueue: */
 	int cpu;
 	int online;
