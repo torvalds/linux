@@ -9,8 +9,11 @@
 
 #include <linux/types.h>
 
+#define uint64_aligned_t uint64_t __attribute__((aligned(8)))
+
 #define __DEFINE_GUEST_HANDLE(name, type) \
-	typedef type * __guest_handle_ ## name
+	typedef struct { union { type *p; uint64_aligned_t q; }; }  \
+        __guest_handle_ ## name
 
 #define DEFINE_GUEST_HANDLE_STRUCT(name) \
 	__DEFINE_GUEST_HANDLE(name, struct name)
@@ -21,13 +24,14 @@
 	do {						\
 		if (sizeof(hnd) == 8)			\
 			*(uint64_t *)&(hnd) = 0;	\
-		(hnd) = val;				\
+		(hnd).p = val;				\
 	} while (0)
 
 #ifndef __ASSEMBLY__
 /* Explicitly size integers that represent pfns in the interface with
  * Xen so that we can have one ABI that works for 32 and 64 bit guests. */
 typedef uint64_t xen_pfn_t;
+typedef uint64_t xen_ulong_t;
 /* Guest handles for primitive C types. */
 __DEFINE_GUEST_HANDLE(uchar, unsigned char);
 __DEFINE_GUEST_HANDLE(uint,  unsigned int);
