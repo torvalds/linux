@@ -67,6 +67,13 @@ static struct regulator_init_data ldo0_data = {
 		},							\
 	}
 
+static struct regulator_init_data sys_data = {
+	.supply_regulator = "vdd_5v0",
+	.constraints = {
+		.name = "vdd_sys",
+	},
+};
+
 HARMONY_REGULATOR_INIT(sm0,  "vdd_sm0",  "vdd_sys", 725, 1500, 1);
 HARMONY_REGULATOR_INIT(sm1,  "vdd_sm1",  "vdd_sys", 725, 1500, 1);
 HARMONY_REGULATOR_INIT(sm2,  "vdd_sm2",  "vdd_sys", 3000, 4550, 1);
@@ -74,7 +81,7 @@ HARMONY_REGULATOR_INIT(ldo1, "vdd_ldo1", "vdd_sm2", 725, 1500, 1);
 HARMONY_REGULATOR_INIT(ldo2, "vdd_ldo2", "vdd_sm2", 725, 1500, 0);
 HARMONY_REGULATOR_INIT(ldo3, "vdd_ldo3", "vdd_sm2", 1250, 3300, 1);
 HARMONY_REGULATOR_INIT(ldo4, "vdd_ldo4", "vdd_sm2", 1700, 2475, 1);
-HARMONY_REGULATOR_INIT(ldo5, "vdd_ldo5", NULL,	    1250, 3300, 1);
+HARMONY_REGULATOR_INIT(ldo5, "vdd_ldo5", "vdd_sys", 1250, 3300, 1);
 HARMONY_REGULATOR_INIT(ldo6, "vdd_ldo6", "vdd_sm2", 1250, 3300, 0);
 HARMONY_REGULATOR_INIT(ldo7, "vdd_ldo7", "vdd_sm2", 1250, 3300, 0);
 HARMONY_REGULATOR_INIT(ldo8, "vdd_ldo8", "vdd_sm2", 1250, 3300, 0);
@@ -88,6 +95,7 @@ HARMONY_REGULATOR_INIT(ldo9, "vdd_ldo9", "vdd_sm2", 1250, 3300, 1);
 	}
 
 static struct tps6586x_subdev_info tps_devs[] = {
+	TPS_REG(SYS, &sys_data),
 	TPS_REG(SM_0, &sm0_data),
 	TPS_REG(SM_1, &sm1_data),
 	TPS_REG(SM_2, &sm2_data),
@@ -120,7 +128,7 @@ static struct i2c_board_info __initdata harmony_regulators[] = {
 
 int __init harmony_regulator_init(void)
 {
-	regulator_register_always_on(0, "vdd_sys",
+	regulator_register_always_on(0, "vdd_5v0",
 		NULL, 0, 5000000);
 
 	if (machine_is_harmony()) {
