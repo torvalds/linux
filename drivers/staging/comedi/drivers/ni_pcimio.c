@@ -1581,23 +1581,11 @@ static void pcimio_detach(struct comedi_device *dev)
 		mite_free_ring(devpriv->cdo_mite_ring);
 		mite_free_ring(devpriv->gpct_mite_ring[0]);
 		mite_free_ring(devpriv->gpct_mite_ring[1]);
-		if (devpriv->mite)
+		if (devpriv->mite) {
 			mite_unsetup(devpriv->mite);
+			mite_free(devpriv->mite);
+		}
 	}
-}
-
-/* FIXME: remove this when dynamic MITE allocation implemented. */
-static struct mite_struct *pcimio_find_mite(struct pci_dev *pcidev)
-{
-	struct mite_struct *mite;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (mite->pcidev == pcidev)
-			return mite;
-	}
-	return NULL;
 }
 
 static const struct ni_board_struct *
@@ -1629,9 +1617,9 @@ static int __devinit pcimio_attach_pci(struct comedi_device *dev,
 	if (!dev->board_ptr)
 		return -ENODEV;
 
-	devpriv->mite = pcimio_find_mite(pcidev);
+	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
-		return -ENODEV;
+		return -ENOMEM;
 
 	dev_dbg(dev->class_dev, "%s\n", boardtype.name);
 	dev->board_name = boardtype.name;
