@@ -609,8 +609,8 @@ static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
  */
 unsigned long *page_table_alloc(struct mm_struct *mm, unsigned long vmaddr)
 {
-	struct page *page;
-	unsigned long *table;
+	unsigned long *uninitialized_var(table);
+	struct page *uninitialized_var(page);
 	unsigned int mask, bit;
 
 	if (mm_has_pgste(mm))
