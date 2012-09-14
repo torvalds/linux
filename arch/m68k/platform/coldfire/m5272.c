@@ -35,13 +35,13 @@ static void __init m5272_uarts_init(void)
 	u32 v;
 
 	/* Enable the output lines for the serial ports */
-	v = readl(MCF_MBAR + MCFSIM_PBCNT);
+	v = readl(MCFSIM_PBCNT);
 	v = (v & ~0x000000ff) | 0x00000055;
-	writel(v, MCF_MBAR + MCFSIM_PBCNT);
+	writel(v, MCFSIM_PBCNT);
 
-	v = readl(MCF_MBAR + MCFSIM_PDCNT);
+	v = readl(MCFSIM_PDCNT);
 	v = (v & ~0x000003fc) | 0x000002a8;
-	writel(v, MCF_MBAR + MCFSIM_PDCNT);
+	writel(v, MCFSIM_PDCNT);
 }
 
 /***************************************************************************/
