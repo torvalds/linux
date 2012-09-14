@@ -123,7 +123,8 @@ INT SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USH
 	if (Adapter->PackInfo[QueueIndex].bEthCSSupport) {
 		Leader.PLength = Packet->len;
 		if (skb_headroom(Packet) < LEADER_SIZE) {
-			if ((status = skb_cow(Packet, LEADER_SIZE))) {
+			status = skb_cow(Packet, LEADER_SIZE);
+			if (status) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "bcm_transmit : Failed To Increase headRoom\n");
 				goto errExit;
 			}
