@@ -138,8 +138,6 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static bool debug;
-
 static int ipw_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_device *udev = port->serial->dev;
@@ -323,6 +321,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
