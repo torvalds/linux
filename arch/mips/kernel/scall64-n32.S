@@ -421,4 +421,5 @@ EXPORT(sysn32_call_table)
 	PTR	sys_setns
 	PTR	compat_sys_process_vm_readv
 	PTR	compat_sys_process_vm_writev	/* 6310 */
+	PTR	sys_kcmp
 	.size	sysn32_call_table,.-sysn32_call_table
