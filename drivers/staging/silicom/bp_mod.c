@@ -8227,6 +8227,9 @@ set_dis_bypass_pfs(struct file *file, const char *buffer,
 
 	int bypass_param = 0, length = 0;
 
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
+
 	if (copy_from_user(&kbuf, buffer, count)) {
 		return -1;
 	}
@@ -8256,6 +8259,9 @@ set_dis_tap_pfs(struct file *file, const char *buffer,
 
 	int tap_param = 0, length = 0;
 
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
+
 	if (copy_from_user(&kbuf, buffer, count)) {
 		return -1;
 	}
@@ -8284,6 +8290,9 @@ set_dis_disc_pfs(struct file *file, const char *buffer,
 	bpctl_dev_t *pbp_device_block = (bpctl_dev_t *) data;
 
 	int tap_param = 0, length = 0;
+
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
 
 	if (copy_from_user(&kbuf, buffer, count)) {
 		return -1;
@@ -8374,6 +8383,9 @@ set_bypass_pwup_pfs(struct file *file, const char *buffer,
 
 	int bypass_param = 0, length = 0;
 
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
+
 	if (copy_from_user(&kbuf, buffer, count)) {
 		return -1;
 	}
@@ -8402,6 +8414,9 @@ set_bypass_pwoff_pfs(struct file *file, const char *buffer,
 	bpctl_dev_t *pbp_device_block = (bpctl_dev_t *) data;
 
 	int bypass_param = 0, length = 0;
+
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
 
 	if (copy_from_user(&kbuf, buffer, count)) {
 		return -1;
@@ -8432,6 +8447,9 @@ set_tap_pwup_pfs(struct file *file, const char *buffer,
 
 	int tap_param = 0, length = 0;
 
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
+
 	if (copy_from_user(&kbuf, buffer, count)) {
 		return -1;
 	}
@@ -8460,6 +8478,9 @@ set_disc_pwup_pfs(struct file *file, const char *buffer,
 	bpctl_dev_t *pbp_device_block = (bpctl_dev_t *) data;
 
 	int tap_param = 0, length = 0;
+
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
 
 	if (copy_from_user(&kbuf, buffer, count)) {
 		return -1;
@@ -8569,6 +8590,9 @@ set_std_nic_pfs(struct file *file, const char *buffer,
 	bpctl_dev_t *pbp_device_block = (bpctl_dev_t *) data;
 
 	int bypass_param = 0, length = 0;
+
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
 
 	if (copy_from_user(&kbuf, buffer, count)) {
 		return -1;
