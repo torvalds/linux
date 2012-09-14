@@ -26,6 +26,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/vtimer.h>
+#include <asm/exec.h>
 #include <asm/irq.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
