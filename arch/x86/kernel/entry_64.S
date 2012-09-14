@@ -165,6 +165,10 @@ GLOBAL(ftrace_regs_call)
 	movq EFLAGS(%rsp), %rax
 	movq %rax, SS(%rsp)
 
+	/* Handlers can change the RIP */
+	movq RIP(%rsp), %rax
+	movq %rax, SS+8(%rsp)
+
 	/* restore the rest of pt_regs */
 	movq R15(%rsp), %r15
 	movq R14(%rsp), %r14

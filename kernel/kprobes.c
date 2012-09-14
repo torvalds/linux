@@ -1418,9 +1418,6 @@ static __kprobes int check_kprobe_address_safe(struct kprobe *p,
 		/* Given address is not on the instruction boundary */
 		if ((unsigned long)p->addr != ftrace_addr)
 			return -EILSEQ;
-		/* break_handler (jprobe) can not work with ftrace */
-		if (p->break_handler)
-			return -EINVAL;
 		p->flags |= KPROBE_FLAG_FTRACE;
 #else	/* !KPROBES_CAN_USE_FTRACE */
 		return -EINVAL;

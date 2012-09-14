@@ -1646,9 +1646,11 @@ static __init void event_trace_self_tests(void)
 		event_test_stuff();
 
 		ret = __ftrace_set_clr_event(NULL, system->name, NULL, 0);
-		if (WARN_ON_ONCE(ret))
+		if (WARN_ON_ONCE(ret)) {
 			pr_warning("error disabling system %s\n",
 				   system->name);
+			continue;
+		}
 
 		pr_cont("OK\n");
 	}
