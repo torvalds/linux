@@ -34,6 +34,7 @@ struct omap_chan {
 	struct dma_slave_config	cfg;
 	unsigned dma_sig;
 	bool cyclic;
+	bool paused;
 
 	int dma_ch;
 	struct omap_desc *desc;
@@ -470,11 +471,14 @@ static int omap_dma_terminate_all(struct omap_chan *c)
 	 */
 	if (c->desc) {
 		c->desc = NULL;
-		omap_stop_dma(c->dma_ch);
+		/* Avoid stopping the dma twice */
+		if (!c->paused)
+			omap_stop_dma(c->dma_ch);
 	}
 
 	if (c->cyclic) {
 		c->cyclic = false;
+		c->paused = false;
 		omap_dma_unlink_lch(c->dma_ch, c->dma_ch);
 	}
 
@@ -487,14 +491,30 @@ static int omap_dma_terminate_all(struct omap_chan *c)
 
 static int omap_dma_pause(struct omap_chan *c)
 {
-	/* FIXME: not supported by platform private API */
-	return -EINVAL;
+	/* Pause/Resume only allowed with cyclic mode */
+	if (!c->cyclic)
+		return -EINVAL;
+
+	if (!c->paused) {
+		omap_stop_dma(c->dma_ch);
+		c->paused = true;
+	}
+
+	return 0;
 }
 
 static int omap_dma_resume(struct omap_chan *c)
 {
-	/* FIXME: not supported by platform private API */
-	return -EINVAL;
+	/* Pause/Resume only allowed with cyclic mode */
+	if (!c->cyclic)
+		return -EINVAL;
+
+	if (c->paused) {
+		omap_start_dma(c->dma_ch);
+		c->paused = false;
+	}
+
+	return 0;
 }
 
 static int omap_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
