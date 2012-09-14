@@ -81,7 +81,7 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 static int ni6527_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
 static void ni6527_detach(struct comedi_device *dev);
-static struct comedi_driver driver_ni6527 = {
+static struct comedi_driver ni6527_driver = {
 	.driver_name = DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = ni6527_attach,
@@ -478,43 +478,24 @@ static int ni6527_find_device(struct comedi_device *dev, int bus, int slot)
 	return -EIO;
 }
 
-static int __devinit driver_ni6527_pci_probe(struct pci_dev *dev,
-					     const struct pci_device_id *ent)
+static int __devinit ni6527_pci_probe(struct pci_dev *dev,
+				      const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_ni6527);
+	return comedi_pci_auto_config(dev, &ni6527_driver);
 }
 
-static void __devexit driver_ni6527_pci_remove(struct pci_dev *dev)
+static void __devexit ni6527_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_ni6527_pci_driver = {
+static struct pci_driver ni6527_pci_driver = {
+	.name = DRIVER_NAME,
 	.id_table = ni6527_pci_table,
-	.probe = &driver_ni6527_pci_probe,
-	.remove = __devexit_p(&driver_ni6527_pci_remove)
+	.probe = ni6527_pci_probe,
+	.remove = __devexit_p(ni6527_pci_remove)
 };
-
-static int __init driver_ni6527_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_ni6527);
-	if (retval < 0)
-		return retval;
-
-	driver_ni6527_pci_driver.name = (char *)driver_ni6527.driver_name;
-	return pci_register_driver(&driver_ni6527_pci_driver);
-}
-
-static void __exit driver_ni6527_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_ni6527_pci_driver);
-	comedi_driver_unregister(&driver_ni6527);
-}
-
-module_init(driver_ni6527_init_module);
-module_exit(driver_ni6527_cleanup_module);
+module_comedi_pci_driver(ni6527_driver, ni6527_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
