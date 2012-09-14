@@ -1844,7 +1844,7 @@ static struct pci_driver ni_pcimio_pci_driver = {
 	.probe		= ni_pcimio_pci_probe,
 	.remove		= __devexit_p(ni_pcimio_pci_remove)
 };
-module_comedi_pci_driver(ni_pcimio_driver, ni_pcimio_pci_driver)
+module_comedi_pci_driver(ni_pcimio_driver, ni_pcimio_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
