@@ -797,16 +797,17 @@ void mite_dump_regs(struct mite_channel *mite_chan)
 EXPORT_SYMBOL(mite_dump_regs);
 #endif
 
-#ifdef MODULE
-int __init init_module(void)
+static int __init mite_module_init(void)
 {
 	return 0;
 }
 
-void __exit cleanup_module(void)
+static void __exit mite_module_exit(void)
 {
 }
-#endif
+
+module_init(mite_module_init);
+module_exit(mite_module_exit);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
