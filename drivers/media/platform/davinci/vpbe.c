@@ -610,11 +610,11 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 		vpbe_dev->dac_clk = clk_get(vpbe_dev->pdev, "vpss_dac");
 		if (IS_ERR(vpbe_dev->dac_clk)) {
 			ret =  PTR_ERR(vpbe_dev->dac_clk);
-			goto vpbe_unlock;
+			goto fail_mutex_unlock;
 		}
 		if (clk_enable(vpbe_dev->dac_clk)) {
 			ret =  -ENODEV;
-			goto vpbe_unlock;
+			goto fail_mutex_unlock;
 		}
 	}
 
@@ -626,7 +626,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	if (ret) {
 		v4l2_err(dev->driver,
 			"Unable to register v4l2 device.\n");
-		goto vpbe_fail_clock;
+		goto fail_clk_put;
 	}
 	v4l2_info(&vpbe_dev->v4l2_dev, "vpbe v4l2 device registered\n");
 
@@ -642,7 +642,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 		v4l2_err(&vpbe_dev->v4l2_dev,
 			"vpbe unable to init venc sub device\n");
 		ret = -ENODEV;
-		goto vpbe_fail_v4l2_device;
+		goto fail_dev_unregister;
 	}
 	/* initialize osd device */
 	osd_device = vpbe_dev->osd_device;
@@ -653,7 +653,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 			v4l2_err(&vpbe_dev->v4l2_dev,
 				 "unable to initialize the OSD device");
 			err = -ENOMEM;
-			goto vpbe_fail_v4l2_device;
+			goto fail_dev_unregister;
 		}
 	}
 
@@ -669,7 +669,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 		v4l2_err(&vpbe_dev->v4l2_dev,
 			"unable to allocate memory for encoders sub devices");
 		ret = -ENOMEM;
-		goto vpbe_fail_v4l2_device;
+		goto fail_dev_unregister;
 	}
 
 	i2c_adap = i2c_get_adapter(vpbe_dev->cfg->i2c_adapter_id);
@@ -695,7 +695,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 					 " failed to register",
 					 enc_info->module_name);
 				ret = -ENODEV;
-				goto vpbe_fail_sd_register;
+				goto fail_kfree_encoders;
 			}
 		} else
 			v4l2_warn(&vpbe_dev->v4l2_dev, "non-i2c encoders"
@@ -714,7 +714,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 					 "amplifier %s failed to register",
 					 amp_info->module_name);
 				ret = -ENODEV;
-				goto vpbe_fail_amp_register;
+				goto fail_kfree_encoders;
 			}
 			v4l2_info(&vpbe_dev->v4l2_dev,
 					  "v4l2 sub device %s registered\n",
@@ -754,15 +754,14 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	/* TBD handling of bootargs for default output and mode */
 	return 0;
 
-vpbe_fail_amp_register:
-vpbe_fail_sd_register:
+fail_kfree_encoders:
 	kfree(vpbe_dev->encoders);
-vpbe_fail_v4l2_device:
+fail_dev_unregister:
 	v4l2_device_unregister(&vpbe_dev->v4l2_dev);
-vpbe_fail_clock:
+fail_clk_put:
 	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0)
 		clk_put(vpbe_dev->dac_clk);
-vpbe_unlock:
+fail_mutex_unlock:
 	mutex_unlock(&vpbe_dev->lock);
 	return ret;
 }
