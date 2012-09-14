@@ -1659,7 +1659,7 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	ret = ni_E_init(dev, it);
+	ret = ni_E_init(dev);
 	if (ret < 0)
 		return ret;
 

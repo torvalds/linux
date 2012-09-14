@@ -382,7 +382,7 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->stc_writel = &win_out2;
 	devpriv->stc_readl = &win_in2;
 
-	ret = ni_E_init(dev, it);
+	ret = ni_E_init(dev);
 
 	if (ret < 0)
 		return ret;

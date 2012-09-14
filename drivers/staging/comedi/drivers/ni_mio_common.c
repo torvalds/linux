@@ -4404,7 +4404,7 @@ static int ni_alloc_private(struct comedi_device *dev)
 	return 0;
 };
 
-static int ni_E_init(struct comedi_device *dev, struct comedi_devconfig *it)
+static int ni_E_init(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
 	unsigned j;
