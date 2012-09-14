@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/regmap.h>
+#include <linux/log2.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/compress_driver.h>
@@ -160,7 +161,8 @@
 		 .platform_max = xmax} }
 #define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmax, xtexts) \
 {	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
-	.max = xmax, .texts = xtexts }
+	.max = xmax, .texts = xtexts, \
+	.mask = xmax ? roundup_pow_of_two(xmax) - 1 : 0}
 #define SOC_ENUM_SINGLE(xreg, xshift, xmax, xtexts) \
 	SOC_ENUM_DOUBLE(xreg, xshift, xshift, xmax, xtexts)
 #define SOC_ENUM_SINGLE_EXT(xmax, xtexts) \
