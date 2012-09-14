@@ -2474,14 +2474,12 @@ static int keyspan_startup(struct usb_serial *serial)
 	if (s_priv->instat_urb != NULL) {
 		err = usb_submit_urb(s_priv->instat_urb, GFP_KERNEL);
 		if (err != 0)
-			dev_dbg(&port->dev, "%s - submit instat urb failed %d\n", __func__,
-				err);
+			dev_dbg(&serial->dev->dev, "%s - submit instat urb failed %d\n", __func__, err);
 	}
 	if (s_priv->indat_urb != NULL) {
 		err = usb_submit_urb(s_priv->indat_urb, GFP_KERNEL);
 		if (err != 0)
-			dev_dbg(&port->dev, "%s - submit indat urb failed %d\n", __func__,
-				err);
+			dev_dbg(&serial->dev->dev, "%s - submit indat urb failed %d\n", __func__, err);
 	}
 
 	return 0;
