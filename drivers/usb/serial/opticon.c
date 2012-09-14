@@ -78,12 +78,12 @@ static void opticon_read_bulk_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, status);
+		dev_dbg(&priv->udev->dev, "%s - urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d",
-		    __func__, status);
+		dev_dbg(&priv->udev->dev, "%s - nonzero urb status received: %d\n",
+			__func__, status);
 		goto exit;
 	}
 
@@ -229,8 +229,8 @@ static void opticon_write_control_callback(struct urb *urb)
 	kfree(urb->setup_packet);
 
 	if (status)
-		dbg("%s - nonzero write bulk status received: %d",
-		    __func__, status);
+		dev_dbg(&priv->udev->dev, "%s - nonzero write bulk status received: %d\n",
+			__func__, status);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	--priv->outstanding_urbs;
@@ -253,7 +253,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		dbg("%s - write limit hit", __func__);
+		dev_dbg(&port->dev, "%s - write limit hit\n", __func__);
 		return 0;
 	}
 	priv->outstanding_urbs++;
@@ -338,7 +338,7 @@ static int opticon_write_room(struct tty_struct *tty)
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT * 2 / 3) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		dbg("%s - write limit hit", __func__);
+		dev_dbg(&port->dev, "%s - write limit hit\n", __func__);
 		return 0;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -394,7 +394,7 @@ static int opticon_tiocmget(struct tty_struct *tty)
 		result |= TIOCM_CTS;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dbg("%s - %x", __func__, result);
+	dev_dbg(&port->dev, "%s - %x\n", __func__, result);
 	return result;
 }
 
@@ -466,7 +466,7 @@ static int opticon_ioctl(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 
-	dbg("%s - port %d, cmd = 0x%x", __func__, port->number, cmd);
+	dev_dbg(&port->dev, "%s - port %d, cmd = 0x%x\n", __func__, port->number, cmd);
 
 	switch (cmd) {
 	case TIOCGSERIAL:
