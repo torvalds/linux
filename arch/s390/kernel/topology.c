@@ -73,10 +73,7 @@ static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
 {
 	unsigned int cpu;
 
-	for (cpu = find_first_bit(&tl_cpu->mask[0], TOPOLOGY_CPU_BITS);
-	     cpu < TOPOLOGY_CPU_BITS;
-	     cpu = find_next_bit(&tl_cpu->mask[0], TOPOLOGY_CPU_BITS, cpu + 1))
-	{
+	for_each_set_bit(cpu, &tl_cpu->mask[0], TOPOLOGY_CPU_BITS) {
 		unsigned int rcpu;
 		int lcpu;
 
