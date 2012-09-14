@@ -55,7 +55,6 @@
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Bill Ryder <bryder@sgi.com>, Kuba Ober <kuba@mareimbrium.org>, Andreas Mohr, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "USB FTDI Serial Converters Driver"
 
-static bool debug;
 static __u16 vendor = FTDI_VID;
 static __u16 product;
 
@@ -2431,8 +2430,6 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 module_param(vendor, ushort, 0);
 MODULE_PARM_DESC(vendor, "User specified vendor ID (default="
 		__MODULE_STRING(FTDI_VID)")");
