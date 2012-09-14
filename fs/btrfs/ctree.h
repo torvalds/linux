@@ -1253,7 +1253,6 @@ struct btrfs_fs_info {
 	struct mutex reloc_mutex;
 
 	struct list_head trans_list;
-	struct list_head hashers;
 	struct list_head dead_roots;
 	struct list_head caching_block_groups;
 
