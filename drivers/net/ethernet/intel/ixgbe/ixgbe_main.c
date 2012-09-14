@@ -6538,6 +6538,7 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 		if (skb_pad(skb, 17 - skb->len))
 			return NETDEV_TX_OK;
 		skb->len = 17;
+		skb_set_tail_pointer(skb, 17);
 	}
 
 	tx_ring = adapter->tx_ring[skb->queue_mapping];
