@@ -1389,10 +1389,11 @@ bool uprobe_deny_signal(void)
  */
 static bool can_skip_sstep(struct uprobe *uprobe, struct pt_regs *regs)
 {
-	if (arch_uprobe_skip_sstep(&uprobe->arch, regs))
-		return true;
-
-	uprobe->flags &= ~UPROBE_SKIP_SSTEP;
+	if (uprobe->flags & UPROBE_SKIP_SSTEP) {
+		if (arch_uprobe_skip_sstep(&uprobe->arch, regs))
+			return true;
+		uprobe->flags &= ~UPROBE_SKIP_SSTEP;
+	}
 	return false;
 }
 
@@ -1494,12 +1495,12 @@ static void handle_swbp(struct pt_regs *regs)
 		utask = add_utask();
 		/* Cannot allocate; re-execute the instruction. */
 		if (!utask)
-			goto cleanup_ret;
+			goto restart;
 	}
 
 	handler_chain(uprobe, regs);
-	if (uprobe->flags & UPROBE_SKIP_SSTEP && can_skip_sstep(uprobe, regs))
-		goto cleanup_ret;
+	if (can_skip_sstep(uprobe, regs))
+		goto out;
 
 	if (!pre_ssout(uprobe, regs, bp_vaddr)) {
 		arch_uprobe_enable_step(&uprobe->arch);
@@ -1508,15 +1509,13 @@ static void handle_swbp(struct pt_regs *regs)
 		return;
 	}
 
-cleanup_ret:
-	if (!(uprobe->flags & UPROBE_SKIP_SSTEP))
-
-		/*
-		 * cannot singlestep; cannot skip instruction;
-		 * re-execute the instruction.
-		 */
-		instruction_pointer_set(regs, bp_vaddr);
-
+restart:
+	/*
+	 * cannot singlestep; cannot skip instruction;
+	 * re-execute the instruction.
+	 */
+	instruction_pointer_set(regs, bp_vaddr);
+out:
 	put_uprobe(uprobe);
 }
 
