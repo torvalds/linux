@@ -123,8 +123,6 @@ static inline unsigned int mite_device_id(struct mite_struct *mite)
 	return mite->pcidev->device;
 };
 
-void mite_init(void);
-void mite_cleanup(void);
 int mite_setup(struct mite_struct *mite);
 int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1);
 void mite_unsetup(struct mite_struct *mite);

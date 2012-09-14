@@ -64,7 +64,7 @@ EXPORT_SYMBOL(mite_devices);
 
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
 
-void mite_init(void)
+static void mite_init(void)
 {
 	struct pci_dev *pcidev = NULL;
 	struct mite_struct *mite;
@@ -206,7 +206,7 @@ int mite_setup(struct mite_struct *mite)
 }
 EXPORT_SYMBOL(mite_setup);
 
-void mite_cleanup(void)
+static void mite_cleanup(void)
 {
 	struct mite_struct *mite, *next;
 
@@ -483,7 +483,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 }
 EXPORT_SYMBOL(mite_prep_dma);
 
-u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
+static u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
 	return readl(mite->mite_io_addr + MITE_DAR(mite_chan->channel));
