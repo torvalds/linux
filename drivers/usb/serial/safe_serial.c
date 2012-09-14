@@ -81,7 +81,6 @@
 #define CONFIG_USB_SERIAL_SAFE_PADDED 0
 #endif
 
-static bool debug;
 static bool safe = 1;
 static bool padded = CONFIG_USB_SERIAL_SAFE_PADDED;
 
@@ -99,9 +98,6 @@ module_param(vendor, ushort, 0);
 MODULE_PARM_DESC(vendor, "User specified USB idVendor (required)");
 module_param(product, ushort, 0);
 MODULE_PARM_DESC(product, "User specified USB idProduct (required)");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 module_param(safe, bool, 0);
 MODULE_PARM_DESC(safe, "Turn Safe Encapsulation On/Off");
