@@ -666,9 +666,14 @@ static int intel_gtt_init(void)
 
 	gtt_map_size = intel_private.base.gtt_total_entries * 4;
 
-	intel_private.gtt = ioremap(intel_private.gtt_bus_addr,
-				    gtt_map_size);
-	if (!intel_private.gtt) {
+	intel_private.gtt = NULL;
+	if (INTEL_GTT_GEN < 6)
+		intel_private.gtt = ioremap_wc(intel_private.gtt_bus_addr,
+					       gtt_map_size);
+	if (intel_private.gtt == NULL)
+		intel_private.gtt = ioremap(intel_private.gtt_bus_addr,
+					    gtt_map_size);
+	if (intel_private.gtt == NULL) {
 		intel_private.driver->cleanup();
 		iounmap(intel_private.registers);
 		return -ENOMEM;
