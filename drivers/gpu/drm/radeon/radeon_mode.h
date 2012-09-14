@@ -254,11 +254,13 @@ struct radeon_mode_info {
 	struct radeon_fbdev *rfbdev;
 	/* firmware flags */
 	u16 firmware_flags;
+	/* pointer to backlight encoder */
+	struct radeon_encoder *bl_encoder;
 };
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 #define RADEON_MAX_BL_LEVEL 0xFF
+
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 
 struct radeon_backlight_privdata {
 	struct radeon_encoder *encoder;

@@ -179,6 +179,7 @@ radeon_link_encoder_connector(struct drm_device *dev)
 						radeon_atom_backlight_init(radeon_encoder, connector);
 					else
 						radeon_legacy_backlight_init(radeon_encoder, connector);
+					rdev->mode_info.bl_encoder = radeon_encoder;
 				}
 			}
 		}

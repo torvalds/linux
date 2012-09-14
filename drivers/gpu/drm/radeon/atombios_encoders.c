@@ -32,8 +32,6 @@
 
 extern int atom_debug;
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 static u8
 radeon_atom_get_backlight_level_from_reg(struct radeon_device *rdev)
 {
@@ -133,6 +131,8 @@ atombios_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level)
 		}
 	}
 }
+
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 
 static u8 radeon_atom_bl_level(struct backlight_device *bd)
 {
