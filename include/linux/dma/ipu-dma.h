@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _IPU_H_
-#define _IPU_H_
+#ifndef __LINUX_DMA_IPU_DMA_H
+#define __LINUX_DMA_IPU_DMA_H
 
 #include <linux/types.h>
 #include <linux/dmaengine.h>
@@ -174,4 +174,4 @@ struct idmac_channel {
 #define to_tx_desc(tx) container_of(tx, struct idmac_tx_desc, txd)
 #define to_idmac_chan(c) container_of(c, struct idmac_channel, dma_chan)
 
-#endif
+#endif /* __LINUX_DMA_IPU_DMA_H */
