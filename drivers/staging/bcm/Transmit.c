@@ -1,45 +1,45 @@
 /**
-@file Transmit.c
-@defgroup tx_functions Transmission
-@section Queueing
-@dot
-digraph transmit1 {
-node[shape=box]
-edge[weight=5;color=red]
-
-bcm_transmit->GetPacketQueueIndex[label="IP Packet"]
-GetPacketQueueIndex->IpVersion4[label="IPV4"]
-GetPacketQueueIndex->IpVersion6[label="IPV6"]
-}
-
-@enddot
-
-@section De-Queueing
-@dot
-digraph transmit2 {
-node[shape=box]
-edge[weight=5;color=red]
-interrupt_service_thread->transmit_packets
-tx_pkt_hdler->transmit_packets
-transmit_packets->CheckAndSendPacketFromIndex
-transmit_packets->UpdateTokenCount
-CheckAndSendPacketFromIndex->PruneQueue
-CheckAndSendPacketFromIndex->IsPacketAllowedForFlow
-CheckAndSendPacketFromIndex->SendControlPacket[label="control pkt"]
-SendControlPacket->bcm_cmd53
-CheckAndSendPacketFromIndex->SendPacketFromQueue[label="data pkt"]
-SendPacketFromQueue->SetupNextSend->bcm_cmd53
-}
-@enddot
-*/
+ * @file Transmit.c
+ * @defgroup tx_functions Transmission
+ * @section Queueing
+ * @dot
+ * digraph transmit1 {
+ * node[shape=box]
+ * edge[weight=5;color=red]
+ *
+ * bcm_transmit->GetPacketQueueIndex[label="IP Packet"]
+ * GetPacketQueueIndex->IpVersion4[label="IPV4"]
+ * GetPacketQueueIndex->IpVersion6[label="IPV6"]
+ * }
+ *
+ * @enddot
+ *
+ * @section De-Queueing
+ * @dot
+ * digraph transmit2 {
+ * node[shape=box]
+ * edge[weight=5;color=red]
+ * interrupt_service_thread->transmit_packets
+ * tx_pkt_hdler->transmit_packets
+ * transmit_packets->CheckAndSendPacketFromIndex
+ * transmit_packets->UpdateTokenCount
+ * CheckAndSendPacketFromIndex->PruneQueue
+ * CheckAndSendPacketFromIndex->IsPacketAllowedForFlow
+ * CheckAndSendPacketFromIndex->SendControlPacket[label="control pkt"]
+ * SendControlPacket->bcm_cmd53
+ * CheckAndSendPacketFromIndex->SendPacketFromQueue[label="data pkt"]
+ * SendPacketFromQueue->SetupNextSend->bcm_cmd53
+ * }
+ * @enddot
+ */
 
 #include "headers.h"
 
 /**
-@ingroup ctrl_pkt_functions
-This function dispatches control packet to the h/w interface
-@return zero(success) or -ve value(failure)
-*/
+ * @ingroup ctrl_pkt_functions
+ * This function dispatches control packet to the h/w interface
+ * @return zero(success) or -ve value(failure)
+ */
 INT SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
 {
 	struct bcm_leader *PLeader = (struct bcm_leader *)pControlPacket;
@@ -76,11 +76,11 @@ INT SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
 }
 
 /**
-@ingroup tx_functions
-This function despatches the IP packets with the given vcid
-to the target via the host h/w interface.
-@return  zero(success) or -ve value(failure)
-*/
+ * @ingroup tx_functions
+ * This function despatches the IP packets with the given vcid
+ * to the target via the host h/w interface.
+ * @return  zero(success) or -ve value(failure)
+ */
 INT SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USHORT Vcid)
 {
 	int	status = 0;
@@ -174,9 +174,9 @@ static int tx_pending(struct bcm_mini_adapter *Adapter)
 }
 
 /**
-@ingroup tx_functions
-Transmit thread
-*/
+ * @ingroup tx_functions
+ * Transmit thread
+ */
 int tx_pkt_handler(struct bcm_mini_adapter *Adapter /**< pointer to adapter object*/)
 {
 	int status = 0;
@@ -201,7 +201,7 @@ int tx_pkt_handler(struct bcm_mini_adapter *Adapter /**< pointer to adapter obje
 			continue;
 		}
 
-		//Check end point for halt/stall.
+		/* Check end point for halt/stall. */
 		if (Adapter->bEndPointHalted == TRUE) {
 			Bcm_clear_halt_of_endpoints(Adapter);
 			Adapter->bEndPointHalted = FALSE;
