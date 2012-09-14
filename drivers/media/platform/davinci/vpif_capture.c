@@ -339,6 +339,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 * Set interrupt for both the fields in VPIF Register enable channel in
 	 * VPIF register
 	 */
+	channel_first_int[VPIF_VIDEO_INDEX][ch->channel_id] = 1;
 	if ((VPIF_CHANNEL0_VIDEO == ch->channel_id)) {
 		channel0_intr_assert();
 		channel0_intr_enable(1);
@@ -350,7 +351,6 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 		channel1_intr_enable(1);
 		enable_channel1(1);
 	}
-	channel_first_int[VPIF_VIDEO_INDEX][ch->channel_id] = 1;
 
 	return 0;
 }
