@@ -59,7 +59,6 @@ struct uprobe_consumer {
 #ifdef CONFIG_UPROBES
 enum uprobe_task_state {
 	UTASK_RUNNING,
-	UTASK_BP_HIT,
 	UTASK_SSTEP,
 	UTASK_SSTEP_ACK,
 	UTASK_SSTEP_TRAPPED,

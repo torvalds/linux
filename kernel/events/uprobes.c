@@ -1469,10 +1469,6 @@ static void handle_swbp(struct pt_regs *regs)
 	bp_vaddr = uprobe_get_swbp_addr(regs);
 	uprobe = find_active_uprobe(bp_vaddr, &is_swbp);
 
-	utask = current->utask;
-	if (utask)
-		utask->state = UTASK_RUNNING;
-
 	if (!uprobe) {
 		if (is_swbp > 0) {
 			/* No matching uprobe; signal SIGTRAP. */
@@ -1491,6 +1487,7 @@ static void handle_swbp(struct pt_regs *regs)
 		return;
 	}
 
+	utask = current->utask;
 	if (!utask) {
 		utask = add_utask();
 		/* Cannot allocate; re-execute the instruction. */
@@ -1547,13 +1544,12 @@ static void handle_singlestep(struct uprobe_task *utask, struct pt_regs *regs)
 }
 
 /*
- * On breakpoint hit, breakpoint notifier sets the TIF_UPROBE flag.  (and on
- * subsequent probe hits on the thread sets the state to UTASK_BP_HIT) and
- * allows the thread to return from interrupt.
+ * On breakpoint hit, breakpoint notifier sets the TIF_UPROBE flag and
+ * allows the thread to return from interrupt. After that handle_swbp()
+ * sets utask->active_uprobe.
  *
- * On singlestep exception, singlestep notifier sets the TIF_UPROBE flag and
- * also sets the state to UTASK_SSTEP_ACK and allows the thread to return from
- * interrupt.
+ * On singlestep exception, singlestep notifier sets the TIF_UPROBE flag
+ * and allows the thread to return from interrupt.
  *
  * While returning to userspace, thread notices the TIF_UPROBE flag and calls
  * uprobe_notify_resume().
@@ -1563,10 +1559,10 @@ void uprobe_notify_resume(struct pt_regs *regs)
 	struct uprobe_task *utask;
 
 	utask = current->utask;
-	if (!utask || utask->state == UTASK_BP_HIT)
-		handle_swbp(regs);
-	else
+	if (utask && utask->active_uprobe)
 		handle_singlestep(utask, regs);
+	else
+		handle_swbp(regs);
 }
 
 /*
@@ -1575,17 +1571,10 @@ void uprobe_notify_resume(struct pt_regs *regs)
  */
 int uprobe_pre_sstep_notifier(struct pt_regs *regs)
 {
-	struct uprobe_task *utask;
-
 	if (!current->mm || !test_bit(MMF_HAS_UPROBES, &current->mm->flags))
 		return 0;
 
-	utask = current->utask;
-	if (utask)
-		utask->state = UTASK_BP_HIT;
-
 	set_thread_flag(TIF_UPROBE);
-
 	return 1;
 }
 
