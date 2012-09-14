@@ -173,7 +173,7 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 			spin_unlock(&pdata->dyn_callback_lock);
 			return -EINVAL;
 		}
-	callback = kzalloc(sizeof(*callback), GFP_KERNEL);
+	callback = kzalloc(sizeof(*callback), GFP_ATOMIC);
 	if (!callback) {
 		spin_unlock(&pdata->dyn_callback_lock);
 		return -ENOMEM;
@@ -462,7 +462,7 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 		if (pdata->pending.status && pdata->pending.attr_usage_id ==
 				report->field[i]->usage->hid) {
 			hid_dbg(hdev, "data was pending ...\n");
-			pdata->pending.raw_data = kmalloc(sz, GFP_KERNEL);
+			pdata->pending.raw_data = kmalloc(sz, GFP_ATOMIC);
 			if (pdata->pending.raw_data) {
 				memcpy(pdata->pending.raw_data, ptr, sz);
 				pdata->pending.raw_size  = sz;
