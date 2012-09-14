@@ -1810,6 +1810,13 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 		return false;
 	if (!atombios_crtc_prepare_pll(crtc, adjusted_mode))
 		return false;
+	/* pick pll */
+	radeon_crtc->pll_id = radeon_atom_pick_pll(crtc);
+	/* if we can't get a PPLL for a non-DP encoder, fail */
+	if ((radeon_crtc->pll_id == ATOM_PPLL_INVALID) &&
+	    !ENCODER_MODE_IS_DP(atombios_get_encoder_mode(radeon_crtc->encoder)))
+		return false;
+
 	return true;
 }
 
@@ -1820,8 +1827,6 @@ static void atombios_crtc_prepare(struct drm_crtc *crtc)
 	struct radeon_device *rdev = dev->dev_private;
 
 	radeon_crtc->in_mode_set = true;
-	/* pick pll */
-	radeon_crtc->pll_id = radeon_atom_pick_pll(crtc);
 
 	/* disable crtc pair power gating before programming */
 	if (ASIC_IS_DCE6(rdev))
