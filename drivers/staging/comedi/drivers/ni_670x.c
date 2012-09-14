@@ -187,37 +187,36 @@ static int ni_670x_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
+/* FIXME: remove this when dynamic MITE allocation implemented. */
+static struct mite_struct *ni_670x_find_mite(struct pci_dev *pcidev)
 {
-	struct ni_670x_private *devpriv = dev->private;
 	struct mite_struct *mite;
-	int i;
 
 	for (mite = mite_devices; mite; mite = mite->next) {
 		if (mite->used)
 			continue;
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number
-			    || slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-
-		for (i = 0; i < ARRAY_SIZE(ni_670x_boards); i++) {
-			if (mite_device_id(mite) == ni_670x_boards[i].dev_id) {
-				dev->board_ptr = ni_670x_boards + i;
-				devpriv->mite = mite;
-
-				return 0;
-			}
-		}
+		if (mite->pcidev == pcidev)
+			return mite;
 	}
-	dev_warn(dev->class_dev, "no device found\n");
-	mite_list_devices();
-	return -EIO;
+	return NULL;
 }
 
-static int ni_670x_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static const struct ni_670x_board *
+ni_670x_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int dev_id = pcidev->device;
+	unsigned int n;
+
+	for (n = 0; n < ARRAY_SIZE(ni_670x_boards); n++) {
+		const struct ni_670x_board *board = &ni_670x_boards[n];
+		if (board->dev_id == dev_id)
+			return board;
+	}
+	return NULL;
+}
+
+static int __devinit ni_670x_attach_pci(struct comedi_device *dev,
+					struct pci_dev *pcidev)
 {
 	const struct ni_670x_board *thisboard;
 	struct ni_670x_private *devpriv;
@@ -229,10 +228,12 @@ static int ni_670x_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 	devpriv = dev->private;
-
-	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
+	dev->board_ptr = ni_670x_find_boardinfo(pcidev);
+	if (!dev->board_ptr)
+		return -ENODEV;
+	devpriv->mite = ni_670x_find_mite(pcidev);
+	if (!devpriv->mite)
+		return -ENODEV;
 	thisboard = comedi_board(dev);
 
 	ret = mite_setup(devpriv->mite);
@@ -311,7 +312,7 @@ static void ni_670x_detach(struct comedi_device *dev)
 static struct comedi_driver ni_670x_driver = {
 	.driver_name	= "ni_670x",
 	.module		= THIS_MODULE,
-	.attach		= ni_670x_attach,
+	.attach_pci	= ni_670x_attach_pci,
 	.detach		= ni_670x_detach,
 };
 
