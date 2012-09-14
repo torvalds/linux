@@ -609,6 +609,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int ret;
 	int modify_tree = -1;
 	int update_refs = (root->ref_cows || root == root->fs_info->tree_root);
+	int found = 0;
 
 	if (drop_cache)
 		btrfs_drop_extent_cache(inode, start, end - 1, 0);
@@ -674,6 +675,7 @@ next_slot:
 			goto next_slot;
 		}
 
+		found = 1;
 		search_start = max(key.offset, start);
 		if (recow || !modify_tree) {
 			modify_tree = -1;
@@ -829,7 +831,7 @@ next_slot:
 	}
 
 	if (drop_end)
-		*drop_end = min(end, extent_end);
+		*drop_end = found ? min(end, extent_end) : end;
 	btrfs_release_path(path);
 	return ret;
 }
