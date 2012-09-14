@@ -27,8 +27,6 @@
 #include <linux/serial_reg.h>
 #include <linux/uaccess.h>
 
-static bool debug;
-
 /* default urb timeout for usb operations */
 #define QT2_USB_TIMEOUT USB_CTRL_SET_TIMEOUT
 
@@ -1146,6 +1144,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
