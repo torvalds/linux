@@ -676,31 +676,6 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	if (amd_filter_mce(m))
 		return NOTIFY_STOP;
 
-	pr_emerg(HW_ERR "CPU:%d (%x:%x:%x) MC%d_STATUS[%s|%s|%s|%s|%s",
-		m->extcpu,
-		c->x86, c->x86_model, c->x86_mask,
-		m->bank,
-		((m->status & MCI_STATUS_OVER)	? "Over"  : "-"),
-		((m->status & MCI_STATUS_UC)	? "UE"	  : "CE"),
-		((m->status & MCI_STATUS_MISCV)	? "MiscV" : "-"),
-		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
-		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
-
-	if (c->x86 == 0x15)
-		pr_cont("|%s|%s",
-			((m->status & BIT_64(44)) ? "Deferred" : "-"),
-			((m->status & BIT_64(43)) ? "Poison"   : "-"));
-
-	/* do the two bits[14:13] together */
-	ecc = (m->status >> 45) & 0x3;
-	if (ecc)
-		pr_cont("|%sECC", ((ecc == 2) ? "C" : "U"));
-
-	pr_cont("]: 0x%016llx\n", m->status);
-
-	if (m->status & MCI_STATUS_ADDRV)
-		pr_emerg(HW_ERR "MC%d_ADDR: 0x%016llx\n", m->bank, m->addr);
-
 	switch (m->bank) {
 	case 0:
 		decode_mc0_mce(m);
@@ -736,6 +711,31 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	default:
 		break;
 	}
+
+	pr_emerg(HW_ERR "CPU:%d (%x:%x:%x) MC%d_STATUS[%s|%s|%s|%s|%s",
+		m->extcpu,
+		c->x86, c->x86_model, c->x86_mask,
+		m->bank,
+		((m->status & MCI_STATUS_OVER)	? "Over"  : "-"),
+		((m->status & MCI_STATUS_UC)	? "UE"	  : "CE"),
+		((m->status & MCI_STATUS_MISCV)	? "MiscV" : "-"),
+		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
+		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
+
+	if (c->x86 == 0x15)
+		pr_cont("|%s|%s",
+			((m->status & BIT_64(44)) ? "Deferred" : "-"),
+			((m->status & BIT_64(43)) ? "Poison"   : "-"));
+
+	/* do the two bits[14:13] together */
+	ecc = (m->status >> 45) & 0x3;
+	if (ecc)
+		pr_cont("|%sECC", ((ecc == 2) ? "C" : "U"));
+
+	pr_cont("]: 0x%016llx\n", m->status);
+
+	if (m->status & MCI_STATUS_ADDRV)
+		pr_emerg(HW_ERR "MC%d_ADDR: 0x%016llx\n", m->bank, m->addr);
 
 	amd_decode_err_code(m->status & 0xffff);
 
