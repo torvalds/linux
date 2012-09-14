@@ -149,6 +149,24 @@ static int omap_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int omap_pcm_get_dma_type(int num_bits)
+{
+	int data_type;
+
+	switch (num_bits) {
+	case 16:
+		data_type = OMAP_DMA_DATA_TYPE_S16;
+		break;
+	case 32:
+		data_type = OMAP_DMA_DATA_TYPE_S32;
+		break;
+	default:
+		data_type = -EINVAL;
+		break;
+	}
+	return data_type;
+}
+
 static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -163,7 +181,16 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 		return 0;
 
 	memset(&dma_params, 0, sizeof(dma_params));
-	dma_params.data_type			= dma_data->data_type;
+
+	if (dma_data->data_type)
+		dma_params.data_type = dma_data->data_type;
+	else
+		dma_params.data_type = omap_pcm_get_dma_type(
+				snd_pcm_format_physical_width(runtime->format));
+
+	if (dma_params.data_type < 0)
+		return dma_params.data_type;
+
 	dma_params.trigger			= dma_data->dma_req;
 
 	if (dma_data->packet_size)
@@ -195,7 +222,7 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	 * still can get an interrupt at each period bounary
 	 */
 	bytes = snd_pcm_lib_period_bytes(substream);
-	dma_params.elem_count	= bytes >> dma_data->data_type;
+	dma_params.elem_count	= bytes >> dma_params.data_type;
 	dma_params.frame_count	= runtime->periods;
 	omap_set_dma_params(prtd->dma_ch, &dma_params);
 
