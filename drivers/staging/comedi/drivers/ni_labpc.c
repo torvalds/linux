@@ -240,9 +240,6 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd);
 #ifdef CONFIG_ISA_DMA_API
 static unsigned int labpc_suggest_transfer_size(struct comedi_cmd cmd);
 #endif
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-static int labpc_find_device(struct comedi_device *dev, int bus, int slot);
-#endif
 static int labpc_dio_mem_callback(int dir, int port, int data,
 				  unsigned long arg);
 static void labpc_serial_out(struct comedi_device *dev, unsigned int value,
@@ -684,14 +681,66 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 }
 EXPORT_SYMBOL_GPL(labpc_common_attach);
 
+static const struct labpc_board_struct *
+labpc_pci_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int device_id = pcidev->device;
+	unsigned int n;
+
+	for (n = 0; n < ARRAY_SIZE(labpc_boards); n++) {
+		const struct labpc_board_struct *board = &labpc_boards[n];
+		if (board->bustype == pci_bustype &&
+		    board->device_id == device_id)
+			return board;
+	}
+	return NULL;
+}
+
+/* FIXME: remove this when dynamic MITE allocation implemented. */
+static struct mite_struct *labpc_pci_find_mite(struct pci_dev *pcidev)
+{
+	struct mite_struct *mite;
+
+	for (mite = mite_devices; mite; mite = mite->next) {
+		if (mite->used)
+			continue;
+		if (mite->pcidev == pcidev)
+			return mite;
+	}
+	return NULL;
+}
+
+static int __devinit labpc_attach_pci(struct comedi_device *dev,
+				      struct pci_dev *pcidev)
+{
+	unsigned long iobase;
+	unsigned int irq;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS))
+		return -ENODEV;
+	ret = alloc_private(dev, sizeof(struct labpc_private));
+	if (ret < 0)
+		return ret;
+	dev->board_ptr = labpc_pci_find_boardinfo(pcidev);
+	if (!dev->board_ptr)
+		return -ENODEV;
+	devpriv->mite = labpc_pci_find_mite(pcidev);
+	if (!devpriv->mite)
+		return -ENODEV;
+	ret = mite_setup(devpriv->mite);
+	if (ret < 0)
+		return ret;
+	iobase = (unsigned long)devpriv->mite->daq_io_addr;
+	irq = mite_irq(devpriv->mite);
+	return labpc_common_attach(dev, iobase, irq, 0);
+}
+
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	unsigned int dma_chan = 0;
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-	int retval;
-#endif
 
 	/* allocate and initialize dev->private */
 	if (alloc_private(dev, sizeof(struct labpc_private)) < 0)
@@ -712,14 +761,10 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	case pci_bustype:
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
-		retval = labpc_find_device(dev, it->options[0], it->options[1]);
-		if (retval < 0)
-			return retval;
-		retval = mite_setup(devpriv->mite);
-		if (retval < 0)
-			return retval;
-		iobase = (unsigned long)devpriv->mite->daq_io_addr;
-		irq = mite_irq(devpriv->mite);
+		dev_err(dev->class_dev,
+			"manual configuration of PCI board '%s' is not supported\n",
+			thisboard->name);
+		return -EINVAL;
 #else
 		dev_err(dev->class_dev,
 			"ni_labpc driver has not been built with PCI support.\n");
@@ -735,38 +780,6 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	return labpc_common_attach(dev, iobase, irq, dma_chan);
 }
-
-/* adapted from ni_pcimio for finding mite based boards (pc-1200) */
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
-{
-	struct mite_struct *mite;
-	int i;
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-/* if bus/slot are specified then make sure we have the right bus/slot */
-		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number
-			    || slot != PCI_SLOT(mite->pcidev->devfn))
-				continue;
-		}
-		for (i = 0; i < ARRAY_SIZE(labpc_boards); i++) {
-			if (labpc_boards[i].bustype != pci_bustype)
-				continue;
-			if (mite_device_id(mite) == labpc_boards[i].device_id) {
-				devpriv->mite = mite;
-/* fixup board pointer, in case we were using the dummy "ni_labpc" entry */
-				dev->board_ptr = &labpc_boards[i];
-				return 0;
-			}
-		}
-	}
-	dev_err(dev->class_dev, "no device found\n");
-	mite_list_devices();
-	return -EIO;
-}
-#endif
 
 void labpc_common_detach(struct comedi_device *dev)
 {
@@ -2105,6 +2118,7 @@ static struct comedi_driver labpc_driver = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = labpc_attach,
+	.attach_pci = labpc_attach_pci,
 	.detach = labpc_common_detach,
 	.num_names = ARRAY_SIZE(labpc_boards),
 	.board_name = &labpc_boards[0].name,
