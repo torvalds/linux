@@ -898,7 +898,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 
 	strcpy(cap->driver, "vivi");
 	strcpy(cap->card, "vivi");
-	strlcpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
+	snprintf(cap->bus_info, sizeof(cap->bus_info),
+			"platform:%s", dev->v4l2_dev.name);
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 			    V4L2_CAP_READWRITE;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
