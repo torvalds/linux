@@ -32,8 +32,8 @@
 #define MAX_IMG_CNT		16
 #define FW_DIR			"gdm72xx/"
 #define FW_UIMG			"gdmuimg.bin"
-#define KERN_PATH		"/lib/firmware/gdm72xx/zImage"
-#define FS_PATH			"/lib/firmware/gdm72xx/ramdisk.jffs2"
+#define FW_KERN			"zImage"
+#define FW_FS			"ramdisk.jffs2"
 
 struct dn_header {
 	u32	magic_num;
@@ -276,38 +276,27 @@ out:
 	return ret;
 }
 
-static int em_download_image(struct usb_device *usbdev, char *path,
+static int em_download_image(struct usb_device *usbdev, const char *img_name,
 				char *type_string)
 {
-	struct file *filp;
-	struct inode *inode;
-	static mm_segment_t fs;
 	char *buf = NULL;
 	loff_t pos = 0;
 	int ret = 0;
-	int len, readn = 0;
+	int len;
+	int img_len;
+	const struct firmware *firm;
 	#if defined(GDM7205_PADDING)
 	const int pad_size = GDM7205_PADDING;
 	#else
 	const int pad_size = 0;
 	#endif
 
-	fs = get_fs();
-	set_fs(get_ds());
-
-	filp = filp_open(path, O_RDONLY | O_LARGEFILE, 0);
-	if (IS_ERR(filp)) {
-		printk(KERN_ERR "Can't find %s.\n", path);
-		set_fs(fs);
-		ret = -ENOENT;
-		goto restore_fs;
-	}
-
-	inode = filp->f_dentry->d_inode;
-	if (!S_ISREG(inode->i_mode)) {
-		printk(KERN_ERR "Invalid file type: %s\n", path);
-		ret = -EINVAL;
-		goto out;
+	ret = request_firmware(&firm, img_name, &usbdev->dev);
+	if (ret < 0) {
+		printk(KERN_ERR
+		       "requesting firmware %s failed with error %d\n",
+			img_name, ret);
+		return ret;
 	}
 
 	buf = kmalloc(DOWNLOAD_CHUCK + pad_size, GFP_KERNEL);
@@ -321,17 +310,27 @@ static int em_download_image(struct usb_device *usbdev, char *path,
 	if (ret < 0)
 		goto out;
 
-	while ((len = filp->f_op->read(filp, buf+pad_size, DOWNLOAD_CHUCK,
-					&pos))) {
-		if (len < 0) {
-			ret = -1;
-			goto out;
-		}
-		readn += len;
+	img_len = firm->size;
 
+	if (img_len <= 0) {
+		ret = -1;
+		goto out;
+	}
+
+	while (img_len > 0) {
+		if (img_len > DOWNLOAD_CHUCK)
+			len = DOWNLOAD_CHUCK;
+		else
+			len = img_len; /* the last chunk of data */
+
+		memcpy(buf+pad_size, firm->data + pos, len);
 		ret = gdm_wibro_send(usbdev, buf, len+pad_size);
+
 		if (ret < 0)
 			goto out;
+
+		img_len -= DOWNLOAD_CHUCK;
+		pos += DOWNLOAD_CHUCK;
 
 		ret = em_wait_ack(usbdev, ((len+pad_size) % 512 == 0));
 		if (ret < 0)
@@ -343,11 +342,7 @@ static int em_download_image(struct usb_device *usbdev, char *path,
 		goto out;
 
 out:
-	filp_close(filp, NULL);
-
-restore_fs:
-	set_fs(fs);
-
+	release_firmware(firm);
 	kfree(buf);
 
 	return ret;
@@ -365,18 +360,20 @@ static int em_fw_reset(struct usb_device *usbdev)
 int usb_emergency(struct usb_device *usbdev)
 {
 	int ret;
+	const char *kern_name = FW_DIR FW_KERN;
+	const char *fs_name = FW_DIR FW_FS;
 
-	ret = em_download_image(usbdev, KERN_PATH, KERNEL_TYPE_STRING);
+	ret = em_download_image(usbdev, kern_name, KERNEL_TYPE_STRING);
 	if (ret < 0)
-		goto out;
+		return ret;
 	printk(KERN_INFO "GCT Emergency: Kernel download success.\n");
 
-	ret = em_download_image(usbdev, FS_PATH, FS_TYPE_STRING);
+	ret = em_download_image(usbdev, fs_name, FS_TYPE_STRING);
 	if (ret < 0)
-		goto out;
+		return ret;
 	printk(KERN_INFO "GCT Emergency: Filesystem download success.\n");
 
 	ret = em_fw_reset(usbdev);
-out:
+
 	return ret;
 }
