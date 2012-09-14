@@ -609,7 +609,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	SET_VALID_IOCTL(ops, VIDIOC_S_FBUF, vidioc_s_fbuf);
 	SET_VALID_IOCTL(ops, VIDIOC_STREAMON, vidioc_streamon);
 	SET_VALID_IOCTL(ops, VIDIOC_STREAMOFF, vidioc_streamoff);
-	if (vdev->tvnorms)
+	if (ops->vidioc_s_std)
 		set_bit(_IOC_NR(VIDIOC_ENUMSTD), valid_ioctls);
 	if (ops->vidioc_g_std || vdev->current_norm)
 		set_bit(_IOC_NR(VIDIOC_G_STD), valid_ioctls);
@@ -663,7 +663,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	SET_VALID_IOCTL(ops, VIDIOC_DECODER_CMD, vidioc_decoder_cmd);
 	SET_VALID_IOCTL(ops, VIDIOC_TRY_DECODER_CMD, vidioc_try_decoder_cmd);
 	if (ops->vidioc_g_parm || (vdev->vfl_type == VFL_TYPE_GRABBER &&
-					(ops->vidioc_g_std || vdev->tvnorms)))
+					(ops->vidioc_g_std || vdev->current_norm)))
 		set_bit(_IOC_NR(VIDIOC_G_PARM), valid_ioctls);
 	SET_VALID_IOCTL(ops, VIDIOC_S_PARM, vidioc_s_parm);
 	SET_VALID_IOCTL(ops, VIDIOC_G_TUNER, vidioc_g_tuner);
