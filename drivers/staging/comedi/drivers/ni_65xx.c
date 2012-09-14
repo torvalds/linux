@@ -109,18 +109,7 @@ static inline unsigned Filter_Enable(unsigned port)
 #define OverflowIntEnable		0x02
 #define EdgeIntEnable			0x01
 
-static int ni_65xx_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static void ni_65xx_detach(struct comedi_device *dev);
-static struct comedi_driver ni_65xx_driver = {
-	.driver_name = "ni_65xx",
-	.module = THIS_MODULE,
-	.attach = ni_65xx_attach,
-	.detach = ni_65xx_detach,
-};
-
 struct ni_65xx_board {
-
 	int dev_id;
 	const char *name;
 	unsigned num_dio_ports;
@@ -821,6 +810,13 @@ static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)
 	mite_list_devices();
 	return -EIO;
 }
+
+static struct comedi_driver ni_65xx_driver = {
+	.driver_name = "ni_65xx",
+	.module = THIS_MODULE,
+	.attach = ni_65xx_attach,
+	.detach = ni_65xx_detach,
+};
 
 static int __devinit ni_65xx_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *ent)
