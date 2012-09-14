@@ -2018,6 +2018,9 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 
 	ath_dbg(common, XMIT, "TX complete: skb: %p\n", skb);
 
+	if (sc->sc_ah->caldata)
+		sc->sc_ah->caldata->paprd_packet_sent = true;
+
 	if (!(tx_flags & ATH_TX_ERROR))
 		/* Frame was ACKed */
 		tx_info->flags |= IEEE80211_TX_STAT_ACK;
