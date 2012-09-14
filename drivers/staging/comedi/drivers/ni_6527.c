@@ -78,16 +78,6 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define Rising_Edge_Detection_Enable(x)		(0x018+(x))
 #define Falling_Edge_Detection_Enable(x)	(0x020+(x))
 
-static int ni6527_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static void ni6527_detach(struct comedi_device *dev);
-static struct comedi_driver ni6527_driver = {
-	.driver_name = DRIVER_NAME,
-	.module = THIS_MODULE,
-	.attach = ni6527_attach,
-	.detach = ni6527_detach,
-};
-
 struct ni6527_board {
 
 	int dev_id;
@@ -477,6 +467,13 @@ static int ni6527_find_device(struct comedi_device *dev, int bus, int slot)
 	mite_list_devices();
 	return -EIO;
 }
+
+static struct comedi_driver ni6527_driver = {
+	.driver_name = DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = ni6527_attach,
+	.detach = ni6527_detach,
+};
 
 static int __devinit ni6527_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *ent)
