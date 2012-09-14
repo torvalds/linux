@@ -629,20 +629,6 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 	return 2;
 }
 
-/* FIXME: remove this when dynamic MITE allocation implemented. */
-static struct mite_struct *ni_65xx_find_mite(struct pci_dev *pcidev)
-{
-	struct mite_struct *mite;
-
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
-		if (mite->pcidev == pcidev)
-			return mite;
-	}
-	return NULL;
-}
-
 static const struct ni_65xx_board *
 ni_65xx_find_boardinfo(struct pci_dev *pcidev)
 {
@@ -672,9 +658,9 @@ static int __devinit ni_65xx_attach_pci(struct comedi_device *dev,
 	if (!dev->board_ptr)
 		return -ENODEV;
 
-	private(dev)->mite = ni_65xx_find_mite(pcidev);
+	private(dev)->mite = mite_alloc(pcidev);
 	if (!private(dev)->mite)
-		return -ENODEV;
+		return -ENOMEM;
 
 	ret = mite_setup(private(dev)->mite);
 	if (ret < 0) {
@@ -810,8 +796,10 @@ static void ni_65xx_detach(struct comedi_device *dev)
 			kfree(s->private);
 			s->private = NULL;
 		}
-		if (private(dev)->mite)
+		if (private(dev)->mite) {
 			mite_unsetup(private(dev)->mite);
+			mite_free(private(dev)->mite);
+		}
 	}
 }
 
