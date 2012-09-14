@@ -214,9 +214,6 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	struct sensor_hub_data *data =  hid_get_drvdata(hsdev->hdev);
 	int ret = 0;
 
-	if (report_id < 0)
-		return -EINVAL;
-
 	mutex_lock(&data->mutex);
 	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
 	if (!report || (field_index >=  report->maxfield)) {
@@ -240,9 +237,6 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	struct hid_report *report;
 	struct sensor_hub_data *data =  hid_get_drvdata(hsdev->hdev);
 	int ret = 0;
-
-	if (report_id < 0)
-		return -EINVAL;
 
 	mutex_lock(&data->mutex);
 	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
@@ -270,9 +264,6 @@ int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 	unsigned long flags;
 	struct hid_report *report;
 	int ret_val = 0;
-
-	if (report_id < 0)
-		return -EINVAL;
 
 	mutex_lock(&data->mutex);
 	memset(&data->pending, 0, sizeof(data->pending));
