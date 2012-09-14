@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-tegra/usb_phy.c
- *
  * Copyright (C) 2010 Google, Inc.
  *
  * Author:
@@ -31,7 +29,7 @@
 #include <linux/usb/ulpi.h>
 #include <asm/mach-types.h>
 #include <mach/gpio-tegra.h>
-#include <mach/usb_phy.h>
+#include <linux/usb/tegra_usb_phy.h>
 #include <mach/iomap.h>
 
 #define ULPI_VIEWPORT		0x170
@@ -482,7 +480,7 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 	return 0;
 }
 
-static void utmi_phy_power_off(struct tegra_usb_phy *phy)
+static int utmi_phy_power_off(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
@@ -514,7 +512,7 @@ static void utmi_phy_power_off(struct tegra_usb_phy *phy)
 	       UTMIP_FORCE_PDDR_POWERDOWN;
 	writel(val, base + UTMIP_XCVR_CFG1);
 
-	utmip_pad_power_off(phy);
+	return utmip_pad_power_off(phy);
 }
 
 static void utmi_phy_preresume(struct tegra_usb_phy *phy)
@@ -638,7 +636,7 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	return 0;
 }
 
-static void ulpi_phy_power_off(struct tegra_usb_phy *phy)
+static int ulpi_phy_power_off(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
@@ -651,15 +649,92 @@ static void ulpi_phy_power_off(struct tegra_usb_phy *phy)
 	val &= ~(USB_PORTSC1_WKOC | USB_PORTSC1_WKDS | USB_PORTSC1_WKCN);
 	writel(val, base + USB_PORTSC1);
 
-	gpio_direction_output(config->reset_gpio, 0);
 	clk_disable(phy->clk);
+	return gpio_direction_output(config->reset_gpio, 0);
+}
+
+static int	tegra_phy_init(struct usb_phy *x)
+{
+	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
+	struct tegra_ulpi_config *ulpi_config;
+	int err;
+
+	if (phy_is_ulpi(phy)) {
+		ulpi_config = phy->config;
+		phy->clk = clk_get_sys(NULL, ulpi_config->clk);
+		if (IS_ERR(phy->clk)) {
+			pr_err("%s: can't get ulpi clock\n", __func__);
+			err = -ENXIO;
+			goto err1;
+		}
+		if (!gpio_is_valid(ulpi_config->reset_gpio))
+			ulpi_config->reset_gpio =
+				of_get_named_gpio(phy->dev->of_node,
+						  "nvidia,phy-reset-gpio", 0);
+		if (!gpio_is_valid(ulpi_config->reset_gpio)) {
+			pr_err("%s: invalid reset gpio: %d\n", __func__,
+			       ulpi_config->reset_gpio);
+			err = -EINVAL;
+			goto err1;
+		}
+		gpio_request(ulpi_config->reset_gpio, "ulpi_phy_reset_b");
+		gpio_direction_output(ulpi_config->reset_gpio, 0);
+		phy->ulpi = otg_ulpi_create(&ulpi_viewport_access_ops, 0);
+		phy->ulpi->io_priv = phy->regs + ULPI_VIEWPORT;
+	} else {
+		err = utmip_pad_open(phy);
+		if (err < 0)
+			goto err1;
+	}
+	return 0;
+err1:
+	clk_disable_unprepare(phy->pll_u);
+	clk_put(phy->pll_u);
+	return err;
+}
+
+static void tegra_usb_phy_close(struct usb_phy *x)
+{
+	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
+
+	if (phy_is_ulpi(phy))
+		clk_put(phy->clk);
+	else
+		utmip_pad_close(phy);
+	clk_disable_unprepare(phy->pll_u);
+	clk_put(phy->pll_u);
+	kfree(phy);
+}
+
+static int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
+{
+	if (phy_is_ulpi(phy))
+		return ulpi_phy_power_on(phy);
+	else
+		return utmi_phy_power_on(phy);
+}
+
+static int tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
+{
+	if (phy_is_ulpi(phy))
+		return ulpi_phy_power_off(phy);
+	else
+		return utmi_phy_power_off(phy);
+}
+
+static int	tegra_usb_phy_suspend(struct usb_phy *x, int suspend)
+{
+	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
+	if (suspend)
+		return tegra_usb_phy_power_off(phy);
+	else
+		return tegra_usb_phy_power_on(phy);
 }
 
 struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 	void __iomem *regs, void *config, enum tegra_usb_phy_mode phy_mode)
 {
 	struct tegra_usb_phy *phy;
-	struct tegra_ulpi_config *ulpi_config;
 	unsigned long parent_rate;
 	int i;
 	int err;
@@ -672,6 +747,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 	phy->regs = regs;
 	phy->config = config;
 	phy->mode = phy_mode;
+	phy->dev = dev;
 
 	if (!phy->config) {
 		if (phy_is_ulpi(phy)) {
@@ -704,33 +780,9 @@ struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 		goto err1;
 	}
 
-	if (phy_is_ulpi(phy)) {
-		ulpi_config = config;
-		phy->clk = clk_get_sys(NULL, ulpi_config->clk);
-		if (IS_ERR(phy->clk)) {
-			pr_err("%s: can't get ulpi clock\n", __func__);
-			err = -ENXIO;
-			goto err1;
-		}
-		if (!gpio_is_valid(ulpi_config->reset_gpio))
-			ulpi_config->reset_gpio =
-				of_get_named_gpio(dev->of_node,
-						  "nvidia,phy-reset-gpio", 0);
-		if (!gpio_is_valid(ulpi_config->reset_gpio)) {
-			pr_err("%s: invalid reset gpio: %d\n", __func__,
-			       ulpi_config->reset_gpio);
-			err = -EINVAL;
-			goto err1;
-		}
-		gpio_request(ulpi_config->reset_gpio, "ulpi_phy_reset_b");
-		gpio_direction_output(ulpi_config->reset_gpio, 0);
-		phy->ulpi = otg_ulpi_create(&ulpi_viewport_access_ops, 0);
-		phy->ulpi->io_priv = regs + ULPI_VIEWPORT;
-	} else {
-		err = utmip_pad_open(phy);
-		if (err < 0)
-			goto err1;
-	}
+	phy->u_phy.init = tegra_phy_init;
+	phy->u_phy.shutdown = tegra_usb_phy_close;
+	phy->u_phy.set_suspend = tegra_usb_phy_suspend;
 
 	return phy;
 
@@ -742,24 +794,6 @@ err0:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(tegra_usb_phy_open);
-
-int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
-{
-	if (phy_is_ulpi(phy))
-		return ulpi_phy_power_on(phy);
-	else
-		return utmi_phy_power_on(phy);
-}
-EXPORT_SYMBOL_GPL(tegra_usb_phy_power_on);
-
-void tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
-{
-	if (phy_is_ulpi(phy))
-		ulpi_phy_power_off(phy);
-	else
-		utmi_phy_power_off(phy);
-}
-EXPORT_SYMBOL_GPL(tegra_usb_phy_power_off);
 
 void tegra_usb_phy_preresume(struct tegra_usb_phy *phy)
 {
@@ -803,15 +837,3 @@ void tegra_usb_phy_clk_enable(struct tegra_usb_phy *phy)
 		utmi_phy_clk_enable(phy);
 }
 EXPORT_SYMBOL_GPL(tegra_usb_phy_clk_enable);
-
-void tegra_usb_phy_close(struct tegra_usb_phy *phy)
-{
-	if (phy_is_ulpi(phy))
-		clk_put(phy->clk);
-	else
-		utmip_pad_close(phy);
-	clk_disable_unprepare(phy->pll_u);
-	clk_put(phy->pll_u);
-	kfree(phy);
-}
-EXPORT_SYMBOL_GPL(tegra_usb_phy_close);

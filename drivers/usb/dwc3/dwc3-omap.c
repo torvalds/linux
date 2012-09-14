@@ -48,6 +48,9 @@
 #include <linux/io.h>
 #include <linux/of.h>
 
+#include <linux/usb/otg.h>
+#include <linux/usb/nop-usb-xceiv.h>
+
 #include "core.h"
 
 /*
@@ -131,6 +134,8 @@ struct dwc3_omap {
 	spinlock_t		lock;
 
 	struct platform_device	*dwc3;
+	struct platform_device	*usb2_phy;
+	struct platform_device	*usb3_phy;
 	struct device		*dev;
 
 	int			irq;
@@ -152,6 +157,59 @@ static inline void dwc3_omap_writel(void __iomem *base, u32 offset, u32 value)
 	writel(value, base + offset);
 }
 
+static int __devinit dwc3_omap_register_phys(struct dwc3_omap *omap)
+{
+	struct nop_usb_xceiv_platform_data pdata;
+	struct platform_device	*pdev;
+	int			ret;
+
+	memset(&pdata, 0x00, sizeof(pdata));
+
+	pdev = platform_device_alloc("nop_usb_xceiv", 0);
+	if (!pdev)
+		return -ENOMEM;
+
+	omap->usb2_phy = pdev;
+	pdata.type = USB_PHY_TYPE_USB2;
+
+	ret = platform_device_add_data(omap->usb2_phy, &pdata, sizeof(pdata));
+	if (ret)
+		goto err1;
+
+	pdev = platform_device_alloc("nop_usb_xceiv", 1);
+	if (!pdev) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	omap->usb3_phy = pdev;
+	pdata.type = USB_PHY_TYPE_USB3;
+
+	ret = platform_device_add_data(omap->usb3_phy, &pdata, sizeof(pdata));
+	if (ret)
+		goto err2;
+
+	ret = platform_device_add(omap->usb2_phy);
+	if (ret)
+		goto err2;
+
+	ret = platform_device_add(omap->usb3_phy);
+	if (ret)
+		goto err3;
+
+	return 0;
+
+err3:
+	platform_device_del(omap->usb2_phy);
+
+err2:
+	platform_device_put(omap->usb3_phy);
+
+err1:
+	platform_device_put(omap->usb2_phy);
+
+	return ret;
+}
 
 static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 {
@@ -249,6 +307,12 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	if (!base) {
 		dev_err(dev, "ioremap failed\n");
 		return -ENOMEM;
+	}
+
+	ret = dwc3_omap_register_phys(omap);
+	if (ret) {
+		dev_err(dev, "couldn't register PHYs\n");
+		return ret;
 	}
 
 	devid = dwc3_get_device_id();
@@ -371,6 +435,8 @@ static int __devexit dwc3_omap_remove(struct platform_device *pdev)
 	struct dwc3_omap	*omap = platform_get_drvdata(pdev);
 
 	platform_device_unregister(omap->dwc3);
+	platform_device_unregister(omap->usb2_phy);
+	platform_device_unregister(omap->usb3_phy);
 
 	dwc3_put_device_id(omap->dwc3->id);
 

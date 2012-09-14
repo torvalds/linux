@@ -22,7 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/tegra_usb.h>
 
-#include <mach/usb_phy.h>
+#include <linux/usb/tegra_usb_phy.h>
 
 extern struct tegra_ulpi_config tegra_ehci2_ulpi_phy_config;
 
