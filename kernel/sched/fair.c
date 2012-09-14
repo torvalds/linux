@@ -3570,10 +3570,16 @@ unlock:
 	rcu_read_unlock();
 
 #ifdef CONFIG_SCHED_HMP
-	if (hmp_up_migration(prev_cpu, &p->se))
-		return hmp_select_faster_cpu(p, prev_cpu);
-	if (hmp_down_migration(prev_cpu, &p->se))
-		return hmp_select_slower_cpu(p, prev_cpu);
+	if (hmp_up_migration(prev_cpu, &p->se)) {
+		new_cpu = hmp_select_faster_cpu(p, prev_cpu);
+		trace_sched_hmp_migrate(p, new_cpu, 0);
+		return new_cpu;
+	}
+	if (hmp_down_migration(prev_cpu, &p->se)) {
+		new_cpu = hmp_select_slower_cpu(p, prev_cpu);
+		trace_sched_hmp_migrate(p, new_cpu, 0);
+		return new_cpu;
+	}
 	/* Make sure that the task stays in its previous hmp domain */
 	if (!cpumask_test_cpu(new_cpu, &hmp_cpu_domain(prev_cpu)->cpus))
 		return prev_cpu;
@@ -6074,6 +6080,7 @@ static void hmp_force_up_migration(int this_cpu)
 				target->push_cpu = hmp_select_faster_cpu(p, cpu);
 				target->migrate_task = p;
 				force = 1;
+				trace_sched_hmp_migrate(p, target->push_cpu, 1);
 			}
 		}
 		raw_spin_unlock_irqrestore(&target->lock, flags);
