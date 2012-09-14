@@ -33,8 +33,6 @@
 #define DRIVER_VERSION	"v0.10"
 #define DRIVER_DESC 	"SPCP8x5 USB to serial adaptor driver"
 
-static bool debug;
-
 #define SPCP8x5_007_VID		0x04FC
 #define SPCP8x5_007_PID		0x0201
 #define SPCP8x5_008_VID		0x04fc
@@ -665,6 +663,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
