@@ -348,7 +348,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_hw_freq_seek(struct file *file, void *priv,
-		struct v4l2_hw_freq_seek *seek)
+		const struct v4l2_hw_freq_seek *seek)
 {
 	static u8 buf[8] = {
 		0x3d, 0x32, 0x0f, 0x08, 0x3d, 0x32, 0x0f, 0x08

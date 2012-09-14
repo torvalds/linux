@@ -385,59 +385,61 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
-					struct v4l2_hw_freq_seek *a)
+					const struct v4l2_hw_freq_seek *a)
 {
 	struct radio_tea5777 *tea = video_drvdata(file);
 	unsigned long timeout;
+	u32 rangelow = a->rangelow;
+	u32 rangehigh = a->rangehigh;
 	int i, res, spacing;
 	u32 orig_freq;
 
 	if (a->tuner || a->wrap_around)
 		return -EINVAL;
 
-	if (a->rangelow || a->rangehigh) {
+	if (rangelow || rangehigh) {
 		for (i = 0; i < ARRAY_SIZE(bands); i++) {
 			if (i == BAND_AM && !tea->has_am)
 				continue;
-			if (bands[i].rangelow  >= a->rangelow &&
-			    bands[i].rangehigh <= a->rangehigh)
+			if (bands[i].rangelow  >= rangelow &&
+			    bands[i].rangehigh <= rangehigh)
 				break;
 		}
 		if (i == ARRAY_SIZE(bands))
 			return -EINVAL; /* No matching band found */
 
 		tea->band = i;
-		if (tea->freq < a->rangelow || tea->freq > a->rangehigh) {
-			tea->freq = clamp(tea->freq, a->rangelow,
-						     a->rangehigh);
+		if (tea->freq < rangelow || tea->freq > rangehigh) {
+			tea->freq = clamp(tea->freq, rangelow,
+						     rangehigh);
 			res = radio_tea5777_set_freq(tea);
 			if (res)
 				return res;
 		}
 	} else {
-		a->rangelow  = bands[tea->band].rangelow;
-		a->rangehigh = bands[tea->band].rangehigh;
+		rangelow  = bands[tea->band].rangelow;
+		rangehigh = bands[tea->band].rangehigh;
 	}
 
 	spacing   = (tea->band == BAND_AM) ? (5 * 16) : (200 * 16); /* kHz */
 	orig_freq = tea->freq;
 
 	tea->write_reg |= TEA5777_W_PROGBLIM_MASK;
-	if (tea->seek_rangelow != a->rangelow) {
+	if (tea->seek_rangelow != rangelow) {
 		tea->write_reg &= ~TEA5777_W_UPDWN_MASK;
-		tea->freq = a->rangelow;
+		tea->freq = rangelow;
 		res = radio_tea5777_set_freq(tea);
 		if (res)
 			goto leave;
-		tea->seek_rangelow = a->rangelow;
+		tea->seek_rangelow = rangelow;
 	}
-	if (tea->seek_rangehigh != a->rangehigh) {
+	if (tea->seek_rangehigh != rangehigh) {
 		tea->write_reg |= TEA5777_W_UPDWN_MASK;
-		tea->freq = a->rangehigh;
+		tea->freq = rangehigh;
 		res = radio_tea5777_set_freq(tea);
 		if (res)
 			goto leave;
-		tea->seek_rangehigh = a->rangehigh;
+		tea->seek_rangehigh = rangehigh;
 	}
 	tea->write_reg &= ~TEA5777_W_PROGBLIM_MASK;
 
