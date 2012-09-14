@@ -80,6 +80,13 @@ struct mite_struct {
 
 extern struct mite_struct *mite_devices;
 
+struct mite_struct *mite_alloc(struct pci_dev *pcidev);
+
+static inline void mite_free(struct mite_struct *mite)
+{
+	kfree(mite);
+}
+
 static inline unsigned int mite_irq(struct mite_struct *mite)
 {
 	return mite->pcidev->irq;
