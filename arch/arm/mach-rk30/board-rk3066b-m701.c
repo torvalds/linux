@@ -1572,6 +1572,10 @@ static void __init machine_rk30_board_init(void)
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	rk29sdk_wifi_bt_gpio_control_init();
 #endif
+
+	// spk and ear switch
+	gpio_request(RK30_PIN2_PB1, NULL);
+        gpio_direction_output(RK30_PIN2_PB1, GPIO_HIGH);
 }
 
 static void __init rk30_reserve(void)
