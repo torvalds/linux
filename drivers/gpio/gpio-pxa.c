@@ -413,12 +413,10 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 			gedr = gedr & c->irq_mask;
 			writel_relaxed(gedr, c->regbase + GEDR_OFFSET);
 
-			n = find_first_bit(&gedr, BITS_PER_LONG);
-			while (n < BITS_PER_LONG) {
+			for_each_set_bit(n, &gedr, BITS_PER_LONG) {
 				loop = 1;
 
 				generic_handle_irq(gpio_to_irq(gpio_base + n));
-				n = find_next_bit(&gedr, BITS_PER_LONG, n + 1);
 			}
 		}
 	} while (loop);
