@@ -210,64 +210,52 @@ static struct device_attribute rk610_attrs[] = {
 static int rk610_control_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-    int ret;
-    struct clk *iis_clk;
+	int ret;
+	struct clk *iis_clk;
 	struct rk610_core_info *core_info = NULL; 
+	struct rk610_ctl_platform_data *pdata = client->dev.platform_data;
 	DBG("[%s] start\n", __FUNCTION__);
 	core_info = kmalloc(sizeof(struct rk610_core_info), GFP_KERNEL);
-    if(!core_info)
-    {
-        dev_err(&client->dev, ">> rk610 core inf kmalloc fail!");
-        return -ENOMEM;
-    }
-    memset(core_info, 0, sizeof(struct rk610_core_info));
-		#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)        
-        	iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
-		#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
-		iis_clk = clk_get_sys("rk29_i2s.1", "i2s");
-		#else
-        	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
-		#endif
-		if (IS_ERR(iis_clk)) {
-			printk("failed to get i2s clk\n");
-			ret = PTR_ERR(iis_clk);
-		}else{
-			DBG("got i2s clk ok!\n");
-			clk_enable(iis_clk);
-			clk_set_rate(iis_clk, 11289600);
-			#if defined(CONFIG_ARCH_RK29)
-			rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
-			#elif defined(CONFIG_ARCH_RK3066B)
-			rk30_mux_api_set(GPIO1C0_I2SCLK_NAME, GPIO1C_I2SCLK);
-			#elif defined(CONFIG_ARCH_RK30)
-                        rk30_mux_api_set(GPIO0B0_I2S8CHCLK_NAME, GPIO0B_I2S_8CH_CLK);
-			#endif
-			clk_put(iis_clk);
-		}
-
-    rk610_control_client = client;
-    msleep(100);
-	if(RK610_RESET_PIN != INVALID_GPIO) {
-	    ret = gpio_request(RK610_RESET_PIN, "rk610 reset");
-	    if (ret){
-	        printk(KERN_ERR "rk610_control_probe request gpio fail\n");
-	    }
-	    else {
-	    	DBG("rk610_control_probe request gpio ok\n");
-	    	gpio_direction_output(RK610_RESET_PIN, GPIO_HIGH);
-#if defined(CONFIG_ARCH_RK3066B)
-			msleep(100);
-#endif
-			gpio_direction_output(RK610_RESET_PIN, GPIO_LOW);
-			msleep(100);
-		    gpio_set_value(RK610_RESET_PIN, GPIO_HIGH);
-		}
+	if(!core_info)
+	{
+		dev_err(&client->dev, ">> rk610 core inf kmalloc fail!");
+		return -ENOMEM;
 	}
-    core_info->client = client;
+	memset(core_info, 0, sizeof(struct rk610_core_info));
+	core_info->pdata = pdata;
+	#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)        
+	iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
+	#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+	iis_clk = clk_get_sys("rk29_i2s.1", "i2s");
+	#else
+	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
+	#endif
+	if (IS_ERR(iis_clk)) {
+		printk("failed to get i2s clk\n");
+		ret = PTR_ERR(iis_clk);
+	}else{
+		DBG("got i2s clk ok!\n");
+		clk_enable(iis_clk);
+		clk_set_rate(iis_clk, 11289600);
+		#if defined(CONFIG_ARCH_RK29)
+		rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
+		#elif defined(CONFIG_ARCH_RK3066B)
+		rk30_mux_api_set(GPIO1C0_I2SCLK_NAME, GPIO1C_I2SCLK);
+		#elif defined(CONFIG_ARCH_RK30)
+                rk30_mux_api_set(GPIO0B0_I2S8CHCLK_NAME, GPIO0B_I2S_8CH_CLK);
+		#endif
+		clk_put(iis_clk);
+	}
+
+	rk610_control_client = client;
+	msleep(100);
+	if(core_info->pdata->rk610_power_on_init)
+		core_info->pdata->rk610_power_on_init();
+	core_info->client = client;
 	rk610_lcd_init(core_info);
-	#ifdef RK610_DEBUG
+#ifdef RK610_DEBUG
 	device_create_file(&(client->dev), &rk610_attrs[0]);
-    #endif
+#endif
     return 0;
 }
 
