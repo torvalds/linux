@@ -290,6 +290,19 @@ static uint8_t radeon_legacy_lvds_level(struct backlight_device *bd)
 	return level;
 }
 
+u8
+radeon_legacy_get_backlight_level(struct radeon_encoder *radeon_encoder)
+{
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	u8 backlight_level;
+
+	backlight_level = (RREG32(RADEON_LVDS_GEN_CNTL) >>
+			   RADEON_LVDS_BL_MOD_LEVEL_SHIFT) & 0xff;
+
+	return backlight_level;
+}
+
 void
 radeon_legacy_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level)
 {

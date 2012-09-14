@@ -72,6 +72,18 @@ radeon_atom_set_backlight_level_to_reg(struct radeon_device *rdev,
 		WREG32(RADEON_BIOS_2_SCRATCH, bios_2_scratch);
 }
 
+u8
+atombios_get_backlight_level(struct radeon_encoder *radeon_encoder)
+{
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (!(rdev->mode_info.firmware_flags & ATOM_BIOS_INFO_BL_CONTROLLED_BY_GPU))
+		return 0;
+
+	return radeon_atom_get_backlight_level_from_reg(rdev);
+}
+
 void
 atombios_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level)
 {

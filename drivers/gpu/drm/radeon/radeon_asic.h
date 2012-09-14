@@ -43,7 +43,9 @@ void radeon_atom_set_memory_clock(struct radeon_device *rdev, uint32_t mem_clock
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 
 void atombios_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level);
+u8 atombios_get_backlight_level(struct radeon_encoder *radeon_encoder);
 void radeon_legacy_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level);
+u8 radeon_legacy_get_backlight_level(struct radeon_encoder *radeon_encoder);
 
 
 /*
