@@ -25,6 +25,7 @@
 #define _MITE_H_
 
 #include <linux/pci.h>
+#include <linux/log2.h>
 #include "../comedidev.h"
 
 /*  #define DEBUG_MITE */
@@ -245,8 +246,9 @@ enum MITE_IODWBSR_bits {
 static inline unsigned MITE_IODWBSR_1_WSIZE_bits(unsigned size)
 {
 	unsigned order = 0;
-	while (size >>= 1)
-		++order;
+
+	BUG_ON(size == 0);
+	order = ilog2(size);
 	BUG_ON(order < 1);
 	return (order - 1) & 0x1f;
 }
@@ -393,12 +395,10 @@ static inline int CR_RL(unsigned int retry_limit)
 {
 	int value = 0;
 
-	while (retry_limit) {
-		retry_limit >>= 1;
-		value++;
-	}
+	if (retry_limit)
+		value = 1 + ilog2(retry_limit);
 	if (value > 0x7)
-		printk("comedi: bug! retry_limit too large\n");
+		value = 0x7;
 	return (value & 0x7) << 21;
 }
 
