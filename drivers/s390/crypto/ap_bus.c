@@ -165,10 +165,12 @@ static int ap_interrupts_available(void)
  *
  * Returns 1 if AP configuration information is available.
  */
+#ifdef CONFIG_64BIT
 static int ap_configuration_available(void)
 {
 	return test_facility(2) && test_facility(12);
 }
+#endif
 
 /**
  * ap_test_queue(): Test adjunct processor queue.
