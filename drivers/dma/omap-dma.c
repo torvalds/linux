@@ -366,7 +366,8 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 
 static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
-	size_t period_len, enum dma_transfer_direction dir, void *context)
+	size_t period_len, enum dma_transfer_direction dir, unsigned long flags,
+	void *context)
 {
 	struct omap_chan *c = to_omap_dma_chan(chan);
 	enum dma_slave_buswidth dev_width;
