@@ -46,6 +46,11 @@
 #include <linux/sensor-dev.h>
 #include <linux/mfd/tps65910.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
+
+#if defined(CONFIG_MFD_RK610)
+#include <linux/mfd/rk610_core.h>
+#endif
+
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -622,6 +627,41 @@ static struct platform_device device_lcdc1 = {
 };
 #endif
 
+#if defined(CONFIG_MFD_RK610)
+#define RK610_RST_PIN_MUX_NAME		GPIO2C5_LCDC1DATA21_SMCADDR5_NAME 
+#define RK610_RST_PIN_MUX_MODE		GPIO2C_GPIO2C5
+#define RK610_RST_PIN 			RK30_PIN2_PC5
+static int rk610_power_on_init(void)
+{
+	int ret;
+	if(RK610_RST_PIN != INVALID_GPIO)
+	{
+		rk30_mux_api_set(RK610_RST_PIN_MUX_NAME,RK610_RST_PIN_MUX_MODE);
+		ret = gpio_request(RK610_RST_PIN, "rk610 reset");
+		if (ret)
+		{
+			printk(KERN_ERR "rk610_control_probe request gpio fail\n");
+		}
+		else 
+		{
+			gpio_direction_output(RK610_RST_PIN, GPIO_HIGH);
+			msleep(100);
+			gpio_direction_output(RK610_RST_PIN, GPIO_LOW);
+			msleep(100);
+	    		gpio_set_value(RK610_RST_PIN, GPIO_HIGH);
+		}
+	}
+
+	return 0;
+	
+}
+
+
+static struct rk610_ctl_platform_data rk610_ctl_pdata = {
+	.rk610_power_on_init = rk610_power_on_init,
+};
+#endif
+
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 static struct timed_gpio timed_gpios[] = {
 	{
@@ -1155,6 +1195,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 			.type			= "rk610_ctl",
 			.addr			= 0x40,
 			.flags			= 0,
+			.platform_data		= &rk610_ctl_pdata,
 		},
 #ifdef CONFIG_RK610_TVOUT
 		{
