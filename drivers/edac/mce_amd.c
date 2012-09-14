@@ -667,6 +667,22 @@ static bool amd_filter_mce(struct mce *m)
 	return false;
 }
 
+static const char *decode_error_status(struct mce *m)
+{
+	if (m->status & MCI_STATUS_UC) {
+		if (m->status & MCI_STATUS_PCC)
+			return "System Fatal error.";
+		if (m->mcgstatus & MCG_STATUS_RIPV)
+			return "Uncorrected, software restartable error.";
+		return "Uncorrected, software containable error.";
+	}
+
+	if (m->status & MCI_STATUS_DEFERRED)
+		return "Deferred error.";
+
+	return "Corrected error, no action required.";
+}
+
 int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *m = (struct mce *)data;
@@ -712,6 +728,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		break;
 	}
 
+	pr_emerg(HW_ERR "Error Status: %s\n", decode_error_status(m));
+
 	pr_emerg(HW_ERR "CPU:%d (%x:%x:%x) MC%d_STATUS[%s|%s|%s|%s|%s",
 		m->extcpu,
 		c->x86, c->x86_model, c->x86_mask,
@@ -724,8 +742,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 	if (c->x86 == 0x15)
 		pr_cont("|%s|%s",
-			((m->status & BIT_64(44)) ? "Deferred" : "-"),
-			((m->status & BIT_64(43)) ? "Poison"   : "-"));
+			((m->status & MCI_STATUS_DEFERRED) ? "Deferred" : "-"),
+			((m->status & MCI_STATUS_POISON)   ? "Poison"   : "-"));
 
 	/* do the two bits[14:13] together */
 	ecc = (m->status >> 45) & 0x3;

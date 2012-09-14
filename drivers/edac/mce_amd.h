@@ -29,10 +29,8 @@
 #define R4(x)				(((x) >> 4) & 0xf)
 #define R4_MSG(x)			((R4(x) < 9) ?  rrrr_msgs[R4(x)] : "Wrong R4!")
 
-/*
- * F3x4C bits (MCi_STATUS' high half)
- */
-#define NBSH_ERR_CPU_VAL		BIT(24)
+#define MCI_STATUS_DEFERRED		BIT_64(44)
+#define MCI_STATUS_POISON		BIT_64(43)
 
 enum tt_ids {
 	TT_INSTR = 0,
