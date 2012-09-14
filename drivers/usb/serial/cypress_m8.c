@@ -263,8 +263,9 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 		 * safest speed for a part like that.
 		 */
 		if (new_rate > 4800) {
-			dbg("%s - failed setting baud rate, device incapable "
-			    "speed %d", __func__, new_rate);
+			dev_dbg(&port->dev,
+				"%s - failed setting baud rate, device incapable speed %d\n",
+				__func__, new_rate);
 			return -1;
 		}
 	}
@@ -274,8 +275,9 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 			/* 300 and 600 baud rates are supported under
 			 * the generic firmware, but are not used with
 			 * NMEA and SiRF protocols */
-			dbg("%s - failed setting baud rate, unsupported speed "
-			    "of %d on Earthmate GPS", __func__, new_rate);
+			dev_dbg(&port->dev,
+				"%s - failed setting baud rate, unsupported speed of %d on Earthmate GPS",
+				__func__, new_rate);
 			return -1;
 		}
 		break;
@@ -294,6 +296,7 @@ static int cypress_serial_control(struct tty_struct *tty,
 {
 	int new_baudrate = 0, retval = 0, tries = 0;
 	struct cypress_private *priv;
+	struct device *dev = &port->dev;
 	u8 *feature_buffer;
 	const unsigned int feature_len = 5;
 	unsigned long flags;
@@ -312,16 +315,16 @@ static int cypress_serial_control(struct tty_struct *tty,
 		/* 0 means 'Hang up' so doesn't change the true bit rate */
 		new_baudrate = priv->baud_rate;
 		if (baud_rate && baud_rate != priv->baud_rate) {
-			dbg("%s - baud rate is changing", __func__);
+			dev_dbg(dev, "%s - baud rate is changing\n", __func__);
 			retval = analyze_baud_rate(port, baud_rate);
 			if (retval >= 0) {
 				new_baudrate = retval;
-				dbg("%s - New baud rate set to %d",
-				    __func__, new_baudrate);
+				dev_dbg(dev, "%s - New baud rate set to %d\n",
+					__func__, new_baudrate);
 			}
 		}
-		dbg("%s - baud rate is being sent as %d",
-					__func__, new_baudrate);
+		dev_dbg(dev, "%s - baud rate is being sent as %d\n", __func__,
+			new_baudrate);
 
 		/* fill the feature_buffer with new configuration */
 		put_unaligned_le32(new_baudrate, feature_buffer);
@@ -333,9 +336,8 @@ static int cypress_serial_control(struct tty_struct *tty,
 		/* 1 bit gap */
 		feature_buffer[4] |= (reset << 7);   /* assign reset at end of byte, 1 bit space */
 
-		dbg("%s - device is being sent this feature report:",
-								__func__);
-		dbg("%s - %02X - %02X - %02X - %02X - %02X", __func__,
+		dev_dbg(dev, "%s - device is being sent this feature report:\n", __func__);
+		dev_dbg(dev, "%s - %02X - %02X - %02X - %02X - %02X\n", __func__,
 			feature_buffer[0], feature_buffer[1],
 			feature_buffer[2], feature_buffer[3],
 			feature_buffer[4]);
@@ -355,8 +357,8 @@ static int cypress_serial_control(struct tty_struct *tty,
 			 retval != -ENODEV);
 
 		if (retval != feature_len) {
-			dev_err(&port->dev, "%s - failed sending serial "
-				"line settings - %d\n", __func__, retval);
+			dev_err(dev, "%s - failed sending serial line settings - %d\n",
+				__func__, retval);
 			cypress_set_dead(port);
 		} else {
 			spin_lock_irqsave(&priv->lock, flags);
@@ -377,7 +379,7 @@ static int cypress_serial_control(struct tty_struct *tty,
 			retval = -ENOTTY;
 			goto out;
 		}
-		dbg("%s - retreiving serial line settings", __func__);
+		dev_dbg(dev, "%s - retreiving serial line settings\n", __func__);
 		do {
 			retval = usb_control_msg(port->serial->dev,
 					usb_rcvctrlpipe(port->serial->dev, 0),
@@ -392,8 +394,8 @@ static int cypress_serial_control(struct tty_struct *tty,
 						&& retval != -ENODEV);
 
 		if (retval != feature_len) {
-			dev_err(&port->dev, "%s - failed to retrieve serial "
-				"line settings - %d\n", __func__, retval);
+			dev_err(dev, "%s - failed to retrieve serial line settings - %d\n",
+				__func__, retval);
 			cypress_set_dead(port);
 			goto out;
 		} else {
@@ -474,14 +476,14 @@ static int generic_startup(struct usb_serial *serial)
 	if (interval > 0) {
 		priv->write_urb_interval = interval;
 		priv->read_urb_interval = interval;
-		dbg("%s - port %d read & write intervals forced to %d",
-		    __func__, port->number, interval);
+		dev_dbg(&port->dev, "%s - read & write intervals forced to %d\n",
+			__func__, interval);
 	} else {
 		priv->write_urb_interval = port->interrupt_out_urb->interval;
 		priv->read_urb_interval = port->interrupt_in_urb->interval;
-		dbg("%s - port %d intervals: read=%d write=%d",
-		    __func__, port->number,
-		    priv->read_urb_interval, priv->write_urb_interval);
+		dev_dbg(&port->dev, "%s - intervals: read=%d write=%d\n",
+			__func__, priv->read_urb_interval,
+			priv->write_urb_interval);
 	}
 	usb_set_serial_port_data(port, priv);
 
@@ -495,8 +497,7 @@ static int cypress_earthmate_startup(struct usb_serial *serial)
 	struct usb_serial_port *port = serial->port[0];
 
 	if (generic_startup(serial)) {
-		dbg("%s - Failed setting up port %d", __func__,
-				port->number);
+		dev_dbg(&port->dev, "%s - Failed setting up port\n", __func__);
 		return 1;
 	}
 
@@ -511,8 +512,9 @@ static int cypress_earthmate_startup(struct usb_serial *serial)
 		   handle GET_CONFIG requests; everything they've
 		   produced since that time crashes if this command is
 		   attempted :-( */
-		dbg("%s - Marking this device as unsafe for GET_CONFIG "
-		    "commands", __func__);
+		dev_dbg(&port->dev,
+			"%s - Marking this device as unsafe for GET_CONFIG commands\n",
+			__func__);
 		priv->get_cfg_unsafe = !0;
 	}
 
@@ -523,14 +525,14 @@ static int cypress_earthmate_startup(struct usb_serial *serial)
 static int cypress_hidcom_startup(struct usb_serial *serial)
 {
 	struct cypress_private *priv;
+	struct usb_serial_port *port = serial->port[0];
 
 	if (generic_startup(serial)) {
-		dbg("%s - Failed setting up port %d", __func__,
-				serial->port[0]->number);
+		dev_dbg(&port->dev, "%s - Failed setting up port\n", __func__);
 		return 1;
 	}
 
-	priv = usb_get_serial_port_data(serial->port[0]);
+	priv = usb_get_serial_port_data(port);
 	priv->chiptype = CT_CYPHIDCOM;
 
 	return 0;
@@ -540,14 +542,14 @@ static int cypress_hidcom_startup(struct usb_serial *serial)
 static int cypress_ca42v2_startup(struct usb_serial *serial)
 {
 	struct cypress_private *priv;
+	struct usb_serial_port *port = serial->port[0];
 
 	if (generic_startup(serial)) {
-		dbg("%s - Failed setting up port %d", __func__,
-				serial->port[0]->number);
+		dev_dbg(&port->dev, "%s - Failed setting up port\n", __func__);
 		return 1;
 	}
 
-	priv = usb_get_serial_port_data(serial->port[0]);
+	priv = usb_get_serial_port_data(port);
 	priv->chiptype = CT_CA42V2;
 
 	return 0;
@@ -649,7 +651,7 @@ static void cypress_close(struct usb_serial_port *port)
 	kfifo_reset_out(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dbg("%s - stopping urbs", __func__);
+	dev_dbg(&port->dev, "%s - stopping urbs\n", __func__);
 	usb_kill_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_out_urb);
 
@@ -665,7 +667,7 @@ static int cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 
-	dbg("%s - port %d, %d bytes", __func__, port->number, count);
+	dev_dbg(&port->dev, "%s - port %d, %d bytes\n", __func__, port->number, count);
 
 	/* line control commands, which need to be executed immediately,
 	   are not put into the buffer for obvious reasons.
@@ -691,17 +693,18 @@ static void cypress_send(struct usb_serial_port *port)
 {
 	int count = 0, result, offset, actual_size;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
+	struct device *dev = &port->dev;
 	unsigned long flags;
 
 	if (!priv->comm_is_ok)
 		return;
 
-	dbg("%s - interrupt out size is %d", __func__,
-						port->interrupt_out_size);
+	dev_dbg(dev, "%s - interrupt out size is %d\n", __func__,
+		port->interrupt_out_size);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->write_urb_in_use) {
-		dbg("%s - can't write, urb in use", __func__);
+		dev_dbg(dev, "%s - can't write, urb in use\n", __func__);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
 	}
@@ -731,7 +734,7 @@ static void cypress_send(struct usb_serial_port *port)
 
 	if (priv->cmd_ctrl) {
 		priv->cmd_count++;
-		dbg("%s - line control command being issued", __func__);
+		dev_dbg(dev, "%s - line control command being issued\n", __func__);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		goto send;
 	} else
@@ -753,7 +756,7 @@ static void cypress_send(struct usb_serial_port *port)
 		port->interrupt_out_buffer[0] |= count;
 	}
 
-	dbg("%s - count is %d", __func__, count);
+	dev_dbg(dev, "%s - count is %d\n", __func__, count);
 
 send:
 	spin_lock_irqsave(&priv->lock, flags);
@@ -807,7 +810,7 @@ static int cypress_write_room(struct tty_struct *tty)
 	room = kfifo_avail(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dbg("%s - returns %d", __func__, room);
+	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
 	return room;
 }
 
@@ -832,7 +835,7 @@ static int cypress_tiocmget(struct tty_struct *tty)
 		| ((status & UART_RI)         ? TIOCM_RI  : 0)
 		| ((status & UART_CD)         ? TIOCM_CD  : 0);
 
-	dbg("%s - result = %x", __func__, result);
+	dev_dbg(&port->dev, "%s - result = %x\n", __func__, result);
 
 	return result;
 }
@@ -867,7 +870,7 @@ static int cypress_ioctl(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 
-	dbg("%s - port %d, cmd 0x%.4x", __func__, port->number, cmd);
+	dev_dbg(&port->dev, "%s - port %d, cmd 0x%.4x\n", __func__, port->number, cmd);
 
 	switch (cmd) {
 	/* This code comes from drivers/char/serial.c and ftdi_sio.c */
@@ -902,7 +905,7 @@ static int cypress_ioctl(struct tty_struct *tty,
 	default:
 		break;
 	}
-	dbg("%s - arg not supported - it was 0x%04x - check include/asm/ioctls.h", __func__, cmd);
+	dev_dbg(&port->dev, "%s - arg not supported - it was 0x%04x - check include/asm/ioctls.h\n", __func__, cmd);
 	return -ENOIOCTLCMD;
 } /* cypress_ioctl */
 
@@ -911,6 +914,7 @@ static void cypress_set_termios(struct tty_struct *tty,
 	struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
+	struct device *dev = &port->dev;
 	int data_bits, stop_bits, parity_type, parity_enable;
 	unsigned cflag, iflag;
 	unsigned long flags;
@@ -984,23 +988,21 @@ static void cypress_set_termios(struct tty_struct *tty,
 		data_bits = 3;
 		break;
 	default:
-		dev_err(&port->dev, "%s - CSIZE was set, but not CS5-CS8\n",
-			__func__);
+		dev_err(dev, "%s - CSIZE was set, but not CS5-CS8\n", __func__);
 		data_bits = 3;
 	}
 	spin_lock_irqsave(&priv->lock, flags);
 	oldlines = priv->line_control;
 	if ((cflag & CBAUD) == B0) {
 		/* drop dtr and rts */
-		dbg("%s - dropping the lines, baud rate 0bps", __func__);
+		dev_dbg(dev, "%s - dropping the lines, baud rate 0bps\n", __func__);
 		priv->line_control &= ~(CONTROL_DTR | CONTROL_RTS);
 	} else
 		priv->line_control = (CONTROL_DTR | CONTROL_RTS);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dbg("%s - sending %d stop_bits, %d parity_enable, %d parity_type, "
-			"%d data_bits (+5)", __func__, stop_bits,
-			parity_enable, parity_type, data_bits);
+	dev_dbg(dev, "%s - sending %d stop_bits, %d parity_enable, %d parity_type, %d data_bits (+5)\n",
+		__func__, stop_bits, parity_enable, parity_type, data_bits);
 
 	cypress_serial_control(tty, port, tty_get_baud_rate(tty),
 			data_bits, stop_bits,
@@ -1017,8 +1019,7 @@ static void cypress_set_termios(struct tty_struct *tty,
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->chiptype == CT_EARTHMATE && priv->baud_rate == 4800) {
-		dbg("Using custom termios settings for a baud rate of "
-				"4800bps.");
+		dev_dbg(dev, "Using custom termios settings for a baud rate of 4800bps.\n");
 		/* define custom termios settings for NMEA protocol */
 
 		tty->termios->c_iflag /* input modes - */
@@ -1067,7 +1068,7 @@ static int cypress_chars_in_buffer(struct tty_struct *tty)
 	chars = kfifo_len(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	dbg("%s - returns %d", __func__, chars);
+	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
 	return chars;
 }
 
@@ -1112,6 +1113,7 @@ static void cypress_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
+	struct device *dev = &urb->dev->dev;
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
@@ -1135,16 +1137,15 @@ static void cypress_read_int_callback(struct urb *urb)
 		/* FALLS THROUGH */
 	default:
 		/* something ugly is going on... */
-		dev_err(&urb->dev->dev,
-			"%s - unexpected nonzero read status received: %d\n",
-							__func__, status);
+		dev_err(dev, "%s - unexpected nonzero read status received: %d\n",
+			__func__, status);
 		cypress_set_dead(port);
 		return;
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->rx_flags & THROTTLED) {
-		dbg("%s - now throttling", __func__);
+		dev_dbg(dev, "%s - now throttling\n", __func__);
 		priv->rx_flags |= ACTUALLY_THROTTLED;
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
@@ -1153,7 +1154,7 @@ static void cypress_read_int_callback(struct urb *urb)
 
 	tty = tty_port_tty_get(&port->port);
 	if (!tty) {
-		dbg("%s - bad tty pointer - exiting", __func__);
+		dev_dbg(dev, "%s - bad tty pointer - exiting\n", __func__);
 		return;
 	}
 
@@ -1180,8 +1181,9 @@ static void cypress_read_int_callback(struct urb *urb)
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	if (result < bytes) {
-		dbg("%s - wrong packet size - received %d bytes but packet "
-		    "said %d bytes", __func__, result, bytes);
+		dev_dbg(dev,
+			"%s - wrong packet size - received %d bytes but packet said %d bytes\n",
+			__func__, result, bytes);
 		goto continue_read;
 	}
 
@@ -1202,7 +1204,7 @@ static void cypress_read_int_callback(struct urb *urb)
 	 * though */
 	if (tty && !(tty->termios->c_cflag & CLOCAL) &&
 			!(priv->current_status & UART_CD)) {
-		dbg("%s - calling hangup", __func__);
+		dev_dbg(dev, "%s - calling hangup\n", __func__);
 		tty_hangup(tty);
 		goto continue_read;
 	}
@@ -1215,7 +1217,7 @@ static void cypress_read_int_callback(struct urb *urb)
 	if (priv->current_status & CYP_ERROR) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		tty_flag = TTY_PARITY;
-		dbg("%s - Parity Error detected", __func__);
+		dev_dbg(dev, "%s - Parity Error detected\n", __func__);
 	} else
 		spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1246,9 +1248,8 @@ continue_read:
 				priv->read_urb_interval);
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 		if (result && result != -EPERM) {
-			dev_err(&urb->dev->dev, "%s - failed resubmitting "
-					"read urb, error %d\n", __func__,
-					result);
+			dev_err(dev, "%s - failed resubmitting read urb, error %d\n",
+				__func__, result);
 			cypress_set_dead(port);
 		}
 	}
@@ -1259,6 +1260,7 @@ static void cypress_write_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
+	struct device *dev = &urb->dev->dev;
 	int result;
 	int status = urb->status;
 
@@ -1270,8 +1272,8 @@ static void cypress_write_int_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-						__func__, status);
+		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
+			__func__, status);
 		priv->write_urb_in_use = 0;
 		return;
 	case -EPIPE: /* no break needed; clear halt and resubmit */
@@ -1279,21 +1281,19 @@ static void cypress_write_int_callback(struct urb *urb)
 			break;
 		usb_clear_halt(port->serial->dev, 0x02);
 		/* error in the urb, so we have to resubmit it */
-		dbg("%s - nonzero write bulk status received: %d",
+		dev_dbg(dev, "%s - nonzero write bulk status received: %d\n",
 			__func__, status);
 		port->interrupt_out_urb->transfer_buffer_length = 1;
 		result = usb_submit_urb(port->interrupt_out_urb, GFP_ATOMIC);
 		if (!result)
 			return;
-		dev_err(&urb->dev->dev,
-			"%s - failed resubmitting write urb, error %d\n",
-							__func__, result);
+		dev_err(dev, "%s - failed resubmitting write urb, error %d\n",
+			__func__, result);
 		cypress_set_dead(port);
 		break;
 	default:
-		dev_err(&urb->dev->dev,
-			 "%s - unexpected nonzero write status received: %d\n",
-							__func__, status);
+		dev_err(dev, "%s - unexpected nonzero write status received: %d\n",
+			__func__, status);
 		cypress_set_dead(port);
 		break;
 	}
