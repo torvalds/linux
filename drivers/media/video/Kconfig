@@ -1358,14 +1358,14 @@ config VIDEO_RK29
 choice
 	prompt "RKXX Camera Sensor Interface Work Mode"
 	depends on VIDEO_RK29
-	default VIDEO_RK29_WORK_ONEFRAME
+	default VIDEO_RKCIF_WORK_ONEFRAME
 	---help---
 		RK29 Camera Sensor Interface(VIP) can work in 2 modes, ie:OneFrame,PingPong.
 
-config VIDEO_RK29_WORK_ONEFRAME
+config VIDEO_RKCIF_WORK_ONEFRAME
 	bool "CIF OneFrame Mode"
 
-config VIDEO_RK29_WORK_PINGPONG
+config VIDEO_RKCIF_WORK_PINGPONG
 	bool "CIF PingPong Mode"
 
 endchoice

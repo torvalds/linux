@@ -196,16 +196,16 @@ obj-$(CONFIG_VIDEO_MX2)			+= mx2_camera.o
 obj-$(CONFIG_VIDEO_MX3)			+= mx3_camera.o
 obj-$(CONFIG_VIDEO_PXA27x)		+= pxa_camera.o
 ifeq ($(CONFIG_ARCH_RK30),y)
-obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)	+= rk30_camera_oneframe.o
-obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)	+= rk30_camera_pingpong.o
+obj-$(CONFIG_VIDEO_RKCIF_WORK_ONEFRAME)	+= rk30_camera_oneframe.o
+obj-$(CONFIG_VIDEO_RKCIF_WORK_PINGPONG)	+= rk30_camera_pingpong.o
 endif
 ifeq ($(CONFIG_ARCH_RK2928),y)
-obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)  += rk30_camera_oneframe.o
-obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)  += rk30_camera_pingpong.o
+obj-$(CONFIG_VIDEO_RKCIF_WORK_ONEFRAME)  += rk30_camera_oneframe.o
+obj-$(CONFIG_VIDEO_RKCIF_WORK_PINGPONG)	+= rk30_camera_pingpong.o
 endif
 ifeq ($(CONFIG_ARCH_RK29),y)
-obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)    += rk29_camera_oneframe.o
-obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)    += rk29_camera_pingpong.o
+obj-$(CONFIG_VIDEO_RKCIF_WORK_ONEFRAME)  += rk29_camera_oneframe.o
+obj-$(CONFIG_VIDEO_RKCIF_WORK_PINGPONG)	+= rk29_camera_pingpang.o
 endif
 
 obj-$(CONFIG_VIDEO_RK29XX_VOUT)		+= rk29xx/

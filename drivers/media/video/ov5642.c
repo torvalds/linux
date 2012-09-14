@@ -4064,6 +4064,7 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
             if (wait_event_timeout(wk->done, (wk->result != WqRet_inval), msecs_to_jiffies(2500)) == 0) {
                 SENSOR_TR("%s %s cmd(%d) is timeout!",SENSOR_NAME_STRING(),__FUNCTION__,cmd);                        
             }
+			flush_workqueue(sensor->sensor_wq);
             ret = wk->result;
             kfree((void*)wk);
             mutex_lock(&icd->video_lock);  
