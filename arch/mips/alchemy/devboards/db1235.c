@@ -13,7 +13,7 @@ int __init db1300_board_setup(void);
 int __init db1300_dev_setup(void);
 int __init db1550_board_setup(void);
 int __init db1550_dev_setup(void);
-int __init db1550_pci_setup(void);
+int __init db1550_pci_setup(int);
 
 static const char *board_type_str(void)
 {
@@ -27,6 +27,9 @@ static const char *board_type_str(void)
 		return "DB1300";
 	case BCSR_WHOAMI_DB1550:
 		return "DB1550";
+	case BCSR_WHOAMI_PB1550_SDR:
+	case BCSR_WHOAMI_PB1550_DDR:
+		return "PB1550";
 	default:
 		return "(unknown)";
 	}
@@ -61,8 +64,13 @@ void __init board_setup(void)
 
 int __init db1235_arch_init(void)
 {
-	if (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI)) == BCSR_WHOAMI_DB1550)
-		return db1550_pci_setup();
+	int id = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
+	if (id == BCSR_WHOAMI_DB1550)
+		return db1550_pci_setup(0);
+	else if ((id == BCSR_WHOAMI_PB1550_SDR) ||
+		 (id == BCSR_WHOAMI_PB1550_DDR))
+		return db1550_pci_setup(1);
+
 	return 0;
 }
 arch_initcall(db1235_arch_init);
@@ -77,6 +85,8 @@ int __init db1235_dev_init(void)
 	case BCSR_WHOAMI_DB1300:
 		return db1300_dev_setup();
 	case BCSR_WHOAMI_DB1550:
+	case BCSR_WHOAMI_PB1550_SDR:
+	case BCSR_WHOAMI_PB1550_DDR:
 		return db1550_dev_setup();
 	}
 	return 0;
