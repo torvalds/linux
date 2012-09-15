@@ -129,8 +129,8 @@ typedef struct _bpctl_dev {
 	int bp_540;
 
 // selftest stanza
-	int (*hard_start_xmit_save) (struct sk_buff * skb,
-				     struct net_device * dev);
+	int (*hard_start_xmit_save) (struct sk_buff *skb,
+				     struct net_device *dev);
 	const struct net_device_ops *old_ops;
 	struct net_device_ops new_ops;
 	int bp_self_test_flag;
@@ -147,18 +147,18 @@ static struct semaphore bpctl_sema;
 static int device_num = 0;
 
 static int get_dev_idx(int ifindex);
-static bpctl_dev_t *get_master_port_fn(bpctl_dev_t * pbpctl_dev);
-static int disc_status(bpctl_dev_t * pbpctl_dev);
-static int bypass_status(bpctl_dev_t * pbpctl_dev);
-static int wdt_timer(bpctl_dev_t * pbpctl_dev, int *time_left);
-static bpctl_dev_t *get_status_port_fn(bpctl_dev_t * pbpctl_dev);
+static bpctl_dev_t *get_master_port_fn(bpctl_dev_t *pbpctl_dev);
+static int disc_status(bpctl_dev_t *pbpctl_dev);
+static int bypass_status(bpctl_dev_t *pbpctl_dev);
+static int wdt_timer(bpctl_dev_t *pbpctl_dev, int *time_left);
+static bpctl_dev_t *get_status_port_fn(bpctl_dev_t *pbpctl_dev);
 static void if_scan_init(void);
 
-int bypass_proc_create_dev_sd(bpctl_dev_t * pbp_device_block);
-int bypass_proc_remove_dev_sd(bpctl_dev_t * pbp_device_block);
+int bypass_proc_create_dev_sd(bpctl_dev_t *pbp_device_block);
+int bypass_proc_remove_dev_sd(bpctl_dev_t *pbp_device_block);
 int bp_proc_create(void);
 
-int is_bypass_fn(bpctl_dev_t * pbpctl_dev);
+int is_bypass_fn(bpctl_dev_t *pbpctl_dev);
 int get_dev_idx_bsf(int bus, int slot, int func);
 
 static unsigned long str_to_hex(char *p);
@@ -353,10 +353,10 @@ static int device_release(struct inode *inode, struct file *file)
 	return SUCCESS;
 }
 
-int is_bypass_fn(bpctl_dev_t * pbpctl_dev);
-int wdt_time_left(bpctl_dev_t * pbpctl_dev);
+int is_bypass_fn(bpctl_dev_t *pbpctl_dev);
+int wdt_time_left(bpctl_dev_t *pbpctl_dev);
 
-static void write_pulse(bpctl_dev_t * pbpctl_dev,
+static void write_pulse(bpctl_dev_t *pbpctl_dev,
 			unsigned int ctrl_ext,
 			unsigned char value, unsigned char len)
 {
@@ -666,7 +666,7 @@ static void write_pulse(bpctl_dev_t * pbpctl_dev,
 	}
 }
 
-static int read_pulse(bpctl_dev_t * pbpctl_dev, unsigned int ctrl_ext,
+static int read_pulse(bpctl_dev_t *pbpctl_dev, unsigned int ctrl_ext,
 		      unsigned char len)
 {
 	unsigned char ctrl_val = 0;
@@ -847,7 +847,7 @@ static int read_pulse(bpctl_dev_t * pbpctl_dev, unsigned int ctrl_ext,
 	return ctrl_val;
 }
 
-static void write_reg(bpctl_dev_t * pbpctl_dev, unsigned char value,
+static void write_reg(bpctl_dev_t *pbpctl_dev, unsigned char value,
 		      unsigned char addr)
 {
 	uint32_t ctrl_ext = 0, ctrl = 0;
@@ -1019,12 +1019,12 @@ static void write_reg(bpctl_dev_t * pbpctl_dev, unsigned char value,
 
 }
 
-static void write_data(bpctl_dev_t * pbpctl_dev, unsigned char value)
+static void write_data(bpctl_dev_t *pbpctl_dev, unsigned char value)
 {
 	write_reg(pbpctl_dev, value, CMND_REG_ADDR);
 }
 
-static int read_reg(bpctl_dev_t * pbpctl_dev, unsigned char addr)
+static int read_reg(bpctl_dev_t *pbpctl_dev, unsigned char addr)
 {
 	uint32_t ctrl_ext = 0, ctrl = 0, ctrl_value = 0;
 	bpctl_dev_t *pbpctl_dev_c = NULL;
@@ -1298,7 +1298,7 @@ static int read_reg(bpctl_dev_t * pbpctl_dev, unsigned char addr)
 	return ctrl_value;
 }
 
-static int wdt_pulse(bpctl_dev_t * pbpctl_dev)
+static int wdt_pulse(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0, ctrl = 0;
 	bpctl_dev_t *pbpctl_dev_c = NULL;
@@ -1519,7 +1519,7 @@ static int wdt_pulse(bpctl_dev_t * pbpctl_dev)
 	return 0;
 }
 
-static void data_pulse(bpctl_dev_t * pbpctl_dev, unsigned char value)
+static void data_pulse(bpctl_dev_t *pbpctl_dev, unsigned char value)
 {
 
 	uint32_t ctrl_ext = 0;
@@ -1585,7 +1585,7 @@ static void data_pulse(bpctl_dev_t * pbpctl_dev, unsigned char value)
 
 }
 
-static int send_wdt_pulse(bpctl_dev_t * pbpctl_dev)
+static int send_wdt_pulse(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0;
 
@@ -1619,7 +1619,7 @@ static int send_wdt_pulse(bpctl_dev_t * pbpctl_dev)
 	return 0;
 }
 
-void send_bypass_clear_pulse(bpctl_dev_t * pbpctl_dev, unsigned int value)
+void send_bypass_clear_pulse(bpctl_dev_t *pbpctl_dev, unsigned int value)
 {
 	uint32_t ctrl_ext = 0;
 
@@ -1645,7 +1645,7 @@ void send_bypass_clear_pulse(bpctl_dev_t * pbpctl_dev, unsigned int value)
 /*  #endif  OLD_FW */
 #ifdef BYPASS_DEBUG
 
-int pulse_set_fn(bpctl_dev_t * pbpctl_dev, unsigned int counter)
+int pulse_set_fn(bpctl_dev_t *pbpctl_dev, unsigned int counter)
 {
 	uint32_t ctrl_ext = 0;
 
@@ -1673,7 +1673,7 @@ int pulse_set_fn(bpctl_dev_t * pbpctl_dev, unsigned int counter)
 	return 0;
 }
 
-int zero_set_fn(bpctl_dev_t * pbpctl_dev)
+int zero_set_fn(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0, ctrl_value = 0;
 	if (!pbpctl_dev)
