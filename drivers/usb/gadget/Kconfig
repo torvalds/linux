@@ -557,7 +557,7 @@ config USB_ZERO_HNPTEST
 	  one serve as the USB host instead (in the "B-Host" role).
 
 config USB_AUDIO
-	tristate "Audio Gadget (EXPERIMENTAL)"
+	tristate "Audio Gadget"
 	depends on SND
 	select USB_LIBCOMPOSITE
 	select SND_PCM
@@ -672,8 +672,7 @@ config USB_G_NCM
 	  dynamically linked module called "g_ncm".
 
 config USB_GADGETFS
-	tristate "Gadget Filesystem (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Gadget Filesystem"
 	help
 	  This driver provides a filesystem based API that lets user mode
 	  programs implement a single-configuration USB device, including
@@ -681,15 +680,11 @@ config USB_GADGETFS
 	  All endpoints, transfer speeds, and transfer types supported by
 	  the hardware are available, through read() and write() calls.
 
-	  Currently, this option is still labelled as EXPERIMENTAL because
-	  of existing race conditions in the underlying in-kernel AIO core.
-
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "gadgetfs".
 
 config USB_FUNCTIONFS
-	tristate "Function Filesystem (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Function Filesystem"
 	select USB_LIBCOMPOSITE
 	select USB_FUNCTIONFS_GENERIC if !(USB_FUNCTIONFS_ETH || USB_FUNCTIONFS_RNDIS)
 	help
@@ -799,8 +794,8 @@ config USB_G_SERIAL
 	  make MS-Windows work with CDC ACM.
 
 config USB_MIDI_GADGET
-	tristate "MIDI Gadget (EXPERIMENTAL)"
-	depends on SND && EXPERIMENTAL
+	tristate "MIDI Gadget"
+	depends on SND
 	select USB_LIBCOMPOSITE
 	select SND_RAWMIDI
 	help
@@ -867,7 +862,7 @@ config USB_G_ACM_MS
 	  dynamically linked module called "g_acm_ms".
 
 config USB_G_MULTI
-	tristate "Multifunction Composite Gadget (EXPERIMENTAL)"
+	tristate "Multifunction Composite Gadget"
 	depends on BLOCK && NET
 	select USB_G_MULTI_CDC if !USB_G_MULTI_RNDIS
 	select USB_LIBCOMPOSITE
