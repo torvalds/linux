@@ -366,13 +366,13 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 #define SILICOM_PE210G2BPI9T_SSID    0x120
 
 #define DBI_IF_SERIES(pid) \
-((pid==SILICOM_PE10GDBISR_SSID)|| \
-           (pid==SILICOM_PE10GDBILR_SSID)|| \
-           (pid==SILICOM_XE10G2BPILR_SSID)|| \
-           (pid==SILICOM_PE210G2DBi9LR_SSID))
+	((pid == SILICOM_PE10GDBISR_SSID) || \
+	 (pid == SILICOM_PE10GDBILR_SSID) || \
+	 (pid == SILICOM_XE10G2BPILR_SSID) || \
+	 (pid == SILICOM_PE210G2DBi9LR_SSID))
 
 #define PEGF5_IF_SERIES(pid) \
-((pid==SILICOM_PEG2BPFI5_SSID)|| \
+	((pid == SILICOM_PEG2BPFI5_SSID) || \
           (pid==SILICOM_PEG2BPFI5LX_SSID)|| \
           (pid==SILICOM_PEG4BPFI6_SSID)|| \
           (pid==SILICOM_PEG4BPFI6LX_SSID)|| \
