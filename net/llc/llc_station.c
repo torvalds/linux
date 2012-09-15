@@ -32,14 +32,9 @@
  *
  * @mac_sa: MAC source address
  * @sap_list: list of related SAPs
- * @ev_q: events entering state mach.
  * @mac_pdu_q: PDUs ready to send to MAC
  */
 struct llc_station {
-	struct {
-		struct sk_buff_head list;
-		spinlock_t	    lock;
-	} ev_q;
 	struct sk_buff_head	    mac_pdu_q;
 };
 
@@ -216,79 +211,6 @@ static struct llc_station_state_trans *
 }
 
 /**
- *	llc_station_free_ev - frees an event
- *	@skb: Address of the event
- *
- *	Frees an event.
- */
-static void llc_station_free_ev(struct sk_buff *skb)
-{
-	kfree_skb(skb);
-}
-
-/**
- *	llc_station_next_state - processes event and goes to the next state
- *	@skb: Address of the event
- *
- *	Processes an event, executes any transitions related to that event and
- *	updates the state of the station.
- */
-static u16 llc_station_next_state(struct sk_buff *skb)
-{
-	u16 rc = 1;
-	struct llc_station_state_trans *trans;
-
-	trans = llc_find_station_trans(skb);
-	if (trans)
-		/* got the state to which we next transition; perform the
-		 * actions associated with this transition before actually
-		 * transitioning to the next state
-		 */
-		rc = llc_exec_station_trans_actions(trans, skb);
-	else
-		/* event not recognized in current state; re-queue it for
-		 * processing again at a later time; return failure
-		 */
-		rc = 0;
-	llc_station_free_ev(skb);
-	return rc;
-}
-
-/**
- *	llc_station_service_events - service events in the queue
- *
- *	Get an event from the station event queue (if any); attempt to service
- *	the event; if event serviced, get the next event (if any) on the event
- *	queue; if event not service, re-queue the event on the event queue and
- *	attempt to service the next event; when serviced all events in queue,
- *	finished; if don't transition to different state, just service all
- *	events once; if transition to new state, service all events again.
- *	Caller must hold llc_main_station.ev_q.lock.
- */
-static void llc_station_service_events(void)
-{
-	struct sk_buff *skb;
-
-	while ((skb = skb_dequeue(&llc_main_station.ev_q.list)) != NULL)
-		llc_station_next_state(skb);
-}
-
-/**
- *	llc_station_state_process - queue event and try to process queue.
- *	@skb: Address of the event
- *
- *	Queues an event (on the station event queue) for handling by the
- *	station state machine and attempts to process any queued-up events.
- */
-static void llc_station_state_process(struct sk_buff *skb)
-{
-	spin_lock_bh(&llc_main_station.ev_q.lock);
-	skb_queue_tail(&llc_main_station.ev_q.list, skb);
-	llc_station_service_events();
-	spin_unlock_bh(&llc_main_station.ev_q.lock);
-}
-
-/**
  *	llc_station_rcv - send received pdu to the station state machine
  *	@skb: received frame.
  *
@@ -296,14 +218,17 @@ static void llc_station_state_process(struct sk_buff *skb)
  */
 static void llc_station_rcv(struct sk_buff *skb)
 {
-	llc_station_state_process(skb);
+	struct llc_station_state_trans *trans;
+
+	trans = llc_find_station_trans(skb);
+	if (trans)
+		llc_exec_station_trans_actions(trans, skb);
+	kfree_skb(skb);
 }
 
 void __init llc_station_init(void)
 {
 	skb_queue_head_init(&llc_main_station.mac_pdu_q);
-	skb_queue_head_init(&llc_main_station.ev_q.list);
-	spin_lock_init(&llc_main_station.ev_q.lock);
 	llc_set_station_handler(llc_station_rcv);
 }
 
