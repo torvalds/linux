@@ -89,6 +89,7 @@ config ATH79
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
+	select HAVE_CLK
 	select IRQ_CPU
 	select MIPS_MACHINE
 	select SYS_HAS_CPU_MIPS32_R2

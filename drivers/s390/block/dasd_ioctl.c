@@ -498,12 +498,9 @@ int dasd_ioctl(struct block_device *bdev, fmode_t mode,
 		break;
 	default:
 		/* if the discipline has an ioctl method try it. */
-		if (base->discipline->ioctl) {
+		rc = -ENOTTY;
+		if (base->discipline->ioctl)
 			rc = base->discipline->ioctl(block, cmd, argp);
-			if (rc == -ENOIOCTLCMD)
-				rc = -EINVAL;
-		} else
-			rc = -EINVAL;
 	}
 	dasd_put_device(base);
 	return rc;
