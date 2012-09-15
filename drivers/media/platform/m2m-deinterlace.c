@@ -456,8 +456,13 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver));
 	strlcpy(cap->card, MEM2MEM_NAME, sizeof(cap->card));
 	strlcpy(cap->bus_info, MEM2MEM_NAME, sizeof(cap->card));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT
-			  | V4L2_CAP_STREAMING;
+	/*
+	 * This is only a mem-to-mem video device. The capture and output
+	 * device capability flags are left only for backward compatibility
+	 * and are scheduled for removal.
+	 */
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT |
+			   V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
