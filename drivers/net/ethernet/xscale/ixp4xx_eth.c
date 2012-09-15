@@ -1003,6 +1003,7 @@ static int ixp4xx_nway_reset(struct net_device *dev)
 }
 
 int ixp46x_phc_index = -1;
+EXPORT_SYMBOL_GPL(ixp46x_phc_index);
 
 static int ixp4xx_get_ts_info(struct net_device *dev,
 			      struct ethtool_ts_info *info)

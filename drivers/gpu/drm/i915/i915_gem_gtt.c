@@ -361,7 +361,8 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->mm.gtt->needs_dmar)
+	/* don't map imported dma buf objects */
+	if (dev_priv->mm.gtt->needs_dmar && !obj->sg_table)
 		return intel_gtt_map_memory(obj->pages,
 					    obj->base.size >> PAGE_SHIFT,
 					    &obj->sg_list,

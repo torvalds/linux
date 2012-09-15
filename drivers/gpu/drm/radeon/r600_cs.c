@@ -764,8 +764,10 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 	}
 
 	/* Check depth buffer */
-	if (track->db_dirty && (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
-		G_028800_Z_ENABLE(track->db_depth_control))) {
+	if (track->db_dirty &&
+	    G_028010_FORMAT(track->db_depth_info) != V_028010_DEPTH_INVALID &&
+	    (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
+	     G_028800_Z_ENABLE(track->db_depth_control))) {
 		r = r600_cs_track_validate_db(p);
 		if (r)
 			return r;
@@ -1557,13 +1559,14 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 					      u32 tiling_flags)
 {
 	struct r600_cs_track *track = p->track;
-	u32 nfaces, llevel, blevel, w0, h0, d0;
-	u32 word0, word1, l0_size, mipmap_size, word2, word3;
+	u32 dim, nfaces, llevel, blevel, w0, h0, d0;
+	u32 word0, word1, l0_size, mipmap_size, word2, word3, word4, word5;
 	u32 height_align, pitch, pitch_align, depth_align;
-	u32 array, barray, larray;
+	u32 barray, larray;
 	u64 base_align;
 	struct array_mode_checker array_check;
 	u32 format;
+	bool is_array;
 
 	/* on legacy kernel we don't perform advanced check */
 	if (p->rdev == NULL)
@@ -1581,12 +1584,28 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 			word0 |= S_038000_TILE_MODE(V_038000_ARRAY_1D_TILED_THIN1);
 	}
 	word1 = radeon_get_ib_value(p, idx + 1);
+	word2 = radeon_get_ib_value(p, idx + 2) << 8;
+	word3 = radeon_get_ib_value(p, idx + 3) << 8;
+	word4 = radeon_get_ib_value(p, idx + 4);
+	word5 = radeon_get_ib_value(p, idx + 5);
+	dim = G_038000_DIM(word0);
 	w0 = G_038000_TEX_WIDTH(word0) + 1;
+	pitch = (G_038000_PITCH(word0) + 1) * 8;
 	h0 = G_038004_TEX_HEIGHT(word1) + 1;
 	d0 = G_038004_TEX_DEPTH(word1);
+	format = G_038004_DATA_FORMAT(word1);
+	blevel = G_038010_BASE_LEVEL(word4);
+	llevel = G_038014_LAST_LEVEL(word5);
+	/* pitch in texels */
+	array_check.array_mode = G_038000_TILE_MODE(word0);
+	array_check.group_size = track->group_size;
+	array_check.nbanks = track->nbanks;
+	array_check.npipes = track->npipes;
+	array_check.nsamples = 1;
+	array_check.blocksize = r600_fmt_get_blocksize(format);
 	nfaces = 1;
-	array = 0;
-	switch (G_038000_DIM(word0)) {
+	is_array = false;
+	switch (dim) {
 	case V_038000_SQ_TEX_DIM_1D:
 	case V_038000_SQ_TEX_DIM_2D:
 	case V_038000_SQ_TEX_DIM_3D:
@@ -1599,29 +1618,25 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 		break;
 	case V_038000_SQ_TEX_DIM_1D_ARRAY:
 	case V_038000_SQ_TEX_DIM_2D_ARRAY:
-		array = 1;
+		is_array = true;
 		break;
-	case V_038000_SQ_TEX_DIM_2D_MSAA:
 	case V_038000_SQ_TEX_DIM_2D_ARRAY_MSAA:
+		is_array = true;
+		/* fall through */
+	case V_038000_SQ_TEX_DIM_2D_MSAA:
+		array_check.nsamples = 1 << llevel;
+		llevel = 0;
+		break;
 	default:
 		dev_warn(p->dev, "this kernel doesn't support %d texture dim\n", G_038000_DIM(word0));
 		return -EINVAL;
 	}
-	format = G_038004_DATA_FORMAT(word1);
 	if (!r600_fmt_is_valid_texture(format, p->family)) {
 		dev_warn(p->dev, "%s:%d texture invalid format %d\n",
 			 __func__, __LINE__, format);
 		return -EINVAL;
 	}
 
-	/* pitch in texels */
-	pitch = (G_038000_PITCH(word0) + 1) * 8;
-	array_check.array_mode = G_038000_TILE_MODE(word0);
-	array_check.group_size = track->group_size;
-	array_check.nbanks = track->nbanks;
-	array_check.npipes = track->npipes;
-	array_check.nsamples = 1;
-	array_check.blocksize = r600_fmt_get_blocksize(format);
 	if (r600_get_array_mode_alignment(&array_check,
 					  &pitch_align, &height_align, &depth_align, &base_align)) {
 		dev_warn(p->dev, "%s:%d tex array mode (%d) invalid\n",
@@ -1647,20 +1662,13 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 		return -EINVAL;
 	}
 
-	word2 = radeon_get_ib_value(p, idx + 2) << 8;
-	word3 = radeon_get_ib_value(p, idx + 3) << 8;
-
-	word0 = radeon_get_ib_value(p, idx + 4);
-	word1 = radeon_get_ib_value(p, idx + 5);
-	blevel = G_038010_BASE_LEVEL(word0);
-	llevel = G_038014_LAST_LEVEL(word1);
 	if (blevel > llevel) {
 		dev_warn(p->dev, "texture blevel %d > llevel %d\n",
 			 blevel, llevel);
 	}
-	if (array == 1) {
-		barray = G_038014_BASE_ARRAY(word1);
-		larray = G_038014_LAST_ARRAY(word1);
+	if (is_array) {
+		barray = G_038014_BASE_ARRAY(word5);
+		larray = G_038014_LAST_ARRAY(word5);
 
 		nfaces = larray - barray + 1;
 	}
@@ -1677,7 +1685,6 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 		return -EINVAL;
 	}
 	/* using get ib will give us the offset into the mipmap bo */
-	word3 = radeon_get_ib_value(p, idx + 3) << 8;
 	if ((mipmap_size + word3) > radeon_bo_size(mipmap)) {
 		/*dev_warn(p->dev, "mipmap bo too small (%d %d %d %d %d %d -> %d have %ld)\n",
 		  w0, h0, format, blevel, nlevels, word3, mipmap_size, radeon_bo_size(texture));*/

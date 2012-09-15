@@ -1731,7 +1731,6 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < npct->soc->gpio_num_ranges; i++) {
 		if (!nmk_gpio_chips[i]) {
 			dev_warn(&pdev->dev, "GPIO chip %d not registered yet\n", i);
-			devm_kfree(&pdev->dev, npct);
 			return -EPROBE_DEFER;
 		}
 		npct->soc->gpio_ranges[i].gc = &nmk_gpio_chips[i]->chip;
