@@ -535,13 +535,13 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	(writel((value), (void *)(((a)->mem_map) + BPCTLI_##reg)))
 
 #define BPCTL_READ_REG(a, reg) ( \
-        readl((void *)((a)->mem_map) + BPCTLI_##reg))
+	readl((void *)((a)->mem_map) + BPCTLI_##reg))
 
 #define BPCTL_WRITE_FLUSH(a) BPCTL_READ_REG(a, STATUS)
 
 #define BPCTL_BP_WRITE_REG(a, reg, value) ({ \
-        BPCTL_WRITE_REG(a, reg, value); \
-        BPCTL_WRITE_FLUSH(a);})
+	BPCTL_WRITE_REG(a, reg, value); \
+	BPCTL_WRITE_FLUSH(a); })
 
 /**************************************************************/
 /************** 82575 Interface********************************/
@@ -645,7 +645,7 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	(writel((value), (void *)(((a)->mem_map) + BP10G_##reg)))
 
 #define BP10G_READ_REG(a, reg) ( \
-        readl((void *)((a)->mem_map) + BP10G_##reg))
+	readl((void *)((a)->mem_map) + BP10G_##reg))
 
 /*****BROADCOM*******************************************/
 
@@ -697,7 +697,7 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	(writel((value), (void *)(((a)->mem_map) + BP10GB_##reg)))
 
 #define BP10GB_READ_REG(a, reg) ( \
-        readl((void *)((a)->mem_map) + BP10GB_##reg))
+	readl((void *)((a)->mem_map) + BP10GB_##reg))
 
 #endif
 
