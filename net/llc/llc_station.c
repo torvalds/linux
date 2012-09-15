@@ -331,14 +331,6 @@ static int llc_station_ac_report_status(struct sk_buff *skb)
 	return 0;
 }
 
-/* COMMON STATION STATE transitions */
-
-/* dummy last-transition indicator; common to all state transition groups
- * last entry for this state
- * all members are zeros, .bss zeroes it
- */
-static struct llc_station_state_trans llc_stat_state_trans_end;
-
 /* DOWN STATE transitions */
 
 /* state transition for LLC_STATION_EV_ENABLE_WITH_DUP_ADDR_CHECK event */
@@ -372,7 +364,7 @@ static struct llc_station_state_trans llc_stat_down_state_trans_2 = {
 static struct llc_station_state_trans *llc_stat_dwn_state_trans[] = {
 	[0] = &llc_stat_down_state_trans_1,
 	[1] = &llc_stat_down_state_trans_2,
-	[2] = &llc_stat_state_trans_end,
+	[2] = NULL,
 };
 
 /* UP STATE transitions */
@@ -417,7 +409,7 @@ static struct llc_station_state_trans *llc_stat_up_state_trans [] = {
 	[0] = &llc_stat_up_state_trans_1,
 	[1] = &llc_stat_up_state_trans_2,
 	[2] = &llc_stat_up_state_trans_3,
-	[3] = &llc_stat_state_trans_end,
+	[3] = NULL,
 };
 
 /* DUP ADDR CHK STATE transitions */
@@ -512,7 +504,7 @@ static struct llc_station_state_trans *llc_stat_dupaddr_state_trans[] = {
 	[3] = &llc_stat_dupaddr_state_trans_1,	/* Receive frame */
 	[4] = &llc_stat_dupaddr_state_trans_2,
 	[5] = &llc_stat_dupaddr_state_trans_3,
-	[6] = &llc_stat_state_trans_end,
+	[6] = NULL,
 };
 
 static struct llc_station_state
@@ -568,7 +560,7 @@ static struct llc_station_state_trans *
 	struct llc_station_state *curr_state =
 				&llc_station_state_table[llc_main_station.state - 1];
 
-	for (next_trans = curr_state->transitions; next_trans[i]->ev; i++)
+	for (next_trans = curr_state->transitions; next_trans[i]; i++)
 		if (!next_trans[i]->ev(skb)) {
 			rc = next_trans[i];
 			break;
