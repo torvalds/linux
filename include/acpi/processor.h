@@ -324,12 +324,10 @@ extern void acpi_processor_reevaluate_tstate(struct acpi_processor *pr,
 extern const struct file_operations acpi_processor_throttling_fops;
 extern void acpi_processor_throttling_init(void);
 /* in processor_idle.c */
-int acpi_processor_power_init(struct acpi_processor *pr,
-			      struct acpi_device *device);
+int acpi_processor_power_init(struct acpi_processor *pr);
+int acpi_processor_power_exit(struct acpi_processor *pr);
 int acpi_processor_cst_has_changed(struct acpi_processor *pr);
 int acpi_processor_hotplug(struct acpi_processor *pr);
-int acpi_processor_power_exit(struct acpi_processor *pr,
-			      struct acpi_device *device);
 int acpi_processor_suspend(struct device *dev);
 int acpi_processor_resume(struct device *dev);
 extern struct cpuidle_driver acpi_idle_driver;
