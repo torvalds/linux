@@ -29,7 +29,6 @@
 #include <linux/dma/ipu-dma.h>
 
 #include <linux/platform_data/dma-imx.h>
-#include <mach/hardware.h>
 #include <linux/platform_data/video-mx3fb.h>
 
 #include <asm/io.h>
