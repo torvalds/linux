@@ -777,7 +777,11 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 			dev_dbg(&client->dev, "jolly good! %d\n", j);
 
 			sensor->default_mbus_frame_fmts |= 1 << j;
-			if (!sensor->csi_format) {
+			if (!sensor->csi_format
+			    || f->width > sensor->csi_format->width
+			    || (f->width == sensor->csi_format->width
+				&& f->compressed
+				> sensor->csi_format->compressed)) {
 				sensor->csi_format = f;
 				sensor->internal_csi_format = f;
 			}
