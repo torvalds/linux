@@ -3379,7 +3379,7 @@ int bypass_from_last_read(bpctl_dev_t *pbpctl_dev)
 		return BP_NOT_CAP;
 }
 
-int bypass_status_clear(bpctl_dev_t * pbpctl_dev)
+int bypass_status_clear(bpctl_dev_t *pbpctl_dev)
 {
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 
@@ -3392,7 +3392,7 @@ int bypass_status_clear(bpctl_dev_t * pbpctl_dev)
 		return BP_NOT_CAP;
 }
 
-int bypass_flag_status(bpctl_dev_t * pbpctl_dev)
+int bypass_flag_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if ((pbpctl_dev->bp_caps & BP_CAP)) {
@@ -3405,7 +3405,7 @@ int bypass_flag_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int bypass_flag_status_clear(bpctl_dev_t * pbpctl_dev)
+int bypass_flag_status_clear(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & BP_CAP) {
@@ -3420,7 +3420,7 @@ int bypass_flag_status_clear(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int bypass_change_status(bpctl_dev_t * pbpctl_dev)
+int bypass_change_status(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 
@@ -3439,7 +3439,7 @@ int bypass_change_status(bpctl_dev_t * pbpctl_dev)
 	return ret;
 }
 
-int bypass_off_status(bpctl_dev_t * pbpctl_dev)
+int bypass_off_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & BP_CAP) {
@@ -3451,7 +3451,7 @@ int bypass_off_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-static int bypass_status(bpctl_dev_t * pbpctl_dev)
+static int bypass_status(bpctl_dev_t *pbpctl_dev)
 {
 	u32 ctrl_ext = 0;
 	if (pbpctl_dev->bp_caps & BP_CAP) {
@@ -3536,7 +3536,7 @@ static int bypass_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int default_pwron_status(bpctl_dev_t * pbpctl_dev)
+int default_pwron_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & SW_CTL_CAP) {
@@ -3554,7 +3554,7 @@ int default_pwron_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-static int default_pwroff_status(bpctl_dev_t * pbpctl_dev)
+static int default_pwroff_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	/*if ((!pbpctl_dev->bp_caps&BP_DIS_CAP)&&
@@ -3568,7 +3568,7 @@ static int default_pwroff_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int dis_bypass_cap_status(bpctl_dev_t * pbpctl_dev)
+int dis_bypass_cap_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & BP_DIS_CAP) {
@@ -3581,7 +3581,7 @@ int dis_bypass_cap_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int cmd_en_status(bpctl_dev_t * pbpctl_dev)
+int cmd_en_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & SW_CTL_CAP) {
@@ -3593,7 +3593,7 @@ int cmd_en_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int wdt_en_status(bpctl_dev_t * pbpctl_dev)
+int wdt_en_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
@@ -3605,7 +3605,7 @@ int wdt_en_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int wdt_programmed(bpctl_dev_t * pbpctl_dev, int *timeout)
+int wdt_programmed(bpctl_dev_t *pbpctl_dev, int *timeout)
 {
 	int ret = 0;
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
@@ -3631,7 +3631,7 @@ int wdt_programmed(bpctl_dev_t * pbpctl_dev, int *timeout)
 	return ret;
 }
 
-int bypass_support(bpctl_dev_t * pbpctl_dev)
+int bypass_support(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 
@@ -3648,7 +3648,7 @@ int bypass_support(bpctl_dev_t * pbpctl_dev)
 	return ret;
 }
 
-int tap_support(bpctl_dev_t * pbpctl_dev)
+int tap_support(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 
@@ -3664,7 +3664,7 @@ int tap_support(bpctl_dev_t * pbpctl_dev)
 	return ret;
 }
 
-int normal_support(bpctl_dev_t * pbpctl_dev)
+int normal_support(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 
@@ -3680,7 +3680,7 @@ int normal_support(bpctl_dev_t * pbpctl_dev)
 	return ret;
 }
 
-int get_bp_prod_caps(bpctl_dev_t * pbpctl_dev)
+int get_bp_prod_caps(bpctl_dev_t *pbpctl_dev)
 {
 	if ((pbpctl_dev->bp_caps & SW_CTL_CAP) &&
 	    (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER))
@@ -3689,7 +3689,7 @@ int get_bp_prod_caps(bpctl_dev_t * pbpctl_dev)
 
 }
 
-int tap_flag_status(bpctl_dev_t * pbpctl_dev)
+int tap_flag_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & TAP_STATUS_CAP) {
@@ -3701,7 +3701,7 @@ int tap_flag_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int tap_flag_status_clear(bpctl_dev_t * pbpctl_dev)
+int tap_flag_status_clear(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t status_reg = 0;
 	if (pbpctl_dev->bp_caps & TAP_STATUS_CAP) {
@@ -3715,7 +3715,7 @@ int tap_flag_status_clear(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int tap_change_status(bpctl_dev_t * pbpctl_dev)
+int tap_change_status(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 	if (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER) {
@@ -3732,7 +3732,7 @@ int tap_change_status(bpctl_dev_t * pbpctl_dev)
 	return ret;
 }
 
-int tap_off_status(bpctl_dev_t * pbpctl_dev)
+int tap_off_status(bpctl_dev_t *pbpctl_dev)
 {
 	if (pbpctl_dev->bp_caps & TAP_CAP) {
 		if (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER)
@@ -3742,7 +3742,7 @@ int tap_off_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int tap_status(bpctl_dev_t * pbpctl_dev)
+int tap_status(bpctl_dev_t *pbpctl_dev)
 {
 	u32 ctrl_ext = 0;
 
@@ -3781,7 +3781,7 @@ int tap_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int default_pwron_tap_status(bpctl_dev_t * pbpctl_dev)
+int default_pwron_tap_status(bpctl_dev_t *pbpctl_dev)
 {
 	if (pbpctl_dev->bp_caps & TAP_PWUP_CTL_CAP) {
 		if (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER)
@@ -3792,7 +3792,7 @@ int default_pwron_tap_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int dis_tap_cap_status(bpctl_dev_t * pbpctl_dev)
+int dis_tap_cap_status(bpctl_dev_t *pbpctl_dev)
 {
 	if (pbpctl_dev->bp_caps & TAP_PWUP_CTL_CAP) {
 		if (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER)
@@ -3803,7 +3803,7 @@ int dis_tap_cap_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int disc_flag_status(bpctl_dev_t * pbpctl_dev)
+int disc_flag_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & DISC_CAP) {
@@ -3815,7 +3815,7 @@ int disc_flag_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int disc_flag_status_clear(bpctl_dev_t * pbpctl_dev)
+int disc_flag_status_clear(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t status_reg = 0;
 	if (pbpctl_dev->bp_caps & DISC_CAP) {
@@ -3829,7 +3829,7 @@ int disc_flag_status_clear(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int disc_change_status(bpctl_dev_t * pbpctl_dev)
+int disc_change_status(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 	if (pbpctl_dev->bp_caps & DISC_CAP) {
@@ -3840,7 +3840,7 @@ int disc_change_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int disc_off_status(bpctl_dev_t * pbpctl_dev)
+int disc_off_status(bpctl_dev_t *pbpctl_dev)
 {
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 	u32 ctrl_ext = 0;
@@ -3930,7 +3930,7 @@ int disc_off_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-static int disc_status(bpctl_dev_t * pbpctl_dev)
+static int disc_status(bpctl_dev_t *pbpctl_dev)
 {
 	int ctrl = 0;
 	if (pbpctl_dev->bp_caps & DISC_CAP) {
@@ -3943,7 +3943,7 @@ static int disc_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int default_pwron_disc_status(bpctl_dev_t * pbpctl_dev)
+int default_pwron_disc_status(bpctl_dev_t *pbpctl_dev)
 {
 	if (pbpctl_dev->bp_caps & DISC_PWUP_CTL_CAP) {
 		if (pbpctl_dev->bp_ext_ver >= 0x8)
@@ -3954,7 +3954,7 @@ int default_pwron_disc_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int dis_disc_cap_status(bpctl_dev_t * pbpctl_dev)
+int dis_disc_cap_status(bpctl_dev_t *pbpctl_dev)
 {
 	if (pbpctl_dev->bp_caps & DIS_DISC_CAP) {
 		if (pbpctl_dev->bp_ext_ver >= 0x8)
@@ -3965,7 +3965,7 @@ int dis_disc_cap_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int disc_port_status(bpctl_dev_t * pbpctl_dev)
+int disc_port_status(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 	bpctl_dev_t *pbpctl_dev_m;
@@ -3989,7 +3989,7 @@ int disc_port_status(bpctl_dev_t * pbpctl_dev)
 	return ret;
 }
 
-int default_pwron_disc_port_status(bpctl_dev_t * pbpctl_dev)
+int default_pwron_disc_port_status(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 	bpctl_dev_t *pbpctl_dev_m;
@@ -4013,7 +4013,7 @@ int default_pwron_disc_port_status(bpctl_dev_t * pbpctl_dev)
 	return ret;
 }
 
-int wdt_exp_mode_status(bpctl_dev_t * pbpctl_dev)
+int wdt_exp_mode_status(bpctl_dev_t *pbpctl_dev)
 {
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
 		if (pbpctl_dev->bp_ext_ver <= PXG2BPI_VER)
