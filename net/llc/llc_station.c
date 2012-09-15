@@ -25,16 +25,6 @@
 #include <net/llc_s_st.h>
 #include <net/llc_pdu.h>
 
-typedef int (*llc_station_ev_t)(struct sk_buff *skb);
-
-typedef int (*llc_station_action_t)(struct sk_buff *skb);
-
-/* Station component state table structure */
-struct llc_station_state_trans {
-	llc_station_ev_t ev;
-	llc_station_action_t *ev_actions;
-};
-
 static int llc_stat_ev_rx_null_dsap_xid_c(struct sk_buff *skb)
 {
 	struct llc_pdu_un *pdu = llc_pdu_un_hdr(skb);
@@ -109,78 +99,6 @@ free:
 	goto out;
 }
 
-/* state transition for LLC_STATION_EV_RX_NULL_DSAP_XID_C event */
-static llc_station_action_t llc_stat_up_state_actions_2[] = {
-	llc_station_ac_send_xid_r,
-	NULL,
-};
-
-static struct llc_station_state_trans llc_stat_up_state_trans_2 = {
-	.ev	    = llc_stat_ev_rx_null_dsap_xid_c,
-	.ev_actions = llc_stat_up_state_actions_2,
-};
-
-/* state transition for LLC_STATION_EV_RX_NULL_DSAP_TEST_C event */
-static llc_station_action_t llc_stat_up_state_actions_3[] = {
-	llc_station_ac_send_test_r,
-	NULL,
-};
-
-static struct llc_station_state_trans llc_stat_up_state_trans_3 = {
-	.ev	    = llc_stat_ev_rx_null_dsap_test_c,
-	.ev_actions = llc_stat_up_state_actions_3,
-};
-
-/* array of pointers; one to each transition */
-static struct llc_station_state_trans *llc_stat_up_state_trans [] = {
-	&llc_stat_up_state_trans_2,
-	&llc_stat_up_state_trans_3,
-	NULL,
-};
-
-/**
- *	llc_exec_station_trans_actions - executes actions for transition
- *	@trans: Address of the transition
- *	@skb: Address of the event that caused the transition
- *
- *	Executes actions of a transition of the station state machine. Returns
- *	0 if all actions complete successfully, nonzero otherwise.
- */
-static u16 llc_exec_station_trans_actions(struct llc_station_state_trans *trans,
-					  struct sk_buff *skb)
-{
-	u16 rc = 0;
-	llc_station_action_t *next_action = trans->ev_actions;
-
-	for (; next_action && *next_action; next_action++)
-		if ((*next_action)(skb))
-			rc = 1;
-	return rc;
-}
-
-/**
- *	llc_find_station_trans - finds transition for this event
- *	@skb: Address of the event
- *
- *	Search thru events of the current state of the station until list
- *	exhausted or it's obvious that the event is not valid for the current
- *	state. Returns the address of the transition if cound, %NULL otherwise.
- */
-static struct llc_station_state_trans *
-				llc_find_station_trans(struct sk_buff *skb)
-{
-	int i = 0;
-	struct llc_station_state_trans *rc = NULL;
-	struct llc_station_state_trans **next_trans;
-
-	for (next_trans = llc_stat_up_state_trans; next_trans[i]; i++)
-		if (!next_trans[i]->ev(skb)) {
-			rc = next_trans[i];
-			break;
-		}
-	return rc;
-}
-
 /**
  *	llc_station_rcv - send received pdu to the station state machine
  *	@skb: received frame.
@@ -189,11 +107,10 @@ static struct llc_station_state_trans *
  */
 static void llc_station_rcv(struct sk_buff *skb)
 {
-	struct llc_station_state_trans *trans;
-
-	trans = llc_find_station_trans(skb);
-	if (trans)
-		llc_exec_station_trans_actions(trans, skb);
+	if (llc_stat_ev_rx_null_dsap_xid_c(skb))
+		llc_station_ac_send_xid_r(skb);
+	else if (llc_stat_ev_rx_null_dsap_test_c(skb))
+		llc_station_ac_send_test_r(skb);
 	kfree_skb(skb);
 }
 
