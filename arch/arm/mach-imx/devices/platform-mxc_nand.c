@@ -10,15 +10,17 @@
 #include <mach/hardware.h>
 #include "devices-common.h"
 
-#define imx_mxc_nand_data_entry_single(soc, _size)			\
+#define imx_mxc_nand_data_entry_single(soc, _devid, _size)		\
 	{								\
+		.devid = _devid,					\
 		.iobase = soc ## _NFC_BASE_ADDR,			\
 		.iosize = _size,					\
 		.irq = soc ## _INT_NFC					\
 	}
 
-#define imx_mxc_nandv3_data_entry_single(soc, _size)			\
+#define imx_mxc_nandv3_data_entry_single(soc, _devid, _size)		\
 	{								\
+		.devid = _devid,					\
 		.id = -1,						\
 		.iobase = soc ## _NFC_BASE_ADDR,			\
 		.iosize = _size,					\
@@ -28,32 +30,32 @@
 
 #ifdef CONFIG_SOC_IMX21
 const struct imx_mxc_nand_data imx21_mxc_nand_data __initconst =
-	imx_mxc_nand_data_entry_single(MX21, SZ_4K);
+	imx_mxc_nand_data_entry_single(MX21, "imx21-nand", SZ_4K);
 #endif /* ifdef CONFIG_SOC_IMX21 */
 
 #ifdef CONFIG_SOC_IMX25
 const struct imx_mxc_nand_data imx25_mxc_nand_data __initconst =
-	imx_mxc_nand_data_entry_single(MX25, SZ_8K);
+	imx_mxc_nand_data_entry_single(MX25, "imx25-nand", SZ_8K);
 #endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX27
 const struct imx_mxc_nand_data imx27_mxc_nand_data __initconst =
-	imx_mxc_nand_data_entry_single(MX27, SZ_4K);
+	imx_mxc_nand_data_entry_single(MX27, "imx27-nand", SZ_4K);
 #endif /* ifdef CONFIG_SOC_IMX27 */
 
 #ifdef CONFIG_SOC_IMX31
 const struct imx_mxc_nand_data imx31_mxc_nand_data __initconst =
-	imx_mxc_nand_data_entry_single(MX31, SZ_4K);
+	imx_mxc_nand_data_entry_single(MX31, "imx27-nand", SZ_4K);
 #endif
 
 #ifdef CONFIG_SOC_IMX35
 const struct imx_mxc_nand_data imx35_mxc_nand_data __initconst =
-	imx_mxc_nand_data_entry_single(MX35, SZ_8K);
+	imx_mxc_nand_data_entry_single(MX35, "imx25-nand", SZ_8K);
 #endif
 
 #ifdef CONFIG_SOC_IMX51
 const struct imx_mxc_nand_data imx51_mxc_nand_data __initconst =
-	imx_mxc_nandv3_data_entry_single(MX51, SZ_16K);
+	imx_mxc_nandv3_data_entry_single(MX51, "imx51-nand", SZ_16K);
 #endif
 
 struct platform_device *__init imx_add_mxc_nand(
@@ -76,7 +78,7 @@ struct platform_device *__init imx_add_mxc_nand(
 			.flags = IORESOURCE_MEM,
 		},
 	};
-	return imx_add_platform_device("mxc_nand", data->id,
+	return imx_add_platform_device(data->devid, data->id,
 			res, ARRAY_SIZE(res) - !data->axibase,
 			pdata, sizeof(*pdata));
 }

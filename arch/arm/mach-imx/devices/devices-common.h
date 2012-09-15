@@ -257,6 +257,7 @@ struct platform_device *__init imx_add_mxc_mmc(
 
 #include <linux/platform_data/mtd-mxc_nand.h>
 struct imx_mxc_nand_data {
+	const char *devid;
 	/*
 	 * id is traditionally 0, but -1 is more appropriate.  We use -1 for new
 	 * machines but don't change existing devices as the nand device usually

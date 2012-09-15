@@ -162,7 +162,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_register_clkdev(clk[lcdc_hclk_gate], "ahb", "imx-fb.0");
 	clk_register_clkdev(clk[usb_gate], "per", "imx21-hcd.0");
 	clk_register_clkdev(clk[usb_hclk_gate], "ahb", "imx21-hcd.0");
-	clk_register_clkdev(clk[nfc_gate], NULL, "mxc_nand.0");
+	clk_register_clkdev(clk[nfc_gate], NULL, "imx21-nand.0");
 	clk_register_clkdev(clk[dma_hclk_gate], "ahb", "imx-dma");
 	clk_register_clkdev(clk[dma_gate], "ipg", "imx-dma");
 	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");

@@ -272,7 +272,7 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_register_clkdev(clk[usboh3_per_gate], "per", "fsl-usb2-udc");
 	clk_register_clkdev(clk[usboh3_gate], "ipg", "fsl-usb2-udc");
 	clk_register_clkdev(clk[usboh3_gate], "ahb", "fsl-usb2-udc");
-	clk_register_clkdev(clk[nfc_gate], NULL, "mxc_nand");
+	clk_register_clkdev(clk[nfc_gate], NULL, "imx51-nand");
 	clk_register_clkdev(clk[ssi1_ipg_gate], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_ipg_gate], NULL, "imx-ssi.1");
 	clk_register_clkdev(clk[ssi3_ipg_gate], NULL, "imx-ssi.2");
