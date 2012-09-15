@@ -309,23 +309,23 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	 (pid == SILICOM_MEG2BPFILXNX_SSID))
 
 #define TPL_IF_SERIES(pid) \
-        ((pid==SILICOM_PXG2BPFIL_SSID)||   \
-          (pid==SILICOM_PXG2BPFILLX_SSID)|| \
-          (pid==SILICOM_PXG2TBFI_SSID)|| \
-	  (pid==SILICOM_PXG4BPFID_SSID)|| \
-         (pid==SILICOM_PXG4BPFI_SSID))
+	((pid == SILICOM_PXG2BPFIL_SSID) || \
+	 (pid == SILICOM_PXG2BPFILLX_SSID) || \
+	 (pid == SILICOM_PXG2TBFI_SSID) || \
+	 (pid == SILICOM_PXG4BPFID_SSID) || \
+	 (pid == SILICOM_PXG4BPFI_SSID))
 
 #define BP10G_IF_SERIES(pid) \
-          ((pid==SILICOM_PE10G2BPISR_SSID)|| \
-          (pid==SILICOM_PE10G2BPICX4_SSID)|| \
-          (pid==SILICOM_PE10G2BPILR_SSID)|| \
-          (pid==SILICOM_XE10G2BPIT_SSID)|| \
-           (pid==SILICOM_XE10G2BPICX4_SSID)|| \
-           (pid==SILICOM_XE10G2BPISR_SSID)|| \
-           (pid==NOKIA_XE10G2BPIXR_SSID)|| \
-           (pid==SILICOM_PE10GDBISR_SSID)|| \
-           (pid==SILICOM_PE10GDBILR_SSID)|| \
-           (pid==SILICOM_XE10G2BPILR_SSID))
+	((pid == SILICOM_PE10G2BPISR_SSID) || \
+	 (pid == SILICOM_PE10G2BPICX4_SSID) || \
+	 (pid == SILICOM_PE10G2BPILR_SSID) || \
+	 (pid == SILICOM_XE10G2BPIT_SSID) || \
+	 (pid == SILICOM_XE10G2BPICX4_SSID) || \
+	 (pid == SILICOM_XE10G2BPISR_SSID) || \
+	 (pid == NOKIA_XE10G2BPIXR_SSID) || \
+	 (pid == SILICOM_PE10GDBISR_SSID) || \
+	 (pid == SILICOM_PE10GDBILR_SSID) || \
+	 (pid == SILICOM_XE10G2BPILR_SSID))
 
 #define BP10GB_IF_SERIES(pid) \
           ((pid==SILICOM_PE10G2BPTCX4_SSID)|| \
