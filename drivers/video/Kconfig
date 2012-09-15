@@ -299,14 +299,10 @@ config LYCHEE_FB_SUN5I
 config FB_SUNXI
         tristate
 
-config LYCHEE_FB_UMP_SUN4I
-	bool "Enable FB/UMP Integration"
-	select FB_SUNXI_UMP
-	depends on MALI && LYCHEE_FB_SUN4I=m
-	default y
-
 config FB_SUNXI_UMP
-	bool
+	bool "Enable FB/UMP Integration"
+	depends on MALI && FB_SUNXI
+	default y
 
 config LYCHEE_LCD_SUN4I
 	tristate "LCD Driver Support(sun4i)"
