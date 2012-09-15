@@ -54,7 +54,7 @@ struct bp_info {
  * @if_index: network device index
  *
  * Output:
- *  1 -  if device is bypass controlling device, 
+ *  1 -  if device is bypass controlling device,
  *  0 -  if device is bypass slave device
  * -1 -  device not support Bypass
  **/
@@ -66,7 +66,7 @@ int is_bypass_sd(int if_index);
  *
  * Output:
  *  network device index of the slave device
- * -1 - on failure (device not support Bypass or it's a slave device) 
+ * -1 - on failure (device not support Bypass or it's a slave device)
  **/
 int get_bypass_slave_sd(int if_index);
 
@@ -75,48 +75,48 @@ int get_bypass_slave_sd(int if_index);
  * @if_index: network device index
  *
  * Output:
- * flags word on success;flag word is a 32-bit mask word with each bit defines different 
+ * flags word on success;flag word is a 32-bit mask word with each bit defines different
  * capability as described bellow.
  * Value of 1 for supporting this feature. 0 for not supporting this feature.
  * -1 - on failure (if the device is not capable of the operation or not a Bypass device)
  * Bit	feature	                description
- * 
+ *
  * 0	BP_CAP	                The interface is Bypass capable in general
- * 
+ *
  * 1	BP_STATUS_CAP	        The interface can report of the current Bypass mode
- * 
- * 2	BP_STATUS_CHANGE_CAP	The interface can report on a change to bypass mode from 
+ *
+ * 2	BP_STATUS_CHANGE_CAP	The interface can report on a change to bypass mode from
  *                              the last time the mode was defined
- * 
+ *
  * 3	SW_CTL_CAP	            The interface is Software controlled capable for bypass/non bypass modes.
- * 
- * 4	BP_DIS_CAP	            The interface is capable of disabling the Bypass mode at all times. 
- *                              This mode will retain its mode even during power loss and also after 
- *                              power recovery. This will overcome on any bypass operation due to 
+ *
+ * 4	BP_DIS_CAP	            The interface is capable of disabling the Bypass mode at all times.
+ *                              This mode will retain its mode even during power loss and also after
+ *                              power recovery. This will overcome on any bypass operation due to
  *                              watchdog timeout or set bypass command.
- * 
+ *
  * 5	BP_DIS_STATUS_CAP	    The interface can report of the current DIS_BP_CAP
- * 
- * 6	STD_NIC_CAP	            The interface is capable to be configured to operate as standard, non Bypass, 
+ *
+ * 6	STD_NIC_CAP	            The interface is capable to be configured to operate as standard, non Bypass,
  *                              NIC interface (have direct connection to interfaces at all power modes)
- * 
+ *
  * 7	BP_PWOFF_NO_CAP	        The interface can be in Bypass mode at power off state
- * 
- * 8	BP_PWOFF_OFF_CAP	    The interface can disconnect the Bypass mode at power off state without 
+ *
+ * 8	BP_PWOFF_OFF_CAP	    The interface can disconnect the Bypass mode at power off state without
  *                              effecting all the other states of operation
- * 
- * 9	BP_PWOFF_CTL_CAP	    The behavior of the Bypass mode at Power-off state can be controlled by 
+ *
+ * 9	BP_PWOFF_CTL_CAP	    The behavior of the Bypass mode at Power-off state can be controlled by
  *                              software without effecting any other state
- * 
- *10    BP_PWUP_ON_CAP	        The interface can be in Bypass mode when power is turned on 
+ *
+ *10    BP_PWUP_ON_CAP	        The interface can be in Bypass mode when power is turned on
  *                              (until the system take control of the bypass functionality)
- * 
- *11	BP_PWUP_OFF_CAP	        The interface can disconnect from Bypass mode when power is turned on 
+ *
+ *11	BP_PWUP_OFF_CAP	        The interface can disconnect from Bypass mode when power is turned on
  *                              (until the system take control of the bypass functionality)
- * 
+ *
  *12	BP_PWUP_CTL_CAP	        The behavior of the Bypass mode at Power-up can be controlled by software
- * 
- *13	WD_CTL_CAP	            The interface has watchdog capabilities to turn to Bypass mode when not reset 
+ *
+ *13	WD_CTL_CAP	            The interface has watchdog capabilities to turn to Bypass mode when not reset
  *                              for defined period of time.
  * 
  *14	WD_STATUS_CAP	        The interface can report on the watchdog status (Active/inactive)
