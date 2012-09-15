@@ -277,9 +277,9 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	 (pid == SILICOM_XE10G2BPILR_SSID))
 
 #define INTEL_IF_SERIES(pid) \
-        ((pid==INTEL_PEG4BPII_SSID)||   \
-        (pid==INTEL_PEG4BPIIO_SSID)|| \
-        (pid==INTEL_PEG4BPFII_SSID))
+	((pid == INTEL_PEG4BPII_SSID) || \
+	 (pid == INTEL_PEG4BPIIO_SSID) || \
+	 (pid == INTEL_PEG4BPFII_SSID))
 
 #define NOKIA_SERIES(pid) \
         ((pid==NOKIA_PMCXG2BPIN_SSID)||   \
