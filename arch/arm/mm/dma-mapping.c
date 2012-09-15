@@ -489,7 +489,7 @@ static bool __in_atomic_pool(void *start, size_t size)
 	void *pool_start = pool->vaddr;
 	void *pool_end = pool->vaddr + pool->size;
 
-	if (start < pool_start || start > pool_end)
+	if (start < pool_start || start >= pool_end)
 		return false;
 
 	if (end <= pool_end)
