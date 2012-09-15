@@ -292,6 +292,7 @@ struct platform_device *__init imx_add_mxc_pwm(
 
 /* mxc_rtc */
 struct imx_mxc_rtc_data {
+	const char *devid;
 	resource_size_t iobase;
 	resource_size_t irq;
 };

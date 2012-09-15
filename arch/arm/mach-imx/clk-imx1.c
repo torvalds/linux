@@ -106,7 +106,7 @@ int __init mx1_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[dummy], "ahb", "imx-fb.0");
 	clk_register_clkdev(clk[hclk], "mshc", NULL);
 	clk_register_clkdev(clk[per3], "ssi", NULL);
-	clk_register_clkdev(clk[clk32], NULL, "mxc_rtc.0");
+	clk_register_clkdev(clk[clk32], NULL, "imx1-rtc.0");
 	clk_register_clkdev(clk[clko], "clko", NULL);
 
 	mxc_timer_init(MX1_IO_ADDRESS(MX1_TIM1_BASE_ADDR), MX1_TIM1_INT);
