@@ -402,21 +402,21 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	 (pid == SILICOM_PEG4BPFI6FCZX_SSID))
 
 #define PEG5_IF_SERIES(pid) \
-((pid==SILICOM_PEG4BPI6_SSID)|| \
-(pid==SILICOM_PEG2BPI6_SSID)|| \
-(pid==SILICOM_PEG4BPI6FC_SSID)|| \
-(pid==SILICOM_PEG6BPI6_SSID)|| \
-(pid==SILICOM_PEG2BPI6SC6_SSID)|| \
-(pid==SILICOM_MEG2BPI6_SSID)|| \
-(pid==SILICOM_XEG2BPI6_SSID)|| \
-(pid==SILICOM_MEG4BPI6_SSID)|| \
-(pid==SILICOM_M1EG2BPI6_SSID)|| \
-(pid==SILICOM_M1EG4BPI6_SSID)|| \
-(pid==SILICOM_M1EG6BPI6_SSID)|| \
-(pid==SILICOM_PEG6BPI_SSID)|| \
-(pid==SILICOM_PEG4BPIL_SSID)|| \
-(pid==SILICOM_PEG2BISC6_SSID)|| \
-(pid==SILICOM_PEG2BPI5_SSID))
+	((pid == SILICOM_PEG4BPI6_SSID) || \
+	 (pid == SILICOM_PEG2BPI6_SSID) || \
+	 (pid == SILICOM_PEG4BPI6FC_SSID) || \
+	 (pid == SILICOM_PEG6BPI6_SSID) || \
+	 (pid == SILICOM_PEG2BPI6SC6_SSID) || \
+	 (pid == SILICOM_MEG2BPI6_SSID) || \
+	 (pid == SILICOM_XEG2BPI6_SSID) || \
+	 (pid == SILICOM_MEG4BPI6_SSID) || \
+	 (pid == SILICOM_M1EG2BPI6_SSID) || \
+	 (pid == SILICOM_M1EG4BPI6_SSID) || \
+	 (pid == SILICOM_M1EG6BPI6_SSID) || \
+	 (pid == SILICOM_PEG6BPI_SSID) || \
+	 (pid == SILICOM_PEG4BPIL_SSID) || \
+	 (pid == SILICOM_PEG2BISC6_SSID) || \
+	 (pid == SILICOM_PEG2BPI5_SSID))
 
 #define PEG80_IF_SERIES(pid) \
 ((pid==SILICOM_M1E2G4BPi80_SSID)|| \
