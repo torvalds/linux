@@ -8,7 +8,7 @@
  */
 #include "devices-common.h"
 
-struct platform_device __init __maybe_unused *imx_add_imx_dma(
+struct platform_device __init __maybe_unused *imx_add_imx_dma(char *name,
 	resource_size_t iobase, int irq, int irq_err)
 {
 	struct resource res[] = {
@@ -28,7 +28,7 @@ struct platform_device __init __maybe_unused *imx_add_imx_dma(
 	};
 
 	return platform_device_register_resndata(&mxc_ahb_bus,
-			"imx-dma", -1, res, ARRAY_SIZE(res), NULL, 0);
+			name, -1, res, ARRAY_SIZE(res), NULL, 0);
 }
 
 struct platform_device __init __maybe_unused *imx_add_imx_sdma(char *name,

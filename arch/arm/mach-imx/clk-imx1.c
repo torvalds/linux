@@ -83,7 +83,8 @@ int __init mx1_clocks_init(unsigned long fref)
 			pr_err("imx1 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
-	clk_register_clkdev(clk[dma_gate], "ahb", "imx-dma");
+	clk_register_clkdev(clk[dma_gate], "ahb", "imx1-dma");
+	clk_register_clkdev(clk[hclk], "ipg", "imx1-dma");
 	clk_register_clkdev(clk[csi_gate], NULL, "mx1-camera.0");
 	clk_register_clkdev(clk[mma_gate], "mma", NULL);
 	clk_register_clkdev(clk[usbd_gate], NULL, "imx_udc.0");

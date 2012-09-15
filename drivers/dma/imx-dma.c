@@ -29,7 +29,6 @@
 
 #include <asm/irq.h>
 #include <linux/platform_data/dma-imx.h>
-#include <mach/hardware.h>
 
 #include "dmaengine.h"
 #define IMXDMA_MAX_CHAN_DESCRIPTORS	16
@@ -167,6 +166,12 @@ struct imxdma_channel {
 	int				slot_2d;
 };
 
+enum imx_dma_type {
+	IMX1_DMA,
+	IMX21_DMA,
+	IMX27_DMA,
+};
+
 struct imxdma_engine {
 	struct device			*dev;
 	struct device_dma_parameters	dma_parms;
@@ -177,7 +182,39 @@ struct imxdma_engine {
 	spinlock_t			lock;
 	struct imx_dma_2d_config	slots_2d[IMX_DMA_2D_SLOTS];
 	struct imxdma_channel		channel[IMX_DMA_CHANNELS];
+	enum imx_dma_type		devtype;
 };
+
+static struct platform_device_id imx_dma_devtype[] = {
+	{
+		.name = "imx1-dma",
+		.driver_data = IMX1_DMA,
+	}, {
+		.name = "imx21-dma",
+		.driver_data = IMX21_DMA,
+	}, {
+		.name = "imx27-dma",
+		.driver_data = IMX27_DMA,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, imx_dma_devtype);
+
+static inline int is_imx1_dma(struct imxdma_engine *imxdma)
+{
+	return imxdma->devtype == IMX1_DMA;
+}
+
+static inline int is_imx21_dma(struct imxdma_engine *imxdma)
+{
+	return imxdma->devtype == IMX21_DMA;
+}
+
+static inline int is_imx27_dma(struct imxdma_engine *imxdma)
+{
+	return imxdma->devtype == IMX27_DMA;
+}
 
 static struct imxdma_channel *to_imxdma_chan(struct dma_chan *chan)
 {
@@ -212,7 +249,9 @@ static unsigned imx_dmav1_readl(struct imxdma_engine *imxdma, unsigned offset)
 
 static int imxdma_hw_chain(struct imxdma_channel *imxdmac)
 {
-	if (cpu_is_mx27())
+	struct imxdma_engine *imxdma = imxdmac->imxdma;
+
+	if (is_imx27_dma(imxdma))
 		return imxdmac->hw_chaining;
 	else
 		return 0;
@@ -267,7 +306,7 @@ static void imxdma_enable_hw(struct imxdma_desc *d)
 	imx_dmav1_writel(imxdma, imx_dmav1_readl(imxdma, DMA_CCR(channel)) |
 			 CCR_CEN | CCR_ACRPT, DMA_CCR(channel));
 
-	if ((cpu_is_mx21() || cpu_is_mx27()) &&
+	if (!is_imx1_dma(imxdma) &&
 			d->sg && imxdma_hw_chain(imxdmac)) {
 		d->sg = sg_next(d->sg);
 		if (d->sg) {
@@ -436,7 +475,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 	struct imxdma_engine *imxdma = dev_id;
 	int i, disr;
 
-	if (cpu_is_mx21() || cpu_is_mx27())
+	if (!is_imx1_dma(imxdma))
 		imxdma_err_handler(irq, dev_id);
 
 	disr = imx_dmav1_readl(imxdma, DMA_DISR);
@@ -967,6 +1006,8 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	if (!imxdma)
 		return -ENOMEM;
 
+	imxdma->devtype = pdev->id_entry->driver_data;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	imxdma->base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!imxdma->base)
@@ -990,7 +1031,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	/* reset DMA module */
 	imx_dmav1_writel(imxdma, DCR_DRST, DMA_DCR);
 
-	if (cpu_is_mx1()) {
+	if (is_imx1_dma(imxdma)) {
 		ret = devm_request_irq(&pdev->dev, irq,
 				       dma_irq_handler, 0, "DMA", imxdma);
 		if (ret) {
@@ -1038,7 +1079,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	for (i = 0; i < IMX_DMA_CHANNELS; i++) {
 		struct imxdma_channel *imxdmac = &imxdma->channel[i];
 
-		if (cpu_is_mx21() || cpu_is_mx27()) {
+		if (!is_imx1_dma(imxdma)) {
 			ret = devm_request_irq(&pdev->dev, irq + i,
 					dma_irq_handler, 0, "DMA", imxdma);
 			if (ret) {
@@ -1118,6 +1159,7 @@ static struct platform_driver imxdma_driver = {
 	.driver		= {
 		.name	= "imx-dma",
 	},
+	.id_table	= imx_dma_devtype,
 	.remove		= __exit_p(imxdma_remove),
 };
 

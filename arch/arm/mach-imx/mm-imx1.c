@@ -60,6 +60,7 @@ void __init imx1_soc_init(void)
 						MX1_GPIO_INT_PORTC, 0);
 	mxc_register_gpio("imx1-gpio", 3, MX1_GPIO4_BASE_ADDR, SZ_256,
 						MX1_GPIO_INT_PORTD, 0);
-	imx_add_imx_dma(MX1_DMA_BASE_ADDR, MX1_DMA_INT, MX1_DMA_ERR);
+	imx_add_imx_dma("imx1-dma", MX1_DMA_BASE_ADDR,
+			MX1_DMA_INT, MX1_DMA_ERR);
 	pinctrl_provide_dummies();
 }
