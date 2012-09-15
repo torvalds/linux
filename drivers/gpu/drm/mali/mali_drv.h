@@ -14,7 +14,7 @@
 #define DRIVER_AUTHOR	"ARM Ltd."
 #define DRIVER_NAME		"mali_drm"
 #define DRIVER_DESC		"DRM module for Mali-200, Mali-400"
-#define DRIVER_LICENSE  "GPLv2"
+#define DRIVER_LICENSE  "GPL v2"
 #define DRIVER_ALIAS    "platform:mali_drm"
 #define DRIVER_DATE		"20101111"
 #define DRIVER_VERSION  "0.2"
