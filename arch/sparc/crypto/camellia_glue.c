@@ -14,6 +14,8 @@
 #include <asm/pstate.h>
 #include <asm/elf.h>
 
+#include "opcodes.h"
+
 #define CAMELLIA_MIN_KEY_SIZE        16
 #define CAMELLIA_MAX_KEY_SIZE        32
 #define CAMELLIA_BLOCK_SIZE          16
@@ -219,7 +221,7 @@ static int cbc_decrypt(struct blkcipher_desc *desc,
 static struct crypto_alg algs[] = { {
 	.cra_name		= "camellia",
 	.cra_driver_name	= "camellia-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct camellia_sparc64_ctx),
@@ -237,7 +239,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "ecb(camellia)",
 	.cra_driver_name	= "ecb-camellia-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct camellia_sparc64_ctx),
@@ -256,7 +258,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "cbc(camellia)",
 	.cra_driver_name	= "cbc-camellia-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= CAMELLIA_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct camellia_sparc64_ctx),

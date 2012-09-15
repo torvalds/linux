@@ -20,6 +20,8 @@
 #include <asm/pstate.h>
 #include <asm/elf.h>
 
+#include "opcodes.h"
+
 /*
  * Setting the seed allows arbitrary accumulators and flexible XOR policy
  * If your algorithm starts with ~0, then XOR with ~0 before you set
@@ -130,7 +132,7 @@ static struct shash_alg alg = {
 	.base			=	{
 		.cra_name		=	"crc32c",
 		.cra_driver_name	=	"crc32c-sparc64",
-		.cra_priority		=	150,
+		.cra_priority		=	SPARC_CR_OPCODE_PRIORITY,
 		.cra_blocksize		=	CHKSUM_BLOCK_SIZE,
 		.cra_ctxsize		=	sizeof(u32),
 		.cra_alignmask		=	7,

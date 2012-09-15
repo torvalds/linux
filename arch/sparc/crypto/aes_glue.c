@@ -26,6 +26,8 @@
 #include <asm/pstate.h>
 #include <asm/elf.h>
 
+#include "opcodes.h"
+
 struct aes_ops {
 	void (*encrypt)(const u64 *key, const u32 *input, u32 *output);
 	void (*decrypt)(const u64 *key, const u32 *input, u32 *output);
@@ -356,7 +358,7 @@ static int ctr_crypt(struct blkcipher_desc *desc,
 static struct crypto_alg algs[] = { {
 	.cra_name		= "aes",
 	.cra_driver_name	= "aes-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		= AES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct crypto_sparc64_aes_ctx),
@@ -374,7 +376,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "ecb(aes)",
 	.cra_driver_name	= "ecb-aes-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= AES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct crypto_sparc64_aes_ctx),
@@ -393,7 +395,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "cbc(aes)",
 	.cra_driver_name	= "cbc-aes-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= AES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct crypto_sparc64_aes_ctx),
@@ -412,7 +414,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "ctr(aes)",
 	.cra_driver_name	= "ctr-aes-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= AES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct crypto_sparc64_aes_ctx),

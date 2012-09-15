@@ -15,6 +15,8 @@
 #include <asm/pstate.h>
 #include <asm/elf.h>
 
+#include "opcodes.h"
+
 struct des_sparc64_ctx {
 	u64 encrypt_expkey[DES_EXPKEY_WORDS / 2];
 	u64 decrypt_expkey[DES_EXPKEY_WORDS / 2];
@@ -371,7 +373,7 @@ static int cbc3_decrypt(struct blkcipher_desc *desc,
 static struct crypto_alg algs[] = { {
 	.cra_name		= "des",
 	.cra_driver_name	= "des-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		= DES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct des_sparc64_ctx),
@@ -389,7 +391,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "ecb(des)",
 	.cra_driver_name	= "ecb-des-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= DES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct des_sparc64_ctx),
@@ -408,7 +410,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "cbc(des)",
 	.cra_driver_name	= "cbc-des-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= DES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct des_sparc64_ctx),
@@ -427,7 +429,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "des3_ede",
 	.cra_driver_name	= "des3_ede-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		= DES3_EDE_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct des3_ede_sparc64_ctx),
@@ -445,7 +447,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "ecb(des3_ede)",
 	.cra_driver_name	= "ecb-des3_ede-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= DES3_EDE_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct des3_ede_sparc64_ctx),
@@ -464,7 +466,7 @@ static struct crypto_alg algs[] = { {
 }, {
 	.cra_name		= "cbc(des3_ede)",
 	.cra_driver_name	= "cbc-des3_ede-sparc64",
-	.cra_priority		= 150,
+	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= DES3_EDE_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct des3_ede_sparc64_ctx),

@@ -1,6 +1,8 @@
 #ifndef _OPCODES_H
 #define _OPCODES_H
 
+#define SPARC_CR_OPCODE_PRIORITY	300
+
 #define F3F(x,y,z)	(((x)<<30)|((y)<<19)|((z)<<5))
 
 #define FPD_ENCODE(x)	(((x) >> 5) | ((x) & ~(0x20)))
