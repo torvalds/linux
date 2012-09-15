@@ -3,6 +3,8 @@
  * Copyright (C) 2012 David S. Miller <davem@davemloft.net>
  */
 
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
 #include <linux/crypto.h>
 #include <linux/init.h>
 #include <linux/module.h>

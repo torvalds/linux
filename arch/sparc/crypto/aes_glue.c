@@ -14,6 +14,8 @@
  *    Copyright (c) 2010, Intel Corporation.
  */
 
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
+
 #include <linux/crypto.h>
 #include <linux/init.h>
 #include <linux/module.h>
