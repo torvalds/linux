@@ -214,13 +214,17 @@ void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 	if (oldest) {
 		int x = input_mt_get_value(oldest, ABS_MT_POSITION_X);
 		int y = input_mt_get_value(oldest, ABS_MT_POSITION_Y);
-		int p = input_mt_get_value(oldest, ABS_MT_PRESSURE);
 
 		input_event(dev, EV_ABS, ABS_X, x);
 		input_event(dev, EV_ABS, ABS_Y, y);
-		input_event(dev, EV_ABS, ABS_PRESSURE, p);
+
+		if (test_bit(ABS_MT_PRESSURE, dev->absbit)) {
+			int p = input_mt_get_value(oldest, ABS_MT_PRESSURE);
+			input_event(dev, EV_ABS, ABS_PRESSURE, p);
+		}
 	} else {
-		input_event(dev, EV_ABS, ABS_PRESSURE, 0);
+		if (test_bit(ABS_MT_PRESSURE, dev->absbit))
+			input_event(dev, EV_ABS, ABS_PRESSURE, 0);
 	}
 }
 EXPORT_SYMBOL(input_mt_report_pointer_emulation);
