@@ -101,7 +101,7 @@ void stk1160_buffer_done(struct stk1160 *dev)
 	buf->vb.v4l2_buf.sequence = dev->field_count >> 1;
 	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 	buf->vb.v4l2_buf.bytesused = buf->bytesused;
-	do_gettimeofday(&buf->vb.v4l2_buf.timestamp);
+	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 
 	vb2_set_plane_payload(&buf->vb, 0, buf->bytesused);
 	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);

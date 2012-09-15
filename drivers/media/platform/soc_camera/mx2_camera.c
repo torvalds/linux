@@ -516,7 +516,7 @@ static void mx25_camera_frame_done(struct mx2_camera_dev *pcdev, int fb,
 	dev_dbg(pcdev->dev, "%s (vb=0x%p) 0x%p %lu\n", __func__,
 		vb, vb2_plane_vaddr(vb, 0), vb2_get_plane_payload(vb, 0));
 
-	do_gettimeofday(&vb->v4l2_buf.timestamp);
+	v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
 	vb->v4l2_buf.sequence++;
 	vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 
@@ -1561,7 +1561,7 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 				vb2_get_plane_payload(vb, 0));
 
 		list_del_init(&buf->internal.queue);
-		do_gettimeofday(&vb->v4l2_buf.timestamp);
+		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
 		vb->v4l2_buf.sequence = pcdev->frame_count;
 		if (err)
 			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);

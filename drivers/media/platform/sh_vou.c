@@ -1092,7 +1092,7 @@ static irqreturn_t sh_vou_isr(int irq, void *dev_id)
 	list_del(&vb->queue);
 
 	vb->state = VIDEOBUF_DONE;
-	do_gettimeofday(&vb->ts);
+	v4l2_get_timestamp(&vb->ts);
 	vb->field_count++;
 	wake_up(&vb->done);
 

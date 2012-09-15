@@ -597,7 +597,7 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 		return;
 
 	spin_lock(&vout->vbq_lock);
-	do_gettimeofday(&timevalue);
+	v4l2_get_timestamp(&timevalue);
 
 	switch (cur_display->type) {
 	case OMAP_DISPLAY_TYPE_DSI:

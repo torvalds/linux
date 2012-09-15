@@ -1113,7 +1113,7 @@ static int stk_vidioc_dqbuf(struct file *filp,
 	sbuf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 	sbuf->v4lbuf.flags |= V4L2_BUF_FLAG_DONE;
 	sbuf->v4lbuf.sequence = ++dev->sequence;
-	do_gettimeofday(&sbuf->v4lbuf.timestamp);
+	v4l2_get_timestamp(&sbuf->v4lbuf.timestamp);
 
 	*buf = sbuf->v4lbuf;
 	return 0;

@@ -1088,7 +1088,7 @@ static irqreturn_t vip_irq(int irq, struct sta2x11_vip *vip)
 
 	REG_WRITE(vip, DVP_CTL, REG_READ(vip, DVP_CTL) & ~DVP_CTL_ENA);
 	if (vip->active) {
-		do_gettimeofday(&vip->active->ts);
+		v4l2_get_timestamp(&vip->active->ts);
 		vip->active->field_count++;
 		vip->active->state = VIDEOBUF_DONE;
 		wake_up(&vip->active->done);

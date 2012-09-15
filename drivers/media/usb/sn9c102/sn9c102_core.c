@@ -773,7 +773,8 @@ end_of_frame:
 				       img);
 
 				if ((*f)->buf.bytesused == 0)
-					do_gettimeofday(&(*f)->buf.timestamp);
+					v4l2_get_timestamp(
+						&(*f)->buf.timestamp);
 
 				(*f)->buf.bytesused += img;
 

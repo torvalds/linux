@@ -516,7 +516,7 @@ static irqreturn_t sh_mobile_ceu_irq(int irq, void *data)
 		pcdev->active = NULL;
 
 	ret = sh_mobile_ceu_capture(pcdev);
-	do_gettimeofday(&vb->v4l2_buf.timestamp);
+	v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
 	if (!ret) {
 		vb->v4l2_buf.field = pcdev->field;
 		vb->v4l2_buf.sequence = pcdev->sequence++;

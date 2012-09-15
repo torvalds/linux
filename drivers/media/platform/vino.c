@@ -2474,8 +2474,8 @@ static irqreturn_t vino_interrupt(int irq, void *dev_id)
 
 		if ((!handled_a) && (done_a || skip_a)) {
 			if (!skip_a) {
-				do_gettimeofday(&vino_drvdata->
-						a.int_data.timestamp);
+				v4l2_get_timestamp(
+					&vino_drvdata->a.int_data.timestamp);
 				vino_drvdata->a.int_data.frame_counter = fc_a;
 			}
 			vino_drvdata->a.int_data.skip = skip_a;
@@ -2489,8 +2489,8 @@ static irqreturn_t vino_interrupt(int irq, void *dev_id)
 
 		if ((!handled_b) && (done_b || skip_b)) {
 			if (!skip_b) {
-				do_gettimeofday(&vino_drvdata->
-						b.int_data.timestamp);
+				v4l2_get_timestamp(
+					&vino_drvdata->b.int_data.timestamp);
 				vino_drvdata->b.int_data.frame_counter = fc_b;
 			}
 			vino_drvdata->b.int_data.skip = skip_b;

@@ -484,15 +484,13 @@ static irqreturn_t bcap_isr(int irq, void *dev_id)
 {
 	struct ppi_if *ppi = dev_id;
 	struct bcap_device *bcap_dev = ppi->priv;
-	struct timeval timevalue;
 	struct vb2_buffer *vb = &bcap_dev->cur_frm->vb;
 	dma_addr_t addr;
 
 	spin_lock(&bcap_dev->lock);
 
 	if (bcap_dev->cur_frm != bcap_dev->next_frm) {
-		do_gettimeofday(&timevalue);
-		vb->v4l2_buf.timestamp = timevalue;
+		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
 		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 		bcap_dev->cur_frm = bcap_dev->next_frm;
 	}

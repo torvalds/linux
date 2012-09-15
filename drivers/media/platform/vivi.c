@@ -554,7 +554,6 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 {
 	int wmax = dev->width;
 	int hmax = dev->height;
-	struct timeval ts;
 	void *vbuf = vb2_plane_vaddr(&buf->vb, 0);
 	unsigned ms;
 	char str[100];
@@ -622,8 +621,7 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 	dev->field_count++;
 	buf->vb.v4l2_buf.sequence = dev->field_count >> 1;
-	do_gettimeofday(&ts);
-	buf->vb.v4l2_buf.timestamp = ts;
+	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 }
 
 static void vivi_thread_tick(struct vivi_dev *dev)
@@ -645,7 +643,7 @@ static void vivi_thread_tick(struct vivi_dev *dev)
 	list_del(&buf->list);
 	spin_unlock_irqrestore(&dev->slock, flags);
 
-	do_gettimeofday(&buf->vb.v4l2_buf.timestamp);
+	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 
 	/* Fill buffer */
 	vivi_fillbuff(dev, buf);

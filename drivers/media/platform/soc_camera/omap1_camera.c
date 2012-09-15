@@ -591,7 +591,7 @@ static void videobuf_done(struct omap1_cam_dev *pcdev,
 			suspend_capture(pcdev);
 		}
 		vb->state = result;
-		do_gettimeofday(&vb->ts);
+		v4l2_get_timestamp(&vb->ts);
 		if (result != VIDEOBUF_ERROR)
 			vb->field_count++;
 		wake_up(&vb->done);

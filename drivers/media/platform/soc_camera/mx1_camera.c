@@ -307,7 +307,7 @@ static void mx1_camera_wakeup(struct mx1_camera_dev *pcdev,
 	/* _init is used to debug races, see comment in mx1_camera_reqbufs() */
 	list_del_init(&vb->queue);
 	vb->state = VIDEOBUF_DONE;
-	do_gettimeofday(&vb->ts);
+	v4l2_get_timestamp(&vb->ts);
 	vb->field_count++;
 	wake_up(&vb->done);
 

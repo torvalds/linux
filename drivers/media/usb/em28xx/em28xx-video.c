@@ -163,7 +163,7 @@ static inline void buffer_filled(struct em28xx *dev,
 	em28xx_isocdbg("[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	do_gettimeofday(&buf->vb.ts);
+	v4l2_get_timestamp(&buf->vb.ts);
 
 	dev->isoc_ctl.vid_buf = NULL;
 
@@ -180,7 +180,7 @@ static inline void vbi_buffer_filled(struct em28xx *dev,
 
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	do_gettimeofday(&buf->vb.ts);
+	v4l2_get_timestamp(&buf->vb.ts);
 
 	dev->isoc_ctl.vbi_buf = NULL;
 
