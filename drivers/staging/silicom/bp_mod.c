@@ -1698,7 +1698,7 @@ int zero_set_fn(bpctl_dev_t *pbpctl_dev)
 	return ctrl_value;
 }
 
-int pulse_get2_fn(bpctl_dev_t * pbpctl_dev)
+int pulse_get2_fn(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0, ctrl_value = 0;
 	if (!pbpctl_dev)
@@ -1713,7 +1713,7 @@ int pulse_get2_fn(bpctl_dev_t * pbpctl_dev)
 	return ctrl_value;
 }
 
-int pulse_get1_fn(bpctl_dev_t * pbpctl_dev)
+int pulse_get1_fn(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0, ctrl_value = 0;
 	if (!pbpctl_dev)
@@ -1730,7 +1730,7 @@ int pulse_get1_fn(bpctl_dev_t * pbpctl_dev)
 	return ctrl_value;
 }
 
-int gpio6_set_fn(bpctl_dev_t * pbpctl_dev)
+int gpio6_set_fn(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0;
 
@@ -1741,7 +1741,7 @@ int gpio6_set_fn(bpctl_dev_t * pbpctl_dev)
 	return 0;
 }
 
-int gpio7_set_fn(bpctl_dev_t * pbpctl_dev)
+int gpio7_set_fn(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0;
 
@@ -1752,7 +1752,7 @@ int gpio7_set_fn(bpctl_dev_t * pbpctl_dev)
 	return 0;
 }
 
-int gpio7_clear_fn(bpctl_dev_t * pbpctl_dev)
+int gpio7_clear_fn(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0;
 
@@ -1763,7 +1763,7 @@ int gpio7_clear_fn(bpctl_dev_t * pbpctl_dev)
 	return 0;
 }
 
-int gpio6_clear_fn(bpctl_dev_t * pbpctl_dev)
+int gpio6_clear_fn(bpctl_dev_t *pbpctl_dev)
 {
 	uint32_t ctrl_ext = 0;
 
@@ -1775,7 +1775,7 @@ int gpio6_clear_fn(bpctl_dev_t * pbpctl_dev)
 }
 #endif				/*BYPASS_DEBUG */
 
-static bpctl_dev_t *get_status_port_fn(bpctl_dev_t * pbpctl_dev)
+static bpctl_dev_t *get_status_port_fn(bpctl_dev_t *pbpctl_dev)
 {
 	int idx_dev = 0;
 
@@ -1805,7 +1805,7 @@ static bpctl_dev_t *get_status_port_fn(bpctl_dev_t * pbpctl_dev)
 	return NULL;
 }
 
-static bpctl_dev_t *get_master_port_fn(bpctl_dev_t * pbpctl_dev)
+static bpctl_dev_t *get_master_port_fn(bpctl_dev_t *pbpctl_dev)
 {
 	int idx_dev = 0;
 
@@ -1839,7 +1839,7 @@ static bpctl_dev_t *get_master_port_fn(bpctl_dev_t * pbpctl_dev)
 /**************INTEL API***************/
 /**************************************/
 
-static void write_data_port_int(bpctl_dev_t * pbpctl_dev,
+static void write_data_port_int(bpctl_dev_t *pbpctl_dev,
 				unsigned char ctrl_value)
 {
 	uint32_t value;
@@ -1864,7 +1864,7 @@ static void write_data_port_int(bpctl_dev_t * pbpctl_dev,
 
 }
 
-static int write_data_int(bpctl_dev_t * pbpctl_dev, unsigned char value)
+static int write_data_int(bpctl_dev_t *pbpctl_dev, unsigned char value)
 {
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 
@@ -1878,7 +1878,7 @@ static int write_data_int(bpctl_dev_t * pbpctl_dev, unsigned char value)
 	return 0;
 }
 
-static int wdt_pulse_int(bpctl_dev_t * pbpctl_dev)
+static int wdt_pulse_int(bpctl_dev_t *pbpctl_dev)
 {
 
 	if ((atomic_read(&pbpctl_dev->wdt_busy)) == 1)
@@ -1902,7 +1902,7 @@ static int wdt_pulse_int(bpctl_dev_t * pbpctl_dev)
 /*************************************/
 
 /* CMND_ON  0x4 (100)*/
-int cmnd_on(bpctl_dev_t * pbpctl_dev)
+int cmnd_on(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 
@@ -1919,7 +1919,7 @@ int cmnd_on(bpctl_dev_t * pbpctl_dev)
 }
 
 /* CMND_OFF  0x2 (10)*/
-int cmnd_off(bpctl_dev_t * pbpctl_dev)
+int cmnd_off(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 
@@ -1937,7 +1937,7 @@ int cmnd_off(bpctl_dev_t * pbpctl_dev)
 }
 
 /* BYPASS_ON (0xa)*/
-int bypass_on(bpctl_dev_t * pbpctl_dev)
+int bypass_on(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 
@@ -1958,7 +1958,7 @@ int bypass_on(bpctl_dev_t * pbpctl_dev)
 }
 
 /* BYPASS_OFF (0x8 111)*/
-int bypass_off(bpctl_dev_t * pbpctl_dev)
+int bypass_off(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 
@@ -1981,7 +1981,7 @@ int bypass_off(bpctl_dev_t * pbpctl_dev)
 }
 
 /* TAP_OFF (0x9)*/
-int tap_off(bpctl_dev_t * pbpctl_dev)
+int tap_off(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 	if ((pbpctl_dev->bp_caps & TAP_CAP)
@@ -1994,7 +1994,7 @@ int tap_off(bpctl_dev_t * pbpctl_dev)
 }
 
 /* TAP_ON (0xb)*/
-int tap_on(bpctl_dev_t * pbpctl_dev)
+int tap_on(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 	if ((pbpctl_dev->bp_caps & TAP_CAP)
@@ -2007,7 +2007,7 @@ int tap_on(bpctl_dev_t * pbpctl_dev)
 }
 
 /* DISC_OFF (0x9)*/
-int disc_off(bpctl_dev_t * pbpctl_dev)
+int disc_off(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 	if ((pbpctl_dev->bp_caps & DISC_CAP) && (pbpctl_dev->bp_ext_ver >= 0x8)) {
@@ -2019,7 +2019,7 @@ int disc_off(bpctl_dev_t * pbpctl_dev)
 }
 
 /* DISC_ON (0xb)*/
-int disc_on(bpctl_dev_t * pbpctl_dev)
+int disc_on(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 	if ((pbpctl_dev->bp_caps & DISC_CAP) && (pbpctl_dev->bp_ext_ver >= 0x8)) {
@@ -2031,7 +2031,7 @@ int disc_on(bpctl_dev_t * pbpctl_dev)
 }
 
 /* DISC_PORT_ON */
-int disc_port_on(bpctl_dev_t * pbpctl_dev)
+int disc_port_on(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 	bpctl_dev_t *pbpctl_dev_m;
@@ -2059,7 +2059,7 @@ int disc_port_on(bpctl_dev_t * pbpctl_dev)
 }
 
 /* DISC_PORT_OFF */
-int disc_port_off(bpctl_dev_t * pbpctl_dev)
+int disc_port_off(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 	bpctl_dev_t *pbpctl_dev_m;
@@ -2084,7 +2084,7 @@ int disc_port_off(bpctl_dev_t * pbpctl_dev)
 }
 
 /*TWO_PORT_LINK_HW_EN (0xe)*/
-int tpl_hw_on(bpctl_dev_t * pbpctl_dev)
+int tpl_hw_on(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0, ctrl = 0;
 	bpctl_dev_t *pbpctl_dev_b = NULL;
@@ -2111,7 +2111,7 @@ int tpl_hw_on(bpctl_dev_t * pbpctl_dev)
 }
 
 /*TWO_PORT_LINK_HW_DIS (0xc)*/
-int tpl_hw_off(bpctl_dev_t * pbpctl_dev)
+int tpl_hw_off(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0, ctrl = 0;
 	bpctl_dev_t *pbpctl_dev_b = NULL;
@@ -2136,7 +2136,7 @@ int tpl_hw_off(bpctl_dev_t * pbpctl_dev)
 }
 
 /* WDT_OFF (0x6 110)*/
-int wdt_off(bpctl_dev_t * pbpctl_dev)
+int wdt_off(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = BP_NOT_CAP;
 
@@ -2159,7 +2159,7 @@ int wdt_off(bpctl_dev_t * pbpctl_dev)
 static unsigned int
     wdt_val_array[] = { 1000, 1500, 2000, 3000, 4000, 8000, 16000, 32000, 0 };
 
-int wdt_on(bpctl_dev_t * pbpctl_dev, unsigned int timeout)
+int wdt_on(bpctl_dev_t *pbpctl_dev, unsigned int timeout)
 {
 
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
@@ -2211,7 +2211,7 @@ int wdt_on(bpctl_dev_t * pbpctl_dev, unsigned int timeout)
 	return BP_NOT_CAP;
 }
 
-void bp75_put_hw_semaphore_generic(bpctl_dev_t * pbpctl_dev)
+void bp75_put_hw_semaphore_generic(bpctl_dev_t *pbpctl_dev)
 {
 	u32 swsm;
 
@@ -2222,7 +2222,7 @@ void bp75_put_hw_semaphore_generic(bpctl_dev_t * pbpctl_dev)
 	BPCTL_WRITE_REG(pbpctl_dev, SWSM, swsm);
 }
 
-s32 bp75_get_hw_semaphore_generic(bpctl_dev_t * pbpctl_dev)
+s32 bp75_get_hw_semaphore_generic(bpctl_dev_t *pbpctl_dev)
 {
 	u32 swsm;
 	s32 ret_val = 0;
@@ -2270,7 +2270,7 @@ s32 bp75_get_hw_semaphore_generic(bpctl_dev_t * pbpctl_dev)
 	return ret_val;
 }
 
-static void bp75_release_phy(bpctl_dev_t * pbpctl_dev)
+static void bp75_release_phy(bpctl_dev_t *pbpctl_dev)
 {
 	u16 mask = BPCTLI_SWFW_PHY0_SM;
 	u32 swfw_sync;
@@ -2288,7 +2288,7 @@ static void bp75_release_phy(bpctl_dev_t * pbpctl_dev)
 	bp75_put_hw_semaphore_generic(pbpctl_dev);
 }
 
-static s32 bp75_acquire_phy(bpctl_dev_t * pbpctl_dev)
+static s32 bp75_acquire_phy(bpctl_dev_t *pbpctl_dev)
 {
 	u16 mask = BPCTLI_SWFW_PHY0_SM;
 	u32 swfw_sync;
@@ -2334,7 +2334,7 @@ static s32 bp75_acquire_phy(bpctl_dev_t * pbpctl_dev)
 	return ret_val;
 }
 
-s32 bp75_read_phy_reg_mdic(bpctl_dev_t * pbpctl_dev, u32 offset, u16 * data)
+s32 bp75_read_phy_reg_mdic(bpctl_dev_t *pbpctl_dev, u32 offset, u16 *data)
 {
 	u32 i, mdic = 0;
 	s32 ret_val = 0;
@@ -2367,7 +2367,7 @@ s32 bp75_read_phy_reg_mdic(bpctl_dev_t * pbpctl_dev, u32 offset, u16 * data)
 	return ret_val;
 }
 
-s32 bp75_write_phy_reg_mdic(bpctl_dev_t * pbpctl_dev, u32 offset, u16 data)
+s32 bp75_write_phy_reg_mdic(bpctl_dev_t *pbpctl_dev, u32 offset, u16 data)
 {
 	u32 i, mdic = 0;
 	s32 ret_val = 0;
@@ -2400,7 +2400,7 @@ s32 bp75_write_phy_reg_mdic(bpctl_dev_t * pbpctl_dev, u32 offset, u16 data)
 	return ret_val;
 }
 
-static s32 bp75_read_phy_reg(bpctl_dev_t * pbpctl_dev, u32 offset, u16 * data)
+static s32 bp75_read_phy_reg(bpctl_dev_t *pbpctl_dev, u32 offset, u16 *data)
 {
 	s32 ret_val = 0;
 
