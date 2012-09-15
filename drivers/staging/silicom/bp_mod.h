@@ -292,21 +292,21 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	 (pid == SILICOM_PMCX2BPI_SSID))
 
 #define DISCF_IF_SERIES(pid) \
-        (pid==SILICOM_PEG2TBFI_SSID)
+	(pid == SILICOM_PEG2TBFI_SSID)
 
 #define PEGF_IF_SERIES(pid) \
-         ((pid==SILICOM_PEG2BPFI_SSID)||    \
-         (pid==SILICOM_PEG2BPFID_SSID)||    \
-         (pid==SILICOM_PEG2BPFIDLX_SSID)||    \
-         (pid==SILICOM_PEG2BPFILX_SSID)||    \
-          (pid==SILICOM_PEG4BPFI_SSID)||    \
-          (pid==SILICOM_PXEG4BPFI_SSID)||    \
-          (pid==SILICOM_MEG2BPFILN_SSID)|| \
-         (pid==SILICOM_MEG2BPFINX_SSID)|| \
-         (pid==SILICOM_PEG4BPFILX_SSID)|| \
-         (pid==SILICOM_PEG2TBFI_SSID)|| \
-         (pid==SILICOM_MEG2BPFILXLN_SSID)|| \
-         (pid==SILICOM_MEG2BPFILXNX_SSID))
+	((pid == SILICOM_PEG2BPFI_SSID) || \
+	 (pid == SILICOM_PEG2BPFID_SSID) || \
+	 (pid == SILICOM_PEG2BPFIDLX_SSID) || \
+	 (pid == SILICOM_PEG2BPFILX_SSID) || \
+	 (pid == SILICOM_PEG4BPFI_SSID) || \
+	 (pid == SILICOM_PXEG4BPFI_SSID) || \
+	 (pid == SILICOM_MEG2BPFILN_SSID) || \
+	 (pid == SILICOM_MEG2BPFINX_SSID) || \
+	 (pid == SILICOM_PEG4BPFILX_SSID) || \
+	 (pid == SILICOM_PEG2TBFI_SSID) || \
+	 (pid == SILICOM_MEG2BPFILXLN_SSID) || \
+	 (pid == SILICOM_MEG2BPFILXNX_SSID))
 
 #define TPL_IF_SERIES(pid) \
         ((pid==SILICOM_PXG2BPFIL_SSID)||   \
