@@ -25,19 +25,6 @@
 #include <net/llc_s_st.h>
 #include <net/llc_pdu.h>
 
-/**
- * struct llc_station - LLC station component
- *
- * SAP and connection resource manager, one per adapter.
- *
- * @mac_sa: MAC source address
- * @sap_list: list of related SAPs
- * @mac_pdu_q: PDUs ready to send to MAC
- */
-struct llc_station {
-	struct sk_buff_head	    mac_pdu_q;
-};
-
 typedef int (*llc_station_ev_t)(struct sk_buff *skb);
 
 typedef int (*llc_station_action_t)(struct sk_buff *skb);
@@ -47,8 +34,6 @@ struct llc_station_state_trans {
 	llc_station_ev_t ev;
 	llc_station_action_t *ev_actions;
 };
-
-static struct llc_station llc_main_station;
 
 static int llc_stat_ev_rx_null_dsap_xid_c(struct sk_buff *skb)
 {
@@ -70,20 +55,6 @@ static int llc_stat_ev_rx_null_dsap_test_c(struct sk_buff *skb)
 	       !pdu->dsap ? 0 : 1;			/* NULL DSAP */
 }
 
-/**
- *	llc_station_send_pdu - queues PDU to send
- *	@skb: Address of the PDU
- *
- *	Queues a PDU to send to the MAC layer.
- */
-static void llc_station_send_pdu(struct sk_buff *skb)
-{
-	skb_queue_tail(&llc_main_station.mac_pdu_q, skb);
-	while ((skb = skb_dequeue(&llc_main_station.mac_pdu_q)) != NULL)
-		if (dev_queue_xmit(skb))
-			break;
-}
-
 static int llc_station_ac_send_xid_r(struct sk_buff *skb)
 {
 	u8 mac_da[ETH_ALEN], dsap;
@@ -101,7 +72,7 @@ static int llc_station_ac_send_xid_r(struct sk_buff *skb)
 	rc = llc_mac_hdr_init(nskb, skb->dev->dev_addr, mac_da);
 	if (unlikely(rc))
 		goto free;
-	llc_station_send_pdu(nskb);
+	dev_queue_xmit(nskb);
 out:
 	return rc;
 free:
@@ -130,7 +101,7 @@ static int llc_station_ac_send_test_r(struct sk_buff *skb)
 	rc = llc_mac_hdr_init(nskb, skb->dev->dev_addr, mac_da);
 	if (unlikely(rc))
 		goto free;
-	llc_station_send_pdu(nskb);
+	dev_queue_xmit(nskb);
 out:
 	return rc;
 free:
@@ -228,7 +199,6 @@ static void llc_station_rcv(struct sk_buff *skb)
 
 void __init llc_station_init(void)
 {
-	skb_queue_head_init(&llc_main_station.mac_pdu_q);
 	llc_set_station_handler(llc_station_rcv);
 }
 
