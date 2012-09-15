@@ -1371,10 +1371,8 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 
 	if (srcid) {
 		srcgroup = find_qgroup_rb(fs_info, srcid);
-		if (!srcgroup) {
-			ret = -EINVAL;
+		if (!srcgroup)
 			goto unlock;
-		}
 		dstgroup->rfer = srcgroup->rfer - level_size;
 		dstgroup->rfer_cmpr = srcgroup->rfer_cmpr - level_size;
 		srcgroup->excl = level_size;
@@ -1383,10 +1381,8 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 		qgroup_dirty(fs_info, srcgroup);
 	}
 
-	if (!inherit) {
-		ret = -EINVAL;
+	if (!inherit)
 		goto unlock;
-	}
 
 	i_qgroups = (u64 *)(inherit + 1);
 	for (i = 0; i < inherit->num_qgroups; ++i) {
