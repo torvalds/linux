@@ -328,16 +328,16 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	 (pid == SILICOM_XE10G2BPILR_SSID))
 
 #define BP10GB_IF_SERIES(pid) \
-          ((pid==SILICOM_PE10G2BPTCX4_SSID)|| \
-          (pid==SILICOM_PE10G2BPTSR_SSID)|| \
-          (pid==SILICOM_PE10G2BPTLR_SSID)|| \
-          (pid==SILICOM_PE10G2BPTT_SSID))
+	((pid == SILICOM_PE10G2BPTCX4_SSID) || \
+	 (pid == SILICOM_PE10G2BPTSR_SSID) || \
+	 (pid == SILICOM_PE10G2BPTLR_SSID) || \
+	 (pid == SILICOM_PE10G2BPTT_SSID))
 
 #define BP10G_CX4_SERIES(pid) \
-    (pid==SILICOM_PE10G2BPICX4_SSID)
+	(pid == SILICOM_PE10G2BPICX4_SSID)
 
 #define BP10GB_CX4_SERIES(pid) \
-    (pid==SILICOM_PE10G2BPTCX4_SSID)
+	(pid == SILICOM_PE10G2BPTCX4_SSID)
 
 #define SILICOM_M2EG2BPFI6_SSID       0x0501
 #define SILICOM_M2EG2BPFI6LX_SSID     0x0502
