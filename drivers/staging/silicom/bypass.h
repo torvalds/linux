@@ -37,7 +37,7 @@
 #define CMND_EN_MASK           0x02	/* BIT_1 */
 #define DIS_BYPASS_CAP_MASK    0x04	/* BIT_2    Bypass Cap is disable*/
 #define DFLT_PWRON_MASK        0x08	/* BIT_3 */
-#define BYPASS_OFF_MASK        0x10	/* BIT_4 */ 
+#define BYPASS_OFF_MASK        0x10	/* BIT_4 */
 #define BYPASS_FLAG_MASK       0x20	/* BIT_5 */
 #define STD_NIC_MASK           (DIS_BYPASS_CAP_MASK | BYPASS_OFF_MASK | DFLT_PWRON_MASK)
 #define WD_EXP_FLAG_MASK       0x40	/* BIT_6 */
@@ -65,7 +65,7 @@
 
 #define STATUS_DISC_REG_ADDR    13
 #define WDTE_DISC_BPN_MASK      0x01	/* BIT_0    1 when wdt expired -> TAP, 0 - Bypass */
-#define STD_NIC_ON_MASK         0x02	/* BIT_1    */ 
+#define STD_NIC_ON_MASK         0x02	/* BIT_1    */
 #define DIS_DISC_CAP_MASK       0x04	/* BIT_2    TAP Cap is disable*/
 #define DFLT_PWRON_DISC_MASK    0x08	/* BIT_3    */
 #define DISC_OFF_MASK           0x10	/* BIT_4    */
