@@ -1613,6 +1613,16 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2x/
 
+BROADCOM BCM2835 ARM ARCHICTURE
+M:	Stephen Warren <swarren@wwwdotorg.org>
+L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/swarren/linux-rpi.git
+S:	Maintained
+F:	arch/arm/mach-bcm2835/
+F:	arch/arm/boot/dts/bcm2835*
+F:	arch/arm/configs/bcm2835_defconfig
+F:	drivers/*/*bcm2835*
+
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
 M:	Matt Carlson <mcarlson@broadcom.com>
 M:	Michael Chan <mchan@broadcom.com>
