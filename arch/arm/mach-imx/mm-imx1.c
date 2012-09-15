@@ -25,6 +25,7 @@
 #include <mach/hardware.h>
 
 #include "common.h"
+#include "devices/devices-common.h"
 #include "iomux-v1.h"
 
 static struct map_desc imx_io_desc[] __initdata = {
@@ -59,5 +60,6 @@ void __init imx1_soc_init(void)
 						MX1_GPIO_INT_PORTC, 0);
 	mxc_register_gpio("imx1-gpio", 3, MX1_GPIO4_BASE_ADDR, SZ_256,
 						MX1_GPIO_INT_PORTD, 0);
+	imx_add_imx_dma(MX1_DMA_BASE_ADDR, MX1_DMA_INT, MX1_DMA_ERR);
 	pinctrl_provide_dummies();
 }

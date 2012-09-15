@@ -959,23 +959,22 @@ static void imxdma_issue_pending(struct dma_chan *chan)
 static int __init imxdma_probe(struct platform_device *pdev)
 	{
 	struct imxdma_engine *imxdma;
+	struct resource *res;
 	int ret, i;
-
+	int irq, irq_err;
 
 	imxdma = devm_kzalloc(&pdev->dev, sizeof(*imxdma), GFP_KERNEL);
 	if (!imxdma)
 		return -ENOMEM;
 
-	if (cpu_is_mx1()) {
-		imxdma->base = MX1_IO_ADDRESS(MX1_DMA_BASE_ADDR);
-	} else if (cpu_is_mx21()) {
-		imxdma->base = MX21_IO_ADDRESS(MX21_DMA_BASE_ADDR);
-	} else if (cpu_is_mx27()) {
-		imxdma->base = MX27_IO_ADDRESS(MX27_DMA_BASE_ADDR);
-	} else {
-		kfree(imxdma);
-		return 0;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	imxdma->base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!imxdma->base)
+		return -EADDRNOTAVAIL;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	imxdma->dma_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(imxdma->dma_ipg))
@@ -992,14 +991,20 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	imx_dmav1_writel(imxdma, DCR_DRST, DMA_DCR);
 
 	if (cpu_is_mx1()) {
-		ret = devm_request_irq(&pdev->dev, MX1_DMA_INT,
+		ret = devm_request_irq(&pdev->dev, irq,
 				       dma_irq_handler, 0, "DMA", imxdma);
 		if (ret) {
 			dev_warn(imxdma->dev, "Can't register IRQ for DMA\n");
 			goto err;
 		}
 
-		ret = devm_request_irq(&pdev->dev, MX1_DMA_ERR,
+		irq_err = platform_get_irq(pdev, 1);
+		if (irq_err < 0) {
+			ret = irq_err;
+			goto err;
+		}
+
+		ret = devm_request_irq(&pdev->dev, irq_err,
 				       imxdma_err_handler, 0, "DMA", imxdma);
 		if (ret) {
 			dev_warn(imxdma->dev, "Can't register ERRIRQ for DMA\n");
@@ -1034,12 +1039,12 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		struct imxdma_channel *imxdmac = &imxdma->channel[i];
 
 		if (cpu_is_mx21() || cpu_is_mx27()) {
-			ret = devm_request_irq(&pdev->dev, MX2x_INT_DMACH0 + i,
+			ret = devm_request_irq(&pdev->dev, irq + i,
 					dma_irq_handler, 0, "DMA", imxdma);
 			if (ret) {
 				dev_warn(imxdma->dev, "Can't register IRQ %d "
 					 "for DMA channel %d\n",
-					 MX2x_INT_DMACH0 + i, i);
+					 irq + i, i);
 				goto err;
 			}
 			init_timer(&imxdmac->watchdog);
