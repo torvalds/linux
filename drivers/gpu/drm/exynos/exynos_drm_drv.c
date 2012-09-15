@@ -160,7 +160,6 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 	if (!file_priv)
 		return -ENOMEM;
 
-	drm_prime_init_file_private(&file->prime);
 	file->driver_priv = file_priv;
 
 	return exynos_drm_subdrv_open(dev, file);
@@ -184,7 +183,6 @@ static void exynos_drm_preclose(struct drm_device *dev,
 			e->base.destroy(&e->base);
 		}
 	}
-	drm_prime_destroy_file_private(&file->prime);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	exynos_drm_subdrv_close(dev, file);

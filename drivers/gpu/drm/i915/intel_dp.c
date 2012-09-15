@@ -2533,14 +2533,10 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			break;
 	}
 
-	intel_dp_i2c_init(intel_dp, intel_connector, name);
-
 	/* Cache some DPCD data in the eDP case */
 	if (is_edp(intel_dp)) {
-		bool ret;
 		struct edp_power_seq	cur, vbt;
 		u32 pp_on, pp_off, pp_div;
-		struct edid *edid;
 
 		pp_on = I915_READ(PCH_PP_ON_DELAYS);
 		pp_off = I915_READ(PCH_PP_OFF_DELAYS);
@@ -2591,6 +2587,13 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 		DRM_DEBUG_KMS("backlight on delay %d, off delay %d\n",
 			      intel_dp->backlight_on_delay, intel_dp->backlight_off_delay);
+	}
+
+	intel_dp_i2c_init(intel_dp, intel_connector, name);
+
+	if (is_edp(intel_dp)) {
+		bool ret;
+		struct edid *edid;
 
 		ironlake_edp_panel_vdd_on(intel_dp);
 		ret = intel_dp_get_dpcd(intel_dp);

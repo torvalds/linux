@@ -122,7 +122,7 @@ fail:
 		__free_page(pages[i]);
 
 	drm_free_large(pages);
-	return ERR_PTR(PTR_ERR(p));
+	return ERR_CAST(p);
 }
 
 static void exynos_gem_put_pages(struct drm_gem_object *obj,
@@ -662,7 +662,7 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	 */
 
 	args->pitch = args->width * ((args->bpp + 7) / 8);
-	args->size = PAGE_ALIGN(args->pitch * args->height);
+	args->size = args->pitch * args->height;
 
 	exynos_gem_obj = exynos_drm_gem_create(dev, args->flags, args->size);
 	if (IS_ERR(exynos_gem_obj))
