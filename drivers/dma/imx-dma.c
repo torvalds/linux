@@ -962,7 +962,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	int ret, i;
 
 
-	imxdma = kzalloc(sizeof(*imxdma), GFP_KERNEL);
+	imxdma = devm_kzalloc(&pdev->dev, sizeof(*imxdma), GFP_KERNEL);
 	if (!imxdma)
 		return -ENOMEM;
 
@@ -978,16 +978,12 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	}
 
 	imxdma->dma_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(imxdma->dma_ipg)) {
-		ret = PTR_ERR(imxdma->dma_ipg);
-		goto err_clk;
-	}
+	if (IS_ERR(imxdma->dma_ipg))
+		return PTR_ERR(imxdma->dma_ipg);
 
 	imxdma->dma_ahb = devm_clk_get(&pdev->dev, "ahb");
-	if (IS_ERR(imxdma->dma_ahb)) {
-		ret = PTR_ERR(imxdma->dma_ahb);
-		goto err_clk;
-	}
+	if (IS_ERR(imxdma->dma_ahb))
+		return PTR_ERR(imxdma->dma_ahb);
 
 	clk_prepare_enable(imxdma->dma_ipg);
 	clk_prepare_enable(imxdma->dma_ahb);
@@ -996,17 +992,18 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	imx_dmav1_writel(imxdma, DCR_DRST, DMA_DCR);
 
 	if (cpu_is_mx1()) {
-		ret = request_irq(MX1_DMA_INT, dma_irq_handler, 0, "DMA", imxdma);
+		ret = devm_request_irq(&pdev->dev, MX1_DMA_INT,
+				       dma_irq_handler, 0, "DMA", imxdma);
 		if (ret) {
 			dev_warn(imxdma->dev, "Can't register IRQ for DMA\n");
-			goto err_enable;
+			goto err;
 		}
 
-		ret = request_irq(MX1_DMA_ERR, imxdma_err_handler, 0, "DMA", imxdma);
+		ret = devm_request_irq(&pdev->dev, MX1_DMA_ERR,
+				       imxdma_err_handler, 0, "DMA", imxdma);
 		if (ret) {
 			dev_warn(imxdma->dev, "Can't register ERRIRQ for DMA\n");
-			free_irq(MX1_DMA_INT, NULL);
-			goto err_enable;
+			goto err;
 		}
 	}
 
@@ -1037,13 +1034,13 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		struct imxdma_channel *imxdmac = &imxdma->channel[i];
 
 		if (cpu_is_mx21() || cpu_is_mx27()) {
-			ret = request_irq(MX2x_INT_DMACH0 + i,
+			ret = devm_request_irq(&pdev->dev, MX2x_INT_DMACH0 + i,
 					dma_irq_handler, 0, "DMA", imxdma);
 			if (ret) {
 				dev_warn(imxdma->dev, "Can't register IRQ %d "
 					 "for DMA channel %d\n",
 					 MX2x_INT_DMACH0 + i, i);
-				goto err_init;
+				goto err;
 			}
 			init_timer(&imxdmac->watchdog);
 			imxdmac->watchdog.function = &imxdma_watchdog;
@@ -1089,46 +1086,25 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	ret = dma_async_device_register(&imxdma->dma_device);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to register\n");
-		goto err_init;
+		goto err;
 	}
 
 	return 0;
 
-err_init:
-
-	if (cpu_is_mx21() || cpu_is_mx27()) {
-		while (--i >= 0)
-			free_irq(MX2x_INT_DMACH0 + i, NULL);
-	} else if cpu_is_mx1() {
-		free_irq(MX1_DMA_INT, NULL);
-		free_irq(MX1_DMA_ERR, NULL);
-	}
-err_enable:
+err:
 	clk_disable_unprepare(imxdma->dma_ipg);
 	clk_disable_unprepare(imxdma->dma_ahb);
-err_clk:
-	kfree(imxdma);
 	return ret;
 }
 
 static int __exit imxdma_remove(struct platform_device *pdev)
 {
 	struct imxdma_engine *imxdma = platform_get_drvdata(pdev);
-	int i;
 
         dma_async_device_unregister(&imxdma->dma_device);
 
-	if (cpu_is_mx21() || cpu_is_mx27()) {
-		for (i = 0; i < IMX_DMA_CHANNELS; i++)
-			free_irq(MX2x_INT_DMACH0 + i, NULL);
-	} else if cpu_is_mx1() {
-		free_irq(MX1_DMA_INT, NULL);
-		free_irq(MX1_DMA_ERR, NULL);
-	}
-
 	clk_disable_unprepare(imxdma->dma_ipg);
 	clk_disable_unprepare(imxdma->dma_ahb);
-	kfree(imxdma);
 
         return 0;
 }
