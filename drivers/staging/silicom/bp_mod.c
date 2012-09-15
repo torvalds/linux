@@ -10,9 +10,6 @@
 /*                                                                            */
 /******************************************************************************/
 #include <linux/version.h>
-#if defined(CONFIG_SMP) && ! defined(__SMP__)
-#define __SMP__
-#endif
 
 #include <linux/kernel.h>	/* We're doing kernel work */
 #include <linux/module.h>	/* Specifically, a module */
@@ -24,7 +21,7 @@
 #include <linux/rcupdate.h>
 #include <linux/etherdevice.h>
 
-#include <asm/uaccess.h>	/* for get_user and put_user */
+#include <linux/uaccess.h>	/* for get_user and put_user */
 #include <linux/sched.h>
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
