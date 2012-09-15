@@ -2211,6 +2211,21 @@ smiapp_sysfs_nvm_read(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(nvm, S_IRUGO, smiapp_sysfs_nvm_read, NULL);
 
+static ssize_t
+smiapp_sysfs_ident_read(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct v4l2_subdev *subdev = i2c_get_clientdata(to_i2c_client(dev));
+	struct smiapp_sensor *sensor = to_smiapp_sensor(subdev);
+	struct smiapp_module_info *minfo = &sensor->minfo;
+
+	return snprintf(buf, PAGE_SIZE, "%2.2x%4.4x%2.2x\n",
+			minfo->manufacturer_id, minfo->model_id,
+			minfo->revision_number_major) + 1;
+}
+
+static DEVICE_ATTR(ident, S_IRUGO, smiapp_sysfs_ident_read, NULL);
+
 /* -----------------------------------------------------------------------------
  * V4L2 subdev core operations
  */
@@ -2467,6 +2482,11 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	sensor->binning_horizontal = 1;
 	sensor->binning_vertical = 1;
 
+	if (device_create_file(&client->dev, &dev_attr_ident) != 0) {
+		dev_err(&client->dev, "sysfs ident entry creation failed\n");
+		rval = -ENOENT;
+		goto out_power_off;
+	}
 	/* SMIA++ NVM initialization - it will be read from the sensor
 	 * when it is first requested by userspace.
 	 */
@@ -2476,13 +2496,13 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 		if (sensor->nvm == NULL) {
 			dev_err(&client->dev, "nvm buf allocation failed\n");
 			rval = -ENOMEM;
-			goto out_power_off;
+			goto out_ident_release;
 		}
 
 		if (device_create_file(&client->dev, &dev_attr_nvm) != 0) {
 			dev_err(&client->dev, "sysfs nvm entry failed\n");
 			rval = -EBUSY;
-			goto out_power_off;
+			goto out_ident_release;
 		}
 	}
 
@@ -2636,6 +2656,9 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 
 out_nvm_release:
 	device_remove_file(&client->dev, &dev_attr_nvm);
+
+out_ident_release:
+	device_remove_file(&client->dev, &dev_attr_ident);
 
 out_power_off:
 	smiapp_power_off(sensor);
@@ -2832,6 +2855,7 @@ static int __exit smiapp_remove(struct i2c_client *client)
 		sensor->power_count = 0;
 	}
 
+	device_remove_file(&client->dev, &dev_attr_ident);
 	if (sensor->nvm)
 		device_remove_file(&client->dev, &dev_attr_nvm);
 
