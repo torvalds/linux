@@ -4036,7 +4036,7 @@ int wdt_exp_mode_status(bpctl_dev_t *pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int tpl2_flag_status(bpctl_dev_t * pbpctl_dev)
+int tpl2_flag_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps_ex & TPL2_CAP_EX) {
@@ -4047,7 +4047,7 @@ int tpl2_flag_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int tpl_hw_status(bpctl_dev_t * pbpctl_dev)
+int tpl_hw_status(bpctl_dev_t *pbpctl_dev)
 {
 	bpctl_dev_t *pbpctl_dev_b = NULL;
 
@@ -4062,7 +4062,7 @@ int tpl_hw_status(bpctl_dev_t * pbpctl_dev)
 
 //#ifdef PMC_FIX_FLAG
 
-int bp_wait_at_pwup_status(bpctl_dev_t * pbpctl_dev)
+int bp_wait_at_pwup_status(bpctl_dev_t *pbpctl_dev)
 {
 	if (pbpctl_dev->bp_caps & SW_CTL_CAP) {
 		if (pbpctl_dev->bp_ext_ver >= 0x8)
@@ -4073,7 +4073,7 @@ int bp_wait_at_pwup_status(bpctl_dev_t * pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-int bp_hw_reset_status(bpctl_dev_t * pbpctl_dev)
+int bp_hw_reset_status(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & SW_CTL_CAP) {
@@ -4088,7 +4088,7 @@ int bp_hw_reset_status(bpctl_dev_t * pbpctl_dev)
 
 //#endif /*PMC_FIX_FLAG*/
 
-int std_nic_status(bpctl_dev_t * pbpctl_dev)
+int std_nic_status(bpctl_dev_t *pbpctl_dev)
 {
 	int status_val = 0;
 
@@ -4136,7 +4136,7 @@ int std_nic_status(bpctl_dev_t * pbpctl_dev)
 /******************************************************/
 /**************SW_INIT*********************************/
 /******************************************************/
-void bypass_caps_init(bpctl_dev_t * pbpctl_dev)
+void bypass_caps_init(bpctl_dev_t *pbpctl_dev)
 {
 	u_int32_t ctrl_ext = 0;
 	bpctl_dev_t *pbpctl_dev_m = NULL;
@@ -4359,7 +4359,7 @@ void bypass_caps_init(bpctl_dev_t * pbpctl_dev)
 	}
 }
 
-int bypass_off_init(bpctl_dev_t * pbpctl_dev)
+int bypass_off_init(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 
@@ -4376,7 +4376,7 @@ int bypass_off_init(bpctl_dev_t * pbpctl_dev)
 	return 0;
 }
 
-void remove_bypass_wd_auto(bpctl_dev_t * pbpctl_dev)
+void remove_bypass_wd_auto(bpctl_dev_t *pbpctl_dev)
 {
 #ifdef BP_SELF_TEST
 	bpctl_dev_t *pbpctl_dev_sl = NULL;
@@ -4417,7 +4417,7 @@ void remove_bypass_wd_auto(bpctl_dev_t * pbpctl_dev)
 
 }
 
-int init_bypass_wd_auto(bpctl_dev_t * pbpctl_dev)
+int init_bypass_wd_auto(bpctl_dev_t *pbpctl_dev)
 {
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
 		init_timer(&pbpctl_dev->bp_timer);
@@ -4464,7 +4464,7 @@ int bp_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 #endif
 
-int set_bypass_wd_auto(bpctl_dev_t * pbpctl_dev, unsigned int param)
+int set_bypass_wd_auto(bpctl_dev_t *pbpctl_dev, unsigned int param)
 {
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
 		if (pbpctl_dev->reset_time != param) {
@@ -4483,7 +4483,7 @@ int set_bypass_wd_auto(bpctl_dev_t * pbpctl_dev, unsigned int param)
 	return BP_NOT_CAP;
 }
 
-int get_bypass_wd_auto(bpctl_dev_t * pbpctl_dev)
+int get_bypass_wd_auto(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
@@ -4494,7 +4494,7 @@ int get_bypass_wd_auto(bpctl_dev_t * pbpctl_dev)
 
 #ifdef  BP_SELF_TEST
 
-int set_bp_self_test(bpctl_dev_t * pbpctl_dev, unsigned int param)
+int set_bp_self_test(bpctl_dev_t *pbpctl_dev, unsigned int param)
 {
 	bpctl_dev_t *pbpctl_dev_sl = NULL;
 
@@ -4546,7 +4546,7 @@ int set_bp_self_test(bpctl_dev_t * pbpctl_dev, unsigned int param)
 	return BP_NOT_CAP;
 }
 
-int get_bp_self_test(bpctl_dev_t * pbpctl_dev)
+int get_bp_self_test(bpctl_dev_t *pbpctl_dev)
 {
 
 	if (pbpctl_dev->bp_caps & WD_CTL_CAP) {
@@ -4564,7 +4564,7 @@ int get_bp_self_test(bpctl_dev_t * pbpctl_dev)
 /************************* API ********************************/
 /**************************************************************/
 
-int is_bypass_fn(bpctl_dev_t * pbpctl_dev)
+int is_bypass_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4572,7 +4572,7 @@ int is_bypass_fn(bpctl_dev_t * pbpctl_dev)
 	return (((pbpctl_dev->func == 0) || (pbpctl_dev->func == 2)) ? 1 : 0);
 }
 
-int set_bypass_fn(bpctl_dev_t * pbpctl_dev, int bypass_mode)
+int set_bypass_fn(bpctl_dev_t *pbpctl_dev, int bypass_mode)
 {
 	int ret = 0;
 
@@ -4589,12 +4589,12 @@ int set_bypass_fn(bpctl_dev_t * pbpctl_dev, int bypass_mode)
 	return ret;
 }
 
-int get_bypass_fn(bpctl_dev_t * pbpctl_dev)
+int get_bypass_fn(bpctl_dev_t *pbpctl_dev)
 {
 	return (bypass_status(pbpctl_dev));
 }
 
-int get_bypass_change_fn(bpctl_dev_t * pbpctl_dev)
+int get_bypass_change_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4602,7 +4602,7 @@ int get_bypass_change_fn(bpctl_dev_t * pbpctl_dev)
 	return (bypass_change_status(pbpctl_dev));
 }
 
-int set_dis_bypass_fn(bpctl_dev_t * pbpctl_dev, int dis_param)
+int set_dis_bypass_fn(bpctl_dev_t *pbpctl_dev, int dis_param)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4620,7 +4620,7 @@ int set_dis_bypass_fn(bpctl_dev_t * pbpctl_dev, int dis_param)
 	return ret;
 }
 
-int get_dis_bypass_fn(bpctl_dev_t * pbpctl_dev)
+int get_dis_bypass_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4628,7 +4628,7 @@ int get_dis_bypass_fn(bpctl_dev_t * pbpctl_dev)
 	return (dis_bypass_cap_status(pbpctl_dev));
 }
 
-int set_bypass_pwoff_fn(bpctl_dev_t * pbpctl_dev, int bypass_mode)
+int set_bypass_pwoff_fn(bpctl_dev_t *pbpctl_dev, int bypass_mode)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4646,7 +4646,7 @@ int set_bypass_pwoff_fn(bpctl_dev_t * pbpctl_dev, int bypass_mode)
 	return ret;
 }
 
-int get_bypass_pwoff_fn(bpctl_dev_t * pbpctl_dev)
+int get_bypass_pwoff_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4654,7 +4654,7 @@ int get_bypass_pwoff_fn(bpctl_dev_t * pbpctl_dev)
 	return (default_pwroff_status(pbpctl_dev));
 }
 
-int set_bypass_pwup_fn(bpctl_dev_t * pbpctl_dev, int bypass_mode)
+int set_bypass_pwup_fn(bpctl_dev_t *pbpctl_dev, int bypass_mode)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4672,7 +4672,7 @@ int set_bypass_pwup_fn(bpctl_dev_t * pbpctl_dev, int bypass_mode)
 	return ret;
 }
 
-int get_bypass_pwup_fn(bpctl_dev_t * pbpctl_dev)
+int get_bypass_pwup_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4680,7 +4680,7 @@ int get_bypass_pwup_fn(bpctl_dev_t * pbpctl_dev)
 	return (default_pwron_status(pbpctl_dev));
 }
 
-int set_bypass_wd_fn(bpctl_dev_t * pbpctl_dev, int timeout)
+int set_bypass_wd_fn(bpctl_dev_t *pbpctl_dev, int timeout)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4701,7 +4701,7 @@ int set_bypass_wd_fn(bpctl_dev_t * pbpctl_dev, int timeout)
 	return ret;
 }
 
-int get_bypass_wd_fn(bpctl_dev_t * pbpctl_dev, int *timeout)
+int get_bypass_wd_fn(bpctl_dev_t *pbpctl_dev, int *timeout)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4709,7 +4709,7 @@ int get_bypass_wd_fn(bpctl_dev_t * pbpctl_dev, int *timeout)
 	return wdt_programmed(pbpctl_dev, timeout);
 }
 
-int get_wd_expire_time_fn(bpctl_dev_t * pbpctl_dev, int *time_left)
+int get_wd_expire_time_fn(bpctl_dev_t *pbpctl_dev, int *time_left)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4717,7 +4717,7 @@ int get_wd_expire_time_fn(bpctl_dev_t * pbpctl_dev, int *time_left)
 	return (wdt_timer(pbpctl_dev, time_left));
 }
 
-int reset_bypass_wd_timer_fn(bpctl_dev_t * pbpctl_dev)
+int reset_bypass_wd_timer_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4725,7 +4725,7 @@ int reset_bypass_wd_timer_fn(bpctl_dev_t * pbpctl_dev)
 	return (wdt_timer_reload(pbpctl_dev));
 }
 
-int get_wd_set_caps_fn(bpctl_dev_t * pbpctl_dev)
+int get_wd_set_caps_fn(bpctl_dev_t *pbpctl_dev)
 {
 	int bp_status = 0;
 
@@ -4749,7 +4749,7 @@ int get_wd_set_caps_fn(bpctl_dev_t * pbpctl_dev)
 	return bp_status;
 }
 
-int set_std_nic_fn(bpctl_dev_t * pbpctl_dev, int nic_mode)
+int set_std_nic_fn(bpctl_dev_t *pbpctl_dev, int nic_mode)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4768,7 +4768,7 @@ int set_std_nic_fn(bpctl_dev_t * pbpctl_dev, int nic_mode)
 	return ret;
 }
 
-int get_std_nic_fn(bpctl_dev_t * pbpctl_dev)
+int get_std_nic_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4776,7 +4776,7 @@ int get_std_nic_fn(bpctl_dev_t * pbpctl_dev)
 	return (std_nic_status(pbpctl_dev));
 }
 
-int set_tap_fn(bpctl_dev_t * pbpctl_dev, int tap_mode)
+int set_tap_fn(bpctl_dev_t *pbpctl_dev, int tap_mode)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4792,7 +4792,7 @@ int set_tap_fn(bpctl_dev_t * pbpctl_dev, int tap_mode)
 	return BP_NOT_CAP;
 }
 
-int get_tap_fn(bpctl_dev_t * pbpctl_dev)
+int get_tap_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4800,7 +4800,7 @@ int get_tap_fn(bpctl_dev_t * pbpctl_dev)
 	return (tap_status(pbpctl_dev));
 }
 
-int set_tap_pwup_fn(bpctl_dev_t * pbpctl_dev, int tap_mode)
+int set_tap_pwup_fn(bpctl_dev_t *pbpctl_dev, int tap_mode)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4818,7 +4818,7 @@ int set_tap_pwup_fn(bpctl_dev_t * pbpctl_dev, int tap_mode)
 	return ret;
 }
 
-int get_tap_pwup_fn(bpctl_dev_t * pbpctl_dev)
+int get_tap_pwup_fn(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4829,7 +4829,7 @@ int get_tap_pwup_fn(bpctl_dev_t * pbpctl_dev)
 	return ((ret == 0) ? 1 : 0);
 }
 
-int get_tap_change_fn(bpctl_dev_t * pbpctl_dev)
+int get_tap_change_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4837,7 +4837,7 @@ int get_tap_change_fn(bpctl_dev_t * pbpctl_dev)
 	return (tap_change_status(pbpctl_dev));
 }
 
-int set_dis_tap_fn(bpctl_dev_t * pbpctl_dev, int dis_param)
+int set_dis_tap_fn(bpctl_dev_t *pbpctl_dev, int dis_param)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4854,7 +4854,7 @@ int set_dis_tap_fn(bpctl_dev_t * pbpctl_dev, int dis_param)
 		return BP_NOT_CAP;
 }
 
-int get_dis_tap_fn(bpctl_dev_t * pbpctl_dev)
+int get_dis_tap_fn(bpctl_dev_t *pbpctl_dev)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4862,7 +4862,7 @@ int get_dis_tap_fn(bpctl_dev_t * pbpctl_dev)
 	return (dis_tap_cap_status(pbpctl_dev));
 }
 
-int set_disc_fn(bpctl_dev_t * pbpctl_dev, int disc_mode)
+int set_disc_fn(bpctl_dev_t *pbpctl_dev, int disc_mode)
 {
 	if (!pbpctl_dev)
 		return -1;
@@ -4879,7 +4879,7 @@ int set_disc_fn(bpctl_dev_t * pbpctl_dev, int disc_mode)
 	return BP_NOT_CAP;
 }
 
-int get_disc_fn(bpctl_dev_t * pbpctl_dev)
+int get_disc_fn(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4890,7 +4890,7 @@ int get_disc_fn(bpctl_dev_t * pbpctl_dev)
 	return ret;
 }
 
-int set_disc_pwup_fn(bpctl_dev_t * pbpctl_dev, int disc_mode)
+int set_disc_pwup_fn(bpctl_dev_t *pbpctl_dev, int disc_mode)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
@@ -4908,7 +4908,7 @@ int set_disc_pwup_fn(bpctl_dev_t * pbpctl_dev, int disc_mode)
 	return ret;
 }
 
-int get_disc_pwup_fn(bpctl_dev_t * pbpctl_dev)
+int get_disc_pwup_fn(bpctl_dev_t *pbpctl_dev)
 {
 	int ret = 0;
 	if (!pbpctl_dev)
