@@ -420,8 +420,8 @@ int get_dis_tap_sd(int if_index);
  * @bypass_mode: tap mode setting at power up state (1=TAP en, 0=TAP Dis)
  * Output:
  *  0 - on success
- * -1 - on failure (device is not capable of the operation ordevice not support TAP 
- *                  or it's a slave device) 
+ * -1 - on failure (device is not capable of the operation ordevice not support TAP
+ *                  or it's a slave device)
  **/
 int set_tap_pwup_sd(int if_index, int tap_mode);
 
@@ -430,18 +430,18 @@ int set_tap_pwup_sd(int if_index, int tap_mode);
  * @if_index: network device index of the controlling device
  * Output:
  *  0/1 - on success (Disable TAP at power up state / normal TAP mode)
- * -1 - on failure (device is not capable of the operation ordevice not support TAP 
- *                  or it's a slave device) 
+ * -1 - on failure (device is not capable of the operation ordevice not support TAP
+ *                  or it's a slave device)
  **/
 int get_tap_pwup_sd(int if_index);
 
 /**
  * set_wd_exp_mode - Set adapter state when WDT expired.
  * @if_index: network device index of the controlling device
- * @bypass_mode:  adapter mode (1=tap mode, 0=bypass mode) 
+ * @bypass_mode:  adapter mode (1=tap mode, 0=bypass mode)
  * Output:
  *  0 - on success
- * -1 - on failure (device not support Bypass or it's a slave device) 
+ * -1 - on failure (device not support Bypass or it's a slave device)
  **/
 int set_wd_exp_mode_sd(int if_index, int bypass_mode);
 
@@ -450,38 +450,38 @@ int set_wd_exp_mode_sd(int if_index, int bypass_mode);
  * @if_index: network device index of the controlling device
  * Output:
  *  0/1 - (bypass/tap) on success
- * -1 - on failure (device not support Bypass or it's a slave device) 
+ * -1 - on failure (device not support Bypass or it's a slave device)
  **/
 int get_wd_exp_mode_sd(int if_index);
 
 /**
  * set_wd_autoreset - reset WDT periodically.
  * @if_index: network device index of the controlling device
- * @bypass_mode:  adapter mode (1=tap mode, 0=bypass mode) 
+ * @bypass_mode:  adapter mode (1=tap mode, 0=bypass mode)
  * Output:
  * 1  - on success
- * -1 - on failure (device is not capable of the operation ordevice not support Bypass 
- *                  or it's a slave device or unknown wdt status) 
+ * -1 - on failure (device is not capable of the operation ordevice not support Bypass
+ *                  or it's a slave device or unknown wdt status)
  **/
 int set_wd_autoreset_sd(int if_index, int time);
 
 /**
  * set_wd_autoreset - reset WDT periodically.
  * @if_index: network device index of the controlling device
- * @bypass_mode:  adapter mode (1=tap mode, 0=bypass mode) 
+ * @bypass_mode:  adapter mode (1=tap mode, 0=bypass mode)
  * Output:
  * 1  - on success
- * -1 - on failure (device is not capable of the operation ordevice not support Bypass 
- *                  or it's a slave device or unknown wdt status) 
+ * -1 - on failure (device is not capable of the operation ordevice not support Bypass
+ *                  or it's a slave device or unknown wdt status)
  **/
 int get_wd_autoreset_sd(int if_index);
 /**
  * set_disc - set DISC state
  * @if_index: network device index of the controlling device
- * @tap_mode: 1 DISC mode , 0 normal nic mode 
+ * @tap_mode: 1 DISC mode , 0 normal nic mode
  * Output:
  *  0 - on success
- * -1 - on failure (device not support disconnect or it's a slave device) 
+ * -1 - on failure (device not support disconnect or it's a slave device)
  **/
 int set_bp_disc_sd(int if_index, int disc_mode);
 
@@ -490,7 +490,7 @@ int set_bp_disc_sd(int if_index, int disc_mode);
  * @if_index: network device index of the controlling device
  * Output:
  *  0/1 - (off/on) on success
- * -1 - on failure (device not support disconnect or it's a slave device) 
+ * -1 - on failure (device not support disconnect or it's a slave device)
  **/
 int get_bp_disc_sd(int if_index);
 
@@ -499,7 +499,7 @@ int get_bp_disc_sd(int if_index);
  * @if_index: network device index of the controlling device
  * Output:
  *  0/1 - (off/on) on success
- * -1 - on failure (device not support disconnect or it's a slave device) 
+ * -1 - on failure (device not support disconnect or it's a slave device)
  **/
 int get_bp_disc_change_sd(int if_index);
 
@@ -509,8 +509,8 @@ int get_bp_disc_change_sd(int if_index);
  * @dis_disc: disable disconnect(1=dis, 0=en)
  * Output:
  *  0 - on success
- * -1 - on failure (device is not capable of the operation ordevice not support DISC 
- *                  or it's a slave device) 
+ * -1 - on failure (device is not capable of the operation ordevice not support DISC
+ *                  or it's a slave device)
  **/
 int set_bp_dis_disc_sd(int if_index, int dis_disc);
 
@@ -519,8 +519,8 @@ int set_bp_dis_disc_sd(int if_index, int dis_disc);
  * @if_index: network device index of the controlling device
  * Output:
  *  0/1 - on success (normal DISC mode/ Disable DISC)
- * -1 - on failure (device is not capable of the operation ordevice not support TAP 
- *                  or it's a slave device) 
+ * -1 - on failure (device is not capable of the operation ordevice not support TAP
+ *                  or it's a slave device)
  **/
 int get_bp_dis_disc_sd(int if_index);
 
@@ -529,9 +529,9 @@ int get_bp_dis_disc_sd(int if_index);
  * @if_index: network device index of the controlling device
  * @disc_mode: DISC mode setting at power up state (1= en, 0= Dis)
  * Output:
- *  0 - on success 
- * -1 - on failure (device is not capable of the operation ordevice not support DISC 
- *                  or it's a slave device) 
+ *  0 - on success
+ * -1 - on failure (device is not capable of the operation ordevice not support DISC
+ *                  or it's a slave device)
  **/
 int set_bp_disc_pwup_sd(int if_index, int disc_mode);
 
@@ -540,8 +540,8 @@ int set_bp_disc_pwup_sd(int if_index, int disc_mode);
  * @if_index: network device index of the controlling device
  * Output:
  *  0/1 - on success (Disable DISC at power up state / normal DISC mode)
- * -1 - on failure (device is not capable of the operation ordevice not support DISC 
- *                  or it's a slave device) 
+ * -1 - on failure (device is not capable of the operation ordevice not support DISC
+ *                  or it's a slave device)
  **/
 int get_bp_disc_pwup_sd(int if_index);
 
