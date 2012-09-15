@@ -40,6 +40,7 @@
 #include <linux/usb/input.h>
 #include <linux/hid.h>
 #include <linux/mutex.h>
+#include <linux/input/mt.h>
 
 #define USB_VENDOR_ID_APPLE		0x05ac
 
@@ -235,11 +236,14 @@ struct bcm5974 {
 	struct bt_data *bt_data;	/* button transferred data */
 	struct urb *tp_urb;		/* trackpad usb request block */
 	u8 *tp_data;			/* trackpad transferred data */
+	const struct tp_finger *index[MAX_FINGERS];	/* finger index data */
+	struct input_mt_pos pos[MAX_FINGERS];		/* position array */
+	int slots[MAX_FINGERS];				/* slot assignments */
 };
 
 /* logical signal quality */
 #define SN_PRESSURE	45		/* pressure signal-to-noise ratio */
-#define SN_WIDTH	100		/* width signal-to-noise ratio */
+#define SN_WIDTH	25		/* width signal-to-noise ratio */
 #define SN_COORD	250		/* coordinate signal-to-noise ratio */
 #define SN_ORIENT	10		/* orientation signal-to-noise ratio */
 
@@ -414,10 +418,6 @@ static void setup_events_to_report(struct input_dev *input_dev,
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 256, 5, 0);
 	input_set_abs_params(input_dev, ABS_TOOL_WIDTH, 0, 16, 0, 0);
 
-	/* pointer emulation */
-	set_abs(input_dev, ABS_X, &cfg->x);
-	set_abs(input_dev, ABS_Y, &cfg->y);
-
 	/* finger touch area */
 	set_abs(input_dev, ABS_MT_TOUCH_MAJOR, &cfg->w);
 	set_abs(input_dev, ABS_MT_TOUCH_MINOR, &cfg->w);
@@ -431,18 +431,13 @@ static void setup_events_to_report(struct input_dev *input_dev,
 	set_abs(input_dev, ABS_MT_POSITION_Y, &cfg->y);
 
 	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(BTN_TOUCH, input_dev->keybit);
-	__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
-	__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
-	__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
-	__set_bit(BTN_TOOL_QUADTAP, input_dev->keybit);
 	__set_bit(BTN_LEFT, input_dev->keybit);
 
-	__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 	if (cfg->caps & HAS_INTEGRATED_BUTTON)
 		__set_bit(INPUT_PROP_BUTTONPAD, input_dev->propbit);
 
-	input_set_events_per_packet(input_dev, 60);
+	input_mt_init_slots(input_dev, MAX_FINGERS,
+		INPUT_MT_POINTER | INPUT_MT_DROP_UNUSED | INPUT_MT_TRACK);
 }
 
 /* report button data as logical button state */
@@ -462,10 +457,13 @@ static int report_bt_state(struct bcm5974 *dev, int size)
 	return 0;
 }
 
-static void report_finger_data(struct input_dev *input,
-			       const struct bcm5974_config *cfg,
+static void report_finger_data(struct input_dev *input, int slot,
+			       const struct input_mt_pos *pos,
 			       const struct tp_finger *f)
 {
+	input_mt_slot(input, slot);
+	input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
+
 	input_report_abs(input, ABS_MT_TOUCH_MAJOR,
 			 raw2int(f->touch_major) << 1);
 	input_report_abs(input, ABS_MT_TOUCH_MINOR,
@@ -476,10 +474,8 @@ static void report_finger_data(struct input_dev *input,
 			 raw2int(f->tool_minor) << 1);
 	input_report_abs(input, ABS_MT_ORIENTATION,
 			 MAX_FINGER_ORIENTATION - raw2int(f->orientation));
-	input_report_abs(input, ABS_MT_POSITION_X, raw2int(f->abs_x));
-	input_report_abs(input, ABS_MT_POSITION_Y,
-			 cfg->y.min + cfg->y.max - raw2int(f->abs_y));
-	input_mt_sync(input);
+	input_report_abs(input, ABS_MT_POSITION_X, pos->x);
+	input_report_abs(input, ABS_MT_POSITION_Y, pos->y);
 }
 
 static void report_synaptics_data(struct input_dev *input,
@@ -507,8 +503,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 	const struct bcm5974_config *c = &dev->cfg;
 	const struct tp_finger *f;
 	struct input_dev *input = dev->input;
-	int raw_n, i;
-	int abs_x = 0, abs_y = 0, n = 0;
+	int raw_n, i, n = 0;
 
 	if (size < c->tp_offset || (size - c->tp_offset) % SIZEOF_FINGER != 0)
 		return -EIO;
@@ -517,35 +512,23 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 	f = (const struct tp_finger *)(dev->tp_data + c->tp_offset);
 	raw_n = (size - c->tp_offset) / SIZEOF_FINGER;
 
-	/* always track the first finger; when detached, start over */
-	if (raw_n) {
-
-		/* report raw trackpad data */
-		for (i = 0; i < raw_n; i++)
-			report_finger_data(input, c, &f[i]);
-
-		/* while tracking finger still valid, count all fingers */
-		if (raw2int(f->touch_major) > 0 && raw2int(f->origin)) {
-			abs_x = raw2int(f->abs_x);
-			abs_y = c->y.min + c->y.max - raw2int(f->abs_y);
-			for (i = 0; i < raw_n; i++)
-				if (raw2int(f[i].touch_major) > 0)
-					n++;
-		}
+	for (i = 0; i < raw_n; i++) {
+		if (raw2int(f[i].touch_major) == 0)
+			continue;
+		dev->pos[n].x = raw2int(f[i].abs_x);
+		dev->pos[n].y = c->y.min + c->y.max - raw2int(f[i].abs_y);
+		dev->index[n++] = &f[i];
 	}
 
-	input_report_key(input, BTN_TOUCH, n > 0);
-	input_report_key(input, BTN_TOOL_FINGER, n == 1);
-	input_report_key(input, BTN_TOOL_DOUBLETAP, n == 2);
-	input_report_key(input, BTN_TOOL_TRIPLETAP, n == 3);
-	input_report_key(input, BTN_TOOL_QUADTAP, n > 3);
+	input_mt_assign_slots(input, dev->slots, dev->pos, n);
+
+	for (i = 0; i < n; i++)
+		report_finger_data(input, dev->slots[i],
+				   &dev->pos[i], dev->index[i]);
+
+	input_mt_sync_frame(input);
 
 	report_synaptics_data(input, c, f, raw_n);
-
-	if (n > 0) {
-		input_report_abs(input, ABS_X, abs_x);
-		input_report_abs(input, ABS_Y, abs_y);
-	}
 
 	/* type 2 reports button events via ibt only */
 	if (c->tp_type == TYPE2) {
