@@ -373,33 +373,33 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 
 #define PEGF5_IF_SERIES(pid) \
 	((pid == SILICOM_PEG2BPFI5_SSID) || \
-          (pid==SILICOM_PEG2BPFI5LX_SSID)|| \
-          (pid==SILICOM_PEG4BPFI6_SSID)|| \
-          (pid==SILICOM_PEG4BPFI6LX_SSID)|| \
-           (pid==SILICOM_PEG4BPFI6ZX_SSID)|| \
-           (pid==SILICOM_PEG2BPFI6_SSID)|| \
-           (pid==SILICOM_PEG2BPFI6LX_SSID)|| \
-           (pid==SILICOM_PEG2BPFI6ZX_SSID)|| \
-           (pid==SILICOM_PEG2BPFI6FLXM_SSID)|| \
-           (pid==SILICOM_PEG2DBFI6_SSID)|| \
-           (pid==SILICOM_PEG2DBFI6LX_SSID)|| \
-           (pid==SILICOM_PEG2DBFI6ZX_SSID)|| \
-           (pid==SILICOM_PEG4BPI6FC_SSID)|| \
-           (pid==SILICOM_PEG4BPFI6FCLX_SSID)|| \
-           (pid==SILICOM_PEG4BPI6FC_SSID)|| \
-           (pid==SILICOM_M1EG2BPFI6_SSID)|| \
-           (pid==SILICOM_M1EG2BPFI6LX_SSID)|| \
-           (pid==SILICOM_M1EG2BPFI6ZX_SSID)|| \
-           (pid==SILICOM_M1EG4BPFI6_SSID)|| \
-           (pid==SILICOM_M1EG4BPFI6LX_SSID)|| \
-           (pid==SILICOM_M1EG4BPFI6ZX_SSID)|| \
-           (pid==SILICOM_M2EG2BPFI6_SSID)|| \
-           (pid==SILICOM_M2EG2BPFI6LX_SSID)|| \
-           (pid==SILICOM_M2EG2BPFI6ZX_SSID)|| \
-           (pid==SILICOM_M2EG4BPFI6_SSID)|| \
-           (pid==SILICOM_M2EG4BPFI6LX_SSID)|| \
-           (pid==SILICOM_M2EG4BPFI6ZX_SSID)|| \
-           (pid==SILICOM_PEG4BPFI6FCZX_SSID))
+	 (pid == SILICOM_PEG2BPFI5LX_SSID) || \
+	 (pid == SILICOM_PEG4BPFI6_SSID) || \
+	 (pid == SILICOM_PEG4BPFI6LX_SSID) || \
+	 (pid == SILICOM_PEG4BPFI6ZX_SSID) || \
+	 (pid == SILICOM_PEG2BPFI6_SSID) || \
+	 (pid == SILICOM_PEG2BPFI6LX_SSID) || \
+	 (pid == SILICOM_PEG2BPFI6ZX_SSID) || \
+	 (pid == SILICOM_PEG2BPFI6FLXM_SSID) || \
+	 (pid == SILICOM_PEG2DBFI6_SSID) || \
+	 (pid == SILICOM_PEG2DBFI6LX_SSID) || \
+	 (pid == SILICOM_PEG2DBFI6ZX_SSID) || \
+	 (pid == SILICOM_PEG4BPI6FC_SSID) || \
+	 (pid == SILICOM_PEG4BPFI6FCLX_SSID) || \
+	 (pid == SILICOM_PEG4BPI6FC_SSID) || \
+	 (pid == SILICOM_M1EG2BPFI6_SSID) || \
+	 (pid == SILICOM_M1EG2BPFI6LX_SSID) || \
+	 (pid == SILICOM_M1EG2BPFI6ZX_SSID) || \
+	 (pid == SILICOM_M1EG4BPFI6_SSID) || \
+	 (pid == SILICOM_M1EG4BPFI6LX_SSID) || \
+	 (pid == SILICOM_M1EG4BPFI6ZX_SSID) || \
+	 (pid == SILICOM_M2EG2BPFI6_SSID) || \
+	 (pid == SILICOM_M2EG2BPFI6LX_SSID) || \
+	 (pid == SILICOM_M2EG2BPFI6ZX_SSID) || \
+	 (pid == SILICOM_M2EG4BPFI6_SSID) || \
+	 (pid == SILICOM_M2EG4BPFI6LX_SSID) || \
+	 (pid == SILICOM_M2EG4BPFI6ZX_SSID) || \
+	 (pid == SILICOM_PEG4BPFI6FCZX_SSID))
 
 #define PEG5_IF_SERIES(pid) \
 ((pid==SILICOM_PEG4BPI6_SSID)|| \
