@@ -776,6 +776,7 @@ struct hda_pcm {
 	unsigned int pcm_type;	/* HDA_PCM_TYPE_XXX */
 	int device;		/* device number to assign */
 	struct snd_pcm *pcm;	/* assigned PCM instance */
+	bool own_chmap;		/* codec driver provides own channel maps */
 };
 
 /* codec information */

@@ -2595,6 +2595,21 @@ static void alc650_update_jacks(struct snd_ac97 *ac97)
 			     shared ? 0 : 0x100);
 }
 
+static int alc650_swap_surround_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
+	struct snd_pcm_chmap *map = ac97->chmaps[SNDRV_PCM_STREAM_PLAYBACK];
+
+	if (map) {
+		if (ucontrol->value.integer.value[0])
+			map->chmap = snd_pcm_std_chmaps;
+		else
+			map->chmap = snd_pcm_alt_chmaps;
+	}
+	return snd_ac97_put_volsw(kcontrol, ucontrol);
+}
+
 static const struct snd_kcontrol_new snd_ac97_controls_alc650[] = {
 	AC97_SINGLE("Duplicate Front", AC97_ALC650_MULTICH, 0, 1, 0),
 	AC97_SINGLE("Surround Down Mix", AC97_ALC650_MULTICH, 1, 1, 0),
@@ -2608,7 +2623,14 @@ static const struct snd_kcontrol_new snd_ac97_controls_alc650[] = {
 	/* 9: Line-In/Surround share */
 	/* 10: Mic/CLFE share */
 	/* 11-13: in IEC958 controls */
-	AC97_SINGLE("Swap Surround Slot", AC97_ALC650_MULTICH, 14, 1, 0),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Swap Surround Slot",
+		.info = snd_ac97_info_volsw,
+		.get = snd_ac97_get_volsw,
+		.put = alc650_swap_surround_put,
+		.private_value =  AC97_SINGLE_VALUE(AC97_ALC650_MULTICH, 14, 1, 0),
+	},
 #if 0 /* always set in patch_alc650 */
 	AC97_SINGLE("IEC958 Input Clock Enable", AC97_ALC650_CLOCK, 0, 1, 0),
 	AC97_SINGLE("IEC958 Input Pin Enable", AC97_ALC650_CLOCK, 1, 1, 0),
