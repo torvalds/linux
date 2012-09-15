@@ -3619,6 +3619,7 @@ static void seg_setup(int seg)
 
 static int alloc_apic_access_page(struct kvm *kvm)
 {
+	struct page *page;
 	struct kvm_userspace_memory_region kvm_userspace_mem;
 	int r = 0;
 
@@ -3633,7 +3634,13 @@ static int alloc_apic_access_page(struct kvm *kvm)
 	if (r)
 		goto out;
 
-	kvm->arch.apic_access_page = gfn_to_page(kvm, 0xfee00);
+	page = gfn_to_page(kvm, 0xfee00);
+	if (is_error_page(page)) {
+		r = -EFAULT;
+		goto out;
+	}
+
+	kvm->arch.apic_access_page = page;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
@@ -3641,6 +3648,7 @@ out:
 
 static int alloc_identity_pagetable(struct kvm *kvm)
 {
+	struct page *page;
 	struct kvm_userspace_memory_region kvm_userspace_mem;
 	int r = 0;
 
@@ -3656,8 +3664,13 @@ static int alloc_identity_pagetable(struct kvm *kvm)
 	if (r)
 		goto out;
 
-	kvm->arch.ept_identity_pagetable = gfn_to_page(kvm,
-			kvm->arch.ept_identity_map_addr >> PAGE_SHIFT);
+	page = gfn_to_page(kvm, kvm->arch.ept_identity_map_addr >> PAGE_SHIFT);
+	if (is_error_page(page)) {
+		r = -EFAULT;
+		goto out;
+	}
+
+	kvm->arch.ept_identity_pagetable = page;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
@@ -6575,7 +6588,7 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	/* Exposing INVPCID only when PCID is exposed */
 	best = kvm_find_cpuid_entry(vcpu, 0x7, 0);
 	if (vmx_invpcid_supported() &&
-	    best && (best->ecx & bit(X86_FEATURE_INVPCID)) &&
+	    best && (best->ebx & bit(X86_FEATURE_INVPCID)) &&
 	    guest_cpuid_has_pcid(vcpu)) {
 		exec_control |= SECONDARY_EXEC_ENABLE_INVPCID;
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
@@ -6585,7 +6598,7 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
 			     exec_control);
 		if (best)
-			best->ecx &= ~bit(X86_FEATURE_INVPCID);
+			best->ebx &= ~bit(X86_FEATURE_INVPCID);
 	}
 }
 

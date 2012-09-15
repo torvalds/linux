@@ -87,10 +87,6 @@
 
 #define SMB2_PROTO_NUMBER __constant_cpu_to_le32(0x424d53fe)
 
-#define SMB2_HEADER_SIZE __constant_le16_to_cpu(64)
-
-#define SMB2_ERROR_STRUCTURE_SIZE2 __constant_le16_to_cpu(9)
-
 /*
  * SMB2 Header Definition
  *
@@ -99,6 +95,9 @@
  * "PDU" :  "Protocol Data Unit" (ie a network "frame")
  *
  */
+
+#define SMB2_HEADER_STRUCTURE_SIZE __constant_cpu_to_le16(64)
+
 struct smb2_hdr {
 	__be32 smb2_buf_length;	/* big endian on wire */
 				/* length is only two or three bytes - with
@@ -140,6 +139,9 @@ struct smb2_pdu {
  *  command code name for the struct. Note that structures must be packed.
  *
  */
+
+#define SMB2_ERROR_STRUCTURE_SIZE2 __constant_cpu_to_le16(9)
+
 struct smb2_err_rsp {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;

@@ -775,7 +775,7 @@ static void bnx2x_get_regs(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 	struct dump_hdr dump_hdr = {0};
 
-	regs->version = 0;
+	regs->version = 1;
 	memset(p, 0, regs->len);
 
 	if (!netif_running(bp->dev))
@@ -1588,6 +1588,12 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 			bp->link_params.req_flow_ctrl[cfg_idx] =
 				BNX2X_FLOW_CTRL_AUTO;
 		}
+		bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_NONE;
+		if (epause->rx_pause)
+			bp->link_params.req_fc_auto_adv |= BNX2X_FLOW_CTRL_RX;
+
+		if (epause->tx_pause)
+			bp->link_params.req_fc_auto_adv |= BNX2X_FLOW_CTRL_TX;
 	}
 
 	DP(BNX2X_MSG_ETHTOOL,

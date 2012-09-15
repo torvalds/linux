@@ -571,7 +571,7 @@ Why:	KVM tracepoints provide mostly equivalent information in a much more
 ----------------------------
 
 What:	at91-mci driver ("CONFIG_MMC_AT91")
-When:	3.7
+When:	3.8
 Why:	There are two mci drivers: at91-mci and atmel-mci. The PDC support
 	was added to atmel-mci as a first step to support more chips.
 	Then at91-mci was kept only for old IP versions (on at91rm9200 and

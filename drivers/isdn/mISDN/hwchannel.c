@@ -148,17 +148,16 @@ mISDN_clear_bchannel(struct bchannel *ch)
 	ch->next_minlen = ch->init_minlen;
 	ch->maxlen = ch->init_maxlen;
 	ch->next_maxlen = ch->init_maxlen;
+	skb_queue_purge(&ch->rqueue);
+	ch->rcount = 0;
 }
 EXPORT_SYMBOL(mISDN_clear_bchannel);
 
-int
+void
 mISDN_freebchannel(struct bchannel *ch)
 {
+	cancel_work_sync(&ch->workq);
 	mISDN_clear_bchannel(ch);
-	skb_queue_purge(&ch->rqueue);
-	ch->rcount = 0;
-	flush_work_sync(&ch->workq);
-	return 0;
 }
 EXPORT_SYMBOL(mISDN_freebchannel);
 

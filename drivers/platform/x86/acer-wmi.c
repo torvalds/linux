@@ -2196,10 +2196,8 @@ static int __init acer_wmi_init(void)
 		interface->capability &= ~ACER_CAP_BRIGHTNESS;
 		pr_info("Brightness must be controlled by acpi video driver\n");
 	} else {
-#ifdef CONFIG_ACPI_VIDEO
 		pr_info("Disabling ACPI video driver\n");
 		acpi_video_unregister();
-#endif
 	}
 
 	if (wmi_has_guid(WMID_GUID3)) {

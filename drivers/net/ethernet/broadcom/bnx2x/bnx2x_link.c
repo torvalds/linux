@@ -2714,9 +2714,11 @@ int bnx2x_update_pfc(struct link_params *params,
 		return bnx2x_status;
 
 	DP(NETIF_MSG_LINK, "About to update PFC in BMAC\n");
-	if (CHIP_IS_E3(bp))
-		bnx2x_update_pfc_xmac(params, vars, 0);
-	else {
+
+	if (CHIP_IS_E3(bp)) {
+		if (vars->mac_type == MAC_TYPE_XMAC)
+			bnx2x_update_pfc_xmac(params, vars, 0);
+	} else {
 		val = REG_RD(bp, MISC_REG_RESET_REG_2);
 		if ((val &
 		     (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << params->port))
@@ -5724,7 +5726,7 @@ static int bnx2x_get_link_speed_duplex(struct bnx2x_phy *phy,
 		switch (speed_mask) {
 		case GP_STATUS_10M:
 			vars->line_speed = SPEED_10;
-			if (vars->duplex == DUPLEX_FULL)
+			if (is_duplex == DUPLEX_FULL)
 				vars->link_status |= LINK_10TFD;
 			else
 				vars->link_status |= LINK_10THD;
@@ -5732,7 +5734,7 @@ static int bnx2x_get_link_speed_duplex(struct bnx2x_phy *phy,
 
 		case GP_STATUS_100M:
 			vars->line_speed = SPEED_100;
-			if (vars->duplex == DUPLEX_FULL)
+			if (is_duplex == DUPLEX_FULL)
 				vars->link_status |= LINK_100TXFD;
 			else
 				vars->link_status |= LINK_100TXHD;
@@ -5741,7 +5743,7 @@ static int bnx2x_get_link_speed_duplex(struct bnx2x_phy *phy,
 		case GP_STATUS_1G:
 		case GP_STATUS_1G_KX:
 			vars->line_speed = SPEED_1000;
-			if (vars->duplex == DUPLEX_FULL)
+			if (is_duplex == DUPLEX_FULL)
 				vars->link_status |= LINK_1000TFD;
 			else
 				vars->link_status |= LINK_1000THD;
@@ -5749,7 +5751,7 @@ static int bnx2x_get_link_speed_duplex(struct bnx2x_phy *phy,
 
 		case GP_STATUS_2_5G:
 			vars->line_speed = SPEED_2500;
-			if (vars->duplex == DUPLEX_FULL)
+			if (is_duplex == DUPLEX_FULL)
 				vars->link_status |= LINK_2500TFD;
 			else
 				vars->link_status |= LINK_2500THD;
@@ -5823,6 +5825,7 @@ static int bnx2x_link_settings_status(struct bnx2x_phy *phy,
 
 	if (gp_status & MDIO_GP_STATUS_TOP_AN_STATUS1_LINK_STATUS) {
 		if (SINGLE_MEDIA_DIRECT(params)) {
+			vars->duplex = duplex;
 			bnx2x_flow_ctrl_resolve(phy, params, vars, gp_status);
 			if (phy->req_line_speed == SPEED_AUTO_NEG)
 				bnx2x_xgxs_an_resolve(phy, params, vars,
@@ -5917,6 +5920,7 @@ static int bnx2x_warpcore_read_status(struct bnx2x_phy *phy,
 					LINK_STATUS_PARALLEL_DETECTION_USED;
 			}
 			bnx2x_ext_phy_resolve_fc(phy, params, vars);
+			vars->duplex = duplex;
 		}
 	}
 

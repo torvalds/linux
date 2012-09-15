@@ -405,6 +405,7 @@ struct ath9k_hw_cal_data {
 	int8_t iCoff;
 	int8_t qCoff;
 	bool rtt_done;
+	bool paprd_packet_sent;
 	bool paprd_done;
 	bool nfcal_pending;
 	bool nfcal_interference;

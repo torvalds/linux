@@ -61,6 +61,12 @@ static void octeon_irq_set_ciu_mapping(int irq, int line, int bit,
 	octeon_irq_ciu_to_irq[line][bit] = irq;
 }
 
+static void octeon_irq_force_ciu_mapping(struct irq_domain *domain,
+					 int irq, int line, int bit)
+{
+	irq_domain_associate(domain, irq, line << 6 | bit);
+}
+
 static int octeon_coreid_for_cpu(int cpu)
 {
 #ifdef CONFIG_SMP
@@ -183,19 +189,9 @@ static void __init octeon_irq_init_core(void)
 		mutex_init(&cd->core_irq_mutex);
 
 		irq = OCTEON_IRQ_SW0 + i;
-		switch (irq) {
-		case OCTEON_IRQ_TIMER:
-		case OCTEON_IRQ_SW0:
-		case OCTEON_IRQ_SW1:
-		case OCTEON_IRQ_5:
-		case OCTEON_IRQ_PERF:
-			irq_set_chip_data(irq, cd);
-			irq_set_chip_and_handler(irq, &octeon_irq_chip_core,
-						 handle_percpu_irq);
-			break;
-		default:
-			break;
-		}
+		irq_set_chip_data(irq, cd);
+		irq_set_chip_and_handler(irq, &octeon_irq_chip_core,
+					 handle_percpu_irq);
 	}
 }
 
@@ -890,7 +886,6 @@ static int octeon_irq_gpio_xlat(struct irq_domain *d,
 	unsigned int type;
 	unsigned int pin;
 	unsigned int trigger;
-	struct octeon_irq_gpio_domain_data *gpiod;
 
 	if (d->of_node != node)
 		return -EINVAL;
@@ -925,8 +920,7 @@ static int octeon_irq_gpio_xlat(struct irq_domain *d,
 		break;
 	}
 	*out_type = type;
-	gpiod = d->host_data;
-	*out_hwirq = gpiod->base_hwirq + pin;
+	*out_hwirq = pin;
 
 	return 0;
 }
@@ -996,19 +990,21 @@ static int octeon_irq_ciu_map(struct irq_domain *d,
 static int octeon_irq_gpio_map(struct irq_domain *d,
 			       unsigned int virq, irq_hw_number_t hw)
 {
-	unsigned int line = hw >> 6;
-	unsigned int bit = hw & 63;
+	struct octeon_irq_gpio_domain_data *gpiod = d->host_data;
+	unsigned int line, bit;
 
 	if (!octeon_irq_virq_in_range(virq))
 		return -EINVAL;
 
+	hw += gpiod->base_hwirq;
+	line = hw >> 6;
+	bit = hw & 63;
 	if (line > 1 || octeon_irq_ciu_to_irq[line][bit] != 0)
 		return -EINVAL;
 
 	octeon_irq_set_ciu_mapping(virq, line, bit,
 				   octeon_irq_gpio_chip,
 				   octeon_irq_handle_gpio);
-
 	return 0;
 }
 
@@ -1149,6 +1145,7 @@ static void __init octeon_irq_init_ciu(void)
 	struct irq_chip *chip_wd;
 	struct device_node *gpio_node;
 	struct device_node *ciu_node;
+	struct irq_domain *ciu_domain = NULL;
 
 	octeon_irq_init_ciu_percpu();
 	octeon_irq_setup_secondary = octeon_irq_setup_secondary_ciu;
@@ -1177,31 +1174,6 @@ static void __init octeon_irq_init_ciu(void)
 	/* Mips internal */
 	octeon_irq_init_core();
 
-	/* CIU_0 */
-	for (i = 0; i < 16; i++)
-		octeon_irq_set_ciu_mapping(i + OCTEON_IRQ_WORKQ0, 0, i + 0, chip, handle_level_irq);
-
-	octeon_irq_set_ciu_mapping(OCTEON_IRQ_MBOX0, 0, 32, chip_mbox, handle_percpu_irq);
-	octeon_irq_set_ciu_mapping(OCTEON_IRQ_MBOX1, 0, 33, chip_mbox, handle_percpu_irq);
-
-	for (i = 0; i < 4; i++)
-		octeon_irq_set_ciu_mapping(i + OCTEON_IRQ_PCI_INT0, 0, i + 36, chip, handle_level_irq);
-	for (i = 0; i < 4; i++)
-		octeon_irq_set_ciu_mapping(i + OCTEON_IRQ_PCI_MSI0, 0, i + 40, chip, handle_level_irq);
-
-	octeon_irq_set_ciu_mapping(OCTEON_IRQ_RML, 0, 46, chip, handle_level_irq);
-	for (i = 0; i < 4; i++)
-		octeon_irq_set_ciu_mapping(i + OCTEON_IRQ_TIMER0, 0, i + 52, chip, handle_edge_irq);
-
-	octeon_irq_set_ciu_mapping(OCTEON_IRQ_USB0, 0, 56, chip, handle_level_irq);
-	octeon_irq_set_ciu_mapping(OCTEON_IRQ_BOOTDMA, 0, 63, chip, handle_level_irq);
-
-	/* CIU_1 */
-	for (i = 0; i < 16; i++)
-		octeon_irq_set_ciu_mapping(i + OCTEON_IRQ_WDOG0, 1, i + 0, chip_wd, handle_level_irq);
-
-	octeon_irq_set_ciu_mapping(OCTEON_IRQ_USB1, 1, 17, chip, handle_level_irq);
-
 	gpio_node = of_find_compatible_node(NULL, NULL, "cavium,octeon-3860-gpio");
 	if (gpio_node) {
 		struct octeon_irq_gpio_domain_data *gpiod;
@@ -1219,10 +1191,35 @@ static void __init octeon_irq_init_ciu(void)
 
 	ciu_node = of_find_compatible_node(NULL, NULL, "cavium,octeon-3860-ciu");
 	if (ciu_node) {
-		irq_domain_add_tree(ciu_node, &octeon_irq_domain_ciu_ops, NULL);
+		ciu_domain = irq_domain_add_tree(ciu_node, &octeon_irq_domain_ciu_ops, NULL);
 		of_node_put(ciu_node);
 	} else
-		pr_warn("Cannot find device node for cavium,octeon-3860-ciu.\n");
+		panic("Cannot find device node for cavium,octeon-3860-ciu.");
+
+	/* CIU_0 */
+	for (i = 0; i < 16; i++)
+		octeon_irq_force_ciu_mapping(ciu_domain, i + OCTEON_IRQ_WORKQ0, 0, i + 0);
+
+	octeon_irq_set_ciu_mapping(OCTEON_IRQ_MBOX0, 0, 32, chip_mbox, handle_percpu_irq);
+	octeon_irq_set_ciu_mapping(OCTEON_IRQ_MBOX1, 0, 33, chip_mbox, handle_percpu_irq);
+
+	for (i = 0; i < 4; i++)
+		octeon_irq_force_ciu_mapping(ciu_domain, i + OCTEON_IRQ_PCI_INT0, 0, i + 36);
+	for (i = 0; i < 4; i++)
+		octeon_irq_force_ciu_mapping(ciu_domain, i + OCTEON_IRQ_PCI_MSI0, 0, i + 40);
+
+	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_RML, 0, 46);
+	for (i = 0; i < 4; i++)
+		octeon_irq_force_ciu_mapping(ciu_domain, i + OCTEON_IRQ_TIMER0, 0, i + 52);
+
+	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_USB0, 0, 56);
+	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_BOOTDMA, 0, 63);
+
+	/* CIU_1 */
+	for (i = 0; i < 16; i++)
+		octeon_irq_set_ciu_mapping(i + OCTEON_IRQ_WDOG0, 1, i + 0, chip_wd, handle_level_irq);
+
+	octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_USB1, 1, 17);
 
 	/* Enable the CIU lines */
 	set_c0_status(STATUSF_IP3 | STATUSF_IP2);

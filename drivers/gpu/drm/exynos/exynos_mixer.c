@@ -236,11 +236,11 @@ static inline void vp_filter_set(struct mixer_resources *res,
 static void vp_default_filter(struct mixer_resources *res)
 {
 	vp_filter_set(res, VP_POLY8_Y0_LL,
-		filter_y_horiz_tap8, sizeof filter_y_horiz_tap8);
+		filter_y_horiz_tap8, sizeof(filter_y_horiz_tap8));
 	vp_filter_set(res, VP_POLY4_Y0_LL,
-		filter_y_vert_tap4, sizeof filter_y_vert_tap4);
+		filter_y_vert_tap4, sizeof(filter_y_vert_tap4));
 	vp_filter_set(res, VP_POLY4_C0_LL,
-		filter_cr_horiz_tap4, sizeof filter_cr_horiz_tap4);
+		filter_cr_horiz_tap4, sizeof(filter_cr_horiz_tap4));
 }
 
 static void mixer_vsync_set_update(struct mixer_context *ctx, bool enable)

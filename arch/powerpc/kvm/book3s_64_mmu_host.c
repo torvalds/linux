@@ -126,6 +126,8 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 
 	if (!orig_pte->may_execute)
 		rflags |= HPTE_R_N;
+	else
+		kvmppc_mmu_flush_icache(hpaddr >> PAGE_SHIFT);
 
 	hash = hpt_hash(va, PTE_SIZE, MMU_SEGSIZE_256M);
 

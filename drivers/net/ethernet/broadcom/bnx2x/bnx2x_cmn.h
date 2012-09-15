@@ -720,17 +720,15 @@ static inline u16 bnx2x_tx_avail(struct bnx2x *bp,
 	prod = txdata->tx_bd_prod;
 	cons = txdata->tx_bd_cons;
 
-	/* NUM_TX_RINGS = number of "next-page" entries
-	   It will be used as a threshold */
-	used = SUB_S16(prod, cons) + (s16)NUM_TX_RINGS;
+	used = SUB_S16(prod, cons);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	WARN_ON(used < 0);
-	WARN_ON(used > bp->tx_ring_size);
-	WARN_ON((bp->tx_ring_size - used) > MAX_TX_AVAIL);
+	WARN_ON(used > txdata->tx_ring_size);
+	WARN_ON((txdata->tx_ring_size - used) > MAX_TX_AVAIL);
 #endif
 
-	return (s16)(bp->tx_ring_size) - used;
+	return (s16)(txdata->tx_ring_size) - used;
 }
 
 static inline int bnx2x_tx_queue_has_work(struct bnx2x_fp_txdata *txdata)
@@ -1098,6 +1096,7 @@ static inline void bnx2x_init_txdata(struct bnx2x *bp,
 	txdata->txq_index = txq_index;
 	txdata->tx_cons_sb = tx_cons_sb;
 	txdata->parent_fp = fp;
+	txdata->tx_ring_size = IS_FCOE_FP(fp) ? MAX_TX_AVAIL : bp->tx_ring_size;
 
 	DP(NETIF_MSG_IFUP, "created tx data cid %d, txq %d\n",
 	   txdata->cid, txdata->txq_index);
