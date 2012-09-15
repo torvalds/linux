@@ -905,8 +905,6 @@ static int __init acpi_processor_init(void)
 	if (acpi_disabled)
 		return 0;
 
-	memset(&errata, 0, sizeof(errata));
-
 	result = acpi_bus_register_driver(&acpi_processor_driver);
 	if (result < 0)
 		return result;
