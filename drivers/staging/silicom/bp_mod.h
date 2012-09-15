@@ -282,14 +282,14 @@ static inline unsigned int jiffies_to_msecs(const unsigned long j)
 	 (pid == INTEL_PEG4BPFII_SSID))
 
 #define NOKIA_SERIES(pid) \
-        ((pid==NOKIA_PMCXG2BPIN_SSID)||   \
-          (pid==NOKIA_PMCXG4BPIN_SSID)|| \
-          (pid==SILICOM_PMCX4BPI_SSID)|| \
-          (pid==NOKIA_PMCXG2BPFIN_SSID)|| \
-          (pid==SILICOM_PMCXG2BPFI_SSID)|| \
-           (pid==NOKIA_PMCXG2BPIN2_SSID)|| \
-           (pid==NOKIA_PMCXG4BPIN2_SSID)|| \
-           (pid==SILICOM_PMCX2BPI_SSID))
+	((pid == NOKIA_PMCXG2BPIN_SSID) || \
+	 (pid == NOKIA_PMCXG4BPIN_SSID) || \
+	 (pid == SILICOM_PMCX4BPI_SSID) || \
+	 (pid == NOKIA_PMCXG2BPFIN_SSID) || \
+	 (pid == SILICOM_PMCXG2BPFI_SSID) || \
+	 (pid == NOKIA_PMCXG2BPIN2_SSID) || \
+	 (pid == NOKIA_PMCXG4BPIN2_SSID) || \
+	 (pid == SILICOM_PMCX2BPI_SSID))
 
 #define DISCF_IF_SERIES(pid) \
         (pid==SILICOM_PEG2TBFI_SSID)
