@@ -39,6 +39,27 @@
 /* Private functions */
 
 #ifdef CONFIG_COMMON_CLK
+/**
+ * omap2xxx_clk_apll_locked - is the APLL locked?
+ * @hw: struct clk_hw * of the APLL to check
+ *
+ * If the APLL IP block referred to by @hw indicates that it's locked,
+ * return true; otherwise, return false.
+ */
+static bool omap2xxx_clk_apll_locked(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	u32 r, apll_mask;
+
+	apll_mask = EN_APLL_LOCKED << clk->enable_bit;
+
+	r = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+
+	return ((r & apll_mask) == apll_mask) ? true : false;
+}
+#endif
+
+#ifdef CONFIG_COMMON_CLK
 int omap2_clk_apll96_enable(struct clk_hw *hw)
 #else
 static int _apll96_enable(struct clk *clk)
@@ -109,6 +130,20 @@ static void _apll54_disable(struct clk *clk)
 {
 	omap2xxx_cm_apll54_disable();
 }
+
+#ifdef CONFIG_COMMON_CLK
+unsigned long omap2_clk_apll54_recalc(struct clk_hw *hw,
+				      unsigned long parent_rate)
+{
+	return (omap2xxx_clk_apll_locked(hw)) ? 54000000 : 0;
+}
+
+unsigned long omap2_clk_apll96_recalc(struct clk_hw *hw,
+				      unsigned long parent_rate)
+{
+	return (omap2xxx_clk_apll_locked(hw)) ? 96000000 : 0;
+}
+#endif
 
 /* Public data */
 #ifdef CONFIG_COMMON_CLK
