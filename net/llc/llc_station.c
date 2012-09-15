@@ -111,8 +111,8 @@ free:
 
 /* state transition for LLC_STATION_EV_RX_NULL_DSAP_XID_C event */
 static llc_station_action_t llc_stat_up_state_actions_2[] = {
-	[0] = llc_station_ac_send_xid_r,
-	[1] = NULL,
+	llc_station_ac_send_xid_r,
+	NULL,
 };
 
 static struct llc_station_state_trans llc_stat_up_state_trans_2 = {
@@ -122,8 +122,8 @@ static struct llc_station_state_trans llc_stat_up_state_trans_2 = {
 
 /* state transition for LLC_STATION_EV_RX_NULL_DSAP_TEST_C event */
 static llc_station_action_t llc_stat_up_state_actions_3[] = {
-	[0] = llc_station_ac_send_test_r,
-	[1] = NULL,
+	llc_station_ac_send_test_r,
+	NULL,
 };
 
 static struct llc_station_state_trans llc_stat_up_state_trans_3 = {
