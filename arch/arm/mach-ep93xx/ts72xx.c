@@ -21,7 +21,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <mach/hardware.h>
-#include <mach/ts72xx.h>
 
 #include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
@@ -29,6 +28,7 @@
 #include <asm/mach/arch.h>
 
 #include "soc.h"
+#include "ts72xx.h"
 
 static struct map_desc ts72xx_io_desc[] __initdata = {
 	{
