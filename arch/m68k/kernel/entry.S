@@ -111,6 +111,17 @@ ENTRY(ret_from_fork)
 	addql	#4,%sp
 	jra	ret_from_exception
 
+ENTRY(ret_from_kernel_thread)
+	| a3 contains the kernel thread payload, d7 - its argument
+	movel	%d1,%sp@-
+	jsr	schedule_tail
+	GET_CURRENT(%d0)
+	movel	%d7,(%sp)
+	jsr	%a3@
+	addql	#4,%sp
+	movel	%d0,(%sp)
+	jra	sys_exit
+
 #if defined(CONFIG_COLDFIRE) || !defined(CONFIG_MMU)
 
 #ifdef TRAP_DBG_INTERRUPT
