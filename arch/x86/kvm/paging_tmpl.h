@@ -151,7 +151,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	pt_element_t pte;
 	pt_element_t __user *uninitialized_var(ptep_user);
 	gfn_t table_gfn;
-	unsigned index, pt_access, pte_access;
+	unsigned index, pt_access, pte_access, accessed_dirty, shift;
 	gpa_t pte_gpa;
 	int offset;
 	const int write_fault = access & PFERR_WRITE_MASK;
@@ -180,6 +180,7 @@ retry_walk:
 	ASSERT((!is_long_mode(vcpu) && is_pae(vcpu)) ||
 	       (mmu->get_cr3(vcpu) & CR3_NONPAE_RESERVED_BITS) == 0);
 
+	accessed_dirty = PT_ACCESSED_MASK;
 	pt_access = pte_access = ACC_ALL;
 	++walker->level;
 
@@ -224,6 +225,7 @@ retry_walk:
 			goto error;
 		}
 
+		accessed_dirty &= pte;
 		pte_access = pt_access & gpte_access(vcpu, pte);
 
 		walker->ptes[walker->level - 1] = pte;
@@ -251,11 +253,23 @@ retry_walk:
 	if (!write_fault)
 		protect_clean_gpte(&pte_access, pte);
 
-	ret = FNAME(update_accessed_dirty_bits)(vcpu, mmu, walker, write_fault);
-	if (unlikely(ret < 0))
-		goto error;
-	else if (ret)
-		goto retry_walk;
+	/*
+	 * On a write fault, fold the dirty bit into accessed_dirty by shifting it one
+	 * place right.
+	 *
+	 * On a read fault, do nothing.
+	 */
+	shift = write_fault >> ilog2(PFERR_WRITE_MASK);
+	shift *= PT_DIRTY_SHIFT - PT_ACCESSED_SHIFT;
+	accessed_dirty &= pte >> shift;
+
+	if (unlikely(!accessed_dirty)) {
+		ret = FNAME(update_accessed_dirty_bits)(vcpu, mmu, walker, write_fault);
+		if (unlikely(ret < 0))
+			goto error;
+		else if (ret)
+			goto retry_walk;
+	}
 
 	walker->pt_access = pt_access;
 	walker->pte_access = pte_access;
