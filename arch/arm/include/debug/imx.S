@@ -10,27 +10,38 @@
  * published by the Free Software Foundation.
  *
  */
-#include <mach/hardware.h>
-
 #ifdef CONFIG_DEBUG_IMX1_UART
-#define UART_PADDR	MX1_UART1_BASE_ADDR
+#define UART_PADDR	0x00206000
 #elif defined (CONFIG_DEBUG_IMX25_UART)
-#define UART_PADDR	MX25_UART1_BASE_ADDR
+#define UART_PADDR	0x43f90000
 #elif defined (CONFIG_DEBUG_IMX21_IMX27_UART)
-#define UART_PADDR	MX2x_UART1_BASE_ADDR
+#define UART_PADDR	0x1000a000
 #elif defined (CONFIG_DEBUG_IMX31_IMX35_UART)
-#define UART_PADDR	MX3x_UART1_BASE_ADDR
+#define UART_PADDR	0x43f90000
 #elif defined (CONFIG_DEBUG_IMX51_UART)
-#define UART_PADDR	MX51_UART1_BASE_ADDR
+#define UART_PADDR	0x73fbc000
 #elif defined (CONFIG_DEBUG_IMX50_IMX53_UART)
-#define UART_PADDR	MX53_UART1_BASE_ADDR
+#define UART_PADDR	0x53fbc000
 #elif defined (CONFIG_DEBUG_IMX6Q_UART2)
-#define UART_PADDR	MX6Q_UART2_BASE_ADDR
+#define UART_PADDR	0x021e8000
 #elif defined (CONFIG_DEBUG_IMX6Q_UART4)
-#define UART_PADDR	MX6Q_UART4_BASE_ADDR
+#define UART_PADDR	0x021f0000
 #endif
 
-#define UART_VADDR	IMX_IO_ADDRESS(UART_PADDR)
+/*
+ * FIXME: This is a copy of IMX_IO_P2V in hardware.h, and needs to
+ * stay sync with that.  It's hard to maintain, and should be fixed
+ * globally for multi-platform build to use a fixed virtual address
+ * for low-level debug uart port across platforms.
+ */
+#define IMX_IO_P2V(x)	(						\
+			(((x) & 0x80000000) >> 7) |			\
+			(0xf4000000 +					\
+			(((x) & 0x50000000) >> 6) +			\
+			(((x) & 0x0b000000) >> 4) +			\
+			(((x) & 0x000fffff))))
+
+#define UART_VADDR	IMX_IO_P2V(UART_PADDR)
 
 		.macro	addruart, rp, rv, tmp
 		ldr	\rp, =UART_PADDR	@ physical

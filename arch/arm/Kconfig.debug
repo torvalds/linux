@@ -412,6 +412,14 @@ endchoice
 config DEBUG_LL_INCLUDE
 	string
 	default "debug/icedcc.S" if DEBUG_ICEDCC
+	default "debug/imx.S" if DEBUG_IMX1_UART || \
+				 DEBUG_IMX25_UART || \
+				 DEBUG_IMX21_IMX27_UART || \
+				 DEBUG_IMX31_IMX35_UART || \
+				 DEBUG_IMX51_UART || \
+				 DEBUG_IMX50_IMX53_UART ||\
+				 DEBUG_IMX6Q_UART2 || \
+				 DEBUG_IMX6Q_UART4
 	default "debug/highbank.S" if DEBUG_HIGHBANK_UART
 	default "debug/mvebu.S" if DEBUG_MVEBU_UART
 	default "debug/picoxcell.S" if DEBUG_PICOXCELL_UART
