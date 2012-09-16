@@ -37,6 +37,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/i2c-gpio.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7740.h>
@@ -876,6 +877,21 @@ static struct platform_device fsi_hdmi_device = {
 	},
 };
 
+/* RTC: RTC connects i2c-gpio. */
+static struct i2c_gpio_platform_data i2c_gpio_data = {
+	.sda_pin	= GPIO_PORT208,
+	.scl_pin	= GPIO_PORT91,
+	.udelay		= 5, /* 100 kHz */
+};
+
+static struct platform_device i2c_gpio_device = {
+	.name = "i2c-gpio",
+	.id = 2,
+	.dev = {
+		.platform_data = &i2c_gpio_data,
+	},
+};
+
 /* I2C */
 static struct i2c_board_info i2c0_devices[] = {
 	{
@@ -884,6 +900,13 @@ static struct i2c_board_info i2c0_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("wm8978", 0x1a),
+	},
+};
+
+static struct i2c_board_info i2c2_devices[] = {
+	{
+		I2C_BOARD_INFO("s35390a", 0x30),
+		.type = "s35390a",
 	},
 };
 
@@ -903,6 +926,7 @@ static struct platform_device *eva_devices[] __initdata = {
 	&fsi_device,
 	&fsi_hdmi_device,
 	&fsi_wm8978_device,
+	&i2c_gpio_device,
 };
 
 static void __init eva_clock_init(void)
@@ -1173,6 +1197,7 @@ static void __init eva_init(void)
 #endif
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
+	i2c_register_board_info(2, i2c2_devices, ARRAY_SIZE(i2c2_devices));
 
 	r8a7740_add_standard_devices();
 
