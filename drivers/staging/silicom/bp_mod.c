@@ -7725,10 +7725,8 @@ bypass_proc_create_entry_sd(struct pfs_unit_sd *pfs_unit_curr,
 						      S_IFREG | S_IRUSR |
 						      S_IWUSR | S_IRGRP |
 						      S_IROTH, parent_pfs);
-	if (pfs_unit_curr->proc_entry == 0) {
-
+	if (pfs_unit_curr->proc_entry == NULL)
 		return -1;
-	}
 
 	pfs_unit_curr->proc_entry->read_proc = read_proc;
 	pfs_unit_curr->proc_entry->write_proc = write_proc;
