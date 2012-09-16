@@ -231,9 +231,9 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[esdhc2_ipg_per], "per", "sdhci-esdhc-imx25.1");
 	clk_register_clkdev(clk[esdhc2_ipg], "ipg", "sdhci-esdhc-imx25.1");
 	clk_register_clkdev(clk[esdhc2_ahb], "ahb", "sdhci-esdhc-imx25.1");
-	clk_register_clkdev(clk[csi_ipg_per], "per", "mx2-camera.0");
-	clk_register_clkdev(clk[csi_ipg], "ipg", "mx2-camera.0");
-	clk_register_clkdev(clk[csi_ahb], "ahb", "mx2-camera.0");
+	clk_register_clkdev(clk[csi_ipg_per], "per", "imx25-camera.0");
+	clk_register_clkdev(clk[csi_ipg], "ipg", "imx25-camera.0");
+	clk_register_clkdev(clk[csi_ahb], "ahb", "imx25-camera.0");
 	clk_register_clkdev(clk[dummy], "audmux", NULL);
 	clk_register_clkdev(clk[can1_ipg], NULL, "flexcan.0");
 	clk_register_clkdev(clk[can2_ipg], NULL, "flexcan.1");

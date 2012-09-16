@@ -220,6 +220,7 @@ struct platform_device *__init imx_add_mx1_camera(
 
 #include <linux/platform_data/camera-mx2.h>
 struct imx_mx2_camera_data {
+	const char *devid;
 	resource_size_t iobasecsi;
 	resource_size_t iosizecsi;
 	resource_size_t irqcsi;
