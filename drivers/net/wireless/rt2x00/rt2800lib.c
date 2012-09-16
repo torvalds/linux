@@ -1763,36 +1763,15 @@ static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
 
 	rt2800_rfcsr_read(rt2x00dev, 1, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR1_RX0_PD, 0);
+	rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD,
+			  rt2x00dev->default_ant.rx_chain_num <= 1);
+	rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD,
+			  rt2x00dev->default_ant.rx_chain_num <= 2);
 	rt2x00_set_field8(&rfcsr, RFCSR1_TX0_PD, 0);
-	if (rt2x00_rt(rt2x00dev, RT3390)) {
-		rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD,
-				  rt2x00dev->default_ant.rx_chain_num == 1);
-		rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD,
-				  rt2x00dev->default_ant.tx_chain_num == 1);
-	} else {
-		rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 0);
-		rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 0);
-		rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 0);
-		rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 0);
-
-		switch (rt2x00dev->default_ant.tx_chain_num) {
-		case 1:
-			rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 1);
-			/* fall through */
-		case 2:
-			rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 1);
-			break;
-		}
-
-		switch (rt2x00dev->default_ant.rx_chain_num) {
-		case 1:
-			rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 1);
-			/* fall through */
-		case 2:
-			rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 1);
-			break;
-		}
-	}
+	rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD,
+			  rt2x00dev->default_ant.tx_chain_num <= 1);
+	rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD,
+			  rt2x00dev->default_ant.tx_chain_num <= 2);
 	rt2800_rfcsr_write(rt2x00dev, 1, rfcsr);
 
 	rt2800_rfcsr_read(rt2x00dev, 30, &rfcsr);
