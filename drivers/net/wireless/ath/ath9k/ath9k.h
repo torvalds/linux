@@ -600,8 +600,6 @@ struct ath_ant_comb {
 	int main_conf;
 	enum ath9k_ant_div_comb_lna_conf first_quick_scan_conf;
 	enum ath9k_ant_div_comb_lna_conf second_quick_scan_conf;
-	int first_bias;
-	int second_bias;
 	bool first_ratio;
 	bool second_ratio;
 	unsigned long scan_start_time;
