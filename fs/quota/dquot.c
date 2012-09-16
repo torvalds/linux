@@ -1132,8 +1132,7 @@ static void dquot_decr_space(struct dquot *dquot, qsize_t number)
 
 struct dquot_warn {
 	struct super_block *w_sb;
-	qid_t w_dq_id;
-	short w_dq_type;
+	struct kqid w_dq_id;
 	short w_type;
 };
 
@@ -1157,11 +1156,11 @@ static int need_print_warning(struct dquot_warn *warn)
 	if (!flag_print_warnings)
 		return 0;
 
-	switch (warn->w_dq_type) {
+	switch (warn->w_dq_id.type) {
 		case USRQUOTA:
-			return current_fsuid() == warn->w_dq_id;
+			return current_fsuid() == warn->w_dq_id.uid;
 		case GRPQUOTA:
-			return in_group_p(warn->w_dq_id);
+			return in_group_p(warn->w_dq_id.gid);
 	}
 	return 0;
 }
@@ -1187,7 +1186,7 @@ static void print_warning(struct dquot_warn *warn)
 		tty_write_message(tty, ": warning, ");
 	else
 		tty_write_message(tty, ": write failed, ");
-	tty_write_message(tty, quotatypes[warn->w_dq_type]);
+	tty_write_message(tty, quotatypes[warn->w_dq_id.type]);
 	switch (warntype) {
 		case QUOTA_NL_IHARDWARN:
 			msg = " file limit reached.\r\n";
@@ -1220,8 +1219,7 @@ static void prepare_warning(struct dquot_warn *warn, struct dquot *dquot,
 		return;
 	warn->w_type = warntype;
 	warn->w_sb = dquot->dq_sb;
-	warn->w_dq_id = from_kqid(&init_user_ns, dquot->dq_id);
-	warn->w_dq_type = dquot->dq_id.type;
+	warn->w_dq_id = dquot->dq_id;
 }
 
 /*
@@ -1239,7 +1237,7 @@ static void flush_warnings(struct dquot_warn *warn)
 #ifdef CONFIG_PRINT_QUOTA_WARNING
 		print_warning(&warn[i]);
 #endif
-		quota_send_warning(make_kqid(&init_user_ns, warn[i].w_dq_type, warn[i].w_dq_id),
+		quota_send_warning(warn[i].w_dq_id,
 				   warn[i].w_sb->s_dev, warn[i].w_type);
 	}
 }
