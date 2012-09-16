@@ -221,7 +221,7 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 
 retry:
 	/* Read the page with vaddr into memory */
-	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 0, &old_page, &vma);
+	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
 	if (ret <= 0)
 		return ret;
 
