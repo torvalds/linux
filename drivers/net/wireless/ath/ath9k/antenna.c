@@ -475,6 +475,68 @@ static void ath_ant_div_conf_fast_divbias(struct ath_hw_antcomb_conf *ant_conf,
 		default:
 			break;
 		}
+	} else if (ant_conf->div_group == 3) {
+		switch ((ant_conf->main_lna_conf << 4) |
+			ant_conf->alt_lna_conf) {
+		case 0x01: /* A-B LNA2 */
+			ant_conf->fast_div_bias = 0x1;
+			break;
+		case 0x02: /* A-B LNA1 */
+			ant_conf->fast_div_bias = 0x39;
+			break;
+		case 0x03: /* A-B A+B */
+			ant_conf->fast_div_bias = 0x1;
+			break;
+		case 0x10: /* LNA2 A-B */
+			if ((antcomb->scan == 0) &&
+			    (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO)) {
+				ant_conf->fast_div_bias = 0x3f;
+			} else {
+				ant_conf->fast_div_bias = 0x1;
+			}
+			break;
+		case 0x12: /* LNA2 LNA1 */
+			ant_conf->fast_div_bias = 0x39;
+			break;
+		case 0x13: /* LNA2 A+B */
+			if ((antcomb->scan == 0) &&
+			    (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO)) {
+				ant_conf->fast_div_bias = 0x3f;
+			} else {
+				ant_conf->fast_div_bias = 0x1;
+			}
+			break;
+		case 0x20: /* LNA1 A-B */
+			if ((antcomb->scan == 0) &&
+			    (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO)) {
+				ant_conf->fast_div_bias = 0x3f;
+			} else {
+				ant_conf->fast_div_bias = 0x4;
+			}
+			break;
+		case 0x21: /* LNA1 LNA2 */
+			ant_conf->fast_div_bias = 0x6;
+			break;
+		case 0x23: /* LNA1 A+B */
+			if ((antcomb->scan == 0) &&
+			    (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO)) {
+				ant_conf->fast_div_bias = 0x3f;
+			} else {
+				ant_conf->fast_div_bias = 0x6;
+			}
+			break;
+		case 0x30: /* A+B A-B */
+			ant_conf->fast_div_bias = 0x1;
+			break;
+		case 0x31: /* A+B LNA2 */
+			ant_conf->fast_div_bias = 0x6;
+			break;
+		case 0x32: /* A+B LNA1 */
+			ant_conf->fast_div_bias = 0x1;
+			break;
+		default:
+			break;
+		}
 	}
 }
 
