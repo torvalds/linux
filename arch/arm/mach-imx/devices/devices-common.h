@@ -246,6 +246,7 @@ struct platform_device *__init imx_add_mxc_ehci(
 
 #include <linux/platform_data/mmc-mxcmmc.h>
 struct imx_mxc_mmc_data {
+	const char *devid;
 	int id;
 	resource_size_t iobase;
 	resource_size_t iosize;

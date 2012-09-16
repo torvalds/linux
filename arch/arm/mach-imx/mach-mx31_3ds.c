@@ -393,7 +393,7 @@ static struct regulator_init_data gpo_init = {
 };
 
 static struct regulator_consumer_supply vmmc2_consumers[] = {
-	REGULATOR_SUPPLY("vmmc", "mxc-mmc.0"),
+	REGULATOR_SUPPLY("vmmc", "imx31-mmc.0"),
 };
 
 static struct regulator_init_data vmmc2_init = {

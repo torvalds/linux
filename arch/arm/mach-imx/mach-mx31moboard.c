@@ -175,11 +175,11 @@ static const struct spi_imx_master moboard_spi1_pdata __initconst = {
 
 static struct regulator_consumer_supply sdhc_consumers[] = {
 	{
-		.dev_name = "mxc-mmc.0",
+		.dev_name = "imx31-mmc.0",
 		.supply	= "sdhc0_vcc",
 	},
 	{
-		.dev_name = "mxc-mmc.1",
+		.dev_name = "imx31-mmc.1",
 		.supply	= "sdhc1_vcc",
 	},
 };

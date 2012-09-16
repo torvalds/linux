@@ -159,8 +159,8 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[i2c2_gate], NULL, "imx21-i2c.1");
 	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[owire_gate], NULL, "mxc_w1.0");
-	clk_register_clkdev(clk[sdhc1_gate], NULL, "mxc-mmc.0");
-	clk_register_clkdev(clk[sdhc2_gate], NULL, "mxc-mmc.1");
+	clk_register_clkdev(clk[sdhc1_gate], NULL, "imx31-mmc.0");
+	clk_register_clkdev(clk[sdhc2_gate], NULL, "imx31-mmc.1");
 	clk_register_clkdev(clk[ssi1_gate], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_gate], NULL, "imx-ssi.1");
 	clk_register_clkdev(clk[firi_gate], "firi", NULL);
