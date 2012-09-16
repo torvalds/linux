@@ -1273,7 +1273,7 @@ static void __fanout_unlink(struct sock *sk, struct packet_sock *po)
 	spin_unlock(&f->lock);
 }
 
-bool match_fanout_group(struct packet_type *ptype, struct sock * sk)
+static bool match_fanout_group(struct packet_type *ptype, struct sock * sk)
 {
 	if (ptype->af_packet_priv == (void*)((struct packet_sock *)sk)->fanout)
 		return true;

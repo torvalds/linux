@@ -695,6 +695,7 @@ static struct platform_device usbhs0_device = {
  *  - J30 "open"
  *  - modify usbhs1_get_id() USBHS_HOST -> USBHS_GADGET
  *  - add .get_vbus = usbhs_get_vbus in usbhs1_private
+ *  - check usbhs0_device(pio)/usbhs1_device(irq) order in mackerel_devices.
  */
 #define IRQ8 evt2irq(0x0300)
 #define USB_PHY_MODE		(1 << 4)
@@ -1325,8 +1326,8 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
 	&lcdc_device,
-	&usbhs1_device,
 	&usbhs0_device,
+	&usbhs1_device,
 	&leds_device,
 	&fsi_device,
 	&fsi_ak4643_device,
