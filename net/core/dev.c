@@ -5974,6 +5974,8 @@ struct netdev_queue *dev_ingress_queue_create(struct net_device *dev)
 	return queue;
 }
 
+static const struct ethtool_ops default_ethtool_ops;
+
 /**
  *	alloc_netdev_mqs - allocate network device
  *	@sizeof_priv:	size of private data to allocate space for
@@ -6061,6 +6063,8 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	strcpy(dev->name, name);
 	dev->group = INIT_NETDEV_GROUP;
+	if (!dev->ethtool_ops)
+		dev->ethtool_ops = &default_ethtool_ops;
 	return dev;
 
 free_all:
