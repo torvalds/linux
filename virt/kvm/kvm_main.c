@@ -131,11 +131,12 @@ bool kvm_is_mmio_pfn(pfn_t pfn)
 /*
  * Switches to specified vcpu, until a matching vcpu_put()
  */
-void vcpu_load(struct kvm_vcpu *vcpu)
+int vcpu_load(struct kvm_vcpu *vcpu)
 {
 	int cpu;
 
-	mutex_lock(&vcpu->mutex);
+	if (mutex_lock_killable(&vcpu->mutex))
+		return -EINTR;
 	if (unlikely(vcpu->pid != current->pids[PIDTYPE_PID].pid)) {
 		/* The thread running this VCPU changed. */
 		struct pid *oldpid = vcpu->pid;
@@ -148,6 +149,7 @@ void vcpu_load(struct kvm_vcpu *vcpu)
 	preempt_notifier_register(&vcpu->preempt_notifier);
 	kvm_arch_vcpu_load(vcpu, cpu);
 	put_cpu();
+	return 0;
 }
 
 void vcpu_put(struct kvm_vcpu *vcpu)
@@ -1891,7 +1893,9 @@ static long kvm_vcpu_ioctl(struct file *filp,
 #endif
 
 
-	vcpu_load(vcpu);
+	r = vcpu_load(vcpu);
+	if (r)
+		return r;
 	switch (ioctl) {
 	case KVM_RUN:
 		r = -EINVAL;
