@@ -19,6 +19,9 @@
 #ifndef __PLAT_MXC_IRQ_COMMON_H__
 #define __PLAT_MXC_IRQ_COMMON_H__
 
+/* all normal IRQs can be FIQs */
+#define FIQ_START	0
+
 struct mxc_extra_irq
 {
 	int (*set_priority)(unsigned char irq, unsigned char prio);
