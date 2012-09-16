@@ -100,17 +100,12 @@ struct uprobe {
  */
 static bool valid_vma(struct vm_area_struct *vma, bool is_register)
 {
-	if (!vma->vm_file)
-		return false;
+	vm_flags_t flags = VM_HUGETLB | VM_MAYEXEC | VM_SHARED;
 
-	if (!is_register)
-		return true;
+	if (is_register)
+		flags |= VM_WRITE;
 
-	if ((vma->vm_flags & (VM_HUGETLB | VM_WRITE | VM_MAYEXEC | VM_SHARED))
-				== VM_MAYEXEC)
-		return true;
-
-	return false;
+	return vma->vm_file && (vma->vm_flags & flags) == VM_MAYEXEC;
 }
 
 static unsigned long offset_to_vaddr(struct vm_area_struct *vma, loff_t offset)
