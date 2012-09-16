@@ -127,6 +127,8 @@ module_param(ple_gap, int, S_IRUGO);
 static int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
 module_param(ple_window, int, S_IRUGO);
 
+extern const ulong vmx_return;
+
 #define NR_AUTOLOAD_MSRS 8
 #define VMCS02_POOL_SIZE 1
 
@@ -3724,8 +3726,7 @@ static void vmx_set_constant_host_state(void)
 	native_store_idt(&dt);
 	vmcs_writel(HOST_IDTR_BASE, dt.address);   /* 22.2.4 */
 
-	asm("mov $.Lkvm_vmx_return, %0" : "=r"(tmpl));
-	vmcs_writel(HOST_RIP, tmpl); /* 22.2.5 */
+	vmcs_writel(HOST_RIP, vmx_return); /* 22.2.5 */
 
 	rdmsr(MSR_IA32_SYSENTER_CS, low32, high32);
 	vmcs_write32(HOST_IA32_SYSENTER_CS, low32);
@@ -6276,11 +6277,11 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %c[rcx](%0), %%"R"cx \n\t" /* kills %0 (ecx) */
 
 		/* Enter guest mode */
-		"jne .Llaunched \n\t"
+		"jne 1f \n\t"
 		__ex(ASM_VMX_VMLAUNCH) "\n\t"
-		"jmp .Lkvm_vmx_return \n\t"
-		".Llaunched: " __ex(ASM_VMX_VMRESUME) "\n\t"
-		".Lkvm_vmx_return: "
+		"jmp 2f \n\t"
+		"1: " __ex(ASM_VMX_VMRESUME) "\n\t"
+		"2: "
 		/* Save guest registers, load host registers, keep flags */
 		"mov %0, %c[wordsize](%%"R"sp) \n\t"
 		"pop %0 \n\t"
@@ -6306,6 +6307,10 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 		"pop  %%"R"bp; pop  %%"R"dx \n\t"
 		"setbe %c[fail](%0) \n\t"
+		".pushsection .rodata \n\t"
+		".global vmx_return \n\t"
+		"vmx_return: " _ASM_PTR " 2b \n\t"
+		".popsection"
 	      : : "c"(vmx), "d"((unsigned long)HOST_RSP),
 		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
 		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
