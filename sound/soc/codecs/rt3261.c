@@ -38,7 +38,7 @@ char debug_write_read = 0;
 
 static struct snd_soc_codec *rt3261_codec;
 
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -3010,7 +3010,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	snd_soc_dapm_add_routes(&codec->dapm, rt3261_dapm_routes,
 			ARRAY_SIZE(rt3261_dapm_routes));
 
-#if 0
+
 #if defined (CONFIG_SND_SOC_RT3261)
 	rt3261->dsp_sw = RT3261_DSP_AEC_NS_FENS;
 	rt3261_dsp_probe(codec);
@@ -3026,7 +3026,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	realtek_ce_init_hwdep(codec);
 #endif
 #endif
-#endif
+
 
 	ret = device_create_file(codec->dev, &dev_attr_index_reg);
 	if (ret != 0) {
@@ -3054,7 +3054,7 @@ static int rt3261_suspend(struct snd_soc_codec *codec, pm_message_t state)
 	 * (3) DSP IIS interface power off
 	 * (4) Toggle pin of codec LDO1 to power off
 	 */
-	//rt3261_dsp_suspend(codec, state);
+	rt3261_dsp_suspend(codec, state);
 #endif
 	rt3261_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -3065,7 +3065,7 @@ static int rt3261_resume(struct snd_soc_codec *codec)
 	rt3261_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 #if defined (CONFIG_SND_SOC_RT3261)
 	/* After opening LDO of codec, then close LDO of DSP. */
-	//rt3261_dsp_resume(codec);
+	rt3261_dsp_resume(codec);
 #endif
 	return 0;
 }
