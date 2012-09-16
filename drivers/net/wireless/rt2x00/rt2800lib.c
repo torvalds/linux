@@ -3535,19 +3535,17 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	} else if (rt2800_is_305x_soc(rt2x00dev)) {
 		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
 		rt2800_bbp_write(rt2x00dev, 80, 0x08);
+	} else if (rt2x00_rt(rt2x00dev, RT3290)) {
+		rt2800_bbp_write(rt2x00dev, 74, 0x0b);
+		rt2800_bbp_write(rt2x00dev, 79, 0x18);
+		rt2800_bbp_write(rt2x00dev, 80, 0x09);
+		rt2800_bbp_write(rt2x00dev, 81, 0x33);
 	} else if (rt2x00_rt(rt2x00dev, RT3352)) {
 		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
 		rt2800_bbp_write(rt2x00dev, 80, 0x08);
 		rt2800_bbp_write(rt2x00dev, 81, 0x37);
 	} else {
 		rt2800_bbp_write(rt2x00dev, 81, 0x37);
-	}
-
-	if (rt2x00_rt(rt2x00dev, RT3290)) {
-		rt2800_bbp_write(rt2x00dev, 74, 0x0b);
-		rt2800_bbp_write(rt2x00dev, 79, 0x18);
-		rt2800_bbp_write(rt2x00dev, 80, 0x09);
-		rt2800_bbp_write(rt2x00dev, 81, 0x33);
 	}
 
 	rt2800_bbp_write(rt2x00dev, 82, 0x62);
