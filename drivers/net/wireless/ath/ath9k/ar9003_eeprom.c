@@ -3629,6 +3629,16 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		/* enable_lnadiv */
 		regval &= (~AR_PHY_ANT_DIV_LNADIV);
 		regval |= ((value >> 6) & 0x1) << AR_PHY_ANT_DIV_LNADIV_S;
+
+		if (AR_SREV_9565(ah)) {
+			if (ah->shared_chain_lnadiv) {
+				regval |= (1 << AR_PHY_ANT_SW_RX_PROT_S);
+			} else {
+				regval &= ~(1 << AR_PHY_ANT_DIV_LNADIV_S);
+				regval &= ~(1 << AR_PHY_ANT_SW_RX_PROT_S);
+			}
+		}
+
 		REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 
 		/*enable fast_div */

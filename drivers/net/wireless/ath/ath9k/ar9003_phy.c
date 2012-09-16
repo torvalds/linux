@@ -1325,6 +1325,65 @@ static void ar9003_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 }
 
+static void ar9003_hw_antctrl_shared_chain_lnadiv(struct ath_hw *ah,
+						  bool enable)
+{
+	u8 ant_div_ctl1;
+	u32 regval;
+
+	if (!AR_SREV_9565(ah))
+		return;
+
+	ah->shared_chain_lnadiv = enable;
+	ant_div_ctl1 = ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
+
+	regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+	regval &= (~AR_ANT_DIV_CTRL_ALL);
+	regval |= (ant_div_ctl1 & 0x3f) << AR_ANT_DIV_CTRL_ALL_S;
+	regval &= ~AR_PHY_ANT_DIV_LNADIV;
+	regval |= ((ant_div_ctl1 >> 6) & 0x1) << AR_PHY_ANT_DIV_LNADIV_S;
+
+	if (enable)
+		regval |= AR_ANT_DIV_ENABLE;
+
+	REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+
+	regval = REG_READ(ah, AR_PHY_CCK_DETECT);
+	regval &= ~AR_FAST_DIV_ENABLE;
+	regval |= ((ant_div_ctl1 >> 7) & 0x1) << AR_FAST_DIV_ENABLE_S;
+
+	if (enable)
+		regval |= AR_FAST_DIV_ENABLE;
+
+	REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
+
+	if (enable) {
+		REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+			    (1 << AR_PHY_ANT_SW_RX_PROT_S));
+		if (IS_CHAN_2GHZ(ah->curchan))
+			REG_SET_BIT(ah, AR_PHY_RESTART,
+				    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
+		REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV,
+			    AR_BTCOEX_WL_LNADIV_FORCE_ON);
+	} else {
+		REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL, AR_ANT_DIV_ENABLE);
+		REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+			    (1 << AR_PHY_ANT_SW_RX_PROT_S));
+		REG_CLR_BIT(ah, AR_PHY_CCK_DETECT, AR_FAST_DIV_ENABLE);
+		REG_CLR_BIT(ah, AR_BTCOEX_WL_LNADIV,
+			    AR_BTCOEX_WL_LNADIV_FORCE_ON);
+
+		regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+		regval &= ~(AR_PHY_ANT_DIV_MAIN_LNACONF |
+			AR_PHY_ANT_DIV_ALT_LNACONF |
+			AR_PHY_ANT_DIV_MAIN_GAINTB |
+			AR_PHY_ANT_DIV_ALT_GAINTB);
+		regval |= (AR_PHY_ANT_DIV_LNA1 << AR_PHY_ANT_DIV_MAIN_LNACONF_S);
+		regval |= (AR_PHY_ANT_DIV_LNA2 << AR_PHY_ANT_DIV_ALT_LNACONF_S);
+		REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+	}
+}
+
 static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 				      struct ath9k_channel *chan,
 				      u8 *ini_reloaded)
@@ -1423,6 +1482,7 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 
 	ops->antdiv_comb_conf_get = ar9003_hw_antdiv_comb_conf_get;
 	ops->antdiv_comb_conf_set = ar9003_hw_antdiv_comb_conf_set;
+	ops->antctrl_shared_chain_lnadiv = ar9003_hw_antctrl_shared_chain_lnadiv;
 
 	ar9003_hw_set_nf_limits(ah);
 	ar9003_hw_set_radar_conf(ah);
