@@ -58,6 +58,83 @@ struct omap_clk {
 struct clockdomain;
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)
 
+#define DEFINE_STRUCT_CLK(_name, _parent_array_name, _clkops_name)	\
+	static struct clk _name = {				\
+		.name = #_name,					\
+		.hw = &_name##_hw.hw,				\
+		.parent_names = _parent_array_name,		\
+		.num_parents = ARRAY_SIZE(_parent_array_name),	\
+		.ops = &_clkops_name,				\
+	};
+
+#define DEFINE_STRUCT_CLK_HW_OMAP(_name, _clkdm_name)		\
+	static struct clk_hw_omap _name##_hw = {		\
+		.hw = {						\
+			.clk = &_name,				\
+		},						\
+		.clkdm_name = _clkdm_name,			\
+	};
+
+#define DEFINE_CLK_OMAP_MUX(_name, _clkdm_name, _clksel,	\
+			    _clksel_reg, _clksel_mask,		\
+			    _parent_names, _ops)		\
+	static struct clk _name;				\
+	static struct clk_hw_omap _name##_hw = {		\
+		.hw = {						\
+			.clk = &_name,				\
+		},						\
+		.clksel		= _clksel,			\
+		.clksel_reg	= _clksel_reg,			\
+		.clksel_mask	= _clksel_mask,			\
+		.clkdm_name	= _clkdm_name,			\
+	};							\
+	DEFINE_STRUCT_CLK(_name, _parent_names, _ops);
+
+#define DEFINE_CLK_OMAP_MUX_GATE(_name, _clkdm_name, _clksel,	\
+				 _clksel_reg, _clksel_mask,	\
+				 _enable_reg, _enable_bit,	\
+				 _hwops, _parent_names, _ops)	\
+	static struct clk _name;				\
+	static struct clk_hw_omap _name##_hw = {		\
+		.hw = {						\
+			.clk = &_name,				\
+		},						\
+		.ops		= _hwops,			\
+		.enable_reg	= _enable_reg,			\
+		.enable_bit	= _enable_bit,			\
+		.clksel		= _clksel,			\
+		.clksel_reg	= _clksel_reg,			\
+		.clksel_mask	= _clksel_mask,			\
+		.clkdm_name	= _clkdm_name,			\
+	};							\
+	DEFINE_STRUCT_CLK(_name, _parent_names, _ops);
+
+#define DEFINE_CLK_OMAP_HSDIVIDER(_name, _parent_name,		\
+				_parent_ptr, _flags,		\
+				_clksel_reg, _clksel_mask)	\
+	static const struct clksel _name##_div[] = {		\
+		{						\
+			.parent = _parent_ptr,			\
+			.rates = div31_1to31_rates		\
+		},						\
+		{ .parent = NULL },				\
+	};							\
+	static struct clk _name;				\
+	static const char *_name##_parent_names[] = {		\
+		_parent_name,					\
+	};							\
+	static struct clk_hw_omap _name##_hw = {		\
+		.hw = {						\
+			.clk = &_name,				\
+		},						\
+		.clksel		= _name##_div,			\
+		.clksel_reg	= _clksel_reg,			\
+		.clksel_mask	= _clksel_mask,			\
+		.ops		= &clkhwops_omap4_dpllmx,	\
+	};							\
+	DEFINE_STRUCT_CLK(_name, _name##_parent_names, omap_hsdivider_ops);
+
+
 #else
 
 struct module;
