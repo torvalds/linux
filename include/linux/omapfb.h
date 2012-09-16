@@ -220,7 +220,12 @@ struct omapfb_display_info {
 
 #ifdef __KERNEL__
 
-#include <plat/board.h>
+struct omap_lcd_config {
+	char panel_name[16];
+	char ctrl_name[16];
+	s16  nreset_gpio;
+	u8   data_lines;
+};
 
 struct omapfb_platform_data {
 	struct omap_lcd_config		lcd;

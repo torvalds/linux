@@ -4543,6 +4543,9 @@ static void stac92xx_line_out_detect(struct hda_codec *codec,
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
+	if (cfg->speaker_outs == 0)
+		return;
+
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (presence)
 			break;
@@ -5531,6 +5534,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 		snd_hda_codec_set_pincfg(codec, 0xf, 0x2181205e);
 	}
 
+	codec->epss = 0; /* longer delay needed for D3 */
 	codec->no_trigger_sense = 1;
 	codec->spec = spec;
 

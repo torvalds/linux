@@ -1,5 +1,4 @@
-/* arch/arm/plat-omap/include/mach/omap7xx.h
- *
+/*
  * Hardware definitions for TI OMAP7XX processor.
  *
  * Cleanup for Linux-2.6 by Dirk Behme <dirk.behme@de.bosch.com>

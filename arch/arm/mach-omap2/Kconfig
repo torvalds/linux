@@ -63,7 +63,7 @@ config ARCH_OMAP4
 	select PM_OPP if PM
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARM_CPU_SUSPEND if PM
-	select ARCH_NEEDS_CPU_IDLE_COUPLED
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 
 config SOC_OMAP5
 	bool "TI OMAP5"

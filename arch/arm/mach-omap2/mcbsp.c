@@ -18,9 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <mach/irqs.h>
 #include <plat/dma.h>
-#include <plat/cpu.h>
 #include <plat/mcbsp.h>
 #include <plat/omap_device.h>
 #include <linux/pm_runtime.h>

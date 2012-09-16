@@ -25,14 +25,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/menelaus.h>
-#include <mach/irqs.h>
 #include <plat/mcspi.h>
 #include <plat/onenand.h>
 #include <plat/mmc.h>
-#include <plat/serial.h>
 
 #include "mux.h"
 
@@ -600,7 +597,7 @@ static struct menelaus_platform_data n8x0_menelaus_platform_data __initdata = {
 static struct i2c_board_info __initdata n8x0_i2c_board_info_1[] __initdata = {
 	{
 		I2C_BOARD_INFO("menelaus", 0x72),
-		.irq = INT_24XX_SYS_NIRQ,
+		.irq = 7 + OMAP_INTC_START,
 		.platform_data = &n8x0_menelaus_platform_data,
 	},
 };

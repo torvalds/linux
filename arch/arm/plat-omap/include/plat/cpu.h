@@ -30,6 +30,8 @@
 #ifndef __ASM_ARCH_OMAP_CPU_H
 #define __ASM_ARCH_OMAP_CPU_H
 
+#ifndef __ASSEMBLY__
+
 #include <linux/bitops.h>
 #include <plat/multi.h>
 
@@ -372,7 +374,8 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define cpu_class_is_omap1()	(cpu_is_omap7xx() || cpu_is_omap15xx() || \
 				cpu_is_omap16xx())
 #define cpu_class_is_omap2()	(cpu_is_omap24xx() || cpu_is_omap34xx() || \
-				cpu_is_omap44xx() || soc_is_omap54xx())
+				cpu_is_omap44xx() || soc_is_omap54xx() || \
+				soc_is_am33xx())
 
 /* Various silicon revisions for omap2 */
 #define OMAP242X_CLASS		0x24200024
@@ -492,4 +495,5 @@ OMAP4_HAS_FEATURE(mpu_1ghz, MPU_1GHZ)
 OMAP4_HAS_FEATURE(mpu_1_2ghz, MPU_1_2GHZ)
 OMAP4_HAS_FEATURE(mpu_1_5ghz, MPU_1_5GHZ)
 
+#endif	/* __ASSEMBLY__ */
 #endif

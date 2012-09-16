@@ -115,7 +115,7 @@ config SATA_SIL24
 	  If unsure, say N.
 
 config ATA_SFF
-	bool "ATA SFF support"
+	bool "ATA SFF support (for legacy IDE and PATA)"
 	default y
 	help
 	  This option adds support for ATA controllers with SFF

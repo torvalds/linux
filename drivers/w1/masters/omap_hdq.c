@@ -19,7 +19,6 @@
 #include <linux/pm_runtime.h>
 
 #include <asm/irq.h>
-#include <mach/hardware.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
@@ -644,7 +643,7 @@ static int omap_hdq_remove(struct platform_device *pdev)
 
 	/* remove module dependency */
 	pm_runtime_disable(&pdev->dev);
-	free_irq(INT_24XX_HDQ_IRQ, hdq_data);
+	free_irq(platform_get_irq(pdev, 0), hdq_data);
 	platform_set_drvdata(pdev, NULL);
 	iounmap(hdq_data->hdq_base);
 	kfree(hdq_data);

@@ -29,11 +29,11 @@
 
 #include <plat/omap-serial.h>
 #include "common.h"
-#include <plat/board.h>
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 #include <plat/omap-pm.h>
+#include <plat/serial.h>
 
 #include "prm2xxx_3xxx.h"
 #include "pm.h"
@@ -81,8 +81,9 @@ static struct omap_uart_port_info omap_serial_default_info[] __initdata = {
 };
 
 #ifdef CONFIG_PM
-static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
+static void omap_uart_enable_wakeup(struct device *dev, bool enable)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 
 	if (!od)
@@ -99,15 +100,17 @@ static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
  * in Smartidle Mode When Configured for DMA Operations.
  * WA: configure uart in force idle mode.
  */
-static void omap_uart_set_noidle(struct platform_device *pdev)
+static void omap_uart_set_noidle(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 
 	omap_hwmod_set_slave_idlemode(od->hwmods[0], HWMOD_IDLEMODE_NO);
 }
 
-static void omap_uart_set_smartidle(struct platform_device *pdev)
+static void omap_uart_set_smartidle(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 	u8 idlemode;
 
@@ -120,10 +123,10 @@ static void omap_uart_set_smartidle(struct platform_device *pdev)
 }
 
 #else
-static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
+static void omap_uart_enable_wakeup(struct device *dev, bool enable)
 {}
-static void omap_uart_set_noidle(struct platform_device *pdev) {}
-static void omap_uart_set_smartidle(struct platform_device *pdev) {}
+static void omap_uart_set_noidle(struct device *dev) {}
+static void omap_uart_set_smartidle(struct device *dev) {}
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_OMAP_MUX
@@ -304,6 +307,9 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 	omap_up.dma_rx_timeout = info->dma_rx_timeout;
 	omap_up.dma_rx_poll_rate = info->dma_rx_poll_rate;
 	omap_up.autosuspend_timeout = info->autosuspend_timeout;
+	omap_up.DTR_gpio = info->DTR_gpio;
+	omap_up.DTR_inverted = info->DTR_inverted;
+	omap_up.DTR_present = info->DTR_present;
 
 	pdata = &omap_up;
 	pdata_size = sizeof(struct omap_uart_port_info);

@@ -18,13 +18,11 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include <plat/mcspi.h>
-#include <plat/board.h>
 #include "common.h"
 #include <plat/dma.h>
 #include <plat/gpmc.h>

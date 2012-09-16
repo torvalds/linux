@@ -51,6 +51,7 @@
 
 
 static struct gpio_chip twl_gpiochip;
+static int twl4030_gpio_base;
 static int twl4030_gpio_irq_base;
 
 /* genirq interfaces are not available to modules */
@@ -403,8 +404,6 @@ static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev)
 	if (!omap_twl_info)
 		return NULL;
 
-	omap_twl_info->gpio_base = -1;
-
 	omap_twl_info->use_leds = of_property_read_bool(dev->of_node,
 			"ti,use-leds");
 
@@ -448,6 +447,7 @@ static int __devinit gpio_twl4030_probe(struct platform_device *pdev)
 	twl4030_gpio_irq_base = irq_base;
 
 no_irqs:
+	twl_gpiochip.base = -1;
 	twl_gpiochip.ngpio = TWL4030_GPIO_MAX;
 	twl_gpiochip.dev = &pdev->dev;
 
@@ -458,8 +458,6 @@ no_irqs:
 		dev_err(&pdev->dev, "Platform data is missing\n");
 		return -ENXIO;
 	}
-
-	twl_gpiochip.base = pdata->gpio_base;
 
 	/*
 	 * NOTE:  boards may waste power if they don't set pullups
@@ -489,15 +487,21 @@ no_irqs:
 		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
 		twl_gpiochip.ngpio = 0;
 		gpio_twl4030_remove(pdev);
-	} else if (pdata && pdata->setup) {
+		goto out;
+	}
+
+	twl4030_gpio_base = twl_gpiochip.base;
+
+	if (pdata && pdata->setup) {
 		int status;
 
 		status = pdata->setup(&pdev->dev,
-				pdata->gpio_base, TWL4030_GPIO_MAX);
+				twl4030_gpio_base, TWL4030_GPIO_MAX);
 		if (status)
 			dev_dbg(&pdev->dev, "setup --> %d\n", status);
 	}
 
+out:
 	return ret;
 }
 
@@ -509,7 +513,7 @@ static int gpio_twl4030_remove(struct platform_device *pdev)
 
 	if (pdata && pdata->teardown) {
 		status = pdata->teardown(&pdev->dev,
-				pdata->gpio_base, TWL4030_GPIO_MAX);
+				twl4030_gpio_base, TWL4030_GPIO_MAX);
 		if (status) {
 			dev_dbg(&pdev->dev, "teardown --> %d\n", status);
 			return status;

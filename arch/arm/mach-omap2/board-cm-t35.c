@@ -23,6 +23,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <linux/i2c/at24.h>
 #include <linux/i2c/twl.h>
@@ -37,7 +38,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/nand.h>
 #include <plat/gpmc.h>
@@ -470,9 +470,6 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 }
 
 static struct twl4030_gpio_platform_data cm_t35_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.setup          = cm_t35_twl_gpio_setup,
 };
 
@@ -714,13 +711,8 @@ static inline void cm_t35_init_mux(void) {}
 static inline void cm_t3730_init_mux(void) {}
 #endif
 
-static struct omap_board_config_kernel cm_t35_config[] __initdata = {
-};
-
 static void __init cm_t3x_common_init(void)
 {
-	omap_board_config = cm_t35_config;
-	omap_board_config_size = ARRAY_SIZE(cm_t35_config);
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
 	omap_serial_init();
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params,

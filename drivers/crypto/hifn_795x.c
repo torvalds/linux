@@ -821,8 +821,8 @@ static int hifn_register_rng(struct hifn_device *dev)
 	/*
 	 * We must wait at least 256 Pk_clk cycles between two reads of the rng.
 	 */
-	dev->rng_wait_time	= DIV_ROUND_UP(NSEC_PER_SEC, dev->pk_clk_freq) *
-				  256;
+	dev->rng_wait_time	= DIV_ROUND_UP_ULL(NSEC_PER_SEC,
+						   dev->pk_clk_freq) * 256;
 
 	dev->rng.name		= dev->name;
 	dev->rng.data_present	= hifn_rng_data_present,

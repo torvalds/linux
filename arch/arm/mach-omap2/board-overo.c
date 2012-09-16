@@ -42,16 +42,13 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
 #include <plat/gpmc.h>
-#include <mach/hardware.h>
 #include <plat/nand.h>
 #include <plat/mcspi.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 
 #include "mux.h"
@@ -399,9 +396,6 @@ static int overo_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data overo_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= overo_twl_gpio_setup,
 };
