@@ -153,7 +153,6 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	gfn_t table_gfn;
 	unsigned index, pt_access, pte_access;
 	gpa_t pte_gpa;
-	bool eperm;
 	int offset;
 	const int write_fault = access & PFERR_WRITE_MASK;
 	const int user_fault  = access & PFERR_USER_MASK;
@@ -165,7 +164,6 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 
 	trace_kvm_mmu_pagetable_walk(addr, access);
 retry_walk:
-	eperm = false;
 	walker->level = mmu->root_level;
 	pte           = mmu->get_cr3(vcpu);
 
@@ -231,8 +229,7 @@ retry_walk:
 		walker->ptes[walker->level - 1] = pte;
 	} while (!is_last_gpte(mmu, walker->level, pte));
 
-	eperm |= permission_fault(mmu, pte_access, access);
-	if (unlikely(eperm)) {
+	if (unlikely(permission_fault(mmu, pte_access, access))) {
 		errcode |= PFERR_PRESENT_MASK;
 		goto error;
 	}
