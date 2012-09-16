@@ -122,6 +122,11 @@ ENTRY(ret_from_kernel_thread)
 	movel	%d0,(%sp)
 	jra	sys_exit
 
+ENTRY(ret_from_kernel_execve)
+	movel	4(%sp), %sp
+	GET_CURRENT(%d0)
+	jra	ret_from_exception
+
 #if defined(CONFIG_COLDFIRE) || !defined(CONFIG_MMU)
 
 #ifdef TRAP_DBG_INTERRUPT

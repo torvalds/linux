@@ -382,6 +382,8 @@
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
+#define __ARCH_WANT_SYS_EXECVE
+#define __ARCH_WANT_KERNEL_EXECVE
 
 /*
  * "Conditional" syscalls

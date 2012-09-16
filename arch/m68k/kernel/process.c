@@ -298,26 +298,6 @@ int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 EXPORT_SYMBOL(dump_fpu);
 #endif /* CONFIG_FPU */
 
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char __user *name,
-			  const char __user *const __user *argv,
-			  const char __user *const __user *envp)
-{
-	int error;
-	char * filename;
-	struct pt_regs *regs = (struct pt_regs *) &name;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-	return error;
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long fp, pc;

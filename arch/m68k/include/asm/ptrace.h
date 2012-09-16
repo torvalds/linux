@@ -85,6 +85,8 @@ struct switch_stack {
 #define user_mode(regs) (!((regs)->sr & PS_S))
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
+#define current_pt_regs() \
+	(struct pt_regs *)((char *)current_thread_info() + THREAD_SIZE) - 1
 
 #define arch_has_single_step()	(1)
 
