@@ -30,6 +30,8 @@ extern struct wifi_power power_gpio;
 extern struct wifi_power power_save_gpio;
 extern struct wifi_power power_reset_gpio;
 
+extern int rk29sdk_wifi_power(int on);
+
 #define OS_IOMUX(name, value) rk29_mux_api_set((name), (value));
 
 int wifi_gpio_operate(struct wifi_power *gpio, int flag)
@@ -78,7 +80,8 @@ int wifi_turn_on_rtl8192c_card(void)
 #ifdef CONFIG_MACH_RK2928_A720
         rk2928_usb_wifi_on();
 #else
-	wifi_gpio_operate(&power_gpio, GPIO_SWITCH_ON);
+	//wifi_gpio_operate(&power_gpio, GPIO_SWITCH_ON);
+        rk29sdk_wifi_power(1);
 #endif
 	if (power_gpio.use_gpio != POWER_NOT_USE_GPIO)
 		msleep(1000);
@@ -100,7 +103,8 @@ int wifi_turn_off_card(void)
 #ifdef CONFIG_MACH_RK2928_A720
         rk2928_usb_wifi_off();
 #else
-	wifi_gpio_operate(&power_gpio, GPIO_SWITCH_OFF);
+	//wifi_gpio_operate(&power_gpio, GPIO_SWITCH_OFF);
+        rk29sdk_wifi_power(0);
 #endif
 	msleep(5);
 
