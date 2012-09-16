@@ -2904,16 +2904,21 @@ static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 		    rt2x00_rt(rt2x00dev, RT3090) ||
 		    rt2x00_rt(rt2x00dev, RT3290) ||
 		    rt2x00_rt(rt2x00dev, RT3390) ||
+		    rt2x00_rt(rt2x00dev, RT3572) ||
 		    rt2x00_rt(rt2x00dev, RT5390) ||
 		    rt2x00_rt(rt2x00dev, RT5392))
 			vgc = 0x1c + (2 * rt2x00dev->lna_gain);
 		else
 			vgc = 0x2e + rt2x00dev->lna_gain;
 	} else { /* 5GHZ band */
-		if (!test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
-			vgc = 0x32 + (rt2x00dev->lna_gain * 5) / 3;
-		else
-			vgc = 0x3a + (rt2x00dev->lna_gain * 5) / 3;
+		if (rt2x00_rt(rt2x00dev, RT3572))
+			vgc = 0x22 + (rt2x00dev->lna_gain * 5) / 3;
+		else {
+			if (!test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
+				vgc = 0x32 + (rt2x00dev->lna_gain * 5) / 3;
+			else
+				vgc = 0x3a + (rt2x00dev->lna_gain * 5) / 3;
+		}
 	}
 
 	return vgc;
