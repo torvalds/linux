@@ -181,9 +181,134 @@ enum {
 #include <linux/dqblk_v2.h>
 
 #include <linux/atomic.h>
+#include <linux/uidgid.h>
+#include <linux/projid.h>
+
+#undef USRQUOTA
+#undef GRPQUOTA
+enum quota_type {
+	USRQUOTA = 0,		/* element used for user quotas */
+	GRPQUOTA = 1,		/* element used for group quotas */
+	PRJQUOTA = 2,		/* element used for project quotas */
+};
 
 typedef __kernel_uid32_t qid_t; /* Type in which we store ids in memory */
 typedef long long qsize_t;	/* Type in which we store sizes */
+
+struct kqid {			/* Type in which we store the quota identifier */
+	union {
+		kuid_t uid;
+		kgid_t gid;
+		kprojid_t projid;
+	};
+	enum quota_type type;  /* USRQUOTA (uid) or GRPQUOTA (gid) or PRJQUOTA (projid) */
+};
+
+extern bool qid_eq(struct kqid left, struct kqid right);
+extern bool qid_lt(struct kqid left, struct kqid right);
+extern qid_t from_kqid(struct user_namespace *to, struct kqid qid);
+extern qid_t from_kqid_munged(struct user_namespace *to, struct kqid qid);
+extern bool qid_valid(struct kqid qid);
+
+/**
+ *	make_kqid - Map a user-namespace, type, qid tuple into a kqid.
+ *	@from: User namespace that the qid is in
+ *	@type: The type of quota
+ *	@qid: Quota identifier
+ *
+ *	Maps a user-namespace, type qid tuple into a kernel internal
+ *	kqid, and returns that kqid.
+ *
+ *	When there is no mapping defined for the user-namespace, type,
+ *	qid tuple an invalid kqid is returned.  Callers are expected to
+ *	test for and handle handle invalid kqids being returned.
+ *	Invalid kqids may be tested for using qid_valid().
+ */
+static inline struct kqid make_kqid(struct user_namespace *from,
+				    enum quota_type type, qid_t qid)
+{
+	struct kqid kqid;
+
+	kqid.type = type;
+	switch (type) {
+	case USRQUOTA:
+		kqid.uid = make_kuid(from, qid);
+		break;
+	case GRPQUOTA:
+		kqid.gid = make_kgid(from, qid);
+		break;
+	case PRJQUOTA:
+		kqid.projid = make_kprojid(from, qid);
+		break;
+	default:
+		BUG();
+	}
+	return kqid;
+}
+
+/**
+ *	make_kqid_invalid - Explicitly make an invalid kqid
+ *	@type: The type of quota identifier
+ *
+ *	Returns an invalid kqid with the specified type.
+ */
+static inline struct kqid make_kqid_invalid(enum quota_type type)
+{
+	struct kqid kqid;
+
+	kqid.type = type;
+	switch (type) {
+	case USRQUOTA:
+		kqid.uid = INVALID_UID;
+		break;
+	case GRPQUOTA:
+		kqid.gid = INVALID_GID;
+		break;
+	case PRJQUOTA:
+		kqid.projid = INVALID_PROJID;
+		break;
+	default:
+		BUG();
+	}
+	return kqid;
+}
+
+/**
+ *	make_kqid_uid - Make a kqid from a kuid
+ *	@uid: The kuid to make the quota identifier from
+ */
+static inline struct kqid make_kqid_uid(kuid_t uid)
+{
+	struct kqid kqid;
+	kqid.type = USRQUOTA;
+	kqid.uid = uid;
+	return kqid;
+}
+
+/**
+ *	make_kqid_gid - Make a kqid from a kgid
+ *	@gid: The kgid to make the quota identifier from
+ */
+static inline struct kqid make_kqid_gid(kgid_t gid)
+{
+	struct kqid kqid;
+	kqid.type = GRPQUOTA;
+	kqid.gid = gid;
+	return kqid;
+}
+
+/**
+ *	make_kqid_projid - Make a kqid from a projid
+ *	@projid: The kprojid to make the quota identifier from
+ */
+static inline struct kqid make_kqid_projid(kprojid_t projid)
+{
+	struct kqid kqid;
+	kqid.type = PRJQUOTA;
+	kqid.projid = projid;
+	return kqid;
+}
+
 
 extern spinlock_t dq_data_lock;
 
