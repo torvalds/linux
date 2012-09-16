@@ -219,9 +219,9 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[fec_ipg], "ipg", "imx25-fec.0");
 	clk_register_clkdev(clk[fec_ahb], "ahb", "imx25-fec.0");
 	clk_register_clkdev(clk[dryice_ipg], NULL, "imxdi_rtc.0");
-	clk_register_clkdev(clk[lcdc_ipg_per], "per", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_ipg], "ipg", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_ahb], "ahb", "imx-fb.0");
+	clk_register_clkdev(clk[lcdc_ipg_per], "per", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_ipg], "ipg", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_ahb], "ahb", "imx21-fb.0");
 	clk_register_clkdev(clk[wdt_ipg], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[ssi1_ipg], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_ipg], NULL, "imx-ssi.1");

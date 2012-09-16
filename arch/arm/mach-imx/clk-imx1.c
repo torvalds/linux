@@ -102,9 +102,9 @@ int __init mx1_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[per2], "per", "imx1-cspi.1");
 	clk_register_clkdev(clk[dummy], "ipg", "imx1-cspi.1");
 	clk_register_clkdev(clk[per2], NULL, "imx-mmc.0");
-	clk_register_clkdev(clk[per2], "per", "imx-fb.0");
-	clk_register_clkdev(clk[dummy], "ipg", "imx-fb.0");
-	clk_register_clkdev(clk[dummy], "ahb", "imx-fb.0");
+	clk_register_clkdev(clk[per2], "per", "imx1-fb.0");
+	clk_register_clkdev(clk[dummy], "ipg", "imx1-fb.0");
+	clk_register_clkdev(clk[dummy], "ahb", "imx1-fb.0");
 	clk_register_clkdev(clk[hclk], "mshc", NULL);
 	clk_register_clkdev(clk[per3], "ssi", NULL);
 	clk_register_clkdev(clk[clk32], NULL, "imx1-rtc.0");

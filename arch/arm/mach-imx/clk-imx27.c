@@ -221,9 +221,9 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[cspi1_ipg_gate], NULL, "imx27-cspi.0");
 	clk_register_clkdev(clk[cspi2_ipg_gate], NULL, "imx27-cspi.1");
 	clk_register_clkdev(clk[cspi3_ipg_gate], NULL, "imx27-cspi.2");
-	clk_register_clkdev(clk[per3_gate], "per", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_ipg_gate], "ipg", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_ahb_gate], "ahb", "imx-fb.0");
+	clk_register_clkdev(clk[per3_gate], "per", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_ipg_gate], "ipg", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_ahb_gate], "ahb", "imx21-fb.0");
 	clk_register_clkdev(clk[csi_ahb_gate], "ahb", "imx27-camera.0");
 	clk_register_clkdev(clk[usb_div], "per", "fsl-usb2-udc");
 	clk_register_clkdev(clk[usb_ipg_gate], "ipg", "fsl-usb2-udc");
