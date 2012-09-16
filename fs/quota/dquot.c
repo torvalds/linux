@@ -2376,12 +2376,12 @@ static void do_get_dqblk(struct dquot *dquot, struct fs_disk_quota *di)
 	spin_unlock(&dq_data_lock);
 }
 
-int dquot_get_dqblk(struct super_block *sb, int type, qid_t id,
+int dquot_get_dqblk(struct super_block *sb, struct kqid qid,
 		    struct fs_disk_quota *di)
 {
 	struct dquot *dquot;
 
-	dquot = dqget(sb, id, type);
+	dquot = dqget(sb, qid.type, from_kqid(&init_user_ns, qid));
 	if (!dquot)
 		return -ESRCH;
 	do_get_dqblk(dquot, di);
@@ -2488,13 +2488,13 @@ static int do_set_dqblk(struct dquot *dquot, struct fs_disk_quota *di)
 	return 0;
 }
 
-int dquot_set_dqblk(struct super_block *sb, int type, qid_t id,
+int dquot_set_dqblk(struct super_block *sb, struct kqid qid,
 		  struct fs_disk_quota *di)
 {
 	struct dquot *dquot;
 	int rc;
 
-	dquot = dqget(sb, id, type);
+	dquot = dqget(sb, qid.type, from_kqid(&init_user_ns, qid));
 	if (!dquot) {
 		rc = -ESRCH;
 		goto out;

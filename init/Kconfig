@@ -928,7 +928,7 @@ config UIDGID_CONVERTED
 	depends on IMA = n
 	depends on EVM = n
 	depends on QUOTA = n
-	depends on QUOTACTL = n
+	depends on QUOTA_NETLINK_INTERFACE = n
 
 	# Networking
 	depends on NET_9P = n
