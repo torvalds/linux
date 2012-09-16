@@ -2896,6 +2896,8 @@ EXPORT_SYMBOL_GPL(rt2800_link_stats);
 
 static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 {
+	u8 vgc;
+
 	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
 		if (rt2x00_rt(rt2x00dev, RT3070) ||
 		    rt2x00_rt(rt2x00dev, RT3071) ||
@@ -2904,15 +2906,17 @@ static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 		    rt2x00_rt(rt2x00dev, RT3390) ||
 		    rt2x00_rt(rt2x00dev, RT5390) ||
 		    rt2x00_rt(rt2x00dev, RT5392))
-			return 0x1c + (2 * rt2x00dev->lna_gain);
+			vgc = 0x1c + (2 * rt2x00dev->lna_gain);
 		else
-			return 0x2e + rt2x00dev->lna_gain;
+			vgc = 0x2e + rt2x00dev->lna_gain;
+	} else { /* 5GHZ band */
+		if (!test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
+			vgc = 0x32 + (rt2x00dev->lna_gain * 5) / 3;
+		else
+			vgc = 0x3a + (rt2x00dev->lna_gain * 5) / 3;
 	}
 
-	if (!test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
-		return 0x32 + (rt2x00dev->lna_gain * 5) / 3;
-	else
-		return 0x3a + (rt2x00dev->lna_gain * 5) / 3;
+	return vgc;
 }
 
 static inline void rt2800_set_vgc(struct rt2x00_dev *rt2x00dev,
