@@ -46,6 +46,10 @@ static int ath9k_btcoex_enable;
 module_param_named(btcoex_enable, ath9k_btcoex_enable, int, 0444);
 MODULE_PARM_DESC(btcoex_enable, "Enable wifi-BT coexistence");
 
+static int ath9k_enable_diversity;
+module_param_named(enable_diversity, ath9k_enable_diversity, int, 0444);
+MODULE_PARM_DESC(enable_diversity, "Enable Antenna diversity for AR9565");
+
 bool is_ath9k_unloaded;
 /* We use the hw_value as an index into our private channel structure */
 
@@ -546,6 +550,14 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	common->debug_mask = ath9k_debug;
 	common->btcoex_enabled = ath9k_btcoex_enable == 1;
 	common->disable_ani = false;
+
+	/*
+	 * Enable Antenna diversity only when BTCOEX is disabled
+	 * and the user manually requests the feature.
+	 */
+	if (!common->btcoex_enabled && ath9k_enable_diversity)
+		common->antenna_diversity = 1;
+
 	spin_lock_init(&common->cc_lock);
 
 	spin_lock_init(&sc->sc_serial_rw);

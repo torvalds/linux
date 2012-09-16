@@ -776,6 +776,7 @@ div_comb_done:
 void ath_ant_comb_update(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_hw_antcomb_conf div_ant_conf;
 	u8 lna_conf;
 
@@ -790,4 +791,7 @@ void ath_ant_comb_update(struct ath_softc *sc)
 	div_ant_conf.alt_lna_conf = lna_conf;
 
 	ath9k_hw_antdiv_comb_conf_set(ah, &div_ant_conf);
+
+	if (common->antenna_diversity)
+		ath9k_hw_antctrl_shared_chain_lnadiv(ah, true);
 }
