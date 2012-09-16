@@ -3083,7 +3083,7 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 
 	cpu_axi_init();
-	clk_set_rate_nolock(&clk_core, 816 * MHZ);
+	clk_set_rate_nolock(&clk_core, 312 * MHZ);
 	//periph clk
 	periph_clk_set_init();
 

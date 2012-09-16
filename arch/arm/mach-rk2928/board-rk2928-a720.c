@@ -537,6 +537,54 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 
 };
 #endif
+
+int __sramdata gpio0d4_iomux,gpio0d4_do,gpio0d4_dir;
+
+#define gpio_readl(offset)	readl_relaxed(RK2928_GPIO0_BASE + offset)
+#define gpio_writel(v, offset)	do { writel_relaxed(v, RK2928_GPIO0_BASE + offset); dsb(); } while (0)
+
+void __sramfunc rk30_pwm_logic_suspend_voltage(void)
+{
+#ifdef CONFIG_RK30_PWM_REGULATOR
+
+//	int gpio0d7_iomux,gpio0d7_do,gpio0d7_dir,gpio0d7_en;
+	sram_udelay(10000);
+	gpio0d4_iomux = readl_relaxed(GRF_GPIO0D_IOMUX);
+	gpio0d4_do = gpio_readl(GPIO_SWPORTA_DR);
+	gpio0d4_dir = gpio_readl(GPIO_SWPORTA_DDR);
+
+	writel_relaxed((gpio0d4_iomux |(1<<24)) & (~(1<<8)), GRF_GPIO0D_IOMUX);
+	gpio_writel(gpio0d4_dir |(1<<28), GPIO_SWPORTA_DDR);
+	gpio_writel(gpio0d4_do |(1<<28), GPIO_SWPORTA_DR);
+	
+#endif 
+}
+void __sramfunc rk30_pwm_logic_resume_voltage(void)
+{
+#ifdef CONFIG_RK30_PWM_REGULATOR
+	writel_relaxed((1<<24)|gpio0d4_iomux, GRF_GPIO0D_IOMUX);
+	gpio_writel(gpio0d4_dir, GPIO_SWPORTA_DDR);
+	gpio_writel(gpio0d4_do, GPIO_SWPORTA_DR);
+	sram_udelay(10000);
+
+#endif
+
+}
+extern void pwm_suspend_voltage(void);
+extern void pwm_resume_voltage(void);
+void  rk30_pwm_suspend_voltage_set(void)
+{
+#ifdef CONFIG_RK30_PWM_REGULATOR
+	pwm_suspend_voltage();
+#endif
+}
+void  rk30_pwm_resume_voltage_set(void)
+{
+#ifdef CONFIG_RK30_PWM_REGULATOR
+	pwm_resume_voltage();
+#endif
+}
+
 #ifdef CONFIG_I2C1_RK30
 static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_GS_MMA7660)

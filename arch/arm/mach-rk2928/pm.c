@@ -240,7 +240,11 @@ static noinline void interface_ctr_reg_pread(void)
 	readl_relaxed(RK2928_GPIO1_BASE);
 	readl_relaxed(RK2928_GPIO2_BASE);
 	readl_relaxed(RK2928_GPIO3_BASE);
-//	readl_relaxed(RK2928_I2C1_BASE);
+	#if defined (CONFIG_MACH_RK2928_SDK)
+	readl_relaxed(RK2928_RKI2C1_BASE);
+	#else
+	readl_relaxed(RK2928_RKI2C0_BASE);
+	#endif
 }
 
 __weak void board_gpio_suspend(void) {}
@@ -397,6 +401,7 @@ static int rk2928_pm_enter(suspend_state_t state)
 			  | (1 << CLK_GATE_PCLK_GPIO2 % 16)
 			  | (1 << CLK_GATE_PCLK_GPIO3 % 16)
 			  , clkgt_regs[8], CRU_CLKGATES_CON(8), 0xffff);
+	cru_writel( ((1 << CLK_GATE_PCLK_GPIO0 % 16)<<16),  CRU_CLKGATES_CON(8));
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
 			  | (1 << CLK_GATE_HCLK_PERI_ARBI % 16)

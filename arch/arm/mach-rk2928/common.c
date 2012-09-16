@@ -147,7 +147,20 @@ static __init u32 rk2928_get_ddr_size(void)
 #ifdef CONFIG_MACH_RK2928_FPGA
 	return SZ_64M;
 #else
-	return SZ_512M;
+	u32 size;
+	u32 v[1], a[1];
+	u32 pgtbl = PAGE_OFFSET + TEXT_OFFSET - 0x4000;
+	u32 flag = PMD_TYPE_SECT | PMD_SECT_XN | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ;
+
+	a[0] = pgtbl + (((u32)RK2928_GRF_BASE >> 20) << 2);
+	v[0] = readl_relaxed(a[0]);
+	writel_relaxed(flag | ((RK2928_GRF_PHYS >> 20) << 20), a[0]);
+
+	size = ddr_get_cap();
+
+	writel_relaxed(v[0], a[0]);
+
+	return size;
 #endif
 }
 
