@@ -719,8 +719,10 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 		goto out_enable_device;
 
 	vp_dev->ioaddr = pci_iomap(pci_dev, 0, 0);
-	if (vp_dev->ioaddr == NULL)
+	if (vp_dev->ioaddr == NULL) {
+		err = -ENOMEM;
 		goto out_req_regions;
+	}
 
 	pci_set_drvdata(pci_dev, vp_dev);
 	pci_set_master(pci_dev);
