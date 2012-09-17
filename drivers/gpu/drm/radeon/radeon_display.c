@@ -30,6 +30,7 @@
 #include "atom.h"
 #include <asm/div64.h>
 
+#include <linux/pm_runtime.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
@@ -494,11 +495,55 @@ unlock_free:
 	return r;
 }
 
+static int
+radeon_crtc_set_config(struct drm_mode_set *set)
+{
+	struct drm_device *dev;
+	struct radeon_device *rdev;
+	struct drm_crtc *crtc;
+	bool active = false;
+	int ret;
+
+	if (!set || !set->crtc)
+		return -EINVAL;
+
+	dev = set->crtc->dev;
+
+	ret = pm_runtime_get_sync(dev->dev);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_crtc_helper_set_config(set);
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		if (crtc->enabled)
+			active = true;
+
+	pm_runtime_mark_last_busy(dev->dev);
+
+	rdev = dev->dev_private;
+	/* if we have active crtcs and we don't have a power ref,
+	   take the current one */
+	if (active && !rdev->have_disp_power_ref) {
+		rdev->have_disp_power_ref = true;
+		return ret;
+	}
+	/* if we have no active crtcs, then drop the power ref
+	   we got before */
+	if (!active && rdev->have_disp_power_ref) {
+		pm_runtime_put_autosuspend(dev->dev);
+		rdev->have_disp_power_ref = false;
+	}
+
+	/* drop the power reference we got coming in here */
+	pm_runtime_put_autosuspend(dev->dev);
+	return ret;
+}
 static const struct drm_crtc_funcs radeon_crtc_funcs = {
 	.cursor_set = radeon_crtc_cursor_set,
 	.cursor_move = radeon_crtc_cursor_move,
 	.gamma_set = radeon_crtc_gamma_set,
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = radeon_crtc_set_config,
 	.destroy = radeon_crtc_destroy,
 	.page_flip = radeon_crtc_page_flip,
 };
