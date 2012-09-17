@@ -43,11 +43,11 @@ struct smtcfb_info {
 	u16 chip_id;
 	u8  chip_rev_id;
 
-	unsigned char __iomem *m_pMMIO;
-	char __iomem *m_pLFB;
-	char *m_pDPR;
-	char *m_pVPR;
-	char *m_pCPR;
+	void __iomem *m_pMMIO;
+	void __iomem *m_pLFB;
+	void __iomem *m_pDPR;
+	void __iomem *m_pVPR;
+	void __iomem *m_pCPR;
 
 	u_int width;
 	u_int height;
@@ -56,8 +56,8 @@ struct smtcfb_info {
 	u32 colreg[17];
 };
 
-char __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
-char __iomem *smtc_VRAMBaseAddress;	/* video memory starting address */
+void __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
+void __iomem *smtc_VRAMBaseAddress;	/* video memory starting address */
 
 static struct fb_var_screeninfo smtcfb_var = {
 	.xres           = 1024,
