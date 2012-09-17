@@ -33,6 +33,7 @@
 
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/videobuf-dvb.h>
@@ -516,14 +517,6 @@ struct cx231xx_tvnorm {
 	u32		cxoformat;
 };
 
-struct cx231xx_ctrl {
-	struct v4l2_queryctrl v;
-	u32 off;
-	u32 reg;
-	u32 mask;
-	u32 shift;
-};
-
 enum TRANSFER_TYPE {
 	Raw_Video = 0,
 	Audio,
@@ -631,6 +624,8 @@ struct cx231xx {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_subdev *sd_cx25840;
 	struct v4l2_subdev *sd_tuner;
+	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_ctrl_handler radio_ctrl_handler;
 
 	struct work_struct wq_trigger;		/* Trigger to start/stop audio for alsa module */
 	atomic_t	   stream_started;	/* stream should be running if true */
@@ -653,8 +648,6 @@ struct cx231xx {
 	v4l2_std_id norm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_ainput;	/* selected audio input */
-	int mute;
-	int volume;
 
 	/* frame properties */
 	int width;		/* current frame width */

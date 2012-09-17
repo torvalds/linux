@@ -100,125 +100,6 @@ static struct cx231xx_fmt format[] = {
 	 },
 };
 
-/* supported controls */
-/* Common to all boards */
-
-/* ------------------------------------------------------------------- */
-
-static const struct v4l2_queryctrl no_ctl = {
-	.name = "42",
-	.flags = V4L2_CTRL_FLAG_DISABLED,
-};
-
-static struct cx231xx_ctrl cx231xx_ctls[] = {
-	/* --- video --- */
-	{
-		.v = {
-			.id = V4L2_CID_BRIGHTNESS,
-			.name = "Brightness",
-			.minimum = 0x00,
-			.maximum = 0xff,
-			.step = 1,
-			.default_value = 0x7f,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off = 128,
-		.reg = LUMA_CTRL,
-		.mask = 0x00ff,
-		.shift = 0,
-	}, {
-		.v = {
-			.id = V4L2_CID_CONTRAST,
-			.name = "Contrast",
-			.minimum = 0,
-			.maximum = 0xff,
-			.step = 1,
-			.default_value = 0x3f,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off = 0,
-		.reg = LUMA_CTRL,
-		.mask = 0xff00,
-		.shift = 8,
-	}, {
-		.v = {
-			.id = V4L2_CID_HUE,
-			.name = "Hue",
-			.minimum = 0,
-			.maximum = 0xff,
-			.step = 1,
-			.default_value = 0x7f,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off = 128,
-		.reg = CHROMA_CTRL,
-		.mask = 0xff0000,
-		.shift = 16,
-	}, {
-	/* strictly, this only describes only U saturation.
-	* V saturation is handled specially through code.
-	*/
-		.v = {
-			.id = V4L2_CID_SATURATION,
-			.name = "Saturation",
-			.minimum = 0,
-			.maximum = 0xff,
-			.step = 1,
-			.default_value = 0x7f,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.off = 0,
-		.reg = CHROMA_CTRL,
-		.mask = 0x00ff,
-		.shift = 0,
-	}, {
-		/* --- audio --- */
-		.v = {
-			.id = V4L2_CID_AUDIO_MUTE,
-			.name = "Mute",
-			.minimum = 0,
-			.maximum = 1,
-			.default_value = 1,
-			.type = V4L2_CTRL_TYPE_BOOLEAN,
-		},
-		.reg = PATH1_CTL1,
-		.mask = (0x1f << 24),
-		.shift = 24,
-	}, {
-		.v = {
-			.id = V4L2_CID_AUDIO_VOLUME,
-			.name = "Volume",
-			.minimum = 0,
-			.maximum = 0x3f,
-			.step = 1,
-			.default_value = 0x3f,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-		},
-		.reg = PATH1_VOL_CTL,
-		.mask = 0xff,
-		.shift = 0,
-	}
-};
-static const int CX231XX_CTLS = ARRAY_SIZE(cx231xx_ctls);
-
-static const u32 cx231xx_user_ctrls[] = {
-	V4L2_CID_USER_CLASS,
-	V4L2_CID_BRIGHTNESS,
-	V4L2_CID_CONTRAST,
-	V4L2_CID_SATURATION,
-	V4L2_CID_HUE,
-	V4L2_CID_AUDIO_VOLUME,
-#if 0
-	V4L2_CID_AUDIO_BALANCE,
-#endif
-	V4L2_CID_AUDIO_MUTE,
-	0
-};
-
-static const u32 *ctrl_classes[] = {
-	cx231xx_user_ctrls,
-	NULL
-};
 
 /* ------------------------------------------------------------------
 	Video buffer and parser functions
@@ -1233,78 +1114,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int vidioc_queryctrl(struct file *file, void *priv,
-			    struct v4l2_queryctrl *qc)
-{
-	struct cx231xx_fh *fh = priv;
-	struct cx231xx *dev = fh->dev;
-	int id = qc->id;
-	int i;
-	int rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
-
-	qc->id = v4l2_ctrl_next(ctrl_classes, qc->id);
-	if (unlikely(qc->id == 0))
-		return -EINVAL;
-
-	memset(qc, 0, sizeof(*qc));
-
-	qc->id = id;
-
-	if (qc->id < V4L2_CID_BASE || qc->id >= V4L2_CID_LASTP1)
-		return -EINVAL;
-
-	for (i = 0; i < CX231XX_CTLS; i++)
-		if (cx231xx_ctls[i].v.id == qc->id)
-			break;
-
-	if (i == CX231XX_CTLS) {
-		*qc = no_ctl;
-		return 0;
-	}
-	*qc = cx231xx_ctls[i].v;
-
-	call_all(dev, core, queryctrl, qc);
-
-	if (qc->type)
-		return 0;
-	else
-		return -EINVAL;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *priv,
-			 struct v4l2_control *ctrl)
-{
-	struct cx231xx_fh *fh = priv;
-	struct cx231xx *dev = fh->dev;
-	int rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
-
-	call_all(dev, core, g_ctrl, ctrl);
-	return rc;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-			 struct v4l2_control *ctrl)
-{
-	struct cx231xx_fh *fh = priv;
-	struct cx231xx *dev = fh->dev;
-	int rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
-
-	call_all(dev, core, s_ctrl, ctrl);
-	return rc;
-}
-
 static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct cx231xx_fh *fh = priv;
@@ -2012,26 +1821,6 @@ static int radio_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	return 0;
 }
 
-static int radio_queryctrl(struct file *file, void *priv,
-			   struct v4l2_queryctrl *c)
-{
-	int i;
-
-	if (c->id < V4L2_CID_BASE || c->id >= V4L2_CID_LASTP1)
-		return -EINVAL;
-	if (c->id == V4L2_CID_AUDIO_MUTE) {
-		for (i = 0; i < CX231XX_CTLS; i++) {
-			if (cx231xx_ctls[i].v.id == c->id)
-				break;
-		}
-		if (i == CX231XX_CTLS)
-			return -EINVAL;
-		*c = cx231xx_ctls[i].v;
-	} else
-		*c = no_ctl;
-	return 0;
-}
-
 /*
  * cx231xx_v4l2_open()
  * inits the device and starts isoc transfer
@@ -2180,6 +1969,8 @@ void cx231xx_release_analog_resources(struct cx231xx *dev)
 			video_device_release(dev->vdev);
 		dev->vdev = NULL;
 	}
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
+	v4l2_ctrl_handler_free(&dev->radio_ctrl_handler);
 }
 
 /*
@@ -2402,9 +2193,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_input             = vidioc_enum_input,
 	.vidioc_g_input                = vidioc_g_input,
 	.vidioc_s_input                = vidioc_s_input,
-	.vidioc_queryctrl              = vidioc_queryctrl,
-	.vidioc_g_ctrl                 = vidioc_g_ctrl,
-	.vidioc_s_ctrl                 = vidioc_s_ctrl,
 	.vidioc_streamon               = vidioc_streamon,
 	.vidioc_streamoff              = vidioc_streamoff,
 	.vidioc_g_tuner                = vidioc_g_tuner,
@@ -2439,9 +2227,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = radio_g_tuner,
 	.vidioc_s_tuner     = radio_s_tuner,
-	.vidioc_queryctrl   = radio_queryctrl,
-	.vidioc_g_ctrl      = vidioc_g_ctrl,
-	.vidioc_s_ctrl      = vidioc_s_ctrl,
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
 	.vidioc_g_chip_ident = vidioc_g_chip_ident,
@@ -2506,9 +2291,21 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	/* Set the initial input */
 	video_mux(dev, dev->video_input);
 
-	/* Audio defaults */
-	dev->mute = 1;
-	dev->volume = 0x1f;
+	v4l2_ctrl_handler_init(&dev->ctrl_handler, 10);
+	v4l2_ctrl_handler_init(&dev->radio_ctrl_handler, 5);
+
+	if (dev->sd_cx25840) {
+		v4l2_ctrl_add_handler(&dev->ctrl_handler,
+				dev->sd_cx25840->ctrl_handler, NULL);
+		v4l2_ctrl_add_handler(&dev->radio_ctrl_handler,
+				dev->sd_cx25840->ctrl_handler,
+				v4l2_ctrl_radio_filter);
+	}
+
+	if (dev->ctrl_handler.error)
+		return dev->ctrl_handler.error;
+	if (dev->radio_ctrl_handler.error)
+		return dev->radio_ctrl_handler.error;
 
 	/* enable vbi capturing */
 	/* write code here...  */
@@ -2520,6 +2317,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		return -ENODEV;
 	}
 
+	dev->vdev->ctrl_handler = &dev->ctrl_handler;
 	/* register v4l2 video video_device */
 	ret = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
 				    video_nr[dev->devno]);
@@ -2539,6 +2337,11 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	/* Allocate and fill vbi video_device struct */
 	dev->vbi_dev = cx231xx_vdev_init(dev, &cx231xx_vbi_template, "vbi");
 
+	if (!dev->vbi_dev) {
+		cx231xx_errdev("cannot allocate video_device.\n");
+		return -ENODEV;
+	}
+	dev->vbi_dev->ctrl_handler = &dev->ctrl_handler;
 	/* register v4l2 vbi video_device */
 	ret = video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
 				    vbi_nr[dev->devno]);
@@ -2557,6 +2360,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 			cx231xx_errdev("cannot allocate video_device.\n");
 			return -ENODEV;
 		}
+		dev->radio_dev->ctrl_handler = &dev->radio_ctrl_handler;
 		ret = video_register_device(dev->radio_dev, VFL_TYPE_RADIO,
 					    radio_nr[dev->devno]);
 		if (ret < 0) {

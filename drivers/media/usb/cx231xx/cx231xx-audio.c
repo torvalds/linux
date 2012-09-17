@@ -449,9 +449,6 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 		return -ENODEV;
 	}
 
-	/* Sets volume, mute, etc */
-	dev->mute = 0;
-
 	/* set alternate setting for audio interface */
 	/* 1 - 48000 samples per sec */
 	mutex_lock(&dev->lock);
@@ -503,7 +500,6 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 		return ret;
 	}
 
-	dev->mute = 1;
 	dev->adev.users--;
 	mutex_unlock(&dev->lock);
 

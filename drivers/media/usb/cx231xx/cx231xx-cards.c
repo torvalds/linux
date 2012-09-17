@@ -846,8 +846,6 @@ void cx231xx_card_setup(struct cx231xx *dev)
 int cx231xx_config(struct cx231xx *dev)
 {
 	/* TBD need to add cx231xx specific code */
-	dev->mute = 1;		/* maybe not the right place... */
-	dev->volume = 0x1f;
 
 	return 0;
 }
