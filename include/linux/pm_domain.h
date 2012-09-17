@@ -138,35 +138,32 @@ extern int __pm_genpd_of_add_device(struct device_node *genpd_node,
 				    struct device *dev,
 				    struct gpd_timing_data *td);
 
-static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
-				      struct device *dev)
-{
-	return __pm_genpd_add_device(genpd, dev, NULL);
-}
-
-static inline int pm_genpd_of_add_device(struct device_node *genpd_node,
-					 struct device *dev)
-{
-	return __pm_genpd_of_add_device(genpd_node, dev, NULL);
-}
+extern int __pm_genpd_name_add_device(const char *domain_name,
+				      struct device *dev,
+				      struct gpd_timing_data *td);
 
 extern int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 				  struct device *dev);
 extern void pm_genpd_dev_need_restore(struct device *dev, bool val);
 extern int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 				  struct generic_pm_domain *new_subdomain);
+extern int pm_genpd_add_subdomain_names(const char *master_name,
+					const char *subdomain_name);
 extern int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 				     struct generic_pm_domain *target);
 extern int pm_genpd_add_callbacks(struct device *dev,
 				  struct gpd_dev_ops *ops,
 				  struct gpd_timing_data *td);
 extern int __pm_genpd_remove_callbacks(struct device *dev, bool clear_td);
-extern int genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state);
-extern int genpd_detach_cpuidle(struct generic_pm_domain *genpd);
+extern int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state);
+extern int pm_genpd_name_attach_cpuidle(const char *name, int state);
+extern int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd);
+extern int pm_genpd_name_detach_cpuidle(const char *name);
 extern void pm_genpd_init(struct generic_pm_domain *genpd,
 			  struct dev_power_governor *gov, bool is_off);
 
 extern int pm_genpd_poweron(struct generic_pm_domain *genpd);
+extern int pm_genpd_name_poweron(const char *domain_name);
 
 extern bool default_stop_ok(struct device *dev);
 
@@ -187,8 +184,15 @@ static inline int __pm_genpd_add_device(struct generic_pm_domain *genpd,
 {
 	return -ENOSYS;
 }
-static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
-				      struct device *dev)
+static inline int __pm_genpd_of_add_device(struct device_node *genpd_node,
+					   struct device *dev,
+					   struct gpd_timing_data *td)
+{
+	return -ENOSYS;
+}
+static inline int __pm_genpd_name_add_device(const char *domain_name,
+					     struct device *dev,
+					     struct gpd_timing_data *td)
 {
 	return -ENOSYS;
 }
@@ -200,6 +204,11 @@ static inline int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 static inline void pm_genpd_dev_need_restore(struct device *dev, bool val) {}
 static inline int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 					 struct generic_pm_domain *new_sd)
+{
+	return -ENOSYS;
+}
+static inline int pm_genpd_add_subdomain_names(const char *master_name,
+					       const char *subdomain_name)
 {
 	return -ENOSYS;
 }
@@ -218,11 +227,19 @@ static inline int __pm_genpd_remove_callbacks(struct device *dev, bool clear_td)
 {
 	return -ENOSYS;
 }
-static inline int genpd_attach_cpuidle(struct generic_pm_domain *genpd, int st)
+static inline int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int st)
 {
 	return -ENOSYS;
 }
-static inline int genpd_detach_cpuidle(struct generic_pm_domain *genpd)
+static inline int pm_genpd_name_attach_cpuidle(const char *name, int state)
+{
+	return -ENOSYS;
+}
+static inline int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd)
+{
+	return -ENOSYS;
+}
+static inline int pm_genpd_name_detach_cpuidle(const char *name)
 {
 	return -ENOSYS;
 }
@@ -234,6 +251,10 @@ static inline int pm_genpd_poweron(struct generic_pm_domain *genpd)
 {
 	return -ENOSYS;
 }
+static inline int pm_genpd_name_poweron(const char *domain_name)
+{
+	return -ENOSYS;
+}
 static inline bool default_stop_ok(struct device *dev)
 {
 	return false;
@@ -241,6 +262,24 @@ static inline bool default_stop_ok(struct device *dev)
 #define simple_qos_governor NULL
 #define pm_domain_always_on_gov NULL
 #endif
+
+static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
+				      struct device *dev)
+{
+	return __pm_genpd_add_device(genpd, dev, NULL);
+}
+
+static inline int pm_genpd_of_add_device(struct device_node *genpd_node,
+					 struct device *dev)
+{
+	return __pm_genpd_of_add_device(genpd_node, dev, NULL);
+}
+
+static inline int pm_genpd_name_add_device(const char *domain_name,
+					   struct device *dev)
+{
+	return __pm_genpd_name_add_device(domain_name, dev, NULL);
+}
 
 static inline int pm_genpd_remove_callbacks(struct device *dev)
 {
