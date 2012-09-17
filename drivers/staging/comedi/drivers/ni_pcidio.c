@@ -370,7 +370,8 @@ static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
-void ni_pcidio_event(struct comedi_device *dev, struct comedi_subdevice *s)
+static void ni_pcidio_event(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
 {
 	if (s->
 	    async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
