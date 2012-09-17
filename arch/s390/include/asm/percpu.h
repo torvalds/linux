@@ -84,6 +84,24 @@ do {									\
 #define this_cpu_cmpxchg_4(pcp, oval, nval) arch_this_cpu_cmpxchg(pcp, oval, nval)
 #define this_cpu_cmpxchg_8(pcp, oval, nval) arch_this_cpu_cmpxchg(pcp, oval, nval)
 
+#define arch_this_cpu_xchg(pcp, nval)					\
+({									\
+	typeof(pcp) *ptr__;						\
+	typeof(pcp) ret__;						\
+	preempt_disable();						\
+	ptr__ = __this_cpu_ptr(&(pcp));					\
+	ret__ = xchg(ptr__, nval);					\
+	preempt_enable();						\
+	ret__;								\
+})
+
+#define this_cpu_xchg_1(pcp, nval) arch_this_cpu_xchg(pcp, nval)
+#define this_cpu_xchg_2(pcp, nval) arch_this_cpu_xchg(pcp, nval)
+#define this_cpu_xchg_4(pcp, nval) arch_this_cpu_xchg(pcp, nval)
+#ifdef CONFIG_64BIT
+#define this_cpu_xchg_8(pcp, nval) arch_this_cpu_xchg(pcp, nval)
+#endif
+
 #include <asm-generic/percpu.h>
 
 #endif /* __ARCH_S390_PERCPU__ */
