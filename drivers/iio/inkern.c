@@ -136,12 +136,21 @@ struct iio_channel *iio_channel_get(const char *name, const char *channel_name)
 
 	channel->indio_dev = c->indio_dev;
 
-	if (c->map->adc_channel_label)
+	if (c->map->adc_channel_label) {
 		channel->channel =
 			iio_chan_spec_from_name(channel->indio_dev,
 						c->map->adc_channel_label);
 
+		if (channel->channel == NULL)
+			goto error_no_chan;
+	}
+
 	return channel;
+
+error_no_chan:
+	iio_device_put(c->indio_dev);
+	kfree(channel);
+	return ERR_PTR(-EINVAL);
 }
 EXPORT_SYMBOL_GPL(iio_channel_get);
 
