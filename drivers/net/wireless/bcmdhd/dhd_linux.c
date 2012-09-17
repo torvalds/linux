@@ -542,7 +542,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 		if (value && dhd->in_suspend) {
 
 			/* Kernel suspended */
-			DHD_ERROR(("%s: force extra Suspend setting \n", __FUNCTION__));
+			DHD_ERROR(("%s: force extra Suspend setting\n", __FUNCTION__));
 
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 			                 sizeof(power_mode), TRUE, 0);
@@ -566,7 +566,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 		} else {
 
 			/* Kernel resumed  */
-			DHD_TRACE(("%s: Remove extra suspend setting \n", __FUNCTION__));
+			DHD_ERROR(("%s: Remove extra suspend setting\n", __FUNCTION__));
 
 			power_mode = PM_FAST;
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
