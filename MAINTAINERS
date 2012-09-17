@@ -3666,11 +3666,12 @@ F:	Documentation/networking/README.ipw2200
 F:	drivers/net/wireless/ipw2x00/
 
 INTEL(R) TRUSTED EXECUTION TECHNOLOGY (TXT)
-M:	Joseph Cihula <joseph.cihula@intel.com>
+M:	Richard L Maliszewski <richard.l.maliszewski@intel.com>
+M:	Gang Wei <gang.wei@intel.com>
 M:	Shane Wang <shane.wang@intel.com>
 L:	tboot-devel@lists.sourceforge.net
 W:	http://tboot.sourceforge.net
-T:	Mercurial http://www.bughost.org/repos.hg/tboot.hg
+T:	hg http://tboot.hg.sourceforge.net:8000/hgroot/tboot/tboot
 S:	Supported
 F:	Documentation/intel_txt.txt
 F:	include/linux/tboot.h
