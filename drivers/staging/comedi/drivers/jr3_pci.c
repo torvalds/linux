@@ -362,7 +362,8 @@ static int jr3_pci_open(struct comedi_device *dev)
 	return 0;
 }
 
-int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
+static int read_idm_word(const u8 *data, size_t size, int *pos,
+			 unsigned int *val)
 {
 	int result = 0;
 	if (pos != 0 && val != 0) {
