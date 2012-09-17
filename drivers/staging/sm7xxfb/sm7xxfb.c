@@ -775,7 +775,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	struct smtcfb_info *sfb;
 	u_long smem_size = 0x00800000;	/* default 8MB */
 	int err;
-	unsigned long pFramebufferPhysical;
+	unsigned long mmio_base;
 
 	dev_info(&pdev->dev, "Silicon Motion display driver.");
 
@@ -815,21 +815,21 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		sfb->fb.var.bits_per_pixel = (smtc_scr_info.lfb_depth = 32);
 #endif
 	/* Map address and memory detection */
-	pFramebufferPhysical = pci_resource_start(pdev, 0);
+	mmio_base = pci_resource_start(pdev, 0);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &sfb->chip_rev_id);
 
 	switch (sfb->chip_id) {
 	case 0x710:
 	case 0x712:
-		sfb->fb.fix.mmio_start = pFramebufferPhysical + 0x00400000;
+		sfb->fb.fix.mmio_start = mmio_base + 0x00400000;
 		sfb->fb.fix.mmio_len = 0x00400000;
 		smem_size = SM712_VIDEOMEMORYSIZE;
 #ifdef __BIG_ENDIAN
 		sfb->lfb = (smtc_VRAMBaseAddress =
-		    ioremap(pFramebufferPhysical, 0x00c00000));
+		    ioremap(mmio_base, 0x00c00000));
 #else
 		sfb->lfb = (smtc_VRAMBaseAddress =
-		    ioremap(pFramebufferPhysical, 0x00800000));
+		    ioremap(mmio_base, 0x00800000));
 #endif
 		sfb->mmio = (smtc_RegBaseAddress =
 		    smtc_VRAMBaseAddress + 0x00700000);
@@ -865,10 +865,10 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 #endif
 		break;
 	case 0x720:
-		sfb->fb.fix.mmio_start = pFramebufferPhysical;
+		sfb->fb.fix.mmio_start = mmio_base;
 		sfb->fb.fix.mmio_len = 0x00200000;
 		smem_size = SM722_VIDEOMEMORYSIZE;
-		sfb->dp_regs = ioremap(pFramebufferPhysical, 0x00a00000);
+		sfb->dp_regs = ioremap(mmio_base, 0x00a00000);
 		sfb->lfb = (smtc_VRAMBaseAddress =
 		    sfb->dp_regs + 0x00200000);
 		sfb->mmio = (smtc_RegBaseAddress =
