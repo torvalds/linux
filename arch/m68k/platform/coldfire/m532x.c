@@ -172,7 +172,7 @@ static void __init m532x_clk_init(void)
 static void __init m532x_qspi_init(void)
 {
 	/* setup QSPS pins for QSPI with gpio CS control */
-	writew(0x01f0, MCF_GPIO_PAR_QSPI);
+	writew(0x01f0, MCFGPIO_PAR_QSPI);
 }
 
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
@@ -182,18 +182,24 @@ static void __init m532x_qspi_init(void)
 static void __init m532x_uarts_init(void)
 {
 	/* UART GPIO initialization */
-	MCF_GPIO_PAR_UART |= 0x0FFF;
+	writew(readw(MCFGPIO_PAR_UART) | 0x0FFF, MCFGPIO_PAR_UART);
 }
 
 /***************************************************************************/
 
 static void __init m532x_fec_init(void)
 {
+	u8 v;
+
 	/* Set multi-function pins to ethernet mode for fec0 */
-	MCF_GPIO_PAR_FECI2C |= (MCF_GPIO_PAR_FECI2C_PAR_MDC_EMDC |
-		MCF_GPIO_PAR_FECI2C_PAR_MDIO_EMDIO);
-	MCF_GPIO_PAR_FEC = (MCF_GPIO_PAR_FEC_PAR_FEC_7W_FEC |
-		MCF_GPIO_PAR_FEC_PAR_FEC_MII_FEC);
+	v = readb(MCFGPIO_PAR_FECI2C);
+	v |= MCF_GPIO_PAR_FECI2C_PAR_MDC_EMDC |
+		MCF_GPIO_PAR_FECI2C_PAR_MDIO_EMDIO;
+	writeb(v, MCFGPIO_PAR_FECI2C);
+
+	v = readb(MCFGPIO_PAR_FEC);
+	v = MCF_GPIO_PAR_FEC_PAR_FEC_7W_FEC | MCF_GPIO_PAR_FEC_PAR_FEC_MII_FEC;
+	writeb(v, MCFGPIO_PAR_FEC);
 }
 
 /***************************************************************************/
@@ -325,7 +331,7 @@ void scm_init(void)
 
 void fbcs_init(void)
 {
-	MCF_GPIO_PAR_CS = 0x0000003E;
+	writeb(0x3E, MCFGPIO_PAR_CS);
 
 	/* Latch chip select */
 	MCF_FBCS1_CSAR = 0x10080000;
@@ -448,16 +454,16 @@ void sdramc_init(void)
 void gpio_init(void)
 {
 	/* Enable UART0 pins */
-	MCF_GPIO_PAR_UART = ( 0
-		| MCF_GPIO_PAR_UART_PAR_URXD0
-		| MCF_GPIO_PAR_UART_PAR_UTXD0);
+	writew(MCF_GPIO_PAR_UART_PAR_URXD0 | MCF_GPIO_PAR_UART_PAR_UTXD0,
+		MCFGPIO_PAR_UART);
 
-	/* Initialize TIN3 as a GPIO output to enable the write
-	   half of the latch */
-	MCF_GPIO_PAR_TIMER = 0x00;
-	__raw_writeb(0x08, MCFGPIO_PDDR_TIMER);
-	__raw_writeb(0x00, MCFGPIO_PCLRR_TIMER);
-
+	/*
+	 * Initialize TIN3 as a GPIO output to enable the write
+	 * half of the latch.
+	 */
+	writeb(0x00, MCFGPIO_PAR_TIMER);
+	writeb(0x08, MCFGPIO_PDDR_TIMER);
+	writeb(0x00, MCFGPIO_PCLRR_TIMER);
 }
 
 int clock_pll(int fsys, int flags)
