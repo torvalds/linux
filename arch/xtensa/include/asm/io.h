@@ -67,12 +67,12 @@ static inline void * phys_to_virt(unsigned long address)
  * Return the virtual (cached) address for the specified bus memory.
  * Note that we currently don't support any address outside the KIO segment.
  */
-
-static inline void *ioremap(unsigned long offset, unsigned long size)
+static inline void __iomem *ioremap_nocache(unsigned long offset,
+		unsigned long size)
 {
 #ifdef CONFIG_MMU
 	if (offset >= XCHAL_KIO_PADDR
-	    && offset < XCHAL_KIO_PADDR + XCHAL_KIO_SIZE)
+	    && offset - XCHAL_KIO_PADDR < XCHAL_KIO_SIZE)
 		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_BYPASS_VADDR);
 	else
 		BUG();
@@ -81,11 +81,12 @@ static inline void *ioremap(unsigned long offset, unsigned long size)
 #endif
 }
 
-static inline void *ioremap_nocache(unsigned long offset, unsigned long size)
+static inline void __iomem *ioremap_cache(unsigned long offset,
+		unsigned long size)
 {
 #ifdef CONFIG_MMU
 	if (offset >= XCHAL_KIO_PADDR
-	    && offset < XCHAL_KIO_PADDR + XCHAL_KIO_SIZE)
+	    && offset - XCHAL_KIO_PADDR < XCHAL_KIO_SIZE)
 		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_CACHED_VADDR);
 	else
 		BUG();
@@ -94,7 +95,14 @@ static inline void *ioremap_nocache(unsigned long offset, unsigned long size)
 #endif
 }
 
-static inline void iounmap(void *addr)
+#define ioremap_wc ioremap_nocache
+
+static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
+{
+	return ioremap_nocache(offset, size);
+}
+
+static inline void iounmap(volatile void __iomem *addr)
 {
 }
 
