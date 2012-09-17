@@ -1891,12 +1891,6 @@ config CC_STACKPROTECTOR
 	  neutralized via a kernel panic.
 	  This feature requires gcc version 4.2 or above.
 
-config DEPRECATED_PARAM_STRUCT
-	bool "Provide old way to pass kernel parameters"
-	help
-	  This was deprecated in 2001 and announced to live on for 5 years.
-	  Some old boot loaders still use this way.
-
 endmenu
 
 menu "Boot options"
@@ -1908,6 +1902,23 @@ config USE_OF
 	select IRQ_DOMAIN
 	help
 	  Include support for flattened device tree machine descriptions.
+
+config ATAGS
+	bool "Support for the traditional ATAGS boot data passing" if USE_OF
+	default y
+	help
+	  This is the traditional way of passing data to the kernel at boot
+	  time. If you are solely relying on the flattened device tree (or
+	  the ARM_ATAG_DTB_COMPAT option) then you may unselect this option
+	  to remove ATAGS support from your kernel binary.  If unsure,
+	  leave this to y.
+
+config DEPRECATED_PARAM_STRUCT
+	bool "Provide old way to pass kernel parameters"
+	depends on ATAGS
+	help
+	  This was deprecated in 2001 and announced to live on for 5 years.
+	  Some old boot loaders still use this way.
 
 # Compressed boot loader in ROM.  Yes, we really want to ask about
 # TEXT and BSS so we preserve their values in the config files.
@@ -2035,6 +2046,7 @@ config CMDLINE
 choice
 	prompt "Kernel command line type" if CMDLINE != ""
 	default CMDLINE_FROM_BOOTLOADER
+	depends on ATAGS
 
 config CMDLINE_FROM_BOOTLOADER
 	bool "Use bootloader kernel arguments if available"
@@ -2104,7 +2116,7 @@ config KEXEC
 
 config ATAGS_PROC
 	bool "Export atags in procfs"
-	depends on KEXEC
+	depends on ATAGS && KEXEC
 	default y
 	help
 	  Should the atags used to boot the kernel be exported in an "atags"
