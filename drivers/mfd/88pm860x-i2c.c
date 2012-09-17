@@ -88,8 +88,18 @@ static int read_device(struct i2c_client *i2c, int reg,
 	unsigned char msgbuf0[I2C_SMBUS_BLOCK_MAX + 3];
 	unsigned char msgbuf1[I2C_SMBUS_BLOCK_MAX + 2];
 	struct i2c_adapter *adap = i2c->adapter;
-	struct i2c_msg msg[2] = {{i2c->addr, 0, 1, msgbuf0},
-				 {i2c->addr, I2C_M_RD, 0, msgbuf1},
+	struct i2c_msg msg[2] = {
+					{
+						.addr = i2c->addr,
+						.flags = 0,
+						.len = 1,
+						.buf = msgbuf0
+					},
+					{	.addr = i2c->addr,
+						.flags = I2C_M_RD,
+						.len = 0,
+						.buf = msgbuf1
+					},
 				};
 	int num = 1, ret = 0;
 
