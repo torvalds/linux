@@ -18,20 +18,16 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/max8925.h>
 
-static struct resource backlight_resources[] = {
-	{
-		.name	= "max8925-backlight",
-		.start	= MAX8925_WLED_MODE_CNTL,
-		.end	= MAX8925_WLED_CNTL,
-		.flags	= IORESOURCE_REG,
-	},
+static struct resource bk_resources[] __devinitdata = {
+	{ 0x84, 0x84, "mode control", IORESOURCE_REG, },
+	{ 0x85, 0x85, "control",      IORESOURCE_REG, },
 };
 
-static struct mfd_cell backlight_devs[] = {
+static struct mfd_cell bk_devs[] __devinitdata = {
 	{
 		.name		= "max8925-backlight",
-		.num_resources	= 1,
-		.resources	= &backlight_resources[0],
+		.num_resources	= ARRAY_SIZE(bk_resources),
+		.resources	= &bk_resources[0],
 		.id		= -1,
 	},
 };
@@ -623,13 +619,14 @@ int __devinit max8925_device_init(struct max8925_chip *chip,
 	}
 
 	if (pdata && pdata->backlight) {
-		ret = mfd_add_devices(chip->dev, 0, &backlight_devs[0],
-				      ARRAY_SIZE(backlight_devs),
-				      &backlight_resources[0], 0, NULL);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add backlight subdev\n");
-			goto out_dev;
-		}
+		bk_devs[0].platform_data = &pdata->backlight;
+		bk_devs[0].pdata_size = sizeof(struct max8925_backlight_pdata);
+	}
+	ret = mfd_add_devices(chip->dev, 0, bk_devs, ARRAY_SIZE(bk_devs),
+			      NULL, 0, NULL);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add backlight subdev\n");
+		goto out_dev;
 	}
 
 	if (pdata && pdata->power) {
