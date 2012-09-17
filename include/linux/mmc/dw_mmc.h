@@ -227,7 +227,7 @@ struct dw_mci_board {
 	u32 num_slots;
 
 	u32 quirks; /* Workaround / Quirk flags */
-	unsigned int bus_hz; /* Bus speed */
+	unsigned int bus_hz; /* Clock speed at the cclk_in pad */
 
 	unsigned int caps;	/* Capabilities */
 	unsigned int caps2;	/* More capabilities */
