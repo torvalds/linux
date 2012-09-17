@@ -1749,7 +1749,10 @@ int ubifs_lpt_init(struct ubifs_info *c, int rd, int wr)
 	return 0;
 
 out_err:
-	ubifs_lpt_free(c, 0);
+	if (wr)
+		ubifs_lpt_free(c, 1);
+	if (rd)
+		ubifs_lpt_free(c, 0);
 	return err;
 }
 

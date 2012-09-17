@@ -15,6 +15,8 @@
 #define MV643XX_ETH_SIZE_REG_4		0x2224
 #define MV643XX_ETH_BASE_ADDR_ENABLE_REG	0x2290
 
+#define MV643XX_TX_CSUM_DEFAULT_LIMIT	0
+
 struct mv643xx_eth_shared_platform_data {
 	struct mbus_dram_target_info	*dram;
 	struct platform_device	*shared_smi;
