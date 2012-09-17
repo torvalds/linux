@@ -125,12 +125,6 @@ static int sharp_ls_power_on(struct omap_dss_device *dssdev)
 	/* wait couple of vsyncs until enabling the LCD */
 	msleep(50);
 
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			goto err1;
-	}
-
 	if (gpio_is_valid(pd->resb_gpio))
 		gpio_set_value_cansleep(pd->resb_gpio, 1);
 
@@ -138,8 +132,6 @@ static int sharp_ls_power_on(struct omap_dss_device *dssdev)
 		gpio_set_value_cansleep(pd->ini_gpio, 1);
 
 	return 0;
-err1:
-	omapdss_dpi_display_disable(dssdev);
 err0:
 	return r;
 }
@@ -156,9 +148,6 @@ static void sharp_ls_power_off(struct omap_dss_device *dssdev)
 
 	if (gpio_is_valid(pd->resb_gpio))
 		gpio_set_value_cansleep(pd->resb_gpio, 0);
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
 
 	/* wait at least 5 vsyncs after disabling the LCD */
 
