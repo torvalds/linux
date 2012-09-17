@@ -585,7 +585,8 @@ static void handler_balance_board(struct wiimote_ext *ext, const __u8 *payload)
 		} else {
 			tmp = val[i] - ext->calib[i][1];
 			tmp *= 1700;
-			tmp /= ext->calib[i][2] - ext->calib[i][1] + 1700;
+			tmp /= ext->calib[i][2] - ext->calib[i][1];
+			tmp += 1700;
 		}
 		val[i] = tmp;
 	}
