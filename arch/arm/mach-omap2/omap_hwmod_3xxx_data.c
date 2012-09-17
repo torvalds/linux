@@ -3683,6 +3683,7 @@ static struct omap_hwmod_ocp_if *am35xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_core__usb_tll_hs,
 	&omap3xxx_l4_core__es3plus_mmc1,
 	&omap3xxx_l4_core__es3plus_mmc2,
+	&omap3xxx_l4_core__hdq1w,
 	&am35xx_mdio__l3,
 	&am35xx_l4_core__mdio,
 	&am35xx_emac__l3,
