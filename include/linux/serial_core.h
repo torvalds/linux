@@ -193,8 +193,8 @@
 /* SH-SCI */
 #define PORT_SCIFB	93
 
-/* MAX3107 */
-#define PORT_MAX3107	94
+/* MAX310X */
+#define PORT_MAX310X	94
 
 /* High Speed UART for Medfield */
 #define PORT_MFD	95

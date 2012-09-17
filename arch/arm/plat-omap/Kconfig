@@ -25,6 +25,7 @@ config ARCH_OMAP2PLUS
 	bool "TI OMAP2/3/4"
 	select CLKDEV_LOOKUP
 	select GENERIC_IRQ_CHIP
+	select SPARSE_IRQ
 	select OMAP_DM_TIMER
 	select USE_OF
 	select PROC_DEVICETREE if PROC_FS

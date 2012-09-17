@@ -139,18 +139,20 @@
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 
-#include "common.h"
-#include <plat/cpu.h>
-#include "clockdomain.h"
-#include "powerdomain.h"
 #include <plat/clock.h>
 #include <plat/omap_hwmod.h>
 #include <plat/prcm.h>
 
+#include "soc.h"
+#include "common.h"
+#include "clockdomain.h"
+#include "powerdomain.h"
 #include "cm2xxx_3xxx.h"
 #include "cminst44xx.h"
+#include "cm33xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
+#include "prm33xx.h"
 #include "prminst44xx.h"
 #include "mux.h"
 #include "pm.h"
@@ -868,6 +870,26 @@ static void _omap4_enable_module(struct omap_hwmod *oh)
 }
 
 /**
+ * _am33xx_enable_module - enable CLKCTRL modulemode on AM33XX
+ * @oh: struct omap_hwmod *
+ *
+ * Enables the PRCM module mode related to the hwmod @oh.
+ * No return value.
+ */
+static void _am33xx_enable_module(struct omap_hwmod *oh)
+{
+	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
+		return;
+
+	pr_debug("omap_hwmod: %s: %s: %d\n",
+		 oh->name, __func__, oh->prcm.omap4.modulemode);
+
+	am33xx_cm_module_enable(oh->prcm.omap4.modulemode, oh->clkdm->cm_inst,
+				oh->clkdm->clkdm_offs,
+				oh->prcm.omap4.clkctrl_offs);
+}
+
+/**
  * _omap4_wait_target_disable - wait for a module to be disabled on OMAP4
  * @oh: struct omap_hwmod *
  *
@@ -889,6 +911,31 @@ static int _omap4_wait_target_disable(struct omap_hwmod *oh)
 
 	return omap4_cminst_wait_module_idle(oh->clkdm->prcm_partition,
 					     oh->clkdm->cm_inst,
+					     oh->clkdm->clkdm_offs,
+					     oh->prcm.omap4.clkctrl_offs);
+}
+
+/**
+ * _am33xx_wait_target_disable - wait for a module to be disabled on AM33XX
+ * @oh: struct omap_hwmod *
+ *
+ * Wait for a module @oh to enter slave idle.  Returns 0 if the module
+ * does not have an IDLEST bit or if the module successfully enters
+ * slave idle; otherwise, pass along the return value of the
+ * appropriate *_cm*_wait_module_idle() function.
+ */
+static int _am33xx_wait_target_disable(struct omap_hwmod *oh)
+{
+	if (!oh)
+		return -EINVAL;
+
+	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
+		return 0;
+
+	if (oh->flags & HWMOD_NO_IDLEST)
+		return 0;
+
+	return am33xx_cm_wait_module_idle(oh->clkdm->cm_inst,
 					     oh->clkdm->clkdm_offs,
 					     oh->prcm.omap4.clkctrl_offs);
 }
@@ -1606,6 +1653,36 @@ static int _omap4_disable_module(struct omap_hwmod *oh)
 		return 0;
 
 	v = _omap4_wait_target_disable(oh);
+	if (v)
+		pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
+			oh->name);
+
+	return 0;
+}
+
+/**
+ * _am33xx_disable_module - enable CLKCTRL modulemode on AM33XX
+ * @oh: struct omap_hwmod *
+ *
+ * Disable the PRCM module mode related to the hwmod @oh.
+ * Return EINVAL if the modulemode is not supported and 0 in case of success.
+ */
+static int _am33xx_disable_module(struct omap_hwmod *oh)
+{
+	int v;
+
+	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
+		return -EINVAL;
+
+	pr_debug("omap_hwmod: %s: %s\n", oh->name, __func__);
+
+	am33xx_cm_module_disable(oh->clkdm->cm_inst, oh->clkdm->clkdm_offs,
+				 oh->prcm.omap4.clkctrl_offs);
+
+	if (_are_any_hardreset_lines_asserted(oh))
+		return 0;
+
+	v = _am33xx_wait_target_disable(oh);
 	if (v)
 		pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
 			oh->name);
@@ -2548,6 +2625,33 @@ static int _omap4_wait_target_ready(struct omap_hwmod *oh)
 }
 
 /**
+ * _am33xx_wait_target_ready - wait for a module to leave slave idle
+ * @oh: struct omap_hwmod *
+ *
+ * Wait for a module @oh to leave slave idle.  Returns 0 if the module
+ * does not have an IDLEST bit or if the module successfully leaves
+ * slave idle; otherwise, pass along the return value of the
+ * appropriate *_cm*_wait_module_ready() function.
+ */
+static int _am33xx_wait_target_ready(struct omap_hwmod *oh)
+{
+	if (!oh || !oh->clkdm)
+		return -EINVAL;
+
+	if (oh->flags & HWMOD_NO_IDLEST)
+		return 0;
+
+	if (!_find_mpu_rt_port(oh))
+		return 0;
+
+	/* XXX check module SIDLEMODE, hardreset status */
+
+	return am33xx_cm_wait_module_ready(oh->clkdm->cm_inst,
+					      oh->clkdm->clkdm_offs,
+					      oh->prcm.omap4.clkctrl_offs);
+}
+
+/**
  * _omap2_assert_hardreset - call OMAP2 PRM hardreset fn with hwmod args
  * @oh: struct omap_hwmod * to assert hardreset
  * @ohri: hardreset line data
@@ -2674,6 +2778,72 @@ static int _omap4_is_hardreset_asserted(struct omap_hwmod *oh,
 
 	return omap4_prminst_is_hardreset_asserted(ohri->rst_shift,
 				oh->clkdm->pwrdm.ptr->prcm_partition,
+				oh->clkdm->pwrdm.ptr->prcm_offs,
+				oh->prcm.omap4.rstctrl_offs);
+}
+
+/**
+ * _am33xx_assert_hardreset - call AM33XX PRM hardreset fn with hwmod args
+ * @oh: struct omap_hwmod * to assert hardreset
+ * @ohri: hardreset line data
+ *
+ * Call am33xx_prminst_assert_hardreset() with parameters extracted
+ * from the hwmod @oh and the hardreset line data @ohri.  Only
+ * intended for use as an soc_ops function pointer.  Passes along the
+ * return value from am33xx_prminst_assert_hardreset().  XXX This
+ * function is scheduled for removal when the PRM code is moved into
+ * drivers/.
+ */
+static int _am33xx_assert_hardreset(struct omap_hwmod *oh,
+				   struct omap_hwmod_rst_info *ohri)
+
+{
+	return am33xx_prm_assert_hardreset(ohri->rst_shift,
+				oh->clkdm->pwrdm.ptr->prcm_offs,
+				oh->prcm.omap4.rstctrl_offs);
+}
+
+/**
+ * _am33xx_deassert_hardreset - call AM33XX PRM hardreset fn with hwmod args
+ * @oh: struct omap_hwmod * to deassert hardreset
+ * @ohri: hardreset line data
+ *
+ * Call am33xx_prminst_deassert_hardreset() with parameters extracted
+ * from the hwmod @oh and the hardreset line data @ohri.  Only
+ * intended for use as an soc_ops function pointer.  Passes along the
+ * return value from am33xx_prminst_deassert_hardreset().  XXX This
+ * function is scheduled for removal when the PRM code is moved into
+ * drivers/.
+ */
+static int _am33xx_deassert_hardreset(struct omap_hwmod *oh,
+				     struct omap_hwmod_rst_info *ohri)
+{
+	if (ohri->st_shift)
+		pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
+		       oh->name, ohri->name);
+
+	return am33xx_prm_deassert_hardreset(ohri->rst_shift,
+				oh->clkdm->pwrdm.ptr->prcm_offs,
+				oh->prcm.omap4.rstctrl_offs,
+				oh->prcm.omap4.rstst_offs);
+}
+
+/**
+ * _am33xx_is_hardreset_asserted - call AM33XX PRM hardreset fn with hwmod args
+ * @oh: struct omap_hwmod * to test hardreset
+ * @ohri: hardreset line data
+ *
+ * Call am33xx_prminst_is_hardreset_asserted() with parameters
+ * extracted from the hwmod @oh and the hardreset line data @ohri.
+ * Only intended for use as an soc_ops function pointer.  Passes along
+ * the return value from am33xx_prminst_is_hardreset_asserted().  XXX
+ * This function is scheduled for removal when the PRM code is moved
+ * into drivers/.
+ */
+static int _am33xx_is_hardreset_asserted(struct omap_hwmod *oh,
+					struct omap_hwmod_rst_info *ohri)
+{
+	return am33xx_prm_is_hardreset_asserted(ohri->rst_shift,
 				oh->clkdm->pwrdm.ptr->prcm_offs,
 				oh->prcm.omap4.rstctrl_offs);
 }
@@ -3676,6 +3846,14 @@ void __init omap_hwmod_init(void)
 		soc_ops.assert_hardreset = _omap4_assert_hardreset;
 		soc_ops.deassert_hardreset = _omap4_deassert_hardreset;
 		soc_ops.is_hardreset_asserted = _omap4_is_hardreset_asserted;
+		soc_ops.init_clkdm = _init_clkdm;
+	} else if (soc_is_am33xx()) {
+		soc_ops.enable_module = _am33xx_enable_module;
+		soc_ops.disable_module = _am33xx_disable_module;
+		soc_ops.wait_target_ready = _am33xx_wait_target_ready;
+		soc_ops.assert_hardreset = _am33xx_assert_hardreset;
+		soc_ops.deassert_hardreset = _am33xx_deassert_hardreset;
+		soc_ops.is_hardreset_asserted = _am33xx_is_hardreset_asserted;
 		soc_ops.init_clkdm = _init_clkdm;
 	} else {
 		WARN(1, "omap_hwmod: unknown SoC type\n");

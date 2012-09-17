@@ -2202,6 +2202,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval, fcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
+	int fifo_bug = 0;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -2221,8 +2222,11 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if (termios->c_cflag & CSTOPB)
 		cval |= UART_LCR_STOP;
-	if (termios->c_cflag & PARENB)
+	if (termios->c_cflag & PARENB) {
 		cval |= UART_LCR_PARITY;
+		if (up->bugs & UART_BUG_PARITY)
+			fifo_bug = 1;
+	}
 	if (!(termios->c_cflag & PARODD))
 		cval |= UART_LCR_EPAR;
 #ifdef CMSPAR
@@ -2246,7 +2250,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
 		fcr = uart_config[port->type].fcr;
-		if (baud < 2400) {
+		if (baud < 2400 || fifo_bug) {
 			fcr &= ~UART_FCR_TRIGGER_MASK;
 			fcr |= UART_FCR_TRIGGER_1;
 		}
@@ -2336,7 +2340,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 			serial_port_out(port, UART_EFR, efr);
 	}
 
-#ifdef CONFIG_ARCH_OMAP
+#ifdef CONFIG_ARCH_OMAP1
 	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
 	if (cpu_is_omap1510() && is_omap_port(up)) {
 		if (baud == 115200) {
@@ -2426,7 +2430,7 @@ static unsigned int serial8250_port_size(struct uart_8250_port *pt)
 {
 	if (pt->port.iotype == UPIO_AU)
 		return 0x1000;
-#ifdef CONFIG_ARCH_OMAP
+#ifdef CONFIG_ARCH_OMAP1
 	if (is_omap_port(pt))
 		return 0x16 << pt->port.regshift;
 #endif
@@ -2979,36 +2983,36 @@ void serial8250_resume_port(int line)
 static int __devinit serial8250_probe(struct platform_device *dev)
 {
 	struct plat_serial8250_port *p = dev->dev.platform_data;
-	struct uart_port port;
+	struct uart_8250_port uart;
 	int ret, i, irqflag = 0;
 
-	memset(&port, 0, sizeof(struct uart_port));
+	memset(&uart, 0, sizeof(uart));
 
 	if (share_irqs)
 		irqflag = IRQF_SHARED;
 
 	for (i = 0; p && p->flags != 0; p++, i++) {
-		port.iobase		= p->iobase;
-		port.membase		= p->membase;
-		port.irq		= p->irq;
-		port.irqflags		= p->irqflags;
-		port.uartclk		= p->uartclk;
-		port.regshift		= p->regshift;
-		port.iotype		= p->iotype;
-		port.flags		= p->flags;
-		port.mapbase		= p->mapbase;
-		port.hub6		= p->hub6;
-		port.private_data	= p->private_data;
-		port.type		= p->type;
-		port.serial_in		= p->serial_in;
-		port.serial_out		= p->serial_out;
-		port.handle_irq		= p->handle_irq;
-		port.handle_break	= p->handle_break;
-		port.set_termios	= p->set_termios;
-		port.pm			= p->pm;
-		port.dev		= &dev->dev;
-		port.irqflags		|= irqflag;
-		ret = serial8250_register_port(&port);
+		uart.port.iobase	= p->iobase;
+		uart.port.membase	= p->membase;
+		uart.port.irq		= p->irq;
+		uart.port.irqflags	= p->irqflags;
+		uart.port.uartclk	= p->uartclk;
+		uart.port.regshift	= p->regshift;
+		uart.port.iotype	= p->iotype;
+		uart.port.flags		= p->flags;
+		uart.port.mapbase	= p->mapbase;
+		uart.port.hub6		= p->hub6;
+		uart.port.private_data	= p->private_data;
+		uart.port.type		= p->type;
+		uart.port.serial_in	= p->serial_in;
+		uart.port.serial_out	= p->serial_out;
+		uart.port.handle_irq	= p->handle_irq;
+		uart.port.handle_break	= p->handle_break;
+		uart.port.set_termios	= p->set_termios;
+		uart.port.pm		= p->pm;
+		uart.port.dev		= &dev->dev;
+		uart.port.irqflags	|= irqflag;
+		ret = serial8250_register_8250_port(&uart);
 		if (ret < 0) {
 			dev_err(&dev->dev, "unable to register port at index %d "
 				"(IO%lx MEM%llx IRQ%d): %d\n", i,
@@ -3081,7 +3085,7 @@ static struct platform_driver serial8250_isa_driver = {
 static struct platform_device *serial8250_isa_devs;
 
 /*
- * serial8250_register_port and serial8250_unregister_port allows for
+ * serial8250_register_8250_port and serial8250_unregister_port allows for
  * 16x50 serial ports to be configured at run-time, to support PCMCIA
  * modems and PCI multiport cards.
  */
@@ -3155,6 +3159,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.regshift     = up->port.regshift;
 		uart->port.iotype       = up->port.iotype;
 		uart->port.flags        = up->port.flags | UPF_BOOT_AUTOCONF;
+		uart->bugs		= up->bugs;
 		uart->port.mapbase      = up->port.mapbase;
 		uart->port.private_data = up->port.private_data;
 		if (up->port.dev)
@@ -3196,29 +3201,6 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 	return ret;
 }
 EXPORT_SYMBOL(serial8250_register_8250_port);
-
-/**
- *	serial8250_register_port - register a serial port
- *	@port: serial port template
- *
- *	Configure the serial port specified by the request. If the
- *	port exists and is in use, it is hung up and unregistered
- *	first.
- *
- *	The port is then probed and if necessary the IRQ is autodetected
- *	If this fails an error is returned.
- *
- *	On success the port is ready to use and the line number is returned.
- */
-int serial8250_register_port(struct uart_port *port)
-{
-	struct uart_8250_port up;
-
-	memset(&up, 0, sizeof(up));
-	memcpy(&up.port, port, sizeof(*port));
-	return serial8250_register_8250_port(&up);
-}
-EXPORT_SYMBOL(serial8250_register_port);
 
 /**
  *	serial8250_unregister_port - remove a 16x50 serial port at runtime

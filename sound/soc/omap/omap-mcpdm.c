@@ -45,6 +45,8 @@
 #include "omap-mcpdm.h"
 #include "omap-pcm.h"
 
+#define OMAP44XX_MCPDM_L3_BASE		0x49032000
+
 struct omap_mcpdm {
 	struct device *dev;
 	unsigned long phys_base;

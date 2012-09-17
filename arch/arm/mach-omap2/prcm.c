@@ -27,7 +27,6 @@
 
 #include "common.h"
 #include <plat/prcm.h>
-#include <plat/irqs.h>
 
 #include "clock.h"
 #include "clock2xxx.h"

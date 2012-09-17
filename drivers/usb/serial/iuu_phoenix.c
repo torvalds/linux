@@ -921,7 +921,7 @@ static void iuu_set_termios(struct tty_struct *tty,
 {
 	const u32 supported_mask = CMSPAR|PARENB|PARODD;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
-	unsigned int cflag = tty->termios->c_cflag;
+	unsigned int cflag = tty->termios.c_cflag;
 	int status;
 	u32 actual;
 	u32 parity;
@@ -930,7 +930,7 @@ static void iuu_set_termios(struct tty_struct *tty,
 	u32 newval = cflag & supported_mask;
 
 	/* Just use the ospeed. ispeed should be the same. */
-	baud = tty->termios->c_ospeed;
+	baud = tty->termios.c_ospeed;
 
 	dbg("%s - enter c_ospeed or baud=%d", __func__, baud);
 
@@ -961,13 +961,13 @@ static void iuu_set_termios(struct tty_struct *tty,
 	 * settings back over and then adjust them
 	 */
 	if (old_termios)
-		tty_termios_copy_hw(tty->termios, old_termios);
+		tty_termios_copy_hw(&tty->termios, old_termios);
 	if (status != 0)	/* Set failed - return old bits */
 		return;
 	/* Re-encode speed, parity and csize */
 	tty_encode_baud_rate(tty, baud, baud);
-	tty->termios->c_cflag &= ~(supported_mask|CSIZE);
-	tty->termios->c_cflag |= newval | csize;
+	tty->termios.c_cflag &= ~(supported_mask|CSIZE);
+	tty->termios.c_cflag |= newval | csize;
 }
 
 static void iuu_close(struct usb_serial_port *port)
@@ -993,14 +993,14 @@ static void iuu_close(struct usb_serial_port *port)
 
 static void iuu_init_termios(struct tty_struct *tty)
 {
-	*(tty->termios) = tty_std_termios;
-	tty->termios->c_cflag = CLOCAL | CREAD | CS8 | B9600
+	tty->termios = tty_std_termios;
+	tty->termios.c_cflag = CLOCAL | CREAD | CS8 | B9600
 				| TIOCM_CTS | CSTOPB | PARENB;
-	tty->termios->c_ispeed = 9600;
-	tty->termios->c_ospeed = 9600;
-	tty->termios->c_lflag = 0;
-	tty->termios->c_oflag = 0;
-	tty->termios->c_iflag = 0;
+	tty->termios.c_ispeed = 9600;
+	tty->termios.c_ospeed = 9600;
+	tty->termios.c_lflag = 0;
+	tty->termios.c_oflag = 0;
+	tty->termios.c_iflag = 0;
 }
 
 static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -1012,8 +1012,8 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 	u32 actual;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 
-	baud = tty->termios->c_ospeed;
-	tty->termios->c_ispeed = baud;
+	baud = tty->termios.c_ospeed;
+	tty->termios.c_ispeed = baud;
 	/* Re-encode speed */
 	tty_encode_baud_rate(tty, baud, baud);
 

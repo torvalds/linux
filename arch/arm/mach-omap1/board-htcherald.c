@@ -41,8 +41,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <plat/omap7xx.h>
-#include <plat/board.h>
+#include <mach/omap7xx.h>
 #include <plat/keypad.h>
 #include <plat/mmc.h>
 

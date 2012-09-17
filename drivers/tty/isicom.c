@@ -600,7 +600,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 					port->status &= ~ISI_DCD;
 			}
 
-			if (port->port.flags & ASYNC_CTS_FLOW) {
+			if (tty_port_cts_enabled(&port->port)) {
 				if (tty->hw_stopped) {
 					if (header & ISI_CTS) {
 						port->port.tty->hw_stopped = 0;
@@ -702,7 +702,7 @@ static void isicom_config_port(struct tty_struct *tty)
 
 		/* 1,2,3,4 => 57.6, 115.2, 230, 460 kbps resp. */
 		if (baud < 1 || baud > 4)
-			tty->termios->c_cflag &= ~CBAUDEX;
+			tty->termios.c_cflag &= ~CBAUDEX;
 		else
 			baud += 15;
 	}
@@ -1196,8 +1196,8 @@ static void isicom_set_termios(struct tty_struct *tty,
 	if (isicom_paranoia_check(port, tty->name, "isicom_set_termios"))
 		return;
 
-	if (tty->termios->c_cflag == old_termios->c_cflag &&
-			tty->termios->c_iflag == old_termios->c_iflag)
+	if (tty->termios.c_cflag == old_termios->c_cflag &&
+			tty->termios.c_iflag == old_termios->c_iflag)
 		return;
 
 	spin_lock_irqsave(&port->card->card_lock, flags);
@@ -1205,7 +1205,7 @@ static void isicom_set_termios(struct tty_struct *tty,
 	spin_unlock_irqrestore(&port->card->card_lock, flags);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
-			!(tty->termios->c_cflag & CRTSCTS)) {
+			!(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		isicom_start(tty);
 	}
@@ -1611,7 +1611,8 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 		goto errunri;
 
 	for (index = 0; index < board->port_count; index++)
-		tty_register_device(isicom_normal, board->index * 16 + index,
+		tty_port_register_device(&board->ports[index].port,
+				isicom_normal, board->index * 16 + index,
 				&pdev->dev);
 
 	return 0;
