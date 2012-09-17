@@ -1,5 +1,6 @@
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2004
+ *   Portions Copyright (C) Tino Reichardt, 2012
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -25,6 +26,7 @@
 #include "jfs_lock.h"
 #include "jfs_metapage.h"
 #include "jfs_debug.h"
+#include "jfs_discard.h"
 
 /*
  *	SERIALIZATION of the Block Allocation Map.
@@ -104,7 +106,6 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 		      int nblocks);
 static int dbMaxBud(u8 * cp);
-s64 dbMapFileSizeToMapSize(struct inode *ipbmap);
 static int blkstol2(s64 nb);
 
 static int cntlz(u32 value);
@@ -144,7 +145,6 @@ static const s8 budtab[256] = {
 	2, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
 	2, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1
 };
-
 
 /*
  * NAME:	dbMount()
@@ -310,7 +310,6 @@ int dbSync(struct inode *ipbmap)
 	return (0);
 }
 
-
 /*
  * NAME:	dbFree()
  *
@@ -337,6 +336,7 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
 	s64 lblkno, rem;
 	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
+	struct super_block *sb = ipbmap->i_sb;
 
 	IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
 
@@ -350,6 +350,13 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
 			  "dbFree: block to be freed is outside the map");
 		return -EIO;
 	}
+
+	/**
+	 * TRIM the blocks, when mounted with discard option
+	 */
+	if (JFS_SBI(sb)->flag & JFS_DISCARD)
+		if (JFS_SBI(sb)->minblks_trim <= nblocks)
+			jfs_issue_discard(ipbmap, blkno, nblocks);
 
 	/*
 	 * free the blocks a dmap at a time.
@@ -1095,7 +1102,6 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
 		/* we were not successful */
 		release_metapage(mp);
 
-
 	return (rc);
 }
 
@@ -1588,6 +1594,117 @@ static int dbAllocAny(struct bmap * bmp, s64 nblocks, int l2nb, s64 * results)
 	return (rc);
 }
 
+
+/*
+ * NAME:	dbDiscardAG()
+ *
+ * FUNCTION:	attempt to discard (TRIM) all free blocks of specific AG
+ *
+ *		algorithm:
+ *		1) allocate blocks, as large as possible and save them
+ *		   while holding IWRITE_LOCK on ipbmap
+ *		2) trim all these saved block/length values
+ *		3) mark the blocks free again
+ *
+ *		benefit:
+ *		- we work only on one ag at some time, minimizing how long we
+ *		  need to lock ipbmap
+ *		- reading / writing the fs is possible most time, even on
+ *		  trimming
+ *
+ *		downside:
+ *		- we write two times to the dmapctl and dmap pages
+ *		- but for me, this seems the best way, better ideas?
+ *		/TR 2012
+ *
+ * PARAMETERS:
+ *	ip	- pointer to in-core inode
+ *	agno	- ag to trim
+ *	minlen	- minimum value of contiguous blocks
+ *
+ * RETURN VALUES:
+ *	s64	- actual number of blocks trimmed
+ */
+s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
+{
+	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
+	s64 nblocks, blkno;
+	u64 trimmed = 0;
+	int rc, l2nb;
+	struct super_block *sb = ipbmap->i_sb;
+
+	struct range2trim {
+		u64 blkno;
+		u64 nblocks;
+	} *totrim, *tt;
+
+	/* max blkno / nblocks pairs to trim */
+	int count = 0, range_cnt;
+
+	/* prevent others from writing new stuff here, while trimming */
+	IWRITE_LOCK(ipbmap, RDWRLOCK_DMAP);
+
+	nblocks = bmp->db_agfree[agno];
+	range_cnt = nblocks;
+	do_div(range_cnt, (int)minlen);
+	range_cnt = min(range_cnt + 1, 32 * 1024);
+	totrim = kmalloc(sizeof(struct range2trim) * range_cnt, GFP_NOFS);
+	if (totrim == NULL) {
+		jfs_error(bmp->db_ipbmap->i_sb,
+			  "dbDiscardAG: no memory for trim array");
+		IWRITE_UNLOCK(ipbmap);
+		return 0;
+	}
+
+	tt = totrim;
+	while (nblocks >= minlen) {
+		l2nb = BLKSTOL2(nblocks);
+
+		/* 0 = okay, -EIO = fatal, -ENOSPC -> try smaller block */
+		rc = dbAllocAG(bmp, agno, nblocks, l2nb, &blkno);
+		if (rc == 0) {
+			tt->blkno = blkno;
+			tt->nblocks = nblocks;
+			tt++; count++;
+
+			/* the whole ag is free, trim now */
+			if (bmp->db_agfree[agno] == 0)
+				break;
+
+			/* give a hint for the next while */
+			nblocks = bmp->db_agfree[agno];
+			continue;
+		} else if (rc == -ENOSPC) {
+			/* search for next smaller log2 block */
+			l2nb = BLKSTOL2(nblocks) - 1;
+			nblocks = 1 << l2nb;
+		} else {
+			/* Trim any already allocated blocks */
+			jfs_error(bmp->db_ipbmap->i_sb,
+				"dbDiscardAG: -EIO");
+			break;
+		}
+
+		/* check, if our trim array is full */
+		if (unlikely(count >= range_cnt - 1))
+			break;
+	}
+	IWRITE_UNLOCK(ipbmap);
+
+	tt->nblocks = 0; /* mark the current end */
+	for (tt = totrim; tt->nblocks != 0; tt++) {
+		/* when mounted with online discard, dbFree() will
+		 * call jfs_issue_discard() itself */
+		if (!(JFS_SBI(sb)->flag & JFS_DISCARD))
+			jfs_issue_discard(ip, tt->blkno, tt->nblocks);
+		dbFree(ip, tt->blkno, tt->nblocks);
+		trimmed += tt->nblocks;
+	}
+	kfree(totrim);
+
+	return trimmed;
+}
 
 /*
  * NAME:	dbFindCtl()

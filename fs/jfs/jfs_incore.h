@@ -195,6 +195,7 @@ struct jfs_sb_info {
 	uint		uid;		/* uid to override on-disk uid */
 	uint		gid;		/* gid to override on-disk gid */
 	uint		umask;		/* umask to override on-disk umask */
+	uint		minblks_trim;	/* minimum blocks, for online trim */
 };
 
 /* jfs_sb_info commit_state */
