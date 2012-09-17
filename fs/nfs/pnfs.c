@@ -582,7 +582,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	struct inode *ino = lo->plh_inode;
 	struct nfs_server *server = NFS_SERVER(ino);
 	struct nfs4_layoutget *lgp;
-	struct pnfs_layout_segment *lseg = NULL;
+	struct pnfs_layout_segment *lseg;
 
 	dprintk("--> %s\n", __func__);
 
@@ -599,16 +599,22 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	lgp->args.type = server->pnfs_curr_ld->id;
 	lgp->args.inode = ino;
 	lgp->args.ctx = get_nfs_open_context(ctx);
-	lgp->lsegpp = &lseg;
 	lgp->gfp_flags = gfp_flags;
 
 	/* Synchronously retrieve layout information from server and
 	 * store in lseg.
 	 */
-	nfs4_proc_layoutget(lgp, gfp_flags);
-	if (!lseg) {
-		/* remember that LAYOUTGET failed and suspend trying */
-		set_bit(lo_fail_bit(range->iomode), &lo->plh_flags);
+	lseg = nfs4_proc_layoutget(lgp, gfp_flags);
+	if (IS_ERR(lseg)) {
+		switch (PTR_ERR(lseg)) {
+		case -ENOMEM:
+		case -ERESTARTSYS:
+			break;
+		default:
+			/* remember that LAYOUTGET failed and suspend trying */
+			set_bit(lo_fail_bit(range->iomode), &lo->plh_flags);
+		}
+		return NULL;
 	}
 
 	return lseg;
@@ -1096,7 +1102,7 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(pnfs_update_layout);
 
-int
+struct pnfs_layout_segment *
 pnfs_layout_process(struct nfs4_layoutget *lgp)
 {
 	struct pnfs_layout_hdr *lo = NFS_I(lgp->args.inode)->layout;
@@ -1129,7 +1135,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	}
 	init_lseg(lo, lseg);
 	lseg->pls_range = res->range;
-	*lgp->lsegpp = get_lseg(lseg);
+	get_lseg(lseg);
 	pnfs_insert_layout(lo, lseg);
 
 	if (res->return_on_close) {
@@ -1140,8 +1146,9 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	/* Done processing layoutget. Set the layout stateid */
 	pnfs_set_layout_stateid(lo, &res->stateid, false);
 	spin_unlock(&ino->i_lock);
+	return lseg;
 out:
-	return status;
+	return ERR_PTR(status);
 
 out_forget_reply:
 	spin_unlock(&ino->i_lock);

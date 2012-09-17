@@ -251,7 +251,6 @@ struct nfs4_layoutget_res {
 struct nfs4_layoutget {
 	struct nfs4_layoutget_args args;
 	struct nfs4_layoutget_res res;
-	struct pnfs_layout_segment **lsegpp;
 	gfp_t gfp_flags;
 };
 
