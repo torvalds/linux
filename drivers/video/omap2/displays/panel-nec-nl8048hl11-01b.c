@@ -20,8 +20,10 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/fb.h>
+#include <linux/gpio.h>
 
 #include <video/omapdss.h>
+#include <video/omap-panel-data.h>
 
 #define LCD_XRES		800
 #define LCD_YRES		480
@@ -30,9 +32,6 @@
  * MIN:21.8MHz TYP:23.8MHz MAX:25.7MHz
  */
 #define LCD_PIXEL_CLOCK		23800
-
-struct nec_8048_data {
-};
 
 static const struct {
 	unsigned char addr;
@@ -82,30 +81,46 @@ static struct omap_video_timings nec_8048_panel_timings = {
 	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 };
 
+static inline struct panel_nec_nl8048_data
+*get_panel_data(const struct omap_dss_device *dssdev)
+{
+	return (struct panel_nec_nl8048_data *) dssdev->data;
+}
+
 static int nec_8048_panel_probe(struct omap_dss_device *dssdev)
 {
-	struct nec_8048_data *necd;
+	struct panel_nec_nl8048_data *pd = get_panel_data(dssdev);
+	int r;
+
+	if (!pd)
+		return -EINVAL;
 
 	dssdev->panel.timings = nec_8048_panel_timings;
 
-	necd = kzalloc(sizeof(*necd), GFP_KERNEL);
-	if (!necd)
-		return -ENOMEM;
+	if (gpio_is_valid(pd->qvga_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev, pd->qvga_gpio,
+				GPIOF_OUT_INIT_HIGH, "lcd QVGA");
+		if (r)
+			return r;
+	}
 
-	dev_set_drvdata(&dssdev->dev, necd);
+	if (gpio_is_valid(pd->res_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev, pd->res_gpio,
+				GPIOF_OUT_INIT_LOW, "lcd RES");
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
 
 static void nec_8048_panel_remove(struct omap_dss_device *dssdev)
 {
-	struct nec_8048_data *necd = dev_get_drvdata(&dssdev->dev);
-
-	kfree(necd);
 }
 
 static int nec_8048_panel_power_on(struct omap_dss_device *dssdev)
 {
+	struct panel_nec_nl8048_data *pd = get_panel_data(dssdev);
 	int r;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
@@ -124,6 +139,9 @@ static int nec_8048_panel_power_on(struct omap_dss_device *dssdev)
 			goto err1;
 	}
 
+	if (gpio_is_valid(pd->res_gpio))
+		gpio_set_value_cansleep(pd->res_gpio, 1);
+
 	return 0;
 err1:
 	omapdss_dpi_display_disable(dssdev);
@@ -133,8 +151,13 @@ err0:
 
 static void nec_8048_panel_power_off(struct omap_dss_device *dssdev)
 {
+	struct panel_nec_nl8048_data *pd = get_panel_data(dssdev);
+
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
+
+	if (gpio_is_valid(pd->res_gpio))
+		gpio_set_value_cansleep(pd->res_gpio, 0);
 
 	if (dssdev->platform_disable)
 		dssdev->platform_disable(dssdev);
