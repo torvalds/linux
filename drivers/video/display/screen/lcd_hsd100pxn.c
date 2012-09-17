@@ -275,6 +275,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->init = NULL;
 	screen->standby = NULL;
 
+#if  defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	screen->sscreen_get = set_scaler_info;
 	screen->s_pixclock = OUT_CLK;
 	screen->s_hsync_len = H_PW;
@@ -286,6 +287,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->s_vsync_len = V_PW;
 	screen->s_hsync_st = 0;
 	screen->s_vsync_st = 0;
+#endif
 }
 
 
