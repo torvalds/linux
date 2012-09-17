@@ -71,20 +71,13 @@ static int lb035q02_panel_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		goto err0;
 
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			goto err1;
-	}
-
 	for (i = 0; i < panel_data->num_gpios; ++i) {
 		gpio_set_value_cansleep(panel_data->gpios[i],
 				panel_data->gpio_invert[i] ? 0 : 1);
 	}
 
 	return 0;
-err1:
-	omapdss_dpi_display_disable(dssdev);
+
 err0:
 	return r;
 }
@@ -101,9 +94,6 @@ static void lb035q02_panel_power_off(struct omap_dss_device *dssdev)
 		gpio_set_value_cansleep(panel_data->gpios[i],
 				panel_data->gpio_invert[i] ? 1 : 0);
 	}
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
 
 	omapdss_dpi_display_disable(dssdev);
 }
