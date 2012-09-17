@@ -30,7 +30,6 @@
 #include <linux/ata_platform.h>
 #include <linux/amba/mmci.h>
 #include <linux/gfp.h>
-#include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
 
 #include <mach/hardware.h>
@@ -226,114 +225,9 @@ struct mmci_platform_data realview_mmc1_plat_data = {
 	.cd_invert	= true,
 };
 
-/*
- * Clock handling
- */
-static const struct icst_params realview_oscvco_params = {
-	.ref		= 24000000,
-	.vco_max	= ICST307_VCO_MAX,
-	.vco_min	= ICST307_VCO_MIN,
-	.vd_min		= 4 + 8,
-	.vd_max		= 511 + 8,
-	.rd_min		= 1 + 2,
-	.rd_max		= 127 + 2,
-	.s2div		= icst307_s2div,
-	.idx2s		= icst307_idx2s,
-};
-
-static void realview_oscvco_set(struct clk *clk, struct icst_vco vco)
-{
-	void __iomem *sys_lock = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_LOCK_OFFSET;
-	u32 val;
-
-	val = readl(clk->vcoreg) & ~0x7ffff;
-	val |= vco.v | (vco.r << 9) | (vco.s << 16);
-
-	writel(0xa05f, sys_lock);
-	writel(val, clk->vcoreg);
-	writel(0, sys_lock);
-}
-
-static const struct clk_ops oscvco_clk_ops = {
-	.round	= icst_clk_round,
-	.set	= icst_clk_set,
-	.setvco	= realview_oscvco_set,
-};
-
-static struct clk oscvco_clk = {
-	.ops	= &oscvco_clk_ops,
-	.params	= &realview_oscvco_params,
-};
-
-/*
- * These are fixed clocks.
- */
-static struct clk ref24_clk = {
-	.rate	= 24000000,
-};
-
-static struct clk sp804_clk = {
-	.rate	= 1000000,
-};
-
-static struct clk dummy_apb_pclk;
-
-static struct clk_lookup lookups[] = {
-	{	/* Bus clock */
-		.con_id		= "apb_pclk",
-		.clk		= &dummy_apb_pclk,
-	}, {	/* UART0 */
-		.dev_id		= "dev:uart0",
-		.clk		= &ref24_clk,
-	}, {	/* UART1 */
-		.dev_id		= "dev:uart1",
-		.clk		= &ref24_clk,
-	}, {	/* UART2 */
-		.dev_id		= "dev:uart2",
-		.clk		= &ref24_clk,
-	}, {	/* UART3 */
-		.dev_id		= "fpga:uart3",
-		.clk		= &ref24_clk,
-	}, {	/* UART3 is on the dev chip in PB1176 */
-		.dev_id		= "dev:uart3",
-		.clk		= &ref24_clk,
-	}, {	/* UART4 only exists in PB1176 */
-		.dev_id		= "fpga:uart4",
-		.clk		= &ref24_clk,
-	}, {	/* KMI0 */
-		.dev_id		= "fpga:kmi0",
-		.clk		= &ref24_clk,
-	}, {	/* KMI1 */
-		.dev_id		= "fpga:kmi1",
-		.clk		= &ref24_clk,
-	}, {	/* MMC0 */
-		.dev_id		= "fpga:mmc0",
-		.clk		= &ref24_clk,
-	}, {	/* CLCD is in the PB1176 and EB DevChip */
-		.dev_id		= "dev:clcd",
-		.clk		= &oscvco_clk,
-	}, {	/* PB:CLCD */
-		.dev_id		= "issp:clcd",
-		.clk		= &oscvco_clk,
-	}, {	/* SSP */
-		.dev_id		= "dev:ssp0",
-		.clk		= &ref24_clk,
-	}, {	/* SP804 timers */
-		.dev_id		= "sp804",
-		.clk		= &sp804_clk,
-	},
-};
-
 void __init realview_init_early(void)
 {
 	void __iomem *sys = __io_address(REALVIEW_SYS_BASE);
-
-	if (machine_is_realview_pb1176())
-		oscvco_clk.vcoreg = sys + REALVIEW_SYS_OSC0_OFFSET;
-	else
-		oscvco_clk.vcoreg = sys + REALVIEW_SYS_OSC4_OFFSET;
-
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	versatile_sched_clock_init(sys + REALVIEW_SYS_24MHz_OFFSET, 24000000);
 }
