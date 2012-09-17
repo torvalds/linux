@@ -99,7 +99,6 @@ static void __init imx6q_sabrelite_cko1_setup(void)
 	clk_set_parent(cko1_sel, ahb);
 	rate = clk_round_rate(cko1, 16000000);
 	clk_set_rate(cko1, rate);
-	clk_register_clkdev(cko1, NULL, "0-000a");
 put_clk:
 	if (!IS_ERR(cko1_sel))
 		clk_put(cko1_sel);
