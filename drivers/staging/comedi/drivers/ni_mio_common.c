@@ -644,10 +644,10 @@ static void ni_release_ao_mite_channel(struct comedi_device *dev)
 #endif /*  PCIDMA */
 }
 
-void ni_release_gpct_mite_channel(struct comedi_device *dev,
-				  unsigned gpct_index)
-{
 #ifdef PCIDMA
+static void ni_release_gpct_mite_channel(struct comedi_device *dev,
+					 unsigned gpct_index)
+{
 	unsigned long flags;
 
 	BUG_ON(gpct_index >= NUM_GPCT);
@@ -663,8 +663,8 @@ void ni_release_gpct_mite_channel(struct comedi_device *dev,
 		mite_release_channel(mite_chan);
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-#endif /*  PCIDMA */
 }
+#endif /*  PCIDMA */
 
 static void ni_release_cdo_mite_channel(struct comedi_device *dev)
 {
@@ -1881,7 +1881,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-void ni_prime_channelgain_list(struct comedi_device *dev)
+static void ni_prime_channelgain_list(struct comedi_device *dev)
 {
 	int i;
 	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
