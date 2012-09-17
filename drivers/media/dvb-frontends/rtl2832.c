@@ -468,6 +468,10 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		len = ARRAY_SIZE(rtl2832_tuner_init_tua9001);
 		init = rtl2832_tuner_init_tua9001;
 		break;
+	case RTL2832_TUNER_E4000:
+		len = ARRAY_SIZE(rtl2832_tuner_init_e4000);
+		init = rtl2832_tuner_init_e4000;
+		break;
 	default:
 		ret = -EINVAL;
 		goto err;
