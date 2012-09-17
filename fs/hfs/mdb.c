@@ -236,10 +236,10 @@ out:
  * hfs_mdb_commit()
  *
  * Description:
- *   This updates the MDB on disk (look also at hfs_write_super()).
+ *   This updates the MDB on disk.
  *   It does not check, if the superblock has been modified, or
  *   if the filesystem has been mounted read-only. It is mainly
- *   called by hfs_write_super() and hfs_btree_extend().
+ *   called by hfs_sync_fs() and flush_mdb().
  * Input Variable(s):
  *   struct hfs_mdb *mdb: Pointer to the hfs MDB
  *   int backup;

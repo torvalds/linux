@@ -188,7 +188,9 @@ static const struct acpi_device_id pcc_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, pcc_device_ids);
 
+#ifdef CONFIG_PM_SLEEP
 static int acpi_pcc_hotkey_resume(struct device *dev);
+#endif
 static SIMPLE_DEV_PM_OPS(acpi_pcc_hotkey_pm, NULL, acpi_pcc_hotkey_resume);
 
 static struct acpi_driver acpi_pcc_driver = {
@@ -540,6 +542,7 @@ static void acpi_pcc_destroy_input(struct pcc_acpi *pcc)
 
 /* kernel module interface */
 
+#ifdef CONFIG_PM_SLEEP
 static int acpi_pcc_hotkey_resume(struct device *dev)
 {
 	struct pcc_acpi *pcc;
@@ -556,6 +559,7 @@ static int acpi_pcc_hotkey_resume(struct device *dev)
 
 	return acpi_pcc_write_sset(pcc, SINF_STICKY_KEY, pcc->sticky_mode);
 }
+#endif
 
 static int acpi_pcc_hotkey_add(struct acpi_device *device)
 {

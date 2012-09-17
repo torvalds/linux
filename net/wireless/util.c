@@ -735,7 +735,7 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 	wdev->connect_keys = NULL;
 }
 
-static void cfg80211_process_wdev_events(struct wireless_dev *wdev)
+void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 {
 	struct cfg80211_event *ev;
 	unsigned long flags;

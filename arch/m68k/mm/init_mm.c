@@ -104,7 +104,7 @@ void __init print_memmap(void)
 		MLK_ROUNDUP(__init_begin, __init_end),
 		MLK_ROUNDUP(_stext, _etext),
 		MLK_ROUNDUP(_sdata, _edata),
-		MLK_ROUNDUP(_sbss, _ebss));
+		MLK_ROUNDUP(__bss_start, __bss_stop));
 }
 
 void __init mem_init(void)

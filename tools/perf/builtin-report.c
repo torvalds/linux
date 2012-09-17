@@ -249,8 +249,9 @@ static int process_read_event(struct perf_tool *tool,
 static int perf_report__setup_sample_type(struct perf_report *rep)
 {
 	struct perf_session *self = rep->session;
+	u64 sample_type = perf_evlist__sample_type(self->evlist);
 
-	if (!self->fd_pipe && !(self->sample_type & PERF_SAMPLE_CALLCHAIN)) {
+	if (!self->fd_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			ui__error("Selected --sort parent, but no "
 				    "callchain data. Did you call "
@@ -274,7 +275,7 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 
 	if (sort__branch_mode == 1) {
 		if (!self->fd_pipe &&
-		    !(self->sample_type & PERF_SAMPLE_BRANCH_STACK)) {
+		    !(sample_type & PERF_SAMPLE_BRANCH_STACK)) {
 			ui__error("Selected -b but no branch data. "
 				  "Did you call perf record without -b?\n");
 			return -1;

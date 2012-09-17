@@ -213,7 +213,7 @@ static u32 intel_panel_compute_brightness(struct drm_device *dev, u32 val)
 	return val;
 }
 
-u32 intel_panel_get_backlight(struct drm_device *dev)
+static u32 intel_panel_get_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val;
@@ -311,9 +311,6 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 	if (dev_priv->backlight_level == 0)
 		dev_priv->backlight_level = intel_panel_get_max_backlight(dev);
 
-	dev_priv->backlight_enabled = true;
-	intel_panel_actually_set_backlight(dev, dev_priv->backlight_level);
-
 	if (INTEL_INFO(dev)->gen >= 4) {
 		uint32_t reg, tmp;
 
@@ -326,7 +323,7 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 		 * we don't track the backlight dpms state, hence check whether
 		 * we have to do anything first. */
 		if (tmp & BLM_PWM_ENABLE)
-			return;
+			goto set_level;
 
 		if (dev_priv->num_pipe == 3)
 			tmp &= ~BLM_PIPE_SELECT_IVB;
@@ -347,6 +344,14 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 			I915_WRITE(BLC_PWM_PCH_CTL1, tmp);
 		}
 	}
+
+set_level:
+	/* Call below after setting BLC_PWM_CPU_CTL2 and BLC_PWM_PCH_CTL1.
+	 * BLC_PWM_CPU_CTL may be cleared to zero automatically when these
+	 * registers are set.
+	 */
+	dev_priv->backlight_enabled = true;
+	intel_panel_actually_set_backlight(dev, dev_priv->backlight_level);
 }
 
 static void intel_panel_init_backlight(struct drm_device *dev)

@@ -196,11 +196,16 @@ static inline u32 get_ibs_caps(void) { return 0; }
 extern void perf_events_lapic_init(void);
 
 /*
- * Abuse bit 3 of the cpu eflags register to indicate proper PEBS IP fixups.
- * This flag is otherwise unused and ABI specified to be 0, so nobody should
- * care what we do with it.
+ * Abuse bits {3,5} of the cpu eflags register. These flags are otherwise
+ * unused and ABI specified to be 0, so nobody should care what we do with
+ * them.
+ *
+ * EXACT - the IP points to the exact instruction that triggered the
+ *         event (HW bugs exempt).
+ * VM    - original X86_VM_MASK; see set_linear_ip().
  */
 #define PERF_EFLAGS_EXACT	(1UL << 3)
+#define PERF_EFLAGS_VM		(1UL << 5)
 
 struct pt_regs;
 extern unsigned long perf_instruction_pointer(struct pt_regs *regs);

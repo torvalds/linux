@@ -232,7 +232,7 @@ struct timex {
  * estimated error = NTP dispersion.
  */
 extern unsigned long tick_usec;		/* USER_HZ period (usec) */
-extern unsigned long tick_nsec;		/* ACTHZ          period (nsec) */
+extern unsigned long tick_nsec;		/* SHIFTED_HZ period (nsec) */
 
 extern void ntp_init(void);
 extern void ntp_clear(void);

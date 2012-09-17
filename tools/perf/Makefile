@@ -319,6 +319,8 @@ LIB_H += $(ARCH_INCLUDE)
 LIB_H += util/cgroup.h
 LIB_H += $(TRACE_EVENT_DIR)event-parse.h
 LIB_H += util/target.h
+LIB_H += util/rblist.h
+LIB_H += util/intlist.h
 
 LIB_OBJS += $(OUTPUT)util/abspath.o
 LIB_OBJS += $(OUTPUT)util/alias.o
@@ -383,6 +385,8 @@ LIB_OBJS += $(OUTPUT)util/xyarray.o
 LIB_OBJS += $(OUTPUT)util/cpumap.o
 LIB_OBJS += $(OUTPUT)util/cgroup.o
 LIB_OBJS += $(OUTPUT)util/target.o
+LIB_OBJS += $(OUTPUT)util/rblist.o
+LIB_OBJS += $(OUTPUT)util/intlist.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 
@@ -983,7 +987,8 @@ clean:
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope*
 	$(MAKE) -C Documentation/ clean
 	$(RM) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS
-	$(RM) $(OUTPUT)util/*-{bison,flex}*
+	$(RM) $(OUTPUT)util/*-bison*
+	$(RM) $(OUTPUT)util/*-flex*
 	$(python-clean)
 
 .PHONY: all install clean strip $(LIBTRACEEVENT)

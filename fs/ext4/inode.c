@@ -1970,7 +1970,7 @@ static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate);
  * This function can get called via...
  *   - ext4_da_writepages after taking page lock (have journal handle)
  *   - journal_submit_inode_data_buffers (no journal handle)
- *   - shrink_page_list via pdflush (no journal handle)
+ *   - shrink_page_list via the kswapd/direct reclaim (no journal handle)
  *   - grab_page_cache when doing write_begin (have journal handle)
  *
  * We don't do any block allocation in this function. If we have page with
@@ -4589,14 +4589,6 @@ static int ext4_expand_extra_isize(struct inode *inode,
  * inode out, but prune_icache isn't a user-visible syncing function.
  * Whenever the user wants stuff synced (sys_sync, sys_msync, sys_fsync)
  * we start and wait on commits.
- *
- * Is this efficient/effective?  Well, we're being nice to the system
- * by cleaning up our inodes proactively so they can be reaped
- * without I/O.  But we are potentially leaving up to five seconds'
- * worth of inodes floating about which prune_icache wants us to
- * write out.  One way to fix that would be to get prune_icache()
- * to do a write_super() to free up some memory.  It has the desired
- * effect.
  */
 int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode)
 {

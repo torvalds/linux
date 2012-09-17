@@ -3459,14 +3459,6 @@ ext3_reserve_inode_write(handle_t *handle, struct inode *inode,
  * inode out, but prune_icache isn't a user-visible syncing function.
  * Whenever the user wants stuff synced (sys_sync, sys_msync, sys_fsync)
  * we start and wait on commits.
- *
- * Is this efficient/effective?  Well, we're being nice to the system
- * by cleaning up our inodes proactively so they can be reaped
- * without I/O.  But we are potentially leaving up to five seconds'
- * worth of inodes floating about which prune_icache wants us to
- * write out.  One way to fix that would be to get prune_icache()
- * to do a write_super() to free up some memory.  It has the desired
- * effect.
  */
 int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode)
 {

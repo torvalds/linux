@@ -1119,15 +1119,21 @@ struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 static int tegra_dma_alloc_chan_resources(struct dma_chan *dc)
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
+	struct tegra_dma *tdma = tdc->tdma;
+	int ret;
 
 	dma_cookie_init(&tdc->dma_chan);
 	tdc->config_init = false;
-	return 0;
+	ret = clk_prepare_enable(tdma->dma_clk);
+	if (ret < 0)
+		dev_err(tdc2dev(tdc), "clk_prepare_enable failed: %d\n", ret);
+	return ret;
 }
 
 static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
+	struct tegra_dma *tdma = tdc->tdma;
 
 	struct tegra_dma_desc *dma_desc;
 	struct tegra_dma_sg_req *sg_req;
@@ -1163,6 +1169,7 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 		list_del(&sg_req->node);
 		kfree(sg_req);
 	}
+	clk_disable_unprepare(tdma->dma_clk);
 }
 
 /* Tegra20 specific DMA controller information */
@@ -1255,6 +1262,13 @@ static int __devinit tegra_dma_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* Enable clock before accessing registers */
+	ret = clk_prepare_enable(tdma->dma_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "clk_prepare_enable failed: %d\n", ret);
+		goto err_pm_disable;
+	}
+
 	/* Reset DMA controller */
 	tegra_periph_reset_assert(tdma->dma_clk);
 	udelay(2);
@@ -1264,6 +1278,8 @@ static int __devinit tegra_dma_probe(struct platform_device *pdev)
 	tdma_write(tdma, TEGRA_APBDMA_GENERAL, TEGRA_APBDMA_GENERAL_ENABLE);
 	tdma_write(tdma, TEGRA_APBDMA_CONTROL, 0);
 	tdma_write(tdma, TEGRA_APBDMA_IRQ_MASK_SET, 0xFFFFFFFFul);
+
+	clk_disable_unprepare(tdma->dma_clk);
 
 	INIT_LIST_HEAD(&tdma->dma_dev.channels);
 	for (i = 0; i < cdata->nr_channels; i++) {

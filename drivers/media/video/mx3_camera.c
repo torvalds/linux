@@ -61,15 +61,9 @@
 
 #define MAX_VIDEO_MEM 16
 
-enum csi_buffer_state {
-	CSI_BUF_NEEDS_INIT,
-	CSI_BUF_PREPARED,
-};
-
 struct mx3_camera_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct vb2_buffer			vb;
-	enum csi_buffer_state			state;
 	struct list_head			queue;
 
 	/* One descriptot per scatterlist (per frame) */
@@ -285,7 +279,7 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 		goto error;
 	}
 
-	if (buf->state == CSI_BUF_NEEDS_INIT) {
+	if (!buf->txd) {
 		sg_dma_address(sg)	= vb2_dma_contig_plane_dma_addr(vb, 0);
 		sg_dma_len(sg)		= new_size;
 
@@ -298,7 +292,6 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 		txd->callback_param	= txd;
 		txd->callback		= mx3_cam_dma_done;
 
-		buf->state		= CSI_BUF_PREPARED;
 		buf->txd		= txd;
 	} else {
 		txd = buf->txd;
@@ -385,7 +378,6 @@ static void mx3_videobuf_release(struct vb2_buffer *vb)
 
 	/* Doesn't hurt also if the list is empty */
 	list_del_init(&buf->queue);
-	buf->state = CSI_BUF_NEEDS_INIT;
 
 	if (txd) {
 		buf->txd = NULL;
@@ -405,13 +397,13 @@ static int mx3_videobuf_init(struct vb2_buffer *vb)
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct mx3_camera_buffer *buf = to_mx3_vb(vb);
 
-	/* This is for locking debugging only */
-	INIT_LIST_HEAD(&buf->queue);
-	sg_init_table(&buf->sg, 1);
+	if (!buf->txd) {
+		/* This is for locking debugging only */
+		INIT_LIST_HEAD(&buf->queue);
+		sg_init_table(&buf->sg, 1);
 
-	buf->state = CSI_BUF_NEEDS_INIT;
-
-	mx3_cam->buf_total += vb2_plane_size(vb, 0);
+		mx3_cam->buf_total += vb2_plane_size(vb, 0);
+	}
 
 	return 0;
 }

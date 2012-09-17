@@ -403,7 +403,8 @@ config S5P_DEV_USB_EHCI
 
 config S3C24XX_PWM
 	bool "PWM device support"
-	select HAVE_PWM
+	select PWM
+	select PWM_SAMSUNG
 	help
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system

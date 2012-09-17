@@ -177,7 +177,7 @@ static __devinit int tegra_alc5632_probe(struct platform_device *pdev)
 	}
 
 	alc5632->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);
-	if (alc5632->gpio_hp_det == -ENODEV)
+	if (alc5632->gpio_hp_det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	ret = snd_soc_of_parse_card_name(card, "nvidia,model");

@@ -5392,6 +5392,8 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
+	if (unlikely(sk->sk_rx_dst == NULL))
+		inet_csk(sk)->icsk_af_ops->sk_rx_dst_set(sk, skb);
 	/*
 	 *	Header prediction.
 	 *	The code loosely follows the one in the famous
@@ -5605,7 +5607,7 @@ void tcp_finish_connect(struct sock *sk, struct sk_buff *skb)
 	tcp_set_state(sk, TCP_ESTABLISHED);
 
 	if (skb != NULL) {
-		inet_sk_rx_dst_set(sk, skb);
+		icsk->icsk_af_ops->sk_rx_dst_set(sk, skb);
 		security_inet_conn_established(sk, skb);
 	}
 

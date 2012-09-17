@@ -670,7 +670,7 @@ static void uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 		call_fetch(&tu->args[i].fetch, regs, data + tu->args[i].offset);
 
 	head = this_cpu_ptr(call->perf_events);
-	perf_trace_buf_submit(entry, size, rctx, entry->ip, 1, regs, head);
+	perf_trace_buf_submit(entry, size, rctx, entry->ip, 1, regs, head, NULL);
 
  out:
 	preempt_enable();

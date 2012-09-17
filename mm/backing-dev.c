@@ -39,12 +39,6 @@ DEFINE_SPINLOCK(bdi_lock);
 LIST_HEAD(bdi_list);
 LIST_HEAD(bdi_pending_list);
 
-static struct task_struct *sync_supers_tsk;
-static struct timer_list sync_supers_timer;
-
-static int bdi_sync_supers(void *);
-static void sync_supers_timer_fn(unsigned long);
-
 void bdi_lock_two(struct bdi_writeback *wb1, struct bdi_writeback *wb2)
 {
 	if (wb1 < wb2) {
@@ -250,12 +244,6 @@ static int __init default_bdi_init(void)
 {
 	int err;
 
-	sync_supers_tsk = kthread_run(bdi_sync_supers, NULL, "sync_supers");
-	BUG_ON(IS_ERR(sync_supers_tsk));
-
-	setup_timer(&sync_supers_timer, sync_supers_timer_fn, 0);
-	bdi_arm_supers_timer();
-
 	err = bdi_init(&default_backing_dev_info);
 	if (!err)
 		bdi_register(&default_backing_dev_info, NULL, "default");
@@ -268,46 +256,6 @@ subsys_initcall(default_bdi_init);
 int bdi_has_dirty_io(struct backing_dev_info *bdi)
 {
 	return wb_has_dirty_io(&bdi->wb);
-}
-
-/*
- * kupdated() used to do this. We cannot do it from the bdi_forker_thread()
- * or we risk deadlocking on ->s_umount. The longer term solution would be
- * to implement sync_supers_bdi() or similar and simply do it from the
- * bdi writeback thread individually.
- */
-static int bdi_sync_supers(void *unused)
-{
-	set_user_nice(current, 0);
-
-	while (!kthread_should_stop()) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule();
-
-		/*
-		 * Do this periodically, like kupdated() did before.
-		 */
-		sync_supers();
-	}
-
-	return 0;
-}
-
-void bdi_arm_supers_timer(void)
-{
-	unsigned long next;
-
-	if (!dirty_writeback_interval)
-		return;
-
-	next = msecs_to_jiffies(dirty_writeback_interval * 10) + jiffies;
-	mod_timer(&sync_supers_timer, round_jiffies_up(next));
-}
-
-static void sync_supers_timer_fn(unsigned long unused)
-{
-	wake_up_process(sync_supers_tsk);
-	bdi_arm_supers_timer();
 }
 
 static void wakeup_timer_fn(unsigned long data)

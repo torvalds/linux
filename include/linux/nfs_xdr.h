@@ -1248,6 +1248,7 @@ struct nfs_pgio_header {
 	void (*release) (struct nfs_pgio_header *hdr);
 	const struct nfs_pgio_completion_ops *completion_ops;
 	struct nfs_direct_req	*dreq;
+	void			*layout_private;
 	spinlock_t		lock;
 	/* fields protected by lock */
 	int			pnfs_error;

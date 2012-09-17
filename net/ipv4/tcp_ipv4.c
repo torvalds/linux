@@ -417,10 +417,12 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 
 		if (code == ICMP_FRAG_NEEDED) { /* PMTU discovery (RFC1191) */
 			tp->mtu_info = info;
-			if (!sock_owned_by_user(sk))
+			if (!sock_owned_by_user(sk)) {
 				tcp_v4_mtu_reduced(sk);
-			else
-				set_bit(TCP_MTU_REDUCED_DEFERRED, &tp->tsq_flags);
+			} else {
+				if (!test_and_set_bit(TCP_MTU_REDUCED_DEFERRED, &tp->tsq_flags))
+					sock_hold(sk);
+			}
 			goto out;
 		}
 
@@ -1462,6 +1464,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		goto exit_nonewsk;
 
 	newsk->sk_gso_type = SKB_GSO_TCPV4;
+	inet_sk_rx_dst_set(newsk, skb);
 
 	newtp		      = tcp_sk(newsk);
 	newinet		      = inet_sk(newsk);
@@ -1627,9 +1630,6 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 				sk->sk_rx_dst = NULL;
 			}
 		}
-		if (unlikely(sk->sk_rx_dst == NULL))
-			inet_sk_rx_dst_set(sk, skb);
-
 		if (tcp_rcv_established(sk, skb, tcp_hdr(skb), skb->len)) {
 			rsk = sk;
 			goto reset;
@@ -1872,10 +1872,21 @@ static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_destructor= tcp_twsk_destructor,
 };
 
+void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
+{
+	struct dst_entry *dst = skb_dst(skb);
+
+	dst_hold(dst);
+	sk->sk_rx_dst = dst;
+	inet_sk(sk)->rx_dst_ifindex = skb->skb_iif;
+}
+EXPORT_SYMBOL(inet_sk_rx_dst_set);
+
 const struct inet_connection_sock_af_ops ipv4_specific = {
 	.queue_xmit	   = ip_queue_xmit,
 	.send_check	   = tcp_v4_send_check,
 	.rebuild_header	   = inet_sk_rebuild_header,
+	.sk_rx_dst_set	   = inet_sk_rx_dst_set,
 	.conn_request	   = tcp_v4_conn_request,
 	.syn_recv_sock	   = tcp_v4_syn_recv_sock,
 	.net_header_len	   = sizeof(struct iphdr),

@@ -85,7 +85,9 @@
 #define MSI_STANDARD_EC_TOUCHPAD_ADDRESS	0xe4
 #define MSI_STANDARD_EC_TOUCHPAD_MASK		(1 << 4)
 
+#ifdef CONFIG_PM_SLEEP
 static int msi_laptop_resume(struct device *device);
+#endif
 static SIMPLE_DEV_PM_OPS(msi_laptop_pm, NULL, msi_laptop_resume);
 
 #define MSI_STANDARD_EC_DEVICES_EXISTS_ADDRESS	0x2f
@@ -753,6 +755,7 @@ err_bluetooth:
 	return retval;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int msi_laptop_resume(struct device *device)
 {
 	u8 data;
@@ -773,6 +776,7 @@ static int msi_laptop_resume(struct device *device)
 
 	return 0;
 }
+#endif
 
 static int __init msi_laptop_input_setup(void)
 {

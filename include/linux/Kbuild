@@ -391,6 +391,7 @@ header-y += v4l2-dv-timings.h
 header-y += v4l2-mediabus.h
 header-y += v4l2-subdev.h
 header-y += veth.h
+header-y += vfio.h
 header-y += vhost.h
 header-y += videodev2.h
 header-y += virtio_9p.h

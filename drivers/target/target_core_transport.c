@@ -1165,8 +1165,6 @@ int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 			" 0x%02x\n", cmd->se_tfo->get_fabric_name(),
 				cmd->data_length, size, cmd->t_task_cdb[0]);
 
-		cmd->cmd_spdtl = size;
-
 		if (cmd->data_direction == DMA_TO_DEVICE) {
 			pr_err("Rejecting underflow/overflow"
 					" WRITE data\n");
@@ -2294,9 +2292,9 @@ transport_generic_get_mem(struct se_cmd *cmd)
 	return 0;
 
 out:
-	while (i >= 0) {
-		__free_page(sg_page(&cmd->t_data_sg[i]));
+	while (i > 0) {
 		i--;
+		__free_page(sg_page(&cmd->t_data_sg[i]));
 	}
 	kfree(cmd->t_data_sg);
 	cmd->t_data_sg = NULL;
@@ -2323,9 +2321,12 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		if (ret < 0)
 			goto out_fail;
 	}
-
-	/* Workaround for handling zero-length control CDBs */
-	if (!(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) && !cmd->data_length) {
+	/*
+	 * If this command doesn't have any payload and we don't have to call
+	 * into the fabric for data transfers, go ahead and complete it right
+	 * away.
+	 */
+	if (!cmd->data_length) {
 		spin_lock_irq(&cmd->t_state_lock);
 		cmd->t_state = TRANSPORT_COMPLETE;
 		cmd->transport_state |= CMD_T_ACTIVE;

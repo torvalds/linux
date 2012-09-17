@@ -60,17 +60,7 @@ acpi_handle ata_ap_acpi_handle(struct ata_port *ap)
 	if (ap->flags & ATA_FLAG_ACPI_SATA)
 		return NULL;
 
-	/*
-	 * If acpi bind operation has already happened, we can get the handle
-	 * for the port by checking the corresponding scsi_host device's
-	 * firmware node, otherwise we will need to find out the handle from
-	 * its parent's acpi node.
-	 */
-	if (ap->scsi_host)
-		return DEVICE_ACPI_HANDLE(&ap->scsi_host->shost_gendev);
-	else
-		return acpi_get_child(DEVICE_ACPI_HANDLE(ap->host->dev),
-				ap->port_no);
+	return acpi_get_child(DEVICE_ACPI_HANDLE(ap->host->dev), ap->port_no);
 }
 EXPORT_SYMBOL(ata_ap_acpi_handle);
 
@@ -1100,6 +1090,9 @@ static int ata_acpi_bind_host(struct ata_port *ap, acpi_handle *handle)
 
 	if (!*handle)
 		return -ENODEV;
+
+	if (ata_acpi_gtm(ap, &ap->__acpi_init_gtm) == 0)
+		ap->pflags |= ATA_PFLAG_INIT_GTM_VALID;
 
 	return 0;
 }
