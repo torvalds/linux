@@ -164,7 +164,13 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 
 		if (c > psinfo->bufsize)
 			c = psinfo->bufsize;
-		spin_lock_irqsave(&psinfo->buf_lock, flags);
+
+		if (oops_in_progress) {
+			if (!spin_trylock_irqsave(&psinfo->buf_lock, flags))
+				break;
+		} else {
+			spin_lock_irqsave(&psinfo->buf_lock, flags);
+		}
 		memcpy(psinfo->buf, s, c);
 		psinfo->write(PSTORE_TYPE_CONSOLE, 0, NULL, 0, c, psinfo);
 		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
