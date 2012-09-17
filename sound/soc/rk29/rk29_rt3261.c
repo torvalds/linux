@@ -242,7 +242,6 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.platform_name = "rockchip-audio",
 		.cpu_dai_name = "rk29_i2s.0",
 		.codec_dai_name = "rt3261-aif2",
-		.init = rk29_rt3261_init,
 		.ops = &rt3261_voice_ops,
 	},
 };

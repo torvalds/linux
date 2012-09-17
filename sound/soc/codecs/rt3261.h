@@ -2063,6 +2063,7 @@ enum {
 /* Volume Rescale */
 #define RT3261_VOL_RSCL_MAX 0x27
 #define RT3261_VOL_RSCL_RANGE 0x1F
+#define RT3261_HP_VOL_RSCL_RANGE 0x19
 /* Debug String Length */
 #define RT3261_REG_DISP_LEN 10
 

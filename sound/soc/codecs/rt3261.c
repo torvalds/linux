@@ -90,10 +90,11 @@ static struct rt3261_init_reg init_list[] = {
 	{RT3261_PRIV_DATA	, 0x6115},
 	{RT3261_PRIV_INDEX	, 0x0023},//PR23 = 0804'h
 	{RT3261_PRIV_DATA	, 0x0804},
-	{RT3261_SPK_VOL     	, 0x8b8b},//SPKMIX -> SPKVOL
+	{RT3261_SPK_VOL     	, 0x8888},//SPKMIX -> SPKVOL
 	{RT3261_HP_VOL      	, 0x8888},
 	{RT3261_OUTPUT      	, 0x8888},//unmute OUTVOLL/R
 	{RT3261_SPO_CLSD_RATIO 	, 0x0001},
+	{RT3261_I2S1_SDP	, 0xd000},
 };
 #define RT3261_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -954,7 +955,7 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	SOC_DOUBLE("HP Playback Switch", RT3261_HP_VOL,
 		RT3261_L_MUTE_SFT, RT3261_R_MUTE_SFT, 1, 1),
 	SOC_DOUBLE_EXT_TLV("Headphone Playback Volume", RT3261_HP_VOL,
-		RT3261_L_VOL_SFT, RT3261_R_VOL_SFT, RT3261_VOL_RSCL_RANGE, 0,
+		RT3261_L_VOL_SFT, RT3261_R_VOL_SFT, RT3261_HP_VOL_RSCL_RANGE, 0,
 		rt3261_vol_rescale_get, rt3261_vol_rescale_put, out_vol_tlv),
 	/* OUTPUT Control */
 	SOC_DOUBLE("OUT Playback Switch", RT3261_OUTPUT,
@@ -1890,8 +1891,13 @@ static const struct snd_soc_dapm_widget rt3261_dapm_widgets[] = {
 	/* micbias */
 	SND_SOC_DAPM_SUPPLY("LDO2", RT3261_PWR_ANLG1,
 			RT3261_PWR_LDO2_BIT, 0, NULL, 0),
+	#if 0
 	SND_SOC_DAPM_MICBIAS("micbias1", RT3261_PWR_ANLG2,
 			RT3261_PWR_MB1_BIT, 0),
+	#else
+	SND_SOC_DAPM_MICBIAS("micbias1", SND_SOC_NOPM,
+			0, 0),
+	#endif
 	SND_SOC_DAPM_MICBIAS("micbias2", RT3261_PWR_ANLG2,
 			RT3261_PWR_MB2_BIT, 0),
 	/* Input Lines */
@@ -2886,6 +2892,9 @@ static int rt3261_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
+		snd_soc_update_bits(codec, RT3261_PWR_ANLG2,
+			RT3261_PWR_MB1 | RT3261_PWR_MB2,
+			RT3261_PWR_MB1 | RT3261_PWR_MB2);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
