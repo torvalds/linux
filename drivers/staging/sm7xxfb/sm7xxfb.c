@@ -679,7 +679,7 @@ static struct fb_ops smtcfb_ops = {
 };
 
 /*
- * alloc struct smtcfb_info and assign the default value
+ * alloc struct smtcfb_info and assign default values
  */
 static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev)
 {
@@ -692,18 +692,12 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev)
 
 	sfb->pdev = pdev;
 
-	/* init sfb->fb with default value */
-
-	sfb->fb.flags = FBINFO_FLAG_DEFAULT;
-	sfb->fb.fbops = &smtcfb_ops;
-
-	sfb->fb.fix = smtcfb_fix;
-
-	sfb->fb.var = smtcfb_var;
-
-	sfb->fb.pseudo_palette  = sfb->colreg;
-
-	sfb->fb.par = sfb;
+	sfb->fb.flags          = FBINFO_FLAG_DEFAULT;
+	sfb->fb.fbops          = &smtcfb_ops;
+	sfb->fb.fix            = smtcfb_fix;
+	sfb->fb.var            = smtcfb_var;
+	sfb->fb.pseudo_palette = sfb->colreg;
+	sfb->fb.par            = sfb;
 
 	return sfb;
 }
