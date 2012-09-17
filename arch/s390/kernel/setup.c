@@ -584,9 +584,7 @@ static void __init setup_memory_end(void)
 
 static void __init setup_vmcoreinfo(void)
 {
-#ifdef CONFIG_KEXEC
 	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
-#endif
 }
 
 #ifdef CONFIG_CRASH_DUMP
