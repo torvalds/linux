@@ -152,15 +152,11 @@ failed1:
 static void virtfn_remove(struct pci_dev *dev, int id, int reset)
 {
 	char buf[VIRTFN_ID_LEN];
-	struct pci_bus *bus;
 	struct pci_dev *virtfn;
 	struct pci_sriov *iov = dev->sriov;
 
-	bus = pci_find_bus(pci_domain_nr(dev->bus), virtfn_bus(dev, id));
-	if (!bus)
-		return;
-
-	virtfn = pci_get_slot(bus, virtfn_devfn(dev, id));
+	virtfn = pci_get_domain_bus_and_slot(pci_domain_nr(dev->bus),
+			virtfn_bus(dev, id), virtfn_devfn(dev, id));
 	if (!virtfn)
 		return;
 

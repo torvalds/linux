@@ -1066,7 +1066,6 @@ static ssize_t vga_arb_write(struct file *file, const char __user * buf,
 		}
 
 	} else if (strncmp(curr_pos, "target ", 7) == 0) {
-		struct pci_bus *pbus;
 		unsigned int domain, bus, devfn;
 		struct vga_device *vgadev;
 
@@ -1085,19 +1084,11 @@ static ssize_t vga_arb_write(struct file *file, const char __user * buf,
 			pr_debug("vgaarb: %s ==> %x:%x:%x.%x\n", curr_pos,
 				domain, bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
-			pbus = pci_find_bus(domain, bus);
-			pr_debug("vgaarb: pbus %p\n", pbus);
-			if (pbus == NULL) {
-				pr_err("vgaarb: invalid PCI domain and/or bus address %x:%x\n",
-					domain, bus);
-				ret_val = -ENODEV;
-				goto done;
-			}
-			pdev = pci_get_slot(pbus, devfn);
+			pdev = pci_get_domain_bus_and_slot(domain, bus, devfn);
 			pr_debug("vgaarb: pdev %p\n", pdev);
 			if (!pdev) {
-				pr_err("vgaarb: invalid PCI address %x:%x\n",
-					bus, devfn);
+				pr_err("vgaarb: invalid PCI address %x:%x:%x\n",
+					domain, bus, devfn);
 				ret_val = -ENODEV;
 				goto done;
 			}
