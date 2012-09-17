@@ -3,7 +3,6 @@
 
 #include <linux/kernel.h>
 #include <linux/cpu.h>
-#include <linux/cpuidle.h>
 #include <linux/thermal.h>
 #include <asm/acpi.h>
 
@@ -64,7 +63,6 @@ struct acpi_processor_cx {
 };
 
 struct acpi_processor_power {
-	struct cpuidle_device dev;
 	struct acpi_processor_cx *state;
 	unsigned long bm_check_timestamp;
 	u32 default_state;
