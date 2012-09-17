@@ -98,6 +98,7 @@
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
+#if defined(CONFIG_SOC_CAMERA_SID130B)
 #define CONFIG_SENSOR_0 RK29_CAM_SENSOR_SID130B						/* back camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_0		0x6e
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  3
@@ -120,6 +121,33 @@
 #define CONFIG_SENSOR_480P_FPS_FIXED_0		15000
 #define CONFIG_SENSOR_SVGA_FPS_FIXED_0		15000
 #define CONFIG_SENSOR_720P_FPS_FIXED_0		30000
+#endif
+
+#if defined(CONFIG_SOC_CAMERA_GT2005)
+#define CONFIG_SENSOR_0 RK29_CAM_SENSOR_GT2005						/* back camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_0		0x78
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  3
+#define CONFIG_SENSOR_CIF_INDEX_0          0         // 1
+#define CONFIG_SENSOR_ORIENTATION_0 	  90
+#define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
+#define CONFIG_SENSOR_RESET_PIN_0		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERDN_PIN_0 	  RK30_PIN1_PB7
+#define CONFIG_SENSOR_FALSH_PIN_0		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_H
+#define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
+#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_L
+#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
+
+
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_240X160_FPS_FIXED_0   15000
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_CIF_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_VGA_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_480P_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_720P_FPS_FIXED_0		30000
+#endif
 
 #define CONFIG_SENSOR_01  RK29_CAM_SENSOR_OV5642                   /* back camera sensor 1 */
 #define CONFIG_SENSOR_IIC_ADDR_01 	    0x00
@@ -167,6 +195,7 @@
 #define CONFIG_SENSOR_SVGA_FPS_FIXED_02      15000
 #define CONFIG_SENSOR_720P_FPS_FIXED_02      30000
 
+#if defined(CONFIG_SOC_CAMERA_SIV121D)
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_SIV121D                      /* front camera sensor 0 */
 #define CONFIG_SENSOR_IIC_ADDR_1 	    0x66
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  3
@@ -189,6 +218,33 @@
 #define CONFIG_SENSOR_480P_FPS_FIXED_1		15000
 #define CONFIG_SENSOR_SVGA_FPS_FIXED_1		15000
 #define CONFIG_SENSOR_720P_FPS_FIXED_1		30000
+#endif
+
+#if defined(CONFIG_SOC_CAMERA_GC0308)
+#define CONFIG_SENSOR_1 RK29_CAM_SENSOR_GC0308		/* front camera sensor 0 */
+#define CONFIG_SENSOR_IIC_ADDR_1 	    0x42
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  3
+#define CONFIG_SENSOR_CIF_INDEX_1			0	
+#define CONFIG_SENSOR_ORIENTATION_1       270
+#define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
+#define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
+#define CONFIG_SENSOR_POWERDN_PIN_1 	  RK30_PIN1_PB6
+#define CONFIG_SENSOR_FALSH_PIN_1         INVALID_GPIO
+#define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
+#define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
+#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_H
+#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_1 RK29_CAM_FLASHACTIVE_L
+
+
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_240X160_FPS_FIXED_1   15000
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_CIF_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_VGA_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_480P_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_720P_FPS_FIXED_1		30000
+#endif
 
 #define CONFIG_SENSOR_11 RK29_CAM_SENSOR_OV2659                      /* front camera sensor 1 */
 #define CONFIG_SENSOR_IIC_ADDR_11 	    0x00
@@ -1362,6 +1418,11 @@ static struct sensor_platform_data light_stk3171_info = {
 #define LCD_CS_PIN         RK30_PIN4_PC7
 #define LCD_CS_VALUE       GPIO_HIGH
 
+#define LCD_STANDBY_MUX_NAME    GPIO4D2_SMCDATA10_TRACEDATA10_NAME
+#define LCD_STANDBY_PIN         RK30_PIN4_PD2
+#define LCD_STANDBY_VALUE       GPIO_HIGH
+
+
 #define LCD_EN_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
 #define LCD_EN_PIN         RK30_PIN6_PB4
 #define LCD_EN_VALUE       GPIO_LOW
@@ -1374,6 +1435,19 @@ static struct sensor_platform_data light_stk3171_info = {
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
+
+	rk30_mux_api_set(LCD_STANDBY_MUX_NAME, GPIO4D_GPIO4D2);
+	ret = gpio_request(LCD_STANDBY_PIN, NULL);
+	if (ret != 0)
+	{
+		gpio_free(LCD_STANDBY_PIN);
+		printk(KERN_ERR "request lcd cs pin fail!\n");
+		return -1;
+	}
+	else
+	{
+		gpio_direction_output(LCD_STANDBY_PIN, LCD_STANDBY_VALUE);
+	}
 
 	rk30_mux_api_set(GPIO3A6_SDMMC0RSTNOUT_NAME, GPIO3A_GPIO3A6);
 	ret = gpio_request(HDMI11_EN_PIN, NULL);
@@ -2489,6 +2563,21 @@ static void __init machine_rk30_board_init(void)
 	rk30_mux_api_set(GPIO4D7_SMCDATA15_TRACEDATA15_NAME, GPIO4D_GPIO4D7);
 	gpio_direction_output(RK30_PIN4_PD7, GPIO_HIGH);
 	
+#if defined(CONFIG_RKWIFI)
+	//for c8003
+	rk30_mux_api_set(GPIO3D0_SDMMC1PWREN_NAME, GPIO3D_GPIO3D0);
+	gpio_request(RK30_PIN3_PD0, "wifi_on");
+	gpio_direction_output(RK30_PIN3_PD0, GPIO_HIGH);
+
+	gpio_request(RK30_PIN3_PC0, "mmc1-cmd");
+	gpio_request(RK30_PIN3_PC1, "mmc1-clk");
+	gpio_request(RK30_PIN3_PC2, "mmc1-data0");
+	gpio_request(RK30_PIN3_PC3, "mmc1-data1");
+	gpio_request(RK30_PIN3_PC4, "mmc1-data2");
+	gpio_request(RK30_PIN3_PC5, "mmc1-data3");
+	       
+#endif
+
 	pm_power_off = rk30_pm_power_off;
 	
 	rk30_i2c_register_board_info();
