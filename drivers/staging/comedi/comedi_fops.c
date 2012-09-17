@@ -2023,7 +2023,8 @@ done:
 /*
    This function restores a subdevice to an idle state.
  */
-void do_become_nonbusy(struct comedi_device *dev, struct comedi_subdevice *s)
+static void do_become_nonbusy(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 
