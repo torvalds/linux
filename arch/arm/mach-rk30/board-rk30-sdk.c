@@ -50,7 +50,7 @@
 #include <linux/mfd/rk610_core.h>
 #endif
 
-#if defined(CONFIG_HDMI_RK30)
+#if defined(CONFIG_RK_HDMI)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
 
@@ -620,7 +620,7 @@ struct rk29fb_info lcdc0_screen_info = {
 
 #if defined(CONFIG_LCDC1_RK30)
 struct rk29fb_info lcdc1_screen_info = {
-	#if defined(CONFIG_HDMI_RK30)
+	#if defined(CONFIG_RK_HDMI)
 	.prop		= EXTEND,	//extend display device
 	.lcd_info  = NULL,
 	.set_screen_info = hdmi_init_lcdc,

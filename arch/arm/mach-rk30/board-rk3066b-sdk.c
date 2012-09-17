@@ -51,7 +51,7 @@
 #include <linux/mfd/rk610_core.h>
 #endif
 
-#if defined(CONFIG_HDMI_RK30)
+#if defined(CONFIG_RK_HDMI)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
 
@@ -540,7 +540,7 @@ struct rk29fb_info lcdc0_screen_info = {
 
 #if defined(CONFIG_LCDC1_RK3066B)
 struct rk29fb_info lcdc1_screen_info = {
-	#if defined(CONFIG_HDMI_RK30)
+	#if defined(CONFIG_RK_HDMI)
 	.prop		= EXTEND,	//extend display device
 	.lcd_info  = NULL,
 	.set_screen_info = hdmi_init_lcdc,
@@ -632,9 +632,16 @@ static struct platform_device device_lcdc1 = {
 #endif
 
 #if defined(CONFIG_MFD_RK610)
+#if 1
 #define RK610_RST_PIN_MUX_NAME		GPIO2C5_LCDC1DATA21_SMCADDR5_NAME 
 #define RK610_RST_PIN_MUX_MODE		GPIO2C_GPIO2C5
 #define RK610_RST_PIN 			RK30_PIN2_PC5
+#else
+#define RK610_RST_PIN_MUX_NAME		GPIO2D6_SMCCSN1_NAME 
+#define RK610_RST_PIN_MUX_MODE		GPIO2D_GPIO2D6
+#define RK610_RST_PIN 			RK30_PIN2_PD6
+
+#endif
 static int rk610_power_on_init(void)
 {
 	int ret;
@@ -1182,7 +1189,7 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_LCDC1_RK3066B)
 	&device_lcdc1,
 #endif
-		
+
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
 #endif
