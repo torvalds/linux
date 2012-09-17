@@ -988,12 +988,12 @@ uint32_t __sramlocalfunc ddr_data_training(void)
     cs = (pGRF_Reg->GRF_OS_REG[1] >> DDR_RANK_COUNT) & 0x1;
     cs = cs + (1 << cs);                               //case 0:1rank cs=1; case 1:2rank cs =3;
     // trigger DTT
-    pPHY_Reg->PHY_REG2 = ((pPHY_Reg->PHY_REG2 & (~0x3)) | PHY_AUTO_CALIBRATION);
+    pPHY_Reg->PHY_REG2 = ((pPHY_Reg->PHY_REG2 & (~0x1)) | PHY_AUTO_CALIBRATION);
     // wait echo byte DTDONE
     ddr_delayus(6);
     // stop DTT
     while((pPHY_Reg->PHY_REG62 & 0x3)!=0x3);
-    pPHY_Reg->PHY_REG2 = (pPHY_Reg->PHY_REG2 & (~0x3));
+    pPHY_Reg->PHY_REG2 = (pPHY_Reg->PHY_REG2 & (~0x1));
     // send some auto refresh to complement the lost while DTT
     ddr_send_command(cs, REF_cmd, 0);    
     ddr_send_command(cs, REF_cmd, 0);
@@ -1015,26 +1015,14 @@ Notes   :
 ----------------------------------------------------------------------*/
 void __sramlocalfunc ddr_set_dll_bypass(uint32 freq)
 {
-    if(freq <= 266)
-    {
-        pPHY_Reg->PHY_REG2a = 0x1F;         //set cmd,left right dll bypass
-        pPHY_Reg->PHY_REG19 = 0x08;         //cmd slave dll
-        pPHY_Reg->PHY_REG6 = 0x18;          //left TX DQ DLL
-        pPHY_Reg->PHY_REG7 = 0x00;          //left TX DQS DLL
-        pPHY_Reg->PHY_REG9 = 0x18;          //right TX DQ DLL
-        pPHY_Reg->PHY_REG10 = 0x00;         //right TX DQS DLL
-    }
-    else 
-    {
-        pPHY_Reg->PHY_REG2a = 0x00;         //set cmd,left right dll bypass
-        pPHY_Reg->PHY_REG19 = 0x08;         //cmd slave dll
-        pPHY_Reg->PHY_REG6 = 0x0c;          //left TX DQ DLL
-        pPHY_Reg->PHY_REG7 = 0x00;          //left TX DQS DLL
-        pPHY_Reg->PHY_REG9 = 0x0c;          //right TX DQ DLL
-        pPHY_Reg->PHY_REG10 = 0x00;         //right TX DQS DLL                
-    }
-
-    //其他与dll相关的寄存器有:REG8(RX DQS),REG11(RX DQS),REG18(CMD),REG21(CK) 保持默认值
+    pPHY_Reg->PHY_REG2a = 0x1F;         //set cmd,left right dll bypass
+    pPHY_Reg->PHY_REG19 = 0x08;         //cmd slave dll
+    pPHY_Reg->PHY_REG6 = 0x18;          //left TX DQ DLL
+    pPHY_Reg->PHY_REG7 = 0x00;          //left TX DQS DLL
+    pPHY_Reg->PHY_REG9 = 0x18;          //right TX DQ DLL
+    pPHY_Reg->PHY_REG10 = 0x00;         //right TX DQS DLL
+    dsb();
+    //dll常关
 }
 
 
@@ -1719,25 +1707,25 @@ uint32_t __sramlocalfunc ddr_update_mr(void)
     {
         if(ddr_dll_status == DDR3_DLL_DISABLE)  // off -> on
         {
-            ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((uint8_t)(ddr_reg.ddrMR[1])));  //DLL enable
-            ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr(((uint8_t)(ddr_reg.ddrMR[0]))| DDR3_DLL_RESET));  //DLL reset
+            ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((ddr_reg.ddrMR[1])));  //DLL enable
+            ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr(((ddr_reg.ddrMR[0]))| DDR3_DLL_RESET));  //DLL reset
             ddr_delayus(2);  //at least 200 DDR cycle
-            ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(ddr_reg.ddrMR[0])));
+            ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((ddr_reg.ddrMR[0])));
             ddr_dll_status = DDR3_DLL_ENABLE;
         }
         else // on -> on
         {
-            ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((uint8_t)(ddr_reg.ddrMR[1])));
-            ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(ddr_reg.ddrMR[0])));
+            ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr((ddr_reg.ddrMR[1])));
+            ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((ddr_reg.ddrMR[0])));
         }
     }
     else
     {
-        ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr(((uint8_t)(ddr_reg.ddrMR[1])) | DDR3_DLL_DISABLE));  //DLL disable
-        ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((uint8_t)(ddr_reg.ddrMR[0])));
+        ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr(((ddr_reg.ddrMR[1])) | DDR3_DLL_DISABLE));  //DLL disable
+        ddr_send_command(cs, MRS_cmd, bank_addr(0x0) | cmd_addr((ddr_reg.ddrMR[0])));
         ddr_dll_status = DDR3_DLL_DISABLE;
     }
-    ddr_send_command(cs, MRS_cmd, bank_addr(0x2) | cmd_addr((uint8_t)(ddr_reg.ddrMR[2])));
+    ddr_send_command(cs, MRS_cmd, bank_addr(0x2) | cmd_addr((ddr_reg.ddrMR[2])));
 
     return 0;
 }
@@ -1754,16 +1742,10 @@ void __sramlocalfunc ddr_update_odt(void)
     uint32_t tmp;
     
     //adjust DRV and ODT
-    if(ddr_freq <= DDR3_DDR2_ODT_DISABLE_FREQ)
-    {
-        pPHY_Reg->PHY_REG27 = PHY_RTT_DISABLE;  //dynamic RTT disable, Left 8bit ODT
-        pPHY_Reg->PHY_REG28 = PHY_RTT_DISABLE;  //Right 8bit ODT
-    }
-    else
-    {
-        pPHY_Reg->PHY_REG27 = ((PHY_RTT_212O<<3) | PHY_RTT_212O);       //0x5 ODT =  71ohm
-        pPHY_Reg->PHY_REG28 = ((PHY_RTT_212O<<3) | PHY_RTT_212O);    
-    }
+    pPHY_Reg->PHY_REG27 = PHY_RTT_DISABLE;  //dynamic RTT disable, Left 8bit ODT
+    pPHY_Reg->PHY_REG28 = PHY_RTT_DISABLE;  //Right 8bit ODT
+    pPHY_Reg->PHY_REG0e4 = (0x0E & 0xc)|0x1;//off DQS ODT  bit[1:0]=2'b01 
+    pPHY_Reg->PHY_REG124 = (0x0E & 0xc)|0x1;//off DQS ODT  bit[1:0]=2'b01 
     
     tmp = ((PHY_RON_46O<<3) | PHY_RON_46O);     //0x5 = 46ohm
     pPHY_Reg->PHY_REG16 = tmp;  //CMD driver strength
@@ -1918,7 +1900,7 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
      if((pCRU_Reg->CRU_MODE_CON & 1) == 1)             // CPLL Normal mode
      {
          freq = 24*(regvalue0&0xfff)     
-                /((regvalue1&0x3f)*((regvalue0>>12)&0x3)*((regvalue1>>6)&0x3));                  
+                /((regvalue1&0x3f)*((regvalue0>>12)&0x7)*((regvalue1>>6)&0x7));                  
      }  
      else
      {
@@ -2139,7 +2121,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t cs,die=1;
     uint32_t calStatusLeft, calStatusRight;
 
-    ddr_print("version 1.00 20120827 \n");
+    ddr_print("version 1.00 20120917 \n");
     cs = (1 << (((pGRF_Reg->GRF_OS_REG[1]) >> DDR_RANK_COUNT)&0x1));    //case 0:1rank ; case 1:2rank ;                            
     mem_type = ((pGRF_Reg->GRF_OS_REG[1] >> 13) &0x7);
     ddr_speed_bin = dram_speed_bin;
