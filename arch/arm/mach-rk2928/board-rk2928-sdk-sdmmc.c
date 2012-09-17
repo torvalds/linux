@@ -363,7 +363,19 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
     return 0;
 }
 
-#ifndef CONFIG_MACH_RK2928_A720
+#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+int rk29sdk_wifi_power(int on)
+{
+        /*pr_info("%s: %d\n", __func__, on);
+        if (on){
+                pr_info("wifi turn on power\n");
+        }else{     	
+                pr_info("wifi shut off power\n");
+        }*/
+
+        return 0;
+}
+#else
 int rk29sdk_wifi_power(int on)
 {
         pr_info("%s: %d\n", __func__, on);
@@ -401,20 +413,6 @@ int rk29sdk_wifi_power(int on)
         }
 
         //rk29sdk_wifi_power_state = on;
-        return 0;
-}
-#else
-int rk29sdk_wifi_power(int on)
-{
-        pr_info("%s: %d\n", __func__, on);
-        if (on){
-                rk2928_usb_wifi_on();
-                pr_info("wifi turn on power\n");
-        }else{
-                rk2928_usb_wifi_off();        	
-                pr_info("wifi shut off power\n");
-        }
-
         return 0;
 }
 #endif
