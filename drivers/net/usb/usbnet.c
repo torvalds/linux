@@ -1573,7 +1573,7 @@ int usbnet_resume (struct usb_interface *intf)
 				netif_device_present(dev->net) &&
 				!timer_pending(&dev->delay) &&
 				!test_bit(EVENT_RX_HALT, &dev->flags))
-					rx_alloc_submit(dev, GFP_KERNEL);
+					rx_alloc_submit(dev, GFP_NOIO);
 
 			if (!(dev->txq.qlen >= TX_QLEN(dev)))
 				netif_tx_wake_all_queues(dev->net);

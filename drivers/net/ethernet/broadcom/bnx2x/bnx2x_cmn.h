@@ -792,7 +792,7 @@ static inline void bnx2x_add_all_napi(struct bnx2x *bp)
 	bp->num_napi_queues = bp->num_queues;
 
 	/* Add NAPI objects */
-	for_each_napi_rx_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, BNX2X_NAPI_WEIGHT);
 }
@@ -801,7 +801,7 @@ static inline void bnx2x_del_all_napi(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_napi_rx_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 }
 

@@ -124,6 +124,9 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	const struct fw_img *img;
 	size_t bufsz;
 
+	if (!iwl_is_ready_rf(priv))
+		return -EAGAIN;
+
 	/* default is to dump the entire data segment */
 	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
 		priv->dbgfs_sram_offset = 0x800000;

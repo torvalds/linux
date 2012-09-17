@@ -503,13 +503,16 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	/* convert the length into a more usable form */
 	if (server->sec_mode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		struct kvec iov;
+		int rc = 0;
 
 		iov.iov_base = mid->resp_buf;
 		iov.iov_len = len;
 		/* FIXME: add code to kill session */
-		if (cifs_verify_signature(&iov, 1, server,
-					  mid->sequence_number + 1) != 0)
-			cERROR(1, "Unexpected SMB signature");
+		rc = cifs_verify_signature(&iov, 1, server,
+					   mid->sequence_number + 1);
+		if (rc)
+			cERROR(1, "SMB signature verification returned error = "
+			       "%d", rc);
 	}
 
 	/* BB special case reconnect tid and uid here? */
