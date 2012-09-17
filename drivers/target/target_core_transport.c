@@ -2289,23 +2289,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		if (ret < 0)
 			goto out_fail;
 	}
-	/*
-	 * If this command doesn't have any payload and we don't have to call
-	 * into the fabric for data transfers, go ahead and complete it right
-	 * away.
-	 */
-	if (!cmd->data_length &&
-	    cmd->t_task_cdb[0] != REQUEST_SENSE &&
-	    cmd->se_dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
-		spin_lock_irq(&cmd->t_state_lock);
-		cmd->t_state = TRANSPORT_COMPLETE;
-		cmd->transport_state |= CMD_T_ACTIVE;
-		spin_unlock_irq(&cmd->t_state_lock);
-
-		INIT_WORK(&cmd->work, target_complete_ok_work);
-		queue_work(target_completion_wq, &cmd->work);
-		return 0;
-	}
 
 	atomic_inc(&cmd->t_fe_count);
 
