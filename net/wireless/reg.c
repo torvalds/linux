@@ -2193,7 +2193,6 @@ static void print_regdomain_info(const struct ieee80211_regdomain *rd)
 static int __set_regdom(const struct ieee80211_regdomain *rd)
 {
 	const struct ieee80211_regdomain *intersected_rd = NULL;
-	struct cfg80211_registered_device *rdev = NULL;
 	struct wiphy *request_wiphy;
 	/* Some basic sanity checks first */
 
@@ -2305,24 +2304,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		return 0;
 	}
 
-	if (!intersected_rd)
-		return -EINVAL;
-
-	rdev = wiphy_to_dev(request_wiphy);
-
-	rdev->country_ie_alpha2[0] = rd->alpha2[0];
-	rdev->country_ie_alpha2[1] = rd->alpha2[1];
-	rdev->env = last_request->country_ie_env;
-
-	BUG_ON(intersected_rd == rd);
-
-	kfree(rd);
-	rd = NULL;
-
-	reset_regdomains(false);
-	cfg80211_regdomain = intersected_rd;
-
-	return 0;
+	return -EINVAL;
 }
 
 
