@@ -246,16 +246,13 @@ static void __devinit fixup_read_and_payload_sizes(void)
 
 	/* Scan for the smallest maximum payload size. */
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		int pcie_caps_offset;
 		u32 devcap;
 		int max_payload;
 
-		pcie_caps_offset = pci_find_capability(dev, PCI_CAP_ID_EXP);
-		if (pcie_caps_offset == 0)
+		if (!pci_is_pcie(dev))
 			continue;
 
-		pci_read_config_dword(dev, pcie_caps_offset + PCI_EXP_DEVCAP,
-				      &devcap);
+		pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &devcap);
 		max_payload = devcap & PCI_EXP_DEVCAP_PAYLOAD;
 		if (max_payload < smallest_max_payload)
 			smallest_max_payload = max_payload;
@@ -263,21 +260,10 @@ static void __devinit fixup_read_and_payload_sizes(void)
 
 	/* Now, set the max_payload_size for all devices to that value. */
 	new_values = (max_read_size << 12) | (smallest_max_payload << 5);
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		int pcie_caps_offset;
-		u16 devctl;
-
-		pcie_caps_offset = pci_find_capability(dev, PCI_CAP_ID_EXP);
-		if (pcie_caps_offset == 0)
-			continue;
-
-		pci_read_config_word(dev, pcie_caps_offset + PCI_EXP_DEVCTL,
-				     &devctl);
-		devctl &= ~(PCI_EXP_DEVCTL_PAYLOAD | PCI_EXP_DEVCTL_READRQ);
-		devctl |= new_values;
-		pci_write_config_word(dev, pcie_caps_offset + PCI_EXP_DEVCTL,
-				      devctl);
-	}
+	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL)
+		pcie_capability_clear_and_set_word(dev, PCI_EXP_DEVCTL,
+				PCI_EXP_DEVCTL_PAYLOAD | PCI_EXP_DEVCTL_READRQ,
+				new_values);
 }
 
 

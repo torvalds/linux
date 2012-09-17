@@ -833,15 +833,8 @@ static void rtl_unlock_work(struct rtl8169_private *tp)
 
 static void rtl_tx_performance_tweak(struct pci_dev *pdev, u16 force)
 {
-	int cap = pci_pcie_cap(pdev);
-
-	if (cap) {
-		u16 ctl;
-
-		pci_read_config_word(pdev, cap + PCI_EXP_DEVCTL, &ctl);
-		ctl = (ctl & ~PCI_EXP_DEVCTL_READRQ) | force;
-		pci_write_config_word(pdev, cap + PCI_EXP_DEVCTL, ctl);
-	}
+	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
+					   PCI_EXP_DEVCTL_READRQ, force);
 }
 
 struct rtl_cond {
@@ -4739,28 +4732,14 @@ static void rtl_ephy_init(struct rtl8169_private *tp, const struct ephy_info *e,
 
 static void rtl_disable_clock_request(struct pci_dev *pdev)
 {
-	int cap = pci_pcie_cap(pdev);
-
-	if (cap) {
-		u16 ctl;
-
-		pci_read_config_word(pdev, cap + PCI_EXP_LNKCTL, &ctl);
-		ctl &= ~PCI_EXP_LNKCTL_CLKREQ_EN;
-		pci_write_config_word(pdev, cap + PCI_EXP_LNKCTL, ctl);
-	}
+	pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL,
+				   PCI_EXP_LNKCTL_CLKREQ_EN);
 }
 
 static void rtl_enable_clock_request(struct pci_dev *pdev)
 {
-	int cap = pci_pcie_cap(pdev);
-
-	if (cap) {
-		u16 ctl;
-
-		pci_read_config_word(pdev, cap + PCI_EXP_LNKCTL, &ctl);
-		ctl |= PCI_EXP_LNKCTL_CLKREQ_EN;
-		pci_write_config_word(pdev, cap + PCI_EXP_LNKCTL, ctl);
-	}
+	pcie_capability_set_word(pdev, PCI_EXP_LNKCTL,
+				 PCI_EXP_LNKCTL_CLKREQ_EN);
 }
 
 #define R8168_CPCMD_QUIRK_MASK (\
@@ -5405,14 +5384,9 @@ static void rtl_hw_start_8101(struct net_device *dev)
 		tp->event_slow &= ~RxFIFOOver;
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_16) {
-		int cap = pci_pcie_cap(pdev);
-
-		if (cap) {
-			pci_write_config_word(pdev, cap + PCI_EXP_DEVCTL,
-					      PCI_EXP_DEVCTL_NOSNOOP_EN);
-		}
-	}
+	    tp->mac_version == RTL_GIGA_MAC_VER_16)
+		pcie_capability_set_word(pdev, PCI_EXP_DEVCTL,
+					 PCI_EXP_DEVCTL_NOSNOOP_EN);
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
 

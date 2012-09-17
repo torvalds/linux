@@ -3694,15 +3694,7 @@ static void __devinit print_port_info(const struct net_device *dev)
 
 static void __devinit enable_pcie_relaxed_ordering(struct pci_dev *dev)
 {
-	u16 v;
-	int pos;
-
-	pos = pci_pcie_cap(dev);
-	if (pos > 0) {
-		pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &v);
-		v |= PCI_EXP_DEVCTL_RELAX_EN;
-		pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, v);
-	}
+	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_RELAX_EN);
 }
 
 /*

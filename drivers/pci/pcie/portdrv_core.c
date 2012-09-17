@@ -246,8 +246,7 @@ static void cleanup_service_irqs(struct pci_dev *dev)
  */
 static int get_port_device_capability(struct pci_dev *dev)
 {
-	int services = 0, pos;
-	u16 reg16;
+	int services = 0;
 	u32 reg32;
 	int cap_mask = 0;
 	int err;
@@ -265,11 +264,9 @@ static int get_port_device_capability(struct pci_dev *dev)
 			return 0;
 	}
 
-	pos = pci_pcie_cap(dev);
-	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
 	/* Hot-Plug Capable */
-	if ((cap_mask & PCIE_PORT_SERVICE_HP) && (reg16 & PCI_EXP_FLAGS_SLOT)) {
-		pci_read_config_dword(dev, pos + PCI_EXP_SLTCAP, &reg32);
+	if (cap_mask & PCIE_PORT_SERVICE_HP) {
+		pcie_capability_read_dword(dev, PCI_EXP_SLTCAP, &reg32);
 		if (reg32 & PCI_EXP_SLTCAP_HPC) {
 			services |= PCIE_PORT_SERVICE_HP;
 			/*
@@ -277,10 +274,8 @@ static int get_port_device_capability(struct pci_dev *dev)
 			 * enabled by the BIOS and the hot-plug service driver
 			 * is not loaded.
 			 */
-			pos += PCI_EXP_SLTCTL;
-			pci_read_config_word(dev, pos, &reg16);
-			reg16 &= ~(PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
-			pci_write_config_word(dev, pos, reg16);
+			pcie_capability_clear_word(dev, PCI_EXP_SLTCTL,
+				PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
 		}
 	}
 	/* AER capable */
@@ -298,7 +293,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 		services |= PCIE_PORT_SERVICE_VC;
 	/* Root ports are capable of generating PME too */
 	if ((cap_mask & PCIE_PORT_SERVICE_PME)
-	    && dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT) {
+	    && pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT) {
 		services |= PCIE_PORT_SERVICE_PME;
 		/*
 		 * Disable PME interrupt on this port in case it's been enabled
@@ -336,7 +331,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 	device->release = release_pcie_device;	/* callback to free pcie dev */
 	dev_set_name(device, "%s:pcie%02x",
 		     pci_name(pdev),
-		     get_descriptor_id(pdev->pcie_type, service));
+		     get_descriptor_id(pci_pcie_type(pdev), service));
 	device->parent = &pdev->dev;
 	device_enable_async_suspend(device);
 

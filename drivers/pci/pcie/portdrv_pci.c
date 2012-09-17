@@ -64,14 +64,7 @@ __setup("pcie_ports=", pcie_port_setup);
  */
 void pcie_clear_root_pme_status(struct pci_dev *dev)
 {
-	int rtsta_pos;
-	u32 rtsta;
-
-	rtsta_pos = pci_pcie_cap(dev) + PCI_EXP_RTSTA;
-
-	pci_read_config_dword(dev, rtsta_pos, &rtsta);
-	rtsta |= PCI_EXP_RTSTA_PME;
-	pci_write_config_dword(dev, rtsta_pos, rtsta);
+	pcie_capability_set_dword(dev, PCI_EXP_RTSTA, PCI_EXP_RTSTA_PME);
 }
 
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
@@ -95,7 +88,7 @@ static int pcie_port_resume_noirq(struct device *dev)
 	 * which breaks ACPI-based runtime wakeup on PCI Express, so clear those
 	 * bits now just in case (shouldn't hurt).
 	 */
-	if(pdev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT)
 		pcie_clear_root_pme_status(pdev);
 	return 0;
 }
@@ -140,9 +133,17 @@ static int pcie_port_runtime_resume(struct device *dev)
 {
 	return 0;
 }
+
+static int pcie_port_runtime_idle(struct device *dev)
+{
+	/* Delay for a short while to prevent too frequent suspend/resume */
+	pm_schedule_suspend(dev, 10);
+	return -EBUSY;
+}
 #else
 #define pcie_port_runtime_suspend	NULL
 #define pcie_port_runtime_resume	NULL
+#define pcie_port_runtime_idle		NULL
 #endif
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
@@ -155,6 +156,7 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.resume_noirq	= pcie_port_resume_noirq,
 	.runtime_suspend = pcie_port_runtime_suspend,
 	.runtime_resume = pcie_port_runtime_resume,
+	.runtime_idle	= pcie_port_runtime_idle,
 };
 
 #define PCIE_PORTDRV_PM_OPS	(&pcie_portdrv_pm_ops)
@@ -186,9 +188,9 @@ static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
 	int status;
 
 	if (!pci_is_pcie(dev) ||
-	    ((dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
-	     (dev->pcie_type != PCI_EXP_TYPE_UPSTREAM) &&
-	     (dev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)))
+	    ((pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_UPSTREAM) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)))
 		return -ENODEV;
 
 	if (!dev->irq && dev->pin) {
@@ -200,6 +202,11 @@ static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
 		return status;
 
 	pci_save_state(dev);
+	/*
+	 * D3cold may not work properly on some PCIe port, so disable
+	 * it by default.
+	 */
+	dev->d3cold_allowed = false;
 	if (!pci_match_id(port_runtime_pm_black_list, dev))
 		pm_runtime_put_noidle(&dev->dev);
 

@@ -113,14 +113,9 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	struct ath_hw *ah = sc->sc_ah;
 	struct pci_dev *pdev = to_pci_dev(sc->dev);
 	struct pci_dev *parent;
-	int pos;
-	u8 aspm;
+	u16 aspm;
 
 	if (!ah->is_pciexpress)
-		return;
-
-	pos = pci_pcie_cap(pdev);
-	if (!pos)
 		return;
 
 	parent = pdev->bus->self;
@@ -129,25 +124,21 @@ static void ath_pci_aspm_init(struct ath_common *common)
 
 	if (ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
 		/* Bluetooth coexistance requires disabling ASPM. */
-		pci_read_config_byte(pdev, pos + PCI_EXP_LNKCTL, &aspm);
-		aspm &= ~(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
-		pci_write_config_byte(pdev, pos + PCI_EXP_LNKCTL, aspm);
+		pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL,
+			PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 
 		/*
 		 * Both upstream and downstream PCIe components should
 		 * have the same ASPM settings.
 		 */
-		pos = pci_pcie_cap(parent);
-		pci_read_config_byte(parent, pos + PCI_EXP_LNKCTL, &aspm);
-		aspm &= ~(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
-		pci_write_config_byte(parent, pos + PCI_EXP_LNKCTL, aspm);
+		pcie_capability_clear_word(parent, PCI_EXP_LNKCTL,
+			PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 
 		ath_info(common, "Disabling ASPM since BTCOEX is enabled\n");
 		return;
 	}
 
-	pos = pci_pcie_cap(parent);
-	pci_read_config_byte(parent, pos +  PCI_EXP_LNKCTL, &aspm);
+	pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &aspm);
 	if (aspm & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1)) {
 		ah->aspm_enabled = true;
 		/* Initialize PCIe PM and SERDES registers. */

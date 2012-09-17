@@ -5584,16 +5584,15 @@ static void e1000_complete_shutdown(struct pci_dev *pdev, bool sleep,
 	 */
 	if (adapter->flags & FLAG_IS_QUAD_PORT) {
 		struct pci_dev *us_dev = pdev->bus->self;
-		int pos = pci_pcie_cap(us_dev);
 		u16 devctl;
 
-		pci_read_config_word(us_dev, pos + PCI_EXP_DEVCTL, &devctl);
-		pci_write_config_word(us_dev, pos + PCI_EXP_DEVCTL,
-		                      (devctl & ~PCI_EXP_DEVCTL_CERE));
+		pcie_capability_read_word(us_dev, PCI_EXP_DEVCTL, &devctl);
+		pcie_capability_write_word(us_dev, PCI_EXP_DEVCTL,
+					   (devctl & ~PCI_EXP_DEVCTL_CERE));
 
 		e1000_power_off(pdev, sleep, wake);
 
-		pci_write_config_word(us_dev, pos + PCI_EXP_DEVCTL, devctl);
+		pcie_capability_write_word(us_dev, PCI_EXP_DEVCTL, devctl);
 	} else {
 		e1000_power_off(pdev, sleep, wake);
 	}
@@ -5607,25 +5606,15 @@ static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 #else
 static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 {
-	int pos;
-	u16 reg16;
-
 	/*
 	 * Both device and parent should have the same ASPM setting.
 	 * Disable ASPM in downstream component first and then upstream.
 	 */
-	pos = pci_pcie_cap(pdev);
-	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &reg16);
-	reg16 &= ~state;
-	pci_write_config_word(pdev, pos + PCI_EXP_LNKCTL, reg16);
+	pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL, state);
 
-	if (!pdev->bus->self)
-		return;
-
-	pos = pci_pcie_cap(pdev->bus->self);
-	pci_read_config_word(pdev->bus->self, pos + PCI_EXP_LNKCTL, &reg16);
-	reg16 &= ~state;
-	pci_write_config_word(pdev->bus->self, pos + PCI_EXP_LNKCTL, reg16);
+	if (pdev->bus->self)
+		pcie_capability_clear_word(pdev->bus->self, PCI_EXP_LNKCTL,
+					   state);
 }
 #endif
 static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)

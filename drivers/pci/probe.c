@@ -144,15 +144,13 @@ static inline unsigned long decode_bar(struct pci_dev *dev, u32 bar)
 	case PCI_BASE_ADDRESS_MEM_TYPE_32:
 		break;
 	case PCI_BASE_ADDRESS_MEM_TYPE_1M:
-		dev_info(&dev->dev, "1M mem BAR treated as 32-bit BAR\n");
+		/* 1M mem BAR treated as 32-bit BAR */
 		break;
 	case PCI_BASE_ADDRESS_MEM_TYPE_64:
 		flags |= IORESOURCE_MEM_64;
 		break;
 	default:
-		dev_warn(&dev->dev,
-			 "mem unknown type %x treated as 32-bit BAR\n",
-			 mem_type);
+		/* mem unknown type treated as 32-bit BAR */
 		break;
 	}
 	return flags;
@@ -173,9 +171,11 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	u32 l, sz, mask;
 	u16 orig_cmd;
 	struct pci_bus_region region;
+	bool bar_too_big = false, bar_disabled = false;
 
 	mask = type ? PCI_ROM_ADDRESS_MASK : ~0;
 
+	/* No printks while decoding is disabled! */
 	if (!dev->mmio_always_on) {
 		pci_read_config_word(dev, PCI_COMMAND, &orig_cmd);
 		pci_write_config_word(dev, PCI_COMMAND,
@@ -240,8 +240,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			goto fail;
 
 		if ((sizeof(resource_size_t) < 8) && (sz64 > 0x100000000ULL)) {
-			dev_err(&dev->dev, "reg %x: can't handle 64-bit BAR\n",
-				pos);
+			bar_too_big = true;
 			goto fail;
 		}
 
@@ -252,12 +251,11 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			region.start = 0;
 			region.end = sz64;
 			pcibios_bus_to_resource(dev, res, &region);
+			bar_disabled = true;
 		} else {
 			region.start = l64;
 			region.end = l64 + sz64;
 			pcibios_bus_to_resource(dev, res, &region);
-			dev_printk(KERN_DEBUG, &dev->dev, "reg %x: %pR\n",
-				   pos, res);
 		}
 	} else {
 		sz = pci_size(l, sz, mask);
@@ -268,18 +266,23 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		region.start = l;
 		region.end = l + sz;
 		pcibios_bus_to_resource(dev, res, &region);
-
-		dev_printk(KERN_DEBUG, &dev->dev, "reg %x: %pR\n", pos, res);
 	}
 
- out:
+	goto out;
+
+
+fail:
+	res->flags = 0;
+out:
 	if (!dev->mmio_always_on)
 		pci_write_config_word(dev, PCI_COMMAND, orig_cmd);
 
+	if (bar_too_big)
+		dev_err(&dev->dev, "reg %x: can't handle 64-bit BAR\n", pos);
+	if (res->flags && !bar_disabled)
+		dev_printk(KERN_DEBUG, &dev->dev, "reg %x: %pR\n", pos, res);
+
 	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
- fail:
-	res->flags = 0;
-	goto out;
 }
 
 static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
@@ -603,10 +606,10 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 		u32 linkcap;
 		u16 linksta;
 
-		pci_read_config_dword(bridge, pos + PCI_EXP_LNKCAP, &linkcap);
+		pcie_capability_read_dword(bridge, PCI_EXP_LNKCAP, &linkcap);
 		bus->max_bus_speed = pcie_link_speed[linkcap & 0xf];
 
-		pci_read_config_word(bridge, pos + PCI_EXP_LNKSTA, &linksta);
+		pcie_capability_read_word(bridge, PCI_EXP_LNKSTA, &linksta);
 		pcie_update_link_speed(bus, linksta);
 	}
 }
@@ -929,24 +932,16 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	pdev->is_pcie = 1;
 	pdev->pcie_cap = pos;
 	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
-	pdev->pcie_type = (reg16 & PCI_EXP_FLAGS_TYPE) >> 4;
+	pdev->pcie_flags_reg = reg16;
 	pci_read_config_word(pdev, pos + PCI_EXP_DEVCAP, &reg16);
 	pdev->pcie_mpss = reg16 & PCI_EXP_DEVCAP_PAYLOAD;
 }
 
 void set_pcie_hotplug_bridge(struct pci_dev *pdev)
 {
-	int pos;
-	u16 reg16;
 	u32 reg32;
 
-	pos = pci_pcie_cap(pdev);
-	if (!pos)
-		return;
-	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
-	if (!(reg16 & PCI_EXP_FLAGS_SLOT))
-		return;
-	pci_read_config_dword(pdev, pos + PCI_EXP_SLTCAP, &reg32);
+	pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP, &reg32);
 	if (reg32 & PCI_EXP_SLTCAP_HPC)
 		pdev->is_hotplug_bridge = 1;
 }
@@ -1160,8 +1155,7 @@ int pci_cfg_space_size(struct pci_dev *dev)
 	if (class == PCI_CLASS_BRIDGE_HOST)
 		return pci_cfg_space_size_ext(dev);
 
-	pos = pci_pcie_cap(dev);
-	if (!pos) {
+	if (!pci_is_pcie(dev)) {
 		pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 		if (!pos)
 			goto fail;
@@ -1383,9 +1377,9 @@ static int only_one_child(struct pci_bus *bus)
 
 	if (!parent || !pci_is_pcie(parent))
 		return 0;
-	if (parent->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+	if (pci_pcie_type(parent) == PCI_EXP_TYPE_ROOT_PORT)
 		return 1;
-	if (parent->pcie_type == PCI_EXP_TYPE_DOWNSTREAM &&
+	if (pci_pcie_type(parent) == PCI_EXP_TYPE_DOWNSTREAM &&
 	    !pci_has_flag(PCI_SCAN_ALL_PCIE_DEVS))
 		return 1;
 	return 0;
@@ -1462,7 +1456,7 @@ static int pcie_find_smpss(struct pci_dev *dev, void *data)
 	 */
 	if (dev->is_hotplug_bridge && (!list_is_singular(&dev->bus->devices) ||
 	     (dev->bus->self &&
-	      dev->bus->self->pcie_type != PCI_EXP_TYPE_ROOT_PORT)))
+	      pci_pcie_type(dev->bus->self) != PCI_EXP_TYPE_ROOT_PORT)))
 		*smpss = 0;
 
 	if (*smpss > dev->pcie_mpss)
@@ -1478,7 +1472,8 @@ static void pcie_write_mps(struct pci_dev *dev, int mps)
 	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
 		mps = 128 << dev->pcie_mpss;
 
-		if (dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT && dev->bus->self)
+		if (pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT &&
+		    dev->bus->self)
 			/* For "Performance", the assumption is made that
 			 * downstream communication will never be larger than
 			 * the MRRS.  So, the MPS only needs to be configured

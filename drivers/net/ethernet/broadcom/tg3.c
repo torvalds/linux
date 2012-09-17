@@ -3653,17 +3653,9 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 	tg3_enable_register_access(tp);
 
 	/* Restore the CLKREQ setting. */
-	if (tg3_flag(tp, CLKREQ_BUG)) {
-		u16 lnkctl;
-
-		pci_read_config_word(tp->pdev,
-				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
-				     &lnkctl);
-		lnkctl |= PCI_EXP_LNKCTL_CLKREQ_EN;
-		pci_write_config_word(tp->pdev,
-				      pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
-				      lnkctl);
-	}
+	if (tg3_flag(tp, CLKREQ_BUG))
+		pcie_capability_set_word(tp->pdev, PCI_EXP_LNKCTL,
+					 PCI_EXP_LNKCTL_CLKREQ_EN);
 
 	misc_host_ctrl = tr32(TG3PCI_MISC_HOST_CTRL);
 	tw32(TG3PCI_MISC_HOST_CTRL,
@@ -4434,20 +4426,13 @@ relink:
 
 	/* Prevent send BD corruption. */
 	if (tg3_flag(tp, CLKREQ_BUG)) {
-		u16 oldlnkctl, newlnkctl;
-
-		pci_read_config_word(tp->pdev,
-				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
-				     &oldlnkctl);
 		if (tp->link_config.active_speed == SPEED_100 ||
 		    tp->link_config.active_speed == SPEED_10)
-			newlnkctl = oldlnkctl & ~PCI_EXP_LNKCTL_CLKREQ_EN;
+			pcie_capability_clear_word(tp->pdev, PCI_EXP_LNKCTL,
+						   PCI_EXP_LNKCTL_CLKREQ_EN);
 		else
-			newlnkctl = oldlnkctl | PCI_EXP_LNKCTL_CLKREQ_EN;
-		if (newlnkctl != oldlnkctl)
-			pci_write_config_word(tp->pdev,
-					      pci_pcie_cap(tp->pdev) +
-					      PCI_EXP_LNKCTL, newlnkctl);
+			pcie_capability_set_word(tp->pdev, PCI_EXP_LNKCTL,
+						 PCI_EXP_LNKCTL_CLKREQ_EN);
 	}
 
 	if (current_link_up != netif_carrier_ok(tp->dev)) {
@@ -8054,7 +8039,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	udelay(120);
 
-	if (tg3_flag(tp, PCI_EXPRESS) && pci_pcie_cap(tp->pdev)) {
+	if (tg3_flag(tp, PCI_EXPRESS) && pci_is_pcie(tp->pdev)) {
 		u16 val16;
 
 		if (tp->pci_chip_rev_id == CHIPREV_ID_5750_A0) {
@@ -8071,24 +8056,17 @@ static int tg3_chip_reset(struct tg3 *tp)
 		}
 
 		/* Clear the "no snoop" and "relaxed ordering" bits. */
-		pci_read_config_word(tp->pdev,
-				     pci_pcie_cap(tp->pdev) + PCI_EXP_DEVCTL,
-				     &val16);
-		val16 &= ~(PCI_EXP_DEVCTL_RELAX_EN |
-			   PCI_EXP_DEVCTL_NOSNOOP_EN);
+		val16 = PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_NOSNOOP_EN;
 		/*
 		 * Older PCIe devices only support the 128 byte
 		 * MPS setting.  Enforce the restriction.
 		 */
 		if (!tg3_flag(tp, CPMU_PRESENT))
-			val16 &= ~PCI_EXP_DEVCTL_PAYLOAD;
-		pci_write_config_word(tp->pdev,
-				      pci_pcie_cap(tp->pdev) + PCI_EXP_DEVCTL,
-				      val16);
+			val16 |= PCI_EXP_DEVCTL_PAYLOAD;
+		pcie_capability_clear_word(tp->pdev, PCI_EXP_DEVCTL, val16);
 
 		/* Clear error status */
-		pci_write_config_word(tp->pdev,
-				      pci_pcie_cap(tp->pdev) + PCI_EXP_DEVSTA,
+		pcie_capability_write_word(tp->pdev, PCI_EXP_DEVSTA,
 				      PCI_EXP_DEVSTA_CED |
 				      PCI_EXP_DEVSTA_NFED |
 				      PCI_EXP_DEVSTA_FED |
@@ -14565,9 +14543,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 		tg3_flag_set(tp, PCI_EXPRESS);
 
-		pci_read_config_word(tp->pdev,
-				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
-				     &lnkctl);
+		pcie_capability_read_word(tp->pdev, PCI_EXP_LNKCTL, &lnkctl);
 		if (lnkctl & PCI_EXP_LNKCTL_CLKREQ_EN) {
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
 			    ASIC_REV_5906) {

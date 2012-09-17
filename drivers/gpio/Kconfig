@@ -294,7 +294,7 @@ config GPIO_MAX732X_IRQ
 
 config GPIO_MC9S08DZ60
 	bool "MX35 3DS BOARD MC9S08DZ60 GPIO functions"
-	depends on I2C && MACH_MX35_3DS
+	depends on I2C=y && MACH_MX35_3DS
 	help
 	  Select this to enable the MC9S08DZ60 GPIO driver
 
