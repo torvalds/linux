@@ -61,7 +61,7 @@ void iio_channel_release_all(struct iio_channel *chan);
 
 /**
  * iio_read_channel_raw() - read from a given channel
- * @channel:		The channel being queried.
+ * @chan:		The channel being queried.
  * @val:		Value read back.
  *
  * Note raw reads from iio channels are in adc counts and hence
@@ -82,7 +82,7 @@ int iio_get_channel_type(struct iio_channel *channel,
 
 /**
  * iio_read_channel_scale() - read the scale value for a channel
- * @channel:		The channel being queried.
+ * @chan:		The channel being queried.
  * @val:		First part of value read back.
  * @val2:		Second part of value read back.
  *
