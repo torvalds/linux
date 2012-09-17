@@ -2230,7 +2230,6 @@ static const struct video_device cx231xx_video_template = {
 	.release      = video_device_release,
 	.ioctl_ops    = &video_ioctl_ops,
 	.tvnorms      = V4L2_STD_ALL,
-	.current_norm = V4L2_STD_PAL,
 };
 
 static const struct v4l2_file_operations radio_fops = {
@@ -2301,7 +2300,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		     dev->name, CX231XX_VERSION);
 
 	/* set default norm */
-	/*dev->norm = cx231xx_video_template.current_norm; */
+	dev->norm = V4L2_STD_PAL;
 	dev->width = norm_maxw(dev);
 	dev->height = norm_maxh(dev);
 	dev->interlaced = 0;

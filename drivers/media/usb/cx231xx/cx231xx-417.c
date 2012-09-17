@@ -2115,7 +2115,6 @@ static struct video_device cx231xx_mpeg_template = {
 	.ioctl_ops     = &mpeg_ioctl_ops,
 	.minor         = -1,
 	.tvnorms       = CX231xx_NORMS,
-	.current_norm  = V4L2_STD_NTSC_M,
 };
 
 void cx231xx_417_unregister(struct cx231xx *dev)
