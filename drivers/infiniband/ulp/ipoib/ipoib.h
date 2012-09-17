@@ -262,7 +262,10 @@ struct ipoib_ethtool_st {
 	u16     max_coalesced_frames;
 };
 
+struct ipoib_neigh_table;
+
 struct ipoib_neigh_hash {
+	struct ipoib_neigh_table       *ntbl;
 	struct ipoib_neigh __rcu      **buckets;
 	struct rcu_head			rcu;
 	u32				mask;
@@ -271,9 +274,9 @@ struct ipoib_neigh_hash {
 
 struct ipoib_neigh_table {
 	struct ipoib_neigh_hash __rcu  *htbl;
-	rwlock_t			rwlock;
 	atomic_t			entries;
 	struct completion		flushed;
+	struct completion		deleted;
 };
 
 /*
