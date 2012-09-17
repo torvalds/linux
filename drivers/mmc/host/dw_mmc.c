@@ -1960,13 +1960,42 @@ int dw_mci_probe(struct dw_mci *host)
 		return -ENODEV;
 	}
 
-	if (!host->pdata->bus_hz) {
-		dev_err(host->dev,
-			"Platform data must supply bus speed\n");
-		return -ENODEV;
+	host->biu_clk = clk_get(host->dev, "biu");
+	if (IS_ERR(host->biu_clk)) {
+		dev_dbg(host->dev, "biu clock not available\n");
+	} else {
+		ret = clk_prepare_enable(host->biu_clk);
+		if (ret) {
+			dev_err(host->dev, "failed to enable biu clock\n");
+			clk_put(host->biu_clk);
+			return ret;
+		}
 	}
 
-	host->bus_hz = host->pdata->bus_hz;
+	host->ciu_clk = clk_get(host->dev, "ciu");
+	if (IS_ERR(host->ciu_clk)) {
+		dev_dbg(host->dev, "ciu clock not available\n");
+	} else {
+		ret = clk_prepare_enable(host->ciu_clk);
+		if (ret) {
+			dev_err(host->dev, "failed to enable ciu clock\n");
+			clk_put(host->ciu_clk);
+			goto err_clk_biu;
+		}
+	}
+
+	if (IS_ERR(host->ciu_clk))
+		host->bus_hz = host->pdata->bus_hz;
+	else
+		host->bus_hz = clk_get_rate(host->ciu_clk);
+
+	if (!host->bus_hz) {
+		dev_err(host->dev,
+			"Platform data must supply bus speed\n");
+		ret = -ENODEV;
+		goto err_clk_ciu;
+	}
+
 	host->quirks = host->pdata->quirks;
 
 	spin_lock_init(&host->lock);
@@ -2116,6 +2145,17 @@ err_dmaunmap:
 		regulator_disable(host->vmmc);
 		regulator_put(host->vmmc);
 	}
+
+err_clk_ciu:
+	if (!IS_ERR(host->ciu_clk)) {
+		clk_disable_unprepare(host->ciu_clk);
+		clk_put(host->ciu_clk);
+	}
+err_clk_biu:
+	if (!IS_ERR(host->biu_clk)) {
+		clk_disable_unprepare(host->biu_clk);
+		clk_put(host->biu_clk);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(dw_mci_probe);
@@ -2149,6 +2189,12 @@ void dw_mci_remove(struct dw_mci *host)
 		regulator_put(host->vmmc);
 	}
 
+	if (!IS_ERR(host->ciu_clk))
+		clk_disable_unprepare(host->ciu_clk);
+	if (!IS_ERR(host->biu_clk))
+		clk_disable_unprepare(host->biu_clk);
+	clk_put(host->ciu_clk);
+	clk_put(host->biu_clk);
 }
 EXPORT_SYMBOL(dw_mci_remove);
 
