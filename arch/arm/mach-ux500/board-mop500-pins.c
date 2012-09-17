@@ -219,7 +219,7 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	DB8500_MUX("usb_a_1", "usb", "musb-ux500.0"),
 	DB8500_PIN("GPIO257_AE29", out_hi, "musb-ux500.0"), /* STP */
 	/* Mux in SPI2 pins on the "other C1" altfunction */
-	DB8500_MUX("spi2_oc1_1", "spi2", "spi2"),
+	DB8500_MUX("spi2_oc1_2", "spi2", "spi2"),
 	DB8500_PIN("GPIO216_AG12", gpio_out_hi, "spi2"), /* FRM */
 	DB8500_PIN("GPIO218_AH11", in_pd, "spi2"), /* RXD */
 	DB8500_PIN("GPIO215_AH13", out_lo, "spi2"), /* TXD */
