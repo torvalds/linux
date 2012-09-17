@@ -40,6 +40,8 @@ enum iio_chan_info_enum {
 
 #define IIO_CHAN_INFO_SHARED_BIT(type) BIT(type*2)
 #define IIO_CHAN_INFO_SEPARATE_BIT(type) BIT(type*2 + 1)
+#define IIO_CHAN_INFO_BITS(type) (IIO_CHAN_INFO_SHARED_BIT(type) | \
+				    IIO_CHAN_INFO_SEPARATE_BIT(type))
 
 #define IIO_CHAN_INFO_RAW_SEPARATE_BIT			\
 	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_RAW)
@@ -260,6 +262,21 @@ struct iio_chan_spec {
 	unsigned		output:1;
 	unsigned		differential:1;
 };
+
+
+/**
+ * iio_channel_has_info() - Checks whether a channel supports a info attribute
+ * @chan: The channel to be queried
+ * @type: Type of the info attribute to be checked
+ *
+ * Returns true if the channels supports reporting values for the given info
+ * attribute type, false otherwise.
+ */
+static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
+	enum iio_chan_info_enum type)
+{
+	return chan->info_mask & IIO_CHAN_INFO_BITS(type);
+}
 
 #define IIO_ST(si, rb, sb, sh)						\
 	{ .sign = si, .realbits = rb, .storagebits = sb, .shift = sh }

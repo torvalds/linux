@@ -61,7 +61,7 @@ void iio_channel_release_all(struct iio_channel *chan);
 
 /**
  * iio_read_channel_raw() - read from a given channel
- * @channel:		The channel being queried.
+ * @chan:		The channel being queried.
  * @val:		Value read back.
  *
  * Note raw reads from iio channels are in adc counts and hence
@@ -69,6 +69,21 @@ void iio_channel_release_all(struct iio_channel *chan);
  */
 int iio_read_channel_raw(struct iio_channel *chan,
 			 int *val);
+
+/**
+ * iio_read_channel_processed() - read processed value from a given channel
+ * @chan:		The channel being queried.
+ * @val:		Value read back.
+ *
+ * Returns an error code or 0.
+ *
+ * This function will read a processed value from a channel. A processed value
+ * means that this value will have the correct unit and not some device internal
+ * representation. If the device does not support reporting a processed value
+ * the function will query the raw value and the channels scale and offset and
+ * do the appropriate transformation.
+ */
+int iio_read_channel_processed(struct iio_channel *chan, int *val);
 
 /**
  * iio_get_channel_type() - get the type of a channel
@@ -82,7 +97,7 @@ int iio_get_channel_type(struct iio_channel *channel,
 
 /**
  * iio_read_channel_scale() - read the scale value for a channel
- * @channel:		The channel being queried.
+ * @chan:		The channel being queried.
  * @val:		First part of value read back.
  * @val2:		Second part of value read back.
  *
@@ -92,5 +107,28 @@ int iio_get_channel_type(struct iio_channel *channel,
  */
 int iio_read_channel_scale(struct iio_channel *chan, int *val,
 			   int *val2);
+
+/**
+ * iio_convert_raw_to_processed() - Converts a raw value to a processed value
+ * @chan:		The channel being queried
+ * @raw:		The raw IIO to convert
+ * @processed:		The result of the conversion
+ * @scale:		Scale factor to apply during the conversion
+ *
+ * Returns an error code or 0.
+ *
+ * This function converts a raw value to processed value for a specific channel.
+ * A raw value is the device internal representation of a sample and the value
+ * returned by iio_read_channel_raw, so the unit of that value is device
+ * depended. A processed value on the other hand is value has a normed unit
+ * according with the IIO specification.
+ *
+ * The scale factor allows to increase the precession of the returned value. For
+ * a scale factor of 1 the function will return the result in the normal IIO
+ * unit for the channel type. E.g. millivolt for voltage channels, if you want
+ * nanovolts instead pass 1000 as the scale factor.
+ */
+int iio_convert_raw_to_processed(struct iio_channel *chan, int raw,
+	int *processed, unsigned int scale);
 
 #endif
