@@ -322,8 +322,10 @@ static void s5pcsis_set_params(struct csis_state *state)
 		val |= S5PCSIS_CTRL_ALIGN_32BIT;
 	else /* 24-bits */
 		val &= ~S5PCSIS_CTRL_ALIGN_32BIT;
-	/* Not using external clock. */
+
 	val &= ~S5PCSIS_CTRL_WCLK_EXTCLK;
+	if (pdata->wclk_source)
+		val |= S5PCSIS_CTRL_WCLK_EXTCLK;
 	s5pcsis_write(state, S5PCSIS_CTRL, val);
 
 	/* Update the shadow register. */
