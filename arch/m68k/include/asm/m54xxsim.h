@@ -47,6 +47,12 @@
 #define MCF_IRQ_UART3		(MCFINT_VECBASE + 32)
 
 /*
+ *	Slice Timer support.
+ */
+#define MCFSLT_TIMER0		(MCF_MBAR + 0x900)	/* Base addr TIMER0 */
+#define MCFSLT_TIMER1		(MCF_MBAR + 0x910)	/* Base addr TIMER1 */
+
+/*
  *	Generic GPIO support
  */
 #define MCFGPIO_PIN_MAX		0	/* I am too lazy to count */
