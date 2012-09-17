@@ -76,9 +76,17 @@ total 0
 
 
 * desc : Small description about the idle state (string)
-* disable : Option to disable this idle state (bool)
+* disable : Option to disable this idle state (bool) -> see note below
 * latency : Latency to exit out of this idle state (in microseconds)
 * name : Name of the idle state (string)
 * power : Power consumed while in this idle state (in milliwatts)
 * time : Total time spent in this idle state (in microseconds)
 * usage : Number of times this state was entered (count)
+
+Note:
+The behavior and the effect of the disable variable depends on the
+implementation of a particular governor. In the ladder governor, for
+example, it is not coherent, i.e. if one is disabling a light state,
+then all deeper states are disabled as well, but the disable variable
+does not reflect it. Likewise, if one enables a deep state but a lighter
+state still is disabled, then this has no effect.

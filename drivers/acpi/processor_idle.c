@@ -483,8 +483,6 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		if (obj->type != ACPI_TYPE_INTEGER)
 			continue;
 
-		cx.power = obj->integer.value;
-
 		current_count++;
 		memcpy(&(pr->power.states[current_count]), &cx, sizeof(cx));
 
@@ -1218,8 +1216,7 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 
 static int acpi_processor_registered;
 
-int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
-			      struct acpi_device *device)
+int __cpuinit acpi_processor_power_init(struct acpi_processor *pr)
 {
 	acpi_status status = 0;
 	int retval;
@@ -1283,8 +1280,7 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	return 0;
 }
 
-int acpi_processor_power_exit(struct acpi_processor *pr,
-			      struct acpi_device *device)
+int acpi_processor_power_exit(struct acpi_processor *pr)
 {
 	if (disabled_by_idle_boot_param())
 		return 0;
