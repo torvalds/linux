@@ -1738,14 +1738,17 @@ EXPORT_SYMBOL_GPL(vb2_poll);
  */
 int vb2_queue_init(struct vb2_queue *q)
 {
-	BUG_ON(!q);
-	BUG_ON(!q->ops);
-	BUG_ON(!q->mem_ops);
-	BUG_ON(!q->type);
-	BUG_ON(!q->io_modes);
-
-	BUG_ON(!q->ops->queue_setup);
-	BUG_ON(!q->ops->buf_queue);
+	/*
+	 * Sanity check
+	 */
+	if (WARN_ON(!q)			  ||
+	    WARN_ON(!q->ops)		  ||
+	    WARN_ON(!q->mem_ops)	  ||
+	    WARN_ON(!q->type)		  ||
+	    WARN_ON(!q->io_modes)	  ||
+	    WARN_ON(!q->ops->queue_setup) ||
+	    WARN_ON(!q->ops->buf_queue))
+		return -EINVAL;
 
 	INIT_LIST_HEAD(&q->queued_list);
 	INIT_LIST_HEAD(&q->done_list);
