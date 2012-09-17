@@ -583,6 +583,12 @@ static struct rtl2832_config rtl28xxu_rtl2832_tua9001_config = {
 	.tuner = TUNER_RTL2832_TUA9001,
 };
 
+static struct rtl2832_config rtl28xxu_rtl2832_e4000_config = {
+	.i2c_addr = 0x10, /* 0x20 */
+	.xtal = 28800000,
+	.tuner = TUNER_RTL2832_E4000,
+};
+
 static int rtl2832u_fc0012_tuner_callback(struct dvb_usb_device *d,
 		int cmd, int arg)
 {
@@ -720,8 +726,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 		rtl2832_config = &rtl28xxu_rtl2832_tua9001_config;
 		break;
 	case TUNER_RTL2832_E4000:
-		/* FIXME: do not abuse fc0012 settings */
-		rtl2832_config = &rtl28xxu_rtl2832_fc0012_config;
+		rtl2832_config = &rtl28xxu_rtl2832_e4000_config;
 		break;
 	default:
 		dev_err(&d->udev->dev, "%s: unknown tuner=%s\n",
