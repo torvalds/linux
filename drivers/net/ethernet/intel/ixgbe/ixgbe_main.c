@@ -1785,7 +1785,8 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 #ifdef IXGBE_FCOE
 	struct ixgbe_adapter *adapter = q_vector->adapter;
-	int ddp_bytes = 0;
+	int ddp_bytes;
+	unsigned int mss = 0;
 #endif /* IXGBE_FCOE */
 	u16 cleaned_count = ixgbe_desc_unused(rx_ring);
 
@@ -1839,6 +1840,20 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		/* if ddp, not passing to ULD unless for FCP_RSP or error */
 		if (ixgbe_rx_is_fcoe(rx_ring, rx_desc)) {
 			ddp_bytes = ixgbe_fcoe_ddp(adapter, rx_desc, skb);
+			/* include DDPed FCoE data */
+			if (ddp_bytes > 0) {
+				if (!mss) {
+					mss = rx_ring->netdev->mtu -
+						sizeof(struct fcoe_hdr) -
+						sizeof(struct fc_frame_header) -
+						sizeof(struct fcoe_crc_eof);
+					if (mss > 512)
+						mss &= ~511;
+				}
+				total_rx_bytes += ddp_bytes;
+				total_rx_packets += DIV_ROUND_UP(ddp_bytes,
+								 mss);
+			}
 			if (!ddp_bytes) {
 				dev_kfree_skb_any(skb);
 				continue;
@@ -1852,21 +1867,6 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		budget--;
 	} while (likely(budget));
 
-#ifdef IXGBE_FCOE
-	/* include DDPed FCoE data */
-	if (ddp_bytes > 0) {
-		unsigned int mss;
-
-		mss = rx_ring->netdev->mtu - sizeof(struct fcoe_hdr) -
-			sizeof(struct fc_frame_header) -
-			sizeof(struct fcoe_crc_eof);
-		if (mss > 512)
-			mss &= ~511;
-		total_rx_bytes += ddp_bytes;
-		total_rx_packets += DIV_ROUND_UP(ddp_bytes, mss);
-	}
-
-#endif /* IXGBE_FCOE */
 	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->stats.packets += total_rx_packets;
 	rx_ring->stats.bytes += total_rx_bytes;
@@ -3660,8 +3660,6 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		netif_set_gso_max_size(adapter->netdev, 32768);
 
-	hw->mac.ops.set_vfta(&adapter->hw, 0, 0, true);
-
 #ifdef IXGBE_FCOE
 	if (adapter->netdev->features & NETIF_F_FCOE_MTU)
 		max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
@@ -3861,6 +3859,11 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 #ifdef CONFIG_IXGBE_DCB
 	ixgbe_configure_dcb(adapter);
 #endif
+	/*
+	 * We must restore virtualization before VLANs or else
+	 * the VLVF registers will not be populated
+	 */
+	ixgbe_configure_virtualization(adapter);
 
 	ixgbe_set_rx_mode(adapter->netdev);
 	ixgbe_restore_vlan(adapter);
@@ -3891,8 +3894,6 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 	default:
 		break;
 	}
-
-	ixgbe_configure_virtualization(adapter);
 
 #ifdef IXGBE_FCOE
 	/* configure FCoE L2 filters, redirection table, and Rx control */
@@ -5572,7 +5573,7 @@ static void ixgbe_spoof_check(struct ixgbe_adapter *adapter)
 	if (!ssvpc)
 		return;
 
-	e_warn(drv, "%d Spoofed packets detected\n", ssvpc);
+	e_warn(drv, "%u Spoofed packets detected\n", ssvpc);
 }
 
 /**
@@ -7447,6 +7448,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		e_err(probe, "failed to allocate sysfs resources\n");
 #endif /* CONFIG_IXGBE_HWMON */
 
+#ifdef CONFIG_DEBUG_FS
+	ixgbe_dbg_adapter_init(adapter);
+#endif /* CONFIG_DEBUG_FS */
+
 	return 0;
 
 err_register:
@@ -7480,6 +7485,10 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 {
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
+
+#ifdef CONFIG_DEBUG_FS
+	ixgbe_dbg_adapter_exit(adapter);
+#endif /*CONFIG_DEBUG_FS */
 
 	set_bit(__IXGBE_DOWN, &adapter->state);
 	cancel_work_sync(&adapter->service_task);
@@ -7736,6 +7745,10 @@ static int __init ixgbe_init_module(void)
 	pr_info("%s - version %s\n", ixgbe_driver_string, ixgbe_driver_version);
 	pr_info("%s\n", ixgbe_copyright);
 
+#ifdef CONFIG_DEBUG_FS
+	ixgbe_dbg_init();
+#endif /* CONFIG_DEBUG_FS */
+
 #ifdef CONFIG_IXGBE_DCA
 	dca_register_notify(&dca_notifier);
 #endif
@@ -7758,6 +7771,11 @@ static void __exit ixgbe_exit_module(void)
 	dca_unregister_notify(&dca_notifier);
 #endif
 	pci_unregister_driver(&ixgbe_driver);
+
+#ifdef CONFIG_DEBUG_FS
+	ixgbe_dbg_exit();
+#endif /* CONFIG_DEBUG_FS */
+
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 
