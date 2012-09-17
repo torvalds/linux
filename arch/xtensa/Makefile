@@ -31,7 +31,7 @@ PLATFORM = $(platform-y)
 export PLATFORM
 
 # temporarily until string.h is fixed
-KBUILD_CFLAGS += -ffreestanding
+KBUILD_CFLAGS += -ffreestanding -D__linux__
 
 KBUILD_CFLAGS += -pipe -mlongcalls
 
