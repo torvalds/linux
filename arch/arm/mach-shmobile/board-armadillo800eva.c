@@ -1182,10 +1182,10 @@ static void __init eva_init(void)
 
 	eva_clock_init();
 
-	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &lcdc0_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a4lc, &hdmi_lcdc_device);
+	rmobile_add_device_to_domain("A4LC", &lcdc0_device);
+	rmobile_add_device_to_domain("A4LC", &hdmi_lcdc_device);
 	if (usb)
-		rmobile_add_device_to_domain(&r8a7740_pd_a3sp, usb);
+		rmobile_add_device_to_domain("A3SP", usb);
 }
 
 static void __init eva_earlytimer_init(void)

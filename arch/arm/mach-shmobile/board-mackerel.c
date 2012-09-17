@@ -1410,6 +1410,22 @@ static struct i2c_board_info i2c1_devices[] = {
 #define USCCR1		0xE6058144
 static void __init mackerel_init(void)
 {
+	struct pm_domain_device domain_devices[] = {
+		{ "A4LC", &lcdc_device, },
+		{ "A4LC", &hdmi_lcdc_device, },
+		{ "A4LC", &meram_device, },
+		{ "A4MP", &fsi_device, },
+		{ "A3SP", &usbhs0_device, },
+		{ "A3SP", &usbhs1_device, },
+		{ "A3SP", &nand_flash_device, },
+		{ "A3SP", &sh_mmcif_device, },
+		{ "A3SP", &sdhi0_device, },
+#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+		{ "A3SP", &sdhi1_device, },
+#endif
+		{ "A3SP", &sdhi2_device, },
+		{ "A4R", &ceu_device, },
+	};
 	u32 srcr4;
 	struct clk *clk;
 
@@ -1624,20 +1640,8 @@ static void __init mackerel_init(void)
 
 	platform_add_devices(mackerel_devices, ARRAY_SIZE(mackerel_devices));
 
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &hdmi_lcdc_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &meram_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &fsi_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usbhs0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usbhs1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &nand_flash_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sh_mmcif_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi0_device);
-#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi1_device);
-#endif
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi2_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &ceu_device);
+	rmobile_add_devices_to_domains(domain_devices,
+				       ARRAY_SIZE(domain_devices));
 
 	hdmi_init_pm_clock();
 	sh7372_pm_init();
@@ -1651,6 +1655,6 @@ MACHINE_START(MACKEREL, "mackerel")
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= mackerel_init,
-	.init_late	= shmobile_init_late,
+	.init_late	= sh7372_pm_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END
