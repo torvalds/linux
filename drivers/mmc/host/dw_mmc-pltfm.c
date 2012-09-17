@@ -19,6 +19,8 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/dw_mmc.h>
+#include <linux/of.h>
+
 #include "dw_mmc.h"
 
 static int __devinit dw_mci_pltfm_probe(struct platform_device *pdev)
@@ -94,10 +96,17 @@ static int dw_mci_pltfm_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(dw_mci_pltfm_pmops, dw_mci_pltfm_suspend, dw_mci_pltfm_resume);
 
+static const struct of_device_id dw_mci_pltfm_match[] = {
+	{ .compatible = "snps,dw-mshc", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
+
 static struct platform_driver dw_mci_pltfm_driver = {
 	.remove		= __exit_p(dw_mci_pltfm_remove),
 	.driver		= {
 		.name		= "dw_mmc",
+		.of_match_table	= of_match_ptr(dw_mci_pltfm_match),
 		.pm		= &dw_mci_pltfm_pmops,
 	},
 };
