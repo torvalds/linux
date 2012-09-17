@@ -2116,9 +2116,28 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 
 	/* TODO: implement per-device bus flags */
 	if (pcdev->pdata) {
-		pcdev->max_width = pcdev->pdata->max_width ? : 2560;
-		pcdev->max_height = pcdev->pdata->max_height ? : 1920;
+		pcdev->max_width = pcdev->pdata->max_width;
+		pcdev->max_height = pcdev->pdata->max_height;
 		pcdev->flags = pcdev->pdata->flags;
+	}
+
+	if (!pcdev->max_width) {
+		unsigned int v;
+		err = of_property_read_u32(pdev->dev.of_node, "renesas,max-width", &v);
+		if (!err)
+			pcdev->max_width = v;
+
+		if (!pcdev->max_width)
+			pcdev->max_width = 2560;
+	}
+	if (!pcdev->max_height) {
+		unsigned int v;
+		err = of_property_read_u32(pdev->dev.of_node, "renesas,max-height", &v);
+		if (!err)
+			pcdev->max_height = v;
+
+		if (!pcdev->max_height)
+			pcdev->max_height = 1920;
 	}
 
 	base = devm_ioremap_resource(&pdev->dev, res);
