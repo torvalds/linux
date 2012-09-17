@@ -160,6 +160,7 @@ struct csis_pktbuf {
  *        protecting @format and @flags members
  * @pads: CSIS pads array
  * @sd: v4l2_subdev associated with CSIS device instance
+ * @index: the hardware instance index
  * @pdev: CSIS platform device
  * @regs: mmaped I/O registers memory
  * @supplies: CSIS regulator supplies
@@ -176,6 +177,7 @@ struct csis_state {
 	struct mutex lock;
 	struct media_pad pads[CSIS_PADS_NUM];
 	struct v4l2_subdev sd;
+	u8 index;
 	struct platform_device *pdev;
 	void __iomem *regs;
 	struct regulator_bulk_data supplies[CSIS_NUM_SUPPLIES];
@@ -666,14 +668,15 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 	spin_lock_init(&state->slock);
 
 	state->pdev = pdev;
+	state->index = max(0, pdev->id);
 
 	pdata = pdev->dev.platform_data;
-	if (pdata == NULL || pdata->phy_enable == NULL) {
+	if (pdata == NULL) {
 		dev_err(&pdev->dev, "Platform data not fully specified\n");
 		return -EINVAL;
 	}
 
-	if ((pdev->id == 1 && pdata->lanes > CSIS1_MAX_LANES) ||
+	if ((state->index == 1 && pdata->lanes > CSIS1_MAX_LANES) ||
 	    pdata->lanes > CSIS0_MAX_LANES) {
 		dev_err(&pdev->dev, "Unsupported number of data lanes: %d\n",
 			pdata->lanes);
@@ -756,7 +759,6 @@ e_clkput:
 
 static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
 {
-	struct s5p_platform_mipi_csis *pdata = dev->platform_data;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csis_state *state = sd_to_csis_state(sd);
@@ -768,7 +770,7 @@ static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
 	mutex_lock(&state->lock);
 	if (state->flags & ST_POWERED) {
 		s5pcsis_stop_stream(state);
-		ret = pdata->phy_enable(state->pdev, false);
+		ret = s5p_csis_phy_enable(state->index, false);
 		if (ret)
 			goto unlock;
 		ret = regulator_bulk_disable(CSIS_NUM_SUPPLIES,
@@ -787,7 +789,6 @@ static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
 
 static int s5pcsis_pm_resume(struct device *dev, bool runtime)
 {
-	struct s5p_platform_mipi_csis *pdata = dev->platform_data;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csis_state *state = sd_to_csis_state(sd);
@@ -805,7 +806,7 @@ static int s5pcsis_pm_resume(struct device *dev, bool runtime)
 					    state->supplies);
 		if (ret)
 			goto unlock;
-		ret = pdata->phy_enable(state->pdev, true);
+		ret = s5p_csis_phy_enable(state->index, true);
 		if (!ret) {
 			state->flags |= ST_POWERED;
 		} else {
