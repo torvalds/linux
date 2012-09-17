@@ -10,10 +10,12 @@ util/ctype.c
 util/evlist.c
 util/evsel.c
 util/cpumap.c
+util/hweight.c
 util/thread_map.c
 util/util.c
 util/xyarray.c
 util/cgroup.c
 util/debugfs.c
+util/rblist.c
 util/strlist.c
 ../../lib/rbtree.c

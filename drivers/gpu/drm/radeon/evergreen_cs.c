@@ -788,6 +788,13 @@ static int evergreen_cs_track_validate_texture(struct radeon_cs_parser *p,
 	case V_030000_SQ_TEX_DIM_1D_ARRAY:
 	case V_030000_SQ_TEX_DIM_2D_ARRAY:
 		depth = 1;
+		break;
+	case V_030000_SQ_TEX_DIM_2D_MSAA:
+	case V_030000_SQ_TEX_DIM_2D_ARRAY_MSAA:
+		surf.nsamples = 1 << llevel;
+		llevel = 0;
+		depth = 1;
+		break;
 	case V_030000_SQ_TEX_DIM_3D:
 		break;
 	default:
@@ -961,13 +968,15 @@ static int evergreen_cs_track_check(struct radeon_cs_parser *p)
 
 	if (track->db_dirty) {
 		/* Check stencil buffer */
-		if (G_028800_STENCIL_ENABLE(track->db_depth_control)) {
+		if (G_028044_FORMAT(track->db_s_info) != V_028044_STENCIL_INVALID &&
+		    G_028800_STENCIL_ENABLE(track->db_depth_control)) {
 			r = evergreen_cs_track_validate_stencil(p);
 			if (r)
 				return r;
 		}
 		/* Check depth buffer */
-		if (G_028800_Z_ENABLE(track->db_depth_control)) {
+		if (G_028040_FORMAT(track->db_z_info) != V_028040_Z_INVALID &&
+		    G_028800_Z_ENABLE(track->db_depth_control)) {
 			r = evergreen_cs_track_validate_depth(p);
 			if (r)
 				return r;

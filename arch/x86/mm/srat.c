@@ -142,23 +142,23 @@ static inline int save_add_info(void) {return 0;}
 #endif
 
 /* Callback for parsing of the Proximity Domain <-> Memory Area mappings */
-void __init
+int __init
 acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 {
 	u64 start, end;
 	int node, pxm;
 
 	if (srat_disabled())
-		return;
+		return -1;
 	if (ma->header.length != sizeof(struct acpi_srat_mem_affinity)) {
 		bad_srat();
-		return;
+		return -1;
 	}
 	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
-		return;
+		return -1;
 
 	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && !save_add_info())
-		return;
+		return -1;
 	start = ma->base_address;
 	end = start + ma->length;
 	pxm = ma->proximity_domain;
@@ -168,12 +168,12 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	if (node < 0) {
 		printk(KERN_ERR "SRAT: Too many proximity domains.\n");
 		bad_srat();
-		return;
+		return -1;
 	}
 
 	if (numa_add_memblk(node, start, end) < 0) {
 		bad_srat();
-		return;
+		return -1;
 	}
 
 	node_set(node, numa_nodes_parsed);
@@ -181,6 +181,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
 	       node, pxm,
 	       (unsigned long long) start, (unsigned long long) end - 1);
+	return 0;
 }
 
 void __init acpi_numa_arch_fixup(void) {}

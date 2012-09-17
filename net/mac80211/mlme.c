@@ -1430,6 +1430,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	del_timer_sync(&sdata->u.mgd.bcn_mon_timer);
 	del_timer_sync(&sdata->u.mgd.timer);
 	del_timer_sync(&sdata->u.mgd.chswitch_timer);
+
+	sdata->u.mgd.timers_running = 0;
 }
 
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,

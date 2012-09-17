@@ -1948,7 +1948,7 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 
 	if (adapter->num_rx_qs != MAX_RX_QS)
 		dev_info(&adapter->pdev->dev,
-			"Created only %d receive queues", adapter->num_rx_qs);
+			"Created only %d receive queues\n", adapter->num_rx_qs);
 
 	return 0;
 }

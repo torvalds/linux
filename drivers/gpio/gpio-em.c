@@ -266,7 +266,7 @@ static int __devinit em_gio_irq_domain_init(struct em_gio_priv *p)
 	return 0;
 }
 
-static void __devexit em_gio_irq_domain_cleanup(struct em_gio_priv *p)
+static void em_gio_irq_domain_cleanup(struct em_gio_priv *p)
 {
 	struct gpio_em_config *pdata = p->pdev->dev.platform_data;
 

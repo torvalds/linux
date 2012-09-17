@@ -358,7 +358,7 @@ void __init dma_contiguous_remap(void)
 		if (end > arm_lowmem_limit)
 			end = arm_lowmem_limit;
 		if (start >= end)
-			return;
+			continue;
 
 		map.pfn = __phys_to_pfn(start);
 		map.virtual = __phys_to_virt(start);
@@ -423,7 +423,7 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
 	unsigned int pageno;
 	unsigned long flags;
 	void *ptr = NULL;
-	size_t align;
+	unsigned long align_mask;
 
 	if (!pool->vaddr) {
 		WARN(1, "coherent pool not initialised!\n");
@@ -435,11 +435,11 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
 	 * small, so align them to their order in pages, minimum is a page
 	 * size. This helps reduce fragmentation of the DMA space.
 	 */
-	align = PAGE_SIZE << get_order(size);
+	align_mask = (1 << get_order(size)) - 1;
 
 	spin_lock_irqsave(&pool->lock, flags);
 	pageno = bitmap_find_next_zero_area(pool->bitmap, pool->nr_pages,
-					    0, count, (1 << align) - 1);
+					    0, count, align_mask);
 	if (pageno < pool->nr_pages) {
 		bitmap_set(pool->bitmap, pageno, count);
 		ptr = pool->vaddr + PAGE_SIZE * pageno;
@@ -648,12 +648,12 @@ void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
 
 	if (arch_is_coherent() || nommu()) {
 		__dma_free_buffer(page, size);
+	} else if (__free_from_pool(cpu_addr, size)) {
+		return;
 	} else if (!IS_ENABLED(CONFIG_CMA)) {
 		__dma_free_remap(cpu_addr, size);
 		__dma_free_buffer(page, size);
 	} else {
-		if (__free_from_pool(cpu_addr, size))
-			return;
 		/*
 		 * Non-atomic allocations cannot be freed with IRQs disabled
 		 */

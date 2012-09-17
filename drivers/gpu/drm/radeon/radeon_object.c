@@ -52,11 +52,7 @@ void radeon_bo_clear_va(struct radeon_bo *bo)
 
 	list_for_each_entry_safe(bo_va, tmp, &bo->va, bo_list) {
 		/* remove from all vm address space */
-		mutex_lock(&bo_va->vm->mutex);
-		list_del(&bo_va->vm_list);
-		mutex_unlock(&bo_va->vm->mutex);
-		list_del(&bo_va->bo_list);
-		kfree(bo_va);
+		radeon_vm_bo_rmv(bo->rdev, bo_va->vm, bo);
 	}
 }
 
@@ -136,6 +132,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 	acc_size = ttm_bo_dma_acc_size(&rdev->mman.bdev, size,
 				       sizeof(struct radeon_bo));
 
+retry:
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
@@ -149,8 +146,6 @@ int radeon_bo_create(struct radeon_device *rdev,
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->va);
-
-retry:
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
 	down_read(&rdev->pm.mclk_lock);

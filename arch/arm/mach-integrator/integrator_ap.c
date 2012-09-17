@@ -456,7 +456,7 @@ static void __init ap_init_timer(void)
 
 	clk = clk_get_sys("ap_timer", NULL);
 	BUG_ON(IS_ERR(clk));
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 	rate = clk_get_rate(clk);
 
 	writel(0, TIMER0_VA_BASE + TIMER_CTRL);

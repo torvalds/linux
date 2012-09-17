@@ -440,11 +440,13 @@ static int __devexit acpi_fujitsu_remove(struct acpi_device *adev, int type)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int acpi_fujitsu_resume(struct device *dev)
 {
 	fujitsu_reset();
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(acpi_fujitsu_pm, NULL, acpi_fujitsu_resume);
 

@@ -881,3 +881,10 @@ int perf_evlist__start_workload(struct perf_evlist *evlist)
 
 	return 0;
 }
+
+int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
+			      struct perf_sample *sample, bool swapped)
+{
+	struct perf_evsel *e = list_entry(evlist->entries.next, struct perf_evsel, node);
+	return perf_evsel__parse_sample(e, event, sample, swapped);
+}

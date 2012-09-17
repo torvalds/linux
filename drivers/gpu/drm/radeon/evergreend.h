@@ -1277,6 +1277,8 @@
 #define   S_028044_FORMAT(x)                           (((x) & 0x1) << 0)
 #define   G_028044_FORMAT(x)                           (((x) >> 0) & 0x1)
 #define   C_028044_FORMAT                              0xFFFFFFFE
+#define	    V_028044_STENCIL_INVALID			0
+#define	    V_028044_STENCIL_8				1
 #define   G_028044_TILE_SPLIT(x)                       (((x) >> 8) & 0x7)
 #define DB_Z_READ_BASE					0x28048
 #define DB_STENCIL_READ_BASE				0x2804c
