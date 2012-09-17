@@ -565,8 +565,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	    ops->vidioc_enum_fmt_vid_out ||
 	    ops->vidioc_enum_fmt_vid_cap_mplane ||
 	    ops->vidioc_enum_fmt_vid_out_mplane ||
-	    ops->vidioc_enum_fmt_vid_overlay ||
-	    ops->vidioc_enum_fmt_type_private)
+	    ops->vidioc_enum_fmt_vid_overlay)
 		set_bit(_IOC_NR(VIDIOC_ENUM_FMT), valid_ioctls);
 	if (ops->vidioc_g_fmt_vid_cap ||
 	    ops->vidioc_g_fmt_vid_out ||
@@ -577,8 +576,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	    ops->vidioc_g_fmt_vid_out_overlay ||
 	    ops->vidioc_g_fmt_vbi_out ||
 	    ops->vidioc_g_fmt_sliced_vbi_cap ||
-	    ops->vidioc_g_fmt_sliced_vbi_out ||
-	    ops->vidioc_g_fmt_type_private)
+	    ops->vidioc_g_fmt_sliced_vbi_out)
 		set_bit(_IOC_NR(VIDIOC_G_FMT), valid_ioctls);
 	if (ops->vidioc_s_fmt_vid_cap ||
 	    ops->vidioc_s_fmt_vid_out ||
@@ -589,8 +587,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	    ops->vidioc_s_fmt_vid_out_overlay ||
 	    ops->vidioc_s_fmt_vbi_out ||
 	    ops->vidioc_s_fmt_sliced_vbi_cap ||
-	    ops->vidioc_s_fmt_sliced_vbi_out ||
-	    ops->vidioc_s_fmt_type_private)
+	    ops->vidioc_s_fmt_sliced_vbi_out)
 		set_bit(_IOC_NR(VIDIOC_S_FMT), valid_ioctls);
 	if (ops->vidioc_try_fmt_vid_cap ||
 	    ops->vidioc_try_fmt_vid_out ||
@@ -601,8 +598,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	    ops->vidioc_try_fmt_vid_out_overlay ||
 	    ops->vidioc_try_fmt_vbi_out ||
 	    ops->vidioc_try_fmt_sliced_vbi_cap ||
-	    ops->vidioc_try_fmt_sliced_vbi_out ||
-	    ops->vidioc_try_fmt_type_private)
+	    ops->vidioc_try_fmt_sliced_vbi_out)
 		set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 	SET_VALID_IOCTL(ops, VIDIOC_REQBUFS, vidioc_reqbufs);
 	SET_VALID_IOCTL(ops, VIDIOC_QUERYBUF, vidioc_querybuf);

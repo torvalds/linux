@@ -316,9 +316,6 @@ static void v4l_print_format(const void *arg, bool write_only)
 				sliced->service_lines[0][i],
 				sliced->service_lines[1][i]);
 		break;
-	case V4L2_BUF_TYPE_PRIVATE:
-		pr_cont("\n");
-		break;
 	}
 }
 
@@ -927,9 +924,7 @@ static int check_fmt(const struct v4l2_ioctl_ops *ops, enum v4l2_buf_type type)
 		if (ops->vidioc_g_fmt_sliced_vbi_out)
 			return 0;
 		break;
-	case V4L2_BUF_TYPE_PRIVATE:
-		if (ops->vidioc_g_fmt_type_private)
-			return 0;
+	default:
 		break;
 	}
 	return -EINVAL;
@@ -1051,10 +1046,6 @@ static int v4l_enum_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_enum_fmt_vid_out_mplane))
 			break;
 		return ops->vidioc_enum_fmt_vid_out_mplane(file, fh, arg);
-	case V4L2_BUF_TYPE_PRIVATE:
-		if (unlikely(!ops->vidioc_enum_fmt_type_private))
-			break;
-		return ops->vidioc_enum_fmt_type_private(file, fh, arg);
 	}
 	return -EINVAL;
 }
@@ -1105,10 +1096,6 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 		if (unlikely(!ops->vidioc_g_fmt_sliced_vbi_out))
 			break;
 		return ops->vidioc_g_fmt_sliced_vbi_out(file, fh, arg);
-	case V4L2_BUF_TYPE_PRIVATE:
-		if (unlikely(!ops->vidioc_g_fmt_type_private))
-			break;
-		return ops->vidioc_g_fmt_type_private(file, fh, arg);
 	}
 	return -EINVAL;
 }
@@ -1169,10 +1156,6 @@ static int v4l_s_fmt(const struct v4l2_ioctl_ops *ops,
 			break;
 		CLEAR_AFTER_FIELD(p, fmt.sliced);
 		return ops->vidioc_s_fmt_sliced_vbi_out(file, fh, arg);
-	case V4L2_BUF_TYPE_PRIVATE:
-		if (unlikely(!ops->vidioc_s_fmt_type_private))
-			break;
-		return ops->vidioc_s_fmt_type_private(file, fh, arg);
 	}
 	return -EINVAL;
 }
@@ -1233,10 +1216,6 @@ static int v4l_try_fmt(const struct v4l2_ioctl_ops *ops,
 			break;
 		CLEAR_AFTER_FIELD(p, fmt.sliced);
 		return ops->vidioc_try_fmt_sliced_vbi_out(file, fh, arg);
-	case V4L2_BUF_TYPE_PRIVATE:
-		if (unlikely(!ops->vidioc_try_fmt_type_private))
-			break;
-		return ops->vidioc_try_fmt_type_private(file, fh, arg);
 	}
 	return -EINVAL;
 }
@@ -1425,8 +1404,7 @@ static int v4l_reqbufs(const struct v4l2_ioctl_ops *ops,
 	if (ret)
 		return ret;
 
-	if (p->type < V4L2_BUF_TYPE_PRIVATE)
-		CLEAR_AFTER_FIELD(p, memory);
+	CLEAR_AFTER_FIELD(p, memory);
 
 	return ops->vidioc_reqbufs(file, fh, p);
 }
