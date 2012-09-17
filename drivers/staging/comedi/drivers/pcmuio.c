@@ -442,7 +442,7 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 
 	subpriv->intr.enabled_mask = 0;
 	subpriv->intr.active = 0;
-	s->async->inttrig = 0;
+	s->async->inttrig = NULL;
 	nports = subpriv->intr.num_asic_chans / CHANS_PER_PORT;
 	firstport = subpriv->intr.asic_chan / CHANS_PER_PORT;
 	switch_page(dev, asic, PAGE_ENAB);
@@ -683,7 +683,7 @@ pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 		return -EINVAL;
 
 	spin_lock_irqsave(&subpriv->intr.spinlock, flags);
-	s->async->inttrig = 0;
+	s->async->inttrig = NULL;
 	if (subpriv->intr.active)
 		event = pcmuio_start_intr(dev, s);
 
