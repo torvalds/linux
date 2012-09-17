@@ -792,7 +792,6 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 		transferred = min_t(u32, ur->length,
 				transfer_size - length);
 		memcpy(ur->buf, dwc->ep0_bounce, transferred);
-		dwc->ep0_bounced = false;
 	} else {
 		transferred = ur->length - length;
 	}

@@ -862,6 +862,7 @@ struct hda_codec {
 	unsigned int ignore_misc_bit:1; /* ignore MISC_NO_PRESENCE bit */
 	unsigned int no_jack_detect:1;	/* Machine has no jack-detection */
 	unsigned int pcm_format_first:1; /* PCM format must be set first */
+	unsigned int epss:1;		/* supporting EPSS? */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
 	int power_transition;	/* power-state in transition */
