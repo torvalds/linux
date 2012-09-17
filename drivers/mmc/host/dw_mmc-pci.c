@@ -59,7 +59,7 @@ static int __devinit dw_mci_pci_probe(struct pci_dev *pdev,
 
 	host->irq = pdev->irq;
 	host->irq_flags = IRQF_SHARED;
-	host->dev = pdev->dev;
+	host->dev = &pdev->dev;
 	host->pdata = &pci_board_data;
 
 	host->regs = pci_iomap(pdev, PCI_BAR_NO, COMPLETE_BAR);

@@ -43,7 +43,7 @@ static int __devinit dw_mci_pltfm_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	host->dev = pdev->dev;
+	host->dev = &pdev->dev;
 	host->irq_flags = 0;
 	host->pdata = pdev->dev.platform_data;
 	ret = -ENOMEM;
