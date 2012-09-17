@@ -166,8 +166,6 @@ struct drm_display_mode {
 	int crtc_vsync_start;
 	int crtc_vsync_end;
 	int crtc_vtotal;
-	int crtc_hadjusted;
-	int crtc_vadjusted;
 
 	/* Driver private mode info */
 	int private_size;

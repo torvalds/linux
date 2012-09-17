@@ -62,9 +62,10 @@
  *   2.18.0 - r600-eg: allow "invalid" DB formats
  *   2.19.0 - r600-eg: MSAA textures
  *   2.20.0 - r600-si: RADEON_INFO_TIMESTAMP query
+ *   2.21.0 - r600-r700: FMASK and CMASK
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	20
+#define KMS_DRIVER_MINOR	21
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
