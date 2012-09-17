@@ -1,4 +1,20 @@
-if ARCH_MXC
+config ARCH_MXC
+	def_bool y if ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_PATCH_PHYS_VIRT
+	select AUTO_ZRELADDR if !ZBOOT_ROM
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_CHIP
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Support for Freescale MXC/iMX-based family of processors
+
+menu "Freescale i.MX support"
+	depends on ARCH_MXC
 
 config MXC_IRQ_PRIOR
 	bool "Use IRQ priority"
@@ -161,21 +177,7 @@ config	SOC_IMX51
 	select PINCTRL_IMX51
 	select SOC_IMX5
 
-menu "Freescale MXC Implementations"
-
-choice
-	prompt "Freescale CPU family:"
-	default ARCH_IMX_V6_V7
-
-config ARCH_IMX_V4_V5
-	bool "i.MX1, i.MX21, i.MX25, i.MX27"
-	select ARM_PATCH_PHYS_VIRT
-	select AUTO_ZRELADDR if !ZBOOT_ROM
-	help
-	  This enables support for systems based on the Freescale i.MX ARMv4
-	  and ARMv5 SoCs
-
-if ARCH_IMX_V4_V5
+if ARCH_MULTI_V4T
 
 comment "MX1 platforms:"
 config MACH_MXLADS
@@ -203,6 +205,10 @@ config MACH_APF9328
 	select SOC_IMX1
 	help
 	  Say Yes here if you are using the Armadeus APF9328 development board
+
+endif
+
+if ARCH_MULTI_V5
 
 comment "MX21 platforms:"
 
@@ -455,16 +461,7 @@ config MACH_IMX27_DT
 
 endif
 
-config ARCH_IMX_V6_V7
-	bool "i.MX3, i.MX5, i.MX6"
-	select ARM_PATCH_PHYS_VIRT
-	select AUTO_ZRELADDR if !ZBOOT_ROM
-	select MIGHT_HAVE_CACHE_L2X0
-	help
-	  This enables support for systems based on the Freescale i.MX3, i.MX5
-	  and i.MX6 family.
-
-if ARCH_IMX_V6_V7
+if ARCH_MULTI_V6
 
 comment "MX31 platforms:"
 
@@ -729,6 +726,10 @@ config MACH_VPR200
 	  Include support for VPR200 platform. This includes specific
 	  configurations for the board and its peripherals.
 
+endif
+
+if ARCH_MULTI_V7
+
 comment "i.MX5 platforms:"
 
 config MACH_MX50_RDP
@@ -847,10 +848,6 @@ config SOC_IMX6Q
 
 endif
 
-endchoice
-
-endmenu
-
 source "arch/arm/mach-imx/devices/Kconfig"
 
-endif
+endmenu
