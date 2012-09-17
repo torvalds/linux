@@ -453,12 +453,13 @@ static void p9_write_work(struct work_struct *work)
 	}
 
 	if (!m->wsize) {
+		spin_lock(&m->client->lock);
 		if (list_empty(&m->unsent_req_list)) {
 			clear_bit(Wworksched, &m->wsched);
+			spin_unlock(&m->client->lock);
 			return;
 		}
 
-		spin_lock(&m->client->lock);
 		req = list_entry(m->unsent_req_list.next, struct p9_req_t,
 			       req_list);
 		req->status = REQ_STATUS_SENT;
