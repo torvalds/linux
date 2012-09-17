@@ -353,8 +353,8 @@ C_ENTRY(_user_exception):
 	/* Figure out which function to use for this system call.  */
 	/* Note Microblaze barrel shift is optional, so don't rely on it */
 	add	r12, r12, r12;			/* convert num -> ptr */
-	addi	r30, r0, 1			/* restarts allowed */
 	add	r12, r12, r12;
+	addi	r30, r0, 1			/* restarts allowed */
 
 #ifdef DEBUG
 	/* Trac syscalls and stored them to syscall_debug_table */
