@@ -154,7 +154,7 @@ void __init puv3_pci_adjust_zones(unsigned long *zone_size,
 	zhole_size[0] = 0;
 }
 
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
+void pcibios_update_irq(struct pci_dev *dev, int irq)
 {
 	if (debug_pci)
 		printk(KERN_DEBUG "PCI: Assigning IRQ %02d to %s\n",

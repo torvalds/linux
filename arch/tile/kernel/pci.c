@@ -406,7 +406,7 @@ void pcibios_set_master(struct pci_dev *dev)
 /*
  * This is called from the generic Linux layer.
  */
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
+void pcibios_update_irq(struct pci_dev *dev, int irq)
 {
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }

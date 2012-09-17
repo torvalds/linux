@@ -102,7 +102,7 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	return pci_enable_resources(dev, mask);
 }
 
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
+void pcibios_update_irq(struct pci_dev *dev, int irq)
 {
 #ifdef CONFIG_PCI_DEBUG
 	printk(KERN_DEBUG "LEONPCI: Assigning IRQ %02d to %s\n", irq,
