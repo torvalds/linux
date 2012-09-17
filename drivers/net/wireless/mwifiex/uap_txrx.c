@@ -253,3 +253,73 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
 
 	return ret;
 }
+
+/*
+ * This function fills the TxPD for AP tx packets.
+ *
+ * The Tx buffer received by this function should already have the
+ * header space allocated for TxPD.
+ *
+ * This function inserts the TxPD in between interface header and actual
+ * data and adjusts the buffer pointers accordingly.
+ *
+ * The following TxPD fields are set by this function, as required -
+ *      - BSS number
+ *      - Tx packet length and offset
+ *      - Priority
+ *      - Packet delay
+ *      - Priority specific Tx control
+ *      - Flags
+ */
+void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
+			       struct sk_buff *skb)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct uap_txpd *txpd;
+	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
+	int pad, len;
+
+	if (!skb->len) {
+		dev_err(adapter->dev, "Tx: bad packet length: %d\n", skb->len);
+		tx_info->status_code = -1;
+		return skb->data;
+	}
+
+	/* If skb->data is not aligned, add padding */
+	pad = (4 - (((void *)skb->data - NULL) & 0x3)) % 4;
+
+	len = sizeof(*txpd) + pad;
+
+	BUG_ON(skb_headroom(skb) < len + INTF_HEADER_LEN);
+
+	skb_push(skb, len);
+
+	txpd = (struct uap_txpd *)skb->data;
+	memset(txpd, 0, sizeof(*txpd));
+	txpd->bss_num = priv->bss_num;
+	txpd->bss_type = priv->bss_type;
+	txpd->tx_pkt_length = cpu_to_le16((u16)(skb->len - len));
+
+	txpd->priority = (u8)skb->priority;
+	txpd->pkt_delay_2ms = mwifiex_wmm_compute_drv_pkt_delay(priv, skb);
+
+	if (txpd->priority < ARRAY_SIZE(priv->wmm.user_pri_pkt_tx_ctrl))
+		/*
+		 * Set the priority specific tx_control field, setting of 0 will
+		 * cause the default value to be used later in this function.
+		 */
+		txpd->tx_control =
+		    cpu_to_le32(priv->wmm.user_pri_pkt_tx_ctrl[txpd->priority]);
+
+	/* Offset of actual data */
+	txpd->tx_pkt_offset = cpu_to_le16(len);
+
+	/* make space for INTF_HEADER_LEN */
+	skb_push(skb, INTF_HEADER_LEN);
+
+	if (!txpd->tx_control)
+		/* TxCtrl set by user or default */
+		txpd->tx_control = cpu_to_le32(priv->pkt_tx_ctrl);
+
+	return skb->data;
+}

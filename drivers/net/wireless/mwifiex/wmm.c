@@ -907,16 +907,15 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 		if (adapter->bss_prio_tbl[j].bss_prio_cur ==
 		    (struct mwifiex_bss_prio_node *)
 		    &adapter->bss_prio_tbl[j].bss_prio_head) {
-			bssprio_node =
+			adapter->bss_prio_tbl[j].bss_prio_cur =
 				list_first_entry(&adapter->bss_prio_tbl[j]
 						 .bss_prio_head,
 						 struct mwifiex_bss_prio_node,
 						 list);
-			bssprio_head = bssprio_node;
-		} else {
-			bssprio_node = adapter->bss_prio_tbl[j].bss_prio_cur;
-			bssprio_head = bssprio_node;
 		}
+
+		bssprio_node = adapter->bss_prio_tbl[j].bss_prio_cur;
+		bssprio_head = bssprio_node;
 
 		do {
 			priv_tmp = bssprio_node->priv;

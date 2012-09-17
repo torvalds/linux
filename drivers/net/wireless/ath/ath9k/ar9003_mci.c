@@ -714,6 +714,7 @@ bool ar9003_mci_start_reset(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	return true;
 }
+EXPORT_SYMBOL(ar9003_mci_start_reset);
 
 int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 			 struct ath9k_hw_cal_data *caldata)
@@ -1201,12 +1202,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 
 		ar9003_mci_2g5g_switch(ah, false);
 		break;
-	case MCI_STATE_SET_BT_CAL_START:
-		mci->bt_state = MCI_BT_CAL_START;
-		break;
-	case MCI_STATE_SET_BT_CAL:
-		mci->bt_state = MCI_BT_CAL;
-		break;
 	case MCI_STATE_RESET_REQ_WAKE:
 		ar9003_mci_reset_req_wakeup(ah);
 		mci->update_2g5g = true;
@@ -1327,6 +1322,10 @@ u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more)
 
 	if (first) {
 		gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+
+		if (gpm_ptr >= mci->gpm_len)
+			gpm_ptr = 0;
+
 		mci->gpm_idx = gpm_ptr;
 		return gpm_ptr;
 	}
@@ -1371,6 +1370,10 @@ u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more)
 			more_gpm = MCI_GPM_NOMORE;
 
 		temp_index = mci->gpm_idx;
+
+		if (temp_index >= mci->gpm_len)
+			temp_index = 0;
+
 		mci->gpm_idx++;
 
 		if (mci->gpm_idx >= mci->gpm_len)

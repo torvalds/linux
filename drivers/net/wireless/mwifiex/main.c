@@ -72,7 +72,6 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 			goto error;
 
 		adapter->priv[i]->adapter = adapter;
-		adapter->priv[i]->bss_priority = i;
 		adapter->priv_num++;
 	}
 	mwifiex_init_lock_list(adapter);

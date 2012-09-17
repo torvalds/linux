@@ -756,7 +756,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 	SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16) skb->len);
 
 	/* DOWRD 8 */
-	SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, cpu_to_le32(mapping));
+	SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, mapping);
 
 	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
@@ -786,7 +786,7 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		/* 92SE need not to set TX packet size when firmware download */
 		SET_TX_DESC_PKT_SIZE(pdesc, (u16)(skb->len));
 		SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16)(skb->len));
-		SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, cpu_to_le32(mapping));
+		SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, mapping);
 
 		wmb();
 		SET_TX_DESC_OWN(pdesc, 1);
@@ -805,7 +805,7 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		SET_BITS_TO_LE_4BYTE(skb->data, 24, 7, rtlhal->h2c_txcmd_seq);
 
 		SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16)(skb->len));
-		SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, cpu_to_le32(mapping));
+		SET_TX_DESC_TX_BUFFER_ADDRESS(pdesc, mapping);
 
 		wmb();
 		SET_TX_DESC_OWN(pdesc, 1);

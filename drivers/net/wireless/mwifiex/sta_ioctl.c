@@ -192,6 +192,44 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	return ret;
 }
 
+static int mwifiex_process_country_ie(struct mwifiex_private *priv,
+				      struct cfg80211_bss *bss)
+{
+	u8 *country_ie, country_ie_len;
+	struct mwifiex_802_11d_domain_reg *domain_info =
+					&priv->adapter->domain_reg;
+
+	country_ie = (u8 *)ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
+
+	if (!country_ie)
+		return 0;
+
+	country_ie_len = country_ie[1];
+	if (country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
+		return 0;
+
+	domain_info->country_code[0] = country_ie[2];
+	domain_info->country_code[1] = country_ie[3];
+	domain_info->country_code[2] = ' ';
+
+	country_ie_len -= IEEE80211_COUNTRY_STRING_LEN;
+
+	domain_info->no_of_triplet =
+		country_ie_len / sizeof(struct ieee80211_country_ie_triplet);
+
+	memcpy((u8 *)domain_info->triplet,
+	       &country_ie[2] + IEEE80211_COUNTRY_STRING_LEN, country_ie_len);
+
+	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
+				   HostCmd_ACT_GEN_SET, 0, NULL)) {
+		wiphy_err(priv->adapter->wiphy,
+			  "11D: setting domain info in FW\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  * In Ad-Hoc mode, the IBSS is created if not found in scan list.
  * In both Ad-Hoc and infra mode, an deauthentication is performed
@@ -207,6 +245,8 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	priv->scan_block = false;
 
 	if (bss) {
+		mwifiex_process_country_ie(priv, bss);
+
 		/* Allocate and fill new bss descriptor */
 		bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
 				GFP_KERNEL);

@@ -31,7 +31,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	u32 val, ctl12, ctl17;
 	u8 desc_len;
 
-	desc_len = (AR_SREV_9462(ah) ? 0x18 : 0x17);
+	desc_len = ((AR_SREV_9462(ah) || AR_SREV_9565(ah)) ? 0x18 : 0x17);
 
 	val = (ATHEROS_VENDOR_ID << AR_DescId_S) |
 	      (1 << AR_TxRxDesc_S) |
@@ -531,7 +531,7 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 				rxs->rs_status |= ATH9K_RXERR_PHY;
 				rxs->rs_phyerr = phyerr;
 			}
-		};
+		}
 	}
 
 	if (rxsp->status11 & AR_KeyMiss)

@@ -81,7 +81,11 @@ struct wep_key {
 
 #define KEY_MGMT_ON_HOST        0x03
 #define MWIFIEX_AUTH_MODE_AUTO  0xFF
-#define BAND_CONFIG_MANUAL      0x00
+#define BAND_CONFIG_BG          0x00
+#define BAND_CONFIG_A           0x01
+#define MWIFIEX_SUPPORTED_RATES                 14
+#define MWIFIEX_SUPPORTED_RATES_EXT             32
+
 struct mwifiex_uap_bss_param {
 	u8 channel;
 	u8 band_cfg;
@@ -100,6 +104,7 @@ struct mwifiex_uap_bss_param {
 	struct wpa_param wpa_cfg;
 	struct wep_key wep_cfg[NUM_WEP_KEYS];
 	struct ieee80211_ht_cap ht_cap;
+	u8 rates[MWIFIEX_SUPPORTED_RATES];
 };
 
 enum {

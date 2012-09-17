@@ -535,9 +535,6 @@ void ai_detach(struct si_pub *sih)
 {
 	struct si_info *sii;
 
-	struct si_pub *si_local = NULL;
-	memcpy(&si_local, &sih, sizeof(struct si_pub **));
-
 	sii = container_of(sih, struct si_info, pub);
 
 	if (sii == NULL)

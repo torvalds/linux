@@ -139,6 +139,7 @@ static int p54_beacon_format_ie_tim(struct sk_buff *skb)
 static int p54_beacon_update(struct p54_common *priv,
 			struct ieee80211_vif *vif)
 {
+	struct ieee80211_tx_control control = { };
 	struct sk_buff *beacon;
 	int ret;
 
@@ -158,7 +159,7 @@ static int p54_beacon_update(struct p54_common *priv,
 	 * to cancel the old beacon template by hand, instead the firmware
 	 * will release the previous one through the feedback mechanism.
 	 */
-	p54_tx_80211(priv->hw, NULL, beacon);
+	p54_tx_80211(priv->hw, &control, beacon);
 	priv->tsf_high32 = 0;
 	priv->tsf_low32 = 0;
 
