@@ -75,6 +75,12 @@ static int genpd_start_dev(struct generic_pm_domain *genpd, struct device *dev)
 					start_latency_ns, "start");
 }
 
+static int genpd_start_dev_no_timing(struct generic_pm_domain *genpd,
+				     struct device *dev)
+{
+	return GENPD_DEV_CALLBACK(genpd, int, start, dev);
+}
+
 static bool genpd_sd_counter_dec(struct generic_pm_domain *genpd)
 {
 	bool ret = false;
@@ -436,7 +442,7 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	not_suspended = 0;
 	list_for_each_entry(pdd, &genpd->dev_list, list_node)
 		if (pdd->dev->driver && (!pm_runtime_suspended(pdd->dev)
-		    || pdd->dev->power.irq_safe || to_gpd_data(pdd)->always_on))
+		    || pdd->dev->power.irq_safe))
 			not_suspended++;
 
 	if (not_suspended > genpd->in_progress)
@@ -578,9 +584,6 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 
 	might_sleep_if(!genpd->dev_irq_safe);
 
-	if (dev_gpd_data(dev)->always_on)
-		return -EBUSY;
-
 	stop_ok = genpd->gov ? genpd->gov->stop_ok : NULL;
 	if (stop_ok && !stop_ok(dev))
 		return -EBUSY;
@@ -629,7 +632,7 @@ static int pm_genpd_runtime_resume(struct device *dev)
 
 	/* If power.irq_safe, the PM domain is never powered off. */
 	if (dev->power.irq_safe)
-		return genpd_start_dev(genpd, dev);
+		return genpd_start_dev_no_timing(genpd, dev);
 
 	mutex_lock(&genpd->lock);
 	ret = __pm_genpd_poweron(genpd);
@@ -697,6 +700,24 @@ static inline void genpd_power_off_work_fn(struct work_struct *work) {}
 
 #ifdef CONFIG_PM_SLEEP
 
+/**
+ * pm_genpd_present - Check if the given PM domain has been initialized.
+ * @genpd: PM domain to check.
+ */
+static bool pm_genpd_present(struct generic_pm_domain *genpd)
+{
+	struct generic_pm_domain *gpd;
+
+	if (IS_ERR_OR_NULL(genpd))
+		return false;
+
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
+		if (gpd == genpd)
+			return true;
+
+	return false;
+}
+
 static bool genpd_dev_active_wakeup(struct generic_pm_domain *genpd,
 				    struct device *dev)
 {
@@ -750,9 +771,10 @@ static int genpd_thaw_dev(struct generic_pm_domain *genpd, struct device *dev)
  * Check if the given PM domain can be powered off (during system suspend or
  * hibernation) and do that if so.  Also, in that case propagate to its masters.
  *
- * This function is only called in "noirq" stages of system power transitions,
- * so it need not acquire locks (all of the "noirq" callbacks are executed
- * sequentially, so it is guaranteed that it will never run twice in parallel).
+ * This function is only called in "noirq" and "syscore" stages of system power
+ * transitions, so it need not acquire locks (all of the "noirq" callbacks are
+ * executed sequentially, so it is guaranteed that it will never run twice in
+ * parallel).
  */
 static void pm_genpd_sync_poweroff(struct generic_pm_domain *genpd)
 {
@@ -774,6 +796,33 @@ static void pm_genpd_sync_poweroff(struct generic_pm_domain *genpd)
 		genpd_sd_counter_dec(link->master);
 		pm_genpd_sync_poweroff(link->master);
 	}
+}
+
+/**
+ * pm_genpd_sync_poweron - Synchronously power on a PM domain and its masters.
+ * @genpd: PM domain to power on.
+ *
+ * This function is only called in "noirq" and "syscore" stages of system power
+ * transitions, so it need not acquire locks (all of the "noirq" callbacks are
+ * executed sequentially, so it is guaranteed that it will never run twice in
+ * parallel).
+ */
+static void pm_genpd_sync_poweron(struct generic_pm_domain *genpd)
+{
+	struct gpd_link *link;
+
+	if (genpd->status != GPD_STATE_POWER_OFF)
+		return;
+
+	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+		pm_genpd_sync_poweron(link->master);
+		genpd_sd_counter_inc(link->master);
+	}
+
+	if (genpd->power_on)
+		genpd->power_on(genpd);
+
+	genpd->status = GPD_STATE_ACTIVE;
 }
 
 /**
@@ -937,7 +986,7 @@ static int pm_genpd_suspend_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	if (genpd->suspend_power_off || dev_gpd_data(dev)->always_on
+	if (genpd->suspend_power_off
 	    || (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev)))
 		return 0;
 
@@ -970,7 +1019,7 @@ static int pm_genpd_resume_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	if (genpd->suspend_power_off || dev_gpd_data(dev)->always_on
+	if (genpd->suspend_power_off
 	    || (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev)))
 		return 0;
 
@@ -979,7 +1028,7 @@ static int pm_genpd_resume_noirq(struct device *dev)
 	 * guaranteed that this function will never run twice in parallel for
 	 * the same PM domain, so it is not necessary to use locking here.
 	 */
-	pm_genpd_poweron(genpd);
+	pm_genpd_sync_poweron(genpd);
 	genpd->suspended_count--;
 
 	return genpd_start_dev(genpd, dev);
@@ -1090,8 +1139,7 @@ static int pm_genpd_freeze_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off || dev_gpd_data(dev)->always_on ?
-		0 : genpd_stop_dev(genpd, dev);
+	return genpd->suspend_power_off ? 0 : genpd_stop_dev(genpd, dev);
 }
 
 /**
@@ -1111,8 +1159,7 @@ static int pm_genpd_thaw_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off || dev_gpd_data(dev)->always_on ?
-		0 : genpd_start_dev(genpd, dev);
+	return genpd->suspend_power_off ? 0 : genpd_start_dev(genpd, dev);
 }
 
 /**
@@ -1186,8 +1233,8 @@ static int pm_genpd_restore_noirq(struct device *dev)
 	if (genpd->suspended_count++ == 0) {
 		/*
 		 * The boot kernel might put the domain into arbitrary state,
-		 * so make it appear as powered off to pm_genpd_poweron(), so
-		 * that it tries to power it on in case it was really off.
+		 * so make it appear as powered off to pm_genpd_sync_poweron(),
+		 * so that it tries to power it on in case it was really off.
 		 */
 		genpd->status = GPD_STATE_POWER_OFF;
 		if (genpd->suspend_power_off) {
@@ -1205,9 +1252,9 @@ static int pm_genpd_restore_noirq(struct device *dev)
 	if (genpd->suspend_power_off)
 		return 0;
 
-	pm_genpd_poweron(genpd);
+	pm_genpd_sync_poweron(genpd);
 
-	return dev_gpd_data(dev)->always_on ? 0 : genpd_start_dev(genpd, dev);
+	return genpd_start_dev(genpd, dev);
 }
 
 /**
@@ -1245,6 +1292,31 @@ static void pm_genpd_complete(struct device *dev)
 		pm_runtime_idle(dev);
 	}
 }
+
+/**
+ * pm_genpd_syscore_switch - Switch power during system core suspend or resume.
+ * @dev: Device that normally is marked as "always on" to switch power for.
+ *
+ * This routine may only be called during the system core (syscore) suspend or
+ * resume phase for devices whose "always on" flags are set.
+ */
+void pm_genpd_syscore_switch(struct device *dev, bool suspend)
+{
+	struct generic_pm_domain *genpd;
+
+	genpd = dev_to_genpd(dev);
+	if (!pm_genpd_present(genpd))
+		return;
+
+	if (suspend) {
+		genpd->suspended_count++;
+		pm_genpd_sync_poweroff(genpd);
+	} else {
+		pm_genpd_sync_poweron(genpd);
+		genpd->suspended_count--;
+	}
+}
+EXPORT_SYMBOL_GPL(pm_genpd_syscore_switch);
 
 #else
 
@@ -1453,26 +1525,6 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
 	return ret;
 }
-
-/**
- * pm_genpd_dev_always_on - Set/unset the "always on" flag for a given device.
- * @dev: Device to set/unset the flag for.
- * @val: The new value of the device's "always on" flag.
- */
-void pm_genpd_dev_always_on(struct device *dev, bool val)
-{
-	struct pm_subsys_data *psd;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->power.lock, flags);
-
-	psd = dev_to_psd(dev);
-	if (psd && psd->domain_data)
-		to_gpd_data(psd->domain_data)->always_on = val;
-
-	spin_unlock_irqrestore(&dev->power.lock, flags);
-}
-EXPORT_SYMBOL_GPL(pm_genpd_dev_always_on);
 
 /**
  * pm_genpd_dev_need_restore - Set/unset the device's "need restore" flag.

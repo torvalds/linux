@@ -114,7 +114,6 @@ struct generic_pm_domain_data {
 	struct mutex lock;
 	unsigned int refcount;
 	bool need_restore;
-	bool always_on;
 };
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
@@ -153,7 +152,6 @@ static inline int pm_genpd_of_add_device(struct device_node *genpd_node,
 
 extern int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 				  struct device *dev);
-extern void pm_genpd_dev_always_on(struct device *dev, bool val);
 extern void pm_genpd_dev_need_restore(struct device *dev, bool val);
 extern int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 				  struct generic_pm_domain *new_subdomain);
@@ -199,7 +197,6 @@ static inline int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 {
 	return -ENOSYS;
 }
-static inline void pm_genpd_dev_always_on(struct device *dev, bool val) {}
 static inline void pm_genpd_dev_need_restore(struct device *dev, bool val) {}
 static inline int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 					 struct generic_pm_domain *new_sd)
@@ -257,5 +254,21 @@ extern void pm_genpd_poweroff_unused(void);
 static inline void genpd_queue_power_off_work(struct generic_pm_domain *gpd) {}
 static inline void pm_genpd_poweroff_unused(void) {}
 #endif
+
+#ifdef CONFIG_PM_GENERIC_DOMAINS_SLEEP
+extern void pm_genpd_syscore_switch(struct device *dev, bool suspend);
+#else
+static inline void pm_genpd_syscore_switch(struct device *dev, bool suspend) {}
+#endif
+
+static inline void pm_genpd_syscore_poweroff(struct device *dev)
+{
+	pm_genpd_syscore_switch(dev, true);
+}
+
+static inline void pm_genpd_syscore_poweron(struct device *dev)
+{
+	pm_genpd_syscore_switch(dev, false);
+}
 
 #endif /* _LINUX_PM_DOMAIN_H */

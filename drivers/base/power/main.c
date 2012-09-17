@@ -57,20 +57,17 @@ static pm_message_t pm_transition;
 static int async_error;
 
 /**
- * device_pm_init - Initialize the PM-related part of a device object.
+ * device_pm_sleep_init - Initialize system suspend-related device fields.
  * @dev: Device object being initialized.
  */
-void device_pm_init(struct device *dev)
+void device_pm_sleep_init(struct device *dev)
 {
 	dev->power.is_prepared = false;
 	dev->power.is_suspended = false;
 	init_completion(&dev->power.completion);
 	complete_all(&dev->power.completion);
 	dev->power.wakeup = NULL;
-	spin_lock_init(&dev->power.lock);
-	pm_runtime_init(dev);
 	INIT_LIST_HEAD(&dev->power.entry);
-	dev->power.power_state = PMSG_INVALID;
 }
 
 /**
@@ -408,6 +405,9 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
 
+	if (dev->power.syscore)
+		goto Out;
+
 	if (dev->pm_domain) {
 		info = "noirq power domain ";
 		callback = pm_noirq_op(&dev->pm_domain->ops, state);
@@ -429,6 +429,7 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 
 	error = dpm_run_callback(callback, dev, state, info);
 
+ Out:
 	TRACE_RESUME(error);
 	return error;
 }
@@ -486,6 +487,9 @@ static int device_resume_early(struct device *dev, pm_message_t state)
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
 
+	if (dev->power.syscore)
+		goto Out;
+
 	if (dev->pm_domain) {
 		info = "early power domain ";
 		callback = pm_late_early_op(&dev->pm_domain->ops, state);
@@ -507,6 +511,7 @@ static int device_resume_early(struct device *dev, pm_message_t state)
 
 	error = dpm_run_callback(callback, dev, state, info);
 
+ Out:
 	TRACE_RESUME(error);
 	return error;
 }
@@ -570,6 +575,9 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
 
+	if (dev->power.syscore)
+		goto Complete;
+
 	dpm_wait(dev->parent, async);
 	device_lock(dev);
 
@@ -632,6 +640,8 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 
  Unlock:
 	device_unlock(dev);
+
+ Complete:
 	complete_all(&dev->power.completion);
 
 	TRACE_RESUME(error);
@@ -721,6 +731,9 @@ static void device_complete(struct device *dev, pm_message_t state)
 {
 	void (*callback)(struct device *) = NULL;
 	char *info = NULL;
+
+	if (dev->power.syscore)
+		return;
 
 	device_lock(dev);
 
@@ -834,6 +847,9 @@ static int device_suspend_noirq(struct device *dev, pm_message_t state)
 	pm_callback_t callback = NULL;
 	char *info = NULL;
 
+	if (dev->power.syscore)
+		return 0;
+
 	if (dev->pm_domain) {
 		info = "noirq power domain ";
 		callback = pm_noirq_op(&dev->pm_domain->ops, state);
@@ -916,6 +932,9 @@ static int device_suspend_late(struct device *dev, pm_message_t state)
 {
 	pm_callback_t callback = NULL;
 	char *info = NULL;
+
+	if (dev->power.syscore)
+		return 0;
 
 	if (dev->pm_domain) {
 		info = "late power domain ";
@@ -1052,6 +1071,9 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 		async_error = -EBUSY;
 		goto Complete;
 	}
+
+	if (dev->power.syscore)
+		goto Complete;
 
 	device_lock(dev);
 
@@ -1208,6 +1230,9 @@ static int device_prepare(struct device *dev, pm_message_t state)
 	int (*callback)(struct device *) = NULL;
 	char *info = NULL;
 	int error = 0;
+
+	if (dev->power.syscore)
+		return 0;
 
 	device_lock(dev);
 
