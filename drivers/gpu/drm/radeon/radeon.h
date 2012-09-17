@@ -648,15 +648,23 @@ struct radeon_ring {
  * VM
  */
 
+/* maximum number of VMIDs */
 #define RADEON_NUM_VM	16
+
+/* defines number of bits in page table versus page directory,
+ * a page is 4KB so we have 12 bits offset, 9 bits in the page
+ * table and the remaining 19 bits are in the page directory */
+#define RADEON_VM_BLOCK_SIZE   9
+
+/* number of entries in page table */
+#define RADEON_VM_PTE_COUNT (1 << RADEON_VM_BLOCK_SIZE)
 
 struct radeon_vm {
 	struct list_head		list;
 	struct list_head		va;
 	unsigned			id;
 	unsigned			last_pfn;
-	u64				pt_gpu_addr;
-	u64				*pt;
+	u64				pd_gpu_addr;
 	struct radeon_sa_bo		*sa_bo;
 	struct mutex			mutex;
 	/* last fence for cs using this vm */
