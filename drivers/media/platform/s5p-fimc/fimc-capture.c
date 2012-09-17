@@ -50,9 +50,9 @@ static int fimc_capture_hw_init(struct fimc_dev *fimc)
 	fimc_prepare_dma_offset(ctx, &ctx->d_frame);
 	fimc_set_yuv_order(ctx);
 
-	fimc_hw_set_camera_polarity(fimc, sensor->pdata);
-	fimc_hw_set_camera_type(fimc, sensor->pdata);
-	fimc_hw_set_camera_source(fimc, sensor->pdata);
+	fimc_hw_set_camera_polarity(fimc, &sensor->pdata);
+	fimc_hw_set_camera_type(fimc, &sensor->pdata);
+	fimc_hw_set_camera_source(fimc, &sensor->pdata);
 	fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
 
 	ret = fimc_set_scaler_info(ctx);

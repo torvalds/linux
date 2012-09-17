@@ -135,7 +135,7 @@ static int fimc_lite_hw_init(struct fimc_lite *fimc)
 	sensor = v4l2_get_subdev_hostdata(pipeline->subdevs[IDX_SENSOR]);
 	spin_lock_irqsave(&fimc->slock, flags);
 
-	flite_hw_set_camera_bus(fimc, sensor->pdata);
+	flite_hw_set_camera_bus(fimc, &sensor->pdata);
 	flite_hw_set_source_format(fimc, &fimc->inp_frame);
 	flite_hw_set_window_offset(fimc, &fimc->inp_frame);
 	flite_hw_set_output_dma(fimc, &fimc->out_frame, true);
