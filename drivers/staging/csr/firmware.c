@@ -286,7 +286,7 @@ uf_run_unifihelper(unifi_priv_t *priv)
 
     unifi_trace(priv, UDBG2, "running %s %s %s\n", argv[0], argv[1], argv[2]);
 
-    r = call_usermodehelper(argv[0], argv, envp, 0);
+    r = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
 
     return r;
 #else
