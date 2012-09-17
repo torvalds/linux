@@ -909,6 +909,15 @@ struct dvb_frontend *af9033_attach(const struct af9033_config *config,
 			"OFDM=%d.%d.%d.%d\n", KBUILD_MODNAME, buf[0], buf[1],
 			buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
 
+	/* sleep */
+	ret = af9033_wr_reg(state, 0x80004c, 1);
+	if (ret < 0)
+		goto err;
+
+	ret = af9033_wr_reg(state, 0x800000, 0);
+	if (ret < 0)
+		goto err;
+
 	/* configure internal TS mode */
 	switch (state->cfg.ts_mode) {
 	case AF9033_TS_MODE_PARALLEL:
