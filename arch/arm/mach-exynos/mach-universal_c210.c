@@ -942,9 +942,7 @@ static struct platform_device cam_s_if_fixed_reg_dev = {
 static struct s5p_platform_mipi_csis mipi_csis_platdata = {
 	.clk_rate	= 166000000UL,
 	.lanes		= 2,
-	.alignment	= 32,
 	.hs_settle	= 12,
-	.phy_enable	= s5p_csis_phy_enable,
 };
 
 #define GPIO_CAM_LEVEL_EN(n)	EXYNOS4_GPE4(n + 3)
@@ -1008,7 +1006,6 @@ static struct s5p_fimc_isp_info universal_camera_sensors[] = {
 		.board_info	= &m5mols_board_info,
 		.i2c_bus_num	= 0,
 		.clk_frequency	= 24000000UL,
-		.csi_data_align	= 32,
 	},
 };
 
