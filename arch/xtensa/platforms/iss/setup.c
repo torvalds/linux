@@ -46,14 +46,14 @@ void platform_pcibios_init(void)
 
 void platform_halt(void)
 {
-	printk (" ** Called platform_halt(), looping forever! **\n");
-	while (1);
+	pr_info(" ** Called platform_halt() **\n");
+	__asm__ __volatile__("movi a2, 1\nsimcall\n");
 }
 
 void platform_power_off(void)
 {
-	printk (" ** Called platform_power_off(), looping forever! **\n");
-	while (1);
+	pr_info(" ** Called platform_power_off() **\n");
+	__asm__ __volatile__("movi a2, 1\nsimcall\n");
 }
 void platform_restart(void)
 {
