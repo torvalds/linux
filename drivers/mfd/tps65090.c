@@ -236,7 +236,7 @@ static int __devinit tps65090_irq_init(struct tps65090 *tps65090, int irq,
 
 static bool is_volatile_reg(struct device *dev, unsigned int reg)
 {
-	if ((reg == TPS65090_INT_STS) || (reg == TPS65090_INT_STS))
+	if (reg == TPS65090_INT_STS)
 		return true;
 	else
 		return false;
