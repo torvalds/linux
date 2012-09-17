@@ -1486,6 +1486,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 	if (!res_irq) {
 		dev_err(dev, "[%s]: IORESOURCE_IRQ unavailable",
 			__func__);
+		ret = -ENODEV;
 		goto out_power;
 	}
 
