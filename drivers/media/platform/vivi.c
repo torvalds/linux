@@ -1314,7 +1314,9 @@ static int __init vivi_create_instance(int inst)
 	q->ops = &vivi_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
 
-	vb2_queue_init(q);
+	ret = vb2_queue_init(q);
+	if (ret)
+		goto unreg_dev;
 
 	mutex_init(&dev->mutex);
 
