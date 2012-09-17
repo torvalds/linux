@@ -33,11 +33,9 @@
 #include "hdmi/rk_hdmi.h"
 #include <linux/linux_logo.h>
 
-
+void rk29_backlight_set(bool on);
 
 #ifdef	FB_WIMO_FLAG
-
-
 int (*video_data_to_wimo)(struct fb_info *info,u32 yuv_phy[2]) = NULL;
 EXPORT_SYMBOL(video_data_to_wimo);
 
@@ -198,7 +196,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
             		return -EINVAL;
     	}
 
-	#if defined(CONFIG_HDMI_RK30)
+	#if defined(CONFIG_RK_HDMI)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
@@ -362,7 +360,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	u8 data_format = var->nonstd&0xff;
 	var->pixclock = dev_drv->pixclock;
  	
-	#if defined(CONFIG_HDMI_RK30)
+	#if defined(CONFIG_RK_HDMI)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
@@ -399,6 +397,7 @@ static int rk_fb_set_par(struct fb_info *info)
               	ysize = screen->y_res;
 	}
 
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	if(screen->screen_id == 0) //this is for device like rk2928 ,whic have one lcdc but two display outputs
 	{			   //save parameter set by android
 		dev_drv->screen0->xsize = xsize;
@@ -413,6 +412,7 @@ static int rk_fb_set_par(struct fb_info *info)
 		dev_drv->screen1->xpos  = xpos;
 		dev_drv->screen1->ypos = ypos;
 	}
+#endif
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
 #if 1
 	switch (data_format)
@@ -487,7 +487,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	par->xvir =  var->xres_virtual;		// virtual resolution	 stride --->LCDC_WINx_VIR
 	par->yvir =  var->yres_virtual;
 
-	#if defined(CONFIG_HDMI_RK30)
+	#if defined(CONFIG_RK_HDMI)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
@@ -743,6 +743,9 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		}
 	#endif 
 
+#if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
+	rk29_backlight_set(!enable);
+#endif
 	return 0;
 
 }
@@ -1195,12 +1198,6 @@ static int __devinit rk_fb_probe (struct platform_device *pdev)
         	ret = -ENOMEM;
     	}
 	platform_set_drvdata(pdev,fb_inf);
-#if defined(CONFIG_HDMI_RK30)
-		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)		
-			fb_inf->workqueue = create_singlethread_workqueue("hdmi_post");
-			INIT_DELAYED_WORK(&(fb_inf->delay_work), hdmi_post_work);
-		#endif
-#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	suspend_info.inf = fb_inf;
