@@ -146,7 +146,7 @@ s32 unifi_print_status(card_t *card, char *str, s32 *remain)
                           (u16)card->to_host_signals_w);
     UNIFI_SNPRINTF_RET(p, remaining, written);
     written = scnprintf(p, remaining,
-                          "fh buffer contains: %d signals, %ld bytes\n",
+                          "fh buffer contains: %d signals, %td bytes\n",
                           card->fh_buffer.count,
                           card->fh_buffer.ptr - card->fh_buffer.buf);
     UNIFI_SNPRINTF_RET(p, remaining, written);
