@@ -334,7 +334,11 @@ static int mt6229_io_init(void)
 	 rk30_mux_api_set(GPIO4D2_SMCDATA10_TRACEDATA10_NAME, GPIO4D_GPIO4D2);
 	 rk30_mux_api_set(GPIO2B7_LCDC1DATA15_SMCADDR19_HSADCDATA7_NAME, GPIO2B_GPIO2B7);
 	 rk30_mux_api_set(GPIO2C0_LCDCDATA16_GPSCLK_HSADCCLKOUT_NAME, GPIO2C_GPIO2C0);
+	 rk30_mux_api_set(GPIO2C1_LCDC1DATA17_SMCBLSN0_HSADCDATA6_NAME, GPIO2C_GPIO2C1);
+	 rk30_mux_api_set(GPIO2C1_LCDC1DATA17_SMCBLSN0_HSADCDATA6_NAME, GPIO2C_GPIO2C1);
 	return 0;
+
+	 return 0;
 }
 
 static int mt6229_io_deinit(void)
@@ -347,10 +351,12 @@ struct rk29_mt6229_data rk29_mt6229_info = {
 	.io_init = mt6229_io_init,
   	.io_deinit = mt6229_io_deinit,
 	.modem_power_en = RK30_PIN6_PB2,
-	.bp_power = RK30_PIN2_PB7,
-	.bp_reset = RK30_PIN4_PD2,
-	.ap_wakeup_bp = RK30_PIN2_PC0,
-	.bp_wakeup_ap = RK30_PIN6_PA0,
+	.bp_power = RK30_PIN2_PB6,
+	.modem_usb_en = RK30_PIN2_PC0,
+	.modem_uart_en = RK30_PIN2_PC1,
+	.bp_wakeup_ap = RK30_PIN6_PA1,
+	.ap_ready = RK30_PIN2_PB7,
+
 };
 struct platform_device rk29_device_mt6229 = {	
         .name = "mt6229",	

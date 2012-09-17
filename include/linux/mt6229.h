@@ -14,12 +14,12 @@ struct rk29_mt6229_data {
 	int (*io_init)(void);
 	int (*io_deinit)(void);
 	unsigned int bp_power;
-	unsigned int bp_power_active_low;
 	unsigned int bp_reset;
-	unsigned int bp_reset_active_low;
 	unsigned int bp_wakeup_ap;
-	unsigned int ap_wakeup_bp;
+	unsigned int modem_usb_en;
+	unsigned int modem_uart_en;
 	unsigned int modem_power_en;
+	unsigned int ap_ready;
 };
 
 #define MODEM_NAME "mt6229"
