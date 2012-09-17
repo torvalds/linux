@@ -33,22 +33,5 @@ Image:	vmlinux.tmp $(OBJS) arch/$(ARCH)/boot/boot-elf/boot.lds
 		-T arch/$(ARCH)/boot/boot-elf/boot.lds \
 		-o arch/$(ARCH)/boot/$@.elf $@.tmp
 
-Image.initrd:	vmlinux $(OBJS)
-	$(OBJCOPY) --strip-all -R .comment -R .note.gnu.build-id -O binary \
-		--add-section .initrd=arch/$(ARCH)/boot/ramdisk \
-		--set-section-flags .initrd=contents,alloc,load,load,data \
-		vmlinux vmlinux.tmp
-	$(OBJCOPY) $(OBJCOPY_ARGS) -R .comment \
-		--add-section image=vmlinux.tmp \
-		--set-section-flags image=contents,alloc,load,load,data \
-		$(OBJS) $@.tmp
-	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) \
-		-T $(srctree)/arch/$(ARCH)/boot/boot-elf/boot.ld \
-		-o arch/$(ARCH)/boot/$@.elf $@.tmp
-#rm -f $@.tmp vmlinux.tmp
-
-
 zImage:	Image
-
-zImage.initrd:	Image.initrd
 

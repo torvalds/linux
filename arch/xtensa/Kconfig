@@ -227,23 +227,6 @@ source "drivers/Kconfig"
 
 source "fs/Kconfig"
 
-menu "Xtensa initrd options"
-	depends on BLK_DEV_INITRD
-
-config EMBEDDED_RAMDISK
-	bool "Embed root filesystem ramdisk into the kernel"
-
-config EMBEDDED_RAMDISK_IMAGE
-	string "Filename of gzipped ramdisk image"
-	depends on EMBEDDED_RAMDISK
-	default "ramdisk.gz"
-	help
-	  This is the filename of the ramdisk image to be built into the
-	  kernel.  Relative pathnames are relative to arch/xtensa/boot/ramdisk/.
-	  The ramdisk image is not part of the kernel distribution; you must
-	  provide one yourself.
-endmenu
-
 source "arch/xtensa/Kconfig.debug"
 
 source "security/Kconfig"
