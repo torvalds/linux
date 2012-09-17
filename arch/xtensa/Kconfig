@@ -37,7 +37,7 @@ config ARCH_HAS_ILOG2_U64
 	def_bool n
 
 config NO_IOPORT
-	def_bool y
+	def_bool n
 
 config HZ
 	int
@@ -144,6 +144,7 @@ config XTENSA_PLATFORM_XT2000
 config XTENSA_PLATFORM_S6105
 	bool "S6105"
 	select SERIAL_CONSOLE
+	select NO_IOPORT
 
 endchoice
 
