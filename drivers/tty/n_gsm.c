@@ -488,7 +488,7 @@ static void gsm_print_packet(const char *hdr, int addr, int cr,
 	default:
 		if (!(control & 0x01)) {
 			pr_cont("I N(S)%d N(R)%d",
-				(control & 0x0E) >> 1, (control & 0xE) >> 5);
+				(control & 0x0E) >> 1, (control & 0xE0) >> 5);
 		} else switch (control & 0x0F) {
 			case RR:
 				pr_cont("RR(%d)", (control & 0xE0) >> 5);
