@@ -77,7 +77,7 @@ static struct fb_var_screeninfo smtcfb_var = {
 };
 
 static struct fb_fix_screeninfo smtcfb_fix = {
-	.id             = "sm712fb",
+	.id             = "smXXXfb",
 	.type           = FB_TYPE_PACKED_PIXELS,
 	.visual         = FB_VISUAL_TRUECOLOR,
 	.line_length    = 800 * 3,
@@ -681,7 +681,7 @@ static struct fb_ops smtcfb_ops = {
 /*
  * alloc struct smtcfb_info and assign the default value
  */
-static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev, char *name)
+static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev)
 {
 	struct smtcfb_info *sfb;
 
@@ -698,7 +698,6 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev, char *name)
 	sfb->fb.fbops = &smtcfb_ops;
 
 	sfb->fb.fix = smtcfb_fix;
-	strcpy(sfb->fb.fix.id, name);
 
 	sfb->fb.var = smtcfb_var;
 
@@ -781,7 +780,6 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 {
 	struct smtcfb_info *sfb;
 	u_long smem_size = 0x00800000;	/* default 8MB */
-	char name[16];
 	int err;
 	unsigned long pFramebufferPhysical;
 
@@ -791,9 +789,9 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	sprintf(name, "sm%Xfb", ent->device);
+	sprintf(smtcfb_fix.id, "sm%Xfb", ent->device);
 
-	sfb = smtc_alloc_fb_info(pdev, name);
+	sfb = smtc_alloc_fb_info(pdev);
 
 	if (!sfb) {
 		err = -ENOMEM;
