@@ -14,14 +14,18 @@
 #include <linux/delay.h>
 
 #include <asm/gptimers.h>
+#include <asm/portmux.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
+
+#include "iio-trig-bfin-timer.h"
 
 struct bfin_timer {
 	unsigned short id, bit;
 	unsigned long irqbit;
 	int irq;
+	int pin;
 };
 
 /*
@@ -30,22 +34,22 @@ struct bfin_timer {
  */
 
 static struct bfin_timer iio_bfin_timer_code[MAX_BLACKFIN_GPTIMERS] = {
-	{TIMER0_id,  TIMER0bit,  TIMER_STATUS_TIMIL0,  IRQ_TIMER0},
-	{TIMER1_id,  TIMER1bit,  TIMER_STATUS_TIMIL1,  IRQ_TIMER1},
-	{TIMER2_id,  TIMER2bit,  TIMER_STATUS_TIMIL2,  IRQ_TIMER2},
+	{TIMER0_id,  TIMER0bit,  TIMER_STATUS_TIMIL0,  IRQ_TIMER0, P_TMR0},
+	{TIMER1_id,  TIMER1bit,  TIMER_STATUS_TIMIL1,  IRQ_TIMER1, P_TMR1},
+	{TIMER2_id,  TIMER2bit,  TIMER_STATUS_TIMIL2,  IRQ_TIMER2, P_TMR2},
 #if (MAX_BLACKFIN_GPTIMERS > 3)
-	{TIMER3_id,  TIMER3bit,  TIMER_STATUS_TIMIL3,  IRQ_TIMER3},
-	{TIMER4_id,  TIMER4bit,  TIMER_STATUS_TIMIL4,  IRQ_TIMER4},
-	{TIMER5_id,  TIMER5bit,  TIMER_STATUS_TIMIL5,  IRQ_TIMER5},
-	{TIMER6_id,  TIMER6bit,  TIMER_STATUS_TIMIL6,  IRQ_TIMER6},
-	{TIMER7_id,  TIMER7bit,  TIMER_STATUS_TIMIL7,  IRQ_TIMER7},
+	{TIMER3_id,  TIMER3bit,  TIMER_STATUS_TIMIL3,  IRQ_TIMER3, P_TMR3},
+	{TIMER4_id,  TIMER4bit,  TIMER_STATUS_TIMIL4,  IRQ_TIMER4, P_TMR4},
+	{TIMER5_id,  TIMER5bit,  TIMER_STATUS_TIMIL5,  IRQ_TIMER5, P_TMR5},
+	{TIMER6_id,  TIMER6bit,  TIMER_STATUS_TIMIL6,  IRQ_TIMER6, P_TMR6},
+	{TIMER7_id,  TIMER7bit,  TIMER_STATUS_TIMIL7,  IRQ_TIMER7, P_TMR7},
 #endif
 #if (MAX_BLACKFIN_GPTIMERS > 8)
-	{TIMER8_id,  TIMER8bit,  TIMER_STATUS_TIMIL8,  IRQ_TIMER8},
-	{TIMER9_id,  TIMER9bit,  TIMER_STATUS_TIMIL9,  IRQ_TIMER9},
-	{TIMER10_id, TIMER10bit, TIMER_STATUS_TIMIL10, IRQ_TIMER10},
+	{TIMER8_id,  TIMER8bit,  TIMER_STATUS_TIMIL8,  IRQ_TIMER8, P_TMR8},
+	{TIMER9_id,  TIMER9bit,  TIMER_STATUS_TIMIL9,  IRQ_TIMER9, P_TMR9},
+	{TIMER10_id, TIMER10bit, TIMER_STATUS_TIMIL10, IRQ_TIMER10, P_TMR10},
 #if (MAX_BLACKFIN_GPTIMERS > 11)
-	{TIMER11_id, TIMER11bit, TIMER_STATUS_TIMIL11, IRQ_TIMER11},
+	{TIMER11_id, TIMER11bit, TIMER_STATUS_TIMIL11, IRQ_TIMER11, P_TMR11},
 #endif
 #endif
 };
@@ -54,6 +58,8 @@ struct bfin_tmr_state {
 	struct iio_trigger *trig;
 	struct bfin_timer *t;
 	unsigned timer_num;
+	bool output_enable;
+	unsigned int duty;
 	int irq;
 };
 
@@ -77,7 +83,7 @@ static ssize_t iio_bfin_tmr_frequency_store(struct device *dev,
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
 	struct bfin_tmr_state *st = trig->private_data;
-	long val;
+	unsigned long val;
 	bool enabled;
 	int ret;
 
@@ -99,13 +105,13 @@ static ssize_t iio_bfin_tmr_frequency_store(struct device *dev,
 		goto error_ret;
 
 	val = get_sclk() / val;
-	if (val <= 4) {
+	if (val <= 4 || val <= st->duty) {
 		ret = -EINVAL;
 		goto error_ret;
 	}
 
 	set_gptimer_period(st->t->id, val);
-	set_gptimer_pwidth(st->t->id, 1);
+	set_gptimer_pwidth(st->t->id, val - st->duty);
 
 	if (enabled)
 		enable_gptimers(st->t->bit);
@@ -176,7 +182,9 @@ static const struct iio_trigger_ops iio_bfin_tmr_trigger_ops = {
 
 static int __devinit iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 {
+	struct iio_bfin_timer_trigger_pdata *pdata = pdev->dev.platform_data;
 	struct bfin_tmr_state *st;
+	unsigned int config;
 	int ret;
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
@@ -220,13 +228,43 @@ static int __devinit iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 		goto out4;
 	}
 
-	set_gptimer_config(st->t->id, OUT_DIS | PWM_OUT | PERIOD_CNT | IRQ_ENA);
+	config = PWM_OUT | PERIOD_CNT | IRQ_ENA;
+
+	if (pdata && pdata->output_enable) {
+		unsigned long long val;
+
+		st->output_enable = true;
+
+		ret = peripheral_request(st->t->pin, st->trig->name);
+		if (ret)
+			goto out_free_irq;
+
+		val = (unsigned long long)get_sclk() * pdata->duty_ns;
+		do_div(val, NSEC_PER_SEC);
+		st->duty = val;
+
+		/**
+		 * The interrupt will be generated at the end of the period,
+		 * since we want the interrupt to be generated at end of the
+		 * pulse we invert both polarity and duty cycle, so that the
+		 * pulse will be generated directly before the interrupt.
+		 */
+		if (pdata->active_low)
+			config |= PULSE_HI;
+	} else {
+		st->duty = 1;
+		config |= OUT_DIS;
+	}
+
+	set_gptimer_config(st->t->id, config);
 
 	dev_info(&pdev->dev, "iio trigger Blackfin TMR%d, IRQ-%d",
 		 st->timer_num, st->irq);
 	platform_set_drvdata(pdev, st);
 
 	return 0;
+out_free_irq:
+	free_irq(st->irq, st);
 out4:
 	iio_trigger_unregister(st->trig);
 out2:
@@ -242,6 +280,8 @@ static int __devexit iio_bfin_tmr_trigger_remove(struct platform_device *pdev)
 	struct bfin_tmr_state *st = platform_get_drvdata(pdev);
 
 	disable_gptimers(st->t->bit);
+	if (st->output_enable)
+		peripheral_free(st->t->pin);
 	free_irq(st->irq, st);
 	iio_trigger_unregister(st->trig);
 	iio_trigger_put(st->trig);
