@@ -152,6 +152,7 @@ static void highbank_power_off(void)
 static void __init highbank_init(void)
 {
 	pm_power_off = highbank_power_off;
+	highbank_pm_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
