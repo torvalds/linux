@@ -97,7 +97,6 @@ static int test_cipher_cycles(struct blkcipher_desc *desc, int enc,
 	int ret = 0;
 	int i;
 
-	local_bh_disable();
 	local_irq_disable();
 
 	/* Warm-up run. */
@@ -130,7 +129,6 @@ static int test_cipher_cycles(struct blkcipher_desc *desc, int enc,
 
 out:
 	local_irq_enable();
-	local_bh_enable();
 
 	if (ret == 0)
 		printk("1 operation in %lu cycles (%d bytes)\n",
@@ -300,7 +298,6 @@ static int test_hash_cycles_digest(struct hash_desc *desc,
 	int i;
 	int ret;
 
-	local_bh_disable();
 	local_irq_disable();
 
 	/* Warm-up run. */
@@ -327,7 +324,6 @@ static int test_hash_cycles_digest(struct hash_desc *desc,
 
 out:
 	local_irq_enable();
-	local_bh_enable();
 
 	if (ret)
 		return ret;
@@ -348,7 +344,6 @@ static int test_hash_cycles(struct hash_desc *desc, struct scatterlist *sg,
 	if (plen == blen)
 		return test_hash_cycles_digest(desc, sg, blen, out);
 
-	local_bh_disable();
 	local_irq_disable();
 
 	/* Warm-up run. */
@@ -391,7 +386,6 @@ static int test_hash_cycles(struct hash_desc *desc, struct scatterlist *sg,
 
 out:
 	local_irq_enable();
-	local_bh_enable();
 
 	if (ret)
 		return ret;
