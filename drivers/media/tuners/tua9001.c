@@ -261,6 +261,16 @@ struct dvb_frontend *tua9001_attach(struct dvb_frontend *fe,
 				TUA9001_CMD_CEN, 1);
 		if (ret < 0)
 			goto err;
+
+		ret = fe->callback(priv->i2c, DVB_FRONTEND_COMPONENT_TUNER,
+				TUA9001_CMD_RXEN, 0);
+		if (ret < 0)
+			goto err;
+
+		ret = fe->callback(priv->i2c, DVB_FRONTEND_COMPONENT_TUNER,
+				TUA9001_CMD_RESETN, 1);
+		if (ret < 0)
+			goto err;
 	}
 
 	dev_info(&priv->i2c->dev,
