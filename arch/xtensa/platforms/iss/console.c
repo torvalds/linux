@@ -33,7 +33,7 @@
 #endif
 
 #define SERIAL_MAX_NUM_LINES 1
-#define SERIAL_TIMER_VALUE (20 * HZ)
+#define SERIAL_TIMER_VALUE (HZ / 10)
 
 static struct tty_driver *serial_driver;
 static struct tty_port serial_port;
