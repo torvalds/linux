@@ -290,6 +290,8 @@ static int __devinit sdhci_pxav3_probe(struct platform_device *pdev)
 
 	host->ops = &pxav3_sdhci_ops;
 
+	sdhci_get_of_property(pdev);
+
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add host\n");
