@@ -308,7 +308,7 @@ MODULE_DESCRIPTION("Comedi driver for National Instruments "
 		   "PCMCIA DAQ-Card DIO-24");
 MODULE_LICENSE("GPL");
 
-struct pcmcia_driver dio24_cs_driver = {
+static struct pcmcia_driver dio24_cs_driver = {
 	.probe = dio24_cs_attach,
 	.remove = dio24_cs_detach,
 	.suspend = dio24_cs_suspend,
