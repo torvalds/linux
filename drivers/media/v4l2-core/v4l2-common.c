@@ -443,7 +443,7 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 
 	BUG_ON(!v4l2_dev);
 
-	if (info->modalias)
+	if (info->modalias[0])
 		request_module(info->modalias);
 
 	spi = spi_new_device(master, info);
