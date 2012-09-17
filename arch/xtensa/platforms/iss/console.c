@@ -41,19 +41,6 @@ static struct timer_list serial_timer;
 
 static DEFINE_SPINLOCK(timer_lock);
 
-int errno;
-
-static int __simc (int a, int b, int c, int d, int e, int f) __attribute__((__noinline__));
-static int __simc (int a, int b, int c, int d, int e, int f)
-{
-	int ret;
-	__asm__ __volatile__ ("simcall\n"
-			"mov %0, a2\n"
-			"mov %1, a3\n" : "=a" (ret), "=a" (errno)
-			: : "a2", "a3");
-	return ret;
-}
-
 static char *serial_version = "0.1";
 static char *serial_name = "ISS serial driver";
 
