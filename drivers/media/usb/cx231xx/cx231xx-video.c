@@ -35,6 +35,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/msp3400.h>
 #include <media/tuner.h>
@@ -1871,6 +1872,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 	fh->radio = radio;
 	fh->type = fh_type;
 	filp->private_data = fh;
+	v4l2_fh_init(&fh->fh, vdev);
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
 		dev->width = norm_maxw(dev);
@@ -1926,6 +1928,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 					    fh, &dev->lock);
 	}
 	mutex_unlock(&dev->lock);
+	v4l2_fh_add(&fh->fh);
 
 	return errCode;
 }
@@ -2020,12 +2023,15 @@ static int cx231xx_close(struct file *filp)
 			else
 				cx231xx_set_alt_setting(dev, INDEX_HANC, 0);
 
+			v4l2_fh_del(&fh->fh);
+			v4l2_fh_exit(&fh->fh);
 			kfree(fh);
 			dev->users--;
 			wake_up_interruptible_nr(&dev->open, 1);
 			return 0;
 		}
 
+	v4l2_fh_del(&fh->fh);
 	dev->users--;
 	if (!dev->users) {
 		videobuf_stop(&fh->vb_vidq);
@@ -2052,6 +2058,7 @@ static int cx231xx_close(struct file *filp)
 		/* set alternate 0 */
 		cx231xx_set_alt_setting(dev, INDEX_VIDEO, 0);
 	}
+	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
 	wake_up_interruptible_nr(&dev->open, 1);
 	return 0;
@@ -2108,29 +2115,37 @@ cx231xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
  */
 static unsigned int cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 {
+	unsigned long req_events = poll_requested_events(wait);
 	struct cx231xx_fh *fh = filp->private_data;
 	struct cx231xx *dev = fh->dev;
+	unsigned res = 0;
 	int rc;
 
 	rc = check_dev(dev);
 	if (rc < 0)
-		return rc;
+		return POLLERR;
 
 	rc = res_get(fh);
 
 	if (unlikely(rc < 0))
 		return POLLERR;
 
+	if (v4l2_event_pending(&fh->fh))
+		res |= POLLPRI;
+	else
+		poll_wait(filp, &fh->fh.wait, wait);
+
+	if (!(req_events & (POLLIN | POLLRDNORM)))
+		return res;
+
 	if ((V4L2_BUF_TYPE_VIDEO_CAPTURE == fh->type) ||
 	    (V4L2_BUF_TYPE_VBI_CAPTURE == fh->type)) {
-		unsigned int res;
-
 		mutex_lock(&dev->lock);
-		res = videobuf_poll_stream(filp, &fh->vb_vidq, wait);
+		res |= videobuf_poll_stream(filp, &fh->vb_vidq, wait);
 		mutex_unlock(&dev->lock);
 		return res;
 	}
-	return POLLERR;
+	return res | POLLERR;
 }
 
 /*
@@ -2204,6 +2219,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_register             = vidioc_g_register,
 	.vidioc_s_register             = vidioc_s_register,
 #endif
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static struct video_device cx231xx_vbi_template;
@@ -2220,6 +2237,7 @@ static const struct v4l2_file_operations radio_fops = {
 	.owner   = THIS_MODULE,
 	.open   = cx231xx_v4l2_open,
 	.release = cx231xx_v4l2_close,
+	.poll = v4l2_ctrl_poll,
 	.ioctl   = video_ioctl2,
 };
 
@@ -2234,6 +2252,8 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_g_register  = vidioc_g_register,
 	.vidioc_s_register  = vidioc_s_register,
 #endif
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static struct video_device cx231xx_radio_template = {
@@ -2259,6 +2279,7 @@ static struct video_device *cx231xx_vdev_init(struct cx231xx *dev,
 	vfd->release = video_device_release;
 	vfd->debug = video_debug;
 	vfd->lock = &dev->lock;
+	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s", dev->name, type_name);
 
