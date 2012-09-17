@@ -215,6 +215,15 @@ static int 	rk610_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_devi
         dev_err(&client->dev, "fail to register hdmi\n");
         return -ENOMEM;
     }
+    	if(HDMI_SOURCE_DEFAULT == HDMI_SOURCE_LCDC0)
+		hdmi->lcdc = rk_get_lcdc_drv("lcdc0");
+	else
+		hdmi->lcdc = rk_get_lcdc_drv("lcdc1");
+	if(hdmi->lcdc == NULL)
+	{
+		dev_err(hdmi->dev, "can not connect to video source lcdc\n");
+		ret = -ENXIO;
+	}
 	hdmi->ops = &rk610_hdmi_ops;
 	hdmi->display_on = HDMI_DEFAULT_MODE;
 	hdmi->hdcp_on = HDMI_DISABLE;
