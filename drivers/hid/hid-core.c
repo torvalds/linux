@@ -126,7 +126,7 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 
 	if (parser->collection_stack_ptr == HID_COLLECTION_STACK_SIZE) {
 		hid_err(parser->device, "collection stack overflow\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	if (parser->device->maxcollection == parser->device->collection_size) {
@@ -134,7 +134,7 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 				parser->device->collection_size * 2, GFP_KERNEL);
 		if (collection == NULL) {
 			hid_err(parser->device, "failed to reallocate collection array\n");
-			return -1;
+			return -ENOMEM;
 		}
 		memcpy(collection, parser->device->collection,
 			sizeof(struct hid_collection) *
@@ -170,7 +170,7 @@ static int close_collection(struct hid_parser *parser)
 {
 	if (!parser->collection_stack_ptr) {
 		hid_err(parser->device, "collection stack underflow\n");
-		return -1;
+		return -EINVAL;
 	}
 	parser->collection_stack_ptr--;
 	return 0;
