@@ -701,7 +701,6 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 {
 	struct sram_channel *sram_ch;
 	int err = 0;
-	int str_length = 0;
 
 	if (dev->_audio_is_running) {
 		pr_warn("Audio Channel is still running so return!\n");
@@ -730,9 +729,8 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 	_line_size = AUDIO_LINE_SIZE;
 
 	if (dev->input_audiofilename) {
-		str_length = strlen(dev->input_audiofilename);
-		dev->_audiofilename = kmemdup(dev->input_audiofilename,
-					      str_length + 1, GFP_KERNEL);
+		dev->_audiofilename = kstrdup(dev->input_audiofilename,
+					      GFP_KERNEL);
 
 		if (!dev->_audiofilename) {
 			err = -ENOMEM;
@@ -743,9 +741,8 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 		if (strcmp(dev->input_audiofilename, "") == 0)
 			dev->_audiofilename = "/root/audioGOOD.wav";
 	} else {
-		str_length = strlen(_defaultAudioName);
-		dev->_audiofilename = kmemdup(_defaultAudioName,
-					      str_length + 1, GFP_KERNEL);
+		dev->_audiofilename = kstrdup(_defaultAudioName,
+					      GFP_KERNEL);
 
 		if (!dev->_audiofilename) {
 			err = -ENOMEM;
