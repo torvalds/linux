@@ -2237,7 +2237,7 @@ static const struct v4l2_file_operations radio_fops = {
 	.open   = cx231xx_v4l2_open,
 	.release = cx231xx_v4l2_close,
 	.poll = v4l2_ctrl_poll,
-	.ioctl   = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {

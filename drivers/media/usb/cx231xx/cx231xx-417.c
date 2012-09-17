@@ -1633,11 +1633,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 	dprintk(3, "enter vidioc_s_input() i=%d\n", i);
 
-	mutex_lock(&dev->lock);
-
 	video_mux(dev, i);
-
-	mutex_unlock(&dev->lock);
 
 	if (i >= 4)
 		return -EINVAL;
@@ -1932,7 +1928,8 @@ static int mpeg_open(struct file *file)
 	if (dev == NULL)
 		return -ENODEV;
 
-	mutex_lock(&dev->lock);
+	if (mutex_lock_interruptible(&dev->lock))
+		return -ERESTARTSYS;
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
@@ -1948,14 +1945,14 @@ static int mpeg_open(struct file *file)
 	videobuf_queue_vmalloc_init(&fh->vidq, &cx231xx_qops,
 			    NULL, &dev->video_mode.slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_INTERLACED,
-			    sizeof(struct cx231xx_buffer), fh, NULL);
+			    sizeof(struct cx231xx_buffer), fh, &dev->lock);
 /*
 	videobuf_queue_sg_init(&fh->vidq, &cx231xx_qops,
 			    &dev->udev->dev, &dev->ts1.slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx231xx_buffer),
-			    fh, NULL);
+			    fh, &dev->lock);
 */
 
 
@@ -2069,7 +2066,7 @@ static struct v4l2_file_operations mpeg_fops = {
 	.read	       = mpeg_read,
 	.poll          = mpeg_poll,
 	.mmap	       = mpeg_mmap,
-	.ioctl	       = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
@@ -2144,11 +2141,11 @@ static struct video_device *cx231xx_video_dev_alloc(
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor = -1;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name,
 		type, cx231xx_boards[dev->model].name);
 
 	vfd->v4l2_dev = &dev->v4l2_dev;
+	vfd->lock = &dev->lock;
 	vfd->release = video_device_release;
 
 	return vfd;
