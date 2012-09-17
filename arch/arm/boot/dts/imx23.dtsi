@@ -52,6 +52,7 @@
 			dma-apbh@80004000 {
 				compatible = "fsl,imx23-dma-apbh";
 				reg = <0x80004000 0x2000>;
+				clocks = <&clks 15>;
 			};
 
 			ecc@80008000 {
@@ -67,6 +68,7 @@
 				reg-names = "gpmi-nand", "bch";
 				interrupts = <13>, <56>;
 				interrupt-names = "gpmi-dma", "bch";
+				clocks = <&clks 34>;
 				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
@@ -74,6 +76,7 @@
 			ssp0: ssp@80010000 {
 				reg = <0x80010000 0x2000>;
 				interrupts = <15 14>;
+				clocks = <&clks 33>;
 				fsl,ssp-dma-channel = <1>;
 				status = "disabled";
 			};
@@ -290,6 +293,7 @@
 			dma-apbx@80024000 {
 				compatible = "fsl,imx23-dma-apbx";
 				reg = <0x80024000 0x2000>;
+				clocks = <&clks 16>;
 			};
 
 			dcp@80028000 {
@@ -316,12 +320,14 @@
 				compatible = "fsl,imx23-lcdif";
 				reg = <0x80030000 2000>;
 				interrupts = <46 45>;
+				clocks = <&clks 38>;
 				status = "disabled";
 			};
 
 			ssp1: ssp@80034000 {
 				reg = <0x80034000 0x2000>;
 				interrupts = <2 20>;
+				clocks = <&clks 33>;
 				fsl,ssp-dma-channel = <2>;
 				status = "disabled";
 			};
@@ -339,9 +345,10 @@
 			reg = <0x80040000 0x40000>;
 			ranges;
 
-			clkctl@80040000 {
+			clks: clkctrl@80040000 {
+				compatible = "fsl,imx23-clkctrl";
 				reg = <0x80040000 0x2000>;
-				status = "disabled";
+				#clock-cells = <1>;
 			};
 
 			saif0: saif@80042000 {
@@ -393,6 +400,7 @@
 			pwm: pwm@80064000 {
 				compatible = "fsl,imx23-pwm";
 				reg = <0x80064000 0x2000>;
+				clocks = <&clks 30>;
 				#pwm-cells = <2>;
 				fsl,pwm-number = <5>;
 				status = "disabled";
@@ -407,6 +415,7 @@
 				compatible = "fsl,imx23-auart";
 				reg = <0x8006c000 0x2000>;
 				interrupts = <24 25 23>;
+				clocks = <&clks 32>;
 				status = "disabled";
 			};
 
@@ -414,6 +423,7 @@
 				compatible = "fsl,imx23-auart";
 				reg = <0x8006e000 0x2000>;
 				interrupts = <59 60 58>;
+				clocks = <&clks 32>;
 				status = "disabled";
 			};
 
@@ -421,6 +431,8 @@
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x80070000 0x2000>;
 				interrupts = <0>;
+				clocks = <&clks 32>, <&clks 16>;
+				clock-names = "uart", "apb_pclk";
 				status = "disabled";
 			};
 
