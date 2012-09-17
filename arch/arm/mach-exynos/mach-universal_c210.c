@@ -209,7 +209,7 @@ static struct regulator_consumer_supply lp3974_ldo3_consumer[] = {
 	REGULATOR_SUPPLY("vusb_a", "s3c-hsotg"),
 	REGULATOR_SUPPLY("vdd", "exynos4-hdmi"),
 	REGULATOR_SUPPLY("vdd_pll", "exynos4-hdmi"),
-	REGULATOR_SUPPLY("vdd11", "s5p-mipi-csis.0"),
+	REGULATOR_SUPPLY("vddcore", "s5p-mipi-csis.0"),
 };
 
 static struct regulator_init_data lp3974_ldo3_data = {
@@ -273,7 +273,7 @@ static struct regulator_init_data lp3974_ldo6_data = {
 };
 
 static struct regulator_consumer_supply lp3974_ldo7_consumer[] = {
-	REGULATOR_SUPPLY("vdd18", "s5p-mipi-csis.0"),
+	REGULATOR_SUPPLY("vddio", "s5p-mipi-csis.0"),
 };
 
 static struct regulator_init_data lp3974_ldo7_data = {
