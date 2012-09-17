@@ -2,7 +2,7 @@
  * Samsung S5P/EXYNOS4 SoC series MIPI-CSI receiver driver
  *
  * Copyright (C) 2011 - 2012 Samsung Electronics Co., Ltd.
- * Sylwester Nawrocki, <s.nawrocki@samsung.com>
+ * Sylwester Nawrocki <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -115,8 +115,8 @@ static char *csi_clock_name[] = {
 #define NUM_CSIS_CLOCKS	ARRAY_SIZE(csi_clock_name)
 
 static const char * const csis_supply_name[] = {
-	"vdd11", /* 1.1V or 1.2V (s5pc100) MIPI CSI suppply */
-	"vdd18", /* VDD 1.8V and MIPI CSI PLL supply */
+	"vddcore",  /* CSIS Core (1.0V, 1.1V or 1.2V) suppply */
+	"vddio",    /* CSIS I/O and PLL (1.8V) supply */
 };
 #define CSIS_NUM_SUPPLIES ARRAY_SIZE(csis_supply_name)
 
