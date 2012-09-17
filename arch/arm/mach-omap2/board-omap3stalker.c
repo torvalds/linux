@@ -35,7 +35,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/gpmc.h>
 #include <plat/nand.h>
@@ -362,9 +361,6 @@ static int __init omap3_stalker_i2c_init(void)
 
 #define OMAP3_STALKER_TS_GPIO	175
 
-static struct omap_board_config_kernel omap3_stalker_config[] __initdata = {
-};
-
 static struct platform_device *omap3_stalker_devices[] __initdata = {
 	&keys_gpio,
 };
@@ -399,8 +395,6 @@ static void __init omap3_stalker_init(void)
 {
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
-	omap_board_config = omap3_stalker_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_stalker_config);
 
 	omap_mux_init_gpio(23, OMAP_PIN_INPUT);
 	omap_hsmmc_init(mmc);

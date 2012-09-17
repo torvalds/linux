@@ -599,7 +599,7 @@ bool __init early_can_reuse_p2m_middle(unsigned long set_pfn, unsigned long set_
 	if (p2m_index(set_pfn))
 		return false;
 
-	for (pfn = 0; pfn <= MAX_DOMAIN_PAGES; pfn += P2M_PER_PAGE) {
+	for (pfn = 0; pfn < MAX_DOMAIN_PAGES; pfn += P2M_PER_PAGE) {
 		topidx = p2m_top_index(pfn);
 
 		if (!p2m_top[topidx])

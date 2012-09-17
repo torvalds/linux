@@ -41,7 +41,6 @@
 #include "common-board-devices.h"
 
 #include <plat/mux.h>
-#include <plat/board.h>
 #include "common.h"
 #include <plat/gpmc-smsc911x.h>
 #include <plat/gpmc.h>

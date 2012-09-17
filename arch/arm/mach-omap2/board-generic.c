@@ -20,7 +20,6 @@
 #include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include "common-board-devices.h"
 

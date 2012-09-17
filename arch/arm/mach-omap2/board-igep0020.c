@@ -29,7 +29,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/gpmc.h>
 #include <plat/usb.h>

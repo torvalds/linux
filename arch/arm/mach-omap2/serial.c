@@ -29,7 +29,6 @@
 
 #include <plat/omap-serial.h>
 #include "common.h"
-#include <plat/board.h>
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>

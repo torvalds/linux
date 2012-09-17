@@ -44,7 +44,6 @@
 #include <asm/mach/flash.h>
 #include <asm/system_info.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/gpmc.h>
 #include <plat/nand.h>

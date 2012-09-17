@@ -44,8 +44,6 @@
 
 #include <plat/dma.h>
 
-#include <plat/board.h>
-
 #define DRIVER_NAME "omap2-onenand"
 
 #define ONENAND_BUFRAM_SIZE	(1024 * 5)

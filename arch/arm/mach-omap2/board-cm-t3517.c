@@ -38,7 +38,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/usb.h>
 #include <plat/nand.h>
@@ -249,9 +248,6 @@ static void __init cm_t3517_init_nand(void)
 static inline void cm_t3517_init_nand(void) {}
 #endif
 
-static struct omap_board_config_kernel cm_t3517_config[] __initdata = {
-};
-
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* GPIO186 - Green LED */
@@ -285,8 +281,6 @@ static void __init cm_t3517_init(void)
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
-	omap_board_config = cm_t3517_config;
-	omap_board_config_size = ARRAY_SIZE(cm_t3517_config);
 	cm_t3517_init_leds();
 	cm_t3517_init_nand();
 	cm_t3517_init_rtc();

@@ -20,7 +20,6 @@
 #include <asm/mach/map.h>
 
 #include <plat/tc.h>
-#include <plat/board.h>
 #include <plat/mux.h>
 #include <plat/dma.h>
 #include <plat/mmc.h>

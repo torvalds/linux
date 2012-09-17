@@ -24,7 +24,6 @@
 
 #include <plat/hardware.h>
 #include <plat/common.h>
-#include <plat/board.h>
 
 #include <plat/clock.h>
 

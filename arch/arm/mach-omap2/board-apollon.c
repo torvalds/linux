@@ -35,7 +35,6 @@
 #include <asm/mach/flash.h>
 
 #include <plat/led.h>
-#include <plat/board.h>
 #include "common.h"
 #include <plat/gpmc.h>
 

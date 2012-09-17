@@ -20,7 +20,6 @@
 
 #include <plat/cpu.h>
 #include <plat/onenand.h>
-#include <plat/board.h>
 #include <plat/gpmc.h>
 
 #define	ONENAND_IO_SIZE	SZ_128K
