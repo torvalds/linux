@@ -562,6 +562,12 @@ static int __devinit act8931_i2c_probe(struct i2c_client *i2c, const struct i2c_
 	act8931->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, act8931);
 	mutex_init(&act8931->io_lock);	
+
+	ret = act8931_reg_read(act8931,0x22);
+	if ((ret < 0) || (ret == 0xff)){
+		printk("The device is not act8931 \n");
+		return 0;
+	}
 	
 	if (pdata) {
 		ret = setup_regulators(act8931, pdata);
