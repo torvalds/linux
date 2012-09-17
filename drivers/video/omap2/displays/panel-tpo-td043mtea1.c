@@ -351,12 +351,6 @@ static int tpo_td043_enable_dss(struct omap_dss_device *dssdev)
 	if (r)
 		goto err0;
 
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			goto err1;
-	}
-
 	/*
 	 * If we are resuming from system suspend, SPI clocks might not be
 	 * enabled yet, so we'll program the LCD from SPI PM resume callback.
@@ -382,9 +376,6 @@ static void tpo_td043_disable_dss(struct omap_dss_device *dssdev)
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
 
 	omapdss_dpi_display_disable(dssdev);
 
