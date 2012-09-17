@@ -51,13 +51,13 @@
 #include "util/evsel.h"
 #include "util/debug.h"
 #include "util/color.h"
+#include "util/stat.h"
 #include "util/header.h"
 #include "util/cpumap.h"
 #include "util/thread.h"
 #include "util/thread_map.h"
 
 #include <sys/prctl.h>
-#include <math.h>
 #include <locale.h>
 
 #define DEFAULT_SEPARATOR	" "
@@ -199,11 +199,6 @@ static int			output_fd;
 
 static volatile int done = 0;
 
-struct stats
-{
-	double n, mean, M2;
-};
-
 struct perf_stat {
 	struct stats	  res_stats[3];
 };
@@ -218,50 +213,6 @@ static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 {
 	free(evsel->priv);
 	evsel->priv = NULL;
-}
-
-static void update_stats(struct stats *stats, u64 val)
-{
-	double delta;
-
-	stats->n++;
-	delta = val - stats->mean;
-	stats->mean += delta / stats->n;
-	stats->M2 += delta*(val - stats->mean);
-}
-
-static double avg_stats(struct stats *stats)
-{
-	return stats->mean;
-}
-
-/*
- * http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
- *
- *       (\Sum n_i^2) - ((\Sum n_i)^2)/n
- * s^2 = -------------------------------
- *                  n - 1
- *
- * http://en.wikipedia.org/wiki/Stddev
- *
- * The std dev of the mean is related to the std dev by:
- *
- *             s
- * s_mean = -------
- *          sqrt(n)
- *
- */
-static double stddev_stats(struct stats *stats)
-{
-	double variance, variance_mean;
-
-	if (!stats->n)
-		return 0.0;
-
-	variance = stats->M2 / (stats->n - 1);
-	variance_mean = variance / stats->n;
-
-	return sqrt(variance_mean);
 }
 
 static struct stats runtime_nsecs_stats[MAX_NR_CPUS];
@@ -559,10 +510,7 @@ static int run_perf_stat(int argc __maybe_unused, const char **argv)
 
 static void print_noise_pct(double total, double avg)
 {
-	double pct = 0.0;
-
-	if (avg)
-		pct = 100.0*total/avg;
+	double pct = rel_stddev_stats(total, avg);
 
 	if (csv_output)
 		fprintf(output, "%s%.2f%%", csv_sep, pct);
