@@ -865,8 +865,8 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 	return 0;
 }
 
-void ni_660x_release_mite_channel(struct comedi_device *dev,
-				  struct ni_gpct *counter)
+static void ni_660x_release_mite_channel(struct comedi_device *dev,
+					 struct ni_gpct *counter)
 {
 	unsigned long flags;
 
