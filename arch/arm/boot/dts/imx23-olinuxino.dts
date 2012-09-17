@@ -31,6 +31,21 @@
 				bus-width = <4>;
 				status = "okay";
 			};
+
+			pinctrl@80018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&hog_pins_a>;
+
+				hog_pins_a: hog@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2013 /* MX23_PAD_SSP1_DETECT__GPIO_2_1 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+			};
 		};
 
 		apbx@80040000 {
@@ -39,6 +54,22 @@
 				pinctrl-0 = <&duart_pins_a>;
 				status = "okay";
 			};
+
+			auart0: serial@8006c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&auart0_2pins_a>;
+				status = "okay";
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user {
+			label = "green";
+			gpios = <&gpio2 1 0>;
+			linux,default-trigger = "default-on";
 		};
 	};
 };
