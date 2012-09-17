@@ -907,10 +907,10 @@ struct netdev_fcoe_hbainfo {
  *	Must return >0 or -errno if it changed dev->features itself.
  *
  * int (*ndo_fdb_add)(struct ndmsg *ndm, struct net_device *dev,
- *		      unsigned char *addr, u16 flags)
+ *		      const unsigned char *addr, u16 flags)
  *	Adds an FDB entry to dev for addr.
  * int (*ndo_fdb_del)(struct ndmsg *ndm, struct net_device *dev,
- *		      unsigned char *addr)
+ *		      const unsigned char *addr)
  *	Deletes the FDB entry from dev coresponding to addr.
  * int (*ndo_fdb_dump)(struct sk_buff *skb, struct netlink_callback *cb,
  *		       struct net_device *dev, int idx)
@@ -1017,11 +1017,11 @@ struct net_device_ops {
 
 	int			(*ndo_fdb_add)(struct ndmsg *ndm,
 					       struct net_device *dev,
-					       unsigned char *addr,
+					       const unsigned char *addr,
 					       u16 flags);
 	int			(*ndo_fdb_del)(struct ndmsg *ndm,
 					       struct net_device *dev,
-					       unsigned char *addr);
+					       const unsigned char *addr);
 	int			(*ndo_fdb_dump)(struct sk_buff *skb,
 						struct netlink_callback *cb,
 						struct net_device *dev,
@@ -2561,9 +2561,9 @@ extern void __hw_addr_flush(struct netdev_hw_addr_list *list);
 extern void __hw_addr_init(struct netdev_hw_addr_list *list);
 
 /* Functions used for device addresses handling */
-extern int dev_addr_add(struct net_device *dev, unsigned char *addr,
+extern int dev_addr_add(struct net_device *dev, const unsigned char *addr,
 			unsigned char addr_type);
-extern int dev_addr_del(struct net_device *dev, unsigned char *addr,
+extern int dev_addr_del(struct net_device *dev, const unsigned char *addr,
 			unsigned char addr_type);
 extern int dev_addr_add_multiple(struct net_device *to_dev,
 				 struct net_device *from_dev,
@@ -2575,20 +2575,20 @@ extern void dev_addr_flush(struct net_device *dev);
 extern int dev_addr_init(struct net_device *dev);
 
 /* Functions used for unicast addresses handling */
-extern int dev_uc_add(struct net_device *dev, unsigned char *addr);
-extern int dev_uc_add_excl(struct net_device *dev, unsigned char *addr);
-extern int dev_uc_del(struct net_device *dev, unsigned char *addr);
+extern int dev_uc_add(struct net_device *dev, const unsigned char *addr);
+extern int dev_uc_add_excl(struct net_device *dev, const unsigned char *addr);
+extern int dev_uc_del(struct net_device *dev, const unsigned char *addr);
 extern int dev_uc_sync(struct net_device *to, struct net_device *from);
 extern void dev_uc_unsync(struct net_device *to, struct net_device *from);
 extern void dev_uc_flush(struct net_device *dev);
 extern void dev_uc_init(struct net_device *dev);
 
 /* Functions used for multicast addresses handling */
-extern int dev_mc_add(struct net_device *dev, unsigned char *addr);
-extern int dev_mc_add_global(struct net_device *dev, unsigned char *addr);
-extern int dev_mc_add_excl(struct net_device *dev, unsigned char *addr);
-extern int dev_mc_del(struct net_device *dev, unsigned char *addr);
-extern int dev_mc_del_global(struct net_device *dev, unsigned char *addr);
+extern int dev_mc_add(struct net_device *dev, const unsigned char *addr);
+extern int dev_mc_add_global(struct net_device *dev, const unsigned char *addr);
+extern int dev_mc_add_excl(struct net_device *dev, const unsigned char *addr);
+extern int dev_mc_del(struct net_device *dev, const unsigned char *addr);
+extern int dev_mc_del_global(struct net_device *dev, const unsigned char *addr);
 extern int dev_mc_sync(struct net_device *to, struct net_device *from);
 extern void dev_mc_unsync(struct net_device *to, struct net_device *from);
 extern void dev_mc_flush(struct net_device *dev);

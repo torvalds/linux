@@ -609,7 +609,7 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 
 /* Add new permanent fdb entry with RTM_NEWNEIGH */
 int br_fdb_add(struct ndmsg *ndm, struct net_device *dev,
-	       unsigned char *addr, u16 nlh_flags)
+	       const unsigned char *addr, u16 nlh_flags)
 {
 	struct net_bridge_port *p;
 	int err = 0;
@@ -639,7 +639,7 @@ int br_fdb_add(struct ndmsg *ndm, struct net_device *dev,
 	return err;
 }
 
-static int fdb_delete_by_addr(struct net_bridge_port *p, u8 *addr)
+static int fdb_delete_by_addr(struct net_bridge_port *p, const u8 *addr)
 {
 	struct net_bridge *br = p->br;
 	struct hlist_head *head = &br->hash[br_mac_hash(addr)];
@@ -655,7 +655,7 @@ static int fdb_delete_by_addr(struct net_bridge_port *p, u8 *addr)
 
 /* Remove neighbor entry with RTM_DELNEIGH */
 int br_fdb_delete(struct ndmsg *ndm, struct net_device *dev,
-		  unsigned char *addr)
+		  const unsigned char *addr)
 {
 	struct net_bridge_port *p;
 	int err;

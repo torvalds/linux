@@ -6890,7 +6890,7 @@ static int ixgbe_set_features(struct net_device *netdev,
 
 static int ixgbe_ndo_fdb_add(struct ndmsg *ndm,
 			     struct net_device *dev,
-			     unsigned char *addr,
+			     const unsigned char *addr,
 			     u16 flags)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
@@ -6927,7 +6927,7 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm,
 
 static int ixgbe_ndo_fdb_del(struct ndmsg *ndm,
 			     struct net_device *dev,
-			     unsigned char *addr)
+			     const unsigned char *addr)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int err = -EOPNOTSUPP;

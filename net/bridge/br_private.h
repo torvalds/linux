@@ -363,10 +363,10 @@ extern void br_fdb_update(struct net_bridge *br,
 
 extern int br_fdb_delete(struct ndmsg *ndm,
 			 struct net_device *dev,
-			 unsigned char *addr);
+			 const unsigned char *addr);
 extern int br_fdb_add(struct ndmsg *nlh,
 		      struct net_device *dev,
-		      unsigned char *addr,
+		      const unsigned char *addr,
 		      u16 nlh_flags);
 extern int br_fdb_dump(struct sk_buff *skb,
 		       struct netlink_callback *cb,
