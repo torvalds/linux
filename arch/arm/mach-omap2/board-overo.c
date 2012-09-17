@@ -516,8 +516,7 @@ static void __init overo_init(void)
 		udelay(10);
 		gpio_set_value(OVERO_GPIO_W2W_NRESET, 1);
 	} else {
-		printk(KERN_ERR "could not obtain gpio for "
-					"OVERO_GPIO_W2W_NRESET\n");
+		pr_err("could not obtain gpio for OVERO_GPIO_W2W_NRESET\n");
 	}
 
 	ret = gpio_request_array(overo_bt_gpios, ARRAY_SIZE(overo_bt_gpios));
@@ -536,8 +535,7 @@ static void __init overo_init(void)
 	if (ret == 0)
 		gpio_export(OVERO_GPIO_USBH_CPEN, 0);
 	else
-		printk(KERN_ERR "could not obtain gpio for "
-					"OVERO_GPIO_USBH_CPEN\n");
+		pr_err("could not obtain gpio for OVERO_GPIO_USBH_CPEN\n");
 }
 
 MACHINE_START(OVERO, "Gumstix Overo")

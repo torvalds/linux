@@ -968,8 +968,7 @@ void omap_stop_dma(int lch)
 			l = p->dma_read(CCR, lch);
 		}
 		if (i >= 100)
-			printk(KERN_ERR "DMA drain did not complete on "
-					"lch %d\n", lch);
+			pr_err("DMA drain did not complete on lch %d\n", lch);
 		/* Restore OCP_SYSCONFIG */
 		p->dma_write(sys_cf, OCP_SYSCONFIG, lch);
 	} else {
@@ -1153,8 +1152,7 @@ void omap_dma_link_lch(int lch_head, int lch_queue)
 
 	if ((dma_chan[lch_head].dev_id == -1) ||
 	    (dma_chan[lch_queue].dev_id == -1)) {
-		printk(KERN_ERR "omap_dma: trying to link "
-		       "non requested channels\n");
+		pr_err("omap_dma: trying to link non requested channels\n");
 		dump_stack();
 	}
 
@@ -1180,15 +1178,13 @@ void omap_dma_unlink_lch(int lch_head, int lch_queue)
 
 	if (dma_chan[lch_head].next_lch != lch_queue ||
 	    dma_chan[lch_head].next_lch == -1) {
-		printk(KERN_ERR "omap_dma: trying to unlink "
-		       "non linked channels\n");
+		pr_err("omap_dma: trying to unlink non linked channels\n");
 		dump_stack();
 	}
 
 	if ((dma_chan[lch_head].flags & OMAP_DMA_ACTIVE) ||
 	    (dma_chan[lch_queue].flags & OMAP_DMA_ACTIVE)) {
-		printk(KERN_ERR "omap_dma: You need to stop the DMA channels "
-		       "before unlinking\n");
+		pr_err("omap_dma: You need to stop the DMA channels before unlinking\n");
 		dump_stack();
 	}
 
@@ -1830,16 +1826,15 @@ static int omap1_dma_handle_ch(int ch)
 	if ((csr & 0x3f) == 0)
 		return 0;
 	if (unlikely(dma_chan[ch].dev_id == -1)) {
-		printk(KERN_WARNING "Spurious interrupt from DMA channel "
-		       "%d (CSR %04x)\n", ch, csr);
+		pr_warn("Spurious interrupt from DMA channel %d (CSR %04x)\n",
+			ch, csr);
 		return 0;
 	}
 	if (unlikely(csr & OMAP1_DMA_TOUT_IRQ))
-		printk(KERN_WARNING "DMA timeout with device %d\n",
-		       dma_chan[ch].dev_id);
+		pr_warn("DMA timeout with device %d\n", dma_chan[ch].dev_id);
 	if (unlikely(csr & OMAP_DMA_DROP_IRQ))
-		printk(KERN_WARNING "DMA synchronization event drop occurred "
-		       "with device %d\n", dma_chan[ch].dev_id);
+		pr_warn("DMA synchronization event drop occurred with device %d\n",
+			dma_chan[ch].dev_id);
 	if (likely(csr & OMAP_DMA_BLOCK_IRQ))
 		dma_chan[ch].flags &= ~OMAP_DMA_ACTIVE;
 	if (likely(dma_chan[ch].callback != NULL))
@@ -1879,21 +1874,19 @@ static int omap2_dma_handle_ch(int ch)
 
 	if (!status) {
 		if (printk_ratelimit())
-			printk(KERN_WARNING "Spurious DMA IRQ for lch %d\n",
-				ch);
+			pr_warn("Spurious DMA IRQ for lch %d\n", ch);
 		p->dma_write(1 << ch, IRQSTATUS_L0, ch);
 		return 0;
 	}
 	if (unlikely(dma_chan[ch].dev_id == -1)) {
 		if (printk_ratelimit())
-			printk(KERN_WARNING "IRQ %04x for non-allocated DMA"
-					"channel %d\n", status, ch);
+			pr_warn("IRQ %04x for non-allocated DMA channel %d\n",
+				status, ch);
 		return 0;
 	}
 	if (unlikely(status & OMAP_DMA_DROP_IRQ))
-		printk(KERN_INFO
-		       "DMA synchronization event drop occurred with device "
-		       "%d\n", dma_chan[ch].dev_id);
+		pr_info("DMA synchronization event drop occurred with device %d\n",
+			dma_chan[ch].dev_id);
 	if (unlikely(status & OMAP2_DMA_TRANS_ERR_IRQ)) {
 		printk(KERN_INFO "DMA transaction error with device %d\n",
 		       dma_chan[ch].dev_id);
@@ -2013,8 +2006,9 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 
 	p = pdev->dev.platform_data;
 	if (!p) {
-		dev_err(&pdev->dev, "%s: System DMA initialized without"
-			"platform data\n", __func__);
+		dev_err(&pdev->dev,
+			"%s: System DMA initialized without platform data\n",
+			__func__);
 		return -EINVAL;
 	}
 
@@ -2089,8 +2083,8 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 		}
 		ret = setup_irq(dma_irq, &omap24xx_dma_irq);
 		if (ret) {
-			dev_err(&pdev->dev, "set_up failed for IRQ %d"
-				"for DMA (error %d)\n", dma_irq, ret);
+			dev_err(&pdev->dev, "set_up failed for IRQ %d for DMA (error %d)\n",
+				dma_irq, ret);
 			goto exit_dma_lch_fail;
 		}
 	}
@@ -2098,8 +2092,7 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 	/* reserve dma channels 0 and 1 in high security devices */
 	if (cpu_is_omap34xx() &&
 		(omap_type() != OMAP2_DEVICE_TYPE_GP)) {
-		printk(KERN_INFO "Reserving DMA channels 0 and 1 for "
-				"HS ROM code\n");
+		pr_info("Reserving DMA channels 0 and 1 for HS ROM code\n");
 		dma_chan[0].dev_id = 0;
 		dma_chan[1].dev_id = 1;
 	}
@@ -2107,8 +2100,8 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 	return 0;
 
 exit_dma_irq_fail:
-	dev_err(&pdev->dev, "unable to request IRQ %d"
-			"for DMA (error %d)\n", dma_irq, ret);
+	dev_err(&pdev->dev, "unable to request IRQ %d for DMA (error %d)\n",
+		dma_irq, ret);
 	for (irq_rel = 0; irq_rel < ch;	irq_rel++) {
 		dma_irq = platform_get_irq(pdev, irq_rel);
 		free_irq(dma_irq, (void *)(irq_rel + 1));

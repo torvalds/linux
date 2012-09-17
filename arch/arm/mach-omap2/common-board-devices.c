@@ -120,8 +120,7 @@ void __init omap_nand_flash_init(int options, struct mtd_partition *parts,
 	}
 
 	if (nandcs > GPMC_CS_NUM) {
-		printk(KERN_INFO "NAND: Unable to find configuration "
-				 "in GPMC\n ");
+		pr_info("NAND: Unable to find configuration in GPMC\n");
 		return;
 	}
 
