@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
@@ -45,6 +46,41 @@ static inline const char *eeh_pcid_name(struct pci_dev *pdev)
 	if (pdev && pdev->dev.driver)
 		return pdev->dev.driver->name;
 	return "";
+}
+
+/**
+ * eeh_pcid_get - Get the PCI device driver
+ * @pdev: PCI device
+ *
+ * The function is used to retrieve the PCI device driver for
+ * the indicated PCI device. Besides, we will increase the reference
+ * of the PCI device driver to prevent that being unloaded on
+ * the fly. Otherwise, kernel crash would be seen.
+ */
+static inline struct pci_driver *eeh_pcid_get(struct pci_dev *pdev)
+{
+	if (!pdev || !pdev->driver)
+		return NULL;
+
+	if (!try_module_get(pdev->driver->driver.owner))
+		return NULL;
+
+	return pdev->driver;
+}
+
+/**
+ * eeh_pcid_put - Dereference on the PCI device driver
+ * @pdev: PCI device
+ *
+ * The function is called to do dereference on the PCI device
+ * driver of the indicated PCI device.
+ */
+static inline void eeh_pcid_put(struct pci_dev *pdev)
+{
+	if (!pdev || !pdev->driver)
+		return;
+
+	module_put(pdev->driver->driver.owner);
 }
 
 #if 0
@@ -128,23 +164,24 @@ static void *eeh_report_error(void *data, void *userdata)
 	struct eeh_dev *edev = (struct eeh_dev *)data;
 	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
 	enum pci_ers_result rc, *res = userdata;
-	struct pci_driver *driver = dev->driver;
+	struct pci_driver *driver;
 
 	/* We might not have the associated PCI device,
 	 * then we should continue for next one.
 	 */
 	if (!dev) return NULL;
-
 	dev->error_state = pci_channel_io_frozen;
 
-	if (!driver)
-		return NULL;
+	driver = eeh_pcid_get(dev);
+	if (!driver) return NULL;
 
 	eeh_disable_irq(dev);
 
 	if (!driver->err_handler ||
-	    !driver->err_handler->error_detected)
+	    !driver->err_handler->error_detected) {
+		eeh_pcid_put(dev);
 		return NULL;
+	}
 
 	rc = driver->err_handler->error_detected(dev, pci_channel_io_frozen);
 
@@ -152,6 +189,7 @@ static void *eeh_report_error(void *data, void *userdata)
 	if (rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
 
+	eeh_pcid_put(dev);
 	return NULL;
 }
 
@@ -171,12 +209,14 @@ static void *eeh_report_mmio_enabled(void *data, void *userdata)
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver;
 
-	if (!dev) return NULL;
+	driver = eeh_pcid_get(dev);
+	if (!driver) return NULL;
 
-	if (!(driver = dev->driver) ||
-	    !driver->err_handler ||
-	    !driver->err_handler->mmio_enabled)
+	if (!driver->err_handler ||
+	    !driver->err_handler->mmio_enabled) {
+		eeh_pcid_put(dev);
 		return NULL;
+	}
 
 	rc = driver->err_handler->mmio_enabled(dev);
 
@@ -184,6 +224,7 @@ static void *eeh_report_mmio_enabled(void *data, void *userdata)
 	if (rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
 
+	eeh_pcid_put(dev);
 	return NULL;
 }
 
@@ -204,16 +245,19 @@ static void *eeh_report_reset(void *data, void *userdata)
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver;
 
-	if (!dev || !(driver = dev->driver))
-		return NULL;
-
+	if (!dev) return NULL;
 	dev->error_state = pci_channel_io_normal;
+
+	driver = eeh_pcid_get(dev);
+	if (!driver) return NULL;
 
 	eeh_enable_irq(dev);
 
 	if (!driver->err_handler ||
-	    !driver->err_handler->slot_reset)
+	    !driver->err_handler->slot_reset) {
+		eeh_pcid_put(dev);
 		return NULL;
+	}
 
 	rc = driver->err_handler->slot_reset(dev);
 	if ((*res == PCI_ERS_RESULT_NONE) ||
@@ -221,6 +265,7 @@ static void *eeh_report_reset(void *data, void *userdata)
 	if (*res == PCI_ERS_RESULT_DISCONNECT &&
 	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 
+	eeh_pcid_put(dev);
 	return NULL;
 }
 
@@ -240,20 +285,22 @@ static void *eeh_report_resume(void *data, void *userdata)
 	struct pci_driver *driver;
 
 	if (!dev) return NULL;
-
 	dev->error_state = pci_channel_io_normal;
 
-	if (!(driver = dev->driver))
-		return NULL;
+	driver = eeh_pcid_get(dev);
+	if (!driver) return NULL;
 
 	eeh_enable_irq(dev);
 
 	if (!driver->err_handler ||
-	    !driver->err_handler->resume)
+	    !driver->err_handler->resume) {
+		eeh_pcid_put(dev);
 		return NULL;
+	}
 
 	driver->err_handler->resume(dev);
 
+	eeh_pcid_put(dev);
 	return NULL;
 }
 
@@ -272,20 +319,22 @@ static void *eeh_report_failure(void *data, void *userdata)
 	struct pci_driver *driver;
 
 	if (!dev) return NULL;
-
 	dev->error_state = pci_channel_io_perm_failure;
 
-	if (!(driver = dev->driver))
-		return NULL;
+	driver = eeh_pcid_get(dev);
+	if (!driver) return NULL;
 
 	eeh_disable_irq(dev);
 
 	if (!driver->err_handler ||
-	    !driver->err_handler->error_detected)
+	    !driver->err_handler->error_detected) {
+		eeh_pcid_put(dev);
 		return NULL;
+	}
 
 	driver->err_handler->error_detected(dev, pci_channel_io_perm_failure);
 
+	eeh_pcid_put(dev);
 	return NULL;
 }
 
