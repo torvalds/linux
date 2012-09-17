@@ -1197,15 +1197,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				 * multiple irqs..
 				 */
 
-	if (irq[0]) {
-		printk(KERN_DEBUG "comedi%d: irq: %u\n", dev->minor, irq[0]);
-		if (board->dio_num_asics == 2 && irq[1])
-			printk(KERN_DEBUG "comedi%d: second ASIC irq: %u\n",
-					dev->minor, irq[1]);
-	} else {
-		printk(KERN_INFO "comedi%d: (IRQ mode disabled)\n", dev->minor);
-	}
-
 	printk(KERN_INFO "comedi%d: attached\n", dev->minor);
 
 	return 1;
