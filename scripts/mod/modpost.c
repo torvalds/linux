@@ -827,6 +827,8 @@ static const char *section_white_list[] =
 	".note*",
 	".got*",
 	".toc*",
+	".xt.prop",				 /* xtensa */
+	".xt.lit",         /* xtensa */
 	NULL
 };
 
