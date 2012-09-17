@@ -133,18 +133,11 @@ static int nec_8048_panel_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		goto err0;
 
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			goto err1;
-	}
-
 	if (gpio_is_valid(pd->res_gpio))
 		gpio_set_value_cansleep(pd->res_gpio, 1);
 
 	return 0;
-err1:
-	omapdss_dpi_display_disable(dssdev);
+
 err0:
 	return r;
 }
@@ -158,9 +151,6 @@ static void nec_8048_panel_power_off(struct omap_dss_device *dssdev)
 
 	if (gpio_is_valid(pd->res_gpio))
 		gpio_set_value_cansleep(pd->res_gpio, 0);
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
 
 	omapdss_dpi_display_disable(dssdev);
 }
