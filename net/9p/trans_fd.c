@@ -316,8 +316,7 @@ static void p9_read_work(struct work_struct *work)
 						m->rsize - m->rpos);
 	p9_debug(P9_DEBUG_TRANS, "mux %p got %d bytes\n", m, err);
 	if (err == -EAGAIN) {
-		clear_bit(Rworksched, &m->wsched);
-		return;
+		goto end_clear;
 	}
 
 	if (err <= 0)
@@ -379,19 +378,20 @@ static void p9_read_work(struct work_struct *work)
 		m->req = NULL;
 	}
 
+end_clear:
+	clear_bit(Rworksched, &m->wsched);
+
 	if (!list_empty(&m->req_list)) {
 		if (test_and_clear_bit(Rpending, &m->wsched))
 			n = POLLIN;
 		else
 			n = p9_fd_poll(m->client, NULL);
 
-		if (n & POLLIN) {
+		if ((n & POLLIN) && !test_and_set_bit(Rworksched, &m->wsched)) {
 			p9_debug(P9_DEBUG_TRANS, "sched read work %p\n", m);
 			schedule_work(&m->rq);
-		} else
-			clear_bit(Rworksched, &m->wsched);
-	} else
-		clear_bit(Rworksched, &m->wsched);
+		}
+	}
 
 	return;
 error:
