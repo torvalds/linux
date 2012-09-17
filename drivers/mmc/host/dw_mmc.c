@@ -231,6 +231,7 @@ static void dw_mci_set_timeout(struct dw_mci *host)
 static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 {
 	struct mmc_data	*data;
+	struct dw_mci_slot *slot = mmc_priv(mmc);
 	u32 cmdr;
 	cmd->error = -EINPROGRESS;
 
@@ -259,6 +260,9 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 		if (data->flags & MMC_DATA_WRITE)
 			cmdr |= SDMMC_CMD_DAT_WR;
 	}
+
+	if (slot->host->drv_data->prepare_command)
+		slot->host->drv_data->prepare_command(slot->host, &cmdr);
 
 	return cmdr;
 }
@@ -814,6 +818,9 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		 */
 		slot->clock = ios->clock;
 	}
+
+	if (slot->host->drv_data->set_ios)
+		slot->host->drv_data->set_ios(slot->host, ios);
 
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
@@ -1820,6 +1827,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 {
 	struct mmc_host *mmc;
 	struct dw_mci_slot *slot;
+	int ctrl_id, ret;
 	u8 bus_width;
 
 	mmc = mmc_alloc_host(sizeof(struct dw_mci_slot), host->dev);
@@ -1851,6 +1859,16 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	if (host->pdata->caps)
 		mmc->caps = host->pdata->caps;
 
+	if (host->dev->of_node) {
+		ctrl_id = of_alias_get_id(host->dev->of_node, "mshc");
+		if (ctrl_id < 0)
+			ctrl_id = 0;
+	} else {
+		ctrl_id = to_platform_device(host->dev)->id;
+	}
+	if (host->drv_data && host->drv_data->caps)
+		mmc->caps |= host->drv_data->caps[ctrl_id];
+
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
 
@@ -1860,6 +1878,14 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		bus_width = dw_mci_of_get_bus_wd(host->dev, slot->id);
 	else
 		bus_width = 1;
+
+	if (host->drv_data->setup_bus) {
+		struct device_node *slot_np;
+		slot_np = dw_mci_of_find_slot_node(host->dev, slot->id);
+		ret = host->drv_data->setup_bus(host, slot_np, bus_width);
+		if (ret)
+			goto err_setup_bus;
+	}
 
 	switch (bus_width) {
 	case 8:
@@ -1927,6 +1953,10 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	queue_work(host->card_workqueue, &host->card_work);
 
 	return 0;
+
+err_setup_bus:
+	mmc_free_host(mmc);
+	return -EINVAL;
 }
 
 static void dw_mci_cleanup_slot(struct dw_mci_slot *slot, unsigned int id)
@@ -2021,7 +2051,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 	struct dw_mci_board *pdata;
 	struct device *dev = host->dev;
 	struct device_node *np = dev->of_node;
-	int idx;
+	int idx, ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -2047,6 +2077,12 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 				"value of FIFOTH register as default\n");
 
 	of_property_read_u32(np, "card-detect-delay", &pdata->detect_delay_ms);
+
+	if (host->drv_data->parse_dt) {
+		ret = host->drv_data->parse_dt(host);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	return pdata;
 }
@@ -2106,6 +2142,15 @@ int dw_mci_probe(struct dw_mci *host)
 		host->bus_hz = host->pdata->bus_hz;
 	else
 		host->bus_hz = clk_get_rate(host->ciu_clk);
+
+	if (host->drv_data->setup_clock) {
+		ret = host->drv_data->setup_clock(host);
+		if (ret) {
+			dev_err(host->dev,
+				"implementation specific clock setup failed\n");
+			goto err_clk_ciu;
+		}
+	}
 
 	if (!host->bus_hz) {
 		dev_err(host->dev,

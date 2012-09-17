@@ -12,7 +12,8 @@
 #ifndef _DW_MMC_PLTFM_H_
 #define _DW_MMC_PLTFM_H_
 
-extern int dw_mci_pltfm_register(struct platform_device *pdev);
+extern int dw_mci_pltfm_register(struct platform_device *pdev,
+				struct dw_mci_drv_data *drv_data);
 extern int __devexit dw_mci_pltfm_remove(struct platform_device *pdev);
 extern const struct dev_pm_ops dw_mci_pltfm_pmops;
 
