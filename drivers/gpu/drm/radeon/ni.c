@@ -1497,7 +1497,7 @@ void cayman_vm_fini(struct radeon_device *rdev)
 {
 }
 
-#define R600_PTE_VALID     (1 << 0)
+#define R600_ENTRY_VALID   (1 << 0)
 #define R600_PTE_SYSTEM    (1 << 1)
 #define R600_PTE_SNOOPED   (1 << 2)
 #define R600_PTE_READABLE  (1 << 5)
@@ -1506,8 +1506,7 @@ void cayman_vm_fini(struct radeon_device *rdev)
 uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags)
 {
 	uint32_t r600_flags = 0;
-
-	r600_flags |= (flags & RADEON_VM_PAGE_VALID) ? R600_PTE_VALID : 0;
+	r600_flags |= (flags & RADEON_VM_PAGE_VALID) ? R600_ENTRY_VALID : 0;
 	r600_flags |= (flags & RADEON_VM_PAGE_READABLE) ? R600_PTE_READABLE : 0;
 	r600_flags |= (flags & RADEON_VM_PAGE_WRITEABLE) ? R600_PTE_WRITEABLE : 0;
 	if (flags & RADEON_VM_PAGE_SYSTEM) {
@@ -1521,30 +1520,40 @@ uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags)
  * cayman_vm_set_page - update the page tables using the CP
  *
  * @rdev: radeon_device pointer
+ * @pe: addr of the page entry
+ * @addr: dst addr to write into pe
+ * @count: number of page entries to update
+ * @incr: increase next addr by incr bytes
+ * @flags: access flags
  *
  * Update the page tables using the CP (cayman-si).
  */
-void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
-			unsigned pfn, struct ttm_mem_reg *mem,
-			unsigned npages, uint32_t flags)
+void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
+			uint64_t addr, unsigned count,
+			uint32_t incr, uint32_t flags)
 {
 	struct radeon_ring *ring = &rdev->ring[rdev->asic->vm.pt_ring_index];
-	uint64_t addr, pt = vm->pt_gpu_addr + pfn * 8;
+	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
 	int i;
 
-	addr = flags = cayman_vm_page_flags(rdev, flags);
+	radeon_ring_write(ring, PACKET3(PACKET3_ME_WRITE, 1 + count * 2));
+	radeon_ring_write(ring, pe);
+	radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
+	for (i = 0; i < count; ++i) {
+		uint64_t value = 0;
+		if (flags & RADEON_VM_PAGE_SYSTEM) {
+			value = radeon_vm_map_gart(rdev, addr);
+			value &= 0xFFFFFFFFFFFFF000ULL;
+			addr += incr;
 
-	radeon_ring_write(ring, PACKET3(PACKET3_ME_WRITE, 1 + npages * 2));
-	radeon_ring_write(ring, pt & 0xffffffff);
-	radeon_ring_write(ring, (pt >> 32) & 0xff);
-	for (i = 0; i < npages; ++i) {
-		if (mem) {
-			addr = radeon_vm_get_addr(rdev, mem, i);
-			addr = addr & 0xFFFFFFFFFFFFF000ULL;
-			addr |= flags;
+		} else if (flags & RADEON_VM_PAGE_VALID) {
+			value = addr;
+			addr += incr;
 		}
-		radeon_ring_write(ring, addr & 0xffffffff);
-		radeon_ring_write(ring, (addr >> 32) & 0xffffffff);
+
+		value |= r600_flags;
+		radeon_ring_write(ring, value);
+		radeon_ring_write(ring, upper_32_bits(value));
 	}
 }
 

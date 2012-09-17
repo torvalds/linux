@@ -822,42 +822,26 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 }
 
 /**
- * radeon_vm_get_addr - get the physical address of the page
+ * radeon_vm_map_gart - get the physical address of a gart page
  *
  * @rdev: radeon_device pointer
- * @mem: ttm mem
- * @pfn: pfn
+ * @addr: the unmapped addr
  *
  * Look up the physical address of the page that the pte resolves
  * to (cayman+).
  * Returns the physical address of the page.
  */
-u64 radeon_vm_get_addr(struct radeon_device *rdev,
-		       struct ttm_mem_reg *mem,
-		       unsigned pfn)
+uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr)
 {
-	u64 addr = 0;
+	uint64_t result;
 
-	switch (mem->mem_type) {
-	case TTM_PL_VRAM:
-		addr = (mem->start << PAGE_SHIFT);
-		addr += pfn * RADEON_GPU_PAGE_SIZE;
-		addr += rdev->vm_manager.vram_base_offset;
-		break;
-	case TTM_PL_TT:
-		/* offset inside page table */
-		addr = mem->start << PAGE_SHIFT;
-		addr += pfn * RADEON_GPU_PAGE_SIZE;
-		addr = addr >> PAGE_SHIFT;
-		/* page table offset */
-		addr = rdev->gart.pages_addr[addr];
-		/* in case cpu page size != gpu page size*/
-		addr += (pfn * RADEON_GPU_PAGE_SIZE) & (~PAGE_MASK);
-		break;
-	default:
-		break;
-	}
-	return addr;
+	/* page table offset */
+	result = rdev->gart.pages_addr[addr >> PAGE_SHIFT];
+
+	/* in case cpu page size != gpu page size*/
+	result |= addr & (~PAGE_MASK);
+
+	return result;
 }
 
 /**
@@ -883,7 +867,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	struct radeon_semaphore *sem = NULL;
 	struct radeon_bo_va *bo_va;
 	unsigned ngpu_pages, ndw;
-	uint64_t pfn;
+	uint64_t pfn, addr;
 	int r;
 
 	/* nothing to do if vm isn't bound */
@@ -908,21 +892,22 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	ngpu_pages = radeon_bo_ngpu_pages(bo);
 	bo_va->flags &= ~RADEON_VM_PAGE_VALID;
 	bo_va->flags &= ~RADEON_VM_PAGE_SYSTEM;
+	pfn = bo_va->soffset / RADEON_GPU_PAGE_SIZE;
 	if (mem) {
+		addr = mem->start << PAGE_SHIFT;
 		if (mem->mem_type != TTM_PL_SYSTEM) {
 			bo_va->flags |= RADEON_VM_PAGE_VALID;
 			bo_va->valid = true;
 		}
 		if (mem->mem_type == TTM_PL_TT) {
 			bo_va->flags |= RADEON_VM_PAGE_SYSTEM;
-		}
-		if (!bo_va->valid) {
-			mem = NULL;
+		} else {
+			addr += rdev->vm_manager.vram_base_offset;
 		}
 	} else {
+		addr = 0;
 		bo_va->valid = false;
 	}
-	pfn = bo_va->soffset / RADEON_GPU_PAGE_SIZE;
 
 	if (vm->fence && radeon_fence_signaled(vm->fence)) {
 		radeon_fence_unref(&vm->fence);
@@ -950,7 +935,8 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		radeon_fence_note_sync(vm->fence, ridx);
 	}
 
-	radeon_asic_vm_set_page(rdev, vm, pfn, mem, ngpu_pages, bo_va->flags);
+	radeon_asic_vm_set_page(rdev, vm->pt_gpu_addr + pfn * 8, addr,
+				ngpu_pages, RADEON_GPU_PAGE_SIZE, bo_va->flags);
 
 	radeon_fence_unref(&vm->fence);
 	r = radeon_fence_emit(rdev, &vm->fence, ridx);
