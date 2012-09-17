@@ -734,7 +734,8 @@ static int cpia2_g_jpegcomp(struct file *file, void *fh, struct v4l2_jpegcompres
  *
  *****************************************************************************/
 
-static int cpia2_s_jpegcomp(struct file *file, void *fh, struct v4l2_jpegcompression *parms)
+static int cpia2_s_jpegcomp(struct file *file, void *fh,
+		const struct v4l2_jpegcompression *parms)
 {
 	struct camera_data *cam = video_drvdata(file);
 
@@ -743,8 +744,6 @@ static int cpia2_s_jpegcomp(struct file *file, void *fh, struct v4l2_jpegcompres
 
 	cam->params.compression.inhibit_htables =
 		!(parms->jpeg_markers & V4L2_JPEG_MARKER_DHT);
-	parms->jpeg_markers &= V4L2_JPEG_MARKER_DQT | V4L2_JPEG_MARKER_DRI |
-			       V4L2_JPEG_MARKER_DHT;
 
 	if(parms->APP_len != 0) {
 		if(parms->APP_len > 0 &&

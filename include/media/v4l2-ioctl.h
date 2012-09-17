@@ -195,7 +195,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_jpegcomp)       (struct file *file, void *fh,
 					struct v4l2_jpegcompression *a);
 	int (*vidioc_s_jpegcomp)       (struct file *file, void *fh,
-					struct v4l2_jpegcompression *a);
+					const struct v4l2_jpegcompression *a);
 	int (*vidioc_g_enc_index)      (struct file *file, void *fh,
 					struct v4l2_enc_idx *a);
 	int (*vidioc_encoder_cmd)      (struct file *file, void *fh,

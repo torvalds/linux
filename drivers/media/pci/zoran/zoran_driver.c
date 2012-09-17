@@ -2674,7 +2674,7 @@ static int zoran_g_jpegcomp(struct file *file, void *__fh,
 }
 
 static int zoran_s_jpegcomp(struct file *file, void *__fh,
-					struct v4l2_jpegcompression *params)
+					const struct v4l2_jpegcompression *params)
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
@@ -2701,7 +2701,7 @@ static int zoran_s_jpegcomp(struct file *file, void *__fh,
 	if (!fh->buffers.allocated)
 		fh->buffers.buffer_size =
 			zoran_v4l2_calc_bufsize(&fh->jpg_settings);
-	fh->jpg_settings.jpg_comp = *params = settings.jpg_comp;
+	fh->jpg_settings.jpg_comp = settings.jpg_comp;
 sjpegc_unlock_and_return:
 	mutex_unlock(&zr->resource_lock);
 

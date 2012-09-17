@@ -1392,7 +1392,7 @@ static int vidioc_g_jpegcomp(struct file *file, void *priv,
 }
 
 static int vidioc_s_jpegcomp(struct file *file, void *priv,
-			 struct v4l2_jpegcompression *params)
+			 const struct v4l2_jpegcompression *params)
 {
 	if (params->quality != 50 ||
 			params->jpeg_markers != (V4L2_JPEG_MARKER_DHT |

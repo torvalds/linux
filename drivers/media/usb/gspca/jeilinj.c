@@ -474,7 +474,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 }
 
 static int sd_set_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
+			const struct v4l2_jpegcompression *jcomp)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 

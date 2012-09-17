@@ -83,8 +83,10 @@ struct gspca_frame;
 typedef int (*cam_op) (struct gspca_dev *);
 typedef void (*cam_v_op) (struct gspca_dev *);
 typedef int (*cam_cf_op) (struct gspca_dev *, const struct usb_device_id *);
-typedef int (*cam_jpg_op) (struct gspca_dev *,
+typedef int (*cam_get_jpg_op) (struct gspca_dev *,
 				struct v4l2_jpegcompression *);
+typedef int (*cam_set_jpg_op) (struct gspca_dev *,
+				const struct v4l2_jpegcompression *);
 typedef int (*cam_reg_op) (struct gspca_dev *,
 				struct v4l2_dbg_register *);
 typedef int (*cam_ident_op) (struct gspca_dev *,
@@ -126,8 +128,8 @@ struct sd_desc {
 	cam_v_op stopN;		/* called on stream off - main alt */
 	cam_v_op stop0;		/* called on stream off & disconnect - alt 0 */
 	cam_v_op dq_callback;	/* called when a frame has been dequeued */
-	cam_jpg_op get_jcomp;
-	cam_jpg_op set_jcomp;
+	cam_get_jpg_op get_jcomp;
+	cam_set_jpg_op set_jcomp;
 	cam_qmnu_op querymenu;
 	cam_streamparm_op get_streamparm;
 	cam_streamparm_op set_streamparm;

@@ -1556,7 +1556,7 @@ static int vidioc_g_jpegcomp(struct file *file, void *priv,
 }
 
 static int vidioc_s_jpegcomp(struct file *file, void *priv,
-			 struct v4l2_jpegcompression *jc)
+			 const struct v4l2_jpegcompression *jc)
 {
 	struct s2255_fh *fh = priv;
 	struct s2255_channel *channel = fh->channel;

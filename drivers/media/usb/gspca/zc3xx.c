@@ -6883,16 +6883,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 }
 
 static int sd_set_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
+			const struct v4l2_jpegcompression *jcomp)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
 
-	ret = v4l2_ctrl_s_ctrl(sd->jpegqual, jcomp->quality);
-	if (ret)
-		return ret;
-	jcomp->quality = v4l2_ctrl_g_ctrl(sd->jpegqual);
-	return 0;
+	return v4l2_ctrl_s_ctrl(sd->jpegqual, jcomp->quality);
 }
 
 static int sd_get_jcomp(struct gspca_dev *gspca_dev,
