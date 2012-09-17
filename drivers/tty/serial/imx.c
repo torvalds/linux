@@ -206,7 +206,7 @@ struct imx_port {
 	unsigned short		trcv_delay; /* transceiver delay */
 	struct clk		*clk_ipg;
 	struct clk		*clk_per;
-	struct imx_uart_data	*devdata;
+	const struct imx_uart_data *devdata;
 };
 
 struct imx_port_ucrs {
@@ -1505,18 +1505,21 @@ static int serial_imx_probe(struct platform_device *pdev)
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
+		dev_err(&pdev->dev, "failed to get default pinctrl: %d\n", ret);
 		goto unmap;
 	}
 
 	sport->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(sport->clk_ipg)) {
 		ret = PTR_ERR(sport->clk_ipg);
+		dev_err(&pdev->dev, "failed to get ipg clk: %d\n", ret);
 		goto unmap;
 	}
 
 	sport->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(sport->clk_per)) {
 		ret = PTR_ERR(sport->clk_per);
+		dev_err(&pdev->dev, "failed to get per clk: %d\n", ret);
 		goto unmap;
 	}
 

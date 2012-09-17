@@ -191,11 +191,11 @@ static void kobil_release(struct usb_serial *serial)
 static void kobil_init_termios(struct tty_struct *tty)
 {
 	/* Default to echo off and other sane device settings */
-	tty->termios->c_lflag = 0;
-	tty->termios->c_lflag &= ~(ISIG | ICANON | ECHO | IEXTEN | XCASE);
-	tty->termios->c_iflag = IGNBRK | IGNPAR | IXOFF;
+	tty->termios.c_lflag = 0;
+	tty->termios.c_iflag &= ~(ISIG | ICANON | ECHO | IEXTEN | XCASE);
+	tty->termios.c_iflag |= IGNBRK | IGNPAR | IXOFF;
 	/* do NOT translate CR to CR-NL (0x0A -> 0x0A 0x0D) */
-	tty->termios->c_oflag &= ~ONLCR;
+	tty->termios.c_oflag &= ~ONLCR;
 }
 
 static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -581,14 +581,14 @@ static void kobil_set_termios(struct tty_struct *tty,
 	struct kobil_private *priv;
 	int result;
 	unsigned short urb_val = 0;
-	int c_cflag = tty->termios->c_cflag;
+	int c_cflag = tty->termios.c_cflag;
 	speed_t speed;
 
 	priv = usb_get_serial_port_data(port);
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
 			priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
 		/* This device doesn't support ioctl calls */
-		*tty->termios = *old;
+		tty_termios_copy_hw(&tty->termios, old);
 		return;
 	}
 
@@ -612,7 +612,7 @@ static void kobil_set_termios(struct tty_struct *tty,
 			urb_val |= SUSBCR_SPASB_EvenParity;
 	} else
 		urb_val |= SUSBCR_SPASB_NoParity;
-	tty->termios->c_cflag &= ~CMSPAR;
+	tty->termios.c_cflag &= ~CMSPAR;
 	tty_encode_baud_rate(tty, speed, speed);
 
 	result = usb_control_msg(port->serial->dev,

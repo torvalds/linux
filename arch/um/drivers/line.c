@@ -409,7 +409,8 @@ int setup_one_line(struct line *lines, int n, char *init,
 		line->valid = 1;
 		err = parse_chan_pair(new, line, n, opts, error_out);
 		if (!err) {
-			struct device *d = tty_register_device(driver, n, NULL);
+			struct device *d = tty_port_register_device(&line->port,
+					driver, n, NULL);
 			if (IS_ERR(d)) {
 				*error_out = "Failed to register device";
 				err = PTR_ERR(d);

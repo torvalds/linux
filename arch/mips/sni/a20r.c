@@ -133,6 +133,38 @@ static struct platform_device sc26xx_pdev = {
 	}
 };
 
+#warning "Please try migrate to use new driver SCCNXP and report the status" \
+	 "in the linux-serial mailing list."
+
+/* The code bellow is a replacement of SC26XX to SCCNXP */
+#if 0
+#include <linux/platform_data/sccnxp.h>
+
+static struct sccnxp_pdata sccnxp_data = {
+	.reg_shift	= 2,
+	.frequency	= 3686400,
+	.mctrl_cfg[0]	= MCTRL_SIG(DTR_OP, LINE_OP7) |
+			  MCTRL_SIG(RTS_OP, LINE_OP3) |
+			  MCTRL_SIG(DSR_IP, LINE_IP5) |
+			  MCTRL_SIG(DCD_IP, LINE_IP6),
+	.mctrl_cfg[1]	= MCTRL_SIG(DTR_OP, LINE_OP2) |
+			  MCTRL_SIG(RTS_OP, LINE_OP1) |
+			  MCTRL_SIG(DSR_IP, LINE_IP0) |
+			  MCTRL_SIG(CTS_IP, LINE_IP1) |
+			  MCTRL_SIG(DCD_IP, LINE_IP2) |
+			  MCTRL_SIG(RNG_IP, LINE_IP3),
+};
+
+static struct platform_device sc2681_pdev = {
+	.name		= "sc2681",
+	.resource	= sc2xxx_rsrc,
+	.num_resources	= ARRAY_SIZE(sc2xxx_rsrc),
+	.dev	= {
+		.platform_data	= &sccnxp_data,
+	},
+};
+#endif
+
 static u32 a20r_ack_hwint(void)
 {
 	u32 status = read_c0_status();
