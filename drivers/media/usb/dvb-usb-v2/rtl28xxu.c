@@ -591,7 +591,6 @@ static int rtl2832u_fc0012_tuner_callback(struct dvb_usb_device *d,
 		goto err;
 	}
 	return 0;
-
 err:
 	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
@@ -643,7 +642,6 @@ static int rtl2832u_tua9001_tuner_callback(struct dvb_usb_device *d,
 	}
 
 	return 0;
-
 err:
 	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
@@ -656,17 +654,15 @@ static int rtl2832u_tuner_callback(struct dvb_usb_device *d, int cmd, int arg)
 	switch (priv->tuner) {
 	case TUNER_RTL2832_FC0012:
 		return rtl2832u_fc0012_tuner_callback(d, cmd, arg);
-
 	case TUNER_RTL2832_FC0013:
 		return rtl2832u_fc0013_tuner_callback(d, cmd, arg);
-
 	case TUNER_RTL2832_TUA9001:
 		return rtl2832u_tua9001_tuner_callback(d, cmd, arg);
 	default:
 		break;
 	}
 
-	return -ENODEV;
+	return 0;
 }
 
 static int rtl2832u_frontend_callback(void *adapter_priv, int component,
@@ -682,7 +678,7 @@ static int rtl2832u_frontend_callback(void *adapter_priv, int component,
 		break;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
