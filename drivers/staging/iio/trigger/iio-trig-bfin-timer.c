@@ -99,9 +99,15 @@ static ssize_t iio_bfin_tmr_frequency_show(struct device *dev,
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
 	struct bfin_tmr_state *st = trig->private_data;
+	unsigned int period = get_gptimer_period(st->t->id);
+	unsigned long val;
 
-	return sprintf(buf, "%lu\n",
-			get_sclk() / get_gptimer_period(st->t->id));
+	if (period == 0)
+		val = 0;
+	else
+		val = get_sclk() / get_gptimer_period(st->t->id);
+
+	return sprintf(buf, "%lu\n", val);
 }
 
 static DEVICE_ATTR(frequency, S_IRUGO | S_IWUSR, iio_bfin_tmr_frequency_show,
