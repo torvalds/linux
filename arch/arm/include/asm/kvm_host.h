@@ -80,6 +80,13 @@ struct kvm_mmu_memory_cache {
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
+struct kvm_vcpu_fault_info {
+	u32 hsr;		/* Hyp Syndrome Register */
+	u32 hxfar;		/* Hyp Data/Inst. Fault Address Register */
+	u32 hpfar;		/* Hyp IPA Fault Address Register */
+	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
+};
+
 struct kvm_vcpu_arch {
 	struct kvm_regs regs;
 
@@ -93,9 +100,7 @@ struct kvm_vcpu_arch {
 	u32 midr;
 
 	/* Exception Information */
-	u32 hsr;		/* Hyp Syndrome Register */
-	u32 hxfar;		/* Hyp Data/Inst Fault Address Register */
-	u32 hpfar;		/* Hyp IPA Fault Address Register */
+	struct kvm_vcpu_fault_info fault;
 
 	/* Floating point registers (VFP and Advanced SIMD/NEON) */
 	struct vfp_hard_struct vfp_guest;
@@ -121,9 +126,6 @@ struct kvm_vcpu_arch {
 
 	/* Interrupt related fields */
 	u32 irq_lines;		/* IRQ and FIQ levels */
-
-	/* Hyp exception information */
-	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
 
 	/* Cache some mmu pages needed inside spinlock regions */
 	struct kvm_mmu_memory_cache mmu_page_cache;

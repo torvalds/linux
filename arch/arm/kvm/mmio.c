@@ -65,19 +65,19 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	unsigned long rt, len;
 	bool is_write, sign_extend;
 
-	if ((vcpu->arch.hsr >> 8) & 1) {
+	if ((kvm_vcpu_get_hsr(vcpu) >> 8) & 1) {
 		/* cache operation on I/O addr, tell guest unsupported */
-		kvm_inject_dabt(vcpu, vcpu->arch.hxfar);
+		kvm_inject_dabt(vcpu, kvm_vcpu_get_hfar(vcpu));
 		return 1;
 	}
 
-	if ((vcpu->arch.hsr >> 7) & 1) {
+	if ((kvm_vcpu_get_hsr(vcpu) >> 7) & 1) {
 		/* page table accesses IO mem: tell guest to fix its TTBR */
-		kvm_inject_dabt(vcpu, vcpu->arch.hxfar);
+		kvm_inject_dabt(vcpu, kvm_vcpu_get_hfar(vcpu));
 		return 1;
 	}
 
-	switch ((vcpu->arch.hsr >> 22) & 0x3) {
+	switch ((kvm_vcpu_get_hsr(vcpu) >> 22) & 0x3) {
 	case 0:
 		len = 1;
 		break;
@@ -92,13 +92,13 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return -EFAULT;
 	}
 
-	is_write = vcpu->arch.hsr & HSR_WNR;
-	sign_extend = vcpu->arch.hsr & HSR_SSE;
-	rt = (vcpu->arch.hsr & HSR_SRT_MASK) >> HSR_SRT_SHIFT;
+	is_write = kvm_vcpu_get_hsr(vcpu) & HSR_WNR;
+	sign_extend = kvm_vcpu_get_hsr(vcpu) & HSR_SSE;
+	rt = (kvm_vcpu_get_hsr(vcpu) & HSR_SRT_MASK) >> HSR_SRT_SHIFT;
 
 	if (kvm_vcpu_reg_is_pc(vcpu, rt)) {
 		/* IO memory trying to read/write pc */
-		kvm_inject_pabt(vcpu, vcpu->arch.hxfar);
+		kvm_inject_pabt(vcpu, kvm_vcpu_get_hfar(vcpu));
 		return 1;
 	}
 
@@ -112,7 +112,7 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	 * The MMIO instruction is emulated and should not be re-executed
 	 * in the guest.
 	 */
-	kvm_skip_instr(vcpu, (vcpu->arch.hsr >> 25) & 1);
+	kvm_skip_instr(vcpu, (kvm_vcpu_get_hsr(vcpu) >> 25) & 1);
 	return 0;
 }
 
@@ -130,7 +130,7 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	 * space do its magic.
 	 */
 
-	if (vcpu->arch.hsr & HSR_ISV) {
+	if (kvm_vcpu_get_hsr(vcpu) & HSR_ISV) {
 		ret = decode_hsr(vcpu, fault_ipa, &mmio);
 		if (ret)
 			return ret;

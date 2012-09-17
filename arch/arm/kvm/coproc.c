@@ -293,7 +293,7 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
-			kvm_skip_instr(vcpu, (vcpu->arch.hsr >> 25) & 1);
+			kvm_skip_instr(vcpu, (kvm_vcpu_get_hsr(vcpu) >> 25) & 1);
 			return 1;
 		}
 		/* If access function fails, it should complain. */
@@ -315,14 +315,14 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	struct coproc_params params;
 
-	params.CRm = (vcpu->arch.hsr >> 1) & 0xf;
-	params.Rt1 = (vcpu->arch.hsr >> 5) & 0xf;
-	params.is_write = ((vcpu->arch.hsr & 1) == 0);
+	params.CRm = (kvm_vcpu_get_hsr(vcpu) >> 1) & 0xf;
+	params.Rt1 = (kvm_vcpu_get_hsr(vcpu) >> 5) & 0xf;
+	params.is_write = ((kvm_vcpu_get_hsr(vcpu) & 1) == 0);
 	params.is_64bit = true;
 
-	params.Op1 = (vcpu->arch.hsr >> 16) & 0xf;
+	params.Op1 = (kvm_vcpu_get_hsr(vcpu) >> 16) & 0xf;
 	params.Op2 = 0;
-	params.Rt2 = (vcpu->arch.hsr >> 10) & 0xf;
+	params.Rt2 = (kvm_vcpu_get_hsr(vcpu) >> 10) & 0xf;
 	params.CRn = 0;
 
 	return emulate_cp15(vcpu, &params);
@@ -347,14 +347,14 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	struct coproc_params params;
 
-	params.CRm = (vcpu->arch.hsr >> 1) & 0xf;
-	params.Rt1 = (vcpu->arch.hsr >> 5) & 0xf;
-	params.is_write = ((vcpu->arch.hsr & 1) == 0);
+	params.CRm = (kvm_vcpu_get_hsr(vcpu) >> 1) & 0xf;
+	params.Rt1 = (kvm_vcpu_get_hsr(vcpu) >> 5) & 0xf;
+	params.is_write = ((kvm_vcpu_get_hsr(vcpu) & 1) == 0);
 	params.is_64bit = false;
 
-	params.CRn = (vcpu->arch.hsr >> 10) & 0xf;
-	params.Op1 = (vcpu->arch.hsr >> 14) & 0x7;
-	params.Op2 = (vcpu->arch.hsr >> 17) & 0x7;
+	params.CRn = (kvm_vcpu_get_hsr(vcpu) >> 10) & 0xf;
+	params.Op1 = (kvm_vcpu_get_hsr(vcpu) >> 14) & 0x7;
+	params.Op2 = (kvm_vcpu_get_hsr(vcpu) >> 17) & 0x7;
 	params.Rt2 = 0;
 
 	return emulate_cp15(vcpu, &params);

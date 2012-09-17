@@ -526,7 +526,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	unsigned long mmu_seq;
 	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
 
-	write_fault = kvm_is_write_fault(vcpu->arch.hsr);
+	write_fault = kvm_is_write_fault(kvm_vcpu_get_hsr(vcpu));
 	if (fault_status == FSC_PERM && !write_fault) {
 		kvm_err("Unexpected L2 read permission error\n");
 		return -EFAULT;
@@ -593,15 +593,15 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	gfn_t gfn;
 	int ret, idx;
 
-	hsr_ec = vcpu->arch.hsr >> HSR_EC_SHIFT;
+	hsr_ec = kvm_vcpu_get_hsr(vcpu) >> HSR_EC_SHIFT;
 	is_iabt = (hsr_ec == HSR_EC_IABT);
-	fault_ipa = ((phys_addr_t)vcpu->arch.hpfar & HPFAR_MASK) << 8;
+	fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
 
-	trace_kvm_guest_fault(*vcpu_pc(vcpu), vcpu->arch.hsr,
-			      vcpu->arch.hxfar, fault_ipa);
+	trace_kvm_guest_fault(*vcpu_pc(vcpu), kvm_vcpu_get_hsr(vcpu),
+			      kvm_vcpu_get_hfar(vcpu), fault_ipa);
 
 	/* Check the stage-2 fault is trans. fault or write fault */
-	fault_status = (vcpu->arch.hsr & HSR_FSC_TYPE);
+	fault_status = (kvm_vcpu_get_hsr(vcpu) & HSR_FSC_TYPE);
 	if (fault_status != FSC_FAULT && fault_status != FSC_PERM) {
 		kvm_err("Unsupported fault status: EC=%#lx DFCS=%#lx\n",
 			hsr_ec, fault_status);
@@ -614,7 +614,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	if (!kvm_is_visible_gfn(vcpu->kvm, gfn)) {
 		if (is_iabt) {
 			/* Prefetch Abort on I/O address */
-			kvm_inject_pabt(vcpu, vcpu->arch.hxfar);
+			kvm_inject_pabt(vcpu, kvm_vcpu_get_hfar(vcpu));
 			ret = 1;
 			goto out_unlock;
 		}
@@ -627,7 +627,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		}
 
 		/* Adjust page offset */
-		fault_ipa |= vcpu->arch.hxfar & ~PAGE_MASK;
+		fault_ipa |= kvm_vcpu_get_hfar(vcpu) & ~PAGE_MASK;
 		ret = io_mem_abort(vcpu, run, fault_ipa);
 		goto out_unlock;
 	}

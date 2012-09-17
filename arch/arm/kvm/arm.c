@@ -492,7 +492,7 @@ static int handle_svc_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
 static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	trace_kvm_hvc(*vcpu_pc(vcpu), *vcpu_reg(vcpu, 0),
-		      vcpu->arch.hsr & HSR_HVC_IMM_MASK);
+		      kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK);
 
 	if (kvm_psci_call(vcpu))
 		return 1;
@@ -513,16 +513,16 @@ static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 static int handle_pabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	/* The hypervisor should never cause aborts */
-	kvm_err("Prefetch Abort taken from Hyp mode at %#08x (HSR: %#08x)\n",
-		vcpu->arch.hxfar, vcpu->arch.hsr);
+	kvm_err("Prefetch Abort taken from Hyp mode at %#08lx (HSR: %#08x)\n",
+		kvm_vcpu_get_hfar(vcpu), kvm_vcpu_get_hsr(vcpu));
 	return -EFAULT;
 }
 
 static int handle_dabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	/* This is either an error in the ws. code or an external abort */
-	kvm_err("Data Abort taken from Hyp mode at %#08x (HSR: %#08x)\n",
-		vcpu->arch.hxfar, vcpu->arch.hsr);
+	kvm_err("Data Abort taken from Hyp mode at %#08lx (HSR: %#08x)\n",
+		kvm_vcpu_get_hfar(vcpu), kvm_vcpu_get_hsr(vcpu));
 	return -EFAULT;
 }
 
@@ -559,17 +559,17 @@ static bool kvm_condition_valid(struct kvm_vcpu *vcpu)
 	 * catch undefined instructions, and then we won't get past
 	 * the arm_exit_handlers test anyway.
 	 */
-	BUG_ON(((vcpu->arch.hsr & HSR_EC) >> HSR_EC_SHIFT) == 0);
+	BUG_ON(((kvm_vcpu_get_hsr(vcpu) & HSR_EC) >> HSR_EC_SHIFT) == 0);
 
 	/* Top two bits non-zero?  Unconditional. */
-	if (vcpu->arch.hsr >> 30)
+	if (kvm_vcpu_get_hsr(vcpu) >> 30)
 		return true;
 
 	cpsr = *vcpu_cpsr(vcpu);
 
 	/* Is condition field valid? */
-	if ((vcpu->arch.hsr & HSR_CV) >> HSR_CV_SHIFT)
-		cond = (vcpu->arch.hsr & HSR_COND) >> HSR_COND_SHIFT;
+	if ((kvm_vcpu_get_hsr(vcpu) & HSR_CV) >> HSR_CV_SHIFT)
+		cond = (kvm_vcpu_get_hsr(vcpu) & HSR_COND) >> HSR_COND_SHIFT;
 	else {
 		/* This can happen in Thumb mode: examine IT state. */
 		unsigned long it;
@@ -602,20 +602,20 @@ static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case ARM_EXCEPTION_IRQ:
 		return 1;
 	case ARM_EXCEPTION_UNDEFINED:
-		kvm_err("Undefined exception in Hyp mode at: %#08x\n",
-			vcpu->arch.hyp_pc);
+		kvm_err("Undefined exception in Hyp mode at: %#08lx\n",
+			kvm_vcpu_get_hyp_pc(vcpu));
 		BUG();
 		panic("KVM: Hypervisor undefined exception!\n");
 	case ARM_EXCEPTION_DATA_ABORT:
 	case ARM_EXCEPTION_PREF_ABORT:
 	case ARM_EXCEPTION_HVC:
-		hsr_ec = (vcpu->arch.hsr & HSR_EC) >> HSR_EC_SHIFT;
+		hsr_ec = (kvm_vcpu_get_hsr(vcpu) & HSR_EC) >> HSR_EC_SHIFT;
 
 		if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers)
 		    || !arm_exit_handlers[hsr_ec]) {
 			kvm_err("Unkown exception class: %#08lx, "
 				"hsr: %#08x\n", hsr_ec,
-				(unsigned int)vcpu->arch.hsr);
+				(unsigned int)kvm_vcpu_get_hsr(vcpu));
 			BUG();
 		}
 
@@ -624,7 +624,7 @@ static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		 * that fail their condition code check"
 		 */
 		if (!kvm_condition_valid(vcpu)) {
-			bool is_wide = vcpu->arch.hsr & HSR_IL;
+			bool is_wide = kvm_vcpu_get_hsr(vcpu) & HSR_IL;
 			kvm_skip_instr(vcpu, is_wide);
 			return 1;
 		}

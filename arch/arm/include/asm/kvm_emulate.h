@@ -22,6 +22,7 @@
 #include <linux/kvm_host.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
+#include <asm/kvm_arm.h>
 
 unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
 unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu);
@@ -67,6 +68,26 @@ static inline bool vcpu_mode_priv(struct kvm_vcpu *vcpu)
 static inline bool kvm_vcpu_reg_is_pc(struct kvm_vcpu *vcpu, int reg)
 {
 	return reg == 15;
+}
+
+static inline u32 kvm_vcpu_get_hsr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.fault.hsr;
+}
+
+static inline unsigned long kvm_vcpu_get_hfar(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.fault.hxfar;
+}
+
+static inline phys_addr_t kvm_vcpu_get_fault_ipa(struct kvm_vcpu *vcpu)
+{
+	return ((phys_addr_t)vcpu->arch.fault.hpfar & HPFAR_MASK) << 8;
+}
+
+static inline unsigned long kvm_vcpu_get_hyp_pc(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.fault.hyp_pc;
 }
 
 #endif /* __ARM_KVM_EMULATE_H__ */
