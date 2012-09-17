@@ -23,7 +23,7 @@
 
 #include "dw_mmc.h"
 
-static int __devinit dw_mci_pltfm_probe(struct platform_device *pdev)
+int dw_mci_pltfm_register(struct platform_device *pdev)
 {
 	struct dw_mci *host;
 	struct resource	*regs;
@@ -52,6 +52,12 @@ static int __devinit dw_mci_pltfm_probe(struct platform_device *pdev)
 	ret = dw_mci_probe(host);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dw_mci_pltfm_register);
+
+static int __devinit dw_mci_pltfm_probe(struct platform_device *pdev)
+{
+	return dw_mci_pltfm_register(pdev);
+}
 
 static int __devexit dw_mci_pltfm_remove(struct platform_device *pdev)
 {
@@ -61,6 +67,7 @@ static int __devexit dw_mci_pltfm_remove(struct platform_device *pdev)
 	dw_mci_remove(host);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dw_mci_pltfm_remove);
 
 #ifdef CONFIG_PM_SLEEP
 /*
@@ -94,7 +101,8 @@ static int dw_mci_pltfm_resume(struct device *dev)
 #define dw_mci_pltfm_resume	NULL
 #endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(dw_mci_pltfm_pmops, dw_mci_pltfm_suspend, dw_mci_pltfm_resume);
+SIMPLE_DEV_PM_OPS(dw_mci_pltfm_pmops, dw_mci_pltfm_suspend, dw_mci_pltfm_resume);
+EXPORT_SYMBOL_GPL(dw_mci_pltfm_pmops);
 
 static const struct of_device_id dw_mci_pltfm_match[] = {
 	{ .compatible = "snps,dw-mshc", },
