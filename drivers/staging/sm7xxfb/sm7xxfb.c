@@ -72,6 +72,8 @@ static struct fb_var_screeninfo smtcfb_var = {
 	.height         = -1,
 	.width          = -1,
 	.vmode          = FB_VMODE_NONINTERLACED,
+	.nonstd         = 0,
+	.accel_flags    = FB_ACCELF_TEXT,
 };
 
 static struct fb_fix_screeninfo smtcfb_fix = {
@@ -80,6 +82,10 @@ static struct fb_fix_screeninfo smtcfb_fix = {
 	.visual         = FB_VISUAL_TRUECOLOR,
 	.line_length    = 800 * 3,
 	.accel          = FB_ACCEL_SMI_LYNX,
+	.type_aux       = 0,
+	.xpanstep       = 0,
+	.ypanstep       = 0,
+	.ywrapstep      = 0,
 };
 
 struct vesa_mode {
@@ -694,20 +700,7 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev, char *name)
 	sfb->fb.fix = smtcfb_fix;
 	strcpy(sfb->fb.fix.id, name);
 
-	sfb->fb.fix.type        = FB_TYPE_PACKED_PIXELS;
-	sfb->fb.fix.type_aux    = 0;
-	sfb->fb.fix.xpanstep    = 0;
-	sfb->fb.fix.ypanstep    = 0;
-	sfb->fb.fix.ywrapstep   = 0;
-	sfb->fb.fix.accel       = FB_ACCEL_SMI_LYNX;
-
-	sfb->fb.var             = smtcfb_var;
-	sfb->fb.var.nonstd      = 0;
-	sfb->fb.var.activate    = FB_ACTIVATE_NOW;
-	sfb->fb.var.height      = -1;
-	sfb->fb.var.width       = -1;
-	sfb->fb.var.accel_flags = FB_ACCELF_TEXT;
-	sfb->fb.var.vmode       = FB_VMODE_NONINTERLACED;
+	sfb->fb.var = smtcfb_var;
 
 	sfb->fb.pseudo_palette  = sfb->colreg;
 
