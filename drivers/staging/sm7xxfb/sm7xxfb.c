@@ -57,7 +57,6 @@ struct smtcfb_info {
 };
 
 void __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
-void __iomem *smtc_VRAMBaseAddress;	/* video memory starting address */
 
 static struct fb_var_screeninfo smtcfb_var = {
 	.xres           = 1024,
@@ -737,7 +736,7 @@ static int smtc_map_smem(struct smtcfb_info *sfb,
 
 	sfb->fb.fix.smem_len = smem_len;
 
-	sfb->fb.screen_base = smtc_VRAMBaseAddress;
+	sfb->fb.screen_base = sfb->lfb;
 
 	if (!sfb->fb.screen_base) {
 		dev_err(&pdev->dev,
@@ -825,23 +824,18 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		sfb->fb.fix.mmio_len = 0x00400000;
 		smem_size = SM712_VIDEOMEMORYSIZE;
 #ifdef __BIG_ENDIAN
-		sfb->lfb = (smtc_VRAMBaseAddress =
-		    ioremap(mmio_base, 0x00c00000));
+		sfb->lfb = ioremap(mmio_base, 0x00c00000);
 #else
-		sfb->lfb = (smtc_VRAMBaseAddress =
-		    ioremap(mmio_base, 0x00800000));
+		sfb->lfb = ioremap(mmio_base, 0x00800000);
 #endif
 		sfb->mmio = (smtc_RegBaseAddress =
-		    smtc_VRAMBaseAddress + 0x00700000);
-		sfb->dp_regs = smtc_VRAMBaseAddress + 0x00408000;
+		    sfb->lfb + 0x00700000);
+		sfb->dp_regs = sfb->lfb + 0x00408000;
 		sfb->vp_regs = sfb->lfb + 0x0040c000;
 #ifdef __BIG_ENDIAN
 		if (sfb->fb.var.bits_per_pixel == 32) {
-			smtc_VRAMBaseAddress += 0x800000;
 			sfb->lfb += 0x800000;
-			dev_info(&pdev->dev,
-				 "smtc_VRAMBaseAddress=%p sfb->lfb=%p",
-				  smtc_VRAMBaseAddress, sfb->lfb);
+			dev_info(&pdev->dev, "sfb->lfb=%p", sfb->lfb);
 		}
 #endif
 		if (!smtc_RegBaseAddress) {
@@ -869,8 +863,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		sfb->fb.fix.mmio_len = 0x00200000;
 		smem_size = SM722_VIDEOMEMORYSIZE;
 		sfb->dp_regs = ioremap(mmio_base, 0x00a00000);
-		sfb->lfb = (smtc_VRAMBaseAddress =
-		    sfb->dp_regs + 0x00200000);
+		sfb->lfb = sfb->dp_regs + 0x00200000;
 		sfb->mmio = (smtc_RegBaseAddress =
 		    sfb->dp_regs + 0x000c0000);
 		sfb->vp_regs = sfb->dp_regs + 0x800;
