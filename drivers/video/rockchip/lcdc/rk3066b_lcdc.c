@@ -30,6 +30,8 @@
 #include <linux/earlysuspend.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
+#include <mach/iomux.h>
+
 #include "rk3066b_lcdc.h"
 
 
@@ -72,7 +74,39 @@ static int init_rk3066b_lcdc(struct rk_lcdc_device_driver *dev_drv)
 	clk_enable(lcdc_dev->hclk);  //enable aclk and hclk for register config
 	clk_enable(lcdc_dev->aclk);  
 	lcdc_dev->clk_on = 1;
-	
+
+	if(lcdc_dev->id == 1) //iomux for lcdc1
+	{
+		rk30_mux_api_set(GPIO2D0_LCDC1DCLK_SMCCSN0_NAME,GPIO2D_LCDC1DCLK);
+		rk30_mux_api_set(GPIO2D1_LCDC1DEN_SMCWEN_NAME,GPIO2D_LCDC1DEN);
+		rk30_mux_api_set(GPIO2D2_LCDC1HSYNC_SMCOEN_NAME,GPIO2D_LCDC1HSYNC);
+		rk30_mux_api_set(GPIO2D3_LCDC1VSYNC_SMCADVN_NAME,GPIO2D_LCDC1VSYNC);
+		rk30_mux_api_set(GPIO2A0_LCDC1DATA0_SMCDATA0_TRACEDATA0_NAME,GPIO2A_LCDC1DATA0);
+		rk30_mux_api_set(GPIO2A1_LCDC1DATA1_SMCDATA1_TRACEDATA1_NAME,GPIO2A_LCDC1DATA1);
+		rk30_mux_api_set(GPIO2A2_LCDC1DATA2_SMCDATA2_TRACEDATA2_NAME,GPIO2A_LCDC1DATA2);
+		rk30_mux_api_set(GPIO2A3_LCDC1DATA3_SMCDATA3_TRACEDATA3_NAME,GPIO2A_LCDC1DATA3);
+		rk30_mux_api_set(GPIO2A4_LCDC1DATA4_SMCDATA4_TRACEDATA4_NAME,GPIO2A_LCDC1DATA4);
+		rk30_mux_api_set(GPIO2A5_LCDC1DATA5_SMCDATA5_TRACEDATA5_NAME,GPIO2A_LCDC1DATA5);
+		rk30_mux_api_set(GPIO2A6_LCDC1DATA6_SMCDATA6_TRACEDATA6_NAME,GPIO2A_LCDC1DATA6);
+		rk30_mux_api_set(GPIO2A7_LCDC1DATA7_SMCDATA7_TRACEDATA7_NAME,GPIO2A_LCDC1DATA7);
+		rk30_mux_api_set(GPIO2B0_LCDC1DATA8_SMCDATA8_TRACEDATA8_NAME,GPIO2B_LCDC1DATA8);
+		rk30_mux_api_set(GPIO2B1_LCDC1DATA9_SMCDATA9_TRACEDATA9_NAME,GPIO2B_LCDC1DATA9);
+		rk30_mux_api_set(GPIO2B2_LCDC1DATA10_SMCDATA10_TRACEDATA10_NAME,GPIO2B_LCDC1DATA10);
+		rk30_mux_api_set(GPIO2B3_LCDC1DATA11_SMCDATA11_TRACEDATA11_NAME,GPIO2B_LCDC1DATA11);
+		rk30_mux_api_set(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME,GPIO2B_LCDC1DATA12);
+		rk30_mux_api_set(GPIO2B5_LCDC1DATA13_SMCDATA13_TRACEDATA13_NAME,GPIO2B_LCDC1DATA13);
+		rk30_mux_api_set(GPIO2B6_LCDC1DATA14_SMCDATA14_TRACEDATA14_NAME,GPIO2B_LCDC1DATA14);
+		rk30_mux_api_set(GPIO2B7_LCDC1DATA15_SMCDATA15_TRACEDATA15_NAME,GPIO2B_LCDC1DATA15);
+		rk30_mux_api_set(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME,GPIO2C_LCDC1DATA16);
+		rk30_mux_api_set(GPIO2C1_LCDC1DATA17_SMCADDR1_TRACECTL_NAME,GPIO2C_LCDC1DATA17);
+		rk30_mux_api_set(GPIO2C2_LCDC1DATA18_SMCADDR2_NAME,GPIO2C_LCDC1DATA18);
+		rk30_mux_api_set(GPIO2C3_LCDC1DATA19_SMCADDR3_NAME,GPIO2C_LCDC1DATA19);
+		rk30_mux_api_set(GPIO2C4_LCDC1DATA20_SMCADDR4_NAME,GPIO2C_LCDC1DATA20);
+		rk30_mux_api_set(GPIO2C5_LCDC1DATA21_SMCADDR5_NAME,GPIO2C_LCDC1DATA21);
+		rk30_mux_api_set(GPIO2C6_LCDC1DATA22_SMCADDR6_NAME,GPIO2C_LCDC1DATA22);
+		rk30_mux_api_set(GPIO2C7_LCDC1DATA23_SMCADDR7_NAME,GPIO2C_LCDC1DATA23);
+		
+	}
 	LcdMskReg(lcdc_dev,SYS_CFG, m_LCDC_AXICLK_AUTO_ENABLE | m_W0_AXI_OUTSTANDING2 |
 		m_W1_AXI_OUTSTANDING2,v_LCDC_AXICLK_AUTO_ENABLE(1) | v_W0_AXI_OUTSTANDING2(1) |
 		v_W1_AXI_OUTSTANDING2(1));//eanble axi-clk auto gating for low power
@@ -733,17 +767,13 @@ static int rk3066b_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char
 {
         int layer_id = 0;
         mutex_lock(&dev_drv->fb_win_id_mutex);
-        if(!strcmp(id,"fb0"))
+        if(!strcmp(id,"fb0") || !strcmp(id,"fb2"))
         {
                 layer_id = dev_drv->fb0_win_id;
         }
-        else if(!strcmp(id,"fb1"))
+        else if(!strcmp(id,"fb1") || !strcmp(id,"fb3"))
         {
                 layer_id = dev_drv->fb1_win_id;
-        }
-        else if(!strcmp(id,"fb2"))
-        {
-                layer_id = dev_drv->fb2_win_id;
         }
         else
         {
@@ -751,7 +781,7 @@ static int rk3066b_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char
                 layer_id = -1;
         }
         mutex_unlock(&dev_drv->fb_win_id_mutex);
-
+	
         return  layer_id;
 }
 
