@@ -618,14 +618,6 @@ err:
 	return ret;
 }
 
-
-static int rtl2832u_fc0013_tuner_callback(struct dvb_usb_device *d,
-		int cmd, int arg)
-{
-	/* TODO implement*/
-	return 0;
-}
-
 static int rtl2832u_tua9001_tuner_callback(struct dvb_usb_device *d,
 		int cmd, int arg)
 {
@@ -676,8 +668,6 @@ static int rtl2832u_tuner_callback(struct dvb_usb_device *d, int cmd, int arg)
 	switch (priv->tuner) {
 	case TUNER_RTL2832_FC0012:
 		return rtl2832u_fc0012_tuner_callback(d, cmd, arg);
-	case TUNER_RTL2832_FC0013:
-		return rtl2832u_fc0013_tuner_callback(d, cmd, arg);
 	case TUNER_RTL2832_TUA9001:
 		return rtl2832u_tua9001_tuner_callback(d, cmd, arg);
 	default:
@@ -688,10 +678,13 @@ static int rtl2832u_tuner_callback(struct dvb_usb_device *d, int cmd, int arg)
 }
 
 static int rtl2832u_frontend_callback(void *adapter_priv, int component,
-				    int cmd, int arg)
+		int cmd, int arg)
 {
 	struct i2c_adapter *adap = adapter_priv;
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+
+	dev_dbg(&d->udev->dev, "%s: component=%d cmd=%d arg=%d\n",
+			__func__, component, cmd, arg);
 
 	switch (component) {
 	case DVB_FRONTEND_COMPONENT_TUNER:
