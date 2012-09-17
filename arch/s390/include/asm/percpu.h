@@ -20,7 +20,7 @@
 #endif
 
 #define arch_this_cpu_to_op(pcp, val, op)				\
-do {									\
+({									\
 	typedef typeof(pcp) pcp_op_T__;					\
 	pcp_op_T__ old__, new__, prev__;				\
 	pcp_op_T__ *ptr__;						\
@@ -39,12 +39,18 @@ do {									\
 		}							\
 	} while (prev__ != old__);					\
 	preempt_enable();						\
-} while (0)
+	new__;								\
+})
 
 #define this_cpu_add_1(pcp, val) arch_this_cpu_to_op(pcp, val, +)
 #define this_cpu_add_2(pcp, val) arch_this_cpu_to_op(pcp, val, +)
 #define this_cpu_add_4(pcp, val) arch_this_cpu_to_op(pcp, val, +)
 #define this_cpu_add_8(pcp, val) arch_this_cpu_to_op(pcp, val, +)
+
+#define this_cpu_add_return_1(pcp, val) arch_this_cpu_to_op(pcp, val, +)
+#define this_cpu_add_return_2(pcp, val) arch_this_cpu_to_op(pcp, val, +)
+#define this_cpu_add_return_4(pcp, val) arch_this_cpu_to_op(pcp, val, +)
+#define this_cpu_add_return_8(pcp, val) arch_this_cpu_to_op(pcp, val, +)
 
 #define this_cpu_and_1(pcp, val) arch_this_cpu_to_op(pcp, val, &)
 #define this_cpu_and_2(pcp, val) arch_this_cpu_to_op(pcp, val, &)
