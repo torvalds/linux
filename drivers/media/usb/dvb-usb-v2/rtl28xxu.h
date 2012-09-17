@@ -53,6 +53,7 @@
 struct rtl28xxu_priv {
 	u8 chip_id;
 	u8 tuner;
+	char *tuner_name;
 	u8 page; /* integrated demod active register page */
 	bool rc_active;
 };
