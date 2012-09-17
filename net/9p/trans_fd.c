@@ -492,7 +492,7 @@ static void p9_write_work(struct work_struct *work)
 	if (m->wpos == m->wsize)
 		m->wpos = m->wsize = 0;
 
-	if (m->wsize == 0 && !list_empty(&m->unsent_req_list)) {
+	if (m->wsize || !list_empty(&m->unsent_req_list)) {
 		if (test_and_clear_bit(Wpending, &m->wsched))
 			n = POLLOUT;
 		else
