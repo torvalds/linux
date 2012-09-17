@@ -15,10 +15,6 @@
 
 #include <asm/m53xxacr.h>
 
-#define MCF_REG32(x) (*(volatile unsigned long  *)(x))
-#define MCF_REG16(x) (*(volatile unsigned short *)(x))
-#define MCF_REG08(x) (*(volatile unsigned char  *)(x))
-
 #define MCFINT_VECBASE      64
 #define MCFINT_UART0        26          /* Interrupt number for UART0 */
 #define MCFINT_UART1        27          /* Interrupt number for UART1 */
@@ -38,7 +34,7 @@
 
 #define	MCF_IRQ_QSPI	    (MCFINT_VECBASE + MCFINT_QSPI)
 
-#define MCF_WTM_WCR	MCF_REG16(0xFC098000)
+#define MCF_WTM_WCR		0xFC098000
 
 /*
  *	Define the 532x SIM register set addresses.
@@ -181,13 +177,13 @@
  *********************************************************************/
 
 /* Register read/write macros */
-#define MCF_CCM_CCR               MCF_REG16(0xFC0A0004)
-#define MCF_CCM_RCON              MCF_REG16(0xFC0A0008)
-#define MCF_CCM_CIR               MCF_REG16(0xFC0A000A)
-#define MCF_CCM_MISCCR            MCF_REG16(0xFC0A0010)
-#define MCF_CCM_CDR               MCF_REG16(0xFC0A0012)
-#define MCF_CCM_UHCSR             MCF_REG16(0xFC0A0014)
-#define MCF_CCM_UOCSR             MCF_REG16(0xFC0A0016)
+#define MCF_CCM_CCR               0xFC0A0004
+#define MCF_CCM_RCON              0xFC0A0008
+#define MCF_CCM_CIR               0xFC0A000A
+#define MCF_CCM_MISCCR            0xFC0A0010
+#define MCF_CCM_CDR               0xFC0A0012
+#define MCF_CCM_UHCSR             0xFC0A0014
+#define MCF_CCM_UOCSR             0xFC0A0016
 
 /* Bit definitions and macros for MCF_CCM_CCR */
 #define MCF_CCM_CCR_RESERVED      (0x0001)
@@ -256,27 +252,24 @@
  *********************************************************************/
 
 /* Register read/write macros */
-#define MCF_FBCS0_CSAR		MCF_REG32(0xFC008000)
-#define MCF_FBCS0_CSMR		MCF_REG32(0xFC008004)
-#define MCF_FBCS0_CSCR		MCF_REG32(0xFC008008)
-#define MCF_FBCS1_CSAR		MCF_REG32(0xFC00800C)
-#define MCF_FBCS1_CSMR		MCF_REG32(0xFC008010)
-#define MCF_FBCS1_CSCR		MCF_REG32(0xFC008014)
-#define MCF_FBCS2_CSAR		MCF_REG32(0xFC008018)
-#define MCF_FBCS2_CSMR		MCF_REG32(0xFC00801C)
-#define MCF_FBCS2_CSCR		MCF_REG32(0xFC008020)
-#define MCF_FBCS3_CSAR		MCF_REG32(0xFC008024)
-#define MCF_FBCS3_CSMR		MCF_REG32(0xFC008028)
-#define MCF_FBCS3_CSCR		MCF_REG32(0xFC00802C)
-#define MCF_FBCS4_CSAR		MCF_REG32(0xFC008030)
-#define MCF_FBCS4_CSMR		MCF_REG32(0xFC008034)
-#define MCF_FBCS4_CSCR		MCF_REG32(0xFC008038)
-#define MCF_FBCS5_CSAR		MCF_REG32(0xFC00803C)
-#define MCF_FBCS5_CSMR		MCF_REG32(0xFC008040)
-#define MCF_FBCS5_CSCR		MCF_REG32(0xFC008044)
-#define MCF_FBCS_CSAR(x)	MCF_REG32(0xFC008000+((x)*0x00C))
-#define MCF_FBCS_CSMR(x)	MCF_REG32(0xFC008004+((x)*0x00C))
-#define MCF_FBCS_CSCR(x)	MCF_REG32(0xFC008008+((x)*0x00C))
+#define MCF_FBCS0_CSAR		0xFC008000
+#define MCF_FBCS0_CSMR		0xFC008004
+#define MCF_FBCS0_CSCR		0xFC008008
+#define MCF_FBCS1_CSAR		0xFC00800C
+#define MCF_FBCS1_CSMR		0xFC008010
+#define MCF_FBCS1_CSCR		0xFC008014
+#define MCF_FBCS2_CSAR		0xFC008018
+#define MCF_FBCS2_CSMR		0xFC00801C
+#define MCF_FBCS2_CSCR		0xFC008020
+#define MCF_FBCS3_CSAR		0xFC008024
+#define MCF_FBCS3_CSMR		0xFC008028
+#define MCF_FBCS3_CSCR		0xFC00802C
+#define MCF_FBCS4_CSAR		0xFC008030
+#define MCF_FBCS4_CSMR		0xFC008034
+#define MCF_FBCS4_CSCR		0xFC008038
+#define MCF_FBCS5_CSAR		0xFC00803C
+#define MCF_FBCS5_CSMR		0xFC008040
+#define MCF_FBCS5_CSCR		0xFC008044
 
 /* Bit definitions and macros for MCF_FBCS_CSAR */
 #define MCF_FBCS_CSAR_BA(x)	((x)&0xFFFF0000)
@@ -1114,10 +1107,10 @@
  *********************************************************************/
 
 /* Register read/write macros */
-#define MCF_PLL_PODR              MCF_REG08(0xFC0C0000)
-#define MCF_PLL_PLLCR             MCF_REG08(0xFC0C0004)
-#define MCF_PLL_PMDR              MCF_REG08(0xFC0C0008)
-#define MCF_PLL_PFDR              MCF_REG08(0xFC0C000C)
+#define MCF_PLL_PODR              0xFC0C0000
+#define MCF_PLL_PLLCR             0xFC0C0004
+#define MCF_PLL_PMDR              0xFC0C0008
+#define MCF_PLL_PFDR              0xFC0C000C
 
 /* Bit definitions and macros for MCF_PLL_PODR */
 #define MCF_PLL_PODR_BUSDIV(x)    (((x)&0x0F)<<0)
@@ -1140,15 +1133,15 @@
  *********************************************************************/
 
 /* Register read/write macros */
-#define MCF_SCM_MPR			MCF_REG32(0xFC000000)
-#define MCF_SCM_PACRA			MCF_REG32(0xFC000020)
-#define MCF_SCM_PACRB			MCF_REG32(0xFC000024)
-#define MCF_SCM_PACRC			MCF_REG32(0xFC000028)
-#define MCF_SCM_PACRD			MCF_REG32(0xFC00002C)
-#define MCF_SCM_PACRE			MCF_REG32(0xFC000040)
-#define MCF_SCM_PACRF			MCF_REG32(0xFC000044)
+#define MCF_SCM_MPR			0xFC000000
+#define MCF_SCM_PACRA			0xFC000020
+#define MCF_SCM_PACRB			0xFC000024
+#define MCF_SCM_PACRC			0xFC000028
+#define MCF_SCM_PACRD			0xFC00002C
+#define MCF_SCM_PACRE			0xFC000040
+#define MCF_SCM_PACRF			0xFC000044
 
-#define MCF_SCM_BCR			MCF_REG32(0xFC040024)
+#define MCF_SCM_BCR			0xFC040024
 
 /*********************************************************************
  *
@@ -1157,17 +1150,16 @@
  *********************************************************************/
 
 /* Register read/write macros */
-#define MCF_SDRAMC_SDMR			MCF_REG32(0xFC0B8000)
-#define MCF_SDRAMC_SDCR			MCF_REG32(0xFC0B8004)
-#define MCF_SDRAMC_SDCFG1		MCF_REG32(0xFC0B8008)
-#define MCF_SDRAMC_SDCFG2		MCF_REG32(0xFC0B800C)
-#define MCF_SDRAMC_LIMP_FIX		MCF_REG32(0xFC0B8080)
-#define MCF_SDRAMC_SDDS			MCF_REG32(0xFC0B8100)
-#define MCF_SDRAMC_SDCS0		MCF_REG32(0xFC0B8110)
-#define MCF_SDRAMC_SDCS1		MCF_REG32(0xFC0B8114)
-#define MCF_SDRAMC_SDCS2		MCF_REG32(0xFC0B8118)
-#define MCF_SDRAMC_SDCS3		MCF_REG32(0xFC0B811C)
-#define MCF_SDRAMC_SDCS(x)		MCF_REG32(0xFC0B8110+((x)*0x004))
+#define MCF_SDRAMC_SDMR			0xFC0B8000
+#define MCF_SDRAMC_SDCR			0xFC0B8004
+#define MCF_SDRAMC_SDCFG1		0xFC0B8008
+#define MCF_SDRAMC_SDCFG2		0xFC0B800C
+#define MCF_SDRAMC_LIMP_FIX		0xFC0B8080
+#define MCF_SDRAMC_SDDS			0xFC0B8100
+#define MCF_SDRAMC_SDCS0		0xFC0B8110
+#define MCF_SDRAMC_SDCS1		0xFC0B8114
+#define MCF_SDRAMC_SDCS2		0xFC0B8118
+#define MCF_SDRAMC_SDCS3		0xFC0B811C
 
 /* Bit definitions and macros for MCF_SDRAMC_SDMR */
 #define MCF_SDRAMC_SDMR_CMD		(0x00010000)
