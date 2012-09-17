@@ -558,7 +558,7 @@ static int hvc_write_room(struct tty_struct *tty)
 	struct hvc_struct *hp = tty->driver_data;
 
 	if (!hp)
-		return -1;
+		return 0;
 
 	return hp->outbuf_size - hp->n_outbuf;
 }
