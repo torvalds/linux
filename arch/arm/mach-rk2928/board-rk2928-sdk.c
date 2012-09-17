@@ -53,6 +53,10 @@
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
+#if defined(CONFIG_GPS_RK)
+#include "../../../drivers/misc/gps/rk_gps/rk_gps.h"
+#endif
+
 
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
@@ -687,6 +691,92 @@ static struct platform_device device_acodec = {
 };
 #endif
 
+#if defined(CONFIG_GPS_RK)
+int rk_gps_io_init(void)
+{
+	printk("%s \n", __FUNCTION__);
+	rk30_mux_api_set(GPIO1B1_SPI_TXD_UART1_SOUT_NAME, GPIO1B_GPIO1B1);//VCC_EN
+	gpio_request(RK2928_PIN1_PB1, NULL);
+	gpio_direction_output(RK2928_PIN1_PB1, GPIO_LOW);
+
+	rk30_mux_api_set(GPIO1A2_I2S_LRCKRX_GPS_CLK_NAME, GPIO1A_GPS_CLK);//GPS_CLK
+	rk30_mux_api_set(GPIO1A4_I2S_SDO_GPS_MAG_NAME, GPIO1A_GPS_MAG);//GPS_MAG
+	rk30_mux_api_set(GPIO1A5_I2S_SDI_GPS_SIGN_NAME, GPIO1A_GPS_SIGN);//GPS_SIGN
+
+	rk30_mux_api_set(GPIO1B0_SPI_CLK_UART1_CTSN_NAME, GPIO1B_GPIO1B0);//SPI_CLK
+	gpio_request(RK2928_PIN1_PB0, NULL);
+	gpio_direction_output(RK2928_PIN1_PB0, GPIO_LOW);
+
+	rk30_mux_api_set(GPIO1B2_SPI_RXD_UART1_SIN_NAME, GPIO1B_GPIO1B2);//SPI_MOSI
+	gpio_request(RK2928_PIN1_PB2, NULL);
+	gpio_direction_output(RK2928_PIN1_PB2, GPIO_LOW);	
+
+	rk30_mux_api_set(GPIO1B3_SPI_CSN0_UART1_RTSN_NAME, GPIO1B_GPIO1B3);//SPI_CS
+	gpio_request(RK2928_PIN1_PB3, NULL);
+	gpio_direction_output(RK2928_PIN1_PB3, GPIO_LOW);		
+	return 0;
+}
+int rk_gps_power_up(void)
+{
+	printk("%s \n", __FUNCTION__);
+
+	return 0;
+}
+
+int rk_gps_power_down(void)
+{
+	printk("%s \n", __FUNCTION__);
+
+	return 0;
+}
+
+int rk_gps_reset_set(int level)
+{
+	return 0;
+}
+int rk_enable_hclk_gps(void)
+{
+	printk("%s \n", __FUNCTION__);
+	clk_enable(clk_get(NULL, "aclk_gps"));
+	return 0;
+}
+int rk_disable_hclk_gps(void)
+{
+	printk("%s \n", __FUNCTION__);
+	clk_disable(clk_get(NULL, "aclk_gps"));
+	return 0;
+}
+struct rk_gps_data rk_gps_info = {
+	.io_init = rk_gps_io_init,
+	.power_up = rk_gps_power_up,
+	.power_down = rk_gps_power_down,
+	.reset = rk_gps_reset_set,
+	.enable_hclk_gps = rk_enable_hclk_gps,
+	.disable_hclk_gps = rk_disable_hclk_gps,
+	.GpsSign = RK2928_PIN1_PA5,
+	.GpsMag = RK2928_PIN1_PA4,        //GPIO index
+	.GpsClk = RK2928_PIN1_PA2,        //GPIO index
+	.GpsVCCEn = RK2928_PIN1_PB1,     //GPIO index
+	.GpsSpi_CSO = RK2928_PIN1_PB3,    //GPIO index
+	.GpsSpiClk = RK2928_PIN1_PB0,     //GPIO index
+	.GpsSpiMOSI = RK2928_PIN1_PB2,	  //GPIO index	
+	.GpsIrq = IRQ_GPS,
+	.GpsSpiEn = 1,
+	.GpsAdcCh = 2,
+	.u32GpsPhyAddr = RK2928_GPS_PHYS,
+	.u32GpsPhySize = RK2928_GPS_SIZE,
+};
+
+struct platform_device rk_device_gps = {
+	.name = "gps_hv5820b",
+	.id = -1,
+	.dev		= {
+	.platform_data = &rk_gps_info,
+		}
+	};
+#endif
+
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
@@ -709,6 +799,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SND_SOC_RK2928
 	&device_acodec,
 #endif
+#ifdef CONFIG_GPS_RK
+	&rk_device_gps,
+#endif
+
 };
 //i2c
 #ifdef CONFIG_I2C0_RK30
@@ -875,6 +969,12 @@ static void __init rk2928_reserve(void)
 #ifdef CONFIG_VIDEO_RK29
 	rk30_camera_request_reserve_mem();
 #endif
+	
+#ifdef CONFIG_GPS_RK
+	//it must be more than 8MB
+	rk_gps_info.u32MemoryPhyAddr = board_mem_reserve_add("gps", SZ_8M);
+#endif
+
 	board_mem_reserved();
 }
 /**

@@ -1,0 +1,13 @@
+#
+# gps device configuration
+#
+
+
+
+config GPS_RK
+	tristate "rk gps support"
+	default M
+
+
+
+
