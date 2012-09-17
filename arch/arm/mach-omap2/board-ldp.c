@@ -29,7 +29,6 @@
 #include <linux/smsc911x.h>
 #include <linux/mmc/host.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -38,8 +37,6 @@
 #include "common.h"
 #include <plat/gpmc.h>
 #include <mach/board-zoom.h>
-
-#include <asm/delay.h>
 #include <plat/usb.h>
 #include <plat/gpmc-smsc911x.h>
 
@@ -274,9 +271,6 @@ static int ldp_twl_gpio_setup(struct device *dev, unsigned gpio, unsigned ngpio)
 }
 
 static struct twl4030_gpio_platform_data ldp_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.setup		= ldp_twl_gpio_setup,
 };
 

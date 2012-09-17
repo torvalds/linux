@@ -30,6 +30,7 @@
 #include <mach/omap-wakeupgen.h>
 #include <mach/omap-secure.h>
 
+#include "soc.h"
 #include "omap4-sar-layout.h"
 #include "common.h"
 

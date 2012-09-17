@@ -43,6 +43,7 @@
 #include <asm/gpio.h>
 
 #include <plat/dma.h>
+#include <plat/cpu.h>
 
 #define DRIVER_NAME "omap2-onenand"
 

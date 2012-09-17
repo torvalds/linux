@@ -773,9 +773,6 @@ static int rx51_twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
 }
 
 static struct twl4030_gpio_platform_data rx51_gpio_data = {
-	.gpio_base		= OMAP_MAX_GPIO_LINES,
-	.irq_base		= TWL4030_GPIO_IRQ_BASE,
-	.irq_end		= TWL4030_GPIO_IRQ_END,
 	.pulldowns		= BIT(0) | BIT(1) | BIT(2) | BIT(3)
 				| BIT(4) | BIT(5)
 				| BIT(8) | BIT(9) | BIT(10) | BIT(11)
@@ -1050,7 +1047,7 @@ static int __init rx51_i2c_init(void)
 	rx51_twldata.vdac->constraints.apply_uV = true;
 	rx51_twldata.vdac->constraints.name = "VDAC";
 
-	omap_pmic_init(1, 2200, "twl5030", INT_34XX_SYS_NIRQ, &rx51_twldata);
+	omap_pmic_init(1, 2200, "twl5030", 7 + OMAP_INTC_START, &rx51_twldata);
 	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)

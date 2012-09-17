@@ -27,12 +27,10 @@
 #include <linux/io.h>
 #include <linux/input/matrix_keypad.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "common.h"
 #include <plat/menelaus.h>
 #include <plat/dma.h>
 #include <plat/gpmc.h>
@@ -41,6 +39,7 @@
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 
+#include "common.h"
 #include "mux.h"
 #include "control.h"
 

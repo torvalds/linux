@@ -23,8 +23,8 @@
 #include <plat/mux.h>
 #include <plat/dma.h>
 #include <plat/mmc.h>
-#include <plat/omap7xx.h>
 
+#include <mach/omap7xx.h>
 #include <mach/camera.h>
 #include <mach/hardware.h>
 

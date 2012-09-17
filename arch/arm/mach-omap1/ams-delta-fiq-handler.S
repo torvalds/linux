@@ -18,6 +18,7 @@
 
 #include <plat/board-ams-delta.h>
 
+#include <mach/irqs.h>
 #include <mach/ams-delta-fiq.h>
 
 #include "iomap.h"

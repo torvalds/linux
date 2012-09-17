@@ -15,12 +15,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/irqs.h>
 #include "common.h"
 #include <plat/usb.h>
 

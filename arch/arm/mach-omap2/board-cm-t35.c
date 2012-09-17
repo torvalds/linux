@@ -23,6 +23,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <linux/i2c/at24.h>
 #include <linux/i2c/twl.h>
@@ -469,9 +470,6 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 }
 
 static struct twl4030_gpio_platform_data cm_t35_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.setup          = cm_t35_twl_gpio_setup,
 };
 

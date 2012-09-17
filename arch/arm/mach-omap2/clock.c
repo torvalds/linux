@@ -22,14 +22,16 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
-#include <trace/events/power.h>
 
 #include <asm/cpu.h>
+
 #include <plat/clock.h>
-#include "clockdomain.h"
-#include <plat/cpu.h>
 #include <plat/prcm.h>
 
+#include <trace/events/power.h>
+
+#include "soc.h"
+#include "clockdomain.h"
 #include "clock.h"
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-24xx.h"

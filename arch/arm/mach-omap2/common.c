@@ -17,10 +17,10 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/hardware.h>
 #include <plat/mux.h>
 #include <plat/clock.h>
 
+#include "soc.h"
 #include "iomap.h"
 #include "common.h"
 #include "sdrc.h"

@@ -20,6 +20,8 @@
 #include <plat/gpmc.h>
 #include <plat/gpmc-smc91x.h>
 
+#include "soc.h"
+
 static struct omap_smc91x_platform_data *gpmc_cfg;
 
 static struct resource gpmc_smc91x_resources[] = {

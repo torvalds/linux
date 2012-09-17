@@ -26,6 +26,7 @@
 #include <linux/export.h>
 #include <linux/omapfb.h>
 #include <linux/io.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <media/soc_camera.h>
 
