@@ -102,15 +102,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	return pci_enable_resources(dev, mask);
 }
 
-void pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-#ifdef CONFIG_PCI_DEBUG
-	printk(KERN_DEBUG "LEONPCI: Assigning IRQ %02d to %s\n", irq,
-		pci_name(dev));
-#endif
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
 /* in/out routines taken from pcic.c
  *
  * This probably belongs here rather than ioport.c because

@@ -404,14 +404,6 @@ void pcibios_set_master(struct pci_dev *dev)
 }
 
 /*
- * This is called from the generic Linux layer.
- */
-void pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
-/*
  * Enable memory and/or address decoding, as appropriate, for the
  * device described by the 'dev' struct.
  *
