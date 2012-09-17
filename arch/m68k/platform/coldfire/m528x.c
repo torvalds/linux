@@ -53,9 +53,9 @@ static void __init m528x_fec_init(void)
 	u16 v16;
 
 	/* Set multi-function pins to ethernet mode for fec0 */
-	v16 = readw(MCF_IPSBAR + 0x100056);
-	writew(v16 | 0xf00, MCF_IPSBAR + 0x100056);
-	writeb(0xc0, MCF_IPSBAR + 0x100058);
+	v16 = readw(MCFGPIO_PASPAR);
+	writew(v16 | 0xf00, MCFGPIO_PASPAR);
+	writeb(0xc0, MCFGPIO_PEHLPAR);
 }
 
 /***************************************************************************/
