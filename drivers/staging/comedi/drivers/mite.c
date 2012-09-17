@@ -92,7 +92,7 @@ static void dump_chip_signature(u32 csigr_bits)
 		mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
 }
 
-unsigned mite_fifo_size(struct mite_struct *mite, unsigned channel)
+static unsigned mite_fifo_size(struct mite_struct *mite, unsigned channel)
 {
 	unsigned fcr_bits = readl(mite->mite_io_addr + MITE_FCR(channel));
 	unsigned empty_count = (fcr_bits >> 16) & 0xff;
