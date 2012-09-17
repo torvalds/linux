@@ -38,6 +38,12 @@ void __init platform_init(bp_tag_t* bootparam)
 
 }
 
+#ifdef CONFIG_PCI
+void platform_pcibios_init(void)
+{
+}
+#endif
+
 void platform_halt(void)
 {
 	printk (" ** Called platform_halt(), looping forever! **\n");
