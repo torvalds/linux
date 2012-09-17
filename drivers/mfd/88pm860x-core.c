@@ -150,10 +150,6 @@ static struct resource charger_resources[] __devinitdata = {
 	{PM8607_IRQ_VCHG, PM8607_IRQ_VCHG, "vchg voltage",    IORESOURCE_IRQ,},
 };
 
-static struct resource preg_resources[] __devinitdata = {
-	{PM8606_ID_PREG,  PM8606_ID_PREG,  "preg",   IORESOURCE_REG,},
-};
-
 static struct resource rtc_resources[] __devinitdata = {
 	{PM8607_IRQ_RTC, PM8607_IRQ_RTC, "rtc", IORESOURCE_IRQ,},
 };
@@ -960,10 +956,8 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 
 	power_devs[2].platform_data = &preg_init_data;
 	power_devs[2].pdata_size = sizeof(struct regulator_init_data);
-	power_devs[2].num_resources = ARRAY_SIZE(preg_resources);
-	power_devs[2].resources = &preg_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &power_devs[2], 1,
-			      &preg_resources[0], chip->irq_base, NULL);
+			      NULL, chip->irq_base, NULL);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add preg subdev\n");
 }

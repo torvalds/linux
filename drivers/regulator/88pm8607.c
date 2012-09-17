@@ -358,7 +358,9 @@ static struct pm8607_regulator_info pm8607_regulator_info[] = {
 	PM8607_LDO(12,        LDO12, 0, SUPPLIES_EN12, 5),
 	PM8607_LDO(13, VIBRATOR_SET, 1, VIBRATOR_SET, 0),
 	PM8607_LDO(14,        LDO14, 0, SUPPLIES_EN12, 6),
+};
 
+static struct pm8607_regulator_info pm8606_regulator_info[] = {
 	PM8606_PREG(PREREGULATORB, 5),
 };
 
@@ -372,19 +374,23 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 	int i;
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "No REG resource!\n");
-		return -EINVAL;
-	}
-	for (i = 0; i < ARRAY_SIZE(pm8607_regulator_info); i++) {
-		info = &pm8607_regulator_info[i];
-		if (info->desc.vsel_reg == res->start)
-			break;
-	}
-	if (i == ARRAY_SIZE(pm8607_regulator_info)) {
-		dev_err(&pdev->dev, "Failed to find regulator %llu\n",
-			(unsigned long long)res->start);
-		return -EINVAL;
+	if (res) {
+		/* There're resources in 88PM8607 regulator driver */
+		for (i = 0; i < ARRAY_SIZE(pm8607_regulator_info); i++) {
+			info = &pm8607_regulator_info[i];
+			if (info->desc.vsel_reg == res->start)
+				break;
+		}
+		if (i == ARRAY_SIZE(pm8607_regulator_info)) {
+			dev_err(&pdev->dev, "Failed to find regulator %llu\n",
+				(unsigned long long)res->start);
+			return -EINVAL;
+		}
+	} else {
+		/* There's no resource in 88PM8606 PREG regulator driver */
+		info = &pm8606_regulator_info[0];
+		/* i is used to check regulator ID */
+		i = -1;
 	}
 	info->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
 	info->i2c_8606 = (chip->id == CHIP_PM8607) ? chip->companion :
