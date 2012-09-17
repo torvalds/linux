@@ -1492,16 +1492,16 @@ static u32 radeon_get_pll_use_mask(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_crtc *test_crtc;
-	struct radeon_crtc *radeon_test_crtc;
+	struct radeon_crtc *test_radeon_crtc;
 	u32 pll_in_use = 0;
 
 	list_for_each_entry(test_crtc, &dev->mode_config.crtc_list, head) {
 		if (crtc == test_crtc)
 			continue;
 
-		radeon_test_crtc = to_radeon_crtc(test_crtc);
-		if (radeon_test_crtc->pll_id != ATOM_PPLL_INVALID)
-			pll_in_use |= (1 << radeon_test_crtc->pll_id);
+		test_radeon_crtc = to_radeon_crtc(test_crtc);
+		if (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID)
+			pll_in_use |= (1 << test_radeon_crtc->pll_id);
 	}
 	return pll_in_use;
 }
@@ -1518,17 +1518,18 @@ static u32 radeon_get_pll_use_mask(struct drm_crtc *crtc)
 static int radeon_get_shared_dp_ppll(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_encoder *test_encoder;
+	struct drm_crtc *test_crtc;
 	struct radeon_crtc *test_radeon_crtc;
 
-	list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
-		if (test_encoder->crtc && (test_encoder->crtc != crtc)) {
-			if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
-				/* for DP use the same PLL for all */
-				test_radeon_crtc = to_radeon_crtc(test_encoder->crtc);
-				if (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID)
-					return test_radeon_crtc->pll_id;
-			}
+	list_for_each_entry(test_crtc, &dev->mode_config.crtc_list, head) {
+		if (crtc == test_crtc)
+			continue;
+		test_radeon_crtc = to_radeon_crtc(test_crtc);
+		if (test_radeon_crtc->encoder &&
+		    ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_radeon_crtc->encoder))) {
+			/* for DP use the same PLL for all */
+			if (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID)
+				return test_radeon_crtc->pll_id;
 		}
 	}
 	return ATOM_PPLL_INVALID;
@@ -1547,10 +1548,8 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct drm_encoder *test_encoder;
 	struct drm_crtc *test_crtc;
 	struct radeon_crtc *test_radeon_crtc;
-	struct radeon_encoder *test_radeon_encoder;
 	u32 adjusted_clock, test_adjusted_clock;
 
 	adjusted_clock = radeon_crtc->adjusted_clock;
@@ -1558,20 +1557,25 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
 	if (adjusted_clock == 0)
 		return ATOM_PPLL_INVALID;
 
-	list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
-		if (test_encoder->crtc && (test_encoder->crtc != crtc)) {
-			if (!ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_encoder))) {
-				test_radeon_encoder = to_radeon_encoder(test_encoder);
-				test_crtc = test_encoder->crtc;
-				test_radeon_crtc = to_radeon_crtc(test_crtc);
-				/* for non-DP check the clock */
-				test_adjusted_clock = test_radeon_crtc->adjusted_clock;
-				if ((crtc->mode.clock == test_crtc->mode.clock) &&
-				    (adjusted_clock == test_adjusted_clock) &&
-				    (radeon_crtc->ss_enabled == test_radeon_crtc->ss_enabled) &&
-				    (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID))
+	list_for_each_entry(test_crtc, &dev->mode_config.crtc_list, head) {
+		if (crtc == test_crtc)
+			continue;
+		test_radeon_crtc = to_radeon_crtc(test_crtc);
+		if (test_radeon_crtc->encoder &&
+		    !ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_radeon_crtc->encoder))) {
+			/* check if we are already driving this connector with another crtc */
+			if (test_radeon_crtc->connector == radeon_crtc->connector) {
+				/* if we are, return that pll */
+				if (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID)
 					return test_radeon_crtc->pll_id;
 			}
+			/* for non-DP check the clock */
+			test_adjusted_clock = test_radeon_crtc->adjusted_clock;
+			if ((crtc->mode.clock == test_crtc->mode.clock) &&
+			    (adjusted_clock == test_adjusted_clock) &&
+			    (radeon_crtc->ss_enabled == test_radeon_crtc->ss_enabled) &&
+			    (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID))
+				return test_radeon_crtc->pll_id;
 		}
 	}
 	return ATOM_PPLL_INVALID;
@@ -1793,11 +1797,15 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
 			radeon_crtc->encoder = encoder;
+			radeon_crtc->connector = radeon_get_connector_for_encoder(encoder);
 			break;
 		}
 	}
-	if (radeon_crtc->encoder == NULL)
+	if ((radeon_crtc->encoder == NULL) || (radeon_crtc->connector == NULL)) {
+		radeon_crtc->encoder = NULL;
+		radeon_crtc->connector = NULL;
 		return false;
+	}
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
 		return false;
 	if (!atombios_crtc_prepare_pll(crtc, adjusted_mode))
@@ -1874,6 +1882,7 @@ done:
 	radeon_crtc->pll_id = ATOM_PPLL_INVALID;
 	radeon_crtc->adjusted_clock = 0;
 	radeon_crtc->encoder = NULL;
+	radeon_crtc->connector = NULL;
 }
 
 static const struct drm_crtc_helper_funcs atombios_helper_funcs = {
@@ -1925,5 +1934,6 @@ void radeon_atombios_init_crtc(struct drm_device *dev,
 	radeon_crtc->pll_id = ATOM_PPLL_INVALID;
 	radeon_crtc->adjusted_clock = 0;
 	radeon_crtc->encoder = NULL;
+	radeon_crtc->connector = NULL;
 	drm_crtc_helper_add(&radeon_crtc->base, &atombios_helper_funcs);
 }
