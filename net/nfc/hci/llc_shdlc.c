@@ -22,7 +22,6 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/export.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
@@ -831,4 +830,3 @@ int nfc_llc_shdlc_register()
 {
 	return nfc_llc_register(LLC_SHDLC_NAME, &llc_shdlc_ops);
 }
-EXPORT_SYMBOL(nfc_llc_shdlc_register);

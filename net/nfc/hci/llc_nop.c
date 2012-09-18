@@ -19,7 +19,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/export.h>
 
 #include "llc.h"
 
@@ -98,4 +97,3 @@ int nfc_llc_nop_register()
 {
 	return nfc_llc_register(LLC_NOP_NAME, &llc_nop_ops);
 }
-EXPORT_SYMBOL(nfc_llc_nop_register);

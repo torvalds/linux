@@ -18,8 +18,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/export.h>
 #include <net/nfc/llc.h>
+
 #include "llc.h"
 
 static struct list_head llc_engines;
@@ -44,7 +44,6 @@ exit:
 	nfc_llc_exit();
 	return r;
 }
-EXPORT_SYMBOL(nfc_llc_init);
 
 void nfc_llc_exit(void)
 {
@@ -56,7 +55,6 @@ void nfc_llc_exit(void)
 		kfree(llc_engine);
 	}
 }
-EXPORT_SYMBOL(nfc_llc_exit);
 
 int nfc_llc_register(const char *name, struct nfc_llc_ops *ops)
 {
@@ -78,7 +76,6 @@ int nfc_llc_register(const char *name, struct nfc_llc_ops *ops)
 
 	return 0;
 }
-EXPORT_SYMBOL(nfc_llc_register);
 
 static struct nfc_llc_engine *nfc_llc_name_to_engine(const char *name)
 {
@@ -104,7 +101,6 @@ void nfc_llc_unregister(const char *name)
 	kfree(llc_engine->name);
 	kfree(llc_engine);
 }
-EXPORT_SYMBOL(nfc_llc_unregister);
 
 struct nfc_llc *nfc_llc_allocate(const char *name, struct nfc_hci_dev *hdev,
 				 xmit_to_drv_t xmit_to_drv,
@@ -134,14 +130,12 @@ struct nfc_llc *nfc_llc_allocate(const char *name, struct nfc_hci_dev *hdev,
 
 	return llc;
 }
-EXPORT_SYMBOL(nfc_llc_allocate);
 
 void nfc_llc_free(struct nfc_llc *llc)
 {
 	llc->ops->deinit(llc);
 	kfree(llc);
 }
-EXPORT_SYMBOL(nfc_llc_free);
 
 inline void nfc_llc_get_rx_head_tail_room(struct nfc_llc *llc, int *rx_headroom,
 					  int *rx_tailroom)
@@ -149,34 +143,28 @@ inline void nfc_llc_get_rx_head_tail_room(struct nfc_llc *llc, int *rx_headroom,
 	*rx_headroom = llc->rx_headroom;
 	*rx_tailroom = llc->rx_tailroom;
 }
-EXPORT_SYMBOL(nfc_llc_get_rx_head_tail_room);
 
 inline int nfc_llc_start(struct nfc_llc *llc)
 {
 	return llc->ops->start(llc);
 }
-EXPORT_SYMBOL(nfc_llc_start);
 
 inline int nfc_llc_stop(struct nfc_llc *llc)
 {
 	return llc->ops->stop(llc);
 }
-EXPORT_SYMBOL(nfc_llc_stop);
 
 inline void nfc_llc_rcv_from_drv(struct nfc_llc *llc, struct sk_buff *skb)
 {
 	llc->ops->rcv_from_drv(llc, skb);
 }
-EXPORT_SYMBOL(nfc_llc_rcv_from_drv);
 
 inline int nfc_llc_xmit_from_hci(struct nfc_llc *llc, struct sk_buff *skb)
 {
 	return llc->ops->xmit_from_hci(llc, skb);
 }
-EXPORT_SYMBOL(nfc_llc_xmit_from_hci);
 
 inline void *nfc_llc_get_data(struct nfc_llc *llc)
 {
 	return llc->data;
 }
-EXPORT_SYMBOL(nfc_llc_get_data);
