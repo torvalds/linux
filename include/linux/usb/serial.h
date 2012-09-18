@@ -365,14 +365,6 @@ static inline void usb_serial_debug_data(int debug,
 			   function, size, size, data);
 }
 
-/* Use our own dbg macro */
-#undef dbg
-#define dbg(format, arg...)						\
-do {									\
-	if (debug)							\
-		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg);	\
-} while (0)
-
 /*
  * Macro for reporting errors in write path to avoid inifinite loop
  * when port is used as a console.
