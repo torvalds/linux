@@ -832,6 +832,8 @@ struct efx_nic {
 	unsigned rx_dc_base;
 	unsigned sram_lim_qw;
 	unsigned next_buffer_table;
+
+	unsigned int max_channels;
 	unsigned n_channels;
 	unsigned n_rx_channels;
 	unsigned rss_spread;
@@ -939,6 +941,7 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
 
 /**
  * struct efx_nic_type - Efx device type definition
+ * @mem_map_size: Get memory BAR mapped size
  * @probe: Probe the controller
  * @remove: Free resources allocated by probe()
  * @init: Initialise the controller
@@ -1012,7 +1015,6 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @ev_read_ack: Acknowledge read events on a queue, rearming its IRQ
  * @ev_test_generate: Generate a test event
  * @revision: Hardware architecture revision
- * @mem_map_size: Memory BAR mapped size
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
  * @buf_tbl_base: Buffer table base address
@@ -1024,14 +1026,13 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @can_rx_scatter: NIC is able to scatter packet to multiple buffers
  * @max_interrupt_mode: Highest capability interrupt mode supported
  *	from &enum efx_init_mode.
- * @phys_addr_channels: Number of channels with physically addressed
- *	descriptors
  * @timer_period_max: Maximum period of interrupt timer (in ticks)
  * @offload_features: net_device feature flags for protocol offload
  *	features implemented in hardware
  * @mcdi_max_ver: Maximum MCDI version supported
  */
 struct efx_nic_type {
+	unsigned int (*mem_map_size)(struct efx_nic *efx);
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);
 	int (*init)(struct efx_nic *efx);
@@ -1092,7 +1093,6 @@ struct efx_nic_type {
 	void (*ev_test_generate)(struct efx_channel *channel);
 
 	int revision;
-	unsigned int mem_map_size;
 	unsigned int txd_ptr_tbl_base;
 	unsigned int rxd_ptr_tbl_base;
 	unsigned int buf_tbl_base;
@@ -1103,7 +1103,6 @@ struct efx_nic_type {
 	unsigned int rx_buffer_padding;
 	bool can_rx_scatter;
 	unsigned int max_interrupt_mode;
-	unsigned int phys_addr_channels;
 	unsigned int timer_period_max;
 	netdev_features_t offload_features;
 	int mcdi_max_ver;

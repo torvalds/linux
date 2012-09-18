@@ -1970,6 +1970,20 @@ static void falcon_probe_spi_devices(struct efx_nic *efx)
 				       large_eeprom_type);
 }
 
+static unsigned int falcon_a1_mem_map_size(struct efx_nic *efx)
+{
+	return 0x20000;
+}
+
+static unsigned int falcon_b0_mem_map_size(struct efx_nic *efx)
+{
+	/* Map everything up to and including the RSS indirection table.
+	 * The PCI core takes care of mapping the MSI-X tables.
+	 */
+	return FR_BZ_RX_INDIRECTION_TBL +
+		FR_BZ_RX_INDIRECTION_TBL_STEP * FR_BZ_RX_INDIRECTION_TBL_ROWS;
+}
+
 static int falcon_probe_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data;
@@ -2060,6 +2074,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 		goto fail5;
 	}
 
+	efx->max_channels = (efx_nic_rev(efx) <= EFX_REV_FALCON_A1 ? 4 :
+			     EFX_MAX_CHANNELS);
 	efx->timer_quantum_ns = 4968; /* 621 cycles */
 
 	/* Initialise I2C adapter */
@@ -2339,6 +2355,7 @@ static int falcon_set_wol(struct efx_nic *efx, u32 type)
  */
 
 const struct efx_nic_type falcon_a1_nic_type = {
+	.mem_map_size = falcon_a1_mem_map_size,
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
@@ -2391,7 +2408,6 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.ev_test_generate = efx_farch_ev_test_generate,
 
 	.revision = EFX_REV_FALCON_A1,
-	.mem_map_size = 0x20000,
 	.txd_ptr_tbl_base = FR_AA_TX_DESC_PTR_TBL_KER,
 	.rxd_ptr_tbl_base = FR_AA_RX_DESC_PTR_TBL_KER,
 	.buf_tbl_base = FR_AA_BUF_FULL_TBL_KER,
@@ -2401,13 +2417,13 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.rx_buffer_padding = 0x24,
 	.can_rx_scatter = false,
 	.max_interrupt_mode = EFX_INT_MODE_MSI,
-	.phys_addr_channels = 4,
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.offload_features = NETIF_F_IP_CSUM,
 	.mcdi_max_ver = -1,
 };
 
 const struct efx_nic_type falcon_b0_nic_type = {
+	.mem_map_size = falcon_b0_mem_map_size,
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
@@ -2461,12 +2477,6 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.ev_test_generate = efx_farch_ev_test_generate,
 
 	.revision = EFX_REV_FALCON_B0,
-	/* Map everything up to and including the RSS indirection
-	 * table.  Don't map MSI-X table, MSI-X PBA since Linux
-	 * requires that they not be mapped.  */
-	.mem_map_size = (FR_BZ_RX_INDIRECTION_TBL +
-			 FR_BZ_RX_INDIRECTION_TBL_STEP *
-			 FR_BZ_RX_INDIRECTION_TBL_ROWS),
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,
 	.rxd_ptr_tbl_base = FR_BZ_RX_DESC_PTR_TBL,
 	.buf_tbl_base = FR_BZ_BUF_FULL_TBL,
@@ -2477,9 +2487,6 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.rx_buffer_padding = 0,
 	.can_rx_scatter = true,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
-	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy
-				   * interrupt handler only supports 32
-				   * channels */
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,
 	.mcdi_max_ver = -1,

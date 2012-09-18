@@ -187,6 +187,12 @@ static void siena_dimension_resources(struct efx_nic *efx)
 	efx_farch_dimension_resources(efx, FR_CZ_BUF_FULL_TBL_ROWS / 2);
 }
 
+static unsigned int siena_mem_map_size(struct efx_nic *efx)
+{
+	return FR_CZ_MC_TREG_SMEM +
+		FR_CZ_MC_TREG_SMEM_STEP * FR_CZ_MC_TREG_SMEM_ROWS;
+}
+
 static int siena_probe_nic(struct efx_nic *efx)
 {
 	struct siena_nic_data *nic_data;
@@ -206,6 +212,8 @@ static int siena_probe_nic(struct efx_nic *efx)
 		rc = -ENODEV;
 		goto fail1;
 	}
+
+	efx->max_channels = EFX_MAX_CHANNELS;
 
 	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
 	efx->port_num = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
@@ -670,6 +678,7 @@ static int siena_mcdi_poll_reboot(struct efx_nic *efx)
  */
 
 const struct efx_nic_type siena_a0_nic_type = {
+	.mem_map_size = siena_mem_map_size,
 	.probe = siena_probe_nic,
 	.remove = siena_remove_nic,
 	.init = siena_init_nic,
@@ -729,8 +738,6 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.ev_test_generate = efx_farch_ev_test_generate,
 
 	.revision = EFX_REV_SIENA_A0,
-	.mem_map_size = (FR_CZ_MC_TREG_SMEM +
-			 FR_CZ_MC_TREG_SMEM_STEP * FR_CZ_MC_TREG_SMEM_ROWS),
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,
 	.rxd_ptr_tbl_base = FR_BZ_RX_DESC_PTR_TBL,
 	.buf_tbl_base = FR_BZ_BUF_FULL_TBL,
@@ -741,9 +748,6 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.rx_buffer_padding = 0,
 	.can_rx_scatter = true,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
-	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy
-				   * interrupt handler only supports 32
-				   * channels */
 	.timer_period_max = 1 << FRF_CZ_TC_TIMER_VAL_WIDTH,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			     NETIF_F_RXHASH | NETIF_F_NTUPLE),

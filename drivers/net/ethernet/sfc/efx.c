@@ -1084,6 +1084,7 @@ static int efx_init_io(struct efx_nic *efx)
 {
 	struct pci_dev *pci_dev = efx->pci_dev;
 	dma_addr_t dma_mask = efx->type->max_dma_mask;
+	unsigned int mem_map_size = efx->type->mem_map_size(efx);
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
@@ -1136,20 +1137,18 @@ static int efx_init_io(struct efx_nic *efx)
 		rc = -EIO;
 		goto fail3;
 	}
-	efx->membase = ioremap_nocache(efx->membase_phys,
-				       efx->type->mem_map_size);
+	efx->membase = ioremap_nocache(efx->membase_phys, mem_map_size);
 	if (!efx->membase) {
 		netif_err(efx, probe, efx->net_dev,
 			  "could not map memory BAR at %llx+%x\n",
-			  (unsigned long long)efx->membase_phys,
-			  efx->type->mem_map_size);
+			  (unsigned long long)efx->membase_phys, mem_map_size);
 		rc = -ENOMEM;
 		goto fail4;
 	}
 	netif_dbg(efx, probe, efx->net_dev,
 		  "memory BAR at %llx+%x (virtual %p)\n",
-		  (unsigned long long)efx->membase_phys,
-		  efx->type->mem_map_size, efx->membase);
+		  (unsigned long long)efx->membase_phys, mem_map_size,
+		  efx->membase);
 
 	return 0;
 
@@ -1228,8 +1227,6 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
  */
 static int efx_probe_interrupts(struct efx_nic *efx)
 {
-	unsigned int max_channels =
-		min(efx->type->phys_addr_channels, EFX_MAX_CHANNELS);
 	unsigned int extra_channels = 0;
 	unsigned int i, j;
 	int rc;
@@ -1246,7 +1243,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		if (separate_tx_channels)
 			n_channels *= 2;
 		n_channels += extra_channels;
-		n_channels = min(n_channels, max_channels);
+		n_channels = min(n_channels, efx->max_channels);
 
 		for (i = 0; i < n_channels; i++)
 			xentries[i].entry = i;
@@ -2488,8 +2485,6 @@ static int efx_init_struct(struct efx_nic *efx,
 		efx->msi_context[i].efx = efx;
 		efx->msi_context[i].index = i;
 	}
-
-	EFX_BUG_ON_PARANOID(efx->type->phys_addr_channels > EFX_MAX_CHANNELS);
 
 	/* Higher numbered interrupt modes are less capable! */
 	efx->interrupt_mode = max(efx->type->max_interrupt_mode,
