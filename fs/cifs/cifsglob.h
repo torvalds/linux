@@ -999,8 +999,8 @@ struct cifs_writedata {
 	pid_t				pid;
 	unsigned int			bytes;
 	int				result;
-	void (*marshal_iov) (struct kvec *iov,
-			     struct cifs_writedata *wdata);
+	unsigned int			pagesz;
+	unsigned int			tailsz;
 	unsigned int			nr_pages;
 	struct page			*pages[1];
 };

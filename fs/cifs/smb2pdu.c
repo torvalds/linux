@@ -1484,24 +1484,15 @@ smb2_writev_callback(struct mid_q_entry *mid)
 int
 smb2_async_writev(struct cifs_writedata *wdata)
 {
-	int i, rc = -EACCES;
+	int rc = -EACCES;
 	struct smb2_write_req *req = NULL;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
-	struct kvec *iov = NULL;
+	struct kvec iov;
 	struct smb_rqst rqst;
 
 	rc = small_smb2_init(SMB2_WRITE, tcon, (void **) &req);
 	if (rc)
 		goto async_writev_out;
-
-	/* 1 iov per page + 1 for header */
-	iov = kzalloc((wdata->nr_pages + 1) * sizeof(*iov), GFP_NOFS);
-	if (iov == NULL) {
-		rc = -ENOMEM;
-		goto async_writev_out;
-	}
-	rqst.rq_iov = iov;
-	rqst.rq_nvec = wdata->nr_pages + 1;
 
 	req->hdr.ProcessId = cpu_to_le32(wdata->cfile->pid);
 
@@ -1517,18 +1508,15 @@ smb2_async_writev(struct cifs_writedata *wdata)
 	req->RemainingBytes = 0;
 
 	/* 4 for rfc1002 length field and 1 for Buffer */
-	iov[0].iov_len = get_rfc1002_length(req) + 4 - 1;
-	iov[0].iov_base = (char *)req;
+	iov.iov_len = get_rfc1002_length(req) + 4 - 1;
+	iov.iov_base = req;
 
-	/*
-	 * This function should marshal up the page array into the kvec
-	 * array, reserving [0] for the header. It should kmap the pages
-	 * and set the iov_len properly for each one. It may also set
-	 * wdata->bytes too.
-	 */
-	cifs_kmap_lock();
-	wdata->marshal_iov(iov, wdata);
-	cifs_kmap_unlock();
+	rqst.rq_iov = &iov;
+	rqst.rq_nvec = 1;
+	rqst.rq_pages = wdata->pages;
+	rqst.rq_npages = wdata->nr_pages;
+	rqst.rq_pagesz = wdata->pagesz;
+	rqst.rq_tailsz = wdata->tailsz;
 
 	cFYI(1, "async write at %llu %u bytes", wdata->offset, wdata->bytes);
 
@@ -1543,13 +1531,8 @@ smb2_async_writev(struct cifs_writedata *wdata)
 	if (rc)
 		kref_put(&wdata->refcount, cifs_writedata_release);
 
-	/* send is done, unmap pages */
-	for (i = 0; i < wdata->nr_pages; i++)
-		kunmap(wdata->pages[i]);
-
 async_writev_out:
 	cifs_small_buf_release(req);
-	kfree(iov);
 	return rc;
 }
 

@@ -2033,11 +2033,11 @@ cifs_writev_callback(struct mid_q_entry *mid)
 int
 cifs_async_writev(struct cifs_writedata *wdata)
 {
-	int i, rc = -EACCES;
+	int rc = -EACCES;
 	WRITE_REQ *smb = NULL;
 	int wct;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
-	struct kvec *iov = NULL;
+	struct kvec iov;
 	struct smb_rqst rqst = { };
 
 	if (tcon->ses->capabilities & CAP_LARGE_FILES) {
@@ -2053,15 +2053,6 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	rc = small_smb_init(SMB_COM_WRITE_ANDX, wct, tcon, (void **)&smb);
 	if (rc)
 		goto async_writev_out;
-
-	/* 1 iov per page + 1 for header */
-	rqst.rq_nvec = wdata->nr_pages + 1;
-	iov = kzalloc((rqst.rq_nvec) * sizeof(*iov), GFP_NOFS);
-	if (iov == NULL) {
-		rc = -ENOMEM;
-		goto async_writev_out;
-	}
-	rqst.rq_iov = iov;
 
 	smb->hdr.Pid = cpu_to_le16((__u16)wdata->pid);
 	smb->hdr.PidHigh = cpu_to_le16((__u16)(wdata->pid >> 16));
@@ -2079,18 +2070,15 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	    cpu_to_le16(offsetof(struct smb_com_write_req, Data) - 4);
 
 	/* 4 for RFC1001 length + 1 for BCC */
-	iov[0].iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4 + 1;
-	iov[0].iov_base = smb;
+	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4 + 1;
+	iov.iov_base = smb;
 
-	/*
-	 * This function should marshal up the page array into the kvec
-	 * array, reserving [0] for the header. It should kmap the pages
-	 * and set the iov_len properly for each one. It may also set
-	 * wdata->bytes too.
-	 */
-	cifs_kmap_lock();
-	wdata->marshal_iov(iov, wdata);
-	cifs_kmap_unlock();
+	rqst.rq_iov = &iov;
+	rqst.rq_nvec = 1;
+	rqst.rq_pages = wdata->pages;
+	rqst.rq_npages = wdata->nr_pages;
+	rqst.rq_pagesz = wdata->pagesz;
+	rqst.rq_tailsz = wdata->tailsz;
 
 	cFYI(1, "async write at %llu %u bytes", wdata->offset, wdata->bytes);
 
@@ -2106,7 +2094,7 @@ cifs_async_writev(struct cifs_writedata *wdata)
 				(struct smb_com_writex_req *)smb;
 		inc_rfc1001_len(&smbw->hdr, wdata->bytes + 5);
 		put_bcc(wdata->bytes + 5, &smbw->hdr);
-		iov[0].iov_len += 4; /* pad bigger by four bytes */
+		iov.iov_len += 4; /* pad bigger by four bytes */
 	}
 
 	kref_get(&wdata->refcount);
@@ -2118,13 +2106,8 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	else
 		kref_put(&wdata->refcount, cifs_writedata_release);
 
-	/* send is done, unmap pages */
-	for (i = 0; i < wdata->nr_pages; i++)
-		kunmap(wdata->pages[i]);
-
 async_writev_out:
 	cifs_small_buf_release(smb);
-	kfree(iov);
 	return rc;
 }
 
