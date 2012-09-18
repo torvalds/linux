@@ -93,7 +93,7 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	}
 
 	is_write = kvm_vcpu_dabt_iswrite(vcpu);
-	sign_extend = kvm_vcpu_get_hsr(vcpu) & HSR_SSE;
+	sign_extend = kvm_vcpu_dabt_issext(vcpu);
 	rt = (kvm_vcpu_get_hsr(vcpu) & HSR_SRT_MASK) >> HSR_SRT_SHIFT;
 
 	if (kvm_vcpu_reg_is_pc(vcpu, rt)) {
