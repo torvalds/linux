@@ -25,6 +25,8 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/v4l2-dv-timings.h>
+
 #include <mach/hardware.h>
 
 #include "vpif.h"
@@ -65,7 +67,7 @@ const struct vpif_channel_config_params ch_params[] = {
 		.capture_format = 0,
 		.vbi_supported = 0,
 		.hd_sd = 1,
-		.dv_preset = V4L2_DV_480P59_94,
+		.dv_timings = V4L2_DV_BT_CEA_720X480P59_94,
 	},
 	{
 		.name = "576p50",
@@ -82,7 +84,7 @@ const struct vpif_channel_config_params ch_params[] = {
 		.capture_format = 0,
 		.vbi_supported = 0,
 		.hd_sd = 1,
-		.dv_preset = V4L2_DV_576P50,
+		.dv_timings = V4L2_DV_BT_CEA_720X576P50,
 	},
 	{
 		.name = "720p50",
@@ -99,7 +101,7 @@ const struct vpif_channel_config_params ch_params[] = {
 		.capture_format = 0,
 		.vbi_supported = 0,
 		.hd_sd = 1,
-		.dv_preset = V4L2_DV_720P50,
+		.dv_timings = V4L2_DV_BT_CEA_1280X720P50,
 	},
 	{
 		.name = "720p60",
@@ -116,7 +118,7 @@ const struct vpif_channel_config_params ch_params[] = {
 		.capture_format = 0,
 		.vbi_supported = 0,
 		.hd_sd = 1,
-		.dv_preset = V4L2_DV_720P60,
+		.dv_timings = V4L2_DV_BT_CEA_1280X720P60,
 	},
 	{
 		.name = "1080I50",
@@ -136,7 +138,7 @@ const struct vpif_channel_config_params ch_params[] = {
 		.capture_format = 0,
 		.vbi_supported = 0,
 		.hd_sd = 1,
-		.dv_preset = V4L2_DV_1080I50,
+		.dv_timings = V4L2_DV_BT_CEA_1920X1080I50,
 	},
 	{
 		.name = "1080I60",
@@ -156,7 +158,7 @@ const struct vpif_channel_config_params ch_params[] = {
 		.capture_format = 0,
 		.vbi_supported = 0,
 		.hd_sd = 1,
-		.dv_preset = V4L2_DV_1080I60,
+		.dv_timings = V4L2_DV_BT_CEA_1920X1080I60,
 	},
 	{
 		.name = "1080p60",
@@ -173,7 +175,7 @@ const struct vpif_channel_config_params ch_params[] = {
 		.capture_format = 0,
 		.vbi_supported = 0,
 		.hd_sd = 1,
-		.dv_preset = V4L2_DV_1080P60,
+		.dv_timings = V4L2_DV_BT_CEA_1920X1080P60,
 	},
 
 	/* SDTV formats */

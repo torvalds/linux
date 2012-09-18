@@ -533,7 +533,7 @@ static inline void channel2_clipping_enable(int enable)
 	}
 }
 
-/* function to enable clipping (for both active and blanking regions) on ch 2 */
+/* function to enable clipping (for both active and blanking regions) on ch 3 */
 static inline void channel3_clipping_enable(int enable)
 {
 	if (enable) {
@@ -634,7 +634,7 @@ struct vpif_channel_config_params {
 					 * supports capturing vbi or not */
 	u8 hd_sd;			/* HDTV (1) or SDTV (0) format */
 	v4l2_std_id stdid;		/* SDTV format */
-	u32 dv_preset;			/* HDTV format */
+	struct v4l2_dv_timings dv_timings;	/* HDTV format */
 };
 
 extern const unsigned int vpif_ch_params_count;

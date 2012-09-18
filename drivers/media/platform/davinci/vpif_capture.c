@@ -551,7 +551,8 @@ static int vpif_update_std_info(struct channel_obj *ch)
 			}
 		} else {
 			vpif_dbg(2, debug, "HD format\n");
-			if (config->dv_preset == vid_ch->dv_preset) {
+			if (!memcmp(&config->dv_timings, &vid_ch->dv_timings,
+				sizeof(vid_ch->dv_timings))) {
 				memcpy(std_info, config, sizeof(*config));
 				break;
 			}
@@ -1384,8 +1385,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 
 	/* Call encoder subdevice function to set the standard */
 	ch->video.stdid = *std_id;
-	ch->video.dv_preset = V4L2_DV_INVALID;
-	memset(&ch->video.bt_timings, 0, sizeof(ch->video.bt_timings));
+	memset(&ch->video.dv_timings, 0, sizeof(ch->video.dv_timings));
 
 	/* Get the information about the standard */
 	if (vpif_update_std_info(ch)) {
@@ -1719,108 +1719,37 @@ static int vpif_cropcap(struct file *file, void *priv,
 }
 
 /**
- * vpif_enum_dv_presets() - ENUM_DV_PRESETS handler
+ * vpif_enum_dv_timings() - ENUM_DV_TIMINGS handler
  * @file: file ptr
  * @priv: file handle
- * @preset: input preset
+ * @timings: input timings
  */
-static int vpif_enum_dv_presets(struct file *file, void *priv,
-		struct v4l2_dv_enum_preset *preset)
+static int
+vpif_enum_dv_timings(struct file *file, void *priv,
+		     struct v4l2_enum_dv_timings *timings)
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
 	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-			video, enum_dv_presets, preset);
+				video, enum_dv_timings, timings);
 }
 
 /**
- * vpif_query_dv_presets() - QUERY_DV_PRESET handler
+ * vpif_query_dv_timings() - QUERY_DV_TIMINGS handler
  * @file: file ptr
  * @priv: file handle
- * @preset: input preset
+ * @timings: input timings
  */
-static int vpif_query_dv_preset(struct file *file, void *priv,
-		struct v4l2_dv_preset *preset)
+static int
+vpif_query_dv_timings(struct file *file, void *priv,
+		      struct v4l2_dv_timings *timings)
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
 	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-		       video, query_dv_preset, preset);
-}
-/**
- * vpif_s_dv_presets() - S_DV_PRESETS handler
- * @file: file ptr
- * @priv: file handle
- * @preset: input preset
- */
-static int vpif_s_dv_preset(struct file *file, void *priv,
-		struct v4l2_dv_preset *preset)
-{
-	struct vpif_fh *fh = priv;
-	struct channel_obj *ch = fh->channel;
-	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	int ret = 0;
-
-	if (common->started) {
-		vpif_dbg(1, debug, "streaming in progress\n");
-		return -EBUSY;
-	}
-
-	if ((VPIF_CHANNEL0_VIDEO == ch->channel_id) ||
-	    (VPIF_CHANNEL1_VIDEO == ch->channel_id)) {
-		if (!fh->initialized) {
-			vpif_dbg(1, debug, "Channel Busy\n");
-			return -EBUSY;
-		}
-	}
-
-	ret = v4l2_prio_check(&ch->prio, fh->prio);
-	if (ret)
-		return ret;
-
-	fh->initialized = 1;
-
-	/* Call encoder subdevice function to set the standard */
-	if (mutex_lock_interruptible(&common->lock))
-		return -ERESTARTSYS;
-
-	ch->video.dv_preset = preset->preset;
-	ch->video.stdid = V4L2_STD_UNKNOWN;
-	memset(&ch->video.bt_timings, 0, sizeof(ch->video.bt_timings));
-
-	/* Get the information about the standard */
-	if (vpif_update_std_info(ch)) {
-		vpif_dbg(1, debug, "Error getting the standard info\n");
-		ret = -EINVAL;
-	} else {
-		/* Configure the default format information */
-		vpif_config_format(ch);
-
-		ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-				video, s_dv_preset, preset);
-	}
-
-	mutex_unlock(&common->lock);
-
-	return ret;
-}
-/**
- * vpif_g_dv_presets() - G_DV_PRESETS handler
- * @file: file ptr
- * @priv: file handle
- * @preset: input preset
- */
-static int vpif_g_dv_preset(struct file *file, void *priv,
-		struct v4l2_dv_preset *preset)
-{
-	struct vpif_fh *fh = priv;
-	struct channel_obj *ch = fh->channel;
-
-	preset->preset = ch->video.dv_preset;
-
-	return 0;
+				video, query_dv_timings, timings);
 }
 
 /**
@@ -1837,7 +1766,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	struct vpif_params *vpifparams = &ch->vpifparams;
 	struct vpif_channel_config_params *std_info = &vpifparams->std_info;
 	struct video_obj *vid_ch = &ch->video;
-	struct v4l2_bt_timings *bt = &vid_ch->bt_timings;
+	struct v4l2_bt_timings *bt = &vid_ch->dv_timings.bt;
 	int ret;
 
 	if (timings->type != V4L2_DV_BT_656_1120) {
@@ -1873,7 +1802,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	*bt = timings->bt;
+	vid_ch->dv_timings = *timings;
 
 	/* Configure video port timings */
 
@@ -1916,10 +1845,8 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	std_info->vbi_supported = 0;
 	std_info->hd_sd = 1;
 	std_info->stdid = 0;
-	std_info->dv_preset = V4L2_DV_INVALID;
 
 	vid_ch->stdid = 0;
-	vid_ch->dv_preset = V4L2_DV_INVALID;
 	return 0;
 }
 
@@ -1935,9 +1862,8 @@ static int vpif_g_dv_timings(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 	struct video_obj *vid_ch = &ch->video;
-	struct v4l2_bt_timings *bt = &vid_ch->bt_timings;
 
-	timings->bt = *bt;
+	*timings = vid_ch->dv_timings;
 
 	return 0;
 }
@@ -2040,10 +1966,8 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_streamon        	= vpif_streamon,
 	.vidioc_streamoff       	= vpif_streamoff,
 	.vidioc_cropcap         	= vpif_cropcap,
-	.vidioc_enum_dv_presets         = vpif_enum_dv_presets,
-	.vidioc_s_dv_preset             = vpif_s_dv_preset,
-	.vidioc_g_dv_preset             = vpif_g_dv_preset,
-	.vidioc_query_dv_preset         = vpif_query_dv_preset,
+	.vidioc_enum_dv_timings         = vpif_enum_dv_timings,
+	.vidioc_query_dv_timings        = vpif_query_dv_timings,
 	.vidioc_s_dv_timings            = vpif_s_dv_timings,
 	.vidioc_g_dv_timings            = vpif_g_dv_timings,
 	.vidioc_g_chip_ident		= vpif_g_chip_ident,
