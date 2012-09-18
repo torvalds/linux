@@ -1222,10 +1222,8 @@ static int serial_omap_suspend(struct device *dev)
 {
 	struct uart_omap_port *up = dev_get_drvdata(dev);
 
-	if (up) {
-		uart_suspend_port(&serial_omap_reg, &up->port);
-		flush_work_sync(&up->qos_work);
-	}
+	uart_suspend_port(&serial_omap_reg, &up->port);
+	flush_work_sync(&up->qos_work);
 
 	return 0;
 }
@@ -1234,8 +1232,8 @@ static int serial_omap_resume(struct device *dev)
 {
 	struct uart_omap_port *up = dev_get_drvdata(dev);
 
-	if (up)
-		uart_resume_port(&serial_omap_reg, &up->port);
+	uart_resume_port(&serial_omap_reg, &up->port);
+
 	return 0;
 }
 #endif
@@ -1553,17 +1551,14 @@ static int serial_omap_runtime_suspend(struct device *dev)
 static int serial_omap_runtime_resume(struct device *dev)
 {
 	struct uart_omap_port *up = dev_get_drvdata(dev);
-	struct omap_uart_port_info *pdata = dev->platform_data;
 
-	if (up && pdata) {
-			u32 loss_cnt = serial_omap_get_context_loss_count(up);
+	u32 loss_cnt = serial_omap_get_context_loss_count(up);
 
-			if (up->context_loss_cnt != loss_cnt)
-				serial_omap_restore_context(up);
+	if (up->context_loss_cnt != loss_cnt)
+		serial_omap_restore_context(up);
 
-		up->latency = up->calc_latency;
-		schedule_work(&up->qos_work);
-	}
+	up->latency = up->calc_latency;
+	schedule_work(&up->qos_work);
 
 	return 0;
 }
