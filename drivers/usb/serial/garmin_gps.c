@@ -41,9 +41,6 @@
 /* the mode to be set when the port ist opened */
 static int initial_mode = 1;
 
-/* debug flag */
-static bool debug;
-
 #define GARMIN_VENDOR_ID             0x091E
 
 /*
@@ -1108,15 +1105,6 @@ static int garmin_write(struct tty_struct *tty, struct usb_serial_port *port,
 			garmin_clear(garmin_data_p);
 
 			switch (pktid) {
-
-			case PRIV_PKTID_SET_DEBUG:
-				if (pktsiz != 4)
-					return -EINVPKT;
-				debug = __le32_to_cpu(privpkt[3]);
-				dev_dbg(dev, "%s - debug level set to 0x%X\n",
-					__func__, debug);
-				break;
-
 			case PRIV_PKTID_SET_MODE:
 				if (pktsiz != 4)
 					return -EINVPKT;
@@ -1498,7 +1486,5 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param(debug, bool, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 module_param(initial_mode, int, S_IRUGO);
 MODULE_PARM_DESC(initial_mode, "Initial mode");
