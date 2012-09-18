@@ -49,7 +49,86 @@ static DEFINE_MUTEX(thermal_idr_lock);
 
 static LIST_HEAD(thermal_tz_list);
 static LIST_HEAD(thermal_cdev_list);
+static LIST_HEAD(thermal_governor_list);
+
 static DEFINE_MUTEX(thermal_list_lock);
+static DEFINE_MUTEX(thermal_governor_lock);
+
+static struct thermal_governor *__find_governor(const char *name)
+{
+	struct thermal_governor *pos;
+
+	list_for_each_entry(pos, &thermal_governor_list, governor_list)
+		if (!strnicmp(name, pos->name, THERMAL_NAME_LENGTH))
+			return pos;
+
+	return NULL;
+}
+
+int thermal_register_governor(struct thermal_governor *governor)
+{
+	int err;
+	const char *name;
+	struct thermal_zone_device *pos;
+
+	if (!governor)
+		return -EINVAL;
+
+	mutex_lock(&thermal_governor_lock);
+
+	err = -EBUSY;
+	if (__find_governor(governor->name) == NULL) {
+		err = 0;
+		list_add(&governor->governor_list, &thermal_governor_list);
+	}
+
+	mutex_lock(&thermal_list_lock);
+
+	list_for_each_entry(pos, &thermal_tz_list, node) {
+		if (pos->governor)
+			continue;
+		if (pos->tzp)
+			name = pos->tzp->governor_name;
+		else
+			name = DEFAULT_THERMAL_GOVERNOR;
+		if (!strnicmp(name, governor->name, THERMAL_NAME_LENGTH))
+			pos->governor = governor;
+	}
+
+	mutex_unlock(&thermal_list_lock);
+	mutex_unlock(&thermal_governor_lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(thermal_register_governor);
+
+void thermal_unregister_governor(struct thermal_governor *governor)
+{
+	struct thermal_zone_device *pos;
+
+	if (!governor)
+		return;
+
+	mutex_lock(&thermal_governor_lock);
+
+	if (__find_governor(governor->name) == NULL)
+		goto exit;
+
+	mutex_lock(&thermal_list_lock);
+
+	list_for_each_entry(pos, &thermal_tz_list, node) {
+		if (!strnicmp(pos->governor->name, governor->name,
+						THERMAL_NAME_LENGTH))
+			pos->governor = NULL;
+	}
+
+	mutex_unlock(&thermal_list_lock);
+	list_del(&governor->governor_list);
+exit:
+	mutex_unlock(&thermal_governor_lock);
+	return;
+}
+EXPORT_SYMBOL_GPL(thermal_unregister_governor);
 
 static int get_idr(struct idr *idr, struct mutex *lock, int *id)
 {
@@ -1437,6 +1516,16 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	if (result)
 		goto unregister;
 
+	/* Update 'this' zone's governor information */
+	mutex_lock(&thermal_governor_lock);
+
+	if (tz->tzp)
+		tz->governor = __find_governor(tz->tzp->governor_name);
+	else
+		tz->governor = __find_governor(DEFAULT_THERMAL_GOVERNOR);
+
+	mutex_unlock(&thermal_governor_lock);
+
 	result = thermal_add_hwmon_sysfs(tz);
 	if (result)
 		goto unregister;
@@ -1500,6 +1589,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	if (tz->ops->get_mode)
 		device_remove_file(&tz->device, &dev_attr_mode);
 	remove_trip_attrs(tz);
+	tz->governor = NULL;
 
 	thermal_remove_hwmon_sysfs(tz);
 	release_idr(&thermal_tz_idr, &thermal_idr_lock, tz->id);

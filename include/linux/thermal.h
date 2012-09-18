@@ -46,6 +46,9 @@
 #define THERMAL_GENL_VERSION                    0x01
 #define THERMAL_GENL_MCAST_GROUP_NAME           "thermal_mc_group"
 
+/* Default Thermal Governor: Does Linear Throttling */
+#define DEFAULT_THERMAL_GOVERNOR	"step_wise"
+
 struct thermal_zone_device;
 struct thermal_cooling_device;
 
@@ -158,11 +161,20 @@ struct thermal_zone_device {
 	unsigned int forced_passive;
 	const struct thermal_zone_device_ops *ops;
 	const struct thermal_zone_params *tzp;
+	struct thermal_governor *governor;
 	struct list_head thermal_instances;
 	struct idr idr;
 	struct mutex lock; /* protect thermal_instances list */
 	struct list_head node;
 	struct delayed_work poll_queue;
+};
+
+/* Structure that holds thermal governor information */
+struct thermal_governor {
+	char name[THERMAL_NAME_LENGTH];
+	int (*throttle)(struct thermal_zone_device *tz, int trip);
+	struct list_head	governor_list;
+	struct module		*owner;
 };
 
 /* Structure that holds binding parameters for a zone */
@@ -189,6 +201,7 @@ struct thermal_bind_params {
 
 /* Structure to define Thermal Zone parameters */
 struct thermal_zone_params {
+	char governor_name[THERMAL_NAME_LENGTH];
 	int num_tbps;	/* Number of tbp entries */
 	struct thermal_bind_params *tbp;
 };
@@ -218,6 +231,9 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *);
 int get_tz_trend(struct thermal_zone_device *, int);
 struct thermal_instance *get_thermal_instance(struct thermal_zone_device *,
 		struct thermal_cooling_device *, int);
+
+int thermal_register_governor(struct thermal_governor *);
+void thermal_unregister_governor(struct thermal_governor *);
 
 #ifdef CONFIG_NET
 extern int thermal_generate_netlink_event(u32 orig, enum events event);
