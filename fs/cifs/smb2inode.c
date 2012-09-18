@@ -74,6 +74,10 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 		 * SMB2_open() call.
 		 */
 		break;
+	case SMB2_OP_RENAME:
+		tmprc = SMB2_rename(xid, tcon, persistent_fid, volatile_fid,
+				    (__le16 *)data);
+		break;
 	default:
 		cERROR(1, "Invalid command");
 		break;
@@ -169,4 +173,25 @@ smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 	return smb2_open_op_close(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
 				  0, CREATE_DELETE_ON_CLOSE, NULL,
 				  SMB2_OP_DELETE);
+}
+
+int
+smb2_rename_path(const unsigned int xid, struct cifs_tcon *tcon,
+		 const char *from_name, const char *to_name,
+		 struct cifs_sb_info *cifs_sb)
+{
+	__le16 *smb2_to_name = NULL;
+	int rc;
+
+	smb2_to_name = cifs_convert_path_to_utf16(to_name, cifs_sb);
+	if (smb2_to_name == NULL) {
+		rc = -ENOMEM;
+		goto smb2_rename_path;
+	}
+
+	rc = smb2_open_op_close(xid, tcon, cifs_sb, from_name, DELETE,
+				FILE_OPEN, 0, 0, smb2_to_name, SMB2_OP_RENAME);
+smb2_rename_path:
+	kfree(smb2_to_name);
+	return rc;
 }

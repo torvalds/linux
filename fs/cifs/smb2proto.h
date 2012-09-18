@@ -65,6 +65,9 @@ extern int smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon,
 		      const char *name, struct cifs_sb_info *cifs_sb);
 extern int smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon,
 		       const char *name, struct cifs_sb_info *cifs_sb);
+extern int smb2_rename_path(const unsigned int xid, struct cifs_tcon *tcon,
+			    const char *from_name, const char *to_name,
+			    struct cifs_sb_info *cifs_sb);
 
 extern int smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon,
 			  const char *full_path, int disposition,
@@ -106,5 +109,8 @@ extern int smb2_async_writev(struct cifs_writedata *wdata);
 extern int SMB2_write(const unsigned int xid, struct cifs_io_parms *io_parms,
 		      unsigned int *nbytes, struct kvec *iov, int n_vec);
 extern int SMB2_echo(struct TCP_Server_Info *server);
+extern int SMB2_rename(const unsigned int xid, struct cifs_tcon *tcon,
+		       u64 persistent_fid, u64 volatile_fid,
+		       __le16 *target_file);
 
 #endif			/* _SMB2PROTO_H */

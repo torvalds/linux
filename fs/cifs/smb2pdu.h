@@ -568,6 +568,25 @@ struct smb2_query_info_rsp {
 	__u8   Buffer[1];
 } __packed;
 
+struct smb2_set_info_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 33 */
+	__u8   InfoType;
+	__u8   FileInfoClass;
+	__le32 BufferLength;
+	__le16 BufferOffset;
+	__u16  Reserved;
+	__le32 AdditionalInformation;
+	__u64  PersistentFileId; /* opaque endianness */
+	__u64  VolatileFileId; /* opaque endianness */
+	__u8   Buffer[1];
+} __packed;
+
+struct smb2_set_info_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 2 */
+} __packed;
+
 /*
  *	PDU infolevel structure definitions
  *	BB consider moving to a different header
@@ -624,6 +643,15 @@ struct smb2_query_info_rsp {
 struct smb2_file_internal_info {
 	__le64 IndexNumber;
 } __packed; /* level 6 Query */
+
+struct smb2_file_rename_info { /* encoding of request for level 10 */
+	__u8   ReplaceIfExists; /* 1 = replace existing target with new */
+				/* 0 = fail if target already exists */
+	__u8   Reserved[7];
+	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
+	__le32 FileNameLength;
+	char   FileName[0];     /* New name to be assigned */
+} __packed; /* level 10 Set */
 
 /*
  * This level 18, although with struct with same name is different from cifs
