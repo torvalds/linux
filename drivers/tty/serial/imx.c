@@ -1373,8 +1373,7 @@ static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 	val |= UCR3_AWAKEN;
 	writel(val, sport->port.membase + UCR3);
 
-	if (sport)
-		uart_suspend_port(&imx_reg, &sport->port);
+	uart_suspend_port(&imx_reg, &sport->port);
 
 	return 0;
 }
@@ -1389,8 +1388,7 @@ static int serial_imx_resume(struct platform_device *dev)
 	val &= ~UCR3_AWAKEN;
 	writel(val, sport->port.membase + UCR3);
 
-	if (sport)
-		uart_resume_port(&imx_reg, &sport->port);
+	uart_resume_port(&imx_reg, &sport->port);
 
 	return 0;
 }
