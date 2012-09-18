@@ -535,7 +535,7 @@ static void llc_shdlc_handle_send_queue(struct llc_shdlc *shdlc)
 
 		pr_debug("Sending I-Frame %d, waiting to rcv %d\n", shdlc->ns,
 			 shdlc->nr);
-	/*	SHDLC_DUMP_SKB("shdlc frame written", skb); */
+		SHDLC_DUMP_SKB("shdlc frame written", skb);
 
 		r = shdlc->xmit_to_drv(shdlc->hdev, skb);
 		if (r < 0) {

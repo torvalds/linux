@@ -19,7 +19,7 @@ config PN544_NFC
 
 config PN544_HCI_NFC
 	tristate "HCI PN544 NFC driver"
-	depends on I2C && NFC_SHDLC
+	depends on I2C && NFC_HCI && NFC_SHDLC
 	select CRC_CCITT
 	default n
 	---help---

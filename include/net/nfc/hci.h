@@ -87,6 +87,8 @@ struct nfc_hci_dev {
 
 	struct nfc_hci_ops *ops;
 
+	struct nfc_llc *llc;
+
 	struct nfc_hci_init_data init_data;
 
 	void *clientdata;
@@ -113,6 +115,7 @@ struct nfc_hci_dev {
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
 					    u32 protocols,
+					    const char *llc_name,
 					    int tx_headroom,
 					    int tx_tailroom,
 					    int max_link_payload);
