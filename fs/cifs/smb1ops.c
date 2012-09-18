@@ -800,6 +800,7 @@ struct smb_version_operations smb1_operations = {
 	.rmdir = CIFSSMBRmDir,
 	.unlink = CIFSSMBDelFile,
 	.rename_pending_delete = cifs_rename_pending_delete,
+	.rename = CIFSSMBRename,
 	.open = cifs_open_file,
 	.set_fid = cifs_set_fid,
 	.close = cifs_close_file,

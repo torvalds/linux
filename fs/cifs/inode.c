@@ -1512,29 +1512,32 @@ rmdir_exit:
 }
 
 static int
-cifs_do_rename(unsigned int xid, struct dentry *from_dentry,
-	       const char *fromPath, struct dentry *to_dentry,
-	       const char *toPath)
+cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
+	       const char *from_path, struct dentry *to_dentry,
+	       const char *to_path)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(from_dentry->d_sb);
 	struct tcon_link *tlink;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
 	__u16 srcfid;
 	int oplock, rc;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
-	pTcon = tlink_tcon(tlink);
+	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
+
+	if (!server->ops->rename)
+		return -ENOSYS;
 
 	/* try path-based rename first */
-	rc = CIFSSMBRename(xid, pTcon, fromPath, toPath, cifs_sb->local_nls,
-			   cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	rc = server->ops->rename(xid, tcon, from_path, to_path, cifs_sb);
 
 	/*
-	 * don't bother with rename by filehandle unless file is busy and
-	 * source Note that cross directory moves do not work with
+	 * Don't bother with rename by filehandle unless file is busy and
+	 * source. Note that cross directory moves do not work with
 	 * rename by filehandle to various Windows servers.
 	 */
 	if (rc == 0 || rc != -ETXTBSY)
@@ -1545,29 +1548,28 @@ cifs_do_rename(unsigned int xid, struct dentry *from_dentry,
 		goto do_rename_exit;
 
 	/* open the file to be renamed -- we need DELETE perms */
-	rc = CIFSSMBOpen(xid, pTcon, fromPath, FILE_OPEN, DELETE,
+	rc = CIFSSMBOpen(xid, tcon, from_path, FILE_OPEN, DELETE,
 			 CREATE_NOT_DIR, &srcfid, &oplock, NULL,
 			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
-
 	if (rc == 0) {
-		rc = CIFSSMBRenameOpenFile(xid, pTcon, srcfid,
+		rc = CIFSSMBRenameOpenFile(xid, tcon, srcfid,
 				(const char *) to_dentry->d_name.name,
 				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-
-		CIFSSMBClose(xid, pTcon, srcfid);
+		CIFSSMBClose(xid, tcon, srcfid);
 	}
 do_rename_exit:
 	cifs_put_tlink(tlink);
 	return rc;
 }
 
-int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
-	struct inode *target_dir, struct dentry *target_dentry)
+int
+cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
+	    struct inode *target_dir, struct dentry *target_dentry)
 {
-	char *fromName = NULL;
-	char *toName = NULL;
+	char *from_name = NULL;
+	char *to_name = NULL;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
@@ -1588,25 +1590,25 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 	 * we already have the rename sem so we do not need to
 	 * grab it again here to protect the path integrity
 	 */
-	fromName = build_path_from_dentry(source_dentry);
-	if (fromName == NULL) {
+	from_name = build_path_from_dentry(source_dentry);
+	if (from_name == NULL) {
 		rc = -ENOMEM;
 		goto cifs_rename_exit;
 	}
 
-	toName = build_path_from_dentry(target_dentry);
-	if (toName == NULL) {
+	to_name = build_path_from_dentry(target_dentry);
+	if (to_name == NULL) {
 		rc = -ENOMEM;
 		goto cifs_rename_exit;
 	}
 
-	rc = cifs_do_rename(xid, source_dentry, fromName,
-			    target_dentry, toName);
+	rc = cifs_do_rename(xid, source_dentry, from_name, target_dentry,
+			    to_name);
 
 	if (rc == -EEXIST && tcon->unix_ext) {
 		/*
-		 * Are src and dst hardlinks of same inode? We can
-		 * only tell with unix extensions enabled
+		 * Are src and dst hardlinks of same inode? We can only tell
+		 * with unix extensions enabled.
 		 */
 		info_buf_source =
 			kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO),
@@ -1617,19 +1619,19 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 		}
 
 		info_buf_target = info_buf_source + 1;
-		tmprc = CIFSSMBUnixQPathInfo(xid, tcon, fromName,
-					info_buf_source,
-					cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		tmprc = CIFSSMBUnixQPathInfo(xid, tcon, from_name,
+					     info_buf_source,
+					     cifs_sb->local_nls,
+					     cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (tmprc != 0)
 			goto unlink_target;
 
-		tmprc = CIFSSMBUnixQPathInfo(xid, tcon, toName,
-					info_buf_target,
-					cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		tmprc = CIFSSMBUnixQPathInfo(xid, tcon, to_name,
+					     info_buf_target,
+					     cifs_sb->local_nls,
+					     cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 		if (tmprc == 0 && (info_buf_source->UniqueId ==
 				   info_buf_target->UniqueId)) {
@@ -1637,8 +1639,11 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 			rc = 0;
 			goto cifs_rename_exit;
 		}
-	} /* else ... BB we could add the same check for Windows by
-		     checking the UniqueId via FILE_INTERNAL_INFO */
+	}
+	/*
+	 * else ... BB we could add the same check for Windows by
+	 * checking the UniqueId via FILE_INTERNAL_INFO
+	 */
 
 unlink_target:
 	/* Try unlinking the target dentry if it's not negative */
@@ -1646,15 +1651,14 @@ unlink_target:
 		tmprc = cifs_unlink(target_dir, target_dentry);
 		if (tmprc)
 			goto cifs_rename_exit;
-
-		rc = cifs_do_rename(xid, source_dentry, fromName,
-				    target_dentry, toName);
+		rc = cifs_do_rename(xid, source_dentry, from_name,
+				    target_dentry, to_name);
 	}
 
 cifs_rename_exit:
 	kfree(info_buf_source);
-	kfree(fromName);
-	kfree(toName);
+	kfree(from_name);
+	kfree(to_name);
 	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;

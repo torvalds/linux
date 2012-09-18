@@ -275,6 +275,9 @@ struct smb_version_operations {
 	/* open, rename and delete file */
 	int (*rename_pending_delete)(const char *, struct dentry *,
 				     const unsigned int);
+	/* send rename request */
+	int (*rename)(const unsigned int, struct cifs_tcon *, const char *,
+		      const char *, struct cifs_sb_info *);
 	/* open a file for non-posix mounts */
 	int (*open)(const unsigned int, struct cifs_tcon *, const char *, int,
 		    int, int, struct cifs_fid *, __u32 *, FILE_ALL_INFO *,
