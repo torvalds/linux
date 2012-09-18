@@ -46,7 +46,6 @@
 #include "cypress_m8.h"
 
 
-static bool debug;
 static bool stats;
 static int interval;
 static bool unstable_bauds;
@@ -1308,8 +1307,6 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 module_param(stats, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(stats, "Enable statistics or not");
 module_param(interval, int, S_IRUGO | S_IWUSR);
