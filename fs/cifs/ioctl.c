@@ -75,8 +75,9 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			tcon = tlink_tcon(pSMBFile->tlink);
 			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
-				rc = CIFSGetExtAttr(xid, tcon, pSMBFile->netfid,
-					&ExtAttrBits, &ExtAttrMask);
+				rc = CIFSGetExtAttr(xid, tcon,
+						    pSMBFile->fid.netfid,
+						    &ExtAttrBits, &ExtAttrMask);
 				if (rc == 0)
 					rc = put_user(ExtAttrBits &
 						FS_FL_USER_VISIBLE,
@@ -94,8 +95,12 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 					rc = -EFAULT;
 					break;
 				}
-				/* rc= CIFSGetExtAttr(xid,tcon,pSMBFile->netfid,
-					extAttrBits, &ExtAttrMask);*/
+				/*
+				 * rc = CIFSGetExtAttr(xid, tcon,
+				 *		       pSMBFile->fid.netfid,
+				 *		       extAttrBits,
+				 *		       &ExtAttrMask);
+				 */
 			}
 			cFYI(1, "set flags not implemented yet");
 			break;

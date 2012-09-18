@@ -279,7 +279,7 @@ ffirst_retry:
 		search_flags |= CIFS_SEARCH_BACKUP_SEARCH;
 
 	rc = CIFSFindFirst(xid, tcon, full_path, cifs_sb->local_nls,
-		&cifsFile->netfid, search_flags, &cifsFile->srch_inf,
+		&cifsFile->fid.netfid, search_flags, &cifsFile->srch_inf,
 		cifs_sb->mnt_cifs_flags &
 			CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
 	if (rc == 0)
@@ -545,7 +545,7 @@ static int find_cifs_entry(const unsigned int xid, struct cifs_tcon *pTcon,
 		    !cifsFile->invalidHandle) {
 			cifsFile->invalidHandle = true;
 			spin_unlock(&cifs_file_list_lock);
-			CIFSFindClose(xid, pTcon, cifsFile->netfid);
+			CIFSFindClose(xid, pTcon, cifsFile->fid.netfid);
 		} else
 			spin_unlock(&cifs_file_list_lock);
 		if (cifsFile->srch_inf.ntwrk_buf_start) {
@@ -577,8 +577,8 @@ static int find_cifs_entry(const unsigned int xid, struct cifs_tcon *pTcon,
 	while ((index_to_find >= cifsFile->srch_inf.index_of_last_entry) &&
 	      (rc == 0) && !cifsFile->srch_inf.endOfSearch) {
 		cFYI(1, "calling findnext2");
-		rc = CIFSFindNext(xid, pTcon, cifsFile->netfid, search_flags,
-				  &cifsFile->srch_inf);
+		rc = CIFSFindNext(xid, pTcon, cifsFile->fid.netfid,
+				  search_flags, &cifsFile->srch_inf);
 		/* FindFirst/Next set last_entry to NULL on malformed reply */
 		if (cifsFile->srch_inf.last_entry)
 			cifs_save_resume_key(cifsFile->srch_inf.last_entry,
@@ -781,7 +781,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			}
 		} /* else {
 			cifsFile->invalidHandle = true;
-			CIFSFindClose(xid, pTcon, cifsFile->netfid);
+			CIFSFindClose(xid, pTcon, cifsFile->fid.netfid);
 		} */
 
 		pTcon = tlink_tcon(cifsFile->tlink);

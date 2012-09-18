@@ -466,7 +466,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			list_for_each(tmp2, &tcon->openFileList) {
 				netfile = list_entry(tmp2, struct cifsFileInfo,
 						     tlist);
-				if (pSMB->Fid != netfile->netfid)
+				if (pSMB->Fid != netfile->fid.netfid)
 					continue;
 
 				cFYI(1, "file id match, oplock break");

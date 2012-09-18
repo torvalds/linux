@@ -1222,7 +1222,7 @@ struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 	if (!open_file)
 		return get_cifs_acl_by_path(cifs_sb, path, pacllen);
 
-	pntsd = get_cifs_acl_by_fid(cifs_sb, open_file->netfid, pacllen);
+	pntsd = get_cifs_acl_by_fid(cifs_sb, open_file->fid.netfid, pacllen);
 	cifsFileInfo_put(open_file);
 	return pntsd;
 }

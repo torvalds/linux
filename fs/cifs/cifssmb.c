@@ -1632,7 +1632,7 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	smb->hdr.PidHigh = cpu_to_le16((__u16)(rdata->pid >> 16));
 
 	smb->AndXCommand = 0xFF;	/* none */
-	smb->Fid = rdata->cfile->netfid;
+	smb->Fid = rdata->cfile->fid.netfid;
 	smb->OffsetLow = cpu_to_le32(rdata->offset & 0xFFFFFFFF);
 	if (wct == 12)
 		smb->OffsetHigh = cpu_to_le32(rdata->offset >> 32);
@@ -2084,7 +2084,7 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	smb->hdr.PidHigh = cpu_to_le16((__u16)(wdata->pid >> 16));
 
 	smb->AndXCommand = 0xFF;	/* none */
-	smb->Fid = wdata->cfile->netfid;
+	smb->Fid = wdata->cfile->fid.netfid;
 	smb->OffsetLow = cpu_to_le32(wdata->offset & 0xFFFFFFFF);
 	if (wct == 14)
 		smb->OffsetHigh = cpu_to_le32(wdata->offset >> 32);

@@ -63,7 +63,7 @@ send_nt_cancel(struct TCP_Server_Info *server, void *buf,
 static bool
 cifs_compare_fids(struct cifsFileInfo *ob1, struct cifsFileInfo *ob2)
 {
-	return ob1->netfid == ob2->netfid;
+	return ob1->fid.netfid == ob2->fid.netfid;
 }
 
 static unsigned int
