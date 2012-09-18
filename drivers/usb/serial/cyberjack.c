@@ -43,8 +43,6 @@
 
 #define CYBERJACK_LOCAL_BUF_SIZE 32
 
-static bool debug;
-
 /*
  * Version Information
  */
@@ -456,6 +454,3 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
