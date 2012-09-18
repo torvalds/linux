@@ -130,8 +130,8 @@ static int rk610_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_devic
 		rc = -ENXIO;
 		goto err_request_lcdc;
 	}
-	hdmi->xscale = 95;
-	hdmi->yscale = 95;
+	hdmi->xscale = 100;
+	hdmi->yscale = 100;
 	hdmi->insert = rk610_hdmi_sys_insert;
 	hdmi->remove = rk610_hdmi_sys_remove;
 	hdmi->control_output = rk610_hdmi_sys_enalbe_output;
