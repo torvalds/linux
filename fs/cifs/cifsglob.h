@@ -178,6 +178,7 @@ struct cifs_readdata;
 struct cifs_writedata;
 struct cifs_io_parms;
 struct cifs_search_info;
+struct cifsInodeInfo;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, void *,
@@ -330,6 +331,9 @@ struct smb_version_operations {
 	unsigned int (*calc_smb_size)(void *);
 	/* check for STATUS_PENDING and process it in a positive case */
 	bool (*is_status_pending)(char *, struct TCP_Server_Info *, int);
+	/* send oplock break response */
+	int (*oplock_response)(struct cifs_tcon *, struct cifs_fid *,
+			       struct cifsInodeInfo *);
 };
 
 struct smb_version_values {

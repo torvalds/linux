@@ -863,6 +863,15 @@ cifs_close_dir(const unsigned int xid, struct cifs_tcon *tcon,
 	return CIFSFindClose(xid, tcon, fid->netfid);
 }
 
+static int
+cifs_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
+		     struct cifsInodeInfo *cinode)
+{
+	return CIFSSMBLock(0, tcon, fid->netfid, current->tgid, 0, 0, 0, 0,
+			   LOCKING_ANDX_OPLOCK_RELEASE, false,
+			   cinode->clientCanCacheRead ? 1 : 0);
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -922,6 +931,7 @@ struct smb_version_operations smb1_operations = {
 	.query_dir_next = cifs_query_dir_next,
 	.close_dir = cifs_close_dir,
 	.calc_smb_size = smbCalcSize,
+	.oplock_response = cifs_oplock_response,
 };
 
 struct smb_version_values smb1_values = {
