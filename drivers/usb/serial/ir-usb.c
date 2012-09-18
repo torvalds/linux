@@ -38,10 +38,6 @@
 #include <linux/usb/serial.h>
 #include <linux/usb/irda.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.5"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "USB IR Dongle driver"
 
@@ -428,18 +424,12 @@ err_buf:
 
 static int __init ir_init(void)
 {
-	int retval;
-
 	if (buffer_size) {
 		ir_device.bulk_in_size = buffer_size;
 		ir_device.bulk_out_size = buffer_size;
 	}
 
-	retval = usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ir_id_table);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
+	return usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ir_id_table);
 }
 
 static void __exit ir_exit(void)
