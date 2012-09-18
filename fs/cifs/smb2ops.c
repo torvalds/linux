@@ -415,6 +415,15 @@ smb2_sync_write(const unsigned int xid, struct cifsFileInfo *cfile,
 	return SMB2_write(xid, parms, written, iov, nr_segs);
 }
 
+static int
+smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile, __u64 size, bool set_alloc)
+{
+	__le64 eof = cpu_to_le64(size);
+	return SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
+			    cfile->fid.volatile_fid, cfile->pid, &eof);
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -446,6 +455,8 @@ struct smb_version_operations smb21_operations = {
 	.query_path_info = smb2_query_path_info,
 	.get_srv_inum = smb2_get_srv_inum,
 	.query_file_info = smb2_query_file_info,
+	.set_path_size = smb2_set_path_size,
+	.set_file_size = smb2_set_file_size,
 	.build_path_to_root = smb2_build_path_to_root,
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,

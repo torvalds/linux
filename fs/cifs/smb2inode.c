@@ -82,6 +82,10 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 		tmprc = SMB2_set_hardlink(xid, tcon, persistent_fid,
 					  volatile_fid, (__le16 *)data);
 		break;
+	case SMB2_OP_SET_EOF:
+		tmprc = SMB2_set_eof(xid, tcon, persistent_fid, volatile_fid,
+				     current->tgid, (__le64 *)data);
+		break;
 	default:
 		cERROR(1, "Invalid command");
 		break;
@@ -216,4 +220,15 @@ smb2_create_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	return smb2_set_path_attr(xid, tcon, from_name, to_name, cifs_sb,
 				  FILE_READ_ATTRIBUTES, SMB2_OP_HARDLINK);
+}
+
+int
+smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
+		   const char *full_path, __u64 size,
+		   struct cifs_sb_info *cifs_sb, bool set_alloc)
+{
+	__le64 eof = cpu_to_le64(size);
+	return smb2_open_op_close(xid, tcon, cifs_sb, full_path,
+				  FILE_WRITE_DATA, FILE_OPEN, 0, 0, &eof,
+				  SMB2_OP_SET_EOF);
 }

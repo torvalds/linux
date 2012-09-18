@@ -1605,7 +1605,7 @@ SMB2_write(const unsigned int xid, struct cifs_io_parms *io_parms,
 
 static int
 send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
-	       u64 persistent_fid, u64 volatile_fid, int info_class,
+	       u64 persistent_fid, u64 volatile_fid, u32 pid, int info_class,
 	       unsigned int num, void **data, unsigned int *size)
 {
 	struct smb2_set_info_req *req;
@@ -1634,6 +1634,8 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 		kfree(iov);
 		return rc;
 	}
+
+	req->hdr.ProcessId = cpu_to_le32(pid);
 
 	req->InfoType = SMB2_O_INFO_FILE;
 	req->FileInfoClass = info_class;
@@ -1705,7 +1707,8 @@ SMB2_rename(const unsigned int xid, struct cifs_tcon *tcon,
 	size[1] = len + 2 /* null */;
 
 	rc = send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			   FILE_RENAME_INFORMATION, 2, data, size);
+			   current->tgid, FILE_RENAME_INFORMATION, 2, data,
+			   size);
 	kfree(data);
 	return rc;
 }
@@ -1736,7 +1739,24 @@ SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 	size[1] = len + 2 /* null */;
 
 	rc = send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			   FILE_LINK_INFORMATION, 2, data, size);
+			   current->tgid, FILE_LINK_INFORMATION, 2, data, size);
 	kfree(data);
 	return rc;
+}
+
+int
+SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
+	     u64 volatile_fid, u32 pid, __le64 *eof)
+{
+	struct smb2_file_eof_info info;
+	void *data;
+	unsigned int size;
+
+	info.EndOfFile = *eof;
+
+	data = &info;
+	size = sizeof(struct smb2_file_eof_info);
+
+	return send_set_info(xid, tcon, persistent_fid, volatile_fid, pid,
+			     FILE_END_OF_FILE_INFORMATION, 1, &data, &size);
 }
