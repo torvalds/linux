@@ -40,7 +40,6 @@
 
 /* Defines */
 
-#define TI_DRIVER_VERSION	"v0.10"
 #define TI_DRIVER_AUTHOR	"Al Borchers <alborchers@steinerpoint.com>"
 #define TI_DRIVER_DESC		"TI USB 3410/5052 Serial Driver"
 
@@ -276,7 +275,6 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 MODULE_AUTHOR(TI_DRIVER_AUTHOR);
 MODULE_DESCRIPTION(TI_DRIVER_DESC);
-MODULE_VERSION(TI_DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
 MODULE_FIRMWARE("ti_3410.fw");
@@ -312,7 +310,6 @@ MODULE_DEVICE_TABLE(usb, ti_id_table_combined);
 static int __init ti_init(void)
 {
 	int i, j, c;
-	int ret;
 
 	/* insert extra vendor and product ids */
 	c = ARRAY_SIZE(ti_id_table_combined) - 2 * TI_EXTRA_VID_PID_COUNT - 1;
@@ -335,11 +332,7 @@ static int __init ti_init(void)
 		ti_id_table_combined[c].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
 	}
 
-	ret = usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ti_id_table_combined);
-	if (ret == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " TI_DRIVER_VERSION ":"
-			       TI_DRIVER_DESC "\n");
-	return ret;
+	return usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ti_id_table_combined);
 }
 
 static void __exit ti_exit(void)
