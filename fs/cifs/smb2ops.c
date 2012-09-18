@@ -17,6 +17,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/pagemap.h>
 #include "cifsglob.h"
 #include "smb2pdu.h"
 #include "smb2proto.h"
@@ -155,6 +156,48 @@ smb2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	if (rc == -EAGAIN)
 		rc = -EHOSTDOWN;
 	return rc;
+}
+
+static unsigned int
+smb2_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+{
+	struct TCP_Server_Info *server = tcon->ses->server;
+	unsigned int wsize;
+
+	/* start with specified wsize, or default */
+	wsize = volume_info->wsize ? volume_info->wsize : CIFS_DEFAULT_IOSIZE;
+	wsize = min_t(unsigned int, wsize, server->max_write);
+	/*
+	 * limit write size to 2 ** 16, because we don't support multicredit
+	 * requests now.
+	 */
+	wsize = min_t(unsigned int, wsize, 2 << 15);
+
+	/* limit to the amount that we can kmap at once */
+	wsize = min_t(unsigned int, wsize, CIFS_KMAP_SIZE_LIMIT);
+
+	return wsize;
+}
+
+static unsigned int
+smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+{
+	struct TCP_Server_Info *server = tcon->ses->server;
+	unsigned int rsize;
+
+	/* start with specified rsize, or default */
+	rsize = volume_info->rsize ? volume_info->rsize : CIFS_DEFAULT_IOSIZE;
+	rsize = min_t(unsigned int, rsize, server->max_read);
+	/*
+	 * limit write size to 2 ** 16, because we don't support multicredit
+	 * requests now.
+	 */
+	rsize = min_t(unsigned int, rsize, 2 << 15);
+
+	/* limit to the amount that we can kmap at once */
+	rsize = min_t(unsigned int, rsize, CIFS_KMAP_SIZE_LIMIT);
+
+	return rsize;
 }
 
 static int
@@ -352,6 +395,8 @@ struct smb_version_operations smb21_operations = {
 	.print_stats = smb2_print_stats,
 	.need_neg = smb2_need_neg,
 	.negotiate = smb2_negotiate,
+	.negotiate_wsize = smb2_negotiate_wsize,
+	.negotiate_rsize = smb2_negotiate_rsize,
 	.sess_setup = SMB2_sess_setup,
 	.logoff = SMB2_logoff,
 	.tree_connect = SMB2_tcon,
