@@ -1487,9 +1487,12 @@ struct bio_pair *bio_split(struct bio *bi, int first_sectors)
 
 	bp->bv1 = bi->bi_io_vec[0];
 	bp->bv2 = bi->bi_io_vec[0];
-	bp->bv2.bv_offset += first_sectors << 9;
-	bp->bv2.bv_len -= first_sectors << 9;
-	bp->bv1.bv_len = first_sectors << 9;
+
+	if (bio_is_rw(bi)) {
+		bp->bv2.bv_offset += first_sectors << 9;
+		bp->bv2.bv_len -= first_sectors << 9;
+		bp->bv1.bv_len = first_sectors << 9;
+	}
 
 	bp->bio1.bi_io_vec = &bp->bv1;
 	bp->bio2.bi_io_vec = &bp->bv2;

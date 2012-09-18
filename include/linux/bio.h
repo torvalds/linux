@@ -399,6 +399,9 @@ static inline bool bio_is_rw(struct bio *bio)
 	if (!bio_has_data(bio))
 		return false;
 
+	if (bio->bi_rw & REQ_WRITE_SAME)
+		return false;
+
 	return true;
 }
 
