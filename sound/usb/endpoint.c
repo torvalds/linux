@@ -567,20 +567,19 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
  * configure a data endpoint
  */
 static int data_ep_set_params(struct snd_usb_endpoint *ep,
-			      struct snd_pcm_hw_params *hw_params,
+			      snd_pcm_format_t pcm_format,
+			      unsigned int channels,
+			      unsigned int period_bytes,
 			      struct audioformat *fmt,
 			      struct snd_usb_endpoint *sync_ep)
 {
 	unsigned int maxsize, i, urb_packs, total_packs, packs_per_ms;
-	int period_bytes = params_period_bytes(hw_params);
-	int format = params_format(hw_params);
 	int is_playback = usb_pipeout(ep->pipe);
-	int frame_bits = snd_pcm_format_physical_width(params_format(hw_params)) *
-							params_channels(hw_params);
+	int frame_bits = snd_pcm_format_physical_width(pcm_format) * channels;
 
 	ep->datainterval = fmt->datainterval;
 	ep->stride = frame_bits >> 3;
-	ep->silence_value = format == SNDRV_PCM_FORMAT_U8 ? 0x80 : 0;
+	ep->silence_value = pcm_format == SNDRV_PCM_FORMAT_U8 ? 0x80 : 0;
 
 	/* calculate max. frequency */
 	if (ep->maxpacksize) {
@@ -693,7 +692,6 @@ out_of_memory:
  * configure a sync endpoint
  */
 static int sync_ep_set_params(struct snd_usb_endpoint *ep,
-			      struct snd_pcm_hw_params *hw_params,
 			      struct audioformat *fmt)
 {
 	int i;
@@ -736,7 +734,10 @@ out_of_memory:
  * snd_usb_endpoint_set_params: configure an snd_usb_endpoint
  *
  * @ep: the snd_usb_endpoint to configure
- * @hw_params: the hardware parameters
+ * @pcm_format: the audio fomat.
+ * @channels: the number of audio channels.
+ * @period_bytes: the number of bytes in one alsa period.
+ * @rate: the frame rate.
  * @fmt: the USB audio format information
  * @sync_ep: the sync endpoint to use, if any
  *
@@ -745,7 +746,10 @@ out_of_memory:
  * An endpoint that is already running can not be reconfigured.
  */
 int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
-				struct snd_pcm_hw_params *hw_params,
+				snd_pcm_format_t pcm_format,
+				unsigned int channels,
+				unsigned int period_bytes,
+				unsigned int rate,
 				struct audioformat *fmt,
 				struct snd_usb_endpoint *sync_ep)
 {
@@ -765,9 +769,9 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 	ep->fill_max = !!(fmt->attributes & UAC_EP_CS_ATTR_FILL_MAX);
 
 	if (snd_usb_get_speed(ep->chip->dev) == USB_SPEED_FULL)
-		ep->freqn = get_usb_full_speed_rate(params_rate(hw_params));
+		ep->freqn = get_usb_full_speed_rate(rate);
 	else
-		ep->freqn = get_usb_high_speed_rate(params_rate(hw_params));
+		ep->freqn = get_usb_high_speed_rate(rate);
 
 	/* calculate the frequency in 16.16 format */
 	ep->freqm = ep->freqn;
@@ -777,10 +781,11 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 
 	switch (ep->type) {
 	case  SND_USB_ENDPOINT_TYPE_DATA:
-		err = data_ep_set_params(ep, hw_params, fmt, sync_ep);
+		err = data_ep_set_params(ep, pcm_format, channels,
+					 period_bytes, fmt, sync_ep);
 		break;
 	case  SND_USB_ENDPOINT_TYPE_SYNC:
-		err = sync_ep_set_params(ep, hw_params, fmt);
+		err = sync_ep_set_params(ep, fmt);
 		break;
 	default:
 		err = -EINVAL;

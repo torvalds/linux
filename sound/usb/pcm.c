@@ -491,14 +491,24 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 		mutex_lock(&subs->stream->chip->shutdown_mutex);
 		/* format changed */
 		stop_endpoints(subs, 0, 0, 0);
-		ret = snd_usb_endpoint_set_params(subs->data_endpoint, hw_params, fmt,
+		ret = snd_usb_endpoint_set_params(subs->data_endpoint,
+						  format,
+						  channels,
+						  subs->period_bytes,
+						  rate,
+						  fmt,
 						  subs->sync_endpoint);
 		if (ret < 0)
 			goto unlock;
 
 		if (subs->sync_endpoint)
-			ret = snd_usb_endpoint_set_params(subs->sync_endpoint,
-							  hw_params, fmt, NULL);
+			ret = snd_usb_endpoint_set_params(subs->data_endpoint,
+							  format,
+							  channels,
+							  subs->period_bytes,
+							  rate,
+							  fmt,
+							  NULL);
 unlock:
 		mutex_unlock(&subs->stream->chip->shutdown_mutex);
 	}
