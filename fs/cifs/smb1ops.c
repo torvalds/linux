@@ -785,6 +785,7 @@ struct smb_version_operations smb1_operations = {
 	.set_fid = cifs_set_fid,
 	.close = cifs_close_file,
 	.flush = cifs_flush_file,
+	.async_readv = cifs_async_readv,
 };
 
 struct smb_version_values smb1_values = {
