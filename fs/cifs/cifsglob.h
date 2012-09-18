@@ -236,6 +236,9 @@ struct smb_version_operations {
 	int (*query_path_info)(const unsigned int, struct cifs_tcon *,
 			       struct cifs_sb_info *, const char *,
 			       FILE_ALL_INFO *, bool *);
+	/* query file data from the server */
+	int (*query_file_info)(const unsigned int, struct cifs_tcon *,
+			       struct cifs_fid *, FILE_ALL_INFO *);
 	/* get server index number */
 	int (*get_srv_inum)(const unsigned int, struct cifs_tcon *,
 			    struct cifs_sb_info *, const char *,

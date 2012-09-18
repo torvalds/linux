@@ -282,7 +282,8 @@ cifs_create_dfs_fattr(struct cifs_fattr *fattr, struct super_block *sb)
 	fattr->cf_flags |= CIFS_FATTR_DFS_REFERRAL;
 }
 
-int cifs_get_file_info_unix(struct file *filp)
+static int
+cifs_get_file_info_unix(struct file *filp)
 {
 	int rc;
 	unsigned int xid;
@@ -550,7 +551,8 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 	fattr->cf_gid = cifs_sb->mnt_gid;
 }
 
-int cifs_get_file_info(struct file *filp)
+static int
+cifs_get_file_info(struct file *filp)
 {
 	int rc;
 	unsigned int xid;
@@ -560,9 +562,13 @@ int cifs_get_file_info(struct file *filp)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *cfile = filp->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
+	struct TCP_Server_Info *server = tcon->ses->server;
+
+	if (!server->ops->query_file_info)
+		return -ENOSYS;
 
 	xid = get_xid();
-	rc = CIFSSMBQFileInfo(xid, tcon, cfile->fid.netfid, &find_data);
+	rc = server->ops->query_file_info(xid, tcon, &cfile->fid, &find_data);
 	switch (rc) {
 	case 0:
 		cifs_all_info_to_fattr(&fattr, &find_data, cifs_sb, false);

@@ -489,6 +489,13 @@ cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 }
 
+static int
+cifs_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
+		     struct cifs_fid *fid, FILE_ALL_INFO *data)
+{
+	return CIFSSMBQFileInfo(xid, tcon, fid->netfid, data);
+}
+
 static char *
 cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 			struct cifs_tcon *tcon)
@@ -672,6 +679,7 @@ struct smb_version_operations smb1_operations = {
 	.qfs_tcon = cifs_qfs_tcon,
 	.is_path_accessible = cifs_is_path_accessible,
 	.query_path_info = cifs_query_path_info,
+	.query_file_info = cifs_query_file_info,
 	.get_srv_inum = cifs_get_srv_inum,
 	.build_path_to_root = cifs_build_path_to_root,
 	.echo = CIFSSMBEcho,
