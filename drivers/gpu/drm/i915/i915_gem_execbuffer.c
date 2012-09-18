@@ -44,6 +44,7 @@ eb_create(int size)
 {
 	struct eb_objects *eb;
 	int count = PAGE_SIZE / sizeof(struct hlist_head) / 2;
+	BUILD_BUG_ON(!is_power_of_2(PAGE_SIZE / sizeof(struct hlist_head)));
 	while (count > size)
 		count >>= 1;
 	eb = kzalloc(count*sizeof(struct hlist_head) +
