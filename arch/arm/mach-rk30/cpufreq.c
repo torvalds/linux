@@ -510,9 +510,11 @@ static void ff_early_resume_func(struct early_suspend *h)
 static int __init ff_init(void)
 {
 	FF_DEBUG("enter %s\n", __func__);
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	ff_early_suspend.suspend = ff_early_suspend_func;
 	ff_early_suspend.resume = ff_early_resume_func;
 	ff_early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 100;
+#endif
 	register_early_suspend(&ff_early_suspend);
 	return 0;
 }
