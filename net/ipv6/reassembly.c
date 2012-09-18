@@ -65,24 +65,6 @@ struct ip6frag_skb_cb
 #define FRAG6_CB(skb)	((struct ip6frag_skb_cb*)((skb)->cb))
 
 
-/*
- *	Equivalent of ipv4 struct ipq
- */
-
-struct frag_queue
-{
-	struct inet_frag_queue	q;
-
-	__be32			id;		/* fragment id		*/
-	u32			user;
-	struct in6_addr		saddr;
-	struct in6_addr		daddr;
-
-	int			iif;
-	unsigned int		csum;
-	__u16			nhoffset;
-};
-
 static struct inet_frags ip6_frags;
 
 int ip6_frag_nqueues(struct net *net)
@@ -159,21 +141,6 @@ void ip6_frag_init(struct inet_frag_queue *q, void *a)
 }
 EXPORT_SYMBOL(ip6_frag_init);
 
-/* Destruction primitives. */
-
-static __inline__ void fq_put(struct frag_queue *fq)
-{
-	inet_frag_put(&fq->q, &ip6_frags);
-}
-
-/* Kill fq entry. It is not destroyed immediately,
- * because caller (and someone more) holds reference count.
- */
-static __inline__ void fq_kill(struct frag_queue *fq)
-{
-	inet_frag_kill(&fq->q, &ip6_frags);
-}
-
 static void ip6_evictor(struct net *net, struct inet6_dev *idev)
 {
 	int evicted;
@@ -183,22 +150,18 @@ static void ip6_evictor(struct net *net, struct inet6_dev *idev)
 		IP6_ADD_STATS_BH(net, idev, IPSTATS_MIB_REASMFAILS, evicted);
 }
 
-static void ip6_frag_expire(unsigned long data)
+void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
+			   struct inet_frags *frags)
 {
-	struct frag_queue *fq;
 	struct net_device *dev = NULL;
-	struct net *net;
-
-	fq = container_of((struct inet_frag_queue *)data, struct frag_queue, q);
 
 	spin_lock(&fq->q.lock);
 
 	if (fq->q.last_in & INET_FRAG_COMPLETE)
 		goto out;
 
-	fq_kill(fq);
+	inet_frag_kill(&fq->q, frags);
 
-	net = container_of(fq->q.net, struct net, ipv6.frags);
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(net, fq->iif);
 	if (!dev)
@@ -222,7 +185,19 @@ out_rcu_unlock:
 	rcu_read_unlock();
 out:
 	spin_unlock(&fq->q.lock);
-	fq_put(fq);
+	inet_frag_put(&fq->q, frags);
+}
+EXPORT_SYMBOL(ip6_expire_frag_queue);
+
+static void ip6_frag_expire(unsigned long data)
+{
+	struct frag_queue *fq;
+	struct net *net;
+
+	fq = container_of((struct inet_frag_queue *)data, struct frag_queue, q);
+	net = container_of(fq->q.net, struct net, ipv6.frags);
+
+	ip6_expire_frag_queue(net, fq, &ip6_frags);
 }
 
 static __inline__ struct frag_queue *
@@ -391,7 +366,7 @@ found:
 	return -1;
 
 discard_fq:
-	fq_kill(fq);
+	inet_frag_kill(&fq->q, &ip6_frags);
 err:
 	IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
 		      IPSTATS_MIB_REASMFAILS);
@@ -417,7 +392,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	unsigned int nhoff;
 	int sum_truesize;
 
-	fq_kill(fq);
+	inet_frag_kill(&fq->q, &ip6_frags);
 
 	/* Make the one we just received the head. */
 	if (prev) {
@@ -586,7 +561,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 		ret = ip6_frag_queue(fq, skb, fhdr, IP6CB(skb)->nhoff);
 
 		spin_unlock(&fq->q.lock);
-		fq_put(fq);
+		inet_frag_put(&fq->q, &ip6_frags);
 		return ret;
 	}
 

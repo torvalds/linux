@@ -411,6 +411,25 @@ struct ip6_create_arg {
 void ip6_frag_init(struct inet_frag_queue *q, void *a);
 bool ip6_frag_match(struct inet_frag_queue *q, void *a);
 
+/*
+ *	Equivalent of ipv4 struct ip
+ */
+struct frag_queue {
+	struct inet_frag_queue	q;
+
+	__be32			id;		/* fragment id		*/
+	u32			user;
+	struct in6_addr		saddr;
+	struct in6_addr		daddr;
+
+	int			iif;
+	unsigned int		csum;
+	__u16			nhoffset;
+};
+
+void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
+			   struct inet_frags *frags);
+
 static inline bool ipv6_addr_any(const struct in6_addr *a)
 {
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
