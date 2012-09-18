@@ -65,7 +65,7 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	unsigned long rt, len;
 	bool is_write, sign_extend;
 
-	if ((kvm_vcpu_get_hsr(vcpu) >> 8) & 1) {
+	if (kvm_vcpu_dabt_isextabt(vcpu)) {
 		/* cache operation on I/O addr, tell guest unsupported */
 		kvm_inject_dabt(vcpu, kvm_vcpu_get_hfar(vcpu));
 		return 1;
