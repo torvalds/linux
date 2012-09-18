@@ -238,6 +238,27 @@ pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo)
 	}
 }
 
+static int
+pnfs_iomode_to_fail_bit(u32 iomode)
+{
+	return iomode == IOMODE_RW ?
+		NFS_LAYOUT_RW_FAILED : NFS_LAYOUT_RO_FAILED;
+}
+
+static void
+pnfs_layout_io_set_failed(struct pnfs_layout_hdr *lo, u32 iomode)
+{
+	set_bit(pnfs_iomode_to_fail_bit(iomode), &lo->plh_flags);
+	dprintk("%s Setting layout IOMODE_%s fail bit\n", __func__,
+			iomode == IOMODE_RW ?  "RW" : "READ");
+}
+
+static bool
+pnfs_layout_io_test_failed(struct pnfs_layout_hdr *lo, u32 iomode)
+{
+	return test_bit(pnfs_iomode_to_fail_bit(iomode), &lo->plh_flags) != 0;
+}
+
 static void
 init_lseg(struct pnfs_layout_hdr *lo, struct pnfs_layout_segment *lseg)
 {
@@ -612,7 +633,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 			break;
 		default:
 			/* remember that LAYOUTGET failed and suspend trying */
-			set_bit(lo_fail_bit(range->iomode), &lo->plh_flags);
+			pnfs_layout_io_set_failed(lo, range->iomode);
 		}
 		return NULL;
 	}
@@ -669,8 +690,8 @@ _pnfs_return_layout(struct inode *ino)
 	lrp = kzalloc(sizeof(*lrp), GFP_KERNEL);
 	if (unlikely(lrp == NULL)) {
 		status = -ENOMEM;
-		set_bit(NFS_LAYOUT_RW_FAILED, &lo->plh_flags);
-		set_bit(NFS_LAYOUT_RO_FAILED, &lo->plh_flags);
+		pnfs_layout_io_set_failed(lo, IOMODE_RW);
+		pnfs_layout_io_set_failed(lo, IOMODE_READ);
 		pnfs_clear_layout_returned(lo);
 		pnfs_put_layout_hdr(lo);
 		goto out;
@@ -1019,7 +1040,6 @@ pnfs_update_layout(struct inode *ino,
 		.length = count,
 	};
 	unsigned pg_offset;
-	struct nfs_inode *nfsi = NFS_I(ino);
 	struct nfs_server *server = NFS_SERVER(ino);
 	struct nfs_client *clp = server->nfs_client;
 	struct pnfs_layout_hdr *lo;
@@ -1044,7 +1064,7 @@ pnfs_update_layout(struct inode *ino,
 	}
 
 	/* if LAYOUTGET already failed once we don't try again */
-	if (test_bit(lo_fail_bit(iomode), &nfsi->layout->plh_flags))
+	if (pnfs_layout_io_test_failed(lo, iomode))
 		goto out_unlock;
 
 	/* Check to see if the layout for the given range already exists */
@@ -1585,13 +1605,7 @@ static void pnfs_list_write_lseg(struct inode *inode, struct list_head *listp)
 
 void pnfs_set_lo_fail(struct pnfs_layout_segment *lseg)
 {
-	if (lseg->pls_range.iomode == IOMODE_RW) {
-		dprintk("%s Setting layout IOMODE_RW fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
-	} else {
-		dprintk("%s Setting layout IOMODE_READ fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
-	}
+	pnfs_layout_io_set_failed(lseg->pls_layout, lseg->pls_range.iomode);
 }
 EXPORT_SYMBOL_GPL(pnfs_set_lo_fail);
 
