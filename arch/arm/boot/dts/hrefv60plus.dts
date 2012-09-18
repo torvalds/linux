@@ -61,5 +61,13 @@
 				reg = <0x33>;
 			};
 		};
+
+		msp1: msp@80124000 {
+			status = "okay";
+		};
+
+		msp3: msp@80125000 {
+			status = "okay";
+		};
 	};
 };
