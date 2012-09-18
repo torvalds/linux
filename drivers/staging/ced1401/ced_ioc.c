@@ -112,7 +112,7 @@ int SendString(DEVICE_EXTENSION * pdx, const char __user * pData,
 	if (n > OUTBUF_SZ)	// check space in local buffer...
 		return U14ERR_NOOUT;	// ...too many characters
 	if (copy_from_user(buffer, pData, n))
-		return -ENOMEM;	// could not copy
+		return -EFAULT;
 	buffer[n] = 0;		// terminate for debug purposes
 
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
@@ -511,9 +511,10 @@ int GetString(DEVICE_EXTENSION * pdx, char __user * pUser, int n)
 
 		dev_dbg(&pdx->interface->dev,
 			"GetString read %d characters >%s<", nGot, buffer);
-		copy_to_user(pUser, buffer, nCopyToUser);
-
-		iReturn = nGot;	// report characters read
+		if (copy_to_user(pUser, buffer, nCopyToUser))
+			iReturn = -EFAULT;
+		else
+			iReturn = nGot;		// report characters read
 	} else
 		spin_unlock_irq(&pdx->charInLock);
 
@@ -758,7 +759,10 @@ int SetTransfer(DEVICE_EXTENSION * pdx, TRANSFERDESC __user * pTD)
 {
 	int iReturn;
 	TRANSFERDESC td;
-	copy_from_user(&td, pTD, sizeof(td));
+
+	if (copy_from_user(&td, pTD, sizeof(td)))
+		return -EFAULT;
+
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s area:%d, size:%08x", __func__,
 		td.wAreaNum, td.dwLength);
@@ -798,7 +802,11 @@ int SetEvent(DEVICE_EXTENSION * pdx, TRANSFEREVENT __user * pTE)
 {
 	int iReturn = U14ERR_NOERROR;
 	TRANSFEREVENT te;
-	copy_from_user(&te, pTE, sizeof(te));	// get a local copy of the data
+
+	// get a local copy of the data
+	if (copy_from_user(&te, pTE, sizeof(te)))
+		return -EFAULT;
+
 	if (te.wAreaNum >= MAX_TRANSAREAS)	// the area must exist
 		return U14ERR_BADAREA;
 	else {
@@ -914,7 +922,9 @@ int GetTransfer(DEVICE_EXTENSION * pdx, TGET_TX_BLOCK __user * pTX)
 		tx.entries[0].physical =
 		    (long long)(tx.linear + pdx->StagedOffset);
 		tx.entries[0].size = tx.size;
-		copy_to_user(pTX, &tx, sizeof(tx));
+
+		if (copy_to_user(pTX, &tx, sizeof(tx)))
+			iReturn = -EFAULT;
 	}
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
@@ -1065,7 +1075,9 @@ int CheckSelfTest(DEVICE_EXTENSION * pdx, TGET_SELFTEST __user * pGST)
 	}
 	mutex_unlock(&pdx->io_mutex);
 
-	copy_to_user(pGST, &gst, sizeof(gst));	// copy result to user space
+	if (copy_to_user(pGST, &gst, sizeof(gst)))
+		return -EFAULT;
+
 	return iReturn;
 }
 
@@ -1147,7 +1159,9 @@ int DbgPeek(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
-	copy_from_user(&db, pDB, sizeof(db));	// get the data
+
+	if (copy_from_user(&db, pDB, sizeof(db)))
+		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s @ %08x", __func__, db.iAddr);
@@ -1174,7 +1188,9 @@ int DbgPoke(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
-	copy_from_user(&db, pDB, sizeof(db));	// get the data
+
+	if (copy_from_user(&db, pDB, sizeof(db)))
+		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s @ %08x", __func__, db.iAddr);
@@ -1201,7 +1217,9 @@ int DbgRampData(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
-	copy_from_user(&db, pDB, sizeof(db));	// get the data
+
+	if (copy_from_user(&db, pDB, sizeof(db)))
+		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s @ %08x", __func__, db.iAddr);
@@ -1231,7 +1249,9 @@ int DbgRampAddr(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
-	copy_from_user(&db, pDB, sizeof(db));	// get the data
+
+	if (copy_from_user(&db, pDB, sizeof(db)))
+		return -EFAULT;
 
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s", __func__);
@@ -1269,8 +1289,10 @@ int DbgGetData(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 				  DB_DATA, (D_TO_H | VENDOR | DEVREQ), 0, 0,
 				  &db.iData, sizeof(db.iData), HZ);
 	if (iReturn == sizeof(db.iData)) {
-		copy_to_user(pDB, &db, sizeof(db));
-		iReturn = U14ERR_NOERROR;
+		if (copy_to_user(pDB, &db, sizeof(db)))
+			iReturn = -EFAULT;
+		else
+			iReturn = U14ERR_NOERROR;
 	} else
 		dev_err(&pdx->interface->dev, "%s failed, code %d", __func__,
 			iReturn);
@@ -1312,7 +1334,10 @@ int SetCircular(DEVICE_EXTENSION * pdx, TRANSFERDESC __user * pTD)
 	int iReturn;
 	bool bToHost;
 	TRANSFERDESC td;
-	copy_from_user(&td, pTD, sizeof(td));
+
+	if (copy_from_user(&td, pTD, sizeof(td)))
+		return -EFAULT;
+
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s area:%d, size:%08x", __func__,
 		td.wAreaNum, td.dwLength);
@@ -1339,8 +1364,12 @@ int GetCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
 	int iReturn = U14ERR_NOERROR;
 	unsigned int nArea;
 	TCIRCBLOCK cb;
+
 	dev_dbg(&pdx->interface->dev, "%s", __func__);
-	copy_from_user(&cb, pCB, sizeof(cb));
+
+	if (copy_from_user(&cb, pCB, sizeof(cb)))
+		return -EFAULT;
+
 	mutex_lock(&pdx->io_mutex);
 
 	nArea = cb.nArea;	// Retrieve parameters first
@@ -1370,7 +1399,9 @@ int GetCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
 	} else
 		iReturn = U14ERR_BADAREA;
 
-	copy_to_user(pCB, &cb, sizeof(cb));
+	if (copy_to_user(pCB, &cb, sizeof(cb)))
+		iReturn = -EFAULT;
+
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
 }
@@ -1385,8 +1416,12 @@ int FreeCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
 	int iReturn = U14ERR_NOERROR;
 	unsigned int nArea, uStart, uSize;
 	TCIRCBLOCK cb;
+
 	dev_dbg(&pdx->interface->dev, "%s", __func__);
-	copy_from_user(&cb, pCB, sizeof(cb));
+
+	if (copy_from_user(&cb, pCB, sizeof(cb)))
+		return -EFAULT;
+
 	mutex_lock(&pdx->io_mutex);
 
 	nArea = cb.nArea;	// Retrieve parameters first
@@ -1472,7 +1507,9 @@ int FreeCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
 	} else
 		iReturn = U14ERR_BADAREA;
 
-	copy_to_user(pCB, &cb, sizeof(cb));
+	if (copy_to_user(pCB, &cb, sizeof(cb)))
+		return -EFAULT;
+
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
 }
