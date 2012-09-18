@@ -504,11 +504,13 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	if (server->sec_mode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		struct kvec iov;
 		int rc = 0;
+		struct smb_rqst rqst = { .rq_iov = &iov,
+					 .rq_nvec = 1 };
 
 		iov.iov_base = mid->resp_buf;
 		iov.iov_len = len;
 		/* FIXME: add code to kill session */
-		rc = cifs_verify_signature(&iov, 1, server,
+		rc = cifs_verify_signature(&rqst, server,
 					   mid->sequence_number + 1);
 		if (rc)
 			cERROR(1, "SMB signature verification returned error = "

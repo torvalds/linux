@@ -162,6 +162,20 @@ struct cifs_cred {
  *****************************************************************
  */
 
+/*
+ * A smb_rqst represents a complete request to be issued to a server. It's
+ * formed by a kvec array, followed by an array of pages. Page data is assumed
+ * to start at the beginning of the first page.
+ */
+struct smb_rqst {
+	struct kvec	*rq_iov;	/* array of kvecs */
+	unsigned int	rq_nvec;	/* number of kvecs in array */
+	struct page	**rq_pages;	/* pointer to array of page ptrs */
+	unsigned int	rq_npages;	/* number pages in array */
+	unsigned int	rq_pagesz;	/* page size to use */
+	unsigned int	rq_tailsz;	/* length of last page */
+};
+
 enum smb_version {
 	Smb_1 = 1,
 	Smb_21,

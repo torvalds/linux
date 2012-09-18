@@ -1541,6 +1541,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	struct cifs_readdata *rdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
+	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+				 .rq_nvec = rdata->nr_iov };
 
 	cFYI(1, "%s: mid=%llu state=%d result=%d bytes=%u", __func__,
 		mid->mid, mid->mid_state, rdata->result, rdata->bytes);
@@ -1552,9 +1554,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 			int rc = 0;
 
-			rc = cifs_verify_signature(rdata->iov, rdata->nr_iov,
-						   server,
-						   mid->sequence_number + 1);
+			rc = cifs_verify_signature(&rqst, server,
+						  mid->sequence_number + 1);
 			if (rc)
 				cERROR(1, "SMB signature verification returned "
 				       "error = %d", rc);

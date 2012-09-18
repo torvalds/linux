@@ -24,6 +24,7 @@
 
 struct statfs;
 struct smb_vol;
+struct smb_rqst;
 
 /*
  *****************************************************************
@@ -394,10 +395,12 @@ extern void sesInfoFree(struct cifs_ses *);
 extern struct cifs_tcon *tconInfoAlloc(void);
 extern void tconInfoFree(struct cifs_tcon *);
 
-extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
+extern int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
+		   __u32 *pexpected_response_sequence_number);
 extern int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 			  __u32 *);
-extern int cifs_verify_signature(struct kvec *iov, unsigned int nr_iov,
+extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
+extern int cifs_verify_signature(struct smb_rqst *rqst,
 				 struct TCP_Server_Info *server,
 				__u32 expected_sequence_number);
 extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *,
