@@ -739,6 +739,15 @@ cifs_flush_file(const unsigned int xid, struct cifs_tcon *tcon,
 	return CIFSSMBFlush(xid, tcon, fid->netfid);
 }
 
+static int
+cifs_sync_read(const unsigned int xid, struct cifsFileInfo *cfile,
+	       struct cifs_io_parms *parms, unsigned int *bytes_read,
+	       char **buf, int *buf_type)
+{
+	parms->netfid = cfile->fid.netfid;
+	return CIFSSMBRead(xid, parms, bytes_read, buf, buf_type);
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -787,6 +796,7 @@ struct smb_version_operations smb1_operations = {
 	.flush = cifs_flush_file,
 	.async_readv = cifs_async_readv,
 	.async_writev = cifs_async_writev,
+	.sync_read = cifs_sync_read,
 };
 
 struct smb_version_values smb1_values = {

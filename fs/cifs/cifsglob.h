@@ -174,6 +174,7 @@ struct smb_vol;
 struct cifs_fid;
 struct cifs_readdata;
 struct cifs_writedata;
+struct cifs_io_parms;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, void *,
@@ -286,6 +287,10 @@ struct smb_version_operations {
 	int (*async_readv)(struct cifs_readdata *);
 	/* async write to the server */
 	int (*async_writev)(struct cifs_writedata *);
+	/* sync read from the server */
+	int (*sync_read)(const unsigned int, struct cifsFileInfo *,
+			 struct cifs_io_parms *, unsigned int *, char **,
+			 int *);
 };
 
 struct smb_version_values {

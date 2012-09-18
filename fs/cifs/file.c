@@ -2782,8 +2782,8 @@ ssize_t cifs_strict_readv(struct kiocb *iocb, const struct iovec *iov,
 	return cifs_user_readv(iocb, iov, nr_segs, pos);
 }
 
-static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
-			 loff_t *poffset)
+static ssize_t
+cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
 {
 	int rc = -EACCES;
 	unsigned int bytes_read = 0;
@@ -2792,8 +2792,9 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	unsigned int rsize;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
 	unsigned int xid;
-	char *current_offset;
+	char *cur_offset;
 	struct cifsFileInfo *open_file;
 	struct cifs_io_parms io_parms;
 	int buf_type = CIFS_NO_BUFFER;
@@ -2812,6 +2813,12 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	}
 	open_file = file->private_data;
 	tcon = tlink_tcon(open_file->tlink);
+	server = tcon->ses->server;
+
+	if (!server->ops->sync_read) {
+		free_xid(xid);
+		return -ENOSYS;
+	}
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
 		pid = open_file->pid;
@@ -2821,9 +2828,8 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
 
-	for (total_read = 0, current_offset = read_data;
-	     read_size > total_read;
-	     total_read += bytes_read, current_offset += bytes_read) {
+	for (total_read = 0, cur_offset = read_data; read_size > total_read;
+	     total_read += bytes_read, cur_offset += bytes_read) {
 		current_read_size = min_t(uint, read_size - total_read, rsize);
 		/*
 		 * For windows me and 9x we do not want to request more than it
@@ -2841,13 +2847,13 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 				if (rc != 0)
 					break;
 			}
-			io_parms.netfid = open_file->fid.netfid;
 			io_parms.pid = pid;
 			io_parms.tcon = tcon;
-			io_parms.offset = *poffset;
+			io_parms.offset = *offset;
 			io_parms.length = current_read_size;
-			rc = CIFSSMBRead(xid, &io_parms, &bytes_read,
-					 &current_offset, &buf_type);
+			rc = server->ops->sync_read(xid, open_file, &io_parms,
+						    &bytes_read, &cur_offset,
+						    &buf_type);
 		}
 		if (rc || (bytes_read == 0)) {
 			if (total_read) {
@@ -2858,7 +2864,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 			}
 		} else {
 			cifs_stats_bytes_read(tcon, total_read);
-			*poffset += bytes_read;
+			*offset += bytes_read;
 		}
 	}
 	free_xid(xid);
