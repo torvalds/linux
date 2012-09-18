@@ -177,6 +177,7 @@ struct cifs_fid;
 struct cifs_readdata;
 struct cifs_writedata;
 struct cifs_io_parms;
+struct cifs_search_info;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, void *,
@@ -313,6 +314,20 @@ struct smb_version_operations {
 	int (*sync_write)(const unsigned int, struct cifsFileInfo *,
 			  struct cifs_io_parms *, unsigned int *, struct kvec *,
 			  unsigned long);
+	/* open dir, start readdir */
+	int (*query_dir_first)(const unsigned int, struct cifs_tcon *,
+			       const char *, struct cifs_sb_info *,
+			       struct cifs_fid *, __u16,
+			       struct cifs_search_info *);
+	/* continue readdir */
+	int (*query_dir_next)(const unsigned int, struct cifs_tcon *,
+			      struct cifs_fid *,
+			      __u16, struct cifs_search_info *srch_inf);
+	/* close dir */
+	int (*close_dir)(const unsigned int, struct cifs_tcon *,
+			 struct cifs_fid *);
+	/* calculate a size of SMB message */
+	unsigned int (*calc_smb_size)(void *);
 };
 
 struct smb_version_values {

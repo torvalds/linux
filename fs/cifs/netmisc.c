@@ -913,8 +913,9 @@ map_smb_to_linux_error(char *buf, bool logErr)
  * portion, the number of word parameters and the data portion of the message
  */
 unsigned int
-smbCalcSize(struct smb_hdr *ptr)
+smbCalcSize(void *buf)
 {
+	struct smb_hdr *ptr = (struct smb_hdr *)buf;
 	return (sizeof(struct smb_hdr) + (2 * ptr->WordCount) +
 		2 /* size of the bcc field */ + get_bcc(ptr));
 }
