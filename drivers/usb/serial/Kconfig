@@ -182,6 +182,14 @@ config USB_SERIAL_VISOR
 	  To compile this driver as a module, choose M here: the
 	  module will be called visor.
 
+config USB_SERIAL_VIZZINI
+	tristate "USB Vizzini Serial Converter Driver"
+	help
+	  Say Y here if you have a Vizzini USB to serial device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vizzini.
+
 config USB_SERIAL_IPAQ
 	tristate "USB PocketPC PDA Driver"
 	help
