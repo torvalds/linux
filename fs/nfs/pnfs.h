@@ -234,6 +234,7 @@ struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
 /* nfs4_deviceid_flags */
 enum {
 	NFS_DEVICEID_INVALID = 0,       /* set when MDS clientid recalled */
+	NFS_DEVICEID_UNAVAILABLE,	/* device temporarily unavailable */
 };
 
 /* pnfs_dev.c */
@@ -243,6 +244,7 @@ struct nfs4_deviceid_node {
 	const struct pnfs_layoutdriver_type *ld;
 	const struct nfs_client		*nfs_client;
 	unsigned long 			flags;
+	unsigned long			timestamp_unavailable;
 	struct nfs4_deviceid		deviceid;
 	atomic_t			ref;
 };
@@ -255,6 +257,8 @@ void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
 			     const struct nfs4_deviceid *);
 struct nfs4_deviceid_node *nfs4_insert_deviceid_node(struct nfs4_deviceid_node *);
 bool nfs4_put_deviceid_node(struct nfs4_deviceid_node *);
+void nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node);
+bool nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
 
 static inline void

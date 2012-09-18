@@ -205,7 +205,7 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -EPIPE:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
-		filelayout_mark_devid_invalid(devid);
+		nfs4_mark_deviceid_unavailable(devid);
 		clear_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags);
 		_pnfs_return_layout(inode);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
@@ -267,6 +267,22 @@ filelayout_set_layoutcommit(struct nfs_write_data *wdata)
 	pnfs_set_layoutcommit(wdata);
 	dprintk("%s ionde %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
 		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
+}
+
+bool
+filelayout_test_devid_unavailable(struct nfs4_deviceid_node *node)
+{
+	return filelayout_test_devid_invalid(node) ||
+		nfs4_test_deviceid_unavailable(node);
+}
+
+static bool
+filelayout_reset_to_mds(struct pnfs_layout_segment *lseg)
+{
+	struct nfs4_deviceid_node *node = FILELAYOUT_DEVID_NODE(lseg);
+
+	return filelayout_test_layout_invalid(lseg->pls_layout) ||
+		filelayout_test_devid_unavailable(node);
 }
 
 /*
@@ -613,8 +629,8 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 			goto out;
 	} else
 		dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
-	/* Found deviceid is being reaped */
-	if (test_bit(NFS_DEVICEID_INVALID, &dsaddr->id_node.flags))
+	/* Found deviceid is unavailable */
+	if (filelayout_test_devid_unavailable(&dsaddr->id_node))
 			goto out_put;
 
 	fl->dsaddr = dsaddr;

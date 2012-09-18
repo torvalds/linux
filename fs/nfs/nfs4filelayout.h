@@ -140,12 +140,8 @@ filelayout_test_devid_invalid(struct nfs4_deviceid_node *node)
 	return test_bit(NFS_DEVICEID_INVALID, &node->flags);
 }
 
-static inline bool
-filelayout_reset_to_mds(struct pnfs_layout_segment *lseg)
-{
-	return filelayout_test_devid_invalid(FILELAYOUT_DEVID_NODE(lseg)) ||
-		filelayout_test_layout_invalid(lseg->pls_layout);
-}
+extern bool
+filelayout_test_devid_unavailable(struct nfs4_deviceid_node *node);
 
 extern struct nfs_fh *
 nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j);
