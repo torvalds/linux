@@ -39,10 +39,7 @@
 #include <linux/kfifo.h>
 #include "pl2303.h"
 
-/*
- * Version Information
- */
-#define DRIVER_AUTHOR "Greg Kroah-Hartman, greg@kroah.com, http://www.kroah.com/linux/"
+#define DRIVER_AUTHOR "Greg Kroah-Hartman <gregkh@linuxfoundation.org>"
 #define DRIVER_DESC "USB Serial Driver core"
 
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
@@ -1264,8 +1261,6 @@ static int __init usb_serial_init(void)
 		goto exit_generic;
 	}
 
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
-
 	return result;
 
 exit_generic:
@@ -1350,8 +1345,7 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 		pr_err("problem %d when registering driver %s\n", retval, driver->description);
 		list_del(&driver->driver_list);
 	} else
-		printk(KERN_INFO "USB Serial support registered for %s\n",
-						driver->description);
+		pr_info("USB Serial support registered for %s\n", driver->description);
 
 	mutex_unlock(&table_lock);
 	return retval;
@@ -1359,8 +1353,7 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 
 static void usb_serial_deregister(struct usb_serial_driver *device)
 {
-	printk(KERN_INFO "USB Serial deregistering driver %s\n",
-	       device->description);
+	pr_info("USB Serial deregistering driver %s\n", device->description);
 	mutex_lock(&table_lock);
 	list_del(&device->driver_list);
 	usb_serial_bus_deregister(device);
