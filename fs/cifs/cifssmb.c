@@ -2123,8 +2123,7 @@ async_writev_out:
 
 int
 CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
-	      unsigned int *nbytes, struct kvec *iov, int n_vec,
-	      const int long_op)
+	      unsigned int *nbytes, struct kvec *iov, int n_vec)
 {
 	int rc = -EACCES;
 	WRITE_REQ *pSMB = NULL;
@@ -2195,8 +2194,7 @@ CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 		iov[0].iov_len = smb_hdr_len + 8;
 
 
-	rc = SendReceive2(xid, tcon->ses, iov, n_vec + 1, &resp_buf_type,
-			  long_op);
+	rc = SendReceive2(xid, tcon->ses, iov, n_vec + 1, &resp_buf_type, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_writes);
 	if (rc) {
 		cFYI(1, "Send error Write2 = %d", rc);

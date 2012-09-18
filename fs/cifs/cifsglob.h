@@ -291,6 +291,10 @@ struct smb_version_operations {
 	int (*sync_read)(const unsigned int, struct cifsFileInfo *,
 			 struct cifs_io_parms *, unsigned int *, char **,
 			 int *);
+	/* sync write to the server */
+	int (*sync_write)(const unsigned int, struct cifsFileInfo *,
+			  struct cifs_io_parms *, unsigned int *, struct kvec *,
+			  unsigned long);
 };
 
 struct smb_version_values {
