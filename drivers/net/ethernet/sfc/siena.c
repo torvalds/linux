@@ -30,7 +30,6 @@
 /* Hardware control for SFC9000 family including SFL9021 (aka Siena). */
 
 static void siena_init_wol(struct efx_nic *efx);
-static int siena_reset_hw(struct efx_nic *efx, enum reset_type method);
 
 
 static void siena_push_irq_moderation(struct efx_channel *channel)
@@ -178,7 +177,7 @@ static int siena_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 	/* Reset the chip immediately so that it is completely
 	 * quiescent regardless of what any VF driver does.
 	 */
-	rc = siena_reset_hw(efx, reset_method);
+	rc = efx_mcdi_reset(efx, reset_method);
 	if (rc)
 		goto out;
 
@@ -187,7 +186,7 @@ static int siena_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 				       ARRAY_SIZE(siena_register_tests))
 		? -1 : 1;
 
-	rc = siena_reset_hw(efx, reset_method);
+	rc = efx_mcdi_reset(efx, reset_method);
 out:
 	rc2 = efx_reset_up(efx, reset_method, rc == 0);
 	return rc ? rc : rc2;
@@ -199,11 +198,6 @@ out:
  *
  **************************************************************************
  */
-
-static enum reset_type siena_map_reset_reason(enum reset_type reason)
-{
-	return RESET_TYPE_RECOVER_OR_ALL;
-}
 
 static int siena_map_reset_flags(u32 *flags)
 {
@@ -228,21 +222,6 @@ static int siena_map_reset_flags(u32 *flags)
 	/* no invisible reset implemented */
 
 	return -EINVAL;
-}
-
-static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
-{
-	int rc;
-
-	/* Recover from a failed assertion pre-reset */
-	rc = efx_mcdi_handle_assertion(efx);
-	if (rc)
-		return rc;
-
-	if (method == RESET_TYPE_WORLD)
-		return efx_mcdi_reset_mc(efx);
-	else
-		return efx_mcdi_reset_port(efx);
 }
 
 #ifdef CONFIG_EEH
@@ -327,7 +306,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 			  "Host already registered with MCPU\n");
 
 	/* Now we can reset the NIC */
-	rc = siena_reset_hw(efx, RESET_TYPE_ALL);
+	rc = efx_mcdi_reset(efx, RESET_TYPE_ALL);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev, "failed to reset NIC\n");
 		goto fail3;
@@ -458,7 +437,7 @@ static void siena_remove_nic(struct efx_nic *efx)
 
 	efx_nic_free_buffer(efx, &efx->irq_status);
 
-	siena_reset_hw(efx, RESET_TYPE_ALL);
+	efx_mcdi_reset(efx, RESET_TYPE_ALL);
 
 	/* Relinquish the device back to the BMC */
 	efx_mcdi_drv_attach(efx, false, NULL);
@@ -688,9 +667,9 @@ const struct efx_nic_type siena_a0_nic_type = {
 #else
 	.monitor = NULL,
 #endif
-	.map_reset_reason = siena_map_reset_reason,
+	.map_reset_reason = efx_mcdi_map_reset_reason,
 	.map_reset_flags = siena_map_reset_flags,
-	.reset = siena_reset_hw,
+	.reset = efx_mcdi_reset,
 	.probe_port = siena_probe_port,
 	.remove_port = siena_remove_port,
 	.prepare_flush = siena_prepare_flush,

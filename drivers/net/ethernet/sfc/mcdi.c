@@ -1087,7 +1087,7 @@ void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 			  __func__, rc);
 }
 
-int efx_mcdi_reset_port(struct efx_nic *efx)
+static int efx_mcdi_reset_port(struct efx_nic *efx)
 {
 	int rc = efx_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, NULL, 0, NULL, 0, NULL);
 	if (rc)
@@ -1096,7 +1096,7 @@ int efx_mcdi_reset_port(struct efx_nic *efx)
 	return rc;
 }
 
-int efx_mcdi_reset_mc(struct efx_nic *efx)
+static int efx_mcdi_reset_mc(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_REBOOT_IN_LEN);
 	int rc;
@@ -1112,6 +1112,26 @@ int efx_mcdi_reset_mc(struct efx_nic *efx)
 		rc = -EIO;
 	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
+}
+
+enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason)
+{
+	return RESET_TYPE_RECOVER_OR_ALL;
+}
+
+int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method)
+{
+	int rc;
+
+	/* Recover from a failed assertion pre-reset */
+	rc = efx_mcdi_handle_assertion(efx);
+	if (rc)
+		return rc;
+
+	if (method == RESET_TYPE_WORLD)
+		return efx_mcdi_reset_mc(efx);
+	else
+		return efx_mcdi_reset_port(efx);
 }
 
 static int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
