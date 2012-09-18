@@ -248,6 +248,11 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 		*len = le32_to_cpu(((struct smb2_read_rsp *)hdr)->DataLength);
 		break;
 	case SMB2_QUERY_DIRECTORY:
+		*off = le16_to_cpu(
+		  ((struct smb2_query_directory_rsp *)hdr)->OutputBufferOffset);
+		*len = le32_to_cpu(
+		  ((struct smb2_query_directory_rsp *)hdr)->OutputBufferLength);
+		break;
 	case SMB2_IOCTL:
 	case SMB2_CHANGE_NOTIFY:
 	default:
@@ -290,8 +295,9 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
  * portion, the number of word parameters and the data portion of the message.
  */
 unsigned int
-smb2_calc_size(struct smb2_hdr *hdr)
+smb2_calc_size(void *buf)
 {
+	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
 	struct smb2_pdu *pdu = (struct smb2_pdu *)hdr;
 	int offset; /* the offset from the beginning of SMB to data area */
 	int data_length; /* the length of the variable length data area */

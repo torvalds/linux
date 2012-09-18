@@ -424,6 +424,59 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 			    cfile->fid.volatile_fid, cfile->pid, &eof);
 }
 
+static int
+smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
+		     const char *path, struct cifs_sb_info *cifs_sb,
+		     struct cifs_fid *fid, __u16 search_flags,
+		     struct cifs_search_info *srch_inf)
+{
+	__le16 *utf16_path;
+	int rc;
+	__u64 persistent_fid, volatile_fid;
+
+	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
+	if (!utf16_path)
+		return -ENOMEM;
+
+	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
+		       FILE_READ_ATTRIBUTES | FILE_READ_DATA, FILE_OPEN, 0, 0,
+		       NULL);
+	kfree(utf16_path);
+	if (rc) {
+		cERROR(1, "open dir failed");
+		return rc;
+	}
+
+	srch_inf->entries_in_buffer = 0;
+	srch_inf->index_of_last_entry = 0;
+	fid->persistent_fid = persistent_fid;
+	fid->volatile_fid = volatile_fid;
+
+	rc = SMB2_query_directory(xid, tcon, persistent_fid, volatile_fid, 0,
+				  srch_inf);
+	if (rc) {
+		cERROR(1, "query directory failed");
+		SMB2_close(xid, tcon, persistent_fid, volatile_fid);
+	}
+	return rc;
+}
+
+static int
+smb2_query_dir_next(const unsigned int xid, struct cifs_tcon *tcon,
+		    struct cifs_fid *fid, __u16 search_flags,
+		    struct cifs_search_info *srch_inf)
+{
+	return SMB2_query_directory(xid, tcon, fid->persistent_fid,
+				    fid->volatile_fid, 0, srch_inf);
+}
+
+static int
+smb2_close_dir(const unsigned int xid, struct cifs_tcon *tcon,
+	       struct cifs_fid *fid)
+{
+	return SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -473,6 +526,10 @@ struct smb_version_operations smb21_operations = {
 	.async_writev = smb2_async_writev,
 	.sync_read = smb2_sync_read,
 	.sync_write = smb2_sync_write,
+	.query_dir_first = smb2_query_dir_first,
+	.query_dir_next = smb2_query_dir_next,
+	.close_dir = smb2_close_dir,
+	.calc_smb_size = smb2_calc_size,
 };
 
 struct smb_version_values smb21_values = {

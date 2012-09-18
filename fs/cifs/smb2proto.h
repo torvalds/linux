@@ -34,7 +34,7 @@ struct statfs;
  */
 extern int map_smb2_to_linux_error(char *buf, bool log_err);
 extern int smb2_check_message(char *buf, unsigned int length);
-extern unsigned int smb2_calc_size(struct smb2_hdr *hdr);
+extern unsigned int smb2_calc_size(void *buf);
 extern char *smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr);
 extern __le16 *cifs_convert_path_to_utf16(const char *from,
 					  struct cifs_sb_info *cifs_sb);
@@ -117,6 +117,9 @@ extern int smb2_async_writev(struct cifs_writedata *wdata);
 extern int SMB2_write(const unsigned int xid, struct cifs_io_parms *io_parms,
 		      unsigned int *nbytes, struct kvec *iov, int n_vec);
 extern int SMB2_echo(struct TCP_Server_Info *server);
+extern int SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
+				u64 persistent_fid, u64 volatile_fid, int index,
+				struct cifs_search_info *srch_inf);
 extern int SMB2_rename(const unsigned int xid, struct cifs_tcon *tcon,
 		       u64 persistent_fid, u64 volatile_fid,
 		       __le16 *target_file);
