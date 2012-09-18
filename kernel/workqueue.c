@@ -1649,16 +1649,8 @@ static void busy_worker_rebind_fn(struct work_struct *work)
 	struct worker *worker = container_of(work, struct worker, rebind_work);
 	struct global_cwq *gcwq = worker->pool->gcwq;
 
-	worker_maybe_bind_and_lock(worker);
-
-	/*
-	 * %WORKER_REBIND must be cleared even if the above binding failed;
-	 * otherwise, we may confuse the next CPU_UP cycle or oops / get
-	 * stuck by calling idle_worker_rebind() prematurely.  If CPU went
-	 * down again inbetween, %WORKER_UNBOUND would be set, so clearing
-	 * %WORKER_REBIND is always safe.
-	 */
-	worker_clr_flags(worker, WORKER_REBIND);
+	if (worker_maybe_bind_and_lock(worker))
+		worker_clr_flags(worker, WORKER_UNBOUND);
 
 	spin_unlock_irq(&gcwq->lock);
 }
@@ -1721,14 +1713,8 @@ static void rebind_workers(struct global_cwq *gcwq)
 
 	/* rebind busy workers */
 	for_each_busy_worker(worker, i, pos, gcwq) {
-		unsigned long worker_flags = worker->flags;
 		struct work_struct *rebind_work = &worker->rebind_work;
 		struct workqueue_struct *wq;
-
-		/* morph UNBOUND to REBIND atomically */
-		worker_flags &= ~WORKER_UNBOUND;
-		worker_flags |= WORKER_REBIND;
-		ACCESS_ONCE(worker->flags) = worker_flags;
 
 		if (test_and_set_bit(WORK_STRUCT_PENDING_BIT,
 				     work_data_bits(rebind_work)))
