@@ -1856,6 +1856,7 @@ static struct omap_clk omap2430_clks[] = {
 	CLK(NULL,	"func_32k_ck",	&func_32k_ck,	CK_243X),
 	CLK(NULL,	"secure_32k_ck", &secure_32k_ck, CK_243X),
 	CLK(NULL,	"osc_ck",	&osc_ck,	CK_243X),
+	CLK("twl",	"fck",		&osc_ck,	CK_243X),
 	CLK(NULL,	"sys_ck",	&sys_ck,	CK_243X),
 	CLK(NULL,	"alt_ck",	&alt_ck,	CK_243X),
 	CLK(NULL,	"mcbsp_clks",	&mcbsp_clks,	CK_243X),
