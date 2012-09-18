@@ -90,4 +90,9 @@ static inline unsigned long kvm_vcpu_get_hyp_pc(struct kvm_vcpu *vcpu)
 	return vcpu->arch.fault.hyp_pc;
 }
 
+static inline bool kvm_vcpu_dabt_isvalid(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_ISV;
+}
+
 #endif /* __ARM_KVM_EMULATE_H__ */
