@@ -4794,8 +4794,7 @@ static int find_event_handle(struct pevent *pevent, struct event_format *event)
 }
 
 /**
- * pevent_parse_event - parse the event format
- * @pevent: the handle to the pevent
+ * __pevent_parse_format - parse the event format
  * @buf: the buffer storing the event format string
  * @size: the size of @buf
  * @sys: the system the event belongs to
@@ -4807,15 +4806,16 @@ static int find_event_handle(struct pevent *pevent, struct event_format *event)
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
-				     unsigned long size, const char *sys)
+enum pevent_errno __pevent_parse_format(struct event_format **eventp,
+					struct pevent *pevent, const char *buf,
+					unsigned long size, const char *sys)
 {
 	struct event_format *event;
 	int ret;
 
 	init_input_buf(buf, size);
 
-	event = alloc_event();
+	*eventp = event = alloc_event();
 	if (!event)
 		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 
@@ -4849,9 +4849,6 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 		goto event_alloc_failed;
 	}
 
-	/* Add pevent to event so that it can be referenced */
-	event->pevent = pevent;
-
 	ret = event_read_format(event);
 	if (ret < 0) {
 		ret = PEVENT_ERRNO__READ_FORMAT_FAILED;
@@ -4862,19 +4859,16 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 	 * If the event has an override, don't print warnings if the event
 	 * print format fails to parse.
 	 */
-	if (find_event_handle(pevent, event))
+	if (pevent && find_event_handle(pevent, event))
 		show_warning = 0;
 
 	ret = event_read_print(event);
+	show_warning = 1;
+
 	if (ret < 0) {
-		show_warning = 1;
 		ret = PEVENT_ERRNO__READ_PRINT_FAILED;
 		goto event_parse_failed;
 	}
-	show_warning = 1;
-
-	if (add_event(pevent, event))
-		goto event_alloc_failed;
 
 	if (!ret && (event->flags & EVENT_FL_ISFTRACE)) {
 		struct format_field *field;
@@ -4898,21 +4892,75 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 		return 0;
 	}
 
+	return 0;
+
+ event_parse_failed:
+	event->flags |= EVENT_FL_FAILED;
+	return ret;
+
+ event_alloc_failed:
+	free(event->system);
+	free(event->name);
+	free(event);
+	*eventp = NULL;
+	return ret;
+}
+
+/**
+ * pevent_parse_format - parse the event format
+ * @buf: the buffer storing the event format string
+ * @size: the size of @buf
+ * @sys: the system the event belongs to
+ *
+ * This parses the event format and creates an event structure
+ * to quickly parse raw data for a given event.
+ *
+ * These files currently come from:
+ *
+ * /sys/kernel/debug/tracing/events/.../.../format
+ */
+enum pevent_errno pevent_parse_format(struct event_format **eventp, const char *buf,
+				      unsigned long size, const char *sys)
+{
+	return __pevent_parse_format(eventp, NULL, buf, size, sys);
+}
+
+/**
+ * pevent_parse_event - parse the event format
+ * @pevent: the handle to the pevent
+ * @buf: the buffer storing the event format string
+ * @size: the size of @buf
+ * @sys: the system the event belongs to
+ *
+ * This parses the event format and creates an event structure
+ * to quickly parse raw data for a given event.
+ *
+ * These files currently come from:
+ *
+ * /sys/kernel/debug/tracing/events/.../.../format
+ */
+enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
+				     unsigned long size, const char *sys)
+{
+	struct event_format *event = NULL;
+	int ret = __pevent_parse_format(&event, pevent, buf, size, sys);
+
+	if (event == NULL)
+		return ret;
+
+	/* Add pevent to event so that it can be referenced */
+	event->pevent = pevent;
+
+	if (add_event(pevent, event))
+		goto event_add_failed;
+
 #define PRINT_ARGS 0
 	if (PRINT_ARGS && event->print_fmt.args)
 		print_args(event->print_fmt.args);
 
 	return 0;
 
- event_parse_failed:
-	event->flags |= EVENT_FL_FAILED;
-	/* still add it even if it failed */
-	if (add_event(pevent, event))
-		goto event_alloc_failed;
-
-	return ret;
-
- event_alloc_failed:
+event_add_failed:
 	free(event->system);
 	free(event->name);
 	free(event);
@@ -5365,7 +5413,7 @@ static void free_formats(struct format *format)
 	free_format_fields(format->fields);
 }
 
-static void free_event(struct event_format *event)
+void pevent_free_format(struct event_format *event)
 {
 	free(event->name);
 	free(event->system);
@@ -5451,7 +5499,7 @@ void pevent_free(struct pevent *pevent)
 	}
 
 	for (i = 0; i < pevent->nr_events; i++)
-		free_event(pevent->events[i]);
+		pevent_free_format(pevent->events[i]);
 
 	while (pevent->handlers) {
 		handle = pevent->handlers;
