@@ -1133,35 +1133,35 @@ static void comedi_set_subdevice_runflags(struct comedi_subdevice *s,
 static int do_cmd_ioctl(struct comedi_device *dev,
 			struct comedi_cmd __user *arg, void *file)
 {
-	struct comedi_cmd user_cmd;
+	struct comedi_cmd cmd;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	int ret = 0;
 	unsigned int __user *chanlist_saver = NULL;
 
-	if (copy_from_user(&user_cmd, arg, sizeof(struct comedi_cmd))) {
+	if (copy_from_user(&cmd, arg, sizeof(struct comedi_cmd))) {
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
 	/* save user's chanlist pointer so it can be restored later */
-	chanlist_saver = user_cmd.chanlist;
+	chanlist_saver = cmd.chanlist;
 
-	if (user_cmd.subdev >= dev->n_subdevices) {
-		DPRINTK("%d no such subdevice\n", user_cmd.subdev);
+	if (cmd.subdev >= dev->n_subdevices) {
+		DPRINTK("%d no such subdevice\n", cmd.subdev);
 		return -ENODEV;
 	}
 
-	s = &dev->subdevices[user_cmd.subdev];
+	s = &dev->subdevices[cmd.subdev];
 	async = s->async;
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
-		DPRINTK("%d not valid subdevice\n", user_cmd.subdev);
+		DPRINTK("%d not valid subdevice\n", cmd.subdev);
 		return -EIO;
 	}
 
 	if (!s->do_cmd || !s->do_cmdtest || !s->async) {
 		DPRINTK("subdevice %i does not support commands\n",
-			user_cmd.subdev);
+			cmd.subdev);
 		return -EIO;
 	}
 
@@ -1179,23 +1179,23 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	s->busy = file;
 
 	/* make sure channel/gain list isn't too long */
-	if (user_cmd.chanlist_len > s->len_chanlist) {
+	if (cmd.chanlist_len > s->len_chanlist) {
 		DPRINTK("channel/gain list too long %u > %d\n",
-			user_cmd.chanlist_len, s->len_chanlist);
+			cmd.chanlist_len, s->len_chanlist);
 		ret = -EINVAL;
 		goto cleanup;
 	}
 
 	/* make sure channel/gain list isn't too short */
-	if (user_cmd.chanlist_len < 1) {
+	if (cmd.chanlist_len < 1) {
 		DPRINTK("channel/gain list too short %u < 1\n",
-			user_cmd.chanlist_len);
+			cmd.chanlist_len);
 		ret = -EINVAL;
 		goto cleanup;
 	}
 
 	kfree(async->cmd.chanlist);
-	async->cmd = user_cmd;
+	async->cmd = cmd;
 	async->cmd.data = NULL;
 	/* load channel/gain list */
 	async->cmd.chanlist =
@@ -1206,7 +1206,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		goto cleanup;
 	}
 
-	if (copy_from_user(async->cmd.chanlist, user_cmd.chanlist,
+	if (copy_from_user(async->cmd.chanlist, cmd.chanlist,
 			   async->cmd.chanlist_len * sizeof(int))) {
 		DPRINTK("fault reading chanlist\n");
 		ret = -EFAULT;
@@ -1226,11 +1226,11 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	if (async->cmd.flags & TRIG_BOGUS || ret) {
 		DPRINTK("test returned %d\n", ret);
-		user_cmd = async->cmd;
+		cmd = async->cmd;
 		/* restore chanlist pointer before copying back */
-		user_cmd.chanlist = chanlist_saver;
-		user_cmd.data = NULL;
-		if (copy_to_user(arg, &user_cmd, sizeof(struct comedi_cmd))) {
+		cmd.chanlist = chanlist_saver;
+		cmd.data = NULL;
+		if (copy_to_user(arg, &cmd, sizeof(struct comedi_cmd))) {
 			DPRINTK("fault writing cmd\n");
 			ret = -EFAULT;
 			goto cleanup;
