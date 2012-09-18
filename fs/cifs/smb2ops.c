@@ -404,6 +404,17 @@ smb2_sync_read(const unsigned int xid, struct cifsFileInfo *cfile,
 	return SMB2_read(xid, parms, bytes_read, buf, buf_type);
 }
 
+static int
+smb2_sync_write(const unsigned int xid, struct cifsFileInfo *cfile,
+		struct cifs_io_parms *parms, unsigned int *written,
+		struct kvec *iov, unsigned long nr_segs)
+{
+
+	parms->persistent_fid = cfile->fid.persistent_fid;
+	parms->volatile_fid = cfile->fid.volatile_fid;
+	return SMB2_write(xid, parms, written, iov, nr_segs);
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -447,6 +458,7 @@ struct smb_version_operations smb21_operations = {
 	.async_readv = smb2_async_readv,
 	.async_writev = smb2_async_writev,
 	.sync_read = smb2_sync_read,
+	.sync_write = smb2_sync_write,
 };
 
 struct smb_version_values smb21_values = {
