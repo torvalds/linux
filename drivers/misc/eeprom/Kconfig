@@ -50,7 +50,7 @@ config EEPROM_LEGACY
 
 config EEPROM_MAX6875
 	tristate "Maxim MAX6874/5 power supply supervisor"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	help
 	  If you say yes here you get read-only support for the user EEPROM of
 	  the Maxim MAX6874/5 EEPROM-programmable, quad power-supply
