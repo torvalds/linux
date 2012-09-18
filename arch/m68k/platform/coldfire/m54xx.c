@@ -30,14 +30,12 @@
 static void __init m54xx_uarts_init(void)
 {
 	/* enable io pins */
-	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD,
-		MCF_MBAR + MCF_PAR_PSC(0));
+	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD, MCFGPIO_PAR_PSC0);
 	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD | MCF_PAR_PSC_RTS_RTS,
-		MCF_MBAR + MCF_PAR_PSC(1));
+		MCFGPIO_PAR_PSC1);
 	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD | MCF_PAR_PSC_RTS_RTS |
-		MCF_PAR_PSC_CTS_CTS, MCF_MBAR + MCF_PAR_PSC(2));
-	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD,
-		MCF_MBAR + MCF_PAR_PSC(3));
+		MCF_PAR_PSC_CTS_CTS, MCFGPIO_PAR_PSC2);
+	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD, MCFGPIO_PAR_PSC3);
 }
 
 /***************************************************************************/
