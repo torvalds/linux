@@ -167,6 +167,7 @@
 #define MAX8907_MASK_OUT5V_VINEN	0x10
 #define MAX8907_MASK_OUT5V_ENSRC	0x0E
 #define MAX8907_MASK_OUT5V_EN		0x01
+#define MAX8907_MASK_POWER_OFF		0x40
 
 /* Regulator IDs */
 #define MAX8907_MBATT	0
@@ -231,6 +232,7 @@ enum {
 
 struct max8907_platform_data {
 	struct regulator_init_data *init_data[MAX8907_NUM_REGULATORS];
+	bool pm_off;
 };
 
 struct regmap_irq_chips_data;

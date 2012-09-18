@@ -176,11 +176,26 @@ static const struct regmap_irq_chip max8907_rtc_irq_chip = {
 	.num_irqs = ARRAY_SIZE(max8907_rtc_irqs),
 };
 
+struct max8907 *max8907_pm_off;
+static void max8907_power_off(void)
+{
+	regmap_update_bits(max8907_pm_off->regmap_gen, MAX8907_REG_RESET_CNFG,
+			MAX8907_MASK_POWER_OFF, MAX8907_MASK_POWER_OFF);
+}
+
 static __devinit int max8907_i2c_probe(struct i2c_client *i2c,
 				       const struct i2c_device_id *id)
 {
 	struct max8907 *max8907;
 	int ret;
+	struct max8907_platform_data *pdata = dev_get_platdata(&i2c->dev);
+	bool pm_off = false;
+
+	if (pdata)
+		pm_off = pdata->pm_off;
+	else if (i2c->dev.of_node)
+		pm_off = of_property_read_bool(i2c->dev.of_node,
+					"maxim,system-power-controller");
 
 	max8907 = devm_kzalloc(&i2c->dev, sizeof(struct max8907), GFP_KERNEL);
 	if (!max8907) {
@@ -249,6 +264,11 @@ static __devinit int max8907_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "failed to add MFD devices %d\n", ret);
 		goto err_add_devices;
+	}
+
+	if (pm_off && !pm_power_off) {
+		max8907_pm_off = max8907;
+		pm_power_off = max8907_power_off;
 	}
 
 	return 0;

@@ -16,6 +16,10 @@ Required properties:
   property, with valid values listed below. The content of each sub-node
   is defined by the standard binding for regulators; see regulator.txt.
 
+Optional properties:
+- maxim,system-power-controller: Boolean property indicating that the PMIC
+  controls the overall system power.
+
 Valid regulator-compatible values are:
 
   sd1, sd2, sd3, ldo1, ldo2, ldo3, ldo4, ldo5, ldo6, ldo7, ldo8, ldo9, ldo10,
@@ -28,6 +32,8 @@ Example:
 			compatible = "maxim,max8907";
 			reg = <0x3c>;
 			interrupts = <0 86 0x4>;
+
+			maxim,system-power-controller;
 
 			mbatt-supply = <&some_reg>;
 			in-v1-supply = <&mbatt_reg>;
