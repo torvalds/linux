@@ -95,4 +95,9 @@ static inline bool kvm_vcpu_dabt_isvalid(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & HSR_ISV;
 }
 
+static inline bool kvm_vcpu_dabt_iswrite(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_WNR;
+}
+
 #endif /* __ARM_KVM_EMULATE_H__ */
