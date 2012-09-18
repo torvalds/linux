@@ -347,19 +347,6 @@ static int test_bit(int nr, const volatile unsigned long *addr);
 	 ? constant_test_bit((nr), (addr))	\
 	 : variable_test_bit((nr), (addr)))
 
-#if (defined(CONFIG_X86_GENERIC) || defined(CONFIG_GENERIC_CPU)) \
-    && !defined(CONFIG_CC_OPTIMIZE_FOR_SIZE)
-/*
- * Since BSF and TZCNT have sufficiently similar semantics for the purposes
- * for which we use them here, BMI-capable hardware will decode the prefixed
- * variant as 'tzcnt ...' and may execute that faster than 'bsf ...', while
- * older hardware will ignore the REP prefix and decode it as 'bsf ...'.
- */
-# define BSF_PREFIX "rep;"
-#else
-# define BSF_PREFIX
-#endif
-
 /**
  * __ffs - find first set bit in word
  * @word: The word to search
@@ -368,7 +355,7 @@ static int test_bit(int nr, const volatile unsigned long *addr);
  */
 static inline unsigned long __ffs(unsigned long word)
 {
-	asm(BSF_PREFIX "bsf %1,%0"
+	asm("rep; bsf %1,%0"
 		: "=r" (word)
 		: "rm" (word));
 	return word;
@@ -382,13 +369,11 @@ static inline unsigned long __ffs(unsigned long word)
  */
 static inline unsigned long ffz(unsigned long word)
 {
-	asm(BSF_PREFIX "bsf %1,%0"
+	asm("rep; bsf %1,%0"
 		: "=r" (word)
 		: "r" (~word));
 	return word;
 }
-
-#undef BSF_PREFIX
 
 /*
  * __fls: find last set bit in word
