@@ -444,6 +444,17 @@ config GPIO_ADP5588_IRQ
 	  Say yes here to enable the adp5588 to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
 
+config GPIO_ADNP
+	tristate "Avionic Design N-bit GPIO expander"
+	depends on I2C && OF
+	help
+	  This option enables support for N GPIOs found on Avionic Design
+	  I2C GPIO expanders. The register space will be extended by powers
+	  of two, so the controller will need to accomodate for that. For
+	  example: if a controller provides 48 pins, 6 registers will be
+	  enough to represent all pins, but the driver will assume a
+	  register layout for 64 pins (8 registers).
+
 comment "PCI GPIO expanders:"
 
 config GPIO_CS5535
