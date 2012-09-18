@@ -228,6 +228,9 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 		return ret;
 	}
 
+	/* Store largest notifyid */
+	rproc->max_notifyid = max(rproc->max_notifyid, notifyid);
+
 	dev_dbg(dev, "vring%d: va %p dma %x size %x idr %d\n", i, va,
 					dma, size, notifyid);
 
@@ -269,13 +272,25 @@ rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 	return 0;
 }
 
+static int rproc_max_notifyid(int id, void *p, void *data)
+{
+	int *maxid = data;
+	*maxid = max(*maxid, id);
+	return 0;
+}
+
 void rproc_free_vring(struct rproc_vring *rvring)
 {
 	int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
 	struct rproc *rproc = rvring->rvdev->rproc;
+	int maxid = 0;
 
 	dma_free_coherent(rproc->dev.parent, size, rvring->va, rvring->dma);
 	idr_remove(&rproc->notifyids, rvring->notifyid);
+
+	/* Find the largest remaining notifyid */
+	idr_for_each(&rproc->notifyids, rproc_max_notifyid, &maxid);
+	rproc->max_notifyid = maxid;
 }
 
 /**
