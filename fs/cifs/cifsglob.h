@@ -171,6 +171,7 @@ struct cifs_tcon;
 struct dfs_info3_param;
 struct cifs_fattr;
 struct smb_vol;
+struct cifs_fid;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, void *,
@@ -262,6 +263,12 @@ struct smb_version_operations {
 	/* open, rename and delete file */
 	int (*rename_pending_delete)(const char *, struct dentry *,
 				     const unsigned int);
+	/* open a file for non-posix mounts */
+	int (*open)(const unsigned int, struct cifs_tcon *, const char *, int,
+		    int, int, struct cifs_fid *, __u32 *, FILE_ALL_INFO *,
+		    struct cifs_sb_info *);
+	/* set fid protocol-specific info */
+	void (*set_fid)(struct cifsFileInfo *, struct cifs_fid *, __u32);
 };
 
 struct smb_version_values {

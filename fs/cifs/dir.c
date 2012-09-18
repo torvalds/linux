@@ -377,11 +377,12 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	unsigned int xid;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
-	__u16 fileHandle;
+	struct cifs_fid fid;
 	__u32 oplock;
-	struct cifsFileInfo *pfile_info;
+	struct cifsFileInfo *file_info;
 
-	/* Posix open is only called (at lookup time) for file create now.  For
+	/*
+	 * Posix open is only called (at lookup time) for file create now. For
 	 * opens (rather than creates), because we do not know if it is a file
 	 * or directory yet, and current Samba no longer allows us to do posix
 	 * open on dirs, we could end up wasting an open call on what turns out
@@ -415,20 +416,20 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	tcon = tlink_tcon(tlink);
 
 	rc = cifs_do_create(inode, direntry, xid, tlink, oflags, mode,
-			    &oplock, &fileHandle, opened);
+			    &oplock, &fid.netfid, opened);
 
 	if (rc)
 		goto out;
 
 	rc = finish_open(file, direntry, generic_file_open, opened);
 	if (rc) {
-		CIFSSMBClose(xid, tcon, fileHandle);
+		CIFSSMBClose(xid, tcon, fid.netfid);
 		goto out;
 	}
 
-	pfile_info = cifs_new_fileinfo(fileHandle, file, tlink, oplock);
-	if (pfile_info == NULL) {
-		CIFSSMBClose(xid, tcon, fileHandle);
+	file_info = cifs_new_fileinfo(&fid, file, tlink, oplock);
+	if (file_info == NULL) {
+		CIFSSMBClose(xid, tcon, fid.netfid);
 		rc = -ENOMEM;
 	}
 

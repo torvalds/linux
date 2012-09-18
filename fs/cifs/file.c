@@ -169,16 +169,19 @@ posix_open_ret:
 
 static int
 cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
-	     struct cifs_tcon *tcon, unsigned int f_flags, __u32 *poplock,
-	     __u16 *pnetfid, unsigned int xid)
+	     struct cifs_tcon *tcon, unsigned int f_flags, __u32 *oplock,
+	     struct cifs_fid *fid, unsigned int xid)
 {
 	int rc;
-	int desiredAccess;
+	int desired_access;
 	int disposition;
 	int create_options = CREATE_NOT_DIR;
 	FILE_ALL_INFO *buf;
 
-	desiredAccess = cifs_convert_flags(f_flags);
+	if (!tcon->ses->server->ops->open)
+		return -ENOSYS;
+
+	desired_access = cifs_convert_flags(f_flags);
 
 /*********************************************************************
  *  open flag mapping table:
@@ -215,16 +218,9 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
-	if (tcon->ses->capabilities & CAP_NT_SMBS)
-		rc = CIFSSMBOpen(xid, tcon, full_path, disposition,
-			 desiredAccess, create_options, pnetfid, poplock, buf,
-			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
-				 & CIFS_MOUNT_MAP_SPECIAL_CHR);
-	else
-		rc = SMBLegacyOpen(xid, tcon, full_path, disposition,
-			desiredAccess, CREATE_NOT_DIR, pnetfid, poplock, buf,
-			cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
-				& CIFS_MOUNT_MAP_SPECIAL_CHR);
+	rc = tcon->ses->server->ops->open(xid, tcon, full_path, disposition,
+					  desired_access, create_options, fid,
+					  oplock, buf, cifs_sb);
 
 	if (rc)
 		goto out;
@@ -234,7 +230,7 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 					      xid);
 	else
 		rc = cifs_get_inode_info(&inode, full_path, buf, inode->i_sb,
-					 xid, pnetfid);
+					 xid, &fid->netfid);
 
 out:
 	kfree(buf);
@@ -242,7 +238,7 @@ out:
 }
 
 struct cifsFileInfo *
-cifs_new_fileinfo(__u16 fileHandle, struct file *file,
+cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 		  struct tcon_link *tlink, __u32 oplock)
 {
 	struct dentry *dentry = file->f_path.dentry;
@@ -255,7 +251,6 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 		return cfile;
 
 	cfile->count = 1;
-	cfile->fid.netfid = fileHandle;
 	cfile->pid = current->tgid;
 	cfile->uid = current_fsuid();
 	cfile->dentry = dget(dentry);
@@ -265,6 +260,7 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 	mutex_init(&cfile->fh_mutex);
 	INIT_WORK(&cfile->oplock_break, cifs_oplock_break);
 	INIT_LIST_HEAD(&cfile->llist);
+	tlink_tcon(tlink)->ses->server->ops->set_fid(cfile, fid, oplock);
 
 	spin_lock(&cifs_file_list_lock);
 	list_add(&cfile->tlist, &(tlink_tcon(tlink)->openFileList));
@@ -274,9 +270,6 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 	else
 		list_add_tail(&cfile->flist, &cinode->openFileList);
 	spin_unlock(&cifs_file_list_lock);
-
-	cifs_set_oplock_level(cinode, oplock);
-	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
 
 	file->private_data = cfile;
 	return cfile;
@@ -364,10 +357,10 @@ int cifs_open(struct inode *inode, struct file *file)
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
-	struct cifsFileInfo *pCifsFile = NULL;
+	struct cifsFileInfo *cfile = NULL;
 	char *full_path = NULL;
 	bool posix_open_ok = false;
-	__u16 netfid;
+	struct cifs_fid fid;
 
 	xid = get_xid();
 
@@ -399,7 +392,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		/* can not refresh inode info since size could be stale */
 		rc = cifs_posix_open(full_path, &inode, inode->i_sb,
 				cifs_sb->mnt_file_mode /* ignored */,
-				file->f_flags, &oplock, &netfid, xid);
+				file->f_flags, &oplock, &fid.netfid, xid);
 		if (rc == 0) {
 			cFYI(1, "posix open succeeded");
 			posix_open_ok = true;
@@ -415,20 +408,22 @@ int cifs_open(struct inode *inode, struct file *file)
 		} else if ((rc != -EIO) && (rc != -EREMOTE) &&
 			 (rc != -EOPNOTSUPP)) /* path not found or net err */
 			goto out;
-		/* else fallthrough to retry open the old way on network i/o
-		   or DFS errors */
+		/*
+		 * Else fallthrough to retry open the old way on network i/o
+		 * or DFS errors.
+		 */
 	}
 
 	if (!posix_open_ok) {
 		rc = cifs_nt_open(full_path, inode, cifs_sb, tcon,
-				  file->f_flags, &oplock, &netfid, xid);
+				  file->f_flags, &oplock, &fid, xid);
 		if (rc)
 			goto out;
 	}
 
-	pCifsFile = cifs_new_fileinfo(netfid, file, tlink, oplock);
-	if (pCifsFile == NULL) {
-		CIFSSMBClose(xid, tcon, netfid);
+	cfile = cifs_new_fileinfo(&fid, file, tlink, oplock);
+	if (cfile == NULL) {
+		CIFSSMBClose(xid, tcon, fid.netfid);
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -436,8 +431,10 @@ int cifs_open(struct inode *inode, struct file *file)
 	cifs_fscache_set_inode_cookie(inode, file);
 
 	if ((oplock & CIFS_CREATE_ACTION) && !posix_open_ok && tcon->unix_ext) {
-		/* time to set mode which we can not set earlier due to
-		   problems creating new read-only files */
+		/*
+		 * Time to set mode which we can not set earlier due to
+		 * problems creating new read-only files.
+		 */
 		struct cifs_unix_set_info_args args = {
 			.mode	= inode->i_mode,
 			.uid	= NO_CHANGE_64,
@@ -447,8 +444,8 @@ int cifs_open(struct inode *inode, struct file *file)
 			.mtime	= NO_CHANGE_64,
 			.device	= 0,
 		};
-		CIFSSMBUnixSetFileInfo(xid, tcon, &args, netfid,
-					pCifsFile->pid);
+		CIFSSMBUnixSetFileInfo(xid, tcon, &args, fid.netfid,
+				       cfile->pid);
 	}
 
 out:

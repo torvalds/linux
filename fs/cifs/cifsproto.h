@@ -121,9 +121,10 @@ extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
 extern void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
 
-extern struct cifsFileInfo *cifs_new_fileinfo(__u16 fileHandle,
-				struct file *file, struct tcon_link *tlink,
-				__u32 oplock);
+extern struct cifsFileInfo *cifs_new_fileinfo(struct cifs_fid *fid,
+					      struct file *file,
+					      struct tcon_link *tlink,
+					      __u32 oplock);
 extern int cifs_posix_open(char *full_path, struct inode **inode,
 			   struct super_block *sb, int mode,
 			   unsigned int f_flags, __u32 *oplock, __u16 *netfid,

@@ -607,6 +607,33 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 		cifsInode->cifsAttrs = dosattrs;
 }
 
+static int
+cifs_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
+	       int disposition, int desired_access, int create_options,
+	       struct cifs_fid *fid, __u32 *oplock, FILE_ALL_INFO *buf,
+	       struct cifs_sb_info *cifs_sb)
+{
+	if (!(tcon->ses->capabilities & CAP_NT_SMBS))
+		return SMBLegacyOpen(xid, tcon, path, disposition,
+				     desired_access, CREATE_NOT_DIR,
+				     &fid->netfid, oplock, buf,
+				     cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
+						& CIFS_MOUNT_MAP_SPECIAL_CHR);
+	return CIFSSMBOpen(xid, tcon, path, disposition, desired_access,
+			   create_options, &fid->netfid, oplock, buf,
+			   cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+}
+
+static void
+cifs_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
+{
+	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	cfile->fid.netfid = fid->netfid;
+	cifs_set_oplock_level(cinode, oplock);
+	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -646,6 +673,8 @@ struct smb_version_operations smb1_operations = {
 	.rmdir = CIFSSMBRmDir,
 	.unlink = CIFSSMBDelFile,
 	.rename_pending_delete = cifs_rename_pending_delete,
+	.open = cifs_open_file,
+	.set_fid = cifs_set_fid,
 };
 
 struct smb_version_values smb1_values = {
