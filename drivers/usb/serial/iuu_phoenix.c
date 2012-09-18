@@ -32,13 +32,6 @@
 #include "iuu_phoenix.h"
 #include <linux/random.h>
 
-
-#ifdef CONFIG_USB_SERIAL_DEBUG
-static bool debug = 1;
-#else
-static bool debug;
-#endif
-
 /*
  * Version Information
  */
@@ -1248,8 +1241,6 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(DRIVER_VERSION);
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 module_param(xmas, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(xmas, "Xmas colors enabled or not");
