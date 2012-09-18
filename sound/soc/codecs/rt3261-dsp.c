@@ -25,7 +25,7 @@
 #include "rt3261-dsp.h"
 
 static const u16 rt3261_dsp_init[][2] = {
-	{0x3fd2, 0x0038}, {0x229C, 0x0fa0}, {0x22d2, 0x8400}, {0x22ee, 0x0001},
+	{0x3fd2, 0x0038}, {0x229C, 0x0fa0}, {0x22d2, 0x8400}, {0x22ee, 0x0000},
 	{0x22f2, 0x0040}, {0x22f5, 0x8000}, {0x22f6, 0x0000}, {0x22f9, 0x007f},
 	{0x2310, 0x0880},
 };
@@ -42,7 +42,7 @@ unsigned short rt3261_dsp_48[][2] = {
 //static const u16 rt3261_dsp_441[][2] = {
 unsigned short rt3261_dsp_441[][2] = {
 	{0x22c6, 0x0031}, {0x22c7, 0x0050}, {0x22c8, 0x0009}, {0x22fe, 0x0e5b},
-	{0x22ff, 0x3c83}, {0x22fa, 0x2484}, {0x2301, 0x0001},
+	{0x22ff, 0x3883}, {0x22fa, 0x2484}, {0x2301, 0x0001},
 };
 #define RT3261_DSP_441_NUM (sizeof(rt3261_dsp_441) / sizeof(rt3261_dsp_441[0]))
 
@@ -222,6 +222,7 @@ static int rt3261_dsp_done(struct snd_soc_codec *codec)
 	return 0;
 }
 
+
 /**
  * rt3261_dsp_write - Write DSP register.
  * @codec: SoC audio codec device.
@@ -233,7 +234,7 @@ static int rt3261_dsp_done(struct snd_soc_codec *codec)
  *
  * Returns 0 for success or negative error code.
  */
-static int rt3261_dsp_write(struct snd_soc_codec *codec,
+int rt3261_dsp_write(struct snd_soc_codec *codec,
 		struct rt3261_dsp_param *param)
 {
 	unsigned int dsp_val = snd_soc_read(codec, RT3261_DSP_CTRL3);
@@ -273,6 +274,8 @@ err:
 	return ret;
 }
 
+EXPORT_SYMBOL_GPL(rt3261_dsp_write);
+
 /**
  * rt3261_dsp_read - Read DSP register.
  * @codec: SoC audio codec device.
@@ -284,7 +287,7 @@ err:
  *
  * Returns DSP register value or negative error code.
  */
-static unsigned int rt3261_dsp_read(
+unsigned int rt3261_dsp_read(
 	struct snd_soc_codec *codec, unsigned int reg)
 {
 	unsigned int val_h, val_l, value;
@@ -373,6 +376,7 @@ static unsigned int rt3261_dsp_read(
 err:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rt3261_dsp_read);
 
 static int rt3261_dsp_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -1055,12 +1059,12 @@ int rt3261_dsp_probe(struct snd_soc_codec *codec)
 	rt3261_dsp_conf(codec);
 	ret = rt3261_dsp_read(codec, 0x3800);
 	pr_info("DSP version code = 0x%04x\n",ret);
-	if(ret != 0x501a) {
+	/*if(ret != 0x501a) {
 		rt3261 = snd_soc_codec_get_drvdata(codec);
 		INIT_DELAYED_WORK(&rt3261->patch_work, rt3261_do_dsp_patch);
 		schedule_delayed_work(&rt3261->patch_work,
 				msecs_to_jiffies(100));
-	}
+	}*/
 	snd_soc_update_bits(codec, RT3261_PWR_DIG2,
 		RT3261_PWR_I2S_DSP, 0);
 

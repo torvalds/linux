@@ -33,7 +33,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
-char debug_write_read = 0;
 #endif
 
 static struct snd_soc_codec *rt3261_codec;
@@ -2945,7 +2944,11 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	int ret;
 	struct clk *iis_clk;
 
-	pr_info("Codec driver version %s\n", VERSION);
+	#if defined (CONFIG_SND_SOC_RT3224)
+	pr_info("Codec driver version %s, in fact you choose rt3224, no dsp!\n", VERSION);
+	#else
+	pr_info("Codec driver version %s, in fact you choose rt3261 with a dsp!\n", VERSION);
+	#endif
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
@@ -3241,6 +3244,7 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 	int reg;
 	int i;
 	int value;
+	struct rt3261_dsp_param param;
 
 	cookie_pot = (char *)vmalloc( len );
 	if (!cookie_pot) 
@@ -3255,21 +3259,11 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 
 	switch(cookie_pot[0])
 	{
-		case 'd':
-		case 'D':
-			debug_write_read ++;
-			debug_write_read %= 2;
-			if(debug_write_read != 0)
-				printk("Debug read and write reg on\n");
-			else	
-				printk("Debug read and write reg off\n");	
-			break;	
 		case 'r':
 		case 'R':
 			printk("Read reg debug\n");		
 			if(cookie_pot[1] ==':')
 			{
-				debug_write_read = 1;
 				strsep(&cookie_pot,":");
 				while((p=strsep(&cookie_pot,",")))
 				{
@@ -3277,7 +3271,6 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 					value = rt3261_read(rt3261_codec,reg);
 					printk("rt3261_read:0x%04x = 0x%04x\n",reg,value);
 				}
-				debug_write_read = 0;
 				printk("\n");
 			}
 			else
@@ -3291,7 +3284,6 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 			printk("Write reg debug\n");		
 			if(cookie_pot[1] ==':')
 			{
-				debug_write_read = 1;
 				strsep(&cookie_pot,":");
 				while((p=strsep(&cookie_pot,"=")))
 				{
@@ -3301,7 +3293,6 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 					rt3261_write(rt3261_codec,reg,value);
 					printk("rt3261_write:0x%04x = 0x%04x\n",reg,value);
 				}
-				debug_write_read = 0;
 				printk("\n");
 			}
 			else
@@ -3311,15 +3302,48 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 			}
 			break;
 		case 'a':
-			printk("Dump rt3261 dsp reg \n");		
+			printk("Dump rt3261 index reg \n");		
 
 			for (i = 0; i < 0xb4; i++) 
 			{
 				value = rt3261_index_read(rt3261_codec, i);
 				printk("rt3261_index_read:0x%04x = 0x%04x\n",i,value);
 			}
-
-			break;		
+			break;	
+		#if defined (CONFIG_SND_SOC_RT3261)
+		case 'b':
+			param.cmd_fmt =  0x00e0;
+			param.cmd = RT3261_DSP_CMD_MW;
+			printk("Write dsp reg debug\n");		
+			if(cookie_pot[1] ==':')
+			{
+				strsep(&cookie_pot,":");
+				while((p=strsep(&cookie_pot,"=")))
+				{
+					param.addr = simple_strtol(p,NULL,16);
+					p=strsep(&cookie_pot,",");
+					param.data = simple_strtol(p,NULL,16);
+					rt3261_dsp_write(rt3261_codec,&param);
+					printk("rt3261_dsp_write:0x%04x = 0x%04x\n",param.addr,param.data);
+				}
+				printk("\n");
+			}
+			break;
+		case 'c':
+			printk("Read dsp reg debug\n");		
+			if(cookie_pot[1] ==':')
+			{
+				strsep(&cookie_pot,":");
+				while((p=strsep(&cookie_pot,",")))
+				{
+					reg = simple_strtol(p,NULL,16);
+					value = rt3261_dsp_read(rt3261_codec,reg);
+					printk("rt3261_dsp_read:0x%04x = 0x%04x\n",reg,value);
+				}
+				printk("\n");
+			}
+			break;
+		#endif
 		default:
 			printk("Help for rt3261_ts .\n-->The Cmd list: \n");
 			printk("-->'d&&D' Open or Off the debug\n");

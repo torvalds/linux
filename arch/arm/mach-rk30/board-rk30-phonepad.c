@@ -2239,7 +2239,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
                 .flags                  = 0,
         },
 #endif
-#if defined (CONFIG_SND_SOC_RT3261)
+#if defined (CONFIG_SND_SOC_RT3224) || defined (CONFIG_SND_SOC_RT3261)
         {
                 .type                   = "rt3261",
                 .addr                   = 0x1c,
