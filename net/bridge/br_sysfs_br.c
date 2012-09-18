@@ -14,6 +14,7 @@
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
@@ -310,7 +311,7 @@ static ssize_t store_group_addr(struct device *d,
 
 	/* Must be 01:80:c2:00:00:0X */
 	for (i = 0; i < 5; i++)
-		if (new_addr[i] != br_group_address[i])
+		if (new_addr[i] != br_reserved_address[i])
 			return -EINVAL;
 
 	if (new_addr[5] & ~0xf)
