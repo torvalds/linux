@@ -185,6 +185,10 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *, void *,
 		const struct thermal_cooling_device_ops *);
 void thermal_cooling_device_unregister(struct thermal_cooling_device *);
 
+int get_tz_trend(struct thermal_zone_device *, int);
+struct thermal_instance *get_thermal_instance(struct thermal_zone_device *,
+		struct thermal_cooling_device *, int);
+
 #ifdef CONFIG_NET
 extern int thermal_generate_netlink_event(u32 orig, enum events event);
 #else
