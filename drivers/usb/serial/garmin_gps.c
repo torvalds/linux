@@ -258,10 +258,7 @@ static void send_to_tty(struct usb_serial_port *port,
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
 
 	if (tty && actual_length) {
-
-		usb_serial_debug_data(debug, &port->dev,
-					__func__, actual_length, data);
-
+		usb_serial_debug_data(&port->dev, __func__, actual_length, data);
 		tty_insert_flip_string(tty, data, actual_length);
 		tty_flip_buffer_push(tty);
 	}
@@ -410,8 +407,8 @@ static int gsp_rec_packet(struct garmin_data *garmin_data_p, int count)
 	int pktid = recpkt[0];
 	int size = recpkt[1];
 
-	usb_serial_debug_data(debug, &garmin_data_p->port->dev,
-			       __func__, count-GSP_INITIAL_OFFSET, recpkt);
+	usb_serial_debug_data(&garmin_data_p->port->dev, __func__,
+			      count-GSP_INITIAL_OFFSET, recpkt);
 
 	if (size != (count-GSP_INITIAL_OFFSET-3)) {
 		dev_dbg(dev, "%s - invalid size, expected %d bytes, got %d\n",
@@ -642,8 +639,8 @@ static int gsp_send(struct garmin_data *garmin_data_p,
 
 	/* garmin_data_p->outbuffer now contains a complete packet */
 
-	usb_serial_debug_data(debug, &garmin_data_p->port->dev,
-				__func__, k, garmin_data_p->outbuffer);
+	usb_serial_debug_data(&garmin_data_p->port->dev, __func__, k,
+			      garmin_data_p->outbuffer);
 
 	garmin_data_p->outsize = 0;
 
@@ -1038,7 +1035,7 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 
 	memcpy(buffer, buf, count);
 
-	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
+	usb_serial_debug_data(&port->dev, __func__, count, buffer);
 
 	usb_fill_bulk_urb(urb, serial->dev,
 				usb_sndbulkpipe(serial->dev,
@@ -1084,7 +1081,7 @@ static int garmin_write(struct tty_struct *tty, struct usb_serial_port *port,
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 	__le32 *privpkt = (__le32 *)garmin_data_p->privpkt;
 
-	usb_serial_debug_data(debug, dev, __func__, count, buf);
+	usb_serial_debug_data(dev, __func__, count, buf);
 
 	if (garmin_data_p->state == STATE_RESET)
 		return -EIO;
@@ -1225,8 +1222,7 @@ static void garmin_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	usb_serial_debug_data(debug, &port->dev,
-				__func__, urb->actual_length, data);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
 	garmin_read_process(garmin_data_p, data, urb->actual_length, 1);
 
@@ -1284,8 +1280,8 @@ static void garmin_read_int_callback(struct urb *urb)
 		return;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
-				urb->actual_length, urb->transfer_buffer);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length,
+			      urb->transfer_buffer);
 
 	if (urb->actual_length == sizeof(GARMIN_BULK_IN_AVAIL_REPLY) &&
 	    0 == memcmp(data, GARMIN_BULK_IN_AVAIL_REPLY,

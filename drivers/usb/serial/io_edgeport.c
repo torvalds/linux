@@ -599,7 +599,7 @@ static void edge_interrupt_callback(struct urb *urb)
 
 	/* process this interrupt-read even if there are no ports open */
 	if (length) {
-		usb_serial_debug_data(debug, dev, __func__, length, data);
+		usb_serial_debug_data(dev, __func__, length, data);
 
 		if (length > 1) {
 			bytes_avail = data[0] | (data[1] << 8);
@@ -705,7 +705,7 @@ static void edge_bulk_in_callback(struct urb *urb)
 	dev = &edge_serial->serial->dev->dev;
 	raw_data_length = urb->actual_length;
 
-	usb_serial_debug_data(debug, dev, __func__, raw_data_length, data);
+	usb_serial_debug_data(dev, __func__, raw_data_length, data);
 
 	spin_lock(&edge_serial->es_lock);
 
@@ -1178,8 +1178,7 @@ static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	/* now copy our data */
 	memcpy(&fifo->fifo[fifo->head], data, firsthalf);
-	usb_serial_debug_data(debug, &port->dev, __func__,
-					firsthalf, &fifo->fifo[fifo->head]);
+	usb_serial_debug_data(&port->dev, __func__, firsthalf, &fifo->fifo[fifo->head]);
 
 	/* update the index and size */
 	fifo->head  += firsthalf;
@@ -1194,8 +1193,7 @@ static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (secondhalf) {
 		dev_dbg(&port->dev, "%s - copy rest of data %d\n", __func__, secondhalf);
 		memcpy(&fifo->fifo[fifo->head], &data[firsthalf], secondhalf);
-		usb_serial_debug_data(debug, &port->dev, __func__,
-					secondhalf, &fifo->fifo[fifo->head]);
+		usb_serial_debug_data(&port->dev, __func__, secondhalf, &fifo->fifo[fifo->head]);
 		/* update the index and size */
 		fifo->count += secondhalf;
 		fifo->head  += secondhalf;
@@ -1312,8 +1310,7 @@ static void send_more_port_data(struct edgeport_serial *edge_serial,
 	}
 
 	if (count)
-		usb_serial_debug_data(debug, &edge_port->port->dev,
-						__func__, count, &buffer[2]);
+		usb_serial_debug_data(&edge_port->port->dev, __func__, count, &buffer[2]);
 
 	/* fill up the urb with all of our data and submit it */
 	usb_fill_bulk_urb(urb, edge_serial->serial->dev,
@@ -2305,7 +2302,7 @@ static int write_cmd_usb(struct edgeport_port *edge_port,
 	int status = 0;
 	struct urb *urb;
 
-	usb_serial_debug_data(debug, dev, __func__, length, buffer);
+	usb_serial_debug_data(dev, __func__, length, buffer);
 
 	/* Allocate our next urb */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);

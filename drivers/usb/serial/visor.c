@@ -310,8 +310,8 @@ static void visor_read_int_callback(struct urb *urb)
 	 * Rumor has it this endpoint is used to notify when data
 	 * is ready to be read from the bulk ones.
 	 */
-	usb_serial_debug_data(debug, &port->dev, __func__,
-			      urb->actual_length, urb->transfer_buffer);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length,
+			      urb->transfer_buffer);
 
 exit:
 	result = usb_submit_urb(urb, GFP_ATOMIC);
@@ -443,8 +443,7 @@ static int palm_os_4_probe(struct usb_serial *serial,
 		dev_err(dev, "%s - error %d getting connection info\n",
 			__func__, retval);
 	else
-		usb_serial_debug_data(debug, &serial->dev->dev, __func__,
-				      retval, transfer_buffer);
+		usb_serial_debug_data(dev, __func__, retval, transfer_buffer);
 
 	kfree(transfer_buffer);
 	return 0;

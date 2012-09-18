@@ -607,8 +607,7 @@ static void command_port_read_callback(struct urb *urb)
 		return;
 	}
 
-	usb_serial_debug_data(debug, &command_port->dev,
-				__func__, urb->actual_length, data);
+	usb_serial_debug_data(&command_port->dev, __func__, urb->actual_length, data);
 
 	if (data[0] == WHITEHEAT_CMD_COMPLETE) {
 		command_info->command_finished = WHITEHEAT_CMD_COMPLETE;

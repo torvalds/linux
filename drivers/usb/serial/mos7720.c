@@ -1266,7 +1266,7 @@ static int mos7720_write(struct tty_struct *tty, struct usb_serial_port *port,
 	transfer_size = min(count, URB_TRANSFER_BUFFER_SIZE);
 
 	memcpy(urb->transfer_buffer, current_position, transfer_size);
-	usb_serial_debug_data(debug, &port->dev, __func__, transfer_size,
+	usb_serial_debug_data(&port->dev, __func__, transfer_size,
 			      urb->transfer_buffer);
 
 	/* fill urb with data and submit  */

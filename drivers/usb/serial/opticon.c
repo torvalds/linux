@@ -87,8 +87,7 @@ static void opticon_read_bulk_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length,
-			      data);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
 	if (urb->actual_length > 2) {
 		data_length = urb->actual_length - 2;
@@ -276,7 +275,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	memcpy(buffer, buf, count);
 
-	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
+	usb_serial_debug_data(&port->dev, __func__, count, buffer);
 
 	/* The conncected devices do not have a bulk write endpoint,
 	 * to transmit data to de barcode device the control endpoint is used */

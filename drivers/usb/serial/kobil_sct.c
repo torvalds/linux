@@ -392,8 +392,7 @@ static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	/* Copy data to buffer */
 	memcpy(priv->buf + priv->filled, buf, count);
-	usb_serial_debug_data(debug, &port->dev, __func__, count,
-						priv->buf + priv->filled);
+	usb_serial_debug_data(&port->dev, __func__, count, priv->buf + priv->filled);
 	priv->filled = priv->filled + count;
 
 	/* only send complete block. TWIN, KAAN SIM and adapter K

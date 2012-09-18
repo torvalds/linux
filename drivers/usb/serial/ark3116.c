@@ -650,8 +650,7 @@ static void ark3116_read_int_callback(struct urb *urb)
 		/*
 		 * Not sure what this data meant...
 		 */
-		usb_serial_debug_data(debug, &port->dev,
-				      __func__,
+		usb_serial_debug_data(&port->dev, __func__,
 				      urb->actual_length,
 				      urb->transfer_buffer);
 		break;

@@ -1161,8 +1161,8 @@ static void ti_bulk_in_callback(struct urb *urb)
 	tty = tty_port_tty_get(&port->port);
 	if (tty) {
 		if (urb->actual_length) {
-			usb_serial_debug_data(debug, dev, __func__,
-				urb->actual_length, urb->transfer_buffer);
+			usb_serial_debug_data(dev, __func__, urb->actual_length,
+					      urb->transfer_buffer);
 
 			if (!tport->tp_is_open)
 				dev_dbg(dev, "%s - port closed, dropping data\n",
@@ -1267,8 +1267,8 @@ static void ti_send(struct ti_port *tport)
 
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
-	usb_serial_debug_data(debug, &port->dev, __func__, count,
-					port->write_urb->transfer_buffer);
+	usb_serial_debug_data(&port->dev, __func__, count,
+			      port->write_urb->transfer_buffer);
 
 	usb_fill_bulk_urb(port->write_urb, port->serial->dev,
 			   usb_sndbulkpipe(port->serial->dev,

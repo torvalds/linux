@@ -222,8 +222,7 @@ static int cyberjack_write(struct tty_struct *tty,
 	/* Copy data */
 	memcpy(priv->wrbuf + priv->wrfilled, buf, count);
 
-	usb_serial_debug_data(debug, dev, __func__, count,
-		priv->wrbuf + priv->wrfilled);
+	usb_serial_debug_data(dev, __func__, count, priv->wrbuf + priv->wrfilled);
 	priv->wrfilled += count;
 
 	if (priv->wrfilled >= 3) {
@@ -295,7 +294,7 @@ static void cyberjack_read_int_callback(struct urb *urb)
 	if (status)
 		return;
 
-	usb_serial_debug_data(debug, dev, __func__, urb->actual_length, data);
+	usb_serial_debug_data(dev, __func__, urb->actual_length, data);
 
 	/* React only to interrupts signaling a bulk_in transfer */
 	if (urb->actual_length == 4 && data[0] == 0x01) {
@@ -348,8 +347,7 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 	int result;
 	int status = urb->status;
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
-						urb->actual_length, data);
+	usb_serial_debug_data(dev, __func__, urb->actual_length, data);
 	if (status) {
 		dev_dbg(dev, "%s - nonzero read bulk status received: %d\n",
 			__func__, status);

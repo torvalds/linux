@@ -55,8 +55,7 @@ static void navman_read_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
-			      urb->actual_length, data);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
 	tty = tty_port_tty_get(&port->port);
 	if (tty && urb->actual_length) {

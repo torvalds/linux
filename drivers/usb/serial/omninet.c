@@ -228,8 +228,8 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 	memcpy(wport->write_urb->transfer_buffer + OMNINET_DATAOFFSET,
 								buf, count);
 
-	usb_serial_debug_data(debug, &port->dev, __func__, count,
-					wport->write_urb->transfer_buffer);
+	usb_serial_debug_data(&port->dev, __func__, count,
+			      wport->write_urb->transfer_buffer);
 
 	header->oh_seq 	= od->od_outseq++;
 	header->oh_len 	= count;

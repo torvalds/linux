@@ -355,14 +355,12 @@ extern struct usb_serial_driver usb_serial_generic_device;
 extern struct bus_type usb_serial_bus_type;
 extern struct tty_driver *usb_serial_tty_driver;
 
-static inline void usb_serial_debug_data(int debug,
-					 struct device *dev,
+static inline void usb_serial_debug_data(struct device *dev,
 					 const char *function, int size,
 					 const unsigned char *data)
 {
-	if (debug)
-		dev_printk(KERN_DEBUG, dev, "%s - length = %d, data = %*ph\n",
-			   function, size, size, data);
+	dev_dbg(dev, "%s - length = %d, data = %*ph\n",
+		function, size, size, data);
 }
 
 /*
