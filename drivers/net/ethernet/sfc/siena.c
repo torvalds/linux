@@ -274,6 +274,7 @@ fail4:
 fail3:
 	efx_mcdi_drv_attach(efx, false, NULL);
 fail2:
+	efx_mcdi_fini(efx);
 fail1:
 	kfree(efx->nic_data);
 	return rc;
@@ -367,6 +368,8 @@ static void siena_remove_nic(struct efx_nic *efx)
 	/* Tear down the private nic state */
 	kfree(efx->nic_data);
 	efx->nic_data = NULL;
+
+	efx_mcdi_fini(efx);
 }
 
 static int siena_try_update_nic_stats(struct efx_nic *efx)
@@ -574,6 +577,89 @@ static void siena_init_wol(struct efx_nic *efx)
 	}
 }
 
+/**************************************************************************
+ *
+ * MCDI
+ *
+ **************************************************************************
+ */
+
+#define MCDI_PDU(efx)							\
+	(efx_port_num(efx) ? MC_SMEM_P1_PDU_OFST : MC_SMEM_P0_PDU_OFST)
+#define MCDI_DOORBELL(efx)						\
+	(efx_port_num(efx) ? MC_SMEM_P1_DOORBELL_OFST : MC_SMEM_P0_DOORBELL_OFST)
+#define MCDI_STATUS(efx)						\
+	(efx_port_num(efx) ? MC_SMEM_P1_STATUS_OFST : MC_SMEM_P0_STATUS_OFST)
+
+static void siena_mcdi_request(struct efx_nic *efx,
+			       const efx_dword_t *hdr, size_t hdr_len,
+			       const efx_dword_t *sdu, size_t sdu_len)
+{
+	unsigned pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
+	unsigned doorbell = FR_CZ_MC_TREG_SMEM + MCDI_DOORBELL(efx);
+	unsigned int i;
+	unsigned int inlen_dw = DIV_ROUND_UP(sdu_len, 4);
+
+	EFX_BUG_ON_PARANOID(hdr_len != 4);
+
+	efx_writed(efx, hdr, pdu);
+
+	for (i = 0; i < inlen_dw; i++)
+		efx_writed(efx, &sdu[i], pdu + hdr_len + 4 * i);
+
+	/* Ensure the request is written out before the doorbell */
+	wmb();
+
+	/* ring the doorbell with a distinctive value */
+	_efx_writed(efx, (__force __le32) 0x45789abc, doorbell);
+}
+
+static bool siena_mcdi_poll_response(struct efx_nic *efx)
+{
+	unsigned int pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
+	efx_dword_t hdr;
+
+	efx_readd(efx, &hdr, pdu);
+
+	/* All 1's indicates that shared memory is in reset (and is
+	 * not a valid hdr). Wait for it to come out reset before
+	 * completing the command
+	 */
+	return EFX_DWORD_FIELD(hdr, EFX_DWORD_0) != 0xffffffff &&
+		EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE);
+}
+
+static void siena_mcdi_read_response(struct efx_nic *efx, efx_dword_t *outbuf,
+				     size_t offset, size_t outlen)
+{
+	unsigned int pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
+	unsigned int outlen_dw = DIV_ROUND_UP(outlen, 4);
+	int i;
+
+	for (i = 0; i < outlen_dw; i++)
+		efx_readd(efx, &outbuf[i], pdu + offset + 4 * i);
+}
+
+static int siena_mcdi_poll_reboot(struct efx_nic *efx)
+{
+	unsigned int addr = FR_CZ_MC_TREG_SMEM + MCDI_STATUS(efx);
+	efx_dword_t reg;
+	u32 value;
+
+	efx_readd(efx, &reg, addr);
+	value = EFX_DWORD_FIELD(reg, EFX_DWORD_0);
+
+	if (value == 0)
+		return 0;
+
+	EFX_ZERO_DWORD(reg);
+	efx_writed(efx, &reg, addr);
+
+	if (value == MC_STATUS_DWORD_ASSERT)
+		return -EINTR;
+	else
+		return -EIO;
+}
 
 /**************************************************************************
  *
@@ -613,6 +699,10 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.resume_wol = siena_init_wol,
 	.test_chip = siena_test_chip,
 	.test_nvram = efx_mcdi_nvram_test_all,
+	.mcdi_request = siena_mcdi_request,
+	.mcdi_poll_response = siena_mcdi_poll_response,
+	.mcdi_read_response = siena_mcdi_read_response,
+	.mcdi_poll_reboot = siena_mcdi_poll_reboot,
 
 	.revision = EFX_REV_SIENA_A0,
 	.mem_map_size = (FR_CZ_MC_TREG_SMEM +

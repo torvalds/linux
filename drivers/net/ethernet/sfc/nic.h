@@ -140,27 +140,11 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 
 /**
  * struct siena_nic_data - Siena NIC state
- * @mcdi: Management-Controller-to-Driver Interface
  * @wol_filter_id: Wake-on-LAN packet filter id
- * @hwmon: Hardware monitor state
  */
 struct siena_nic_data {
-	struct efx_mcdi_iface mcdi;
 	int wol_filter_id;
-#ifdef CONFIG_SFC_MCDI_MON
-	struct efx_mcdi_mon hwmon;
-#endif
 };
-
-#ifdef CONFIG_SFC_MCDI_MON
-static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
-{
-	struct siena_nic_data *nic_data;
-	EFX_BUG_ON_PARANOID(efx_nic_rev(efx) < EFX_REV_SIENA_A0);
-	nic_data = efx->nic_data;
-	return &nic_data->hwmon;
-}
-#endif
 
 /*
  * On the SFC9000 family each port is associated with 1 PCI physical

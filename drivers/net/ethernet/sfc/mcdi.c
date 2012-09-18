@@ -24,13 +24,6 @@
 
 #define MCDI_RPC_TIMEOUT       (10 * HZ)
 
-#define MCDI_PDU(efx)							\
-	(efx_port_num(efx) ? MC_SMEM_P1_PDU_OFST : MC_SMEM_P0_PDU_OFST)
-#define MCDI_DOORBELL(efx)						\
-	(efx_port_num(efx) ? MC_SMEM_P1_DOORBELL_OFST : MC_SMEM_P0_DOORBELL_OFST)
-#define MCDI_STATUS(efx)						\
-	(efx_port_num(efx) ? MC_SMEM_P1_STATUS_OFST : MC_SMEM_P0_STATUS_OFST)
-
 /* A reboot/assertion causes the MCDI status word to be set after the
  * command word is set or a REBOOT event is sent. If we notice a reboot
  * via these mechanisms then wait 10ms for the status word to be set. */
@@ -44,15 +37,17 @@
 
 static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
 {
-	struct siena_nic_data *nic_data;
-	EFX_BUG_ON_PARANOID(efx_nic_rev(efx) < EFX_REV_SIENA_A0);
-	nic_data = efx->nic_data;
-	return &nic_data->mcdi;
+	EFX_BUG_ON_PARANOID(!efx->mcdi);
+	return &efx->mcdi->iface;
 }
 
 int efx_mcdi_init(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
+
+	efx->mcdi = kzalloc(sizeof(*efx->mcdi), GFP_KERNEL);
+	if (!efx->mcdi)
+		return -ENOMEM;
 
 	mcdi = efx_mcdi(efx);
 	init_waitqueue_head(&mcdi->wq);
@@ -66,16 +61,19 @@ int efx_mcdi_init(struct efx_nic *efx)
 	return efx_mcdi_handle_assertion(efx);
 }
 
+void efx_mcdi_fini(struct efx_nic *efx)
+{
+	BUG_ON(efx->mcdi &&
+	       atomic_read(&efx->mcdi->iface.state) != MCDI_STATE_QUIESCENT);
+	kfree(efx->mcdi);
+}
+
 static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 			    const efx_dword_t *inbuf, size_t inlen)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
-	unsigned pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
-	unsigned doorbell = FR_CZ_MC_TREG_SMEM + MCDI_DOORBELL(efx);
-	unsigned int i;
 	efx_dword_t hdr;
 	u32 xflags, seqno;
-	unsigned int inlen_dw = DIV_ROUND_UP(inlen, 4);
 
 	BUG_ON(atomic_read(&mcdi->state) == MCDI_STATE_QUIESCENT);
 	BUG_ON(inlen > MCDI_CTL_SDU_LEN_MAX_V1);
@@ -93,31 +91,18 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 			     MCDI_HEADER_SEQ, seqno,
 			     MCDI_HEADER_XFLAGS, xflags);
 
-	efx_writed(efx, &hdr, pdu);
-
-	for (i = 0; i < inlen_dw; i++)
-		efx_writed(efx, &inbuf[i], pdu + 4 + 4 * i);
-
-	/* Ensure the payload is written out before the header */
-	wmb();
-
-	/* ring the doorbell with a distinctive value */
-	_efx_writed(efx, (__force __le32) 0x45789abc, doorbell);
+	efx->type->mcdi_request(efx, &hdr, 4, inbuf, inlen);
 }
 
 static void
 efx_mcdi_copyout(struct efx_nic *efx, efx_dword_t *outbuf, size_t outlen)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
-	unsigned int pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
-	unsigned int outlen_dw = DIV_ROUND_UP(outlen, 4);
-	int i;
 
 	BUG_ON(atomic_read(&mcdi->state) == MCDI_STATE_QUIESCENT);
 	BUG_ON(outlen > MCDI_CTL_SDU_LEN_MAX_V1);
 
-	for (i = 0; i < outlen_dw; i++)
-		efx_readd(efx, &outbuf[i], pdu + 4 + 4 * i);
+	efx->type->mcdi_read_response(efx, outbuf, 4, outlen);
 }
 
 static int efx_mcdi_poll(struct efx_nic *efx)
@@ -125,7 +110,6 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	unsigned long time, finish;
 	unsigned int respseq, respcmd, error;
-	unsigned int pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
 	unsigned int rc, spins;
 	efx_dword_t reg;
 
@@ -152,19 +136,14 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 		time = jiffies;
 
 		rmb();
-		efx_readd(efx, &reg, pdu);
-
-		/* All 1's indicates that shared memory is in reset (and is
-		 * not a valid header). Wait for it to come out reset before
-		 * completing the command */
-		if (EFX_DWORD_FIELD(reg, EFX_DWORD_0) != 0xffffffff &&
-		    EFX_DWORD_FIELD(reg, MCDI_HEADER_RESPONSE))
+		if (efx->type->mcdi_poll_response(efx))
 			break;
 
 		if (time_after(time, finish))
 			return -ETIMEDOUT;
 	}
 
+	efx->type->mcdi_read_response(efx, &reg, 0, 4);
 	mcdi->resplen = EFX_DWORD_FIELD(reg, MCDI_HEADER_DATALEN);
 	respseq = EFX_DWORD_FIELD(reg, MCDI_HEADER_SEQ);
 	respcmd = EFX_DWORD_FIELD(reg, MCDI_HEADER_CODE);
@@ -179,7 +158,7 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 			  respseq, mcdi->seqno);
 		rc = EIO;
 	} else if (error) {
-		efx_readd(efx, &reg, pdu + 4);
+		efx->type->mcdi_read_response(efx, &reg, 4, 4);
 		switch (EFX_DWORD_FIELD(reg, EFX_DWORD_0)) {
 #define TRANSLATE_ERROR(name)					\
 		case MC_CMD_ERR_ ## name:			\
@@ -215,17 +194,13 @@ out:
  */
 int efx_mcdi_poll_reboot(struct efx_nic *efx)
 {
-	unsigned int addr = FR_CZ_MC_TREG_SMEM + MCDI_STATUS(efx);
-	efx_dword_t reg;
-	uint32_t value;
+	int rc;
 
-	if (efx_nic_rev(efx) < EFX_REV_SIENA_A0)
-		return false;
+	if (!efx->mcdi)
+		return 0;
 
-	efx_readd(efx, &reg, addr);
-	value = EFX_DWORD_FIELD(reg, EFX_DWORD_0);
-
-	if (value == 0)
+	rc = efx->type->mcdi_poll_reboot(efx);
+	if (!rc)
 		return 0;
 
 	/* MAC statistics have been cleared on the NIC; clear our copy
@@ -233,13 +208,7 @@ int efx_mcdi_poll_reboot(struct efx_nic *efx)
 	 */
 	memset(&efx->mac_stats, 0, sizeof(efx->mac_stats));
 
-	EFX_ZERO_DWORD(reg);
-	efx_writed(efx, &reg, addr);
-
-	if (value == MC_STATUS_DWORD_ASSERT)
-		return -EINTR;
-	else
-		return -EIO;
+	return rc;
 }
 
 static void efx_mcdi_acquire(struct efx_mcdi_iface *mcdi)
@@ -345,8 +314,6 @@ void efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 
-	BUG_ON(efx_nic_rev(efx) < EFX_REV_SIENA_A0);
-
 	efx_mcdi_acquire(mcdi);
 
 	/* Serialise with efx_mcdi_ev_cpl() and efx_mcdi_ev_death() */
@@ -363,8 +330,6 @@ int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	int rc;
-
-	BUG_ON(efx_nic_rev(efx) < EFX_REV_SIENA_A0);
 
 	if (mcdi->mode == MCDI_MODE_POLL)
 		rc = efx_mcdi_poll(efx);
@@ -426,7 +391,7 @@ void efx_mcdi_mode_poll(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
 
-	if (efx_nic_rev(efx) < EFX_REV_SIENA_A0)
+	if (!efx->mcdi)
 		return;
 
 	mcdi = efx_mcdi(efx);
@@ -450,7 +415,7 @@ void efx_mcdi_mode_event(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
 
-	if (efx_nic_rev(efx) < EFX_REV_SIENA_A0)
+	if (!efx->mcdi)
 		return;
 
 	mcdi = efx_mcdi(efx);

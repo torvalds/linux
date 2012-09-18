@@ -65,7 +65,28 @@ struct efx_mcdi_mon {
 	unsigned int n_attrs;
 };
 
+/**
+ * struct efx_mcdi_data - extra state for NICs that implement MCDI
+ * @iface: Interface/protocol state
+ * @hwmon: Hardware monitor state
+ */
+struct efx_mcdi_data {
+	struct efx_mcdi_iface iface;
+#ifdef CONFIG_SFC_MCDI_MON
+	struct efx_mcdi_mon hwmon;
+#endif
+};
+
+#ifdef CONFIG_SFC_MCDI_MON
+static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
+{
+	EFX_BUG_ON_PARANOID(!efx->mcdi);
+	return &efx->mcdi->hwmon;
+}
+#endif
+
 extern int efx_mcdi_init(struct efx_nic *efx);
+extern void efx_mcdi_fini(struct efx_nic *efx);
 
 extern int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 			const efx_dword_t *inbuf, size_t inlen,

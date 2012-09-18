@@ -718,6 +718,7 @@ struct vfdi_status;
  * @selftest_work: Work item for asynchronous self-test
  * @mtd_list: List of MTDs attached to the NIC
  * @nic_data: Hardware dependent state
+ * @mcdi: Management-Controller-to-Driver Interface state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
  *	efx_monitor() and efx_reconfigure_port()
  * @port_enabled: Port enabled indicator.
@@ -847,6 +848,7 @@ struct efx_nic {
 #endif
 
 	void *nic_data;
+	struct efx_mcdi_data *mcdi;
 
 	struct mutex mac_lock;
 	struct work_struct mac_work;
@@ -956,6 +958,17 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @test_chip: Test registers.  Should use efx_nic_test_registers(), and is
  *	expected to reset the NIC.
  * @test_nvram: Test validity of NVRAM contents
+ * @mcdi_request: Send an MCDI request with the given header and SDU.
+ *	The SDU length may be any value from 0 up to the protocol-
+ *	defined maximum, but its buffer will be padded to a multiple
+ *	of 4 bytes.
+ * @mcdi_poll_response: Test whether an MCDI response is available.
+ * @mcdi_read_response: Read the MCDI response PDU.  The offset will
+ *	be a multiple of 4.  The length may not be, but the buffer
+ *	will be padded so it is safe to round up.
+ * @mcdi_poll_reboot: Test whether the MCDI has rebooted.  If so,
+ *	return an appropriate error code for aborting any current
+ *	request; otherwise return 0.
  * @revision: Hardware architecture revision
  * @mem_map_size: Memory BAR mapped size
  * @txd_ptr_tbl_base: TX descriptor ring base address
@@ -1004,6 +1017,13 @@ struct efx_nic_type {
 	void (*resume_wol)(struct efx_nic *efx);
 	int (*test_chip)(struct efx_nic *efx, struct efx_self_tests *tests);
 	int (*test_nvram)(struct efx_nic *efx);
+	void (*mcdi_request)(struct efx_nic *efx,
+			     const efx_dword_t *hdr, size_t hdr_len,
+			     const efx_dword_t *sdu, size_t sdu_len);
+	bool (*mcdi_poll_response)(struct efx_nic *efx);
+	void (*mcdi_read_response)(struct efx_nic *efx, efx_dword_t *pdu,
+				   size_t pdu_offset, size_t pdu_len);
+	int (*mcdi_poll_reboot)(struct efx_nic *efx);
 
 	int revision;
 	unsigned int mem_map_size;
