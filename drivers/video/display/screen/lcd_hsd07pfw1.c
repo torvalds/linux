@@ -87,97 +87,97 @@ int dsp_lut[256] ={
 /* scaler Timing    */
 //1920*1080*60
 
-#define S_OUT_CLK		SCALE_RATE(148500000,66000000) //m=16 n=9 no=4
+#define S_OUT_CLK		SCALE_RATE(148500000,50625000)
 #define S_H_PW			10
 #define S_H_BP			10
-#define S_H_VD			1280
-#define S_H_FP			20
+#define S_H_VD			1024
+#define S_H_FP			306
 
 #define S_V_PW			10
 #define S_V_BP			10
-#define S_V_VD			800
-#define S_V_FP			13
+#define S_V_VD			600
+#define S_V_FP			5
 
-#define S_H_ST			440
-#define S_V_ST			13
+#define S_H_ST			0
+#define S_V_ST			5
 
 //1920*1080*50
-#define S1_OUT_CLK		SCALE_RATE(148500000,57375000)  //m=17 n=11 no=4 
+#define S1_OUT_CLK		SCALE_RATE(148500000,45375000)
 #define S1_H_PW			10
 #define S1_H_BP			10
-#define S1_H_VD			1280
-#define S1_H_FP			77
+#define S1_H_VD			1024
+#define S1_H_FP			408
 
 #define S1_V_PW			10
 #define S1_V_BP			10
-#define S1_V_VD			800
-#define S1_V_FP			13
+#define S1_V_VD			600
+#define S1_V_FP			5
 
-#define S1_H_ST			459
-#define S1_V_ST			13
+#define S1_H_ST			0
+#define S1_V_ST			5
 
 //1280*720*60
-#define S2_OUT_CLK		SCALE_RATE(74250000,66000000)  //m=32 n=9 no=4
+#define S2_OUT_CLK		SCALE_RATE(74250000,50625000)  
 #define S2_H_PW			10
 #define S2_H_BP			10
-#define S2_H_VD			1280
-#define S2_H_FP			20
+#define S2_H_VD			1024
+#define S2_H_FP			306
 
 #define S2_V_PW			10
 #define S2_V_BP			10
-#define S2_V_VD			800
-#define S2_V_FP			13
+#define S2_V_VD			600
+#define S2_V_FP			5
 
-#define S2_H_ST			440
-#define S2_V_ST			13
+#define S2_H_ST			0
+#define S2_V_ST			3
 
 //1280*720*50
 
-#define S3_OUT_CLK		SCALE_RATE(74250000,57375000)   // m=34 n=11 no=4
+#define S3_OUT_CLK		SCALE_RATE(74250000,44343750)   
 #define S3_H_PW			10
 #define S3_H_BP			10
-#define S3_H_VD			1280
-#define S3_H_FP			77
+#define S3_H_VD			1024
+#define S3_H_FP			375
 
 #define S3_V_PW			10
 #define S3_V_BP			10
-#define S3_V_VD			800
-#define S3_V_FP			13
+#define S3_V_VD			600
+#define S3_V_FP			3
 
-#define S3_H_ST			459
-#define S3_V_ST			13
+#define S3_H_ST			0
+#define S3_V_ST			3
 
 //720*576*50
-#define S4_OUT_CLK		SCALE_RATE(27000000,63281250)  //m=75 n=4 no=8
+#define S4_OUT_CLK		SCALE_RATE(27000000,46875000)  
 #define S4_H_PW			10
 #define S4_H_BP			10
-#define S4_H_VD			1280
-#define S4_H_FP			185
+#define S4_H_VD			1024
+#define S4_H_FP			396
 
 #define S4_V_PW			10
 #define S4_V_BP			10
-#define S4_V_VD			800
-#define S4_V_FP			48
+#define S4_V_VD			600
+#define S4_V_FP			31
 
-#define S4_H_ST			81
-#define S4_V_ST			48
+#define S4_H_ST			0
+#define S4_V_ST			28
 
 //720*480*60
-#define S5_OUT_CLK		SCALE_RATE(27000000,75000000)  //m=100 n=9 no=4
+#define S5_OUT_CLK		SCALE_RATE(27000000,56250000)  //m=100 n=9 no=4
 #define S5_H_PW			10
 #define S5_H_BP			10
-#define S5_H_VD			1280
-#define S5_H_FP			130
+#define S5_H_VD			1024
+#define S5_H_FP			386
 
 #define S5_V_PW			10
 #define S5_V_BP			10
-#define S5_V_VD			800
-#define S5_V_FP			54
+#define S5_V_VD			600
+#define S5_V_FP			35
 
-#define S5_H_ST			476
-#define S5_V_ST			48
+#define S5_H_ST			0
+#define S5_V_ST			22
 
-#define S_DCLK_POL       0
+#define S_DCLK_POL       1
 
 static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 {
