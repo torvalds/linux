@@ -271,8 +271,17 @@ struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 
 extern bool ipv6_opt_accepted(const struct sock *sk, const struct sk_buff *skb);
 
-int ip6_frag_nqueues(struct net *net);
-int ip6_frag_mem(struct net *net);
+#if IS_ENABLED(CONFIG_IPV6)
+static inline int ip6_frag_nqueues(struct net *net)
+{
+	return net->ipv6.frags.nqueues;
+}
+
+static inline int ip6_frag_mem(struct net *net)
+{
+	return atomic_read(&net->ipv6.frags.mem);
+}
+#endif
 
 #define IPV6_FRAG_HIGH_THRESH	(256 * 1024)	/* 262144 */
 #define IPV6_FRAG_LOW_THRESH	(192 * 1024)	/* 196608 */

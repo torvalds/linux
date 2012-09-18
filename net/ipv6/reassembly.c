@@ -67,16 +67,6 @@ struct ip6frag_skb_cb
 
 static struct inet_frags ip6_frags;
 
-int ip6_frag_nqueues(struct net *net)
-{
-	return net->ipv6.frags.nqueues;
-}
-
-int ip6_frag_mem(struct net *net)
-{
-	return atomic_read(&net->ipv6.frags.mem);
-}
-
 static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 			  struct net_device *dev);
 
