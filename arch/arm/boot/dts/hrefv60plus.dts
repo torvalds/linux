@@ -32,5 +32,34 @@
 		uart@80007000 {
 			status = "okay";
 		};
+
+		i2c@80004000 {
+			tc3589x@42 {
+				compatible = "tc3589x";
+				reg = <0x42>;
+			};
+
+			tps61052@33 {
+				compatible = "tps61052";
+				reg = <0x33>;
+			};
+		};
+
+		i2c@80128000 {
+			lp5521@0x33 {
+				compatible = "lp5521";
+				reg = <0x33>;
+			};
+
+			lp5521@0x34 {
+				compatible = "lp5521";
+				reg = <0x34>;
+			};
+
+			bh1780@0x29 {
+				compatible = "rohm,bh1780gli";
+				reg = <0x33>;
+			};
+		};
 	};
 };
