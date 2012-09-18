@@ -1641,14 +1641,15 @@ s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
 
 	/* max blkno / nblocks pairs to trim */
 	int count = 0, range_cnt;
+	u64 max_ranges;
 
 	/* prevent others from writing new stuff here, while trimming */
 	IWRITE_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	nblocks = bmp->db_agfree[agno];
-	range_cnt = nblocks;
-	do_div(range_cnt, (int)minlen);
-	range_cnt = min(range_cnt + 1, 32 * 1024);
+	max_ranges = nblocks;
+	do_div(max_ranges, minlen);
+	range_cnt = min_t(u64, max_ranges + 1, 32 * 1024);
 	totrim = kmalloc(sizeof(struct range2trim) * range_cnt, GFP_NOFS);
 	if (totrim == NULL) {
 		jfs_error(bmp->db_ipbmap->i_sb,
