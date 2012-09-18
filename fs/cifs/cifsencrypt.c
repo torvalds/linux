@@ -686,11 +686,16 @@ calc_seckey(struct cifs_ses *ses)
 void
 cifs_crypto_shash_release(struct TCP_Server_Info *server)
 {
+	if (server->secmech.hmacsha256)
+		crypto_free_shash(server->secmech.hmacsha256);
+
 	if (server->secmech.md5)
 		crypto_free_shash(server->secmech.md5);
 
 	if (server->secmech.hmacmd5)
 		crypto_free_shash(server->secmech.hmacmd5);
+
+	kfree(server->secmech.sdeschmacsha256);
 
 	kfree(server->secmech.sdeschmacmd5);
 
@@ -716,6 +721,13 @@ cifs_crypto_shash_allocate(struct TCP_Server_Info *server)
 		goto crypto_allocate_md5_fail;
 	}
 
+	server->secmech.hmacsha256 = crypto_alloc_shash("hmac(sha256)", 0, 0);
+	if (IS_ERR(server->secmech.hmacsha256)) {
+		cERROR(1, "could not allocate crypto hmacsha256\n");
+		rc = PTR_ERR(server->secmech.hmacsha256);
+		goto crypto_allocate_hmacsha256_fail;
+	}
+
 	size = sizeof(struct shash_desc) +
 			crypto_shash_descsize(server->secmech.hmacmd5);
 	server->secmech.sdeschmacmd5 = kmalloc(size, GFP_KERNEL);
@@ -726,7 +738,6 @@ cifs_crypto_shash_allocate(struct TCP_Server_Info *server)
 	}
 	server->secmech.sdeschmacmd5->shash.tfm = server->secmech.hmacmd5;
 	server->secmech.sdeschmacmd5->shash.flags = 0x0;
-
 
 	size = sizeof(struct shash_desc) +
 			crypto_shash_descsize(server->secmech.md5);
@@ -739,12 +750,29 @@ cifs_crypto_shash_allocate(struct TCP_Server_Info *server)
 	server->secmech.sdescmd5->shash.tfm = server->secmech.md5;
 	server->secmech.sdescmd5->shash.flags = 0x0;
 
+	size = sizeof(struct shash_desc) +
+			crypto_shash_descsize(server->secmech.hmacsha256);
+	server->secmech.sdeschmacsha256 = kmalloc(size, GFP_KERNEL);
+	if (!server->secmech.sdeschmacsha256) {
+		cERROR(1, "%s: Can't alloc hmacsha256\n", __func__);
+		rc = -ENOMEM;
+		goto crypto_allocate_hmacsha256_sdesc_fail;
+	}
+	server->secmech.sdeschmacsha256->shash.tfm = server->secmech.hmacsha256;
+	server->secmech.sdeschmacsha256->shash.flags = 0x0;
+
 	return 0;
+
+crypto_allocate_hmacsha256_sdesc_fail:
+	kfree(server->secmech.sdescmd5);
 
 crypto_allocate_md5_sdesc_fail:
 	kfree(server->secmech.sdeschmacmd5);
 
 crypto_allocate_hmacmd5_sdesc_fail:
+	crypto_free_shash(server->secmech.hmacsha256);
+
+crypto_allocate_hmacsha256_fail:
 	crypto_free_shash(server->secmech.md5);
 
 crypto_allocate_md5_fail:

@@ -47,4 +47,8 @@
 #define END_OF_CHAIN 4
 #define RELATED_REQUEST 8
 
+#define SMB2_SIGNATURE_SIZE (16)
+#define SMB2_NTLMV2_SESSKEY_SIZE (16)
+#define SMB2_HMACSHA256_SIZE (32)
+
 #endif	/* _SMB2_GLOB_H */

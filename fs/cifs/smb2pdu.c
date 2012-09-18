@@ -118,9 +118,9 @@ smb2_hdr_assemble(struct smb2_hdr *hdr, __le16 smb2_cmd /* command */ ,
 	/* BB how does SMB2 do case sensitive? */
 	/* if (tcon->nocase)
 		hdr->Flags |= SMBFLG_CASELESS; */
-	/* if (tcon->ses && tcon->ses->server &&
+	if (tcon->ses && tcon->ses->server &&
 	    (tcon->ses->server->sec_mode & SECMODE_SIGN_REQUIRED))
-		hdr->Flags |= SMB2_FLAGS_SIGNED; */
+		hdr->Flags |= SMB2_FLAGS_SIGNED;
 out:
 	pdu->StructureSize2 = cpu_to_le16(parmsize);
 	return;
@@ -441,6 +441,38 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		rc = -EIO;
 		goto neg_exit;
 	}
+
+	cFYI(1, "sec_flags 0x%x", sec_flags);
+	if (sec_flags & CIFSSEC_MUST_SIGN) {
+		cFYI(1, "Signing required");
+		if (!(server->sec_mode & (SMB2_NEGOTIATE_SIGNING_REQUIRED |
+		      SMB2_NEGOTIATE_SIGNING_ENABLED))) {
+			cERROR(1, "signing required but server lacks support");
+			rc = -EOPNOTSUPP;
+			goto neg_exit;
+		}
+		server->sec_mode |= SECMODE_SIGN_REQUIRED;
+	} else if (sec_flags & CIFSSEC_MAY_SIGN) {
+		cFYI(1, "Signing optional");
+		if (server->sec_mode & SMB2_NEGOTIATE_SIGNING_REQUIRED) {
+			cFYI(1, "Server requires signing");
+			server->sec_mode |= SECMODE_SIGN_REQUIRED;
+		} else {
+			server->sec_mode &=
+				~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+		}
+	} else {
+		cFYI(1, "Signing disabled");
+		if (server->sec_mode & SMB2_NEGOTIATE_SIGNING_REQUIRED) {
+			cERROR(1, "Server requires packet signing to be enabled"
+				  " in /proc/fs/cifs/SecurityFlags.");
+			rc = -EOPNOTSUPP;
+			goto neg_exit;
+		}
+		server->sec_mode &=
+			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+	}
+
 #ifdef CONFIG_SMB2_ASN1  /* BB REMOVEME when updated asn1.c ready */
 	rc = decode_neg_token_init(security_blob, blob_length,
 				   &server->sec_type);
@@ -669,6 +701,8 @@ SMB2_logoff(const unsigned int xid, struct cifs_ses *ses)
 
 	 /* since no tcon, smb2_init can not do this, so do here */
 	req->hdr.SessionId = ses->Suid;
+	if (server->sec_mode & SECMODE_SIGN_REQUIRED)
+		req->hdr.Flags |= SMB2_FLAGS_SIGNED;
 
 	rc = SendReceiveNoRsp(xid, ses, (char *) &req->hdr, 0);
 	/*
@@ -1268,10 +1302,16 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	case MID_RESPONSE_RECEIVED:
 		credits_received = le16_to_cpu(buf->CreditRequest);
 		/* result already set, check signature */
-		/* if (server->sec_mode &
-		    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-			if (smb2_verify_signature(mid->resp_buf, server))
-				cERROR(1, "Unexpected SMB signature"); */
+		if (server->sec_mode &
+		    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
+			int rc;
+
+			rc = smb2_verify_signature2(rdata->iov, rdata->nr_iov,
+						    server);
+			if (rc)
+				cERROR(1, "SMB signature verification returned "
+				       "error = %d", rc);
+		}
 		/* FIXME: should this be counted toward the initiating task? */
 		task_io_account_read(rdata->bytes);
 		cifs_stats_bytes_read(tcon, rdata->bytes);

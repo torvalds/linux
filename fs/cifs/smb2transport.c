@@ -36,6 +36,149 @@
 #include "smb2proto.h"
 #include "cifs_debug.h"
 #include "smb2status.h"
+#include "smb2glob.h"
+
+static int
+smb2_calc_signature2(const struct kvec *iov, int n_vec,
+		     struct TCP_Server_Info *server)
+{
+	int i, rc;
+	unsigned char smb2_signature[SMB2_HMACSHA256_SIZE];
+	unsigned char *sigptr = smb2_signature;
+	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
+
+	memset(smb2_signature, 0x0, SMB2_HMACSHA256_SIZE);
+	memset(smb2_pdu->Signature, 0x0, SMB2_SIGNATURE_SIZE);
+
+	rc = crypto_shash_setkey(server->secmech.hmacsha256,
+		server->session_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
+	if (rc) {
+		cERROR(1, "%s: Could not update with response\n", __func__);
+		return rc;
+	}
+
+	rc = crypto_shash_init(&server->secmech.sdeschmacsha256->shash);
+	if (rc) {
+		cERROR(1, "%s: Could not init md5\n", __func__);
+		return rc;
+	}
+
+	for (i = 0; i < n_vec; i++) {
+		if (iov[i].iov_len == 0)
+			continue;
+		if (iov[i].iov_base == NULL) {
+			cERROR(1, "null iovec entry");
+			return -EIO;
+		}
+		/*
+		 * The first entry includes a length field (which does not get
+		 * signed that occupies the first 4 bytes before the header).
+		 */
+		if (i == 0) {
+			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
+				break; /* nothing to sign or corrupt header */
+			rc =
+			crypto_shash_update(
+				&server->secmech.sdeschmacsha256->shash,
+				iov[i].iov_base + 4, iov[i].iov_len - 4);
+		} else {
+			rc =
+			crypto_shash_update(
+				&server->secmech.sdeschmacsha256->shash,
+				iov[i].iov_base, iov[i].iov_len);
+		}
+		if (rc) {
+			cERROR(1, "%s: Could not update with payload\n",
+							__func__);
+			return rc;
+		}
+	}
+
+	rc = crypto_shash_final(&server->secmech.sdeschmacsha256->shash,
+				sigptr);
+	if (rc)
+		cERROR(1, "%s: Could not generate sha256 hash\n", __func__);
+
+	memcpy(smb2_pdu->Signature, sigptr, SMB2_SIGNATURE_SIZE);
+
+	return rc;
+}
+
+/* must be called with server->srv_mutex held */
+static int
+smb2_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server)
+{
+	int rc = 0;
+	struct smb2_hdr *smb2_pdu = iov[0].iov_base;
+
+	if (!(smb2_pdu->Flags & SMB2_FLAGS_SIGNED) ||
+	    server->tcpStatus == CifsNeedNegotiate)
+		return rc;
+
+	if (!server->session_estab) {
+		strncpy(smb2_pdu->Signature, "BSRSPYL", 8);
+		return rc;
+	}
+
+	rc = smb2_calc_signature2(iov, n_vec, server);
+
+	return rc;
+}
+
+int
+smb2_verify_signature2(struct kvec *iov, unsigned int n_vec,
+		       struct TCP_Server_Info *server)
+{
+	unsigned int rc;
+	char server_response_sig[16];
+	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
+
+	if ((smb2_pdu->Command == SMB2_NEGOTIATE) ||
+	    (smb2_pdu->Command == SMB2_OPLOCK_BREAK) ||
+	    (!server->session_estab))
+		return 0;
+
+	/*
+	 * BB what if signatures are supposed to be on for session but
+	 * server does not send one? BB
+	 */
+
+	/* Do not need to verify session setups with signature "BSRSPYL " */
+	if (memcmp(smb2_pdu->Signature, "BSRSPYL ", 8) == 0)
+		cFYI(1, "dummy signature received for smb command 0x%x",
+			smb2_pdu->Command);
+
+	/*
+	 * Save off the origiginal signature so we can modify the smb and check
+	 * our calculated signature against what the server sent.
+	 */
+	memcpy(server_response_sig, smb2_pdu->Signature, SMB2_SIGNATURE_SIZE);
+
+	memset(smb2_pdu->Signature, 0, SMB2_SIGNATURE_SIZE);
+
+	mutex_lock(&server->srv_mutex);
+	rc = smb2_calc_signature2(iov, n_vec, server);
+	mutex_unlock(&server->srv_mutex);
+
+	if (rc)
+		return rc;
+
+	if (memcmp(server_response_sig, smb2_pdu->Signature,
+		   SMB2_SIGNATURE_SIZE))
+		return -EACCES;
+	else
+		return 0;
+}
+
+static int
+smb2_verify_signature(struct smb2_hdr *smb2_pdu, struct TCP_Server_Info *server)
+{
+	struct kvec iov;
+
+	iov.iov_base = (char *)smb2_pdu;
+	iov.iov_len = get_rfc1002_length(smb2_pdu) + 4;
+	return smb2_verify_signature2(&iov, 1, server);
+}
 
 /*
  * Set message id for the request. Should be called after wait_for_free_request
@@ -118,12 +261,15 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 
 	dump_smb(mid->resp_buf, min_t(u32, 80, len));
 	/* convert the length into a more usable form */
-	/* BB - uncomment with SMB2 signing implementation */
-	/* if ((len > 24) &&
+	if ((len > 24) &&
 	    (server->sec_mode & (SECMODE_SIGN_REQUIRED|SECMODE_SIGN_ENABLED))) {
-		if (smb2_verify_signature(mid->resp_buf, server))
-			cERROR(1, "Unexpected SMB signature");
-	} */
+		int rc;
+
+		rc = smb2_verify_signature(mid->resp_buf, server);
+		if (rc)
+			cERROR(1, "SMB signature verification returned error = "
+			       "%d", rc);
+	}
 
 	return map_smb2_to_linux_error(mid->resp_buf, log_error);
 }
@@ -141,9 +287,9 @@ smb2_setup_request(struct cifs_ses *ses, struct kvec *iov,
 	rc = smb2_get_mid_entry(ses, hdr, &mid);
 	if (rc)
 		return rc;
-	/* rc = smb2_sign_smb2(iov, nvec, ses->server);
+	rc = smb2_sign_smb2(iov, nvec, ses->server);
 	if (rc)
-		delete_mid(mid); */
+		cifs_delete_mid(mid);
 	*ret_mid = mid;
 	return rc;
 }
@@ -162,11 +308,12 @@ smb2_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
 	if (mid == NULL)
 		return -ENOMEM;
 
-	/* rc = smb2_sign_smb2(iov, nvec, server);
+	rc = smb2_sign_smb2(iov, nvec, server);
 	if (rc) {
 		DeleteMidQEntry(mid);
 		return rc;
-	}*/
+	}
+
 	*ret_mid = mid;
 	return rc;
 }
