@@ -365,7 +365,7 @@ struct comedi_cmd {
 	unsigned int stop_src;
 	unsigned int stop_arg;
 
-	unsigned int __user *chanlist;	/* channel/range list */
+	unsigned int *chanlist;	/* channel/range list */
 	unsigned int chanlist_len;
 
 	short __user *data; /* data list, size depends on subd flags */
