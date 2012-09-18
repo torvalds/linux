@@ -211,7 +211,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	}
 
 	zone = thermal_zone_device_register("rcar_thermal", 0, 0, priv,
-					    &rcar_thermal_zone_ops, 0, 0);
+				    &rcar_thermal_zone_ops, NULL, 0, 0);
 	if (IS_ERR(zone)) {
 		dev_err(&pdev->dev, "thermal zone device is NULL\n");
 		ret = PTR_ERR(zone);
