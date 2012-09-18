@@ -19,6 +19,8 @@
 
 #include <asm/unaligned.h>
 
+#include "netns.h"
+
 #define NLMDBG_FACILITY		NLMDBG_MONITOR
 #define NSM_PROGRAM		100024
 #define NSM_VERSION		1
@@ -70,7 +72,7 @@ static struct rpc_clnt *nsm_create(struct net *net)
 	};
 	struct rpc_create_args args = {
 		.net			= net,
-		.protocol		= XPRT_TRANSPORT_UDP,
+		.protocol		= XPRT_TRANSPORT_TCP,
 		.address		= (struct sockaddr *)&sin,
 		.addrsize		= sizeof(sin),
 		.servername		= "rpc.statd",
@@ -81,6 +83,51 @@ static struct rpc_clnt *nsm_create(struct net *net)
 	};
 
 	return rpc_create(&args);
+}
+
+__maybe_unused static struct rpc_clnt *nsm_client_get(struct net *net)
+{
+	static DEFINE_MUTEX(nsm_create_mutex);
+	struct rpc_clnt	*clnt;
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+	spin_lock(&ln->nsm_clnt_lock);
+	if (ln->nsm_users) {
+		ln->nsm_users++;
+		clnt = ln->nsm_clnt;
+		spin_unlock(&ln->nsm_clnt_lock);
+		goto out;
+	}
+	spin_unlock(&ln->nsm_clnt_lock);
+
+	mutex_lock(&nsm_create_mutex);
+	clnt = nsm_create(net);
+	if (!IS_ERR(clnt)) {
+		ln->nsm_clnt = clnt;
+		smp_wmb();
+		ln->nsm_users = 1;
+	}
+	mutex_unlock(&nsm_create_mutex);
+out:
+	return clnt;
+}
+
+__maybe_unused static void nsm_client_put(struct net *net)
+{
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+	struct rpc_clnt	*clnt = ln->nsm_clnt;
+	int shutdown = 0;
+
+	spin_lock(&ln->nsm_clnt_lock);
+	if (ln->nsm_users) {
+		if (--ln->nsm_users)
+			ln->nsm_clnt = NULL;
+		shutdown = !ln->nsm_users;
+	}
+	spin_unlock(&ln->nsm_clnt_lock);
+
+	if (shutdown)
+		rpc_shutdown_client(clnt);
 }
 
 static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
@@ -111,7 +158,7 @@ static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
 	memset(res, 0, sizeof(*res));
 
 	msg.rpc_proc = &clnt->cl_procinfo[proc];
-	status = rpc_call_sync(clnt, &msg, 0);
+	status = rpc_call_sync(clnt, &msg, RPC_TASK_SOFTCONN);
 	if (status < 0)
 		dprintk("lockd: NSM upcall RPC failed, status=%d\n",
 				status);
