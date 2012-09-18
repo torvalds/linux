@@ -115,8 +115,11 @@ void usb20otg_hw_init(void)
     
         // other haredware init
 #ifdef CONFIG_ARCH_RK3066B
-    //GPIO init
+        //GPIO init
         rk30_mux_api_set(GPIO0D6_SPI1CLK_NAME, GPIO0D_GPIO0D6);
+        
+        gpio_request(RK3066B_OTG_DRV_VBUS, NULL);
+        gpio_direction_output(RK3066B_OTG_DRV_VBUS, GPIO_LOW);
 #else
         rk30_mux_api_set(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);
 #endif
@@ -226,26 +229,14 @@ int usb20otg_get_status(int id)
 #ifdef CONFIG_ARCH_RK3066B
 void usb20otg_power_enable(int enable)
 { 
-    int ret;
     unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
     if(0 == enable)//disable
     {
-        ret = gpio_request(RK3066B_OTG_DRV_VBUS, NULL);
-        if (ret != 0) 
-        {
-            gpio_free(RK3066B_OTG_DRV_VBUS);
-        }
-        gpio_direction_output(RK3066B_OTG_DRV_VBUS, GPIO_HIGH);
         gpio_set_value(RK3066B_OTG_DRV_VBUS, GPIO_LOW); 
 
     }
     if(1 == enable)//enable
     {
-        ret = gpio_request(RK3066B_OTG_DRV_VBUS, NULL);
-        if (ret != 0) {
-            gpio_free(RK3066B_OTG_DRV_VBUS);
-        }
-        gpio_direction_output(RK3066B_OTG_DRV_VBUS, GPIO_HIGH);
         gpio_set_value(RK3066B_OTG_DRV_VBUS, GPIO_HIGH); 
     }   
 }
@@ -297,6 +288,8 @@ void usb20host_hw_init(void)
     // other haredware init
 #ifdef CONFIG_ARCH_RK3066B
     rk30_mux_api_set(GPIO0D7_SPI1CSN0_NAME, GPIO0D_GPIO0D7); 
+    gpio_request(RK3066B_HOST_DRV_VBUS, NULL);
+    gpio_direction_output(RK3066B_HOST_DRV_VBUS, GPIO_HIGH);
 #else
     rk30_mux_api_set(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);
 #endif
@@ -409,7 +402,7 @@ int usb20host_get_status(int id)
 #ifdef CONFIG_ARCH_RK3066B
 void usb20host_power_enable(int enable)
 { 
-    int ret;
+
     if(0 == enable)//disable
     {
         //ret = gpio_request(RK3066B_HOST_DRV_VBUS, NULL);
@@ -423,11 +416,6 @@ void usb20host_power_enable(int enable)
 
     if(1 == enable)//enable
     {
-        ret = gpio_request(RK3066B_HOST_DRV_VBUS, NULL);
-        if (ret != 0) {
-            gpio_free(RK3066B_HOST_DRV_VBUS);
-        }
-        gpio_direction_output(RK3066B_HOST_DRV_VBUS, GPIO_HIGH);
         gpio_set_value(RK3066B_HOST_DRV_VBUS, GPIO_HIGH);
         //printk("!!!!!!!!!!!!!!!!!!!!!enable host power!!!!!!!!!!!!!!!!!!\n");
     }   
