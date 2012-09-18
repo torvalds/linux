@@ -42,14 +42,8 @@ static void __init m523x_qspi_init(void)
 
 static void __init m523x_fec_init(void)
 {
-	u16 par;
-	u8 v;
-
 	/* Set multi-function pins to ethernet use */
-	par = readw(MCF_IPSBAR + 0x100082);
-	writew(par | 0xf00, MCF_IPSBAR + 0x100082);
-	v = readb(MCF_IPSBAR + 0x100078);
-	writeb(v | 0xc0, MCF_IPSBAR + 0x100078);
+	writeb(readb(MCFGPIO_PAR_FECI2C) | 0xf0, MCFGPIO_PAR_FECI2C);
 }
 
 /***************************************************************************/
