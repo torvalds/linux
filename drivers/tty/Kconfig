@@ -316,7 +316,7 @@ config N_HDLC
 	  here.
 
 config N_GSM
-	tristate "GSM MUX line discipline support"
+	tristate "GSM MUX line discipline support (EXPERIMENTAL)"
 	depends on NET
 	help
 	  This line discipline provides support for the GSM MUX protocol and
