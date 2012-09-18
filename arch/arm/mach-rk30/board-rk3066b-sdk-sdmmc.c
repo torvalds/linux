@@ -322,10 +322,12 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
     rk29_mux_api_set(GPIO2A7_LCDC1DATA7_SMCDATA7_TRACEDATA7_NAME, GPIO2A_GPIO2A7);
     rk29_mux_api_set(GPIO3D0_SDMMC1PWREN_MIIMD_NAME, GPIO3D_GPIO3D0);
     
+#ifdef RK30SDK_WIFI_GPIO_POWER_N
     if (gpio_request(RK30SDK_WIFI_GPIO_POWER_N, "wifi_power")) {
            pr_info("%s: request wifi power gpio failed\n", __func__);
            return -1;
     }
+#endif
 
 #ifdef RK30SDK_WIFI_GPIO_RESET_N
     if (gpio_request(RK30SDK_WIFI_GPIO_RESET_N, "wifi reset")) {
@@ -335,7 +337,9 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
     }
 #endif    
 
+#ifdef RK30SDK_WIFI_GPIO_POWER_N
     gpio_direction_output(RK30SDK_WIFI_GPIO_POWER_N, !RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE);
+#endif
 #ifdef RK30SDK_WIFI_GPIO_RESET_N    
     gpio_direction_output(RK30SDK_WIFI_GPIO_RESET_N, !RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE);
 #endif    
@@ -365,8 +369,10 @@ int rk29sdk_wifi_power(int on)
 {
         pr_info("%s: %d\n", __func__, on);
         if (on){
+#ifdef RK30SDK_WIFI_GPIO_POWER_N
                 gpio_set_value(RK30SDK_WIFI_GPIO_POWER_N, RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE);
                 mdelay(50);
+#endif
 
                 #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
                 rk29_sdmmc_gpio_open(1, 1); //added by xbw at 2011-10-13
@@ -379,7 +385,9 @@ int rk29sdk_wifi_power(int on)
                 pr_info("wifi turn on power\n");
         }else{
 //                if (!rk29sdk_bt_power_state){
+#ifdef RK30SDK_WIFI_GPIO_POWER_N
                         gpio_set_value(RK30SDK_WIFI_GPIO_POWER_N, !RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE);
+#endif
 
                         #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
                         rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
