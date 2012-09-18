@@ -147,4 +147,9 @@ static inline u8 kvm_vcpu_trap_get_class(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) >> HSR_EC_SHIFT;
 }
 
+static inline u8 kvm_vcpu_trap_get_fault(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC_TYPE;
+}
+
 #endif /* __ARM_KVM_EMULATE_H__ */

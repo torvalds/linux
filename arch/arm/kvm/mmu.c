@@ -601,7 +601,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			      kvm_vcpu_get_hfar(vcpu), fault_ipa);
 
 	/* Check the stage-2 fault is trans. fault or write fault */
-	fault_status = (kvm_vcpu_get_hsr(vcpu) & HSR_FSC_TYPE);
+	fault_status = kvm_vcpu_trap_get_fault(vcpu);
 	if (fault_status != FSC_FAULT && fault_status != FSC_PERM) {
 		kvm_err("Unsupported fault status: EC=%#lx DFCS=%#lx\n",
 			hsr_ec, fault_status);
