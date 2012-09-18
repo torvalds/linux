@@ -35,6 +35,7 @@
 #include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS
+#define PNFS_LAYOUTGET_RETRY_TIMEOUT (120*HZ)
 
 /* Locking:
  *
@@ -248,6 +249,7 @@ pnfs_iomode_to_fail_bit(u32 iomode)
 static void
 pnfs_layout_io_set_failed(struct pnfs_layout_hdr *lo, u32 iomode)
 {
+	lo->plh_retry_timestamp = jiffies;
 	set_bit(pnfs_iomode_to_fail_bit(iomode), &lo->plh_flags);
 	dprintk("%s Setting layout IOMODE_%s fail bit\n", __func__,
 			iomode == IOMODE_RW ?  "RW" : "READ");
@@ -256,7 +258,18 @@ pnfs_layout_io_set_failed(struct pnfs_layout_hdr *lo, u32 iomode)
 static bool
 pnfs_layout_io_test_failed(struct pnfs_layout_hdr *lo, u32 iomode)
 {
-	return test_bit(pnfs_iomode_to_fail_bit(iomode), &lo->plh_flags) != 0;
+	unsigned long start, end;
+	if (test_bit(pnfs_iomode_to_fail_bit(iomode), &lo->plh_flags) == 0)
+		return false;
+	end = jiffies;
+	start = end - PNFS_LAYOUTGET_RETRY_TIMEOUT;
+	if (!time_in_range(lo->plh_retry_timestamp, start, end)) {
+		/* It is time to retry the failed layoutgets */
+		clear_bit(NFS_LAYOUT_RW_FAILED, &lo->plh_flags);
+		clear_bit(NFS_LAYOUT_RO_FAILED, &lo->plh_flags);
+		return false;
+	}
+	return true;
 }
 
 static void
