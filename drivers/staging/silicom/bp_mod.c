@@ -127,16 +127,12 @@ typedef struct _bpctl_dev {
 	int bp_10g9;
 	int bp_i80;
 	int bp_540;
-
-// selftest stanza
 	int (*hard_start_xmit_save) (struct sk_buff *skb,
 				     struct net_device *dev);
 	const struct net_device_ops *old_ops;
 	struct net_device_ops new_ops;
 	int bp_self_test_flag;
 	char *bp_tx_data;
-// end selftest stanza 
-//
 	struct bypass_pfs_sd bypass_pfs_set;
 
 } bpctl_dev_t;
@@ -168,14 +164,13 @@ static int bp_device_event(struct notifier_block *unused,
 	struct net_device *dev = ptr;
 	static bpctl_dev_t *pbpctl_dev = NULL, *pbpctl_dev_m = NULL;
 	int dev_num = 0, ret = 0, ret_d = 0, time_left = 0;
-	//printk("BP_PROC_SUPPORT event =%d %s %d\n", event,dev->name, dev->ifindex );
-	//return NOTIFY_DONE;
+	/* printk("BP_PROC_SUPPORT event =%d %s %d\n", event,dev->name, dev->ifindex ); */
+	/* return NOTIFY_DONE; */
 	if (!dev)
 		return NOTIFY_DONE;
 	if (event == NETDEV_REGISTER) {
 		{
 			struct ethtool_drvinfo drvinfo;
-			// char *str=NULL;
 			char cbuf[32];
 			char *buf = NULL;
 			char res[10];
@@ -198,13 +193,6 @@ static int bp_device_event(struct notifier_block *unused,
 			memcpy(&cbuf, drvinfo.bus_info, 32);
 			buf = &cbuf[0];
 
-			// while(*buf++){
-
-			/*if(*buf==':'){
-			   buf++;
-			   break;
-			   } */
-			//}
 			while (*buf++ != ':') ;
 			for (i = 0; i < 10; i++, buf++) {
 				if (*buf == ':')
@@ -245,7 +233,6 @@ static int bp_device_event(struct notifier_block *unused,
 	}
 	if (event == NETDEV_UNREGISTER) {
 		int idx_dev = 0;
-		//if_scan();
 		for (idx_dev = 0;
 		     ((bpctl_dev_arr[idx_dev].pdev != NULL)
 		      && (idx_dev < device_num)); idx_dev++) {
@@ -263,7 +250,6 @@ static int bp_device_event(struct notifier_block *unused,
 	}
 	if (event == NETDEV_CHANGENAME) {
 		int idx_dev = 0;
-		//if_scan();
 		for (idx_dev = 0;
 		     ((bpctl_dev_arr[idx_dev].pdev != NULL)
 		      && (idx_dev < device_num)); idx_dev++) {
@@ -281,7 +267,6 @@ static int bp_device_event(struct notifier_block *unused,
 		return NOTIFY_DONE;
 
 	}
-	//return NOTIFY_DONE;
 
 	switch (event) {
 
@@ -289,7 +274,6 @@ static int bp_device_event(struct notifier_block *unused,
 			if (netif_carrier_ok(dev))
 				return NOTIFY_DONE;
 
-			//if_scan();
 			if (((dev_num = get_dev_idx(dev->ifindex)) == -1) ||
 			    (!(pbpctl_dev = &bpctl_dev_arr[dev_num])))
 				return NOTIFY_DONE;
@@ -441,12 +425,10 @@ static void write_pulse(bpctl_dev_t *pbpctl_dev,
 						    BPCTLI_CTRL_EXT_MCLK_DATA));
 			else {
 
-/* To start management : MCLK 1, MDIO 1, output*/
-				//writel((0x2|0x8), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
+				/* To start management : MCLK 1, MDIO 1, output*/
 				BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 						(ctrl_ext | BP10G_MCLK_DATA_OUT
 						 | BP10G_MDIO_DATA_OUT));
-				//BP10G_WRITE_REG(pbpctl_dev, ESDP, (ctrl | BP10G_MDIO_DATA | BP10G_MDIO_DIR));  
 
 			}
 
@@ -513,12 +495,10 @@ static void write_pulse(bpctl_dev_t *pbpctl_dev,
 						    (BPCTLI_CTRL_EXT_MCLK_DATA)));
 			else {
 
-				//writel((0x2), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 				BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 						((ctrl_ext |
 						  BP10G_MDIO_DATA_OUT) &
 						 ~(BP10G_MCLK_DATA_OUT)));
-				//  BP10G_WRITE_REG(pbpctl_dev, ESDP, (ctrl |BP10G_MDIO_DIR|BP10G_MDIO_DATA));
 			}
 
 			usec_delay(PULSE_TIME);
@@ -584,12 +564,10 @@ static void write_pulse(bpctl_dev_t *pbpctl_dev,
 						    (BPCTLI_CTRL_EXT_MDIO_DATA)));
 			else {
 
-				//    writel((0x8), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 				BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 						((ctrl_ext |
 						  BP10G_MCLK_DATA_OUT) &
 						 ~BP10G_MDIO_DATA_OUT));
-				//  BP10G_WRITE_REG(pbpctl_dev, ESDP, ((ctrl |BP10G_MDIO_DIR)&~BP10G_MDIO_DATA));
 
 			}
 			usec_delay(PULSE_TIME);
@@ -652,12 +630,10 @@ static void write_pulse(bpctl_dev_t *pbpctl_dev,
 						      BPCTLI_CTRL_EXT_MDIO_DATA)));
 			else {
 
-				//writel((0x0), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 				BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 						(ctrl_ext &
 						 ~(BP10G_MCLK_DATA_OUT |
 						   BP10G_MDIO_DATA_OUT)));
-				//BP10G_WRITE_REG(pbpctl_dev, ESDP, ((ctrl |BP10G_MDIO_DIR)&~BP10G_MDIO_DATA));
 			}
 
 			usec_delay(PULSE_TIME);
@@ -684,7 +660,6 @@ static int read_pulse(bpctl_dev_t *pbpctl_dev, unsigned int ctrl_ext,
 		ctrl = BP10G_READ_REG(pbpctl_dev_c, ESDP);
 	}
 
-	//ctrl_ext=BP10G_READ_REG(pbpctl_dev,EODSDP);    
 
 	while (i--) {
 		if (pbpctl_dev->bp_10g9) {
@@ -735,10 +710,8 @@ static int read_pulse(bpctl_dev_t *pbpctl_dev, unsigned int ctrl_ext,
 								   BPCTLI_CTRL_EXT_MCLK_DATA)));
 		else {
 
-			// writel(( 0/*0x1*/), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 			BP10G_WRITE_REG(pbpctl_dev, EODSDP, ((ctrl_ext | BP10G_MDIO_DATA_OUT) & ~BP10G_MCLK_DATA_OUT));	/* ? */
-			//    printk("0x28=0x%x\n",BP10G_READ_REG(pbpctl_dev,EODSDP););
-			//BP10G_WRITE_REG(pbpctl_dev, ESDP, (ctrl &~BP10G_MDIO_DIR));
+			/*    printk("0x28=0x%x\n",BP10G_READ_REG(pbpctl_dev,EODSDP);); */
 
 		}
 
@@ -791,11 +764,9 @@ static int read_pulse(bpctl_dev_t *pbpctl_dev, unsigned int ctrl_ext,
 								  (BPCTLI_CTRL_EXT_MDIO_DIR)));
 		else {
 
-			// writel((0x8 /*|0x1*/ ), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 			BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 					(ctrl_ext | BP10G_MCLK_DATA_OUT |
 					 BP10G_MDIO_DATA_OUT));
-			//BP10G_WRITE_REG(pbpctl_dev, ESDP, (ctrl &~BP10G_MDIO_DIR));
 
 		}
 		if (pbpctl_dev->bp_10g9) {
@@ -812,7 +783,6 @@ static int read_pulse(bpctl_dev_t *pbpctl_dev, unsigned int ctrl_ext,
 			ctrl_ext = BPCTL_READ_REG(pbpctl_dev, CTRL_EXT);
 		else
 			ctrl_ext = BP10G_READ_REG(pbpctl_dev, EODSDP);
-		//ctrl_ext =readl((void *)((pbpctl_dev)->mem_map) + 0x28);
 
 		usec_delay(PULSE_TIME);
 		if (pbpctl_dev->bp_10g9) {
@@ -934,8 +904,6 @@ static void write_reg(bpctl_dev_t *pbpctl_dev, unsigned char value,
 		BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 				(ctrl_ext &
 				 ~(BP10G_MCLK_DATA_OUT | BP10G_MDIO_DATA_OUT)));
-		//BP10G_WRITE_REG(pbpctl_dev, ESDP, ((ctrl |BP10G_MDIO_DIR)&~BP10G_MDIO_DATA));
-		//writel((0x0), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 	}
 	usec_delay(CMND_INTERVAL);
 
@@ -1001,9 +969,7 @@ static void write_reg(bpctl_dev_t *pbpctl_dev, unsigned char value,
 		BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 				(ctrl_ext &
 				 ~(BP10G_MCLK_DATA_OUT | BP10G_MDIO_DATA_OUT)));
-		// BP10G_WRITE_REG(pbpctl_dev, ESDP, ((ctrl |BP10G_MDIO_DIR)&~BP10G_MDIO_DATA));
 
-		//   writel((0x0), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 	}
 
 	usec_delay(CMND_INTERVAL * 4);
@@ -1109,7 +1075,7 @@ static int read_reg(bpctl_dev_t *pbpctl_dev, unsigned char addr)
 
 		ctrl_ext = BP10GB_READ_REG(pbpctl_dev, MISC_REG_SPIO);
 
-		//printk("2reg=%x\n", ctrl_ext);
+		printk("2reg=%x\n", ctrl_ext);
 
 #ifdef BP_SYNC_FLAG
 		spin_unlock_irqrestore(&pbpctl_dev->bypass_wr_lock, flags);
@@ -1136,13 +1102,11 @@ static int read_reg(bpctl_dev_t *pbpctl_dev, unsigned char addr)
 							   BPCTLI_CTRL_EXT_MCLK_DATA)));
 	} else {
 
-		//   writel((0x0), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 		ctrl = BP10G_READ_REG(pbpctl_dev, ESDP);
 		ctrl_ext = BP10G_READ_REG(pbpctl_dev, EODSDP);
 		BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 				(ctrl_ext &
 				 ~(BP10G_MCLK_DATA_OUT | BP10G_MDIO_DATA_OUT)));
-		//BP10G_WRITE_REG(pbpctl_dev, ESDP, ((ctrl |BP10G_MDIO_DIR)&~BP10G_MDIO_DATA));
 
 	}
 
@@ -1209,12 +1173,10 @@ static int read_reg(bpctl_dev_t *pbpctl_dev, unsigned char addr)
 							   BPCTLI_CTRL_EXT_MDIO_DATA)));
 	else {
 
-		// writel((0x8), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ; 
 		BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 				(ctrl_ext | BP10G_MCLK_DATA_OUT |
 				 BP10G_MDIO_DATA_OUT));
 
-		// BP10G_WRITE_REG(pbpctl_dev, ESDP, (ctrl &~(BP10G_MDIO_DATA|BP10G_MDIO_DIR)));
 
 	}
 	usec_delay(PULSE_TIME);
@@ -1278,13 +1240,11 @@ static int read_reg(bpctl_dev_t *pbpctl_dev, unsigned char addr)
 							   BPCTLI_CTRL_EXT_MCLK_DATA)));
 	} else {
 
-		//writel((0x0), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 		ctrl = BP10G_READ_REG(pbpctl_dev, ESDP);
 		ctrl_ext = BP10G_READ_REG(pbpctl_dev, EODSDP);
 		BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 				(ctrl_ext &
 				 ~(BP10G_MCLK_DATA_OUT | BP10G_MDIO_DATA_OUT)));
-		//BP10G_WRITE_REG(pbpctl_dev, ESDP, ((ctrl |BP10G_MDIO_DIR)&~BP10G_MDIO_DATA));
 
 	}
 
@@ -1377,13 +1337,11 @@ static int wdt_pulse(bpctl_dev_t *pbpctl_dev)
 							   BPCTLI_CTRL_EXT_MCLK_DATA)));
 	} else {
 
-		// writel((0x0), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 		ctrl = BP10G_READ_REG(pbpctl_dev, ESDP);
 		ctrl_ext = BP10G_READ_REG(pbpctl_dev, EODSDP);
 		BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 				(ctrl_ext &
 				 ~(BP10G_MCLK_DATA_OUT | BP10G_MDIO_DATA_OUT)));
-		//BP10G_WRITE_REG(pbpctl_dev, ESDP, ((ctrl |BP10G_MDIO_DIR)&~BP10G_MDIO_DATA));
 
 	}
 	if (pbpctl_dev->bp_10g9) {
@@ -1441,11 +1399,9 @@ static int wdt_pulse(bpctl_dev_t *pbpctl_dev)
 							  (BPCTLI_CTRL_EXT_MDIO_DATA)));
 	else {
 
-		//writel((0x8), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 		BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 				((ctrl_ext | BP10G_MCLK_DATA_OUT) &
 				 ~BP10G_MDIO_DATA_OUT));
-		//BP10G_WRITE_REG(pbpctl_dev, ESDP, ((ctrl |BP10G_MDIO_DIR)&~BP10G_MDIO_DATA));
 
 	}
 
@@ -1503,11 +1459,9 @@ static int wdt_pulse(bpctl_dev_t *pbpctl_dev)
 							   BPCTLI_CTRL_EXT_MDIO_DATA)));
 	else {
 
-		//writel((0x0), (void *)(((pbpctl_dev)->mem_map) + 0x28)) ;
 		BP10G_WRITE_REG(pbpctl_dev, EODSDP,
 				(ctrl_ext &
 				 ~(BP10G_MCLK_DATA_OUT | BP10G_MDIO_DATA_OUT)));
-		//BP10G_WRITE_REG(pbpctl_dev, ESDP, ((ctrl |BP10G_MDIO_DIR)&~BP10G_MDIO_DATA));
 	}
 	if ((pbpctl_dev->wdt_status == WDT_STATUS_EN)	/*&&
 							   (pbpctl_dev->bp_ext_ver<PXG4BPFI_VER) */ )
@@ -2537,7 +2491,6 @@ static int set_tx(bpctl_dev_t *pbpctl_dev, int tx_state)
 		else if (!pbpctl_dev->bp_10g)
 			ctrl = BPCTL_READ_REG(pbpctl_dev, CTRL);
 		else
-			//ctrl =readl((void *)((pbpctl_dev)->mem_map) + 0x20);
 			ctrl = BP10G_READ_REG(pbpctl_dev, ESDP);
 
 		if (!tx_state)
@@ -2587,7 +2540,6 @@ static int set_tx(bpctl_dev_t *pbpctl_dev, int tx_state)
 						    BPCTLI_CTRL_SWDPIN0));
 
 			else
-				//writel((ctrl|(0x1|0x100)), (void *)(((pbpctl_dev)->mem_map) + 0x20)) ;
 				BP10G_WRITE_REG(pbpctl_dev, ESDP,
 						(ctrl | BP10G_SDP0_DATA |
 						 BP10G_SDP0_DIR));
@@ -2645,7 +2597,6 @@ static int set_tx(bpctl_dev_t *pbpctl_dev, int tx_state)
 							     BPCTLI_CTRL_SDP0_DIR)));
 				}
 			} else
-				//writel(((ctrl|0x100)&~0x1), (void *)(((pbpctl_dev)->mem_map) + 0x20)) ;
 				BP10G_WRITE_REG(pbpctl_dev, ESDP,
 						((ctrl | BP10G_SDP0_DIR) &
 						 ~BP10G_SDP0_DATA));
@@ -3018,7 +2969,7 @@ int std_nic_off(bpctl_dev_t *pbpctl_dev)
 int wdt_time_left(bpctl_dev_t *pbpctl_dev)
 {
 
-	//unsigned long curr_time=((long long)(jiffies*1000))/HZ, delta_time=0,wdt_on_time=((long long)(pbpctl_dev->bypass_wdt_on_time*1000))/HZ;
+	/* unsigned long curr_time=((long long)(jiffies*1000))/HZ, delta_time=0,wdt_on_time=((long long)(pbpctl_dev->bypass_wdt_on_time*1000))/HZ; */
 	unsigned long curr_time = jiffies, delta_time = 0, wdt_on_time =
 	    pbpctl_dev->bypass_wdt_on_time, delta_time_msec = 0;
 	int time_left = 0;
@@ -3078,8 +3029,8 @@ static int wdt_timer_reload(bpctl_dev_t *pbpctl_dev)
 			ret = wdt_pulse_int(pbpctl_dev);
 		else
 			ret = send_wdt_pulse(pbpctl_dev);
-		//if (ret==-1)
-		//    mod_timer(&pbpctl_dev->bp_timer, jiffies+1);
+		/* if (ret==-1)
+		    mod_timer(&pbpctl_dev->bp_timer, jiffies+1);*/
 		return 1;
 	}
 	return BP_NOT_CAP;
@@ -3125,7 +3076,6 @@ static void wd_reset_timer(unsigned long param)
 	}
 }
 
-//#ifdef PMC_FIX_FLAG
 /*WAIT_AT_PWRUP 0x80   */
 int bp_wait_at_pwup_en(bpctl_dev_t *pbpctl_dev)
 {
@@ -3189,7 +3139,6 @@ int bp_hw_reset_dis(bpctl_dev_t *pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-//#endif /*PMC_FIX_FLAG*/
 
 int wdt_exp_mode(bpctl_dev_t *pbpctl_dev, int mode)
 {
@@ -3474,12 +3423,10 @@ static int bypass_status(bpctl_dev_t *pbpctl_dev)
 		}
 		if (pbpctl_dev->bp_ext_ver >= 0x8) {
 
-			//BPCTL_BP_WRITE_REG(pbpctl_dev, CTRL_EXT, (BPCTL_READ_REG(pbpctl_dev_b, CTRL_EXT))&~BPCTLI_CTRL_EXT_SDP7_DIR);
 			if (pbpctl_dev->bp_10g9) {
 				ctrl_ext = BP10G_READ_REG(pbpctl_dev_b, I2CCTL);
 				BP10G_WRITE_REG(pbpctl_dev_b, I2CCTL,
 						(ctrl_ext | BP10G_I2C_CLK_OUT));
-				//return(((readl((void *)((pbpctl_dev)->mem_map) + 0x28))&0x4)!=0?0:1);
 				return ((BP10G_READ_REG(pbpctl_dev_b, I2CCTL) &
 					 BP10G_I2C_CLK_IN) != 0 ? 0 : 1);
 
@@ -3518,7 +3465,6 @@ static int bypass_status(bpctl_dev_t *pbpctl_dev)
 				BP10G_WRITE_REG(pbpctl_dev_b, EODSDP,
 						(ctrl_ext |
 						 BP10G_SDP7_DATA_OUT));
-				//return(((readl((void *)((pbpctl_dev)->mem_map) + 0x28))&0x4)!=0?0:1);
 				return ((BP10G_READ_REG(pbpctl_dev_b, EODSDP) &
 					 BP10G_SDP7_DATA_IN) != 0 ? 0 : 1);
 			}
@@ -3764,7 +3710,6 @@ int tap_status(bpctl_dev_t *pbpctl_dev)
 				BP10G_WRITE_REG(pbpctl_dev_b, EODSDP,
 						(ctrl_ext |
 						 BP10G_SDP6_DATA_OUT));
-				// return(((readl((void *)((pbpctl_dev)->mem_map) + 0x28))&0x1)!=0?0:1);
 				return ((BP10G_READ_REG(pbpctl_dev_b, EODSDP) &
 					 BP10G_SDP6_DATA_IN) != 0 ? 0 : 1);
 			}
@@ -3853,19 +3798,16 @@ int disc_off_status(bpctl_dev_t *pbpctl_dev)
 				  DISC_OFF_MASK) == DISC_OFF_MASK) ? 1 : 0);
 
 		if (pbpctl_dev->bp_i80) {
-			//  return((((read_reg(pbpctl_dev,STATUS_DISC_REG_ADDR)) & DISC_OFF_MASK)==DISC_OFF_MASK)?1:0);
 			return (((BPCTL_READ_REG(pbpctl_dev_b, CTRL_EXT)) &
 				 BPCTLI_CTRL_EXT_SDP6_DATA) != 0 ? 1 : 0);
 
 		}
 		if (pbpctl_dev->bp_540) {
 			ctrl_ext = BP10G_READ_REG(pbpctl_dev_b, ESDP);
-			//return(((readl((void *)((pbpctl_dev)->mem_map) + 0x28))&0x4)!=0?0:1);
 			return ((BP10G_READ_REG(pbpctl_dev_b, ESDP) &
 				 BP10G_SDP2_DATA) != 0 ? 1 : 0);
 
 		}
-		//if (pbpctl_dev->device==SILICOM_PXG2TBI_SSID) {
 		if (pbpctl_dev->media_type == bp_copper) {
 
 #if 0
@@ -3876,7 +3818,6 @@ int disc_off_status(bpctl_dev_t *pbpctl_dev)
 				return (((BPCTL_READ_REG(pbpctl_dev_b, CTRL)) &
 					 BPCTLI_CTRL_SWDPIN1) != 0 ? 1 : 0);
 			else
-				// return(((readl((void *)((pbpctl_dev)->mem_map) + 0x20)) & 0x2)!=0?1:0); 
 				return ((BP10G_READ_REG(pbpctl_dev_b, ESDP) &
 					 BP10G_SDP1_DATA) != 0 ? 1 : 0);
 
@@ -3887,7 +3828,6 @@ int disc_off_status(bpctl_dev_t *pbpctl_dev)
 				BP10G_WRITE_REG(pbpctl_dev_b, I2CCTL,
 						(ctrl_ext |
 						 BP10G_I2C_DATA_OUT));
-				//return(((readl((void *)((pbpctl_dev)->mem_map) + 0x28))&0x4)!=0?0:1);
 				return ((BP10G_READ_REG(pbpctl_dev_b, I2CCTL) &
 					 BP10G_I2C_DATA_IN) != 0 ? 1 : 0);
 
@@ -3919,8 +3859,6 @@ int disc_off_status(bpctl_dev_t *pbpctl_dev)
 				BP10G_WRITE_REG(pbpctl_dev_b, EODSDP,
 						(ctrl_ext |
 						 BP10G_SDP6_DATA_OUT));
-				// temp=  (((BP10G_READ_REG(pbpctl_dev_b,EODSDP))&BP10G_SDP6_DATA_IN)!=0?1:0);
-				//return(((readl((void *)((pbpctl_dev)->mem_map) + 0x28)) & 0x1)!=0?1:0);
 				return (((BP10G_READ_REG(pbpctl_dev_b, EODSDP))
 					 & BP10G_SDP6_DATA_IN) != 0 ? 1 : 0);
 			}
@@ -4004,10 +3942,10 @@ int default_pwron_disc_port_status(bpctl_dev_t *pbpctl_dev)
 	if (pbpctl_dev_m->bp_caps_ex & DISC_PORT_CAP_EX) {
 		if (is_bypass_fn(pbpctl_dev) == 1)
 			return ret;
-		//  return((((read_reg(pbpctl_dev,STATUS_TAP_REG_ADDR)) & TX_DISA_MASK)==TX_DISA_MASK)?1:0);
+		/*  return((((read_reg(pbpctl_dev,STATUS_TAP_REG_ADDR)) & TX_DISA_MASK)==TX_DISA_MASK)?1:0); */
 		else
 			return ret;
-		//   return((((read_reg(pbpctl_dev,STATUS_TAP_REG_ADDR)) & TX_DISA_MASK)==TX_DISA_MASK)?1:0);
+		/*   return((((read_reg(pbpctl_dev,STATUS_TAP_REG_ADDR)) & TX_DISA_MASK)==TX_DISA_MASK)?1:0); */
 
 	}
 	return ret;
@@ -4060,7 +3998,6 @@ int tpl_hw_status(bpctl_dev_t *pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-//#ifdef PMC_FIX_FLAG
 
 int bp_wait_at_pwup_status(bpctl_dev_t *pbpctl_dev)
 {
@@ -4086,7 +4023,6 @@ int bp_hw_reset_status(bpctl_dev_t *pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-//#endif /*PMC_FIX_FLAG*/
 
 int std_nic_status(bpctl_dev_t *pbpctl_dev)
 {
@@ -4182,17 +4118,13 @@ void bypass_caps_init(bpctl_dev_t *pbpctl_dev)
 		else
 			pbpctl_dev->media_type = bp_fiber;
 
-	}
-	//if (!pbpctl_dev->bp_10g)
-	//  pbpctl_dev->media_type=((BPCTL_READ_REG(pbpctl_dev, STATUS))&BPCTLI_STATUS_TBIMODE)?bp_fiber:bp_copper;
-	else {
+	} else {
 		if (BP10G_CX4_SERIES(pbpctl_dev->subdevice))
 			pbpctl_dev->media_type = bp_cx4;
 		else
 			pbpctl_dev->media_type = bp_fiber;
 	}
 
-	//pbpctl_dev->bp_fw_ver=0xa8;
 	if (is_bypass_fn(pbpctl_dev)) {
 
 		pbpctl_dev->bp_caps |= BP_PWOFF_ON_CAP;
@@ -5341,7 +5273,7 @@ int set_bp_wait_at_pwup_fn(bpctl_dev_t *pbpctl_dev, int tap_mode)
 		return -1;
 
 	if (pbpctl_dev->bp_caps & SW_CTL_CAP) {
-		//bp_lock(pbp_device_block);
+		/* bp_lock(pbp_device_block); */
 		cmnd_on(pbpctl_dev);
 		if (!tap_mode)
 			bp_wait_at_pwup_dis(pbpctl_dev);
@@ -5349,7 +5281,7 @@ int set_bp_wait_at_pwup_fn(bpctl_dev_t *pbpctl_dev, int tap_mode)
 			bp_wait_at_pwup_en(pbpctl_dev);
 		cmnd_off(pbpctl_dev);
 
-		// bp_unlock(pbp_device_block);
+		/* bp_unlock(pbp_device_block); */
 		return BP_OK;
 	}
 	return BP_NOT_CAP;
@@ -5361,9 +5293,9 @@ int get_bp_wait_at_pwup_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	// bp_lock(pbp_device_block);
+	/* bp_lock(pbp_device_block); */
 	ret = bp_wait_at_pwup_status(pbpctl_dev);
-	// bp_unlock(pbp_device_block);
+	/* bp_unlock(pbp_device_block); */
 
 	return ret;
 }
@@ -5374,7 +5306,7 @@ int set_bp_hw_reset_fn(bpctl_dev_t *pbpctl_dev, int tap_mode)
 		return -1;
 
 	if (pbpctl_dev->bp_caps & SW_CTL_CAP) {
-		//   bp_lock(pbp_device_block);
+		/*   bp_lock(pbp_device_block); */
 		cmnd_on(pbpctl_dev);
 
 		if (!tap_mode)
@@ -5382,7 +5314,7 @@ int set_bp_hw_reset_fn(bpctl_dev_t *pbpctl_dev, int tap_mode)
 		else
 			bp_hw_reset_en(pbpctl_dev);
 		cmnd_off(pbpctl_dev);
-		//    bp_unlock(pbp_device_block);
+		/*    bp_unlock(pbp_device_block); */
 		return BP_OK;
 	}
 	return BP_NOT_CAP;
@@ -5394,10 +5326,10 @@ int get_bp_hw_reset_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	//bp_lock(pbp_device_block);
+	/* bp_lock(pbp_device_block); */
 	ret = bp_hw_reset_status(pbpctl_dev);
 
-	//bp_unlock(pbp_device_block);
+	/* bp_unlock(pbp_device_block); */
 
 	return ret;
 }
@@ -5418,7 +5350,6 @@ int get_bypass_info_fn(bpctl_dev_t *pbpctl_dev, char *dev_name,
 int get_dev_idx_bsf(int bus, int slot, int func)
 {
 	int idx_dev = 0;
-	//if_scan();
 	for (idx_dev = 0;
 	     ((bpctl_dev_arr[idx_dev].pdev != NULL) && (idx_dev < device_num));
 	     idx_dev++) {
@@ -5494,9 +5425,9 @@ static void if_scan_init(void)
 	int idx_dev = 0;
 	struct net_device *dev;
 	int ifindex;
-	//rcu_read_lock();
-	//rtnl_lock();
-	//rcu_read_lock();
+	/* rcu_read_lock(); */
+	/* rtnl_lock();     */
+	/* rcu_read_lock(); */
 #if 1
 #if (LINUX_VERSION_CODE >= 0x020618)
 	for_each_netdev(&init_net, dev)
@@ -5508,7 +5439,6 @@ static void if_scan_init(void)
 	{
 
 		struct ethtool_drvinfo drvinfo;
-		// char *str=NULL;
 		char cbuf[32];
 		char *buf = NULL;
 		char res[10];
@@ -5531,13 +5461,6 @@ static void if_scan_init(void)
 		memcpy(&cbuf, drvinfo.bus_info, 32);
 		buf = &cbuf[0];
 
-		// while(*buf++){
-
-		/*if(*buf==':'){
-		   buf++;
-		   break;
-		   } */
-		//}
 		while (*buf++ != ':') ;
 		for (i = 0; i < 10; i++, buf++) {
 			if (*buf == ':')
@@ -5569,8 +5492,8 @@ static void if_scan_init(void)
 
 	}
 #endif
-	//rtnl_unlock();
-	//rcu_read_unlock();
+	/* rtnl_unlock();     */
+	/* rcu_read_unlock(); */
 
 }
 
@@ -5595,17 +5518,17 @@ static long device_ioctl(struct file *file,	/* ditto */
 	static bpctl_dev_t *pbpctl_dev;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
-	//lock_kernel();
+	/* lock_kernel(); */
 #endif
 	lock_bpctl();
-	//local_irq_save(flags);
-	/*if(!spin_trylock_irqsave(&bpvm_lock)){
+	/* local_irq_save(flags); */
+	/* if(!spin_trylock_irqsave(&bpvm_lock)){
 	   local_irq_restore(flags);
-	   //unlock_bpctl();
-	   //unlock_kernel();
+	   unlock_bpctl();
+	   unlock_kernel();
 	   return -1;
 	   } */
-	//spin_lock_irqsave(&bpvm_lock, flags);
+	/* spin_lock_irqsave(&bpvm_lock, flags); */
 
 /*
 * Switch according to the ioctl called
@@ -5632,18 +5555,19 @@ static long device_ioctl(struct file *file,	/* ditto */
 		goto bp_exit;
 
 	}
-	//lock_bpctl(); 
-	//preempt_disable();
+	/* lock_bpctl();      */
+	/* preempt_disable(); */
 	local_irq_save(flags);
 	if (!spin_trylock(&bpvm_lock)) {
 		local_irq_restore(flags);
 		unlock_bpctl();
-		//unlock_kernel();
 		return -1;
 	}
-//    preempt_disable();
-	//rcu_read_lock();
-//    spin_lock_irqsave(&bpvm_lock, flags);
+
+/*    	preempt_disable();
+	rcu_read_lock();
+      	spin_lock_irqsave(&bpvm_lock, flags);
+*/
 	if ((bpctl_cmd.in_param[5]) ||
 	    (bpctl_cmd.in_param[6]) || (bpctl_cmd.in_param[7]))
 		dev_idx = get_dev_idx_bsf(bpctl_cmd.in_param[5],
@@ -5655,11 +5579,11 @@ static long device_ioctl(struct file *file,	/* ditto */
 		dev_idx = get_dev_idx(bpctl_cmd.in_param[1]);
 
 	if (dev_idx < 0 || dev_idx > device_num) {
-		//unlock_bpctl();
-		//preempt_enable();
+		/* unlock_bpctl();
+		   preempt_enable(); */
 		ret = -EOPNOTSUPP;
-		//preempt_enable();
-		//rcu_read_unlock();
+		/* preempt_enable();
+		   rcu_read_unlock();  */
 		spin_unlock_irqrestore(&bpvm_lock, flags);
 		goto bp_exit;
 	}
@@ -5675,8 +5599,8 @@ static long device_ioctl(struct file *file,	/* ditto */
 		       bpctl_dev_arr[dev_idx].name);
 		bpctl_cmd.status = -1;
 		ret = SUCCESS;
-		/*preempt_enable(); */
-		//rcu_read_unlock();
+		/* preempt_enable(); */
+		/* rcu_read_unlock(); */
 		spin_unlock_irqrestore(&bpvm_lock, flags);
 		goto bp_exit;
 
@@ -5689,8 +5613,8 @@ static long device_ioctl(struct file *file,	/* ditto */
 				     bpctl_dev_arr[dev_idx].name);
 				bpctl_cmd.status = -1;
 				ret = SUCCESS;
-				/*preempt_enable(); */
-				//rcu_read_unlock();
+				/* preempt_enable(); */
+				/* rcu_read_unlock(); */
 				spin_unlock_irqrestore(&bpvm_lock, flags);
 				goto bp_exit;
 			}
@@ -5823,12 +5747,12 @@ static long device_ioctl(struct file *file,	/* ditto */
 	case IOCTL_TX_MSG(GET_BYPASS_CAPS):
 		bpctl_cmd.status = get_bypass_caps_fn(pbpctl_dev);
 		/*preempt_enable(); */
-		//rcu_read_unlock();
+		/*rcu_read_unlock();*/
 		spin_unlock_irqrestore(&bpvm_lock, flags);
 		if (copy_to_user
 		    (argp, (void *)&bpctl_cmd, sizeof(struct bpctl_cmd))) {
-			//unlock_bpctl();
-			//preempt_enable(); 
+			/*unlock_bpctl();   */
+			/*preempt_enable(); */
 			ret = -EFAULT;
 			goto bp_exit;
 		}
@@ -5903,7 +5827,6 @@ static long device_ioctl(struct file *file,	/* ditto */
 	case IOCTL_TX_MSG(GET_TPL):
 		bpctl_cmd.status = get_tpl_fn(pbpctl_dev);
 		break;
-//#ifdef PMC_FIX_FLAG
 	case IOCTL_TX_MSG(SET_BP_WAIT_AT_PWUP):
 		bpctl_cmd.status =
 		    set_bp_wait_at_pwup_fn(pbpctl_dev, bpctl_cmd.in_param[2]);
@@ -5920,7 +5843,6 @@ static long device_ioctl(struct file *file,	/* ditto */
 	case IOCTL_TX_MSG(GET_BP_HW_RESET):
 		bpctl_cmd.status = get_bp_hw_reset_fn(pbpctl_dev);
 		break;
-//#endif
 #ifdef BP_SELF_TEST
 	case IOCTL_TX_MSG(SET_BP_SELF_TEST):
 		bpctl_cmd.status =
@@ -5961,29 +5883,29 @@ static long device_ioctl(struct file *file,	/* ditto */
 		break;
 
 	default:
-		//    unlock_bpctl();
+		/*    unlock_bpctl(); */
 
 		ret = -EOPNOTSUPP;
-		/*preempt_enable(); */
-		//rcu_read_unlock();
+		/* preempt_enable(); */
+		/* rcu_read_unlock();*/
 		spin_unlock_irqrestore(&bpvm_lock, flags);
 		goto bp_exit;
 	}
-	//unlock_bpctl();
-	/*preempt_enable(); */
+	/* unlock_bpctl();   */
+	/* preempt_enable(); */
  bpcmd_exit:
-	//rcu_read_unlock();
+	/* rcu_read_unlock(); */
 	spin_unlock_irqrestore(&bpvm_lock, flags);
 	if (copy_to_user(argp, (void *)&bpctl_cmd, sizeof(struct bpctl_cmd)))
 		ret = -EFAULT;
 	ret = SUCCESS;
  bp_exit:
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
-	//unlock_kernel();
+	/* unlock_kernel(); */
 #endif
-	//spin_unlock_irqrestore(&bpvm_lock, flags);
+	/* spin_unlock_irqrestore(&bpvm_lock, flags); */
 	unlock_bpctl();
-	//unlock_kernel();
+	/* unlock_kernel(); */
 	return ret;
 }
 
@@ -6481,7 +6403,7 @@ static bpmod_info_t tx_ctl_pci_tbl[] = {
 	{BROADCOM_VID, BROADCOM_PE10G2_PID, SILICOM_SVID,
 	 SILICOM_PE10G2BPTT_SSID, PE10G2BPTT, "PE10G2BPTT"},
 
-	//{BROADCOM_VID, BROADCOM_PE10G2_PID, PCI_ANY_ID, PCI_ANY_ID, PE10G2BPTCX4, "PE10G2BPTCX4"},
+	/* {BROADCOM_VID, BROADCOM_PE10G2_PID, PCI_ANY_ID, PCI_ANY_ID, PE10G2BPTCX4, "PE10G2BPTCX4"}, */
 
 	{0x8086, 0x10c9, SILICOM_SVID /*PCI_ANY_ID */ ,
 	 SILICOM_PEG4BPI6_SSID /*PCI_ANY_ID */ , PEG4BPI6, "PEG4BPI6"},
@@ -6606,10 +6528,8 @@ static bpmod_info_t tx_ctl_pci_tbl[] = {
 
 	{0x8086, 0x10F9, SILICOM_SVID /*PCI_ANY_ID */ ,
 	 SILICOM_PE210G2DBi9SR_SSID, PE210G2DBi9SR, "PE210G2DBi9SR"},
-	//{0x8086, 0x10F9, SILICOM_SVID /*PCI_ANY_ID*/, SILICOM_PE210G2DBi9SRRB_SSID , PE210G2DBi9SRRB, "PE210G2DBi9SRRB"}, 
 	{0x8086, 0x10F9, SILICOM_SVID /*PCI_ANY_ID */ ,
 	 SILICOM_PE210G2DBi9LR_SSID, PE210G2DBi9LR, "PE210G2DBi9LR"},
-	//  {0x8086, 0x10F9, SILICOM_SVID /*PCI_ANY_ID*/, SILICOM_PE210G2DBi9LRRB_SSID , PE210G2DBi9LRRB, "PE210G2DBi9LRRB"}, 
 	{0x8086, 0x10F9, SILICOM_SVID /*PCI_ANY_ID */ ,
 	 SILICOM_PE310G4DBi940SR_SSID, PE310G4DBi940SR, "PE310G4DBi9SR"},
 
@@ -6671,9 +6591,6 @@ static bpmod_info_t tx_ctl_pci_tbl[] = {
 	{0x8086, PCI_ANY_ID, SILICOM_SVID /*PCI_ANY_ID */ ,
 	 SILICOM_PE2G6BPi35_SSID /*PCI_ANY_ID */ , PE2G6BPi35, "PE2G6BPi35"},
 
-	// {0x8086, PCI_ANY_ID, SILICOM_SVID /*PCI_ANY_ID*/,0xaa0,PE2G6BPi35CX,"PE2G6BPi35CX"},
-	// {0x8086, PCI_ANY_ID, SILICOM_SVID /*PCI_ANY_ID*/,0xaa1,PE2G6BPi35CX,"PE2G6BPi35CX"},
-	// {0x8086, PCI_ANY_ID, SILICOM_SVID /*PCI_ANY_ID*/,0xaa2,PE2G6BPi35CX,"PE2G6BPi35CX"},
 
 	{0x8086, PCI_ANY_ID, SILICOM_SVID /*PCI_ANY_ID */ , 0xaa0, PE2G6BPi35CX,
 	 "PE2G6BPi35CX"},
@@ -6891,7 +6808,7 @@ static int __init bypass_init_module(void)
 			    tx_ctl_pci_tbl[idx].subdevice;
 			bpctl_dev_arr[idx_dev].subvendor =
 			    tx_ctl_pci_tbl[idx].subvendor;
-			//bpctl_dev_arr[idx_dev].pdev=pdev1;
+			/* bpctl_dev_arr[idx_dev].pdev=pdev1; */
 			bpctl_dev_arr[idx_dev].func = PCI_FUNC(pdev1->devfn);
 			bpctl_dev_arr[idx_dev].slot = PCI_SLOT(pdev1->devfn);
 			bpctl_dev_arr[idx_dev].bus = pdev1->bus->number;
@@ -7002,7 +6919,7 @@ static int __init bypass_init_module(void)
 
 						}
 					}
-					//bpctl_dev_arr[idx_dev].bp_fw_ver=0xa8;
+					/* bpctl_dev_arr[idx_dev].bp_fw_ver=0xa8; */
 					printk("firmware version: 0x%x\n",
 					       bpctl_dev_arr[idx_dev].
 					       bp_fw_ver);
@@ -7173,23 +7090,22 @@ static int __init bypass_init_module(void)
 #ifdef BP_PROC_SUPPORT
 	{
 		int i = 0;
-		//unsigned long flags;
-		//rcu_read_lock();
+		/* unsigned long flags; */
+		/* rcu_read_lock(); */
 		bp_proc_create();
 		for (i = 0; i < device_num; i++) {
 			if (bpctl_dev_arr[i].ifindex) {
-				//spin_lock_irqsave(&bpvm_lock, flags); 
+				/* spin_lock_irqsave(&bpvm_lock, flags); */
 				bypass_proc_remove_dev_sd(&bpctl_dev_arr[i]);
 				bypass_proc_create_dev_sd(&bpctl_dev_arr[i]);
-				//spin_unlock_irqrestore(&bpvm_lock, flags); 
+				/* spin_unlock_irqrestore(&bpvm_lock, flags); */
 			}
 
 		}
-		//rcu_read_unlock();
+		/* rcu_read_unlock(); */
 	}
 #endif
 
-	//register_netdevice_notifier(&bp_notifier_block);
 	return 0;
 }
 
@@ -7252,13 +7168,13 @@ static void __exit bypass_cleanup_module(void)
 #endif
 
 	for (i = 0; i < device_num; i++) {
-		//unsigned long flags;
+		/* unsigned long flags; */
 #ifdef BP_PROC_SUPPORT
-//spin_lock_irqsave(&bpvm_lock, flags);
-//rcu_read_lock();
+/*	spin_lock_irqsave(&bpvm_lock, flags);
+	rcu_read_lock(); */
 		bypass_proc_remove_dev_sd(&bpctl_dev_arr[i]);
-//spin_unlock_irqrestore(&bpvm_lock, flags);        
-//rcu_read_unlock();
+/*	spin_unlock_irqrestore(&bpvm_lock, flags);        
+	rcu_read_unlock(); */
 #endif
 		remove_bypass_wd_auto(&bpctl_dev_arr[i]);
 		bpctl_dev_arr[i].reset_time = 0;
