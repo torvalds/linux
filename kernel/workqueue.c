@@ -73,11 +73,10 @@ enum {
 	WORKER_DIE		= 1 << 1,	/* die die die */
 	WORKER_IDLE		= 1 << 2,	/* is idle */
 	WORKER_PREP		= 1 << 3,	/* preparing to run works */
-	WORKER_REBIND		= 1 << 5,	/* mom is home, come back */
 	WORKER_CPU_INTENSIVE	= 1 << 6,	/* cpu intensive */
 	WORKER_UNBOUND		= 1 << 7,	/* worker is unbound */
 
-	WORKER_NOT_RUNNING	= WORKER_PREP | WORKER_REBIND | WORKER_UNBOUND |
+	WORKER_NOT_RUNNING	= WORKER_PREP | WORKER_UNBOUND |
 				  WORKER_CPU_INTENSIVE,
 
 	NR_WORKER_POOLS		= 2,		/* # worker pools per gcwq */
@@ -1618,20 +1617,15 @@ __acquires(&gcwq->lock)
 
 /*
  * Rebind an idle @worker to its CPU.  worker_thread() will test
- * %WORKER_REBIND before leaving idle and call this function.
+ * list_empty(@worker->entry) before leaving idle and call this function.
  */
 static void idle_worker_rebind(struct worker *worker)
 {
 	struct global_cwq *gcwq = worker->pool->gcwq;
 
-	/*
-	 * CPU may go down again inbetween.  If rebinding fails, reinstate
-	 * UNBOUND.  We're off idle_list and nobody else can do it for us.
-	 */
-	if (!worker_maybe_bind_and_lock(worker))
-		worker->flags |= WORKER_UNBOUND;
-
-	worker_clr_flags(worker, WORKER_REBIND);
+	/* CPU may go down again inbetween, clear UNBOUND only on success */
+	if (worker_maybe_bind_and_lock(worker))
+		worker_clr_flags(worker, WORKER_UNBOUND);
 
 	/* rebind complete, become available again */
 	list_add(&worker->entry, &worker->pool->idle_list);
@@ -1689,16 +1683,9 @@ static void rebind_workers(struct global_cwq *gcwq)
 	for_each_worker_pool(pool, gcwq)
 		lockdep_assert_held(&pool->manager_mutex);
 
-	/* set REBIND and kick idle ones */
+	/* dequeue and kick idle ones */
 	for_each_worker_pool(pool, gcwq) {
 		list_for_each_entry_safe(worker, n, &pool->idle_list, entry) {
-			unsigned long worker_flags = worker->flags;
-
-			/* morph UNBOUND to REBIND atomically */
-			worker_flags &= ~WORKER_UNBOUND;
-			worker_flags |= WORKER_REBIND;
-			ACCESS_ONCE(worker->flags) = worker_flags;
-
 			/*
 			 * idle workers should be off @pool->idle_list
 			 * until rebind is complete to avoid receiving
@@ -1706,7 +1693,10 @@ static void rebind_workers(struct global_cwq *gcwq)
 			 */
 			list_del_init(&worker->entry);
 
-			/* worker_thread() will call idle_worker_rebind() */
+			/*
+			 * worker_thread() will see the above dequeuing
+			 * and call idle_worker_rebind().
+			 */
 			wake_up_process(worker->task);
 		}
 	}
@@ -2176,7 +2166,7 @@ __acquires(&gcwq->lock)
 	 * necessary to avoid spurious warnings from rescuers servicing the
 	 * unbound or a disassociated gcwq.
 	 */
-	WARN_ON_ONCE(!(worker->flags & (WORKER_UNBOUND | WORKER_REBIND)) &&
+	WARN_ON_ONCE(!(worker->flags & WORKER_UNBOUND) &&
 		     !(gcwq->flags & GCWQ_DISASSOCIATED) &&
 		     raw_smp_processor_id() != gcwq->cpu);
 
@@ -2300,18 +2290,17 @@ static int worker_thread(void *__worker)
 woke_up:
 	spin_lock_irq(&gcwq->lock);
 
-	/*
-	 * DIE can be set only while idle and REBIND set while busy has
-	 * @worker->rebind_work scheduled.  Checking here is enough.
-	 */
-	if (unlikely(worker->flags & (WORKER_REBIND | WORKER_DIE))) {
+	/* we are off idle list if destruction or rebind is requested */
+	if (unlikely(list_empty(&worker->entry))) {
 		spin_unlock_irq(&gcwq->lock);
 
+		/* if DIE is set, destruction is requested */
 		if (worker->flags & WORKER_DIE) {
 			worker->task->flags &= ~PF_WQ_WORKER;
 			return 0;
 		}
 
+		/* otherwise, rebind */
 		idle_worker_rebind(worker);
 		goto woke_up;
 	}
