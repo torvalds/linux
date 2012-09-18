@@ -258,6 +258,9 @@ struct smb_version_operations {
 	/* set size by file handle */
 	int (*set_file_size)(const unsigned int, struct cifs_tcon *,
 			     struct cifsFileInfo *, __u64, bool);
+	/* set attributes */
+	int (*set_file_info)(struct inode *, const char *, FILE_BASIC_INFO *,
+			     const unsigned int);
 	/* build a full path to the root of the mount */
 	char * (*build_path_to_root)(struct smb_vol *, struct cifs_sb_info *,
 				     struct cifs_tcon *);

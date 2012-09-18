@@ -758,6 +758,84 @@ cifs_sync_write(const unsigned int xid, struct cifsFileInfo *cfile,
 	return CIFSSMBWrite2(xid, parms, written, iov, nr_segs);
 }
 
+static int
+smb_set_file_info(struct inode *inode, const char *full_path,
+		  FILE_BASIC_INFO *buf, const unsigned int xid)
+{
+	int oplock = 0;
+	int rc;
+	__u16 netfid;
+	__u32 netpid;
+	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct tcon_link *tlink = NULL;
+	struct cifs_tcon *tcon;
+	FILE_BASIC_INFO info_buf;
+
+	/* if the file is already open for write, just use that fileid */
+	open_file = find_writable_file(cinode, true);
+	if (open_file) {
+		netfid = open_file->fid.netfid;
+		netpid = open_file->pid;
+		tcon = tlink_tcon(open_file->tlink);
+		goto set_via_filehandle;
+	}
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
+		tlink = NULL;
+		goto out;
+	}
+	tcon = tlink_tcon(tlink);
+
+	/*
+	 * NT4 apparently returns success on this call, but it doesn't really
+	 * work.
+	 */
+	if (!(tcon->ses->flags & CIFS_SES_NT4)) {
+		rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf,
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc == 0) {
+			cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
+			goto out;
+		} else if (rc != -EOPNOTSUPP && rc != -EINVAL)
+			goto out;
+	}
+
+	cFYI(1, "calling SetFileInfo since SetPathInfo for times not supported "
+		"by this server");
+	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
+			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
+			 &netfid, &oplock, NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (rc != 0) {
+		if (rc == -EIO)
+			rc = -EINVAL;
+		goto out;
+	}
+
+	netpid = current->tgid;
+
+set_via_filehandle:
+	rc = CIFSSMBSetFileInfo(xid, tcon, &info_buf, netfid, netpid);
+	if (!rc)
+		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
+
+	if (open_file == NULL)
+		CIFSSMBClose(xid, tcon, netfid);
+	else
+		cifsFileInfo_put(open_file);
+out:
+	if (tlink != NULL)
+		cifs_put_tlink(tlink);
+	return rc;
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -795,6 +873,7 @@ struct smb_version_operations smb1_operations = {
 	.get_srv_inum = cifs_get_srv_inum,
 	.set_path_size = CIFSSMBSetEOF,
 	.set_file_size = CIFSSMBSetFileSize,
+	.set_file_info = smb_set_file_info,
 	.build_path_to_root = cifs_build_path_to_root,
 	.echo = CIFSSMBEcho,
 	.mkdir = CIFSSMBMkDir,

@@ -886,20 +886,17 @@ int
 cifs_set_file_info(struct inode *inode, struct iattr *attrs, unsigned int xid,
 		   char *full_path, __u32 dosattr)
 {
-	int rc;
-	int oplock = 0;
-	__u16 netfid;
-	__u32 netpid;
 	bool set_time = false;
-	struct cifsFileInfo *open_file;
-	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct tcon_link *tlink = NULL;
-	struct cifs_tcon *pTcon;
+	struct TCP_Server_Info *server;
 	FILE_BASIC_INFO	info_buf;
 
 	if (attrs == NULL)
 		return -EINVAL;
+
+	server = cifs_sb_master_tcon(cifs_sb)->ses->server;
+	if (!server->ops->set_file_info)
+		return -ENOSYS;
 
 	if (attrs->ia_valid & ATTR_ATIME) {
 		set_time = true;
@@ -931,71 +928,7 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, unsigned int xid,
 	info_buf.CreationTime = 0;	/* don't change */
 	info_buf.Attributes = cpu_to_le32(dosattr);
 
-	/*
-	 * If the file is already open for write, just use that fileid
-	 */
-	open_file = find_writable_file(cifsInode, true);
-	if (open_file) {
-		netfid = open_file->fid.netfid;
-		netpid = open_file->pid;
-		pTcon = tlink_tcon(open_file->tlink);
-		goto set_via_filehandle;
-	}
-
-	tlink = cifs_sb_tlink(cifs_sb);
-	if (IS_ERR(tlink)) {
-		rc = PTR_ERR(tlink);
-		tlink = NULL;
-		goto out;
-	}
-	pTcon = tlink_tcon(tlink);
-
-	/*
-	 * NT4 apparently returns success on this call, but it doesn't
-	 * really work.
-	 */
-	if (!(pTcon->ses->flags & CIFS_SES_NT4)) {
-		rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
-				     &info_buf, cifs_sb->local_nls,
-				     cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == 0) {
-			cifsInode->cifsAttrs = dosattr;
-			goto out;
-		} else if (rc != -EOPNOTSUPP && rc != -EINVAL)
-			goto out;
-	}
-
-	cFYI(1, "calling SetFileInfo since SetPathInfo for "
-		 "times not supported by this server");
-	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
-			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
-			 CREATE_NOT_DIR, &netfid, &oplock,
-			 NULL, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
-
-	if (rc != 0) {
-		if (rc == -EIO)
-			rc = -EINVAL;
-		goto out;
-	}
-
-	netpid = current->tgid;
-
-set_via_filehandle:
-	rc = CIFSSMBSetFileInfo(xid, pTcon, &info_buf, netfid, netpid);
-	if (!rc)
-		cifsInode->cifsAttrs = dosattr;
-
-	if (open_file == NULL)
-		CIFSSMBClose(xid, pTcon, netfid);
-	else
-		cifsFileInfo_put(open_file);
-out:
-	if (tlink != NULL)
-		cifs_put_tlink(tlink);
-	return rc;
+	return server->ops->set_file_info(inode, full_path, &info_buf, xid);
 }
 
 /*
