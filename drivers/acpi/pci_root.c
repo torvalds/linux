@@ -112,12 +112,17 @@ EXPORT_SYMBOL(acpi_pci_unregister_driver);
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
 {
 	struct acpi_pci_root *root;
+	acpi_handle handle = NULL;
 	
+	mutex_lock(&acpi_pci_root_lock);
 	list_for_each_entry(root, &acpi_pci_roots, node)
 		if ((root->segment == (u16) seg) &&
-		    (root->secondary.start == (u16) bus))
-			return root->device->handle;
-	return NULL;		
+		    (root->secondary.start == (u16) bus)) {
+			handle = root->device->handle;
+			break;
+		}
+	mutex_unlock(&acpi_pci_root_lock);
+	return handle;
 }
 
 EXPORT_SYMBOL_GPL(acpi_get_pci_rootbridge_handle);
@@ -506,8 +511,9 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
 	 */
 
-	/* TBD: Locking */
+	mutex_lock(&acpi_pci_root_lock);
 	list_add_tail(&root->node, &acpi_pci_roots);
+	mutex_unlock(&acpi_pci_root_lock);
 
 	printk(KERN_INFO PREFIX "%s [%s] (domain %04x %pR)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
@@ -526,7 +532,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 			    "Bus %04x:%02x not present in PCI namespace\n",
 			    root->segment, (unsigned int)root->secondary.start);
 		result = -ENODEV;
-		goto end;
+		goto out_del_root;
 	}
 
 	/*
@@ -536,7 +542,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 */
 	result = acpi_pci_bind_root(device);
 	if (result)
-		goto end;
+		goto out_del_root;
 
 	/*
 	 * PCI Routing Table
@@ -614,9 +620,11 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 
 	return 0;
 
+out_del_root:
+	mutex_lock(&acpi_pci_root_lock);
+	list_del(&root->node);
+	mutex_unlock(&acpi_pci_root_lock);
 end:
-	if (!list_empty(&root->node))
-		list_del(&root->node);
 	kfree(root);
 	return result;
 }
@@ -646,11 +654,12 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type)
 	list_for_each_entry(driver, &acpi_pci_drivers, node)
 		if (driver->remove)
 			driver->remove(root);
-	mutex_unlock(&acpi_pci_root_lock);
 
 	device_set_run_wake(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
 
+	list_del(&root->node);
+	mutex_unlock(&acpi_pci_root_lock);
 	kfree(root);
 	return 0;
 }
