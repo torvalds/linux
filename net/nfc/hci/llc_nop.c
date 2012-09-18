@@ -93,7 +93,7 @@ static struct nfc_llc_ops llc_nop_ops = {
 	.xmit_from_hci = llc_nop_xmit_from_hci,
 };
 
-int nfc_llc_nop_register()
+int nfc_llc_nop_register(void)
 {
 	return nfc_llc_register(LLC_NOP_NAME, &llc_nop_ops);
 }
