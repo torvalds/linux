@@ -102,9 +102,9 @@
 /*
  * Generic GPIO support
  */
-#define MCFGPIO_PIN_MAX			16
-#define MCFGPIO_IRQ_MAX			-1
-#define MCFGPIO_IRQ_VECBASE		-1
+#define MCFGPIO_PIN_MAX		16
+#define MCFGPIO_IRQ_MAX		-1
+#define MCFGPIO_IRQ_VECBASE	-1
 
 /*
  *	Some symbol defines for the above...
@@ -130,9 +130,9 @@
 /*
  *       Defines for the IRQPAR Register
  */
-#define IRQ5_LEVEL4	0x80
-#define IRQ3_LEVEL6	0x40
-#define IRQ1_LEVEL2	0x20
+#define IRQ5_LEVEL4		0x80
+#define IRQ3_LEVEL6		0x40
+#define IRQ1_LEVEL2		0x20
 
 /*
  *	Define system peripheral IRQ usage.
