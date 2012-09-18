@@ -150,8 +150,12 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 		count = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	} else {
-		struct drm_display_mode *mode = drm_mode_create(connector->dev);
 		struct exynos_drm_panel_info *panel;
+		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+		if (!mode) {
+			DRM_ERROR("failed to create a new display mode.\n");
+			return 0;
+		}
 
 		if (display_ops->get_panel)
 			panel = display_ops->get_panel(manager->dev);
