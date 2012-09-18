@@ -1580,9 +1580,7 @@ struct cfg80211_gtk_rekey_data {
  * @set_cqm_txe_config: Configure connection quality monitor TX error
  *	thresholds.
  * @sched_scan_start: Tell the driver to start a scheduled scan.
- * @sched_scan_stop: Tell the driver to stop an ongoing scheduled
- *	scan.  The driver_initiated flag specifies whether the driver
- *	itself has informed that the scan has stopped.
+ * @sched_scan_stop: Tell the driver to stop an ongoing scheduled scan.
  *
  * @mgmt_frame_register: Notify driver that a management frame type was
  *	registered. Note that this callback may not sleep, and cannot run
