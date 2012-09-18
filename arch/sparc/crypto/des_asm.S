@@ -168,6 +168,7 @@ ENTRY(des_sparc64_cbc_decrypt)
 	DES_ROUND(28, 30, 32, 32)
 	DES_IIP(32, 32)
 	fxor	%f32, %f34, %f32
+	fsrc2	%f36, %f34
 	std	%f32, [%o1 + 0x00]
 	add	%o0, 0x08, %o0
 	subcc	%o2, 0x08, %o2
