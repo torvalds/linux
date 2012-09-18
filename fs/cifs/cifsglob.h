@@ -278,6 +278,10 @@ struct smb_version_operations {
 	/* send rename request */
 	int (*rename)(const unsigned int, struct cifs_tcon *, const char *,
 		      const char *, struct cifs_sb_info *);
+	/* send create hardlink request */
+	int (*create_hardlink)(const unsigned int, struct cifs_tcon *,
+			       const char *, const char *,
+			       struct cifs_sb_info *);
 	/* open a file for non-posix mounts */
 	int (*open)(const unsigned int, struct cifs_tcon *, const char *, int,
 		    int, int, struct cifs_fid *, __u32 *, FILE_ALL_INFO *,
