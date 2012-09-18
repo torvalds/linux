@@ -27,9 +27,6 @@ config LOGO_LINUX_CLUT224
 	bool "Standard 224-color Linux logo"
 	default y
 
-config LOGO_LINUX_BMP
-       bool "bmp logo"
-
 config LOGO_BLACKFIN_VGA16
 	bool "16-colour Blackfin Processor Linux logo"
 	depends on BLACKFIN
@@ -92,5 +89,12 @@ config LOGO_CHARGER_CLUT224
 config LOGO_G3_CLUT224
 	bool "Standard 224-color Linux logo for g3 phone"
 	default n
+menuconfig LOGO_LINUX_BMP
+        bool "Bmp logo support"
+	default n
 
+config LOGO_LINUX_BMP_SUNSET
+	bool "Bmp logo sunset"
+	depends on  LOGO_LINUX_BMP
+	default n
 endif # LOGO

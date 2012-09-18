@@ -123,7 +123,9 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		if (depth >= 24)
 		{
 			#ifdef  CONFIG_LOGO_LINUX_BMP
-			logo = &logo_bmp;	
+			#ifdef CONFIG_LOGO_LINUX_BMP
+			logo = &logo_sunset_bmp;
+			#endif
 			#endif	
 		}
 		else
