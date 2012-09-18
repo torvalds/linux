@@ -187,9 +187,6 @@ smb2_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	 */
 	wsize = min_t(unsigned int, wsize, 2 << 15);
 
-	/* limit to the amount that we can kmap at once */
-	wsize = min_t(unsigned int, wsize, CIFS_KMAP_SIZE_LIMIT);
-
 	return wsize;
 }
 
