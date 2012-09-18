@@ -71,8 +71,6 @@ struct moschip_port {
 	struct urb		*write_urb_pool[NUM_URBS];
 };
 
-static bool debug;
-
 static struct usb_serial_driver moschip7720_2port_driver;
 
 #define USB_VENDOR_ID_MOSCHIP		0x9710
@@ -2133,6 +2131,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
