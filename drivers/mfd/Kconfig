@@ -298,16 +298,6 @@ config MFD_TWL4030_AUDIO
 	select MFD_CORE
 	default n
 
-config TWL6030_PWM
-	tristate "TWL6030 PWM (Pulse Width Modulator) Support"
-	depends on TWL4030_CORE
-	select HAVE_PWM
-	depends on !PWM
-	default n
-	help
-	  Say yes here if you want support for TWL6030 PWM.
-	  This is used to control charging LED brightness.
-
 config TWL6040_CORE
 	bool "Support for TWL6040 audio codec"
 	depends on I2C=y && GENERIC_HARDIRQS
