@@ -221,8 +221,17 @@ static int chip_read2(struct CHIPSTATE *chip, int subaddr)
 	unsigned char write[1];
 	unsigned char read[1];
 	struct i2c_msg msgs[2] = {
-		{ c->addr, 0,        1, write },
-		{ c->addr, I2C_M_RD, 1, read  }
+		{
+			.addr = c->addr,
+			.len = 1,
+			.buf = write
+		},
+		{
+			.addr = c->addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = read
+		}
 	};
 
 	write[0] = subaddr;
