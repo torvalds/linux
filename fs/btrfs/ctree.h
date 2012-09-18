@@ -3400,6 +3400,11 @@ static inline void __btrfs_set_fs_incompat(struct btrfs_fs_info *fs_info,
 	}
 }
 
+/*
+ * Call btrfs_abort_transaction as early as possible when an error condition is
+ * detected, that way the exact line number is reported.
+ */
+
 #define btrfs_abort_transaction(trans, root, errno)		\
 do {								\
 	__btrfs_abort_transaction(trans, root, __func__,	\

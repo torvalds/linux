@@ -5123,8 +5123,10 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			ret = remove_extent_backref(trans, extent_root, path,
 						    NULL, refs_to_drop,
 						    is_data);
-			if (ret)
-				goto abort;
+			if (ret) {
+				btrfs_abort_transaction(trans, extent_root, ret);
+				goto out;
+			}
 			btrfs_release_path(path);
 			path->leave_spinning = 1;
 
@@ -5142,8 +5144,10 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 					btrfs_print_leaf(extent_root,
 							 path->nodes[0]);
 			}
-			if (ret < 0)
-				goto abort;
+			if (ret < 0) {
+				btrfs_abort_transaction(trans, extent_root, ret);
+				goto out;
+			}
 			extent_slot = path->slots[0];
 		}
 	} else if (ret == -ENOENT) {
@@ -5157,7 +5161,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		       (unsigned long long)owner_objectid,
 		       (unsigned long long)owner_offset);
 	} else {
-		goto abort;
+		btrfs_abort_transaction(trans, extent_root, ret);
+		goto out;
 	}
 
 	leaf = path->nodes[0];
@@ -5167,8 +5172,10 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		BUG_ON(found_extent || extent_slot != path->slots[0]);
 		ret = convert_extent_item_v0(trans, extent_root, path,
 					     owner_objectid, 0);
-		if (ret < 0)
-			goto abort;
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, extent_root, ret);
+			goto out;
+		}
 
 		btrfs_release_path(path);
 		path->leave_spinning = 1;
@@ -5185,8 +5192,11 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			       (unsigned long long)bytenr);
 			btrfs_print_leaf(extent_root, path->nodes[0]);
 		}
-		if (ret < 0)
-			goto abort;
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, extent_root, ret);
+			goto out;
+		}
+
 		extent_slot = path->slots[0];
 		leaf = path->nodes[0];
 		item_size = btrfs_item_size_nr(leaf, extent_slot);
@@ -5223,8 +5233,10 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			ret = remove_extent_backref(trans, extent_root, path,
 						    iref, refs_to_drop,
 						    is_data);
-			if (ret)
-				goto abort;
+			if (ret) {
+				btrfs_abort_transaction(trans, extent_root, ret);
+				goto out;
+			}
 		}
 	} else {
 		if (found_extent) {
@@ -5241,27 +5253,29 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_del_items(trans, extent_root, path, path->slots[0],
 				      num_to_del);
-		if (ret)
-			goto abort;
+		if (ret) {
+			btrfs_abort_transaction(trans, extent_root, ret);
+			goto out;
+		}
 		btrfs_release_path(path);
 
 		if (is_data) {
 			ret = btrfs_del_csums(trans, root, bytenr, num_bytes);
-			if (ret)
-				goto abort;
+			if (ret) {
+				btrfs_abort_transaction(trans, extent_root, ret);
+				goto out;
+			}
 		}
 
 		ret = update_block_group(trans, root, bytenr, num_bytes, 0);
-		if (ret)
-			goto abort;
+		if (ret) {
+			btrfs_abort_transaction(trans, extent_root, ret);
+			goto out;
+		}
 	}
 out:
 	btrfs_free_path(path);
 	return ret;
-
-abort:
-	btrfs_abort_transaction(trans, extent_root, ret);
-	goto out;
 }
 
 /*
