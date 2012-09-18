@@ -1,0 +1,50 @@
+ARM Versatile Express system registers
+--------------------------------------
+
+This is a system control registers block, providing multiple low level
+platform functions like board detection and identification, software
+interrupt generation, MMC and NOR Flash control etc.
+
+Required node properties:
+- compatible value : = "arm,vexpress,sysreg";
+- reg : physical base address and the size of the registers window
+- gpio-controller : specifies that the node is a GPIO controller
+- #gpio-cells : size of the GPIO specifier, should be 2:
+  - first cell is the pseudo-GPIO line number:
+    0 - MMC CARDIN
+    1 - MMC WPROT
+    2 - NOR FLASH WPn
+  - second cell can take standard GPIO flags (currently ignored).
+
+Example:
+	v2m_sysreg: sysreg@10000000 {
+ 		compatible = "arm,vexpress-sysreg";
+ 		reg = <0x10000000 0x1000>;
+		gpio-controller;
+		#gpio-cells = <2>;
+ 	};
+
+This block also can also act a bridge to the platform's configuration
+bus via "system control" interface, addressing devices with site number,
+position in the board stack, config controller, function and device
+numbers - see motherboard's TRM for more details.
+
+The node describing a config device must refer to the sysreg node via
+"arm,vexpress,config-bridge" phandle (can be also defined in the node's
+parent) and relies on the board topology properties - see main vexpress
+node documentation for more details. It must must also define the
+following property:
+- arm,vexpress-sysreg,func : must contain two cells:
+  - first cell defines function number (eg. 1 for clock generator,
+    2 for voltage regulators etc.)
+  - device number (eg. osc 0, osc 1 etc.)
+
+Example:
+	mcc {
+		arm,vexpress,config-bridge = <&v2m_sysreg>;
+
+		osc@0 {
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 0>;
+		};
+	};

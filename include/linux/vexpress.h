@@ -24,6 +24,17 @@
 #define VEXPRESS_CONFIG_STATUS_DONE	0
 #define VEXPRESS_CONFIG_STATUS_WAIT	1
 
+#define VEXPRESS_GPIO_MMC_CARDIN	0
+#define VEXPRESS_GPIO_MMC_WPROT		1
+#define VEXPRESS_GPIO_FLASH_WPn		2
+
+#define VEXPRESS_RES_FUNC(_site, _func)	\
+{					\
+	.start = (_site),		\
+	.end = (_func),			\
+	.flags = IORESOURCE_BUS,	\
+}
+
 /* Config bridge API */
 
 /**
@@ -81,5 +92,19 @@ int vexpress_config_read(struct vexpress_config_func *func, int offset,
 		u32 *data);
 int vexpress_config_write(struct vexpress_config_func *func, int offset,
 		u32 data);
+
+/* Platform control */
+
+u32 vexpress_get_procid(int site);
+u32 vexpress_get_hbi(int site);
+void *vexpress_get_24mhz_clock_base(void);
+void vexpress_flags_set(u32 data);
+
+#define vexpress_get_site_by_node(node) __vexpress_get_site(NULL, node)
+#define vexpress_get_site_by_dev(dev) __vexpress_get_site(dev, NULL)
+unsigned __vexpress_get_site(struct device *dev, struct device_node *node);
+
+void vexpress_sysreg_early_init(void __iomem *base);
+void vexpress_sysreg_of_early_init(void);
 
 #endif
