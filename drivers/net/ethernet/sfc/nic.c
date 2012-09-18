@@ -765,8 +765,13 @@ void efx_nic_eventq_read_ack(struct efx_channel *channel)
 
 	EFX_POPULATE_DWORD_1(reg, FRF_AZ_EVQ_RPTR,
 			     channel->eventq_read_ptr & channel->eventq_mask);
-	efx_writed_table(efx, &reg, efx->type->evq_rptr_tbl_base,
-			 channel->channel);
+
+	/* For Falcon A1, EVQ_RPTR_KER is documented as having a step size
+	 * of 4 bytes, but it is really 16 bytes just like later revisions.
+	 */
+	efx_writed(efx, &reg,
+		   efx->type->evq_rptr_tbl_base +
+		   FR_BZ_EVQ_RPTR_STEP * channel->channel);
 }
 
 /* Use HW to insert a SW defined event */
@@ -1564,7 +1569,9 @@ void efx_nic_push_rx_indir_table(struct efx_nic *efx)
 	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
 		EFX_POPULATE_DWORD_1(dword, FRF_BZ_IT_QUEUE,
 				     efx->rx_indir_table[i]);
-		efx_writed_table(efx, &dword, FR_BZ_RX_INDIRECTION_TBL, i);
+		efx_writed(efx, &dword,
+			   FR_BZ_RX_INDIRECTION_TBL +
+			   FR_BZ_RX_INDIRECTION_TBL_STEP * i);
 	}
 }
 
@@ -2028,15 +2035,15 @@ void efx_nic_get_regs(struct efx_nic *efx, void *buf)
 
 		for (i = 0; i < table->rows; i++) {
 			switch (table->step) {
-			case 4: /* 32-bit register or SRAM */
-				efx_readd_table(efx, buf, table->offset, i);
+			case 4: /* 32-bit SRAM */
+				efx_readd(efx, buf, table->offset + 4 * i);
 				break;
 			case 8: /* 64-bit SRAM */
 				efx_sram_readq(efx,
 					       efx->membase + table->offset,
 					       buf, i);
 				break;
-			case 16: /* 128-bit register */
+			case 16: /* 128-bit-readable register */
 				efx_reado_table(efx, buf, table->offset, i);
 				break;
 			case 32: /* 128-bit register, interleaved */
