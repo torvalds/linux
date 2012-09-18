@@ -77,20 +77,9 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return 1;
 	}
 
-	switch ((kvm_vcpu_get_hsr(vcpu) >> 22) & 0x3) {
-	case 0:
-		len = 1;
-		break;
-	case 1:
-		len = 2;
-		break;
-	case 2:
-		len = 4;
-		break;
-	default:
-		kvm_err("Hardware is weird: SAS 0b11 is reserved\n");
-		return -EFAULT;
-	}
+	len = kvm_vcpu_dabt_get_as(vcpu);
+	if (unlikely(len < 0))
+		return len;
 
 	is_write = kvm_vcpu_dabt_iswrite(vcpu);
 	sign_extend = kvm_vcpu_dabt_issext(vcpu);
