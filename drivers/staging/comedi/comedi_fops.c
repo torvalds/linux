@@ -1131,7 +1131,7 @@ static void comedi_set_subdevice_runflags(struct comedi_subdevice *s,
 }
 
 static int do_cmd_ioctl(struct comedi_device *dev,
-			struct comedi_cmd __user *cmd, void *file)
+			struct comedi_cmd __user *arg, void *file)
 {
 	struct comedi_cmd user_cmd;
 	struct comedi_subdevice *s;
@@ -1139,7 +1139,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	int ret = 0;
 	unsigned int __user *chanlist_saver = NULL;
 
-	if (copy_from_user(&user_cmd, cmd, sizeof(struct comedi_cmd))) {
+	if (copy_from_user(&user_cmd, arg, sizeof(struct comedi_cmd))) {
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
@@ -1230,7 +1230,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		/* restore chanlist pointer before copying back */
 		user_cmd.chanlist = chanlist_saver;
 		user_cmd.data = NULL;
-		if (copy_to_user(cmd, &user_cmd, sizeof(struct comedi_cmd))) {
+		if (copy_to_user(arg, &user_cmd, sizeof(struct comedi_cmd))) {
 			DPRINTK("fault writing cmd\n");
 			ret = -EFAULT;
 			goto cleanup;
