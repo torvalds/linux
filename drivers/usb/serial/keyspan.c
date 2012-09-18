@@ -38,8 +38,6 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <linux/firmware.h>
-#include <linux/ihex.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
@@ -1167,10 +1165,7 @@ static void keyspan_close(struct usb_serial_port *port)
 /* download the firmware to a pre-renumeration device */
 static int keyspan_fake_startup(struct usb_serial *serial)
 {
-	int 				response;
-	const struct ihex_binrec 	*record;
-	char				*fw_name;
-	const struct firmware		*fw;
+	char	*fw_name;
 
 	dev_dbg(&serial->dev->dev, "Keyspan startup version %04x product %04x\n",
 		le16_to_cpu(serial->dev->descriptor.bcdDevice),
@@ -1238,34 +1233,16 @@ static int keyspan_fake_startup(struct usb_serial *serial)
 		return 1;
 	}
 
-	if (request_ihex_firmware(&fw, fw_name, &serial->dev->dev)) {
-		dev_err(&serial->dev->dev, "Required keyspan firmware image (%s) unavailable.\n", fw_name);
-		return 1;
-	}
-
 	dev_dbg(&serial->dev->dev, "Uploading Keyspan %s firmware.\n", fw_name);
 
-		/* download the firmware image */
-	response = ezusb_fx1_set_reset(serial->dev, 1);
-
-	record = (const struct ihex_binrec *)fw->data;
-
-	while (record) {
-		response = ezusb_writememory(serial->dev, be32_to_cpu(record->addr),
-					     (unsigned char *)record->data,
-					     be16_to_cpu(record->len), 0xa0);
-		if (response < 0) {
-			dev_err(&serial->dev->dev, "ezusb_writememory failed for Keyspan firmware (%d %04X %p %d)\n",
-				response, be32_to_cpu(record->addr),
-				record->data, be16_to_cpu(record->len));
-			break;
-		}
-		record = ihex_next_binrec(record);
+	if (ezusb_fx1_ihex_firmware_download(serial->dev, fw_name) < 0) {
+		dev_err(&serial->dev->dev, "failed to load firmware \"%s\"\n",
+			fw_name);
+		return -ENOENT;
 	}
-	release_firmware(fw);
-		/* bring device out of reset. Renumeration will occur in a
-		   moment and the new device will bind to the real driver */
-	response = ezusb_fx1_set_reset(serial->dev, 0);
+
+	/* after downloading firmware Renumeration will occur in a
+	  moment and the new device will bind to the real driver */
 
 	/* we don't want this device to have a driver assigned to it. */
 	return 1;
