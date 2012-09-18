@@ -329,6 +329,13 @@ smb2_close_file(const unsigned int xid, struct cifs_tcon *tcon,
 	return SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
 }
 
+static int
+smb2_flush_file(const unsigned int xid, struct cifs_tcon *tcon,
+		struct cifs_fid *fid)
+{
+	return SMB2_flush(xid, tcon, fid->persistent_fid, fid->volatile_fid);
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -363,6 +370,7 @@ struct smb_version_operations smb21_operations = {
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
+	.flush = smb2_flush_file,
 };
 
 struct smb_version_values smb21_values = {
