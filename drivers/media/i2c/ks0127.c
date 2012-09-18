@@ -319,8 +319,17 @@ static u8 ks0127_read(struct v4l2_subdev *sd, u8 reg)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	char val = 0;
 	struct i2c_msg msgs[] = {
-		{ client->addr, 0, sizeof(reg), &reg },
-		{ client->addr, I2C_M_RD | I2C_M_NO_RD_ACK, sizeof(val), &val }
+		{
+			.addr = client->addr,
+			.len = sizeof(reg),
+			.buf = &reg
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD | I2C_M_NO_RD_ACK,
+			.len = sizeof(val),
+			.buf = &val
+		}
 	};
 	int ret;
 
