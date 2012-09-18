@@ -37,7 +37,6 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
-static bool debug;
 /*
  * Version information
  */
@@ -748,9 +747,6 @@ MODULE_LICENSE("GPL");
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debug");
 
 /*
  * The following describes what I learned from studying the old
