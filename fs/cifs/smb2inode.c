@@ -161,3 +161,12 @@ smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 				  0, CREATE_NOT_FILE | CREATE_DELETE_ON_CLOSE,
 				  NULL, SMB2_OP_DELETE);
 }
+
+int
+smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
+	    struct cifs_sb_info *cifs_sb)
+{
+	return smb2_open_op_close(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
+				  0, CREATE_DELETE_ON_CLOSE, NULL,
+				  SMB2_OP_DELETE);
+}

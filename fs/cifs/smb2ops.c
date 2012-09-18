@@ -321,6 +321,7 @@ struct smb_version_operations smb21_operations = {
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,
 	.rmdir = smb2_rmdir,
+	.unlink = smb2_unlink,
 };
 
 struct smb_version_values smb21_values = {
