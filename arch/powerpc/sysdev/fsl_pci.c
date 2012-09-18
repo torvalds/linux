@@ -864,7 +864,9 @@ static int __devinit fsl_pci_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device_node *node;
+#ifdef CONFIG_SWIOTLB
 	struct pci_controller *hose;
+#endif
 
 	node = pdev->dev.of_node;
 	ret = fsl_add_bridge(node, fsl_pci_primary == node);
