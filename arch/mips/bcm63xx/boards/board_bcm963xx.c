@@ -720,7 +720,7 @@ const char *board_get_name(void)
  */
 static int board_get_mac_address(u8 *mac)
 {
-	u8 *p;
+	u8 *oui;
 	int count;
 
 	if (mac_addr_used >= nvram.mac_addr_count) {
@@ -729,21 +729,23 @@ static int board_get_mac_address(u8 *mac)
 	}
 
 	memcpy(mac, nvram.mac_addr_base, ETH_ALEN);
-	p = mac + ETH_ALEN - 1;
+	oui = mac + ETH_ALEN/2 - 1;
 	count = mac_addr_used;
 
 	while (count--) {
+		u8 *p = mac + ETH_ALEN - 1;
+
 		do {
 			(*p)++;
 			if (*p != 0)
 				break;
 			p--;
-		} while (p != mac);
-	}
+		} while (p != oui);
 
-	if (p == mac) {
-		printk(KERN_ERR PFX "unable to fetch mac address\n");
-		return -ENODEV;
+		if (p == oui) {
+			printk(KERN_ERR PFX "unable to fetch mac address\n");
+			return -ENODEV;
+		}
 	}
 
 	mac_addr_used++;
