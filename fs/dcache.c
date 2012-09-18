@@ -1141,7 +1141,7 @@ rename_retry:
 EXPORT_SYMBOL(have_submounts);
 
 /*
- * Search the dentry child list for the specified parent,
+ * Search the dentry child list of the specified parent,
  * and move any unused dentries to the end of the unused
  * list for prune_dcache(). We descend to the next level
  * whenever the d_subdirs list is non-empty and continue
