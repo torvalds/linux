@@ -693,7 +693,7 @@ config SERIAL_SH_SCI_CONSOLE
 
 config SERIAL_SH_SCI_DMA
 	bool "DMA support"
-	depends on SERIAL_SH_SCI && SH_DMAE && EXPERIMENTAL
+	depends on SERIAL_SH_SCI && SH_DMAE
 
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"
@@ -1303,8 +1303,8 @@ config SERIAL_ALTERA_UART_CONSOLE
 	  Enable a Altera UART port to be the system console.
 
 config SERIAL_IFX6X60
-        tristate "SPI protocol driver for Infineon 6x60 modem (EXPERIMENTAL)"
-	depends on GPIOLIB && SPI && EXPERIMENTAL
+        tristate "SPI protocol driver for Infineon 6x60 modem"
+	depends on GPIOLIB && SPI
 	help
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
