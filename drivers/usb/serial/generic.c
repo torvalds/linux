@@ -24,8 +24,6 @@
 #include <linux/kfifo.h>
 #include <linux/serial.h>
 
-static int debug;
-
 #ifdef CONFIG_USB_SERIAL_GENERIC
 
 static __u16 vendor  = 0x05f9;
@@ -60,11 +58,10 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 #endif
 
-int usb_serial_generic_register(int _debug)
+int usb_serial_generic_register(void)
 {
 	int retval = 0;
 
-	debug = _debug;
 #ifdef CONFIG_USB_SERIAL_GENERIC
 	generic_device_ids[0].idVendor = vendor;
 	generic_device_ids[0].idProduct = product;

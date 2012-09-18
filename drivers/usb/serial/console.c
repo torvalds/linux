@@ -22,8 +22,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-static int debug;
-
 struct usbcons_info {
 	int			magic;
 	int			break_flag;
@@ -283,10 +281,8 @@ void usb_serial_console_disconnect(struct usb_serial *serial)
 	}
 }
 
-void usb_serial_console_init(int serial_debug, int minor)
+void usb_serial_console_init(int minor)
 {
-	debug = serial_debug;
-
 	if (minor == 0) {
 		/*
 		 * Call register_console() if this is the first device plugged

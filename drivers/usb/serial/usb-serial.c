@@ -52,7 +52,6 @@
    drivers depend on it.
 */
 
-static bool debug;
 /* initially all NULL */
 static struct usb_serial *serial_table[SERIAL_TTY_MINORS];
 static DEFINE_MUTEX(table_lock);
@@ -1074,7 +1073,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 
 	serial->disconnected = 0;
 
-	usb_serial_console_init(debug, minor);
+	usb_serial_console_init(minor);
 exit:
 	module_put(type->driver.owner);
 	return 0;
@@ -1259,7 +1258,7 @@ static int __init usb_serial_init(void)
 	}
 
 	/* register the generic driver, if we should */
-	result = usb_serial_generic_register(debug);
+	result = usb_serial_generic_register();
 	if (result < 0) {
 		pr_err("%s - registering generic driver failed\n", __func__);
 		goto exit_generic;
@@ -1464,6 +1463,3 @@ EXPORT_SYMBOL_GPL(usb_serial_deregister_drivers);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
