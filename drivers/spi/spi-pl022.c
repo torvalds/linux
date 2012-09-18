@@ -2029,6 +2029,34 @@ static void pl022_cleanup(struct spi_device *spi)
 	kfree(chip);
 }
 
+static struct pl022_ssp_controller *
+pl022_platform_data_dt_get(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct pl022_ssp_controller *pd;
+	u32 tmp;
+
+	if (!np) {
+		dev_err(dev, "no dt node defined\n");
+		return NULL;
+	}
+
+	pd = devm_kzalloc(dev, sizeof(struct pl022_ssp_controller), GFP_KERNEL);
+	if (!pd) {
+		dev_err(dev, "cannot allocate platform data memory\n");
+		return NULL;
+	}
+
+	pd->bus_id = -1;
+	of_property_read_u32(np, "num-cs", &tmp);
+	pd->num_chipselect = tmp;
+	of_property_read_u32(np, "pl022,autosuspend-delay",
+			     &pd->autosuspend_delay);
+	pd->rt = of_property_read_bool(np, "pl022,rt");
+
+	return pd;
+}
+
 static int __devinit
 pl022_probe(struct amba_device *adev, const struct amba_id *id)
 {
@@ -2041,18 +2069,19 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	dev_info(&adev->dev,
 		 "ARM PL022 driver, device ID: 0x%08x\n", adev->periphid);
-	if (platform_info == NULL) {
-		dev_err(&adev->dev, "probe - no platform data supplied\n");
+	if (!platform_info && IS_ENABLED(CONFIG_OF))
+		platform_info = pl022_platform_data_dt_get(dev);
+
+	if (!platform_info) {
+		dev_err(dev, "probe: no platform data defined\n");
 		status = -ENODEV;
 		goto err_no_pdata;
 	}
 
 	if (platform_info->num_chipselect) {
 		num_cs = platform_info->num_chipselect;
-	} else if (IS_ENABLED(CONFIG_OF)) {
-		of_property_read_u32(np, "num-cs", &num_cs);
 	} else {
-		dev_err(&adev->dev, "probe: no chip select defined\n");
+		dev_err(dev, "probe: no chip select defined\n");
 		status = -ENODEV;
 		goto err_no_pdata;
 	}
