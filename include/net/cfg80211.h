@@ -3361,6 +3361,25 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
 
 /**
+ * cfg80211_conn_failed - connection request failed notification
+ *
+ * @dev: the netdev
+ * @mac_addr: the station's address
+ * @reason: the reason for connection failure
+ * @gfp: allocation flags
+ *
+ * Whenever a station tries to connect to an AP and if the station
+ * could not connect to the AP as the AP has rejected the connection
+ * for some reasons, this function is called.
+ *
+ * The reason for connection failure can be any of the value from
+ * nl80211_connect_failed_reason enum
+ */
+void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
+			  enum nl80211_connect_failed_reason reason,
+			  gfp_t gfp);
+
+/**
  * cfg80211_rx_mgmt - notification of received, unprocessed management frame
  * @wdev: wireless device receiving the frame
  * @freq: Frequency on which the frame was received in MHz
