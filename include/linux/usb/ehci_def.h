@@ -221,18 +221,35 @@ extern int __init early_dbgp_init(char *s);
 extern struct console early_dbgp_console;
 #endif /* CONFIG_EARLY_PRINTK_DBGP */
 
-#ifdef CONFIG_EARLY_PRINTK_DBGP
-/* Call backs from ehci host driver to ehci debug driver */
-extern int dbgp_external_startup(void);
-extern int dbgp_reset_prep(void);
+struct usb_hcd;
+
+#ifdef CONFIG_XEN_DOM0
+extern int xen_dbgp_reset_prep(struct usb_hcd *);
+extern int xen_dbgp_external_startup(struct usb_hcd *);
 #else
-static inline int dbgp_reset_prep(void)
+static inline int xen_dbgp_reset_prep(struct usb_hcd *hcd)
 {
-	return 1;
+	return 1; /* Shouldn't this be 0? */
 }
-static inline int dbgp_external_startup(void)
+
+static inline int xen_dbgp_external_startup(struct usb_hcd *hcd)
 {
 	return -1;
+}
+#endif
+
+#ifdef CONFIG_EARLY_PRINTK_DBGP
+/* Call backs from ehci host driver to ehci debug driver */
+extern int dbgp_external_startup(struct usb_hcd *);
+extern int dbgp_reset_prep(struct usb_hcd *hcd);
+#else
+static inline int dbgp_reset_prep(struct usb_hcd *hcd)
+{
+	return xen_dbgp_reset_prep(hcd);
+}
+static inline int dbgp_external_startup(struct usb_hcd *hcd)
+{
+	return xen_dbgp_external_startup(hcd);
 }
 #endif
 
