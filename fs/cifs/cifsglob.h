@@ -982,7 +982,7 @@ struct cifs_readdata {
 	int (*marshal_iov) (struct cifs_readdata *rdata,
 			    unsigned int remaining);
 	unsigned int			nr_iov;
-	struct kvec			iov[1];
+	struct kvec			*iov;
 };
 
 struct cifs_writedata;

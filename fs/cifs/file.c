@@ -2410,19 +2410,27 @@ ssize_t cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 }
 
 static struct cifs_readdata *
-cifs_readdata_alloc(unsigned int nr_vecs, work_func_t complete)
+cifs_readdata_alloc(unsigned int nr_pages, work_func_t complete)
 {
 	struct cifs_readdata *rdata;
+	struct kvec *iov;
 
-	rdata = kzalloc(sizeof(*rdata) +
-			sizeof(struct kvec) * nr_vecs, GFP_KERNEL);
+	iov = kzalloc(sizeof(*iov) * (nr_pages + 1), GFP_KERNEL);
+	if (!iov)
+		return (struct cifs_readdata *)iov;
+
+	rdata = kzalloc(sizeof(*rdata), GFP_KERNEL);
 	if (rdata != NULL) {
 		kref_init(&rdata->refcount);
 		INIT_LIST_HEAD(&rdata->list);
 		init_completion(&rdata->done);
 		INIT_WORK(&rdata->work, complete);
 		INIT_LIST_HEAD(&rdata->pages);
+		rdata->iov = iov;
+	} else {
+		kfree(iov);
 	}
+
 	return rdata;
 }
 
@@ -2435,6 +2443,7 @@ cifs_readdata_release(struct kref *refcount)
 	if (rdata->cfile)
 		cifsFileInfo_put(rdata->cfile);
 
+	kfree(rdata->iov);
 	kfree(rdata);
 }
 
