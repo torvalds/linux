@@ -293,7 +293,7 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
-			kvm_skip_instr(vcpu, (kvm_vcpu_get_hsr(vcpu) >> 25) & 1);
+			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
 			return 1;
 		}
 		/* If access function fails, it should complain. */

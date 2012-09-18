@@ -624,8 +624,7 @@ static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		 * that fail their condition code check"
 		 */
 		if (!kvm_condition_valid(vcpu)) {
-			bool is_wide = kvm_vcpu_get_hsr(vcpu) & HSR_IL;
-			kvm_skip_instr(vcpu, is_wide);
+			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
 			return 1;
 		}
 

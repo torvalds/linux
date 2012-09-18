@@ -136,4 +136,10 @@ static inline int kvm_vcpu_dabt_get_as(struct kvm_vcpu *vcpu)
 	}
 }
 
+/* This one is not specific to Data Abort */
+static inline bool kvm_vcpu_trap_il_is32bit(struct kvm_vcpu *vcpu)
+{
+	return kvm_vcpu_get_hsr(vcpu) & HSR_IL;
+}
+
 #endif /* __ARM_KVM_EMULATE_H__ */
