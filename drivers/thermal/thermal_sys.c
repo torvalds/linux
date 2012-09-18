@@ -1257,7 +1257,7 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 }
 EXPORT_SYMBOL(thermal_cooling_device_unregister);
 
-static void thermal_cdev_do_update(struct thermal_cooling_device *cdev)
+void thermal_cdev_update(struct thermal_cooling_device *cdev)
 {
 	struct thermal_instance *instance;
 	unsigned long target = 0;
@@ -1278,13 +1278,14 @@ static void thermal_cdev_do_update(struct thermal_cooling_device *cdev)
 	cdev->ops->set_cur_state(cdev, target);
 	cdev->updated = true;
 }
+EXPORT_SYMBOL(thermal_cdev_update);
 
 static void thermal_zone_do_update(struct thermal_zone_device *tz)
 {
 	struct thermal_instance *instance;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
-		thermal_cdev_do_update(instance->cdev);
+		thermal_cdev_update(instance->cdev);
 }
 
 /*
