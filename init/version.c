@@ -48,3 +48,6 @@ const char linux_proc_banner[] =
 	"%s version %s"
 	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
 	" (" LINUX_COMPILER ") %s\n";
+
+const char linux_scm_version_banner [] =
+	"Kernel was built at commit id '" KERNEL_GIT_ID "'\n";
