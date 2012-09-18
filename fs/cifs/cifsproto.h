@@ -70,20 +70,20 @@ extern struct mid_q_entry *AllocMidQEntry(const struct smb_hdr *smb_buffer,
 extern void DeleteMidQEntry(struct mid_q_entry *midEntry);
 extern void cifs_delete_mid(struct mid_q_entry *mid);
 extern void cifs_wake_up_task(struct mid_q_entry *mid);
-extern int cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
-			   unsigned int nvec, mid_receive_t *receive,
-			   mid_callback_t *callback, void *cbdata,
-			   const int flags);
+extern int cifs_call_async(struct TCP_Server_Info *server,
+			struct smb_rqst *rqst,
+			mid_receive_t *receive, mid_callback_t *callback,
+			void *cbdata, const int flags);
 extern int SendReceive(const unsigned int /* xid */ , struct cifs_ses *,
 			struct smb_hdr * /* input */ ,
 			struct smb_hdr * /* out */ ,
 			int * /* bytes returned */ , const int);
 extern int SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
 			    char *in_buf, int flags);
-extern int cifs_setup_request(struct cifs_ses *, struct kvec *, unsigned int,
-			      struct mid_q_entry **);
-extern int cifs_setup_async_request(struct TCP_Server_Info *, struct kvec *,
-				    unsigned int, struct mid_q_entry **);
+extern struct mid_q_entry *cifs_setup_request(struct cifs_ses *,
+				struct smb_rqst *);
+extern struct mid_q_entry *cifs_setup_async_request(struct TCP_Server_Info *,
+						struct smb_rqst *);
 extern int cifs_check_receive(struct mid_q_entry *mid,
 			struct TCP_Server_Info *server, bool log_error);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifs_ses *,

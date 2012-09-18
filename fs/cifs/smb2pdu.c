@@ -1171,6 +1171,8 @@ SMB2_echo(struct TCP_Server_Info *server)
 	struct smb2_echo_req *req;
 	int rc = 0;
 	struct kvec iov;
+	struct smb_rqst rqst = { .rq_iov = &iov,
+				 .rq_nvec = 1 };
 
 	cFYI(1, "In echo request");
 
@@ -1184,7 +1186,7 @@ SMB2_echo(struct TCP_Server_Info *server)
 	/* 4 for rfc1002 length field */
 	iov.iov_len = get_rfc1002_length(req) + 4;
 
-	rc = cifs_call_async(server, &iov, 1, NULL, smb2_echo_callback, server,
+	rc = cifs_call_async(server, &rqst, NULL, smb2_echo_callback, server,
 			     CIFS_ECHO_OP);
 	if (rc)
 		cFYI(1, "Echo request failed: %d", rc);
@@ -1344,6 +1346,8 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	int rc;
 	struct smb2_hdr *buf;
 	struct cifs_io_parms io_parms;
+	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+				 .rq_nvec = 1 };
 
 	cFYI(1, "%s: offset=%llu bytes=%u", __func__,
 		rdata->offset, rdata->bytes);
@@ -1363,7 +1367,7 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	rdata->iov[0].iov_len = get_rfc1002_length(rdata->iov[0].iov_base) + 4;
 
 	kref_get(&rdata->refcount);
-	rc = cifs_call_async(io_parms.tcon->ses->server, rdata->iov, 1,
+	rc = cifs_call_async(io_parms.tcon->ses->server, &rqst,
 			     cifs_readv_receive, smb2_readv_callback,
 			     rdata, 0);
 	if (rc)
@@ -1484,6 +1488,7 @@ smb2_async_writev(struct cifs_writedata *wdata)
 	struct smb2_write_req *req = NULL;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
 	struct kvec *iov = NULL;
+	struct smb_rqst rqst;
 
 	rc = small_smb2_init(SMB2_WRITE, tcon, (void **) &req);
 	if (rc)
@@ -1495,6 +1500,8 @@ smb2_async_writev(struct cifs_writedata *wdata)
 		rc = -ENOMEM;
 		goto async_writev_out;
 	}
+	rqst.rq_iov = iov;
+	rqst.rq_nvec = wdata->nr_pages + 1;
 
 	req->hdr.ProcessId = cpu_to_le32(wdata->cfile->pid);
 
@@ -1530,8 +1537,8 @@ smb2_async_writev(struct cifs_writedata *wdata)
 	inc_rfc1001_len(&req->hdr, wdata->bytes - 1 /* Buffer */);
 
 	kref_get(&wdata->refcount);
-	rc = cifs_call_async(tcon->ses->server, iov, wdata->nr_pages + 1,
-			     NULL, smb2_writev_callback, wdata, 0);
+	rc = cifs_call_async(tcon->ses->server, &rqst, NULL,
+				smb2_writev_callback, wdata, 0);
 
 	if (rc)
 		kref_put(&wdata->refcount, cifs_writedata_release);

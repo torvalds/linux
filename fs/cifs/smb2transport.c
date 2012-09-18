@@ -281,50 +281,44 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	return map_smb2_to_linux_error(mid->resp_buf, log_error);
 }
 
-int
-smb2_setup_request(struct cifs_ses *ses, struct kvec *iov,
-		   unsigned int nvec, struct mid_q_entry **ret_mid)
+struct mid_q_entry *
+smb2_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
 {
 	int rc;
-	struct smb2_hdr *hdr = (struct smb2_hdr *)iov[0].iov_base;
+	struct smb2_hdr *hdr = (struct smb2_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
-	struct smb_rqst rqst = { .rq_iov = iov,
-				 .rq_nvec = nvec };
 
 	smb2_seq_num_into_buf(ses->server, hdr);
 
 	rc = smb2_get_mid_entry(ses, hdr, &mid);
 	if (rc)
-		return rc;
-	rc = smb2_sign_rqst(&rqst, ses->server);
-	if (rc)
+		return ERR_PTR(rc);
+	rc = smb2_sign_rqst(rqst, ses->server);
+	if (rc) {
 		cifs_delete_mid(mid);
-	*ret_mid = mid;
-	return rc;
+		return ERR_PTR(rc);
+	}
+	return mid;
 }
 
-int
-smb2_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
-			 unsigned int nvec, struct mid_q_entry **ret_mid)
+struct mid_q_entry *
+smb2_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
-	int rc = 0;
-	struct smb2_hdr *hdr = (struct smb2_hdr *)iov[0].iov_base;
+	int rc;
+	struct smb2_hdr *hdr = (struct smb2_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
-	struct smb_rqst rqst = { .rq_iov = iov,
-				 .rq_nvec = nvec };
 
 	smb2_seq_num_into_buf(server, hdr);
 
 	mid = smb2_mid_entry_alloc(hdr, server);
 	if (mid == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	rc = smb2_sign_rqst(&rqst, server);
+	rc = smb2_sign_rqst(rqst, server);
 	if (rc) {
 		DeleteMidQEntry(mid);
-		return rc;
+		return ERR_PTR(rc);
 	}
 
-	*ret_mid = mid;
-	return rc;
+	return mid;
 }
