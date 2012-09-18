@@ -255,9 +255,6 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 	buffer->entries = len / EFX_BUF_SIZE;
 	BUG_ON(buffer->dma_addr & (EFX_BUF_SIZE - 1));
 
-	/* All zeros is a potentially valid event so memset to 0xff */
-	memset(buffer->addr, 0xff, len);
-
 	/* Select new buffer ID */
 	buffer->index = efx->next_buffer_table;
 	efx->next_buffer_table += buffer->entries;
