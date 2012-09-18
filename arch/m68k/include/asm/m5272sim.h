@@ -132,8 +132,9 @@
 /*
  * Generic GPIO support
  */
-#define MCFGPIO_PIN_MAX			48
-#define MCFGPIO_IRQ_MAX			-1
-#define MCFGPIO_IRQ_VECBASE		-1
+#define MCFGPIO_PIN_MAX		48
+#define MCFGPIO_IRQ_MAX		-1
+#define MCFGPIO_IRQ_VECBASE	-1
+
 /****************************************************************************/
 #endif	/* m5272sim_h */
