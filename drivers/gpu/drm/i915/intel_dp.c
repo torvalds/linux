@@ -37,6 +37,7 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
+#define DP_RECEIVER_CAP_SIZE	0xf
 #define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
 
@@ -1964,12 +1965,25 @@ static bool
 intel_dp_get_dpcd(struct intel_dp *intel_dp)
 {
 	if (intel_dp_aux_native_read_retry(intel_dp, 0x000, intel_dp->dpcd,
-					   sizeof(intel_dp->dpcd)) &&
-	    (intel_dp->dpcd[DP_DPCD_REV] != 0)) {
-		return true;
-	}
+					   sizeof(intel_dp->dpcd)) == 0)
+		return false; /* aux transfer failed */
 
-	return false;
+	if (intel_dp->dpcd[DP_DPCD_REV] == 0)
+		return false; /* DPCD not present */
+
+	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+	      DP_DWN_STRM_PORT_PRESENT))
+		return true; /* native DP sink */
+
+	if (intel_dp->dpcd[DP_DPCD_REV] == 0x10)
+		return true; /* no per-port downstream info */
+
+	if (intel_dp_aux_native_read_retry(intel_dp, DP_DOWNSTREAM_PORT_0,
+					   intel_dp->downstream_ports,
+					   DP_MAX_DOWNSTREAM_PORTS) == 0)
+		return false; /* downstream port status fetch failed */
+
+	return true;
 }
 
 static void
