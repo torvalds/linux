@@ -34,6 +34,26 @@
 #include "fscache.h"
 #include "smb2proto.h"
 
+void
+smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
+{
+	oplock &= 0xFF;
+	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
+		cinode->clientCanCacheAll = true;
+		cinode->clientCanCacheRead = true;
+		cFYI(1, "Exclusive Oplock granted on inode %p",
+		     &cinode->vfs_inode);
+	} else if (oplock == SMB2_OPLOCK_LEVEL_II) {
+		cinode->clientCanCacheAll = false;
+		cinode->clientCanCacheRead = true;
+		cFYI(1, "Level II Oplock granted on inode %p",
+		    &cinode->vfs_inode);
+	} else {
+		cinode->clientCanCacheAll = false;
+		cinode->clientCanCacheRead = false;
+	}
+}
+
 int
 smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
 	       int disposition, int desired_access, int create_options,
@@ -58,10 +78,11 @@ smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
 	}
 
 	desired_access |= FILE_READ_ATTRIBUTES;
+	*oplock = SMB2_OPLOCK_LEVEL_EXCLUSIVE;
 
 	rc = SMB2_open(xid, tcon, smb2_path, &fid->persistent_fid,
 		       &fid->volatile_fid, desired_access, disposition,
-		       0, 0, smb2_data);
+		       0, 0, (__u8 *)oplock, smb2_data);
 	if (rc)
 		goto out;
 
@@ -79,7 +100,6 @@ smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
 	}
 
 out:
-	*oplock = 0;
 	kfree(smb2_data);
 	kfree(smb2_path);
 	return rc;

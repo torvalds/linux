@@ -47,6 +47,7 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc, tmprc = 0;
 	u64 persistent_fid, volatile_fid;
 	__le16 *utf16_path;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
 	if (!utf16_path)
@@ -54,7 +55,7 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
 		       desired_access, create_disposition, file_attributes,
-		       create_options, NULL);
+		       create_options, &oplock, NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;

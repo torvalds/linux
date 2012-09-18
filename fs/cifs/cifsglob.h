@@ -328,6 +328,8 @@ struct smb_version_operations {
 			 struct cifs_fid *);
 	/* calculate a size of SMB message */
 	unsigned int (*calc_smb_size)(void *);
+	/* check for STATUS_PENDING and process it in a positive case */
+	bool (*is_status_pending)(char *, struct TCP_Server_Info *, int);
 };
 
 struct smb_version_values {

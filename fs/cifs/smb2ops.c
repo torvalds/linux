@@ -23,6 +23,7 @@
 #include "smb2proto.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "smb2status.h"
 
 static int
 change_conf(struct TCP_Server_Info *server)
@@ -207,13 +208,14 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	__u64 persistent_fid, volatile_fid;
 	__le16 *utf16_path;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
 	if (!utf16_path)
 		return -ENOMEM;
 
 	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
-		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0, NULL);
+		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0, &oplock, NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;
@@ -358,10 +360,10 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 static void
 smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 {
-	/* struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode); */
+	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
 	cfile->fid.persistent_fid = fid->persistent_fid;
 	cfile->fid.volatile_fid = fid->volatile_fid;
-	/* cifs_set_oplock_level(cinode, oplock); */
+	smb2_set_oplock_level(cinode, oplock);
 	/* cinode->can_cache_brlcks = cinode->clientCanCacheAll; */
 }
 
@@ -432,6 +434,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	__le16 *utf16_path;
 	int rc;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	__u64 persistent_fid, volatile_fid;
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
@@ -440,7 +443,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
 		       FILE_READ_ATTRIBUTES | FILE_READ_DATA, FILE_OPEN, 0, 0,
-		       NULL);
+		       &oplock, NULL);
 	kfree(utf16_path);
 	if (rc) {
 		cERROR(1, "open dir failed");
@@ -475,6 +478,28 @@ smb2_close_dir(const unsigned int xid, struct cifs_tcon *tcon,
 	       struct cifs_fid *fid)
 {
 	return SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
+}
+
+/*
+* If we negotiate SMB2 protocol and get STATUS_PENDING - update
+* the number of credits and return true. Otherwise - return false.
+*/
+static bool
+smb2_is_status_pending(char *buf, struct TCP_Server_Info *server, int length)
+{
+	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
+
+	if (le32_to_cpu(hdr->Status) != STATUS_PENDING)
+		return false;
+
+	if (!length) {
+		spin_lock(&server->req_lock);
+		server->credits += le16_to_cpu(hdr->CreditRequest);
+		spin_unlock(&server->req_lock);
+		wake_up(&server->request_q);
+	}
+
+	return true;
 }
 
 struct smb_version_operations smb21_operations = {
@@ -530,6 +555,7 @@ struct smb_version_operations smb21_operations = {
 	.query_dir_next = smb2_query_dir_next,
 	.close_dir = smb2_close_dir,
 	.calc_smb_size = smb2_calc_size,
+	.is_status_pending = smb2_is_status_pending,
 };
 
 struct smb_version_values smb21_values = {

@@ -82,6 +82,7 @@ extern int smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon,
 			  int desired_access, int create_options,
 			  struct cifs_fid *fid, __u32 *oplock,
 			  FILE_ALL_INFO *buf, struct cifs_sb_info *cifs_sb);
+extern void smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
@@ -99,7 +100,7 @@ extern int SMB2_open(const unsigned int xid, struct cifs_tcon *tcon,
 		     __le16 *path, u64 *persistent_fid, u64 *volatile_fid,
 		     __u32 desired_access, __u32 create_disposition,
 		     __u32 file_attributes, __u32 create_options,
-		     struct smb2_file_all_info *buf);
+		     __u8 *oplock, struct smb2_file_all_info *buf);
 extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
 extern int SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon,

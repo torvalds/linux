@@ -872,7 +872,7 @@ int
 SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	  u64 *persistent_fid, u64 *volatile_fid, __u32 desired_access,
 	  __u32 create_disposition, __u32 file_attributes, __u32 create_options,
-	  struct smb2_file_all_info *buf)
+	  __u8 *oplock, struct smb2_file_all_info *buf)
 {
 	struct smb2_create_req *req;
 	struct smb2_create_rsp *rsp;
@@ -895,9 +895,9 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	if (rc)
 		return rc;
 
-	/* if (server->oplocks)
-		req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_BATCH;
-	else */
+	if (server->oplocks)
+		req->RequestedOplockLevel = *oplock;
+	else
 		req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_NONE;
 	req->ImpersonationLevel = IL_IMPERSONATION;
 	req->DesiredAccess = cpu_to_le32(desired_access);
@@ -954,6 +954,8 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 		buf->NumberOfLinks = cpu_to_le32(1);
 		buf->DeletePending = 0;
 	}
+
+	*oplock = rsp->OplockLevel;
 creat_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
