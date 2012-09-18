@@ -51,9 +51,6 @@ static int palm_os_3_probe(struct usb_serial *serial,
 static int palm_os_4_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 
-/* Parameters that may be passed into the module. */
-static bool debug;
-
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_VISOR_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_3_probe },
@@ -624,6 +621,3 @@ module_usb_serial_driver(serial_drivers, id_table_combined);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
