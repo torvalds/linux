@@ -69,6 +69,21 @@ int __init rk29_sram_init(void)
 	return 0;
 }
 
+__weak void __sramfunc sram_printch(char byte)
+{
+#ifdef DEBUG_UART_BASE
+	writel_relaxed(byte, DEBUG_UART_BASE);
+	dsb();
+
+	/* loop check LSR[6], Transmitter Empty bit */
+	while (!(readl_relaxed(DEBUG_UART_BASE + 0x14) & 0x40))
+		barrier();
+
+	if (byte == '\n')
+		sram_printch('\r');
+#endif
+}
+
 void __sramfunc sram_printascii(const char *s)
 {
 	while (*s) {
