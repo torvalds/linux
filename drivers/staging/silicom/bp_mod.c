@@ -1791,14 +1791,14 @@ static bpctl_dev_t *get_status_port_fn(bpctl_dev_t *pbpctl_dev)
 			    && ((bpctl_dev_arr[idx_dev].func == 1)
 				&& (pbpctl_dev->func == 0))) {
 
-				return (&(bpctl_dev_arr[idx_dev]));
+				return &(bpctl_dev_arr[idx_dev]);
 			}
 			if ((bpctl_dev_arr[idx_dev].bus == pbpctl_dev->bus) &&
 			    (bpctl_dev_arr[idx_dev].slot == pbpctl_dev->slot) &&
 			    ((bpctl_dev_arr[idx_dev].func == 3)
 			     && (pbpctl_dev->func == 2))) {
 
-				return (&(bpctl_dev_arr[idx_dev]));
+				return &(bpctl_dev_arr[idx_dev]);
 			}
 		}
 	}
@@ -1821,14 +1821,14 @@ static bpctl_dev_t *get_master_port_fn(bpctl_dev_t *pbpctl_dev)
 			    && ((bpctl_dev_arr[idx_dev].func == 0)
 				&& (pbpctl_dev->func == 1))) {
 
-				return (&(bpctl_dev_arr[idx_dev]));
+				return &(bpctl_dev_arr[idx_dev]);
 			}
 			if ((bpctl_dev_arr[idx_dev].bus == pbpctl_dev->bus) &&
 			    (bpctl_dev_arr[idx_dev].slot == pbpctl_dev->slot) &&
 			    ((bpctl_dev_arr[idx_dev].func == 2)
 			     && (pbpctl_dev->func == 3))) {
 
-				return (&(bpctl_dev_arr[idx_dev]));
+				return &(bpctl_dev_arr[idx_dev]);
 			}
 		}
 	}
@@ -3245,7 +3245,7 @@ int wdt_exp_mode(bpctl_dev_t *pbpctl_dev, int mode)
 int bypass_fw_ver(bpctl_dev_t *pbpctl_dev)
 {
 	if (is_bypass_fn(pbpctl_dev))
-		return ((read_reg(pbpctl_dev, VER_REG_ADDR)));
+		return read_reg(pbpctl_dev, VER_REG_ADDR);
 	else
 		return BP_NOT_CAP;
 }
@@ -3529,7 +3529,7 @@ static int bypass_status(bpctl_dev_t *pbpctl_dev)
 				 BPCTLI_CTRL_SWDPIN1) != 0 ? 1 : 0);
 		} else {
 			if ((bypass_status_clear(pbpctl_dev)) >= 0)
-				return (bypass_from_last_read(pbpctl_dev));
+				return bypass_from_last_read(pbpctl_dev);
 		}
 
 	}
@@ -3684,7 +3684,7 @@ int get_bp_prod_caps(bpctl_dev_t *pbpctl_dev)
 {
 	if ((pbpctl_dev->bp_caps & SW_CTL_CAP) &&
 	    (pbpctl_dev->bp_ext_ver >= PXG2TBPI_VER))
-		return (read_reg(pbpctl_dev, PRODUCT_CAP_REG_ADDR));
+		return read_reg(pbpctl_dev, PRODUCT_CAP_REG_ADDR);
 	return BP_NOT_CAP;
 
 }
@@ -3774,7 +3774,7 @@ int tap_status(bpctl_dev_t *pbpctl_dev)
 				 BPCTLI_CTRL_SWDPIN0) != 0 ? 1 : 0);
 		else {
 			if ((bypass_status_clear(pbpctl_dev)) >= 0)
-				return (bypass_from_last_read(pbpctl_dev));
+				return bypass_from_last_read(pbpctl_dev);
 		}
 
 	}
@@ -4366,7 +4366,7 @@ int bypass_off_init(bpctl_dev_t *pbpctl_dev)
 	if ((ret = cmnd_on(pbpctl_dev)) < 0)
 		return ret;
 	if (INTEL_IF_SERIES(pbpctl_dev->subdevice))
-		return (dis_bypass_cap(pbpctl_dev));
+		return dis_bypass_cap(pbpctl_dev);
 	wdt_off(pbpctl_dev);
 	if (pbpctl_dev->bp_caps & BP_CAP)
 		bypass_off(pbpctl_dev);
@@ -4460,7 +4460,7 @@ int bp_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb_irq(skb);
 		return 0;
 	}
-	return (pbpctl_dev->hard_start_xmit_save(skb, dev));
+	return pbpctl_dev->hard_start_xmit_save(skb, dev);
 }
 #endif
 
@@ -4591,7 +4591,7 @@ int set_bypass_fn(bpctl_dev_t *pbpctl_dev, int bypass_mode)
 
 int get_bypass_fn(bpctl_dev_t *pbpctl_dev)
 {
-	return (bypass_status(pbpctl_dev));
+	return bypass_status(pbpctl_dev);
 }
 
 int get_bypass_change_fn(bpctl_dev_t *pbpctl_dev)
@@ -4599,7 +4599,7 @@ int get_bypass_change_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (bypass_change_status(pbpctl_dev));
+	return bypass_change_status(pbpctl_dev);
 }
 
 int set_dis_bypass_fn(bpctl_dev_t *pbpctl_dev, int dis_param)
@@ -4625,7 +4625,7 @@ int get_dis_bypass_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (dis_bypass_cap_status(pbpctl_dev));
+	return dis_bypass_cap_status(pbpctl_dev);
 }
 
 int set_bypass_pwoff_fn(bpctl_dev_t *pbpctl_dev, int bypass_mode)
@@ -4651,7 +4651,7 @@ int get_bypass_pwoff_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (default_pwroff_status(pbpctl_dev));
+	return default_pwroff_status(pbpctl_dev);
 }
 
 int set_bypass_pwup_fn(bpctl_dev_t *pbpctl_dev, int bypass_mode)
@@ -4677,7 +4677,7 @@ int get_bypass_pwup_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (default_pwron_status(pbpctl_dev));
+	return default_pwron_status(pbpctl_dev);
 }
 
 int set_bypass_wd_fn(bpctl_dev_t *pbpctl_dev, int timeout)
@@ -4714,7 +4714,7 @@ int get_wd_expire_time_fn(bpctl_dev_t *pbpctl_dev, int *time_left)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (wdt_timer(pbpctl_dev, time_left));
+	return wdt_timer(pbpctl_dev, time_left);
 }
 
 int reset_bypass_wd_timer_fn(bpctl_dev_t *pbpctl_dev)
@@ -4722,7 +4722,7 @@ int reset_bypass_wd_timer_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (wdt_timer_reload(pbpctl_dev));
+	return wdt_timer_reload(pbpctl_dev);
 }
 
 int get_wd_set_caps_fn(bpctl_dev_t *pbpctl_dev)
@@ -4773,7 +4773,7 @@ int get_std_nic_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (std_nic_status(pbpctl_dev));
+	return std_nic_status(pbpctl_dev);
 }
 
 int set_tap_fn(bpctl_dev_t *pbpctl_dev, int tap_mode)
@@ -4797,7 +4797,7 @@ int get_tap_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (tap_status(pbpctl_dev));
+	return tap_status(pbpctl_dev);
 }
 
 int set_tap_pwup_fn(bpctl_dev_t *pbpctl_dev, int tap_mode)
@@ -4834,7 +4834,7 @@ int get_tap_change_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (tap_change_status(pbpctl_dev));
+	return tap_change_status(pbpctl_dev);
 }
 
 int set_dis_tap_fn(bpctl_dev_t *pbpctl_dev, int dis_param)
@@ -4859,7 +4859,7 @@ int get_dis_tap_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (dis_tap_cap_status(pbpctl_dev));
+	return dis_tap_cap_status(pbpctl_dev);
 }
 
 int set_disc_fn(bpctl_dev_t *pbpctl_dev, int disc_mode)
@@ -4976,7 +4976,7 @@ int get_disc_port_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (disc_port_status(pbpctl_dev));
+	return disc_port_status(pbpctl_dev);
 }
 
 int set_disc_port_pwup_fn(bpctl_dev_t *pbpctl_dev, int disc_mode)
@@ -5009,7 +5009,7 @@ int get_wd_exp_mode_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (wdt_exp_mode_status(pbpctl_dev));
+	return wdt_exp_mode_status(pbpctl_dev);
 }
 
 int set_wd_exp_mode_fn(bpctl_dev_t *pbpctl_dev, int param)
@@ -5017,7 +5017,7 @@ int set_wd_exp_mode_fn(bpctl_dev_t *pbpctl_dev, int param)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (wdt_exp_mode(pbpctl_dev, param));
+	return wdt_exp_mode(pbpctl_dev, param);
 }
 
 int reset_cont_fn(bpctl_dev_t *pbpctl_dev)
@@ -5028,7 +5028,7 @@ int reset_cont_fn(bpctl_dev_t *pbpctl_dev)
 
 	if ((ret = cmnd_on(pbpctl_dev)) < 0)
 		return ret;
-	return (reset_cont(pbpctl_dev));
+	return reset_cont(pbpctl_dev);
 }
 
 int set_tx_fn(bpctl_dev_t *pbpctl_dev, int tx_state)
@@ -5047,7 +5047,7 @@ int set_tx_fn(bpctl_dev_t *pbpctl_dev, int tx_state)
 		    (pbpctl_dev_b->bp_tpl_flag))
 			return BP_NOT_CAP;
 	}
-	return (set_tx(pbpctl_dev, tx_state));
+	return set_tx(pbpctl_dev, tx_state);
 }
 
 int set_bp_force_link_fn(int dev_num, int tx_state)
@@ -5059,7 +5059,7 @@ int set_bp_force_link_fn(int dev_num, int tx_state)
 		return -1;
 	bpctl_dev_curr = &bpctl_dev_arr[dev_num];
 
-	return (set_bp_force_link(bpctl_dev_curr, tx_state));
+	return set_bp_force_link(bpctl_dev_curr, tx_state);
 }
 
 int set_wd_autoreset_fn(bpctl_dev_t *pbpctl_dev, int param)
@@ -5067,7 +5067,7 @@ int set_wd_autoreset_fn(bpctl_dev_t *pbpctl_dev, int param)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (set_bypass_wd_auto(pbpctl_dev, param));
+	return set_bypass_wd_auto(pbpctl_dev, param);
 }
 
 int get_wd_autoreset_fn(bpctl_dev_t *pbpctl_dev)
@@ -5075,7 +5075,7 @@ int get_wd_autoreset_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (get_bypass_wd_auto(pbpctl_dev));
+	return get_bypass_wd_auto(pbpctl_dev);
 }
 
 #ifdef BP_SELF_TEST
@@ -5084,7 +5084,7 @@ int set_bp_self_test_fn(bpctl_dev_t *pbpctl_dev, int param)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (set_bp_self_test(pbpctl_dev, param));
+	return set_bp_self_test(pbpctl_dev, param);
 }
 
 int get_bp_self_test_fn(bpctl_dev_t *pbpctl_dev)
@@ -5092,7 +5092,7 @@ int get_bp_self_test_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (get_bp_self_test(pbpctl_dev));
+	return get_bp_self_test(pbpctl_dev);
 }
 
 #endif
@@ -5102,7 +5102,7 @@ int get_bypass_caps_fn(bpctl_dev_t *pbpctl_dev)
 	if (!pbpctl_dev)
 		return -1;
 
-	return (pbpctl_dev->bp_caps);
+	return pbpctl_dev->bp_caps;
 
 }
 
@@ -5164,7 +5164,7 @@ int get_tx_fn(bpctl_dev_t *pbpctl_dev)
 		    (pbpctl_dev_b->bp_tpl_flag))
 			return BP_NOT_CAP;
 	}
-	return (tx_status(pbpctl_dev));
+	return tx_status(pbpctl_dev);
 }
 
 int get_bp_force_link_fn(int dev_num)
@@ -5176,7 +5176,7 @@ int get_bp_force_link_fn(int dev_num)
 		return -1;
 	bpctl_dev_curr = &bpctl_dev_arr[dev_num];
 
-	return (bp_force_link_status(bpctl_dev_curr));
+	return bp_force_link_status(bpctl_dev_curr);
 }
 
 static int get_bypass_link_status(bpctl_dev_t *pbpctl_dev)
@@ -5329,13 +5329,12 @@ int get_tpl_fn(bpctl_dev_t *pbpctl_dev)
 
 	if (pbpctl_dev->bp_caps & TPL_CAP) {
 		if (pbpctl_dev->bp_caps_ex & TPL2_CAP_EX)
-			return (tpl2_flag_status(pbpctl_dev));
+			return tpl2_flag_status(pbpctl_dev);
 		ret = pbpctl_dev->bp_tpl_flag;
 	}
 	return ret;
 }
 
-//#ifdef PMC_FIX_FLAG
 int set_bp_wait_at_pwup_fn(bpctl_dev_t *pbpctl_dev, int tap_mode)
 {
 	if (!pbpctl_dev)
@@ -5403,7 +5402,6 @@ int get_bp_hw_reset_fn(bpctl_dev_t *pbpctl_dev)
 	return ret;
 }
 
-//#endif  /*PMC_FIX_FLAG*/
 
 int get_bypass_info_fn(bpctl_dev_t *pbpctl_dev, char *dev_name,
 		       char *add_param)
@@ -7302,59 +7300,59 @@ module_exit(bypass_cleanup_module);
 
 int is_bypass_sd(int ifindex)
 {
-	return (is_bypass(get_dev_idx_p(ifindex)));
+	return is_bypass(get_dev_idx_p(ifindex));
 }
 
 int set_bypass_sd(int ifindex, int bypass_mode)
 {
 
-	return (set_bypass_fn(get_dev_idx_p(ifindex), bypass_mode));
+	return set_bypass_fn(get_dev_idx_p(ifindex), bypass_mode);
 }
 
 int get_bypass_sd(int ifindex)
 {
 
-	return (get_bypass_fn(get_dev_idx_p(ifindex)));
+	return get_bypass_fn(get_dev_idx_p(ifindex));
 }
 
 int get_bypass_change_sd(int ifindex)
 {
 
-	return (get_bypass_change_fn(get_dev_idx_p(ifindex)));
+	return get_bypass_change_fn(get_dev_idx_p(ifindex));
 }
 
 int set_dis_bypass_sd(int ifindex, int dis_param)
 {
-	return (set_dis_bypass_fn(get_dev_idx_p(ifindex), dis_param));
+	return set_dis_bypass_fn(get_dev_idx_p(ifindex), dis_param);
 }
 
 int get_dis_bypass_sd(int ifindex)
 {
 
-	return (get_dis_bypass_fn(get_dev_idx_p(ifindex)));
+	return get_dis_bypass_fn(get_dev_idx_p(ifindex));
 }
 
 int set_bypass_pwoff_sd(int ifindex, int bypass_mode)
 {
-	return (set_bypass_pwoff_fn(get_dev_idx_p(ifindex), bypass_mode));
+	return set_bypass_pwoff_fn(get_dev_idx_p(ifindex), bypass_mode);
 
 }
 
 int get_bypass_pwoff_sd(int ifindex)
 {
-	return (get_bypass_pwoff_fn(get_dev_idx_p(ifindex)));
+	return get_bypass_pwoff_fn(get_dev_idx_p(ifindex));
 
 }
 
 int set_bypass_pwup_sd(int ifindex, int bypass_mode)
 {
-	return (set_bypass_pwup_fn(get_dev_idx_p(ifindex), bypass_mode));
+	return set_bypass_pwup_fn(get_dev_idx_p(ifindex), bypass_mode);
 
 }
 
 int get_bypass_pwup_sd(int ifindex)
 {
-	return (get_bypass_pwup_fn(get_dev_idx_p(ifindex)));
+	return get_bypass_pwup_fn(get_dev_idx_p(ifindex));
 
 }
 
@@ -7368,173 +7366,173 @@ int set_bypass_wd_sd(int if_index, int ms_timeout, int *ms_timeout_set)
 
 int get_bypass_wd_sd(int ifindex, int *timeout)
 {
-	return (get_bypass_wd_fn(get_dev_idx_p(ifindex), timeout));
+	return get_bypass_wd_fn(get_dev_idx_p(ifindex), timeout);
 
 }
 
 int get_wd_expire_time_sd(int ifindex, int *time_left)
 {
-	return (get_wd_expire_time_fn(get_dev_idx_p(ifindex), time_left));
+	return get_wd_expire_time_fn(get_dev_idx_p(ifindex), time_left);
 }
 
 int reset_bypass_wd_timer_sd(int ifindex)
 {
-	return (reset_bypass_wd_timer_fn(get_dev_idx_p(ifindex)));
+	return reset_bypass_wd_timer_fn(get_dev_idx_p(ifindex));
 
 }
 
 int get_wd_set_caps_sd(int ifindex)
 {
-	return (get_wd_set_caps_fn(get_dev_idx_p(ifindex)));
+	return get_wd_set_caps_fn(get_dev_idx_p(ifindex));
 
 }
 
 int set_std_nic_sd(int ifindex, int nic_mode)
 {
-	return (set_std_nic_fn(get_dev_idx_p(ifindex), nic_mode));
+	return set_std_nic_fn(get_dev_idx_p(ifindex), nic_mode);
 
 }
 
 int get_std_nic_sd(int ifindex)
 {
-	return (get_std_nic_fn(get_dev_idx_p(ifindex)));
+	return get_std_nic_fn(get_dev_idx_p(ifindex));
 
 }
 
 int set_tap_sd(int ifindex, int tap_mode)
 {
-	return (set_tap_fn(get_dev_idx_p(ifindex), tap_mode));
+	return set_tap_fn(get_dev_idx_p(ifindex), tap_mode);
 
 }
 
 int get_tap_sd(int ifindex)
 {
-	return (get_tap_fn(get_dev_idx_p(ifindex)));
+	return get_tap_fn(get_dev_idx_p(ifindex));
 
 }
 
 int set_tap_pwup_sd(int ifindex, int tap_mode)
 {
-	return (set_tap_pwup_fn(get_dev_idx_p(ifindex), tap_mode));
+	return set_tap_pwup_fn(get_dev_idx_p(ifindex), tap_mode);
 
 }
 
 int get_tap_pwup_sd(int ifindex)
 {
-	return (get_tap_pwup_fn(get_dev_idx_p(ifindex)));
+	return get_tap_pwup_fn(get_dev_idx_p(ifindex));
 
 }
 
 int get_tap_change_sd(int ifindex)
 {
-	return (get_tap_change_fn(get_dev_idx_p(ifindex)));
+	return get_tap_change_fn(get_dev_idx_p(ifindex));
 
 }
 
 int set_dis_tap_sd(int ifindex, int dis_param)
 {
-	return (set_dis_tap_fn(get_dev_idx_p(ifindex), dis_param));
+	return set_dis_tap_fn(get_dev_idx_p(ifindex), dis_param);
 
 }
 
 int get_dis_tap_sd(int ifindex)
 {
-	return (get_dis_tap_fn(get_dev_idx_p(ifindex)));
+	return get_dis_tap_fn(get_dev_idx_p(ifindex));
 
 }
 
 int set_bp_disc_sd(int ifindex, int disc_mode)
 {
-	return (set_disc_fn(get_dev_idx_p(ifindex), disc_mode));
+	return set_disc_fn(get_dev_idx_p(ifindex), disc_mode);
 
 }
 
 int get_bp_disc_sd(int ifindex)
 {
-	return (get_disc_fn(get_dev_idx_p(ifindex)));
+	return get_disc_fn(get_dev_idx_p(ifindex));
 
 }
 
 int set_bp_disc_pwup_sd(int ifindex, int disc_mode)
 {
-	return (set_disc_pwup_fn(get_dev_idx_p(ifindex), disc_mode));
+	return set_disc_pwup_fn(get_dev_idx_p(ifindex), disc_mode);
 
 }
 
 int get_bp_disc_pwup_sd(int ifindex)
 {
-	return (get_disc_pwup_fn(get_dev_idx_p(ifindex)));
+	return get_disc_pwup_fn(get_dev_idx_p(ifindex));
 
 }
 
 int get_bp_disc_change_sd(int ifindex)
 {
-	return (get_disc_change_fn(get_dev_idx_p(ifindex)));
+	return get_disc_change_fn(get_dev_idx_p(ifindex));
 
 }
 
 int set_bp_dis_disc_sd(int ifindex, int dis_param)
 {
-	return (set_dis_disc_fn(get_dev_idx_p(ifindex), dis_param));
+	return set_dis_disc_fn(get_dev_idx_p(ifindex), dis_param);
 
 }
 
 int get_bp_dis_disc_sd(int ifindex)
 {
-	return (get_dis_disc_fn(get_dev_idx_p(ifindex)));
+	return get_dis_disc_fn(get_dev_idx_p(ifindex));
 
 }
 
 int get_wd_exp_mode_sd(int ifindex)
 {
-	return (get_wd_exp_mode_fn(get_dev_idx_p(ifindex)));
+	return get_wd_exp_mode_fn(get_dev_idx_p(ifindex));
 }
 
 int set_wd_exp_mode_sd(int ifindex, int param)
 {
-	return (set_wd_exp_mode_fn(get_dev_idx_p(ifindex), param));
+	return set_wd_exp_mode_fn(get_dev_idx_p(ifindex), param);
 
 }
 
 int reset_cont_sd(int ifindex)
 {
-	return (reset_cont_fn(get_dev_idx_p(ifindex)));
+	return reset_cont_fn(get_dev_idx_p(ifindex));
 
 }
 
 int set_tx_sd(int ifindex, int tx_state)
 {
-	return (set_tx_fn(get_dev_idx_p(ifindex), tx_state));
+	return set_tx_fn(get_dev_idx_p(ifindex), tx_state);
 
 }
 
 int set_tpl_sd(int ifindex, int tpl_state)
 {
-	return (set_tpl_fn(get_dev_idx_p(ifindex), tpl_state));
+	return set_tpl_fn(get_dev_idx_p(ifindex), tpl_state);
 
 }
 
 int set_bp_hw_reset_sd(int ifindex, int status)
 {
-	return (set_bp_hw_reset_fn(get_dev_idx_p(ifindex), status));
+	return set_bp_hw_reset_fn(get_dev_idx_p(ifindex), status);
 
 }
 
 int set_wd_autoreset_sd(int ifindex, int param)
 {
-	return (set_wd_autoreset_fn(get_dev_idx_p(ifindex), param));
+	return set_wd_autoreset_fn(get_dev_idx_p(ifindex), param);
 
 }
 
 int get_wd_autoreset_sd(int ifindex)
 {
-	return (get_wd_autoreset_fn(get_dev_idx_p(ifindex)));
+	return get_wd_autoreset_fn(get_dev_idx_p(ifindex));
 
 }
 
 int get_bypass_caps_sd(int ifindex)
 {
-	return (get_bypass_caps_fn(get_dev_idx_p(ifindex)));
+	return get_bypass_caps_fn(get_dev_idx_p(ifindex));
 }
 
 int get_bypass_slave_sd(int ifindex)
@@ -7542,33 +7540,32 @@ int get_bypass_slave_sd(int ifindex)
 	bpctl_dev_t *pbpctl_dev_out;
 	int ret = get_bypass_slave_fn(get_dev_idx_p(ifindex), &pbpctl_dev_out);
 	if (ret == 1)
-		return (pbpctl_dev_out->ifindex);
+		return pbpctl_dev_out->ifindex;
 	return -1;
 
 }
 
 int get_tx_sd(int ifindex)
 {
-	return (get_tx_fn(get_dev_idx_p(ifindex)));
+	return get_tx_fn(get_dev_idx_p(ifindex));
 
 }
 
 int get_tpl_sd(int ifindex)
 {
-	return (get_tpl_fn(get_dev_idx_p(ifindex)));
+	return get_tpl_fn(get_dev_idx_p(ifindex));
 
 }
 
 int get_bp_hw_reset_sd(int ifindex)
 {
-	return (get_bp_hw_reset_fn(get_dev_idx_p(ifindex)));
+	return get_bp_hw_reset_fn(get_dev_idx_p(ifindex));
 
 }
 
 int get_bypass_info_sd(int ifindex, struct bp_info *bp_info)
 {
-	return (get_bypass_info_fn
-		(get_dev_idx_p(ifindex), bp_info->prod_name, &bp_info->fw_ver));
+	return get_bypass_info_fn(get_dev_idx_p(ifindex), bp_info->prod_name, &bp_info->fw_ver);
 }
 
 int bp_if_scan_sd(void)
@@ -7691,11 +7688,11 @@ static struct proc_dir_entry *proc_getdir(char *name,
 #endif
 		if (pde == (struct proc_dir_entry *)0) {
 
-			return (pde);
+			return pde;
 		}
 	}
 
-	return (pde);
+	return pde;
 }
 
 int bp_proc_create(void)
