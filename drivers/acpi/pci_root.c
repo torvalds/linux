@@ -270,12 +270,15 @@ static acpi_status acpi_pci_osc_support(struct acpi_pci_root *root, u32 flags)
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 {
 	struct acpi_pci_root *root;
+	struct acpi_device *device;
 
-	list_for_each_entry(root, &acpi_pci_roots, node) {
-		if (root->device->handle == handle)
-			return root;
-	}
-	return NULL;
+	if (acpi_bus_get_device(handle, &device) ||
+	    acpi_match_device_ids(device, root_device_ids))
+		return NULL;
+
+	root = acpi_driver_data(device);
+
+	return root;
 }
 EXPORT_SYMBOL_GPL(acpi_pci_find_root);
 
