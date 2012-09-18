@@ -3738,7 +3738,7 @@ int __init omap3xxx_hwmod_init(void)
 	} else {
 		WARN(1, "OMAP3 hwmod family init: unknown chip type\n");
 		return -EINVAL;
-	};
+	}
 
 	r = omap_hwmod_register_links(h);
 	if (r < 0)
@@ -3755,7 +3755,7 @@ int __init omap3xxx_hwmod_init(void)
 		   rev == OMAP3430_REV_ES3_0 || rev == OMAP3430_REV_ES3_1 ||
 		   rev == OMAP3430_REV_ES3_1_2) {
 		h = omap3430es2plus_hwmod_ocp_ifs;
-	};
+	}
 
 	if (h) {
 		r = omap_hwmod_register_links(h);
@@ -3770,7 +3770,7 @@ int __init omap3xxx_hwmod_init(void)
 	} else if (rev == OMAP3430_REV_ES3_0 || rev == OMAP3430_REV_ES3_1 ||
 		   rev == OMAP3430_REV_ES3_1_2) {
 		h = omap3430_es3plus_hwmod_ocp_ifs;
-	};
+	}
 
 	if (h)
 		r = omap_hwmod_register_links(h);

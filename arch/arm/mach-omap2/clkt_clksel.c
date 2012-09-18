@@ -382,7 +382,7 @@ void omap2_init_clksel_parent(struct clk *clk)
 						  __clk_get_name(parent) :
 						 "NULL"));
 					clk_reparent(clk, clks->parent);
-				};
+				}
 				found = 1;
 			}
 		}
