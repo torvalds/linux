@@ -457,6 +457,7 @@ struct smb_version_operations smb21_operations = {
 	.query_file_info = smb2_query_file_info,
 	.set_path_size = smb2_set_path_size,
 	.set_file_size = smb2_set_file_size,
+	.set_file_info = smb2_set_file_info,
 	.build_path_to_root = smb2_build_path_to_root,
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,

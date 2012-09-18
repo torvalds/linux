@@ -1760,3 +1760,14 @@ SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	return send_set_info(xid, tcon, persistent_fid, volatile_fid, pid,
 			     FILE_END_OF_FILE_INFORMATION, 1, &data, &size);
 }
+
+int
+SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
+	      u64 persistent_fid, u64 volatile_fid, FILE_BASIC_INFO *buf)
+{
+	unsigned int size;
+	size = sizeof(FILE_BASIC_INFO);
+	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
+			     current->tgid, FILE_BASIC_INFORMATION, 1,
+			     (void **)&buf, &size);
+}

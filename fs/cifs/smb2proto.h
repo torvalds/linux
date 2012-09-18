@@ -59,6 +59,8 @@ extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 extern int smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 			      const char *full_path, __u64 size,
 			      struct cifs_sb_info *cifs_sb, bool set_alloc);
+extern int smb2_set_file_info(struct inode *inode, const char *full_path,
+			      FILE_BASIC_INFO *buf, const unsigned int xid);
 extern int smb2_mkdir(const unsigned int xid, struct cifs_tcon *tcon,
 		      const char *name, struct cifs_sb_info *cifs_sb);
 extern void smb2_mkdir_setinfo(struct inode *inode, const char *full_path,
@@ -124,5 +126,8 @@ extern int SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, u32 pid,
 			__le64 *eof);
+extern int SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
+			 u64 persistent_fid, u64 volatile_fid,
+			 FILE_BASIC_INFO *buf);
 
 #endif			/* _SMB2PROTO_H */
