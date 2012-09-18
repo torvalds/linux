@@ -29,6 +29,7 @@
 #include "ntlmssp.h"
 #include <linux/ctype.h>
 #include <linux/random.h>
+#include <linux/highmem.h>
 
 /*
  * Calculate and return the CIFS signature based on the mac key and SMB PDU.
@@ -91,6 +92,16 @@ static int cifs_calc_signature(struct smb_rqst *rqst,
 							__func__);
 			return rc;
 		}
+	}
+
+	/* now hash over the rq_pages array */
+	for (i = 0; i < rqst->rq_npages; i++) {
+		struct kvec p_iov;
+
+		cifs_rqst_page_to_kvec(rqst, i, &p_iov);
+		crypto_shash_update(&server->secmech.sdescmd5->shash,
+					p_iov.iov_base, p_iov.iov_len);
+		kunmap(rqst->rq_pages[i]);
 	}
 
 	rc = crypto_shash_final(&server->secmech.sdescmd5->shash, signature);

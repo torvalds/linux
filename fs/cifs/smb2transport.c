@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <linux/mempool.h>
+#include <linux/highmem.h>
 #include "smb2pdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -93,6 +94,16 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 							__func__);
 			return rc;
 		}
+	}
+
+	/* now hash over the rq_pages array */
+	for (i = 0; i < rqst->rq_npages; i++) {
+		struct kvec p_iov;
+
+		cifs_rqst_page_to_kvec(rqst, i, &p_iov);
+		crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
+					p_iov.iov_base, p_iov.iov_len);
+		kunmap(rqst->rq_pages[i]);
 	}
 
 	rc = crypto_shash_final(&server->secmech.sdeschmacsha256->shash,

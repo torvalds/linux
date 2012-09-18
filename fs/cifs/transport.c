@@ -251,7 +251,7 @@ smb_send_kvec(struct TCP_Server_Info *server, struct kvec *iov, size_t n_vec,
  * The page will be kmapped and the address placed into iov_base. The length
  * will then be adjusted according to the ptailoff.
  */
-static void
+void
 cifs_rqst_page_to_kvec(struct smb_rqst *rqst, unsigned int idx,
 			struct kvec *iov)
 {
