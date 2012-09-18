@@ -2016,7 +2016,9 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.oprofile_cpu_type	= "ppc/e500mc",
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
 		.cpu_setup		= __setup_cpu_e5500,
+#ifndef CONFIG_PPC32
 		.cpu_restore		= __restore_cpu_e5500,
+#endif
 		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce5500",
 	},
@@ -2034,7 +2036,9 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.oprofile_cpu_type	= "ppc/e6500",
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
 		.cpu_setup		= __setup_cpu_e5500,
+#ifndef CONFIG_PPC32
 		.cpu_restore		= __restore_cpu_e5500,
+#endif
 		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce6500",
 	},

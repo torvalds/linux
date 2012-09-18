@@ -143,16 +143,18 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		 (u64)rsrc->start, (u64)resource_size(rsrc));
 
-	if (of_device_is_compatible(hose->dn, "fsl,qoriq-pcie-v2.2")) {
-		win_idx = 2;
-		start_idx = 0;
-		end_idx = 3;
-	}
-
 	pci = ioremap(rsrc->start, resource_size(rsrc));
 	if (!pci) {
 	    dev_err(hose->parent, "Unable to map ATMU registers\n");
 	    return;
+	}
+
+	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
+		if (in_be32(&pci->block_rev1) >= PCIE_IP_REV_2_2) {
+			win_idx = 2;
+			start_idx = 0;
+			end_idx = 3;
+		}
 	}
 
 	/* Disable all windows (except powar0 since it's ignored) */
@@ -818,6 +820,7 @@ static const struct of_device_id pci_ids[] = {
 	{ .compatible = "fsl,p1010-pcie", },
 	{ .compatible = "fsl,p1023-pcie", },
 	{ .compatible = "fsl,p4080-pcie", },
+	{ .compatible = "fsl,qoriq-pcie-v2.4", },
 	{ .compatible = "fsl,qoriq-pcie-v2.3", },
 	{ .compatible = "fsl,qoriq-pcie-v2.2", },
 	{},
@@ -825,57 +828,78 @@ static const struct of_device_id pci_ids[] = {
 
 struct device_node *fsl_pci_primary;
 
-void __devinit fsl_pci_init(void)
+void fsl_pci_assign_primary(void)
+{
+	struct device_node *np;
+
+	/* Callers can specify the primary bus using other means. */
+	if (fsl_pci_primary)
+		return;
+
+	/* If a PCI host bridge contains an ISA node, it's primary. */
+	np = of_find_node_by_type(NULL, "isa");
+	while ((fsl_pci_primary = of_get_parent(np))) {
+		of_node_put(np);
+		np = fsl_pci_primary;
+
+		if (of_match_node(pci_ids, np) && of_device_is_available(np))
+			return;
+	}
+
+	/*
+	 * If there's no PCI host bridge with ISA, arbitrarily
+	 * designate one as primary.  This can go away once
+	 * various bugs with primary-less systems are fixed.
+	 */
+	for_each_matching_node(np, pci_ids) {
+		if (of_device_is_available(np)) {
+			fsl_pci_primary = np;
+			of_node_put(np);
+			return;
+		}
+	}
+}
+
+static int __devinit fsl_pci_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device_node *node;
 	struct pci_controller *hose;
-	dma_addr_t max = 0xffffffff;
 
-	/* Callers can specify the primary bus using other means. */
-	if (!fsl_pci_primary) {
-		/* If a PCI host bridge contains an ISA node, it's primary. */
-		node = of_find_node_by_type(NULL, "isa");
-		while ((fsl_pci_primary = of_get_parent(node))) {
-			of_node_put(node);
-			node = fsl_pci_primary;
-
-			if (of_match_node(pci_ids, node))
-				break;
-		}
-	}
-
-	node = NULL;
-	for_each_node_by_type(node, "pci") {
-		if (of_match_node(pci_ids, node)) {
-			/*
-			 * If there's no PCI host bridge with ISA, arbitrarily
-			 * designate one as primary.  This can go away once
-			 * various bugs with primary-less systems are fixed.
-			 */
-			if (!fsl_pci_primary)
-				fsl_pci_primary = node;
-
-			ret = fsl_add_bridge(node, fsl_pci_primary == node);
-			if (ret == 0) {
-				hose = pci_find_hose_for_OF_device(node);
-				max = min(max, hose->dma_window_base_cur +
-						hose->dma_window_size);
-			}
-		}
-	}
+	node = pdev->dev.of_node;
+	ret = fsl_add_bridge(node, fsl_pci_primary == node);
 
 #ifdef CONFIG_SWIOTLB
-	/*
-	 * if we couldn't map all of DRAM via the dma windows
-	 * we need SWIOTLB to handle buffers located outside of
-	 * dma capable memory region
-	 */
-	if (memblock_end_of_DRAM() - 1 > max) {
-		ppc_swiotlb_enable = 1;
-		set_pci_dma_ops(&swiotlb_dma_ops);
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
+	if (ret == 0) {
+		hose = pci_find_hose_for_OF_device(pdev->dev.of_node);
+
+		/*
+		 * if we couldn't map all of DRAM via the dma windows
+		 * we need SWIOTLB to handle buffers located outside of
+		 * dma capable memory region
+		 */
+		if (memblock_end_of_DRAM() - 1 > hose->dma_window_base_cur +
+				hose->dma_window_size)
+			ppc_swiotlb_enable = 1;
 	}
 #endif
+
+	mpc85xx_pci_err_probe(pdev);
+
+	return 0;
 }
+
+static struct platform_driver fsl_pci_driver = {
+	.driver = {
+		.name = "fsl-pci",
+		.of_match_table = pci_ids,
+	},
+	.probe = fsl_pci_probe,
+};
+
+static int __init fsl_pci_init(void)
+{
+	return platform_driver_register(&fsl_pci_driver);
+}
+arch_initcall(fsl_pci_init);
 #endif

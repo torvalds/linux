@@ -1,7 +1,7 @@
 /*
- * P2041 RDB Setup
+ * P5040 DS Setup
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2009-2010 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -11,20 +11,13 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/kdev_t.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/phy.h>
 
-#include <asm/time.h>
 #include <asm/machdep.h>
-#include <asm/pci-bridge.h>
-#include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 
-#include <linux/of_platform.h>
+#include <linux/of_fdt.h>
+
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 #include <asm/ehv_pic.h>
@@ -34,18 +27,18 @@
 /*
  * Called very early, device-tree isn't unflattened
  */
-static int __init p2041_rdb_probe(void)
+static int __init p5040_ds_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 #ifdef CONFIG_SMP
 	extern struct smp_ops_t smp_85xx_ops;
 #endif
 
-	if (of_flat_dt_is_compatible(root, "fsl,P2041RDB"))
+	if (of_flat_dt_is_compatible(root, "fsl,P5040DS"))
 		return 1;
 
 	/* Check if we're running under the Freescale hypervisor */
-	if (of_flat_dt_is_compatible(root, "fsl,P2041RDB-hv")) {
+	if (of_flat_dt_is_compatible(root, "fsl,P5040DS-hv")) {
 		ppc_md.init_IRQ = ehv_pic_init;
 		ppc_md.get_irq = ehv_pic_get_irq;
 		ppc_md.restart = fsl_hv_restart;
@@ -65,23 +58,32 @@ static int __init p2041_rdb_probe(void)
 	return 0;
 }
 
-define_machine(p2041_rdb) {
-	.name			= "P2041 RDB",
-	.probe			= p2041_rdb_probe,
+define_machine(p5040_ds) {
+	.name			= "P5040 DS",
+	.probe			= p5040_ds_probe,
 	.setup_arch		= corenet_ds_setup_arch,
 	.init_IRQ		= corenet_ds_pic_init,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 #endif
+/* coreint doesn't play nice with lazy EE, use legacy mpic for now */
+#ifdef CONFIG_PPC64
+	.get_irq		= mpic_get_irq,
+#else
 	.get_irq		= mpic_get_coreint_irq,
+#endif
 	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
+#ifdef CONFIG_PPC64
+	.power_save		= book3e_idle,
+#else
 	.power_save		= e500_idle,
+#endif
 };
 
-machine_arch_initcall(p2041_rdb, corenet_ds_publish_devices);
+machine_arch_initcall(p5040_ds, corenet_ds_publish_devices);
 
 #ifdef CONFIG_SWIOTLB
-machine_arch_initcall(p2041_rdb, swiotlb_setup_bus_notifier);
+machine_arch_initcall(p5040_ds, swiotlb_setup_bus_notifier);
 #endif
