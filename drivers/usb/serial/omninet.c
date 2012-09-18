@@ -162,7 +162,6 @@ static void omninet_read_bulk_callback(struct urb *urb)
 	struct omninet_header 	*header = (struct omninet_header *) &data[0];
 	int status = urb->status;
 	int result;
-	int i;
 
 	if (status) {
 		dev_dbg(&port->dev, "%s - nonzero read bulk status received: %d\n",
