@@ -644,6 +644,8 @@ struct smb_version_operations smb1_operations = {
 	.mkdir = CIFSSMBMkDir,
 	.mkdir_setinfo = cifs_mkdir_setinfo,
 	.rmdir = CIFSSMBRmDir,
+	.unlink = CIFSSMBDelFile,
+	.rename_pending_delete = cifs_rename_pending_delete,
 };
 
 struct smb_version_values smb1_values = {

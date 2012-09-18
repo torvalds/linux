@@ -256,6 +256,12 @@ struct smb_version_operations {
 	/* remove directory */
 	int (*rmdir)(const unsigned int, struct cifs_tcon *, const char *,
 		     struct cifs_sb_info *);
+	/* unlink file */
+	int (*unlink)(const unsigned int, struct cifs_tcon *, const char *,
+		      struct cifs_sb_info *);
+	/* open, rename and delete file */
+	int (*rename_pending_delete)(const char *, struct dentry *,
+				     const unsigned int);
 };
 
 struct smb_version_values {

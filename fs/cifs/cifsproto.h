@@ -144,6 +144,11 @@ extern int cifs_get_file_info_unix(struct file *filp);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, unsigned int xid);
+extern int cifs_set_file_info(struct inode *inode, struct iattr *attrs,
+			      unsigned int xid, char *full_path, __u32 dosattr);
+extern int cifs_rename_pending_delete(const char *full_path,
+				      struct dentry *dentry,
+				      const unsigned int xid);
 extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
 			      const char *path, const __u16 *pfid);
@@ -303,9 +308,7 @@ extern int CIFSPOSIXDelFile(const unsigned int xid, struct cifs_tcon *tcon,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern int CIFSSMBDelFile(const unsigned int xid, struct cifs_tcon *tcon,
-			const char *name,
-			const struct nls_table *nls_codepage,
-			int remap_special_chars);
+			  const char *name, struct cifs_sb_info *cifs_sb);
 extern int CIFSSMBRename(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *fromName, const char *toName,
 			const struct nls_table *nls_codepage,

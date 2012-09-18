@@ -876,9 +876,9 @@ out:
 	return inode;
 }
 
-static int
+int
 cifs_set_file_info(struct inode *inode, struct iattr *attrs, unsigned int xid,
-		    char *full_path, __u32 dosattr)
+		   char *full_path, __u32 dosattr)
 {
 	int rc;
 	int oplock = 0;
@@ -993,13 +993,13 @@ out:
 }
 
 /*
- * open the given file (if it isn't already), set the DELETE_ON_CLOSE bit
+ * Open the given file (if it isn't already), set the DELETE_ON_CLOSE bit
  * and rename it to a random name that hopefully won't conflict with
  * anything else.
  */
-static int
-cifs_rename_pending_delete(char *full_path, struct dentry *dentry,
-			   unsigned int xid)
+int
+cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
+			   const unsigned int xid)
 {
 	int oplock = 0;
 	int rc;
@@ -1136,6 +1136,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
 	struct iattr *attrs = NULL;
 	__u32 dosattr = 0, origattr = 0;
 
@@ -1145,6 +1146,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
 	xid = get_xid();
 
@@ -1167,8 +1169,12 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	}
 
 retry_std_delete:
-	rc = CIFSSMBDelFile(xid, tcon, full_path, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (!server->ops->unlink) {
+		rc = -ENOSYS;
+		goto psx_del_no_retry;
+	}
+
+	rc = server->ops->unlink(xid, tcon, full_path, cifs_sb);
 
 psx_del_no_retry:
 	if (!rc) {
@@ -1177,9 +1183,14 @@ psx_del_no_retry:
 	} else if (rc == -ENOENT) {
 		d_drop(dentry);
 	} else if (rc == -ETXTBSY) {
-		rc = cifs_rename_pending_delete(full_path, dentry, xid);
-		if (rc == 0)
-			cifs_drop_nlink(inode);
+		if (server->ops->rename_pending_delete) {
+			rc = server->ops->rename_pending_delete(full_path,
+								dentry, xid);
+			if (rc == 0)
+				cifs_drop_nlink(inode);
+		}
+		if (rc == -ETXTBSY)
+			rc = -EBUSY;
 	} else if ((rc == -EACCES) && (dosattr == 0) && inode) {
 		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
 		if (attrs == NULL) {
