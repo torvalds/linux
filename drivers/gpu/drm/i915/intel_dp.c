@@ -2083,11 +2083,44 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	}
 }
 
+/* XXX this is probably wrong for multiple downstream ports */
 static enum drm_connector_status
 intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 {
-	if (intel_dp_get_dpcd(intel_dp))
+	uint8_t *dpcd = intel_dp->dpcd;
+	bool hpd;
+	uint8_t type;
+
+	if (!intel_dp_get_dpcd(intel_dp))
+		return connector_status_disconnected;
+
+	/* if there's no downstream port, we're done */
+	if (!(dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT))
 		return connector_status_connected;
+
+	/* If we're HPD-aware, SINK_COUNT changes dynamically */
+	hpd = !!(intel_dp->downstream_ports[0] & DP_DS_PORT_HPD);
+	if (hpd) {
+		uint8_t sink_count;
+		if (!intel_dp_aux_native_read_retry(intel_dp, DP_SINK_COUNT,
+						    &sink_count, 1))
+			return connector_status_unknown;
+		sink_count &= DP_SINK_COUNT_MASK;
+		return sink_count ? connector_status_connected
+				  : connector_status_disconnected;
+	}
+
+	/* If no HPD, poke DDC gently */
+	if (drm_probe_ddc(&intel_dp->adapter))
+		return connector_status_connected;
+
+	/* Well we tried, say unknown for unreliable port types */
+	type = intel_dp->downstream_ports[0] & DP_DS_PORT_TYPE_MASK;
+	if (type == DP_DS_PORT_TYPE_VGA || type == DP_DS_PORT_TYPE_NON_EDID)
+		return connector_status_unknown;
+
+	/* Anything else is out of spec, warn and ignore */
+	DRM_DEBUG_KMS("Broken DP branch device, ignoring\n");
 	return connector_status_disconnected;
 }
 
