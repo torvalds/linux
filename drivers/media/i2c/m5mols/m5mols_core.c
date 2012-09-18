@@ -599,6 +599,51 @@ static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return ret;
 }
 
+static int m5mols_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_mbus_frame_desc *fd)
+{
+	struct m5mols_info *info = to_m5mols(sd);
+
+	if (pad != 0 || fd == NULL)
+		return -EINVAL;
+
+	mutex_lock(&info->lock);
+	/*
+	 * .get_frame_desc is only used for compressed formats,
+	 * thus we always return the capture frame parameters here.
+	 */
+	fd->entry[0].length = info->cap.buf_size;
+	fd->entry[0].pixelcode = info->ffmt[M5MOLS_RESTYPE_CAPTURE].code;
+	mutex_unlock(&info->lock);
+
+	fd->entry[0].flags = V4L2_MBUS_FRAME_DESC_FL_LEN_MAX;
+	fd->num_entries = 1;
+
+	return 0;
+}
+
+static int m5mols_set_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_mbus_frame_desc *fd)
+{
+	struct m5mols_info *info = to_m5mols(sd);
+	struct v4l2_mbus_framefmt *mf = &info->ffmt[M5MOLS_RESTYPE_CAPTURE];
+
+	if (pad != 0 || fd == NULL)
+		return -EINVAL;
+
+	fd->entry[0].flags = V4L2_MBUS_FRAME_DESC_FL_LEN_MAX;
+	fd->num_entries = 1;
+	fd->entry[0].length = clamp_t(u32, fd->entry[0].length,
+				      mf->width * mf->height,
+				      M5MOLS_MAIN_JPEG_SIZE_MAX);
+	mutex_lock(&info->lock);
+	info->cap.buf_size = fd->entry[0].length;
+	mutex_unlock(&info->lock);
+
+	return 0;
+}
+
+
 static int m5mols_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_fh *fh,
 				 struct v4l2_subdev_mbus_code_enum *code)
@@ -615,6 +660,8 @@ static struct v4l2_subdev_pad_ops m5mols_pad_ops = {
 	.enum_mbus_code	= m5mols_enum_mbus_code,
 	.get_fmt	= m5mols_get_fmt,
 	.set_fmt	= m5mols_set_fmt,
+	.get_frame_desc	= m5mols_get_frame_desc,
+	.set_frame_desc	= m5mols_set_frame_desc,
 };
 
 /**
