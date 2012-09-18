@@ -62,6 +62,13 @@
 			};
 		};
 
+		sound {
+			compatible = "stericsson,snd-soc-mop500";
+
+			stericsson,cpu-dai = <&msp1 &msp3>;
+			stericsson,audio-codec = <&codec>;
+		};
+
 		msp1: msp@80124000 {
 			status = "okay";
 		};
