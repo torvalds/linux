@@ -119,12 +119,31 @@ int msp_reset(struct i2c_client *client)
 	static u8 write[3]     = { I2C_MSP_DSP + 1, 0x00, 0x1e };
 	u8 read[2];
 	struct i2c_msg reset[2] = {
-		{ client->addr, I2C_M_IGNORE_NAK, 3, reset_off },
-		{ client->addr, I2C_M_IGNORE_NAK, 3, reset_on  },
+		{
+			.addr = client->addr,
+			.flags = I2C_M_IGNORE_NAK,
+			.len = 3,
+			.buf = reset_off
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_IGNORE_NAK,
+			.len = 3,
+			.buf = reset_on
+		},
 	};
 	struct i2c_msg test[2] = {
-		{ client->addr, 0,        3, write },
-		{ client->addr, I2C_M_RD, 2, read  },
+		{
+			.addr = client->addr,
+			.len = 3,
+			.buf = write
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 2,
+			.buf = read
+		},
 	};
 
 	v4l_dbg(3, msp_debug, client, "msp_reset\n");
@@ -143,8 +162,17 @@ static int msp_read(struct i2c_client *client, int dev, int addr)
 	u8 write[3];
 	u8 read[2];
 	struct i2c_msg msgs[2] = {
-		{ client->addr, 0,        3, write },
-		{ client->addr, I2C_M_RD, 2, read  }
+		{
+			.addr = client->addr,
+			.len = 3,
+			.buf = write
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 2,
+			.buf = read
+		}
 	};
 
 	write[0] = dev + 1;
