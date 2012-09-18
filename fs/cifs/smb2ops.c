@@ -393,6 +393,17 @@ smb2_read_data_length(char *buf)
 	return le32_to_cpu(rsp->DataLength);
 }
 
+
+static int
+smb2_sync_read(const unsigned int xid, struct cifsFileInfo *cfile,
+	       struct cifs_io_parms *parms, unsigned int *bytes_read,
+	       char **buf, int *buf_type)
+{
+	parms->persistent_fid = cfile->fid.persistent_fid;
+	parms->volatile_fid = cfile->fid.volatile_fid;
+	return SMB2_read(xid, parms, bytes_read, buf, buf_type);
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -435,6 +446,7 @@ struct smb_version_operations smb21_operations = {
 	.flush = smb2_flush_file,
 	.async_readv = smb2_async_readv,
 	.async_writev = smb2_async_writev,
+	.sync_read = smb2_sync_read,
 };
 
 struct smb_version_values smb21_values = {
