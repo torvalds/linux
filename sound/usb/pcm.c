@@ -510,6 +510,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 
 	subs->interface = fmt->iface;
 	subs->altset_idx = fmt->altset_idx;
+	subs->need_setup_ep = true;
 
 	return 0;
 }
@@ -568,9 +569,12 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		return ret;
 
-	ret = configure_endpoint(subs);
-	if (ret < 0)
-		return ret;
+	if (subs->need_setup_ep) {
+		ret = configure_endpoint(subs);
+		if (ret < 0)
+			return ret;
+		subs->need_setup_ep = false;
+	}
 
 	/* some unit conversions in runtime */
 	subs->data_endpoint->maxframesize =
