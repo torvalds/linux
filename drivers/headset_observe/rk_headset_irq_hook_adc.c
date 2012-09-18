@@ -78,7 +78,7 @@
 extern int wm8994_headset_mic_detect(bool headset_status);
 #endif
 
-#ifdef CONFIG_SND_SOC_RT3261
+#if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 extern int rt3261_headset_mic_detect(int jack_insert);
 #endif
 
@@ -200,7 +200,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 			#ifdef CONFIG_SND_SOC_WM8994
 			wm8994_headset_mic_detect(true);
 			#endif
-			#ifdef CONFIG_SND_SOC_RT3261
+			#if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 			rt3261_headset_mic_detect(true);
 			#endif
 			//mdelay(400);
@@ -211,7 +211,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 				#ifdef CONFIG_SND_SOC_WM8994
 				wm8994_headset_mic_detect(false);
 				#endif
-				#ifdef CONFIG_SND_SOC_RT3261
+				#if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 				rt3261_headset_mic_detect(false);
 				#endif
 				printk("headset->isMic = %d\n",headset_info->isMic);		
@@ -264,7 +264,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 			//rt5625_headset_mic_detect(false);
 			wm8994_headset_mic_detect(false);
 			#endif
-			#ifdef CONFIG_SND_SOC_RT3261
+			#if defined (CONFIG_SND_SOC_RT3261) || defined (CONFIG_SND_SOC_RT3224)
 			rt3261_headset_mic_detect(false);
 			#endif
 		}	

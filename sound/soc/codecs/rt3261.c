@@ -59,7 +59,7 @@ static struct snd_soc_codec *rt3261_codec;
 #define RT3261_REG_RW 1 /* for debug */
 #define RT3261_DET_EXT_MIC 0
 
-#define VERSION "RT3261_V1.1.0"
+#define VERSION "RT3261_V1.2.0"
 
 #if defined (CONFIG_SND_SOC_RT5623)
 extern void rt5623_on(void);
@@ -3244,7 +3244,9 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 	int reg;
 	int i;
 	int value;
+	#if defined (CONFIG_SND_SOC_RT3261)
 	struct rt3261_dsp_param param;
+	#endif
 
 	cookie_pot = (char *)vmalloc( len );
 	if (!cookie_pot) 

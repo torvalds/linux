@@ -678,6 +678,7 @@ static int rk_headset_io_init(int gpio, char *iomux_name, int iomux_mode)
 		rk30_mux_api_set(iomux_name, iomux_mode);
 		gpio_pull_updown(gpio, PullDisable);
 		gpio_direction_input(gpio);
+		mdelay(50);
 		return 0;
 };
 
@@ -1001,7 +1002,7 @@ static struct platform_device rk29_device_backlight = {
 
 #endif
 
-#ifdef CONFIG_SND_SOC_RT3261
+#if defined (CONFIG_SND_SOC_RT3224) || defined (CONFIG_SND_SOC_RT3261)
 
 static int rt3261_io_init(int gpio, char *iomux_name, int iomux_mode)
 {
@@ -1014,7 +1015,7 @@ static int rt3261_io_init(int gpio, char *iomux_name, int iomux_mode)
 static struct rt3261_platform_data rt3261_info = {
 	.codec_en_gpio 			= RK30_PIN4_PD7,
 	.codec_en_gpio_info		= {GPIO4D7_SMCDATA15_TRACEDATA15_NAME,GPIO4D_GPIO4D7},
-	.io_init				= rt3261_io_init,
+	.io_init			= rt3261_io_init,
 };
 
 #endif
