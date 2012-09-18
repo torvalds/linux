@@ -274,6 +274,8 @@ struct smb_version_operations {
 	void (*set_fid)(struct cifsFileInfo *, struct cifs_fid *, __u32);
 	/* close a file */
 	int (*close)(const unsigned int, struct cifs_tcon *, struct cifs_fid *);
+	/* send a flush request to the server */
+	int (*flush)(const unsigned int, struct cifs_tcon *, struct cifs_fid *);
 };
 
 struct smb_version_values {

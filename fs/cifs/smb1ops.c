@@ -648,6 +648,13 @@ cifs_close_file(const unsigned int xid, struct cifs_tcon *tcon,
 	return CIFSSMBClose(xid, tcon, fid->netfid);
 }
 
+static int
+cifs_flush_file(const unsigned int xid, struct cifs_tcon *tcon,
+		struct cifs_fid *fid)
+{
+	return CIFSSMBFlush(xid, tcon, fid->netfid);
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -691,6 +698,7 @@ struct smb_version_operations smb1_operations = {
 	.open = cifs_open_file,
 	.set_fid = cifs_set_fid,
 	.close = cifs_close_file,
+	.flush = cifs_flush_file,
 };
 
 struct smb_version_values smb1_values = {
