@@ -32,6 +32,8 @@
 #include "smb2pdu.h"
 #endif
 
+#define CIFS_MAGIC_NUMBER 0xFF534D42      /* the first four bytes of SMB PDUs */
+
 /*
  * The sizes of various internal tables and strings
  */
@@ -334,6 +336,9 @@ struct smb_version_operations {
 	/* send oplock break response */
 	int (*oplock_response)(struct cifs_tcon *, struct cifs_fid *,
 			       struct cifsInodeInfo *);
+	/* query remote filesystem */
+	int (*queryfs)(const unsigned int, struct cifs_tcon *,
+		       struct kstatfs *);
 };
 
 struct smb_version_values {

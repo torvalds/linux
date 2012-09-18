@@ -18,6 +18,7 @@
  */
 
 #include <linux/pagemap.h>
+#include <linux/vfs.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
@@ -872,6 +873,38 @@ cifs_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
 			   cinode->clientCanCacheRead ? 1 : 0);
 }
 
+static int
+cifs_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
+	     struct kstatfs *buf)
+{
+	int rc = -EOPNOTSUPP;
+
+	buf->f_type = CIFS_MAGIC_NUMBER;
+
+	/*
+	 * We could add a second check for a QFS Unix capability bit
+	 */
+	if ((tcon->ses->capabilities & CAP_UNIX) &&
+	    (CIFS_POSIX_EXTENSIONS & le64_to_cpu(tcon->fsUnixInfo.Capability)))
+		rc = CIFSSMBQFSPosixInfo(xid, tcon, buf);
+
+	/*
+	 * Only need to call the old QFSInfo if failed on newer one,
+	 * e.g. by OS/2.
+	 **/
+	if (rc && (tcon->ses->capabilities & CAP_NT_SMBS))
+		rc = CIFSSMBQFSInfo(xid, tcon, buf);
+
+	/*
+	 * Some old Windows servers also do not support level 103, retry with
+	 * older level one if old server failed the previous call or we
+	 * bypassed it because we detected that this was an older LANMAN sess
+	 */
+	if (rc)
+		rc = SMBOldQFSInfo(xid, tcon, buf);
+	return rc;
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -932,6 +965,7 @@ struct smb_version_operations smb1_operations = {
 	.close_dir = cifs_close_dir,
 	.calc_smb_size = smbCalcSize,
 	.oplock_response = cifs_oplock_response,
+	.queryfs = cifs_queryfs,
 };
 
 struct smb_version_values smb1_values = {
