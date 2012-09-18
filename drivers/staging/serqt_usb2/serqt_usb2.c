@@ -184,11 +184,11 @@ static int port_paranoia_check(struct usb_serial_port *port,
 			       const char *function)
 {
 	if (!port) {
-		dbg("%s - port == NULL", function);
+		pr_debug("%s - port == NULL", function);
 		return -1;
 	}
 	if (!port->serial) {
-		dbg("%s - port->serial == NULL\n", function);
+		pr_debug("%s - port->serial == NULL\n", function);
 		return -1;
 	}
 
@@ -199,12 +199,12 @@ static int serial_paranoia_check(struct usb_serial *serial,
 				 const char *function)
 {
 	if (!serial) {
-		dbg("%s - serial == NULL\n", function);
+		pr_debug("%s - serial == NULL\n", function);
 		return -1;
 	}
 
 	if (!serial->type) {
-		dbg("%s - serial->type == NULL!", function);
+		pr_debug("%s - serial->type == NULL!", function);
 		return -1;
 	}
 
@@ -276,7 +276,7 @@ static void qt_write_bulk_callback(struct urb *urb)
 	status = urb->status;
 
 	if (status) {
-		dbg("nonzero write bulk status received:%d\n", status);
+		dev_dbg(&urb->dev->dev, "nonzero write bulk status received:%d\n", status);
 		return;
 	}
 
@@ -309,16 +309,14 @@ static void qt_read_bulk_callback(struct urb *urb)
 
 	if (urb->status) {
 		qt_port->ReadBulkStopped = 1;
-		dbg("%s - nonzero write bulk status received: %d\n",
-		    __func__, urb->status);
+		dev_dbg(&urb->dev->dev, "%s - nonzero write bulk status received: %d\n",
+			__func__, urb->status);
 		return;
 	}
 
 	tty = tty_port_tty_get(&port->port);
-	if (!tty) {
-		dbg("%s - bad tty pointer - exiting", __func__);
+	if (!tty)
 		return;
-	}
 
 	data = urb->transfer_buffer;
 
@@ -327,21 +325,19 @@ static void qt_read_bulk_callback(struct urb *urb)
 	/* index = MINOR(port->tty->device) - serial->minor; */
 	index = tty->index - serial->minor;
 
-	dbg("%s - port->RxHolding = %d\n", __func__, qt_port->RxHolding);
+	dev_dbg(&port->dev, "%s - port->RxHolding = %d\n", __func__, qt_port->RxHolding);
 
 	if (port_paranoia_check(port, __func__) != 0) {
-		dbg("%s - port_paranoia_check, exiting\n", __func__);
 		qt_port->ReadBulkStopped = 1;
 		goto exit;
 	}
 
-	if (!serial) {
-		dbg("%s - bad serial pointer, exiting\n", __func__);
+	if (!serial)
 		goto exit;
-	}
+
 	if (qt_port->closePending == 1) {
 		/* Were closing , stop reading */
-		dbg("%s - (qt_port->closepending == 1\n", __func__);
+		dev_dbg(&port->dev, "%s - (qt_port->closepending == 1\n", __func__);
 		qt_port->ReadBulkStopped = 1;
 		goto exit;
 	}
@@ -359,8 +355,8 @@ static void qt_read_bulk_callback(struct urb *urb)
 	if (urb->status) {
 		qt_port->ReadBulkStopped = 1;
 
-		dbg("%s - nonzero read bulk status received: %d\n",
-		    __func__, urb->status);
+		dev_dbg(&port->dev, "%s - nonzero read bulk status received: %d\n",
+			__func__, urb->status);
 		goto exit;
 	}
 
@@ -375,7 +371,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 				case 0x00:
 					/* line status change 4th byte must follow */
 					if (i > (RxCount - 4)) {
-						dbg("Illegal escape seuences in received data\n");
+						dev_dbg(&port->dev, "Illegal escape seuences in received data\n");
 						break;
 					}
 					ProcessLineStatus(qt_port, data[i + 3]);
@@ -385,9 +381,9 @@ static void qt_read_bulk_callback(struct urb *urb)
 
 				case 0x01:
 					/* Modem status status change 4th byte must follow */
-					dbg("Modem status status.\n");
+					dev_dbg(&port->dev, "Modem status status.\n");
 					if (i > (RxCount - 4)) {
-						dbg("Illegal escape sequences in received data\n");
+						dev_dbg(&port->dev, "Illegal escape sequences in received data\n");
 						break;
 					}
 					ProcessModemStatus(qt_port,
@@ -396,7 +392,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 					flag = 1;
 					break;
 				case 0xff:
-					dbg("No status sequence.\n");
+					dev_dbg(&port->dev, "No status sequence.\n");
 
 					if (tty) {
 						ProcessRxChar(tty, port, data[i]);
@@ -425,8 +421,8 @@ static void qt_read_bulk_callback(struct urb *urb)
 			  qt_read_bulk_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	if (result)
-		dbg("%s - failed resubmitting read urb, error %d",
-		    __func__, result);
+		dev_dbg(&port->dev, "%s - failed resubmitting read urb, error %d",
+			__func__, result);
 	else {
 		if (tty && RxCount) {
 			tty_flip_buffer_push(tty);
@@ -521,7 +517,6 @@ static int qt_set_device(struct usb_serial *serial,
 	PortSettings += ((__u16) (device_data->porta));
 
 	length = sizeof(struct qt_get_device_data);
-	dbg("%s - PortSettings = 0x%x\n", __func__, PortSettings);
 
 	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 				 QT_SET_GET_DEVICE, 0x40, PortSettings,
@@ -695,6 +690,7 @@ static int BoxDisable_SW_FlowCtrl(struct usb_serial *serial, __u16 index)
 
 static int qt_startup(struct usb_serial *serial)
 {
+	struct device *dev = &serial->dev->dev;
 	struct usb_serial_port *port;
 	struct quatech_port *qt_port;
 	struct qt_get_device_data DeviceData;
@@ -706,8 +702,6 @@ static int qt_startup(struct usb_serial *serial)
 		port = serial->port[i];
 		qt_port = kzalloc(sizeof(*qt_port), GFP_KERNEL);
 		if (!qt_port) {
-			dbg("%s: kmalloc for quatech_port (%d) failed!.",
-			    __func__, i);
 			for (--i; i >= 0; i--) {
 				port = serial->port[i];
 				kfree(usb_get_serial_port_data(port));
@@ -722,25 +716,23 @@ static int qt_startup(struct usb_serial *serial)
 	}
 
 	status = qt_get_device(serial, &DeviceData);
-	if (status < 0) {
-		dbg(__FILE__ "box_get_device failed");
+	if (status < 0)
 		goto startup_error;
-	}
 
-	dbg(__FILE__ "DeviceData.portb = 0x%x", DeviceData.portb);
+	dev_dbg(dev, "DeviceData.portb = 0x%x\n", DeviceData.portb);
 
 	DeviceData.portb &= ~FULLPWRBIT;
-	dbg(__FILE__ "Changing DeviceData.portb to 0x%x", DeviceData.portb);
+	dev_dbg(dev, "Changing DeviceData.portb to 0x%x\n", DeviceData.portb);
 
 	status = qt_set_device(serial, &DeviceData);
 	if (status < 0) {
-		dbg(__FILE__ "qt_set_device failed\n");
+		dev_dbg(dev, "qt_set_device failed\n");
 		goto startup_error;
 	}
 
 	status = qt_get_device(serial, &DeviceData);
 	if (status < 0) {
-		dbg(__FILE__ "qt_get_device failed");
+		dev_dbg(dev, "qt_get_device failed\n");
 		goto startup_error;
 	}
 
@@ -784,28 +776,26 @@ static int qt_startup(struct usb_serial *serial)
 
 	status = BoxSetPrebufferLevel(serial);	/* sets to default value */
 	if (status < 0) {
-		dbg(__FILE__ "BoxSetPrebufferLevel failed\n");
+		dev_dbg(dev, "BoxSetPrebufferLevel failed\n");
 		goto startup_error;
 	}
 
 	status = BoxSetATC(serial, ATC_DISABLED);
 	if (status < 0) {
-		dbg(__FILE__ "BoxSetATC failed\n");
+		dev_dbg(dev, "BoxSetATC failed\n");
 		goto startup_error;
 	}
 
-	dbg(__FILE__ "DeviceData.portb = 0x%x", DeviceData.portb);
+	dev_dbg(dev, "DeviceData.portb = 0x%x\n", DeviceData.portb);
 
 	DeviceData.portb |= NEXT_BOARD_POWER_BIT;
-	dbg(__FILE__ "Changing DeviceData.portb to 0x%x", DeviceData.portb);
+	dev_dbg(dev, "Changing DeviceData.portb to 0x%x\n", DeviceData.portb);
 
 	status = qt_set_device(serial, &DeviceData);
 	if (status < 0) {
-		dbg(__FILE__ "qt_set_device failed\n");
+		dev_dbg(dev, "qt_set_device failed\n");
 		goto startup_error;
 	}
-
-	dbg("Exit Success %s\n", __func__);
 
 	return 0;
 
@@ -816,8 +806,6 @@ startup_error:
 		kfree(qt_port);
 		usb_set_serial_port_data(port, NULL);
 	}
-
-	dbg("Exit fail %s\n", __func__);
 
 	return -EIO;
 }
@@ -873,10 +861,10 @@ static int qt_open(struct tty_struct *tty,
 	/* Port specific setups */
 	result = qt_open_channel(serial, port->number, &ChannelData);
 	if (result < 0) {
-		dbg(__FILE__ "qt_open_channel failed\n");
+		dev_dbg(&port->dev, "qt_open_channel failed\n");
 		return result;
 	}
-	dbg(__FILE__ "qt_open_channel completed.\n");
+	dev_dbg(&port->dev, "qt_open_channel completed.\n");
 
 /* FIXME: are these needed?  Does it even do anything useful? */
 	quatech_port->shadowLSR = ChannelData.line_status &
@@ -888,10 +876,10 @@ static int qt_open(struct tty_struct *tty,
 	/* Set Baud rate to default and turn off (default)flow control here */
 	result = qt_setuart(serial, port->number, DEFAULT_DIVISOR, DEFAULT_LCR);
 	if (result < 0) {
-		dbg(__FILE__ "qt_setuart failed\n");
+		dev_dbg(&port->dev, "qt_setuart failed\n");
 		return result;
 	}
-	dbg(__FILE__ "qt_setuart completed.\n");
+	dev_dbg(&port->dev, "qt_setuart completed.\n");
 
 	/*
 	 * Put this here to make it responsive to stty and defaults set by
@@ -928,12 +916,12 @@ static int qt_open(struct tty_struct *tty,
 
 	}
 
-	dbg("port number is %d\n", port->number);
-	dbg("serial number is %d\n", port->serial->minor);
-	dbg("Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
-	dbg("BulkOut endpoint is %d\n", port->bulk_out_endpointAddress);
-	dbg("Interrupt endpoint is %d\n", port->interrupt_in_endpointAddress);
-	dbg("port's number in the device is %d\n", quatech_port->port_num);
+	dev_dbg(&port->dev, "port number is %d\n", port->number);
+	dev_dbg(&port->dev, "serial number is %d\n", port->serial->minor);
+	dev_dbg(&port->dev, "Bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
+	dev_dbg(&port->dev, "BulkOut endpoint is %d\n", port->bulk_out_endpointAddress);
+	dev_dbg(&port->dev, "Interrupt endpoint is %d\n", port->interrupt_in_endpointAddress);
+	dev_dbg(&port->dev, "port's number in the device is %d\n", quatech_port->port_num);
 	quatech_port->read_urb = port->read_urb;
 
 	/* set up our bulk in urb */
@@ -946,7 +934,7 @@ static int qt_open(struct tty_struct *tty,
 			  quatech_port->read_urb->transfer_buffer_length,
 			  qt_read_bulk_callback, quatech_port);
 
-	dbg("qt_open: bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
+	dev_dbg(&port->dev, "qt_open: bulkin endpoint is %d\n", port->bulk_in_endpointAddress);
 	quatech_port->read_urb_busy = true;
 	result = usb_submit_urb(quatech_port->read_urb, GFP_KERNEL);
 	if (result) {
@@ -980,8 +968,6 @@ static int qt_chars_in_buffer(struct tty_struct *tty)
 			chars = port->write_urb->transfer_buffer_length;
 	}
 
-	dbg("%s - returns %d\n", __func__, chars);
-
 	return chars;
 }
 
@@ -1003,7 +989,7 @@ static void qt_block_until_empty(struct tty_struct *tty,
 
 		wait--;
 		if (wait == 0) {
-			dbg("%s - TIMEOUT", __func__);
+			dev_dbg(&qt_port->port->dev, "%s - TIMEOUT", __func__);
 			return;
 		} else {
 			wait = 30;
@@ -1041,17 +1027,15 @@ static void qt_close(struct usb_serial_port *port)
 	/* Close uart channel */
 	status = qt_close_channel(serial, index);
 	if (status < 0)
-		dbg("%s - port %d qt_close_channel failed.\n",
-		    __func__, port->number);
+		dev_dbg(&port->dev, "%s - port %d qt_close_channel failed.\n", __func__, port->number);
 
 	port0->open_ports--;
 
-	dbg("qt_num_open_ports in close%d:in port%d\n",
-	    port0->open_ports, port->number);
+	dev_dbg(&port->dev, "qt_num_open_ports in close%d:in port%d\n", port0->open_ports, port->number);
 
 	if (port0->open_ports == 0) {
 		if (serial->port[0]->interrupt_in_urb) {
-			dbg("%s", "Shutdown interrupt_in_urb\n");
+			dev_dbg(&port->dev, "%s", "Shutdown interrupt_in_urb\n");
 			usb_kill_urb(serial->port[0]->interrupt_in_urb);
 		}
 
@@ -1075,14 +1059,14 @@ static int qt_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return -ENODEV;
 
 	if (count == 0) {
-		dbg("%s - write request of 0 bytes\n", __func__);
+		dev_dbg(&port->dev, "%s - write request of 0 bytes\n", __func__);
 		return 0;
 	}
 
 	/* only do something if we have a bulk out endpoint */
 	if (serial->num_bulk_out) {
 		if (port->write_urb->status == -EINPROGRESS) {
-			dbg("%s - already writing\n", __func__);
+			dev_dbg(&port->dev, "%s - already writing\n", __func__);
 			return 0;
 		}
 
@@ -1102,8 +1086,8 @@ static int qt_write(struct tty_struct *tty, struct usb_serial_port *port,
 		/* send the data out the bulk port */
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result)
-			dbg("%s - failed submitting write urb, error %d\n",
-			    __func__, result);
+			dev_dbg(&port->dev, "%s - failed submitting write urb, error %d\n",
+				__func__, result);
 		else
 			result = count;
 
@@ -1122,10 +1106,8 @@ static int qt_write_room(struct tty_struct *tty)
 
 	int retval = -EINVAL;
 
-	if (port_paranoia_check(port, __func__)) {
-		dbg("%s", "Invalid port\n");
+	if (port_paranoia_check(port, __func__))
 		return -1;
-	}
 
 	serial = get_usb_serial(port, __func__);
 
@@ -1154,7 +1136,7 @@ static int qt_ioctl(struct tty_struct *tty,
 	struct usb_serial *serial = get_usb_serial(port, __func__);
 	unsigned int index;
 
-	dbg("%s cmd 0x%04x", __func__, cmd);
+	dev_dbg(&port->dev, "%s cmd 0x%04x\n", __func__, cmd);
 
 	index = tty->index - serial->minor;
 
@@ -1187,7 +1169,7 @@ static int qt_ioctl(struct tty_struct *tty,
 		return 0;
 	}
 
-	dbg("%s -No ioctl for that one.  port = %d\n", __func__, port->number);
+	dev_dbg(&port->dev, "%s -No ioctl for that one.  port = %d\n", __func__, port->number);
 	return -ENOIOCTLCMD;
 }
 
@@ -1232,7 +1214,7 @@ static void qt_set_termios(struct tty_struct *tty,
 	else
 		new_LCR |= SERIAL_ONE_STOPB;
 
-	dbg("%s - 4\n", __func__);
+	dev_dbg(&port->dev, "%s - 4\n", __func__);
 
 	/* Thats the LCR stuff, go ahead and set it */
 	baud = tty_get_baud_rate(tty);
@@ -1240,7 +1222,7 @@ static void qt_set_termios(struct tty_struct *tty,
 		/* pick a default, any default... */
 		baud = 9600;
 
-	dbg("%s - got baud = %d\n", __func__, baud);
+	dev_dbg(&port->dev, "%s - got baud = %d\n", __func__, baud);
 
 	divisor = MAX_BAUD_RATE / baud;
 	remainder = MAX_BAUD_RATE % baud;
@@ -1254,30 +1236,28 @@ static void qt_set_termios(struct tty_struct *tty,
 	status =
 	    qt_setuart(port->serial, index, (unsigned short)divisor, new_LCR);
 	if (status < 0) {
-		dbg(__FILE__ "qt_setuart failed\n");
+		dev_dbg(&port->dev, "qt_setuart failed\n");
 		return;
 	}
 
 	/* Now determine flow control */
 	if (cflag & CRTSCTS) {
-		dbg("%s - Enabling HW flow control port %d\n", __func__,
-		    port->number);
+		dev_dbg(&port->dev, "%s - Enabling HW flow control port %d\n", __func__, port->number);
 
 		/* Enable RTS/CTS flow control */
 		status = BoxSetHW_FlowCtrl(port->serial, index, 1);
 
 		if (status < 0) {
-			dbg(__FILE__ "BoxSetHW_FlowCtrl failed\n");
+			dev_dbg(&port->dev, "BoxSetHW_FlowCtrl failed\n");
 			return;
 		}
 	} else {
 		/* Disable RTS/CTS flow control */
-		dbg("%s - disabling HW flow control port %d\n", __func__,
-		    port->number);
+		dev_dbg(&port->dev, "%s - disabling HW flow control port %d\n", __func__, port->number);
 
 		status = BoxSetHW_FlowCtrl(port->serial, index, 0);
 		if (status < 0) {
-			dbg(__FILE__ "BoxSetHW_FlowCtrl failed\n");
+			dev_dbg(&port->dev, "BoxSetHW_FlowCtrl failed\n");
 			return;
 		}
 
@@ -1292,13 +1272,13 @@ static void qt_set_termios(struct tty_struct *tty,
 		    BoxSetSW_FlowCtrl(port->serial, index, stop_char,
 				      start_char);
 		if (status < 0)
-			dbg(__FILE__ "BoxSetSW_FlowCtrl (enabled) failed\n");
+			dev_dbg(&port->dev, "BoxSetSW_FlowCtrl (enabled) failed\n");
 
 	} else {
 		/* disable SW flow control */
 		status = BoxDisable_SW_FlowCtrl(port->serial, index);
 		if (status < 0)
-			dbg(__FILE__ "BoxSetSW_FlowCtrl (diabling) failed\n");
+			dev_dbg(&port->dev, "BoxSetSW_FlowCtrl (diabling) failed\n");
 
 	}
 	tty->termios->c_cflag &= ~CMSPAR;
@@ -1476,10 +1456,10 @@ static void qt_unthrottle(struct tty_struct *tty)
 	mutex_lock(&qt_port->lock);
 
 	if (qt_port->RxHolding == 1) {
-		dbg("%s -qt_port->RxHolding == 1\n", __func__);
+		dev_dbg(&port->dev, "%s -qt_port->RxHolding == 1\n", __func__);
 
 		qt_port->RxHolding = 0;
-		dbg("%s - qt_port->RxHolding = 0\n", __func__);
+		dev_dbg(&port->dev, "%s - qt_port->RxHolding = 0\n", __func__);
 
 		/* if we have a bulk endpoint, start it up */
 		if ((serial->num_bulk_in) && (qt_port->ReadBulkStopped == 1)) {
@@ -1506,11 +1486,6 @@ static void qt_unthrottle(struct tty_struct *tty)
 static int qt_calc_num_ports(struct usb_serial *serial)
 {
 	int num_ports;
-
-	dbg("numberofendpoints: %d\n",
-	    (int)serial->interface->cur_altsetting->desc.bNumEndpoints);
-	dbg("numberofendpoints: %d\n",
-	    (int)serial->interface->altsetting->desc.bNumEndpoints);
 
 	num_ports =
 	    (serial->interface->cur_altsetting->desc.bNumEndpoints - 1) / 2;
