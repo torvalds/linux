@@ -93,21 +93,36 @@ struct efx_ptp_data;
 struct efx_self_tests;
 
 /**
- * struct efx_special_buffer - An Efx special buffer
- * @addr: CPU base address of the buffer
+ * struct efx_buffer - A general-purpose DMA buffer
+ * @addr: host base address of the buffer
  * @dma_addr: DMA base address of the buffer
  * @len: Buffer length, in bytes
- * @index: Buffer index within controller;s buffer table
- * @entries: Number of buffer table entries
  *
- * Special buffers are used for the event queues and the TX and RX
- * descriptor queues for each channel.  They are *not* used for the
- * actual transmit and receive buffers.
+ * The NIC uses these buffers for its interrupt status registers and
+ * MAC stats dumps.
  */
-struct efx_special_buffer {
+struct efx_buffer {
 	void *addr;
 	dma_addr_t dma_addr;
 	unsigned int len;
+};
+
+/**
+ * struct efx_special_buffer - DMA buffer entered into buffer table
+ * @buf: Standard &struct efx_buffer
+ * @index: Buffer index within controller;s buffer table
+ * @entries: Number of buffer table entries
+ *
+ * The NIC has a buffer table that maps buffers of size %EFX_BUF_SIZE.
+ * Event and descriptor rings are addressed via one or more buffer
+ * table entries (and so can be physically non-contiguous, although we
+ * currently do not take advantage of that).  On Falcon and Siena we
+ * have to take care of allocating and initialising the entries
+ * ourselves.  On later hardware this is managed by the firmware and
+ * @index and @entries are left as 0.
+ */
+struct efx_special_buffer {
+	struct efx_buffer buf;
 	unsigned int index;
 	unsigned int entries;
 };
@@ -324,22 +339,6 @@ struct efx_rx_queue {
 	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
 };
-
-/**
- * struct efx_buffer - An Efx general-purpose buffer
- * @addr: host base address of the buffer
- * @dma_addr: DMA base address of the buffer
- * @len: Buffer length, in bytes
- *
- * The NIC uses these buffers for its interrupt status registers and
- * MAC stats dumps.
- */
-struct efx_buffer {
-	void *addr;
-	dma_addr_t dma_addr;
-	unsigned int len;
-};
-
 
 enum efx_rx_alloc_method {
 	RX_ALLOC_METHOD_AUTO = 0,

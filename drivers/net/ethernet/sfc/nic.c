@@ -93,7 +93,7 @@ static inline void efx_write_buf_tbl(struct efx_nic *efx, efx_qword_t *value,
 static inline efx_qword_t *efx_event(struct efx_channel *channel,
 				     unsigned int index)
 {
-	return ((efx_qword_t *) (channel->eventq.addr)) +
+	return ((efx_qword_t *) (channel->eventq.buf.addr)) +
 		(index & channel->eventq_mask);
 }
 
@@ -196,12 +196,12 @@ efx_init_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 	dma_addr_t dma_addr;
 	int i;
 
-	EFX_BUG_ON_PARANOID(!buffer->addr);
+	EFX_BUG_ON_PARANOID(!buffer->buf.addr);
 
 	/* Write buffer descriptors to NIC */
 	for (i = 0; i < buffer->entries; i++) {
 		index = buffer->index + i;
-		dma_addr = buffer->dma_addr + (i * EFX_BUF_SIZE);
+		dma_addr = buffer->buf.dma_addr + (i * EFX_BUF_SIZE);
 		netif_dbg(efx, probe, efx->net_dev,
 			  "mapping special buffer %d at %llx\n",
 			  index, (unsigned long long)dma_addr);
@@ -250,13 +250,10 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 {
 	len = ALIGN(len, EFX_BUF_SIZE);
 
-	buffer->addr = dma_alloc_coherent(&efx->pci_dev->dev, len,
-					  &buffer->dma_addr, GFP_KERNEL);
-	if (!buffer->addr)
+	if (efx_nic_alloc_buffer(efx, &buffer->buf, len, GFP_KERNEL))
 		return -ENOMEM;
-	buffer->len = len;
 	buffer->entries = len / EFX_BUF_SIZE;
-	BUG_ON(buffer->dma_addr & (EFX_BUF_SIZE - 1));
+	BUG_ON(buffer->buf.dma_addr & (EFX_BUF_SIZE - 1));
 
 	/* Select new buffer ID */
 	buffer->index = efx->next_buffer_table;
@@ -270,8 +267,8 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 		  "allocating special buffers %d-%d at %llx+%x "
 		  "(virt %p phys %llx)\n", buffer->index,
 		  buffer->index + buffer->entries - 1,
-		  (u64)buffer->dma_addr, len,
-		  buffer->addr, (u64)virt_to_phys(buffer->addr));
+		  (u64)buffer->buf.dma_addr, len,
+		  buffer->buf.addr, (u64)virt_to_phys(buffer->buf.addr));
 
 	return 0;
 }
@@ -279,19 +276,17 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 static void
 efx_free_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 {
-	if (!buffer->addr)
+	if (!buffer->buf.addr)
 		return;
 
 	netif_dbg(efx, hw, efx->net_dev,
 		  "deallocating special buffers %d-%d at %llx+%x "
 		  "(virt %p phys %llx)\n", buffer->index,
 		  buffer->index + buffer->entries - 1,
-		  (u64)buffer->dma_addr, buffer->len,
-		  buffer->addr, (u64)virt_to_phys(buffer->addr));
+		  (u64)buffer->buf.dma_addr, buffer->buf.len,
+		  buffer->buf.addr, (u64)virt_to_phys(buffer->buf.addr));
 
-	dma_free_coherent(&efx->pci_dev->dev, buffer->len, buffer->addr,
-			  buffer->dma_addr);
-	buffer->addr = NULL;
+	efx_nic_free_buffer(efx, &buffer->buf);
 	buffer->entries = 0;
 }
 
@@ -335,7 +330,7 @@ void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer)
 static inline efx_qword_t *
 efx_tx_desc(struct efx_tx_queue *tx_queue, unsigned int index)
 {
-	return ((efx_qword_t *) (tx_queue->txd.addr)) + index;
+	return ((efx_qword_t *) (tx_queue->txd.buf.addr)) + index;
 }
 
 /* This writes to the TX_DESC_WPTR; write pointer for TX descriptor ring */
@@ -534,7 +529,7 @@ void efx_nic_remove_tx(struct efx_tx_queue *tx_queue)
 static inline efx_qword_t *
 efx_rx_desc(struct efx_rx_queue *rx_queue, unsigned int index)
 {
-	return ((efx_qword_t *) (rx_queue->rxd.addr)) + index;
+	return ((efx_qword_t *) (rx_queue->rxd.buf.addr)) + index;
 }
 
 /* This creates an entry in the RX descriptor queue */
@@ -1415,7 +1410,7 @@ void efx_nic_init_eventq(struct efx_channel *channel)
 	efx_init_special_buffer(efx, &channel->eventq);
 
 	/* Fill event queue with all ones (i.e. empty events) */
-	memset(channel->eventq.addr, 0xff, channel->eventq.len);
+	memset(channel->eventq.buf.addr, 0xff, channel->eventq.buf.len);
 
 	/* Push event queue to card */
 	EFX_POPULATE_OWORD_3(reg,
