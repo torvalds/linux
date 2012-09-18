@@ -61,3 +61,4 @@ obj-$(CONFIG_CSR_WIFI)		+= csr/
 obj-$(CONFIG_OMAP_BANDGAP)	+= omap-thermal/
 obj-$(CONFIG_ZCACHE2)		+= ramster/
 obj-$(CONFIG_NET_VENDOR_SILICOM)	+= silicom/
+obj-$(CONFIG_CED1401)		+= ced1401/
