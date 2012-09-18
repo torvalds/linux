@@ -398,7 +398,7 @@ void ovs_vport_record_error(struct vport *vport, enum vport_err_type err_type)
 	case VPORT_E_TX_ERROR:
 		vport->err_stats.tx_errors++;
 		break;
-	};
+	}
 
 	spin_unlock(&vport->stats_lock);
 }
