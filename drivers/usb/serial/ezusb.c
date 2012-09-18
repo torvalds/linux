@@ -26,11 +26,8 @@ int ezusb_writememory(struct usb_device *dev, int address,
 	int result;
 	unsigned char *transfer_buffer;
 
-	if (!dev) {
-		printk(KERN_ERR "ezusb: %s - no physical device present, "
-		       "failing.\n", __func__);
+	if (!dev)
 		return -ENODEV;
-	}
 
 	transfer_buffer = kmemdup(data, length, GFP_KERNEL);
 	if (!transfer_buffer) {
