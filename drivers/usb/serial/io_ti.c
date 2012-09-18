@@ -845,8 +845,8 @@ static int build_i2c_fw_hdr(__u8 *header, struct device *dev)
 
 	err = request_firmware(&fw, fw_name, dev);
 	if (err) {
-		printk(KERN_ERR "Failed to load image \"%s\" err %d\n",
-		       fw_name, err);
+		dev_err(dev, "Failed to load image \"%s\" err %d\n",
+			fw_name, err);
 		kfree(buffer);
 		return err;
 	}
@@ -1404,8 +1404,8 @@ static int download_fw(struct edgeport_serial *serial)
 
 		err = request_firmware(&fw, fw_name, dev);
 		if (err) {
-			printk(KERN_ERR "Failed to load image \"%s\" err %d\n",
-			       fw_name, err);
+			dev_err(dev, "Failed to load image \"%s\" err %d\n",
+				fw_name, err);
 			kfree(buffer);
 			return err;
 		}
