@@ -78,6 +78,10 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 		tmprc = SMB2_rename(xid, tcon, persistent_fid, volatile_fid,
 				    (__le16 *)data);
 		break;
+	case SMB2_OP_HARDLINK:
+		tmprc = SMB2_set_hardlink(xid, tcon, persistent_fid,
+					  volatile_fid, (__le16 *)data);
+		break;
 	default:
 		cERROR(1, "Invalid command");
 		break;
@@ -175,10 +179,10 @@ smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 				  SMB2_OP_DELETE);
 }
 
-int
-smb2_rename_path(const unsigned int xid, struct cifs_tcon *tcon,
-		 const char *from_name, const char *to_name,
-		 struct cifs_sb_info *cifs_sb)
+static int
+smb2_set_path_attr(const unsigned int xid, struct cifs_tcon *tcon,
+		   const char *from_name, const char *to_name,
+		   struct cifs_sb_info *cifs_sb, __u32 access, int command)
 {
 	__le16 *smb2_to_name = NULL;
 	int rc;
@@ -189,9 +193,27 @@ smb2_rename_path(const unsigned int xid, struct cifs_tcon *tcon,
 		goto smb2_rename_path;
 	}
 
-	rc = smb2_open_op_close(xid, tcon, cifs_sb, from_name, DELETE,
-				FILE_OPEN, 0, 0, smb2_to_name, SMB2_OP_RENAME);
+	rc = smb2_open_op_close(xid, tcon, cifs_sb, from_name, access,
+				FILE_OPEN, 0, 0, smb2_to_name, command);
 smb2_rename_path:
 	kfree(smb2_to_name);
 	return rc;
+}
+
+int
+smb2_rename_path(const unsigned int xid, struct cifs_tcon *tcon,
+		 const char *from_name, const char *to_name,
+		 struct cifs_sb_info *cifs_sb)
+{
+	return smb2_set_path_attr(xid, tcon, from_name, to_name, cifs_sb,
+				  DELETE, SMB2_OP_RENAME);
+}
+
+int
+smb2_create_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
+		     const char *from_name, const char *to_name,
+		     struct cifs_sb_info *cifs_sb)
+{
+	return smb2_set_path_attr(xid, tcon, from_name, to_name, cifs_sb,
+				  FILE_READ_ATTRIBUTES, SMB2_OP_HARDLINK);
 }

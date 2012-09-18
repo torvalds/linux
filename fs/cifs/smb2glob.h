@@ -40,6 +40,7 @@
 #define SMB2_OP_MKDIR 5
 #define SMB2_OP_RENAME 6
 #define SMB2_OP_DELETE 7
+#define SMB2_OP_HARDLINK 8
 
 /* Used when constructing chained read requests. */
 #define CHAINED_REQUEST 1

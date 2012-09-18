@@ -452,6 +452,7 @@ struct smb_version_operations smb21_operations = {
 	.rmdir = smb2_rmdir,
 	.unlink = smb2_unlink,
 	.rename = smb2_rename_path,
+	.create_hardlink = smb2_create_hardlink,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,

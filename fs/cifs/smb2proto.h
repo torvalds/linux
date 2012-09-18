@@ -68,6 +68,9 @@ extern int smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon,
 extern int smb2_rename_path(const unsigned int xid, struct cifs_tcon *tcon,
 			    const char *from_name, const char *to_name,
 			    struct cifs_sb_info *cifs_sb);
+extern int smb2_create_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
+				const char *from_name, const char *to_name,
+				struct cifs_sb_info *cifs_sb);
 
 extern int smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon,
 			  const char *full_path, int disposition,
@@ -112,5 +115,8 @@ extern int SMB2_echo(struct TCP_Server_Info *server);
 extern int SMB2_rename(const unsigned int xid, struct cifs_tcon *tcon,
 		       u64 persistent_fid, u64 volatile_fid,
 		       __le16 *target_file);
+extern int SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
+			     u64 persistent_fid, u64 volatile_fid,
+			     __le16 *target_file);
 
 #endif			/* _SMB2PROTO_H */

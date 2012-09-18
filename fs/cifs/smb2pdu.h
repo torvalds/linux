@@ -653,6 +653,15 @@ struct smb2_file_rename_info { /* encoding of request for level 10 */
 	char   FileName[0];     /* New name to be assigned */
 } __packed; /* level 10 Set */
 
+struct smb2_file_link_info { /* encoding of request for level 11 */
+	__u8   ReplaceIfExists; /* 1 = replace existing link with new */
+				/* 0 = fail if link already exists */
+	__u8   Reserved[7];
+	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
+	__le32 FileNameLength;
+	char   FileName[0];     /* Name to be assigned to new link */
+} __packed; /* level 11 Set */
+
 /*
  * This level 18, although with struct with same name is different from cifs
  * level 0x107. Level 0x107 has an extra u64 between AccessFlags and
