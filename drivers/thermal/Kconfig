@@ -67,3 +67,9 @@ config STEP_WISE
 	depends on THERMAL
 	help
 	  Enable this to manage platform thermals using a simple linear
+
+config USER_SPACE
+	bool "User_space thermal governor"
+	depends on THERMAL
+	help
+	  Enable this to let the user space manage the platform thermals.
