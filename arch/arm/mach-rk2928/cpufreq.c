@@ -57,7 +57,7 @@ static unsigned int max_freq = -1;
 #define MASK_FURTHER_CPUFREQ            0x30
 /* With 0x00(NOCHANGE), it depends on the previous "further" status */
 static int no_cpufreq_access;
-static unsigned int suspend_freq = 816 * 1000;
+static unsigned int suspend_freq = 600 * 1000;
 
 static struct workqueue_struct *freq_wq;
 static struct clk *cpu_clk;
