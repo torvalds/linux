@@ -120,7 +120,7 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 	ret = snd_dmaengine_pcm_open(substream, filter, dma_data);
 	if (ret) {
 		kfree(dma_data);
-		return 0;
+		return ret;
 	}
 
 	snd_dmaengine_pcm_set_data(substream, dma_data);
