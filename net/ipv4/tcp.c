@@ -2325,6 +2325,13 @@ int tcp_disconnect(struct sock *sk, int flags)
 }
 EXPORT_SYMBOL(tcp_disconnect);
 
+void tcp_sock_destruct(struct sock *sk)
+{
+	inet_sock_destruct(sk);
+
+	kfree(inet_csk(sk)->icsk_accept_queue.fastopenq);
+}
+
 static inline bool tcp_can_repair_sock(const struct sock *sk)
 {
 	return capable(CAP_NET_ADMIN) &&

@@ -574,6 +574,8 @@ static inline bool fastopen_cookie_present(struct tcp_fastopen_cookie *foc)
 	return foc->len != -1;
 }
 
+extern void tcp_sock_destruct(struct sock *sk);
+
 static inline int fastopen_init_queue(struct sock *sk, int backlog)
 {
 	struct request_sock_queue *queue =
@@ -585,6 +587,8 @@ static inline int fastopen_init_queue(struct sock *sk, int backlog)
 		    sk->sk_allocation);
 		if (queue->fastopenq == NULL)
 			return -ENOMEM;
+
+		sk->sk_destruct = tcp_sock_destruct;
 		spin_lock_init(&queue->fastopenq->lock);
 	}
 	queue->fastopenq->max_qlen = backlog;
