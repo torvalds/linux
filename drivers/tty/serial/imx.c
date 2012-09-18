@@ -1540,7 +1540,7 @@ static int serial_imx_probe(struct platform_device *pdev)
 	ret = uart_add_one_port(&imx_reg, &sport->port);
 	if (ret)
 		goto deinit;
-	platform_set_drvdata(pdev, &sport->port);
+	platform_set_drvdata(pdev, sport);
 
 	return 0;
 deinit:
