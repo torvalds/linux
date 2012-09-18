@@ -36,8 +36,6 @@
 #include <linux/ihex.h>
 #include "whiteheat.h"			/* WhiteHEAT specific commands */
 
-static bool debug;
-
 #ifndef CMSPAR
 #define CMSPAR 0
 #endif
@@ -918,6 +916,3 @@ MODULE_LICENSE("GPL");
 
 MODULE_FIRMWARE("whiteheat.fw");
 MODULE_FIRMWARE("whiteheat_loader.fw");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
