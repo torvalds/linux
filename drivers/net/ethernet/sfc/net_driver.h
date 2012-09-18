@@ -1029,6 +1029,7 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @timer_period_max: Maximum period of interrupt timer (in ticks)
  * @offload_features: net_device feature flags for protocol offload
  *	features implemented in hardware
+ * @mcdi_max_ver: Maximum MCDI version supported
  */
 struct efx_nic_type {
 	int (*probe)(struct efx_nic *efx);
@@ -1105,6 +1106,7 @@ struct efx_nic_type {
 	unsigned int phys_addr_channels;
 	unsigned int timer_period_max;
 	netdev_features_t offload_features;
+	int mcdi_max_ver;
 };
 
 /**************************************************************************

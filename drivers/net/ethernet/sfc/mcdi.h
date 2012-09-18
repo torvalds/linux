@@ -43,7 +43,8 @@ enum efx_mcdi_mode {
  * @credits: Number of spurious MCDI completion events allowed before we
  *	trigger a fatal error. Protected by @lock
  * @resprc: Response error/success code (Linux numbering)
- * @resplen: Returned payload length
+ * @resp_hdr_len: Response header length
+ * @resp_data_len: Response data (SDU or error) length
  */
 struct efx_mcdi_iface {
 	atomic_t state;
@@ -53,7 +54,8 @@ struct efx_mcdi_iface {
 	unsigned int credits;
 	unsigned int seqno;
 	int resprc;
-	size_t resplen;
+	size_t resp_hdr_len;
+	size_t resp_data_len;
 };
 
 struct efx_mcdi_mon {
@@ -93,8 +95,8 @@ extern int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 			efx_dword_t *outbuf, size_t outlen,
 			size_t *outlen_actual);
 
-extern void efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
-			       const efx_dword_t *inbuf, size_t inlen);
+extern int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
+			      const efx_dword_t *inbuf, size_t inlen);
 extern int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 			       efx_dword_t *outbuf, size_t outlen,
 			       size_t *outlen_actual);
