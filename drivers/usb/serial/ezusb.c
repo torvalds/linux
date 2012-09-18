@@ -14,11 +14,25 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 
-/* EZ-USB Control and Status Register.  Bit 0 controls 8051 reset */
-#define CPUCS_REG    0x7F92
+struct ezusb_fx_type {
+	/* EZ-USB Control and Status Register.  Bit 0 controls 8051 reset */
+	unsigned short cpucs_reg;
+	unsigned short max_internal_adress;
+};
 
-/* Command for writing to internal memory */
+struct ezusb_fx_type ezusb_fx1 = {
+	.cpucs_reg = 0x7F92,
+	.max_internal_adress = 0x1B3F,
+};
+
+struct ezusb_fx_type ezusb_fx2 = {
+	.cpucs_reg = 0xE600,
+	.max_internal_adress = 0x3FFF,
+};
+
+/* Commands for writing to memory */
 #define WRITE_INT_RAM 0xA0
+#define WRITE_EXT_RAM 0xA3
 
 int ezusb_writememory(struct usb_device *dev, int address,
 				unsigned char *data, int length, __u8 request)
@@ -44,13 +58,24 @@ int ezusb_writememory(struct usb_device *dev, int address,
 }
 EXPORT_SYMBOL_GPL(ezusb_writememory);
 
-int ezusb_set_reset(struct usb_device *dev, unsigned char reset_bit)
+int ezusb_set_reset(struct usb_device *dev, unsigned short cpucs_reg,
+			 unsigned char reset_bit)
 {
-	int response = ezusb_writememory(dev, CPUCS_REG, &reset_bit, 1, WRITE_INT_RAM);
+	int response = ezusb_writememory(dev, cpucs_reg, &reset_bit, 1, WRITE_INT_RAM);
 	if (response < 0)
 		dev_err(&dev->dev, "%s-%d failed: %d\n",
 						__func__, reset_bit, response);
 	return response;
 }
-EXPORT_SYMBOL_GPL(ezusb_set_reset);
 
+int ezusb_fx1_set_reset(struct usb_device *dev, unsigned char reset_bit)
+{
+	return ezusb_set_reset(dev, ezusb_fx1.cpucs_reg, reset_bit);
+}
+EXPORT_SYMBOL_GPL(ezusb_fx1_set_reset);
+
+int ezusb_fx2_set_reset(struct usb_device *dev, unsigned char reset_bit)
+{
+	return ezusb_set_reset(dev, ezusb_fx2.cpucs_reg, reset_bit);
+}
+EXPORT_SYMBOL_GPL(ezusb_fx2_set_reset);

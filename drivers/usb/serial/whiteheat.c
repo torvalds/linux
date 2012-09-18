@@ -32,6 +32,7 @@
 #include <linux/serial_reg.h>
 #include <linux/serial.h>
 #include <linux/usb/serial.h>
+#include <linux/usb/ezusb.h>
 #include <linux/firmware.h>
 #include <linux/ihex.h>
 #include "whiteheat.h"			/* WhiteHEAT specific commands */
@@ -211,7 +212,7 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 		goto out;
 	}
 	ret = 0;
-	response = ezusb_set_reset(serial->dev, 1);
+	response = ezusb_fx1_set_reset(serial->dev, 1);
 
 	record = (const struct ihex_binrec *)loader_fw->data;
 	while (record) {
@@ -228,7 +229,7 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 		record = ihex_next_binrec(record);
 	}
 
-	response = ezusb_set_reset(serial->dev, 0);
+	response = ezusb_fx1_set_reset(serial->dev, 0);
 
 	record = (const struct ihex_binrec *)firmware_fw->data;
 	while (record && be32_to_cpu(record->addr) < 0x1b40)
@@ -248,7 +249,7 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 		++record;
 	}
 
-	response = ezusb_set_reset(serial->dev, 1);
+	response = ezusb_fx1_set_reset(serial->dev, 1);
 
 	record = (const struct ihex_binrec *)firmware_fw->data;
 	while (record && be32_to_cpu(record->addr) < 0x1b40) {
@@ -266,7 +267,7 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 		++record;
 	}
 	ret = 0;
-	response = ezusb_set_reset(serial->dev, 0);
+	response = ezusb_fx1_set_reset(serial->dev, 0);
  out:
 	release_firmware(loader_fw);
 	release_firmware(firmware_fw);

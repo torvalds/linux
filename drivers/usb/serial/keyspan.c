@@ -43,6 +43,7 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#include <linux/usb/ezusb.h>
 #include "keyspan.h"
 
 /*
@@ -1245,7 +1246,7 @@ static int keyspan_fake_startup(struct usb_serial *serial)
 	dev_dbg(&serial->dev->dev, "Uploading Keyspan %s firmware.\n", fw_name);
 
 		/* download the firmware image */
-	response = ezusb_set_reset(serial->dev, 1);
+	response = ezusb_fx1_set_reset(serial->dev, 1);
 
 	record = (const struct ihex_binrec *)fw->data;
 
@@ -1264,7 +1265,7 @@ static int keyspan_fake_startup(struct usb_serial *serial)
 	release_firmware(fw);
 		/* bring device out of reset. Renumeration will occur in a
 		   moment and the new device will bind to the real driver */
-	response = ezusb_set_reset(serial->dev, 0);
+	response = ezusb_fx1_set_reset(serial->dev, 0);
 
 	/* we don't want this device to have a driver assigned to it. */
 	return 1;

@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#include <linux/usb/ezusb.h>
 
 /* make a simple define to handle if we are compiling keyspan_pda or xircom support */
 #if defined(CONFIG_USB_SERIAL_KEYSPAN_PDA) || defined(CONFIG_USB_SERIAL_KEYSPAN_PDA_MODULE)
@@ -678,7 +679,7 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 	const struct firmware *fw;
 
 	/* download the firmware here ... */
-	response = ezusb_set_reset(serial->dev, 1);
+	response = ezusb_fx1_set_reset(serial->dev, 1);
 
 	if (0) { ; }
 #ifdef KEYSPAN
@@ -718,7 +719,7 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 	release_firmware(fw);
 	/* bring device out of reset. Renumeration will occur in a moment
 	   and the new device will bind to the real driver */
-	response = ezusb_set_reset(serial->dev, 0);
+	response = ezusb_fx1_set_reset(serial->dev, 0);
 
 	/* we want this device to fail to have a driver assigned to it. */
 	return 1;
