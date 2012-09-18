@@ -732,11 +732,13 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	err = ext4_map_blocks(handle, inode, &map,
 			      create ? EXT4_GET_BLOCKS_CREATE : 0);
 
+	/* ensure we send some value back into *errp */
+	*errp = 0;
+
 	if (err < 0)
 		*errp = err;
 	if (err <= 0)
 		return NULL;
-	*errp = 0;
 
 	bh = sb_getblk(inode->i_sb, map.m_pblk);
 	if (!bh) {

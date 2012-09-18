@@ -846,7 +846,7 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 {
 	struct buffer_head *bh;
 	struct ext4_dir_entry_2 *de, *top;
-	int err, count = 0;
+	int err = 0, count = 0;
 
 	dxtrace(printk(KERN_INFO "In htree dirblock_to_tree: block %lu\n",
 							(unsigned long)block));
