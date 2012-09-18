@@ -868,3 +868,4 @@ subsys_initcall(nfc_hci_init);
 module_exit(nfc_hci_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("NFC HCI Core");
