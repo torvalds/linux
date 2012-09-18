@@ -1137,14 +1137,14 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	int ret = 0;
-	unsigned int __user *chanlist_saver = NULL;
+	unsigned int __user *user_chanlist;
 
 	if (copy_from_user(&cmd, arg, sizeof(struct comedi_cmd))) {
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
 	/* save user's chanlist pointer so it can be restored later */
-	chanlist_saver = cmd.chanlist;
+	user_chanlist = (unsigned int __user *)cmd.chanlist;
 
 	if (cmd.subdev >= dev->n_subdevices) {
 		DPRINTK("%d no such subdevice\n", cmd.subdev);
@@ -1206,7 +1206,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		goto cleanup;
 	}
 
-	if (copy_from_user(async->cmd.chanlist, cmd.chanlist,
+	if (copy_from_user(async->cmd.chanlist, user_chanlist,
 			   async->cmd.chanlist_len * sizeof(int))) {
 		DPRINTK("fault reading chanlist\n");
 		ret = -EFAULT;
@@ -1228,7 +1228,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		DPRINTK("test returned %d\n", ret);
 		cmd = async->cmd;
 		/* restore chanlist pointer before copying back */
-		cmd.chanlist = chanlist_saver;
+		cmd.chanlist = (unsigned int __force *)user_chanlist;
 		cmd.data = NULL;
 		if (copy_to_user(arg, &cmd, sizeof(struct comedi_cmd))) {
 			DPRINTK("fault writing cmd\n");
@@ -1287,14 +1287,14 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret = 0;
 	unsigned int *chanlist = NULL;
-	unsigned int __user *chanlist_saver = NULL;
+	unsigned int __user *user_chanlist;
 
 	if (copy_from_user(&cmd, arg, sizeof(struct comedi_cmd))) {
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
 	/* save user's chanlist pointer so it can be restored later */
-	chanlist_saver = cmd.chanlist;
+	user_chanlist = (unsigned int __user *)cmd.chanlist;
 
 	if (cmd.subdev >= dev->n_subdevices) {
 		DPRINTK("%d no such subdevice\n", cmd.subdev);
@@ -1331,7 +1331,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 			goto cleanup;
 		}
 
-		if (copy_from_user(chanlist, cmd.chanlist,
+		if (copy_from_user(chanlist, user_chanlist,
 				   cmd.chanlist_len * sizeof(int))) {
 			DPRINTK("fault reading chanlist\n");
 			ret = -EFAULT;
@@ -1351,7 +1351,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	ret = s->do_cmdtest(dev, s, &cmd);
 
 	/* restore chanlist pointer before copying back */
-	cmd.chanlist = chanlist_saver;
+	cmd.chanlist = (unsigned int __force *)user_chanlist;
 
 	if (copy_to_user(arg, &cmd, sizeof(struct comedi_cmd))) {
 		DPRINTK("bad cmd address\n");
