@@ -27,6 +27,7 @@
 #include <linux/net.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
+#include <linux/tcp.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <linux/mempool.h>
@@ -247,11 +248,22 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	int n_vec = rqst->rq_nvec;
 	unsigned int smb_buf_length = get_rfc1002_length(iov[0].iov_base);
 	size_t total_len;
+	struct socket *ssocket = server->ssocket;
+	int val = 1;
 
 	cFYI(1, "Sending smb: smb_len=%u", smb_buf_length);
 	dump_smb(iov[0].iov_base, iov[0].iov_len);
 
+	/* cork the socket */
+	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
+				(char *)&val, sizeof(val));
+
 	rc = smb_send_kvec(server, iov, n_vec, &total_len);
+
+	/* uncork it */
+	val = 0;
+	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
+				(char *)&val, sizeof(val));
 
 	if ((total_len > 0) && (total_len != smb_buf_length + 4)) {
 		cFYI(1, "partial send (wanted=%u sent=%zu): terminating "
