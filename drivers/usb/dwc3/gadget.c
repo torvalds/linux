@@ -2317,6 +2317,34 @@ static void dwc3_gadget_linksts_change_interrupt(struct dwc3 *dwc,
 		unsigned int evtinfo)
 {
 	enum dwc3_link_state	next = evtinfo & DWC3_LINK_STATE_MASK;
+	unsigned int		pwropt;
+
+	/*
+	 * WORKAROUND: DWC3 < 2.50a have an issue when configured without
+	 * Hibernation mode enabled which would show up when device detects
+	 * host-initiated U3 exit.
+	 *
+	 * In that case, device will generate a Link State Change Interrupt
+	 * from U3 to RESUME which is only necessary if Hibernation is
+	 * configured in.
+	 *
+	 * There are no functional changes due to such spurious event and we
+	 * just need to ignore it.
+	 *
+	 * Refers to:
+	 *
+	 * STAR#9000570034 RTL: SS Resume event generated in non-Hibernation
+	 * operational mode
+	 */
+	pwropt = DWC3_GHWPARAMS1_EN_PWROPT(dwc->hwparams.hwparams1);
+	if ((dwc->revision < DWC3_REVISION_250A) &&
+			(pwropt != DWC3_GHWPARAMS1_EN_PWROPT_HIB)) {
+		if ((dwc->link_state == DWC3_LINK_STATE_U3) &&
+				(next == DWC3_LINK_STATE_RESUME)) {
+			dev_vdbg(dwc->dev, "ignoring transition U3 -> Resume\n");
+			return;
+		}
+	}
 
 	/*
 	 * WORKAROUND: DWC3 Revisions <1.83a have an issue which, depending
