@@ -190,6 +190,26 @@ smb2_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
 	return 0;
 }
 
+static int
+smb2_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
+		     struct cifs_fid *fid, FILE_ALL_INFO *data)
+{
+	int rc;
+	struct smb2_file_all_info *smb2_data;
+
+	smb2_data = kzalloc(sizeof(struct smb2_file_all_info) + MAX_NAME * 2,
+			    GFP_KERNEL);
+	if (smb2_data == NULL)
+		return -ENOMEM;
+
+	rc = SMB2_query_info(xid, tcon, fid->persistent_fid, fid->volatile_fid,
+			     smb2_data);
+	if (!rc)
+		move_smb2_info_to_cifs(data, smb2_data);
+	kfree(smb2_data);
+	return rc;
+}
+
 static char *
 smb2_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 			struct cifs_tcon *tcon)
@@ -334,6 +354,7 @@ struct smb_version_operations smb21_operations = {
 	.echo = SMB2_echo,
 	.query_path_info = smb2_query_path_info,
 	.get_srv_inum = smb2_get_srv_inum,
+	.query_file_info = smb2_query_file_info,
 	.build_path_to_root = smb2_build_path_to_root,
 	.mkdir = smb2_mkdir,
 	.mkdir_setinfo = smb2_mkdir_setinfo,
