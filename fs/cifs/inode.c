@@ -1883,7 +1883,8 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = NULL;
-	struct cifs_tcon *pTcon = NULL;
+	struct cifs_tcon *tcon = NULL;
+	struct TCP_Server_Info *server;
 	struct cifs_io_parms io_parms;
 
 	/*
@@ -1897,19 +1898,21 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	 */
 	open_file = find_writable_file(cifsInode, true);
 	if (open_file) {
-		__u16 nfid = open_file->fid.netfid;
-		__u32 npid = open_file->pid;
-		pTcon = tlink_tcon(open_file->tlink);
-		rc = CIFSSMBSetFileSize(xid, pTcon, attrs->ia_size, nfid,
-					npid, false);
+		tcon = tlink_tcon(open_file->tlink);
+		server = tcon->ses->server;
+		if (server->ops->set_file_size)
+			rc = server->ops->set_file_size(xid, tcon, open_file,
+							attrs->ia_size, false);
+		else
+			rc = -ENOSYS;
 		cifsFileInfo_put(open_file);
 		cFYI(1, "SetFSize for attrs rc = %d", rc);
 		if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			unsigned int bytes_written;
 
-			io_parms.netfid = nfid;
-			io_parms.pid = npid;
-			io_parms.tcon = pTcon;
+			io_parms.netfid = open_file->fid.netfid;
+			io_parms.pid = open_file->pid;
+			io_parms.tcon = tcon;
 			io_parms.offset = 0;
 			io_parms.length = attrs->ia_size;
 			rc = CIFSSMBWrite(xid, &io_parms, &bytes_written,
@@ -1919,52 +1922,55 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	} else
 		rc = -EINVAL;
 
-	if (rc != 0) {
-		if (pTcon == NULL) {
-			tlink = cifs_sb_tlink(cifs_sb);
-			if (IS_ERR(tlink))
-				return PTR_ERR(tlink);
-			pTcon = tlink_tcon(tlink);
-		}
+	if (!rc)
+		goto set_size_out;
 
-		/* Set file size by pathname rather than by handle
-		   either because no valid, writeable file handle for
-		   it was found or because there was an error setting
-		   it by handle */
-		rc = CIFSSMBSetEOF(xid, pTcon, full_path, attrs->ia_size,
-				   false, cifs_sb->local_nls,
-				   cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		cFYI(1, "SetEOF by path (setattrs) rc = %d", rc);
-		if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
-			__u16 netfid;
-			int oplock = 0;
-
-			rc = SMBLegacyOpen(xid, pTcon, full_path,
-				FILE_OPEN, GENERIC_WRITE,
-				CREATE_NOT_DIR, &netfid, &oplock, NULL,
-				cifs_sb->local_nls,
-				cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (rc == 0) {
-				unsigned int bytes_written;
-
-				io_parms.netfid = netfid;
-				io_parms.pid = current->tgid;
-				io_parms.tcon = pTcon;
-				io_parms.offset = 0;
-				io_parms.length = attrs->ia_size;
-				rc = CIFSSMBWrite(xid, &io_parms,
-						  &bytes_written,
-						  NULL, NULL,  1);
-				cFYI(1, "wrt seteof rc %d", rc);
-				CIFSSMBClose(xid, pTcon, netfid);
-			}
-		}
-		if (tlink)
-			cifs_put_tlink(tlink);
+	if (tcon == NULL) {
+		tlink = cifs_sb_tlink(cifs_sb);
+		if (IS_ERR(tlink))
+			return PTR_ERR(tlink);
+		tcon = tlink_tcon(tlink);
+		server = tcon->ses->server;
 	}
 
+	/*
+	 * Set file size by pathname rather than by handle either because no
+	 * valid, writeable file handle for it was found or because there was
+	 * an error setting it by handle.
+	 */
+	if (server->ops->set_path_size)
+		rc = server->ops->set_path_size(xid, tcon, full_path,
+						attrs->ia_size, cifs_sb, false);
+	else
+		rc = -ENOSYS;
+	cFYI(1, "SetEOF by path (setattrs) rc = %d", rc);
+	if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
+		__u16 netfid;
+		int oplock = 0;
+
+		rc = SMBLegacyOpen(xid, tcon, full_path, FILE_OPEN,
+				   GENERIC_WRITE, CREATE_NOT_DIR, &netfid,
+				   &oplock, NULL, cifs_sb->local_nls,
+				   cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc == 0) {
+			unsigned int bytes_written;
+
+			io_parms.netfid = netfid;
+			io_parms.pid = current->tgid;
+			io_parms.tcon = tcon;
+			io_parms.offset = 0;
+			io_parms.length = attrs->ia_size;
+			rc = CIFSSMBWrite(xid, &io_parms, &bytes_written, NULL,
+					  NULL,  1);
+			cFYI(1, "wrt seteof rc %d", rc);
+			CIFSSMBClose(xid, tcon, netfid);
+		}
+	}
+	if (tlink)
+		cifs_put_tlink(tlink);
+
+set_size_out:
 	if (rc == 0) {
 		cifsInode->server_eof = attrs->ia_size;
 		cifs_setsize(inode, attrs->ia_size);

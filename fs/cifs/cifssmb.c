@@ -5395,16 +5395,16 @@ QFSPosixRetry:
 }
 
 
-/* We can not use write of zero bytes trick to
-   set file size due to need for large file support.  Also note that
-   this SetPathInfo is preferred to SetFileInfo based method in next
-   routine which is only needed to work around a sharing violation bug
-   in Samba which this routine can run into */
-
+/*
+ * We can not use write of zero bytes trick to set file size due to need for
+ * large file support. Also note that this SetPathInfo is preferred to
+ * SetFileInfo based method in next routine which is only needed to work around
+ * a sharing violation bugin Samba which this routine can run into.
+ */
 int
 CIFSSMBSetEOF(const unsigned int xid, struct cifs_tcon *tcon,
-	      const char *fileName, __u64 size, bool SetAllocation,
-	      const struct nls_table *nls_codepage, int remap)
+	      const char *file_name, __u64 size, struct cifs_sb_info *cifs_sb,
+	      bool set_allocation)
 {
 	struct smb_com_transaction2_spi_req *pSMB = NULL;
 	struct smb_com_transaction2_spi_rsp *pSMBr = NULL;
@@ -5412,6 +5412,8 @@ CIFSSMBSetEOF(const unsigned int xid, struct cifs_tcon *tcon,
 	int name_len;
 	int rc = 0;
 	int bytes_returned = 0;
+	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
+
 	__u16 params, byte_count, data_count, param_offset, offset;
 
 	cFYI(1, "In SetEOF");
@@ -5423,14 +5425,14 @@ SetEOFRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifsConvertToUTF16((__le16 *) pSMB->FileName, fileName,
-				       PATH_MAX, nls_codepage, remap);
+		    cifsConvertToUTF16((__le16 *) pSMB->FileName, file_name,
+				       PATH_MAX, cifs_sb->local_nls, remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
-		name_len = strnlen(fileName, PATH_MAX);
+		name_len = strnlen(file_name, PATH_MAX);
 		name_len++;	/* trailing null */
-		strncpy(pSMB->FileName, fileName, name_len);
+		strncpy(pSMB->FileName, file_name, name_len);
 	}
 	params = 6 + name_len;
 	data_count = sizeof(struct file_end_of_file_info);
@@ -5444,7 +5446,7 @@ SetEOFRetry:
 	param_offset = offsetof(struct smb_com_transaction2_spi_req,
 				InformationLevel) - 4;
 	offset = param_offset + params;
-	if (SetAllocation) {
+	if (set_allocation) {
 		if (tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU)
 			pSMB->InformationLevel =
 				cpu_to_le16(SMB_SET_FILE_ALLOCATION_INFO2);
@@ -5491,8 +5493,8 @@ SetEOFRetry:
 }
 
 int
-CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon, __u64 size,
-		   __u16 fid, __u32 pid_of_opener, bool SetAllocation)
+CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile, __u64 size, bool set_allocation)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	struct file_end_of_file_info *parm_data;
@@ -5506,8 +5508,8 @@ CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon, __u64 size,
 	if (rc)
 		return rc;
 
-	pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
-	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));
+	pSMB->hdr.Pid = cpu_to_le16((__u16)cfile->pid);
+	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(cfile->pid >> 16));
 
 	params = 6;
 	pSMB->MaxSetupCount = 0;
@@ -5536,8 +5538,8 @@ CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon, __u64 size,
 				+ offset);
 	pSMB->DataOffset = cpu_to_le16(offset);
 	parm_data->FileSize = cpu_to_le64(size);
-	pSMB->Fid = fid;
-	if (SetAllocation) {
+	pSMB->Fid = cfile->fid.netfid;
+	if (set_allocation) {
 		if (tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU)
 			pSMB->InformationLevel =
 				cpu_to_le16(SMB_SET_FILE_ALLOCATION_INFO2);

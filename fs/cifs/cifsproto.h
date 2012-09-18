@@ -270,13 +270,11 @@ extern int CIFSSMBSetAttrLegacy(unsigned int xid, struct cifs_tcon *tcon,
 			const struct nls_table *nls_codepage);
 #endif /* possibly unneeded function */
 extern int CIFSSMBSetEOF(const unsigned int xid, struct cifs_tcon *tcon,
-			const char *fileName, __u64 size,
-			bool setAllocationSizeFlag,
-			const struct nls_table *nls_codepage,
-			int remap_special_chars);
+			 const char *file_name, __u64 size,
+			 struct cifs_sb_info *cifs_sb, bool set_allocation);
 extern int CIFSSMBSetFileSize(const unsigned int xid, struct cifs_tcon *tcon,
-			 __u64 size, __u16 fileHandle, __u32 opener_pid,
-			bool AllocSizeFlag);
+			      struct cifsFileInfo *cfile, __u64 size,
+			      bool set_allocation);
 
 struct cifs_unix_set_info_args {
 	__u64	ctime;
