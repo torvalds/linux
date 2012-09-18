@@ -142,8 +142,8 @@ smb2_check_message(char *buf, unsigned int length)
 	}
 
 	if (smb2_rsp_struct_sizes[command] != pdu->StructureSize2) {
-		if (hdr->Status == 0 ||
-		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2) {
+		if (command != SMB2_OPLOCK_BREAK_HE && (hdr->Status == 0 ||
+		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2)) {
 			/* error packets have 9 byte structure size */
 			cERROR(1, "Illegal response size %u for command %d",
 				   le16_to_cpu(pdu->StructureSize2), command);
@@ -162,6 +162,9 @@ smb2_check_message(char *buf, unsigned int length)
 	if (4 + len != clc_len) {
 		cFYI(1, "Calculated size %u length %u mismatch mid %llu",
 			clc_len, 4 + len, mid);
+		/* Windows 7 server returns 24 bytes more */
+		if (clc_len + 20 == len && command == SMB2_OPLOCK_BREAK_HE)
+			return 0;
 		/* server can return one byte more */
 		if (clc_len == 4 + len + 1)
 			return 0;
@@ -355,4 +358,73 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 				   cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	return to;
+}
+
+bool
+smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
+{
+	struct smb2_oplock_break *rsp = (struct smb2_oplock_break *)buffer;
+	struct list_head *tmp, *tmp1, *tmp2;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
+	struct cifsInodeInfo *cinode;
+	struct cifsFileInfo *cfile;
+
+	cFYI(1, "Checking for oplock break");
+
+	if (rsp->hdr.Command != SMB2_OPLOCK_BREAK)
+		return false;
+
+	if (le16_to_cpu(rsp->StructureSize) !=
+				smb2_rsp_struct_sizes[SMB2_OPLOCK_BREAK_HE]) {
+		return false;
+	}
+
+	cFYI(1, "oplock level 0x%d", rsp->OplockLevel);
+
+	/* look up tcon based on tid & uid */
+	spin_lock(&cifs_tcp_ses_lock);
+	list_for_each(tmp, &server->smb_ses_list) {
+		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
+		list_for_each(tmp1, &ses->tcon_list) {
+			tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
+
+			cifs_stats_inc(&tcon->stats.cifs_stats.num_oplock_brks);
+			spin_lock(&cifs_file_list_lock);
+			list_for_each(tmp2, &tcon->openFileList) {
+				cfile = list_entry(tmp2, struct cifsFileInfo,
+						     tlist);
+				if (rsp->PersistentFid !=
+				    cfile->fid.persistent_fid ||
+				    rsp->VolatileFid !=
+				    cfile->fid.volatile_fid)
+					continue;
+
+				cFYI(1, "file id match, oplock break");
+				cinode = CIFS_I(cfile->dentry->d_inode);
+
+				if (!cinode->clientCanCacheAll &&
+				    rsp->OplockLevel == SMB2_OPLOCK_LEVEL_NONE)
+					cfile->oplock_break_cancelled = true;
+				else
+					cfile->oplock_break_cancelled = false;
+
+				smb2_set_oplock_level(cinode,
+				  rsp->OplockLevel ? SMB2_OPLOCK_LEVEL_II : 0);
+
+				queue_work(cifsiod_wq, &cfile->oplock_break);
+
+				spin_unlock(&cifs_file_list_lock);
+				spin_unlock(&cifs_tcp_ses_lock);
+				return true;
+			}
+			spin_unlock(&cifs_file_list_lock);
+			spin_unlock(&cifs_tcp_ses_lock);
+			cFYI(1, "No matching file for oplock break");
+			return true;
+		}
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+	cFYI(1, "Can not process oplock break for non-existent connection");
+	return false;
 }

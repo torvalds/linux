@@ -49,6 +49,8 @@ extern int smb2_setup_async_request(struct TCP_Server_Info *server,
 				    struct kvec *iov, unsigned int nvec,
 				    struct mid_q_entry **ret_mid);
 extern void smb2_echo_request(struct work_struct *work);
+extern bool smb2_is_valid_oplock_break(char *buffer,
+				       struct TCP_Server_Info *srv);
 
 extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
 				   struct smb2_file_all_info *src);
@@ -133,5 +135,8 @@ extern int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 			 u64 persistent_fid, u64 volatile_fid,
 			 FILE_BASIC_INFO *buf);
+extern int SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
+			     const u64 persistent_fid, const u64 volatile_fid,
+			     const __u8 oplock_level);
 
 #endif			/* _SMB2PROTO_H */

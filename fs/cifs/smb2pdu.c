@@ -1941,3 +1941,33 @@ SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 			     current->tgid, FILE_BASIC_INFORMATION, 1,
 			     (void **)&buf, &size);
 }
+
+int
+SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
+		  const u64 persistent_fid, const u64 volatile_fid,
+		  __u8 oplock_level)
+{
+	int rc;
+	struct smb2_oplock_break *req = NULL;
+
+	cFYI(1, "SMB2_oplock_break");
+	rc = small_smb2_init(SMB2_OPLOCK_BREAK, tcon, (void **) &req);
+
+	if (rc)
+		return rc;
+
+	req->VolatileFid = volatile_fid;
+	req->PersistentFid = persistent_fid;
+	req->OplockLevel = oplock_level;
+	req->hdr.CreditRequest = cpu_to_le16(1);
+
+	rc = SendReceiveNoRsp(xid, tcon->ses, (char *) req, CIFS_OBREAK_OP);
+	/* SMB2 buffer freed by function above */
+
+	if (rc) {
+		cifs_stats_fail_inc(tcon, SMB2_OPLOCK_BREAK_HE);
+		cFYI(1, "Send error in Oplock Break = %d", rc);
+	}
+
+	return rc;
+}

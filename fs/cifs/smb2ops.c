@@ -65,6 +65,17 @@ smb2_add_credits(struct TCP_Server_Info *server, const unsigned int add,
 	server->in_flight--;
 	if (server->in_flight == 0 && (optype & CIFS_OP_MASK) != CIFS_NEG_OP)
 		rc = change_conf(server);
+	/*
+	 * Sometimes server returns 0 credits on oplock break ack - we need to
+	 * rebalance credits in this case.
+	 */
+	else if (server->in_flight > 0 && server->oplock_credits == 0 &&
+		 server->oplocks) {
+		if (server->credits > 1) {
+			server->credits--;
+			server->oplock_credits++;
+		}
+	}
 	spin_unlock(&server->req_lock);
 	wake_up(&server->request_q);
 	if (rc)
@@ -502,6 +513,15 @@ smb2_is_status_pending(char *buf, struct TCP_Server_Info *server, int length)
 	return true;
 }
 
+static int
+smb2_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
+		     struct cifsInodeInfo *cinode)
+{
+	return SMB2_oplock_break(0, tcon, fid->persistent_fid,
+				 fid->volatile_fid,
+				 cinode->clientCanCacheRead ? 1 : 0);
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -519,6 +539,7 @@ struct smb_version_operations smb21_operations = {
 	.dump_detail = smb2_dump_detail,
 	.clear_stats = smb2_clear_stats,
 	.print_stats = smb2_print_stats,
+	.is_oplock_break = smb2_is_valid_oplock_break,
 	.need_neg = smb2_need_neg,
 	.negotiate = smb2_negotiate,
 	.negotiate_wsize = smb2_negotiate_wsize,
@@ -556,6 +577,7 @@ struct smb_version_operations smb21_operations = {
 	.close_dir = smb2_close_dir,
 	.calc_smb_size = smb2_calc_size,
 	.is_status_pending = smb2_is_status_pending,
+	.oplock_response = smb2_oplock_response,
 };
 
 struct smb_version_values smb21_values = {
