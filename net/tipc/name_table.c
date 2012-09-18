@@ -783,7 +783,7 @@ static int subseq_list(struct sub_seq *sseq, char *buf, int len, u32 depth,
 		if (!list_is_last(&publ->zone_list, &info->zone_list))
 			ret += tipc_snprintf(buf + ret, len - ret,
 					     "\n%33s", " ");
-	};
+	}
 
 	ret += tipc_snprintf(buf + ret, len - ret, "\n");
 	return ret;
