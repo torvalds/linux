@@ -69,15 +69,29 @@
 /* 10b = TMDS or HDMI */
 /* 11b = Other */
 # define DP_FORMAT_CONVERSION               (1 << 3)
+# define DP_DETAILED_CAP_INFO_AVAILABLE	    (1 << 4)
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
 
 #define DP_DOWN_STREAM_PORT_COUNT	    0x007
-#define  DP_PORT_COUNT_MASK		    0x0f
-#define  DP_OUI_SUPPORT			    (1 << 7)
+# define DP_PORT_COUNT_MASK		    0x0f
+# define DP_MSA_TIMING_PAR_IGNORED	    (1 << 6)
+# define DP_OUI_SUPPORT			    (1 << 7)
+
+#define DP_I2C_SPEED_CAP		    0x00c
+# define DP_I2C_SPEED_1K		    0x01
+# define DP_I2C_SPEED_5K		    0x02
+# define DP_I2C_SPEED_10K		    0x04
+# define DP_I2C_SPEED_100K		    0x08
+# define DP_I2C_SPEED_400K		    0x10
+# define DP_I2C_SPEED_1M		    0x20
 
 #define DP_EDP_CONFIGURATION_CAP            0x00d
 #define DP_TRAINING_AUX_RD_INTERVAL         0x00e
+
+/* Multiple stream transport */
+#define DP_MSTM_CAP			    0x021
+# define DP_MST_CAP			    (1 << 0)
 
 #define DP_PSR_SUPPORT                      0x070
 # define DP_PSR_IS_SUPPORTED                1
@@ -92,6 +106,31 @@
 # define DP_PSR_SETUP_TIME_0                (6 << 1)
 # define DP_PSR_SETUP_TIME_MASK             (7 << 1)
 # define DP_PSR_SETUP_TIME_SHIFT            1
+
+/*
+ * 0x80-0x8f describe downstream port capabilities, but there are two layouts
+ * based on whether DP_DETAILED_CAP_INFO_AVAILABLE was set.  If it was not,
+ * each port's descriptor is one byte wide.  If it was set, each port's is
+ * four bytes wide, starting with the one byte from the base info.  As of
+ * DP interop v1.1a only VGA defines additional detail.
+ */
+
+/* offset 0 */
+#define DP_DOWNSTREAM_PORT_0		    0x80
+# define DP_DS_PORT_TYPE_MASK		    (7 << 0)
+# define DP_DS_PORT_TYPE_DP		    0
+# define DP_DS_PORT_TYPE_VGA		    1
+# define DP_DS_PORT_TYPE_DVI		    2
+# define DP_DS_PORT_TYPE_HDMI		    3
+# define DP_DS_PORT_TYPE_NON_EDID	    4
+# define DP_DS_PORT_HPD			    (1 << 3)
+/* offset 1 for VGA is maximum megapixels per second / 8 */
+/* offset 2 */
+# define DP_DS_VGA_MAX_BPC_MASK		    (3 << 0)
+# define DP_DS_VGA_8BPC			    0
+# define DP_DS_VGA_10BPC		    1
+# define DP_DS_VGA_12BPC		    2
+# define DP_DS_VGA_16BPC		    3
 
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
@@ -148,9 +187,20 @@
 
 #define DP_DOWNSPREAD_CTRL		    0x107
 # define DP_SPREAD_AMP_0_5		    (1 << 4)
+# define DP_MSA_TIMING_PAR_IGNORE_EN	    (1 << 7)
 
 #define DP_MAIN_LINK_CHANNEL_CODING_SET	    0x108
 # define DP_SET_ANSI_8B10B		    (1 << 0)
+
+#define DP_I2C_SPEED_CONTROL_STATUS	    0x109
+/* bitmask as for DP_I2C_SPEED_CAP */
+
+#define DP_EDP_CONFIGURATION_SET            0x10a
+
+#define DP_MSTM_CTRL			    0x111
+# define DP_MST_EN			    (1 << 0)
+# define DP_UP_REQ_EN			    (1 << 1)
+# define DP_UPSTREAM_IS_SRC		    (1 << 2)
 
 #define DP_PSR_EN_CFG			    0x170
 # define DP_PSR_ENABLE			    (1 << 0)
@@ -158,13 +208,15 @@
 # define DP_PSR_CRC_VERIFICATION	    (1 << 2)
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
 
+#define DP_SINK_COUNT			    0x200
+# define DP_SINK_COUNT_MASK		    (31 << 0)
+# define DP_SINK_CP_READY		    (1 << 6)
+
 #define DP_DEVICE_SERVICE_IRQ_VECTOR	    0x201
 # define DP_REMOTE_CONTROL_COMMAND_PENDING  (1 << 0)
 # define DP_AUTOMATED_TEST_REQUEST	    (1 << 1)
 # define DP_CP_IRQ			    (1 << 2)
 # define DP_SINK_SPECIFIC_IRQ		    (1 << 6)
-
-#define DP_EDP_CONFIGURATION_SET            0x10a
 
 #define DP_LANE0_1_STATUS		    0x202
 #define DP_LANE2_3_STATUS		    0x203
