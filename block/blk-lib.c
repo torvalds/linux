@@ -214,7 +214,7 @@ EXPORT_SYMBOL(blkdev_issue_write_same);
  *  Generate and issue number of bios with zerofiled pages.
  */
 
-int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
+int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 			sector_t nr_sects, gfp_t gfp_mask)
 {
 	int ret;
@@ -263,5 +263,33 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		ret = -EIO;
 
 	return ret;
+}
+
+/**
+ * blkdev_issue_zeroout - zero-fill a block range
+ * @bdev:	blockdev to write
+ * @sector:	start sector
+ * @nr_sects:	number of sectors to write
+ * @gfp_mask:	memory allocation flags (for bio_alloc)
+ *
+ * Description:
+ *  Generate and issue number of bios with zerofiled pages.
+ */
+
+int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
+			 sector_t nr_sects, gfp_t gfp_mask)
+{
+	if (bdev_write_same(bdev)) {
+		unsigned char bdn[BDEVNAME_SIZE];
+
+		if (!blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
+					     ZERO_PAGE(0)))
+			return 0;
+
+		bdevname(bdev, bdn);
+		pr_err("%s: WRITE SAME failed. Manually zeroing.\n", bdn);
+	}
+
+	return __blkdev_issue_zeroout(bdev, sector, nr_sects, gfp_mask);
 }
 EXPORT_SYMBOL(blkdev_issue_zeroout);
