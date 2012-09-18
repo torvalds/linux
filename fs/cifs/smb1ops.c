@@ -634,6 +634,13 @@ cifs_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
 }
 
+static int
+cifs_close_file(const unsigned int xid, struct cifs_tcon *tcon,
+		struct cifs_fid *fid)
+{
+	return CIFSSMBClose(xid, tcon, fid->netfid);
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -675,6 +682,7 @@ struct smb_version_operations smb1_operations = {
 	.rename_pending_delete = cifs_rename_pending_delete,
 	.open = cifs_open_file,
 	.set_fid = cifs_set_fid,
+	.close = cifs_close_file,
 };
 
 struct smb_version_values smb1_values = {

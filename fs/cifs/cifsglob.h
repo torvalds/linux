@@ -269,6 +269,8 @@ struct smb_version_operations {
 		    struct cifs_sb_info *);
 	/* set fid protocol-specific info */
 	void (*set_fid)(struct cifsFileInfo *, struct cifs_fid *, __u32);
+	/* close a file */
+	int (*close)(const unsigned int, struct cifs_tcon *, struct cifs_fid *);
 };
 
 struct smb_version_values {

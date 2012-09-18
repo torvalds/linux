@@ -326,10 +326,13 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	cancel_work_sync(&cifs_file->oplock_break);
 
 	if (!tcon->need_reconnect && !cifs_file->invalidHandle) {
+		struct TCP_Server_Info *server = tcon->ses->server;
 		unsigned int xid;
-		int rc;
+		int rc = -ENOSYS;
+
 		xid = get_xid();
-		rc = CIFSSMBClose(xid, tcon, cifs_file->fid.netfid);
+		if (server->ops->close)
+			rc = server->ops->close(xid, tcon, &cifs_file->fid);
 		free_xid(xid);
 	}
 
@@ -423,7 +426,8 @@ int cifs_open(struct inode *inode, struct file *file)
 
 	cfile = cifs_new_fileinfo(&fid, file, tlink, oplock);
 	if (cfile == NULL) {
-		CIFSSMBClose(xid, tcon, fid.netfid);
+		if (tcon->ses->server->ops->close)
+			tcon->ses->server->ops->close(xid, tcon, &fid);
 		rc = -ENOMEM;
 		goto out;
 	}
