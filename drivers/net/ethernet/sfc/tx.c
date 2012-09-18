@@ -708,7 +708,8 @@ static u8 *efx_tsoh_get_buffer(struct efx_tx_queue *tx_queue,
 			TSOH_STD_SIZE * (index % TSOH_PER_PAGE) + TSOH_OFFSET;
 
 		if (unlikely(!page_buf->addr) &&
-		    efx_nic_alloc_buffer(tx_queue->efx, page_buf, PAGE_SIZE))
+		    efx_nic_alloc_buffer(tx_queue->efx, page_buf, PAGE_SIZE,
+					 GFP_ATOMIC))
 			return NULL;
 
 		result = (u8 *)page_buf->addr + offset;

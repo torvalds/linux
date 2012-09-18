@@ -237,7 +237,8 @@ static int siena_probe_nic(struct efx_nic *efx)
 	siena_init_wol(efx);
 
 	/* Allocate memory for INT_KER */
-	rc = efx_nic_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t));
+	rc = efx_nic_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t),
+				  GFP_KERNEL);
 	if (rc)
 		goto fail4;
 	BUG_ON(efx->irq_status.dma_addr & 0x0f);

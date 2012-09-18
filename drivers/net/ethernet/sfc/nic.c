@@ -303,11 +303,11 @@ efx_free_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
  **************************************************************************/
 
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
-			 unsigned int len)
+			 unsigned int len, gfp_t gfp_flags)
 {
 	buffer->addr = dma_alloc_coherent(&efx->pci_dev->dev, len,
 					  &buffer->dma_addr,
-					  GFP_ATOMIC | __GFP_ZERO);
+					  gfp_flags | __GFP_ZERO);
 	if (!buffer->addr)
 		return -ENOMEM;
 	buffer->len = len;

@@ -332,7 +332,7 @@ extern void efx_nic_init_common(struct efx_nic *efx);
 extern void efx_nic_push_rx_indir_table(struct efx_nic *efx);
 
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
-			 unsigned int len);
+			 unsigned int len, gfp_t gfp_flags);
 void efx_nic_free_buffer(struct efx_nic *efx, struct efx_buffer *buffer);
 
 /* Tests */

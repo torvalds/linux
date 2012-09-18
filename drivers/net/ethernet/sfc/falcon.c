@@ -1418,7 +1418,7 @@ static int falcon_probe_port(struct efx_nic *efx)
 
 	/* Allocate buffer for stats */
 	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
-				  FALCON_MAC_STATS_SIZE);
+				  FALCON_MAC_STATS_SIZE, GFP_KERNEL);
 	if (rc)
 		return rc;
 	netif_dbg(efx, probe, efx->net_dev,
@@ -2035,7 +2035,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 	}
 
 	/* Allocate memory for INT_KER */
-	rc = efx_nic_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t));
+	rc = efx_nic_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t),
+				  GFP_KERNEL);
 	if (rc)
 		goto fail4;
 	BUG_ON(efx->irq_status.dma_addr & 0x0f);

@@ -875,7 +875,7 @@ static int efx_ptp_probe_channel(struct efx_channel *channel)
 	if (!efx->ptp_data)
 		return -ENOMEM;
 
-	rc = efx_nic_alloc_buffer(efx, &ptp->start, sizeof(int));
+	rc = efx_nic_alloc_buffer(efx, &ptp->start, sizeof(int), GFP_KERNEL);
 	if (rc != 0)
 		goto fail1;
 
