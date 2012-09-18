@@ -415,7 +415,6 @@ static int insn_rw_emulate_bits(struct comedi_device *dev,
 	new_insn.insn = INSN_BITS;
 	new_insn.chanspec = base_bitfield_channel;
 	new_insn.n = 2;
-	new_insn.data = new_data;
 	new_insn.subdev = insn->subdev;
 
 	if (insn->insn == INSN_WRITE) {
