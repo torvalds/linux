@@ -399,6 +399,7 @@ enum rproc_crash_type {
  * @crash_handler: workqueue for handling a crash
  * @crash_cnt: crash counter
  * @crash_comp: completion used to sync crash handler and the rproc reload
+ * @recovery_disabled: flag that state if recovery was disabled
  */
 struct rproc {
 	struct klist_node node;
@@ -425,6 +426,7 @@ struct rproc {
 	struct work_struct crash_handler;
 	unsigned crash_cnt;
 	struct completion crash_comp;
+	bool recovery_disabled;
 };
 
 /* we currently support only two vrings per rvdev */
