@@ -370,7 +370,8 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 			return -ENOMEM;
 
 		if (copy_from_user(aux_data,
-				   comedi_aux_data(it.options, 0), aux_len)) {
+				   (unsigned char __user *
+				    )comedi_aux_data(it.options, 0), aux_len)) {
 			vfree(aux_data);
 			return -EFAULT;
 		}
