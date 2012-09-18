@@ -44,10 +44,10 @@ static void mcf54xx_reset(void)
 {
 	/* disable interrupts and enable the watchdog */
 	asm("movew #0x2700, %sr\n");
-	__raw_writel(0, MCF_MBAR + MCF_GPT_GMS0);
-	__raw_writel(MCF_GPT_GCIR_CNT(1), MCF_MBAR + MCF_GPT_GCIR0);
+	__raw_writel(0, MCF_GPT_GMS0);
+	__raw_writel(MCF_GPT_GCIR_CNT(1), MCF_GPT_GCIR0);
 	__raw_writel(MCF_GPT_GMS_WDEN | MCF_GPT_GMS_CE | MCF_GPT_GMS_TMS(4),
-						MCF_MBAR + MCF_GPT_GMS0);
+		MCF_GPT_GMS0);
 }
 
 /***************************************************************************/
