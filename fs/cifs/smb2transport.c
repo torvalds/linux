@@ -39,12 +39,13 @@
 #include "smb2glob.h"
 
 static int
-smb2_calc_signature2(const struct kvec *iov, int n_vec,
-		     struct TCP_Server_Info *server)
+smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
 	int i, rc;
 	unsigned char smb2_signature[SMB2_HMACSHA256_SIZE];
 	unsigned char *sigptr = smb2_signature;
+	struct kvec *iov = rqst->rq_iov;
+	int n_vec = rqst->rq_nvec;
 	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
 
 	memset(smb2_signature, 0x0, SMB2_HMACSHA256_SIZE);
@@ -106,10 +107,10 @@ smb2_calc_signature2(const struct kvec *iov, int n_vec,
 
 /* must be called with server->srv_mutex held */
 static int
-smb2_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server)
+smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
 	int rc = 0;
-	struct smb2_hdr *smb2_pdu = iov[0].iov_base;
+	struct smb2_hdr *smb2_pdu = rqst->rq_iov[0].iov_base;
 
 	if (!(smb2_pdu->Flags & SMB2_FLAGS_SIGNED) ||
 	    server->tcpStatus == CifsNeedNegotiate)
@@ -120,18 +121,17 @@ smb2_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server)
 		return rc;
 	}
 
-	rc = smb2_calc_signature2(iov, n_vec, server);
+	rc = smb2_calc_signature(rqst, server);
 
 	return rc;
 }
 
 int
-smb2_verify_signature2(struct kvec *iov, unsigned int n_vec,
-		       struct TCP_Server_Info *server)
+smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
 	unsigned int rc;
 	char server_response_sig[16];
-	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
+	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)rqst->rq_iov[0].iov_base;
 
 	if ((smb2_pdu->Command == SMB2_NEGOTIATE) ||
 	    (smb2_pdu->Command == SMB2_OPLOCK_BREAK) ||
@@ -157,7 +157,7 @@ smb2_verify_signature2(struct kvec *iov, unsigned int n_vec,
 	memset(smb2_pdu->Signature, 0, SMB2_SIGNATURE_SIZE);
 
 	mutex_lock(&server->srv_mutex);
-	rc = smb2_calc_signature2(iov, n_vec, server);
+	rc = smb2_calc_signature(rqst, server);
 	mutex_unlock(&server->srv_mutex);
 
 	if (rc)
@@ -168,16 +168,6 @@ smb2_verify_signature2(struct kvec *iov, unsigned int n_vec,
 		return -EACCES;
 	else
 		return 0;
-}
-
-static int
-smb2_verify_signature(struct smb2_hdr *smb2_pdu, struct TCP_Server_Info *server)
-{
-	struct kvec iov;
-
-	iov.iov_base = (char *)smb2_pdu;
-	iov.iov_len = get_rfc1002_length(smb2_pdu) + 4;
-	return smb2_verify_signature2(&iov, 1, server);
 }
 
 /*
@@ -258,6 +248,12 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		   bool log_error)
 {
 	unsigned int len = get_rfc1002_length(mid->resp_buf);
+	struct kvec iov;
+	struct smb_rqst rqst = { .rq_iov = &iov,
+				 .rq_nvec = 1 };
+
+	iov.iov_base = (char *)mid->resp_buf;
+	iov.iov_len = get_rfc1002_length(mid->resp_buf) + 4;
 
 	dump_smb(mid->resp_buf, min_t(u32, 80, len));
 	/* convert the length into a more usable form */
@@ -265,7 +261,7 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	    (server->sec_mode & (SECMODE_SIGN_REQUIRED|SECMODE_SIGN_ENABLED))) {
 		int rc;
 
-		rc = smb2_verify_signature(mid->resp_buf, server);
+		rc = smb2_verify_signature(&rqst, server);
 		if (rc)
 			cERROR(1, "SMB signature verification returned error = "
 			       "%d", rc);
@@ -281,13 +277,15 @@ smb2_setup_request(struct cifs_ses *ses, struct kvec *iov,
 	int rc;
 	struct smb2_hdr *hdr = (struct smb2_hdr *)iov[0].iov_base;
 	struct mid_q_entry *mid;
+	struct smb_rqst rqst = { .rq_iov = iov,
+				 .rq_nvec = nvec };
 
 	smb2_seq_num_into_buf(ses->server, hdr);
 
 	rc = smb2_get_mid_entry(ses, hdr, &mid);
 	if (rc)
 		return rc;
-	rc = smb2_sign_smb2(iov, nvec, ses->server);
+	rc = smb2_sign_rqst(&rqst, ses->server);
 	if (rc)
 		cifs_delete_mid(mid);
 	*ret_mid = mid;
@@ -301,6 +299,8 @@ smb2_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
 	int rc = 0;
 	struct smb2_hdr *hdr = (struct smb2_hdr *)iov[0].iov_base;
 	struct mid_q_entry *mid;
+	struct smb_rqst rqst = { .rq_iov = iov,
+				 .rq_nvec = nvec };
 
 	smb2_seq_num_into_buf(server, hdr);
 
@@ -308,7 +308,7 @@ smb2_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
 	if (mid == NULL)
 		return -ENOMEM;
 
-	rc = smb2_sign_smb2(iov, nvec, server);
+	rc = smb2_sign_rqst(&rqst, server);
 	if (rc) {
 		DeleteMidQEntry(mid);
 		return rc;

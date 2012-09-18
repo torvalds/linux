@@ -1297,6 +1297,8 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct smb2_hdr *buf = (struct smb2_hdr *)rdata->iov[0].iov_base;
 	unsigned int credits_received = 1;
+	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+				 .rq_nvec = rdata->nr_iov };
 
 	cFYI(1, "%s: mid=%llu state=%d result=%d bytes=%u", __func__,
 		mid->mid, mid->mid_state, rdata->result, rdata->bytes);
@@ -1309,8 +1311,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 		    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 			int rc;
 
-			rc = smb2_verify_signature2(rdata->iov, rdata->nr_iov,
-						    server);
+			rc = smb2_verify_signature(&rqst, server);
 			if (rc)
 				cERROR(1, "SMB signature verification returned "
 				       "error = %d", rc);
