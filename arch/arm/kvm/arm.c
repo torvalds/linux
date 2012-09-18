@@ -559,7 +559,7 @@ static bool kvm_condition_valid(struct kvm_vcpu *vcpu)
 	 * catch undefined instructions, and then we won't get past
 	 * the arm_exit_handlers test anyway.
 	 */
-	BUG_ON(((kvm_vcpu_get_hsr(vcpu) & HSR_EC) >> HSR_EC_SHIFT) == 0);
+	BUG_ON(!kvm_vcpu_trap_get_class(vcpu));
 
 	/* Top two bits non-zero?  Unconditional. */
 	if (kvm_vcpu_get_hsr(vcpu) >> 30)
@@ -609,7 +609,7 @@ static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case ARM_EXCEPTION_DATA_ABORT:
 	case ARM_EXCEPTION_PREF_ABORT:
 	case ARM_EXCEPTION_HVC:
-		hsr_ec = (kvm_vcpu_get_hsr(vcpu) & HSR_EC) >> HSR_EC_SHIFT;
+		hsr_ec = kvm_vcpu_trap_get_class(vcpu);
 
 		if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers)
 		    || !arm_exit_handlers[hsr_ec]) {

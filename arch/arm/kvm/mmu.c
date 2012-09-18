@@ -593,7 +593,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	gfn_t gfn;
 	int ret, idx;
 
-	hsr_ec = kvm_vcpu_get_hsr(vcpu) >> HSR_EC_SHIFT;
+	hsr_ec = kvm_vcpu_trap_get_class(vcpu);
 	is_iabt = (hsr_ec == HSR_EC_IABT);
 	fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
 
