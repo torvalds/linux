@@ -190,9 +190,6 @@ static const struct divisor_table_entry divisor_table[] = {
 	{   230400,	1},
 };
 
-/* local variables */
-static bool debug;
-
 /* Number of outstanding Command Write Urbs */
 static atomic_t CmdUrbs = ATOMIC_INIT(0);
 
@@ -3140,6 +3137,3 @@ MODULE_FIRMWARE("edgeport/boot.fw");
 MODULE_FIRMWARE("edgeport/boot2.fw");
 MODULE_FIRMWARE("edgeport/down.fw");
 MODULE_FIRMWARE("edgeport/down2.fw");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
