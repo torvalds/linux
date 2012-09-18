@@ -252,8 +252,6 @@ struct moschip_port {
 	struct timer_list led_timer2;	/* Timer for LED off */
 };
 
-static bool debug;
-
 /*
  * mos7840_set_reg_sync
  * 	To set the Control register by calling usb_fill_control_urb function
@@ -2694,6 +2692,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
