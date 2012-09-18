@@ -312,13 +312,13 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	if (list_empty(&cifsi->openFileList)) {
 		cFYI(1, "closing last open instance for inode %p",
 			cifs_file->dentry->d_inode);
-
-		/* in strict cache mode we need invalidate mapping on the last
-		   close  because it may cause a error when we open this file
-		   again and get at least level II oplock */
+		/*
+		 * In strict cache mode we need invalidate mapping on the last
+		 * close  because it may cause a error when we open this file
+		 * again and get at least level II oplock.
+		 */
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO)
 			CIFS_I(inode)->invalid_mapping = true;
-
 		cifs_set_oplock_level(cifsi, 0);
 	}
 	spin_unlock(&cifs_file_list_lock);

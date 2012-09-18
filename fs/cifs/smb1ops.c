@@ -622,7 +622,7 @@ cifs_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
 {
 	if (!(tcon->ses->capabilities & CAP_NT_SMBS))
 		return SMBLegacyOpen(xid, tcon, path, disposition,
-				     desired_access, CREATE_NOT_DIR,
+				     desired_access, create_options,
 				     &fid->netfid, oplock, buf,
 				     cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
 						& CIFS_MOUNT_MAP_SPECIAL_CHR);
