@@ -582,6 +582,33 @@ get_next_mid(struct TCP_Server_Info *server)
 #define CIFS_KMAP_SIZE_LIMIT   (1<<24)
 #endif /* CONFIG_HIGHMEM */
 
+#ifdef CONFIG_HIGHMEM
+/*
+ * On arches that have high memory, kmap address space is limited. By
+ * serializing the kmap operations on those arches, we ensure that we don't
+ * end up with a bunch of threads in writeback with partially mapped page
+ * arrays, stuck waiting for kmap to come back. That situation prevents
+ * progress and can deadlock.
+ */
+
+extern struct mutex cifs_kmap_mutex;
+
+static inline void
+cifs_kmap_lock(void)
+{
+	mutex_lock(&cifs_kmap_mutex);
+}
+
+static inline void
+cifs_kmap_unlock(void)
+{
+	mutex_unlock(&cifs_kmap_mutex);
+}
+#else /* !CONFIG_HIGHMEM */
+#define cifs_kmap_lock() do { ; } while (0)
+#define cifs_kmap_unlock() do { ; } while (0)
+#endif /* CONFIG_HIGHMEM */
+
 /*
  * Macros to allow the TCP_Server_Info->net field and related code to drop out
  * when CONFIG_NET_NS isn't set.
@@ -889,6 +916,26 @@ struct cifs_readdata {
 			    unsigned int remaining);
 	unsigned int			nr_iov;
 	struct kvec			iov[1];
+};
+
+struct cifs_writedata;
+
+/* asynchronous write support */
+struct cifs_writedata {
+	struct kref			refcount;
+	struct list_head		list;
+	struct completion		done;
+	enum writeback_sync_modes	sync_mode;
+	struct work_struct		work;
+	struct cifsFileInfo		*cfile;
+	__u64				offset;
+	pid_t				pid;
+	unsigned int			bytes;
+	int				result;
+	void (*marshal_iov) (struct kvec *iov,
+			     struct cifs_writedata *wdata);
+	unsigned int			nr_pages;
+	struct page			*pages[1];
 };
 
 /*

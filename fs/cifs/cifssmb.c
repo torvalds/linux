@@ -86,32 +86,6 @@ static struct {
 #endif /* CONFIG_CIFS_WEAK_PW_HASH */
 #endif /* CIFS_POSIX */
 
-#ifdef CONFIG_HIGHMEM
-/*
- * On arches that have high memory, kmap address space is limited. By
- * serializing the kmap operations on those arches, we ensure that we don't
- * end up with a bunch of threads in writeback with partially mapped page
- * arrays, stuck waiting for kmap to come back. That situation prevents
- * progress and can deadlock.
- */
-static DEFINE_MUTEX(cifs_kmap_mutex);
-
-static inline void
-cifs_kmap_lock(void)
-{
-	mutex_lock(&cifs_kmap_mutex);
-}
-
-static inline void
-cifs_kmap_unlock(void)
-{
-	mutex_unlock(&cifs_kmap_mutex);
-}
-#else /* !CONFIG_HIGHMEM */
-#define cifs_kmap_lock() do { ; } while(0)
-#define cifs_kmap_unlock() do { ; } while(0)
-#endif /* CONFIG_HIGHMEM */
-
 /*
  * Mark as invalid, all open files on tree connections since they
  * were closed when session to server was lost.

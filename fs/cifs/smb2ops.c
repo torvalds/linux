@@ -434,6 +434,7 @@ struct smb_version_operations smb21_operations = {
 	.close = smb2_close_file,
 	.flush = smb2_flush_file,
 	.async_readv = smb2_async_readv,
+	.async_writev = smb2_async_writev,
 };
 
 struct smb_version_values smb21_values = {

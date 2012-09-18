@@ -89,6 +89,10 @@ extern mempool_t *cifs_mid_poolp;
 
 struct workqueue_struct	*cifsiod_wq;
 
+#ifdef CONFIG_HIGHMEM
+DEFINE_MUTEX(cifs_kmap_mutex);
+#endif
+
 static int
 cifs_read_super(struct super_block *sb)
 {

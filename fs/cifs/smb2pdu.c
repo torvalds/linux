@@ -33,6 +33,7 @@
 #include <linux/vfs.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/uaccess.h>
+#include <linux/pagemap.h>
 #include <linux/xattr.h>
 #include "smb2pdu.h"
 #include "cifsglob.h"
@@ -1325,5 +1326,127 @@ smb2_async_readv(struct cifs_readdata *rdata)
 		kref_put(&rdata->refcount, cifs_readdata_release);
 
 	cifs_small_buf_release(buf);
+	return rc;
+}
+
+/*
+ * Check the mid_state and signature on received buffer (if any), and queue the
+ * workqueue completion task.
+ */
+static void
+smb2_writev_callback(struct mid_q_entry *mid)
+{
+	struct cifs_writedata *wdata = mid->callback_data;
+	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
+	unsigned int written;
+	struct smb2_write_rsp *rsp = (struct smb2_write_rsp *)mid->resp_buf;
+	unsigned int credits_received = 1;
+
+	switch (mid->mid_state) {
+	case MID_RESPONSE_RECEIVED:
+		credits_received = le16_to_cpu(rsp->hdr.CreditRequest);
+		wdata->result = smb2_check_receive(mid, tcon->ses->server, 0);
+		if (wdata->result != 0)
+			break;
+
+		written = le32_to_cpu(rsp->DataLength);
+		/*
+		 * Mask off high 16 bits when bytes written as returned
+		 * by the server is greater than bytes requested by the
+		 * client. OS/2 servers are known to set incorrect
+		 * CountHigh values.
+		 */
+		if (written > wdata->bytes)
+			written &= 0xFFFF;
+
+		if (written < wdata->bytes)
+			wdata->result = -ENOSPC;
+		else
+			wdata->bytes = written;
+		break;
+	case MID_REQUEST_SUBMITTED:
+	case MID_RETRY_NEEDED:
+		wdata->result = -EAGAIN;
+		break;
+	default:
+		wdata->result = -EIO;
+		break;
+	}
+
+	if (wdata->result)
+		cifs_stats_fail_inc(tcon, SMB2_WRITE_HE);
+
+	queue_work(cifsiod_wq, &wdata->work);
+	DeleteMidQEntry(mid);
+	add_credits(tcon->ses->server, credits_received, 0);
+}
+
+/* smb2_async_writev - send an async write, and set up mid to handle result */
+int
+smb2_async_writev(struct cifs_writedata *wdata)
+{
+	int i, rc = -EACCES;
+	struct smb2_write_req *req = NULL;
+	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
+	struct kvec *iov = NULL;
+
+	rc = small_smb2_init(SMB2_WRITE, tcon, (void **) &req);
+	if (rc)
+		goto async_writev_out;
+
+	/* 1 iov per page + 1 for header */
+	iov = kzalloc((wdata->nr_pages + 1) * sizeof(*iov), GFP_NOFS);
+	if (iov == NULL) {
+		rc = -ENOMEM;
+		goto async_writev_out;
+	}
+
+	req->hdr.ProcessId = cpu_to_le32(wdata->cfile->pid);
+
+	req->PersistentFileId = wdata->cfile->fid.persistent_fid;
+	req->VolatileFileId = wdata->cfile->fid.volatile_fid;
+	req->WriteChannelInfoOffset = 0;
+	req->WriteChannelInfoLength = 0;
+	req->Channel = 0;
+	req->Offset = cpu_to_le64(wdata->offset);
+	/* 4 for rfc1002 length field */
+	req->DataOffset = cpu_to_le16(
+				offsetof(struct smb2_write_req, Buffer) - 4);
+	req->RemainingBytes = 0;
+
+	/* 4 for rfc1002 length field and 1 for Buffer */
+	iov[0].iov_len = get_rfc1002_length(req) + 4 - 1;
+	iov[0].iov_base = (char *)req;
+
+	/*
+	 * This function should marshal up the page array into the kvec
+	 * array, reserving [0] for the header. It should kmap the pages
+	 * and set the iov_len properly for each one. It may also set
+	 * wdata->bytes too.
+	 */
+	cifs_kmap_lock();
+	wdata->marshal_iov(iov, wdata);
+	cifs_kmap_unlock();
+
+	cFYI(1, "async write at %llu %u bytes", wdata->offset, wdata->bytes);
+
+	req->Length = cpu_to_le32(wdata->bytes);
+
+	inc_rfc1001_len(&req->hdr, wdata->bytes - 1 /* Buffer */);
+
+	kref_get(&wdata->refcount);
+	rc = cifs_call_async(tcon->ses->server, iov, wdata->nr_pages + 1,
+			     NULL, smb2_writev_callback, wdata, 0);
+
+	if (rc)
+		kref_put(&wdata->refcount, cifs_writedata_release);
+
+	/* send is done, unmap pages */
+	for (i = 0; i < wdata->nr_pages; i++)
+		kunmap(wdata->pages[i]);
+
+async_writev_out:
+	cifs_small_buf_release(req);
+	kfree(iov);
 	return rc;
 }

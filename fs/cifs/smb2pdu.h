@@ -496,6 +496,36 @@ struct smb2_read_rsp {
 	__u8   Buffer[1];
 } __packed;
 
+/* For write request Flags field below the following flag is defined: */
+#define SMB2_WRITEFLAG_WRITE_THROUGH 0x00000001
+
+struct smb2_write_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 49 */
+	__le16 DataOffset; /* offset from start of SMB2 header to write data */
+	__le32 Length;
+	__le64 Offset;
+	__u64  PersistentFileId; /* opaque endianness */
+	__u64  VolatileFileId; /* opaque endianness */
+	__le32 Channel; /* Reserved MBZ */
+	__le32 RemainingBytes;
+	__le16 WriteChannelInfoOffset; /* Reserved MBZ */
+	__le16 WriteChannelInfoLength; /* Reserved MBZ */
+	__le32 Flags;
+	__u8   Buffer[1];
+} __packed;
+
+struct smb2_write_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 17 */
+	__u8   DataOffset;
+	__u8   Reserved;
+	__le32 DataLength;
+	__le32 DataRemaining;
+	__u32  Reserved2;
+	__u8   Buffer[1];
+} __packed;
+
 struct smb2_echo_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 4 */
