@@ -196,9 +196,14 @@ extern int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);
 extern int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id);
 extern int efx_mcdi_wol_filter_reset(struct efx_nic *efx);
 extern int efx_mcdi_flush_rxqs(struct efx_nic *efx);
+extern int efx_mcdi_port_probe(struct efx_nic *efx);
+extern void efx_mcdi_port_remove(struct efx_nic *efx);
+extern int efx_mcdi_port_reconfigure(struct efx_nic *efx);
+extern void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
 extern int efx_mcdi_set_mac(struct efx_nic *efx);
-extern int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
-			      u32 dma_len, int enable, int clear);
+#define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
+extern void efx_mcdi_mac_start_stats(struct efx_nic *efx);
+extern void efx_mcdi_mac_stop_stats(struct efx_nic *efx);
 extern bool efx_mcdi_mac_check_fault(struct efx_nic *efx);
 extern enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason);
 extern int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method);
