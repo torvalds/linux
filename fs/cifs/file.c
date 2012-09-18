@@ -1754,6 +1754,7 @@ static int cifs_writepages(struct address_space *mapping,
 	bool done = false, scanned = false, range_whole = false;
 	pgoff_t end, index;
 	struct cifs_writedata *wdata;
+	struct TCP_Server_Info *server;
 	struct page *page;
 	int rc = 0;
 
@@ -1904,7 +1905,8 @@ retry:
 				break;
 			}
 			wdata->pid = wdata->cfile->pid;
-			rc = cifs_async_writev(wdata);
+			server = tlink_tcon(wdata->cfile->tlink)->ses->server;
+			rc = server->ops->async_writev(wdata);
 		} while (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN);
 
 		for (i = 0; i < nr_pages; ++i)
@@ -2235,6 +2237,9 @@ static int
 cifs_uncached_retry_writev(struct cifs_writedata *wdata)
 {
 	int rc;
+	struct TCP_Server_Info *server;
+
+	server = tlink_tcon(wdata->cfile->tlink)->ses->server;
 
 	do {
 		if (wdata->cfile->invalidHandle) {
@@ -2242,7 +2247,7 @@ cifs_uncached_retry_writev(struct cifs_writedata *wdata)
 			if (rc != 0)
 				continue;
 		}
-		rc = cifs_async_writev(wdata);
+		rc = server->ops->async_writev(wdata);
 	} while (rc == -EAGAIN);
 
 	return rc;
@@ -2277,6 +2282,10 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	open_file = file->private_data;
 	tcon = tlink_tcon(open_file->tlink);
+
+	if (!tcon->ses->server->ops->async_writev)
+		return -ENOSYS;
+
 	offset = *poffset;
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
