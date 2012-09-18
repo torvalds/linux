@@ -87,7 +87,7 @@ int acpi_pci_register_driver(struct acpi_pci_driver *driver)
 	list_add_tail(&driver->node, &acpi_pci_drivers);
 	if (driver->add)
 		list_for_each_entry(root, &acpi_pci_roots, node) {
-			driver->add(root->device->handle);
+			driver->add(root);
 			n++;
 		}
 	mutex_unlock(&acpi_pci_root_lock);
@@ -104,7 +104,7 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 	list_del(&driver->node);
 	if (driver->remove)
 		list_for_each_entry(root, &acpi_pci_roots, node)
-			driver->remove(root->device->handle);
+			driver->remove(root);
 	mutex_unlock(&acpi_pci_root_lock);
 }
 EXPORT_SYMBOL(acpi_pci_unregister_driver);
@@ -629,7 +629,7 @@ static int acpi_pci_root_start(struct acpi_device *device)
 	mutex_lock(&acpi_pci_root_lock);
 	list_for_each_entry(driver, &acpi_pci_drivers, node)
 		if (driver->add)
-			driver->add(device->handle);
+			driver->add(root);
 	mutex_unlock(&acpi_pci_root_lock);
 
 	pci_bus_add_devices(root->bus);
@@ -645,7 +645,7 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type)
 	mutex_lock(&acpi_pci_root_lock);
 	list_for_each_entry(driver, &acpi_pci_drivers, node)
 		if (driver->remove)
-			driver->remove(root->device->handle);
+			driver->remove(root);
 	mutex_unlock(&acpi_pci_root_lock);
 
 	device_set_run_wake(root->bus->bridge, false);

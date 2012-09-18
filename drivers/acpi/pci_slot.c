@@ -67,8 +67,8 @@ struct acpi_pci_slot {
 	struct list_head list;		/* node in the list of slots */
 };
 
-static int acpi_pci_slot_add(acpi_handle handle);
-static void acpi_pci_slot_remove(acpi_handle handle);
+static int acpi_pci_slot_add(struct acpi_pci_root *root);
+static void acpi_pci_slot_remove(struct acpi_pci_root *root);
 
 static LIST_HEAD(slot_list);
 static DEFINE_MUTEX(slot_list_lock);
@@ -295,11 +295,11 @@ walk_root_bridge(acpi_handle handle, acpi_walk_callback user_function)
  * @handle: points to an acpi_pci_root
  */
 static int
-acpi_pci_slot_add(acpi_handle handle)
+acpi_pci_slot_add(struct acpi_pci_root *root)
 {
 	acpi_status status;
 
-	status = walk_root_bridge(handle, register_slot);
+	status = walk_root_bridge(root->device->handle, register_slot);
 	if (ACPI_FAILURE(status))
 		err("%s: register_slot failure - %d\n", __func__, status);
 
@@ -311,10 +311,11 @@ acpi_pci_slot_add(acpi_handle handle)
  * @handle: points to an acpi_pci_root
  */
 static void
-acpi_pci_slot_remove(acpi_handle handle)
+acpi_pci_slot_remove(struct acpi_pci_root *root)
 {
 	struct acpi_pci_slot *slot, *tmp;
 	struct pci_bus *pbus;
+	acpi_handle handle = root->device->handle;
 
 	mutex_lock(&slot_list_lock);
 	list_for_each_entry_safe(slot, tmp, &slot_list, list) {
