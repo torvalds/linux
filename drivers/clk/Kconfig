@@ -42,10 +42,12 @@ config COMMON_CLK_WM831X
 
 config COMMON_CLK_VERSATILE
 	bool "Clock driver for ARM Reference designs"
-	depends on ARCH_INTEGRATOR || ARCH_REALVIEW
+	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || ARCH_VEXPRESS
 	---help---
-          Supports clocking on ARM Reference designs Integrator/AP,
-	  Integrator/CP, RealView PB1176, EB, PB11MP and PBX.
+          Supports clocking on ARM Reference designs:
+	  - Integrator/AP and Integrator/CP
+	  - RealView PB1176, EB, PB11MP and PBX
+	  - Versatile Express
 
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77686 MFD"

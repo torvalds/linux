@@ -56,6 +56,8 @@
 #define SCCTRL_TIMEREN1SEL_REFCLK	(0 << 17)
 #define SCCTRL_TIMEREN1SEL_TIMCLK	(1 << 17)
 
+#define SCCTRL_TIMERENnSEL_SHIFT(n)	(15 + ((n) * 2))
+
 static inline void sysctl_soft_reset(void __iomem *base)
 {
 	/* switch to slow mode */
