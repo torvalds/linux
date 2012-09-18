@@ -2732,6 +2732,10 @@ restart_loop:
 	cifs_stats_bytes_read(tcon, total_read);
 	*poffset += total_read;
 
+	/* mask nodata case */
+	if (rc == -ENODATA)
+		rc = 0;
+
 	return total_read ? total_read : rc;
 }
 

@@ -464,27 +464,9 @@ extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 			unsigned char *p24);
 
-/* asynchronous read support */
-struct cifs_readdata {
-	struct kref			refcount;
-	struct list_head		list;
-	struct completion		done;
-	struct cifsFileInfo		*cfile;
-	struct address_space		*mapping;
-	__u64				offset;
-	unsigned int			bytes;
-	pid_t				pid;
-	int				result;
-	struct list_head		pages;
-	struct work_struct		work;
-	int (*marshal_iov) (struct cifs_readdata *rdata,
-			    unsigned int remaining);
-	unsigned int			nr_iov;
-	struct kvec			iov[1];
-};
-
 void cifs_readdata_release(struct kref *refcount);
 int cifs_async_readv(struct cifs_readdata *rdata);
+int cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid);
 
 /* asynchronous write support */
 struct cifs_writedata {

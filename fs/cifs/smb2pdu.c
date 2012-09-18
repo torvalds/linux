@@ -31,6 +31,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/vfs.h>
+#include <linux/task_io_accounting_ops.h>
 #include <linux/uaccess.h>
 #include <linux/xattr.h>
 #include "smb2pdu.h"
@@ -42,6 +43,7 @@
 #include "cifs_debug.h"
 #include "ntlmssp.h"
 #include "smb2status.h"
+#include "smb2glob.h"
 
 /*
  *  The following table defines the expected "StructureSize" of SMB2 requests
@@ -1188,5 +1190,140 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 		cifs_stats_fail_inc(tcon, SMB2_FLUSH_HE);
 
 	free_rsp_buf(resp_buftype, iov[0].iov_base);
+	return rc;
+}
+
+/*
+ * To form a chain of read requests, any read requests after the first should
+ * have the end_of_chain boolean set to true.
+ */
+static int
+smb2_new_read_req(struct kvec *iov, struct cifs_io_parms *io_parms,
+		  unsigned int remaining_bytes, int request_type)
+{
+	int rc = -EACCES;
+	struct smb2_read_req *req = NULL;
+
+	rc = small_smb2_init(SMB2_READ, io_parms->tcon, (void **) &req);
+	if (rc)
+		return rc;
+	if (io_parms->tcon->ses->server == NULL)
+		return -ECONNABORTED;
+
+	req->hdr.ProcessId = cpu_to_le32(io_parms->pid);
+
+	req->PersistentFileId = io_parms->persistent_fid;
+	req->VolatileFileId = io_parms->volatile_fid;
+	req->ReadChannelInfoOffset = 0; /* reserved */
+	req->ReadChannelInfoLength = 0; /* reserved */
+	req->Channel = 0; /* reserved */
+	req->MinimumCount = 0;
+	req->Length = cpu_to_le32(io_parms->length);
+	req->Offset = cpu_to_le64(io_parms->offset);
+
+	if (request_type & CHAINED_REQUEST) {
+		if (!(request_type & END_OF_CHAIN)) {
+			/* 4 for rfc1002 length field */
+			req->hdr.NextCommand =
+				cpu_to_le32(get_rfc1002_length(req) + 4);
+		} else /* END_OF_CHAIN */
+			req->hdr.NextCommand = 0;
+		if (request_type & RELATED_REQUEST) {
+			req->hdr.Flags |= SMB2_FLAGS_RELATED_OPERATIONS;
+			/*
+			 * Related requests use info from previous read request
+			 * in chain.
+			 */
+			req->hdr.SessionId = 0xFFFFFFFF;
+			req->hdr.TreeId = 0xFFFFFFFF;
+			req->PersistentFileId = 0xFFFFFFFF;
+			req->VolatileFileId = 0xFFFFFFFF;
+		}
+	}
+	if (remaining_bytes > io_parms->length)
+		req->RemainingBytes = cpu_to_le32(remaining_bytes);
+	else
+		req->RemainingBytes = 0;
+
+	iov[0].iov_base = (char *)req;
+	/* 4 for rfc1002 length field */
+	iov[0].iov_len = get_rfc1002_length(req) + 4;
+	return rc;
+}
+
+static void
+smb2_readv_callback(struct mid_q_entry *mid)
+{
+	struct cifs_readdata *rdata = mid->callback_data;
+	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
+	struct TCP_Server_Info *server = tcon->ses->server;
+	struct smb2_hdr *buf = (struct smb2_hdr *)rdata->iov[0].iov_base;
+	unsigned int credits_received = 1;
+
+	cFYI(1, "%s: mid=%llu state=%d result=%d bytes=%u", __func__,
+		mid->mid, mid->mid_state, rdata->result, rdata->bytes);
+
+	switch (mid->mid_state) {
+	case MID_RESPONSE_RECEIVED:
+		credits_received = le16_to_cpu(buf->CreditRequest);
+		/* result already set, check signature */
+		/* if (server->sec_mode &
+		    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+			if (smb2_verify_signature(mid->resp_buf, server))
+				cERROR(1, "Unexpected SMB signature"); */
+		/* FIXME: should this be counted toward the initiating task? */
+		task_io_account_read(rdata->bytes);
+		cifs_stats_bytes_read(tcon, rdata->bytes);
+		break;
+	case MID_REQUEST_SUBMITTED:
+	case MID_RETRY_NEEDED:
+		rdata->result = -EAGAIN;
+		break;
+	default:
+		if (rdata->result != -ENODATA)
+			rdata->result = -EIO;
+	}
+
+	if (rdata->result)
+		cifs_stats_fail_inc(tcon, SMB2_READ_HE);
+
+	queue_work(cifsiod_wq, &rdata->work);
+	DeleteMidQEntry(mid);
+	add_credits(server, credits_received, 0);
+}
+
+/* smb2_async_readv - send an async write, and set up mid to handle result */
+int
+smb2_async_readv(struct cifs_readdata *rdata)
+{
+	int rc;
+	struct smb2_hdr *buf;
+	struct cifs_io_parms io_parms;
+
+	cFYI(1, "%s: offset=%llu bytes=%u", __func__,
+		rdata->offset, rdata->bytes);
+
+	io_parms.tcon = tlink_tcon(rdata->cfile->tlink);
+	io_parms.offset = rdata->offset;
+	io_parms.length = rdata->bytes;
+	io_parms.persistent_fid = rdata->cfile->fid.persistent_fid;
+	io_parms.volatile_fid = rdata->cfile->fid.volatile_fid;
+	io_parms.pid = rdata->pid;
+	rc = smb2_new_read_req(&rdata->iov[0], &io_parms, 0, 0);
+	if (rc)
+		return rc;
+
+	buf = (struct smb2_hdr *)rdata->iov[0].iov_base;
+	/* 4 for rfc1002 length field */
+	rdata->iov[0].iov_len = get_rfc1002_length(rdata->iov[0].iov_base) + 4;
+
+	kref_get(&rdata->refcount);
+	rc = cifs_call_async(io_parms.tcon->ses->server, rdata->iov, 1,
+			     cifs_readv_receive, smb2_readv_callback,
+			     rdata, 0);
+	if (rc)
+		kref_put(&rdata->refcount, cifs_readdata_release);
+
+	cifs_small_buf_release(buf);
 	return rc;
 }

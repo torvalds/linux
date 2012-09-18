@@ -379,6 +379,20 @@ smb2_flush_file(const unsigned int xid, struct cifs_tcon *tcon,
 	return SMB2_flush(xid, tcon, fid->persistent_fid, fid->volatile_fid);
 }
 
+static unsigned int
+smb2_read_data_offset(char *buf)
+{
+	struct smb2_read_rsp *rsp = (struct smb2_read_rsp *)buf;
+	return rsp->DataOffset;
+}
+
+static unsigned int
+smb2_read_data_length(char *buf)
+{
+	struct smb2_read_rsp *rsp = (struct smb2_read_rsp *)buf;
+	return le32_to_cpu(rsp->DataLength);
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -388,6 +402,9 @@ struct smb_version_operations smb21_operations = {
 	.get_credits_field = smb2_get_credits_field,
 	.get_credits = smb2_get_credits,
 	.get_next_mid = smb2_get_next_mid,
+	.read_data_offset = smb2_read_data_offset,
+	.read_data_length = smb2_read_data_length,
+	.map_error = map_smb2_to_linux_error,
 	.find_mid = smb2_find_mid,
 	.check_message = smb2_check_message,
 	.dump_detail = smb2_dump_detail,
@@ -416,12 +433,14 @@ struct smb_version_operations smb21_operations = {
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
 	.flush = smb2_flush_file,
+	.async_readv = smb2_async_readv,
 };
 
 struct smb_version_values smb21_values = {
 	.version_string = SMB21_VERSION_STRING,
 	.header_size = sizeof(struct smb2_hdr),
 	.max_header_size = MAX_SMB2_HDR_SIZE,
+	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
 	.lock_cmd = SMB2_LOCK,
 	.cap_unix = 0,
 	.cap_nt_find = SMB2_NT_FIND,

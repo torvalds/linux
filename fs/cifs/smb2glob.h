@@ -41,4 +41,10 @@
 #define SMB2_OP_RENAME 6
 #define SMB2_OP_DELETE 7
 
+/* Used when constructing chained read requests. */
+#define CHAINED_REQUEST 1
+#define START_OF_CHAIN 2
+#define END_OF_CHAIN 4
+#define RELATED_REQUEST 8
+
 #endif	/* _SMB2_GLOB_H */
