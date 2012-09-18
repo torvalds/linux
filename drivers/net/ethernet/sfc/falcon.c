@@ -21,7 +21,7 @@
 #include "efx.h"
 #include "spi.h"
 #include "nic.h"
-#include "regs.h"
+#include "farch_regs.h"
 #include "io.h"
 #include "phy.h"
 #include "workarounds.h"

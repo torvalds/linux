@@ -15,7 +15,7 @@
 #include "mcdi.h"
 #include "filter.h"
 #include "mcdi_pcol.h"
-#include "regs.h"
+#include "farch_regs.h"
 #include "vfdi.h"
 
 /* Number of longs required to track all the VIs in a VF */

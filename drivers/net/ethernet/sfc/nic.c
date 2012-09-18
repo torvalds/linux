@@ -19,7 +19,7 @@
 #include "bitfield.h"
 #include "efx.h"
 #include "nic.h"
-#include "regs.h"
+#include "farch_regs.h"
 #include "io.h"
 #include "workarounds.h"
 

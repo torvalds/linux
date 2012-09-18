@@ -13,7 +13,7 @@
 #include "filter.h"
 #include "io.h"
 #include "nic.h"
-#include "regs.h"
+#include "farch_regs.h"
 
 /* "Fudge factors" - difference between programmed value and actual depth.
  * Due to pipelined implementation we need to program H/W with a value that

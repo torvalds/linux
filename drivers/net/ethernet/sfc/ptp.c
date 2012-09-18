@@ -46,7 +46,7 @@
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 #include "io.h"
-#include "regs.h"
+#include "farch_regs.h"
 #include "nic.h"
 
 /* Maximum number of events expected to make up a PTP event */

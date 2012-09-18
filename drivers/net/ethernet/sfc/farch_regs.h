@@ -8,8 +8,8 @@
  * by the Free Software Foundation, incorporated herein by reference.
  */
 
-#ifndef EFX_REGS_H
-#define EFX_REGS_H
+#ifndef EFX_FARCH_REGS_H
+#define EFX_FARCH_REGS_H
 
 /*
  * Falcon hardware architecture definitions have a name prefix following
@@ -2925,4 +2925,4 @@
 #define FSF_AZ_DRV_GEN_EV_MAGIC_LBN 0
 #define FSF_AZ_DRV_GEN_EV_MAGIC_WIDTH 32
 
-#endif /* EFX_REGS_H */
+#endif /* EFX_FARCH_REGS_H */

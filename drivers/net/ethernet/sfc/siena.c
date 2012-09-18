@@ -19,7 +19,7 @@
 #include "efx.h"
 #include "nic.h"
 #include "spi.h"
-#include "regs.h"
+#include "farch_regs.h"
 #include "io.h"
 #include "phy.h"
 #include "workarounds.h"
