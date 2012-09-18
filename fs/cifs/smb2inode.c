@@ -54,7 +54,7 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
 		       desired_access, create_disposition, file_attributes,
-		       create_options);
+		       create_options, NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;
@@ -86,7 +86,7 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static void
+void
 move_smb2_info_to_cifs(FILE_ALL_INFO *dst, struct smb2_file_all_info *src)
 {
 	memcpy(dst, src, (size_t)(&src->CurrentByteOffset) - (size_t)src);

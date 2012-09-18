@@ -48,6 +48,8 @@ extern int smb2_setup_async_request(struct TCP_Server_Info *server,
 				    struct mid_q_entry **ret_mid);
 extern void smb2_echo_request(struct work_struct *work);
 
+extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
+				   struct smb2_file_all_info *src);
 extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 				struct cifs_sb_info *cifs_sb,
 				const char *full_path, FILE_ALL_INFO *data,
@@ -61,6 +63,12 @@ extern int smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon,
 		      const char *name, struct cifs_sb_info *cifs_sb);
 extern int smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon,
 		       const char *name, struct cifs_sb_info *cifs_sb);
+
+extern int smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon,
+			  const char *full_path, int disposition,
+			  int desired_access, int create_options,
+			  struct cifs_fid *fid, __u32 *oplock,
+			  FILE_ALL_INFO *buf, struct cifs_sb_info *cifs_sb);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
@@ -77,12 +85,16 @@ extern int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 extern int SMB2_open(const unsigned int xid, struct cifs_tcon *tcon,
 		     __le16 *path, u64 *persistent_fid, u64 *volatile_fid,
 		     __u32 desired_access, __u32 create_disposition,
-		     __u32 file_attributes, __u32 create_options);
+		     __u32 file_attributes, __u32 create_options,
+		     struct smb2_file_all_info *buf);
 extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
 extern int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			   u64 persistent_file_id, u64 volatile_file_id,
 			   struct smb2_file_all_info *data);
+extern int SMB2_get_srv_num(const unsigned int xid, struct cifs_tcon *tcon,
+			    u64 persistent_fid, u64 volatile_fid,
+			    __le64 *uniqueid);
 extern int SMB2_echo(struct TCP_Server_Info *server);
 
 #endif			/* _SMB2PROTO_H */

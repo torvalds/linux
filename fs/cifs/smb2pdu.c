@@ -833,7 +833,8 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 int
 SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	  u64 *persistent_fid, u64 *volatile_fid, __u32 desired_access,
-	  __u32 create_disposition, __u32 file_attributes, __u32 create_options)
+	  __u32 create_disposition, __u32 file_attributes, __u32 create_options,
+	  struct smb2_file_all_info *buf)
 {
 	struct smb2_create_req *req;
 	struct smb2_create_rsp *rsp;
@@ -856,9 +857,9 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	if (rc)
 		return rc;
 
-	if (enable_oplocks)
+	/* if (server->oplocks)
 		req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_BATCH;
-	else
+	else */
 		req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_NONE;
 	req->ImpersonationLevel = IL_IMPERSONATION;
 	req->DesiredAccess = cpu_to_le32(desired_access);
@@ -906,6 +907,15 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	}
 	*persistent_fid = rsp->PersistentFileId;
 	*volatile_fid = rsp->VolatileFileId;
+
+	if (buf) {
+		memcpy(buf, &rsp->CreationTime, 32);
+		buf->AllocationSize = rsp->AllocationSize;
+		buf->EndOfFile = rsp->EndofFile;
+		buf->Attributes = rsp->FileAttributes;
+		buf->NumberOfLinks = cpu_to_le32(1);
+		buf->DeletePending = 0;
+	}
 creat_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
@@ -1019,10 +1029,10 @@ validate_and_copy_buf(unsigned int offset, unsigned int buffer_length,
 	return 0;
 }
 
-int
-SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
-		u64 persistent_fid, u64 volatile_fid,
-		struct smb2_file_all_info *data)
+static int
+query_info(const unsigned int xid, struct cifs_tcon *tcon,
+	   u64 persistent_fid, u64 volatile_fid, u8 info_class,
+	   size_t output_len, size_t min_len, void *data)
 {
 	struct smb2_query_info_req *req;
 	struct smb2_query_info_rsp *rsp = NULL;
@@ -1044,14 +1054,13 @@ SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		return rc;
 
 	req->InfoType = SMB2_O_INFO_FILE;
-	req->FileInfoClass = FILE_ALL_INFORMATION;
+	req->FileInfoClass = info_class;
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
 	/* 4 for rfc1002 length field and 1 for Buffer */
 	req->InputBufferOffset =
 		cpu_to_le16(sizeof(struct smb2_query_info_req) - 1 - 4);
-	req->OutputBufferLength =
-		cpu_to_le32(sizeof(struct smb2_file_all_info) + MAX_NAME * 2);
+	req->OutputBufferLength = cpu_to_le32(output_len);
 
 	iov[0].iov_base = (char *)req;
 	/* 4 for rfc1002 length field */
@@ -1067,12 +1076,32 @@ SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = validate_and_copy_buf(le16_to_cpu(rsp->OutputBufferOffset),
 				   le32_to_cpu(rsp->OutputBufferLength),
-				   &rsp->hdr, sizeof(struct smb2_file_all_info),
-				   (char *)data);
+				   &rsp->hdr, min_len, data);
 
 qinf_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
+}
+
+int
+SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid,
+		struct smb2_file_all_info *data)
+{
+	return query_info(xid, tcon, persistent_fid, volatile_fid,
+			  FILE_ALL_INFORMATION,
+			  sizeof(struct smb2_file_all_info) + MAX_NAME * 2,
+			  sizeof(struct smb2_file_all_info), data);
+}
+
+int
+SMB2_get_srv_num(const unsigned int xid, struct cifs_tcon *tcon,
+		 u64 persistent_fid, u64 volatile_fid, __le64 *uniqueid)
+{
+	return query_info(xid, tcon, persistent_fid, volatile_fid,
+			  FILE_INTERNAL_INFORMATION,
+			  sizeof(struct smb2_file_internal_info),
+			  sizeof(struct smb2_file_internal_info), uniqueid);
 }
 
 /*

@@ -757,6 +757,10 @@ struct cifs_search_info {
 
 struct cifs_fid {
 	__u16 netfid;
+#ifdef CONFIG_CIFS_SMB2
+	__u64 persistent_fid;	/* persist file id for smb2 */
+	__u64 volatile_fid;	/* volatile file id for smb2 */
+#endif
 };
 
 struct cifsFileInfo {

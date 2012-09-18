@@ -170,7 +170,7 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 		return -ENOMEM;
 
 	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
-		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0);
+		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0, NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;
@@ -292,6 +292,23 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 #endif
 }
 
+static void
+smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
+{
+	/* struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode); */
+	cfile->fid.persistent_fid = fid->persistent_fid;
+	cfile->fid.volatile_fid = fid->volatile_fid;
+	/* cifs_set_oplock_level(cinode, oplock); */
+	/* cinode->can_cache_brlcks = cinode->clientCanCacheAll; */
+}
+
+static int
+smb2_close_file(const unsigned int xid, struct cifs_tcon *tcon,
+		struct cifs_fid *fid)
+{
+	return SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -322,6 +339,9 @@ struct smb_version_operations smb21_operations = {
 	.mkdir_setinfo = smb2_mkdir_setinfo,
 	.rmdir = smb2_rmdir,
 	.unlink = smb2_unlink,
+	.open = smb2_open_file,
+	.set_fid = smb2_set_fid,
+	.close = smb2_close_file,
 };
 
 struct smb_version_values smb21_values = {
