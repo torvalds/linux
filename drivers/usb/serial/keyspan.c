@@ -45,8 +45,6 @@
 #include <linux/usb/serial.h>
 #include "keyspan.h"
 
-static bool debug;
-
 /*
  * Version Information
  */
@@ -2558,7 +2556,3 @@ MODULE_FIRMWARE("keyspan/usa18x.fw");
 MODULE_FIRMWARE("keyspan/usa19w.fw");
 MODULE_FIRMWARE("keyspan/usa49w.fw");
 MODULE_FIRMWARE("keyspan/usa49wlc.fw");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
-
