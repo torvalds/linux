@@ -50,12 +50,9 @@ static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
 	return &nic_data->mcdi;
 }
 
-void efx_mcdi_init(struct efx_nic *efx)
+int efx_mcdi_init(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
-
-	if (efx_nic_rev(efx) < EFX_REV_SIENA_A0)
-		return;
 
 	mcdi = efx_mcdi(efx);
 	init_waitqueue_head(&mcdi->wq);
@@ -64,6 +61,9 @@ void efx_mcdi_init(struct efx_nic *efx)
 	mcdi->mode = MCDI_MODE_POLL;
 
 	(void) efx_mcdi_poll_reboot(efx);
+
+	/* Recover from a failed assertion before probing */
+	return efx_mcdi_handle_assertion(efx);
 }
 
 static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,

@@ -65,7 +65,7 @@ struct efx_mcdi_mon {
 	unsigned int n_attrs;
 };
 
-extern void efx_mcdi_init(struct efx_nic *efx);
+extern int efx_mcdi_init(struct efx_nic *efx);
 
 extern int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 			const efx_dword_t *inbuf, size_t inlen,

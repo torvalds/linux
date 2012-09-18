@@ -210,10 +210,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
 	efx->port_num = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
 
-	efx_mcdi_init(efx);
-
-	/* Recover from a failed assertion before probing */
-	rc = efx_mcdi_handle_assertion(efx);
+	rc = efx_mcdi_init(efx);
 	if (rc)
 		goto fail1;
 
