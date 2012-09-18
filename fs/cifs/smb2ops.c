@@ -18,12 +18,14 @@
  */
 
 #include <linux/pagemap.h>
+#include <linux/vfs.h>
 #include "cifsglob.h"
 #include "smb2pdu.h"
 #include "smb2proto.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "smb2status.h"
+#include "smb2glob.h"
 
 static int
 change_conf(struct TCP_Server_Info *server)
@@ -522,6 +524,25 @@ smb2_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
 				 cinode->clientCanCacheRead ? 1 : 0);
 }
 
+static int
+smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
+	     struct kstatfs *buf)
+{
+	int rc;
+	u64 persistent_fid, volatile_fid;
+	__le16 srch_path = 0; /* Null - open root of share */
+	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+
+	rc = SMB2_open(xid, tcon, &srch_path, &persistent_fid, &volatile_fid,
+		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0, &oplock, NULL);
+	if (rc)
+		return rc;
+	buf->f_type = SMB2_MAGIC_NUMBER;
+	rc = SMB2_QFS_info(xid, tcon, persistent_fid, volatile_fid, buf);
+	SMB2_close(xid, tcon, persistent_fid, volatile_fid);
+	return rc;
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
@@ -578,6 +599,7 @@ struct smb_version_operations smb21_operations = {
 	.calc_smb_size = smb2_calc_size,
 	.is_status_pending = smb2_is_status_pending,
 	.oplock_response = smb2_oplock_response,
+	.queryfs = smb2_queryfs,
 };
 
 struct smb_version_values smb21_values = {

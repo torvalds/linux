@@ -23,6 +23,8 @@
 #ifndef _SMB2_GLOB_H
 #define _SMB2_GLOB_H
 
+#define SMB2_MAGIC_NUMBER 0xFE534D42
+
 /*
  *****************************************************************
  * Constants go here
