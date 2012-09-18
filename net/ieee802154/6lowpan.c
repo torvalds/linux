@@ -1256,7 +1256,7 @@ static int lowpan_device_event(struct notifier_block *unused,
 		}
 
 		unregister_netdevice_many(&del_list);
-	};
+	}
 
 out:
 	return NOTIFY_DONE;
