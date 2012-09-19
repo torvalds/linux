@@ -56,6 +56,43 @@ void pci_remove_bus(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_remove_bus);
 
+static void pci_stop_bus_device(struct pci_dev *dev)
+{
+	struct pci_bus *bus = dev->subordinate;
+	struct pci_dev *child, *tmp;
+
+	/*
+	 * Stopping an SR-IOV PF device removes all the associated VFs,
+	 * which will update the bus->devices list and confuse the
+	 * iterator.  Therefore, iterate in reverse so we remove the VFs
+	 * first, then the PF.
+	 */
+	if (bus) {
+		list_for_each_entry_safe_reverse(child, tmp,
+						 &bus->devices, bus_list)
+			pci_stop_bus_device(child);
+	}
+
+	pci_stop_dev(dev);
+}
+
+static void pci_remove_bus_device(struct pci_dev *dev)
+{
+	struct pci_bus *bus = dev->subordinate;
+	struct pci_dev *child, *tmp;
+
+	if (bus) {
+		list_for_each_entry_safe(child, tmp,
+					 &bus->devices, bus_list)
+			pci_remove_bus_device(child);
+
+		pci_remove_bus(bus);
+		dev->subordinate = NULL;
+	}
+
+	pci_destroy_dev(dev);
+}
+
 /**
  * pci_stop_and_remove_bus_device - remove a PCI device and any children
  * @dev: the device to remove
@@ -70,25 +107,7 @@ EXPORT_SYMBOL(pci_remove_bus);
  */
 void pci_stop_and_remove_bus_device(struct pci_dev *dev)
 {
-	struct pci_bus *bus = dev->subordinate;
-	struct pci_dev *child, *tmp;
-
-	/*
-	 * Removing an SR-IOV PF device removes all the associated VFs,
-	 * which will update the bus->devices list and confuse the
-	 * iterator.  Therefore, iterate in reverse so we remove the VFs
-	 * first, then the PF.
-	 */
-	if (bus) {
-		list_for_each_entry_safe_reverse(child, tmp,
-						 &bus->devices, bus_list)
-			pci_stop_and_remove_bus_device(child);
-
-		pci_remove_bus(bus);
-		dev->subordinate = NULL;
-	}
-
-	pci_stop_dev(dev);
-	pci_destroy_dev(dev);
+	pci_stop_bus_device(dev);
+	pci_remove_bus_device(dev);
 }
 EXPORT_SYMBOL(pci_stop_and_remove_bus_device);
