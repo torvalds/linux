@@ -361,6 +361,12 @@ struct smb_version_operations {
 				 const unsigned int);
 	/* push brlocks from the cache to the server */
 	int (*push_mand_locks)(struct cifsFileInfo *);
+	/* get lease key of the inode */
+	void (*get_lease_key)(struct inode *, struct cifs_fid *fid);
+	/* set lease key of the inode */
+	void (*set_lease_key)(struct inode *, struct cifs_fid *fid);
+	/* generate new lease key */
+	void (*new_lease_key)(struct cifs_fid *fid);
 };
 
 struct smb_version_values {
@@ -895,6 +901,7 @@ struct cifs_fid {
 #ifdef CONFIG_CIFS_SMB2
 	__u64 persistent_fid;	/* persist file id for smb2 */
 	__u64 volatile_fid;	/* volatile file id for smb2 */
+	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for smb2 */
 #endif
 };
 
@@ -1012,6 +1019,9 @@ struct cifsInodeInfo {
 	u64  server_eof;		/* current file size on server -- protected by i_lock */
 	u64  uniqueid;			/* server inode number */
 	u64  createtime;		/* creation time on server */
+#ifdef CONFIG_CIFS_SMB2
+	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for this inode */
+#endif
 #ifdef CONFIG_CIFS_FSCACHE
 	struct fscache_cookie *fscache;
 #endif

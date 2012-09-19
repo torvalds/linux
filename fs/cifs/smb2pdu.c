@@ -304,7 +304,7 @@ free_rsp_buf(int resp_buftype, void *rsp)
 		cifs_buf_release(rsp);
 }
 
-#define SMB2_NUM_PROT 1
+#define SMB2_NUM_PROT 2
 
 #define SMB2_PROT   0
 #define SMB21_PROT  1
@@ -392,6 +392,8 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	req->SecurityMode = cpu_to_le16(temp);
 
 	req->Capabilities = cpu_to_le32(SMB2_GLOBAL_CAP_DFS);
+
+	memcpy(req->ClientGUID, cifs_client_guid, SMB2_CLIENT_GUID_SIZE);
 
 	iov[0].iov_base = (char *)req;
 	/* 4 for rfc1002 length field */
@@ -868,6 +870,83 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	return rc;
 }
 
+static struct create_lease *
+create_lease_buf(u8 *lease_key, u8 oplock)
+{
+	struct create_lease *buf;
+
+	buf = kmalloc(sizeof(struct create_lease), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	memset(buf, 0, sizeof(struct create_lease));
+
+	buf->lcontext.LeaseKeyLow = cpu_to_le64(*((u64 *)lease_key));
+	buf->lcontext.LeaseKeyHigh = cpu_to_le64(*((u64 *)(lease_key + 8)));
+	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE)
+		buf->lcontext.LeaseState = SMB2_LEASE_WRITE_CACHING |
+					   SMB2_LEASE_READ_CACHING;
+	else if (oplock == SMB2_OPLOCK_LEVEL_II)
+		buf->lcontext.LeaseState = SMB2_LEASE_READ_CACHING;
+	else if (oplock == SMB2_OPLOCK_LEVEL_BATCH)
+		buf->lcontext.LeaseState = SMB2_LEASE_HANDLE_CACHING |
+					   SMB2_LEASE_READ_CACHING |
+					   SMB2_LEASE_WRITE_CACHING;
+
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof
+					(struct create_lease, lcontext));
+	buf->ccontext.DataLength = cpu_to_le32(sizeof(struct lease_context));
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct create_lease, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+	buf->Name[0] = 'R';
+	buf->Name[1] = 'q';
+	buf->Name[2] = 'L';
+	buf->Name[3] = 's';
+	return buf;
+}
+
+static __u8
+parse_lease_state(struct smb2_create_rsp *rsp)
+{
+	char *data_offset;
+	struct create_lease *lc;
+	__u8 oplock = 0;
+	bool found = false;
+
+	data_offset = (char *)rsp;
+	data_offset += 4 + le32_to_cpu(rsp->CreateContextsOffset);
+	lc = (struct create_lease *)data_offset;
+	do {
+		char *name = le16_to_cpu(lc->ccontext.NameOffset) + (char *)lc;
+		if (le16_to_cpu(lc->ccontext.NameLength) != 4 ||
+		    strncmp(name, "RqLs", 4)) {
+			lc = (struct create_lease *)((char *)lc
+					+ le32_to_cpu(lc->ccontext.Next));
+			continue;
+		}
+		if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS)
+			return SMB2_OPLOCK_LEVEL_NOCHANGE;
+		found = true;
+		break;
+	} while (le32_to_cpu(lc->ccontext.Next) != 0);
+
+	if (!found)
+		return oplock;
+
+	if (le32_to_cpu(lc->lcontext.LeaseState) & SMB2_LEASE_WRITE_CACHING) {
+		if (le32_to_cpu(lc->lcontext.LeaseState) &
+						SMB2_LEASE_HANDLE_CACHING)
+			oplock = SMB2_OPLOCK_LEVEL_BATCH;
+		else
+			oplock = SMB2_OPLOCK_LEVEL_EXCLUSIVE;
+	} else if (le32_to_cpu(lc->lcontext.LeaseState) &
+						SMB2_LEASE_READ_CACHING)
+		oplock = SMB2_OPLOCK_LEVEL_II;
+
+	return oplock;
+}
+
 int
 SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	  u64 *persistent_fid, u64 *volatile_fid, __u32 desired_access,
@@ -878,9 +957,11 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	struct smb2_create_rsp *rsp;
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;
-	struct kvec iov[2];
+	struct kvec iov[3];
 	int resp_buftype;
 	int uni_path_len;
+	__le16 *copy_path = NULL;
+	int copy_size;
 	int rc = 0;
 	int num_iovecs = 2;
 
@@ -895,10 +976,6 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	if (rc)
 		return rc;
 
-	if (server->oplocks)
-		req->RequestedOplockLevel = *oplock;
-	else
-		req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_NONE;
 	req->ImpersonationLevel = IL_IMPERSONATION;
 	req->DesiredAccess = cpu_to_le32(desired_access);
 	/* File attributes ignored on open (used in create though) */
@@ -908,7 +985,7 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	req->CreateOptions = cpu_to_le32(create_options);
 	uni_path_len = (2 * UniStrnlen((wchar_t *)path, PATH_MAX)) + 2;
 	req->NameOffset = cpu_to_le16(sizeof(struct smb2_create_req)
-			- 1 /* pad */ - 4 /* do not count rfc1001 len field */);
+			- 8 /* pad */ - 4 /* do not count rfc1001 len field */);
 
 	iov[0].iov_base = (char *)req;
 	/* 4 for rfc1002 length field */
@@ -919,6 +996,20 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 		req->NameLength = cpu_to_le16(uni_path_len - 2);
 		/* -1 since last byte is buf[0] which is sent below (path) */
 		iov[0].iov_len--;
+		if (uni_path_len % 8 != 0) {
+			copy_size = uni_path_len / 8 * 8;
+			if (copy_size < uni_path_len)
+				copy_size += 8;
+
+			copy_path = kzalloc(copy_size, GFP_KERNEL);
+			if (!copy_path)
+				return -ENOMEM;
+			memcpy((char *)copy_path, (const char *)path,
+				uni_path_len);
+			uni_path_len = copy_size;
+			path = copy_path;
+		}
+
 		iov[1].iov_len = uni_path_len;
 		iov[1].iov_base = path;
 		/*
@@ -927,8 +1018,35 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 		 */
 		inc_rfc1001_len(req, uni_path_len - 1);
 	} else {
+		iov[0].iov_len += 7;
+		req->hdr.smb2_buf_length = cpu_to_be32(be32_to_cpu(
+				req->hdr.smb2_buf_length) + 8 - 1);
 		num_iovecs = 1;
 		req->NameLength = 0;
+	}
+
+	if (!server->oplocks)
+		*oplock = SMB2_OPLOCK_LEVEL_NONE;
+
+	if (!(tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING) ||
+	    *oplock == SMB2_OPLOCK_LEVEL_NONE)
+		req->RequestedOplockLevel = *oplock;
+	else {
+		iov[num_iovecs].iov_base = create_lease_buf(oplock+1, *oplock);
+		if (iov[num_iovecs].iov_base == NULL) {
+			cifs_small_buf_release(req);
+			kfree(copy_path);
+			return -ENOMEM;
+		}
+		iov[num_iovecs].iov_len = sizeof(struct create_lease);
+		req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_LEASE;
+		req->CreateContextsOffset = cpu_to_le32(
+			sizeof(struct smb2_create_req) - 4 - 8 +
+			iov[num_iovecs-1].iov_len);
+		req->CreateContextsLength = cpu_to_le32(
+			sizeof(struct create_lease));
+		inc_rfc1001_len(&req->hdr, sizeof(struct create_lease));
+		num_iovecs++;
 	}
 
 	rc = SendReceive2(xid, ses, iov, num_iovecs, &resp_buftype, 0);
@@ -955,8 +1073,12 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 		buf->DeletePending = 0;
 	}
 
-	*oplock = rsp->OplockLevel;
+	if (rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE)
+		*oplock = parse_lease_state(rsp);
+	else
+		*oplock = rsp->OplockLevel;
 creat_exit:
+	kfree(copy_path);
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
 }

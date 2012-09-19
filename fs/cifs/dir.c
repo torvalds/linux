@@ -340,6 +340,8 @@ cifs_create_get_file_info:
 		rc = cifs_get_inode_info(&newinode, full_path, buf, inode->i_sb,
 					 xid, &fid->netfid);
 		if (newinode) {
+			if (server->ops->set_lease_key)
+				server->ops->set_lease_key(newinode, fid);
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
 				newinode->i_mode = mode;
 			if ((*oplock & CIFS_CREATE_ACTION) &&
@@ -418,6 +420,9 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	tcon = tlink_tcon(tlink);
 	server = tcon->ses->server;
 
+	if (server->ops->new_lease_key)
+		server->ops->new_lease_key(&fid);
+
 	rc = cifs_do_create(inode, direntry, xid, tlink, oflags, mode,
 			    &oplock, &fid, opened);
 
@@ -473,10 +478,14 @@ int cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
 	if (IS_ERR(tlink))
 		goto out_free_xid;
 
-	rc = cifs_do_create(inode, direntry, xid, tlink, oflags, mode,
-			    &oplock, &fid, &created);
 	tcon = tlink_tcon(tlink);
 	server = tcon->ses->server;
+
+	if (server->ops->new_lease_key)
+		server->ops->new_lease_key(&fid);
+
+	rc = cifs_do_create(inode, direntry, xid, tlink, oflags, mode,
+			    &oplock, &fid, &created);
 	if (!rc && server->ops->close)
 		server->ops->close(xid, tcon, &fid);
 

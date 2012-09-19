@@ -177,8 +177,9 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	int disposition;
 	int create_options = CREATE_NOT_DIR;
 	FILE_ALL_INFO *buf;
+	struct TCP_Server_Info *server = tcon->ses->server;
 
-	if (!tcon->ses->server->ops->open)
+	if (!server->ops->open)
 		return -ENOSYS;
 
 	desired_access = cifs_convert_flags(f_flags);
@@ -218,9 +219,9 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
-	rc = tcon->ses->server->ops->open(xid, tcon, full_path, disposition,
-					  desired_access, create_options, fid,
-					  oplock, buf, cifs_sb);
+	rc = server->ops->open(xid, tcon, full_path, disposition,
+			       desired_access, create_options, fid, oplock, buf,
+			       cifs_sb);
 
 	if (rc)
 		goto out;
@@ -372,6 +373,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	unsigned int xid;
 	__u32 oplock;
 	struct cifs_sb_info *cifs_sb;
+	struct TCP_Server_Info *server;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
 	struct cifsFileInfo *cfile = NULL;
@@ -388,6 +390,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		return PTR_ERR(tlink);
 	}
 	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {
@@ -432,6 +435,9 @@ int cifs_open(struct inode *inode, struct file *file)
 	}
 
 	if (!posix_open_ok) {
+		if (server->ops->get_lease_key)
+			server->ops->get_lease_key(inode, &fid);
+
 		rc = cifs_nt_open(full_path, inode, cifs_sb, tcon,
 				  file->f_flags, &oplock, &fid, xid);
 		if (rc)
@@ -440,8 +446,8 @@ int cifs_open(struct inode *inode, struct file *file)
 
 	cfile = cifs_new_fileinfo(&fid, file, tlink, oplock);
 	if (cfile == NULL) {
-		if (tcon->ses->server->ops->close)
-			tcon->ses->server->ops->close(xid, tcon, &fid);
+		if (server->ops->close)
+			server->ops->close(xid, tcon, &fid);
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -566,6 +572,9 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
+	if (server->ops->get_lease_key)
+		server->ops->get_lease_key(inode, &fid);
 
 	/*
 	 * Can not refresh inode by passing in file_info buf to be returned by

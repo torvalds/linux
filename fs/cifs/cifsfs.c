@@ -36,6 +36,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/namei.h>
+#include <linux/random.h>
 #include <net/ipv6.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -87,6 +88,10 @@ extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
 struct workqueue_struct	*cifsiod_wq;
+
+#ifdef CONFIG_CIFS_SMB2
+__u8 cifs_client_guid[SMB2_CLIENT_GUID_SIZE];
+#endif
 
 static int
 cifs_read_super(struct super_block *sb)
@@ -218,9 +223,10 @@ cifs_alloc_inode(struct super_block *sb)
 		return NULL;
 	cifs_inode->cifsAttrs = 0x20;	/* default */
 	cifs_inode->time = 0;
-	/* Until the file is open and we have gotten oplock
-	info back from the server, can not assume caching of
-	file data or metadata */
+	/*
+	 * Until the file is open and we have gotten oplock info back from the
+	 * server, can not assume caching of file data or metadata.
+	 */
 	cifs_set_oplock_level(cifs_inode, 0);
 	cifs_inode->delete_pending = false;
 	cifs_inode->invalid_mapping = false;
@@ -228,10 +234,14 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->server_eof = 0;
 	cifs_inode->uniqueid = 0;
 	cifs_inode->createtime = 0;
-
-	/* Can not set i_flags here - they get immediately overwritten
-	   to zero by the VFS */
-/*	cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME;*/
+#ifdef CONFIG_CIFS_SMB2
+	get_random_bytes(cifs_inode->lease_key, SMB2_LEASE_KEY_SIZE);
+#endif
+	/*
+	 * Can not set i_flags here - they get immediately overwritten to zero
+	 * by the VFS.
+	 */
+	/* cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME; */
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
 	INIT_LIST_HEAD(&cifs_inode->llist);
 	return &cifs_inode->vfs_inode;
@@ -1106,6 +1116,10 @@ init_cifs(void)
 	spin_lock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&cifs_file_list_lock);
 	spin_lock_init(&GlobalMid_Lock);
+
+#ifdef CONFIG_CIFS_SMB2
+	get_random_bytes(cifs_client_guid, SMB2_CLIENT_GUID_SIZE);
+#endif
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;

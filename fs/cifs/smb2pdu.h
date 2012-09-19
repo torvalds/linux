@@ -150,6 +150,10 @@ struct smb2_err_rsp {
 	__u8   ErrorData[1];  /* variable length */
 } __packed;
 
+#define SMB2_CLIENT_GUID_SIZE 16
+
+extern __u8 cifs_client_guid[SMB2_CLIENT_GUID_SIZE];
+
 struct smb2_negotiate_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 36 */
@@ -157,7 +161,7 @@ struct smb2_negotiate_req {
 	__le16 SecurityMode;
 	__le16 Reserved;	/* MBZ */
 	__le32 Capabilities;
-	__u8   ClientGUID[16];	/* MBZ */
+	__u8   ClientGUID[SMB2_CLIENT_GUID_SIZE];
 	__le64 ClientStartTime;	/* MBZ */
 	__le16 Dialects[2]; /* variable length */
 } __packed;
@@ -307,6 +311,8 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_OPLOCK_LEVEL_EXCLUSIVE	0x08
 #define SMB2_OPLOCK_LEVEL_BATCH		0x09
 #define SMB2_OPLOCK_LEVEL_LEASE		0xFF
+/* Non-spec internal type */
+#define SMB2_OPLOCK_LEVEL_NOCHANGE	0x99
 
 /* Desired Access Flags */
 #define FILE_READ_DATA_LE		cpu_to_le32(0x00000001)
@@ -404,7 +410,7 @@ struct smb2_create_req {
 	__le16 NameLength;
 	__le32 CreateContextsOffset;
 	__le32 CreateContextsLength;
-	__u8   Buffer[1];
+	__u8   Buffer[8];
 } __packed;
 
 struct smb2_create_rsp {
@@ -426,6 +432,39 @@ struct smb2_create_rsp {
 	__le32 CreateContextsOffset;
 	__le32 CreateContextsLength;
 	__u8   Buffer[1];
+} __packed;
+
+struct create_context {
+	__le32 Next;
+	__le16 NameOffset;
+	__le16 NameLength;
+	__le16 Reserved;
+	__le16 DataOffset;
+	__le32 DataLength;
+	__u8 Buffer[0];
+} __packed;
+
+#define SMB2_LEASE_NONE			__constant_cpu_to_le32(0x00)
+#define SMB2_LEASE_READ_CACHING		__constant_cpu_to_le32(0x01)
+#define SMB2_LEASE_HANDLE_CACHING	__constant_cpu_to_le32(0x02)
+#define SMB2_LEASE_WRITE_CACHING	__constant_cpu_to_le32(0x04)
+
+#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS __constant_cpu_to_le32(0x02)
+
+#define SMB2_LEASE_KEY_SIZE 16
+
+struct lease_context {
+	__le64 LeaseKeyLow;
+	__le64 LeaseKeyHigh;
+	__le32 LeaseState;
+	__le32 LeaseFlags;
+	__le64 LeaseDuration;
+} __packed;
+
+struct create_lease {
+	struct create_context ccontext;
+	__u8   Name[8];
+	struct lease_context lcontext;
 } __packed;
 
 /* Currently defined values for close flags */

@@ -555,6 +555,24 @@ smb2_mand_lock(const unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
 			 current->tgid, length, offset, type, wait);
 }
 
+static void
+smb2_get_lease_key(struct inode *inode, struct cifs_fid *fid)
+{
+	memcpy(fid->lease_key, CIFS_I(inode)->lease_key, SMB2_LEASE_KEY_SIZE);
+}
+
+static void
+smb2_set_lease_key(struct inode *inode, struct cifs_fid *fid)
+{
+	memcpy(CIFS_I(inode)->lease_key, fid->lease_key, SMB2_LEASE_KEY_SIZE);
+}
+
+static void
+smb2_new_lease_key(struct cifs_fid *fid)
+{
+	get_random_bytes(fid->lease_key, SMB2_LEASE_KEY_SIZE);
+}
+
 struct smb_version_operations smb21_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -616,6 +634,9 @@ struct smb_version_operations smb21_operations = {
 	.mand_lock = smb2_mand_lock,
 	.mand_unlock_range = smb2_unlock_range,
 	.push_mand_locks = smb2_push_mandatory_locks,
+	.get_lease_key = smb2_get_lease_key,
+	.set_lease_key = smb2_set_lease_key,
+	.new_lease_key = smb2_new_lease_key,
 };
 
 struct smb_version_values smb21_values = {

@@ -63,6 +63,7 @@ smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
 	int rc;
 	__le16 *smb2_path;
 	struct smb2_file_all_info *smb2_data = NULL;
+	__u8 smb2_oplock[17];
 
 	smb2_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (smb2_path == NULL) {
@@ -78,11 +79,14 @@ smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
 	}
 
 	desired_access |= FILE_READ_ATTRIBUTES;
-	*oplock = SMB2_OPLOCK_LEVEL_EXCLUSIVE;
+	*smb2_oplock = SMB2_OPLOCK_LEVEL_EXCLUSIVE;
+
+	if (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING)
+		memcpy(smb2_oplock + 1, fid->lease_key, SMB2_LEASE_KEY_SIZE);
 
 	rc = SMB2_open(xid, tcon, smb2_path, &fid->persistent_fid,
 		       &fid->volatile_fid, desired_access, disposition,
-		       0, 0, (__u8 *)oplock, smb2_data);
+		       0, 0, smb2_oplock, smb2_data);
 	if (rc)
 		goto out;
 
@@ -99,6 +103,7 @@ smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
 		move_smb2_info_to_cifs(buf, smb2_data);
 	}
 
+	*oplock = *smb2_oplock;
 out:
 	kfree(smb2_data);
 	kfree(smb2_path);
