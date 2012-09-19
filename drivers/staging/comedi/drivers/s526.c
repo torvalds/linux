@@ -83,36 +83,6 @@ comedi_config /dev/comedi0 s526 0x2C0,0x3
 #define REG_EED 0x32
 #define REG_EEC 0x34
 
-static const int s526_ports[] = {
-	REG_TCR,
-	REG_WDC,
-	REG_DAC,
-	REG_ADC,
-	REG_ADD,
-	REG_DIO,
-	REG_IER,
-	REG_ISR,
-	REG_MSC,
-	REG_C0L,
-	REG_C0H,
-	REG_C0M,
-	REG_C0C,
-	REG_C1L,
-	REG_C1H,
-	REG_C1M,
-	REG_C1C,
-	REG_C2L,
-	REG_C2H,
-	REG_C2M,
-	REG_C2C,
-	REG_C3L,
-	REG_C3H,
-	REG_C3M,
-	REG_C3C,
-	REG_EED,
-	REG_EEC
-};
-
 struct counter_mode_register_t {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	unsigned short coutSource:1;
