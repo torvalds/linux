@@ -1595,8 +1595,7 @@ process_array(struct event_format *event, struct print_arg *top, char **tok)
 	return type;
 
 out_free:
-	free_token(*tok);
-	*tok = NULL;
+	free_token(token);
 	free_arg(arg);
 	return EVENT_ERROR;
 }
