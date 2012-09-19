@@ -555,8 +555,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 						sizeof(struct mfd_cell),
 						GFP_KERNEL);
 	if (sd->hid_sensor_hub_client_devs == NULL) {
-		hid_err(hdev,
-			"Failed to allocate memory for mfd cells\n");
+		hid_err(hdev, "Failed to allocate memory for mfd cells\n");
 			ret = -ENOMEM;
 			goto err_close;
 	}
@@ -568,10 +567,9 @@ static int sensor_hub_probe(struct hid_device *hdev,
 			name = kasprintf(GFP_KERNEL, "HID-SENSOR-%x",
 						field->physical);
 			if (name  == NULL) {
-				hid_err(hdev,
-					"Failed MFD device name\n");
+				hid_err(hdev, "Failed MFD device name\n");
 					ret = -ENOMEM;
-					goto err_free_cells;
+					goto err_free_names;
 			}
 			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].name = name;
@@ -595,10 +593,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 err_free_names:
 	for (i = 0; i < sd->hid_sensor_client_cnt ; ++i)
 		kfree(sd->hid_sensor_hub_client_devs[i].name);
-err_free_cells:
 	kfree(sd->hid_sensor_hub_client_devs);
 err_close:
-	hid_hw_stop(hdev);
 	hid_hw_close(hdev);
 err_stop_hw:
 	hid_hw_stop(hdev);
@@ -617,8 +613,8 @@ static void sensor_hub_remove(struct hid_device *hdev)
 	int i;
 
 	hid_dbg(hdev, " hardware removed\n");
-	hid_hw_stop(hdev);
 	hid_hw_close(hdev);
+	hid_hw_stop(hdev);
 	spin_lock_irqsave(&data->lock, flags);
 	if (data->pending.status)
 		complete(&data->pending.ready);
