@@ -628,6 +628,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	index = devpts_new_index(inode);
 	if (index < 0) {
 		retval = index;
+		mutex_unlock(&devpts_mutex);
 		goto err_file;
 	}
 
@@ -667,7 +668,6 @@ out:
 	mutex_unlock(&tty_mutex);
 	devpts_kill_index(inode, index);
 err_file:
-        mutex_unlock(&devpts_mutex);
 	tty_free_file(filp);
 	return retval;
 }
