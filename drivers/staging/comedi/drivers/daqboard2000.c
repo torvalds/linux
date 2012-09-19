@@ -122,9 +122,6 @@ Configuration options: not applicable, uses PCI auto config
 #define DAQBOARD2000_SUBSYSTEM_IDS2 	0x0002	/* Daqboard/2000 - 2 Dacs */
 #define DAQBOARD2000_SUBSYSTEM_IDS4 	0x0004	/* Daqboard/2000 - 4 Dacs */
 
-#define DAQBOARD2000_DAQ_SIZE 		0x1002
-#define DAQBOARD2000_PLX_SIZE 		0x100
-
 /* Initialization bits for the Serial EEPROM Control Register */
 #define DAQBOARD2000_SECRProgPinHi      0x8001767e
 #define DAQBOARD2000_SECRProgPinLo      0x8000767e
@@ -721,9 +718,9 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 	dev->iobase = 1;	/* the "detach" needs this */
 
 	pci_base = pci_resource_start(pcidev, 0);
-	devpriv->plx = ioremap(pci_base, DAQBOARD2000_PLX_SIZE);
+	devpriv->plx = ioremap(pci_base, pci_resource_len(pcidev, 0));
 	pci_base = pci_resource_start(pcidev, 2);
-	devpriv->daq = ioremap(pci_base, DAQBOARD2000_DAQ_SIZE);
+	devpriv->daq = ioremap(pci_base, pci_resource_len(pcidev, 2));
 	if (!devpriv->plx || !devpriv->daq)
 		return -ENOMEM;
 
