@@ -48,7 +48,7 @@ struct integrity_iint_cache {
 	struct rb_node rb_node; /* rooted in integrity_iint_tree */
 	struct inode *inode;	/* back pointer to inode in question */
 	u64 version;		/* track inode changes */
-	unsigned char flags;
+	unsigned short flags;
 	struct evm_ima_xattr_data ima_xattr;
 	enum integrity_status ima_status;
 	enum integrity_status evm_status;
