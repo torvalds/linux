@@ -537,7 +537,15 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+static bool
+smb2_compare_fids(struct cifsFileInfo *ob1, struct cifsFileInfo *ob2)
+{
+	return ob1->fid.persistent_fid == ob2->fid.persistent_fid &&
+	       ob1->fid.volatile_fid == ob2->fid.volatile_fid;
+}
+
 struct smb_version_operations smb21_operations = {
+	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
 	.setup_async_request = smb2_setup_async_request,
 	.check_receive = smb2_check_receive,
@@ -598,6 +606,10 @@ struct smb_version_operations smb21_operations = {
 
 struct smb_version_values smb21_values = {
 	.version_string = SMB21_VERSION_STRING,
+	.large_lock_type = 0,
+	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
+	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
+	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
 	.header_size = sizeof(struct smb2_hdr),
 	.max_header_size = MAX_SMB2_HDR_SIZE,
 	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,

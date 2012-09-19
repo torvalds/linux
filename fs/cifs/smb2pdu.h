@@ -526,6 +526,11 @@ struct smb2_write_rsp {
 	__u8   Buffer[1];
 } __packed;
 
+#define SMB2_LOCKFLAG_SHARED_LOCK	0x0001
+#define SMB2_LOCKFLAG_EXCLUSIVE_LOCK	0x0002
+#define SMB2_LOCKFLAG_UNLOCK		0x0004
+#define SMB2_LOCKFLAG_FAIL_IMMEDIATELY	0x0010
+
 struct smb2_echo_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 4 */
