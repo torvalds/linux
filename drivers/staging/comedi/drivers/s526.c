@@ -138,11 +138,6 @@ struct s526GPCTConfig {
 	int data[MAX_GPCT_CONFIG_DATA];
 };
 
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
 struct s526_board {
 	const char *name;
 	int gpct_chans;
@@ -167,11 +162,6 @@ static const struct s526_board s526_boards[] = {
 	 }
 };
 
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device
-   struct.
-*/
 struct s526_private {
 	unsigned int ao_readback[2];
 	struct s526GPCTConfig s526_gpct_config[4];
@@ -496,10 +486,6 @@ static int s526_ai_insn_config(struct comedi_device *dev,
 	return result;
 }
 
-/*
- * "instructions" read/write data in "one-shot" or "software-triggered"
- * mode.
- */
 static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
@@ -552,30 +538,18 @@ static int s526_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned short val;
 
 	val = chan << 1;
-/* outw(val, dev->iobase + REG_DAC); */
 	outw(val, dev->iobase + REG_DAC);
 
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
-		/* a typical programming sequence */
-		/* write the data to preload register
-		 * outw(data[i], dev->iobase + REG_ADD);
-		 */
-		/* write the data to preload register */
 		outw(data[i], dev->iobase + REG_ADD);
 		devpriv->ao_readback[chan] = data[i];
-/* outw(val + 1, dev->iobase + REG_DAC);  starts the D/A conversion. */
 		/* starts the D/A conversion */
 		outw(val + 1, dev->iobase + REG_DAC);
 	}
 
-	/* return the number of samples read/written */
 	return i;
 }
 
-/* AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv. */
 static int s526_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
@@ -589,30 +563,18 @@ static int s526_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return i;
 }
 
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
 static int s526_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
-		/* Write out the new digital output lines */
+
 		outw(s->state, dev->iobase + REG_DIO);
 	}
 
-	/* on return, data[1] contains the value of the digital
-	 * input and output lines. */
 	data[1] = inw(dev->iobase + REG_DIO) & 0xff;
-	/* or we could just return the software copy of the output values if
-	 * it was a purely digital output subdevice */
-	/* data[1]=s->state & 0xFF; */
 
 	return insn->n;
 }
@@ -623,11 +585,6 @@ static int s526_dio_insn_config(struct comedi_device *dev,
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int group, mask;
-
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
 
 	group = chan >> 2;
 	mask = 0xF << (group << 2);
@@ -682,33 +639,22 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* GENERAL-PURPOSE COUNTER/TIME (GPCT) */
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
-	/* KG: What does SDF_LSAMPL (see multiq3.c) mean? */
 	s->n_chan = board->gpct_chans;
 	s->maxdata = 0x00ffffff;	/* 24 bit counter */
 	s->insn_read = s526_gpct_rinsn;
 	s->insn_config = s526_gpct_insn_config;
 	s->insn_write = s526_gpct_winsn;
 
-	/* Command are not implemented yet, however they are necessary to
-	   allocate the necessary memory for the comedi_async struct (used
-	   to trigger the GPCT in case of pulsegenerator function */
-	/* s->do_cmd = s526_gpct_cmd; */
-	/* s->do_cmdtest = s526_gpct_cmdtest; */
-	/* s->cancel = s526_gpct_cancel; */
-
 	s = &dev->subdevices[1];
-	/* dev->read_subdev=s; */
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
-	/* we support differential */
 	s->subdev_flags = SDF_READABLE | SDF_DIFF;
 	/* channels 0 to 7 are the regular differential inputs */
 	/* channel 8 is "reference 0" (+10V), channel 9 is "reference 1" (0V) */
 	s->n_chan = 10;
 	s->maxdata = 0xffff;
 	s->range_table = &range_bipolar10;
-	s->len_chanlist = 16;	/* This is the maximum chanlist length that
-				   the board can handle */
+	s->len_chanlist = 16;
 	s->insn_read = s526_ai_rinsn;
 	s->insn_config = s526_ai_insn_config;
 
