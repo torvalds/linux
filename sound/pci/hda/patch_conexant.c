@@ -1710,8 +1710,8 @@ static const struct snd_kcontrol_new cxt5051_capture_mixers[] = {
 	HDA_CODEC_MUTE("Internal Mic Switch", 0x14, 0x00, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Volume", 0x14, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Switch", 0x14, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Docking Mic Volume", 0x15, 0x00, HDA_INPUT),
-	HDA_CODEC_MUTE("Docking Mic Switch", 0x15, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Dock Mic Volume", 0x15, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Dock Mic Switch", 0x15, 0x00, HDA_INPUT),
 	{}
 };
 

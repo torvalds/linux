@@ -1810,7 +1810,7 @@ static const struct hda_input_mux ad1981_hp_capture_source = {
 	.num_items = 3,
 	.items = {
 		{ "Mic", 0x0 },
-		{ "Docking-Station", 0x1 },
+		{ "Dock Mic", 0x1 },
 		{ "Mix", 0x2 },
 	},
 };
@@ -1834,8 +1834,8 @@ static const struct snd_kcontrol_new ad1981_hp_mixers[] = {
 	 */
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x12, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x12, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Docking-Station Playback Volume", 0x13, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Docking-Station Playback Switch", 0x13, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Dock Mic Playback Volume", 0x13, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Dock Mic Playback Switch", 0x13, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x1c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x1c, 0x0, HDA_OUTPUT),
 	/* FIXME: does this laptop have analog CD connection? */
@@ -3565,7 +3565,7 @@ static const struct hda_amp_list ad1884_loopbacks[] = {
 
 static const char * const ad1884_slave_vols[] = {
 	"PCM", "Mic", "Mono", "Front Mic", "Mic", "CD",
-	"Internal Mic", "Docking Mic", /* "Beep", */ "IEC958",
+	"Internal Mic", "Dock Mic", /* "Beep", */ "IEC958",
 	NULL
 };
 
@@ -3626,7 +3626,7 @@ static const struct hda_input_mux ad1984_thinkpad_capture_source = {
 		{ "Mic", 0x0 },
 		{ "Internal Mic", 0x1 },
 		{ "Mix", 0x3 },
-		{ "Docking-Station", 0x4 },
+		{ "Dock Mic", 0x4 },
 	},
 };
 
@@ -3655,8 +3655,8 @@ static const struct snd_kcontrol_new ad1984_thinkpad_mixers[] = {
 	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x20, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("Beep Playback Volume", 0x20, 0x03, HDA_INPUT),
 	HDA_CODEC_MUTE("Beep Playback Switch", 0x20, 0x03, HDA_INPUT),
-	HDA_CODEC_VOLUME("Docking Mic Playback Volume", 0x20, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("Docking Mic Playback Switch", 0x20, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Dock Mic Playback Volume", 0x20, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("Dock Mic Playback Switch", 0x20, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Boost Volume", 0x14, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Internal Mic Boost Volume", 0x15, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Dock Mic Boost Volume", 0x25, 0x0, HDA_OUTPUT),
