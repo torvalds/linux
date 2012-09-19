@@ -481,6 +481,8 @@ static int nf_nat_proto_clean(struct nf_conn *i, void *data)
 
 	if (!nat)
 		return 0;
+	if (!(i->status & IPS_SRC_NAT_DONE))
+		return 0;
 	if ((clean->l3proto && nf_ct_l3num(i) != clean->l3proto) ||
 	    (clean->l4proto && nf_ct_protonum(i) != clean->l4proto))
 		return 0;
