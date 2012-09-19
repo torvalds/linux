@@ -75,9 +75,9 @@ static void rcu_idle_enter_common(long long newval)
 			  current->pid, current->comm,
 			  idle->pid, idle->comm); /* must be idle task! */
 	}
+	rcu_sched_qs(0); /* implies rcu_bh_qsctr_inc(0) */
 	barrier();
 	rcu_dynticks_nesting = newval;
-	rcu_sched_qs(0); /* implies rcu_bh_qsctr_inc(0) */
 }
 
 /*
