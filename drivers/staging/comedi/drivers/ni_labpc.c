@@ -206,6 +206,13 @@ NI manuals:
 #define   INIT_A1_BITS	0x70
 #define COUNTER_B_BASE_REG	0x18
 
+enum scan_mode {
+	MODE_SINGLE_CHAN,
+	MODE_SINGLE_CHAN_INTERVAL,
+	MODE_MULT_CHAN_UP,
+	MODE_MULT_CHAN_DOWN,
+};
+
 static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static irqreturn_t labpc_interrupt(int irq, void *d);
 static int labpc_drain_fifo(struct comedi_device *dev);
@@ -236,7 +243,8 @@ static int labpc_eeprom_write_insn(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
 				   unsigned int *data);
-static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd);
+static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
+			     enum scan_mode scan_mode);
 #ifdef CONFIG_ISA_DMA_API
 static unsigned int labpc_suggest_transfer_size(struct comedi_cmd cmd);
 #endif
@@ -253,13 +261,6 @@ static int labpc_eeprom_write(struct comedi_device *dev,
 				       unsigned int value);
 static void write_caldac(struct comedi_device *dev, unsigned int channel,
 			 unsigned int value);
-
-enum scan_mode {
-	MODE_SINGLE_CHAN,
-	MODE_SINGLE_CHAN_INTERVAL,
-	MODE_MULT_CHAN_UP,
-	MODE_MULT_CHAN_DOWN,
-};
 
 /* analog input ranges */
 #define NUM_LABPC_PLUS_AI_RANGES 16
@@ -839,14 +840,13 @@ static enum scan_mode labpc_ai_scan_mode(const struct comedi_cmd *cmd)
 }
 
 static int labpc_ai_chanlist_invalid(const struct comedi_device *dev,
-				     const struct comedi_cmd *cmd)
+				     const struct comedi_cmd *cmd,
+				     enum scan_mode mode)
 {
-	int mode, channel, range, aref, i;
+	int channel, range, aref, i;
 
 	if (cmd->chanlist == NULL)
 		return 0;
-
-	mode = labpc_ai_scan_mode(cmd);
 
 	if (mode == MODE_SINGLE_CHAN)
 		return 0;
@@ -911,9 +911,10 @@ static int labpc_ai_chanlist_invalid(const struct comedi_device *dev,
 	return 0;
 }
 
-static int labpc_use_continuous_mode(const struct comedi_cmd *cmd)
+static int labpc_use_continuous_mode(const struct comedi_cmd *cmd,
+				     enum scan_mode mode)
 {
-	if (labpc_ai_scan_mode(cmd) == MODE_SINGLE_CHAN)
+	if (mode == MODE_SINGLE_CHAN)
 		return 1;
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW)
@@ -922,24 +923,25 @@ static int labpc_use_continuous_mode(const struct comedi_cmd *cmd)
 	return 0;
 }
 
-static unsigned int labpc_ai_convert_period(const struct comedi_cmd *cmd)
+static unsigned int labpc_ai_convert_period(const struct comedi_cmd *cmd,
+					    enum scan_mode mode)
 {
 	if (cmd->convert_src != TRIG_TIMER)
 		return 0;
 
-	if (labpc_ai_scan_mode(cmd) == MODE_SINGLE_CHAN &&
-	    cmd->scan_begin_src == TRIG_TIMER)
+	if (mode == MODE_SINGLE_CHAN && cmd->scan_begin_src == TRIG_TIMER)
 		return cmd->scan_begin_arg;
 
 	return cmd->convert_arg;
 }
 
-static void labpc_set_ai_convert_period(struct comedi_cmd *cmd, unsigned int ns)
+static void labpc_set_ai_convert_period(struct comedi_cmd *cmd,
+					enum scan_mode mode, unsigned int ns)
 {
 	if (cmd->convert_src != TRIG_TIMER)
 		return;
 
-	if (labpc_ai_scan_mode(cmd) == MODE_SINGLE_CHAN &&
+	if (mode == MODE_SINGLE_CHAN &&
 	    cmd->scan_begin_src == TRIG_TIMER) {
 		cmd->scan_begin_arg = ns;
 		if (cmd->convert_arg > cmd->scan_begin_arg)
@@ -948,25 +950,25 @@ static void labpc_set_ai_convert_period(struct comedi_cmd *cmd, unsigned int ns)
 		cmd->convert_arg = ns;
 }
 
-static unsigned int labpc_ai_scan_period(const struct comedi_cmd *cmd)
+static unsigned int labpc_ai_scan_period(const struct comedi_cmd *cmd,
+					enum scan_mode mode)
 {
 	if (cmd->scan_begin_src != TRIG_TIMER)
 		return 0;
 
-	if (labpc_ai_scan_mode(cmd) == MODE_SINGLE_CHAN &&
-	    cmd->convert_src == TRIG_TIMER)
+	if (mode == MODE_SINGLE_CHAN && cmd->convert_src == TRIG_TIMER)
 		return 0;
 
 	return cmd->scan_begin_arg;
 }
 
-static void labpc_set_ai_scan_period(struct comedi_cmd *cmd, unsigned int ns)
+static void labpc_set_ai_scan_period(struct comedi_cmd *cmd,
+				     enum scan_mode mode, unsigned int ns)
 {
 	if (cmd->scan_begin_src != TRIG_TIMER)
 		return;
 
-	if (labpc_ai_scan_mode(cmd) == MODE_SINGLE_CHAN &&
-	    cmd->convert_src == TRIG_TIMER)
+	if (mode == MODE_SINGLE_CHAN && cmd->convert_src == TRIG_TIMER)
 		return;
 
 	cmd->scan_begin_arg = ns;
@@ -978,6 +980,7 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	int tmp, tmp2;
 	int stop_mask;
+	enum scan_mode mode;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
@@ -1099,14 +1102,15 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 
 	tmp = cmd->convert_arg;
 	tmp2 = cmd->scan_begin_arg;
-	labpc_adc_timing(dev, cmd);
+	mode = labpc_ai_scan_mode(cmd);
+	labpc_adc_timing(dev, cmd, mode);
 	if (tmp != cmd->convert_arg || tmp2 != cmd->scan_begin_arg)
 		err++;
 
 	if (err)
 		return 4;
 
-	if (labpc_ai_chanlist_invalid(dev, cmd))
+	if (labpc_ai_chanlist_invalid(dev, cmd, mode))
 		return 5;
 
 	return 0;
@@ -1122,6 +1126,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	enum transfer_type xfer;
+	enum scan_mode mode;
 	unsigned long flags;
 
 	if (!dev->irq) {
@@ -1187,6 +1192,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	} else
 		xfer = fifo_not_empty_transfer;
 	devpriv->current_transfer = xfer;
+	mode = labpc_ai_scan_mode(cmd);
 
 	/*  setup command6 register for 1200 boards */
 	if (thisboard->register_layout == labpc_1200_layout) {
@@ -1211,7 +1217,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		else
 			devpriv->command6_bits &= ~A1_INTR_EN_BIT;
 		/*  are we scanning up or down through channels? */
-		if (labpc_ai_scan_mode(cmd) == MODE_MULT_CHAN_UP)
+		if (mode == MODE_MULT_CHAN_UP)
 			devpriv->command6_bits |= ADC_SCAN_UP_BIT;
 		else
 			devpriv->command6_bits &= ~ADC_SCAN_UP_BIT;
@@ -1222,19 +1228,18 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* setup channel list, etc (command1 register) */
 	devpriv->command1_bits = 0;
-	if (labpc_ai_scan_mode(cmd) == MODE_MULT_CHAN_UP)
+	if (mode == MODE_MULT_CHAN_UP)
 		channel = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
 	else
 		channel = CR_CHAN(cmd->chanlist[0]);
 	/* munge channel bits for differential / scan disabled mode */
-	if (labpc_ai_scan_mode(cmd) != MODE_SINGLE_CHAN && aref == AREF_DIFF)
+	if (mode != MODE_SINGLE_CHAN && aref == AREF_DIFF)
 		channel *= 2;
 	devpriv->command1_bits |= ADC_CHAN_BITS(channel);
 	devpriv->command1_bits |= thisboard->ai_range_code[range];
 	devpriv->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
 	/* manual says to set scan enable bit on second pass */
-	if (labpc_ai_scan_mode(cmd) == MODE_MULT_CHAN_UP ||
-	    labpc_ai_scan_mode(cmd) == MODE_MULT_CHAN_DOWN) {
+	if (mode == MODE_MULT_CHAN_UP || mode == MODE_MULT_CHAN_DOWN) {
 		devpriv->command1_bits |= ADC_SCAN_EN_BIT;
 		/* need a brief delay before enabling scan, or scan
 		 * list will get screwed when you switch
@@ -1249,7 +1254,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
 	/* XXX should discard first scan when using interval scanning
 	 * since manual says it is not synced with scan clock */
-	if (labpc_use_continuous_mode(cmd) == 0) {
+	if (labpc_use_continuous_mode(cmd, mode) == 0) {
 		devpriv->command4_bits |= INTERVAL_SCAN_EN_BIT;
 		if (cmd->scan_begin_src == TRIG_EXT)
 			devpriv->command4_bits |= EXT_SCAN_EN_BIT;
@@ -1267,7 +1272,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->convert_src == TRIG_TIMER || cmd->scan_begin_src == TRIG_TIMER) {
 		/*  set up pacing */
-		labpc_adc_timing(dev, cmd);
+		labpc_adc_timing(dev, cmd, mode);
 		/*  load counter b0 in mode 3 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
 					 0, devpriv->divisor_b0, 3);
@@ -1277,7 +1282,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 	}
 	/*  set up conversion pacing */
-	if (labpc_ai_convert_period(cmd)) {
+	if (labpc_ai_convert_period(cmd, mode)) {
 		/*  load counter a0 in mode 2 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
 					 0, devpriv->divisor_a0, 2);
@@ -1290,7 +1295,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				    dev->iobase + COUNTER_A_CONTROL_REG);
 
 	/*  set up scan pacing */
-	if (labpc_ai_scan_period(cmd)) {
+	if (labpc_ai_scan_period(cmd, mode)) {
 		/*  load counter b1 in mode 2 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_B_BASE_REG,
 					 1, devpriv->divisor_b1, 2);
@@ -1791,24 +1796,29 @@ static unsigned int labpc_suggest_transfer_size(struct comedi_cmd cmd)
 #endif
 
 /* figures out what counter values to use based on command */
-static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
+static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
+			     enum scan_mode mode)
 {
 	/* max value for 16 bit counter in mode 2 */
 	const int max_counter_value = 0x10000;
 	/* min value for 16 bit counter in mode 2 */
 	const int min_counter_value = 2;
 	unsigned int base_period;
+	unsigned int scan_period;
+	unsigned int convert_period;
 
 	/*
 	 * if both convert and scan triggers are TRIG_TIMER, then they
 	 * both rely on counter b0
 	 */
-	if (labpc_ai_convert_period(cmd) && labpc_ai_scan_period(cmd)) {
+	convert_period = labpc_ai_convert_period(cmd, mode);
+	scan_period = labpc_ai_scan_period(cmd, mode);
+	if (convert_period && scan_period) {
 		/*
 		 * pick the lowest b0 divisor value we can (for maximum input
 		 * clock speed on convert and scan counters)
 		 */
-		devpriv->divisor_b0 = (labpc_ai_scan_period(cmd) - 1) /
+		devpriv->divisor_b0 = (scan_period - 1) /
 		    (LABPC_TIMER_BASE * max_counter_value) + 1;
 		if (devpriv->divisor_b0 < min_counter_value)
 			devpriv->divisor_b0 = min_counter_value;
@@ -1822,25 +1832,19 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 		default:
 		case TRIG_ROUND_NEAREST:
 			devpriv->divisor_a0 =
-			    (labpc_ai_convert_period(cmd) +
-			     (base_period / 2)) / base_period;
+			    (convert_period + (base_period / 2)) / base_period;
 			devpriv->divisor_b1 =
-			    (labpc_ai_scan_period(cmd) +
-			     (base_period / 2)) / base_period;
+			    (scan_period + (base_period / 2)) / base_period;
 			break;
 		case TRIG_ROUND_UP:
 			devpriv->divisor_a0 =
-			    (labpc_ai_convert_period(cmd) + (base_period -
-							     1)) / base_period;
+			    (convert_period + (base_period - 1)) / base_period;
 			devpriv->divisor_b1 =
-			    (labpc_ai_scan_period(cmd) + (base_period -
-							  1)) / base_period;
+			    (scan_period + (base_period - 1)) / base_period;
 			break;
 		case TRIG_ROUND_DOWN:
-			devpriv->divisor_a0 =
-			    labpc_ai_convert_period(cmd) / base_period;
-			devpriv->divisor_b1 =
-			    labpc_ai_scan_period(cmd) / base_period;
+			devpriv->divisor_a0 = convert_period / base_period;
+			devpriv->divisor_b1 = scan_period / base_period;
 			break;
 		}
 		/*  make sure a0 and b1 values are acceptable */
@@ -1853,18 +1857,15 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 		if (devpriv->divisor_b1 > max_counter_value)
 			devpriv->divisor_b1 = max_counter_value;
 		/*  write corrected timings to command */
-		labpc_set_ai_convert_period(cmd,
+		labpc_set_ai_convert_period(cmd, mode,
 					    base_period * devpriv->divisor_a0);
-		labpc_set_ai_scan_period(cmd,
+		labpc_set_ai_scan_period(cmd, mode,
 					 base_period * devpriv->divisor_b1);
 		/*
 		 * if only one TRIG_TIMER is used, we can employ the generic
 		 * cascaded timing functions
 		 */
-	} else if (labpc_ai_scan_period(cmd)) {
-		unsigned int scan_period;
-
-		scan_period = labpc_ai_scan_period(cmd);
+	} else if (scan_period) {
 		/*
 		 * calculate cascaded counter values
 		 * that give desired scan timing
@@ -1874,11 +1875,8 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 					       &(devpriv->divisor_b0),
 					       &scan_period,
 					       cmd->flags & TRIG_ROUND_MASK);
-		labpc_set_ai_scan_period(cmd, scan_period);
-	} else if (labpc_ai_convert_period(cmd)) {
-		unsigned int convert_period;
-
-		convert_period = labpc_ai_convert_period(cmd);
+		labpc_set_ai_scan_period(cmd, mode, scan_period);
+	} else if (convert_period) {
 		/*
 		 * calculate cascaded counter values
 		 * that give desired conversion timing
@@ -1888,7 +1886,7 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 					       &(devpriv->divisor_b0),
 					       &convert_period,
 					       cmd->flags & TRIG_ROUND_MASK);
-		labpc_set_ai_convert_period(cmd, convert_period);
+		labpc_set_ai_convert_period(cmd, mode, convert_period);
 	}
 }
 
