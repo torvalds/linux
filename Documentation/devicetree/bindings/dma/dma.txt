@@ -13,22 +13,22 @@ Required property:
 			more details.
 
 Optional properties:
-- #dma-channels: 	Number of DMA channels supported by the controller.
-- #dma-requests: 	Number of DMA requests signals supported by the
+- dma-channels: 	Number of DMA channels supported by the controller.
+- dma-requests: 	Number of DMA requests signals supported by the
 			controller.
 
 Example:
 
 	dma: dma@48000000 {
-		compatible = "ti,omap-sdma"
+		compatible = "ti,omap-sdma";
 		reg = <0x48000000 0x1000>;
 		interrupts = <0 12 0x4
 			      0 13 0x4
 			      0 14 0x4
 			      0 15 0x4>;
 		#dma-cells = <1>;
-		#dma-channels = <32>;
-		#dma-requests = <127>;
+		dma-channels = <32>;
+		dma-requests = <127>;
 	};
 
 
@@ -61,7 +61,7 @@ Examples:
 		...
 		dmas = <&dma 2		/* read channel */
 			&dma 3>;	/* write channel */
-		dma-names = "rx", "tx"
+		dma-names = "rx", "tx";
 		...
 	};
 
@@ -70,7 +70,7 @@ Examples:
 	dmas = <&dma1 5
 		&dma2 7
 		&dma3 2>;
-	dma-names = "rx-tx", "rx-tx", "rx-tx"
+	dma-names = "rx-tx", "rx-tx", "rx-tx";
 
 3. A device with three channels, one of which has two alternatives:
 
