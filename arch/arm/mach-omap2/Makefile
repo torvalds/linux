@@ -199,11 +199,6 @@ obj-$(CONFIG_ARCH_OMAP4)		+= omap_hwmod_44xx_data.o
 # EMU peripherals
 obj-$(CONFIG_OMAP3_EMU)			+= emu.o
 
-# L3 interconnect
-obj-$(CONFIG_ARCH_OMAP3)		+= omap_l3_smx.o
-obj-$(CONFIG_ARCH_OMAP4)		+= omap_l3_noc.o
-obj-$(CONFIG_SOC_OMAP5)			+= omap_l3_noc.o
-
 obj-$(CONFIG_OMAP_MBOX_FWK)		+= mailbox_mach.o
 mailbox_mach-objs			:= mailbox.o
 
