@@ -41,20 +41,14 @@ Configuration options:
 
     If bus/slot is not specified, the first available PCI
     device will be used.
-
-The 2600 requires a firmware upload, which can be accomplished
-using the -i or --init-data option of comedi_config.
-The firmware can be
-found in the comedi_nonfree_firmware tarball available
-from http://www.comedi.org
-
 */
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/firmware.h>
 #include "../comedidev.h"
 
-/*#include "me2600_fw.h" */
+#define ME2600_FIRMWARE		"me2600_firmware.bin"
 
 #define ME_DRIVER_NAME		"me_daq"
 
@@ -524,8 +518,7 @@ static int me_ao_insn_read(struct comedi_device *dev,
 
 /* Xilinx firmware download for card: ME-2600i */
 static int me2600_xilinx_download(struct comedi_device *dev,
-				  unsigned char *me2600_firmware,
-				  unsigned int length)
+				  const u8 *data, size_t size)
 {
 	unsigned int value;
 	unsigned int file_length;
@@ -552,19 +545,20 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	 * Byte 8-11:  date
 	 * Byte 12-15: reserved
 	 */
-	if (length < 16)
+	if (size < 16)
 		return -EINVAL;
-	file_length = (((unsigned int)me2600_firmware[0] & 0xff) << 24) +
-	    (((unsigned int)me2600_firmware[1] & 0xff) << 16) +
-	    (((unsigned int)me2600_firmware[2] & 0xff) << 8) +
-	    ((unsigned int)me2600_firmware[3] & 0xff);
+
+	file_length = (((unsigned int)data[0] & 0xff) << 24) +
+	    (((unsigned int)data[1] & 0xff) << 16) +
+	    (((unsigned int)data[2] & 0xff) << 8) +
+	    ((unsigned int)data[3] & 0xff);
 
 	/*
 	 * Loop for writing firmware byte by byte to xilinx
 	 * Firmware data start at offfset 16
 	 */
 	for (i = 0; i < file_length; i++)
-		writeb((me2600_firmware[16 + i] & 0xff),
+		writeb((data[16 + i] & 0xff),
 		       dev_private->me_regbase + 0x0);
 
 	/* Write 5 dummy values to xilinx */
@@ -588,6 +582,22 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	writel(0x43, dev_private->plx_regbase + PLX_INTCSR);
 
 	return 0;
+}
+
+static int me2600_upload_firmware(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct firmware *fw;
+	int ret;
+
+	ret = request_firmware(&fw, ME2600_FIRMWARE, &pcidev->dev);
+	if (ret)
+		return ret;
+
+	ret = me2600_xilinx_download(dev, fw->data, fw->size);
+	release_firmware(fw);
+
+	return ret;
 }
 
 /* Reset device */
@@ -735,23 +745,13 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		       dev->minor);
 		return -ENOMEM;
 	}
+
 	/* Download firmware and reset card */
 	if (board->device_id == ME2600_DEVICE_ID) {
-		unsigned char *aux_data;
-		int aux_len;
-
-		aux_data = comedi_aux_data(it->options, 0);
-		aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-
-		if (!aux_data || aux_len < 1) {
-			comedi_error(dev, "You must provide me2600 firmware "
-				     "using the --init-data option of "
-				     "comedi_config");
-			return -EINVAL;
-		}
-		me2600_xilinx_download(dev, aux_data, aux_len);
+		result = me2600_upload_firmware(dev);
+		if (result < 0)
+			return result;
 	}
-
 	me_reset(dev);
 
 	error = comedi_alloc_subdevices(dev, 3);
@@ -851,3 +851,4 @@ module_comedi_pci_driver(me_daq_driver, me_daq_pci_driver);
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(ME2600_FIRMWARE);
