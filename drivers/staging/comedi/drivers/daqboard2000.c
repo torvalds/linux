@@ -140,29 +140,22 @@ Configuration options: not applicable, uses PCI auto config
 #define DAQBOARD2000_CPLD_INIT 		0x0002
 #define DAQBOARD2000_CPLD_DONE 		0x0004
 
-/* Available ranges */
-static const struct comedi_lrange range_daqboard2000_ai = { 13, {
-								 RANGE(-10, 10),
-								 RANGE(-5, 5),
-								 RANGE(-2.5,
-								       2.5),
-								 RANGE(-1.25,
-								       1.25),
-								 RANGE(-0.625,
-								       0.625),
-								 RANGE(-0.3125,
-								       0.3125),
-								 RANGE(-0.156,
-								       0.156),
-								 RANGE(0, 10),
-								 RANGE(0, 5),
-								 RANGE(0, 2.5),
-								 RANGE(0, 1.25),
-								 RANGE(0,
-								       0.625),
-								 RANGE(0,
-								       0.3125)
-								 }
+static const struct comedi_lrange range_daqboard2000_ai = {
+	13, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		BIP_RANGE(0.3125),
+		BIP_RANGE(0.156),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+		UNI_RANGE(0.625),
+		UNI_RANGE(0.3125)
+	}
 };
 
 /*
