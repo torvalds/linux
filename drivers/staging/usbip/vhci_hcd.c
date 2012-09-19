@@ -814,11 +814,14 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 	}
 
 	/* kill threads related to this sdev, if v.c. exists */
-	if (vdev->ud.tcp_rx)
+	if (vdev->ud.tcp_rx) {
 		kthread_stop_put(vdev->ud.tcp_rx);
-	if (vdev->ud.tcp_tx)
+		vdev->ud.tcp_rx = NULL;
+	}
+	if (vdev->ud.tcp_tx) {
 		kthread_stop_put(vdev->ud.tcp_tx);
-
+		vdev->ud.tcp_tx = NULL;
+	}
 	pr_info("stop threads\n");
 
 	/* active connection is closed */
