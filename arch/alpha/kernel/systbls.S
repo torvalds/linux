@@ -111,7 +111,7 @@ sys_call_table:
 	.quad sys_socket
 	.quad sys_connect
 	.quad sys_accept
-	.quad osf_getpriority			/* 100 */
+	.quad sys_osf_getpriority			/* 100 */
 	.quad sys_send
 	.quad sys_recv
 	.quad sys_sigreturn
@@ -522,6 +522,8 @@ sys_call_table:
 	.quad sys_setns
 	.quad sys_accept4
 	.quad sys_sendmmsg
+	.quad sys_process_vm_readv
+	.quad sys_process_vm_writev		/* 505 */
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

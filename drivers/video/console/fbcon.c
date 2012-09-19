@@ -372,8 +372,15 @@ static void fb_flashcursor(struct work_struct *work)
 	struct vc_data *vc = NULL;
 	int c;
 	int mode;
+	int ret;
 
-	console_lock();
+	/* FIXME: we should sort out the unbind locking instead */
+	/* instead we just fail to flash the cursor if we can't get
+	 * the lock instead of blocking fbcon deinit */
+	ret = console_trylock();
+	if (ret == 0)
+		return;
+
 	if (ops && ops->currcon != -1)
 		vc = vc_cons[ops->currcon].d;
 
@@ -442,7 +449,7 @@ static int __init fb_console_setup(char *this_opt)
 
 	while ((options = strsep(&this_opt, ",")) != NULL) {
 		if (!strncmp(options, "font:", 5))
-			strcpy(fontname, options + 5);
+			strlcpy(fontname, options + 5, sizeof(fontname));
 		
 		if (!strncmp(options, "scrollback:", 11)) {
 			options += 11;

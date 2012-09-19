@@ -399,11 +399,6 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 			DPRINTK("checking mountpoint %p %.*s",
 				dentry, (int)dentry->d_name.len, dentry->d_name.name);
 
-			/* Path walk currently on this dentry? */
-			ino_count = atomic_read(&ino->count) + 2;
-			if (dentry->d_count > ino_count)
-				goto next;
-
 			/* Can we umount this guy */
 			if (autofs4_mount_busy(mnt, dentry))
 				goto next;

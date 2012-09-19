@@ -2053,7 +2053,6 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	printk(KERN_INFO "pl022: mapped registers from 0x%08x to %p\n",
 	       adev->res.start, pl022->virtbase);
 
-	pm_runtime_enable(dev);
 	pm_runtime_resume(dev);
 
 	pl022->clk = clk_get(&adev->dev, NULL);

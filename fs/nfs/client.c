@@ -105,7 +105,7 @@ struct nfs_subversion *get_nfs_version(unsigned int version)
 
 	if (IS_ERR(nfs)) {
 		mutex_lock(&nfs_version_mutex);
-		request_module("nfs%d", version);
+		request_module("nfsv%d", version);
 		nfs = find_nfs_version(version);
 		mutex_unlock(&nfs_version_mutex);
 	}

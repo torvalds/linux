@@ -1331,7 +1331,7 @@ static const struct spi_device_id ifx_id_table[] = {
 MODULE_DEVICE_TABLE(spi, ifx_id_table);
 
 /* spi operations */
-static const struct spi_driver ifx_spi_driver = {
+static struct spi_driver ifx_spi_driver = {
 	.driver = {
 		.name = DRVNAME,
 		.pm = &ifx_spi_pm,

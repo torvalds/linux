@@ -218,7 +218,7 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cur = policy->min = policy->max = omap_getspeed(policy->cpu);
 
-	if (atomic_inc_return(&freq_table_users) == 1)
+	if (!freq_table)
 		result = opp_init_cpufreq_table(mpu_dev, &freq_table);
 
 	if (result) {
@@ -226,6 +226,8 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 				__func__, policy->cpu, result);
 		goto fail_ck;
 	}
+
+	atomic_inc_return(&freq_table_users);
 
 	result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
 	if (result)

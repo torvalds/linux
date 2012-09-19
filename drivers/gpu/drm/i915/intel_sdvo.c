@@ -1692,6 +1692,7 @@ static bool intel_sdvo_detect_hdmi_audio(struct drm_connector *connector)
 	edid = intel_sdvo_get_edid(connector);
 	if (edid != NULL && edid->input & DRM_EDID_INPUT_DIGITAL)
 		has_audio = drm_detect_monitor_audio(edid);
+	kfree(edid);
 
 	return has_audio;
 }
@@ -2572,7 +2573,6 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 		hotplug_mask = intel_sdvo->is_sdvob ?
 			SDVOB_HOTPLUG_INT_STATUS_I915 : SDVOC_HOTPLUG_INT_STATUS_I915;
 	}
-	dev_priv->hotplug_supported_mask |= hotplug_mask;
 
 	drm_encoder_helper_add(&intel_encoder->base, &intel_sdvo_helper_funcs);
 
@@ -2580,20 +2580,18 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	if (!intel_sdvo_get_capabilities(intel_sdvo, &intel_sdvo->caps))
 		goto err;
 
-	/* Set up hotplug command - note paranoia about contents of reply.
-	 * We assume that the hardware is in a sane state, and only touch
-	 * the bits we think we understand.
-	 */
-	intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_ACTIVE_HOT_PLUG,
-			     &intel_sdvo->hotplug_active, 2);
-	intel_sdvo->hotplug_active[0] &= ~0x3;
-
 	if (intel_sdvo_output_setup(intel_sdvo,
 				    intel_sdvo->caps.output_flags) != true) {
 		DRM_DEBUG_KMS("SDVO output failed to setup on %s\n",
 			      SDVO_NAME(intel_sdvo));
 		goto err;
 	}
+
+	/* Only enable the hotplug irq if we need it, to work around noisy
+	 * hotplug lines.
+	 */
+	if (intel_sdvo->hotplug_active[0])
+		dev_priv->hotplug_supported_mask |= hotplug_mask;
 
 	intel_sdvo_select_ddc_bus(dev_priv, intel_sdvo, sdvo_reg);
 

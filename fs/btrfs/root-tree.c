@@ -544,8 +544,8 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 	struct timespec ct = CURRENT_TIME;
 
 	spin_lock(&root->root_times_lock);
-	item->ctransid = trans->transid;
+	item->ctransid = cpu_to_le64(trans->transid);
 	item->ctime.sec = cpu_to_le64(ct.tv_sec);
-	item->ctime.nsec = cpu_to_le64(ct.tv_nsec);
+	item->ctime.nsec = cpu_to_le32(ct.tv_nsec);
 	spin_unlock(&root->root_times_lock);
 }

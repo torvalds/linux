@@ -10,8 +10,8 @@ Required properties:
 - compatible : Should be "fsl,<chip>-esdhc"
 
 Optional properties:
-- fsl,cd-internal : Indicate to use controller internal card detection
-- fsl,wp-internal : Indicate to use controller internal write protection
+- fsl,cd-controller : Indicate to use controller internal card detection
+- fsl,wp-controller : Indicate to use controller internal write protection
 
 Examples:
 
@@ -19,8 +19,8 @@ esdhc@70004000 {
 	compatible = "fsl,imx51-esdhc";
 	reg = <0x70004000 0x4000>;
 	interrupts = <1>;
-	fsl,cd-internal;
-	fsl,wp-internal;
+	fsl,cd-controller;
+	fsl,wp-controller;
 };
 
 esdhc@70008000 {
