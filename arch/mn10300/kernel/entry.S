@@ -62,6 +62,13 @@ ENTRY(ret_from_kernel_thread)
 	calls	(a0)
 	jmp	sys_exit
 
+ENTRY(ret_from_kernel_execve)
+	add	-12,d0	/* pt_regs -> frame */
+	mov	d0,sp
+	GET_THREAD_INFO a2
+	clr	d0
+	jmp	syscall_exit
+
 ###############################################################################
 #
 # system call handler
