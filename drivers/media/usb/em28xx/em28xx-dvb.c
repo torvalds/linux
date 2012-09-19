@@ -1002,20 +1002,22 @@ static int em28xx_dvb_init(struct em28xx *dev)
 				result = -EINVAL;
 				goto out_free;
 			}
-		}
 
 #ifdef CONFIG_GPIOLIB
-		/* enable LNA for DVB-T, DVB-T2 and DVB-C */
-		result = gpio_request_one(dvb->lna_gpio, GPIOF_OUT_INIT_LOW,
-				NULL);
-		if (result)
-			em28xx_errdev("gpio request failed %d\n", result);
-		else
-			gpio_free(dvb->lna_gpio);
+			/* enable LNA for DVB-T, DVB-T2 and DVB-C */
+			result = gpio_request_one(dvb->lna_gpio,
+					GPIOF_OUT_INIT_LOW, NULL);
+			if (result)
+				em28xx_errdev("gpio request failed %d\n",
+						result);
+			else
+				gpio_free(dvb->lna_gpio);
 
-		result = 0; /* continue even set LNA fails */
+			result = 0; /* continue even set LNA fails */
 #endif
-		dvb->fe[0]->ops.set_lna = em28xx_pctv_290e_set_lna;
+			dvb->fe[0]->ops.set_lna = em28xx_pctv_290e_set_lna;
+		}
+
 		break;
 	case EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C:
 	{
