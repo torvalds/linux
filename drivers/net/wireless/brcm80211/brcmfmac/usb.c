@@ -134,8 +134,6 @@ struct brcmf_usbdev_info {
 	wait_queue_head_t ctrl_wait;
 	ulong ctl_op;
 
-	bool rxctl_deferrespok;
-
 	struct urb *bulk_urb; /* used for FW download */
 	struct urb *intr_urb; /* URB for interrupt endpoint */
 	int intr_size;          /* Size of interrupt message */
@@ -301,17 +299,9 @@ brcmf_usb_recv_ctl(struct brcmf_usbdev_info *devinfo, u8 *buf, int len)
 	devinfo->ctl_read.wLength = cpu_to_le16p(&size);
 	devinfo->ctl_urb->transfer_buffer_length = size;
 
-	if (devinfo->rxctl_deferrespok) {
-		/* BMAC model */
-		devinfo->ctl_read.bRequestType = USB_DIR_IN
-			| USB_TYPE_VENDOR | USB_RECIP_INTERFACE;
-		devinfo->ctl_read.bRequest = DL_DEFER_RESP_OK;
-	} else {
-		/* full dongle model */
-		devinfo->ctl_read.bRequestType = USB_DIR_IN
-			| USB_TYPE_CLASS | USB_RECIP_INTERFACE;
-		devinfo->ctl_read.bRequest = 1;
-	}
+	devinfo->ctl_read.bRequestType = USB_DIR_IN
+		| USB_TYPE_CLASS | USB_RECIP_INTERFACE;
+	devinfo->ctl_read.bRequest = 1;
 
 	usb_fill_control_urb(devinfo->ctl_urb,
 		devinfo->usbdev,
@@ -1312,8 +1302,6 @@ struct brcmf_usbdev *brcmf_usb_attach(struct brcmf_usbdev_info *devinfo,
 		brcmf_dbg(ERROR, "usb_alloc_urb (ctl) failed\n");
 		goto error;
 	}
-	devinfo->rxctl_deferrespok = 0;
-
 	devinfo->bulk_urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!devinfo->bulk_urb) {
 		brcmf_dbg(ERROR, "usb_alloc_urb (bulk) failed\n");
