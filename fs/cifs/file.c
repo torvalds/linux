@@ -245,10 +245,24 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	struct inode *inode = dentry->d_inode;
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct cifsFileInfo *cfile;
+	struct cifs_fid_locks *fdlocks;
 
 	cfile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 	if (cfile == NULL)
 		return cfile;
+
+	fdlocks = kzalloc(sizeof(struct cifs_fid_locks), GFP_KERNEL);
+	if (!fdlocks) {
+		kfree(cfile);
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&fdlocks->locks);
+	fdlocks->cfile = cfile;
+	cfile->llist = fdlocks;
+	mutex_lock(&cinode->lock_mutex);
+	list_add(&fdlocks->llist, &cinode->llist);
+	mutex_unlock(&cinode->lock_mutex);
 
 	cfile->count = 1;
 	cfile->pid = current->tgid;
@@ -257,9 +271,8 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	cfile->f_flags = file->f_flags;
 	cfile->invalidHandle = false;
 	cfile->tlink = cifs_get_tlink(tlink);
-	mutex_init(&cfile->fh_mutex);
 	INIT_WORK(&cfile->oplock_break, cifs_oplock_break);
-	INIT_LIST_HEAD(&cfile->llist);
+	mutex_init(&cfile->fh_mutex);
 	tlink_tcon(tlink)->ses->server->ops->set_fid(cfile, fid, oplock);
 
 	spin_lock(&cifs_file_list_lock);
@@ -336,15 +349,18 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 		free_xid(xid);
 	}
 
-	/* Delete any outstanding lock records. We'll lose them when the file
+	/*
+	 * Delete any outstanding lock records. We'll lose them when the file
 	 * is closed anyway.
 	 */
 	mutex_lock(&cifsi->lock_mutex);
-	list_for_each_entry_safe(li, tmp, &cifs_file->llist, llist) {
+	list_for_each_entry_safe(li, tmp, &cifs_file->llist->locks, llist) {
 		list_del(&li->llist);
 		cifs_del_lock_waiters(li);
 		kfree(li);
 	}
+	list_del(&cifs_file->llist->llist);
+	kfree(cifs_file->llist);
 	mutex_unlock(&cifsi->lock_mutex);
 
 	cifs_put_tlink(cifs_file->tlink);
@@ -691,25 +707,24 @@ cifs_del_lock_waiters(struct cifsLockInfo *lock)
 }
 
 static bool
-cifs_find_fid_lock_conflict(struct cifsFileInfo *cfile, __u64 offset,
-			    __u64 length, __u8 type, struct cifsFileInfo *cur,
+cifs_find_fid_lock_conflict(struct cifs_fid_locks *fdlocks, __u64 offset,
+			    __u64 length, __u8 type, struct cifsFileInfo *cfile,
 			    struct cifsLockInfo **conf_lock)
 {
 	struct cifsLockInfo *li;
+	struct cifsFileInfo *cur_cfile = fdlocks->cfile;
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 
-	list_for_each_entry(li, &cfile->llist, llist) {
+	list_for_each_entry(li, &fdlocks->locks, llist) {
 		if (offset + length <= li->offset ||
 		    offset >= li->offset + li->length)
 			continue;
-		else if ((type & server->vals->shared_lock_type) &&
-			 ((server->ops->compare_fids(cur, cfile) &&
-			   current->tgid == li->pid) || type == li->type))
+		if ((type & server->vals->shared_lock_type) &&
+		    ((server->ops->compare_fids(cfile, cur_cfile) &&
+		     current->tgid == li->pid) || type == li->type))
 			continue;
-		else {
-			*conf_lock = li;
-			return true;
-		}
+		*conf_lock = li;
+		return true;
 	}
 	return false;
 }
@@ -719,17 +734,15 @@ cifs_find_lock_conflict(struct cifsFileInfo *cfile, __u64 offset, __u64 length,
 			__u8 type, struct cifsLockInfo **conf_lock)
 {
 	bool rc = false;
-	struct cifsFileInfo *fid, *tmp;
+	struct cifs_fid_locks *cur;
 	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
 
-	spin_lock(&cifs_file_list_lock);
-	list_for_each_entry_safe(fid, tmp, &cinode->openFileList, flist) {
-		rc = cifs_find_fid_lock_conflict(fid, offset, length, type,
+	list_for_each_entry(cur, &cinode->llist, llist) {
+		rc = cifs_find_fid_lock_conflict(cur, offset, length, type,
 						 cfile, conf_lock);
 		if (rc)
 			break;
 	}
-	spin_unlock(&cifs_file_list_lock);
 
 	return rc;
 }
@@ -777,7 +790,7 @@ cifs_lock_add(struct cifsFileInfo *cfile, struct cifsLockInfo *lock)
 {
 	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
 	mutex_lock(&cinode->lock_mutex);
-	list_add_tail(&lock->llist, &cfile->llist);
+	list_add_tail(&lock->llist, &cfile->llist->locks);
 	mutex_unlock(&cinode->lock_mutex);
 }
 
@@ -803,7 +816,7 @@ try_again:
 	exist = cifs_find_lock_conflict(cfile, lock->offset, lock->length,
 					lock->type, &conf_lock);
 	if (!exist && cinode->can_cache_brlcks) {
-		list_add_tail(&lock->llist, &cfile->llist);
+		list_add_tail(&lock->llist, &cfile->llist->locks);
 		mutex_unlock(&cinode->lock_mutex);
 		return rc;
 	}
@@ -937,7 +950,7 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 	for (i = 0; i < 2; i++) {
 		cur = buf;
 		num = 0;
-		list_for_each_entry_safe(li, tmp, &cfile->llist, llist) {
+		list_for_each_entry_safe(li, tmp, &cfile->llist->locks, llist) {
 			if (li->type != types[i])
 				continue;
 			cur->Pid = cpu_to_le16(li->pid);
@@ -1279,7 +1292,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	for (i = 0; i < 2; i++) {
 		cur = buf;
 		num = 0;
-		list_for_each_entry_safe(li, tmp, &cfile->llist, llist) {
+		list_for_each_entry_safe(li, tmp, &cfile->llist->locks, llist) {
 			if (flock->fl_start > li->offset ||
 			    (flock->fl_start + length) <
 			    (li->offset + li->length))
@@ -1320,7 +1333,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 					 * list to the head of the file's list.
 					 */
 					cifs_move_llist(&tmp_llist,
-							&cfile->llist);
+							&cfile->llist->locks);
 					rc = stored_rc;
 				} else
 					/*
@@ -1337,7 +1350,8 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 			stored_rc = cifs_lockv(xid, tcon, cfile->fid.netfid,
 					       types[i], num, 0, buf);
 			if (stored_rc) {
-				cifs_move_llist(&tmp_llist, &cfile->llist);
+				cifs_move_llist(&tmp_llist,
+						&cfile->llist->locks);
 				rc = stored_rc;
 			} else
 				cifs_free_llist(&tmp_llist);
@@ -1350,7 +1364,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 }
 
 static int
-cifs_setlk(struct file *file,  struct file_lock *flock, __u32 type,
+cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 	   bool wait_flag, bool posix_lck, int lock, int unlock,
 	   unsigned int xid)
 {
@@ -1359,7 +1373,6 @@ cifs_setlk(struct file *file,  struct file_lock *flock, __u32 type,
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *)file->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
-	__u16 netfid = cfile->fid.netfid;
 
 	if (posix_lck) {
 		int posix_lock_type;
@@ -1376,9 +1389,9 @@ cifs_setlk(struct file *file,  struct file_lock *flock, __u32 type,
 		if (unlock == 1)
 			posix_lock_type = CIFS_UNLCK;
 
-		rc = CIFSSMBPosixLock(xid, tcon, netfid, current->tgid,
-				      flock->fl_start, length, NULL,
-				      posix_lock_type, wait_flag);
+		rc = CIFSSMBPosixLock(xid, tcon, cfile->fid.netfid,
+				      current->tgid, flock->fl_start, length,
+				      NULL, posix_lock_type, wait_flag);
 		goto out;
 	}
 

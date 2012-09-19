@@ -890,13 +890,16 @@ struct cifs_fid {
 #endif
 };
 
+struct cifs_fid_locks {
+	struct list_head llist;
+	struct cifsFileInfo *cfile;	/* fid that owns locks */
+	struct list_head locks;		/* locks held by fid above */
+};
+
 struct cifsFileInfo {
 	struct list_head tlist;	/* pointer to next fid owned by tcon */
 	struct list_head flist;	/* next fid (file instance) for this inode */
-	struct list_head llist;	/*
-				 * brlocks held by this fid, protected by
-				 * lock_mutex from cifsInodeInfo structure
-				 */
+	struct cifs_fid_locks *llist;	/* brlocks held by this fid */
 	unsigned int uid;	/* allows finding which FileInfo structure */
 	__u32 pid;		/* process id who opened file */
 	struct cifs_fid fid;	/* file id from remote */
@@ -988,11 +991,8 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
 
 struct cifsInodeInfo {
 	bool can_cache_brlcks;
-	struct mutex lock_mutex;	/*
-					 * protect the field above and llist
-					 * from every cifsFileInfo structure
-					 * from openFileList
-					 */
+	struct list_head llist;	/* locks helb by this inode */
+	struct mutex lock_mutex;	/* protect the fields above */
 	/* BB add in lists for dirty pages i.e. write caching info for oplock */
 	struct list_head openFileList;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */

@@ -233,6 +233,7 @@ cifs_alloc_inode(struct super_block *sb)
 	   to zero by the VFS */
 /*	cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME;*/
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
+	INIT_LIST_HEAD(&cifs_inode->llist);
 	return &cifs_inode->vfs_inode;
 }
 
