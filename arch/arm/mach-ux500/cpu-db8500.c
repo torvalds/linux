@@ -37,7 +37,9 @@
 
 #include "devices-db8500.h"
 #include "ste-dma40-db8500.h"
+
 #include "board-mop500.h"
+#include "id.h"
 
 /* minimum static i/o mapping required to boot U8500 platforms */
 static struct map_desc u8500_uart_io_desc[] __initdata = {

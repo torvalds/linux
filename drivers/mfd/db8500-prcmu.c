@@ -36,7 +36,6 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/db8500-regs.h>
-#include <mach/id.h>
 #include "dbx500-prcmu-regs.h"
 
 /* Offset for the firmware version within the TCPM */
@@ -216,10 +215,8 @@
 #define PRCM_REQ_MB5_I2C_HW_BITS	(PRCM_REQ_MB5 + 0x1)
 #define PRCM_REQ_MB5_I2C_REG		(PRCM_REQ_MB5 + 0x2)
 #define PRCM_REQ_MB5_I2C_VAL		(PRCM_REQ_MB5 + 0x3)
-#define PRCMU_I2C_WRITE(slave) \
-	(((slave) << 1) | (cpu_is_u8500v2() ? BIT(6) : 0))
-#define PRCMU_I2C_READ(slave) \
-	(((slave) << 1) | BIT(0) | (cpu_is_u8500v2() ? BIT(6) : 0))
+#define PRCMU_I2C_WRITE(slave) (((slave) << 1) | BIT(6))
+#define PRCMU_I2C_READ(slave) (((slave) << 1) | BIT(0) | BIT(6))
 #define PRCMU_I2C_STOP_EN		BIT(3)
 
 /* Mailbox 5 ACKs */
@@ -1049,12 +1046,13 @@ int db8500_prcmu_get_ddr_opp(void)
  *
  * This function sets the operating point of the DDR.
  */
+static bool enable_set_ddr_opp;
 int db8500_prcmu_set_ddr_opp(u8 opp)
 {
 	if (opp < DDR_100_OPP || opp > DDR_25_OPP)
 		return -EINVAL;
 	/* Changing the DDR OPP can hang the hardware pre-v21 */
-	if (cpu_is_u8500v20_or_later() && !cpu_is_u8500v20())
+	if (enable_set_ddr_opp)
 		writeb(opp, PRCM_DDR_SUBSYS_APE_MINBW);
 
 	return 0;
@@ -2790,6 +2788,7 @@ void __init db8500_prcmu_early_init(void)
 		pr_err("prcmu: Unsupported chip version\n");
 		BUG();
 	}
+	tcdm_base = __io_address(U8500_PRCMU_TCDM_BASE);
 
 	spin_lock_init(&mb0_transfer.lock);
 	spin_lock_init(&mb0_transfer.dbb_irqs_lock);
@@ -3104,9 +3103,6 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int irq = 0, err = 0, i;
 
-	if (ux500_is_svp())
-		return -ENODEV;
-
 	init_prcm_registers();
 
 	/* Clean up the mailbox interrupts after pre-kernel code. */
@@ -3135,8 +3131,7 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (cpu_is_u8500v20_or_later())
-		prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
+	prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
 	db8500_prcmu_update_cpufreq();
 

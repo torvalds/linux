@@ -218,8 +218,6 @@ enum ddr_pwrst {
 
 #if defined(CONFIG_UX500_SOC_DB8500)
 
-#include <mach/id.h>
-
 static inline void __init prcmu_early_init(void)
 {
 	return db8500_prcmu_early_init();
