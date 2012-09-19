@@ -6,25 +6,11 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
-#define gpio_readl(offset)	readl_relaxed(RK2928_GPIO3_BASE + offset)
-#define gpio_writel(v, offset)	do { writel_relaxed(v, RK2928_GPIO3_BASE + offset); dsb(); } while (0)
-
-#define GPIO_SWPORTA_DR  0x0000
-#define GPIO_SWPORTA_DDR 0x0004
-
-#define GPIO3_D2_OUTPUT  (1<<26)
-#define GPIO3_D2_OUTPUT_HIGH  (1<<26)
-#define GPIO3_D2_OUTPUT_LOW  (~(1<<26))
-
 #ifdef CONFIG_REGULATOR_ACT8931
-#define PMU_POWER_SLEEP RK2928_PIN3_PD2	
+
 extern int platform_device_register(struct platform_device *pdev);
 
 int act8931_pre_init(struct act8931 *act8931){
-
-	int val = 0;
-	int i 	= 0;
-	int err = -1;
 		
 	printk("%s,line=%d\n", __func__,__LINE__);	
 	
@@ -35,6 +21,9 @@ int act8931_set_init(struct act8931 *act8931)
 	struct regulator *dcdc;
 	struct regulator *ldo;
 	printk("%s,line=%d\n", __func__,__LINE__);
+
+	g_pmic_type = PMIC_TYPE_ACT8931;
+	printk("%s:g_pmic_type=%d\n",__func__,g_pmic_type);
 
 	#ifdef CONFIG_RK30_PWM_REGULATOR
 	platform_device_register(&pwm_regulator_device[0]);

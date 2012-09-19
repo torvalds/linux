@@ -144,7 +144,7 @@ static int act8931_ldo_enable(struct regulator_dev *dev)
 	struct act8931 *act8931 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) -ACT8931_LDO1;
 	u16 mask=0x80;	
-	int ret;
+
 	return act8931_set_bits(act8931, act8931_LDO_CONTR_REG(ldo), mask, 0x80);
 	
 }
@@ -153,7 +153,7 @@ static int act8931_ldo_disable(struct regulator_dev *dev)
 	struct act8931 *act8931 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) -ACT8931_LDO1;
 	u16 mask=0x80;
-	int ret;
+	
 	return act8931_set_bits(act8931, act8931_LDO_CONTR_REG(ldo), mask, 0);
 
 }

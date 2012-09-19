@@ -45,6 +45,7 @@
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/regulator/act8931.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
@@ -56,6 +57,10 @@
 
 #include "board-rk2928-a720-camera.c" 
 #include "board-rk2928-a720-key.c"
+
+int __sramdata g_pmic_type =  0;
+#define PMIC_TYPE_TPS65910	2
+#define PMIC_TYPE_ACT8931	3
 
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
@@ -121,7 +126,18 @@ static int rk29_backlight_pwm_suspend(void)
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return -1;
 	}
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	#if defined(CONFIG_MFD_TPS65910)	
+	if(g_pmic_type == PMIC_TYPE_TPS65910)
+	{
+		gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	}
+	#endif
+	#if defined(CONFIG_REGULATOR_ACT8931)
+	if(g_pmic_type == PMIC_TYPE_ACT8931)
+	{
+		gpio_direction_output(PWM_GPIO, GPIO_HIGH);
+	}
+	#endif
 #ifdef  LCD_DISP_ON_PIN
 	gpio_direction_output(BL_EN_PIN, 0);
 	gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
@@ -191,11 +207,34 @@ static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 }
 static int rk_fb_io_disable(void)
 {
+
+	#if defined(CONFIG_REGULATOR_ACT8931)
+	if(g_pmic_type == PMIC_TYPE_ACT8931)
+	{
+		struct regulator *ldo;
+		ldo = regulator_get(NULL, "act_ldo4");	 //vcc_lcd
+		regulator_disable(ldo);
+		regulator_put(ldo);
+		udelay(100);
+	}
+	#endif
         gpio_set_value(LCD_EN, !LCD_EN_VALUE);
 	return 0;
 }
 static int rk_fb_io_enable(void)
 {
+	#if defined(CONFIG_REGULATOR_ACT8931)
+	if(g_pmic_type == PMIC_TYPE_ACT8931)
+	{
+		struct regulator *ldo;
+		ldo = regulator_get(NULL, "act_ldo4");	 //vcc_lcd
+		regulator_enable(ldo);
+		regulator_put(ldo);
+		udelay(100);
+		msleep(300);	// wait for powering on LED circuit
+	}
+	#endif
+
         gpio_set_value(LCD_EN, LCD_EN_VALUE);
 	return 0;
 }
@@ -661,8 +700,11 @@ static void rk2928_pm_power_off(void)
 {
 	printk(KERN_ERR "rk2928_pm_power_off start...\n");
 	
-	#if defined(CONFIG_MFD_TPS65910)
+	#if defined(CONFIG_MFD_TPS65910)	
+	if(g_pmic_type == PMIC_TYPE_TPS65910)
+	{
 		tps65910_device_shutdown();//tps65910 shutdown
+	}
 	#endif
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
 	
@@ -672,8 +714,7 @@ static void __init rk2928_board_init(void)
 {
 	gpio_request(POWER_ON_PIN, "poweronpin");
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
-        gpio_free(POWER_ON_PIN);
-	
+ 
 	pm_power_off = rk2928_pm_power_off;
 	
 	rk30_i2c_register_board_info();
