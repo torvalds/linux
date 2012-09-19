@@ -978,8 +978,11 @@ struct cifs_readdata {
 	pid_t				pid;
 	int				result;
 	struct work_struct		work;
-	int (*marshal_iov) (struct cifs_readdata *rdata,
-			    unsigned int remaining);
+	int (*read_into_pages)(struct TCP_Server_Info *server,
+				struct cifs_readdata *rdata,
+				unsigned int len);
+	unsigned int			pagesz;
+	unsigned int			tailsz;
 	unsigned int			nr_iov;
 	struct kvec			*iov;
 	unsigned int			nr_pages;

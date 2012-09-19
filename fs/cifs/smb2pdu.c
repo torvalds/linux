@@ -1300,7 +1300,11 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	struct smb2_hdr *buf = (struct smb2_hdr *)rdata->iov[0].iov_base;
 	unsigned int credits_received = 1;
 	struct smb_rqst rqst = { .rq_iov = rdata->iov,
-				 .rq_nvec = rdata->nr_iov };
+				 .rq_nvec = 1,
+				 .rq_pages = rdata->pages,
+				 .rq_npages = rdata->nr_pages,
+				 .rq_pagesz = rdata->pagesz,
+				 .rq_tailsz = rdata->tailsz };
 
 	cFYI(1, "%s: mid=%llu state=%d result=%d bytes=%u", __func__,
 		mid->mid, mid->mid_state, rdata->result, rdata->bytes);
