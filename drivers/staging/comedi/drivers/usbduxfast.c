@@ -1430,10 +1430,8 @@ static void tidy_up(struct usbduxfastsub_s *udfs)
 	udfs->ai_cmd_running = 0;
 }
 
-/* common part of attach and attach_usb */
 static int usbduxfast_attach_common(struct comedi_device *dev,
-				    struct usbduxfastsub_s *udfs,
-				    void *aux_data, int aux_len)
+				    struct usbduxfastsub_s *udfs)
 {
 	int ret;
 	struct comedi_subdevice *s;
@@ -1441,9 +1439,6 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	down(&udfs->sem);
 	/* pointer back to the corresponding comedi device */
 	udfs->comedidev = dev;
-	/* trying to upload the firmware into the chip */
-	if (aux_data)
-		firmwareUpload(udfs, aux_data, aux_len);
 	dev->board_name = "usbduxfast";
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret) {
@@ -1485,48 +1480,6 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	return 0;
 }
 
-/* is called for COMEDI_DEVCONFIG ioctl (when comedi_config is run) */
-static int usbduxfast_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it)
-{
-	int ret;
-	int index;
-	int i;
-	void *aux_data;
-	int aux_len;
-
-	dev->private = NULL;
-
-	aux_data = comedi_aux_data(it->options, 0);
-	aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-	if (aux_data == NULL)
-		aux_len = 0;
-	else if (aux_len == 0)
-		aux_data = NULL;
-	down(&start_stop_sem);
-	/*
-	 * find a valid device which has been detected by the
-	 * probe function of the usb
-	 */
-	index = -1;
-	for (i = 0; i < NUMUSBDUXFAST; i++) {
-		if (usbduxfastsub[i].probed && !usbduxfastsub[i].attached) {
-			index = i;
-			break;
-		}
-	}
-	if (index < 0) {
-		dev_err(dev->class_dev,
-			"usbduxfast: error: attach failed, no usbduxfast devs connected to the usb bus.\n");
-		ret = -ENODEV;
-	} else
-		ret = usbduxfast_attach_common(dev, &usbduxfastsub[index],
-					       aux_data, aux_len);
-	up(&start_stop_sem);
-	return ret;
-}
-
-/* is called from comedi_usb_auto_config() */
 static int usbduxfast_attach_usb(struct comedi_device *dev,
 				 struct usb_interface *uinterf)
 {
@@ -1545,7 +1498,7 @@ static int usbduxfast_attach_usb(struct comedi_device *dev,
 		       "usbduxfast: error: attach_usb failed, already attached\n");
 		ret = -ENODEV;
 	} else
-		ret = usbduxfast_attach_common(dev, udfs, NULL, 0);
+		ret = usbduxfast_attach_common(dev, udfs);
 	up(&start_stop_sem);
 	return ret;
 }
@@ -1568,9 +1521,8 @@ static void usbduxfast_detach(struct comedi_device *dev)
 static struct comedi_driver usbduxfast_driver = {
 	.driver_name	= "usbduxfast",
 	.module		= THIS_MODULE,
-	.attach		= usbduxfast_attach,
-	.detach		= usbduxfast_detach,
 	.attach_usb	= usbduxfast_attach_usb,
+	.detach		= usbduxfast_detach,
 };
 
 static void usbduxfast_firmware_request_complete_handler(const struct firmware
