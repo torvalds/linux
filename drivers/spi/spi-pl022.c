@@ -42,6 +42,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/pinctrl/consumer.h>
 
 /*
  * This macro is used to define some register default values.
@@ -367,6 +368,10 @@ struct pl022 {
 	resource_size_t			phybase;
 	void __iomem			*virtbase;
 	struct clk			*clk;
+	/* Two optional pin states - default & sleep */
+	struct pinctrl			*pinctrl;
+	struct pinctrl_state		*pins_default;
+	struct pinctrl_state		*pins_sleep;
 	struct spi_master		*master;
 	struct pl022_ssp_controller	*master_info;
 	/* Message per-transfer pump */
@@ -2068,6 +2073,28 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
 					  GFP_KERNEL);
 
+	pl022->pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(pl022->pinctrl)) {
+		status = PTR_ERR(pl022->pinctrl);
+		goto err_no_pinctrl;
+	}
+
+	pl022->pins_default = pinctrl_lookup_state(pl022->pinctrl,
+						 PINCTRL_STATE_DEFAULT);
+	/* enable pins to be muxed in and configured */
+	if (!IS_ERR(pl022->pins_default)) {
+		status = pinctrl_select_state(pl022->pinctrl,
+				pl022->pins_default);
+		if (status)
+			dev_err(dev, "could not set default pins\n");
+	} else
+		dev_err(dev, "could not get default pinstate\n");
+
+	pl022->pins_sleep = pinctrl_lookup_state(pl022->pinctrl,
+					       PINCTRL_STATE_SLEEP);
+	if (IS_ERR(pl022->pins_sleep))
+		dev_dbg(dev, "could not get sleep pinstate\n");
+
 	/*
 	 * Bus Number Which has been Assigned to this SSP controller
 	 * on this board
@@ -2218,6 +2245,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	amba_release_regions(adev);
  err_no_ioregion:
  err_no_gpio:
+ err_no_pinctrl:
 	spi_master_put(master);
  err_no_master:
  err_no_pdata:
@@ -2291,8 +2319,17 @@ static int pl022_resume(struct device *dev)
 static int pl022_runtime_suspend(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
+	int status = 0;
 
 	clk_disable(pl022->clk);
+
+	/* Optionally let pins go into sleep states */
+	if (!IS_ERR(pl022->pins_sleep)) {
+		status = pinctrl_select_state(pl022->pinctrl,
+				pl022->pins_sleep);
+		if (status)
+			dev_err(dev, "could not set pins to sleep state\n");
+	}
 
 	return 0;
 }
@@ -2300,6 +2337,15 @@ static int pl022_runtime_suspend(struct device *dev)
 static int pl022_runtime_resume(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
+	int status = 0;
+
+	/* Optionaly enable pins to be muxed in and configured */
+	if (!IS_ERR(pl022->pins_default)) {
+		status = pinctrl_select_state(pl022->pinctrl,
+				pl022->pins_default);
+		if (status)
+			dev_err(dev, "could not set default pins\n");
+	}
 
 	clk_enable(pl022->clk);
 

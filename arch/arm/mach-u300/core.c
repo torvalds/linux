@@ -1605,9 +1605,6 @@ static struct u300_mux_hog u300_mux_hogs[] = {
 		.dev = &uart0_device.dev,
 	},
 	{
-		.dev = &pl022_device.dev,
-	},
-	{
 		.dev = &mmcsd_device.dev,
 	},
 };
