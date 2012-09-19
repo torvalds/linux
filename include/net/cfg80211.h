@@ -1628,7 +1628,7 @@ struct cfg80211_ops {
 	void	(*set_wakeup)(struct wiphy *wiphy, bool enabled);
 
 	struct wireless_dev * (*add_virtual_intf)(struct wiphy *wiphy,
-						  char *name,
+						  const char *name,
 						  enum nl80211_iftype type,
 						  u32 *flags,
 						  struct vif_params *params);
