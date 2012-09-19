@@ -381,16 +381,16 @@ static void dump_buff_as_hex(char *dst, size_t dst_sz, const u8 *data,
 		const size_t data_len)
 {
 	int i, j;
-	for (i = j = 0; i < data_len && j + 3 < dst_sz; i++) {
+	for (i = j = 0; i < data_len && j + 4 < dst_sz; i++) {
 		dst[j++] = hex_asc[(data[i] >> 4) & 0x0f];
 		dst[j++] = hex_asc[data[i] & 0x0f];
 		dst[j++] = ' ';
 	}
-	if (j < dst_sz) {
-		dst[j--] = '\0';
-		dst[j] = '\n';
-	} else
-		dst[j] = '\0';
+	dst[j]   = '\0';
+	if (j > 0)
+		dst[j-1] = '\n';
+	if (i < data_len && j > 2)
+		dst[j-2] = dst[j-3] = '.';
 }
 
 void picolcd_debug_out_report(struct picolcd_data *data,
