@@ -659,7 +659,7 @@ static int __devinit device_irq_init(struct pm860x_chip *chip,
 #endif
 	}
 
-	ret = request_threaded_irq(chip->core_irq, NULL, pm860x_irq, flags,
+	ret = request_threaded_irq(chip->core_irq, NULL, pm860x_irq, flags | IRQF_ONESHOT,
 				   "88pm860x", chip);
 	if (ret) {
 		dev_err(chip->dev, "Failed to request IRQ: %d\n", ret);
