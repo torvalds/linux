@@ -410,5 +410,7 @@ void i915_teardown_sysfs(struct drm_device *dev)
 {
 	sysfs_remove_files(&dev->primary->kdev.kobj, gen6_attrs);
 	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
+#ifdef CONFIG_PM
 	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
+#endif
 }
