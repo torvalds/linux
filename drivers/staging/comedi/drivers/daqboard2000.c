@@ -663,12 +663,6 @@ static void daqboard2000_initializeDac(struct comedi_device *dev)
 	daqboard2000_dacDisarm(dev);
 }
 
-/*
-The test command, REMOVE!!:
-
-rmmod daqboard2000 ; rmmod comedi; make install ; modprobe daqboard2000; /usr/sbin/comedi_config /dev/comedi0 daqboard/2000 ; tail -40 /var/log/messages
-*/
-
 static int daqboard2000_8255_cb(int dir, int port, int data,
 				unsigned long ioaddr)
 {
