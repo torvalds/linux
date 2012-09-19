@@ -2461,11 +2461,30 @@ cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 						iocb->ki_filp->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 
+#ifdef CONFIG_CIFS_SMB2
 	/*
-	 * In strict cache mode we need to write the data to the server exactly
-	 * from the pos to pos+len-1 rather than flush all affected pages
-	 * because it may cause a error with mandatory locks on these pages but
-	 * not on the region from pos to ppos+len-1.
+	 * If we have an oplock for read and want to write a data to the file
+	 * we need to store it in the page cache and then push it to the server
+	 * to be sure the next read will get a valid data.
+	 */
+	if (!cinode->clientCanCacheAll && cinode->clientCanCacheRead) {
+		ssize_t written;
+		int rc;
+
+		written = generic_file_aio_write(iocb, iov, nr_segs, pos);
+		rc = filemap_fdatawrite(inode->i_mapping);
+		if (rc)
+			return (ssize_t)rc;
+
+		return written;
+	}
+#endif
+
+	/*
+	 * For non-oplocked files in strict cache mode we need to write the data
+	 * to the server exactly from the pos to pos+len-1 rather than flush all
+	 * affected pages because it may cause a error with mandatory locks on
+	 * these pages but not on the region from pos to ppos+len-1.
 	 */
 
 	if (!cinode->clientCanCacheAll)
