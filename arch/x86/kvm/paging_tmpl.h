@@ -160,7 +160,6 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	u16 errcode = 0;
 	gpa_t real_gpa;
 	gfn_t gfn;
-	u32 ac;
 
 	trace_kvm_mmu_pagetable_walk(addr, access);
 retry_walk:
@@ -242,9 +241,7 @@ retry_walk:
 	if (PTTYPE == 32 && walker->level == PT_DIRECTORY_LEVEL && is_cpuid_PSE36())
 		gfn += pse36_gfn_delta(pte);
 
-	ac = write_fault | fetch_fault | user_fault;
-
-	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn), ac);
+	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn), access);
 	if (real_gpa == UNMAPPED_GVA)
 		return 0;
 
