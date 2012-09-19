@@ -85,6 +85,8 @@ static bool tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
  * spinlock it. I do not want! Well, probability of misbehaviour
  * is ridiculously low and, seems, we could use some mb() tricks
  * to avoid misread sequence numbers, states etc.  --ANK
+ *
+ * We don't need to initialize tmp_out.sack_ok as we don't use the results
  */
 enum tcp_tw_status
 tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
@@ -522,6 +524,8 @@ EXPORT_SYMBOL(tcp_create_openreq_child);
  *
  * XXX (TFO) - The current impl contains a special check for ack
  * validation and inside tcp_v4_reqsk_send_ack(). Can we do better?
+ *
+ * We don't need to initialize tmp_opt.sack_ok as we don't use the results
  */
 
 struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
