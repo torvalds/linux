@@ -762,8 +762,13 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 	s = &dev->subdevices[2];
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
 			(unsigned long)(devpriv->daq + dioP2ExpansionIO8Bit));
+	if (result)
+		return result;
 
-	return result;
+	dev_info(dev->class_dev, "%s: %s attached\n",
+		dev->driver->driver_name, dev->board_name);
+
+	return 0;
 }
 
 static void daqboard2000_detach(struct comedi_device *dev)
