@@ -247,9 +247,9 @@ static int __devinit em_gio_irq_domain_init(struct em_gio_priv *p)
 
 	p->irq_base = irq_alloc_descs(pdata->irq_base, 0,
 				      pdata->number_of_pins, numa_node_id());
-	if (IS_ERR_VALUE(p->irq_base)) {
+	if (p->irq_base < 0) {
 		dev_err(&pdev->dev, "cannot get irq_desc\n");
-		return -ENXIO;
+		return p->irq_base;
 	}
 	pr_debug("gio: hw base = %d, nr = %d, sw base = %d\n",
 		 pdata->gpio_base, pdata->number_of_pins, p->irq_base);
@@ -266,7 +266,7 @@ static int __devinit em_gio_irq_domain_init(struct em_gio_priv *p)
 	return 0;
 }
 
-static void __devexit em_gio_irq_domain_cleanup(struct em_gio_priv *p)
+static void em_gio_irq_domain_cleanup(struct em_gio_priv *p)
 {
 	struct gpio_em_config *pdata = p->pdev->dev.platform_data;
 

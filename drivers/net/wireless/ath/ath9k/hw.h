@@ -49,6 +49,7 @@
 #define AR9300_DEVID_AR9462	0x0034
 #define AR9300_DEVID_AR9330	0x0035
 #define AR9300_DEVID_QCA955X	0x0038
+#define AR9485_DEVID_AR1111	0x0037
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -404,6 +405,7 @@ struct ath9k_hw_cal_data {
 	int8_t iCoff;
 	int8_t qCoff;
 	bool rtt_done;
+	bool paprd_packet_sent;
 	bool paprd_done;
 	bool nfcal_pending;
 	bool nfcal_interference;

@@ -74,7 +74,7 @@ static int __devinit stmmac_probe_config_dt(struct platform_device *pdev,
  * the necessary resources and invokes the main to init
  * the net device, register the mdio bus etc.
  */
-static int stmmac_pltfr_probe(struct platform_device *pdev)
+static int __devinit stmmac_pltfr_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct resource *res;

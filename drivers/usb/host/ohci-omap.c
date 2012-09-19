@@ -403,8 +403,6 @@ err0:
 static inline void
 usb_hcd_omap_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 {
-	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
-
 	usb_remove_hcd(hcd);
 	if (!IS_ERR_OR_NULL(hcd->phy)) {
 		(void) otg_set_host(hcd->phy->otg, 0);

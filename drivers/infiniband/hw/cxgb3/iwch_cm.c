@@ -1680,7 +1680,7 @@ static int close_con_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
  * T3A does 3 things when a TERM is received:
  * 1) send up a CPL_RDMA_TERMINATE message with the TERM packet
  * 2) generate an async event on the QP with the TERMINATE opcode
- * 3) post a TERMINATE opcde cqe into the associated CQ.
+ * 3) post a TERMINATE opcode cqe into the associated CQ.
  *
  * For (1), we save the message in the qp for later consumer consumption.
  * For (2), we move the QP into TERMINATE, post a QP event and disconnect.

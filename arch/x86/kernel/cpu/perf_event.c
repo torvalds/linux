@@ -32,6 +32,8 @@
 #include <asm/smp.h>
 #include <asm/alternative.h>
 #include <asm/timer.h>
+#include <asm/desc.h>
+#include <asm/ldt.h>
 
 #include "perf_event.h"
 
@@ -1738,6 +1740,29 @@ valid_user_frame(const void __user *fp, unsigned long size)
 	return (__range_not_ok(fp, size, TASK_SIZE) == 0);
 }
 
+static unsigned long get_segment_base(unsigned int segment)
+{
+	struct desc_struct *desc;
+	int idx = segment >> 3;
+
+	if ((segment & SEGMENT_TI_MASK) == SEGMENT_LDT) {
+		if (idx > LDT_ENTRIES)
+			return 0;
+
+		if (idx > current->active_mm->context.size)
+			return 0;
+
+		desc = current->active_mm->context.ldt;
+	} else {
+		if (idx > GDT_ENTRIES)
+			return 0;
+
+		desc = __this_cpu_ptr(&gdt_page.gdt[0]);
+	}
+
+	return get_desc_base(desc + idx);
+}
+
 #ifdef CONFIG_COMPAT
 
 #include <asm/compat.h>
@@ -1746,13 +1771,17 @@ static inline int
 perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
 	/* 32-bit process in 64-bit kernel. */
+	unsigned long ss_base, cs_base;
 	struct stack_frame_ia32 frame;
 	const void __user *fp;
 
 	if (!test_thread_flag(TIF_IA32))
 		return 0;
 
-	fp = compat_ptr(regs->bp);
+	cs_base = get_segment_base(regs->cs);
+	ss_base = get_segment_base(regs->ss);
+
+	fp = compat_ptr(ss_base + regs->bp);
 	while (entry->nr < PERF_MAX_STACK_DEPTH) {
 		unsigned long bytes;
 		frame.next_frame     = 0;
@@ -1765,8 +1794,8 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 		if (!valid_user_frame(fp, sizeof(frame)))
 			break;
 
-		perf_callchain_store(entry, frame.return_address);
-		fp = compat_ptr(frame.next_frame);
+		perf_callchain_store(entry, cs_base + frame.return_address);
+		fp = compat_ptr(ss_base + frame.next_frame);
 	}
 	return 1;
 }
@@ -1788,6 +1817,12 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		/* TODO: We don't support guest os callchain now */
 		return;
 	}
+
+	/*
+	 * We don't know what to do with VM86 stacks.. ignore them for now.
+	 */
+	if (regs->flags & (X86_VM_MASK | PERF_EFLAGS_VM))
+		return;
 
 	fp = (void __user *)regs->bp;
 
@@ -1816,16 +1851,50 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 	}
 }
 
+/*
+ * Deal with code segment offsets for the various execution modes:
+ *
+ *   VM86 - the good olde 16 bit days, where the linear address is
+ *          20 bits and we use regs->ip + 0x10 * regs->cs.
+ *
+ *   IA32 - Where we need to look at GDT/LDT segment descriptor tables
+ *          to figure out what the 32bit base address is.
+ *
+ *    X32 - has TIF_X32 set, but is running in x86_64
+ *
+ * X86_64 - CS,DS,SS,ES are all zero based.
+ */
+static unsigned long code_segment_base(struct pt_regs *regs)
+{
+	/*
+	 * If we are in VM86 mode, add the segment offset to convert to a
+	 * linear address.
+	 */
+	if (regs->flags & X86_VM_MASK)
+		return 0x10 * regs->cs;
+
+	/*
+	 * For IA32 we look at the GDT/LDT segment base to convert the
+	 * effective IP to a linear address.
+	 */
+#ifdef CONFIG_X86_32
+	if (user_mode(regs) && regs->cs != __USER_CS)
+		return get_segment_base(regs->cs);
+#else
+	if (test_thread_flag(TIF_IA32)) {
+		if (user_mode(regs) && regs->cs != __USER32_CS)
+			return get_segment_base(regs->cs);
+	}
+#endif
+	return 0;
+}
+
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
-	unsigned long ip;
-
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest())
-		ip = perf_guest_cbs->get_guest_ip();
-	else
-		ip = instruction_pointer(regs);
+		return perf_guest_cbs->get_guest_ip();
 
-	return ip;
+	return regs->ip + code_segment_base(regs);
 }
 
 unsigned long perf_misc_flags(struct pt_regs *regs)
@@ -1838,7 +1907,7 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 		else
 			misc |= PERF_RECORD_MISC_GUEST_KERNEL;
 	} else {
-		if (!kernel_ip(regs->ip))
+		if (user_mode(regs))
 			misc |= PERF_RECORD_MISC_USER;
 		else
 			misc |= PERF_RECORD_MISC_KERNEL;

@@ -917,7 +917,7 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 	if (!buf) {
 		mutex_unlock(&cinode->lock_mutex);
 		free_xid(xid);
-		return rc;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < 2; i++) {

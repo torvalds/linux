@@ -1026,7 +1026,6 @@ int ubifs_replay_journal(struct ubifs_info *c)
 	c->replaying = 1;
 	lnum = c->ltail_lnum = c->lhead_lnum;
 
-	lnum = UBIFS_LOG_LNUM;
 	do {
 		err = replay_log_leb(c, lnum, 0, c->sbuf);
 		if (err == 1)
@@ -1035,7 +1034,7 @@ int ubifs_replay_journal(struct ubifs_info *c)
 		if (err)
 			goto out;
 		lnum = ubifs_next_log_lnum(c, lnum);
-	} while (lnum != UBIFS_LOG_LNUM);
+	} while (lnum != c->ltail_lnum);
 
 	err = replay_buds(c);
 	if (err)

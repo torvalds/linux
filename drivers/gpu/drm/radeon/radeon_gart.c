@@ -814,7 +814,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		return -EINVAL;
 	}
 
-	if (bo_va->valid)
+	if (bo_va->valid && mem)
 		return 0;
 
 	ngpu_pages = radeon_bo_ngpu_pages(bo);
@@ -859,10 +859,26 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 		     struct radeon_bo *bo)
 {
 	struct radeon_bo_va *bo_va;
+	int r;
 
 	bo_va = radeon_bo_va(bo, vm);
 	if (bo_va == NULL)
 		return 0;
+
+	/* wait for va use to end */
+	while (bo_va->fence) {
+		r = radeon_fence_wait(bo_va->fence, false);
+		if (r) {
+			DRM_ERROR("error while waiting for fence: %d\n", r);
+		}
+		if (r == -EDEADLK) {
+			r = radeon_gpu_reset(rdev);
+			if (!r)
+				continue;
+		}
+		break;
+	}
+	radeon_fence_unref(&bo_va->fence);
 
 	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
@@ -934,7 +950,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 }
 
 /**
- * radeon_vm_init - tear down a vm instance
+ * radeon_vm_fini - tear down a vm instance
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
@@ -952,12 +968,15 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	radeon_vm_unbind_locked(rdev, vm);
 	mutex_unlock(&rdev->vm_manager.lock);
 
-	/* remove all bo */
+	/* remove all bo at this point non are busy any more because unbind
+	 * waited for the last vm fence to signal
+	 */
 	r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
 	if (!r) {
 		bo_va = radeon_bo_va(rdev->ring_tmp_bo.bo, vm);
 		list_del_init(&bo_va->bo_list);
 		list_del_init(&bo_va->vm_list);
+		radeon_fence_unref(&bo_va->fence);
 		radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
 		kfree(bo_va);
 	}
@@ -969,6 +988,7 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 		r = radeon_bo_reserve(bo_va->bo, false);
 		if (!r) {
 			list_del_init(&bo_va->bo_list);
+			radeon_fence_unref(&bo_va->fence);
 			radeon_bo_unreserve(bo_va->bo);
 			kfree(bo_va);
 		}

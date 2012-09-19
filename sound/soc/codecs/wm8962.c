@@ -2501,6 +2501,9 @@ static int wm8962_set_bias_level(struct snd_soc_codec *codec,
 		/* VMID 2*250k */
 		snd_soc_update_bits(codec, WM8962_PWR_MGMT_1,
 				    WM8962_VMID_SEL_MASK, 0x100);
+
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+			msleep(100);
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -3729,21 +3732,6 @@ static int wm8962_runtime_resume(struct device *dev)
 	wm8962_reset(wm8962);
 
 	regcache_sync(wm8962->regmap);
-
-	regmap_update_bits(wm8962->regmap, WM8962_ANTI_POP,
-			   WM8962_STARTUP_BIAS_ENA | WM8962_VMID_BUF_ENA,
-			   WM8962_STARTUP_BIAS_ENA | WM8962_VMID_BUF_ENA);
-
-	/* Bias enable at 2*50k for ramp */
-	regmap_update_bits(wm8962->regmap, WM8962_PWR_MGMT_1,
-			   WM8962_VMID_SEL_MASK | WM8962_BIAS_ENA,
-			   WM8962_BIAS_ENA | 0x180);
-
-	msleep(5);
-
-	/* VMID back to 2x250k for standby */
-	regmap_update_bits(wm8962->regmap, WM8962_PWR_MGMT_1,
-			   WM8962_VMID_SEL_MASK, 0x100);
 
 	return 0;
 }

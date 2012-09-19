@@ -27,7 +27,7 @@
 				status = "okay";
 			};
 
-			uart@1000a000 {
+			uart1: serial@1000a000 {
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};

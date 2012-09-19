@@ -545,7 +545,7 @@ TPACPI_HANDLE(hkey, ec, "\\_SB.HKEY",	/* 600e/x, 770e, 770x */
  */
 
 static int acpi_evalf(acpi_handle handle,
-		      void *res, char *method, char *fmt, ...)
+		      int *res, char *method, char *fmt, ...)
 {
 	char *fmt0 = fmt;
 	struct acpi_object_list params;
@@ -606,7 +606,7 @@ static int acpi_evalf(acpi_handle handle,
 		success = (status == AE_OK &&
 			   out_obj.type == ACPI_TYPE_INTEGER);
 		if (success && res)
-			*(int *)res = out_obj.integer.value;
+			*res = out_obj.integer.value;
 		break;
 	case 'v':		/* void */
 		success = status == AE_OK;
@@ -922,6 +922,7 @@ static struct input_dev *tpacpi_inputdev;
 static struct mutex tpacpi_inputdev_send_mutex;
 static LIST_HEAD(tpacpi_all_drivers);
 
+#ifdef CONFIG_PM_SLEEP
 static int tpacpi_suspend_handler(struct device *dev)
 {
 	struct ibm_struct *ibm, *itmp;
@@ -949,6 +950,7 @@ static int tpacpi_resume_handler(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(tpacpi_pm,
 			 tpacpi_suspend_handler, tpacpi_resume_handler);
@@ -7384,17 +7386,18 @@ static int fan_get_status(u8 *status)
 	 * Add TPACPI_FAN_RD_ACPI_FANS ? */
 
 	switch (fan_status_access_mode) {
-	case TPACPI_FAN_RD_ACPI_GFAN:
+	case TPACPI_FAN_RD_ACPI_GFAN: {
 		/* 570, 600e/x, 770e, 770x */
+		int res;
 
-		if (unlikely(!acpi_evalf(gfan_handle, &s, NULL, "d")))
+		if (unlikely(!acpi_evalf(gfan_handle, &res, NULL, "d")))
 			return -EIO;
 
 		if (likely(status))
-			*status = s & 0x07;
+			*status = res & 0x07;
 
 		break;
-
+	}
 	case TPACPI_FAN_RD_TPEC:
 		/* all except 570, 600e/x, 770e, 770x */
 		if (unlikely(!acpi_ec_read(fan_status_offset, &s)))
@@ -8662,6 +8665,13 @@ static int __must_check __init get_thinkpad_model_data(
 		tp->model_str = kstrdup(s, GFP_KERNEL);
 		if (!tp->model_str)
 			return -ENOMEM;
+	} else {
+		s = dmi_get_system_info(DMI_BIOS_VENDOR);
+		if (s && !(strnicmp(s, "Lenovo", 6))) {
+			tp->model_str = kstrdup(s, GFP_KERNEL);
+			if (!tp->model_str)
+				return -ENOMEM;
+		}
 	}
 
 	s = dmi_get_system_info(DMI_PRODUCT_NAME);

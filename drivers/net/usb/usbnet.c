@@ -1201,19 +1201,26 @@ deferred:
 }
 EXPORT_SYMBOL_GPL(usbnet_start_xmit);
 
-static void rx_alloc_submit(struct usbnet *dev, gfp_t flags)
+static int rx_alloc_submit(struct usbnet *dev, gfp_t flags)
 {
 	struct urb	*urb;
 	int		i;
+	int		ret = 0;
 
 	/* don't refill the queue all at once */
 	for (i = 0; i < 10 && dev->rxq.qlen < RX_QLEN(dev); i++) {
 		urb = usb_alloc_urb(0, flags);
 		if (urb != NULL) {
-			if (rx_submit(dev, urb, flags) == -ENOLINK)
-				return;
+			ret = rx_submit(dev, urb, flags);
+			if (ret)
+				goto err;
+		} else {
+			ret = -ENOMEM;
+			goto err;
 		}
 	}
+err:
+	return ret;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1257,7 +1264,8 @@ static void usbnet_bh (unsigned long param)
 		int	temp = dev->rxq.qlen;
 
 		if (temp < RX_QLEN(dev)) {
-			rx_alloc_submit(dev, GFP_ATOMIC);
+			if (rx_alloc_submit(dev, GFP_ATOMIC) == -ENOLINK)
+				return;
 			if (temp != dev->rxq.qlen)
 				netif_dbg(dev, link, dev->net,
 					  "rxqlen %d --> %d\n",
@@ -1573,7 +1581,7 @@ int usbnet_resume (struct usb_interface *intf)
 				netif_device_present(dev->net) &&
 				!timer_pending(&dev->delay) &&
 				!test_bit(EVENT_RX_HALT, &dev->flags))
-					rx_alloc_submit(dev, GFP_KERNEL);
+					rx_alloc_submit(dev, GFP_NOIO);
 
 			if (!(dev->txq.qlen >= TX_QLEN(dev)))
 				netif_tx_wake_all_queues(dev->net);

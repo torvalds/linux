@@ -1349,9 +1349,6 @@ static struct pci_dev *pci1710_find_pci_dev(struct comedi_device *dev,
 		}
 		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
 			continue;
-		if (pci_is_enabled(pcidev))
-			continue;
-
 		if (strcmp(this_board->name, DRV_NAME) == 0) {
 			for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
 				if (pcidev->device == boardtypes[i].device_id) {

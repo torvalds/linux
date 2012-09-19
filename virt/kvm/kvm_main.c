@@ -1976,9 +1976,10 @@ static long kvm_vcpu_compat_ioctl(struct file *filp,
 			if (copy_from_user(&csigset, sigmask_arg->sigset,
 					   sizeof csigset))
 				goto out;
-		}
-		sigset_from_compat(&sigset, &csigset);
-		r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
+			sigset_from_compat(&sigset, &csigset);
+			r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
+		} else
+			r = kvm_vcpu_ioctl_set_sigmask(vcpu, NULL);
 		break;
 	}
 	default:

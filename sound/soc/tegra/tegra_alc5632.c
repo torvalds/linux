@@ -89,7 +89,6 @@ static struct snd_soc_jack_gpio tegra_alc5632_hp_jack_gpio = {
 	.name = "Headset detection",
 	.report = SND_JACK_HEADSET,
 	.debounce_time = 150,
-	.invert = 1,
 };
 
 static const struct snd_soc_dapm_widget tegra_alc5632_dapm_widgets[] = {
@@ -177,7 +176,7 @@ static __devinit int tegra_alc5632_probe(struct platform_device *pdev)
 	}
 
 	alc5632->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);
-	if (alc5632->gpio_hp_det == -ENODEV)
+	if (alc5632->gpio_hp_det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	ret = snd_soc_of_parse_card_name(card, "nvidia,model");

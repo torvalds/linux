@@ -227,9 +227,8 @@ loop_lock:
 		cur = pending;
 		pending = pending->bi_next;
 		cur->bi_next = NULL;
-		atomic_dec(&fs_info->nr_async_bios);
 
-		if (atomic_read(&fs_info->nr_async_bios) < limit &&
+		if (atomic_dec_return(&fs_info->nr_async_bios) < limit &&
 		    waitqueue_active(&fs_info->async_submit_wait))
 			wake_up(&fs_info->async_submit_wait);
 
@@ -569,9 +568,11 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		memcpy(new_device, device, sizeof(*new_device));
 
 		/* Safe because we are under uuid_mutex */
-		name = rcu_string_strdup(device->name->str, GFP_NOFS);
-		BUG_ON(device->name && !name); /* -ENOMEM */
-		rcu_assign_pointer(new_device->name, name);
+		if (device->name) {
+			name = rcu_string_strdup(device->name->str, GFP_NOFS);
+			BUG_ON(device->name && !name); /* -ENOMEM */
+			rcu_assign_pointer(new_device->name, name);
+		}
 		new_device->bdev = NULL;
 		new_device->writeable = 0;
 		new_device->in_fs_metadata = 0;
@@ -1744,10 +1745,6 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 
 	device->fs_devices = root->fs_info->fs_devices;
 
-	/*
-	 * we don't want write_supers to jump in here with our device
-	 * half setup
-	 */
 	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	list_add_rcu(&device->dev_list, &root->fs_info->fs_devices->devices);
 	list_add(&device->dev_alloc_list,
@@ -4607,28 +4604,6 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	}
 	free_extent_buffer(sb);
 	return ret;
-}
-
-struct btrfs_device *btrfs_find_device_for_logical(struct btrfs_root *root,
-						   u64 logical, int mirror_num)
-{
-	struct btrfs_mapping_tree *map_tree = &root->fs_info->mapping_tree;
-	int ret;
-	u64 map_length = 0;
-	struct btrfs_bio *bbio = NULL;
-	struct btrfs_device *device;
-
-	BUG_ON(mirror_num == 0);
-	ret = btrfs_map_block(map_tree, WRITE, logical, &map_length, &bbio,
-			      mirror_num);
-	if (ret) {
-		BUG_ON(bbio != NULL);
-		return NULL;
-	}
-	BUG_ON(mirror_num != bbio->mirror_num);
-	device = bbio->stripes[mirror_num - 1].dev;
-	kfree(bbio);
-	return device;
 }
 
 int btrfs_read_chunk_tree(struct btrfs_root *root)

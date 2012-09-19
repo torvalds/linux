@@ -402,8 +402,10 @@ static void v4l_print_hw_freq_seek(const void *arg, bool write_only)
 {
 	const struct v4l2_hw_freq_seek *p = arg;
 
-	pr_cont("tuner=%u, type=%u, seek_upward=%u, wrap_around=%u, spacing=%u\n",
-		p->tuner, p->type, p->seek_upward, p->wrap_around, p->spacing);
+	pr_cont("tuner=%u, type=%u, seek_upward=%u, wrap_around=%u, spacing=%u, "
+		"rangelow=%u, rangehigh=%u\n",
+		p->tuner, p->type, p->seek_upward, p->wrap_around, p->spacing,
+		p->rangelow, p->rangehigh);
 }
 
 static void v4l_print_requestbuffers(const void *arg, bool write_only)
@@ -1853,6 +1855,8 @@ static int v4l_enum_freq_bands(const struct v4l2_ioctl_ops *ops,
 			.type = type,
 		};
 
+		if (p->index)
+			return -EINVAL;
 		err = ops->vidioc_g_tuner(file, fh, &t);
 		if (err)
 			return err;
@@ -1869,6 +1873,8 @@ static int v4l_enum_freq_bands(const struct v4l2_ioctl_ops *ops,
 		};
 
 		if (type != V4L2_TUNER_RADIO)
+			return -EINVAL;
+		if (p->index)
 			return -EINVAL;
 		err = ops->vidioc_g_modulator(file, fh, &m);
 		if (err)

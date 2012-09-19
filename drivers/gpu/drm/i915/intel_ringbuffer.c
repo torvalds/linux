@@ -227,31 +227,36 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	 * number of bits based on the write domains has little performance
 	 * impact.
 	 */
-	flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
-	flags |= PIPE_CONTROL_TLB_INVALIDATE;
-	flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
-	flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
-	flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
-	flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
-	flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
-	flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
-	/*
-	 * Ensure that any following seqno writes only happen when the render
-	 * cache is indeed flushed (but only if the caller actually wants that).
-	 */
-	if (flush_domains)
+	if (flush_domains) {
+		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
+		/*
+		 * Ensure that any following seqno writes only happen
+		 * when the render cache is indeed flushed.
+		 */
 		flags |= PIPE_CONTROL_CS_STALL;
+	}
+	if (invalidate_domains) {
+		flags |= PIPE_CONTROL_TLB_INVALIDATE;
+		flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+		/*
+		 * TLB invalidate requires a post-sync write.
+		 */
+		flags |= PIPE_CONTROL_QW_WRITE;
+	}
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(5));
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4));
 	intel_ring_emit(ring, flags);
 	intel_ring_emit(ring, scratch_addr | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring, 0); /* lower dword */
-	intel_ring_emit(ring, 0); /* uppwer dword */
-	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
 
 	return 0;
@@ -289,8 +294,6 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	I915_WRITE_HEAD(ring, 0);
 	ring->write_tail(ring, 0);
 
-	/* Initialize the ring. */
-	I915_WRITE_START(ring, obj->gtt_offset);
 	head = I915_READ_HEAD(ring) & HEAD_ADDR;
 
 	/* G45 ring initialization fails to reset head to zero */
@@ -316,6 +319,11 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 		}
 	}
 
+	/* Initialize the ring. This must happen _after_ we've cleared the ring
+	 * registers with the above sequence (the readback of the HEAD registers
+	 * also enforces ordering), otherwise the hw might lose the new ring
+	 * register values. */
+	I915_WRITE_START(ring, obj->gtt_offset);
 	I915_WRITE_CTL(ring,
 			((ring->size - PAGE_SIZE) & RING_NR_PAGES)
 			| RING_VALID);

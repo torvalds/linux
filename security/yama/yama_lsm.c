@@ -279,12 +279,46 @@ static int yama_ptrace_access_check(struct task_struct *child,
 	}
 
 	if (rc) {
-		char name[sizeof(current->comm)];
 		printk_ratelimited(KERN_NOTICE
 			"ptrace of pid %d was attempted by: %s (pid %d)\n",
-			child->pid,
-			get_task_comm(name, current),
-			current->pid);
+			child->pid, current->comm, current->pid);
+	}
+
+	return rc;
+}
+
+/**
+ * yama_ptrace_traceme - validate PTRACE_TRACEME calls
+ * @parent: task that will become the ptracer of the current task
+ *
+ * Returns 0 if following the ptrace is allowed, -ve on error.
+ */
+static int yama_ptrace_traceme(struct task_struct *parent)
+{
+	int rc;
+
+	/* If standard caps disallows it, so does Yama.  We should
+	 * only tighten restrictions further.
+	 */
+	rc = cap_ptrace_traceme(parent);
+	if (rc)
+		return rc;
+
+	/* Only disallow PTRACE_TRACEME on more aggressive settings. */
+	switch (ptrace_scope) {
+	case YAMA_SCOPE_CAPABILITY:
+		if (!ns_capable(task_user_ns(parent), CAP_SYS_PTRACE))
+			rc = -EPERM;
+		break;
+	case YAMA_SCOPE_NO_ATTACH:
+		rc = -EPERM;
+		break;
+	}
+
+	if (rc) {
+		printk_ratelimited(KERN_NOTICE
+			"ptraceme of pid %d was attempted by: %s (pid %d)\n",
+			current->pid, parent->comm, parent->pid);
 	}
 
 	return rc;
@@ -294,6 +328,7 @@ static struct security_operations yama_ops = {
 	.name =			"yama",
 
 	.ptrace_access_check =	yama_ptrace_access_check,
+	.ptrace_traceme =	yama_ptrace_traceme,
 	.task_prctl =		yama_task_prctl,
 	.task_free =		yama_task_free,
 };

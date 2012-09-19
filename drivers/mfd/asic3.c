@@ -913,18 +913,19 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 	if (pdata->clock_rate) {
 		ds1wm_pdata.clock_rate = pdata->clock_rate;
 		ret = mfd_add_devices(&pdev->dev, pdev->id,
-			&asic3_cell_ds1wm, 1, mem, asic->irq_base);
+			&asic3_cell_ds1wm, 1, mem, asic->irq_base, NULL);
 		if (ret < 0)
 			goto out;
 	}
 
 	if (mem_sdio && (irq >= 0)) {
 		ret = mfd_add_devices(&pdev->dev, pdev->id,
-			&asic3_cell_mmc, 1, mem_sdio, irq);
+			&asic3_cell_mmc, 1, mem_sdio, irq, NULL);
 		if (ret < 0)
 			goto out;
 	}
 
+	ret = 0;
 	if (pdata->leds) {
 		int i;
 
@@ -933,7 +934,7 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 			asic3_cell_leds[i].pdata_size = sizeof(pdata->leds[i]);
 		}
 		ret = mfd_add_devices(&pdev->dev, 0,
-			asic3_cell_leds, ASIC3_NUM_LEDS, NULL, 0);
+			asic3_cell_leds, ASIC3_NUM_LEDS, NULL, 0, NULL);
 	}
 
  out:

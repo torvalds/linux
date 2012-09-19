@@ -121,6 +121,7 @@
 
 #define SE_INQUIRY_BUF				512
 #define SE_MODE_PAGE_BUF			512
+#define SE_SENSE_BUF				96
 
 /* struct se_hba->hba_flags */
 enum hba_flags_table {
@@ -503,8 +504,6 @@ struct se_cmd {
 	u32			se_ordered_id;
 	/* Total size in bytes associated with command */
 	u32			data_length;
-	/* SCSI Presented Data Transfer Length */
-	u32			cmd_spdtl;
 	u32			residual_count;
 	u32			orig_fe_lun;
 	/* Persistent Reservation key */

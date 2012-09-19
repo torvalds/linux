@@ -313,7 +313,7 @@ try_again:
 		}
  	}
 
-	perf_session__update_sample_type(session);
+	perf_session__set_id_hdr_size(session);
 }
 
 static int process_buildids(struct perf_record *rec)
@@ -843,8 +843,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	struct perf_evlist *evsel_list;
 	struct perf_record *rec = &record;
 	char errbuf[BUFSIZ];
-
-	perf_header__set_cmdline(argc, argv);
 
 	evsel_list = perf_evlist__new(NULL, NULL);
 	if (evsel_list == NULL)

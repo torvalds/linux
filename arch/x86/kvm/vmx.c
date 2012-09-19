@@ -1488,13 +1488,6 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 		loadsegment(ds, vmx->host_state.ds_sel);
 		loadsegment(es, vmx->host_state.es_sel);
 	}
-#else
-	/*
-	 * The sysexit path does not restore ds/es, so we must set them to
-	 * a reasonable value ourselves.
-	 */
-	loadsegment(ds, __USER_DS);
-	loadsegment(es, __USER_DS);
 #endif
 	reload_tss();
 #ifdef CONFIG_X86_64
@@ -3626,6 +3619,7 @@ static void seg_setup(int seg)
 
 static int alloc_apic_access_page(struct kvm *kvm)
 {
+	struct page *page;
 	struct kvm_userspace_memory_region kvm_userspace_mem;
 	int r = 0;
 
@@ -3640,7 +3634,13 @@ static int alloc_apic_access_page(struct kvm *kvm)
 	if (r)
 		goto out;
 
-	kvm->arch.apic_access_page = gfn_to_page(kvm, 0xfee00);
+	page = gfn_to_page(kvm, 0xfee00);
+	if (is_error_page(page)) {
+		r = -EFAULT;
+		goto out;
+	}
+
+	kvm->arch.apic_access_page = page;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
@@ -3648,6 +3648,7 @@ out:
 
 static int alloc_identity_pagetable(struct kvm *kvm)
 {
+	struct page *page;
 	struct kvm_userspace_memory_region kvm_userspace_mem;
 	int r = 0;
 
@@ -3663,8 +3664,13 @@ static int alloc_identity_pagetable(struct kvm *kvm)
 	if (r)
 		goto out;
 
-	kvm->arch.ept_identity_pagetable = gfn_to_page(kvm,
-			kvm->arch.ept_identity_map_addr >> PAGE_SHIFT);
+	page = gfn_to_page(kvm, kvm->arch.ept_identity_map_addr >> PAGE_SHIFT);
+	if (is_error_page(page)) {
+		r = -EFAULT;
+		goto out;
+	}
+
+	kvm->arch.ept_identity_pagetable = page;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
@@ -6370,6 +6376,19 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 #endif
 	      );
 
+#ifndef CONFIG_X86_64
+	/*
+	 * The sysexit path does not restore ds/es, so we must set them to
+	 * a reasonable value ourselves.
+	 *
+	 * We can't defer this to vmx_load_host_state() since that function
+	 * may be executed in interrupt context, which saves and restore segments
+	 * around it, nullifying its effect.
+	 */
+	loadsegment(ds, __USER_DS);
+	loadsegment(es, __USER_DS);
+#endif
+
 	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP)
 				  | (1 << VCPU_EXREG_RFLAGS)
 				  | (1 << VCPU_EXREG_CPL)
@@ -6569,7 +6588,7 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	/* Exposing INVPCID only when PCID is exposed */
 	best = kvm_find_cpuid_entry(vcpu, 0x7, 0);
 	if (vmx_invpcid_supported() &&
-	    best && (best->ecx & bit(X86_FEATURE_INVPCID)) &&
+	    best && (best->ebx & bit(X86_FEATURE_INVPCID)) &&
 	    guest_cpuid_has_pcid(vcpu)) {
 		exec_control |= SECONDARY_EXEC_ENABLE_INVPCID;
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
@@ -6579,7 +6598,7 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
 			     exec_control);
 		if (best)
-			best->ecx &= ~bit(X86_FEATURE_INVPCID);
+			best->ebx &= ~bit(X86_FEATURE_INVPCID);
 	}
 }
 

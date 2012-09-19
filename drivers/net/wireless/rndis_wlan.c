@@ -1803,6 +1803,7 @@ static struct ndis_80211_pmkid *update_pmkid(struct usbnet *usbdev,
 						struct cfg80211_pmksa *pmksa,
 						int max_pmkids)
 {
+	struct ndis_80211_pmkid *new_pmkids;
 	int i, err, newlen;
 	unsigned int count;
 
@@ -1833,11 +1834,12 @@ static struct ndis_80211_pmkid *update_pmkid(struct usbnet *usbdev,
 	/* add new pmkid */
 	newlen = sizeof(*pmkids) + (count + 1) * sizeof(pmkids->bssid_info[0]);
 
-	pmkids = krealloc(pmkids, newlen, GFP_KERNEL);
-	if (!pmkids) {
+	new_pmkids = krealloc(pmkids, newlen, GFP_KERNEL);
+	if (!new_pmkids) {
 		err = -ENOMEM;
 		goto error;
 	}
+	pmkids = new_pmkids;
 
 	pmkids->length = cpu_to_le32(newlen);
 	pmkids->bssid_info_count = cpu_to_le32(count + 1);
