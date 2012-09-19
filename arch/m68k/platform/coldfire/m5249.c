@@ -28,8 +28,8 @@ static struct resource m5249_smc91x_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= MCFINTC2_GPIOIRQ6,
-		.end		= MCFINTC2_GPIOIRQ6,
+		.start		= MCF_IRQ_GPIO6,
+		.end		= MCF_IRQ_GPIO6,
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -75,8 +75,8 @@ static void __init m5249_smc91x_init(void)
 	gpio = readl(MCFSIM2_GPIOINTENABLE);
 	writel(gpio | 0x40, MCFSIM2_GPIOINTENABLE);
 
-	gpio = readl(MCFSIM2_INTLEVEL5);
-	writel(gpio | 0x04000000, MCFSIM2_INTLEVEL5);
+	gpio = readl(MCFINTC2_INTPRI5);
+	writel(gpio | 0x04000000, MCFINTC2_INTPRI5);
 }
 
 #endif /* CONFIG_M5249C3 */
