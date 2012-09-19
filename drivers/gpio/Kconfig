@@ -150,6 +150,12 @@ config GPIO_MSM_V2
 	  Qualcomm MSM chips.  Most of the pins on the MSM can be
 	  selected for GPIO, and are controlled by this driver.
 
+config GPIO_MVEBU
+	def_bool y
+	depends on ARCH_MVEBU
+	select GPIO_GENERIC
+	select GENERIC_IRQ_CHIP
+
 config GPIO_MXC
 	def_bool y
 	depends on ARCH_MXC
