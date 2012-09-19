@@ -696,7 +696,6 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 	const struct daq200_boardtype *board;
 	struct daqboard2000_private *devpriv;
 	struct comedi_subdevice *s;
-	resource_size_t pci_base;
 	int result;
 
 	comedi_set_hw_dev(dev, &pcidev->dev);
@@ -717,10 +716,10 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 		return result;
 	dev->iobase = 1;	/* the "detach" needs this */
 
-	pci_base = pci_resource_start(pcidev, 0);
-	devpriv->plx = ioremap(pci_base, pci_resource_len(pcidev, 0));
-	pci_base = pci_resource_start(pcidev, 2);
-	devpriv->daq = ioremap(pci_base, pci_resource_len(pcidev, 2));
+	devpriv->plx = ioremap(pci_resource_start(pcidev, 0),
+			       pci_resource_len(pcidev, 0));
+	devpriv->daq = ioremap(pci_resource_start(pcidev, 2),
+			       pci_resource_len(pcidev, 2));
 	if (!devpriv->plx || !devpriv->daq)
 		return -ENOMEM;
 
