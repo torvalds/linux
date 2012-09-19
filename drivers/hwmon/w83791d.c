@@ -259,8 +259,7 @@ static u8 fan_to_reg(long rpm, int div)
 					((val) + 500) / 1000)
 
 /* for thermal cruise temp tolerance, 4-bits, LSB = 1 degree Celsius */
-#define TOL_TEMP_TO_REG(val)		((val) < 0 ? 0 : \
-					(val) >= 15000 ? 15 : \
+#define TOL_TEMP_TO_REG(val)		((val) >= 15000 ? 15 : \
 					((val) + 500) / 1000)
 
 #define BEEP_MASK_TO_REG(val)		((val) & 0xffffff)
@@ -848,10 +847,10 @@ static ssize_t store_temp_target(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83791d_data *data = i2c_get_clientdata(client);
 	int nr = sensor_attr->index;
-	unsigned long val;
+	long val;
 	u8 target_mask;
 
-	if (kstrtoul(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
