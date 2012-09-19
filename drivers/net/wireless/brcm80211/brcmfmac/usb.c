@@ -337,6 +337,7 @@ static int brcmf_usb_tx_ctlpkt(struct device *dev, u8 *buf, u32 len)
 	err = brcmf_usb_send_ctl(devinfo, buf, len);
 	if (err) {
 		brcmf_dbg(ERROR, "fail %d bytes: %d\n", err, len);
+		clear_bit(0, &devinfo->ctl_op);
 		return err;
 	}
 
@@ -367,6 +368,7 @@ static int brcmf_usb_rx_ctlpkt(struct device *dev, u8 *buf, u32 len)
 	err = brcmf_usb_recv_ctl(devinfo, buf, len);
 	if (err) {
 		brcmf_dbg(ERROR, "fail %d bytes: %d\n", err, len);
+		clear_bit(0, &devinfo->ctl_op);
 		return err;
 	}
 	devinfo->ctl_completed = false;
