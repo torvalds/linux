@@ -158,7 +158,7 @@ MODULE_PARM_DESC(edid_fixup,
  * Sanity check the EDID block (base or extension).  Return 0 if the block
  * doesn't check out, or 1 if it's valid.
  */
-bool drm_edid_block_valid(u8 *raw_edid, int block)
+bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 {
 	int i;
 	u8 csum = 0;
@@ -181,7 +181,9 @@ bool drm_edid_block_valid(u8 *raw_edid, int block)
 	for (i = 0; i < EDID_LENGTH; i++)
 		csum += raw_edid[i];
 	if (csum) {
-		DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
+		if (print_bad_edid) {
+			DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
+		}
 
 		/* allow CEA to slide through, switches mangle this */
 		if (raw_edid[0] != 0x02)
@@ -207,7 +209,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block)
 	return 1;
 
 bad:
-	if (raw_edid) {
+	if (raw_edid && print_bad_edid) {
 		printk(KERN_ERR "Raw EDID:\n");
 		print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
 			       raw_edid, EDID_LENGTH, false);
@@ -231,7 +233,7 @@ bool drm_edid_is_valid(struct edid *edid)
 		return false;
 
 	for (i = 0; i <= edid->extensions; i++)
-		if (!drm_edid_block_valid(raw + i * EDID_LENGTH, i))
+		if (!drm_edid_block_valid(raw + i * EDID_LENGTH, i, true))
 			return false;
 
 	return true;
@@ -316,6 +318,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
 	int i, j = 0, valid_extensions = 0;
 	u8 *block, *new;
+	bool print_bad_edid = !connector->bad_edid_counter || (drm_debug & DRM_UT_KMS);
 
 	if ((block = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
 		return NULL;
@@ -324,7 +327,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 	for (i = 0; i < 4; i++) {
 		if (drm_do_probe_ddc_edid(adapter, block, 0, EDID_LENGTH))
 			goto out;
-		if (drm_edid_block_valid(block, 0))
+		if (drm_edid_block_valid(block, 0, print_bad_edid))
 			break;
 		if (i == 0 && drm_edid_is_zero(block, EDID_LENGTH)) {
 			connector->null_edid_counter++;
@@ -349,7 +352,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 				  block + (valid_extensions + 1) * EDID_LENGTH,
 				  j, EDID_LENGTH))
 				goto out;
-			if (drm_edid_block_valid(block + (valid_extensions + 1) * EDID_LENGTH, j)) {
+			if (drm_edid_block_valid(block + (valid_extensions + 1) * EDID_LENGTH, j, print_bad_edid)) {
 				valid_extensions++;
 				break;
 			}
@@ -372,8 +375,11 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 	return block;
 
 carp:
-	dev_warn(connector->dev->dev, "%s: EDID block %d invalid.\n",
-		 drm_get_connector_name(connector), j);
+	if (print_bad_edid) {
+		dev_warn(connector->dev->dev, "%s: EDID block %d invalid.\n",
+			 drm_get_connector_name(connector), j);
+	}
+	connector->bad_edid_counter++;
 
 out:
 	kfree(block);
