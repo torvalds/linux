@@ -433,13 +433,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 	}
 
 	/* show any appended data */
-	if (datalen) {
-		buf = (unsigned char *) event_data;
-		brcmf_dbg(EVENT, " data (%d) : ", datalen);
-		for (i = 0; i < datalen; i++)
-			brcmf_dbg(EVENT, " 0x%02x ", *buf++);
-		brcmf_dbg(EVENT, "\n");
-	}
+	brcmf_dbg_hex_dump(datalen, event_data, datalen, "Received data");
 }
 #endif				/* DEBUG */
 
@@ -530,8 +524,9 @@ brcmf_c_host_event(struct brcmf_pub *drvr, int *ifidx, void *pktdata,
 	}
 
 #ifdef DEBUG
-	brcmf_c_show_host_event(event, event_data);
-#endif				/* DEBUG */
+	if (BRCMF_EVENT_ON())
+		brcmf_c_show_host_event(event, event_data);
+#endif /* DEBUG */
 
 	return 0;
 }
