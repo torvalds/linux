@@ -1195,7 +1195,6 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 		goto cleanup;
 	}
 
-	kfree(async->cmd.chanlist);
 	async->cmd = cmd;
 	async->cmd.data = NULL;
 	/* load channel/gain list */
@@ -2033,6 +2032,8 @@ static void do_become_nonbusy(struct comedi_device *dev,
 	if (async) {
 		comedi_reset_async_buf(async);
 		async->inttrig = NULL;
+		kfree(async->cmd.chanlist);
+		async->cmd.chanlist = NULL;
 	} else {
 		dev_err(dev->class_dev,
 			"BUG: (?) do_become_nonbusy called with async=NULL\n");
