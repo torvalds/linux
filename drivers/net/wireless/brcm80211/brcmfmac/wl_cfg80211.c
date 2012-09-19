@@ -4706,20 +4706,3 @@ s32 brcmf_cfg80211_down(struct brcmf_cfg80211_dev *cfg_dev)
 	return err;
 }
 
-static __used s32 brcmf_add_ie(struct brcmf_cfg80211_priv *cfg_priv,
-			       u8 t, u8 l, u8 *v)
-{
-	struct brcmf_cfg80211_ie *ie = &cfg_priv->ie;
-	s32 err = 0;
-
-	if (ie->offset + l + 2 > WL_TLV_INFO_MAX) {
-		WL_ERR("ei crosses buffer boundary\n");
-		return -ENOSPC;
-	}
-	ie->buf[ie->offset] = t;
-	ie->buf[ie->offset + 1] = l;
-	memcpy(&ie->buf[ie->offset + 2], v, l);
-	ie->offset += l + 2;
-
-	return err;
-}
