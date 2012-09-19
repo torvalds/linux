@@ -100,7 +100,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	msgbuf[0] = IXGBE_VF_RESET;
 	mbx->ops.write_posted(hw, msgbuf, 1);
 
-	msleep(10);
+	mdelay(10);
 
 	/* set our "perm_addr" based on info provided by PF */
 	/* also set up the mc_filter_type which is piggy backed
