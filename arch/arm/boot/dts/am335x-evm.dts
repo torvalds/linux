@@ -69,6 +69,11 @@
 				st,max-limit-y = <550>;
 				st,max-limit-z = <750>;
 			};
+
+			tmp275: tmp275@48 {
+				compatible = "ti,tmp275";
+				reg = <0x48>;
+			};
 		};
 	};
 
