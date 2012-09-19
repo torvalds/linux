@@ -168,12 +168,14 @@ static int s526_gpct_rinsn(struct comedi_device *dev,
 
 static int s526_gpct_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct s526_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned long chan_iobase = dev->iobase + chan * 8;
+	unsigned int val;
 	int i;
-	short value;
 	union cmReg cmReg;
 
 	for (i = 0; i < MAX_GPCT_CONFIG_DATA; i++)
@@ -206,32 +208,32 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		cmReg.reg.preloadRegSel = 0;	/*  PR0 */
 		cmReg.reg.reserved = 0;
 
-		outw(cmReg.value, dev->iobase + REG_C0M + chan * 8);
+		outw(cmReg.value, chan_iobase + REG_C0M);
 
-		outw(0x0001, dev->iobase + REG_C0H + chan * 8);
-		outw(0x3C68, dev->iobase + REG_C0L + chan * 8);
+		outw(0x0001, chan_iobase + REG_C0H);
+		outw(0x3C68, chan_iobase + REG_C0L);
 
 		/*  Reset the counter */
-		outw(0x8000, dev->iobase + REG_C0C + chan * 8);
+		outw(0x8000, chan_iobase + REG_C0C);
 		/*  Load the counter from PR0 */
-		outw(0x4000, dev->iobase + REG_C0C + chan * 8);
+		outw(0x4000, chan_iobase + REG_C0C);
 
 		/*  Reset RCAP (fires one-shot) */
-		outw(0x0008, dev->iobase +  REG_C0C + chan * 8);
+		outw(0x0008, chan_iobase + REG_C0C);
 
 #endif
 
 #if 1
 		/*  Set Counter Mode Register */
-		cmReg.value = data[1] & 0xFFFF;
-		outw(cmReg.value, dev->iobase + REG_C0M + chan * 8);
+		cmReg.value = data[1] & 0xffff;
+		outw(cmReg.value, chan_iobase + REG_C0M);
 
 		/*  Reset the counter if it is software preload */
 		if (cmReg.reg.autoLoadResetRcap == 0) {
 			/*  Reset the counter */
-			outw(0x8000, dev->iobase + REG_C0C + chan * 8);
+			outw(0x8000, chan_iobase + REG_C0C);
 			/* Load the counter from PR0
-			 * outw(0x4000, dev->iobase + REG_C0C + chan * 8);
+			 * outw(0x4000, chan_iobase + REG_C0C);
 			 */
 		}
 #else
@@ -258,28 +260,28 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 			cmReg.reg.autoLoadResetRcap = 4;
 
 		/*  Set Counter Mode Register */
-		cmReg.value = (short)(data[1] & 0xFFFF);
-		outw(cmReg.value, dev->iobase + REG_C0M + chan * 8);
+		cmReg.value = data[1] & 0xffff;
+		outw(cmReg.value, chan_iobase + REG_C0M);
 
 		/*  Load the pre-load register high word */
-		value = (short)((data[2] >> 16) & 0xFFFF);
-		outw(value, dev->iobase + REG_C0H + chan * 8);
+		val = (data[2] >> 16) & 0xffff;
+		outw(val, chan_iobase + REG_C0H);
 
 		/*  Load the pre-load register low word */
-		value = (short)(data[2] & 0xFFFF);
-		outw(value, dev->iobase + REG_C0L + chan * 8);
+		val = data[2] & 0xffff;
+		outw(val, chan_iobase + REG_C0L);
 
 		/*  Write the Counter Control Register */
-		if (data[3] != 0) {
-			value = (short)(data[3] & 0xFFFF);
-			outw(value, dev->iobase + REG_C0C + chan * 8);
+		if (data[3]) {
+			val = data[3] & 0xffff;
+			outw(val, chan_iobase + REG_C0C);
 		}
 		/*  Reset the counter if it is software preload */
 		if (cmReg.reg.autoLoadResetRcap == 0) {
 			/*  Reset the counter */
-			outw(0x8000, dev->iobase + REG_C0C + chan * 8);
+			outw(0x8000, chan_iobase + REG_C0C);
 			/*  Load the counter from PR0 */
-			outw(0x4000, dev->iobase + REG_C0C + chan * 8);
+			outw(0x4000, chan_iobase + REG_C0C);
 		}
 #endif
 		break;
@@ -295,35 +297,35 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		devpriv->s526_gpct_config[chan].app = SinglePulseGeneration;
 
 		/*  Set Counter Mode Register */
-		cmReg.value = (short)(data[1] & 0xFFFF);
+		cmReg.value = data[1] & 0xffff;
 		cmReg.reg.preloadRegSel = 0;	/*  PR0 */
-		outw(cmReg.value, dev->iobase + REG_C0M + chan * 8);
+		outw(cmReg.value, chan_iobase + REG_C0M);
 
 		/*  Load the pre-load register 0 high word */
-		value = (short)((data[2] >> 16) & 0xFFFF);
-		outw(value, dev->iobase + REG_C0H + chan * 8);
+		val = (data[2] >> 16) & 0xffff;
+		outw(val, chan_iobase + REG_C0H);
 
 		/*  Load the pre-load register 0 low word */
-		value = (short)(data[2] & 0xFFFF);
-		outw(value, dev->iobase + REG_C0L + chan * 8);
+		val = data[2] & 0xffff;
+		outw(val, chan_iobase + REG_C0L);
 
 		/*  Set Counter Mode Register */
-		cmReg.value = (short)(data[1] & 0xFFFF);
+		cmReg.value = data[1] & 0xffff;
 		cmReg.reg.preloadRegSel = 1;	/*  PR1 */
-		outw(cmReg.value, dev->iobase + REG_C0M + chan * 8);
+		outw(cmReg.value, chan_iobase + REG_C0M);
 
 		/*  Load the pre-load register 1 high word */
-		value = (short)((data[3] >> 16) & 0xFFFF);
-		outw(value, dev->iobase + REG_C0H + chan * 8);
+		val = (data[3] >> 16) & 0xffff;
+		outw(val, chan_iobase + REG_C0H);
 
 		/*  Load the pre-load register 1 low word */
-		value = (short)(data[3] & 0xFFFF);
-		outw(value, dev->iobase + REG_C0L + chan * 8);
+		val = data[3] & 0xffff;
+		outw(val, chan_iobase + REG_C0L);
 
 		/*  Write the Counter Control Register */
-		if (data[4] != 0) {
-			value = (short)(data[4] & 0xFFFF);
-			outw(value, dev->iobase + REG_C0C + chan * 8);
+		if (data[4]) {
+			val = data[4] & 0xffff;
+			outw(val, chan_iobase + REG_C0C);
 		}
 		break;
 
@@ -338,35 +340,35 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		devpriv->s526_gpct_config[chan].app = PulseTrainGeneration;
 
 		/*  Set Counter Mode Register */
-		cmReg.value = (short)(data[1] & 0xFFFF);
+		cmReg.value = data[1] & 0xffff;
 		cmReg.reg.preloadRegSel = 0;	/*  PR0 */
-		outw(cmReg.value, dev->iobase + REG_C0M + chan * 8);
+		outw(cmReg.value, chan_iobase + REG_C0M);
 
 		/*  Load the pre-load register 0 high word */
-		value = (short)((data[2] >> 16) & 0xFFFF);
-		outw(value, dev->iobase + REG_C0H + chan * 8);
+		val = (data[2] >> 16) & 0xffff;
+		outw(val, chan_iobase + REG_C0H);
 
 		/*  Load the pre-load register 0 low word */
-		value = (short)(data[2] & 0xFFFF);
-		outw(value, dev->iobase + REG_C0L + chan * 8);
+		val = data[2] & 0xffff;
+		outw(val, chan_iobase + REG_C0L);
 
 		/*  Set Counter Mode Register */
-		cmReg.value = (short)(data[1] & 0xFFFF);
+		cmReg.value = data[1] & 0xffff;
 		cmReg.reg.preloadRegSel = 1;	/*  PR1 */
-		outw(cmReg.value, dev->iobase + REG_C0M + chan * 8);
+		outw(cmReg.value, chan_iobase + REG_C0M);
 
 		/*  Load the pre-load register 1 high word */
-		value = (short)((data[3] >> 16) & 0xFFFF);
-		outw(value, dev->iobase + REG_C0H + chan * 8);
+		val = (data[3] >> 16) & 0xffff;
+		outw(val, chan_iobase + REG_C0H);
 
 		/*  Load the pre-load register 1 low word */
-		value = (short)(data[3] & 0xFFFF);
-		outw(value, dev->iobase + REG_C0L + chan * 8);
+		val = data[3] & 0xffff;
+		outw(val, chan_iobase + REG_C0L);
 
 		/*  Write the Counter Control Register */
-		if (data[4] != 0) {
-			value = (short)(data[4] & 0xFFFF);
-			outw(value, dev->iobase + REG_C0C + chan * 8);
+		if (data[4]) {
+			val = data[4] & 0xffff;
+			outw(val, chan_iobase + REG_C0C);
 		}
 		break;
 
