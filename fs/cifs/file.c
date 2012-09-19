@@ -1173,7 +1173,8 @@ cifs_read_flock(struct file_lock *flock, __u32 *type, int *lock, int *unlock,
 	if (flock->fl_flags & FL_LEASE)
 		cFYI(1, "Lease on file - not implemented yet");
 	if (flock->fl_flags &
-	    (~(FL_POSIX | FL_FLOCK | FL_SLEEP | FL_ACCESS | FL_LEASE)))
+	    (~(FL_POSIX | FL_FLOCK | FL_SLEEP |
+	       FL_ACCESS | FL_LEASE | FL_CLOSE)))
 		cFYI(1, "Unknown lock flags 0x%x", flock->fl_flags);
 
 	*type = server->vals->large_lock_type;
