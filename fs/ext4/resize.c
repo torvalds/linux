@@ -1772,23 +1772,18 @@ static int ext4_convert_meta_bg(struct super_block *sb, struct inode *inode)
 	handle_t *handle;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
-	struct ext4_inode_info *ei = 0;
+	struct ext4_inode_info *ei = EXT4_I(inode);
 	ext4_fsblk_t nr;
 	int i, ret, err = 0;
 	int credits = 1;
 
 	ext4_msg(sb, KERN_INFO, "Converting file system to meta_bg");
-	if (EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_RESIZE_INODE)) {
+	if (inode) {
 		if (es->s_reserved_gdt_blocks) {
 			ext4_error(sb, "Unexpected non-zero "
 				   "s_reserved_gdt_blocks");
 			return -EPERM;
 		}
-		if (!inode) {
-			ext4_error(sb, "Unexpected NULL resize_inode");
-			return -EPERM;
-		}
-		ei = EXT4_I(inode);
 
 		/* Do a quick sanity check of the resize inode */
 		if (inode->i_blocks != 1 << (inode->i_blkbits - 9))
@@ -1873,12 +1868,19 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 	int err = 0, flexbg_size = 1 << sbi->s_log_groups_per_flex;
 	int meta_bg;
 
+	/* See if the device is actually as big as what was requested */
+	bh = sb_bread(sb, n_blocks_count - 1);
+	if (!bh) {
+		ext4_warning(sb, "can't read last block, resize aborted");
+		return -ENOSPC;
+	}
+	brelse(bh);
+
 retry:
 	o_blocks_count = ext4_blocks_count(es);
 
-	if (test_opt(sb, DEBUG))
-		ext4_msg(sb, KERN_DEBUG, "resizing filesystem from %llu "
-		       "to %llu blocks", o_blocks_count, n_blocks_count);
+	ext4_msg(sb, KERN_INFO, "resizing filesystem from %llu "
+		 "to %llu blocks", o_blocks_count, n_blocks_count);
 
 	if (n_blocks_count < o_blocks_count) {
 		/* On-line shrinking not supported */
@@ -1922,7 +1924,7 @@ retry:
 		}
 	}
 
-	if ((!resize_inode && !meta_bg) || n_group == o_group) {
+	if ((!resize_inode && !meta_bg) || n_blocks_count == o_blocks_count) {
 		err = ext4_convert_meta_bg(sb, resize_inode);
 		if (err)
 			goto out;
@@ -1936,14 +1938,6 @@ retry:
 			goto retry;
 		}
 	}
-
-	/* See if the device is actually as big as what was requested */
-	bh = sb_bread(sb, n_blocks_count - 1);
-	if (!bh) {
-		ext4_warning(sb, "can't read last block, resize aborted");
-		return -ENOSPC;
-	}
-	brelse(bh);
 
 	/* extend the last group */
 	if (n_group == o_group)
@@ -2005,8 +1999,6 @@ out:
 		free_flex_gd(flex_gd);
 	if (resize_inode != NULL)
 		iput(resize_inode);
-	if (test_opt(sb, DEBUG))
-		ext4_msg(sb, KERN_DEBUG, "resized filesystem to %llu",
-			 n_blocks_count);
+	ext4_msg(sb, KERN_INFO, "resized filesystem to %llu", n_blocks_count);
 	return err;
 }
