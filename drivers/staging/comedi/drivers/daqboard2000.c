@@ -465,7 +465,6 @@ static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 
-	dev_dbg(dev->class_dev, "daqboard2000_resetLocalBus\n");
 	writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
 	udelay(10000);
 	writel(DAQBOARD2000_SECRLocalBusLo, devpriv->plx + 0x6c);
@@ -476,7 +475,6 @@ static void daqboard2000_reloadPLX(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 
-	dev_dbg(dev->class_dev, "daqboard2000_reloadPLX\n");
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
 	udelay(10000);
 	writel(DAQBOARD2000_SECRReloadHi, devpriv->plx + 0x6c);
@@ -489,7 +487,6 @@ static void daqboard2000_pulseProgPin(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 
-	dev_dbg(dev->class_dev, "daqboard2000_pulseProgPin 1\n");
 	writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
 	udelay(10000);
 	writel(DAQBOARD2000_SECRProgPinLo, devpriv->plx + 0x6c);
@@ -725,11 +722,8 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 	devpriv = dev->private;
 
 	result = comedi_pci_enable(pcidev, "daqboard2000");
-	if (result < 0) {
-		dev_err(dev->class_dev,
-			"failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
+	if (result < 0)
+		return result;
 	dev->iobase = 1;	/* the "detach" needs this */
 
 	pci_base = pci_resource_start(pcidev, 0);
