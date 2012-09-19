@@ -341,8 +341,7 @@ typedef struct stLocalSFDeleteIndication {
 	B_UINT8 u8Padding1[3]; /* < 3 byte Padding */
 } stLocalSFDeleteIndication;
 
-typedef struct _stIM_SFHostNotify
-{
+typedef struct _stIM_SFHostNotify {
 	B_UINT32 SFID; /* SFID of the service flow */
 	B_UINT16 newCID; /* the new/changed CID */
 	B_UINT16 VCID; /* Get new Vcid if the flow has been made active in CID update TLV, but was inactive earlier or the orig vcid */
