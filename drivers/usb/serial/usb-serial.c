@@ -1404,9 +1404,10 @@ int usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[]
 
 	/* we only set the reset_resume field if the serial_driver has one */
 	for (sd = serial_drivers; *sd; ++sd) {
-		if ((*sd)->reset_resume)
+		if ((*sd)->reset_resume) {
 			udriver->reset_resume = usb_serial_reset_resume;
 			break;
+		}
 	}
 
 	rc = usb_register(udriver);
