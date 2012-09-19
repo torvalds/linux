@@ -37,6 +37,21 @@
 			tc3589x@42 {
 				compatible = "tc3589x";
 				reg = <0x42>;
+				interrupt-parent = <&gpio6>;
+				interrupts = <25 0x1>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				tc3589x_gpio: tc3589x_gpio {
+					compatible = "tc3589x-gpio";
+					interrupts = <0 0x1>;
+
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
 			};
 
 			tps61052@33 {
