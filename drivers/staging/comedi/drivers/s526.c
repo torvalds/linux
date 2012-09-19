@@ -118,29 +118,9 @@ union cmReg {
 	unsigned short value;
 };
 
-#define MAX_GPCT_CONFIG_DATA 6
-
-/* Different Application Classes for GPCT Subdevices */
-/* The list is not exhaustive and needs discussion! */
-enum S526_GPCT_APP_CLASS {
-	CountingAndTimeMeasurement,
-	SinglePulseGeneration,
-	PulseTrainGeneration,
-	PositionMeasurement,
-	Miscellaneous
-};
-
-/* Config struct for different GPCT subdevice Application Classes and
-   their options
-*/
-struct s526GPCTConfig {
-	enum S526_GPCT_APP_CLASS app;
-	int data[MAX_GPCT_CONFIG_DATA];
-};
-
 struct s526_private {
 	unsigned int ao_readback[2];
-	struct s526GPCTConfig s526_gpct_config[4];
+	unsigned int gpct_config[4];
 	unsigned short s526_ai_config;
 };
 
@@ -175,11 +155,7 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned long chan_iobase = dev->iobase + chan * 8;
 	unsigned int val;
-	int i;
 	union cmReg cmReg;
-
-	for (i = 0; i < MAX_GPCT_CONFIG_DATA; i++)
-		devpriv->s526_gpct_config[chan].data[i] = data[i];
 
 	/*  Check what type of Counter the user requested, data[0] contains */
 	/*  the Application type */
@@ -191,7 +167,7 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		   data[2]: Pre-load Register Value
 		   data[3]: Conter Control Register
 		 */
-		devpriv->s526_gpct_config[chan].app = PositionMeasurement;
+		devpriv->gpct_config[chan] = data[0];
 
 #if 0
 		/*  Example of Counter Application */
@@ -294,7 +270,7 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		   data[3]: Pre-load Register 1 Value
 		   data[4]: Conter Control Register
 		 */
-		devpriv->s526_gpct_config[chan].app = SinglePulseGeneration;
+		devpriv->gpct_config[chan] = data[0];
 
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xffff;
@@ -337,7 +313,7 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		   data[3]: Pre-load Register 1 Value
 		   data[4]: Conter Control Register
 		 */
-		devpriv->s526_gpct_config[chan].app = PulseTrainGeneration;
+		devpriv->gpct_config[chan] = data[0];
 
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xffff;
@@ -392,25 +368,21 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 	inw(chan_iobase + REG_C0M);	/* Is this read required? */
 
 	/*  Check what Application of Counter this channel is configured for */
-	switch (devpriv->s526_gpct_config[chan].app) {
-	case PulseTrainGeneration:
+	switch (devpriv->gpct_config[chan]) {
+	case INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR:
 		/* data[0] contains the PULSE_WIDTH
 		   data[1] contains the PULSE_PERIOD
 		   @pre PULSE_PERIOD > PULSE_WIDTH > 0
 		   The above periods must be expressed as a multiple of the
 		   pulse frequency on the selected source
 		 */
-		if ((data[1] > data[0]) && (data[0] > 0)) {
-			devpriv->s526_gpct_config[chan].data[0] = data[0];
-			devpriv->s526_gpct_config[chan].data[1] = data[1];
-		} else {
+		if ((data[1] < data[0]) || !data[0])
 			return -EINVAL;
-		}
 
 		/* Fall thru to write the PULSE_WIDTH */
 
-	case PositionMeasurement:
-	case SinglePulseGeneration:
+	case INSN_CONFIG_GPCT_QUADRATURE_ENCODER:
+	case INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR:
 		outw((data[0] >> 16) & 0xffff, chan_iobase + REG_C0H);
 		outw(data[0] & 0xffff, chan_iobase + REG_C0L);
 		break;
