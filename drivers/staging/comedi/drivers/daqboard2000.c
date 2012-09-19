@@ -31,16 +31,10 @@ Devices: [IOTech] DAQBoard/2000 (daqboard2000)
 Much of the functionality of this driver was determined from reading
 the source code for the Windows driver.
 
-The FPGA on the board requires initialization code, which can
-be loaded by comedi_config using the -i
-option.  The initialization code is available from http://www.comedi.org
-in the comedi_nonfree_firmware tarball.
+The FPGA on the board requires fimware, which is available from
+http://www.comedi.org in the comedi_nonfree_firmware tarball.
 
-Configuration options:
-  [0] - PCI bus of device (optional)
-  [1] - PCI slot of device (optional)
-  If bus/slot is not specified, the first supported
-  PCI device found will be used.
+Configuration options: not applicable, uses PCI auto config
 */
 /*
    This card was obviously never intended to leave the Windows world,
@@ -726,58 +720,44 @@ static int daqboard2000_8255_cb(int dir, int port, int data,
 	}
 }
 
-static struct pci_dev *daqboard2000_find_pci_dev(struct comedi_device *dev,
-						 struct comedi_devconfig *it)
+static const void *daqboard2000_find_boardinfo(struct comedi_device *dev,
+					       struct pci_dev *pcidev)
 {
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
+	const struct daq200_boardtype *board;
 	int i;
 
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (bus != pcidev->bus->number ||
-			    slot != PCI_SLOT(pcidev->devfn))
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_IOTECH ||
-		    pcidev->device != 0x0409 ||
-		    pcidev->subsystem_device != PCI_VENDOR_ID_IOTECH)
-			continue;
+	if (pcidev->subsystem_device != PCI_VENDOR_ID_IOTECH)
+		return NULL;
 
-		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
-			if (boardtypes[i].id != pcidev->subsystem_device)
-				continue;
-			dev->board_ptr = boardtypes + i;
-			return pcidev;
-		}
+	for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
+		board = &boardtypes[i];
+		if (pcidev->subsystem_device == board->id)
+			return board;
 	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
-static int daqboard2000_attach(struct comedi_device *dev,
-			       struct comedi_devconfig *it)
+static int daqboard2000_attach_pci(struct comedi_device *dev,
+				   struct pci_dev *pcidev)
 {
-	const struct daq200_boardtype *this_board;
+	const struct daq200_boardtype *board;
 	struct daqboard2000_private *devpriv;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	resource_size_t pci_base;
 	int result;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	board = daqboard2000_find_boardinfo(dev, pcidev);
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	result = alloc_private(dev, sizeof(*devpriv));
 	if (result < 0)
 		return -ENOMEM;
 	devpriv = dev->private;
-
-	pcidev = daqboard2000_find_pci_dev(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	this_board = comedi_board(dev);
 
 	result = comedi_pci_enable(pcidev, "daqboard2000");
 	if (result < 0) {
@@ -818,8 +798,6 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	   pci_read_config_byte(pcidev, PCI_INTERRUPT_LINE, &interrupt);
 	   printk("Interrupt after is: %x\n", interrupt);
 	 */
-
-	dev->board_name = this_board->name;
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */
@@ -872,7 +850,7 @@ static void daqboard2000_detach(struct comedi_device *dev)
 static struct comedi_driver daqboard2000_driver = {
 	.driver_name	= "daqboard2000",
 	.module		= THIS_MODULE,
-	.attach		= daqboard2000_attach,
+	.attach_pci	= daqboard2000_attach_pci,
 	.detach		= daqboard2000_detach,
 };
 
