@@ -11,6 +11,10 @@ Required properties:
 - gpio-controller: Marks the device as a GPIO controller
 - nr-gpios: The number of pins supported by the controller.
 
+The GPIO expander can optionally be used as an interrupt controller, in
+which case it uses the default two cell specifier as described in
+Documentation/devicetree/bindings/interrupt-controller/interrupts.txt.
+
 Example:
 
 	gpioext: gpio-controller@41 {
