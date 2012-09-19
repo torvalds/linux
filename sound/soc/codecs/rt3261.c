@@ -216,7 +216,7 @@ static int do_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 	}
 
-	ret = codec->hw_write(codec->control_data, data, len);
+	ret = i2c_master_normal_send(codec->control_data, data, len,400*1000);
 	if (ret == len)
 		return 0;
 	if (ret < 0)
@@ -234,6 +234,7 @@ static int rt3261_write(struct snd_soc_codec *codec, unsigned int reg,
 	data[1] = (value >> 8) & 0xff;
 	data[2] = value & 0xff;
 
+	DBG("rt3261_write 0x%x = 0x%x\n",reg,value);
 	return do_hw_write(codec, reg, value, data, 3);
 }
 
@@ -2955,6 +2956,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
+	codec->write = rt3261_write;
 	
 	#ifdef RT3261_PROC	
 	rt3261_proc_init();
@@ -3144,6 +3146,7 @@ static struct snd_soc_codec_driver soc_codec_dev_rt3261 = {
 	.remove = rt3261_remove,
 	.suspend = rt3261_suspend,
 	.resume = rt3261_resume,
+	.write = rt3261_write,
 	.set_bias_level = rt3261_set_bias_level,
 	.reg_cache_size = RT3261_VENDOR_ID2 + 1,
 	.reg_word_size = sizeof(u16),
