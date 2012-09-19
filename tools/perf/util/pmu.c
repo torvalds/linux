@@ -9,6 +9,7 @@
 #include "util.h"
 #include "pmu.h"
 #include "parse-events.h"
+#include "cpumap.h"
 
 #define EVENT_SOURCE_DEVICE_PATH "/bus/event_source/devices/"
 
@@ -253,6 +254,33 @@ static void pmu_read_sysfs(void)
 	closedir(dir);
 }
 
+static struct cpu_map *pmu_cpumask(char *name)
+{
+	struct stat st;
+	char path[PATH_MAX];
+	const char *sysfs;
+	FILE *file;
+	struct cpu_map *cpus;
+
+	sysfs = sysfs_find_mountpoint();
+	if (!sysfs)
+		return NULL;
+
+	snprintf(path, PATH_MAX,
+		 "%s/bus/event_source/devices/%s/cpumask", sysfs, name);
+
+	if (stat(path, &st) < 0)
+		return NULL;
+
+	file = fopen(path, "r");
+	if (!file)
+		return NULL;
+
+	cpus = cpu_map__read(file);
+	fclose(file);
+	return cpus;
+}
+
 static struct perf_pmu *pmu_lookup(char *name)
 {
 	struct perf_pmu *pmu;
@@ -274,6 +302,8 @@ static struct perf_pmu *pmu_lookup(char *name)
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
 		return NULL;
+
+	pmu->cpus = pmu_cpumask(name);
 
 	pmu_aliases(name, &aliases);
 

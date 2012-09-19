@@ -904,8 +904,9 @@ int perf_event__preprocess_sample(const union perf_event *event,
 		al->sym = map__find_symbol(al->map, al->addr, filter);
 	}
 
-	if (symbol_conf.sym_list && al->sym &&
-	    !strlist__has_entry(symbol_conf.sym_list, al->sym->name))
+	if (symbol_conf.sym_list &&
+		(!al->sym || !strlist__has_entry(symbol_conf.sym_list,
+						al->sym->name)))
 		goto out_filtered;
 
 	return 0;

@@ -56,7 +56,7 @@ static int perf_gtk__hpp_color_ ## _name(struct perf_hpp *hpp,			\
 	markup = perf_gtk__get_percent_color(percent);				\
 	if (markup)								\
 		ret += scnprintf(hpp->buf, hpp->size, "%s", markup);		\
-	ret += scnprintf(hpp->buf + ret, hpp->size - ret, "%5.2f%%", percent); 	\
+	ret += scnprintf(hpp->buf + ret, hpp->size - ret, "%6.2f%%", percent); 	\
 	if (markup)								\
 		ret += scnprintf(hpp->buf + ret, hpp->size - ret, "</span>"); 	\
 										\

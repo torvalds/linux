@@ -66,6 +66,7 @@ struct perf_evsel {
 		void		*func;
 		void		*data;
 	} handler;
+	struct cpu_map		*cpus;
 	unsigned int		sample_size;
 	bool 			supported;
 	/* parse modifier helper */

@@ -14,6 +14,7 @@
 #include "util/util.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/sort.h"
 #include <linux/bitmap.h>
 
 static char const		*script_name;
@@ -1031,6 +1032,61 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 	exit(0);
 }
 
+/*
+ * Return -1 if none is found, otherwise the actual scripts number.
+ *
+ * Currently the only user of this function is the script browser, which
+ * will list all statically runnable scripts, select one, execute it and
+ * show the output in a perf browser.
+ */
+int find_scripts(char **scripts_array, char **scripts_path_array)
+{
+	struct dirent *script_next, *lang_next, script_dirent, lang_dirent;
+	char scripts_path[MAXPATHLEN];
+	DIR *scripts_dir, *lang_dir;
+	char lang_path[MAXPATHLEN];
+	char *temp;
+	int i = 0;
+
+	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", perf_exec_path());
+
+	scripts_dir = opendir(scripts_path);
+	if (!scripts_dir)
+		return -1;
+
+	for_each_lang(scripts_path, scripts_dir, lang_dirent, lang_next) {
+		snprintf(lang_path, MAXPATHLEN, "%s/%s", scripts_path,
+			 lang_dirent.d_name);
+#ifdef NO_LIBPERL
+		if (strstr(lang_path, "perl"))
+			continue;
+#endif
+#ifdef NO_LIBPYTHON
+		if (strstr(lang_path, "python"))
+			continue;
+#endif
+
+		lang_dir = opendir(lang_path);
+		if (!lang_dir)
+			continue;
+
+		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
+			/* Skip those real time scripts: xxxtop.p[yl] */
+			if (strstr(script_dirent.d_name, "top."))
+				continue;
+			sprintf(scripts_path_array[i], "%s/%s", lang_path,
+				script_dirent.d_name);
+			temp = strchr(script_dirent.d_name, '.');
+			snprintf(scripts_array[i],
+				(temp - script_dirent.d_name) + 1,
+				"%s", script_dirent.d_name);
+			i++;
+		}
+	}
+
+	return i;
+}
+
 static char *get_script_path(const char *script_root, const char *suffix)
 {
 	struct dirent *script_next, *lang_next, script_dirent, lang_dirent;
@@ -1143,6 +1199,8 @@ static const struct option options[] = {
 		     parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		     "system-wide collection from all CPUs"),
+	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
+		   "only consider these symbols"),
 	OPT_STRING('C', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
 		   "only display events for these comms"),
