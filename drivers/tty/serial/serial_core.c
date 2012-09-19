@@ -2501,9 +2501,12 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 {
 	struct uart_state *state = uport->state;
 	struct tty_port *port = &state->port;
-	struct tty_ldisc *ld = tty_ldisc_ref(port->tty);
+	struct tty_ldisc *ld = NULL;
 	struct pps_event_time ts;
+	struct tty_struct *tty = port->tty;
 
+	if (tty)
+	        ld = tty_ldisc_ref(tty);
 	if (ld && ld->ops->dcd_change)
 		pps_get_ts(&ts);
 
@@ -2516,12 +2519,12 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 	if (port->flags & ASYNC_CHECK_CD) {
 		if (status)
 			wake_up_interruptible(&port->open_wait);
-		else if (port->tty)
-			tty_hangup(port->tty);
+		else if (tty)
+			tty_hangup(tty);
 	}
 
 	if (ld && ld->ops->dcd_change)
-		ld->ops->dcd_change(port->tty, status, &ts);
+		ld->ops->dcd_change(tty, status, &ts);
 	if (ld)
 		tty_ldisc_deref(ld);
 }
