@@ -1177,34 +1177,33 @@ unlink_out:
 }
 
 static int
-cifs_mkdir_qinfo(struct inode *inode, struct dentry *dentry, umode_t mode,
+cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 		 const char *full_path, struct cifs_sb_info *cifs_sb,
 		 struct cifs_tcon *tcon, const unsigned int xid)
 {
 	int rc = 0;
-	struct inode *newinode = NULL;
+	struct inode *inode = NULL;
 
 	if (tcon->unix_ext)
-		rc = cifs_get_inode_info_unix(&newinode, full_path, inode->i_sb,
+		rc = cifs_get_inode_info_unix(&inode, full_path, parent->i_sb,
 					      xid);
 	else
-		rc = cifs_get_inode_info(&newinode, full_path, NULL,
-					 inode->i_sb, xid, NULL);
+		rc = cifs_get_inode_info(&inode, full_path, NULL, parent->i_sb,
+					 xid, NULL);
+
 	if (rc)
 		return rc;
 
-	d_instantiate(dentry, newinode);
 	/*
 	 * setting nlink not necessary except in cases where we failed to get it
-	 * from the server or was set bogus
+	 * from the server or was set bogus. Also, since this is a brand new
+	 * inode, no need to grab the i_lock before setting the i_nlink.
 	 */
-	spin_lock(&dentry->d_inode->i_lock);
-	if ((dentry->d_inode) && (dentry->d_inode->i_nlink < 2))
-		set_nlink(dentry->d_inode, 2);
-	spin_unlock(&dentry->d_inode->i_lock);
+	if (inode->i_nlink < 2)
+		set_nlink(inode, 2);
 	mode &= ~current_umask();
 	/* must turn on setgid bit if parent dir has it */
-	if (inode->i_mode & S_ISGID)
+	if (parent->i_mode & S_ISGID)
 		mode |= S_ISGID;
 
 	if (tcon->unix_ext) {
@@ -1217,8 +1216,8 @@ cifs_mkdir_qinfo(struct inode *inode, struct dentry *dentry, umode_t mode,
 		};
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 			args.uid = (__u64)current_fsuid();
-			if (inode->i_mode & S_ISGID)
-				args.gid = (__u64)inode->i_gid;
+			if (parent->i_mode & S_ISGID)
+				args.gid = (__u64)parent->i_gid;
 			else
 				args.gid = (__u64)current_fsgid();
 		} else {
@@ -1233,22 +1232,20 @@ cifs_mkdir_qinfo(struct inode *inode, struct dentry *dentry, umode_t mode,
 		struct TCP_Server_Info *server = tcon->ses->server;
 		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
 		    (mode & S_IWUGO) == 0 && server->ops->mkdir_setinfo)
-			server->ops->mkdir_setinfo(newinode, full_path, cifs_sb,
+			server->ops->mkdir_setinfo(inode, full_path, cifs_sb,
 						   tcon, xid);
-		if (dentry->d_inode) {
-			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
-				dentry->d_inode->i_mode = (mode | S_IFDIR);
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
+			inode->i_mode = (mode | S_IFDIR);
 
-			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-				dentry->d_inode->i_uid = current_fsuid();
-				if (inode->i_mode & S_ISGID)
-					dentry->d_inode->i_gid = inode->i_gid;
-				else
-					dentry->d_inode->i_gid =
-								current_fsgid();
-			}
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
+			inode->i_uid = current_fsuid();
+			if (inode->i_mode & S_ISGID)
+				inode->i_gid = parent->i_gid;
+			else
+				inode->i_gid = current_fsgid();
 		}
 	}
+	d_instantiate(dentry, inode);
 	return rc;
 }
 
