@@ -411,11 +411,10 @@ static struct uprobe *__find_uprobe(struct inode *inode, loff_t offset)
 static struct uprobe *find_uprobe(struct inode *inode, loff_t offset)
 {
 	struct uprobe *uprobe;
-	unsigned long flags;
 
-	spin_lock_irqsave(&uprobes_treelock, flags);
+	spin_lock(&uprobes_treelock);
 	uprobe = __find_uprobe(inode, offset);
-	spin_unlock_irqrestore(&uprobes_treelock, flags);
+	spin_unlock(&uprobes_treelock);
 
 	return uprobe;
 }
@@ -462,12 +461,11 @@ static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
  */
 static struct uprobe *insert_uprobe(struct uprobe *uprobe)
 {
-	unsigned long flags;
 	struct uprobe *u;
 
-	spin_lock_irqsave(&uprobes_treelock, flags);
+	spin_lock(&uprobes_treelock);
 	u = __insert_uprobe(uprobe);
-	spin_unlock_irqrestore(&uprobes_treelock, flags);
+	spin_unlock(&uprobes_treelock);
 
 	/* For now assume that the instruction need not be single-stepped */
 	uprobe->flags |= UPROBE_SKIP_SSTEP;
@@ -686,7 +684,9 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 		set_bit(MMF_HAS_UPROBES, &mm->flags);
 
 	ret = set_swbp(&uprobe->arch, mm, vaddr);
-	if (ret && first_uprobe)
+	if (!ret)
+		clear_bit(MMF_RECALC_UPROBES, &mm->flags);
+	else if (first_uprobe)
 		clear_bit(MMF_HAS_UPROBES, &mm->flags);
 
 	return ret;
@@ -695,6 +695,11 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 static void
 remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vaddr)
 {
+	/* can happen if uprobe_register() fails */
+	if (!test_bit(MMF_HAS_UPROBES, &mm->flags))
+		return;
+
+	set_bit(MMF_RECALC_UPROBES, &mm->flags);
 	set_orig_insn(&uprobe->arch, mm, vaddr);
 }
 
@@ -705,11 +710,9 @@ remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vad
  */
 static void delete_uprobe(struct uprobe *uprobe)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&uprobes_treelock, flags);
+	spin_lock(&uprobes_treelock);
 	rb_erase(&uprobe->rb_node, &uprobes_tree);
-	spin_unlock_irqrestore(&uprobes_treelock, flags);
+	spin_unlock(&uprobes_treelock);
 	iput(uprobe->inode);
 	put_uprobe(uprobe);
 	atomic_dec(&uprobe_events);
@@ -897,7 +900,8 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	}
 
 	mutex_unlock(uprobes_hash(inode));
-	put_uprobe(uprobe);
+	if (uprobe)
+		put_uprobe(uprobe);
 
 	return ret;
 }
@@ -967,7 +971,6 @@ static void build_probe_list(struct inode *inode,
 				struct list_head *head)
 {
 	loff_t min, max;
-	unsigned long flags;
 	struct rb_node *n, *t;
 	struct uprobe *u;
 
@@ -975,7 +978,7 @@ static void build_probe_list(struct inode *inode,
 	min = vaddr_to_offset(vma, start);
 	max = min + (end - start) - 1;
 
-	spin_lock_irqsave(&uprobes_treelock, flags);
+	spin_lock(&uprobes_treelock);
 	n = find_node_in_range(inode, min, max);
 	if (n) {
 		for (t = n; t; t = rb_prev(t)) {
@@ -993,7 +996,7 @@ static void build_probe_list(struct inode *inode,
 			atomic_inc(&u->ref);
 		}
 	}
-	spin_unlock_irqrestore(&uprobes_treelock, flags);
+	spin_unlock(&uprobes_treelock);
 }
 
 /*
@@ -1030,6 +1033,25 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	return 0;
 }
 
+static bool
+vma_has_uprobes(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+{
+	loff_t min, max;
+	struct inode *inode;
+	struct rb_node *n;
+
+	inode = vma->vm_file->f_mapping->host;
+
+	min = vaddr_to_offset(vma, start);
+	max = min + (end - start) - 1;
+
+	spin_lock(&uprobes_treelock);
+	n = find_node_in_range(inode, min, max);
+	spin_unlock(&uprobes_treelock);
+
+	return !!n;
+}
+
 /*
  * Called in context of a munmap of a vma.
  */
@@ -1041,10 +1063,12 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
 		return;
 
-	if (!test_bit(MMF_HAS_UPROBES, &vma->vm_mm->flags))
+	if (!test_bit(MMF_HAS_UPROBES, &vma->vm_mm->flags) ||
+	     test_bit(MMF_RECALC_UPROBES, &vma->vm_mm->flags))
 		return;
 
-	/* TODO: unmapping uprobe(s) will need more work */
+	if (vma_has_uprobes(vma, start, end))
+		set_bit(MMF_RECALC_UPROBES, &vma->vm_mm->flags);
 }
 
 /* Slot allocation for XOL */
@@ -1150,8 +1174,11 @@ void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
 {
 	newmm->uprobes_state.xol_area = NULL;
 
-	if (test_bit(MMF_HAS_UPROBES, &oldmm->flags))
+	if (test_bit(MMF_HAS_UPROBES, &oldmm->flags)) {
 		set_bit(MMF_HAS_UPROBES, &newmm->flags);
+		/* unconditionally, dup_mmap() skips VM_DONTCOPY vmas */
+		set_bit(MMF_RECALC_UPROBES, &newmm->flags);
+	}
 }
 
 /*
@@ -1369,6 +1396,25 @@ static bool can_skip_sstep(struct uprobe *uprobe, struct pt_regs *regs)
 	return false;
 }
 
+static void mmf_recalc_uprobes(struct mm_struct *mm)
+{
+	struct vm_area_struct *vma;
+
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		if (!valid_vma(vma, false))
+			continue;
+		/*
+		 * This is not strictly accurate, we can race with
+		 * uprobe_unregister() and see the already removed
+		 * uprobe if delete_uprobe() was not yet called.
+		 */
+		if (vma_has_uprobes(vma, vma->vm_start, vma->vm_end))
+			return;
+	}
+
+	clear_bit(MMF_HAS_UPROBES, &mm->flags);
+}
+
 static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 {
 	struct mm_struct *mm = current->mm;
@@ -1390,9 +1436,22 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	} else {
 		*is_swbp = -EFAULT;
 	}
+
+	if (!uprobe && test_and_clear_bit(MMF_RECALC_UPROBES, &mm->flags))
+		mmf_recalc_uprobes(mm);
 	up_read(&mm->mmap_sem);
 
 	return uprobe;
+}
+
+void __weak arch_uprobe_enable_step(struct arch_uprobe *arch)
+{
+	user_enable_single_step(current);
+}
+
+void __weak arch_uprobe_disable_step(struct arch_uprobe *arch)
+{
+	user_disable_single_step(current);
 }
 
 /*
@@ -1441,7 +1500,7 @@ static void handle_swbp(struct pt_regs *regs)
 
 	utask->state = UTASK_SSTEP;
 	if (!pre_ssout(uprobe, regs, bp_vaddr)) {
-		user_enable_single_step(current);
+		arch_uprobe_enable_step(&uprobe->arch);
 		return;
 	}
 
@@ -1477,10 +1536,10 @@ static void handle_singlestep(struct uprobe_task *utask, struct pt_regs *regs)
 	else
 		WARN_ON_ONCE(1);
 
+	arch_uprobe_disable_step(&uprobe->arch);
 	put_uprobe(uprobe);
 	utask->active_uprobe = NULL;
 	utask->state = UTASK_RUNNING;
-	user_disable_single_step(current);
 	xol_free_insn_slot(current);
 
 	spin_lock_irq(&current->sighand->siglock);
