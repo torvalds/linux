@@ -30,7 +30,7 @@
 #include <linux/platform_data/omap1_bl.h>
 
 #include <mach/hardware.h>
-#include <plat/mux.h>
+#include <mach/mux.h>
 
 #define OMAPBL_MAX_INTENSITY		0xff
 

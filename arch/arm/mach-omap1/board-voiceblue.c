@@ -33,7 +33,7 @@
 
 #include <plat/board-voiceblue.h>
 #include <plat/flash.h>
-#include <plat/mux.h>
+#include <mach/mux.h>
 #include <plat/tc.h>
 
 #include <mach/hardware.h>

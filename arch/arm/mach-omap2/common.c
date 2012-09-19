@@ -17,7 +17,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/mux.h>
 #include <plat/clock.h>
 
 #include "soc.h"

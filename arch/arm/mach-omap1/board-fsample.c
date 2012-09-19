@@ -28,7 +28,7 @@
 #include <asm/mach/map.h>
 
 #include <plat/tc.h>
-#include <plat/mux.h>
+#include <mach/mux.h>
 #include <plat/flash.h>
 #include <plat/fpga.h>
 #include <linux/platform_data/keypad-omap.h>
