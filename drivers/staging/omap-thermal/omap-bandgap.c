@@ -157,7 +157,7 @@ static int temp_to_adc_conversion(long temp, struct omap_bandgap *bg_ptr, int i,
 	high = ts_data->adc_end_val - ts_data->adc_start_val;
 	mid = (high + low) / 2;
 
-	if (temp < bg_ptr->conv_table[high] || temp > bg_ptr->conv_table[high])
+	if (temp < bg_ptr->conv_table[low] || temp > bg_ptr->conv_table[high])
 		return -EINVAL;
 
 	while (low < high) {
