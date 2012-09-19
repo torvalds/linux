@@ -76,6 +76,7 @@ register struct pt_regs *__frame asm("gr28");
 #define user_mode(regs)			(!((regs)->psr & PSR_S))
 #define instruction_pointer(regs)	((regs)->pc)
 #define user_stack_pointer(regs)	((regs)->sp)
+#define current_pt_regs()		(__frame)
 
 extern unsigned long user_stack(const struct pt_regs *);
 #define profile_pc(regs) ((regs)->pc)
