@@ -43,6 +43,9 @@
 #include "board.h"
 #include "iomap.h"
 
+/* Hack - need to parse this from DT */
+#define INT_PCIE_INTR 130
+
 /* register definitions */
 #define AFI_OFFSET	0x3800
 #define PADS_OFFSET	0x3000
