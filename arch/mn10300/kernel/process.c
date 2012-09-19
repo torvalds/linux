@@ -283,22 +283,6 @@ asmlinkage long sys_vfork(void)
 		       current_frame(), 0, NULL, NULL);
 }
 
-asmlinkage long sys_execve(const char __user *name,
-			   const char __user *const __user *argv,
-			   const char __user *const __user *envp)
-{
-	char *filename;
-	int error;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename, argv, envp, current_frame());
-	putname(filename);
-	return error;
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	return p->thread.wchan;
