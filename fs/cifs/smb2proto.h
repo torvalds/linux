@@ -48,6 +48,8 @@ extern struct mid_q_entry *smb2_setup_request(struct cifs_ses *ses,
 extern struct mid_q_entry *smb2_setup_async_request(
 			struct TCP_Server_Info *server, struct smb_rqst *rqst);
 extern void smb2_echo_request(struct work_struct *work);
+extern __le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
+extern __u8 smb2_map_lease_to_oplock(__le32 lease_state);
 extern bool smb2_is_valid_oplock_break(char *buffer,
 				       struct TCP_Server_Info *srv);
 
@@ -151,5 +153,7 @@ extern int smb2_lockv(const unsigned int xid, struct cifs_tcon *tcon,
 		      const __u64 persist_fid, const __u64 volatile_fid,
 		      const __u32 pid, const __u32 num_lock,
 		      struct smb2_lock_element *buf);
+extern int SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
+			    __u8 *lease_key, const __le32 lease_state);
 
 #endif			/* _SMB2PROTO_H */

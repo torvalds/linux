@@ -148,6 +148,13 @@ smb2_check_message(char *buf, unsigned int length)
 			cERROR(1, "Illegal response size %u for command %d",
 				   le16_to_cpu(pdu->StructureSize2), command);
 			return 1;
+		} else if (command == SMB2_OPLOCK_BREAK_HE && (hdr->Status == 0)
+			   && (le16_to_cpu(pdu->StructureSize2) != 44)
+			   && (le16_to_cpu(pdu->StructureSize2) != 36)) {
+			/* special case for SMB2.1 lease break message */
+			cERROR(1, "Illegal response size %d for oplock break",
+				   le16_to_cpu(pdu->StructureSize2));
+			return 1;
 		}
 	}
 
@@ -360,6 +367,84 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 	return to;
 }
 
+__le32
+smb2_get_lease_state(struct cifsInodeInfo *cinode)
+{
+	if (cinode->clientCanCacheAll)
+		return SMB2_LEASE_WRITE_CACHING | SMB2_LEASE_READ_CACHING;
+	else if (cinode->clientCanCacheRead)
+		return SMB2_LEASE_READ_CACHING;
+	return 0;
+}
+
+__u8 smb2_map_lease_to_oplock(__le32 lease_state)
+{
+	if (lease_state & SMB2_LEASE_WRITE_CACHING) {
+		if (lease_state & SMB2_LEASE_HANDLE_CACHING)
+			return SMB2_OPLOCK_LEVEL_BATCH;
+		else
+			return SMB2_OPLOCK_LEVEL_EXCLUSIVE;
+	} else if (lease_state & SMB2_LEASE_READ_CACHING)
+		return SMB2_OPLOCK_LEVEL_II;
+	return 0;
+}
+
+static bool
+smb2_is_valid_lease_break(char *buffer, struct TCP_Server_Info *server)
+{
+	struct smb2_lease_break *rsp = (struct smb2_lease_break *)buffer;
+	struct list_head *tmp, *tmp1, *tmp2;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
+	struct cifsInodeInfo *cinode;
+	struct cifsFileInfo *cfile;
+
+	cFYI(1, "Checking for lease break");
+
+	/* look up tcon based on tid & uid */
+	spin_lock(&cifs_tcp_ses_lock);
+	list_for_each(tmp, &server->smb_ses_list) {
+		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
+		list_for_each(tmp1, &ses->tcon_list) {
+			tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
+
+			cifs_stats_inc(&tcon->stats.cifs_stats.num_oplock_brks);
+			spin_lock(&cifs_file_list_lock);
+			list_for_each(tmp2, &tcon->openFileList) {
+				cfile = list_entry(tmp2, struct cifsFileInfo,
+						     tlist);
+				cinode = CIFS_I(cfile->dentry->d_inode);
+
+				if (memcmp(cinode->lease_key, rsp->LeaseKey,
+					   SMB2_LEASE_KEY_SIZE))
+					continue;
+
+				cFYI(1, "lease key match, lease break 0x%d",
+				     le32_to_cpu(rsp->NewLeaseState));
+
+				smb2_set_oplock_level(cinode,
+				  smb2_map_lease_to_oplock(rsp->NewLeaseState));
+
+				if (rsp->Flags &
+				    SMB2_NOTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED)
+					cfile->oplock_break_cancelled = false;
+				else
+					cfile->oplock_break_cancelled = true;
+
+				queue_work(cifsiod_wq, &cfile->oplock_break);
+
+				spin_unlock(&cifs_file_list_lock);
+				spin_unlock(&cifs_tcp_ses_lock);
+				return true;
+			}
+			spin_unlock(&cifs_file_list_lock);
+		}
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+	cFYI(1, "Can not process lease break - no lease matched");
+	return false;
+}
+
 bool
 smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 {
@@ -377,7 +462,10 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 
 	if (le16_to_cpu(rsp->StructureSize) !=
 				smb2_rsp_struct_sizes[SMB2_OPLOCK_BREAK_HE]) {
-		return false;
+		if (le16_to_cpu(rsp->StructureSize) == 44)
+			return smb2_is_valid_lease_break(buffer, server);
+		else
+			return false;
 	}
 
 	cFYI(1, "oplock level 0x%d", rsp->OplockLevel);

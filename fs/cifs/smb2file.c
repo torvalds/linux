@@ -38,6 +38,8 @@ void
 smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 {
 	oplock &= 0xFF;
+	if (oplock == SMB2_OPLOCK_LEVEL_NOCHANGE)
+		return;
 	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
 		cinode->clientCanCacheAll = true;
 		cinode->clientCanCacheRead = true;

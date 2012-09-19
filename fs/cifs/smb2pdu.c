@@ -911,7 +911,6 @@ parse_lease_state(struct smb2_create_rsp *rsp)
 {
 	char *data_offset;
 	struct create_lease *lc;
-	__u8 oplock = 0;
 	bool found = false;
 
 	data_offset = (char *)rsp;
@@ -932,19 +931,9 @@ parse_lease_state(struct smb2_create_rsp *rsp)
 	} while (le32_to_cpu(lc->ccontext.Next) != 0);
 
 	if (!found)
-		return oplock;
+		return 0;
 
-	if (le32_to_cpu(lc->lcontext.LeaseState) & SMB2_LEASE_WRITE_CACHING) {
-		if (le32_to_cpu(lc->lcontext.LeaseState) &
-						SMB2_LEASE_HANDLE_CACHING)
-			oplock = SMB2_OPLOCK_LEVEL_BATCH;
-		else
-			oplock = SMB2_OPLOCK_LEVEL_EXCLUSIVE;
-	} else if (le32_to_cpu(lc->lcontext.LeaseState) &
-						SMB2_LEASE_READ_CACHING)
-		oplock = SMB2_OPLOCK_LEVEL_II;
-
-	return oplock;
+	return smb2_map_lease_to_oplock(lc->lcontext.LeaseState);
 }
 
 int
@@ -2227,4 +2216,35 @@ SMB2_lock(const unsigned int xid, struct cifs_tcon *tcon,
 		lock.Flags |= cpu_to_le32(SMB2_LOCKFLAG_FAIL_IMMEDIATELY);
 
 	return smb2_lockv(xid, tcon, persist_fid, volatile_fid, pid, 1, &lock);
+}
+
+int
+SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
+		 __u8 *lease_key, const __le32 lease_state)
+{
+	int rc;
+	struct smb2_lease_ack *req = NULL;
+
+	cFYI(1, "SMB2_lease_break");
+	rc = small_smb2_init(SMB2_OPLOCK_BREAK, tcon, (void **) &req);
+
+	if (rc)
+		return rc;
+
+	req->hdr.CreditRequest = cpu_to_le16(1);
+	req->StructureSize = cpu_to_le16(36);
+	inc_rfc1001_len(req, 12);
+
+	memcpy(req->LeaseKey, lease_key, 16);
+	req->LeaseState = lease_state;
+
+	rc = SendReceiveNoRsp(xid, tcon->ses, (char *) req, CIFS_OBREAK_OP);
+	/* SMB2 buffer freed by function above */
+
+	if (rc) {
+		cifs_stats_fail_inc(tcon, SMB2_OPLOCK_BREAK_HE);
+		cFYI(1, "Send error in Lease Break = %d", rc);
+	}
+
+	return rc;
 }
