@@ -2589,11 +2589,13 @@ update_bss_info_out:
 	return err;
 }
 
-static void brcmf_term_iscan(struct brcmf_cfg80211_priv *cfg_priv)
+static void brcmf_abort_scanning(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	struct brcmf_cfg80211_iscan_ctrl *iscan = cfg_to_iscan(cfg_priv);
+	struct escan_info *escan = &cfg_priv->escan_info;
 	struct brcmf_ssid ssid;
 
+	set_bit(WL_STATUS_SCAN_ABORTING, &cfg_priv->status);
 	if (cfg_priv->iscan_on) {
 		iscan->state = WL_ISCAN_STATE_IDLE;
 
@@ -2607,7 +2609,20 @@ static void brcmf_term_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 		/* Abort iscan running in FW */
 		memset(&ssid, 0, sizeof(ssid));
 		brcmf_run_iscan(iscan, &ssid, WL_SCAN_ACTION_ABORT);
+
+		if (cfg_priv->scan_request) {
+			/* Indidate scan abort to cfg80211 layer */
+			WL_INFO("Terminating scan in progress\n");
+			cfg80211_scan_done(cfg_priv->scan_request, true);
+			cfg_priv->scan_request = NULL;
+		}
 	}
+	if (cfg_priv->escan_on && cfg_priv->scan_request) {
+		escan->escan_state = WL_ESCAN_STATE_IDLE;
+		brcmf_notify_escan_complete(cfg_priv, escan->ndev, true, true);
+	}
+	clear_bit(WL_STATUS_SCANNING, &cfg_priv->status);
+	clear_bit(WL_STATUS_SCAN_ABORTING, &cfg_priv->status);
 }
 
 static void brcmf_notify_iscan_complete(struct brcmf_cfg80211_iscan_ctrl *iscan,
@@ -3032,18 +3047,10 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 		brcmf_delay(500);
 	}
 
-	set_bit(WL_STATUS_SCAN_ABORTING, &cfg_priv->status);
 	if (test_bit(WL_STATUS_READY, &cfg_priv->status))
-		brcmf_term_iscan(cfg_priv);
-
-	if (cfg_priv->scan_request) {
-		/* Indidate scan abort to cfg80211 layer */
-		WL_INFO("Terminating scan in progress\n");
-		cfg80211_scan_done(cfg_priv->scan_request, true);
-		cfg_priv->scan_request = NULL;
-	}
-	clear_bit(WL_STATUS_SCANNING, &cfg_priv->status);
-	clear_bit(WL_STATUS_SCAN_ABORTING, &cfg_priv->status);
+		brcmf_abort_scanning(cfg_priv);
+	else
+		clear_bit(WL_STATUS_SCANNING, &cfg_priv->status);
 
 	/* Turn off watchdog timer */
 	if (test_bit(WL_STATUS_READY, &cfg_priv->status))
@@ -3950,7 +3957,7 @@ static void wl_deinit_priv(struct brcmf_cfg80211_priv *cfg_priv)
 	cfg_priv->dongle_up = false;	/* dongle down */
 	brcmf_flush_eq(cfg_priv);
 	brcmf_link_down(cfg_priv);
-	brcmf_term_iscan(cfg_priv);
+	brcmf_abort_scanning(cfg_priv);
 	brcmf_deinit_priv_mem(cfg_priv);
 }
 
@@ -4361,17 +4368,8 @@ static s32 __brcmf_cfg80211_down(struct brcmf_cfg80211_priv *cfg_priv)
 		brcmf_delay(500);
 	}
 
-	set_bit(WL_STATUS_SCAN_ABORTING, &cfg_priv->status);
-	brcmf_term_iscan(cfg_priv);
-	if (cfg_priv->scan_request) {
-		cfg80211_scan_done(cfg_priv->scan_request, true);
-		/* May need to perform this to cover rmmod */
-		/* wl_set_mpc(cfg_to_ndev(wl), 1); */
-		cfg_priv->scan_request = NULL;
-	}
+	brcmf_abort_scanning(cfg_priv);
 	clear_bit(WL_STATUS_READY, &cfg_priv->status);
-	clear_bit(WL_STATUS_SCANNING, &cfg_priv->status);
-	clear_bit(WL_STATUS_SCAN_ABORTING, &cfg_priv->status);
 
 	brcmf_debugfs_remove_netdev(cfg_priv);
 
