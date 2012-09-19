@@ -145,22 +145,25 @@ struct s526_private {
 };
 
 static int s526_gpct_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned short datalow;
-	unsigned short datahigh;
+	unsigned long chan_iobase = dev->iobase + chan * 8;
+	unsigned int lo;
+	unsigned int hi;
 	int i;
 
-	/*  Read the low word first */
 	for (i = 0; i < insn->n; i++) {
-		datalow = inw(dev->iobase + REG_C0L + chan * 8);
-		datahigh = inw(dev->iobase + REG_C0H + chan * 8);
-		data[i] = (int)(datahigh & 0x00FF);
-		data[i] = (data[i] << 16) | (datalow & 0xFFFF);
+		/* Read the low word first */
+		lo = inw(chan_iobase + REG_C0L) & 0xffff;
+		hi = inw(chan_iobase + REG_C0H) & 0xff;
+
+		data[i] = (hi << 16) | lo;
 	}
-	return i;
+
+	return insn->n;
 }
 
 static int s526_gpct_insn_config(struct comedi_device *dev,
