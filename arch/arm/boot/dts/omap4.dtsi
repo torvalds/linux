@@ -431,8 +431,9 @@
 			hw-caps-temp-alert;
 		};
 
-		ocp2scp {
+		ocp2scp@4a0ad000 {
 			compatible = "ti,omap-ocp2scp";
+			reg = <0x4a0ad000 0x1f>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
