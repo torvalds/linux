@@ -138,30 +138,6 @@ struct s526GPCTConfig {
 	int data[MAX_GPCT_CONFIG_DATA];
 };
 
-struct s526_board {
-	const char *name;
-	int gpct_chans;
-	int gpct_bits;
-	int ad_chans;
-	int ad_bits;
-	int da_chans;
-	int da_bits;
-	int have_dio;
-};
-
-static const struct s526_board s526_boards[] = {
-	{
-	 .name = "s526",
-	 .gpct_chans = 4,
-	 .gpct_bits = 24,
-	 .ad_chans = 8,
-	 .ad_bits = 16,
-	 .da_chans = 4,
-	 .da_bits = 16,
-	 .have_dio = 1,
-	 }
-};
-
 struct s526_private {
 	unsigned int ao_readback[2];
 	struct s526GPCTConfig s526_gpct_config[4];
@@ -611,20 +587,19 @@ static int s526_dio_insn_config(struct comedi_device *dev,
 
 static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct s526_board *board = comedi_board(dev);
 	struct s526_private *devpriv;
 	struct comedi_subdevice *s;
 	int iobase;
 	int ret;
 
+	dev->board_name = dev->driver->driver_name;
+
 	iobase = it->options[0];
-	if (!iobase || !request_region(iobase, S526_IOSIZE, board->name)) {
+	if (!iobase || !request_region(iobase, S526_IOSIZE, dev->board_name)) {
 		comedi_error(dev, "I/O port conflict");
 		return -EIO;
 	}
 	dev->iobase = iobase;
-
-	dev->board_name = board->name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret)
@@ -639,7 +614,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* GENERAL-PURPOSE COUNTER/TIME (GPCT) */
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
-	s->n_chan = board->gpct_chans;
+	s->n_chan = 4;
 	s->maxdata = 0x00ffffff;	/* 24 bit counter */
 	s->insn_read = s526_gpct_rinsn;
 	s->insn_config = s526_gpct_insn_config;
@@ -670,17 +645,13 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = &dev->subdevices[3];
 	/* digital i/o subdevice */
-	if (board->have_dio) {
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = 8;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = s526_dio_insn_bits;
-		s->insn_config = s526_dio_insn_config;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 8;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = s526_dio_insn_bits;
+	s->insn_config = s526_dio_insn_config;
 
 	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
@@ -698,9 +669,6 @@ static struct comedi_driver s526_driver = {
 	.module		= THIS_MODULE,
 	.attach		= s526_attach,
 	.detach		= s526_detach,
-	.board_name	= &s526_boards[0].name,
-	.offset		= sizeof(struct s526_board),
-	.num_names	= ARRAY_SIZE(s526_boards),
 };
 module_comedi_driver(s526_driver);
 
