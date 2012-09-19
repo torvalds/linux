@@ -162,7 +162,7 @@ config CIFS_NFSD_EXPORT
 
 config CIFS_SMB2
 	bool "SMB2 network file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && INET && BROKEN
+	depends on EXPERIMENTAL && INET
 	select NLS
 	select KEYS
 	select FSCACHE
