@@ -710,11 +710,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct s526_private *devpriv;
 	struct comedi_subdevice *s;
 	int iobase;
-	int i, n;
 	int ret;
-/* short value; */
-/* int subdev_channel = 0; */
-	union cmReg cmReg;
 
 	printk(KERN_INFO "comedi%d: s526: ", dev->minor);
 
@@ -798,90 +794,6 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	printk(KERN_INFO "attached\n");
 
-	return 1;
-
-#if 0
-	/*  Example of Counter Application */
-	/* One-shot (software trigger) */
-	cmReg.reg.coutSource = 0;	/*  out RCAP */
-	cmReg.reg.coutPolarity = 1;	/*  Polarity inverted */
-	cmReg.reg.autoLoadResetRcap = 1;/*  Auto load 0:disabled, 1:enabled */
-	cmReg.reg.hwCtEnableSource = 3;	/*  NOT RCAP */
-	cmReg.reg.ctEnableCtrl = 2;	/*  Hardware */
-	cmReg.reg.clockSource = 2;	/*  Internal */
-	cmReg.reg.countDir = 1;	/*  Down */
-	cmReg.reg.countDirCtrl = 1;	/*  Software */
-	cmReg.reg.outputRegLatchCtrl = 0;	/*  latch on read */
-	cmReg.reg.preloadRegSel = 0;	/*  PR0 */
-	cmReg.reg.reserved = 0;
-
-	outw(cmReg.value, dev->iobase + REG_C0M + subdev_channel * 8);
-
-	outw(0x0001, dev->iobase + REG_C0H + subdev_channel * 8);
-	outw(0x3C68, dev->iobase + REG_C0L + subdev_channel * 8);
-
-	/*  Reset the counter */
-	outw(0x8000, dev->iobase + REG_C0C + subdev_channel * 8);
-	/*  Load the counter from PR0 */
-	outw(0x4000, dev->iobase + REG_C0C + subdev_channel * 8);
-	/*  Reset RCAP (fires one-shot) */
-	outw(0x0008, dev->iobase + REG_C0C + subdev_channel * 8);
-
-#else
-
-	/*  Set Counter Mode Register */
-	cmReg.reg.coutSource = 0;	/*  out RCAP */
-	cmReg.reg.coutPolarity = 0;	/*  Polarity inverted */
-	cmReg.reg.autoLoadResetRcap = 0;	/*  Auto load disabled */
-	cmReg.reg.hwCtEnableSource = 2;	/*  NOT RCAP */
-	cmReg.reg.ctEnableCtrl = 1;	/*  1: Software,  >1 : Hardware */
-	cmReg.reg.clockSource = 3;	/*  x4 */
-	cmReg.reg.countDir = 0;	/*  up */
-	cmReg.reg.countDirCtrl = 0;	/*  quadrature */
-	cmReg.reg.outputRegLatchCtrl = 0;	/*  latch on read */
-	cmReg.reg.preloadRegSel = 0;	/*  PR0 */
-	cmReg.reg.reserved = 0;
-
-	n = 0;
-	printk(KERN_INFO "Mode reg=0x%04x, 0x%04lx\n",
-		cmReg.value, dev->iobase + REG_C0M + n * 8);
-	outw(cmReg.value, dev->iobase + REG_C0M + n * 8);
-	udelay(1000);
-	printk(KERN_INFO "Read back mode reg=0x%04x\n",
-		inw(dev->iobase + REG_C0M + n * 8));
-
-	/*  Load the pre-load register high word */
-/* value = (short) (0x55); */
-/* outw(value, dev->iobase + REG_C0H + n * 8); */
-
-	/*  Load the pre-load register low word */
-/* value = (short)(0xaa55); */
-/* outw(value, dev->iobase + REG_C0L + n * 8); */
-
-	/*  Write the Counter Control Register */
-/* outw(value, dev->iobase + REG_C0C + 0 * 8); */
-
-	/*  Reset the counter if it is software preload */
-	if (cmReg.reg.autoLoadResetRcap == 0) {
-		/*  Reset the counter */
-		outw(0x8000, dev->iobase + REG_C0C + n * 8);
-		/*  Load the counter from PR0 */
-		outw(0x4000, dev->iobase + REG_C0C + n * 8);
-	}
-
-	outw(cmReg.value, dev->iobase + REG_C0M + n * 8);
-	udelay(1000);
-	printk(KERN_INFO "Read back mode reg=0x%04x\n",
-			inw(dev->iobase + REG_C0M + n * 8));
-
-#endif
-	printk(KERN_INFO "Current registres:\n");
-
-	for (i = 0; i < S526_NUM_PORTS; i++) {
-		printk(KERN_INFO "0x%02lx: 0x%04x\n",
-			dev->iobase + s526_ports[i],
-			inw(dev->iobase + s526_ports[i]));
-	}
 	return 1;
 }
 
