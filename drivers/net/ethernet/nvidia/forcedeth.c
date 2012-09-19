@@ -3218,7 +3218,7 @@ static void nv_force_linkspeed(struct net_device *dev, int speed, int duplex)
 }
 
 /**
- * nv_update_linkspeed: Setup the MAC according to the link partner
+ * nv_update_linkspeed - Setup the MAC according to the link partner
  * @dev: Network device to be configured
  *
  * The function queries the PHY and checks if there is a link partner.
@@ -3552,8 +3552,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 	return IRQ_HANDLED;
 }
 
-/**
- * All _optimized functions are used to help increase performance
+/* All _optimized functions are used to help increase performance
  * (reduce CPU and increase throughput). They use descripter version 3,
  * compiler directives, and reduce memory accesses.
  */
@@ -3776,7 +3775,7 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 			np->link_timeout = jiffies + LINK_TIMEOUT;
 		}
 		if (events & NVREG_IRQ_RECOVER_ERROR) {
-			spin_lock_irq(&np->lock);
+			spin_lock_irqsave(&np->lock, flags);
 			/* disable interrupts on the nic */
 			writel(NVREG_IRQ_OTHER, base + NvRegIrqMask);
 			pci_push(base);
@@ -3786,7 +3785,7 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 				np->recover_error = 1;
 				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
 			}
-			spin_unlock_irq(&np->lock);
+			spin_unlock_irqrestore(&np->lock, flags);
 			break;
 		}
 		if (unlikely(i > max_interrupt_work)) {
@@ -5183,6 +5182,7 @@ static const struct ethtool_ops ops = {
 	.get_ethtool_stats = nv_get_ethtool_stats,
 	.get_sset_count = nv_get_sset_count,
 	.self_test = nv_self_test,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 /* The mgmt unit and driver use a semaphore to access the phy during init */

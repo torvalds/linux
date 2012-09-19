@@ -83,7 +83,7 @@ static int __devinit of_anatop_probe(struct platform_device *pdev)
 	drvdata->ioreg = ioreg;
 	spin_lock_init(&drvdata->reglock);
 	platform_set_drvdata(pdev, drvdata);
-	of_platform_populate(np, of_anatop_match, NULL, dev);
+	of_platform_populate(np, NULL, NULL, dev);
 
 	return 0;
 }

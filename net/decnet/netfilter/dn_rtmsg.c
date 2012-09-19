@@ -42,23 +42,23 @@ static struct sk_buff *dnrmg_build_message(struct sk_buff *rt_skb, int *errp)
 	size = NLMSG_SPACE(rt_skb->len);
 	size += NLMSG_ALIGN(sizeof(struct nf_dn_rtmsg));
 	skb = alloc_skb(size, GFP_ATOMIC);
-	if (!skb)
-		goto nlmsg_failure;
+	if (!skb) {
+		*errp = -ENOMEM;
+		return NULL;
+	}
 	old_tail = skb->tail;
-	nlh = NLMSG_PUT(skb, 0, 0, 0, size - sizeof(*nlh));
+	nlh = nlmsg_put(skb, 0, 0, 0, size - sizeof(*nlh), 0);
+	if (!nlh) {
+		kfree_skb(skb);
+		*errp = -ENOMEM;
+		return NULL;
+	}
 	rtm = (struct nf_dn_rtmsg *)NLMSG_DATA(nlh);
 	rtm->nfdn_ifindex = rt_skb->dev->ifindex;
 	ptr = NFDN_RTMSG(rtm);
 	skb_copy_from_linear_data(rt_skb, ptr, rt_skb->len);
 	nlh->nlmsg_len = skb->tail - old_tail;
 	return skb;
-
-nlmsg_failure:
-	if (skb)
-		kfree_skb(skb);
-	*errp = -ENOMEM;
-	net_err_ratelimited("dn_rtmsg: error creating netlink message\n");
-	return NULL;
 }
 
 static void dnrmg_send_peer(struct sk_buff *skb)
@@ -117,7 +117,7 @@ static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 
 static struct nf_hook_ops dnrmg_ops __read_mostly = {
 	.hook		= dnrmg_hook,
-	.pf		= PF_DECnet,
+	.pf		= NFPROTO_DECNET,
 	.hooknum	= NF_DN_ROUTE,
 	.priority	= NF_DN_PRI_DNRTMSG,
 };
@@ -125,11 +125,13 @@ static struct nf_hook_ops dnrmg_ops __read_mostly = {
 static int __init dn_rtmsg_init(void)
 {
 	int rv = 0;
+	struct netlink_kernel_cfg cfg = {
+		.groups	= DNRNG_NLGRP_MAX,
+		.input	= dnrmg_receive_user_skb,
+	};
 
 	dnrmg = netlink_kernel_create(&init_net,
-				      NETLINK_DNRTMSG, DNRNG_NLGRP_MAX,
-				      dnrmg_receive_user_skb,
-				      NULL, THIS_MODULE);
+				      NETLINK_DNRTMSG, THIS_MODULE, &cfg);
 	if (dnrmg == NULL) {
 		printk(KERN_ERR "dn_rtmsg: Cannot create netlink socket");
 		return -ENOMEM;

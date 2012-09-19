@@ -138,13 +138,14 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 	if ((table_desc->pointer->signature[0] != 0x00) &&
 	    (!ACPI_COMPARE_NAME(table_desc->pointer->signature, ACPI_SIG_SSDT))
 	    && (ACPI_STRNCMP(table_desc->pointer->signature, "OEM", 3))) {
-		ACPI_ERROR((AE_INFO,
-			    "Table has invalid signature [%4.4s] (0x%8.8X), must be SSDT or OEMx",
-			    acpi_ut_valid_acpi_name(*(u32 *)table_desc->
-						    pointer->
-						    signature) ? table_desc->
-			    pointer->signature : "????",
-			    *(u32 *)table_desc->pointer->signature));
+		ACPI_BIOS_ERROR((AE_INFO,
+				 "Table has invalid signature [%4.4s] (0x%8.8X), "
+				 "must be SSDT or OEMx",
+				 acpi_ut_valid_acpi_name(*(u32 *)table_desc->
+							 pointer->
+							 signature) ?
+				 table_desc->pointer->signature : "????",
+				 *(u32 *)table_desc->pointer->signature));
 
 		return_ACPI_STATUS(AE_BAD_SIGNATURE);
 	}
@@ -396,10 +397,10 @@ acpi_status acpi_tb_resize_root_table_list(void)
  *
  * FUNCTION:    acpi_tb_store_table
  *
- * PARAMETERS:  Address             - Table address
- *              Table               - Table header
- *              Length              - Table length
- *              Flags               - flags
+ * PARAMETERS:  address             - Table address
+ *              table               - Table header
+ *              length              - Table length
+ *              flags               - flags
  *
  * RETURN:      Status and table index.
  *

@@ -1,7 +1,5 @@
 /*
- * include/asm-s390/appldata.h
- *
- * Copyright (C) IBM Corp. 2006
+ * Copyright IBM Corp. 2006
  *
  * Author(s): Melissa Howland <melissah@us.ibm.com>
  */

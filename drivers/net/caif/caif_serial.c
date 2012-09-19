@@ -325,6 +325,9 @@ static int ldisc_open(struct tty_struct *tty)
 
 	sprintf(name, "cf%s", tty->name);
 	dev = alloc_netdev(sizeof(*ser), name, caifdev_setup);
+	if (!dev)
+		return -ENOMEM;
+
 	ser = netdev_priv(dev);
 	ser->tty = tty_kref_get(tty);
 	ser->dev = dev;

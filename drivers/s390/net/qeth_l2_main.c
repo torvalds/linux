@@ -1,6 +1,4 @@
 /*
- *  drivers/s390/net/qeth_l2_main.c
- *
  *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
  *		 Frank Pavlic <fpavlic@de.ibm.com>,
@@ -647,7 +645,7 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 		}
 		QETH_DBF_HEX(SETUP, 2, card->dev->dev_addr, OSA_ADDR_LEN);
 	} else {
-		random_ether_addr(card->dev->dev_addr);
+		eth_random_addr(card->dev->dev_addr);
 		memcpy(card->dev->dev_addr, vendor_pre, 3);
 	}
 	return 0;

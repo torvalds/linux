@@ -293,15 +293,14 @@ static int __devinit pca955x_probe(struct i2c_client *client,
 		}
 	}
 
-	pca955x = kzalloc(sizeof(*pca955x), GFP_KERNEL);
+	pca955x = devm_kzalloc(&client->dev, sizeof(*pca955x), GFP_KERNEL);
 	if (!pca955x)
 		return -ENOMEM;
 
-	pca955x->leds = kzalloc(sizeof(*pca955x_led) * chip->bits, GFP_KERNEL);
-	if (!pca955x->leds) {
-		err = -ENOMEM;
-		goto exit_nomem;
-	}
+	pca955x->leds = devm_kzalloc(&client->dev,
+			sizeof(*pca955x_led) * chip->bits, GFP_KERNEL);
+	if (!pca955x->leds)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, pca955x);
 
@@ -361,10 +360,6 @@ exit:
 		cancel_work_sync(&pca955x->leds[i].work);
 	}
 
-	kfree(pca955x->leds);
-exit_nomem:
-	kfree(pca955x);
-
 	return err;
 }
 
@@ -377,9 +372,6 @@ static int __devexit pca955x_remove(struct i2c_client *client)
 		led_classdev_unregister(&pca955x->leds[i].led_cdev);
 		cancel_work_sync(&pca955x->leds[i].work);
 	}
-
-	kfree(pca955x->leds);
-	kfree(pca955x);
 
 	return 0;
 }

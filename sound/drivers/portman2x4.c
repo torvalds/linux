@@ -829,7 +829,8 @@ static struct platform_driver snd_portman_driver = {
 	.probe  = snd_portman_probe,
 	.remove = __devexit_p(snd_portman_remove),
 	.driver = {
-		.name = PLATFORM_DRIVER
+		.name = PLATFORM_DRIVER,
+		.owner	= THIS_MODULE,
 	}
 };
 

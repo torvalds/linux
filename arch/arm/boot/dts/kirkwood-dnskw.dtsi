@@ -1,0 +1,69 @@
+/include/ "kirkwood.dtsi"
+
+/ {
+	model = "D-Link DNS NASes (kirkwood-based)";
+	compatible = "dlink,dns-kirkwood", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "Power button";
+			linux,code = <116>;
+			gpios = <&gpio1 2 1>;
+		};
+		button@2 {
+			label = "USB unmount button";
+			linux,code = <161>;
+			gpios = <&gpio1 15 1>;
+		};
+		button@3 {
+			label = "Reset button";
+			linux,code = <0x198>;
+			gpios = <&gpio1 16 1>;
+		};
+	};
+
+	ocp@f1000000 {
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+		nand@3000000 {
+			status = "okay";
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x100000>;
+				read-only;
+			};
+
+			partition@100000 {
+				label = "uImage";
+				reg = <0x0100000 0x500000>;
+			};
+
+			partition@600000 {
+				label = "ramdisk";
+				reg = <0x0600000 0x500000>;
+			};
+
+			partition@b00000 {
+				label = "image";
+				reg = <0x0b00000 0x6600000>;
+			};
+
+			partition@7100000 {
+				label = "mini firmware";
+				reg = <0x7100000 0xa00000>;
+			};
+
+			partition@7b00000 {
+				label = "config";
+				reg = <0x7b00000 0x500000>;
+			};
+		};
+	};
+};

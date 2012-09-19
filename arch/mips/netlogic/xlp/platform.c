@@ -53,7 +53,7 @@
 
 static unsigned int nlm_xlp_uart_in(struct uart_port *p, int offset)
 {
-	 return nlm_read_reg(p->iobase, offset);
+	return nlm_read_reg(p->iobase, offset);
 }
 
 static void nlm_xlp_uart_out(struct uart_port *p, int offset, int value)

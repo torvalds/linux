@@ -1,5 +1,4 @@
 
-/*   vim:tw=110:ts=4: */
 #ifndef DHF_H
 #define DHF_H
 

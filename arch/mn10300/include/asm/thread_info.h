@@ -123,7 +123,7 @@ static inline unsigned long current_stack_pointer(void)
 }
 
 #ifndef CONFIG_KGDB
-void arch_release_thread_info(struct thread_info *ti)
+void arch_release_thread_info(struct thread_info *ti);
 #endif
 #define get_thread_info(ti)	get_task_struct((ti)->task)
 #define put_thread_info(ti)	put_task_struct((ti)->task)

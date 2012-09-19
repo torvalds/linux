@@ -766,6 +766,7 @@ static void igbvf_set_itr(struct igbvf_adapter *adapter)
 /**
  * igbvf_clean_tx_irq - Reclaim resources after transmit completes
  * @adapter: board private structure
+ *
  * returns true if ring is completely cleaned
  **/
 static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)

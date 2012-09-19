@@ -6,7 +6,7 @@ They are connected ot the host processor via i2c for commands, McPDM for audio
 data and commands.
 
 Required properties:
-- compatible : Must be "ti,twl6040";
+- compatible : "ti,twl6040" for twl6040, "ti,twl6041" for twl6041
 - reg: must be 0x4b for i2c address
 - interrupts: twl6040 has one interrupt line connecteded to the main SoC
 - interrupt-parent: The parent interrupt controller

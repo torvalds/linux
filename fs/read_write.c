@@ -55,10 +55,11 @@ static loff_t lseek_execute(struct file *file, struct inode *inode,
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @origin:	type of seek
- * @size:	max size of file system
+ * @size:	max size of this file in file system
+ * @eof:	offset used for SEEK_END position
  *
  * This is a variant of generic_file_llseek that allows passing in a custom
- * file size.
+ * maximum file size and a custom EOF position, for e.g. hashed directories
  *
  * Synchronization:
  * SEEK_SET and SEEK_END are unsynchronized (but atomic on 64bit platforms)
@@ -67,13 +68,13 @@ static loff_t lseek_execute(struct file *file, struct inode *inode,
  */
 loff_t
 generic_file_llseek_size(struct file *file, loff_t offset, int origin,
-		loff_t maxsize)
+		loff_t maxsize, loff_t eof)
 {
 	struct inode *inode = file->f_mapping->host;
 
 	switch (origin) {
 	case SEEK_END:
-		offset += i_size_read(inode);
+		offset += eof;
 		break;
 	case SEEK_CUR:
 		/*
@@ -99,7 +100,7 @@ generic_file_llseek_size(struct file *file, loff_t offset, int origin,
 		 * In the generic case the entire file is data, so as long as
 		 * offset isn't at the end of the file then the offset is data.
 		 */
-		if (offset >= i_size_read(inode))
+		if (offset >= eof)
 			return -ENXIO;
 		break;
 	case SEEK_HOLE:
@@ -107,9 +108,9 @@ generic_file_llseek_size(struct file *file, loff_t offset, int origin,
 		 * There is a virtual hole at the end of the file, so as long as
 		 * offset isn't i_size or larger, return i_size.
 		 */
-		if (offset >= i_size_read(inode))
+		if (offset >= eof)
 			return -ENXIO;
-		offset = i_size_read(inode);
+		offset = eof;
 		break;
 	}
 
@@ -132,7 +133,8 @@ loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 	struct inode *inode = file->f_mapping->host;
 
 	return generic_file_llseek_size(file, offset, origin,
-					inode->i_sb->s_maxbytes);
+					inode->i_sb->s_maxbytes,
+					i_size_read(inode));
 }
 EXPORT_SYMBOL(generic_file_llseek);
 

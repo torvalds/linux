@@ -253,7 +253,7 @@ static void __devinit pci_fixup_cy82c693(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693, pci_fixup_cy82c693);
 
-static void __init pci_fixup_it8152(struct pci_dev *dev)
+static void __devinit pci_fixup_it8152(struct pci_dev *dev)
 {
 	int i;
 	/* fixup for ITE 8152 devices */
@@ -461,7 +461,7 @@ static void __init pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
 			if (!sys->bus)
 				panic("PCI: unable to scan bus!");
 
-			busnr = sys->bus->subordinate + 1;
+			busnr = sys->bus->busn_res.end + 1;
 
 			list_add(&sys->node, head);
 		} else {

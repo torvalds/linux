@@ -81,6 +81,7 @@ struct atmel_mci_caps {
 	bool	has_bad_data_ordering;
 	bool	need_reset_after_xfer;
 	bool	need_blksz_mul_4;
+	bool	need_notbusy_for_read_ops;
 };
 
 struct atmel_mci_dma {
@@ -391,11 +392,17 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 	clk_disable(host->mck);
 	spin_unlock_bh(&host->lock);
 
-	seq_printf(s, "MR:\t0x%08x%s%s CLKDIV=%u\n",
+	seq_printf(s, "MR:\t0x%08x%s%s ",
 			buf[ATMCI_MR / 4],
 			buf[ATMCI_MR / 4] & ATMCI_MR_RDPROOF ? " RDPROOF" : "",
-			buf[ATMCI_MR / 4] & ATMCI_MR_WRPROOF ? " WRPROOF" : "",
-			buf[ATMCI_MR / 4] & 0xff);
+			buf[ATMCI_MR / 4] & ATMCI_MR_WRPROOF ? " WRPROOF" : "");
+	if (host->caps.has_odd_clk_div)
+		seq_printf(s, "{CLKDIV,CLKODD}=%u\n",
+				((buf[ATMCI_MR / 4] & 0xff) << 1)
+				| ((buf[ATMCI_MR / 4] >> 16) & 1));
+	else
+		seq_printf(s, "CLKDIV=%u\n",
+				(buf[ATMCI_MR / 4] & 0xff));
 	seq_printf(s, "DTOR:\t0x%08x\n", buf[ATMCI_DTOR / 4]);
 	seq_printf(s, "SDCR:\t0x%08x\n", buf[ATMCI_SDCR / 4]);
 	seq_printf(s, "ARGR:\t0x%08x\n", buf[ATMCI_ARGR / 4]);
@@ -1619,7 +1626,8 @@ static void atmci_tasklet_func(unsigned long priv)
 				__func__);
 			atmci_set_completed(host, EVENT_XFER_COMPLETE);
 
-			if (host->data->flags & MMC_DATA_WRITE) {
+			if (host->caps.need_notbusy_for_read_ops ||
+			   (host->data->flags & MMC_DATA_WRITE)) {
 				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
 				state = STATE_WAITING_NOTBUSY;
 			} else if (host->mrq->stop) {
@@ -1685,7 +1693,6 @@ static void atmci_tasklet_func(unsigned long priv)
 
 			dev_dbg(&host->pdev->dev, "FSM: cmd ready\n");
 			host->cmd = NULL;
-			host->data = NULL;
 			data->bytes_xfered = data->blocks * data->blksz;
 			data->error = 0;
 			atmci_command_complete(host, mrq->stop);
@@ -1699,6 +1706,7 @@ static void atmci_tasklet_func(unsigned long priv)
 				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
 				state = STATE_WAITING_NOTBUSY;
 			}
+			host->data = NULL;
 			break;
 
 		case STATE_END_REQUEST:
@@ -2212,6 +2220,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	host->caps.has_bad_data_ordering = 1;
 	host->caps.need_reset_after_xfer = 1;
 	host->caps.need_blksz_mul_4 = 1;
+	host->caps.need_notbusy_for_read_ops = 0;
 
 	/* keep only major version number */
 	switch (version & 0xf00) {
@@ -2232,6 +2241,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	case 0x200:
 		host->caps.has_rwproof = 1;
 		host->caps.need_blksz_mul_4 = 0;
+		host->caps.need_notbusy_for_read_ops = 1;
 	case 0x100:
 		host->caps.has_bad_data_ordering = 0;
 		host->caps.need_reset_after_xfer = 0;

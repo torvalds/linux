@@ -96,7 +96,7 @@ static int linear_map(struct dm_target *ti, struct bio *bio,
 }
 
 static int linear_status(struct dm_target *ti, status_type_t type,
-			 char *result, unsigned int maxlen)
+			 unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct linear_c *lc = (struct linear_c *) ti->private;
 

@@ -106,19 +106,16 @@ static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
 static int decode_nfsdata(struct xdr_stream *xdr, struct nfs_readres *result)
 {
 	u32 recvd, count;
-	size_t hdrlen;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
 		goto out_overflow;
 	count = be32_to_cpup(p);
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
-	recvd = xdr->buf->len - hdrlen;
+	recvd = xdr_read_pages(xdr, count);
 	if (unlikely(count > recvd))
 		goto out_cheating;
 out:
-	xdr_read_pages(xdr, count);
 	result->eof = 0;	/* NFSv2 does not pass EOF flag on the wire. */
 	result->count = count;
 	return count;
@@ -440,7 +437,6 @@ static void encode_path(struct xdr_stream *xdr, struct page **pages, u32 length)
 static int decode_path(struct xdr_stream *xdr)
 {
 	u32 length, recvd;
-	size_t hdrlen;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
@@ -449,12 +445,9 @@ static int decode_path(struct xdr_stream *xdr)
 	length = be32_to_cpup(p);
 	if (unlikely(length >= xdr->buf->page_len || length > NFS_MAXPATHLEN))
 		goto out_size;
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
-	recvd = xdr->buf->len - hdrlen;
+	recvd = xdr_read_pages(xdr, length);
 	if (unlikely(length > recvd))
 		goto out_cheating;
-
-	xdr_read_pages(xdr, length);
 	xdr_terminate_string(xdr->buf, length);
 	return 0;
 out_size:
@@ -972,22 +965,7 @@ out_overflow:
  */
 static int decode_readdirok(struct xdr_stream *xdr)
 {
-	u32 recvd, pglen;
-	size_t hdrlen;
-
-	pglen = xdr->buf->page_len;
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
-	recvd = xdr->buf->len - hdrlen;
-	if (unlikely(pglen > recvd))
-		goto out_cheating;
-out:
-	xdr_read_pages(xdr, pglen);
-	return pglen;
-out_cheating:
-	dprintk("NFS: server cheating in readdir result: "
-		"pglen %u > recvd %u\n", pglen, recvd);
-	pglen = recvd;
-	goto out;
+	return xdr_read_pages(xdr, xdr->buf->page_len);
 }
 
 static int nfs2_xdr_dec_readdirres(struct rpc_rqst *req,

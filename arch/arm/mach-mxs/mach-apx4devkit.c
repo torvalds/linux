@@ -205,6 +205,16 @@ static int apx4devkit_phy_fixup(struct phy_device *phy)
 	return 0;
 }
 
+static void __init apx4devkit_fec_phy_clk_enable(void)
+{
+	struct clk *clk;
+
+	/* Enable fec phy clock */
+	clk = clk_get_sys("enet_out", NULL);
+	if (!IS_ERR(clk))
+		clk_prepare_enable(clk);
+}
+
 static void __init apx4devkit_init(void)
 {
 	mx28_soc_init();
@@ -225,6 +235,7 @@ static void __init apx4devkit_init(void)
 	phy_register_fixup_for_uid(PHY_ID_KS8051, MICREL_PHY_ID_MASK,
 			apx4devkit_phy_fixup);
 
+	apx4devkit_fec_phy_clk_enable();
 	mx28_add_fec(0, &mx28_fec_pdata);
 
 	mx28_add_mxs_mmc(0, &apx4devkit_mmc_pdata);

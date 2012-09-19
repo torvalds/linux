@@ -902,7 +902,7 @@ static const struct net_device_ops ethoc_netdev_ops = {
 };
 
 /**
- * ethoc_probe() - initialize OpenCores ethernet MAC
+ * ethoc_probe - initialize OpenCores ethernet MAC
  * pdev:	platform device
  */
 static int __devinit ethoc_probe(struct platform_device *pdev)
@@ -1057,7 +1057,7 @@ static int __devinit ethoc_probe(struct platform_device *pdev)
 	/* Check the MAC again for validity, if it still isn't choose and
 	 * program a random one. */
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		random_ether_addr(netdev->dev_addr);
+		eth_random_addr(netdev->dev_addr);
 		random_mac = true;
 	}
 
@@ -1140,7 +1140,7 @@ out:
 }
 
 /**
- * ethoc_remove() - shutdown OpenCores ethernet MAC
+ * ethoc_remove - shutdown OpenCores ethernet MAC
  * @pdev:	platform device
  */
 static int __devexit ethoc_remove(struct platform_device *pdev)

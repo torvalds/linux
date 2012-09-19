@@ -32,9 +32,6 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	unsigned char brightness;
-	unsigned char contrast;
-	unsigned char colors;
 	unsigned char autogain;
 
 	char sensor;
@@ -42,76 +39,6 @@ struct sd {
 #define SENSOR_TAS5130CXX 1
 	signed char ag_cnt;
 #define AG_CNT_START 13
-};
-
-/* V4L2 controls supported by the driver */
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
-
-static const struct ctrl sd_ctrls[] = {
-	{
-	 {
-	  .id = V4L2_CID_BRIGHTNESS,
-	  .type = V4L2_CTRL_TYPE_INTEGER,
-	  .name = "Brightness",
-	  .minimum = 1,
-	  .maximum = 127,
-	  .step = 1,
-#define BRIGHTNESS_DEF 63
-	  .default_value = BRIGHTNESS_DEF,
-	  },
-	 .set = sd_setbrightness,
-	 .get = sd_getbrightness,
-	 },
-	{
-	 {
-	  .id = V4L2_CID_CONTRAST,
-	  .type = V4L2_CTRL_TYPE_INTEGER,
-	  .name = "Contrast",
-	  .minimum = 0,
-	  .maximum = 255,
-	  .step = 1,
-#define CONTRAST_DEF 127
-	  .default_value = CONTRAST_DEF,
-	  },
-	 .set = sd_setcontrast,
-	 .get = sd_getcontrast,
-	 },
-#define COLOR_IDX 2
-	{
-	 {
-	  .id = V4L2_CID_SATURATION,
-	  .type = V4L2_CTRL_TYPE_INTEGER,
-	  .name = "Color",
-	  .minimum = 0,
-	  .maximum = 15,
-	  .step = 1,
-#define COLOR_DEF 7
-	  .default_value = COLOR_DEF,
-	  },
-	 .set = sd_setcolors,
-	 .get = sd_getcolors,
-	 },
-	{
-	 {
-	  .id = V4L2_CID_AUTOGAIN,
-	  .type = V4L2_CTRL_TYPE_BOOLEAN,
-	  .name = "Auto Gain",
-	  .minimum = 0,
-	  .maximum = 1,
-	  .step = 1,
-#define AUTOGAIN_DEF 1
-	  .default_value = AUTOGAIN_DEF,
-	  },
-	 .set = sd_setautogain,
-	 .get = sd_getautogain,
-	 },
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
@@ -464,36 +391,31 @@ static void Et_init2(struct gspca_dev *gspca_dev)
 	reg_w_val(gspca_dev, 0x80, 0x20);	/* 0x20; */
 }
 
-static void setbrightness(struct gspca_dev *gspca_dev)
+static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
-	__u8 brightness = sd->brightness;
 
 	for (i = 0; i < 4; i++)
-		reg_w_val(gspca_dev, ET_O_RED + i, brightness);
+		reg_w_val(gspca_dev, ET_O_RED + i, val);
 }
 
-static void setcontrast(struct gspca_dev *gspca_dev)
+static void setcontrast(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 RGBG[] = { 0x80, 0x80, 0x80, 0x80, 0x00, 0x00 };
-	__u8 contrast = sd->contrast;
 
-	memset(RGBG, contrast, sizeof(RGBG) - 2);
+	memset(RGBG, val, sizeof(RGBG) - 2);
 	reg_w(gspca_dev, ET_G_RED, RGBG, 6);
 }
 
-static void setcolors(struct gspca_dev *gspca_dev)
+static void setcolors(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 I2cc[] = { 0x05, 0x02, 0x02, 0x05, 0x0d };
 	__u8 i2cflags = 0x01;
 	/* __u8 green = 0; */
-	__u8 colors = sd->colors;
 
-	I2cc[3] = colors;	/* red */
-	I2cc[0] = 15 - colors;	/* blue */
+	I2cc[3] = val;	/* red */
+	I2cc[0] = 15 - val;	/* blue */
 	/* green = 15 - ((((7*I2cc[0]) >> 2 ) + I2cc[3]) >> 1); */
 	/* I2cc[1] = I2cc[2] = green; */
 	if (sd->sensor == SENSOR_PAS106) {
@@ -504,15 +426,16 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		I2cc[3], I2cc[0], green); */
 }
 
-static void getcolors(struct gspca_dev *gspca_dev)
+static s32 getcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->sensor == SENSOR_PAS106) {
 /*		i2c_r(gspca_dev, PAS106_REG9);		 * blue */
 		i2c_r(gspca_dev, PAS106_REG9 + 3);	/* red */
-		sd->colors = gspca_dev->usb_buf[0] & 0x0f;
+		return gspca_dev->usb_buf[0] & 0x0f;
 	}
+	return 0;
 }
 
 static void setautogain(struct gspca_dev *gspca_dev)
@@ -622,8 +545,7 @@ static void Et_init1(struct gspca_dev *gspca_dev)
 	i2c_w(gspca_dev, PAS106_REG7, I2c4, sizeof I2c4, 1);
 	/* now set by fifo the whole colors setting */
 	reg_w(gspca_dev, ET_G_RED, GainRGBG, 6);
-	getcolors(gspca_dev);
-	setcolors(gspca_dev);
+	setcolors(gspca_dev, getcolors(gspca_dev));
 }
 
 /* this function is called at probe time */
@@ -641,12 +563,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	} else {
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
-		gspca_dev->ctrl_dis = (1 << COLOR_IDX);
 	}
-	sd->brightness = BRIGHTNESS_DEF;
-	sd->contrast = CONTRAST_DEF;
-	sd->colors = COLOR_DEF;
-	sd->autogain = AUTOGAIN_DEF;
 	sd->ag_cnt = -1;
 	return 0;
 }
@@ -780,85 +697,68 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 }
 
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
 
-	sd->brightness = val;
-	if (gspca_dev->streaming)
-		setbrightness(gspca_dev);
-	return 0;
-}
+	gspca_dev->usb_err = 0;
 
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
+	if (!gspca_dev->streaming)
+		return 0;
 
-	*val = sd->brightness;
-	return 0;
-}
-
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->contrast = val;
-	if (gspca_dev->streaming)
-		setcontrast(gspca_dev);
-	return 0;
-}
-
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->contrast;
-	return 0;
-}
-
-static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->colors = val;
-	if (gspca_dev->streaming)
-		setcolors(gspca_dev);
-	return 0;
-}
-
-static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->colors;
-	return 0;
-}
-
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->autogain = val;
-	if (gspca_dev->streaming)
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		setbrightness(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		setcontrast(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_SATURATION:
+		setcolors(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_AUTOGAIN:
+		sd->autogain = ctrl->val;
 		setautogain(gspca_dev);
-	return 0;
+		break;
+	}
+	return gspca_dev->usb_err;
 }
 
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
 
-	*val = sd->autogain;
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *)gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 1, 127, 1, 63);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 255, 1, 127);
+	if (sd->sensor == SENSOR_PAS106)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 15, 1, 7);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
 	return 0;
 }
 
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
@@ -892,6 +792,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

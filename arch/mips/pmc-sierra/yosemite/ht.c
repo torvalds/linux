@@ -395,17 +395,6 @@ void __init pcibios_init(void)
         pci_scan_bus(3, &titan_pci_ops, NULL);
 }
 
-/*
- * for parsing "pci=" kernel boot arguments.
- */
-char *pcibios_setup(char *str)
-{
-        printk(KERN_INFO "rr: pcibios_setup\n");
-        /* Nothing to do for now.  */
-
-        return str;
-}
-
 unsigned __init int pcibios_assign_all_busses(void)
 {
         /* We want to use the PCI bus detection done by PMON */

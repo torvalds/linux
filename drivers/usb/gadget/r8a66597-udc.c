@@ -1831,12 +1831,12 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 		iounmap(r8a66597->sudmac_reg);
 	free_irq(platform_get_irq(pdev, 0), r8a66597);
 	r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
-#ifdef CONFIG_HAVE_CLK
+
 	if (r8a66597->pdata->on_chip) {
 		clk_disable(r8a66597->clk);
 		clk_put(r8a66597->clk);
 	}
-#endif
+
 	device_unregister(&r8a66597->gadget.dev);
 	kfree(r8a66597);
 	return 0;
@@ -1868,9 +1868,7 @@ static int __init r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 
 static int __init r8a66597_probe(struct platform_device *pdev)
 {
-#ifdef CONFIG_HAVE_CLK
 	char clk_name[8];
-#endif
 	struct resource *res, *ires;
 	int irq;
 	void __iomem *reg = NULL;
@@ -1934,7 +1932,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597->timer.data = (unsigned long)r8a66597;
 	r8a66597->reg = reg;
 
-#ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip) {
 		snprintf(clk_name, sizeof(clk_name), "usb%d", pdev->id);
 		r8a66597->clk = clk_get(&pdev->dev, clk_name);
@@ -1946,7 +1943,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 		}
 		clk_enable(r8a66597->clk);
 	}
-#endif
+
 	if (r8a66597->pdata->sudmac) {
 		ret = r8a66597_sudmac_ioremap(r8a66597, pdev);
 		if (ret < 0)
@@ -2006,13 +2003,11 @@ err_add_udc:
 clean_up3:
 	free_irq(irq, r8a66597);
 clean_up2:
-#ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip) {
 		clk_disable(r8a66597->clk);
 		clk_put(r8a66597->clk);
 	}
 clean_up_dev:
-#endif
 	device_unregister(&r8a66597->gadget.dev);
 clean_up:
 	if (r8a66597) {

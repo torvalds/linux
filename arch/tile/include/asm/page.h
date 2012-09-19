@@ -174,7 +174,9 @@ static inline __attribute_const__ int get_order(unsigned long size)
 #define MEM_LOW_END		(HALF_VA_SPACE - 1)         /* low half */
 #define MEM_HIGH_START		(-HALF_VA_SPACE)            /* high half */
 #define PAGE_OFFSET		MEM_HIGH_START
-#define _VMALLOC_START		_AC(0xfffffff500000000, UL) /* 4 GB */
+#define FIXADDR_BASE		_AC(0xfffffff400000000, UL) /* 4 GB */
+#define FIXADDR_TOP		_AC(0xfffffff500000000, UL) /* 4 GB */
+#define _VMALLOC_START		FIXADDR_TOP
 #define HUGE_VMAP_BASE		_AC(0xfffffff600000000, UL) /* 4 GB */
 #define MEM_SV_START		_AC(0xfffffff700000000, UL) /* 256 MB */
 #define MEM_SV_INTRPT		MEM_SV_START
@@ -184,9 +186,6 @@ static inline __attribute_const__ int get_order(unsigned long size)
 
 /* Highest DTLB address we will use */
 #define KERNEL_HIGH_VADDR	MEM_SV_START
-
-/* Since we don't currently provide any fixmaps, we use an impossible VA. */
-#define FIXADDR_TOP             MEM_HV_START
 
 #else /* !__tilegx__ */
 

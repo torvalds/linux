@@ -105,25 +105,26 @@ static int __devinit gpio_extcon_probe(struct platform_device *pdev)
 
 	ret = extcon_dev_register(&extcon_data->edev, &pdev->dev);
 	if (ret < 0)
-		goto err_extcon_dev_register;
+		return ret;
 
-	ret = gpio_request_one(extcon_data->gpio, GPIOF_DIR_IN, pdev->name);
+	ret = devm_gpio_request_one(&pdev->dev, extcon_data->gpio, GPIOF_DIR_IN,
+				    pdev->name);
 	if (ret < 0)
-		goto err_request_gpio;
+		goto err;
 
 	INIT_DELAYED_WORK(&extcon_data->work, gpio_extcon_work);
 
 	extcon_data->irq = gpio_to_irq(extcon_data->gpio);
 	if (extcon_data->irq < 0) {
 		ret = extcon_data->irq;
-		goto err_detect_irq_num_failed;
+		goto err;
 	}
 
 	ret = request_any_context_irq(extcon_data->irq, gpio_irq_handler,
 				      pdata->irq_flags, pdev->name,
 				      extcon_data);
 	if (ret < 0)
-		goto err_request_irq;
+		goto err;
 
 	platform_set_drvdata(pdev, extcon_data);
 	/* Perform initial detection */
@@ -131,13 +132,8 @@ static int __devinit gpio_extcon_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_request_irq:
-err_detect_irq_num_failed:
-	gpio_free(extcon_data->gpio);
-err_request_gpio:
+err:
 	extcon_dev_unregister(&extcon_data->edev);
-err_extcon_dev_register:
-	devm_kfree(&pdev->dev, extcon_data);
 
 	return ret;
 }
@@ -148,9 +144,7 @@ static int __devexit gpio_extcon_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&extcon_data->work);
 	free_irq(extcon_data->irq, extcon_data);
-	gpio_free(extcon_data->gpio);
 	extcon_dev_unregister(&extcon_data->edev);
-	devm_kfree(&pdev->dev, extcon_data);
 
 	return 0;
 }

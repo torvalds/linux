@@ -956,7 +956,8 @@ static int __devinit mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 
 	clk_set_parent(mixer_res->sclk_mixer, mixer_res->sclk_hdmi);
 
-	mixer_res->mixer_regs = ioremap(res->start, resource_size(res));
+	mixer_res->mixer_regs = devm_ioremap(&pdev->dev, res->start,
+							resource_size(res));
 	if (mixer_res->mixer_regs == NULL) {
 		dev_err(dev, "register mapping failed.\n");
 		ret = -ENXIO;
@@ -967,37 +968,33 @@ static int __devinit mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 	if (res == NULL) {
 		dev_err(dev, "get memory resource failed.\n");
 		ret = -ENXIO;
-		goto fail_mixer_regs;
+		goto fail;
 	}
 
-	mixer_res->vp_regs = ioremap(res->start, resource_size(res));
+	mixer_res->vp_regs = devm_ioremap(&pdev->dev, res->start,
+							resource_size(res));
 	if (mixer_res->vp_regs == NULL) {
 		dev_err(dev, "register mapping failed.\n");
 		ret = -ENXIO;
-		goto fail_mixer_regs;
+		goto fail;
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "irq");
 	if (res == NULL) {
 		dev_err(dev, "get interrupt resource failed.\n");
 		ret = -ENXIO;
-		goto fail_vp_regs;
+		goto fail;
 	}
 
-	ret = request_irq(res->start, mixer_irq_handler, 0, "drm_mixer", ctx);
+	ret = devm_request_irq(&pdev->dev, res->start, mixer_irq_handler,
+							0, "drm_mixer", ctx);
 	if (ret) {
 		dev_err(dev, "request interrupt failed.\n");
-		goto fail_vp_regs;
+		goto fail;
 	}
 	mixer_res->irq = res->start;
 
 	return 0;
-
-fail_vp_regs:
-	iounmap(mixer_res->vp_regs);
-
-fail_mixer_regs:
-	iounmap(mixer_res->mixer_regs);
 
 fail:
 	if (!IS_ERR_OR_NULL(mixer_res->sclk_dac))
@@ -1013,16 +1010,6 @@ fail:
 	return ret;
 }
 
-static void mixer_resources_cleanup(struct mixer_context *ctx)
-{
-	struct mixer_resources *res = &ctx->mixer_res;
-
-	free_irq(res->irq, ctx);
-
-	iounmap(res->vp_regs);
-	iounmap(res->mixer_regs);
-}
-
 static int __devinit mixer_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1032,16 +1019,16 @@ static int __devinit mixer_probe(struct platform_device *pdev)
 
 	dev_info(dev, "probe start\n");
 
-	drm_hdmi_ctx = kzalloc(sizeof(*drm_hdmi_ctx), GFP_KERNEL);
+	drm_hdmi_ctx = devm_kzalloc(&pdev->dev, sizeof(*drm_hdmi_ctx),
+								GFP_KERNEL);
 	if (!drm_hdmi_ctx) {
 		DRM_ERROR("failed to allocate common hdmi context.\n");
 		return -ENOMEM;
 	}
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		DRM_ERROR("failed to alloc mixer context.\n");
-		kfree(drm_hdmi_ctx);
 		return -ENOMEM;
 	}
 
@@ -1072,16 +1059,9 @@ fail:
 
 static int mixer_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct exynos_drm_hdmi_context *drm_hdmi_ctx =
-					platform_get_drvdata(pdev);
-	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
-
-	dev_info(dev, "remove successful\n");
+	dev_info(&pdev->dev, "remove successful\n");
 
 	pm_runtime_disable(&pdev->dev);
-
-	mixer_resources_cleanup(ctx);
 
 	return 0;
 }

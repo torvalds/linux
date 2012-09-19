@@ -18,7 +18,6 @@ struct clk_mapping {
 	struct kref		ref;
 };
 
-
 struct sh_clk_ops {
 #ifdef CONFIG_SH_CLK_CPG_LEGACY
 	void (*init)(struct clk *clk);
@@ -30,6 +29,10 @@ struct sh_clk_ops {
 	int (*set_parent)(struct clk *clk, struct clk *parent);
 	long (*round_rate)(struct clk *clk, unsigned long rate);
 };
+
+#define SH_CLK_DIV_MSK(div)	((1 << (div)) - 1)
+#define SH_CLK_DIV4_MSK		SH_CLK_DIV_MSK(4)
+#define SH_CLK_DIV6_MSK		SH_CLK_DIV_MSK(6)
 
 struct clk {
 	struct list_head	node;
@@ -52,6 +55,7 @@ struct clk {
 	unsigned int		enable_bit;
 	void __iomem		*mapped_reg;
 
+	unsigned int		div_mask;
 	unsigned long		arch_flags;
 	void			*priv;
 	struct clk_mapping	*mapping;
@@ -64,6 +68,8 @@ struct clk {
 #define CLK_ENABLE_REG_32BIT	BIT(1)	/* default access size */
 #define CLK_ENABLE_REG_16BIT	BIT(2)
 #define CLK_ENABLE_REG_8BIT	BIT(3)
+
+#define CLK_MASK_DIV_ON_DISABLE	BIT(4)
 
 #define CLK_ENABLE_REG_MASK	(CLK_ENABLE_REG_32BIT | \
 				 CLK_ENABLE_REG_16BIT | \
@@ -146,13 +152,16 @@ static inline int __deprecated sh_clk_mstp32_register(struct clk *clks, int nr)
 	.enable_reg = (void __iomem *)_reg,			\
 	.enable_bit = _shift,					\
 	.arch_flags = _div_bitmap,				\
+	.div_mask = SH_CLK_DIV4_MSK,				\
 	.flags = _flags,					\
 }
 
-struct clk_div4_table {
+struct clk_div_table {
 	struct clk_div_mult_table *div_mult_table;
 	void (*kick)(struct clk *clk);
 };
+
+#define clk_div4_table clk_div_table
 
 int sh_clk_div4_register(struct clk *clks, int nr,
 			 struct clk_div4_table *table);
@@ -165,7 +174,9 @@ int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 			_num_parents, _src_shift, _src_width)	\
 {								\
 	.enable_reg = (void __iomem *)_reg,			\
-	.flags = _flags,					\
+	.enable_bit = 0, /* unused */				\
+	.flags = _flags | CLK_MASK_DIV_ON_DISABLE,		\
+	.div_mask = SH_CLK_DIV6_MSK,				\
 	.parent_table = _parents,				\
 	.parent_num = _num_parents,				\
 	.src_shift = _src_shift,				\
@@ -176,7 +187,9 @@ int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 {								\
 	.parent		= _parent,				\
 	.enable_reg	= (void __iomem *)_reg,			\
-	.flags		= _flags,				\
+	.enable_bit	= 0,	/* unused */			\
+	.div_mask	= SH_CLK_DIV6_MSK,			\
+	.flags		= _flags | CLK_MASK_DIV_ON_DISABLE,	\
 }
 
 int sh_clk_div6_register(struct clk *clks, int nr);

@@ -54,6 +54,8 @@ static inline u32 iwl_read32(struct iwl_trans *trans, u32 ofs)
 void iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask);
 void iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask);
 
+void iwl_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value);
+
 int iwl_poll_bit(struct iwl_trans *trans, u32 addr,
 		 u32 bits, u32 mask, int timeout);
 int iwl_poll_direct_bit(struct iwl_trans *trans, u32 addr, u32 mask,
@@ -74,18 +76,18 @@ void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 reg,
 			    u32 bits, u32 mask);
 void iwl_clear_bits_prph(struct iwl_trans *trans, u32 reg, u32 mask);
 
-void _iwl_read_targ_mem_words(struct iwl_trans *trans, u32 addr,
-			      void *buf, int words);
+void _iwl_read_targ_mem_dwords(struct iwl_trans *trans, u32 addr,
+			       void *buf, int dwords);
 
-#define iwl_read_targ_mem_words(trans, addr, buf, bufsize)	\
+#define iwl_read_targ_mem_bytes(trans, addr, buf, bufsize)	\
 	do {							\
 		BUILD_BUG_ON((bufsize) % sizeof(u32));		\
-		_iwl_read_targ_mem_words(trans, addr, buf,	\
-					 (bufsize) / sizeof(u32));\
+		_iwl_read_targ_mem_dwords(trans, addr, buf,	\
+					  (bufsize) / sizeof(u32));\
 	} while (0)
 
-int _iwl_write_targ_mem_words(struct iwl_trans *trans, u32 addr,
-			      void *buf, int words);
+int _iwl_write_targ_mem_dwords(struct iwl_trans *trans, u32 addr,
+			       void *buf, int dwords);
 
 u32 iwl_read_targ_mem(struct iwl_trans *trans, u32 addr);
 int iwl_write_targ_mem(struct iwl_trans *trans, u32 addr, u32 val);

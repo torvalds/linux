@@ -190,21 +190,10 @@ static struct pci_driver ninja32_pci_driver = {
 #endif
 };
 
-static int __init ninja32_init(void)
-{
-	return pci_register_driver(&ninja32_pci_driver);
-}
-
-static void __exit ninja32_exit(void)
-{
-	pci_unregister_driver(&ninja32_pci_driver);
-}
+module_pci_driver(ninja32_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Ninja32 ATA");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, ninja32);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ninja32_init);
-module_exit(ninja32_exit);

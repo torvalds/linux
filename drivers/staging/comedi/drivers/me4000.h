@@ -25,43 +25,6 @@
 #define _ME4000_H_
 
 /*=============================================================================
-  Debug section
-  ===========================================================================*/
-
-#undef ME4000_CALL_DEBUG	/*  Debug function entry and exit */
-#undef ME4000_PORT_DEBUG	/*  Debug port access */
-#undef ME4000_ISR_DEBUG		/*  Debug the interrupt service routine */
-#undef ME4000_DEBUG		/*  General purpose debug masseges */
-
-#ifdef ME4000_CALL_DEBUG
-#undef CALL_PDEBUG
-#define CALL_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor, ##args)
-#else
-# define CALL_PDEBUG(fmt, args...)	/*  no debugging, do nothing */
-#endif
-
-#ifdef ME4000_PORT_DEBUG
-#undef PORT_PDEBUG
-#define PORT_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
-#else
-#define PORT_PDEBUG(fmt, args...)	/*  no debugging, do nothing */
-#endif
-
-#ifdef ME4000_ISR_DEBUG
-#undef ISR_PDEBUG
-#define ISR_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
-#else
-#define ISR_PDEBUG(fmt, args...)	/*  no debugging, do nothing */
-#endif
-
-#ifdef ME4000_DEBUG
-#undef PDEBUG
-#define PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
-#else
-#define PDEBUG(fmt, args...)	/*  no debugging, do nothing */
-#endif
-
-/*=============================================================================
   PCI vendor and device IDs
   ===========================================================================*/
 

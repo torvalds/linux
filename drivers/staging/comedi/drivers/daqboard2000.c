@@ -118,11 +118,12 @@ Configuration options:
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "comedi_pci.h"
 #include "8255.h"
 
-#define DAQBOARD2000_SUBSYSTEM_IDS2 	0x00021616	/* Daqboard/2000 - 2 Dacs */
-#define DAQBOARD2000_SUBSYSTEM_IDS4 	0x00041616	/* Daqboard/2000 - 4 Dacs */
+#define PCI_VENDOR_ID_IOTECH		0x1616
+
+#define DAQBOARD2000_SUBSYSTEM_IDS2 	0x0002	/* Daqboard/2000 - 2 Dacs */
+#define DAQBOARD2000_SUBSYSTEM_IDS4 	0x0004	/* Daqboard/2000 - 4 Dacs */
 
 #define DAQBOARD2000_DAQ_SIZE 		0x1002
 #define DAQBOARD2000_PLX_SIZE 		0x100
@@ -316,10 +317,8 @@ struct daqboard2000_private {
 	enum {
 		card_daqboard_2000
 	} card;
-	struct pci_dev *pci_dev;
 	void *daq;
-	void *plx;
-	int got_regions;
+	void __iomem *plx;
 	unsigned int ao_readback[2];
 };
 
@@ -486,7 +485,7 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 
 static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 {
-	dev_dbg(dev->hw_dev, "daqboard2000_resetLocalBus\n");
+	dev_dbg(dev->class_dev, "daqboard2000_resetLocalBus\n");
 	writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
 	udelay(10000);
 	writel(DAQBOARD2000_SECRLocalBusLo, devpriv->plx + 0x6c);
@@ -495,7 +494,7 @@ static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 
 static void daqboard2000_reloadPLX(struct comedi_device *dev)
 {
-	dev_dbg(dev->hw_dev, "daqboard2000_reloadPLX\n");
+	dev_dbg(dev->class_dev, "daqboard2000_reloadPLX\n");
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
 	udelay(10000);
 	writel(DAQBOARD2000_SECRReloadHi, devpriv->plx + 0x6c);
@@ -506,7 +505,7 @@ static void daqboard2000_reloadPLX(struct comedi_device *dev)
 
 static void daqboard2000_pulseProgPin(struct comedi_device *dev)
 {
-	dev_dbg(dev->hw_dev, "daqboard2000_pulseProgPin 1\n");
+	dev_dbg(dev->class_dev, "daqboard2000_pulseProgPin 1\n");
 	writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
 	udelay(10000);
 	writel(DAQBOARD2000_SECRProgPinLo, devpriv->plx + 0x6c);
@@ -558,14 +557,14 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 	secr = readl(devpriv->plx + 0x6c);
 	if (!(secr & DAQBOARD2000_EEPROM_PRESENT)) {
 #ifdef DEBUG_EEPROM
-		dev_dbg(dev->hw_dev, "no serial eeprom\n");
+		dev_dbg(dev->class_dev, "no serial eeprom\n");
 #endif
 		return -EIO;
 	}
 
 	for (retry = 0; retry < 3; retry++) {
 #ifdef DEBUG_EEPROM
-		dev_dbg(dev->hw_dev, "Programming EEPROM try %x\n", retry);
+		dev_dbg(dev->class_dev, "Programming EEPROM try %x\n", retry);
 #endif
 
 		daqboard2000_resetLocalBus(dev);
@@ -576,8 +575,8 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 				if (cpld_array[i] == 0xff
 				    && cpld_array[i + 1] == 0x20) {
 #ifdef DEBUG_EEPROM
-					dev_dbg(dev->hw_dev, "Preamble found at %d\n",
-						i);
+					dev_dbg(dev->class_dev,
+						"Preamble found at %d\n", i);
 #endif
 					break;
 				}
@@ -590,7 +589,7 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 			}
 			if (i >= len) {
 #ifdef DEBUG_EEPROM
-				dev_dbg(dev->hw_dev, "Programmed\n");
+				dev_dbg(dev->class_dev, "Programmed\n");
 #endif
 				daqboard2000_resetLocalBus(dev);
 				daqboard2000_reloadPLX(dev);
@@ -704,85 +703,82 @@ static int daqboard2000_8255_cb(int dir, int port, int data,
 	return result;
 }
 
+static struct pci_dev *daqboard2000_find_pci_dev(struct comedi_device *dev,
+						 struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
+
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_IOTECH ||
+		    pcidev->device != 0x0409 ||
+		    pcidev->subsystem_device != PCI_VENDOR_ID_IOTECH)
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
+			if (boardtypes[i].id != pcidev->subsystem_device)
+				continue;
+			dev->board_ptr = boardtypes + i;
+			return pcidev;
+		}
+	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
+}
+
 static int daqboard2000_attach(struct comedi_device *dev,
 			       struct comedi_devconfig *it)
 {
-	int result = 0;
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
-	struct pci_dev *card = NULL;
+	resource_size_t pci_base;
 	void *aux_data;
 	unsigned int aux_len;
-	int bus, slot;
-
-	bus = it->options[0];
-	slot = it->options[1];
+	int result;
 
 	result = alloc_private(dev, sizeof(struct daqboard2000_private));
 	if (result < 0)
 		return -ENOMEM;
 
-	for (card = pci_get_device(0x1616, 0x0409, NULL);
-	     card != NULL; card = pci_get_device(0x1616, 0x0409, card)) {
-		if (bus || slot) {
-			/* requested particular bus/slot */
-			if (card->bus->number != bus ||
-			    PCI_SLOT(card->devfn) != slot) {
-				continue;
-			}
-		}
-		break;		/* found one */
-	}
-	if (!card) {
-		if (bus || slot)
-			dev_err(dev->hw_dev, "no daqboard2000 found at bus/slot: %d/%d\n",
-				bus, slot);
-		else
-			dev_err(dev->hw_dev, "no daqboard2000 found\n");
+	pcidev = daqboard2000_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
-	} else {
-		u32 id;
-		int i;
-		devpriv->pci_dev = card;
-		id = ((u32) card->
-		      subsystem_device << 16) | card->subsystem_vendor;
-		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
-			if (boardtypes[i].id == id) {
-				dev_dbg(dev->hw_dev, "%s\n",
-					boardtypes[i].name);
-				dev->board_ptr = boardtypes + i;
-			}
-		}
-		if (!dev->board_ptr) {
-			printk
-			    (" unknown subsystem id %08x (pretend it is an ids2)",
-			     id);
-			dev->board_ptr = boardtypes;
-		}
-	}
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	result = comedi_pci_enable(card, "daqboard2000");
+	result = comedi_pci_enable(pcidev, "daqboard2000");
 	if (result < 0) {
-		dev_err(dev->hw_dev, "failed to enable PCI device and request regions\n");
+		dev_err(dev->class_dev,
+			"failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
-	devpriv->got_regions = 1;
-	devpriv->plx =
-	    ioremap(pci_resource_start(card, 0), DAQBOARD2000_PLX_SIZE);
-	devpriv->daq =
-	    ioremap(pci_resource_start(card, 2), DAQBOARD2000_DAQ_SIZE);
+	dev->iobase = 1;	/* the "detach" needs this */
+
+	pci_base = pci_resource_start(pcidev, 0);
+	devpriv->plx = ioremap(pci_base, DAQBOARD2000_PLX_SIZE);
+	pci_base = pci_resource_start(pcidev, 2);
+	devpriv->daq = ioremap(pci_base, DAQBOARD2000_DAQ_SIZE);
 	if (!devpriv->plx || !devpriv->daq)
 		return -ENOMEM;
 
-	result = alloc_subdevices(dev, 3);
-	if (result < 0)
-		goto out;
+	result = comedi_alloc_subdevices(dev, 3);
+	if (result)
+		return result;
 
 	readl(devpriv->plx + 0x6c);
 
 	/*
 	   u8 interrupt;
 	   Windows code does restore interrupts, but since we don't use them...
-	   pci_read_config_byte(card, PCI_INTERRUPT_LINE, &interrupt);
+	   pci_read_config_byte(pcidev, PCI_INTERRUPT_LINE, &interrupt);
 	   printk("Interrupt before is: %x\n", interrupt);
 	 */
 
@@ -792,7 +788,8 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	if (aux_data && aux_len) {
 		result = initialize_daqboard2000(dev, aux_data, aux_len);
 	} else {
-		dev_dbg(dev->hw_dev, "no FPGA initialization code, aborting\n");
+		dev_dbg(dev->class_dev,
+			"no FPGA initialization code, aborting\n");
 		result = -EIO;
 	}
 	if (result < 0)
@@ -801,11 +798,9 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	daqboard2000_initializeDac(dev);
 	/*
 	   Windows code does restore interrupts, but since we don't use them...
-	   pci_read_config_byte(card, PCI_INTERRUPT_LINE, &interrupt);
+	   pci_read_config_byte(pcidev, PCI_INTERRUPT_LINE, &interrupt);
 	   printk("Interrupt after is: %x\n", interrupt);
 	 */
-
-	dev->iobase = (unsigned long)devpriv->daq;
 
 	dev->board_name = this_board->name;
 
@@ -830,7 +825,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 
 	s = dev->subdevices + 2;
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
-				  (unsigned long)(dev->iobase + 0x40));
+				  (unsigned long)(devpriv->daq + 0x40));
 
 out:
 	return result;
@@ -838,6 +833,8 @@ out:
 
 static void daqboard2000_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
 	if (dev->irq)
@@ -847,11 +844,11 @@ static void daqboard2000_detach(struct comedi_device *dev)
 			iounmap(devpriv->daq);
 		if (devpriv->plx)
 			iounmap(devpriv->plx);
-		if (devpriv->pci_dev) {
-			if (devpriv->got_regions)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
@@ -874,7 +871,7 @@ static void __devexit daqboard2000_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
-	{ PCI_DEVICE(0x1616, 0x0409) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_IOTECH, 0x0409) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, daqboard2000_pci_table);

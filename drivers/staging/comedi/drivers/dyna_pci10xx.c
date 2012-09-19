@@ -38,15 +38,12 @@
 */
 
 #include "../comedidev.h"
-#include "comedi_pci.h"
 #include <linux/mutex.h>
 
 #define PCI_VENDOR_ID_DYNALOG		0x10b5
 #define DRV_NAME			"dyna_pci10xx"
 
 #define READ_TIMEOUT 50
-
-static DEFINE_MUTEX(start_stop_sem);
 
 static const struct comedi_lrange range_pci1050_ai = { 3, {
 							  BIP_RANGE(10),
@@ -103,12 +100,8 @@ static const struct boardtype boardtypes[] = {
 };
 
 struct dyna_pci10xx_private {
-	struct pci_dev *pci_dev;	/*  ptr to PCI device */
-	char valid;			/*  card is usable */
 	struct mutex mutex;
-
-	/* device base address registers */
-	unsigned long BADR0, BADR1, BADR2, BADR3, BADR4, BADR5;
+	unsigned long BADR3;
 };
 
 #define thisboard ((const struct boardtype *)dev->board_ptr)
@@ -136,13 +129,13 @@ static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
 		smp_mb();
-		outw_p(0x0000 + range + chan, devpriv->BADR2 + 2);
+		outw_p(0x0000 + range + chan, dev->iobase + 2);
 		udelay(10);
 		/* read data */
 		for (counter = 0; counter < READ_TIMEOUT; counter++) {
-			d = inw_p(devpriv->BADR2);
+			d = inw_p(dev->iobase);
 
-			/* check if read is successfull if the EOC bit is set */
+			/* check if read is successful if the EOC bit is set */
 			if (d & (1 << 15))
 				goto conv_finish;
 		}
@@ -176,7 +169,7 @@ static int dyna_pci10xx_insn_write_ao(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		smp_mb();
 		/* trigger conversion and write data */
-		outw_p(data[n], devpriv->BADR2);
+		outw_p(data[n], dev->iobase);
 		udelay(10);
 	}
 	mutex_unlock(&devpriv->mutex);
@@ -190,9 +183,6 @@ static int dyna_pci10xx_di_insn_bits(struct comedi_device *dev,
 {
 	u16 d = 0;
 
-	if (insn->n != 2)
-		return -EINVAL;
-
 	mutex_lock(&devpriv->mutex);
 	smp_mb();
 	d = inw_p(devpriv->BADR3);
@@ -202,7 +192,7 @@ static int dyna_pci10xx_di_insn_bits(struct comedi_device *dev,
 	data[1] = d;
 	data[0] = s->state;
 	mutex_unlock(&devpriv->mutex);
-	return 2;
+	return insn->n;
 }
 
 /* digital output bit interface */
@@ -210,9 +200,6 @@ static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit.
 	 * s->state contains the previous write data
@@ -233,109 +220,77 @@ static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
 	 */
 	data[1] = s->state;
 	mutex_unlock(&devpriv->mutex);
-	return 2;
+	return insn->n;
 }
 
-/******************************************************************************/
-/*********************** INITIALIZATION FUNCTIONS *****************************/
-/******************************************************************************/
+static struct pci_dev *dyna_pci10xx_find_pci_dev(struct comedi_device *dev,
+						 struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
+
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_DYNALOG)
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
+			if (pcidev->device != boardtypes[i].device_id)
+				continue;
+
+			dev->board_ptr = &boardtypes[i];
+			return pcidev;
+		}
+	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
+}
 
 static int dyna_pci10xx_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;
-	unsigned int opt_bus, opt_slot;
-	int board_index, i;
-
-	mutex_lock(&start_stop_sem);
+	struct comedi_subdevice *s;
+	int ret;
 
 	if (alloc_private(dev, sizeof(struct dyna_pci10xx_private)) < 0) {
 		printk(KERN_ERR "comedi: dyna_pci10xx: "
 			"failed to allocate memory!\n");
-		mutex_unlock(&start_stop_sem);
 		return -ENOMEM;
 	}
 
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
+	pcidev = dyna_pci10xx_find_pci_dev(dev, it);
+	if (!pcidev)
+		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
 	dev->board_name = thisboard->name;
 	dev->irq = 0;
-
-	/*
-	 * Probe the PCI bus and located the matching device
-	 */
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-
-		board_index = -1;
-		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
-			if ((pcidev->vendor == PCI_VENDOR_ID_DYNALOG) &&
-				(pcidev->device == boardtypes[i].device_id)) {
-					board_index = i;
-					break;
-				}
-		}
-		if (board_index < 0)
-			continue;
-
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-			    || opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
-
-		goto found;
-	}
-	printk(KERN_ERR "comedi: dyna_pci10xx: no supported device found!\n");
-	mutex_unlock(&start_stop_sem);
-	return -EIO;
-
-found:
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			printk(KERN_ERR "comedi: dyna_pci10xx: "
-				"invalid PCI device at b:s %d:%d\n",
-				opt_bus, opt_slot);
-		} else {
-			printk(KERN_ERR "comedi: dyna_pci10xx: "
-				"invalid PCI device\n");
-		}
-		mutex_unlock(&start_stop_sem);
-		return -EIO;
-	}
 
 	if (comedi_pci_enable(pcidev, DRV_NAME)) {
 		printk(KERN_ERR "comedi: dyna_pci10xx: "
 			"failed to enable PCI device and request regions!");
-		mutex_unlock(&start_stop_sem);
 		return -EIO;
 	}
 
 	mutex_init(&devpriv->mutex);
-	dev->board_ptr = &boardtypes[board_index];
-	devpriv->pci_dev = pcidev;
 
 	printk(KERN_INFO "comedi: dyna_pci10xx: device found!\n");
 
-	/* initialize device base address registers */
-	devpriv->BADR0 = pci_resource_start(pcidev, 0);
-	devpriv->BADR1 = pci_resource_start(pcidev, 1);
-	devpriv->BADR2 = pci_resource_start(pcidev, 2);
+	dev->iobase = pci_resource_start(pcidev, 2);
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
-	devpriv->BADR4 = pci_resource_start(pcidev, 4);
-	devpriv->BADR5 = pci_resource_start(pcidev, 5);
 
-	if (alloc_subdevices(dev, 4) < 0) {
-		printk(KERN_ERR "comedi: dyna_pci10xx: "
-			"failed allocating subdevices\n");
-		mutex_unlock(&start_stop_sem);
-		return -ENOMEM;
-	}
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	/* analog input */
 	s = dev->subdevices + 0;
@@ -378,20 +333,22 @@ found:
 	s->state = 0;
 	s->insn_bits = dyna_pci10xx_do_insn_bits;
 
-	devpriv->valid = 1;
-	mutex_unlock(&start_stop_sem);
-
 	printk(KERN_INFO "comedi: dyna_pci10xx: %s - device setup completed!\n",
-		boardtypes[board_index].name);
+		thisboard->name);
 
 	return 1;
 }
 
 static void dyna_pci10xx_detach(struct comedi_device *dev)
 {
-	if (devpriv && devpriv->pci_dev) {
-		comedi_pci_disable(devpriv->pci_dev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (devpriv)
 		mutex_destroy(&devpriv->mutex);
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 

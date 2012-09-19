@@ -32,19 +32,21 @@
 static struct {
 	bool update_enabled;
 	struct regulator *vdds_sdi_reg;
+
+	struct dss_lcd_mgr_config mgr_config;
 } sdi;
 
-static void sdi_basic_init(struct omap_dss_device *dssdev)
-
+static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
-	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_BYPASS);
-	dispc_mgr_enable_stallmode(dssdev->manager->id, false);
+	sdi.mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
-	dispc_mgr_set_lcd_display_type(dssdev->manager->id,
-			OMAP_DSS_LCD_DISPLAY_TFT);
+	sdi.mgr_config.stallmode = false;
+	sdi.mgr_config.fifohandcheck = false;
 
-	dispc_mgr_set_tft_data_lines(dssdev->manager->id, 24);
-	dispc_lcd_enable_signal_polarity(1);
+	sdi.mgr_config.video_port_width = 24;
+	sdi.mgr_config.lcden_sig_polarity = 1;
+
+	dss_mgr_set_lcd_config(dssdev->manager, &sdi.mgr_config);
 }
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
@@ -52,8 +54,6 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	struct omap_video_timings *t = &dssdev->panel.timings;
 	struct dss_clock_info dss_cinfo;
 	struct dispc_clock_info dispc_cinfo;
-	u16 lck_div, pck_div;
-	unsigned long fck;
 	unsigned long pck;
 	int r;
 
@@ -76,24 +76,17 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	sdi_basic_init(dssdev);
-
 	/* 15.5.9.1.2 */
-	dssdev->panel.config |= OMAP_DSS_LCD_RF | OMAP_DSS_LCD_ONOFF;
+	dssdev->panel.timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	dssdev->panel.timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 
-	dispc_mgr_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
-			dssdev->panel.acbi, dssdev->panel.acb);
-
-	r = dss_calc_clock_div(1, t->pixel_clock * 1000,
-			&dss_cinfo, &dispc_cinfo);
+	r = dss_calc_clock_div(t->pixel_clock * 1000, &dss_cinfo, &dispc_cinfo);
 	if (r)
 		goto err_calc_clock_div;
 
-	fck = dss_cinfo.fck;
-	lck_div = dispc_cinfo.lck_div;
-	pck_div = dispc_cinfo.pck_div;
+	sdi.mgr_config.clock_info = dispc_cinfo;
 
-	pck = fck / lck_div / pck_div / 1000;
+	pck = dss_cinfo.fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div / 1000;
 
 	if (pck != t->pixel_clock) {
 		DSSWARN("Could not find exact pixel clock. Requested %d kHz, "
@@ -110,9 +103,21 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_set_dss_clock_div;
 
-	r = dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
-	if (r)
-		goto err_set_dispc_clock_div;
+	sdi_config_lcd_manager(dssdev);
+
+	/*
+	 * LCLK and PCLK divisors are located in shadow registers, and we
+	 * normally write them to DISPC registers when enabling the output.
+	 * However, SDI uses pck-free as source clock for its PLL, and pck-free
+	 * is affected by the divisors. And as we need the PLL before enabling
+	 * the output, we need to write the divisors early.
+	 *
+	 * It seems just writing to the DISPC register is enough, and we don't
+	 * need to care about the shadow register mechanism for pck-free. The
+	 * exact reason for this is unknown.
+	 */
+	dispc_mgr_set_clock_div(dssdev->manager->id,
+			&sdi.mgr_config.clock_info);
 
 	dss_sdi_init(dssdev->phy.sdi.datapairs);
 	r = dss_sdi_enable();
@@ -129,7 +134,6 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 err_mgr_enable:
 	dss_sdi_disable();
 err_sdi_enable:
-err_set_dispc_clock_div:
 err_set_dss_clock_div:
 err_calc_clock_div:
 	dispc_runtime_put();

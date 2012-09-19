@@ -30,6 +30,7 @@
 
 struct dmaengine_pcm_runtime_data {
 	struct dma_chan *dma_chan;
+	dma_cookie_t cookie;
 
 	unsigned int pos;
 
@@ -153,7 +154,7 @@ static int dmaengine_pcm_prepare_and_submit(struct snd_pcm_substream *substream)
 
 	desc->callback = dmaengine_pcm_dma_complete;
 	desc->callback_param = substream;
-	dmaengine_submit(desc);
+	prtd->cookie = dmaengine_submit(desc);
 
 	return 0;
 }
@@ -200,6 +201,20 @@ int snd_dmaengine_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_trigger);
 
 /**
+ * snd_dmaengine_pcm_pointer_no_residue - dmaengine based PCM pointer implementation
+ * @substream: PCM substream
+ *
+ * This function is deprecated and should not be used by new drivers, as its
+ * results may be unreliable.
+ */
+snd_pcm_uframes_t snd_dmaengine_pcm_pointer_no_residue(struct snd_pcm_substream *substream)
+{
+	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
+	return bytes_to_frames(substream->runtime, prtd->pos);
+}
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer_no_residue);
+
+/**
  * snd_dmaengine_pcm_pointer - dmaengine based PCM pointer implementation
  * @substream: PCM substream
  *
@@ -209,7 +224,19 @@ EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_trigger);
 snd_pcm_uframes_t snd_dmaengine_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-	return bytes_to_frames(substream->runtime, prtd->pos);
+	struct dma_tx_state state;
+	enum dma_status status;
+	unsigned int buf_size;
+	unsigned int pos = 0;
+
+	status = dmaengine_tx_status(prtd->dma_chan, prtd->cookie, &state);
+	if (status == DMA_IN_PROGRESS || status == DMA_PAUSED) {
+		buf_size = snd_pcm_lib_buffer_bytes(substream);
+		if (state.residue > 0 && state.residue <= buf_size)
+			pos = buf_size - state.residue;
+	}
+
+	return bytes_to_frames(substream->runtime, pos);
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer);
 
@@ -243,7 +270,7 @@ static int dmaengine_pcm_request_channel(struct dmaengine_pcm_runtime_data *prtd
  * Note that this function will use private_data field of the substream's
  * runtime. So it is not availabe to your pcm driver implementation. If you need
  * to keep additional data attached to a substream use
- * snd_dmaeinge_pcm_{set,get}_data.
+ * snd_dmaengine_pcm_{set,get}_data.
  */
 int snd_dmaengine_pcm_open(struct snd_pcm_substream *substream,
 	dma_filter_fn filter_fn, void *filter_data)

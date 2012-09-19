@@ -20,6 +20,11 @@ const struct imx_mxc_rtc_data imx31_mxc_rtc_data __initconst =
 	imx_mxc_rtc_data_entry_single(MX31);
 #endif /* ifdef CONFIG_SOC_IMX31 */
 
+#ifdef CONFIG_SOC_IMX35
+const struct imx_mxc_rtc_data imx35_mxc_rtc_data __initconst =
+	imx_mxc_rtc_data_entry_single(MX35);
+#endif /* ifdef CONFIG_SOC_IMX35 */
+
 struct platform_device *__init imx_add_mxc_rtc(
 		const struct imx_mxc_rtc_data *data)
 {

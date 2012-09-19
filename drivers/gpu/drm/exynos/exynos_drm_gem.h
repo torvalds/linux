@@ -63,7 +63,8 @@ struct exynos_drm_gem_buf {
  *	by user request or at framebuffer creation.
  *	continuous memory region allocated by user request
  *	or at framebuffer creation.
- * @size: total memory size to physically non-continuous memory region.
+ * @size: size requested from user, in bytes and this size is aligned
+ *	in page unit.
  * @flags: indicate memory type to allocated buffer and cache attruibute.
  *
  * P.S. this object would be transfered to user as kms_bo.handle so

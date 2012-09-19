@@ -173,7 +173,7 @@ acpi_rs_stream_option_length(u32 resource_length,
  *
  * FUNCTION:    acpi_rs_get_aml_length
  *
- * PARAMETERS:  Resource            - Pointer to the resource linked list
+ * PARAMETERS:  resource            - Pointer to the resource linked list
  *              size_needed         - Where the required size is returned
  *
  * RETURN:      Status

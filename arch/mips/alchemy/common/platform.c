@@ -334,13 +334,12 @@ static void __init alchemy_setup_macs(int ctype)
 	if (alchemy_get_macs(ctype) < 1)
 		return;
 
-	macres = kmalloc(sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
+	macres = kmemdup(au1xxx_eth0_resources[ctype],
+			 sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
 	if (!macres) {
 		printk(KERN_INFO "Alchemy: no memory for MAC0 resources\n");
 		return;
 	}
-	memcpy(macres, au1xxx_eth0_resources[ctype],
-	       sizeof(struct resource) * MAC_RES_COUNT);
 	au1xxx_eth0_device.resource = macres;
 
 	i = prom_get_ethernet_addr(ethaddr);
@@ -356,13 +355,12 @@ static void __init alchemy_setup_macs(int ctype)
 	if (alchemy_get_macs(ctype) < 2)
 		return;
 
-	macres = kmalloc(sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
+	macres = kmemdup(au1xxx_eth1_resources[ctype],
+			 sizeof(struct resource) * MAC_RES_COUNT, GFP_KERNEL);
 	if (!macres) {
 		printk(KERN_INFO "Alchemy: no memory for MAC1 resources\n");
 		return;
 	}
-	memcpy(macres, au1xxx_eth1_resources[ctype],
-	       sizeof(struct resource) * MAC_RES_COUNT);
 	au1xxx_eth1_device.resource = macres;
 
 	ethaddr[5] += 1;	/* next addr for 2nd MAC */

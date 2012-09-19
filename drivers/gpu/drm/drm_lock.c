@@ -70,10 +70,6 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		  lock->context, task_pid_nr(current),
 		  master->lock.hw_lock->lock, lock->flags);
 
-	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE))
-		if (lock->context < 0)
-			return -EINVAL;
-
 	add_wait_queue(&master->lock.lock_queue, &entry);
 	spin_lock_bh(&master->lock.spinlock);
 	master->lock.user_waiters++;

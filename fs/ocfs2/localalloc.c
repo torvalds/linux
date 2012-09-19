@@ -784,14 +784,10 @@ bail:
 
 static u32 ocfs2_local_alloc_count_bits(struct ocfs2_dinode *alloc)
 {
-	int i;
-	u8 *buffer;
-	u32 count = 0;
+	u32 count;
 	struct ocfs2_local_alloc *la = OCFS2_LOCAL_ALLOC(alloc);
 
-	buffer = la->la_bitmap;
-	for (i = 0; i < le16_to_cpu(la->la_size); i++)
-		count += hweight8(buffer[i]);
+	count = memweight(la->la_bitmap, le16_to_cpu(la->la_size));
 
 	trace_ocfs2_local_alloc_count_bits(count);
 	return count;

@@ -391,7 +391,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 
 	if (verbose) {
 		fprintf(output, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
-			event_name(counter), count[0], count[1], count[2]);
+			perf_evsel__name(counter), count[0], count[1], count[2]);
 	}
 
 	/*
@@ -496,7 +496,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 			    errno == ENXIO) {
 				if (verbose)
 					ui__warning("%s event is not supported by the kernel.\n",
-						    event_name(counter));
+						    perf_evsel__name(counter));
 				counter->supported = false;
 				continue;
 			}
@@ -594,7 +594,7 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 			csv_output ? 0 : -4,
 			evsel_list->cpus->map[cpu], csv_sep);
 
-	fprintf(output, fmt, cpustr, msecs, csv_sep, event_name(evsel));
+	fprintf(output, fmt, cpustr, msecs, csv_sep, perf_evsel__name(evsel));
 
 	if (evsel->cgrp)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
@@ -792,7 +792,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 	else
 		cpu = 0;
 
-	fprintf(output, fmt, cpustr, avg, csv_sep, event_name(evsel));
+	fprintf(output, fmt, cpustr, avg, csv_sep, perf_evsel__name(evsel));
 
 	if (evsel->cgrp)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
@@ -908,7 +908,7 @@ static void print_counter_aggr(struct perf_evsel *counter)
 			counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
 			csv_sep,
 			csv_output ? 0 : -24,
-			event_name(counter));
+			perf_evsel__name(counter));
 
 		if (counter->cgrp)
 			fprintf(output, "%s%s", csv_sep, counter->cgrp->name);
@@ -961,7 +961,7 @@ static void print_counter(struct perf_evsel *counter)
 				counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
 				csv_sep,
 				csv_output ? 0 : -24,
-				event_name(counter));
+				perf_evsel__name(counter));
 
 			if (counter->cgrp)
 				fprintf(output, "%s%s",

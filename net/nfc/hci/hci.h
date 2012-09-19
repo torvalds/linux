@@ -37,10 +37,11 @@ struct hcp_packet {
 
 /*
  * HCI command execution completion callback.
- * result will be one of the HCI response codes.
- * skb contains the response data and must be disposed.
+ * result will be a standard linux error (may be converted from HCI response)
+ * skb contains the response data and must be disposed, or may be NULL if
+ * an error occured
  */
-typedef void (*hci_cmd_cb_t) (struct nfc_hci_dev *hdev, u8 result,
+typedef void (*hci_cmd_cb_t) (struct nfc_hci_dev *hdev, int result,
 			      struct sk_buff *skb, void *cb_data);
 
 struct hcp_exec_waiter {
@@ -130,10 +131,5 @@ void nfc_hci_hcp_message_rx(struct nfc_hci_dev *hdev, u8 pipe, u8 type,
 #define NFC_HCI_ANY_E_TIMEOUT			0x09
 #define NFC_HCI_ANY_E_REG_ACCESS_DENIED		0x0a
 #define NFC_HCI_ANY_E_PIPE_ACCESS_DENIED	0x0b
-
-/* Pipes */
-#define NFC_HCI_INVALID_PIPE	0x80
-#define NFC_HCI_LINK_MGMT_PIPE	0x00
-#define NFC_HCI_ADMIN_PIPE	0x01
 
 #endif /* __LOCAL_HCI_H */

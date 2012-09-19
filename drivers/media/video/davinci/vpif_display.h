@@ -1,5 +1,5 @@
 /*
- * DM646x display header file
+ * VPIF display header file
  *
  * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -21,7 +21,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf-core.h>
-#include <media/videobuf-dma-contig.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/davinci/vpif_types.h>
 
 #include "vpif.h"
@@ -73,21 +73,29 @@ struct vbi_obj {
 						 * vbi data */
 };
 
+struct vpif_disp_buffer {
+	struct vb2_buffer vb;
+	struct list_head list;
+};
+
 struct common_obj {
 	/* Buffer specific parameters */
 	u8 *fbuffers[VIDEO_MAX_FRAME];		/* List of buffer pointers for
 						 * storing frames */
 	u32 numbuffers;				/* number of buffers */
-	struct videobuf_buffer *cur_frm;	/* Pointer pointing to current
-						 * videobuf_buffer */
-	struct videobuf_buffer *next_frm;	/* Pointer pointing to next
-						 * videobuf_buffer */
+	struct vpif_disp_buffer *cur_frm;	/* Pointer pointing to current
+						 * vb2_buffer */
+	struct vpif_disp_buffer *next_frm;	/* Pointer pointing to next
+						 * vb2_buffer */
 	enum v4l2_memory memory;		/* This field keeps track of
 						 * type of buffer exchange
 						 * method user has selected */
 	struct v4l2_format fmt;			/* Used to store the format */
-	struct videobuf_queue buffer_queue;	/* Buffer queue used in
+	struct vb2_queue buffer_queue;		/* Buffer queue used in
 						 * video-buf */
+	/* allocator-specific contexts for each plane */
+	struct vb2_alloc_ctx *alloc_ctx;
+
 	struct list_head dma_queue;		/* Queue of filled frames */
 	spinlock_t irqlock;			/* Used in video-buf */
 
@@ -158,6 +166,7 @@ struct vpif_config_params {
 	u32 min_bufsize[VPIF_DISPLAY_NUM_CHANNELS];
 	u32 channel_bufsize[VPIF_DISPLAY_NUM_CHANNELS];
 	u8 numbuffers[VPIF_DISPLAY_NUM_CHANNELS];
+	u32 video_limit[VPIF_DISPLAY_NUM_CHANNELS];
 	u8 min_numbuffers;
 };
 

@@ -6,11 +6,6 @@ void __devinit  pcibios_fixup_bus(struct pci_bus *b)
 {
 }
 
-char * __devinit  pcibios_setup(char *str)
-{
-	return NULL;
-}
-
 void pcibios_set_master(struct pci_dev *dev)
 {
 	u8 lat;

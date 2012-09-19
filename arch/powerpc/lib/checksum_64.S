@@ -65,9 +65,6 @@ _GLOBAL(csum_tcpudp_magic)
 	srwi	r3,r3,16
 	blr
 
-#define STACKFRAMESIZE 256
-#define STK_REG(i)	(112 + ((i)-14)*8)
-
 /*
  * Computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit).
@@ -114,9 +111,9 @@ _GLOBAL(csum_partial)
 	mtctr	r6
 
 	stdu	r1,-STACKFRAMESIZE(r1)
-	std	r14,STK_REG(r14)(r1)
-	std	r15,STK_REG(r15)(r1)
-	std	r16,STK_REG(r16)(r1)
+	std	r14,STK_REG(R14)(r1)
+	std	r15,STK_REG(R15)(r1)
+	std	r16,STK_REG(R16)(r1)
 
 	ld	r6,0(r3)
 	ld	r9,8(r3)
@@ -175,9 +172,9 @@ _GLOBAL(csum_partial)
 	adde	r0,r0,r15
 	adde	r0,r0,r16
 
-	ld	r14,STK_REG(r14)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r16,STK_REG(r16)(r1)
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
 	addi	r1,r1,STACKFRAMESIZE
 
 	andi.	r4,r4,63
@@ -299,9 +296,9 @@ dest;	sth	r6,0(r4)
 	mtctr	r6
 
 	stdu	r1,-STACKFRAMESIZE(r1)
-	std	r14,STK_REG(r14)(r1)
-	std	r15,STK_REG(r15)(r1)
-	std	r16,STK_REG(r16)(r1)
+	std	r14,STK_REG(R14)(r1)
+	std	r15,STK_REG(R15)(r1)
+	std	r16,STK_REG(R16)(r1)
 
 source;	ld	r6,0(r3)
 source;	ld	r9,8(r3)
@@ -382,9 +379,9 @@ dest;	std	r16,56(r4)
 	adde	r0,r0,r15
 	adde	r0,r0,r16
 
-	ld	r14,STK_REG(r14)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r16,STK_REG(r16)(r1)
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
 	addi	r1,r1,STACKFRAMESIZE
 
 	andi.	r5,r5,63

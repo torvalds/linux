@@ -1,7 +1,7 @@
 /*
  * This file handles the architecture dependent parts of process handling.
  *
- *    Copyright IBM Corp. 1999,2009
+ *    Copyright IBM Corp. 1999, 2009
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Hartmut Penner <hp@de.ibm.com>,
  *		 Denis Joseph Barrow,
@@ -25,8 +25,8 @@
 #include <linux/module.h>
 #include <asm/io.h>
 #include <asm/processor.h>
+#include <asm/vtimer.h>
 #include <asm/irq.h>
-#include <asm/timer.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include <asm/switch_to.h>

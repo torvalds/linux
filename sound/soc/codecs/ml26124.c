@@ -638,7 +638,7 @@ static __devinit int ml26124_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, priv);
 
-	priv->regmap = regmap_init_i2c(i2c, &ml26124_i2c_regmap);
+	priv->regmap = devm_regmap_init_i2c(i2c, &ml26124_i2c_regmap);
 	if (IS_ERR(priv->regmap)) {
 		ret = PTR_ERR(priv->regmap);
 		dev_err(&i2c->dev, "regmap_init_i2c() failed: %d\n", ret);
@@ -651,10 +651,7 @@ static __devinit int ml26124_i2c_probe(struct i2c_client *i2c,
 
 static __devexit int ml26124_i2c_remove(struct i2c_client *client)
 {
-	struct ml26124_priv *priv = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(priv->regmap);
 	return 0;
 }
 

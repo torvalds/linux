@@ -132,6 +132,9 @@ static void show_backtrace(struct task_struct *task, const struct pt_regs *regs)
 	unsigned long ra = regs->regs[31];
 	unsigned long pc = regs->cp0_epc;
 
+	if (!task)
+		task = current;
+
 	if (raw_show_trace || !__kernel_text_address(pc)) {
 		show_raw_backtrace(sp);
 		return;
@@ -1249,6 +1252,8 @@ static inline void parity_protection_init(void)
 		break;
 
 	case CPU_5KC:
+	case CPU_5KE:
+	case CPU_LOONGSON1:
 		write_c0_ecc(0x80000000);
 		back_to_back_c0_hazard();
 		/* Set the PE bit (bit 31) in the c0_errctl register. */
@@ -1498,6 +1503,7 @@ extern void flush_tlb_handlers(void);
  * Timer interrupt
  */
 int cp0_compare_irq;
+EXPORT_SYMBOL_GPL(cp0_compare_irq);
 int cp0_compare_irq_shift;
 
 /*
@@ -1597,7 +1603,7 @@ void __cpuinit per_cpu_trap_init(bool is_boot_cpu)
 			cp0_perfcount_irq = -1;
 	} else {
 		cp0_compare_irq = CP0_LEGACY_COMPARE_IRQ;
-		cp0_compare_irq_shift = cp0_compare_irq;
+		cp0_compare_irq_shift = CP0_LEGACY_PERFCNT_IRQ;
 		cp0_perfcount_irq = -1;
 	}
 

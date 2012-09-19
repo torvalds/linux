@@ -426,7 +426,18 @@ int symbol__alloc_hist(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	const size_t size = symbol__size(sym);
-	size_t sizeof_sym_hist = (sizeof(struct sym_hist) + size * sizeof(u64));
+	size_t sizeof_sym_hist;
+
+	/* Check for overflow when calculating sizeof_sym_hist */
+	if (size > (SIZE_MAX - sizeof(struct sym_hist)) / sizeof(u64))
+		return -1;
+
+	sizeof_sym_hist = (sizeof(struct sym_hist) + size * sizeof(u64));
+
+	/* Check for overflow in zalloc argument */
+	if (sizeof_sym_hist > (SIZE_MAX - sizeof(*notes->src))
+				/ symbol_conf.nr_events)
+		return -1;
 
 	notes->src = zalloc(sizeof(*notes->src) + symbol_conf.nr_events * sizeof_sym_hist);
 	if (notes->src == NULL)
@@ -777,7 +788,7 @@ fallback:
 		free_filename = false;
 	}
 
-	if (dso->symtab_type == SYMTAB__KALLSYMS) {
+	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS) {
 		char bf[BUILD_ID_SIZE * 2 + 16] = " with build id ";
 		char *build_id_msg = NULL;
 

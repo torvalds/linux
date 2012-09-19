@@ -676,20 +676,13 @@ static const struct super_operations nilfs_sops = {
 	.alloc_inode    = nilfs_alloc_inode,
 	.destroy_inode  = nilfs_destroy_inode,
 	.dirty_inode    = nilfs_dirty_inode,
-	/* .write_inode    = nilfs_write_inode, */
-	/* .put_inode      = nilfs_put_inode, */
-	/* .drop_inode	  = nilfs_drop_inode, */
 	.evict_inode    = nilfs_evict_inode,
 	.put_super      = nilfs_put_super,
-	/* .write_super    = nilfs_write_super, */
 	.sync_fs        = nilfs_sync_fs,
 	.freeze_fs	= nilfs_freeze,
 	.unfreeze_fs	= nilfs_unfreeze,
-	/* .write_super_lockfs */
-	/* .unlockfs */
 	.statfs         = nilfs_statfs,
 	.remount_fs     = nilfs_remount,
-	/* .umount_begin */
 	.show_options = nilfs_show_options
 };
 
@@ -948,6 +941,8 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 	struct nilfs_root *root;
 	int ret;
 
+	mutex_lock(&nilfs->ns_snapshot_mount_mutex);
+
 	down_read(&nilfs->ns_segctor_sem);
 	ret = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile, cno);
 	up_read(&nilfs->ns_segctor_sem);
@@ -972,6 +967,7 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 	ret = nilfs_get_root_dentry(s, root, root_dentry);
 	nilfs_put_root(root);
  out:
+	mutex_unlock(&nilfs->ns_snapshot_mount_mutex);
 	return ret;
 }
 
@@ -1288,7 +1284,8 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		err = -EBUSY;
 		goto failed;
 	}
-	s = sget(fs_type, nilfs_test_bdev_super, nilfs_set_bdev_super, sd.bdev);
+	s = sget(fs_type, nilfs_test_bdev_super, nilfs_set_bdev_super, flags,
+		 sd.bdev);
 	mutex_unlock(&sd.bdev->bd_fsfreeze_mutex);
 	if (IS_ERR(s)) {
 		err = PTR_ERR(s);
@@ -1301,7 +1298,6 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		s_new = true;
 
 		/* New superblock instance created */
-		s->s_flags = flags;
 		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(sd.bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(sd.bdev));

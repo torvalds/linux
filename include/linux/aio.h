@@ -126,21 +126,20 @@ struct kiocb {
 	struct eventfd_ctx	*ki_eventfd;
 };
 
-#define is_sync_kiocb(iocb)	((iocb)->ki_key == KIOCB_SYNC_KEY)
-#define init_sync_kiocb(x, filp)			\
-	do {						\
-		struct task_struct *tsk = current;	\
-		(x)->ki_flags = 0;			\
-		(x)->ki_users = 1;			\
-		(x)->ki_key = KIOCB_SYNC_KEY;		\
-		(x)->ki_filp = (filp);			\
-		(x)->ki_ctx = NULL;			\
-		(x)->ki_cancel = NULL;			\
-		(x)->ki_retry = NULL;			\
-		(x)->ki_dtor = NULL;			\
-		(x)->ki_obj.tsk = tsk;			\
-		(x)->ki_user_data = 0;                  \
-	} while (0)
+static inline bool is_sync_kiocb(struct kiocb *kiocb)
+{
+	return kiocb->ki_key == KIOCB_SYNC_KEY;
+}
+
+static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
+{
+	*kiocb = (struct kiocb) {
+			.ki_users = 1,
+			.ki_key = KIOCB_SYNC_KEY,
+			.ki_filp = filp,
+			.ki_obj.tsk = current,
+		};
+}
 
 #define AIO_RING_MAGIC			0xa10a10a1
 #define AIO_RING_COMPAT_FEATURES	1
@@ -160,8 +159,6 @@ struct aio_ring {
 	struct io_event		io_events[0];
 }; /* 128 bytes + ring size */
 
-#define aio_ring_avail(info, ring)	(((ring)->head + (info)->nr - 1 - (ring)->tail) % (info)->nr)
-
 #define AIO_RING_PAGES	8
 struct aio_ring_info {
 	unsigned long		mmap_base;
@@ -175,6 +172,12 @@ struct aio_ring_info {
 
 	struct page		*internal_pages[AIO_RING_PAGES];
 };
+
+static inline unsigned aio_ring_avail(struct aio_ring_info *info,
+					struct aio_ring *ring)
+{
+	return (ring->head + info->nr - 1 - ring->tail) % info->nr;
+}
 
 struct kioctx {
 	atomic_t		users;

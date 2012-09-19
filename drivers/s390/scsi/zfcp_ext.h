@@ -3,7 +3,7 @@
  *
  * External function declarations.
  *
- * Copyright IBM Corporation 2002, 2010
+ * Copyright IBM Corp. 2002, 2010
  */
 
 #ifndef ZFCP_EXT_H

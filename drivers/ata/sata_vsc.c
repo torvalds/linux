@@ -436,21 +436,10 @@ static struct pci_driver vsc_sata_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static int __init vsc_sata_init(void)
-{
-	return pci_register_driver(&vsc_sata_pci_driver);
-}
-
-static void __exit vsc_sata_exit(void)
-{
-	pci_unregister_driver(&vsc_sata_pci_driver);
-}
+module_pci_driver(vsc_sata_pci_driver);
 
 MODULE_AUTHOR("Jeremy Higdon");
 MODULE_DESCRIPTION("low-level driver for Vitesse VSC7174 SATA controller");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, vsc_sata_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(vsc_sata_init);
-module_exit(vsc_sata_exit);

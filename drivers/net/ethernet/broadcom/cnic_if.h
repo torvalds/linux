@@ -12,8 +12,10 @@
 #ifndef CNIC_IF_H
 #define CNIC_IF_H
 
-#define CNIC_MODULE_VERSION	"2.5.10"
-#define CNIC_MODULE_RELDATE	"March 21, 2012"
+#include "bnx2x/bnx2x_mfw_req.h"
+
+#define CNIC_MODULE_VERSION	"2.5.12"
+#define CNIC_MODULE_RELDATE	"June 29, 2012"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -131,6 +133,11 @@ struct drv_ctl_l2_ring {
 	u32		cid;
 };
 
+struct drv_ctl_register_data {
+	int ulp_type;
+	struct fcoe_capabilities fcoe_features;
+};
+
 struct drv_ctl_info {
 	int	cmd;
 	union {
@@ -138,6 +145,7 @@ struct drv_ctl_info {
 		struct drv_ctl_io io;
 		struct drv_ctl_l2_ring ring;
 		int ulp_type;
+		struct drv_ctl_register_data register_data;
 		char bytes[MAX_DRV_CTL_DATA];
 	} data;
 };
@@ -305,6 +313,7 @@ struct cnic_dev {
 	int		max_rdma_conn;
 
 	union drv_info_to_mcp	*stats_addr;
+	struct fcoe_capabilities	*fcoe_cap;
 
 	void		*cnic_priv;
 };

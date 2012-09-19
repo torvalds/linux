@@ -64,7 +64,7 @@ static int vhost_poll_wakeup(wait_queue_t *wait, unsigned mode, int sync,
 	return 0;
 }
 
-static void vhost_work_init(struct vhost_work *work, vhost_work_fn_t fn)
+void vhost_work_init(struct vhost_work *work, vhost_work_fn_t fn)
 {
 	INIT_LIST_HEAD(&work->node);
 	work->fn = fn;
@@ -137,8 +137,7 @@ void vhost_poll_flush(struct vhost_poll *poll)
 	vhost_work_flush(poll->dev, &poll->work);
 }
 
-static inline void vhost_work_queue(struct vhost_dev *dev,
-				    struct vhost_work *work)
+void vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work)
 {
 	unsigned long flags;
 

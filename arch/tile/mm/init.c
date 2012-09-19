@@ -150,7 +150,21 @@ void __init shatter_pmd(pmd_t *pmd)
 	assign_pte(pmd, pte);
 }
 
-#ifdef CONFIG_HIGHMEM
+#ifdef __tilegx__
+static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
+{
+	pud_t *pud = pud_offset(&pgtables[pgd_index(va)], va);
+	if (pud_none(*pud))
+		assign_pmd(pud, alloc_pmd());
+	return pmd_offset(pud, va);
+}
+#else
+static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
+{
+	return pmd_offset(pud_offset(&pgtables[pgd_index(va)], va), va);
+}
+#endif
+
 /*
  * This function initializes a certain range of kernel virtual memory
  * with new bootmem page tables, everywhere page tables are missing in
@@ -163,24 +177,17 @@ void __init shatter_pmd(pmd_t *pmd)
  * checking the pgd every time.
  */
 static void __init page_table_range_init(unsigned long start,
-					 unsigned long end, pgd_t *pgd_base)
+					 unsigned long end, pgd_t *pgd)
 {
-	pgd_t *pgd;
-	int pgd_idx;
 	unsigned long vaddr;
-
-	vaddr = start;
-	pgd_idx = pgd_index(vaddr);
-	pgd = pgd_base + pgd_idx;
-
-	for ( ; (pgd_idx < PTRS_PER_PGD) && (vaddr != end); pgd++, pgd_idx++) {
-		pmd_t *pmd = pmd_offset(pud_offset(pgd, vaddr), vaddr);
+	start = round_down(start, PMD_SIZE);
+	end = round_up(end, PMD_SIZE);
+	for (vaddr = start; vaddr < end; vaddr += PMD_SIZE) {
+		pmd_t *pmd = get_pmd(pgd, vaddr);
 		if (pmd_none(*pmd))
 			assign_pte(pmd, alloc_pte());
-		vaddr += PMD_SIZE;
 	}
 }
-#endif /* CONFIG_HIGHMEM */
 
 
 #if CHIP_HAS_CBOX_HOME_MAP()
@@ -403,21 +410,6 @@ static inline pgprot_t ktext_set_nocache(pgprot_t prot)
 #endif
 	return prot;
 }
-
-#ifndef __tilegx__
-static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
-{
-	return pmd_offset(pud_offset(&pgtables[pgd_index(va)], va), va);
-}
-#else
-static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
-{
-	pud_t *pud = pud_offset(&pgtables[pgd_index(va)], va);
-	if (pud_none(*pud))
-		assign_pmd(pud, alloc_pmd());
-	return pmd_offset(pud, va);
-}
-#endif
 
 /* Temporary page table we use for staging. */
 static pgd_t pgtables[PTRS_PER_PGD]
@@ -741,16 +733,15 @@ static void __init set_non_bootmem_pages_init(void)
 	for_each_zone(z) {
 		unsigned long start, end;
 		int nid = z->zone_pgdat->node_id;
+#ifdef CONFIG_HIGHMEM
 		int idx = zone_idx(z);
+#endif
 
 		start = z->zone_start_pfn;
-		if (start == 0)
-			continue;  /* bootmem */
 		end = start + z->spanned_pages;
-		if (idx == ZONE_NORMAL) {
-			BUG_ON(start != node_start_pfn[nid]);
-			start = node_free_pfn[nid];
-		}
+		start = max(start, node_free_pfn[nid]);
+		start = max(start, max_low_pfn);
+
 #ifdef CONFIG_HIGHMEM
 		if (idx == ZONE_HIGHMEM)
 			totalhigh_pages += z->spanned_pages;
@@ -779,9 +770,6 @@ static void __init set_non_bootmem_pages_init(void)
  */
 void __init paging_init(void)
 {
-#ifdef CONFIG_HIGHMEM
-	unsigned long vaddr, end;
-#endif
 #ifdef __tilegx__
 	pud_t *pud;
 #endif
@@ -789,14 +777,14 @@ void __init paging_init(void)
 
 	kernel_physical_mapping_init(pgd_base);
 
-#ifdef CONFIG_HIGHMEM
 	/*
 	 * Fixed mappings, only the page table structure has to be
 	 * created - mappings will be set by set_fixmap():
 	 */
-	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK;
-	end = (FIXADDR_TOP + PMD_SIZE - 1) & PMD_MASK;
-	page_table_range_init(vaddr, end, pgd_base);
+	page_table_range_init(fix_to_virt(__end_of_fixed_addresses - 1),
+			      FIXADDR_TOP, pgd_base);
+
+#ifdef CONFIG_HIGHMEM
 	permanent_kmaps_init(pgd_base);
 #endif
 

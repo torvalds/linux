@@ -26,26 +26,9 @@
 */
 
 #include <linux/module.h>
-
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/signal.h>
-#include <linux/init.h>
-#include <linux/wait.h>
-#include <linux/freezer.h>
-#include <linux/errno.h>
-#include <linux/net.h>
-#include <linux/slab.h>
 #include <linux/kthread.h>
-#include <net/sock.h>
-
-#include <linux/socket.h>
 #include <linux/file.h>
-
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -306,7 +289,7 @@ static u8 __bnep_rx_hlen[] = {
 	ETH_ALEN + 2  /* BNEP_COMPRESSED_DST_ONLY */
 };
 
-static inline int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
+static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 {
 	struct net_device *dev = s->dev;
 	struct sk_buff *nskb;
@@ -404,7 +387,7 @@ static u8 __bnep_tx_types[] = {
 	BNEP_COMPRESSED
 };
 
-static inline int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
+static int bnep_tx_frame(struct bnep_session *s, struct sk_buff *skb)
 {
 	struct ethhdr *eh = (void *) skb->data;
 	struct socket *sock = s->sock;

@@ -691,6 +691,10 @@ static struct nf_ct_helper_expectfn follow_master_nat = {
 	.expectfn	= nf_nat_follow_master,
 };
 
+static struct nfq_ct_nat_hook nfq_ct_nat = {
+	.seq_adjust	= nf_nat_tcp_seq_adjust,
+};
+
 static int __init nf_nat_init(void)
 {
 	size_t i;
@@ -731,6 +735,7 @@ static int __init nf_nat_init(void)
 			   nfnetlink_parse_nat_setup);
 	BUG_ON(nf_ct_nat_offset != NULL);
 	RCU_INIT_POINTER(nf_ct_nat_offset, nf_nat_get_offset);
+	RCU_INIT_POINTER(nfq_ct_nat_hook, &nfq_ct_nat);
 	return 0;
 
  cleanup_extend:
@@ -747,6 +752,7 @@ static void __exit nf_nat_cleanup(void)
 	RCU_INIT_POINTER(nf_nat_seq_adjust_hook, NULL);
 	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook, NULL);
 	RCU_INIT_POINTER(nf_ct_nat_offset, NULL);
+	RCU_INIT_POINTER(nfq_ct_nat_hook, NULL);
 	synchronize_net();
 }
 

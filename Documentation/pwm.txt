@@ -1,0 +1,76 @@
+Pulse Width Modulation (PWM) interface
+
+This provides an overview about the Linux PWM interface
+
+PWMs are commonly used for controlling LEDs, fans or vibrators in
+cell phones. PWMs with a fixed purpose have no need implementing
+the Linux PWM API (although they could). However, PWMs are often
+found as discrete devices on SoCs which have no fixed purpose. It's
+up to the board designer to connect them to LEDs or fans. To provide
+this kind of flexibility the generic PWM API exists.
+
+Identifying PWMs
+----------------
+
+Users of the legacy PWM API use unique IDs to refer to PWM devices.
+
+Instead of referring to a PWM device via its unique ID, board setup code
+should instead register a static mapping that can be used to match PWM
+consumers to providers, as given in the following example:
+
+	static struct pwm_lookup board_pwm_lookup[] = {
+		PWM_LOOKUP("tegra-pwm", 0, "pwm-backlight", NULL),
+	};
+
+	static void __init board_init(void)
+	{
+		...
+		pwm_add_table(board_pwm_lookup, ARRAY_SIZE(board_pwm_lookup));
+		...
+	}
+
+Using PWMs
+----------
+
+Legacy users can request a PWM device using pwm_request() and free it
+after usage with pwm_free().
+
+New users should use the pwm_get() function and pass to it the consumer
+device or a consumer name. pwm_put() is used to free the PWM device.
+
+After being requested a PWM has to be configured using:
+
+int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns);
+
+To start/stop toggling the PWM output use pwm_enable()/pwm_disable().
+
+Implementing a PWM driver
+-------------------------
+
+Currently there are two ways to implement pwm drivers. Traditionally
+there only has been the barebone API meaning that each driver has
+to implement the pwm_*() functions itself. This means that it's impossible
+to have multiple PWM drivers in the system. For this reason it's mandatory
+for new drivers to use the generic PWM framework.
+
+A new PWM controller/chip can be added using pwmchip_add() and removed
+again with pwmchip_remove(). pwmchip_add() takes a filled in struct
+pwm_chip as argument which provides a description of the PWM chip, the
+number of PWM devices provider by the chip and the chip-specific
+implementation of the supported PWM operations to the framework.
+
+Locking
+-------
+
+The PWM core list manipulations are protected by a mutex, so pwm_request()
+and pwm_free() may not be called from an atomic context. Currently the
+PWM core does not enforce any locking to pwm_enable(), pwm_disable() and
+pwm_config(), so the calling context is currently driver specific. This
+is an issue derived from the former barebone API and should be fixed soon.
+
+Helpers
+-------
+
+Currently a PWM can only be configured with period_ns and duty_ns. For several
+use cases freq_hz and duty_percent might be better. Instead of calculating
+this in your driver please consider adding appropriate helpers to the framework.

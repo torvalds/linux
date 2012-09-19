@@ -16,20 +16,15 @@
  * www.brocade.com
  */
 
-/**
- * File for interrupt macros and functions
- */
+/* File for interrupt macros and functions */
 
 #ifndef __BNA_HW_DEFS_H__
 #define __BNA_HW_DEFS_H__
 
 #include "bfi_reg.h"
 
-/**
- *
- * SW imposed limits
- *
- */
+/* SW imposed limits */
+
 #define BFI_ENET_DEF_TXQ		1
 #define BFI_ENET_DEF_RXP		1
 #define BFI_ENET_DEF_UCAM		1
@@ -141,11 +136,8 @@
 }
 
 #define bna_port_id_get(_bna) ((_bna)->ioceth.ioc.port_id)
-/**
- *
- *  Interrupt related bits, flags and macros
- *
- */
+
+/*  Interrupt related bits, flags and macros  */
 
 #define IB_STATUS_BITS		0x0000ffff
 
@@ -280,11 +272,7 @@ do {									\
 	(writel(BNA_DOORBELL_Q_PRD_IDX((_rcb)->producer_index), \
 		(_rcb)->q_dbell));
 
-/**
- *
- * TxQ, RxQ, CQ related bits, offsets, macros
- *
- */
+/* TxQ, RxQ, CQ related bits, offsets, macros */
 
 /* TxQ Entry Opcodes */
 #define BNA_TXQ_WI_SEND			(0x402)	/* Single Frame Transmission */
@@ -334,11 +322,7 @@ do {									\
 
 #define	BNA_CQ_EF_LOCAL		(1 << 20)
 
-/**
- *
- * Data structures
- *
- */
+/* Data structures */
 
 struct bna_reg_offset {
 	u32 fn_int_status;
@@ -371,8 +355,7 @@ struct bna_txq_wi_vector {
 	struct bna_dma_addr host_addr; /* Tx-Buf DMA addr */
 };
 
-/**
- *  TxQ Entry Structure
+/*  TxQ Entry Structure
  *
  *  BEWARE:  Load values into this structure with correct endianess.
  */

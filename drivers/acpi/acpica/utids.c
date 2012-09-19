@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: utids - support for device IDs - HID, UID, CID
+ * Module Name: utids - support for device Ids - HID, UID, CID
  *
  *****************************************************************************/
 

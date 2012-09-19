@@ -53,9 +53,9 @@ ACPI_MODULE_NAME("nsobject")
  *
  * FUNCTION:    acpi_ns_attach_object
  *
- * PARAMETERS:  Node                - Parent Node
- *              Object              - Object to be attached
- *              Type                - Type of object, or ACPI_TYPE_ANY if not
+ * PARAMETERS:  node                - Parent Node
+ *              object              - Object to be attached
+ *              type                - Type of object, or ACPI_TYPE_ANY if not
  *                                    known
  *
  * RETURN:      Status
@@ -191,7 +191,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_ns_detach_object
  *
- * PARAMETERS:  Node           - A Namespace node whose object will be detached
+ * PARAMETERS:  node           - A Namespace node whose object will be detached
  *
  * RETURN:      None.
  *
@@ -250,7 +250,7 @@ void acpi_ns_detach_object(struct acpi_namespace_node *node)
  *
  * FUNCTION:    acpi_ns_get_attached_object
  *
- * PARAMETERS:  Node             - Namespace node
+ * PARAMETERS:  node             - Namespace node
  *
  * RETURN:      Current value of the object field from the Node whose
  *              handle is passed
@@ -285,7 +285,7 @@ union acpi_operand_object *acpi_ns_get_attached_object(struct
  *
  * FUNCTION:    acpi_ns_get_secondary_object
  *
- * PARAMETERS:  Node             - Namespace node
+ * PARAMETERS:  node             - Namespace node
  *
  * RETURN:      Current value of the object field from the Node whose
  *              handle is passed.
@@ -315,9 +315,9 @@ union acpi_operand_object *acpi_ns_get_secondary_object(union
  *
  * FUNCTION:    acpi_ns_attach_data
  *
- * PARAMETERS:  Node            - Namespace node
- *              Handler         - Handler to be associated with the data
- *              Data            - Data to be attached
+ * PARAMETERS:  node            - Namespace node
+ *              handler         - Handler to be associated with the data
+ *              data            - Data to be attached
  *
  * RETURN:      Status
  *
@@ -372,8 +372,8 @@ acpi_ns_attach_data(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_ns_detach_data
  *
- * PARAMETERS:  Node            - Namespace node
- *              Handler         - Handler associated with the data
+ * PARAMETERS:  node            - Namespace node
+ *              handler         - Handler associated with the data
  *
  * RETURN:      Status
  *
@@ -416,9 +416,9 @@ acpi_ns_detach_data(struct acpi_namespace_node * node,
  *
  * FUNCTION:    acpi_ns_get_attached_data
  *
- * PARAMETERS:  Node            - Namespace node
- *              Handler         - Handler associated with the data
- *              Data            - Where the data is returned
+ * PARAMETERS:  node            - Namespace node
+ *              handler         - Handler associated with the data
+ *              data            - Where the data is returned
  *
  * RETURN:      Status
  *

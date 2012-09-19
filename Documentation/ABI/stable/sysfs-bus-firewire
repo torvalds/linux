@@ -39,6 +39,17 @@ Users:		udev rules to set ownership and access permissions or ACLs of
 		/dev/fw[0-9]+ character device files
 
 
+What:		/sys/bus/firewire/devices/fw[0-9]+/is_local
+Date:		July 2012
+KernelVersion:	3.6
+Contact:	linux1394-devel@lists.sourceforge.net
+Description:
+		IEEE 1394 node device attribute.
+		Read-only and immutable.
+Values:		1: The sysfs entry represents a local node (a controller card).
+		0: The sysfs entry represents a remote node.
+
+
 What:		/sys/bus/firewire/devices/fw[0-9]+[.][0-9]+/
 Date:		May 2007
 KernelVersion:	2.6.22

@@ -75,23 +75,54 @@ static inline int alternatives_text_reserved(void *start, void *end)
 }
 #endif	/* CONFIG_SMP */
 
+#define OLDINSTR(oldinstr)	"661:\n\t" oldinstr "\n662:\n"
+
+#define b_replacement(number)	"663"#number
+#define e_replacement(number)	"664"#number
+
+#define alt_slen "662b-661b"
+#define alt_rlen(number) e_replacement(number)"f-"b_replacement(number)"f"
+
+#define ALTINSTR_ENTRY(feature, number)					      \
+	" .long 661b - .\n"				/* label           */ \
+	" .long " b_replacement(number)"f - .\n"	/* new instruction */ \
+	" .word " __stringify(feature) "\n"		/* feature bit     */ \
+	" .byte " alt_slen "\n"				/* source len      */ \
+	" .byte " alt_rlen(number) "\n"			/* replacement len */
+
+#define DISCARD_ENTRY(number)				/* rlen <= slen */    \
+	" .byte 0xff + (" alt_rlen(number) ") - (" alt_slen ")\n"
+
+#define ALTINSTR_REPLACEMENT(newinstr, feature, number)	/* replacement */     \
+	b_replacement(number)":\n\t" newinstr "\n" e_replacement(number) ":\n\t"
+
 /* alternative assembly primitive: */
 #define ALTERNATIVE(oldinstr, newinstr, feature)			\
-									\
-      "661:\n\t" oldinstr "\n662:\n"					\
-      ".section .altinstructions,\"a\"\n"				\
-      "	 .long 661b - .\n"			/* label           */	\
-      "	 .long 663f - .\n"			/* new instruction */	\
-      "	 .word " __stringify(feature) "\n"	/* feature bit     */	\
-      "	 .byte 662b-661b\n"			/* sourcelen       */	\
-      "	 .byte 664f-663f\n"			/* replacementlen  */	\
-      ".previous\n"							\
-      ".section .discard,\"aw\",@progbits\n"				\
-      "	 .byte 0xff + (664f-663f) - (662b-661b)\n" /* rlen <= slen */	\
-      ".previous\n"							\
-      ".section .altinstr_replacement, \"ax\"\n"			\
-      "663:\n\t" newinstr "\n664:\n"		/* replacement     */	\
-      ".previous"
+	OLDINSTR(oldinstr)						\
+	".section .altinstructions,\"a\"\n"				\
+	ALTINSTR_ENTRY(feature, 1)					\
+	".previous\n"							\
+	".section .discard,\"aw\",@progbits\n"				\
+	DISCARD_ENTRY(1)						\
+	".previous\n"							\
+	".section .altinstr_replacement, \"ax\"\n"			\
+	ALTINSTR_REPLACEMENT(newinstr, feature, 1)			\
+	".previous"
+
+#define ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2)\
+	OLDINSTR(oldinstr)						\
+	".section .altinstructions,\"a\"\n"				\
+	ALTINSTR_ENTRY(feature1, 1)					\
+	ALTINSTR_ENTRY(feature2, 2)					\
+	".previous\n"							\
+	".section .discard,\"aw\",@progbits\n"				\
+	DISCARD_ENTRY(1)						\
+	DISCARD_ENTRY(2)						\
+	".previous\n"							\
+	".section .altinstr_replacement, \"ax\"\n"			\
+	ALTINSTR_REPLACEMENT(newinstr1, feature1, 1)			\
+	ALTINSTR_REPLACEMENT(newinstr2, feature2, 2)			\
+	".previous"
 
 /*
  * This must be included *after* the definition of ALTERNATIVE due to
@@ -138,6 +169,19 @@ static inline int alternatives_text_reserved(void *start, void *end)
 #define alternative_call(oldfunc, newfunc, feature, output, input...)	\
 	asm volatile (ALTERNATIVE("call %P[old]", "call %P[new]", feature) \
 		: output : [old] "i" (oldfunc), [new] "i" (newfunc), ## input)
+
+/*
+ * Like alternative_call, but there are two features and respective functions.
+ * If CPU has feature2, function2 is used.
+ * Otherwise, if CPU has feature1, function1 is used.
+ * Otherwise, old function is used.
+ */
+#define alternative_call_2(oldfunc, newfunc1, feature1, newfunc2, feature2,   \
+			   output, input...)				      \
+	asm volatile (ALTERNATIVE_2("call %P[old]", "call %P[new1]", feature1,\
+		"call %P[new2]", feature2)				      \
+		: output : [old] "i" (oldfunc), [new1] "i" (newfunc1),	      \
+		[new2] "i" (newfunc2), ## input)
 
 /*
  * use this macro(s) if you need more than one output parameter

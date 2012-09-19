@@ -44,7 +44,7 @@ struct genl_family nl802154_family = {
 struct sk_buff *ieee802154_nl_create(int flags, u8 req)
 {
 	void *hdr;
-	struct sk_buff *msg = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	struct sk_buff *msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	unsigned long f;
 
 	if (!msg)
@@ -80,7 +80,7 @@ struct sk_buff *ieee802154_nl_new_reply(struct genl_info *info,
 		int flags, u8 req)
 {
 	void *hdr;
-	struct sk_buff *msg = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	struct sk_buff *msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 
 	if (!msg)
 		return NULL;

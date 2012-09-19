@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
@@ -34,12 +35,12 @@
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
 #include <plat/iic.h>
-#include <plat/pd.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
 #include <plat/mfc.h>
 #include <plat/ehci.h>
 #include <plat/clock.h>
+#include <plat/hdmi.h>
 
 #include <mach/map.h>
 #include <mach/ohci.h>
@@ -271,6 +272,15 @@ static void __init smdkv310_ohci_init(void)
 	exynos4_ohci_set_platdata(pdata);
 }
 
+/* USB OTG */
+static struct s3c_hsotg_plat smdkv310_hsotg_pdata;
+
+/* Audio device */
+static struct platform_device smdkv310_device_audio = {
+	.name = "smdk-audio",
+	.id = -1,
+};
+
 static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
@@ -279,6 +289,7 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_i2c1,
 	&s5p_device_i2c_hdmiphy,
 	&s3c_device_rtc,
+	&s3c_device_usb_hsotg,
 	&s3c_device_wdt,
 	&s5p_device_ehci,
 	&s5p_device_fimc0,
@@ -302,6 +313,7 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&samsung_asoc_dma,
 	&samsung_asoc_idma,
 	&s5p_device_fimd0,
+	&smdkv310_device_audio,
 	&smdkv310_lcd_lte480wv,
 	&smdkv310_smsc911x,
 	&exynos4_device_ahci,
@@ -343,6 +355,11 @@ static struct platform_pwm_backlight_data smdkv310_bl_data = {
 	.pwm_period_ns  = 1000,
 };
 
+/* I2C module and id for HDMIPHY */
+static struct i2c_board_info hdmiphy_info = {
+	I2C_BOARD_INFO("hdmiphy-exynos4210", 0x38),
+};
+
 static void s5p_tv_setup(void)
 {
 	/* direct HPD to HDMI chip */
@@ -354,7 +371,7 @@ static void s5p_tv_setup(void)
 static void __init smdkv310_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(24000000);
+	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdkv310_uartcfgs, ARRAY_SIZE(smdkv310_uartcfgs));
 }
 
@@ -377,6 +394,7 @@ static void __init smdkv310_machine_init(void)
 
 	s5p_tv_setup();
 	s5p_i2c_hdmiphy_set_platdata(NULL);
+	s5p_hdmi_set_platdata(&hdmiphy_info, NULL, 0);
 
 	samsung_keypad_set_platdata(&smdkv310_keypad_data);
 
@@ -390,7 +408,7 @@ static void __init smdkv310_machine_init(void)
 
 	smdkv310_ehci_init();
 	smdkv310_ohci_init();
-	clk_xusbxti.rate = 24000000;
+	s3c_hsotg_set_platdata(&smdkv310_hsotg_pdata);
 
 	platform_add_devices(smdkv310_devices, ARRAY_SIZE(smdkv310_devices));
 }
@@ -417,5 +435,6 @@ MACHINE_START(SMDKC210, "SMDKC210")
 	.init_machine	= smdkv310_machine_init,
 	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
+	.reserve	= &smdkv310_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END

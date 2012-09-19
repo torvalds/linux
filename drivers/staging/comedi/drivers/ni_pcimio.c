@@ -1593,7 +1593,7 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 
-	dev_info(dev->hw_dev, "comedi%d: ni_pcimio:\n", dev->minor);
+	dev_info(dev->class_dev, "ni_pcimio: attach\n");
 
 	ret = ni_alloc_private(dev);
 	if (ret < 0)
@@ -1603,7 +1603,7 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(dev->hw_dev, "%s\n", boardtype.name);
+	dev_dbg(dev->class_dev, "%s\n", boardtype.name);
 	dev->board_name = boardtype.name;
 
 	if (boardtype.reg_type & ni_reg_m_series_mask) {

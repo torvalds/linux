@@ -91,7 +91,7 @@ void __init mem_init(void)
 	totalram_pages = free_all_bootmem();
 
 	codek = (_etext - _stext) >> 10;
-	datak = (_ebss - _sdata) >> 10;
+	datak = (__bss_stop - _sdata) >> 10;
 	initk = (__init_begin - __init_end) >> 10;
 
 	tmp = nr_free_pages() << PAGE_SHIFT;

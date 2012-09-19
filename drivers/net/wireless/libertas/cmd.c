@@ -733,15 +733,13 @@ int lbs_get_rssi(struct lbs_private *priv, s8 *rssi, s8 *nf)
  *  to the firmware
  *
  *  @priv:	pointer to &struct lbs_private
- *  @request:	cfg80211 regulatory request structure
- *  @bands:	the device's supported bands and channels
  *
  *  returns:	0 on success, error code on failure
 */
-int lbs_set_11d_domain_info(struct lbs_private *priv,
-			    struct regulatory_request *request,
-			    struct ieee80211_supported_band **bands)
+int lbs_set_11d_domain_info(struct lbs_private *priv)
 {
+	struct wiphy *wiphy = priv->wdev->wiphy;
+	struct ieee80211_supported_band **bands = wiphy->bands;
 	struct cmd_ds_802_11d_domain_info cmd;
 	struct mrvl_ie_domain_param_set *domain = &cmd.domain;
 	struct ieee80211_country_ie_triplet *t;
@@ -752,21 +750,23 @@ int lbs_set_11d_domain_info(struct lbs_private *priv,
 	u8 first_channel = 0, next_chan = 0, max_pwr = 0;
 	u8 i, flag = 0;
 	size_t triplet_size;
-	int ret;
+	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_11D);
+	if (!priv->country_code[0])
+		goto out;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_SET);
 
 	lbs_deb_11d("Setting country code '%c%c'\n",
-		    request->alpha2[0], request->alpha2[1]);
+		    priv->country_code[0], priv->country_code[1]);
 
 	domain->header.type = cpu_to_le16(TLV_TYPE_DOMAIN);
 
 	/* Set country code */
-	domain->country_code[0] = request->alpha2[0];
-	domain->country_code[1] = request->alpha2[1];
+	domain->country_code[0] = priv->country_code[0];
+	domain->country_code[1] = priv->country_code[1];
 	domain->country_code[2] = ' ';
 
 	/* Now set up the channel triplets; firmware is somewhat picky here
@@ -848,6 +848,7 @@ int lbs_set_11d_domain_info(struct lbs_private *priv,
 
 	ret = lbs_cmd_with_response(priv, CMD_802_11D_DOMAIN_INFO, &cmd);
 
+out:
 	lbs_deb_leave_args(LBS_DEB_11D, "ret %d", ret);
 	return ret;
 }
@@ -1019,9 +1020,9 @@ static void lbs_submit_command(struct lbs_private *priv,
 	if (ret) {
 		netdev_info(priv->dev, "DNLD_CMD: hw_host_to_card failed: %d\n",
 			    ret);
-		/* Let the timer kick in and retry, and potentially reset
-		   the whole thing if the condition persists */
-		timeo = HZ/4;
+		/* Reset dnld state machine, report failure */
+		priv->dnld_sent = DNLD_RES_RECEIVED;
+		lbs_complete_command(priv, cmdnode, ret);
 	}
 
 	if (command == CMD_802_11_DEEP_SLEEP) {

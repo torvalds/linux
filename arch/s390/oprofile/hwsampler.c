@@ -1,6 +1,4 @@
-/**
- * arch/s390/oprofile/hwsampler.c
- *
+/*
  * Copyright IBM Corp. 2010
  * Author: Heinz Graalfs <graalfs@de.ibm.com>
  */

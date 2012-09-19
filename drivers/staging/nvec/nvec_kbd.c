@@ -159,20 +159,24 @@ fail:
 	return err;
 }
 
+static int __devexit nvec_kbd_remove(struct platform_device *pdev)
+{
+	input_unregister_device(keys_dev.input);
+	input_free_device(keys_dev.input);
+
+	return 0;
+}
+
 static struct platform_driver nvec_kbd_driver = {
 	.probe  = nvec_kbd_probe,
+	.remove = __devexit_p(nvec_kbd_remove),
 	.driver = {
 		.name = "nvec-kbd",
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __init nvec_kbd_init(void)
-{
-	return platform_driver_register(&nvec_kbd_driver);
-}
-
-module_init(nvec_kbd_init);
+module_platform_driver(nvec_kbd_driver);
 
 MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");
 MODULE_DESCRIPTION("NVEC keyboard driver");

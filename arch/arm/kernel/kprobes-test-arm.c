@@ -187,8 +187,8 @@ void kprobe_arm_test_cases(void)
 	TEST_BF_R ("mov	pc, r",0,2f,"")
 	TEST_BF_RR("mov	pc, r",0,2f,", asl r",1,0,"")
 	TEST_BB(   "sub	pc, pc, #1b-2b+8")
-#if __LINUX_ARM_ARCH__ >= 6
-	TEST_BB(   "sub	pc, pc, #1b-2b+8-2") /* UNPREDICTABLE before ARMv6 */
+#if __LINUX_ARM_ARCH__ == 6 && !defined(CONFIG_CPU_V7)
+	TEST_BB(   "sub	pc, pc, #1b-2b+8-2") /* UNPREDICTABLE before and after ARMv6 */
 #endif
 	TEST_BB_R( "sub	pc, pc, r",14, 1f-2f+8,"")
 	TEST_BB_R( "rsb	pc, r",14,1f-2f+8,", pc")

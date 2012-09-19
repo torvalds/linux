@@ -494,7 +494,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 		goto err_out;
 	}
 	dst = &rt->dst;
-	n = dst_get_neighbour_noref(dst);
+	n = dst_neigh_lookup(dst, &daddr->sin_addr.s_addr);
 	if (!n) {
 		err = -ENODEV;
 		goto rel_rt;
@@ -506,7 +506,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 			&daddr->sin_addr.s_addr, ntohs(daddr->sin_port),
 			ndev->name);
 		err = -ENETUNREACH;
-		goto rel_rt;
+		goto rel_neigh;
 	}
 
 	if (ndev->flags & IFF_LOOPBACK) {
@@ -521,7 +521,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 		pr_info("dst %pI4, %s, NOT cxgbi device.\n",
 			&daddr->sin_addr.s_addr, ndev->name);
 		err = -ENETUNREACH;
-		goto rel_rt;
+		goto rel_neigh;
 	}
 	log_debug(1 << CXGBI_DBG_SOCK,
 		"route to %pI4 :%u, ndev p#%d,%s, cdev 0x%p.\n",
@@ -531,7 +531,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 	csk = cxgbi_sock_create(cdev);
 	if (!csk) {
 		err = -ENOMEM;
-		goto rel_rt;
+		goto rel_neigh;
 	}
 	csk->cdev = cdev;
 	csk->port_id = port;
@@ -541,8 +541,12 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 	csk->daddr.sin_port = daddr->sin_port;
 	csk->daddr.sin_family = daddr->sin_family;
 	csk->saddr.sin_addr.s_addr = fl4.saddr;
+	neigh_release(n);
 
 	return csk;
+
+rel_neigh:
+	neigh_release(n);
 
 rel_rt:
 	ip_rt_put(rt);

@@ -4,7 +4,6 @@
 #include <net/netlink.h>
 #include <net/net_namespace.h>
 #include <linux/module.h>
-#include <linux/rtnetlink.h>
 #include <net/sock.h>
 
 #include <linux/inet_diag.h>
@@ -35,9 +34,7 @@ EXPORT_SYMBOL_GPL(sock_diag_save_cookie);
 
 int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 {
-	__u32 *mem;
-
-	mem = RTA_DATA(__RTA_PUT(skb, attrtype, SK_MEMINFO_VARS * sizeof(__u32)));
+	u32 mem[SK_MEMINFO_VARS];
 
 	mem[SK_MEMINFO_RMEM_ALLOC] = sk_rmem_alloc_get(sk);
 	mem[SK_MEMINFO_RCVBUF] = sk->sk_rcvbuf;
@@ -46,11 +43,9 @@ int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 	mem[SK_MEMINFO_FWD_ALLOC] = sk->sk_forward_alloc;
 	mem[SK_MEMINFO_WMEM_QUEUED] = sk->sk_wmem_queued;
 	mem[SK_MEMINFO_OPTMEM] = atomic_read(&sk->sk_omem_alloc);
+	mem[SK_MEMINFO_BACKLOG] = sk->sk_backlog.len;
 
-	return 0;
-
-rtattr_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, attrtype, sizeof(mem), &mem);
 }
 EXPORT_SYMBOL_GPL(sock_diag_put_meminfo);
 
@@ -120,7 +115,7 @@ static inline void sock_diag_unlock_handler(const struct sock_diag_handler *h)
 static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err;
-	struct sock_diag_req *req = NLMSG_DATA(nlh);
+	struct sock_diag_req *req = nlmsg_data(nlh);
 	const struct sock_diag_handler *hndl;
 
 	if (nlmsg_len(nlh) < sizeof(*req))
@@ -171,19 +166,36 @@ static void sock_diag_rcv(struct sk_buff *skb)
 	mutex_unlock(&sock_diag_mutex);
 }
 
-struct sock *sock_diag_nlsk;
-EXPORT_SYMBOL_GPL(sock_diag_nlsk);
+static int __net_init diag_net_init(struct net *net)
+{
+	struct netlink_kernel_cfg cfg = {
+		.input	= sock_diag_rcv,
+	};
+
+	net->diag_nlsk = netlink_kernel_create(net, NETLINK_SOCK_DIAG,
+					       THIS_MODULE, &cfg);
+	return net->diag_nlsk == NULL ? -ENOMEM : 0;
+}
+
+static void __net_exit diag_net_exit(struct net *net)
+{
+	netlink_kernel_release(net->diag_nlsk);
+	net->diag_nlsk = NULL;
+}
+
+static struct pernet_operations diag_net_ops = {
+	.init = diag_net_init,
+	.exit = diag_net_exit,
+};
 
 static int __init sock_diag_init(void)
 {
-	sock_diag_nlsk = netlink_kernel_create(&init_net, NETLINK_SOCK_DIAG, 0,
-					sock_diag_rcv, NULL, THIS_MODULE);
-	return sock_diag_nlsk == NULL ? -ENOMEM : 0;
+	return register_pernet_subsys(&diag_net_ops);
 }
 
 static void __exit sock_diag_exit(void)
 {
-	netlink_kernel_release(sock_diag_nlsk);
+	unregister_pernet_subsys(&diag_net_ops);
 }
 
 module_init(sock_diag_init);

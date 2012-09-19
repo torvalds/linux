@@ -16,6 +16,7 @@
 
 static struct cpuidle_driver *cpuidle_curr_driver;
 DEFINE_SPINLOCK(cpuidle_driver_lock);
+int cpuidle_driver_refcount;
 
 static void __cpuidle_register_driver(struct cpuidle_driver *drv)
 {
@@ -89,8 +90,34 @@ void cpuidle_unregister_driver(struct cpuidle_driver *drv)
 	}
 
 	spin_lock(&cpuidle_driver_lock);
-	cpuidle_curr_driver = NULL;
+
+	if (!WARN_ON(cpuidle_driver_refcount > 0))
+		cpuidle_curr_driver = NULL;
+
 	spin_unlock(&cpuidle_driver_lock);
 }
 
 EXPORT_SYMBOL_GPL(cpuidle_unregister_driver);
+
+struct cpuidle_driver *cpuidle_driver_ref(void)
+{
+	struct cpuidle_driver *drv;
+
+	spin_lock(&cpuidle_driver_lock);
+
+	drv = cpuidle_curr_driver;
+	cpuidle_driver_refcount++;
+
+	spin_unlock(&cpuidle_driver_lock);
+	return drv;
+}
+
+void cpuidle_driver_unref(void)
+{
+	spin_lock(&cpuidle_driver_lock);
+
+	if (!WARN_ON(cpuidle_driver_refcount <= 0))
+		cpuidle_driver_refcount--;
+
+	spin_unlock(&cpuidle_driver_lock);
+}

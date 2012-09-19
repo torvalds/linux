@@ -38,8 +38,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-#include <asm/system.h>
+#include <asm/system_info.h>
 #include <mach/common.h>
+#include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
 
 #include "devices-imx27.h"
@@ -47,7 +48,7 @@
 #define TVP5150_RSTN (GPIO_PORTC + 18)
 #define TVP5150_PWDN (GPIO_PORTC + 19)
 #define OTG_PHY_CS_GPIO (GPIO_PORTF + 17)
-#define SDHC1_IRQ IRQ_GPIOB(25)
+#define SDHC1_IRQ_GPIO IMX_GPIO_NR(2, 25)
 
 #define MOTHERBOARD_BIT2	(GPIO_PORTD + 31)
 #define MOTHERBOARD_BIT1	(GPIO_PORTD + 30)
@@ -307,14 +308,14 @@ static int visstrim_m10_sdhc1_init(struct device *dev,
 {
 	int ret;
 
-	ret = request_irq(SDHC1_IRQ, detect_irq, IRQF_TRIGGER_FALLING,
-				"mmc-detect", data);
+	ret = request_irq(gpio_to_irq(SDHC1_IRQ_GPIO), detect_irq,
+			  IRQF_TRIGGER_FALLING, "mmc-detect", data);
 	return ret;
 }
 
 static void visstrim_m10_sdhc1_exit(struct device *dev, void *data)
 {
-	free_irq(SDHC1_IRQ, data);
+	free_irq(gpio_to_irq(SDHC1_IRQ_GPIO), data);
 }
 
 static const struct imxmmc_platform_data visstrim_m10_sdhc_pdata __initconst = {

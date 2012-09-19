@@ -220,14 +220,9 @@ int smk_curacc(char *obj_label, u32 mode, struct smk_audit_info *a)
 	}
 
 	/*
-	 * Return if a specific label has been designated as the
-	 * only one that gets privilege and current does not
-	 * have that label.
+	 * Allow for priviliged to override policy.
 	 */
-	if (smack_onlycap != NULL && smack_onlycap != sp)
-		goto out_audit;
-
-	if (capable(CAP_MAC_OVERRIDE))
+	if (rc != 0 && smack_privileged(CAP_MAC_OVERRIDE))
 		rc = 0;
 
 out_audit:

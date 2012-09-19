@@ -11,14 +11,15 @@ Required properties:
      <[phandle of the gpio controller node]
       [pin number within the gpio controller]
       [mux function]
-      [pull up/down]
+      [flags and pull up/down]
       [drive strength]>
 
   Values for gpio specifier:
   - Pin number: is a value between 0 to 7.
-  - Pull Up/Down: 0 - Pull Up/Down Disabled.
-                  1 - Pull Down Enabled.
-                  3 - Pull Up Enabled.
+  - Flags and Pull Up/Down: 0 - Pull Up/Down Disabled.
+                            1 - Pull Down Enabled.
+                            3 - Pull Up Enabled.
+          Bit 16 (0x00010000) - Input is active low.
   - Drive Strength: 0 - 1x,
                     1 - 3x,
                     2 - 2x,

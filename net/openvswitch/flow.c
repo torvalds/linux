@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2011 Nicira Networks.
+ * Copyright (c) 2007-2011 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -182,7 +182,8 @@ void ovs_flow_used(struct sw_flow *flow, struct sk_buff *skb)
 {
 	u8 tcp_flags = 0;
 
-	if (flow->key.eth.type == htons(ETH_P_IP) &&
+	if ((flow->key.eth.type == htons(ETH_P_IP) ||
+	     flow->key.eth.type == htons(ETH_P_IPV6)) &&
 	    flow->key.ip.proto == IPPROTO_TCP &&
 	    likely(skb->len >= skb_transport_offset(skb) + sizeof(struct tcphdr))) {
 		u8 *tcp = (u8 *)tcp_hdr(skb);

@@ -1,0 +1,21 @@
+* Marvell sdhci-pxa v2/v3 controller
+
+This file documents differences between the core properties in mmc.txt
+and the properties used by the sdhci-pxav2 and sdhci-pxav3 drivers.
+
+Required properties:
+- compatible: Should be "mrvl,pxav2-mmc" or "mrvl,pxav3-mmc".
+
+Optional properties:
+- mrvl,clk-delay-cycles: Specify a number of cycles to delay for tuning.
+
+Example:
+
+sdhci@d4280800 {
+	compatible = "mrvl,pxav3-mmc";
+	reg = <0xd4280800 0x800>;
+	bus-width = <8>;
+	interrupts = <27>;
+	non-removable;
+	mrvl,clk-delay-cycles = <31>;
+};

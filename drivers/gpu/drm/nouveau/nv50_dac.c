@@ -175,7 +175,8 @@ nv50_dac_restore(struct drm_encoder *encoder)
 }
 
 static bool
-nv50_dac_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+nv50_dac_mode_fixup(struct drm_encoder *encoder,
+		    const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);

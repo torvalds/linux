@@ -581,6 +581,8 @@ static int mc13783_probe(struct snd_soc_codec *codec)
 {
 	struct mc13783_priv *priv = snd_soc_codec_get_drvdata(codec);
 
+	codec->control_data = priv->mc13xxx;
+
 	mc13xxx_lock(priv->mc13xxx);
 
 	/* these are the reset values */

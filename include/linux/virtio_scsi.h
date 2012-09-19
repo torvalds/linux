@@ -69,6 +69,10 @@ struct virtio_scsi_config {
 	u32 max_lun;
 } __packed;
 
+/* Feature Bits */
+#define VIRTIO_SCSI_F_INOUT                    0
+#define VIRTIO_SCSI_F_HOTPLUG                  1
+
 /* Response codes */
 #define VIRTIO_SCSI_S_OK                       0
 #define VIRTIO_SCSI_S_OVERRUN                  1
@@ -104,6 +108,11 @@ struct virtio_scsi_config {
 #define VIRTIO_SCSI_T_NO_EVENT                 0
 #define VIRTIO_SCSI_T_TRANSPORT_RESET          1
 #define VIRTIO_SCSI_T_ASYNC_NOTIFY             2
+
+/* Reasons of transport reset event */
+#define VIRTIO_SCSI_EVT_RESET_HARD             0
+#define VIRTIO_SCSI_EVT_RESET_RESCAN           1
+#define VIRTIO_SCSI_EVT_RESET_REMOVED          2
 
 #define VIRTIO_SCSI_S_SIMPLE                   0
 #define VIRTIO_SCSI_S_ORDERED                  1

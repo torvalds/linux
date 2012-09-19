@@ -578,6 +578,36 @@ static int smsc95xx_ethtool_set_eeprom(struct net_device *netdev,
 	return smsc95xx_write_eeprom(dev, ee->offset, ee->len, data);
 }
 
+static int smsc95xx_ethtool_getregslen(struct net_device *netdev)
+{
+	/* all smsc95xx registers */
+	return COE_CR - ID_REV + 1;
+}
+
+static void
+smsc95xx_ethtool_getregs(struct net_device *netdev, struct ethtool_regs *regs,
+			 void *buf)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	unsigned int i, j;
+	int retval;
+	u32 *data = buf;
+
+	retval = smsc95xx_read_reg(dev, ID_REV, &regs->version);
+	if (retval < 0) {
+		netdev_warn(netdev, "REGS: cannot read ID_REV\n");
+		return;
+	}
+
+	for (i = ID_REV, j = 0; i <= COE_CR; i += (sizeof(u32)), j++) {
+		retval = smsc95xx_read_reg(dev, i, &data[j]);
+		if (retval < 0) {
+			netdev_warn(netdev, "REGS: cannot read reg[%x]\n", i);
+			return;
+		}
+	}
+}
+
 static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_link	= usbnet_get_link,
 	.nway_reset	= usbnet_nway_reset,
@@ -589,6 +619,8 @@ static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_eeprom_len	= smsc95xx_ethtool_get_eeprom_len,
 	.get_eeprom	= smsc95xx_ethtool_get_eeprom,
 	.set_eeprom	= smsc95xx_ethtool_set_eeprom,
+	.get_regs_len	= smsc95xx_ethtool_getregslen,
+	.get_regs	= smsc95xx_ethtool_getregs,
 };
 
 static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
@@ -615,7 +647,7 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 
 	/* no eeprom, or eeprom values are invalid. generate random MAC */
 	eth_hw_addr_random(dev->net);
-	netif_dbg(dev, ifup, dev->net, "MAC address set to random_ether_addr\n");
+	netif_dbg(dev, ifup, dev->net, "MAC address set to eth_random_addr\n");
 }
 
 static int smsc95xx_set_mac_address(struct usbnet *dev)
@@ -1303,6 +1335,6 @@ static struct usb_driver smsc95xx_driver = {
 module_usb_driver(smsc95xx_driver);
 
 MODULE_AUTHOR("Nancy Lin");
-MODULE_AUTHOR("Steve Glendinning <steve.glendinning@smsc.com>");
+MODULE_AUTHOR("Steve Glendinning <steve.glendinning@shawell.net>");
 MODULE_DESCRIPTION("SMSC95XX USB 2.0 Ethernet Devices");
 MODULE_LICENSE("GPL");

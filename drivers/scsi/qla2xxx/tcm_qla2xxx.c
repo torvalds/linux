@@ -38,8 +38,6 @@
 #include <linux/string.h>
 #include <linux/configfs.h>
 #include <linux/ctype.h>
-#include <linux/string.h>
-#include <linux/ctype.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -466,8 +464,7 @@ static int tcm_qla2xxx_shutdown_session(struct se_session *se_sess)
 	vha = sess->vha;
 
 	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-	sess->tearing_down = 1;
-	target_splice_sess_cmd_list(se_sess);
+	target_sess_cmd_list_set_waiting(se_sess);
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 
 	return 1;
@@ -600,28 +597,15 @@ static int tcm_qla2xxx_handle_cmd(scsi_qla_host_t *vha, struct qla_tgt_cmd *cmd,
 		return -EINVAL;
 	}
 
-	target_submit_cmd(se_cmd, se_sess, cdb, &cmd->sense_buffer[0],
+	return target_submit_cmd(se_cmd, se_sess, cdb, &cmd->sense_buffer[0],
 				cmd->unpacked_lun, data_length, fcp_task_attr,
 				data_dir, flags);
-	return 0;
 }
 
-static void tcm_qla2xxx_do_rsp(struct work_struct *work)
+static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 {
 	struct qla_tgt_cmd *cmd = container_of(work, struct qla_tgt_cmd, work);
-	/*
-	 * Dispatch ->queue_status from workqueue process context
-	 */
-	transport_generic_request_failure(&cmd->se_cmd);
-}
 
-/*
- * Called from qla_target.c:qlt_do_ctio_completion()
- */
-static int tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
-{
-	struct se_cmd *se_cmd = &cmd->se_cmd;
-	unsigned long flags;
 	/*
 	 * Ensure that the complete FCP WRITE payload has been received.
 	 * Otherwise return an exception via CHECK_CONDITION status.
@@ -631,24 +615,26 @@ static int tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
 		 * Check if se_cmd has already been aborted via LUN_RESET, and
 		 * waiting upon completion in tcm_qla2xxx_write_pending_status()
 		 */
-		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
-		if (se_cmd->transport_state & CMD_T_ABORTED) {
-			spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
-			complete(&se_cmd->t_transport_stop_comp);
-			return 0;
+		if (cmd->se_cmd.transport_state & CMD_T_ABORTED) {
+			complete(&cmd->se_cmd.t_transport_stop_comp);
+			return;
 		}
-		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 
-		se_cmd->scsi_sense_reason = TCM_CHECK_CONDITION_ABORT_CMD;
-		INIT_WORK(&cmd->work, tcm_qla2xxx_do_rsp);
-		queue_work(tcm_qla2xxx_free_wq, &cmd->work);
-		return 0;
+		cmd->se_cmd.scsi_sense_reason = TCM_CHECK_CONDITION_ABORT_CMD;
+		transport_generic_request_failure(&cmd->se_cmd);
+		return;
 	}
-	/*
-	 * We now tell TCM to queue this WRITE CDB with TRANSPORT_PROCESS_WRITE
-	 * status to the backstore processing thread.
-	 */
-	return transport_generic_handle_data(&cmd->se_cmd);
+
+	return target_execute_cmd(&cmd->se_cmd);
+}
+
+/*
+ * Called from qla_target.c:qlt_do_ctio_completion()
+ */
+static void tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
+{
+	INIT_WORK(&cmd->work, tcm_qla2xxx_handle_data_work);
+	queue_work(tcm_qla2xxx_free_wq, &cmd->work);
 }
 
 /*
@@ -1690,7 +1676,6 @@ static struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
 	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
-	.new_cmd_map			= NULL,
 	.check_stop_free		= tcm_qla2xxx_check_stop_free,
 	.release_cmd			= tcm_qla2xxx_release_cmd,
 	.put_session			= tcm_qla2xxx_put_session,

@@ -31,7 +31,6 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
-#include <mach/irqs.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
@@ -85,10 +84,6 @@ static const struct fb_videomode fb_modedb[] = {
 		.vmode		= FB_VMODE_NONINTERLACED,
 		.flag		= 0,
 	}
-};
-
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
 };
 
 static struct mx3fb_platform_data mx3fb_pdata __initdata = {
@@ -162,7 +157,7 @@ static struct i2c_board_info vpr200_i2c_devices[] = {
 	}, {
 		I2C_BOARD_INFO("mc13892", 0x08),
 		.platform_data = &vpr200_pmic,
-		.irq = IMX_GPIO_TO_IRQ(GPIO_PMIC_INT),
+		/* irq number is run-time assigned */
 	}
 };
 
@@ -272,7 +267,7 @@ static void __init vpr200_board_init(void)
 	mxc_iomux_v3_setup_multiple_pads(vpr200_pads, ARRAY_SIZE(vpr200_pads));
 
 	imx35_add_fec(NULL);
-	imx35_add_imx2_wdt(NULL);
+	imx35_add_imx2_wdt();
 	imx_add_gpio_keys(&vpr200_gpio_keys_data);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
@@ -290,7 +285,7 @@ static void __init vpr200_board_init(void)
 	imx35_add_imx_uart0(NULL);
 	imx35_add_imx_uart2(NULL);
 
-	imx35_add_ipu_core(&mx3_ipu_data);
+	imx35_add_ipu_core();
 	imx35_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	imx35_add_fsl_usb2_udc(&otg_device_pdata);
@@ -299,6 +294,7 @@ static void __init vpr200_board_init(void)
 	imx35_add_mxc_nand(&vpr200_nand_board_info);
 	imx35_add_sdhci_esdhc_imx(0, NULL);
 
+	vpr200_i2c_devices[1].irq = gpio_to_irq(GPIO_PMIC_INT);
 	i2c_register_board_info(0, vpr200_i2c_devices,
 			ARRAY_SIZE(vpr200_i2c_devices));
 

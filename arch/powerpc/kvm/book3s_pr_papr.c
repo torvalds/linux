@@ -241,6 +241,7 @@ int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 	case H_PUT_TCE:
 		return kvmppc_h_pr_put_tce(vcpu);
 	case H_CEDE:
+		vcpu->arch.shared->msr |= MSR_EE;
 		kvm_vcpu_block(vcpu);
 		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 		vcpu->stat.halt_wakeup++;

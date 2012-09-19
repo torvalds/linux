@@ -77,8 +77,8 @@ union acpi_parse_object *acpi_ps_create_scope_op(void)
  *
  * FUNCTION:    acpi_ps_init_op
  *
- * PARAMETERS:  Op              - A newly allocated Op object
- *              Opcode          - Opcode to store in the Op
+ * PARAMETERS:  op              - A newly allocated Op object
+ *              opcode          - Opcode to store in the Op
  *
  * RETURN:      None
  *
@@ -103,7 +103,7 @@ void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode)
  *
  * FUNCTION:    acpi_ps_alloc_op
  *
- * PARAMETERS:  Opcode          - Opcode that will be stored in the new Op
+ * PARAMETERS:  opcode          - Opcode that will be stored in the new Op
  *
  * RETURN:      Pointer to the new Op, null on failure
  *
@@ -160,7 +160,7 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode)
  *
  * FUNCTION:    acpi_ps_free_op
  *
- * PARAMETERS:  Op              - Op to be freed
+ * PARAMETERS:  op              - Op to be freed
  *
  * RETURN:      None.
  *

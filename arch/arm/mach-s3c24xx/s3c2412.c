@@ -39,7 +39,6 @@
 #include <plat/regs-serial.h>
 #include <mach/regs-power.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-gpioj.h>
 #include <mach/regs-dsc.h>
 #include <plat/regs-spi.h>
 #include <mach/regs-s3c2412.h>

@@ -60,7 +60,7 @@ bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 		diff = -20;
 		break;
 	default:
-		return false;
+		return true;
 	}
 
 	sec_chan = ieee80211_get_channel(wiphy, chan->center_freq + diff);
@@ -78,60 +78,75 @@ bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(cfg80211_can_beacon_sec_chan);
 
-int cfg80211_set_freq(struct cfg80211_registered_device *rdev,
-		      struct wireless_dev *wdev, int freq,
-		      enum nl80211_channel_type channel_type)
+int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
+				 int freq, enum nl80211_channel_type chantype)
 {
 	struct ieee80211_channel *chan;
-	int result;
 
-	if (wdev && wdev->iftype == NL80211_IFTYPE_MONITOR)
-		wdev = NULL;
-
-	if (wdev) {
-		ASSERT_WDEV_LOCK(wdev);
-
-		if (!netif_running(wdev->netdev))
-			return -ENETDOWN;
-	}
-
-	if (!rdev->ops->set_channel)
+	if (!rdev->ops->set_monitor_channel)
 		return -EOPNOTSUPP;
+	if (!cfg80211_has_monitors_only(rdev))
+		return -EBUSY;
 
-	chan = rdev_freq_to_chan(rdev, freq, channel_type);
+	chan = rdev_freq_to_chan(rdev, freq, chantype);
 	if (!chan)
 		return -EINVAL;
 
-	/* Both channels should be able to initiate communication */
-	if (wdev && (wdev->iftype == NL80211_IFTYPE_ADHOC ||
-		     wdev->iftype == NL80211_IFTYPE_AP ||
-		     wdev->iftype == NL80211_IFTYPE_AP_VLAN ||
-		     wdev->iftype == NL80211_IFTYPE_MESH_POINT ||
-		     wdev->iftype == NL80211_IFTYPE_P2P_GO)) {
-		switch (channel_type) {
-		case NL80211_CHAN_HT40PLUS:
-		case NL80211_CHAN_HT40MINUS:
-			if (!cfg80211_can_beacon_sec_chan(&rdev->wiphy, chan,
-							  channel_type)) {
-				printk(KERN_DEBUG
-				       "cfg80211: Secondary channel not "
-				       "allowed to initiate communication\n");
-				return -EINVAL;
-			}
-			break;
-		default:
-			break;
+	return rdev->ops->set_monitor_channel(&rdev->wiphy, chan, chantype);
+}
+
+void
+cfg80211_get_chan_state(struct wireless_dev *wdev,
+		        struct ieee80211_channel **chan,
+		        enum cfg80211_chan_mode *chanmode)
+{
+	*chan = NULL;
+	*chanmode = CHAN_MODE_UNDEFINED;
+
+	ASSERT_WDEV_LOCK(wdev);
+
+	if (!netif_running(wdev->netdev))
+		return;
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_ADHOC:
+		if (wdev->current_bss) {
+			*chan = wdev->current_bss->pub.channel;
+			*chanmode = wdev->ibss_fixed
+				  ? CHAN_MODE_SHARED
+				  : CHAN_MODE_EXCLUSIVE;
+			return;
 		}
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		if (wdev->current_bss) {
+			*chan = wdev->current_bss->pub.channel;
+			*chanmode = CHAN_MODE_SHARED;
+			return;
+		}
+		break;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		if (wdev->beacon_interval) {
+			*chan = wdev->channel;
+			*chanmode = CHAN_MODE_SHARED;
+		}
+		return;
+	case NL80211_IFTYPE_MESH_POINT:
+		if (wdev->mesh_id_len) {
+			*chan = wdev->channel;
+			*chanmode = CHAN_MODE_SHARED;
+		}
+		return;
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_WDS:
+		/* these interface types don't really have a channel */
+		return;
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NUM_NL80211_IFTYPES:
+		WARN_ON(1);
 	}
 
-	result = rdev->ops->set_channel(&rdev->wiphy,
-					wdev ? wdev->netdev : NULL,
-					chan, channel_type);
-	if (result)
-		return result;
-
-	if (wdev)
-		wdev->channel = chan;
-
-	return 0;
+	return;
 }

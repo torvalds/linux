@@ -513,21 +513,8 @@ static struct pci_driver sis630_driver = {
 	.remove		= __devexit_p(sis630_remove),
 };
 
-static int __init i2c_sis630_init(void)
-{
-	return pci_register_driver(&sis630_driver);
-}
-
-
-static void __exit i2c_sis630_exit(void)
-{
-	pci_unregister_driver(&sis630_driver);
-}
-
+module_pci_driver(sis630_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alexander Malysh <amalysh@web.de>");
 MODULE_DESCRIPTION("SIS630 SMBus driver");
-
-module_init(i2c_sis630_init);
-module_exit(i2c_sis630_exit);

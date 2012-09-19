@@ -29,6 +29,14 @@ static u16 bcm63xx_cpu_rev;
 static unsigned int bcm63xx_cpu_freq;
 static unsigned int bcm63xx_memory_size;
 
+static const unsigned long bcm6328_regs_base[] = {
+	__GEN_CPU_REGS_TABLE(6328)
+};
+
+static const int bcm6328_irqs[] = {
+	__GEN_CPU_IRQ_TABLE(6328)
+};
+
 static const unsigned long bcm6338_regs_base[] = {
 	__GEN_CPU_REGS_TABLE(6338)
 };
@@ -99,6 +107,33 @@ unsigned int bcm63xx_get_memory_size(void)
 static unsigned int detect_cpu_clock(void)
 {
 	switch (bcm63xx_get_cpu_id()) {
+	case BCM6328_CPU_ID:
+	{
+		unsigned int tmp, mips_pll_fcvo;
+
+		tmp = bcm_misc_readl(MISC_STRAPBUS_6328_REG);
+		mips_pll_fcvo = (tmp & STRAPBUS_6328_FCVO_MASK)
+				>> STRAPBUS_6328_FCVO_SHIFT;
+
+		switch (mips_pll_fcvo) {
+		case 0x12:
+		case 0x14:
+		case 0x19:
+			return 160000000;
+		case 0x1c:
+			return 192000000;
+		case 0x13:
+		case 0x15:
+			return 200000000;
+		case 0x1a:
+			return 384000000;
+		case 0x16:
+			return 400000000;
+		default:
+			return 320000000;
+		}
+
+	}
 	case BCM6338_CPU_ID:
 		/* BCM6338 has a fixed 240 Mhz frequency */
 		return 240000000;
@@ -170,6 +205,9 @@ static unsigned int detect_memory_size(void)
 	unsigned int cols = 0, rows = 0, is_32bits = 0, banks = 0;
 	u32 val;
 
+	if (BCMCPU_IS_6328())
+		return bcm_ddr_readl(DDR_CSEND_REG) << 24;
+
 	if (BCMCPU_IS_6345()) {
 		val = bcm_sdram_readl(SDRAM_MBASE_REG);
 		return (val * 8 * 1024 * 1024);
@@ -228,17 +266,26 @@ void __init bcm63xx_cpu_init(void)
 		bcm63xx_irqs = bcm6345_irqs;
 		break;
 	case CPU_BMIPS4350:
-		switch (read_c0_prid() & 0xf0) {
-		case 0x10:
+		if ((read_c0_prid() & 0xf0) == 0x10) {
 			expected_cpu_id = BCM6358_CPU_ID;
 			bcm63xx_regs_base = bcm6358_regs_base;
 			bcm63xx_irqs = bcm6358_irqs;
-			break;
-		case 0x30:
-			expected_cpu_id = BCM6368_CPU_ID;
-			bcm63xx_regs_base = bcm6368_regs_base;
-			bcm63xx_irqs = bcm6368_irqs;
-			break;
+		} else {
+			/* all newer chips have the same chip id location */
+			u16 chip_id = bcm_readw(BCM_6368_PERF_BASE);
+
+			switch (chip_id) {
+			case BCM6328_CPU_ID:
+				expected_cpu_id = BCM6328_CPU_ID;
+				bcm63xx_regs_base = bcm6328_regs_base;
+				bcm63xx_irqs = bcm6328_irqs;
+				break;
+			case BCM6368_CPU_ID:
+				expected_cpu_id = BCM6368_CPU_ID;
+				bcm63xx_regs_base = bcm6368_regs_base;
+				bcm63xx_irqs = bcm6368_irqs;
+				break;
+			}
 		}
 		break;
 	}

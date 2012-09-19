@@ -45,7 +45,7 @@ struct qnx6_inode_info {
 
 extern struct inode *qnx6_iget(struct super_block *sb, unsigned ino);
 extern struct dentry *qnx6_lookup(struct inode *dir, struct dentry *dentry,
-					struct nameidata *nd);
+					unsigned int flags);
 
 #ifdef CONFIG_QNX6FS_DEBUG
 extern void qnx6_superblock_debug(struct qnx6_super_block *,

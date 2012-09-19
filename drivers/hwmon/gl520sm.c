@@ -779,11 +779,10 @@ static int gl520_probe(struct i2c_client *client,
 	struct gl520_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct gl520_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct gl520_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -794,7 +793,7 @@ static int gl520_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &gl520_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	if (data->two_temps)
 		err = sysfs_create_group(&client->dev.kobj, &gl520_group_temp2);
@@ -816,9 +815,6 @@ exit_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &gl520_group);
 	sysfs_remove_group(&client->dev.kobj, &gl520_group_in4);
 	sysfs_remove_group(&client->dev.kobj, &gl520_group_temp2);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -870,7 +866,6 @@ static int gl520_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &gl520_group_in4);
 	sysfs_remove_group(&client->dev.kobj, &gl520_group_temp2);
 
-	kfree(data);
 	return 0;
 }
 

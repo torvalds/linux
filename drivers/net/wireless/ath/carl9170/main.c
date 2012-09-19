@@ -949,6 +949,9 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 	if (ar->fw.rx_filter && changed_flags & ar->rx_filter_caps) {
 		u32 rx_filter = 0;
 
+		if (!ar->fw.ba_filter)
+			rx_filter |= CARL9170_RX_FILTER_CTL_OTHER;
+
 		if (!(*new_flags & (FIF_FCSFAIL | FIF_PLCPFAIL)))
 			rx_filter |= CARL9170_RX_FILTER_BAD;
 
@@ -1753,6 +1756,9 @@ void *carl9170_alloc(size_t priv_size)
 	for (i = 0; i < ar->hw->queues; i++) {
 		skb_queue_head_init(&ar->tx_status[i]);
 		skb_queue_head_init(&ar->tx_pending[i]);
+
+		INIT_LIST_HEAD(&ar->bar_list[i]);
+		spin_lock_init(&ar->bar_list_lock[i]);
 	}
 	INIT_WORK(&ar->ps_work, carl9170_ps_work);
 	INIT_WORK(&ar->ping_work, carl9170_ping_work);

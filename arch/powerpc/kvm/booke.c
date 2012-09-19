@@ -612,6 +612,12 @@ static void kvmppc_fill_pt_regs(struct pt_regs *regs)
 	regs->link = lr;
 }
 
+/*
+ * For interrupts needed to be handled by host interrupt handlers,
+ * corresponding host handler are called from here in similar way
+ * (but not exact) as they are called from low level handler
+ * (such as from arch/powerpc/kernel/head_fsl_booke.S).
+ */
 static void kvmppc_restart_interrupt(struct kvm_vcpu *vcpu,
 				     unsigned int exit_nr)
 {
@@ -638,6 +644,17 @@ static void kvmppc_restart_interrupt(struct kvm_vcpu *vcpu,
 	case BOOKE_INTERRUPT_PERFORMANCE_MONITOR:
 		kvmppc_fill_pt_regs(&regs);
 		performance_monitor_exception(&regs);
+		break;
+	case BOOKE_INTERRUPT_WATCHDOG:
+		kvmppc_fill_pt_regs(&regs);
+#ifdef CONFIG_BOOKE_WDT
+		WatchdogException(&regs);
+#else
+		unknown_exception(&regs);
+#endif
+		break;
+	case BOOKE_INTERRUPT_CRITICAL:
+		unknown_exception(&regs);
 		break;
 	}
 }
@@ -680,6 +697,10 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	case BOOKE_INTERRUPT_DECREMENTER:
 		kvmppc_account_exit(vcpu, DEC_EXITS);
+		r = RESUME_GUEST;
+		break;
+
+	case BOOKE_INTERRUPT_WATCHDOG:
 		r = RESUME_GUEST;
 		break;
 
@@ -1266,6 +1287,11 @@ void kvmppc_clr_tsr_bits(struct kvm_vcpu *vcpu, u32 tsr_bits)
 void kvmppc_decrementer_func(unsigned long data)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
+
+	if (vcpu->arch.tcr & TCR_ARE) {
+		vcpu->arch.dec = vcpu->arch.decar;
+		kvmppc_emulate_dec(vcpu);
+	}
 
 	kvmppc_set_tsr_bits(vcpu, TSR_DIS);
 }

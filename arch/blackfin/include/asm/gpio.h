@@ -141,6 +141,8 @@ static inline void bfin_pm_standby_restore(void)
 
 void bfin_gpio_pm_hibernate_restore(void);
 void bfin_gpio_pm_hibernate_suspend(void);
+void bfin_pint_suspend(void);
+void bfin_pint_resume(void);
 
 # if !BFIN_GPIO_PINT
 int gpio_pm_wakeup_ctrl(unsigned gpio, unsigned ctrl);

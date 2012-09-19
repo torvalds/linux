@@ -118,7 +118,7 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->clk);
 	}
 
-	clk_enable(priv->clk);
+	clk_prepare_enable(priv->clk);
 
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
@@ -162,7 +162,7 @@ static int __devinit pata_imx_probe(struct platform_device *pdev)
 				&pata_imx_sht);
 
 free_priv:
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 	clk_put(priv->clk);
 	return -ENOMEM;
 }
@@ -176,7 +176,7 @@ static int __devexit pata_imx_remove(struct platform_device *pdev)
 
 	__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
 
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 	clk_put(priv->clk);
 
 	return 0;
@@ -194,7 +194,7 @@ static int pata_imx_suspend(struct device *dev)
 		__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
 		priv->ata_ctl =
 			__raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
-		clk_disable(priv->clk);
+		clk_disable_unprepare(priv->clk);
 	}
 
 	return ret;
@@ -205,7 +205,7 @@ static int pata_imx_resume(struct device *dev)
 	struct ata_host *host = dev_get_drvdata(dev);
 	struct pata_imx_priv *priv = host->private_data;
 
-	clk_enable(priv->clk);
+	clk_prepare_enable(priv->clk);
 
 	__raw_writel(priv->ata_ctl, priv->host_regs + PATA_IMX_ATA_CONTROL);
 

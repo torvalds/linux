@@ -1,0 +1,50 @@
+/*
+ * Device Tree file for Marvell Armada XP evaluation board
+ * (DB-78460-BP)
+ *
+ * Copyright (C) 2012 Marvell
+ *
+ * Lior Amsalem <alior@marvell.com>
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "armada-xp.dtsi"
+
+/ {
+	model = "Marvell Armada XP Evaluation Board";
+	compatible = "marvell,axp-db", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000>; /* 2 GB */
+	};
+
+	soc {
+		serial@d0012000 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+		serial@d0012100 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+		serial@d0012200 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+		serial@d0012300 {
+			clock-frequency = <250000000>;
+			status = "okay";
+		};
+	};
+};

@@ -58,10 +58,14 @@ static void show_pte(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 
-	if (mm)
+	if (mm) {
 		pgd = mm->pgd;
-	else
+	} else {
 		pgd = get_TTB();
+
+		if (unlikely(!pgd))
+			pgd = swapper_pg_dir;
+	}
 
 	printk(KERN_ALERT "pgd = %p\n", pgd);
 	pgd += pgd_index(addr);

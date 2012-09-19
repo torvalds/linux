@@ -179,19 +179,20 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	old = *parent;
 	*parent = return_hooker;
 
+	trace.func = self_addr;
+	trace.depth = current->curr_ret_stack + 1;
+
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
+		*parent = old;
+		return;
+	}
+
 	err = ftrace_push_return_trace(old, self_addr, &trace.depth,
 				       frame_pointer);
 	if (err == -EBUSY) {
 		*parent = old;
 		return;
-	}
-
-	trace.func = self_addr;
-
-	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace)) {
-		current->curr_ret_stack--;
-		*parent = old;
 	}
 }
 

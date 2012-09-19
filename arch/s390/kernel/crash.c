@@ -1,7 +1,5 @@
 /*
- * arch/s390/kernel/crash.c
- *
- * (C) Copyright IBM Corp. 2005
+ * Copyright IBM Corp. 2005
  *
  * Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  *

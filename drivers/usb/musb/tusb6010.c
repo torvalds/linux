@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/prefetch.h>
 #include <linux/usb.h>
@@ -1078,8 +1079,8 @@ static int tusb_musb_init(struct musb *musb)
 	int			ret;
 
 	usb_nop_xceiv_register();
-	musb->xceiv = usb_get_transceiver();
-	if (!musb->xceiv)
+	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
+	if (IS_ERR_OR_NULL(musb->xceiv))
 		return -ENODEV;
 
 	pdev = to_platform_device(musb->controller);
@@ -1130,7 +1131,7 @@ done:
 		if (sync)
 			iounmap(sync);
 
-		usb_put_transceiver(musb->xceiv);
+		usb_put_phy(musb->xceiv);
 		usb_nop_xceiv_unregister();
 	}
 	return ret;
@@ -1146,7 +1147,7 @@ static int tusb_musb_exit(struct musb *musb)
 
 	iounmap(musb->sync_va);
 
-	usb_put_transceiver(musb->xceiv);
+	usb_put_phy(musb->xceiv);
 	usb_nop_xceiv_unregister();
 	return 0;
 }

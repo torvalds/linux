@@ -14,7 +14,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -1217,11 +1216,11 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 		return -ENOMEM;
 	cs42l52->dev = &i2c_client->dev;
 
-	cs42l52->regmap = regmap_init_i2c(i2c_client, &cs42l52_regmap);
+	cs42l52->regmap = devm_regmap_init_i2c(i2c_client, &cs42l52_regmap);
 	if (IS_ERR(cs42l52->regmap)) {
 		ret = PTR_ERR(cs42l52->regmap);
 		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	i2c_set_clientdata(i2c_client, cs42l52);
@@ -1243,7 +1242,7 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev,
 			"CS42L52 Device ID (%X). Expected %X\n",
 			devid, CS42L52_CHIP_ID);
-		goto err_regmap;
+		return ret;
 	}
 
 	regcache_cache_only(cs42l52->regmap, true);
@@ -1251,23 +1250,13 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_dev_cs42l52, &cs42l52_dai, 1);
 	if (ret < 0)
-		goto err_regmap;
+		return ret;
 	return 0;
-
-err_regmap:
-	regmap_exit(cs42l52->regmap);
-
-err:
-	return ret;
 }
 
 static int cs42l52_i2c_remove(struct i2c_client *client)
 {
-	struct cs42l52_private *cs42l52 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regmap_exit(cs42l52->regmap);
-
 	return 0;
 }
 

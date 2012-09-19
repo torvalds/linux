@@ -37,12 +37,12 @@
 #include <plat/board-ams-delta.h>
 #include <plat/keypad.h>
 #include <plat/mux.h>
-#include <plat/usb.h>
 #include <plat/board.h>
 
 #include <mach/hardware.h>
 #include <mach/ams-delta-fiq.h>
 #include <mach/camera.h>
+#include <mach/usb.h>
 
 #include "iomap.h"
 #include "common.h"

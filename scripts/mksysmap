@@ -16,7 +16,7 @@
 #   The second row specify the type of the symbol:
 #   A = Absolute
 #   B = Uninitialised data (.bss)
-#   C = Comon symbol
+#   C = Common symbol
 #   D = Initialised data
 #   G = Initialised data for small objects
 #   I = Indirect reference to another symbol

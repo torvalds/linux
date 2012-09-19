@@ -59,17 +59,6 @@ struct dnp_board {
 	int have_dio;
 };
 
-/* Useful for shorthand access to the particular board structure ----------- */
-#define thisboard ((const struct dnp_board *)dev->board_ptr)
-
-/* This structure is for data unique to the DNP driver --------------------- */
-struct dnp_private_data {
-
-};
-
-/* Shorthand macro for faster access to the private data ------------------- */
-#define devpriv ((dnp_private *)dev->private)
-
 /* ------------------------------------------------------------------------- */
 /* The insn_bits interface allows packed reading/writing of DIO channels.    */
 /* The comedi core can convert between insn_bits and insn_read/write, so you */
@@ -80,10 +69,6 @@ static int dnp_dio_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-
-	if (insn->n != 2)
-		return -EINVAL;	/* insn uses data[0] and data[1]     */
-
 	/* The insn data is a mask in data[0] and the new data in data[1],   */
 	/* each channel cooresponding to a bit.                              */
 
@@ -117,7 +102,7 @@ static int dnp_dio_insn_bits(struct comedi_device *dev,
 	outb(PCDR, CSCIR);
 	data[0] += ((inb(CSCDR) & 0xF0) << 12);
 
-	return 2;
+	return insn->n;
 
 }
 
@@ -188,29 +173,17 @@ static int dnp_dio_insn_config(struct comedi_device *dev,
 
 static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct dnp_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
+	int ret;
 
 	printk(KERN_INFO "comedi%d: dnp: ", dev->minor);
 
-	/* Autoprobing: this should find out which board we have. Currently  */
-	/* only the 1486 board is supported and autoprobing is not           */
-	/* implemented :-)                                                   */
-	/* dev->board_ptr = dnp_probe(dev); */
+	dev->board_name = board->name;
 
-	/* Initialize the name of the board.                                 */
-	/* We can use the "thisboard" macro now.                             */
-	dev->board_name = thisboard->name;
-
-	/* Allocate the private structure area. alloc_private() is a         */
-	/* convenient macro defined in comedidev.h.                          */
-	if (alloc_private(dev, sizeof(struct dnp_private_data)) < 0)
-		return -ENOMEM;
-
-	/* Allocate the subdevice structures. alloc_subdevice() is a         */
-	/* convenient macro defined in comedidev.h.                          */
-
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* digital i/o subdevice                                             */

@@ -108,12 +108,14 @@ void *ibnl_put_msg(struct sk_buff *skb, struct nlmsghdr **nlh, int seq,
 	unsigned char *prev_tail;
 
 	prev_tail = skb_tail_pointer(skb);
-	*nlh = NLMSG_NEW(skb, 0, seq, RDMA_NL_GET_TYPE(client, op),
-			len, NLM_F_MULTI);
+	*nlh = nlmsg_put(skb, 0, seq, RDMA_NL_GET_TYPE(client, op),
+			 len, NLM_F_MULTI);
+	if (!*nlh)
+		goto out_nlmsg_trim;
 	(*nlh)->nlmsg_len = skb_tail_pointer(skb) - prev_tail;
-	return NLMSG_DATA(*nlh);
+	return nlmsg_data(*nlh);
 
-nlmsg_failure:
+out_nlmsg_trim:
 	nlmsg_trim(skb, prev_tail);
 	return NULL;
 }
@@ -171,8 +173,11 @@ static void ibnl_rcv(struct sk_buff *skb)
 
 int __init ibnl_init(void)
 {
-	nls = netlink_kernel_create(&init_net, NETLINK_RDMA, 0, ibnl_rcv,
-				    NULL, THIS_MODULE);
+	struct netlink_kernel_cfg cfg = {
+		.input	= ibnl_rcv,
+	};
+
+	nls = netlink_kernel_create(&init_net, NETLINK_RDMA, THIS_MODULE, &cfg);
 	if (!nls) {
 		pr_warn("Failed to create netlink socket\n");
 		return -ENOMEM;

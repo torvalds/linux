@@ -84,17 +84,22 @@ struct gfs2_rgrpd {
 	u32 rd_data;			/* num of data blocks in rgrp */
 	u32 rd_bitbytes;		/* number of bytes in data bitmaps */
 	u32 rd_free;
+	u32 rd_reserved;                /* number of blocks reserved */
 	u32 rd_free_clone;
 	u32 rd_dinodes;
 	u64 rd_igeneration;
 	struct gfs2_bitmap *rd_bits;
 	struct gfs2_sbd *rd_sbd;
+	struct gfs2_rgrp_lvb *rd_rgl;
 	u32 rd_last_alloc;
 	u32 rd_flags;
 #define GFS2_RDF_CHECK		0x10000000 /* check for unlinked inodes */
 #define GFS2_RDF_UPTODATE	0x20000000 /* rg is up to date */
 #define GFS2_RDF_ERROR		0x40000000 /* error in rg */
 #define GFS2_RDF_MASK		0xf0000000 /* mask for internal flags */
+	spinlock_t rd_rsspin;           /* protects reservation related vars */
+	struct rb_root rd_rstree;       /* multi-block reservation tree */
+	u32 rd_rs_cnt;                  /* count of current reservations */
 };
 
 enum gfs2_state_bits {
@@ -232,6 +237,38 @@ struct gfs2_holder {
 	unsigned long gh_ip;
 };
 
+/* Resource group multi-block reservation, in order of appearance:
+
+   Step 1. Function prepares to write, allocates a mb, sets the size hint.
+   Step 2. User calls inplace_reserve to target an rgrp, sets the rgrp info
+   Step 3. Function get_local_rgrp locks the rgrp, determines which bits to use
+   Step 4. Bits are assigned from the rgrp based on either the reservation
+           or wherever it can.
+*/
+
+struct gfs2_blkreserv {
+	/* components used during write (step 1): */
+	atomic_t rs_sizehint;         /* hint of the write size */
+
+	/* components used during inplace_reserve (step 2): */
+	u32 rs_requested; /* Filled in by caller of gfs2_inplace_reserve() */
+
+	/* components used during get_local_rgrp (step 3): */
+	struct gfs2_rgrpd *rs_rgd;    /* pointer to the gfs2_rgrpd */
+	struct gfs2_holder rs_rgd_gh; /* Filled in by get_local_rgrp */
+	struct rb_node rs_node;       /* link to other block reservations */
+
+	/* components used during block searches and assignments (step 4): */
+	struct gfs2_bitmap *rs_bi;    /* bitmap for the current allocation */
+	u32 rs_biblk;                 /* start block relative to the bi */
+	u32 rs_free;                  /* how many blocks are still free */
+
+	/* ancillary quota stuff */
+	struct gfs2_quota_data *rs_qa_qd[2 * MAXQUOTAS];
+	struct gfs2_holder rs_qa_qd_ghs[2 * MAXQUOTAS];
+	unsigned int rs_qa_qd_num;
+};
+
 enum {
 	GLF_LOCK			= 1,
 	GLF_DEMOTE			= 3,
@@ -289,25 +326,12 @@ struct gfs2_glock {
 
 #define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
 
-struct gfs2_qadata { /* quota allocation data */
-	/* Quota stuff */
-	struct gfs2_quota_data *qa_qd[2*MAXQUOTAS];
-	struct gfs2_holder qa_qd_ghs[2*MAXQUOTAS];
-	unsigned int qa_qd_num;
-};
-
-struct gfs2_blkreserv {
-	u32 rs_requested; /* Filled in by caller of gfs2_inplace_reserve() */
-	struct gfs2_holder rs_rgd_gh; /* Filled in by gfs2_inplace_reserve() */
-};
-
 enum {
 	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
 	GIF_ALLOC_FAILED	= 2,
 	GIF_SW_PAGED		= 3,
 };
-
 
 struct gfs2_inode {
 	struct inode i_inode;
@@ -319,8 +343,7 @@ struct gfs2_inode {
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
-	struct gfs2_qadata *i_qadata; /* quota allocation data */
-	struct gfs2_blkreserv *i_res; /* resource group block reservation */
+	struct gfs2_blkreserv *i_res; /* rgrp multi-block reservation */
 	struct gfs2_rgrpd *i_rgd;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
@@ -473,6 +496,7 @@ struct gfs2_args {
 	unsigned int ar_discard:1;		/* discard requests */
 	unsigned int ar_errors:2;               /* errors=withdraw | panic */
 	unsigned int ar_nobarrier:1;            /* do not send barriers */
+	unsigned int ar_rgrplvb:1;		/* use lvbs for rgrp info */
 	int ar_commit;				/* Commit interval */
 	int ar_statfs_quantum;			/* The fast statfs interval */
 	int ar_quota_quantum;			/* The quota interval */

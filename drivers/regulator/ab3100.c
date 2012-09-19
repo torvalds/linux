@@ -43,20 +43,12 @@
  * @dev: handle to the device
  * @plfdata: AB3100 platform data passed in at probe time
  * @regreg: regulator register number in the AB3100
- * @fixed_voltage: a fixed voltage for this regulator, if this
- *          0 the voltages array is used instead.
- * @typ_voltages: an array of available typical voltages for
- *          this regulator
- * @voltages_len: length of the array of available voltages
  */
 struct ab3100_regulator {
 	struct regulator_dev *rdev;
 	struct device *dev;
 	struct ab3100_platform_data *plfdata;
 	u8 regreg;
-	int fixed_voltage;
-	int const *typ_voltages;
-	u8 voltages_len;
 };
 
 /* The order in which registers are initialized */
@@ -80,7 +72,7 @@ static const u8 ab3100_reg_init_order[AB3100_NUM_REGULATORS+2] = {
 #define LDO_C_VOLTAGE 2650000
 #define LDO_D_VOLTAGE 2650000
 
-static const int ldo_e_buck_typ_voltages[] = {
+static const unsigned int ldo_e_buck_typ_voltages[] = {
 	1800000,
 	1400000,
 	1300000,
@@ -90,7 +82,7 @@ static const int ldo_e_buck_typ_voltages[] = {
 	900000,
 };
 
-static const int ldo_f_typ_voltages[] = {
+static const unsigned int ldo_f_typ_voltages[] = {
 	1800000,
 	1400000,
 	1300000,
@@ -101,21 +93,21 @@ static const int ldo_f_typ_voltages[] = {
 	2650000,
 };
 
-static const int ldo_g_typ_voltages[] = {
+static const unsigned int ldo_g_typ_voltages[] = {
 	2850000,
 	2750000,
 	1800000,
 	1500000,
 };
 
-static const int ldo_h_typ_voltages[] = {
+static const unsigned int ldo_h_typ_voltages[] = {
 	2750000,
 	1800000,
 	1500000,
 	1200000,
 };
 
-static const int ldo_k_typ_voltages[] = {
+static const unsigned int ldo_k_typ_voltages[] = {
 	2750000,
 	1800000,
 };
@@ -126,40 +118,27 @@ static struct ab3100_regulator
 ab3100_regulators[AB3100_NUM_REGULATORS] = {
 	{
 		.regreg = AB3100_LDO_A,
-		.fixed_voltage = LDO_A_VOLTAGE,
 	},
 	{
 		.regreg = AB3100_LDO_C,
-		.fixed_voltage = LDO_C_VOLTAGE,
 	},
 	{
 		.regreg = AB3100_LDO_D,
-		.fixed_voltage = LDO_D_VOLTAGE,
 	},
 	{
 		.regreg = AB3100_LDO_E,
-		.typ_voltages = ldo_e_buck_typ_voltages,
-		.voltages_len = ARRAY_SIZE(ldo_e_buck_typ_voltages),
 	},
 	{
 		.regreg = AB3100_LDO_F,
-		.typ_voltages = ldo_f_typ_voltages,
-		.voltages_len = ARRAY_SIZE(ldo_f_typ_voltages),
 	},
 	{
 		.regreg = AB3100_LDO_G,
-		.typ_voltages = ldo_g_typ_voltages,
-		.voltages_len = ARRAY_SIZE(ldo_g_typ_voltages),
 	},
 	{
 		.regreg = AB3100_LDO_H,
-		.typ_voltages = ldo_h_typ_voltages,
-		.voltages_len = ARRAY_SIZE(ldo_h_typ_voltages),
 	},
 	{
 		.regreg = AB3100_LDO_K,
-		.typ_voltages = ldo_k_typ_voltages,
-		.voltages_len = ARRAY_SIZE(ldo_k_typ_voltages),
 	},
 	{
 		.regreg = AB3100_LDO_EXT,
@@ -167,8 +146,6 @@ ab3100_regulators[AB3100_NUM_REGULATORS] = {
 	},
 	{
 		.regreg = AB3100_BUCK,
-		.typ_voltages = ldo_e_buck_typ_voltages,
-		.voltages_len = ARRAY_SIZE(ldo_e_buck_typ_voltages),
 	},
 };
 
@@ -178,7 +155,7 @@ ab3100_regulators[AB3100_NUM_REGULATORS] = {
  */
 static int ab3100_enable_regulator(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	int err;
 	u8 regval;
 
@@ -209,7 +186,7 @@ static int ab3100_enable_regulator(struct regulator_dev *reg)
 
 static int ab3100_disable_regulator(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	int err;
 	u8 regval;
 
@@ -242,7 +219,7 @@ static int ab3100_disable_regulator(struct regulator_dev *reg)
 
 static int ab3100_is_enabled_regulator(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	u8 regval;
 	int err;
 
@@ -257,25 +234,11 @@ static int ab3100_is_enabled_regulator(struct regulator_dev *reg)
 	return regval & AB3100_REG_ON_MASK;
 }
 
-static int ab3100_list_voltage_regulator(struct regulator_dev *reg,
-					 unsigned selector)
-{
-	struct ab3100_regulator *abreg = reg->reg_data;
-
-	if (selector >= abreg->voltages_len)
-		return -EINVAL;
-	return abreg->typ_voltages[selector];
-}
-
 static int ab3100_get_voltage_regulator(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	u8 regval;
 	int err;
-
-	/* Return the voltage for fixed regulators immediately */
-	if (abreg->fixed_voltage)
-		return abreg->fixed_voltage;
 
 	/*
 	 * For variable types, read out setting and index into
@@ -294,20 +257,20 @@ static int ab3100_get_voltage_regulator(struct regulator_dev *reg)
 	regval &= 0xE0;
 	regval >>= 5;
 
-	if (regval >= abreg->voltages_len) {
+	if (regval >= reg->desc->n_voltages) {
 		dev_err(&reg->dev,
 			"regulator register %02x contains an illegal voltage setting\n",
 			abreg->regreg);
 		return -EINVAL;
 	}
 
-	return abreg->typ_voltages[regval];
+	return reg->desc->volt_table[regval];
 }
 
 static int ab3100_set_voltage_regulator_sel(struct regulator_dev *reg,
 					    unsigned selector)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	u8 regval;
 	int err;
 
@@ -336,7 +299,7 @@ static int ab3100_set_voltage_regulator_sel(struct regulator_dev *reg,
 static int ab3100_set_suspend_voltage_regulator(struct regulator_dev *reg,
 						int uV)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 	u8 regval;
 	int err;
 	int bestindex;
@@ -379,42 +342,22 @@ static int ab3100_set_suspend_voltage_regulator(struct regulator_dev *reg,
  */
 static int ab3100_get_voltage_regulator_external(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
+	struct ab3100_regulator *abreg = rdev_get_drvdata(reg);
 
 	return abreg->plfdata->external_voltage;
 }
 
-static int ab3100_enable_time_regulator(struct regulator_dev *reg)
+static int ab3100_get_fixed_voltage_regulator(struct regulator_dev *reg)
 {
-	struct ab3100_regulator *abreg = reg->reg_data;
-
-	/* Per-regulator power on delay from spec */
-	switch (abreg->regreg) {
-	case AB3100_LDO_A: /* Fallthrough */
-	case AB3100_LDO_C: /* Fallthrough */
-	case AB3100_LDO_D: /* Fallthrough */
-	case AB3100_LDO_E: /* Fallthrough */
-	case AB3100_LDO_H: /* Fallthrough */
-	case AB3100_LDO_K:
-		return 200;
-	case AB3100_LDO_F:
-		return 600;
-	case AB3100_LDO_G:
-		return 400;
-	case AB3100_BUCK:
-		return 1000;
-	default:
-		break;
-	}
-	return 0;
+	return reg->desc->min_uV;
 }
 
 static struct regulator_ops regulator_ops_fixed = {
+	.list_voltage = regulator_list_voltage_linear,
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
-	.get_voltage = ab3100_get_voltage_regulator,
-	.enable_time = ab3100_enable_time_regulator,
+	.get_voltage = ab3100_get_fixed_voltage_regulator,
 };
 
 static struct regulator_ops regulator_ops_variable = {
@@ -423,8 +366,7 @@ static struct regulator_ops regulator_ops_variable = {
 	.is_enabled  = ab3100_is_enabled_regulator,
 	.get_voltage = ab3100_get_voltage_regulator,
 	.set_voltage_sel = ab3100_set_voltage_regulator_sel,
-	.list_voltage = ab3100_list_voltage_regulator,
-	.enable_time = ab3100_enable_time_regulator,
+	.list_voltage = regulator_list_voltage_table,
 };
 
 static struct regulator_ops regulator_ops_variable_sleepable = {
@@ -434,8 +376,7 @@ static struct regulator_ops regulator_ops_variable_sleepable = {
 	.get_voltage = ab3100_get_voltage_regulator,
 	.set_voltage_sel = ab3100_set_voltage_regulator_sel,
 	.set_suspend_voltage = ab3100_set_suspend_voltage_regulator,
-	.list_voltage = ab3100_list_voltage_regulator,
-	.enable_time = ab3100_enable_time_regulator,
+	.list_voltage = regulator_list_voltage_table,
 };
 
 /*
@@ -457,62 +398,81 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.name = "LDO_A",
 		.id   = AB3100_LDO_A,
 		.ops  = &regulator_ops_fixed,
+		.n_voltages = 1,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.min_uV = LDO_A_VOLTAGE,
+		.enable_time = 200,
 	},
 	{
 		.name = "LDO_C",
 		.id   = AB3100_LDO_C,
 		.ops  = &regulator_ops_fixed,
+		.n_voltages = 1,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.min_uV = LDO_C_VOLTAGE,
+		.enable_time = 200,
 	},
 	{
 		.name = "LDO_D",
 		.id   = AB3100_LDO_D,
 		.ops  = &regulator_ops_fixed,
+		.n_voltages = 1,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.min_uV = LDO_D_VOLTAGE,
+		.enable_time = 200,
 	},
 	{
 		.name = "LDO_E",
 		.id   = AB3100_LDO_E,
 		.ops  = &regulator_ops_variable_sleepable,
 		.n_voltages = ARRAY_SIZE(ldo_e_buck_typ_voltages),
+		.volt_table = ldo_e_buck_typ_voltages,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.enable_time = 200,
 	},
 	{
 		.name = "LDO_F",
 		.id   = AB3100_LDO_F,
 		.ops  = &regulator_ops_variable,
 		.n_voltages = ARRAY_SIZE(ldo_f_typ_voltages),
+		.volt_table = ldo_f_typ_voltages,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.enable_time = 600,
 	},
 	{
 		.name = "LDO_G",
 		.id   = AB3100_LDO_G,
 		.ops  = &regulator_ops_variable,
 		.n_voltages = ARRAY_SIZE(ldo_g_typ_voltages),
+		.volt_table = ldo_g_typ_voltages,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.enable_time = 400,
 	},
 	{
 		.name = "LDO_H",
 		.id   = AB3100_LDO_H,
 		.ops  = &regulator_ops_variable,
 		.n_voltages = ARRAY_SIZE(ldo_h_typ_voltages),
+		.volt_table = ldo_h_typ_voltages,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.enable_time = 200,
 	},
 	{
 		.name = "LDO_K",
 		.id   = AB3100_LDO_K,
 		.ops  = &regulator_ops_variable,
 		.n_voltages = ARRAY_SIZE(ldo_k_typ_voltages),
+		.volt_table = ldo_k_typ_voltages,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.enable_time = 200,
 	},
 	{
 		.name = "LDO_EXT",
@@ -526,8 +486,10 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.id   = AB3100_BUCK,
 		.ops  = &regulator_ops_variable_sleepable,
 		.n_voltages = ARRAY_SIZE(ldo_e_buck_typ_voltages),
+		.volt_table = ldo_e_buck_typ_voltages,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
+		.enable_time = 1000,
 	},
 };
 

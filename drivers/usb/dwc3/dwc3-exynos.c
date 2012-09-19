@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/dwc3-exynos.h>
 #include <linux/dma-mapping.h>
-#include <linux/module.h>
 #include <linux/clk.h>
 
 #include "core.h"

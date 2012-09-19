@@ -871,7 +871,7 @@ static const struct net_device_ops esd_usb2_netdev_ops = {
 	.ndo_start_xmit = esd_usb2_start_xmit,
 };
 
-static struct can_bittiming_const esd_usb2_bittiming_const = {
+static const struct can_bittiming_const esd_usb2_bittiming_const = {
 	.name = "esd_usb2",
 	.tseg1_min = ESD_USB2_TSEG1_MIN,
 	.tseg1_max = ESD_USB2_TSEG1_MAX,

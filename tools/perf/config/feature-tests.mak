@@ -78,6 +78,19 @@ int main(int argc, char *argv[])
         return 0;
 }
 endef
+
+define SOURCE_GTK2_INFOBAR
+#pragma GCC diagnostic ignored \"-Wstrict-prototypes\"
+#include <gtk/gtk.h>
+#pragma GCC diagnostic error \"-Wstrict-prototypes\"
+
+int main(void)
+{
+	gtk_info_bar_new();
+
+	return 0;
+}
+endef
 endif
 
 ifndef NO_LIBPERL

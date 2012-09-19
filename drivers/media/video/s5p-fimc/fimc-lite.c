@@ -451,34 +451,44 @@ static void fimc_lite_clear_event_counters(struct fimc_lite *fimc)
 static int fimc_lite_open(struct file *file)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
-	int ret = v4l2_fh_open(file);
+	int ret;
 
-	if (ret)
-		return ret;
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
 
 	set_bit(ST_FLITE_IN_USE, &fimc->state);
-	pm_runtime_get_sync(&fimc->pdev->dev);
+	ret = pm_runtime_get_sync(&fimc->pdev->dev);
+	if (ret < 0)
+		goto done;
 
-	if (++fimc->ref_count != 1 || fimc->out_path != FIMC_IO_DMA)
-		return ret;
+	ret = v4l2_fh_open(file);
+	if (ret < 0)
+		goto done;
 
-	ret = fimc_pipeline_initialize(&fimc->pipeline, &fimc->vfd->entity,
-				       true);
-	if (ret < 0) {
-		v4l2_err(fimc->vfd, "Video pipeline initialization failed\n");
-		pm_runtime_put_sync(&fimc->pdev->dev);
-		fimc->ref_count--;
-		v4l2_fh_release(file);
-		clear_bit(ST_FLITE_IN_USE, &fimc->state);
+	if (++fimc->ref_count == 1 && fimc->out_path == FIMC_IO_DMA) {
+		ret = fimc_pipeline_initialize(&fimc->pipeline,
+					       &fimc->vfd->entity, true);
+		if (ret < 0) {
+			pm_runtime_put_sync(&fimc->pdev->dev);
+			fimc->ref_count--;
+			v4l2_fh_release(file);
+			clear_bit(ST_FLITE_IN_USE, &fimc->state);
+		}
+
+		fimc_lite_clear_event_counters(fimc);
 	}
-
-	fimc_lite_clear_event_counters(fimc);
+done:
+	mutex_unlock(&fimc->lock);
 	return ret;
 }
 
 static int fimc_lite_close(struct file *file)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
+	int ret;
+
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
 
 	if (--fimc->ref_count == 0 && fimc->out_path == FIMC_IO_DMA) {
 		clear_bit(ST_FLITE_IN_USE, &fimc->state);
@@ -492,20 +502,39 @@ static int fimc_lite_close(struct file *file)
 	if (fimc->ref_count == 0)
 		vb2_queue_release(&fimc->vb_queue);
 
-	return v4l2_fh_release(file);
+	ret = v4l2_fh_release(file);
+
+	mutex_unlock(&fimc->lock);
+	return ret;
 }
 
 static unsigned int fimc_lite_poll(struct file *file,
 				   struct poll_table_struct *wait)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
-	return vb2_poll(&fimc->vb_queue, file, wait);
+	int ret;
+
+	if (mutex_lock_interruptible(&fimc->lock))
+		return POLL_ERR;
+
+	ret = vb2_poll(&fimc->vb_queue, file, wait);
+	mutex_unlock(&fimc->lock);
+
+	return ret;
 }
 
 static int fimc_lite_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct fimc_lite *fimc = video_drvdata(file);
-	return vb2_mmap(&fimc->vb_queue, vma);
+	int ret;
+
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
+
+	ret = vb2_mmap(&fimc->vb_queue, vma);
+	mutex_unlock(&fimc->lock);
+
+	return ret;
 }
 
 static const struct v4l2_file_operations fimc_lite_fops = {
@@ -762,7 +791,9 @@ static int fimc_lite_streamon(struct file *file, void *priv,
 	if (fimc_lite_active(fimc))
 		return -EBUSY;
 
-	media_entity_pipeline_start(&sensor->entity, p->m_pipeline);
+	ret = media_entity_pipeline_start(&sensor->entity, p->m_pipeline);
+	if (ret < 0)
+		return ret;
 
 	ret = fimc_pipeline_validate(fimc);
 	if (ret) {
@@ -871,7 +902,7 @@ static int fimc_lite_g_selection(struct file *file, void *fh,
 		sel->r.height = f->f_height;
 		return 0;
 
-	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+	case V4L2_SEL_TGT_COMPOSE:
 		sel->r = f->rect;
 		return 0;
 	}
@@ -888,7 +919,7 @@ static int fimc_lite_s_selection(struct file *file, void *fh,
 	unsigned long flags;
 
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ||
-	    sel->target != V4L2_SEL_TGT_COMPOSE_ACTIVE)
+	    sel->target != V4L2_SEL_TGT_COMPOSE)
 		return -EINVAL;
 
 	fimc_lite_try_compose(fimc, &rect);
@@ -1086,9 +1117,9 @@ static int fimc_lite_subdev_get_selection(struct v4l2_subdev *sd,
 	struct fimc_lite *fimc = v4l2_get_subdevdata(sd);
 	struct flite_frame *f = &fimc->inp_frame;
 
-	if ((sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL &&
-	     sel->target != V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS) ||
-	    sel->pad != FLITE_SD_PAD_SINK)
+	if ((sel->target != V4L2_SEL_TGT_CROP &&
+	     sel->target != V4L2_SEL_TGT_CROP_BOUNDS) ||
+	     sel->pad != FLITE_SD_PAD_SINK)
 		return -EINVAL;
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -1097,7 +1128,7 @@ static int fimc_lite_subdev_get_selection(struct v4l2_subdev *sd,
 	}
 
 	mutex_lock(&fimc->lock);
-	if (sel->target == V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL) {
+	if (sel->target == V4L2_SEL_TGT_CROP) {
 		sel->r = f->rect;
 	} else {
 		sel->r.left = 0;
@@ -1122,8 +1153,7 @@ static int fimc_lite_subdev_set_selection(struct v4l2_subdev *sd,
 	struct flite_frame *f = &fimc->inp_frame;
 	int ret = 0;
 
-	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL ||
-	    sel->pad != FLITE_SD_PAD_SINK)
+	if (sel->target != V4L2_SEL_TGT_CROP || sel->pad != FLITE_SD_PAD_SINK)
 		return -EINVAL;
 
 	mutex_lock(&fimc->lock);
@@ -1508,7 +1538,7 @@ static int fimc_lite_suspend(struct device *dev)
 		return 0;
 
 	ret = fimc_lite_stop_capture(fimc, suspend);
-	if (ret)
+	if (ret < 0 || !fimc_lite_active(fimc))
 		return ret;
 
 	return fimc_pipeline_shutdown(&fimc->pipeline);

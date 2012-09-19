@@ -94,7 +94,7 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  *
  * FUNCTION:    acpi_ns_repair_object
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              expected_btypes     - Object types expected
  *              package_index       - Index of object within parent package (if
  *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
@@ -470,7 +470,7 @@ acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
  *
  * FUNCTION:    acpi_ns_repair_null_element
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              expected_btypes     - Object types expected
  *              package_index       - Index of object within parent package (if
  *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
@@ -509,17 +509,17 @@ acpi_ns_repair_null_element(struct acpi_predefined_data *data,
 	 */
 	if (expected_btypes & ACPI_RTYPE_INTEGER) {
 
-		/* Need an Integer - create a zero-value integer */
+		/* Need an integer - create a zero-value integer */
 
 		new_object = acpi_ut_create_integer_object((u64)0);
 	} else if (expected_btypes & ACPI_RTYPE_STRING) {
 
-		/* Need a String - create a NULL string */
+		/* Need a string - create a NULL string */
 
 		new_object = acpi_ut_create_string_object(0);
 	} else if (expected_btypes & ACPI_RTYPE_BUFFER) {
 
-		/* Need a Buffer - create a zero-length buffer */
+		/* Need a buffer - create a zero-length buffer */
 
 		new_object = acpi_ut_create_buffer_object(0);
 	} else {
@@ -552,7 +552,7 @@ acpi_ns_repair_null_element(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_remove_null_elements
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              package_type        - An acpi_return_package_types value
  *              obj_desc            - A Package object
  *
@@ -635,7 +635,7 @@ acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_wrap_with_package
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              original_object     - Pointer to the object to repair.
  *              obj_desc_ptr        - The new package object is returned here
  *

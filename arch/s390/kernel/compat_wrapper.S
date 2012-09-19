@@ -1,8 +1,7 @@
 /*
-*  arch/s390/kernel/compat_wrapper.S
 *    wrapper for 31 bit compatible system calls.
 *
-*    Copyright (C) IBM Corp. 2000,2006
+*    Copyright IBM Corp. 2000, 2006
 *    Author(s): Gerhard Tonn (ton@de.ibm.com),
 *		Thomas Spatzier (tspat@de.ibm.com)
 */
@@ -1636,7 +1635,7 @@ ENTRY(compat_sys_process_vm_readv_wrapper)
 	llgfr	%r6,%r6			# unsigned long
 	llgf	%r0,164(%r15)		# unsigned long
 	stg	%r0,160(%r15)
-	jg	sys_process_vm_readv
+	jg	compat_sys_process_vm_readv
 
 ENTRY(compat_sys_process_vm_writev_wrapper)
 	lgfr	%r2,%r2			# compat_pid_t
@@ -1646,4 +1645,4 @@ ENTRY(compat_sys_process_vm_writev_wrapper)
 	llgfr	%r6,%r6			# unsigned long
 	llgf	%r0,164(%r15)		# unsigned long
 	stg	%r0,160(%r15)
-	jg	sys_process_vm_writev
+	jg	compat_sys_process_vm_writev

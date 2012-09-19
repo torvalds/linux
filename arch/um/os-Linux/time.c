@@ -87,7 +87,7 @@ static int after_sleep_interval(struct timespec *ts)
 
 static void deliver_alarm(void)
 {
-	alarm_handler(SIGVTALRM, NULL);
+	alarm_handler(SIGVTALRM, NULL, NULL);
 }
 
 static unsigned long long sleep_time(unsigned long long nsecs)
@@ -114,7 +114,7 @@ static void deliver_alarm(void)
 	skew += this_tick - last_tick;
 
 	while (skew >= one_tick) {
-		alarm_handler(SIGVTALRM, NULL);
+		alarm_handler(SIGVTALRM, NULL, NULL);
 		skew -= one_tick;
 	}
 

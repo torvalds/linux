@@ -1007,6 +1007,9 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 	drvr->bus_if->drvr = drvr;
 	drvr->dev = dev;
 
+	/* create device debugfs folder */
+	brcmf_debugfs_attach(drvr);
+
 	/* Attach and link in the protocol */
 	ret = brcmf_proto_attach(drvr);
 	if (ret != 0) {
@@ -1016,6 +1019,8 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 
 	INIT_WORK(&drvr->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&drvr->multicast_work, _brcmf_set_multicast_list);
+
+	INIT_LIST_HEAD(&drvr->bus_if->dcmd_list);
 
 	return ret;
 
@@ -1123,6 +1128,7 @@ void brcmf_detach(struct device *dev)
 		brcmf_proto_detach(drvr);
 	}
 
+	brcmf_debugfs_detach(drvr);
 	bus_if->drvr = NULL;
 	kfree(drvr);
 }
@@ -1182,7 +1188,7 @@ exit:
 	kfree(buf);
 	/* close file before return */
 	if (fp)
-		filp_close(fp, current->files);
+		filp_close(fp, NULL);
 	/* restore previous address limit */
 	set_fs(old_fs);
 
@@ -1192,6 +1198,8 @@ exit:
 
 static void brcmf_driver_init(struct work_struct *work)
 {
+	brcmf_debugfs_init();
+
 #ifdef CONFIG_BRCMFMAC_SDIO
 	brcmf_sdio_init();
 #endif
@@ -1219,6 +1227,7 @@ static void __exit brcmfmac_module_exit(void)
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_exit();
 #endif
+	brcmf_debugfs_exit();
 }
 
 module_init(brcmfmac_module_init);

@@ -35,6 +35,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/cpu.h>
 
 #include "generic.h"
@@ -93,6 +94,7 @@ MACHINE_START(KAFA, "Sperry-Sun KAFA")
 	/* Maintainer: Sergei Sharonov */
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= kafa_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= kafa_board_init,

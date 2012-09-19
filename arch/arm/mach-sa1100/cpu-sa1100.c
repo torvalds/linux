@@ -87,6 +87,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/io.h>
 
 #include <asm/cputype.h>
 

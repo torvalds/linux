@@ -23,6 +23,15 @@ config FSL_85XX_CACHE_SRAM
 	  cache-sram-size and cache-sram-offset kernel boot
 	  parameters should be passed when this option is enabled.
 
+config BSC9131_RDB
+	bool "Freescale BSC9131RDB"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Freescale BSC9131RDB board.
+	  The BSC9131 is a heterogeneous SoC containing an e500v2 powerpc and a
+	  StarCore SC3850 DSP
+	  Manufacturer : Freescale Semiconductor, Inc
+
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
 	select DEFAULT_UIMAGE
@@ -175,12 +184,6 @@ config SBC8548
 	help
 	  This option enables support for the Wind River SBC8548 board
 
-config SBC8560
-	bool "Wind River SBC8560"
-	select DEFAULT_UIMAGE
-	help
-	  This option enables support for the Wind River SBC8560 board
-
 config GE_IMP3A
 	bool "GE Intelligent Platforms IMP3A"
 	select DEFAULT_UIMAGE
@@ -222,18 +225,6 @@ config P3041_DS
 	help
 	  This option enables support for the P3041 DS board
 
-config P3060_QDS
-	bool "Freescale P3060 QDS"
-	select DEFAULT_UIMAGE
-	select PPC_E500MC
-	select PHYS_64BIT
-	select SWIOTLB
-	select GPIO_MPC8XXX
-	select HAS_RAPIDIO
-	select PPC_EPAPR_HV_PIC
-	help
-	  This option enables support for the P3060 QDS board
-
 config P4080_DS
 	bool "Freescale P4080 DS"
 	select DEFAULT_UIMAGE
@@ -262,6 +253,22 @@ config P5020_DS
 	select PPC_EPAPR_HV_PIC
 	help
 	  This option enables support for the P5020 DS board
+
+config PPC_QEMU_E500
+	bool "QEMU generic e500 platform"
+	depends on EXPERIMENTAL
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for running as a QEMU guest using
+	  QEMU's generic e500 machine.  This is not required if you're
+	  using a QEMU machine that targets a specific board, such as
+	  mpc8544ds.
+
+	  Unlike most e500 boards that target a specific CPU, this
+	  platform works with any e500-family CPU that QEMU supports.
+	  Thus, you'll need to make sure CONFIG_PPC_E500MC is set or
+	  unset based on the emulated CPU (or actual host CPU in the case
+	  of KVM).
 
 endif # FSL_SOC_BOOKE
 

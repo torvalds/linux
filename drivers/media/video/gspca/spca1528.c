@@ -33,100 +33,9 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	u8 brightness;
-	u8 contrast;
-	u8 hue;
-	u8 color;
-	u8 sharpness;
-
 	u8 pkt_seq;
 
 	u8 jpeg_hdr[JPEG_HDR_SZ];
-};
-
-/* V4L2 controls supported by the driver */
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_sethue(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_gethue(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setcolor(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getcolor(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
-
-static const struct ctrl sd_ctrls[] = {
-	{
-	    {
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
-#define BRIGHTNESS_DEF 128
-		.default_value = BRIGHTNESS_DEF,
-	    },
-	    .set = sd_setbrightness,
-	    .get = sd_getbrightness,
-	},
-	{
-	    {
-		.id      = V4L2_CID_CONTRAST,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Contrast",
-		.minimum = 0,
-		.maximum = 8,
-		.step    = 1,
-#define CONTRAST_DEF 1
-		.default_value = CONTRAST_DEF,
-	    },
-	    .set = sd_setcontrast,
-	    .get = sd_getcontrast,
-	},
-	{
-	    {
-		.id      = V4L2_CID_HUE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Hue",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
-#define HUE_DEF 0
-		.default_value = HUE_DEF,
-	    },
-	    .set = sd_sethue,
-	    .get = sd_gethue,
-	},
-	{
-	    {
-		.id      = V4L2_CID_SATURATION,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Saturation",
-		.minimum = 0,
-		.maximum = 8,
-		.step    = 1,
-#define COLOR_DEF 1
-		.default_value = COLOR_DEF,
-	    },
-	    .set = sd_setcolor,
-	    .get = sd_getcolor,
-	},
-	{
-	    {
-		.id	 = V4L2_CID_SHARPNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Sharpness",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
-#define SHARPNESS_DEF 0
-		.default_value = SHARPNESS_DEF,
-	    },
-	    .set = sd_setsharpness,
-	    .get = sd_getsharpness,
-	},
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
@@ -259,57 +168,39 @@ static void wait_status_1(struct gspca_dev *gspca_dev)
 	gspca_dev->usb_err = -ETIME;
 }
 
-static void setbrightness(struct gspca_dev *gspca_dev)
+static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	reg_wb(gspca_dev, 0xc0, 0x0000, 0x00c0, sd->brightness);
+	reg_wb(gspca_dev, 0xc0, 0x0000, 0x00c0, val);
 }
 
-static void setcontrast(struct gspca_dev *gspca_dev)
+static void setcontrast(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	reg_wb(gspca_dev, 0xc1, 0x0000, 0x00c1, sd->contrast);
+	reg_wb(gspca_dev, 0xc1, 0x0000, 0x00c1, val);
 }
 
-static void sethue(struct gspca_dev *gspca_dev)
+static void sethue(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	reg_wb(gspca_dev, 0xc2, 0x0000, 0x0000, sd->hue);
+	reg_wb(gspca_dev, 0xc2, 0x0000, 0x0000, val);
 }
 
-static void setcolor(struct gspca_dev *gspca_dev)
+static void setcolor(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	reg_wb(gspca_dev, 0xc3, 0x0000, 0x00c3, sd->color);
+	reg_wb(gspca_dev, 0xc3, 0x0000, 0x00c3, val);
 }
 
-static void setsharpness(struct gspca_dev *gspca_dev)
+static void setsharpness(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	reg_wb(gspca_dev, 0xc4, 0x0000, 0x00c4, sd->sharpness);
+	reg_wb(gspca_dev, 0xc4, 0x0000, 0x00c4, val);
 }
 
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
 	gspca_dev->cam.npkt = 128; /* number of packets per ISOC message */
 			/*fixme: 256 in ms-win traces*/
-
-	sd->brightness = BRIGHTNESS_DEF;
-	sd->contrast = CONTRAST_DEF;
-	sd->hue = HUE_DEF;
-	sd->color = COLOR_DEF;
-	sd->sharpness = SHARPNESS_DEF;
 
 	return 0;
 }
@@ -370,14 +261,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* the JPEG quality shall be 85% */
 	jpeg_set_qual(sd->jpeg_hdr, 85);
 
-	/* set the controls */
-	setbrightness(gspca_dev);
-	setcontrast(gspca_dev);
-	sethue(gspca_dev);
-	setcolor(gspca_dev);
-	setsharpness(gspca_dev);
-
-	msleep(5);
 	reg_r(gspca_dev, 0x00, 0x2520, 1);
 	msleep(8);
 
@@ -457,103 +340,70 @@ err:
 	gspca_dev->last_packet_type = DISCARD_PACKET;
 }
 
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
 
-	sd->brightness = val;
-	if (gspca_dev->streaming)
-		setbrightness(gspca_dev);
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		setbrightness(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		setcontrast(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_HUE:
+		sethue(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_SATURATION:
+		setcolor(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_SHARPNESS:
+		setsharpness(gspca_dev, ctrl->val);
+		break;
+	}
 	return gspca_dev->usb_err;
 }
 
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 
-	*val = sd->brightness;
-	return 0;
-}
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 5);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 8, 1, 1);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_HUE, 0, 255, 1, 0);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 8, 1, 1);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0, 255, 1, 0);
 
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->contrast = val;
-	if (gspca_dev->streaming)
-		setcontrast(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->contrast;
-	return 0;
-}
-
-static int sd_sethue(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->hue = val;
-	if (gspca_dev->streaming)
-		sethue(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-static int sd_gethue(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->hue;
-	return 0;
-}
-
-static int sd_setcolor(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->color = val;
-	if (gspca_dev->streaming)
-		setcolor(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-static int sd_getcolor(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->color;
-	return 0;
-}
-
-static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->sharpness = val;
-	if (gspca_dev->streaming)
-		setsharpness(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->sharpness;
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
 	return 0;
 }
 
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
@@ -587,6 +437,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

@@ -1,9 +1,7 @@
 /*
- *  include/asm-s390/debug.h
  *   S/390 debug facility
  *
- *    Copyright (C) 1999, 2000 IBM Deutschland Entwicklung GmbH,
- *                             IBM Corporation
+ *    Copyright IBM Corp. 1999, 2000
  */
 
 #ifndef DEBUG_H

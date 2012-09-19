@@ -57,7 +57,7 @@ static const unsigned short normal_i2c[] = {
 #define JC42_CFG_EVENT_LOCK	(1 << 7)
 #define JC42_CFG_SHUTDOWN	(1 << 8)
 #define JC42_CFG_HYST_SHIFT	9
-#define JC42_CFG_HYST_MASK	0x03
+#define JC42_CFG_HYST_MASK	(0x03 << 9)
 
 /* Capabilities */
 #define JC42_CAP_RANGE		(1 << 2)
@@ -287,8 +287,8 @@ static ssize_t show_temp_crit_hyst(struct device *dev,
 		return PTR_ERR(data);
 
 	temp = jc42_temp_from_reg(data->temp_crit);
-	hyst = jc42_hysteresis[(data->config >> JC42_CFG_HYST_SHIFT)
-			       & JC42_CFG_HYST_MASK];
+	hyst = jc42_hysteresis[(data->config & JC42_CFG_HYST_MASK)
+			       >> JC42_CFG_HYST_SHIFT];
 	return sprintf(buf, "%d\n", temp - hyst);
 }
 
@@ -302,8 +302,8 @@ static ssize_t show_temp_max_hyst(struct device *dev,
 		return PTR_ERR(data);
 
 	temp = jc42_temp_from_reg(data->temp_max);
-	hyst = jc42_hysteresis[(data->config >> JC42_CFG_HYST_SHIFT)
-			       & JC42_CFG_HYST_MASK];
+	hyst = jc42_hysteresis[(data->config & JC42_CFG_HYST_MASK)
+			       >> JC42_CFG_HYST_SHIFT];
 	return sprintf(buf, "%d\n", temp - hyst);
 }
 
@@ -362,8 +362,7 @@ static ssize_t set_temp_crit_hyst(struct device *dev,
 	}
 
 	mutex_lock(&data->update_lock);
-	data->config = (data->config
-			& ~(JC42_CFG_HYST_MASK << JC42_CFG_HYST_SHIFT))
+	data->config = (data->config & ~JC42_CFG_HYST_MASK)
 	  | (hyst << JC42_CFG_HYST_SHIFT);
 	err = i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG,
 					   data->config);
@@ -535,9 +534,16 @@ static int jc42_remove(struct i2c_client *client)
 	struct jc42_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &jc42_group);
-	if (data->config != data->orig_config)
-		i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG,
-					     data->orig_config);
+
+	/* Restore original configuration except hysteresis */
+	if ((data->config & ~JC42_CFG_HYST_MASK) !=
+	    (data->orig_config & ~JC42_CFG_HYST_MASK)) {
+		int config;
+
+		config = (data->orig_config & ~JC42_CFG_HYST_MASK)
+		  | (data->config & JC42_CFG_HYST_MASK);
+		i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG, config);
+	}
 	return 0;
 }
 

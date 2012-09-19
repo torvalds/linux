@@ -183,7 +183,8 @@ int qla4xxx_flash_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 int qla4xxx_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		       struct ddb_entry *ddb_entry, uint32_t state);
 void qla4xxx_build_ddb_list(struct scsi_qla_host *ha, int is_reset);
-int qla4xxx_post_aen_work(struct scsi_qla_host *ha, uint32_t aen_code,
+int qla4xxx_post_aen_work(struct scsi_qla_host *ha,
+			  enum iscsi_host_event_code aen_code,
 			  uint32_t data_size, uint8_t *data);
 int qla4xxx_ping_iocb(struct scsi_qla_host *ha, uint32_t options,
 		      uint32_t payload_size, uint32_t pid, uint8_t *ipaddr);

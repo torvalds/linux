@@ -153,7 +153,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 non-contiguous 2-planar, Y/CbCr",
+		.name		= "YUV 4:2:0 non-contig. 2p, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV12M,
 		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 4 },
@@ -161,7 +161,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 non-contiguous 3-planar, Y/Cb/Cr",
+		.name		= "YUV 4:2:0 non-contig. 3p, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV420M,
 		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 2, 2 },
@@ -169,7 +169,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 3,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "YUV 4:2:0 non-contiguous 2-planar, Y/CbCr, tiled",
+		.name		= "YUV 4:2:0 non-contig. 2p, tiled",
 		.fourcc		= V4L2_PIX_FMT_NV12MT,
 		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 4 },
@@ -463,7 +463,7 @@ void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
 	    f->fmt->color, f->dma_offset.y_h, f->dma_offset.y_v);
 }
 
-int fimc_set_color_effect(struct fimc_ctx *ctx, enum v4l2_colorfx colorfx)
+static int fimc_set_color_effect(struct fimc_ctx *ctx, enum v4l2_colorfx colorfx)
 {
 	struct fimc_effect *effect = &ctx->effect;
 
@@ -641,7 +641,7 @@ void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active)
 	if (!ctrls->ready)
 		return;
 
-	mutex_lock(&ctrls->handler.lock);
+	mutex_lock(ctrls->handler.lock);
 	v4l2_ctrl_activate(ctrls->rotate, active);
 	v4l2_ctrl_activate(ctrls->hflip, active);
 	v4l2_ctrl_activate(ctrls->vflip, active);
@@ -660,7 +660,7 @@ void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active)
 		ctx->hflip    = 0;
 		ctx->vflip    = 0;
 	}
-	mutex_unlock(&ctrls->handler.lock);
+	mutex_unlock(ctrls->handler.lock);
 }
 
 /* Update maximum value of the alpha color control */
@@ -741,8 +741,8 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 	pix->width = width;
 
 	for (i = 0; i < pix->num_planes; ++i) {
-		u32 bpl = pix->plane_fmt[i].bytesperline;
-		u32 *sizeimage = &pix->plane_fmt[i].sizeimage;
+		struct v4l2_plane_pix_format *plane_fmt = &pix->plane_fmt[i];
+		u32 bpl = plane_fmt->bytesperline;
 
 		if (fmt->colplanes > 1 && (bpl == 0 || bpl < pix->width))
 			bpl = pix->width; /* Planar */
@@ -754,8 +754,9 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 		if (i == 0) /* Same bytesperline for each plane. */
 			bytesperline = bpl;
 
-		pix->plane_fmt[i].bytesperline = bytesperline;
-		*sizeimage = (pix->width * pix->height * fmt->depth[i]) / 8;
+		plane_fmt->bytesperline = bytesperline;
+		plane_fmt->sizeimage = max((pix->width * pix->height *
+				   fmt->depth[i]) / 8, plane_fmt->sizeimage);
 	}
 }
 

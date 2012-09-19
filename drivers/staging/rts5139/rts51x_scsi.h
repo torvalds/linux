@@ -73,7 +73,7 @@
 #define GET_BATCHRSP		0x44
 
 #ifdef SUPPORT_CPRM
-/* SD Pass Through Command Extention */
+/* SD Pass Through Command Extension */
 #define SD_PASS_THRU_MODE	0xD0
 #define SD_EXECUTE_NO_DATA	0xD1
 #define SD_EXECUTE_READ		0xD2

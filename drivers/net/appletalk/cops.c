@@ -936,7 +936,7 @@ static int cops_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
         struct cops_local *lp = netdev_priv(dev);
         struct sockaddr_at *sa = (struct sockaddr_at *)&ifr->ifr_addr;
-        struct atalk_addr *aa = (struct atalk_addr *)&lp->node_addr;
+        struct atalk_addr *aa = &lp->node_addr;
 
         switch(cmd)
         {
@@ -996,9 +996,7 @@ static int __init cops_module_init(void)
 		printk(KERN_WARNING "%s: You shouldn't autoprobe with insmod\n",
 			cardname);
 	cops_dev = cops_probe(-1);
-	if (IS_ERR(cops_dev))
-		return PTR_ERR(cops_dev);
-        return 0;
+	return PTR_RET(cops_dev);
 }
 
 static void __exit cops_module_exit(void)

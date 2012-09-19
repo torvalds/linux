@@ -349,6 +349,11 @@ void st_int_recv(void *disc_data,
 			st_gdata->rx_skb = alloc_skb(
 					st_gdata->list[type]->max_frame_size,
 					GFP_ATOMIC);
+			if (st_gdata->rx_skb == NULL) {
+				pr_err("out of memory: dropping\n");
+				goto done;
+			}
+
 			skb_reserve(st_gdata->rx_skb,
 					st_gdata->list[type]->reserve);
 			/* next 2 required for BT only */

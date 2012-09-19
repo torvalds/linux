@@ -11,7 +11,7 @@
 #include <linux/gpio.h>
 
 #include <mach/iomux-mx28.h>
-#include "../devices-mx28.h"
+#include "devices-mx28.h"
 
 #include "module-tx28.h"
 

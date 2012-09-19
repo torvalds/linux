@@ -8,15 +8,22 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define DEBUG
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
+#include <plat/gpio.h>
 
 /*
  * GPIO unit register offsets.
@@ -38,6 +45,7 @@ struct orion_gpio_chip {
 	unsigned long		valid_output;
 	int			mask_offset;
 	int			secondary_irq_base;
+	struct irq_domain       *domain;
 };
 
 static void __iomem *GPIO_OUT(struct orion_gpio_chip *ochip)
@@ -222,9 +230,9 @@ static int orion_gpio_to_irq(struct gpio_chip *chip, unsigned pin)
 	struct orion_gpio_chip *ochip =
 		container_of(chip, struct orion_gpio_chip, chip);
 
-	return ochip->secondary_irq_base + pin;
+	return irq_create_mapping(ochip->domain,
+				  ochip->secondary_irq_base + pin);
 }
-
 
 /*
  * Orion-specific GPIO API extensions.
@@ -353,12 +361,10 @@ static int gpio_irq_set_type(struct irq_data *d, u32 type)
 	int pin;
 	u32 u;
 
-	pin = d->irq - gc->irq_base;
+	pin = d->hwirq - ochip->secondary_irq_base;
 
 	u = readl(GPIO_IO_CONF(ochip)) & (1 << pin);
 	if (!u) {
-		printk(KERN_ERR "orion gpio_irq_set_type failed "
-				"(irq %d, pin %d).\n", d->irq, pin);
 		return -EINVAL;
 	}
 
@@ -397,85 +403,15 @@ static int gpio_irq_set_type(struct irq_data *d, u32 type)
 			u &= ~(1 << pin);	/* rising */
 		writel(u, GPIO_IN_POL(ochip));
 	}
-
 	return 0;
 }
 
-void __init orion_gpio_init(int gpio_base, int ngpio,
-			    u32 base, int mask_offset, int secondary_irq_base)
+static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct orion_gpio_chip *ochip;
-	struct irq_chip_generic *gc;
-	struct irq_chip_type *ct;
-	char gc_label[16];
-
-	if (orion_gpio_chip_count == ARRAY_SIZE(orion_gpio_chips))
-		return;
-
-	snprintf(gc_label, sizeof(gc_label), "orion_gpio%d",
-		orion_gpio_chip_count);
-
-	ochip = orion_gpio_chips + orion_gpio_chip_count;
-	ochip->chip.label = kstrdup(gc_label, GFP_KERNEL);
-	ochip->chip.request = orion_gpio_request;
-	ochip->chip.direction_input = orion_gpio_direction_input;
-	ochip->chip.get = orion_gpio_get;
-	ochip->chip.direction_output = orion_gpio_direction_output;
-	ochip->chip.set = orion_gpio_set;
-	ochip->chip.to_irq = orion_gpio_to_irq;
-	ochip->chip.base = gpio_base;
-	ochip->chip.ngpio = ngpio;
-	ochip->chip.can_sleep = 0;
-	spin_lock_init(&ochip->lock);
-	ochip->base = (void __iomem *)base;
-	ochip->valid_input = 0;
-	ochip->valid_output = 0;
-	ochip->mask_offset = mask_offset;
-	ochip->secondary_irq_base = secondary_irq_base;
-
-	gpiochip_add(&ochip->chip);
-
-	orion_gpio_chip_count++;
-
-	/*
-	 * Mask and clear GPIO interrupts.
-	 */
-	writel(0, GPIO_EDGE_CAUSE(ochip));
-	writel(0, GPIO_EDGE_MASK(ochip));
-	writel(0, GPIO_LEVEL_MASK(ochip));
-
-	gc = irq_alloc_generic_chip("orion_gpio_irq", 2, secondary_irq_base,
-				    ochip->base, handle_level_irq);
-	gc->private = ochip;
-
-	ct = gc->chip_types;
-	ct->regs.mask = ochip->mask_offset + GPIO_LEVEL_MASK_OFF;
-	ct->type = IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW;
-	ct->chip.irq_mask = irq_gc_mask_clr_bit;
-	ct->chip.irq_unmask = irq_gc_mask_set_bit;
-	ct->chip.irq_set_type = gpio_irq_set_type;
-
-	ct++;
-	ct->regs.mask = ochip->mask_offset + GPIO_EDGE_MASK_OFF;
-	ct->regs.ack = GPIO_EDGE_CAUSE_OFF;
-	ct->type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
-	ct->chip.irq_ack = irq_gc_ack_clr_bit;
-	ct->chip.irq_mask = irq_gc_mask_clr_bit;
-	ct->chip.irq_unmask = irq_gc_mask_set_bit;
-	ct->chip.irq_set_type = gpio_irq_set_type;
-	ct->handler = handle_edge_irq;
-
-	irq_setup_generic_chip(gc, IRQ_MSK(ngpio), IRQ_GC_INIT_MASK_CACHE,
-			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
-}
-
-void orion_gpio_irq_handler(int pinoff)
-{
-	struct orion_gpio_chip *ochip;
+	struct orion_gpio_chip *ochip = irq_get_handler_data(irq);
 	u32 cause, type;
 	int i;
 
-	ochip = orion_gpio_chip_find(pinoff);
 	if (ochip == NULL)
 		return;
 
@@ -502,3 +438,151 @@ void orion_gpio_irq_handler(int pinoff)
 		generic_handle_irq(irq);
 	}
 }
+
+void __init orion_gpio_init(struct device_node *np,
+			    int gpio_base, int ngpio,
+			    void __iomem *base, int mask_offset,
+			    int secondary_irq_base,
+			    int irqs[4])
+{
+	struct orion_gpio_chip *ochip;
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
+	char gc_label[16];
+	int i;
+
+	if (orion_gpio_chip_count == ARRAY_SIZE(orion_gpio_chips))
+		return;
+
+	snprintf(gc_label, sizeof(gc_label), "orion_gpio%d",
+		orion_gpio_chip_count);
+
+	ochip = orion_gpio_chips + orion_gpio_chip_count;
+	ochip->chip.label = kstrdup(gc_label, GFP_KERNEL);
+	ochip->chip.request = orion_gpio_request;
+	ochip->chip.direction_input = orion_gpio_direction_input;
+	ochip->chip.get = orion_gpio_get;
+	ochip->chip.direction_output = orion_gpio_direction_output;
+	ochip->chip.set = orion_gpio_set;
+	ochip->chip.to_irq = orion_gpio_to_irq;
+	ochip->chip.base = gpio_base;
+	ochip->chip.ngpio = ngpio;
+	ochip->chip.can_sleep = 0;
+#ifdef CONFIG_OF
+	ochip->chip.of_node = np;
+#endif
+
+	spin_lock_init(&ochip->lock);
+	ochip->base = (void __iomem *)base;
+	ochip->valid_input = 0;
+	ochip->valid_output = 0;
+	ochip->mask_offset = mask_offset;
+	ochip->secondary_irq_base = secondary_irq_base;
+
+	gpiochip_add(&ochip->chip);
+
+	/*
+	 * Mask and clear GPIO interrupts.
+	 */
+	writel(0, GPIO_EDGE_CAUSE(ochip));
+	writel(0, GPIO_EDGE_MASK(ochip));
+	writel(0, GPIO_LEVEL_MASK(ochip));
+
+	/* Setup the interrupt handlers. Each chip can have up to 4
+	 * interrupt handlers, with each handler dealing with 8 GPIO
+	 * pins. */
+
+	for (i = 0; i < 4; i++) {
+		if (irqs[i]) {
+			irq_set_handler_data(irqs[i], ochip);
+			irq_set_chained_handler(irqs[i], gpio_irq_handler);
+		}
+	}
+
+	gc = irq_alloc_generic_chip("orion_gpio_irq", 2,
+				    secondary_irq_base,
+				    ochip->base, handle_level_irq);
+	gc->private = ochip;
+	ct = gc->chip_types;
+	ct->regs.mask = ochip->mask_offset + GPIO_LEVEL_MASK_OFF;
+	ct->type = IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW;
+	ct->chip.irq_mask = irq_gc_mask_clr_bit;
+	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_set_type = gpio_irq_set_type;
+	ct->chip.name = ochip->chip.label;
+
+	ct++;
+	ct->regs.mask = ochip->mask_offset + GPIO_EDGE_MASK_OFF;
+	ct->regs.ack = GPIO_EDGE_CAUSE_OFF;
+	ct->type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
+	ct->chip.irq_ack = irq_gc_ack_clr_bit;
+	ct->chip.irq_mask = irq_gc_mask_clr_bit;
+	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_set_type = gpio_irq_set_type;
+	ct->handler = handle_edge_irq;
+	ct->chip.name = ochip->chip.label;
+
+	irq_setup_generic_chip(gc, IRQ_MSK(ngpio), IRQ_GC_INIT_MASK_CACHE,
+			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
+
+	/* Setup irq domain on top of the generic chip. */
+	ochip->domain = irq_domain_add_legacy(np,
+					      ochip->chip.ngpio,
+					      ochip->secondary_irq_base,
+					      ochip->secondary_irq_base,
+					      &irq_domain_simple_ops,
+					      ochip);
+	if (!ochip->domain)
+		panic("%s: couldn't allocate irq domain (DT).\n",
+		      ochip->chip.label);
+
+	orion_gpio_chip_count++;
+}
+
+#ifdef CONFIG_OF
+static void __init orion_gpio_of_init_one(struct device_node *np,
+					  int irq_gpio_base)
+{
+	int ngpio, gpio_base, mask_offset;
+	void __iomem *base;
+	int ret, i;
+	int irqs[4];
+	int secondary_irq_base;
+
+	ret = of_property_read_u32(np, "ngpio", &ngpio);
+	if (ret)
+		goto out;
+	ret = of_property_read_u32(np, "mask-offset", &mask_offset);
+	if (ret == -EINVAL)
+		mask_offset = 0;
+	else
+		goto out;
+	base = of_iomap(np, 0);
+	if (!base)
+		goto out;
+
+	secondary_irq_base = irq_gpio_base + (32 * orion_gpio_chip_count);
+	gpio_base = 32 * orion_gpio_chip_count;
+
+	/* Get the interrupt numbers. Each chip can have up to 4
+	 * interrupt handlers, with each handler dealing with 8 GPIO
+	 * pins. */
+
+	for (i = 0; i < 4; i++)
+		irqs[i] = irq_of_parse_and_map(np, i);
+
+	orion_gpio_init(np, gpio_base, ngpio, base, mask_offset,
+			secondary_irq_base, irqs);
+	return;
+out:
+	pr_err("%s: %s: missing mandatory property\n", __func__, np->name);
+}
+
+void __init orion_gpio_of_init(int irq_gpio_base)
+{
+	struct device_node *np;
+
+	for_each_compatible_node(np, NULL, "marvell,orion-gpio")
+		orion_gpio_of_init_one(np, irq_gpio_base);
+}
+#endif

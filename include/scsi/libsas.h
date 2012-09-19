@@ -163,20 +163,29 @@ enum ata_command_set {
         ATAPI_COMMAND_SET = 1,
 };
 
+#define ATA_RESP_FIS_SIZE 24
+
 struct sata_device {
         enum   ata_command_set command_set;
         struct smp_resp        rps_resp; /* report_phy_sata_resp */
         u8     port_no;        /* port number, if this is a PM (Port) */
-        struct list_head children; /* PM Ports if this is a PM */
 
 	struct ata_port *ap;
 	struct ata_host ata_host;
-	struct ata_taskfile tf;
+	u8     fis[ATA_RESP_FIS_SIZE];
+};
+
+struct ssp_device {
+	struct list_head eh_list_node; /* pending a user requested eh action */
+	struct scsi_lun reset_lun;
 };
 
 enum {
 	SAS_DEV_GONE,
 	SAS_DEV_DESTROY,
+	SAS_DEV_EH_PENDING,
+	SAS_DEV_LU_RESET,
+	SAS_DEV_RESET,
 };
 
 struct domain_device {
@@ -210,6 +219,7 @@ struct domain_device {
         union {
                 struct expander_device ex_dev;
                 struct sata_device     sata_dev; /* STP & directly attached */
+		struct ssp_device      ssp_dev;
         };
 
         void *lldd_dev;
@@ -384,7 +394,10 @@ struct sas_ha_struct {
 	struct list_head  defer_q; /* work queued while draining */
 	struct mutex	  drain_mutex;
 	unsigned long	  state;
-	spinlock_t 	  state_lock;
+	spinlock_t	  lock;
+	int		  eh_active;
+	wait_queue_head_t eh_wait_q;
+	struct list_head  eh_dev_q;
 
 	struct mutex disco_mutex;
 
@@ -537,7 +550,7 @@ enum exec_status {
  */
 struct ata_task_resp {
 	u16  frame_len;
-	u8   ending_fis[24];	  /* dev to host or data-in */
+	u8   ending_fis[ATA_RESP_FIS_SIZE];	  /* dev to host or data-in */
 };
 
 #define SAS_STATUS_BUF_SIZE 96
@@ -600,10 +613,6 @@ struct sas_task {
 
 	enum   sas_protocol      task_proto;
 
-	/* Used by the discovery code. */
-	struct timer_list     timer;
-	struct completion     completion;
-
 	union {
 		struct sas_ata_task ata_task;
 		struct sas_smp_task smp_task;
@@ -620,8 +629,15 @@ struct sas_task {
 
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
+	struct sas_task_slow *slow_task;
+};
 
-	struct work_struct abort_work;
+struct sas_task_slow {
+	/* standard/extra infrastructure for slow path commands (SMP and
+	 * internal lldd commands
+	 */
+	struct timer_list     timer;
+	struct completion     completion;
 };
 
 #define SAS_TASK_STATE_PENDING      1
@@ -631,6 +647,7 @@ struct sas_task {
 #define SAS_TASK_AT_INITIATOR       16
 
 extern struct sas_task *sas_alloc_task(gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
@@ -706,6 +723,7 @@ void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *);
 void sas_init_dev(struct domain_device *);
 
 void sas_task_abort(struct sas_task *);
+int sas_eh_abort_handler(struct scsi_cmnd *cmd);
 int sas_eh_device_reset_handler(struct scsi_cmnd *cmd);
 int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd);
 

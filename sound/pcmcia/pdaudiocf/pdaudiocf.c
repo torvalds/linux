@@ -251,7 +251,7 @@ static int pdacf_suspend(struct pcmcia_device *link)
 	snd_printdd(KERN_DEBUG "SUSPEND\n");
 	if (chip) {
 		snd_printdd(KERN_DEBUG "snd_pdacf_suspend calling\n");
-		snd_pdacf_suspend(chip, PMSG_SUSPEND);
+		snd_pdacf_suspend(chip);
 	}
 
 	return 0;

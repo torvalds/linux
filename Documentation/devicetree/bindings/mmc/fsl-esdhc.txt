@@ -3,21 +3,22 @@
 The Enhanced Secure Digital Host Controller provides an interface
 for MMC, SD, and SDIO types of memory cards.
 
+This file documents differences between the core properties described
+by mmc.txt and the properties used by the sdhci-esdhc driver.
+
 Required properties:
-  - compatible : should be
-    "fsl,<chip>-esdhc", "fsl,esdhc"
-  - reg : should contain eSDHC registers location and length.
-  - interrupts : should contain eSDHC interrupt.
   - interrupt-parent : interrupt source phandle.
   - clock-frequency : specifies eSDHC base clock frequency.
-  - sdhci,wp-inverted : (optional) specifies that eSDHC controller
-    reports inverted write-protect state; New devices should use
-    the generic "wp-inverted" property.
-  - sdhci,1-bit-only : (optional) specifies that a controller can
-    only handle 1-bit data transfers. New devices should use the
-    generic "bus-width = <1>" property.
-  - sdhci,auto-cmd12: (optional) specifies that a controller can
-    only handle auto CMD12.
+
+Optional properties:
+  - sdhci,wp-inverted : specifies that eSDHC controller reports
+    inverted write-protect state; New devices should use the generic
+    "wp-inverted" property.
+  - sdhci,1-bit-only : specifies that a controller can only handle
+    1-bit data transfers. New devices should use the generic
+    "bus-width = <1>" property.
+  - sdhci,auto-cmd12: specifies that a controller can only handle auto
+    CMD12.
 
 Example:
 

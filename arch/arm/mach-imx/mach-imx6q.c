@@ -12,11 +12,12 @@
 
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/cpuidle.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -24,6 +25,8 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/phy.h>
 #include <linux/micrel_phy.h>
+#include <linux/mfd/anatop.h>
+#include <asm/cpuidle.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
@@ -31,7 +34,9 @@
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
 #include <mach/common.h>
+#include <mach/cpuidle.h>
 #include <mach/hardware.h>
+
 
 void imx6q_restart(char mode, const char *cmd)
 {
@@ -66,7 +71,7 @@ soft:
 /* For imx6q sabrelite board: set KSZ9021RN RGMII pad skew */
 static int ksz9021rn_phy_fixup(struct phy_device *phydev)
 {
-	if (IS_ENABLED(CONFIG_PHYLIB)) {
+	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		/* min rx data delay */
 		phy_write(phydev, 0x0b, 0x8105);
 		phy_write(phydev, 0x0c, 0x0000);
@@ -107,10 +112,49 @@ put_clk:
 
 static void __init imx6q_sabrelite_init(void)
 {
-	if (IS_ENABLED(CONFIG_PHYLIB))
+	if (IS_BUILTIN(CONFIG_PHYLIB))
 		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
 				ksz9021rn_phy_fixup);
 	imx6q_sabrelite_cko1_setup();
+}
+
+static void __init imx6q_usb_init(void)
+{
+	struct device_node *np;
+	struct platform_device *pdev = NULL;
+	struct anatop *adata = NULL;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
+	if (np)
+		pdev = of_find_device_by_node(np);
+	if (pdev)
+		adata = platform_get_drvdata(pdev);
+	if (!adata) {
+		if (np)
+			of_node_put(np);
+		return;
+	}
+
+#define HW_ANADIG_USB1_CHRG_DETECT		0x000001b0
+#define HW_ANADIG_USB2_CHRG_DETECT		0x00000210
+
+#define BM_ANADIG_USB_CHRG_DETECT_EN_B		0x00100000
+#define BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B	0x00080000
+
+	/*
+	 * The external charger detector needs to be disabled,
+	 * or the signal at DP will be poor
+	 */
+	anatop_write_reg(adata, HW_ANADIG_USB1_CHRG_DETECT,
+			BM_ANADIG_USB_CHRG_DETECT_EN_B
+			| BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B,
+			~0);
+	anatop_write_reg(adata, HW_ANADIG_USB2_CHRG_DETECT,
+			BM_ANADIG_USB_CHRG_DETECT_EN_B |
+			BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B,
+			~0);
+
+	of_node_put(np);
 }
 
 static void __init imx6q_init_machine(void)
@@ -127,6 +171,20 @@ static void __init imx6q_init_machine(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
 	imx6q_pm_init();
+	imx6q_usb_init();
+}
+
+static struct cpuidle_driver imx6q_cpuidle_driver = {
+	.name			= "imx6q_cpuidle",
+	.owner			= THIS_MODULE,
+	.en_core_tk_irqen	= 1,
+	.states[0]		= ARM_CPUIDLE_WFI_STATE,
+	.state_count		= 1,
+};
+
+static void __init imx6q_init_late(void)
+{
+	imx_cpuidle_init(&imx6q_cpuidle_driver);
 }
 
 static void __init imx6q_map_io(void)
@@ -136,21 +194,8 @@ static void __init imx6q_map_io(void)
 	imx6q_clock_map_io();
 }
 
-static int __init imx6q_gpio_add_irq_domain(struct device_node *np,
-				struct device_node *interrupt_parent)
-{
-	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS;
-
-	gpio_irq_base -= 32;
-	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops,
-			      NULL);
-
-	return 0;
-}
-
 static const struct of_device_id imx6q_irq_match[] __initconst = {
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{ .compatible = "fsl,imx6q-gpio", .data = imx6q_gpio_add_irq_domain, },
 	{ /* sentinel */ }
 };
 
@@ -186,6 +231,7 @@ DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
 	.handle_irq	= imx6q_handle_irq,
 	.timer		= &imx6q_timer,
 	.init_machine	= imx6q_init_machine,
+	.init_late      = imx6q_init_late,
 	.dt_compat	= imx6q_dt_compat,
 	.restart	= imx6q_restart,
 MACHINE_END

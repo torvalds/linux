@@ -336,9 +336,15 @@ static void ar9003_btcoex_bt_stomp(struct ath_hw *ah,
 			 enum ath_stomp_type stomp_type)
 {
 	struct ath_btcoex_hw *btcoex = &ah->btcoex_hw;
-	const u32 *weight = AR_SREV_9462(ah) ? ar9003_wlan_weights[stomp_type] :
-					       ar9462_wlan_weights[stomp_type];
+	const u32 *weight = ar9003_wlan_weights[stomp_type];
 	int i;
+
+	if (AR_SREV_9462(ah)) {
+		if ((stomp_type == ATH_BTCOEX_STOMP_LOW) &&
+		    btcoex->mci.stomp_ftp)
+			stomp_type = ATH_BTCOEX_STOMP_LOW_FTP;
+		weight = ar9462_wlan_weights[stomp_type];
+	}
 
 	for (i = 0; i < AR9300_NUM_WLAN_WEIGHTS; i++) {
 		btcoex->bt_weight[i] = AR9300_BT_WGHT;

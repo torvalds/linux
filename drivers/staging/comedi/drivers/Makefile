@@ -55,7 +55,6 @@ obj-$(CONFIG_COMEDI_MULTIQ3)		+= multiq3.o
 obj-$(CONFIG_COMEDI_POC)		+= poc.o
 
 # Comedi PCI drivers
-obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= 8255.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_035)	+= addi_apci_035.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1032)	+= addi_apci_1032.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1500)	+= addi_apci_1500.o
@@ -132,7 +131,7 @@ obj-$(CONFIG_COMEDI_VMK80XX)		+= vmk80xx.o
 # Comedi NI drivers
 obj-$(CONFIG_COMEDI_MITE)		+= mite.o
 obj-$(CONFIG_COMEDI_NI_TIO)		+= ni_tio.o
-obj-$(CONFIG_COMEDI_NI_TIO)		+= ni_tiocmd.o
+obj-$(CONFIG_COMEDI_NI_TIOCMD)		+= ni_tiocmd.o
 obj-$(CONFIG_COMEDI_NI_LABPC)		+= ni_labpc.o
 
 obj-$(CONFIG_COMEDI_8255)		+= 8255.o

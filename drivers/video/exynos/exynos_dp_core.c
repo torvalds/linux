@@ -47,7 +47,7 @@ static int exynos_dp_detect_hpd(struct exynos_dp_device *dp)
 
 	exynos_dp_init_hpd(dp);
 
-	udelay(200);
+	usleep_range(200, 210);
 
 	while (exynos_dp_get_plug_in_status(dp) != 0) {
 		timeout_loop++;
@@ -55,7 +55,7 @@ static int exynos_dp_detect_hpd(struct exynos_dp_device *dp)
 			dev_err(dp->dev, "failed to get hpd plug status\n");
 			return -ETIMEDOUT;
 		}
-		udelay(10);
+		usleep_range(10, 11);
 	}
 
 	return 0;
@@ -304,7 +304,7 @@ static void exynos_dp_link_start(struct exynos_dp_device *dp)
 		buf[lane] = DPCD_PRE_EMPHASIS_PATTERN2_LEVEL0 |
 			    DPCD_VOLTAGE_SWING_PATTERN1_LEVEL0;
 	exynos_dp_write_bytes_to_dpcd(dp,
-		DPCD_ADDR_TRAINING_PATTERN_SET,
+		DPCD_ADDR_TRAINING_LANE0_SET,
 		lane_count, buf);
 }
 
@@ -336,7 +336,7 @@ static int exynos_dp_channel_eq_ok(u8 link_status[6], int lane_count)
 	u8 lane_status;
 
 	lane_align = link_status[2];
-	if ((lane_align == DPCD_INTERLANE_ALIGN_DONE) == 0)
+	if ((lane_align & DPCD_INTERLANE_ALIGN_DONE) == 0)
 		return -EINVAL;
 
 	for (lane = 0; lane < lane_count; lane++) {
@@ -407,6 +407,9 @@ static unsigned int exynos_dp_get_lane_link_training(
 	case 3:
 		reg = exynos_dp_get_lane3_link_training(dp);
 		break;
+	default:
+		WARN_ON(1);
+		return 0;
 	}
 
 	return reg;
@@ -483,7 +486,7 @@ static int exynos_dp_process_clock_recovery(struct exynos_dp_device *dp)
 	u8 pre_emphasis;
 	u8 training_lane;
 
-	udelay(100);
+	usleep_range(100, 101);
 
 	exynos_dp_read_bytes_from_dpcd(dp, DPCD_ADDR_LANE0_1_STATUS,
 				6, link_status);
@@ -501,7 +504,7 @@ static int exynos_dp_process_clock_recovery(struct exynos_dp_device *dp)
 		buf[0] = DPCD_SCRAMBLING_DISABLED |
 			 DPCD_TRAINING_PATTERN_2;
 		exynos_dp_write_byte_to_dpcd(dp,
-			DPCD_ADDR_TRAINING_LANE0_SET,
+			DPCD_ADDR_TRAINING_PATTERN_SET,
 			buf[0]);
 
 		for (lane = 0; lane < lane_count; lane++) {
@@ -568,7 +571,7 @@ static int exynos_dp_process_equalizer_training(struct exynos_dp_device *dp)
 
 	u8 adjust_request[2];
 
-	udelay(400);
+	usleep_range(400, 401);
 
 	exynos_dp_read_bytes_from_dpcd(dp, DPCD_ADDR_LANE0_1_STATUS,
 				6, link_status);
@@ -736,7 +739,7 @@ static int exynos_dp_set_link_train(struct exynos_dp_device *dp,
 		if (retval == 0)
 			break;
 
-		udelay(100);
+		usleep_range(100, 110);
 	}
 
 	return retval;
@@ -770,7 +773,7 @@ static int exynos_dp_config_video(struct exynos_dp_device *dp,
 			return -ETIMEDOUT;
 		}
 
-		udelay(1);
+		usleep_range(1, 2);
 	}
 
 	/* Set to use the register calculated M/N video */
@@ -804,7 +807,7 @@ static int exynos_dp_config_video(struct exynos_dp_device *dp,
 			return -ETIMEDOUT;
 		}
 
-		mdelay(1);
+		usleep_range(1000, 1001);
 	}
 
 	if (retval != 0)

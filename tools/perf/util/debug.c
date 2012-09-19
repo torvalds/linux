@@ -47,7 +47,7 @@ int dump_printf(const char *fmt, ...)
 	return ret;
 }
 
-#ifdef NO_NEWT_SUPPORT
+#if defined(NO_NEWT_SUPPORT) && defined(NO_GTK2_SUPPORT)
 int ui__warning(const char *format, ...)
 {
 	va_list args;

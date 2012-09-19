@@ -62,7 +62,7 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_ds_execute_arguments
  *
- * PARAMETERS:  Node                - Object NS node
+ * PARAMETERS:  node                - Object NS node
  *              scope_node          - Parent NS node
  *              aml_length          - Length of executable AML
  *              aml_start           - Pointer to the AML

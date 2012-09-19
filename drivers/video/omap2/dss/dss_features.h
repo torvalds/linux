@@ -24,9 +24,9 @@
 #include "ti_hdmi.h"
 #endif
 
-#define MAX_DSS_MANAGERS	3
+#define MAX_DSS_MANAGERS	4
 #define MAX_DSS_OVERLAYS	4
-#define MAX_DSS_LCD_MANAGERS	2
+#define MAX_DSS_LCD_MANAGERS	3
 #define MAX_NUM_DSI		2
 
 /* DSS has feature id */
@@ -36,6 +36,7 @@ enum dss_feat_id {
 	FEAT_PCKFREEENABLE,
 	FEAT_FUNCGATED,
 	FEAT_MGR_LCD2,
+	FEAT_MGR_LCD3,
 	FEAT_LINEBUFFERSPLIT,
 	FEAT_ROWREPEATENABLE,
 	FEAT_RESIZECONF,

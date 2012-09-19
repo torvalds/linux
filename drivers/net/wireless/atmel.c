@@ -2952,10 +2952,10 @@ static void send_association_request(struct atmel_private *priv, int is_reassoc)
 	/* current AP address - only in reassoc frame */
 	if (is_reassoc) {
 		memcpy(body.ap, priv->CurrentBSSID, 6);
-		ssid_el_p = (u8 *)&body.ssid_el_id;
+		ssid_el_p = &body.ssid_el_id;
 		bodysize = 18 + priv->SSID_size;
 	} else {
-		ssid_el_p = (u8 *)&body.ap[0];
+		ssid_el_p = &body.ap[0];
 		bodysize = 12 + priv->SSID_size;
 	}
 

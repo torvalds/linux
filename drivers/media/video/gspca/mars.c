@@ -30,6 +30,8 @@ MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/Mars USB Camera Driver");
 MODULE_LICENSE("GPL");
 
+#define QUALITY 50
+
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
@@ -42,13 +44,6 @@ struct sd {
 		struct v4l2_ctrl *illum_top;
 		struct v4l2_ctrl *illum_bottom;
 	};
-	struct v4l2_ctrl *jpegqual;
-
-	u8 quality;
-#define QUALITY_MIN 40
-#define QUALITY_MAX 70
-#define QUALITY_DEF 50
-
 	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
@@ -194,9 +189,6 @@ static int mars_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_SHARPNESS:
 		setsharpness(gspca_dev, ctrl->val);
 		break;
-	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
-		jpeg_set_qual(sd->jpeg_hdr, ctrl->val);
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -214,7 +206,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 
 	gspca_dev->vdev.ctrl_handler = hdl;
-	v4l2_ctrl_handler_init(hdl, 7);
+	v4l2_ctrl_handler_init(hdl, 6);
 	sd->brightness = v4l2_ctrl_new_std(hdl, &mars_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 30, 1, 15);
 	sd->saturation = v4l2_ctrl_new_std(hdl, &mars_ctrl_ops,
@@ -229,9 +221,6 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	sd->illum_bottom = v4l2_ctrl_new_std(hdl, &mars_ctrl_ops,
 			V4L2_CID_ILLUMINATORS_2, 0, 1, 1, 0);
 	sd->illum_bottom->flags |= V4L2_CTRL_FLAG_UPDATE;
-	sd->jpegqual = v4l2_ctrl_new_std(hdl, &mars_ctrl_ops,
-			V4L2_CID_JPEG_COMPRESSION_QUALITY,
-			QUALITY_MIN, QUALITY_MAX, 1, QUALITY_DEF);
 	if (hdl->error) {
 		pr_err("Could not initialize controls\n");
 		return hdl->error;
@@ -244,13 +233,11 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
-	sd->quality = QUALITY_DEF;
 	return 0;
 }
 
@@ -269,7 +256,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* create the JPEG header */
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);		/* JPEG 422 */
-	jpeg_set_qual(sd->jpeg_hdr, v4l2_ctrl_g_ctrl(sd->jpegqual));
+	jpeg_set_qual(sd->jpeg_hdr, QUALITY);
 
 	data = gspca_dev->usb_buf;
 
@@ -411,31 +398,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
-static int sd_set_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
-
-	ret = v4l2_ctrl_s_ctrl(sd->jpegqual, jcomp->quality);
-	if (ret)
-		return ret;
-	jcomp->quality = v4l2_ctrl_g_ctrl(sd->jpegqual);
-	return 0;
-}
-
-static int sd_get_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	memset(jcomp, 0, sizeof *jcomp);
-	jcomp->quality = v4l2_ctrl_g_ctrl(sd->jpegqual);
-	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
-			| V4L2_JPEG_MARKER_DQT;
-	return 0;
-}
-
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -445,8 +407,6 @@ static const struct sd_desc sd_desc = {
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
-	.get_jcomp = sd_get_jcomp,
-	.set_jcomp = sd_set_jcomp,
 };
 
 /* -- module initialisation -- */

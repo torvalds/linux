@@ -939,7 +939,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		 * up a splash image.
 		 */
 	} else {
-		/* alocate memory buffer */
+		/* allocate memory buffer */
 		ret = atmel_lcdfb_alloc_video_memory(sinfo);
 		if (ret < 0) {
 			dev_err(dev, "cannot allocate framebuffer: %d\n", ret);

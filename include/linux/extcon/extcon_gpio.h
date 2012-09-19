@@ -31,7 +31,7 @@
  * @irq_flags	IRQ Flags (e.g., IRQF_TRIGGER_LOW).
  * @state_on	print_state is overriden with state_on if attached. If Null,
  *		default method of extcon class is used.
- * @state_off	print_state is overriden with state_on if dettached. If Null,
+ * @state_off	print_state is overriden with state_on if detached. If Null,
  *		default method of extcon class is used.
  *
  * Note that in order for state_on or state_off to be valid, both state_on

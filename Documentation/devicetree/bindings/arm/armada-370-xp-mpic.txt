@@ -1,0 +1,23 @@
+Marvell Armada 370 and Armada XP Interrupt Controller
+-----------------------------------------------------
+
+Required properties:
+- compatible: Should be "marvell,mpic"
+- interrupt-controller: Identifies the node as an interrupt controller.
+- #interrupt-cells: The number of cells to define the interrupts. Should be 1.
+  The cell is the IRQ number
+- reg: Should contain PMIC registers location and length. First pair
+  for the main interrupt registers, second pair for the per-CPU
+  interrupt registers
+
+Example:
+
+        mpic: interrupt-controller@d0020000 {
+              compatible = "marvell,mpic";
+              #interrupt-cells = <1>;
+              #address-cells = <1>;
+              #size-cells = <1>;
+              interrupt-controller;
+              reg = <0xd0020000 0x1000>,
+                    <0xd0021000 0x1000>;
+        };

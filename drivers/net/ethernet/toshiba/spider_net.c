@@ -114,7 +114,8 @@ spider_net_write_reg(struct spider_net_card *card, u32 reg, u32 value)
 	out_be32(card->regs + reg, value);
 }
 
-/** spider_net_write_phy - write to phy register
+/**
+ * spider_net_write_phy - write to phy register
  * @netdev: adapter to be written to
  * @mii_id: id of MII
  * @reg: PHY register
@@ -137,7 +138,8 @@ spider_net_write_phy(struct net_device *netdev, int mii_id,
 	spider_net_write_reg(card, SPIDER_NET_GPCWOPCMD, writevalue);
 }
 
-/** spider_net_read_phy - read from phy register
+/**
+ * spider_net_read_phy - read from phy register
  * @netdev: network device to be read from
  * @mii_id: id of MII
  * @reg: PHY register

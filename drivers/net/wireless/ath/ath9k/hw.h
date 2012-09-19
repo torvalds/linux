@@ -48,6 +48,8 @@
 #define AR9300_DEVID_AR9580	0x0033
 #define AR9300_DEVID_AR9462	0x0034
 #define AR9300_DEVID_AR9330	0x0035
+#define AR9300_DEVID_QCA955X	0x0038
+#define AR9485_DEVID_AR1111	0x0037
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -179,6 +181,37 @@
 #define PAPRD_TABLE_SZ			24
 #define PAPRD_IDEAL_AGC2_PWR_RANGE	0xe0
 
+/*
+ * Wake on Wireless
+ */
+
+/* Keep Alive Frame */
+#define KAL_FRAME_LEN		28
+#define KAL_FRAME_TYPE		0x2	/* data frame */
+#define KAL_FRAME_SUB_TYPE	0x4	/* null data frame */
+#define KAL_DURATION_ID		0x3d
+#define KAL_NUM_DATA_WORDS	6
+#define KAL_NUM_DESC_WORDS	12
+#define KAL_ANTENNA_MODE	1
+#define KAL_TO_DS		1
+#define KAL_DELAY		4	/*delay of 4ms between 2 KAL frames */
+#define KAL_TIMEOUT		900
+
+#define MAX_PATTERN_SIZE		256
+#define MAX_PATTERN_MASK_SIZE		32
+#define MAX_NUM_PATTERN			8
+#define MAX_NUM_USER_PATTERN		6 /*  deducting the disassociate and
+					      deauthenticate packets */
+
+/*
+ * WoW trigger mapping to hardware code
+ */
+
+#define AH_WOW_USER_PATTERN_EN		BIT(0)
+#define AH_WOW_MAGIC_PATTERN_EN		BIT(1)
+#define AH_WOW_LINK_CHANGE		BIT(2)
+#define AH_WOW_BEACON_MISS		BIT(3)
+
 enum ath_hw_txq_subtype {
 	ATH_TXQ_AC_BE = 0,
 	ATH_TXQ_AC_BK = 1,
@@ -211,7 +244,21 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_RTT			= BIT(14),
 	ATH9K_HW_CAP_MCI			= BIT(15),
 	ATH9K_HW_CAP_DFS			= BIT(16),
+	ATH9K_HW_WOW_DEVICE_CAPABLE		= BIT(17),
+	ATH9K_HW_WOW_PATTERN_MATCH_EXACT	= BIT(18),
+	ATH9K_HW_WOW_PATTERN_MATCH_DWORD	= BIT(19),
 };
+
+/*
+ * WoW device capabilities
+ * @ATH9K_HW_WOW_DEVICE_CAPABLE: device revision is capable of WoW.
+ * @ATH9K_HW_WOW_PATTERN_MATCH_EXACT: device is capable of matching
+ * an exact user defined pattern or de-authentication/disassoc pattern.
+ * @ATH9K_HW_WOW_PATTERN_MATCH_DWORD: device requires the first four
+ * bytes of the pattern for user defined pattern, de-authentication and
+ * disassociation patterns for all types of possible frames recieved
+ * of those types.
+ */
 
 struct ath9k_hw_capabilities {
 	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
@@ -814,17 +861,20 @@ struct ath_hw {
 	struct ar5416IniArray iniBank7;
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;
+#ifdef CONFIG_PM_SLEEP
+	struct ar5416IniArray iniPcieSerdesWow;
+#endif
 	struct ar5416IniArray iniPcieSerdesLowPower;
 	struct ar5416IniArray iniModesFastClock;
 	struct ar5416IniArray iniAdditional;
 	struct ar5416IniArray iniModesRxGain;
+	struct ar5416IniArray ini_modes_rx_gain_bounds;
 	struct ar5416IniArray iniModesTxGain;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
 	struct ar5416IniArray ini_japan2484;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray ini_radio_post_sys2ant;
-	struct ar5416IniArray ini_BTCOEX_MAX_TXPWR;
 
 	struct ar5416IniArray iniMac[ATH_INI_NUM_SPLIT];
 	struct ar5416IniArray iniBB[ATH_INI_NUM_SPLIT];
@@ -862,6 +912,9 @@ struct ath_hw {
 	/* Enterprise mode cap */
 	u32 ent_mode;
 
+#ifdef CONFIG_PM_SLEEP
+	u32 wow_event_mask;
+#endif
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
 	int (*external_reset)(void);
@@ -942,7 +995,7 @@ u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 u64 ath9k_hw_gettsf64(struct ath_hw *ah);
 void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
-void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
+void ath9k_hw_set_tsfadjust(struct ath_hw *ah, bool set);
 void ath9k_hw_init_global_settings(struct ath_hw *ah);
 u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah);
 void ath9k_hw_set11nmac2040(struct ath_hw *ah);
@@ -1020,22 +1073,20 @@ void ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
 
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
-/*
- * ANI work can be shared between all families but a next
- * generation implementation of ANI will be used only for AR9003 only
- * for now as the other families still need to be tested with the same
- * next generation ANI. Feel free to start testing it though for the
- * older families (AR5008, AR9001, AR9002) by using modparam_force_new_ani.
- */
-extern int modparam_force_new_ani;
+
 void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
-void ath9k_hw_proc_mib_event(struct ath_hw *ah);
 void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
 {
 	return ah->btcoex_hw.enabled;
+}
+static inline bool ath9k_hw_mci_is_enabled(struct ath_hw *ah)
+{
+	return ah->common.btcoex_enabled &&
+	       (ah->caps.hw_caps & ATH9K_HW_CAP_MCI);
+
 }
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 static inline enum ath_btcoex_scheme
@@ -1048,6 +1099,10 @@ static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
 {
 	return false;
 }
+static inline bool ath9k_hw_mci_is_enabled(struct ath_hw *ah)
+{
+	return false;
+}
 static inline void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 {
 }
@@ -1057,6 +1112,37 @@ ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 	return ATH_BTCOEX_CFG_NONE;
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
+
+
+#ifdef CONFIG_PM_SLEEP
+const char *ath9k_hw_wow_event_to_string(u32 wow_event);
+void ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
+				u8 *user_mask, int pattern_count,
+				int pattern_len);
+u32 ath9k_hw_wow_wakeup(struct ath_hw *ah);
+void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable);
+#else
+static inline const char *ath9k_hw_wow_event_to_string(u32 wow_event)
+{
+	return NULL;
+}
+static inline void ath9k_hw_wow_apply_pattern(struct ath_hw *ah,
+					      u8 *user_pattern,
+					      u8 *user_mask,
+					      int pattern_count,
+					      int pattern_len)
+{
+}
+static inline u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
+{
+	return 0;
+}
+static inline void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
+{
+}
+#endif
+
+
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40

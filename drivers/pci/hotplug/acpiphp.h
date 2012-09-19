@@ -89,8 +89,6 @@ struct acpiphp_bridge {
 
 	/* PCI-to-PCI bridge device */
 	struct pci_dev *pci_dev;
-
-	spinlock_t res_lock;
 };
 
 
@@ -207,6 +205,6 @@ extern u8 acpiphp_get_latch_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_adapter_status (struct acpiphp_slot *slot);
 
 /* variables */
-extern int acpiphp_debug;
+extern bool acpiphp_debug;
 
 #endif /* _ACPIPHP_H */

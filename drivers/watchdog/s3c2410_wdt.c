@@ -519,21 +519,7 @@ static struct platform_driver s3c2410wdt_driver = {
 	},
 };
 
-
-static int __init watchdog_init(void)
-{
-	pr_info("S3C2410 Watchdog Timer, (c) 2004 Simtec Electronics\n");
-
-	return platform_driver_register(&s3c2410wdt_driver);
-}
-
-static void __exit watchdog_exit(void)
-{
-	platform_driver_unregister(&s3c2410wdt_driver);
-}
-
-module_init(watchdog_init);
-module_exit(watchdog_exit);
+module_platform_driver(s3c2410wdt_driver);
 
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>, "
 	      "Dimitry Andric <dimitry.andric@tomtom.com>");

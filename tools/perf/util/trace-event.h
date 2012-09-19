@@ -8,6 +8,7 @@
 struct machine;
 struct perf_sample;
 union perf_event;
+struct perf_tool;
 struct thread;
 
 extern int header_page_size_size;
@@ -29,35 +30,36 @@ enum {
 
 int bigendian(void);
 
-int read_trace_init(int file_bigendian, int host_bigendian);
-void print_trace_event(int cpu, void *data, int size);
+struct pevent *read_trace_init(int file_bigendian, int host_bigendian);
+void print_trace_event(struct pevent *pevent, int cpu, void *data, int size);
 
-void print_event(int cpu, void *data, int size, unsigned long long nsecs,
-		  char *comm);
+void print_event(struct pevent *pevent, int cpu, void *data, int size,
+		 unsigned long long nsecs, char *comm);
 
-int parse_ftrace_file(char *buf, unsigned long size);
-int parse_event_file(char *buf, unsigned long size, char *sys);
+int parse_ftrace_file(struct pevent *pevent, char *buf, unsigned long size);
+int parse_event_file(struct pevent *pevent,
+		     char *buf, unsigned long size, char *sys);
 
-struct pevent_record *trace_peek_data(int cpu);
-struct event_format *trace_find_event(int type);
+struct pevent_record *trace_peek_data(struct pevent *pevent, int cpu);
 
 unsigned long long
 raw_field_value(struct event_format *event, const char *name, void *data);
 void *raw_field_ptr(struct event_format *event, const char *name, void *data);
 
-void parse_proc_kallsyms(char *file, unsigned int size __unused);
-void parse_ftrace_printk(char *file, unsigned int size __unused);
+void parse_proc_kallsyms(struct pevent *pevent, char *file, unsigned int size);
+void parse_ftrace_printk(struct pevent *pevent, char *file, unsigned int size);
 
-ssize_t trace_report(int fd, bool repipe);
+ssize_t trace_report(int fd, struct pevent **pevent, bool repipe);
 
-int trace_parse_common_type(void *data);
-int trace_parse_common_pid(void *data);
+int trace_parse_common_type(struct pevent *pevent, void *data);
+int trace_parse_common_pid(struct pevent *pevent, void *data);
 
-struct event_format *trace_find_next_event(struct event_format *event);
-unsigned long long read_size(void *ptr, int size);
+struct event_format *trace_find_next_event(struct pevent *pevent,
+					   struct event_format *event);
+unsigned long long read_size(struct pevent *pevent, void *ptr, int size);
 unsigned long long eval_flag(const char *flag);
 
-struct pevent_record *trace_read_data(int cpu);
+struct pevent_record *trace_read_data(struct pevent *pevent, int cpu);
 int read_tracing_data(int fd, struct list_head *pattrs);
 
 struct tracing_data {
@@ -77,11 +79,12 @@ struct scripting_ops {
 	int (*start_script) (const char *script, int argc, const char **argv);
 	int (*stop_script) (void);
 	void (*process_event) (union perf_event *event,
+			       struct pevent *pevent,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
 			       struct machine *machine,
 			       struct thread *thread);
-	int (*generate_script) (const char *outfile);
+	int (*generate_script) (struct pevent *pevent, const char *outfile);
 };
 
 int script_spec_register(const char *spec, struct scripting_ops *ops);
@@ -90,6 +93,7 @@ void setup_perl_scripting(void);
 void setup_python_scripting(void);
 
 struct scripting_context {
+	struct pevent *pevent;
 	void *event_data;
 };
 

@@ -394,18 +394,7 @@ static struct pci_driver rdc_pci_driver = {
 };
 
 
-static int __init rdc_init(void)
-{
-	return pci_register_driver(&rdc_pci_driver);
-}
-
-static void __exit rdc_exit(void)
-{
-	pci_unregister_driver(&rdc_pci_driver);
-}
-
-module_init(rdc_init);
-module_exit(rdc_exit);
+module_pci_driver(rdc_pci_driver);
 
 MODULE_AUTHOR("Alan Cox (based on ata_piix)");
 MODULE_DESCRIPTION("SCSI low-level driver for RDC PATA controllers");

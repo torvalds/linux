@@ -27,7 +27,11 @@ supports an "invariant" TSC, plus the APERF and MPERF MSRs.
 on processors that additionally support C-state residency counters.
 
 .SS Options
-The \fB-s\fP option prints only a 1-line summary for each sample interval.
+The \fB-s\fP option limits output to a 1-line system summary for each interval.
+.PP
+The \fB-c\fP option limits output to the 1st thread in each core.
+.PP
+The \fB-p\fP option limits output to the 1st thread in each package.
 .PP
 The \fB-v\fP option increases verbosity.
 .PP
@@ -65,19 +69,19 @@ Subsequent rows show per-CPU statistics.
 .nf
 [root@x980]# ./turbostat
 cor CPU    %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
-          0.60 1.63 3.38   2.91   0.00  96.49   0.00  76.64
-  0   0   0.59 1.62 3.38   4.51   0.00  94.90   0.00  76.64
-  0   6   1.13 1.64 3.38   3.97   0.00  94.90   0.00  76.64
-  1   2   0.08 1.62 3.38   0.07   0.00  99.85   0.00  76.64
-  1   8   0.03 1.62 3.38   0.12   0.00  99.85   0.00  76.64
-  2   4   0.01 1.62 3.38   0.06   0.00  99.93   0.00  76.64
-  2  10   0.04 1.62 3.38   0.02   0.00  99.93   0.00  76.64
-  8   1   2.85 1.62 3.38  11.71   0.00  85.44   0.00  76.64
-  8   7   1.98 1.62 3.38  12.58   0.00  85.44   0.00  76.64
-  9   3   0.36 1.62 3.38   0.71   0.00  98.93   0.00  76.64
-  9   9   0.09 1.62 3.38   0.98   0.00  98.93   0.00  76.64
- 10   5   0.03 1.62 3.38   0.09   0.00  99.87   0.00  76.64
- 10  11   0.07 1.62 3.38   0.06   0.00  99.87   0.00  76.64
+          0.09 1.62 3.38   1.83   0.32  97.76   1.26  83.61
+  0   0   0.15 1.62 3.38  10.23   0.05  89.56   1.26  83.61
+  0   6   0.05 1.62 3.38  10.34
+  1   2   0.03 1.62 3.38   0.07   0.05  99.86
+  1   8   0.03 1.62 3.38   0.06
+  2   4   0.21 1.62 3.38   0.10   1.49  98.21
+  2  10   0.02 1.62 3.38   0.29
+  8   1   0.04 1.62 3.38   0.04   0.08  99.84
+  8   7   0.01 1.62 3.38   0.06
+  9   3   0.53 1.62 3.38   0.10   0.20  99.17
+  9   9   0.02 1.62 3.38   0.60
+ 10   5   0.01 1.62 3.38   0.02   0.04  99.92
+ 10  11   0.02 1.62 3.38   0.02
 .fi
 .SH SUMMARY EXAMPLE
 The "-s" option prints the column headers just once,
@@ -86,9 +90,10 @@ and then the one line system summary for each sample interval.
 .nf
 [root@x980]# ./turbostat -s
    %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
-  0.61 1.89 3.38   5.95   0.00  93.44   0.00  66.33
-  0.52 1.62 3.38   6.83   0.00  92.65   0.00  61.11
-  0.62 1.92 3.38   5.47   0.00  93.91   0.00  67.31
+  0.23 1.67 3.38   2.00   0.30  97.47   1.07  82.12
+  0.10 1.62 3.38   1.87   2.25  95.77  12.02  72.60
+  0.20 1.64 3.38   1.98   0.11  97.72   0.30  83.36
+  0.11 1.70 3.38   1.86   1.81  96.22   9.71  74.90
 .fi
 .SH VERBOSE EXAMPLE
 The "-v" option adds verbosity to the output:
@@ -120,30 +125,28 @@ until ^C while the other CPUs are mostly idle:
 [root@x980 lenb]# ./turbostat cat /dev/zero > /dev/null
 ^C
 cor CPU    %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
-          8.63 3.64 3.38  14.46   0.49  76.42   0.00   0.00
-  0   0   0.34 3.36 3.38  99.66   0.00   0.00   0.00   0.00
-  0   6  99.96 3.64 3.38   0.04   0.00   0.00   0.00   0.00
-  1   2   0.14 3.50 3.38   1.75   2.04  96.07   0.00   0.00
-  1   8   0.38 3.57 3.38   1.51   2.04  96.07   0.00   0.00
-  2   4   0.01 2.65 3.38   0.06   0.00  99.93   0.00   0.00
-  2  10   0.03 2.12 3.38   0.04   0.00  99.93   0.00   0.00
-  8   1   0.91 3.59 3.38  35.27   0.92  62.90   0.00   0.00
-  8   7   1.61 3.63 3.38  34.57   0.92  62.90   0.00   0.00
-  9   3   0.04 3.38 3.38   0.20   0.00  99.76   0.00   0.00
-  9   9   0.04 3.29 3.38   0.20   0.00  99.76   0.00   0.00
- 10   5   0.03 3.08 3.38   0.12   0.00  99.85   0.00   0.00
- 10  11   0.05 3.07 3.38   0.10   0.00  99.85   0.00   0.00
-4.907015 sec
-
+          8.86 3.61 3.38  15.06  31.19  44.89   0.00   0.00
+  0   0   1.46 3.22 3.38  16.84  29.48  52.22   0.00   0.00
+  0   6   0.21 3.06 3.38  18.09
+  1   2   0.53 3.33 3.38   2.80  46.40  50.27
+  1   8   0.89 3.47 3.38   2.44
+  2   4   1.36 3.43 3.38   9.04  23.71  65.89
+  2  10   0.18 2.86 3.38  10.22
+  8   1   0.04 2.87 3.38  99.96   0.01   0.00
+  8   7  99.72 3.63 3.38   0.27
+  9   3   0.31 3.21 3.38   7.64  56.55  35.50
+  9   9   0.08 2.95 3.38   7.88
+ 10   5   1.42 3.43 3.38   2.14  30.99  65.44
+ 10  11   0.16 2.88 3.38   3.40
 .fi
-Above the cycle soaker drives cpu6 up 3.6 Ghz turbo limit
+Above the cycle soaker drives cpu7 up its 3.6 Ghz turbo limit
 while the other processors are generally in various states of idle.
 
-Note that cpu0 is an HT sibling sharing core0
-with cpu6, and thus it is unable to get to an idle state
-deeper than c1 while cpu6 is busy.
+Note that cpu1 and cpu7 are HT siblings within core8.
+As cpu7 is very busy, it prevents its sibling, cpu1,
+from entering a c-state deeper than c1.
 
-Note that turbostat reports average GHz of 3.64, while
+Note that turbostat reports average GHz of 3.63, while
 the arithmetic average of the GHz column above is lower.
 This is a weighted average, where the weight is %c0.  ie. it is the total number of
 un-halted cycles elapsed per time divided by the number of CPUs.

@@ -295,9 +295,6 @@ static void core_tmr_drain_state_list(
 
 		list_move_tail(&cmd->state_list, &drain_task_list);
 		cmd->state_active = false;
-
-		if (!list_empty(&cmd->execute_list))
-			__target_remove_from_execute_list(cmd);
 	}
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 
@@ -354,57 +351,6 @@ static void core_tmr_drain_state_list(
 	}
 }
 
-static void core_tmr_drain_cmd_list(
-	struct se_device *dev,
-	struct se_cmd *prout_cmd,
-	struct se_node_acl *tmr_nacl,
-	int tas,
-	struct list_head *preempt_and_abort_list)
-{
-	LIST_HEAD(drain_cmd_list);
-	struct se_queue_obj *qobj = &dev->dev_queue_obj;
-	struct se_cmd *cmd, *tcmd;
-	unsigned long flags;
-
-	/*
-	 * Release all commands remaining in the per-device command queue.
-	 *
-	 * This follows the same logic as above for the state list.
-	 */
-	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
-	list_for_each_entry_safe(cmd, tcmd, &qobj->qobj_list, se_queue_node) {
-		/*
-		 * For PREEMPT_AND_ABORT usage, only process commands
-		 * with a matching reservation key.
-		 */
-		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
-			continue;
-		/*
-		 * Not aborting PROUT PREEMPT_AND_ABORT CDB..
-		 */
-		if (prout_cmd == cmd)
-			continue;
-
-		cmd->transport_state &= ~CMD_T_QUEUED;
-		atomic_dec(&qobj->queue_cnt);
-		list_move_tail(&cmd->se_queue_node, &drain_cmd_list);
-	}
-	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
-
-	while (!list_empty(&drain_cmd_list)) {
-		cmd = list_entry(drain_cmd_list.next, struct se_cmd, se_queue_node);
-		list_del_init(&cmd->se_queue_node);
-
-		pr_debug("LUN_RESET: %s from Device Queue: cmd: %p t_state:"
-			" %d t_fe_count: %d\n", (preempt_and_abort_list) ?
-			"Preempt" : "", cmd, cmd->t_state,
-			atomic_read(&cmd->t_fe_count));
-
-		core_tmr_handle_tas_abort(tmr_nacl, cmd, tas,
-				atomic_read(&cmd->t_fe_count));
-	}
-}
-
 int core_tmr_lun_reset(
         struct se_device *dev,
         struct se_tmr_req *tmr,
@@ -447,8 +393,7 @@ int core_tmr_lun_reset(
 	core_tmr_drain_tmr_list(dev, tmr, preempt_and_abort_list);
 	core_tmr_drain_state_list(dev, prout_cmd, tmr_nacl, tas,
 				preempt_and_abort_list);
-	core_tmr_drain_cmd_list(dev, prout_cmd, tmr_nacl, tas,
-				preempt_and_abort_list);
+
 	/*
 	 * Clear any legacy SPC-2 reservation when called during
 	 * LOGICAL UNIT RESET

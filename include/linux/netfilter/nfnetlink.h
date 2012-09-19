@@ -50,7 +50,8 @@ struct nfgenmsg {
 #define NFNL_SUBSYS_IPSET		6
 #define NFNL_SUBSYS_ACCT		7
 #define NFNL_SUBSYS_CTNETLINK_TIMEOUT	8
-#define NFNL_SUBSYS_COUNT		9
+#define NFNL_SUBSYS_CTHELPER		9
+#define NFNL_SUBSYS_COUNT		10
 
 #ifdef __KERNEL__
 

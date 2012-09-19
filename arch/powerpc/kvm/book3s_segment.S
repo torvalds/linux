@@ -23,7 +23,6 @@
 
 #define GET_SHADOW_VCPU(reg)    \
 	mr	reg, r13
-#define MTMSR_EERI(reg)		mtmsrd	(reg),1
 
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
@@ -31,7 +30,6 @@
 	tophys(reg, r2);       			\
 	lwz     reg, (THREAD + THREAD_KVM_SVCPU)(reg);	\
 	tophys(reg, reg)
-#define MTMSR_EERI(reg)		mtmsr	(reg)
 
 #endif
 

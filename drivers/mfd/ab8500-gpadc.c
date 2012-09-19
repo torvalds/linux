@@ -599,7 +599,8 @@ static int __devinit ab8500_gpadc_probe(struct platform_device *pdev)
 	/* Register interrupt  - SwAdcComplete */
 	ret = request_threaded_irq(gpadc->irq, NULL,
 		ab8500_bm_gpswadcconvend_handler,
-		IRQF_NO_SUSPEND | IRQF_SHARED, "ab8500-gpadc", gpadc);
+		IRQF_ONESHOT | IRQF_NO_SUSPEND | IRQF_SHARED,
+				"ab8500-gpadc", gpadc);
 	if (ret < 0) {
 		dev_err(gpadc->dev, "Failed to register interrupt, irq: %d\n",
 			gpadc->irq);
@@ -648,18 +649,12 @@ static int __devexit ab8500_gpadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id ab8500_gpadc_match[] = {
-	{ .compatible = "stericsson,ab8500-gpadc", },
-	{}
-};
-
 static struct platform_driver ab8500_gpadc_driver = {
 	.probe = ab8500_gpadc_probe,
 	.remove = __devexit_p(ab8500_gpadc_remove),
 	.driver = {
 		.name = "ab8500-gpadc",
 		.owner = THIS_MODULE,
-		.of_match_table = ab8500_gpadc_match,
 	},
 };
 

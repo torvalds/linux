@@ -1,7 +1,5 @@
 /*
- *  arch/s390/kernel/signal.c
- *
- *    Copyright (C) IBM Corp. 1999,2006
+ *    Copyright IBM Corp. 1999, 2006
  *    Author(s): Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
  *
  *    Based on Intel version

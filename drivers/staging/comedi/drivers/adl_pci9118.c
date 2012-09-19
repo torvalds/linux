@@ -71,7 +71,6 @@ Configuration options:
 
 #include "amcc_s5933.h"
 #include "8253.h"
-#include "comedi_pci.h"
 #include "comedi_fc.h"
 
 #define PCI_VENDOR_ID_AMCC	0x10e8
@@ -251,7 +250,6 @@ struct boardtype {
 struct pci9118_private {
 	unsigned long iobase_a;	/* base+size for AMCC chip */
 	unsigned int master;	/* master capable */
-	struct pci_dev *pcidev;	/* ptr to actual pcidev */
 	unsigned int usemux;	/* we want to use external multiplexor! */
 #ifdef PCI9118_PARANOIDCHECK
 	unsigned short chanlist[PCI9118_CHANLEN + 1];	/*
@@ -300,7 +298,7 @@ struct pci9118_private {
 	short *ai_data;
 	short ao_data[2];			/* data output buffer */
 	unsigned int ai_scans;			/* number of scans to do */
-	char dma_doublebuf;			/* we can use double buffring */
+	char dma_doublebuf;			/* we can use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	short *dmabuf_virt[2];			/*
 						 * pointers to begin of
@@ -493,7 +491,7 @@ static int pci9118_insn_bits_di(struct comedi_device *dev,
 {
 	data[1] = inl(dev->iobase + PCI9118_DI) & 0xf;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -510,7 +508,7 @@ static int pci9118_insn_bits_do(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -1736,7 +1734,7 @@ static int check_channel_list(struct comedi_device *dev,
 							"can't be mixtured!");
 				return 0;
 			}
-			if ((!devpriv->usemux) & (differencial) &
+			if (!devpriv->usemux && differencial &&
 			    (CR_CHAN(chanlist[i]) >= this_board->n_aichand)) {
 				comedi_error(dev,
 					     "If AREF_DIFF is used then is "
@@ -2111,24 +2109,56 @@ static int pci9118_reset(struct comedi_device *dev)
 	return 0;
 }
 
+static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
+					struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+
+	for_each_pci_dev(pcidev) {
+		if (pcidev->vendor != PCI_VENDOR_ID_AMCC)
+			continue;
+		if (pcidev->device != this_board->device_id)
+			continue;
+		if (bus || slot) {
+			/* requested particular bus/slot */
+			if (pcidev->bus->number != bus ||
+			    PCI_SLOT(pcidev->devfn) != slot)
+				continue;
+		}
+		/*
+		 * Look for device that isn't in use.
+		 * Enable PCI device and request regions.
+		 */
+		if (comedi_pci_enable(pcidev, "adl_pci9118"))
+			continue;
+		printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx",
+			pcidev->bus->number,
+			PCI_SLOT(pcidev->devfn),
+			PCI_FUNC(pcidev->devfn),
+			(unsigned long)pci_resource_start(pcidev, 2),
+			(unsigned long)pci_resource_start(pcidev, 0));
+		return pcidev;
+	}
+	printk(KERN_ERR
+		"comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+		dev->minor, bus, slot);
+	return NULL;
+}
+
 static int pci9118_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret, pages, i;
 	unsigned short master;
 	unsigned int irq;
-	unsigned long iobase_a, iobase_9;
-	struct pci_dev *pcidev;
-	int opt_bus, opt_slot;
-	const char *errstr;
-	unsigned char pci_bus, pci_slot, pci_func;
 	u16 u16w;
 
 	printk("comedi%d: adl_pci9118: board=%s", dev->minor, this_board->name);
 
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
 	if (it->options[3] & 1)
 		master = 0;	/* user don't want use bus master */
 	else
@@ -2140,60 +2170,19 @@ static int pci9118_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	}
 
-	/* Look for matching PCI device */
-	errstr = "not found!";
-	pcidev = NULL;
-	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_AMCC,
-						this_board->device_id,
-						pcidev))) {
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-			    || opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adl_pci9118")) {
-			errstr =
-			    "failed to enable PCI device and request regions!";
-			continue;
-		}
-		break;
-	}
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			printk(KERN_ERR " - Card at b:s %d:%d %s\n",
-			       opt_bus, opt_slot, errstr);
-		} else {
-			printk(KERN_ERR " - Card %s\n", errstr);
-		}
+	pcidev = pci9118_find_pci(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	if (master)
 		pci_set_master(pcidev);
 
-
-	pci_bus = pcidev->bus->number;
-	pci_slot = PCI_SLOT(pcidev->devfn);
-	pci_func = PCI_FUNC(pcidev->devfn);
 	irq = pcidev->irq;
-	iobase_a = pci_resource_start(pcidev, 0);
-	iobase_9 = pci_resource_start(pcidev, 2);
+	devpriv->iobase_a = pci_resource_start(pcidev, 0);
+	dev->iobase = pci_resource_start(pcidev, 2);
 
-	printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx", pci_bus,
-				pci_slot, pci_func, iobase_9, iobase_a);
-
-	dev->iobase = iobase_9;
 	dev->board_name = this_board->name;
-
-	devpriv->pcidev = pcidev;
-	devpriv->iobase_a = iobase_a;
 
 	pci9118_reset(dev);
 
@@ -2276,12 +2265,12 @@ static int pci9118_attach(struct comedi_device *dev,
 
 	printk(".\n");
 
-	pci_read_config_word(devpriv->pcidev, PCI_COMMAND, &u16w);
-	pci_write_config_word(devpriv->pcidev, PCI_COMMAND, u16w | 64);
+	pci_read_config_word(pcidev, PCI_COMMAND, &u16w);
+	pci_write_config_word(pcidev, PCI_COMMAND, u16w | 64);
 				/* Enable parity check for parity error */
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;
@@ -2355,23 +2344,25 @@ static int pci9118_attach(struct comedi_device *dev,
 
 static void pci9118_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->private) {
 		if (devpriv->valid)
 			pci9118_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if (devpriv->pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pcidev);
-
-			pci_dev_put(devpriv->pcidev);
-		}
 		if (devpriv->dmabuf_virt[0])
 			free_pages((unsigned long)devpriv->dmabuf_virt[0],
 				   devpriv->dmabuf_pages[0]);
 		if (devpriv->dmabuf_virt[1])
 			free_pages((unsigned long)devpriv->dmabuf_virt[1],
 				   devpriv->dmabuf_pages[1]);
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+
+		pci_dev_put(pcidev);
 	}
 }
 

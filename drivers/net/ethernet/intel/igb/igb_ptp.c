@@ -330,7 +330,17 @@ void igb_ptp_init(struct igb_adapter *adapter)
 
 void igb_ptp_remove(struct igb_adapter *adapter)
 {
-	cancel_delayed_work_sync(&adapter->overflow_work);
+	switch (adapter->hw.mac.type) {
+	case e1000_i211:
+	case e1000_i210:
+	case e1000_i350:
+	case e1000_82580:
+	case e1000_82576:
+		cancel_delayed_work_sync(&adapter->overflow_work);
+		break;
+	default:
+		return;
+	}
 
 	if (adapter->ptp_clock) {
 		ptp_clock_unregister(adapter->ptp_clock);

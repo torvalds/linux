@@ -71,6 +71,22 @@ static struct powerdomain mpu_3xxx_pwrdm = {
 	.voltdm           = { .name = "mpu_iva" },
 };
 
+static struct powerdomain mpu_am35x_pwrdm = {
+	.name		  = "mpu_pwrdm",
+	.prcm_offs	  = MPU_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.flags		  = PWRDM_HAS_MPU_QUIRK,
+	.banks		  = 1,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON,
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON,
+	},
+	.voltdm           = { .name = "mpu_iva" },
+};
+
 /*
  * The USBTLL Save-and-Restore mechanism is broken on
  * 3430s up to ES3.0 and 3630ES1.0. Hence this feature
@@ -120,6 +136,23 @@ static struct powerdomain core_3xxx_es3_1_pwrdm = {
 	.voltdm           = { .name = "core" },
 };
 
+static struct powerdomain core_am35x_pwrdm = {
+	.name		  = "core_pwrdm",
+	.prcm_offs	  = CORE_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.banks		  = 2,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON,	 /* MEM1RETSTATE */
+		[1] = PWRSTS_ON,	 /* MEM2RETSTATE */
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON, /* MEM1ONSTATE */
+		[1] = PWRSTS_ON, /* MEM2ONSTATE */
+	},
+	.voltdm           = { .name = "core" },
+};
+
 static struct powerdomain dss_pwrdm = {
 	.name		  = "dss_pwrdm",
 	.prcm_offs	  = OMAP3430_DSS_MOD,
@@ -128,6 +161,21 @@ static struct powerdomain dss_pwrdm = {
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
 		[0] = PWRSTS_RET, /* MEMRETSTATE */
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
+	},
+	.voltdm           = { .name = "core" },
+};
+
+static struct powerdomain dss_am35x_pwrdm = {
+	.name		  = "dss_pwrdm",
+	.prcm_offs	  = OMAP3430_DSS_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.banks		  = 1,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON, /* MEMRETSTATE */
 	},
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,  /* MEMONSTATE */
@@ -149,6 +197,21 @@ static struct powerdomain sgx_pwrdm = {
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
 		[0] = PWRSTS_RET, /* MEMRETSTATE */
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
+	},
+	.voltdm           = { .name = "core" },
+};
+
+static struct powerdomain sgx_am35x_pwrdm = {
+	.name		  = "sgx_pwrdm",
+	.prcm_offs	  = OMAP3430ES2_SGX_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.banks		  = 1,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON, /* MEMRETSTATE */
 	},
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,  /* MEMONSTATE */
@@ -186,6 +249,21 @@ static struct powerdomain per_pwrdm = {
 	.voltdm           = { .name = "core" },
 };
 
+static struct powerdomain per_am35x_pwrdm = {
+	.name		  = "per_pwrdm",
+	.prcm_offs	  = OMAP3430_PER_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
+	.banks		  = 1,
+	.pwrsts_mem_ret	  = {
+		[0] = PWRSTS_ON, /* MEMRETSTATE */
+	},
+	.pwrsts_mem_on	  = {
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
+	},
+	.voltdm           = { .name = "core" },
+};
+
 static struct powerdomain emu_pwrdm = {
 	.name		= "emu_pwrdm",
 	.prcm_offs	= OMAP3430_EMU_MOD,
@@ -197,6 +275,14 @@ static struct powerdomain neon_pwrdm = {
 	.prcm_offs	  = OMAP3430_NEON_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_RET,
+	.voltdm           = { .name = "mpu_iva" },
+};
+
+static struct powerdomain neon_am35x_pwrdm = {
+	.name		  = "neon_pwrdm",
+	.prcm_offs	  = OMAP3430_NEON_MOD,
+	.pwrsts		  = PWRSTS_ON,
+	.pwrsts_logic_ret = PWRSTS_ON,
 	.voltdm           = { .name = "mpu_iva" },
 };
 
@@ -293,6 +379,22 @@ static struct powerdomain *powerdomains_omap3430es3_1plus[] __initdata = {
 	NULL
 };
 
+static struct powerdomain *powerdomains_am35x[] __initdata = {
+	&wkup_omap2_pwrdm,
+	&mpu_am35x_pwrdm,
+	&neon_am35x_pwrdm,
+	&core_am35x_pwrdm,
+	&sgx_am35x_pwrdm,
+	&dss_am35x_pwrdm,
+	&per_am35x_pwrdm,
+	&emu_pwrdm,
+	&dpll1_pwrdm,
+	&dpll3_pwrdm,
+	&dpll4_pwrdm,
+	&dpll5_pwrdm,
+	NULL
+};
+
 void __init omap3xxx_powerdomains_init(void)
 {
 	unsigned int rev;
@@ -301,21 +403,34 @@ void __init omap3xxx_powerdomains_init(void)
 		return;
 
 	pwrdm_register_platform_funcs(&omap3_pwrdm_operations);
-	pwrdm_register_pwrdms(powerdomains_omap3430_common);
 
 	rev = omap_rev();
 
-	if (rev == OMAP3430_REV_ES1_0)
-		pwrdm_register_pwrdms(powerdomains_omap3430es1);
-	else if (rev == OMAP3430_REV_ES2_0 || rev == OMAP3430_REV_ES2_1 ||
-		 rev == OMAP3430_REV_ES3_0 || rev == OMAP3630_REV_ES1_0)
-		pwrdm_register_pwrdms(powerdomains_omap3430es2_es3_0);
-	else if (rev == OMAP3430_REV_ES3_1 || rev == OMAP3430_REV_ES3_1_2 ||
-		 rev == AM35XX_REV_ES1_0 || rev == AM35XX_REV_ES1_1 ||
-		 rev == OMAP3630_REV_ES1_1 || rev == OMAP3630_REV_ES1_2)
-		pwrdm_register_pwrdms(powerdomains_omap3430es3_1plus);
-	else
-		WARN(1, "OMAP3 powerdomain init: unknown chip type\n");
+	if (rev == AM35XX_REV_ES1_0 || rev == AM35XX_REV_ES1_1) {
+		pwrdm_register_pwrdms(powerdomains_am35x);
+	} else {
+		pwrdm_register_pwrdms(powerdomains_omap3430_common);
+
+		switch (rev) {
+		case OMAP3430_REV_ES1_0:
+			pwrdm_register_pwrdms(powerdomains_omap3430es1);
+			break;
+		case OMAP3430_REV_ES2_0:
+		case OMAP3430_REV_ES2_1:
+		case OMAP3430_REV_ES3_0:
+		case OMAP3630_REV_ES1_0:
+			pwrdm_register_pwrdms(powerdomains_omap3430es2_es3_0);
+			break;
+		case OMAP3430_REV_ES3_1:
+		case OMAP3430_REV_ES3_1_2:
+		case OMAP3630_REV_ES1_1:
+		case OMAP3630_REV_ES1_2:
+			pwrdm_register_pwrdms(powerdomains_omap3430es3_1plus);
+			break;
+		default:
+			WARN(1, "OMAP3 powerdomain init: unknown chip type\n");
+		}
+	}
 
 	pwrdm_complete_init();
 }

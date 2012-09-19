@@ -49,6 +49,7 @@ extern const struct hypervisor_x86 *x86_hyper;
 extern const struct hypervisor_x86 x86_hyper_vmware;
 extern const struct hypervisor_x86 x86_hyper_ms_hyperv;
 extern const struct hypervisor_x86 x86_hyper_xen_hvm;
+extern const struct hypervisor_x86 x86_hyper_kvm;
 
 static inline bool hypervisor_x2apic_available(void)
 {

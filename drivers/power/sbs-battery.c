@@ -469,7 +469,7 @@ static int sbs_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
-		break;
+		goto done; /* don't trigger power_supply_changed()! */
 
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
 	case POWER_SUPPLY_PROP_ENERGY_FULL:

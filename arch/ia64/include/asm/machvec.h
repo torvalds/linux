@@ -120,7 +120,7 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 # ifdef MACHVEC_PLATFORM_HEADER
 #  include MACHVEC_PLATFORM_HEADER
 # else
-#  define platform_name		ia64_mv.name
+#  define ia64_platform_name	ia64_mv.name
 #  define platform_setup	ia64_mv.setup
 #  define platform_cpu_init	ia64_mv.cpu_init
 #  define platform_irq_init	ia64_mv.irq_init

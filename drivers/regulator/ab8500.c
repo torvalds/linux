@@ -30,9 +30,6 @@
  * @dev: device pointer
  * @desc: regulator description
  * @regulator_dev: regulator device
- * @max_uV: maximum voltage (for variable voltage supplies)
- * @min_uV: minimum voltage (for variable voltage supplies)
- * @fixed_uV: typical voltage (for fixed voltage supplies)
  * @update_bank: bank to control on/off
  * @update_reg: register to control on/off
  * @update_mask: mask to enable/disable regulator
@@ -40,17 +37,12 @@
  * @voltage_bank: bank to control regulator voltage
  * @voltage_reg: register to control regulator voltage
  * @voltage_mask: mask to control regulator voltage
- * @voltages: supported voltage table
- * @voltages_len: number of supported voltages for the regulator
  * @delay: startup/set voltage delay in us
  */
 struct ab8500_regulator_info {
 	struct device		*dev;
 	struct regulator_desc	desc;
 	struct regulator_dev	*regulator;
-	int max_uV;
-	int min_uV;
-	int fixed_uV;
 	u8 update_bank;
 	u8 update_reg;
 	u8 update_mask;
@@ -58,13 +50,11 @@ struct ab8500_regulator_info {
 	u8 voltage_bank;
 	u8 voltage_reg;
 	u8 voltage_mask;
-	int const *voltages;
-	int voltages_len;
 	unsigned int delay;
 };
 
 /* voltage tables for the vauxn/vintcore supplies */
-static const int ldo_vauxn_voltages[] = {
+static const unsigned int ldo_vauxn_voltages[] = {
 	1100000,
 	1200000,
 	1300000,
@@ -83,7 +73,7 @@ static const int ldo_vauxn_voltages[] = {
 	3300000,
 };
 
-static const int ldo_vaux3_voltages[] = {
+static const unsigned int ldo_vaux3_voltages[] = {
 	1200000,
 	1500000,
 	1800000,
@@ -94,7 +84,7 @@ static const int ldo_vaux3_voltages[] = {
 	2910000,
 };
 
-static const int ldo_vintcore_voltages[] = {
+static const unsigned int ldo_vintcore_voltages[] = {
 	1200000,
 	1225000,
 	1250000,
@@ -185,25 +175,6 @@ static int ab8500_regulator_is_enabled(struct regulator_dev *rdev)
 		return false;
 }
 
-static int ab8500_list_voltage(struct regulator_dev *rdev, unsigned selector)
-{
-	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-
-	if (info == NULL) {
-		dev_err(rdev_get_dev(rdev), "regulator info null pointer\n");
-		return -EINVAL;
-	}
-
-	/* return the uV for the fixed regulators */
-	if (info->fixed_uV)
-		return info->fixed_uV;
-
-	if (selector >= info->voltages_len)
-		return -EINVAL;
-
-	return info->voltages[selector];
-}
-
 static int ab8500_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
 	int ret, val;
@@ -279,14 +250,7 @@ static int ab8500_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 					     unsigned int new_sel)
 {
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-	int ret;
 
-	/* If the regulator isn't on, it won't take time here */
-	ret = ab8500_regulator_is_enabled(rdev);
-	if (ret < 0)
-		return ret;
-	if (!ret)
-		return 0;
 	return info->delay;
 }
 
@@ -296,21 +260,14 @@ static struct regulator_ops ab8500_regulator_ops = {
 	.is_enabled	= ab8500_regulator_is_enabled,
 	.get_voltage_sel = ab8500_regulator_get_voltage_sel,
 	.set_voltage_sel = ab8500_regulator_set_voltage_sel,
-	.list_voltage	= ab8500_list_voltage,
+	.list_voltage	= regulator_list_voltage_table,
 	.enable_time	= ab8500_regulator_enable_time,
 	.set_voltage_time_sel = ab8500_regulator_set_voltage_time_sel,
 };
 
 static int ab8500_fixed_get_voltage(struct regulator_dev *rdev)
 {
-	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-
-	if (info == NULL) {
-		dev_err(rdev_get_dev(rdev), "regulator info null pointer\n");
-		return -EINVAL;
-	}
-
-	return info->fixed_uV;
+	return rdev->desc->min_uV;
 }
 
 static struct regulator_ops ab8500_regulator_fixed_ops = {
@@ -318,9 +275,8 @@ static struct regulator_ops ab8500_regulator_fixed_ops = {
 	.disable	= ab8500_regulator_disable,
 	.is_enabled	= ab8500_regulator_is_enabled,
 	.get_voltage	= ab8500_fixed_get_voltage,
-	.list_voltage	= ab8500_list_voltage,
+	.list_voltage	= regulator_list_voltage_linear,
 	.enable_time	= ab8500_regulator_enable_time,
-	.set_voltage_time_sel = ab8500_regulator_set_voltage_time_sel,
 };
 
 static struct ab8500_regulator_info
@@ -329,7 +285,7 @@ static struct ab8500_regulator_info
 	 * Variable Voltage Regulators
 	 *   name, min mV, max mV,
 	 *   update bank, reg, mask, enable val
-	 *   volt bank, reg, mask, table, table length
+	 *   volt bank, reg, mask
 	 */
 	[AB8500_LDO_AUX1] = {
 		.desc = {
@@ -339,9 +295,8 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_AUX1,
 			.owner		= THIS_MODULE,
 			.n_voltages	= ARRAY_SIZE(ldo_vauxn_voltages),
+			.volt_table	= ldo_vauxn_voltages,
 		},
-		.min_uV			= 1100000,
-		.max_uV			= 3300000,
 		.update_bank		= 0x04,
 		.update_reg		= 0x09,
 		.update_mask		= 0x03,
@@ -349,8 +304,6 @@ static struct ab8500_regulator_info
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x1f,
 		.voltage_mask		= 0x0f,
-		.voltages		= ldo_vauxn_voltages,
-		.voltages_len		= ARRAY_SIZE(ldo_vauxn_voltages),
 	},
 	[AB8500_LDO_AUX2] = {
 		.desc = {
@@ -360,9 +313,8 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_AUX2,
 			.owner		= THIS_MODULE,
 			.n_voltages	= ARRAY_SIZE(ldo_vauxn_voltages),
+			.volt_table	= ldo_vauxn_voltages,
 		},
-		.min_uV			= 1100000,
-		.max_uV			= 3300000,
 		.update_bank		= 0x04,
 		.update_reg		= 0x09,
 		.update_mask		= 0x0c,
@@ -370,8 +322,6 @@ static struct ab8500_regulator_info
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x20,
 		.voltage_mask		= 0x0f,
-		.voltages		= ldo_vauxn_voltages,
-		.voltages_len		= ARRAY_SIZE(ldo_vauxn_voltages),
 	},
 	[AB8500_LDO_AUX3] = {
 		.desc = {
@@ -381,9 +331,8 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_AUX3,
 			.owner		= THIS_MODULE,
 			.n_voltages	= ARRAY_SIZE(ldo_vaux3_voltages),
+			.volt_table	= ldo_vaux3_voltages,
 		},
-		.min_uV			= 1100000,
-		.max_uV			= 3300000,
 		.update_bank		= 0x04,
 		.update_reg		= 0x0a,
 		.update_mask		= 0x03,
@@ -391,8 +340,6 @@ static struct ab8500_regulator_info
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x21,
 		.voltage_mask		= 0x07,
-		.voltages		= ldo_vaux3_voltages,
-		.voltages_len		= ARRAY_SIZE(ldo_vaux3_voltages),
 	},
 	[AB8500_LDO_INTCORE] = {
 		.desc = {
@@ -402,9 +349,8 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_INTCORE,
 			.owner		= THIS_MODULE,
 			.n_voltages	= ARRAY_SIZE(ldo_vintcore_voltages),
+			.volt_table	= ldo_vintcore_voltages,
 		},
-		.min_uV			= 1100000,
-		.max_uV			= 3300000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x80,
 		.update_mask		= 0x44,
@@ -412,8 +358,6 @@ static struct ab8500_regulator_info
 		.voltage_bank		= 0x03,
 		.voltage_reg		= 0x80,
 		.voltage_mask		= 0x38,
-		.voltages		= ldo_vintcore_voltages,
-		.voltages_len		= ARRAY_SIZE(ldo_vintcore_voltages),
 	},
 
 	/*
@@ -429,9 +373,9 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_TVOUT,
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
+			.min_uV		= 2000000,
 		},
 		.delay			= 10000,
-		.fixed_uV		= 2000000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x80,
 		.update_mask		= 0x82,
@@ -445,8 +389,8 @@ static struct ab8500_regulator_info
 			.id             = AB8500_LDO_USB,
 			.owner          = THIS_MODULE,
 			.n_voltages     = 1,
+			.min_uV		= 3300000,
 		},
-		.fixed_uV               = 3300000,
 		.update_bank            = 0x03,
 		.update_reg             = 0x82,
 		.update_mask            = 0x03,
@@ -460,8 +404,8 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_AUDIO,
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
+			.min_uV		= 2000000,
 		},
-		.fixed_uV		= 2000000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x83,
 		.update_mask		= 0x02,
@@ -475,8 +419,8 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_ANAMIC1,
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
+			.min_uV		= 2050000,
 		},
-		.fixed_uV		= 2050000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x83,
 		.update_mask		= 0x08,
@@ -490,8 +434,8 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_ANAMIC2,
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
+			.min_uV		= 2050000,
 		},
-		.fixed_uV		= 2050000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x83,
 		.update_mask		= 0x10,
@@ -505,8 +449,8 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_DMIC,
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
+			.min_uV		= 1800000,
 		},
-		.fixed_uV		= 1800000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x83,
 		.update_mask		= 0x04,
@@ -520,8 +464,8 @@ static struct ab8500_regulator_info
 			.id		= AB8500_LDO_ANA,
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
+			.min_uV		= 1200000,
 		},
-		.fixed_uV		= 1200000,
 		.update_bank		= 0x04,
 		.update_reg		= 0x06,
 		.update_mask		= 0x0c,
@@ -769,9 +713,7 @@ static __devinit int ab8500_regulator_register(struct platform_device *pdev,
 		if (info->desc.id == AB8500_LDO_AUX3) {
 			info->desc.n_voltages =
 				ARRAY_SIZE(ldo_vauxn_voltages);
-			info->voltages = ldo_vauxn_voltages;
-			info->voltages_len =
-				ARRAY_SIZE(ldo_vauxn_voltages);
+			info->desc.volt_table = ldo_vauxn_voltages;
 			info->voltage_mask = 0xf;
 		}
 	}
@@ -906,18 +848,12 @@ static __devexit int ab8500_regulator_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id ab8500_regulator_match[] = {
-        { .compatible = "stericsson,ab8500-regulator", },
-        {}
-};
-
 static struct platform_driver ab8500_regulator_driver = {
 	.probe = ab8500_regulator_probe,
 	.remove = __devexit_p(ab8500_regulator_remove),
 	.driver         = {
 		.name   = "ab8500-regulator",
 		.owner  = THIS_MODULE,
-		.of_match_table = ab8500_regulator_match,
 	},
 };
 

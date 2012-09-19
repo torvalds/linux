@@ -1,7 +1,7 @@
 /*
  *  IBM System z Huge TLB Page Support for Kernel.
  *
- *    Copyright 2007 IBM Corp.
+ *    Copyright IBM Corp. 2007
  *    Author(s): Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
 

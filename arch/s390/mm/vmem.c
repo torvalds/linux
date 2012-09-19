@@ -1,6 +1,4 @@
 /*
- *  arch/s390/mm/vmem.c
- *
  *    Copyright IBM Corp. 2006
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */

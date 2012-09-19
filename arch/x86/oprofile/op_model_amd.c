@@ -312,7 +312,7 @@ static int op_amd_fill_in_addresses(struct op_msrs * const msrs)
 			goto fail;
 		}
 		/* both registers must be reserved */
-		if (num_counters == AMD64_NUM_COUNTERS_F15H) {
+		if (num_counters == AMD64_NUM_COUNTERS_CORE) {
 			msrs->counters[i].addr = MSR_F15H_PERF_CTR + (i << 1);
 			msrs->controls[i].addr = MSR_F15H_PERF_CTL + (i << 1);
 		} else {
@@ -514,7 +514,7 @@ static int op_amd_init(struct oprofile_operations *ops)
 	ops->create_files = setup_ibs_files;
 
 	if (boot_cpu_data.x86 == 0x15) {
-		num_counters = AMD64_NUM_COUNTERS_F15H;
+		num_counters = AMD64_NUM_COUNTERS_CORE;
 	} else {
 		num_counters = AMD64_NUM_COUNTERS;
 	}

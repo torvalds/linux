@@ -164,14 +164,49 @@ xfs_buf_stale(
 	ASSERT(atomic_read(&bp->b_hold) >= 1);
 }
 
+static int
+xfs_buf_get_maps(
+	struct xfs_buf		*bp,
+	int			map_count)
+{
+	ASSERT(bp->b_maps == NULL);
+	bp->b_map_count = map_count;
+
+	if (map_count == 1) {
+		bp->b_maps = &bp->b_map;
+		return 0;
+	}
+
+	bp->b_maps = kmem_zalloc(map_count * sizeof(struct xfs_buf_map),
+				KM_NOFS);
+	if (!bp->b_maps)
+		return ENOMEM;
+	return 0;
+}
+
+/*
+ *	Frees b_pages if it was allocated.
+ */
+static void
+xfs_buf_free_maps(
+	struct xfs_buf	*bp)
+{
+	if (bp->b_maps != &bp->b_map) {
+		kmem_free(bp->b_maps);
+		bp->b_maps = NULL;
+	}
+}
+
 struct xfs_buf *
-xfs_buf_alloc(
+_xfs_buf_alloc(
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
-	size_t			numblks,
+	struct xfs_buf_map	*map,
+	int			nmaps,
 	xfs_buf_flags_t		flags)
 {
 	struct xfs_buf		*bp;
+	int			error;
+	int			i;
 
 	bp = kmem_zone_zalloc(xfs_buf_zone, KM_NOFS);
 	if (unlikely(!bp))
@@ -192,16 +227,28 @@ xfs_buf_alloc(
 	sema_init(&bp->b_sema, 0); /* held, no waiters */
 	XB_SET_OWNER(bp);
 	bp->b_target = target;
+	bp->b_flags = flags;
 
 	/*
 	 * Set length and io_length to the same value initially.
 	 * I/O routines should use io_length, which will be the same in
 	 * most cases but may be reset (e.g. XFS recovery).
 	 */
-	bp->b_length = numblks;
-	bp->b_io_length = numblks;
-	bp->b_flags = flags;
-	bp->b_bn = blkno;
+	error = xfs_buf_get_maps(bp, nmaps);
+	if (error)  {
+		kmem_zone_free(xfs_buf_zone, bp);
+		return NULL;
+	}
+
+	bp->b_bn = map[0].bm_bn;
+	bp->b_length = 0;
+	for (i = 0; i < nmaps; i++) {
+		bp->b_maps[i].bm_bn = map[i].bm_bn;
+		bp->b_maps[i].bm_len = map[i].bm_len;
+		bp->b_length += map[i].bm_len;
+	}
+	bp->b_io_length = bp->b_length;
+
 	atomic_set(&bp->b_pin_count, 0);
 	init_waitqueue_head(&bp->b_waiters);
 
@@ -280,6 +327,7 @@ xfs_buf_free(
 	} else if (bp->b_flags & _XBF_KMEM)
 		kmem_free(bp->b_addr);
 	_xfs_buf_free_pages(bp);
+	xfs_buf_free_maps(bp);
 	kmem_zone_free(xfs_buf_zone, bp);
 }
 
@@ -327,8 +375,9 @@ xfs_buf_allocate_memory(
 	}
 
 use_alloc_page:
-	start = BBTOB(bp->b_bn) >> PAGE_SHIFT;
-	end = (BBTOB(bp->b_bn + bp->b_length) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	start = BBTOB(bp->b_map.bm_bn) >> PAGE_SHIFT;
+	end = (BBTOB(bp->b_map.bm_bn + bp->b_length) + PAGE_SIZE - 1)
+								>> PAGE_SHIFT;
 	page_count = end - start;
 	error = _xfs_buf_get_pages(bp, page_count, flags);
 	if (unlikely(error))
@@ -425,8 +474,8 @@ _xfs_buf_map_pages(
 xfs_buf_t *
 _xfs_buf_find(
 	struct xfs_buftarg	*btp,
-	xfs_daddr_t		blkno,
-	size_t			numblks,
+	struct xfs_buf_map	*map,
+	int			nmaps,
 	xfs_buf_flags_t		flags,
 	xfs_buf_t		*new_bp)
 {
@@ -435,7 +484,12 @@ _xfs_buf_find(
 	struct rb_node		**rbp;
 	struct rb_node		*parent;
 	xfs_buf_t		*bp;
+	xfs_daddr_t		blkno = map[0].bm_bn;
+	int			numblks = 0;
+	int			i;
 
+	for (i = 0; i < nmaps; i++)
+		numblks += map[i].bm_len;
 	numbytes = BBTOB(numblks);
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
@@ -527,31 +581,31 @@ found:
  * more hits than misses.
  */
 struct xfs_buf *
-xfs_buf_get(
-	xfs_buftarg_t		*target,
-	xfs_daddr_t		blkno,
-	size_t			numblks,
+xfs_buf_get_map(
+	struct xfs_buftarg	*target,
+	struct xfs_buf_map	*map,
+	int			nmaps,
 	xfs_buf_flags_t		flags)
 {
 	struct xfs_buf		*bp;
 	struct xfs_buf		*new_bp;
 	int			error = 0;
 
-	bp = _xfs_buf_find(target, blkno, numblks, flags, NULL);
+	bp = _xfs_buf_find(target, map, nmaps, flags, NULL);
 	if (likely(bp))
 		goto found;
 
-	new_bp = xfs_buf_alloc(target, blkno, numblks, flags);
+	new_bp = _xfs_buf_alloc(target, map, nmaps, flags);
 	if (unlikely(!new_bp))
 		return NULL;
 
 	error = xfs_buf_allocate_memory(new_bp, flags);
 	if (error) {
-		kmem_zone_free(xfs_buf_zone, new_bp);
+		xfs_buf_free(new_bp);
 		return NULL;
 	}
 
-	bp = _xfs_buf_find(target, blkno, numblks, flags, new_bp);
+	bp = _xfs_buf_find(target, map, nmaps, flags, new_bp);
 	if (!bp) {
 		xfs_buf_free(new_bp);
 		return NULL;
@@ -559,8 +613,6 @@ xfs_buf_get(
 
 	if (bp != new_bp)
 		xfs_buf_free(new_bp);
-
-	bp->b_io_length = bp->b_length;
 
 found:
 	if (!bp->b_addr) {
@@ -584,7 +636,7 @@ _xfs_buf_read(
 	xfs_buf_flags_t		flags)
 {
 	ASSERT(!(flags & XBF_WRITE));
-	ASSERT(bp->b_bn != XFS_BUF_DADDR_NULL);
+	ASSERT(bp->b_map.bm_bn != XFS_BUF_DADDR_NULL);
 
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
@@ -596,17 +648,17 @@ _xfs_buf_read(
 }
 
 xfs_buf_t *
-xfs_buf_read(
-	xfs_buftarg_t		*target,
-	xfs_daddr_t		blkno,
-	size_t			numblks,
+xfs_buf_read_map(
+	struct xfs_buftarg	*target,
+	struct xfs_buf_map	*map,
+	int			nmaps,
 	xfs_buf_flags_t		flags)
 {
-	xfs_buf_t		*bp;
+	struct xfs_buf		*bp;
 
 	flags |= XBF_READ;
 
-	bp = xfs_buf_get(target, blkno, numblks, flags);
+	bp = xfs_buf_get_map(target, map, nmaps, flags);
 	if (bp) {
 		trace_xfs_buf_read(bp, flags, _RET_IP_);
 
@@ -634,15 +686,15 @@ xfs_buf_read(
  *	safe manner.
  */
 void
-xfs_buf_readahead(
-	xfs_buftarg_t		*target,
-	xfs_daddr_t		blkno,
-	size_t			numblks)
+xfs_buf_readahead_map(
+	struct xfs_buftarg	*target,
+	struct xfs_buf_map	*map,
+	int			nmaps)
 {
 	if (bdi_read_congested(target->bt_bdi))
 		return;
 
-	xfs_buf_read(target, blkno, numblks,
+	xfs_buf_read_map(target, map, nmaps,
 		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD);
 }
 
@@ -665,8 +717,10 @@ xfs_buf_read_uncached(
 		return NULL;
 
 	/* set up the buffer for a read IO */
-	XFS_BUF_SET_ADDR(bp, daddr);
-	XFS_BUF_READ(bp);
+	ASSERT(bp->b_map_count == 1);
+	bp->b_bn = daddr;
+	bp->b_maps[0].bm_bn = daddr;
+	bp->b_flags |= XBF_READ;
 
 	xfsbdstrat(target->bt_mount, bp);
 	error = xfs_buf_iowait(bp);
@@ -694,7 +748,11 @@ xfs_buf_set_empty(
 	bp->b_addr = NULL;
 	bp->b_length = numblks;
 	bp->b_io_length = numblks;
+
+	ASSERT(bp->b_map_count == 1);
 	bp->b_bn = XFS_BUF_DADDR_NULL;
+	bp->b_maps[0].bm_bn = XFS_BUF_DADDR_NULL;
+	bp->b_maps[0].bm_len = bp->b_length;
 }
 
 static inline struct page *
@@ -758,9 +816,10 @@ xfs_buf_get_uncached(
 {
 	unsigned long		page_count;
 	int			error, i;
-	xfs_buf_t		*bp;
+	struct xfs_buf		*bp;
+	DEFINE_SINGLE_BUF_MAP(map, XFS_BUF_DADDR_NULL, numblks);
 
-	bp = xfs_buf_alloc(target, XFS_BUF_DADDR_NULL, numblks, 0);
+	bp = _xfs_buf_alloc(target, &map, 1, 0);
 	if (unlikely(bp == NULL))
 		goto fail;
 
@@ -791,6 +850,7 @@ xfs_buf_get_uncached(
 		__free_page(bp->b_pages[i]);
 	_xfs_buf_free_pages(bp);
  fail_free_buf:
+	xfs_buf_free_maps(bp);
 	kmem_zone_free(xfs_buf_zone, bp);
  fail:
 	return NULL;
@@ -989,27 +1049,6 @@ xfs_buf_ioerror_alert(
 		(__uint64_t)XFS_BUF_ADDR(bp), func, bp->b_error, bp->b_length);
 }
 
-int
-xfs_bwrite(
-	struct xfs_buf		*bp)
-{
-	int			error;
-
-	ASSERT(xfs_buf_islocked(bp));
-
-	bp->b_flags |= XBF_WRITE;
-	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q);
-
-	xfs_bdstrat_cb(bp);
-
-	error = xfs_buf_iowait(bp);
-	if (error) {
-		xfs_force_shutdown(bp->b_target->bt_mount,
-				   SHUTDOWN_META_IO_ERROR);
-	}
-	return error;
-}
-
 /*
  * Called when we want to stop a buffer from getting written or read.
  * We attach the EIO error, muck with its flags, and call xfs_buf_ioend
@@ -1079,14 +1118,7 @@ xfs_bioerror_relse(
 	return EIO;
 }
 
-
-/*
- * All xfs metadata buffers except log state machine buffers
- * get this attached as their b_bdstrat callback function.
- * This is so that we can catch a buffer
- * after prematurely unpinning it to forcibly shutdown the filesystem.
- */
-int
+STATIC int
 xfs_bdstrat_cb(
 	struct xfs_buf	*bp)
 {
@@ -1105,6 +1137,27 @@ xfs_bdstrat_cb(
 
 	xfs_buf_iorequest(bp);
 	return 0;
+}
+
+int
+xfs_bwrite(
+	struct xfs_buf		*bp)
+{
+	int			error;
+
+	ASSERT(xfs_buf_islocked(bp));
+
+	bp->b_flags |= XBF_WRITE;
+	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q);
+
+	xfs_bdstrat_cb(bp);
+
+	error = xfs_buf_iowait(bp);
+	if (error) {
+		xfs_force_shutdown(bp->b_target->bt_mount,
+				   SHUTDOWN_META_IO_ERROR);
+	}
+	return error;
 }
 
 /*
@@ -1151,36 +1204,39 @@ xfs_buf_bio_end_io(
 	bio_put(bio);
 }
 
-STATIC void
-_xfs_buf_ioapply(
-	xfs_buf_t		*bp)
+static void
+xfs_buf_ioapply_map(
+	struct xfs_buf	*bp,
+	int		map,
+	int		*buf_offset,
+	int		*count,
+	int		rw)
 {
-	int			rw, map_i, total_nr_pages, nr_pages;
-	struct bio		*bio;
-	int			offset = bp->b_offset;
-	int			size = BBTOB(bp->b_io_length);
-	sector_t		sector = bp->b_bn;
+	int		page_index;
+	int		total_nr_pages = bp->b_page_count;
+	int		nr_pages;
+	struct bio	*bio;
+	sector_t	sector =  bp->b_maps[map].bm_bn;
+	int		size;
+	int		offset;
 
 	total_nr_pages = bp->b_page_count;
-	map_i = 0;
 
-	if (bp->b_flags & XBF_WRITE) {
-		if (bp->b_flags & XBF_SYNCIO)
-			rw = WRITE_SYNC;
-		else
-			rw = WRITE;
-		if (bp->b_flags & XBF_FUA)
-			rw |= REQ_FUA;
-		if (bp->b_flags & XBF_FLUSH)
-			rw |= REQ_FLUSH;
-	} else if (bp->b_flags & XBF_READ_AHEAD) {
-		rw = READA;
-	} else {
-		rw = READ;
+	/* skip the pages in the buffer before the start offset */
+	page_index = 0;
+	offset = *buf_offset;
+	while (offset >= PAGE_SIZE) {
+		page_index++;
+		offset -= PAGE_SIZE;
 	}
 
-	/* we only use the buffer cache for meta-data */
-	rw |= REQ_META;
+	/*
+	 * Limit the IO size to the length of the current vector, and update the
+	 * remaining IO count for the next time around.
+	 */
+	size = min_t(int, BBTOB(bp->b_maps[map].bm_len), *count);
+	*count -= size;
+	*buf_offset += size;
 
 next_chunk:
 	atomic_inc(&bp->b_io_remaining);
@@ -1195,13 +1251,14 @@ next_chunk:
 	bio->bi_private = bp;
 
 
-	for (; size && nr_pages; nr_pages--, map_i++) {
+	for (; size && nr_pages; nr_pages--, page_index++) {
 		int	rbytes, nbytes = PAGE_SIZE - offset;
 
 		if (nbytes > size)
 			nbytes = size;
 
-		rbytes = bio_add_page(bio, bp->b_pages[map_i], nbytes, offset);
+		rbytes = bio_add_page(bio, bp->b_pages[page_index], nbytes,
+				      offset);
 		if (rbytes < nbytes)
 			break;
 
@@ -1223,6 +1280,54 @@ next_chunk:
 		xfs_buf_ioerror(bp, EIO);
 		bio_put(bio);
 	}
+
+}
+
+STATIC void
+_xfs_buf_ioapply(
+	struct xfs_buf	*bp)
+{
+	struct blk_plug	plug;
+	int		rw;
+	int		offset;
+	int		size;
+	int		i;
+
+	if (bp->b_flags & XBF_WRITE) {
+		if (bp->b_flags & XBF_SYNCIO)
+			rw = WRITE_SYNC;
+		else
+			rw = WRITE;
+		if (bp->b_flags & XBF_FUA)
+			rw |= REQ_FUA;
+		if (bp->b_flags & XBF_FLUSH)
+			rw |= REQ_FLUSH;
+	} else if (bp->b_flags & XBF_READ_AHEAD) {
+		rw = READA;
+	} else {
+		rw = READ;
+	}
+
+	/* we only use the buffer cache for meta-data */
+	rw |= REQ_META;
+
+	/*
+	 * Walk all the vectors issuing IO on them. Set up the initial offset
+	 * into the buffer and the desired IO size before we start -
+	 * _xfs_buf_ioapply_vec() will modify them appropriately for each
+	 * subsequent call.
+	 */
+	offset = bp->b_offset;
+	size = BBTOB(bp->b_io_length);
+	blk_start_plug(&plug);
+	for (i = 0; i < bp->b_map_count; i++) {
+		xfs_buf_ioapply_map(bp, i, &offset, &size, rw);
+		if (bp->b_error)
+			break;
+		if (size <= 0)
+			break;	/* all done */
+	}
+	blk_finish_plug(&plug);
 }
 
 void
@@ -1243,7 +1348,7 @@ xfs_buf_iorequest(
 	 */
 	atomic_set(&bp->b_io_remaining, 1);
 	_xfs_buf_ioapply(bp);
-	_xfs_buf_ioend(bp, 0);
+	_xfs_buf_ioend(bp, 1);
 
 	xfs_buf_rele(bp);
 }
@@ -1564,7 +1669,7 @@ xfs_buf_cmp(
 	struct xfs_buf	*bp = container_of(b, struct xfs_buf, b_list);
 	xfs_daddr_t		diff;
 
-	diff = ap->b_bn - bp->b_bn;
+	diff = ap->b_map.bm_bn - bp->b_map.bm_bn;
 	if (diff < 0)
 		return -1;
 	if (diff > 0)

@@ -1746,7 +1746,11 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				c->channel_release(dma);
 				hw_ep->rx_channel = NULL;
 				dma = NULL;
-				/* REVISIT reset CSR */
+				val = musb_readw(epio, MUSB_RXCSR);
+				val &= ~(MUSB_RXCSR_DMAENAB
+					| MUSB_RXCSR_H_AUTOREQ
+					| MUSB_RXCSR_AUTOCLEAR);
+				musb_writew(epio, MUSB_RXCSR, val);
 			}
 		}
 #endif	/* Mentor DMA */

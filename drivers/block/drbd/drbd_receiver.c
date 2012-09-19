@@ -277,6 +277,9 @@ static void drbd_pp_free(struct drbd_conf *mdev, struct page *page, int is_net)
 	atomic_t *a = is_net ? &mdev->pp_in_use_by_net : &mdev->pp_in_use;
 	int i;
 
+	if (page == NULL)
+		return;
+
 	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE)*minor_count)
 		i = page_chain_free(page);
 	else {
@@ -316,7 +319,7 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 				     gfp_t gfp_mask) __must_hold(local)
 {
 	struct drbd_epoch_entry *e;
-	struct page *page;
+	struct page *page = NULL;
 	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
 
 	if (drbd_insert_fault(mdev, DRBD_FAULT_AL_EE))
@@ -329,9 +332,11 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 		return NULL;
 	}
 
-	page = drbd_pp_alloc(mdev, nr_pages, (gfp_mask & __GFP_WAIT));
-	if (!page)
-		goto fail;
+	if (data_size) {
+		page = drbd_pp_alloc(mdev, nr_pages, (gfp_mask & __GFP_WAIT));
+		if (!page)
+			goto fail;
+	}
 
 	INIT_HLIST_NODE(&e->collision);
 	e->epoch = NULL;
@@ -1270,7 +1275,6 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 
 	data_size -= dgs;
 
-	ERR_IF(data_size == 0) return NULL;
 	ERR_IF(data_size &  0x1ff) return NULL;
 	ERR_IF(data_size >  DRBD_MAX_BIO_SIZE) return NULL;
 
@@ -1290,6 +1294,9 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 	e = drbd_alloc_ee(mdev, id, sector, data_size, GFP_NOIO);
 	if (!e)
 		return NULL;
+
+	if (!data_size)
+		return e;
 
 	ds = data_size;
 	page = e->pages;
@@ -1715,6 +1722,10 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 
 	dp_flags = be32_to_cpu(p->dp_flags);
 	rw |= wire_flags_to_bio(mdev, dp_flags);
+	if (e->pages == NULL) {
+		D_ASSERT(e->size == 0);
+		D_ASSERT(dp_flags & DP_FLUSH);
+	}
 
 	if (dp_flags & DP_MAY_SET_IN_SYNC)
 		e->flags |= EE_MAY_SET_IN_SYNC;
@@ -3801,11 +3812,18 @@ void drbd_free_tl_hash(struct drbd_conf *mdev)
 	mdev->ee_hash = NULL;
 	mdev->ee_hash_s = 0;
 
-	/* paranoia code */
-	for (h = mdev->tl_hash; h < mdev->tl_hash + mdev->tl_hash_s; h++)
-		if (h->first)
-			dev_err(DEV, "ASSERT FAILED tl_hash[%u] == %p, expected NULL\n",
-				(int)(h - mdev->tl_hash), h->first);
+	/* We may not have had the chance to wait for all locally pending
+	 * application requests. The hlist_add_fake() prevents access after
+	 * free on master bio completion. */
+	for (h = mdev->tl_hash; h < mdev->tl_hash + mdev->tl_hash_s; h++) {
+		struct drbd_request *req;
+		struct hlist_node *pos, *n;
+		hlist_for_each_entry_safe(req, pos, n, h, collision) {
+			hlist_del_init(&req->collision);
+			hlist_add_fake(&req->collision);
+		}
+	}
+
 	kfree(mdev->tl_hash);
 	mdev->tl_hash = NULL;
 	mdev->tl_hash_s = 0;

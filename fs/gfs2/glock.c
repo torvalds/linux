@@ -46,10 +46,11 @@
 #include "trace_gfs2.h"
 
 struct gfs2_glock_iter {
-	int hash;			/* hash bucket index         */
-	struct gfs2_sbd *sdp;		/* incore superblock         */
-	struct gfs2_glock *gl;		/* current glock struct      */
-	char string[512];		/* scratch space             */
+	int hash;			/* hash bucket index           */
+	unsigned nhash;			/* Index within current bucket */
+	struct gfs2_sbd *sdp;		/* incore superblock           */
+	struct gfs2_glock *gl;		/* current glock struct        */
+	loff_t last_pos;		/* last position               */
 };
 
 typedef void (*glock_examiner) (struct gfs2_glock * gl);
@@ -767,6 +768,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl->gl_stats.stats[GFS2_LKS_DCOUNT] = 0;
 	gl->gl_stats.stats[GFS2_LKS_QCOUNT] = 0;
 	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
+	memset(gl->gl_lvb, 0, 32 * sizeof(char));
 	gl->gl_lksb.sb_lvbptr = gl->gl_lvb;
 	gl->gl_tchange = jiffies;
 	gl->gl_object = NULL;
@@ -948,9 +950,7 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
 	va_start(args, fmt);
 
 	if (seq) {
-		struct gfs2_glock_iter *gi = seq->private;
-		vsprintf(gi->string, fmt, args);
-		seq_printf(seq, gi->string);
+		seq_vprintf(seq, fmt, args);
 	} else {
 		vaf.fmt = fmt;
 		vaf.va = &args;
@@ -1854,8 +1854,14 @@ static int gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
 		gl = gi->gl;
 		if (gl) {
 			gi->gl = glock_hash_next(gl);
+			gi->nhash++;
 		} else {
+			if (gi->hash >= GFS2_GL_HASH_SIZE) {
+				rcu_read_unlock();
+				return 1;
+			}
 			gi->gl = glock_hash_chain(gi->hash);
+			gi->nhash = 0;
 		}
 		while (gi->gl == NULL) {
 			gi->hash++;
@@ -1864,6 +1870,7 @@ static int gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
 				return 1;
 			}
 			gi->gl = glock_hash_chain(gi->hash);
+			gi->nhash = 0;
 		}
 	/* Skip entries for other sb and dead entries */
 	} while (gi->sdp != gi->gl->gl_sbd || atomic_read(&gi->gl->gl_ref) == 0);
@@ -1876,7 +1883,12 @@ static void *gfs2_glock_seq_start(struct seq_file *seq, loff_t *pos)
 	struct gfs2_glock_iter *gi = seq->private;
 	loff_t n = *pos;
 
-	gi->hash = 0;
+	if (gi->last_pos <= *pos)
+		n = gi->nhash + (*pos - gi->last_pos);
+	else
+		gi->hash = 0;
+
+	gi->nhash = 0;
 	rcu_read_lock();
 
 	do {
@@ -1884,6 +1896,7 @@ static void *gfs2_glock_seq_start(struct seq_file *seq, loff_t *pos)
 			return NULL;
 	} while (n--);
 
+	gi->last_pos = *pos;
 	return gi->gl;
 }
 
@@ -1893,7 +1906,7 @@ static void *gfs2_glock_seq_next(struct seq_file *seq, void *iter_ptr,
 	struct gfs2_glock_iter *gi = seq->private;
 
 	(*pos)++;
-
+	gi->last_pos = *pos;
 	if (gfs2_glock_iter_next(gi))
 		return NULL;
 
@@ -1964,6 +1977,8 @@ static const struct seq_operations gfs2_sbstats_seq_ops = {
 	.show  = gfs2_sbstats_seq_show,
 };
 
+#define GFS2_SEQ_GOODSIZE min(PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER, 65536UL)
+
 static int gfs2_glocks_open(struct inode *inode, struct file *file)
 {
 	int ret = seq_open_private(file, &gfs2_glock_seq_ops,
@@ -1972,6 +1987,9 @@ static int gfs2_glocks_open(struct inode *inode, struct file *file)
 		struct seq_file *seq = file->private_data;
 		struct gfs2_glock_iter *gi = seq->private;
 		gi->sdp = inode->i_private;
+		seq->buf = kmalloc(GFS2_SEQ_GOODSIZE, GFP_KERNEL | __GFP_NOWARN);
+		if (seq->buf)
+			seq->size = GFS2_SEQ_GOODSIZE;
 	}
 	return ret;
 }
@@ -1984,6 +2002,9 @@ static int gfs2_glstats_open(struct inode *inode, struct file *file)
 		struct seq_file *seq = file->private_data;
 		struct gfs2_glock_iter *gi = seq->private;
 		gi->sdp = inode->i_private;
+		seq->buf = kmalloc(GFS2_SEQ_GOODSIZE, GFP_KERNEL | __GFP_NOWARN);
+		if (seq->buf)
+			seq->size = GFS2_SEQ_GOODSIZE;
 	}
 	return ret;
 }

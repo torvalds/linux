@@ -167,7 +167,10 @@ struct mei_io_list {
 	struct mei_cl_cb mei_cb;
 };
 
-/* MEI private device struct */
+/**
+ * struct mei_deive -  MEI private device struct
+ * @hbuf_depth - depth of host(write) buffer
+ */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
 	/*
@@ -205,6 +208,7 @@ struct mei_device {
 	 */
 	u32 host_hw_state;
 	u32 me_hw_state;
+	u8  hbuf_depth;
 	/*
 	 * waiting queue for receive message from FW
 	 */
@@ -237,13 +241,12 @@ struct mei_device {
 	bool mei_host_buffer_is_empty;
 
 	struct mei_cl wd_cl;
+	bool wd_interface_reg;
 	bool wd_pending;
 	bool wd_stopped;
 	bool wd_bypass;	/* if false, don't refresh watchdog ME client */
 	u16 wd_timeout;	/* seconds ((wd_data[1] << 8) + wd_data[0]) */
-	u16 wd_due_counter;
 	unsigned char wd_data[MEI_START_WD_DATA_SIZE];
-
 
 
 	struct file *iamthif_file_object;
@@ -259,8 +262,6 @@ struct mei_device {
 	bool iamthif_flow_control_pending;
 	bool iamthif_ioctl;
 	bool iamthif_canceled;
-
-	bool wd_interface_reg;
 };
 
 
@@ -361,7 +362,8 @@ int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid);
  *
  * returns register value (u32)
  */
-static inline u32 mei_reg_read(struct mei_device *dev, unsigned long offset)
+static inline u32 mei_reg_read(const struct mei_device *dev,
+			       unsigned long offset)
 {
 	return ioread32(dev->mem_addr + offset);
 }
@@ -373,8 +375,8 @@ static inline u32 mei_reg_read(struct mei_device *dev, unsigned long offset)
  * @offset: offset from which to write the data
  * @value: register value to write (u32)
  */
-static inline void mei_reg_write(struct mei_device *dev,
-				unsigned long offset, u32 value)
+static inline void mei_reg_write(const struct mei_device *dev,
+				 unsigned long offset, u32 value)
 {
 	iowrite32(value, dev->mem_addr + offset);
 }
@@ -386,7 +388,7 @@ static inline void mei_reg_write(struct mei_device *dev,
  *
  * returns the byte read.
  */
-static inline u32 mei_hcsr_read(struct mei_device *dev)
+static inline u32 mei_hcsr_read(const struct mei_device *dev)
 {
 	return mei_reg_read(dev, H_CSR);
 }
@@ -398,7 +400,7 @@ static inline u32 mei_hcsr_read(struct mei_device *dev)
  *
  * returns ME_CSR_HA register value (u32)
  */
-static inline u32 mei_mecsr_read(struct mei_device *dev)
+static inline u32 mei_mecsr_read(const struct mei_device *dev)
 {
 	return mei_reg_read(dev, ME_CSR_HA);
 }
@@ -410,7 +412,7 @@ static inline u32 mei_mecsr_read(struct mei_device *dev)
  *
  * returns ME_CB_RW register value (u32)
  */
-static inline u32 mei_mecbrw_read(struct mei_device *dev)
+static inline u32 mei_mecbrw_read(const struct mei_device *dev)
 {
 	return mei_reg_read(dev, ME_CB_RW);
 }

@@ -384,21 +384,10 @@ static struct pci_driver pdc202xx_pci_driver = {
 #endif
 };
 
-static int __init pdc202xx_init(void)
-{
-	return pci_register_driver(&pdc202xx_pci_driver);
-}
-
-static void __exit pdc202xx_exit(void)
-{
-	pci_unregister_driver(&pdc202xx_pci_driver);
-}
+module_pci_driver(pdc202xx_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Promise 2024x and 20262-20267");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, pdc202xx);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(pdc202xx_init);
-module_exit(pdc202xx_exit);

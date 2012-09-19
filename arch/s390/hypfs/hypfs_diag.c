@@ -1,5 +1,4 @@
 /*
- *  arch/s390/hypfs/hypfs_diag.c
  *    Hypervisor filesystem for Linux on s390. Diag 204 and 224
  *    implementation.
  *

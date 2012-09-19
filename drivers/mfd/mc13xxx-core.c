@@ -723,10 +723,6 @@ void mc13xxx_common_cleanup(struct mc13xxx *mc13xxx)
 	free_irq(mc13xxx->irq, mc13xxx);
 
 	mfd_remove_devices(mc13xxx->dev);
-
-	regmap_exit(mc13xxx->regmap);
-
-	kfree(mc13xxx);
 }
 EXPORT_SYMBOL_GPL(mc13xxx_common_cleanup);
 

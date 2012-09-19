@@ -371,6 +371,7 @@ void ping_err(struct sk_buff *skb, u32 info)
 		break;
 	case ICMP_DEST_UNREACH:
 		if (code == ICMP_FRAG_NEEDED) { /* Path MTU discovery */
+			ipv4_sk_update_pmtu(skb, sk, info);
 			if (inet_sock->pmtudisc != IP_PMTUDISC_DONT) {
 				err = EMSGSIZE;
 				harderr = 1;
@@ -386,6 +387,7 @@ void ping_err(struct sk_buff *skb, u32 info)
 		break;
 	case ICMP_REDIRECT:
 		/* See ICMP_SOURCE_QUENCH */
+		ipv4_sk_redirect(skb, sk);
 		err = EREMOTEIO;
 		break;
 	}

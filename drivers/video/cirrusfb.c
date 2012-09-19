@@ -1611,7 +1611,7 @@ static void init_vgachip(struct fb_info *info)
 	/* ext. display controls: ext.adr. wrap */
 	vga_wcrt(cinfo->regbase, CL_CRT1B, 0x02);
 
-	/* Set/Reset registes: - */
+	/* Set/Reset registers: - */
 	vga_wgfx(cinfo->regbase, VGA_GFX_SR_VALUE, 0x00);
 	/* Set/Reset enable: - */
 	vga_wgfx(cinfo->regbase, VGA_GFX_SR_ENABLE, 0x00);

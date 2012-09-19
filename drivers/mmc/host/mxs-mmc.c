@@ -164,16 +164,23 @@ struct mxs_mmc_host {
 	spinlock_t			lock;
 	int				sdio_irq_en;
 	int				wp_gpio;
+	bool				wp_inverted;
 };
 
 static int mxs_mmc_get_ro(struct mmc_host *mmc)
 {
 	struct mxs_mmc_host *host = mmc_priv(mmc);
+	int ret;
 
 	if (!gpio_is_valid(host->wp_gpio))
 		return -EINVAL;
 
-	return gpio_get_value(host->wp_gpio);
+	ret = gpio_get_value(host->wp_gpio);
+
+	if (host->wp_inverted)
+		ret = !ret;
+
+	return ret;
 }
 
 static int mxs_mmc_get_cd(struct mmc_host *mmc)
@@ -278,10 +285,10 @@ static irqreturn_t mxs_mmc_irq_handler(int irq, void *dev_id)
 	writel(stat & MXS_MMC_IRQ_BITS,
 	       host->base + HW_SSP_CTRL1(host) + STMP_OFFSET_REG_CLR);
 
+	spin_unlock(&host->lock);
+
 	if ((stat & BM_SSP_CTRL1_SDIO_IRQ) && (stat & BM_SSP_CTRL1_SDIO_IRQ_EN))
 		mmc_signal_sdio_irq(host->mmc);
-
-	spin_unlock(&host->lock);
 
 	if (stat & BM_SSP_CTRL1_RESP_TIMEOUT_IRQ)
 		cmd->error = -ETIMEDOUT;
@@ -637,11 +644,6 @@ static void mxs_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 		       host->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 		writel(BM_SSP_CTRL1_SDIO_IRQ_EN,
 		       host->base + HW_SSP_CTRL1(host) + STMP_OFFSET_REG_SET);
-
-		if (readl(host->base + HW_SSP_STATUS(host)) &
-				BM_SSP_STATUS_SDIO_IRQ)
-			mmc_signal_sdio_irq(host->mmc);
-
 	} else {
 		writel(BM_SSP_CTRL0_SDIO_IRQ_CHECK,
 		       host->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
@@ -650,6 +652,11 @@ static void mxs_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	}
 
 	spin_unlock_irqrestore(&host->lock, flags);
+
+	if (enable && readl(host->base + HW_SSP_STATUS(host)) &
+			BM_SSP_STATUS_SDIO_IRQ)
+		mmc_signal_sdio_irq(host->mmc);
+
 }
 
 static const struct mmc_host_ops mxs_mmc_ops = {
@@ -707,6 +714,8 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct pinctrl *pinctrl;
 	int ret = 0, irq_err, irq_dma;
 	dma_cap_mask_t mask;
+	struct regulator *reg_vmmc;
+	enum of_gpio_flags flags;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -747,6 +756,16 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host->mmc = mmc;
 	host->sdio_irq_en = 0;
 
+	reg_vmmc = devm_regulator_get(&pdev->dev, "vmmc");
+	if (!IS_ERR(reg_vmmc)) {
+		ret = regulator_enable(reg_vmmc);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to enable vmmc regulator: %d\n", ret);
+			goto out_mmc_free;
+		}
+	}
+
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
@@ -785,7 +804,10 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 			mmc->caps |= MMC_CAP_4_BIT_DATA;
 		else if (bus_width == 8)
 			mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
-		host->wp_gpio = of_get_named_gpio(np, "wp-gpios", 0);
+		host->wp_gpio = of_get_named_gpio_flags(np, "wp-gpios", 0,
+							&flags);
+		if (flags & OF_GPIO_ACTIVE_LOW)
+			host->wp_inverted = 1;
 	} else {
 		if (pdata->flags & SLOTF_8_BIT_CAPABLE)
 			mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;

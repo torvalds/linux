@@ -65,20 +65,20 @@ static unsigned int clkdiv_cpu0_5250[CPUFREQ_LEVEL_END][8] = {
 	 * Clock divider value for following
 	 * { ARM, CPUD, ACP, PERIPH, ATB, PCLK_DBG, APLL, ARM2 }
 	 */
-	{ 0, 3, 7, 7, 6, 1, 3, 0 },	/* 1700 MHz - N/A */
-	{ 0, 3, 7, 7, 6, 1, 3, 0 },	/* 1600 MHz - N/A */
-	{ 0, 3, 7, 7, 5, 1, 3, 0 },	/* 1500 MHz - N/A */
-	{ 0, 3, 7, 7, 6, 1, 3, 0 },	/* 1400 MHz */
-	{ 0, 3, 7, 7, 6, 1, 3, 0 },	/* 1300 MHz */
-	{ 0, 3, 7, 7, 5, 1, 3, 0 },	/* 1200 MHz */
-	{ 0, 2, 7, 7, 5, 1, 2, 0 },	/* 1100 MHz */
-	{ 0, 2, 7, 7, 4, 1, 2, 0 },	/* 1000 MHz */
-	{ 0, 2, 7, 7, 4, 1, 2, 0 },	/* 900 MHz */
-	{ 0, 2, 7, 7, 3, 1, 1, 0 },	/* 800 MHz */
+	{ 0, 3, 7, 7, 7, 3, 5, 0 },	/* 1700 MHz */
+	{ 0, 3, 7, 7, 7, 1, 4, 0 },	/* 1600 MHz */
+	{ 0, 2, 7, 7, 7, 1, 4, 0 },	/* 1500 MHz */
+	{ 0, 2, 7, 7, 6, 1, 4, 0 },	/* 1400 MHz */
+	{ 0, 2, 7, 7, 6, 1, 3, 0 },	/* 1300 MHz */
+	{ 0, 2, 7, 7, 5, 1, 3, 0 },	/* 1200 MHz */
+	{ 0, 3, 7, 7, 5, 1, 3, 0 },	/* 1100 MHz */
+	{ 0, 1, 7, 7, 4, 1, 2, 0 },	/* 1000 MHz */
+	{ 0, 1, 7, 7, 4, 1, 2, 0 },	/* 900 MHz */
+	{ 0, 1, 7, 7, 4, 1, 2, 0 },	/* 800 MHz */
 	{ 0, 1, 7, 7, 3, 1, 1, 0 },	/* 700 MHz */
-	{ 0, 1, 7, 7, 2, 1, 1, 0 },	/* 600 MHz */
+	{ 0, 1, 7, 7, 3, 1, 1, 0 },	/* 600 MHz */
 	{ 0, 1, 7, 7, 2, 1, 1, 0 },	/* 500 MHz */
-	{ 0, 1, 7, 7, 1, 1, 1, 0 },	/* 400 MHz */
+	{ 0, 1, 7, 7, 2, 1, 1, 0 },	/* 400 MHz */
 	{ 0, 1, 7, 7, 1, 1, 1, 0 },	/* 300 MHz */
 	{ 0, 1, 7, 7, 1, 1, 1, 0 },	/* 200 MHz */
 };
@@ -87,9 +87,9 @@ static unsigned int clkdiv_cpu1_5250[CPUFREQ_LEVEL_END][2] = {
 	/* Clock divider value for following
 	 * { COPY, HPM }
 	 */
-	{ 0, 2 },	/* 1700 MHz - N/A */
-	{ 0, 2 },	/* 1600 MHz - N/A */
-	{ 0, 2 },	/* 1500 MHz - N/A */
+	{ 0, 2 },	/* 1700 MHz */
+	{ 0, 2 },	/* 1600 MHz */
+	{ 0, 2 },	/* 1500 MHz */
 	{ 0, 2 },	/* 1400 MHz */
 	{ 0, 2 },	/* 1300 MHz */
 	{ 0, 2 },	/* 1200 MHz */
@@ -106,10 +106,10 @@ static unsigned int clkdiv_cpu1_5250[CPUFREQ_LEVEL_END][2] = {
 };
 
 static unsigned int exynos5_apll_pms_table[CPUFREQ_LEVEL_END] = {
-	(0),				/* 1700 MHz - N/A */
-	(0),				/* 1600 MHz - N/A */
-	(0),				/* 1500 MHz - N/A */
-	(0),				/* 1400 MHz */
+	((425 << 16) | (6 << 8) | 0),	/* 1700 MHz */
+	((200 << 16) | (3 << 8) | 0),	/* 1600 MHz */
+	((250 << 16) | (4 << 8) | 0),	/* 1500 MHz */
+	((175 << 16) | (3 << 8) | 0),	/* 1400 MHz */
 	((325 << 16) | (6 << 8) | 0),	/* 1300 MHz */
 	((200 << 16) | (4 << 8) | 0),	/* 1200 MHz */
 	((275 << 16) | (6 << 8) | 0),	/* 1100 MHz */
@@ -126,9 +126,10 @@ static unsigned int exynos5_apll_pms_table[CPUFREQ_LEVEL_END] = {
 
 /* ASV group voltage table */
 static const unsigned int asv_voltage_5250[CPUFREQ_LEVEL_END] = {
-	0, 0, 0, 0, 0, 0, 0,	/* 1700 MHz ~ 1100 MHz Not supported */
-	1175000, 1125000, 1075000, 1050000, 1000000,
-	950000, 925000, 925000, 900000
+	1300000, 1250000, 1225000, 1200000, 1150000,
+	1125000, 1100000, 1075000, 1050000, 1025000,
+	1012500, 1000000,  975000,  950000,  937500,
+	925000
 };
 
 static void set_clkdiv(unsigned int div_index)
@@ -248,15 +249,7 @@ static void __init set_volt_table(void)
 {
 	unsigned int i;
 
-	exynos5250_freq_table[L0].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L1].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L2].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L3].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L4].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L5].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L6].frequency = CPUFREQ_ENTRY_INVALID;
-
-	max_support_idx = L7;
+	max_support_idx = L0;
 
 	for (i = 0 ; i < CPUFREQ_LEVEL_END ; i++)
 		exynos5250_volt_table[i] = asv_voltage_5250[i];

@@ -1,9 +1,8 @@
 /*
- *  arch/s390/lib/string.c
  *    Optimized string functions
  *
  *  S390 version
- *    Copyright (C) 2004 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2004
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 

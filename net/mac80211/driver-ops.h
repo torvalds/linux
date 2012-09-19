@@ -3,7 +3,7 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
-#include "driver-trace.h"
+#include "trace.h"
 
 static inline void check_sdata_in_driver(struct ieee80211_sub_if_data *sdata)
 {
@@ -25,14 +25,6 @@ get_bss_sdata(struct ieee80211_sub_if_data *sdata)
 static inline void drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
 {
 	local->ops->tx(&local->hw, skb);
-}
-
-static inline void drv_tx_frags(struct ieee80211_local *local,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta,
-				struct sk_buff_head *skbs)
-{
-	local->ops->tx_frags(&local->hw, vif, sta, skbs);
 }
 
 static inline void drv_get_et_strings(struct ieee80211_sub_if_data *sdata,
@@ -843,6 +835,35 @@ drv_allow_buffered_frames(struct ieee80211_local *local,
 		local->ops->allow_buffered_frames(&local->hw, &sta->sta,
 						  tids, num_frames, reason,
 						  more_data);
+	trace_drv_return_void(local);
+}
+
+static inline int drv_get_rssi(struct ieee80211_local *local,
+				struct ieee80211_sub_if_data *sdata,
+				struct ieee80211_sta *sta,
+				s8 *rssi_dbm)
+{
+	int ret;
+
+	might_sleep();
+
+	ret = local->ops->get_rssi(&local->hw, &sdata->vif, sta, rssi_dbm);
+	trace_drv_get_rssi(local, sta, *rssi_dbm, ret);
+
+	return ret;
+}
+
+static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,
+				      struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	check_sdata_in_driver(sdata);
+	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
+
+	trace_drv_mgd_prepare_tx(local, sdata);
+	if (local->ops->mgd_prepare_tx)
+		local->ops->mgd_prepare_tx(&local->hw, &sdata->vif);
 	trace_drv_return_void(local);
 }
 #endif /* __MAC80211_DRIVER_OPS */

@@ -30,8 +30,7 @@ const struct imx_ipu_core_data imx35_ipu_core_data __initconst =
 static struct platform_device *imx_ipu_coredev __initdata;
 
 struct platform_device *__init imx_add_ipu_core(
-		const struct imx_ipu_core_data *data,
-		const struct ipu_platform_data *pdata)
+		const struct imx_ipu_core_data *data)
 {
 	/* The resource order is important! */
 	struct resource res[] = {
@@ -55,7 +54,7 @@ struct platform_device *__init imx_add_ipu_core(
 	};
 
 	return imx_ipu_coredev = imx_add_platform_device("ipu-core", -1,
-			res, ARRAY_SIZE(res), pdata, sizeof(*pdata));
+			res, ARRAY_SIZE(res), NULL, 0);
 }
 
 struct platform_device *__init imx_alloc_mx3_camera(

@@ -719,7 +719,7 @@ enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_FORCE_MWAIT,
 
 void default_idle(void);
 
-#define ia64_platform_is(x) (strcmp(x, platform_name) == 0)
+#define ia64_platform_is(x) (strcmp(x, ia64_platform_name) == 0)
 
 #endif /* !__ASSEMBLY__ */
 

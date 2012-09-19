@@ -37,7 +37,7 @@
 u32 booke_wdt_enabled;
 u32 booke_wdt_period = CONFIG_BOOKE_WDT_DEFAULT_TIMEOUT;
 
-#ifdef	CONFIG_FSL_BOOKE
+#ifdef	CONFIG_PPC_FSL_BOOK3E
 #define WDTP(x)		((((x)&0x3)<<30)|(((x)&0x3c)<<15))
 #define WDTP_MASK	(WDTP(0x3f))
 #else
@@ -166,18 +166,17 @@ static long booke_wdt_ioctl(struct file *file,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (copy_to_user((void *)arg, &ident, sizeof(ident)))
-			return -EFAULT;
+		return copy_to_user(p, &ident, sizeof(ident)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
 		return put_user(0, p);
 	case WDIOC_GETBOOTSTATUS:
 		/* XXX: something is clearing TSR */
 		tmp = mfspr(SPRN_TSR) & TSR_WRS(3);
 		/* returns CARDRESET if last reset was caused by the WDT */
-		return (tmp ? WDIOF_CARDRESET : 0);
+		return put_user((tmp ? WDIOF_CARDRESET : 0), p);
 	case WDIOC_SETOPTIONS:
 		if (get_user(tmp, p))
-			return -EINVAL;
+			return -EFAULT;
 		if (tmp == WDIOS_ENABLECARD) {
 			booke_wdt_ping();
 			break;
@@ -190,7 +189,7 @@ static long booke_wdt_ioctl(struct file *file,
 	case WDIOC_SETTIMEOUT:
 		if (get_user(tmp, p))
 			return -EFAULT;
-#ifdef	CONFIG_FSL_BOOKE
+#ifdef	CONFIG_PPC_FSL_BOOK3E
 		/* period of 1 gives the largest possible timeout */
 		if (tmp > period_to_sec(1))
 			return -EINVAL;

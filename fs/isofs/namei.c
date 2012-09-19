@@ -163,7 +163,7 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 	return 0;
 }
 
-struct dentry *isofs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+struct dentry *isofs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	int found;
 	unsigned long uninitialized_var(block);

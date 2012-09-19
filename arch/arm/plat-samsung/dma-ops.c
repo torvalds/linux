@@ -19,72 +19,79 @@
 #include <mach/dma.h>
 
 static unsigned samsung_dmadev_request(enum dma_ch dma_ch,
-				struct samsung_dma_info *info)
+				struct samsung_dma_req *param)
 {
-	struct dma_chan *chan;
 	dma_cap_mask_t mask;
-	struct dma_slave_config slave_config;
 	void *filter_param;
 
 	dma_cap_zero(mask);
-	dma_cap_set(info->cap, mask);
+	dma_cap_set(param->cap, mask);
 
 	/*
 	 * If a dma channel property of a device node from device tree is
 	 * specified, use that as the fliter parameter.
 	 */
-	filter_param = (dma_ch == DMACH_DT_PROP) ? (void *)info->dt_dmach_prop :
-				(void *)dma_ch;
-	chan = dma_request_channel(mask, pl330_filter, filter_param);
-
-	if (info->direction == DMA_DEV_TO_MEM) {
-		memset(&slave_config, 0, sizeof(struct dma_slave_config));
-		slave_config.direction = info->direction;
-		slave_config.src_addr = info->fifo;
-		slave_config.src_addr_width = info->width;
-		slave_config.src_maxburst = 1;
-		dmaengine_slave_config(chan, &slave_config);
-	} else if (info->direction == DMA_MEM_TO_DEV) {
-		memset(&slave_config, 0, sizeof(struct dma_slave_config));
-		slave_config.direction = info->direction;
-		slave_config.dst_addr = info->fifo;
-		slave_config.dst_addr_width = info->width;
-		slave_config.dst_maxburst = 1;
-		dmaengine_slave_config(chan, &slave_config);
-	}
-
-	return (unsigned)chan;
+	filter_param = (dma_ch == DMACH_DT_PROP) ?
+		(void *)param->dt_dmach_prop : (void *)dma_ch;
+	return (unsigned)dma_request_channel(mask, pl330_filter, filter_param);
 }
 
-static int samsung_dmadev_release(unsigned ch,
-			struct s3c2410_dma_client *client)
+static int samsung_dmadev_release(unsigned ch, void *param)
 {
 	dma_release_channel((struct dma_chan *)ch);
 
 	return 0;
 }
 
+static int samsung_dmadev_config(unsigned ch,
+				struct samsung_dma_config *param)
+{
+	struct dma_chan *chan = (struct dma_chan *)ch;
+	struct dma_slave_config slave_config;
+
+	if (param->direction == DMA_DEV_TO_MEM) {
+		memset(&slave_config, 0, sizeof(struct dma_slave_config));
+		slave_config.direction = param->direction;
+		slave_config.src_addr = param->fifo;
+		slave_config.src_addr_width = param->width;
+		slave_config.src_maxburst = 1;
+		dmaengine_slave_config(chan, &slave_config);
+	} else if (param->direction == DMA_MEM_TO_DEV) {
+		memset(&slave_config, 0, sizeof(struct dma_slave_config));
+		slave_config.direction = param->direction;
+		slave_config.dst_addr = param->fifo;
+		slave_config.dst_addr_width = param->width;
+		slave_config.dst_maxburst = 1;
+		dmaengine_slave_config(chan, &slave_config);
+	} else {
+		pr_warn("unsupported direction\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int samsung_dmadev_prepare(unsigned ch,
-			struct samsung_dma_prep_info *info)
+			struct samsung_dma_prep *param)
 {
 	struct scatterlist sg;
 	struct dma_chan *chan = (struct dma_chan *)ch;
 	struct dma_async_tx_descriptor *desc;
 
-	switch (info->cap) {
+	switch (param->cap) {
 	case DMA_SLAVE:
 		sg_init_table(&sg, 1);
-		sg_dma_len(&sg) = info->len;
-		sg_set_page(&sg, pfn_to_page(PFN_DOWN(info->buf)),
-			    info->len, offset_in_page(info->buf));
-		sg_dma_address(&sg) = info->buf;
+		sg_dma_len(&sg) = param->len;
+		sg_set_page(&sg, pfn_to_page(PFN_DOWN(param->buf)),
+			    param->len, offset_in_page(param->buf));
+		sg_dma_address(&sg) = param->buf;
 
 		desc = dmaengine_prep_slave_sg(chan,
-			&sg, 1, info->direction, DMA_PREP_INTERRUPT);
+			&sg, 1, param->direction, DMA_PREP_INTERRUPT);
 		break;
 	case DMA_CYCLIC:
-		desc = dmaengine_prep_dma_cyclic(chan,
-			info->buf, info->len, info->period, info->direction);
+		desc = dmaengine_prep_dma_cyclic(chan, param->buf,
+			param->len, param->period, param->direction);
 		break;
 	default:
 		dev_err(&chan->dev->device, "unsupported format\n");
@@ -96,8 +103,8 @@ static int samsung_dmadev_prepare(unsigned ch,
 		return -EFAULT;
 	}
 
-	desc->callback = info->fp;
-	desc->callback_param = info->fp_param;
+	desc->callback = param->fp;
+	desc->callback_param = param->fp_param;
 
 	dmaengine_submit((struct dma_async_tx_descriptor *)desc);
 
@@ -119,6 +126,7 @@ static inline int samsung_dmadev_flush(unsigned ch)
 static struct samsung_dma_ops dmadev_ops = {
 	.request	= samsung_dmadev_request,
 	.release	= samsung_dmadev_release,
+	.config		= samsung_dmadev_config,
 	.prepare	= samsung_dmadev_prepare,
 	.trigger	= samsung_dmadev_trigger,
 	.started	= NULL,

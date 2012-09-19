@@ -766,9 +766,10 @@ static int __devinit snd_als300_create(struct snd_card *card,
 }
 
 #ifdef CONFIG_PM
-static int snd_als300_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_als300_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_als300 *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
@@ -777,13 +778,14 @@ static int snd_als300_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int snd_als300_resume(struct pci_dev *pci)
+static int snd_als300_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_als300 *chip = card->private_data;
 
 	pci_set_power_state(pci, PCI_D0);
@@ -802,6 +804,11 @@ static int snd_als300_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(snd_als300_pm, snd_als300_suspend, snd_als300_resume);
+#define SND_ALS300_PM_OPS	&snd_als300_pm
+#else
+#define SND_ALS300_PM_OPS	NULL
 #endif
 
 static int __devinit snd_als300_probe(struct pci_dev *pci,
@@ -857,10 +864,9 @@ static struct pci_driver als300_driver = {
 	.id_table = snd_als300_ids,
 	.probe = snd_als300_probe,
 	.remove = __devexit_p(snd_als300_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_als300_suspend,
-	.resume = snd_als300_resume,
-#endif
+	.driver = {
+		.pm = SND_ALS300_PM_OPS,
+	},
 };
 
 module_pci_driver(als300_driver);

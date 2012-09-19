@@ -267,11 +267,10 @@ static int max1619_probe(struct i2c_client *new_client,
 	struct max1619_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct max1619_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&new_client->dev, sizeof(struct max1619_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(new_client, data);
 	data->valid = 0;
@@ -283,7 +282,7 @@ static int max1619_probe(struct i2c_client *new_client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&new_client->dev.kobj, &max1619_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -295,9 +294,6 @@ static int max1619_probe(struct i2c_client *new_client,
 
 exit_remove_files:
 	sysfs_remove_group(&new_client->dev.kobj, &max1619_group);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -323,7 +319,6 @@ static int max1619_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &max1619_group);
 
-	kfree(data);
 	return 0;
 }
 

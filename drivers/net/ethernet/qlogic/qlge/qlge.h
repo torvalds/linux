@@ -18,13 +18,15 @@
  */
 #define DRV_NAME  	"qlge"
 #define DRV_STRING 	"QLogic 10 Gigabit PCI-E Ethernet Driver "
-#define DRV_VERSION	"v1.00.00.30.00.00-01"
+#define DRV_VERSION	"v1.00.00.31"
 
 #define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
 
 #define QLGE_VENDOR_ID    0x1077
 #define QLGE_DEVICE_ID_8012	0x8012
 #define QLGE_DEVICE_ID_8000	0x8000
+#define QLGE_MEZZ_SSYS_ID_068	0x0068
+#define QLGE_MEZZ_SSYS_ID_180	0x0180
 #define MAX_CPUS 8
 #define MAX_TX_RINGS MAX_CPUS
 #define MAX_RX_RINGS ((MAX_CPUS * 2) + 1)
@@ -1397,7 +1399,6 @@ struct tx_ring {
 	struct tx_ring_desc *q;	/* descriptor list for the queue */
 	spinlock_t lock;
 	atomic_t tx_count;	/* counts down for every outstanding IO */
-	atomic_t queue_stopped;	/* Turns queue off when full. */
 	struct delayed_work tx_work;
 	struct ql_adapter *qdev;
 	u64 tx_packets;
@@ -1535,6 +1536,14 @@ struct nic_stats {
 	u64 rx_1024_to_1518_pkts;
 	u64 rx_1519_to_max_pkts;
 	u64 rx_len_err_pkts;
+	/* Receive Mac Err stats */
+	u64 rx_code_err;
+	u64 rx_oversize_err;
+	u64 rx_undersize_err;
+	u64 rx_preamble_err;
+	u64 rx_frame_len_err;
+	u64 rx_crc_err;
+	u64 rx_err_count;
 	/*
 	 * These stats come from offset 500h to 5C8h
 	 * in the XGMAC register.

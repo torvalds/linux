@@ -1398,7 +1398,15 @@ int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 	    && !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)) {
 		if (hcd->self.uses_dma) {
 			if (urb->num_sgs) {
-				int n = dma_map_sg(
+				int n;
+
+				/* We don't support sg for isoc transfers ! */
+				if (usb_endpoint_xfer_isoc(&urb->ep->desc)) {
+					WARN_ON(1);
+					return -EINVAL;
+				}
+
+				n = dma_map_sg(
 						hcd->self.controller,
 						urb->sg,
 						urb->num_sgs,

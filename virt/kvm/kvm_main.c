@@ -516,16 +516,32 @@ out_err_nodisable:
 	return ERR_PTR(r);
 }
 
+/*
+ * Avoid using vmalloc for a small buffer.
+ * Should not be used when the size is statically known.
+ */
+void *kvm_kvzalloc(unsigned long size)
+{
+	if (size > PAGE_SIZE)
+		return vzalloc(size);
+	else
+		return kzalloc(size, GFP_KERNEL);
+}
+
+void kvm_kvfree(const void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		vfree(addr);
+	else
+		kfree(addr);
+}
+
 static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
 	if (!memslot->dirty_bitmap)
 		return;
 
-	if (2 * kvm_dirty_bitmap_bytes(memslot) > PAGE_SIZE)
-		vfree(memslot->dirty_bitmap);
-	else
-		kfree(memslot->dirty_bitmap);
-
+	kvm_kvfree(memslot->dirty_bitmap);
 	memslot->dirty_bitmap = NULL;
 }
 
@@ -617,11 +633,7 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 #ifndef CONFIG_S390
 	unsigned long dirty_bytes = 2 * kvm_dirty_bitmap_bytes(memslot);
 
-	if (dirty_bytes > PAGE_SIZE)
-		memslot->dirty_bitmap = vzalloc(dirty_bytes);
-	else
-		memslot->dirty_bitmap = kzalloc(dirty_bytes, GFP_KERNEL);
-
+	memslot->dirty_bitmap = kvm_kvzalloc(dirty_bytes);
 	if (!memslot->dirty_bitmap)
 		return -ENOMEM;
 
@@ -1586,7 +1598,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 	 */
 	for (pass = 0; pass < 2 && !yielded; pass++) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {
-			if (!pass && i < last_boosted_vcpu) {
+			if (!pass && i <= last_boosted_vcpu) {
 				i = last_boosted_vcpu;
 				continue;
 			} else if (pass && i > last_boosted_vcpu)
@@ -1964,9 +1976,10 @@ static long kvm_vcpu_compat_ioctl(struct file *filp,
 			if (copy_from_user(&csigset, sigmask_arg->sigset,
 					   sizeof csigset))
 				goto out;
-		}
-		sigset_from_compat(&sigset, &csigset);
-		r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
+			sigset_from_compat(&sigset, &csigset);
+			r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
+		} else
+			r = kvm_vcpu_ioctl_set_sigmask(vcpu, NULL);
 		break;
 	}
 	default:
@@ -2047,7 +2060,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&data, argp, sizeof data))
 			goto out;
-		r = kvm_irqfd(kvm, data.fd, data.gsi, data.flags);
+		r = kvm_irqfd(kvm, &data);
 		break;
 	}
 	case KVM_IOEVENTFD: {
@@ -2213,7 +2226,7 @@ static long kvm_dev_ioctl_check_extension_generic(long arg)
 	case KVM_CAP_SIGNAL_MSI:
 #endif
 		return 1;
-#ifdef CONFIG_HAVE_KVM_IRQCHIP
+#ifdef KVM_CAP_IRQ_ROUTING
 	case KVM_CAP_IRQ_ROUTING:
 		return KVM_MAX_IRQ_ROUTES;
 #endif
@@ -2845,6 +2858,7 @@ void kvm_exit(void)
 	kvm_arch_hardware_unsetup();
 	kvm_arch_exit();
 	free_cpumask_var(cpus_hardware_enabled);
+	__free_page(fault_page);
 	__free_page(hwpoison_page);
 	__free_page(bad_page);
 }

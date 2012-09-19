@@ -33,7 +33,7 @@ int BcmWRM(PVOID arg,
 			PVOID buff,
 			INT len);
 
-INT Bcm_clear_halt_of_endpoints(PMINI_ADAPTER Adapter);
+INT Bcm_clear_halt_of_endpoints(struct bcm_mini_adapter *Adapter);
 
 VOID Bcm_kill_all_URBs(PS_INTERFACE_ADAPTER psIntfAdapter);
 

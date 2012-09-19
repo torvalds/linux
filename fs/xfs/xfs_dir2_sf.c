@@ -222,7 +222,7 @@ xfs_dir2_block_sfsize(
 int						/* error */
 xfs_dir2_block_to_sf(
 	xfs_da_args_t		*args,		/* operation arguments */
-	xfs_dabuf_t		*bp,		/* block buffer */
+	struct xfs_buf		*bp,
 	int			size,		/* shortform directory size */
 	xfs_dir2_sf_hdr_t	*sfhp)		/* shortform directory hdr */
 {
@@ -249,7 +249,7 @@ xfs_dir2_block_to_sf(
 	 * and add local data.
 	 */
 	hdr = kmem_alloc(mp->m_dirblksize, KM_SLEEP);
-	memcpy(hdr, bp->data, mp->m_dirblksize);
+	memcpy(hdr, bp->b_addr, mp->m_dirblksize);
 	logflags = XFS_ILOG_CORE;
 	if ((error = xfs_dir2_shrink_inode(args, mp->m_dirdatablk, bp))) {
 		ASSERT(error != ENOSPC);

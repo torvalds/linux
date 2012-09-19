@@ -1619,6 +1619,7 @@ static const struct rpc_authops authgss_ops = {
 	.crcreate	= gss_create_cred,
 	.pipes_create	= gss_pipes_dentries_create,
 	.pipes_destroy	= gss_pipes_dentries_destroy,
+	.list_pseudoflavors = gss_mech_list_pseudoflavors,
 };
 
 static const struct rpc_credops gss_credops = {

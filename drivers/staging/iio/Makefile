@@ -17,7 +17,6 @@ obj-y += accel/
 obj-y += adc/
 obj-y += addac/
 obj-y += cdc/
-obj-y += dac/
 obj-y += frequency/
 obj-y += gyro/
 obj-y += impedance-analyzer/

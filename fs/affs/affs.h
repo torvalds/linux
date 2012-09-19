@@ -3,6 +3,7 @@
 #include <linux/buffer_head.h>
 #include <linux/amigaffs.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
 
 /* AmigaOS allows file names with up to 30 characters length.
  * Names longer than that will be silently truncated. If you
@@ -100,6 +101,10 @@ struct affs_sb_info {
 	char *s_prefix;			/* Prefix for volumes and assigns. */
 	char s_volume[32];		/* Volume prefix for absolute symlinks. */
 	spinlock_t symlink_lock;	/* protects the previous two */
+	struct super_block *sb;		/* the VFS superblock object */
+	int work_queued;		/* non-zero delayed work is queued */
+	struct delayed_work sb_work;	/* superblock flush delayed work */
+	spinlock_t work_lock;		/* protects sb_work and work_queued */
 };
 
 #define SF_INTL		0x0001		/* International filesystem. */
@@ -119,6 +124,8 @@ static inline struct affs_sb_info *AFFS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
 }
+
+void affs_mark_sb_dirty(struct super_block *sb);
 
 /* amigaffs.c */
 
@@ -146,9 +153,9 @@ extern void	affs_free_bitmap(struct super_block *sb);
 /* namei.c */
 
 extern int	affs_hash_name(struct super_block *sb, const u8 *name, unsigned int len);
-extern struct dentry *affs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *);
+extern struct dentry *affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int);
 extern int	affs_unlink(struct inode *dir, struct dentry *dentry);
-extern int	affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, struct nameidata *);
+extern int	affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool);
 extern int	affs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 extern int	affs_rmdir(struct inode *dir, struct dentry *dentry);
 extern int	affs_link(struct dentry *olddentry, struct inode *dir,

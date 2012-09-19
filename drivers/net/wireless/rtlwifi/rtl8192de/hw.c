@@ -235,12 +235,12 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		for (e_aci = 0; e_aci < AC_MAX; e_aci++)
 			rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_AC_PARAM,
-						      (u8 *) (&e_aci));
+						      (&e_aci));
 		break;
 	}
 	case HW_VAR_ACK_PREAMBLE: {
 		u8 reg_tmp;
-		u8 short_preamble = (bool) (*(u8 *) val);
+		u8 short_preamble = (bool) (*val);
 
 		reg_tmp = (mac->cur_40_prime_sc) << 5;
 		if (short_preamble)
@@ -252,7 +252,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		u8 min_spacing_to_set;
 		u8 sec_min_space;
 
-		min_spacing_to_set = *((u8 *) val);
+		min_spacing_to_set = *val;
 		if (min_spacing_to_set <= 7) {
 			sec_min_space = 0;
 			if (min_spacing_to_set < sec_min_space)
@@ -271,7 +271,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_SHORTGI_DENSITY: {
 		u8 density_to_set;
 
-		density_to_set = *((u8 *) val);
+		density_to_set = *val;
 		mac->min_space_cfg = rtlpriv->rtlhal.minspace_cfg;
 		mac->min_space_cfg |= (density_to_set << 3);
 		RT_TRACE(rtlpriv, COMP_MLME, DBG_LOUD,
@@ -293,7 +293,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			regtoSet = 0x66626641;
 		else
 			regtoSet = 0xb972a841;
-		factor_toset = *((u8 *) val);
+		factor_toset = *val;
 		if (factor_toset <= 3) {
 			factor_toset = (1 << (factor_toset + 2));
 			if (factor_toset > 0xf)
@@ -316,15 +316,15 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	}
 	case HW_VAR_AC_PARAM: {
-		u8 e_aci = *((u8 *) val);
+		u8 e_aci = *val;
 		rtl92d_dm_init_edca_turbo(hw);
 		if (rtlpci->acm_method != eAcmWay2_SW)
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ACM_CTRL,
-						      (u8 *) (&e_aci));
+						      &e_aci);
 		break;
 	}
 	case HW_VAR_ACM_CTRL: {
-		u8 e_aci = *((u8 *) val);
+		u8 e_aci = *val;
 		union aci_aifsn *p_aci_aifsn =
 		    (union aci_aifsn *)(&(mac->ac[0].aifs));
 		u8 acm = p_aci_aifsn->f.acm;
@@ -376,7 +376,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtlpci->receive_config = ((u32 *) (val))[0];
 		break;
 	case HW_VAR_RETRY_LIMIT: {
-		u8 retry_limit = ((u8 *) (val))[0];
+		u8 retry_limit = val[0];
 
 		rtl_write_word(rtlpriv, REG_RL,
 			       retry_limit << RETRY_LIMIT_SHORT_SHIFT |
@@ -390,16 +390,16 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtlefuse->efuse_usedbytes = *((u16 *) val);
 		break;
 	case HW_VAR_EFUSE_USAGE:
-		rtlefuse->efuse_usedpercentage = *((u8 *) val);
+		rtlefuse->efuse_usedpercentage = *val;
 		break;
 	case HW_VAR_IO_CMD:
 		rtl92d_phy_set_io_cmd(hw, (*(enum io_type *)val));
 		break;
 	case HW_VAR_WPA_CONFIG:
-		rtl_write_byte(rtlpriv, REG_SECCFG, *((u8 *) val));
+		rtl_write_byte(rtlpriv, REG_SECCFG, *val);
 		break;
 	case HW_VAR_SET_RPWM:
-		rtl92d_fill_h2c_cmd(hw, H2C_PWRM, 1, (u8 *) (val));
+		rtl92d_fill_h2c_cmd(hw, H2C_PWRM, 1, (val));
 		break;
 	case HW_VAR_H2C_FW_PWRMODE:
 		break;
@@ -407,7 +407,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		ppsc->fw_current_inpsmode = *((bool *) val);
 		break;
 	case HW_VAR_H2C_FW_JOINBSSRPT: {
-		u8 mstatus = (*(u8 *) val);
+		u8 mstatus = (*val);
 		u8 tmp_regcr, tmp_reg422;
 		bool recover = false;
 
@@ -435,7 +435,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			rtl_write_byte(rtlpriv, REG_CR + 1,
 				       (tmp_regcr & ~(BIT(0))));
 		}
-		rtl92d_set_fw_joinbss_report_cmd(hw, (*(u8 *) val));
+		rtl92d_set_fw_joinbss_report_cmd(hw, (*val));
 		break;
 	}
 	case HW_VAR_AID: {
@@ -447,7 +447,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	}
 	case HW_VAR_CORRECT_TSF: {
-		u8 btype_ibss = ((u8 *) (val))[0];
+		u8 btype_ibss = val[0];
 
 		if (btype_ibss)
 			_rtl92de_stop_tx_beacon(hw);
@@ -1794,7 +1794,7 @@ static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
 			 "RTL819X Not boot from eeprom, check it !!\n");
 		return;
 	}
-	rtlefuse->eeprom_oemid = *(u8 *)&hwinfo[EEPROM_CUSTOMER_ID];
+	rtlefuse->eeprom_oemid = hwinfo[EEPROM_CUSTOMER_ID];
 	_rtl92de_read_macphymode_and_bandtype(hw, hwinfo);
 
 	/* VID, DID  SE     0xA-D */
@@ -2115,7 +2115,7 @@ void rtl92de_update_channel_access_setting(struct ieee80211_hw *hw)
 	u16 sifs_timer;
 
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SLOT_TIME,
-				      (u8 *)&mac->slot_time);
+				      &mac->slot_time);
 	if (!mac->ht_enable)
 		sifs_timer = 0x0a0a;
 	else

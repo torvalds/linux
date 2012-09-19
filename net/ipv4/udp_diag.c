@@ -34,15 +34,16 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 	int err = -EINVAL;
 	struct sock *sk;
 	struct sk_buff *rep;
+	struct net *net = sock_net(in_skb->sk);
 
 	if (req->sdiag_family == AF_INET)
-		sk = __udp4_lib_lookup(&init_net,
+		sk = __udp4_lib_lookup(net,
 				req->id.idiag_src[0], req->id.idiag_sport,
 				req->id.idiag_dst[0], req->id.idiag_dport,
 				req->id.idiag_if, tbl);
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (req->sdiag_family == AF_INET6)
-		sk = __udp6_lib_lookup(&init_net,
+		sk = __udp6_lib_lookup(net,
 				(struct in6_addr *)req->id.idiag_src,
 				req->id.idiag_sport,
 				(struct in6_addr *)req->id.idiag_dst,
@@ -75,7 +76,7 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 		kfree_skb(rep);
 		goto out;
 	}
-	err = netlink_unicast(sock_diag_nlsk, rep, NETLINK_CB(in_skb).pid,
+	err = netlink_unicast(net->diag_nlsk, rep, NETLINK_CB(in_skb).pid,
 			      MSG_DONTWAIT);
 	if (err > 0)
 		err = 0;
@@ -90,6 +91,7 @@ static void udp_dump(struct udp_table *table, struct sk_buff *skb, struct netlin
 		struct inet_diag_req_v2 *r, struct nlattr *bc)
 {
 	int num, s_num, slot, s_slot;
+	struct net *net = sock_net(skb->sk);
 
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
@@ -106,6 +108,8 @@ static void udp_dump(struct udp_table *table, struct sk_buff *skb, struct netlin
 		sk_nulls_for_each(sk, node, &hslot->head) {
 			struct inet_sock *inet = inet_sk(sk);
 
+			if (!net_eq(sock_net(sk), net))
+				continue;
 			if (num < s_num)
 				goto next;
 			if (!(r->idiag_states & (1 << sk->sk_state)))

@@ -41,6 +41,7 @@
 #define SPEED_AUTO_NEG		0
 #define SPEED_20000		20000
 
+#define SFP_EEPROM_PAGE_SIZE			16
 #define SFP_EEPROM_VENDOR_NAME_ADDR		0x14
 #define SFP_EEPROM_VENDOR_NAME_SIZE		16
 #define SFP_EEPROM_VENDOR_OUI_ADDR		0x25
@@ -125,6 +126,11 @@ typedef void (*set_link_led_t)(struct bnx2x_phy *phy,
 			       struct link_params *params, u8 mode);
 typedef void (*phy_specific_func_t)(struct bnx2x_phy *phy,
 				    struct link_params *params, u32 action);
+struct bnx2x_reg_set {
+	u8  devad;
+	u16 reg;
+	u16 val;
+};
 
 struct bnx2x_phy {
 	u32 type;
@@ -149,6 +155,7 @@ struct bnx2x_phy {
 #define FLAGS_DUMMY_READ		(1<<9)
 #define FLAGS_MDC_MDIO_WA_B0		(1<<10)
 #define FLAGS_TX_ERROR_CHECK		(1<<12)
+#define FLAGS_EEE_10GBT			(1<<13)
 
 	/* preemphasis values for the rx side */
 	u16 rx_preemphasis[4];
@@ -162,14 +169,15 @@ struct bnx2x_phy {
 	u32 supported;
 
 	u32 media_type;
-#define	ETH_PHY_UNSPECIFIED 0x0
-#define	ETH_PHY_SFP_FIBER   0x1
-#define	ETH_PHY_XFP_FIBER   0x2
-#define	ETH_PHY_DA_TWINAX   0x3
-#define	ETH_PHY_BASE_T      0x4
-#define	ETH_PHY_KR          0xf0
-#define	ETH_PHY_CX4         0xf1
-#define	ETH_PHY_NOT_PRESENT 0xff
+#define	ETH_PHY_UNSPECIFIED	0x0
+#define	ETH_PHY_SFPP_10G_FIBER	0x1
+#define	ETH_PHY_XFP_FIBER		0x2
+#define	ETH_PHY_DA_TWINAX		0x3
+#define	ETH_PHY_BASE_T		0x4
+#define	ETH_PHY_SFP_1G_FIBER	0x5
+#define	ETH_PHY_KR		0xf0
+#define	ETH_PHY_CX4		0xf1
+#define	ETH_PHY_NOT_PRESENT	0xff
 
 	/* The address in which version is located*/
 	u32 ver_addr;
@@ -265,6 +273,30 @@ struct link_params {
 	u8 num_phys;
 
 	u8 rsrv;
+
+	/* Used to configure the EEE Tx LPI timer, has several modes of
+	 * operation, according to bits 29:28 -
+	 * 2'b00: Timer will be configured by nvram, output will be the value
+	 *        from nvram.
+	 * 2'b01: Timer will be configured by nvram, output will be in
+	 *        microseconds.
+	 * 2'b10: bits 1:0 contain an nvram value which will be used instead
+	 *        of the one located in the nvram. Output will be that value.
+	 * 2'b11: bits 19:0 contain the idle timer in microseconds; output
+	 *        will be in microseconds.
+	 * Bits 31:30 should be 2'b11 in order for EEE to be enabled.
+	 */
+	u32 eee_mode;
+#define EEE_MODE_NVRAM_BALANCED_TIME		(0xa00)
+#define EEE_MODE_NVRAM_AGGRESSIVE_TIME		(0x100)
+#define EEE_MODE_NVRAM_LATENCY_TIME		(0x6000)
+#define EEE_MODE_NVRAM_MASK		(0x3)
+#define EEE_MODE_TIMER_MASK		(0xfffff)
+#define EEE_MODE_OUTPUT_TIME		(1<<28)
+#define EEE_MODE_OVERRIDE_NVRAM		(1<<29)
+#define EEE_MODE_ENABLE_LPI		(1<<30)
+#define EEE_MODE_ADV_LPI			(1<<31)
+
 	u16 hw_led_mode; /* part of the hw_config read from the shmem */
 	u32 multi_phy_config;
 
@@ -282,6 +314,7 @@ struct link_vars {
 #define PHY_PHYSICAL_LINK_FLAG		(1<<2)
 #define PHY_HALF_OPEN_CONN_FLAG		(1<<3)
 #define PHY_OVER_CURRENT_FLAG		(1<<4)
+#define PHY_SFP_TX_FAULT_FLAG		(1<<5)
 
 	u8 mac_type;
 #define MAC_TYPE_NONE		0
@@ -301,6 +334,7 @@ struct link_vars {
 
 	/* The same definitions as the shmem parameter */
 	u32 link_status;
+	u32 eee_status;
 	u8 fault_detected;
 	u8 rsrv1;
 	u16 periodic_flags;
@@ -459,8 +493,7 @@ struct bnx2x_ets_params {
 	struct bnx2x_ets_cos_params cos[DCBX_MAX_NUM_COS];
 };
 
-/**
- * Used to update the PFC attributes in EMAC, BMAC, NIG and BRB
+/* Used to update the PFC attributes in EMAC, BMAC, NIG and BRB
  * when link is already up
  */
 int bnx2x_update_pfc(struct link_params *params,

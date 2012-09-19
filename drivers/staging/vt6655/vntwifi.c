@@ -38,8 +38,6 @@
 #include "wmgr.h"
 #include "datarate.h"
 
-//#define	PLICE_DEBUG
-
 /*---------------------  Static Definitions -------------------------*/
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 //static int          msglevel                =MSG_LEVEL_INFO;

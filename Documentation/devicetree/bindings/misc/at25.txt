@@ -1,0 +1,21 @@
+Atmel AT25 eeprom
+
+Required properties:
+- compatible : "atmel,at25".
+- reg : chip select number
+- spi-max-frequency : max spi frequency to use
+
+- at25,byte-len : total eeprom size in bytes
+- at25,addr-mode : addr-mode flags, as defined in include/linux/spi/eeprom.h
+- at25,page-size : size of the eeprom page
+
+Examples:
+at25@0 {
+	compatible = "atmel,at25";
+	reg = <0>
+	spi-max-frequency = <5000000>;
+
+	at25,byte-len = <0x8000>;
+	at25,addr-mode = <2>;
+	at25,page-size = <64>;
+};

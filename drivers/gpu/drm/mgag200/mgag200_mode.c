@@ -78,8 +78,8 @@ static inline void mga_wait_busy(struct mga_device *mdev)
  * to just pass that straight through, so this does nothing
  */
 static bool mga_crtc_mode_fixup(struct drm_crtc *crtc,
-				   struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode)
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
 {
 	return true;
 }
@@ -468,10 +468,11 @@ static int mga_g200er_set_plls(struct mga_device *mdev, long clock)
 {
 	unsigned int vcomax, vcomin, pllreffreq;
 	unsigned int delta, tmpdelta;
-	unsigned int testr, testn, testm, testo;
+	int testr, testn, testm, testo;
 	unsigned int p, m, n;
-	unsigned int computed;
+	unsigned int computed, vco;
 	int tmp;
+	const unsigned int m_div_val[] = { 1, 2, 4, 8 };
 
 	m = n = p = 0;
 	vcomax = 1488000;
@@ -490,12 +491,13 @@ static int mga_g200er_set_plls(struct mga_device *mdev, long clock)
 				if (delta == 0)
 					break;
 				for (testo = 5; testo < 33; testo++) {
-					computed = pllreffreq * (testn + 1) /
+					vco = pllreffreq * (testn + 1) /
 						(testr + 1);
-					if (computed < vcomin)
+					if (vco < vcomin)
 						continue;
-					if (computed > vcomax)
+					if (vco > vcomax)
 						continue;
+					computed = vco / (m_div_val[testm] * (testo + 1));
 					if (computed > clock)
 						tmpdelta = computed - clock;
 					else
@@ -1322,8 +1324,8 @@ void mga_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
  * to handle any encoder-specific limitations
  */
 static bool mga_encoder_mode_fixup(struct drm_encoder *encoder,
-				  struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
+				   const struct drm_display_mode *mode,
+				   struct drm_display_mode *adjusted_mode)
 {
 	return true;
 }

@@ -487,8 +487,6 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
 #define XFS_IOLOCK_DEP(flags)	(((flags) & XFS_IOLOCK_DEP_MASK) >> XFS_IOLOCK_SHIFT)
 #define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) >> XFS_ILOCK_SHIFT)
 
-extern struct lock_class_key xfs_iolock_reclaimable;
-
 /*
  * For multiple groups support: if S_ISGID bit is set in the parent
  * directory, group of new file is set to that of the parent, and
@@ -517,7 +515,7 @@ void		xfs_inode_free(struct xfs_inode *ip);
  */
 int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, umode_t,
 			   xfs_nlink_t, xfs_dev_t, prid_t, int,
-			   struct xfs_buf **, boolean_t *, xfs_inode_t **);
+			   struct xfs_buf **, xfs_inode_t **);
 
 uint		xfs_ip2xflags(struct xfs_inode *);
 uint		xfs_dic2xflags(struct xfs_dinode *);
@@ -557,12 +555,9 @@ do { \
 #define XFS_IGET_UNTRUSTED	0x2
 #define XFS_IGET_DONTCACHE	0x4
 
-int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *,
-			    xfs_ino_t, struct xfs_dinode **,
-			    struct xfs_buf **, int *, uint);
-int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
-			  struct xfs_inode *, struct xfs_dinode **,
-			  struct xfs_buf **, uint);
+int		xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,
+			       struct xfs_imap *, struct xfs_dinode **,
+			       struct xfs_buf **, uint, uint);
 int		xfs_iread(struct xfs_mount *, struct xfs_trans *,
 			  struct xfs_inode *, uint);
 void		xfs_dinode_to_disk(struct xfs_dinode *,

@@ -35,6 +35,7 @@
 #include <linux/pfkeyv2.h>
 #include <linux/string.h>
 #include <linux/scatterlist.h>
+#include <net/ip6_route.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
 #include <net/protocol.h>
@@ -612,16 +613,18 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct xfrm_state *x;
 
 	if (type != ICMPV6_DEST_UNREACH &&
-	    type != ICMPV6_PKT_TOOBIG)
+	    type != ICMPV6_PKT_TOOBIG &&
+	    type != NDISC_REDIRECT)
 		return;
 
 	x = xfrm_state_lookup(net, skb->mark, (xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET6);
 	if (!x)
 		return;
 
-	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/%pI6\n",
-		 ntohl(ah->spi), &iph->daddr);
-
+	if (type == NDISC_REDIRECT)
+		ip6_redirect(skb, net, 0, 0);
+	else
+		ip6_update_pmtu(skb, net, info, 0, 0);
 	xfrm_state_put(x);
 }
 

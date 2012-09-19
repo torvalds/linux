@@ -529,7 +529,7 @@ static int __devinit ab8500_usb_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto fail0;
 
-	err = usb_set_transceiver(&ab->phy);
+	err = usb_add_phy(&ab->phy, USB_PHY_TYPE_USB2);
 	if (err) {
 		dev_err(&pdev->dev, "Can't register transceiver\n");
 		goto fail1;
@@ -556,7 +556,7 @@ static int __devexit ab8500_usb_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&ab->phy_dis_work);
 
-	usb_set_transceiver(NULL);
+	usb_remove_phy(&ab->phy);
 
 	ab8500_usb_host_phy_dis(ab);
 	ab8500_usb_peri_phy_dis(ab);

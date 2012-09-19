@@ -1,7 +1,7 @@
 /*
  * Hypervisor filesystem for Linux on s390 - debugfs interface
  *
- * Copyright (C) IBM Corp. 2010
+ * Copyright IBM Corp. 2010
  * Author(s): Michael Holzheu <holzheu@linux.vnet.ibm.com>
  */
 

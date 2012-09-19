@@ -84,31 +84,31 @@
 /* Include pac common sof detection functions */
 #include "pac_common.h"
 
+#define PAC7302_GAIN_DEFAULT      15
+#define PAC7302_GAIN_KNEE         42
+#define PAC7302_EXPOSURE_DEFAULT  66 /* 33 ms / 30 fps */
+#define PAC7302_EXPOSURE_KNEE    133 /* 66 ms / 15 fps */
+
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
 		"Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7302");
 MODULE_LICENSE("GPL");
 
-enum e_ctrl {
-	BRIGHTNESS,
-	CONTRAST,
-	COLORS,
-	WHITE_BALANCE,
-	RED_BALANCE,
-	BLUE_BALANCE,
-	GAIN,
-	AUTOGAIN,
-	EXPOSURE,
-	VFLIP,
-	HFLIP,
-	NCTRLS		/* number of controls */
-};
-
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
-	struct gspca_ctrl ctrls[NCTRLS];
-
+	struct { /* brightness / contrast cluster */
+		struct v4l2_ctrl *brightness;
+		struct v4l2_ctrl *contrast;
+	};
+	struct v4l2_ctrl *saturation;
+	struct v4l2_ctrl *white_balance;
+	struct v4l2_ctrl *red_balance;
+	struct v4l2_ctrl *blue_balance;
+	struct { /* flip cluster */
+		struct v4l2_ctrl *hflip;
+		struct v4l2_ctrl *vflip;
+	};
 	u8 flags;
 #define FL_HFLIP 0x01		/* mirrored by default */
 #define FL_VFLIP 0x02		/* vertical flipped by default */
@@ -117,160 +117,6 @@ struct sd {
 	s8 autogain_ignore_frames;
 
 	atomic_t avg_lum;
-};
-
-/* V4L2 controls supported by the driver */
-static void setbrightcont(struct gspca_dev *gspca_dev);
-static void setcolors(struct gspca_dev *gspca_dev);
-static void setwhitebalance(struct gspca_dev *gspca_dev);
-static void setredbalance(struct gspca_dev *gspca_dev);
-static void setbluebalance(struct gspca_dev *gspca_dev);
-static void setgain(struct gspca_dev *gspca_dev);
-static void setexposure(struct gspca_dev *gspca_dev);
-static void setautogain(struct gspca_dev *gspca_dev);
-static void sethvflip(struct gspca_dev *gspca_dev);
-
-static const struct ctrl sd_ctrls[] = {
-[BRIGHTNESS] = {
-	    {
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = 0,
-#define BRIGHTNESS_MAX 0x20
-		.maximum = BRIGHTNESS_MAX,
-		.step    = 1,
-		.default_value = 0x10,
-	    },
-	    .set_control = setbrightcont
-	},
-[CONTRAST] = {
-	    {
-		.id      = V4L2_CID_CONTRAST,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Contrast",
-		.minimum = 0,
-#define CONTRAST_MAX 255
-		.maximum = CONTRAST_MAX,
-		.step    = 1,
-		.default_value = 127,
-	    },
-	    .set_control = setbrightcont
-	},
-[COLORS] = {
-	    {
-		.id      = V4L2_CID_SATURATION,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Saturation",
-		.minimum = 0,
-#define COLOR_MAX 255
-		.maximum = COLOR_MAX,
-		.step    = 1,
-		.default_value = 127
-	    },
-	    .set_control = setcolors
-	},
-[WHITE_BALANCE] = {
-	    {
-		.id      = V4L2_CID_WHITE_BALANCE_TEMPERATURE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "White Balance",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
-		.default_value = 4,
-	    },
-	    .set_control = setwhitebalance
-	},
-[RED_BALANCE] = {
-	    {
-		.id      = V4L2_CID_RED_BALANCE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Red",
-		.minimum = 0,
-		.maximum = 3,
-		.step    = 1,
-		.default_value = 1,
-	    },
-	    .set_control = setredbalance
-	},
-[BLUE_BALANCE] = {
-	    {
-		.id      = V4L2_CID_BLUE_BALANCE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Blue",
-		.minimum = 0,
-		.maximum = 3,
-		.step    = 1,
-		.default_value = 1,
-	    },
-	    .set_control = setbluebalance
-	},
-[GAIN] = {
-	    {
-		.id      = V4L2_CID_GAIN,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Gain",
-		.minimum = 0,
-		.maximum = 62,
-		.step    = 1,
-#define GAIN_DEF 15
-#define GAIN_KNEE 46
-		.default_value = GAIN_DEF,
-	    },
-	    .set_control = setgain
-	},
-[EXPOSURE] = {
-	    {
-		.id      = V4L2_CID_EXPOSURE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Exposure",
-		.minimum = 0,
-		.maximum = 1023,
-		.step    = 1,
-#define EXPOSURE_DEF  66  /*  33 ms / 30 fps */
-#define EXPOSURE_KNEE 133 /*  66 ms / 15 fps */
-		.default_value = EXPOSURE_DEF,
-	    },
-	    .set_control = setexposure
-	},
-[AUTOGAIN] = {
-	    {
-		.id      = V4L2_CID_AUTOGAIN,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Auto Gain",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-#define AUTOGAIN_DEF 1
-		.default_value = AUTOGAIN_DEF,
-	    },
-	    .set_control = setautogain,
-	},
-[HFLIP] = {
-	    {
-		.id      = V4L2_CID_HFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Mirror",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 0,
-	    },
-	    .set_control = sethvflip,
-	},
-[VFLIP] = {
-	    {
-		.id      = V4L2_CID_VFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Vflip",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 0,
-	    },
-	    .set_control = sethvflip
-	},
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
@@ -516,8 +362,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->cam_mode = vga_mode;	/* only 640x480 */
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
-	gspca_dev->cam.ctrls = sd->ctrls;
-
 	sd->flags = id->driver_info;
 	return 0;
 }
@@ -536,9 +380,9 @@ static void setbrightcont(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xff, 0x00);		/* page 0 */
 	for (i = 0; i < 10; i++) {
 		v = max[i];
-		v += (sd->ctrls[BRIGHTNESS].val - BRIGHTNESS_MAX)
-			* 150 / BRIGHTNESS_MAX;		/* 200 ? */
-		v -= delta[i] * sd->ctrls[CONTRAST].val / CONTRAST_MAX;
+		v += (sd->brightness->val - sd->brightness->maximum)
+			* 150 / sd->brightness->maximum; /* 200 ? */
+		v -= delta[i] * sd->contrast->val / sd->contrast->maximum;
 		if (v < 0)
 			v = 0;
 		else if (v > 0xff)
@@ -561,7 +405,8 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x11, 0x01);
 	reg_w(gspca_dev, 0xff, 0x00);			/* page 0 */
 	for (i = 0; i < 9; i++) {
-		v = a[i] * sd->ctrls[COLORS].val / COLOR_MAX + b[i];
+		v = a[i] * sd->saturation->val / sd->saturation->maximum;
+		v += b[i];
 		reg_w(gspca_dev, 0x0f + 2 * i, (v >> 8) & 0x07);
 		reg_w(gspca_dev, 0x0f + 2 * i + 1, v);
 	}
@@ -573,7 +418,7 @@ static void setwhitebalance(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_w(gspca_dev, 0xff, 0x00);		/* page 0 */
-	reg_w(gspca_dev, 0xc6, sd->ctrls[WHITE_BALANCE].val);
+	reg_w(gspca_dev, 0xc6, sd->white_balance->val);
 
 	reg_w(gspca_dev, 0xdc, 0x01);
 }
@@ -583,7 +428,7 @@ static void setredbalance(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_w(gspca_dev, 0xff, 0x00);		/* page 0 */
-	reg_w(gspca_dev, 0xc5, sd->ctrls[RED_BALANCE].val);
+	reg_w(gspca_dev, 0xc5, sd->red_balance->val);
 
 	reg_w(gspca_dev, 0xdc, 0x01);
 }
@@ -593,22 +438,21 @@ static void setbluebalance(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_w(gspca_dev, 0xff, 0x00);			/* page 0 */
-	reg_w(gspca_dev, 0xc7, sd->ctrls[BLUE_BALANCE].val);
+	reg_w(gspca_dev, 0xc7, sd->blue_balance->val);
 
 	reg_w(gspca_dev, 0xdc, 0x01);
 }
 
 static void setgain(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u8 reg10, reg12;
 
-	if (sd->ctrls[GAIN].val < 32) {
-		reg10 = sd->ctrls[GAIN].val;
+	if (gspca_dev->gain->val < 32) {
+		reg10 = gspca_dev->gain->val;
 		reg12 = 0;
 	} else {
 		reg10 = 31;
-		reg12 = sd->ctrls[GAIN].val - 31;
+		reg12 = gspca_dev->gain->val - 31;
 	}
 
 	reg_w(gspca_dev, 0xff, 0x03);			/* page 3 */
@@ -621,7 +465,6 @@ static void setgain(struct gspca_dev *gspca_dev)
 
 static void setexposure(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u8 clockdiv;
 	u16 exposure;
 
@@ -630,7 +473,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	 * no fps according to the formula: 90 / reg. sd->exposure is the
 	 * desired exposure time in 0.5 ms.
 	 */
-	clockdiv = (90 * sd->ctrls[EXPOSURE].val + 1999) / 2000;
+	clockdiv = (90 * gspca_dev->exposure->val + 1999) / 2000;
 
 	/*
 	 * Note clockdiv = 3 also works, but when running at 30 fps, depending
@@ -655,7 +498,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	 * frame exposure time in ms = 1000 * clockdiv / 90    ->
 	 * exposure = (sd->exposure / 2) * 448 / (1000 * clockdiv / 90)
 	 */
-	exposure = (sd->ctrls[EXPOSURE].val * 45 * 448) / (1000 * clockdiv);
+	exposure = (gspca_dev->exposure->val * 45 * 448) / (1000 * clockdiv);
 	/* 0 = use full frametime, 448 = no exposure, reverse it */
 	exposure = 448 - exposure;
 
@@ -668,37 +511,15 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x11, 0x01);
 }
 
-static void setautogain(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	/*
-	 * When switching to autogain set defaults to make sure
-	 * we are on a valid point of the autogain gain /
-	 * exposure knee graph, and give this change time to
-	 * take effect before doing autogain.
-	 */
-	if (sd->ctrls[AUTOGAIN].val) {
-		sd->ctrls[EXPOSURE].val = EXPOSURE_DEF;
-		sd->ctrls[GAIN].val = GAIN_DEF;
-		sd->autogain_ignore_frames =
-				PAC_AUTOGAIN_IGNORE_FRAMES;
-	} else {
-		sd->autogain_ignore_frames = -1;
-	}
-	setexposure(gspca_dev);
-	setgain(gspca_dev);
-}
-
 static void sethvflip(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 data, hflip, vflip;
 
-	hflip = sd->ctrls[HFLIP].val;
+	hflip = sd->hflip->val;
 	if (sd->flags & FL_HFLIP)
 		hflip = !hflip;
-	vflip = sd->ctrls[VFLIP].val;
+	vflip = sd->vflip->val;
 	if (sd->flags & FL_VFLIP)
 		vflip = !vflip;
 
@@ -717,6 +538,112 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return gspca_dev->usb_err;
 }
 
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
+
+	gspca_dev->usb_err = 0;
+
+	if (ctrl->id == V4L2_CID_AUTOGAIN && ctrl->is_new && ctrl->val) {
+		/* when switching to autogain set defaults to make sure
+		   we are on a valid point of the autogain gain /
+		   exposure knee graph, and give this change time to
+		   take effect before doing autogain. */
+		gspca_dev->exposure->val    = PAC7302_EXPOSURE_DEFAULT;
+		gspca_dev->gain->val        = PAC7302_GAIN_DEFAULT;
+		sd->autogain_ignore_frames  = PAC_AUTOGAIN_IGNORE_FRAMES;
+	}
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		setbrightcont(gspca_dev);
+		break;
+	case V4L2_CID_SATURATION:
+		setcolors(gspca_dev);
+		break;
+	case V4L2_CID_WHITE_BALANCE_TEMPERATURE:
+		setwhitebalance(gspca_dev);
+		break;
+	case V4L2_CID_RED_BALANCE:
+		setredbalance(gspca_dev);
+		break;
+	case V4L2_CID_BLUE_BALANCE:
+		setbluebalance(gspca_dev);
+		break;
+	case V4L2_CID_AUTOGAIN:
+		if (gspca_dev->exposure->is_new || (ctrl->is_new && ctrl->val))
+			setexposure(gspca_dev);
+		if (gspca_dev->gain->is_new || (ctrl->is_new && ctrl->val))
+			setgain(gspca_dev);
+		break;
+	case V4L2_CID_HFLIP:
+		sethvflip(gspca_dev);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return gspca_dev->usb_err;
+}
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+/* this function is called at probe time */
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 11);
+
+	sd->brightness = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_BRIGHTNESS, 0, 32, 1, 16);
+	sd->contrast = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_CONTRAST, 0, 255, 1, 127);
+
+	sd->saturation = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_SATURATION, 0, 255, 1, 127);
+	sd->white_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_WHITE_BALANCE_TEMPERATURE,
+					0, 255, 1, 4);
+	sd->red_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_RED_BALANCE, 0, 3, 1, 1);
+	sd->blue_balance = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_RED_BALANCE, 0, 3, 1, 1);
+
+	gspca_dev->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	gspca_dev->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_EXPOSURE, 0, 1023, 1,
+					PAC7302_EXPOSURE_DEFAULT);
+	gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+					V4L2_CID_GAIN, 0, 62, 1,
+					PAC7302_GAIN_DEFAULT);
+
+	sd->hflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+		V4L2_CID_HFLIP, 0, 1, 1, 0);
+	sd->vflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+		V4L2_CID_VFLIP, 0, 1, 1, 0);
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+
+	v4l2_ctrl_cluster(2, &sd->brightness);
+	v4l2_ctrl_auto_cluster(3, &gspca_dev->autogain, 0, false);
+	v4l2_ctrl_cluster(2, &sd->hflip);
+	return 0;
+}
+
+/* -- start the camera -- */
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -728,11 +655,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setwhitebalance(gspca_dev);
 	setredbalance(gspca_dev);
 	setbluebalance(gspca_dev);
-	setautogain(gspca_dev);
+	setexposure(gspca_dev);
+	setgain(gspca_dev);
 	sethvflip(gspca_dev);
 
 	sd->sof_read = 0;
-	atomic_set(&sd->avg_lum, 270 + sd->ctrls[BRIGHTNESS].val);
+	sd->autogain_ignore_frames = 0;
+	atomic_set(&sd->avg_lum, 270 + sd->brightness->val);
 
 	/* start stream */
 	reg_w(gspca_dev, 0xff, 0x01);
@@ -758,9 +687,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x78, 0x40);
 }
 
-#define WANT_REGULAR_AUTOGAIN
-#include "autogain_functions.h"
-
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -774,11 +700,13 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	if (sd->autogain_ignore_frames > 0) {
 		sd->autogain_ignore_frames--;
 	} else {
-		desired_lum = 270 + sd->ctrls[BRIGHTNESS].val;
+		desired_lum = 270 + sd->brightness->val;
 
-		auto_gain_n_exposure(gspca_dev, avg_lum, desired_lum,
-				deadzone, GAIN_KNEE, EXPOSURE_KNEE);
-		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
+		if (gspca_expo_autogain(gspca_dev, avg_lum, desired_lum,
+					deadzone, PAC7302_GAIN_KNEE,
+					PAC7302_EXPOSURE_KNEE))
+			sd->autogain_ignore_frames =
+						PAC_AUTOGAIN_IGNORE_FRAMES;
 	}
 }
 
@@ -944,10 +872,9 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 /* sub-driver description for pac7302 */
 static const struct sd_desc sd_desc = {
 	.name = KBUILD_MODNAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
@@ -998,6 +925,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

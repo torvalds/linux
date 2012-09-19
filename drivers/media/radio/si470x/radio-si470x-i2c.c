@@ -225,8 +225,9 @@ int si470x_vidioc_querycap(struct file *file, void *priv,
 {
 	strlcpy(capability->driver, DRIVER_NAME, sizeof(capability->driver));
 	strlcpy(capability->card, DRIVER_CARD, sizeof(capability->card));
-	capability->capabilities = V4L2_CAP_HW_FREQ_SEEK |
-		V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_READWRITE |
+		V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
+	capability->capabilities = capability->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
@@ -350,7 +351,9 @@ static int __devinit si470x_i2c_probe(struct i2c_client *client,
 	}
 
 	radio->client = client;
+	radio->band = 1; /* Default to 76 - 108 MHz */
 	mutex_init(&radio->lock);
+	init_completion(&radio->completion);
 
 	/* video device initialization */
 	radio->videodev = si470x_viddev_template;
@@ -405,10 +408,6 @@ static int __devinit si470x_i2c_probe(struct i2c_client *client,
 	radio->wr_index = 0;
 	radio->rd_index = 0;
 	init_waitqueue_head(&radio->read_queue);
-
-	/* mark Seek/Tune Complete Interrupt enabled */
-	radio->stci_enabled = true;
-	init_completion(&radio->completion);
 
 	retval = request_threaded_irq(client->irq, NULL, si470x_i2c_interrupt,
 			IRQF_TRIGGER_FALLING, DRIVER_NAME, radio);

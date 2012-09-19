@@ -133,7 +133,7 @@ INT BcmWRM(PVOID arg,
 	return InterfaceWRM((PS_INTERFACE_ADAPTER)arg, addr, buff, len);
 }
 
-INT Bcm_clear_halt_of_endpoints(PMINI_ADAPTER Adapter)
+INT Bcm_clear_halt_of_endpoints(struct bcm_mini_adapter *Adapter)
 {
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter);
 	INT status = STATUS_SUCCESS;

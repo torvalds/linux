@@ -54,21 +54,13 @@ enum {
 #define CAMQUALITY_MIN 0	/* highest cam quality */
 #define CAMQUALITY_MAX 97	/* lowest cam quality  */
 
-enum e_ctrl {
-	LIGHTFREQ,
-	AUTOGAIN,
-	RED,
-	GREEN,
-	BLUE,
-	NCTRLS		/* number of controls */
-};
-
 /* Structure to hold all of our device specific stuff */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
-	struct gspca_ctrl ctrls[NCTRLS];
 	int blocks_left;
 	const struct v4l2_pix_format *cap_mode;
+	struct v4l2_ctrl *freq;
+	struct v4l2_ctrl *jpegqual;
 	/* Driver stuff */
 	u8 type;
 	u8 quality;				 /* image quality */
@@ -139,23 +131,21 @@ static void jlj_read1(struct gspca_dev *gspca_dev, unsigned char response)
 	}
 }
 
-static void setfreq(struct gspca_dev *gspca_dev)
+static void setfreq(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u8 freq_commands[][2] = {
 		{0x71, 0x80},
 		{0x70, 0x07}
 	};
 
-	freq_commands[0][1] |= (sd->ctrls[LIGHTFREQ].val >> 1);
+	freq_commands[0][1] |= val >> 1;
 
 	jlj_write2(gspca_dev, freq_commands[0]);
 	jlj_write2(gspca_dev, freq_commands[1]);
 }
 
-static void setcamquality(struct gspca_dev *gspca_dev)
+static void setcamquality(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u8 quality_commands[][2] = {
 		{0x71, 0x1E},
 		{0x70, 0x06}
@@ -163,7 +153,7 @@ static void setcamquality(struct gspca_dev *gspca_dev)
 	u8 camquality;
 
 	/* adapt camera quality from jpeg quality */
-	camquality = ((QUALITY_MAX - sd->quality) * CAMQUALITY_MAX)
+	camquality = ((QUALITY_MAX - val) * CAMQUALITY_MAX)
 		/ (QUALITY_MAX - QUALITY_MIN);
 	quality_commands[0][1] += camquality;
 
@@ -171,129 +161,57 @@ static void setcamquality(struct gspca_dev *gspca_dev)
 	jlj_write2(gspca_dev, quality_commands[1]);
 }
 
-static void setautogain(struct gspca_dev *gspca_dev)
+static void setautogain(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u8 autogain_commands[][2] = {
 		{0x94, 0x02},
 		{0xcf, 0x00}
 	};
 
-	autogain_commands[1][1] = (sd->ctrls[AUTOGAIN].val << 4);
+	autogain_commands[1][1] = val << 4;
 
 	jlj_write2(gspca_dev, autogain_commands[0]);
 	jlj_write2(gspca_dev, autogain_commands[1]);
 }
 
-static void setred(struct gspca_dev *gspca_dev)
+static void setred(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u8 setred_commands[][2] = {
 		{0x94, 0x02},
 		{0xe6, 0x00}
 	};
 
-	setred_commands[1][1] = sd->ctrls[RED].val;
+	setred_commands[1][1] = val;
 
 	jlj_write2(gspca_dev, setred_commands[0]);
 	jlj_write2(gspca_dev, setred_commands[1]);
 }
 
-static void setgreen(struct gspca_dev *gspca_dev)
+static void setgreen(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u8 setgreen_commands[][2] = {
 		{0x94, 0x02},
 		{0xe7, 0x00}
 	};
 
-	setgreen_commands[1][1] = sd->ctrls[GREEN].val;
+	setgreen_commands[1][1] = val;
 
 	jlj_write2(gspca_dev, setgreen_commands[0]);
 	jlj_write2(gspca_dev, setgreen_commands[1]);
 }
 
-static void setblue(struct gspca_dev *gspca_dev)
+static void setblue(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	u8 setblue_commands[][2] = {
 		{0x94, 0x02},
 		{0xe9, 0x00}
 	};
 
-	setblue_commands[1][1] = sd->ctrls[BLUE].val;
+	setblue_commands[1][1] = val;
 
 	jlj_write2(gspca_dev, setblue_commands[0]);
 	jlj_write2(gspca_dev, setblue_commands[1]);
 }
-
-static const struct ctrl sd_ctrls[NCTRLS] = {
-[LIGHTFREQ] = {
-	    {
-		.id      = V4L2_CID_POWER_LINE_FREQUENCY,
-		.type    = V4L2_CTRL_TYPE_MENU,
-		.name    = "Light frequency filter",
-		.minimum = V4L2_CID_POWER_LINE_FREQUENCY_DISABLED, /* 1 */
-		.maximum = V4L2_CID_POWER_LINE_FREQUENCY_60HZ, /* 2 */
-		.step    = 1,
-		.default_value = V4L2_CID_POWER_LINE_FREQUENCY_60HZ,
-	    },
-	    .set_control = setfreq
-	},
-[AUTOGAIN] = {
-	    {
-		.id = V4L2_CID_AUTOGAIN,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Automatic Gain (and Exposure)",
-		.minimum = 0,
-		.maximum = 3,
-		.step = 1,
-#define AUTOGAIN_DEF 0
-		.default_value = AUTOGAIN_DEF,
-	   },
-	   .set_control = setautogain
-	},
-[RED] = {
-	    {
-		.id = V4L2_CID_RED_BALANCE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "red balance",
-		.minimum = 0,
-		.maximum = 3,
-		.step = 1,
-#define RED_BALANCE_DEF 2
-		.default_value = RED_BALANCE_DEF,
-	   },
-	   .set_control = setred
-	},
-
-[GREEN]	= {
-	    {
-		.id = V4L2_CID_GAIN,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "green balance",
-		.minimum = 0,
-		.maximum = 3,
-		.step = 1,
-#define GREEN_BALANCE_DEF 2
-		.default_value = GREEN_BALANCE_DEF,
-	   },
-	   .set_control = setgreen
-	},
-[BLUE] = {
-	    {
-		.id = V4L2_CID_BLUE_BALANCE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "blue balance",
-		.minimum = 0,
-		.maximum = 3,
-		.step = 1,
-#define BLUE_BALANCE_DEF 2
-		.default_value = BLUE_BALANCE_DEF,
-	   },
-	   .set_control = setblue
-	},
-};
 
 static int jlj_start(struct gspca_dev *gspca_dev)
 {
@@ -344,9 +262,9 @@ static int jlj_start(struct gspca_dev *gspca_dev)
 		if (start_commands[i].ack_wanted)
 			jlj_read1(gspca_dev, response);
 	}
-	setcamquality(gspca_dev);
+	setcamquality(gspca_dev, v4l2_ctrl_g_ctrl(sd->jpegqual));
 	msleep(2);
-	setfreq(gspca_dev);
+	setfreq(gspca_dev, v4l2_ctrl_g_ctrl(sd->freq));
 	if (gspca_dev->usb_err < 0)
 		PDEBUG(D_ERR, "Start streaming command failed");
 	return gspca_dev->usb_err;
@@ -403,7 +321,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *dev  = (struct sd *) gspca_dev;
 
 	dev->type = id->driver_info;
-	gspca_dev->cam.ctrls = dev->ctrls;
 	dev->quality = QUALITY_DEF;
 
 	cam->cam_mode = jlj_mode;
@@ -479,25 +396,81 @@ static const struct usb_device_id device_table[] = {
 
 MODULE_DEVICE_TABLE(usb, device_table);
 
-static int sd_querymenu(struct gspca_dev *gspca_dev,
-			struct v4l2_querymenu *menu)
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	switch (menu->id) {
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
+
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
 	case V4L2_CID_POWER_LINE_FREQUENCY:
-		switch (menu->index) {
-		case 0:	/* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
-			strcpy((char *) menu->name, "disable");
-			return 0;
-		case 1:	/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
-			strcpy((char *) menu->name, "50 Hz");
-			return 0;
-		case 2:	/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
-			strcpy((char *) menu->name, "60 Hz");
-			return 0;
-		}
+		setfreq(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_RED_BALANCE:
+		setred(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_GAIN:
+		setgreen(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_BLUE_BALANCE:
+		setblue(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_AUTOGAIN:
+		setautogain(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		jpeg_set_qual(sd->jpeg_hdr, ctrl->val);
+		setcamquality(gspca_dev, ctrl->val);
 		break;
 	}
-	return -EINVAL;
+	return gspca_dev->usb_err;
+}
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *)gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+	static const struct v4l2_ctrl_config custom_autogain = {
+		.ops = &sd_ctrl_ops,
+		.id = V4L2_CID_AUTOGAIN,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Automatic Gain (and Exposure)",
+		.max = 3,
+		.step = 1,
+		.def = 0,
+	};
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 6);
+	sd->freq = v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
+			V4L2_CID_POWER_LINE_FREQUENCY,
+			V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 1,
+			V4L2_CID_POWER_LINE_FREQUENCY_60HZ);
+	v4l2_ctrl_new_custom(hdl, &custom_autogain, NULL);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_RED_BALANCE, 0, 3, 1, 2);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 0, 3, 1, 2);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BLUE_BALANCE, 0, 3, 1, 2);
+	sd->jpegqual = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_JPEG_COMPRESSION_QUALITY,
+			QUALITY_MIN, QUALITY_MAX, 1, QUALITY_DEF);
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+	return 0;
 }
 
 static int sd_set_jcomp(struct gspca_dev *gspca_dev,
@@ -505,16 +478,7 @@ static int sd_set_jcomp(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (jcomp->quality < QUALITY_MIN)
-		sd->quality = QUALITY_MIN;
-	else if (jcomp->quality > QUALITY_MAX)
-		sd->quality = QUALITY_MAX;
-	else
-		sd->quality = jcomp->quality;
-	if (gspca_dev->streaming) {
-		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
-		setcamquality(gspca_dev);
-	}
+	v4l2_ctrl_s_ctrl(sd->jpegqual, jcomp->quality);
 	return 0;
 }
 
@@ -524,7 +488,7 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	memset(jcomp, 0, sizeof *jcomp);
-	jcomp->quality = sd->quality;
+	jcomp->quality = v4l2_ctrl_g_ctrl(sd->jpegqual);
 	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
 			| V4L2_JPEG_MARKER_DQT;
 	return 0;
@@ -546,12 +510,10 @@ static const struct sd_desc sd_desc_sportscam_dv15 = {
 	.name   = MODULE_NAME,
 	.config = sd_config,
 	.init   = sd_init,
+	.init_controls = sd_init_controls,
 	.start  = sd_start,
 	.stopN  = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
-	.querymenu = sd_querymenu,
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,
 };
@@ -579,6 +541,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume  = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

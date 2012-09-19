@@ -162,6 +162,20 @@ config MAC8390
 	  and read the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
+config MCF8390
+	tristate "ColdFire NS8390 based Ethernet support"
+	depends on COLDFIRE
+	select CRC32
+	---help---
+	  This driver is for Ethernet devices using an NS8390-compatible
+	  chipset on many common ColdFire CPU based boards. Many of the older
+	  Freescale dev boards use this, and some other common boards like
+	  some SnapGear routers do as well.
+
+	  If you have one of these boards and want to use the network interface
+	  on them then choose Y. To compile this driver as a module, choose M
+	  here, the module will be called mcf8390.
+
 config NE2000
 	tristate "NE2000/NE1000 support"
 	depends on (ISA || (Q40 && m) || M32R || MACH_TX49XX)

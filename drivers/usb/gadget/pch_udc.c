@@ -2208,7 +2208,7 @@ static void pch_udc_complete_receiver(struct pch_udc_ep *ep)
 			return;
 		}
 		if ((td->status & PCH_UDC_BUFF_STS) == PCH_UDC_BS_DMA_DONE)
-			if (td->status | PCH_UDC_DMA_LAST) {
+			if (td->status & PCH_UDC_DMA_LAST) {
 				count = td->status & PCH_UDC_RXTX_BYTES;
 				break;
 			}

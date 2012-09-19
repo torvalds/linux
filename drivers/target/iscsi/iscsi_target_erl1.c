@@ -965,8 +965,8 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 		if (cmd->immediate_data) {
 			if (cmd->cmd_flags & ICF_GOT_LAST_DATAOUT) {
 				spin_unlock_bh(&cmd->istate_lock);
-				return transport_generic_handle_data(
-						&cmd->se_cmd);
+				target_execute_cmd(&cmd->se_cmd);
+				return 0;
 			}
 			spin_unlock_bh(&cmd->istate_lock);
 

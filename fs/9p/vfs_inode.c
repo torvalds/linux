@@ -712,88 +712,34 @@ error:
 }
 
 /**
- * v9fs_vfs_create - VFS hook to create files
+ * v9fs_vfs_create - VFS hook to create a regular file
+ *
+ * open(.., O_CREAT) is handled in v9fs_vfs_atomic_open().  This is only called
+ * for mknod(2).
+ *
  * @dir: directory inode that is being created
  * @dentry:  dentry that is being deleted
  * @mode: create permissions
- * @nd: path information
  *
  */
 
 static int
 v9fs_vfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		struct nameidata *nd)
+		bool excl)
 {
-	int err;
-	u32 perm;
-	int flags;
-	struct file *filp;
-	struct v9fs_inode *v9inode;
-	struct v9fs_session_info *v9ses;
-	struct p9_fid *fid, *inode_fid;
+	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
+	u32 perm = unixmode2p9mode(v9ses, mode);
+	struct p9_fid *fid;
 
-	err = 0;
-	fid = NULL;
-	v9ses = v9fs_inode2v9ses(dir);
-	perm = unixmode2p9mode(v9ses, mode);
-	if (nd)
-		flags = nd->intent.open.flags;
-	else
-		flags = O_RDWR;
-
-	fid = v9fs_create(v9ses, dir, dentry, NULL, perm,
-				v9fs_uflags2omode(flags,
-						v9fs_proto_dotu(v9ses)));
-	if (IS_ERR(fid)) {
-		err = PTR_ERR(fid);
-		fid = NULL;
-		goto error;
-	}
+	/* P9_OEXCL? */
+	fid = v9fs_create(v9ses, dir, dentry, NULL, perm, P9_ORDWR);
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
 
 	v9fs_invalidate_inode_attr(dir);
-	/* if we are opening a file, assign the open fid to the file */
-	if (nd) {
-		v9inode = V9FS_I(dentry->d_inode);
-		mutex_lock(&v9inode->v_mutex);
-		if (v9ses->cache && !v9inode->writeback_fid &&
-		    ((flags & O_ACCMODE) != O_RDONLY)) {
-			/*
-			 * clone a fid and add it to writeback_fid
-			 * we do it during open time instead of
-			 * page dirty time via write_begin/page_mkwrite
-			 * because we want write after unlink usecase
-			 * to work.
-			 */
-			inode_fid = v9fs_writeback_fid(dentry);
-			if (IS_ERR(inode_fid)) {
-				err = PTR_ERR(inode_fid);
-				mutex_unlock(&v9inode->v_mutex);
-				goto error;
-			}
-			v9inode->writeback_fid = (void *) inode_fid;
-		}
-		mutex_unlock(&v9inode->v_mutex);
-		filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
-		if (IS_ERR(filp)) {
-			err = PTR_ERR(filp);
-			goto error;
-		}
-
-		filp->private_data = fid;
-#ifdef CONFIG_9P_FSCACHE
-		if (v9ses->cache)
-			v9fs_cache_inode_set_cookie(dentry->d_inode, filp);
-#endif
-	} else
-		p9_client_clunk(fid);
+	p9_client_clunk(fid);
 
 	return 0;
-
-error:
-	if (fid)
-		p9_client_clunk(fid);
-
-	return err;
 }
 
 /**
@@ -839,7 +785,7 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
  */
 
 struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
-				      struct nameidata *nameidata)
+				      unsigned int flags)
 {
 	struct dentry *res;
 	struct super_block *sb;
@@ -849,8 +795,8 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	char *name;
 	int result = 0;
 
-	p9_debug(P9_DEBUG_VFS, "dir: %p dentry: (%s) %p nameidata: %p\n",
-		 dir, dentry->d_name.name, dentry, nameidata);
+	p9_debug(P9_DEBUG_VFS, "dir: %p dentry: (%s) %p flags: %x\n",
+		 dir, dentry->d_name.name, dentry, flags);
 
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -908,6 +854,86 @@ error:
 	p9_client_clunk(fid);
 
 	return ERR_PTR(result);
+}
+
+static int
+v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
+		     struct file *file, unsigned flags, umode_t mode,
+		     int *opened)
+{
+	int err;
+	u32 perm;
+	struct v9fs_inode *v9inode;
+	struct v9fs_session_info *v9ses;
+	struct p9_fid *fid, *inode_fid;
+	struct dentry *res = NULL;
+
+	if (d_unhashed(dentry)) {
+		res = v9fs_vfs_lookup(dir, dentry, 0);
+		if (IS_ERR(res))
+			return PTR_ERR(res);
+
+		if (res)
+			dentry = res;
+	}
+
+	/* Only creates */
+	if (!(flags & O_CREAT) || dentry->d_inode)
+		return finish_no_open(file, res);
+
+	err = 0;
+	fid = NULL;
+	v9ses = v9fs_inode2v9ses(dir);
+	perm = unixmode2p9mode(v9ses, mode);
+	fid = v9fs_create(v9ses, dir, dentry, NULL, perm,
+				v9fs_uflags2omode(flags,
+						v9fs_proto_dotu(v9ses)));
+	if (IS_ERR(fid)) {
+		err = PTR_ERR(fid);
+		fid = NULL;
+		goto error;
+	}
+
+	v9fs_invalidate_inode_attr(dir);
+	v9inode = V9FS_I(dentry->d_inode);
+	mutex_lock(&v9inode->v_mutex);
+	if (v9ses->cache && !v9inode->writeback_fid &&
+	    ((flags & O_ACCMODE) != O_RDONLY)) {
+		/*
+		 * clone a fid and add it to writeback_fid
+		 * we do it during open time instead of
+		 * page dirty time via write_begin/page_mkwrite
+		 * because we want write after unlink usecase
+		 * to work.
+		 */
+		inode_fid = v9fs_writeback_fid(dentry);
+		if (IS_ERR(inode_fid)) {
+			err = PTR_ERR(inode_fid);
+			mutex_unlock(&v9inode->v_mutex);
+			goto error;
+		}
+		v9inode->writeback_fid = (void *) inode_fid;
+	}
+	mutex_unlock(&v9inode->v_mutex);
+	err = finish_open(file, dentry, generic_file_open, opened);
+	if (err)
+		goto error;
+
+	file->private_data = fid;
+#ifdef CONFIG_9P_FSCACHE
+	if (v9ses->cache)
+		v9fs_cache_inode_set_cookie(dentry->d_inode, file);
+#endif
+
+	*opened |= FILE_CREATED;
+out:
+	dput(res);
+	return err;
+
+error:
+	if (fid)
+		p9_client_clunk(fid);
+	goto out;
 }
 
 /**
@@ -1488,6 +1514,7 @@ out:
 static const struct inode_operations v9fs_dir_inode_operations_dotu = {
 	.create = v9fs_vfs_create,
 	.lookup = v9fs_vfs_lookup,
+	.atomic_open = v9fs_vfs_atomic_open,
 	.symlink = v9fs_vfs_symlink,
 	.link = v9fs_vfs_link,
 	.unlink = v9fs_vfs_unlink,
@@ -1502,6 +1529,7 @@ static const struct inode_operations v9fs_dir_inode_operations_dotu = {
 static const struct inode_operations v9fs_dir_inode_operations = {
 	.create = v9fs_vfs_create,
 	.lookup = v9fs_vfs_lookup,
+	.atomic_open = v9fs_vfs_atomic_open,
 	.unlink = v9fs_vfs_unlink,
 	.mkdir = v9fs_vfs_mkdir,
 	.rmdir = v9fs_vfs_rmdir,

@@ -454,7 +454,10 @@ int objio_read_pagelist(struct nfs_read_data *rdata)
 	objios->ios->done = _read_done;
 	dprintk("%s: offset=0x%llx length=0x%x\n", __func__,
 		rdata->args.offset, rdata->args.count);
-	return ore_read(objios->ios);
+	ret = ore_read(objios->ios);
+	if (unlikely(ret))
+		objio_free_result(&objios->oir);
+	return ret;
 }
 
 /*
@@ -486,8 +489,16 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 	struct nfs_write_data *wdata = objios->oir.rpcdata;
 	struct address_space *mapping = wdata->header->inode->i_mapping;
 	pgoff_t index = offset / PAGE_SIZE;
-	struct page *page = find_get_page(mapping, index);
+	struct page *page;
+	loff_t i_size = i_size_read(wdata->header->inode);
 
+	if (offset >= i_size) {
+		*uptodate = true;
+		dprintk("%s: g_zero_page index=0x%lx\n", __func__, index);
+		return ZERO_PAGE(0);
+	}
+
+	page = find_get_page(mapping, index);
 	if (!page) {
 		page = find_or_create_page(mapping, index, GFP_NOFS);
 		if (unlikely(!page)) {
@@ -507,8 +518,10 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 
 static void __r4w_put_page(void *priv, struct page *page)
 {
-	dprintk("%s: index=0x%lx\n", __func__, page->index);
-	page_cache_release(page);
+	dprintk("%s: index=0x%lx\n", __func__,
+		(page == ZERO_PAGE(0)) ? -1UL : page->index);
+	if (ZERO_PAGE(0) != page)
+		page_cache_release(page);
 	return;
 }
 
@@ -539,8 +552,10 @@ int objio_write_pagelist(struct nfs_write_data *wdata, int how)
 	dprintk("%s: offset=0x%llx length=0x%x\n", __func__,
 		wdata->args.offset, wdata->args.count);
 	ret = ore_write(objios->ios);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		objio_free_result(&objios->oir);
 		return ret;
+	}
 
 	if (objios->sync)
 		_write_done(objios->ios, objios);
@@ -555,17 +570,66 @@ static bool objio_pg_test(struct nfs_pageio_descriptor *pgio,
 		return false;
 
 	return pgio->pg_count + req->wb_bytes <=
-			OBJIO_LSEG(pgio->pg_lseg)->layout.max_io_length;
+			(unsigned long)pgio->pg_layout_private;
+}
+
+void objio_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
+{
+	pnfs_generic_pg_init_read(pgio, req);
+	if (unlikely(pgio->pg_lseg == NULL))
+		return; /* Not pNFS */
+
+	pgio->pg_layout_private = (void *)
+				OBJIO_LSEG(pgio->pg_lseg)->layout.max_io_length;
+}
+
+static bool aligned_on_raid_stripe(u64 offset, struct ore_layout *layout,
+				   unsigned long *stripe_end)
+{
+	u32 stripe_off;
+	unsigned stripe_size;
+
+	if (layout->raid_algorithm == PNFS_OSD_RAID_0)
+		return true;
+
+	stripe_size = layout->stripe_unit *
+				(layout->group_width - layout->parity);
+
+	div_u64_rem(offset, stripe_size, &stripe_off);
+	if (!stripe_off)
+		return true;
+
+	*stripe_end = stripe_size - stripe_off;
+	return false;
+}
+
+void objio_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
+{
+	unsigned long stripe_end = 0;
+
+	pnfs_generic_pg_init_write(pgio, req);
+	if (unlikely(pgio->pg_lseg == NULL))
+		return; /* Not pNFS */
+
+	if (req->wb_offset ||
+	    !aligned_on_raid_stripe(req->wb_index * PAGE_SIZE,
+			       &OBJIO_LSEG(pgio->pg_lseg)->layout,
+			       &stripe_end)) {
+		pgio->pg_layout_private = (void *)stripe_end;
+	} else {
+		pgio->pg_layout_private = (void *)
+				OBJIO_LSEG(pgio->pg_lseg)->layout.max_io_length;
+	}
 }
 
 static const struct nfs_pageio_ops objio_pg_read_ops = {
-	.pg_init = pnfs_generic_pg_init_read,
+	.pg_init = objio_init_read,
 	.pg_test = objio_pg_test,
 	.pg_doio = pnfs_generic_pg_readpages,
 };
 
 static const struct nfs_pageio_ops objio_pg_write_ops = {
-	.pg_init = pnfs_generic_pg_init_write,
+	.pg_init = objio_init_write,
 	.pg_test = objio_pg_test,
 	.pg_doio = pnfs_generic_pg_writepages,
 };

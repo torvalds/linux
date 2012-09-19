@@ -196,6 +196,14 @@ static const unsigned int ccc_tbl[] = {
 	1200000,
 };
 
+/* Convert register value to current using lookup table */
+static int hw_to_current(const unsigned int *tbl, size_t size, unsigned int val)
+{
+	if (val >= size)
+		return -EINVAL;
+	return tbl[val];
+}
+
 /* Convert current to register value using lookup table */
 static int current_to_hw(const unsigned int *tbl, size_t size, unsigned int val)
 {
@@ -841,22 +849,101 @@ fail:
 	return ret;
 }
 
+/*
+ * Returns the constant charge current programmed
+ * into the charger in uA.
+ */
+static int get_const_charge_current(struct smb347_charger *smb)
+{
+	int ret, intval;
+	unsigned int v;
+
+	if (!smb347_is_ps_online(smb))
+		return -ENODATA;
+
+	ret = regmap_read(smb->regmap, STAT_B, &v);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * The current value is composition of FCC and PCC values
+	 * and we can detect which table to use from bit 5.
+	 */
+	if (v & 0x20) {
+		intval = hw_to_current(fcc_tbl, ARRAY_SIZE(fcc_tbl), v & 7);
+	} else {
+		v >>= 3;
+		intval = hw_to_current(pcc_tbl, ARRAY_SIZE(pcc_tbl), v & 7);
+	}
+
+	return intval;
+}
+
+/*
+ * Returns the constant charge voltage programmed
+ * into the charger in uV.
+ */
+static int get_const_charge_voltage(struct smb347_charger *smb)
+{
+	int ret, intval;
+	unsigned int v;
+
+	if (!smb347_is_ps_online(smb))
+		return -ENODATA;
+
+	ret = regmap_read(smb->regmap, STAT_A, &v);
+	if (ret < 0)
+		return ret;
+
+	v &= STAT_A_FLOAT_VOLTAGE_MASK;
+	if (v > 0x3d)
+		v = 0x3d;
+
+	intval = 3500000 + v * 20000;
+
+	return intval;
+}
+
 static int smb347_mains_get_property(struct power_supply *psy,
 				     enum power_supply_property prop,
 				     union power_supply_propval *val)
 {
 	struct smb347_charger *smb =
 		container_of(psy, struct smb347_charger, mains);
+	int ret;
 
-	if (prop == POWER_SUPPLY_PROP_ONLINE) {
+	switch (prop) {
+	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = smb->mains_online;
-		return 0;
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		ret = get_const_charge_voltage(smb);
+		if (ret < 0)
+			return ret;
+		else
+			val->intval = ret;
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+		ret = get_const_charge_current(smb);
+		if (ret < 0)
+			return ret;
+		else
+			val->intval = ret;
+		break;
+
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	return 0;
 }
 
 static enum power_supply_property smb347_mains_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 };
 
 static int smb347_usb_get_property(struct power_supply *psy,
@@ -865,16 +952,40 @@ static int smb347_usb_get_property(struct power_supply *psy,
 {
 	struct smb347_charger *smb =
 		container_of(psy, struct smb347_charger, usb);
+	int ret;
 
-	if (prop == POWER_SUPPLY_PROP_ONLINE) {
+	switch (prop) {
+	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = smb->usb_online;
-		return 0;
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		ret = get_const_charge_voltage(smb);
+		if (ret < 0)
+			return ret;
+		else
+			val->intval = ret;
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+		ret = get_const_charge_current(smb);
+		if (ret < 0)
+			return ret;
+		else
+			val->intval = ret;
+		break;
+
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	return 0;
 }
 
 static enum power_supply_property smb347_usb_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 };
 
 static int smb347_battery_get_property(struct power_supply *psy,

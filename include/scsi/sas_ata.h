@@ -45,6 +45,7 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 void sas_ata_schedule_reset(struct domain_device *dev);
 void sas_ata_wait_eh(struct domain_device *dev);
 void sas_probe_sata(struct asd_sas_port *port);
+void sas_ata_end_eh(struct ata_port *ap);
 #else
 
 
@@ -84,6 +85,10 @@ static inline void sas_probe_sata(struct asd_sas_port *port)
 static inline int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 {
 	return 0;
+}
+
+static inline void sas_ata_end_eh(struct ata_port *ap)
+{
 }
 #endif
 

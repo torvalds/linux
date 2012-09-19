@@ -888,12 +888,12 @@ static const struct preview_update update_attrs[] = {
 		preview_config_contrast,
 		NULL,
 		offsetof(struct prev_params, contrast),
-		0, true,
+		0, 0, true,
 	}, /* OMAP3ISP_PREV_BRIGHTNESS */ {
 		preview_config_brightness,
 		NULL,
 		offsetof(struct prev_params, brightness),
-		0, true,
+		0, 0, true,
 	},
 };
 
@@ -1102,7 +1102,7 @@ static void preview_config_input_size(struct isp_prev_device *prev, u32 active)
 	unsigned int elv = prev->crop.top + prev->crop.height - 1;
 	u32 features;
 
-	if (format->code == V4L2_MBUS_FMT_Y10_1X10) {
+	if (format->code != V4L2_MBUS_FMT_Y10_1X10) {
 		sph -= 2;
 		eph += 2;
 		slv -= 2;
@@ -1949,7 +1949,7 @@ static int preview_get_selection(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	switch (sel->target) {
-	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
 		sel->r.left = 0;
 		sel->r.top = 0;
 		sel->r.width = INT_MAX;
@@ -1960,7 +1960,7 @@ static int preview_get_selection(struct v4l2_subdev *sd,
 		preview_try_crop(prev, format, &sel->r);
 		break;
 
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SEL_TGT_CROP:
 		sel->r = *__preview_get_crop(prev, fh, sel->which);
 		break;
 
@@ -1988,7 +1988,7 @@ static int preview_set_selection(struct v4l2_subdev *sd,
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL ||
+	if (sel->target != V4L2_SEL_TGT_CROP ||
 	    sel->pad != PREV_PAD_SINK)
 		return -EINVAL;
 
@@ -2000,7 +2000,7 @@ static int preview_set_selection(struct v4l2_subdev *sd,
 	 * pad. If the KEEP_CONFIG flag is set, just return the current crop
 	 * rectangle.
 	 */
-	if (sel->flags & V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG) {
+	if (sel->flags & V4L2_SEL_FLAG_KEEP_CONFIG) {
 		sel->r = *__preview_get_crop(prev, fh, sel->which);
 		return 0;
 	}

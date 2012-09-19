@@ -75,7 +75,7 @@ static void atl2_set_ethtool_ops(struct net_device *netdev);
 
 static void atl2_check_options(struct atl2_adapter *adapter);
 
-/*
+/**
  * atl2_sw_init - Initialize general software structures (struct atl2_adapter)
  * @adapter: board private structure to initialize
  *
@@ -123,7 +123,7 @@ static int __devinit atl2_sw_init(struct atl2_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl2_set_multi - Multicast and Promiscuous mode set
  * @netdev: network interface device structure
  *
@@ -177,7 +177,7 @@ static void init_ring_ptrs(struct atl2_adapter *adapter)
 	adapter->txs_next_clear = 0;
 }
 
-/*
+/**
  * atl2_configure - Configure Transmit&Receive Unit after Reset
  * @adapter: board private structure
  *
@@ -283,7 +283,7 @@ static int atl2_configure(struct atl2_adapter *adapter)
 	return value;
 }
 
-/*
+/**
  * atl2_setup_ring_resources - allocate Tx / RX descriptor resources
  * @adapter: board private structure
  *
@@ -340,7 +340,7 @@ static s32 atl2_setup_ring_resources(struct atl2_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl2_irq_enable - Enable default interrupt generation settings
  * @adapter: board private structure
  */
@@ -350,7 +350,7 @@ static inline void atl2_irq_enable(struct atl2_adapter *adapter)
 	ATL2_WRITE_FLUSH(&adapter->hw);
 }
 
-/*
+/**
  * atl2_irq_disable - Mask off interrupt generation on the NIC
  * @adapter: board private structure
  */
@@ -599,11 +599,10 @@ static inline void atl2_clear_phy_int(struct atl2_adapter *adapter)
 	spin_unlock(&adapter->stats_lock);
 }
 
-/*
+/**
  * atl2_intr - Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
- * @pt_regs: CPU registers structure
  */
 static irqreturn_t atl2_intr(int irq, void *data)
 {
@@ -679,7 +678,7 @@ static int atl2_request_irq(struct atl2_adapter *adapter)
 		netdev);
 }
 
-/*
+/**
  * atl2_free_ring_resources - Free Tx / RX descriptor Resources
  * @adapter: board private structure
  *
@@ -692,7 +691,7 @@ static void atl2_free_ring_resources(struct atl2_adapter *adapter)
 		adapter->ring_dma);
 }
 
-/*
+/**
  * atl2_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -798,7 +797,7 @@ static void atl2_free_irq(struct atl2_adapter *adapter)
 #endif
 }
 
-/*
+/**
  * atl2_close - Disables a network interface
  * @netdev: network interface device structure
  *
@@ -918,7 +917,7 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-/*
+/**
  * atl2_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -943,7 +942,7 @@ static int atl2_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
-/*
+/**
  * atl2_set_mac - Change the Ethernet Address of the NIC
  * @netdev: network interface device structure
  * @p: pointer to an address structure
@@ -969,12 +968,6 @@ static int atl2_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
-/*
- * atl2_mii_ioctl -
- * @netdev:
- * @ifreq:
- * @cmd:
- */
 static int atl2_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
@@ -1011,12 +1004,6 @@ static int atl2_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
-/*
- * atl2_ioctl -
- * @netdev:
- * @ifreq:
- * @cmd:
- */
 static int atl2_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	switch (cmd) {
@@ -1033,7 +1020,7 @@ static int atl2_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	}
 }
 
-/*
+/**
  * atl2_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
@@ -1045,7 +1032,7 @@ static void atl2_tx_timeout(struct net_device *netdev)
 	schedule_work(&adapter->reset_task);
 }
 
-/*
+/**
  * atl2_watchdog - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
@@ -1070,7 +1057,7 @@ static void atl2_watchdog(unsigned long data)
 	}
 }
 
-/*
+/**
  * atl2_phy_config - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
@@ -1274,9 +1261,8 @@ static int atl2_check_link(struct atl2_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl2_link_chg_task - deal with link change event Out of interrupt context
- * @netdev: network interface device structure
  */
 static void atl2_link_chg_task(struct work_struct *work)
 {
@@ -1341,7 +1327,7 @@ static const struct net_device_ops atl2_netdev_ops = {
 #endif
 };
 
-/*
+/**
  * atl2_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in atl2_pci_tbl
@@ -1501,7 +1487,7 @@ err_dma:
 	return err;
 }
 
-/*
+/**
  * atl2_remove - Device Removal Routine
  * @pdev: PCI device information struct
  *
@@ -1728,7 +1714,7 @@ static struct pci_driver atl2_driver = {
 	.shutdown = atl2_shutdown,
 };
 
-/*
+/**
  * atl2_init_module - Driver Registration Routine
  *
  * atl2_init_module is the first routine called when the driver is
@@ -1743,7 +1729,7 @@ static int __init atl2_init_module(void)
 }
 module_init(atl2_init_module);
 
-/*
+/**
  * atl2_exit_module - Driver Exit Cleanup Routine
  *
  * atl2_exit_module is called just before the driver is removed
@@ -2360,7 +2346,7 @@ static s32 atl2_read_mac_addr(struct atl2_hw *hw)
 {
 	if (get_permanent_address(hw)) {
 		/* for test */
-		/* FIXME: shouldn't we use random_ether_addr() here? */
+		/* FIXME: shouldn't we use eth_random_addr() here? */
 		hw->perm_mac_addr[0] = 0x00;
 		hw->perm_mac_addr[1] = 0x13;
 		hw->perm_mac_addr[2] = 0x74;
@@ -2997,7 +2983,7 @@ static int __devinit atl2_validate_option(int *value, struct atl2_option *opt)
 	return -1;
 }
 
-/*
+/**
  * atl2_check_options - Range Checking for Command Line Parameters
  * @adapter: board private structure
  *

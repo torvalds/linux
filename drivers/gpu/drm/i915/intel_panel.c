@@ -56,7 +56,7 @@ intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 void
 intel_pch_panel_fitting(struct drm_device *dev,
 			int fitting_mode,
-			struct drm_display_mode *mode,
+			const struct drm_display_mode *mode,
 			struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -213,7 +213,7 @@ static u32 intel_panel_compute_brightness(struct drm_device *dev, u32 val)
 	return val;
 }
 
-u32 intel_panel_get_backlight(struct drm_device *dev)
+static u32 intel_panel_get_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val;
@@ -287,15 +287,69 @@ void intel_panel_disable_backlight(struct drm_device *dev)
 
 	dev_priv->backlight_enabled = false;
 	intel_panel_actually_set_backlight(dev, 0);
+
+	if (INTEL_INFO(dev)->gen >= 4) {
+		uint32_t reg, tmp;
+
+		reg = HAS_PCH_SPLIT(dev) ? BLC_PWM_CPU_CTL2 : BLC_PWM_CTL2;
+
+		I915_WRITE(reg, I915_READ(reg) & ~BLM_PWM_ENABLE);
+
+		if (HAS_PCH_SPLIT(dev)) {
+			tmp = I915_READ(BLC_PWM_PCH_CTL1);
+			tmp &= ~BLM_PCH_PWM_ENABLE;
+			I915_WRITE(BLC_PWM_PCH_CTL1, tmp);
+		}
+	}
 }
 
-void intel_panel_enable_backlight(struct drm_device *dev)
+void intel_panel_enable_backlight(struct drm_device *dev,
+				  enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (dev_priv->backlight_level == 0)
 		dev_priv->backlight_level = intel_panel_get_max_backlight(dev);
 
+	if (INTEL_INFO(dev)->gen >= 4) {
+		uint32_t reg, tmp;
+
+		reg = HAS_PCH_SPLIT(dev) ? BLC_PWM_CPU_CTL2 : BLC_PWM_CTL2;
+
+
+		tmp = I915_READ(reg);
+
+		/* Note that this can also get called through dpms changes. And
+		 * we don't track the backlight dpms state, hence check whether
+		 * we have to do anything first. */
+		if (tmp & BLM_PWM_ENABLE)
+			goto set_level;
+
+		if (dev_priv->num_pipe == 3)
+			tmp &= ~BLM_PIPE_SELECT_IVB;
+		else
+			tmp &= ~BLM_PIPE_SELECT;
+
+		tmp |= BLM_PIPE(pipe);
+		tmp &= ~BLM_PWM_ENABLE;
+
+		I915_WRITE(reg, tmp);
+		POSTING_READ(reg);
+		I915_WRITE(reg, tmp | BLM_PWM_ENABLE);
+
+		if (HAS_PCH_SPLIT(dev)) {
+			tmp = I915_READ(BLC_PWM_PCH_CTL1);
+			tmp |= BLM_PCH_PWM_ENABLE;
+			tmp &= ~BLM_PCH_OVERRIDE_ENABLE;
+			I915_WRITE(BLC_PWM_PCH_CTL1, tmp);
+		}
+	}
+
+set_level:
+	/* Call below after setting BLC_PWM_CPU_CTL2 and BLC_PWM_PCH_CTL1.
+	 * BLC_PWM_CPU_CTL may be cleared to zero automatically when these
+	 * registers are set.
+	 */
 	dev_priv->backlight_enabled = true;
 	intel_panel_actually_set_backlight(dev, dev_priv->backlight_level);
 }

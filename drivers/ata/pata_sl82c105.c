@@ -372,21 +372,10 @@ static struct pci_driver sl82c105_pci_driver = {
 #endif
 };
 
-static int __init sl82c105_init(void)
-{
-	return pci_register_driver(&sl82c105_pci_driver);
-}
-
-static void __exit sl82c105_exit(void)
-{
-	pci_unregister_driver(&sl82c105_pci_driver);
-}
+module_pci_driver(sl82c105_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Sl82c105");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sl82c105);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(sl82c105_init);
-module_exit(sl82c105_exit);

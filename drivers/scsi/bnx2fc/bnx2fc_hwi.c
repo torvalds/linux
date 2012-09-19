@@ -1244,7 +1244,9 @@ static void bnx2fc_process_conn_disable_cmpl(struct bnx2fc_hba *hba,
 	if (disable_kcqe->completion_status) {
 		printk(KERN_ERR PFX "Disable failed with cmpl status %d\n",
 			disable_kcqe->completion_status);
-		return;
+		set_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags);
+		set_bit(BNX2FC_FLAG_UPLD_REQ_COMPL, &tgt->flags);
+		wake_up_interruptible(&tgt->upld_wait);
 	} else {
 		/* disable successful */
 		BNX2FC_TGT_DBG(tgt, "disable successful\n");

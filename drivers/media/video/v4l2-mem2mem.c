@@ -19,6 +19,9 @@
 
 #include <media/videobuf2-core.h>
 #include <media/v4l2-mem2mem.h>
+#include <media/v4l2-dev.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-event.h>
 
 MODULE_DESCRIPTION("Mem to mem device framework for videobuf");
 MODULE_AUTHOR("Pawel Osciak, <pawel@osciak.com>");
@@ -407,10 +410,23 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_streamoff);
 unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 			   struct poll_table_struct *wait)
 {
+	struct video_device *vfd = video_devdata(file);
+	unsigned long req_events = poll_requested_events(wait);
 	struct vb2_queue *src_q, *dst_q;
 	struct vb2_buffer *src_vb = NULL, *dst_vb = NULL;
 	unsigned int rc = 0;
 	unsigned long flags;
+
+	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
+		struct v4l2_fh *fh = file->private_data;
+
+		if (v4l2_event_pending(fh))
+			rc = POLLPRI;
+		else if (req_events & POLLPRI)
+			poll_wait(file, &fh->wait, wait);
+		if (!(req_events & (POLLOUT | POLLWRNORM | POLLIN | POLLRDNORM)))
+			return rc;
+	}
 
 	src_q = v4l2_m2m_get_src_vq(m2m_ctx);
 	dst_q = v4l2_m2m_get_dst_vq(m2m_ctx);
@@ -422,7 +438,7 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	 */
 	if ((!src_q->streaming || list_empty(&src_q->queued_list))
 		&& (!dst_q->streaming || list_empty(&dst_q->queued_list))) {
-		rc = POLLERR;
+		rc |= POLLERR;
 		goto end;
 	}
 

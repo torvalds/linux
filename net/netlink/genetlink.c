@@ -33,7 +33,7 @@ void genl_unlock(void)
 }
 EXPORT_SYMBOL(genl_unlock);
 
-#ifdef CONFIG_PROVE_LOCKING
+#ifdef CONFIG_LOCKDEP
 int lockdep_genl_is_held(void)
 {
 	return lockdep_is_held(&genl_mutex);
@@ -504,7 +504,7 @@ EXPORT_SYMBOL(genl_unregister_family);
  * @pid: netlink pid the message is addressed to
  * @seq: sequence number (usually the one of the sender)
  * @family: generic netlink family
- * @flags netlink message flags
+ * @flags: netlink message flags
  * @cmd: generic netlink command
  *
  * Returns pointer to user specific header
@@ -915,10 +915,14 @@ static struct genl_multicast_group notify_grp = {
 
 static int __net_init genl_pernet_init(struct net *net)
 {
+	struct netlink_kernel_cfg cfg = {
+		.input		= genl_rcv,
+		.cb_mutex	= &genl_mutex,
+	};
+
 	/* we'll bump the group number right afterwards */
-	net->genl_sock = netlink_kernel_create(net, NETLINK_GENERIC, 0,
-					       genl_rcv, &genl_mutex,
-					       THIS_MODULE);
+	net->genl_sock = netlink_kernel_create(net, NETLINK_GENERIC,
+					       THIS_MODULE, &cfg);
 
 	if (!net->genl_sock && net_eq(net, &init_net))
 		panic("GENL: Cannot initialize generic netlink\n");

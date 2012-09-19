@@ -341,7 +341,11 @@ struct xhci_op_regs {
 #define PORT_PLC	(1 << 22)
 /* port configure error change - port failed to configure its link partner */
 #define PORT_CEC	(1 << 23)
-/* bit 24 reserved */
+/* Cold Attach Status - xHC can set this bit to report device attached during
+ * Sx state. Warm port reset should be perfomed to clear this bit and move port
+ * to connected state.
+ */
+#define PORT_CAS	(1 << 24)
 /* wake on connect (enable) */
 #define PORT_WKCONN_E	(1 << 25)
 /* wake on disconnect (enable) */
@@ -1490,6 +1494,7 @@ struct xhci_hcd {
 #define XHCI_TRUST_TX_LENGTH	(1 << 10)
 #define XHCI_LPM_SUPPORT	(1 << 11)
 #define XHCI_INTEL_HOST		(1 << 12)
+#define XHCI_SPURIOUS_REBOOT	(1 << 13)
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */
@@ -1533,6 +1538,8 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 	dev_err(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 #define xhci_warn(xhci, fmt, args...) \
 	dev_warn(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
+#define xhci_warn_ratelimited(xhci, fmt, args...) \
+	dev_warn_ratelimited(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 
 /* TODO: copied from ehci.h - can be refactored? */
 /* xHCI spec says all registers are little endian */

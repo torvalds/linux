@@ -40,7 +40,7 @@ struct videobuf_dma_contig_memory {
 
 static int __videobuf_dc_alloc(struct device *dev,
 			       struct videobuf_dma_contig_memory *mem,
-			       unsigned long size, unsigned long flags)
+			       unsigned long size, gfp_t flags)
 {
 	mem->size = size;
 	if (mem->cached) {
@@ -56,7 +56,7 @@ static int __videobuf_dc_alloc(struct device *dev,
 				dev_err(dev, "dma_map_single failed\n");
 
 				free_pages_exact(mem->vaddr, mem->size);
-				mem->vaddr = 0;
+				mem->vaddr = NULL;
 				return err;
 			}
 		}
@@ -359,32 +359,43 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	size = vma->vm_end - vma->vm_start;
 	size = (size < mem->size) ? size : mem->size;
 
-	if (!mem->cached)
+	if (!mem->cached) {
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	pos = (unsigned long)mem->vaddr;
-
-	while (size > 0) {
-		page = virt_to_page((void *)pos);
-		if (NULL == page) {
-			dev_err(q->dev, "mmap: virt_to_page failed\n");
-			__videobuf_dc_free(q->dev, mem);
-			goto error;
-		}
-		retval = vm_insert_page(vma, start, page);
+		retval = remap_pfn_range(vma, vma->vm_start,
+			 mem->dma_handle >> PAGE_SHIFT,
+				 size, vma->vm_page_prot);
 		if (retval) {
-			dev_err(q->dev, "mmap: insert failed with error %d\n",
-				retval);
-			__videobuf_dc_free(q->dev, mem);
+			dev_err(q->dev, "mmap: remap failed with error %d. ",
+								retval);
+			dma_free_coherent(q->dev, mem->size,
+					mem->vaddr, mem->dma_handle);
 			goto error;
 		}
-		start += PAGE_SIZE;
-		pos += PAGE_SIZE;
+	} else {
+		pos = (unsigned long)mem->vaddr;
 
-		if (size > PAGE_SIZE)
-			size -= PAGE_SIZE;
-		else
-			size = 0;
+		while (size > 0) {
+			page = virt_to_page((void *)pos);
+			if (NULL == page) {
+				dev_err(q->dev, "mmap: virt_to_page failed\n");
+				__videobuf_dc_free(q->dev, mem);
+				goto error;
+			}
+			retval = vm_insert_page(vma, start, page);
+			if (retval) {
+				dev_err(q->dev, "mmap: insert failed with error %d\n",
+					retval);
+				__videobuf_dc_free(q->dev, mem);
+				goto error;
+			}
+			start += PAGE_SIZE;
+			pos += PAGE_SIZE;
+
+			if (size > PAGE_SIZE)
+				size -= PAGE_SIZE;
+			else
+				size = 0;
+		}
 	}
 
 	vma->vm_ops = &videobuf_vm_ops;

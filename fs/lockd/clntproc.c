@@ -156,12 +156,16 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 	struct nlm_rqst		*call;
 	int			status;
 
-	nlm_get_host(host);
 	call = nlm_alloc_call(host);
 	if (call == NULL)
 		return -ENOMEM;
 
 	nlmclnt_locks_init_private(fl, host);
+	if (!fl->fl_u.nfs_fl.owner) {
+		/* lockowner allocation has failed */
+		nlmclnt_release_call(call);
+		return -ENOMEM;
+	}
 	/* Set up the argument struct */
 	nlmclnt_setlockargs(call, fl);
 
@@ -185,9 +189,6 @@ EXPORT_SYMBOL_GPL(nlmclnt_proc);
 
 /*
  * Allocate an NLM RPC call struct
- *
- * Note: the caller must hold a reference to host. In case of failure,
- * this reference will be released.
  */
 struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 {
@@ -199,7 +200,7 @@ struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 			atomic_set(&call->a_count, 1);
 			locks_init_lock(&call->a_args.lock.fl);
 			locks_init_lock(&call->a_res.lock.fl);
-			call->a_host = host;
+			call->a_host = nlm_get_host(host);
 			return call;
 		}
 		if (signalled())
@@ -207,7 +208,6 @@ struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 		printk("nlm_alloc_call: failed, waiting for memory\n");
 		schedule_timeout_interruptible(5*HZ);
 	}
-	nlmclnt_release_host(host);
 	return NULL;
 }
 
@@ -750,7 +750,7 @@ static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl
 	dprintk("lockd: blocking lock attempt was interrupted by a signal.\n"
 		"       Attempting to cancel lock.\n");
 
-	req = nlm_alloc_call(nlm_get_host(host));
+	req = nlm_alloc_call(host);
 	if (!req)
 		return -ENOMEM;
 	req->a_flags = RPC_TASK_ASYNC;

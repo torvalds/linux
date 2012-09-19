@@ -513,6 +513,21 @@ static void process_page(unsigned long data)
 	}
 }
 
+static void mm_unplug(struct blk_plug_cb *cb, bool from_schedule)
+{
+	struct cardinfo *card = cb->data;
+
+	spin_lock_irq(&card->lock);
+	activate(card);
+	spin_unlock_irq(&card->lock);
+	kfree(cb);
+}
+
+static int mm_check_plugged(struct cardinfo *card)
+{
+	return !!blk_check_plugged(mm_unplug, card, sizeof(struct blk_plug_cb));
+}
+
 static void mm_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct cardinfo *card = q->queuedata;
@@ -523,6 +538,8 @@ static void mm_make_request(struct request_queue *q, struct bio *bio)
 	*card->biotail = bio;
 	bio->bi_next = NULL;
 	card->biotail = &bio->bi_next;
+	if (bio->bi_rw & REQ_SYNC || !mm_check_plugged(card))
+		activate(card);
 	spin_unlock_irq(&card->lock);
 
 	return;

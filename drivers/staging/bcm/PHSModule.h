@@ -1,7 +1,7 @@
 #ifndef BCM_MINIPORT_PHSMODULE_H
 #define BCM_MINIPORT_PHSMODULE_H
 
-int PHSTransmit(PMINI_ADAPTER Adapter,
+int PHSTransmit(struct bcm_mini_adapter *Adapter,
 					struct sk_buff **pPacket,
 					 USHORT Vcid,
 					 B_UINT16 uiClassifierRuleID,
@@ -9,7 +9,7 @@ int PHSTransmit(PMINI_ADAPTER Adapter,
 					 PUINT PacketLen,
 					 UCHAR bEthCSSupport);
 
-int PHSReceive(PMINI_ADAPTER Adapter,
+int PHSReceive(struct bcm_mini_adapter *Adapter,
 					USHORT usVcid,
 					struct sk_buff *packet,
 					UINT *punPacketLen,
@@ -25,7 +25,7 @@ void DumpFullPacket(UCHAR *pBuf,UINT nPktLen);
 void DumpPhsRules(PPHS_DEVICE_EXTENSION pDeviceExtension);
 
 
-int phs_init(PPHS_DEVICE_EXTENSION pPhsdeviceExtension,PMINI_ADAPTER Adapter);
+int phs_init(PPHS_DEVICE_EXTENSION pPhsdeviceExtension,struct bcm_mini_adapter *Adapter);
 
 int PhsCleanup(PPHS_DEVICE_EXTENSION pPHSDeviceExt);
 

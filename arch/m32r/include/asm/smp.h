@@ -79,11 +79,6 @@ static __inline__ int cpu_number_map(int cpu)
 	return cpu;
 }
 
-static __inline__ unsigned int num_booting_cpus(void)
-{
-	return cpumask_weight(&cpu_callout_map);
-}
-
 extern void smp_send_timer(void);
 extern unsigned long send_IPI_mask_phys(const cpumask_t*, int, int);
 

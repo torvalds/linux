@@ -179,7 +179,7 @@ static struct drm_encoder *get_tmds_slave(struct drm_encoder *encoder)
 }
 
 static bool nv04_dfp_mode_fixup(struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
+				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);

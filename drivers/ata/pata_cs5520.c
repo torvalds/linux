@@ -302,22 +302,10 @@ static struct pci_driver cs5520_pci_driver = {
 #endif
 };
 
-static int __init cs5520_init(void)
-{
-	return pci_register_driver(&cs5520_pci_driver);
-}
-
-static void __exit cs5520_exit(void)
-{
-	pci_unregister_driver(&cs5520_pci_driver);
-}
+module_pci_driver(cs5520_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Cyrix CS5510/5520");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, pata_cs5520);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(cs5520_init);
-module_exit(cs5520_exit);
-

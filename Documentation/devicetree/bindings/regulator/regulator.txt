@@ -10,6 +10,11 @@ Optional properties:
 - regulator-always-on: boolean, regulator should never be disabled
 - regulator-boot-on: bootloader/firmware enabled regulator
 - <name>-supply: phandle to the parent supply/regulator node
+- regulator-ramp-delay: ramp delay for regulator(in uV/uS)
+- regulator-compatible: If a regulator chip contains multiple
+  regulators, and if the chip's binding contains a child node that
+  describes each regulator, then this property indicates which regulator
+  this child node is intended to configure.
 
 Example:
 

@@ -6,3 +6,5 @@ leds-lp5521.txt
 	- notes on how to use the leds-lp5521 driver.
 leds-lp5523.txt
 	- notes on how to use the leds-lp5523 driver.
+leds-lm3556.txt
+	- notes on how to use the leds-lm3556 driver.

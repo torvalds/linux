@@ -70,7 +70,7 @@ int wl1271_acx_sleep_auth(struct wl1271 *wl, u8 sleep_auth)
 	struct acx_sleep_auth *auth;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx sleep auth");
+	wl1271_debug(DEBUG_ACX, "acx sleep auth %d", sleep_auth);
 
 	auth = kzalloc(sizeof(*auth), GFP_KERNEL);
 	if (!auth) {
@@ -81,11 +81,18 @@ int wl1271_acx_sleep_auth(struct wl1271 *wl, u8 sleep_auth)
 	auth->sleep_auth = sleep_auth;
 
 	ret = wl1271_cmd_configure(wl, ACX_SLEEP_AUTH, auth, sizeof(*auth));
+	if (ret < 0) {
+		wl1271_error("could not configure sleep_auth to %d: %d",
+			     sleep_auth, ret);
+		goto out;
+	}
 
+	wl->sleep_auth = sleep_auth;
 out:
 	kfree(auth);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1271_acx_sleep_auth);
 
 int wl1271_acx_tx_power(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			int power)
@@ -708,14 +715,14 @@ out:
 	return ret;
 }
 
-int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
+int wl1271_acx_statistics(struct wl1271 *wl, void *stats)
 {
 	int ret;
 
 	wl1271_debug(DEBUG_ACX, "acx statistics");
 
 	ret = wl1271_cmd_interrogate(wl, ACX_STATISTICS, stats,
-				     sizeof(*stats));
+				     wl->stats.fw_stats_len);
 	if (ret < 0) {
 		wl1271_warning("acx statistics failed: %d", ret);
 		return -ENOMEM;
@@ -997,6 +1004,7 @@ out:
 	kfree(mem_conf);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl12xx_acx_mem_cfg);
 
 int wl1271_acx_init_mem_config(struct wl1271 *wl)
 {
@@ -1027,6 +1035,7 @@ int wl1271_acx_init_mem_config(struct wl1271 *wl)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1271_acx_init_mem_config);
 
 int wl1271_acx_init_rx_interrupt(struct wl1271 *wl)
 {
@@ -1150,6 +1159,7 @@ out:
 	kfree(acx);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1271_acx_pm_config);
 
 int wl1271_acx_keep_alive_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       bool enable)

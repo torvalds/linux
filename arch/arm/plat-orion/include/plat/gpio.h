@@ -13,7 +13,7 @@
 
 #include <linux/init.h>
 #include <linux/types.h>
-
+#include <linux/irqdomain.h>
 /*
  * Orion-specific GPIO API extensions.
  */
@@ -27,13 +27,11 @@ int orion_gpio_led_blink_set(unsigned gpio, int state,
 void orion_gpio_set_valid(unsigned pin, int mode);
 
 /* Initialize gpiolib. */
-void __init orion_gpio_init(int gpio_base, int ngpio,
-			    u32 base, int mask_offset, int secondary_irq_base);
+void __init orion_gpio_init(struct device_node *np,
+			    int gpio_base, int ngpio,
+			    void __iomem *base, int mask_offset,
+			    int secondary_irq_base,
+			    int irq[4]);
 
-/*
- * GPIO interrupt handling.
- */
-void orion_gpio_irq_handler(int irqoff);
-
-
+void __init orion_gpio_of_init(int irq_gpio_base);
 #endif

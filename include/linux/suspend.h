@@ -408,6 +408,12 @@ static inline void unlock_system_sleep(void) {}
 
 #endif /* !CONFIG_PM_SLEEP */
 
+#ifdef CONFIG_PM_SLEEP_DEBUG
+extern bool pm_print_times_enabled;
+#else
+#define pm_print_times_enabled	(false)
+#endif
+
 #ifdef CONFIG_PM_AUTOSLEEP
 
 /* kernel/power/autosleep.c */

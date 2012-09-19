@@ -2,7 +2,7 @@
  * (C) Copyright 2009-2010
  * Nokia Siemens Networks, michael.lawnick.ext@nsn.com
  *
- * Portions Copyright (C) 2010 Cavium Networks, Inc.
+ * Portions Copyright (C) 2010, 2011 Cavium Networks, Inc.
  *
  * This is a driver for the i2c adapter in Cavium Networks' OCTEON processors.
  *
@@ -11,17 +11,18 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/platform_device.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_i2c.h>
+#include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-
-#include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/interrupt.h>
-#include <linux/delay.h>
-#include <linux/platform_device.h>
+#include <linux/io.h>
+#include <linux/of.h>
 
 #include <asm/octeon/octeon.h>
 
@@ -65,7 +66,7 @@ struct octeon_i2c {
 	wait_queue_head_t queue;
 	struct i2c_adapter adap;
 	int irq;
-	int twsi_freq;
+	u32 twsi_freq;
 	int sys_freq;
 	resource_size_t twsi_phys;
 	void __iomem *twsi_base;
@@ -121,10 +122,8 @@ static u8 octeon_i2c_read_sw(struct octeon_i2c *i2c, u64 eop_reg)
  */
 static void octeon_i2c_write_int(struct octeon_i2c *i2c, u64 data)
 {
-	u64 tmp;
-
 	__raw_writeq(data, i2c->twsi_base + TWSI_INT);
-	tmp = __raw_readq(i2c->twsi_base + TWSI_INT);
+	__raw_readq(i2c->twsi_base + TWSI_INT);
 }
 
 /**
@@ -515,7 +514,6 @@ static int __devinit octeon_i2c_probe(struct platform_device *pdev)
 {
 	int irq, result = 0;
 	struct octeon_i2c *i2c;
-	struct octeon_i2c_data *i2c_data;
 	struct resource *res_mem;
 
 	/* All adaptors have an irq.  */
@@ -523,86 +521,90 @@ static int __devinit octeon_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	i2c = kzalloc(sizeof(*i2c), GFP_KERNEL);
+	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c) {
 		dev_err(&pdev->dev, "kzalloc failed\n");
 		result = -ENOMEM;
 		goto out;
 	}
 	i2c->dev = &pdev->dev;
-	i2c_data = pdev->dev.platform_data;
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	if (res_mem == NULL) {
 		dev_err(i2c->dev, "found no memory resource\n");
 		result = -ENXIO;
-		goto fail_region;
+		goto out;
 	}
-
-	if (i2c_data == NULL) {
-		dev_err(i2c->dev, "no I2C frequency data\n");
-		result = -ENXIO;
-		goto fail_region;
-	}
-
 	i2c->twsi_phys = res_mem->start;
 	i2c->regsize = resource_size(res_mem);
-	i2c->twsi_freq = i2c_data->i2c_freq;
-	i2c->sys_freq = i2c_data->sys_freq;
 
-	if (!request_mem_region(i2c->twsi_phys, i2c->regsize, res_mem->name)) {
-		dev_err(i2c->dev, "request_mem_region failed\n");
-		goto fail_region;
+	/*
+	 * "clock-rate" is a legacy binding, the official binding is
+	 * "clock-frequency".  Try the official one first and then
+	 * fall back if it doesn't exist.
+	 */
+	if (of_property_read_u32(pdev->dev.of_node,
+				 "clock-frequency", &i2c->twsi_freq) &&
+	    of_property_read_u32(pdev->dev.of_node,
+				 "clock-rate", &i2c->twsi_freq)) {
+		dev_err(i2c->dev,
+			"no I2C 'clock-rate' or 'clock-frequency' property\n");
+		result = -ENXIO;
+		goto out;
 	}
-	i2c->twsi_base = ioremap(i2c->twsi_phys, i2c->regsize);
+
+	i2c->sys_freq = octeon_get_io_clock_rate();
+
+	if (!devm_request_mem_region(&pdev->dev, i2c->twsi_phys, i2c->regsize,
+				      res_mem->name)) {
+		dev_err(i2c->dev, "request_mem_region failed\n");
+		goto out;
+	}
+	i2c->twsi_base = devm_ioremap(&pdev->dev, i2c->twsi_phys, i2c->regsize);
 
 	init_waitqueue_head(&i2c->queue);
 
 	i2c->irq = irq;
 
-	result = request_irq(i2c->irq, octeon_i2c_isr, 0, DRV_NAME, i2c);
+	result = devm_request_irq(&pdev->dev, i2c->irq,
+				  octeon_i2c_isr, 0, DRV_NAME, i2c);
 	if (result < 0) {
 		dev_err(i2c->dev, "failed to attach interrupt\n");
-		goto fail_irq;
+		goto out;
 	}
 
 	result = octeon_i2c_initlowlevel(i2c);
 	if (result) {
 		dev_err(i2c->dev, "init low level failed\n");
-		goto  fail_add;
+		goto  out;
 	}
 
 	result = octeon_i2c_setclock(i2c);
 	if (result) {
 		dev_err(i2c->dev, "clock init failed\n");
-		goto  fail_add;
+		goto  out;
 	}
 
 	i2c->adap = octeon_i2c_ops;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.nr = pdev->id >= 0 ? pdev->id : 0;
+	i2c->adap.dev.of_node = pdev->dev.of_node;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	platform_set_drvdata(pdev, i2c);
 
-	result = i2c_add_numbered_adapter(&i2c->adap);
+	result = i2c_add_adapter(&i2c->adap);
 	if (result < 0) {
 		dev_err(i2c->dev, "failed to add adapter\n");
 		goto fail_add;
 	}
-
 	dev_info(i2c->dev, "version %s\n", DRV_VERSION);
 
-	return result;
+	of_i2c_register_devices(&i2c->adap);
+
+	return 0;
 
 fail_add:
 	platform_set_drvdata(pdev, NULL);
-	free_irq(i2c->irq, i2c);
-fail_irq:
-	iounmap(i2c->twsi_base);
-	release_mem_region(i2c->twsi_phys, i2c->regsize);
-fail_region:
-	kfree(i2c);
 out:
 	return result;
 };
@@ -613,12 +615,16 @@ static int __devexit octeon_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&i2c->adap);
 	platform_set_drvdata(pdev, NULL);
-	free_irq(i2c->irq, i2c);
-	iounmap(i2c->twsi_base);
-	release_mem_region(i2c->twsi_phys, i2c->regsize);
-	kfree(i2c);
 	return 0;
 };
+
+static struct of_device_id octeon_i2c_match[] = {
+	{
+		.compatible = "cavium,octeon-3860-twsi",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, octeon_i2c_match);
 
 static struct platform_driver octeon_i2c_driver = {
 	.probe		= octeon_i2c_probe,
@@ -626,6 +632,7 @@ static struct platform_driver octeon_i2c_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
+		.of_match_table = octeon_i2c_match,
 	},
 };
 
@@ -635,4 +642,3 @@ MODULE_AUTHOR("Michael Lawnick <michael.lawnick.ext@nsn.com>");
 MODULE_DESCRIPTION("I2C-Bus adapter for Cavium OCTEON processors");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-MODULE_ALIAS("platform:" DRV_NAME);

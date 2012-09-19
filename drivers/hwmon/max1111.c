@@ -168,7 +168,7 @@ static int __devinit max1111_probe(struct spi_device *spi)
 	if (err < 0)
 		return err;
 
-	data = kzalloc(sizeof(struct max1111_data), GFP_KERNEL);
+	data = devm_kzalloc(&spi->dev, sizeof(struct max1111_data), GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&spi->dev, "failed to allocate memory\n");
 		return -ENOMEM;
@@ -176,7 +176,7 @@ static int __devinit max1111_probe(struct spi_device *spi)
 
 	err = setup_transfer(data);
 	if (err)
-		goto err_free_data;
+		return err;
 
 	mutex_init(&data->drvdata_lock);
 
@@ -186,7 +186,7 @@ static int __devinit max1111_probe(struct spi_device *spi)
 	err = sysfs_create_group(&spi->dev.kobj, &max1111_attr_group);
 	if (err) {
 		dev_err(&spi->dev, "failed to create attribute group\n");
-		goto err_free_data;
+		return err;
 	}
 
 	data->hwmon_dev = hwmon_device_register(&spi->dev);
@@ -203,8 +203,6 @@ static int __devinit max1111_probe(struct spi_device *spi)
 
 err_remove:
 	sysfs_remove_group(&spi->dev.kobj, &max1111_attr_group);
-err_free_data:
-	kfree(data);
 	return err;
 }
 
@@ -215,7 +213,6 @@ static int __devexit max1111_remove(struct spi_device *spi)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&spi->dev.kobj, &max1111_attr_group);
 	mutex_destroy(&data->drvdata_lock);
-	kfree(data);
 	return 0;
 }
 

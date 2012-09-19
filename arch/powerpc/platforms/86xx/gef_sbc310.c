@@ -152,7 +152,7 @@ static void gef_sbc310_show_cpuinfo(struct seq_file *m)
 
 }
 
-static void __init gef_sbc310_nec_fixup(struct pci_dev *pdev)
+static void __devinit gef_sbc310_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 

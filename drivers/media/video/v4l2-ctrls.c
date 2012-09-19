@@ -755,6 +755,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_HUE_AUTO:
 	case V4L2_CID_CHROMA_AGC:
 	case V4L2_CID_COLOR_KILLER:
+	case V4L2_CID_AUTOBRIGHTNESS:
 	case V4L2_CID_MPEG_AUDIO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
@@ -2120,7 +2121,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 
 	/* First zero the helper field in the master control references */
 	for (i = 0; i < cs->count; i++)
-		helpers[i].mref->helper = 0;
+		helpers[i].mref->helper = NULL;
 	for (i = 0, h = helpers; i < cs->count; i++, h++) {
 		struct v4l2_ctrl_ref *mref = h->mref;
 

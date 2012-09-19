@@ -10,10 +10,10 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/kern_levels.h>
 #include <asm/unistd.h>
 
 #define CLONE_VM	0x00000100	/* set if VM shared between processes */
-#define	KERN_ERR	"<3>"
 
 	.section .rodata
 kernel_thread_emsg:

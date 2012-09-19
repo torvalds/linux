@@ -52,7 +52,6 @@
 #include "mite.h"
 
 #include "comedi_fc.h"
-#include "comedi_pci.h"
 #include "../comedidev.h"
 
 

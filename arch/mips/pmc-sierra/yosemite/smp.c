@@ -115,11 +115,11 @@ static void yos_send_ipi_mask(const struct cpumask *mask, unsigned int action)
  */
 static void __cpuinit yos_init_secondary(void)
 {
-	set_c0_status(ST0_CO | ST0_IE | ST0_IM);
 }
 
 static void __cpuinit yos_smp_finish(void)
 {
+	set_c0_status(ST0_CO | ST0_IM | ST0_IE);
 }
 
 /* Hook for after all CPUs are online */

@@ -24,22 +24,6 @@
 
 static LIST_HEAD(crypto_template_list);
 
-void crypto_larval_error(const char *name, u32 type, u32 mask)
-{
-	struct crypto_alg *alg;
-
-	alg = crypto_alg_lookup(name, type, mask);
-
-	if (alg) {
-		if (crypto_is_larval(alg)) {
-			struct crypto_larval *larval = (void *)alg;
-			complete_all(&larval->completion);
-		}
-		crypto_mod_put(alg);
-	}
-}
-EXPORT_SYMBOL_GPL(crypto_larval_error);
-
 static inline int crypto_set_driver_name(struct crypto_alg *alg)
 {
 	static const char suffix[] = "-generic";
@@ -295,7 +279,6 @@ found:
 				continue;
 
 			larval->adult = alg;
-			complete_all(&larval->completion);
 			continue;
 		}
 

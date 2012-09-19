@@ -43,7 +43,6 @@ struct superblock_smack {
 	char		*smk_hat;
 	char		*smk_default;
 	int		smk_initialized;
-	spinlock_t	smk_sblock;	/* for initialization */
 };
 
 struct socket_smack {
@@ -281,6 +280,19 @@ static inline char *smk_of_forked(const struct task_smack *tsp)
 static inline char *smk_of_current(void)
 {
 	return smk_of_task(current_security());
+}
+
+/*
+ * Is the task privileged and allowed to be privileged
+ * by the onlycap rule.
+ */
+static inline int smack_privileged(int cap)
+{
+	if (!capable(cap))
+		return 0;
+	if (smack_onlycap == NULL || smack_onlycap == smk_of_current())
+		return 1;
+	return 0;
 }
 
 /*

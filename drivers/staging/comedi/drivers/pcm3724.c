@@ -76,10 +76,6 @@ struct priv_pcm3724 {
 	int dio_2;
 };
 
-#define this_board ((const struct pcm3724_board *)dev->board_ptr)
-
-/* (setq c-basic-offset 8) */
-
 static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 {
 	unsigned long iobase = arg;
@@ -234,12 +230,13 @@ static int subdev_3724_insn_config(struct comedi_device *dev,
 static int pcm3724_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct pcm3724_board *board = comedi_board(dev);
 	unsigned long iobase;
 	unsigned int iorange;
 	int ret, i, n_subdevices;
 
 	iobase = it->options[0];
-	iorange = this_board->io_range;
+	iorange = board->io_range;
 
 	ret = alloc_private(dev, sizeof(struct priv_pcm3724));
 	if (ret < 0)
@@ -249,20 +246,20 @@ static int pcm3724_attach(struct comedi_device *dev,
 	((struct priv_pcm3724 *)(dev->private))->dio_2 = 0;
 
 	printk(KERN_INFO "comedi%d: pcm3724: board=%s, 0x%03lx ", dev->minor,
-	       this_board->name, iobase);
+	       board->name, iobase);
 	if (!iobase || !request_region(iobase, iorange, "pcm3724")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 	printk(KERN_INFO "\n");
 
-	n_subdevices = this_board->numofports;
+	n_subdevices = board->numofports;
 
-	ret = alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
@@ -275,6 +272,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 
 static void pcm3724_detach(struct comedi_device *dev)
 {
+	const struct pcm3724_board *board = comedi_board(dev);
 	int i;
 
 	if (dev->subdevices) {
@@ -282,7 +280,7 @@ static void pcm3724_detach(struct comedi_device *dev)
 			subdev_8255_cleanup(dev, dev->subdevices + i);
 	}
 	if (dev->iobase)
-		release_region(dev->iobase, this_board->io_range);
+		release_region(dev->iobase, board->io_range);
 }
 
 static const struct pcm3724_board boardtypes[] = {

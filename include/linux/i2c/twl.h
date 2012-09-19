@@ -555,6 +555,8 @@ struct twl4030_clock_init_data {
 struct twl4030_bci_platform_data {
 	int *battery_tmp_tbl;
 	unsigned int tblsize;
+	int	bb_uvolt;	/* voltage to charge backup battery */
+	int	bb_uamp;	/* current for backup battery charging */
 };
 
 /* TWL4030_GPIO_MAX (18) GPIOs, with interrupts */
@@ -683,7 +685,6 @@ struct twl4030_audio_data {
 };
 
 struct twl4030_platform_data {
-	unsigned				irq_base, irq_end;
 	struct twl4030_clock_init_data		*clock;
 	struct twl4030_bci_platform_data	*bci;
 	struct twl4030_gpio_platform_data	*gpio;

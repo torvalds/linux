@@ -47,7 +47,7 @@
  *      Oasis cards (single and dual port PCI-x Gigabit) copper and fiber
  *      Kalahari cards (dual and quad port PCI-e Gigabit) copper and fiber
  *
- * The driver was acutally tested on Oasis and Kalahari cards.
+ * The driver was actually tested on Oasis and Kalahari cards.
  *
  *
  * NOTE: This is the standard, non-accelerated version of Alacritech's
@@ -3196,7 +3196,6 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	struct sliccard *card;
 	struct mcast_address *mcaddr, *mlist;
 
-	ASSERT(adapter);
 	slic_adapter_freeresources(adapter);
 	slic_unmap_mmio_space(adapter);
 	unregister_netdev(dev);
@@ -3235,6 +3234,7 @@ static void __devexit slic_entry_remove(struct pci_dev *pcidev)
 	}
 	free_netdev(dev);
 	pci_release_regions(pcidev);
+	pci_disable_device(pcidev);
 }
 
 static int slic_entry_halt(struct net_device *dev)
@@ -3746,8 +3746,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 		rdhostid_offset = SLIC_RDHOSTID_1GB;
 		break;
 	default:
-		ASSERT(0);
-		break;
+		return -ENODEV;
 	}
 
 	hostid_reg =

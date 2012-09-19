@@ -1,5 +1,4 @@
 /*
- *  drivers/s390/char/tape_34xx.c
  *    tape device discipline for 3480/3490 tapes.
  *
  *    Copyright IBM Corp. 2001, 2009

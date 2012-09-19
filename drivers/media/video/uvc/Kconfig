@@ -10,6 +10,7 @@ config USB_VIDEO_CLASS
 config USB_VIDEO_CLASS_INPUT_EVDEV
 	bool "UVC input events device support"
 	default y
+	depends on USB_VIDEO_CLASS
 	depends on USB_VIDEO_CLASS=INPUT || INPUT=y
 	---help---
 	  This option makes USB Video Class devices register an input device

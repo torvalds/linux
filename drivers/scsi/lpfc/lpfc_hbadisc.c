@@ -530,7 +530,7 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 			break;
 		case LPFC_EVT_OFFLINE_PREP:
 			if (phba->link_state >= LPFC_LINK_DOWN)
-				lpfc_offline_prep(phba);
+				lpfc_offline_prep(phba, LPFC_MBX_WAIT);
 			*(int *)(evtp->evt_arg1) = 0;
 			complete((struct completion *)(evtp->evt_arg2));
 			break;

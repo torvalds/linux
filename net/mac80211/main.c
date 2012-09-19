@@ -322,7 +322,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 
 	mutex_lock(&local->mtx);
 	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning) ||
-	     local->sched_scanning,
+	     rcu_dereference_protected(local->sched_scan_sdata,
+				       lockdep_is_held(&local->mtx)),
 		"%s called with hardware scan in progress\n", __func__);
 	mutex_unlock(&local->mtx);
 
@@ -344,6 +345,13 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 	/* use this reason, ieee80211_reconfig will unblock it */
 	ieee80211_stop_queues_by_reason(hw,
 		IEEE80211_QUEUE_STOP_REASON_SUSPEND);
+
+	/*
+	 * Stop all Rx during the reconfig. We don't want state changes
+	 * or driver callbacks while this is in progress.
+	 */
+	local->in_reconfig = true;
+	barrier();
 
 	schedule_work(&local->restart_work);
 }
@@ -455,7 +463,9 @@ static const struct ieee80211_txrx_stypes
 ieee80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_ADHOC] = {
 		.tx = 0xffff,
-		.rx = BIT(IEEE80211_STYPE_ACTION >> 4),
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+			BIT(IEEE80211_STYPE_AUTH >> 4) |
+			BIT(IEEE80211_STYPE_DEAUTH >> 4),
 	},
 	[NL80211_IFTYPE_STATION] = {
 		.tx = 0xffff,
@@ -578,7 +588,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
 
-	BUG_ON(!ops->tx && !ops->tx_frags);
+	BUG_ON(!ops->tx);
 	BUG_ON(!ops->start);
 	BUG_ON(!ops->stop);
 	BUG_ON(!ops->config);
@@ -625,8 +635,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
 
-	ieee80211_work_init(local);
-
 	INIT_WORK(&local->restart_work, ieee80211_restart_work);
 
 	INIT_WORK(&local->reconfig_filter, ieee80211_reconfig_filter);
@@ -669,7 +677,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	ieee80211_led_names(local);
 
-	ieee80211_hw_roc_setup(local);
+	ieee80211_roc_setup(local);
 
 	return &local->hw;
 }
@@ -681,7 +689,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int result, i;
 	enum ieee80211_band band;
 	int channels, max_bitrates;
-	bool supp_ht;
+	bool supp_ht, supp_vht;
+	netdev_features_t feature_whitelist;
 	static const u32 cipher_suites[] = {
 		/* keep WEP first, it may be removed below */
 		WLAN_CIPHER_SUITE_WEP40,
@@ -698,14 +707,19 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	     local->hw.offchannel_tx_hw_queue >= local->hw.queues))
 		return -EINVAL;
 
-	if ((hw->wiphy->wowlan.flags || hw->wiphy->wowlan.n_patterns)
 #ifdef CONFIG_PM
-	    && (!local->ops->suspend || !local->ops->resume)
-#endif
-	    )
+	if ((hw->wiphy->wowlan.flags || hw->wiphy->wowlan.n_patterns) &&
+	    (!local->ops->suspend || !local->ops->resume))
 		return -EINVAL;
+#endif
 
 	if ((hw->flags & IEEE80211_HW_SCAN_WHILE_IDLE) && !local->ops->hw_scan)
+		return -EINVAL;
+
+	/* Only HW csum features are currently compatible with mac80211 */
+	feature_whitelist = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			    NETIF_F_HW_CSUM;
+	if (WARN_ON(hw->netdev_features & ~feature_whitelist))
 		return -EINVAL;
 
 	if (hw->max_report_rates == 0)
@@ -719,6 +733,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	channels = 0;
 	max_bitrates = 0;
 	supp_ht = false;
+	supp_vht = false;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		struct ieee80211_supported_band *sband;
 
@@ -736,6 +751,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		if (max_bitrates < sband->n_bitrates)
 			max_bitrates = sband->n_bitrates;
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
+		supp_vht = supp_vht || sband->vht_cap.vht_supported;
 	}
 
 	local->int_scan_req = kzalloc(sizeof(*local->int_scan_req) +
@@ -810,6 +826,10 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		3 /* DS Params */;
 	if (supp_ht)
 		local->scan_ies_len += 2 + sizeof(struct ieee80211_ht_cap);
+
+	if (supp_vht)
+		local->scan_ies_len +=
+			2 + sizeof(struct ieee80211_vht_capabilities);
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */
@@ -1008,12 +1028,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	ieee80211_remove_interfaces(local);
 
 	rtnl_unlock();
-
-	/*
-	 * Now all work items will be gone, but the
-	 * timer might still be armed, so delete it
-	 */
-	del_timer_sync(&local->work_timer);
 
 	cancel_work_sync(&local->restart_work);
 	cancel_work_sync(&local->reconfig_filter);

@@ -102,7 +102,9 @@ asmlinkage __cpuinit void start_secondary(void)
 
 #ifdef CONFIG_MIPS_MT_SMTC
 	/* Only do cpu_probe for first TC of CPU */
-	if ((read_c0_tcbind() & TCBIND_CURTC) == 0)
+	if ((read_c0_tcbind() & TCBIND_CURTC) != 0)
+		__cpu_name[smp_processor_id()] = __cpu_name[0];
+	else
 #endif /* CONFIG_MIPS_MT_SMTC */
 	cpu_probe();
 	cpu_report();
@@ -122,12 +124,20 @@ asmlinkage __cpuinit void start_secondary(void)
 
 	notify_cpu_starting(cpu);
 
-	mp_ops->smp_finish();
+	set_cpu_online(cpu, true);
+
 	set_cpu_sibling_map(cpu);
 
 	cpu_set(cpu, cpu_callin_map);
 
-	synchronise_count_slave();
+	synchronise_count_slave(cpu);
+
+	/*
+	 * irq will be enabled in ->smp_finish(), enabling it too early
+	 * is dangerous.
+	 */
+	WARN_ON_ONCE(!irqs_disabled());
+	mp_ops->smp_finish();
 
 	cpu_idle();
 }
@@ -163,7 +173,6 @@ void smp_send_stop(void)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	mp_ops->cpus_done();
-	synchronise_count_master();
 }
 
 /* called from main before smp_init() */
@@ -196,8 +205,7 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	while (!cpu_isset(cpu, cpu_callin_map))
 		udelay(100);
 
-	set_cpu_online(cpu, true);
-
+	synchronise_count_master(cpu);
 	return 0;
 }
 

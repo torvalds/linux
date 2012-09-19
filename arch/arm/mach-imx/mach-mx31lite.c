@@ -43,7 +43,6 @@
 #include <mach/common.h>
 #include <mach/board-mx31lite.h>
 #include <mach/iomux-mx3.h>
-#include <mach/irqs.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
@@ -83,8 +82,7 @@ static struct resource smsc911x_resources[] = {
 		.end		= MX31_CS4_BASE_ADDR + 0x100,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= IOMUX_TO_IRQ(MX31_PIN_SFS6),
-		.end		= IOMUX_TO_IRQ(MX31_PIN_SFS6),
+		/* irq number is run-time assigned */
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -124,7 +122,7 @@ static struct spi_board_info mc13783_spi_dev __initdata = {
 	.bus_num	= 1,
 	.chip_select    = 0,
 	.platform_data  = &mc13783_pdata,
-	.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
+	/* irq number is run-time assigned */
 };
 
 /*
@@ -258,6 +256,7 @@ static void __init mx31lite_init(void)
 	imx31_add_mxc_nand(&mx31lite_nand_board_info);
 
 	imx31_add_spi_imx1(&spi1_pdata);
+	mc13783_spi_dev.irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
 	spi_register_board_info(&mc13783_spi_dev, 1);
 
 	/* USB */
@@ -274,6 +273,10 @@ static void __init mx31lite_init(void)
 		pr_warning("could not get LAN irq gpio\n");
 	else {
 		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_SFS6));
+		smsc911x_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_SFS6));
+		smsc911x_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_SFS6));
 		platform_device_register(&smsc911x_device);
 	}
 }

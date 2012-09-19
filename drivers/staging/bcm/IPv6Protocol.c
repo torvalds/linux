@@ -1,8 +1,8 @@
 #include "headers.h"
 
-static BOOLEAN MatchSrcIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
+static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	IPV6Header *pstIpv6Header);
-static BOOLEAN MatchDestIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
+static BOOLEAN MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	IPV6Header *pstIpv6Header);
 static VOID DumpIpv6Header(IPV6Header *pstIpv6Header);
 
@@ -12,7 +12,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload,
 	UCHAR *pucRetHeaderPtr = NULL;
 	UCHAR *pucPayloadPtr = NULL;
 	USHORT  usNextHeaderOffset = 0 ;
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	if ((ppucPayload == NULL) || (*pusPayloadLength == 0) ||
 		(*bParseDone)) {
@@ -147,7 +147,7 @@ static UCHAR GetIpv6ProtocolPorts(UCHAR *pucPayload, USHORT *pusSrcPort,
 	BOOLEAN bDone = FALSE;
 	UCHAR ucHeaderType = 0;
 	UCHAR *pucNextHeader = NULL;
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
 	if (!pucPayload || (usPayloadLength == 0))
 		return 0;
@@ -177,11 +177,11 @@ static UCHAR GetIpv6ProtocolPorts(UCHAR *pucPayload, USHORT *pusSrcPort,
 
 
 /*
- * Arg 1 PMINI_ADAPTER Adapter is a pointer ot the driver contorl structure
+ * Arg 1 struct bcm_mini_adapter *Adapter is a pointer ot the driver contorl structure
  * Arg 2 PVOID pcIpHeader is a pointer to the IP header of the packet
  */
-USHORT	IpVersion6(PMINI_ADAPTER Adapter, PVOID pcIpHeader,
-					S_CLASSIFIER_RULE *pstClassifierRule)
+USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, PVOID pcIpHeader,
+					struct bcm_classifier_rule *pstClassifierRule)
 {
 	USHORT	ushDestPort = 0;
 	USHORT	ushSrcPort = 0;
@@ -288,14 +288,14 @@ USHORT	IpVersion6(PMINI_ADAPTER Adapter, PVOID pcIpHeader,
 }
 
 
-static BOOLEAN MatchSrcIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
+static BOOLEAN MatchSrcIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	IPV6Header *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;
 	UINT uiIpv6AddIndex = 0;
 	UINT uiIpv6AddrNoLongWords = 4;
 	ULONG aulSrcIP[4];
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	/*
 	 * This is the no. of Src Addresses ie Range of IP Addresses contained
 	 * in the classifier rule for which we need to match
@@ -344,14 +344,14 @@ static BOOLEAN MatchSrcIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
 	return FALSE;
 }
 
-static BOOLEAN MatchDestIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
+static BOOLEAN MatchDestIpv6Address(struct bcm_classifier_rule *pstClassifierRule,
 	IPV6Header *pstIpv6Header)
 {
 	UINT uiLoopIndex = 0;
 	UINT uiIpv6AddIndex = 0;
 	UINT uiIpv6AddrNoLongWords = 4;
 	ULONG aulDestIP[4];
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	/*
 	 * This is the no. of Destination Addresses
 	 * ie Range of IP Addresses contained in the classifier rule
@@ -406,7 +406,7 @@ VOID DumpIpv6Address(ULONG *puIpv6Address)
 {
 	UINT uiIpv6AddrNoLongWords = 4;
 	UINT uiIpv6AddIndex = 0;
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	for (uiIpv6AddIndex = 0; uiIpv6AddIndex < uiIpv6AddrNoLongWords; uiIpv6AddIndex++) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG, DBG_LVL_ALL,
 				":%lx", puIpv6Address[uiIpv6AddIndex]);
@@ -418,7 +418,7 @@ static VOID DumpIpv6Header(IPV6Header *pstIpv6Header)
 {
 	UCHAR ucVersion;
 	UCHAR ucPrio;
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG, DBG_LVL_ALL,
 			"----Ipv6 Header---");
 	ucVersion = pstIpv6Header->ucVersionPrio & 0xf0;

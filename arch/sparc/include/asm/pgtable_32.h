@@ -52,8 +52,9 @@ extern unsigned long calc_highpages(void);
 #define PAGE_READONLY	SRMMU_PAGE_RDONLY
 #define PAGE_KERNEL	SRMMU_PAGE_KERNEL
 
-/* Top-level page directory */
-extern pgd_t swapper_pg_dir[1024];
+/* Top-level page directory - dummy used by init-mm.
+ * srmmu.c will assign the real one (which is dynamically sized) */
+#define swapper_pg_dir NULL
 
 extern void paging_init(void);
 
@@ -78,8 +79,6 @@ extern unsigned long ptr_in_current_pgd;
 #define __S110	PAGE_SHARED
 #define __S111	PAGE_SHARED
 
-extern int num_contexts;
-
 /* First physical page can be anywhere, the following is needed so that
  * va-->pa and vice versa conversions work properly without performance
  * hit for all __pa()/__va() operations.
@@ -88,18 +87,11 @@ extern unsigned long phys_base;
 extern unsigned long pfn_base;
 
 /*
- * BAD_PAGETABLE is used when we need a bogus page-table, while
- * BAD_PAGE is used for a bogus page.
- *
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
  */
-extern pte_t * __bad_pagetable(void);
-extern pte_t __bad_page(void);
 extern unsigned long empty_zero_page;
 
-#define BAD_PAGETABLE __bad_pagetable()
-#define BAD_PAGE __bad_page()
 #define ZERO_PAGE(vaddr) (virt_to_page(&empty_zero_page))
 
 /*
@@ -397,36 +389,6 @@ static inline pte_t pgoff_to_pte(unsigned long pgoff)
  * This is made a constant because mm/fremap.c required a constant.
  */
 #define PTE_FILE_MAX_BITS 24
-
-/*
- */
-struct ctx_list {
-	struct ctx_list *next;
-	struct ctx_list *prev;
-	unsigned int ctx_number;
-	struct mm_struct *ctx_mm;
-};
-
-extern struct ctx_list *ctx_list_pool;  /* Dynamically allocated */
-extern struct ctx_list ctx_free;        /* Head of free list */
-extern struct ctx_list ctx_used;        /* Head of used contexts list */
-
-#define NO_CONTEXT     -1
-
-static inline void remove_from_ctx_list(struct ctx_list *entry)
-{
-	entry->next->prev = entry->prev;
-	entry->prev->next = entry->next;
-}
-
-static inline void add_to_ctx_list(struct ctx_list *head, struct ctx_list *entry)
-{
-	entry->next = head;
-	(entry->prev = head->prev)->next = entry;
-	head->prev = entry;
-}
-#define add_to_free_ctxlist(entry) add_to_ctx_list(&ctx_free, entry)
-#define add_to_used_ctxlist(entry) add_to_ctx_list(&ctx_used, entry)
 
 static inline unsigned long
 __get_phys (unsigned long addr)

@@ -1495,7 +1495,7 @@ static ssize_t bonding_store_queue_id(struct device *d,
 	/* Check buffer length, valid ifname and queue id */
 	if (strlen(buffer) > IFNAMSIZ ||
 	    !dev_valid_name(buffer) ||
-	    qid > bond->params.tx_queues)
+	    qid > bond->dev->real_num_tx_queues)
 		goto err_no_cmd;
 
 	/* Get the pointer to that interface if it exists */

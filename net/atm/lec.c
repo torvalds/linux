@@ -231,9 +231,11 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 	if (skb_headroom(skb) < 2) {
 		pr_debug("reallocating skb\n");
 		skb2 = skb_realloc_headroom(skb, LEC_HEADER_LEN);
-		kfree_skb(skb);
-		if (skb2 == NULL)
+		if (unlikely(!skb2)) {
+			kfree_skb(skb);
 			return NETDEV_TX_OK;
+		}
+		consume_skb(skb);
 		skb = skb2;
 	}
 	skb_push(skb, 2);
@@ -1602,7 +1604,7 @@ static void lec_arp_expire_vcc(unsigned long data)
 {
 	unsigned long flags;
 	struct lec_arp_table *to_remove = (struct lec_arp_table *)data;
-	struct lec_priv *priv = (struct lec_priv *)to_remove->priv;
+	struct lec_priv *priv = to_remove->priv;
 
 	del_timer(&to_remove->timer);
 

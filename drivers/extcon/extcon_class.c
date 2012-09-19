@@ -65,7 +65,7 @@ const char *extcon_cable_name[] = {
 	NULL,
 };
 
-struct class *extcon_class;
+static struct class *extcon_class;
 #if defined(CONFIG_ANDROID)
 static struct class_compat *switch_class;
 #endif /* CONFIG_ANDROID */

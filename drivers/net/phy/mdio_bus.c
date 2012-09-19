@@ -13,6 +13,9 @@
  * option) any later version.
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -22,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/of_device.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -148,7 +152,7 @@ int mdiobus_register(struct mii_bus *bus)
 
 	err = device_register(&bus->dev);
 	if (err) {
-		printk(KERN_ERR "mii_bus %s failed to register\n", bus->id);
+		pr_err("mii_bus %s failed to register\n", bus->id);
 		return -EINVAL;
 	}
 
@@ -229,7 +233,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 	struct phy_device *phydev;
 	int err;
 
-	phydev = get_phy_device(bus, addr);
+	phydev = get_phy_device(bus, addr, false);
 	if (IS_ERR(phydev) || phydev == NULL)
 		return phydev;
 
@@ -304,6 +308,12 @@ static int mdio_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct phy_device *phydev = to_phy_device(dev);
 	struct phy_driver *phydrv = to_phy_driver(drv);
+
+	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	if (phydrv->match_phy_device)
+		return phydrv->match_phy_device(phydev);
 
 	return ((phydrv->phy_id & phydrv->phy_id_mask) ==
 		(phydev->phy_id & phydrv->phy_id_mask));

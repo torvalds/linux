@@ -91,8 +91,8 @@ static void __init edb93xx_register_i2c(void)
 		ep93xx_register_i2c(&edb93xx_i2c_gpio_data,
 				    edb93xxa_i2c_board_info,
 				    ARRAY_SIZE(edb93xxa_i2c_board_info));
-	} else if (machine_is_edb9307() || machine_is_edb9312() ||
-		   machine_is_edb9315()) {
+	} else if (machine_is_edb9302() || machine_is_edb9307()
+		|| machine_is_edb9312() || machine_is_edb9315()) {
 		ep93xx_register_i2c(&edb93xx_i2c_gpio_data,
 				    edb93xx_i2c_board_info,
 				    ARRAY_SIZE(edb93xx_i2c_board_info));
@@ -233,6 +233,29 @@ static void __init edb93xx_register_fb(void)
 }
 
 
+/*************************************************************************
+ * EDB93xx IDE
+ *************************************************************************/
+static int __init edb93xx_has_ide(void)
+{
+	/*
+	 * Although EDB9312 and EDB9315 do have IDE capability, they have
+	 * INTRQ line wired as pull-up, which makes using IDE interface
+	 * problematic.
+	 */
+	return machine_is_edb9312() || machine_is_edb9315() ||
+	       machine_is_edb9315a();
+}
+
+static void __init edb93xx_register_ide(void)
+{
+	if (!edb93xx_has_ide())
+		return;
+
+	ep93xx_register_ide();
+}
+
+
 static void __init edb93xx_init_machine(void)
 {
 	ep93xx_init_devices();
@@ -243,6 +266,7 @@ static void __init edb93xx_init_machine(void)
 	edb93xx_register_i2s();
 	edb93xx_register_pwm();
 	edb93xx_register_fb();
+	edb93xx_register_ide();
 }
 
 

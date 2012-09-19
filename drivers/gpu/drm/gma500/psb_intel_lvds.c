@@ -375,7 +375,7 @@ int psb_intel_lvds_mode_valid(struct drm_connector *connector,
 }
 
 bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;

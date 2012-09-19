@@ -724,8 +724,8 @@ process_raw_event(void *data, int cpu, u64 timestamp, struct thread *thread)
 	struct event_format *event;
 	int type;
 
-	type = trace_parse_common_type(data);
-	event = trace_find_event(type);
+	type = trace_parse_common_type(session->pevent, data);
+	event = pevent_find_event(session->pevent, type);
 
 	if (!strcmp(event->name, "lock_acquire"))
 		process_lock_acquire_event(data, event, cpu, timestamp, thread);

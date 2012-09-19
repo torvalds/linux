@@ -139,11 +139,6 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 }
 
 
-char *pcibios_setup(char *str)
-{
-	return str;
-}
-
 /*
  * Called by pci_set_master() - a driver interface.
  *

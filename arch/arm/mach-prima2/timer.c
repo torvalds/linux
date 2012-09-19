@@ -132,11 +132,11 @@ static void sirfsoc_clocksource_resume(struct clocksource *cs)
 {
 	int i;
 
-	for (i = 0; i < SIRFSOC_TIMER_REG_CNT; i++)
+	for (i = 0; i < SIRFSOC_TIMER_REG_CNT - 2; i++)
 		writel_relaxed(sirfsoc_timer_reg_val[i], sirfsoc_timer_base + sirfsoc_timer_reg_list[i]);
 
-	writel_relaxed(sirfsoc_timer_reg_val[i - 2], sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_LO);
-	writel_relaxed(sirfsoc_timer_reg_val[i - 1], sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_HI);
+	writel_relaxed(sirfsoc_timer_reg_val[SIRFSOC_TIMER_REG_CNT - 2], sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_LO);
+	writel_relaxed(sirfsoc_timer_reg_val[SIRFSOC_TIMER_REG_CNT - 1], sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_HI);
 }
 
 static struct clock_event_device sirfsoc_clockevent = {

@@ -794,7 +794,7 @@ static int __devinit au1k_irda_net_init(struct net_device *dev)
 
 	/* allocate the data buffers */
 	aup->db[0].vaddr =
-		(void *)dma_alloc(MAX_BUF_SIZE * 2 * NUM_IR_DESC, &temp);
+		dma_alloc(MAX_BUF_SIZE * 2 * NUM_IR_DESC, &temp);
 	if (!aup->db[0].vaddr)
 		goto out3;
 

@@ -1834,11 +1834,10 @@ static int adm1026_probe(struct i2c_client *client,
 	struct adm1026_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct adm1026_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct adm1026_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -1852,7 +1851,7 @@ static int adm1026_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &adm1026_group);
 	if (err)
-		goto exitfree;
+		return err;
 	if (data->config1 & CFG1_AIN8_9)
 		err = sysfs_create_group(&client->dev.kobj,
 					 &adm1026_group_in8_9);
@@ -1877,9 +1876,6 @@ exitremove:
 		sysfs_remove_group(&client->dev.kobj, &adm1026_group_in8_9);
 	else
 		sysfs_remove_group(&client->dev.kobj, &adm1026_group_temp3);
-exitfree:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -1892,7 +1888,6 @@ static int adm1026_remove(struct i2c_client *client)
 		sysfs_remove_group(&client->dev.kobj, &adm1026_group_in8_9);
 	else
 		sysfs_remove_group(&client->dev.kobj, &adm1026_group_temp3);
-	kfree(data);
 	return 0;
 }
 

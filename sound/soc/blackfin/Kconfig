@@ -1,7 +1,8 @@
 config SND_BF5XX_I2S
-	tristate "SoC I2S Audio for the ADI BF5xx chip"
+	tristate "SoC I2S Audio for the ADI Blackfin chip"
 	depends on BLACKFIN
-	select SND_BF5XX_SOC_SPORT
+	select SND_BF5XX_SOC_SPORT if !BF60x
+	select SND_BF6XX_SOC_SPORT if BF60x
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the Blackfin SPORT (synchronous serial ports) interface in I2S
@@ -9,12 +10,14 @@ config SND_BF5XX_I2S
 	  You will also need to select the audio interfaces to support below.
 
 config SND_BF5XX_SOC_SSM2602
-	tristate "SoC SSM2602 Audio support for BF52x ezkit"
+	tristate "SoC SSM2602 Audio Codec Add-On Card support"
 	depends on SND_BF5XX_I2S && (SPI_MASTER || I2C)
-	select SND_BF5XX_SOC_I2S
+	select SND_BF5XX_SOC_I2S if !BF60x
+	select SND_BF6XX_SOC_I2S if BF60x
 	select SND_SOC_SSM2602
 	help
-	  Say Y if you want to add support for SoC audio on BF527-EZKIT.
+	  Say Y if you want to add support for the Analog Devices
+	  SSM2602 Audio Codec Add-On Card.
 
 config SND_SOC_BFIN_EVAL_ADAU1701
 	tristate "Support for the EVAL-ADAU1701MINIZ board on Blackfin eval boards"
@@ -162,7 +165,13 @@ config SND_BF5XX_SOC_AD1980
 config SND_BF5XX_SOC_SPORT
 	tristate
 
+config SND_BF6XX_SOC_SPORT
+	tristate
+
 config SND_BF5XX_SOC_I2S
+	tristate
+
+config SND_BF6XX_SOC_I2S
 	tristate
 
 config SND_BF5XX_SOC_TDM
@@ -173,7 +182,7 @@ config SND_BF5XX_SOC_AC97
 
 config SND_BF5XX_SPORT_NUM
 	int "Set a SPORT for Sound chip"
-	depends on (SND_BF5XX_I2S || SND_BF5XX_AC97 || SND_BF5XX_TDM)
+	depends on (SND_BF5XX_SOC_SPORT || SND_BF6XX_SOC_SPORT)
 	range 0 3 if BF54x
 	range 0 1 if !BF54x
 	default 0

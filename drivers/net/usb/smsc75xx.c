@@ -616,7 +616,7 @@ static void smsc75xx_init_mac_address(struct usbnet *dev)
 
 	/* no eeprom, or eeprom values are invalid. generate random MAC */
 	eth_hw_addr_random(dev->net);
-	netif_dbg(dev, ifup, dev->net, "MAC address set to random_ether_addr");
+	netif_dbg(dev, ifup, dev->net, "MAC address set to eth_random_addr");
 }
 
 static int smsc75xx_set_mac_address(struct usbnet *dev)
@@ -1260,6 +1260,6 @@ static struct usb_driver smsc75xx_driver = {
 module_usb_driver(smsc75xx_driver);
 
 MODULE_AUTHOR("Nancy Lin");
-MODULE_AUTHOR("Steve Glendinning <steve.glendinning@smsc.com>");
+MODULE_AUTHOR("Steve Glendinning <steve.glendinning@shawell.net>");
 MODULE_DESCRIPTION("SMSC75XX USB 2.0 Gigabit Ethernet Devices");
 MODULE_LICENSE("GPL");

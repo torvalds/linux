@@ -43,6 +43,8 @@ EXPORT_SYMBOL(brcmu_pkt_buf_get_skb);
 /* Free the driver packet. Free the tag if present */
 void brcmu_pkt_buf_free_skb(struct sk_buff *skb)
 {
+	if (!skb)
+		return;
 	WARN_ON(skb->next);
 	if (skb->destructor)
 		/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if

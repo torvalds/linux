@@ -25,7 +25,7 @@ with the specified swap device number (aka "type").  A "store" will
 copy the page to transcendent memory and associate it with the type and
 offset associated with the page. A "load" will copy the page, if found,
 from transcendent memory into kernel memory, but will NOT remove the page
-from from transcendent memory.  An "invalidate_page" will remove the page
+from transcendent memory.  An "invalidate_page" will remove the page
 from transcendent memory and an "invalidate_area" will remove ALL pages
 associated with the swap type (e.g., like swapoff) and notify the "device"
 to refuse further stores with that swap type.
@@ -99,7 +99,7 @@ server configured with a large amount of RAM... without pre-configuring
 how much of the RAM is available for each of the clients!
 
 In the virtual case, the whole point of virtualization is to statistically
-multiplex physical resources acrosst the varying demands of multiple
+multiplex physical resources across the varying demands of multiple
 virtual machines.  This is really hard to do with RAM and efforts to do
 it well with no kernel changes have essentially failed (except in some
 well-publicized special-case workloads).

@@ -237,7 +237,7 @@ u32 acpi_ev_install_sci_handler(void);
 
 acpi_status acpi_ev_remove_sci_handler(void);
 
-u32 acpi_ev_initialize_sCI(u32 program_sCI);
+u32 acpi_ev_initialize_SCI(u32 program_SCI);
 
 ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_ev_terminate(void))
 #endif				/* __ACEVENTS_H__  */

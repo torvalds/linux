@@ -1,0 +1,14 @@
+TI Watchdog Timer (WDT) Controller for OMAP
+
+Required properties:
+compatible:
+- "ti,omap3-wdt" for OMAP3
+- "ti,omap4-wdt" for OMAP4
+- ti,hwmods: Name of the hwmod associated to the WDT
+
+Examples:
+
+wdt2: wdt@4a314000 {
+	compatible = "ti,omap4-wdt", "ti,omap3-wdt";
+	ti,hwmods = "wd_timer2";
+};

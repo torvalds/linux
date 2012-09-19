@@ -66,7 +66,7 @@ acpi_ps_update_parameter_list(struct acpi_evaluate_info *info, u16 action);
  * PARAMETERS:  method_name     - Valid ACPI name string
  *              debug_level     - Optional level mask. 0 to use default
  *              debug_layer     - Optional layer mask. 0 to use default
- *              Flags           - bit 1: one shot(1) or persistent(0)
+ *              flags           - bit 1: one shot(1) or persistent(0)
  *
  * RETURN:      Status
  *
@@ -105,7 +105,7 @@ acpi_debug_trace(char *name, u32 debug_level, u32 debug_layer, u32 flags)
  *
  * FUNCTION:    acpi_ps_start_trace
  *
- * PARAMETERS:  Info        - Method info struct
+ * PARAMETERS:  info        - Method info struct
  *
  * RETURN:      None
  *
@@ -150,7 +150,7 @@ static void acpi_ps_start_trace(struct acpi_evaluate_info *info)
  *
  * FUNCTION:    acpi_ps_stop_trace
  *
- * PARAMETERS:  Info        - Method info struct
+ * PARAMETERS:  info        - Method info struct
  *
  * RETURN:      None
  *
@@ -193,10 +193,10 @@ static void acpi_ps_stop_trace(struct acpi_evaluate_info *info)
  *
  * FUNCTION:    acpi_ps_execute_method
  *
- * PARAMETERS:  Info            - Method info block, contains:
- *                  Node            - Method Node to execute
+ * PARAMETERS:  info            - Method info block, contains:
+ *                  node            - Method Node to execute
  *                  obj_desc        - Method object
- *                  Parameters      - List of parameters to pass to the method,
+ *                  parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
  *                                    NULL if no parameters are being passed.
  *                  return_object   - Where to put method's return value (if
@@ -361,9 +361,9 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
  *
  * FUNCTION:    acpi_ps_update_parameter_list
  *
- * PARAMETERS:  Info            - See struct acpi_evaluate_info
+ * PARAMETERS:  info            - See struct acpi_evaluate_info
  *                                (Used: parameter_type and Parameters)
- *              Action          - Add or Remove reference
+ *              action          - Add or Remove reference
  *
  * RETURN:      Status
  *

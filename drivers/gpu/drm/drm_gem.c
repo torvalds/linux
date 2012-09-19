@@ -354,7 +354,7 @@ drm_gem_create_mmap_offset(struct drm_gem_object *obj)
 
 	/* Get a DRM GEM mmap offset allocated... */
 	list->file_offset_node = drm_mm_search_free(&mm->offset_manager,
-			obj->size / PAGE_SIZE, 0, 0);
+			obj->size / PAGE_SIZE, 0, false);
 
 	if (!list->file_offset_node) {
 		DRM_ERROR("failed to allocate offset for bo %d\n", obj->name);

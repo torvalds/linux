@@ -1600,13 +1600,17 @@ sub process {
 
 # Check signature styles
 		if (!$in_header_lines &&
-		    $line =~ /^(\s*)($signature_tags)(\s*)(.*)/) {
+		    $line =~ /^(\s*)([a-z0-9_-]+by:|$signature_tags)(\s*)(.*)/i) {
 			my $space_before = $1;
 			my $sign_off = $2;
 			my $space_after = $3;
 			my $email = $4;
 			my $ucfirst_sign_off = ucfirst(lc($sign_off));
 
+			if ($sign_off !~ /$signature_tags/) {
+				WARN("BAD_SIGN_OFF",
+				     "Non-standard signature: $sign_off\n" . $herecurr);
+			}
 			if (defined $space_before && $space_before ne "") {
 				WARN("BAD_SIGN_OFF",
 				     "Do not use whitespace before $ucfirst_sign_off\n" . $herecurr);
@@ -1848,8 +1852,8 @@ sub process {
 
 			my $pos = pos_last_openparen($rest);
 			if ($pos >= 0) {
-				$line =~ /^\+([ \t]*)/;
-				my $newindent = $1;
+				$line =~ /^(\+| )([ \t]*)/;
+				my $newindent = $2;
 
 				my $goodtabindent = $oldindent .
 					"\t" x ($pos / 8) .
@@ -2984,6 +2988,46 @@ sub process {
 			}
 		}
 
+# do {} while (0) macro tests:
+# single-statement macros do not need to be enclosed in do while (0) loop,
+# macro should not end with a semicolon
+		if ($^V && $^V ge 5.10.0 &&
+		    $realfile !~ m@/vmlinux.lds.h$@ &&
+		    $line =~ /^.\s*\#\s*define\s+$Ident(\()?/) {
+			my $ln = $linenr;
+			my $cnt = $realcnt;
+			my ($off, $dstat, $dcond, $rest);
+			my $ctx = '';
+			($dstat, $dcond, $ln, $cnt, $off) =
+				ctx_statement_block($linenr, $realcnt, 0);
+			$ctx = $dstat;
+
+			$dstat =~ s/\\\n.//g;
+
+			if ($dstat =~ /^\+\s*#\s*define\s+$Ident\s*${balanced_parens}\s*do\s*{(.*)\s*}\s*while\s*\(\s*0\s*\)\s*([;\s]*)\s*$/) {
+				my $stmts = $2;
+				my $semis = $3;
+
+				$ctx =~ s/\n*$//;
+				my $cnt = statement_rawlines($ctx);
+				my $herectx = $here . "\n";
+
+				for (my $n = 0; $n < $cnt; $n++) {
+					$herectx .= raw_line($linenr, $n) . "\n";
+				}
+
+				if (($stmts =~ tr/;/;/) == 1 &&
+				    $stmts !~ /^\s*(if|while|for|switch)\b/) {
+					WARN("SINGLE_STATEMENT_DO_WHILE_MACRO",
+					     "Single statement macros should not use a do {} while (0) loop\n" . "$herectx");
+				}
+				if (defined $semis && $semis ne "") {
+					WARN("DO_WHILE_MACRO_WITH_TRAILING_SEMICOLON",
+					     "do {} while (0) macros should not be semicolon terminated\n" . "$herectx");
+				}
+			}
+		}
+
 # make sure symbols are always wrapped with VMLINUX_SYMBOL() ...
 # all assignments may have only one of the following with an assignment:
 #	.
@@ -3261,6 +3305,12 @@ sub process {
 			     "sizeof(& should be avoided\n" . $herecurr);
 		}
 
+# check for sizeof without parenthesis
+		if ($line =~ /\bsizeof\s+((?:\*\s*|)$Lval|$Type(?:\s+$Lval|))/) {
+			WARN("SIZEOF_PARENTHESIS",
+			     "sizeof $1 should be sizeof($1)\n" . $herecurr);
+		}
+
 # check for line continuations in quoted strings with odd counts of "
 		if ($rawline =~ /\\$/ && $rawline =~ tr/"/"/ % 2) {
 			WARN("LINE_CONTINUATIONS",
@@ -3306,6 +3356,22 @@ sub process {
 				}
 				WARN("MINMAX",
 				     "$call() should probably be ${call}_t($cast, $arg1, $arg2)\n" . "$here\n$stat\n");
+			}
+		}
+
+# check usleep_range arguments
+		if ($^V && $^V ge 5.10.0 &&
+		    defined $stat &&
+		    $stat =~ /^\+(?:.*?)\busleep_range\s*\(\s*($FuncArg)\s*,\s*($FuncArg)\s*\)/) {
+			my $min = $1;
+			my $max = $7;
+			if ($min eq $max) {
+				WARN("USLEEP_RANGE",
+				     "usleep_range should not use min == max args; see Documentation/timers/timers-howto.txt\n" . "$here\n$stat\n");
+			} elsif ($min =~ /^\d+$/ && $max =~ /^\d+$/ &&
+				 $min > $max) {
+				WARN("USLEEP_RANGE",
+				     "usleep_range args reversed, use min then max; see Documentation/timers/timers-howto.txt\n" . "$here\n$stat\n");
 			}
 		}
 

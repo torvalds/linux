@@ -176,13 +176,14 @@ out_free:
 }
 EXPORT_SYMBOL_GPL(xprt_setup_backchannel);
 
-/*
- * Destroys the backchannel preallocated structures.
+/**
+ * xprt_destroy_backchannel - Destroys the backchannel preallocated structures.
+ * @xprt:	the transport holding the preallocated strucures
+ * @max_reqs	the maximum number of preallocated structures to destroy
+ *
  * Since these structures may have been allocated by multiple calls
  * to xprt_setup_backchannel, we only destroy up to the maximum number
  * of reqs specified by the caller.
- * @xprt:	the transport holding the preallocated strucures
- * @max_reqs	the maximum number of preallocated structures to destroy
  */
 void xprt_destroy_backchannel(struct rpc_xprt *xprt, unsigned int max_reqs)
 {

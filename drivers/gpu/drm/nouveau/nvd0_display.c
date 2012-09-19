@@ -607,7 +607,7 @@ nvd0_crtc_commit(struct drm_crtc *crtc)
 }
 
 static bool
-nvd0_crtc_mode_fixup(struct drm_crtc *crtc, struct drm_display_mode *mode,
+nvd0_crtc_mode_fixup(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 		     struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -790,7 +790,7 @@ nvd0_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	int ch = EVO_CURS(nv_crtc->index);
 
-	evo_piow(crtc->dev, ch, 0x0084, (y << 16) | x);
+	evo_piow(crtc->dev, ch, 0x0084, (y << 16) | (x & 0xffff));
 	evo_piow(crtc->dev, ch, 0x0080, 0x00000000);
 	return 0;
 }
@@ -938,7 +938,8 @@ nvd0_dac_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static bool
-nvd0_dac_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+nvd0_dac_mode_fixup(struct drm_encoder *encoder,
+		    const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
@@ -1377,7 +1378,8 @@ nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static bool
-nvd0_sor_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+nvd0_sor_mode_fixup(struct drm_encoder *encoder,
+		    const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);

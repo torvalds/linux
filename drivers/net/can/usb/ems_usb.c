@@ -889,7 +889,7 @@ static const struct net_device_ops ems_usb_netdev_ops = {
 	.ndo_start_xmit = ems_usb_start_xmit,
 };
 
-static struct can_bittiming_const ems_usb_bittiming_const = {
+static const struct can_bittiming_const ems_usb_bittiming_const = {
 	.name = "ems_usb",
 	.tseg1_min = 1,
 	.tseg1_max = 16,

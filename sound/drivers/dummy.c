@@ -1064,10 +1064,10 @@ static int __devexit snd_dummy_remove(struct platform_device *devptr)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int snd_dummy_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int snd_dummy_suspend(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 	struct snd_dummy *dummy = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
@@ -1075,13 +1075,18 @@ static int snd_dummy_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 	
-static int snd_dummy_resume(struct platform_device *pdev)
+static int snd_dummy_resume(struct device *pdev)
 {
-	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_card *card = dev_get_drvdata(pdev);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(snd_dummy_pm, snd_dummy_suspend, snd_dummy_resume);
+#define SND_DUMMY_PM_OPS	&snd_dummy_pm
+#else
+#define SND_DUMMY_PM_OPS	NULL
 #endif
 
 #define SND_DUMMY_DRIVER	"snd_dummy"
@@ -1089,12 +1094,10 @@ static int snd_dummy_resume(struct platform_device *pdev)
 static struct platform_driver snd_dummy_driver = {
 	.probe		= snd_dummy_probe,
 	.remove		= __devexit_p(snd_dummy_remove),
-#ifdef CONFIG_PM
-	.suspend	= snd_dummy_suspend,
-	.resume		= snd_dummy_resume,
-#endif
 	.driver		= {
-		.name	= SND_DUMMY_DRIVER
+		.name	= SND_DUMMY_DRIVER,
+		.owner	= THIS_MODULE,
+		.pm	= SND_DUMMY_PM_OPS,
 	},
 };
 

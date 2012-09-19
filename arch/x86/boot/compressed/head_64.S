@@ -209,6 +209,16 @@ ENTRY(startup_64)
 	.org 0x210
 	mov	%rcx, %rdi
 	mov	%rdx, %rsi
+	pushq	%rdi
+	pushq	%rsi
+	call	make_boot_params
+	cmpq	$0,%rax
+	je	1f
+	mov	%rax, %rdx
+	popq	%rsi
+	popq	%rdi
+
+	.org 0x230,0x90
 	call	efi_main
 	movq	%rax,%rsi
 	cmpq	$0,%rax

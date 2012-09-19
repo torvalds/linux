@@ -22,7 +22,7 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
 extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
 			int order, gfp_t gfp_mask, nodemask_t *mask,
-			bool sync);
+			bool sync, bool *contended);
 extern int compact_pgdat(pg_data_t *pgdat, int order);
 extern unsigned long compaction_suitable(struct zone *zone, int order);
 
@@ -58,13 +58,13 @@ static inline bool compaction_deferred(struct zone *zone, int order)
 	if (++zone->compact_considered > defer_limit)
 		zone->compact_considered = defer_limit;
 
-	return zone->compact_considered < (1UL << zone->compact_defer_shift);
+	return zone->compact_considered < defer_limit;
 }
 
 #else
 static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
-			bool sync)
+			bool sync, bool *contended)
 {
 	return COMPACT_CONTINUE;
 }
@@ -85,7 +85,7 @@ static inline void defer_compaction(struct zone *zone, int order)
 
 static inline bool compaction_deferred(struct zone *zone, int order)
 {
-	return 1;
+	return true;
 }
 
 #endif /* CONFIG_COMPACTION */

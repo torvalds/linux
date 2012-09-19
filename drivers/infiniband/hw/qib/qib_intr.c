@@ -224,15 +224,15 @@ void qib_bad_intrstatus(struct qib_devdata *dd)
 	 * We print the message and disable interrupts, in hope of
 	 * having a better chance of debugging the problem.
 	 */
-	qib_dev_err(dd, "Read of chip interrupt status failed"
-		    " disabling interrupts\n");
+	qib_dev_err(dd,
+		"Read of chip interrupt status failed disabling interrupts\n");
 	if (allbits++) {
 		/* disable interrupt delivery, something is very wrong */
 		if (allbits == 2)
 			dd->f_set_intr_state(dd, 0);
 		if (allbits == 3) {
-			qib_dev_err(dd, "2nd bad interrupt status, "
-				    "unregistering interrupts\n");
+			qib_dev_err(dd,
+				"2nd bad interrupt status, unregistering interrupts\n");
 			dd->flags |= QIB_BADINTR;
 			dd->flags &= ~QIB_INITTED;
 			dd->f_free_irq(dd);

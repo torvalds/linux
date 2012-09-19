@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include <mach/ipu.h>
 
@@ -354,10 +355,12 @@ static struct irq_chip ipu_irq_chip = {
 /* Install the IRQ handler */
 int __init ipu_irq_attach_irq(struct ipu *ipu, struct platform_device *dev)
 {
-	struct ipu_platform_data *pdata = dev->dev.platform_data;
-	unsigned int irq, irq_base, i;
+	unsigned int irq, i;
+	int irq_base = irq_alloc_descs(-1, 0, CONFIG_MX3_IPU_IRQS,
+				       numa_node_id());
 
-	irq_base = pdata->irq_base;
+	if (irq_base < 0)
+		return irq_base;
 
 	for (i = 0; i < IPU_IRQ_NR_BANKS; i++)
 		irq_bank[i].ipu = ipu;
@@ -387,15 +390,16 @@ int __init ipu_irq_attach_irq(struct ipu *ipu, struct platform_device *dev)
 	irq_set_handler_data(ipu->irq_err, ipu);
 	irq_set_chained_handler(ipu->irq_err, ipu_irq_err);
 
+	ipu->irq_base = irq_base;
+
 	return 0;
 }
 
 void ipu_irq_detach_irq(struct ipu *ipu, struct platform_device *dev)
 {
-	struct ipu_platform_data *pdata = dev->dev.platform_data;
 	unsigned int irq, irq_base;
 
-	irq_base = pdata->irq_base;
+	irq_base = ipu->irq_base;
 
 	irq_set_chained_handler(ipu->irq_fn, NULL);
 	irq_set_handler_data(ipu->irq_fn, NULL);

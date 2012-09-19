@@ -22,7 +22,7 @@ wakeup-objs	+= video-bios.o
 realmode-y			+= header.o
 realmode-y			+= trampoline_$(BITS).o
 realmode-y			+= stack.o
-realmode-$(CONFIG_X86_32)	+= reboot_32.o
+realmode-y			+= reboot.o
 realmode-$(CONFIG_ACPI_SLEEP)	+= $(wakeup-objs)
 
 targets	+= $(realmode-y)
@@ -72,7 +72,7 @@ KBUILD_CFLAGS	:= $(LINUXINCLUDE) -m32 -g -Os -D_SETUP -D__KERNEL__ -D_WAKEUP \
 		   -Wall -Wstrict-prototypes \
 		   -march=i386 -mregparm=3 \
 		   -include $(srctree)/$(src)/../../boot/code16gcc.h \
-		   -fno-strict-aliasing -fomit-frame-pointer \
+		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
 		   $(call cc-option, -ffreestanding) \
 		   $(call cc-option, -fno-toplevel-reorder,\
 			$(call cc-option, -fno-unit-at-a-time)) \

@@ -21,7 +21,6 @@
 #ifdef __KERNEL__
 
 #include <linux/interrupt.h>
-#include <asm/fixmap.h>
 #include <asm/vaddrs.h>
 #include <asm/kmap_types.h>
 #include <asm/pgtable.h>
@@ -29,7 +28,6 @@
 /* declarations for highmem.c */
 extern unsigned long highstart_pfn, highend_pfn;
 
-extern pte_t *kmap_pte;
 extern pgprot_t kmap_prot;
 extern pte_t *pkmap_page_table;
 
@@ -72,7 +70,6 @@ static inline void kunmap(struct page *page)
 
 extern void *kmap_atomic(struct page *page);
 extern void __kunmap_atomic(void *kvaddr);
-extern struct page *kmap_atomic_to_page(void *vaddr);
 
 #define flush_cache_kmaps()	flush_cache_all()
 

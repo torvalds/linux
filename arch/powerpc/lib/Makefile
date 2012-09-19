@@ -17,14 +17,15 @@ obj-$(CONFIG_HAS_IOMEM)	+= devres.o
 obj-$(CONFIG_PPC64)	+= copypage_64.o copyuser_64.o \
 			   memcpy_64.o usercopy_64.o mem_64.o string.o \
 			   checksum_wrappers_64.o hweight_64.o \
-			   copyuser_power7.o
+			   copyuser_power7.o string_64.o copypage_power7.o \
+			   memcpy_power7.o
 obj-$(CONFIG_XMON)	+= sstep.o ldstfp.o
 obj-$(CONFIG_KPROBES)	+= sstep.o ldstfp.o
 obj-$(CONFIG_HAVE_HW_BREAKPOINT)	+= sstep.o ldstfp.o
 
 ifeq ($(CONFIG_PPC64),y)
 obj-$(CONFIG_SMP)	+= locks.o
-obj-$(CONFIG_ALTIVEC)	+= copyuser_power7_vmx.o
+obj-$(CONFIG_ALTIVEC)	+= vmx-helper.o
 endif
 
 obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o

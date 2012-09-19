@@ -32,7 +32,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/usb.h>
 #include <plat/board.h>
 #include "common.h"
 #include <plat/menelaus.h>
@@ -329,17 +328,6 @@ static void __init h4_init_flash(void)
 	h4_flash_resource.end	= base + SZ_64M - 1;
 }
 
-static struct omap_usb_config h4_usb_config __initdata = {
-	/* S1.10 OFF -- usb "download port"
-	 * usb0 switched to Mini-B port and isp1105 transceiver;
-	 * S2.POS3 = ON, S2.POS4 = OFF ... to enable battery charging
-	 */
-	.register_dev	= 1,
-	.pins[0]	= 3,
-/*	.hmc_mode	= 0x14,*/	/* 0:dev 1:host 2:disable */
-	.hmc_mode	= 0x00,		/* 0:dev|otg 1:disable 2:disable */
-};
-
 static struct at24_platform_data m24c01 = {
 	.byte_len	= SZ_1K / 8,
 	.page_size	= 16,
@@ -381,7 +369,6 @@ static void __init omap_h4_init(void)
 			ARRAY_SIZE(h4_i2c_board_info));
 
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
-	omap2_usbfs_init(&h4_usb_config);
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
 	h4_init_flash();

@@ -94,7 +94,15 @@ enum DRXPowerMode {
 
 
 enum AGC_CTRL_MODE { DRXK_AGC_CTRL_AUTO = 0, DRXK_AGC_CTRL_USER, DRXK_AGC_CTRL_OFF };
-enum EDrxkState { DRXK_UNINITIALIZED = 0, DRXK_STOPPED, DRXK_DTV_STARTED, DRXK_ATV_STARTED, DRXK_POWERED_DOWN };
+enum EDrxkState {
+	DRXK_UNINITIALIZED = 0,
+	DRXK_STOPPED,
+	DRXK_DTV_STARTED,
+	DRXK_ATV_STARTED,
+	DRXK_POWERED_DOWN,
+	DRXK_NO_DEV			/* If drxk init failed */
+};
+
 enum EDrxkCoefArrayIndex {
 	DRXK_COEF_IDX_MN = 0,
 	DRXK_COEF_IDX_FM    ,
@@ -325,6 +333,9 @@ struct drxk_state {
 
 	enum DRXPowerMode m_currentPowerMode;
 
+	/* when true, avoids other devices to use the I2C bus */
+	bool		  drxk_i2c_exclusive_lock;
+
 	/*
 	 * Configurable parameters at the driver. They stores the values found
 	 * at struct drxk_config.
@@ -338,7 +349,11 @@ struct drxk_state {
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
 
+	/* Firmware */
 	const char *microcode_name;
+	struct completion fw_wait_load;
+	const struct firmware *fw;
+	int qam_demod_parameter_count;
 };
 
 #define NEVER_LOCK 0

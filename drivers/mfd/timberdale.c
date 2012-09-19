@@ -83,7 +83,7 @@ timberdale_xiic_platform_data = {
 
 static __devinitdata struct ocores_i2c_platform_data
 timberdale_ocores_platform_data = {
-	.regstep = 4,
+	.reg_shift = 2,
 	.clock_khz = 62500,
 	.devices = timberdale_i2c_board_info,
 	.num_devices = ARRAY_SIZE(timberdale_i2c_board_info)

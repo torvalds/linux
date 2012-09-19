@@ -7,12 +7,6 @@
 
 struct vfsmount;
 
-struct open_intent {
-	int	flags;
-	int	create_mode;
-	struct file *file;
-};
-
 enum { MAX_NESTED_LINKS = 8 };
 
 struct nameidata {
@@ -25,11 +19,6 @@ struct nameidata {
 	int		last_type;
 	unsigned	depth;
 	char *saved_names[MAX_NESTED_LINKS + 1];
-
-	/* Intent data */
-	union {
-		struct open_intent open;
-	} intent;
 };
 
 /*
@@ -78,12 +67,10 @@ extern int kern_path(const char *, unsigned, struct path *);
 
 extern struct dentry *kern_path_create(int, const char *, struct path *, int);
 extern struct dentry *user_path_create(int, const char __user *, struct path *, int);
-extern int kern_path_parent(const char *, struct nameidata *);
+extern void done_path_create(struct path *, struct dentry *);
+extern struct dentry *kern_path_locked(const char *, struct path *);
 extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 			   const char *, unsigned int, struct path *);
-
-extern struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry,
-		int (*open)(struct inode *, struct file *));
 
 extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
 
@@ -93,6 +80,8 @@ extern int follow_up(struct path *);
 
 extern struct dentry *lock_rename(struct dentry *, struct dentry *);
 extern void unlock_rename(struct dentry *, struct dentry *);
+
+extern void nd_jump_link(struct nameidata *nd, struct path *path);
 
 static inline void nd_set_link(struct nameidata *nd, char *path)
 {

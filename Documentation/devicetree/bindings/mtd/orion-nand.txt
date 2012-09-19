@@ -1,7 +1,7 @@
 NAND support for Marvell Orion SoC platforms
 
 Required properties:
-- compatible : "mrvl,orion-nand".
+- compatible : "marvell,orion-nand".
 - reg : Base physical address of the NAND and length of memory mapped
 	region
 
@@ -24,7 +24,7 @@ nand@f4000000 {
 	ale = <1>;
 	bank-width = <1>;
 	chip-delay = <25>;
-	compatible = "mrvl,orion-nand";
+	compatible = "marvell,orion-nand";
 	reg = <0xf4000000 0x400>;
 
 	partition@0 {

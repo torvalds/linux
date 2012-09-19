@@ -27,7 +27,6 @@
 #define PHS_BUFFER_SIZE				 1532
 
 
-//#define MAX_PHS_LENGTHS 100
 #define MAX_PHSRULE_PER_SF       20
 #define MAX_SERVICEFLOWS			 17
 

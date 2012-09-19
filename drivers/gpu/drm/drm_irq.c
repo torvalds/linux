@@ -974,7 +974,6 @@ EXPORT_SYMBOL(drm_vblank_off);
  * drm_vblank_pre_modeset - account for vblanks across mode sets
  * @dev: DRM device
  * @crtc: CRTC in question
- * @post: post or pre mode set?
  *
  * Account for vblank events across mode setting events, which will likely
  * reset the hardware frame counter.
@@ -1035,6 +1034,10 @@ int drm_modeset_ctl(struct drm_device *dev, void *data,
 
 	/* If drm_vblank_init() hasn't been called yet, just no-op */
 	if (!dev->num_crtcs)
+		return 0;
+
+	/* KMS drivers handle this internally */
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
 	crtc = modeset->crtc;

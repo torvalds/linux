@@ -29,7 +29,7 @@ config ARCH_OMAP2PLUS
 	select USE_OF
 	select PROC_DEVICETREE if PROC_FS
 	help
-	  "Systems based on OMAP2, OMAP3 or OMAP4"
+	  "Systems based on OMAP2, OMAP3, OMAP4 or OMAP5"
 
 endchoice
 
@@ -45,31 +45,30 @@ config OMAP_DEBUG_LEDS
 	depends on OMAP_DEBUG_DEVICES
 	default y if LEDS_CLASS
 
-config OMAP_SMARTREFLEX
-	bool "SmartReflex support"
-	depends on (ARCH_OMAP3 || ARCH_OMAP4) && PM
+config POWER_AVS_OMAP
+	bool "AVS(Adaptive Voltage Scaling) support for OMAP IP versions 1&2"
+	depends on POWER_AVS && (ARCH_OMAP3 || ARCH_OMAP4) && PM
 	help
-	  Say Y if you want to enable SmartReflex.
-
-	  SmartReflex can perform continuous dynamic voltage
-	  scaling around the nominal operating point voltage
-	  according to silicon characteristics and operating
-	  conditions. Enabling SmartReflex reduces power
-	  consumption.
+	  Say Y to enable AVS(Adaptive Voltage Scaling)
+	  support on OMAP containing the version 1 or
+	  version 2 of the SmartReflex IP.
+	  V1 is the 65nm version used in OMAP3430.
+	  V2 is the update for the 45nm version of the IP used in OMAP3630
+	  and OMAP4430
 
 	  Please note, that by default SmartReflex is only
-	  initialized. To enable the automatic voltage
-	  compensation for vdd mpu  and vdd core from user space,
+	  initialized and not enabled. To enable the automatic voltage
+	  compensation for vdd mpu and vdd core from user space,
 	  user must write 1 to
-		/debug/voltage/vdd_<X>/smartreflex/autocomp,
-	  where X is mpu or core for OMAP3.
+		/debug/smartreflex/sr_<X>/autocomp,
+	  where X is mpu_iva or core for OMAP3.
 	  Optionally autocompensation can be enabled in the kernel
 	  by default during system init via the enable_on_init flag
 	  which an be passed as platform data to the smartreflex driver.
 
-config OMAP_SMARTREFLEX_CLASS3
+config POWER_AVS_OMAP_CLASS3
 	bool "Class 3 mode of Smartreflex Implementation"
-	depends on OMAP_SMARTREFLEX && TWL4030_CORE
+	depends on POWER_AVS_OMAP && TWL4030_CORE
 	help
 	  Say Y to enable Class 3 implementation of Smartreflex
 
@@ -150,7 +149,7 @@ config OMAP_32K_TIMER
 	  This timer saves power compared to the OMAP_MPU_TIMER, and has
 	  support for no tick during idle. The 32KHz timer provides less
 	  intra-tick resolution than OMAP_MPU_TIMER. The 32KHz timer is
-	  currently only available for OMAP16XX, 24XX, 34XX and OMAP4.
+	  currently only available for OMAP16XX, 24XX, 34XX and OMAP4/5.
 
 config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
 	bool "OMAP3 HS/EMU save and restore for L2 AUX control register"

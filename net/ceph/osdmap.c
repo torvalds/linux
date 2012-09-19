@@ -135,6 +135,21 @@ bad:
 	return -EINVAL;
 }
 
+static int skip_name_map(void **p, void *end)
+{
+        int len;
+        ceph_decode_32_safe(p, end, len ,bad);
+        while (len--) {
+                int strlen;
+                *p += sizeof(u32);
+                ceph_decode_32_safe(p, end, strlen, bad);
+                *p += strlen;
+}
+        return 0;
+bad:
+        return -EINVAL;
+}
+
 static struct crush_map *crush_decode(void *pbyval, void *end)
 {
 	struct crush_map *c;
@@ -143,12 +158,18 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	void **p = &pbyval;
 	void *start = pbyval;
 	u32 magic;
+	u32 num_name_maps;
 
 	dout("crush_decode %p to %p len %d\n", *p, end, (int)(end - *p));
 
 	c = kzalloc(sizeof(*c), GFP_NOFS);
 	if (c == NULL)
 		return ERR_PTR(-ENOMEM);
+
+        /* set tunables to default values */
+        c->choose_local_tries = 2;
+        c->choose_local_fallback_tries = 5;
+        c->choose_total_tries = 19;
 
 	ceph_decode_need(p, end, 4*sizeof(u32), bad);
 	magic = ceph_decode_32(p);
@@ -297,7 +318,25 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	}
 
 	/* ignore trailing name maps. */
+        for (num_name_maps = 0; num_name_maps < 3; num_name_maps++) {
+                err = skip_name_map(p, end);
+                if (err < 0)
+                        goto done;
+        }
 
+        /* tunables */
+        ceph_decode_need(p, end, 3*sizeof(u32), done);
+        c->choose_local_tries = ceph_decode_32(p);
+        c->choose_local_fallback_tries =  ceph_decode_32(p);
+        c->choose_total_tries = ceph_decode_32(p);
+        dout("crush decode tunable choose_local_tries = %d",
+             c->choose_local_tries);
+        dout("crush decode tunable choose_local_fallback_tries = %d",
+             c->choose_local_fallback_tries);
+        dout("crush decode tunable choose_total_tries = %d",
+             c->choose_total_tries);
+
+done:
 	dout("crush_decode success\n");
 	return c;
 
@@ -488,15 +527,16 @@ static int __decode_pool_names(void **p, void *end, struct ceph_osdmap *map)
 		ceph_decode_32_safe(p, end, pool, bad);
 		ceph_decode_32_safe(p, end, len, bad);
 		dout("  pool %d len %d\n", pool, len);
+		ceph_decode_need(p, end, len, bad);
 		pi = __lookup_pg_pool(&map->pg_pools, pool);
 		if (pi) {
+			char *name = kstrndup(*p, len, GFP_NOFS);
+
+			if (!name)
+				return -ENOMEM;
 			kfree(pi->name);
-			pi->name = kmalloc(len + 1, GFP_NOFS);
-			if (pi->name) {
-				memcpy(pi->name, *p, len);
-				pi->name[len] = '\0';
-				dout("  name is %s\n", pi->name);
-			}
+			pi->name = name;
+			dout("  name is %s\n", pi->name);
 		}
 		*p += len;
 	}
@@ -666,6 +706,9 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		ceph_decode_need(p, end, sizeof(u32) + sizeof(u64), bad);
 		ceph_decode_copy(p, &pgid, sizeof(pgid));
 		n = ceph_decode_32(p);
+		err = -EINVAL;
+		if (n > (UINT_MAX - sizeof(*pg)) / sizeof(u32))
+			goto bad;
 		ceph_decode_need(p, end, n * sizeof(u32), bad);
 		err = -ENOMEM;
 		pg = kmalloc(sizeof(*pg) + n*sizeof(u32), GFP_NOFS);
@@ -889,6 +932,10 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			(void) __remove_pg_mapping(&map->pg_temp, pgid);
 
 			/* insert */
+			if (pglen > (UINT_MAX - sizeof(*pg)) / sizeof(u32)) {
+				err = -EINVAL;
+				goto bad;
+			}
 			pg = kmalloc(sizeof(*pg) + sizeof(u32)*pglen, GFP_NOFS);
 			if (!pg) {
 				err = -ENOMEM;

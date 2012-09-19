@@ -20,5 +20,5 @@ TODO (general):
 	  - implement loopback of external sound jack with incoming audio?
 	  - implement pause/resume
 
-Plase send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc Ben Collins
+Plase send patches to Mauro Carvalho Chehab <mchehab@redhat.com> and Cc Ben Collins
 <bcollins@bluecherry.net>

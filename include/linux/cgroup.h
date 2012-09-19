@@ -500,21 +500,8 @@ struct cgroup_subsys {
 	const char *name;
 
 	/*
-	 * Protects sibling/children links of cgroups in this
-	 * hierarchy, plus protects which hierarchy (or none) the
-	 * subsystem is a part of (i.e. root/sibling).  To avoid
-	 * potential deadlocks, the following operations should not be
-	 * undertaken while holding any hierarchy_mutex:
-	 *
-	 * - allocating memory
-	 * - initiating hotplug events
-	 */
-	struct mutex hierarchy_mutex;
-	struct lock_class_key subsys_key;
-
-	/*
 	 * Link to parent, and list entry in parent's children.
-	 * Protected by this->hierarchy_mutex and cgroup_lock()
+	 * Protected by cgroup_lock()
 	 */
 	struct cgroupfs_root *root;
 	struct list_head sibling;
@@ -602,7 +589,7 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
  * the lifetime of cgroup_subsys_state is subsys's matter.
  *
  * Looking up and scanning function should be called under rcu_read_lock().
- * Taking cgroup_mutex()/hierarchy_mutex() is not necessary for following calls.
+ * Taking cgroup_mutex is not necessary for following calls.
  * But the css returned by this routine can be "not populated yet" or "being
  * destroyed". The caller should check css and cgroup's status.
  */

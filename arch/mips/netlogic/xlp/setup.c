@@ -41,6 +41,8 @@
 #include <asm/bootinfo.h>
 
 #include <linux/of_fdt.h>
+#include <linux/of_platform.h>
+#include <linux/of_device.h>
 
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/common.h>
@@ -82,8 +84,10 @@ void __init prom_free_prom_memory(void)
 
 void xlp_mmu_init(void)
 {
+	/* enable extended TLB and Large Fixed TLB */
 	write_c0_config6(read_c0_config6() | 0x24);
-	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
+
+	/* set page mask of Fixed TLB in config7 */
 	write_c0_config7(PM_DEFAULT_MASK >>
 		(13 + (ffz(PM_DEFAULT_MASK >> 13) / 2)));
 }
@@ -100,6 +104,24 @@ void __init prom_init(void)
 	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
 #ifdef CONFIG_SMP
 	nlm_wakeup_secondary_cpus(0xffffffff);
+
+	/* update TLB size after waking up threads */
+	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
+
 	register_smp_ops(&nlm_smp_ops);
 #endif
 }
+
+static struct of_device_id __initdata xlp_ids[] = {
+	{ .compatible = "simple-bus", },
+	{},
+};
+
+int __init xlp8xx_ds_publish_devices(void)
+{
+	if (!of_have_populated_dt())
+		return 0;
+	return of_platform_bus_probe(NULL, xlp_ids, NULL);
+}
+
+device_initcall(xlp8xx_ds_publish_devices);

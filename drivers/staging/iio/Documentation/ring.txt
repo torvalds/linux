@@ -15,8 +15,8 @@ struct iio_ring_buffer contains a struct iio_ring_setup_ops *setup_ops
 which in turn contains the 4 function pointers
 (preenable, postenable, predisable and postdisable).
 These are used to perform device specific steps on either side
-of the core changing it's current mode to indicate that the buffer
-is enabled or disabled (along with enabling triggering etc as appropriate).
+of the core changing its current mode to indicate that the buffer
+is enabled or disabled (along with enabling triggering etc. as appropriate).
 
 Also in struct iio_ring_buffer is a struct iio_ring_access_funcs.
 The function pointers within here are used to allow the core to handle

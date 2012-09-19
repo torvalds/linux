@@ -136,7 +136,7 @@ config GPIO_MPC8XXX
 
 config GPIO_MSM_V1
 	tristate "Qualcomm MSM GPIO v1"
-	depends on GPIOLIB && ARCH_MSM
+	depends on GPIOLIB && ARCH_MSM && (ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50)
 	help
 	  Say yes here to support the GPIO interface on ARM v6 based
 	  Qualcomm MSM chips.  Most of the pins on the MSM can be
@@ -253,6 +253,12 @@ config GPIO_GE_FPGA
 
 comment "I2C GPIO expanders:"
 
+config GPIO_ARIZONA
+	tristate "Wolfson Microelectronics Arizona class devices"
+	depends on MFD_ARIZONA
+	help
+	  Support for GPIOs on Wolfson Arizona class devices.
+
 config GPIO_MAX7300
 	tristate "Maxim MAX7300 GPIO expander"
 	depends on I2C
@@ -288,7 +294,7 @@ config GPIO_MAX732X_IRQ
 
 config GPIO_MC9S08DZ60
 	bool "MX35 3DS BOARD MC9S08DZ60 GPIO functions"
-	depends on I2C && MACH_MX35_3DS
+	depends on I2C=y && MACH_MX35_3DS
 	help
 	  Select this to enable the MC9S08DZ60 GPIO driver
 
@@ -466,6 +472,18 @@ config GPIO_BT8XX
 
 	  If unsure, say N.
 
+config GPIO_AMD8111
+	tristate "AMD 8111 GPIO driver"
+	depends on PCI
+	help
+	  The AMD 8111 south bridge contains 32 GPIO pins which can be used.
+
+	  Note, that usually system firmware/ACPI handles GPIO pins on their
+	  own and users might easily break their systems with uncarefull usage
+	  of this driver!
+
+	  If unsure, say N
+
 config GPIO_LANGWELL
 	bool "Intel Langwell/Penwell GPIO support"
 	depends on PCI && X86
@@ -578,6 +596,13 @@ config GPIO_AB8500
 	depends on AB8500_CORE && BROKEN
 	help
 	  Select this to enable the AB8500 IC GPIO driver
+
+config GPIO_TPS6586X
+	bool "TPS6586X GPIO"
+	depends on MFD_TPS6586X
+	help
+	  Select this option to enable GPIO driver for the TPS6586X
+	  chip family.
 
 config GPIO_TPS65910
 	bool "TPS65910 GPIO"

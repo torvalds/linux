@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 
 #include <mach/hardware.h>
-#include <mach/board-mop500-msp.h>
+#include <mach/msp.h>
 
 #include <sound/soc.h>
 
@@ -739,4 +739,4 @@ void ux500_msp_i2s_cleanup_msp(struct platform_device *pdev,
 	devm_kfree(&pdev->dev, msp);
 }
 
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");

@@ -74,10 +74,6 @@ bool ath5k_modparam_nohwcrypt;
 module_param_named(nohwcrypt, ath5k_modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
-static bool modparam_all_channels;
-module_param_named(all_channels, modparam_all_channels, bool, S_IRUGO);
-MODULE_PARM_DESC(all_channels, "Expose all channels the device can use.");
-
 static bool modparam_fastchanswitch;
 module_param_named(fastchanswitch, modparam_fastchanswitch, bool, S_IRUGO);
 MODULE_PARM_DESC(fastchanswitch, "Enable fast channel switching for AR2413/AR5413 radios.");
@@ -258,8 +254,15 @@ static int ath5k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *re
 \********************/
 
 /*
- * Returns true for the channel numbers used without all_channels modparam.
+ * Returns true for the channel numbers used.
  */
+#ifdef CONFIG_ATH5K_TEST_CHANNELS
+static bool ath5k_is_standard_channel(short chan, enum ieee80211_band band)
+{
+	return true;
+}
+
+#else
 static bool ath5k_is_standard_channel(short chan, enum ieee80211_band band)
 {
 	if (band == IEEE80211_BAND_2GHZ && chan <= 14)
@@ -276,6 +279,7 @@ static bool ath5k_is_standard_channel(short chan, enum ieee80211_band band)
 		/* 802.11j 4.9GHz (20MHz) */
 		(chan == 184 || chan == 188 || chan == 192 || chan == 196));
 }
+#endif
 
 static unsigned int
 ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
@@ -316,8 +320,7 @@ ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 		if (!ath5k_channel_ok(ah, &channels[count]))
 			continue;
 
-		if (!modparam_all_channels &&
-		    !ath5k_is_standard_channel(ch, band))
+		if (!ath5k_is_standard_channel(ch, band))
 			continue;
 
 		count++;
@@ -2053,9 +2056,7 @@ ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf)
 void
 ath5k_beacon_config(struct ath5k_hw *ah)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ah->block, flags);
+	spin_lock_bh(&ah->block);
 	ah->bmisscount = 0;
 	ah->imask &= ~(AR5K_INT_BMISS | AR5K_INT_SWBA);
 
@@ -2082,7 +2083,7 @@ ath5k_beacon_config(struct ath5k_hw *ah)
 
 	ath5k_hw_set_imr(ah, ah->imask);
 	mmiowb();
-	spin_unlock_irqrestore(&ah->block, flags);
+	spin_unlock_bh(&ah->block);
 }
 
 static void ath5k_tasklet_beacon(unsigned long data)

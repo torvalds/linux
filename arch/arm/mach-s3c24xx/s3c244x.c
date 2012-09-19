@@ -36,7 +36,6 @@
 #include <mach/regs-clock.h>
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-gpioj.h>
 #include <mach/regs-dsc.h>
 
 #include <plat/s3c2410.h>

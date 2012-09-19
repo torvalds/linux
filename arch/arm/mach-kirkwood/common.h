@@ -58,6 +58,11 @@ void dreamplug_init(void);
 #else
 static inline void dreamplug_init(void) {};
 #endif
+#ifdef CONFIG_MACH_TS219_DT
+void qnap_dt_ts219_init(void);
+#else
+static inline void qnap_dt_ts219_init(void) {};
+#endif
 
 #ifdef CONFIG_MACH_DLINK_KIRKWOOD_DT
 void dnskw_init(void);
@@ -75,6 +80,18 @@ static inline void iconnect_init(void) {};
 void ib62x0_init(void);
 #else
 static inline void ib62x0_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_GOFLEXNET_DT
+void goflexnet_init(void);
+#else
+static inline void goflexnet_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_LSXL_DT
+void lsxl_init(void);
+#else
+static inline void lsxl_init(void) {};
 #endif
 
 /* early init functions not converted to fdt yet */

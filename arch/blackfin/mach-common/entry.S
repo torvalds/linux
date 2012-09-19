@@ -25,13 +25,6 @@
 
 #include <asm/context.S>
 
-#if defined(CONFIG_BFIN_SCRATCH_REG_RETN)
-# define EX_SCRATCH_REG RETN
-#elif defined(CONFIG_BFIN_SCRATCH_REG_RETE)
-# define EX_SCRATCH_REG RETE
-#else
-# define EX_SCRATCH_REG CYCLES
-#endif
 
 #ifdef CONFIG_EXCPT_IRQ_SYSC_L1
 .section .l1.text

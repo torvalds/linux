@@ -131,7 +131,7 @@ static void *mlx4_en_get_netdev(struct mlx4_dev *dev, void *ctx, u8 port)
 }
 
 static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
-			  enum mlx4_dev_event event, int port)
+			  enum mlx4_dev_event event, unsigned long port)
 {
 	struct mlx4_en_dev *mdev = (struct mlx4_en_dev *) endev_ptr;
 	struct mlx4_en_priv *priv;
@@ -156,7 +156,8 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 		if (port < 1 || port > dev->caps.num_ports ||
 		    !mdev->pndev[port])
 			return;
-		mlx4_warn(mdev, "Unhandled event %d for port %d\n", event, port);
+		mlx4_warn(mdev, "Unhandled event %d for port %d\n", event,
+			  (int) port);
 	}
 }
 

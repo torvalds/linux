@@ -47,9 +47,16 @@
 
 
 
-inline int ip6_rcv_finish( struct sk_buff *skb)
+int ip6_rcv_finish(struct sk_buff *skb)
 {
-	if (skb_dst(skb) == NULL)
+	if (sysctl_ip_early_demux && !skb_dst(skb)) {
+		const struct inet6_protocol *ipprot;
+
+		ipprot = rcu_dereference(inet6_protos[ipv6_hdr(skb)->nexthdr]);
+		if (ipprot && ipprot->early_demux)
+			ipprot->early_demux(skb);
+	}
+	if (!skb_dst(skb))
 		ip6_route_input(skb);
 
 	return dst_input(skb);
@@ -168,13 +175,12 @@ drop:
 
 static int ip6_input_finish(struct sk_buff *skb)
 {
+	struct net *net = dev_net(skb_dst(skb)->dev);
 	const struct inet6_protocol *ipprot;
+	struct inet6_dev *idev;
 	unsigned int nhoff;
 	int nexthdr;
 	bool raw;
-	u8 hash;
-	struct inet6_dev *idev;
-	struct net *net = dev_net(skb_dst(skb)->dev);
 
 	/*
 	 *	Parse extension headers
@@ -189,9 +195,7 @@ resubmit:
 	nexthdr = skb_network_header(skb)[nhoff];
 
 	raw = raw6_local_deliver(skb, nexthdr);
-
-	hash = nexthdr & (MAX_INET_PROTOS - 1);
-	if ((ipprot = rcu_dereference(inet6_protos[hash])) != NULL) {
+	if ((ipprot = rcu_dereference(inet6_protos[nexthdr])) != NULL) {
 		int ret;
 
 		if (ipprot->flags & INET6_PROTO_FINAL) {

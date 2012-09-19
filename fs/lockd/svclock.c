@@ -26,7 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/svc.h>
+#include <linux/sunrpc/svc_xprt.h>
 #include <linux/lockd/nlm.h>
 #include <linux/lockd/lockd.h>
 #include <linux/kthread.h>
@@ -219,7 +219,6 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_host *host,
 	struct nlm_block	*block;
 	struct nlm_rqst		*call = NULL;
 
-	nlm_get_host(host);
 	call = nlm_alloc_call(host);
 	if (call == NULL)
 		return NULL;
@@ -447,11 +446,11 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 		goto out;
 	}
 
-	if (locks_in_grace() && !reclaim) {
+	if (locks_in_grace(SVC_NET(rqstp)) && !reclaim) {
 		ret = nlm_lck_denied_grace_period;
 		goto out;
 	}
-	if (reclaim && !locks_in_grace()) {
+	if (reclaim && !locks_in_grace(SVC_NET(rqstp))) {
 		ret = nlm_lck_denied_grace_period;
 		goto out;
 	}
@@ -559,7 +558,7 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 		goto out;
 	}
 
-	if (locks_in_grace()) {
+	if (locks_in_grace(SVC_NET(rqstp))) {
 		ret = nlm_lck_denied_grace_period;
 		goto out;
 	}
@@ -603,7 +602,7 @@ out:
  * must be removed.
  */
 __be32
-nlmsvc_unlock(struct nlm_file *file, struct nlm_lock *lock)
+nlmsvc_unlock(struct net *net, struct nlm_file *file, struct nlm_lock *lock)
 {
 	int	error;
 
@@ -615,7 +614,7 @@ nlmsvc_unlock(struct nlm_file *file, struct nlm_lock *lock)
 				(long long)lock->fl.fl_end);
 
 	/* First, cancel any lock that might be there */
-	nlmsvc_cancel_blocked(file, lock);
+	nlmsvc_cancel_blocked(net, file, lock);
 
 	lock->fl.fl_type = F_UNLCK;
 	error = vfs_lock_file(file->f_file, F_SETLK, &lock->fl, NULL);
@@ -631,7 +630,7 @@ nlmsvc_unlock(struct nlm_file *file, struct nlm_lock *lock)
  * The calling procedure must check whether the file can be closed.
  */
 __be32
-nlmsvc_cancel_blocked(struct nlm_file *file, struct nlm_lock *lock)
+nlmsvc_cancel_blocked(struct net *net, struct nlm_file *file, struct nlm_lock *lock)
 {
 	struct nlm_block	*block;
 	int status = 0;
@@ -643,7 +642,7 @@ nlmsvc_cancel_blocked(struct nlm_file *file, struct nlm_lock *lock)
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end);
 
-	if (locks_in_grace())
+	if (locks_in_grace(net))
 		return nlm_lck_denied_grace_period;
 
 	mutex_lock(&file->f_mutex);

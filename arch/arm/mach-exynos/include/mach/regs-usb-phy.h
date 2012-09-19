@@ -35,11 +35,21 @@
 #define PHY1_COMMON_ON_N		(1 << 7)
 #define PHY0_COMMON_ON_N		(1 << 4)
 #define PHY0_ID_PULLUP			(1 << 2)
-#define CLKSEL_MASK			(0x3 << 0)
-#define CLKSEL_SHIFT			(0)
-#define CLKSEL_48M			(0x0 << 0)
-#define CLKSEL_12M			(0x2 << 0)
-#define CLKSEL_24M			(0x3 << 0)
+
+#define EXYNOS4_CLKSEL_SHIFT		(0)
+
+#define EXYNOS4210_CLKSEL_MASK		(0x3 << 0)
+#define EXYNOS4210_CLKSEL_48M		(0x0 << 0)
+#define EXYNOS4210_CLKSEL_12M		(0x2 << 0)
+#define EXYNOS4210_CLKSEL_24M		(0x3 << 0)
+
+#define EXYNOS4X12_CLKSEL_MASK		(0x7 << 0)
+#define EXYNOS4X12_CLKSEL_9600K		(0x0 << 0)
+#define EXYNOS4X12_CLKSEL_10M		(0x1 << 0)
+#define EXYNOS4X12_CLKSEL_12M		(0x2 << 0)
+#define EXYNOS4X12_CLKSEL_19200K	(0x3 << 0)
+#define EXYNOS4X12_CLKSEL_20M		(0x4 << 0)
+#define EXYNOS4X12_CLKSEL_24M		(0x5 << 0)
 
 #define EXYNOS4_RSTCON			EXYNOS4_HSOTG_PHYREG(0x08)
 #define HOST_LINK_PORT_SWRST_MASK	(0xf << 6)

@@ -10,6 +10,7 @@ struct mod_arch_specific {
 	struct list_head dbe_list;
 	const struct exception_table_entry *dbe_start;
 	const struct exception_table_entry *dbe_end;
+	struct mips_hi16 *r_mips_hi16_list;
 };
 
 typedef uint8_t Elf64_Byte;		/* Type for a 8-bit quantity.  */
@@ -117,6 +118,8 @@ search_module_dbetables(unsigned long addr)
 #define MODULE_PROC_FAMILY "RM9000 "
 #elif defined CONFIG_CPU_SB1
 #define MODULE_PROC_FAMILY "SB1 "
+#elif defined CONFIG_CPU_LOONGSON1
+#define MODULE_PROC_FAMILY "LOONGSON1 "
 #elif defined CONFIG_CPU_LOONGSON2
 #define MODULE_PROC_FAMILY "LOONGSON2 "
 #elif defined CONFIG_CPU_CAVIUM_OCTEON

@@ -244,7 +244,7 @@ static void radeon_legacy_lvds_mode_set(struct drm_encoder *encoder,
 }
 
 static bool radeon_legacy_mode_fixup(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode,
+				     const struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);

@@ -311,7 +311,7 @@ extern uint brcms_c_detach(struct brcms_c_info *wlc);
 extern int brcms_c_up(struct brcms_c_info *wlc);
 extern uint brcms_c_down(struct brcms_c_info *wlc);
 
-extern bool brcms_c_chipmatch(u16 vendor, u16 device);
+extern bool brcms_c_chipmatch(struct bcma_device *core);
 extern void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx);
 extern void brcms_c_reset(struct brcms_c_info *wlc);
 

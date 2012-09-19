@@ -237,8 +237,9 @@ int propagate_mnt(struct mount *dest_mnt, struct dentry *dest_dentry,
 
 		source =  get_source(m, prev_dest_mnt, prev_src_mnt, &type);
 
-		if (!(child = copy_tree(source, source->mnt.mnt_root, type))) {
-			ret = -ENOMEM;
+		child = copy_tree(source, source->mnt.mnt_root, type);
+		if (IS_ERR(child)) {
+			ret = PTR_ERR(child);
 			list_splice(tree_list, tmp_list.prev);
 			goto out;
 		}

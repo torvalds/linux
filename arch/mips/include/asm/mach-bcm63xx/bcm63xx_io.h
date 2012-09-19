@@ -40,6 +40,10 @@
 #define BCM_CB_MEM_END_PA		(BCM_CB_MEM_BASE_PA +		\
 					BCM_CB_MEM_SIZE - 1)
 
+#define BCM_PCIE_MEM_BASE_PA		0x10f00000
+#define BCM_PCIE_MEM_SIZE		(16 * 1024 * 1024)
+#define BCM_PCIE_MEM_END_PA		(BCM_PCIE_MEM_BASE_PA +		\
+					BCM_PCIE_MEM_SIZE - 1)
 
 /*
  * Internal registers are accessed through KSEG3
@@ -85,11 +89,15 @@
 #define bcm_mpi_writel(v, o)	bcm_rset_writel(RSET_MPI, (v), (o))
 #define bcm_pcmcia_readl(o)	bcm_rset_readl(RSET_PCMCIA, (o))
 #define bcm_pcmcia_writel(v, o)	bcm_rset_writel(RSET_PCMCIA, (v), (o))
+#define bcm_pcie_readl(o)	bcm_rset_readl(RSET_PCIE, (o))
+#define bcm_pcie_writel(v, o)	bcm_rset_writel(RSET_PCIE, (v), (o))
 #define bcm_sdram_readl(o)	bcm_rset_readl(RSET_SDRAM, (o))
 #define bcm_sdram_writel(v, o)	bcm_rset_writel(RSET_SDRAM, (v), (o))
 #define bcm_memc_readl(o)	bcm_rset_readl(RSET_MEMC, (o))
 #define bcm_memc_writel(v, o)	bcm_rset_writel(RSET_MEMC, (v), (o))
 #define bcm_ddr_readl(o)	bcm_rset_readl(RSET_DDR, (o))
 #define bcm_ddr_writel(v, o)	bcm_rset_writel(RSET_DDR, (v), (o))
+#define bcm_misc_readl(o)	bcm_rset_readl(RSET_MISC, (o))
+#define bcm_misc_writel(v, o)	bcm_rset_writel(RSET_MISC, (v), (o))
 
 #endif /* ! BCM63XX_IO_H_ */

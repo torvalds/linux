@@ -140,22 +140,10 @@ static struct pci_driver rz1000_pci_driver = {
 #endif
 };
 
-static int __init rz1000_init(void)
-{
-	return pci_register_driver(&rz1000_pci_driver);
-}
-
-static void __exit rz1000_exit(void)
-{
-	pci_unregister_driver(&rz1000_pci_driver);
-}
+module_pci_driver(rz1000_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for RZ1000 PCI ATA");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, pata_rz1000);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(rz1000_init);
-module_exit(rz1000_exit);
-

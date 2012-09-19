@@ -189,8 +189,10 @@ const unsigned char *ax25_addr_parse(const unsigned char *buf, int len,
 	digi->ndigi      = 0;
 
 	while (!(buf[-1] & AX25_EBIT)) {
-		if (d >= AX25_MAX_DIGIS)  return NULL;	/* Max of 6 digis */
-		if (len < 7) return NULL;	/* Short packet */
+		if (d >= AX25_MAX_DIGIS)
+			return NULL;
+		if (len < AX25_ADDR_LEN)
+			return NULL;
 
 		memcpy(&digi->calls[d], buf, AX25_ADDR_LEN);
 		digi->ndigi = d + 1;

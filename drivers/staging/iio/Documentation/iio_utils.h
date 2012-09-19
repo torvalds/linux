@@ -7,14 +7,15 @@
  * the Free Software Foundation.
  */
 
-/* Made up value to limit allocation sizes */
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <dirent.h>
+#include <errno.h>
 
+/* Made up value to limit allocation sizes */
 #define IIO_MAX_NAME_LENGTH 30
 
 #define FORMAT_SCAN_ELEMENTS_DIR "%s/scan_elements"
@@ -27,7 +28,7 @@ const char *iio_dir = "/sys/bus/iio/devices/";
  * @full_name: the full channel name
  * @generic_name: the output generic channel name
  **/
-static int iioutils_break_up_name(const char *full_name,
+inline int iioutils_break_up_name(const char *full_name,
 				  char **generic_name)
 {
 	char *current;
@@ -157,7 +158,8 @@ inline int iioutils_get_type(unsigned *is_signed,
 				     &padint, shift);
 			if (ret < 0) {
 				printf("failed to pass scan type description\n");
-				return ret;
+				ret = -errno;
+				goto error_close_sysfsfp;
 			}
 			*be = (endianchar == 'b');
 			*bytes = padint / 8;
@@ -173,7 +175,11 @@ inline int iioutils_get_type(unsigned *is_signed,
 			free(filename);
 
 			filename = 0;
+			sysfsfp = 0;
 		}
+error_close_sysfsfp:
+	if (sysfsfp)
+		fclose(sysfsfp);
 error_free_filename:
 	if (filename)
 		free(filename);
@@ -280,7 +286,7 @@ inline int build_channel_array(const char *device_dir,
 {
 	DIR *dp;
 	FILE *sysfsfp;
-	int count, temp, i;
+	int count, i;
 	struct iio_channel_info *current;
 	int ret;
 	const struct dirent *ent;
@@ -447,7 +453,7 @@ inline int find_type_by_name(const char *name, const char *type)
 
 	dp = opendir(iio_dir);
 	if (dp == NULL) {
-		printf("No industrialio devices available");
+		printf("No industrialio devices available\n");
 		return -ENODEV;
 	}
 
@@ -467,23 +473,30 @@ inline int find_type_by_name(const char *name, const char *type)
 						+ strlen(type)
 						+ numstrlen
 						+ 6);
-				if (filename == NULL)
+				if (filename == NULL) {
+					closedir(dp);
 					return -ENOMEM;
+				}
 				sprintf(filename, "%s%s%d/name",
 					iio_dir,
 					type,
 					number);
 				nameFile = fopen(filename, "r");
-				if (!nameFile)
+				if (!nameFile) {
+					free(filename);
 					continue;
+				}
 				free(filename);
 				fscanf(nameFile, "%s", thisname);
-				if (strcmp(name, thisname) == 0)
-					return number;
 				fclose(nameFile);
+				if (strcmp(name, thisname) == 0) {
+					closedir(dp);
+					return number;
+				}
 			}
 		}
 	}
+	closedir(dp);
 	return -ENODEV;
 }
 
@@ -512,6 +525,7 @@ inline int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 			goto error_free;
 		}
 		fscanf(sysfsfp, "%d", &test);
+		fclose(sysfsfp);
 		if (test != val) {
 			printf("Possible failure in int write %d to %s%s\n",
 				val,
@@ -561,6 +575,7 @@ int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
 			goto error_free;
 		}
 		fscanf(sysfsfp, "%s", temp);
+		fclose(sysfsfp);
 		if (strcmp(temp, val) != 0) {
 			printf("Possible failure in string write of %s "
 				"Should be %s "

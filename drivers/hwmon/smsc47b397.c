@@ -231,13 +231,9 @@ static const struct attribute_group smsc47b397_group = {
 static int __devexit smsc47b397_remove(struct platform_device *pdev)
 {
 	struct smsc47b397_data *data = platform_get_drvdata(pdev);
-	struct resource *res;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &smsc47b397_group);
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	release_region(res->start, SMSC_EXTENT);
-	kfree(data);
 
 	return 0;
 }
@@ -261,19 +257,17 @@ static int __devinit smsc47b397_probe(struct platform_device *pdev)
 	int err = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start, SMSC_EXTENT,
-			    smsc47b397_driver.driver.name)) {
+	if (!devm_request_region(dev, res->start, SMSC_EXTENT,
+				 smsc47b397_driver.driver.name)) {
 		dev_err(dev, "Region 0x%lx-0x%lx already in use!\n",
 			(unsigned long)res->start,
 			(unsigned long)res->start + SMSC_EXTENT - 1);
 		return -EBUSY;
 	}
 
-	data = kzalloc(sizeof(struct smsc47b397_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto error_release;
-	}
+	data = devm_kzalloc(dev, sizeof(struct smsc47b397_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	data->addr = res->start;
 	data->name = "smsc47b397";
@@ -283,7 +277,7 @@ static int __devinit smsc47b397_probe(struct platform_device *pdev)
 
 	err = sysfs_create_group(&dev->kobj, &smsc47b397_group);
 	if (err)
-		goto error_free;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -295,10 +289,6 @@ static int __devinit smsc47b397_probe(struct platform_device *pdev)
 
 error_remove:
 	sysfs_remove_group(&dev->kobj, &smsc47b397_group);
-error_free:
-	kfree(data);
-error_release:
-	release_region(res->start, SMSC_EXTENT);
 	return err;
 }
 

@@ -626,8 +626,12 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* use fixed index if set */
-	if (mp->fixed_rate_idx != -1)
-		sample_idx = mp->fixed_rate_idx;
+	if (mp->fixed_rate_idx != -1) {
+		mi->max_tp_rate = mp->fixed_rate_idx;
+		mi->max_tp_rate2 = mp->fixed_rate_idx;
+		mi->max_prob_rate = mp->fixed_rate_idx;
+		sample_idx = -1;
+	}
 #endif
 
 	if (sample_idx >= 0) {
@@ -809,7 +813,7 @@ minstrel_ht_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 			max_rates = sband->n_bitrates;
 	}
 
-	msp = kzalloc(sizeof(struct minstrel_ht_sta), gfp);
+	msp = kzalloc(sizeof(*msp), gfp);
 	if (!msp)
 		return NULL;
 

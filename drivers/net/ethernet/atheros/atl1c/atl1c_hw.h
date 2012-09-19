@@ -74,6 +74,8 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define PCI_DEVICE_ID_ATHEROS_L1D_2_0	0x1083 /* AR8151 v2.0 Gigabit 1000 */
 #define L2CB_V10			0xc0
 #define L2CB_V11			0xc1
+#define L2CB_V20			0xc0
+#define L2CB_V21			0xc1
 
 /* register definition */
 #define REG_DEVICE_CAP              	0x5C
@@ -86,6 +88,9 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define LINK_CTRL_L0S_EN		0x01
 #define LINK_CTRL_L1_EN			0x02
 #define LINK_CTRL_EXT_SYNC		0x80
+
+#define REG_PCIE_IND_ACC_ADDR		0x80
+#define REG_PCIE_IND_ACC_DATA		0x84
 
 #define REG_DEV_SERIALNUM_CTRL		0x200
 #define REG_DEV_MAC_SEL_MASK		0x0 /* 0:EUI; 1:MAC */

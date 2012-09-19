@@ -17,6 +17,8 @@
 #include <linux/bitmap.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
+#include <linux/rculist.h>
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
 #include <asm/acpi.h>
@@ -24,7 +26,9 @@
 #define PREFIX "PCI: "
 
 /* Indicate if the mmcfg resources have been placed into the resource table. */
-static int __initdata pci_mmcfg_resources_inserted;
+static bool pci_mmcfg_running_state;
+static bool pci_mmcfg_arch_init_failed;
+static DEFINE_MUTEX(pci_mmcfg_lock);
 
 LIST_HEAD(pci_mmcfg_list);
 
@@ -45,24 +49,25 @@ static __init void free_all_mmcfg(void)
 		pci_mmconfig_remove(cfg);
 }
 
-static __init void list_add_sorted(struct pci_mmcfg_region *new)
+static __devinit void list_add_sorted(struct pci_mmcfg_region *new)
 {
 	struct pci_mmcfg_region *cfg;
 
 	/* keep list sorted by segment and starting bus number */
-	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
+	list_for_each_entry_rcu(cfg, &pci_mmcfg_list, list) {
 		if (cfg->segment > new->segment ||
 		    (cfg->segment == new->segment &&
 		     cfg->start_bus >= new->start_bus)) {
-			list_add_tail(&new->list, &cfg->list);
+			list_add_tail_rcu(&new->list, &cfg->list);
 			return;
 		}
 	}
-	list_add_tail(&new->list, &pci_mmcfg_list);
+	list_add_tail_rcu(&new->list, &pci_mmcfg_list);
 }
 
-static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
-							int end, u64 addr)
+static __devinit struct pci_mmcfg_region *pci_mmconfig_alloc(int segment,
+							     int start,
+							     int end, u64 addr)
 {
 	struct pci_mmcfg_region *new;
 	struct resource *res;
@@ -79,8 +84,6 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 	new->start_bus = start;
 	new->end_bus = end;
 
-	list_add_sorted(new);
-
 	res = &new->res;
 	res->start = addr + PCI_MMCFG_BUS_OFFSET(start);
 	res->end = addr + PCI_MMCFG_BUS_OFFSET(end + 1) - 1;
@@ -89,9 +92,25 @@ static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
 		 "PCI MMCONFIG %04x [bus %02x-%02x]", segment, start, end);
 	res->name = new->name;
 
-	printk(KERN_INFO PREFIX "MMCONFIG for domain %04x [bus %02x-%02x] at "
-	       "%pR (base %#lx)\n", segment, start, end, &new->res,
-	       (unsigned long) addr);
+	return new;
+}
+
+static __init struct pci_mmcfg_region *pci_mmconfig_add(int segment, int start,
+							int end, u64 addr)
+{
+	struct pci_mmcfg_region *new;
+
+	new = pci_mmconfig_alloc(segment, start, end, addr);
+	if (new) {
+		mutex_lock(&pci_mmcfg_lock);
+		list_add_sorted(new);
+		mutex_unlock(&pci_mmcfg_lock);
+
+		pr_info(PREFIX
+		       "MMCONFIG for domain %04x [bus %02x-%02x] at %pR "
+		       "(base %#lx)\n",
+		       segment, start, end, &new->res, (unsigned long)addr);
+	}
 
 	return new;
 }
@@ -100,7 +119,7 @@ struct pci_mmcfg_region *pci_mmconfig_lookup(int segment, int bus)
 {
 	struct pci_mmcfg_region *cfg;
 
-	list_for_each_entry(cfg, &pci_mmcfg_list, list)
+	list_for_each_entry_rcu(cfg, &pci_mmcfg_list, list)
 		if (cfg->segment == segment &&
 		    cfg->start_bus <= bus && bus <= cfg->end_bus)
 			return cfg;
@@ -343,8 +362,7 @@ static int __init pci_mmcfg_check_hostbridge(void)
 			name = pci_mmcfg_probes[i].probe();
 
 		if (name)
-			printk(KERN_INFO PREFIX "%s with MMCONFIG support\n",
-			       name);
+			pr_info(PREFIX "%s with MMCONFIG support\n", name);
 	}
 
 	/* some end_bus_number is crazy, fix it */
@@ -353,19 +371,8 @@ static int __init pci_mmcfg_check_hostbridge(void)
 	return !list_empty(&pci_mmcfg_list);
 }
 
-static void __init pci_mmcfg_insert_resources(void)
-{
-	struct pci_mmcfg_region *cfg;
-
-	list_for_each_entry(cfg, &pci_mmcfg_list, list)
-		insert_resource(&iomem_resource, &cfg->res);
-
-	/* Mark that the resources have been inserted. */
-	pci_mmcfg_resources_inserted = 1;
-}
-
-static acpi_status __init check_mcfg_resource(struct acpi_resource *res,
-					      void *data)
+static acpi_status __devinit check_mcfg_resource(struct acpi_resource *res,
+						 void *data)
 {
 	struct resource *mcfg_res = data;
 	struct acpi_resource_address64 address;
@@ -401,8 +408,8 @@ static acpi_status __init check_mcfg_resource(struct acpi_resource *res,
 	return AE_OK;
 }
 
-static acpi_status __init find_mboard_resource(acpi_handle handle, u32 lvl,
-		void *context, void **rv)
+static acpi_status __devinit find_mboard_resource(acpi_handle handle, u32 lvl,
+						  void *context, void **rv)
 {
 	struct resource *mcfg_res = context;
 
@@ -415,7 +422,7 @@ static acpi_status __init find_mboard_resource(acpi_handle handle, u32 lvl,
 	return AE_OK;
 }
 
-static int __init is_acpi_reserved(u64 start, u64 end, unsigned not_used)
+static int __devinit is_acpi_reserved(u64 start, u64 end, unsigned not_used)
 {
 	struct resource mcfg_res;
 
@@ -434,13 +441,15 @@ static int __init is_acpi_reserved(u64 start, u64 end, unsigned not_used)
 
 typedef int (*check_reserved_t)(u64 start, u64 end, unsigned type);
 
-static int __init is_mmconf_reserved(check_reserved_t is_reserved,
-				    struct pci_mmcfg_region *cfg, int with_e820)
+static int __ref is_mmconf_reserved(check_reserved_t is_reserved,
+				    struct pci_mmcfg_region *cfg,
+				    struct device *dev, int with_e820)
 {
 	u64 addr = cfg->res.start;
 	u64 size = resource_size(&cfg->res);
 	u64 old_size = size;
-	int valid = 0, num_buses;
+	int num_buses;
+	char *method = with_e820 ? "E820" : "ACPI motherboard resources";
 
 	while (!is_reserved(addr, addr + size, E820_RESERVED)) {
 		size >>= 1;
@@ -448,30 +457,76 @@ static int __init is_mmconf_reserved(check_reserved_t is_reserved,
 			break;
 	}
 
-	if (size >= (16UL<<20) || size == old_size) {
-		printk(KERN_INFO PREFIX "MMCONFIG at %pR reserved in %s\n",
-		       &cfg->res,
-		       with_e820 ? "E820" : "ACPI motherboard resources");
-		valid = 1;
+	if (size < (16UL<<20) && size != old_size)
+		return 0;
 
-		if (old_size != size) {
-			/* update end_bus */
-			cfg->end_bus = cfg->start_bus + ((size>>20) - 1);
-			num_buses = cfg->end_bus - cfg->start_bus + 1;
-			cfg->res.end = cfg->res.start +
-			    PCI_MMCFG_BUS_OFFSET(num_buses) - 1;
-			snprintf(cfg->name, PCI_MMCFG_RESOURCE_NAME_LEN,
-				 "PCI MMCONFIG %04x [bus %02x-%02x]",
-				 cfg->segment, cfg->start_bus, cfg->end_bus);
-			printk(KERN_INFO PREFIX
-			       "MMCONFIG for %04x [bus%02x-%02x] "
-			       "at %pR (base %#lx) (size reduced!)\n",
-			       cfg->segment, cfg->start_bus, cfg->end_bus,
-			       &cfg->res, (unsigned long) cfg->address);
-		}
+	if (dev)
+		dev_info(dev, "MMCONFIG at %pR reserved in %s\n",
+			 &cfg->res, method);
+	else
+		pr_info(PREFIX "MMCONFIG at %pR reserved in %s\n",
+		       &cfg->res, method);
+
+	if (old_size != size) {
+		/* update end_bus */
+		cfg->end_bus = cfg->start_bus + ((size>>20) - 1);
+		num_buses = cfg->end_bus - cfg->start_bus + 1;
+		cfg->res.end = cfg->res.start +
+		    PCI_MMCFG_BUS_OFFSET(num_buses) - 1;
+		snprintf(cfg->name, PCI_MMCFG_RESOURCE_NAME_LEN,
+			 "PCI MMCONFIG %04x [bus %02x-%02x]",
+			 cfg->segment, cfg->start_bus, cfg->end_bus);
+
+		if (dev)
+			dev_info(dev,
+				"MMCONFIG "
+				"at %pR (base %#lx) (size reduced!)\n",
+				&cfg->res, (unsigned long) cfg->address);
+		else
+			pr_info(PREFIX
+				"MMCONFIG for %04x [bus%02x-%02x] "
+				"at %pR (base %#lx) (size reduced!)\n",
+				cfg->segment, cfg->start_bus, cfg->end_bus,
+				&cfg->res, (unsigned long) cfg->address);
 	}
 
-	return valid;
+	return 1;
+}
+
+static int __ref pci_mmcfg_check_reserved(struct device *dev,
+		  struct pci_mmcfg_region *cfg, int early)
+{
+	if (!early && !acpi_disabled) {
+		if (is_mmconf_reserved(is_acpi_reserved, cfg, dev, 0))
+			return 1;
+
+		if (dev)
+			dev_info(dev, FW_INFO
+				 "MMCONFIG at %pR not reserved in "
+				 "ACPI motherboard resources\n",
+				 &cfg->res);
+		else
+			pr_info(FW_INFO PREFIX
+			       "MMCONFIG at %pR not reserved in "
+			       "ACPI motherboard resources\n",
+			       &cfg->res);
+	}
+
+	/*
+	 * e820_all_mapped() is marked as __init.
+	 * All entries from ACPI MCFG table have been checked at boot time.
+	 * For MCFG information constructed from hotpluggable host bridge's
+	 * _CBA method, just assume it's reserved.
+	 */
+	if (pci_mmcfg_running_state)
+		return 1;
+
+	/* Don't try to do this check unless configuration
+	   type 1 is available. how about type 2 ?*/
+	if (raw_pci_ops)
+		return is_mmconf_reserved(e820_all_mapped, cfg, dev, 1);
+
+	return 0;
 }
 
 static void __init pci_mmcfg_reject_broken(int early)
@@ -479,37 +534,13 @@ static void __init pci_mmcfg_reject_broken(int early)
 	struct pci_mmcfg_region *cfg;
 
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
-		int valid = 0;
-
-		if (!early && !acpi_disabled) {
-			valid = is_mmconf_reserved(is_acpi_reserved, cfg, 0);
-
-			if (valid)
-				continue;
-			else
-				printk(KERN_ERR FW_BUG PREFIX
-				       "MMCONFIG at %pR not reserved in "
-				       "ACPI motherboard resources\n",
-				       &cfg->res);
+		if (pci_mmcfg_check_reserved(NULL, cfg, early) == 0) {
+			pr_info(PREFIX "not using MMCONFIG\n");
+			free_all_mmcfg();
+			return;
 		}
-
-		/* Don't try to do this check unless configuration
-		   type 1 is available. how about type 2 ?*/
-		if (raw_pci_ops)
-			valid = is_mmconf_reserved(e820_all_mapped, cfg, 1);
-
-		if (!valid)
-			goto reject;
 	}
-
-	return;
-
-reject:
-	printk(KERN_INFO PREFIX "not using MMCONFIG\n");
-	free_all_mmcfg();
 }
-
-static int __initdata known_bridge;
 
 static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
 					struct acpi_mcfg_allocation *cfg)
@@ -529,7 +560,7 @@ static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
 			return 0;
 	}
 
-	printk(KERN_ERR PREFIX "MCFG region for %04x [bus %02x-%02x] at %#llx "
+	pr_err(PREFIX "MCFG region for %04x [bus %02x-%02x] at %#llx "
 	       "is above 4GB, ignored\n", cfg->pci_segment,
 	       cfg->start_bus_number, cfg->end_bus_number, cfg->address);
 	return -EINVAL;
@@ -556,7 +587,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 		i -= sizeof(struct acpi_mcfg_allocation);
 	};
 	if (entries == 0) {
-		printk(KERN_ERR PREFIX "MMCONFIG has no entries\n");
+		pr_err(PREFIX "MMCONFIG has no entries\n");
 		return -ENODEV;
 	}
 
@@ -570,8 +601,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 
 		if (pci_mmconfig_add(cfg->pci_segment, cfg->start_bus_number,
 				   cfg->end_bus_number, cfg->address) == NULL) {
-			printk(KERN_WARNING PREFIX
-			       "no memory for MCFG entries\n");
+			pr_warn(PREFIX "no memory for MCFG entries\n");
 			free_all_mmcfg();
 			return -ENOMEM;
 		}
@@ -582,28 +612,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 
 static void __init __pci_mmcfg_init(int early)
 {
-	/* MMCONFIG disabled */
-	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
-		return;
-
-	/* MMCONFIG already enabled */
-	if (!early && !(pci_probe & PCI_PROBE_MASK & ~PCI_PROBE_MMCONF))
-		return;
-
-	/* for late to exit */
-	if (known_bridge)
-		return;
-
-	if (early) {
-		if (pci_mmcfg_check_hostbridge())
-			known_bridge = 1;
-	}
-
-	if (!known_bridge)
-		acpi_sfi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
-
 	pci_mmcfg_reject_broken(early);
-
 	if (list_empty(&pci_mmcfg_list))
 		return;
 
@@ -620,33 +629,48 @@ static void __init __pci_mmcfg_init(int early)
 	if (pci_mmcfg_arch_init())
 		pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
 	else {
-		/*
-		 * Signal not to attempt to insert mmcfg resources because
-		 * the architecture mmcfg setup could not initialize.
-		 */
-		pci_mmcfg_resources_inserted = 1;
+		free_all_mmcfg();
+		pci_mmcfg_arch_init_failed = true;
 	}
 }
 
+static int __initdata known_bridge;
+
 void __init pci_mmcfg_early_init(void)
 {
-	__pci_mmcfg_init(1);
+	if (pci_probe & PCI_PROBE_MMCONF) {
+		if (pci_mmcfg_check_hostbridge())
+			known_bridge = 1;
+		else
+			acpi_sfi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
+		__pci_mmcfg_init(1);
+	}
 }
 
 void __init pci_mmcfg_late_init(void)
 {
-	__pci_mmcfg_init(0);
+	/* MMCONFIG disabled */
+	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
+		return;
+
+	if (known_bridge)
+		return;
+
+	/* MMCONFIG hasn't been enabled yet, try again */
+	if (pci_probe & PCI_PROBE_MASK & ~PCI_PROBE_MMCONF) {
+		acpi_sfi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
+		__pci_mmcfg_init(0);
+	}
 }
 
 static int __init pci_mmcfg_late_insert_resources(void)
 {
-	/*
-	 * If resources are already inserted or we are not using MMCONFIG,
-	 * don't insert the resources.
-	 */
-	if ((pci_mmcfg_resources_inserted == 1) ||
-	    (pci_probe & PCI_PROBE_MMCONF) == 0 ||
-	    list_empty(&pci_mmcfg_list))
+	struct pci_mmcfg_region *cfg;
+
+	pci_mmcfg_running_state = true;
+
+	/* If we are not using MMCONFIG, don't insert the resources. */
+	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return 1;
 
 	/*
@@ -654,7 +678,9 @@ static int __init pci_mmcfg_late_insert_resources(void)
 	 * marked so it won't cause request errors when __request_region is
 	 * called.
 	 */
-	pci_mmcfg_insert_resources();
+	list_for_each_entry(cfg, &pci_mmcfg_list, list)
+		if (!cfg->res.parent)
+			insert_resource(&iomem_resource, &cfg->res);
 
 	return 0;
 }
@@ -665,3 +691,101 @@ static int __init pci_mmcfg_late_insert_resources(void)
  * with other system resources.
  */
 late_initcall(pci_mmcfg_late_insert_resources);
+
+/* Add MMCFG information for host bridges */
+int __devinit pci_mmconfig_insert(struct device *dev,
+				  u16 seg, u8 start, u8 end,
+				  phys_addr_t addr)
+{
+	int rc;
+	struct resource *tmp = NULL;
+	struct pci_mmcfg_region *cfg;
+
+	if (!(pci_probe & PCI_PROBE_MMCONF) || pci_mmcfg_arch_init_failed)
+		return -ENODEV;
+
+	if (start > end)
+		return -EINVAL;
+
+	mutex_lock(&pci_mmcfg_lock);
+	cfg = pci_mmconfig_lookup(seg, start);
+	if (cfg) {
+		if (cfg->end_bus < end)
+			dev_info(dev, FW_INFO
+				 "MMCONFIG for "
+				 "domain %04x [bus %02x-%02x] "
+				 "only partially covers this bridge\n",
+				  cfg->segment, cfg->start_bus, cfg->end_bus);
+		mutex_unlock(&pci_mmcfg_lock);
+		return -EEXIST;
+	}
+
+	if (!addr) {
+		mutex_unlock(&pci_mmcfg_lock);
+		return -EINVAL;
+	}
+
+	rc = -EBUSY;
+	cfg = pci_mmconfig_alloc(seg, start, end, addr);
+	if (cfg == NULL) {
+		dev_warn(dev, "fail to add MMCONFIG (out of memory)\n");
+		rc = -ENOMEM;
+	} else if (!pci_mmcfg_check_reserved(dev, cfg, 0)) {
+		dev_warn(dev, FW_BUG "MMCONFIG %pR isn't reserved\n",
+			 &cfg->res);
+	} else {
+		/* Insert resource if it's not in boot stage */
+		if (pci_mmcfg_running_state)
+			tmp = insert_resource_conflict(&iomem_resource,
+						       &cfg->res);
+
+		if (tmp) {
+			dev_warn(dev,
+				 "MMCONFIG %pR conflicts with "
+				 "%s %pR\n",
+				 &cfg->res, tmp->name, tmp);
+		} else if (pci_mmcfg_arch_map(cfg)) {
+			dev_warn(dev, "fail to map MMCONFIG %pR.\n",
+				 &cfg->res);
+		} else {
+			list_add_sorted(cfg);
+			dev_info(dev, "MMCONFIG at %pR (base %#lx)\n",
+				 &cfg->res, (unsigned long)addr);
+			cfg = NULL;
+			rc = 0;
+		}
+	}
+
+	if (cfg) {
+		if (cfg->res.parent)
+			release_resource(&cfg->res);
+		kfree(cfg);
+	}
+
+	mutex_unlock(&pci_mmcfg_lock);
+
+	return rc;
+}
+
+/* Delete MMCFG information for host bridges */
+int pci_mmconfig_delete(u16 seg, u8 start, u8 end)
+{
+	struct pci_mmcfg_region *cfg;
+
+	mutex_lock(&pci_mmcfg_lock);
+	list_for_each_entry_rcu(cfg, &pci_mmcfg_list, list)
+		if (cfg->segment == seg && cfg->start_bus == start &&
+		    cfg->end_bus == end) {
+			list_del_rcu(&cfg->list);
+			synchronize_rcu();
+			pci_mmcfg_arch_unmap(cfg);
+			if (cfg->res.parent)
+				release_resource(&cfg->res);
+			mutex_unlock(&pci_mmcfg_lock);
+			kfree(cfg);
+			return 0;
+		}
+	mutex_unlock(&pci_mmcfg_lock);
+
+	return -ENOENT;
+}

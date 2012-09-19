@@ -837,10 +837,8 @@ static int ov2640_g_fmt(struct v4l2_subdev *sd,
 
 	if (!priv->win) {
 		u32 width = W_SVGA, height = H_SVGA;
-		int ret = ov2640_set_params(client, &width, &height,
-					    V4L2_MBUS_FMT_UYVY8_2X8);
-		if (ret < 0)
-			return ret;
+		priv->win = ov2640_select_win(&width, &height);
+		priv->cfmt_code = V4L2_MBUS_FMT_UYVY8_2X8;
 	}
 
 	mf->width	= priv->win->width;

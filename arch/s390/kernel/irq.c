@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 2004,2011
+ *    Copyright IBM Corp. 2004, 2011
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Holger Smolinski <Holger.Smolinski@de.ibm.com>,
  *		 Thomas Spatzier <tspat@de.ibm.com>,

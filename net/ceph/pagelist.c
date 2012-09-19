@@ -72,8 +72,7 @@ int ceph_pagelist_append(struct ceph_pagelist *pl, const void *buf, size_t len)
 }
 EXPORT_SYMBOL(ceph_pagelist_append);
 
-/**
- * Allocate enough pages for a pagelist to append the given amount
+/* Allocate enough pages for a pagelist to append the given amount
  * of data without without allocating.
  * Returns: 0 on success, -ENOMEM on error.
  */
@@ -95,9 +94,7 @@ int ceph_pagelist_reserve(struct ceph_pagelist *pl, size_t space)
 }
 EXPORT_SYMBOL(ceph_pagelist_reserve);
 
-/**
- * Free any pages that have been preallocated.
- */
+/* Free any pages that have been preallocated. */
 int ceph_pagelist_free_reserve(struct ceph_pagelist *pl)
 {
 	while (!list_empty(&pl->free_list)) {
@@ -112,9 +109,7 @@ int ceph_pagelist_free_reserve(struct ceph_pagelist *pl)
 }
 EXPORT_SYMBOL(ceph_pagelist_free_reserve);
 
-/**
- * Create a truncation point.
- */
+/* Create a truncation point. */
 void ceph_pagelist_set_cursor(struct ceph_pagelist *pl,
 			      struct ceph_pagelist_cursor *c)
 {
@@ -124,8 +119,7 @@ void ceph_pagelist_set_cursor(struct ceph_pagelist *pl,
 }
 EXPORT_SYMBOL(ceph_pagelist_set_cursor);
 
-/**
- * Truncate a pagelist to the given point. Move extra pages to reserve.
+/* Truncate a pagelist to the given point. Move extra pages to reserve.
  * This won't sleep.
  * Returns: 0 on success,
  *          -EINVAL if the pagelist doesn't match the trunc point pagelist

@@ -17,8 +17,8 @@
 #include <asm/intrinsics.h>
 
 
-#define ATOMIC_INIT(i)		((atomic_t) { (i) })
-#define ATOMIC64_INIT(i)	((atomic64_t) { (i) })
+#define ATOMIC_INIT(i)		{ (i) }
+#define ATOMIC64_INIT(i)	{ (i) }
 
 #define atomic_read(v)		(*(volatile int *)&(v)->counter)
 #define atomic64_read(v)	(*(volatile long *)&(v)->counter)

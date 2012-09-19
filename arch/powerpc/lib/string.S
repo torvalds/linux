@@ -119,6 +119,7 @@ _GLOBAL(memchr)
 2:	li	r3,0
 	blr
 
+#ifdef CONFIG_PPC32
 _GLOBAL(__clear_user)
 	addi	r6,r3,-4
 	li	r3,0
@@ -160,3 +161,4 @@ _GLOBAL(__clear_user)
 	PPC_LONG	1b,91b
 	PPC_LONG	8b,92b
 	.text
+#endif

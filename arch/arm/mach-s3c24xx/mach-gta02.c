@@ -71,7 +71,6 @@
 
 #include <mach/regs-irq.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-gpioj.h>
 #include <mach/fb.h>
 
 #include <plat/usb-control.h>

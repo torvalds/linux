@@ -67,6 +67,7 @@ struct xfs_ail {
 	struct task_struct	*xa_task;
 	struct list_head	xa_ail;
 	xfs_lsn_t		xa_target;
+	xfs_lsn_t		xa_target_prev;
 	struct list_head	xa_cursors;
 	spinlock_t		xa_lock;
 	xfs_lsn_t		xa_last_pushed_lsn;

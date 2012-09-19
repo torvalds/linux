@@ -310,10 +310,10 @@ static void __init cpmac_get_mac(int instance, unsigned char *dev_addr)
 					&dev_addr[4], &dev_addr[5]) != 6) {
 			pr_warning("cannot parse mac address, "
 					"using random address\n");
-			random_ether_addr(dev_addr);
+			eth_random_addr(dev_addr);
 		}
 	} else
-		random_ether_addr(dev_addr);
+		eth_random_addr(dev_addr);
 }
 
 /*****************************************************************************

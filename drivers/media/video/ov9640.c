@@ -605,6 +605,7 @@ static int ov9640_video_probe(struct i2c_client *client)
 		devname		= "ov9640";
 		priv->model	= V4L2_IDENT_OV9640;
 		priv->revision	= 2;
+		break;
 	case OV9640_V3:
 		devname		= "ov9640";
 		priv->model	= V4L2_IDENT_OV9640;

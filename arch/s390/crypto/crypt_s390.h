@@ -3,7 +3,7 @@
  *
  * Support for s390 cryptographic instructions.
  *
- *   Copyright IBM Corp. 2003,2007
+ *   Copyright IBM Corp. 2003, 2007
  *   Author(s): Thomas Spatzier
  *		Jan Glauber (jan.glauber@de.ibm.com)
  *

@@ -108,7 +108,7 @@ static int __devinit pca9633_probe(struct i2c_client *client,
 		}
 	}
 
-	pca9633 = kcalloc(4, sizeof(*pca9633), GFP_KERNEL);
+	pca9633 = devm_kzalloc(&client->dev, 4 * sizeof(*pca9633), GFP_KERNEL);
 	if (!pca9633)
 		return -ENOMEM;
 
@@ -156,8 +156,6 @@ exit:
 		cancel_work_sync(&pca9633[i].work);
 	}
 
-	kfree(pca9633);
-
 	return err;
 }
 
@@ -170,8 +168,6 @@ static int __devexit pca9633_remove(struct i2c_client *client)
 		led_classdev_unregister(&pca9633[i].led_cdev);
 		cancel_work_sync(&pca9633[i].work);
 	}
-
-	kfree(pca9633);
 
 	return 0;
 }

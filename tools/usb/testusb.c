@@ -425,7 +425,7 @@ int main (int argc, char **argv)
 	/* for easy use when hotplugging */
 	device = getenv ("DEVICE");
 
-	while ((c = getopt (argc, argv, "D:aA:c:g:hns:t:v:")) != EOF)
+	while ((c = getopt (argc, argv, "D:aA:c:g:hlns:t:v:")) != EOF)
 	switch (c) {
 	case 'D':	/* device, if only one */
 		device = optarg;
@@ -468,10 +468,21 @@ int main (int argc, char **argv)
 	case 'h':
 	default:
 usage:
-		fprintf (stderr, "usage: %s [-n] [-D dev | -a | -A usbfs-dir]\n"
-			"\t[-c iterations]  [-t testnum]\n"
-			"\t[-s packetsize] [-g sglen] [-v vary]\n",
-			argv [0]);
+		fprintf (stderr,
+			"usage: %s [options]\n"
+			"Options:\n"
+			"\t-D dev		only test specific device\n"
+			"\t-A usbfs-dir\n"
+			"\t-a		test all recognized devices\n"
+			"\t-l		loop forever(for stress test)\n"
+			"\t-t testnum	only run specified case\n"
+			"\t-n		no test running, show devices to be tested\n"
+			"Case arguments:\n"
+			"\t-c iterations	default 1000\n"
+			"\t-s packetsize	default 512\n"
+			"\t-g sglen	default 32\n"
+			"\t-v vary		default 512\n",
+			argv[0]);
 		return 1;
 	}
 	if (optind != argc)

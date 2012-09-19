@@ -316,13 +316,12 @@ static void get_total_mem(struct cpc925_mc_pdata *pdata)
 		reg += aw;
 		size = of_read_number(reg, sw);
 		reg += sw;
-		debugf1("%s: start 0x%lx, size 0x%lx\n", __func__,
-			start, size);
+		edac_dbg(1, "start 0x%lx, size 0x%lx\n", start, size);
 		pdata->total_mem += size;
 	} while (reg < reg_end);
 
 	of_node_put(np);
-	debugf0("%s: total_mem 0x%lx\n", __func__, pdata->total_mem);
+	edac_dbg(0, "total_mem 0x%lx\n", pdata->total_mem);
 }
 
 static void cpc925_init_csrows(struct mem_ctl_info *mci)
@@ -330,8 +329,9 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 	struct cpc925_mc_pdata *pdata = mci->pvt_info;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
+	enum dev_type dtype;
 	int index, j;
-	u32 mbmr, mbbar, bba;
+	u32 mbmr, mbbar, bba, grain;
 	unsigned long row_size, nr_pages, last_nr_pages = 0;
 
 	get_total_mem(pdata);
@@ -347,7 +347,7 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 		if (bba == 0)
 			continue; /* not populated */
 
-		csrow = &mci->csrows[index];
+		csrow = mci->csrows[index];
 
 		row_size = bba * (1UL << 28);	/* 256M */
 		csrow->first_page = last_nr_pages;
@@ -355,37 +355,36 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 		csrow->last_page = csrow->first_page + nr_pages - 1;
 		last_nr_pages = csrow->last_page + 1;
 
+		switch (csrow->nr_channels) {
+		case 1: /* Single channel */
+			grain = 32; /* four-beat burst of 32 bytes */
+			break;
+		case 2: /* Dual channel */
+		default:
+			grain = 64; /* four-beat burst of 64 bytes */
+			break;
+		}
+		switch ((mbmr & MBMR_MODE_MASK) >> MBMR_MODE_SHIFT) {
+		case 6: /* 0110, no way to differentiate X8 VS X16 */
+		case 5:	/* 0101 */
+		case 8: /* 1000 */
+			dtype = DEV_X16;
+			break;
+		case 7: /* 0111 */
+		case 9: /* 1001 */
+			dtype = DEV_X8;
+			break;
+		default:
+			dtype = DEV_UNKNOWN;
+		break;
+		}
 		for (j = 0; j < csrow->nr_channels; j++) {
-			dimm = csrow->channels[j].dimm;
-
+			dimm = csrow->channels[j]->dimm;
 			dimm->nr_pages = nr_pages / csrow->nr_channels;
 			dimm->mtype = MEM_RDDR;
 			dimm->edac_mode = EDAC_SECDED;
-
-			switch (csrow->nr_channels) {
-			case 1: /* Single channel */
-				dimm->grain = 32; /* four-beat burst of 32 bytes */
-				break;
-			case 2: /* Dual channel */
-			default:
-				dimm->grain = 64; /* four-beat burst of 64 bytes */
-				break;
-			}
-
-			switch ((mbmr & MBMR_MODE_MASK) >> MBMR_MODE_SHIFT) {
-			case 6: /* 0110, no way to differentiate X8 VS X16 */
-			case 5:	/* 0101 */
-			case 8: /* 1000 */
-				dimm->dtype = DEV_X16;
-				break;
-			case 7: /* 0111 */
-			case 9: /* 1001 */
-				dimm->dtype = DEV_X8;
-				break;
-			default:
-				dimm->dtype = DEV_UNKNOWN;
-				break;
-			}
+			dimm->grain = grain;
+			dimm->dtype = dtype;
 		}
 	}
 }
@@ -463,7 +462,7 @@ static void cpc925_mc_get_pfn(struct mem_ctl_info *mci, u32 mear,
 	*csrow = rank;
 
 #ifdef CONFIG_EDAC_DEBUG
-	if (mci->csrows[rank].first_page == 0) {
+	if (mci->csrows[rank]->first_page == 0) {
 		cpc925_mc_printk(mci, KERN_ERR, "ECC occurs in a "
 			"non-populated csrow, broken hardware?\n");
 		return;
@@ -471,7 +470,7 @@ static void cpc925_mc_get_pfn(struct mem_ctl_info *mci, u32 mear,
 #endif
 
 	/* Revert csrow number */
-	pa = mci->csrows[rank].first_page << PAGE_SHIFT;
+	pa = mci->csrows[rank]->first_page << PAGE_SHIFT;
 
 	/* Revert column address */
 	col += bcnt;
@@ -512,7 +511,7 @@ static void cpc925_mc_get_pfn(struct mem_ctl_info *mci, u32 mear,
 	*offset = pa & (PAGE_SIZE - 1);
 	*pfn = pa >> PAGE_SHIFT;
 
-	debugf0("%s: ECC physical address 0x%lx\n", __func__, pa);
+	edac_dbg(0, "ECC physical address 0x%lx\n", pa);
 }
 
 static int cpc925_mc_find_channel(struct mem_ctl_info *mci, u16 syndrome)
@@ -555,18 +554,18 @@ static void cpc925_mc_check(struct mem_ctl_info *mci)
 	if (apiexcp & CECC_EXCP_DETECTED) {
 		cpc925_mc_printk(mci, KERN_INFO, "DRAM CECC Fault\n");
 		channel = cpc925_mc_find_channel(mci, syndrome);
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     pfn, offset, syndrome,
 				     csrow, channel, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 	}
 
 	if (apiexcp & UECC_EXCP_DETECTED) {
 		cpc925_mc_printk(mci, KERN_INFO, "DRAM UECC Fault\n");
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     pfn, offset, 0,
 				     csrow, -1, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 	}
 
 	cpc925_mc_printk(mci, KERN_INFO, "Dump registers:\n");
@@ -852,8 +851,8 @@ static void cpc925_add_edac_devices(void __iomem *vbase)
 			goto err2;
 		}
 
-		debugf0("%s: Successfully added edac device for %s\n",
-			__func__, dev_info->ctl_name);
+		edac_dbg(0, "Successfully added edac device for %s\n",
+			 dev_info->ctl_name);
 
 		continue;
 
@@ -884,8 +883,8 @@ static void cpc925_del_edac_devices(void)
 		if (dev_info->exit)
 			dev_info->exit(dev_info);
 
-		debugf0("%s: Successfully deleted edac device for %s\n",
-			__func__, dev_info->ctl_name);
+		edac_dbg(0, "Successfully deleted edac device for %s\n",
+			 dev_info->ctl_name);
 	}
 }
 
@@ -900,7 +899,7 @@ static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci)
 	mscr = __raw_readl(pdata->vbase + REG_MSCR_OFFSET);
 	si = (mscr & MSCR_SI_MASK) >> MSCR_SI_SHIFT;
 
-	debugf0("%s, Mem Scrub Ctrl Register 0x%x\n", __func__, mscr);
+	edac_dbg(0, "Mem Scrub Ctrl Register 0x%x\n", mscr);
 
 	if (((mscr & MSCR_SCRUB_MOD_MASK) != MSCR_BACKGR_SCRUB) ||
 	    (si == 0)) {
@@ -928,8 +927,7 @@ static int cpc925_mc_get_channels(void __iomem *vbase)
 	    ((mbcr & MBCR_64BITBUS_MASK) == 0))
 		dual = 1;
 
-	debugf0("%s: %s channel\n", __func__,
-		(dual > 0) ? "Dual" : "Single");
+	edac_dbg(0, "%s channel\n", (dual > 0) ? "Dual" : "Single");
 
 	return dual;
 }
@@ -944,7 +942,7 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 	struct resource *r;
 	int res = 0, nr_channels;
 
-	debugf0("%s: %s platform device found!\n", __func__, pdev->name);
+	edac_dbg(0, "%s platform device found!\n", pdev->name);
 
 	if (!devres_open_group(&pdev->dev, cpc925_probe, GFP_KERNEL)) {
 		res = -ENOMEM;
@@ -995,7 +993,7 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 	pdata->edac_idx = edac_mc_idx++;
 	pdata->name = pdev->name;
 
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	platform_set_drvdata(pdev, mci);
 	mci->dev_name = dev_name(&pdev->dev);
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_DDR;
@@ -1026,7 +1024,7 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 	cpc925_add_edac_devices(vbase);
 
 	/* get this far and it's successful */
-	debugf0("%s: success\n", __func__);
+	edac_dbg(0, "success\n");
 
 	res = 0;
 	goto out;

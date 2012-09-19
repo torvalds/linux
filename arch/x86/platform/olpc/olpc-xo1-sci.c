@@ -23,6 +23,7 @@
 #include <linux/power_supply.h>
 #include <linux/suspend.h>
 #include <linux/workqueue.h>
+#include <linux/olpc-ec.h>
 
 #include <asm/io.h>
 #include <asm/msr.h>

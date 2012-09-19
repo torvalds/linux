@@ -64,10 +64,6 @@ early_param("noallocl2", set_noallocl2);
 
 #endif
 
-/* Provide no-op versions of these routines to keep flush_remote() cleaner. */
-#define mark_caches_evicted_start() 0
-#define mark_caches_evicted_finish(mask, timestamp) do {} while (0)
-
 
 /*
  * Update the irq_stat for cpus that we are going to interrupt
@@ -107,7 +103,6 @@ static void hv_flush_update(const struct cpumask *cache_cpumask,
  *    there's never any good reason for hv_flush_remote() to fail.
  *  - Accepts a 32-bit PFN rather than a 64-bit PA, which generally
  *    is the type that Linux wants to pass around anyway.
- *  - Centralizes the mark_caches_evicted() handling.
  *  - Canonicalizes that lengths of zero make cpumasks NULL.
  *  - Handles deferring TLB flushes for dataplane tiles.
  *  - Tracks remote interrupts in the per-cpu irq_cpustat_t.
@@ -126,7 +121,6 @@ void flush_remote(unsigned long cache_pfn, unsigned long cache_control,
 		  HV_Remote_ASID *asids, int asidcount)
 {
 	int rc;
-	int timestamp = 0;  /* happy compiler */
 	struct cpumask cache_cpumask_copy, tlb_cpumask_copy;
 	struct cpumask *cache_cpumask, *tlb_cpumask;
 	HV_PhysAddr cache_pa;
@@ -157,15 +151,11 @@ void flush_remote(unsigned long cache_pfn, unsigned long cache_control,
 	hv_flush_update(cache_cpumask, tlb_cpumask, tlb_va, tlb_length,
 			asids, asidcount);
 	cache_pa = (HV_PhysAddr)cache_pfn << PAGE_SHIFT;
-	if (cache_control & HV_FLUSH_EVICT_L2)
-		timestamp = mark_caches_evicted_start();
 	rc = hv_flush_remote(cache_pa, cache_control,
 			     cpumask_bits(cache_cpumask),
 			     tlb_va, tlb_length, tlb_pgsize,
 			     cpumask_bits(tlb_cpumask),
 			     asids, asidcount);
-	if (cache_control & HV_FLUSH_EVICT_L2)
-		mark_caches_evicted_finish(cache_cpumask, timestamp);
 	if (rc == 0)
 		return;
 	cpumask_scnprintf(cache_buf, sizeof(cache_buf), &cache_cpumask_copy);
@@ -180,85 +170,86 @@ void flush_remote(unsigned long cache_pfn, unsigned long cache_control,
 	panic("Unsafe to continue.");
 }
 
-void flush_remote_page(struct page *page, int order)
+static void homecache_finv_page_va(void* va, int home)
 {
-	int i, pages = (1 << order);
-	for (i = 0; i < pages; ++i, ++page) {
-		void *p = kmap_atomic(page);
-		int hfh = 0;
-		int home = page_home(page);
-#if CHIP_HAS_CBOX_HOME_MAP()
-		if (home == PAGE_HOME_HASH)
-			hfh = 1;
-		else
-#endif
-			BUG_ON(home < 0 || home >= NR_CPUS);
-		finv_buffer_remote(p, PAGE_SIZE, hfh);
-		kunmap_atomic(p);
+	if (home == smp_processor_id()) {
+		finv_buffer_local(va, PAGE_SIZE);
+	} else if (home == PAGE_HOME_HASH) {
+		finv_buffer_remote(va, PAGE_SIZE, 1);
+	} else {
+		BUG_ON(home < 0 || home >= NR_CPUS);
+		finv_buffer_remote(va, PAGE_SIZE, 0);
 	}
+}
+
+void homecache_finv_map_page(struct page *page, int home)
+{
+	unsigned long flags;
+	unsigned long va;
+	pte_t *ptep;
+	pte_t pte;
+
+	if (home == PAGE_HOME_UNCACHED)
+		return;
+	local_irq_save(flags);
+#ifdef CONFIG_HIGHMEM
+	va = __fix_to_virt(FIX_KMAP_BEGIN + kmap_atomic_idx_push() +
+			   (KM_TYPE_NR * smp_processor_id()));
+#else
+	va = __fix_to_virt(FIX_HOMECACHE_BEGIN + smp_processor_id());
+#endif
+	ptep = virt_to_pte(NULL, (unsigned long)va);
+	pte = pfn_pte(page_to_pfn(page), PAGE_KERNEL);
+	__set_pte(ptep, pte_set_home(pte, home));
+	homecache_finv_page_va((void *)va, home);
+	__pte_clear(ptep);
+	hv_flush_page(va, PAGE_SIZE);
+#ifdef CONFIG_HIGHMEM
+	kmap_atomic_idx_pop();
+#endif
+	local_irq_restore(flags);
+}
+
+static void homecache_finv_page_home(struct page *page, int home)
+{
+	if (!PageHighMem(page) && home == page_home(page))
+		homecache_finv_page_va(page_address(page), home);
+	else
+		homecache_finv_map_page(page, home);
+}
+
+static inline bool incoherent_home(int home)
+{
+	return home == PAGE_HOME_IMMUTABLE || home == PAGE_HOME_INCOHERENT;
+}
+
+static void homecache_finv_page_internal(struct page *page, int force_map)
+{
+	int home = page_home(page);
+	if (home == PAGE_HOME_UNCACHED)
+		return;
+	if (incoherent_home(home)) {
+		int cpu;
+		for_each_cpu(cpu, &cpu_cacheable_map)
+			homecache_finv_map_page(page, cpu);
+	} else if (force_map) {
+		/* Force if, e.g., the normal mapping is migrating. */
+		homecache_finv_map_page(page, home);
+	} else {
+		homecache_finv_page_home(page, home);
+	}
+	sim_validate_lines_evicted(PFN_PHYS(page_to_pfn(page)), PAGE_SIZE);
+}
+
+void homecache_finv_page(struct page *page)
+{
+	homecache_finv_page_internal(page, 0);
 }
 
 void homecache_evict(const struct cpumask *mask)
 {
 	flush_remote(0, HV_FLUSH_EVICT_L2, mask, 0, 0, 0, NULL, NULL, 0);
 }
-
-/*
- * Return a mask of the cpus whose caches currently own these pages.
- * The return value is whether the pages are all coherently cached
- * (i.e. none are immutable, incoherent, or uncached).
- */
-static int homecache_mask(struct page *page, int pages,
-			  struct cpumask *home_mask)
-{
-	int i;
-	int cached_coherently = 1;
-	cpumask_clear(home_mask);
-	for (i = 0; i < pages; ++i) {
-		int home = page_home(&page[i]);
-		if (home == PAGE_HOME_IMMUTABLE ||
-		    home == PAGE_HOME_INCOHERENT) {
-			cpumask_copy(home_mask, cpu_possible_mask);
-			return 0;
-		}
-#if CHIP_HAS_CBOX_HOME_MAP()
-		if (home == PAGE_HOME_HASH) {
-			cpumask_or(home_mask, home_mask, &hash_for_home_map);
-			continue;
-		}
-#endif
-		if (home == PAGE_HOME_UNCACHED) {
-			cached_coherently = 0;
-			continue;
-		}
-		BUG_ON(home < 0 || home >= NR_CPUS);
-		cpumask_set_cpu(home, home_mask);
-	}
-	return cached_coherently;
-}
-
-/*
- * Return the passed length, or zero if it's long enough that we
- * believe we should evict the whole L2 cache.
- */
-static unsigned long cache_flush_length(unsigned long length)
-{
-	return (length >= CHIP_L2_CACHE_SIZE()) ? HV_FLUSH_EVICT_L2 : length;
-}
-
-/* Flush a page out of whatever cache(s) it is in. */
-void homecache_flush_cache(struct page *page, int order)
-{
-	int pages = 1 << order;
-	int length = cache_flush_length(pages * PAGE_SIZE);
-	unsigned long pfn = page_to_pfn(page);
-	struct cpumask home_mask;
-
-	homecache_mask(page, pages, &home_mask);
-	flush_remote(pfn, length, &home_mask, 0, 0, 0, NULL, NULL, 0);
-	sim_validate_lines_evicted(PFN_PHYS(pfn), pages * PAGE_SIZE);
-}
-
 
 /* Report the home corresponding to a given PTE. */
 static int pte_to_home(pte_t pte)
@@ -441,15 +432,8 @@ struct page *homecache_alloc_pages_node(int nid, gfp_t gfp_mask,
 	return page;
 }
 
-void homecache_free_pages(unsigned long addr, unsigned int order)
+void __homecache_free_pages(struct page *page, unsigned int order)
 {
-	struct page *page;
-
-	if (addr == 0)
-		return;
-
-	VM_BUG_ON(!virt_addr_valid((void *)addr));
-	page = virt_to_page((void *)addr);
 	if (put_page_testzero(page)) {
 		homecache_change_page_home(page, order, initial_page_home());
 		if (order == 0) {
@@ -460,3 +444,13 @@ void homecache_free_pages(unsigned long addr, unsigned int order)
 		}
 	}
 }
+EXPORT_SYMBOL(__homecache_free_pages);
+
+void homecache_free_pages(unsigned long addr, unsigned int order)
+{
+	if (addr != 0) {
+		VM_BUG_ON(!virt_addr_valid((void *)addr));
+		__homecache_free_pages(virt_to_page((void *)addr), order);
+	}
+}
+EXPORT_SYMBOL(homecache_free_pages);

@@ -149,8 +149,9 @@ static int __devinit lt3593_led_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EBUSY;
 
-	leds_data = kzalloc(sizeof(struct lt3593_led_data) * pdata->num_leds,
-				GFP_KERNEL);
+	leds_data = devm_kzalloc(&pdev->dev,
+			sizeof(struct lt3593_led_data) * pdata->num_leds,
+			GFP_KERNEL);
 	if (!leds_data)
 		return -ENOMEM;
 
@@ -169,8 +170,6 @@ err:
 	for (i = i - 1; i >= 0; i--)
 		delete_lt3593_led(&leds_data[i]);
 
-	kfree(leds_data);
-
 	return ret;
 }
 
@@ -184,8 +183,6 @@ static int __devexit lt3593_led_remove(struct platform_device *pdev)
 
 	for (i = 0; i < pdata->num_leds; i++)
 		delete_lt3593_led(&leds_data[i]);
-
-	kfree(leds_data);
 
 	return 0;
 }

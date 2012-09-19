@@ -4,25 +4,16 @@
 /* target_core_alua.c */
 extern struct t10_alua_lu_gp *default_lu_gp;
 
-/* target_core_cdb.c */
-int	target_emulate_inquiry(struct se_cmd *cmd);
-int	target_emulate_readcapacity(struct se_cmd *cmd);
-int	target_emulate_readcapacity_16(struct se_cmd *cmd);
-int	target_emulate_modesense(struct se_cmd *cmd);
-int	target_emulate_request_sense(struct se_cmd *cmd);
-int	target_emulate_unmap(struct se_cmd *cmd);
-int	target_emulate_write_same(struct se_cmd *cmd);
-int	target_emulate_synchronize_cache(struct se_cmd *cmd);
-int	target_emulate_noop(struct se_cmd *cmd);
-
 /* target_core_device.c */
 struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_node_acl *, u16);
 int	core_free_device_list_for_node(struct se_node_acl *,
 		struct se_portal_group *);
 void	core_dec_lacl_count(struct se_node_acl *, struct se_cmd *);
 void	core_update_device_list_access(u32, u32, struct se_node_acl *);
-int	core_update_device_list_for_node(struct se_lun *, struct se_lun_acl *,
-		u32, u32, struct se_node_acl *, struct se_portal_group *, int);
+int	core_enable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
+		u32, u32, struct se_node_acl *, struct se_portal_group *);
+int	core_disable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
+		u32, u32, struct se_node_acl *, struct se_portal_group *);
 void	core_clear_lun_from_tpg(struct se_lun *, struct se_portal_group *);
 int	core_dev_export(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
@@ -56,8 +47,7 @@ int	se_dev_set_max_sectors(struct se_device *, u32);
 int	se_dev_set_fabric_max_sectors(struct se_device *, u32);
 int	se_dev_set_optimal_sectors(struct se_device *, u32);
 int	se_dev_set_block_size(struct se_device *, u32);
-struct se_lun *core_dev_add_lun(struct se_portal_group *, struct se_hba *,
-		struct se_device *, u32);
+struct se_lun *core_dev_add_lun(struct se_portal_group *, struct se_device *, u32);
 int	core_dev_del_lun(struct se_portal_group *, u32);
 struct se_lun *core_get_lun_from_tpg(struct se_portal_group *, u32);
 struct se_lun_acl *core_dev_init_initiator_node_lun_acl(struct se_portal_group *,
@@ -104,7 +94,6 @@ void	release_se_kmem_caches(void);
 u32	scsi_get_new_index(scsi_index_t);
 void	transport_subsystem_check_init(void);
 void	transport_cmd_finish_abort(struct se_cmd *, int);
-void	__target_remove_from_execute_list(struct se_cmd *);
 unsigned char *transport_dump_cmd_direction(struct se_cmd *);
 void	transport_dump_dev_state(struct se_device *, char *, int *);
 void	transport_dump_dev_info(struct se_device *, struct se_lun *,
@@ -116,6 +105,7 @@ int	transport_dump_vpd_ident(struct t10_vpd *, unsigned char *, int);
 bool	target_stop_cmd(struct se_cmd *cmd, unsigned long *flags);
 int	transport_clear_lun_from_sessions(struct se_lun *);
 void	transport_send_task_abort(struct se_cmd *);
+int	target_cmd_size_check(struct se_cmd *cmd, unsigned int size);
 
 /* target_core_stat.c */
 void	target_stat_setup_dev_default_groups(struct se_subsystem_dev *);

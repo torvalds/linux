@@ -26,6 +26,7 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 
 #include <linux/gpio.h>
 
@@ -225,6 +226,7 @@ MACHINE_START(RSI_EWS, "RSI EWS")
 	/* Maintainer: Josef Holzmayr <holzmayr@rsi-elektrotechnik.de> */
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= rsi_ews_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= rsi_ews_board_init,

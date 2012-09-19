@@ -7,6 +7,7 @@
  * NFS namespace
  */
 
+#include <linux/module.h>
 #include <linux/dcache.h>
 #include <linux/gfp.h>
 #include <linux/mount.h>
@@ -112,6 +113,7 @@ Elong_unlock:
 Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }
+EXPORT_SYMBOL_GPL(nfs_path);
 
 /*
  * nfs_d_automount - Handle crossing a mountpoint on the server
@@ -195,20 +197,7 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
 					   const char *devname,
 					   struct nfs_clone_mount *mountdata)
 {
-#ifdef CONFIG_NFS_V4
-	struct vfsmount *mnt = ERR_PTR(-EINVAL);
-	switch (server->nfs_client->rpc_ops->version) {
-		case 2:
-		case 3:
-			mnt = vfs_kern_mount(&nfs_xdev_fs_type, 0, devname, mountdata);
-			break;
-		case 4:
-			mnt = vfs_kern_mount(&nfs4_xdev_fs_type, 0, devname, mountdata);
-	}
-	return mnt;
-#else
 	return vfs_kern_mount(&nfs_xdev_fs_type, 0, devname, mountdata);
-#endif
 }
 
 /**
@@ -253,6 +242,7 @@ out:
 	dprintk("<-- nfs_do_submount() = %p\n", mnt);
 	return mnt;
 }
+EXPORT_SYMBOL_GPL(nfs_do_submount);
 
 struct vfsmount *nfs_submount(struct nfs_server *server, struct dentry *dentry,
 			      struct nfs_fh *fh, struct nfs_fattr *fattr)
@@ -268,3 +258,4 @@ struct vfsmount *nfs_submount(struct nfs_server *server, struct dentry *dentry,
 
 	return nfs_do_submount(dentry, fh, fattr, server->client->cl_auth->au_flavor);
 }
+EXPORT_SYMBOL_GPL(nfs_submount);

@@ -36,6 +36,7 @@
 #include <linux/fb.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/i8042.h>
 
 #define IDEAPAD_RFKILL_DEV_NUM	(3)
 
@@ -63,8 +64,11 @@ enum {
 	VPCCMD_R_3G,
 	VPCCMD_W_3G,
 	VPCCMD_R_ODD, /* 0x21 */
-	VPCCMD_R_RF = 0x23,
+	VPCCMD_W_FAN,
+	VPCCMD_R_RF,
 	VPCCMD_W_RF,
+	VPCCMD_R_FAN = 0x2B,
+	VPCCMD_R_SPECIAL_BUTTONS = 0x31,
 	VPCCMD_W_BL_POWER = 0x33,
 };
 
@@ -356,14 +360,46 @@ static ssize_t store_ideapad_cam(struct device *dev,
 		return -EINVAL;
 	ret = write_ec_cmd(ideapad_handle, VPCCMD_W_CAMERA, state);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	return count;
 }
 
 static DEVICE_ATTR(camera_power, 0644, show_ideapad_cam, store_ideapad_cam);
 
+static ssize_t show_ideapad_fan(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	unsigned long result;
+
+	if (read_ec_data(ideapad_handle, VPCCMD_R_FAN, &result))
+		return sprintf(buf, "-1\n");
+	return sprintf(buf, "%lu\n", result);
+}
+
+static ssize_t store_ideapad_fan(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int ret, state;
+
+	if (!count)
+		return 0;
+	if (sscanf(buf, "%i", &state) != 1)
+		return -EINVAL;
+	if (state < 0 || state > 4 || state == 3)
+		return -EINVAL;
+	ret = write_ec_cmd(ideapad_handle, VPCCMD_W_FAN, state);
+	if (ret < 0)
+		return -EIO;
+	return count;
+}
+
+static DEVICE_ATTR(fan_mode, 0644, show_ideapad_fan, store_ideapad_fan);
+
 static struct attribute *ideapad_attributes[] = {
 	&dev_attr_camera_power.attr,
+	&dev_attr_fan_mode.attr,
 	NULL
 };
 
@@ -377,7 +413,10 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_camera_power.attr)
 		supported = test_bit(CFG_CAMERA_BIT, &(priv->cfg));
-	else
+	else if (attr == &dev_attr_fan_mode.attr) {
+		unsigned long value;
+		supported = !read_ec_data(ideapad_handle, VPCCMD_R_FAN, &value);
+	} else
 		supported = true;
 
 	return supported ? attr->mode : 0;
@@ -518,9 +557,15 @@ static void ideapad_platform_exit(struct ideapad_private *priv)
  */
 static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY, 6,  { KEY_SWITCHVIDEOMODE } },
+	{ KE_KEY, 7,  { KEY_CAMERA } },
+	{ KE_KEY, 11, { KEY_F16 } },
 	{ KE_KEY, 13, { KEY_WLAN } },
 	{ KE_KEY, 16, { KEY_PROG1 } },
 	{ KE_KEY, 17, { KEY_PROG2 } },
+	{ KE_KEY, 64, { KEY_PROG3 } },
+	{ KE_KEY, 65, { KEY_PROG4 } },
+	{ KE_KEY, 66, { KEY_TOUCHPAD_OFF } },
+	{ KE_KEY, 67, { KEY_TOUCHPAD_ON } },
 	{ KE_END, 0 },
 };
 
@@ -585,6 +630,28 @@ static void ideapad_input_novokey(struct ideapad_private *priv)
 		ideapad_input_report(priv, 17);
 	else
 		ideapad_input_report(priv, 16);
+}
+
+static void ideapad_check_special_buttons(struct ideapad_private *priv)
+{
+	unsigned long bit, value;
+
+	read_ec_data(ideapad_handle, VPCCMD_R_SPECIAL_BUTTONS, &value);
+
+	for (bit = 0; bit < 16; bit++) {
+		if (test_bit(bit, &value)) {
+			switch (bit) {
+			case 6:
+				/* Thermal Management button */
+				ideapad_input_report(priv, 65);
+				break;
+			case 1:
+				/* OneKey Theater button */
+				ideapad_input_report(priv, 64);
+				break;
+			}
+		}
+	}
 }
 
 /*
@@ -691,13 +758,31 @@ static const struct acpi_device_id ideapad_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
+static void ideapad_sync_touchpad_state(struct acpi_device *adevice)
+{
+	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
+	unsigned long value;
+
+	/* Without reading from EC touchpad LED doesn't switch state */
+	if (!read_ec_data(adevice->handle, VPCCMD_R_TOUCHPAD, &value)) {
+		/* Some IdeaPads don't really turn off touchpad - they only
+		 * switch the LED state. We (de)activate KBC AUX port to turn
+		 * touchpad off and on. We send KEY_TOUCHPAD_OFF and
+		 * KEY_TOUCHPAD_ON to not to get out of sync with LED */
+		unsigned char param;
+		i8042_command(&param, value ? I8042_CMD_AUX_ENABLE :
+			      I8042_CMD_AUX_DISABLE);
+		ideapad_input_report(priv, value ? 67 : 66);
+	}
+}
+
 static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 {
 	int ret, i;
-	unsigned long cfg;
+	int cfg;
 	struct ideapad_private *priv;
 
-	if (read_method_int(adevice->handle, "_CFG", (int *)&cfg))
+	if (read_method_int(adevice->handle, "_CFG", &cfg))
 		return -ENODEV;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -721,12 +806,13 @@ static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 		goto input_failed;
 
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++) {
-		if (test_bit(ideapad_rfk_data[i].cfgbit, &cfg))
+		if (test_bit(ideapad_rfk_data[i].cfgbit, &priv->cfg))
 			ideapad_register_rfkill(adevice, i);
 		else
 			priv->rfk[i] = NULL;
 	}
 	ideapad_sync_rfk_state(priv);
+	ideapad_sync_touchpad_state(adevice);
 
 	if (!acpi_video_backlight_support()) {
 		ret = ideapad_backlight_init(priv);
@@ -785,8 +871,13 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 				ideapad_sync_rfk_state(priv);
 				break;
 			case 13:
+			case 11:
+			case 7:
 			case 6:
 				ideapad_input_report(priv, vpc_bit);
+				break;
+			case 5:
+				ideapad_sync_touchpad_state(adevice);
 				break;
 			case 4:
 				ideapad_backlight_notify_brightness(priv);
@@ -797,12 +888,24 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 			case 2:
 				ideapad_backlight_notify_power(priv);
 				break;
+			case 0:
+				ideapad_check_special_buttons(priv);
+				break;
 			default:
 				pr_info("Unknown event: %lu\n", vpc_bit);
 			}
 		}
 	}
 }
+
+static int ideapad_acpi_resume(struct device *device)
+{
+	ideapad_sync_rfk_state(ideapad_priv);
+	ideapad_sync_touchpad_state(to_acpi_device(device));
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(ideapad_pm, NULL, ideapad_acpi_resume);
 
 static struct acpi_driver ideapad_acpi_driver = {
 	.name = "ideapad_acpi",
@@ -811,6 +914,7 @@ static struct acpi_driver ideapad_acpi_driver = {
 	.ops.add = ideapad_acpi_add,
 	.ops.remove = ideapad_acpi_remove,
 	.ops.notify = ideapad_acpi_notify,
+	.drv.pm = &ideapad_pm,
 	.owner = THIS_MODULE,
 };
 

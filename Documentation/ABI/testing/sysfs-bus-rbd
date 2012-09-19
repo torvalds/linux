@@ -35,8 +35,14 @@ name
 
 pool
 
-	The pool where this rbd image resides. The pool-name pair is unique
-	per rados system.
+	The name of the storage pool where this rbd image resides.
+	An rbd image name is unique within its pool.
+
+pool_id
+
+	The unique identifier for the rbd image's pool.  This is
+	a permanent attribute of the pool.  A pool's id will never
+	change.
 
 size
 

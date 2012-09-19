@@ -43,7 +43,11 @@
 #define MDIO_PKGID2		15
 #define MDIO_AN_ADVERTISE	16	/* AN advertising (base page) */
 #define MDIO_AN_LPA		19	/* AN LP abilities (base page) */
+#define MDIO_PCS_EEE_ABLE	20	/* EEE Capability register */
+#define MDIO_PCS_EEE_WK_ERR	22	/* EEE wake error counter */
 #define MDIO_PHYXS_LNSTAT	24	/* PHY XGXS lane state */
+#define MDIO_AN_EEE_ADV		60	/* EEE advertisement */
+#define MDIO_AN_EEE_LPABLE	61	/* EEE link partner ability */
 
 /* Media-dependent registers. */
 #define MDIO_PMA_10GBT_SWAPPOL	130	/* 10GBASE-T pair swap & polarity */
@@ -56,7 +60,6 @@
 #define MDIO_PCS_10GBRT_STAT2	33	/* 10GBASE-R/-T PCS status 2 */
 #define MDIO_AN_10GBT_CTRL	32	/* 10GBASE-T auto-negotiation control */
 #define MDIO_AN_10GBT_STAT	33	/* 10GBASE-T auto-negotiation status */
-#define MDIO_AN_EEE_ADV		60	/* EEE advertisement */
 
 /* LASI (Link Alarm Status Interrupt) registers, defined by XENPAK MSA. */
 #define MDIO_PMA_LASI_RXCTRL	0x9000	/* RX_ALARM control */
@@ -82,6 +85,7 @@
 #define MDIO_AN_CTRL1_RESTART		BMCR_ANRESTART
 #define MDIO_AN_CTRL1_ENABLE		BMCR_ANENABLE
 #define MDIO_AN_CTRL1_XNP		0x2000	/* Enable extended next page */
+#define MDIO_PCS_CTRL1_CLKSTOP_EN	0x400	/* Stop the clock during LPI */
 
 /* 10 Gb/s */
 #define MDIO_CTRL1_SPEED10G		(MDIO_CTRL1_SPEEDSELEXT | 0x00)
@@ -237,9 +241,25 @@
 #define MDIO_AN_10GBT_STAT_MS		0x4000	/* Master/slave config */
 #define MDIO_AN_10GBT_STAT_MSFLT	0x8000	/* Master/slave config fault */
 
-/* AN EEE Advertisement register. */
-#define MDIO_AN_EEE_ADV_100TX		0x0002	/* Advertise 100TX EEE cap */
-#define MDIO_AN_EEE_ADV_1000T		0x0004	/* Advertise 1000T EEE cap */
+/* EEE Supported/Advertisement/LP Advertisement registers.
+ *
+ * EEE capability Register (3.20), Advertisement (7.60) and
+ * Link partner ability (7.61) registers have and can use the same identical
+ * bit masks.
+ */
+#define MDIO_AN_EEE_ADV_100TX	0x0002	/* Advertise 100TX EEE cap */
+#define MDIO_AN_EEE_ADV_1000T	0x0004	/* Advertise 1000T EEE cap */
+/* Note: the two defines above can be potentially used by the user-land
+ * and cannot remove them now.
+ * So, we define the new generic MDIO_EEE_100TX and MDIO_EEE_1000T macros
+ * using the previous ones (that can be considered obsolete).
+ */
+#define MDIO_EEE_100TX		MDIO_AN_EEE_ADV_100TX	/* 100TX EEE cap */
+#define MDIO_EEE_1000T		MDIO_AN_EEE_ADV_1000T	/* 1000T EEE cap */
+#define MDIO_EEE_10GT		0x0008	/* 10GT EEE cap */
+#define MDIO_EEE_1000KX		0x0010	/* 1000KX EEE cap */
+#define MDIO_EEE_10GKX4		0x0020	/* 10G KX4 EEE cap */
+#define MDIO_EEE_10GKR		0x0040	/* 10G KR EEE cap */
 
 /* LASI RX_ALARM control/status registers. */
 #define MDIO_PMA_LASI_RX_PHYXSLFLT	0x0001	/* PHY XS RX local fault */

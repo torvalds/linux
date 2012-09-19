@@ -9,7 +9,6 @@
 #include <linux/kbuild.h>
 #include <linux/sched.h>
 #include <asm/cputime.h>
-#include <asm/timer.h>
 #include <asm/vdso.h>
 #include <asm/pgtable.h>
 
@@ -72,11 +71,10 @@ int main(void)
 	DEFINE(__CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
 	BLANK();
 	/* idle data offsets */
-	DEFINE(__IDLE_ENTER, offsetof(struct s390_idle_data, idle_enter));
-	DEFINE(__IDLE_EXIT, offsetof(struct s390_idle_data, idle_exit));
-	/* vtimer queue offsets */
-	DEFINE(__VQ_IDLE_ENTER, offsetof(struct vtimer_queue, idle_enter));
-	DEFINE(__VQ_IDLE_EXIT, offsetof(struct vtimer_queue, idle_exit));
+	DEFINE(__CLOCK_IDLE_ENTER, offsetof(struct s390_idle_data, clock_idle_enter));
+	DEFINE(__CLOCK_IDLE_EXIT, offsetof(struct s390_idle_data, clock_idle_exit));
+	DEFINE(__TIMER_IDLE_ENTER, offsetof(struct s390_idle_data, timer_idle_enter));
+	DEFINE(__TIMER_IDLE_EXIT, offsetof(struct s390_idle_data, timer_idle_exit));
 	/* lowcore offsets */
 	DEFINE(__LC_EXT_PARAMS, offsetof(struct _lowcore, ext_params));
 	DEFINE(__LC_EXT_CPU_ADDR, offsetof(struct _lowcore, ext_cpu_addr));
@@ -131,6 +129,8 @@ int main(void)
 	DEFINE(__LC_PANIC_STACK, offsetof(struct _lowcore, panic_stack));
 	DEFINE(__LC_RESTART_STACK, offsetof(struct _lowcore, restart_stack));
 	DEFINE(__LC_RESTART_FN, offsetof(struct _lowcore, restart_fn));
+	DEFINE(__LC_RESTART_DATA, offsetof(struct _lowcore, restart_data));
+	DEFINE(__LC_RESTART_SOURCE, offsetof(struct _lowcore, restart_source));
 	DEFINE(__LC_USER_ASCE, offsetof(struct _lowcore, user_asce));
 	DEFINE(__LC_INT_CLOCK, offsetof(struct _lowcore, int_clock));
 	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));

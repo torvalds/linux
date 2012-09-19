@@ -249,11 +249,10 @@ static int ds1621_probe(struct i2c_client *client,
 	struct ds1621_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct ds1621_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct ds1621_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -264,7 +263,7 @@ static int ds1621_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &ds1621_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -276,9 +275,6 @@ static int ds1621_probe(struct i2c_client *client,
 
  exit_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &ds1621_group);
- exit_free:
-	kfree(data);
- exit:
 	return err;
 }
 
@@ -288,8 +284,6 @@ static int ds1621_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &ds1621_group);
-
-	kfree(data);
 
 	return 0;
 }

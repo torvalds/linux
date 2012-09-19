@@ -31,6 +31,7 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
@@ -376,8 +377,8 @@ static int dsps_musb_init(struct musb *musb)
 
 	/* NOP driver needs change if supporting dual instance */
 	usb_nop_xceiv_register();
-	musb->xceiv = usb_get_transceiver();
-	if (!musb->xceiv)
+	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
+	if (IS_ERR_OR_NULL(musb->xceiv))
 		return -ENODEV;
 
 	/* Returns zero if e.g. not clocked */
@@ -409,7 +410,7 @@ static int dsps_musb_init(struct musb *musb)
 
 	return 0;
 err0:
-	usb_put_transceiver(musb->xceiv);
+	usb_put_phy(musb->xceiv);
 	usb_nop_xceiv_unregister();
 	return status;
 }
@@ -430,7 +431,7 @@ static int dsps_musb_exit(struct musb *musb)
 		data->set_phy_power(0);
 
 	/* NOP driver needs change if supporting dual instance */
-	usb_put_transceiver(musb->xceiv);
+	usb_put_phy(musb->xceiv);
 	usb_nop_xceiv_unregister();
 
 	return 0;
@@ -478,9 +479,9 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 		ret = -ENODEV;
 		goto err0;
 	}
-	strcpy((u8 *)res->name, "mc");
 	res->parent = NULL;
 	resources[1] = *res;
+	resources[1].name = "mc";
 
 	/* allocate the child platform device */
 	musb = platform_device_alloc("musb-hdrc", -1);
@@ -565,27 +566,28 @@ static int __devinit dsps_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, glue);
 
-	/* create the child platform device for first instances of musb */
-	ret = dsps_create_musb_pdev(glue, 0);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "failed to create child pdev\n");
-		goto err2;
-	}
-
 	/* enable the usbss clocks */
 	pm_runtime_enable(&pdev->dev);
 
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pm_runtime_get_sync FAILED");
+		goto err2;
+	}
+
+	/* create the child platform device for first instances of musb */
+	ret = dsps_create_musb_pdev(glue, 0);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "failed to create child pdev\n");
 		goto err3;
 	}
 
 	return 0;
 
 err3:
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put(&pdev->dev);
 err2:
+	pm_runtime_disable(&pdev->dev);
 	kfree(glue->wrp);
 err1:
 	kfree(glue);

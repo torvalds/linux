@@ -1,10 +1,8 @@
 /*
- * arch/s390/appldata/appldata_os.c
- *
  * Data gathering module for Linux-VM Monitor Stream, Stage 1.
  * Collects misc. OS related data (CPU utilization, running processes).
  *
- * Copyright (C) 2003,2006 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ * Copyright IBM Corp. 2003, 2006
  *
  * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */

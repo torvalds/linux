@@ -280,7 +280,13 @@ static void rt2800pci_stop_queue(struct data_queue *queue)
  */
 static char *rt2800pci_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 {
-	return FIRMWARE_RT2860;
+	/*
+	 * Chip rt3290 use specific 4KB firmware named rt3290.bin.
+	 */
+	if (rt2x00_rt(rt2x00dev, RT3290))
+		return FIRMWARE_RT3290;
+	else
+		return FIRMWARE_RT2860;
 }
 
 static int rt2800pci_write_firmware(struct rt2x00_dev *rt2x00dev,
@@ -1175,6 +1181,9 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1432, 0x7768) },
 	{ PCI_DEVICE(0x1462, 0x891a) },
 	{ PCI_DEVICE(0x1a3b, 0x1059) },
+#ifdef CONFIG_RT2800PCI_RT3290
+	{ PCI_DEVICE(0x1814, 0x3290) },
+#endif
 #ifdef CONFIG_RT2800PCI_RT33XX
 	{ PCI_DEVICE(0x1814, 0x3390) },
 #endif
@@ -1188,6 +1197,7 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1814, 0x3593) },
 #endif
 #ifdef CONFIG_RT2800PCI_RT53XX
+	{ PCI_DEVICE(0x1814, 0x5360) },
 	{ PCI_DEVICE(0x1814, 0x5362) },
 	{ PCI_DEVICE(0x1814, 0x5390) },
 	{ PCI_DEVICE(0x1814, 0x5392) },

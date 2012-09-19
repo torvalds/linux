@@ -253,7 +253,7 @@ lbtf_deb_leave(LBTF_DEB_MAIN);
 static void if_usb_disconnect(struct usb_interface *intf)
 {
 	struct if_usb_card *cardp = usb_get_intfdata(intf);
-	struct lbtf_private *priv = (struct lbtf_private *) cardp->priv;
+	struct lbtf_private *priv = cardp->priv;
 
 	lbtf_deb_enter(LBTF_DEB_MAIN);
 

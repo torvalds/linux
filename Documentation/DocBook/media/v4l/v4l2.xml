@@ -140,6 +140,11 @@ structs, ioctls) must be noted in more detail in the history chapter
 applications. -->
 
       <revision>
+	<revnumber>3.6</revnumber>
+	<date>2012-07-02</date>
+	<authorinitials>hv</authorinitials>
+	<revremark>Added VIDIOC_ENUM_FREQ_BANDS.
+	</revremark>
 	<revnumber>3.5</revnumber>
 	<date>2012-05-07</date>
 	<authorinitials>sa, sn</authorinitials>
@@ -534,6 +539,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-enum-fmt;
     &sub-enum-framesizes;
     &sub-enum-frameintervals;
+    &sub-enum-freq-bands;
     &sub-enuminput;
     &sub-enumoutput;
     &sub-enumstd;
@@ -587,6 +593,11 @@ and discussions on the V4L mailing list.</revremark>
     &sub-read;
     &sub-select;
     &sub-write;
+  </appendix>
+
+  <appendix>
+    <title>Common definitions for V4L2 and V4L2 subdev interfaces</title>
+      &sub-selections-common;
   </appendix>
 
   <appendix id="videodev">

@@ -71,7 +71,8 @@ static int bcm63xx_config_intr(struct phy_device *phydev)
 	return err;
 }
 
-static struct phy_driver bcm63xx_1_driver = {
+static struct phy_driver bcm63xx_driver[] = {
+{
 	.phy_id		= 0x00406000,
 	.phy_id_mask	= 0xfffffc00,
 	.name		= "Broadcom BCM63XX (1)",
@@ -84,10 +85,8 @@ static struct phy_driver bcm63xx_1_driver = {
 	.ack_interrupt	= bcm63xx_ack_interrupt,
 	.config_intr	= bcm63xx_config_intr,
 	.driver		= { .owner = THIS_MODULE },
-};
-
-/* same phy as above, with just a different OUI */
-static struct phy_driver bcm63xx_2_driver = {
+}, {
+	/* same phy as above, with just a different OUI */
 	.phy_id		= 0x002bdc00,
 	.phy_id_mask	= 0xfffffc00,
 	.name		= "Broadcom BCM63XX (2)",
@@ -99,30 +98,18 @@ static struct phy_driver bcm63xx_2_driver = {
 	.ack_interrupt	= bcm63xx_ack_interrupt,
 	.config_intr	= bcm63xx_config_intr,
 	.driver		= { .owner = THIS_MODULE },
-};
+} };
 
 static int __init bcm63xx_phy_init(void)
 {
-	int ret;
-
-	ret = phy_driver_register(&bcm63xx_1_driver);
-	if (ret)
-		goto out_63xx_1;
-	ret = phy_driver_register(&bcm63xx_2_driver);
-	if (ret)
-		goto out_63xx_2;
-	return ret;
-
-out_63xx_2:
-	phy_driver_unregister(&bcm63xx_1_driver);
-out_63xx_1:
-	return ret;
+	return phy_drivers_register(bcm63xx_driver,
+		ARRAY_SIZE(bcm63xx_driver));
 }
 
 static void __exit bcm63xx_phy_exit(void)
 {
-	phy_driver_unregister(&bcm63xx_1_driver);
-	phy_driver_unregister(&bcm63xx_2_driver);
+	phy_drivers_unregister(bcm63xx_driver,
+		ARRAY_SIZE(bcm63xx_driver));
 }
 
 module_init(bcm63xx_phy_init);

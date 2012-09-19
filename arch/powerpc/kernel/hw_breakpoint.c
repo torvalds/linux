@@ -111,7 +111,7 @@ void arch_unregister_hw_breakpoint(struct perf_event *bp)
 	 * and the single_step_dabr_instruction(), then cleanup the breakpoint
 	 * restoration variables to prevent dangling pointers.
 	 */
-	if (bp->ctx->task)
+	if (bp->ctx && bp->ctx->task)
 		bp->ctx->task->thread.last_hit_ubp = NULL;
 }
 
@@ -253,7 +253,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 
 	/* Do not emulate user-space instructions, instead single-step them */
 	if (user_mode(regs)) {
-		bp->ctx->task->thread.last_hit_ubp = bp;
+		current->thread.last_hit_ubp = bp;
 		regs->msr |= MSR_SE;
 		goto out;
 	}

@@ -2,13 +2,17 @@ These properties are common to multiple MMC host controllers. Any host
 that requires the respective functionality should implement them using
 these definitions.
 
+Interpreted by the OF core:
+- reg: Registers location and length.
+- interrupts: Interrupts used by the MMC controller.
+
 Required properties:
 - bus-width: Number of data lines, can be <1>, <4>, or <8>
 
 Optional properties:
-- cd-gpios : Specify GPIOs for card detection, see gpio binding
-- wp-gpios : Specify GPIOs for write protection, see gpio binding
-- cd-inverted: when present, polarity on the wp gpio line is inverted
+- cd-gpios: Specify GPIOs for card detection, see gpio binding
+- wp-gpios: Specify GPIOs for write protection, see gpio binding
+- cd-inverted: when present, polarity on the cd gpio line is inverted
 - wp-inverted: when present, polarity on the wp gpio line is inverted
 - non-removable: non-removable slot (like eMMC)
 - max-frequency: maximum operating clock frequency

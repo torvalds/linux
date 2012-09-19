@@ -1,6 +1,4 @@
 /*
- * drivers/s390/net/ctcm_main.c
- *
  * Copyright IBM Corp. 2001, 2009
  * Author(s):
  *	Original CTC driver(s):

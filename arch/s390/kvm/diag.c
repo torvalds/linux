@@ -1,7 +1,7 @@
 /*
- * diag.c - handling diagnose instructions
+ * handling diagnose instructions
  *
- * Copyright IBM Corp. 2008,2011
+ * Copyright IBM Corp. 2008, 2011
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)

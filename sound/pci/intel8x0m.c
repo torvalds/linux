@@ -1012,9 +1012,10 @@ static int snd_intel8x0m_free(struct intel8x0m *chip)
 /*
  * power management
  */
-static int intel8x0m_suspend(struct pci_dev *pci, pm_message_t state)
+static int intel8x0m_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct intel8x0m *chip = card->private_data;
 	int i;
 
@@ -1028,13 +1029,14 @@ static int intel8x0m_suspend(struct pci_dev *pci, pm_message_t state)
 	}
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int intel8x0m_resume(struct pci_dev *pci)
+static int intel8x0m_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct intel8x0m *chip = card->private_data;
 
 	pci_set_power_state(pci, PCI_D0);
@@ -1060,6 +1062,11 @@ static int intel8x0m_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(intel8x0m_pm, intel8x0m_suspend, intel8x0m_resume);
+#define INTEL8X0M_PM_OPS	&intel8x0m_pm
+#else
+#define INTEL8X0M_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PROC_FS
@@ -1329,10 +1336,9 @@ static struct pci_driver intel8x0m_driver = {
 	.id_table = snd_intel8x0m_ids,
 	.probe = snd_intel8x0m_probe,
 	.remove = __devexit_p(snd_intel8x0m_remove),
-#ifdef CONFIG_PM
-	.suspend = intel8x0m_suspend,
-	.resume = intel8x0m_resume,
-#endif
+	.driver = {
+		.pm = INTEL8X0M_PM_OPS,
+	},
 };
 
 module_pci_driver(intel8x0m_driver);

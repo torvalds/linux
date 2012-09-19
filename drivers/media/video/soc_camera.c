@@ -62,7 +62,7 @@ static int soc_camera_power_on(struct soc_camera_device *icd,
 	}
 
 	if (icl->power) {
-		ret = icl->power(icd->pdev, 1);
+		ret = icl->power(icd->control, 1);
 		if (ret < 0) {
 			dev_err(icd->pdev,
 				"Platform failed to power-on the camera.\n");
@@ -78,7 +78,7 @@ static int soc_camera_power_on(struct soc_camera_device *icd,
 
 esdpwr:
 	if (icl->power)
-		icl->power(icd->pdev, 0);
+		icl->power(icd->control, 0);
 elinkpwr:
 	regulator_bulk_disable(icl->num_regulators,
 			       icl->regulators);
@@ -95,7 +95,7 @@ static int soc_camera_power_off(struct soc_camera_device *icd,
 		return ret;
 
 	if (icl->power) {
-		ret = icl->power(icd->pdev, 0);
+		ret = icl->power(icd->control, 0);
 		if (ret < 0) {
 			dev_err(icd->pdev,
 				"Platform failed to power-off the camera.\n");
@@ -171,7 +171,8 @@ static int soc_camera_try_fmt(struct soc_camera_device *icd,
 	dev_dbg(icd->pdev, "TRY_FMT(%c%c%c%c, %ux%u)\n",
 		pixfmtstr(pix->pixelformat), pix->width, pix->height);
 
-	if (!(ici->capabilities & SOCAM_HOST_CAP_STRIDE)) {
+	if (pix->pixelformat != V4L2_PIX_FMT_JPEG &&
+	    !(ici->capabilities & SOCAM_HOST_CAP_STRIDE)) {
 		pix->bytesperline = 0;
 		pix->sizeimage = 0;
 	}
@@ -1518,6 +1519,7 @@ static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver __refdata soc_camera_pdrv = {
+	.probe = soc_camera_pdrv_probe,
 	.remove  = __devexit_p(soc_camera_pdrv_remove),
 	.driver  = {
 		.name	= "soc-camera-pdrv",
@@ -1527,7 +1529,7 @@ static struct platform_driver __refdata soc_camera_pdrv = {
 
 static int __init soc_camera_init(void)
 {
-	return platform_driver_probe(&soc_camera_pdrv, soc_camera_pdrv_probe);
+	return platform_driver_register(&soc_camera_pdrv);
 }
 
 static void __exit soc_camera_exit(void)

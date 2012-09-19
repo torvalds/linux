@@ -312,8 +312,6 @@ static void __init at91sam9x5_map_io(void)
 
 void __init at91sam9x5_initialize(void)
 {
-	at91_extern_irq = (1 << AT91SAM9X5_ID_IRQ0);
-
 	/* Register GPIO subsystem (using DT) */
 	at91_gpio_init(NULL, 0);
 }
@@ -321,47 +319,9 @@ void __init at91sam9x5_initialize(void)
 /* --------------------------------------------------------------------
  *  Interrupt initialization
  * -------------------------------------------------------------------- */
-/*
- * The default interrupt priority levels (0 = lowest, 7 = highest).
- */
-static unsigned int at91sam9x5_default_irq_priority[NR_AIC_IRQS] __initdata = {
-	7,	/* Advanced Interrupt Controller (FIQ) */
-	7,	/* System Peripherals */
-	1,	/* Parallel IO Controller A and B */
-	1,	/* Parallel IO Controller C and D */
-	4,	/* Soft Modem */
-	5,	/* USART 0 */
-	5,	/* USART 1 */
-	5,	/* USART 2 */
-	5,	/* USART 3 */
-	6,	/* Two-Wire Interface 0 */
-	6,	/* Two-Wire Interface 1 */
-	6,	/* Two-Wire Interface 2 */
-	0,	/* Multimedia Card Interface 0 */
-	5,	/* Serial Peripheral Interface 0 */
-	5,	/* Serial Peripheral Interface 1 */
-	5,	/* UART 0 */
-	5,	/* UART 1 */
-	0,	/* Timer Counter 0, 1, 2, 3, 4 and 5 */
-	0,	/* Pulse Width Modulation Controller */
-	0,	/* ADC Controller */
-	0,	/* DMA Controller 0 */
-	0,	/* DMA Controller 1 */
-	2,	/* USB Host High Speed port */
-	2,	/* USB Device High speed port */
-	3,	/* Ethernet MAC 0 */
-	3,	/* LDC Controller or Image Sensor Interface */
-	0,	/* Multimedia Card Interface 1 */
-	3,	/* Ethernet MAC 1 */
-	4,	/* Synchronous Serial Interface */
-	4,	/* CAN Controller 0 */
-	4,	/* CAN Controller 1 */
-	0,	/* Advanced Interrupt Controller (IRQ0) */
-};
 
 struct at91_init_soc __initdata at91sam9x5_soc = {
 	.map_io = at91sam9x5_map_io,
-	.default_irq_priority = at91sam9x5_default_irq_priority,
 	.register_clocks = at91sam9x5_register_clocks,
 	.init = at91sam9x5_initialize,
 };

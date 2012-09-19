@@ -268,7 +268,6 @@ group_extend_out:
 		err = ext4_move_extents(filp, donor_filp, me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
 		mnt_drop_write_file(filp);
-		mnt_drop_write(filp->f_path.mnt);
 
 		if (copy_to_user((struct move_extent __user *)arg,
 				 &me, sizeof(me)))
@@ -390,7 +389,7 @@ group_add_out:
 		if (err)
 			return err;
 
-		err = mnt_want_write(filp->f_path.mnt);
+		err = mnt_want_write_file(filp);
 		if (err)
 			goto resizefs_out;
 
@@ -402,7 +401,7 @@ group_add_out:
 		}
 		if (err == 0)
 			err = err2;
-		mnt_drop_write(filp->f_path.mnt);
+		mnt_drop_write_file(filp);
 resizefs_out:
 		ext4_resize_end(sb);
 		return err;

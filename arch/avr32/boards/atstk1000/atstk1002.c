@@ -97,7 +97,7 @@ static struct atmel_nand_data atstk1006_nand_data __initdata = {
 	.enable_pin	= GPIO_PIN_PB(29),
 	.ecc_mode	= NAND_ECC_SOFT,
 	.parts		= nand_partitions,
-	.num_parts	= ARRAY_SIZE(num_partitions),
+	.num_parts	= ARRAY_SIZE(nand_partitions),
 };
 #endif
 

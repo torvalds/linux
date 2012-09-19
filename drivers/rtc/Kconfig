@@ -135,6 +135,16 @@ config RTC_DRV_88PM860X
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-88pm860x.
 
+config RTC_DRV_88PM80X
+	tristate "Marvell 88PM80x"
+	depends on RTC_CLASS && I2C && MFD_88PM800
+	help
+	  If you say yes here you get support for RTC function in Marvell
+	  88PM80x chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-88pm80x.
+
 config RTC_DRV_DS1307
 	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025"
 	help
@@ -694,6 +704,7 @@ config RTC_DRV_AB3100
 config RTC_DRV_AB8500
 	tristate "ST-Ericsson AB8500 RTC"
 	depends on AB8500_CORE
+	select RTC_INTF_DEV_UIE_EMUL
 	help
 	  Select this to enable the ST-Ericsson AB8500 power management IC RTC
 	  support. This chip contains a battery- and capacitor-backed RTC.

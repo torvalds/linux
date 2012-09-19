@@ -90,6 +90,10 @@ static struct resource charger_resources[] __devinitdata = {
 	{PM8607_IRQ_VCHG, PM8607_IRQ_VCHG, "vchg voltage",    IORESOURCE_IRQ,},
 };
 
+static struct resource preg_resources[] __devinitdata = {
+	{PM8606_ID_PREG,  PM8606_ID_PREG,  "preg",   IORESOURCE_IO,},
+};
+
 static struct resource rtc_resources[] __devinitdata = {
 	{PM8607_IRQ_RTC, PM8607_IRQ_RTC, "rtc", IORESOURCE_IRQ,},
 };
@@ -142,9 +146,19 @@ static struct mfd_cell codec_devs[] = {
 	{"88pm860x-codec", -1,},
 };
 
+static struct regulator_consumer_supply preg_supply[] = {
+	REGULATOR_SUPPLY("preg", "charger-manager"),
+};
+
+static struct regulator_init_data preg_init_data = {
+	.num_consumer_supplies	= ARRAY_SIZE(preg_supply),
+	.consumer_supplies	= &preg_supply[0],
+};
+
 static struct mfd_cell power_devs[] = {
 	{"88pm860x-battery", -1,},
 	{"88pm860x-charger", -1,},
+	{"88pm860x-preg",    -1,},
 };
 
 static struct mfd_cell rtc_devs[] = {
@@ -768,6 +782,15 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 			      &charger_resources[0], chip->irq_base);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add charger subdev\n");
+
+	power_devs[2].platform_data = &preg_init_data;
+	power_devs[2].pdata_size = sizeof(struct regulator_init_data);
+	power_devs[2].num_resources = ARRAY_SIZE(preg_resources);
+	power_devs[2].resources = &preg_resources[0],
+	ret = mfd_add_devices(chip->dev, 0, &power_devs[2], 1,
+			      &preg_resources[0], chip->irq_base);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add preg subdev\n");
 }
 
 static void __devinit device_onkey_init(struct pm860x_chip *chip,

@@ -41,11 +41,12 @@
 #include <asm/ppc_asm.h>
 
 	.file	"crtsavres.S"
-	.section ".text"
 
 #ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 
 #ifndef CONFIG_PPC64
+
+	.section ".text"
 
 /* Routines for saving integer registers, called by the compiler.  */
 /* Called with r11 pointing to the stack header word of the caller of the */
@@ -231,6 +232,8 @@ _GLOBAL(_rest32gpr_31_x)
 	blr
 
 #else /* CONFIG_PPC64 */
+
+	.section ".text.save.restore","ax",@progbits
 
 .globl	_savegpr0_14
 _savegpr0_14:

@@ -60,7 +60,7 @@ _GLOBAL(book3e_idle)
 1:	/* Let's set the _TLF_NAPPING flag so interrupts make us return
 	 * to the right spot
 	*/
-	clrrdi	r11,r1,THREAD_SHIFT
+	CURRENT_THREAD_INFO(r11, r1)
 	ld	r10,TI_LOCAL_FLAGS(r11)
 	ori	r10,r10,_TLF_NAPPING
 	std	r10,TI_LOCAL_FLAGS(r11)

@@ -132,15 +132,13 @@ static int __devinit sunfire_led_generic_probe(struct platform_device *pdev,
 	if (pdev->num_resources != 1) {
 		printk(KERN_ERR PFX "Wrong number of resources %d, should be 1\n",
 		       pdev->num_resources);
-		err = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (!p) {
 		printk(KERN_ERR PFX "Could not allocate struct sunfire_drvdata\n");
-		err = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < NUM_LEDS_PER_BOARD; i++) {
@@ -156,20 +154,15 @@ static int __devinit sunfire_led_generic_probe(struct platform_device *pdev,
 		if (err) {
 			printk(KERN_ERR PFX "Could not register %s LED\n",
 			       lp->name);
-			goto out_unregister_led_cdevs;
+			for (i--; i >= 0; i--)
+				led_classdev_unregister(&p->leds[i].led_cdev);
+			return err;
 		}
 	}
 
 	dev_set_drvdata(&pdev->dev, p);
 
 	return 0;
-
-out_unregister_led_cdevs:
-	for (i--; i >= 0; i--)
-		led_classdev_unregister(&p->leds[i].led_cdev);
-	kfree(p);
-out:
-	return err;
 }
 
 static int __devexit sunfire_led_generic_remove(struct platform_device *pdev)
@@ -179,8 +172,6 @@ static int __devexit sunfire_led_generic_remove(struct platform_device *pdev)
 
 	for (i = 0; i < NUM_LEDS_PER_BOARD; i++)
 		led_classdev_unregister(&p->leds[i].led_cdev);
-
-	kfree(p);
 
 	return 0;
 }

@@ -374,18 +374,19 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct ip_options_rcu *opt = inet_rsk(req)->opt;
 	struct net *net = sock_net(sk);
+	int flags = inet_sk_flowi_flags(sk);
 
 	flowi4_init_output(fl4, sk->sk_bound_dev_if, sk->sk_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
 			   sk->sk_protocol,
-			   inet_sk_flowi_flags(sk) & ~FLOWI_FLAG_PRECOW_METRICS,
+			   flags,
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->rmt_addr,
 			   ireq->loc_addr, ireq->rmt_port, inet_sk(sk)->inet_sport);
 	security_req_classify_flow(req, flowi4_to_flowi(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
-	if (opt && opt->opt.is_strictroute && fl4->daddr != rt->rt_gateway)
+	if (opt && opt->opt.is_strictroute && rt->rt_gateway)
 		goto route_err;
 	return &rt->dst;
 
@@ -403,12 +404,15 @@ struct dst_entry *inet_csk_route_child_sock(struct sock *sk,
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct inet_sock *newinet = inet_sk(newsk);
-	struct ip_options_rcu *opt = ireq->opt;
+	struct ip_options_rcu *opt;
 	struct net *net = sock_net(sk);
 	struct flowi4 *fl4;
 	struct rtable *rt;
 
 	fl4 = &newinet->cork.fl.u.ip4;
+
+	rcu_read_lock();
+	opt = rcu_dereference(newinet->inet_opt);
 	flowi4_init_output(fl4, sk->sk_bound_dev_if, sk->sk_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
@@ -418,13 +422,15 @@ struct dst_entry *inet_csk_route_child_sock(struct sock *sk,
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
-	if (opt && opt->opt.is_strictroute && fl4->daddr != rt->rt_gateway)
+	if (opt && opt->opt.is_strictroute && rt->rt_gateway)
 		goto route_err;
+	rcu_read_unlock();
 	return &rt->dst;
 
 route_err:
 	ip_rt_put(rt);
 no_route:
+	rcu_read_unlock();
 	IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
 	return NULL;
 }
@@ -799,3 +805,49 @@ int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
 }
 EXPORT_SYMBOL_GPL(inet_csk_compat_setsockopt);
 #endif
+
+static struct dst_entry *inet_csk_rebuild_route(struct sock *sk, struct flowi *fl)
+{
+	const struct inet_sock *inet = inet_sk(sk);
+	const struct ip_options_rcu *inet_opt;
+	__be32 daddr = inet->inet_daddr;
+	struct flowi4 *fl4;
+	struct rtable *rt;
+
+	rcu_read_lock();
+	inet_opt = rcu_dereference(inet->inet_opt);
+	if (inet_opt && inet_opt->opt.srr)
+		daddr = inet_opt->opt.faddr;
+	fl4 = &fl->u.ip4;
+	rt = ip_route_output_ports(sock_net(sk), fl4, sk, daddr,
+				   inet->inet_saddr, inet->inet_dport,
+				   inet->inet_sport, sk->sk_protocol,
+				   RT_CONN_FLAGS(sk), sk->sk_bound_dev_if);
+	if (IS_ERR(rt))
+		rt = NULL;
+	if (rt)
+		sk_setup_caps(sk, &rt->dst);
+	rcu_read_unlock();
+
+	return &rt->dst;
+}
+
+struct dst_entry *inet_csk_update_pmtu(struct sock *sk, u32 mtu)
+{
+	struct dst_entry *dst = __sk_dst_check(sk, 0);
+	struct inet_sock *inet = inet_sk(sk);
+
+	if (!dst) {
+		dst = inet_csk_rebuild_route(sk, &inet->cork.fl);
+		if (!dst)
+			goto out;
+	}
+	dst->ops->update_pmtu(dst, sk, NULL, mtu);
+
+	dst = __sk_dst_check(sk, 0);
+	if (!dst)
+		dst = inet_csk_rebuild_route(sk, &inet->cork.fl);
+out:
+	return dst;
+}
+EXPORT_SYMBOL_GPL(inet_csk_update_pmtu);

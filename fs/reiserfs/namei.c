@@ -322,7 +322,7 @@ static int reiserfs_find_entry(struct inode *dir, const char *name, int namelen,
 }
 
 static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
-				      struct nameidata *nd)
+				      unsigned int flags)
 {
 	int retval;
 	int lock_depth;
@@ -573,7 +573,7 @@ static int new_inode_init(struct inode *inode, struct inode *dir, umode_t mode)
 }
 
 static int reiserfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-			   struct nameidata *nd)
+			   bool excl)
 {
 	int retval;
 	struct inode *inode;
@@ -634,8 +634,8 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, umode_t mod
 	reiserfs_update_inode_transaction(inode);
 	reiserfs_update_inode_transaction(dir);
 
-	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
+	d_instantiate(dentry, inode);
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 
       out_failed:
@@ -712,8 +712,8 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode
 		goto out_failed;
 	}
 
-	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
+	d_instantiate(dentry, inode);
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 
       out_failed:
@@ -800,8 +800,8 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	// the above add_entry did not update dir's stat data
 	reiserfs_update_sd(&th, dir);
 
-	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
+	d_instantiate(dentry, inode);
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 out_failed:
 	reiserfs_write_unlock_once(dir->i_sb, lock_depth);
@@ -1096,8 +1096,8 @@ static int reiserfs_symlink(struct inode *parent_dir,
 		goto out_failed;
 	}
 
-	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
+	d_instantiate(dentry, inode);
 	retval = journal_end(&th, parent_dir->i_sb, jbegin_count);
       out_failed:
 	reiserfs_write_unlock(parent_dir->i_sb);

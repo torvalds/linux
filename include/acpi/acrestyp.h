@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@
  * Definitions for Resource Attributes
  */
 typedef u16 acpi_rs_length;	/* Resource Length field is fixed at 16 bits */
-typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (64_k-1)+3 */
+typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (64K-1)+3 */
 
 /*
  * Memory Attributes
@@ -332,7 +332,7 @@ struct acpi_resource_address64 {
 };
 
 struct acpi_resource_extended_address64 {
-	ACPI_RESOURCE_ADDRESS_COMMON u8 revision_iD;
+	ACPI_RESOURCE_ADDRESS_COMMON u8 revision_ID;
 	u64 granularity;
 	u64 minimum;
 	u64 maximum;

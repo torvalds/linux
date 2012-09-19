@@ -66,7 +66,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 
 /*---------------------  Static Definitions -------------------------*/
-#define CB_TXPOWER_LEVEL            6
 
 /*---------------------  Static Classes  ----------------------------*/
 

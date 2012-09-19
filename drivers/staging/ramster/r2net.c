@@ -266,8 +266,8 @@ int ramster_remote_put(struct tmem_xhandle *xh, char *data, size_t size,
 		static unsigned long cnt;
 		cnt++;
 		if (!(cnt&(cnt-1)))
-			pr_err("ramster_remote_put: message failed, "
-				"ret=%d, cnt=%lu\n", ret, cnt);
+			pr_err("ramster_remote_put: message failed, ret=%d, cnt=%lu\n",
+				ret, cnt);
 		ret = -1;
 	}
 #endif

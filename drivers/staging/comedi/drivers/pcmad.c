@@ -58,8 +58,6 @@ struct pcmad_board_struct {
 	int n_ai_bits;
 };
 
-#define this_board ((const struct pcmad_board_struct *)(dev->board_ptr))
-
 struct pcmad_priv_struct {
 	int differential;
 	int twos_comp;
@@ -72,6 +70,7 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
+	const struct pcmad_board_struct *board = comedi_board(dev);
 	int i;
 	int chan;
 	int n;
@@ -89,7 +88,7 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 		data[n] |= (inb(dev->iobase + PCMAD_MSB) << 8);
 
 		if (devpriv->twos_comp)
-			data[n] ^= (1 << (this_board->n_ai_bits - 1));
+			data[n] ^= (1 << (board->n_ai_bits - 1));
 	}
 
 	return n;
@@ -104,6 +103,7 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
  */
 static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcmad_board_struct *board = comedi_board(dev);
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
@@ -117,15 +117,15 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_CONT "\n");
 	dev->iobase = iobase;
 
-	ret = alloc_subdevices(dev, 1);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct pcmad_priv_struct));
 	if (ret < 0)
 		return ret;
 
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_AI;
@@ -133,7 +133,7 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = 16;		/* XXX */
 	s->len_chanlist = 1;
 	s->insn_read = pcmad_ai_insn_read;
-	s->maxdata = (1 << this_board->n_ai_bits) - 1;
+	s->maxdata = (1 << board->n_ai_bits) - 1;
 	s->range_table = &range_unknown;
 
 	return 0;

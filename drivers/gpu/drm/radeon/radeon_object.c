@@ -52,11 +52,7 @@ void radeon_bo_clear_va(struct radeon_bo *bo)
 
 	list_for_each_entry_safe(bo_va, tmp, &bo->va, bo_list) {
 		/* remove from all vm address space */
-		mutex_lock(&bo_va->vm->mutex);
-		list_del(&bo_va->vm_list);
-		mutex_unlock(&bo_va->vm->mutex);
-		list_del(&bo_va->bo_list);
-		kfree(bo_va);
+		radeon_vm_bo_rmv(bo->rdev, bo_va->vm, bo);
 	}
 }
 
@@ -115,9 +111,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 
 	size = ALIGN(size, PAGE_SIZE);
 
-	if (unlikely(rdev->mman.bdev.dev_mapping == NULL)) {
-		rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
-	}
+	rdev->mman.bdev.dev_mapping = rdev->ddev->dev_mapping;
 	if (kernel) {
 		type = ttm_bo_type_kernel;
 	} else if (sg) {
@@ -154,11 +148,11 @@ retry:
 	INIT_LIST_HEAD(&bo->va);
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
-	mutex_lock(&rdev->vram_mutex);
+	down_read(&rdev->pm.mclk_lock);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, page_align, 0, !kernel, NULL,
 			acc_size, sg, &radeon_ttm_bo_destroy);
-	mutex_unlock(&rdev->vram_mutex);
+	up_read(&rdev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
 			if (domain == RADEON_GEM_DOMAIN_VRAM) {
@@ -219,9 +213,9 @@ void radeon_bo_unref(struct radeon_bo **bo)
 		return;
 	rdev = (*bo)->rdev;
 	tbo = &((*bo)->tbo);
-	mutex_lock(&rdev->vram_mutex);
+	down_read(&rdev->pm.mclk_lock);
 	ttm_bo_unref(&tbo);
-	mutex_unlock(&rdev->vram_mutex);
+	up_read(&rdev->pm.mclk_lock);
 	if (tbo == NULL)
 		*bo = NULL;
 }

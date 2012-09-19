@@ -47,20 +47,20 @@ static int cifs_calc_signature(const struct kvec *iov, int n_vec,
 		return -EINVAL;
 
 	if (!server->secmech.sdescmd5) {
-		cERROR(1, "%s: Can't generate signature\n", __func__);
+		cERROR(1, "%s: Can't generate signature", __func__);
 		return -1;
 	}
 
 	rc = crypto_shash_init(&server->secmech.sdescmd5->shash);
 	if (rc) {
-		cERROR(1, "%s: Could not init md5\n", __func__);
+		cERROR(1, "%s: Could not init md5", __func__);
 		return rc;
 	}
 
 	rc = crypto_shash_update(&server->secmech.sdescmd5->shash,
 		server->session_key.response, server->session_key.len);
 	if (rc) {
-		cERROR(1, "%s: Could not update with response\n", __func__);
+		cERROR(1, "%s: Could not update with response", __func__);
 		return rc;
 	}
 
@@ -85,7 +85,7 @@ static int cifs_calc_signature(const struct kvec *iov, int n_vec,
 				iov[i].iov_base, iov[i].iov_len);
 		}
 		if (rc) {
-			cERROR(1, "%s: Could not update with payload\n",
+			cERROR(1, "%s: Could not update with payload",
 							__func__);
 			return rc;
 		}
@@ -93,13 +93,13 @@ static int cifs_calc_signature(const struct kvec *iov, int n_vec,
 
 	rc = crypto_shash_final(&server->secmech.sdescmd5->shash, signature);
 	if (rc)
-		cERROR(1, "%s: Could not generate md5 hash\n", __func__);
+		cERROR(1, "%s: Could not generate md5 hash", __func__);
 
 	return rc;
 }
 
 /* must be called with server->srv_mutex held */
-int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
+int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 		   __u32 *pexpected_response_sequence_number)
 {
 	int rc = 0;
@@ -143,7 +143,7 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 	iov.iov_base = cifs_pdu;
 	iov.iov_len = be32_to_cpu(cifs_pdu->smb_buf_length) + 4;
 
-	return cifs_sign_smb2(&iov, 1, server,
+	return cifs_sign_smbv(&iov, 1, server,
 			      pexpected_response_sequence_number);
 }
 
@@ -399,7 +399,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 	wchar_t *server;
 
 	if (!ses->server->secmech.sdeschmacmd5) {
-		cERROR(1, "calc_ntlmv2_hash: can't generate ntlmv2 hash\n");
+		cERROR(1, "calc_ntlmv2_hash: can't generate ntlmv2 hash");
 		return -1;
 	}
 
@@ -415,7 +415,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 
 	rc = crypto_shash_init(&ses->server->secmech.sdeschmacmd5->shash);
 	if (rc) {
-		cERROR(1, "calc_ntlmv2_hash: could not init hmacmd5\n");
+		cERROR(1, "calc_ntlmv2_hash: could not init hmacmd5");
 		return rc;
 	}
 
@@ -423,7 +423,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 	len = ses->user_name ? strlen(ses->user_name) : 0;
 	user = kmalloc(2 + (len * 2), GFP_KERNEL);
 	if (user == NULL) {
-		cERROR(1, "calc_ntlmv2_hash: user mem alloc failure\n");
+		cERROR(1, "calc_ntlmv2_hash: user mem alloc failure");
 		rc = -ENOMEM;
 		return rc;
 	}
@@ -439,7 +439,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 				(char *)user, 2 * len);
 	kfree(user);
 	if (rc) {
-		cERROR(1, "%s: Could not update with user\n", __func__);
+		cERROR(1, "%s: Could not update with user", __func__);
 		return rc;
 	}
 
@@ -460,7 +460,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 					(char *)domain, 2 * len);
 		kfree(domain);
 		if (rc) {
-			cERROR(1, "%s: Could not update with domain\n",
+			cERROR(1, "%s: Could not update with domain",
 								__func__);
 			return rc;
 		}
@@ -480,7 +480,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 					(char *)server, 2 * len);
 		kfree(server);
 		if (rc) {
-			cERROR(1, "%s: Could not update with server\n",
+			cERROR(1, "%s: Could not update with server",
 								__func__);
 			return rc;
 		}
@@ -489,7 +489,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 	rc = crypto_shash_final(&ses->server->secmech.sdeschmacmd5->shash,
 					ntlmv2_hash);
 	if (rc)
-		cERROR(1, "%s: Could not generate md5 hash\n", __func__);
+		cERROR(1, "%s: Could not generate md5 hash", __func__);
 
 	return rc;
 }
@@ -501,7 +501,7 @@ CalcNTLMv2_response(const struct cifs_ses *ses, char *ntlmv2_hash)
 	unsigned int offset = CIFS_SESS_KEY_SIZE + 8;
 
 	if (!ses->server->secmech.sdeschmacmd5) {
-		cERROR(1, "calc_ntlmv2_hash: can't generate ntlmv2 hash\n");
+		cERROR(1, "calc_ntlmv2_hash: can't generate ntlmv2 hash");
 		return -1;
 	}
 
@@ -527,14 +527,14 @@ CalcNTLMv2_response(const struct cifs_ses *ses, char *ntlmv2_hash)
 	rc = crypto_shash_update(&ses->server->secmech.sdeschmacmd5->shash,
 		ses->auth_key.response + offset, ses->auth_key.len - offset);
 	if (rc) {
-		cERROR(1, "%s: Could not update with response\n", __func__);
+		cERROR(1, "%s: Could not update with response", __func__);
 		return rc;
 	}
 
 	rc = crypto_shash_final(&ses->server->secmech.sdeschmacmd5->shash,
 		ses->auth_key.response + CIFS_SESS_KEY_SIZE);
 	if (rc)
-		cERROR(1, "%s: Could not generate md5 hash\n", __func__);
+		cERROR(1, "%s: Could not generate md5 hash", __func__);
 
 	return rc;
 }
@@ -613,7 +613,7 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 
 	rc = crypto_shash_init(&ses->server->secmech.sdeschmacmd5->shash);
 	if (rc) {
-		cERROR(1, "%s: Could not init hmacmd5\n", __func__);
+		cERROR(1, "%s: Could not init hmacmd5", __func__);
 		goto setup_ntlmv2_rsp_ret;
 	}
 
@@ -621,14 +621,14 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 		ses->auth_key.response + CIFS_SESS_KEY_SIZE,
 		CIFS_HMAC_MD5_HASH_SIZE);
 	if (rc) {
-		cERROR(1, "%s: Could not update with response\n", __func__);
+		cERROR(1, "%s: Could not update with response", __func__);
 		goto setup_ntlmv2_rsp_ret;
 	}
 
 	rc = crypto_shash_final(&ses->server->secmech.sdeschmacmd5->shash,
 		ses->auth_key.response);
 	if (rc)
-		cERROR(1, "%s: Could not generate md5 hash\n", __func__);
+		cERROR(1, "%s: Could not generate md5 hash", __func__);
 
 setup_ntlmv2_rsp_ret:
 	kfree(tiblob);
@@ -650,7 +650,7 @@ calc_seckey(struct cifs_ses *ses)
 	tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm_arc4)) {
 		rc = PTR_ERR(tfm_arc4);
-		cERROR(1, "could not allocate crypto API arc4\n");
+		cERROR(1, "could not allocate crypto API arc4");
 		return rc;
 	}
 
@@ -668,7 +668,7 @@ calc_seckey(struct cifs_ses *ses)
 
 	rc = crypto_blkcipher_encrypt(&desc, &sgout, &sgin, CIFS_CPHTXT_SIZE);
 	if (rc) {
-		cERROR(1, "could not encrypt session key rc: %d\n", rc);
+		cERROR(1, "could not encrypt session key rc: %d", rc);
 		crypto_free_blkcipher(tfm_arc4);
 		return rc;
 	}
@@ -705,13 +705,13 @@ cifs_crypto_shash_allocate(struct TCP_Server_Info *server)
 
 	server->secmech.hmacmd5 = crypto_alloc_shash("hmac(md5)", 0, 0);
 	if (IS_ERR(server->secmech.hmacmd5)) {
-		cERROR(1, "could not allocate crypto hmacmd5\n");
+		cERROR(1, "could not allocate crypto hmacmd5");
 		return PTR_ERR(server->secmech.hmacmd5);
 	}
 
 	server->secmech.md5 = crypto_alloc_shash("md5", 0, 0);
 	if (IS_ERR(server->secmech.md5)) {
-		cERROR(1, "could not allocate crypto md5\n");
+		cERROR(1, "could not allocate crypto md5");
 		rc = PTR_ERR(server->secmech.md5);
 		goto crypto_allocate_md5_fail;
 	}
@@ -720,7 +720,7 @@ cifs_crypto_shash_allocate(struct TCP_Server_Info *server)
 			crypto_shash_descsize(server->secmech.hmacmd5);
 	server->secmech.sdeschmacmd5 = kmalloc(size, GFP_KERNEL);
 	if (!server->secmech.sdeschmacmd5) {
-		cERROR(1, "cifs_crypto_shash_allocate: can't alloc hmacmd5\n");
+		cERROR(1, "cifs_crypto_shash_allocate: can't alloc hmacmd5");
 		rc = -ENOMEM;
 		goto crypto_allocate_hmacmd5_sdesc_fail;
 	}
@@ -732,7 +732,7 @@ cifs_crypto_shash_allocate(struct TCP_Server_Info *server)
 			crypto_shash_descsize(server->secmech.md5);
 	server->secmech.sdescmd5 = kmalloc(size, GFP_KERNEL);
 	if (!server->secmech.sdescmd5) {
-		cERROR(1, "cifs_crypto_shash_allocate: can't alloc md5\n");
+		cERROR(1, "cifs_crypto_shash_allocate: can't alloc md5");
 		rc = -ENOMEM;
 		goto crypto_allocate_md5_sdesc_fail;
 	}

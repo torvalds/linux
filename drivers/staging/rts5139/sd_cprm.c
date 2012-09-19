@@ -201,9 +201,8 @@ RTY_SEND_CMD:
 			if (buf[1] & 0x80)
 				TRACE_RET(chip, STATUS_FAIL);
 		}
-		if (buf[1] & 0x7F) {
+		if (buf[1] & 0x7F)
 			TRACE_RET(chip, STATUS_FAIL);
-		}
 		if (buf[2] & 0xF8)
 			TRACE_RET(chip, STATUS_FAIL);
 
@@ -224,7 +223,8 @@ RTY_SEND_CMD:
 	return STATUS_SUCCESS;
 }
 
-static int ext_sd_get_rsp(struct rts51x_chip *chip, int len, u8 *rsp, u8 rsp_type)
+static int ext_sd_get_rsp(struct rts51x_chip *chip, int len,
+			u8 *rsp, u8 rsp_type)
 {
 	int retval, rsp_len;
 	u16 reg_addr;
@@ -844,7 +844,7 @@ int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 
 	buf[15] = chip->max_lun;
 
-	len = min(18, (int)scsi_bufflen(srb));
+	len = min_t(unsigned, 18, scsi_bufflen(srb));
 	rts51x_set_xfer_buf(buf, len, srb);
 
 	return TRANSPORT_GOOD;

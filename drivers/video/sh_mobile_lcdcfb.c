@@ -12,6 +12,7 @@
 #include <linux/backlight.h>
 #include <linux/clk.h>
 #include <linux/console.h>
+#include <linux/ctype.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
@@ -32,11 +33,175 @@
 
 #include "sh_mobile_lcdcfb.h"
 
+/* ----------------------------------------------------------------------------
+ * Overlay register definitions
+ */
+
+#define LDBCR			0xb00
+#define LDBCR_UPC(n)		(1 << ((n) + 16))
+#define LDBCR_UPF(n)		(1 << ((n) + 8))
+#define LDBCR_UPD(n)		(1 << ((n) + 0))
+#define LDBnBSIFR(n)		(0xb20 + (n) * 0x20 + 0x00)
+#define LDBBSIFR_EN		(1 << 31)
+#define LDBBSIFR_VS		(1 << 29)
+#define LDBBSIFR_BRSEL		(1 << 28)
+#define LDBBSIFR_MX		(1 << 27)
+#define LDBBSIFR_MY		(1 << 26)
+#define LDBBSIFR_CV3		(3 << 24)
+#define LDBBSIFR_CV2		(2 << 24)
+#define LDBBSIFR_CV1		(1 << 24)
+#define LDBBSIFR_CV0		(0 << 24)
+#define LDBBSIFR_CV_MASK	(3 << 24)
+#define LDBBSIFR_LAY_MASK	(0xff << 16)
+#define LDBBSIFR_LAY_SHIFT	16
+#define LDBBSIFR_ROP3_MASK	(0xff << 16)
+#define LDBBSIFR_ROP3_SHIFT	16
+#define LDBBSIFR_AL_PL8		(3 << 14)
+#define LDBBSIFR_AL_PL1		(2 << 14)
+#define LDBBSIFR_AL_PK		(1 << 14)
+#define LDBBSIFR_AL_1		(0 << 14)
+#define LDBBSIFR_AL_MASK	(3 << 14)
+#define LDBBSIFR_SWPL		(1 << 10)
+#define LDBBSIFR_SWPW		(1 << 9)
+#define LDBBSIFR_SWPB		(1 << 8)
+#define LDBBSIFR_RY		(1 << 7)
+#define LDBBSIFR_CHRR_420	(2 << 0)
+#define LDBBSIFR_CHRR_422	(1 << 0)
+#define LDBBSIFR_CHRR_444	(0 << 0)
+#define LDBBSIFR_RPKF_ARGB32	(0x00 << 0)
+#define LDBBSIFR_RPKF_RGB16	(0x03 << 0)
+#define LDBBSIFR_RPKF_RGB24	(0x0b << 0)
+#define LDBBSIFR_RPKF_MASK	(0x1f << 0)
+#define LDBnBSSZR(n)		(0xb20 + (n) * 0x20 + 0x04)
+#define LDBBSSZR_BVSS_MASK	(0xfff << 16)
+#define LDBBSSZR_BVSS_SHIFT	16
+#define LDBBSSZR_BHSS_MASK	(0xfff << 0)
+#define LDBBSSZR_BHSS_SHIFT	0
+#define LDBnBLOCR(n)		(0xb20 + (n) * 0x20 + 0x08)
+#define LDBBLOCR_CVLC_MASK	(0xfff << 16)
+#define LDBBLOCR_CVLC_SHIFT	16
+#define LDBBLOCR_CHLC_MASK	(0xfff << 0)
+#define LDBBLOCR_CHLC_SHIFT	0
+#define LDBnBSMWR(n)		(0xb20 + (n) * 0x20 + 0x0c)
+#define LDBBSMWR_BSMWA_MASK	(0xffff << 16)
+#define LDBBSMWR_BSMWA_SHIFT	16
+#define LDBBSMWR_BSMW_MASK	(0xffff << 0)
+#define LDBBSMWR_BSMW_SHIFT	0
+#define LDBnBSAYR(n)		(0xb20 + (n) * 0x20 + 0x10)
+#define LDBBSAYR_FG1A_MASK	(0xff << 24)
+#define LDBBSAYR_FG1A_SHIFT	24
+#define LDBBSAYR_FG1R_MASK	(0xff << 16)
+#define LDBBSAYR_FG1R_SHIFT	16
+#define LDBBSAYR_FG1G_MASK	(0xff << 8)
+#define LDBBSAYR_FG1G_SHIFT	8
+#define LDBBSAYR_FG1B_MASK	(0xff << 0)
+#define LDBBSAYR_FG1B_SHIFT	0
+#define LDBnBSACR(n)		(0xb20 + (n) * 0x20 + 0x14)
+#define LDBBSACR_FG2A_MASK	(0xff << 24)
+#define LDBBSACR_FG2A_SHIFT	24
+#define LDBBSACR_FG2R_MASK	(0xff << 16)
+#define LDBBSACR_FG2R_SHIFT	16
+#define LDBBSACR_FG2G_MASK	(0xff << 8)
+#define LDBBSACR_FG2G_SHIFT	8
+#define LDBBSACR_FG2B_MASK	(0xff << 0)
+#define LDBBSACR_FG2B_SHIFT	0
+#define LDBnBSAAR(n)		(0xb20 + (n) * 0x20 + 0x18)
+#define LDBBSAAR_AP_MASK	(0xff << 24)
+#define LDBBSAAR_AP_SHIFT	24
+#define LDBBSAAR_R_MASK		(0xff << 16)
+#define LDBBSAAR_R_SHIFT	16
+#define LDBBSAAR_GY_MASK	(0xff << 8)
+#define LDBBSAAR_GY_SHIFT	8
+#define LDBBSAAR_B_MASK		(0xff << 0)
+#define LDBBSAAR_B_SHIFT	0
+#define LDBnBPPCR(n)		(0xb20 + (n) * 0x20 + 0x1c)
+#define LDBBPPCR_AP_MASK	(0xff << 24)
+#define LDBBPPCR_AP_SHIFT	24
+#define LDBBPPCR_R_MASK		(0xff << 16)
+#define LDBBPPCR_R_SHIFT	16
+#define LDBBPPCR_GY_MASK	(0xff << 8)
+#define LDBBPPCR_GY_SHIFT	8
+#define LDBBPPCR_B_MASK		(0xff << 0)
+#define LDBBPPCR_B_SHIFT	0
+#define LDBnBBGCL(n)		(0xb10 + (n) * 0x04)
+#define LDBBBGCL_BGA_MASK	(0xff << 24)
+#define LDBBBGCL_BGA_SHIFT	24
+#define LDBBBGCL_BGR_MASK	(0xff << 16)
+#define LDBBBGCL_BGR_SHIFT	16
+#define LDBBBGCL_BGG_MASK	(0xff << 8)
+#define LDBBBGCL_BGG_SHIFT	8
+#define LDBBBGCL_BGB_MASK	(0xff << 0)
+#define LDBBBGCL_BGB_SHIFT	0
+
 #define SIDE_B_OFFSET 0x1000
 #define MIRROR_OFFSET 0x2000
 
 #define MAX_XRES 1920
 #define MAX_YRES 1080
+
+enum sh_mobile_lcdc_overlay_mode {
+	LCDC_OVERLAY_BLEND,
+	LCDC_OVERLAY_ROP3,
+};
+
+/*
+ * struct sh_mobile_lcdc_overlay - LCDC display overlay
+ *
+ * @channel: LCDC channel this overlay belongs to
+ * @cfg: Overlay configuration
+ * @info: Frame buffer device
+ * @index: Overlay index (0-3)
+ * @base: Overlay registers base address
+ * @enabled: True if the overlay is enabled
+ * @mode: Overlay blending mode (alpha blend or ROP3)
+ * @alpha: Global alpha blending value (0-255, for alpha blending mode)
+ * @rop3: Raster operation (for ROP3 mode)
+ * @fb_mem: Frame buffer virtual memory address
+ * @fb_size: Frame buffer size in bytes
+ * @dma_handle: Frame buffer DMA address
+ * @base_addr_y: Overlay base address (RGB or luma component)
+ * @base_addr_c: Overlay base address (chroma component)
+ * @pan_y_offset: Panning linear offset in bytes (luma component)
+ * @format: Current pixelf format
+ * @xres: Horizontal visible resolution
+ * @xres_virtual: Horizontal total resolution
+ * @yres: Vertical visible resolution
+ * @yres_virtual: Vertical total resolution
+ * @pitch: Overlay line pitch
+ * @pos_x: Horizontal overlay position
+ * @pos_y: Vertical overlay position
+ */
+struct sh_mobile_lcdc_overlay {
+	struct sh_mobile_lcdc_chan *channel;
+
+	const struct sh_mobile_lcdc_overlay_cfg *cfg;
+	struct fb_info *info;
+
+	unsigned int index;
+	unsigned long base;
+
+	bool enabled;
+	enum sh_mobile_lcdc_overlay_mode mode;
+	unsigned int alpha;
+	unsigned int rop3;
+
+	void *fb_mem;
+	unsigned long fb_size;
+
+	dma_addr_t dma_handle;
+	unsigned long base_addr_y;
+	unsigned long base_addr_c;
+	unsigned long pan_y_offset;
+
+	const struct sh_mobile_lcdc_format_info *format;
+	unsigned int xres;
+	unsigned int xres_virtual;
+	unsigned int yres;
+	unsigned int yres_virtual;
+	unsigned int pitch;
+	int pos_x;
+	int pos_y;
+};
 
 struct sh_mobile_lcdc_priv {
 	void __iomem *base;
@@ -45,7 +210,10 @@ struct sh_mobile_lcdc_priv {
 	struct device *dev;
 	struct clk *dot_clk;
 	unsigned long lddckr;
+
 	struct sh_mobile_lcdc_chan ch[2];
+	struct sh_mobile_lcdc_overlay overlays[4];
+
 	struct notifier_block notifier;
 	int started;
 	int forced_fourcc; /* 2 channel LCDC must share fourcc setting */
@@ -139,6 +307,13 @@ static unsigned long lcdc_read_chan(struct sh_mobile_lcdc_chan *chan,
 				    int reg_nr)
 {
 	return ioread32(chan->lcdc->base + chan->reg_offs[reg_nr]);
+}
+
+static void lcdc_write_overlay(struct sh_mobile_lcdc_overlay *ovl,
+			       int reg, unsigned long data)
+{
+	iowrite32(data, ovl->channel->lcdc->base + reg);
+	iowrite32(data, ovl->channel->lcdc->base + reg + SIDE_B_OFFSET);
 }
 
 static void lcdc_write(struct sh_mobile_lcdc_priv *priv,
@@ -384,8 +559,8 @@ sh_mobile_lcdc_must_reconfigure(struct sh_mobile_lcdc_chan *ch,
 	return true;
 }
 
-static int sh_mobile_check_var(struct fb_var_screeninfo *var,
-			       struct fb_info *info);
+static int sh_mobile_lcdc_check_var(struct fb_var_screeninfo *var,
+				    struct fb_info *info);
 
 static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
 					 enum sh_mobile_lcdc_entity_event event,
@@ -439,7 +614,7 @@ static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
 		fb_videomode_to_var(&var, mode);
 		var.bits_per_pixel = info->var.bits_per_pixel;
 		var.grayscale = info->var.grayscale;
-		ret = sh_mobile_check_var(&var, info);
+		ret = sh_mobile_lcdc_check_var(&var, info);
 		break;
 	}
 
@@ -585,7 +760,7 @@ static irqreturn_t sh_mobile_lcdc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int sh_mobile_wait_for_vsync(struct sh_mobile_lcdc_chan *ch)
+static int sh_mobile_lcdc_wait_for_vsync(struct sh_mobile_lcdc_chan *ch)
 {
 	unsigned long ldintr;
 	int ret;
@@ -685,8 +860,98 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 	lcdc_write_chan(ch, LDHAJR, tmp);
 }
 
+static void sh_mobile_lcdc_overlay_setup(struct sh_mobile_lcdc_overlay *ovl)
+{
+	u32 format = 0;
+
+	if (!ovl->enabled) {
+		lcdc_write(ovl->channel->lcdc, LDBCR, LDBCR_UPC(ovl->index));
+		lcdc_write_overlay(ovl, LDBnBSIFR(ovl->index), 0);
+		lcdc_write(ovl->channel->lcdc, LDBCR,
+			   LDBCR_UPF(ovl->index) | LDBCR_UPD(ovl->index));
+		return;
+	}
+
+	ovl->base_addr_y = ovl->dma_handle;
+	ovl->base_addr_c = ovl->dma_handle
+			 + ovl->xres_virtual * ovl->yres_virtual;
+
+	switch (ovl->mode) {
+	case LCDC_OVERLAY_BLEND:
+		format = LDBBSIFR_EN | (ovl->alpha << LDBBSIFR_LAY_SHIFT);
+		break;
+
+	case LCDC_OVERLAY_ROP3:
+		format = LDBBSIFR_EN | LDBBSIFR_BRSEL
+		       | (ovl->rop3 << LDBBSIFR_ROP3_SHIFT);
+		break;
+	}
+
+	switch (ovl->format->fourcc) {
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV61:
+	case V4L2_PIX_FMT_NV42:
+		format |= LDBBSIFR_SWPL | LDBBSIFR_SWPW;
+		break;
+	case V4L2_PIX_FMT_BGR24:
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV24:
+		format |= LDBBSIFR_SWPL | LDBBSIFR_SWPW | LDBBSIFR_SWPB;
+		break;
+	case V4L2_PIX_FMT_BGR32:
+	default:
+		format |= LDBBSIFR_SWPL;
+		break;
+	}
+
+	switch (ovl->format->fourcc) {
+	case V4L2_PIX_FMT_RGB565:
+		format |= LDBBSIFR_AL_1 | LDBBSIFR_RY | LDBBSIFR_RPKF_RGB16;
+		break;
+	case V4L2_PIX_FMT_BGR24:
+		format |= LDBBSIFR_AL_1 | LDBBSIFR_RY | LDBBSIFR_RPKF_RGB24;
+		break;
+	case V4L2_PIX_FMT_BGR32:
+		format |= LDBBSIFR_AL_PK | LDBBSIFR_RY | LDDFR_PKF_ARGB32;
+		break;
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		format |= LDBBSIFR_AL_1 | LDBBSIFR_CHRR_420;
+		break;
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		format |= LDBBSIFR_AL_1 | LDBBSIFR_CHRR_422;
+		break;
+	case V4L2_PIX_FMT_NV24:
+	case V4L2_PIX_FMT_NV42:
+		format |= LDBBSIFR_AL_1 | LDBBSIFR_CHRR_444;
+		break;
+	}
+
+	lcdc_write(ovl->channel->lcdc, LDBCR, LDBCR_UPC(ovl->index));
+
+	lcdc_write_overlay(ovl, LDBnBSIFR(ovl->index), format);
+
+	lcdc_write_overlay(ovl, LDBnBSSZR(ovl->index),
+		(ovl->yres << LDBBSSZR_BVSS_SHIFT) |
+		(ovl->xres << LDBBSSZR_BHSS_SHIFT));
+	lcdc_write_overlay(ovl, LDBnBLOCR(ovl->index),
+		(ovl->pos_y << LDBBLOCR_CVLC_SHIFT) |
+		(ovl->pos_x << LDBBLOCR_CHLC_SHIFT));
+	lcdc_write_overlay(ovl, LDBnBSMWR(ovl->index),
+		ovl->pitch << LDBBSMWR_BSMW_SHIFT);
+
+	lcdc_write_overlay(ovl, LDBnBSAYR(ovl->index), ovl->base_addr_y);
+	lcdc_write_overlay(ovl, LDBnBSACR(ovl->index), ovl->base_addr_c);
+
+	lcdc_write(ovl->channel->lcdc, LDBCR,
+		   LDBCR_UPF(ovl->index) | LDBCR_UPD(ovl->index));
+}
+
 /*
- * __sh_mobile_lcdc_start - Configure and tart the LCDC
+ * __sh_mobile_lcdc_start - Configure and start the LCDC
  * @priv: LCDC device
  *
  * Configure all enabled channels and start the LCDC device. All external
@@ -839,27 +1104,25 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	/* Compute frame buffer base address and pitch for each channel. */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		int pixelformat;
-		void *meram;
+		void *cache;
 
 		ch = &priv->ch[k];
 		if (!ch->enabled)
 			continue;
 
 		ch->base_addr_y = ch->dma_handle;
-		ch->base_addr_c = ch->base_addr_y + ch->xres * ch->yres_virtual;
+		ch->base_addr_c = ch->dma_handle
+				+ ch->xres_virtual * ch->yres_virtual;
 		ch->line_size = ch->pitch;
 
 		/* Enable MERAM if possible. */
-		if (mdev == NULL || mdev->ops == NULL ||
-		    ch->cfg->meram_cfg == NULL)
+		if (mdev == NULL || ch->cfg->meram_cfg == NULL)
 			continue;
 
-		/* we need to de-init configured ICBs before we can
-		 * re-initialize them.
-		 */
-		if (ch->meram) {
-			mdev->ops->meram_unregister(mdev, ch->meram);
-			ch->meram = NULL;
+		/* Free the allocated MERAM cache. */
+		if (ch->cache) {
+			sh_mobile_meram_cache_free(mdev, ch->cache);
+			ch->cache = NULL;
 		}
 
 		switch (ch->format->fourcc) {
@@ -881,15 +1144,20 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			break;
 		}
 
-		meram = mdev->ops->meram_register(mdev, ch->cfg->meram_cfg,
+		cache = sh_mobile_meram_cache_alloc(mdev, ch->cfg->meram_cfg,
 					ch->pitch, ch->yres, pixelformat,
 					&ch->line_size);
-		if (!IS_ERR(meram)) {
-			mdev->ops->meram_update(mdev, meram,
+		if (!IS_ERR(cache)) {
+			sh_mobile_meram_cache_update(mdev, cache,
 					ch->base_addr_y, ch->base_addr_c,
 					&ch->base_addr_y, &ch->base_addr_c);
-			ch->meram = meram;
+			ch->cache = cache;
 		}
+	}
+
+	for (k = 0; k < ARRAY_SIZE(priv->overlays); ++k) {
+		struct sh_mobile_lcdc_overlay *ovl = &priv->overlays[k];
+		sh_mobile_lcdc_overlay_setup(ovl);
 	}
 
 	/* Start the LCDC. */
@@ -953,12 +1221,10 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 
 		sh_mobile_lcdc_display_off(ch);
 
-		/* disable the meram */
-		if (ch->meram) {
-			struct sh_mobile_meram_info *mdev;
-			mdev = priv->meram_dev;
-			mdev->ops->meram_unregister(mdev, ch->meram);
-			ch->meram = 0;
+		/* Free the MERAM cache. */
+		if (ch->cache) {
+			sh_mobile_meram_cache_free(priv->meram_dev, ch->cache);
+			ch->cache = 0;
 		}
 
 	}
@@ -975,267 +1241,11 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 			sh_mobile_lcdc_clk_off(priv);
 }
 
-/* -----------------------------------------------------------------------------
- * Frame buffer operations
- */
-
-static int sh_mobile_lcdc_setcolreg(u_int regno,
-				    u_int red, u_int green, u_int blue,
-				    u_int transp, struct fb_info *info)
+static int __sh_mobile_lcdc_check_var(struct fb_var_screeninfo *var,
+				      struct fb_info *info)
 {
-	u32 *palette = info->pseudo_palette;
-
-	if (regno >= PALETTE_NR)
-		return -EINVAL;
-
-	/* only FB_VISUAL_TRUECOLOR supported */
-
-	red >>= 16 - info->var.red.length;
-	green >>= 16 - info->var.green.length;
-	blue >>= 16 - info->var.blue.length;
-	transp >>= 16 - info->var.transp.length;
-
-	palette[regno] = (red << info->var.red.offset) |
-	  (green << info->var.green.offset) |
-	  (blue << info->var.blue.offset) |
-	  (transp << info->var.transp.offset);
-
-	return 0;
-}
-
-static struct fb_fix_screeninfo sh_mobile_lcdc_fix  = {
-	.id =		"SH Mobile LCDC",
-	.type =		FB_TYPE_PACKED_PIXELS,
-	.visual =	FB_VISUAL_TRUECOLOR,
-	.accel =	FB_ACCEL_NONE,
-	.xpanstep =	0,
-	.ypanstep =	1,
-	.ywrapstep =	0,
-	.capabilities =	FB_CAP_FOURCC,
-};
-
-static void sh_mobile_lcdc_fillrect(struct fb_info *info,
-				    const struct fb_fillrect *rect)
-{
-	sys_fillrect(info, rect);
-	sh_mobile_lcdc_deferred_io_touch(info);
-}
-
-static void sh_mobile_lcdc_copyarea(struct fb_info *info,
-				    const struct fb_copyarea *area)
-{
-	sys_copyarea(info, area);
-	sh_mobile_lcdc_deferred_io_touch(info);
-}
-
-static void sh_mobile_lcdc_imageblit(struct fb_info *info,
-				     const struct fb_image *image)
-{
-	sys_imageblit(info, image);
-	sh_mobile_lcdc_deferred_io_touch(info);
-}
-
-static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
-				     struct fb_info *info)
-{
-	struct sh_mobile_lcdc_chan *ch = info->par;
-	struct sh_mobile_lcdc_priv *priv = ch->lcdc;
-	unsigned long ldrcntr;
-	unsigned long new_pan_offset;
-	unsigned long base_addr_y, base_addr_c;
-	unsigned long c_offset;
-
-	if (!ch->format->yuv)
-		new_pan_offset = var->yoffset * ch->pitch
-			       + var->xoffset * (ch->format->bpp / 8);
-	else
-		new_pan_offset = var->yoffset * ch->pitch + var->xoffset;
-
-	if (new_pan_offset == ch->pan_offset)
-		return 0;	/* No change, do nothing */
-
-	ldrcntr = lcdc_read(priv, _LDRCNTR);
-
-	/* Set the source address for the next refresh */
-	base_addr_y = ch->dma_handle + new_pan_offset;
-	if (ch->format->yuv) {
-		/* Set y offset */
-		c_offset = var->yoffset * ch->pitch
-			 * (ch->format->bpp - 8) / 8;
-		base_addr_c = ch->dma_handle + ch->xres * ch->yres_virtual
-			    + c_offset;
-		/* Set x offset */
-		if (ch->format->fourcc == V4L2_PIX_FMT_NV24)
-			base_addr_c += 2 * var->xoffset;
-		else
-			base_addr_c += var->xoffset;
-	}
-
-	if (ch->meram) {
-		struct sh_mobile_meram_info *mdev;
-
-		mdev = priv->meram_dev;
-		mdev->ops->meram_update(mdev, ch->meram,
-					base_addr_y, base_addr_c,
-					&base_addr_y, &base_addr_c);
-	}
-
-	ch->base_addr_y = base_addr_y;
-	ch->base_addr_c = base_addr_c;
-
-	lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
-	if (ch->format->yuv)
-		lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
-
-	if (lcdc_chan_is_sublcd(ch))
-		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_SRS);
-	else
-		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_MRS);
-
-	ch->pan_offset = new_pan_offset;
-
-	sh_mobile_lcdc_deferred_io_touch(info);
-
-	return 0;
-}
-
-static int sh_mobile_ioctl(struct fb_info *info, unsigned int cmd,
-		       unsigned long arg)
-{
-	int retval;
-
-	switch (cmd) {
-	case FBIO_WAITFORVSYNC:
-		retval = sh_mobile_wait_for_vsync(info->par);
-		break;
-
-	default:
-		retval = -ENOIOCTLCMD;
-		break;
-	}
-	return retval;
-}
-
-static void sh_mobile_fb_reconfig(struct fb_info *info)
-{
-	struct sh_mobile_lcdc_chan *ch = info->par;
-	struct fb_var_screeninfo var;
-	struct fb_videomode mode;
-	struct fb_event event;
-	int evnt = FB_EVENT_MODE_CHANGE_ALL;
-
-	if (ch->use_count > 1 || (ch->use_count == 1 && !info->fbcon_par))
-		/* More framebuffer users are active */
-		return;
-
-	fb_var_to_videomode(&mode, &info->var);
-
-	if (fb_mode_is_equal(&ch->display.mode, &mode))
-		return;
-
-	/* Display has been re-plugged, framebuffer is free now, reconfigure */
-	var = info->var;
-	fb_videomode_to_var(&var, &ch->display.mode);
-	var.width = ch->display.width;
-	var.height = ch->display.height;
-	var.activate = FB_ACTIVATE_NOW;
-
-	if (fb_set_var(info, &var) < 0)
-		/* Couldn't reconfigure, hopefully, can continue as before */
-		return;
-
-	/*
-	 * fb_set_var() calls the notifier change internally, only if
-	 * FBINFO_MISC_USEREVENT flag is set. Since we do not want to fake a
-	 * user event, we have to call the chain ourselves.
-	 */
-	event.info = info;
-	event.data = &ch->display.mode;
-	fb_notifier_call_chain(evnt, &event);
-}
-
-/*
- * Locking: both .fb_release() and .fb_open() are called with info->lock held if
- * user == 1, or with console sem held, if user == 0.
- */
-static int sh_mobile_release(struct fb_info *info, int user)
-{
-	struct sh_mobile_lcdc_chan *ch = info->par;
-
-	mutex_lock(&ch->open_lock);
-	dev_dbg(info->dev, "%s(): %d users\n", __func__, ch->use_count);
-
-	ch->use_count--;
-
-	/* Nothing to reconfigure, when called from fbcon */
-	if (user) {
-		console_lock();
-		sh_mobile_fb_reconfig(info);
-		console_unlock();
-	}
-
-	mutex_unlock(&ch->open_lock);
-
-	return 0;
-}
-
-static int sh_mobile_open(struct fb_info *info, int user)
-{
-	struct sh_mobile_lcdc_chan *ch = info->par;
-
-	mutex_lock(&ch->open_lock);
-	ch->use_count++;
-
-	dev_dbg(info->dev, "%s(): %d users\n", __func__, ch->use_count);
-	mutex_unlock(&ch->open_lock);
-
-	return 0;
-}
-
-static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
-{
-	struct sh_mobile_lcdc_chan *ch = info->par;
-	struct sh_mobile_lcdc_priv *p = ch->lcdc;
-	unsigned int best_dist = (unsigned int)-1;
-	unsigned int best_xres = 0;
-	unsigned int best_yres = 0;
-	unsigned int i;
-
 	if (var->xres > MAX_XRES || var->yres > MAX_YRES)
 		return -EINVAL;
-
-	/* If board code provides us with a list of available modes, make sure
-	 * we use one of them. Find the mode closest to the requested one. The
-	 * distance between two modes is defined as the size of the
-	 * non-overlapping parts of the two rectangles.
-	 */
-	for (i = 0; i < ch->cfg->num_modes; ++i) {
-		const struct fb_videomode *mode = &ch->cfg->lcd_modes[i];
-		unsigned int dist;
-
-		/* We can only round up. */
-		if (var->xres > mode->xres || var->yres > mode->yres)
-			continue;
-
-		dist = var->xres * var->yres + mode->xres * mode->yres
-		     - 2 * min(var->xres, mode->xres)
-			 * min(var->yres, mode->yres);
-
-		if (dist < best_dist) {
-			best_xres = mode->xres;
-			best_yres = mode->yres;
-			best_dist = dist;
-		}
-	}
-
-	/* If no available mode can be used, return an error. */
-	if (ch->cfg->num_modes != 0) {
-		if (best_dist == (unsigned int)-1)
-			return -EINVAL;
-
-		var->xres = best_xres;
-		var->yres = best_yres;
-	}
 
 	/* Make sure the virtual resolution is at least as big as the visible
 	 * resolution.
@@ -1305,6 +1315,696 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 	    info->fix.smem_len)
 		return -EINVAL;
 
+	return 0;
+}
+
+/* -----------------------------------------------------------------------------
+ * Frame buffer operations - Overlays
+ */
+
+static ssize_t
+overlay_alpha_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", ovl->alpha);
+}
+
+static ssize_t
+overlay_alpha_store(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+	unsigned int alpha;
+	char *endp;
+
+	alpha = simple_strtoul(buf, &endp, 10);
+	if (isspace(*endp))
+		endp++;
+
+	if (endp - buf != count)
+		return -EINVAL;
+
+	if (alpha > 255)
+		return -EINVAL;
+
+	if (ovl->alpha != alpha) {
+		ovl->alpha = alpha;
+
+		if (ovl->mode == LCDC_OVERLAY_BLEND && ovl->enabled)
+			sh_mobile_lcdc_overlay_setup(ovl);
+	}
+
+	return count;
+}
+
+static ssize_t
+overlay_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", ovl->mode);
+}
+
+static ssize_t
+overlay_mode_store(struct device *dev, struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+	unsigned int mode;
+	char *endp;
+
+	mode = simple_strtoul(buf, &endp, 10);
+	if (isspace(*endp))
+		endp++;
+
+	if (endp - buf != count)
+		return -EINVAL;
+
+	if (mode != LCDC_OVERLAY_BLEND && mode != LCDC_OVERLAY_ROP3)
+		return -EINVAL;
+
+	if (ovl->mode != mode) {
+		ovl->mode = mode;
+
+		if (ovl->enabled)
+			sh_mobile_lcdc_overlay_setup(ovl);
+	}
+
+	return count;
+}
+
+static ssize_t
+overlay_position_show(struct device *dev, struct device_attribute *attr,
+		      char *buf)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+
+	return scnprintf(buf, PAGE_SIZE, "%d,%d\n", ovl->pos_x, ovl->pos_y);
+}
+
+static ssize_t
+overlay_position_store(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+	char *endp;
+	int pos_x;
+	int pos_y;
+
+	pos_x = simple_strtol(buf, &endp, 10);
+	if (*endp != ',')
+		return -EINVAL;
+
+	pos_y = simple_strtol(endp + 1, &endp, 10);
+	if (isspace(*endp))
+		endp++;
+
+	if (endp - buf != count)
+		return -EINVAL;
+
+	if (ovl->pos_x != pos_x || ovl->pos_y != pos_y) {
+		ovl->pos_x = pos_x;
+		ovl->pos_y = pos_y;
+
+		if (ovl->enabled)
+			sh_mobile_lcdc_overlay_setup(ovl);
+	}
+
+	return count;
+}
+
+static ssize_t
+overlay_rop3_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", ovl->rop3);
+}
+
+static ssize_t
+overlay_rop3_store(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+	unsigned int rop3;
+	char *endp;
+
+	rop3 = !!simple_strtoul(buf, &endp, 10);
+	if (isspace(*endp))
+		endp++;
+
+	if (endp - buf != count)
+		return -EINVAL;
+
+	if (rop3 > 255)
+		return -EINVAL;
+
+	if (ovl->rop3 != rop3) {
+		ovl->rop3 = rop3;
+
+		if (ovl->mode == LCDC_OVERLAY_ROP3 && ovl->enabled)
+			sh_mobile_lcdc_overlay_setup(ovl);
+	}
+
+	return count;
+}
+
+static const struct device_attribute overlay_sysfs_attrs[] = {
+	__ATTR(ovl_alpha, S_IRUGO|S_IWUSR,
+	       overlay_alpha_show, overlay_alpha_store),
+	__ATTR(ovl_mode, S_IRUGO|S_IWUSR,
+	       overlay_mode_show, overlay_mode_store),
+	__ATTR(ovl_position, S_IRUGO|S_IWUSR,
+	       overlay_position_show, overlay_position_store),
+	__ATTR(ovl_rop3, S_IRUGO|S_IWUSR,
+	       overlay_rop3_show, overlay_rop3_store),
+};
+
+static const struct fb_fix_screeninfo sh_mobile_lcdc_overlay_fix  = {
+	.id =		"SH Mobile LCDC",
+	.type =		FB_TYPE_PACKED_PIXELS,
+	.visual =	FB_VISUAL_TRUECOLOR,
+	.accel =	FB_ACCEL_NONE,
+	.xpanstep =	1,
+	.ypanstep =	1,
+	.ywrapstep =	0,
+	.capabilities =	FB_CAP_FOURCC,
+};
+
+static int sh_mobile_lcdc_overlay_pan(struct fb_var_screeninfo *var,
+				    struct fb_info *info)
+{
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+	unsigned long base_addr_y;
+	unsigned long base_addr_c;
+	unsigned long y_offset;
+	unsigned long c_offset;
+
+	if (!ovl->format->yuv) {
+		y_offset = (var->yoffset * ovl->xres_virtual + var->xoffset)
+			 * ovl->format->bpp / 8;
+		c_offset = 0;
+	} else {
+		unsigned int xsub = ovl->format->bpp < 24 ? 2 : 1;
+		unsigned int ysub = ovl->format->bpp < 16 ? 2 : 1;
+
+		y_offset = var->yoffset * ovl->xres_virtual + var->xoffset;
+		c_offset = var->yoffset / ysub * ovl->xres_virtual * 2 / xsub
+			 + var->xoffset * 2 / xsub;
+	}
+
+	/* If the Y offset hasn't changed, the C offset hasn't either. There's
+	 * nothing to do in that case.
+	 */
+	if (y_offset == ovl->pan_y_offset)
+		return 0;
+
+	/* Set the source address for the next refresh */
+	base_addr_y = ovl->dma_handle + y_offset;
+	base_addr_c = ovl->dma_handle + ovl->xres_virtual * ovl->yres_virtual
+		    + c_offset;
+
+	ovl->base_addr_y = base_addr_y;
+	ovl->base_addr_c = base_addr_c;
+	ovl->pan_y_offset = y_offset;
+
+	lcdc_write(ovl->channel->lcdc, LDBCR, LDBCR_UPC(ovl->index));
+
+	lcdc_write_overlay(ovl, LDBnBSAYR(ovl->index), ovl->base_addr_y);
+	lcdc_write_overlay(ovl, LDBnBSACR(ovl->index), ovl->base_addr_c);
+
+	lcdc_write(ovl->channel->lcdc, LDBCR,
+		   LDBCR_UPF(ovl->index) | LDBCR_UPD(ovl->index));
+
+	return 0;
+}
+
+static int sh_mobile_lcdc_overlay_ioctl(struct fb_info *info, unsigned int cmd,
+				      unsigned long arg)
+{
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+
+	switch (cmd) {
+	case FBIO_WAITFORVSYNC:
+		return sh_mobile_lcdc_wait_for_vsync(ovl->channel);
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
+static int sh_mobile_lcdc_overlay_check_var(struct fb_var_screeninfo *var,
+					  struct fb_info *info)
+{
+	return __sh_mobile_lcdc_check_var(var, info);
+}
+
+static int sh_mobile_lcdc_overlay_set_par(struct fb_info *info)
+{
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+
+	ovl->format =
+		sh_mobile_format_info(sh_mobile_format_fourcc(&info->var));
+
+	ovl->xres = info->var.xres;
+	ovl->xres_virtual = info->var.xres_virtual;
+	ovl->yres = info->var.yres;
+	ovl->yres_virtual = info->var.yres_virtual;
+
+	if (ovl->format->yuv)
+		ovl->pitch = info->var.xres_virtual;
+	else
+		ovl->pitch = info->var.xres_virtual * ovl->format->bpp / 8;
+
+	sh_mobile_lcdc_overlay_setup(ovl);
+
+	info->fix.line_length = ovl->pitch;
+
+	if (sh_mobile_format_is_fourcc(&info->var)) {
+		info->fix.type = FB_TYPE_FOURCC;
+		info->fix.visual = FB_VISUAL_FOURCC;
+	} else {
+		info->fix.type = FB_TYPE_PACKED_PIXELS;
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
+	}
+
+	return 0;
+}
+
+/* Overlay blanking. Disable the overlay when blanked. */
+static int sh_mobile_lcdc_overlay_blank(int blank, struct fb_info *info)
+{
+	struct sh_mobile_lcdc_overlay *ovl = info->par;
+
+	ovl->enabled = !blank;
+	sh_mobile_lcdc_overlay_setup(ovl);
+
+	/* Prevent the backlight from receiving a blanking event by returning
+	 * a non-zero value.
+	 */
+	return 1;
+}
+
+static struct fb_ops sh_mobile_lcdc_overlay_ops = {
+	.owner          = THIS_MODULE,
+	.fb_read        = fb_sys_read,
+	.fb_write       = fb_sys_write,
+	.fb_fillrect	= sys_fillrect,
+	.fb_copyarea	= sys_copyarea,
+	.fb_imageblit	= sys_imageblit,
+	.fb_blank	= sh_mobile_lcdc_overlay_blank,
+	.fb_pan_display = sh_mobile_lcdc_overlay_pan,
+	.fb_ioctl       = sh_mobile_lcdc_overlay_ioctl,
+	.fb_check_var	= sh_mobile_lcdc_overlay_check_var,
+	.fb_set_par	= sh_mobile_lcdc_overlay_set_par,
+};
+
+static void
+sh_mobile_lcdc_overlay_fb_unregister(struct sh_mobile_lcdc_overlay *ovl)
+{
+	struct fb_info *info = ovl->info;
+
+	if (info == NULL || info->dev == NULL)
+		return;
+
+	unregister_framebuffer(ovl->info);
+}
+
+static int __devinit
+sh_mobile_lcdc_overlay_fb_register(struct sh_mobile_lcdc_overlay *ovl)
+{
+	struct sh_mobile_lcdc_priv *lcdc = ovl->channel->lcdc;
+	struct fb_info *info = ovl->info;
+	unsigned int i;
+	int ret;
+
+	if (info == NULL)
+		return 0;
+
+	ret = register_framebuffer(info);
+	if (ret < 0)
+		return ret;
+
+	dev_info(lcdc->dev, "registered %s/overlay %u as %dx%d %dbpp.\n",
+		 dev_name(lcdc->dev), ovl->index, info->var.xres,
+		 info->var.yres, info->var.bits_per_pixel);
+
+	for (i = 0; i < ARRAY_SIZE(overlay_sysfs_attrs); ++i) {
+		ret = device_create_file(info->dev, &overlay_sysfs_attrs[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void
+sh_mobile_lcdc_overlay_fb_cleanup(struct sh_mobile_lcdc_overlay *ovl)
+{
+	struct fb_info *info = ovl->info;
+
+	if (info == NULL || info->device == NULL)
+		return;
+
+	framebuffer_release(info);
+}
+
+static int __devinit
+sh_mobile_lcdc_overlay_fb_init(struct sh_mobile_lcdc_overlay *ovl)
+{
+	struct sh_mobile_lcdc_priv *priv = ovl->channel->lcdc;
+	struct fb_var_screeninfo *var;
+	struct fb_info *info;
+
+	/* Allocate and initialize the frame buffer device. */
+	info = framebuffer_alloc(0, priv->dev);
+	if (info == NULL) {
+		dev_err(priv->dev, "unable to allocate fb_info\n");
+		return -ENOMEM;
+	}
+
+	ovl->info = info;
+
+	info->flags = FBINFO_FLAG_DEFAULT;
+	info->fbops = &sh_mobile_lcdc_overlay_ops;
+	info->device = priv->dev;
+	info->screen_base = ovl->fb_mem;
+	info->par = ovl;
+
+	/* Initialize fixed screen information. Restrict pan to 2 lines steps
+	 * for NV12 and NV21.
+	 */
+	info->fix = sh_mobile_lcdc_overlay_fix;
+	snprintf(info->fix.id, sizeof(info->fix.id),
+		 "SH Mobile LCDC Overlay %u", ovl->index);
+	info->fix.smem_start = ovl->dma_handle;
+	info->fix.smem_len = ovl->fb_size;
+	info->fix.line_length = ovl->pitch;
+
+	if (ovl->format->yuv)
+		info->fix.visual = FB_VISUAL_FOURCC;
+	else
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
+
+	switch (ovl->format->fourcc) {
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		info->fix.ypanstep = 2;
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		info->fix.xpanstep = 2;
+	}
+
+	/* Initialize variable screen information. */
+	var = &info->var;
+	memset(var, 0, sizeof(*var));
+	var->xres = ovl->xres;
+	var->yres = ovl->yres;
+	var->xres_virtual = ovl->xres_virtual;
+	var->yres_virtual = ovl->yres_virtual;
+	var->activate = FB_ACTIVATE_NOW;
+
+	/* Use the legacy API by default for RGB formats, and the FOURCC API
+	 * for YUV formats.
+	 */
+	if (!ovl->format->yuv)
+		var->bits_per_pixel = ovl->format->bpp;
+	else
+		var->grayscale = ovl->format->fourcc;
+
+	return sh_mobile_lcdc_overlay_check_var(var, info);
+}
+
+/* -----------------------------------------------------------------------------
+ * Frame buffer operations - main frame buffer
+ */
+
+static int sh_mobile_lcdc_setcolreg(u_int regno,
+				    u_int red, u_int green, u_int blue,
+				    u_int transp, struct fb_info *info)
+{
+	u32 *palette = info->pseudo_palette;
+
+	if (regno >= PALETTE_NR)
+		return -EINVAL;
+
+	/* only FB_VISUAL_TRUECOLOR supported */
+
+	red >>= 16 - info->var.red.length;
+	green >>= 16 - info->var.green.length;
+	blue >>= 16 - info->var.blue.length;
+	transp >>= 16 - info->var.transp.length;
+
+	palette[regno] = (red << info->var.red.offset) |
+	  (green << info->var.green.offset) |
+	  (blue << info->var.blue.offset) |
+	  (transp << info->var.transp.offset);
+
+	return 0;
+}
+
+static const struct fb_fix_screeninfo sh_mobile_lcdc_fix  = {
+	.id =		"SH Mobile LCDC",
+	.type =		FB_TYPE_PACKED_PIXELS,
+	.visual =	FB_VISUAL_TRUECOLOR,
+	.accel =	FB_ACCEL_NONE,
+	.xpanstep =	1,
+	.ypanstep =	1,
+	.ywrapstep =	0,
+	.capabilities =	FB_CAP_FOURCC,
+};
+
+static void sh_mobile_lcdc_fillrect(struct fb_info *info,
+				    const struct fb_fillrect *rect)
+{
+	sys_fillrect(info, rect);
+	sh_mobile_lcdc_deferred_io_touch(info);
+}
+
+static void sh_mobile_lcdc_copyarea(struct fb_info *info,
+				    const struct fb_copyarea *area)
+{
+	sys_copyarea(info, area);
+	sh_mobile_lcdc_deferred_io_touch(info);
+}
+
+static void sh_mobile_lcdc_imageblit(struct fb_info *info,
+				     const struct fb_image *image)
+{
+	sys_imageblit(info, image);
+	sh_mobile_lcdc_deferred_io_touch(info);
+}
+
+static int sh_mobile_lcdc_pan(struct fb_var_screeninfo *var,
+			      struct fb_info *info)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_mobile_lcdc_priv *priv = ch->lcdc;
+	unsigned long ldrcntr;
+	unsigned long base_addr_y, base_addr_c;
+	unsigned long y_offset;
+	unsigned long c_offset;
+
+	if (!ch->format->yuv) {
+		y_offset = (var->yoffset * ch->xres_virtual + var->xoffset)
+			 * ch->format->bpp / 8;
+		c_offset = 0;
+	} else {
+		unsigned int xsub = ch->format->bpp < 24 ? 2 : 1;
+		unsigned int ysub = ch->format->bpp < 16 ? 2 : 1;
+
+		y_offset = var->yoffset * ch->xres_virtual + var->xoffset;
+		c_offset = var->yoffset / ysub * ch->xres_virtual * 2 / xsub
+			 + var->xoffset * 2 / xsub;
+	}
+
+	/* If the Y offset hasn't changed, the C offset hasn't either. There's
+	 * nothing to do in that case.
+	 */
+	if (y_offset == ch->pan_y_offset)
+		return 0;
+
+	/* Set the source address for the next refresh */
+	base_addr_y = ch->dma_handle + y_offset;
+	base_addr_c = ch->dma_handle + ch->xres_virtual * ch->yres_virtual
+		    + c_offset;
+
+	if (ch->cache)
+		sh_mobile_meram_cache_update(priv->meram_dev, ch->cache,
+					     base_addr_y, base_addr_c,
+					     &base_addr_y, &base_addr_c);
+
+	ch->base_addr_y = base_addr_y;
+	ch->base_addr_c = base_addr_c;
+	ch->pan_y_offset = y_offset;
+
+	lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
+	if (ch->format->yuv)
+		lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
+
+	ldrcntr = lcdc_read(priv, _LDRCNTR);
+	if (lcdc_chan_is_sublcd(ch))
+		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_SRS);
+	else
+		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_MRS);
+
+
+	sh_mobile_lcdc_deferred_io_touch(info);
+
+	return 0;
+}
+
+static int sh_mobile_lcdc_ioctl(struct fb_info *info, unsigned int cmd,
+				unsigned long arg)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	int retval;
+
+	switch (cmd) {
+	case FBIO_WAITFORVSYNC:
+		retval = sh_mobile_lcdc_wait_for_vsync(ch);
+		break;
+
+	default:
+		retval = -ENOIOCTLCMD;
+		break;
+	}
+	return retval;
+}
+
+static void sh_mobile_fb_reconfig(struct fb_info *info)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct fb_var_screeninfo var;
+	struct fb_videomode mode;
+	struct fb_event event;
+	int evnt = FB_EVENT_MODE_CHANGE_ALL;
+
+	if (ch->use_count > 1 || (ch->use_count == 1 && !info->fbcon_par))
+		/* More framebuffer users are active */
+		return;
+
+	fb_var_to_videomode(&mode, &info->var);
+
+	if (fb_mode_is_equal(&ch->display.mode, &mode))
+		return;
+
+	/* Display has been re-plugged, framebuffer is free now, reconfigure */
+	var = info->var;
+	fb_videomode_to_var(&var, &ch->display.mode);
+	var.width = ch->display.width;
+	var.height = ch->display.height;
+	var.activate = FB_ACTIVATE_NOW;
+
+	if (fb_set_var(info, &var) < 0)
+		/* Couldn't reconfigure, hopefully, can continue as before */
+		return;
+
+	/*
+	 * fb_set_var() calls the notifier change internally, only if
+	 * FBINFO_MISC_USEREVENT flag is set. Since we do not want to fake a
+	 * user event, we have to call the chain ourselves.
+	 */
+	event.info = info;
+	event.data = &ch->display.mode;
+	fb_notifier_call_chain(evnt, &event);
+}
+
+/*
+ * Locking: both .fb_release() and .fb_open() are called with info->lock held if
+ * user == 1, or with console sem held, if user == 0.
+ */
+static int sh_mobile_lcdc_release(struct fb_info *info, int user)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+
+	mutex_lock(&ch->open_lock);
+	dev_dbg(info->dev, "%s(): %d users\n", __func__, ch->use_count);
+
+	ch->use_count--;
+
+	/* Nothing to reconfigure, when called from fbcon */
+	if (user) {
+		console_lock();
+		sh_mobile_fb_reconfig(info);
+		console_unlock();
+	}
+
+	mutex_unlock(&ch->open_lock);
+
+	return 0;
+}
+
+static int sh_mobile_lcdc_open(struct fb_info *info, int user)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+
+	mutex_lock(&ch->open_lock);
+	ch->use_count++;
+
+	dev_dbg(info->dev, "%s(): %d users\n", __func__, ch->use_count);
+	mutex_unlock(&ch->open_lock);
+
+	return 0;
+}
+
+static int sh_mobile_lcdc_check_var(struct fb_var_screeninfo *var,
+				    struct fb_info *info)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_mobile_lcdc_priv *p = ch->lcdc;
+	unsigned int best_dist = (unsigned int)-1;
+	unsigned int best_xres = 0;
+	unsigned int best_yres = 0;
+	unsigned int i;
+	int ret;
+
+	/* If board code provides us with a list of available modes, make sure
+	 * we use one of them. Find the mode closest to the requested one. The
+	 * distance between two modes is defined as the size of the
+	 * non-overlapping parts of the two rectangles.
+	 */
+	for (i = 0; i < ch->cfg->num_modes; ++i) {
+		const struct fb_videomode *mode = &ch->cfg->lcd_modes[i];
+		unsigned int dist;
+
+		/* We can only round up. */
+		if (var->xres > mode->xres || var->yres > mode->yres)
+			continue;
+
+		dist = var->xres * var->yres + mode->xres * mode->yres
+		     - 2 * min(var->xres, mode->xres)
+			 * min(var->yres, mode->yres);
+
+		if (dist < best_dist) {
+			best_xres = mode->xres;
+			best_yres = mode->yres;
+			best_dist = dist;
+		}
+	}
+
+	/* If no available mode can be used, return an error. */
+	if (ch->cfg->num_modes != 0) {
+		if (best_dist == (unsigned int)-1)
+			return -EINVAL;
+
+		var->xres = best_xres;
+		var->yres = best_yres;
+	}
+
+	ret = __sh_mobile_lcdc_check_var(var, info);
+	if (ret < 0)
+		return ret;
+
 	/* only accept the forced_fourcc for dual channel configurations */
 	if (p->forced_fourcc &&
 	    p->forced_fourcc != sh_mobile_format_fourcc(var))
@@ -1313,7 +2013,7 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 	return 0;
 }
 
-static int sh_mobile_set_par(struct fb_info *info)
+static int sh_mobile_lcdc_set_par(struct fb_info *info)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	int ret;
@@ -1329,9 +2029,9 @@ static int sh_mobile_set_par(struct fb_info *info)
 	ch->yres_virtual = info->var.yres_virtual;
 
 	if (ch->format->yuv)
-		ch->pitch = info->var.xres;
+		ch->pitch = info->var.xres_virtual;
 	else
-		ch->pitch = info->var.xres * ch->format->bpp / 8;
+		ch->pitch = info->var.xres_virtual * ch->format->bpp / 8;
 
 	ret = sh_mobile_lcdc_start(ch->lcdc);
 	if (ret < 0)
@@ -1383,8 +2083,8 @@ static int sh_mobile_lcdc_blank(int blank, struct fb_info *info)
 		 * mode will reenable the clocks and update the screen in time,
 		 * so it does not need this. */
 		if (!info->fbdefio) {
-			sh_mobile_wait_for_vsync(ch);
-			sh_mobile_wait_for_vsync(ch);
+			sh_mobile_lcdc_wait_for_vsync(ch);
+			sh_mobile_lcdc_wait_for_vsync(ch);
 		}
 		sh_mobile_lcdc_clk_off(p);
 	}
@@ -1402,12 +2102,12 @@ static struct fb_ops sh_mobile_lcdc_ops = {
 	.fb_copyarea	= sh_mobile_lcdc_copyarea,
 	.fb_imageblit	= sh_mobile_lcdc_imageblit,
 	.fb_blank	= sh_mobile_lcdc_blank,
-	.fb_pan_display = sh_mobile_fb_pan_display,
-	.fb_ioctl       = sh_mobile_ioctl,
-	.fb_open	= sh_mobile_open,
-	.fb_release	= sh_mobile_release,
-	.fb_check_var	= sh_mobile_check_var,
-	.fb_set_par	= sh_mobile_set_par,
+	.fb_pan_display = sh_mobile_lcdc_pan,
+	.fb_ioctl       = sh_mobile_lcdc_ioctl,
+	.fb_open	= sh_mobile_lcdc_open,
+	.fb_release	= sh_mobile_lcdc_release,
+	.fb_check_var	= sh_mobile_lcdc_check_var,
+	.fb_set_par	= sh_mobile_lcdc_set_par,
 };
 
 static void
@@ -1514,19 +2214,24 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	else
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 
-	if (ch->format->fourcc == V4L2_PIX_FMT_NV12 ||
-	    ch->format->fourcc == V4L2_PIX_FMT_NV21)
+	switch (ch->format->fourcc) {
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
 		info->fix.ypanstep = 2;
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		info->fix.xpanstep = 2;
+	}
 
 	/* Initialize variable screen information using the first mode as
-	 * default. The default Y virtual resolution is twice the panel size to
-	 * allow for double-buffering.
+	 * default.
 	 */
 	var = &info->var;
 	fb_videomode_to_var(var, mode);
 	var->width = ch->cfg->panel_cfg.width;
 	var->height = ch->cfg->panel_cfg.height;
-	var->yres_virtual = var->yres * 2;
+	var->xres_virtual = ch->xres_virtual;
+	var->yres_virtual = ch->yres_virtual;
 	var->activate = FB_ACTIVATE_NOW;
 
 	/* Use the legacy API by default for RGB formats, and the FOURCC API
@@ -1537,7 +2242,7 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	else
 		var->grayscale = ch->format->fourcc;
 
-	ret = sh_mobile_check_var(var, info);
+	ret = sh_mobile_lcdc_check_var(var, info);
 	if (ret)
 		return ret;
 
@@ -1712,14 +2417,26 @@ static const struct fb_videomode default_720p __devinitconst = {
 static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 {
 	struct sh_mobile_lcdc_priv *priv = platform_get_drvdata(pdev);
-	int i;
+	unsigned int i;
 
 	fb_unregister_client(&priv->notifier);
 
+	for (i = 0; i < ARRAY_SIZE(priv->overlays); i++)
+		sh_mobile_lcdc_overlay_fb_unregister(&priv->overlays[i]);
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++)
 		sh_mobile_lcdc_channel_fb_unregister(&priv->ch[i]);
 
 	sh_mobile_lcdc_stop(priv);
+
+	for (i = 0; i < ARRAY_SIZE(priv->overlays); i++) {
+		struct sh_mobile_lcdc_overlay *ovl = &priv->overlays[i];
+
+		sh_mobile_lcdc_overlay_fb_cleanup(ovl);
+
+		if (ovl->fb_mem)
+			dma_free_coherent(&pdev->dev, ovl->fb_size,
+					  ovl->fb_mem, ovl->dma_handle);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++) {
 		struct sh_mobile_lcdc_chan *ch = &priv->ch[i];
@@ -1737,8 +2454,11 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++) {
-		if (priv->ch[i].bl)
-			sh_mobile_lcdc_bl_remove(priv->ch[i].bl);
+		struct sh_mobile_lcdc_chan *ch = &priv->ch[i];
+
+		if (ch->bl)
+			sh_mobile_lcdc_bl_remove(ch->bl);
+		mutex_destroy(&ch->open_lock);
 	}
 
 	if (priv->dot_clk) {
@@ -1792,6 +2512,61 @@ static int __devinit sh_mobile_lcdc_check_interface(struct sh_mobile_lcdc_chan *
 	}
 
 	ch->ldmt1r_value = interface_type;
+	return 0;
+}
+
+static int __devinit
+sh_mobile_lcdc_overlay_init(struct sh_mobile_lcdc_priv *priv,
+			  struct sh_mobile_lcdc_overlay *ovl)
+{
+	const struct sh_mobile_lcdc_format_info *format;
+	int ret;
+
+	if (ovl->cfg->fourcc == 0)
+		return 0;
+
+	/* Validate the format. */
+	format = sh_mobile_format_info(ovl->cfg->fourcc);
+	if (format == NULL) {
+		dev_err(priv->dev, "Invalid FOURCC %08x\n", ovl->cfg->fourcc);
+		return -EINVAL;
+	}
+
+	ovl->enabled = false;
+	ovl->mode = LCDC_OVERLAY_BLEND;
+	ovl->alpha = 255;
+	ovl->rop3 = 0;
+	ovl->pos_x = 0;
+	ovl->pos_y = 0;
+
+	/* The default Y virtual resolution is twice the panel size to allow for
+	 * double-buffering.
+	 */
+	ovl->format = format;
+	ovl->xres = ovl->cfg->max_xres;
+	ovl->xres_virtual = ovl->xres;
+	ovl->yres = ovl->cfg->max_yres;
+	ovl->yres_virtual = ovl->yres * 2;
+
+	if (!format->yuv)
+		ovl->pitch = ovl->xres_virtual * format->bpp / 8;
+	else
+		ovl->pitch = ovl->xres_virtual;
+
+	/* Allocate frame buffer memory. */
+	ovl->fb_size = ovl->cfg->max_xres * ovl->cfg->max_yres
+		       * format->bpp / 8 * 2;
+	ovl->fb_mem = dma_alloc_coherent(priv->dev, ovl->fb_size,
+					   &ovl->dma_handle, GFP_KERNEL);
+	if (!ovl->fb_mem) {
+		dev_err(priv->dev, "unable to allocate buffer\n");
+		return -ENOMEM;
+	}
+
+	ret = sh_mobile_lcdc_overlay_fb_init(ovl);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 
@@ -1854,7 +2629,9 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 		num_modes = cfg->num_modes;
 	}
 
-	/* Use the first mode as default. */
+	/* Use the first mode as default. The default Y virtual resolution is
+	 * twice the panel size to allow for double-buffering.
+	 */
 	ch->format = format;
 	ch->xres = mode->xres;
 	ch->xres_virtual = mode->xres;
@@ -1863,10 +2640,10 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 
 	if (!format->yuv) {
 		ch->colorspace = V4L2_COLORSPACE_SRGB;
-		ch->pitch = ch->xres * format->bpp / 8;
+		ch->pitch = ch->xres_virtual * format->bpp / 8;
 	} else {
 		ch->colorspace = V4L2_COLORSPACE_REC709;
-		ch->pitch = ch->xres;
+		ch->pitch = ch->xres_virtual;
 	}
 
 	ch->display.width = cfg->panel_cfg.width;
@@ -1952,7 +2729,6 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		}
 		init_waitqueue_head(&ch->frame_end_wait);
 		init_completion(&ch->vsync_completion);
-		ch->pan_offset = 0;
 
 		/* probe the backlight is there is one defined */
 		if (ch->cfg->bl_info.max_brightness)
@@ -2003,6 +2779,17 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 			goto err1;
 	}
 
+	for (i = 0; i < ARRAY_SIZE(pdata->overlays); i++) {
+		struct sh_mobile_lcdc_overlay *ovl = &priv->overlays[i];
+
+		ovl->cfg = &pdata->overlays[i];
+		ovl->channel = &priv->ch[0];
+
+		error = sh_mobile_lcdc_overlay_init(priv, ovl);
+		if (error)
+			goto err1;
+	}
+
 	error = sh_mobile_lcdc_start(priv);
 	if (error) {
 		dev_err(&pdev->dev, "unable to start hardware\n");
@@ -2013,6 +2800,14 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		struct sh_mobile_lcdc_chan *ch = priv->ch + i;
 
 		error = sh_mobile_lcdc_channel_fb_register(ch);
+		if (error)
+			goto err1;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pdata->overlays); i++) {
+		struct sh_mobile_lcdc_overlay *ovl = &priv->overlays[i];
+
+		error = sh_mobile_lcdc_overlay_fb_register(ovl);
 		if (error)
 			goto err1;
 	}

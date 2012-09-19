@@ -64,7 +64,7 @@ ACPI_MODULE_NAME("psparse")
  *
  * FUNCTION:    acpi_ps_get_opcode_size
  *
- * PARAMETERS:  Opcode          - An AML opcode
+ * PARAMETERS:  opcode          - An AML opcode
  *
  * RETURN:      Size of the opcode, in bytes (1 or 2)
  *
@@ -121,7 +121,7 @@ u16 acpi_ps_peek_opcode(struct acpi_parse_state * parser_state)
  * FUNCTION:    acpi_ps_complete_this_op
  *
  * PARAMETERS:  walk_state      - Current State
- *              Op              - Op to complete
+ *              op              - Op to complete
  *
  * RETURN:      Status
  *
@@ -311,7 +311,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
  * FUNCTION:    acpi_ps_next_parse_state
  *
  * PARAMETERS:  walk_state          - Current state
- *              Op                  - Current parse op
+ *              op                  - Current parse op
  *              callback_status     - Status from previous operation
  *
  * RETURN:      Status

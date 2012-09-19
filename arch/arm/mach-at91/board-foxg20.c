@@ -42,6 +42,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 
 #include "sam9_smc.h"
@@ -262,6 +263,7 @@ MACHINE_START(ACMENETUSFOXG20, "Acme Systems srl FOX Board G20")
 	/* Maintainer: Sergio Tanzilli */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= foxg20_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= foxg20_board_init,

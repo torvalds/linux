@@ -6091,6 +6091,18 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 		}
 	}
 
+	/* fdo#50830: connector indices for VGA and DVI-I are backwards */
+	if (nv_match_device(dev, 0x0421, 0x3842, 0xc793)) {
+		if (idx == 0 && *conn == 0x02000300)
+			*conn = 0x02011300;
+		else
+		if (idx == 1 && *conn == 0x04011310)
+			*conn = 0x04000310;
+		else
+		if (idx == 2 && *conn == 0x02011312)
+			*conn = 0x02000312;
+	}
+
 	return true;
 }
 

@@ -830,6 +830,8 @@ int register_tracer(struct tracer *type)
 		current_trace = saved_tracer;
 		if (ret) {
 			printk(KERN_CONT "FAILED!\n");
+			/* Add the warning after printing 'FAILED' */
+			WARN_ON(1);
 			goto out;
 		}
 		/* Only reset on passing, to avoid touching corrupted buffers */
@@ -1708,9 +1710,11 @@ EXPORT_SYMBOL_GPL(trace_vprintk);
 
 static void trace_iterator_increment(struct trace_iterator *iter)
 {
+	struct ring_buffer_iter *buf_iter = trace_buffer_iter(iter, iter->cpu);
+
 	iter->idx++;
-	if (iter->buffer_iter[iter->cpu])
-		ring_buffer_read(iter->buffer_iter[iter->cpu], NULL);
+	if (buf_iter)
+		ring_buffer_read(buf_iter, NULL);
 }
 
 static struct trace_entry *
@@ -1718,7 +1722,7 @@ peek_next_entry(struct trace_iterator *iter, int cpu, u64 *ts,
 		unsigned long *lost_events)
 {
 	struct ring_buffer_event *event;
-	struct ring_buffer_iter *buf_iter = iter->buffer_iter[cpu];
+	struct ring_buffer_iter *buf_iter = trace_buffer_iter(iter, cpu);
 
 	if (buf_iter)
 		event = ring_buffer_iter_peek(buf_iter, ts);
@@ -1856,10 +1860,10 @@ void tracing_iter_reset(struct trace_iterator *iter, int cpu)
 
 	tr->data[cpu]->skipped_entries = 0;
 
-	if (!iter->buffer_iter[cpu])
+	buf_iter = trace_buffer_iter(iter, cpu);
+	if (!buf_iter)
 		return;
 
-	buf_iter = iter->buffer_iter[cpu];
 	ring_buffer_iter_reset(buf_iter);
 
 	/*
@@ -2205,13 +2209,15 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 
 int trace_empty(struct trace_iterator *iter)
 {
+	struct ring_buffer_iter *buf_iter;
 	int cpu;
 
 	/* If we are looking at one CPU buffer, only check that one */
 	if (iter->cpu_file != TRACE_PIPE_ALL_CPU) {
 		cpu = iter->cpu_file;
-		if (iter->buffer_iter[cpu]) {
-			if (!ring_buffer_iter_empty(iter->buffer_iter[cpu]))
+		buf_iter = trace_buffer_iter(iter, cpu);
+		if (buf_iter) {
+			if (!ring_buffer_iter_empty(buf_iter))
 				return 0;
 		} else {
 			if (!ring_buffer_empty_cpu(iter->tr->buffer, cpu))
@@ -2221,8 +2227,9 @@ int trace_empty(struct trace_iterator *iter)
 	}
 
 	for_each_tracing_cpu(cpu) {
-		if (iter->buffer_iter[cpu]) {
-			if (!ring_buffer_iter_empty(iter->buffer_iter[cpu]))
+		buf_iter = trace_buffer_iter(iter, cpu);
+		if (buf_iter) {
+			if (!ring_buffer_iter_empty(buf_iter))
 				return 0;
 		} else {
 			if (!ring_buffer_empty_cpu(iter->tr->buffer, cpu))
@@ -2381,6 +2388,11 @@ __tracing_open(struct inode *inode, struct file *file)
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 
+	iter->buffer_iter = kzalloc(sizeof(*iter->buffer_iter) * num_possible_cpus(),
+				    GFP_KERNEL);
+	if (!iter->buffer_iter)
+		goto release;
+
 	/*
 	 * We make a copy of the current tracer to avoid concurrent
 	 * changes on it while we are reading.
@@ -2441,6 +2453,8 @@ __tracing_open(struct inode *inode, struct file *file)
  fail:
 	mutex_unlock(&trace_types_lock);
 	kfree(iter->trace);
+	kfree(iter->buffer_iter);
+release:
 	seq_release_private(inode, file);
 	return ERR_PTR(-ENOMEM);
 }
@@ -2481,6 +2495,7 @@ static int tracing_release(struct inode *inode, struct file *file)
 	mutex_destroy(&iter->mutex);
 	free_cpumask_var(iter->started);
 	kfree(iter->trace);
+	kfree(iter->buffer_iter);
 	seq_release_private(inode, file);
 	return 0;
 }
@@ -3172,10 +3187,10 @@ static int tracing_set_tracer(const char *buf)
 	}
 	destroy_trace_option_files(topts);
 
-	current_trace = t;
+	current_trace = &nop_trace;
 
-	topts = create_trace_option_files(current_trace);
-	if (current_trace->use_max_tr) {
+	topts = create_trace_option_files(t);
+	if (t->use_max_tr) {
 		int cpu;
 		/* we need to make per cpu buffer sizes equivalent */
 		for_each_tracing_cpu(cpu) {
@@ -3195,6 +3210,7 @@ static int tracing_set_tracer(const char *buf)
 			goto out;
 	}
 
+	current_trace = t;
 	trace_branch_enable(tr);
  out:
 	mutex_unlock(&trace_types_lock);
@@ -3609,6 +3625,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		.pages		= pages_def,
 		.partial	= partial_def,
 		.nr_pages	= 0, /* This gets updated below. */
+		.nr_pages_max	= PIPE_DEF_BUFFERS,
 		.flags		= flags,
 		.ops		= &tracing_pipe_buf_ops,
 		.spd_release	= tracing_spd_release_pipe,
@@ -3680,7 +3697,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 
 	ret = splice_to_pipe(pipe, &spd);
 out:
-	splice_shrink_spd(pipe, &spd);
+	splice_shrink_spd(&spd);
 	return ret;
 
 out_err:
@@ -4231,6 +4248,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	struct splice_pipe_desc spd = {
 		.pages		= pages_def,
 		.partial	= partial_def,
+		.nr_pages_max	= PIPE_DEF_BUFFERS,
 		.flags		= flags,
 		.ops		= &buffer_pipe_buf_ops,
 		.spd_release	= buffer_spd_release,
@@ -4318,7 +4336,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	}
 
 	ret = splice_to_pipe(pipe, &spd);
-	splice_shrink_spd(pipe, &spd);
+	splice_shrink_spd(&spd);
 out:
 	return ret;
 }

@@ -173,13 +173,13 @@ static const struct file_operations bad_file_ops =
 };
 
 static int bad_inode_create (struct inode *dir, struct dentry *dentry,
-		umode_t mode, struct nameidata *nd)
+		umode_t mode, bool excl)
 {
 	return -EIO;
 }
 
 static struct dentry *bad_inode_lookup(struct inode *dir,
-			struct dentry *dentry, struct nameidata *nd)
+			struct dentry *dentry, unsigned int flags)
 {
 	return ERR_PTR(-EIO);
 }

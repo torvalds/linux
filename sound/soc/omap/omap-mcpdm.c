@@ -527,6 +527,7 @@ static struct platform_driver asoc_mcpdm_driver = {
 
 module_platform_driver(asoc_mcpdm_driver);
 
+MODULE_ALIAS("platform:omap-mcpdm");
 MODULE_AUTHOR("Misael Lopez Cruz <misael.lopez@ti.com>");
 MODULE_DESCRIPTION("OMAP PDM SoC Interface");
 MODULE_LICENSE("GPL");

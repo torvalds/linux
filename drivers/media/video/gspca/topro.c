@@ -120,24 +120,13 @@ static const u8 jpeg_head[] = {
 #define JPEG_HDR_SZ 521
 };
 
-enum e_ctrl {
-	EXPOSURE,
-	QUALITY,
-	SHARPNESS,
-	RGAIN,
-	GAIN,
-	BGAIN,
-	GAMMA,
-	AUTOGAIN,
-	NCTRLS		/* number of controls */
-};
-
-#define AUTOGAIN_DEF 1
-
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
-
-	struct gspca_ctrl ctrls[NCTRLS];
+	struct v4l2_ctrl *jpegqual;
+	struct v4l2_ctrl *sharpness;
+	struct v4l2_ctrl *gamma;
+	struct v4l2_ctrl *blue;
+	struct v4l2_ctrl *red;
 
 	u8 framerate;
 	u8 quality;		/* webcam current JPEG quality (0..16) */
@@ -1415,32 +1404,33 @@ static void soi763a_6810_init(struct gspca_dev *gspca_dev)
 }
 
 /* set the gain and exposure */
-static void setexposure(struct gspca_dev *gspca_dev)
+static void setexposure(struct gspca_dev *gspca_dev, s32 expo, s32 gain,
+							s32 blue, s32 red)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->sensor == SENSOR_CX0342) {
-		int expo;
-
-		expo = (sd->ctrls[EXPOSURE].val << 2) - 1;
+		expo = (expo << 2) - 1;
 		i2c_w(gspca_dev, CX0342_EXPO_LINE_L, expo);
 		i2c_w(gspca_dev, CX0342_EXPO_LINE_H, expo >> 8);
 		if (sd->bridge == BRIDGE_TP6800)
 			i2c_w(gspca_dev, CX0342_RAW_GBGAIN_H,
-						sd->ctrls[GAIN].val >> 8);
-		i2c_w(gspca_dev, CX0342_RAW_GBGAIN_L, sd->ctrls[GAIN].val);
+						gain >> 8);
+		i2c_w(gspca_dev, CX0342_RAW_GBGAIN_L, gain);
 		if (sd->bridge == BRIDGE_TP6800)
 			i2c_w(gspca_dev, CX0342_RAW_GRGAIN_H,
-						sd->ctrls[GAIN].val >> 8);
-		i2c_w(gspca_dev, CX0342_RAW_GRGAIN_L, sd->ctrls[GAIN].val);
-		if (sd->bridge == BRIDGE_TP6800)
-			i2c_w(gspca_dev, CX0342_RAW_BGAIN_H,
-						sd->ctrls[BGAIN].val >> 8);
-		i2c_w(gspca_dev, CX0342_RAW_BGAIN_L, sd->ctrls[BGAIN].val);
-		if (sd->bridge == BRIDGE_TP6800)
-			i2c_w(gspca_dev, CX0342_RAW_RGAIN_H,
-						sd->ctrls[RGAIN].val >> 8);
-		i2c_w(gspca_dev, CX0342_RAW_RGAIN_L, sd->ctrls[RGAIN].val);
+					gain >> 8);
+		i2c_w(gspca_dev, CX0342_RAW_GRGAIN_L, gain);
+		if (sd->sensor == SENSOR_CX0342) {
+			if (sd->bridge == BRIDGE_TP6800)
+				i2c_w(gspca_dev, CX0342_RAW_BGAIN_H,
+						blue >> 8);
+			i2c_w(gspca_dev, CX0342_RAW_BGAIN_L, blue);
+			if (sd->bridge == BRIDGE_TP6800)
+				i2c_w(gspca_dev, CX0342_RAW_RGAIN_H,
+						red >> 8);
+			i2c_w(gspca_dev, CX0342_RAW_RGAIN_L, red);
+		}
 		i2c_w(gspca_dev, CX0342_SYS_CTRL_0,
 				sd->bridge == BRIDGE_TP6800 ? 0x80 : 0x81);
 		return;
@@ -1448,10 +1438,10 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 	/* soi763a */
 	i2c_w(gspca_dev, 0x10,		/* AEC_H (exposure time) */
-			 sd->ctrls[EXPOSURE].val);
+			 expo);
 /*	i2c_w(gspca_dev, 0x76, 0x02);	 * AEC_L ([1:0] */
 	i2c_w(gspca_dev, 0x00,		/* gain */
-			 sd->ctrls[GAIN].val);
+			 gain);
 }
 
 /* set the JPEG quantization tables */
@@ -1472,12 +1462,10 @@ static void set_dqt(struct gspca_dev *gspca_dev, u8 q)
 }
 
 /* set the JPEG compression quality factor */
-static void setquality(struct gspca_dev *gspca_dev)
+static void setquality(struct gspca_dev *gspca_dev, s32 q)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u16 q;
 
-	q = sd->ctrls[QUALITY].val;
 	if (q != 16)
 		q = 15 - q;
 
@@ -1508,10 +1496,9 @@ static const u8 color_gain[NSENSORS][18] = {
 	 0xd5, 0x00, 0x46, 0x03, 0xdc, 0x03},	/* V R/G/B */
 };
 
-static void setgamma(struct gspca_dev *gspca_dev)
+static void setgamma(struct gspca_dev *gspca_dev, s32 gamma)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int gamma;
 #define NGAMMA 6
 	static const u8 gamma_tb[NGAMMA][3][1024] = {
 	    {				/* gamma 0 - from tp6800 + soi763a */
@@ -3836,7 +3823,6 @@ static void setgamma(struct gspca_dev *gspca_dev)
 	if (sd->bridge == BRIDGE_TP6810)
 		reg_w(gspca_dev, 0x02, 0x28);
 /*	msleep(50); */
-	gamma = sd->ctrls[GAMMA].val;
 	bulk_w(gspca_dev, 0x00, gamma_tb[gamma][0], 1024);
 	bulk_w(gspca_dev, 0x01, gamma_tb[gamma][1], 1024);
 	bulk_w(gspca_dev, 0x02, gamma_tb[gamma][2], 1024);
@@ -3864,43 +3850,35 @@ static void setgamma(struct gspca_dev *gspca_dev)
 /*	msleep(50); */
 }
 
-static void setsharpness(struct gspca_dev *gspca_dev)
+static void setsharpness(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 val;
 
 	if (sd->bridge == BRIDGE_TP6800) {
-		val = sd->ctrls[SHARPNESS].val
-				| 0x08;		/* grid compensation enable */
+		val |= 0x08;		/* grid compensation enable */
 		if (gspca_dev->width == 640)
 			reg_w(gspca_dev, TP6800_R78_FORMAT, 0x00); /* vga */
 		else
 			val |= 0x04;		/* scaling down enable */
 		reg_w(gspca_dev, TP6800_R5D_DEMOSAIC_CFG, val);
 	} else {
-		val = (sd->ctrls[SHARPNESS].val << 5) | 0x08;
+		val = (val << 5) | 0x08;
 		reg_w(gspca_dev, 0x59, val);
 	}
 }
 
-static void setautogain(struct gspca_dev *gspca_dev)
+static void setautogain(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (gspca_dev->ctrl_dis & (1 << AUTOGAIN))
-		return;
-	if (sd->ctrls[AUTOGAIN].val) {
-		sd->ag_cnt = AG_CNT_START;
-		gspca_dev->ctrl_inac |= (1 << EXPOSURE) | (1 << GAIN);
-	} else {
-		sd->ag_cnt = -1;
-		gspca_dev->ctrl_inac &= ~((1 << EXPOSURE) | (1 << GAIN));
-	}
+	sd->ag_cnt = val ? AG_CNT_START : -1;
 }
 
 /* set the resolution for sensor cx0342 */
 static void set_resolution(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
 	reg_w(gspca_dev, TP6800_R21_ENDP_1_CTL, 0x00);
 	if (gspca_dev->width == 320) {
 		reg_w(gspca_dev, TP6800_R3F_FRAME_RATE, 0x06);
@@ -3926,8 +3904,9 @@ static void set_resolution(struct gspca_dev *gspca_dev)
 	i2c_w(gspca_dev, CX0342_SYS_CTRL_0, 0x01);
 	bulk_w(gspca_dev, 0x03, color_gain[SENSOR_CX0342],
 				ARRAY_SIZE(color_gain[0]));
-	setgamma(gspca_dev);
-	setquality(gspca_dev);
+	setgamma(gspca_dev, v4l2_ctrl_g_ctrl(sd->gamma));
+	if (sd->sensor == SENSOR_SOI763A)
+		setquality(gspca_dev, v4l2_ctrl_g_ctrl(sd->jpegqual));
 }
 
 /* convert the frame rate to a tp68x0 value */
@@ -3963,7 +3942,7 @@ static int get_fr_idx(struct gspca_dev *gspca_dev)
 	return i;
 }
 
-static void setframerate(struct gspca_dev *gspca_dev)
+static void setframerate(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 fr_idx;
@@ -3974,7 +3953,7 @@ static void setframerate(struct gspca_dev *gspca_dev)
 		reg_r(gspca_dev, 0x7b);
 		reg_w(gspca_dev, 0x7b,
 			sd->sensor == SENSOR_CX0342 ? 0x10 : 0x90);
-		if (sd->ctrls[EXPOSURE].val >= 128)
+		if (val >= 128)
 			fr_idx = 0xf0;		/* lower frame rate */
 	}
 
@@ -3984,43 +3963,43 @@ static void setframerate(struct gspca_dev *gspca_dev)
 		i2c_w(gspca_dev, CX0342_AUTO_ADC_CALIB, 0x01);
 }
 
-static void setrgain(struct gspca_dev *gspca_dev)
+static void setrgain(struct gspca_dev *gspca_dev, s32 rgain)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-	int rgain;
-
-	rgain = sd->ctrls[RGAIN].val;
 	i2c_w(gspca_dev, CX0342_RAW_RGAIN_H, rgain >> 8);
 	i2c_w(gspca_dev, CX0342_RAW_RGAIN_L, rgain);
 	i2c_w(gspca_dev, CX0342_SYS_CTRL_0, 0x80);
 }
 
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	s32 val = gspca_dev->gain->val;
 
 	if (sd->sensor == SENSOR_CX0342) {
-		sd->ctrls[BGAIN].val = sd->ctrls[BGAIN].val
-					* val / sd->ctrls[GAIN].val;
-		if (sd->ctrls[BGAIN].val > 4095)
-			sd->ctrls[BGAIN].val = 4095;
-		sd->ctrls[RGAIN].val = sd->ctrls[RGAIN].val
-					* val / sd->ctrls[GAIN].val;
-		if (sd->ctrls[RGAIN].val > 4095)
-			sd->ctrls[RGAIN].val = 4095;
+		s32 old = gspca_dev->gain->cur.val ?
+					gspca_dev->gain->cur.val : 1;
+
+		sd->blue->val = sd->blue->val * val / old;
+		if (sd->blue->val > 4095)
+			sd->blue->val = 4095;
+		sd->red->val = sd->red->val * val / old;
+		if (sd->red->val > 4095)
+			sd->red->val = 4095;
 	}
-	sd->ctrls[GAIN].val = val;
-	if (gspca_dev->streaming)
-		setexposure(gspca_dev);
+	if (gspca_dev->streaming) {
+		if (sd->sensor == SENSOR_CX0342)
+			setexposure(gspca_dev, gspca_dev->exposure->val,
+					gspca_dev->gain->val,
+					sd->blue->val, sd->red->val);
+		else
+			setexposure(gspca_dev, gspca_dev->exposure->val,
+					gspca_dev->gain->val, 0, 0);
+	}
 	return gspca_dev->usb_err;
 }
 
-static void setbgain(struct gspca_dev *gspca_dev)
+static void setbgain(struct gspca_dev *gspca_dev, s32 bgain)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-	int bgain;
-
-	bgain = sd->ctrls[BGAIN].val;
 	i2c_w(gspca_dev, CX0342_RAW_BGAIN_H, bgain >> 8);
 	i2c_w(gspca_dev, CX0342_RAW_BGAIN_L, bgain);
 	i2c_w(gspca_dev, CX0342_SYS_CTRL_0, 0x80);
@@ -4040,7 +4019,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			framerates : framerates_6810;
 
 	sd->framerate = 30;		/* default: 30 fps */
-	gspca_dev->cam.ctrls = sd->ctrls;
 	return 0;
 }
 
@@ -4108,32 +4086,16 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	}
 	if (sd->sensor == SENSOR_SOI763A) {
 		pr_info("Sensor soi763a\n");
-		sd->ctrls[GAMMA].def = sd->bridge == BRIDGE_TP6800 ? 0 : 1;
-		sd->ctrls[GAIN].max = 15;
-		sd->ctrls[GAIN].def = 3;
-		gspca_dev->ctrl_dis = (1 << RGAIN) | (1 << BGAIN);
 		if (sd->bridge == BRIDGE_TP6810) {
 			soi763a_6810_init(gspca_dev);
-#if AUTOGAIN_DEF
-			gspca_dev->ctrl_inac |= (1 << EXPOSURE) | (1 << GAIN);
-#endif
-		} else {
-			gspca_dev->ctrl_dis |= (1 << AUTOGAIN);
 		}
 	} else {
 		pr_info("Sensor cx0342\n");
 		if (sd->bridge == BRIDGE_TP6810) {
 			cx0342_6810_init(gspca_dev);
-#if AUTOGAIN_DEF
-			gspca_dev->ctrl_inac |= (1 << EXPOSURE) | (1 << GAIN);
-#endif
-		} else {
-			gspca_dev->ctrl_dis |= (1 << AUTOGAIN);
 		}
 	}
 
-	if (sd->bridge == BRIDGE_TP6810)
-		sd->ctrls[QUALITY].def = 0;	/* auto quality */
 	set_dqt(gspca_dev, 0);
 	return 0;
 }
@@ -4207,8 +4169,9 @@ static void set_led(struct gspca_dev *gspca_dev, int on)
 
 static void cx0342_6800_start(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	static const struct cmd reg_init[] = {
-/*fixme: is this usefull?*/
+		/* fixme: is this useful? */
 		{TP6800_R17_GPIO_IO, 0x9f},
 		{TP6800_R16_GPIO_PD, 0x40},
 		{TP6800_R10_SIF_TYPE, 0x00},	/* i2c 8 bits */
@@ -4279,13 +4242,21 @@ static void cx0342_6800_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, TP6800_R54_DARK_CFG, 0x00);
 	i2c_w(gspca_dev, CX0342_EXPO_LINE_H, 0x00);
 	i2c_w(gspca_dev, CX0342_SYS_CTRL_0, 0x01);
-	setexposure(gspca_dev);
+	if (sd->sensor == SENSOR_CX0342)
+		setexposure(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+			v4l2_ctrl_g_ctrl(gspca_dev->gain),
+			v4l2_ctrl_g_ctrl(sd->blue),
+			v4l2_ctrl_g_ctrl(sd->red));
+	else
+		setexposure(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+			v4l2_ctrl_g_ctrl(gspca_dev->gain), 0, 0);
 	set_led(gspca_dev, 1);
 	set_resolution(gspca_dev);
 }
 
 static void cx0342_6810_start(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	static const struct cmd sensor_init_2[] = {
 		{CX0342_EXPO_LINE_L, 0x6f},
 		{CX0342_EXPO_LINE_H, 0x02},
@@ -4366,10 +4337,10 @@ static void cx0342_6810_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x07, 0x85);
 		reg_w(gspca_dev, TP6800_R78_FORMAT, 0x01);	/* qvga */
 	}
-	setgamma(gspca_dev);
+	setgamma(gspca_dev, v4l2_ctrl_g_ctrl(sd->gamma));
 	reg_w_buf(gspca_dev, tp6810_bridge_start,
 			ARRAY_SIZE(tp6810_bridge_start));
-	setsharpness(gspca_dev);
+	setsharpness(gspca_dev, v4l2_ctrl_g_ctrl(sd->sharpness));
 	bulk_w(gspca_dev, 0x03, color_gain[SENSOR_CX0342],
 				ARRAY_SIZE(color_gain[0]));
 	reg_w(gspca_dev, TP6800_R3F_FRAME_RATE, 0x87);
@@ -4380,11 +4351,12 @@ static void cx0342_6810_start(struct gspca_dev *gspca_dev)
 	i2c_w_buf(gspca_dev, sensor_init_5, ARRAY_SIZE(sensor_init_5));
 
 	set_led(gspca_dev, 1);
-/*	setquality(gspca_dev); */
+/*	setquality(gspca_dev, v4l2_ctrl_g_ctrl(sd->jpegqual)); */
 }
 
 static void soi763a_6800_start(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	static const struct cmd reg_init[] = {
 		{TP6800_R79_QUALITY, 0x04},
 		{TP6800_R79_QUALITY, 0x01},
@@ -4484,19 +4456,28 @@ static void soi763a_6800_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, TP6800_R5C_EDGE_THRLD, 0x10);
 	reg_w(gspca_dev, TP6800_R54_DARK_CFG, 0x00);
 
-	setsharpness(gspca_dev);
+	setsharpness(gspca_dev, v4l2_ctrl_g_ctrl(sd->sharpness));
 
 	bulk_w(gspca_dev, 0x03, color_gain[SENSOR_SOI763A],
 				ARRAY_SIZE(color_gain[0]));
 
 	set_led(gspca_dev, 1);
-	setexposure(gspca_dev);
-	setquality(gspca_dev);
-	setgamma(gspca_dev);
+	if (sd->sensor == SENSOR_CX0342)
+		setexposure(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+			v4l2_ctrl_g_ctrl(gspca_dev->gain),
+			v4l2_ctrl_g_ctrl(sd->blue),
+			v4l2_ctrl_g_ctrl(sd->red));
+	else
+		setexposure(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+			v4l2_ctrl_g_ctrl(gspca_dev->gain), 0, 0);
+	if (sd->sensor == SENSOR_SOI763A)
+		setquality(gspca_dev, v4l2_ctrl_g_ctrl(sd->jpegqual));
+	setgamma(gspca_dev, v4l2_ctrl_g_ctrl(sd->gamma));
 }
 
 static void soi763a_6810_start(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	static const struct cmd bridge_init_2[] = {
 		{TP6800_R7A_BLK_THRLD, 0x00},
 		{TP6800_R79_QUALITY, 0x04},
@@ -4520,7 +4501,14 @@ static void soi763a_6810_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x22, gspca_dev->alt);
 	bulk_w(gspca_dev, 0x03, color_null, sizeof color_null);
 	reg_w(gspca_dev, 0x59, 0x40);
-	setexposure(gspca_dev);
+	if (sd->sensor == SENSOR_CX0342)
+		setexposure(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+			v4l2_ctrl_g_ctrl(gspca_dev->gain),
+			v4l2_ctrl_g_ctrl(sd->blue),
+			v4l2_ctrl_g_ctrl(sd->red));
+	else
+		setexposure(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+			v4l2_ctrl_g_ctrl(gspca_dev->gain), 0, 0);
 	reg_w_buf(gspca_dev, bridge_init_2, ARRAY_SIZE(bridge_init_2));
 	reg_w_buf(gspca_dev, tp6810_ov_init_common,
 			ARRAY_SIZE(tp6810_ov_init_common));
@@ -4534,7 +4522,7 @@ static void soi763a_6810_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x07, 0x85);
 		reg_w(gspca_dev, TP6800_R78_FORMAT, 0x01);	/* qvga */
 	}
-	setgamma(gspca_dev);
+	setgamma(gspca_dev, v4l2_ctrl_g_ctrl(sd->gamma));
 	reg_w_buf(gspca_dev, tp6810_bridge_start,
 			ARRAY_SIZE(tp6810_bridge_start));
 
@@ -4545,12 +4533,19 @@ static void soi763a_6810_start(struct gspca_dev *gspca_dev)
 
 	reg_w(gspca_dev, 0x00, 0x00);
 
-	setsharpness(gspca_dev);
+	setsharpness(gspca_dev, v4l2_ctrl_g_ctrl(sd->sharpness));
 	bulk_w(gspca_dev, 0x03, color_gain[SENSOR_SOI763A],
 				ARRAY_SIZE(color_gain[0]));
 	set_led(gspca_dev, 1);
 	reg_w(gspca_dev, TP6800_R3F_FRAME_RATE, 0xf0);
-	setexposure(gspca_dev);
+	if (sd->sensor == SENSOR_CX0342)
+		setexposure(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+			v4l2_ctrl_g_ctrl(gspca_dev->gain),
+			v4l2_ctrl_g_ctrl(sd->blue),
+			v4l2_ctrl_g_ctrl(sd->red));
+	else
+		setexposure(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+			v4l2_ctrl_g_ctrl(gspca_dev->gain), 0, 0);
 	reg_w_buf(gspca_dev, bridge_init_6, ARRAY_SIZE(bridge_init_6));
 }
 
@@ -4576,12 +4571,25 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x80, 0x03);
 		reg_w(gspca_dev, 0x82, gspca_dev->curr_mode ? 0x0a : 0x0e);
 
-		setexposure(gspca_dev);
-		setquality(gspca_dev);
-		setautogain(gspca_dev);
+		if (sd->sensor == SENSOR_CX0342)
+			setexposure(gspca_dev,
+				v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+				v4l2_ctrl_g_ctrl(gspca_dev->gain),
+				v4l2_ctrl_g_ctrl(sd->blue),
+				v4l2_ctrl_g_ctrl(sd->red));
+		else
+			setexposure(gspca_dev,
+				v4l2_ctrl_g_ctrl(gspca_dev->exposure),
+				v4l2_ctrl_g_ctrl(gspca_dev->gain), 0, 0);
+		if (sd->sensor == SENSOR_SOI763A)
+			setquality(gspca_dev,
+				   v4l2_ctrl_g_ctrl(sd->jpegqual));
+		if (sd->bridge == BRIDGE_TP6810)
+			setautogain(gspca_dev,
+				    v4l2_ctrl_g_ctrl(gspca_dev->autogain));
 	}
 
-	setframerate(gspca_dev);
+	setframerate(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure));
 
 	return gspca_dev->usb_err;
 }
@@ -4672,12 +4680,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 }
 
-/* -- do autogain -- */
-/* gain setting is done in setexposure() for tp6810 */
-static void setgain(struct gspca_dev *gspca_dev) {}
-#define WANT_REGULAR_AUTOGAIN
-#include "autogain_functions.h"
-
 static void sd_dq_callback(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -4739,17 +4741,19 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 			luma /= 4;
 		reg_w(gspca_dev, 0x7d, 0x00);
 
-		expo = sd->ctrls[EXPOSURE].val;
-		ret = auto_gain_n_exposure(gspca_dev, luma,
+		expo = v4l2_ctrl_g_ctrl(gspca_dev->exposure);
+		ret = gspca_expo_autogain(gspca_dev, luma,
 				60,	/* desired luma */
 				6,	/* dead zone */
 				2,	/* gain knee */
 				70);	/* expo knee */
 		sd->ag_cnt = AG_CNT_START;
 		if (sd->bridge == BRIDGE_TP6810) {
-			if ((expo >= 128 && sd->ctrls[EXPOSURE].val < 128)
-			 || (expo < 128 && sd->ctrls[EXPOSURE].val >= 128))
-				setframerate(gspca_dev);
+			int new_expo = v4l2_ctrl_g_ctrl(gspca_dev->exposure);
+
+			if ((expo >= 128 && new_expo < 128)
+			 || (expo < 128 && new_expo >= 128))
+				setframerate(gspca_dev, new_expo);
 		}
 		break;
 	}
@@ -4789,7 +4793,7 @@ static void sd_set_streamparm(struct gspca_dev *gspca_dev,
 
 	sd->framerate = tpf->denominator / tpf->numerator;
 	if (gspca_dev->streaming)
-		setframerate(gspca_dev);
+		setframerate(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure));
 
 	/* Return the actual framerate */
 	i = get_fr_idx(gspca_dev);
@@ -4806,12 +4810,10 @@ static int sd_set_jcomp(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->sensor == SENSOR_SOI763A)
-		jpeg_set_qual(sd->jpeg_hdr, jcomp->quality);
-/*	else
-		fixme: TODO
-*/
-	return gspca_dev->usb_err;
+	if (sd->sensor != SENSOR_SOI763A)
+		return -ENOTTY;
+	v4l2_ctrl_s_ctrl(sd->jpegqual, jcomp->quality);
+	return 0;
 }
 
 static int sd_get_jcomp(struct gspca_dev *gspca_dev,
@@ -4819,118 +4821,109 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (sd->sensor != SENSOR_SOI763A)
+		return -ENOTTY;
 	memset(jcomp, 0, sizeof *jcomp);
-	jcomp->quality = jpeg_q[sd->quality];
+	jcomp->quality = v4l2_ctrl_g_ctrl(sd->jpegqual);
 	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
 			| V4L2_JPEG_MARKER_DQT;
 	return 0;
 }
 
-static struct ctrl sd_ctrls[NCTRLS] = {
-[EXPOSURE] = {
-	    {
-		.id = V4L2_CID_EXPOSURE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Exposure",
-		.minimum = 0x01,
-		.maximum = 0xdc,
-		.step = 1,
-		.default_value = 0x4e,
-	    },
-	    .set_control = setexposure
-	},
-[QUALITY] = {
-	    {
-		.id = V4L2_CID_PRIVATE_BASE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Compression quality",
-		.minimum = 0,
-		.maximum = 15,
-		.step = 1,
-		.default_value = 13,
-	    },
-	    .set_control = setquality
-	},
-[RGAIN] = {
-	    {
-		.id = V4L2_CID_RED_BALANCE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Red balance",
-		.minimum = 0,
-		.maximum = 4095,
-		.step = 1,
-		.default_value = 256,
-	    },
-	    .set_control = setrgain
-	},
-[GAIN] = {
-	    {
-		.id = V4L2_CID_GAIN,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Gain",
-		.minimum = 0,
-		.maximum = 4095,
-		.step = 1,
-		.default_value = 256,
-	    },
-	    .set = sd_setgain
-	},
-[BGAIN] = {
-	    {
-		.id = V4L2_CID_BLUE_BALANCE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Blue balance",
-		.minimum = 0,
-		.maximum = 4095,
-		.step = 1,
-		.default_value = 256,
-	    },
-	    .set_control = setbgain
-	},
-[SHARPNESS] = {
-	    {
-		.id	 = V4L2_CID_SHARPNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Sharpness",
-		.minimum = 0,
-		.maximum = 3,
-		.step    = 1,
-		.default_value = 2,
-	    },
-	    .set_control = setsharpness
-	},
-[GAMMA] = {
-	    {
-		.id      = V4L2_CID_GAMMA,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Gamma",
-		.minimum = 0,
-		.maximum = NGAMMA - 1,
-		.step    = 1,
-		.default_value = 1,
-	    },
-	    .set_control = setgamma
-	},
-[AUTOGAIN] = {
-	    {
-		.id      = V4L2_CID_AUTOGAIN,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Auto Gain",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = AUTOGAIN_DEF
-	    },
-	    .set_control = setautogain
-	},
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
+
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_SHARPNESS:
+		setsharpness(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_GAMMA:
+		setgamma(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_BLUE_BALANCE:
+		setbgain(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_RED_BALANCE:
+		setrgain(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_EXPOSURE:
+		sd_setgain(gspca_dev);
+		break;
+	case V4L2_CID_AUTOGAIN:
+		if (ctrl->val)
+			break;
+		sd_setgain(gspca_dev);
+		break;
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		jpeg_set_qual(sd->jpeg_hdr, ctrl->val);
+		break;
+	}
+	return gspca_dev->usb_err;
+}
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
 };
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *)gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 4);
+	gspca_dev->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_EXPOSURE, 1, 0xdc, 1, 0x4e);
+	if (sd->sensor == SENSOR_CX0342) {
+		sd->red = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_RED_BALANCE, 0, 4095, 1, 256);
+		sd->blue = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BLUE_BALANCE, 0, 4095, 1, 256);
+	}
+	if (sd->sensor == SENSOR_SOI763A)
+		gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 0, 15, 1, 3);
+	else
+		gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 0, 4095, 1, 256);
+	sd->sharpness = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0, 3, 1, 2);
+	sd->gamma = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAMMA, 0, NGAMMA - 1, 1,
+			(sd->sensor == SENSOR_SOI763A &&
+			 sd->bridge == BRIDGE_TP6800) ? 0 : 1);
+	if (sd->bridge == BRIDGE_TP6810)
+		gspca_dev->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	if (sd->sensor == SENSOR_SOI763A)
+		sd->jpegqual = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_JPEG_COMPRESSION_QUALITY,
+			0, 15, 1, (sd->bridge == BRIDGE_TP6810) ? 0 : 13);
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+	if (gspca_dev->autogain)
+		v4l2_ctrl_auto_cluster(3, &gspca_dev->autogain, 0, false);
+	else
+		v4l2_ctrl_cluster(2, &gspca_dev->exposure);
+	return 0;
+}
 
 static const struct sd_desc sd_desc = {
 	.name = KBUILD_MODNAME,
-	.ctrls = sd_ctrls,
-	.nctrls = NCTRLS,
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,

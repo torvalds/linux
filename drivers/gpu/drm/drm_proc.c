@@ -53,7 +53,6 @@ static struct drm_info_list drm_proc_list[] = {
 	{"name", drm_name_info, 0},
 	{"vm", drm_vm_info, 0},
 	{"clients", drm_clients_info, 0},
-	{"queues", drm_queues_info, 0},
 	{"bufs", drm_bufs_info, 0},
 	{"gem_names", drm_gem_name_info, DRIVER_GEM},
 #if DRM_DEBUG_CODE
@@ -90,7 +89,7 @@ static const struct file_operations drm_proc_fops = {
  * Create a given set of proc files represented by an array of
  * gdm_proc_lists in the given root directory.
  */
-int drm_proc_create_files(struct drm_info_list *files, int count,
+static int drm_proc_create_files(struct drm_info_list *files, int count,
 			  struct proc_dir_entry *root, struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
@@ -173,7 +172,7 @@ int drm_proc_init(struct drm_minor *minor, int minor_id,
 	return 0;
 }
 
-int drm_proc_remove_files(struct drm_info_list *files, int count,
+static int drm_proc_remove_files(struct drm_info_list *files, int count,
 			  struct drm_minor *minor)
 {
 	struct list_head *pos, *q;

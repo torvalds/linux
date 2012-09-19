@@ -1,5 +1,4 @@
 /*
- * File...........: linux/drivers/s390/block/dasd_eckd.c
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
@@ -3805,7 +3804,7 @@ dasd_eckd_ioctl(struct dasd_block *block, unsigned int cmd, void __user *argp)
 	case BIODASDSYMMIO:
 		return dasd_symm_io(device, argp);
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 }
 
@@ -4247,6 +4246,7 @@ static struct ccw_driver dasd_eckd_driver = {
 	.set_online  = dasd_eckd_set_online,
 	.notify      = dasd_generic_notify,
 	.path_event  = dasd_generic_path_event,
+	.shutdown    = dasd_generic_shutdown,
 	.freeze      = dasd_generic_pm_freeze,
 	.thaw	     = dasd_generic_restore_device,
 	.restore     = dasd_generic_restore_device,

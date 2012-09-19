@@ -182,8 +182,8 @@ struct acpi_rsconvert_info acpi_rs_convert_ext_address64[5] = {
 
 	/* Revision ID */
 
-	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.ext_address64.revision_iD),
-	 AML_OFFSET(ext_address64.revision_iD),
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.ext_address64.revision_ID),
+	 AML_OFFSET(ext_address64.revision_ID),
 	 1},
 	/*
 	 * These fields are contiguous in both the source and destination:
@@ -215,7 +215,7 @@ static struct acpi_rsconvert_info acpi_rs_convert_general_flags[6] = {
 	 AML_OFFSET(address.resource_type),
 	 1},
 
-	/* General Flags - Consume, Decode, min_fixed, max_fixed */
+	/* General flags - Consume, Decode, min_fixed, max_fixed */
 
 	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.address.producer_consumer),
 	 AML_OFFSET(address.flags),
@@ -293,8 +293,8 @@ static struct acpi_rsconvert_info acpi_rs_convert_io_flags[4] = {
  *
  * FUNCTION:    acpi_rs_get_address_common
  *
- * PARAMETERS:  Resource            - Pointer to the internal resource struct
- *              Aml                 - Pointer to the AML resource descriptor
+ * PARAMETERS:  resource            - Pointer to the internal resource struct
+ *              aml                 - Pointer to the AML resource descriptor
  *
  * RETURN:      TRUE if the resource_type field is OK, FALSE otherwise
  *
@@ -343,8 +343,8 @@ acpi_rs_get_address_common(struct acpi_resource *resource,
  *
  * FUNCTION:    acpi_rs_set_address_common
  *
- * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
- *              Resource            - Pointer to the internal resource struct
+ * PARAMETERS:  aml                 - Pointer to the AML resource descriptor
+ *              resource            - Pointer to the internal resource struct
  *
  * RETURN:      None
  *

@@ -54,8 +54,6 @@ from http://www.comedi.org
 #include <linux/sched.h>
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 /*#include "me2600_fw.h" */
 
 #define ME_DRIVER_NAME		"me_daq"
@@ -233,11 +231,8 @@ static const struct me_board me_boards[] = {
 	 }
 };
 
-#define me_board_nbr (sizeof(me_boards)/sizeof(struct me_board))
-
 /* Private data structure */
 struct me_private_data {
-	struct pci_dev *pci_device;
 	void __iomem *plx_regbase;	/* PLX configuration base address */
 	void __iomem *me_regbase;	/* Base address of the Meilhaus card */
 	unsigned long plx_regbase_size;	/* Size of PLX configuration space */
@@ -333,7 +328,7 @@ static int me_dio_insn_bits(struct comedi_device *dev,
 		data[1] |= readw(dev_private->me_regbase + ME_DIO_PORT_B) << 16;
 	}
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -612,9 +607,42 @@ static int me_reset(struct comedi_device *dev)
 	return 0;
 }
 
+static struct pci_dev *me_find_pci_dev(struct comedi_device *dev,
+				       struct comedi_devconfig *it)
+{
+	const struct me_board *board;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
+
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (pcidev->bus->number != bus ||
+			    PCI_SLOT(pcidev->devfn) != slot)
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_MEILHAUS)
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(me_boards); i++) {
+			board = &me_boards[i];
+			if (board->device_id != pcidev->device)
+				continue;
+
+			dev->board_ptr = board;
+			return pcidev;
+		}
+	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
+}
+
 static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pci_device = NULL;
+	struct pci_dev *pci_device;
 	struct comedi_subdevice *subdevice;
 	struct me_board *board;
 	resource_size_t plx_regbase_tmp;
@@ -624,54 +652,17 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	resource_size_t swap_regbase_tmp;
 	unsigned long swap_regbase_size_tmp;
 	resource_size_t regbase_tmp;
-	int result, error, i;
+	int result, error;
 
 	/* Allocate private memory */
 	if (alloc_private(dev, sizeof(struct me_private_data)) < 0)
 		return -ENOMEM;
 
-	/* Probe the device to determine what device in the series it is. */
-	for_each_pci_dev(pci_device) {
-		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
-			for (i = 0; i < me_board_nbr; i++) {
-				if (me_boards[i].device_id ==
-				    pci_device->device) {
-					/*
-					 * was a particular bus/slot requested?
-					 */
-					if ((it->options[0] != 0)
-					    || (it->options[1] != 0)) {
-						/*
-						 * are we on the wrong bus/slot?
-						 */
-						if (pci_device->bus->number !=
-						    it->options[0]
-						    ||
-						    PCI_SLOT(pci_device->devfn)
-						    != it->options[1]) {
-							continue;
-						}
-					}
-
-					dev->board_ptr = me_boards + i;
-					board =
-					    (struct me_board *)dev->board_ptr;
-					dev_private->pci_device = pci_device;
-					goto found;
-				}
-			}
-		}
-	}
-
-	printk(KERN_ERR
-	       "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-	       dev->minor, it->options[0], it->options[1]);
-	return -EIO;
-
-found:
-	printk(KERN_INFO "comedi%d: found %s at PCI bus %d, slot %d\n",
-	       dev->minor, me_boards[i].name,
-	       pci_device->bus->number, PCI_SLOT(pci_device->devfn));
+	pci_device = me_find_pci_dev(dev, it);
+	if (!pci_device)
+		return -EIO;
+	comedi_set_hw_dev(dev, &pci_device->dev);
+	board = (struct me_board *)dev->board_ptr;
 
 	/* Enable PCI device and request PCI regions */
 	if (comedi_pci_enable(pci_device, ME_DRIVER_NAME) < 0) {
@@ -763,9 +754,8 @@ found:
 
 	me_reset(dev);
 
-	/* device driver capabilities */
-	error = alloc_subdevices(dev, 3);
-	if (error < 0)
+	error = comedi_alloc_subdevices(dev, 3);
+	if (error)
 		return error;
 
 	subdevice = dev->subdevices + 0;
@@ -808,6 +798,8 @@ found:
 
 static void me_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev_private) {
 		if (dev_private->me_regbase) {
 			me_reset(dev);
@@ -815,11 +807,11 @@ static void me_detach(struct comedi_device *dev)
 		}
 		if (dev_private->plx_regbase)
 			iounmap(dev_private->plx_regbase);
-		if (dev_private->pci_device) {
-			if (dev_private->plx_regbase_size)
-				comedi_pci_disable(dev_private->pci_device);
-			pci_dev_put(dev_private->pci_device);
-		}
+	}
+	if (pcidev) {
+		if (dev_private->plx_regbase_size)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 

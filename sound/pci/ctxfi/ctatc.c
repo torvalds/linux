@@ -1537,7 +1537,7 @@ static void atc_connect_resources(struct ct_atc *atc)
 }
 
 #ifdef CONFIG_PM
-static int atc_suspend(struct ct_atc *atc, pm_message_t state)
+static int atc_suspend(struct ct_atc *atc)
 {
 	int i;
 	struct hw *hw = atc->hw;
@@ -1553,7 +1553,7 @@ static int atc_suspend(struct ct_atc *atc, pm_message_t state)
 
 	atc_release_resources(atc);
 
-	hw->suspend(hw, state);
+	hw->suspend(hw);
 
 	return 0;
 }
@@ -1725,8 +1725,10 @@ int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	atc_connect_resources(atc);
 
 	atc->timer = ct_timer_new(atc);
-	if (!atc->timer)
+	if (!atc->timer) {
+		err = -ENOMEM;
 		goto error1;
+	}
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, atc, &ops);
 	if (err < 0)

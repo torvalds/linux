@@ -1,0 +1,99 @@
+/dts-v1/;
+
+/include/ "kirkwood.dtsi"
+
+/ {
+	model = "Seagate GoFlex Net";
+	compatible = "seagate,goflexnet", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk root=/dev/sda1 rootdelay=10";
+	};
+
+	ocp@f1000000 {
+		serial@12000 {
+			clock-frequency = <200000000>;
+			status = "ok";
+		};
+
+		nand@3000000 {
+			status = "okay";
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x100000>;
+				read-only;
+			};
+
+			partition@100000 {
+				label = "uImage";
+				reg = <0x0100000 0x400000>;
+			};
+
+			partition@500000 {
+				label = "pogoplug";
+				reg = <0x0500000 0x2000000>;
+			};
+
+			partition@2500000 {
+				label = "root";
+				reg = <0x02500000 0xd800000>;
+			};
+		};
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+	};
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		health {
+			label = "status:green:health";
+			gpios = <&gpio1 14 1>;
+			linux,default-trigger = "default-on";
+		};
+		fault {
+			label = "status:orange:fault";
+			gpios = <&gpio1 15 1>;
+		};
+		left0 {
+			label = "status:white:left0";
+			gpios = <&gpio1 10 0>;
+		};
+		left1 {
+			label = "status:white:left1";
+			gpios = <&gpio1 11 0>;
+		};
+		left2 {
+			label = "status:white:left2";
+			gpios = <&gpio1 12 0>;
+		};
+		left3 {
+			label = "status:white:left3";
+			gpios = <&gpio1 13 0>;
+		};
+		right0 {
+			label = "status:white:right0";
+			gpios = <&gpio1 6 0>;
+		};
+		right1 {
+			label = "status:white:right1";
+			gpios = <&gpio1 7 0>;
+		};
+		right2 {
+			label = "status:white:right2";
+			gpios = <&gpio1 8 0>;
+		};
+		right3 {
+			label = "status:white:right3";
+			gpios = <&gpio1 9 0>;
+		};
+	};
+};

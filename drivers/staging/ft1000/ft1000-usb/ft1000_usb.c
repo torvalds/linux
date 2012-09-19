@@ -37,9 +37,9 @@ static struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 static bool gPollingfailed = FALSE;
-int ft1000_poll_thread(void *arg)
+static int ft1000_poll_thread(void *arg)
 {
-	int ret = STATUS_SUCCESS;
+	int ret;
 
 	while (!kthread_should_stop()) {
 		msleep(10);
@@ -67,14 +67,12 @@ static int ft1000_probe(struct usb_interface *interface,
 	struct ft1000_info *pft1000info = NULL;
 	const struct firmware *dsp_fw;
 
-	ft1000dev = kmalloc(sizeof(struct ft1000_device), GFP_KERNEL);
+	ft1000dev = kzalloc(sizeof(struct ft1000_device), GFP_KERNEL);
 
 	if (!ft1000dev) {
-		printk(KERN_ERR "out of memory allocating device structure\n");
-		return 0;
+		pr_err("out of memory allocating device structure\n");
+		return -ENOMEM;
 	}
-
-	memset(ft1000dev, 0, sizeof(*ft1000dev));
 
 	dev = interface_to_usbdev(interface);
 	DEBUG("ft1000_probe: usb device descriptor info:\n");
@@ -140,7 +138,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	ret = request_firmware(&dsp_fw, "ft3000.img", &dev->dev);
 	if (ret < 0) {
-		printk(KERN_ERR "Error request_firmware().\n");
+		pr_err("Error request_firmware().\n");
 		goto err_fw;
 	}
 
@@ -168,7 +166,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	DEBUG("In probe: pft1000info=%p\n", pft1000info);
 	ret = dsp_reload(ft1000dev);
 	if (ret) {
-		printk(KERN_ERR "Problem with DSP image loading\n");
+		pr_err("Problem with DSP image loading\n");
 		goto err_load;
 	}
 
@@ -239,7 +237,7 @@ static void ft1000_disconnect(struct usb_interface *interface)
 			ft1000_destroy_dev(pft1000info->pFt1000Dev->net);
 			unregister_netdev(pft1000info->pFt1000Dev->net);
 			DEBUG
-			    ("ft1000_disconnect: network device unregisterd\n");
+			    ("ft1000_disconnect: network device unregistered\n");
 			free_netdev(pft1000info->pFt1000Dev->net);
 
 		}

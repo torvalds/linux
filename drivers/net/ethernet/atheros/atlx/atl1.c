@@ -195,7 +195,7 @@ static int __devinit atl1_validate_option(int *value, struct atl1_option *opt,
 	return -1;
 }
 
-/*
+/**
  * atl1_check_options - Range Checking for Command Line Parameters
  * @adapter: board private structure
  *
@@ -538,7 +538,7 @@ static s32 atl1_read_mac_addr(struct atl1_hw *hw)
 	u16 i;
 
 	if (atl1_get_permanent_address(hw)) {
-		random_ether_addr(hw->perm_mac_addr);
+		eth_random_addr(hw->perm_mac_addr);
 		ret = 1;
 	}
 
@@ -937,7 +937,7 @@ static void atl1_set_mac_addr(struct atl1_hw *hw)
 	iowrite32(value, (hw->hw_addr + REG_MAC_STA_ADDR) + (1 << 2));
 }
 
-/*
+/**
  * atl1_sw_init - Initialize general software structures (struct atl1_adapter)
  * @adapter: board private structure to initialize
  *
@@ -1014,12 +1014,6 @@ static void mdio_write(struct net_device *netdev, int phy_id, int reg_num,
 	atl1_write_phy_reg(&adapter->hw, reg_num, val);
 }
 
-/*
- * atl1_mii_ioctl -
- * @netdev:
- * @ifreq:
- * @cmd:
- */
 static int atl1_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
@@ -1036,7 +1030,7 @@ static int atl1_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	return retval;
 }
 
-/*
+/**
  * atl1_setup_mem_resources - allocate Tx / RX descriptor resources
  * @adapter: board private structure
  *
@@ -1061,7 +1055,7 @@ static s32 atl1_setup_ring_resources(struct atl1_adapter *adapter)
 		goto err_nomem;
 	}
 	rfd_ring->buffer_info =
-		(struct atl1_buffer *)(tpd_ring->buffer_info + tpd_ring->count);
+		(tpd_ring->buffer_info + tpd_ring->count);
 
 	/*
 	 * real ring DMA buffer
@@ -1147,7 +1141,7 @@ static void atl1_init_ring_ptrs(struct atl1_adapter *adapter)
 	atomic_set(&rrd_ring->next_to_clean, 0);
 }
 
-/*
+/**
  * atl1_clean_rx_ring - Free RFD Buffers
  * @adapter: board private structure
  */
@@ -1187,7 +1181,7 @@ static void atl1_clean_rx_ring(struct atl1_adapter *adapter)
 	atomic_set(&rrd_ring->next_to_clean, 0);
 }
 
-/*
+/**
  * atl1_clean_tx_ring - Free Tx Buffers
  * @adapter: board private structure
  */
@@ -1227,7 +1221,7 @@ static void atl1_clean_tx_ring(struct atl1_adapter *adapter)
 	atomic_set(&tpd_ring->next_to_clean, 0);
 }
 
-/*
+/**
  * atl1_free_ring_resources - Free Tx / RX descriptor Resources
  * @adapter: board private structure
  *
@@ -1470,7 +1464,7 @@ static void set_flow_ctrl_new(struct atl1_hw *hw)
 	iowrite32(value, hw->hw_addr + REG_RXQ_RRD_PAUSE_THRESH);
 }
 
-/*
+/**
  * atl1_configure - Configure Transmit&Receive Unit after Reset
  * @adapter: board private structure
  *
@@ -1844,7 +1838,7 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 	}
 }
 
-/*
+/**
  * atl1_alloc_rx_buffers - Replace used receive buffers
  * @adapter: address of board private structure
  */
@@ -2489,11 +2483,10 @@ static inline int atl1_sched_rings_clean(struct atl1_adapter* adapter)
 	return 1;
 }
 
-/*
+/**
  * atl1_intr - Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
- * @pt_regs: CPU registers structure
  */
 static irqreturn_t atl1_intr(int irq, void *data)
 {
@@ -2574,7 +2567,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 }
 
 
-/*
+/**
  * atl1_phy_config - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
@@ -2693,7 +2686,7 @@ static void atl1_reset_dev_task(struct work_struct *work)
 	netif_device_attach(netdev);
 }
 
-/*
+/**
  * atl1_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -2727,7 +2720,7 @@ static int atl1_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
-/*
+/**
  * atl1_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -2762,7 +2755,7 @@ err_up:
 	return err;
 }
 
-/*
+/**
  * atl1_close - Disables a network interface
  * @netdev: network interface device structure
  *
@@ -2930,7 +2923,7 @@ static const struct net_device_ops atl1_netdev_ops = {
 #endif
 };
 
-/*
+/**
  * atl1_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in atl1_pci_tbl
@@ -3111,7 +3104,7 @@ err_request_regions:
 	return err;
 }
 
-/*
+/**
  * atl1_remove - Device Removal Routine
  * @pdev: PCI device information struct
  *
@@ -3158,7 +3151,7 @@ static struct pci_driver atl1_driver = {
 	.driver.pm = ATL1_PM_OPS,
 };
 
-/*
+/**
  * atl1_exit_module - Driver Exit Cleanup Routine
  *
  * atl1_exit_module is called just before the driver is removed
@@ -3169,7 +3162,7 @@ static void __exit atl1_exit_module(void)
 	pci_unregister_driver(&atl1_driver);
 }
 
-/*
+/**
  * atl1_init_module - Driver Registration Routine
  *
  * atl1_init_module is the first routine called when the driver is

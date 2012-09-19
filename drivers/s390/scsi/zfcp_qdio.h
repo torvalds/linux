@@ -3,7 +3,7 @@
  *
  * Header file for zfcp qdio interface
  *
- * Copyright IBM Corporation 2010
+ * Copyright IBM Corp. 2010
  */
 
 #ifndef ZFCP_QDIO_H

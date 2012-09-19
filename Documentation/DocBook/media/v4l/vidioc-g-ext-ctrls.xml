@@ -284,13 +284,6 @@ These controls are described in <xref
 	    processing controls. These controls are described in <xref
 	    linkend="image-process-controls" />.</entry>
 	  </row>
-	  <row>
-	    <entry><constant>V4L2_CTRL_CLASS_JPEG</constant></entry>
-	    <entry>0x9d0000</entry>
-	    <entry>The class containing JPEG compression controls.
-These controls are described in <xref
-		linkend="jpeg-controls" />.</entry>
-	  </row>
 	</tbody>
       </tgroup>
     </table>

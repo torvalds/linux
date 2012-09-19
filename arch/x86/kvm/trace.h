@@ -517,6 +517,40 @@ TRACE_EVENT(kvm_apic_accept_irq,
 		  __entry->coalesced ? " (coalesced)" : "")
 );
 
+TRACE_EVENT(kvm_eoi,
+	    TP_PROTO(struct kvm_lapic *apic, int vector),
+	    TP_ARGS(apic, vector),
+
+	TP_STRUCT__entry(
+		__field(	__u32,		apicid		)
+		__field(	int,		vector		)
+	),
+
+	TP_fast_assign(
+		__entry->apicid		= apic->vcpu->vcpu_id;
+		__entry->vector		= vector;
+	),
+
+	TP_printk("apicid %x vector %d", __entry->apicid, __entry->vector)
+);
+
+TRACE_EVENT(kvm_pv_eoi,
+	    TP_PROTO(struct kvm_lapic *apic, int vector),
+	    TP_ARGS(apic, vector),
+
+	TP_STRUCT__entry(
+		__field(	__u32,		apicid		)
+		__field(	int,		vector		)
+	),
+
+	TP_fast_assign(
+		__entry->apicid		= apic->vcpu->vcpu_id;
+		__entry->vector		= vector;
+	),
+
+	TP_printk("apicid %x vector %d", __entry->apicid, __entry->vector)
+);
+
 /*
  * Tracepoint for nested VMRUN
  */
@@ -710,16 +744,6 @@ TRACE_EVENT(kvm_skinit,
 		  __entry->rip, __entry->slb)
 );
 
-#define __print_insn(insn, ilen) ({		                 \
-	int i;							 \
-	const char *ret = p->buffer + p->len;			 \
-								 \
-	for (i = 0; i < ilen; ++i)				 \
-		trace_seq_printf(p, " %02x", insn[i]);		 \
-	trace_seq_printf(p, "%c", 0);				 \
-	ret;							 \
-	})
-
 #define KVM_EMUL_INSN_F_CR0_PE (1 << 0)
 #define KVM_EMUL_INSN_F_EFL_VM (1 << 1)
 #define KVM_EMUL_INSN_F_CS_D   (1 << 2)
@@ -786,7 +810,7 @@ TRACE_EVENT(kvm_emulate_insn,
 
 	TP_printk("%x:%llx:%s (%s)%s",
 		  __entry->csbase, __entry->rip,
-		  __print_insn(__entry->insn, __entry->len),
+		  __print_hex(__entry->insn, __entry->len),
 		  __print_symbolic(__entry->flags,
 				   kvm_trace_symbol_emul_flags),
 		  __entry->failed ? " failed" : ""

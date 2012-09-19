@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <asm/mach-powertv/asic.h>
 
-const struct register_map gaia_register_map __initdata = {
+const struct register_map gaia_register_map __initconst = {
 	.eic_slow0_strt_add = {.phys = GAIA_IO_BASE + 0x000000},
 	.eic_cfg_bits = {.phys = GAIA_IO_BASE + 0x000038},
 	.eic_ready_status = {.phys = GAIA_IO_BASE + 0x00004C},

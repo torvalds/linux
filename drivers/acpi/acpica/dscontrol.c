@@ -56,7 +56,7 @@ ACPI_MODULE_NAME("dscontrol")
  * FUNCTION:    acpi_ds_exec_begin_control_op
  *
  * PARAMETERS:  walk_list       - The list that owns the walk stack
- *              Op              - The control Op
+ *              op              - The control Op
  *
  * RETURN:      Status
  *
@@ -153,7 +153,7 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
  * FUNCTION:    acpi_ds_exec_end_control_op
  *
  * PARAMETERS:  walk_list       - The list that owns the walk stack
- *              Op              - The control Op
+ *              op              - The control Op
  *
  * RETURN:      Status
  *

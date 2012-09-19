@@ -15,7 +15,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/irqdomain.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/pinctrl/machine.h>
@@ -52,30 +51,6 @@ static const struct of_dev_auxdata imx53_auxdata_lookup[] __initconst = {
 	{ /* sentinel */ }
 };
 
-static int __init imx53_tzic_add_irq_domain(struct device_node *np,
-				struct device_node *interrupt_parent)
-{
-	irq_domain_add_legacy(np, 128, 0, 0, &irq_domain_simple_ops, NULL);
-	return 0;
-}
-
-static int __init imx53_gpio_add_irq_domain(struct device_node *np,
-				struct device_node *interrupt_parent)
-{
-	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS;
-
-	gpio_irq_base -= 32;
-	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops, NULL);
-
-	return 0;
-}
-
-static const struct of_device_id imx53_irq_match[] __initconst = {
-	{ .compatible = "fsl,imx53-tzic", .data = imx53_tzic_add_irq_domain, },
-	{ .compatible = "fsl,imx53-gpio", .data = imx53_gpio_add_irq_domain, },
-	{ /* sentinel */ }
-};
-
 static const struct of_device_id imx53_iomuxc_of_match[] __initconst = {
 	{ .compatible = "fsl,imx53-iomuxc-ard", .data = imx53_ard_common_init, },
 	{ .compatible = "fsl,imx53-iomuxc-evk", .data = imx53_evk_common_init, },
@@ -102,8 +77,6 @@ static void __init imx53_dt_init(void)
 	struct device_node *node;
 	const struct of_device_id *of_id;
 	void (*func)(void);
-
-	of_irq_init(imx53_irq_match);
 
 	pinctrl_provide_dummies();
 
@@ -147,6 +120,7 @@ DT_MACHINE_START(IMX53_DT, "Freescale i.MX53 (Device Tree Support)")
 	.handle_irq	= imx53_handle_irq,
 	.timer		= &imx53_timer,
 	.init_machine	= imx53_dt_init,
+	.init_late	= imx53_init_late,
 	.dt_compat	= imx53_dt_board_compat,
 	.restart	= mxc_restart,
 MACHINE_END

@@ -149,8 +149,8 @@ static const struct acpi_repair_info acpi_ns_repairable_names[] = {
  *
  * FUNCTION:    acpi_ns_complex_repairs
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
- *              Node                - Namespace node for the method/object
+ * PARAMETERS:  data                - Pointer to validation data structure
+ *              node                - Namespace node for the method/object
  *              validate_status     - Original status of earlier validation
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
@@ -187,7 +187,7 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_match_repairable_name
  *
- * PARAMETERS:  Node                - Namespace node for the method/object
+ * PARAMETERS:  node                - Namespace node for the method/object
  *
  * RETURN:      Pointer to entry in repair table. NULL indicates not found.
  *
@@ -218,7 +218,7 @@ static const struct acpi_repair_info *acpi_ns_match_repairable_name(struct
  *
  * FUNCTION:    acpi_ns_repair_ALR
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -247,7 +247,7 @@ acpi_ns_repair_ALR(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_FDE
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -335,7 +335,7 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_CID
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -405,7 +405,7 @@ acpi_ns_repair_CID(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_HID
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -487,7 +487,7 @@ acpi_ns_repair_HID(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_TSS
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -531,7 +531,7 @@ acpi_ns_repair_TSS(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_PSS
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -600,7 +600,7 @@ acpi_ns_repair_PSS(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_check_sorted_list
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object       - Pointer to the top-level returned object
  *              expected_count      - Minimum length of each sub-package
  *              sort_index          - Sub-package entry to sort on
@@ -707,9 +707,9 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_sort_list
  *
- * PARAMETERS:  Elements            - Package object element list
- *              Count               - Element count for above
- *              Index               - Sort by which package element
+ * PARAMETERS:  elements            - Package object element list
+ *              count               - Element count for above
+ *              index               - Sort by which package element
  *              sort_direction      - Ascending or Descending sort
  *
  * RETURN:      None

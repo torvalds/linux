@@ -32,6 +32,8 @@ static int arch_timer_ppi2;
 
 static struct clock_event_device __percpu **arch_timer_evt;
 
+extern void init_current_timer_delay(unsigned long freq);
+
 /*
  * Architected system timer support.
  */
@@ -137,7 +139,7 @@ static int __cpuinit arch_timer_setup(struct clock_event_device *clk)
 	/* Be safe... */
 	arch_timer_disable();
 
-	clk->features = CLOCK_EVT_FEAT_ONESHOT;
+	clk->features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP;
 	clk->name = "arch_sys_timer";
 	clk->rating = 450;
 	clk->set_mode = arch_timer_set_mode;
@@ -223,6 +225,14 @@ static cycle_t arch_counter_read(struct clocksource *cs)
 	return arch_counter_get_cntpct();
 }
 
+int read_current_timer(unsigned long *timer_val)
+{
+	if (!arch_timer_rate)
+		return -ENXIO;
+	*timer_val = arch_counter_get_cntpct();
+	return 0;
+}
+
 static struct clocksource clocksource_counter = {
 	.name	= "arch_sys_counter",
 	.rating	= 400,
@@ -296,6 +306,7 @@ static int __init arch_timer_register(void)
 	if (err)
 		goto out_free_irq;
 
+	init_current_timer_delay(arch_timer_rate);
 	return 0;
 
 out_free_irq:

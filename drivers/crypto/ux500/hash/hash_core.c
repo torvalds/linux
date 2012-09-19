@@ -1894,19 +1894,17 @@ static void ux500_hash_shutdown(struct platform_device *pdev)
 
 /**
  * ux500_hash_suspend - Function that suspends the hash device.
- * @pdev:	The platform device.
- * @state:	-
+ * @dev:	Device to suspend.
  */
-static int ux500_hash_suspend(struct platform_device *pdev, pm_message_t state)
+static int ux500_hash_suspend(struct device *dev)
 {
 	int ret;
 	struct hash_device_data *device_data;
 	struct hash_ctx *temp_ctx = NULL;
 
-	device_data = platform_get_drvdata(pdev);
+	device_data = dev_get_drvdata(dev);
 	if (!device_data) {
-		dev_err(&pdev->dev, "[%s] platform_get_drvdata() failed!",
-				__func__);
+		dev_err(dev, "[%s] platform_get_drvdata() failed!", __func__);
 		return -ENOMEM;
 	}
 
@@ -1917,33 +1915,32 @@ static int ux500_hash_suspend(struct platform_device *pdev, pm_message_t state)
 
 	if (device_data->current_ctx == ++temp_ctx) {
 		if (down_interruptible(&driver_data.device_allocation))
-			dev_dbg(&pdev->dev, "[%s]: down_interruptible() "
-					"failed", __func__);
+			dev_dbg(dev, "[%s]: down_interruptible() failed",
+				__func__);
 		ret = hash_disable_power(device_data, false);
 
 	} else
 		ret = hash_disable_power(device_data, true);
 
 	if (ret)
-		dev_err(&pdev->dev, "[%s]: hash_disable_power()", __func__);
+		dev_err(dev, "[%s]: hash_disable_power()", __func__);
 
 	return ret;
 }
 
 /**
  * ux500_hash_resume - Function that resume the hash device.
- * @pdev:	The platform device.
+ * @dev:	Device to resume.
  */
-static int ux500_hash_resume(struct platform_device *pdev)
+static int ux500_hash_resume(struct device *dev)
 {
 	int ret = 0;
 	struct hash_device_data *device_data;
 	struct hash_ctx *temp_ctx = NULL;
 
-	device_data = platform_get_drvdata(pdev);
+	device_data = dev_get_drvdata(dev);
 	if (!device_data) {
-		dev_err(&pdev->dev, "[%s] platform_get_drvdata() failed!",
-				__func__);
+		dev_err(dev, "[%s] platform_get_drvdata() failed!", __func__);
 		return -ENOMEM;
 	}
 
@@ -1958,21 +1955,21 @@ static int ux500_hash_resume(struct platform_device *pdev)
 		ret = hash_enable_power(device_data, true);
 
 	if (ret)
-		dev_err(&pdev->dev, "[%s]: hash_enable_power() failed!",
-			__func__);
+		dev_err(dev, "[%s]: hash_enable_power() failed!", __func__);
 
 	return ret;
 }
+
+static SIMPLE_DEV_PM_OPS(ux500_hash_pm, ux500_hash_suspend, ux500_hash_resume);
 
 static struct platform_driver hash_driver = {
 	.probe  = ux500_hash_probe,
 	.remove = ux500_hash_remove,
 	.shutdown = ux500_hash_shutdown,
-	.suspend  = ux500_hash_suspend,
-	.resume   = ux500_hash_resume,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name  = "hash1",
+		.pm    = &ux500_hash_pm,
 	}
 };
 

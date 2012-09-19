@@ -141,7 +141,7 @@ int snd_usb_endpoint_implict_feedback_sink(struct snd_usb_endpoint *ep)
  *
  * For implicit feedback, next_packet_size() is unused.
  */
-static int next_packet_size(struct snd_usb_endpoint *ep)
+int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep)
 {
 	unsigned long flags;
 	int ret;
@@ -175,15 +175,6 @@ static void retire_inbound_urb(struct snd_usb_endpoint *ep,
 
 	if (ep->retire_data_urb)
 		ep->retire_data_urb(ep->data_subs, urb);
-}
-
-static void prepare_outbound_urb_sizes(struct snd_usb_endpoint *ep,
-				       struct snd_urb_ctx *ctx)
-{
-	int i;
-
-	for (i = 0; i < ctx->packets; ++i)
-		ctx->packet_size[i] = next_packet_size(ep);
 }
 
 /*
@@ -370,7 +361,6 @@ static void snd_complete_urb(struct urb *urb)
 			goto exit_clear;
 		}
 
-		prepare_outbound_urb_sizes(ep, ctx);
 		prepare_outbound_urb(ep, ctx);
 	} else {
 		retire_inbound_urb(ep, ctx);
@@ -414,7 +404,7 @@ struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
 {
 	struct list_head *p;
 	struct snd_usb_endpoint *ep;
-	int ret, is_playback = direction == SNDRV_PCM_STREAM_PLAYBACK;
+	int is_playback = direction == SNDRV_PCM_STREAM_PLAYBACK;
 
 	mutex_lock(&chip->mutex);
 
@@ -433,16 +423,6 @@ struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
 		    is_playback ? "playback" : "capture",
 		    type == SND_USB_ENDPOINT_TYPE_DATA ? "data" : "sync",
 		    ep_num);
-
-	/* select the alt setting once so the endpoints become valid */
-	ret = usb_set_interface(chip->dev, alts->desc.bInterfaceNumber,
-				alts->desc.bAlternateSetting);
-	if (ret < 0) {
-		snd_printk(KERN_ERR "%s(): usb_set_interface() failed, ret = %d\n",
-					__func__, ret);
-		ep = NULL;
-		goto __exit_unlock;
-	}
 
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
@@ -809,7 +789,9 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 /**
  * snd_usb_endpoint_start: start an snd_usb_endpoint
  *
- * @ep: the endpoint to start
+ * @ep:		the endpoint to start
+ * @can_sleep:	flag indicating whether the operation is executed in
+ * 		non-atomic context
  *
  * A call to this function will increment the use count of the endpoint.
  * In case it is not already running, the URBs for this endpoint will be
@@ -819,7 +801,7 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
  *
  * Returns an error if the URB submission failed, 0 in all other cases.
  */
-int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
+int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, int can_sleep)
 {
 	int err;
 	unsigned int i;
@@ -831,12 +813,10 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	if (++ep->use_count != 1)
 		return 0;
 
-	if (snd_BUG_ON(!test_bit(EP_FLAG_ACTIVATED, &ep->flags)))
-		return -EINVAL;
-
 	/* just to be sure */
-	deactivate_urbs(ep, 0, 1);
-	wait_clear_urbs(ep);
+	deactivate_urbs(ep, 0, can_sleep);
+	if (can_sleep)
+		wait_clear_urbs(ep);
 
 	ep->active_mask = 0;
 	ep->unlink_mask = 0;
@@ -867,7 +847,6 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 			goto __error;
 
 		if (usb_pipeout(ep->pipe)) {
-			prepare_outbound_urb_sizes(ep, urb->context);
 			prepare_outbound_urb(ep, urb->context);
 		} else {
 			prepare_inbound_urb(ep, urb->context);
@@ -911,9 +890,6 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep,
 	if (snd_BUG_ON(ep->use_count == 0))
 		return;
 
-	if (snd_BUG_ON(!test_bit(EP_FLAG_ACTIVATED, &ep->flags)))
-		return;
-
 	if (--ep->use_count == 0) {
 		deactivate_urbs(ep, force, can_sleep);
 		ep->data_subs = NULL;
@@ -924,42 +900,6 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep,
 		if (wait)
 			wait_clear_urbs(ep);
 	}
-}
-
-/**
- * snd_usb_endpoint_activate: activate an snd_usb_endpoint
- *
- * @ep: the endpoint to activate
- *
- * If the endpoint is not currently in use, this functions will select the
- * correct alternate interface setting for the interface of this endpoint.
- *
- * In case of any active users, this functions does nothing.
- *
- * Returns an error if usb_set_interface() failed, 0 in all other
- * cases.
- */
-int snd_usb_endpoint_activate(struct snd_usb_endpoint *ep)
-{
-	if (ep->use_count != 0)
-		return 0;
-
-	if (!ep->chip->shutdown &&
-	    !test_and_set_bit(EP_FLAG_ACTIVATED, &ep->flags)) {
-		int ret;
-
-		ret = usb_set_interface(ep->chip->dev, ep->iface, ep->alt_idx);
-		if (ret < 0) {
-			snd_printk(KERN_ERR "%s() usb_set_interface() failed, ret = %d\n",
-						__func__, ret);
-			clear_bit(EP_FLAG_ACTIVATED, &ep->flags);
-			return ret;
-		}
-
-		return 0;
-	}
-
-	return -EBUSY;
 }
 
 /**
@@ -980,24 +920,15 @@ int snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
 	if (!ep)
 		return -EINVAL;
 
+	deactivate_urbs(ep, 1, 1);
+	wait_clear_urbs(ep);
+
 	if (ep->use_count != 0)
 		return 0;
 
-	if (!ep->chip->shutdown &&
-	    test_and_clear_bit(EP_FLAG_ACTIVATED, &ep->flags)) {
-		int ret;
+	clear_bit(EP_FLAG_ACTIVATED, &ep->flags);
 
-		ret = usb_set_interface(ep->chip->dev, ep->iface, 0);
-		if (ret < 0) {
-			snd_printk(KERN_ERR "%s(): usb_set_interface() failed, ret = %d\n",
-						__func__, ret);
-			return ret;
-		}
-
-		return 0;
-	}
-
-	return -EBUSY;
+	return 0;
 }
 
 /**

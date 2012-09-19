@@ -35,7 +35,7 @@ struct cgroup_netprio_state {
 extern int net_prio_subsys_id;
 #endif
 
-extern void sock_update_netprioidx(struct sock *sk);
+extern void sock_update_netprioidx(struct sock *sk, struct task_struct *task);
 
 #if IS_BUILTIN(CONFIG_NETPRIO_CGROUP)
 
@@ -82,7 +82,7 @@ static inline u32 task_netprioidx(struct task_struct *p)
 #endif /* CONFIG_NETPRIO_CGROUP */
 
 #else
-#define sock_update_netprioidx(sk)
+#define sock_update_netprioidx(sk, task)
 #endif
 
 #endif  /* _NET_CLS_CGROUP_H */

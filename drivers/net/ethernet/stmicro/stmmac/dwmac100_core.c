@@ -72,9 +72,9 @@ static int dwmac100_rx_ipc_enable(void __iomem *ioaddr)
 	return 0;
 }
 
-static void dwmac100_irq_status(void __iomem *ioaddr)
+static int dwmac100_irq_status(void __iomem *ioaddr)
 {
-	return;
+	return 0;
 }
 
 static void dwmac100_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,

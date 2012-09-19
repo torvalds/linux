@@ -1522,8 +1522,8 @@ static int pppol2tp_session_getsockopt(struct sock *sk,
  * handler, according to whether the PPPoX socket is a for a regular session
  * or the special tunnel type.
  */
-static int pppol2tp_getsockopt(struct socket *sock, int level,
-			       int optname, char __user *optval, int __user *optlen)
+static int pppol2tp_getsockopt(struct socket *sock, int level, int optname,
+			       char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
 	struct l2tp_session *session;
@@ -1535,7 +1535,7 @@ static int pppol2tp_getsockopt(struct socket *sock, int level,
 	if (level != SOL_PPPOL2TP)
 		return udp_prot.getsockopt(sk, level, optname, optval, optlen);
 
-	if (get_user(len, (int __user *) optlen))
+	if (get_user(len, optlen))
 		return -EFAULT;
 
 	len = min_t(unsigned int, len, sizeof(int));
@@ -1568,7 +1568,7 @@ static int pppol2tp_getsockopt(struct socket *sock, int level,
 		err = pppol2tp_session_getsockopt(sk, session, optname, &val);
 
 	err = -EFAULT;
-	if (put_user(len, (int __user *) optlen))
+	if (put_user(len, optlen))
 		goto end_put_sess;
 
 	if (copy_to_user((void __user *) optval, &val, len))

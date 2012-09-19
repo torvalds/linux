@@ -22,6 +22,7 @@
  *
  * Authors: Dave Airlie
  *          Alex Deucher
+ *          Jerome Glisse
  */
 #include "drmP.h"
 #include "radeon_drm.h"
@@ -576,30 +577,25 @@ int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	int panel_mode = DP_PANEL_MODE_EXTERNAL_DP_MODE;
+	u16 dp_bridge = radeon_connector_encoder_get_dp_bridge_encoder_id(connector);
+	u8 tmp;
 
 	if (!ASIC_IS_DCE4(rdev))
 		return panel_mode;
 
-	if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
-	    ENCODER_OBJECT_ID_NUTMEG)
-		panel_mode = DP_PANEL_MODE_INTERNAL_DP1_MODE;
-	else if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
-		 ENCODER_OBJECT_ID_TRAVIS) {
-		u8 id[6];
-		int i;
-		for (i = 0; i < 6; i++)
-			id[i] = radeon_read_dpcd_reg(radeon_connector, 0x503 + i);
-		if (id[0] == 0x73 &&
-		    id[1] == 0x69 &&
-		    id[2] == 0x76 &&
-		    id[3] == 0x61 &&
-		    id[4] == 0x72 &&
-		    id[5] == 0x54)
+	if (dp_bridge != ENCODER_OBJECT_ID_NONE) {
+		/* DP bridge chips */
+		tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
+		if (tmp & 1)
+			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
+		else if ((dp_bridge == ENCODER_OBJECT_ID_NUTMEG) ||
+			 (dp_bridge == ENCODER_OBJECT_ID_TRAVIS))
 			panel_mode = DP_PANEL_MODE_INTERNAL_DP1_MODE;
 		else
-			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
+			panel_mode = DP_PANEL_MODE_EXTERNAL_DP_MODE;
 	} else if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-		u8 tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
+		/* eDP */
+		tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
 		if (tmp & 1)
 			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
 	}
@@ -608,7 +604,7 @@ int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 }
 
 void radeon_dp_set_link_config(struct drm_connector *connector,
-			       struct drm_display_mode *mode)
+			       const struct drm_display_mode *mode)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *dig_connector;
@@ -654,7 +650,6 @@ static bool radeon_dp_get_link_status(struct radeon_connector *radeon_connector,
 	ret = radeon_dp_aux_native_read(radeon_connector, DP_LANE0_1_STATUS,
 					link_status, DP_LINK_STATUS_SIZE, 100);
 	if (ret <= 0) {
-		DRM_ERROR("displayport link status failed\n");
 		return false;
 	}
 
@@ -833,8 +828,10 @@ static int radeon_dp_link_train_cr(struct radeon_dp_link_train_info *dp_info)
 		else
 			mdelay(dp_info->rd_interval * 4);
 
-		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status))
+		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
+			DRM_ERROR("displayport link status failed\n");
 			break;
+		}
 
 		if (dp_clock_recovery_ok(dp_info->link_status, dp_info->dp_lane_count)) {
 			clock_recovery = true;
@@ -896,8 +893,10 @@ static int radeon_dp_link_train_ce(struct radeon_dp_link_train_info *dp_info)
 		else
 			mdelay(dp_info->rd_interval * 4);
 
-		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status))
+		if (!radeon_dp_get_link_status(dp_info->radeon_connector, dp_info->link_status)) {
+			DRM_ERROR("displayport link status failed\n");
 			break;
+		}
 
 		if (dp_channel_eq_ok(dp_info->link_status, dp_info->dp_lane_count)) {
 			channel_eq = true;

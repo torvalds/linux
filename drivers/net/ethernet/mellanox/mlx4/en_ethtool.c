@@ -34,10 +34,14 @@
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
+#include <linux/mlx4/driver.h>
 
 #include "mlx4_en.h"
 #include "en_port.h"
 
+#define EN_ETHTOOL_QP_ATTACH (1ull << 63)
+#define EN_ETHTOOL_SHORT_MASK cpu_to_be16(0xffff)
+#define EN_ETHTOOL_WORD_MASK  cpu_to_be32(0xffffffff)
 
 static void
 mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
@@ -599,19 +603,396 @@ static int mlx4_en_set_rxfh_indir(struct net_device *dev,
 	return err;
 }
 
+#define all_zeros_or_all_ones(field)		\
+	((field) == 0 || (field) == (__force typeof(field))-1)
+
+static int mlx4_en_validate_flow(struct net_device *dev,
+				 struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_usrip4_spec *l3_mask;
+	struct ethtool_tcpip4_spec *l4_mask;
+	struct ethhdr *eth_mask;
+	u64 full_mac = ~0ull;
+	u64 zero_mac = 0;
+
+	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES)
+		return -EINVAL;
+
+	switch (cmd->fs.flow_type & ~FLOW_EXT) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+		if (cmd->fs.m_u.tcp_ip4_spec.tos)
+			return -EINVAL;
+		l4_mask = &cmd->fs.m_u.tcp_ip4_spec;
+		/* don't allow mask which isn't all 0 or 1 */
+		if (!all_zeros_or_all_ones(l4_mask->ip4src) ||
+		    !all_zeros_or_all_ones(l4_mask->ip4dst) ||
+		    !all_zeros_or_all_ones(l4_mask->psrc) ||
+		    !all_zeros_or_all_ones(l4_mask->pdst))
+			return -EINVAL;
+		break;
+	case IP_USER_FLOW:
+		l3_mask = &cmd->fs.m_u.usr_ip4_spec;
+		if (l3_mask->l4_4_bytes || l3_mask->tos || l3_mask->proto ||
+		    cmd->fs.h_u.usr_ip4_spec.ip_ver != ETH_RX_NFC_IP4 ||
+		    (!l3_mask->ip4src && !l3_mask->ip4dst) ||
+		    !all_zeros_or_all_ones(l3_mask->ip4src) ||
+		    !all_zeros_or_all_ones(l3_mask->ip4dst))
+			return -EINVAL;
+		break;
+	case ETHER_FLOW:
+		eth_mask = &cmd->fs.m_u.ether_spec;
+		/* source mac mask must not be set */
+		if (memcmp(eth_mask->h_source, &zero_mac, ETH_ALEN))
+			return -EINVAL;
+
+		/* dest mac mask must be ff:ff:ff:ff:ff:ff */
+		if (memcmp(eth_mask->h_dest, &full_mac, ETH_ALEN))
+			return -EINVAL;
+
+		if (!all_zeros_or_all_ones(eth_mask->h_proto))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if ((cmd->fs.flow_type & FLOW_EXT)) {
+		if (cmd->fs.m_ext.vlan_etype ||
+		    !(cmd->fs.m_ext.vlan_tci == 0 ||
+		      cmd->fs.m_ext.vlan_tci == cpu_to_be16(0xfff)))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int add_ip_rule(struct mlx4_en_priv *priv,
+			struct ethtool_rxnfc *cmd,
+			struct list_head *list_h)
+{
+	struct mlx4_spec_list *spec_l3;
+	struct ethtool_usrip4_spec *l3_mask = &cmd->fs.m_u.usr_ip4_spec;
+
+	spec_l3 = kzalloc(sizeof *spec_l3, GFP_KERNEL);
+	if (!spec_l3) {
+		en_err(priv, "Fail to alloc ethtool rule.\n");
+		return -ENOMEM;
+	}
+
+	spec_l3->id = MLX4_NET_TRANS_RULE_ID_IPV4;
+	spec_l3->ipv4.src_ip = cmd->fs.h_u.usr_ip4_spec.ip4src;
+	if (l3_mask->ip4src)
+		spec_l3->ipv4.src_ip_msk = EN_ETHTOOL_WORD_MASK;
+	spec_l3->ipv4.dst_ip = cmd->fs.h_u.usr_ip4_spec.ip4dst;
+	if (l3_mask->ip4dst)
+		spec_l3->ipv4.dst_ip_msk = EN_ETHTOOL_WORD_MASK;
+	list_add_tail(&spec_l3->list, list_h);
+
+	return 0;
+}
+
+static int add_tcp_udp_rule(struct mlx4_en_priv *priv,
+			     struct ethtool_rxnfc *cmd,
+			     struct list_head *list_h, int proto)
+{
+	struct mlx4_spec_list *spec_l3;
+	struct mlx4_spec_list *spec_l4;
+	struct ethtool_tcpip4_spec *l4_mask = &cmd->fs.m_u.tcp_ip4_spec;
+
+	spec_l3 = kzalloc(sizeof *spec_l3, GFP_KERNEL);
+	spec_l4 = kzalloc(sizeof *spec_l4, GFP_KERNEL);
+	if (!spec_l4 || !spec_l3) {
+		en_err(priv, "Fail to alloc ethtool rule.\n");
+		kfree(spec_l3);
+		kfree(spec_l4);
+		return -ENOMEM;
+	}
+
+	spec_l3->id = MLX4_NET_TRANS_RULE_ID_IPV4;
+
+	if (proto == TCP_V4_FLOW) {
+		spec_l4->id = MLX4_NET_TRANS_RULE_ID_TCP;
+		spec_l3->ipv4.src_ip = cmd->fs.h_u.tcp_ip4_spec.ip4src;
+		spec_l3->ipv4.dst_ip = cmd->fs.h_u.tcp_ip4_spec.ip4dst;
+		spec_l4->tcp_udp.src_port = cmd->fs.h_u.tcp_ip4_spec.psrc;
+		spec_l4->tcp_udp.dst_port = cmd->fs.h_u.tcp_ip4_spec.pdst;
+	} else {
+		spec_l4->id = MLX4_NET_TRANS_RULE_ID_UDP;
+		spec_l3->ipv4.src_ip = cmd->fs.h_u.udp_ip4_spec.ip4src;
+		spec_l3->ipv4.dst_ip = cmd->fs.h_u.udp_ip4_spec.ip4dst;
+		spec_l4->tcp_udp.src_port = cmd->fs.h_u.udp_ip4_spec.psrc;
+		spec_l4->tcp_udp.dst_port = cmd->fs.h_u.udp_ip4_spec.pdst;
+	}
+
+	if (l4_mask->ip4src)
+		spec_l3->ipv4.src_ip_msk = EN_ETHTOOL_WORD_MASK;
+	if (l4_mask->ip4dst)
+		spec_l3->ipv4.dst_ip_msk = EN_ETHTOOL_WORD_MASK;
+
+	if (l4_mask->psrc)
+		spec_l4->tcp_udp.src_port_msk = EN_ETHTOOL_SHORT_MASK;
+	if (l4_mask->pdst)
+		spec_l4->tcp_udp.dst_port_msk = EN_ETHTOOL_SHORT_MASK;
+
+	list_add_tail(&spec_l3->list, list_h);
+	list_add_tail(&spec_l4->list, list_h);
+
+	return 0;
+}
+
+static int mlx4_en_ethtool_to_net_trans_rule(struct net_device *dev,
+					     struct ethtool_rxnfc *cmd,
+					     struct list_head *rule_list_h)
+{
+	int err;
+	u64 mac;
+	__be64 be_mac;
+	struct ethhdr *eth_spec;
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_spec_list *spec_l2;
+	__be64 mac_msk = cpu_to_be64(MLX4_MAC_MASK << 16);
+
+	err = mlx4_en_validate_flow(dev, cmd);
+	if (err)
+		return err;
+
+	spec_l2 = kzalloc(sizeof *spec_l2, GFP_KERNEL);
+	if (!spec_l2)
+		return -ENOMEM;
+
+	mac = priv->mac & MLX4_MAC_MASK;
+	be_mac = cpu_to_be64(mac << 16);
+
+	spec_l2->id = MLX4_NET_TRANS_RULE_ID_ETH;
+	memcpy(spec_l2->eth.dst_mac_msk, &mac_msk, ETH_ALEN);
+	if ((cmd->fs.flow_type & ~FLOW_EXT) != ETHER_FLOW)
+		memcpy(spec_l2->eth.dst_mac, &be_mac, ETH_ALEN);
+
+	if ((cmd->fs.flow_type & FLOW_EXT) && cmd->fs.m_ext.vlan_tci) {
+		spec_l2->eth.vlan_id = cmd->fs.h_ext.vlan_tci;
+		spec_l2->eth.vlan_id_msk = cpu_to_be16(0xfff);
+	}
+
+	list_add_tail(&spec_l2->list, rule_list_h);
+
+	switch (cmd->fs.flow_type & ~FLOW_EXT) {
+	case ETHER_FLOW:
+		eth_spec = &cmd->fs.h_u.ether_spec;
+		memcpy(&spec_l2->eth.dst_mac, eth_spec->h_dest, ETH_ALEN);
+		spec_l2->eth.ether_type = eth_spec->h_proto;
+		if (eth_spec->h_proto)
+			spec_l2->eth.ether_type_enable = 1;
+		break;
+	case IP_USER_FLOW:
+		err = add_ip_rule(priv, cmd, rule_list_h);
+		break;
+	case TCP_V4_FLOW:
+		err = add_tcp_udp_rule(priv, cmd, rule_list_h, TCP_V4_FLOW);
+		break;
+	case UDP_V4_FLOW:
+		err = add_tcp_udp_rule(priv, cmd, rule_list_h, UDP_V4_FLOW);
+		break;
+	}
+
+	return err;
+}
+
+static int mlx4_en_flow_replace(struct net_device *dev,
+				struct ethtool_rxnfc *cmd)
+{
+	int err;
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct ethtool_flow_id *loc_rule;
+	struct mlx4_spec_list *spec, *tmp_spec;
+	u32 qpn;
+	u64 reg_id;
+
+	struct mlx4_net_trans_rule rule = {
+		.queue_mode = MLX4_NET_TRANS_Q_FIFO,
+		.exclusive = 0,
+		.allow_loopback = 1,
+		.promisc_mode = MLX4_FS_PROMISC_NONE,
+	};
+
+	rule.port = priv->port;
+	rule.priority = MLX4_DOMAIN_ETHTOOL | cmd->fs.location;
+	INIT_LIST_HEAD(&rule.list);
+
+	/* Allow direct QP attaches if the EN_ETHTOOL_QP_ATTACH flag is set */
+	if (cmd->fs.ring_cookie == RX_CLS_FLOW_DISC)
+		qpn = priv->drop_qp.qpn;
+	else if (cmd->fs.ring_cookie & EN_ETHTOOL_QP_ATTACH) {
+		qpn = cmd->fs.ring_cookie & (EN_ETHTOOL_QP_ATTACH - 1);
+	} else {
+		if (cmd->fs.ring_cookie >= priv->rx_ring_num) {
+			en_warn(priv, "rxnfc: RX ring (%llu) doesn't exist.\n",
+				cmd->fs.ring_cookie);
+			return -EINVAL;
+		}
+		qpn = priv->rss_map.qps[cmd->fs.ring_cookie].qpn;
+		if (!qpn) {
+			en_warn(priv, "rxnfc: RX ring (%llu) is inactive.\n",
+				cmd->fs.ring_cookie);
+			return -EINVAL;
+		}
+	}
+	rule.qpn = qpn;
+	err = mlx4_en_ethtool_to_net_trans_rule(dev, cmd, &rule.list);
+	if (err)
+		goto out_free_list;
+
+	loc_rule = &priv->ethtool_rules[cmd->fs.location];
+	if (loc_rule->id) {
+		err = mlx4_flow_detach(priv->mdev->dev, loc_rule->id);
+		if (err) {
+			en_err(priv, "Fail to detach network rule at location %d. registration id = %llx\n",
+			       cmd->fs.location, loc_rule->id);
+			goto out_free_list;
+		}
+		loc_rule->id = 0;
+		memset(&loc_rule->flow_spec, 0,
+		       sizeof(struct ethtool_rx_flow_spec));
+	}
+	err = mlx4_flow_attach(priv->mdev->dev, &rule, &reg_id);
+	if (err) {
+		en_err(priv, "Fail to attach network rule at location %d.\n",
+		       cmd->fs.location);
+		goto out_free_list;
+	}
+	loc_rule->id = reg_id;
+	memcpy(&loc_rule->flow_spec, &cmd->fs,
+	       sizeof(struct ethtool_rx_flow_spec));
+
+out_free_list:
+	list_for_each_entry_safe(spec, tmp_spec, &rule.list, list) {
+		list_del(&spec->list);
+		kfree(spec);
+	}
+	return err;
+}
+
+static int mlx4_en_flow_detach(struct net_device *dev,
+			       struct ethtool_rxnfc *cmd)
+{
+	int err = 0;
+	struct ethtool_flow_id *rule;
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES)
+		return -EINVAL;
+
+	rule = &priv->ethtool_rules[cmd->fs.location];
+	if (!rule->id) {
+		err =  -ENOENT;
+		goto out;
+	}
+
+	err = mlx4_flow_detach(priv->mdev->dev, rule->id);
+	if (err) {
+		en_err(priv, "Fail to detach network rule at location %d. registration id = 0x%llx\n",
+		       cmd->fs.location, rule->id);
+		goto out;
+	}
+	rule->id = 0;
+	memset(&rule->flow_spec, 0, sizeof(struct ethtool_rx_flow_spec));
+out:
+	return err;
+
+}
+
+static int mlx4_en_get_flow(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			    int loc)
+{
+	int err = 0;
+	struct ethtool_flow_id *rule;
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	if (loc < 0 || loc >= MAX_NUM_OF_FS_RULES)
+		return -EINVAL;
+
+	rule = &priv->ethtool_rules[loc];
+	if (rule->id)
+		memcpy(&cmd->fs, &rule->flow_spec,
+		       sizeof(struct ethtool_rx_flow_spec));
+	else
+		err = -ENOENT;
+
+	return err;
+}
+
+static int mlx4_en_get_num_flows(struct mlx4_en_priv *priv)
+{
+
+	int i, res = 0;
+	for (i = 0; i < MAX_NUM_OF_FS_RULES; i++) {
+		if (priv->ethtool_rules[i].id)
+			res++;
+	}
+	return res;
+
+}
+
 static int mlx4_en_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			     u32 *rule_locs)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
 	int err = 0;
+	int i = 0, priority = 0;
+
+	if ((cmd->cmd == ETHTOOL_GRXCLSRLCNT ||
+	     cmd->cmd == ETHTOOL_GRXCLSRULE ||
+	     cmd->cmd == ETHTOOL_GRXCLSRLALL) &&
+	    mdev->dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED)
+		return -EINVAL;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
 		cmd->data = priv->rx_ring_num;
 		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = mlx4_en_get_num_flows(priv);
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		err = mlx4_en_get_flow(dev, cmd, cmd->fs.location);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		while ((!err || err == -ENOENT) && priority < cmd->rule_cnt) {
+			err = mlx4_en_get_flow(dev, cmd, i);
+			if (!err)
+				rule_locs[priority++] = i;
+			i++;
+		}
+		err = 0;
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
+	}
+
+	return err;
+}
+
+static int mlx4_en_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	int err = 0;
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+
+	if (mdev->dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED)
+		return -EINVAL;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		err = mlx4_en_flow_replace(dev, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		err = mlx4_en_flow_detach(dev, cmd);
+		break;
+	default:
+		en_warn(priv, "Unsupported ethtool command. (%d)\n", cmd->cmd);
+		return -EINVAL;
 	}
 
 	return err;
@@ -637,6 +1018,7 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_ringparam = mlx4_en_get_ringparam,
 	.set_ringparam = mlx4_en_set_ringparam,
 	.get_rxnfc = mlx4_en_get_rxnfc,
+	.set_rxnfc = mlx4_en_set_rxnfc,
 	.get_rxfh_indir_size = mlx4_en_get_rxfh_indir_size,
 	.get_rxfh_indir = mlx4_en_get_rxfh_indir,
 	.set_rxfh_indir = mlx4_en_set_rxfh_indir,

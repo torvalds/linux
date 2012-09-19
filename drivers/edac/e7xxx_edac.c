@@ -166,7 +166,7 @@ static const struct e7xxx_dev_info e7xxx_devs[] = {
 /* FIXME - is this valid for both SECDED and S4ECD4ED? */
 static inline int e7xxx_find_channel(u16 syndrome)
 {
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 
 	if ((syndrome & 0xff00) == 0)
 		return 0;
@@ -186,7 +186,7 @@ static unsigned long ctl_page_to_phys(struct mem_ctl_info *mci,
 	u32 remap;
 	struct e7xxx_pvt *pvt = (struct e7xxx_pvt *)mci->pvt_info;
 
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 
 	if ((page < pvt->tolm) ||
 		((page >= 0x100000) && (page < pvt->remapbase)))
@@ -208,7 +208,7 @@ static void process_ce(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 	int row;
 	int channel;
 
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 	/* read the error address */
 	error_1b = info->dram_celog_add;
 	/* FIXME - should use PAGE_SHIFT */
@@ -219,15 +219,15 @@ static void process_ce(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 	row = edac_mc_find_csrow_by_page(mci, page);
 	/* convert syndrome to channel */
 	channel = e7xxx_find_channel(syndrome);
-	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, page, 0, syndrome,
-			     row, channel, -1, "e7xxx CE", "", NULL);
+	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1, page, 0, syndrome,
+			     row, channel, -1, "e7xxx CE", "");
 }
 
 static void process_ce_no_info(struct mem_ctl_info *mci)
 {
-	debugf3("%s()\n", __func__);
-	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0, -1, -1, -1,
-			     "e7xxx CE log register overflow", "", NULL);
+	edac_dbg(3, "\n");
+	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0, -1, -1, -1,
+			     "e7xxx CE log register overflow", "");
 }
 
 static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
@@ -235,23 +235,23 @@ static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 	u32 error_2b, block_page;
 	int row;
 
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 	/* read the error address */
 	error_2b = info->dram_uelog_add;
 	/* FIXME - should use PAGE_SHIFT */
 	block_page = error_2b >> 6;	/* convert to 4k address */
 	row = edac_mc_find_csrow_by_page(mci, block_page);
 
-	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, block_page, 0, 0,
-			     row, -1, -1, "e7xxx UE", "", NULL);
+	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, block_page, 0, 0,
+			     row, -1, -1, "e7xxx UE", "");
 }
 
 static void process_ue_no_info(struct mem_ctl_info *mci)
 {
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 
-	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0, -1, -1, -1,
-			     "e7xxx UE log register overflow", "", NULL);
+	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0, -1, -1, -1,
+			     "e7xxx UE log register overflow", "");
 }
 
 static void e7xxx_get_error_info(struct mem_ctl_info *mci,
@@ -334,7 +334,7 @@ static void e7xxx_check(struct mem_ctl_info *mci)
 {
 	struct e7xxx_error_info info;
 
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 	e7xxx_get_error_info(mci, &info);
 	e7xxx_process_error_info(mci, &info, 1);
 }
@@ -362,6 +362,7 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 	int drc_chan, drc_drbg, drc_ddim, mem_dev;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
+	enum edac_type edac_mode;
 
 	pci_read_config_dword(pdev, E7XXX_DRA, &dra);
 	drc_chan = dual_channel_active(drc, dev_idx);
@@ -377,13 +378,12 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 	for (index = 0; index < mci->nr_csrows; index++) {
 		/* mem_dev 0=x8, 1=x4 */
 		mem_dev = (dra >> (index * 4 + 3)) & 0x1;
-		csrow = &mci->csrows[index];
+		csrow = mci->csrows[index];
 
 		pci_read_config_byte(pdev, E7XXX_DRB + index, &value);
 		/* convert a 64 or 32 MiB DRB to a page size. */
 		cumul_size = value << (25 + drc_drbg - PAGE_SHIFT);
-		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
-			cumul_size);
+		edac_dbg(3, "(%d) cumul_size 0x%x\n", index, cumul_size);
 		if (cumul_size == last_cumul_size)
 			continue;	/* not populated */
 
@@ -392,28 +392,29 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
 
+		/*
+		* if single channel or x8 devices then SECDED
+		* if dual channel and x4 then S4ECD4ED
+		*/
+		if (drc_ddim) {
+			if (drc_chan && mem_dev) {
+				edac_mode = EDAC_S4ECD4ED;
+				mci->edac_cap |= EDAC_FLAG_S4ECD4ED;
+			} else {
+				edac_mode = EDAC_SECDED;
+				mci->edac_cap |= EDAC_FLAG_SECDED;
+			}
+		} else
+			edac_mode = EDAC_NONE;
+
 		for (j = 0; j < drc_chan + 1; j++) {
-			dimm = csrow->channels[j].dimm;
+			dimm = csrow->channels[j]->dimm;
 
 			dimm->nr_pages = nr_pages / (drc_chan + 1);
 			dimm->grain = 1 << 12;	/* 4KiB - resolution of CELOG */
 			dimm->mtype = MEM_RDDR;	/* only one type supported */
 			dimm->dtype = mem_dev ? DEV_X4 : DEV_X8;
-
-			/*
-			* if single channel or x8 devices then SECDED
-			* if dual channel and x4 then S4ECD4ED
-			*/
-			if (drc_ddim) {
-				if (drc_chan && mem_dev) {
-					dimm->edac_mode = EDAC_S4ECD4ED;
-					mci->edac_cap |= EDAC_FLAG_S4ECD4ED;
-				} else {
-					dimm->edac_mode = EDAC_SECDED;
-					mci->edac_cap |= EDAC_FLAG_SECDED;
-				}
-			} else
-				dimm->edac_mode = EDAC_NONE;
+			dimm->edac_mode = edac_mode;
 		}
 	}
 }
@@ -428,7 +429,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	int drc_chan;
 	struct e7xxx_error_info discard;
 
-	debugf0("%s(): mci\n", __func__);
+	edac_dbg(0, "mci\n");
 
 	pci_read_config_dword(pdev, E7XXX_DRC, &drc);
 
@@ -451,15 +452,15 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	if (mci == NULL)
 		return -ENOMEM;
 
-	debugf3("%s(): init mci\n", __func__);
+	edac_dbg(3, "init mci\n");
 	mci->mtype_cap = MEM_FLAG_RDDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED |
 		EDAC_FLAG_S4ECD4ED;
 	/* FIXME - what if different memory types are in different csrows? */
 	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = E7XXX_REVISION;
-	mci->dev = &pdev->dev;
-	debugf3("%s(): init pvt\n", __func__);
+	mci->pdev = &pdev->dev;
+	edac_dbg(3, "init pvt\n");
 	pvt = (struct e7xxx_pvt *)mci->pvt_info;
 	pvt->dev_info = &e7xxx_devs[dev_idx];
 	pvt->bridge_ck = pci_get_device(PCI_VENDOR_ID_INTEL,
@@ -472,14 +473,14 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail0;
 	}
 
-	debugf3("%s(): more mci init\n", __func__);
+	edac_dbg(3, "more mci init\n");
 	mci->ctl_name = pvt->dev_info->ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->edac_check = e7xxx_check;
 	mci->ctl_page_to_phys = ctl_page_to_phys;
 	e7xxx_init_csrows(mci, pdev, dev_idx, drc);
 	mci->edac_cap |= EDAC_FLAG_NONE;
-	debugf3("%s(): tolm, remapbase, remaplimit\n", __func__);
+	edac_dbg(3, "tolm, remapbase, remaplimit\n");
 	/* load the top of low memory, remap base, and remap limit vars */
 	pci_read_config_word(pdev, E7XXX_TOLM, &pci_data);
 	pvt->tolm = ((u32) pci_data) << 4;
@@ -498,7 +499,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	 * type of memory controller.  The ID is therefore hardcoded to 0.
 	 */
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto fail1;
 	}
 
@@ -514,7 +515,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	edac_dbg(3, "success\n");
 	return 0;
 
 fail1:
@@ -530,7 +531,7 @@ fail0:
 static int __devinit e7xxx_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	/* wake up and enable device */
 	return pci_enable_device(pdev) ?
@@ -542,7 +543,7 @@ static void __devexit e7xxx_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 	struct e7xxx_pvt *pvt;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	if (e7xxx_pci)
 		edac_pci_release_generic_ctl(e7xxx_pci);

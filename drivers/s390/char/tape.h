@@ -1,5 +1,4 @@
 /*
- *  drivers/s390/char/tape.h
  *    tape device driver for 3480/3490E/3590 tapes.
  *
  *  S390 and zSeries version

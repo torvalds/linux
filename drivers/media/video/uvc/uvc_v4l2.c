@@ -1051,7 +1051,7 @@ static long uvc_v4l2_ioctl(struct file *file,
 {
 	if (uvc_trace_param & UVC_TRACE_IOCTL) {
 		uvc_printk(KERN_DEBUG, "uvc_v4l2_ioctl(");
-		v4l_printk_ioctl(cmd);
+		v4l_printk_ioctl(NULL, cmd);
 		printk(")\n");
 	}
 

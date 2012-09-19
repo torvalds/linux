@@ -19,14 +19,3 @@ mpi-y = \
 	mpih-mul.o			\
 	mpi-pow.o			\
 	mpiutil.o
-
-mpi-$(CONFIG_MPILIB_EXTRA) += \
-	mpi-add.o			\
-	mpi-div.o			\
-	mpi-cmp.o			\
-	mpi-gcd.o			\
-	mpi-inline.o			\
-	mpi-inv.o			\
-	mpi-mpow.o			\
-	mpi-mul.o			\
-	mpi-scan.o

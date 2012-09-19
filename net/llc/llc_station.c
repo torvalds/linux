@@ -30,12 +30,12 @@
  *
  * SAP and connection resource manager, one per adapter.
  *
- * @state - state of station
- * @xid_r_count - XID response PDU counter
- * @mac_sa - MAC source address
- * @sap_list - list of related SAPs
- * @ev_q - events entering state mach.
- * @mac_pdu_q - PDUs ready to send to MAC
+ * @state: state of station
+ * @xid_r_count: XID response PDU counter
+ * @mac_sa: MAC source address
+ * @sap_list: list of related SAPs
+ * @ev_q: events entering state mach.
+ * @mac_pdu_q: PDUs ready to send to MAC
  */
 struct llc_station {
 	u8			    state;
@@ -268,7 +268,7 @@ static int llc_station_ac_send_null_dsap_xid_c(struct sk_buff *skb)
 out:
 	return rc;
 free:
-	kfree_skb(skb);
+	kfree_skb(nskb);
 	goto out;
 }
 
@@ -293,7 +293,7 @@ static int llc_station_ac_send_xid_r(struct sk_buff *skb)
 out:
 	return rc;
 free:
-	kfree_skb(skb);
+	kfree_skb(nskb);
 	goto out;
 }
 
@@ -322,7 +322,7 @@ static int llc_station_ac_send_test_r(struct sk_buff *skb)
 out:
 	return rc;
 free:
-	kfree_skb(skb);
+	kfree_skb(nskb);
 	goto out;
 }
 
@@ -646,7 +646,7 @@ static void llc_station_service_events(void)
 }
 
 /**
- *	llc_station_state_process: queue event and try to process queue.
+ *	llc_station_state_process - queue event and try to process queue.
  *	@skb: Address of the event
  *
  *	Queues an event (on the station event queue) for handling by the
@@ -672,7 +672,7 @@ static void llc_station_ack_tmr_cb(unsigned long timeout_data)
 	}
 }
 
-/*
+/**
  *	llc_station_rcv - send received pdu to the station state machine
  *	@skb: received frame.
  *
@@ -687,12 +687,8 @@ static void llc_station_rcv(struct sk_buff *skb)
 	llc_station_state_process(skb);
 }
 
-int __init llc_station_init(void)
+void __init llc_station_init(void)
 {
-	int rc = -ENOBUFS;
-	struct sk_buff *skb;
-	struct llc_station_state_ev *ev;
-
 	skb_queue_head_init(&llc_main_station.mac_pdu_q);
 	skb_queue_head_init(&llc_main_station.ev_q.list);
 	spin_lock_init(&llc_main_station.ev_q.lock);
@@ -700,23 +696,12 @@ int __init llc_station_init(void)
 			(unsigned long)&llc_main_station);
 	llc_main_station.ack_timer.expires  = jiffies +
 						sysctl_llc_station_ack_timeout;
-	skb = alloc_skb(0, GFP_ATOMIC);
-	if (!skb)
-		goto out;
-	rc = 0;
-	llc_set_station_handler(llc_station_rcv);
-	ev = llc_station_ev(skb);
-	memset(ev, 0, sizeof(*ev));
 	llc_main_station.maximum_retry	= 1;
-	llc_main_station.state		= LLC_STATION_STATE_DOWN;
-	ev->type	= LLC_STATION_EV_TYPE_SIMPLE;
-	ev->prim_type	= LLC_STATION_EV_ENABLE_WITHOUT_DUP_ADDR_CHECK;
-	rc = llc_station_next_state(skb);
-out:
-	return rc;
+	llc_main_station.state		= LLC_STATION_STATE_UP;
+	llc_set_station_handler(llc_station_rcv);
 }
 
-void __exit llc_station_exit(void)
+void llc_station_exit(void)
 {
 	llc_set_station_handler(NULL);
 }

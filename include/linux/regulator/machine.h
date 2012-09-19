@@ -92,6 +92,7 @@ struct regulator_state {
  *                 mode.
  * @initial_state: Suspend state to set by default.
  * @initial_mode: Mode to set at startup.
+ * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
  */
 struct regulation_constraints {
 
@@ -124,6 +125,8 @@ struct regulation_constraints {
 
 	/* mode to set on startup */
 	unsigned int initial_mode;
+
+	unsigned int ramp_delay;
 
 	/* constraint flags */
 	unsigned always_on:1;	/* regulator never off when system is on */

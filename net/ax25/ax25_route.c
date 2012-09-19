@@ -474,7 +474,7 @@ struct sk_buff *ax25_rt_build_path(struct sk_buff *skb, ax25_address *src,
 		if (skb->sk != NULL)
 			skb_set_owner_w(skbn, skb->sk);
 
-		kfree_skb(skb);
+		consume_skb(skb);
 
 		skb = skbn;
 	}

@@ -18,6 +18,7 @@
 
 #include <linux/pci_ids.h>
 #include <linux/if_ether.h>
+#include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include <brcm_hw_ids.h>
 #include <aiutils.h>
@@ -268,7 +269,7 @@ struct brcms_c_bit_desc {
  */
 
 /* Starting corerev for the fifo size table */
-#define XMTFIFOTBL_STARTREV	20
+#define XMTFIFOTBL_STARTREV	17
 
 struct d11init {
 	__le16 addr;
@@ -332,6 +333,12 @@ const u8 wlc_prio2prec_map[] = {
 };
 
 static const u16 xmtfifo_sz[][NFIFO] = {
+	/* corerev 17: 5120, 49152, 49152, 5376, 4352, 1280 */
+	{20, 192, 192, 21, 17, 5},
+	/* corerev 18: */
+	{0, 0, 0, 0, 0, 0},
+	/* corerev 19: */
+	{0, 0, 0, 0, 0, 0},
 	/* corerev 20: 5120, 49152, 49152, 5376, 4352, 1280 */
 	{20, 192, 192, 21, 17, 5},
 	/* corerev 21: 2304, 14848, 5632, 3584, 3584, 1280 */
@@ -341,6 +348,14 @@ static const u16 xmtfifo_sz[][NFIFO] = {
 	/* corerev 23: 5120, 49152, 49152, 5376, 4352, 1280 */
 	{20, 192, 192, 21, 17, 5},
 	/* corerev 24: 2304, 14848, 5632, 3584, 3584, 1280 */
+	{9, 58, 22, 14, 14, 5},
+	/* corerev 25: */
+	{0, 0, 0, 0, 0, 0},
+	/* corerev 26: */
+	{0, 0, 0, 0, 0, 0},
+	/* corerev 27: */
+	{0, 0, 0, 0, 0, 0},
+	/* corerev 28: 2304, 14848, 5632, 3584, 3584, 1280 */
 	{9, 58, 22, 14, 14, 5},
 };
 
@@ -878,7 +893,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	tx_info = IEEE80211_SKB_CB(p);
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 
-	if (tx_info->control.sta)
+	if (tx_info->rate_driver_data[0])
 		scb = &wlc->pri_scb;
 
 	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
@@ -1941,7 +1956,8 @@ static bool brcms_b_radio_read_hwdisabled(struct brcms_hardware *wlc_hw)
 		 * accesses phyreg throughput mac. This can be skipped since
 		 * only mac reg is accessed below
 		 */
-		flags |= SICF_PCLKE;
+		if (D11REV_GE(wlc_hw->corerev, 18))
+			flags |= SICF_PCLKE;
 
 		/*
 		 * TODO: test suspend/resume
@@ -2022,7 +2038,8 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 	 * phyreg throughput mac, AND phy_reset is skipped at early stage when
 	 * band->pi is invalid. need to enable PHY CLK
 	 */
-	flags |= SICF_PCLKE;
+	if (D11REV_GE(wlc_hw->corerev, 18))
+		flags |= SICF_PCLKE;
 
 	/*
 	 * reset the core
@@ -2125,8 +2142,8 @@ void brcms_b_switch_macfreq(struct brcms_hardware *wlc_hw, u8 spurmode)
 {
 	struct bcma_device *core = wlc_hw->d11core;
 
-	if ((ai_get_chip_id(wlc_hw->sih) == BCM43224_CHIP_ID) ||
-	    (ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID)) {
+	if ((ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM43224) ||
+	    (ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM43225)) {
 		if (spurmode == WL_SPURAVOID_ON2) {	/* 126Mhz */
 			bcma_write16(core, D11REGOFFS(tsf_clk_frac_l), 0x2082);
 			bcma_write16(core, D11REGOFFS(tsf_clk_frac_h), 0x8);
@@ -2790,7 +2807,7 @@ void brcms_b_core_phypll_ctl(struct brcms_hardware *wlc_hw, bool on)
 	tmp = 0;
 
 	if (on) {
-		if ((ai_get_chip_id(wlc_hw->sih) == BCM4313_CHIP_ID)) {
+		if ((ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM4313)) {
 			bcma_set32(core, D11REGOFFS(clk_ctl_st),
 				   CCS_ERSRC_REQ_HT |
 				   CCS_ERSRC_REQ_D11PLL |
@@ -3137,20 +3154,6 @@ void brcms_c_reset(struct brcms_c_info *wlc)
 		sizeof(struct macstat));
 
 	brcms_b_reset(wlc->hw);
-}
-
-/* Return the channel the driver should initialize during brcms_c_init.
- * the channel may have to be changed from the currently configured channel
- * if other configurations are in conflict (bandlocked, 11n mode disabled,
- * invalid channel for current country, etc.)
- */
-static u16 brcms_c_init_chanspec(struct brcms_c_info *wlc)
-{
-	u16 chanspec =
-	    1 | WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE |
-	    WL_CHANSPEC_BAND_2G;
-
-	return chanspec;
 }
 
 void brcms_c_init_scb(struct scb *scb)
@@ -4231,9 +4234,8 @@ static void brcms_c_radio_timer(void *arg)
 }
 
 /* common low-level watchdog code */
-static void brcms_b_watchdog(void *arg)
+static void brcms_b_watchdog(struct brcms_c_info *wlc)
 {
-	struct brcms_c_info *wlc = (struct brcms_c_info *) arg;
 	struct brcms_hardware *wlc_hw = wlc->hw;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc_hw->unit);
@@ -4254,10 +4256,8 @@ static void brcms_b_watchdog(void *arg)
 }
 
 /* common watchdog code */
-static void brcms_c_watchdog(void *arg)
+static void brcms_c_watchdog(struct brcms_c_info *wlc)
 {
-	struct brcms_c_info *wlc = (struct brcms_c_info *) arg;
-
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
 	if (!wlc->pub->up)
@@ -4297,7 +4297,9 @@ static void brcms_c_watchdog(void *arg)
 
 static void brcms_c_watchdog_by_timer(void *arg)
 {
-	brcms_c_watchdog(arg);
+	struct brcms_c_info *wlc = (struct brcms_c_info *) arg;
+
+	brcms_c_watchdog(wlc);
 }
 
 static bool brcms_c_timers_init(struct brcms_c_info *wlc, int unit)
@@ -4467,11 +4469,9 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	}
 
 	/* verify again the device is supported */
-	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI &&
-	    !brcms_c_chipmatch(pcidev->vendor, pcidev->device)) {
-		wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported "
-			"vendor/device (0x%x/0x%x)\n",
-			 unit, pcidev->vendor, pcidev->device);
+	if (!brcms_c_chipmatch(core)) {
+		wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported device\n",
+			 unit);
 		err = 12;
 		goto fail;
 	}
@@ -4541,7 +4541,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	else
 		wlc_hw->_nbands = 1;
 
-	if ((ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID))
+	if ((ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM43225))
 		wlc_hw->_nbands = 1;
 
 	/* BMAC_NOTE: remove init of pub values when brcms_c_attach()
@@ -4608,8 +4608,12 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		wlc_hw->machwcap_backup = wlc_hw->machwcap;
 
 		/* init tx fifo size */
+		WARN_ON((wlc_hw->corerev - XMTFIFOTBL_STARTREV) < 0 ||
+			(wlc_hw->corerev - XMTFIFOTBL_STARTREV) >
+				ARRAY_SIZE(xmtfifo_sz));
 		wlc_hw->xmtfifo_sz =
 		    xmtfifo_sz[(wlc_hw->corerev - XMTFIFOTBL_STARTREV)];
+		WARN_ON(!wlc_hw->xmtfifo_sz[0]);
 
 		/* Get a phy for this band */
 		wlc_hw->band->pi =
@@ -5049,7 +5053,7 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	wlc_hw->wlc->pub->hw_up = true;
 
 	if ((wlc_hw->boardflags & BFL_FEM)
-	    && (ai_get_chip_id(wlc_hw->sih) == BCM4313_CHIP_ID)) {
+	    && (ai_get_chip_id(wlc_hw->sih) == BCMA_CHIP_ID_BCM4313)) {
 		if (!
 		    (wlc_hw->boardrev >= 0x1250
 		     && (wlc_hw->boardflags & BFL_FEM_BT)))
@@ -5129,6 +5133,8 @@ static void brcms_c_wme_retries_write(struct brcms_c_info *wlc)
 /* make interface operational */
 int brcms_c_up(struct brcms_c_info *wlc)
 {
+	struct ieee80211_channel *ch;
+
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
 	/* HW is turned off so don't try to access it */
@@ -5141,7 +5147,7 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	}
 
 	if ((wlc->pub->boardflags & BFL_FEM)
-	    && (ai_get_chip_id(wlc->hw->sih) == BCM4313_CHIP_ID)) {
+	    && (ai_get_chip_id(wlc->hw->sih) == BCMA_CHIP_ID_BCM4313)) {
 		if (wlc->pub->boardrev >= 0x1250
 		    && (wlc->pub->boardflags & BFL_FEM_BT))
 			brcms_b_mhf(wlc->hw, MHF5, MHF5_4313_GPIOCTRL,
@@ -5195,8 +5201,9 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	wlc->pub->up = true;
 
 	if (wlc->bandinit_pending) {
+		ch = wlc->pub->ieee_hw->conf.channel;
 		brcms_c_suspend_mac_and_wait(wlc);
-		brcms_c_set_chanspec(wlc, wlc->default_bss->chanspec);
+		brcms_c_set_chanspec(wlc, ch20mhz_chspec(ch->hw_value));
 		wlc->bandinit_pending = false;
 		brcms_c_enable_mac(wlc);
 	}
@@ -5395,11 +5402,6 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 		 (wlc->bandstate[OTHERBANDUNIT(wlc)]->bandtype == BRCM_BAND_2G))
 		band = wlc->bandstate[OTHERBANDUNIT(wlc)];
 	else
-		return -EINVAL;
-
-	/* Legacy or bust when no OFDM is supported by regulatory */
-	if ((brcms_c_channel_locale_flags_in_band(wlc->cmi, band->bandunit) &
-	     BRCMS_NO_OFDM) && (gmode != GMODE_LEGACY_B))
 		return -EINVAL;
 
 	/* update configuration value */
@@ -5782,8 +5784,12 @@ void brcms_c_print_txstatus(struct tx_status *txs)
 		 (txs->ackphyrxsh & PRXS1_SQ_MASK) >> PRXS1_SQ_SHIFT);
 }
 
-bool brcms_c_chipmatch(u16 vendor, u16 device)
+static bool brcms_c_chipmatch_pci(struct bcma_device *core)
 {
+	struct pci_dev *pcidev = core->bus->host_pci;
+	u16 vendor = pcidev->vendor;
+	u16 device = pcidev->device;
+
 	if (vendor != PCI_VENDOR_ID_BROADCOM) {
 		pr_err("unknown vendor id %04x\n", vendor);
 		return false;
@@ -5800,6 +5806,30 @@ bool brcms_c_chipmatch(u16 vendor, u16 device)
 
 	pr_err("unknown device id %04x\n", device);
 	return false;
+}
+
+static bool brcms_c_chipmatch_soc(struct bcma_device *core)
+{
+	struct bcma_chipinfo *chipinfo = &core->bus->chipinfo;
+
+	if (chipinfo->id == BCMA_CHIP_ID_BCM4716)
+		return true;
+
+	pr_err("unknown chip id %04x\n", chipinfo->id);
+	return false;
+}
+
+bool brcms_c_chipmatch(struct bcma_device *core)
+{
+	switch (core->bus->hosttype) {
+	case BCMA_HOSTTYPE_PCI:
+		return brcms_c_chipmatch_pci(core);
+	case BCMA_HOSTTYPE_SOC:
+		return brcms_c_chipmatch_soc(core);
+	default:
+		pr_err("unknown host type: %i\n", core->bus->hosttype);
+		return false;
+	}
 }
 
 #if defined(DEBUG)
@@ -8201,19 +8231,12 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx)
 {
 	struct bcma_device *core = wlc->hw->d11core;
+	struct ieee80211_channel *ch = wlc->pub->ieee_hw->conf.channel;
 	u16 chanspec;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
-	/*
-	 * This will happen if a big-hammer was executed. In
-	 * that case, we want to go back to the channel that
-	 * we were on and not new channel
-	 */
-	if (wlc->pub->associated)
-		chanspec = wlc->home_chanspec;
-	else
-		chanspec = brcms_c_init_chanspec(wlc);
+	chanspec = ch20mhz_chspec(ch->hw_value);
 
 	brcms_b_init(wlc->hw, chanspec);
 
@@ -8318,7 +8341,7 @@ brcms_c_attach(struct brcms_info *wl, struct bcma_device *core, uint unit,
 	struct brcms_pub *pub;
 
 	/* allocate struct brcms_c_info state and its substructures */
-	wlc = (struct brcms_c_info *) brcms_c_attach_malloc(unit, &err, 0);
+	wlc = brcms_c_attach_malloc(unit, &err, 0);
 	if (wlc == NULL)
 		goto fail;
 	wlc->wiphy = wl->wiphy;

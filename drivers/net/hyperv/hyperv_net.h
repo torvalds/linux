@@ -131,6 +131,7 @@ int rndis_filter_send(struct hv_device *dev,
 			struct hv_netvsc_packet *pkt);
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
+int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac);
 
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)

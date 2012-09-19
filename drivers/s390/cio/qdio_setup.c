@@ -1,9 +1,7 @@
 /*
- * driver/s390/cio/qdio_setup.c
- *
  * qdio queue initialization
  *
- * Copyright (C) IBM Corp. 2008
+ * Copyright IBM Corp. 2008
  * Author(s): Jan Glauber <jang@linux.vnet.ibm.com>
  */
 #include <linux/kernel.h>

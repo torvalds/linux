@@ -53,8 +53,8 @@ ACPI_MODULE_NAME("exsystem")
  *
  * FUNCTION:    acpi_ex_system_wait_semaphore
  *
- * PARAMETERS:  Semaphore       - Semaphore to wait on
- *              Timeout         - Max time to wait
+ * PARAMETERS:  semaphore       - Semaphore to wait on
+ *              timeout         - Max time to wait
  *
  * RETURN:      Status
  *
@@ -98,8 +98,8 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_semaphore semaphore, u16 timeout)
  *
  * FUNCTION:    acpi_ex_system_wait_mutex
  *
- * PARAMETERS:  Mutex           - Mutex to wait on
- *              Timeout         - Max time to wait
+ * PARAMETERS:  mutex           - Mutex to wait on
+ *              timeout         - Max time to wait
  *
  * RETURN:      Status
  *

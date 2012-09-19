@@ -239,7 +239,6 @@ struct pwc_device
 	int features;		/* feature bits */
 
 	/*** Video data ***/
-	struct file *capt_file;	/* file doing video capture */
 	int vendpoint;		/* video isoc endpoint */
 	int vcinterface;	/* video control interface */
 	int valternate;		/* alternate interface needed */
@@ -354,8 +353,6 @@ struct pwc_device
 #ifdef CONFIG_USB_PWC_DEBUG
 extern int pwc_trace;
 #endif
-
-int pwc_test_n_set_capt_file(struct pwc_device *pdev, struct file *file);
 
 /** Functions in pwc-misc.c */
 /* sizes in pixels */

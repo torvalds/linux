@@ -66,7 +66,7 @@ out:
 
 /**
  * __x25_remove_route - remove route from x25_route_list
- * @rt - route to remove
+ * @rt: route to remove
  *
  * Remove route from x25_route_list. If it was there.
  * Caller must hold x25_route_list_lock.

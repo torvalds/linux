@@ -341,12 +341,12 @@ void falcon_update_stats_xmac(struct efx_nic *efx)
 	FALCON_STAT(efx, XgTxIpSrcErrPkt, tx_ip_src_error);
 
 	/* Update derived statistics */
-	mac_stats->tx_good_bytes =
-		(mac_stats->tx_bytes - mac_stats->tx_bad_bytes -
-		 mac_stats->tx_control * 64);
-	mac_stats->rx_bad_bytes =
-		(mac_stats->rx_bytes - mac_stats->rx_good_bytes -
-		 mac_stats->rx_control * 64);
+	efx_update_diff_stat(&mac_stats->tx_good_bytes,
+			     mac_stats->tx_bytes - mac_stats->tx_bad_bytes -
+			     mac_stats->tx_control * 64);
+	efx_update_diff_stat(&mac_stats->rx_bad_bytes,
+			     mac_stats->rx_bytes - mac_stats->rx_good_bytes -
+			     mac_stats->rx_control * 64);
 }
 
 void falcon_poll_xmac(struct efx_nic *efx)

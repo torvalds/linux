@@ -1148,19 +1148,18 @@ static int __devinit vt1211_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, err;
 
-	data = kzalloc(sizeof(struct vt1211_data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct vt1211_data), GFP_KERNEL);
 	if (!data) {
-		err = -ENOMEM;
 		dev_err(dev, "Out of memory\n");
-		goto EXIT;
+		return -ENOMEM;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start, resource_size(res), DRVNAME)) {
-		err = -EBUSY;
+	if (!devm_request_region(dev, res->start, resource_size(res),
+				 DRVNAME)) {
 		dev_err(dev, "Failed to request region 0x%lx-0x%lx\n",
 			(unsigned long)res->start, (unsigned long)res->end);
-		goto EXIT_KFREE;
+		return -EBUSY;
 	}
 	data->addr = res->start;
 	data->name = DRVNAME;
@@ -1215,26 +1214,15 @@ EXIT_DEV_REMOVE:
 	dev_err(dev, "Sysfs interface creation failed (%d)\n", err);
 EXIT_DEV_REMOVE_SILENT:
 	vt1211_remove_sysfs(pdev);
-	release_region(res->start, resource_size(res));
-EXIT_KFREE:
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
-EXIT:
 	return err;
 }
 
 static int __devexit vt1211_remove(struct platform_device *pdev)
 {
 	struct vt1211_data *data = platform_get_drvdata(pdev);
-	struct resource *res;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	vt1211_remove_sysfs(pdev);
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
-
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	release_region(res->start, resource_size(res));
 
 	return 0;
 }

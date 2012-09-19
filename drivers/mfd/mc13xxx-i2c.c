@@ -53,17 +53,11 @@ static struct regmap_config mc13xxx_regmap_i2c_config = {
 static int mc13xxx_i2c_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-	const struct of_device_id *of_id;
-	struct i2c_driver *idrv = to_i2c_driver(client->dev.driver);
 	struct mc13xxx *mc13xxx;
 	struct mc13xxx_platform_data *pdata = dev_get_platdata(&client->dev);
 	int ret;
 
-	of_id = of_match_device(mc13xxx_dt_ids, &client->dev);
-	if (of_id)
-		idrv->id_table = (const struct i2c_device_id*) of_id->data;
-
-	mc13xxx = kzalloc(sizeof(*mc13xxx), GFP_KERNEL);
+	mc13xxx = devm_kzalloc(&client->dev, sizeof(*mc13xxx), GFP_KERNEL);
 	if (!mc13xxx)
 		return -ENOMEM;
 
@@ -72,13 +66,13 @@ static int mc13xxx_i2c_probe(struct i2c_client *client,
 	mc13xxx->dev = &client->dev;
 	mutex_init(&mc13xxx->lock);
 
-	mc13xxx->regmap = regmap_init_i2c(client, &mc13xxx_regmap_i2c_config);
+	mc13xxx->regmap = devm_regmap_init_i2c(client,
+					       &mc13xxx_regmap_i2c_config);
 	if (IS_ERR(mc13xxx->regmap)) {
 		ret = PTR_ERR(mc13xxx->regmap);
 		dev_err(mc13xxx->dev, "Failed to initialize register map: %d\n",
 				ret);
 		dev_set_drvdata(&client->dev, NULL);
-		kfree(mc13xxx);
 		return ret;
 	}
 

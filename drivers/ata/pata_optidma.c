@@ -447,21 +447,10 @@ static struct pci_driver optidma_pci_driver = {
 #endif
 };
 
-static int __init optidma_init(void)
-{
-	return pci_register_driver(&optidma_pci_driver);
-}
-
-static void __exit optidma_exit(void)
-{
-	pci_unregister_driver(&optidma_pci_driver);
-}
+module_pci_driver(optidma_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Opti Firestar/Firestar Plus");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, optidma);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(optidma_init);
-module_exit(optidma_exit);

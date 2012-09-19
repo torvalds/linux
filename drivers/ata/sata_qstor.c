@@ -635,21 +635,10 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 				 &qs_ata_sht);
 }
 
-static int __init qs_ata_init(void)
-{
-	return pci_register_driver(&qs_ata_pci_driver);
-}
-
-static void __exit qs_ata_exit(void)
-{
-	pci_unregister_driver(&qs_ata_pci_driver);
-}
+module_pci_driver(qs_ata_pci_driver);
 
 MODULE_AUTHOR("Mark Lord");
 MODULE_DESCRIPTION("Pacific Digital Corporation QStor SATA low-level driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, qs_ata_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(qs_ata_init);
-module_exit(qs_ata_exit);

@@ -177,20 +177,12 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_buffer_register(indio_dev,
-				  st->chip_info->channel,
-				  ARRAY_SIZE(st->chip_info->channel));
-	if (ret)
-		goto error_cleanup_ring;
-
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_ring_unregister;
 	return 0;
 
 error_ring_unregister:
-	iio_buffer_unregister(indio_dev);
-error_cleanup_ring:
 	ad7476_ring_cleanup(indio_dev);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
@@ -210,7 +202,6 @@ static int ad7476_remove(struct spi_device *spi)
 	struct ad7476_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	ad7476_ring_cleanup(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);

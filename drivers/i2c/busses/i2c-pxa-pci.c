@@ -163,17 +163,7 @@ static struct pci_driver ce4100_i2c_driver = {
 	.remove         = __devexit_p(ce4100_i2c_remove),
 };
 
-static int __init ce4100_i2c_init(void)
-{
-	return pci_register_driver(&ce4100_i2c_driver);
-}
-module_init(ce4100_i2c_init);
-
-static void __exit ce4100_i2c_exit(void)
-{
-	pci_unregister_driver(&ce4100_i2c_driver);
-}
-module_exit(ce4100_i2c_exit);
+module_pci_driver(ce4100_i2c_driver);
 
 MODULE_DESCRIPTION("CE4100 PCI-I2C glue code for PXA's driver");
 MODULE_LICENSE("GPL v2");

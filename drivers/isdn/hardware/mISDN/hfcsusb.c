@@ -2084,13 +2084,21 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* create the control pipes needed for register access */
 	hw->ctrl_in_pipe = usb_rcvctrlpipe(hw->dev, 0);
 	hw->ctrl_out_pipe = usb_sndctrlpipe(hw->dev, 0);
-	hw->ctrl_urb = usb_alloc_urb(0, GFP_KERNEL);
 
-	driver_info =
-		(struct hfcsusb_vdata *)hfcsusb_idtab[vend_idx].driver_info;
-	printk(KERN_DEBUG "%s: %s: detected \"%s\" (%s, if=%d alt=%d)\n",
-	       hw->name, __func__, driver_info->vend_name,
-	       conf_str[small_match], ifnum, alt_used);
+	driver_info = (struct hfcsusb_vdata *)
+		      hfcsusb_idtab[vend_idx].driver_info;
+
+	hw->ctrl_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!hw->ctrl_urb) {
+		pr_warn("%s: No memory for control urb\n",
+			driver_info->vend_name);
+		kfree(hw);
+		return -ENOMEM;
+	}
+
+	pr_info("%s: %s: detected \"%s\" (%s, if=%d alt=%d)\n",
+		hw->name, __func__, driver_info->vend_name,
+		conf_str[small_match], ifnum, alt_used);
 
 	if (setup_instance(hw, dev->dev.parent))
 		return -EIO;

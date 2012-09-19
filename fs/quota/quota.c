@@ -9,7 +9,7 @@
 #include <linux/namei.h>
 #include <linux/slab.h>
 #include <asm/current.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
@@ -47,7 +47,7 @@ static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 static void quota_sync_one(struct super_block *sb, void *arg)
 {
 	if (sb->s_qcop && sb->s_qcop->quota_sync)
-		sb->s_qcop->quota_sync(sb, *(int *)arg, 1);
+		sb->s_qcop->quota_sync(sb, *(int *)arg);
 }
 
 static int quota_sync_all(int type)
@@ -270,7 +270,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	case Q_SYNC:
 		if (!sb->s_qcop->quota_sync)
 			return -ENOSYS;
-		return sb->s_qcop->quota_sync(sb, type, 1);
+		return sb->s_qcop->quota_sync(sb, type);
 	case Q_XQUOTAON:
 	case Q_XQUOTAOFF:
 	case Q_XQUOTARM:

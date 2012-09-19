@@ -27,6 +27,8 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/dma-mapping.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <mach/hardware.h>
 #include <mach/r8a7779.h>
@@ -36,6 +38,12 @@
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 #include <asm/traps.h>
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
 /* SMSC LAN89218 */
 static struct resource smsc911x_resources[] = {
@@ -59,7 +67,7 @@ static struct smsc911x_platform_config smsc911x_platdata = {
 
 static struct platform_device eth_device = {
 	.name		= "smsc911x",
-	.id		= 0,
+	.id		= -1,
 	.dev  = {
 		.platform_data = &smsc911x_platdata,
 	},
@@ -73,6 +81,8 @@ static struct platform_device *marzen_devices[] __initdata = {
 
 static void __init marzen_init(void)
 {
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	r8a7779_pinmux_init();
 
 	/* SCIF2 (CN18: DEBUG0) */

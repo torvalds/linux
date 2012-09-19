@@ -199,7 +199,7 @@ int atl1c_read_mac_addr(struct atl1c_hw *hw)
 
 	err = atl1c_get_permanent_address(hw);
 	if (err)
-		random_ether_addr(hw->perm_mac_addr);
+		eth_random_addr(hw->perm_mac_addr);
 
 	memcpy(hw->mac_addr, hw->perm_mac_addr, sizeof(hw->perm_mac_addr));
 	return err;
@@ -602,7 +602,7 @@ int atl1c_phy_reset(struct atl1c_hw *hw)
 
 int atl1c_phy_init(struct atl1c_hw *hw)
 {
-	struct atl1c_adapter *adapter = (struct atl1c_adapter *)hw->adapter;
+	struct atl1c_adapter *adapter = hw->adapter;
 	struct pci_dev *pdev = adapter->pdev;
 	int ret_val;
 	u16 mii_bmcr_data = BMCR_RESET;
@@ -696,7 +696,7 @@ int atl1c_get_speed_and_duplex(struct atl1c_hw *hw, u16 *speed, u16 *duplex)
 /* select one link mode to get lower power consumption */
 int atl1c_phy_to_ps_link(struct atl1c_hw *hw)
 {
-	struct atl1c_adapter *adapter = (struct atl1c_adapter *)hw->adapter;
+	struct atl1c_adapter *adapter = hw->adapter;
 	struct pci_dev *pdev = adapter->pdev;
 	int ret = 0;
 	u16 autoneg_advertised = ADVERTISED_10baseT_Half;
@@ -768,7 +768,7 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw)
 
 int atl1c_power_saving(struct atl1c_hw *hw, u32 wufc)
 {
-	struct atl1c_adapter *adapter = (struct atl1c_adapter *)hw->adapter;
+	struct atl1c_adapter *adapter = hw->adapter;
 	struct pci_dev *pdev = adapter->pdev;
 	u32 master_ctrl, mac_ctrl, phy_ctrl;
 	u32 wol_ctrl, speed;

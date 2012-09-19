@@ -451,8 +451,10 @@ enum {
 #define	TCF_EM_U32		3
 #define	TCF_EM_META		4
 #define	TCF_EM_TEXT		5
-#define        TCF_EM_VLAN		6
-#define	TCF_EM_MAX		6
+#define	TCF_EM_VLAN		6
+#define	TCF_EM_CANID		7
+#define	TCF_EM_IPSET		8
+#define	TCF_EM_MAX		8
 
 enum {
 	TCF_EM_PROG_TC

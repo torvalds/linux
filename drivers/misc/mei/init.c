@@ -162,6 +162,9 @@ int mei_hw_init(struct mei_device *dev)
 	if ((dev->host_hw_state & H_IS) == H_IS)
 		mei_reg_write(dev, H_CSR, dev->host_hw_state);
 
+	/* Doesn't change in runtime */
+	dev->hbuf_depth = (dev->host_hw_state & H_CBD) >> 24;
+
 	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
 
@@ -303,7 +306,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 				dev->iamthif_cl.host_client_id);
 
 		mei_reset_iamthif_params(dev);
-		dev->wd_due_counter = 0;
 		dev->extra_write_index = 0;
 	}
 

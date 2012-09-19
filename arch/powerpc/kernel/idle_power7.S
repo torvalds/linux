@@ -28,7 +28,9 @@ _GLOBAL(power7_idle)
 	lwz	r4,ADDROFF(powersave_nap)(r3)
 	cmpwi	0,r4,0
 	beqlr
+	/* fall through */
 
+_GLOBAL(power7_nap)
 	/* NAP is a state loss, we create a regs frame on the
 	 * stack, fill it up with the state we care about and
 	 * stick a pointer to it in PACAR1. We really only

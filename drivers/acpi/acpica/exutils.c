@@ -109,7 +109,7 @@ void acpi_ex_enter_interpreter(void)
  *
  * DESCRIPTION: Reacquire the interpreter execution region from within the
  *              interpreter code. Failure to enter the interpreter region is a
- *              fatal system error. Used in  conjunction with
+ *              fatal system error. Used in conjunction with
  *              relinquish_interpreter
  *
  ******************************************************************************/
@@ -317,8 +317,8 @@ void acpi_ex_release_global_lock(u32 field_flags)
  *
  * FUNCTION:    acpi_ex_digits_needed
  *
- * PARAMETERS:  Value           - Value to be represented
- *              Base            - Base of representation
+ * PARAMETERS:  value           - Value to be represented
+ *              base            - Base of representation
  *
  * RETURN:      The number of digits.
  *
@@ -408,7 +408,7 @@ void acpi_ex_eisa_id_to_string(char *out_string, u64 compressed_id)
  * PARAMETERS:  out_string      - Where to put the converted string. At least
  *                                21 bytes are needed to hold the largest
  *                                possible 64-bit integer.
- *              Value           - Value to be converted
+ *              value           - Value to be converted
  *
  * RETURN:      None, string
  *
@@ -443,7 +443,7 @@ void acpi_ex_integer_to_string(char *out_string, u64 value)
  *
  * RETURN:      TRUE if valid/supported ID.
  *
- * DESCRIPTION: Validate an operation region space_iD.
+ * DESCRIPTION: Validate an operation region space_ID.
  *
  ******************************************************************************/
 

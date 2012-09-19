@@ -514,9 +514,13 @@ struct nfs_writeargs {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs_write_verifier {
+	char			data[8];
+};
+
 struct nfs_writeverf {
+	struct nfs_write_verifier verifier;
 	enum nfs3_stable_how	committed;
-	__be32			verifier[2];
 };
 
 struct nfs_writeres {
@@ -820,7 +824,7 @@ struct nfs3_getaclres {
 	struct posix_acl *	acl_default;
 };
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 
 typedef u64 clientid4;
 
@@ -1244,6 +1248,7 @@ struct nfs_pgio_header {
 	void (*release) (struct nfs_pgio_header *hdr);
 	const struct nfs_pgio_completion_ops *completion_ops;
 	struct nfs_direct_req	*dreq;
+	void			*layout_private;
 	spinlock_t		lock;
 	/* fields protected by lock */
 	int			pnfs_error;
@@ -1349,6 +1354,10 @@ struct nfs_renamedata {
 struct nfs_access_entry;
 struct nfs_client;
 struct rpc_timeout;
+struct nfs_subversion;
+struct nfs_mount_info;
+struct nfs_client_initdata;
+struct nfs_pageio_descriptor;
 
 /*
  * RPC procedure vector for NFSv2/NFSv3 demuxing
@@ -1364,6 +1373,8 @@ struct nfs_rpc_ops {
 			    struct nfs_fsinfo *);
 	struct vfsmount *(*submount) (struct nfs_server *, struct dentry *,
 				      struct nfs_fh *, struct nfs_fattr *);
+	struct dentry *(*try_mount) (int, const char *, struct nfs_mount_info *,
+				     struct nfs_subversion *);
 	int	(*getattr) (struct nfs_server *, struct nfs_fh *,
 			    struct nfs_fattr *);
 	int	(*setattr) (struct dentry *, struct nfs_fattr *,
@@ -1374,7 +1385,7 @@ struct nfs_rpc_ops {
 	int	(*readlink)(struct inode *, struct page *, unsigned int,
 			    unsigned int);
 	int	(*create)  (struct inode *, struct dentry *,
-			    struct iattr *, int, struct nfs_open_context *);
+			    struct iattr *, int);
 	int	(*remove)  (struct inode *, struct qstr *);
 	void	(*unlink_setup)  (struct rpc_message *, struct inode *dir);
 	void	(*unlink_rpc_prepare) (struct rpc_task *, struct nfs_unlinkdata *);
@@ -1402,9 +1413,13 @@ struct nfs_rpc_ops {
 	int	(*set_capabilities)(struct nfs_server *, struct nfs_fh *);
 	int	(*decode_dirent)(struct xdr_stream *, struct nfs_entry *, int);
 	void	(*read_setup)   (struct nfs_read_data *, struct rpc_message *);
+	void	(*read_pageio_init)(struct nfs_pageio_descriptor *, struct inode *,
+				    const struct nfs_pgio_completion_ops *);
 	void	(*read_rpc_prepare)(struct rpc_task *, struct nfs_read_data *);
 	int	(*read_done)  (struct rpc_task *, struct nfs_read_data *);
 	void	(*write_setup)  (struct nfs_write_data *, struct rpc_message *);
+	void	(*write_pageio_init)(struct nfs_pageio_descriptor *, struct inode *, int,
+				     const struct nfs_pgio_completion_ops *);
 	void	(*write_rpc_prepare)(struct rpc_task *, struct nfs_write_data *);
 	int	(*write_done)  (struct rpc_task *, struct nfs_write_data *);
 	void	(*commit_setup) (struct nfs_commit_data *, struct rpc_message *);
@@ -1418,9 +1433,16 @@ struct nfs_rpc_ops {
 				struct nfs_open_context *ctx,
 				int open_flags,
 				struct iattr *iattr);
+	int (*have_delegation)(struct inode *, fmode_t);
+	int (*return_delegation)(struct inode *);
+	struct nfs_client *(*alloc_client) (const struct nfs_client_initdata *);
 	struct nfs_client *
 		(*init_client) (struct nfs_client *, const struct rpc_timeout *,
 				const char *, rpc_authflavor_t);
+	void	(*free_client) (struct nfs_client *);
+	struct nfs_server *(*create_server)(struct nfs_mount_info *, struct nfs_subversion *);
+	struct nfs_server *(*clone_server)(struct nfs_server *, struct nfs_fh *,
+					   struct nfs_fattr *, rpc_authflavor_t);
 };
 
 /*

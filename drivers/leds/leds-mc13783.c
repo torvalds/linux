@@ -280,7 +280,8 @@ static int __devinit mc13783_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	led = kcalloc(pdata->num_leds, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc(&pdev->dev, pdata->num_leds * sizeof(*led),
+				GFP_KERNEL);
 	if (led == NULL) {
 		dev_err(&pdev->dev, "failed to alloc memory\n");
 		return -ENOMEM;
@@ -289,7 +290,7 @@ static int __devinit mc13783_led_probe(struct platform_device *pdev)
 	ret = mc13783_leds_prepare(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to init led driver\n");
-		goto err_free;
+		return ret;
 	}
 
 	for (i = 0; i < pdata->num_leds; i++) {
@@ -344,8 +345,6 @@ err_register:
 		cancel_work_sync(&led[i].work);
 	}
 
-err_free:
-	kfree(led);
 	return ret;
 }
 
@@ -372,7 +371,7 @@ static int __devexit mc13783_led_remove(struct platform_device *pdev)
 
 	mc13xxx_unlock(dev);
 
-	kfree(led);
+	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

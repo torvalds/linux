@@ -1,7 +1,7 @@
 /*
  * wm8350.c -- WM8350 ALSA SoC audio driver
  *
- * Copyright (C) 2007, 2008 Wolfson Microelectronics PLC.
+ * Copyright (C) 2007-12 Wolfson Microelectronics PLC.
  *
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
@@ -70,20 +70,6 @@ struct wm8350_data {
 	int fll_freq_out;
 	int fll_freq_in;
 };
-
-static unsigned int wm8350_codec_read(struct snd_soc_codec *codec,
-				      unsigned int reg)
-{
-	struct wm8350 *wm8350 = codec->control_data;
-	return wm8350_reg_read(wm8350, reg);
-}
-
-static int wm8350_codec_write(struct snd_soc_codec *codec, unsigned int reg,
-			      unsigned int value)
-{
-	struct wm8350 *wm8350 = codec->control_data;
-	return wm8350_reg_write(wm8350, reg, value);
-}
 
 /*
  * Ramp OUT1 PGA volume to minimise pops at stream startup and shutdown.
@@ -1519,7 +1505,9 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	if (ret != 0)
 		return ret;
 
-	codec->control_data = wm8350;
+	codec->control_data = wm8350->regmap;
+
+	snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
 
 	/* Put the codec into reset if it wasn't already */
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
@@ -1629,8 +1617,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
 	.remove =	wm8350_codec_remove,
 	.suspend = 	wm8350_suspend,
 	.resume =	wm8350_resume,
-	.read = wm8350_codec_read,
-	.write = wm8350_codec_write,
 	.set_bias_level = wm8350_set_bias_level,
 
 	.controls = wm8350_snd_controls,

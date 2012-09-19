@@ -499,7 +499,7 @@ static void medusa_set_decoderduration(struct cx25821_dev *dev, int decoder,
 	mutex_lock(&dev->lock);
 
 	/* no support */
-	if (decoder < VDEC_A && decoder > VDEC_H) {
+	if (decoder < VDEC_A || decoder > VDEC_H) {
 		mutex_unlock(&dev->lock);
 		return;
 	}

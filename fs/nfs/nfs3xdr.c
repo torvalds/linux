@@ -246,7 +246,6 @@ static void encode_nfspath3(struct xdr_stream *xdr, struct page **pages,
 static int decode_nfspath3(struct xdr_stream *xdr)
 {
 	u32 recvd, count;
-	size_t hdrlen;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
@@ -255,12 +254,9 @@ static int decode_nfspath3(struct xdr_stream *xdr)
 	count = be32_to_cpup(p);
 	if (unlikely(count >= xdr->buf->page_len || count > NFS3_MAXPATHLEN))
 		goto out_nametoolong;
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
-	recvd = xdr->buf->len - hdrlen;
+	recvd = xdr_read_pages(xdr, count);
 	if (unlikely(count > recvd))
 		goto out_cheating;
-
-	xdr_read_pages(xdr, count);
 	xdr_terminate_string(xdr->buf, count);
 	return 0;
 
@@ -329,14 +325,14 @@ static void encode_createverf3(struct xdr_stream *xdr, const __be32 *verifier)
 	memcpy(p, verifier, NFS3_CREATEVERFSIZE);
 }
 
-static int decode_writeverf3(struct xdr_stream *xdr, __be32 *verifier)
+static int decode_writeverf3(struct xdr_stream *xdr, struct nfs_write_verifier *verifier)
 {
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, NFS3_WRITEVERFSIZE);
 	if (unlikely(p == NULL))
 		goto out_overflow;
-	memcpy(verifier, p, NFS3_WRITEVERFSIZE);
+	memcpy(verifier->data, p, NFS3_WRITEVERFSIZE);
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -1587,7 +1583,6 @@ static int decode_read3resok(struct xdr_stream *xdr,
 			     struct nfs_readres *result)
 {
 	u32 eof, count, ocount, recvd;
-	size_t hdrlen;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4 + 4 + 4);
@@ -1598,13 +1593,10 @@ static int decode_read3resok(struct xdr_stream *xdr,
 	ocount = be32_to_cpup(p++);
 	if (unlikely(ocount != count))
 		goto out_mismatch;
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
-	recvd = xdr->buf->len - hdrlen;
+	recvd = xdr_read_pages(xdr, count);
 	if (unlikely(count > recvd))
 		goto out_cheating;
-
 out:
-	xdr_read_pages(xdr, count);
 	result->eof = eof;
 	result->count = count;
 	return count;
@@ -1676,20 +1668,22 @@ static int decode_write3resok(struct xdr_stream *xdr,
 {
 	__be32 *p;
 
-	p = xdr_inline_decode(xdr, 4 + 4 + NFS3_WRITEVERFSIZE);
+	p = xdr_inline_decode(xdr, 4 + 4);
 	if (unlikely(p == NULL))
 		goto out_overflow;
 	result->count = be32_to_cpup(p++);
 	result->verf->committed = be32_to_cpup(p++);
 	if (unlikely(result->verf->committed > NFS_FILE_SYNC))
 		goto out_badvalue;
-	memcpy(result->verf->verifier, p, NFS3_WRITEVERFSIZE);
+	if (decode_writeverf3(xdr, &result->verf->verifier))
+		goto out_eio;
 	return result->count;
 out_badvalue:
 	dprintk("NFS: bad stable_how value: %u\n", result->verf->committed);
 	return -EIO;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
+out_eio:
 	return -EIO;
 }
 
@@ -2039,22 +2033,7 @@ out_truncated:
  */
 static int decode_dirlist3(struct xdr_stream *xdr)
 {
-	u32 recvd, pglen;
-	size_t hdrlen;
-
-	pglen = xdr->buf->page_len;
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
-	recvd = xdr->buf->len - hdrlen;
-	if (unlikely(pglen > recvd))
-		goto out_cheating;
-out:
-	xdr_read_pages(xdr, pglen);
-	return pglen;
-out_cheating:
-	dprintk("NFS: server cheating in readdir result: "
-		"pglen %u > recvd %u\n", pglen, recvd);
-	pglen = recvd;
-	goto out;
+	return xdr_read_pages(xdr, xdr->buf->page_len);
 }
 
 static int decode_readdir3resok(struct xdr_stream *xdr,
@@ -2337,7 +2316,7 @@ static int nfs3_xdr_dec_commit3res(struct rpc_rqst *req,
 		goto out;
 	if (status != NFS3_OK)
 		goto out_status;
-	error = decode_writeverf3(xdr, result->verf->verifier);
+	error = decode_writeverf3(xdr, &result->verf->verifier);
 out:
 	return error;
 out_status:
@@ -2364,7 +2343,7 @@ static inline int decode_getacl3resok(struct xdr_stream *xdr,
 	if (result->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT))
 		goto out;
 
-	hdrlen = (u8 *)xdr->p - (u8 *)xdr->iov->iov_base;
+	hdrlen = xdr_stream_pos(xdr);
 
 	acl = NULL;
 	if (result->mask & NFS_ACL)

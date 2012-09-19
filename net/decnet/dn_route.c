@@ -114,10 +114,16 @@ static struct dst_entry *dn_dst_check(struct dst_entry *, __u32);
 static unsigned int dn_dst_default_advmss(const struct dst_entry *dst);
 static unsigned int dn_dst_mtu(const struct dst_entry *dst);
 static void dn_dst_destroy(struct dst_entry *);
+static void dn_dst_ifdown(struct dst_entry *, struct net_device *dev, int how);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
-static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu);
-static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst, const void *daddr);
+static void dn_dst_update_pmtu(struct dst_entry *dst, struct sock *sk,
+			       struct sk_buff *skb , u32 mtu);
+static void dn_dst_redirect(struct dst_entry *dst, struct sock *sk,
+			    struct sk_buff *skb);
+static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst,
+					     struct sk_buff *skb,
+					     const void *daddr);
 static int dn_route_input(struct sk_buff *);
 static void dn_run_flush(unsigned long dummy);
 
@@ -138,15 +144,35 @@ static struct dst_ops dn_dst_ops = {
 	.mtu =			dn_dst_mtu,
 	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		dn_dst_destroy,
+	.ifdown =		dn_dst_ifdown,
 	.negative_advice =	dn_dst_negative_advice,
 	.link_failure =		dn_dst_link_failure,
 	.update_pmtu =		dn_dst_update_pmtu,
+	.redirect =		dn_dst_redirect,
 	.neigh_lookup =		dn_dst_neigh_lookup,
 };
 
 static void dn_dst_destroy(struct dst_entry *dst)
 {
+	struct dn_route *rt = (struct dn_route *) dst;
+
+	if (rt->n)
+		neigh_release(rt->n);
 	dst_destroy_metrics_generic(dst);
+}
+
+static void dn_dst_ifdown(struct dst_entry *dst, struct net_device *dev, int how)
+{
+	if (how) {
+		struct dn_route *rt = (struct dn_route *) dst;
+		struct neighbour *n = rt->n;
+
+		if (n && n->dev == dev) {
+			n->dev = dev_net(dev)->loopback_dev;
+			dev_hold(n->dev);
+			dev_put(dev);
+		}
+	}
 }
 
 static __inline__ unsigned int dn_hash(__le16 src, __le16 dst)
@@ -242,9 +268,11 @@ static int dn_dst_gc(struct dst_ops *ops)
  * We update both the mtu and the advertised mss (i.e. the segment size we
  * advertise to the other end).
  */
-static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu)
+static void dn_dst_update_pmtu(struct dst_entry *dst, struct sock *sk,
+			       struct sk_buff *skb, u32 mtu)
 {
-	struct neighbour *n = dst_get_neighbour_noref(dst);
+	struct dn_route *rt = (struct dn_route *) dst;
+	struct neighbour *n = rt->n;
 	u32 min_mtu = 230;
 	struct dn_dev *dn;
 
@@ -267,6 +295,11 @@ static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu)
 				dst_metric_set(dst, RTAX_ADVMSS, mss);
 		}
 	}
+}
+
+static void dn_dst_redirect(struct dst_entry *dst, struct sock *sk,
+			    struct sk_buff *skb)
+{
 }
 
 /*
@@ -713,7 +746,8 @@ out:
 static int dn_to_neigh_output(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *n = dst_get_neighbour_noref(dst);
+	struct dn_route *rt = (struct dn_route *) dst;
+	struct neighbour *n = rt->n;
 
 	return n->output(n, skb);
 }
@@ -727,7 +761,7 @@ static int dn_output(struct sk_buff *skb)
 
 	int err = -EINVAL;
 
-	if (dst_get_neighbour_noref(dst) == NULL)
+	if (rt->n == NULL)
 		goto error;
 
 	skb->dev = dev;
@@ -828,7 +862,9 @@ static unsigned int dn_dst_mtu(const struct dst_entry *dst)
 	return mtu ? : dst->dev->mtu;
 }
 
-static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst,
+					     struct sk_buff *skb,
+					     const void *daddr)
 {
 	return __neigh_lookup_errno(&dn_neigh_table, daddr, dst->dev);
 }
@@ -848,11 +884,11 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 	}
 	rt->rt_type = res->type;
 
-	if (dev != NULL && dst_get_neighbour_noref(&rt->dst) == NULL) {
+	if (dev != NULL && rt->n == NULL) {
 		n = __neigh_lookup_errno(&dn_neigh_table, &rt->rt_gateway, dev);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
-		dst_set_neighbour(&rt->dst, n);
+		rt->n = n;
 	}
 
 	if (dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
@@ -1140,7 +1176,7 @@ make_route:
 	if (dev_out->flags & IFF_LOOPBACK)
 		flags |= RTCF_LOCAL;
 
-	rt = dst_alloc(&dn_dst_ops, dev_out, 1, 0, DST_HOST);
+	rt = dst_alloc(&dn_dst_ops, dev_out, 1, DST_OBSOLETE_NONE, DST_HOST);
 	if (rt == NULL)
 		goto e_nobufs;
 
@@ -1159,7 +1195,7 @@ make_route:
 	rt->rt_dst_map    = fld.daddr;
 	rt->rt_src_map    = fld.saddr;
 
-	dst_set_neighbour(&rt->dst, neigh);
+	rt->n = neigh;
 	neigh = NULL;
 
 	rt->dst.lastuse = jiffies;
@@ -1388,7 +1424,6 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		/* Packet was intra-ethernet, so we know its on-link */
 		if (cb->rt_flags & DN_RT_F_IE) {
 			gateway = cb->src;
-			flags |= RTCF_DIRECTSRC;
 			goto make_route;
 		}
 
@@ -1401,14 +1436,13 @@ static int dn_route_input_slow(struct sk_buff *skb)
 
 		/* Close eyes and pray */
 		gateway = cb->src;
-		flags |= RTCF_DIRECTSRC;
 		goto make_route;
 	default:
 		goto e_inval;
 	}
 
 make_route:
-	rt = dst_alloc(&dn_dst_ops, out_dev, 0, 0, DST_HOST);
+	rt = dst_alloc(&dn_dst_ops, out_dev, 0, DST_OBSOLETE_NONE, DST_HOST);
 	if (rt == NULL)
 		goto e_nobufs;
 
@@ -1429,7 +1463,7 @@ make_route:
 	rt->fld.flowidn_iif  = in_dev->ifindex;
 	rt->fld.flowidn_mark = fld.flowidn_mark;
 
-	dst_set_neighbour(&rt->dst, neigh);
+	rt->n = neigh;
 	rt->dst.lastuse = jiffies;
 	rt->dst.output = dn_rt_bug;
 	switch (res.type) {
@@ -1515,54 +1549,68 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	struct dn_route *rt = (struct dn_route *)skb_dst(skb);
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
-	unsigned char *b = skb_tail_pointer(skb);
 	long expires;
 
-	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*r), flags);
-	r = NLMSG_DATA(nlh);
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*r), flags);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	r = nlmsg_data(nlh);
 	r->rtm_family = AF_DECnet;
 	r->rtm_dst_len = 16;
 	r->rtm_src_len = 0;
 	r->rtm_tos = 0;
 	r->rtm_table = RT_TABLE_MAIN;
-	RTA_PUT_U32(skb, RTA_TABLE, RT_TABLE_MAIN);
 	r->rtm_type = rt->rt_type;
 	r->rtm_flags = (rt->rt_flags & ~0xFFFF) | RTM_F_CLONED;
 	r->rtm_scope = RT_SCOPE_UNIVERSE;
 	r->rtm_protocol = RTPROT_UNSPEC;
+
 	if (rt->rt_flags & RTCF_NOTIFY)
 		r->rtm_flags |= RTM_F_NOTIFY;
-	RTA_PUT(skb, RTA_DST, 2, &rt->rt_daddr);
+
+	if (nla_put_u32(skb, RTA_TABLE, RT_TABLE_MAIN) < 0 ||
+	    nla_put_le16(skb, RTA_DST, rt->rt_daddr) < 0)
+		goto errout;
+
 	if (rt->fld.saddr) {
 		r->rtm_src_len = 16;
-		RTA_PUT(skb, RTA_SRC, 2, &rt->fld.saddr);
+		if (nla_put_le16(skb, RTA_SRC, rt->fld.saddr) < 0)
+			goto errout;
 	}
-	if (rt->dst.dev)
-		RTA_PUT(skb, RTA_OIF, sizeof(int), &rt->dst.dev->ifindex);
+	if (rt->dst.dev &&
+	    nla_put_u32(skb, RTA_OIF, rt->dst.dev->ifindex) < 0)
+		goto errout;
+
 	/*
 	 * Note to self - change this if input routes reverse direction when
 	 * they deal only with inputs and not with replies like they do
 	 * currently.
 	 */
-	RTA_PUT(skb, RTA_PREFSRC, 2, &rt->rt_local_src);
-	if (rt->rt_daddr != rt->rt_gateway)
-		RTA_PUT(skb, RTA_GATEWAY, 2, &rt->rt_gateway);
+	if (nla_put_le16(skb, RTA_PREFSRC, rt->rt_local_src) < 0)
+		goto errout;
+
+	if (rt->rt_daddr != rt->rt_gateway &&
+	    nla_put_le16(skb, RTA_GATEWAY, rt->rt_gateway) < 0)
+		goto errout;
+
 	if (rtnetlink_put_metrics(skb, dst_metrics_ptr(&rt->dst)) < 0)
-		goto rtattr_failure;
+		goto errout;
+
 	expires = rt->dst.expires ? rt->dst.expires - jiffies : 0;
-	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, 0, 0, expires,
+	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, expires,
 			       rt->dst.error) < 0)
-		goto rtattr_failure;
-	if (dn_is_input_route(rt))
-		RTA_PUT(skb, RTA_IIF, sizeof(int), &rt->fld.flowidn_iif);
+		goto errout;
 
-	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
-	return skb->len;
+	if (dn_is_input_route(rt) &&
+	    nla_put_u32(skb, RTA_IIF, rt->fld.flowidn_iif) < 0)
+		goto errout;
 
-nlmsg_failure:
-rtattr_failure:
-	nlmsg_trim(skb, b);
-	return -1;
+	return nlmsg_end(skb, nlh);
+
+errout:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 /*
@@ -1572,7 +1620,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct rtattr **rta = arg;
-	struct rtmsg *rtm = NLMSG_DATA(nlh);
+	struct rtmsg *rtm = nlmsg_data(nlh);
 	struct dn_route *rt = NULL;
 	struct dn_skb_cb *cb;
 	int err;
@@ -1585,7 +1633,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	memset(&fld, 0, sizeof(fld));
 	fld.flowidn_proto = DNPROTO_NSP;
 
-	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (skb == NULL)
 		return -ENOBUFS;
 	skb_reset_mac_header(skb);
@@ -1663,13 +1711,16 @@ int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct dn_route *rt;
 	int h, s_h;
 	int idx, s_idx;
+	struct rtmsg *rtm;
 
 	if (!net_eq(net, &init_net))
 		return 0;
 
-	if (NLMSG_PAYLOAD(cb->nlh, 0) < sizeof(struct rtmsg))
+	if (nlmsg_len(cb->nlh) < sizeof(struct rtmsg))
 		return -EINVAL;
-	if (!(((struct rtmsg *)NLMSG_DATA(cb->nlh))->rtm_flags&RTM_F_CLONED))
+
+	rtm = nlmsg_data(cb->nlh);
+	if (!(rtm->rtm_flags & RTM_F_CLONED))
 		return 0;
 
 	s_h = cb->args[0];
@@ -1769,12 +1820,11 @@ static int dn_rt_cache_seq_show(struct seq_file *seq, void *v)
 	char buf1[DN_ASCBUF_LEN], buf2[DN_ASCBUF_LEN];
 
 	seq_printf(seq, "%-8s %-7s %-7s %04d %04d %04d\n",
-			rt->dst.dev ? rt->dst.dev->name : "*",
-			dn_addr2asc(le16_to_cpu(rt->rt_daddr), buf1),
-			dn_addr2asc(le16_to_cpu(rt->rt_saddr), buf2),
-			atomic_read(&rt->dst.__refcnt),
-			rt->dst.__use,
-			(int) dst_metric(&rt->dst, RTAX_RTT));
+		   rt->dst.dev ? rt->dst.dev->name : "*",
+		   dn_addr2asc(le16_to_cpu(rt->rt_daddr), buf1),
+		   dn_addr2asc(le16_to_cpu(rt->rt_saddr), buf2),
+		   atomic_read(&rt->dst.__refcnt),
+		   rt->dst.__use, 0);
 	return 0;
 }
 

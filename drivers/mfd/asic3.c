@@ -925,6 +925,7 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 			goto out;
 	}
 
+	ret = 0;
 	if (pdata->leds) {
 		int i;
 

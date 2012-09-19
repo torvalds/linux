@@ -23,20 +23,14 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
-#include <linux/nfs4_mount.h>
 #include <linux/lockd/bind.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
-#include <linux/nfs_idmap.h>
 #include <linux/vfs.h>
 #include <linux/namei.h>
 #include <linux/security.h>
 
 #include <asm/uaccess.h>
-
-#include "nfs4_fs.h"
-#include "delegation.h"
-#include "internal.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
@@ -62,7 +56,7 @@ static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *i
 		 */
 		spin_lock(&sb->s_root->d_inode->i_lock);
 		spin_lock(&sb->s_root->d_lock);
-		list_del_init(&sb->s_root->d_alias);
+		hlist_del_init(&sb->s_root->d_alias);
 		spin_unlock(&sb->s_root->d_lock);
 		spin_unlock(&sb->s_root->d_inode->i_lock);
 	}
@@ -135,47 +129,3 @@ out:
 	nfs_free_fattr(fsinfo.fattr);
 	return ret;
 }
-
-#ifdef CONFIG_NFS_V4
-
-int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh)
-{
-	struct nfs_fsinfo fsinfo;
-	int ret = -ENOMEM;
-
-	dprintk("--> nfs4_get_rootfh()\n");
-
-	fsinfo.fattr = nfs_alloc_fattr();
-	if (fsinfo.fattr == NULL)
-		goto out;
-
-	/* Start by getting the root filehandle from the server */
-	ret = nfs4_proc_get_rootfh(server, mntfh, &fsinfo);
-	if (ret < 0) {
-		dprintk("nfs4_get_rootfh: getroot error = %d\n", -ret);
-		goto out;
-	}
-
-	if (!(fsinfo.fattr->valid & NFS_ATTR_FATTR_TYPE)
-			|| !S_ISDIR(fsinfo.fattr->mode)) {
-		printk(KERN_ERR "nfs4_get_rootfh:"
-		       " getroot encountered non-directory\n");
-		ret = -ENOTDIR;
-		goto out;
-	}
-
-	if (fsinfo.fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL) {
-		printk(KERN_ERR "nfs4_get_rootfh:"
-		       " getroot obtained referral\n");
-		ret = -EREMOTE;
-		goto out;
-	}
-
-	memcpy(&server->fsid, &fsinfo.fattr->fsid, sizeof(server->fsid));
-out:
-	nfs_free_fattr(fsinfo.fattr);
-	dprintk("<-- nfs4_get_rootfh() = %d\n", ret);
-	return ret;
-}
-
-#endif /* CONFIG_NFS_V4 */

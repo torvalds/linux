@@ -110,6 +110,10 @@ do {							\
 #include <asm-generic/bug.h>
 
 struct pt_regs;
+
+/* arch/sh/kernel/traps.c */
 extern void die(const char *str, struct pt_regs *regs, long err) __attribute__ ((noreturn));
+extern void die_if_kernel(const char *str, struct pt_regs *regs, long err);
+extern void die_if_no_fixup(const char *str, struct pt_regs *regs, long err);
 
 #endif /* __ASM_SH_BUG_H */

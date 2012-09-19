@@ -398,6 +398,14 @@ static ssize_t guid_show(struct device *dev,
 	return ret;
 }
 
+static ssize_t is_local_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct fw_device *device = fw_device(dev);
+
+	return sprintf(buf, "%u\n", device->is_local);
+}
+
 static int units_sprintf(char *buf, const u32 *directory)
 {
 	struct fw_csr_iterator ci;
@@ -447,6 +455,7 @@ static ssize_t units_show(struct device *dev,
 static struct device_attribute fw_device_attributes[] = {
 	__ATTR_RO(config_rom),
 	__ATTR_RO(guid),
+	__ATTR_RO(is_local),
 	__ATTR_RO(units),
 	__ATTR_NULL,
 };

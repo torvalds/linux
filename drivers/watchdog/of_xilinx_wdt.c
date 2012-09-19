@@ -297,7 +297,7 @@ static int __devinit xwdt_probe(struct platform_device *pdev)
 
 	no_timeout = 0;
 
-	pfreq = (u32 *)of_get_property(pdev->dev.of_node->parent,
+	pfreq = (u32 *)of_get_property(pdev->dev.of_node,
 					"clock-frequency", NULL);
 
 	if (pfreq == NULL) {

@@ -126,6 +126,7 @@ config AUDIT_ARCH
 
 menuconfig PARAVIRT_GUEST
 	bool "Paravirtualized guest support"
+	depends on BROKEN
 	help
 	  Say Y here to get to see options related to running Linux under
 	  various hypervisors.  This option alone does not add any kernel code.
@@ -137,8 +138,6 @@ if PARAVIRT_GUEST
 config PARAVIRT
 	bool "Enable paravirtualization code"
 	depends on PARAVIRT_GUEST
-	default y
-	bool
 	default y
 	help
 	  This changes the kernel so it can modify itself when it is run

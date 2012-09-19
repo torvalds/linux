@@ -19,6 +19,39 @@
 
 #include "cpu.h"
 
+static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
+{
+	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+	u32 gprs[8] = { 0 };
+	int err;
+
+	WARN_ONCE((c->x86 != 0xf), "%s should only be used on K8!\n", __func__);
+
+	gprs[1] = msr;
+	gprs[7] = 0x9c5a203a;
+
+	err = rdmsr_safe_regs(gprs);
+
+	*p = gprs[0] | ((u64)gprs[2] << 32);
+
+	return err;
+}
+
+static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
+{
+	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+	u32 gprs[8] = { 0 };
+
+	WARN_ONCE((c->x86 != 0xf), "%s should only be used on K8!\n", __func__);
+
+	gprs[0] = (u32)val;
+	gprs[1] = msr;
+	gprs[2] = val >> 32;
+	gprs[7] = 0x9c5a203a;
+
+	return wrmsr_safe_regs(gprs);
+}
+
 #ifdef CONFIG_X86_32
 /*
  *	B step AMD K6 before B 9730xxxx have hardware bugs that can cause
@@ -586,9 +619,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	    !cpu_has(c, X86_FEATURE_TOPOEXT)) {
 		u64 val;
 
-		if (!rdmsrl_amd_safe(0xc0011005, &val)) {
+		if (!rdmsrl_safe(0xc0011005, &val)) {
 			val |= 1ULL << 54;
-			wrmsrl_amd_safe(0xc0011005, val);
+			wrmsrl_safe(0xc0011005, val);
 			rdmsrl(0xc0011005, val);
 			if (val & (1ULL << 54)) {
 				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
@@ -679,7 +712,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		err = rdmsrl_safe(MSR_AMD64_MCx_MASK(4), &mask);
 		if (err == 0) {
 			mask |= (1 << 10);
-			checking_wrmsrl(MSR_AMD64_MCx_MASK(4), mask);
+			wrmsrl_safe(MSR_AMD64_MCx_MASK(4), mask);
 		}
 	}
 

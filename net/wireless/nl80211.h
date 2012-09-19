@@ -7,11 +7,11 @@ int nl80211_init(void);
 void nl80211_exit(void);
 void nl80211_notify_dev_rename(struct cfg80211_registered_device *rdev);
 void nl80211_send_scan_start(struct cfg80211_registered_device *rdev,
-			     struct net_device *netdev);
+			     struct wireless_dev *wdev);
 void nl80211_send_scan_done(struct cfg80211_registered_device *rdev,
-			    struct net_device *netdev);
+			    struct wireless_dev *wdev);
 void nl80211_send_scan_aborted(struct cfg80211_registered_device *rdev,
-			       struct net_device *netdev);
+			       struct wireless_dev *wdev);
 void nl80211_send_sched_scan(struct cfg80211_registered_device *rdev,
 			     struct net_device *netdev, u32 cmd);
 void nl80211_send_sched_scan_results(struct cfg80211_registered_device *rdev,
@@ -74,13 +74,13 @@ void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,
 			     gfp_t gfp);
 
 void nl80211_send_remain_on_channel(struct cfg80211_registered_device *rdev,
-				    struct net_device *netdev,
-				    u64 cookie,
+				    struct wireless_dev *wdev, u64 cookie,
 				    struct ieee80211_channel *chan,
 				    enum nl80211_channel_type channel_type,
 				    unsigned int duration, gfp_t gfp);
 void nl80211_send_remain_on_channel_cancel(
-	struct cfg80211_registered_device *rdev, struct net_device *netdev,
+	struct cfg80211_registered_device *rdev,
+	struct wireless_dev *wdev,
 	u64 cookie, struct ieee80211_channel *chan,
 	enum nl80211_channel_type channel_type, gfp_t gfp);
 
@@ -92,11 +92,11 @@ void nl80211_send_sta_del_event(struct cfg80211_registered_device *rdev,
 				gfp_t gfp);
 
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
-		      struct net_device *netdev, u32 nlpid,
+		      struct wireless_dev *wdev, u32 nlpid,
 		      int freq, int sig_dbm,
 		      const u8 *buf, size_t len, gfp_t gfp);
 void nl80211_send_mgmt_tx_status(struct cfg80211_registered_device *rdev,
-				 struct net_device *netdev, u64 cookie,
+				 struct wireless_dev *wdev, u64 cookie,
 				 const u8 *buf, size_t len, bool ack,
 				 gfp_t gfp);
 
@@ -109,6 +109,11 @@ void
 nl80211_send_cqm_pktloss_notify(struct cfg80211_registered_device *rdev,
 				struct net_device *netdev, const u8 *peer,
 				u32 num_packets, gfp_t gfp);
+
+void
+nl80211_send_cqm_txe_notify(struct cfg80211_registered_device *rdev,
+			    struct net_device *netdev, const u8 *peer,
+			    u32 num_packets, u32 rate, u32 intvl, gfp_t gfp);
 
 void nl80211_gtk_rekey_notify(struct cfg80211_registered_device *rdev,
 			      struct net_device *netdev, const u8 *bssid,

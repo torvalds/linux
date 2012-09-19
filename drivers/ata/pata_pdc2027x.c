@@ -784,21 +784,4 @@ static int pdc2027x_reinit_one(struct pci_dev *pdev)
 }
 #endif
 
-/**
- * pdc2027x_init - Called after this module is loaded into the kernel.
- */
-static int __init pdc2027x_init(void)
-{
-	return pci_register_driver(&pdc2027x_pci_driver);
-}
-
-/**
- * pdc2027x_exit - Called before this module unloaded from the kernel
- */
-static void __exit pdc2027x_exit(void)
-{
-	pci_unregister_driver(&pdc2027x_pci_driver);
-}
-
-module_init(pdc2027x_init);
-module_exit(pdc2027x_exit);
+module_pci_driver(pdc2027x_pci_driver);

@@ -352,7 +352,7 @@ void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_EFUSE_BYTES,
 				      (u8 *)&efuse_utilized);
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_EFUSE_USAGE,
-				      (u8 *)&efuse_usage);
+				      &efuse_usage);
 done:
 	for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++)
 		kfree(efuse_word[i]);
@@ -409,7 +409,7 @@ void efuse_shadow_read(struct ieee80211_hw *hw, u8 type,
 	else if (type == 2)
 		efuse_shadow_read_2byte(hw, offset, (u16 *) value);
 	else if (type == 4)
-		efuse_shadow_read_4byte(hw, offset, (u32 *) value);
+		efuse_shadow_read_4byte(hw, offset, value);
 
 }
 

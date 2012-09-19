@@ -566,7 +566,6 @@ static struct wm831x_status_pdata wm1192_led8_pdata = {
 
 static struct wm831x_pdata smdk6410_wm1192_pdata = {
 	.pre_init = wm1192_pre_init,
-	.irq_base = IRQ_BOARD_START,
 
 	.backlight = &wm1192_backlight_pdata,
 	.dcdc = {

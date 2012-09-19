@@ -158,7 +158,7 @@ static int __devinit regulator_led_probe(struct platform_device *pdev)
 		return PTR_ERR(vcc);
 	}
 
-	led = kzalloc(sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
 	if (led == NULL) {
 		ret = -ENOMEM;
 		goto err_vcc;
@@ -169,7 +169,7 @@ static int __devinit regulator_led_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Invalid default brightness %d\n",
 				pdata->brightness);
 		ret = -EINVAL;
-		goto err_led;
+		goto err_vcc;
 	}
 	led->value = pdata->brightness;
 
@@ -190,7 +190,7 @@ static int __devinit regulator_led_probe(struct platform_device *pdev)
 	ret = led_classdev_register(&pdev->dev, &led->cdev);
 	if (ret < 0) {
 		cancel_work_sync(&led->work);
-		goto err_led;
+		goto err_vcc;
 	}
 
 	/* to expose the default value to userspace */
@@ -201,8 +201,6 @@ static int __devinit regulator_led_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_led:
-	kfree(led);
 err_vcc:
 	regulator_put(vcc);
 	return ret;
@@ -216,7 +214,6 @@ static int __devexit regulator_led_remove(struct platform_device *pdev)
 	cancel_work_sync(&led->work);
 	regulator_led_disable(led);
 	regulator_put(led->vcc);
-	kfree(led);
 	return 0;
 }
 

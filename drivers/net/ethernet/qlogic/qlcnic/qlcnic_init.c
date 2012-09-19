@@ -1488,8 +1488,6 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 		skb_checksum_none_assert(skb);
 	}
 
-	skb->dev = adapter->netdev;
-
 	buffer->skb = NULL;
 
 	return skb;
@@ -1652,6 +1650,9 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	th->seq = htonl(seq_number);
 
 	length = skb->len;
+
+	if (adapter->flags & QLCNIC_FW_LRO_MSS_CAP)
+		skb_shinfo(skb)->gso_size = qlcnic_get_lro_sts_mss(sts_data1);
 
 	if (vid != 0xffff)
 		__vlan_hwaccel_put_tag(skb, vid);

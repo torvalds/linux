@@ -68,15 +68,15 @@ void dbg_interrupt(u32 intmask)
  *
  * This function returns number of registers read
  */
-static size_t hw_register_read(struct ci13xxx *udc, u32 *buf, size_t size)
+static size_t hw_register_read(struct ci13xxx *ci, u32 *buf, size_t size)
 {
 	unsigned i;
 
-	if (size > udc->hw_bank.size)
-		size = udc->hw_bank.size;
+	if (size > ci->hw_bank.size)
+		size = ci->hw_bank.size;
 
 	for (i = 0; i < size; i++)
-		buf[i] = hw_read(udc, i * sizeof(u32), ~0);
+		buf[i] = hw_read(ci, i * sizeof(u32), ~0);
 
 	return size;
 }
@@ -88,18 +88,18 @@ static size_t hw_register_read(struct ci13xxx *udc, u32 *buf, size_t size)
  *
  * This function returns an error code
  */
-static int hw_register_write(struct ci13xxx *udc, u16 addr, u32 data)
+static int hw_register_write(struct ci13xxx *ci, u16 addr, u32 data)
 {
 	/* align */
 	addr /= sizeof(u32);
 
-	if (addr >= udc->hw_bank.size)
+	if (addr >= ci->hw_bank.size)
 		return -EINVAL;
 
 	/* align */
 	addr *= sizeof(u32);
 
-	hw_write(udc, addr, ~0, data);
+	hw_write(ci, addr, ~0, data);
 	return 0;
 }
 
@@ -110,13 +110,13 @@ static int hw_register_write(struct ci13xxx *udc, u16 addr, u32 data)
  *
  * This function returns an error code
  */
-static int hw_intr_clear(struct ci13xxx *udc, int n)
+static int hw_intr_clear(struct ci13xxx *ci, int n)
 {
 	if (n >= REG_BITS)
 		return -EINVAL;
 
-	hw_write(udc, OP_USBINTR, BIT(n), 0);
-	hw_write(udc, OP_USBSTS,  BIT(n), BIT(n));
+	hw_write(ci, OP_USBINTR, BIT(n), 0);
+	hw_write(ci, OP_USBSTS,  BIT(n), BIT(n));
 	return 0;
 }
 
@@ -127,15 +127,15 @@ static int hw_intr_clear(struct ci13xxx *udc, int n)
  *
  * This function returns an error code
  */
-static int hw_intr_force(struct ci13xxx *udc, int n)
+static int hw_intr_force(struct ci13xxx *ci, int n)
 {
 	if (n >= REG_BITS)
 		return -EINVAL;
 
-	hw_write(udc, CAP_TESTMODE, TESTMODE_FORCE, TESTMODE_FORCE);
-	hw_write(udc, OP_USBINTR,  BIT(n), BIT(n));
-	hw_write(udc, OP_USBSTS,   BIT(n), BIT(n));
-	hw_write(udc, CAP_TESTMODE, TESTMODE_FORCE, 0);
+	hw_write(ci, CAP_TESTMODE, TESTMODE_FORCE, TESTMODE_FORCE);
+	hw_write(ci, OP_USBINTR,  BIT(n), BIT(n));
+	hw_write(ci, OP_USBSTS,   BIT(n), BIT(n));
+	hw_write(ci, CAP_TESTMODE, TESTMODE_FORCE, 0);
 	return 0;
 }
 
@@ -147,12 +147,12 @@ static int hw_intr_force(struct ci13xxx *udc, int n)
 static ssize_t show_device(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
-	struct usb_gadget *gadget = &udc->gadget;
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
+	struct usb_gadget *gadget = &ci->gadget;
 	int n = 0;
 
 	if (attr == NULL || buf == NULL) {
-		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
+		dev_err(ci->dev, "[%s] EINVAL\n", __func__);
 		return 0;
 	}
 
@@ -188,8 +188,8 @@ static DEVICE_ATTR(device, S_IRUSR, show_device, NULL);
 static ssize_t show_driver(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
-	struct usb_gadget_driver *driver = udc->driver;
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
+	struct usb_gadget_driver *driver = ci->driver;
 	int n = 0;
 
 	if (attr == NULL || buf == NULL) {
@@ -412,22 +412,22 @@ static DEVICE_ATTR(events, S_IRUSR | S_IWUSR, show_events, store_events);
 static ssize_t show_inters(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long flags;
 	u32 intr;
 	unsigned i, j, n = 0;
 
 	if (attr == NULL || buf == NULL) {
-		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
+		dev_err(ci->dev, "[%s] EINVAL\n", __func__);
 		return 0;
 	}
 
-	spin_lock_irqsave(&udc->lock, flags);
+	spin_lock_irqsave(&ci->lock, flags);
 
 	/*n += scnprintf(buf + n, PAGE_SIZE - n,
-		       "status = %08x\n", hw_read_intr_status(udc));
+		       "status = %08x\n", hw_read_intr_status(ci));
 	n += scnprintf(buf + n, PAGE_SIZE - n,
-	"enable = %08x\n", hw_read_intr_enable(udc));*/
+	"enable = %08x\n", hw_read_intr_enable(ci));*/
 
 	n += scnprintf(buf + n, PAGE_SIZE - n, "*test = %d\n",
 		       isr_statistics.test);
@@ -471,7 +471,7 @@ static ssize_t show_inters(struct device *dev, struct device_attribute *attr,
 			n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
 	}
 
-	spin_unlock_irqrestore(&udc->lock, flags);
+	spin_unlock_irqrestore(&ci->lock, flags);
 
 	return n;
 }
@@ -485,31 +485,31 @@ static ssize_t show_inters(struct device *dev, struct device_attribute *attr,
 static ssize_t store_inters(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long flags;
 	unsigned en, bit;
 
 	if (attr == NULL || buf == NULL) {
-		dev_err(udc->dev, "EINVAL\n");
+		dev_err(ci->dev, "EINVAL\n");
 		goto done;
 	}
 
 	if (sscanf(buf, "%u %u", &en, &bit) != 2 || en > 1) {
-		dev_err(udc->dev, "<1|0> <bit>: enable|disable interrupt\n");
+		dev_err(ci->dev, "<1|0> <bit>: enable|disable interrupt\n");
 		goto done;
 	}
 
-	spin_lock_irqsave(&udc->lock, flags);
+	spin_lock_irqsave(&ci->lock, flags);
 	if (en) {
-		if (hw_intr_force(udc, bit))
+		if (hw_intr_force(ci, bit))
 			dev_err(dev, "invalid bit number\n");
 		else
 			isr_statistics.test++;
 	} else {
-		if (hw_intr_clear(udc, bit))
+		if (hw_intr_clear(ci, bit))
 			dev_err(dev, "invalid bit number\n");
 	}
-	spin_unlock_irqrestore(&udc->lock, flags);
+	spin_unlock_irqrestore(&ci->lock, flags);
 
  done:
 	return count;
@@ -524,18 +524,18 @@ static DEVICE_ATTR(inters, S_IRUSR | S_IWUSR, show_inters, store_inters);
 static ssize_t show_port_test(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long flags;
 	unsigned mode;
 
 	if (attr == NULL || buf == NULL) {
-		dev_err(udc->dev, "EINVAL\n");
+		dev_err(ci->dev, "EINVAL\n");
 		return 0;
 	}
 
-	spin_lock_irqsave(&udc->lock, flags);
-	mode = hw_port_test_get(udc);
-	spin_unlock_irqrestore(&udc->lock, flags);
+	spin_lock_irqsave(&ci->lock, flags);
+	mode = hw_port_test_get(ci);
+	spin_unlock_irqrestore(&ci->lock, flags);
 
 	return scnprintf(buf, PAGE_SIZE, "mode = %u\n", mode);
 }
@@ -549,24 +549,24 @@ static ssize_t store_port_test(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long flags;
 	unsigned mode;
 
 	if (attr == NULL || buf == NULL) {
-		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
+		dev_err(ci->dev, "[%s] EINVAL\n", __func__);
 		goto done;
 	}
 
 	if (sscanf(buf, "%u", &mode) != 1) {
-		dev_err(udc->dev, "<mode>: set port test mode");
+		dev_err(ci->dev, "<mode>: set port test mode");
 		goto done;
 	}
 
-	spin_lock_irqsave(&udc->lock, flags);
-	if (hw_port_test_set(udc, mode))
-		dev_err(udc->dev, "invalid mode\n");
-	spin_unlock_irqrestore(&udc->lock, flags);
+	spin_lock_irqsave(&ci->lock, flags);
+	if (hw_port_test_set(ci, mode))
+		dev_err(ci->dev, "invalid mode\n");
+	spin_unlock_irqrestore(&ci->lock, flags);
 
  done:
 	return count;
@@ -582,20 +582,20 @@ static DEVICE_ATTR(port_test, S_IRUSR | S_IWUSR,
 static ssize_t show_qheads(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long flags;
 	unsigned i, j, n = 0;
 
 	if (attr == NULL || buf == NULL) {
-		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
+		dev_err(ci->dev, "[%s] EINVAL\n", __func__);
 		return 0;
 	}
 
-	spin_lock_irqsave(&udc->lock, flags);
-	for (i = 0; i < udc->hw_ep_max/2; i++) {
-		struct ci13xxx_ep *mEpRx = &udc->ci13xxx_ep[i];
+	spin_lock_irqsave(&ci->lock, flags);
+	for (i = 0; i < ci->hw_ep_max/2; i++) {
+		struct ci13xxx_ep *mEpRx = &ci->ci13xxx_ep[i];
 		struct ci13xxx_ep *mEpTx =
-			&udc->ci13xxx_ep[i + udc->hw_ep_max/2];
+			&ci->ci13xxx_ep[i + ci->hw_ep_max/2];
 		n += scnprintf(buf + n, PAGE_SIZE - n,
 			       "EP=%02i: RX=%08X TX=%08X\n",
 			       i, (u32)mEpRx->qh.dma, (u32)mEpTx->qh.dma);
@@ -606,7 +606,7 @@ static ssize_t show_qheads(struct device *dev, struct device_attribute *attr,
 				       *((u32 *)mEpTx->qh.ptr + j));
 		}
 	}
-	spin_unlock_irqrestore(&udc->lock, flags);
+	spin_unlock_irqrestore(&ci->lock, flags);
 
 	return n;
 }
@@ -621,25 +621,25 @@ static DEVICE_ATTR(qheads, S_IRUSR, show_qheads, NULL);
 static ssize_t show_registers(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long flags;
 	u32 *dump;
 	unsigned i, k, n = 0;
 
 	if (attr == NULL || buf == NULL) {
-		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
+		dev_err(ci->dev, "[%s] EINVAL\n", __func__);
 		return 0;
 	}
 
 	dump = kmalloc(sizeof(u32) * DUMP_ENTRIES, GFP_KERNEL);
 	if (!dump) {
-		dev_err(udc->dev, "%s: out of memory\n", __func__);
+		dev_err(ci->dev, "%s: out of memory\n", __func__);
 		return 0;
 	}
 
-	spin_lock_irqsave(&udc->lock, flags);
-	k = hw_register_read(udc, dump, DUMP_ENTRIES);
-	spin_unlock_irqrestore(&udc->lock, flags);
+	spin_lock_irqsave(&ci->lock, flags);
+	k = hw_register_read(ci, dump, DUMP_ENTRIES);
+	spin_unlock_irqrestore(&ci->lock, flags);
 
 	for (i = 0; i < k; i++) {
 		n += scnprintf(buf + n, PAGE_SIZE - n,
@@ -660,24 +660,24 @@ static ssize_t store_registers(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long addr, data, flags;
 
 	if (attr == NULL || buf == NULL) {
-		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
+		dev_err(ci->dev, "[%s] EINVAL\n", __func__);
 		goto done;
 	}
 
 	if (sscanf(buf, "%li %li", &addr, &data) != 2) {
-		dev_err(udc->dev,
+		dev_err(ci->dev,
 			"<addr> <data>: write data to register address\n");
 		goto done;
 	}
 
-	spin_lock_irqsave(&udc->lock, flags);
-	if (hw_register_write(udc, addr, data))
-		dev_err(udc->dev, "invalid address range\n");
-	spin_unlock_irqrestore(&udc->lock, flags);
+	spin_lock_irqsave(&ci->lock, flags);
+	if (hw_register_write(ci, addr, data))
+		dev_err(ci->dev, "invalid address range\n");
+	spin_unlock_irqrestore(&ci->lock, flags);
 
  done:
 	return count;
@@ -693,34 +693,34 @@ static DEVICE_ATTR(registers, S_IRUSR | S_IWUSR,
 static ssize_t show_requests(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
+	struct ci13xxx *ci = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long flags;
 	struct list_head   *ptr = NULL;
 	struct ci13xxx_req *req = NULL;
 	unsigned i, j, n = 0, qSize = sizeof(struct ci13xxx_td)/sizeof(u32);
 
 	if (attr == NULL || buf == NULL) {
-		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
+		dev_err(ci->dev, "[%s] EINVAL\n", __func__);
 		return 0;
 	}
 
-	spin_lock_irqsave(&udc->lock, flags);
-	for (i = 0; i < udc->hw_ep_max; i++)
-		list_for_each(ptr, &udc->ci13xxx_ep[i].qh.queue)
+	spin_lock_irqsave(&ci->lock, flags);
+	for (i = 0; i < ci->hw_ep_max; i++)
+		list_for_each(ptr, &ci->ci13xxx_ep[i].qh.queue)
 		{
 			req = list_entry(ptr, struct ci13xxx_req, queue);
 
 			n += scnprintf(buf + n, PAGE_SIZE - n,
 					"EP=%02i: TD=%08X %s\n",
-					i % udc->hw_ep_max/2, (u32)req->dma,
-					((i < udc->hw_ep_max/2) ? "RX" : "TX"));
+					i % ci->hw_ep_max/2, (u32)req->dma,
+					((i < ci->hw_ep_max/2) ? "RX" : "TX"));
 
 			for (j = 0; j < qSize; j++)
 				n += scnprintf(buf + n, PAGE_SIZE - n,
 						" %04X:    %08X\n", j,
 						*((u32 *)req->ptr + j));
 		}
-	spin_unlock_irqrestore(&udc->lock, flags);
+	spin_unlock_irqrestore(&ci->lock, flags);
 
 	return n;
 }

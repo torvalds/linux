@@ -1,0 +1,24 @@
+/*
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/include/ "omap4-panda.dts"
+
+/* Audio routing is differnet between PandaBoard4430 and PandaBoardES */
+&sound {
+	ti,model = "PandaBoardES";
+
+	/* Audio routing */
+	ti,audio-routing =
+		"Headset Stereophone", "HSOL",
+		"Headset Stereophone", "HSOR",
+		"Ext Spk", "HFL",
+		"Ext Spk", "HFR",
+		"Line Out", "AUXL",
+		"Line Out", "AUXR",
+		"AFML", "Line In",
+		"AFMR", "Line In";
+};

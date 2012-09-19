@@ -263,6 +263,7 @@ static int __exit coh901327_remove(struct platform_device *pdev)
 	watchdog_unregister_device(&coh901327_wdt);
 	coh901327_disable();
 	free_irq(irq, pdev);
+	clk_unprepare(clk);
 	clk_put(clk);
 	iounmap(virtbase);
 	release_mem_region(phybase, physize);
@@ -300,9 +301,9 @@ static int __init coh901327_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not get clock\n");
 		goto out_no_clk;
 	}
-	ret = clk_enable(clk);
+	ret = clk_prepare_enable(clk);
 	if (ret) {
-		dev_err(&pdev->dev, "could not enable clock\n");
+		dev_err(&pdev->dev, "could not prepare and enable clock\n");
 		goto out_no_clk_enable;
 	}
 
@@ -369,7 +370,7 @@ static int __init coh901327_probe(struct platform_device *pdev)
 out_no_wdog:
 	free_irq(irq, pdev);
 out_no_irq:
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 out_no_clk_enable:
 	clk_put(clk);
 out_no_clk:

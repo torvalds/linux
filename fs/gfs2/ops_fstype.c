@@ -1118,20 +1118,33 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	}
 
 	error = init_names(sdp, silent);
-	if (error)
-		goto fail;
+	if (error) {
+		/* In this case, we haven't initialized sysfs, so we have to
+		   manually free the sdp. */
+		free_percpu(sdp->sd_lkstats);
+		kfree(sdp);
+		sb->s_fs_info = NULL;
+		return error;
+	}
 
 	snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s", sdp->sd_table_name);
 
-	gfs2_create_debugfs_file(sdp);
-
 	error = gfs2_sys_fs_add(sdp);
+	/*
+	 * If we hit an error here, gfs2_sys_fs_add will have called function
+	 * kobject_put which causes the sysfs usage count to go to zero, which
+	 * causes sysfs to call function gfs2_sbd_release, which frees sdp.
+	 * Subsequent error paths here will call gfs2_sys_fs_del, which also
+	 * kobject_put to free sdp.
+	 */
 	if (error)
-		goto fail;
+		return error;
+
+	gfs2_create_debugfs_file(sdp);
 
 	error = gfs2_lm_mount(sdp, silent);
 	if (error)
-		goto fail_sys;
+		goto fail_debug;
 
 	error = init_locking(sdp, &mount_gh, DO);
 	if (error)
@@ -1215,12 +1228,12 @@ fail_locking:
 fail_lm:
 	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
-fail_sys:
-	gfs2_sys_fs_del(sdp);
-fail:
+fail_debug:
 	gfs2_delete_debugfs_file(sdp);
 	free_percpu(sdp->sd_lkstats);
-	kfree(sdp);
+	/* gfs2_sys_fs_del must be the last thing we do, since it causes
+	 * sysfs to call function gfs2_sbd_release, which frees sdp. */
+	gfs2_sys_fs_del(sdp);
 	sb->s_fs_info = NULL;
 	return error;
 }
@@ -1286,7 +1299,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 		error = -EBUSY;
 		goto error_bdev;
 	}
-	s = sget(fs_type, test_gfs2_super, set_gfs2_super, bdev);
+	s = sget(fs_type, test_gfs2_super, set_gfs2_super, flags, bdev);
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	error = PTR_ERR(s);
 	if (IS_ERR(s))
@@ -1316,7 +1329,6 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 	} else {
 		char b[BDEVNAME_SIZE];
 
-		s->s_flags = flags;
 		s->s_mode = mode;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(bdev));
@@ -1360,7 +1372,7 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 		       dev_name, error);
 		return ERR_PTR(error);
 	}
-	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super,
+	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super, flags,
 		 path.dentry->d_inode->i_sb->s_bdev);
 	path_put(&path);
 	if (IS_ERR(s)) {
@@ -1390,10 +1402,9 @@ static void gfs2_kill_sb(struct super_block *sb)
 	sdp->sd_root_dir = NULL;
 	sdp->sd_master_dir = NULL;
 	shrink_dcache_sb(sb);
-	kill_block_super(sb);
 	gfs2_delete_debugfs_file(sdp);
 	free_percpu(sdp->sd_lkstats);
-	kfree(sdp);
+	kill_block_super(sb);
 }
 
 struct file_system_type gfs2_fs_type = {

@@ -58,7 +58,7 @@
 				#size-cells = <1>;
 				compatible = "spansion,s25sl12801";
 				reg = <0>;
-				spi-max-frequency = <40000000>; /* input clock */
+				spi-max-frequency = <35000000>; /* input clock */
 				partition@u-boot {
 					label = "u-boot";
 					reg = <0x00000000 0x00100000>;

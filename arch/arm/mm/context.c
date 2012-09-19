@@ -14,6 +14,7 @@
 #include <linux/percpu.h>
 
 #include <asm/mmu_context.h>
+#include <asm/thread_notify.h>
 #include <asm/tlbflush.h>
 
 static DEFINE_RAW_SPINLOCK(cpu_asid_lock);
@@ -46,6 +47,40 @@ void cpu_set_reserved_ttbr0(void)
 	: "=r" (ttb));
 	isb();
 }
+#endif
+
+#ifdef CONFIG_PID_IN_CONTEXTIDR
+static int contextidr_notifier(struct notifier_block *unused, unsigned long cmd,
+			       void *t)
+{
+	u32 contextidr;
+	pid_t pid;
+	struct thread_info *thread = t;
+
+	if (cmd != THREAD_NOTIFY_SWITCH)
+		return NOTIFY_DONE;
+
+	pid = task_pid_nr(thread->task) << ASID_BITS;
+	asm volatile(
+	"	mrc	p15, 0, %0, c13, c0, 1\n"
+	"	bfi	%1, %0, #0, %2\n"
+	"	mcr	p15, 0, %1, c13, c0, 1\n"
+	: "=r" (contextidr), "+r" (pid)
+	: "I" (ASID_BITS));
+	isb();
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block contextidr_notifier_block = {
+	.notifier_call = contextidr_notifier,
+};
+
+static int __init contextidr_notifier_init(void)
+{
+	return thread_register_notifier(&contextidr_notifier_block);
+}
+arch_initcall(contextidr_notifier_init);
 #endif
 
 /*

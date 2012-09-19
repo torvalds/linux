@@ -113,10 +113,21 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		kfree(wdev->connect_keys);
 	wdev->connect_keys = connkeys;
 
+	wdev->ibss_fixed = params->channel_fixed;
 #ifdef CONFIG_CFG80211_WEXT
 	wdev->wext.ibss.channel = params->channel;
 #endif
 	wdev->sme_state = CFG80211_SME_CONNECTING;
+
+	err = cfg80211_can_use_chan(rdev, wdev, params->channel,
+				    params->channel_fixed
+				    ? CHAN_MODE_SHARED
+				    : CHAN_MODE_EXCLUSIVE);
+	if (err) {
+		wdev->connect_keys = NULL;
+		return err;
+	}
+
 	err = rdev->ops->join_ibss(&rdev->wiphy, dev, params);
 	if (err) {
 		wdev->connect_keys = NULL;

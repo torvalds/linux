@@ -1,8 +1,7 @@
 /*
- * drivers/s390/cio/device_fsm.c
  * finite state machine for device handling
  *
- *    Copyright IBM Corp. 2002,2008
+ *    Copyright IBM Corp. 2002, 2008
  *    Author(s): Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
  */

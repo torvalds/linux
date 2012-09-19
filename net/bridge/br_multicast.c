@@ -540,10 +540,11 @@ static struct net_bridge_mdb_entry *br_multicast_get_group(
 
 	if (mdb->size >= max) {
 		max *= 2;
-		if (unlikely(max >= br->hash_max)) {
-			br_warn(br, "Multicast hash table maximum "
-				"reached, disabling snooping: %s, %d\n",
-				port ? port->dev->name : br->dev->name, max);
+		if (unlikely(max > br->hash_max)) {
+			br_warn(br, "Multicast hash table maximum of %d "
+				"reached, disabling snooping: %s\n",
+				br->hash_max,
+				port ? port->dev->name : br->dev->name);
 			err = -E2BIG;
 disable:
 			br->multicast_disabled = 1;
@@ -1160,7 +1161,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 			goto out;
 		}
 		mld = (struct mld_msg *) icmp6_hdr(skb);
-		max_delay = msecs_to_jiffies(htons(mld->mld_maxdelay));
+		max_delay = msecs_to_jiffies(ntohs(mld->mld_maxdelay));
 		if (max_delay)
 			group = &mld->mld_mca;
 	} else if (skb->len >= sizeof(*mld2q)) {

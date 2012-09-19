@@ -32,7 +32,8 @@ temperature) and throttle appropriate devices.
 
 1.1 thermal zone device interface
 1.1.1 struct thermal_zone_device *thermal_zone_device_register(char *name,
-		int trips, void *devdata, struct thermal_zone_device_ops *ops)
+		int trips, int mask, void *devdata,
+		struct thermal_zone_device_ops *ops)
 
     This interface function adds a new thermal zone device (sensor) to
     /sys/class/thermal folder as thermal_zone[0-*]. It tries to bind all the
@@ -40,16 +41,17 @@ temperature) and throttle appropriate devices.
 
     name: the thermal zone name.
     trips: the total number of trip points this thermal zone supports.
+    mask: Bit string: If 'n'th bit is set, then trip point 'n' is writeable.
     devdata: device private data
     ops: thermal zone device call-backs.
 	.bind: bind the thermal zone device with a thermal cooling device.
 	.unbind: unbind the thermal zone device with a thermal cooling device.
 	.get_temp: get the current temperature of the thermal zone.
-	.get_mode: get the current mode (user/kernel) of the thermal zone.
-	    - "kernel" means thermal management is done in kernel.
-	    - "user" will prevent kernel thermal driver actions upon trip points
+	.get_mode: get the current mode (enabled/disabled) of the thermal zone.
+	    - "enabled" means the kernel thermal management is enabled.
+	    - "disabled" will prevent kernel thermal driver action upon trip points
 	      so that user applications can take charge of thermal management.
-	.set_mode: set the mode (user/kernel) of the thermal zone.
+	.set_mode: set the mode (enabled/disabled) of the thermal zone.
 	.get_trip_type: get the type of certain trip point.
 	.get_trip_temp: get the temperature above which the certain trip point
 			will be fired.
@@ -119,6 +121,7 @@ Thermal zone device sys I/F, created once it's registered:
     |---mode:			Working mode of the thermal zone
     |---trip_point_[0-*]_temp:	Trip point temperature
     |---trip_point_[0-*]_type:	Trip point type
+    |---trip_point_[0-*]_hyst:	Hysteresis value for this trip point
 
 Thermal cooling device sys I/F, created once it's registered:
 /sys/class/thermal/cooling_device[0-*]:
@@ -167,14 +170,14 @@ temp
 	RO, Required
 
 mode
-	One of the predefined values in [kernel, user].
+	One of the predefined values in [enabled, disabled].
 	This file gives information about the algorithm that is currently
 	managing the thermal zone. It can be either default kernel based
 	algorithm or user space application.
-	kernel	= Thermal management in kernel thermal zone driver.
-	user	= Preventing kernel thermal zone driver actions upon
-		  trip points so that user application can take full
-		  charge of the thermal management.
+	enabled		= enable Kernel Thermal management.
+	disabled	= Preventing kernel thermal zone driver actions upon
+			  trip points so that user application can take full
+			  charge of the thermal management.
 	RW, Optional
 
 trip_point_[0-*]_temp
@@ -187,6 +190,11 @@ trip_point_[0-*]_type
 	E.g. it can be one of critical, hot, passive, active[0-*] for ACPI
 	thermal zone.
 	RO, Optional
+
+trip_point_[0-*]_hyst
+	The hysteresis value for a trip point, represented as an integer
+	Unit: Celsius
+	RW, Optional
 
 cdev[0-*]
 	Sysfs link to the thermal cooling device node where the sys I/F
@@ -248,7 +256,7 @@ method, the sys I/F structure will be built like this:
 |thermal_zone1:
     |---type:			acpitz
     |---temp:			37000
-    |---mode:			kernel
+    |---mode:			enabled
     |---trip_point_0_temp:	100000
     |---trip_point_0_type:	critical
     |---trip_point_1_temp:	80000

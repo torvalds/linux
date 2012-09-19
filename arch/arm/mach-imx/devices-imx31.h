@@ -14,7 +14,7 @@ extern const struct imx_fsl_usb2_udc_data imx31_fsl_usb2_udc_data;
 	imx_add_fsl_usb2_udc(&imx31_fsl_usb2_udc_data, pdata)
 
 extern const struct imx_imx2_wdt_data imx31_imx2_wdt_data;
-#define imx31_add_imx2_wdt(pdata)       \
+#define imx31_add_imx2_wdt()       \
 	imx_add_imx2_wdt(&imx31_imx2_wdt_data)
 
 extern const struct imx_imx_i2c_data imx31_imx_i2c_data[];
@@ -42,8 +42,8 @@ extern const struct imx_imx_uart_1irq_data imx31_imx_uart_data[];
 #define imx31_add_imx_uart4(pdata)	imx31_add_imx_uart(4, pdata)
 
 extern const struct imx_ipu_core_data imx31_ipu_core_data;
-#define imx31_add_ipu_core(pdata)	\
-	imx_add_ipu_core(&imx31_ipu_core_data, pdata)
+#define imx31_add_ipu_core()		\
+	imx_add_ipu_core(&imx31_ipu_core_data)
 #define imx31_alloc_mx3_camera(pdata)	\
 	imx_alloc_mx3_camera(&imx31_ipu_core_data, pdata)
 #define imx31_add_mx3_sdc_fb(pdata)	\
@@ -65,11 +65,11 @@ extern const struct imx_mxc_nand_data imx31_mxc_nand_data;
 	imx_add_mxc_nand(&imx31_mxc_nand_data, pdata)
 
 extern const struct imx_mxc_rtc_data imx31_mxc_rtc_data;
-#define imx31_add_mxc_rtc(pdata)	\
+#define imx31_add_mxc_rtc()	\
 	imx_add_mxc_rtc(&imx31_mxc_rtc_data)
 
 extern const struct imx_mxc_w1_data imx31_mxc_w1_data;
-#define imx31_add_mxc_w1(pdata)	\
+#define imx31_add_mxc_w1()	\
 	imx_add_mxc_w1(&imx31_mxc_w1_data)
 
 extern const struct imx_spi_imx_data imx31_cspi_data[];
