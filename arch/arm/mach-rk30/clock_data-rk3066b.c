@@ -2248,28 +2248,38 @@ void pmu_set_power_domain_test(enum pmu_power_domain pd, bool on) {};
 void pmu_set_power_domain(enum pmu_power_domain pd, bool on);
 #define _pmu_set_power_domain pmu_set_power_domain
 #endif
-static int pm_off_mode(struct clk *clk, int on)
+
+static int pd_video_mode(struct clk *clk, int on)
 {
-	_pmu_set_power_domain(clk->gate_idx, on); //on 1
+	u32 gate[3];
+	gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
+	gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
+	//gate[2] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VEPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VDPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
+	//cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VCODEC), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
+	pmu_set_power_domain(PD_VIDEO, on);
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VEPU) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VDPU) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
+	//cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VCODEC) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
 	return 0;
 }
-static struct clk pd_peri = {
-	.name	= "pd_peri",
-	.flags	= IS_PD,
-	.mode	= pm_off_mode,
-	.gate_idx	= PD_PERI,
-};
 
+static struct clk pd_video = {
+	.name	= "pd_video",
+	.flags  = IS_PD,
+	.mode	= pd_video_mode,
+	.gate_idx	= PD_VIDEO,
+};
 static int pd_display_mode(struct clk *clk, int on)
 {
-#if 0
 	u32 gate[10];
 	gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0_SRC));
 	gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1_SRC));
 	gate[2] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0));
 	gate[3] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1));
 	gate[4] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF0));
-	gate[5] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF1));
+	//gate[5] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF1));
 	gate[6] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO0));
 	gate[7] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO1));
 	gate[8] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_IPP));
@@ -2279,7 +2289,7 @@ static int pd_display_mode(struct clk *clk, int on)
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC0), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC1), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF0), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF0));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF1), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF1));
+	//cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF1), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF1));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VIO0), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO0));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VIO1), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO1));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_IPP), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_IPP));
@@ -2290,22 +2300,20 @@ static int pd_display_mode(struct clk *clk, int on)
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC0) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC1) | gate[3], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF0) | gate[4], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF0));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF1) | gate[5], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF1));
+	//cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF1) | gate[5], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF1));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VIO0) | gate[6], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO0));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VIO1) | gate[7], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO1));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_IPP) | gate[8], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_IPP));
 	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_RGA) | gate[9], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_RGA));
-#endif
 	return 0;
 }
 
 static struct clk pd_display = {
-	.name	= "pd_display",
+	.name	= "pd_vio",
 	.flags  = IS_PD,
 	.mode	= pd_display_mode,
 	.gate_idx	= PD_VIO,
 };
-
 static struct clk pd_lcdc0 = {
 	.parent	= &pd_display,
 	.name	= "pd_lcdc0",
@@ -2318,10 +2326,6 @@ static struct clk pd_cif0 = {
 	.parent	= &pd_display,
 	.name	= "pd_cif0",
 };
-static struct clk pd_cif1 = {
-	.parent	= &pd_display,
-	.name	= "pd_cif1",
-};
 static struct clk pd_rga = {
 	.parent	= &pd_display,
 	.name	= "pd_rga",
@@ -2330,44 +2334,25 @@ static struct clk pd_ipp = {
 	.parent	= &pd_display,
 	.name	= "pd_ipp",
 };
-
-static int pd_video_mode(struct clk *clk, int on)
-{
-#if 0
-	u32 gate[3];
-	gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
-	gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
-	gate[2] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VEPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VDPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VCODEC), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
-	pmu_set_power_domain(PD_VIDEO, on);
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VEPU) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VDPU) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VCODEC) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
-#endif
-	return 0;
-}
-
-static struct clk pd_video = {
-	.name	= "pd_video",
-	.flags  = IS_PD,
-	.mode	= pd_video_mode,
-	.gate_idx	= PD_VIDEO,
+static struct clk pd_hdmi = {
+	.parent	= &pd_display,
+	.name	= "pd_hdmi",
 };
+
 
 static int pd_gpu_mode(struct clk *clk, int on)
 {
-#if 0
-	u32 gate[2];
-	gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_GPU_SRC));
-	gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_GPU_SRC), CLK_GATE_CLKID_CONS(CLK_GATE_GPU_SRC));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
+	u32 gate[3];
+	gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_CLK_GPU));
+	gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_MST));
+	gate[2] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SLV));
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CLK_GPU), CLK_GATE_CLKID_CONS(CLK_GATE_CLK_GPU));
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_SLV), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SLV));
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_MST), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_MST));
 	pmu_set_power_domain(PD_GPU, on);
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_GPU_SRC) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_GPU_SRC));
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
-#endif
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CLK_GPU) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_CLK_GPU));
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_SLV) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SLV));
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_MST) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_MST));
 	return 0;
 }
 
@@ -2377,12 +2362,19 @@ static struct clk pd_gpu = {
 	.mode	= pd_gpu_mode,
 	.gate_idx	= PD_GPU,
 };
-static struct clk pd_dbg = {
-	.name	= "pd_dbg",
-	.flags  = IS_PD,
+
+static int pm_off_mode(struct clk *clk, int on)
+{
+	_pmu_set_power_domain(clk->gate_idx, on); //on 1
+	return 0;
+}
+static struct clk pd_peri = {
+	.name	= "pd_peri",
+	.flags	= IS_PD,
 	.mode	= pm_off_mode,
-	.gate_idx	= PD_DBG,
+	.gate_idx	= PD_PERI,
 };
+
 
 #define PD_CLK(name) \
 {\
@@ -2720,12 +2712,12 @@ static struct clk_lookup clks[] = {
 	PD_CLK(pd_lcdc0),
 	PD_CLK(pd_lcdc1),
 	PD_CLK(pd_cif0),
-	PD_CLK(pd_cif1),
+	//PD_CLK(pd_cif1),
 	PD_CLK(pd_rga),
 	PD_CLK(pd_ipp),
 	PD_CLK(pd_video),
 	PD_CLK(pd_gpu),
-	PD_CLK(pd_dbg),
+	//PD_CLK(pd_dbg),
 };
 static void __init rk30_init_enable_clocks(void)
 {
