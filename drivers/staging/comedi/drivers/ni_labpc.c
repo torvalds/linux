@@ -246,7 +246,7 @@ static int labpc_eeprom_write_insn(struct comedi_device *dev,
 static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 			     enum scan_mode scan_mode);
 #ifdef CONFIG_ISA_DMA_API
-static unsigned int labpc_suggest_transfer_size(struct comedi_cmd cmd);
+static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd);
 #endif
 static int labpc_dio_mem_callback(int dir, int port, int data,
 				  unsigned long arg);
@@ -1318,7 +1318,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		set_dma_addr(devpriv->dma_chan,
 			     virt_to_bus(devpriv->dma_buffer));
 		/*  set appropriate size of transfer */
-		devpriv->dma_transfer_size = labpc_suggest_transfer_size(*cmd);
+		devpriv->dma_transfer_size = labpc_suggest_transfer_size(cmd);
 		if (cmd->stop_src == TRIG_COUNT &&
 		    devpriv->count * sample_size < devpriv->dma_transfer_size) {
 			devpriv->dma_transfer_size =
@@ -1771,13 +1771,13 @@ static int labpc_eeprom_write_insn(struct comedi_device *dev,
 
 #ifdef CONFIG_ISA_DMA_API
 /* utility function that suggests a dma transfer size in bytes */
-static unsigned int labpc_suggest_transfer_size(struct comedi_cmd cmd)
+static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd)
 {
 	unsigned int size;
 	unsigned int freq;
 
-	if (cmd.convert_src == TRIG_TIMER)
-		freq = 1000000000 / cmd.convert_arg;
+	if (cmd->convert_src == TRIG_TIMER)
+		freq = 1000000000 / cmd->convert_arg;
 	/* return some default value */
 	else
 		freq = 0xffffffff;
