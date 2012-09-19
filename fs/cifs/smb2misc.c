@@ -422,7 +422,8 @@ smb2_is_valid_lease_break(char *buffer, struct TCP_Server_Info *server)
 	struct cifs_pending_open *open;
 	struct smb2_lease_break_work *lw;
 	bool found;
-	int ack_req = rsp->Flags & SMB2_NOTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED;
+	int ack_req = le32_to_cpu(rsp->Flags &
+				  SMB2_NOTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED);
 
 	lw = kmalloc(sizeof(struct smb2_lease_break_work), GFP_KERNEL);
 	if (!lw) {
@@ -524,7 +525,7 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 	if (rsp->hdr.Command != SMB2_OPLOCK_BREAK)
 		return false;
 
-	if (le16_to_cpu(rsp->StructureSize) !=
+	if (rsp->StructureSize !=
 				smb2_rsp_struct_sizes[SMB2_OPLOCK_BREAK_HE]) {
 		if (le16_to_cpu(rsp->StructureSize) == 44)
 			return smb2_is_valid_lease_break(buffer, server);

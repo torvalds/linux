@@ -496,7 +496,7 @@ smb2_is_status_pending(char *buf, struct TCP_Server_Info *server, int length)
 {
 	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
 
-	if (le32_to_cpu(hdr->Status) != STATUS_PENDING)
+	if (hdr->Status != STATUS_PENDING)
 		return false;
 
 	if (!length) {
