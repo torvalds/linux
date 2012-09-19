@@ -91,6 +91,12 @@
 		};
 	};
 
+	timer@50004600 {
+		compatible = "arm,cortex-a9-twd-timer";
+		reg = <0x50040600 0x20>;
+		interrupts = <1 13 0xf04>;
+	};
+
 	cache-controller@50043000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x50043000 0x1000>;
