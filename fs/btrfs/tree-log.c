@@ -2833,6 +2833,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
 	u64 start = em->mod_start;
+	u64 search_start = start;
 	u64 len = em->mod_len;
 	u64 num_bytes;
 	int nritems;
@@ -2848,23 +2849,55 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	while (len) {
 		if (args->nr)
 			goto next_slot;
+again:
 		key.objectid = btrfs_ino(inode);
 		key.type = BTRFS_EXTENT_DATA_KEY;
-		key.offset = start;
+		key.offset = search_start;
 
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			return ret;
+
 		if (ret) {
 			/*
-			 * This shouldn't happen, but it might so warn and
-			 * return an error.
+			 * A rare case were we can have an em for a section of a
+			 * larger extent so we need to make sure that this em
+			 * falls within the extent we've found.  If not we just
+			 * bail and go back to ye-olde way of doing things but
+			 * it happens often enough in testing that we need to do
+			 * this dance to make sure.
 			 */
-			WARN_ON(1);
-			return -ENOENT;
+			do {
+				if (path->slots[0] == 0) {
+					btrfs_release_path(path);
+					if (search_start == 0)
+						return -ENOENT;
+					search_start--;
+					goto again;
+				}
+
+				path->slots[0]--;
+				btrfs_item_key_to_cpu(path->nodes[0], &key,
+						      path->slots[0]);
+				if (key.objectid != btrfs_ino(inode) ||
+				    key.type != BTRFS_EXTENT_DATA_KEY) {
+					btrfs_release_path(path);
+					return -ENOENT;
+				}
+			} while (key.offset > start);
+
+			fi = btrfs_item_ptr(path->nodes[0], path->slots[0],
+					    struct btrfs_file_extent_item);
+			num_bytes = btrfs_file_extent_num_bytes(path->nodes[0],
+								fi);
+			if (key.offset + num_bytes <= start) {
+				btrfs_release_path(path);
+				return -ENOENT;
+			}
 		}
 		args->src = path->nodes[0];
 next_slot:
+		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 		fi = btrfs_item_ptr(args->src, path->slots[0],
 				    struct btrfs_file_extent_item);
 		if (args->nr &&
@@ -2898,8 +2931,9 @@ next_slot:
 		} else {
 			len -= num_bytes;
 		}
-		start += btrfs_file_extent_num_bytes(args->src, fi);
+		start = key.offset + num_bytes;
 		args->next_offset = start;
+		search_start = start;
 
 		if (path->slots[0] < nritems) {
 			if (len)
