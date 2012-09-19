@@ -310,7 +310,7 @@ static void ironlake_handle_rps_change(struct drm_device *dev)
 
 	I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
 
-	new_delay = dev_priv->cur_delay;
+	new_delay = dev_priv->ips.cur_delay;
 
 	I915_WRITE16(MEMINTRSTS, MEMINT_EVAL_CHG);
 	busy_up = I915_READ(RCPREVBSYTUPAVG);
@@ -320,19 +320,19 @@ static void ironlake_handle_rps_change(struct drm_device *dev)
 
 	/* Handle RCS change request from hw */
 	if (busy_up > max_avg) {
-		if (dev_priv->cur_delay != dev_priv->max_delay)
-			new_delay = dev_priv->cur_delay - 1;
-		if (new_delay < dev_priv->max_delay)
-			new_delay = dev_priv->max_delay;
+		if (dev_priv->ips.cur_delay != dev_priv->ips.max_delay)
+			new_delay = dev_priv->ips.cur_delay - 1;
+		if (new_delay < dev_priv->ips.max_delay)
+			new_delay = dev_priv->ips.max_delay;
 	} else if (busy_down < min_avg) {
-		if (dev_priv->cur_delay != dev_priv->min_delay)
-			new_delay = dev_priv->cur_delay + 1;
-		if (new_delay > dev_priv->min_delay)
-			new_delay = dev_priv->min_delay;
+		if (dev_priv->ips.cur_delay != dev_priv->ips.min_delay)
+			new_delay = dev_priv->ips.cur_delay + 1;
+		if (new_delay > dev_priv->ips.min_delay)
+			new_delay = dev_priv->ips.min_delay;
 	}
 
 	if (ironlake_set_drps(dev, new_delay))
-		dev_priv->cur_delay = new_delay;
+		dev_priv->ips.cur_delay = new_delay;
 
 	spin_unlock_irqrestore(&mchdev_lock, flags);
 
