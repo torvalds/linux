@@ -981,10 +981,9 @@ struct cifs_readdata {
 	int (*read_into_pages)(struct TCP_Server_Info *server,
 				struct cifs_readdata *rdata,
 				unsigned int len);
+	struct kvec			iov;
 	unsigned int			pagesz;
 	unsigned int			tailsz;
-	unsigned int			nr_iov;
-	struct kvec			*iov;
 	unsigned int			nr_pages;
 	struct page			*pages[];
 };

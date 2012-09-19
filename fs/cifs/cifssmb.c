@@ -1436,10 +1436,10 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	len = min_t(unsigned int, buflen, server->vals->read_rsp_size) -
 							HEADER_SIZE(server) + 1;
 
-	rdata->iov[0].iov_base = buf + HEADER_SIZE(server) - 1;
-	rdata->iov[0].iov_len = len;
+	rdata->iov.iov_base = buf + HEADER_SIZE(server) - 1;
+	rdata->iov.iov_len = len;
 
-	length = cifs_readv_from_socket(server, rdata->iov, 1, len);
+	length = cifs_readv_from_socket(server, &rdata->iov, 1, len);
 	if (length < 0)
 		return length;
 	server->total_read += length;
@@ -1485,20 +1485,19 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	len = data_offset - server->total_read;
 	if (len > 0) {
 		/* read any junk before data into the rest of smallbuf */
-		rdata->iov[0].iov_base = buf + server->total_read;
-		rdata->iov[0].iov_len = len;
-		length = cifs_readv_from_socket(server, rdata->iov, 1, len);
+		rdata->iov.iov_base = buf + server->total_read;
+		rdata->iov.iov_len = len;
+		length = cifs_readv_from_socket(server, &rdata->iov, 1, len);
 		if (length < 0)
 			return length;
 		server->total_read += length;
 	}
 
 	/* set up first iov for signature check */
-	rdata->iov[0].iov_base = buf;
-	rdata->iov[0].iov_len = server->total_read;
-	rdata->nr_iov = 1;
+	rdata->iov.iov_base = buf;
+	rdata->iov.iov_len = server->total_read;
 	cFYI(1, "0: iov_base=%p iov_len=%zu",
-		rdata->iov[0].iov_base, rdata->iov[0].iov_len);
+		rdata->iov.iov_base, rdata->iov.iov_len);
 
 	/* how much data is in the response? */
 	data_len = server->ops->read_data_length(buf);
@@ -1532,8 +1531,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	struct cifs_readdata *rdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
-	struct smb_rqst rqst = { .rq_iov = rdata->iov,
-				 .rq_nvec = rdata->nr_iov,
+	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
+				 .rq_nvec = 1,
 				 .rq_pages = rdata->pages,
 				 .rq_npages = rdata->nr_pages,
 				 .rq_pagesz = rdata->pagesz,
@@ -1580,7 +1579,7 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	READ_REQ *smb = NULL;
 	int wct;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
-	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
 				 .rq_nvec = 1 };
 
 	cFYI(1, "%s: offset=%llu bytes=%u", __func__,
@@ -1621,8 +1620,8 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	}
 
 	/* 4 for RFC1001 length + 1 for BCC */
-	rdata->iov[0].iov_base = smb;
-	rdata->iov[0].iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
+	rdata->iov.iov_base = smb;
+	rdata->iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
 	kref_get(&rdata->refcount);
 	rc = cifs_call_async(tcon->ses->server, &rqst, cifs_readv_receive,

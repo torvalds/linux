@@ -1297,9 +1297,9 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	struct cifs_readdata *rdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
-	struct smb2_hdr *buf = (struct smb2_hdr *)rdata->iov[0].iov_base;
+	struct smb2_hdr *buf = (struct smb2_hdr *)rdata->iov.iov_base;
 	unsigned int credits_received = 1;
-	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
 				 .rq_nvec = 1,
 				 .rq_pages = rdata->pages,
 				 .rq_npages = rdata->nr_pages,
@@ -1350,7 +1350,7 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	int rc;
 	struct smb2_hdr *buf;
 	struct cifs_io_parms io_parms;
-	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
 				 .rq_nvec = 1 };
 
 	cFYI(1, "%s: offset=%llu bytes=%u", __func__,
@@ -1362,13 +1362,13 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	io_parms.persistent_fid = rdata->cfile->fid.persistent_fid;
 	io_parms.volatile_fid = rdata->cfile->fid.volatile_fid;
 	io_parms.pid = rdata->pid;
-	rc = smb2_new_read_req(&rdata->iov[0], &io_parms, 0, 0);
+	rc = smb2_new_read_req(&rdata->iov, &io_parms, 0, 0);
 	if (rc)
 		return rc;
 
-	buf = (struct smb2_hdr *)rdata->iov[0].iov_base;
+	buf = (struct smb2_hdr *)rdata->iov.iov_base;
 	/* 4 for rfc1002 length field */
-	rdata->iov[0].iov_len = get_rfc1002_length(rdata->iov[0].iov_base) + 4;
+	rdata->iov.iov_len = get_rfc1002_length(rdata->iov.iov_base) + 4;
 
 	kref_get(&rdata->refcount);
 	rc = cifs_call_async(io_parms.tcon->ses->server, &rqst,
