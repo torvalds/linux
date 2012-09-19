@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
-#include <linux/printk.h>
 
 #include <media/v4l2-device.h>
 
