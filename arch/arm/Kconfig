@@ -569,6 +569,7 @@ config ARCH_MVEBU
 	select COMMON_CLK
 	select PLAT_ORION
 	select PINCTRL
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Support for the Marvell SoC Family with device tree support
 
