@@ -2301,10 +2301,8 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 	usbduxsub_tmp->pwm_cmd_running = 0;
 }
 
-/* common part of attach and attach_usb */
 static int usbduxsigma_attach_common(struct comedi_device *dev,
-				     struct usbduxsub *uds,
-				     void *aux_data, int aux_len)
+				     struct usbduxsub *uds)
 {
 	int ret;
 	struct comedi_subdevice *s;
@@ -2314,9 +2312,6 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	down(&uds->sem);
 	/* pointer back to the corresponding comedi device */
 	uds->comedidev = dev;
-	/* trying to upload the firmware into the FX2 */
-	if (aux_data)
-		firmwareUpload(uds, aux_data, aux_len);
 	dev->board_name = "usbduxsigma";
 	/* set number of subdevices */
 	if (uds->high_speed)
@@ -2419,47 +2414,6 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	return 0;
 }
 
-/* is called for COMEDI_DEVCONFIG ioctl (when comedi_config is run) */
-static int usbduxsigma_attach(struct comedi_device *dev,
-			      struct comedi_devconfig *it)
-{
-	int ret;
-	int index;
-	int i;
-	void *aux_data;
-	int aux_len;
-
-	dev->private = NULL;
-
-	aux_data = comedi_aux_data(it->options, 0);
-	aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-	if (aux_data == NULL)
-		aux_len = 0;
-	else if (aux_len == 0)
-		aux_data = NULL;
-
-	down(&start_stop_sem);
-	/* find a valid device which has been detected by the probe function of
-	 * the usb */
-	index = -1;
-	for (i = 0; i < NUMUSBDUX; i++) {
-		if ((usbduxsub[i].probed) && (!usbduxsub[i].attached)) {
-			index = i;
-			break;
-		}
-	}
-	if (index < 0) {
-		dev_err(dev->class_dev,
-			"usbduxsigma: error: attach failed, dev not connected to the usb bus.\n");
-		ret = -ENODEV;
-	} else
-		ret = usbduxsigma_attach_common(dev, &usbduxsub[index],
-						aux_data, aux_len);
-	up(&start_stop_sem);
-	return ret;
-}
-
-/* is called from comedi_usb_auto_config() */
 static int usbduxsigma_attach_usb(struct comedi_device *dev,
 				  struct usb_interface *uinterf)
 {
@@ -2478,7 +2432,7 @@ static int usbduxsigma_attach_usb(struct comedi_device *dev,
 		       "usbduxsigma: error: attach_usb failed, already attached\n");
 		ret = -ENODEV;
 	} else
-		ret = usbduxsigma_attach_common(dev, uds, NULL, 0);
+		ret = usbduxsigma_attach_common(dev, uds);
 	up(&start_stop_sem);
 	return ret;
 }
@@ -2499,9 +2453,8 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 static struct comedi_driver usbduxsigma_driver = {
 	.driver_name	= "usbduxsigma",
 	.module		= THIS_MODULE,
-	.attach		= usbduxsigma_attach,
-	.detach		= usbduxsigma_detach,
 	.attach_usb	= usbduxsigma_attach_usb,
+	.detach		= usbduxsigma_detach,
 };
 
 static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
