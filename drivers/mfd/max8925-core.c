@@ -547,7 +547,7 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 		goto tsc_irq;
 	}
 
-	ret = request_threaded_irq(irq, NULL, max8925_irq, flags,
+	ret = request_threaded_irq(irq, NULL, max8925_irq, flags | IRQF_ONESHOT,
 				   "max8925", chip);
 	if (ret) {
 		dev_err(chip->dev, "Failed to request core IRQ: %d\n", ret);
@@ -565,7 +565,7 @@ tsc_irq:
 	chip->tsc_irq = pdata->tsc_irq;
 
 	ret = request_threaded_irq(chip->tsc_irq, NULL, max8925_tsc_irq,
-				   flags, "max8925-tsc", chip);
+				   flags | IRQF_ONESHOT, "max8925-tsc", chip);
 	if (ret) {
 		dev_err(chip->dev, "Failed to request TSC IRQ: %d\n", ret);
 		chip->tsc_irq = 0;
