@@ -381,27 +381,18 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 }
 
 static int s526_gpct_winsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
 	struct s526_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	short value;
-	union cmReg cmReg;
+	unsigned long chan_iobase = dev->iobase + chan * 8;
 
-	cmReg.value = inw(dev->iobase + REG_C0M + chan * 8);
+	inw(chan_iobase + REG_C0M);	/* Is this read required? */
+
 	/*  Check what Application of Counter this channel is configured for */
 	switch (devpriv->s526_gpct_config[chan].app) {
-	case PositionMeasurement:
-		outw(0xFFFF & ((*data) >> 16), dev->iobase + REG_C0H + chan * 8);
-		outw(0xFFFF & (*data), dev->iobase + REG_C0L + chan * 8);
-		break;
-
-	case SinglePulseGeneration:
-		outw(0xFFFF & ((*data) >> 16), dev->iobase + REG_C0H + chan * 8);
-		outw(0xFFFF & (*data), dev->iobase + REG_C0L + chan * 8);
-		break;
-
 	case PulseTrainGeneration:
 		/* data[0] contains the PULSE_WIDTH
 		   data[1] contains the PULSE_PERIOD
@@ -410,22 +401,24 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 		   pulse frequency on the selected source
 		 */
 		if ((data[1] > data[0]) && (data[0] > 0)) {
-			(devpriv->s526_gpct_config[chan]).data[0] = data[0];
-			(devpriv->s526_gpct_config[chan]).data[1] = data[1];
+			devpriv->s526_gpct_config[chan].data[0] = data[0];
+			devpriv->s526_gpct_config[chan].data[1] = data[1];
 		} else {
 			return -EINVAL;
 		}
 
-		value = (short)((*data >> 16) & 0xFFFF);
-		outw(value, dev->iobase + REG_C0H + chan * 8);
-		value = (short)(*data & 0xFFFF);
-		outw(value, dev->iobase + REG_C0L + chan * 8);
+		/* Fall thru to write the PULSE_WIDTH */
+
+	case PositionMeasurement:
+	case SinglePulseGeneration:
+		outw((data[0] >> 16) & 0xffff, chan_iobase + REG_C0H);
+		outw(data[0] & 0xffff, chan_iobase + REG_C0L);
 		break;
-	default:		/*  Impossible */
+
+	default:
 		return -EINVAL;
-		break;
 	}
-	/*  return the number of samples written */
+
 	return insn->n;
 }
 
