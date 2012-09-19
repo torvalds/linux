@@ -544,6 +544,17 @@ smb2_compare_fids(struct cifsFileInfo *ob1, struct cifsFileInfo *ob2)
 	       ob1->fid.volatile_fid == ob2->fid.volatile_fid;
 }
 
+static int
+smb2_mand_lock(const unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
+	       __u64 length, __u32 type, int lock, int unlock, bool wait)
+{
+	if (unlock && !lock)
+		type = SMB2_LOCKFLAG_UNLOCK;
+	return SMB2_lock(xid, tlink_tcon(cfile->tlink),
+			 cfile->fid.persistent_fid, cfile->fid.volatile_fid,
+			 current->tgid, length, offset, type, wait);
+}
+
 struct smb_version_operations smb21_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -602,6 +613,8 @@ struct smb_version_operations smb21_operations = {
 	.is_status_pending = smb2_is_status_pending,
 	.oplock_response = smb2_oplock_response,
 	.queryfs = smb2_queryfs,
+	.mand_lock = smb2_mand_lock,
+	.mand_unlock_range = smb2_unlock_range,
 };
 
 struct smb_version_values smb21_values = {

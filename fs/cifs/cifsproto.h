@@ -190,6 +190,10 @@ extern void cifs_dfs_release_automount_timer(void);
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 
+extern void cifs_move_llist(struct list_head *source, struct list_head *dest);
+extern void cifs_free_llist(struct list_head *llist);
+extern void cifs_del_lock_waiters(struct cifsLockInfo *lock);
+
 extern int cifs_negotiate_protocol(const unsigned int xid,
 				   struct cifs_ses *ses);
 extern int cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,

@@ -84,6 +84,8 @@ extern int smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon,
 			  struct cifs_fid *fid, __u32 *oplock,
 			  FILE_ALL_INFO *buf, struct cifs_sb_info *cifs_sb);
 extern void smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
+extern int smb2_unlock_range(struct cifsFileInfo *cfile,
+			     struct file_lock *flock, const unsigned int xid);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
@@ -140,5 +142,13 @@ extern int SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
 			 u64 persistent_file_id, u64 volatile_file_id,
 			 struct kstatfs *FSData);
+extern int SMB2_lock(const unsigned int xid, struct cifs_tcon *tcon,
+		     const __u64 persist_fid, const __u64 volatile_fid,
+		     const __u32 pid, const __u64 length, const __u64 offset,
+		     const __u32 lockFlags, const bool wait);
+extern int smb2_lockv(const unsigned int xid, struct cifs_tcon *tcon,
+		      const __u64 persist_fid, const __u64 volatile_fid,
+		      const __u32 pid, const __u32 num_lock,
+		      struct smb2_lock_element *buf);
 
 #endif			/* _SMB2PROTO_H */

@@ -531,6 +531,30 @@ struct smb2_write_rsp {
 #define SMB2_LOCKFLAG_UNLOCK		0x0004
 #define SMB2_LOCKFLAG_FAIL_IMMEDIATELY	0x0010
 
+struct smb2_lock_element {
+	__le64 Offset;
+	__le64 Length;
+	__le32 Flags;
+	__le32 Reserved;
+} __packed;
+
+struct smb2_lock_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 48 */
+	__le16 LockCount;
+	__le32 Reserved;
+	__u64  PersistentFileId; /* opaque endianness */
+	__u64  VolatileFileId; /* opaque endianness */
+	/* Followed by at least one */
+	struct smb2_lock_element locks[1];
+} __packed;
+
+struct smb2_lock_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 4 */
+	__le16 Reserved;
+} __packed;
+
 struct smb2_echo_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize;	/* Must be 4 */
