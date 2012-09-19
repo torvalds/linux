@@ -165,11 +165,6 @@ static const struct comedi_lrange range_daqboard2000_ai = { 13, {
 								 }
 };
 
-static const struct comedi_lrange range_daqboard2000_ao = { 1, {
-								RANGE(-10, 10)
-								}
-};
-
 /*
  * Register Memory Map
  */
@@ -816,7 +811,7 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 	s->maxdata = 0xffff;
 	s->insn_read = daqboard2000_ao_insn_read;
 	s->insn_write = daqboard2000_ao_insn_write;
-	s->range_table = &range_daqboard2000_ao;
+	s->range_table = &range_bipolar10;
 
 	s = &dev->subdevices[2];
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
