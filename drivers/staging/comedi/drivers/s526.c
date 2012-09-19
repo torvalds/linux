@@ -250,7 +250,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		   data[2]: Pre-load Register Value
 		   data[3]: Conter Control Register
 		 */
-		printk(KERN_INFO "s526: GPCT_INSN_CONFIG: Configuring Encoder\n");
 		devpriv->s526_gpct_config[subdev_channel].app =
 		    PositionMeasurement;
 
@@ -355,7 +354,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		   data[3]: Pre-load Register 1 Value
 		   data[4]: Conter Control Register
 		 */
-		printk(KERN_INFO "s526: GPCT_INSN_CONFIG: Configuring SPG\n");
 		devpriv->s526_gpct_config[subdev_channel].app =
 		    SinglePulseGeneration;
 
@@ -400,7 +398,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		   data[3]: Pre-load Register 1 Value
 		   data[4]: Conter Control Register
 		 */
-		printk(KERN_INFO "s526: GPCT_INSN_CONFIG: Configuring PTG\n");
 		devpriv->s526_gpct_config[subdev_channel].app =
 		    PulseTrainGeneration;
 
@@ -438,7 +435,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 		break;
 
 	default:
-		printk(KERN_ERR "s526: unsupported GPCT_insn_config\n");
 		return -EINVAL;
 		break;
 	}
@@ -455,21 +451,16 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 	short value;
 	union cmReg cmReg;
 
-	printk(KERN_INFO "s526: GPCT_INSN_WRITE on channel %d\n",
-					subdev_channel);
 	cmReg.value = inw(dev->iobase + REG_C0M + subdev_channel * 8);
-	printk(KERN_INFO "s526: Counter Mode Register: %x\n", cmReg.value);
 	/*  Check what Application of Counter this channel is configured for */
 	switch (devpriv->s526_gpct_config[subdev_channel].app) {
 	case PositionMeasurement:
-		printk(KERN_INFO "S526: INSN_WRITE: PM\n");
 		outw(0xFFFF & ((*data) >> 16), dev->iobase + REG_C0H +
 							     subdev_channel * 8);
 		outw(0xFFFF & (*data), dev->iobase + REG_C0L + subdev_channel * 8);
 		break;
 
 	case SinglePulseGeneration:
-		printk(KERN_INFO "S526: INSN_WRITE: SPG\n");
 		outw(0xFFFF & ((*data) >> 16), dev->iobase + REG_C0H +
 							     subdev_channel * 8);
 		outw(0xFFFF & (*data), dev->iobase + REG_C0L + subdev_channel * 8);
@@ -482,15 +473,12 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 		   The above periods must be expressed as a multiple of the
 		   pulse frequency on the selected source
 		 */
-		printk(KERN_INFO "S526: INSN_WRITE: PTG\n");
 		if ((data[1] > data[0]) && (data[0] > 0)) {
 			(devpriv->s526_gpct_config[subdev_channel]).data[0] =
 			    data[0];
 			(devpriv->s526_gpct_config[subdev_channel]).data[1] =
 			    data[1];
 		} else {
-			printk(KERN_ERR "s526: INSN_WRITE: PTG: Problem with Pulse params -> %d %d\n",
-				data[0], data[1]);
 			return -EINVAL;
 		}
 
@@ -500,9 +488,6 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 		outw(value, dev->iobase + REG_C0L + subdev_channel * 8);
 		break;
 	default:		/*  Impossible */
-		printk
-		    ("s526: INSN_WRITE: Functionality %d not implemented yet\n",
-		     devpriv->s526_gpct_config[subdev_channel].app);
 		return -EINVAL;
 		break;
 	}
@@ -574,13 +559,8 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 				break;
 			}
 		}
-		if (i == TIMEOUT) {
-			/* printk() should be used instead of printk()
-			 * whenever the code can be called from real-time. */
-			printk(KERN_ERR "s526: ADC(0x%04x) timeout\n",
-			       inw(dev->iobase + REG_ISR));
+		if (i == TIMEOUT)
 			return -ETIMEDOUT;
-		}
 
 		/* read data */
 		d = inw(dev->iobase + REG_ADD);
@@ -674,8 +654,6 @@ static int s526_dio_insn_config(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 	int group, mask;
 
-	printk(KERN_INFO "S526 DIO insn_config\n");
-
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
@@ -712,16 +690,12 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int iobase;
 	int ret;
 
-	printk(KERN_INFO "comedi%d: s526: ", dev->minor);
-
 	iobase = it->options[0];
 	if (!iobase || !request_region(iobase, S526_IOSIZE, board->name)) {
 		comedi_error(dev, "I/O port conflict");
 		return -EIO;
 	}
 	dev->iobase = iobase;
-
-	printk("iobase=0x%lx\n", dev->iobase);
 
 	dev->board_name = board->name;
 
@@ -792,7 +766,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	printk(KERN_INFO "attached\n");
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 1;
 }
