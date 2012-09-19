@@ -899,6 +899,15 @@ cifs_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+static int
+cifs_mand_lock(const unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
+	       __u64 length, __u32 type, int lock, int unlock, bool wait)
+{
+	return CIFSSMBLock(xid, tlink_tcon(cfile->tlink), cfile->fid.netfid,
+			   current->tgid, length, offset, unlock, lock,
+			   (__u8)type, wait, 0);
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -960,6 +969,9 @@ struct smb_version_operations smb1_operations = {
 	.calc_smb_size = smbCalcSize,
 	.oplock_response = cifs_oplock_response,
 	.queryfs = cifs_queryfs,
+	.mand_lock = cifs_mand_lock,
+	.mand_unlock_range = cifs_unlock_range,
+	.push_mand_locks = cifs_push_mandatory_locks,
 };
 
 struct smb_version_values smb1_values = {

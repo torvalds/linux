@@ -903,7 +903,7 @@ try_again:
 	return rc;
 }
 
-static int
+int
 cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 {
 	unsigned int xid;
@@ -1111,7 +1111,7 @@ cifs_push_locks(struct cifsFileInfo *cfile)
 	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
 		return cifs_push_posix_locks(cfile);
 
-	return cifs_push_mandatory_locks(cfile);
+	return tcon->ses->server->ops->push_mand_locks(cfile);
 }
 
 static void
@@ -1162,15 +1162,6 @@ cifs_read_flock(struct file_lock *flock, __u32 *type, int *lock, int *unlock,
 }
 
 static int
-cifs_mandatory_lock(unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
-		    __u64 length, __u32 type, int lock, int unlock, bool wait)
-{
-	return CIFSSMBLock(xid, tlink_tcon(cfile->tlink), cfile->fid.netfid,
-			   current->tgid, length, offset, unlock, lock,
-			   (__u8)type, wait, 0);
-}
-
-static int
 cifs_getlk(struct file *file, struct file_lock *flock, __u32 type,
 	   bool wait_flag, bool posix_lck, unsigned int xid)
 {
@@ -1203,11 +1194,11 @@ cifs_getlk(struct file *file, struct file_lock *flock, __u32 type,
 		return rc;
 
 	/* BB we could chain these into one lock request BB */
-	rc = cifs_mandatory_lock(xid, cfile, flock->fl_start, length, type,
-				 1, 0, false);
+	rc = server->ops->mand_lock(xid, cfile, flock->fl_start, length, type,
+				    1, 0, false);
 	if (rc == 0) {
-		rc = cifs_mandatory_lock(xid, cfile, flock->fl_start, length,
-					 type, 0, 1, false);
+		rc = server->ops->mand_lock(xid, cfile, flock->fl_start, length,
+					    type, 0, 1, false);
 		flock->fl_type = F_UNLCK;
 		if (rc != 0)
 			cERROR(1, "Error unlocking previously locked "
@@ -1220,13 +1211,14 @@ cifs_getlk(struct file *file, struct file_lock *flock, __u32 type,
 		return 0;
 	}
 
-	rc = cifs_mandatory_lock(xid, cfile, flock->fl_start, length,
-				 type | server->vals->shared_lock_type, 1, 0,
-				 false);
+	type &= ~server->vals->exclusive_lock_type;
+
+	rc = server->ops->mand_lock(xid, cfile, flock->fl_start, length,
+				    type | server->vals->shared_lock_type,
+				    1, 0, false);
 	if (rc == 0) {
-		rc = cifs_mandatory_lock(xid, cfile, flock->fl_start, length,
-					 type | server->vals->shared_lock_type,
-					 0, 1, false);
+		rc = server->ops->mand_lock(xid, cfile, flock->fl_start, length,
+			type | server->vals->shared_lock_type, 0, 1, false);
 		flock->fl_type = F_RDLCK;
 		if (rc != 0)
 			cERROR(1, "Error unlocking previously locked "
@@ -1256,7 +1248,7 @@ cifs_free_llist(struct list_head *llist)
 	}
 }
 
-static int
+int
 cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 		  unsigned int xid)
 {
@@ -1408,8 +1400,8 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		if (rc <= 0)
 			goto out;
 
-		rc = cifs_mandatory_lock(xid, cfile, flock->fl_start, length,
-					 type, 1, 0, wait_flag);
+		rc = server->ops->mand_lock(xid, cfile, flock->fl_start, length,
+					    type, 1, 0, wait_flag);
 		if (rc) {
 			kfree(lock);
 			goto out;
@@ -1417,7 +1409,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 
 		cifs_lock_add(cfile, lock);
 	} else if (unlock)
-		rc = cifs_unlock_range(cfile, flock, xid);
+		rc = server->ops->mand_unlock_range(cfile, flock, xid);
 
 out:
 	if (flock->fl_flags & FL_POSIX)

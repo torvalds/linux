@@ -353,6 +353,14 @@ struct smb_version_operations {
 	/* query remote filesystem */
 	int (*queryfs)(const unsigned int, struct cifs_tcon *,
 		       struct kstatfs *);
+	/* send mandatory brlock to the server */
+	int (*mand_lock)(const unsigned int, struct cifsFileInfo *, __u64,
+			 __u64, __u32, int, int, bool);
+	/* unlock range of mandatory locks */
+	int (*mand_unlock_range)(struct cifsFileInfo *, struct file_lock *,
+				 const unsigned int);
+	/* push brlocks from the cache to the server */
+	int (*push_mand_locks)(struct cifsFileInfo *);
 };
 
 struct smb_version_values {
