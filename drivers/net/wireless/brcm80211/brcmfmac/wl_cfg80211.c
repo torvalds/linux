@@ -4266,7 +4266,7 @@ static void wl_deinit_priv(struct brcmf_cfg80211_priv *cfg_priv)
 
 struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
 						 struct device *busdev,
-						 void *data)
+						 struct brcmf_pub *drvr)
 {
 	struct wireless_dev *wdev;
 	struct brcmf_cfg80211_priv *cfg_priv;
@@ -4291,7 +4291,7 @@ struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
 	wdev->iftype = brcmf_mode_to_nl80211_iftype(WL_MODE_BSS);
 	cfg_priv = wdev_to_cfg(wdev);
 	cfg_priv->wdev = wdev;
-	cfg_priv->pub = data;
+	cfg_priv->pub = drvr;
 	ci = (struct brcmf_cfg80211_iface *)&cfg_priv->ci;
 	ci->cfg_priv = cfg_priv;
 	ndev->ieee80211_ptr = wdev;

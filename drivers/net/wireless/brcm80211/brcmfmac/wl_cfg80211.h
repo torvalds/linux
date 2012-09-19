@@ -438,7 +438,7 @@ struct brcmf_cfg80211_priv {
 	struct brcmf_cfg80211_pmk_list *pmk_list;
 	struct work_struct event_work;
 	unsigned long status;
-	void *pub;
+	struct brcmf_pub *pub;
 	u32 channel;
 	bool iscan_on;
 	bool iscan_kickstart;
@@ -497,7 +497,7 @@ brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_priv *cfg)
 
 extern struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
 							struct device *busdev,
-							void *data);
+							struct brcmf_pub *drvr);
 extern void brcmf_cfg80211_detach(struct brcmf_cfg80211_dev *cfg);
 
 /* event handler from dongle */
