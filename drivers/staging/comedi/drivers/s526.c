@@ -197,7 +197,6 @@ static const struct s526_board s526_boards[] = {
 	 }
 };
 
-#define ADDR_REG(reg) (dev->iobase + (reg))
 #define ADDR_CHAN_REG(reg, chan) (dev->iobase + (reg) + (chan) * 8)
 
 /* this structure is for data unique to this hardware driver.  If
@@ -548,8 +547,8 @@ static int s526_ai_insn_config(struct comedi_device *dev,
 	 * INSN_READ handler. */
 
 	/*  Enable ADC interrupt */
-	outw(ISR_ADC_DONE, ADDR_REG(REG_IER));
-/* printk("s526: ADC current value: 0x%04x\n", inw(ADDR_REG(REG_ADC))); */
+	outw(ISR_ADC_DONE, dev->iobase + REG_IER);
+/* printk("s526: ADC current value: 0x%04x\n", inw(dev->iobase + REG_ADC)); */
 	devpriv->s526_ai_config = (data[0] & 0x3FF) << 5;
 	if (data[1] > 0)
 		devpriv->s526_ai_config |= 0x8000;	/* set the delay */
@@ -581,16 +580,16 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(value, ADDR_REG(REG_ADC));
+		outw(value, dev->iobase + REG_ADC);
 /* printk("s526: Wrote 0x%04x to ADC\n", value); */
-/* printk("s526: ADC reg=0x%04x\n", inw(ADDR_REG(REG_ADC))); */
+/* printk("s526: ADC reg=0x%04x\n", inw(dev->iobase + REG_ADC)); */
 
 #define TIMEOUT 100
 		/* wait for conversion to end */
 		for (i = 0; i < TIMEOUT; i++) {
-			status = inw(ADDR_REG(REG_ISR));
+			status = inw(dev->iobase + REG_ISR);
 			if (status & ISR_ADC_DONE) {
-				outw(ISR_ADC_DONE, ADDR_REG(REG_ISR));
+				outw(ISR_ADC_DONE, dev->iobase + REG_ISR);
 				break;
 			}
 		}
@@ -598,12 +597,12 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			/* printk() should be used instead of printk()
 			 * whenever the code can be called from real-time. */
 			printk(KERN_ERR "s526: ADC(0x%04x) timeout\n",
-			       inw(ADDR_REG(REG_ISR)));
+			       inw(dev->iobase + REG_ISR));
 			return -ETIMEDOUT;
 		}
 
 		/* read data */
-		d = inw(ADDR_REG(REG_ADD));
+		d = inw(dev->iobase + REG_ADD);
 /* printk("AI[%d]=0x%04x\n", n, (unsigned short)(d & 0xFFFF)); */
 
 		/* munge data */
@@ -625,7 +624,7 @@ static int s526_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 /* printk("s526_ao_winsn\n"); */
 	val = chan << 1;
 /* outw(val, dev->iobase + REG_DAC); */
-	outw(val, ADDR_REG(REG_DAC));
+	outw(val, dev->iobase + REG_DAC);
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
@@ -635,10 +634,11 @@ static int s526_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		 * outw(data[i], dev->iobase + REG_ADD);
 		 */
 		/* write the data to preload register */
-		outw(data[i], ADDR_REG(REG_ADD));
+		outw(data[i], dev->iobase + REG_ADD);
 		devpriv->ao_readback[chan] = data[i];
 /* outw(val + 1, dev->iobase + REG_DAC);  starts the D/A conversion. */
-		outw(val + 1, ADDR_REG(REG_DAC)); /*starts the D/A conversion.*/
+		/* starts the D/A conversion */
+		outw(val + 1, dev->iobase + REG_DAC);
 	}
 
 	/* return the number of samples read/written */
@@ -675,12 +675,12 @@ static int s526_dio_insn_bits(struct comedi_device *dev,
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
 		/* Write out the new digital output lines */
-		outw(s->state, ADDR_REG(REG_DIO));
+		outw(s->state, dev->iobase + REG_DIO);
 	}
 
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
-	data[1] = inw(ADDR_REG(REG_DIO)) & 0xFF; /* low 8 bits are the data */
+	data[1] = inw(dev->iobase + REG_DIO) & 0xff;
 	/* or we could just return the software copy of the output values if
 	 * it was a purely digital output subdevice */
 	/* data[1]=s->state & 0xFF; */
@@ -720,7 +720,7 @@ static int s526_dio_insn_config(struct comedi_device *dev,
 	default:
 		return -EINVAL;
 	}
-	outw(s->state, ADDR_REG(REG_DIO));
+	outw(s->state, dev->iobase + REG_DIO);
 
 	return 1;
 }
@@ -750,8 +750,8 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/*** make it a little quieter, exw, 8/29/06
 	for (i = 0; i < S526_NUM_PORTS; i++) {
-		printk("0x%02x: 0x%04x\n", ADDR_REG(s526_ports[i]),
-				inw(ADDR_REG(s526_ports[i])));
+		printk("0x%02x: 0x%04x\n", dev->iobase + s526_ports[i],
+				inw(dev->iobase + s526_ports[i]));
 	}
 	***/
 
@@ -907,7 +907,8 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	for (i = 0; i < S526_NUM_PORTS; i++) {
 		printk(KERN_INFO "0x%02lx: 0x%04x\n",
-			ADDR_REG(s526_ports[i]), inw(ADDR_REG(s526_ports[i])));
+			dev->iobase + s526_ports[i],
+			inw(dev->iobase + s526_ports[i]));
 	}
 	return 1;
 }
