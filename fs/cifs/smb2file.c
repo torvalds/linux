@@ -201,3 +201,94 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	kfree(buf);
 	return rc;
 }
+
+static int
+smb2_push_mand_fdlocks(struct cifs_fid_locks *fdlocks, const unsigned int xid,
+		       struct smb2_lock_element *buf, unsigned int max_num)
+{
+	int rc = 0, stored_rc;
+	struct cifsFileInfo *cfile = fdlocks->cfile;
+	struct cifsLockInfo *li;
+	unsigned int num = 0;
+	struct smb2_lock_element *cur = buf;
+	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
+
+	list_for_each_entry(li, &fdlocks->locks, llist) {
+		cur->Length = cpu_to_le64(li->length);
+		cur->Offset = cpu_to_le64(li->offset);
+		cur->Flags = cpu_to_le32(li->type |
+						SMB2_LOCKFLAG_FAIL_IMMEDIATELY);
+		if (++num == max_num) {
+			stored_rc = smb2_lockv(xid, tcon,
+					       cfile->fid.persistent_fid,
+					       cfile->fid.volatile_fid,
+					       current->tgid, num, buf);
+			if (stored_rc)
+				rc = stored_rc;
+			cur = buf;
+			num = 0;
+		} else
+			cur++;
+	}
+	if (num) {
+		stored_rc = smb2_lockv(xid, tcon,
+				       cfile->fid.persistent_fid,
+				       cfile->fid.volatile_fid,
+				       current->tgid, num, buf);
+		if (stored_rc)
+			rc = stored_rc;
+	}
+
+	return rc;
+}
+
+int
+smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
+{
+	int rc = 0, stored_rc;
+	unsigned int xid;
+	unsigned int max_num, max_buf;
+	struct smb2_lock_element *buf;
+	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifs_fid_locks *fdlocks;
+
+	xid = get_xid();
+	mutex_lock(&cinode->lock_mutex);
+	if (!cinode->can_cache_brlcks) {
+		mutex_unlock(&cinode->lock_mutex);
+		free_xid(xid);
+		return rc;
+	}
+
+	/*
+	 * Accessing maxBuf is racy with cifs_reconnect - need to store value
+	 * and check it for zero before using.
+	 */
+	max_buf = tlink_tcon(cfile->tlink)->ses->server->maxBuf;
+	if (!max_buf) {
+		mutex_unlock(&cinode->lock_mutex);
+		free_xid(xid);
+		return -EINVAL;
+	}
+
+	max_num = max_buf / sizeof(struct smb2_lock_element);
+	buf = kzalloc(max_num * sizeof(struct smb2_lock_element), GFP_KERNEL);
+	if (!buf) {
+		mutex_unlock(&cinode->lock_mutex);
+		free_xid(xid);
+		return -ENOMEM;
+	}
+
+	list_for_each_entry(fdlocks, &cinode->llist, llist) {
+		stored_rc = smb2_push_mand_fdlocks(fdlocks, xid, buf, max_num);
+		if (stored_rc)
+			rc = stored_rc;
+	}
+
+	cinode->can_cache_brlcks = false;
+	kfree(buf);
+
+	mutex_unlock(&cinode->lock_mutex);
+	free_xid(xid);
+	return rc;
+}

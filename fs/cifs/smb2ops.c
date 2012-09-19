@@ -371,7 +371,7 @@ smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 	cfile->fid.persistent_fid = fid->persistent_fid;
 	cfile->fid.volatile_fid = fid->volatile_fid;
 	smb2_set_oplock_level(cinode, oplock);
-	/* cinode->can_cache_brlcks = cinode->clientCanCacheAll; */
+	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
 }
 
 static int
@@ -615,6 +615,7 @@ struct smb_version_operations smb21_operations = {
 	.queryfs = smb2_queryfs,
 	.mand_lock = smb2_mand_lock,
 	.mand_unlock_range = smb2_unlock_range,
+	.push_mand_locks = smb2_push_mandatory_locks,
 };
 
 struct smb_version_values smb21_values = {

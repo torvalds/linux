@@ -86,6 +86,7 @@ extern int smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon,
 extern void smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
 extern int smb2_unlock_range(struct cifsFileInfo *cfile,
 			     struct file_lock *flock, const unsigned int xid);
+extern int smb2_push_mandatory_locks(struct cifsFileInfo *cfile);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
