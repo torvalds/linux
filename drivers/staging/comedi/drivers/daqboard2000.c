@@ -715,7 +715,7 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 		return -ENOMEM;
 	devpriv = dev->private;
 
-	result = comedi_pci_enable(pcidev, "daqboard2000");
+	result = comedi_pci_enable(pcidev, dev->driver->driver_name);
 	if (result < 0)
 		return result;
 	dev->iobase = 1;	/* the "detach" needs this */
