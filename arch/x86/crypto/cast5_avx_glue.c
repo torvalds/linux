@@ -165,7 +165,7 @@ static unsigned int __cbc_encrypt(struct blkcipher_desc *desc,
 		nbytes -= bsize;
 	} while (nbytes >= bsize);
 
-	*(u64 *)walk->iv ^= *iv;
+	*(u64 *)walk->iv = *iv;
 	return nbytes;
 }
 
