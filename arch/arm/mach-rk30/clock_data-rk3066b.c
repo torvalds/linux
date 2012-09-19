@@ -2440,7 +2440,7 @@ GATE_CLK(aclk_peri_axi_matrix, aclk_periph, ACLK_PERI_AXI_MATRIX);
 GATE_CLK(hclk_peri_axi_matrix, hclk_periph, HCLK_PERI_AXI_MATRIX);
 GATE_CLK(hclk_peri_ahb_arbi, hclk_periph, HCLK_PERI_AHB_ARBI);
 GATE_CLK(hclk_emem_peri, hclk_periph, HCLK_EMEM_PERI);
-GATE_CLK(hclk_emac, hclk_periph, HCLK_EMAC);
+GATE_CLK(hclk_mac, hclk_periph, HCLK_EMAC);
 GATE_CLK(nandc, hclk_periph, HCLK_NANDC);
 GATE_CLK(hclk_usb_peri, hclk_periph, HCLK_USB_PERI);
 GATE_CLK(hclk_otg0, clk_hclk_usb_peri, HCLK_OTG0);
@@ -2667,7 +2667,7 @@ static struct clk_lookup clks[] = {
 	CLK1(hclk_peri_axi_matrix),
 	CLK1(hclk_peri_ahb_arbi),
 	CLK1(hclk_emem_peri),
-	CLK1(hclk_emac),
+	CLK1(hclk_mac),
 	CLK1(nandc),
 	CLK1(hclk_usb_peri),
 	CLK1(hclk_otg0),
@@ -2922,7 +2922,7 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_hclk_peri_axi_matrix);
 	clk_enable_nolock(&clk_hclk_peri_ahb_arbi);
 	clk_enable_nolock(&clk_hclk_emem_peri);
-	//clk_enable_nolock(&clk_hclk_emac);
+	//clk_enable_nolock(&clk_hclk_mac);
 	//clk_enable_nolock(&clk_nandc);
 	clk_enable_nolock(&clk_hclk_usb_peri);
 	#if 0
