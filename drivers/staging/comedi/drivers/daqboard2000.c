@@ -336,7 +336,6 @@ static void setup_sampling(struct comedi_device *dev, int chan, int gain)
 	/* These should be read from EEPROM */
 	word2 |= 0x0800;
 	word3 |= 0xc000;
-/*  printk("%d %4.4x %4.4x %4.4x %4.4x\n", chan, word0, word1, word2, word3);*/
 	writeAcqScanListEntry(dev, word0);
 	writeAcqScanListEntry(dev, word1);
 	writeAcqScanListEntry(dev, word2);
@@ -607,7 +606,6 @@ static int daqboard2000_upload_firmware(struct comedi_device *dev)
 
 static void daqboard2000_adcStopDmaTransfer(struct comedi_device *dev)
 {
-/*  printk("Implement: daqboard2000_adcStopDmaTransfer\n");*/
 }
 
 static void daqboard2000_adcDisarm(struct comedi_device *dev)
@@ -648,7 +646,6 @@ static void daqboard2000_activateReferenceDacs(struct comedi_device *dev)
 			break;
 		udelay(2);
 	}
-/*  printk("DAQBOARD2000_PosRefDacSelect %d\n", timeout);*/
 
 	/*  Set the - reference dac value in the FPGA */
 	writew(0x80 | DAQBOARD2000_NegRefDacSelect, devpriv->daq + refDacs);
@@ -658,22 +655,18 @@ static void daqboard2000_activateReferenceDacs(struct comedi_device *dev)
 			break;
 		udelay(2);
 	}
-/*  printk("DAQBOARD2000_NegRefDacSelect %d\n", timeout);*/
 }
 
 static void daqboard2000_initializeCtrs(struct comedi_device *dev)
 {
-/*  printk("Implement: daqboard2000_initializeCtrs\n");*/
 }
 
 static void daqboard2000_initializeTmrs(struct comedi_device *dev)
 {
-/*  printk("Implement: daqboard2000_initializeTmrs\n");*/
 }
 
 static void daqboard2000_dacDisarm(struct comedi_device *dev)
 {
-/*  printk("Implement: daqboard2000_dacDisarm\n");*/
 }
 
 static void daqboard2000_initializeAdc(struct comedi_device *dev)
@@ -768,24 +761,12 @@ static int daqboard2000_attach_pci(struct comedi_device *dev,
 
 	readl(devpriv->plx + 0x6c);
 
-	/*
-	   u8 interrupt;
-	   Windows code does restore interrupts, but since we don't use them...
-	   pci_read_config_byte(pcidev, PCI_INTERRUPT_LINE, &interrupt);
-	   printk("Interrupt before is: %x\n", interrupt);
-	 */
-
 	result = daqboard2000_upload_firmware(dev);
 	if (result < 0)
 		return result;
 
 	daqboard2000_initializeAdc(dev);
 	daqboard2000_initializeDac(dev);
-	/*
-	   Windows code does restore interrupts, but since we don't use them...
-	   pci_read_config_byte(pcidev, PCI_INTERRUPT_LINE, &interrupt);
-	   printk("Interrupt after is: %x\n", interrupt);
-	 */
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */
