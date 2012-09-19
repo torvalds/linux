@@ -579,3 +579,33 @@ backup_cred(struct cifs_sb_info *cifs_sb)
 
 	return false;
 }
+
+void
+cifs_del_pending_open(struct cifs_pending_open *open)
+{
+	spin_lock(&cifs_file_list_lock);
+	list_del(&open->olist);
+	spin_unlock(&cifs_file_list_lock);
+}
+
+void
+cifs_add_pending_open_locked(struct cifs_fid *fid, struct tcon_link *tlink,
+			     struct cifs_pending_open *open)
+{
+#ifdef CONFIG_CIFS_SMB2
+	memcpy(open->lease_key, fid->lease_key, SMB2_LEASE_KEY_SIZE);
+#endif
+	open->oplock = CIFS_OPLOCK_NO_CHANGE;
+	open->tlink = tlink;
+	fid->pending_open = open;
+	list_add_tail(&open->olist, &tlink_tcon(tlink)->pending_opens);
+}
+
+void
+cifs_add_pending_open(struct cifs_fid *fid, struct tcon_link *tlink,
+		      struct cifs_pending_open *open)
+{
+	spin_lock(&cifs_file_list_lock);
+	cifs_add_pending_open_locked(fid, tlink, open);
+	spin_unlock(&cifs_file_list_lock);
+}

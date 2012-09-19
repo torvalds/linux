@@ -184,6 +184,13 @@ extern bool cifs_find_lock_conflict(struct cifsFileInfo *cfile, __u64 offset,
 				    __u64 length, __u8 type,
 				    struct cifsLockInfo **conf_lock,
 				    bool rw_check);
+extern void cifs_add_pending_open(struct cifs_fid *fid,
+				  struct tcon_link *tlink,
+				  struct cifs_pending_open *open);
+extern void cifs_add_pending_open_locked(struct cifs_fid *fid,
+					 struct tcon_link *tlink,
+					 struct cifs_pending_open *open);
+extern void cifs_del_pending_open(struct cifs_pending_open *open);
 
 #if IS_ENABLED(CONFIG_CIFS_DFS_UPCALL)
 extern void cifs_dfs_release_automount_timer(void);

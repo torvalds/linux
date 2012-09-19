@@ -382,6 +382,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
 	struct cifs_fid fid;
+	struct cifs_pending_open open;
 	__u32 oplock;
 	struct cifsFileInfo *file_info;
 
@@ -423,16 +424,21 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	if (server->ops->new_lease_key)
 		server->ops->new_lease_key(&fid);
 
+	cifs_add_pending_open(&fid, tlink, &open);
+
 	rc = cifs_do_create(inode, direntry, xid, tlink, oflags, mode,
 			    &oplock, &fid, opened);
 
-	if (rc)
+	if (rc) {
+		cifs_del_pending_open(&open);
 		goto out;
+	}
 
 	rc = finish_open(file, direntry, generic_file_open, opened);
 	if (rc) {
 		if (server->ops->close)
 			server->ops->close(xid, tcon, &fid);
+		cifs_del_pending_open(&open);
 		goto out;
 	}
 
@@ -440,6 +446,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	if (file_info == NULL) {
 		if (server->ops->close)
 			server->ops->close(xid, tcon, &fid);
+		cifs_del_pending_open(&open);
 		rc = -ENOMEM;
 	}
 

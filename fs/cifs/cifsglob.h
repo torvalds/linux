@@ -715,6 +715,7 @@ struct cifs_ses {
 	__u16 session_flags;
 #endif /* CONFIG_CIFS_SMB2 */
 };
+
 /* no more than one of the following three session flags may be set */
 #define CIFS_SES_NT4 1
 #define CIFS_SES_OS2 2
@@ -821,6 +822,7 @@ struct cifs_tcon {
 	u64 resource_id;		/* server resource id */
 	struct fscache_cookie *fscache;	/* cookie for share */
 #endif
+	struct list_head pending_opens;	/* list of incomplete opens */
 	/* BB add field for back pointer to sb struct(s)? */
 };
 
@@ -863,6 +865,15 @@ cifs_get_tlink(struct tcon_link *tlink)
 /* This function is always expected to succeed */
 extern struct cifs_tcon *cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb);
 
+#define CIFS_OPLOCK_NO_CHANGE 0xfe
+
+struct cifs_pending_open {
+	struct list_head olist;
+	struct tcon_link *tlink;
+	__u8 lease_key[16];
+	__u32 oplock;
+};
+
 /*
  * This info hangs off the cifsFileInfo structure, pointed to by llist.
  * This is used to track byte stream locks on the file
@@ -903,6 +914,7 @@ struct cifs_fid {
 	__u64 volatile_fid;	/* volatile file id for smb2 */
 	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for smb2 */
 #endif
+	struct cifs_pending_open *pending_open;
 };
 
 struct cifs_fid_locks {
