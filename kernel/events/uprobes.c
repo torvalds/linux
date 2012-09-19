@@ -321,17 +321,6 @@ out:
  */
 int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	int result;
-	/*
-	 * See the comment near uprobes_hash().
-	 */
-	result = is_swbp_at_addr(mm, vaddr);
-	if (result == 1)
-		return 0;
-
-	if (result)
-		return result;
-
 	return write_opcode(auprobe, mm, vaddr, UPROBE_SWBP_INSN);
 }
 
