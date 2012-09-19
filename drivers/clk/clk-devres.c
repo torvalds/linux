@@ -48,7 +48,7 @@ void devm_clk_put(struct device *dev, struct clk *clk)
 {
 	int ret;
 
-	ret = devres_destroy(dev, devm_clk_release, devm_clk_match, clk);
+	ret = devres_release(dev, devm_clk_release, devm_clk_match, clk);
 
 	WARN_ON(ret);
 }
