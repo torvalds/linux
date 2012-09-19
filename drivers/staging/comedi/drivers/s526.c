@@ -217,11 +217,6 @@ static int s526_gpct_rinsn(struct comedi_device *dev,
 	unsigned short datalow;
 	unsigned short datahigh;
 
-	/*  Check if (n > 0) */
-	if (insn->n <= 0) {
-		printk(KERN_ERR "s526: INSN_READ: n should be > 0\n");
-		return -EINVAL;
-	}
 	/*  Read the low word first */
 	for (i = 0; i < insn->n; i++) {
 		datalow = inw(dev->iobase + REG_C0L + counter_channel * 8);
