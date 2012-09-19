@@ -211,12 +211,6 @@ struct s526_private {
 	unsigned short s526_ai_config;
 };
 
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct s526_private *)dev->private)
-
 static int s526_gpct_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
@@ -247,6 +241,7 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct s526_private *devpriv = dev->private;
 	int subdev_channel = CR_CHAN(insn->chanspec);	/*  Unpack chanspec */
 	int i;
 	short value;
@@ -472,6 +467,7 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct s526_private *devpriv = dev->private;
 	int subdev_channel = CR_CHAN(insn->chanspec);	/*  Unpack chanspec */
 	short value;
 	union cmReg cmReg;
@@ -536,6 +532,7 @@ static int s526_ai_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct s526_private *devpriv = dev->private;
 	int result = -EINVAL;
 
 	if (insn->n < 1)
@@ -569,6 +566,7 @@ static int s526_ai_insn_config(struct comedi_device *dev,
 static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
+	struct s526_private *devpriv = dev->private;
 	int n, i;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned short value;
@@ -619,6 +617,7 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int s526_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
+	struct s526_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned short val;
@@ -651,6 +650,7 @@ static int s526_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int s526_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
+	struct s526_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -728,6 +728,7 @@ static int s526_dio_insn_config(struct comedi_device *dev,
 static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct s526_board *board = comedi_board(dev);
+	struct s526_private *devpriv;
 	struct comedi_subdevice *s;
 	int iobase;
 	int i, n;
@@ -756,12 +757,10 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = board->name;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct s526_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
