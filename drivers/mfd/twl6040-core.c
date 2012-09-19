@@ -584,7 +584,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 		goto irq_init_err;
 
 	ret = request_threaded_irq(twl6040->irq_base + TWL6040_IRQ_READY,
-				   NULL, twl6040_naudint_handler, 0,
+				   NULL, twl6040_naudint_handler, IRQF_ONESHOT,
 				   "twl6040_irq_ready", twl6040);
 	if (ret) {
 		dev_err(twl6040->dev, "READY IRQ request failed: %d\n",
