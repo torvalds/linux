@@ -4539,7 +4539,7 @@ static s32 wl_update_wiphybands(struct brcmf_cfg80211_priv *cfg_priv)
 		return err;
 	}
 
-	phy = ((char *)&phy_list)[1];
+	phy = ((char *)&phy_list)[0];
 	WL_INFO("%c phy\n", phy);
 	if (phy == 'n' || phy == 'a') {
 		wiphy = cfg_to_wiphy(cfg_priv);
