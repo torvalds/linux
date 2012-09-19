@@ -707,7 +707,7 @@ cifs_del_lock_waiters(struct cifsLockInfo *lock)
 static bool
 cifs_find_fid_lock_conflict(struct cifs_fid_locks *fdlocks, __u64 offset,
 			    __u64 length, __u8 type, struct cifsFileInfo *cfile,
-			    struct cifsLockInfo **conf_lock)
+			    struct cifsLockInfo **conf_lock, bool rw_check)
 {
 	struct cifsLockInfo *li;
 	struct cifsFileInfo *cur_cfile = fdlocks->cfile;
@@ -717,19 +717,24 @@ cifs_find_fid_lock_conflict(struct cifs_fid_locks *fdlocks, __u64 offset,
 		if (offset + length <= li->offset ||
 		    offset >= li->offset + li->length)
 			continue;
+		if (rw_check && server->ops->compare_fids(cfile, cur_cfile) &&
+		    current->tgid == li->pid)
+			continue;
 		if ((type & server->vals->shared_lock_type) &&
 		    ((server->ops->compare_fids(cfile, cur_cfile) &&
 		     current->tgid == li->pid) || type == li->type))
 			continue;
-		*conf_lock = li;
+		if (conf_lock)
+			*conf_lock = li;
 		return true;
 	}
 	return false;
 }
 
-static bool
+bool
 cifs_find_lock_conflict(struct cifsFileInfo *cfile, __u64 offset, __u64 length,
-			__u8 type, struct cifsLockInfo **conf_lock)
+			__u8 type, struct cifsLockInfo **conf_lock,
+			bool rw_check)
 {
 	bool rc = false;
 	struct cifs_fid_locks *cur;
@@ -737,7 +742,7 @@ cifs_find_lock_conflict(struct cifsFileInfo *cfile, __u64 offset, __u64 length,
 
 	list_for_each_entry(cur, &cinode->llist, llist) {
 		rc = cifs_find_fid_lock_conflict(cur, offset, length, type,
-						 cfile, conf_lock);
+						 cfile, conf_lock, rw_check);
 		if (rc)
 			break;
 	}
@@ -765,7 +770,7 @@ cifs_lock_test(struct cifsFileInfo *cfile, __u64 offset, __u64 length,
 	down_read(&cinode->lock_sem);
 
 	exist = cifs_find_lock_conflict(cfile, offset, length, type,
-					&conf_lock);
+					&conf_lock, false);
 	if (exist) {
 		flock->fl_start = conf_lock->offset;
 		flock->fl_end = conf_lock->offset + conf_lock->length - 1;
@@ -812,7 +817,7 @@ try_again:
 	down_write(&cinode->lock_sem);
 
 	exist = cifs_find_lock_conflict(cfile, lock->offset, lock->length,
-					lock->type, &conf_lock);
+					lock->type, &conf_lock, false);
 	if (!exist && cinode->can_cache_brlcks) {
 		list_add_tail(&lock->llist, &cfile->llist->locks);
 		up_write(&cinode->lock_sem);
@@ -2394,15 +2399,58 @@ ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
 	return written;
 }
 
-ssize_t cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
-			   unsigned long nr_segs, loff_t pos)
+static ssize_t
+cifs_writev(struct kiocb *iocb, const struct iovec *iov,
+	    unsigned long nr_segs, loff_t pos)
 {
-	struct inode *inode;
+	struct file *file = iocb->ki_filp;
+	struct cifsFileInfo *cfile = (struct cifsFileInfo *)file->private_data;
+	struct inode *inode = file->f_mapping->host;
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
+	ssize_t rc = -EACCES;
 
-	inode = iocb->ki_filp->f_path.dentry->d_inode;
+	BUG_ON(iocb->ki_pos != pos);
 
-	if (CIFS_I(inode)->clientCanCacheAll)
-		return generic_file_aio_write(iocb, iov, nr_segs, pos);
+	sb_start_write(inode->i_sb);
+
+	/*
+	 * We need to hold the sem to be sure nobody modifies lock list
+	 * with a brlock that prevents writing.
+	 */
+	down_read(&cinode->lock_sem);
+	if (!cifs_find_lock_conflict(cfile, pos, iov_length(iov, nr_segs),
+				     server->vals->exclusive_lock_type, NULL,
+				     true)) {
+		mutex_lock(&inode->i_mutex);
+		rc = __generic_file_aio_write(iocb, iov, nr_segs,
+					       &iocb->ki_pos);
+		mutex_unlock(&inode->i_mutex);
+	}
+
+	if (rc > 0 || rc == -EIOCBQUEUED) {
+		ssize_t err;
+
+		err = generic_write_sync(file, pos, rc);
+		if (err < 0 && rc > 0)
+			rc = err;
+	}
+
+	up_read(&cinode->lock_sem);
+	sb_end_write(inode->i_sb);
+	return rc;
+}
+
+ssize_t
+cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
+		   unsigned long nr_segs, loff_t pos)
+{
+	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsFileInfo *cfile = (struct cifsFileInfo *)
+						iocb->ki_filp->private_data;
+	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 
 	/*
 	 * In strict cache mode we need to write the data to the server exactly
@@ -2411,7 +2459,15 @@ ssize_t cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 	 * not on the region from pos to ppos+len-1.
 	 */
 
-	return cifs_user_writev(iocb, iov, nr_segs, pos);
+	if (!cinode->clientCanCacheAll)
+		return cifs_user_writev(iocb, iov, nr_segs, pos);
+
+	if (cap_unix(tcon->ses) &&
+	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
+	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
+		return generic_file_aio_write(iocb, iov, nr_segs, pos);
+
+	return cifs_writev(iocb, iov, nr_segs, pos);
 }
 
 static struct cifs_readdata *
@@ -2746,15 +2802,17 @@ ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
 	return read;
 }
 
-ssize_t cifs_strict_readv(struct kiocb *iocb, const struct iovec *iov,
-			  unsigned long nr_segs, loff_t pos)
+ssize_t
+cifs_strict_readv(struct kiocb *iocb, const struct iovec *iov,
+		  unsigned long nr_segs, loff_t pos)
 {
-	struct inode *inode;
-
-	inode = iocb->ki_filp->f_path.dentry->d_inode;
-
-	if (CIFS_I(inode)->clientCanCacheRead)
-		return generic_file_aio_read(iocb, iov, nr_segs, pos);
+	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsFileInfo *cfile = (struct cifsFileInfo *)
+						iocb->ki_filp->private_data;
+	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
+	int rc = -EACCES;
 
 	/*
 	 * In strict cache mode we need to read from the server all the time
@@ -2764,8 +2822,25 @@ ssize_t cifs_strict_readv(struct kiocb *iocb, const struct iovec *iov,
 	 * on pages affected by this read but not on the region from pos to
 	 * pos+len-1.
 	 */
+	if (!cinode->clientCanCacheRead)
+		return cifs_user_readv(iocb, iov, nr_segs, pos);
 
-	return cifs_user_readv(iocb, iov, nr_segs, pos);
+	if (cap_unix(tcon->ses) &&
+	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
+	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
+		return generic_file_aio_read(iocb, iov, nr_segs, pos);
+
+	/*
+	 * We need to hold the sem to be sure nobody modifies lock list
+	 * with a brlock that prevents reading.
+	 */
+	down_read(&cinode->lock_sem);
+	if (!cifs_find_lock_conflict(cfile, pos, iov_length(iov, nr_segs),
+				     tcon->ses->server->vals->shared_lock_type,
+				     NULL, true))
+		rc = generic_file_aio_read(iocb, iov, nr_segs, pos);
+	up_read(&cinode->lock_sem);
+	return rc;
 }
 
 static ssize_t
