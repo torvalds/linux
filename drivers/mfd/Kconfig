@@ -440,6 +440,16 @@ config PMIC_ADP5520
 	  individual components like LCD backlight, LEDs, GPIOs and Kepad
 	  under the corresponding menus.
 
+config MFD_LP8788
+	bool "Texas Instruments LP8788 Power Management Unit Driver"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	select IRQ_DOMAIN
+	help
+	  TI LP8788 PMU supports regulators, battery charger, RTC,
+	  ADC, backlight driver and current sinks.
+
 config MFD_MAX77686
 	bool "Maxim Semiconductor MAX77686 PMIC Support"
 	depends on I2C=y && GENERIC_HARDIRQS
