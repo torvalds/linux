@@ -1957,6 +1957,7 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	u32 enable_mask;
 	u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 	u32 pipestat_enable = PLANE_FLIP_DONE_INT_EN_VLV;
+	u32 render_irqs;
 	u16 msid;
 
 	enable_mask = I915_DISPLAY_PORT_INTERRUPT;
@@ -1996,21 +1997,12 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IIR, 0xffffffff);
 
-	dev_priv->gt_irq_mask = ~0;
-
-	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-	I915_WRITE(GTIER, GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT |
-		   GT_GEN6_BLT_CS_ERROR_INTERRUPT |
-		   GT_GEN6_BLT_USER_INTERRUPT |
-		   GT_GEN6_BSD_USER_INTERRUPT |
-		   GT_GEN6_BSD_CS_ERROR_INTERRUPT |
-		   GT_GEN7_L3_PARITY_ERROR_INTERRUPT |
-		   GT_PIPE_NOTIFY |
-		   GT_RENDER_CS_ERROR_INTERRUPT |
-		   GT_SYNC_STATUS |
-		   GT_USER_INTERRUPT);
+
+	render_irqs = GT_USER_INTERRUPT | GEN6_BSD_USER_INTERRUPT |
+		GEN6_BLITTER_USER_INTERRUPT;
+	I915_WRITE(GTIER, render_irqs);
 	POSTING_READ(GTIER);
 
 	/* ack & enable invalid PTE error interrupts */
