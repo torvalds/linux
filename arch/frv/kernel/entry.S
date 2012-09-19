@@ -871,6 +871,11 @@ ret_from_kernel_thread:
 	calll		@(gr21,gr0)
 	bra		sys_exit
 
+	.globl		ret_from_kernel_execve
+ret_from_kernel_execve:
+	ori		gr28,0,sp
+	bra		__syscall_exit
+
 ###################################################################################################
 #
 # Return to user mode is not as complex as all this looks,

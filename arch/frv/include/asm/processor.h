@@ -92,14 +92,12 @@ extern struct task_struct *__kernel_current_task;
 
 /*
  * do necessary setup to start up a newly executed thread.
- * - need to discard the frame stacked by init() invoking the execve syscall
  */
 #define start_thread(_regs, _pc, _usp)			\
 do {							\
-	__frame = __kernel_frame0_ptr;			\
-	__frame->pc	= (_pc);			\
-	__frame->psr	&= ~PSR_S;			\
-	__frame->sp	= (_usp);			\
+	_regs->pc	= (_pc);			\
+	_regs->psr	&= ~PSR_S;			\
+	_regs->sp	= (_usp);			\
 } while(0)
 
 /* Free all resources held by a thread. */
