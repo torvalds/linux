@@ -117,8 +117,11 @@ Configuration options:
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/firmware.h>
 
 #include "8255.h"
+
+#define DAQBOARD2000_FIRMWARE		"daqboard2000_firmware.bin"
 
 #define PCI_VENDOR_ID_IOTECH		0x1616
 
@@ -547,14 +550,14 @@ static int daqboard2000_writeCPLD(struct comedi_device *dev, int data)
 }
 
 static int initialize_daqboard2000(struct comedi_device *dev,
-				   unsigned char *cpld_array, int len)
+				   const u8 *cpld_array, size_t len)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 	int result = -EIO;
 	/* Read the serial EEPROM control register */
 	int secr;
 	int retry;
-	int i;
+	size_t i;
 
 	/* Check to make sure the serial eeprom is present on the board */
 	secr = readl(devpriv->plx + 0x6c);
@@ -602,6 +605,22 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 		}
 	}
 	return result;
+}
+
+static int daqboard2000_upload_firmware(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct firmware *fw;
+	int ret;
+
+	ret = request_firmware(&fw, DAQBOARD2000_FIRMWARE, &pcidev->dev);
+	if (ret)
+		return ret;
+
+	ret = initialize_daqboard2000(dev, fw->data, fw->size);
+	release_firmware(fw);
+
+	return ret;
 }
 
 static void daqboard2000_adcStopDmaTransfer(struct comedi_device *dev)
@@ -747,8 +766,6 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	resource_size_t pci_base;
-	void *aux_data;
-	unsigned int aux_len;
 	int result;
 
 	result = alloc_private(dev, sizeof(*devpriv));
@@ -790,18 +807,10 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	   printk("Interrupt before is: %x\n", interrupt);
 	 */
 
-	aux_data = comedi_aux_data(it->options, 0);
-	aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-
-	if (aux_data && aux_len) {
-		result = initialize_daqboard2000(dev, aux_data, aux_len);
-	} else {
-		dev_dbg(dev->class_dev,
-			"no FPGA initialization code, aborting\n");
-		result = -EIO;
-	}
+	result = daqboard2000_upload_firmware(dev);
 	if (result < 0)
-		goto out;
+		return result;
+
 	daqboard2000_initializeAdc(dev);
 	daqboard2000_initializeDac(dev);
 	/*
@@ -835,7 +844,6 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
 			(unsigned long)(devpriv->daq + dioP2ExpansionIO8Bit));
 
-out:
 	return result;
 }
 
@@ -896,3 +904,4 @@ module_comedi_pci_driver(daqboard2000_driver, daqboard2000_pci_driver);
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(DAQBOARD2000_FIRMWARE);
