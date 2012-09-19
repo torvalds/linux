@@ -378,6 +378,25 @@ static const enum dss_feat_id omap3430_dss_feat_list[] = {
 	FEAT_DPI_USES_VDDS_DSI,
 };
 
+static const enum dss_feat_id am35xx_dss_feat_list[] = {
+	FEAT_LCDENABLEPOL,
+	FEAT_LCDENABLESIGNAL,
+	FEAT_PCKFREEENABLE,
+	FEAT_FUNCGATED,
+	FEAT_LINEBUFFERSPLIT,
+	FEAT_ROWREPEATENABLE,
+	FEAT_RESIZECONF,
+	FEAT_DSI_PLL_FREQSEL,
+	FEAT_DSI_REVERSE_TXCLKESC,
+	FEAT_VENC_REQUIRES_TV_DAC_CLK,
+	FEAT_CPR,
+	FEAT_PRELOAD,
+	FEAT_FIR_COEF_V,
+	FEAT_ALPHA_FIXED_ZORDER,
+	FEAT_FIFO_MERGE,
+	FEAT_OMAP3_DSI_FIFO_BUG,
+};
+
 static const enum dss_feat_id omap3630_dss_feat_list[] = {
 	FEAT_LCDENABLEPOL,
 	FEAT_LCDENABLESIGNAL,
@@ -477,6 +496,29 @@ static const struct omap_dss_features omap3430_dss_features = {
 
 	.features = omap3430_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap3430_dss_feat_list),
+
+	.num_mgrs = 2,
+	.num_ovls = 3,
+	.supported_displays = omap3430_dss_supported_displays,
+	.supported_color_modes = omap3_dss_supported_color_modes,
+	.overlay_caps = omap3430_dss_overlay_caps,
+	.clksrc_names = omap3_dss_clk_source_names,
+	.dss_params = omap3_dss_param_range,
+	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_VRFB,
+	.buffer_size_unit = 1,
+	.burst_size_unit = 8,
+};
+
+/*
+ * AM35xx DSS Features. This is basically OMAP3 DSS Features without the
+ * vdds_dsi regulator.
+ */
+static const struct omap_dss_features am35xx_dss_features = {
+	.reg_fields = omap3_dss_reg_fields,
+	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
+
+	.features = am35xx_dss_feat_list,
+	.num_features = ARRAY_SIZE(am35xx_dss_feat_list),
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
@@ -697,8 +739,13 @@ void dss_features_init(void)
 		omap_current_dss_features = &omap2_dss_features;
 	else if (cpu_is_omap3630())
 		omap_current_dss_features = &omap3630_dss_features;
-	else if (cpu_is_omap34xx())
-		omap_current_dss_features = &omap3430_dss_features;
+	else if (cpu_is_omap34xx()) {
+		if (soc_is_am35xx()) {
+			omap_current_dss_features = &am35xx_dss_features;
+		} else {
+			omap_current_dss_features = &omap3430_dss_features;
+		}
+	}
 	else if (omap_rev() == OMAP4430_REV_ES1_0)
 		omap_current_dss_features = &omap4430_es1_0_dss_features;
 	else if (omap_rev() == OMAP4430_REV_ES2_0 ||
