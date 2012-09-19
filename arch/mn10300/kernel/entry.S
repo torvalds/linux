@@ -55,6 +55,13 @@ ENTRY(ret_from_fork)
 	mov	d0,(REG_D0,fp)
 	jmp	syscall_exit
 
+ENTRY(ret_from_kernel_thread)
+	call	schedule_tail[],0
+	mov	(REG_D0,fp),d0
+	mov	(REG_A0,fp),a0
+	calls	(a0)
+	jmp	sys_exit
+
 ###############################################################################
 #
 # system call handler

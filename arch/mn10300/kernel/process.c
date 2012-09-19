@@ -166,13 +166,11 @@ void show_regs(struct pt_regs *regs)
  */
 int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 {
-	struct pt_regs regs;
+	struct pt_regs regs = {
+		.a0 = (unsigned long) fn;
+		.d0 = (unsigned long) arg;
+	};
 
-	memset(&regs, 0, sizeof(regs));
-
-	regs.a2 = (unsigned long) fn;
-	regs.d2 = (unsigned long) arg;
-	regs.pc = (unsigned long) kernel_thread_helper;
 	local_save_flags(regs.epsw);
 	regs.epsw |= EPSW_IE | EPSW_IM_7;
 
@@ -180,7 +178,6 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0,
 		       NULL, NULL);
 }
-EXPORT_SYMBOL(kernel_thread);
 
 /*
  * free current thread data structures etc..
@@ -227,49 +224,36 @@ int copy_thread(unsigned long clone_flags,
 		struct task_struct *p, struct pt_regs *kregs)
 {
 	struct thread_info *ti = task_thread_info(p);
-	struct pt_regs *c_uregs, *c_kregs, *uregs;
+	struct pt_regs *c_regs;
 	unsigned long c_ksp;
-
-	uregs = current->thread.uregs;
 
 	c_ksp = (unsigned long) task_stack_page(p) + THREAD_SIZE;
 
 	/* allocate the userspace exception frame and set it up */
 	c_ksp -= sizeof(struct pt_regs);
-	c_uregs = (struct pt_regs *) c_ksp;
+	c_regs = (struct pt_regs *) c_ksp;
 
-	p->thread.uregs = c_uregs;
-	*c_uregs = *uregs;
-	c_uregs->sp = c_usp;
-	c_uregs->epsw &= ~EPSW_FE; /* my FPU */
+	p->thread.uregs = c_regs;
+	*c_regs = *kregs;
+	c_regs->sp = c_usp;
+	c_regs->epsw &= ~EPSW_FE; /* my FPU */
 
 	c_ksp -= 12; /* allocate function call ABI slack */
 
 	/* the new TLS pointer is passed in as arg #5 to sys_clone() */
 	if (clone_flags & CLONE_SETTLS)
-		c_uregs->e2 = current_frame()->d3;
+		c_regs->e2 = current_frame()->d3;
 
-	/* set up the return kernel frame if called from kernel_thread() */
-	c_kregs = c_uregs;
-	if (kregs != uregs) {
-		c_ksp -= sizeof(struct pt_regs);
-		c_kregs = (struct pt_regs *) c_ksp;
-		*c_kregs = *kregs;
-		c_kregs->sp = c_usp;
-		c_kregs->next = c_uregs;
-#ifdef CONFIG_MN10300_CURRENT_IN_E2
-		c_kregs->e2 = (unsigned long) p; /* current */
-#endif
-
-		c_ksp -= 12; /* allocate function call ABI slack */
-	}
+	if (unlikely(!user_mode(kregs)))
+		p->thread.pc	= (unsigned long) ret_from_kernel_thread;
+	else
+		p->thread.pc	= (unsigned long) ret_from_fork;
 
 	/* set up things up so the scheduler can start the new task */
-	ti->frame	= c_kregs;
-	p->thread.a3	= (unsigned long) c_kregs;
+	ti->frame	= c_regs;
+	p->thread.a3	= (unsigned long) c_regs;
 	p->thread.sp	= c_ksp;
-	p->thread.pc	= (unsigned long) ret_from_fork;
-	p->thread.wchan	= (unsigned long) ret_from_fork;
+	p->thread.wchan	= p->thread.pc;
 	p->thread.usp	= c_usp;
 
 	return 0;
