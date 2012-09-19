@@ -2247,7 +2247,7 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 		type = process_op(event, field, &token);
 
 	if (test_type_token(type, token, EVENT_DELIM, ","))
-		goto out_free;
+		goto out_free_field;
 	free_token(token);
 
 	arg->flags.field = field;
@@ -2269,7 +2269,9 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 	type = read_token_item(tok);
 	return type;
 
- out_free:
+out_free_field:
+	free_arg(field);
+out_free:
 	free_token(token);
 	*tok = NULL;
 	return EVENT_ERROR;
@@ -2289,7 +2291,7 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 
 	type = process_arg(event, field, &token);
 	if (test_type_token(type, token, EVENT_DELIM, ","))
-		goto out_free;
+		goto out_free_field;
 
 	arg->symbol.field = field;
 
@@ -2301,7 +2303,9 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 	type = read_token_item(tok);
 	return type;
 
- out_free:
+out_free_field:
+	free_arg(field);
+out_free:
 	free_token(token);
 	*tok = NULL;
 	return EVENT_ERROR;
