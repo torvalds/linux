@@ -483,9 +483,6 @@ cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	if (!(server->capabilities & CAP_LARGE_READ_X))
 		rsize = min_t(unsigned int, CIFSMaxBufSize, rsize);
 
-	/* limit to the amount that we can kmap at once */
-	rsize = min_t(unsigned int, rsize, CIFS_KMAP_SIZE_LIMIT);
-
 	/* hard limit of CIFS_MAX_RSIZE */
 	rsize = min_t(unsigned int, rsize, CIFS_MAX_RSIZE);
 

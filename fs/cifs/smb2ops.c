@@ -205,9 +205,6 @@ smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	 */
 	rsize = min_t(unsigned int, rsize, 2 << 15);
 
-	/* limit to the amount that we can kmap at once */
-	rsize = min_t(unsigned int, rsize, CIFS_KMAP_SIZE_LIMIT);
-
 	return rsize;
 }
 
