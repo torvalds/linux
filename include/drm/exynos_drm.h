@@ -107,6 +107,16 @@ struct drm_exynos_vidi_connection {
 	uint64_t edid;
 };
 
+/* Indicate Exynos specific vblank flags */
+enum e_drm_exynos_vblank {
+	/*
+	 * this flags is used for Virtual Display module
+	 * to use DRM_IOCTL_WAIT_VBLANK feature. for this,
+	 * user should set this flag to vblwait->request.type
+	 */
+	_DRM_VBLANK_EXYNOS_VIDI	= 2,
+};
+
 /* memory type definitions. */
 enum e_drm_exynos_gem_mem_type {
 	/* Physically Continuous memory and used as default. */
