@@ -295,6 +295,87 @@ struct escan_info {
 	struct net_device *ndev;
 };
 
+/**
+ * struct brcmf_pno_param_le - PNO scan configuration parameters
+ *
+ * @version: PNO parameters version.
+ * @scan_freq: scan frequency.
+ * @lost_network_timeout: #sec. to declare discovered network as lost.
+ * @flags: Bit field to control features of PFN such as sort criteria auto
+ *	enable switch and background scan.
+ * @rssi_margin: Margin to avoid jitter for choosing a PFN based on RSSI sort
+ *	criteria.
+ * @bestn: number of best networks in each scan.
+ * @mscan: number of scans recorded.
+ * @repeat: minimum number of scan intervals before scan frequency changes
+ *	in adaptive scan.
+ * @exp: exponent of 2 for maximum scan interval.
+ * @slow_freq: slow scan period.
+ */
+struct brcmf_pno_param_le {
+	__le32 version;
+	__le32 scan_freq;
+	__le32 lost_network_timeout;
+	__le16 flags;
+	__le16 rssi_margin;
+	u8 bestn;
+	u8 mscan;
+	u8 repeat;
+	u8 exp;
+	__le32 slow_freq;
+};
+
+/**
+ * struct brcmf_pno_net_param_le - scan parameters per preferred network.
+ *
+ * @ssid: ssid name and its length.
+ * @flags: bit2: hidden.
+ * @infra: BSS vs IBSS.
+ * @auth: Open vs Closed.
+ * @wpa_auth: WPA type.
+ * @wsec: wsec value.
+ */
+struct brcmf_pno_net_param_le {
+	struct brcmf_ssid_le ssid;
+	__le32 flags;
+	__le32 infra;
+	__le32 auth;
+	__le32 wpa_auth;
+	__le32 wsec;
+};
+
+/**
+ * struct brcmf_pno_net_info_le - information per found network.
+ *
+ * @bssid: BSS network identifier.
+ * @channel: channel number only.
+ * @SSID_len: length of ssid.
+ * @SSID: ssid characters.
+ * @RSSI: receive signal strength (in dBm).
+ * @timestamp: age in seconds.
+ */
+struct brcmf_pno_net_info_le {
+	u8 bssid[ETH_ALEN];
+	u8 channel;
+	u8 SSID_len;
+	u8 SSID[32];
+	__le16	RSSI;
+	__le16	timestamp;
+};
+
+/**
+ * struct brcmf_pno_scanresults_le - result returned in PNO NET FOUND event.
+ *
+ * @version: PNO version identifier.
+ * @status: indicates completion status of PNO scan.
+ * @count: amount of brcmf_pno_net_info_le entries appended.
+ */
+struct brcmf_pno_scanresults_le {
+	__le32 version;
+	__le32 status;
+	__le32 count;
+};
+
 /* dongle private data of cfg80211 interface */
 struct brcmf_cfg80211_priv {
 	struct wireless_dev *wdev;	/* representing wl cfg80211 device */
@@ -325,6 +406,7 @@ struct brcmf_cfg80211_priv {
 	bool iscan_on;		/* iscan on/off switch */
 	bool iscan_kickstart;	/* indicate iscan already started */
 	bool active_scan;	/* current scan mode */
+	bool sched_escan;	/* e-scan for scheduled scan support running */
 	bool ibss_starter;	/* indicates this sta is ibss starter */
 	bool link_up;		/* link/connection up flag */
 	bool pwr_save;		/* indicate whether dongle to support
