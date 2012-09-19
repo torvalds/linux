@@ -260,9 +260,9 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	INIT_LIST_HEAD(&fdlocks->locks);
 	fdlocks->cfile = cfile;
 	cfile->llist = fdlocks;
-	mutex_lock(&cinode->lock_mutex);
+	down_write(&cinode->lock_sem);
 	list_add(&fdlocks->llist, &cinode->llist);
-	mutex_unlock(&cinode->lock_mutex);
+	up_write(&cinode->lock_sem);
 
 	cfile->count = 1;
 	cfile->pid = current->tgid;
@@ -351,7 +351,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	 * Delete any outstanding lock records. We'll lose them when the file
 	 * is closed anyway.
 	 */
-	mutex_lock(&cifsi->lock_mutex);
+	down_write(&cifsi->lock_sem);
 	list_for_each_entry_safe(li, tmp, &cifs_file->llist->locks, llist) {
 		list_del(&li->llist);
 		cifs_del_lock_waiters(li);
@@ -359,7 +359,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	}
 	list_del(&cifs_file->llist->llist);
 	kfree(cifs_file->llist);
-	mutex_unlock(&cifsi->lock_mutex);
+	up_write(&cifsi->lock_sem);
 
 	cifs_put_tlink(cifs_file->tlink);
 	dput(cifs_file->dentry);
@@ -762,7 +762,7 @@ cifs_lock_test(struct cifsFileInfo *cfile, __u64 offset, __u64 length,
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 	bool exist;
 
-	mutex_lock(&cinode->lock_mutex);
+	down_read(&cinode->lock_sem);
 
 	exist = cifs_find_lock_conflict(cfile, offset, length, type,
 					&conf_lock);
@@ -779,7 +779,7 @@ cifs_lock_test(struct cifsFileInfo *cfile, __u64 offset, __u64 length,
 	else
 		flock->fl_type = F_UNLCK;
 
-	mutex_unlock(&cinode->lock_mutex);
+	up_read(&cinode->lock_sem);
 	return rc;
 }
 
@@ -787,9 +787,9 @@ static void
 cifs_lock_add(struct cifsFileInfo *cfile, struct cifsLockInfo *lock)
 {
 	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
-	mutex_lock(&cinode->lock_mutex);
+	down_write(&cinode->lock_sem);
 	list_add_tail(&lock->llist, &cfile->llist->locks);
-	mutex_unlock(&cinode->lock_mutex);
+	up_write(&cinode->lock_sem);
 }
 
 /*
@@ -809,13 +809,13 @@ cifs_lock_add_if(struct cifsFileInfo *cfile, struct cifsLockInfo *lock,
 
 try_again:
 	exist = false;
-	mutex_lock(&cinode->lock_mutex);
+	down_write(&cinode->lock_sem);
 
 	exist = cifs_find_lock_conflict(cfile, lock->offset, lock->length,
 					lock->type, &conf_lock);
 	if (!exist && cinode->can_cache_brlcks) {
 		list_add_tail(&lock->llist, &cfile->llist->locks);
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		return rc;
 	}
 
@@ -825,17 +825,17 @@ try_again:
 		rc = -EACCES;
 	else {
 		list_add_tail(&lock->blist, &conf_lock->blist);
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		rc = wait_event_interruptible(lock->block_q,
 					(lock->blist.prev == &lock->blist) &&
 					(lock->blist.next == &lock->blist));
 		if (!rc)
 			goto try_again;
-		mutex_lock(&cinode->lock_mutex);
+		down_write(&cinode->lock_sem);
 		list_del_init(&lock->blist);
 	}
 
-	mutex_unlock(&cinode->lock_mutex);
+	up_write(&cinode->lock_sem);
 	return rc;
 }
 
@@ -856,7 +856,7 @@ cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 	if ((flock->fl_flags & FL_POSIX) == 0)
 		return 1;
 
-	mutex_lock(&cinode->lock_mutex);
+	down_read(&cinode->lock_sem);
 	posix_test_lock(file, flock);
 
 	if (flock->fl_type == F_UNLCK && !cinode->can_cache_brlcks) {
@@ -864,7 +864,7 @@ cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 		rc = 1;
 	}
 
-	mutex_unlock(&cinode->lock_mutex);
+	up_read(&cinode->lock_sem);
 	return rc;
 }
 
@@ -884,14 +884,14 @@ cifs_posix_lock_set(struct file *file, struct file_lock *flock)
 		return rc;
 
 try_again:
-	mutex_lock(&cinode->lock_mutex);
+	down_write(&cinode->lock_sem);
 	if (!cinode->can_cache_brlcks) {
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		return rc;
 	}
 
 	rc = posix_lock_file(file, flock, NULL);
-	mutex_unlock(&cinode->lock_mutex);
+	up_write(&cinode->lock_sem);
 	if (rc == FILE_LOCK_DEFERRED) {
 		rc = wait_event_interruptible(flock->fl_wait, !flock->fl_next);
 		if (!rc)
@@ -918,9 +918,10 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 	xid = get_xid();
 	tcon = tlink_tcon(cfile->tlink);
 
-	mutex_lock(&cinode->lock_mutex);
+	/* we are going to update can_cache_brlcks here - need a write access */
+	down_write(&cinode->lock_sem);
 	if (!cinode->can_cache_brlcks) {
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		free_xid(xid);
 		return rc;
 	}
@@ -931,7 +932,7 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 	 */
 	max_buf = tcon->ses->server->maxBuf;
 	if (!max_buf) {
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		free_xid(xid);
 		return -EINVAL;
 	}
@@ -940,7 +941,7 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 						sizeof(LOCKING_ANDX_RANGE);
 	buf = kzalloc(max_num * sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
 	if (!buf) {
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		free_xid(xid);
 		return -ENOMEM;
 	}
@@ -978,7 +979,7 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 	}
 
 	cinode->can_cache_brlcks = false;
-	mutex_unlock(&cinode->lock_mutex);
+	up_write(&cinode->lock_sem);
 
 	kfree(buf);
 	free_xid(xid);
@@ -1013,9 +1014,10 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 
 	xid = get_xid();
 
-	mutex_lock(&cinode->lock_mutex);
+	/* we are going to update can_cache_brlcks here - need a write access */
+	down_write(&cinode->lock_sem);
 	if (!cinode->can_cache_brlcks) {
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		free_xid(xid);
 		return rc;
 	}
@@ -1031,7 +1033,7 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 
 	/*
 	 * Allocating count locks is enough because no FL_POSIX locks can be
-	 * added to the list while we are holding cinode->lock_mutex that
+	 * added to the list while we are holding cinode->lock_sem that
 	 * protects locking operations of this inode.
 	 */
 	for (; i < count; i++) {
@@ -1086,7 +1088,7 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 
 out:
 	cinode->can_cache_brlcks = false;
-	mutex_unlock(&cinode->lock_mutex);
+	up_write(&cinode->lock_sem);
 
 	free_xid(xid);
 	return rc;
@@ -1278,7 +1280,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	if (!buf)
 		return -ENOMEM;
 
-	mutex_lock(&cinode->lock_mutex);
+	down_write(&cinode->lock_sem);
 	for (i = 0; i < 2; i++) {
 		cur = buf;
 		num = 0;
@@ -1348,7 +1350,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 		}
 	}
 
-	mutex_unlock(&cinode->lock_mutex);
+	up_write(&cinode->lock_sem);
 	kfree(buf);
 	return rc;
 }

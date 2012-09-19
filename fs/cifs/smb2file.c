@@ -135,7 +135,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 
 	cur = buf;
 
-	mutex_lock(&cinode->lock_mutex);
+	down_write(&cinode->lock_sem);
 	list_for_each_entry_safe(li, tmp, &cfile->llist->locks, llist) {
 		if (flock->fl_start > li->offset ||
 		    (flock->fl_start + length) <
@@ -196,7 +196,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 		} else
 			cifs_free_llist(&tmp_llist);
 	}
-	mutex_unlock(&cinode->lock_mutex);
+	up_write(&cinode->lock_sem);
 
 	kfree(buf);
 	return rc;
@@ -253,9 +253,10 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	struct cifs_fid_locks *fdlocks;
 
 	xid = get_xid();
-	mutex_lock(&cinode->lock_mutex);
+	/* we are going to update can_cache_brlcks here - need a write access */
+	down_write(&cinode->lock_sem);
 	if (!cinode->can_cache_brlcks) {
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		free_xid(xid);
 		return rc;
 	}
@@ -266,7 +267,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	 */
 	max_buf = tlink_tcon(cfile->tlink)->ses->server->maxBuf;
 	if (!max_buf) {
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		free_xid(xid);
 		return -EINVAL;
 	}
@@ -274,7 +275,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	max_num = max_buf / sizeof(struct smb2_lock_element);
 	buf = kzalloc(max_num * sizeof(struct smb2_lock_element), GFP_KERNEL);
 	if (!buf) {
-		mutex_unlock(&cinode->lock_mutex);
+		up_write(&cinode->lock_sem);
 		free_xid(xid);
 		return -ENOMEM;
 	}
@@ -288,7 +289,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	cinode->can_cache_brlcks = false;
 	kfree(buf);
 
-	mutex_unlock(&cinode->lock_mutex);
+	up_write(&cinode->lock_sem);
 	free_xid(xid);
 	return rc;
 }
