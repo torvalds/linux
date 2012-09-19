@@ -6549,7 +6549,7 @@ static void nfs4_layoutcommit_release(void *calldata)
 		list_del_init(&lseg->pls_lc_list);
 		if (test_and_clear_bit(NFS_LSEG_LAYOUTCOMMIT,
 				       &lseg->pls_flags))
-			put_lseg(lseg);
+			pnfs_put_lseg(lseg);
 	}
 
 	clear_bit_unlock(NFS_INO_LAYOUTCOMMITTING, bitlock);

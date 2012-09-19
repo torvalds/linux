@@ -259,7 +259,7 @@ static void free_lseg(struct pnfs_layout_segment *lseg)
 }
 
 static void
-put_lseg_common(struct pnfs_layout_segment *lseg)
+pnfs_put_lseg_common(struct pnfs_layout_segment *lseg)
 {
 	struct inode *inode = lseg->pls_layout->plh_inode;
 
@@ -274,7 +274,7 @@ put_lseg_common(struct pnfs_layout_segment *lseg)
 }
 
 void
-put_lseg(struct pnfs_layout_segment *lseg)
+pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 {
 	struct inode *inode;
 
@@ -288,13 +288,13 @@ put_lseg(struct pnfs_layout_segment *lseg)
 	if (atomic_dec_and_lock(&lseg->pls_refcount, &inode->i_lock)) {
 		LIST_HEAD(free_me);
 
-		put_lseg_common(lseg);
+		pnfs_put_lseg_common(lseg);
 		list_add(&lseg->pls_list, &free_me);
 		spin_unlock(&inode->i_lock);
 		pnfs_free_lseg_list(&free_me);
 	}
 }
-EXPORT_SYMBOL_GPL(put_lseg);
+EXPORT_SYMBOL_GPL(pnfs_put_lseg);
 
 static inline u64
 end_offset(u64 start, u64 len)
@@ -378,7 +378,7 @@ static int mark_lseg_invalid(struct pnfs_layout_segment *lseg,
 		dprintk("%s: lseg %p ref %d\n", __func__, lseg,
 			atomic_read(&lseg->pls_refcount));
 		if (atomic_dec_and_test(&lseg->pls_refcount)) {
-			put_lseg_common(lseg);
+			pnfs_put_lseg_common(lseg);
 			list_add(&lseg->pls_list, tmp_list);
 			rv = 1;
 		}
@@ -914,7 +914,7 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo,
 	list_for_each_entry(lseg, &lo->plh_segs, pls_list) {
 		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags) &&
 		    is_matching_lseg(&lseg->pls_range, range)) {
-			ret = get_lseg(lseg);
+			ret = pnfs_get_lseg(lseg);
 			break;
 		}
 		if (lseg->pls_range.offset > range->offset)
@@ -1135,7 +1135,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	}
 	init_lseg(lo, lseg);
 	lseg->pls_range = res->range;
-	get_lseg(lseg);
+	pnfs_get_lseg(lseg);
 	pnfs_insert_layout(lo, lseg);
 
 	if (res->return_on_close) {
@@ -1369,12 +1369,12 @@ pnfs_do_multiple_writes(struct nfs_pageio_descriptor *desc, struct list_head *he
 		if (trypnfs == PNFS_NOT_ATTEMPTED)
 			pnfs_write_through_mds(desc, data);
 	}
-	put_lseg(lseg);
+	pnfs_put_lseg(lseg);
 }
 
 static void pnfs_writehdr_free(struct nfs_pgio_header *hdr)
 {
-	put_lseg(hdr->lseg);
+	pnfs_put_lseg(hdr->lseg);
 	nfs_writehdr_free(hdr);
 }
 EXPORT_SYMBOL_GPL(pnfs_writehdr_free);
@@ -1389,17 +1389,17 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 	whdr = nfs_writehdr_alloc();
 	if (!whdr) {
 		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
-		put_lseg(desc->pg_lseg);
+		pnfs_put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
 		return -ENOMEM;
 	}
 	hdr = &whdr->header;
 	nfs_pgheader_init(desc, hdr, pnfs_writehdr_free);
-	hdr->lseg = get_lseg(desc->pg_lseg);
+	hdr->lseg = pnfs_get_lseg(desc->pg_lseg);
 	atomic_inc(&hdr->refcnt);
 	ret = nfs_generic_flush(desc, hdr);
 	if (ret != 0) {
-		put_lseg(desc->pg_lseg);
+		pnfs_put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
 	} else
 		pnfs_do_multiple_writes(desc, &hdr->rpc_list, desc->pg_ioflags);
@@ -1524,12 +1524,12 @@ pnfs_do_multiple_reads(struct nfs_pageio_descriptor *desc, struct list_head *hea
 		if (trypnfs == PNFS_NOT_ATTEMPTED)
 			pnfs_read_through_mds(desc, data);
 	}
-	put_lseg(lseg);
+	pnfs_put_lseg(lseg);
 }
 
 static void pnfs_readhdr_free(struct nfs_pgio_header *hdr)
 {
-	put_lseg(hdr->lseg);
+	pnfs_put_lseg(hdr->lseg);
 	nfs_readhdr_free(hdr);
 }
 EXPORT_SYMBOL_GPL(pnfs_readhdr_free);
@@ -1545,17 +1545,17 @@ pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	if (!rhdr) {
 		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		ret = -ENOMEM;
-		put_lseg(desc->pg_lseg);
+		pnfs_put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
 		return ret;
 	}
 	hdr = &rhdr->header;
 	nfs_pgheader_init(desc, hdr, pnfs_readhdr_free);
-	hdr->lseg = get_lseg(desc->pg_lseg);
+	hdr->lseg = pnfs_get_lseg(desc->pg_lseg);
 	atomic_inc(&hdr->refcnt);
 	ret = nfs_generic_pagein(desc, hdr);
 	if (ret != 0) {
-		put_lseg(desc->pg_lseg);
+		pnfs_put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
 	} else
 		pnfs_do_multiple_reads(desc, &hdr->rpc_list);
@@ -1608,7 +1608,7 @@ pnfs_set_layoutcommit(struct nfs_write_data *wdata)
 	}
 	if (!test_and_set_bit(NFS_LSEG_LAYOUTCOMMIT, &hdr->lseg->pls_flags)) {
 		/* references matched in nfs4_layoutcommit_release */
-		get_lseg(hdr->lseg);
+		pnfs_get_lseg(hdr->lseg);
 	}
 	if (end_pos > nfsi->layout->plh_lwb)
 		nfsi->layout->plh_lwb = end_pos;

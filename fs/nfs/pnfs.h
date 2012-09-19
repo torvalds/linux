@@ -177,7 +177,7 @@ extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 
 /* pnfs.c */
 void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
-void put_lseg(struct pnfs_layout_segment *lseg);
+void pnfs_put_lseg(struct pnfs_layout_segment *lseg);
 
 void pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *,
 			   const struct nfs_pgio_completion_ops *);
@@ -281,7 +281,7 @@ static inline int lo_fail_bit(u32 iomode)
 }
 
 static inline struct pnfs_layout_segment *
-get_lseg(struct pnfs_layout_segment *lseg)
+pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 {
 	if (lseg) {
 		atomic_inc(&lseg->pls_refcount);
@@ -406,12 +406,12 @@ static inline void pnfs_destroy_layout(struct nfs_inode *nfsi)
 }
 
 static inline struct pnfs_layout_segment *
-get_lseg(struct pnfs_layout_segment *lseg)
+pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 {
 	return NULL;
 }
 
-static inline void put_lseg(struct pnfs_layout_segment *lseg)
+static inline void pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 {
 }
 
