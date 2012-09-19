@@ -121,7 +121,7 @@ union cmReg {
 struct s526_private {
 	unsigned int ao_readback[2];
 	unsigned int gpct_config[4];
-	unsigned short s526_ai_config;
+	unsigned short ai_config;
 };
 
 static int s526_gpct_rinsn(struct comedi_device *dev,
@@ -416,11 +416,11 @@ static int s526_ai_insn_config(struct comedi_device *dev,
 
 	/*  Enable ADC interrupt */
 	outw(ISR_ADC_DONE, dev->iobase + REG_IER);
-	devpriv->s526_ai_config = (data[0] & 0x3FF) << 5;
+	devpriv->ai_config = (data[0] & 0x3ff) << 5;
 	if (data[1] > 0)
-		devpriv->s526_ai_config |= 0x8000;	/* set the delay */
+		devpriv->ai_config |= 0x8000;	/* set the delay */
 
-	devpriv->s526_ai_config |= 0x0001;	/*  ADC start bit. */
+	devpriv->ai_config |= 0x0001;		/* ADC start bit */
 
 	return result;
 }
@@ -437,8 +437,8 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Set configured delay, enable channel for this channel only,
 	 * select "ADC read" channel, set "ADC start" bit. */
-	value = (devpriv->s526_ai_config & 0x8000) |
-	    ((1 << 5) << chan) | (chan << 1) | 0x0001;
+	value = (devpriv->ai_config & 0x8000) |
+		((1 << 5) << chan) | (chan << 1) | 0x0001;
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
