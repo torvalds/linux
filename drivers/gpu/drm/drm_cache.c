@@ -37,12 +37,13 @@ drm_clflush_page(struct page *page)
 {
 	uint8_t *page_virtual;
 	unsigned int i;
+	const int size = boot_cpu_data.x86_clflush_size;
 
 	if (unlikely(page == NULL))
 		return;
 
 	page_virtual = kmap_atomic(page);
-	for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size)
+	for (i = 0; i < PAGE_SIZE; i += size)
 		clflush(page_virtual + i);
 	kunmap_atomic(page_virtual);
 }
