@@ -228,8 +228,6 @@ static int s526_gpct_rinsn(struct comedi_device *dev,
 		datahigh = inw(dev->iobase + REG_C0H + counter_channel * 8);
 		data[i] = (int)(datahigh & 0x00FF);
 		data[i] = (data[i] << 16) | (datalow & 0xFFFF);
-		/* printk("s526 GPCT[%d]: %x(0x%04x, 0x%04x)\n",
-		   counter_channel, data[i], datahigh, datalow); */
 	}
 	return i;
 }
@@ -244,13 +242,8 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 	short value;
 	union cmReg cmReg;
 
-	/* printk("s526: GPCT_INSN_CONFIG: Configuring Channel %d\n",
-						subdev_channel); */
-
-	for (i = 0; i < MAX_GPCT_CONFIG_DATA; i++) {
+	for (i = 0; i < MAX_GPCT_CONFIG_DATA; i++)
 		devpriv->s526_gpct_config[subdev_channel].data[i] = data[i];
-/* printk("data[%d]=%x\n", i, data[i]); */
-	}
 
 	/*  Check what type of Counter the user requested, data[0] contains */
 	/*  the Application type */
@@ -299,8 +292,6 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 #if 1
 		/*  Set Counter Mode Register */
 		cmReg.value = data[1] & 0xFFFF;
-
-/* printk("s526: Counter Mode register=%x\n", cmReg.value); */
 		outw(cmReg.value, dev->iobase + REG_C0M + subdev_channel * 8);
 
 		/*  Reset the counter if it is software preload */
@@ -546,7 +537,6 @@ static int s526_ai_insn_config(struct comedi_device *dev,
 
 	/*  Enable ADC interrupt */
 	outw(ISR_ADC_DONE, dev->iobase + REG_IER);
-/* printk("s526: ADC current value: 0x%04x\n", inw(dev->iobase + REG_ADC)); */
 	devpriv->s526_ai_config = (data[0] & 0x3FF) << 5;
 	if (data[1] > 0)
 		devpriv->s526_ai_config |= 0x8000;	/* set the delay */
@@ -579,8 +569,6 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
 		outw(value, dev->iobase + REG_ADC);
-/* printk("s526: Wrote 0x%04x to ADC\n", value); */
-/* printk("s526: ADC reg=0x%04x\n", inw(dev->iobase + REG_ADC)); */
 
 #define TIMEOUT 100
 		/* wait for conversion to end */
@@ -601,7 +589,6 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		/* read data */
 		d = inw(dev->iobase + REG_ADD);
-/* printk("AI[%d]=0x%04x\n", n, (unsigned short)(d & 0xFFFF)); */
 
 		/* munge data */
 		data[n] = d ^ 0x8000;
@@ -619,7 +606,6 @@ static int s526_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned short val;
 
-/* printk("s526_ao_winsn\n"); */
 	val = chan << 1;
 /* outw(val, dev->iobase + REG_DAC); */
 	outw(val, dev->iobase + REG_DAC);
@@ -745,13 +731,6 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = iobase;
 
 	printk("iobase=0x%lx\n", dev->iobase);
-
-	/*** make it a little quieter, exw, 8/29/06
-	for (i = 0; i < S526_NUM_PORTS; i++) {
-		printk("0x%02x: 0x%04x\n", dev->iobase + s526_ports[i],
-				inw(dev->iobase + s526_ports[i]));
-	}
-	***/
 
 	dev->board_name = board->name;
 
