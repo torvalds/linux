@@ -50,8 +50,6 @@ Configuration options:
 
 #define ME2600_FIRMWARE		"me2600_firmware.bin"
 
-#define ME_DRIVER_NAME		"me_daq"
-
 #define PCI_VENDOR_ID_MEILHAUS	0x1402
 #define ME2000_DEVICE_ID	0x2000
 #define ME2600_DEVICE_ID	0x2600
@@ -192,8 +190,7 @@ struct me_board {
 
 static const struct me_board me_boards[] = {
 	{
-	 /* -- ME-2600i -- */
-	 .name = ME_DRIVER_NAME,
+	 .name = "me-2600i",
 	 .device_id = ME2600_DEVICE_ID,
 	 /* Analog Output */
 	 .ao_channel_nbr = 4,
@@ -208,8 +205,7 @@ static const struct me_board me_boards[] = {
 	 .dio_channel_nbr = 32,
 	 },
 	{
-	 /* -- ME-2000i -- */
-	 .name = ME_DRIVER_NAME,
+	 .name = "me-2000i",
 	 .device_id = ME2000_DEVICE_ID,
 	 /* Analog Output */
 	 .ao_channel_nbr = 0,
@@ -617,44 +613,24 @@ static int me_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static struct pci_dev *me_find_pci_dev(struct comedi_device *dev,
-				       struct comedi_devconfig *it)
+static const void *me_find_boardinfo(struct comedi_device *dev,
+				     struct pci_dev *pcidev)
 {
 	const struct me_board *board;
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
 	int i;
 
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (pcidev->bus->number != bus ||
-			    PCI_SLOT(pcidev->devfn) != slot)
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_MEILHAUS)
-			continue;
-
-		for (i = 0; i < ARRAY_SIZE(me_boards); i++) {
-			board = &me_boards[i];
-			if (board->device_id != pcidev->device)
-				continue;
-
-			dev->board_ptr = board;
-			return pcidev;
-		}
+	for (i = 0; i < ARRAY_SIZE(me_boards); i++) {
+		board = &me_boards[i];
+		if (board->device_id == pcidev->device)
+			return board;
 	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
-static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int me_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 {
-	struct pci_dev *pci_device;
+	const struct me_board *board;
 	struct comedi_subdevice *s;
-	struct me_board *board;
 	resource_size_t plx_regbase_tmp;
 	unsigned long plx_regbase_size_tmp;
 	resource_size_t me_regbase_tmp;
@@ -664,29 +640,28 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	resource_size_t regbase_tmp;
 	int result, error;
 
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	board = me_find_boardinfo(dev, pcidev);
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+
 	/* Allocate private memory */
 	if (alloc_private(dev, sizeof(struct me_private_data)) < 0)
 		return -ENOMEM;
 
-	pci_device = me_find_pci_dev(dev, it);
-	if (!pci_device)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pci_device->dev);
-	board = (struct me_board *)dev->board_ptr;
-
 	/* Enable PCI device and request PCI regions */
-	if (comedi_pci_enable(pci_device, ME_DRIVER_NAME) < 0) {
+	if (comedi_pci_enable(pcidev, dev->board_name) < 0) {
 		printk(KERN_ERR "comedi%d: Failed to enable PCI device and "
 		       "request regions\n", dev->minor);
 		return -EIO;
 	}
 
-	/* Set data in device structure */
-	dev->board_name = board->name;
-
 	/* Read PLX register base address [PCI_BASE_ADDRESS #0]. */
-	plx_regbase_tmp = pci_resource_start(pci_device, 0);
-	plx_regbase_size_tmp = pci_resource_len(pci_device, 0);
+	plx_regbase_tmp = pci_resource_start(pcidev, 0);
+	plx_regbase_size_tmp = pci_resource_len(pcidev, 0);
 	dev_private->plx_regbase =
 	    ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
 	dev_private->plx_regbase_size = plx_regbase_size_tmp;
@@ -697,8 +672,8 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Read Swap base address [PCI_BASE_ADDRESS #5]. */
 
-	swap_regbase_tmp = pci_resource_start(pci_device, 5);
-	swap_regbase_size_tmp = pci_resource_len(pci_device, 5);
+	swap_regbase_tmp = pci_resource_start(pcidev, 5);
+	swap_regbase_size_tmp = pci_resource_len(pcidev, 5);
 
 	if (!swap_regbase_tmp)
 		printk(KERN_ERR "comedi%d: Swap not present\n", dev->minor);
@@ -712,20 +687,20 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			plx_regbase_tmp = swap_regbase_tmp;
 			swap_regbase_tmp = regbase_tmp;
 
-			result = pci_write_config_dword(pci_device,
+			result = pci_write_config_dword(pcidev,
 							PCI_BASE_ADDRESS_0,
 							plx_regbase_tmp);
 			if (result != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 
-			result = pci_write_config_dword(pci_device,
+			result = pci_write_config_dword(pcidev,
 							PCI_BASE_ADDRESS_5,
 							swap_regbase_tmp);
 			if (result != PCIBIOS_SUCCESSFUL)
 				return -EIO;
 		} else {
 			plx_regbase_tmp -= 0x80;
-			result = pci_write_config_dword(pci_device,
+			result = pci_write_config_dword(pcidev,
 							PCI_BASE_ADDRESS_0,
 							plx_regbase_tmp);
 			if (result != PCIBIOS_SUCCESSFUL)
@@ -736,8 +711,8 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Read Meilhaus register base address [PCI_BASE_ADDRESS #2]. */
 
-	me_regbase_tmp = pci_resource_start(pci_device, 2);
-	me_regbase_size_tmp = pci_resource_len(pci_device, 2);
+	me_regbase_tmp = pci_resource_start(pcidev, 2);
+	me_regbase_size_tmp = pci_resource_len(pcidev, 2);
 	dev_private->me_regbase_size = me_regbase_size_tmp;
 	dev_private->me_regbase = ioremap(me_regbase_tmp, me_regbase_size_tmp);
 	if (!dev_private->me_regbase) {
@@ -791,8 +766,9 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_config = me_dio_insn_config;
 	s->io_bits = 0;
 
-	printk(KERN_INFO "comedi%d: " ME_DRIVER_NAME " attached.\n",
-	       dev->minor);
+	dev_info(dev->class_dev, "%s: %s attached\n",
+		dev->driver->driver_name, dev->board_name);
+
 	return 0;
 }
 
@@ -818,7 +794,7 @@ static void me_detach(struct comedi_device *dev)
 static struct comedi_driver me_daq_driver = {
 	.driver_name	= "me_daq",
 	.module		= THIS_MODULE,
-	.attach		= me_attach,
+	.attach_pci	= me_attach_pci,
 	.detach		= me_detach,
 };
 
