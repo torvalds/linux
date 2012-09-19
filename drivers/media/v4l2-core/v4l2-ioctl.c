@@ -2188,6 +2188,7 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 	int ret = 0;
 
 	switch (cmd) {
+	case VIDIOC_PREPARE_BUF:
 	case VIDIOC_QUERYBUF:
 	case VIDIOC_QBUF:
 	case VIDIOC_DQBUF: {
