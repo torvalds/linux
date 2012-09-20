@@ -1509,12 +1509,14 @@ void kvmppc_decrementer_func(unsigned long data)
 
 void kvmppc_booke_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	vcpu->cpu = smp_processor_id();
 	current->thread.kvm_vcpu = vcpu;
 }
 
 void kvmppc_booke_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	current->thread.kvm_vcpu = NULL;
+	vcpu->cpu = -1;
 }
 
 int __init kvmppc_booke_init(void)
