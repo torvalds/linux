@@ -1581,8 +1581,8 @@ rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 {
 	/*
 	 * Orphan the callbacks.  First adjust the counts.  This is safe
-	 * because ->onofflock excludes _rcu_barrier()'s adoption of
-	 * the callbacks, thus no memory barrier is required.
+	 * because _rcu_barrier() excludes CPU-hotplug operations, so it
+	 * cannot be running now.  Thus no memory barrier is required.
 	 */
 	if (rdp->nxtlist != NULL) {
 		rsp->qlen_lazy += rdp->qlen_lazy;
