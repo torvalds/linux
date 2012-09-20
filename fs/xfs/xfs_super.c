@@ -122,13 +122,18 @@ mempool_t *xfs_ioend_pool;
  * in the future, too.
  */
 enum {
-	Opt_barrier, Opt_nobarrier, Opt_inode64, Opt_err
+	Opt_barrier,
+	Opt_nobarrier,
+	Opt_inode64,
+	Opt_inode32,
+	Opt_err
 };
 
 static const match_table_t tokens = {
 	{Opt_barrier, "barrier"},
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_inode64, "inode64"},
+	{Opt_inode32, "inode32"},
 	{Opt_err, NULL}
 };
 
@@ -1140,6 +1145,9 @@ xfs_fs_remount(
 			break;
 		case Opt_inode64:
 			mp->m_maxagi = xfs_set_inode64(mp);
+			break;
+		case Opt_inode32:
+			mp->m_maxagi = xfs_set_inode32(mp);
 			break;
 		default:
 			/*
