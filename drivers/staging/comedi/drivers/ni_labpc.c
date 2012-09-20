@@ -409,12 +409,12 @@ static inline void labpc_outb(unsigned int byte, unsigned long address)
 
 static inline unsigned int labpc_readb(unsigned long address)
 {
-	return readb((void *)address);
+	return readb((void __iomem *)address);
 }
 
 static inline void labpc_writeb(unsigned int byte, unsigned long address)
 {
-	writeb(byte, (void *)address);
+	writeb(byte, (void __iomem *)address);
 }
 
 static const struct labpc_board_struct labpc_boards[] = {
@@ -494,8 +494,8 @@ static inline int labpc_counter_load(struct comedi_device *dev,
 				     unsigned int count, unsigned int mode)
 {
 	if (thisboard->memory_mapped_io)
-		return i8254_mm_load((void *)base_address, 0, counter_number,
-				     count, mode);
+		return i8254_mm_load((void __iomem *)base_address, 0,
+				     counter_number, count, mode);
 	else
 		return i8254_load(base_address, 0, counter_number, count, mode);
 }
@@ -1896,10 +1896,10 @@ static int labpc_dio_mem_callback(int dir, int port, int data,
 				  unsigned long iobase)
 {
 	if (dir) {
-		writeb(data, (void *)(iobase + port));
+		writeb(data, (void __iomem *)(iobase + port));
 		return 0;
 	} else {
-		return readb((void *)(iobase + port));
+		return readb((void __iomem *)(iobase + port));
 	}
 }
 
