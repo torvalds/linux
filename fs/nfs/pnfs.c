@@ -215,9 +215,13 @@ pnfs_free_layout_hdr(struct pnfs_layout_hdr *lo)
 static void
 destroy_layout_hdr(struct pnfs_layout_hdr *lo)
 {
+	struct nfs_inode *nfsi = NFS_I(lo->plh_inode);
 	dprintk("%s: freeing layout cache %p\n", __func__, lo);
 	BUG_ON(!list_empty(&lo->plh_layouts));
-	NFS_I(lo->plh_inode)->layout = NULL;
+	nfsi->layout = NULL;
+	/* Reset MDS Threshold I/O counters */
+	nfsi->write_io = 0;
+	nfsi->read_io = 0;
 	pnfs_free_layout_hdr(lo);
 }
 
@@ -461,9 +465,6 @@ pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 	dprintk("%s:Begin lo %p\n", __func__, lo);
 
 	if (list_empty(&lo->plh_segs)) {
-		/* Reset MDS Threshold I/O counters */
-		NFS_I(lo->plh_inode)->write_io = 0;
-		NFS_I(lo->plh_inode)->read_io = 0;
 		if (!test_and_set_bit(NFS_LAYOUT_DESTROYED, &lo->plh_flags))
 			pnfs_put_layout_hdr_locked(lo);
 		return 0;
