@@ -267,6 +267,43 @@ static const struct file_operations rcudata_csv_fops = {
 	.release = single_release,
 };
 
+static int new_show_rcudata_csv(struct seq_file *m, void *v)
+{
+	struct rcu_data *rdp = (struct rcu_data *)v;
+	if (cpumask_first(cpu_possible_mask) == rdp->cpu) {
+		seq_puts(m, "\"CPU\",\"Online?\",\"c\",\"g\",\"pq\",\"pq\",");
+		seq_puts(m, "\"dt\",\"dt nesting\",\"dt NMI nesting\",\"df\",");
+		seq_puts(m, "\"of\",\"qll\",\"ql\",\"qs\"");
+#ifdef CONFIG_RCU_BOOST
+		seq_puts(m, "\"kt\",\"ktl\"");
+#endif /* #ifdef CONFIG_RCU_BOOST */
+		seq_puts(m, ",\"b\",\"ci\",\"co\",\"ca\"\n");
+	}
+
+	print_one_rcu_data_csv(m, rdp);
+	return 0;
+}
+
+static const struct seq_operations new_rcudate_csv_op = {
+	.start = r_start,
+	.next  = r_next,
+	.stop  = r_stop,
+	.show  = new_show_rcudata_csv,
+};
+
+static int new_rcudata_csv_open(struct inode *inode, struct file *file)
+{
+	return r_open(inode, file, &new_rcudate_csv_op);
+}
+
+static const struct file_operations new_rcudata_csv_fops = {
+	.owner = THIS_MODULE,
+	.open = new_rcudata_csv_open,
+	.read = seq_read,
+	.llseek = no_llseek,
+	.release = seq_release,
+};
+
 #ifdef CONFIG_RCU_BOOST
 
 static void print_one_rcu_node_boost(struct seq_file *m, struct rcu_node *rnp)
@@ -517,6 +554,11 @@ static int __init rcutree_trace_init(void)
 
 			retval = debugfs_create_file("rcudata", 0444,
 					rspdir, rsp, &new_rcudata_fops);
+			if (!retval)
+				goto free_out;
+
+			retval = debugfs_create_file("rcudata.csv", 0444,
+					rspdir, rsp, &new_rcudata_csv_fops);
 			if (!retval)
 				goto free_out;
 	}
