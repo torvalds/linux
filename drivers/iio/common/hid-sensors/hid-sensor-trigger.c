@@ -56,6 +56,7 @@ void hid_sensor_remove_trigger(struct iio_dev *indio_dev)
 {
 	iio_trigger_unregister(indio_dev->trig);
 	iio_trigger_free(indio_dev->trig);
+	indio_dev->trig = NULL;
 }
 EXPORT_SYMBOL(hid_sensor_remove_trigger);
 
