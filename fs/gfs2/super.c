@@ -1545,6 +1545,11 @@ static void gfs2_evict_inode(struct inode *inode)
 
 out_truncate:
 	gfs2_log_flush(sdp, ip->i_gl);
+	if (test_bit(GLF_DIRTY, &ip->i_gl->gl_flags)) {
+		struct address_space *metamapping = gfs2_glock2aspace(ip->i_gl);
+		filemap_fdatawrite(metamapping);
+		filemap_fdatawait(metamapping);
+	}
 	write_inode_now(inode, 1);
 	gfs2_ail_flush(ip->i_gl, 0);
 
