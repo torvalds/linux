@@ -202,6 +202,7 @@ static int __init pdc_console_tty_driver_init(void)
 	pdc_console_tty_driver->flags = TTY_DRIVER_REAL_RAW |
 		TTY_DRIVER_RESET_TERMIOS;
 	tty_set_operations(pdc_console_tty_driver, &pdc_console_tty_ops);
+	tty_port_link_device(&tty_port, pdc_console_tty_driver, 0);
 
 	err = tty_register_driver(pdc_console_tty_driver);
 	if (err) {

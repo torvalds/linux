@@ -46,6 +46,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c/twl.h>
 
+#include <plat/cpu.h>
+
 #include "twl-core.h"
 
 /*

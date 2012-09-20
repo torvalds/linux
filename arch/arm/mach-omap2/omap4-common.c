@@ -16,26 +16,25 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/memblock.h>
+#include <linux/of_irq.h>
+#include <linux/of_platform.h>
+#include <linux/export.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 
-#include <plat/irqs.h>
 #include <plat/sram.h>
 #include <plat/omap-secure.h>
 #include <plat/mmc.h>
 
-#include <mach/hardware.h>
 #include <mach/omap-wakeupgen.h>
 
+#include "soc.h"
 #include "common.h"
 #include "hsmmc.h"
 #include "omap4-sar-layout.h"
-#include <linux/export.h>
 
 #ifdef CONFIG_CACHE_L2X0
 static void __iomem *l2cache_base;
@@ -171,7 +170,10 @@ static int __init omap_l2_cache_init(void)
 	/* Enable PL310 L2 Cache controller */
 	omap_smc1(0x102, 0x1);
 
-	l2x0_init(l2cache_base, aux_ctrl, L2X0_AUX_CTRL_MASK);
+	if (of_have_populated_dt())
+		l2x0_of_init(aux_ctrl, L2X0_AUX_CTRL_MASK);
+	else
+		l2x0_init(l2cache_base, aux_ctrl, L2X0_AUX_CTRL_MASK);
 
 	/*
 	 * Override default outer_cache.disable with a OMAP4

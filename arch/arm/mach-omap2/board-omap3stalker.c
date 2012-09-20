@@ -28,14 +28,17 @@
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 #include <linux/mmc/host.h>
+#include <linux/input/matrix_keypad.h>
+#include <linux/spi/spi.h>
+#include <linux/interrupt.h>
+#include <linux/smsc911x.h>
+#include <linux/i2c/at24.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/gpmc.h>
 #include <plat/nand.h>
@@ -279,9 +282,6 @@ omap3stalker_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data omap3stalker_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= omap3stalker_twl_gpio_setup,
 };
@@ -362,9 +362,6 @@ static int __init omap3_stalker_i2c_init(void)
 
 #define OMAP3_STALKER_TS_GPIO	175
 
-static struct omap_board_config_kernel omap3_stalker_config[] __initdata = {
-};
-
 static struct platform_device *omap3_stalker_devices[] __initdata = {
 	&keys_gpio,
 };
@@ -399,8 +396,6 @@ static void __init omap3_stalker_init(void)
 {
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
-	omap_board_config = omap3_stalker_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_stalker_config);
 
 	omap_mux_init_gpio(23, OMAP_PIN_INPUT);
 	omap_hsmmc_init(mmc);

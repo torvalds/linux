@@ -922,38 +922,38 @@ static void cypress_set_termios(struct tty_struct *tty,
 	   early enough */
 	if (!priv->termios_initialized) {
 		if (priv->chiptype == CT_EARTHMATE) {
-			*(tty->termios) = tty_std_termios;
-			tty->termios->c_cflag = B4800 | CS8 | CREAD | HUPCL |
+			tty->termios = tty_std_termios;
+			tty->termios.c_cflag = B4800 | CS8 | CREAD | HUPCL |
 				CLOCAL;
-			tty->termios->c_ispeed = 4800;
-			tty->termios->c_ospeed = 4800;
+			tty->termios.c_ispeed = 4800;
+			tty->termios.c_ospeed = 4800;
 		} else if (priv->chiptype == CT_CYPHIDCOM) {
-			*(tty->termios) = tty_std_termios;
-			tty->termios->c_cflag = B9600 | CS8 | CREAD | HUPCL |
+			tty->termios = tty_std_termios;
+			tty->termios.c_cflag = B9600 | CS8 | CREAD | HUPCL |
 				CLOCAL;
-			tty->termios->c_ispeed = 9600;
-			tty->termios->c_ospeed = 9600;
+			tty->termios.c_ispeed = 9600;
+			tty->termios.c_ospeed = 9600;
 		} else if (priv->chiptype == CT_CA42V2) {
-			*(tty->termios) = tty_std_termios;
-			tty->termios->c_cflag = B9600 | CS8 | CREAD | HUPCL |
+			tty->termios = tty_std_termios;
+			tty->termios.c_cflag = B9600 | CS8 | CREAD | HUPCL |
 				CLOCAL;
-			tty->termios->c_ispeed = 9600;
-			tty->termios->c_ospeed = 9600;
+			tty->termios.c_ispeed = 9600;
+			tty->termios.c_ospeed = 9600;
 		}
 		priv->termios_initialized = 1;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Unsupported features need clearing */
-	tty->termios->c_cflag &= ~(CMSPAR|CRTSCTS);
+	tty->termios.c_cflag &= ~(CMSPAR|CRTSCTS);
 
-	cflag = tty->termios->c_cflag;
-	iflag = tty->termios->c_iflag;
+	cflag = tty->termios.c_cflag;
+	iflag = tty->termios.c_iflag;
 
 	/* check if there are new settings */
 	if (old_termios) {
 		spin_lock_irqsave(&priv->lock, flags);
-		priv->tmp_termios = *(tty->termios);
+		priv->tmp_termios = tty->termios;
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
@@ -1021,7 +1021,7 @@ static void cypress_set_termios(struct tty_struct *tty,
 				"4800bps.");
 		/* define custom termios settings for NMEA protocol */
 
-		tty->termios->c_iflag /* input modes - */
+		tty->termios.c_iflag /* input modes - */
 			&= ~(IGNBRK  /* disable ignore break */
 			| BRKINT     /* disable break causes interrupt */
 			| PARMRK     /* disable mark parity errors */
@@ -1031,10 +1031,10 @@ static void cypress_set_termios(struct tty_struct *tty,
 			| ICRNL      /* disable translate CR to NL */
 			| IXON);     /* disable enable XON/XOFF flow control */
 
-		tty->termios->c_oflag /* output modes */
+		tty->termios.c_oflag /* output modes */
 			&= ~OPOST;    /* disable postprocess output char */
 
-		tty->termios->c_lflag /* line discipline modes */
+		tty->termios.c_lflag /* line discipline modes */
 			&= ~(ECHO     /* disable echo input characters */
 			| ECHONL      /* disable echo new line */
 			| ICANON      /* disable erase, kill, werase, and rprnt
@@ -1200,7 +1200,7 @@ static void cypress_read_int_callback(struct urb *urb)
 
 	/* hangup, as defined in acm.c... this might be a bad place for it
 	 * though */
-	if (tty && !(tty->termios->c_cflag & CLOCAL) &&
+	if (tty && !(tty->termios.c_cflag & CLOCAL) &&
 			!(priv->current_status & UART_CD)) {
 		dbg("%s - calling hangup", __func__);
 		tty_hangup(tty);

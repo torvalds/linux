@@ -36,16 +36,19 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <asm/mach/time.h>
-#include <plat/dmtimer.h>
 #include <asm/smp_twd.h>
 #include <asm/sched_clock.h>
-#include "common.h"
+
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
+#include <plat/dmtimer.h>
 #include <plat/omap-pm.h>
 
+#include "soc.h"
+#include "common.h"
 #include "powerdomain.h"
 
 /* Parent clocks, eventually these will come from the clock framework */
@@ -373,8 +376,7 @@ OMAP_SYS_TIMER(3_am33xx)
 #ifdef CONFIG_ARCH_OMAP4
 #ifdef CONFIG_LOCAL_TIMERS
 static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
-			      OMAP44XX_LOCAL_TWD_BASE,
-			      OMAP44XX_IRQ_LOCALTIMER);
+			      OMAP44XX_LOCAL_TWD_BASE, 29 + OMAP_INTC_START);
 #endif
 
 static void __init omap4_timer_init(void)
@@ -385,6 +387,11 @@ static void __init omap4_timer_init(void)
 	/* Local timers are not supprted on OMAP4430 ES1.0 */
 	if (omap_rev() != OMAP4430_REV_ES1_0) {
 		int err;
+
+		if (of_have_populated_dt()) {
+			twd_local_timer_of_register();
+			return;
+		}
 
 		err = twd_local_timer_register(&twd_local_timer);
 		if (err)

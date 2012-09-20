@@ -727,7 +727,7 @@ static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
 		else
 			tty_hangup(tty);
 	}
-	if ((mdm_change & CyCTS) && (info->port.flags & ASYNC_CTS_FLOW)) {
+	if ((mdm_change & CyCTS) && tty_port_cts_enabled(&info->port)) {
 		if (tty->hw_stopped) {
 			if (mdm_status & CyCTS) {
 				/* cy_start isn't used
@@ -1459,7 +1459,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 			info->port.xmit_buf = NULL;
 			free_page((unsigned long)temp);
 		}
-		if (tty->termios->c_cflag & HUPCL)
+		if (tty->termios.c_cflag & HUPCL)
 			cyy_change_rts_dtr(info, 0, TIOCM_RTS | TIOCM_DTR);
 
 		cyy_issue_cmd(info, CyCHAN_CTL | CyDIS_RCVR);
@@ -1488,7 +1488,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 			free_page((unsigned long)temp);
 		}
 
-		if (tty->termios->c_cflag & HUPCL)
+		if (tty->termios.c_cflag & HUPCL)
 			tty_port_lower_dtr_rts(&info->port);
 
 		set_bit(TTY_IO_ERROR, &tty->flags);
@@ -1599,7 +1599,7 @@ static int cy_open(struct tty_struct *tty, struct file *filp)
 	 * If the port is the middle of closing, bail out now
 	 */
 	if (tty_hung_up_p(filp) || (info->port.flags & ASYNC_CLOSING)) {
-		wait_event_interruptible_tty(info->port.close_wait,
+		wait_event_interruptible_tty(tty, info->port.close_wait,
 				!(info->port.flags & ASYNC_CLOSING));
 		return (info->port.flags & ASYNC_HUP_NOTIFY) ? -EAGAIN: -ERESTARTSYS;
 	}
@@ -1999,14 +1999,11 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 	int baud, baud_rate = 0;
 	int i;
 
-	if (!tty->termios) /* XXX can this happen at all? */
-		return;
-
 	if (info->line == -1)
 		return;
 
-	cflag = tty->termios->c_cflag;
-	iflag = tty->termios->c_iflag;
+	cflag = tty->termios.c_cflag;
+	iflag = tty->termios.c_iflag;
 
 	/*
 	 * Set up the tty->alt_speed kludge
@@ -2825,7 +2822,7 @@ static void cy_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	cy_set_line_char(info, tty);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
-			!(tty->termios->c_cflag & CRTSCTS)) {
+			!(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		cy_start(tty);
 	}
@@ -2837,7 +2834,7 @@ static void cy_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	 * or not.  Hence, this may change.....
 	 */
 	if (!(old_termios->c_cflag & CLOCAL) &&
-	    (tty->termios->c_cflag & CLOCAL))
+	    (tty->termios.c_cflag & CLOCAL))
 		wake_up_interruptible(&info->port.open_wait);
 #endif
 }				/* cy_set_termios */
@@ -2899,7 +2896,7 @@ static void cy_throttle(struct tty_struct *tty)
 			info->throttle = 1;
 	}
 
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		if (!cy_is_Z(card)) {
 			spin_lock_irqsave(&card->card_lock, flags);
 			cyy_change_rts_dtr(info, 0, TIOCM_RTS);
@@ -2938,7 +2935,7 @@ static void cy_unthrottle(struct tty_struct *tty)
 			cy_send_xchar(tty, START_CHAR(tty));
 	}
 
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		card = info->card;
 		if (!cy_is_Z(card)) {
 			spin_lock_irqsave(&card->card_lock, flags);
@@ -3289,9 +3286,10 @@ static unsigned short __devinit cyy_init_card(void __iomem *true_base_addr,
 static int __init cy_detect_isa(void)
 {
 #ifdef CONFIG_ISA
+	struct cyclades_card *card;
 	unsigned short cy_isa_irq, nboard;
 	void __iomem *cy_isa_address;
-	unsigned short i, j, cy_isa_nchan;
+	unsigned short i, j, k, cy_isa_nchan;
 	int isparam = 0;
 
 	nboard = 0;
@@ -3349,7 +3347,8 @@ static int __init cy_detect_isa(void)
 		}
 		/* fill the next cy_card structure available */
 		for (j = 0; j < NR_CARDS; j++) {
-			if (cy_card[j].base_addr == NULL)
+			card = &cy_card[j];
+			if (card->base_addr == NULL)
 				break;
 		}
 		if (j == NR_CARDS) {	/* no more cy_cards available */
@@ -3363,7 +3362,7 @@ static int __init cy_detect_isa(void)
 
 		/* allocate IRQ */
 		if (request_irq(cy_isa_irq, cyy_interrupt,
-				0, "Cyclom-Y", &cy_card[j])) {
+				0, "Cyclom-Y", card)) {
 			printk(KERN_ERR "Cyclom-Y/ISA found at 0x%lx, but "
 				"could not allocate IRQ#%d.\n",
 				(unsigned long)cy_isa_address, cy_isa_irq);
@@ -3372,16 +3371,16 @@ static int __init cy_detect_isa(void)
 		}
 
 		/* set cy_card */
-		cy_card[j].base_addr = cy_isa_address;
-		cy_card[j].ctl_addr.p9050 = NULL;
-		cy_card[j].irq = (int)cy_isa_irq;
-		cy_card[j].bus_index = 0;
-		cy_card[j].first_line = cy_next_channel;
-		cy_card[j].num_chips = cy_isa_nchan / CyPORTS_PER_CHIP;
-		cy_card[j].nports = cy_isa_nchan;
-		if (cy_init_card(&cy_card[j])) {
-			cy_card[j].base_addr = NULL;
-			free_irq(cy_isa_irq, &cy_card[j]);
+		card->base_addr = cy_isa_address;
+		card->ctl_addr.p9050 = NULL;
+		card->irq = (int)cy_isa_irq;
+		card->bus_index = 0;
+		card->first_line = cy_next_channel;
+		card->num_chips = cy_isa_nchan / CyPORTS_PER_CHIP;
+		card->nports = cy_isa_nchan;
+		if (cy_init_card(card)) {
+			card->base_addr = NULL;
+			free_irq(cy_isa_irq, card);
 			iounmap(cy_isa_address);
 			continue;
 		}
@@ -3393,9 +3392,10 @@ static int __init cy_detect_isa(void)
 			(unsigned long)(cy_isa_address + (CyISA_Ywin - 1)),
 			cy_isa_irq, cy_isa_nchan, cy_next_channel);
 
-		for (j = cy_next_channel;
-				j < cy_next_channel + cy_isa_nchan; j++)
-			tty_register_device(cy_serial_driver, j, NULL);
+		for (k = 0, j = cy_next_channel;
+				j < cy_next_channel + cy_isa_nchan; j++, k++)
+			tty_port_register_device(&card->ports[k].port,
+					cy_serial_driver, j, NULL);
 		cy_next_channel += cy_isa_nchan;
 	}
 	return nboard;
@@ -3695,10 +3695,11 @@ err:
 static int __devinit cy_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
+	struct cyclades_card *card;
 	void __iomem *addr0 = NULL, *addr2 = NULL;
 	char *card_name = NULL;
 	u32 uninitialized_var(mailbox);
-	unsigned int device_id, nchan = 0, card_no, i;
+	unsigned int device_id, nchan = 0, card_no, i, j;
 	unsigned char plx_ver;
 	int retval, irq;
 
@@ -3829,7 +3830,8 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 	}
 	/* fill the next cy_card structure available */
 	for (card_no = 0; card_no < NR_CARDS; card_no++) {
-		if (cy_card[card_no].base_addr == NULL)
+		card = &cy_card[card_no];
+		if (card->base_addr == NULL)
 			break;
 	}
 	if (card_no == NR_CARDS) {	/* no more cy_cards available */
@@ -3843,27 +3845,26 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 			device_id == PCI_DEVICE_ID_CYCLOM_Y_Hi) {
 		/* allocate IRQ */
 		retval = request_irq(irq, cyy_interrupt,
-				IRQF_SHARED, "Cyclom-Y", &cy_card[card_no]);
+				IRQF_SHARED, "Cyclom-Y", card);
 		if (retval) {
 			dev_err(&pdev->dev, "could not allocate IRQ\n");
 			goto err_unmap;
 		}
-		cy_card[card_no].num_chips = nchan / CyPORTS_PER_CHIP;
+		card->num_chips = nchan / CyPORTS_PER_CHIP;
 	} else {
 		struct FIRM_ID __iomem *firm_id = addr2 + ID_ADDRESS;
 		struct ZFW_CTRL __iomem *zfw_ctrl;
 
 		zfw_ctrl = addr2 + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
 
-		cy_card[card_no].hw_ver = mailbox;
-		cy_card[card_no].num_chips = (unsigned int)-1;
-		cy_card[card_no].board_ctrl = &zfw_ctrl->board_ctrl;
+		card->hw_ver = mailbox;
+		card->num_chips = (unsigned int)-1;
+		card->board_ctrl = &zfw_ctrl->board_ctrl;
 #ifdef CONFIG_CYZ_INTR
 		/* allocate IRQ only if board has an IRQ */
 		if (irq != 0 && irq != 255) {
 			retval = request_irq(irq, cyz_interrupt,
-					IRQF_SHARED, "Cyclades-Z",
-					&cy_card[card_no]);
+					IRQF_SHARED, "Cyclades-Z", card);
 			if (retval) {
 				dev_err(&pdev->dev, "could not allocate IRQ\n");
 				goto err_unmap;
@@ -3873,17 +3874,17 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* set cy_card */
-	cy_card[card_no].base_addr = addr2;
-	cy_card[card_no].ctl_addr.p9050 = addr0;
-	cy_card[card_no].irq = irq;
-	cy_card[card_no].bus_index = 1;
-	cy_card[card_no].first_line = cy_next_channel;
-	cy_card[card_no].nports = nchan;
-	retval = cy_init_card(&cy_card[card_no]);
+	card->base_addr = addr2;
+	card->ctl_addr.p9050 = addr0;
+	card->irq = irq;
+	card->bus_index = 1;
+	card->first_line = cy_next_channel;
+	card->nports = nchan;
+	retval = cy_init_card(card);
 	if (retval)
 		goto err_null;
 
-	pci_set_drvdata(pdev, &cy_card[card_no]);
+	pci_set_drvdata(pdev, card);
 
 	if (device_id == PCI_DEVICE_ID_CYCLOM_Y_Lo ||
 			device_id == PCI_DEVICE_ID_CYCLOM_Y_Hi) {
@@ -3909,14 +3910,15 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "%s/PCI #%d found: %d channels starting from "
 		"port %d.\n", card_name, card_no + 1, nchan, cy_next_channel);
-	for (i = cy_next_channel; i < cy_next_channel + nchan; i++)
-		tty_register_device(cy_serial_driver, i, &pdev->dev);
+	for (j = 0, i = cy_next_channel; i < cy_next_channel + nchan; i++, j++)
+		tty_port_register_device(&card->ports[j].port,
+				cy_serial_driver, i, &pdev->dev);
 	cy_next_channel += nchan;
 
 	return 0;
 err_null:
-	cy_card[card_no].base_addr = NULL;
-	free_irq(irq, &cy_card[card_no]);
+	card->base_addr = NULL;
+	free_irq(irq, card);
 err_unmap:
 	iounmap(addr0);
 	if (addr2)

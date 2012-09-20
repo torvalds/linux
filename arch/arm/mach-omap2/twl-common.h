@@ -1,7 +1,7 @@
 #ifndef __OMAP_PMIC_COMMON__
 #define __OMAP_PMIC_COMMON__
 
-#include <plat/irqs.h>
+#include "common.h"
 
 #define TWL_COMMON_PDATA_USB		(1 << 0)
 #define TWL_COMMON_PDATA_BCI		(1 << 1)
@@ -40,13 +40,13 @@ void omap_pmic_late_init(void);
 static inline void omap2_pmic_init(const char *pmic_type,
 				   struct twl4030_platform_data *pmic_data)
 {
-	omap_pmic_init(2, 2600, pmic_type, INT_24XX_SYS_NIRQ, pmic_data);
+	omap_pmic_init(2, 2600, pmic_type, 7 + OMAP_INTC_START, pmic_data);
 }
 
 static inline void omap3_pmic_init(const char *pmic_type,
 				   struct twl4030_platform_data *pmic_data)
 {
-	omap_pmic_init(1, 2600, pmic_type, INT_34XX_SYS_NIRQ, pmic_data);
+	omap_pmic_init(1, 2600, pmic_type, 7 + OMAP_INTC_START, pmic_data);
 }
 
 void omap4_pmic_init(const char *pmic_type,

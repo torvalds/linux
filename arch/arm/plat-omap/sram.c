@@ -26,7 +26,6 @@
 #include <asm/mach/map.h>
 
 #include <plat/sram.h>
-#include <plat/board.h>
 #include <plat/cpu.h>
 
 #include "sram.h"

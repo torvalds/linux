@@ -139,14 +139,14 @@
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 
-#include "common.h"
-#include <plat/cpu.h>
-#include "clockdomain.h"
-#include "powerdomain.h"
 #include <plat/clock.h>
 #include <plat/omap_hwmod.h>
 #include <plat/prcm.h>
 
+#include "soc.h"
+#include "common.h"
+#include "clockdomain.h"
+#include "powerdomain.h"
 #include "cm2xxx_3xxx.h"
 #include "cminst44xx.h"
 #include "prm2xxx_3xxx.h"
@@ -3152,6 +3152,33 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 			(res + r)->flags = IORESOURCE_MEM;
 			r++;
 		}
+	}
+
+	return r;
+}
+
+/**
+ * omap_hwmod_fill_dma_resources - fill struct resource array with dma data
+ * @oh: struct omap_hwmod *
+ * @res: pointer to the array of struct resource to fill
+ *
+ * Fill the struct resource array @res with dma resource data from the
+ * omap_hwmod @oh.  Intended to be called by code that registers
+ * omap_devices.  See also omap_hwmod_count_resources().  Returns the
+ * number of array elements filled.
+ */
+int omap_hwmod_fill_dma_resources(struct omap_hwmod *oh, struct resource *res)
+{
+	int i, sdma_reqs_cnt;
+	int r = 0;
+
+	sdma_reqs_cnt = _count_sdma_reqs(oh);
+	for (i = 0; i < sdma_reqs_cnt; i++) {
+		(res + r)->name = (oh->sdma_reqs + i)->name;
+		(res + r)->start = (oh->sdma_reqs + i)->dma_req;
+		(res + r)->end = (oh->sdma_reqs + i)->dma_req;
+		(res + r)->flags = IORESOURCE_DMA;
+		r++;
 	}
 
 	return r;

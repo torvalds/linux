@@ -33,7 +33,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <plat/board.h>
 #include <plat/mmc.h>
 #include <asm/gpio.h>
 #include <plat/dma.h>
@@ -668,7 +667,7 @@ mmc_omap_clk_timer(unsigned long data)
 static void
 mmc_omap_xfer_data(struct mmc_omap_host *host, int write)
 {
-	int n;
+	int n, nwords;
 
 	if (host->buffer_bytes_left == 0) {
 		host->sg_idx++;
@@ -678,15 +677,23 @@ mmc_omap_xfer_data(struct mmc_omap_host *host, int write)
 	n = 64;
 	if (n > host->buffer_bytes_left)
 		n = host->buffer_bytes_left;
+
+	nwords = n / 2;
+	nwords += n & 1; /* handle odd number of bytes to transfer */
+
 	host->buffer_bytes_left -= n;
 	host->total_bytes_left -= n;
 	host->data->bytes_xfered += n;
 
 	if (write) {
-		__raw_writesw(host->virt_base + OMAP_MMC_REG(host, DATA), host->buffer, n);
+		__raw_writesw(host->virt_base + OMAP_MMC_REG(host, DATA),
+			      host->buffer, nwords);
 	} else {
-		__raw_readsw(host->virt_base + OMAP_MMC_REG(host, DATA), host->buffer, n);
+		__raw_readsw(host->virt_base + OMAP_MMC_REG(host, DATA),
+			     host->buffer, nwords);
 	}
+
+	host->buffer += nwords;
 }
 
 static inline void mmc_omap_report_irq(u16 status)

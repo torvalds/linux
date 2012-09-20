@@ -8,6 +8,7 @@
 /dts-v1/;
 
 /include/ "omap4.dtsi"
+/include/ "elpida_ecb240abacn.dtsi"
 
 / {
 	model = "TI OMAP4 PandaBoard";
@@ -125,4 +126,14 @@
 &mmc5 {
 	ti,non-removable;
 	bus-width = <4>;
+};
+
+&emif1 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
+};
+
+&emif2 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
 };

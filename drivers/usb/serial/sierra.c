@@ -382,7 +382,7 @@ static int sierra_send_setup(struct usb_serial_port *port)
 static void sierra_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
-	tty_termios_copy_hw(tty->termios, old_termios);
+	tty_termios_copy_hw(&tty->termios, old_termios);
 	sierra_send_setup(port);
 }
 

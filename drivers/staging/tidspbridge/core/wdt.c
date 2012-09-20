@@ -25,7 +25,7 @@
 #include <dspbridge/host_os.h>
 
 
-#define OMAP34XX_WDT3_BASE 		(L4_PER_34XX_BASE + 0x30000)
+#define INT_34XX_WDT3_IRQ 		(36 + NR_IRQS)
 
 static struct dsp_wdt_setting dsp_wdt;
 
