@@ -42,12 +42,13 @@ int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 	return ima_match_policy(inode, func, mask, IMA_APPRAISE);
 }
 
-static void ima_fix_xattr(struct dentry *dentry,
+static int ima_fix_xattr(struct dentry *dentry,
 			  struct integrity_iint_cache *iint)
 {
 	iint->ima_xattr.type = IMA_XATTR_DIGEST;
-	__vfs_setxattr_noperm(dentry, XATTR_NAME_IMA, (u8 *)&iint->ima_xattr,
-			      sizeof iint->ima_xattr, 0);
+	return __vfs_setxattr_noperm(dentry, XATTR_NAME_IMA,
+				     (u8 *)&iint->ima_xattr,
+				      sizeof(iint->ima_xattr), 0);
 }
 
 /*
@@ -141,8 +142,8 @@ out:
 		if ((ima_appraise & IMA_APPRAISE_FIX) &&
 		    (!xattr_value ||
 		     xattr_value->type != EVM_IMA_XATTR_DIGSIG)) {
-			ima_fix_xattr(dentry, iint);
-			status = INTEGRITY_PASS;
+			if (!ima_fix_xattr(dentry, iint))
+				status = INTEGRITY_PASS;
 		}
 		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode, filename,
 				    op, cause, rc, 0);
