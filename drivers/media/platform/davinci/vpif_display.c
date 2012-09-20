@@ -1690,6 +1690,32 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 	}
 
+	i2c_adap = i2c_get_adapter(1);
+	config = pdev->dev.platform_data;
+	subdev_count = config->subdev_count;
+	subdevdata = config->subdevinfo;
+	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
+								GFP_KERNEL);
+	if (vpif_obj.sd == NULL) {
+		vpif_err("unable to allocate memory for subdevice pointers\n");
+		err = -ENOMEM;
+		goto vpif_int_err;
+	}
+
+	for (i = 0; i < subdev_count; i++) {
+		vpif_obj.sd[i] = v4l2_i2c_new_subdev_board(&vpif_obj.v4l2_dev,
+						i2c_adap,
+						&subdevdata[i].board_info,
+						NULL);
+		if (!vpif_obj.sd[i]) {
+			vpif_err("Error registering v4l2 subdevice\n");
+			goto probe_subdev_out;
+		}
+
+		if (vpif_obj.sd[i])
+			vpif_obj.sd[i]->grp_id = 1 << i;
+	}
+
 	for (j = 0; j < VPIF_DISPLAY_MAX_DEVICES; j++) {
 		ch = vpif_obj.dev[j];
 		/* Initialize field of the channel objects */
@@ -1725,6 +1751,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 		ch->common[VPIF_VIDEO_INDEX].fmt.type =
 						V4L2_BUF_TYPE_VIDEO_OUTPUT;
 		ch->video_dev->lock = &common->lock;
+		video_set_drvdata(ch->video_dev, ch);
 
 		/* register video device */
 		vpif_dbg(1, debug, "channel=%x,channel->video_dev=%x\n",
@@ -1734,42 +1761,12 @@ static __init int vpif_probe(struct platform_device *pdev)
 					  VFL_TYPE_GRABBER, (j ? 3 : 2));
 		if (err < 0)
 			goto probe_out;
-
-		video_set_drvdata(ch->video_dev, ch);
-	}
-
-	i2c_adap = i2c_get_adapter(1);
-	config = pdev->dev.platform_data;
-	subdev_count = config->subdev_count;
-	subdevdata = config->subdevinfo;
-	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
-								GFP_KERNEL);
-	if (vpif_obj.sd == NULL) {
-		vpif_err("unable to allocate memory for subdevice pointers\n");
-		err = -ENOMEM;
-		goto probe_out;
-	}
-
-	for (i = 0; i < subdev_count; i++) {
-		vpif_obj.sd[i] = v4l2_i2c_new_subdev_board(&vpif_obj.v4l2_dev,
-						i2c_adap,
-						&subdevdata[i].board_info,
-						NULL);
-		if (!vpif_obj.sd[i]) {
-			vpif_err("Error registering v4l2 subdevice\n");
-			goto probe_subdev_out;
-		}
-
-		if (vpif_obj.sd[i])
-			vpif_obj.sd[i]->grp_id = 1 << i;
 	}
 
 	v4l2_info(&vpif_obj.v4l2_dev,
 			" VPIF display driver initialized\n");
 	return 0;
 
-probe_subdev_out:
-	kfree(vpif_obj.sd);
 probe_out:
 	for (k = 0; k < j; k++) {
 		ch = vpif_obj.dev[k];
@@ -1777,6 +1774,8 @@ probe_out:
 		video_device_release(ch->video_dev);
 		ch->video_dev = NULL;
 	}
+probe_subdev_out:
+	kfree(vpif_obj.sd);
 vpif_int_err:
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 	vpif_err("VPIF IRQ request failed\n");
