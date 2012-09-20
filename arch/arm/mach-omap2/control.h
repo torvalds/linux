@@ -18,7 +18,7 @@
 
 #include "ctrl_module_core_44xx.h"
 #include <mach/ctrl_module_wkup_44xx.h>
-#include <mach/ctrl_module_pad_core_44xx.h>
+#include "ctrl_module_pad_core_44xx.h"
 #include <mach/ctrl_module_pad_wkup_44xx.h>
 
 #include "am33xx.h"
