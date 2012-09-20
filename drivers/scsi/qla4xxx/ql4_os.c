@@ -5449,6 +5449,13 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 {
 	struct scsi_qla_host *ha;
 
+	/*
+	 * If the PCI device is disabled then it means probe_adapter had
+	 * failed and resources already cleaned up on probe_adapter exit.
+	 */
+	if (!pci_is_enabled(pdev))
+		return;
+
 	ha = pci_get_drvdata(pdev);
 
 	if (is_qla40XX(ha))
