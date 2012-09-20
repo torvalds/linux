@@ -62,7 +62,6 @@ struct video_obj {
 	v4l2_std_id stdid;		/* Currently selected or default
 					 * standard */
 	struct v4l2_dv_timings dv_timings;
-	u32 output_id;			/* Current output id */
 };
 
 struct vpif_disp_buffer {
@@ -125,6 +124,7 @@ struct channel_obj {
 					 * which is being displayed */
 	u8 initialized;			/* flag to indicate whether
 					 * encoder is initialized */
+	u32 output_idx;			/* Current output index */
 
 	enum vpif_channel_id channel_id;/* Identifies channel */
 	struct vpif_params vpifparams;

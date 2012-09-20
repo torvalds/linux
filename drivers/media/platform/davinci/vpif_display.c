@@ -1231,7 +1231,6 @@ static int vpif_s_output(struct file *file, void *priv, unsigned int i)
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
-	struct video_obj *vid_ch = &ch->video;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	int ret = 0;
 
@@ -1246,7 +1245,7 @@ static int vpif_s_output(struct file *file, void *priv, unsigned int i)
 	if (ret < 0)
 		vpif_err("Failed to set output standard\n");
 
-	vid_ch->output_id = i;
+	ch->output_idx = i;
 	return ret;
 }
 
@@ -1254,9 +1253,8 @@ static int vpif_g_output(struct file *file, void *priv, unsigned int *i)
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
-	struct video_obj *vid_ch = &ch->video;
 
-	*i = vid_ch->output_id;
+	*i = ch->output_idx;
 
 	return 0;
 }
@@ -1291,9 +1289,8 @@ vpif_enum_dv_timings(struct file *file, void *priv,
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
-	struct video_obj *vid_ch = &ch->video;
 
-	return v4l2_subdev_call(vpif_obj.sd[vid_ch->output_id],
+	return v4l2_subdev_call(vpif_obj.sd[ch->output_idx],
 			video, enum_dv_timings, timings);
 }
 
@@ -1320,7 +1317,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	}
 
 	/* Configure subdevice timings, if any */
-	ret = v4l2_subdev_call(vpif_obj.sd[vid_ch->output_id],
+	ret = v4l2_subdev_call(vpif_obj.sd[ch->output_idx],
 			video, s_dv_timings, timings);
 	if (ret == -ENOIOCTLCMD) {
 		vpif_dbg(2, debug, "Custom DV timings not supported by "
@@ -1451,9 +1448,8 @@ static int vpif_dbg_g_register(struct file *file, void *priv,
 		struct v4l2_dbg_register *reg){
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
-	struct video_obj *vid_ch = &ch->video;
 
-	return v4l2_subdev_call(vpif_obj.sd[vid_ch->output_id], core,
+	return v4l2_subdev_call(vpif_obj.sd[ch->output_idx], core,
 			g_register, reg);
 }
 
@@ -1470,9 +1466,8 @@ static int vpif_dbg_s_register(struct file *file, void *priv,
 		struct v4l2_dbg_register *reg){
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
-	struct video_obj *vid_ch = &ch->video;
 
-	return v4l2_subdev_call(vpif_obj.sd[vid_ch->output_id], core,
+	return v4l2_subdev_call(vpif_obj.sd[ch->output_idx], core,
 			s_register, reg);
 }
 #endif
