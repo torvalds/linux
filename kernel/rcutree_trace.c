@@ -174,6 +174,32 @@ static const struct file_operations rcudata_fops = {
 	.release = single_release,
 };
 
+static int new_show_rcudata(struct seq_file *m, void *v)
+{
+	print_one_rcu_data(m, (struct rcu_data *)v);
+	return 0;
+}
+
+static const struct seq_operations new_rcudate_op = {
+	.start = r_start,
+	.next  = r_next,
+	.stop  = r_stop,
+	.show  = new_show_rcudata,
+};
+
+static int new_rcudata_open(struct inode *inode, struct file *file)
+{
+	return r_open(inode, file, &new_rcudate_op);
+}
+
+static const struct file_operations new_rcudata_fops = {
+	.owner = THIS_MODULE,
+	.open = new_rcudata_open,
+	.read = seq_read,
+	.llseek = no_llseek,
+	.release = seq_release,
+};
+
 static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
 {
 	if (!rdp->beenonline)
@@ -488,6 +514,11 @@ static int __init rcutree_trace_init(void)
 		rspdir = debugfs_create_dir(rsp->name, rcudir);
 		if (!rspdir)
 			goto free_out;
+
+			retval = debugfs_create_file("rcudata", 0444,
+					rspdir, rsp, &new_rcudata_fops);
+			if (!retval)
+				goto free_out;
 	}
 
 	retval = debugfs_create_file("rcubarrier", 0444, rcudir,
