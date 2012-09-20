@@ -3540,8 +3540,9 @@ static int __select_input_connection(struct hda_codec *codec, hda_nid_t mux,
 				     hda_nid_t pin, hda_nid_t *srcp,
 				     bool do_select, int depth)
 {
+	struct conexant_spec *spec = codec->spec;
 	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
-	int i, nums;
+	int startidx, i, nums;
 
 	switch (get_wcaps_type(get_wcaps(codec, mux))) {
 	case AC_WID_AUD_IN:
@@ -3565,14 +3566,25 @@ static int __select_input_connection(struct hda_codec *codec, hda_nid_t mux,
 	depth++;
 	if (depth == 2)
 		return -1;
+
+	/* Try to rotate around connections to avoid one boost controlling
+	   another input path as well */
+	startidx = 0;
+	for (i = 0; i < spec->private_imux.num_items; i++)
+		if (spec->imux_info[i].pin == pin) {
+			startidx = i;
+			break;
+		}
+
 	for (i = 0; i < nums; i++) {
-		int ret  = __select_input_connection(codec, conn[i], pin, srcp,
+		int j = (i + startidx) % nums;
+		int ret  = __select_input_connection(codec, conn[j], pin, srcp,
 						     do_select, depth);
 		if (ret >= 0) {
 			if (do_select)
 				snd_hda_codec_write(codec, mux, 0,
-						    AC_VERB_SET_CONNECT_SEL, i);
-			return i;
+						    AC_VERB_SET_CONNECT_SEL, j);
+			return j;
 		}
 	}
 	return -1;
