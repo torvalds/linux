@@ -397,7 +397,7 @@
 				regulator@11 {
 					reg = <11>;
 					regulator-compatible = "ldo7";
-					regulator-name = "vdd_ldo7,avdd_hdmi,vdd_fuse";
+					regulator-name = "vdd_ldo7,avdd_hdmi";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 				};
