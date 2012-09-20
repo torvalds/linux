@@ -155,8 +155,6 @@ struct m5mols_version {
  * @pdata: platform data
  * @sd: v4l-subdev instance
  * @pad: media pad
- * @ffmt: current fmt according to resolution type
- * @res_type: current resolution type
  * @irq_waitq: waitqueue for the capture
  * @irq_done: set to 1 in the interrupt handler
  * @handle: control handler
@@ -174,6 +172,10 @@ struct m5mols_version {
  * @wdr: wide dynamic range control
  * @stabilization: image stabilization control
  * @jpeg_quality: JPEG compression quality control
+ * @set_power: optional power callback to the board code
+ * @lock: mutex protecting the structure fields below
+ * @ffmt: current fmt according to resolution type
+ * @res_type: current resolution type
  * @ver: information of the version
  * @cap: the capture mode attributes
  * @isp_ready: 1 when the ISP controller has completed booting
@@ -181,14 +183,11 @@ struct m5mols_version {
  * @ctrl_sync: 1 when the control handler state is restored in H/W
  * @resolution:	register value for current resolution
  * @mode: register value for current operation mode
- * @set_power: optional power callback to the board code
  */
 struct m5mols_info {
 	const struct m5mols_platform_data *pdata;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_mbus_framefmt ffmt[M5MOLS_RESTYPE_MAX];
-	int res_type;
 
 	wait_queue_head_t irq_waitq;
 	atomic_t irq_done;
@@ -216,6 +215,13 @@ struct m5mols_info {
 	struct v4l2_ctrl *stabilization;
 	struct v4l2_ctrl *jpeg_quality;
 
+	int (*set_power)(struct device *dev, int on);
+
+	struct mutex lock;
+
+	struct v4l2_mbus_framefmt ffmt[M5MOLS_RESTYPE_MAX];
+	int res_type;
+
 	struct m5mols_version ver;
 	struct m5mols_capture cap;
 
@@ -225,8 +231,6 @@ struct m5mols_info {
 
 	u8 resolution;
 	u8 mode;
-
-	int (*set_power)(struct device *dev, int on);
 };
 
 #define is_available_af(__info)	(__info->ver.af)

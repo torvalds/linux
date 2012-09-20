@@ -551,13 +551,18 @@ static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 {
 	struct m5mols_info *info = to_m5mols(sd);
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
+
+	mutex_lock(&info->lock);
 
 	format = __find_format(info, fh, fmt->which, info->res_type);
 	if (!format)
-		return -EINVAL;
+		fmt->format = *format;
+	else
+		ret = -EINVAL;
 
-	fmt->format = *format;
-	return 0;
+	mutex_unlock(&info->lock);
+	return ret;
 }
 
 static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
@@ -578,6 +583,7 @@ static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	if (!sfmt)
 		return 0;
 
+	mutex_lock(&info->lock);
 
 	format->code = m5mols_default_ffmt[type].code;
 	format->colorspace = V4L2_COLORSPACE_JPEG;
@@ -589,7 +595,8 @@ static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		info->res_type = type;
 	}
 
-	return 0;
+	mutex_unlock(&info->lock);
+	return ret;
 }
 
 static int m5mols_enum_mbus_code(struct v4l2_subdev *sd,
@@ -661,20 +668,25 @@ static int m5mols_start_monitor(struct m5mols_info *info)
 static int m5mols_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct m5mols_info *info = to_m5mols(sd);
-	u32 code = info->ffmt[info->res_type].code;
+	u32 code;
+	int ret;
+
+	mutex_lock(&info->lock);
+	code = info->ffmt[info->res_type].code;
 
 	if (enable) {
-		int ret = -EINVAL;
-
 		if (is_code(code, M5MOLS_RESTYPE_MONITOR))
 			ret = m5mols_start_monitor(info);
 		if (is_code(code, M5MOLS_RESTYPE_CAPTURE))
 			ret = m5mols_start_capture(info);
-
-		return ret;
+		else
+			ret = -EINVAL;
+	} else {
+		ret = m5mols_set_mode(info, REG_PARAMETER);
 	}
 
-	return m5mols_set_mode(info, REG_PARAMETER);
+	mutex_unlock(&info->lock);
+	return ret;
 }
 
 static const struct v4l2_subdev_video_ops m5mols_video_ops = {
@@ -773,6 +785,20 @@ static int m5mols_fw_start(struct v4l2_subdev *sd)
 	return ret;
 }
 
+/* Execute the lens soft-landing algorithm */
+static int m5mols_auto_focus_stop(struct m5mols_info *info)
+{
+	int ret;
+
+	ret = m5mols_write(&info->sd, AF_EXECUTE, REG_AF_STOP);
+	if (!ret)
+		ret = m5mols_write(&info->sd, AF_MODE, REG_AF_POWEROFF);
+	if (!ret)
+		ret = m5mols_busy_wait(&info->sd, SYSTEM_STATUS, REG_AF_IDLE,
+				       0xff, -1);
+	return ret;
+}
+
 /**
  * m5mols_s_power - Main sensor power control function
  *
@@ -785,29 +811,26 @@ static int m5mols_s_power(struct v4l2_subdev *sd, int on)
 	struct m5mols_info *info = to_m5mols(sd);
 	int ret;
 
+	mutex_lock(&info->lock);
+
 	if (on) {
 		ret = m5mols_sensor_power(info, true);
 		if (!ret)
 			ret = m5mols_fw_start(sd);
-		return ret;
+	} else {
+		if (is_manufacturer(info, REG_SAMSUNG_TECHWIN)) {
+			ret = m5mols_set_mode(info, REG_MONITOR);
+			if (!ret)
+				ret = m5mols_auto_focus_stop(info);
+			if (ret < 0)
+				v4l2_warn(sd, "Soft landing lens failed\n");
+		}
+		ret = m5mols_sensor_power(info, false);
+
+		info->ctrl_sync = 0;
 	}
 
-	if (is_manufacturer(info, REG_SAMSUNG_TECHWIN)) {
-		ret = m5mols_set_mode(info, REG_MONITOR);
-		if (!ret)
-			ret = m5mols_write(sd, AF_EXECUTE, REG_AF_STOP);
-		if (!ret)
-			ret = m5mols_write(sd, AF_MODE, REG_AF_POWEROFF);
-		if (!ret)
-			ret = m5mols_busy_wait(sd, SYSTEM_STATUS, REG_AF_IDLE,
-					       0xff, -1);
-		if (ret < 0)
-			v4l2_warn(sd, "Soft landing lens failed\n");
-	}
-
-	ret = m5mols_sensor_power(info, false);
-	info->ctrl_sync = 0;
-
+	mutex_unlock(&info->lock);
 	return ret;
 }
 
@@ -912,6 +935,8 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
 
 	init_waitqueue_head(&info->irq_waitq);
+	mutex_init(&info->lock);
+
 	ret = request_irq(client->irq, m5mols_irq_handler,
 			  IRQF_TRIGGER_RISING, MODULE_NAME, sd);
 	if (ret) {
