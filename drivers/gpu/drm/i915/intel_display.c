@@ -4900,39 +4900,24 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	int num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
 	u32 dpll, fp = 0, fp2 = 0;
-	bool ok, has_reduced_clock = false, is_sdvo = false;
-	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
+	bool ok, has_reduced_clock = false;
+	bool is_lvds = false, is_dp = false, is_cpu_edp = false;
 	struct intel_encoder *encoder;
 	u32 temp;
 	int ret;
 	bool dither;
-	bool is_cpu_edp = false, is_pch_edp = false;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
-		case INTEL_OUTPUT_SDVO:
-		case INTEL_OUTPUT_HDMI:
-			is_sdvo = true;
-			if (encoder->needs_tv_clock)
-				is_tv = true;
-			break;
-		case INTEL_OUTPUT_TVOUT:
-			is_tv = true;
-			break;
-		case INTEL_OUTPUT_ANALOG:
-			is_crt = true;
-			break;
 		case INTEL_OUTPUT_DISPLAYPORT:
 			is_dp = true;
 			break;
 		case INTEL_OUTPUT_EDP:
 			is_dp = true;
-			if (intel_encoder_is_pch_edp(&encoder->base))
-				is_pch_edp = true;
-			else
+			if (!intel_encoder_is_pch_edp(&encoder->base))
 				is_cpu_edp = true;
 			break;
 		}
