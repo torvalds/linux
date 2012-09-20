@@ -122,7 +122,15 @@ static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp, 
 			ino = igrab(lo->plh_inode);
 			if (!ino)
 				continue;
+			spin_lock(&ino->i_lock);
+			/* Is this layout in the process of being freed? */
+			if (NFS_I(ino)->layout != lo) {
+				spin_unlock(&ino->i_lock);
+				iput(ino);
+				continue;
+			}
 			pnfs_get_layout_hdr(lo);
+			spin_unlock(&ino->i_lock);
 			return lo;
 		}
 	}
@@ -196,9 +204,18 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 			continue;
 
 		list_for_each_entry(lo, &server->layouts, plh_layouts) {
-			if (!igrab(lo->plh_inode))
+			ino = igrab(lo->plh_inode);
+			if (ino)
 				continue;
+			spin_lock(&ino->i_lock);
+			/* Is this layout in the process of being freed? */
+			if (NFS_I(ino)->layout != lo) {
+				spin_unlock(&ino->i_lock);
+				iput(ino);
+				continue;
+			}
 			pnfs_get_layout_hdr(lo);
+			spin_unlock(&ino->i_lock);
 			BUG_ON(!list_empty(&lo->plh_bulk_recall));
 			list_add(&lo->plh_bulk_recall, &recall_list);
 		}

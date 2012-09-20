@@ -207,7 +207,16 @@ pnfs_alloc_layout_hdr(struct inode *ino, gfp_t gfp_flags)
 static void
 pnfs_free_layout_hdr(struct pnfs_layout_hdr *lo)
 {
-	struct pnfs_layoutdriver_type *ld = NFS_SERVER(lo->plh_inode)->pnfs_curr_ld;
+	struct nfs_server *server = NFS_SERVER(lo->plh_inode);
+	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
+
+	if (!list_empty(&lo->plh_layouts)) {
+		struct nfs_client *clp = server->nfs_client;
+
+		spin_lock(&clp->cl_lock);
+		list_del_init(&lo->plh_layouts);
+		spin_unlock(&clp->cl_lock);
+	}
 	put_rpccred(lo->plh_lc_cred);
 	return ld->alloc_layout_hdr ? ld->free_layout_hdr(lo) : kfree(lo);
 }
@@ -217,7 +226,6 @@ pnfs_detach_layout_hdr(struct pnfs_layout_hdr *lo)
 {
 	struct nfs_inode *nfsi = NFS_I(lo->plh_inode);
 	dprintk("%s: freeing layout cache %p\n", __func__, lo);
-	BUG_ON(!list_empty(&lo->plh_layouts));
 	nfsi->layout = NULL;
 	/* Reset MDS Threshold I/O counters */
 	nfsi->write_io = 0;
@@ -480,22 +488,10 @@ void
 pnfs_free_lseg_list(struct list_head *free_me)
 {
 	struct pnfs_layout_segment *lseg, *tmp;
-	struct pnfs_layout_hdr *lo;
 
 	if (list_empty(free_me))
 		return;
 
-	lo = list_first_entry(free_me, struct pnfs_layout_segment,
-			      pls_list)->pls_layout;
-
-	if (test_bit(NFS_LAYOUT_DESTROYED, &lo->plh_flags)) {
-		struct nfs_client *clp;
-
-		clp = NFS_SERVER(lo->plh_inode)->nfs_client;
-		spin_lock(&clp->cl_lock);
-		list_del_init(&lo->plh_layouts);
-		spin_unlock(&clp->cl_lock);
-	}
 	list_for_each_entry_safe(lseg, tmp, free_me, pls_list) {
 		list_del(&lseg->pls_list);
 		free_lseg(lseg);
@@ -1148,11 +1144,6 @@ pnfs_update_layout(struct inode *ino,
 		arg.length = PAGE_CACHE_ALIGN(arg.length);
 
 	lseg = send_layoutget(lo, ctx, &arg, gfp_flags);
-	if (!lseg && first) {
-		spin_lock(&clp->cl_lock);
-		list_del_init(&lo->plh_layouts);
-		spin_unlock(&clp->cl_lock);
-	}
 	atomic_dec(&lo->plh_outstanding);
 out_put_layout_hdr:
 	pnfs_put_layout_hdr(lo);
