@@ -58,7 +58,7 @@ static void exynos_gpio_irq_mask(struct irq_data *irqd)
 	unsigned long mask;
 
 	mask = readl(d->virt_base + reg_mask);
-	mask |= ~(1 << edata->pin);
+	mask |= 1 << edata->pin;
 	writel(mask, d->virt_base + reg_mask);
 }
 
@@ -290,7 +290,7 @@ static void exynos_wkup_irq_mask(struct irq_data *irqd)
 	unsigned long mask;
 
 	mask = readl(d->virt_base + reg_mask);
-	mask &= ~(1 << pin);
+	mask |= 1 << pin;
 	writel(mask, d->virt_base + reg_mask);
 }
 
