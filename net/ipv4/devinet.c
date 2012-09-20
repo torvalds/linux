@@ -725,7 +725,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		break;
 
 	case SIOCSIFFLAGS:
-		ret = -EACCES;
+		ret = -EPERM;
 		if (!capable(CAP_NET_ADMIN))
 			goto out;
 		break;
@@ -733,7 +733,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	case SIOCSIFBRDADDR:	/* Set the broadcast address */
 	case SIOCSIFDSTADDR:	/* Set the destination address */
 	case SIOCSIFNETMASK: 	/* Set the netmask for the interface */
-		ret = -EACCES;
+		ret = -EPERM;
 		if (!capable(CAP_NET_ADMIN))
 			goto out;
 		ret = -EINVAL;
