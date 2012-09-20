@@ -1464,6 +1464,9 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 
 	chan_cfg = &config->chan_config[ch->channel_id];
 
+	if (index >= chan_cfg->input_count)
+		return -EINVAL;
+
 	if (common->started) {
 		vpif_err("Streaming in progress\n");
 		return -EBUSY;
@@ -1502,8 +1505,8 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 		}
 	}
 
-	input = subdev_info->input;
-	output = subdev_info->output;
+	input = chan_cfg->inputs[index].input_route;
+	output = chan_cfg->inputs[index].output_route;
 	ret = v4l2_subdev_call(vpif_obj.sd[sd_index], video, s_routing,
 			input, output, 0);
 	if (ret < 0 && ret != -ENOIOCTLCMD) {

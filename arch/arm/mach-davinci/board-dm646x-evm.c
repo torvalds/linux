@@ -601,8 +601,6 @@ static struct vpif_subdev_info vpif_capture_sdev_info[] = {
 			I2C_BOARD_INFO("tvp5146", 0x5d),
 			.platform_data = &tvp5146_pdata,
 		},
-		.input = INPUT_CVBS_VI2B,
-		.output = OUTPUT_10BIT_422_EMBEDDED_SYNC,
 		.vpif_if = {
 			.if_type = VPIF_IF_BT656,
 			.hd_pol = 1,
@@ -616,8 +614,6 @@ static struct vpif_subdev_info vpif_capture_sdev_info[] = {
 			I2C_BOARD_INFO("tvp5146", 0x5c),
 			.platform_data = &tvp5146_pdata,
 		},
-		.input = INPUT_SVIDEO_VI2C_VI1C,
-		.output = OUTPUT_10BIT_422_EMBEDDED_SYNC,
 		.vpif_if = {
 			.if_type = VPIF_IF_BT656,
 			.hd_pol = 1,
@@ -633,9 +629,12 @@ static const struct vpif_input dm6467_ch0_inputs[] = {
 			.index = 0,
 			.name = "Composite",
 			.type = V4L2_INPUT_TYPE_CAMERA,
+			.capabilities = V4L2_IN_CAP_STD,
 			.std = TVP514X_STD_ALL,
 		},
 		.subdev_name = TVP5147_CH0,
+		.input_route = INPUT_CVBS_VI2B,
+		.output_route = OUTPUT_10BIT_422_EMBEDDED_SYNC,
 	},
 };
 
@@ -645,9 +644,12 @@ static const struct vpif_input dm6467_ch1_inputs[] = {
 			.index = 0,
 			.name = "S-Video",
 			.type = V4L2_INPUT_TYPE_CAMERA,
+			.capabilities = V4L2_IN_CAP_STD,
 			.std = TVP514X_STD_ALL,
 		},
 		.subdev_name = TVP5147_CH1,
+		.input_route = INPUT_SVIDEO_VI2C_VI1C,
+		.output_route = OUTPUT_10BIT_422_EMBEDDED_SYNC,
 	},
 };
 
