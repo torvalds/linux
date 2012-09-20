@@ -469,11 +469,9 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 
 	csicr1 = CSICR1_MCLKEN;
 
-	if (cpu_is_mx27()) {
+	if (cpu_is_mx27())
 		csicr1 |= CSICR1_PRP_IF_EN | CSICR1_FCC |
 			CSICR1_RXFF_LEVEL(0);
-	} else if (cpu_is_mx27())
-		csicr1 |= CSICR1_SOF_INTEN | CSICR1_RXFF_LEVEL(2);
 
 	pcdev->csicr1 = csicr1;
 	writel(pcdev->csicr1, pcdev->base_csi + CSICR1);
