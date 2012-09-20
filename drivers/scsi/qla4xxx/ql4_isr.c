@@ -1364,9 +1364,15 @@ try_msi:
 			pci_disable_msi(ha->pdev);
 		}
 	}
-	ql4_printk(KERN_WARNING, ha,
-	    "MSI: Falling back-to INTx mode -- %d.\n", ret);
 
+	/*
+	 * Prevent interrupts from falling back to INTx mode in cases where
+	 * interrupts cannot get acquired through MSI-X or MSI mode.
+	 */
+	if (is_qla8022(ha)) {
+		ql4_printk(KERN_WARNING, ha, "IRQ not attached -- %d.\n", ret);
+		goto irq_not_attached;
+	}
 try_intx:
 	/* Trying INTx */
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
@@ -1380,7 +1386,7 @@ try_intx:
 		ql4_printk(KERN_WARNING, ha,
 		    "INTx: Failed to reserve interrupt %d already in"
 		    " use.\n", ha->pdev->irq);
-		return ret;
+		goto irq_not_attached;
 	}
 
 irq_attached:
@@ -1388,6 +1394,7 @@ irq_attached:
 	ha->host->irq = ha->pdev->irq;
 	ql4_printk(KERN_INFO, ha, "%s: irq %d attached\n",
 	    __func__, ha->pdev->irq);
+irq_not_attached:
 	return ret;
 }
 
