@@ -107,11 +107,6 @@ int ima_appraise_measurement(struct integrity_iint_cache *iint,
 		if (rc) {
 			cause = "invalid-hash";
 			status = INTEGRITY_FAIL;
-			print_hex_dump_bytes("security.ima: ", DUMP_PREFIX_NONE,
-					     xattr_value, sizeof(*xattr_value));
-			print_hex_dump_bytes("collected: ", DUMP_PREFIX_NONE,
-					     (u8 *)&iint->ima_xattr,
-					     sizeof iint->ima_xattr);
 			break;
 		}
 		status = INTEGRITY_PASS;
