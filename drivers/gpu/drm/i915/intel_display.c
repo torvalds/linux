@@ -4626,8 +4626,8 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 		val |= PIPE_12BPC;
 		break;
 	default:
-		val |= PIPE_8BPC;
-		break;
+		/* Case prevented by intel_choose_pipe_bpp_dither. */
+		BUG();
 	}
 
 	val &= ~(PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_MASK);
@@ -4728,7 +4728,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	struct fdi_m_n m_n = {0};
 	u32 temp;
 	int target_clock, pixel_multiplier, lane, link_bw, factor;
-	unsigned int pipe_bpp;
 	bool dither;
 	bool is_cpu_edp = false, is_pch_edp = false;
 
@@ -4802,17 +4801,9 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		target_clock = adjusted_mode->clock;
 
 	/* determine panel color depth */
-	dither = intel_choose_pipe_bpp_dither(crtc, fb, &pipe_bpp, mode);
+	dither = intel_choose_pipe_bpp_dither(crtc, fb, &intel_crtc->bpp, mode);
 	if (is_lvds && dev_priv->lvds_dither)
 		dither = true;
-
-	if (pipe_bpp != 18 && pipe_bpp != 24 && pipe_bpp != 30 &&
-	    pipe_bpp != 36) {
-		WARN(1, "intel_choose_pipe_bpp returned invalid value %d\n",
-		     pipe_bpp);
-		pipe_bpp = 24;
-	}
-	intel_crtc->bpp = pipe_bpp;
 
 	if (!lane) {
 		/*
