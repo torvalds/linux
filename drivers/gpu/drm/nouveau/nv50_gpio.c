@@ -115,9 +115,6 @@ nv50_gpio_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	/* initialise gpios and routing to vbios defaults */
-	nouveau_gpio_reset(dev);
-
 	/* disable, and ack any pending gpio interrupts */
 	nv_wr32(dev, 0xe050, 0x00000000);
 	nv_wr32(dev, 0xe054, 0xffffffff);
