@@ -1281,7 +1281,7 @@ static int at_context_queue_packet(struct context *ctx,
 	d[0].res_count = cpu_to_le16(packet->timestamp);
 
 	/*
-	 * The DMA format for asyncronous link packets is different
+	 * The DMA format for asynchronous link packets is different
 	 * from the IEEE1394 layout, so shift the fields around
 	 * accordingly.
 	 */

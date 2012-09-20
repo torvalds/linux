@@ -950,10 +950,10 @@ repeat:
 			goto repeat;
 		}
 	}
-	/* drain all zone's lru pagevec, this is asyncronous... */
+	/* drain all zone's lru pagevec, this is asynchronous... */
 	lru_add_drain_all();
 	yield();
-	/* drain pcp pages , this is synchrouns. */
+	/* drain pcp pages, this is synchronous. */
 	drain_all_pages();
 	/* check again */
 	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
@@ -962,7 +962,7 @@ repeat:
 		goto failed_removal;
 	}
 	printk(KERN_INFO "Offlined Pages %ld\n", offlined_pages);
-	/* Ok, all of our target is islaoted.
+	/* Ok, all of our target is isolated.
 	   We cannot do rollback at this point. */
 	offline_isolated_pages(start_pfn, end_pfn);
 	/* reset pagetype flags and makes migrate type to be MOVABLE */

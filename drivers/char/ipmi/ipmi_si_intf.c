@@ -155,7 +155,7 @@ enum si_stat_indexes {
 	/* Number of watchdog pretimeouts. */
 	SI_STAT_watchdog_pretimeouts,
 
-	/* Number of asyncronous messages received. */
+	/* Number of asynchronous messages received. */
 	SI_STAT_incoming_messages,
 
 

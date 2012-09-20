@@ -1171,7 +1171,7 @@ static int sis_chip_init(struct sis7019 *sis)
 	outl(SIS_DMA_CSR_PCI_SETTINGS, io + SIS_DMA_CSR);
 
 	/* Reset the synchronization groups for all of the channels
-	 * to be asyncronous. If we start doing SPDIF or 5.1 sound, etc.
+	 * to be asynchronous. If we start doing SPDIF or 5.1 sound, etc.
 	 * we'll need to change how we handle these. Until then, we just
 	 * assign sub-mixer 0 to all playback channels, and avoid any
 	 * attenuation on the audio.
