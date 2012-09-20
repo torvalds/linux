@@ -134,7 +134,7 @@ typedef struct {
 } CACHE_ENTRY;
 
 /*
- *  Information about each registred IrLAP layer
+ *  Information about each registered IrLAP layer
  */
 struct lap_cb {
 	irda_queue_t queue; /* Must be first */
