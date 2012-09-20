@@ -957,7 +957,7 @@ static void drbd_flush(struct drbd_conf *mdev)
 	int rv;
 
 	if (mdev->write_ordering >= WO_bdev_flush && get_ldev(mdev)) {
-		rv = blkdev_issue_flush(mdev->ldev->backing_bdev, GFP_KERNEL,
+		rv = blkdev_issue_flush(mdev->ldev->backing_bdev, GFP_NOIO,
 					NULL);
 		if (rv) {
 			dev_info(DEV, "local disk flush failed with status %d\n", rv);
@@ -2907,7 +2907,7 @@ static int receive_SyncParam(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 
 			fifo_size = (mdev->sync_conf.c_plan_ahead * 10 * SLEEP_TIME) / HZ;
 			if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
-				rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
+				rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_NOIO);
 				if (!rs_plan_s) {
 					dev_err(DEV, "kmalloc of fifo_buffer failed");
 					goto disconnect;
