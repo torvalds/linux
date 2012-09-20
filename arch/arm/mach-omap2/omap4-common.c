@@ -29,7 +29,7 @@
 #include <plat/omap-secure.h>
 #include <plat/mmc.h>
 
-#include <mach/omap-wakeupgen.h>
+#include "omap-wakeupgen.h"
 
 #include "soc.h"
 #include "common.h"
