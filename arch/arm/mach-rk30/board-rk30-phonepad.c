@@ -897,6 +897,61 @@ struct ft5x0x_platform_data ft5306_info = {
 
 #endif
 
+#if defined(CONFIG_TOUCHSCREEN_CT360_IIC)
+#define TOUCH_RESET_PIN	 RK30_PIN4_PD0
+#define TOUCH_INT_PIN 	 RK30_PIN4_PC2
+
+static void ct360_hw_init(void)
+{
+	int ret;
+
+	printk("%s\n", __FUNCTION__);
+
+	rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, 0);
+	rk30_mux_api_set(GPIO4D0_SMCDATA8_TRACEDATA8_NAME, 0);
+	
+	if(TOUCH_RESET_PIN != INVALID_GPIO){
+		gpio_request(TOUCH_RESET_PIN, "ct360_reset");
+		gpio_direction_output(TOUCH_RESET_PIN, GPIO_HIGH);
+	}
+
+	if(TOUCH_INT_PIN != INVALID_GPIO){
+		ret = gpio_request(TOUCH_INT_PIN, "ct360_irq");
+		if(ret != 0){
+			gpio_free(TOUCH_INT_PIN);
+			printk("%s: ct360 irq request err\n", __func__);
+		}
+		else{
+			gpio_direction_input(TOUCH_INT_PIN);
+			gpio_pull_updown(TOUCH_INT_PIN, PullEnable);
+		}
+	}
+}
+
+static void ct360_hw_shutdown(int reset)
+{
+	if(TOUCH_RESET_PIN != INVALID_GPIO){
+		if(reset){
+			gpio_set_value(TOUCH_RESET_PIN, GPIO_HIGH);
+		}
+		else{
+			gpio_set_value(TOUCH_RESET_PIN, GPIO_LOW);
+		}
+	}
+}
+
+
+static struct ct360_platform_data ct360_info = {
+	.model	 = 360,
+	.x_max	 = 800,
+	.y_max	 = 600,
+	.hw_init = ct360_hw_init,
+	.shutdown = ct360_hw_shutdown,
+};
+
+#endif
+
+
 
 static struct spi_board_info board_spi_devices[] = {
 };
@@ -2437,6 +2492,17 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 	.platform_data = &ft5306_info,
 },
 #endif
+
+#if defined (CONFIG_TOUCHSCREEN_CT360_IIC)
+	{
+	.type		="ct360_ts",
+	.addr		=0x01,
+	.flags		=0,
+	.irq		= RK30_PIN4_PC2,
+	.platform_data = &ct360_info,
+	},
+#endif
+
 
 };
 #endif
