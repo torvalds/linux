@@ -352,12 +352,8 @@ static int rtsx_suspend(struct pci_dev *pci, pm_message_t state)
 	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
-	dev_info(&dev->pci->dev, "Ready to suspend\n");
-
-	if (!dev) {
-		dev_err(&dev->pci->dev, "Invalid memory\n");
+	if (!dev)
 		return 0;
-	}
 
 	/* lock the device pointers */
 	mutex_lock(&(dev->dev_mutex));
@@ -391,12 +387,8 @@ static int rtsx_resume(struct pci_dev *pci)
 	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
-	dev_info(&dev->pci->dev, "Ready to resume\n");
-
-	if (!dev) {
-		dev_err(&dev->pci->dev, "Invalid memory\n");
+	if (!dev)
 		return 0;
-	}
 
 	chip = dev->chip;
 
@@ -441,12 +433,8 @@ static void rtsx_shutdown(struct pci_dev *pci)
 	struct rtsx_dev *dev = (struct rtsx_dev *)pci_get_drvdata(pci);
 	struct rtsx_chip *chip;
 
-	dev_info(&dev->pci->dev, "Ready to shutdown\n");
-
-	if (!dev) {
-		dev_err(&dev->pci->dev, "Invalid memory\n");
+	if (!dev)
 		return;
-	}
 
 	chip = dev->chip;
 
