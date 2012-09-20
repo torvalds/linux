@@ -40,7 +40,7 @@
 #include <mach/mux.h>
 #include <plat/dma.h>
 #include <plat/tc.h>
-#include <plat/irda.h>
+#include <mach/irda.h>
 #include <linux/platform_data/keypad-omap.h>
 
 #include <mach/hardware.h>
