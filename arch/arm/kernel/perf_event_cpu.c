@@ -31,7 +31,7 @@
 #include <asm/pmu.h>
 
 /* Set at runtime when we know what CPU type we are. */
-static struct arm_pmu *cpu_pmu;
+static DEFINE_PER_CPU(struct arm_pmu *, cpu_pmu);
 
 static DEFINE_PER_CPU(struct perf_event * [ARMPMU_MAX_HWEVENTS], hw_events);
 static DEFINE_PER_CPU(unsigned long [BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)], used_mask);
@@ -43,21 +43,22 @@ static DEFINE_PER_CPU(struct pmu_hw_events, cpu_hw_events);
  */
 const char *perf_pmu_name(void)
 {
-	if (!cpu_pmu)
+	struct arm_pmu *pmu = per_cpu(cpu_pmu, 0);
+	if (!pmu)
 		return NULL;
 
-	return cpu_pmu->name;
+	return pmu->name;
 }
 EXPORT_SYMBOL_GPL(perf_pmu_name);
 
 int perf_num_counters(void)
 {
-	int max_events = 0;
+	struct arm_pmu *pmu = per_cpu(cpu_pmu, 0);
 
-	if (cpu_pmu != NULL)
-		max_events = cpu_pmu->num_events;
+	if (!pmu)
+		return 0;
 
-	return max_events;
+	return pmu->num_events;
 }
 EXPORT_SYMBOL_GPL(perf_num_counters);
 
@@ -161,11 +162,13 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 static int cpu_pmu_notify(struct notifier_block *b, unsigned long action,
 			  void *hcpu)
 {
+	struct arm_pmu *pmu = per_cpu(cpu_pmu, (long)hcpu);
+
 	if ((action & ~CPU_TASKS_FROZEN) != CPU_STARTING)
 		return NOTIFY_DONE;
 
-	if (cpu_pmu && cpu_pmu->reset)
-		cpu_pmu->reset(cpu_pmu);
+	if (pmu && pmu->reset)
+		pmu->reset(pmu);
 	else
 		return NOTIFY_DONE;
 
@@ -258,11 +261,7 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct arm_pmu *pmu;
 	int ret = -ENODEV;
-
-	if (cpu_pmu) {
-		pr_info("attempt to register multiple PMU devices!");
-		return -ENOSPC;
-	}
+	int cpu;
 
 	pmu = kzalloc(sizeof(struct arm_pmu), GFP_KERNEL);
 	if (!pmu) {
@@ -282,10 +281,12 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	cpu_pmu = pmu;
-	cpu_pmu->plat_device = pdev;
-	cpu_pmu_init(cpu_pmu);
-	ret = armpmu_register(cpu_pmu, PERF_TYPE_RAW);
+	for_each_possible_cpu(cpu)
+		per_cpu(cpu_pmu, cpu) = pmu;
+
+	pmu->plat_device = pdev;
+	cpu_pmu_init(pmu);
+	ret = armpmu_register(pmu, PERF_TYPE_RAW);
 
 	if (!ret)
 		return 0;
