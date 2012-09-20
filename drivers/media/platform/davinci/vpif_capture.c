@@ -2139,24 +2139,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 	}
 
-	for (j = 0; j < VPIF_CAPTURE_MAX_DEVICES; j++) {
-		ch = vpif_obj.dev[j];
-		ch->channel_id = j;
-		common = &(ch->common[VPIF_VIDEO_INDEX]);
-		spin_lock_init(&common->irqlock);
-		mutex_init(&common->lock);
-		ch->video_dev->lock = &common->lock;
-		/* Initialize prio member of channel object */
-		v4l2_prio_init(&ch->prio);
-		err = video_register_device(ch->video_dev,
-					    VFL_TYPE_GRABBER, (j ? 1 : 0));
-		if (err)
-			goto probe_out;
-
-		video_set_drvdata(ch->video_dev, ch);
-
-	}
-
 	i2c_adap = i2c_get_adapter(1);
 	config = pdev->dev.platform_data;
 
@@ -2166,7 +2148,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");
 		err = -ENOMEM;
-		goto probe_out;
+		goto vpif_dev_alloc_err;
 	}
 
 	for (i = 0; i < subdev_count; i++) {
@@ -2183,19 +2165,27 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 		v4l2_info(&vpif_obj.v4l2_dev, "registered sub device %s\n",
 			  subdevdata->name);
-
-		if (vpif_obj.sd[i])
-			vpif_obj.sd[i]->grp_id = 1 << i;
 	}
 
+	for (j = 0; j < VPIF_CAPTURE_MAX_DEVICES; j++) {
+		ch = vpif_obj.dev[j];
+		ch->channel_id = j;
+		common = &(ch->common[VPIF_VIDEO_INDEX]);
+		spin_lock_init(&common->irqlock);
+		mutex_init(&common->lock);
+		ch->video_dev->lock = &common->lock;
+		/* Initialize prio member of channel object */
+		v4l2_prio_init(&ch->prio);
+		video_set_drvdata(ch->video_dev, ch);
+
+		err = video_register_device(ch->video_dev,
+					    VFL_TYPE_GRABBER, (j ? 1 : 0));
+		if (err)
+			goto probe_out;
+	}
 	v4l2_info(&vpif_obj.v4l2_dev, "VPIF capture driver initialized\n");
 	return 0;
 
-probe_subdev_out:
-	/* free sub devices memory */
-	kfree(vpif_obj.sd);
-
-	j = VPIF_CAPTURE_MAX_DEVICES;
 probe_out:
 	for (k = 0; k < j; k++) {
 		/* Get the pointer to the channel object */
@@ -2203,6 +2193,9 @@ probe_out:
 		/* Unregister video device */
 		video_unregister_device(ch->video_dev);
 	}
+probe_subdev_out:
+	/* free sub devices memory */
+	kfree(vpif_obj.sd);
 
 vpif_dev_alloc_err:
 	k = VPIF_CAPTURE_MAX_DEVICES-1;
