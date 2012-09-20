@@ -1607,7 +1607,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 {
 	struct vpif_subdev_info *subdevdata;
 	struct vpif_display_config *config;
-	int i, j = 0, k, q, m, err = 0;
+	int i, j = 0, k, err = 0;
+	int res_idx = 0;
 	struct i2c_adapter *i2c_adap;
 	struct common_obj *common;
 	struct channel_obj *ch;
@@ -1630,21 +1631,22 @@ static __init int vpif_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	k = 0;
-	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, k))) {
+	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, res_idx))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (request_irq(i, vpif_channel_isr, IRQF_SHARED,
-					"VPIF_Display",
-				(void *)(&vpif_obj.dev[k]->channel_id))) {
+					"VPIF_Display", (void *)
+					(&vpif_obj.dev[res_idx]->channel_id))) {
 				err = -EBUSY;
+				for (j = 0; j < i; j++)
+					free_irq(j, (void *)
+					(&vpif_obj.dev[res_idx]->channel_id));
 				goto vpif_int_err;
 			}
 		}
-		k++;
+		res_idx++;
 	}
 
 	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
-
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
 
@@ -1699,7 +1701,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");
 		err = -ENOMEM;
-		goto vpif_int_err;
+		goto vpif_sd_error;
 	}
 
 	for (i = 0; i < subdev_count; i++) {
@@ -1776,14 +1778,19 @@ probe_out:
 	}
 probe_subdev_out:
 	kfree(vpif_obj.sd);
+vpif_sd_error:
+	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
+		ch = vpif_obj.dev[i];
+		/* Note: does nothing if ch->video_dev == NULL */
+		video_device_release(ch->video_dev);
+	}
 vpif_int_err:
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 	vpif_err("VPIF IRQ request failed\n");
-	for (q = k; k >= 0; k--) {
-		for (m = i; m >= res->start; m--)
-			free_irq(m, (void *)(&vpif_obj.dev[k]->channel_id));
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, k-1);
-		m = res->end;
+	for (i = 0; i < res_idx; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
+		for (j = res->start; j <= res->end; j++)
+			free_irq(j, (void *)(&vpif_obj.dev[i]->channel_id));
 	}
 
 	return err;
