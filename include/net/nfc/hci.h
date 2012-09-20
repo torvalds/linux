@@ -30,6 +30,11 @@ struct nfc_hci_ops {
 	int (*open) (struct nfc_hci_dev *hdev);
 	void (*close) (struct nfc_hci_dev *hdev);
 	int (*hci_ready) (struct nfc_hci_dev *hdev);
+	/*
+	 * xmit must always send the complete buffer before
+	 * returning. Returned result must be 0 for success
+	 * or negative for failure.
+	 */
 	int (*xmit) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*start_poll) (struct nfc_hci_dev *hdev,
 			   u32 im_protocols, u32 tm_protocols);

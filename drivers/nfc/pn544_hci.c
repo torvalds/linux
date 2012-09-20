@@ -235,8 +235,12 @@ static int pn544_hci_i2c_write(struct i2c_client *client, u8 *buf, int len)
 		r = i2c_master_send(client, buf, len);
 	}
 
-	if (r >= 0 && r != len)
-		r = -EREMOTEIO;
+	if (r >= 0) {
+		if (r != len)
+			return -EREMOTEIO;
+		else
+			return 0;
+	}
 
 	return r;
 }
