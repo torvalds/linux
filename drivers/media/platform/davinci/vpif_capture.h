@@ -117,12 +117,10 @@ struct channel_obj {
 	u8 initialized;
 	/* Identifies channel */
 	enum vpif_channel_id channel_id;
-	/* index into sd table */
-	int curr_sd_index;
 	/* Current input */
 	u32 input_idx;
-	/* ptr to current sub device information */
-	struct vpif_subdev_info *curr_subdev_info;
+	/* subdev corresponding to the current input, may be NULL */
+	struct v4l2_subdev *sd;
 	/* vpif configuration params */
 	struct vpif_params vpifparams;
 	/* common object array */
