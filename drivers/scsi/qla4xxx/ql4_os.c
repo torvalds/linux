@@ -6140,22 +6140,25 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 		ha->isp_ops->idc_unlock(ha);
 		clear_bit(AF_FW_RECOVERY, &ha->flags);
 		rval = qla4xxx_initialize_adapter(ha, RESET_ADAPTER);
-		ha->isp_ops->idc_lock(ha);
 
 		if (rval != QLA_SUCCESS) {
 			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: HW State: "
 			    "FAILED\n", ha->host_no, __func__);
+			ha->isp_ops->idc_lock(ha);
 			qla4_8xxx_clear_drv_active(ha);
 			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 					    QLA8XXX_DEV_FAILED);
+			ha->isp_ops->idc_unlock(ha);
 		} else {
 			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: HW State: "
 			    "READY\n", ha->host_no, __func__);
+			ha->isp_ops->idc_lock(ha);
 			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 					    QLA8XXX_DEV_READY);
 			/* Clear driver state register */
 			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_STATE, 0);
 			qla4_8xxx_set_drv_active(ha);
+			ha->isp_ops->idc_unlock(ha);
 			ret = qla4xxx_request_irqs(ha);
 			if (ret) {
 				ql4_printk(KERN_WARNING, ha, "Failed to "
@@ -6167,7 +6170,6 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 				rval = QLA_SUCCESS;
 			}
 		}
-		ha->isp_ops->idc_unlock(ha);
 	} else {
 		ql4_printk(KERN_INFO, ha, "scsi%ld: %s: devfn 0x%x is not "
 		    "the reset owner\n", ha->host_no, __func__,
