@@ -1049,8 +1049,6 @@ static void update_backups(struct super_block *sb, int blk_off, char *data,
 		goto exit_err;
 	}
 
-	ext4_superblock_csum_set(sb, (struct ext4_super_block *)data);
-
 	if (meta_bg == 0) {
 		group = ext4_list_backups(sb, &three, &five, &seven);
 		last = sbi->s_groups_count;
