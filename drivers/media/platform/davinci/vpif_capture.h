@@ -54,8 +54,6 @@ struct video_obj {
 	/* Currently selected or default standard */
 	v4l2_std_id stdid;
 	struct v4l2_dv_timings dv_timings;
-	/* This is to track the last input that is passed to application */
-	u32 input_idx;
 };
 
 struct vpif_cap_buffer {
@@ -121,6 +119,8 @@ struct channel_obj {
 	enum vpif_channel_id channel_id;
 	/* index into sd table */
 	int curr_sd_index;
+	/* Current input */
+	u32 input_idx;
 	/* ptr to current sub device information */
 	struct vpif_subdev_info *curr_subdev_info;
 	/* vpif configuration params */

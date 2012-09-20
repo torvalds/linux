@@ -888,8 +888,6 @@ static int vpif_open(struct file *filep)
 			if (vpif_obj.sd[i]) {
 				/* the sub device is registered */
 				ch->curr_subdev_info = &config->subdev_info[i];
-				/* make first input as the current input */
-				vid_ch->input_idx = 0;
 				break;
 			}
 		}
@@ -1442,10 +1440,8 @@ static int vpif_g_input(struct file *file, void *priv, unsigned int *index)
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
-	struct video_obj *vid_ch = &ch->video;
 
-	*index = vid_ch->input_idx;
-
+	*index = ch->input_idx;
 	return 0;
 }
 
@@ -1462,7 +1458,6 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	struct video_obj *vid_ch = &ch->video;
 	struct vpif_subdev_info *subdev_info;
 	int ret = 0, sd_index = 0;
 	u32 input = 0, output = 0;
@@ -1517,7 +1512,7 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 			return ret;
 		}
 	}
-	vid_ch->input_idx = index;
+	ch->input_idx = index;
 	ch->curr_subdev_info = subdev_info;
 	ch->curr_sd_index = sd_index;
 	/* copy interface parameters to vpif */
