@@ -822,13 +822,6 @@ static int m5mols_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops m5mols_core_ops = {
 	.s_power	= m5mols_s_power,
-	.g_ctrl		= v4l2_subdev_g_ctrl,
-	.s_ctrl		= v4l2_subdev_s_ctrl,
-	.queryctrl	= v4l2_subdev_queryctrl,
-	.querymenu	= v4l2_subdev_querymenu,
-	.g_ext_ctrls	= v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls	= v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls	= v4l2_subdev_s_ext_ctrls,
 	.log_status	= m5mols_log_status,
 };
 
