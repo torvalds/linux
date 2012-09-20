@@ -1237,16 +1237,11 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Virtual Voice OUT"),
 
 	/* DACs */
-	SND_SOC_DAPM_DAC("DAC Right1", "Right Front HiFi Playback",
-			SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC Left1", "Left Front HiFi Playback",
-			SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC Right2", "Right Rear HiFi Playback",
-			SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC Left2", "Left Rear HiFi Playback",
-			SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC Voice", "Voice Playback",
-			SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Right1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Left1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Right2", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Left2", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Voice", NULL, SND_SOC_NOPM, 0, 0),
 
 	/* Analog bypasses */
 	SND_SOC_DAPM_SWITCH("Right1 Analog Loopback", SND_SOC_NOPM, 0, 0,
@@ -1375,14 +1370,10 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 
 	/* Introducing four virtual ADC, since TWL4030 have four channel for
 	   capture */
-	SND_SOC_DAPM_ADC("ADC Virtual Left1", "Left Front Capture",
-		SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC Virtual Right1", "Right Front Capture",
-		SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC Virtual Left2", "Left Rear Capture",
-		SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC Virtual Right2", "Right Rear Capture",
-		SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC Virtual Left1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC Virtual Right1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC Virtual Left2", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC Virtual Right2", NULL, SND_SOC_NOPM, 0, 0),
 
 	/* Analog/Digital mic path selection.
 	   TX1 Left/Right: either analog Left/Right or Digimic0
@@ -1426,6 +1417,23 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
+	/* Stream -> DAC mapping */
+	{"DAC Right1", NULL, "HiFi Playback"},
+	{"DAC Left1", NULL, "HiFi Playback"},
+	{"DAC Right2", NULL, "HiFi Playback"},
+	{"DAC Left2", NULL, "HiFi Playback"},
+	{"DAC Voice", NULL, "Voice Playback"},
+
+	/* ADC -> Stream mapping */
+	{"HiFi Capture", NULL, "ADC Virtual Left1"},
+	{"HiFi Capture", NULL, "ADC Virtual Right1"},
+	{"HiFi Capture", NULL, "ADC Virtual Left2"},
+	{"HiFi Capture", NULL, "ADC Virtual Right2"},
+	{"Voice Capture", NULL, "ADC Virtual Left1"},
+	{"Voice Capture", NULL, "ADC Virtual Right1"},
+	{"Voice Capture", NULL, "ADC Virtual Left2"},
+	{"Voice Capture", NULL, "ADC Virtual Right2"},
+
 	{"Digital L1 Playback Mixer", NULL, "DAC Left1"},
 	{"Digital R1 Playback Mixer", NULL, "DAC Right1"},
 	{"Digital L2 Playback Mixer", NULL, "DAC Left2"},
@@ -2170,7 +2178,7 @@ static struct snd_soc_dai_driver twl4030_dai[] = {
 		.formats = TWL4030_FORMATS,
 		.sig_bits = 24,},
 	.capture = {
-		.stream_name = "Capture",
+		.stream_name = "HiFi Capture",
 		.channels_min = 2,
 		.channels_max = 4,
 		.rates = TWL4030_RATES,
@@ -2187,7 +2195,7 @@ static struct snd_soc_dai_driver twl4030_dai[] = {
 		.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.capture = {
-		.stream_name = "Capture",
+		.stream_name = "Voice Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000,
