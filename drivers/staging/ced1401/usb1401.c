@@ -261,24 +261,6 @@ static int ced_flush(struct file *file, fl_owner_t id)
 	return res;
 }
 
-static ssize_t ced_read(struct file *file, char *buffer, size_t count,
-			loff_t * ppos)
-{
-	DEVICE_EXTENSION *pdx = file->private_data;
-	dev_err(&pdx->interface->dev, "%s called: use ioctl for cedusb",
-		__func__);
-	return 0;		// as we do not do reads this way
-}
-
-static ssize_t ced_write(struct file *file, const char *user_buffer,
-			 size_t count, loff_t * ppos)
-{
-	DEVICE_EXTENSION *pdx = file->private_data;
-	dev_err(&pdx->interface->dev, "%s called: use ioctl for cedusb",
-		__func__);
-	return 0;
-}
-
 /***************************************************************************
 ** CanAcceptIoRequests
 ** If the device is removed, interface is set NULL. We also clear our pointer
@@ -1402,8 +1384,6 @@ static int ced_ioctl(struct inode *node, struct file *file, unsigned int cmd,
 
 static const struct file_operations ced_fops = {
 	.owner = THIS_MODULE,
-	.read = ced_read,
-	.write = ced_write,
 	.open = ced_open,
 	.release = ced_release,
 	.flush = ced_flush,
