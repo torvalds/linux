@@ -395,12 +395,15 @@ static void exynos_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 	struct exynos_weint_data *eintd = irq_get_handler_data(irq);
 	struct samsung_pinctrl_drv_data *d = eintd->domain->host_data;
 	unsigned long pend;
+	unsigned long mask;
 
 	chained_irq_enter(chip, desc);
 	pend = readl(d->virt_base + d->ctrl->weint_pend + 0x8);
-	exynos_irq_demux_eint(16, pend, eintd->domain);
+	mask = readl(d->virt_base + d->ctrl->weint_mask + 0x8);
+	exynos_irq_demux_eint(16, pend & ~mask, eintd->domain);
 	pend = readl(d->virt_base + d->ctrl->weint_pend + 0xC);
-	exynos_irq_demux_eint(24, pend, eintd->domain);
+	mask = readl(d->virt_base + d->ctrl->weint_mask + 0xC);
+	exynos_irq_demux_eint(24, pend & ~mask, eintd->domain);
 	chained_irq_exit(chip, desc);
 }
 
