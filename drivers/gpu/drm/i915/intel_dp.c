@@ -2101,13 +2101,12 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	/* If we're HPD-aware, SINK_COUNT changes dynamically */
 	hpd = !!(intel_dp->downstream_ports[0] & DP_DS_PORT_HPD);
 	if (hpd) {
-		uint8_t sink_count;
+		uint8_t reg;
 		if (!intel_dp_aux_native_read_retry(intel_dp, DP_SINK_COUNT,
-						    &sink_count, 1))
+						    &reg, 1))
 			return connector_status_unknown;
-		sink_count &= DP_SINK_COUNT_MASK;
-		return sink_count ? connector_status_connected
-				  : connector_status_disconnected;
+		return DP_GET_SINK_COUNT(reg) ? connector_status_connected
+					      : connector_status_disconnected;
 	}
 
 	/* If no HPD, poke DDC gently */
