@@ -964,7 +964,7 @@ static int rtd_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 /*
   cmdtest tests a particular command to see if it is valid.
   Using the cmdtest ioctl, a user can create a valid cmd
-  and then have it executed by the cmd ioctl (asyncronously).
+  and then have it executed by the cmd ioctl (asynchronously).
 
   cmdtest returns 1,2,3,4 or 0, depending on which tests
   the command passes.
