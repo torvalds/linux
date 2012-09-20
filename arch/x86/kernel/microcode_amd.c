@@ -150,9 +150,9 @@ static void update_cache(struct ucode_patch *new_patch)
 
 static void free_cache(void)
 {
-	struct ucode_patch *p;
+	struct ucode_patch *p, *tmp;
 
-	list_for_each_entry_reverse(p, &pcache, plist) {
+	list_for_each_entry_safe(p, tmp, &pcache, plist) {
 		__list_del(p->plist.prev, p->plist.next);
 		kfree(p->data);
 		kfree(p);
