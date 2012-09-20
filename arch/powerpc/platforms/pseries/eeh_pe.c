@@ -105,11 +105,8 @@ static struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb)
 		 * the PE for PHB has been determined when that
 		 * was created.
 		 */
-		if ((pe->type & EEH_PE_PHB) &&
-		    pe->phb == phb) {
-			eeh_unlock();
+		if ((pe->type & EEH_PE_PHB) && pe->phb == phb)
 			return pe;
-		}
 	}
 
 	return NULL;
