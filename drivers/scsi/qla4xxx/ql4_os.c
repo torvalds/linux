@@ -5329,6 +5329,10 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	       ha->host_no, ha->firmware_version[0], ha->firmware_version[1],
 	       ha->patch_number, ha->build_number);
 
+	/* Set the driver version */
+	if (is_qla80XX(ha))
+		qla4_8xxx_set_param(ha, SET_DRVR_VERSION);
+
 	if (qla4xxx_setup_boot_info(ha))
 		ql4_printk(KERN_ERR, ha,
 			   "%s: No iSCSI boot target configured\n", __func__);

@@ -9,6 +9,7 @@
 #include "ql4_glbl.h"
 #include "ql4_dbg.h"
 #include "ql4_inline.h"
+#include "ql4_version.h"
 
 void qla4xxx_queue_mbox_cmd(struct scsi_qla_host *ha, uint32_t *mbx_cmd,
 			    int in_count)
@@ -1929,5 +1930,41 @@ int qla4xxx_restore_factory_defaults(struct scsi_qla_host *ha,
 				  "status %04X\n", ha->host_no, __func__,
 				  mbox_sts[0]));
 	}
+	return status;
+}
+
+/**
+ * qla4_8xxx_set_param - set driver version in firmware.
+ * @ha: Pointer to host adapter structure.
+ * @param: Parameter to set i.e driver version
+ **/
+int qla4_8xxx_set_param(struct scsi_qla_host *ha, int param)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	uint32_t status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_SET_PARAM;
+	if (param == SET_DRVR_VERSION) {
+		mbox_cmd[1] = SET_DRVR_VERSION;
+		strncpy((char *)&mbox_cmd[2], QLA4XXX_DRIVER_VERSION,
+			MAX_DRVR_VER_LEN);
+	} else {
+		ql4_printk(KERN_ERR, ha, "%s: invalid parameter 0x%x\n",
+			   __func__, param);
+		status = QLA_ERROR;
+		goto exit_set_param;
+	}
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 2, mbox_cmd,
+					 mbox_sts);
+	if (status == QLA_ERROR)
+		ql4_printk(KERN_ERR, ha, "%s: failed status %04X\n",
+			   __func__, mbox_sts[0]);
+
+exit_set_param:
 	return status;
 }

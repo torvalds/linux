@@ -255,6 +255,7 @@ int qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha);
 void qla4_8xxx_get_minidump(struct scsi_qla_host *ha);
 int qla4_8xxx_mbx_intr_disable(struct scsi_qla_host *ha);
 int qla4_8xxx_mbx_intr_enable(struct scsi_qla_host *ha);
+int qla4_8xxx_set_param(struct scsi_qla_host *ha, int param);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;
