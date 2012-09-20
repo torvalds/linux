@@ -204,6 +204,10 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			qla4_82xx_wr_32(ha, QLA82XX_CRB_NIU + 0x98,
 					CRB_NIU_XG_PAUSE_CTL_P0 |
 					CRB_NIU_XG_PAUSE_CTL_P1);
+		} else if (is_qla8032(ha)) {
+			ql4_printk(KERN_INFO, ha, " %s: disabling pause transmit on port 0 & 1.\n",
+				   __func__);
+			qla4_83xx_disable_pause(ha);
 		}
 		goto mbox_exit;
 	}

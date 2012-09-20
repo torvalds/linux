@@ -2946,6 +2946,14 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha)
 
 	set_bit(DPC_RESET_ACTIVE, &ha->dpc_flags);
 
+	if (is_qla8032(ha) &&
+	    !test_bit(DPC_RESET_HA_FW_CONTEXT, &ha->dpc_flags)) {
+		ql4_printk(KERN_INFO, ha, "%s: disabling pause transmit on port 0 & 1.\n",
+			   __func__);
+		/* disable pause frame for ISP83xx */
+		qla4_83xx_disable_pause(ha);
+	}
+
 	iscsi_host_for_each_session(ha->host, qla4xxx_fail_session);
 
 	if (test_bit(DPC_RESET_HA, &ha->dpc_flags))
@@ -3391,6 +3399,13 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 
 	if (is_qla80XX(ha)) {
 		if (test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags)) {
+			if (is_qla8032(ha)) {
+				ql4_printk(KERN_INFO, ha, "%s: disabling pause transmit on port 0 & 1.\n",
+					   __func__);
+				/* disable pause frame for ISP83xx */
+				qla4_83xx_disable_pause(ha);
+			}
+
 			ha->isp_ops->idc_lock(ha);
 			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 					    QLA8XXX_DEV_FAILED);

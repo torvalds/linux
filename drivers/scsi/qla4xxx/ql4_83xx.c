@@ -1465,3 +1465,147 @@ exit_isp_reset:
 
 	return rval;
 }
+
+static void qla4_83xx_dump_pause_control_regs(struct scsi_qla_host *ha)
+{
+	u32 val = 0, val1 = 0;
+	int i, status = QLA_SUCCESS;
+
+	status = qla4_83xx_rd_reg_indirect(ha, QLA83XX_SRE_SHIM_CONTROL, &val);
+	DEBUG2(ql4_printk(KERN_INFO, ha, "SRE-Shim Ctrl:0x%x\n", val));
+
+	/* Port 0 Rx Buffer Pause Threshold Registers. */
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+		"Port 0 Rx Buffer Pause Threshold Registers[TC7..TC0]:"));
+	for (i = 0; i < 8; i++) {
+		status = qla4_83xx_rd_reg_indirect(ha,
+				QLA83XX_PORT0_RXB_PAUSE_THRS + (i * 0x4), &val);
+		DEBUG2(pr_info("0x%x ", val));
+	}
+
+	DEBUG2(pr_info("\n"));
+
+	/* Port 1 Rx Buffer Pause Threshold Registers. */
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+		"Port 1 Rx Buffer Pause Threshold Registers[TC7..TC0]:"));
+	for (i = 0; i < 8; i++) {
+		status = qla4_83xx_rd_reg_indirect(ha,
+				QLA83XX_PORT1_RXB_PAUSE_THRS + (i * 0x4), &val);
+		DEBUG2(pr_info("0x%x  ", val));
+	}
+
+	DEBUG2(pr_info("\n"));
+
+	/* Port 0 RxB Traffic Class Max Cell Registers. */
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+		"Port 0 RxB Traffic Class Max Cell Registers[3..0]:"));
+	for (i = 0; i < 4; i++) {
+		status = qla4_83xx_rd_reg_indirect(ha,
+			       QLA83XX_PORT0_RXB_TC_MAX_CELL + (i * 0x4), &val);
+		DEBUG2(pr_info("0x%x  ", val));
+	}
+
+	DEBUG2(pr_info("\n"));
+
+	/* Port 1 RxB Traffic Class Max Cell Registers. */
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+		"Port 1 RxB Traffic Class Max Cell Registers[3..0]:"));
+	for (i = 0; i < 4; i++) {
+		status = qla4_83xx_rd_reg_indirect(ha,
+			       QLA83XX_PORT1_RXB_TC_MAX_CELL + (i * 0x4), &val);
+		DEBUG2(pr_info("0x%x  ", val));
+	}
+
+	DEBUG2(pr_info("\n"));
+
+	/* Port 0 RxB Rx Traffic Class Stats. */
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "Port 0 RxB Rx Traffic Class Stats [TC7..TC0]"));
+	for (i = 7; i >= 0; i--) {
+		status = qla4_83xx_rd_reg_indirect(ha,
+						   QLA83XX_PORT0_RXB_TC_STATS,
+						   &val);
+		val &= ~(0x7 << 29);    /* Reset bits 29 to 31 */
+		qla4_83xx_wr_reg_indirect(ha, QLA83XX_PORT0_RXB_TC_STATS,
+					  (val | (i << 29)));
+		status = qla4_83xx_rd_reg_indirect(ha,
+						   QLA83XX_PORT0_RXB_TC_STATS,
+						   &val);
+		DEBUG2(pr_info("0x%x  ", val));
+	}
+
+	DEBUG2(pr_info("\n"));
+
+	/* Port 1 RxB Rx Traffic Class Stats. */
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "Port 1 RxB Rx Traffic Class Stats [TC7..TC0]"));
+	for (i = 7; i >= 0; i--) {
+		status = qla4_83xx_rd_reg_indirect(ha,
+						   QLA83XX_PORT1_RXB_TC_STATS,
+						   &val);
+		val &= ~(0x7 << 29);    /* Reset bits 29 to 31 */
+		qla4_83xx_wr_reg_indirect(ha, QLA83XX_PORT1_RXB_TC_STATS,
+					  (val | (i << 29)));
+		status = qla4_83xx_rd_reg_indirect(ha,
+						   QLA83XX_PORT1_RXB_TC_STATS,
+						   &val);
+		DEBUG2(pr_info("0x%x  ", val));
+	}
+
+	DEBUG2(pr_info("\n"));
+
+	status = qla4_83xx_rd_reg_indirect(ha, QLA83XX_PORT2_IFB_PAUSE_THRS,
+					   &val);
+	status = qla4_83xx_rd_reg_indirect(ha, QLA83XX_PORT3_IFB_PAUSE_THRS,
+					   &val1);
+
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "IFB-Pause Thresholds: Port 2:0x%x, Port 3:0x%x\n",
+			  val, val1));
+}
+
+static void __qla4_83xx_disable_pause(struct scsi_qla_host *ha)
+{
+	int i;
+
+	/* set SRE-Shim Control Register */
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_SRE_SHIM_CONTROL,
+				  QLA83XX_SET_PAUSE_VAL);
+
+	for (i = 0; i < 8; i++) {
+		/* Port 0 Rx Buffer Pause Threshold Registers. */
+		qla4_83xx_wr_reg_indirect(ha,
+				      QLA83XX_PORT0_RXB_PAUSE_THRS + (i * 0x4),
+				      QLA83XX_SET_PAUSE_VAL);
+		/* Port 1 Rx Buffer Pause Threshold Registers. */
+		qla4_83xx_wr_reg_indirect(ha,
+				      QLA83XX_PORT1_RXB_PAUSE_THRS + (i * 0x4),
+				      QLA83XX_SET_PAUSE_VAL);
+	}
+
+	for (i = 0; i < 4; i++) {
+		/* Port 0 RxB Traffic Class Max Cell Registers. */
+		qla4_83xx_wr_reg_indirect(ha,
+				     QLA83XX_PORT0_RXB_TC_MAX_CELL + (i * 0x4),
+				     QLA83XX_SET_TC_MAX_CELL_VAL);
+		/* Port 1 RxB Traffic Class Max Cell Registers. */
+		qla4_83xx_wr_reg_indirect(ha,
+				     QLA83XX_PORT1_RXB_TC_MAX_CELL + (i * 0x4),
+				     QLA83XX_SET_TC_MAX_CELL_VAL);
+	}
+
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_PORT2_IFB_PAUSE_THRS,
+				  QLA83XX_SET_PAUSE_VAL);
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_PORT3_IFB_PAUSE_THRS,
+				  QLA83XX_SET_PAUSE_VAL);
+
+	ql4_printk(KERN_INFO, ha, "Disabled pause frames successfully.\n");
+}
+
+void qla4_83xx_disable_pause(struct scsi_qla_host *ha)
+{
+	ha->isp_ops->idc_lock(ha);
+	qla4_83xx_dump_pause_control_regs(ha);
+	__qla4_83xx_disable_pause(ha);
+	ha->isp_ops->idc_unlock(ha);
+}
