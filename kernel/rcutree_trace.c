@@ -148,53 +148,27 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->n_cbs_invoked, rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
 }
 
-static int show_rcudata(struct seq_file *m, void *unused)
-{
-	int cpu;
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp) {
-		seq_printf(m, "%s:\n", rsp->name);
-		for_each_possible_cpu(cpu)
-			print_one_rcu_data(m, per_cpu_ptr(rsp->rda, cpu));
-	}
-	return 0;
-}
-
-static int rcudata_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_rcudata, NULL);
-}
-
-static const struct file_operations rcudata_fops = {
-	.owner = THIS_MODULE,
-	.open = rcudata_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static int new_show_rcudata(struct seq_file *m, void *v)
+static int show_rcudata(struct seq_file *m, void *v)
 {
 	print_one_rcu_data(m, (struct rcu_data *)v);
 	return 0;
 }
 
-static const struct seq_operations new_rcudate_op = {
+static const struct seq_operations rcudate_op = {
 	.start = r_start,
 	.next  = r_next,
 	.stop  = r_stop,
-	.show  = new_show_rcudata,
+	.show  = show_rcudata,
 };
 
-static int new_rcudata_open(struct inode *inode, struct file *file)
+static int rcudata_open(struct inode *inode, struct file *file)
 {
-	return r_open(inode, file, &new_rcudate_op);
+	return r_open(inode, file, &rcudate_op);
 }
 
-static const struct file_operations new_rcudata_fops = {
+static const struct file_operations rcudata_fops = {
 	.owner = THIS_MODULE,
-	.open = new_rcudata_open,
+	.open = rcudata_open,
 	.read = seq_read,
 	.llseek = no_llseek,
 	.release = seq_release,
@@ -234,40 +208,7 @@ static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->n_cbs_invoked, rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
 }
 
-static int show_rcudata_csv(struct seq_file *m, void *unused)
-{
-	int cpu;
-	struct rcu_state *rsp;
-
-	seq_puts(m, "\"CPU\",\"Online?\",\"c\",\"g\",\"pq\",\"pq\",");
-	seq_puts(m, "\"dt\",\"dt nesting\",\"dt NMI nesting\",\"df\",");
-	seq_puts(m, "\"of\",\"qll\",\"ql\",\"qs\"");
-#ifdef CONFIG_RCU_BOOST
-	seq_puts(m, "\"kt\",\"ktl\"");
-#endif /* #ifdef CONFIG_RCU_BOOST */
-	seq_puts(m, ",\"b\",\"ci\",\"co\",\"ca\"\n");
-	for_each_rcu_flavor(rsp) {
-		seq_printf(m, "\"%s:\"\n", rsp->name);
-		for_each_possible_cpu(cpu)
-			print_one_rcu_data_csv(m, per_cpu_ptr(rsp->rda, cpu));
-	}
-	return 0;
-}
-
-static int rcudata_csv_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_rcudata_csv, NULL);
-}
-
-static const struct file_operations rcudata_csv_fops = {
-	.owner = THIS_MODULE,
-	.open = rcudata_csv_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static int new_show_rcudata_csv(struct seq_file *m, void *v)
+static int show_rcudata_csv(struct seq_file *m, void *v)
 {
 	struct rcu_data *rdp = (struct rcu_data *)v;
 	if (cpumask_first(cpu_possible_mask) == rdp->cpu) {
@@ -284,21 +225,21 @@ static int new_show_rcudata_csv(struct seq_file *m, void *v)
 	return 0;
 }
 
-static const struct seq_operations new_rcudate_csv_op = {
+static const struct seq_operations rcudate_csv_op = {
 	.start = r_start,
 	.next  = r_next,
 	.stop  = r_stop,
-	.show  = new_show_rcudata_csv,
+	.show  = show_rcudata_csv,
 };
 
-static int new_rcudata_csv_open(struct inode *inode, struct file *file)
+static int rcudata_csv_open(struct inode *inode, struct file *file)
 {
-	return r_open(inode, file, &new_rcudate_csv_op);
+	return r_open(inode, file, &rcudate_csv_op);
 }
 
-static const struct file_operations new_rcudata_csv_fops = {
+static const struct file_operations rcudata_csv_fops = {
 	.owner = THIS_MODULE,
-	.open = new_rcudata_csv_open,
+	.open = rcudata_csv_open,
 	.read = seq_read,
 	.llseek = no_llseek,
 	.release = seq_release,
@@ -484,53 +425,27 @@ static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->n_rp_need_nothing);
 }
 
-static int show_rcu_pending(struct seq_file *m, void *unused)
-{
-	int cpu;
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp) {
-		seq_printf(m, "%s:\n", rsp->name);
-		for_each_possible_cpu(cpu)
-			print_one_rcu_pending(m, per_cpu_ptr(rsp->rda, cpu));
-	}
-	return 0;
-}
-
-static int rcu_pending_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, show_rcu_pending, NULL);
-}
-
-static const struct file_operations rcu_pending_fops = {
-	.owner = THIS_MODULE,
-	.open = rcu_pending_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static int new_show_rcu_pending(struct seq_file *m, void *v)
+static int show_rcu_pending(struct seq_file *m, void *v)
 {
 	print_one_rcu_pending(m, (struct rcu_data *)v);
 	return 0;
 }
 
-static const struct seq_operations new_rcu_pending_op = {
+static const struct seq_operations rcu_pending_op = {
 	.start = r_start,
 	.next  = r_next,
 	.stop  = r_stop,
-	.show  = new_show_rcu_pending,
+	.show  = show_rcu_pending,
 };
 
-static int new_rcu_pending_open(struct inode *inode, struct file *file)
+static int rcu_pending_open(struct inode *inode, struct file *file)
 {
-	return r_open(inode, file, &new_rcu_pending_op);
+	return r_open(inode, file, &rcu_pending_op);
 }
 
-static const struct file_operations new_rcu_pending_fops = {
+static const struct file_operations rcu_pending_fops = {
 	.owner = THIS_MODULE,
-	.open = new_rcu_pending_open,
+	.open = rcu_pending_open,
 	.read = seq_read,
 	.llseek = no_llseek,
 	.release = seq_release,
@@ -577,33 +492,23 @@ static int __init rcutree_trace_init(void)
 			goto free_out;
 
 			retval = debugfs_create_file("rcudata", 0444,
-					rspdir, rsp, &new_rcudata_fops);
+					rspdir, rsp, &rcudata_fops);
 			if (!retval)
 				goto free_out;
 
 			retval = debugfs_create_file("rcudata.csv", 0444,
-					rspdir, rsp, &new_rcudata_csv_fops);
+					rspdir, rsp, &rcudata_csv_fops);
 			if (!retval)
 				goto free_out;
 
 			retval = debugfs_create_file("rcu_pending", 0444,
-					rspdir, rsp, &new_rcu_pending_fops);
+					rspdir, rsp, &rcu_pending_fops);
 			if (!retval)
 				goto free_out;
 	}
 
 	retval = debugfs_create_file("rcubarrier", 0444, rcudir,
 						NULL, &rcubarrier_fops);
-	if (!retval)
-		goto free_out;
-
-	retval = debugfs_create_file("rcudata", 0444, rcudir,
-						NULL, &rcudata_fops);
-	if (!retval)
-		goto free_out;
-
-	retval = debugfs_create_file("rcudata.csv", 0444, rcudir,
-						NULL, &rcudata_csv_fops);
 	if (!retval)
 		goto free_out;
 
@@ -616,11 +521,6 @@ static int __init rcutree_trace_init(void)
 
 	retval = debugfs_create_file("rcuhier", 0444, rcudir,
 						NULL, &rcuhier_fops);
-	if (!retval)
-		goto free_out;
-
-	retval = debugfs_create_file("rcu_pending", 0444, rcudir,
-						NULL, &rcu_pending_fops);
 	if (!retval)
 		goto free_out;
 
