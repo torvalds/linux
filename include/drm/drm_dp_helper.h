@@ -221,7 +221,8 @@
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
 
 #define DP_SINK_COUNT			    0x200
-# define DP_SINK_COUNT_MASK		    (31 << 0)
+/* prior to 1.2 bit 7 was reserved mbz */
+# define DP_GET_SINK_COUNT(x)		    ((((x) & 0x80) >> 1) | ((x) & 0x3f))
 # define DP_SINK_CP_READY		    (1 << 6)
 
 #define DP_DEVICE_SERVICE_IRQ_VECTOR	    0x201
