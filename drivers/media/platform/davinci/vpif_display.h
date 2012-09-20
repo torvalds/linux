@@ -65,12 +65,6 @@ struct video_obj {
 	u32 output_id;			/* Current output id */
 };
 
-struct vbi_obj {
-	int num_services;
-	struct vpif_vbi_params vbiparams;	/* vpif parameters for the raw
-						 * vbi data */
-};
-
 struct vpif_disp_buffer {
 	struct vb2_buffer vb;
 	struct list_head list;
@@ -136,7 +130,6 @@ struct channel_obj {
 	struct vpif_params vpifparams;
 	struct common_obj common[VPIF_NUMOBJECTS];
 	struct video_obj video;
-	struct vbi_obj vbi;
 };
 
 /* File handle structure */
@@ -166,14 +159,6 @@ struct vpif_config_params {
 	u8 numbuffers[VPIF_DISPLAY_NUM_CHANNELS];
 	u32 video_limit[VPIF_DISPLAY_NUM_CHANNELS];
 	u8 min_numbuffers;
-};
-
-/* Struct which keeps track of the line numbers for the sliced vbi service */
-struct vpif_service_line {
-	u16 service_id;
-	u16 service_line[2];
-	u16 enc_service_id;
-	u8 bytestowrite;
 };
 
 #endif				/* DAVINCIHD_DISPLAY_H */
