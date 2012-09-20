@@ -297,8 +297,10 @@ try_again:
 			}
 
 			printf("\n");
-			error("sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information.\n",
-			      err, strerror(err));
+			error("sys_perf_event_open() syscall returned with %d "
+			      "(%s) for event %s. /bin/dmesg may provide "
+			      "additional information.\n",
+			      err, strerror(err), perf_evsel__name(pos));
 
 #if defined(__i386__) || defined(__x86_64__)
 			if (attr->type == PERF_TYPE_HARDWARE &&
