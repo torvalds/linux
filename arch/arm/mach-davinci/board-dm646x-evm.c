@@ -601,24 +601,12 @@ static struct vpif_subdev_info vpif_capture_sdev_info[] = {
 			I2C_BOARD_INFO("tvp5146", 0x5d),
 			.platform_data = &tvp5146_pdata,
 		},
-		.vpif_if = {
-			.if_type = VPIF_IF_BT656,
-			.hd_pol = 1,
-			.vd_pol = 1,
-			.fid_pol = 0,
-		},
 	},
 	{
 		.name	= TVP5147_CH1,
 		.board_info = {
 			I2C_BOARD_INFO("tvp5146", 0x5c),
 			.platform_data = &tvp5146_pdata,
-		},
-		.vpif_if = {
-			.if_type = VPIF_IF_BT656,
-			.hd_pol = 1,
-			.vd_pol = 1,
-			.fid_pol = 0,
 		},
 	},
 };
@@ -661,10 +649,22 @@ static struct vpif_capture_config dm646x_vpif_capture_cfg = {
 	.chan_config[0] = {
 		.inputs = dm6467_ch0_inputs,
 		.input_count = ARRAY_SIZE(dm6467_ch0_inputs),
+		.vpif_if = {
+			.if_type = VPIF_IF_BT656,
+			.hd_pol = 1,
+			.vd_pol = 1,
+			.fid_pol = 0,
+		},
 	},
 	.chan_config[1] = {
 		.inputs = dm6467_ch1_inputs,
 		.input_count = ARRAY_SIZE(dm6467_ch1_inputs),
+		.vpif_if = {
+			.if_type = VPIF_IF_BT656,
+			.hd_pol = 1,
+			.vd_pol = 1,
+			.fid_pol = 0,
+		},
 	},
 };
 

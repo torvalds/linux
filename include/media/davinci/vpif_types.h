@@ -37,7 +37,6 @@ struct vpif_interface {
 struct vpif_subdev_info {
 	const char *name;
 	struct i2c_board_info board_info;
-	struct vpif_interface vpif_if;
 };
 
 struct vpif_display_config {
@@ -59,6 +58,7 @@ struct vpif_input {
 };
 
 struct vpif_capture_chan_config {
+	struct vpif_interface vpif_if;
 	const struct vpif_input *inputs;
 	int input_count;
 };

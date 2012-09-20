@@ -1310,7 +1310,7 @@ static int vpif_set_input(
 	ch->input_idx = index;
 	ch->sd = sd;
 	/* copy interface parameters to vpif */
-	ch->vpifparams.iface = subdev_info->vpif_if;
+	ch->vpifparams.iface = chan_cfg->vpif_if;
 
 	/* update tvnorms from the sub device input info */
 	ch->video_dev->tvnorms = chan_cfg->inputs[index].input.std;
