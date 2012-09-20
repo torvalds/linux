@@ -430,6 +430,8 @@ static void form_cm_frame(struct sk_buff *skb,
 	buf += sizeof(*tcph);
 
 	skb->ip_summed = CHECKSUM_PARTIAL;
+	if (!(cm_node->netdev->features & NETIF_F_IP_CSUM))
+		skb->ip_summed = CHECKSUM_NONE;
 	skb->protocol = htons(0x800);
 	skb->data_len = 0;
 	skb->mac_len = ETH_HLEN;
