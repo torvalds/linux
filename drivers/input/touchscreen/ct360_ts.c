@@ -48,7 +48,7 @@
 	#define  yj_printk(msg...)
 #endif
 
-#if 0
+#if 1
 	#define  boot_printk(msg...)  printk(msg);
 #else
 	#define  boot_printk(msg...)
@@ -120,150 +120,257 @@ static int ct360_write_regs(struct i2c_client *client, u8 const buf[], unsigned 
 
 extern char Binary_Data[16384]; 
 
-char CT360_CTP_BootLoader(struct ct360_ts_data *ts)
+//update firmware
+#define CT36X_TS_I2C_SPEED 300*1000
+
+static void ct36x_ts_reg_read(struct i2c_client *client, unsigned short addr, char *buf, int len, int rate)
 {
-	char value = 0;
-	char I2C_Buf[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	char i = 0;
-	unsigned int Flash_Address = 0;
-	char CheckSum;
+	struct i2c_msg msgs;
 
-	//Step 00 : initBootLoader
-	ts->client->addr = 0x7F;
-	I2C_Buf[0] = 0x00;
-	I2C_Buf[1] = 0xA5;
-	ct360_write_regs(ts->client,I2C_Buf,2); // Write a “A5H” to CT360
-	mdelay(15);
+	msgs.addr = addr;
+	msgs.flags = 0x01;  // 0x00: write 0x01:read 
+	msgs.len = len;
+	msgs.buf = buf;
+	msgs.scl_rate = rate;
+	i2c_transfer(client->adapter, &msgs, 1);
+}
 
-	// Read CT360 status
-	i2c_master_normal_send(ts->client,I2C_Buf,1,100*1000);	
-	mdelay(1);
-	i2c_master_normal_recv(ts->client,&value,1,100*1000);
+static void ct36x_ts_reg_write(struct i2c_client *client, unsigned short addr, char *buf, int len, int rate)
+{
+	struct i2c_msg msgs;
 
-	boot_printk("%s......0...\n",__FUNCTION__);
-	// if return “AAH” then going next step
-	if (value != 0xAA)
-		return 0;
-	boot_printk("%s......1...\n",__FUNCTION__);
-	//Step 0 : force CT360 generate check sum for host to compare data.
-	//VTL_Address = 0x00A4
-	//Prepare get check sum from CT360
-	I2C_Buf[0] = 0x00;
-	I2C_Buf[1] = 0x99; //Generate check sum command
-	I2C_Buf[2] = (char)(0x00A4 >> 8); //define a flash address for CT360 to generate check sum
-	I2C_Buf[3] = (char)(0x00A4 & 0xFF); //
-	I2C_Buf[4] = 0x08; //Define a data length for CT360 to generate check sum
-	ct360_write_regs(ts->client,I2C_Buf, 5); //Write Genertate check sum command to CT360
-	mdelay(2); //Delay 1mS
+	msgs.addr = addr;
+	msgs.flags = 0x00;  // 0x00: write 0x01:read 
+	msgs.len = len;
+	msgs.buf = buf;
+	msgs.scl_rate = rate;
+	i2c_transfer(client->adapter, &msgs, 1);
+}
+
+
+int CT360_CTP_BootLoader(struct ct360_ts_data *ts)
+{
+	int i = 0, j = 0;
+	unsigned int ver_chk_cnt = 0;
+	unsigned int flash_addr = 0;
+	unsigned char CheckSum[16];
+
+	//------------------------------
+	// Step1 --> initial BootLoader
+	// Note. 0x7F -> 0x00 -> 0xA5 ;
+	// MCU goto idle
+	//------------------------------
+	printk("%s() Set mcu to idle \n", __FUNCTION__);
+	ts->data.buf[0] = 0x00;
+	ts->data.buf[1] = 0xA5;
+	ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 2, CT36X_TS_I2C_SPEED);
+	mdelay(10);
 	
-	I2C_Buf[0] = 0x00;
-	ct360_write_regs(ts->client,I2C_Buf,1); 
-	mdelay(1);
-	i2c_master_normal_recv(ts->client,I2C_Buf, 13,100*1000); // Read check sum and flash data from CT360
+	//------------------------------
+	// Reset I2C Offset address
+	// Note. 0x7F -> 0x00	
+	//------------------------------
+	printk(&"%s() Reset i2c offset address \n", __FUNCTION__);
+	ts->data.buf[0] = 0x00;
+	ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 1, CT36X_TS_I2C_SPEED);
+	mdelay(10);
+	
+	//------------------------------
+	// Read I2C Bus status
+	//------------------------------
+	printk("%s() Read i2c bus status \n", __FUNCTION__);
+	ct36x_ts_reg_read(ts->client, 0x7F, ts->data.buf, 1, CT36X_TS_I2C_SPEED);
+	mdelay(10); 									// Delay 1 ms
 
-	//Compare host check sum with CT360 check sum(I2C_Buf[5]  I2C_Buf[9] )
-	if ((I2C_Buf[5] != 'V') || (I2C_Buf[9] != 'T'))
-		return 0;	
-	boot_printk("%s......2..\n",__FUNCTION__);
-	//Step 1 : initBootLoader
-	I2C_Buf[0] = 0x00;
-	I2C_Buf[1] = 0xA5;
-	ct360_write_regs(ts->client,I2C_Buf,2); // Write a “A5H” to CT360
-	mdelay(15);
-
-	I2C_Buf[0] = 0x00;
-	ct360_write_regs(ts->client,I2C_Buf,1); // Write a “A5H” to CT360
-	mdelay(1);
-	i2c_master_normal_recv(ts->client,&value, 1,100*1000);
-
-
-	// if return “AAH” then going next step
-	if (value != 0xAA)
-	return 0;
-
-	boot_printk("%s......3...\n",__FUNCTION__);
-	//Step 2 : erase flash section 0~7
-	for(i = 0; i<8; i++)
+	// if return "AAH" then going next step
+	if (ts->data.buf[0] != 0xAA)
 	{
-		I2C_Buf[0] = 0x00;
-		I2C_Buf [1] = 0x33; //Erase command
-		I2C_Buf [2] = 0x00 + (i * 8); //Flash section address
-		ct360_write_regs(ts->client,I2C_Buf, 3); //Write “33H” and “Flash section” to CT360
-		mdelay(80); //Delay 75mS
-
-		I2C_Buf[0] = 0x00;
-		ct360_write_regs(ts->client,I2C_Buf,1); // Write a “A5H” to CT360
-		mdelay(1);
-		i2c_master_normal_recv(ts->client,&value, 1,100*1000);
-
-		// if CT360 return “AAH” then going next step
-		if (value != 0xAA)
-			return 0; //CT360 out of controlled
+		printk("%s() i2c bus status: 0x%x \n", __FUNCTION__, ts->data.buf[0]);
+		return -1;
 	}
-	boot_printk("%s......4...\n",__FUNCTION__);
+
+	//------------------------------
+	// Check incomplete flash erase
+	//------------------------------
+	printk("%s() Flash erase verify \n", __FUNCTION__);
+	ts->data.buf[0] = 0x00;
+	ts->data.buf[1] = 0x99;			// Generate check sum command  -->read flash, set addr
+	ts->data.buf[2] = 0x00;			// define a flash address for CT36x to generate check sum
+	ts->data.buf[3] = 0x00;			//
+	ts->data.buf[4] = 0x08;			// Define a data length for CT36x to generate check sum
+
+	// Write Genertate check sum command to CT36x
+	ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 5, CT36X_TS_I2C_SPEED);
+	mdelay(10); 								// Delay 10 ms
+
+	ct36x_ts_reg_read(ts->client, 0x7F, ts->data.buf, 13, CT36X_TS_I2C_SPEED);
+	mdelay(10); 								// Delay 10 ms 
+
+	CheckSum[0] = ts->data.buf[5];
+	CheckSum[1] = ts->data.buf[6];
+
+	ts->data.buf[0] = 0x00;
+	ts->data.buf[1] = 0x99;			// Generate check sum command  -->read flash, set addr
+	ts->data.buf[2] = 0x3F;			// define a flash address for CT36x to generate check sum
+	ts->data.buf[3] = 0xE0;			//
+	ts->data.buf[4] = 0x08;			// Define a data length for CT36x to generate check sum
+	// Write Genertate check sum command to CT36x
+	ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 5, CT36X_TS_I2C_SPEED);
+	mdelay(10); 								// Delay 10 ms
+
+	ct36x_ts_reg_read(ts->client, 0x7F, ts->data.buf, 13, CT36X_TS_I2C_SPEED);
+	mdelay(10);
+
+	CheckSum[2] = ts->data.buf[5];
+	CheckSum[3] = ts->data.buf[6];
+
+	if ( (CheckSum[0] ^ CheckSum[2]) == 0xFF && (CheckSum[1] ^ CheckSum[3]) == 0xFF )
+		goto FLASH_ERASE;
 	
-	for (Flash_Address=0; Flash_Address < 0x3fff; Flash_Address+=8)
-	{
-		//Step 3 : write binary data to CT360
-		I2C_Buf[0] = 0x00;
-		I2C_Buf[1] = 0x55; //Flash write command
-		I2C_Buf[2] = (char)(Flash_Address >> 8); //Flash address [15:8]
-		I2C_Buf[3] = (char)(Flash_Address & 0xFF); //Flash address [7:0]
-		I2C_Buf[4] = 0x08; //How many prepare to write to CT360
-		I2C_Buf[6] = Binary_Data[Flash_Address + 0]; //Binary data 1
-		I2C_Buf[7] = Binary_Data[Flash_Address + 1]; //Binary data 2
-		I2C_Buf[8] = Binary_Data[Flash_Address + 2]; //Binary data 3
-		I2C_Buf[9] = Binary_Data[Flash_Address + 3]; //Binary data 4
-		I2C_Buf[10] = Binary_Data[Flash_Address + 4]; //Binary data 5
-		I2C_Buf[11] = Binary_Data[Flash_Address + 5]; //Binary data 6
-		I2C_Buf[12] = Binary_Data[Flash_Address + 6]; //Binary data 7
-		I2C_Buf[13] = Binary_Data[Flash_Address + 7]; //Binary data 8
-		// Calculate a check sum by Host controller.
+	//------------------------------
+	// check valid Vendor ID
+	//------------------------------
+	printk("%s() Vendor ID Check \n", __FUNCTION__);
+	ts->data.buf[0] = 0x00;
+	ts->data.buf[1] = 0x99;			// Generate check sum command  -->read flash, set addr
+	ts->data.buf[2] = 0x00;			// define a flash address for CT365 to generate check sum
+	ts->data.buf[3] = 0x44;			//
+	ts->data.buf[4] = 0x08;			// Define a data length for CT365 to generate check sum
+
+	// Write Genertate check sum command to CT36x
+	ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 5, CT36X_TS_I2C_SPEED);
+	mdelay(10); 								// Delay 10 ms
+
+	ct36x_ts_reg_read(ts->client, 0x7F, ts->data.buf, 13, CT36X_TS_I2C_SPEED);
+	mdelay(10); 								// Delay 10 ms 
+	
+	// Read check sum and flash data from CT36x
+	if ( (ts->data.buf[5] != 'V') || (ts->data.buf[9] != 'T') )
+		ver_chk_cnt++;
+
+	ts->data.buf[0] = 0x00;
+	ts->data.buf[1] = 0x99;			// Generate check sum command  -->read flash,set addr
+	ts->data.buf[2] = 0x00;			// define a flash address for CT365 to generate check sum	
+	ts->data.buf[3] = 0xA4;			//
+	ts->data.buf[4] = 0x08;			// Define a data length for CT365 to generate check sum 
+
+	// Write Genertate check sum command to CT365
+	ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 5, CT36X_TS_I2C_SPEED);
+	mdelay(10); 								// Delay 10 ms
+
+	ct36x_ts_reg_read(ts->client, 0x7F, ts->data.buf, 13, CT36X_TS_I2C_SPEED);
+	mdelay(10); 								// Delay 10 ms 
+	
+	if ((ts->data.buf[5] != 'V') || (ts->data.buf[9] != 'T'))
+		ver_chk_cnt++;
+
+	if ( ver_chk_cnt >= 2 ) {
+		printk("%s() Invalid FW Version \n", __FUNCTION__);
+		return -1;
+	}
+
+FLASH_ERASE:
+	//-----------------------------------------------------
+	// Step 2 : Erase 32K flash memory via Mass Erase (33H)  
+	// 0x7F --> 0x00 --> 0x33 --> 0x00;
+	//-----------------------------------------------------
+	printk("%s() Erase flash \n", __FUNCTION__);
+	for(i = 0; i < 8; i++ ) {
+		ts->data.buf[0] = 0x00;			// Offset address
+		ts->data.buf[1] = 0x33;			// Mass Erase command
+		ts->data.buf[2] = 0x00 + (i * 8);  
+		ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 3, CT36X_TS_I2C_SPEED);
+		mdelay(120); 				// Delay 10 mS
+
+		//------------------------------
+		// Reset I2C Offset address
+		// Note. 0x7F -> 0x00	
+		//------------------------------
+		ts->data.buf[0] = 0x00;
+		ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 1, CT36X_TS_I2C_SPEED);
+		mdelay(120); 				// Delay 10 mS
+
+		//------------------------------
+		// Read I2C Bus status
+		//------------------------------
+		ct36x_ts_reg_read(ts->client, 0x7F, ts->data.buf, 1, CT36X_TS_I2C_SPEED);
+		mdelay(10); 							// Delay 1 ms 
+
+		// if return "AAH" then going next step
+		if( ts->data.buf[0] != 0xAA )
+			return -1;
+	}
+
+	//----------------------------------------
+	// Step3. Host write 128 bytes to CT36x
+	// Step4. Host read checksum to verify ;
+	// Write/Read for 256 times ( 32k Bytes )
+	//----------------------------------------
+	printk("%s() flash FW \n", __FUNCTION__);
+	for ( flash_addr = 0; flash_addr < 0x3FFF; flash_addr+=8 ) {
+		// Step 3 : write binary data to CT36x
+		ts->data.buf[0] = 0x00;								// Offset address 
+		ts->data.buf[1] = 0x55;								// Flash write command
+		ts->data.buf[2] = (char)(flash_addr  >> 8);			// Flash address [15:8]
+		ts->data.buf[3] = (char)(flash_addr & 0xFF);			// Flash address [7:0]
+		ts->data.buf[4] = 0x08;								// Data Length 
+
+		if( flash_addr == 160 || flash_addr == 168 ) {
+			ts->data.buf[6] = ~Binary_Data[flash_addr + 0];	// Binary data 1
+			ts->data.buf[7] = ~Binary_Data[flash_addr + 1];	// Binary data 2
+			ts->data.buf[8] = ~Binary_Data[flash_addr + 2];	// Binary data 3
+			ts->data.buf[9] = ~Binary_Data[flash_addr + 3];	// Binary data 4
+			ts->data.buf[10] = ~Binary_Data[flash_addr + 4];	// Binary data 5
+			ts->data.buf[11] = ~Binary_Data[flash_addr + 5];	// Binary data 6
+			ts->data.buf[12] = ~Binary_Data[flash_addr + 6];	// Binary data 7
+			ts->data.buf[13] = ~Binary_Data[flash_addr + 7];	// Binary data 8
+		} else {
+			ts->data.buf[6] = Binary_Data[flash_addr + 0];			// Binary data 1
+			ts->data.buf[7] = Binary_Data[flash_addr + 1];			// Binary data 2
+			ts->data.buf[8] = Binary_Data[flash_addr + 2];			// Binary data 3
+			ts->data.buf[9] = Binary_Data[flash_addr + 3];			// Binary data 4
+			ts->data.buf[10] = Binary_Data[flash_addr + 4];			// Binary data 5
+			ts->data.buf[11] = Binary_Data[flash_addr + 5];			// Binary data 6
+			ts->data.buf[12] = Binary_Data[flash_addr + 6];			// Binary data 7
+			ts->data.buf[13] = Binary_Data[flash_addr + 7];			// Binary data 8
+		}
+		// Calculate a check sum by Host controller. 
 		// Checksum = / (FLASH_ADRH+FLASH_ADRL+LENGTH+
 		// Binary_Data1+Binary_Data2+Binary_Data3+Binary_Data4+
-		// Binary_Data5+Binary_Data6+Binary_Data7+Binary_Data8) + 1
-		CheckSum = ~(I2C_Buf[2] + I2C_Buf[3] + I2C_Buf[4] + I2C_Buf[6] + I2C_Buf[7] +
-		I2C_Buf[8] + I2C_Buf[9] + I2C_Buf[10] + I2C_Buf[11] + I2C_Buf[12] +
-		I2C_Buf[13]) + 1;
-		I2C_Buf[5] = CheckSum; //Load check sum
-		ct360_write_regs(ts->client,I2C_Buf, 14); //Host write I2C_Buf[0…12] to CT360.
-		mdelay(2); //Delay 2mS
+		// Binary_Data5+Binary_Data6+Binary_Data7+Binary_Data8) + 1 
+		CheckSum[0] = ~(ts->data.buf[2] + ts->data.buf[3] + ts->data.buf[4] + ts->data.buf[6] + ts->data.buf[7] + 
+			ts->data.buf[8] + ts->data.buf[9] + ts->data.buf[10] + ts->data.buf[11] + ts->data.buf[12] +
+			ts->data.buf[13]) + 1; 
 
-		I2C_Buf[0] = 0x00;
-		ct360_write_regs(ts->client,I2C_Buf,1); // Write a “A5H” to CT360
-		mdelay(2);
-		i2c_master_normal_recv(ts->client,&value, 1,100*1000);
+		ts->data.buf[5] = CheckSum[0];						// Load check sum to I2C Buffer 
 
-// if return “AAH” then going next step
-		if (value != 0xAA)
-				return 0;	
-	
-	
-		//Step 4 : force CT360 generate check sum for host to compare data.
-		//Prepare get check sum from CT360
-		I2C_Buf[0] = 0x00;
-		I2C_Buf[1] = 0x99; //Generate check sum command
-		I2C_Buf[2] = (char)(Flash_Address >> 8); //define a flash address for CT360 to generate check sum
-		I2C_Buf[3] = (char)(Flash_Address & 0xFF); //
-		I2C_Buf[4] = 0x08; //Define a data length for CT360 to generate check sum
-		ct360_write_regs(ts->client,I2C_Buf, 5); //Write Genertate check sum command to CT360
-		mdelay(5); //Delay 1mS
-		I2C_Buf[0] = 0x00;
-		ct360_write_regs(ts->client,I2C_Buf,1); 
-		mdelay(1);
-		i2c_master_normal_recv(ts->client,I2C_Buf, 13,100*1000); // Read check sum and flash dat	//Compare host check sum with CT360 check sum(I2C_Buf[4])
+		ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 14, CT36X_TS_I2C_SPEED);									// Host write I2C_Buf[0?K12] to CT365. 
+		mdelay(1);													// 8 Bytes program --> Need 1 ms delay time 
 
-		if (I2C_Buf[4] != CheckSum)
-			return 0;
-					
+		// Step4. Verify process 
+		printk("%s(flash_addr:0x%04x) Verify FW \n", __FUNCTION__, flash_addr);
+		//Step 4 : Force CT365 generate check sum for host to compare data. 
+		//Prepare get check sum from CT36x
+		ts->data.buf[0] = 0x00;
+		ts->data.buf[1] = 0x99;								// Generate check sum command
+		ts->data.buf[2] = (char)(flash_addr >> 8);			// define a flash address for NT1100x to generate check sum 
+		ts->data.buf[3] = (char)(flash_addr & 0xFF);		//
+		ts->data.buf[4] = 0x08;								// Define a data length for CT36x to generate check sum 
+
+		ct36x_ts_reg_write(ts->client, 0x7F, ts->data.buf, 5, CT36X_TS_I2C_SPEED);									// Write Genertate check sum command to CT365
+		mdelay(1);													// Delay 1 ms
+
+		ct36x_ts_reg_read(ts->client, 0x7F, ts->data.buf, 13, CT36X_TS_I2C_SPEED);	// Read check sum and flash data from CT365
+
+		// Compare host check sum with CT365 check sum(I2C_Buf[4])
+		if ( ts->data.buf[4] != CheckSum[0] ) {
+			return -1;
+		}
 	}
-	
-	boot_printk("%s.....7..Flash_Address=%4x.\n",__FUNCTION__,Flash_Address);
-	ts->client->addr = 0x01;
-	boot_printk("%s.....7...%d\n",__FUNCTION__,ts->client->addr);
-				return 1; // Boot loader function is completed.
-		
-	} 
+
+	return	0;
+}
+
 
 /*read the ct360 register ,used i2c bus*/
 
@@ -310,24 +417,27 @@ static void ct360_ts_work_func(struct work_struct *work)
 	struct ct360_ts_data *ts = container_of(work, struct ct360_ts_data, work);
 	//printk("before read the gpio_get_value(ts->client->irq) is %d\n",gpio_get_value(ts->client->irq));
 	
-	ret= ct360_read_regs(ts->client, buf, 20);//only one data  represent the current touch num
+	ret= ct360_read_regs(ts->client, buf, TOUCH_REG_NUM*TOUCH_NUMBER);//only one data  represent the current touch num
 	if (ret < 0) {
 	  	printk("%s:i2c_transfer fail =%d\n", __FUNCTION__, toatl_num);
    	  	//enable_irq(ts->irq);
 		return;
 	}
-
+	
     for (i = 0; i < 20; i += TOUCH_REG_NUM)
     {
-		point_status = buf[i + 3] & 0x0F;
+		point_status = buf[i] & 0x0F;
+		point_id = buf[i] >> 4;
+		//printk("point_status:0x%02x, point_id:0x%02x  i = %d\n", point_status, point_id, i);
+		//printk("buf: 0x%02x, 0x%02x, 0x%02x, 0x%02x\n", buf[i], buf[i+1], buf[i+2], buf[i+3]);
 		//if (point_status != 0)
 		{
-			point_id = buf[i+3] >> 4;
+			
 			if((point_status == 1) || (point_status == 2)) {
-				x = (((s16)buf[i] << 4)|((s16)buf[i+2] >> 4));
-				y = (((s16)buf[i+1] << 4)|((s16)buf[i+2] & 0x0f));
-				printk("x=%d,y=%d\n",x,y);
-				printk("buf: 0x%02x, 0x%02x, 0x%02x, 0x%02x\n", buf[i], buf[i+1], buf[i+2], buf[i+3]);
+				x = (((s16)buf[i+1] << 4)|((s16)buf[i+3] >> 4));
+				y = (((s16)buf[i+2] << 4)|((s16)buf[i+3] & 0x0f));
+				//printk("x=%d,y=%d\n",x,y);
+				
 				input_mt_slot(ts->input_dev, point_id);
 				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
 				input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, point_id);
@@ -461,9 +571,7 @@ static int ct360_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 		mdelay(20);
 	}
 	
-#if 0
-
-	//加40ms延时，否则读取出错。。
+#if 1
 	mdelay(20);
 	mdelay(20);
 	ret=ct360_write_regs(client,loader_buf, 3);	
@@ -488,11 +596,11 @@ static int ct360_ts_probe(struct i2c_client *client, const struct i2c_device_id 
 	else
 		printk("%s.............boot_buf=%d\n",__FUNCTION__,boot_buf);
 
-	if ((abs(Binary_Data[16372]-boot_buf) >= 1) && (abs(Binary_Data[16372]-boot_buf) <= 2))
+	if ((Binary_Data[16372] - boot_buf) >= 1)
 	{
 		printk("start Bootloader ...........boot_Buf=%x.....%d......%x..........TP \n\n",boot_buf,(Binary_Data[16372]-boot_buf),Binary_Data[16372]);
 		ret = CT360_CTP_BootLoader(ts);
-		if (ret == 1)
+		if (ret == 0)
 			printk("TP Bootloader success\n");
 		else
 			printk("TP Bootloader failed  ret=%d\n",ret);
