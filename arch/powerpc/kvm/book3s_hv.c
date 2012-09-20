@@ -706,17 +706,11 @@ extern void xics_wake_cpu(int cpu);
 static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 				   struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *v;
-
 	if (vcpu->arch.state != KVMPPC_VCPU_RUNNABLE)
 		return;
 	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
 	--vc->n_runnable;
 	++vc->n_busy;
-	/* decrement the physical thread id of each following vcpu */
-	v = vcpu;
-	list_for_each_entry_continue(v, &vc->runnable_threads, arch.run_list)
-		--v->arch.ptid;
 	list_del(&vcpu->arch.run_list);
 }
 
