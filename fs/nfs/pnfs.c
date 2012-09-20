@@ -213,7 +213,7 @@ pnfs_free_layout_hdr(struct pnfs_layout_hdr *lo)
 }
 
 static void
-destroy_layout_hdr(struct pnfs_layout_hdr *lo)
+pnfs_detach_layout_hdr(struct pnfs_layout_hdr *lo)
 {
 	struct nfs_inode *nfsi = NFS_I(lo->plh_inode);
 	dprintk("%s: freeing layout cache %p\n", __func__, lo);
@@ -222,14 +222,6 @@ destroy_layout_hdr(struct pnfs_layout_hdr *lo)
 	/* Reset MDS Threshold I/O counters */
 	nfsi->write_io = 0;
 	nfsi->read_io = 0;
-	pnfs_free_layout_hdr(lo);
-}
-
-static void
-pnfs_put_layout_hdr_locked(struct pnfs_layout_hdr *lo)
-{
-	if (atomic_dec_and_test(&lo->plh_refcount))
-		destroy_layout_hdr(lo);
 }
 
 void
@@ -238,8 +230,9 @@ pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo)
 	struct inode *inode = lo->plh_inode;
 
 	if (atomic_dec_and_lock(&lo->plh_refcount, &inode->i_lock)) {
-		destroy_layout_hdr(lo);
+		pnfs_detach_layout_hdr(lo);
 		spin_unlock(&inode->i_lock);
+		pnfs_free_layout_hdr(lo);
 	}
 }
 
@@ -792,8 +785,12 @@ void pnfs_roc_release(struct inode *ino)
 	spin_lock(&ino->i_lock);
 	lo = NFS_I(ino)->layout;
 	lo->plh_block_lgets--;
-	pnfs_put_layout_hdr_locked(lo);
-	spin_unlock(&ino->i_lock);
+	if (atomic_dec_and_test(&lo->plh_refcount)) {
+		pnfs_detach_layout_hdr(lo);
+		spin_unlock(&ino->i_lock);
+		pnfs_free_layout_hdr(lo);
+	} else
+		spin_unlock(&ino->i_lock);
 }
 
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier)
