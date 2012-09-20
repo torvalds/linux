@@ -271,7 +271,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 		else
 			ieee->seq_ctrl[0]++;
 
-		/* check wether the managed packet queued greater than 5 */
+		/* check whether the managed packet queued greater than 5 */
 		if(!ieee->check_nic_enough_desc(ieee->dev,tcb_desc->queue_index)||\
 				(skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0)||\
 				(ieee->queue_stop) ) {
