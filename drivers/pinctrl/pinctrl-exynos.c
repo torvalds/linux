@@ -376,7 +376,7 @@ static void exynos_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void exynos_irq_demux_eint(int irq_base, unsigned long pend,
+static inline void exynos_irq_demux_eint(int irq_base, unsigned long pend,
 					struct irq_domain *domain)
 {
 	unsigned int irq;
