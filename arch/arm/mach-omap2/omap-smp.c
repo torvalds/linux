@@ -24,7 +24,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 
-#include <mach/omap-secure.h>
+#include "omap-secure.h"
 #include <mach/omap-wakeupgen.h>
 #include <asm/cputype.h>
 
