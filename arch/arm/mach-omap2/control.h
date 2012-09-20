@@ -17,7 +17,7 @@
 #define __ARCH_ARM_MACH_OMAP2_CONTROL_H
 
 #include "ctrl_module_core_44xx.h"
-#include <mach/ctrl_module_wkup_44xx.h>
+#include "ctrl_module_wkup_44xx.h"
 #include "ctrl_module_pad_core_44xx.h"
 #include "ctrl_module_pad_wkup_44xx.h"
 
