@@ -32,7 +32,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/board-voiceblue.h>
-#include <plat/flash.h>
+#include <mach/flash.h>
 #include <mach/mux.h>
 #include <plat/tc.h>
 

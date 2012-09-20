@@ -31,7 +31,7 @@
 #include <plat/tc.h>
 #include <mach/mux.h>
 #include <plat/fpga.h>
-#include <plat/flash.h>
+#include <mach/flash.h>
 
 #include <mach/hardware.h>
 

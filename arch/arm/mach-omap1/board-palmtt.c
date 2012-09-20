@@ -34,7 +34,7 @@
 #include <asm/mach/map.h>
 
 #include <plat/led.h>
-#include <plat/flash.h>
+#include <mach/flash.h>
 #include <mach/mux.h>
 #include <plat/dma.h>
 #include <plat/tc.h>

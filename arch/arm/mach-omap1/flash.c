@@ -11,7 +11,7 @@
 #include <linux/mtd/map.h>
 
 #include <plat/tc.h>
-#include <plat/flash.h>
+#include <mach/flash.h>
 
 #include <mach/hardware.h>
 
