@@ -3398,6 +3398,10 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 			ql4_printk(KERN_INFO, ha, "HW State: FAILED\n");
 			qla4_8xxx_device_state_handler(ha);
 		}
+
+		if (test_and_clear_bit(DPC_POST_IDC_ACK, &ha->dpc_flags))
+			qla4_83xx_post_idc_ack(ha);
+
 		if (test_and_clear_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags)) {
 			qla4_8xxx_need_qsnt_handler(ha);
 		}

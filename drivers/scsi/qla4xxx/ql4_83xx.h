@@ -259,4 +259,12 @@ struct qla83xx_minidump_entry_pollrdmwr {
 	uint32_t data_size;
 };
 
+/* IDC additional information */
+struct qla4_83xx_idc_information {
+	uint32_t request_desc;  /* IDC request descriptor */
+	uint32_t info1; /* IDC additional info */
+	uint32_t info2; /* IDC additional info */
+	uint32_t info3; /* IDC additional info */
+};
+
 #endif

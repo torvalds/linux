@@ -1968,3 +1968,36 @@ int qla4_8xxx_set_param(struct scsi_qla_host *ha, int param)
 exit_set_param:
 	return status;
 }
+
+/**
+ * qla4_83xx_post_idc_ack - post IDC ACK
+ * @ha: Pointer to host adapter structure.
+ *
+ * Posts IDC ACK for IDC Request Notification AEN.
+ **/
+int qla4_83xx_post_idc_ack(struct scsi_qla_host *ha)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	mbox_cmd[0] = MBOX_CMD_IDC_ACK;
+	mbox_cmd[1] = ha->idc_info.request_desc;
+	mbox_cmd[2] = ha->idc_info.info1;
+	mbox_cmd[3] = ha->idc_info.info2;
+	mbox_cmd[4] = ha->idc_info.info3;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, MBOX_REG_COUNT,
+					 mbox_cmd, mbox_sts);
+	if (status == QLA_ERROR)
+		ql4_printk(KERN_ERR, ha, "%s: failed status %04X\n", __func__,
+			   mbox_sts[0]);
+	else
+	       DEBUG2(ql4_printk(KERN_INFO, ha, "%s: IDC ACK posted\n",
+				 __func__));
+
+	return status;
+}

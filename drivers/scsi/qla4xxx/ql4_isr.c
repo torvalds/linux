@@ -806,6 +806,43 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			    " removed\n",  ha->host_no, mbox_sts[0]));
 			break;
 
+		case MBOX_ASTS_IDC_NOTIFY:
+		{
+			uint32_t opcode;
+			if (is_qla8032(ha)) {
+				DEBUG2(ql4_printk(KERN_INFO, ha,
+						  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x\n",
+						  ha->host_no, mbox_sts[0],
+						  mbox_sts[1], mbox_sts[2],
+						  mbox_sts[3], mbox_sts[4]));
+				opcode = mbox_sts[1] >> 16;
+				if ((opcode == MBOX_CMD_SET_PORT_CONFIG) ||
+				    (opcode == MBOX_CMD_PORT_RESET)) {
+					set_bit(DPC_POST_IDC_ACK,
+						&ha->dpc_flags);
+					ha->idc_info.request_desc = mbox_sts[1];
+					ha->idc_info.info1 = mbox_sts[2];
+					ha->idc_info.info2 = mbox_sts[3];
+					ha->idc_info.info3 = mbox_sts[4];
+					qla4xxx_wake_dpc(ha);
+				}
+			}
+			break;
+		}
+
+		case MBOX_ASTS_IDC_COMPLETE:
+			if (is_qla8032(ha)) {
+				DEBUG2(ql4_printk(KERN_INFO, ha,
+						  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x\n",
+						  ha->host_no, mbox_sts[0],
+						  mbox_sts[1], mbox_sts[2],
+						  mbox_sts[3], mbox_sts[4]));
+				DEBUG2(ql4_printk(KERN_INFO, ha,
+						  "scsi:%ld: AEN %04x IDC Complete notification\n",
+						  ha->host_no, mbox_sts[0]));
+			}
+			break;
+
 		default:
 			DEBUG2(printk(KERN_WARNING
 				      "scsi%ld: AEN %04x UNKNOWN\n",
