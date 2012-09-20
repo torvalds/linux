@@ -3501,6 +3501,9 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 	} else if (is_qla8022(ha)) {
 		writel(0, &ha->qla4_82xx_reg->host_int);
 		readl(&ha->qla4_82xx_reg->host_int);
+	} else if (is_qla8032(ha)) {
+		writel(0, &ha->qla4_83xx_reg->risc_intr);
+		readl(&ha->qla4_83xx_reg->risc_intr);
 	}
 
 	/* Remove timer thread, if present */
