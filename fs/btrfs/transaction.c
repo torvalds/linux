@@ -351,8 +351,10 @@ again:
 	 */
 	if (type != TRANS_JOIN_NOLOCK &&
 	    !__sb_start_write(root->fs_info->sb, SB_FREEZE_FS, false)) {
-		if (type == TRANS_JOIN_FREEZE)
+		if (type == TRANS_JOIN_FREEZE) {
+			kmem_cache_free(btrfs_trans_handle_cachep, h);
 			return ERR_PTR(-EPERM);
+		}
 		sb_start_intwrite(root->fs_info->sb);
 	}
 
