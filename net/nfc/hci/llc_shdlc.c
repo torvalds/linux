@@ -414,7 +414,8 @@ static void llc_shdlc_rcv_u_frame(struct llc_shdlc *shdlc,
 
 	switch (u_frame_modifier) {
 	case U_FRAME_RSET:
-		if (shdlc->state == SHDLC_NEGOCIATING) {
+		if ((shdlc->state == SHDLC_NEGOCIATING) ||
+					(shdlc->state == SHDLC_CONNECTING)) {
 			/* we sent RSET, but chip wants to negociate */
 			if (skb->len > 0)
 				w = skb->data[0];
