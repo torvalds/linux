@@ -555,7 +555,8 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct csrow_info *csr;
-	int i, j, banks, ranks, rows, cols, size, npages;
+	unsigned i, j, banks, ranks, rows, cols, npages;
+	u64 size;
 	int csrow = 0;
 	unsigned long last_page = 0;
 	u32 reg;
@@ -627,10 +628,10 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 				cols = numcol(mtr);
 
 				/* DDR3 has 8 I/O banks */
-				size = (rows * cols * banks * ranks) >> (20 - 3);
+				size = ((u64)rows * cols * banks * ranks) >> (20 - 3);
 				npages = MiB_TO_PAGES(size);
 
-				debugf0("mc#%d: channel %d, dimm %d, %d Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
+				debugf0("mc#%d: channel %d, dimm %d, %Ld Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
 					pvt->sbridge_dev->mc, i, j,
 					size, npages,
 					banks, ranks, rows, cols);
