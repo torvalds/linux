@@ -125,6 +125,7 @@ struct channel_obj {
 	u8 initialized;			/* flag to indicate whether
 					 * encoder is initialized */
 	u32 output_idx;			/* Current output index */
+	struct v4l2_subdev *sd;		/* Current output subdev(may be NULL) */
 
 	enum vpif_channel_id channel_id;/* Identifies channel */
 	struct vpif_params vpifparams;

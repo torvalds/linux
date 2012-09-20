@@ -1246,6 +1246,8 @@ static int vpif_s_output(struct file *file, void *priv, unsigned int i)
 		vpif_err("Failed to set output standard\n");
 
 	ch->output_idx = i;
+	if (vpif_obj.sd[i])
+		ch->sd = vpif_obj.sd[i];
 	return ret;
 }
 
@@ -1317,14 +1319,13 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	}
 
 	/* Configure subdevice timings, if any */
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->output_idx],
-			video, s_dv_timings, timings);
+	ret = v4l2_subdev_call(ch->sd, video, s_dv_timings, timings);
 	if (ret == -ENOIOCTLCMD) {
 		vpif_dbg(2, debug, "Custom DV timings not supported by "
 				"subdevice\n");
-		return -EINVAL;
+		return -ENODATA;
 	}
-	if (ret < 0) {
+	if (ret < 0 && ret != -ENODEV) {
 		vpif_dbg(2, debug, "Error setting custom DV timings\n");
 		return ret;
 	}
@@ -1449,8 +1450,7 @@ static int vpif_dbg_g_register(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->output_idx], core,
-			g_register, reg);
+	return v4l2_subdev_call(ch->sd, core, g_register, reg);
 }
 
 /*
@@ -1467,8 +1467,7 @@ static int vpif_dbg_s_register(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->output_idx], core,
-			s_register, reg);
+	return v4l2_subdev_call(ch->sd, core, s_register, reg);
 }
 #endif
 
@@ -1739,6 +1738,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 		}
 		ch->initialized = 0;
+		if (subdev_count)
+			ch->sd = vpif_obj.sd[0];
 		ch->channel_id = j;
 		if (j < 2)
 			ch->common[VPIF_VIDEO_INDEX].numbuffers =
