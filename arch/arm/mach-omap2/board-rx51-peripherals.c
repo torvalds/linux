@@ -33,7 +33,7 @@
 #include "common.h"
 #include <plat/dma.h>
 #include <plat/gpmc.h>
-#include <plat/gpmc-smc91x.h>
+#include "gpmc-smc91x.h"
 
 #include "board-rx51.h"
 
