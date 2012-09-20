@@ -1402,7 +1402,6 @@ void qla4_83xx_process_mbox_intr(struct scsi_qla_host *ha, int outcount)
 		ha->mbox_status_count = outcount;
 		ha->isp_ops->interrupt_service_routine(ha, intr_status);
 	}
-	writel(0, &ha->qla4_83xx_reg->risc_intr);
 }
 
 /**
