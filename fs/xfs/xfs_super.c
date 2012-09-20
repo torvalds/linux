@@ -1130,7 +1130,7 @@ xfs_fs_remount(
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
 			break;
 		case Opt_inode64:
-			xfs_set_inode64(mp);
+			mp->m_maxagi = xfs_set_inode64(mp);
 			break;
 		default:
 			/*
