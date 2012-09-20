@@ -80,7 +80,9 @@ int comedi_close(struct comedi_device *d)
 }
 EXPORT_SYMBOL(comedi_close);
 
-static int comedi_do_insn(struct comedi_device *dev, struct comedi_insn *insn)
+static int comedi_do_insn(struct comedi_device *dev,
+			  struct comedi_insn *insn,
+			  unsigned int *data)
 {
 	struct comedi_subdevice *s;
 	int ret = 0;
@@ -115,11 +117,11 @@ static int comedi_do_insn(struct comedi_device *dev, struct comedi_insn *insn)
 
 	switch (insn->insn) {
 	case INSN_BITS:
-		ret = s->insn_bits(dev, s, insn, insn->data);
+		ret = s->insn_bits(dev, s, insn, data);
 		break;
 	case INSN_CONFIG:
 		/* XXX should check instruction length */
-		ret = s->insn_config(dev, s, insn, insn->data);
+		ret = s->insn_config(dev, s, insn, data);
 		break;
 	default:
 		ret = -EINVAL;
@@ -140,11 +142,10 @@ int comedi_dio_config(struct comedi_device *dev, unsigned int subdev,
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_CONFIG;
 	insn.n = 1;
-	insn.data = &io;
 	insn.subdev = subdev;
 	insn.chanspec = CR_PACK(chan, 0, 0);
 
-	return comedi_do_insn(dev, &insn);
+	return comedi_do_insn(dev, &insn, &io);
 }
 EXPORT_SYMBOL(comedi_dio_config);
 
@@ -158,13 +159,12 @@ int comedi_dio_bitfield(struct comedi_device *dev, unsigned int subdev,
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_BITS;
 	insn.n = 2;
-	insn.data = data;
 	insn.subdev = subdev;
 
 	data[0] = mask;
 	data[1] = *bits;
 
-	ret = comedi_do_insn(dev, &insn);
+	ret = comedi_do_insn(dev, &insn, data);
 
 	*bits = data[1];
 
