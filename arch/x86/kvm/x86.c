@@ -160,6 +160,8 @@ u64 __read_mostly host_xcr0;
 
 int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt);
 
+static int kvm_vcpu_reset(struct kvm_vcpu *vcpu);
+
 static inline void kvm_async_pf_hash_reset(struct kvm_vcpu *vcpu)
 {
 	int i;
@@ -5426,7 +5428,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		pr_debug("vcpu %d received sipi with vector # %x\n",
 			 vcpu->vcpu_id, vcpu->arch.sipi_vector);
 		kvm_lapic_reset(vcpu);
-		r = kvm_arch_vcpu_reset(vcpu);
+		r = kvm_vcpu_reset(vcpu);
 		if (r)
 			return r;
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
@@ -6036,7 +6038,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	r = vcpu_load(vcpu);
 	if (r)
 		return r;
-	r = kvm_arch_vcpu_reset(vcpu);
+	r = kvm_vcpu_reset(vcpu);
 	if (r == 0)
 		r = kvm_mmu_setup(vcpu);
 	vcpu_put(vcpu);
@@ -6058,7 +6060,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->vcpu_free(vcpu);
 }
 
-int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
+static int kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	atomic_set(&vcpu->arch.nmi_queued, 0);
 	vcpu->arch.nmi_pending = 0;
