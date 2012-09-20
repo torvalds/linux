@@ -446,11 +446,19 @@ static struct dentry *rcudir;
 
 static int __init rcutree_trace_init(void)
 {
+	struct rcu_state *rsp;
 	struct dentry *retval;
+	struct dentry *rspdir;
 
 	rcudir = debugfs_create_dir("rcu", NULL);
 	if (!rcudir)
 		goto free_out;
+
+	for_each_rcu_flavor(rsp) {
+		rspdir = debugfs_create_dir(rsp->name, rcudir);
+		if (!rspdir)
+			goto free_out;
+	}
 
 	retval = debugfs_create_file("rcubarrier", 0444, rcudir,
 						NULL, &rcubarrier_fops);
