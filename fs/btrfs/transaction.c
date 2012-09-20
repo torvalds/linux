@@ -267,14 +267,6 @@ static void wait_current_trans(struct btrfs_root *root)
 	}
 }
 
-enum btrfs_trans_type {
-	TRANS_START,
-	TRANS_JOIN,
-	TRANS_USERSPACE,
-	TRANS_JOIN_NOLOCK,
-	TRANS_JOIN_FREEZE,
-};
-
 static int may_wait_transaction(struct btrfs_root *root, int type)
 {
 	if (root->fs_info->log_root_recovering)
@@ -388,6 +380,7 @@ again:
 	h->aborted = 0;
 	h->qgroup_reserved = qgroup_reserved;
 	h->delayed_ref_elem.seq = 0;
+	h->type = type;
 	INIT_LIST_HEAD(&h->qgroup_ref_list);
 	INIT_LIST_HEAD(&h->new_bgs);
 
@@ -540,11 +533,12 @@ int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
 }
 
 static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, int throttle, int lock)
+			  struct btrfs_root *root, int throttle)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *info = root->fs_info;
 	int count = 0;
+	int lock = (trans->type != TRANS_JOIN_NOLOCK);
 	int err = 0;
 
 	if (--trans->use_count) {
@@ -645,7 +639,7 @@ int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 {
 	int ret;
 
-	ret = __btrfs_end_transaction(trans, root, 0, 1);
+	ret = __btrfs_end_transaction(trans, root, 0);
 	if (ret)
 		return ret;
 	return 0;
@@ -656,18 +650,7 @@ int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 {
 	int ret;
 
-	ret = __btrfs_end_transaction(trans, root, 1, 1);
-	if (ret)
-		return ret;
-	return 0;
-}
-
-int btrfs_end_transaction_nolock(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root)
-{
-	int ret;
-
-	ret = __btrfs_end_transaction(trans, root, 0, 0);
+	ret = __btrfs_end_transaction(trans, root, 1);
 	if (ret)
 		return ret;
 	return 0;
@@ -676,7 +659,7 @@ int btrfs_end_transaction_nolock(struct btrfs_trans_handle *trans,
 int btrfs_end_transaction_dmeta(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root)
 {
-	return __btrfs_end_transaction(trans, root, 1, 1);
+	return __btrfs_end_transaction(trans, root, 1);
 }
 
 /*

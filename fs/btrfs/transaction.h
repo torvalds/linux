@@ -47,6 +47,14 @@ struct btrfs_transaction {
 	int aborted;
 };
 
+enum btrfs_trans_type {
+	TRANS_START,
+	TRANS_JOIN,
+	TRANS_USERSPACE,
+	TRANS_JOIN_NOLOCK,
+	TRANS_JOIN_FREEZE,
+};
+
 struct btrfs_trans_handle {
 	u64 transid;
 	u64 bytes_reserved;
@@ -58,8 +66,9 @@ struct btrfs_trans_handle {
 	struct btrfs_transaction *transaction;
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_block_rsv *orig_rsv;
-	int aborted;
-	int adding_csums;
+	short aborted;
+	short adding_csums;
+	enum btrfs_trans_type type;
 	/*
 	 * this root is only needed to validate that the root passed to
 	 * start_transaction is the same as the one passed to end_transaction.
@@ -94,8 +103,6 @@ static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root);
-int btrfs_end_transaction_nolock(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 						   int num_items);
 struct btrfs_trans_handle *btrfs_start_transaction_noflush(

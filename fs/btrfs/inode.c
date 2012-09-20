@@ -1363,11 +1363,7 @@ out_check:
 	}
 
 error:
-	if (nolock) {
-		err = btrfs_end_transaction_nolock(trans, root);
-	} else {
-		err = btrfs_end_transaction(trans, root);
-	}
+	err = btrfs_end_transaction(trans, root);
 	if (!ret)
 		ret = err;
 
@@ -1957,12 +1953,8 @@ out_unlock:
 out:
 	if (root != root->fs_info->tree_root)
 		btrfs_delalloc_release_metadata(inode, ordered_extent->len);
-	if (trans) {
-		if (nolock)
-			btrfs_end_transaction_nolock(trans, root);
-		else
-			btrfs_end_transaction(trans, root);
-	}
+	if (trans)
+		btrfs_end_transaction(trans, root);
 
 	if (ret)
 		clear_extent_uptodate(io_tree, ordered_extent->file_offset,
@@ -4524,10 +4516,7 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 			trans = btrfs_join_transaction(root);
 		if (IS_ERR(trans))
 			return PTR_ERR(trans);
-		if (nolock)
-			ret = btrfs_end_transaction_nolock(trans, root);
-		else
-			ret = btrfs_commit_transaction(trans, root);
+		ret = btrfs_commit_transaction(trans, root);
 	}
 	return ret;
 }
