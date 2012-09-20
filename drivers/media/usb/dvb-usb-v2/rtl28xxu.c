@@ -1342,6 +1342,8 @@ static const struct usb_device_id rtl28xxu_id_table[] = {
 		&rtl2832u_props, "Trekstor DVB-T Stick Terres 2.0", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_DEXATEK, 0x1101,
 		&rtl2832u_props, "Dexatek DK DVB-T Dongle", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_LEADTEK, 0x6680,
+		&rtl2832u_props, "DigitalNow Quad DVB-T Receiver", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, rtl28xxu_id_table);
