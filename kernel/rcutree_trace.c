@@ -467,6 +467,8 @@ static const struct file_operations rcugp_fops = {
 
 static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 {
+	if (!rdp->beenonline)
+		return;
 	seq_printf(m, "%3d%cnp=%ld ",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
@@ -485,16 +487,12 @@ static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 static int show_rcu_pending(struct seq_file *m, void *unused)
 {
 	int cpu;
-	struct rcu_data *rdp;
 	struct rcu_state *rsp;
 
 	for_each_rcu_flavor(rsp) {
 		seq_printf(m, "%s:\n", rsp->name);
-		for_each_possible_cpu(cpu) {
-			rdp = per_cpu_ptr(rsp->rda, cpu);
-			if (rdp->beenonline)
-				print_one_rcu_pending(m, rdp);
-		}
+		for_each_possible_cpu(cpu)
+			print_one_rcu_pending(m, per_cpu_ptr(rsp->rda, cpu));
 	}
 	return 0;
 }
@@ -510,6 +508,32 @@ static const struct file_operations rcu_pending_fops = {
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
+};
+
+static int new_show_rcu_pending(struct seq_file *m, void *v)
+{
+	print_one_rcu_pending(m, (struct rcu_data *)v);
+	return 0;
+}
+
+static const struct seq_operations new_rcu_pending_op = {
+	.start = r_start,
+	.next  = r_next,
+	.stop  = r_stop,
+	.show  = new_show_rcu_pending,
+};
+
+static int new_rcu_pending_open(struct inode *inode, struct file *file)
+{
+	return r_open(inode, file, &new_rcu_pending_op);
+}
+
+static const struct file_operations new_rcu_pending_fops = {
+	.owner = THIS_MODULE,
+	.open = new_rcu_pending_open,
+	.read = seq_read,
+	.llseek = no_llseek,
+	.release = seq_release,
 };
 
 static int show_rcutorture(struct seq_file *m, void *unused)
@@ -559,6 +583,11 @@ static int __init rcutree_trace_init(void)
 
 			retval = debugfs_create_file("rcudata.csv", 0444,
 					rspdir, rsp, &new_rcudata_csv_fops);
+			if (!retval)
+				goto free_out;
+
+			retval = debugfs_create_file("rcu_pending", 0444,
+					rspdir, rsp, &new_rcu_pending_fops);
 			if (!retval)
 				goto free_out;
 	}
