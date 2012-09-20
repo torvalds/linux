@@ -447,7 +447,7 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 
 	d->wkup_irqd = irq_domain_add_linear(wkup_np, d->ctrl->nr_wint,
 				&exynos_wkup_irqd_ops, d);
-	if (!d->gpio_irqd) {
+	if (!d->wkup_irqd) {
 		dev_err(dev, "wakeup irq domain allocation failed\n");
 		return -ENXIO;
 	}
