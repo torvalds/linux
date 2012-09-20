@@ -569,29 +569,6 @@ static void native_flush_hash_range(unsigned long number, int local)
 	local_irq_restore(flags);
 }
 
-#ifdef CONFIG_PPC_PSERIES
-/* Disable TLB batching on nighthawk */
-static inline int tlb_batching_enabled(void)
-{
-	struct device_node *root = of_find_node_by_path("/");
-	int enabled = 1;
-
-	if (root) {
-		const char *model = of_get_property(root, "model", NULL);
-		if (model && !strcmp(model, "IBM,9076-N81"))
-			enabled = 0;
-		of_node_put(root);
-	}
-
-	return enabled;
-}
-#else
-static inline int tlb_batching_enabled(void)
-{
-	return 1;
-}
-#endif
-
 void __init hpte_init_native(void)
 {
 	ppc_md.hpte_invalidate	= native_hpte_invalidate;
@@ -600,6 +577,5 @@ void __init hpte_init_native(void)
 	ppc_md.hpte_insert	= native_hpte_insert;
 	ppc_md.hpte_remove	= native_hpte_remove;
 	ppc_md.hpte_clear_all	= native_hpte_clear;
-	if (tlb_batching_enabled())
-		ppc_md.flush_hash_range = native_flush_hash_range;
+	ppc_md.flush_hash_range = native_flush_hash_range;
 }
