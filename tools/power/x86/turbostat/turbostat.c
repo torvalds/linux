@@ -35,7 +35,6 @@
 #include <ctype.h>
 #include <sched.h>
 
-#define MSR_TSC	0x10
 #define MSR_NEHALEM_PLATFORM_INFO	0xCE
 #define MSR_NEHALEM_TURBO_RATIO_LIMIT	0x1AD
 #define MSR_APERF	0xE8
