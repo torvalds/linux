@@ -1657,9 +1657,10 @@ static int transaction_kthread(void *arg)
 		spin_unlock(&root->fs_info->trans_lock);
 
 		/* If the file system is aborted, this will always fail. */
-		trans = btrfs_join_transaction(root);
+		trans = btrfs_attach_transaction(root);
 		if (IS_ERR(trans)) {
-			cannot_commit = true;
+			if (PTR_ERR(trans) != -ENOENT)
+				cannot_commit = true;
 			goto sleep;
 		}
 		if (transid == trans->transid) {
