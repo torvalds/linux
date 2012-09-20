@@ -158,6 +158,15 @@ struct goodix_platform_data {
 	void (*exit_platform_hw)(void);
 };
 
+struct ct360_platform_data {
+	u16		model;
+	u16		x_max;
+	u16		y_max;
+	void 	(*hw_init)(void);
+	void 	(*shutdown)(int);
+};
+
+
 struct cm3217_platform_data {
 	int irq_pin;
 	int power_pin;
