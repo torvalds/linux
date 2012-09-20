@@ -944,7 +944,7 @@ static void ct360_hw_shutdown(int reset)
 static struct ct360_platform_data ct360_info = {
 	.model	 = 360,
 	.x_max	 = 800,
-	.y_max	 = 600,
+	.y_max	 = 480,
 	.hw_init = ct360_hw_init,
 	.shutdown = ct360_hw_shutdown,
 };
