@@ -48,9 +48,7 @@ void *module_alloc(unsigned long size)
 		return NULL;
 
 	ret = module_map(size);
-	if (!ret)
-		ret = ERR_PTR(-ENOMEM);
-	else
+	if (ret)
 		memset(ret, 0, size);
 
 	return ret;
