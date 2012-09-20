@@ -417,12 +417,9 @@ static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u16			hdr_len, packet_len;
 
 	if (!(skb->len & 0x01)) {
-#ifdef DEBUG
-		struct net_device	*net = dev->net;
 		netdev_dbg(dev->net, "rx framesize %d range %d..%d mtu %d\n",
-			   skb->len, net->hard_header_len, dev->hard_mtu,
-			   net->mtu);
-#endif
+			   skb->len, dev->net->hard_header_len, dev->hard_mtu,
+			   dev->net->mtu);
 		dev->net->stats.rx_frame_errors++;
 		nc_ensure_sync(dev);
 		return 0;
