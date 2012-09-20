@@ -32,7 +32,7 @@ struct device mxc_ahb_bus = {
 	.parent		= &platform_bus,
 };
 
-static int __init mxc_device_init(void)
+int __init mxc_device_init(void)
 {
 	int ret;
 
@@ -45,4 +45,3 @@ static int __init mxc_device_init(void)
 done:
 	return ret;
 }
-core_initcall(mxc_device_init);

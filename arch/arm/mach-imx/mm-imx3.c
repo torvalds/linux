@@ -175,6 +175,8 @@ void __init imx31_soc_init(void)
 
 	imx3_init_l2x0();
 
+	mxc_device_init();
+
 	mxc_register_gpio("imx31-gpio", 0, MX31_GPIO1_BASE_ADDR, SZ_16K, MX31_INT_GPIO1, 0);
 	mxc_register_gpio("imx31-gpio", 1, MX31_GPIO2_BASE_ADDR, SZ_16K, MX31_INT_GPIO2, 0);
 	mxc_register_gpio("imx31-gpio", 2, MX31_GPIO3_BASE_ADDR, SZ_16K, MX31_INT_GPIO3, 0);
@@ -270,6 +272,8 @@ void __init imx35_soc_init(void)
 	int to_version = mx35_revision() >> 4;
 
 	imx3_init_l2x0();
+
+	mxc_device_init();
 
 	mxc_register_gpio("imx35-gpio", 0, MX35_GPIO1_BASE_ADDR, SZ_16K, MX35_INT_GPIO1, 0);
 	mxc_register_gpio("imx35-gpio", 1, MX35_GPIO2_BASE_ADDR, SZ_16K, MX35_INT_GPIO2, 0);

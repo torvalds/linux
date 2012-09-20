@@ -82,6 +82,8 @@ static const struct resource imx27_audmux_res[] __initconst = {
 
 void __init imx27_soc_init(void)
 {
+	mxc_device_init();
+
 	/* i.mx27 has the i.mx21 type gpio */
 	mxc_register_gpio("imx21-gpio", 0, MX27_GPIO1_BASE_ADDR, SZ_256, MX27_INT_GPIO, 0);
 	mxc_register_gpio("imx21-gpio", 1, MX27_GPIO2_BASE_ADDR, SZ_256, MX27_INT_GPIO, 0);
