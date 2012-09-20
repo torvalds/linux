@@ -962,11 +962,6 @@ static int wm8960_probe(struct snd_soc_codec *codec)
 	if (!pdata) {
 		dev_warn(codec->dev, "No platform data supplied\n");
 	} else {
-		if (pdata->dres > WM8960_DRES_MAX) {
-			dev_err(codec->dev, "Invalid DRES: %d\n", pdata->dres);
-			pdata->dres = 0;
-		}
-
 		if (pdata->capless)
 			wm8960->set_bias_level = wm8960_set_bias_level_capless;
 	}
