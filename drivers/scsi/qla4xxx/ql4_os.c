@@ -6135,9 +6135,19 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 		ha->isp_ops->idc_lock(ha);
 		qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 				    QLA8XXX_DEV_COLD);
-		qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_IDC_VERSION,
-				    QLA82XX_IDC_VERSION);
 		ha->isp_ops->idc_unlock(ha);
+
+		rval = qla4_8xxx_update_idc_reg(ha);
+		if (rval == QLA_ERROR) {
+			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: HW State: FAILED\n",
+				   ha->host_no, __func__);
+			ha->isp_ops->idc_lock(ha);
+			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
+					    QLA8XXX_DEV_FAILED);
+			ha->isp_ops->idc_unlock(ha);
+			goto exit_error_recovery;
+		}
+
 		clear_bit(AF_FW_RECOVERY, &ha->flags);
 		rval = qla4xxx_initialize_adapter(ha, RESET_ADAPTER);
 
@@ -6195,6 +6205,7 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 			ha->isp_ops->idc_unlock(ha);
 		}
 	}
+exit_error_recovery:
 	clear_bit(DPC_RESET_ACTIVE, &ha->dpc_flags);
 	return rval;
 }

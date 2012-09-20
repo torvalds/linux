@@ -2833,7 +2833,7 @@ exit_set_idc_ver:
 	return rval;
 }
 
-static int qla4_8xxx_update_idc_reg(struct scsi_qla_host *ha)
+int qla4_8xxx_update_idc_reg(struct scsi_qla_host *ha)
 {
 	uint32_t drv_active;
 	int rval = QLA_SUCCESS;
