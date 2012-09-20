@@ -27,6 +27,10 @@
 		spi0 = &spi_0;
 		spi1 = &spi_1;
 		spi2 = &spi_2;
+		gsc0 = &gsc_0;
+		gsc1 = &gsc_1;
+		gsc2 = &gsc_2;
+		gsc3 = &gsc_3;
 	};
 
 	gic:interrupt-controller@10481000 {
@@ -459,5 +463,29 @@
 			reg = <0x03860000 0x20>;
 			#gpio-cells = <4>;
 		};
+	};
+
+	gsc_0:  gsc@0x13e00000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e00000 0x1000>;
+		interrupts = <0 85 0>;
+	};
+
+	gsc_1:  gsc@0x13e10000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e10000 0x1000>;
+		interrupts = <0 86 0>;
+	};
+
+	gsc_2:  gsc@0x13e20000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e20000 0x1000>;
+		interrupts = <0 87 0>;
+	};
+
+	gsc_3:  gsc@0x13e30000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e30000 0x1000>;
+		interrupts = <0 88 0>;
 	};
 };
