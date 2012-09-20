@@ -385,24 +385,20 @@ static int nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 	/* bump past the vlan tag */
 	wqe_fragment_length++;
 	/*	wqe_fragment_address = (u64 *)&nic_sqe->wqe_words[NES_NIC_SQ_WQE_FRAG0_LOW_IDX]; */
+	wqe_misc |= NES_NIC_SQ_WQE_COMPLETION;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		tcph = tcp_hdr(skb);
-		if (1) {
-			if (skb_is_gso(skb)) {
-				/* nes_debug(NES_DBG_NIC_TX, "%s: TSO request... is_gso = %u seg size = %u\n",
-						netdev->name, skb_is_gso(skb), skb_shinfo(skb)->gso_size); */
-				wqe_misc |= NES_NIC_SQ_WQE_LSO_ENABLE |
-						NES_NIC_SQ_WQE_COMPLETION | (u16)skb_shinfo(skb)->gso_size;
-				set_wqe_32bit_value(nic_sqe->wqe_words, NES_NIC_SQ_WQE_LSO_INFO_IDX,
-						((u32)tcph->doff) |
-						(((u32)(((unsigned char *)tcph) - skb->data)) << 4));
-			} else {
-				wqe_misc |= NES_NIC_SQ_WQE_COMPLETION;
-			}
+		if (skb_is_gso(skb)) {
+			tcph = tcp_hdr(skb);
+			/* nes_debug(NES_DBG_NIC_TX, "%s: TSO request... is_gso = %u seg size = %u\n",
+					netdev->name, skb_is_gso(skb), skb_shinfo(skb)->gso_size); */
+			wqe_misc |= NES_NIC_SQ_WQE_LSO_ENABLE | (u16)skb_shinfo(skb)->gso_size;
+			set_wqe_32bit_value(nic_sqe->wqe_words, NES_NIC_SQ_WQE_LSO_INFO_IDX,
+					((u32)tcph->doff) |
+					(((u32)(((unsigned char *)tcph) - skb->data)) << 4));
 		}
 	} else {	/* CHECKSUM_HW */
-		wqe_misc |= NES_NIC_SQ_WQE_DISABLE_CHKSUM | NES_NIC_SQ_WQE_COMPLETION;
+		wqe_misc |= NES_NIC_SQ_WQE_DISABLE_CHKSUM;
 	}
 
 	set_wqe_32bit_value(nic_sqe->wqe_words, NES_NIC_SQ_WQE_TOTAL_LENGTH_IDX,
@@ -1679,12 +1675,10 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	netdev->hard_header_len = ETH_HLEN;
 	netdev->addr_len = ETH_ALEN;
 	netdev->type = ARPHRD_ETHER;
-	netdev->features = NETIF_F_HIGHDMA;
 	netdev->netdev_ops = &nes_netdev_ops;
 	netdev->ethtool_ops = &nes_ethtool_ops;
 	netif_napi_add(netdev, &nesvnic->napi, nes_netdev_poll, 128);
 	nes_debug(NES_DBG_INIT, "Enabling VLAN Insert/Delete.\n");
-	netdev->features |= NETIF_F_HW_VLAN_TX;
 
 	/* Fill in the port structure */
 	nesvnic->netdev = netdev;
@@ -1711,11 +1705,11 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	netdev->dev_addr[5] = (u8)u64temp;
 	memcpy(netdev->perm_addr, netdev->dev_addr, 6);
 
-	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_IP_CSUM |
-			      NETIF_F_HW_VLAN_RX;
+	netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_RX;
 	if ((nesvnic->logical_port < 2) || (nesdev->nesadapter->hw_rev != NE020_REV))
 		netdev->hw_features |= NETIF_F_TSO;
-	netdev->features |= netdev->hw_features;
+
+	netdev->features = netdev->hw_features | NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_TX;
 	netdev->hw_features |= NETIF_F_LRO;
 
 	nes_debug(NES_DBG_INIT, "nesvnic = %p, reported features = 0x%lX, QPid = %d,"
