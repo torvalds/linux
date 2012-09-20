@@ -16,7 +16,7 @@
 #include <plat/omap_hwmod.h>
 #include <plat/serial.h>
 #include "l3_2xxx.h"
-#include <plat/l4_2xxx.h>
+#include "l4_2xxx.h"
 
 #include "omap_hwmod_common_data.h"
 

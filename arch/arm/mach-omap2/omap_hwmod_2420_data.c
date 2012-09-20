@@ -20,7 +20,7 @@
 #include <plat/i2c.h>
 #include <plat/dmtimer.h>
 #include "l3_2xxx.h"
-#include <plat/l4_2xxx.h>
+#include "l4_2xxx.h"
 #include <plat/mmc.h>
 
 #include "omap_hwmod_common_data.h"
