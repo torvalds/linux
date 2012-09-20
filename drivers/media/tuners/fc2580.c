@@ -498,8 +498,9 @@ struct dvb_frontend *fc2580_attach(struct dvb_frontend *fe,
 
 	dev_dbg(&priv->i2c->dev, "%s: chip_id=%02x\n", __func__, chip_id);
 
-	if (chip_id != 0x56)
+	if ((chip_id != 0x56) && (chip_id != 0x5a)) {
 		goto err;
+	}
 
 	dev_info(&priv->i2c->dev,
 			"%s: FCI FC2580 successfully identified\n",

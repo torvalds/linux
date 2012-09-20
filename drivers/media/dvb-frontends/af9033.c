@@ -314,6 +314,10 @@ static int af9033_init(struct dvb_frontend *fe)
 		len = ARRAY_SIZE(tuner_init_tda18218);
 		init = tuner_init_tda18218;
 		break;
+	case AF9033_TUNER_FC2580:
+		len = ARRAY_SIZE(tuner_init_fc2580);
+		init = tuner_init_fc2580;
+		break;
 	default:
 		dev_dbg(&state->i2c->dev, "%s: unsupported tuner ID=%d\n",
 				__func__, state->cfg.tuner);

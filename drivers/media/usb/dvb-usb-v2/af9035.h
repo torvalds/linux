@@ -28,6 +28,7 @@
 #include "fc0011.h"
 #include "mxl5007t.h"
 #include "tda18218.h"
+#include "fc2580.h"
 
 struct reg_val {
 	u32 reg;

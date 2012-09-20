@@ -42,6 +42,7 @@ struct af9033_config {
 #define AF9033_TUNER_FC0011      0x28 /* Fitipower FC0011 */
 #define AF9033_TUNER_MXL5007T    0xa0 /* MaxLinear MxL5007T */
 #define AF9033_TUNER_TDA18218    0xa1 /* NXP TDA 18218HN */
+#define AF9033_TUNER_FC2580      0x32 /* FCI FC2580 */
 	u8 tuner;
 
 	/*
