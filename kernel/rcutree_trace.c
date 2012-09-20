@@ -46,6 +46,36 @@
 #define RCU_TREE_NONCORE
 #include "rcutree.h"
 
+static int r_open(struct inode *inode, struct file *file,
+					const struct seq_operations *op)
+{
+	int ret = seq_open(file, op);
+	if (!ret) {
+		struct seq_file *m = (struct seq_file *)file->private_data;
+		m->private = inode->i_private;
+	}
+	return ret;
+}
+
+static void *r_start(struct seq_file *m, loff_t *pos)
+{
+	struct rcu_state *rsp = (struct rcu_state *)m->private;
+	*pos = cpumask_next(*pos - 1, cpu_possible_mask);
+	if ((*pos) < nr_cpu_ids)
+		return per_cpu_ptr(rsp->rda, *pos);
+	return NULL;
+}
+
+static void *r_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	(*pos)++;
+	return r_start(m, pos);
+}
+
+static void r_stop(struct seq_file *m, void *v)
+{
+}
+
 static int show_rcubarrier(struct seq_file *m, void *unused)
 {
 	struct rcu_state *rsp;
