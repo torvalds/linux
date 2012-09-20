@@ -201,10 +201,8 @@ find_appropriate_src(struct net *net, u16 zone,
 				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 			result->dst = tuple->dst;
 
-			if (in_range(l3proto, l4proto, result, range)) {
-				rcu_read_unlock();
+			if (in_range(l3proto, l4proto, result, range))
 				return 1;
-			}
 		}
 	}
 	return 0;
