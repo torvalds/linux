@@ -1070,8 +1070,6 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 {
 	struct global_cwq *gcwq;
 
-	WARN_ON_ONCE(in_irq());
-
 	local_irq_save(*flags);
 
 	/* try to steal the timer if it exists */
