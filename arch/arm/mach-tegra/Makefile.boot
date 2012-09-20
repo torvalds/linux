@@ -7,6 +7,7 @@ dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += tegra20-medcom-wide.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += tegra20-paz00.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += tegra20-plutux.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += tegra20-seaboard.dtb
+dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += tegra20-tec.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += tegra20-trimslice.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += tegra20-ventana.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += tegra20-whistler.dtb
