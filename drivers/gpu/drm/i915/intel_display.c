@@ -4783,6 +4783,109 @@ static void ironlake_set_m_n(struct drm_crtc *crtc,
 	I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
 }
 
+static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
+				      struct drm_display_mode *adjusted_mode,
+				      intel_clock_t *clock, u32 fp)
+{
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_encoder *intel_encoder;
+	uint32_t dpll;
+	int factor, pixel_multiplier, num_connectors = 0;
+	bool is_lvds = false, is_sdvo = false, is_tv = false;
+	bool is_dp = false, is_cpu_edp = false;
+
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
+		switch (intel_encoder->type) {
+		case INTEL_OUTPUT_LVDS:
+			is_lvds = true;
+			break;
+		case INTEL_OUTPUT_SDVO:
+		case INTEL_OUTPUT_HDMI:
+			is_sdvo = true;
+			if (intel_encoder->needs_tv_clock)
+				is_tv = true;
+			break;
+		case INTEL_OUTPUT_TVOUT:
+			is_tv = true;
+			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+			is_dp = true;
+			break;
+		case INTEL_OUTPUT_EDP:
+			is_dp = true;
+			if (!intel_encoder_is_pch_edp(&intel_encoder->base))
+				is_cpu_edp = true;
+			break;
+		}
+
+		num_connectors++;
+	}
+
+	/* Enable autotuning of the PLL clock (if permissible) */
+	factor = 21;
+	if (is_lvds) {
+		if ((intel_panel_use_ssc(dev_priv) &&
+		     dev_priv->lvds_ssc_freq == 100) ||
+		    (I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
+			factor = 25;
+	} else if (is_sdvo && is_tv)
+		factor = 20;
+
+	if (clock->m < factor * clock->n)
+		fp |= FP_CB_TUNE;
+
+	dpll = 0;
+
+	if (is_lvds)
+		dpll |= DPLLB_MODE_LVDS;
+	else
+		dpll |= DPLLB_MODE_DAC_SERIAL;
+	if (is_sdvo) {
+		pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
+		if (pixel_multiplier > 1) {
+			dpll |= (pixel_multiplier - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
+		}
+		dpll |= DPLL_DVO_HIGH_SPEED;
+	}
+	if (is_dp && !is_cpu_edp)
+		dpll |= DPLL_DVO_HIGH_SPEED;
+
+	/* compute bitmask from p1 value */
+	dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	/* also FPA1 */
+	dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
+
+	switch (clock->p2) {
+	case 5:
+		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
+		break;
+	case 7:
+		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
+		break;
+	case 10:
+		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
+		break;
+	case 14:
+		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
+		break;
+	}
+
+	if (is_sdvo && is_tv)
+		dpll |= PLL_REF_INPUT_TVCLKINBC;
+	else if (is_tv)
+		/* XXX: just matching BIOS for now */
+		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
+		dpll |= 3;
+	else if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2)
+		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
+	else
+		dpll |= PLL_REF_INPUT_DREFCLK;
+
+	return dpll;
+}
+
 static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode,
@@ -4801,7 +4904,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	struct intel_encoder *encoder;
 	u32 temp;
-	int ret, factor;
+	int ret;
 	bool dither;
 	bool is_cpu_edp = false, is_pch_edp = false;
 
@@ -4857,65 +4960,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
 			reduced_clock.m2;
 
-	/* Enable autotuning of the PLL clock (if permissible) */
-	factor = 21;
-	if (is_lvds) {
-		if ((intel_panel_use_ssc(dev_priv) &&
-		     dev_priv->lvds_ssc_freq == 100) ||
-		    (I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
-			factor = 25;
-	} else if (is_sdvo && is_tv)
-		factor = 20;
-
-	if (clock.m < factor * clock.n)
-		fp |= FP_CB_TUNE;
-
-	dpll = 0;
-
-	if (is_lvds)
-		dpll |= DPLLB_MODE_LVDS;
-	else
-		dpll |= DPLLB_MODE_DAC_SERIAL;
-	if (is_sdvo) {
-		int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
-		if (pixel_multiplier > 1) {
-			dpll |= (pixel_multiplier - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
-		}
-		dpll |= DPLL_DVO_HIGH_SPEED;
-	}
-	if (is_dp && !is_cpu_edp)
-		dpll |= DPLL_DVO_HIGH_SPEED;
-
-	/* compute bitmask from p1 value */
-	dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-	/* also FPA1 */
-	dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
-
-	switch (clock.p2) {
-	case 5:
-		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
-		break;
-	case 7:
-		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
-		break;
-	case 10:
-		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
-		break;
-	case 14:
-		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
-		break;
-	}
-
-	if (is_sdvo && is_tv)
-		dpll |= PLL_REF_INPUT_TVCLKINBC;
-	else if (is_tv)
-		/* XXX: just matching BIOS for now */
-		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
-		dpll |= 3;
-	else if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2)
-		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
-	else
-		dpll |= PLL_REF_INPUT_DREFCLK;
+	dpll = ironlake_compute_dpll(intel_crtc, adjusted_mode, &clock, fp);
 
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
