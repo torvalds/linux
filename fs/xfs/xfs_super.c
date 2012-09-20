@@ -603,6 +603,7 @@ xfs_agnumber_t
 xfs_set_inode32(struct xfs_mount *mp)
 {
 	xfs_agnumber_t	index = 0;
+	xfs_agnumber_t	maxagi = 0;
 	xfs_sb_t	*sbp = &mp->m_sb;
 	xfs_agnumber_t	max_metadata;
 	xfs_agino_t	agino =	XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks -1, 0);
@@ -626,18 +627,26 @@ xfs_set_inode32(struct xfs_mount *mp)
 
 	for (index = 0; index < sbp->sb_agcount; index++) {
 		ino = XFS_AGINO_TO_INO(mp, index, agino);
+
 		if (ino > XFS_MAXINUMBER_32) {
-			index++;
-			break;
+			pag = xfs_perag_get(mp, index);
+			pag->pagi_inodeok = 0;
+			pag->pagf_metadata = 0;
+			xfs_perag_put(pag);
+			continue;
 		}
 
 		pag = xfs_perag_get(mp, index);
 		pag->pagi_inodeok = 1;
+		maxagi++;
 		if (index < max_metadata)
 			pag->pagf_metadata = 1;
 		xfs_perag_put(pag);
 	}
-	return index;
+	mp->m_flags |= (XFS_MOUNT_32BITINODES |
+			XFS_MOUNT_SMALL_INUMS);
+
+	return maxagi;
 }
 
 xfs_agnumber_t
