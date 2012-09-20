@@ -2060,7 +2060,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 {
 	struct vpif_subdev_info *subdevdata;
 	struct vpif_capture_config *config;
-	int i, j, k, m, q, err;
+	int i, j, k, err;
+	int res_idx = 0;
 	struct i2c_adapter *i2c_adap;
 	struct channel_obj *ch;
 	struct common_obj *common;
@@ -2083,18 +2084,19 @@ static __init int vpif_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	k = 0;
-	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, k))) {
+	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, res_idx))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (request_irq(i, vpif_channel_isr, IRQF_SHARED,
-					"VPIF_Capture",
-				(void *)(&vpif_obj.dev[k]->channel_id))) {
+					"VPIF_Capture", (void *)
+					(&vpif_obj.dev[res_idx]->channel_id))) {
 				err = -EBUSY;
-				i--;
+				for (j = 0; j < i; j++)
+					free_irq(j, (void *)
+					(&vpif_obj.dev[res_idx]->channel_id));
 				goto vpif_int_err;
 			}
 		}
-		k++;
+		res_idx++;
 	}
 
 	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++) {
@@ -2108,7 +2110,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 				video_device_release(ch->video_dev);
 			}
 			err = -ENOMEM;
-			goto vpif_dev_alloc_err;
+			goto vpif_int_err;
 		}
 
 		/* Initialize field of video device */
@@ -2148,7 +2150,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");
 		err = -ENOMEM;
-		goto vpif_dev_alloc_err;
+		goto vpif_sd_error;
 	}
 
 	for (i = 0; i < subdev_count; i++) {
@@ -2197,21 +2199,19 @@ probe_subdev_out:
 	/* free sub devices memory */
 	kfree(vpif_obj.sd);
 
-vpif_dev_alloc_err:
-	k = VPIF_CAPTURE_MAX_DEVICES-1;
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, k);
-	i = res->end;
-
-vpif_int_err:
-	for (q = k; q >= 0; q--) {
-		for (m = i; m >= (int)res->start; m--)
-			free_irq(m, (void *)(&vpif_obj.dev[q]->channel_id));
-
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, q-1);
-		if (res)
-			i = res->end;
+vpif_sd_error:
+	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++) {
+		ch = vpif_obj.dev[i];
+		/* Note: does nothing if ch->video_dev == NULL */
+		video_device_release(ch->video_dev);
 	}
+vpif_int_err:
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
+	for (i = 0; i < res_idx; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
+		for (j = res->start; j <= res->end; j++)
+			free_irq(j, (void *)(&vpif_obj.dev[i]->channel_id));
+	}
 	return err;
 }
 
