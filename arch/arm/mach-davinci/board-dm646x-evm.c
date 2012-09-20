@@ -603,7 +603,6 @@ static struct vpif_subdev_info vpif_capture_sdev_info[] = {
 		},
 		.input = INPUT_CVBS_VI2B,
 		.output = OUTPUT_10BIT_422_EMBEDDED_SYNC,
-		.can_route = 1,
 		.vpif_if = {
 			.if_type = VPIF_IF_BT656,
 			.hd_pol = 1,
@@ -619,7 +618,6 @@ static struct vpif_subdev_info vpif_capture_sdev_info[] = {
 		},
 		.input = INPUT_SVIDEO_VI2C_VI1C,
 		.output = OUTPUT_10BIT_422_EMBEDDED_SYNC,
-		.can_route = 1,
 		.vpif_if = {
 			.if_type = VPIF_IF_BT656,
 			.hd_pol = 1,

@@ -1502,15 +1502,13 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 		}
 	}
 
-	if (subdev_info->can_route) {
-		input = subdev_info->input;
-		output = subdev_info->output;
-		ret = v4l2_subdev_call(vpif_obj.sd[sd_index], video, s_routing,
-					input, output, 0);
-		if (ret < 0) {
-			vpif_dbg(1, debug, "Failed to set input\n");
-			return ret;
-		}
+	input = subdev_info->input;
+	output = subdev_info->output;
+	ret = v4l2_subdev_call(vpif_obj.sd[sd_index], video, s_routing,
+			input, output, 0);
+	if (ret < 0 && ret != -ENOIOCTLCMD) {
+		vpif_dbg(1, debug, "Failed to set input\n");
+		return ret;
 	}
 	ch->input_idx = index;
 	ch->curr_subdev_info = subdev_info;
@@ -1520,7 +1518,7 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 
 	/* update tvnorms from the sub device input info */
 	ch->video_dev->tvnorms = chan_cfg->inputs[index].input.std;
-	return ret;
+	return 0;
 }
 
 /**

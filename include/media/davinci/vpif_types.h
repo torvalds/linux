@@ -39,7 +39,6 @@ struct vpif_subdev_info {
 	struct i2c_board_info board_info;
 	u32 input;
 	u32 output;
-	unsigned can_route:1;
 	struct vpif_interface vpif_if;
 };
 
