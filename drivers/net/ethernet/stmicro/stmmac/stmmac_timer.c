@@ -109,7 +109,7 @@ int stmmac_open_ext_timer(struct net_device *dev, struct stmmac_timer *tm)
 {
 	timer_clock = clk_get(NULL, TMU_CHANNEL);
 
-	if (timer_clock == NULL)
+	if (IS_ERR(timer_clock))
 		return -1;
 
 	if (tmu2_register_user(stmmac_timer_handler, (void *)dev) < 0) {
