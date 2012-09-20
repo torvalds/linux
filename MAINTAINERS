@@ -1918,10 +1918,10 @@ S:	Supported
 F:	drivers/platform/x86/classmate-laptop.c
 
 COCCINELLE/Semantic Patches (SmPL)
-M:	Julia Lawall <julia@diku.dk>
+M:	Julia Lawall <Julia.Lawall@lip6.fr>
 M:	Gilles Muller <Gilles.Muller@lip6.fr>
-M:	Nicolas Palix <npalix.work@gmail.com>
-L:	cocci@diku.dk (moderated for non-subscribers)
+M:	Nicolas Palix <nicolas.palix@imag.fr>
+L:	cocci@systeme.lip6.fr (moderated for non-subscribers)
 W:	http://coccinelle.lip6.fr/
 S:	Supported
 F:	scripts/coccinelle/
