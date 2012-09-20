@@ -722,7 +722,7 @@ void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 }
 
 /*
- * is_hugepage_only_range() is used by generic code to verify wether
+ * is_hugepage_only_range() is used by generic code to verify whether
  * a normal mmap mapping (non hugetlbfs) is valid on a given area.
  *
  * until the generic code provides a more generic hook and/or starts

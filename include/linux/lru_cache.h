@@ -52,8 +52,8 @@ We replicate IO (more or less synchronously) to local and remote disk.
 
 For crash recovery after replication node failure,
   we need to resync all regions that have been target of in-flight WRITE IO
-  (in use, or "hot", regions), as we don't know wether or not those WRITEs have
-  made it to stable storage.
+  (in use, or "hot", regions), as we don't know whether or not those WRITEs
+  have made it to stable storage.
 
   To avoid a "full resync", we need to persistently track these regions.
 

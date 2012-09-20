@@ -22,7 +22,7 @@ static long do_sys_name_to_handle(struct path *path,
 	struct file_handle *handle = NULL;
 
 	/*
-	 * We need t make sure wether the file system
+	 * We need to make sure whether the file system
 	 * support decoding of the file handle
 	 */
 	if (!path->dentry->d_sb->s_export_op ||
@@ -40,7 +40,7 @@ static long do_sys_name_to_handle(struct path *path,
 	if (!handle)
 		return -ENOMEM;
 
-	/* convert handle size to  multiple of sizeof(u32) */
+	/* convert handle size to multiple of sizeof(u32) */
 	handle_dwords = f_handle.handle_bytes >> 2;
 
 	/* we ask for a non connected handle */

@@ -879,7 +879,7 @@ static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
 	if (chip->ecc.mode != NAND_ECC_HW)
 		return;
 
-		/* change the behaviour depending on wether we are using
+		/* change the behaviour depending on whether we are using
 		 * the large or small page nand device */
 
 	if (chip->page_shift > 10) {

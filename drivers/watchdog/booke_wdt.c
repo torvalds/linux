@@ -212,7 +212,7 @@ static long booke_wdt_ioctl(struct file *file,
 	return 0;
 }
 
-/* wdt_is_active stores wether or not the /dev/watchdog device is opened */
+/* wdt_is_active stores whether or not the /dev/watchdog device is opened */
 static unsigned long wdt_is_active;
 
 static int booke_wdt_open(struct inode *inode, struct file *file)

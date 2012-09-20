@@ -118,7 +118,7 @@ isl1208_i2c_set_regs(struct i2c_client *client, u8 reg, u8 const buf[],
 	return ret;
 }
 
-/* simple check to see wether we have a isl1208 */
+/* simple check to see whether we have a isl1208 */
 static int
 isl1208_i2c_validate_client(struct i2c_client *client)
 {

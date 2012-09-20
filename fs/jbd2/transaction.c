@@ -1261,7 +1261,7 @@ int jbd2_journal_forget (handle_t *handle, struct buffer_head *bh)
 		goto not_jbd;
 	}
 
-	/* keep track of wether or not this transaction modified us */
+	/* keep track of whether or not this transaction modified us */
 	was_modified = jh->b_modified;
 
 	/*

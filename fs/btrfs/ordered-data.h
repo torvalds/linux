@@ -76,7 +76,7 @@ struct btrfs_ordered_sum {
 
 #define BTRFS_ORDERED_IOERR 6 /* We had an io error when writing this out */
 
-#define BTRFS_ORDERED_UPDATED_ISIZE 7 /* indicates wether this ordered extent
+#define BTRFS_ORDERED_UPDATED_ISIZE 7 /* indicates whether this ordered extent
 				       * has done its due diligence in updating
 				       * the isize. */
 

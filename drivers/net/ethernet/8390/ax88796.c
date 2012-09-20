@@ -109,7 +109,7 @@ static inline struct ax_device *to_ax_dev(struct net_device *dev)
 /*
  * ax_initial_check
  *
- * do an initial probe for the card to check wether it exists
+ * do an initial probe for the card to check whether it exists
  * and is functional
  */
 static int ax_initial_check(struct net_device *dev)

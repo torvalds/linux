@@ -186,7 +186,7 @@ static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 	rtc_tm->tm_year = readb(base + S3C2410_RTCYEAR);
 	rtc_tm->tm_sec  = readb(base + S3C2410_RTCSEC);
 
-	/* the only way to work out wether the system was mid-update
+	/* the only way to work out whether the system was mid-update
 	 * when we read it is to check the second counter, and if it
 	 * is zero, then we re-try the entire read
 	 */

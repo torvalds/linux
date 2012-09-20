@@ -1059,7 +1059,7 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 
 	WREG32(CP_DEBUG, (1 << 27));
 
-	/* set the wb address wether it's enabled or not */
+	/* set the wb address whether it's enabled or not */
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
 	WREG32(SCRATCH_UMSK, 0xff);
 
@@ -1076,7 +1076,7 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 #endif
 		WREG32(cp_rb_cntl[i], rb_cntl);
 
-		/* set the wb address wether it's enabled or not */
+		/* set the wb address whether it's enabled or not */
 		addr = rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET;
 		WREG32(cp_rb_rptr_addr[i], addr & 0xFFFFFFFC);
 		WREG32(cp_rb_rptr_addr_hi[i], upper_32_bits(addr) & 0xFF);

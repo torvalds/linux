@@ -675,7 +675,7 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
  */
 int snd_usb_is_big_endian_format(struct snd_usb_audio *chip, struct audioformat *fp)
 {
-	/* it depends on altsetting wether the device is big-endian or not */
+	/* it depends on altsetting whether the device is big-endian or not */
 	switch (chip->usb_id) {
 	case USB_ID(0x0763, 0x2001): /* M-Audio Quattro: captured data only */
 		if (fp->altsetting == 2 || fp->altsetting == 3 ||

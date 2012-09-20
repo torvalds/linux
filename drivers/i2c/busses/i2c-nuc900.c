@@ -304,7 +304,7 @@ retry_write:
 
 	case STATE_READ:
 		/* we have a byte of data in the data register, do
-		 * something with it, and then work out wether we are
+		 * something with it, and then work out whether we are
 		 * going to do any more read/write
 		 */
 
