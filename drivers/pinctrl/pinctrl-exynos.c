@@ -431,15 +431,19 @@ static const struct irq_domain_ops exynos_wkup_irqd_ops = {
 static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 {
 	struct device *dev = d->dev;
-	struct device_node *wkup_np;
+	struct device_node *wkup_np = NULL;
+	struct device_node *np;
 	struct exynos_weint_data *weint_data;
 	int idx, irq;
 
-	wkup_np = of_find_matching_node(dev->of_node, exynos_wkup_irq_ids);
-	if (!wkup_np) {
-		dev_err(dev, "wakeup controller node not found\n");
-		return -ENODEV;
+	for_each_child_of_node(dev->of_node, np) {
+		if (of_match_node(exynos_wkup_irq_ids, np)) {
+			wkup_np = np;
+			break;
+		}
 	}
+	if (!wkup_np)
+		return -ENODEV;
 
 	d->wkup_irqd = irq_domain_add_linear(wkup_np, d->ctrl->nr_wint,
 				&exynos_wkup_irqd_ops, d);
