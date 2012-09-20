@@ -608,8 +608,8 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	/*
 	 * A queue starts its life with bypass turned on to avoid
 	 * unnecessary bypass on/off overhead and nasty surprises during
-	 * init.  The initial bypass will be finished at the end of
-	 * blk_init_allocated_queue().
+	 * init.  The initial bypass will be finished when the queue is
+	 * registered by blk_register_queue().
 	 */
 	q->bypass_depth = 1;
 	__set_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
@@ -712,9 +712,6 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	/* init elevator */
 	if (elevator_init(q, NULL))
 		return NULL;
-
-	/* all done, end the initial bypass */
-	blk_queue_bypass_end(q);
 	return q;
 }
 EXPORT_SYMBOL(blk_init_allocated_queue);
