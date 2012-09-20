@@ -25,8 +25,8 @@
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 
+#include <video/samsung_fimd.h>
 #include <mach/map.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/fb.h>
 
 /* This driver will export a number of framebuffer interfaces depending

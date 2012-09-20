@@ -26,6 +26,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
+#include <video/samsung_fimd.h>
 #include <plat/backlight.h>
 #include <plat/clock.h>
 #include <plat/cpu.h>
@@ -35,7 +36,6 @@
 #include <plat/iic.h>
 #include <plat/keypad.h>
 #include <plat/mfc.h>
-#include <plat/regs-fb.h>
 #include <plat/regs-serial.h>
 #include <plat/sdhci.h>
 

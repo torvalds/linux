@@ -42,9 +42,9 @@
 #include <plat/nand.h>
 #include <plat/regs-serial.h>
 #include <plat/ts.h>
-#include <plat/regs-fb-v4.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include "common.h"
 

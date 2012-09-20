@@ -30,6 +30,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
+#include <video/samsung_fimd.h>
 #include <plat/regs-serial.h>
 #include <plat/clock.h>
 #include <plat/cpu.h>
@@ -39,7 +40,6 @@
 #include <plat/fb.h>
 #include <plat/mfc.h>
 #include <plat/sdhci.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/fimc-core.h>
 #include <plat/s5p-time.h>
 #include <plat/camport.h>
