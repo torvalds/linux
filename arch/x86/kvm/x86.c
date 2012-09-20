@@ -3672,19 +3672,16 @@ static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
 				gpa_t *gpa, struct x86_exception *exception,
 				bool write)
 {
-	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
+	u32 access = ((kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0)
+		| (write ? PFERR_WRITE_MASK : 0);
 
-	if (vcpu_match_mmio_gva(vcpu, gva) &&
-		  check_write_user_access(vcpu, write, access,
-		  vcpu->arch.access)) {
+	if (vcpu_match_mmio_gva(vcpu, gva)
+	    && !permission_fault(vcpu->arch.walk_mmu, vcpu->arch.access, access)) {
 		*gpa = vcpu->arch.mmio_gfn << PAGE_SHIFT |
 					(gva & (PAGE_SIZE - 1));
 		trace_vcpu_match_mmio(gva, *gpa, write, false);
 		return 1;
 	}
-
-	if (write)
-		access |= PFERR_WRITE_MASK;
 
 	*gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, exception);
 
@@ -6016,7 +6013,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	int r;
 
 	vcpu->arch.mtrr_state.have_fixed = 1;
-	vcpu_load(vcpu);
+	r = vcpu_load(vcpu);
+	if (r)
+		return r;
 	r = kvm_arch_vcpu_reset(vcpu);
 	if (r == 0)
 		r = kvm_mmu_setup(vcpu);
@@ -6027,9 +6026,11 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
+	int r;
 	vcpu->arch.apf.msr_val = 0;
 
-	vcpu_load(vcpu);
+	r = vcpu_load(vcpu);
+	BUG_ON(r);
 	kvm_mmu_unload(vcpu);
 	vcpu_put(vcpu);
 
@@ -6275,7 +6276,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 static void kvm_unload_vcpu_mmu(struct kvm_vcpu *vcpu)
 {
-	vcpu_load(vcpu);
+	int r;
+	r = vcpu_load(vcpu);
+	BUG_ON(r);
 	kvm_mmu_unload(vcpu);
 	vcpu_put(vcpu);
 }

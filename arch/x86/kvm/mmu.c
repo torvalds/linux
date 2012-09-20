@@ -3408,6 +3408,18 @@ static bool is_rsvd_bits_set(struct kvm_mmu *mmu, u64 gpte, int level)
 	return (gpte & mmu->rsvd_bits_mask[bit7][level-1]) != 0;
 }
 
+static inline void protect_clean_gpte(unsigned *access, unsigned gpte)
+{
+	unsigned mask;
+
+	BUILD_BUG_ON(PT_WRITABLE_MASK != ACC_WRITE_MASK);
+
+	mask = (unsigned)~ACC_WRITE_MASK;
+	/* Allow write access to dirty gptes */
+	mask |= (gpte >> (PT_DIRTY_SHIFT - PT_WRITABLE_SHIFT)) & PT_WRITABLE_MASK;
+	*access &= mask;
+}
+
 static bool sync_mmio_spte(u64 *sptep, gfn_t gfn, unsigned access,
 			   int *nr_present)
 {
@@ -3423,6 +3435,25 @@ static bool sync_mmio_spte(u64 *sptep, gfn_t gfn, unsigned access,
 	}
 
 	return false;
+}
+
+static inline unsigned gpte_access(struct kvm_vcpu *vcpu, u64 gpte)
+{
+	unsigned access;
+
+	access = (gpte & (PT_WRITABLE_MASK | PT_USER_MASK)) | ACC_EXEC_MASK;
+	access &= ~(gpte >> PT64_NX_SHIFT);
+
+	return access;
+}
+
+static inline bool is_last_gpte(struct kvm_mmu *mmu, unsigned level, unsigned gpte)
+{
+	unsigned index;
+
+	index = level - 1;
+	index |= (gpte & PT_PAGE_SIZE_MASK) >> (PT_PAGE_SIZE_SHIFT - 2);
+	return mmu->last_pte_bitmap & (1 << index);
 }
 
 #define PTTYPE 64
@@ -3494,6 +3525,56 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 	}
 }
 
+static void update_permission_bitmask(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
+{
+	unsigned bit, byte, pfec;
+	u8 map;
+	bool fault, x, w, u, wf, uf, ff, smep;
+
+	smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
+	for (byte = 0; byte < ARRAY_SIZE(mmu->permissions); ++byte) {
+		pfec = byte << 1;
+		map = 0;
+		wf = pfec & PFERR_WRITE_MASK;
+		uf = pfec & PFERR_USER_MASK;
+		ff = pfec & PFERR_FETCH_MASK;
+		for (bit = 0; bit < 8; ++bit) {
+			x = bit & ACC_EXEC_MASK;
+			w = bit & ACC_WRITE_MASK;
+			u = bit & ACC_USER_MASK;
+
+			/* Not really needed: !nx will cause pte.nx to fault */
+			x |= !mmu->nx;
+			/* Allow supervisor writes if !cr0.wp */
+			w |= !is_write_protection(vcpu) && !uf;
+			/* Disallow supervisor fetches of user code if cr4.smep */
+			x &= !(smep && u && !uf);
+
+			fault = (ff && !x) || (uf && !u) || (wf && !w);
+			map |= fault << bit;
+		}
+		mmu->permissions[byte] = map;
+	}
+}
+
+static void update_last_pte_bitmap(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
+{
+	u8 map;
+	unsigned level, root_level = mmu->root_level;
+	const unsigned ps_set_index = 1 << 2;  /* bit 2 of index: ps */
+
+	if (root_level == PT32E_ROOT_LEVEL)
+		--root_level;
+	/* PT_PAGE_TABLE_LEVEL always terminates */
+	map = 1 | (1 << ps_set_index);
+	for (level = PT_DIRECTORY_LEVEL; level <= root_level; ++level) {
+		if (level <= PT_PDPE_LEVEL
+		    && (mmu->root_level >= PT32E_ROOT_LEVEL || is_pse(vcpu)))
+			map |= 1 << (ps_set_index | (level - 1));
+	}
+	mmu->last_pte_bitmap = map;
+}
+
 static int paging64_init_context_common(struct kvm_vcpu *vcpu,
 					struct kvm_mmu *context,
 					int level)
@@ -3502,6 +3583,8 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu,
 	context->root_level = level;
 
 	reset_rsvds_bits_mask(vcpu, context);
+	update_permission_bitmask(vcpu, context);
+	update_last_pte_bitmap(vcpu, context);
 
 	ASSERT(is_pae(vcpu));
 	context->new_cr3 = paging_new_cr3;
@@ -3530,6 +3613,8 @@ static int paging32_init_context(struct kvm_vcpu *vcpu,
 	context->root_level = PT32_ROOT_LEVEL;
 
 	reset_rsvds_bits_mask(vcpu, context);
+	update_permission_bitmask(vcpu, context);
+	update_last_pte_bitmap(vcpu, context);
 
 	context->new_cr3 = paging_new_cr3;
 	context->page_fault = paging32_page_fault;
@@ -3589,6 +3674,9 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 		reset_rsvds_bits_mask(vcpu, context);
 		context->gva_to_gpa = paging32_gva_to_gpa;
 	}
+
+	update_permission_bitmask(vcpu, context);
+	update_last_pte_bitmap(vcpu, context);
 
 	return 0;
 }
@@ -3664,6 +3752,9 @@ static int init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 		reset_rsvds_bits_mask(vcpu, g_context);
 		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;
 	}
+
+	update_permission_bitmask(vcpu, g_context);
+	update_last_pte_bitmap(vcpu, g_context);
 
 	return 0;
 }

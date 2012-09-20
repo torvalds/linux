@@ -18,8 +18,10 @@
 #define PT_PCD_MASK (1ULL << 4)
 #define PT_ACCESSED_SHIFT 5
 #define PT_ACCESSED_MASK (1ULL << PT_ACCESSED_SHIFT)
-#define PT_DIRTY_MASK (1ULL << 6)
-#define PT_PAGE_SIZE_MASK (1ULL << 7)
+#define PT_DIRTY_SHIFT 6
+#define PT_DIRTY_MASK (1ULL << PT_DIRTY_SHIFT)
+#define PT_PAGE_SIZE_SHIFT 7
+#define PT_PAGE_SIZE_MASK (1ULL << PT_PAGE_SIZE_SHIFT)
 #define PT_PAT_MASK (1ULL << 7)
 #define PT_GLOBAL_MASK (1ULL << 8)
 #define PT64_NX_SHIFT 63
@@ -88,17 +90,14 @@ static inline bool is_write_protection(struct kvm_vcpu *vcpu)
 	return kvm_read_cr0_bits(vcpu, X86_CR0_WP);
 }
 
-static inline bool check_write_user_access(struct kvm_vcpu *vcpu,
-					   bool write_fault, bool user_fault,
-					   unsigned long pte)
+/*
+ * Will a fault with a given page-fault error code (pfec) cause a permission
+ * fault with the given access (in ACC_* format)?
+ */
+static inline bool permission_fault(struct kvm_mmu *mmu, unsigned pte_access,
+				    unsigned pfec)
 {
-	if (unlikely(write_fault && !is_writable_pte(pte)
-	      && (user_fault || is_write_protection(vcpu))))
-		return false;
-
-	if (unlikely(user_fault && !(pte & PT_USER_MASK)))
-		return false;
-
-	return true;
+	return (mmu->permissions[pfec >> 1] >> pte_access) & 1;
 }
+
 #endif
