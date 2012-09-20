@@ -4707,6 +4707,82 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	return true;
 }
 
+static void ironlake_set_m_n(struct drm_crtc *crtc,
+			     struct drm_display_mode *mode,
+			     struct drm_display_mode *adjusted_mode)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	struct intel_encoder *intel_encoder, *edp_encoder = NULL;
+	struct fdi_m_n m_n = {0};
+	int target_clock, pixel_multiplier, lane, link_bw;
+	bool is_dp = false, is_cpu_edp = false;
+
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
+		switch (intel_encoder->type) {
+		case INTEL_OUTPUT_DISPLAYPORT:
+			is_dp = true;
+			break;
+		case INTEL_OUTPUT_EDP:
+			is_dp = true;
+			if (!intel_encoder_is_pch_edp(&intel_encoder->base))
+				is_cpu_edp = true;
+			edp_encoder = intel_encoder;
+			break;
+		}
+	}
+
+	/* FDI link */
+	pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
+	lane = 0;
+	/* CPU eDP doesn't require FDI link, so just set DP M/N
+	   according to current link config */
+	if (is_cpu_edp) {
+		intel_edp_link_config(edp_encoder, &lane, &link_bw);
+	} else {
+		/* FDI is a binary signal running at ~2.7GHz, encoding
+		 * each output octet as 10 bits. The actual frequency
+		 * is stored as a divider into a 100MHz clock, and the
+		 * mode pixel clock is stored in units of 1KHz.
+		 * Hence the bw of each lane in terms of the mode signal
+		 * is:
+		 */
+		link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
+	}
+
+	/* [e]DP over FDI requires target mode clock instead of link clock. */
+	if (edp_encoder)
+		target_clock = intel_edp_target_clock(edp_encoder, mode);
+	else if (is_dp)
+		target_clock = mode->clock;
+	else
+		target_clock = adjusted_mode->clock;
+
+	if (!lane) {
+		/*
+		 * Account for spread spectrum to avoid
+		 * oversubscribing the link. Max center spread
+		 * is 2.5%; use 5% for safety's sake.
+		 */
+		u32 bps = target_clock * intel_crtc->bpp * 21 / 20;
+		lane = bps / (link_bw * 8) + 1;
+	}
+
+	intel_crtc->fdi_lanes = lane;
+
+	if (pixel_multiplier > 1)
+		link_bw *= pixel_multiplier;
+	ironlake_compute_m_n(intel_crtc->bpp, lane, target_clock, link_bw,
+			     &m_n);
+
+	I915_WRITE(PIPE_DATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
+	I915_WRITE(PIPE_DATA_N1(pipe), m_n.gmch_n);
+	I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
+	I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
+}
+
 static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode,
@@ -4723,11 +4799,9 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dpll, fp = 0, fp2 = 0;
 	bool ok, has_reduced_clock = false, is_sdvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
-	struct intel_encoder *encoder, *edp_encoder = NULL;
-	int ret;
-	struct fdi_m_n m_n = {0};
+	struct intel_encoder *encoder;
 	u32 temp;
-	int target_clock, pixel_multiplier, lane, link_bw, factor;
+	int ret, factor;
 	bool dither;
 	bool is_cpu_edp = false, is_pch_edp = false;
 
@@ -4757,7 +4831,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 				is_pch_edp = true;
 			else
 				is_cpu_edp = true;
-			edp_encoder = encoder;
 			break;
 		}
 
@@ -4774,53 +4847,10 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	/* Ensure that the cursor is valid for the new mode before changing... */
 	intel_crtc_update_cursor(crtc, true);
 
-	/* FDI link */
-	pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
-	lane = 0;
-	/* CPU eDP doesn't require FDI link, so just set DP M/N
-	   according to current link config */
-	if (is_cpu_edp) {
-		intel_edp_link_config(edp_encoder, &lane, &link_bw);
-	} else {
-		/* FDI is a binary signal running at ~2.7GHz, encoding
-		 * each output octet as 10 bits. The actual frequency
-		 * is stored as a divider into a 100MHz clock, and the
-		 * mode pixel clock is stored in units of 1KHz.
-		 * Hence the bw of each lane in terms of the mode signal
-		 * is:
-		 */
-		link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
-	}
-
-	/* [e]DP over FDI requires target mode clock instead of link clock. */
-	if (edp_encoder)
-		target_clock = intel_edp_target_clock(edp_encoder, mode);
-	else if (is_dp)
-		target_clock = mode->clock;
-	else
-		target_clock = adjusted_mode->clock;
-
 	/* determine panel color depth */
 	dither = intel_choose_pipe_bpp_dither(crtc, fb, &intel_crtc->bpp, mode);
 	if (is_lvds && dev_priv->lvds_dither)
 		dither = true;
-
-	if (!lane) {
-		/*
-		 * Account for spread spectrum to avoid
-		 * oversubscribing the link. Max center spread
-		 * is 2.5%; use 5% for safety's sake.
-		 */
-		u32 bps = target_clock * intel_crtc->bpp * 21 / 20;
-		lane = bps / (link_bw * 8) + 1;
-	}
-
-	intel_crtc->fdi_lanes = lane;
-
-	if (pixel_multiplier > 1)
-		link_bw *= pixel_multiplier;
-	ironlake_compute_m_n(intel_crtc->bpp, lane, target_clock, link_bw,
-			     &m_n);
 
 	fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
 	if (has_reduced_clock)
@@ -5018,10 +5048,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(PIPESRC(pipe),
 		   ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
 
-	I915_WRITE(PIPE_DATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
-	I915_WRITE(PIPE_DATA_N1(pipe), m_n.gmch_n);
-	I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
-	I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
+	ironlake_set_m_n(crtc, mode, adjusted_mode);
 
 	if (is_cpu_edp)
 		ironlake_set_pll_edp(crtc, adjusted_mode->clock);
