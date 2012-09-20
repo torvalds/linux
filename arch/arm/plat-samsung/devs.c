@@ -52,6 +52,7 @@
 #include <plat/ehci.h>
 #include <plat/fb.h>
 #include <plat/fb-s3c2410.h>
+#include <plat/hdmi.h>
 #include <plat/hwmon.h>
 #include <plat/iic.h>
 #include <plat/keypad.h>
@@ -763,7 +764,7 @@ void __init s5p_i2c_hdmiphy_set_platdata(struct s3c2410_platform_i2c *pd)
 			       &s5p_device_i2c_hdmiphy);
 }
 
-struct s5p_hdmi_platform_data s5p_hdmi_def_platdata;
+static struct s5p_hdmi_platform_data s5p_hdmi_def_platdata;
 
 void __init s5p_hdmi_set_platdata(struct i2c_board_info *hdmiphy_info,
 				  struct i2c_board_info *mhl_info, int mhl_bus)
