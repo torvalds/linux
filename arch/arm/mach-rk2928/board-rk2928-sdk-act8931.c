@@ -85,27 +85,6 @@ int act8931_set_init(struct act8931 *act8931)
 	return 0;
 }
 
-void rk2928_act_usb_wifi_on(void)
-{
-        struct regulator *ldo;
-        ldo = regulator_get(NULL, "act_ldo4");  //vccio_wl
-        regulator_enable(ldo);
-        printk("%s: vccio_wl enable\n", __func__);
-        regulator_put(ldo);
-        udelay(100);
-}
-EXPORT_SYMBOL(rk2928_act_usb_wifi_on);
-void rk2928_act_usb_wifi_off(void)
-{
-        struct regulator *ldo;
-        ldo = regulator_get(NULL, "act_ldo4");  //vccio_wl
-        printk("%s: vccio_wl disable\n", __func__);
-        regulator_disable(ldo);
-        regulator_put(ldo);
-        udelay(100);
-}
-EXPORT_SYMBOL(rk2928_act_usb_wifi_off);
-
 static struct regulator_consumer_supply act8931_buck1_supply[] = {
 	{
 		.supply = "act_dcdc1",

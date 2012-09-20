@@ -208,7 +208,7 @@ static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 static int rk_fb_io_disable(void)
 {
 
-	#if defined(CONFIG_REGULATOR_ACT8931)
+	#if 0//defined(CONFIG_REGULATOR_ACT8931)
 	if(g_pmic_type == PMIC_TYPE_ACT8931)
 	{
 		struct regulator *ldo;
@@ -223,7 +223,7 @@ static int rk_fb_io_disable(void)
 }
 static int rk_fb_io_enable(void)
 {
-	#if defined(CONFIG_REGULATOR_ACT8931)
+	#if 0//defined(CONFIG_REGULATOR_ACT8931)
 	if(g_pmic_type == PMIC_TYPE_ACT8931)
 	{
 		struct regulator *ldo;
@@ -442,6 +442,40 @@ struct platform_device pwm_regulator_device[1] = {
 	},
 };
 #endif
+
+/***********************************************************
+*	usb wifi
+************************************************************/
+#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+
+static void rkusb_wifi_power(int on) {
+	struct regulator *ldo;
+	
+#if defined(CONFIG_MFD_TPS65910)	
+	if(g_pmic_type == PMIC_TYPE_TPS65910) {
+		ldo = regulator_get(NULL, "vmmc");  //vccio_wl
+	}
+#endif
+#if defined(CONFIG_REGULATOR_ACT8931)
+	if(g_pmic_type == PMIC_TYPE_ACT8931) {
+		ldo = regulator_get(NULL, "act_ldo4");  //vccio_wl
+	}
+#endif	
+	
+	if(on) {
+		regulator_enable(ldo);
+		printk("%s: vccio_wl enable\n", __func__);
+	} else {
+		printk("%s: vccio_wl disable\n", __func__);
+		regulator_disable(ldo);
+	}
+	
+	regulator_put(ldo);
+	udelay(100);
+}
+
+#endif
+
 /**************************************************************************************************
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/

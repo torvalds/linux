@@ -224,27 +224,6 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	return 0;
 
 }
-void rk2928_tps_usb_wifi_on(void)
-{
-	struct regulator *ldo;
-        ldo = regulator_get(NULL, "vmmc");  //vccio_wl
-	regulator_enable(ldo); 
-	printk("%s: vccio_wl enable\n", __func__);
-	regulator_put(ldo);
-	udelay(100);
-}
-EXPORT_SYMBOL(rk2928_tps_usb_wifi_on);
-void rk2928_tps_usb_wifi_off(void)
-{
-	struct regulator *ldo;
-        ldo = regulator_get(NULL, "vmmc");  //vccio_wl
-	printk("%s: vccio_wl disable\n", __func__);
-	regulator_disable(ldo); 
-	regulator_put(ldo);
-	udelay(100);
-}
-EXPORT_SYMBOL(rk2928_tps_usb_wifi_off);
-
 
 int tps65910_post_init(struct tps65910 *tps65910)
 {

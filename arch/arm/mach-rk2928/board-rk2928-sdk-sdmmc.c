@@ -364,49 +364,25 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 }
 
 #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
-void rk2928_act_usb_wifi_on(void);
-void rk2928_act_usb_wifi_off(void);
-void rk2928_tps_usb_wifi_on(void);
-void rk2928_tps_usb_wifi_off(void);
-
 static int usbwifi_power_status = 1;
-static void rk2928_usb_wifi_power(int on) {
-#if defined(CONFIG_MFD_TPS65910)	
-	if(g_pmic_type == PMIC_TYPE_TPS65910) {
-		if(on)
-			rk2928_tps_usb_wifi_on();
-		else
-			rk2928_tps_usb_wifi_off();
-	}
-#endif
-#if defined(CONFIG_REGULATOR_ACT8931)
-	if(g_pmic_type == PMIC_TYPE_ACT8931) {
-		if(on)
-			rk2928_act_usb_wifi_on();
-		else
-			rk2928_act_usb_wifi_off();
-	}
-#endif
-}
-
- int rk29sdk_wifi_power(int on)
- {
+int rk29sdk_wifi_power(int on)
+{
         pr_info("%s: %d\n", __func__, on);
          if (on){
                 /*if(usbwifi_power_status == 1) {
-                    rk2928_usb_wifi_power(0);
+                    rkusb_wifi_power(0);
                     mdelay(50);
                 }*/
-                rk2928_usb_wifi_power(1);
+                rkusb_wifi_power(1);
                 usbwifi_power_status = 1;
                  pr_info("wifi turn on power\n");  	
         }else{
-                rk2928_usb_wifi_power(0);
+                rkusb_wifi_power(0);
                 usbwifi_power_status = 0;    	
                  pr_info("wifi shut off power\n");
         }
         return 0;
- }
+}
 #else
 int rk29sdk_wifi_power(int on)
 {
