@@ -837,7 +837,7 @@ int SetEvent(DEVICE_EXTENSION * pdx, TRANSFEREVENT __user * pTE)
 int WaitEvent(DEVICE_EXTENSION * pdx, int nArea, int msTimeOut)
 {
 	int iReturn;
-	if ((unsigned)nArea > MAX_TRANSAREAS)
+	if ((unsigned)nArea >= MAX_TRANSAREAS)
 		return U14ERR_BADAREA;
 	else {
 		int iWait;
@@ -884,7 +884,7 @@ int WaitEvent(DEVICE_EXTENSION * pdx, int nArea, int msTimeOut)
 int TestEvent(DEVICE_EXTENSION * pdx, int nArea)
 {
 	int iReturn;
-	if ((unsigned)nArea > MAX_TRANSAREAS)
+	if ((unsigned)nArea >= MAX_TRANSAREAS)
 		iReturn = U14ERR_BADAREA;
 	else {
 		TRANSAREA *pTA = &pdx->rTransDef[nArea];
