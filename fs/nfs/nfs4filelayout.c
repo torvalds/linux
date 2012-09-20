@@ -190,8 +190,6 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		 * i/o and all i/o waiting on the slot table to the MDS until
 		 * layout is destroyed and a new valid layout is obtained.
 		 */
-		set_bit(NFS_LAYOUT_INVALID,
-				&NFS_I(inode)->layout->plh_flags);
 		pnfs_destroy_layout(NFS_I(inode));
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		goto reset;
@@ -281,7 +279,7 @@ filelayout_reset_to_mds(struct pnfs_layout_segment *lseg)
 {
 	struct nfs4_deviceid_node *node = FILELAYOUT_DEVID_NODE(lseg);
 
-	return filelayout_test_layout_invalid(lseg->pls_layout) ||
+	return pnfs_test_layout_destroyed(lseg->pls_layout) ||
 		filelayout_test_devid_unavailable(node);
 }
 

@@ -129,12 +129,6 @@ filelayout_mark_devid_invalid(struct nfs4_deviceid_node *node)
 }
 
 static inline bool
-filelayout_test_layout_invalid(struct pnfs_layout_hdr *lo)
-{
-	return test_bit(NFS_LAYOUT_INVALID, &lo->plh_flags);
-}
-
-static inline bool
 filelayout_test_devid_invalid(struct nfs4_deviceid_node *node)
 {
 	return test_bit(NFS_DEVICEID_INVALID, &node->flags);
