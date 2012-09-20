@@ -999,6 +999,10 @@ config TOUCHSCREEN_GT819
 	tristate "GT819 based touchscreens"
 	depends on I2C2_RK29
 
+config TOUCHSCREEN_CT360_IIC
+	tristate "CT360 based touchscreens"
+	depends on I2C_RK29 || I2C_RK30
+
 config TOUCHSCREEN_FT5306
 	tristate "FT5306 based touchscreens: FT5306 Interface"
 	depends on I2C2_RK29 || I2C2_RK30
