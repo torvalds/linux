@@ -159,10 +159,6 @@ struct vpif_config_params {
 	u32 video_limit[VPIF_CAPTURE_NUM_CHANNELS];
 	u8 max_device_type;
 };
-/* Struct which keeps track of the line numbers for the sliced vbi service */
-struct vpif_service_line {
-	u16 service_id;
-	u16 service_line[2];
-};
+
 #endif				/* End of __KERNEL__ */
 #endif				/* VPIF_CAPTURE_H */
