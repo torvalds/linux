@@ -43,7 +43,7 @@
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <plat/gpmc.h>
 
-#include <mach/am35xx.h>
+#include "am35xx.h"
 
 #include "mux.h"
 #include "control.h"

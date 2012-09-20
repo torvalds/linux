@@ -28,7 +28,7 @@
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <plat/dmtimer.h>
 
-#include <mach/am35xx.h>
+#include "am35xx.h"
 
 #include "soc.h"
 #include "omap_hwmod_common_data.h"
