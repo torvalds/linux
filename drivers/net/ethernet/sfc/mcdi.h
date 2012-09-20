@@ -71,6 +71,12 @@ extern int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd, const u8 *inbuf,
 			size_t inlen, u8 *outbuf, size_t outlen,
 			size_t *outlen_actual);
 
+extern void efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
+			       const u8 *inbuf, size_t inlen);
+extern int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
+			       u8 *outbuf, size_t outlen,
+			       size_t *outlen_actual);
+
 extern int efx_mcdi_poll_reboot(struct efx_nic *efx);
 extern void efx_mcdi_mode_poll(struct efx_nic *efx);
 extern void efx_mcdi_mode_event(struct efx_nic *efx);

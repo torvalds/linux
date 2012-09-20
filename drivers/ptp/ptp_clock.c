@@ -300,6 +300,11 @@ void ptp_clock_event(struct ptp_clock *ptp, struct ptp_clock_event *event)
 		pps_get_ts(&evt);
 		pps_event(ptp->pps_source, &evt, PTP_PPS_EVENT, NULL);
 		break;
+
+	case PTP_CLOCK_PPSUSR:
+		pps_event(ptp->pps_source, &event->pps_times,
+			  PTP_PPS_EVENT, NULL);
+		break;
 	}
 }
 EXPORT_SYMBOL(ptp_clock_event);

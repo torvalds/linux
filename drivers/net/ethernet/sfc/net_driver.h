@@ -37,7 +37,7 @@
  *
  **************************************************************************/
 
-#define EFX_DRIVER_VERSION	"3.1"
+#define EFX_DRIVER_VERSION	"3.2"
 
 #ifdef DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
@@ -56,7 +56,8 @@
 #define EFX_MAX_CHANNELS 32U
 #define EFX_MAX_RX_QUEUES EFX_MAX_CHANNELS
 #define EFX_EXTRA_CHANNEL_IOV	0
-#define EFX_MAX_EXTRA_CHANNELS	1U
+#define EFX_EXTRA_CHANNEL_PTP	1
+#define EFX_MAX_EXTRA_CHANNELS	2U
 
 /* Checksum generation is a per-queue option in hardware, so each
  * queue visible to the networking core is backed by two hardware TX
@@ -67,6 +68,9 @@
 #define EFX_TXQ_TYPE_HIGHPRI	2	/* flag */
 #define EFX_TXQ_TYPES		4
 #define EFX_MAX_TX_QUEUES	(EFX_TXQ_TYPES * EFX_MAX_CHANNELS)
+
+/* Forward declare Precision Time Protocol (PTP) support structure. */
+struct efx_ptp_data;
 
 struct efx_self_tests;
 
@@ -242,6 +246,8 @@ struct efx_rx_page_state {
 /**
  * struct efx_rx_queue - An Efx RX queue
  * @efx: The associated Efx NIC
+ * @core_index:  Index of network core RX queue.  Will be >= 0 iff this
+ *	is associated with a real RX queue.
  * @buffer: The software buffer ring
  * @rxd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
@@ -263,6 +269,7 @@ struct efx_rx_page_state {
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
+	int core_index;
 	struct efx_rx_buffer *buffer;
 	struct efx_special_buffer rxd;
 	unsigned int ptr_mask;
@@ -390,14 +397,17 @@ struct efx_channel {
  * @get_name: Generate the channel's name (used for its IRQ handler)
  * @copy: Copy the channel state prior to reallocation.  May be %NULL if
  *	reallocation is not supported.
+ * @receive_skb: Handle an skb ready to be passed to netif_receive_skb()
  * @keep_eventq: Flag for whether event queue should be kept initialised
  *	while the device is stopped
  */
 struct efx_channel_type {
 	void (*handle_no_channel)(struct efx_nic *);
 	int (*pre_probe)(struct efx_channel *);
+	void (*post_remove)(struct efx_channel *);
 	void (*get_name)(struct efx_channel *, char *buf, size_t len);
 	struct efx_channel *(*copy)(const struct efx_channel *);
+	void (*receive_skb)(struct efx_channel *, struct sk_buff *);
 	bool keep_eventq;
 };
 
@@ -730,6 +740,7 @@ struct vfdi_status;
  *	%local_addr_list. Protected by %local_lock.
  * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
  * @peer_work: Work item to broadcast peer addresses to VMs.
+ * @ptp_data: PTP state data
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
@@ -855,6 +866,10 @@ struct efx_nic {
 	struct list_head local_page_list;
 	struct mutex local_lock;
 	struct work_struct peer_work;
+#endif
+
+#ifdef CONFIG_SFC_PTP
+	struct efx_ptp_data *ptp_data;
 #endif
 
 	/* The following fields may be written more often */
@@ -1047,7 +1062,7 @@ static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
 
 static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
 {
-	return channel->channel < channel->efx->n_rx_channels;
+	return channel->rx_queue.core_index >= 0;
 }
 
 static inline struct efx_rx_queue *
@@ -1119,5 +1134,13 @@ static inline void clear_bit_le(unsigned nr, unsigned char *addr)
 #define EFX_MAX_FRAME_LEN(mtu) \
 	((((mtu) + ETH_HLEN + VLAN_HLEN + 4/* FCS */ + 7) & ~7) + 16)
 
+static inline bool efx_xmit_with_hwtstamp(struct sk_buff *skb)
+{
+	return skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP;
+}
+static inline void efx_xmit_hwtstamp_pending(struct sk_buff *skb)
+{
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+}
 
 #endif /* EFX_NET_DRIVER_H */

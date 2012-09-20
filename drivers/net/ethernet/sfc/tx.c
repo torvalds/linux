@@ -339,6 +339,12 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 
 	EFX_WARN_ON_PARANOID(!netif_device_present(net_dev));
 
+	/* PTP "event" packet */
+	if (unlikely(efx_xmit_with_hwtstamp(skb)) &&
+	    unlikely(efx_ptp_is_ptp_tx(efx, skb))) {
+		return efx_ptp_tx(efx, skb);
+	}
+
 	index = skb_get_queue_mapping(skb);
 	type = skb->ip_summed == CHECKSUM_PARTIAL ? EFX_TXQ_TYPE_OFFLOAD : 0;
 	if (index >= efx->n_tx_channels) {

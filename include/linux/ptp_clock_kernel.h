@@ -21,6 +21,7 @@
 #ifndef _PTP_CLOCK_KERNEL_H_
 #define _PTP_CLOCK_KERNEL_H_
 
+#include <linux/pps_kernel.h>
 #include <linux/ptp_clock.h>
 
 
@@ -110,6 +111,7 @@ enum ptp_clock_events {
 	PTP_CLOCK_ALARM,
 	PTP_CLOCK_EXTTS,
 	PTP_CLOCK_PPS,
+	PTP_CLOCK_PPSUSR,
 };
 
 /**
@@ -117,13 +119,17 @@ enum ptp_clock_events {
  *
  * @type:  One of the ptp_clock_events enumeration values.
  * @index: Identifies the source of the event.
- * @timestamp: When the event occured.
+ * @timestamp: When the event occurred (%PTP_CLOCK_EXTTS only).
+ * @pps_times: When the event occurred (%PTP_CLOCK_PPSUSR only).
  */
 
 struct ptp_clock_event {
 	int type;
 	int index;
-	u64 timestamp;
+	union {
+		u64 timestamp;
+		struct pps_event_time pps_times;
+	};
 };
 
 /**

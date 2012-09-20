@@ -734,6 +734,7 @@ static void efx_remove_channel(struct efx_channel *channel)
 	efx_for_each_possible_channel_tx_queue(tx_queue, channel)
 		efx_remove_tx_queue(tx_queue);
 	efx_remove_eventq(channel);
+	channel->type->post_remove(channel);
 }
 
 static void efx_remove_channels(struct efx_nic *efx)
@@ -852,6 +853,7 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 
 static const struct efx_channel_type efx_default_channel_type = {
 	.pre_probe		= efx_channel_dummy_op_int,
+	.post_remove		= efx_channel_dummy_op_void,
 	.get_name		= efx_get_channel_name,
 	.copy			= efx_copy_channel,
 	.keep_eventq		= false,
@@ -860,6 +862,10 @@ static const struct efx_channel_type efx_default_channel_type = {
 int efx_channel_dummy_op_int(struct efx_channel *channel)
 {
 	return 0;
+}
+
+void efx_channel_dummy_op_void(struct efx_channel *channel)
+{
 }
 
 /**************************************************************************
@@ -1451,10 +1457,16 @@ static void efx_set_channels(struct efx_nic *efx)
 	efx->tx_channel_offset =
 		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
 
-	/* We need to adjust the TX queue numbers if we have separate
+	/* We need to mark which channels really have RX and TX
+	 * queues, and adjust the TX queue numbers if we have separate
 	 * RX-only and TX-only channels.
 	 */
 	efx_for_each_channel(channel, efx) {
+		if (channel->channel < efx->n_rx_channels)
+			channel->rx_queue.core_index = channel->channel;
+		else
+			channel->rx_queue.core_index = -1;
+
 		efx_for_each_channel_tx_queue(tx_queue, channel)
 			tx_queue->queue -= (efx->tx_channel_offset *
 					    EFX_TXQ_TYPES);
@@ -1766,6 +1778,9 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct mii_ioctl_data *data = if_mii(ifr);
+
+	if (cmd == SIOCSHWTSTAMP)
+		return efx_ptp_ioctl(efx, ifr, cmd);
 
 	/* Convert phy_id from older PRTAD/DEVAD format */
 	if ((cmd == SIOCGMIIREG || cmd == SIOCSMIIREG) &&
