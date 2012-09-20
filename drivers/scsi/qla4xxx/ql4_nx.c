@@ -2809,7 +2809,7 @@ static int qla4_83xx_set_idc_ver(struct scsi_qla_host *ha)
 		qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_IDC_VERSION, idc_ver);
 		ql4_printk(KERN_INFO, ha,
 			   "%s: IDC version updated to %d\n", __func__,
-			   QLA83XX_IDC_VER_MAJ_VALUE);
+			   idc_ver);
 	} else {
 		idc_ver = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_IDC_VERSION);
 		idc_ver &= 0xFF;
