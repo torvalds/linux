@@ -176,7 +176,7 @@ static const struct regmap_irq_chip max8907_rtc_irq_chip = {
 	.num_irqs = ARRAY_SIZE(max8907_rtc_irqs),
 };
 
-struct max8907 *max8907_pm_off;
+static struct max8907 *max8907_pm_off;
 static void max8907_power_off(void)
 {
 	regmap_update_bits(max8907_pm_off->regmap_gen, MAX8907_REG_RESET_CNFG,
