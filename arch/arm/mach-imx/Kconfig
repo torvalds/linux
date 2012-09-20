@@ -272,6 +272,13 @@ config MACH_EUKREA_MBIMXSD25_BASEBOARD
 
 endchoice
 
+config MACH_IMX25_DT
+	bool "Support i.MX25 platforms from device tree"
+	select SOC_IMX25
+	help
+	  Include support for Freescale i.MX25 based platforms
+	  using the device tree for discovery
+
 comment "MX27 platforms:"
 
 config MACH_MX27ADS

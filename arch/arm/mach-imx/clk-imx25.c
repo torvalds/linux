@@ -23,6 +23,9 @@
 #include <linux/io.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include "clk.h"
 #include "common.h"
@@ -55,6 +58,8 @@
 
 #define ccm(x)	(CRM_BASE + (x))
 
+static struct clk_onecell_data clk_data;
+
 static const char *cpu_sel_clks[] = { "mpll", "mpll_cpu_3_4", };
 static const char *per_sel_clks[] = { "ahb", "upll", };
 
@@ -82,12 +87,12 @@ enum mx25_clks {
 
 static struct clk *clk[clk_max];
 
-int __init mx25_clocks_init(void)
+static int __init __mx25_clocks_init(unsigned long osc_rate)
 {
 	int i;
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
-	clk[osc] = imx_clk_fixed("osc", 24000000);
+	clk[osc] = imx_clk_fixed("osc", osc_rate);
 	clk[mpll] = imx_clk_pllv1("mpll", "osc", ccm(CCM_MPCTL));
 	clk[upll] = imx_clk_pllv1("upll", "osc", ccm(CCM_UPCTL));
 	clk[mpll_cpu_3_4] = imx_clk_fixed_factor("mpll_cpu_3_4", "mpll", 3, 4);
@@ -219,6 +224,16 @@ int __init mx25_clocks_init(void)
 
 	clk_prepare_enable(clk[emi_ahb]);
 
+	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
+	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
+
+	return 0;
+}
+
+int __init mx25_clocks_init(void)
+{
+	__mx25_clocks_init(24000000);
+
 	/* i.mx25 has the i.mx21 type uart */
 	clk_register_clkdev(clk[uart1_ipg], "ipg", "imx21-uart.0");
 	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.0");
@@ -230,8 +245,6 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.3");
 	clk_register_clkdev(clk[uart5_ipg], "ipg", "imx21-uart.4");
 	clk_register_clkdev(clk[uart_ipg_per], "per", "imx21-uart.4");
-	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.0");
 	clk_register_clkdev(clk[usbotg_ahb], "ahb", "mxc-ehci.0");
 	clk_register_clkdev(clk[usb_div], "per", "mxc-ehci.0");
@@ -289,5 +302,40 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[iim_ipg], "iim", NULL);
 
 	mxc_timer_init(MX25_IO_ADDRESS(MX25_GPT1_BASE_ADDR), MX25_INT_GPT1);
+
+	return 0;
+}
+
+int __init mx25_clocks_init_dt(void)
+{
+	struct device_node *np;
+	void __iomem *base;
+	int irq;
+	unsigned long osc_rate = 24000000;
+
+	/* retrieve the freqency of fixed clocks from device tree */
+	for_each_compatible_node(np, NULL, "fixed-clock") {
+		u32 rate;
+		if (of_property_read_u32(np, "clock-frequency", &rate))
+			continue;
+
+		if (of_device_is_compatible(np, "fsl,imx-osc"))
+			osc_rate = rate;
+	}
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-ccm");
+	clk_data.clks = clk;
+	clk_data.clk_num = ARRAY_SIZE(clk);
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+
+	__mx25_clocks_init(osc_rate);
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-gpt");
+	base = of_iomap(np, 0);
+	WARN_ON(!base);
+	irq = irq_of_parse_and_map(np, 0);
+
+	mxc_timer_init(base, irq);
+
 	return 0;
 }
