@@ -158,7 +158,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 
 u64 __read_mostly host_xcr0;
 
-int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt);
+static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt);
 
 static int kvm_vcpu_reset(struct kvm_vcpu *vcpu);
 
@@ -5068,7 +5068,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_hypercall);
 
-int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt)
+static int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	char instruction[3];
