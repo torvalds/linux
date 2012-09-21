@@ -62,7 +62,6 @@ enum {
 	NFS_LAYOUT_RW_FAILED,		/* get rw layout failed stop trying */
 	NFS_LAYOUT_BULK_RECALL,		/* bulk recall affecting layout */
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
-	NFS_LAYOUT_DESTROYED,		/* no new use of layout allowed */
 	NFS_LAYOUT_RETURNED,		/* layout has already been returned */
 };
 
@@ -276,12 +275,6 @@ static inline bool
 pnfs_test_layout_returned(struct pnfs_layout_hdr *lo)
 {
 	return test_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
-}
-
-static inline bool
-pnfs_test_layout_destroyed(struct pnfs_layout_hdr *lo)
-{
-	return test_bit(NFS_LAYOUT_DESTROYED, &lo->plh_flags);
 }
 
 static inline struct pnfs_layout_segment *

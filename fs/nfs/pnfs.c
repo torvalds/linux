@@ -331,8 +331,6 @@ pnfs_layout_remove_lseg(struct pnfs_layout_hdr *lo,
 	list_del_init(&lseg->pls_list);
 	/* Matched by pnfs_get_layout_hdr in pnfs_layout_insert_lseg */
 	atomic_dec(&lo->plh_refcount);
-	if (list_empty(&lo->plh_segs))
-		set_bit(NFS_LAYOUT_DESTROYED, &lo->plh_flags);
 	rpc_wake_up(&NFS_SERVER(inode)->roc_rpcwaitq);
 }
 
@@ -463,10 +461,8 @@ pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 
 	dprintk("%s:Begin lo %p\n", __func__, lo);
 
-	if (list_empty(&lo->plh_segs)) {
-		set_bit(NFS_LAYOUT_DESTROYED, &lo->plh_flags);
+	if (list_empty(&lo->plh_segs))
 		return 0;
-	}
 	list_for_each_entry_safe(lseg, next, &lo->plh_segs, pls_list)
 		if (!recall_range ||
 		    should_free_lseg(&lseg->pls_range, recall_range)) {
@@ -590,7 +586,6 @@ pnfs_layoutgets_blocked(struct pnfs_layout_hdr *lo, nfs4_stateid *stateid,
 	    (int)(lo->plh_barrier - be32_to_cpu(stateid->seqid)) >= 0)
 		return true;
 	return lo->plh_block_lgets ||
-		test_bit(NFS_LAYOUT_DESTROYED, &lo->plh_flags) ||
 		test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
 		(list_empty(&lo->plh_segs) &&
 		 (atomic_read(&lo->plh_outstanding) > lget));
@@ -912,8 +907,6 @@ pnfs_find_alloc_layout(struct inode *ino,
 	dprintk("%s Begin ino=%p layout=%p\n", __func__, ino, nfsi->layout);
 
 	if (nfsi->layout) {
-		if (test_bit(NFS_LAYOUT_DESTROYED, &nfsi->layout->plh_flags))
-			return NULL;
 		pnfs_get_layout_hdr(nfsi->layout);
 		return nfsi->layout;
 	}

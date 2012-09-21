@@ -279,8 +279,7 @@ filelayout_reset_to_mds(struct pnfs_layout_segment *lseg)
 {
 	struct nfs4_deviceid_node *node = FILELAYOUT_DEVID_NODE(lseg);
 
-	return pnfs_test_layout_destroyed(lseg->pls_layout) ||
-		filelayout_test_devid_unavailable(node);
+	return filelayout_test_devid_unavailable(node);
 }
 
 /*
