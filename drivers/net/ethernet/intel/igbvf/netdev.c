@@ -184,6 +184,13 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 				             buffer_info->page_offset,
 				             PAGE_SIZE / 2,
 					     DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev,
+					      buffer_info->page_dma)) {
+				__free_page(buffer_info->page);
+				buffer_info->page = NULL;
+				dev_err(&pdev->dev, "RX DMA map failed\n");
+				break;
+			}
 		}
 
 		if (!buffer_info->skb) {
@@ -197,6 +204,12 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 			buffer_info->dma = dma_map_single(&pdev->dev, skb->data,
 			                                  bufsz,
 							  DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
+				dev_kfree_skb(buffer_info->skb);
+				buffer_info->skb = NULL;
+				dev_err(&pdev->dev, "RX DMA map failed\n");
+				goto no_buffers;
+			}
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
