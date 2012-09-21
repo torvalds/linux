@@ -1986,14 +1986,14 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	}
 
 	spin_lock(&chip->reg_lock);
-	if (nsync > 1) {
-		/* first, set SYNC bits of corresponding streams */
-		if (chip->driver_caps & AZX_DCAPS_OLD_SSYNC)
-			azx_writel(chip, OLD_SSYNC,
-				   azx_readl(chip, OLD_SSYNC) | sbits);
-		else
-			azx_writel(chip, SSYNC, azx_readl(chip, SSYNC) | sbits);
-	}
+
+	/* first, set SYNC bits of corresponding streams */
+	if (chip->driver_caps & AZX_DCAPS_OLD_SSYNC)
+		azx_writel(chip, OLD_SSYNC,
+			azx_readl(chip, OLD_SSYNC) | sbits);
+	else
+		azx_writel(chip, SSYNC, azx_readl(chip, SSYNC) | sbits);
+
 	snd_pcm_group_for_each_entry(s, substream) {
 		if (s->pcm->card != substream->pcm->card)
 			continue;
@@ -2011,8 +2011,6 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	}
 	spin_unlock(&chip->reg_lock);
 	if (start) {
-		if (nsync == 1)
-			return 0;
 		/* wait until all FIFOs get ready */
 		for (timeout = 5000; timeout; timeout--) {
 			nwait = 0;
@@ -2045,16 +2043,14 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			cpu_relax();
 		}
 	}
-	if (nsync > 1) {
-		spin_lock(&chip->reg_lock);
-		/* reset SYNC bits */
-		if (chip->driver_caps & AZX_DCAPS_OLD_SSYNC)
-			azx_writel(chip, OLD_SSYNC,
-				   azx_readl(chip, OLD_SSYNC) & ~sbits);
-		else
-			azx_writel(chip, SSYNC, azx_readl(chip, SSYNC) & ~sbits);
-		spin_unlock(&chip->reg_lock);
-	}
+	spin_lock(&chip->reg_lock);
+	/* reset SYNC bits */
+	if (chip->driver_caps & AZX_DCAPS_OLD_SSYNC)
+		azx_writel(chip, OLD_SSYNC,
+			azx_readl(chip, OLD_SSYNC) & ~sbits);
+	else
+		azx_writel(chip, SSYNC, azx_readl(chip, SSYNC) & ~sbits);
+	spin_unlock(&chip->reg_lock);
 	return 0;
 }
 
