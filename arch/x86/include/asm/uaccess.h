@@ -416,9 +416,8 @@ do {									\
 } while (0)
 
 #define __get_user_asm_ex(x, addr, itype, rtype, ltype)			\
-	asm volatile(ASM_STAC "\n"					\
-		     "1:	mov"itype" %1,%"rtype"0\n"		\
-		     "2: " ASM_CLAC "\n"				\
+	asm volatile("1:	mov"itype" %1,%"rtype"0\n"		\
+		     "2:\n"						\
 		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     : ltype(x) : "m" (__m(addr)))
 
@@ -460,9 +459,8 @@ struct __large_struct { unsigned long buf[100]; };
 		     : ltype(x), "m" (__m(addr)), "i" (errret), "0" (err))
 
 #define __put_user_asm_ex(x, addr, itype, rtype, ltype)			\
-	asm volatile(ASM_STAC "\n"					\
-		     "1:	mov"itype" %"rtype"0,%1\n"		\
-		     "2: " ASM_CLAC "\n"				\
+	asm volatile("1:	mov"itype" %"rtype"0,%1\n"		\
+		     "2:\n"						\
 		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     : : ltype(x), "m" (__m(addr)))
 
@@ -470,13 +468,13 @@ struct __large_struct { unsigned long buf[100]; };
  * uaccess_try and catch
  */
 #define uaccess_try	do {						\
-	int prev_err = current_thread_info()->uaccess_err;		\
 	current_thread_info()->uaccess_err = 0;				\
+	stac();								\
 	barrier();
 
 #define uaccess_catch(err)						\
+	clac();								\
 	(err) |= (current_thread_info()->uaccess_err ? -EFAULT : 0);	\
-	current_thread_info()->uaccess_err = prev_err;			\
 } while (0)
 
 /**
