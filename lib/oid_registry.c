@@ -11,6 +11,9 @@
 
 #include <linux/export.h>
 #include <linux/oid_registry.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/bug.h>
 #include "oid_registry_data.c"
 
 /**
@@ -87,3 +90,81 @@ enum OID look_up_OID(const void *data, size_t datasize)
 	return OID__NR;
 }
 EXPORT_SYMBOL_GPL(look_up_OID);
+
+/*
+ * sprint_OID - Print an Object Identifier into a buffer
+ * @data: The encoded OID to print
+ * @datasize: The size of the encoded OID
+ * @buffer: The buffer to render into
+ * @bufsize: The size of the buffer
+ *
+ * The OID is rendered into the buffer in "a.b.c.d" format and the number of
+ * bytes is returned.  -EBADMSG is returned if the data could not be intepreted
+ * and -ENOBUFS if the buffer was too small.
+ */
+int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
+{
+	const unsigned char *v = data, *end = v + datasize;
+	unsigned long num;
+	unsigned char n;
+	size_t ret;
+	int count;
+
+	if (v >= end)
+		return -EBADMSG;
+
+	n = *v++;
+	ret = count = snprintf(buffer, bufsize, "%u.%u", n / 40, n % 40);
+	buffer += count;
+	bufsize -= count;
+	if (bufsize == 0)
+		return -ENOBUFS;
+
+	while (v < end) {
+		num = 0;
+		n = *v++;
+		if (!(n & 0x80)) {
+			num = n;
+		} else {
+			num = n & 0x7f;
+			do {
+				if (v >= end)
+					return -EBADMSG;
+				n = *v++;
+				num <<= 7;
+				num |= n & 0x7f;
+			} while (n & 0x80);
+		}
+		ret += count = snprintf(buffer, bufsize, ".%lu", num);
+		buffer += count;
+		bufsize -= count;
+		if (bufsize == 0)
+			return -ENOBUFS;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sprint_oid);
+
+/**
+ * sprint_OID - Print an Object Identifier into a buffer
+ * @oid: The OID to print
+ * @buffer: The buffer to render into
+ * @bufsize: The size of the buffer
+ *
+ * The OID is rendered into the buffer in "a.b.c.d" format and the number of
+ * bytes is returned.
+ */
+int sprint_OID(enum OID oid, char *buffer, size_t bufsize)
+{
+	int ret;
+
+	BUG_ON(oid >= OID__NR);
+
+	ret = sprint_oid(oid_data + oid_index[oid],
+			 oid_index[oid + 1] - oid_index[oid],
+			 buffer, bufsize);
+	BUG_ON(ret == -EBADMSG);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sprint_OID);
