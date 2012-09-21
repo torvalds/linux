@@ -781,10 +781,14 @@ static ssize_t mci_size_mb_show(struct device *dev,
 	for (csrow_idx = 0; csrow_idx < mci->nr_csrows; csrow_idx++) {
 		struct csrow_info *csrow = mci->csrows[csrow_idx];
 
-		for (j = 0; j < csrow->nr_channels; j++) {
-			struct dimm_info *dimm = csrow->channels[j]->dimm;
+		if (csrow->mci->csbased) {
+			total_pages += csrow->nr_pages;
+		} else {
+			for (j = 0; j < csrow->nr_channels; j++) {
+				struct dimm_info *dimm = csrow->channels[j]->dimm;
 
-			total_pages += dimm->nr_pages;
+				total_pages += dimm->nr_pages;
+			}
 		}
 	}
 
