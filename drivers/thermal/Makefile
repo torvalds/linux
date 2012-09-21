@@ -8,3 +8,4 @@ obj-$(CONFIG_SPEAR_THERMAL)		+= spear_thermal.o
 obj-$(CONFIG_RCAR_THERMAL)	+= rcar_thermal.o
 obj-$(CONFIG_EXYNOS_THERMAL)		+= exynos_thermal.o
 obj-$(CONFIG_FAIR_SHARE)		+= fair_share.o
+obj-$(CONFIG_STEP_WISE)			+= step_wise.o

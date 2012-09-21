@@ -61,3 +61,9 @@ config FAIR_SHARE
 	depends on THERMAL
 	help
 	  Enable this to manage platform thermals using fair-share governor.
+
+config STEP_WISE
+	bool "Step_wise thermal governor"
+	depends on THERMAL
+	help
+	  Enable this to manage platform thermals using a simple linear
