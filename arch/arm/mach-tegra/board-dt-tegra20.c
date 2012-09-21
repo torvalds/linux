@@ -28,9 +28,11 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/pda_power.h>
+#include <linux/platform_data/tegra_usb.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/i2c-tegra.h>
+#include <linux/usb/tegra_usb_phy.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
@@ -42,9 +44,31 @@
 #include <mach/irqs.h>
 
 #include "board.h"
-#include "board-harmony.h"
 #include "clock.h"
-#include "devices.h"
+
+struct tegra_ehci_platform_data tegra_ehci1_pdata = {
+	.operating_mode = TEGRA_USB_OTG,
+	.power_down_on_bus_suspend = 1,
+	.vbus_gpio = -1,
+};
+
+struct tegra_ulpi_config tegra_ehci2_ulpi_phy_config = {
+	.reset_gpio = -1,
+	.clk = "cdev2",
+};
+
+struct tegra_ehci_platform_data tegra_ehci2_pdata = {
+	.phy_config = &tegra_ehci2_ulpi_phy_config,
+	.operating_mode = TEGRA_USB_HOST,
+	.power_down_on_bus_suspend = 1,
+	.vbus_gpio = -1,
+};
+
+struct tegra_ehci_platform_data tegra_ehci3_pdata = {
+	.operating_mode = TEGRA_USB_HOST,
+	.power_down_on_bus_suspend = 1,
+	.vbus_gpio = -1,
+};
 
 struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", TEGRA_SDMMC1_BASE, "sdhci-tegra.0", NULL),
@@ -71,6 +95,7 @@ struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 
 static __initdata struct tegra_clk_init_table tegra_dt_clk_init_table[] = {
 	/* name		parent		rate		enabled */
+	{ "uarta",	"pll_p",	216000000,	true },
 	{ "uartd",	"pll_p",	216000000,	true },
 	{ "usbd",	"clk_m",	12000000,	false },
 	{ "usb2",	"clk_m",	12000000,	false },
@@ -95,54 +120,40 @@ static void __init tegra_dt_init(void)
 				tegra20_auxdata_lookup, NULL);
 }
 
-#ifdef CONFIG_MACH_TRIMSLICE
 static void __init trimslice_init(void)
 {
+#ifdef CONFIG_TEGRA_PCI
 	int ret;
 
 	ret = tegra_pcie_init(true, true);
 	if (ret)
 		pr_err("tegra_pci_init() failed: %d\n", ret);
-}
 #endif
+}
 
-#ifdef CONFIG_MACH_HARMONY
 static void __init harmony_init(void)
 {
+#ifdef CONFIG_TEGRA_PCI
 	int ret;
-
-	ret = harmony_regulator_init();
-	if (ret) {
-		pr_err("harmony_regulator_init() failed: %d\n", ret);
-		return;
-	}
 
 	ret = harmony_pcie_init();
 	if (ret)
 		pr_err("harmony_pcie_init() failed: %d\n", ret);
-}
 #endif
+}
 
-#ifdef CONFIG_MACH_PAZ00
 static void __init paz00_init(void)
 {
 	tegra_paz00_wifikill_init();
 }
-#endif
 
 static struct {
 	char *machine;
 	void (*init)(void);
 } board_init_funcs[] = {
-#ifdef CONFIG_MACH_TRIMSLICE
 	{ "compulab,trimslice", trimslice_init },
-#endif
-#ifdef CONFIG_MACH_HARMONY
 	{ "nvidia,harmony", harmony_init },
-#endif
-#ifdef CONFIG_MACH_PAZ00
 	{ "compal,paz00", paz00_init },
-#endif
 };
 
 static void __init tegra_dt_init_late(void)
