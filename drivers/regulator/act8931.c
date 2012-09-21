@@ -307,7 +307,7 @@ static int act8931_dcdc_set_voltage(struct regulator_dev *dev,
 			break;}
 
 	if (vol_map[val] > max_vol)
-		return -EINVAL;
+		printk("WARNING:this voltage is not support!voltage set is %d mv\n",vol_map[val]);
 	ret = act8931_set_bits(act8931, act8931_BUCK_SET_VOL_REG(buck),
 	       	BUCK_VOL_MASK, val);
 	ret = act8931_set_bits(act8931, act8931_BUCK_SET_VOL_REG(buck) + 0x01,
