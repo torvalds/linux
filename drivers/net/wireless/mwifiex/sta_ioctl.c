@@ -26,6 +26,9 @@
 #include "11n.h"
 #include "cfg80211.h"
 
+static int disconnect_on_suspend = 1;
+module_param(disconnect_on_suspend, int, 0644);
+
 /*
  * Copies the multicast address list from device to driver.
  *
@@ -448,6 +451,16 @@ EXPORT_SYMBOL_GPL(mwifiex_cancel_hs);
 int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_ds_hs_cfg hscfg;
+	struct mwifiex_private *priv;
+	int i;
+
+	if (disconnect_on_suspend) {
+		for (i = 0; i < adapter->priv_num; i++) {
+			priv = adapter->priv[i];
+			if (priv)
+				mwifiex_deauthenticate(priv, NULL);
+		}
+	}
 
 	if (adapter->hs_activated) {
 		dev_dbg(adapter->dev, "cmd: HS Already actived\n");
