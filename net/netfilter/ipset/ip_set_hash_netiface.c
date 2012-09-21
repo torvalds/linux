@@ -24,9 +24,13 @@
 #include <linux/netfilter/ipset/ip_set_timeout.h>
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
+#define REVISION_MIN	0
+/*			1    nomatch flag support added */
+#define REVISION_MAX	2 /* /0 support added */
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-MODULE_DESCRIPTION("hash:net,iface type of IP sets");
+IP_SET_MODULE_DESC("hash:net,iface", REVISION_MIN, REVISION_MAX);
 MODULE_ALIAS("ip_set_hash:net,iface");
 
 /* Interface name rbtree */
@@ -773,9 +777,8 @@ static struct ip_set_type hash_netiface_type __read_mostly = {
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_IFACE,
 	.dimension	= IPSET_DIM_TWO,
 	.family		= NFPROTO_UNSPEC,
-	.revision_min	= 0,
-	/*		= 1,	   nomatch flag support added */
-	.revision_max	= 2,	/* /0 support added */
+	.revision_min	= REVISION_MIN,
+	.revision_max	= REVISION_MAX,
 	.create		= hash_netiface_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },

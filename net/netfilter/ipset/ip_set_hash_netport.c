@@ -24,9 +24,14 @@
 #include <linux/netfilter/ipset/ip_set_getport.h>
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
+#define REVISION_MIN	0
+/*			1    SCTP and UDPLITE support added */
+/*			2    Range as input support for IPv4 added */
+#define REVISION_MAX	3 /* nomatch flag support added */
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-MODULE_DESCRIPTION("hash:net,port type of IP sets");
+IP_SET_MODULE_DESC("hash:net,port", REVISION_MIN, REVISION_MAX);
 MODULE_ALIAS("ip_set_hash:net,port");
 
 /* Type specific function prefix */
@@ -648,10 +653,8 @@ static struct ip_set_type hash_netport_type __read_mostly = {
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_PORT,
 	.dimension	= IPSET_DIM_TWO,
 	.family		= NFPROTO_UNSPEC,
-	.revision_min	= 0,
-	/*		  1	   SCTP and UDPLITE support added */
-	/*		  2,	   Range as input support for IPv4 added */
-	.revision_max	= 3,	/* nomatch flag support added */
+	.revision_min	= REVISION_MIN,
+	.revision_max	= REVISION_MAX,
 	.create		= hash_netport_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },

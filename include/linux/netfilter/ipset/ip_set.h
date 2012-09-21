@@ -206,8 +206,14 @@ enum ip_set_kopt {
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/x_tables.h>
+#include <linux/stringify.h>
 #include <linux/vmalloc.h>
 #include <net/netlink.h>
+
+#define _IP_SET_MODULE_DESC(a, b, c)		\
+	MODULE_DESCRIPTION(a " type of IP sets, revisions " b "-" c)
+#define IP_SET_MODULE_DESC(a, b, c)		\
+	_IP_SET_MODULE_DESC(a, __stringify(b), __stringify(c))
 
 /* Set features */
 enum ip_set_feature {

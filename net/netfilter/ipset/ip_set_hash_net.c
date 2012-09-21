@@ -23,9 +23,13 @@
 #include <linux/netfilter/ipset/ip_set_timeout.h>
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
+#define REVISION_MIN	0
+/*			1    Range as input support for IPv4 added */
+#define REVISION_MAX	2 /* nomatch flag support added */
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-MODULE_DESCRIPTION("hash:net type of IP sets");
+IP_SET_MODULE_DESC("hash:net", REVISION_MIN, REVISION_MAX);
 MODULE_ALIAS("ip_set_hash:net");
 
 /* Type specific function prefix */
@@ -535,9 +539,8 @@ static struct ip_set_type hash_net_type __read_mostly = {
 	.features	= IPSET_TYPE_IP,
 	.dimension	= IPSET_DIM_ONE,
 	.family		= NFPROTO_UNSPEC,
-	.revision_min	= 0,
-	/*		= 1 	   Range as input support for IPv4 added */
-	.revision_max	= 2,	/* nomatch flag support added */
+	.revision_min	= REVISION_MIN,
+	.revision_max	= REVISION_MAX,
 	.create		= hash_net_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
