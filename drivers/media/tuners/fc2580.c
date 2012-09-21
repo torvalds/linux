@@ -498,7 +498,11 @@ struct dvb_frontend *fc2580_attach(struct dvb_frontend *fe,
 
 	dev_dbg(&priv->i2c->dev, "%s: chip_id=%02x\n", __func__, chip_id);
 
-	if ((chip_id != 0x56) && (chip_id != 0x5a)) {
+	switch (chip_id) {
+	case 0x56:
+	case 0x5a:
+		break;
+	default:
 		goto err;
 	}
 
