@@ -293,6 +293,12 @@ int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 		return -EACCES;
 	}
 
+	if (WARN_ON_ONCE(eid == ENDPOINT_UNUSED ||
+			 eid >= ENDPOINT_MAX)) {
+		status = -EINVAL;
+		goto fail_ctrl_tx;
+	}
+
 	spin_lock_bh(&ar->lock);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_TX,
