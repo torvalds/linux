@@ -159,7 +159,7 @@ int usb_add_phy(struct usb_phy *x, enum usb_phy_type type)
 	unsigned long	flags;
 	struct usb_phy	*phy;
 
-	if (x && x->type != USB_PHY_TYPE_UNDEFINED) {
+	if (x->type != USB_PHY_TYPE_UNDEFINED) {
 		dev_err(x->dev, "not accepting initialized PHY %s\n", x->label);
 		return -EINVAL;
 	}

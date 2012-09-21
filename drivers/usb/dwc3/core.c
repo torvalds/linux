@@ -50,6 +50,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 
+#include <linux/usb/otg.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
@@ -136,6 +137,8 @@ static void dwc3_core_soft_reset(struct dwc3 *dwc)
 	reg |= DWC3_GUSB2PHYCFG_PHYSOFTRST;
 	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
 
+	usb_phy_init(dwc->usb2_phy);
+	usb_phy_init(dwc->usb3_phy);
 	mdelay(100);
 
 	/* Clear USB3 PHY reset */
@@ -468,6 +471,18 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 	if (!regs) {
 		dev_err(dev, "ioremap failed\n");
 		return -ENOMEM;
+	}
+
+	dwc->usb2_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	if (IS_ERR_OR_NULL(dwc->usb2_phy)) {
+		dev_err(dev, "no usb2 phy configured\n");
+		return -EPROBE_DEFER;
+	}
+
+	dwc->usb3_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB3);
+	if (IS_ERR_OR_NULL(dwc->usb3_phy)) {
+		dev_err(dev, "no usb3 phy configured\n");
+		return -EPROBE_DEFER;
 	}
 
 	spin_lock_init(&dwc->lock);

@@ -33,6 +33,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/usb/nop-usb-xceiv.h>
 
 #include <plat/usb.h>
 

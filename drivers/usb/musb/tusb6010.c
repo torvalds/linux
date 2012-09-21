@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/usb/nop-usb-xceiv.h>
 
 #include "musb_core.h"
 
