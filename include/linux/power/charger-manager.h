@@ -109,17 +109,28 @@ struct charger_cable {
  * struct charger_regulator
  * @regulator_name: the name of regulator for using charger.
  * @consumer: the regulator consumer for the charger.
+ * @externally_control:
+ *	Set if the charger-manager cannot control charger,
+ *	the charger will be maintained with disabled state.
  * @cables:
  *	the array of charger cables to enable/disable charger
  *	and set current limit according to constratint data of
  *	struct charger_cable if only charger cable included
  *	in the array of charger cables is attached/detached.
  * @num_cables: the number of charger cables.
+ * @attr_g: Attribute group for the charger(regulator)
+ * @attr_name: "name" sysfs entry
+ * @attr_state: "state" sysfs entry
+ * @attr_externally_control: "externally_control" sysfs entry
+ * @attrs: Arrays pointing to attr_name/state/externally_control for attr_g
  */
 struct charger_regulator {
 	/* The name of regulator for charging */
 	const char *regulator_name;
 	struct regulator *consumer;
+
+	/* charger never on when system is on */
+	int externally_control;
 
 	/*
 	 * Store constraint information related to current limit,
@@ -127,6 +138,14 @@ struct charger_regulator {
 	 */
 	struct charger_cable *cables;
 	int num_cables;
+
+	struct attribute_group attr_g;
+	struct device_attribute attr_name;
+	struct device_attribute attr_state;
+	struct device_attribute attr_externally_control;
+	struct attribute *attrs[4];
+
+	struct charger_manager *cm;
 };
 
 /**
