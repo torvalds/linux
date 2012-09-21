@@ -217,7 +217,11 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 
 	switch (cache_level) {
 	case I915_CACHE_LLC_MLC:
-		pte_flags |= GEN6_PTE_CACHE_LLC_MLC;
+		/* Haswell doesn't set L3 this way */
+		if (IS_HASWELL(obj->base.dev))
+			pte_flags |= GEN6_PTE_CACHE_LLC;
+		else
+			pte_flags |= GEN6_PTE_CACHE_LLC_MLC;
 		break;
 	case I915_CACHE_LLC:
 		pte_flags |= GEN6_PTE_CACHE_LLC;
@@ -252,12 +256,12 @@ static unsigned int cache_level_to_agp_type(struct drm_device *dev,
 {
 	switch (cache_level) {
 	case I915_CACHE_LLC_MLC:
-		if (INTEL_INFO(dev)->gen >= 6)
-			return AGP_USER_CACHED_MEMORY_LLC_MLC;
 		/* Older chipsets do not have this extra level of CPU
 		 * cacheing, so fallthrough and request the PTE simply
 		 * as cached.
 		 */
+		if (INTEL_INFO(dev)->gen >= 6 && !IS_HASWELL(dev))
+			return AGP_USER_CACHED_MEMORY_LLC_MLC;
 	case I915_CACHE_LLC:
 		return AGP_USER_CACHED_MEMORY;
 	default:
