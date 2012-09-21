@@ -58,9 +58,9 @@ struct daq700_board {
 #define DIO_W		0x04
 #define DIO_R		0x05
 
-static int subdev_700_insn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int daq700_dio_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -76,7 +76,7 @@ static int subdev_700_insn(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int subdev_700_insn_config(struct comedi_device *dev,
+static int daq700_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
@@ -127,8 +127,8 @@ static int daq700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan	= 16;
 	s->range_table	= &range_digital;
 	s->maxdata	= 1;
-	s->insn_bits	= subdev_700_insn;
-	s->insn_config	= subdev_700_insn_config;
+	s->insn_bits	= daq700_dio_insn_bits;
+	s->insn_config	= daq700_dio_insn_config;
 
 	s->state	= 0;
 	s->io_bits	= 0x00ff;
