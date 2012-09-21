@@ -1591,6 +1591,8 @@ struct platform_device s3c64xx_device_spi1 = {
 void __init s3c64xx_spi1_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 						int num_cs)
 {
+	struct s3c64xx_spi_info pd;
+
 	/* Reject invalid configuration */
 	if (!num_cs || src_clk_nr < 0) {
 		pr_err("%s: Invalid SPI configuration\n", __func__);
