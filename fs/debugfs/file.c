@@ -526,55 +526,44 @@ struct array_data {
 	u32 elements;
 };
 
-static size_t format_array(char *buf, size_t bufsize, const char *fmt,
-			   u32 *array, u32 array_size)
+static size_t u32_format_array(char *buf, size_t bufsize,
+			       u32 *array, int array_size)
 {
 	size_t ret = 0;
-	u32 i;
 
-	for (i = 0; i < array_size; i++) {
+	while (--array_size >= 0) {
 		size_t len;
+		char term = array_size ? ' ' : '\n';
 
-		len = snprintf(buf, bufsize, fmt, array[i]);
-		len++;	/* ' ' or '\n' */
+		len = snprintf(buf, bufsize, "%u%c", *array++, term);
 		ret += len;
 
-		if (buf) {
-			buf += len;
-			bufsize -= len;
-			buf[-1] = (i == array_size-1) ? '\n' : ' ';
-		}
+		buf += len;
+		bufsize -= len;
 	}
-
-	ret++;		/* \0 */
-	if (buf)
-		*buf = '\0';
-
-	return ret;
-}
-
-static char *format_array_alloc(const char *fmt, u32 *array,
-						u32 array_size)
-{
-	size_t len = format_array(NULL, 0, fmt, array, array_size);
-	char *ret;
-
-	ret = kmalloc(len, GFP_KERNEL);
-	if (ret == NULL)
-		return NULL;
-
-	format_array(ret, len, fmt, array, array_size);
 	return ret;
 }
 
 static int u32_array_open(struct inode *inode, struct file *file)
 {
 	struct array_data *data = inode->i_private;
+	int size, elements = data->elements;
+	char *buf;
 
-	file->private_data = format_array_alloc("%u", data->array,
-						      data->elements);
-	if (!file->private_data)
+	/*
+	 * Max size:
+	 *  - 10 digits + ' '/'\n' = 11 bytes per number
+	 *  - terminating NUL character
+	 */
+	size = elements*11;
+	buf = kmalloc(size+1, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
+	buf[size] = 0;
+
+	file->private_data = buf;
+	u32_format_array(buf, size, data->array, data->elements);
+
 	return nonseekable_open(inode, file);
 }
 
