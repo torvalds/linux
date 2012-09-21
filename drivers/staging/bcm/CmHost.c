@@ -1913,7 +1913,7 @@ int get_dsx_sf_data_to_application(struct bcm_mini_adapter *Adapter, UINT uiSFId
 VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter, PUINT puiBuffer)
 {
 	B_UINT32 u32NumofSFsinMsg = ntohl(*(puiBuffer + 1));
-	stIM_SFHostNotify *pHostInfo = NULL;
+	struct bcm_stim_sfhostnotify *pHostInfo = NULL;
 	UINT uiSearchRuleIndex = 0;
 	ULONG ulSFID = 0;
 
@@ -1922,7 +1922,7 @@ VOID OverrideServiceFlowParams(struct bcm_mini_adapter *Adapter, PUINT puiBuffer
 
 	while (u32NumofSFsinMsg != 0 && u32NumofSFsinMsg < NO_OF_QUEUES) {
 		u32NumofSFsinMsg--;
-		pHostInfo = (stIM_SFHostNotify *)puiBuffer;
+		pHostInfo = (struct bcm_stim_sfhostnotify *)puiBuffer;
 		puiBuffer = (PUINT)(pHostInfo + 1);
 
 		ulSFID = ntohl(pHostInfo->SFID);

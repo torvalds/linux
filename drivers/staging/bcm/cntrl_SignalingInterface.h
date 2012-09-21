@@ -341,13 +341,13 @@ typedef struct stLocalSFDeleteIndication {
 	B_UINT8 u8Padding1[3]; /* < 3 byte Padding */
 } stLocalSFDeleteIndication;
 
-typedef struct _stIM_SFHostNotify {
+struct bcm_stim_sfhostnotify {
 	B_UINT32 SFID; /* SFID of the service flow */
 	B_UINT16 newCID; /* the new/changed CID */
 	B_UINT16 VCID; /* Get new Vcid if the flow has been made active in CID update TLV, but was inactive earlier or the orig vcid */
 	B_UINT8 RetainSF; /* Indication to Host if the SF is to be retained or deleted; if TRUE-retain else delete */
 	B_UINT8 QoSParamSet; /* QoS paramset of the retained SF */
 	B_UINT16 u16reserved; /* For byte alignment */
-} stIM_SFHostNotify;
+};
 
 #endif
