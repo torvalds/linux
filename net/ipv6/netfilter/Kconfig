@@ -209,16 +209,6 @@ config IP6_NF_TARGET_MASQUERADE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP6_NF_TARGET_REDIRECT
-	tristate "REDIRECT target support"
-	help
-	  REDIRECT is a special case of NAT: all incoming connections are
-	  mapped onto the incoming interface's address, causing the packets to
-	  come to the local machine instead of passing through.  This is
-	  useful for transparent proxies.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP6_NF_TARGET_NPT
 	tristate "NPT (Network Prefix translation) target support"
 	help

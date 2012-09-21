@@ -690,6 +690,17 @@ config NETFILTER_XT_TARGET_RATEEST
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_TARGET_REDIRECT
+	tristate "REDIRECT target support"
+	depends on NF_NAT
+	---help---
+	REDIRECT is a special case of NAT: all incoming connections are
+	mapped onto the incoming interface's address, causing the packets to
+	come to the local machine instead of passing through. This is
+	useful for transparent proxies.
+
+	To compile it as a module, choose M here. If unsure, say N.
+
 config NETFILTER_XT_TARGET_TEE
 	tristate '"TEE" - packet cloning to alternate destination'
 	depends on NETFILTER_ADVANCED

@@ -181,13 +181,11 @@ config IP_NF_TARGET_NETMAP
 config IP_NF_TARGET_REDIRECT
 	tristate "REDIRECT target support"
 	depends on NETFILTER_ADVANCED
-	help
-	  REDIRECT is a special case of NAT: all incoming connections are
-	  mapped onto the incoming interface's address, causing the packets to
-	  come to the local machine instead of passing through.  This is
-	  useful for transparent proxies.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	select NETFILTER_XT_TARGET_REDIRECT
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_TARGET_REDIRECT.
 
 endif
 
