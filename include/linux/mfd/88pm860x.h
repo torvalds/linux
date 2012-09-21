@@ -306,7 +306,7 @@ struct pm860x_chip {
 	struct regmap           *regmap_companion;
 
 	int			buck3_double;	/* DVC ramp slope double */
-	unsigned short		companion_addr;
+	int			companion_addr;
 	unsigned short		osc_vote;
 	int			id;
 	int			irq_mode;
@@ -376,7 +376,7 @@ struct pm860x_platform_data {
 	struct regulator_init_data	*ldo_vibrator;
 	struct regulator_init_data	*ldo14;
 
-	unsigned short	companion_addr;	/* I2C address of companion chip */
+	int 		companion_addr;	/* I2C address of companion chip */
 	int		i2c_port;	/* Controlled by GI2C or PI2C */
 	int		irq_mode;	/* Clear interrupt by read/write(0/1) */
 	int		irq_base;	/* IRQ base number of 88pm860x */

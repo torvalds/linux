@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
@@ -123,6 +124,33 @@ static void pm860x_led_set(struct led_classdev *cdev,
 	schedule_work(&data->work);
 }
 
+#ifdef CONFIG_OF
+static int pm860x_led_dt_init(struct platform_device *pdev,
+			      struct pm860x_led *data)
+{
+	struct device_node *nproot = pdev->dev.parent->of_node, *np;
+	int iset = 0;
+	if (!nproot)
+		return -ENODEV;
+	nproot = of_find_node_by_name(nproot, "leds");
+	if (!nproot) {
+		dev_err(&pdev->dev, "failed to find leds node\n");
+		return -ENODEV;
+	}
+	for_each_child_of_node(nproot, np) {
+		if (!of_node_cmp(np->name, data->name)) {
+			of_property_read_u32(np, "marvell,88pm860x-iset",
+					     &iset);
+			data->iset = PM8606_LED_CURRENT(iset);
+			break;
+		}
+	}
+	return 0;
+}
+#else
+#define pm860x_led_dt_init(x, y)	(-1)
+#endif
+
 static int pm860x_led_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
@@ -179,8 +207,9 @@ static int pm860x_led_probe(struct platform_device *pdev)
 	data->chip = chip;
 	data->i2c = (chip->id == CHIP_PM8606) ? chip->client : chip->companion;
 	data->port = pdev->id;
-	if (pdata && pdata->iset)
-		data->iset = pdata->iset;
+	if (pm860x_led_dt_init(pdev, data))
+		if (pdata)
+			data->iset = pdata->iset;
 
 	data->current_brightness = 0;
 	data->cdev.name = data->name;

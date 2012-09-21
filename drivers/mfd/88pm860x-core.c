@@ -16,6 +16,8 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -1112,12 +1114,6 @@ static void __devexit pm860x_device_exit(struct pm860x_chip *chip)
 	mfd_remove_devices(chip->dev);
 }
 
-static const struct i2c_device_id pm860x_id_table[] = {
-	{ "88PM860x", 0 },
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, pm860x_id_table);
-
 static int verify_addr(struct i2c_client *i2c)
 {
 	unsigned short addr_8607[] = {0x30, 0x34};
@@ -1144,21 +1140,52 @@ static struct regmap_config pm860x_regmap_config = {
 	.val_bits = 8,
 };
 
+static int __devinit pm860x_dt_init(struct device_node *np,
+				    struct device *dev,
+				    struct pm860x_platform_data *pdata)
+{
+	int ret;
+
+	if (of_get_property(np, "marvell,88pm860x-irq-read-clr", NULL))
+		pdata->irq_mode = 1;
+	ret = of_property_read_u32(np, "marvell,88pm860x-slave-addr",
+				   &pdata->companion_addr);
+	if (ret) {
+		dev_err(dev, "Not found \"marvell,88pm860x-slave-addr\" "
+			"property\n");
+		pdata->companion_addr = 0;
+	}
+	return 0;
+}
+
 static int __devinit pm860x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct pm860x_platform_data *pdata = client->dev.platform_data;
+	struct device_node *node = client->dev.of_node;
 	struct pm860x_chip *chip;
 	int ret;
 
-	if (!pdata) {
+	if (node && !pdata) {
+		/* parse DT to get platform data */
+		pdata = devm_kzalloc(&client->dev,
+				     sizeof(struct pm860x_platform_data),
+				     GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+		ret = pm860x_dt_init(node, &client->dev, pdata);
+		if (ret)
+			goto err;
+	} else if (!pdata) {
 		pr_info("No platform data in %s!\n", __func__);
 		return -EINVAL;
 	}
 
 	chip = kzalloc(sizeof(struct pm860x_chip), GFP_KERNEL);
-	if (chip == NULL)
-		return -ENOMEM;
+	if (chip == NULL) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	chip->id = verify_addr(client);
 	chip->regmap = regmap_init_i2c(client, &pm860x_regmap_config);
@@ -1198,6 +1225,10 @@ static int __devinit pm860x_probe(struct i2c_client *client,
 
 	pm860x_device_init(chip, pdata);
 	return 0;
+err:
+	if (node)
+		devm_kfree(&client->dev, pdata);
+	return ret;
 }
 
 static int __devexit pm860x_remove(struct i2c_client *client)
@@ -1238,11 +1269,24 @@ static int pm860x_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pm860x_pm_ops, pm860x_suspend, pm860x_resume);
 
+static const struct i2c_device_id pm860x_id_table[] = {
+	{ "88PM860x", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, pm860x_id_table);
+
+static const struct of_device_id pm860x_dt_ids[] = {
+	{ .compatible = "marvell,88pm860x", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, pm860x_dt_ids);
+
 static struct i2c_driver pm860x_driver = {
 	.driver	= {
 		.name	= "88PM860x",
 		.owner	= THIS_MODULE,
 		.pm     = &pm860x_pm_ops,
+		.of_match_table	= of_match_ptr(pm860x_dt_ids),
 	},
 	.probe		= pm860x_probe,
 	.remove		= __devexit_p(pm860x_remove),

@@ -12,6 +12,8 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/of.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -364,6 +366,34 @@ static struct pm8607_regulator_info pm8606_regulator_info[] = {
 	PM8606_PREG(PREREGULATORB, 5),
 };
 
+#ifdef CONFIG_OF
+static int pm8607_regulator_dt_init(struct platform_device *pdev,
+				    struct pm8607_regulator_info *info,
+				    struct regulator_config *config)
+{
+	struct device_node *nproot, *np;
+	nproot = pdev->dev.parent->of_node;
+	if (!nproot)
+		return -ENODEV;
+	nproot = of_find_node_by_name(nproot, "regulators");
+	if (!nproot) {
+		dev_err(&pdev->dev, "failed to find regulators node\n");
+		return -ENODEV;
+	}
+	for_each_child_of_node(nproot, np) {
+		if (!of_node_cmp(np->name, info->desc.name)) {
+			config->init_data =
+				of_get_regulator_init_data(&pdev->dev, np);
+			config->of_node = np;
+			break;
+		}
+	}
+	return 0;
+}
+#else
+#define pm8607_regulator_dt_init(x, y, z)	(-1)
+#endif
+
 static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
@@ -402,8 +432,11 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 		info->slope_double = 1;
 
 	config.dev = &pdev->dev;
-	config.init_data = pdata;
 	config.driver_data = info;
+
+	if (pm8607_regulator_dt_init(pdev, info, &config))
+		if (pdata)
+			config.init_data = pdata;
 
 	if (chip->id == CHIP_PM8607)
 		config.regmap = chip->regmap;

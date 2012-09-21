@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -284,6 +285,28 @@ out:
 }
 #endif
 
+#ifdef CONFIG_OF
+static int __devinit pm860x_rtc_dt_init(struct platform_device *pdev,
+					struct pm860x_rtc_info *info)
+{
+	struct device_node *np = pdev->dev.parent->of_node;
+	int ret;
+	if (!np)
+		return -ENODEV;
+	np = of_find_node_by_name(np, "rtc");
+	if (!np) {
+		dev_err(&pdev->dev, "failed to find rtc node\n");
+		return -ENODEV;
+	}
+	ret = of_property_read_u32(np, "marvell,88pm860x-vrtc", &info->vrtc);
+	if (ret)
+		info->vrtc = 0;
+	return 0;
+}
+#else
+#define pm860x_rtc_dt_init(x, y)	(-1)
+#endif
+
 static int __devinit pm860x_rtc_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
@@ -294,8 +317,6 @@ static int __devinit pm860x_rtc_probe(struct platform_device *pdev)
 	int ret;
 
 	pdata = pdev->dev.platform_data;
-	if (pdata == NULL)
-		dev_warn(&pdev->dev, "No platform data!\n");
 
 	info = kzalloc(sizeof(struct pm860x_rtc_info), GFP_KERNEL);
 	if (!info)
@@ -345,9 +366,11 @@ static int __devinit pm860x_rtc_probe(struct platform_device *pdev)
 		}
 	}
 	rtc_tm_to_time(&tm, &ticks);
-	if (pdata && pdata->sync) {
-		pdata->sync(ticks);
-		info->sync = pdata->sync;
+	if (pm860x_rtc_dt_init(pdev, info)) {
+		if (pdata && pdata->sync) {
+			pdata->sync(ticks);
+			info->sync = pdata->sync;
+		}
 	}
 
 	info->rtc_dev = rtc_device_register("88pm860x-rtc", &pdev->dev,
@@ -366,10 +389,12 @@ static int __devinit pm860x_rtc_probe(struct platform_device *pdev)
 
 #ifdef VRTC_CALIBRATION
 	/* <00> -- 2.7V, <01> -- 2.9V, <10> -- 3.1V, <11> -- 3.3V */
-	if (pdata && pdata->vrtc)
-		info->vrtc = pdata->vrtc & 0x3;
-	else
-		info->vrtc = 1;
+	if (pm860x_rtc_dt_init(pdev, info)) {
+		if (pdata && pdata->vrtc)
+			info->vrtc = pdata->vrtc & 0x3;
+		else
+			info->vrtc = 1;
+	}
 	pm860x_set_bits(info->i2c, PM8607_MEAS_EN2, MEAS2_VRTC, MEAS2_VRTC);
 
 	/* calibrate VRTC */

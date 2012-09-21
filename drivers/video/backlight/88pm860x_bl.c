@@ -11,6 +11,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
@@ -159,6 +160,36 @@ static const struct backlight_ops pm860x_backlight_ops = {
 	.get_brightness	= pm860x_backlight_get_brightness,
 };
 
+#ifdef CONFIG_OF
+static int pm860x_backlight_dt_init(struct platform_device *pdev,
+				    struct pm860x_backlight_data *data,
+				    char *name)
+{
+	struct device_node *nproot = pdev->dev.parent->of_node, *np;
+	int iset = 0;
+	if (!nproot)
+		return -ENODEV;
+	nproot = of_find_node_by_name(nproot, "backlights");
+	if (!nproot) {
+		dev_err(&pdev->dev, "failed to find backlights node\n");
+		return -ENODEV;
+	}
+	for_each_child_of_node(nproot, np) {
+		if (!of_node_cmp(np->name, name)) {
+			of_property_read_u32(np, "marvell,88pm860x-iset",
+					     &iset);
+			data->iset = PM8606_WLED_CURRENT(iset);
+			of_property_read_u32(np, "marvell,88pm860x-pwm",
+					     &data->pwm);
+			break;
+		}
+	}
+	return 0;
+}
+#else
+#define pm860x_backlight_dt_init(x, y, z)	(-1)
+#endif
+
 static int pm860x_backlight_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
@@ -203,9 +234,11 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	data->i2c = (chip->id == CHIP_PM8606) ? chip->client	\
 			: chip->companion;
 	data->current_brightness = MAX_BRIGHTNESS;
-	if (pdata) {
-		data->pwm = pdata->pwm;
-		data->iset = pdata->iset;
+	if (pm860x_backlight_dt_init(pdev, data, name)) {
+		if (pdata) {
+			data->pwm = pdata->pwm;
+			data->iset = pdata->iset;
+		}
 	}
 
 	memset(&props, 0, sizeof(struct backlight_properties));

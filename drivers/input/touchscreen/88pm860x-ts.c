@@ -10,6 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -113,14 +114,31 @@ static void pm860x_touch_close(struct input_dev *dev)
 	pm860x_set_bits(touch->i2c, MEAS_EN3, data, 0);
 }
 
+#ifdef CONFIG_OF
+static int __devinit pm860x_touch_dt_init(struct platform_device *pdev,
+					  int *res_x)
+{
+	struct device_node *np = pdev->dev.parent->of_node;
+	if (!np)
+		return -ENODEV;
+	np = of_find_node_by_name(np, "touch");
+	if (!np) {
+		dev_err(&pdev->dev, "Can't find touch node\n");
+		return -EINVAL;
+	}
+	of_property_read_u32(np, "marvell,88pm860x-resistor-X", res_x);
+	return 0;
+}
+#else
+#define pm860x_touch_dt_init(x, y)	(-1)
+#endif
+
 static int __devinit pm860x_touch_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_platform_data *pm860x_pdata =		\
-				pdev->dev.parent->platform_data;
-	struct pm860x_touch_pdata *pdata = NULL;
+	struct pm860x_touch_pdata *pdata = pdev->dev.platform_data;
 	struct pm860x_touch *touch;
-	int irq, ret;
+	int irq, ret, res_x = 0;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -128,15 +146,13 @@ static int __devinit pm860x_touch_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (!pm860x_pdata) {
-		dev_err(&pdev->dev, "platform data is missing\n");
-		return -EINVAL;
-	}
-
-	pdata = pm860x_pdata->touch;
-	if (!pdata) {
-		dev_err(&pdev->dev, "touchscreen data is missing\n");
-		return -EINVAL;
+	if (pm860x_touch_dt_init(pdev, &res_x)) {
+		if (pdata)
+			res_x = pdata->res_x;
+		else {
+			dev_err(&pdev->dev, "failed to get platform data\n");
+			return -EINVAL;
+		}
 	}
 
 	touch = kzalloc(sizeof(struct pm860x_touch), GFP_KERNEL);
@@ -159,8 +175,8 @@ static int __devinit pm860x_touch_probe(struct platform_device *pdev)
 	touch->idev->close = pm860x_touch_close;
 	touch->chip = chip;
 	touch->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
-	touch->irq = irq + chip->irq_base;
-	touch->res_x = pdata->res_x;
+	touch->irq = irq;
+	touch->res_x = res_x;
 	input_set_drvdata(touch->idev, touch);
 
 	ret = request_threaded_irq(touch->irq, NULL, pm860x_touch_handler,
