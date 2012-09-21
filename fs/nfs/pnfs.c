@@ -200,8 +200,7 @@ static struct pnfs_layout_hdr *
 pnfs_alloc_layout_hdr(struct inode *ino, gfp_t gfp_flags)
 {
 	struct pnfs_layoutdriver_type *ld = NFS_SERVER(ino)->pnfs_curr_ld;
-	return ld->alloc_layout_hdr ? ld->alloc_layout_hdr(ino, gfp_flags) :
-		kzalloc(sizeof(struct pnfs_layout_hdr), gfp_flags);
+	return ld->alloc_layout_hdr(ino, gfp_flags);
 }
 
 static void
@@ -218,7 +217,7 @@ pnfs_free_layout_hdr(struct pnfs_layout_hdr *lo)
 		spin_unlock(&clp->cl_lock);
 	}
 	put_rpccred(lo->plh_lc_cred);
-	return ld->alloc_layout_hdr ? ld->free_layout_hdr(lo) : kfree(lo);
+	return ld->free_layout_hdr(lo);
 }
 
 static void
