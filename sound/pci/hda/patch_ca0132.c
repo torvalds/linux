@@ -32,6 +32,8 @@
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 
+#include "ca0132_regs.h"
+
 #define WIDGET_CHIP_CTRL      0x15
 #define WIDGET_DSP_CTRL       0x16
 
