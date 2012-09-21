@@ -58,7 +58,7 @@ static void or1k_pic_ack(struct irq_data *data)
 {
 	/* EDGE-triggered interrupts need to be ack'ed in order to clear
 	 * the latch.
-	 * LEVER-triggered interrupts do not need to be ack'ed; however,
+	 * LEVEL-triggered interrupts do not need to be ack'ed; however,
 	 * ack'ing the interrupt has no ill-effect and is quicker than
 	 * trying to figure out what type it is...
 	 */
@@ -77,7 +77,7 @@ static void or1k_pic_ack(struct irq_data *data)
 
 	mtspr(SPR_PICSR, mfspr(SPR_PICSR) & ~(1UL << data->hwirq));
 #else
-	WARN(1, "Interrupt handling possibily broken\n");
+	WARN(1, "Interrupt handling possibly broken\n");
 	mtspr(SPR_PICSR, (1UL << data->hwirq));
 #endif
 }
@@ -89,7 +89,7 @@ static void or1k_pic_mask_ack(struct irq_data *data)
 #ifdef CONFIG_OR1K_1200
 	mtspr(SPR_PICSR, mfspr(SPR_PICSR) & ~(1UL << data->hwirq));
 #else
-	WARN(1, "Interrupt handling possibily broken\n");
+	WARN(1, "Interrupt handling possibly broken\n");
 	mtspr(SPR_PICSR, (1UL << data->hwirq));
 #endif
 }
