@@ -26,3 +26,5 @@ struct public_key_algorithm {
 	int (*verify_signature)(const struct public_key *key,
 				const struct public_key_signature *sig);
 };
+
+extern const struct public_key_algorithm RSA_public_key_algorithm;
