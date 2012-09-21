@@ -224,14 +224,22 @@ static int RSA_verify_signature(const struct public_key *key,
 		return -ENOTSUPP;
 
 	/* (1) Check the signature size against the public key modulus size */
-	k = (mpi_get_nbits(key->rsa.n) + 7) / 8;
+	k = mpi_get_nbits(key->rsa.n);
+	tsize = mpi_get_nbits(sig->rsa.s);
 
-	tsize = (mpi_get_nbits(sig->rsa.s) + 7) / 8;
+	/* According to RFC 4880 sec 3.2, length of MPI is computed starting
+	 * from most significant bit.  So the RFC 3447 sec 8.2.2 size check
+	 * must be relaxed to conform with shorter signatures - so we fail here
+	 * only if signature length is longer than modulus size.
+	 */
 	pr_devel("step 1: k=%zu size(S)=%zu\n", k, tsize);
-	if (tsize != k) {
+	if (k < tsize) {
 		ret = -EBADMSG;
 		goto error;
 	}
+
+	/* Round up and convert to octets */
+	k = (k + 7) / 8;
 
 	/* (2b) Apply the RSAVP1 verification primitive to the public key */
 	ret = RSAVP1(key, sig->rsa.s, &m);
