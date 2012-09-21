@@ -1379,6 +1379,10 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	struct resource		*io;
 	struct dw_dma		*dw;
 	size_t			size;
+	void __iomem		*regs;
+	bool			autocfg;
+	unsigned int		dw_params;
+	unsigned int		nr_channels;
 	int			irq;
 	int			err;
 	int			i;
@@ -1395,23 +1399,32 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	size = sizeof(struct dw_dma);
-	size += pdata->nr_channels * sizeof(struct dw_dma_chan);
+	regs = devm_request_and_ioremap(&pdev->dev, io);
+	if (!regs)
+		return -EBUSY;
+
+	dw_params = dma_read_byaddr(regs, DW_PARAMS);
+	autocfg = dw_params >> DW_PARAMS_EN & 0x1;
+
+	if (autocfg)
+		nr_channels = (dw_params >> DW_PARAMS_NR_CHAN & 0x7) + 1;
+	else
+		nr_channels = pdata->nr_channels;
+
+	size = sizeof(struct dw_dma) + nr_channels * sizeof(struct dw_dma_chan);
 	dw = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (!dw)
 		return -ENOMEM;
-
-	dw->regs = devm_request_and_ioremap(&pdev->dev, io);
-	if (!dw->regs)
-		return -EBUSY;
 
 	dw->clk = devm_clk_get(&pdev->dev, "hclk");
 	if (IS_ERR(dw->clk))
 		return PTR_ERR(dw->clk);
 	clk_prepare_enable(dw->clk);
 
+	dw->regs = regs;
+
 	/* Calculate all channel mask before DMA setup */
-	dw->all_chan_mask = (1 << pdata->nr_channels) - 1;
+	dw->all_chan_mask = (1 << nr_channels) - 1;
 
 	/* force dma off, just in case */
 	dw_dma_off(dw);
@@ -1429,7 +1442,7 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	tasklet_init(&dw->tasklet, dw_dma_tasklet, (unsigned long)dw);
 
 	INIT_LIST_HEAD(&dw->dma.channels);
-	for (i = 0; i < pdata->nr_channels; i++) {
+	for (i = 0; i < nr_channels; i++) {
 		struct dw_dma_chan	*dwc = &dw->chan[i];
 
 		dwc->chan.device = &dw->dma;
@@ -1442,7 +1455,7 @@ static int __devinit dw_probe(struct platform_device *pdev)
 
 		/* 7 is highest priority & 0 is lowest. */
 		if (pdata->chan_priority == CHAN_PRIORITY_ASCENDING)
-			dwc->priority = pdata->nr_channels - i - 1;
+			dwc->priority = nr_channels - i - 1;
 		else
 			dwc->priority = i;
 
@@ -1483,7 +1496,7 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 
 	printk(KERN_INFO "%s: DesignWare DMA Controller, %d channels\n",
-			dev_name(&pdev->dev), pdata->nr_channels);
+			dev_name(&pdev->dev), nr_channels);
 
 	dma_async_device_register(&dw->dma);
 
