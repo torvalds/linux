@@ -285,7 +285,6 @@ static int __devinit cpu_pmu_device_probe(struct platform_device *pdev)
 	cpu_pmu = pmu;
 	cpu_pmu->plat_device = pdev;
 	cpu_pmu_init(cpu_pmu);
-	register_cpu_notifier(&cpu_pmu_hotplug_notifier);
 	armpmu_register(cpu_pmu, cpu_pmu->name, PERF_TYPE_RAW);
 
 	return 0;
@@ -303,6 +302,16 @@ static struct platform_driver cpu_pmu_driver = {
 
 static int __init register_pmu_driver(void)
 {
-	return platform_driver_register(&cpu_pmu_driver);
+	int err;
+
+	err = register_cpu_notifier(&cpu_pmu_hotplug_notifier);
+	if (err)
+		return err;
+
+	err = platform_driver_register(&cpu_pmu_driver);
+	if (err)
+		unregister_cpu_notifier(&cpu_pmu_hotplug_notifier);
+
+	return err;
 }
 device_initcall(register_pmu_driver);
