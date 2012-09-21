@@ -98,6 +98,11 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 #define CSIS_MAX_PIX_WIDTH		0xffff
 #define CSIS_MAX_PIX_HEIGHT		0xffff
 
+/* Non-image packet data buffers */
+#define S5PCSIS_PKTDATA_ODD		0x2000
+#define S5PCSIS_PKTDATA_EVEN		0x3000
+#define S5PCSIS_PKTDATA_SIZE		SZ_4K
+
 enum {
 	CSIS_CLK_MUX,
 	CSIS_CLK_GATE,
@@ -144,6 +149,11 @@ static const struct s5pcsis_event s5pcsis_events[] = {
 };
 #define S5PCSIS_NUM_EVENTS ARRAY_SIZE(s5pcsis_events)
 
+struct csis_pktbuf {
+	u32 *data;
+	unsigned int len;
+};
+
 /**
  * struct csis_state - the driver's internal state data structure
  * @lock: mutex serializing the subdev and power management operations,
@@ -159,6 +169,7 @@ static const struct s5pcsis_event s5pcsis_events[] = {
  * @csis_fmt: current CSIS pixel format
  * @format: common media bus format for the source and sink pad
  * @slock: spinlock protecting structure members below
+ * @pkt_buf: the frame embedded (non-image) data buffer
  * @events: MIPI-CSIS event (error) counters
  */
 struct csis_state {
@@ -175,6 +186,7 @@ struct csis_state {
 	struct v4l2_mbus_framefmt format;
 
 	struct spinlock slock;
+	struct csis_pktbuf pkt_buf;
 	struct s5pcsis_event events[S5PCSIS_NUM_EVENTS];
 };
 
@@ -529,6 +541,22 @@ static int s5pcsis_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return 0;
 }
 
+static int s5pcsis_s_rx_buffer(struct v4l2_subdev *sd, void *buf,
+			       unsigned int *size)
+{
+	struct csis_state *state = sd_to_csis_state(sd);
+	unsigned long flags;
+
+	*size = min_t(unsigned int, *size, S5PCSIS_PKTDATA_SIZE);
+
+	spin_lock_irqsave(&state->slock, flags);
+	state->pkt_buf.data = buf;
+	state->pkt_buf.len = *size;
+	spin_unlock_irqrestore(&state->slock, flags);
+
+	return 0;
+}
+
 static int s5pcsis_log_status(struct v4l2_subdev *sd)
 {
 	struct csis_state *state = sd_to_csis_state(sd);
@@ -566,6 +594,7 @@ static struct v4l2_subdev_pad_ops s5pcsis_pad_ops = {
 };
 
 static struct v4l2_subdev_video_ops s5pcsis_video_ops = {
+	.s_rx_buffer = s5pcsis_s_rx_buffer,
 	.s_stream = s5pcsis_s_stream,
 };
 
@@ -578,12 +607,25 @@ static struct v4l2_subdev_ops s5pcsis_subdev_ops = {
 static irqreturn_t s5pcsis_irq_handler(int irq, void *dev_id)
 {
 	struct csis_state *state = dev_id;
+	struct csis_pktbuf *pktbuf = &state->pkt_buf;
 	unsigned long flags;
 	u32 status;
 
 	status = s5pcsis_read(state, S5PCSIS_INTSRC);
-
 	spin_lock_irqsave(&state->slock, flags);
+
+	if ((status & S5PCSIS_INTSRC_NON_IMAGE_DATA) && pktbuf->data) {
+		u32 offset;
+
+		if (status & S5PCSIS_INTSRC_EVEN)
+			offset = S5PCSIS_PKTDATA_EVEN;
+		else
+			offset = S5PCSIS_PKTDATA_ODD;
+
+		memcpy(pktbuf->data, state->regs + offset, pktbuf->len);
+		pktbuf->data = NULL;
+		rmb();
+	}
 
 	/* Update the event/error counters */
 	if ((status & S5PCSIS_INTSRC_ERRORS) || debug) {
