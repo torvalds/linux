@@ -101,4 +101,8 @@ struct public_key_signature {
 	};
 };
 
+struct key;
+extern int verify_signature(const struct key *key,
+			    const struct public_key_signature *sig);
+
 #endif /* _LINUX_PUBLIC_KEY_H */
