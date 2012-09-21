@@ -51,7 +51,7 @@ emu as port A output, port B input, port C N/A).
 
 static struct pcmcia_device *pcmcia_cur_dev;
 
-struct dio700_board {
+struct daq700_board {
 	const char *name;
 };
 
@@ -97,9 +97,9 @@ static int subdev_700_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int daq700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct dio700_board *thisboard = comedi_board(dev);
+	const struct daq700_board *thisboard = comedi_board(dev);
 	struct comedi_subdevice *s;
 	struct pcmcia_device *link;
 	int ret;
@@ -141,12 +141,12 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void dio700_detach(struct comedi_device *dev)
+static void daq700_detach(struct comedi_device *dev)
 {
 	/* nothing to cleanup */
 }
 
-static const struct dio700_board dio700_boards[] = {
+static const struct daq700_board daq700_boards[] = {
 	{
 		.name		= "daqcard-700",
 	}, {
@@ -154,17 +154,17 @@ static const struct dio700_board dio700_boards[] = {
 	},
 };
 
-static struct comedi_driver driver_dio700 = {
+static struct comedi_driver daq700_driver = {
 	.driver_name	= "ni_daq_700",
 	.module		= THIS_MODULE,
-	.attach		= dio700_attach,
-	.detach		= dio700_detach,
-	.board_name	= &dio700_boards[0].name,
-	.num_names	= ARRAY_SIZE(dio700_boards),
-	.offset		= sizeof(struct dio700_board),
+	.attach		= daq700_attach,
+	.detach		= daq700_detach,
+	.board_name	= &daq700_boards[0].name,
+	.num_names	= ARRAY_SIZE(daq700_boards),
+	.offset		= sizeof(struct daq700_board),
 };
 
-static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
+static int daq700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
 	if (p_dev->config_index == 0)
@@ -173,14 +173,14 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	return pcmcia_request_io(p_dev);
 }
 
-static int dio700_cs_attach(struct pcmcia_device *link)
+static int daq700_cs_attach(struct pcmcia_device *link)
 {
 	int ret;
 
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO |
 		CONF_AUTO_SET_IO;
 
-	ret = pcmcia_loop_config(link, dio700_pcmcia_config_loop, NULL);
+	ret = pcmcia_loop_config(link, daq700_pcmcia_config_loop, NULL);
 	if (ret)
 		goto failed;
 
@@ -199,50 +199,50 @@ failed:
 	return ret;
 }
 
-static void dio700_cs_detach(struct pcmcia_device *link)
+static void daq700_cs_detach(struct pcmcia_device *link)
 {
 	pcmcia_disable_device(link);
 	pcmcia_cur_dev = NULL;
 }
 
-static const struct pcmcia_device_id dio700_cs_ids[] = {
+static const struct pcmcia_device_id daq700_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x4743),
 	PCMCIA_DEVICE_NULL
 };
-MODULE_DEVICE_TABLE(pcmcia, dio700_cs_ids);
+MODULE_DEVICE_TABLE(pcmcia, daq700_cs_ids);
 
-static struct pcmcia_driver dio700_cs_driver = {
+static struct pcmcia_driver daq700_cs_driver = {
 	.name		= "ni_daq_700",
 	.owner		= THIS_MODULE,
-	.probe		= dio700_cs_attach,
-	.remove		= dio700_cs_detach,
-	.id_table	= dio700_cs_ids,
+	.probe		= daq700_cs_attach,
+	.remove		= daq700_cs_detach,
+	.id_table	= daq700_cs_ids,
 };
 
-static int __init dio700_cs_init(void)
+static int __init daq700_cs_init(void)
 {
 	int ret;
 
-	ret = comedi_driver_register(&driver_dio700);
+	ret = comedi_driver_register(&daq700_driver);
 	if (ret < 0)
 		return ret;
 
-	ret = pcmcia_register_driver(&dio700_cs_driver);
+	ret = pcmcia_register_driver(&daq700_cs_driver);
 	if (ret < 0) {
-		comedi_driver_unregister(&driver_dio700);
+		comedi_driver_unregister(&daq700_driver);
 		return ret;
 	}
 
 	return 0;
 }
-module_init(dio700_cs_init);
+module_init(daq700_cs_init);
 
-static void __exit dio700_cs_exit(void)
+static void __exit daq700_cs_exit(void)
 {
-	pcmcia_unregister_driver(&dio700_cs_driver);
-	comedi_driver_unregister(&driver_dio700);
+	pcmcia_unregister_driver(&daq700_cs_driver);
+	comedi_driver_unregister(&daq700_driver);
 }
-module_exit(dio700_cs_exit);
+module_exit(daq700_cs_exit);
 
 MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
 MODULE_DESCRIPTION(
