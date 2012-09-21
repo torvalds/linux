@@ -58,13 +58,13 @@
 
 #ifdef CONFIG_X86_SMAP
 
-static inline void clac(void)
+static __always_inline void clac(void)
 {
 	/* Note: a barrier is implicit in alternative() */
 	alternative(ASM_NOP3, __stringify(__ASM_CLAC), X86_FEATURE_SMAP);
 }
 
-static inline void stac(void)
+static __always_inline void stac(void)
 {
 	/* Note: a barrier is implicit in alternative() */
 	alternative(ASM_NOP3, __stringify(__ASM_STAC), X86_FEATURE_SMAP);

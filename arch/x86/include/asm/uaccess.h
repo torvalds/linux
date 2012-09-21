@@ -9,6 +9,7 @@
 #include <linux/string.h>
 #include <asm/asm.h>
 #include <asm/page.h>
+#include <asm/smap.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
@@ -192,9 +193,10 @@ extern int __get_user_bad(void);
 
 #ifdef CONFIG_X86_32
 #define __put_user_asm_u64(x, addr, err, errret)			\
-	asm volatile("1:	movl %%eax,0(%2)\n"			\
+	asm volatile(ASM_STAC "\n"					\
+		     "1:	movl %%eax,0(%2)\n"			\
 		     "2:	movl %%edx,4(%2)\n"			\
-		     "3:\n"						\
+		     "3: " ASM_CLAC "\n"				\
 		     ".section .fixup,\"ax\"\n"				\
 		     "4:	movl %3,%0\n"				\
 		     "	jmp 3b\n"					\
@@ -205,9 +207,10 @@ extern int __get_user_bad(void);
 		     : "A" (x), "r" (addr), "i" (errret), "0" (err))
 
 #define __put_user_asm_ex_u64(x, addr)					\
-	asm volatile("1:	movl %%eax,0(%1)\n"			\
+	asm volatile(ASM_STAC "\n"					\
+		     "1:	movl %%eax,0(%1)\n"			\
 		     "2:	movl %%edx,4(%1)\n"			\
-		     "3:\n"						\
+		     "3: " ASM_CLAC "\n"				\
 		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     _ASM_EXTABLE_EX(2b, 3b)				\
 		     : : "A" (x), "r" (addr))
@@ -379,8 +382,9 @@ do {									\
 } while (0)
 
 #define __get_user_asm(x, addr, err, itype, rtype, ltype, errret)	\
-	asm volatile("1:	mov"itype" %2,%"rtype"1\n"		\
-		     "2:\n"						\
+	asm volatile(ASM_STAC "\n"					\
+		     "1:	mov"itype" %2,%"rtype"1\n"		\
+		     "2: " ASM_CLAC "\n"				\
 		     ".section .fixup,\"ax\"\n"				\
 		     "3:	mov %3,%0\n"				\
 		     "	xor"itype" %"rtype"1,%"rtype"1\n"		\
@@ -412,8 +416,9 @@ do {									\
 } while (0)
 
 #define __get_user_asm_ex(x, addr, itype, rtype, ltype)			\
-	asm volatile("1:	mov"itype" %1,%"rtype"0\n"		\
-		     "2:\n"						\
+	asm volatile(ASM_STAC "\n"					\
+		     "1:	mov"itype" %1,%"rtype"0\n"		\
+		     "2: " ASM_CLAC "\n"				\
 		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     : ltype(x) : "m" (__m(addr)))
 
@@ -443,8 +448,9 @@ struct __large_struct { unsigned long buf[100]; };
  * aliasing issues.
  */
 #define __put_user_asm(x, addr, err, itype, rtype, ltype, errret)	\
-	asm volatile("1:	mov"itype" %"rtype"1,%2\n"		\
-		     "2:\n"						\
+	asm volatile(ASM_STAC "\n"					\
+		     "1:	mov"itype" %"rtype"1,%2\n"		\
+		     "2: " ASM_CLAC "\n"				\
 		     ".section .fixup,\"ax\"\n"				\
 		     "3:	mov %3,%0\n"				\
 		     "	jmp 2b\n"					\
@@ -454,8 +460,9 @@ struct __large_struct { unsigned long buf[100]; };
 		     : ltype(x), "m" (__m(addr)), "i" (errret), "0" (err))
 
 #define __put_user_asm_ex(x, addr, itype, rtype, ltype)			\
-	asm volatile("1:	mov"itype" %"rtype"0,%1\n"		\
-		     "2:\n"						\
+	asm volatile(ASM_STAC "\n"					\
+		     "1:	mov"itype" %"rtype"0,%1\n"		\
+		     "2: " ASM_CLAC "\n"				\
 		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     : : ltype(x), "m" (__m(addr)))
 

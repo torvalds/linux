@@ -9,10 +9,13 @@
 #include <asm/asm.h>
 #include <asm/errno.h>
 #include <asm/processor.h>
+#include <asm/smap.h>
 
 #define __futex_atomic_op1(insn, ret, oldval, uaddr, oparg)	\
-	asm volatile("1:\t" insn "\n"				\
-		     "2:\t.section .fixup,\"ax\"\n"		\
+	asm volatile("\t" ASM_STAC "\n"				\
+		     "1:\t" insn "\n"				\
+		     "2:\t" ASM_CLAC "\n"			\
+		     "\t.section .fixup,\"ax\"\n"		\
 		     "3:\tmov\t%3, %1\n"			\
 		     "\tjmp\t2b\n"				\
 		     "\t.previous\n"				\
@@ -21,12 +24,14 @@
 		     : "i" (-EFAULT), "0" (oparg), "1" (0))
 
 #define __futex_atomic_op2(insn, ret, oldval, uaddr, oparg)	\
-	asm volatile("1:\tmovl	%2, %0\n"			\
+	asm volatile("\t" ASM_STAC "\n"				\
+		     "1:\tmovl	%2, %0\n"			\
 		     "\tmovl\t%0, %3\n"				\
 		     "\t" insn "\n"				\
 		     "2:\t" LOCK_PREFIX "cmpxchgl %3, %2\n"	\
 		     "\tjnz\t1b\n"				\
-		     "3:\t.section .fixup,\"ax\"\n"		\
+		     "3:\t" ASM_CLAC "\n"			\
+		     "\t.section .fixup,\"ax\"\n"		\
 		     "4:\tmov\t%5, %1\n"			\
 		     "\tjmp\t3b\n"				\
 		     "\t.previous\n"				\
@@ -122,8 +127,10 @@ static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
-	asm volatile("1:\t" LOCK_PREFIX "cmpxchgl %4, %2\n"
-		     "2:\t.section .fixup, \"ax\"\n"
+	asm volatile("\t" ASM_STAC "\n"
+		     "1:\t" LOCK_PREFIX "cmpxchgl %4, %2\n"
+		     "2:\t" ASM_CLAC "\n"
+		     "\t.section .fixup, \"ax\"\n"
 		     "3:\tmov     %3, %0\n"
 		     "\tjmp     2b\n"
 		     "\t.previous\n"

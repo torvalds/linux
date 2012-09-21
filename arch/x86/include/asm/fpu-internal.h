@@ -126,8 +126,9 @@ static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 
 	/* See comment in fxsave() below. */
 #ifdef CONFIG_AS_FXSAVEQ
-	asm volatile("1:  fxsaveq %[fx]\n\t"
-		     "2:\n"
+	asm volatile(ASM_STAC "\n"
+		     "1:  fxsaveq %[fx]\n\t"
+		     "2: " ASM_CLAC "\n"
 		     ".section .fixup,\"ax\"\n"
 		     "3:  movl $-1,%[err]\n"
 		     "    jmp  2b\n"
@@ -136,8 +137,9 @@ static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 		     : [err] "=r" (err), [fx] "=m" (*fx)
 		     : "0" (0));
 #else
-	asm volatile("1:  rex64/fxsave (%[fx])\n\t"
-		     "2:\n"
+	asm volatile(ASM_STAC "\n"
+		     "1:  rex64/fxsave (%[fx])\n\t"
+		     "2: " ASM_CLAC "\n"
 		     ".section .fixup,\"ax\"\n"
 		     "3:  movl $-1,%[err]\n"
 		     "    jmp  2b\n"
