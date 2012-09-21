@@ -79,11 +79,6 @@ irqreturn_t exynos_mipi_dsi_interrupt_handler(int irq, void *dev_id)
 	struct mipi_dsim_device *dsim = dev_id;
 	unsigned int intsrc, intmsk;
 
-	if (dsim == NULL) {
-		dev_err(dsim->dev, "%s: wrong parameter\n", __func__);
-		return IRQ_NONE;
-	}
-
 	intsrc = exynos_mipi_dsi_read_interrupt(dsim);
 	intmsk = exynos_mipi_dsi_read_interrupt_mask(dsim);
 	intmsk = ~intmsk & intsrc;
