@@ -99,36 +99,6 @@ static const char * const dss_generic_clk_source_names[] = {
 	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_FCK",
 };
 
-static const struct dss_features omap24xx_dss_feats __initconst = {
-	.fck_div_max		=	16,
-	.dss_fck_multiplier	=	2,
-	.clk_name		=	NULL,
-};
-
-static const struct dss_features omap34xx_dss_feats __initconst = {
-	.fck_div_max		=	16,
-	.dss_fck_multiplier	=	2,
-	.clk_name		=	"dpll4_m4_ck",
-};
-
-static const struct dss_features omap3630_dss_feats __initconst = {
-	.fck_div_max		=	32,
-	.dss_fck_multiplier	=	1,
-	.clk_name		=	"dpll4_m4_ck",
-};
-
-static const struct dss_features omap44xx_dss_feats __initconst = {
-	.fck_div_max		=	32,
-	.dss_fck_multiplier	=	1,
-	.clk_name		=	"dpll_per_m5x2_ck",
-};
-
-static const struct dss_features omap54xx_dss_feats __initconst = {
-	.fck_div_max		=	64,
-	.dss_fck_multiplier	=	1,
-	.clk_name		=	"dpll_per_h12x2_ck",
-};
-
 static inline void dss_write_reg(const struct dss_reg idx, u32 val)
 {
 	__raw_writel(val, dss.base + idx.idx);
@@ -726,6 +696,36 @@ void dss_debug_dump_clocks(struct seq_file *s)
 #endif
 }
 #endif
+
+static const struct dss_features omap24xx_dss_feats __initconst = {
+	.fck_div_max		=	16,
+	.dss_fck_multiplier	=	2,
+	.clk_name		=	NULL,
+};
+
+static const struct dss_features omap34xx_dss_feats __initconst = {
+	.fck_div_max		=	16,
+	.dss_fck_multiplier	=	2,
+	.clk_name		=	"dpll4_m4_ck",
+};
+
+static const struct dss_features omap3630_dss_feats __initconst = {
+	.fck_div_max		=	32,
+	.dss_fck_multiplier	=	1,
+	.clk_name		=	"dpll4_m4_ck",
+};
+
+static const struct dss_features omap44xx_dss_feats __initconst = {
+	.fck_div_max		=	32,
+	.dss_fck_multiplier	=	1,
+	.clk_name		=	"dpll_per_m5x2_ck",
+};
+
+static const struct dss_features omap54xx_dss_feats __initconst = {
+	.fck_div_max		=	64,
+	.dss_fck_multiplier	=	1,
+	.clk_name		=	"dpll_per_h12x2_ck",
+};
 
 static int __init dss_init_features(struct device *dev)
 {
