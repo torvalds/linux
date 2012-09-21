@@ -165,6 +165,8 @@ static int __cpuinit cpu_pmu_notify(struct notifier_block *b,
 
 	if (cpu_pmu && cpu_pmu->reset)
 		cpu_pmu->reset(cpu_pmu);
+	else
+		return NOTIFY_DONE;
 
 	return NOTIFY_OK;
 }
