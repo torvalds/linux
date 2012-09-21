@@ -647,29 +647,6 @@ ENTRY(sys_rt_sigreturn)
 #endif
 ENDPROC(sys_rt_sigreturn)
 
-ENTRY(sys_execve)
-	ADDAW	.D2	SP,2,B6		; put regs addr in 4th parameter
-					; & adjust regs stack addr
-	LDW	.D2T2	*+SP(REGS_B4+8),B4
-
-	;; c6x_execve(char *name, char **argv,
-	;;            char **envp, struct pt_regs *regs)
-#ifdef CONFIG_C6X_BIG_KERNEL
- ||	MVKL	.S1	sys_c6x_execve,A0
-	MVKH	.S1	sys_c6x_execve,A0
-	B	.S2X	A0
-#else
- ||	B	.S2	sys_c6x_execve
-#endif
-	STW	.D2T2	B3,*SP--[2]
-	ADDKPC	.S2	ret_from_c6x_execve,B3,3
-
-ret_from_c6x_execve:
-	LDW	.D2T2	*++SP[2],B3
-	NOP	4
-	BNOP	.S2	B3,5
-ENDPROC(sys_execve)
-
 ENTRY(sys_pread_c6x)
 	MV	.D2X	A8,B7
 #ifdef CONFIG_C6X_BIG_KERNEL

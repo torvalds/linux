@@ -207,28 +207,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	return 0;
 }
 
-/*
- * c6x_execve() executes a new program.
- */
-SYSCALL_DEFINE4(c6x_execve, const char __user *, name,
-		const char __user *const __user *, argv,
-		const char __user *const __user *, envp,
-		struct pt_regs *, regs)
-{
-	int error;
-	char *filename;
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	return p->thread.wchan;
