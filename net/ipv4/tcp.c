@@ -1762,8 +1762,14 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		}
 
 #ifdef CONFIG_NET_DMA
-		if (tp->ucopy.dma_chan)
-			dma_async_memcpy_issue_pending(tp->ucopy.dma_chan);
+		if (tp->ucopy.dma_chan) {
+			if (tp->rcv_wnd == 0 &&
+			    !skb_queue_empty(&sk->sk_async_wait_queue)) {
+				tcp_service_net_dma(sk, true);
+				tcp_cleanup_rbuf(sk, copied);
+			} else
+				dma_async_memcpy_issue_pending(tp->ucopy.dma_chan);
+		}
 #endif
 		if (copied >= target) {
 			/* Do not sleep, just process backlog. */
@@ -2325,10 +2331,17 @@ static int tcp_repair_options_est(struct tcp_sock *tp,
 			tp->rx_opt.mss_clamp = opt.opt_val;
 			break;
 		case TCPOPT_WINDOW:
-			if (opt.opt_val > 14)
-				return -EFBIG;
+			{
+				u16 snd_wscale = opt.opt_val & 0xFFFF;
+				u16 rcv_wscale = opt.opt_val >> 16;
 
-			tp->rx_opt.snd_wscale = opt.opt_val;
+				if (snd_wscale > 14 || rcv_wscale > 14)
+					return -EFBIG;
+
+				tp->rx_opt.snd_wscale = snd_wscale;
+				tp->rx_opt.rcv_wscale = rcv_wscale;
+				tp->rx_opt.wscale_ok = 1;
+			}
 			break;
 		case TCPOPT_SACK_PERM:
 			if (opt.opt_val != 0)
