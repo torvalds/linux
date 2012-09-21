@@ -73,7 +73,8 @@ static int ad7780_set_mode(struct ad_sigma_delta *sigma_delta,
 		break;
 	}
 
-	gpio_set_value(st->powerdown_gpio, val);
+	if (gpio_is_valid(st->powerdown_gpio))
+		gpio_set_value(st->powerdown_gpio, val);
 
 	return 0;
 }
@@ -148,11 +149,6 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
 
-	if (!pdata) {
-		dev_dbg(&spi->dev, "no platform data?\n");
-		return -ENODEV;
-	}
-
 	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
@@ -174,8 +170,6 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 	st->chip_info =
 		&ad7780_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
-	st->powerdown_gpio = pdata->gpio_pdrst;
-
 	if (pdata && pdata->vref_mv)
 		st->int_vref_mv = pdata->vref_mv;
 	else if (voltage_uv)
@@ -192,11 +186,17 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 	indio_dev->num_channels = 1;
 	indio_dev->info = &ad7780_info;
 
-	ret = gpio_request_one(pdata->gpio_pdrst, GPIOF_OUT_INIT_LOW,
+	if (pdata && gpio_is_valid(pdata->gpio_pdrst)) {
+
+		ret = gpio_request_one(pdata->gpio_pdrst, GPIOF_OUT_INIT_LOW,
 			       "AD7780 /PDRST");
-	if (ret) {
-		dev_err(&spi->dev, "failed to request GPIO PDRST\n");
-		goto error_disable_reg;
+		if (ret) {
+			dev_err(&spi->dev, "failed to request GPIO PDRST\n");
+			goto error_disable_reg;
+		}
+		st->powerdown_gpio = pdata->gpio_pdrst;
+	} else {
+		st->powerdown_gpio = -1;
 	}
 
 	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
@@ -212,7 +212,8 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 error_cleanup_buffer_and_trigger:
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 error_free_gpio:
-	gpio_free(pdata->gpio_pdrst);
+	if (pdata && gpio_is_valid(pdata->gpio_pdrst))
+		gpio_free(pdata->gpio_pdrst);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
@@ -233,7 +234,9 @@ static int __devexit ad7780_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 
-	gpio_free(st->powerdown_gpio);
+	if (gpio_is_valid(st->powerdown_gpio))
+		gpio_free(st->powerdown_gpio);
+
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
