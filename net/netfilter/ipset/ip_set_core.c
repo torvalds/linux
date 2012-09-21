@@ -370,6 +370,12 @@ ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
 		set->variant->kadt(set, skb, par, IPSET_ADD, opt);
 		write_unlock_bh(&set->lock);
 		ret = 1;
+	} else {
+		/* --return-nomatch: invert matched element */
+		if ((opt->flags & IPSET_RETURN_NOMATCH) &&
+		    (set->type->features & IPSET_TYPE_NOMATCH) &&
+		    (ret > 0 || ret == -ENOTEMPTY))
+			ret = -ret;
 	}
 
 	/* Convert error codes to nomatch */

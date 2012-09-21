@@ -90,10 +90,10 @@ hash_net4_data_flags(struct hash_net4_elem *dst, u32 flags)
 	dst->nomatch = flags & IPSET_FLAG_NOMATCH;
 }
 
-static inline bool
+static inline int
 hash_net4_data_match(const struct hash_net4_elem *elem)
 {
-	return !elem->nomatch;
+	return elem->nomatch ? -ENOTEMPTY : 1;
 }
 
 static inline void
@@ -311,10 +311,10 @@ hash_net6_data_flags(struct hash_net6_elem *dst, u32 flags)
 	dst->nomatch = flags & IPSET_FLAG_NOMATCH;
 }
 
-static inline bool
+static inline int
 hash_net6_data_match(const struct hash_net6_elem *elem)
 {
-	return !elem->nomatch;
+	return elem->nomatch ? -ENOTEMPTY : 1;
 }
 
 static inline void
@@ -536,7 +536,7 @@ hash_net_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 static struct ip_set_type hash_net_type __read_mostly = {
 	.name		= "hash:net",
 	.protocol	= IPSET_PROTOCOL,
-	.features	= IPSET_TYPE_IP,
+	.features	= IPSET_TYPE_IP | IPSET_TYPE_NOMATCH,
 	.dimension	= IPSET_DIM_ONE,
 	.family		= NFPROTO_UNSPEC,
 	.revision_min	= REVISION_MIN,

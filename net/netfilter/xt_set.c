@@ -356,6 +356,27 @@ static struct xt_match set_matches[] __read_mostly = {
 		.destroy	= set_match_v1_destroy,
 		.me		= THIS_MODULE
 	},
+	/* --return-nomatch flag support */
+	{
+		.name		= "set",
+		.family		= NFPROTO_IPV4,
+		.revision	= 2,
+		.match		= set_match_v1,
+		.matchsize	= sizeof(struct xt_set_info_match_v1),
+		.checkentry	= set_match_v1_checkentry,
+		.destroy	= set_match_v1_destroy,
+		.me		= THIS_MODULE
+	},
+	{
+		.name		= "set",
+		.family		= NFPROTO_IPV6,
+		.revision	= 2,
+		.match		= set_match_v1,
+		.matchsize	= sizeof(struct xt_set_info_match_v1),
+		.checkentry	= set_match_v1_checkentry,
+		.destroy	= set_match_v1_destroy,
+		.me		= THIS_MODULE
+	},
 };
 
 static struct xt_target set_targets[] __read_mostly = {
@@ -389,6 +410,7 @@ static struct xt_target set_targets[] __read_mostly = {
 		.destroy	= set_target_v1_destroy,
 		.me		= THIS_MODULE
 	},
+	/* --timeout and --exist flags support */
 	{
 		.name		= "SET",
 		.revision	= 2,
