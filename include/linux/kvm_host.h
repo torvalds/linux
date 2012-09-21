@@ -119,7 +119,8 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_PMU               16
 #define KVM_REQ_PMI               17
 
-#define KVM_USERSPACE_IRQ_SOURCE_ID	0
+#define KVM_USERSPACE_IRQ_SOURCE_ID		0
+#define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
 
 struct kvm;
 struct kvm_vcpu;
@@ -343,6 +344,8 @@ struct kvm {
 	struct {
 		spinlock_t        lock;
 		struct list_head  items;
+		struct list_head  resampler_list;
+		struct mutex      resampler_lock;
 	} irqfds;
 	struct list_head ioeventfds;
 #endif

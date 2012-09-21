@@ -2176,6 +2176,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PCI_2_3:
 	case KVM_CAP_KVMCLOCK_CTRL:
 	case KVM_CAP_READONLY_MEM:
+	case KVM_CAP_IRQFD_RESAMPLE:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -6268,6 +6269,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	/* Reserve bit 0 of irq_sources_bitmap for userspace irq source */
 	set_bit(KVM_USERSPACE_IRQ_SOURCE_ID, &kvm->arch.irq_sources_bitmap);
+	/* Reserve bit 1 of irq_sources_bitmap for irqfd-resampler */
+	set_bit(KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
+		&kvm->arch.irq_sources_bitmap);
 
 	raw_spin_lock_init(&kvm->arch.tsc_write_lock);
 	mutex_init(&kvm->arch.apic_map_lock);

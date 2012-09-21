@@ -625,6 +625,7 @@ struct kvm_ppc_smmu_info {
 #ifdef __KVM_HAVE_READONLY_MEM
 #define KVM_CAP_READONLY_MEM 81
 #endif
+#define KVM_CAP_IRQFD_RESAMPLE 82
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -690,12 +691,21 @@ struct kvm_xen_hvm_config {
 #endif
 
 #define KVM_IRQFD_FLAG_DEASSIGN (1 << 0)
+/*
+ * Available with KVM_CAP_IRQFD_RESAMPLE
+ *
+ * KVM_IRQFD_FLAG_RESAMPLE indicates resamplefd is valid and specifies
+ * the irqfd to operate in resampling mode for level triggered interrupt
+ * emlation.  See Documentation/virtual/kvm/api.txt.
+ */
+#define KVM_IRQFD_FLAG_RESAMPLE (1 << 1)
 
 struct kvm_irqfd {
 	__u32 fd;
 	__u32 gsi;
 	__u32 flags;
-	__u8  pad[20];
+	__u32 resamplefd;
+	__u8  pad[16];
 };
 
 struct kvm_clock_data {

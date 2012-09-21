@@ -228,6 +228,9 @@ int kvm_request_irq_source_id(struct kvm *kvm)
 	}
 
 	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
+#ifdef CONFIG_X86
+	ASSERT(irq_source_id != KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID);
+#endif
 	set_bit(irq_source_id, bitmap);
 unlock:
 	mutex_unlock(&kvm->irq_lock);
@@ -238,6 +241,9 @@ unlock:
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 {
 	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
+#ifdef CONFIG_X86
+	ASSERT(irq_source_id != KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID);
+#endif
 
 	mutex_lock(&kvm->irq_lock);
 	if (irq_source_id < 0 ||

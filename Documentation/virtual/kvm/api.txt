@@ -1950,6 +1950,19 @@ the guest using the specified gsi pin.  The irqfd is removed using
 the KVM_IRQFD_FLAG_DEASSIGN flag, specifying both kvm_irqfd.fd
 and kvm_irqfd.gsi.
 
+With KVM_CAP_IRQFD_RESAMPLE, KVM_IRQFD supports a de-assert and notify
+mechanism allowing emulation of level-triggered, irqfd-based
+interrupts.  When KVM_IRQFD_FLAG_RESAMPLE is set the user must pass an
+additional eventfd in the kvm_irqfd.resamplefd field.  When operating
+in resample mode, posting of an interrupt through kvm_irq.fd asserts
+the specified gsi in the irqchip.  When the irqchip is resampled, such
+as from an EOI, the gsi is de-asserted and the user is notifed via
+kvm_irqfd.resamplefd.  It is the user's responsibility to re-queue
+the interrupt if the device making use of it still requires service.
+Note that closing the resamplefd is not sufficient to disable the
+irqfd.  The KVM_IRQFD_FLAG_RESAMPLE is only necessary on assignment
+and need not be specified with KVM_IRQFD_FLAG_DEASSIGN.
+
 4.76 KVM_PPC_ALLOCATE_HTAB
 
 Capability: KVM_CAP_PPC_ALLOC_HTAB
