@@ -1237,12 +1237,17 @@ static int nvme_user_admin_cmd(struct nvme_dev *dev,
 	if (length != cmd.data_len)
 		status = -ENOMEM;
 	else
-		status = nvme_submit_admin_cmd(dev, &c, NULL);
+		status = nvme_submit_admin_cmd(dev, &c, &cmd.result);
 
 	if (cmd.data_len) {
 		nvme_unmap_user_pages(dev, cmd.opcode & 1, iod);
 		nvme_free_iod(dev, iod);
 	}
+
+	if (!status && copy_to_user(&ucmd->result, &cmd.result,
+							sizeof(cmd.result)))
+		status = -EFAULT;
+
 	return status;
 }
 
