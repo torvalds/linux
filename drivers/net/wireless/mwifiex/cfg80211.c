@@ -1502,6 +1502,12 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 
 	wiphy_dbg(wiphy, "info: received scan request on %s\n", dev->name);
 
+	if (atomic_read(&priv->wmm.tx_pkts_queued) >=
+	    MWIFIEX_MIN_TX_PENDING_TO_CANCEL_SCAN) {
+		dev_dbg(priv->adapter->dev, "scan rejected due to traffic\n");
+		return -EBUSY;
+	}
+
 	priv->scan_request = request;
 
 	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
