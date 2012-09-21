@@ -171,8 +171,8 @@ static inline void
 hash_netport4_data_next(struct ip_set_hash *h,
 			const struct hash_netport4_elem *d)
 {
-	h->next.ip = ntohl(d->ip);
-	h->next.port = ntohs(d->port);
+	h->next.ip = d->ip;
+	h->next.port = d->port;
 }
 
 static int
@@ -289,12 +289,13 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	}
 
 	if (retried)
-		ip = h->next.ip;
+		ip = ntohl(h->next.ip);
 	while (!after(ip, ip_to)) {
 		data.ip = htonl(ip);
 		last = ip_set_range_to_cidr(ip, ip_to, &cidr);
 		data.cidr = cidr - 1;
-		p = retried && ip == h->next.ip ? h->next.port : port;
+		p = retried && ip == ntohl(h->next.ip) ? ntohs(h->next.port)
+						       : port;
 		for (; p <= port_to; p++) {
 			data.port = htons(p);
 			ret = adtfn(set, &data, timeout, flags);
@@ -450,7 +451,7 @@ static inline void
 hash_netport6_data_next(struct ip_set_hash *h,
 			const struct hash_netport6_elem *d)
 {
-	h->next.port = ntohs(d->port);
+	h->next.port = d->port;
 }
 
 static int
@@ -554,7 +555,7 @@ hash_netport6_uadt(struct ip_set *set, struct nlattr *tb[],
 		swap(port, port_to);
 
 	if (retried)
-		port = h->next.port;
+		port = ntohs(h->next.port);
 	for (; port <= port_to; port++) {
 		data.port = htons(port);
 		ret = adtfn(set, &data, timeout, flags);

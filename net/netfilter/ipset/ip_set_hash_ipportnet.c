@@ -173,9 +173,9 @@ static inline void
 hash_ipportnet4_data_next(struct ip_set_hash *h,
 			  const struct hash_ipportnet4_elem *d)
 {
-	h->next.ip = ntohl(d->ip);
-	h->next.port = ntohs(d->port);
-	h->next.ip2 = ntohl(d->ip2);
+	h->next.ip = d->ip;
+	h->next.port = d->port;
+	h->next.ip2 = d->ip2;
 }
 
 static int
@@ -314,14 +314,17 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	}
 
 	if (retried)
-		ip = h->next.ip;
+		ip = ntohl(h->next.ip);
 	for (; !before(ip_to, ip); ip++) {
 		data.ip = htonl(ip);
-		p = retried && ip == h->next.ip ? h->next.port : port;
+		p = retried && ip == ntohl(h->next.ip) ? ntohs(h->next.port)
+						       : port;
 		for (; p <= port_to; p++) {
 			data.port = htons(p);
-			ip2 = retried && ip == h->next.ip && p == h->next.port
-				? h->next.ip2 : ip2_from;
+			ip2 = retried
+			      && ip == ntohl(h->next.ip)
+			      && p == ntohs(h->next.port)
+				? ntohl(h->next.ip2) : ip2_from;
 			while (!after(ip2, ip2_to)) {
 				data.ip2 = htonl(ip2);
 				ip2_last = ip_set_range_to_cidr(ip2, ip2_to,
@@ -486,7 +489,7 @@ static inline void
 hash_ipportnet6_data_next(struct ip_set_hash *h,
 			  const struct hash_ipportnet6_elem *d)
 {
-	h->next.port = ntohs(d->port);
+	h->next.port = d->port;
 }
 
 static int
@@ -598,7 +601,7 @@ hash_ipportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 		swap(port, port_to);
 
 	if (retried)
-		port = h->next.port;
+		port = ntohs(h->next.port);
 	for (; port <= port_to; port++) {
 		data.port = htons(port);
 		ret = adtfn(set, &data, timeout, flags);

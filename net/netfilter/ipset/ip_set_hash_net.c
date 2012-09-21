@@ -152,7 +152,7 @@ static inline void
 hash_net4_data_next(struct ip_set_hash *h,
 		    const struct hash_net4_elem *d)
 {
-	h->next.ip = ntohl(d->ip);
+	h->next.ip = d->ip;
 }
 
 static int
@@ -235,7 +235,7 @@ hash_net4_uadt(struct ip_set *set, struct nlattr *tb[],
 			return -IPSET_ERR_HASH_RANGE;
 	}
 	if (retried)
-		ip = h->next.ip;
+		ip = ntohl(h->next.ip);
 	while (!after(ip, ip_to)) {
 		data.ip = htonl(ip);
 		last = ip_set_range_to_cidr(ip, ip_to, &data.cidr);

@@ -114,7 +114,7 @@ nla_put_failure:
 static inline void
 hash_ip4_data_next(struct ip_set_hash *h, const struct hash_ip4_elem *d)
 {
-	h->next.ip = ntohl(d->ip);
+	h->next.ip = d->ip;
 }
 
 static int
@@ -188,7 +188,7 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	hosts = h->netmask == 32 ? 1 : 2 << (32 - h->netmask - 1);
 
 	if (retried)
-		ip = h->next.ip;
+		ip = ntohl(h->next.ip);
 	for (; !before(ip_to, ip); ip += hosts) {
 		nip = htonl(ip);
 		if (nip == 0)

@@ -133,8 +133,8 @@ static inline void
 hash_ipportip4_data_next(struct ip_set_hash *h,
 			 const struct hash_ipportip4_elem *d)
 {
-	h->next.ip = ntohl(d->ip);
-	h->next.port = ntohs(d->port);
+	h->next.ip = d->ip;
+	h->next.port = d->port;
 }
 
 static int
@@ -239,9 +239,10 @@ hash_ipportip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	}
 
 	if (retried)
-		ip = h->next.ip;
+		ip = ntohl(h->next.ip);
 	for (; !before(ip_to, ip); ip++) {
-		p = retried && ip == h->next.ip ? h->next.port : port;
+		p = retried && ip == ntohl(h->next.ip) ? ntohs(h->next.port)
+						       : port;
 		for (; p <= port_to; p++) {
 			data.ip = htonl(ip);
 			data.port = htons(p);
@@ -362,7 +363,7 @@ static inline void
 hash_ipportip6_data_next(struct ip_set_hash *h,
 			 const struct hash_ipportip6_elem *d)
 {
-	h->next.port = ntohs(d->port);
+	h->next.port = d->port;
 }
 
 static int
@@ -449,7 +450,7 @@ hash_ipportip6_uadt(struct ip_set *set, struct nlattr *tb[],
 		swap(port, port_to);
 
 	if (retried)
-		port = h->next.port;
+		port = ntohs(h->next.port);
 	for (; port <= port_to; port++) {
 		data.port = htons(port);
 		ret = adtfn(set, &data, timeout, flags);
