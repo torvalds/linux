@@ -17,6 +17,7 @@
 #define PCIE_LTSSM	0x0404		/* PCIE Link Training and Status */
 #define PCIE_LTSSM_L0	0x16		/* L0 state */
 #define PCIE_IP_REV_2_2		0x02080202 /* PCIE IP block version Rev2.2 */
+#define PCIE_IP_REV_3_0		0x02080300 /* PCIE IP block version Rev3.0 */
 #define PIWAR_EN		0x80000000	/* Enable */
 #define PIWAR_PF		0x20000000	/* prefetch */
 #define PIWAR_TGI_LOCAL		0x00f00000	/* target - local memory */
@@ -89,6 +90,16 @@ struct ccsr_pci {
 	__be32	pex_err_cap_r1;		/* 0x.e2c - PCIE error capture register 0 */
 	__be32	pex_err_cap_r2;		/* 0x.e30 - PCIE error capture register 0 */
 	__be32	pex_err_cap_r3;		/* 0x.e34 - PCIE error capture register 0 */
+	u8	res_e38[200];
+	__be32	pdb_stat;		/* 0x.f00 - PCIE Debug Status */
+	u8	res_f04[16];
+	__be32	pex_csr0;		/* 0x.f14 - PEX Control/Status register 0*/
+#define PEX_CSR0_LTSSM_MASK	0xFC
+#define PEX_CSR0_LTSSM_SHIFT	2
+#define PEX_CSR0_LTSSM_L0	0x11
+	__be32	pex_csr1;		/* 0x.f18 - PEX Control/Status register 1*/
+	u8	res_f1c[228];
+
 };
 
 extern int fsl_add_bridge(struct platform_device *pdev, int is_primary);

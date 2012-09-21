@@ -54,13 +54,35 @@ static void quirk_fsl_pcie_header(struct pci_dev *dev)
 	return;
 }
 
-static int __init fsl_pcie_check_link(struct pci_controller *hose)
+static int __init fsl_pcie_check_link(struct pci_controller *hose,
+				  struct resource *rsrc)
 {
+	struct ccsr_pci __iomem *pci = NULL;
 	u32 val;
 
+	/* for PCIe IP rev 3.0 or greater use CSR0 for link state */
+	if (rsrc) {
+		pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
+		    (u64)rsrc->start, (u64)rsrc->end - (u64)rsrc->start + 1);
+		pci = ioremap(rsrc->start, rsrc->end - rsrc->start + 1);
+		if (!pci) {
+			dev_err(hose->parent, "Unable to map PCIe registers\n");
+			return -ENOMEM;
+		}
+		if (in_be32(&pci->block_rev1) >= PCIE_IP_REV_3_0) {
+			val = (in_be32(&pci->pex_csr0) & PEX_CSR0_LTSSM_MASK)
+					>> PEX_CSR0_LTSSM_SHIFT;
+			if (val != PEX_CSR0_LTSSM_L0)
+				return 1;
+			iounmap(pci);
+			return 0;
+		}
+		iounmap(pci);
+	}
 	early_read_config_dword(hose, 0, 0, PCIE_LTSSM, &val);
 	if (val < PCIE_LTSSM_L0)
 		return 1;
+
 	return 0;
 }
 
@@ -483,7 +505,7 @@ int __init fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		hose->indirect_type |= PPC_INDIRECT_TYPE_EXT_REG |
 			PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
-		if (fsl_pcie_check_link(hose))
+		if (fsl_pcie_check_link(hose, &rsrc))
 			hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
 	}
 
@@ -685,7 +707,7 @@ static int __init mpc83xx_pcie_setup(struct pci_controller *hose,
 	out_le32(pcie->cfg_type0 + PEX_OUTWIN0_TAH, 0);
 	out_le32(pcie->cfg_type0 + PEX_OUTWIN0_TAL, 0);
 
-	if (fsl_pcie_check_link(hose))
+	if (fsl_pcie_check_link(hose, NULL))
 		hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
 
 	return 0;
@@ -836,6 +858,7 @@ static const struct of_device_id pci_ids[] = {
 	{ .compatible = "fsl,qoriq-pcie-v2.2", },
 	{ .compatible = "fsl,qoriq-pcie-v2.3", },
 	{ .compatible = "fsl,qoriq-pcie-v2.4", },
+	{ .compatible = "fsl,qoriq-pcie-v3.0", },
 
 	/*
 	 * The following entries are for compatibility with older device
