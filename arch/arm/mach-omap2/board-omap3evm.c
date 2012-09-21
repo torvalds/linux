@@ -40,16 +40,14 @@
 #include <linux/mmc/host.h>
 #include <linux/export.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include <plat/usb.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 #include "common.h"
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 
@@ -74,6 +72,18 @@
  */
 #define OMAP3EVM_GEN1_ETHR_GPIO_RST	64
 #define OMAP3EVM_GEN2_ETHR_GPIO_RST	7
+
+/*
+ * OMAP35x EVM revision
+ * Run time detection of EVM revision is done by reading Ethernet
+ * PHY ID -
+ *	GEN_1	= 0x01150000
+ *	GEN_2	= 0x92200000
+ */
+enum {
+	OMAP3EVM_BOARD_GEN_1 = 0,	/* EVM Rev between  A - D */
+	OMAP3EVM_BOARD_GEN_2,		/* EVM Rev >= Rev E */
+};
 
 static u8 omap3_evm_version;
 
@@ -108,7 +118,7 @@ static void __init omap3_evm_get_revision(void)
 }
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc-smsc911x.h"
 
 static struct omap_smsc911x_platform_data smsc911x_cfg = {
 	.cs             = OMAP3EVM_SMSC911X_CS,
@@ -377,9 +387,6 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data omap3evm_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= omap3evm_twl_gpio_setup,
 };
@@ -525,9 +532,6 @@ static int __init omap3_evm_i2c_init(void)
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
 }
-
-static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
-};
 
 static struct usbhs_omap_board_data usbhs_bdata __initdata = {
 
@@ -687,9 +691,6 @@ static void __init omap3_evm_init(void)
 
 	obm = (cpu_is_omap3630()) ? omap36x_board_mux : omap35x_board_mux;
 	omap3_mux_init(obm, OMAP_PACKAGE_CBB);
-
-	omap_board_config = omap3_evm_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 
 	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
 	omap_hsmmc_init(mmc);

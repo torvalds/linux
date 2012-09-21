@@ -26,10 +26,10 @@
 
 /* ---- Include Files ---------------------------------------------------- */
 
-#include <csp/stdint.h>
-#include <stddef.h>
+#include <linux/types.h>
+#include <linux/stddef.h>
 
-#include <csp/dmacHw.h>
+#include <mach/csp/dmacHw.h>
 #include <mach/csp/dmacHw_reg.h>
 #include <mach/csp/dmacHw_priv.h>
 

@@ -53,7 +53,7 @@
 #include <plat/clock.h>
 #include <plat/sram.h>
 #include <plat/tc.h>
-#include <plat/mux.h>
+#include <mach/mux.h>
 #include <plat/dma.h>
 #include <plat/dmtimer.h>
 

@@ -27,8 +27,8 @@
 #define _INTCHW_REG_H
 
 /* ---- Include Files ---------------------------------------------------- */
-#include <csp/stdint.h>
-#include <csp/reg.h>
+#include <linux/types.h>
+#include <mach/csp/reg.h>
 #include <mach/csp/mm_io.h>
 
 /* ---- Public Constants and Types --------------------------------------- */
@@ -37,9 +37,9 @@
 #define INTCHW_NUM_INTC           3
 
 /* Defines for interrupt controllers. This simplifies and cleans up the function calls. */
-#define INTCHW_INTC0    ((void *)MM_IO_BASE_INTC0)
-#define INTCHW_INTC1    ((void *)MM_IO_BASE_INTC1)
-#define INTCHW_SINTC    ((void *)MM_IO_BASE_SINTC)
+#define INTCHW_INTC0    (MM_IO_BASE_INTC0)
+#define INTCHW_INTC1    (MM_IO_BASE_INTC1)
+#define INTCHW_SINTC    (MM_IO_BASE_SINTC)
 
 /* INTC0 - interrupt controller 0 */
 #define INTCHW_INTC0_PIF_BITNUM           31	/* Peripheral interface interrupt */
@@ -232,15 +232,15 @@
 /* ---- Public Variable Externs ------------------------------------------ */
 /* ---- Public Function Prototypes --------------------------------------- */
 /* Clear one or more IRQ interrupts. */
-static inline void intcHw_irq_disable(void *basep, uint32_t mask)
+static inline void intcHw_irq_disable(void __iomem *basep, uint32_t mask)
 {
-	__REG32(basep + INTCHW_INTENCLEAR) = mask;
+	writel(mask, basep + INTCHW_INTENCLEAR);
 }
 
 /* Enables one or more IRQ interrupts. */
-static inline void intcHw_irq_enable(void *basep, uint32_t mask)
+static inline void intcHw_irq_enable(void __iomem *basep, uint32_t mask)
 {
-	__REG32(basep + INTCHW_INTENABLE) = mask;
+	writel(mask, basep + INTCHW_INTENABLE);
 }
 
 #endif /* _INTCHW_REG_H */

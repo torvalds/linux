@@ -49,16 +49,6 @@ static struct map_desc dove_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(DOVE_NB_REGS_PHYS_BASE),
 		.length		= DOVE_NB_REGS_SIZE,
 		.type		= MT_DEVICE,
-	}, {
-		.virtual	= DOVE_PCIE0_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(DOVE_PCIE0_IO_PHYS_BASE),
-		.length		= DOVE_PCIE0_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= DOVE_PCIE1_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(DOVE_PCIE1_IO_PHYS_BASE),
-		.length		= DOVE_PCIE1_IO_SIZE,
-		.type		= MT_DEVICE,
 	},
 };
 

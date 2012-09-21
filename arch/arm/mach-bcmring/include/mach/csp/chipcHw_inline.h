@@ -17,8 +17,8 @@
 
 /* ---- Include Files ----------------------------------------------------- */
 
-#include <csp/errno.h>
-#include <csp/reg.h>
+#include <linux/errno.h>
+#include <mach/csp/reg.h>
 #include <mach/csp/chipcHw_reg.h>
 #include <mach/csp/chipcHw_def.h>
 
@@ -47,7 +47,7 @@ static inline void chipcHw_setClock(chipcHw_CLOCK_e clock,
 /****************************************************************************/
 static inline uint32_t chipcHw_getChipId(void)
 {
-	return pChipcHw->ChipId;
+	return readl(&pChipcHw->ChipId);
 }
 
 /****************************************************************************/
@@ -59,15 +59,16 @@ static inline uint32_t chipcHw_getChipId(void)
 /****************************************************************************/
 static inline void chipcHw_enableSpreadSpectrum(void)
 {
-	if ((pChipcHw->
-	     PLLPreDivider & chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_MASK) !=
+	if ((readl(&pChipcHw->
+	     PLLPreDivider) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_MASK) !=
 	    chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_INTEGER) {
-		ddrcReg_PHY_ADDR_CTL_REGP->ssCfg =
-		    (0xFFFF << ddrcReg_PHY_ADDR_SS_CFG_NDIV_AMPLITUDE_SHIFT) |
+		writel((0xFFFF << ddrcReg_PHY_ADDR_SS_CFG_NDIV_AMPLITUDE_SHIFT) |
 		    (ddrcReg_PHY_ADDR_SS_CFG_MIN_CYCLE_PER_TICK <<
-		     ddrcReg_PHY_ADDR_SS_CFG_CYCLE_PER_TICK_SHIFT);
-		ddrcReg_PHY_ADDR_CTL_REGP->ssCtl |=
-		    ddrcReg_PHY_ADDR_SS_CTRL_ENABLE;
+		     ddrcReg_PHY_ADDR_SS_CFG_CYCLE_PER_TICK_SHIFT),
+		     &ddrcReg_PHY_ADDR_CTL_REGP->ssCfg);
+		writel(readl(&ddrcReg_PHY_ADDR_CTL_REGP->ssCtl) |
+		    ddrcReg_PHY_ADDR_SS_CTRL_ENABLE,
+		    &ddrcReg_PHY_ADDR_CTL_REGP->ssCtl);
 	}
 }
 
@@ -93,8 +94,8 @@ static inline void chipcHw_disableSpreadSpectrum(void)
 /****************************************************************************/
 static inline uint32_t chipcHw_getChipProductId(void)
 {
-	return (pChipcHw->
-		 ChipId & chipcHw_REG_CHIPID_BASE_MASK) >>
+	return (readl(&pChipcHw->
+		 ChipId) & chipcHw_REG_CHIPID_BASE_MASK) >>
 		chipcHw_REG_CHIPID_BASE_SHIFT;
 }
 
@@ -109,7 +110,7 @@ static inline uint32_t chipcHw_getChipProductId(void)
 /****************************************************************************/
 static inline chipcHw_REV_NUMBER_e chipcHw_getChipRevisionNumber(void)
 {
-	return pChipcHw->ChipId & chipcHw_REG_CHIPID_REV_MASK;
+	return readl(&pChipcHw->ChipId) & chipcHw_REG_CHIPID_REV_MASK;
 }
 
 /****************************************************************************/
@@ -156,7 +157,7 @@ static inline void chipcHw_busInterfaceClockDisable(uint32_t mask)
 /****************************************************************************/
 static inline uint32_t chipcHw_getBusInterfaceClockStatus(void)
 {
-	return pChipcHw->BusIntfClock;
+	return readl(&pChipcHw->BusIntfClock);
 }
 
 /****************************************************************************/
@@ -215,8 +216,9 @@ static inline void chipcHw_softResetDisable(uint64_t mask)
 
 	/* Deassert module soft reset */
 	REG_LOCAL_IRQ_SAVE;
-	pChipcHw->SoftReset1 ^= ctrl1;
-	pChipcHw->SoftReset2 ^= (ctrl2 & (~chipcHw_REG_SOFT_RESET_UNHOLD_MASK));
+	writel(readl(&pChipcHw->SoftReset1) ^ ctrl1, &pChipcHw->SoftReset1);
+	writel(readl(&pChipcHw->SoftReset2) ^ (ctrl2 &
+		(~chipcHw_REG_SOFT_RESET_UNHOLD_MASK)), &pChipcHw->SoftReset2);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
@@ -227,9 +229,10 @@ static inline void chipcHw_softResetEnable(uint64_t mask)
 	uint32_t unhold = 0;
 
 	REG_LOCAL_IRQ_SAVE;
-	pChipcHw->SoftReset1 |= ctrl1;
+	writel(readl(&pChipcHw->SoftReset1) | ctrl1, &pChipcHw->SoftReset1);
 	/* Mask out unhold request bits */
-	pChipcHw->SoftReset2 |= (ctrl2 & (~chipcHw_REG_SOFT_RESET_UNHOLD_MASK));
+	writel(readl(&pChipcHw->SoftReset2) | (ctrl2 &
+		(~chipcHw_REG_SOFT_RESET_UNHOLD_MASK)), &pChipcHw->SoftReset2);
 
 	/* Process unhold requests */
 	if (ctrl2 & chipcHw_REG_SOFT_RESET_VPM_GLOBAL_UNHOLD) {
@@ -246,7 +249,7 @@ static inline void chipcHw_softResetEnable(uint64_t mask)
 
 	if (unhold) {
 		/* Make sure unhold request is effective */
-		pChipcHw->SoftReset1 &= ~unhold;
+		writel(readl(&pChipcHw->SoftReset1) & ~unhold, &pChipcHw->SoftReset1);
 	}
 	REG_LOCAL_IRQ_RESTORE;
 }
@@ -307,7 +310,7 @@ static inline void chipcHw_setOTPOption(uint64_t mask)
 /****************************************************************************/
 static inline uint32_t chipcHw_getStickyBits(void)
 {
-	return pChipcHw->Sticky;
+	return readl(&pChipcHw->Sticky);
 }
 
 /****************************************************************************/
@@ -328,7 +331,7 @@ static inline void chipcHw_setStickyBits(uint32_t mask)
 		bits |= chipcHw_REG_STICKY_POR_BROM;
 	} else {
 		uint32_t sticky;
-		sticky = pChipcHw->Sticky;
+		sticky = readl(pChipcHw->Sticky);
 
 		if ((mask & chipcHw_REG_STICKY_BOOT_DONE)
 		    && (sticky & chipcHw_REG_STICKY_BOOT_DONE) == 0) {
@@ -355,7 +358,7 @@ static inline void chipcHw_setStickyBits(uint32_t mask)
 			bits |= chipcHw_REG_STICKY_GENERAL_5;
 		}
 	}
-	pChipcHw->Sticky = bits;
+	writel(bits, pChipcHw->Sticky);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
@@ -377,7 +380,7 @@ static inline void chipcHw_clearStickyBits(uint32_t mask)
 	    (chipcHw_REG_STICKY_BOOT_DONE | chipcHw_REG_STICKY_GENERAL_1 |
 	     chipcHw_REG_STICKY_GENERAL_2 | chipcHw_REG_STICKY_GENERAL_3 |
 	     chipcHw_REG_STICKY_GENERAL_4 | chipcHw_REG_STICKY_GENERAL_5)) {
-		uint32_t sticky = pChipcHw->Sticky;
+		uint32_t sticky = readl(&pChipcHw->Sticky);
 
 		if ((mask & chipcHw_REG_STICKY_BOOT_DONE)
 		    && (sticky & chipcHw_REG_STICKY_BOOT_DONE)) {
@@ -410,7 +413,7 @@ static inline void chipcHw_clearStickyBits(uint32_t mask)
 			mask &= ~chipcHw_REG_STICKY_GENERAL_5;
 		}
 	}
-	pChipcHw->Sticky = bits | mask;
+	writel(bits | mask, &pChipcHw->Sticky);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
@@ -426,7 +429,7 @@ static inline void chipcHw_clearStickyBits(uint32_t mask)
 /****************************************************************************/
 static inline uint32_t chipcHw_getSoftStraps(void)
 {
-	return pChipcHw->SoftStraps;
+	return readl(&pChipcHw->SoftStraps);
 }
 
 /****************************************************************************/
@@ -456,7 +459,7 @@ static inline void chipcHw_setSoftStraps(uint32_t strapOptions)
 /****************************************************************************/
 static inline uint32_t chipcHw_getPinStraps(void)
 {
-	return pChipcHw->PinStraps;
+	return readl(&pChipcHw->PinStraps);
 }
 
 /****************************************************************************/
@@ -671,9 +674,9 @@ static inline void chipcHw_selectGE3(void)
 /****************************************************************************/
 static inline chipcHw_GPIO_FUNCTION_e chipcHw_getGpioPinFunction(int pin)
 {
-	return (*((uint32_t *) chipcHw_REG_GPIO_MUX(pin)) &
+	return (readl(chipcHw_REG_GPIO_MUX(pin))) &
 		(chipcHw_REG_GPIO_MUX_MASK <<
-		 chipcHw_REG_GPIO_MUX_POSITION(pin))) >>
+		 chipcHw_REG_GPIO_MUX_POSITION(pin)) >>
 	    chipcHw_REG_GPIO_MUX_POSITION(pin);
 }
 
@@ -841,8 +844,8 @@ static inline void chipcHw_setUsbDevice(void)
 static inline void chipcHw_setClock(chipcHw_CLOCK_e clock,
 				    chipcHw_OPTYPE_e type, int mode)
 {
-	volatile uint32_t *pPLLReg = (uint32_t *) 0x0;
-	volatile uint32_t *pClockCtrl = (uint32_t *) 0x0;
+	uint32_t __iomem *pPLLReg = NULL;
+	uint32_t __iomem *pClockCtrl = NULL;
 
 	switch (clock) {
 	case chipcHw_CLOCK_DDR:
@@ -1071,7 +1074,7 @@ static inline void chipcHw_bypassClockDisable(chipcHw_CLOCK_e clock)
 /****************************************************************************/
 static inline int chipcHw_isSoftwareStrapsEnable(void)
 {
-	return pChipcHw->SoftStraps & 0x00000001;
+	return readl(&pChipcHw->SoftStraps) & 0x00000001;
 }
 
 /****************************************************************************/
@@ -1138,7 +1141,7 @@ static inline void chipcHw_pll2TestDisable(void)
 /****************************************************************************/
 static inline int chipcHw_isPllTestEnable(void)
 {
-	return pChipcHw->PLLConfig & chipcHw_REG_PLL_CONFIG_TEST_ENABLE;
+	return readl(&pChipcHw->PLLConfig) & chipcHw_REG_PLL_CONFIG_TEST_ENABLE;
 }
 
 /****************************************************************************/
@@ -1147,7 +1150,7 @@ static inline int chipcHw_isPllTestEnable(void)
 /****************************************************************************/
 static inline int chipcHw_isPll2TestEnable(void)
 {
-	return pChipcHw->PLLConfig2 & chipcHw_REG_PLL_CONFIG_TEST_ENABLE;
+	return readl(&pChipcHw->PLLConfig2) & chipcHw_REG_PLL_CONFIG_TEST_ENABLE;
 }
 
 /****************************************************************************/
@@ -1183,8 +1186,8 @@ static inline void chipcHw_pll2TestSelect(uint32_t val)
 /****************************************************************************/
 static inline uint8_t chipcHw_getPllTestSelected(void)
 {
-	return (uint8_t) ((pChipcHw->
-			   PLLConfig & chipcHw_REG_PLL_CONFIG_TEST_SELECT_MASK)
+	return (uint8_t) ((readl(&pChipcHw->
+			   PLLConfig) & chipcHw_REG_PLL_CONFIG_TEST_SELECT_MASK)
 			  >> chipcHw_REG_PLL_CONFIG_TEST_SELECT_SHIFT);
 }
 
@@ -1194,8 +1197,8 @@ static inline uint8_t chipcHw_getPllTestSelected(void)
 /****************************************************************************/
 static inline uint8_t chipcHw_getPll2TestSelected(void)
 {
-	return (uint8_t) ((pChipcHw->
-			   PLLConfig2 & chipcHw_REG_PLL_CONFIG_TEST_SELECT_MASK)
+	return (uint8_t) ((readl(&pChipcHw->
+			   PLLConfig2) & chipcHw_REG_PLL_CONFIG_TEST_SELECT_MASK)
 			  >> chipcHw_REG_PLL_CONFIG_TEST_SELECT_SHIFT);
 }
 
@@ -1208,7 +1211,8 @@ static inline uint8_t chipcHw_getPll2TestSelected(void)
 static inline void chipcHw_pll1Disable(void)
 {
 	REG_LOCAL_IRQ_SAVE;
-	pChipcHw->PLLConfig |= chipcHw_REG_PLL_CONFIG_POWER_DOWN;
+	writel(readl(&pChipcHw->PLLConfig) | chipcHw_REG_PLL_CONFIG_POWER_DOWN,
+		&pChipcHw->PLLConfig);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
@@ -1221,7 +1225,8 @@ static inline void chipcHw_pll1Disable(void)
 static inline void chipcHw_pll2Disable(void)
 {
 	REG_LOCAL_IRQ_SAVE;
-	pChipcHw->PLLConfig2 |= chipcHw_REG_PLL_CONFIG_POWER_DOWN;
+	writel(readl(&pChipcHw->PLLConfig2) | chipcHw_REG_PLL_CONFIG_POWER_DOWN,
+		&pChipcHw->PLLConfig2);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
@@ -1233,7 +1238,8 @@ static inline void chipcHw_pll2Disable(void)
 static inline void chipcHw_ddrPhaseAlignInterruptEnable(void)
 {
 	REG_LOCAL_IRQ_SAVE;
-	pChipcHw->Spare1 |= chipcHw_REG_SPARE1_DDR_PHASE_INTR_ENABLE;
+	writel(readl(&pChipcHw->Spare1) | chipcHw_REG_SPARE1_DDR_PHASE_INTR_ENABLE,
+		&pChipcHw->Spare1);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
@@ -1245,7 +1251,8 @@ static inline void chipcHw_ddrPhaseAlignInterruptEnable(void)
 static inline void chipcHw_ddrPhaseAlignInterruptDisable(void)
 {
 	REG_LOCAL_IRQ_SAVE;
-	pChipcHw->Spare1 &= ~chipcHw_REG_SPARE1_DDR_PHASE_INTR_ENABLE;
+	writel(readl(&pChipcHw->Spare1) & ~chipcHw_REG_SPARE1_DDR_PHASE_INTR_ENABLE,
+		&pChipcHw->Spare1);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
@@ -1333,7 +1340,8 @@ static inline void chipcHw_ddrHwPhaseAlignDisable(void)
 static inline void chipcHw_vpmSwPhaseAlignEnable(void)
 {
 	REG_LOCAL_IRQ_SAVE;
-	pChipcHw->VPMPhaseCtrl1 |= chipcHw_REG_VPM_SW_PHASE_CTRL_ENABLE;
+	writel(readl(&pChipcHw->VPMPhaseCtrl1) | chipcHw_REG_VPM_SW_PHASE_CTRL_ENABLE,
+			&pChipcHw->VPMPhaseCtrl1);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
@@ -1372,7 +1380,8 @@ static inline void chipcHw_vpmHwPhaseAlignEnable(void)
 static inline void chipcHw_vpmHwPhaseAlignDisable(void)
 {
 	REG_LOCAL_IRQ_SAVE;
-	pChipcHw->VPMPhaseCtrl1 &= ~chipcHw_REG_VPM_HW_PHASE_CTRL_ENABLE;
+	writel(readl(&pChipcHw->VPMPhaseCtrl1) & ~chipcHw_REG_VPM_HW_PHASE_CTRL_ENABLE,
+		&pChipcHw->VPMPhaseCtrl1);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
@@ -1474,8 +1483,8 @@ chipcHw_setVpmHwPhaseAlignMargin(chipcHw_VPM_HW_PHASE_MARGIN_e margin)
 /****************************************************************************/
 static inline uint32_t chipcHw_isDdrHwPhaseAligned(void)
 {
-	return (pChipcHw->
-		PhaseAlignStatus & chipcHw_REG_DDR_PHASE_ALIGNED) ? 1 : 0;
+	return (readl(&pChipcHw->
+		PhaseAlignStatus) & chipcHw_REG_DDR_PHASE_ALIGNED) ? 1 : 0;
 }
 
 /****************************************************************************/
@@ -1488,8 +1497,8 @@ static inline uint32_t chipcHw_isDdrHwPhaseAligned(void)
 /****************************************************************************/
 static inline uint32_t chipcHw_isVpmHwPhaseAligned(void)
 {
-	return (pChipcHw->
-		PhaseAlignStatus & chipcHw_REG_VPM_PHASE_ALIGNED) ? 1 : 0;
+	return (readl(&pChipcHw->
+		PhaseAlignStatus) & chipcHw_REG_VPM_PHASE_ALIGNED) ? 1 : 0;
 }
 
 /****************************************************************************/
@@ -1500,8 +1509,8 @@ static inline uint32_t chipcHw_isVpmHwPhaseAligned(void)
 /****************************************************************************/
 static inline uint32_t chipcHw_getDdrHwPhaseAlignStatus(void)
 {
-	return (pChipcHw->
-		PhaseAlignStatus & chipcHw_REG_DDR_PHASE_STATUS_MASK) >>
+	return (readl(&pChipcHw->
+		PhaseAlignStatus) & chipcHw_REG_DDR_PHASE_STATUS_MASK) >>
 	    chipcHw_REG_DDR_PHASE_STATUS_SHIFT;
 }
 
@@ -1513,8 +1522,8 @@ static inline uint32_t chipcHw_getDdrHwPhaseAlignStatus(void)
 /****************************************************************************/
 static inline uint32_t chipcHw_getVpmHwPhaseAlignStatus(void)
 {
-	return (pChipcHw->
-		PhaseAlignStatus & chipcHw_REG_VPM_PHASE_STATUS_MASK) >>
+	return (readl(&pChipcHw->
+		PhaseAlignStatus) & chipcHw_REG_VPM_PHASE_STATUS_MASK) >>
 	    chipcHw_REG_VPM_PHASE_STATUS_SHIFT;
 }
 
@@ -1526,8 +1535,8 @@ static inline uint32_t chipcHw_getVpmHwPhaseAlignStatus(void)
 /****************************************************************************/
 static inline uint32_t chipcHw_getDdrPhaseControl(void)
 {
-	return (pChipcHw->
-		PhaseAlignStatus & chipcHw_REG_DDR_PHASE_CTRL_MASK) >>
+	return (readl(&pChipcHw->
+		PhaseAlignStatus) & chipcHw_REG_DDR_PHASE_CTRL_MASK) >>
 	    chipcHw_REG_DDR_PHASE_CTRL_SHIFT;
 }
 
@@ -1539,8 +1548,8 @@ static inline uint32_t chipcHw_getDdrPhaseControl(void)
 /****************************************************************************/
 static inline uint32_t chipcHw_getVpmPhaseControl(void)
 {
-	return (pChipcHw->
-		PhaseAlignStatus & chipcHw_REG_VPM_PHASE_CTRL_MASK) >>
+	return (readl(&pChipcHw->
+		PhaseAlignStatus) & chipcHw_REG_VPM_PHASE_CTRL_MASK) >>
 	    chipcHw_REG_VPM_PHASE_CTRL_SHIFT;
 }
 

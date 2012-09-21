@@ -40,16 +40,6 @@ static struct map_desc iop13xx_std_desc[] __initdata = {
 		.pfn 	 = __phys_to_pfn(IOP13XX_PMMR_PHYS_MEM_BASE),
 		.length  = IOP13XX_PMMR_SIZE,
 		.type	 = MT_DEVICE,
-	}, { /* PCIE IO space */
-		.virtual = IOP13XX_PCIE_LOWER_IO_VA,
-		.pfn 	 = __phys_to_pfn(IOP13XX_PCIE_LOWER_IO_PA),
-		.length  = IOP13XX_PCIX_IO_WINDOW_SIZE,
-		.type	 = MT_DEVICE,
-	}, { /* PCIX IO space */
-		.virtual = IOP13XX_PCIX_LOWER_IO_VA,
-		.pfn 	 = __phys_to_pfn(IOP13XX_PCIX_LOWER_IO_PA),
-		.length  = IOP13XX_PCIX_IO_WINDOW_SIZE,
-		.type	 = MT_DEVICE,
 	},
 };
 

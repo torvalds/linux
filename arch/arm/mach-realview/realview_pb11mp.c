@@ -32,7 +32,6 @@
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
-#include <asm/pmu.h>
 #include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -263,7 +262,7 @@ static struct resource pmu_resources[] = {
 
 static struct platform_device pmu_device = {
 	.name			= "arm-pmu",
-	.id			= ARM_PMU_DEVICE_CPU,
+	.id			= -1,
 	.num_resources		= ARRAY_SIZE(pmu_resources),
 	.resource		= pmu_resources,
 };

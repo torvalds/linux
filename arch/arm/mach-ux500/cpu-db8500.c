@@ -19,7 +19,6 @@
 #include <linux/mfd/abx500/ab8500.h>
 
 #include <asm/mach/map.h>
-#include <asm/pmu.h>
 #include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
 #include <mach/setup.h>
@@ -122,7 +121,7 @@ struct arm_pmu_platdata db8500_pmu_platdata = {
 
 static struct platform_device db8500_pmu_device = {
 	.name			= "arm-pmu",
-	.id			= ARM_PMU_DEVICE_CPU,
+	.id			= -1,
 	.num_resources		= ARRAY_SIZE(db8500_pmu_resources),
 	.resource		= db8500_pmu_resources,
 	.dev.platform_data	= &db8500_pmu_platdata,

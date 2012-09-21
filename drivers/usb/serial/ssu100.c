@@ -216,7 +216,7 @@ static void ssu100_set_termios(struct tty_struct *tty,
 			       struct ktermios *old_termios)
 {
 	struct usb_device *dev = port->serial->dev;
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	u16 baud, divisor, remainder;
 	unsigned int cflag = termios->c_cflag;
 	u16 urb_value = 0; /* will hold the new flags */
@@ -322,7 +322,7 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dbg("%s - set uart failed", __func__);
 
 	if (tty)
-		ssu100_set_termios(tty, port, tty->termios);
+		ssu100_set_termios(tty, port, &tty->termios);
 
 	return usb_serial_generic_open(tty, port);
 }

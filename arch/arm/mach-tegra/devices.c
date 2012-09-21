@@ -23,7 +23,6 @@
 #include <linux/fsl_devices.h>
 #include <linux/serial_8250.h>
 #include <linux/i2c-tegra.h>
-#include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 #include <mach/dma.h>
@@ -516,7 +515,7 @@ static struct resource tegra_pmu_resources[] = {
 
 struct platform_device tegra_pmu_device = {
 	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(tegra_pmu_resources),
 	.resource	= tegra_pmu_resources,
 };

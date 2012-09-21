@@ -82,7 +82,7 @@ static inline const char *s3c24xx_serial_portname(struct uart_port *port)
 
 static int s3c24xx_serial_txempty_nofifo(struct uart_port *port)
 {
-	return (rd_regl(port, S3C2410_UTRSTAT) & S3C2410_UTRSTAT_TXE);
+	return rd_regl(port, S3C2410_UTRSTAT) & S3C2410_UTRSTAT_TXE;
 }
 
 /*
@@ -268,7 +268,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 				dbg("break!\n");
 				port->icount.brk++;
 				if (uart_handle_break(port))
-				    goto ignore_char;
+					goto ignore_char;
 			}
 
 			if (uerstat & S3C2410_UERSTAT_FRAME)
@@ -459,7 +459,7 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret != 0) {
-		printk(KERN_ERR "cannot get irq %d\n", ourport->rx_irq);
+		dev_err(port->dev, "cannot get irq %d\n", ourport->rx_irq);
 		return ret;
 	}
 
@@ -473,7 +473,7 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 			  s3c24xx_serial_portname(port), ourport);
 
 	if (ret) {
-		printk(KERN_ERR "cannot get irq %d\n", ourport->tx_irq);
+		dev_err(port->dev, "cannot get irq %d\n", ourport->tx_irq);
 		goto err;
 	}
 
@@ -502,7 +502,7 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	ret = request_irq(port->irq, s3c64xx_serial_handle_irq, IRQF_SHARED,
 			  s3c24xx_serial_portname(port), ourport);
 	if (ret) {
-		printk(KERN_ERR "cannot get irq %d\n", port->irq);
+		dev_err(port->dev, "cannot get irq %d\n", port->irq);
 		return ret;
 	}
 
@@ -529,7 +529,7 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 
 	switch (level) {
 	case 3:
-		if (!IS_ERR(ourport->baudclk) && ourport->baudclk != NULL)
+		if (!IS_ERR(ourport->baudclk))
 			clk_disable(ourport->baudclk);
 
 		clk_disable(ourport->clk);
@@ -538,12 +538,12 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 	case 0:
 		clk_enable(ourport->clk);
 
-		if (!IS_ERR(ourport->baudclk) && ourport->baudclk != NULL)
+		if (!IS_ERR(ourport->baudclk))
 			clk_enable(ourport->baudclk);
 
 		break;
 	default:
-		printk(KERN_ERR "s3c24xx_serial: unknown pm %d\n", level);
+		dev_err(port->dev, "s3c24xx_serial: unknown pm %d\n", level);
 	}
 }
 
@@ -604,7 +604,6 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 	char clkname[MAX_CLK_NAME_LENGTH];
 	int calc_deviation, deviation = (1 << 30) - 1;
 
-	*best_clk = NULL;
 	clk_sel = (ourport->cfg->clk_sel) ? ourport->cfg->clk_sel :
 			ourport->info->def_clk_sel;
 	for (cnt = 0; cnt < info->num_clks; cnt++) {
@@ -613,7 +612,7 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 
 		sprintf(clkname, "clk_uart_baud%d", cnt);
 		clk = clk_get(ourport->port.dev, clkname);
-		if (IS_ERR_OR_NULL(clk))
+		if (IS_ERR(clk))
 			continue;
 
 		rate = clk_get_rate(clk);
@@ -684,7 +683,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 {
 	struct s3c2410_uartcfg *cfg = s3c24xx_port_to_cfg(port);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
-	struct clk *clk = NULL;
+	struct clk *clk = ERR_PTR(-EINVAL);
 	unsigned long flags;
 	unsigned int baud, quot, clk_sel = 0;
 	unsigned int ulcon;
@@ -705,7 +704,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	quot = s3c24xx_serial_getclk(ourport, baud, &clk, &clk_sel);
 	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST)
 		quot = port->custom_divisor;
-	if (!clk)
+	if (IS_ERR(clk))
 		return;
 
 	/* check to see if we need  to change clock source */
@@ -713,9 +712,9 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	if (ourport->baudclk != clk) {
 		s3c24xx_serial_setsource(port, clk_sel);
 
-		if (ourport->baudclk != NULL && !IS_ERR(ourport->baudclk)) {
+		if (!IS_ERR(ourport->baudclk)) {
 			clk_disable(ourport->baudclk);
-			ourport->baudclk  = NULL;
+			ourport->baudclk = ERR_PTR(-EINVAL);
 		}
 
 		clk_enable(clk);
@@ -1036,10 +1035,10 @@ static int s3c24xx_serial_cpufreq_transition(struct notifier_block *nb,
 		if (tty == NULL)
 			goto exit;
 
-		termios = tty->termios;
+		termios = &tty->termios;
 
 		if (termios == NULL) {
-			printk(KERN_WARNING "%s: no termios?\n", __func__);
+			dev_warn(uport->dev, "%s: no termios?\n", __func__);
 			goto exit;
 		}
 
@@ -1114,7 +1113,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	res = platform_get_resource(platdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		printk(KERN_ERR "failed to find memory resource for uart\n");
+		dev_err(port->dev, "failed to find memory resource for uart\n");
 		return -EINVAL;
 	}
 
@@ -1130,7 +1129,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		ourport->rx_irq = ret;
 		ourport->tx_irq = ret + 1;
 	}
-	
+
 	ret = platform_get_irq(platdev, 1);
 	if (ret > 0)
 		ourport->tx_irq = ret;
@@ -1160,7 +1159,11 @@ static ssize_t s3c24xx_serial_show_clksrc(struct device *dev,
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
-	return snprintf(buf, PAGE_SIZE, "* %s\n", ourport->baudclk->name);
+	if (IS_ERR(ourport->baudclk))
+		return -EINVAL;
+
+	return snprintf(buf, PAGE_SIZE, "* %s\n",
+			ourport->baudclk->name ?: "(null)");
 }
 
 static DEVICE_ATTR(clock_source, S_IRUGO, s3c24xx_serial_show_clksrc, NULL);
@@ -1200,6 +1203,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	ourport->baudclk = ERR_PTR(-EINVAL);
 	ourport->info = ourport->drv_data->info;
 	ourport->cfg = (pdev->dev.platform_data) ?
 			(struct s3c2410_uartcfg *)pdev->dev.platform_data :
@@ -1387,7 +1391,7 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
 		sprintf(clk_name, "clk_uart_baud%d", clk_sel);
 
 		clk = clk_get(port->dev, clk_name);
-		if (!IS_ERR(clk) && clk != NULL)
+		if (!IS_ERR(clk))
 			rate = clk_get_rate(clk);
 		else
 			rate = 1;
@@ -1679,7 +1683,7 @@ static int __init s3c24xx_serial_modinit(void)
 
 	ret = uart_register_driver(&s3c24xx_uart_drv);
 	if (ret < 0) {
-		printk(KERN_ERR "failed to register UART driver\n");
+		pr_err("Failed to register Samsung UART driver\n");
 		return -1;
 	}
 

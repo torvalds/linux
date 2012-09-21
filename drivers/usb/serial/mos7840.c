@@ -1651,7 +1651,7 @@ static void mos7840_throttle(struct tty_struct *tty)
 			return;
 	}
 	/* if we are implementing RTS/CTS, toggle that line */
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		mos7840_port->shadowMCR &= ~MCR_RTS;
 		status = mos7840_set_uart_reg(port, MODEM_CONTROL_REGISTER,
 					 mos7840_port->shadowMCR);
@@ -1694,7 +1694,7 @@ static void mos7840_unthrottle(struct tty_struct *tty)
 	}
 
 	/* if we are implementing RTS/CTS, toggle that line */
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		mos7840_port->shadowMCR |= MCR_RTS;
 		status = mos7840_set_uart_reg(port, MODEM_CONTROL_REGISTER,
 					 mos7840_port->shadowMCR);
@@ -2000,8 +2000,8 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	lStop = LCR_STOP_1;
 	lParity = LCR_PAR_NONE;
 
-	cflag = tty->termios->c_cflag;
-	iflag = tty->termios->c_iflag;
+	cflag = tty->termios.c_cflag;
+	iflag = tty->termios.c_iflag;
 
 	/* Change the number of bits */
 	if (cflag & CSIZE) {
@@ -2161,10 +2161,10 @@ static void mos7840_set_termios(struct tty_struct *tty,
 
 	dbg("%s", "setting termios - ");
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	dbg("%s - clfag %08x iflag %08x", __func__,
-	    tty->termios->c_cflag, RELEVANT_IFLAG(tty->termios->c_iflag));
+	    tty->termios.c_cflag, RELEVANT_IFLAG(tty->termios.c_iflag));
 	dbg("%s - old clfag %08x old iflag %08x", __func__,
 	    old_termios->c_cflag, RELEVANT_IFLAG(old_termios->c_iflag));
 	dbg("%s - port %d", __func__, port->number);

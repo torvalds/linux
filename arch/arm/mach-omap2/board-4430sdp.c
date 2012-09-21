@@ -28,23 +28,22 @@
 #include <linux/leds_pwm.h>
 #include <linux/platform_data/omap4-keypad.h>
 
-#include <mach/hardware.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/usb.h>
 #include <plat/mmc.h>
-#include <plat/omap4-keypad.h>
+#include "omap4-keypad.h"
 #include <video/omapdss.h>
 #include <video/omap-panel-nokia-dsi.h>
 #include <video/omap-panel-picodlp.h>
 #include <linux/wl12xx.h>
 #include <linux/platform_data/omap-abe-twl6040.h>
 
+#include "soc.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "control.h"
@@ -544,7 +543,6 @@ static struct twl6040_platform_data twl6040_data = {
 	.codec		= &twl6040_codec,
 	.vibra		= &twl6040_vibra,
 	.audpwron_gpio	= 127,
-	.irq_base	= TWL6040_CODEC_IRQ_BASE,
 };
 
 static struct twl4030_platform_data sdp4430_twldata = {
@@ -581,7 +579,7 @@ static int __init omap4_i2c_init(void)
 			TWL_COMMON_REGULATOR_V1V8 |
 			TWL_COMMON_REGULATOR_V2V1);
 	omap4_pmic_init("twl6030", &sdp4430_twldata,
-			&twl6040_data, OMAP44XX_IRQ_SYS_2N);
+			&twl6040_data, 119 + OMAP44XX_IRQ_GIC_START);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, sdp4430_i2c_3_boardinfo,
 				ARRAY_SIZE(sdp4430_i2c_3_boardinfo));

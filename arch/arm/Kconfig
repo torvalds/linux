@@ -279,7 +279,6 @@ config ARCH_INTEGRATOR
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_FPGA_IRQ
-	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
 	select MULTI_IRQ_HANDLER
@@ -312,7 +311,6 @@ config ARCH_VERSATILE
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select NEED_MACH_IO_H if PCI
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLOCK
 	select PLAT_VERSATILE_CLCD
@@ -407,21 +405,19 @@ config ARCH_GEMINI
 	help
 	  Support for the Cortina Systems Gemini family SoCs
 
-config ARCH_PRIMA2
-	bool "CSR SiRFSoC PRIMA2 ARM Cortex A9 Platform"
-	select CPU_V7
+config ARCH_SIRF
+	bool "CSR SiRF"
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select CLKDEV_LOOKUP
+	select COMMON_CLK
 	select GENERIC_IRQ_CHIP
 	select MIGHT_HAVE_CACHE_L2X0
 	select PINCTRL
 	select PINCTRL_SIRF
 	select USE_OF
-	select ZONE_DMA
 	help
-          Support for CSR SiRFSoC ARM Cortex A9 Platform
+	  Support for CSR SiRFprimaII/Marco/Polo platforms
 
 config ARCH_EBSA110
 	bool "EBSA-110"
@@ -456,7 +452,7 @@ config ARCH_FOOTBRIDGE
 	select FOOTBRIDGE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_IDE
-	select NEED_MACH_IO_H
+	select NEED_MACH_IO_H if !MMU
 	select NEED_MACH_MEMORY_H
 	help
 	  Support for systems based on the DC21285 companion chip
@@ -513,7 +509,6 @@ config ARCH_IOP13XX
 	select PCI
 	select ARCH_SUPPORTS_MSI
 	select VMSPLIT_1G
-	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	select NEED_RET_TO_USER
 	help
@@ -523,7 +518,6 @@ config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
 	select CPU_XSCALE
-	select NEED_MACH_IO_H
 	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
@@ -536,7 +530,6 @@ config ARCH_IOP33X
 	bool "IOP33x-based"
 	depends on MMU
 	select CPU_XSCALE
-	select NEED_MACH_IO_H
 	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
@@ -576,7 +569,6 @@ config ARCH_DOVE
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select NEED_MACH_IO_H
 	select PLAT_ORION
 	help
 	  Support for the Marvell Dove SoC 88AP510
@@ -587,7 +579,6 @@ config ARCH_KIRKWOOD
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select NEED_MACH_IO_H
 	select PLAT_ORION
 	help
 	  Support for the following Marvell Kirkwood series SoCs:
@@ -614,7 +605,6 @@ config ARCH_MV78XX0
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select NEED_MACH_IO_H
 	select PLAT_ORION
 	help
 	  Support for the following Marvell MV78xx0 series SoCs:
@@ -627,7 +617,6 @@ config ARCH_ORION5X
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
-	select NEED_MACH_IO_H
 	select PLAT_ORION
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
@@ -652,8 +641,9 @@ config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
 	select CPU_ARM922T
 	select ARCH_REQUIRE_GPIOLIB
-	select ARCH_USES_GETTIMEOFFSET
 	select NEED_MACH_MEMORY_H
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
@@ -683,7 +673,6 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
-	select NEED_MACH_IO_H if PCI
 	select ARCH_HAS_CPUFREQ
 	select USE_OF
 	help
@@ -708,14 +697,6 @@ config ARCH_PICOXCELL
 	  This enables support for systems based on the Picochip picoXcell
 	  family of Femtocell devices.  The picoxcell support requires device tree
 	  for all boards.
-
-config ARCH_PNX4008
-	bool "Philips Nexperia PNX4008 Mobile"
-	select CPU_ARM926T
-	select CLKDEV_LOOKUP
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  This enables support for Philips PNX4008 mobile platform.
 
 config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
@@ -912,7 +893,6 @@ config ARCH_SHARK
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
 	select NEED_MACH_MEMORY_H
-	select NEED_MACH_IO_H
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
@@ -931,6 +911,7 @@ config ARCH_U300
 	select COMMON_CLK
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
+	select SPARSE_IRQ
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 
@@ -1118,6 +1099,8 @@ source "arch/arm/mach-exynos/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
+source "arch/arm/mach-prima2/Kconfig"
+
 source "arch/arm/mach-tegra/Kconfig"
 
 source "arch/arm/mach-u300/Kconfig"
@@ -1178,12 +1161,6 @@ config XSCALE_PMU
 	bool
 	depends on CPU_XSCALE
 	default y
-
-config CPU_HAS_PMU
-	depends on (CPU_V6 || CPU_V6K || CPU_V7 || XSCALE_PMU) && \
-		   (!ARCH_OMAP3 || OMAP3_EMU)
-	default y
-	bool
 
 config MULTI_IRQ_HANDLER
 	bool
@@ -1757,7 +1734,7 @@ config HIGHPTE
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && CPU_HAS_PMU
+	depends on PERF_EVENTS
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If
