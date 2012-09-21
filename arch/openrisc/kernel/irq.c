@@ -87,9 +87,11 @@ static void or1k_pic_mask_ack(struct irq_data *data)
 	/* Comments for pic_ack apply here, too */
 
 #ifdef CONFIG_OR1K_1200
+	mtspr(SPR_PICMR, mfspr(SPR_PICMR) & ~(1UL << data->hwirq));
 	mtspr(SPR_PICSR, mfspr(SPR_PICSR) & ~(1UL << data->hwirq));
 #else
 	WARN(1, "Interrupt handling possibly broken\n");
+	mtspr(SPR_PICMR, (1UL << data->hwirq));
 	mtspr(SPR_PICSR, (1UL << data->hwirq));
 #endif
 }
