@@ -356,13 +356,6 @@ enum dsp_download_state {
 	DSP_DOWNLOADED      = 2
 };
 
-struct hda_stream_format {
-	unsigned int   sample_rate;
-	unsigned short valid_bits_per_sample;
-	unsigned short container_size;
-	unsigned short number_channels;
-};
-
 /* retrieve parameters from hda format */
 #define get_hdafmt_chs(fmt)	(fmt & 0xf)
 #define get_hdafmt_bits(fmt)	((fmt >> 4) & 0x7)
@@ -1585,16 +1578,17 @@ enum dma_state {
 };
 
 static int dma_convert_to_hda_format(
-		struct hda_stream_format *stream_format,
+		unsigned int sample_rate,
+		unsigned short channels,
 		unsigned short *hda_format)
 {
 	unsigned int format_val;
 
 	format_val = snd_hda_calc_stream_format(
-				stream_format->sample_rate,
-				stream_format->number_channels,
+				sample_rate,
+				channels,
 				SNDRV_PCM_FORMAT_S32_LE,
-				stream_format->container_size, 0);
+				32, 0);
 
 	if (hda_format)
 		*hda_format = (unsigned short)format_val;
@@ -1940,14 +1934,17 @@ static int dspxfr_one_seg(struct hda_codec *codec,
  * @fls_data: pointer to a fast load image
  * @reloc: Relocation address for loading single-segment overlays, or 0 for
  *	   no relocation
- * @format: format of the stream used for DSP download
+ * @sample_rate: sampling rate of the stream used for DSP download
+ * @number_channels: channels of the stream used for DSP download
  * @ovly: TRUE if overlay format is required
  *
  * Returns zero or a negative error code.
  */
 static int dspxfr_image(struct hda_codec *codec,
 			const struct dsp_image_seg *fls_data,
-			unsigned int reloc, struct hda_stream_format *format,
+			unsigned int reloc,
+			unsigned int sample_rate,
+			unsigned short channels,
 			bool ovly)
 {
 	struct ca0132_spec *spec = codec->spec;
@@ -1976,7 +1973,7 @@ static int dspxfr_image(struct hda_codec *codec,
 	}
 
 	dma_engine->codec = codec;
-	dma_convert_to_hda_format(format, &hda_format);
+	dma_convert_to_hda_format(sample_rate, channels, &hda_format);
 	dma_engine->m_converter_format = hda_format;
 	dma_engine->buf_size = (ovly ? DSP_DMA_WRITE_BUFLEN_OVLY :
 			DSP_DMA_WRITE_BUFLEN_INIT) * 2;
@@ -2104,7 +2101,8 @@ static int dspload_image(struct hda_codec *codec,
 			int router_chans)
 {
 	int status = 0;
-	struct hda_stream_format stream_format;
+	unsigned int sample_rate;
+	unsigned short channels;
 
 	snd_printdd(KERN_INFO "---- dspload_image begin ------");
 	if (router_chans == 0) {
@@ -2114,16 +2112,13 @@ static int dspload_image(struct hda_codec *codec,
 			router_chans = DMA_OVERLAY_FRAME_SIZE_NWORDS;
 	}
 
-	stream_format.sample_rate = 48000;
-	stream_format.number_channels = (unsigned short)router_chans;
+	sample_rate = 48000;
+	channels = (unsigned short)router_chans;
 
-	while (stream_format.number_channels > 16) {
-		stream_format.sample_rate *= 2;
-		stream_format.number_channels /= 2;
+	while (channels > 16) {
+		sample_rate *= 2;
+		channels /= 2;
 	}
-
-	stream_format.container_size = 32;
-	stream_format.valid_bits_per_sample = 32;
 
 	do {
 		snd_printdd(KERN_INFO "Ready to program DMA");
@@ -2134,7 +2129,8 @@ static int dspload_image(struct hda_codec *codec,
 			break;
 
 		snd_printdd(KERN_INFO "dsp_reset() complete");
-		status = dspxfr_image(codec, fls, reloc, &stream_format, ovly);
+		status = dspxfr_image(codec, fls, reloc, sample_rate, channels,
+				      ovly);
 
 		if (status < 0)
 			break;
