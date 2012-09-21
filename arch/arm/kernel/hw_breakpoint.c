@@ -912,8 +912,8 @@ static void reset_ctrl_regs(void *unused)
 	switch (debug_arch) {
 	case ARM_DEBUG_ARCH_V6:
 	case ARM_DEBUG_ARCH_V6_1:
-		/* ARMv6 cores just need to reset the registers. */
-		goto reset_regs;
+		/* ARMv6 cores clear the registers out of reset. */
+		goto out_mdbgen;
 	case ARM_DEBUG_ARCH_V7_ECP14:
 		/*
 		 * Ensure sticky power-down is clear (i.e. debug logic is
@@ -966,7 +966,6 @@ clear_vcr:
 		return;
 	}
 
-reset_regs:
 	/*
 	 * The control/value register pairs are UNKNOWN out of reset so
 	 * clear them to avoid spurious debug events.
@@ -991,6 +990,7 @@ reset_regs:
 	 * Have a crack at enabling monitor mode. We don't actually need
 	 * it yet, but reporting an error early is useful if it fails.
 	 */
+out_mdbgen:
 	if (enable_monitor_mode())
 		cpumask_or(&debug_err_mask, &debug_err_mask, cpumask_of(cpu));
 }
