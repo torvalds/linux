@@ -232,10 +232,29 @@ static inline void dwc_chan_disable(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 /*----------------------------------------------------------------------*/
 
+/* Perform single block transfer */
+static inline void dwc_do_single_block(struct dw_dma_chan *dwc,
+				       struct dw_desc *desc)
+{
+	struct dw_dma	*dw = to_dw_dma(dwc->chan.device);
+	u32		ctllo;
+
+	/* Software emulation of LLP mode relies on interrupts to continue
+	 * multi block transfer. */
+	ctllo = desc->lli.ctllo | DWC_CTLL_INT_EN;
+
+	channel_writel(dwc, SAR, desc->lli.sar);
+	channel_writel(dwc, DAR, desc->lli.dar);
+	channel_writel(dwc, CTL_LO, ctllo);
+	channel_writel(dwc, CTL_HI, desc->lli.ctlhi);
+	channel_set_bit(dw, CH_EN, dwc->mask);
+}
+
 /* Called with dwc->lock held and bh disabled */
 static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 {
 	struct dw_dma	*dw = to_dw_dma(dwc->chan.device);
+	unsigned long	was_soft_llp;
 
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
@@ -244,6 +263,26 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 		dwc_dump_chan_regs(dwc);
 
 		/* The tasklet will hopefully advance the queue... */
+		return;
+	}
+
+	if (dwc->nollp) {
+		was_soft_llp = test_and_set_bit(DW_DMA_IS_SOFT_LLP,
+						&dwc->flags);
+		if (was_soft_llp) {
+			dev_err(chan2dev(&dwc->chan),
+				"BUG: Attempted to start new LLP transfer "
+				"inside ongoing one\n");
+			return;
+		}
+
+		dwc_initialize(dwc);
+
+		dwc->tx_list = &first->tx_list;
+		dwc->tx_node_active = first->tx_list.next;
+
+		dwc_do_single_block(dwc, first);
+
 		return;
 	}
 
@@ -558,8 +597,36 @@ static void dw_dma_tasklet(unsigned long data)
 			dwc_handle_cyclic(dw, dwc, status_err, status_xfer);
 		else if (status_err & (1 << i))
 			dwc_handle_error(dw, dwc);
-		else if (status_xfer & (1 << i))
+		else if (status_xfer & (1 << i)) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&dwc->lock, flags);
+			if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags)) {
+				if (dwc->tx_node_active != dwc->tx_list) {
+					struct dw_desc *desc =
+						list_entry(dwc->tx_node_active,
+							   struct dw_desc,
+							   desc_node);
+
+					dma_writel(dw, CLEAR.XFER, dwc->mask);
+
+					/* move pointer to next descriptor */
+					dwc->tx_node_active =
+						dwc->tx_node_active->next;
+
+					dwc_do_single_block(dwc, desc);
+
+					spin_unlock_irqrestore(&dwc->lock, flags);
+					continue;
+				} else {
+					/* we are done here */
+					clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
+				}
+			}
+			spin_unlock_irqrestore(&dwc->lock, flags);
+
 			dwc_scan_descriptors(dw, dwc);
+		}
 	}
 
 	/*
@@ -962,6 +1029,8 @@ static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	} else if (cmd == DMA_TERMINATE_ALL) {
 		spin_lock_irqsave(&dwc->lock, flags);
 
+		clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
+
 		dwc_chan_disable(dw, dwc);
 
 		dwc->paused = false;
@@ -1204,6 +1273,13 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 	unsigned long			flags;
 
 	spin_lock_irqsave(&dwc->lock, flags);
+	if (dwc->nollp) {
+		spin_unlock_irqrestore(&dwc->lock, flags);
+		dev_dbg(chan2dev(&dwc->chan),
+				"channel doesn't support LLP transfers\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	if (!list_empty(&dwc->queue) || !list_empty(&dwc->active_list)) {
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		dev_dbg(chan2dev(&dwc->chan),
@@ -1471,6 +1547,7 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&dw->dma.channels);
 	for (i = 0; i < nr_channels; i++) {
 		struct dw_dma_chan	*dwc = &dw->chan[i];
+		int			r = nr_channels - i - 1;
 
 		dwc->chan.device = &dw->dma;
 		dma_cookie_init(&dwc->chan);
@@ -1482,7 +1559,7 @@ static int __devinit dw_probe(struct platform_device *pdev)
 
 		/* 7 is highest priority & 0 is lowest. */
 		if (pdata->chan_priority == CHAN_PRIORITY_ASCENDING)
-			dwc->priority = nr_channels - i - 1;
+			dwc->priority = r;
 		else
 			dwc->priority = i;
 
@@ -1499,14 +1576,28 @@ static int __devinit dw_probe(struct platform_device *pdev)
 		dwc->dw = dw;
 
 		/* hardware configuration */
-		if (autocfg)
+		if (autocfg) {
+			unsigned int dwc_params;
+
+			dwc_params = dma_read_byaddr(regs + r * sizeof(u32),
+						     DWC_PARAMS);
+
 			/* Decode maximum block size for given channel. The
 			 * stored 4 bit value represents blocks from 0x00 for 3
 			 * up to 0x0a for 4095. */
 			dwc->block_size =
 				(4 << ((max_blk_size >> 4 * i) & 0xf)) - 1;
-		else
+			dwc->nollp =
+				(dwc_params >> DWC_PARAMS_MBLK_EN & 0x1) == 0;
+		} else {
 			dwc->block_size = pdata->block_size;
+
+			/* Check if channel supports multi block transfer */
+			channel_writel(dwc, LLP, 0xfffffffc);
+			dwc->nollp =
+				(channel_readl(dwc, LLP) & 0xfffffffc) == 0;
+			channel_writel(dwc, LLP, 0);
+		}
 	}
 
 	/* Clear all interrupts on all channels. */

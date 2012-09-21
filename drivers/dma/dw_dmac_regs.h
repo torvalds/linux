@@ -172,6 +172,7 @@ struct dw_dma_regs {
 
 enum dw_dmac_flags {
 	DW_DMA_IS_CYCLIC = 0,
+	DW_DMA_IS_SOFT_LLP = 1,
 };
 
 struct dw_dma_chan {
@@ -181,6 +182,10 @@ struct dw_dma_chan {
 	u8			priority;
 	bool			paused;
 	bool			initialized;
+
+	/* software emulation of the LLP transfers */
+	struct list_head	*tx_list;
+	struct list_head	*tx_node_active;
 
 	spinlock_t		lock;
 
@@ -195,6 +200,7 @@ struct dw_dma_chan {
 
 	/* hardware configuration */
 	unsigned int		block_size;
+	bool			nollp;
 
 	/* configuration passed via DMA_SLAVE_CONFIG */
 	struct dma_slave_config dma_sconfig;
