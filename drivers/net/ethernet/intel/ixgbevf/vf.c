@@ -79,6 +79,9 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	hw->mac.ops.stop_adapter(hw);
 
+	/* reset the api version */
+	hw->api_version = ixgbe_mbox_api_10;
+
 	IXGBE_WRITE_REG(hw, IXGBE_VFCTRL, IXGBE_CTRL_RST);
 	IXGBE_WRITE_FLUSH(hw);
 
@@ -97,7 +100,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	msgbuf[0] = IXGBE_VF_RESET;
 	mbx->ops.write_posted(hw, msgbuf, 1);
 
-	msleep(10);
+	mdelay(10);
 
 	/* set our "perm_addr" based on info provided by PF */
 	/* also set up the mc_filter_type which is piggy backed
@@ -431,6 +434,40 @@ void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
 	msgbuf[0] = IXGBE_VF_SET_LPE;
 	msgbuf[1] = max_size;
 	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+}
+
+/**
+ *  ixgbevf_negotiate_api_version - Negotiate supported API version
+ *  @hw: pointer to the HW structure
+ *  @api: integer containing requested API version
+ **/
+int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
+{
+	int err;
+	u32 msg[3];
+
+	/* Negotiate the mailbox API version */
+	msg[0] = IXGBE_VF_API_NEGOTIATE;
+	msg[1] = api;
+	msg[2] = 0;
+	err = hw->mbx.ops.write_posted(hw, msg, 3);
+
+	if (!err)
+		err = hw->mbx.ops.read_posted(hw, msg, 3);
+
+	if (!err) {
+		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+
+		/* Store value and return 0 on success */
+		if (msg[0] == (IXGBE_VF_API_NEGOTIATE | IXGBE_VT_MSGTYPE_ACK)) {
+			hw->api_version = api;
+			return 0;
+		}
+
+		err = IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
+	return err;
 }
 
 static const struct ixgbe_mac_operations ixgbevf_mac_ops = {

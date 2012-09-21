@@ -349,6 +349,7 @@
 /* Energy Efficient Ethernet "EEE" register */
 #define E1000_IPCNFG  0x0E38  /* Internal PHY Configuration */
 #define E1000_EEER    0x0E30  /* Energy Efficient Ethernet */
+#define E1000_EEE_SU  0X0E34  /* EEE Setup */
 
 /* Thermal Sensor Register */
 #define E1000_THSTAT    0x08110 /* Thermal Sensor Status */
