@@ -1165,7 +1165,7 @@ snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
 				unsigned int size,
 				struct snd_dma_buffer *bufp)
 {
-	return 0;
+	return -ENOSYS;
 }
 static inline void
 snd_hda_codec_load_dsp_trigger(struct hda_codec *codec, bool start) {}
