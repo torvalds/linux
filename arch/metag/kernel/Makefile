@@ -28,6 +28,7 @@ obj-y	+= user_gateway.o
 obj-$(CONFIG_PERF_EVENTS)		+= perf/
 
 obj-$(CONFIG_METAG_COREMEM)		+= coremem.o
+obj-$(CONFIG_METAG_DA)			+= da.o
 obj-$(CONFIG_DYNAMIC_FTRACE)		+= ftrace.o
 obj-$(CONFIG_FUNCTION_TRACER)		+= ftrace_stub.o
 obj-$(CONFIG_MODULES)			+= metag_ksyms.o

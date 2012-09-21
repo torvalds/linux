@@ -214,6 +214,18 @@ config METAG_PERFCOUNTER_IRQS
 	  When disabled, Performance Counters information will be collected
 	  based on Timer Interrupt.
 
+config METAG_DA
+	bool "DA support"
+	help
+	  Say Y if you plan to use a DA debug adapter with Linux. The presence
+	  of the DA will be detected automatically at boot, so it is safe to say
+	  Y to this option even when booting without a DA.
+
+	  This enables support for services provided by DA JTAG debug adapters,
+	  such as:
+	  - communication over DA channels (such as the console driver).
+	  - use of the DA filesystem.
+
 menu "Boot options"
 
 config METAG_BUILTIN_DTB
