@@ -1672,7 +1672,8 @@ static void via_hp_automute(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 
 	if (!spec->hp_independent_mode && spec->autocfg.hp_pins[0] &&
-	    (spec->codec_type != VT1708 || spec->vt1708_jack_detect))
+	    (spec->codec_type != VT1708 || spec->vt1708_jack_detect) &&
+	    is_jack_detectable(codec, spec->autocfg.hp_pins[0]))
 		present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
 	if (spec->smart51_enabled)
