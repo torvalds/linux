@@ -21,6 +21,7 @@
 #include <linux/io.h>
 
 #include <asm/cputype.h>
+#include <asm/delay.h>
 #include <asm/localtimer.h>
 #include <asm/arch_timer.h>
 #include <asm/system_info.h>
@@ -39,8 +40,7 @@ enum ppi_nr {
 static int arch_timer_ppi[MAX_TIMER_PPI];
 
 static struct clock_event_device __percpu **arch_timer_evt;
-
-extern void init_current_timer_delay(unsigned long freq);
+static struct delay_timer arch_delay_timer;
 
 static bool arch_timer_use_virtual = true;
 
@@ -325,12 +325,9 @@ static cycle_t arch_counter_read(struct clocksource *cs)
 	return arch_counter_get_cntpct();
 }
 
-int read_current_timer(unsigned long *timer_val)
+static unsigned long arch_timer_read_current_timer(void)
 {
-	if (!arch_timer_rate)
-		return -ENXIO;
-	*timer_val = arch_counter_get_cntpct();
-	return 0;
+	return arch_counter_get_cntpct();
 }
 
 static cycle_t arch_counter_read_cc(const struct cyclecounter *cc)
@@ -441,11 +438,13 @@ static int __init arch_timer_register(void)
 		arch_timer_global_evt.cpumask = cpumask_of(0);
 		err = arch_timer_setup(&arch_timer_global_evt);
 	}
-
 	if (err)
 		goto out_free_irq;
 
-	init_current_timer_delay(arch_timer_rate);
+	/* Use the architected timer for the delay loop. */
+	arch_delay_timer.read_current_timer = &arch_timer_read_current_timer;
+	arch_delay_timer.freq = arch_timer_rate;
+	register_current_timer_delay(&arch_delay_timer);
 	return 0;
 
 out_free_irq:
