@@ -506,7 +506,8 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 	}
 
 	ret = mfd_add_devices(tps6586x->dev, -1,
-			tps6586x_cell, ARRAY_SIZE(tps6586x_cell), NULL, 0);
+			      tps6586x_cell, ARRAY_SIZE(tps6586x_cell),
+			      NULL, 0, NULL);
 	if (ret < 0) {
 		dev_err(&client->dev, "mfd_add_devices failed: %d\n", ret);
 		goto err_mfd_add;

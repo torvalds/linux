@@ -4209,7 +4209,7 @@ static struct omap_hwmod_ocp_if omap44xx_dsp__iva = {
 };
 
 /* dsp -> sl2if */
-static struct omap_hwmod_ocp_if omap44xx_dsp__sl2if = {
+static struct omap_hwmod_ocp_if __maybe_unused omap44xx_dsp__sl2if = {
 	.master		= &omap44xx_dsp_hwmod,
 	.slave		= &omap44xx_sl2if_hwmod,
 	.clk		= "dpll_iva_m5x2_ck",
@@ -4827,7 +4827,7 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__iss = {
 };
 
 /* iva -> sl2if */
-static struct omap_hwmod_ocp_if omap44xx_iva__sl2if = {
+static struct omap_hwmod_ocp_if __maybe_unused omap44xx_iva__sl2if = {
 	.master		= &omap44xx_iva_hwmod,
 	.slave		= &omap44xx_sl2if_hwmod,
 	.clk		= "dpll_iva_m5x2_ck",
@@ -5361,7 +5361,7 @@ static struct omap_hwmod_ocp_if omap44xx_l4_wkup__scrm = {
 };
 
 /* l3_main_2 -> sl2if */
-static struct omap_hwmod_ocp_if omap44xx_l3_main_2__sl2if = {
+static struct omap_hwmod_ocp_if __maybe_unused omap44xx_l3_main_2__sl2if = {
 	.master		= &omap44xx_l3_main_2_hwmod,
 	.slave		= &omap44xx_sl2if_hwmod,
 	.clk		= "l3_div_ck",
@@ -6031,7 +6031,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_abe__dmic,
 	&omap44xx_l4_abe__dmic_dma,
 	&omap44xx_dsp__iva,
-	&omap44xx_dsp__sl2if,
+	/* &omap44xx_dsp__sl2if, */
 	&omap44xx_l4_cfg__dsp,
 	&omap44xx_l3_main_2__dss,
 	&omap44xx_l4_per__dss,
@@ -6067,7 +6067,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_per__i2c4,
 	&omap44xx_l3_main_2__ipu,
 	&omap44xx_l3_main_2__iss,
-	&omap44xx_iva__sl2if,
+	/* &omap44xx_iva__sl2if, */
 	&omap44xx_l3_main_2__iva,
 	&omap44xx_l4_wkup__kbd,
 	&omap44xx_l4_cfg__mailbox,
@@ -6098,7 +6098,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__cm_core,
 	&omap44xx_l4_wkup__prm,
 	&omap44xx_l4_wkup__scrm,
-	&omap44xx_l3_main_2__sl2if,
+	/* &omap44xx_l3_main_2__sl2if, */
 	&omap44xx_l4_abe__slimbus1,
 	&omap44xx_l4_abe__slimbus1_dma,
 	&omap44xx_l4_per__slimbus2,
