@@ -471,6 +471,7 @@ struct kvm_vcpu_arch {
 	unsigned long dr6;
 	unsigned long dr7;
 	unsigned long eff_db[KVM_NR_DB_REGS];
+	unsigned long guest_debug_dr7;
 
 	u64 mcg_cap;
 	u64 mcg_status;
@@ -647,8 +648,7 @@ struct kvm_x86_ops {
 	void (*vcpu_load)(struct kvm_vcpu *vcpu, int cpu);
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 
-	void (*set_guest_debug)(struct kvm_vcpu *vcpu,
-				struct kvm_guest_debug *dbg);
+	void (*update_db_bp_intercept)(struct kvm_vcpu *vcpu);
 	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
 	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 	u64 (*get_segment_base)(struct kvm_vcpu *vcpu, int seg);

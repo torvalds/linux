@@ -692,6 +692,18 @@ unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_get_cr8);
 
+static void kvm_update_dr7(struct kvm_vcpu *vcpu)
+{
+	unsigned long dr7;
+
+	if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+		dr7 = vcpu->arch.guest_debug_dr7;
+	else
+		dr7 = vcpu->arch.dr7;
+	kvm_x86_ops->set_dr7(vcpu, dr7);
+	vcpu->arch.switch_db_regs = (dr7 & DR7_BP_EN_MASK);
+}
+
 static int __kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 {
 	switch (dr) {
@@ -717,10 +729,7 @@ static int __kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 		if (val & 0xffffffff00000000ULL)
 			return -1; /* #GP */
 		vcpu->arch.dr7 = (val & DR7_VOLATILE) | DR7_FIXED_1;
-		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)) {
-			kvm_x86_ops->set_dr7(vcpu, vcpu->arch.dr7);
-			vcpu->arch.switch_db_regs = (val & DR7_BP_EN_MASK);
-		}
+		kvm_update_dr7(vcpu);
 		break;
 	}
 
@@ -5851,13 +5860,12 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP) {
 		for (i = 0; i < KVM_NR_DB_REGS; ++i)
 			vcpu->arch.eff_db[i] = dbg->arch.debugreg[i];
-		vcpu->arch.switch_db_regs =
-			(dbg->arch.debugreg[7] & DR7_BP_EN_MASK);
+		vcpu->arch.guest_debug_dr7 = dbg->arch.debugreg[7];
 	} else {
 		for (i = 0; i < KVM_NR_DB_REGS; i++)
 			vcpu->arch.eff_db[i] = vcpu->arch.db[i];
-		vcpu->arch.switch_db_regs = (vcpu->arch.dr7 & DR7_BP_EN_MASK);
 	}
+	kvm_update_dr7(vcpu);
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
 		vcpu->arch.singlestep_rip = kvm_rip_read(vcpu) +
@@ -5869,7 +5877,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	 */
 	kvm_set_rflags(vcpu, rflags);
 
-	kvm_x86_ops->set_guest_debug(vcpu, dbg);
+	kvm_x86_ops->update_db_bp_intercept(vcpu);
 
 	r = 0;
 
@@ -6045,10 +6053,10 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.nmi_pending = 0;
 	vcpu->arch.nmi_injected = false;
 
-	vcpu->arch.switch_db_regs = 0;
 	memset(vcpu->arch.db, 0, sizeof(vcpu->arch.db));
 	vcpu->arch.dr6 = DR6_FIXED_1;
 	vcpu->arch.dr7 = DR7_FIXED_1;
+	kvm_update_dr7(vcpu);
 
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	vcpu->arch.apf.msr_val = 0;

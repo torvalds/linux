@@ -2288,16 +2288,6 @@ static void vmx_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 	}
 }
 
-static void set_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
-{
-	if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
-		vmcs_writel(GUEST_DR7, dbg->arch.debugreg[7]);
-	else
-		vmcs_writel(GUEST_DR7, vcpu->arch.dr7);
-
-	update_exception_bitmap(vcpu);
-}
-
 static __init int cpu_has_kvm_support(void)
 {
 	return cpu_has_vmx();
@@ -3959,8 +3949,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	else
 		kvm_rip_write(vcpu, 0);
 	kvm_register_write(vcpu, VCPU_REGS_RSP, 0);
-
-	vmcs_writel(GUEST_DR7, 0x400);
 
 	vmcs_writel(GUEST_GDTR_BASE, 0);
 	vmcs_write32(GUEST_GDTR_LIMIT, 0xffff);
@@ -7237,7 +7225,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.vcpu_load = vmx_vcpu_load,
 	.vcpu_put = vmx_vcpu_put,
 
-	.set_guest_debug = set_guest_debug,
+	.update_db_bp_intercept = update_exception_bitmap,
 	.get_msr = vmx_get_msr,
 	.set_msr = vmx_set_msr,
 	.get_segment_base = vmx_get_segment_base,
