@@ -7,10 +7,12 @@
     <tbody valign="top">
 	<!-- Keep it ordered alphabetically -->
       <row>
-	<entry>EAGAIN</entry>
+	<entry>EAGAIN (aka EWOULDBLOCK)</entry>
 	<entry>The ioctl can't be handled because the device is in state where
 	       it can't perform it. This could happen for example in case where
 	       device is sleeping and ioctl is performed to query statistics.
+	       It is also returned when the ioctl would need to wait
+	       for an event, but the device was opened in non-blocking mode.
 	</entry>
       </row>
       <row>
@@ -62,11 +64,6 @@
 	<entry>Permission denied. Can be returned if the device needs write
 		permission, or some special capabilities is needed
 		(e. g. root)</entry>
-      </row>
-      <row>
-	<entry>EWOULDBLOCK</entry>
-	<entry>Operation would block. Used when the ioctl would need to wait
-	       for an event, but the device was opened in non-blocking mode.</entry>
       </row>
     </tbody>
   </tgroup>
