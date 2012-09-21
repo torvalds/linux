@@ -661,6 +661,14 @@
 					};
 				};
 
+				usbotg {
+					pinctrl_usbotg_1: usbotggrp-1 {
+						fsl,pins = <
+							1592 0x17059	/* MX6Q_PAD_GPIO_1__ANATOP_USBOTG_ID */
+						>;
+					};
+				};
+
 				usdhc2 {
 					pinctrl_usdhc2_1: usdhc2grp-1 {
 						fsl,pins = <
@@ -777,6 +785,7 @@
 				interrupts = <0 43 0x04>;
 				clocks = <&clks 162>;
 				fsl,usbphy = <&usbphy1>;
+				fsl,usbmisc = <&usbmisc 0>;
 				status = "disabled";
 			};
 
@@ -786,6 +795,7 @@
 				interrupts = <0 40 0x04>;
 				clocks = <&clks 162>;
 				fsl,usbphy = <&usbphy2>;
+				fsl,usbmisc = <&usbmisc 1>;
 				status = "disabled";
 			};
 
@@ -794,6 +804,7 @@
 				reg = <0x02184400 0x200>;
 				interrupts = <0 41 0x04>;
 				clocks = <&clks 162>;
+				fsl,usbmisc = <&usbmisc 2>;
 				status = "disabled";
 			};
 
@@ -802,7 +813,15 @@
 				reg = <0x02184600 0x200>;
 				interrupts = <0 42 0x04>;
 				clocks = <&clks 162>;
+				fsl,usbmisc = <&usbmisc 3>;
 				status = "disabled";
+			};
+
+			usbmisc: usbmisc@02184800 {
+				#index-cells = <1>;
+				compatible = "fsl,imx6q-usbmisc";
+				reg = <0x02184800 0x200>;
+				clocks = <&clks 162>;
 			};
 
 			ethernet@02188000 {

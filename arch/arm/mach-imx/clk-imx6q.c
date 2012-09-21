@@ -406,6 +406,13 @@ int __init mx6q_clocks_init(void)
 	clk_register_clkdev(clk[ahb], "ahb", NULL);
 	clk_register_clkdev(clk[cko1], "cko1", NULL);
 
+	/*
+	 * The gpmi needs 100MHz frequency in the EDO/Sync mode,
+	 * We can not get the 100MHz from the pll2_pfd0_352m.
+	 * So choose pll2_pfd2_396m as enfc_sel's parent.
+	 */
+	clk_set_parent(clk[enfc_sel], clk[pll2_pfd2_396m]);
+
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clk[clks_init_on[i]]);
 
