@@ -360,6 +360,9 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *priv,
 	if (seek->tuner != 0 || !seek->wrap_around)
 		return -EINVAL;
 
+	if (file->f_flags & O_NONBLOCK)
+		return -EWOULDBLOCK;
+
 	retval = amradio_send_cmd(radio,
 			AMRADIO_SET_SEARCH_LVL, 0, buf, 8, false);
 	if (retval)

@@ -368,6 +368,9 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 	if (a->tuner || a->wrap_around)
 		return -EINVAL;
 
+	if (file->f_flags & O_NONBLOCK)
+		return -EWOULDBLOCK;
+
 	if (a->rangelow || a->rangehigh) {
 		for (i = 0; i < ARRAY_SIZE(bands); i++) {
 			if ((i == BAND_FM && tea->tea5759) ||

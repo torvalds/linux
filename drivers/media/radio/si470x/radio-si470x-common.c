@@ -708,6 +708,9 @@ static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 	if (seek->tuner != 0)
 		return -EINVAL;
 
+	if (file->f_flags & O_NONBLOCK)
+		return -EWOULDBLOCK;
+
 	return si470x_set_seek(radio, seek);
 }
 

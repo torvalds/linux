@@ -1693,6 +1693,9 @@ static int wl1273_fm_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 	if (seek->tuner != 0 || seek->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
 
+	if (file->f_flags & O_NONBLOCK)
+		return -EWOULDBLOCK;
+
 	if (mutex_lock_interruptible(&core->lock))
 		return -EINTR;
 
