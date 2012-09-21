@@ -19,199 +19,20 @@
  * published by the Free Software Foundation.
 */
 
-/include/ "skeleton.dtsi"
+/include/ "exynos4.dtsi"
 
 / {
 	compatible = "samsung,exynos4210";
-	interrupt-parent = <&gic>;
-
-	aliases {
-		spi0 = &spi_0;
-		spi1 = &spi_1;
-		spi2 = &spi_2;
-	};
 
 	gic:interrupt-controller@10490000 {
-		compatible = "arm,cortex-a9-gic";
-		#interrupt-cells = <3>;
-		interrupt-controller;
 		cpu-offset = <0x8000>;
-		reg = <0x10490000 0x1000>, <0x10480000 0x100>;
 	};
 
 	combiner:interrupt-controller@10440000 {
-		compatible = "samsung,exynos4210-combiner";
-		#interrupt-cells = <2>;
-		interrupt-controller;
-		reg = <0x10440000 0x1000>;
 		interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
 			     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
 			     <0 8 0>, <0 9 0>, <0 10 0>, <0 11 0>,
 			     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>;
-	};
-
-	watchdog@10060000 {
-		compatible = "samsung,s3c2410-wdt";
-		reg = <0x10060000 0x100>;
-		interrupts = <0 43 0>;
-	};
-
-	rtc@10070000 {
-		compatible = "samsung,s3c6410-rtc";
-		reg = <0x10070000 0x100>;
-		interrupts = <0 44 0>, <0 45 0>;
-	};
-
-	keypad@100A0000 {
-		compatible = "samsung,s5pv210-keypad";
-		reg = <0x100A0000 0x100>;
-		interrupts = <0 109 0>;
-	};
-
-	sdhci@12510000 {
-		compatible = "samsung,exynos4210-sdhci";
-		reg = <0x12510000 0x100>;
-		interrupts = <0 73 0>;
-	};
-
-	sdhci@12520000 {
-		compatible = "samsung,exynos4210-sdhci";
-		reg = <0x12520000 0x100>;
-		interrupts = <0 74 0>;
-	};
-
-	sdhci@12530000 {
-		compatible = "samsung,exynos4210-sdhci";
-		reg = <0x12530000 0x100>;
-		interrupts = <0 75 0>;
-	};
-
-	sdhci@12540000 {
-		compatible = "samsung,exynos4210-sdhci";
-		reg = <0x12540000 0x100>;
-		interrupts = <0 76 0>;
-	};
-
-	serial@13800000 {
-		compatible = "samsung,exynos4210-uart";
-		reg = <0x13800000 0x100>;
-		interrupts = <0 52 0>;
-	};
-
-	serial@13810000 {
-		compatible = "samsung,exynos4210-uart";
-		reg = <0x13810000 0x100>;
-		interrupts = <0 53 0>;
-	};
-
-	serial@13820000 {
-		compatible = "samsung,exynos4210-uart";
-		reg = <0x13820000 0x100>;
-		interrupts = <0 54 0>;
-	};
-
-	serial@13830000 {
-		compatible = "samsung,exynos4210-uart";
-		reg = <0x13830000 0x100>;
-		interrupts = <0 55 0>;
-	};
-
-	i2c@13860000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x13860000 0x100>;
-		interrupts = <0 58 0>;
-	};
-
-	i2c@13870000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x13870000 0x100>;
-		interrupts = <0 59 0>;
-	};
-
-	i2c@13880000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x13880000 0x100>;
-		interrupts = <0 60 0>;
-	};
-
-	i2c@13890000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x13890000 0x100>;
-		interrupts = <0 61 0>;
-	};
-
-	i2c@138A0000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x138A0000 0x100>;
-		interrupts = <0 62 0>;
-	};
-
-	i2c@138B0000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x138B0000 0x100>;
-		interrupts = <0 63 0>;
-	};
-
-	i2c@138C0000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x138C0000 0x100>;
-		interrupts = <0 64 0>;
-	};
-
-	i2c@138D0000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x138D0000 0x100>;
-		interrupts = <0 65 0>;
-	};
-
-	spi_0: spi@13920000 {
-		compatible = "samsung,exynos4210-spi";
-		reg = <0x13920000 0x100>;
-		interrupts = <0 66 0>;
-		tx-dma-channel = <&pdma0 7>; /* preliminary */
-		rx-dma-channel = <&pdma0 6>; /* preliminary */
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
-	spi_1: spi@13930000 {
-		compatible = "samsung,exynos4210-spi";
-		reg = <0x13930000 0x100>;
-		interrupts = <0 67 0>;
-		tx-dma-channel = <&pdma1 7>; /* preliminary */
-		rx-dma-channel = <&pdma1 6>; /* preliminary */
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
-	spi_2: spi@13940000 {
-		compatible = "samsung,exynos4210-spi";
-		reg = <0x13940000 0x100>;
-		interrupts = <0 68 0>;
-		tx-dma-channel = <&pdma0 9>; /* preliminary */
-		rx-dma-channel = <&pdma0 8>; /* preliminary */
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
-	amba {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "arm,amba-bus";
-		interrupt-parent = <&gic>;
-		ranges;
-
-		pdma0: pdma@12680000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x12680000 0x1000>;
-			interrupts = <0 35 0>;
-		};
-
-		pdma1: pdma@12690000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x12690000 0x1000>;
-			interrupts = <0 36 0>;
-		};
 	};
 
 	gpio-controllers {
