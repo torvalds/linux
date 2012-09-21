@@ -235,13 +235,6 @@ static int enable_monitor_mode(void)
 
 	ARM_DBG_READ(c1, 0, dscr);
 
-	/* Ensure that halting mode is disabled. */
-	if (WARN_ONCE(dscr & ARM_DSCR_HDBGEN,
-		"halting debug mode enabled. Unable to access hardware resources.\n")) {
-		ret = -EPERM;
-		goto out;
-	}
-
 	/* If monitor mode is already enabled, just return. */
 	if (dscr & ARM_DSCR_MDBGEN)
 		goto out;
@@ -255,6 +248,7 @@ static int enable_monitor_mode(void)
 	case ARM_DEBUG_ARCH_V7_ECP14:
 	case ARM_DEBUG_ARCH_V7_1:
 		ARM_DBG_WRITE(c2, 2, (dscr | ARM_DSCR_MDBGEN));
+		isb();
 		break;
 	default:
 		ret = -ENODEV;
@@ -1000,8 +994,6 @@ static struct notifier_block __cpuinitdata dbg_reset_nb = {
 
 static int __init arch_hw_breakpoint_init(void)
 {
-	u32 dscr;
-
 	debug_arch = get_debug_arch();
 
 	if (!debug_arch_supported()) {
@@ -1036,17 +1028,10 @@ static int __init arch_hw_breakpoint_init(void)
 		core_num_brps, core_has_mismatch_brps() ? "(+1 reserved) " :
 		"", core_num_wrps);
 
-	ARM_DBG_READ(c1, 0, dscr);
-	if (dscr & ARM_DSCR_HDBGEN) {
-		max_watchpoint_len = 4;
-		pr_warning("halting debug mode enabled. Assuming maximum watchpoint size of %u bytes.\n",
-			   max_watchpoint_len);
-	} else {
-		/* Work out the maximum supported watchpoint length. */
-		max_watchpoint_len = get_max_wp_len();
-		pr_info("maximum watchpoint size is %u bytes.\n",
-				max_watchpoint_len);
-	}
+	/* Work out the maximum supported watchpoint length. */
+	max_watchpoint_len = get_max_wp_len();
+	pr_info("maximum watchpoint size is %u bytes.\n",
+			max_watchpoint_len);
 
 	/* Register debug fault handler. */
 	hook_fault_code(FAULT_CODE_DEBUG, hw_breakpoint_pending, SIGTRAP,
