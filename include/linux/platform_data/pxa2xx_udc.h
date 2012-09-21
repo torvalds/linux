@@ -1,6 +1,4 @@
 /*
- * arch/arm/include/asm/mach/udc_pxa2xx.h
- *
  * This supports machine-specific differences in how the PXA2xx
  * USB Device Controller (UDC) is wired.
  *
@@ -8,6 +6,8 @@
  * linux/arch/mach-ixp4xx/<machine>.c and used in
  * the probe routine of linux/drivers/usb/gadget/pxa2xx_udc.c
  */
+#ifndef PXA2XX_UDC_H
+#define PXA2XX_UDC_H
 
 struct pxa2xx_udc_mach_info {
         int  (*udc_is_connected)(void);		/* do we see host? */
@@ -24,3 +24,4 @@ struct pxa2xx_udc_mach_info {
 	int	gpio_pullup;			/* high == pullup activated */
 };
 
+#endif
