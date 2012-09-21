@@ -278,6 +278,31 @@ static __cpuinit void setup_smep(struct cpuinfo_x86 *c)
 	}
 }
 
+static int disable_smap __cpuinitdata;
+static __init int setup_disable_smap(char *arg)
+{
+	disable_smap = 1;
+	return 1;
+}
+__setup("nosmap", setup_disable_smap);
+
+static __cpuinit void setup_smap(struct cpuinfo_x86 *c)
+{
+	if (cpu_has(c, X86_FEATURE_SMAP)) {
+		if (unlikely(disable_smap)) {
+			setup_clear_cpu_cap(X86_FEATURE_SMAP);
+			clear_in_cr4(X86_CR4_SMAP);
+		} else {
+			set_in_cr4(X86_CR4_SMAP);
+			/*
+			 * Don't use clac() here since alternatives
+			 * haven't run yet...
+			 */
+			asm volatile(__stringify(__ASM_CLAC) ::: "memory");
+		}
+	}
+}
+
 /*
  * Some CPU features depend on higher CPUID levels, which may not always
  * be available due to CPUID level capping or broken virtualization
@@ -713,6 +738,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	filter_cpuid_features(c, false);
 
 	setup_smep(c);
+	setup_smap(c);
 
 	if (this_cpu->c_bsp_init)
 		this_cpu->c_bsp_init(c);
