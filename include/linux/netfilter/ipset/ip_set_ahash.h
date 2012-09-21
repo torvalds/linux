@@ -696,7 +696,7 @@ nla_put_failure:
 }
 
 static int
-type_pf_kadt(struct ip_set *set, const struct sk_buff * skb,
+type_pf_kadt(struct ip_set *set, const struct sk_buff *skb,
 	     const struct xt_action_param *par,
 	     enum ipset_adt adt, const struct ip_set_adt_opt *opt);
 static int

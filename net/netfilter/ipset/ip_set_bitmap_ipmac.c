@@ -323,11 +323,11 @@ bitmap_ipmac_tlist(const struct ip_set *set,
 		    (elem->match == MAC_FILLED &&
 		     nla_put(skb, IPSET_ATTR_ETHER, ETH_ALEN,
 			     elem->ether)))
-		    goto nla_put_failure;
+			goto nla_put_failure;
 		timeout = elem->match == MAC_UNSET ? elem->timeout
 				: ip_set_timeout_get(elem->timeout);
 		if (nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(timeout)))
-		    goto nla_put_failure;
+			goto nla_put_failure;
 		ipset_nest_end(skb, nested);
 	}
 	ipset_nest_end(skb, atd);

@@ -255,7 +255,7 @@ struct ip_set_type_variant {
 	 *		returns negative error code,
 	 *			zero for no match/success to add/delete
 	 *			positive for matching element */
-	int (*kadt)(struct ip_set *set, const struct sk_buff * skb,
+	int (*kadt)(struct ip_set *set, const struct sk_buff *skb,
 		    const struct xt_action_param *par,
 		    enum ipset_adt adt, const struct ip_set_adt_opt *opt);
 
@@ -430,7 +430,8 @@ static inline int nla_put_ipaddr4(struct sk_buff *skb, int type, __be32 ipaddr)
 	return ret;
 }
 
-static inline int nla_put_ipaddr6(struct sk_buff *skb, int type, const struct in6_addr *ipaddrptr)
+static inline int nla_put_ipaddr6(struct sk_buff *skb, int type,
+				  const struct in6_addr *ipaddrptr)
 {
 	struct nlattr *__nested = ipset_nest_start(skb, type);
 	int ret;
