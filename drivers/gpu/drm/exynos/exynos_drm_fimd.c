@@ -57,6 +57,18 @@
 
 #define get_fimd_context(dev)	platform_get_drvdata(to_platform_device(dev))
 
+struct fimd_driver_data {
+	unsigned int timing_base;
+};
+
+struct fimd_driver_data exynos4_fimd_driver_data = {
+	.timing_base = 0x0,
+};
+
+struct fimd_driver_data exynos5_fimd_driver_data = {
+	.timing_base = 0x20000,
+};
+
 struct fimd_win_data {
 	unsigned int		offset_x;
 	unsigned int		offset_y;
@@ -90,6 +102,13 @@ struct fimd_context {
 
 	struct exynos_drm_panel_info *panel;
 };
+
+static inline struct fimd_driver_data *drm_fimd_get_driver_data(
+	struct platform_device *pdev)
+{
+	return (struct fimd_driver_data *)
+		platform_get_device_id(pdev)->driver_data;
+}
 
 static bool fimd_display_is_connected(struct device *dev)
 {
@@ -194,32 +213,35 @@ static void fimd_commit(struct device *dev)
 	struct fimd_context *ctx = get_fimd_context(dev);
 	struct exynos_drm_panel_info *panel = ctx->panel;
 	struct fb_videomode *timing = &panel->timing;
+	struct fimd_driver_data *driver_data;
+	struct platform_device *pdev = to_platform_device(dev);
 	u32 val;
 
+	driver_data = drm_fimd_get_driver_data(pdev);
 	if (ctx->suspended)
 		return;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* setup polarity values from machine code. */
-	writel(ctx->vidcon1, ctx->regs + VIDCON1);
+	writel(ctx->vidcon1, ctx->regs + driver_data->timing_base + VIDCON1);
 
 	/* setup vertical timing values. */
 	val = VIDTCON0_VBPD(timing->upper_margin - 1) |
 	       VIDTCON0_VFPD(timing->lower_margin - 1) |
 	       VIDTCON0_VSPW(timing->vsync_len - 1);
-	writel(val, ctx->regs + VIDTCON0);
+	writel(val, ctx->regs + driver_data->timing_base + VIDTCON0);
 
 	/* setup horizontal timing values.  */
 	val = VIDTCON1_HBPD(timing->left_margin - 1) |
 	       VIDTCON1_HFPD(timing->right_margin - 1) |
 	       VIDTCON1_HSPW(timing->hsync_len - 1);
-	writel(val, ctx->regs + VIDTCON1);
+	writel(val, ctx->regs + driver_data->timing_base + VIDTCON1);
 
 	/* setup horizontal and vertical display size. */
 	val = VIDTCON2_LINEVAL(timing->yres - 1) |
 	       VIDTCON2_HOZVAL(timing->xres - 1);
-	writel(val, ctx->regs + VIDTCON2);
+	writel(val, ctx->regs + driver_data->timing_base + VIDTCON2);
 
 	/* setup clock source, clock divider, enable dma. */
 	val = ctx->vidcon0;
@@ -1009,6 +1031,18 @@ static int fimd_runtime_resume(struct device *dev)
 }
 #endif
 
+static struct platform_device_id fimd_driver_ids[] = {
+	{
+		.name		= "exynos4-fb",
+		.driver_data	= (unsigned long)&exynos4_fimd_driver_data,
+	}, {
+		.name		= "exynos5-fb",
+		.driver_data	= (unsigned long)&exynos5_fimd_driver_data,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, fimd_driver_ids);
+
 static const struct dev_pm_ops fimd_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(fimd_suspend, fimd_resume)
 	SET_RUNTIME_PM_OPS(fimd_runtime_suspend, fimd_runtime_resume, NULL)
@@ -1017,6 +1051,7 @@ static const struct dev_pm_ops fimd_pm_ops = {
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
 	.remove		= __devexit_p(fimd_remove),
+	.id_table       = fimd_driver_ids,
 	.driver		= {
 		.name	= "exynos4-fb",
 		.owner	= THIS_MODULE,
