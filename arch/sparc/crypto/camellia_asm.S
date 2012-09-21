@@ -30,7 +30,7 @@ SIGMA:	.xword	0xA09E667F3BCC908B
 
 	.align	32
 ENTRY(camellia_sparc64_key_expand)
-	/* %o0=in_key, %o1=out_key, %o2=key_len */
+	/* %o0=in_key, %o1=encrypt_key, %o2=key_len, %o3=decrypt_key */
 	VISEntry
 	ld	[%o0 + 0x00], %f0	! i0, k[0]
 	ld	[%o0 + 0x04], %f1	! i1, k[1]
