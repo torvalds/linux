@@ -162,6 +162,13 @@ struct charger_regulator {
  * @measure_battery_temp:
  *	true: measure battery temperature
  *	false: measure ambient temperature
+ * @charging_max_duration_ms: Maximum possible duration for charging
+ *	If whole charging duration exceed 'charging_max_duration_ms',
+ *	cm stop charging.
+ * @discharging_max_duration_ms:
+ *	Maximum possible duration for discharging with charger cable
+ *	after full-batt. If discharging duration exceed 'discharging
+ *	max_duration_ms', cm start charging.
  */
 struct charger_desc {
 	char *psy_name;
@@ -186,6 +193,9 @@ struct charger_desc {
 
 	int (*temperature_out_of_range)(int *mC);
 	bool measure_battery_temp;
+
+	u64 charging_max_duration_ms;
+	u64 discharging_max_duration_ms;
 };
 
 #define PSY_NAME_MAX	30
@@ -210,6 +220,8 @@ struct charger_desc {
  *	saved status of external power before entering suspend-to-RAM
  * @status_save_batt:
  *	saved status of battery before entering suspend-to-RAM
+ * @charging_start_time: saved start time of enabling charging
+ * @charging_end_time: saved end time of disabling charging
  */
 struct charger_manager {
 	struct list_head entry;
@@ -232,6 +244,9 @@ struct charger_manager {
 
 	bool status_save_ext_pwr_inserted;
 	bool status_save_batt;
+
+	u64 charging_start_time;
+	u64 charging_end_time;
 };
 
 #ifdef CONFIG_CHARGER_MANAGER

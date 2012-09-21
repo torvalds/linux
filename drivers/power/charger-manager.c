@@ -323,6 +323,14 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 	if (enable) {
 		if (cm->emergency_stop)
 			return -EAGAIN;
+
+		/*
+		 * Save start time of charging to limit
+		 * maximum possible charging time.
+		 */
+		cm->charging_start_time = ktime_to_ms(ktime_get());
+		cm->charging_end_time = 0;
+
 		for (i = 0 ; i < desc->num_charger_regulators ; i++) {
 			err = regulator_enable(desc->charger_regulators[i].consumer);
 			if (err < 0) {
@@ -332,6 +340,13 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 			}
 		}
 	} else {
+		/*
+		 * Save end time of charging to maintain fully charged state
+		 * of battery after full-batt.
+		 */
+		cm->charging_start_time = 0;
+		cm->charging_end_time = ktime_to_ms(ktime_get());
+
 		for (i = 0 ; i < desc->num_charger_regulators ; i++) {
 			err = regulator_disable(desc->charger_regulators[i].consumer);
 			if (err < 0) {
@@ -474,8 +489,55 @@ static void fullbatt_vchk(struct work_struct *work)
 
 	if (diff > desc->fullbatt_vchkdrop_uV) {
 		try_charger_restart(cm);
-		uevent_notify(cm, "Recharge");
+		uevent_notify(cm, "Recharging");
 	}
+}
+
+/**
+ * check_charging_duration - Monitor charging/discharging duration
+ * @cm: the Charger Manager representing the battery.
+ *
+ * If whole charging duration exceed 'charging_max_duration_ms',
+ * cm stop charging to prevent overcharge/overheat. If discharging
+ * duration exceed 'discharging _max_duration_ms', charger cable is
+ * attached, after full-batt, cm start charging to maintain fully
+ * charged state for battery.
+ */
+static int check_charging_duration(struct charger_manager *cm)
+{
+	struct charger_desc *desc = cm->desc;
+	u64 curr = ktime_to_ms(ktime_get());
+	u64 duration;
+	int ret = false;
+
+	if (!desc->charging_max_duration_ms &&
+			!desc->discharging_max_duration_ms)
+		return ret;
+
+	if (cm->charger_enabled) {
+		duration = curr - cm->charging_start_time;
+
+		if (duration > desc->charging_max_duration_ms) {
+			dev_info(cm->dev, "Charging duration exceed %lldms",
+				 desc->charging_max_duration_ms);
+			uevent_notify(cm, "Discharging");
+			try_charger_enable(cm, false);
+			ret = true;
+		}
+	} else if (is_ext_pwr_online(cm) && !cm->charger_enabled) {
+		duration = curr - cm->charging_end_time;
+
+		if (duration > desc->charging_max_duration_ms &&
+				is_ext_pwr_online(cm)) {
+			dev_info(cm->dev, "DisCharging duration exceed %lldms",
+				 desc->discharging_max_duration_ms);
+			uevent_notify(cm, "Recharing");
+			try_charger_enable(cm, true);
+			ret = true;
+		}
+	}
+
+	return ret;
 }
 
 /**
@@ -510,6 +572,13 @@ static bool _cm_monitor(struct charger_manager *cm)
 				uevent_notify(cm, "COLD");
 		}
 
+	/*
+	 * Check whole charging duration and discharing duration
+	 * after full-batt.
+	 */
+	} else if (!cm->emergency_stop && check_charging_duration(cm)) {
+		dev_dbg(cm->dev,
+			"Charging/Discharging duration is out of range");
 	/*
 	 * Check dropped voltage of battery. If battery voltage is more
 	 * dropped than fullbatt_vchkdrop_uV after fully charged state,
@@ -1269,6 +1338,15 @@ static int charger_manager_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "there is no temperature_out_of_range\n");
 		ret = -EINVAL;
 		goto err_chg_stat;
+	}
+
+	if (!desc->charging_max_duration_ms ||
+			!desc->discharging_max_duration_ms) {
+		dev_info(&pdev->dev, "Cannot limit charging duration "
+			 "checking mechanism to prevent overcharge/overheat "
+			 "and control discharging duration");
+		desc->charging_max_duration_ms = 0;
+		desc->discharging_max_duration_ms = 0;
 	}
 
 	platform_set_drvdata(pdev, cm);
