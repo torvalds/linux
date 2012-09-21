@@ -37,15 +37,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-/* This version of the Linux driver source contains a number of
-   abominable conditional compilation sections to manage the API
-   changes between kernel versions 2.6.18, 2.6.25, and the latest
-   (currently 2.6.27).  At some point we'll hand a version of this
-   driver off to the mainline Linux source tree, and we'll strip all
-   these sections out.  For now it makes it much easier to keep it all
-   in sync while the driver is being developed. */
-
-
 #define DRIVER_VERSION "v.0.76"
 #define DRIVER_AUTHOR "Rob Duncan <rob.duncan@exar.com>"
 #define DRIVER_DESC "USB Driver for Vizzini USB serial port"
