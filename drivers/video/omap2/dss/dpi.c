@@ -203,6 +203,10 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
+	r = dss_dpi_select_source(dssdev->channel);
+	if (r)
+		goto err_src_sel;
+
 	if (dpi_use_dsi_pll(dssdev)) {
 		r = dsi_runtime_get(dpi.dsidev);
 		if (r)
@@ -237,6 +241,7 @@ err_dsi_pll_init:
 	if (dpi_use_dsi_pll(dssdev))
 		dsi_runtime_put(dpi.dsidev);
 err_get_dsi:
+err_src_sel:
 	dispc_runtime_put();
 err_get_dispc:
 	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
