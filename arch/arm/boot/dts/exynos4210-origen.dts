@@ -40,6 +40,7 @@
 			<&gpk2 4 2 3 3>,
 			<&gpk2 5 2 3 3>,
 			<&gpk2 6 2 3 3>;
+		status = "okay";
 	};
 
 	sdhci@12510000 {
@@ -53,6 +54,7 @@
 			<&gpk0 4 2 3 3>,
 			<&gpk0 5 2 3 3>,
 			<&gpk0 6 2 3 3>;
+		status = "okay";
 	};
 
 	gpio_keys {
@@ -89,61 +91,5 @@
 			gpios = <&gpx1 5 0 0 2>;
 			linux,code = <139>;
 		};
-	};
-
-	keypad@100A0000 {
-		status = "disabled";
-	};
-
-	sdhci@12520000 {
-		status = "disabled";
-	};
-
-	sdhci@12540000 {
-		status = "disabled";
-	};
-
-	i2c@13860000 {
-		status = "disabled";
-	};
-
-	i2c@13870000 {
-		status = "disabled";
-	};
-
-	i2c@13880000 {
-		status = "disabled";
-	};
-
-	i2c@13890000 {
-		status = "disabled";
-	};
-
-	i2c@138A0000 {
-		status = "disabled";
-	};
-
-	i2c@138B0000 {
-		status = "disabled";
-	};
-
-	i2c@138C0000 {
-		status = "disabled";
-	};
-
-	i2c@138D0000 {
-		status = "disabled";
-	};
-
-	spi_0: spi@13920000 {
-		status = "disabled";
-	};
-
-	spi_1: spi@13930000 {
-		status = "disabled";
-	};
-
-	spi_2: spi@13940000 {
-		status = "disabled";
 	};
 };

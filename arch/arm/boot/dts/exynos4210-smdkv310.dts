@@ -40,6 +40,7 @@
 			<&gpk2 4 2 3 3>,
 			<&gpk2 5 2 3 3>,
 			<&gpk2 6 2 3 3>;
+		status = "okay";
 	};
 
 	keypad@100A0000 {
@@ -47,6 +48,7 @@
 		samsung,keypad-num-columns = <8>;
 		linux,keypad-no-autorepeat;
 		linux,keypad-wakeup;
+		status = "okay";
 
 		row-gpios = <&gpx2 0 3 3 0>,
 			    <&gpx2 1 3 3 0>;
@@ -128,6 +130,7 @@
 		samsung,i2c-max-bus-freq = <20000>;
 		gpios = <&gpd1 0 2 3 0>,
 			<&gpd1 1 2 3 0>;
+		status = "okay";
 
 		eeprom@50 {
 			compatible = "samsung,24ad0xd1";
@@ -140,58 +143,11 @@
 		};
 	};
 
-	sdhci@12510000 {
-		status = "disabled";
-	};
-
-	sdhci@12520000 {
-		status = "disabled";
-	};
-
-	sdhci@12540000 {
-		status = "disabled";
-	};
-
-	i2c@13870000 {
-		status = "disabled";
-	};
-
-	i2c@13880000 {
-		status = "disabled";
-	};
-
-	i2c@13890000 {
-		status = "disabled";
-	};
-
-	i2c@138A0000 {
-		status = "disabled";
-	};
-
-	i2c@138B0000 {
-		status = "disabled";
-	};
-
-	i2c@138C0000 {
-		status = "disabled";
-	};
-
-	i2c@138D0000 {
-		status = "disabled";
-	};
-
-	spi_0: spi@13920000 {
-		status = "disabled";
-	};
-
-	spi_1: spi@13930000 {
-		status = "disabled";
-	};
-
 	spi_2: spi@13940000 {
 		gpios = <&gpc1 1 5 3 0>,
 			<&gpc1 3 5 3 0>,
 			<&gpc1 4 5 3 0>;
+		status = "okay";
 
 		w25x80@0 {
 			#address-cells = <1>;
