@@ -388,17 +388,21 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 				      unsigned long event, void *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct omap_device *od;
 
 	switch (event) {
-	case BUS_NOTIFY_ADD_DEVICE:
-		if (pdev->dev.of_node)
-			omap_device_build_from_dt(pdev);
-		break;
-
 	case BUS_NOTIFY_DEL_DEVICE:
 		if (pdev->archdata.od)
 			omap_device_delete(pdev->archdata.od);
 		break;
+	case BUS_NOTIFY_ADD_DEVICE:
+		if (pdev->dev.of_node)
+			omap_device_build_from_dt(pdev);
+		/* fall through */
+	default:
+		od = to_omap_device(pdev);
+		if (od)
+			od->_driver_status = event;
 	}
 
 	return NOTIFY_DONE;
@@ -802,6 +806,10 @@ static int _od_suspend_noirq(struct device *dev)
 	struct omap_device *od = to_omap_device(pdev);
 	int ret;
 
+	/* Don't attempt late suspend on a driver that is not bound */
+	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER)
+		return 0;
+
 	ret = pm_generic_suspend_noirq(dev);
 
 	if (!ret && !pm_runtime_status_suspended(dev)) {
@@ -1175,3 +1183,41 @@ static int __init omap_device_init(void)
 	return 0;
 }
 core_initcall(omap_device_init);
+
+/**
+ * omap_device_late_idle - idle devices without drivers
+ * @dev: struct device * associated with omap_device
+ * @data: unused
+ *
+ * Check the driver bound status of this device, and idle it
+ * if there is no driver attached.
+ */
+static int __init omap_device_late_idle(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct omap_device *od = to_omap_device(pdev);
+
+	if (!od)
+		return 0;
+
+	/*
+	 * If omap_device state is enabled, but has no driver bound,
+	 * idle it.
+	 */
+	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER) {
+		if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
+			dev_warn(dev, "%s: enabled but no driver.  Idling\n",
+				 __func__);
+			omap_device_idle(pdev);
+		}
+	}
+
+	return 0;
+}
+
+static int __init omap_device_late_init(void)
+{
+	bus_for_each_dev(&platform_bus_type, NULL, NULL, omap_device_late_idle);
+	return 0;
+}
+late_initcall(omap_device_late_init);
