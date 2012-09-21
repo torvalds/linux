@@ -32,7 +32,8 @@ enum shdlc_state {
 	SHDLC_DISCONNECTED = 0,
 	SHDLC_CONNECTING = 1,
 	SHDLC_NEGOCIATING = 2,
-	SHDLC_CONNECTED = 3
+	SHDLC_HALF_CONNECTED = 3,
+	SHDLC_CONNECTED = 4
 };
 
 struct llc_shdlc {
@@ -363,7 +364,7 @@ static void llc_shdlc_connect_complete(struct llc_shdlc *shdlc, int r)
 		shdlc->nr = 0;
 		shdlc->dnr = 0;
 
-		shdlc->state = SHDLC_CONNECTED;
+		shdlc->state = SHDLC_HALF_CONNECTED;
 	} else {
 		shdlc->state = SHDLC_DISCONNECTED;
 	}
@@ -414,9 +415,13 @@ static void llc_shdlc_rcv_u_frame(struct llc_shdlc *shdlc,
 
 	switch (u_frame_modifier) {
 	case U_FRAME_RSET:
-		if ((shdlc->state == SHDLC_NEGOCIATING) ||
-					(shdlc->state == SHDLC_CONNECTING)) {
-			/* we sent RSET, but chip wants to negociate */
+		switch (shdlc->state) {
+		case SHDLC_NEGOCIATING:
+		case SHDLC_CONNECTING:
+			/*
+			 * We sent RSET, but chip wants to negociate or we
+			 * got RSET before we managed to send out our.
+			 */
 			if (skb->len > 0)
 				w = skb->data[0];
 
@@ -431,19 +436,31 @@ static void llc_shdlc_rcv_u_frame(struct llc_shdlc *shdlc,
 				r = llc_shdlc_connect_send_ua(shdlc);
 				llc_shdlc_connect_complete(shdlc, r);
 			}
-		} else if (shdlc->state == SHDLC_CONNECTED) {
+			break;
+		case SHDLC_HALF_CONNECTED:
+			/*
+			 * Chip resent RSET due to its timeout - Ignote it
+			 * as we already sent UA.
+			 */
+			break;
+		case SHDLC_CONNECTED:
 			/*
 			 * Chip wants to reset link. This is unexpected and
 			 * unsupported.
 			 */
 			shdlc->hard_fault = -ECONNRESET;
+			break;
+		default:
+			break;
 		}
 		break;
 	case U_FRAME_UA:
 		if ((shdlc->state == SHDLC_CONNECTING &&
 		     shdlc->connect_tries > 0) ||
-		    (shdlc->state == SHDLC_NEGOCIATING))
+		    (shdlc->state == SHDLC_NEGOCIATING)) {
 			llc_shdlc_connect_complete(shdlc, 0);
+			shdlc->state = SHDLC_CONNECTED;
+		}
 		break;
 	default:
 		break;
@@ -470,11 +487,17 @@ static void llc_shdlc_handle_rcv_queue(struct llc_shdlc *shdlc)
 		switch (control & SHDLC_CONTROL_HEAD_MASK) {
 		case SHDLC_CONTROL_HEAD_I:
 		case SHDLC_CONTROL_HEAD_I2:
+			if (shdlc->state == SHDLC_HALF_CONNECTED)
+				shdlc->state = SHDLC_CONNECTED;
+
 			ns = (control & SHDLC_CONTROL_NS_MASK) >> 3;
 			nr = control & SHDLC_CONTROL_NR_MASK;
 			llc_shdlc_rcv_i_frame(shdlc, skb, ns, nr);
 			break;
 		case SHDLC_CONTROL_HEAD_S:
+			if (shdlc->state == SHDLC_HALF_CONNECTED)
+				shdlc->state = SHDLC_CONNECTED;
+
 			s_frame_type = (control & SHDLC_CONTROL_TYPE_MASK) >> 3;
 			nr = control & SHDLC_CONTROL_NR_MASK;
 			llc_shdlc_rcv_s_frame(shdlc, s_frame_type, nr);
@@ -633,6 +656,7 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 			break;
 		}
 		break;
+	case SHDLC_HALF_CONNECTED:
 	case SHDLC_CONNECTED:
 		llc_shdlc_handle_rcv_queue(shdlc);
 		llc_shdlc_handle_send_queue(shdlc);
