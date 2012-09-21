@@ -712,7 +712,7 @@ void LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 	ret = OSAL_Script_FetchParser_Data(primary_key, sub_name, &value, 1);
 	if (ret < 0) {
 		DE_INF("%s.%s not exit\n", primary_key,sub_name);
-		lcd_cfg->init_bright = 197;
+		lcd_cfg->init_bright = 192;
 	} else {
 		DE_INF("%s.%s = %d\n", primary_key,sub_name, value);
 		if (value > 256) {
