@@ -153,7 +153,7 @@ struct nlattr {
 
 #include <linux/capability.h>
 #include <linux/skbuff.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <net/scm.h>
 
 struct net;
