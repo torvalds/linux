@@ -1067,8 +1067,10 @@ pnfs_update_layout(struct inode *ino,
 
 	spin_lock(&ino->i_lock);
 	lo = pnfs_find_alloc_layout(ino, ctx, gfp_flags);
-	if (lo == NULL)
-		goto out_unlock;
+	if (lo == NULL) {
+		spin_unlock(&ino->i_lock);
+		goto out;
+	}
 
 	/* Do we even need to bother with this? */
 	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
@@ -1122,6 +1124,7 @@ pnfs_update_layout(struct inode *ino,
 		spin_unlock(&clp->cl_lock);
 	}
 	atomic_dec(&lo->plh_outstanding);
+out_put_layout_hdr:
 	pnfs_put_layout_hdr(lo);
 out:
 	dprintk("%s: inode %s/%llu pNFS layout segment %s for "
@@ -1135,7 +1138,7 @@ out:
 	return lseg;
 out_unlock:
 	spin_unlock(&ino->i_lock);
-	goto out;
+	goto out_put_layout_hdr;
 }
 EXPORT_SYMBOL_GPL(pnfs_update_layout);
 
