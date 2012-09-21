@@ -18,7 +18,7 @@
 #ifndef __DELAYED_REF__
 #define __DELAYED_REF__
 
-/* these are the possible values of struct btrfs_delayed_ref->action */
+/* these are the possible values of struct btrfs_delayed_ref_node->action */
 #define BTRFS_ADD_DELAYED_REF    1 /* add one backref to the tree */
 #define BTRFS_DROP_DELAYED_REF   2 /* delete one backref from the tree */
 #define BTRFS_ADD_DELAYED_EXTENT 3 /* record a full extent allocation */
