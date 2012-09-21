@@ -9,5 +9,13 @@ menuconfig ASYMMETRIC_KEY_TYPE
 
 if ASYMMETRIC_KEY_TYPE
 
+config ASYMMETRIC_PUBLIC_KEY_SUBTYPE
+	tristate "Asymmetric public-key crypto algorithm subtype"
+	select MPILIB
+	help
+	  This option provides support for asymmetric public key type handling.
+	  If signature generation and/or verification are to be used,
+	  appropriate hash algorithms (such as SHA-1) must be available.
+	  ENOPKG will be reported if the requisite algorithm is unavailable.
 
 endif # ASYMMETRIC_KEY_TYPE
