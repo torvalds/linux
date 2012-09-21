@@ -526,12 +526,6 @@ struct array_data {
 	u32 elements;
 };
 
-static int u32_array_open(struct inode *inode, struct file *file)
-{
-	file->private_data = NULL;
-	return nonseekable_open(inode, file);
-}
-
 static size_t format_array(char *buf, size_t bufsize, const char *fmt,
 			   u32 *array, u32 array_size)
 {
@@ -573,26 +567,21 @@ static char *format_array_alloc(const char *fmt, u32 *array,
 	return ret;
 }
 
+static int u32_array_open(struct inode *inode, struct file *file)
+{
+	struct array_data *data = inode->i_private;
+
+	file->private_data = format_array_alloc("%u", data->array,
+						      data->elements);
+	if (!file->private_data)
+		return -ENOMEM;
+	return nonseekable_open(inode, file);
+}
+
 static ssize_t u32_array_read(struct file *file, char __user *buf, size_t len,
 			      loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct array_data *data = inode->i_private;
-	size_t size;
-
-	if (*ppos == 0) {
-		if (file->private_data) {
-			kfree(file->private_data);
-			file->private_data = NULL;
-		}
-
-		file->private_data = format_array_alloc("%u", data->array,
-							      data->elements);
-	}
-
-	size = 0;
-	if (file->private_data)
-		size = strlen(file->private_data);
+	size_t size = strlen(file->private_data);
 
 	return simple_read_from_buffer(buf, len, ppos,
 					file->private_data, size);
