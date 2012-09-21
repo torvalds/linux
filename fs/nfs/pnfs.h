@@ -62,7 +62,6 @@ enum {
 	NFS_LAYOUT_RW_FAILED,		/* get rw layout failed stop trying */
 	NFS_LAYOUT_BULK_RECALL,		/* bulk recall affecting layout */
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
-	NFS_LAYOUT_RETURNED,		/* layout has already been returned */
 };
 
 enum layoutdriver_policy_flags {
@@ -258,24 +257,6 @@ bool nfs4_put_deviceid_node(struct nfs4_deviceid_node *);
 void nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node);
 bool nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
-
-static inline void
-pnfs_mark_layout_returned(struct pnfs_layout_hdr *lo)
-{
-	set_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
-}
-
-static inline void
-pnfs_clear_layout_returned(struct pnfs_layout_hdr *lo)
-{
-	clear_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
-}
-
-static inline bool
-pnfs_test_layout_returned(struct pnfs_layout_hdr *lo)
-{
-	return test_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
-}
 
 static inline struct pnfs_layout_segment *
 pnfs_get_lseg(struct pnfs_layout_segment *lseg)
