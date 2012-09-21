@@ -3004,22 +3004,27 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	 * ? has revision 1
 	 * DB8500v1 has revision 2
 	 * DB8500v2 has revision 3
+	 * AP9540v1 has revision 4
+	 * DB8540v1 has revision 4
 	 */
 	rev = AMBA_REV_BITS(pid);
 
-	/* The number of physical channels on this HW */
-	num_phy_chans = 4 * (readl(virtbase + D40_DREG_ICFG) & 0x7) + 4;
+	plat_data = pdev->dev.platform_data;
 
-	dev_info(&pdev->dev, "hardware revision: %d @ 0x%x\n",
-		 rev, res->start);
+	/* The number of physical channels on this HW */
+	if (plat_data->num_of_phy_chans)
+		num_phy_chans = plat_data->num_of_phy_chans;
+	else
+		num_phy_chans = 4 * (readl(virtbase + D40_DREG_ICFG) & 0x7) + 4;
+
+	dev_info(&pdev->dev, "hardware revision: %d @ 0x%x with %d physical channels\n",
+		 rev, res->start, num_phy_chans);
 
 	if (rev < 2) {
 		d40_err(&pdev->dev, "hardware revision: %d is not supported",
 			rev);
 		goto failure;
 	}
-
-	plat_data = pdev->dev.platform_data;
 
 	/* Count the number of logical channels in use */
 	for (i = 0; i < plat_data->dev_len; i++)

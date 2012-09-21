@@ -147,6 +147,9 @@ struct stedma40_chan_cfg {
  * @memcpy_conf_log: default configuration of logical channel memcpy
  * @disabled_channels: A vector, ending with -1, that marks physical channels
  * that are for different reasons not available for the driver.
+ * @num_of_phy_chans: The number of physical channels implemented in HW.
+ * 0 means reading the number of channels from DMA HW but this is only valid
+ * for 'multiple of 4' channels, like 8.
  */
 struct stedma40_platform_data {
 	u32				 dev_len;
@@ -158,6 +161,7 @@ struct stedma40_platform_data {
 	struct stedma40_chan_cfg	*memcpy_conf_log;
 	int				 disabled_channels[STEDMA40_MAX_PHYS];
 	bool				 use_esram_lcla;
+	int				 num_of_phy_chans;
 };
 
 #ifdef CONFIG_STE_DMA40
