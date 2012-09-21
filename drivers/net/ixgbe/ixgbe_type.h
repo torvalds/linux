@@ -64,6 +64,7 @@
 #define IXGBE_SUBDEV_ID_82599_KX4_KR_MEZZ  0x000C
 #define IXGBE_DEV_ID_82599_LS            0x154F
 #define IXGBE_DEV_ID_X540T               0x1528
+#define IXGBE_DEV_ID_X540T1              0x1560
 
 /* General Registers */
 #define IXGBE_CTRL      0x00000
