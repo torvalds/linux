@@ -1,0 +1,41 @@
+Freescale i.MX IPUv3
+====================
+
+Required properties:
+- compatible: Should be "fsl,<chip>-ipu"
+- reg: should be register base and length as documented in the
+  datasheet
+- interrupts: Should contain sync interrupt and error interrupt,
+  in this order.
+- #crtc-cells: 1, See below
+
+example:
+
+ipu: ipu@18000000 {
+	#crtc-cells = <1>;
+	compatible = "fsl,imx53-ipu";
+	reg = <0x18000000 0x080000000>;
+	interrupts = <11 10>;
+};
+
+Parallel display support
+========================
+
+Required properties:
+- compatible: Should be "fsl,imx-parallel-display"
+- crtc: the crtc this display is connected to, see below
+Optional properties:
+- interface_pix_fmt: How this display is connected to the
+  crtc. Currently supported types: "rgb24", "rgb565"
+- edid: verbatim EDID data block describing attached display.
+- ddc: phandle describing the i2c bus handling the display data
+  channel
+
+example:
+
+display@di0 {
+	compatible = "fsl,imx-parallel-display";
+	edid = [edid-data];
+	crtc = <&ipu 0>;
+	interface-pix-fmt = "rgb24";
+};
