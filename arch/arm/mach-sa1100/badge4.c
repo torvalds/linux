@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/tty.h>
@@ -34,7 +35,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/sa1111.h>
-#include <asm/mach/serial_sa1100.h>
 
 #include <mach/badge4.h>
 
