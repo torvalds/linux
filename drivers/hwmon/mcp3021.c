@@ -1,5 +1,5 @@
 /*
- * mcp3021.c - driver for the Microchip MCP3021 chip
+ * mcp3021.c - driver for Microchip MCP3021 and MCP3221
  *
  * Copyright (C) 2008-2009, 2012 Freescale Semiconductor, Inc.
  * Author: Mingkai Hu <Mingkai.hu@freescale.com>
@@ -35,9 +35,16 @@
 #define MCP3021_OUTPUT_RES	10	/* 10-bit resolution */
 #define MCP3021_OUTPUT_SCALE	4
 
+#define MCP3221_SAR_SHIFT	0
+#define MCP3221_SAR_MASK	0xfff
+#define MCP3221_OUTPUT_RES	12	/* 12-bit resolution */
+#define MCP3221_OUTPUT_SCALE	1
+
 enum chips {
-	mcp3021
+	mcp3021,
+	mcp3221
 };
+
 /*
  * Client data (each client gets its own)
  */
@@ -127,6 +134,13 @@ static int mcp3021_probe(struct i2c_client *client,
 		data->output_res = MCP3021_OUTPUT_RES;
 		data->output_scale = MCP3021_OUTPUT_SCALE;
 		break;
+
+	case mcp3221:
+		data->sar_shift = MCP3221_SAR_SHIFT;
+		data->sar_mask = MCP3221_SAR_MASK;
+		data->output_res = MCP3221_OUTPUT_RES;
+		data->output_scale = MCP3221_OUTPUT_SCALE;
+		break;
 	}
 
 	if (client->dev.platform_data) {
@@ -165,6 +179,7 @@ static int mcp3021_remove(struct i2c_client *client)
 
 static const struct i2c_device_id mcp3021_id[] = {
 	{ "mcp3021", mcp3021 },
+	{ "mcp3221", mcp3221 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp3021_id);
@@ -181,5 +196,5 @@ static struct i2c_driver mcp3021_driver = {
 module_i2c_driver(mcp3021_driver);
 
 MODULE_AUTHOR("Mingkai Hu <Mingkai.hu@freescale.com>");
-MODULE_DESCRIPTION("Microchip MCP3021 driver");
+MODULE_DESCRIPTION("Microchip MCP3021/MCP3221 driver");
 MODULE_LICENSE("GPL");
