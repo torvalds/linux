@@ -31,7 +31,8 @@ struct page_info {
 	struct list_head list;
 };
 
-static struct page_info *alloc_largest_available(unsigned long size)
+static struct page_info *alloc_largest_available(unsigned long size,
+						 bool split_pages)
 {
 	static unsigned int orders[] = {8, 4, 0};
 	struct page *page;
@@ -45,7 +46,8 @@ static struct page_info *alloc_largest_available(unsigned long size)
 				   __GFP_NOWARN | __GFP_NORETRY, orders[i]);
 		if (!page)
 			continue;
-		split_page(page, orders[i]);
+		if (split_pages)
+			split_page(page, orders[i]);
 		info = kmalloc(sizeof(struct page_info *), GFP_KERNEL);
 		info->page = page;
 		info->order = orders[i];
@@ -64,35 +66,49 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	int ret;
 	struct list_head pages;
 	struct page_info *info, *tmp_info;
-	int i;
+	int i = 0;
 	long size_remaining = PAGE_ALIGN(size);
+	bool split_pages = ion_buffer_fault_user_mappings(buffer);
+
 
 	INIT_LIST_HEAD(&pages);
 	while (size_remaining > 0) {
-		info = alloc_largest_available(size_remaining);
+		info = alloc_largest_available(size_remaining, split_pages);
 		if (!info)
 			goto err;
 		list_add_tail(&info->list, &pages);
 		size_remaining -= (1 << info->order) * PAGE_SIZE;
+		i++;
 	}
 
 	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!table)
 		goto err;
 
-	ret = sg_alloc_table(table, PAGE_ALIGN(size) / PAGE_SIZE, GFP_KERNEL);
+	if (split_pages)
+		ret = sg_alloc_table(table, PAGE_ALIGN(size) / PAGE_SIZE,
+				     GFP_KERNEL);
+	else
+		ret = sg_alloc_table(table, i, GFP_KERNEL);
+
 	if (ret)
 		goto err1;
 
 	sg = table->sgl;
 	list_for_each_entry_safe(info, tmp_info, &pages, list) {
 		struct page *page = info->page;
-		for (i = 0; i < (1 << info->order); i++) {
-			sg_set_page(sg, page + i, PAGE_SIZE, 0);
+
+		if (split_pages) {
+			for (i = 0; i < (1 << info->order); i++) {
+				sg_set_page(sg, page + i, PAGE_SIZE, 0);
+				sg = sg_next(sg);
+			}
+		} else {
+			sg_set_page(sg, page, (1 << info->order) * PAGE_SIZE,
+				    0);
 			sg = sg_next(sg);
 		}
 		list_del(&info->list);
-		memset(info, 0, sizeof(struct page_info));
 		kfree(info);
 	}
 
@@ -105,8 +121,12 @@ err1:
 	kfree(table);
 err:
 	list_for_each_entry(info, &pages, list) {
-		for (i = 0; i < (1 << info->order); i++)
-			__free_page(info->page + i);
+		if (split_pages)
+			for (i = 0; i < (1 << info->order); i++)
+				__free_page(info->page + i);
+		else
+			__free_pages(info->page, info->order);
+
 		kfree(info);
 	}
 	return -ENOMEM;
