@@ -1962,7 +1962,6 @@ static int dspxfr_image(struct hda_codec *codec,
 	dma_engine = kzalloc(sizeof(*dma_engine), GFP_KERNEL);
 	if (!dma_engine)
 		return -ENOMEM;
-	memset((void *)dma_engine, 0, sizeof(*dma_engine));
 
 	dma_engine->dmab = kzalloc(sizeof(*dma_engine->dmab), GFP_KERNEL);
 	if (!dma_engine->dmab) {
