@@ -205,7 +205,7 @@ struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *clnt, struct inode *ino
 		return clone;
 
 	auth = rpcauth_create(flavor, clone);
-	if (!auth) {
+	if (IS_ERR(auth)) {
 		rpc_shutdown_client(clone);
 		clone = ERR_PTR(-EIO);
 	}
