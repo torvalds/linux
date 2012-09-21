@@ -285,8 +285,6 @@ static int pda_power_probe(struct platform_device *pdev)
 	if (IS_ERR(ac_draw)) {
 		dev_dbg(dev, "couldn't get ac_draw regulator\n");
 		ac_draw = NULL;
-		ret = PTR_ERR(ac_draw);
-		goto ac_draw_failed;
 	}
 
 	update_status();
@@ -416,7 +414,6 @@ ac_supply_failed:
 		regulator_put(ac_draw);
 		ac_draw = NULL;
 	}
-ac_draw_failed:
 	if (pdata->exit)
 		pdata->exit(dev);
 init_failed:
