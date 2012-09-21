@@ -400,6 +400,26 @@ ret_from_fork_2:
 	STW	.D2T2	B0,*+SP(REGS_A4+8)
 ENDPROC(ret_from_fork)
 
+ENTRY(ret_from_kernel_thread)
+#ifdef CONFIG_C6X_BIG_KERNEL
+	MVKL	.S1	schedule_tail,A0
+	MVKH	.S1	schedule_tail,A0
+	B	.S2X	A0
+#else
+	B	.S2	schedule_tail
+#endif
+	LDW	.D2T2	*+SP(REGS_A0+8),B10 /* get fn  */
+	ADDKPC	.S2	0f,B3,3
+0:
+	B	.S2	B10		   /* call fn */
+	LDW	.D2T1	*+SP(REGS_A1+8),A4 /* get arg */
+	MVKL	.S2	sys_exit,B11
+	MVKH	.S2	sys_exit,B11
+	ADDKPC	.S2	0f,B3,1
+0:
+	BNOP	.S2	B11,5	/* jump to sys_exit */
+ENDPROC(ret_from_kernel_thread)
+
 	;;
 	;; These are the interrupt handlers, responsible for calling __do_IRQ()
 	;; int6 is used for syscalls (see _system_call entry)
