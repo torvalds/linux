@@ -1612,4 +1612,12 @@ config PADATA
 	depends on SMP
 	bool
 
+config ASN1
+	tristate
+	help
+	  Build a simple ASN.1 grammar compiler that produces a bytecode output
+	  that can be interpreted by the ASN.1 stream decoder and used to
+	  inform it as to what tags are to be expected in a stream and what
+	  functions to call on what tags.
+
 source "kernel/Kconfig.locks"
