@@ -231,8 +231,6 @@ static int get_num_brps(void)
 static int enable_monitor_mode(void)
 {
 	u32 dscr;
-	int ret = 0;
-
 	ARM_DBG_READ(c1, 0, dscr);
 
 	/* If monitor mode is already enabled, just return. */
@@ -251,17 +249,18 @@ static int enable_monitor_mode(void)
 		isb();
 		break;
 	default:
-		ret = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	/* Check that the write made it through. */
 	ARM_DBG_READ(c1, 0, dscr);
-	if (!(dscr & ARM_DSCR_MDBGEN))
-		ret = -EPERM;
+	if (WARN_ONCE(!(dscr & ARM_DSCR_MDBGEN),
+		"Failed to enable monitor mode on CPU %d.\n",
+		smp_processor_id()))
+		return -EPERM;
 
 out:
-	return ret;
+	return 0;
 }
 
 int hw_breakpoint_slots(int type)
@@ -962,11 +961,16 @@ clear_vcr:
 	asm volatile("mcr p14, 0, %0, c0, c7, 0" : : "r" (0));
 	isb();
 
-reset_regs:
-	if (enable_monitor_mode())
+	if (cpumask_intersects(&debug_err_mask, cpumask_of(cpu))) {
+		pr_warning("CPU %d failed to disable vector catch\n", cpu);
 		return;
+	}
 
-	/* We must also reset any reserved registers. */
+reset_regs:
+	/*
+	 * The control/value register pairs are UNKNOWN out of reset so
+	 * clear them to avoid spurious debug events.
+	 */
 	raw_num_brps = get_num_brp_resources();
 	for (i = 0; i < raw_num_brps; ++i) {
 		write_wb_reg(ARM_BASE_BCR + i, 0UL);
@@ -977,6 +981,18 @@ reset_regs:
 		write_wb_reg(ARM_BASE_WCR + i, 0UL);
 		write_wb_reg(ARM_BASE_WVR + i, 0UL);
 	}
+
+	if (cpumask_intersects(&debug_err_mask, cpumask_of(cpu))) {
+		pr_warning("CPU %d failed to clear debug register pairs\n", cpu);
+		return;
+	}
+
+	/*
+	 * Have a crack at enabling monitor mode. We don't actually need
+	 * it yet, but reporting an error early is useful if it fails.
+	 */
+	if (enable_monitor_mode())
+		cpumask_or(&debug_err_mask, &debug_err_mask, cpumask_of(cpu));
 }
 
 static int __cpuinit dbg_reset_notify(struct notifier_block *self,
