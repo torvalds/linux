@@ -5,10 +5,10 @@
 #ifdef CONFIG_SMP
 	.macro LOCK_PREFIX
 672:	lock
-	.section .smp_locks,"a"
+	.pushsection .smp_locks,"a"
 	.balign 4
 	.long 672b - .
-	.previous
+	.popsection
 	.endm
 #else
 	.macro LOCK_PREFIX
