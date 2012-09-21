@@ -85,6 +85,9 @@ nfnl_cthelper_from_nlattr(struct nlattr *attr, struct nf_conn *ct)
 {
 	const struct nf_conn_help *help = nfct_help(ct);
 
+	if (attr == NULL)
+		return -EINVAL;
+
 	if (help->helper->data_len == 0)
 		return -EINVAL;
 
