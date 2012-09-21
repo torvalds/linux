@@ -37,7 +37,7 @@
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 
-#include <plat/gpmc-smc91x.h>
+#include "gpmc-smc91x.h"
 
 #include "board-flash.h"
 #include "mux.h"

@@ -19,7 +19,6 @@
 
 #include <plat/mmc.h>
 #include <plat/omap-pm.h>
-#include <plat/mux.h>
 #include <plat/omap_device.h>
 
 #include "mux.h"

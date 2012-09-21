@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 
-#include <plat/board-ams-delta.h>
+#include <mach/board-ams-delta.h>
 
 #include <asm/fiq.h>
 

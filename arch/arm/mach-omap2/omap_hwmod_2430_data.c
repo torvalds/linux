@@ -21,7 +21,7 @@
 #include <plat/i2c.h>
 #include <plat/dmtimer.h>
 #include <plat/mmc.h>
-#include <plat/l3_2xxx.h>
+#include "l3_2xxx.h"
 
 #include "soc.h"
 #include "omap_hwmod_common_data.h"

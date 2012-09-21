@@ -14,7 +14,7 @@
 #include <asm/memory.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include <mach/omap-secure.h>
+#include "omap-secure.h"
 
 #include "common.h"
 #include "omap44xx.h"

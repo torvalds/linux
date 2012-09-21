@@ -32,7 +32,7 @@
 
 #include <asm/mach-types.h>
 
-#include <plat/board-ams-delta.h>
+#include <mach/board-ams-delta.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "omap-mcbsp.h"

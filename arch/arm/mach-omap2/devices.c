@@ -27,7 +27,7 @@
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
-#include <plat/omap4-keypad.h>
+#include "omap4-keypad.h"
 
 #include "soc.h"
 #include "common.h"
