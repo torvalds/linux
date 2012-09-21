@@ -359,6 +359,12 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
 			bi->dma = dma_map_single(&pdev->dev, skb->data,
 						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, bi->dma)) {
+				dev_kfree_skb(skb);
+				bi->skb = NULL;
+				dev_err(&pdev->dev, "RX DMA map failed\n");
+				break;
+			}
 		}
 		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma);
 
@@ -2817,10 +2823,10 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 			tx_buffer_info->dma =
 				skb_frag_dma_map(tx_ring->dev, frag,
 						 offset, size, DMA_TO_DEVICE);
-			tx_buffer_info->mapped_as_page = true;
 			if (dma_mapping_error(tx_ring->dev,
 					      tx_buffer_info->dma))
 				goto dma_error;
+			tx_buffer_info->mapped_as_page = true;
 			tx_buffer_info->next_to_watch = i;
 
 			len -= size;
