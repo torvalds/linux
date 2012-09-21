@@ -983,53 +983,42 @@ static int snd_pcm_lib_alloc_vmalloc_32_buffer
 	_snd_pcm_lib_alloc_vmalloc_buffer \
 			(subs, size, GFP_KERNEL | GFP_DMA32 | __GFP_ZERO)
 
+#define snd_pcm_get_dma_buf(substream) ((substream)->runtime->dma_buffer_p)
+
 #ifdef CONFIG_SND_DMA_SGBUF
 /*
  * SG-buffer handling
  */
 #define snd_pcm_substream_sgbuf(substream) \
-	((substream)->runtime->dma_buffer_p->private_data)
-
-static inline dma_addr_t
-snd_pcm_sgbuf_get_addr(struct snd_pcm_substream *substream, unsigned int ofs)
-{
-	struct snd_sg_buf *sg = snd_pcm_substream_sgbuf(substream);
-	return snd_sgbuf_get_addr(sg, ofs);
-}
-
-static inline void *
-snd_pcm_sgbuf_get_ptr(struct snd_pcm_substream *substream, unsigned int ofs)
-{
-	struct snd_sg_buf *sg = snd_pcm_substream_sgbuf(substream);
-	return snd_sgbuf_get_ptr(sg, ofs);
-}
+	snd_pcm_get_dma_buf(substream)->private_data
 
 struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream,
 				    unsigned long offset);
-unsigned int snd_pcm_sgbuf_get_chunk_size(struct snd_pcm_substream *substream,
-					  unsigned int ofs, unsigned int size);
-
 #else /* !SND_DMA_SGBUF */
 /*
  * fake using a continuous buffer
  */
+#define snd_pcm_sgbuf_ops_page	NULL
+#endif /* SND_DMA_SGBUF */
+
 static inline dma_addr_t
 snd_pcm_sgbuf_get_addr(struct snd_pcm_substream *substream, unsigned int ofs)
 {
-	return substream->runtime->dma_addr + ofs;
+	return snd_sgbuf_get_addr(snd_pcm_get_dma_buf(substream), ofs);
 }
 
 static inline void *
 snd_pcm_sgbuf_get_ptr(struct snd_pcm_substream *substream, unsigned int ofs)
 {
-	return substream->runtime->dma_area + ofs;
+	return snd_sgbuf_get_ptr(snd_pcm_get_dma_buf(substream), ofs);
 }
 
-#define snd_pcm_sgbuf_ops_page	NULL
-
-#define snd_pcm_sgbuf_get_chunk_size(subs, ofs, size)	(size)
-
-#endif /* SND_DMA_SGBUF */
+static inline unsigned int
+snd_pcm_sgbuf_get_chunk_size(struct snd_pcm_substream *substream,
+			     unsigned int ofs, unsigned int size)
+{
+	return snd_sgbuf_get_chunk_size(snd_pcm_get_dma_buf(substream), ofs, size);
+}
 
 /* handle mmap counter - PCM mmap callback should handle this counter properly */
 static inline void snd_pcm_mmap_data_open(struct vm_area_struct *area)
