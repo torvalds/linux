@@ -9,10 +9,10 @@
  * accesses to the 8250.
  */
 #include <linux/serial_reg.h>
-#include <mach/hardware.h>
-#include <mach/map.h>
 
 #define UART_SHIFT 2
+#define PICOXCELL_UART1_BASE		0x80230000
+#define PHYS_TO_IO(x)			(((x) & 0x00ffffff) | 0xfe000000)
 
 		.macro	addruart, rp, rv, tmp
 		ldr	\rv, =PHYS_TO_IO(PICOXCELL_UART1_BASE)

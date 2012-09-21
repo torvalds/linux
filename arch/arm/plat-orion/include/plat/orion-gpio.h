@@ -1,5 +1,5 @@
 /*
- * arch/arm/plat-orion/include/plat/gpio.h
+ * arch/arm/plat-orion/include/plat/orion-gpio.h
  *
  * Marvell Orion SoC GPIO handling.
  *

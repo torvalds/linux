@@ -19,7 +19,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/gpio.h>
+#include <linux/sh_pfc.h>
 #include <linux/ioport.h>
 #include <mach/r8a7779.h>
 

@@ -5,7 +5,6 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
-#include <mach/gpio.h>
 #include <mach/irqs.h>
 #include "synaptics_i2c_rmi4.h"
 

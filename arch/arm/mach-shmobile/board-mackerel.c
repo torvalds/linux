@@ -64,6 +64,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include "sh-gpio.h"
+
 /*
  * Address	Interface		BusWidth	note
  * ------------------------------------------------------------------

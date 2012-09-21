@@ -10,10 +10,8 @@
  */
 
 		.macro	addruart,rp,rv,tmp
-		movw	\rv, #0x6000
-		movt	\rv, #0xfee3
-		movw	\rp, #0x6000
-		movt	\rp, #0xfff3
+		ldr	\rv, =0xfee36000
+		ldr	\rp, =0xfff36000
 		.endm
 
 #include <asm/hardware/debug-pl01x.S>
