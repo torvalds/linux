@@ -420,6 +420,12 @@ ENTRY(ret_from_kernel_thread)
 	BNOP	.S2	B11,5	/* jump to sys_exit */
 ENDPROC(ret_from_kernel_thread)
 
+ENTRY(ret_from_kernel_execve)
+	GET_THREAD_INFO A12
+	BNOP	.S2	syscall_exit,4
+	ADD	.D2X	A4,-8,SP
+ENDPROC(ret_from_kernel_execve)
+
 	;;
 	;; These are the interrupt handlers, responsible for calling __do_IRQ()
 	;; int6 is used for syscalls (see _system_call entry)
@@ -612,13 +618,6 @@ ENTRY(sys_sigaltstack)
 	LDW	.D2T1	*+SP(REGS_SP+8),A6
 	NOP	4
 ENDPROC(sys_sigaltstack)
-
-	;; kernel_execve
-ENTRY(kernel_execve)
-	MVK	.S2	__NR_execve,B0
-	SWE
-	BNOP	.S2	B3,5
-ENDPROC(kernel_execve)
 
 	;;
 	;; Special system calls
