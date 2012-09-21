@@ -193,6 +193,9 @@ struct dw_dma_chan {
 
 	unsigned int		descs_allocated;
 
+	/* hardware configuration */
+	unsigned int		block_size;
+
 	/* configuration passed via DMA_SLAVE_CONFIG */
 	struct dma_slave_config dma_sconfig;
 };

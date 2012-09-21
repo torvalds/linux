@@ -605,6 +605,7 @@ static void __init genclk_init_parent(struct clk *clk)
 
 static struct dw_dma_platform_data dw_dmac0_data = {
 	.nr_channels	= 3,
+	.block_size	= 4095U,
 };
 
 static struct resource dw_dmac0_resource[] = {

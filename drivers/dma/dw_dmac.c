@@ -56,16 +56,6 @@
 	})
 
 /*
- * This is configuration-dependent and usually a funny size like 4095.
- *
- * Note that this is a transfer count, i.e. if we transfer 32-bit
- * words, we can do 16380 bytes per descriptor.
- *
- * This parameter is also system-specific.
- */
-#define DWC_MAX_COUNT	4095U
-
-/*
  * Number of descriptors to allocate for each channel. This should be
  * made configurable somehow; preferably, the clients (at least the
  * ones using slave transfers) should be able to give us a hint.
@@ -672,7 +662,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 	for (offset = 0; offset < len; offset += xfer_count << src_width) {
 		xfer_count = min_t(size_t, (len - offset) >> src_width,
-				DWC_MAX_COUNT);
+					   dwc->block_size);
 
 		desc = dwc_desc_get(dwc);
 		if (!desc)
@@ -773,8 +763,8 @@ slave_sg_todev_fill_desc:
 			desc->lli.sar = mem;
 			desc->lli.dar = reg;
 			desc->lli.ctllo = ctllo | DWC_CTLL_SRC_WIDTH(mem_width);
-			if ((len >> mem_width) > DWC_MAX_COUNT) {
-				dlen = DWC_MAX_COUNT << mem_width;
+			if ((len >> mem_width) > dwc->block_size) {
+				dlen = dwc->block_size << mem_width;
 				mem += dlen;
 				len -= dlen;
 			} else {
@@ -833,8 +823,8 @@ slave_sg_fromdev_fill_desc:
 			desc->lli.sar = reg;
 			desc->lli.dar = mem;
 			desc->lli.ctllo = ctllo | DWC_CTLL_DST_WIDTH(mem_width);
-			if ((len >> reg_width) > DWC_MAX_COUNT) {
-				dlen = DWC_MAX_COUNT << reg_width;
+			if ((len >> reg_width) > dwc->block_size) {
+				dlen = dwc->block_size << reg_width;
 				mem += dlen;
 				len -= dlen;
 			} else {
@@ -1217,7 +1207,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 	periods = buf_len / period_len;
 
 	/* Check for too big/unaligned periods and unaligned DMA buffer. */
-	if (period_len > (DWC_MAX_COUNT << reg_width))
+	if (period_len > (dwc->block_size << reg_width))
 		goto out_err;
 	if (unlikely(period_len & ((1 << reg_width) - 1)))
 		goto out_err;
@@ -1383,6 +1373,7 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	bool			autocfg;
 	unsigned int		dw_params;
 	unsigned int		nr_channels;
+	unsigned int		max_blk_size = 0;
 	int			irq;
 	int			err;
 	int			i;
@@ -1422,6 +1413,10 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	clk_prepare_enable(dw->clk);
 
 	dw->regs = regs;
+
+	/* get hardware configuration parameters */
+	if (autocfg)
+		max_blk_size = dma_readl(dw, MAX_BLK_SIZE);
 
 	/* Calculate all channel mask before DMA setup */
 	dw->all_chan_mask = (1 << nr_channels) - 1;
@@ -1468,6 +1463,16 @@ static int __devinit dw_probe(struct platform_device *pdev)
 		INIT_LIST_HEAD(&dwc->free_list);
 
 		channel_clear_bit(dw, CH_EN, dwc->mask);
+
+		/* hardware configuration */
+		if (autocfg)
+			/* Decode maximum block size for given channel. The
+			 * stored 4 bit value represents blocks from 0x00 for 3
+			 * up to 0x0a for 4095. */
+			dwc->block_size =
+				(4 << ((max_blk_size >> 4 * i) & 0xf)) - 1;
+		else
+			dwc->block_size = pdata->block_size;
 	}
 
 	/* Clear all interrupts on all channels. */
