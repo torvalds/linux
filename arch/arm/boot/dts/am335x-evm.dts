@@ -40,7 +40,7 @@
 
 		i2c2: i2c@4802a000 {
 			status = "okay";
-			clock-frequency = <400000>;
+			clock-frequency = <100000>;
 
 			lis331dlh: lis331dlh@18 {
 				compatible = "st,lis331dlh", "st,lis3lv02d";
@@ -68,6 +68,11 @@
 				st,max-limit-x = <550>;
 				st,max-limit-y = <550>;
 				st,max-limit-z = <750>;
+			};
+
+			tsl2550: tsl2550@39 {
+				compatible = "taos,tsl2550";
+				reg = <0x39>;
 			};
 
 			tmp275: tmp275@48 {
