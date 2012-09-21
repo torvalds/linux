@@ -2543,9 +2543,9 @@ static int sbp_register_configfs(void)
 	int ret;
 
 	fabric = target_fabric_configfs_init(THIS_MODULE, "sbp");
-	if (!fabric) {
+	if (IS_ERR(fabric)) {
 		pr_err("target_fabric_configfs_init() failed\n");
-		return -ENOMEM;
+		return PTR_ERR(fabric);
 	}
 
 	fabric->tf_ops = sbp_ops;
