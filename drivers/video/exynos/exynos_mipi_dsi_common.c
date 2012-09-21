@@ -288,9 +288,6 @@ int exynos_mipi_dsi_wr_data(struct mipi_dsim_device *dsim, unsigned int data_id,
 		mutex_unlock(&dsim->lock);
 		return -EINVAL;
 	}
-
-	mutex_unlock(&dsim->lock);
-	return 0;
 }
 
 static unsigned int exynos_mipi_dsi_long_data_rd(struct mipi_dsim_device *dsim,
