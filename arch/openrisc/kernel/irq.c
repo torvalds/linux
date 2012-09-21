@@ -46,12 +46,12 @@ EXPORT_SYMBOL(arch_local_irq_restore);
 
 static void or1k_pic_mask(struct irq_data *data)
 {
-	mtspr(SPR_PICMR, mfspr(SPR_PICMR) & ~(1UL << data->irq));
+	mtspr(SPR_PICMR, mfspr(SPR_PICMR) & ~(1UL << data->hwirq));
 }
 
 static void or1k_pic_unmask(struct irq_data *data)
 {
-	mtspr(SPR_PICMR, mfspr(SPR_PICMR) | (1UL << data->irq));
+	mtspr(SPR_PICMR, mfspr(SPR_PICMR) | (1UL << data->hwirq));
 }
 
 static void or1k_pic_ack(struct irq_data *data)
@@ -75,10 +75,10 @@ static void or1k_pic_ack(struct irq_data *data)
 	 *     as opposed to a 1 as mandated by the spec
 	 */
 
-	mtspr(SPR_PICSR, mfspr(SPR_PICSR) & ~(1UL << data->irq));
+	mtspr(SPR_PICSR, mfspr(SPR_PICSR) & ~(1UL << data->hwirq));
 #else
 	WARN(1, "Interrupt handling possibily broken\n");
-	mtspr(SPR_PICSR, (1UL << irq));
+	mtspr(SPR_PICSR, (1UL << data->hwirq));
 #endif
 }
 
@@ -87,10 +87,10 @@ static void or1k_pic_mask_ack(struct irq_data *data)
 	/* Comments for pic_ack apply here, too */
 
 #ifdef CONFIG_OR1K_1200
-	mtspr(SPR_PICSR, mfspr(SPR_PICSR) & ~(1UL << data->irq));
+	mtspr(SPR_PICSR, mfspr(SPR_PICSR) & ~(1UL << data->hwirq));
 #else
 	WARN(1, "Interrupt handling possibily broken\n");
-	mtspr(SPR_PICSR, (1UL << irq));
+	mtspr(SPR_PICSR, (1UL << data->hwirq));
 #endif
 }
 
