@@ -137,6 +137,7 @@ found:
 				encoder_type, interface_pix_fmt);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(imx_drm_crtc_panel_format);
 
 int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
 {
@@ -647,6 +648,7 @@ int imx_drm_encoder_add_possible_crtcs(
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(imx_drm_encoder_add_possible_crtcs);
 
 int imx_drm_encoder_get_mux_id(struct imx_drm_encoder *imx_drm_encoder,
 		struct drm_crtc *crtc)

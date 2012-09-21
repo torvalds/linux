@@ -19,3 +19,11 @@ config DRM_IMX_FB_HELPER
 config DRM_IMX_PARALLEL_DISPLAY
 	tristate "Support for parallel displays"
 	depends on DRM_IMX
+
+config DRM_IMX_IPUV3_CORE
+	tristate "IPUv3 core support"
+	depends on DRM_IMX
+	help
+	  Choose this if you have a i.MX5/6 system and want
+	  to use the IPU. This option only enables IPU base
+	  support.
