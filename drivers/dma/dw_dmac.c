@@ -211,7 +211,7 @@ static inline unsigned int dwc_fast_fls(unsigned long long v)
 	return 0;
 }
 
-static void dwc_dump_chan_regs(struct dw_dma_chan *dwc)
+static inline void dwc_dump_chan_regs(struct dw_dma_chan *dwc)
 {
 	dev_err(chan2dev(&dwc->chan),
 		"  SAR: 0x%x DAR: 0x%x LLP: 0x%x CTL: 0x%x:%08x\n",
