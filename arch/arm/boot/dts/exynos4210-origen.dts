@@ -66,30 +66,35 @@
 			label = "Up";
 			gpios = <&gpx2 0 0 0 2>;
 			linux,code = <103>;
+			gpio-key,wakeup;
 		};
 
 		down {
 			label = "Down";
 			gpios = <&gpx2 1 0 0 2>;
 			linux,code = <108>;
+			gpio-key,wakeup;
 		};
 
 		back {
 			label = "Back";
 			gpios = <&gpx1 7 0 0 2>;
 			linux,code = <158>;
+			gpio-key,wakeup;
 		};
 
 		home {
 			label = "Home";
 			gpios = <&gpx1 6 0 0 2>;
 			linux,code = <102>;
+			gpio-key,wakeup;
 		};
 
 		menu {
 			label = "Menu";
 			gpios = <&gpx1 5 0 0 2>;
 			linux,code = <139>;
+			gpio-key,wakeup;
 		};
 	};
 };
