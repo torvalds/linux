@@ -665,15 +665,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-bcmring
 
-ARM/BCMRING MTD NAND DRIVER
-M:	Jiandong Zheng <jdzheng@broadcom.com>
-M:	Scott Branden <sbranden@broadcom.com>
-L:	linux-mtd@lists.infradead.org
-S:	Maintained
-F:	drivers/mtd/nand/bcm_umi_nand.c
-F:	drivers/mtd/nand/bcm_umi_bch.c
-F:	drivers/mtd/nand/nand_bcm_umi.h
-
 ARM/CALXEDA HIGHBANK ARCHITECTURE
 M:	Rob Herring <rob.herring@calxeda.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)

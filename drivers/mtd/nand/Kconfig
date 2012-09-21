@@ -258,22 +258,6 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  when the is NAND chip selected or released, but will save
 	  approximately 5mA of power when there is nothing happening.
 
-config MTD_NAND_BCM_UMI
-	tristate "NAND Flash support for BCM Reference Boards"
-	depends on ARCH_BCMRING
-	help
-	  This enables the NAND flash controller on the BCM UMI block.
-
-	  No board specific support is done by this driver, each board
-	  must advertise a platform_device for the driver to attach.
-
-config MTD_NAND_BCM_UMI_HWCS
-	bool "BCM UMI NAND Hardware CS"
-	depends on MTD_NAND_BCM_UMI
-	help
-	  Enable the use of the BCM UMI block's internal CS using NAND.
-	  This should only be used if you know the external NAND CS can toggle.
-
 config MTD_NAND_DISKONCHIP
 	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
