@@ -2130,11 +2130,15 @@ static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 {
 	struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
 	struct timer_list *tltp = &rdtp->idle_gp_timer;
+	char c;
 
-	sprintf(cp, "drain=%d %c timer=%lu",
-		rdtp->dyntick_drain,
-		rdtp->dyntick_holdoff == jiffies ? 'H' : '.',
-		timer_pending(tltp) ? tltp->expires - jiffies : -1);
+	c = rdtp->dyntick_holdoff == jiffies ? 'H' : '.';
+	if (timer_pending(tltp))
+		sprintf(cp, "drain=%d %c timer=%lu",
+			rdtp->dyntick_drain, c, tltp->expires - jiffies);
+	else
+		sprintf(cp, "drain=%d %c timer not pending",
+			rdtp->dyntick_drain, c);
 }
 
 #else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
