@@ -37,6 +37,7 @@
 
 #define MSR_NEHALEM_PLATFORM_INFO	0xCE
 #define MSR_NEHALEM_TURBO_RATIO_LIMIT	0x1AD
+#define MSR_IVT_TURBO_RATIO_LIMIT	0x1AE
 #define MSR_APERF	0xE8
 #define MSR_MPERF	0xE7
 #define MSR_PKG_C2_RESIDENCY	0x60D	/* SNB only */
@@ -61,6 +62,7 @@ unsigned int genuine_intel;
 unsigned int has_invariant_tsc;
 unsigned int do_nehalem_platform_info;
 unsigned int do_nehalem_turbo_ratio_limit;
+unsigned int do_ivt_turbo_ratio_limit;
 unsigned int extra_msr_offset;
 double bclk;
 unsigned int show_pkg;
@@ -676,6 +678,9 @@ void print_verbose_header(void)
 
 	get_msr(0, MSR_NEHALEM_PLATFORM_INFO, &msr);
 
+	if (verbose > 1)
+		fprintf(stderr, "MSR_NEHALEM_PLATFORM_INFO: 0x%llx\n", msr);
+
 	ratio = (msr >> 40) & 0xFF;
 	fprintf(stderr, "%d * %.0f = %.0f MHz max efficiency\n",
 		ratio, bclk, ratio * bclk);
@@ -684,13 +689,83 @@ void print_verbose_header(void)
 	fprintf(stderr, "%d * %.0f = %.0f MHz TSC frequency\n",
 		ratio, bclk, ratio * bclk);
 
+	if (!do_ivt_turbo_ratio_limit)
+		goto print_nhm_turbo_ratio_limits;
+
+	get_msr(0, MSR_IVT_TURBO_RATIO_LIMIT, &msr);
+
 	if (verbose > 1)
-		fprintf(stderr, "MSR_NEHALEM_PLATFORM_INFO: 0x%llx\n", msr);
+		fprintf(stderr, "MSR_IVT_TURBO_RATIO_LIMIT: 0x%llx\n", msr);
+
+	ratio = (msr >> 56) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 16 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 48) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 15 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 40) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 14 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 32) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 13 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 24) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 12 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 16) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 11 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 8) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 10 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 0) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 9 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+print_nhm_turbo_ratio_limits:
 
 	if (!do_nehalem_turbo_ratio_limit)
 		return;
 
 	get_msr(0, MSR_NEHALEM_TURBO_RATIO_LIMIT, &msr);
+
+	if (verbose > 1)
+		fprintf(stderr, "MSR_NEHALEM_TURBO_RATIO_LIMIT: 0x%llx\n", msr);
+
+	ratio = (msr >> 56) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 8 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 48) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 7 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 40) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 6 active cores\n",
+			ratio, bclk, ratio * bclk);
+
+	ratio = (msr >> 32) & 0xFF;
+	if (ratio)
+		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 5 active cores\n",
+			ratio, bclk, ratio * bclk);
 
 	ratio = (msr >> 24) & 0xFF;
 	if (ratio)
@@ -711,7 +786,6 @@ void print_verbose_header(void)
 	if (ratio)
 		fprintf(stderr, "%d * %.0f = %.0f MHz max turbo 1 active cores\n",
 			ratio, bclk, ratio * bclk);
-
 }
 
 void free_all_buffers(void)
@@ -1045,6 +1119,22 @@ int has_nehalem_turbo_ratio_limit(unsigned int family, unsigned int model)
 		return 0;
 	}
 }
+int has_ivt_turbo_ratio_limit(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+
+	if (family != 6)
+		return 0;
+
+	switch (model) {
+	case 0x3E:	/* IVB Xeon */
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 
 int is_snb(unsigned int family, unsigned int model)
 {
@@ -1144,6 +1234,7 @@ void check_cpuid()
 	bclk = discover_bclk(family, model);
 
 	do_nehalem_turbo_ratio_limit = has_nehalem_turbo_ratio_limit(family, model);
+	do_ivt_turbo_ratio_limit = has_ivt_turbo_ratio_limit(family, model);
 }
 
 
