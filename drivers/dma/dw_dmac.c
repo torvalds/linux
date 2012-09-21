@@ -36,12 +36,22 @@
  * which does not support descriptor writeback.
  */
 
+static inline unsigned int dwc_get_dms(struct dw_dma_slave *slave)
+{
+	return slave ? slave->dst_master : 0;
+}
+
+static inline unsigned int dwc_get_sms(struct dw_dma_slave *slave)
+{
+	return slave ? slave->src_master : 1;
+}
+
 #define DWC_DEFAULT_CTLLO(_chan) ({				\
 		struct dw_dma_slave *__slave = (_chan->private);	\
 		struct dw_dma_chan *_dwc = to_dw_dma_chan(_chan);	\
 		struct dma_slave_config	*_sconfig = &_dwc->dma_sconfig;	\
-		int _dms = __slave ? __slave->dst_master : 0;	\
-		int _sms = __slave ? __slave->src_master : 1;	\
+		int _dms = dwc_get_dms(__slave);		\
+		int _sms = dwc_get_sms(__slave);		\
 		u8 _smsize = __slave ? _sconfig->src_maxburst :	\
 			DW_DMA_MSIZE_16;			\
 		u8 _dmsize = __slave ? _sconfig->dst_maxburst :	\
@@ -631,6 +641,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		size_t len, unsigned long flags)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
+	struct dw_dma_slave	*dws = chan->private;
 	struct dw_desc		*desc;
 	struct dw_desc		*first;
 	struct dw_desc		*prev;
@@ -650,7 +661,11 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		return NULL;
 	}
 
-	src_width = dst_width = dwc_fast_fls(src | dest | len);
+	src_width = min_t(unsigned int, dwc->dw->data_width[dwc_get_sms(dws)],
+			  dwc_fast_fls(src | len));
+
+	dst_width = min_t(unsigned int, dwc->dw->data_width[dwc_get_dms(dws)],
+			  dwc_fast_fls(dest | len));
 
 	ctllo = DWC_DEFAULT_CTLLO(chan)
 			| DWC_CTLL_DST_WIDTH(dst_width)
@@ -720,6 +735,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	dma_addr_t		reg;
 	unsigned int		reg_width;
 	unsigned int		mem_width;
+	unsigned int		data_width;
 	unsigned int		i;
 	struct scatterlist	*sg;
 	size_t			total_len = 0;
@@ -743,6 +759,8 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		ctllo |= sconfig->device_fc ? DWC_CTLL_FC(DW_DMA_FC_P_M2P) :
 			DWC_CTLL_FC(DW_DMA_FC_D_M2P);
 
+		data_width = dwc->dw->data_width[dwc_get_sms(dws)];
+
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
 			u32		len, dlen, mem;
@@ -750,7 +768,8 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 
-			mem_width = dwc_fast_fls(mem | len);
+			mem_width = min_t(unsigned int,
+					  data_width, dwc_fast_fls(mem | len));
 
 slave_sg_todev_fill_desc:
 			desc = dwc_desc_get(dwc);
@@ -803,6 +822,8 @@ slave_sg_todev_fill_desc:
 		ctllo |= sconfig->device_fc ? DWC_CTLL_FC(DW_DMA_FC_P_P2M) :
 			DWC_CTLL_FC(DW_DMA_FC_D_P2M);
 
+		data_width = dwc->dw->data_width[dwc_get_dms(dws)];
+
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
 			u32		len, dlen, mem;
@@ -810,7 +831,8 @@ slave_sg_todev_fill_desc:
 			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 
-			mem_width = dwc_fast_fls(mem | len);
+			mem_width = min_t(unsigned int,
+					  data_width, dwc_fast_fls(mem | len));
 
 slave_sg_fromdev_fill_desc:
 			desc = dwc_desc_get(dwc);
@@ -1415,8 +1437,18 @@ static int __devinit dw_probe(struct platform_device *pdev)
 	dw->regs = regs;
 
 	/* get hardware configuration parameters */
-	if (autocfg)
+	if (autocfg) {
 		max_blk_size = dma_readl(dw, MAX_BLK_SIZE);
+
+		dw->nr_masters = (dw_params >> DW_PARAMS_NR_MASTER & 3) + 1;
+		for (i = 0; i < dw->nr_masters; i++) {
+			dw->data_width[i] =
+				(dw_params >> DW_PARAMS_DATA_WIDTH(i) & 3) + 2;
+		}
+	} else {
+		dw->nr_masters = pdata->nr_masters;
+		memcpy(dw->data_width, pdata->data_width, 4);
+	}
 
 	/* Calculate all channel mask before DMA setup */
 	dw->all_chan_mask = (1 << nr_channels) - 1;
@@ -1463,6 +1495,8 @@ static int __devinit dw_probe(struct platform_device *pdev)
 		INIT_LIST_HEAD(&dwc->free_list);
 
 		channel_clear_bit(dw, CH_EN, dwc->mask);
+
+		dwc->dw = dw;
 
 		/* hardware configuration */
 		if (autocfg)

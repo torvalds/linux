@@ -20,6 +20,9 @@
  * @is_private: The device channels should be marked as private and not for
  *	by the general purpose DMA channel allocator.
  * @block_size: Maximum block size supported by the controller
+ * @nr_masters: Number of AHB masters supported by the controller
+ * @data_width: Maximum data width supported by hardware per AHB master
+ *		(0 - 8bits, 1 - 16bits, ..., 5 - 256bits)
  */
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
@@ -31,6 +34,8 @@ struct dw_dma_platform_data {
 #define CHAN_PRIORITY_DESCENDING	1	/* chan7 highest */
 	unsigned char	chan_priority;
 	unsigned short	block_size;
+	unsigned char	nr_masters;
+	unsigned char	data_width[4];
 };
 
 /* bursts size */

@@ -198,6 +198,9 @@ struct dw_dma_chan {
 
 	/* configuration passed via DMA_SLAVE_CONFIG */
 	struct dma_slave_config dma_sconfig;
+
+	/* backlink to dw_dma */
+	struct dw_dma		*dw;
 };
 
 static inline struct dw_dma_chan_regs __iomem *
@@ -223,6 +226,10 @@ struct dw_dma {
 	struct clk		*clk;
 
 	u8			all_chan_mask;
+
+	/* hardware configuration */
+	unsigned char		nr_masters;
+	unsigned char		data_width[4];
 
 	struct dw_dma_chan	chan[0];
 };
