@@ -1440,10 +1440,18 @@ asmlinkage void __init xen_start_kernel(void)
 		const struct dom0_vga_console_info *info =
 			(void *)((char *)xen_start_info +
 				 xen_start_info->console.dom0.info_off);
+		struct xen_platform_op op = {
+			.cmd = XENPF_firmware_info,
+			.interface_version = XENPF_INTERFACE_VERSION,
+			.u.firmware_info.type = XEN_FW_KBD_SHIFT_FLAGS,
+		};
 
 		xen_init_vga(info, xen_start_info->console.dom0.info_size);
 		xen_start_info->console.domU.mfn = 0;
 		xen_start_info->console.domU.evtchn = 0;
+
+		if (HYPERVISOR_dom0_op(&op) == 0)
+			boot_params.kbd_status = op.u.firmware_info.u.kbd_shift_flags;
 
 		xen_init_apic();
 
