@@ -27,3 +27,9 @@ config DRM_IMX_IPUV3_CORE
 	  Choose this if you have a i.MX5/6 system and want
 	  to use the IPU. This option only enables IPU base
 	  support.
+
+config DRM_IMX_IPUV3
+	tristate "DRM Support for i.MX IPUv3"
+	depends on DRM_IMX
+	help
+	  Choose this if you have a i.MX5 or i.MX6 processor.
