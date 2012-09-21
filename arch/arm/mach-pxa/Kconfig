@@ -25,6 +25,18 @@ config PXA_V7_MACH_AUTO
 if !ARCH_PXA_V7
 comment "Intel/Marvell Dev Platforms (sorted by hardware release time)"
 
+config MACH_PXA3XX_DT
+	bool "Support PXA3xx platforms from device tree"
+	select PXA3xx
+	select CPU_PXA300
+	select POWER_SUPPLY
+	select HAVE_PWM
+	select USE_OF
+	help
+	  Include support for Marvell PXA3xx based platforms using
+	  the device tree. Needn't select any other machine while
+	  MACH_PXA3XX_DT is enabled.
+
 config ARCH_LUBBOCK
 	bool "Intel DBPXA250 Development Platform (aka Lubbock)"
 	select PXA25x

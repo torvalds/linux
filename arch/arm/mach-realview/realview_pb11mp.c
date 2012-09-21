@@ -27,6 +27,7 @@
 #include <linux/amba/mmci.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
+#include <linux/platform_data/clk-realview.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -311,6 +312,7 @@ static void __init realview_pb11mp_timer_init(void)
 	timer2_va_base = __io_address(REALVIEW_PB11MP_TIMER2_3_BASE);
 	timer3_va_base = __io_address(REALVIEW_PB11MP_TIMER2_3_BASE) + 0x20;
 
+	realview_clk_init(__io_address(REALVIEW_SYS_BASE), false);
 	realview_timer_init(IRQ_TC11MP_TIMER0_1);
 	realview_pb11mp_twd_init();
 }

@@ -36,6 +36,7 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>
@@ -393,6 +394,11 @@ static void __init omap4_timer_init(void)
 	/* Local timers are not supprted on OMAP4430 ES1.0 */
 	if (omap_rev() != OMAP4430_REV_ES1_0) {
 		int err;
+
+		if (of_have_populated_dt()) {
+			twd_local_timer_of_register();
+			return;
+		}
 
 		err = twd_local_timer_register(&twd_local_timer);
 		if (err)

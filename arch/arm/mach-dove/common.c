@@ -279,7 +279,7 @@ void __init dove_init(void)
 	printk(KERN_INFO "TCLK = %dMHz\n", (get_tclk() + 499999) / 1000000);
 
 #ifdef CONFIG_CACHE_TAUROS2
-	tauros2_init();
+	tauros2_init(0);
 #endif
 	dove_setup_cpu_mbus();
 

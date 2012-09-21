@@ -42,12 +42,13 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&hog_pins_a>;
 
-				hog_pins_a: hog-gpios@0 {
+				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x1123 /* MX23_PAD_LCD_RESET__GPIO_1_18 */
 						0x11d3 /* MX23_PAD_PWM3__GPIO_1_29 */
 						0x11e3 /* MX23_PAD_PWM4__GPIO_1_30 */
+						0x2010 /* MX23_PAD_SSP1_DETECT__SSP1_DETECT */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;

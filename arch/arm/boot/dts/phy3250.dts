@@ -135,13 +135,11 @@
 			ssp0: ssp@20084000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				pl022,num-chipselects = <1>;
+				num-cs = <1>;
 				cs-gpios = <&gpio 3 5 0>;
 
 				eeprom: at25@0 {
-					pl022,hierarchy = <0>;
 					pl022,interface = <0>;
-					pl022,slave-tx-disable = <0>;
 					pl022,com-mode = <0>;
 					pl022,rx-level-trig = <1>;
 					pl022,tx-level-trig = <1>;
