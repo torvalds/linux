@@ -8,6 +8,7 @@
 #include <linux/reboot.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/memblock.h>
 #include <asm/pgtable.h>
 #include <linux/of_fdt.h>
 #include <asm/pgalloc.h>
@@ -43,6 +44,11 @@ int machine_kexec_prepare(struct kimage *image)
 	 */
 	for (i = 0; i < image->nr_segments; i++) {
 		current_segment = &image->segment[i];
+
+		err = memblock_is_region_memory(current_segment->mem,
+						current_segment->memsz);
+		if (err)
+			return - EINVAL;
 
 		err = get_user(header, (__be32*)current_segment->buf);
 		if (err)
