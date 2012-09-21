@@ -3582,6 +3582,22 @@ static inline void set_default_fcs(struct l2cap_chan *chan)
 		chan->fcs = L2CAP_FCS_CRC16;
 }
 
+static void l2cap_send_efs_conf_rsp(struct l2cap_chan *chan, void *data,
+				    u8 ident, u16 flags)
+{
+	struct l2cap_conn *conn = chan->conn;
+
+	BT_DBG("conn %p chan %p ident %d flags 0x%4.4x", conn, chan, ident,
+	       flags);
+
+	clear_bit(CONF_LOC_CONF_PEND, &chan->conf_state);
+	set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
+
+	l2cap_send_cmd(conn, ident, L2CAP_CONF_RSP,
+		       l2cap_build_conf_rsp(chan, data,
+					    L2CAP_CONF_SUCCESS, flags), data);
+}
+
 static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd, u16 cmd_len, u8 *data)
 {
 	struct l2cap_conf_req *req = (struct l2cap_conf_req *) data;
@@ -3673,16 +3689,11 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	/* Got Conf Rsp PENDING from remote side and asume we sent
 	   Conf Rsp PENDING in the code above */
 	if (test_bit(CONF_REM_CONF_PEND, &chan->conf_state) &&
-			test_bit(CONF_LOC_CONF_PEND, &chan->conf_state)) {
+	    test_bit(CONF_LOC_CONF_PEND, &chan->conf_state)) {
 
 		/* check compatibility */
 
-		clear_bit(CONF_LOC_CONF_PEND, &chan->conf_state);
-		set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
-
-		l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
-					l2cap_build_conf_rsp(chan, rsp,
-					L2CAP_CONF_SUCCESS, flags), rsp);
+		l2cap_send_efs_conf_rsp(chan, rsp, cmd->ident, flags);
 	}
 
 unlock:
@@ -3730,12 +3741,7 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 			/* check compatibility */
 
-			clear_bit(CONF_LOC_CONF_PEND, &chan->conf_state);
-			set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
-
-			l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP,
-						l2cap_build_conf_rsp(chan, buf,
-						L2CAP_CONF_SUCCESS, 0x0000), buf);
+			l2cap_send_efs_conf_rsp(chan, buf, cmd->ident, 0);
 		}
 		goto done;
 
