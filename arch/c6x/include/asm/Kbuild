@@ -2,6 +2,7 @@ include include/asm-generic/Kbuild.asm
 
 generic-y += atomic.h
 generic-y += auxvec.h
+generic-y += barrier.h
 generic-y += bitsperlong.h
 generic-y += bugs.h
 generic-y += cputime.h
