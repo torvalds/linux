@@ -1,5 +1,5 @@
 /*
- * Samsung's Exynos4210 flattened device tree enabled machine
+ * Samsung's EXYNOS4 flattened device tree enabled machine
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -36,7 +36,7 @@
  * at some point, the drivers should be capable of parsing all the platform
  * data from the device tree.
  */
-static const struct of_dev_auxdata exynos4210_auxdata_lookup[] __initconst = {
+static const struct of_dev_auxdata exynos4_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("samsung,exynos4210-uart", EXYNOS4_PA_UART0,
 				"exynos4210-uart.0", NULL),
 	OF_DEV_AUXDATA("samsung,exynos4210-uart", EXYNOS4_PA_UART1,
@@ -66,19 +66,19 @@ static const struct of_dev_auxdata exynos4210_auxdata_lookup[] __initconst = {
 	{},
 };
 
-static void __init exynos4210_dt_map_io(void)
+static void __init exynos4_dt_map_io(void)
 {
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 }
 
-static void __init exynos4210_dt_machine_init(void)
+static void __init exynos4_dt_machine_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table,
-				exynos4210_auxdata_lookup, NULL);
+				exynos4_auxdata_lookup, NULL);
 }
 
-static char const *exynos4210_dt_compat[] __initdata = {
+static char const *exynos4_dt_compat[] __initdata = {
 	"samsung,exynos4210",
 	NULL
 };
@@ -86,11 +86,11 @@ static char const *exynos4210_dt_compat[] __initdata = {
 DT_MACHINE_START(EXYNOS4210_DT, "Samsung Exynos4 (Flattened Device Tree)")
 	/* Maintainer: Thomas Abraham <thomas.abraham@linaro.org> */
 	.init_irq	= exynos4_init_irq,
-	.map_io		= exynos4210_dt_map_io,
+	.map_io		= exynos4_dt_map_io,
 	.handle_irq	= gic_handle_irq,
-	.init_machine	= exynos4210_dt_machine_init,
+	.init_machine	= exynos4_dt_machine_init,
 	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
-	.dt_compat	= exynos4210_dt_compat,
+	.dt_compat	= exynos4_dt_compat,
 	.restart        = exynos4_restart,
 MACHINE_END
