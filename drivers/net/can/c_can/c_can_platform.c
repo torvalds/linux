@@ -182,6 +182,7 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	priv->device = &pdev->dev;
 	priv->can.clock.freq = clk_get_rate(clk);
 	priv->priv = clk;
+	priv->type = id->driver_data;
 
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -232,6 +233,65 @@ static int __devexit c_can_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int c_can_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	int ret;
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct c_can_priv *priv = netdev_priv(ndev);
+
+	if (priv->type != BOSCH_D_CAN) {
+		dev_warn(&pdev->dev, "Not supported\n");
+		return 0;
+	}
+
+	if (netif_running(ndev)) {
+		netif_stop_queue(ndev);
+		netif_device_detach(ndev);
+	}
+
+	ret = c_can_power_down(ndev);
+	if (ret) {
+		netdev_err(ndev, "failed to enter power down mode\n");
+		return ret;
+	}
+
+	priv->can.state = CAN_STATE_SLEEPING;
+
+	return 0;
+}
+
+static int c_can_resume(struct platform_device *pdev)
+{
+	int ret;
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct c_can_priv *priv = netdev_priv(ndev);
+
+	if (priv->type != BOSCH_D_CAN) {
+		dev_warn(&pdev->dev, "Not supported\n");
+		return 0;
+	}
+
+	ret = c_can_power_up(ndev);
+	if (ret) {
+		netdev_err(ndev, "Still in power down mode\n");
+		return ret;
+	}
+
+	priv->can.state = CAN_STATE_ERROR_ACTIVE;
+
+	if (netif_running(ndev)) {
+		netif_device_attach(ndev);
+		netif_start_queue(ndev);
+	}
+
+	return 0;
+}
+#else
+#define c_can_suspend NULL
+#define c_can_resume NULL
+#endif
+
 static struct platform_driver c_can_plat_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
@@ -240,6 +300,8 @@ static struct platform_driver c_can_plat_driver = {
 	},
 	.probe = c_can_plat_probe,
 	.remove = __devexit_p(c_can_plat_remove),
+	.suspend = c_can_suspend,
+	.resume = c_can_resume,
 	.id_table = c_can_id_table,
 };
 
