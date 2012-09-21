@@ -50,8 +50,8 @@ struct integrity_iint_cache {
 	u64 version;		/* track inode changes */
 	unsigned short flags;
 	struct evm_ima_xattr_data ima_xattr;
-	enum integrity_status ima_status;
-	enum integrity_status evm_status;
+	enum integrity_status ima_status:4;
+	enum integrity_status evm_status:4;
 };
 
 /* rbtree tree calls to lookup, insert, delete
