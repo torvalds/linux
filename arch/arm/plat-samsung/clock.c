@@ -119,7 +119,7 @@ void clk_disable(struct clk *clk)
 
 unsigned long clk_get_rate(struct clk *clk)
 {
-	if (IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return 0;
 
 	if (clk->rate != 0)
@@ -136,7 +136,7 @@ unsigned long clk_get_rate(struct clk *clk)
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	if (!IS_ERR(clk) && clk->ops && clk->ops->round_rate)
+	if (!IS_ERR_OR_NULL(clk) && clk->ops && clk->ops->round_rate)
 		return (clk->ops->round_rate)(clk, rate);
 
 	return rate;
@@ -146,7 +146,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	int ret;
 
-	if (IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return -EINVAL;
 
 	/* We do not default just do a clk->rate = rate as
@@ -175,7 +175,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	int ret = 0;
 
-	if (IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk) || IS_ERR_OR_NULL(parent))
 		return -EINVAL;
 
 	spin_lock(&clocks_lock);
