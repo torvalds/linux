@@ -729,11 +729,8 @@ static void __nfs4_close(struct nfs4_state *state,
 	if (!call_close) {
 		nfs4_put_open_state(state);
 		nfs4_put_state_owner(owner);
-	} else {
-		bool roc = pnfs_roc(state->inode);
-
-		nfs4_do_close(state, gfp_mask, wait, roc);
-	}
+	} else
+		nfs4_do_close(state, gfp_mask, wait);
 }
 
 void nfs4_close_state(struct nfs4_state *state, fmode_t fmode)
