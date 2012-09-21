@@ -62,9 +62,9 @@ int dsp_wdt_init(void)
 
 	dsp_wdt.fclk = clk_get(NULL, "wdt3_fck");
 
-	if (dsp_wdt.fclk) {
+	if (!IS_ERR(dsp_wdt.fclk)) {
 		dsp_wdt.iclk = clk_get(NULL, "wdt3_ick");
-		if (!dsp_wdt.iclk) {
+		if (IS_ERR(dsp_wdt.iclk)) {
 			clk_put(dsp_wdt.fclk);
 			dsp_wdt.fclk = NULL;
 			ret = -EFAULT;
