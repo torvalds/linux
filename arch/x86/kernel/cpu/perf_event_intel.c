@@ -2008,6 +2008,7 @@ __init int intel_pmu_init(void)
 		break;
 
 	case 28: /* Atom */
+	case 54: /* Cedariew */
 		memcpy(hw_cache_event_ids, atom_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 

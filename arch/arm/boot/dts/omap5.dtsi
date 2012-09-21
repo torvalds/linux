@@ -33,9 +33,21 @@
 	cpus {
 		cpu@0 {
 			compatible = "arm,cortex-a15";
+			timer {
+				compatible = "arm,armv7-timer";
+				/* 14th PPI IRQ, active low level-sensitive */
+				interrupts = <1 14 0x308>;
+				clock-frequency = <6144000>;
+			};
 		};
 		cpu@1 {
 			compatible = "arm,cortex-a15";
+			timer {
+				compatible = "arm,armv7-timer";
+				/* 14th PPI IRQ, active low level-sensitive */
+				interrupts = <1 14 0x308>;
+				clock-frequency = <6144000>;
+			};
 		};
 	};
 

@@ -1215,7 +1215,7 @@ static int __devinit tusb_probe(struct platform_device *pdev)
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err1;
+		goto err2;
 	}
 
 	return 0;
