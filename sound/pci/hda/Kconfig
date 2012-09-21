@@ -236,4 +236,12 @@ config SND_HDA_POWER_SAVE_DEFAULT
 	  The default time-out value in seconds for HD-audio automatic
 	  power-save mode.  0 means to disable the power-save mode.
 
+config SND_HDA_DSP_LOADER
+	bool "Enable DSP firmware loader"
+	depends on FW_LOADER
+	default y
+	help
+	  Say Y here to enable the DSP firmware loader, used by certain
+	  codecs (e.g. CA0132) to transfer their DSP binaries to the hardware.
+
 endif

@@ -618,6 +618,17 @@ struct hda_bus_ops {
 	/* notify power-up/down from codec to controller */
 	void (*pm_notify)(struct hda_bus *bus, bool power_up);
 #endif
+#ifdef CONFIG_SND_HDA_DSP_LOADER
+	/* prepare DSP transfer */
+	int (*load_dsp_prepare)(struct hda_bus *bus, unsigned int format,
+				unsigned int byte_size,
+				struct snd_dma_buffer *bufp);
+	/* start/stop DSP transfer */
+	void (*load_dsp_trigger)(struct hda_bus *bus, bool start);
+	/* clean up DSP transfer */
+	void (*load_dsp_cleanup)(struct hda_bus *bus,
+				 struct snd_dma_buffer *dmab);
+#endif
 };
 
 /* template to pass to the bus constructor */
@@ -1127,6 +1138,40 @@ static inline void snd_hda_power_sync(struct hda_codec *codec)
  * patch firmware
  */
 int snd_hda_load_patch(struct hda_bus *bus, size_t size, const void *buf);
+#endif
+
+#ifdef CONFIG_SND_HDA_DSP_LOADER
+static inline int
+snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
+				unsigned int size,
+				struct snd_dma_buffer *bufp)
+{
+	return codec->bus->ops.load_dsp_prepare(codec->bus, format, size, bufp);
+}
+static inline void
+snd_hda_codec_load_dsp_trigger(struct hda_codec *codec, bool start)
+{
+	return codec->bus->ops.load_dsp_trigger(codec->bus, start);
+}
+static inline void
+snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
+				struct snd_dma_buffer *dmab)
+{
+	return codec->bus->ops.load_dsp_cleanup(codec->bus, dmab);
+}
+#else
+static inline int
+snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
+				unsigned int size,
+				struct snd_dma_buffer *bufp)
+{
+	return 0;
+}
+static inline void
+snd_hda_codec_load_dsp_trigger(struct hda_codec *codec, bool start) {}
+static inline void
+snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
+				struct snd_dma_buffer *dmab) {}
 #endif
 
 /*
