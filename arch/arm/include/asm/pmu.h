@@ -93,7 +93,7 @@ struct arm_pmu {
 
 extern const struct dev_pm_ops armpmu_dev_pm_ops;
 
-int armpmu_register(struct arm_pmu *armpmu, char *name, int type);
+int armpmu_register(struct arm_pmu *armpmu, int type);
 
 u64 armpmu_event_update(struct perf_event *event);
 

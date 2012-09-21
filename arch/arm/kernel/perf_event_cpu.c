@@ -46,7 +46,7 @@ const char *perf_pmu_name(void)
 	if (!cpu_pmu)
 		return NULL;
 
-	return cpu_pmu->pmu.name;
+	return cpu_pmu->name;
 }
 EXPORT_SYMBOL_GPL(perf_pmu_name);
 
@@ -287,7 +287,7 @@ static int __devinit cpu_pmu_device_probe(struct platform_device *pdev)
 	cpu_pmu = pmu;
 	cpu_pmu->plat_device = pdev;
 	cpu_pmu_init(cpu_pmu);
-	armpmu_register(cpu_pmu, cpu_pmu->name, PERF_TYPE_RAW);
+	armpmu_register(cpu_pmu, PERF_TYPE_RAW);
 
 	return 0;
 }
