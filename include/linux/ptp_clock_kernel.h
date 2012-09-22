@@ -42,7 +42,9 @@ struct ptp_clock_request {
  * struct ptp_clock_info - decribes a PTP hardware clock
  *
  * @owner:     The clock driver should set to THIS_MODULE.
- * @name:      A short name to identify the clock.
+ * @name:      A short "friendly name" to identify the clock and to
+ *             help distinguish PHY based devices from MAC based ones.
+ *             The string is not meant to be a unique id.
  * @max_adj:   The maximum possible frequency adjustment, in parts per billon.
  * @n_alarm:   The number of programmable alarms.
  * @n_ext_ts:  The number of external time stamp channels.
