@@ -56,4 +56,7 @@ extern void realview_init_early(void);
 extern void realview_fixup(struct tag *tags, char **from,
 			   struct meminfo *meminfo);
 
+extern struct smp_operations realview_smp_ops;
+extern void realview_cpu_die(unsigned int cpu);
+
 #endif

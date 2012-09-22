@@ -31,6 +31,7 @@
 
 #include "board.h"
 #include "clock.h"
+#include "common.h"
 #include "fuse.h"
 #include "pmc.h"
 #include "apbio.h"

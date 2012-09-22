@@ -18,6 +18,7 @@
 #include <asm/mach/arch.h>
 
 #include "common.h"
+#include "core.h"
 
 static const struct of_device_id msm_dt_gic_match[] __initconst = {
 	{ .compatible = "qcom,msm-qgic2", .data = gic_of_init },
@@ -40,6 +41,7 @@ static const char * const msm8960_dt_match[] __initconst = {
 };
 
 DT_MACHINE_START(MSM8960_DT, "Qualcomm MSM (Flattened Device Tree)")
+	.smp = smp_ops(msm_smp_ops),
 	.map_io = msm_map_msm8960_io,
 	.init_irq = msm_dt_init_irq,
 	.timer = &msm_dt_timer,

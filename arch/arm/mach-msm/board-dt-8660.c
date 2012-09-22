@@ -20,6 +20,7 @@
 
 #include <mach/board.h>
 #include "common.h"
+#include "core.h"
 
 static const struct of_device_id msm_dt_gic_match[] __initconst = {
 	{ .compatible = "qcom,msm-8660-qgic", .data = gic_of_init },
@@ -53,6 +54,7 @@ static const char *msm8x60_fluid_match[] __initdata = {
 };
 
 DT_MACHINE_START(MSM_DT, "Qualcomm MSM (Flattened Device Tree)")
+	.smp = smp_ops(msm_smp_ops),
 	.map_io = msm_map_msm8x60_io,
 	.init_irq = msm8x60_init_irq,
 	.handle_irq = gic_handle_irq,

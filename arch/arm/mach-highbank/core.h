@@ -15,3 +15,6 @@ static inline void highbank_pm_init(void) {}
 #endif
 
 extern void highbank_smc1(int fn, int arg);
+extern void highbank_cpu_die(unsigned int cpu);
+
+extern struct smp_operations highbank_smp_ops;
