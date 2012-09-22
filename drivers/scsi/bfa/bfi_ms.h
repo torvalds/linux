@@ -499,6 +499,9 @@ enum bfi_rport_i2h_msgs {
 	BFI_RPORT_I2H_CREATE_RSP = BFA_I2HM(1),
 	BFI_RPORT_I2H_DELETE_RSP = BFA_I2HM(2),
 	BFI_RPORT_I2H_QOS_SCN    = BFA_I2HM(3),
+	BFI_RPORT_I2H_LIP_SCN_ONLINE =	BFA_I2HM(4),
+	BFI_RPORT_I2H_LIP_SCN_OFFLINE = BFA_I2HM(5),
+	BFI_RPORT_I2H_NO_DEV	= BFA_I2HM(6),
 };
 
 struct bfi_rport_create_req_s {
@@ -551,6 +554,14 @@ struct bfi_rport_qos_scn_s {
 	struct bfa_rport_qos_attr_s new_qos_attr;  /* New QoS Attributes */
 };
 
+struct bfi_rport_lip_scn_s {
+	struct bfi_mhdr_s  mh;		/*!< common msg header	*/
+	u16	bfa_handle;	/*!< host rport handle	*/
+	u8		status;		/*!< scn online status	*/
+	u8		rsvd;
+	struct bfa_fcport_loop_info_s	loop_info;
+};
+
 union bfi_rport_h2i_msg_u {
 	struct bfi_msg_s		*msg;
 	struct bfi_rport_create_req_s	*create_req;
@@ -563,6 +574,7 @@ union bfi_rport_i2h_msg_u {
 	struct bfi_rport_create_rsp_s	*create_rsp;
 	struct bfi_rport_delete_rsp_s	*delete_rsp;
 	struct bfi_rport_qos_scn_s	*qos_scn_evt;
+	struct bfi_rport_lip_scn_s	*lip_scn;
 };
 
 /*

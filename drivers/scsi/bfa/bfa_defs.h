@@ -159,6 +159,8 @@ enum bfa_status {
 	BFA_STATUS_BEACON_ON    = 72,   /* Port Beacon already on */
 	BFA_STATUS_ENOFSAVE	= 78,	/*  No saved firmware trace */
 	BFA_STATUS_IOC_DISABLED = 82,   /* IOC is already disabled */
+	BFA_STATUS_ERROR_TRL_ENABLED  = 87,   /* TRL is enabled */
+	BFA_STATUS_ERROR_QOS_ENABLED  = 88,   /* QoS is enabled */
 	BFA_STATUS_NO_SFP_DEV = 89,	/* No SFP device check or replace SFP */
 	BFA_STATUS_MEMTEST_FAILED = 90, /* Memory test failed contact support */
 	BFA_STATUS_LEDTEST_OP = 109, /* LED test is operating */
@@ -184,6 +186,9 @@ enum bfa_status {
 	BFA_STATUS_FAA_ACQ_ADDR = 200,	/* Acquiring addr */
 	BFA_STATUS_ERROR_TRUNK_ENABLED = 203,	/* Trunk enabled on adapter */
 	BFA_STATUS_MAX_ENTRY_REACHED = 212,	/* MAX entry reached */
+	BFA_STATUS_TOPOLOGY_LOOP = 230, /* Topology is set to Loop */
+	BFA_STATUS_LOOP_UNSUPP_MEZZ = 231, /* Loop topology is not supported
+					    * on mezz cards */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
 #define bfa_status_t enum bfa_status

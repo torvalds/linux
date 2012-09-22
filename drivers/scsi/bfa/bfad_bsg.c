@@ -888,16 +888,22 @@ bfad_iocmd_ratelim(struct bfad_s *bfad, unsigned int cmd, void *pcmd)
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 
-	if (cmd == IOCMD_RATELIM_ENABLE)
-		fcport->cfg.ratelimit = BFA_TRUE;
-	else if (cmd == IOCMD_RATELIM_DISABLE)
-		fcport->cfg.ratelimit = BFA_FALSE;
+	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) &&
+		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
+		iocmd->status = BFA_STATUS_TOPOLOGY_LOOP;
+	else {
+		if (cmd == IOCMD_RATELIM_ENABLE)
+			fcport->cfg.ratelimit = BFA_TRUE;
+		else if (cmd == IOCMD_RATELIM_DISABLE)
+			fcport->cfg.ratelimit = BFA_FALSE;
 
-	if (fcport->cfg.trl_def_speed == BFA_PORT_SPEED_UNKNOWN)
-		fcport->cfg.trl_def_speed = BFA_PORT_SPEED_1GBPS;
+		if (fcport->cfg.trl_def_speed == BFA_PORT_SPEED_UNKNOWN)
+			fcport->cfg.trl_def_speed = BFA_PORT_SPEED_1GBPS;
+
+		iocmd->status = BFA_STATUS_OK;
+	}
 
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-	iocmd->status = BFA_STATUS_OK;
 
 	return 0;
 }
@@ -919,8 +925,13 @@ bfad_iocmd_ratelim_speed(struct bfad_s *bfad, unsigned int cmd, void *pcmd)
 		return 0;
 	}
 
-	fcport->cfg.trl_def_speed = iocmd->speed;
-	iocmd->status = BFA_STATUS_OK;
+	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) &&
+		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
+		iocmd->status = BFA_STATUS_TOPOLOGY_LOOP;
+	else {
+		fcport->cfg.trl_def_speed = iocmd->speed;
+		iocmd->status = BFA_STATUS_OK;
+	}
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	return 0;
@@ -2161,22 +2172,28 @@ bfad_iocmd_cfg_trunk(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 
-	if (v_cmd == IOCMD_TRUNK_ENABLE) {
-		trunk->attr.state = BFA_TRUNK_OFFLINE;
-		bfa_fcport_disable(&bfad->bfa);
-		fcport->cfg.trunked = BFA_TRUE;
-	} else if (v_cmd == IOCMD_TRUNK_DISABLE) {
-		trunk->attr.state = BFA_TRUNK_DISABLED;
-		bfa_fcport_disable(&bfad->bfa);
-		fcport->cfg.trunked = BFA_FALSE;
-	}
+	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) ||
+		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
+		iocmd->status = BFA_STATUS_TOPOLOGY_LOOP;
+	else {
+		if (v_cmd == IOCMD_TRUNK_ENABLE) {
+			trunk->attr.state = BFA_TRUNK_OFFLINE;
+			bfa_fcport_disable(&bfad->bfa);
+			fcport->cfg.trunked = BFA_TRUE;
+		} else if (v_cmd == IOCMD_TRUNK_DISABLE) {
+			trunk->attr.state = BFA_TRUNK_DISABLED;
+			bfa_fcport_disable(&bfad->bfa);
+			fcport->cfg.trunked = BFA_FALSE;
+		}
 
-	if (!bfa_fcport_is_disabled(&bfad->bfa))
-		bfa_fcport_enable(&bfad->bfa);
+		if (!bfa_fcport_is_disabled(&bfad->bfa))
+			bfa_fcport_enable(&bfad->bfa);
+
+		iocmd->status = BFA_STATUS_OK;
+	}
 
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	iocmd->status = BFA_STATUS_OK;
 	return 0;
 }
 
@@ -2189,12 +2206,17 @@ bfad_iocmd_trunk_get_attr(struct bfad_s *bfad, void *cmd)
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	memcpy((void *)&iocmd->attr, (void *)&trunk->attr,
-		sizeof(struct bfa_trunk_attr_s));
-	iocmd->attr.port_id = bfa_lps_get_base_pid(&bfad->bfa);
+	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) ||
+		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
+		iocmd->status = BFA_STATUS_TOPOLOGY_LOOP;
+	else {
+		memcpy((void *)&iocmd->attr, (void *)&trunk->attr,
+			sizeof(struct bfa_trunk_attr_s));
+		iocmd->attr.port_id = bfa_lps_get_base_pid(&bfad->bfa);
+		iocmd->status = BFA_STATUS_OK;
+	}
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	iocmd->status = BFA_STATUS_OK;
 	return 0;
 }
 
@@ -2207,14 +2229,18 @@ bfad_iocmd_qos(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	if (bfa_ioc_get_type(&bfad->bfa.ioc) == BFA_IOC_TYPE_FC) {
-		if (v_cmd == IOCMD_QOS_ENABLE)
-			fcport->cfg.qos_enabled = BFA_TRUE;
-		else if (v_cmd == IOCMD_QOS_DISABLE)
-			fcport->cfg.qos_enabled = BFA_FALSE;
+		if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) &&
+		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
+			iocmd->status = BFA_STATUS_TOPOLOGY_LOOP;
+		else {
+			if (v_cmd == IOCMD_QOS_ENABLE)
+				fcport->cfg.qos_enabled = BFA_TRUE;
+			else if (v_cmd == IOCMD_QOS_DISABLE)
+				fcport->cfg.qos_enabled = BFA_FALSE;
+		}
 	}
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	iocmd->status = BFA_STATUS_OK;
 	return 0;
 }
 
@@ -2226,11 +2252,17 @@ bfad_iocmd_qos_get_attr(struct bfad_s *bfad, void *cmd)
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	iocmd->attr.state = fcport->qos_attr.state;
-	iocmd->attr.total_bb_cr = be32_to_cpu(fcport->qos_attr.total_bb_cr);
+	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) &&
+		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
+		iocmd->status = BFA_STATUS_TOPOLOGY_LOOP;
+	else {
+		iocmd->attr.state = fcport->qos_attr.state;
+		iocmd->attr.total_bb_cr =
+			be32_to_cpu(fcport->qos_attr.total_bb_cr);
+		iocmd->status = BFA_STATUS_OK;
+	}
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	iocmd->status = BFA_STATUS_OK;
 	return 0;
 }
 
@@ -2274,6 +2306,7 @@ bfad_iocmd_qos_get_stats(struct bfad_s *bfad, void *cmd)
 	struct bfad_hal_comp fcomp;
 	unsigned long	flags;
 	struct bfa_cb_pending_q_s cb_qe;
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
 
 	init_completion(&fcomp.comp);
 	bfa_pending_q_init(&cb_qe, (bfa_cb_cbfn_t)bfad_hcb_comp,
@@ -2281,7 +2314,11 @@ bfad_iocmd_qos_get_stats(struct bfad_s *bfad, void *cmd)
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	WARN_ON(!bfa_ioc_get_fcmode(&bfad->bfa.ioc));
-	iocmd->status = bfa_fcport_get_stats(&bfad->bfa, &cb_qe);
+	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) &&
+		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
+		iocmd->status = BFA_STATUS_TOPOLOGY_LOOP;
+	else
+		iocmd->status = bfa_fcport_get_stats(&bfad->bfa, &cb_qe);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	if (iocmd->status != BFA_STATUS_OK) {
 		bfa_trc(bfad, iocmd->status);
@@ -2300,6 +2337,7 @@ bfad_iocmd_qos_reset_stats(struct bfad_s *bfad, void *cmd)
 	struct bfad_hal_comp fcomp;
 	unsigned long	flags;
 	struct bfa_cb_pending_q_s cb_qe;
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
 
 	init_completion(&fcomp.comp);
 	bfa_pending_q_init(&cb_qe, (bfa_cb_cbfn_t)bfad_hcb_comp,
@@ -2307,7 +2345,11 @@ bfad_iocmd_qos_reset_stats(struct bfad_s *bfad, void *cmd)
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	WARN_ON(!bfa_ioc_get_fcmode(&bfad->bfa.ioc));
-	iocmd->status = bfa_fcport_clear_stats(&bfad->bfa, &cb_qe);
+	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) &&
+		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
+		iocmd->status = BFA_STATUS_TOPOLOGY_LOOP;
+	else
+		iocmd->status = bfa_fcport_clear_stats(&bfad->bfa, &cb_qe);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	if (iocmd->status != BFA_STATUS_OK) {
 		bfa_trc(bfad, iocmd->status);

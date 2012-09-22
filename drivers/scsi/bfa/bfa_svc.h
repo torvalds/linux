@@ -474,8 +474,10 @@ struct bfa_fcport_s {
 	/*  supported speeds */
 	enum bfa_port_speed speed;	/*  current speed */
 	enum bfa_port_topology topology;	/*  current topology */
-	u8			myalpa;	/*  my ALPA in LOOP topology */
 	u8			rsvd[3];
+	u8			myalpa;	/*  my ALPA in LOOP topology */
+	u8			alpabm_valid; /* alpa bitmap valid or not */
+	struct fc_alpabm_s	alpabm;	/* alpa bitmap */
 	struct bfa_port_cfg_s	cfg;	/*  current port configuration */
 	bfa_boolean_t		use_flash_cfg; /* get port cfg from flash */
 	struct bfa_qos_attr_s  qos_attr;   /* QoS Attributes */
@@ -534,6 +536,7 @@ enum bfa_port_speed bfa_fcport_get_speed(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_cfg_topology(struct bfa_s *bfa,
 				     enum bfa_port_topology topo);
 enum bfa_port_topology bfa_fcport_get_topology(struct bfa_s *bfa);
+enum bfa_port_topology bfa_fcport_get_cfg_topology(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_cfg_hardalpa(struct bfa_s *bfa, u8 alpa);
 bfa_boolean_t bfa_fcport_get_hardalpa(struct bfa_s *bfa, u8 *alpa);
 u8 bfa_fcport_get_myalpa(struct bfa_s *bfa);
@@ -575,6 +578,9 @@ void bfa_cb_rport_offline(void *rport);
 void bfa_cb_rport_qos_scn_flowid(void *rport,
 				 struct bfa_rport_qos_attr_s old_qos_attr,
 				 struct bfa_rport_qos_attr_s new_qos_attr);
+void bfa_cb_rport_scn_online(struct bfa_s *bfa);
+void bfa_cb_rport_scn_offline(struct bfa_s *bfa);
+void bfa_cb_rport_scn_no_dev(void *rp);
 void bfa_cb_rport_qos_scn_prio(void *rport,
 			       struct bfa_rport_qos_attr_s old_qos_attr,
 			       struct bfa_rport_qos_attr_s new_qos_attr);

@@ -1244,6 +1244,12 @@ bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		 * Just ignore
 		 */
 		break;
+	case BFA_LPS_SM_SET_N2N_PID:
+		/*
+		 * When topology is set to loop, bfa_lps_set_n2n_pid() sends
+		 * this event. Ignore this event.
+		 */
+		break;
 
 	default:
 		bfa_sm_fault(lps->bfa, event);
@@ -1261,6 +1267,7 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 
 	switch (event) {
 	case BFA_LPS_SM_FWRSP:
+	case BFA_LPS_SM_OFFLINE:
 		if (lps->status == BFA_STATUS_OK) {
 			bfa_sm_set_state(lps, bfa_lps_sm_online);
 			if (lps->fdisc)
@@ -1289,7 +1296,6 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		bfa_lps_login_comp(lps);
 		break;
 
-	case BFA_LPS_SM_OFFLINE:
 	case BFA_LPS_SM_DELETE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 		break;
@@ -2250,11 +2256,11 @@ bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 		if (!bfa_ioc_get_fcmode(&fcport->bfa->ioc)) {
 
 			bfa_trc(fcport->bfa,
-				pevent->link_state.vc_fcf.fcf.fipenabled);
+				pevent->link_state.attr.vc_fcf.fcf.fipenabled);
 			bfa_trc(fcport->bfa,
-				pevent->link_state.vc_fcf.fcf.fipfailed);
+				pevent->link_state.attr.vc_fcf.fcf.fipfailed);
 
-			if (pevent->link_state.vc_fcf.fcf.fipfailed)
+			if (pevent->link_state.attr.vc_fcf.fcf.fipfailed)
 				bfa_plog_str(fcport->bfa->plog, BFA_PL_MID_HAL,
 					BFA_PL_EID_FIP_FCF_DISC, 0,
 					"FIP FCF Discovery Failed");
@@ -2996,6 +3002,21 @@ bfa_fcport_iocdisable(struct bfa_s *bfa)
 	bfa_trunk_iocdisable(bfa);
 }
 
+/*
+ * Update loop info in fcport for SCN online
+ */
+static void
+bfa_fcport_update_loop_info(struct bfa_fcport_s *fcport,
+			struct bfa_fcport_loop_info_s *loop_info)
+{
+	fcport->myalpa = loop_info->myalpa;
+	fcport->alpabm_valid =
+			loop_info->alpabm_val;
+	memcpy(fcport->alpabm.alpa_bm,
+			loop_info->alpabm.alpa_bm,
+			sizeof(struct fc_alpabm_s));
+}
+
 static void
 bfa_fcport_update_linkinfo(struct bfa_fcport_s *fcport)
 {
@@ -3005,12 +3026,15 @@ bfa_fcport_update_linkinfo(struct bfa_fcport_s *fcport)
 	fcport->speed = pevent->link_state.speed;
 	fcport->topology = pevent->link_state.topology;
 
-	if (fcport->topology == BFA_PORT_TOPOLOGY_LOOP)
-		fcport->myalpa = 0;
+	if (fcport->topology == BFA_PORT_TOPOLOGY_LOOP) {
+		bfa_fcport_update_loop_info(fcport,
+				&pevent->link_state.attr.loop_info);
+		return;
+	}
 
 	/* QoS Details */
 	fcport->qos_attr = pevent->link_state.qos_attr;
-	fcport->qos_vc_attr = pevent->link_state.vc_fcf.qos_vc_attr;
+	fcport->qos_vc_attr = pevent->link_state.attr.vc_fcf.qos_vc_attr;
 
 	/*
 	 * update trunk state if applicable
@@ -3019,7 +3043,8 @@ bfa_fcport_update_linkinfo(struct bfa_fcport_s *fcport)
 		trunk->attr.state = BFA_TRUNK_DISABLED;
 
 	/* update FCoE specific */
-	fcport->fcoe_vlan = be16_to_cpu(pevent->link_state.vc_fcf.fcf.vlan);
+	fcport->fcoe_vlan =
+		be16_to_cpu(pevent->link_state.attr.vc_fcf.fcf.vlan);
 
 	bfa_trc(fcport->bfa, fcport->speed);
 	bfa_trc(fcport->bfa, fcport->topology);
@@ -3609,6 +3634,9 @@ bfa_fcport_cfg_speed(struct bfa_s *bfa, enum bfa_port_speed speed)
 
 	if (fcport->cfg.trunked == BFA_TRUE)
 		return BFA_STATUS_TRUNK_ENABLED;
+	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) &&
+			(speed == BFA_PORT_SPEED_16GBPS))
+		return BFA_STATUS_UNSUPP_SPEED;
 	if ((speed != BFA_PORT_SPEED_AUTO) && (speed > fcport->speed_sup)) {
 		bfa_trc(bfa, fcport->speed_sup);
 		return BFA_STATUS_UNSUPP_SPEED;
@@ -3663,7 +3691,24 @@ bfa_fcport_cfg_topology(struct bfa_s *bfa, enum bfa_port_topology topology)
 
 	switch (topology) {
 	case BFA_PORT_TOPOLOGY_P2P:
+		break;
+
 	case BFA_PORT_TOPOLOGY_LOOP:
+		if ((bfa_fcport_is_qos_enabled(bfa) != BFA_FALSE) ||
+			(fcport->qos_attr.state != BFA_QOS_DISABLED))
+			return BFA_STATUS_ERROR_QOS_ENABLED;
+		if (fcport->cfg.ratelimit != BFA_FALSE)
+			return BFA_STATUS_ERROR_TRL_ENABLED;
+		if ((bfa_fcport_is_trunk_enabled(bfa) != BFA_FALSE) ||
+			(fcport->trunk.attr.state != BFA_TRUNK_DISABLED))
+			return BFA_STATUS_ERROR_TRUNK_ENABLED;
+		if ((bfa_fcport_get_speed(bfa) == BFA_PORT_SPEED_16GBPS) ||
+			(fcport->cfg.speed == BFA_PORT_SPEED_16GBPS))
+			return BFA_STATUS_UNSUPP_SPEED;
+		if (bfa_mfg_is_mezz(bfa->ioc.attr->card_type))
+			return BFA_STATUS_LOOP_UNSUPP_MEZZ;
+		break;
+
 	case BFA_PORT_TOPOLOGY_AUTO:
 		break;
 
@@ -3684,6 +3729,17 @@ bfa_fcport_get_topology(struct bfa_s *bfa)
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
 	return fcport->topology;
+}
+
+/**
+ * Get config topology.
+ */
+enum bfa_port_topology
+bfa_fcport_get_cfg_topology(struct bfa_s *bfa)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+
+	return fcport->cfg.topology;
 }
 
 bfa_status_t
@@ -3761,9 +3817,11 @@ bfa_fcport_get_maxfrsize(struct bfa_s *bfa)
 u8
 bfa_fcport_get_rx_bbcredit(struct bfa_s *bfa)
 {
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	if (bfa_fcport_get_topology(bfa) != BFA_PORT_TOPOLOGY_LOOP)
+		return (BFA_FCPORT_MOD(bfa))->cfg.rx_bbcredit;
 
-	return fcport->cfg.rx_bbcredit;
+	else
+		return 0;
 }
 
 void
@@ -4705,6 +4763,21 @@ bfa_rport_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 		rp = BFA_RPORT_FROM_TAG(bfa, msg.qos_scn_evt->bfa_handle);
 		rp->event_arg.fw_msg = msg.qos_scn_evt;
 		bfa_sm_send_event(rp, BFA_RPORT_SM_QOS_SCN);
+		break;
+
+	case BFI_RPORT_I2H_LIP_SCN_ONLINE:
+		bfa_fcport_update_loop_info(BFA_FCPORT_MOD(bfa),
+				&msg.lip_scn->loop_info);
+		bfa_cb_rport_scn_online(bfa);
+		break;
+
+	case BFI_RPORT_I2H_LIP_SCN_OFFLINE:
+		bfa_cb_rport_scn_offline(bfa);
+		break;
+
+	case BFI_RPORT_I2H_NO_DEV:
+		rp = BFA_RPORT_FROM_TAG(bfa, msg.lip_scn->bfa_handle);
+		bfa_cb_rport_scn_no_dev(rp->rport_drv);
 		break;
 
 	default:
