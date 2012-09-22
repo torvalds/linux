@@ -63,7 +63,8 @@ unsigned int has_invariant_tsc;
 unsigned int do_nehalem_platform_info;
 unsigned int do_nehalem_turbo_ratio_limit;
 unsigned int do_ivt_turbo_ratio_limit;
-unsigned int extra_msr_offset;
+unsigned int extra_msr_offset32;
+unsigned int extra_msr_offset64;
 double bclk;
 unsigned int show_pkg;
 unsigned int show_core;
@@ -84,7 +85,8 @@ struct thread_data {
 	unsigned long long aperf;
 	unsigned long long mperf;
 	unsigned long long c1;	/* derived */
-	unsigned long long extra_msr;
+	unsigned long long extra_msr64;
+	unsigned int extra_msr32;
 	unsigned int cpu_id;
 	unsigned int flags;
 #define CPU_IS_FIRST_THREAD_IN_CORE	0x2
@@ -206,6 +208,24 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 	return 0;
 }
 
+/*
+ * Truncate the 8 bytes we read from /dev/cpu/.../msr
+ * to the 4 bytes requested
+ */
+
+int get_msr32(int cpu, off_t offset, unsigned int *msr)
+{
+	int retval;
+
+	unsigned long long msr64;
+
+	retval = get_msr(cpu, offset, &msr64);
+	*msr = (unsigned int) msr64;
+
+	return retval;
+}
+
+
 void print_header(void)
 {
 	if (show_pkg)
@@ -223,8 +243,10 @@ void print_header(void)
 	if (has_aperf)
 		outp += sprintf(outp, "  GHz");
 	outp += sprintf(outp, "  TSC");
-	if (extra_msr_offset)
-		outp += sprintf(outp, "          MSR 0x%04X", extra_msr_offset);
+	if (extra_msr_offset32)
+		outp += sprintf(outp, "  MSR 0x%04X", extra_msr_offset32);
+	if (extra_msr_offset64)
+		outp += sprintf(outp, "          MSR 0x%04X", extra_msr_offset64);
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "    %%c1");
 	if (do_nhm_cstates)
@@ -256,8 +278,10 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		fprintf(stderr, "aperf: %016llX\n", t->aperf);
 		fprintf(stderr, "mperf: %016llX\n", t->mperf);
 		fprintf(stderr, "c1: %016llX\n", t->c1);
+		fprintf(stderr, "msr0x%x: %08X\n",
+			extra_msr_offset32, t->extra_msr32);
 		fprintf(stderr, "msr0x%x: %016llX\n",
-			extra_msr_offset, t->extra_msr);
+			extra_msr_offset64, t->extra_msr64);
 	}
 
 	if (c) {
@@ -361,9 +385,13 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* TSC */
 	outp += sprintf(outp, "%5.2f", 1.0 * t->tsc/units/interval_float);
 
+	/* msr */
+	if (extra_msr_offset32)
+		outp += sprintf(outp, "  0x%08x", t->extra_msr32);
+
 	/* MSR */
-	if (extra_msr_offset)
-		outp += sprintf(outp, "  0x%016llx", t->extra_msr);
+	if (extra_msr_offset64)
+		outp += sprintf(outp, "  0x%016llx", t->extra_msr64);
 
 	if (do_nhm_cstates) {
 		if (!skip_c1)
@@ -506,9 +534,10 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	}
 
 	/*
-	 * for "extra msr", just copy the latest w/o subtracting
+	 * Extra MSR is a snapshot, simply copy latest w/o subtracting
 	 */
-	old->extra_msr = new->extra_msr;
+	old->extra_msr32 = new->extra_msr32;
+	old->extra_msr64 = new->extra_msr64;
 }
 
 int delta_cpu(struct thread_data *t, struct core_data *c,
@@ -632,8 +661,12 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return -4;
 	}
 
-	if (extra_msr_offset)
-		if (get_msr(cpu, extra_msr_offset, &t->extra_msr))
+	if (extra_msr_offset32)
+		if (get_msr32(cpu, extra_msr_offset32, &t->extra_msr32))
+			return -5;
+
+	if (extra_msr_offset64)
+		if (get_msr(cpu, extra_msr_offset64, &t->extra_msr64))
 			return -5;
 
 	/* collect core counters only for 1st thread in core */
@@ -1242,7 +1275,7 @@ void check_cpuid()
 
 void usage()
 {
-	fprintf(stderr, "%s: [-v] [-M MSR#] [-i interval_sec | command ...]\n",
+	fprintf(stderr, "%s: [-v] [-m msr#] [-M MSR#] [-i interval_sec | command ...]\n",
 		progname);
 	exit(1);
 }
@@ -1532,7 +1565,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "+cpsvi:M:")) != -1) {
+	while ((opt = getopt(argc, argv, "+cpsvi:m:M:")) != -1) {
 		switch (opt) {
 		case 'c':
 			show_core_only++;
@@ -1549,10 +1582,15 @@ void cmdline(int argc, char **argv)
 		case 'i':
 			interval_sec = atoi(optarg);
 			break;
-		case 'M':
-			sscanf(optarg, "%x", &extra_msr_offset);
+		case 'm':
+			sscanf(optarg, "%x", &extra_msr_offset32);
 			if (verbose > 1)
-				fprintf(stderr, "MSR 0x%X\n", extra_msr_offset);
+				fprintf(stderr, "msr 0x%X\n", extra_msr_offset32);
+			break;
+		case 'M':
+			sscanf(optarg, "%x", &extra_msr_offset64);
+			if (verbose > 1)
+				fprintf(stderr, "MSR 0x%X\n", extra_msr_offset64);
 			break;
 		default:
 			usage();

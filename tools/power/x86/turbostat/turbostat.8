@@ -6,12 +6,14 @@ turbostat \- Report processor frequency and idle statistics
 .B turbostat
 .RB [ "\-s" ]
 .RB [ "\-v" ]
+.RB [ "\-m MSR#" ]
 .RB [ "\-M MSR#" ]
 .RB command
 .br
 .B turbostat
 .RB [ "\-s" ]
 .RB [ "\-v" ]
+.RB [ "\-m MSR#" ]
 .RB [ "\-M MSR#" ]
 .RB [ "\-i interval_sec" ]
 .SH DESCRIPTION
@@ -35,7 +37,10 @@ The \fB-p\fP option limits output to the 1st thread in each package.
 .PP
 The \fB-v\fP option increases verbosity.
 .PP
-The \fB-M MSR#\fP option dumps the specified MSR,
+The \fB-m MSR#\fP option dumps the specified 32-bit MSR,
+in addition to the usual frequency and idle statistics.
+.PP
+The \fB-M MSR#\fP option dumps the specified 64-bit MSR,
 in addition to the usual frequency and idle statistics.
 .PP
 The \fB-i interval_sec\fP option prints statistics every \fiinterval_sec\fP seconds.
@@ -164,6 +169,13 @@ multiple invocations of itself.
 may work poorly on Linux-2.6.20 through 2.6.29,
 as \fBacpi-cpufreq \fPperiodically cleared the APERF and MPERF
 in those kernels.
+
+If the TSC column does not make sense, then
+the other numbers will also make no sense.
+Turbostat is lightweight, and its data collection is not atomic.
+These issues are usually caused by an extremely short measurement
+interval (much less than 1 second), or system activity that prevents
+turbostat from being able to run on all CPUS to quickly collect data.
 
 The APERF, MPERF MSRs are defined to count non-halted cycles.
 Although it is not guaranteed by the architecture, turbostat assumes
