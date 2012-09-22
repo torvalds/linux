@@ -918,11 +918,40 @@ struct sfp_diag_ext_s {
 	u8	ext_status_ctl[2];
 };
 
+/*
+ * Diagnostic: Data Fields -- Address A2h
+ * General Use Fields: User Writable Table - Features's Control Registers
+ * Total 32 bytes
+ */
+struct sfp_usr_eeprom_s {
+	u8	rsvd1[2];       /* 128-129 */
+	u8	ewrap;          /* 130 */
+	u8	rsvd2[2];       /*  */
+	u8	owrap;          /* 133 */
+	u8	rsvd3[2];       /*  */
+	u8	prbs;           /* 136: PRBS 7 generator */
+	u8	rsvd4[2];       /*  */
+	u8	tx_eqz_16;      /* 139: TX Equalizer (16xFC) */
+	u8	tx_eqz_8;       /* 140: TX Equalizer (8xFC) */
+	u8	rsvd5[2];       /*  */
+	u8	rx_emp_16;      /* 143: RX Emphasis (16xFC) */
+	u8	rx_emp_8;       /* 144: RX Emphasis (8xFC) */
+	u8	rsvd6[2];       /*  */
+	u8	tx_eye_adj;     /* 147: TX eye Threshold Adjust */
+	u8	rsvd7[3];       /*  */
+	u8	tx_eye_qctl;    /* 151: TX eye Quality Control */
+	u8	tx_eye_qres;    /* 152: TX eye Quality Result */
+	u8	rsvd8[2];       /*  */
+	u8	poh[3];         /* 155-157: Power On Hours */
+	u8	rsvd9[2];       /*  */
+};
+
 struct sfp_mem_s {
 	struct sfp_srlid_base_s	srlid_base;
 	struct sfp_srlid_ext_s	srlid_ext;
 	struct sfp_diag_base_s	diag_base;
 	struct sfp_diag_ext_s	diag_ext;
+	struct sfp_usr_eeprom_s usr_eeprom;
 };
 
 /*

@@ -4687,22 +4687,25 @@ diag_tempsensor_comp(struct bfa_diag_s *diag, bfi_diag_ts_rsp_t *rsp)
 	diag->tsensor.temp->temp = be16_to_cpu(rsp->temp);
 	diag->tsensor.temp->ts_junc = rsp->ts_junc;
 	diag->tsensor.temp->ts_brd = rsp->ts_brd;
-	diag->tsensor.temp->status = BFA_STATUS_OK;
 
 	if (rsp->ts_brd) {
+		/* tsensor.temp->status is brd_temp status */
+		diag->tsensor.temp->status = rsp->status;
 		if (rsp->status == BFA_STATUS_OK) {
 			diag->tsensor.temp->brd_temp =
 				be16_to_cpu(rsp->brd_temp);
-		} else {
-			bfa_trc(diag, rsp->status);
+		} else
 			diag->tsensor.temp->brd_temp = 0;
-			diag->tsensor.temp->status = BFA_STATUS_DEVBUSY;
-		}
 	}
+
+	bfa_trc(diag, rsp->status);
 	bfa_trc(diag, rsp->ts_junc);
 	bfa_trc(diag, rsp->temp);
 	bfa_trc(diag, rsp->ts_brd);
 	bfa_trc(diag, rsp->brd_temp);
+
+	/* tsensor status is always good bcos we always have junction temp */
+	diag->tsensor.status = BFA_STATUS_OK;
 	diag->tsensor.cbfn(diag->tsensor.cbarg, diag->tsensor.status);
 	diag->tsensor.lock = 0;
 }
@@ -4931,6 +4934,7 @@ bfa_diag_tsensor_query(struct bfa_diag_s *diag,
 	diag->tsensor.temp = result;
 	diag->tsensor.cbfn = cbfn;
 	diag->tsensor.cbarg = cbarg;
+	diag->tsensor.status = BFA_STATUS_OK;
 
 	/* Send msg to fw */
 	diag_tempsensor_send(diag);

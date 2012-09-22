@@ -258,6 +258,7 @@ struct bfa_fw_port_lksm_stats_s {
 	u32    hwsm_lrr_rx;        /*  No. of times LRR rx-ed by HWSM      */
 	u32    hwsm_lr_rx;         /*  No. of times LR rx-ed by HWSM       */
 	u32    bbsc_lr;		   /* LKSM LR tx for credit recovery       */
+	u32	rsvd;
 };
 
 struct bfa_fw_port_snsm_stats_s {
@@ -270,6 +271,9 @@ struct bfa_fw_port_snsm_stats_s {
 	u32    sync_lost;          /*  Sync loss count                     */
 	u32    sig_lost;           /*  Signal loss count                   */
 	u32    asn8g_attempts;	   /* SNSM HWSM at 8Gbps attempts	   */
+	u32    adapt_success;	   /* SNSM adaptation success	*/
+	u32    adapt_fails;	   /* SNSM adaptation failures */
+	u32    adapt_ign_fails;	   /* SNSM adaptation failures ignored */
 };
 
 struct bfa_fw_port_physm_stats_s {
