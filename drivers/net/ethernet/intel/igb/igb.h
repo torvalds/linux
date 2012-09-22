@@ -101,7 +101,6 @@ struct vf_data_storage {
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
 	u16 tx_rate;
-	struct pci_dev *vfdev;
 };
 
 #define IGB_VF_FLAG_CTS            0x00000001 /* VF is clear to send data */
@@ -169,8 +168,8 @@ struct igb_tx_buffer {
 	unsigned int bytecount;
 	u16 gso_segs;
 	__be16 protocol;
-	dma_addr_t dma;
-	u32 length;
+	DEFINE_DMA_UNMAP_ADDR(dma);
+	DEFINE_DMA_UNMAP_LEN(len);
 	u32 tx_flags;
 };
 
@@ -214,7 +213,6 @@ struct igb_q_vector {
 	struct igb_ring_container rx, tx;
 
 	struct napi_struct napi;
-	int numa_node;
 
 	u16 itr_val;
 	u8 set_itr;
@@ -259,7 +257,6 @@ struct igb_ring {
 	};
 	/* Items past this point are only used during ring alloc / free */
 	dma_addr_t dma;                /* phys address of the ring */
-	int numa_node;                  /* node to alloc ring memory on */
 };
 
 enum e1000_ring_flags_t {
@@ -374,7 +371,6 @@ struct igb_adapter {
 	int vf_rate_link_speed;
 	u32 rss_queues;
 	u32 wvbr;
-	int node;
 	u32 *shadow_vfta;
 
 #ifdef CONFIG_IGB_PTP
