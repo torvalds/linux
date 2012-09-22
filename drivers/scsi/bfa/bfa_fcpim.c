@@ -158,6 +158,7 @@ enum bfa_tskim_event {
 	BFA_TSKIM_SM_IOS_DONE	= 7,	/*  IO and sub TM completions	*/
 	BFA_TSKIM_SM_CLEANUP	= 8,	/*  TM cleanup on ITN offline	*/
 	BFA_TSKIM_SM_CLEANUP_DONE = 9,	/*  TM abort completion	*/
+	BFA_TSKIM_SM_UTAG	= 10,	/*  TM completion unknown tag  */
 };
 
 /*
@@ -3036,7 +3037,7 @@ bfa_ioim_abort(struct bfa_ioim_s *ioim)
 static void
 bfa_tskim_sm_uninit(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_START:
@@ -3074,7 +3075,7 @@ bfa_tskim_sm_uninit(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 static void
 bfa_tskim_sm_active(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_DONE:
@@ -3110,7 +3111,7 @@ bfa_tskim_sm_active(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 static void
 bfa_tskim_sm_cleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_DONE:
@@ -3119,6 +3120,7 @@ bfa_tskim_sm_cleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 		 */
 		break;
 
+	case BFA_TSKIM_SM_UTAG:
 	case BFA_TSKIM_SM_CLEANUP_DONE:
 		bfa_sm_set_state(tskim, bfa_tskim_sm_iocleanup);
 		bfa_tskim_cleanup_ios(tskim);
@@ -3138,7 +3140,7 @@ bfa_tskim_sm_cleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 static void
 bfa_tskim_sm_iocleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_IOS_DONE:
@@ -3170,7 +3172,7 @@ bfa_tskim_sm_iocleanup(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 static void
 bfa_tskim_sm_qfull(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_QRESUME:
@@ -3207,7 +3209,7 @@ static void
 bfa_tskim_sm_cleanup_qfull(struct bfa_tskim_s *tskim,
 		enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_DONE:
@@ -3238,7 +3240,7 @@ bfa_tskim_sm_cleanup_qfull(struct bfa_tskim_s *tskim,
 static void
 bfa_tskim_sm_hcb(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 {
-	bfa_trc(tskim->bfa, event);
+	bfa_trc(tskim->bfa, tskim->tsk_tag << 16 | event);
 
 	switch (event) {
 	case BFA_TSKIM_SM_HCB:
@@ -3560,6 +3562,8 @@ bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	if (rsp->tsk_status == BFI_TSKIM_STS_ABORTED) {
 		bfa_stats(tskim->itnim, tm_cleanup_comps);
 		bfa_sm_send_event(tskim, BFA_TSKIM_SM_CLEANUP_DONE);
+	} else if (rsp->tsk_status == BFI_TSKIM_STS_UTAG) {
+		bfa_sm_send_event(tskim, BFA_TSKIM_SM_UTAG);
 	} else {
 		bfa_stats(tskim->itnim, tm_fw_rsps);
 		bfa_sm_send_event(tskim, BFA_TSKIM_SM_DONE);

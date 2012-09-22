@@ -840,6 +840,7 @@ enum bfi_tskim_status {
 	 */
 	BFI_TSKIM_STS_TIMEOUT  = 10,	/*  TM request timedout	*/
 	BFI_TSKIM_STS_ABORTED  = 11,	/*  Aborted on host request */
+	BFI_TSKIM_STS_UTAG     = 12,	/*  unknown tag for request */
 };
 
 struct bfi_tskim_rsp_s {

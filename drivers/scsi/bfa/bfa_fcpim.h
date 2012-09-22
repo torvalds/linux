@@ -51,7 +51,9 @@ void bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw);
 #define BFA_ITN_FROM_TAG(_fcp, _tag)	\
 	((_fcp)->itn_arr + ((_tag) & ((_fcp)->num_itns - 1)))
 #define BFA_SNSINFO_FROM_TAG(_fcp, _tag) \
-	bfa_mem_get_dmabuf_kva(_fcp, _tag, BFI_IOIM_SNSLEN)
+	bfa_mem_get_dmabuf_kva(_fcp, (_tag & BFA_IOIM_IOTAG_MASK),	\
+	BFI_IOIM_SNSLEN)
+
 
 #define BFA_ITNIM_MIN   32
 #define BFA_ITNIM_MAX   1024
