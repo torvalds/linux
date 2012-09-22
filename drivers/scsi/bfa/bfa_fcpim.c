@@ -3703,6 +3703,7 @@ bfa_fcp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	struct bfa_mem_dma_s *seg_ptr;
 	u16	idx, nsegs, num_io_req;
 
+	fcp->max_ioim_reqs = cfg->fwcfg.num_ioim_reqs;
 	fcp->num_ioim_reqs = cfg->fwcfg.num_ioim_reqs;
 	fcp->num_fwtio_reqs  = cfg->fwcfg.num_fwtio_reqs;
 	fcp->num_itns   = cfg->fwcfg.num_rports;
@@ -3725,6 +3726,7 @@ bfa_fcp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		bfa_iocfc_set_snsbase(bfa, idx, fcp->snsbase[idx].pa);
 	}
 
+	fcp->throttle_update_required = 1;
 	bfa_fcpim_attach(fcp, bfad, cfg, pcidev);
 
 	bfa_iotag_attach(fcp);
@@ -3763,23 +3765,33 @@ bfa_fcp_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_fcp_mod_s *fcp = BFA_FCP_MOD(bfa);
 
-	/* Enqueue unused ioim resources to free_q */
-	list_splice_tail_init(&fcp->iotag_unused_q, &fcp->iotag_ioim_free_q);
-
 	bfa_fcpim_iocdisable(fcp);
 }
 
 void
-bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw)
+bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw, u16 max_ioim_fw)
 {
 	struct bfa_fcp_mod_s	*mod = BFA_FCP_MOD(bfa);
 	struct list_head	*qe;
 	int	i;
 
+	/* Update io throttle value only once during driver load time */
+	if (!mod->throttle_update_required)
+		return;
+
 	for (i = 0; i < (mod->num_ioim_reqs - num_ioim_fw); i++) {
 		bfa_q_deq_tail(&mod->iotag_ioim_free_q, &qe);
 		list_add_tail(qe, &mod->iotag_unused_q);
 	}
+
+	if (mod->num_ioim_reqs != num_ioim_fw) {
+		bfa_trc(bfa, mod->num_ioim_reqs);
+		bfa_trc(bfa, num_ioim_fw);
+	}
+
+	mod->max_ioim_reqs = max_ioim_fw;
+	mod->num_ioim_reqs = num_ioim_fw;
+	mod->throttle_update_required = 0;
 }
 
 void
@@ -3836,4 +3848,89 @@ bfa_iotag_attach(struct bfa_fcp_mod_s *fcp)
 	}
 
 	bfa_mem_kva_curp(fcp) = (u8 *) iotag;
+}
+
+
+/**
+ * To send config req, first try to use throttle value from flash
+ * If 0, then use driver parameter
+ * We need to use min(flash_val, drv_val) because
+ * memory allocation was done based on this cfg'd value
+ */
+u16
+bfa_fcpim_get_throttle_cfg(struct bfa_s *bfa, u16 drv_cfg_param)
+{
+	u16 tmp;
+	struct bfa_fcp_mod_s *fcp = BFA_FCP_MOD(bfa);
+
+	/*
+	 * If throttle value from flash is already in effect after driver is
+	 * loaded then until next load, always return current value instead
+	 * of actual flash value
+	 */
+	if (!fcp->throttle_update_required)
+		return (u16)fcp->num_ioim_reqs;
+
+	tmp = bfa_dconf_read_data_valid(bfa) ? bfa_fcpim_read_throttle(bfa) : 0;
+	if (!tmp || (tmp > drv_cfg_param))
+		tmp = drv_cfg_param;
+
+	return tmp;
+}
+
+bfa_status_t
+bfa_fcpim_write_throttle(struct bfa_s *bfa, u16 value)
+{
+	if (!bfa_dconf_get_min_cfg(bfa)) {
+		BFA_DCONF_MOD(bfa)->dconf->throttle_cfg.value = value;
+		BFA_DCONF_MOD(bfa)->dconf->throttle_cfg.is_valid = 1;
+		return BFA_STATUS_OK;
+	}
+
+	return BFA_STATUS_FAILED;
+}
+
+u16
+bfa_fcpim_read_throttle(struct bfa_s *bfa)
+{
+	struct bfa_throttle_cfg_s *throttle_cfg =
+			&(BFA_DCONF_MOD(bfa)->dconf->throttle_cfg);
+
+	return ((!bfa_dconf_get_min_cfg(bfa)) ?
+	       ((throttle_cfg->is_valid == 1) ? (throttle_cfg->value) : 0) : 0);
+}
+
+bfa_status_t
+bfa_fcpim_throttle_set(struct bfa_s *bfa, u16 value)
+{
+	/* in min cfg no commands should run. */
+	if ((bfa_dconf_get_min_cfg(bfa) == BFA_TRUE) ||
+	    (!bfa_dconf_read_data_valid(bfa)))
+		return BFA_STATUS_FAILED;
+
+	bfa_fcpim_write_throttle(bfa, value);
+
+	return bfa_dconf_update(bfa);
+}
+
+bfa_status_t
+bfa_fcpim_throttle_get(struct bfa_s *bfa, void *buf)
+{
+	struct bfa_fcpim_s *fcpim = BFA_FCPIM(bfa);
+	struct bfa_defs_fcpim_throttle_s throttle;
+
+	if ((bfa_dconf_get_min_cfg(bfa) == BFA_TRUE) ||
+	    (!bfa_dconf_read_data_valid(bfa)))
+		return BFA_STATUS_FAILED;
+
+	memset(&throttle, 0, sizeof(struct bfa_defs_fcpim_throttle_s));
+
+	throttle.cur_value = (u16)(fcpim->fcp->num_ioim_reqs);
+	throttle.cfg_value = bfa_fcpim_read_throttle(bfa);
+	if (!throttle.cfg_value)
+		throttle.cfg_value = throttle.cur_value;
+	throttle.max_value = (u16)(fcpim->fcp->max_ioim_reqs);
+	memcpy(buf, &throttle, sizeof(struct bfa_defs_fcpim_throttle_s));
+
+	return BFA_STATUS_OK;
 }

@@ -3026,6 +3026,9 @@ bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
 	struct bfa_rport_qos_attr_s qos_attr;
 	struct bfa_fcs_lport_s *port = rport->port;
 	bfa_port_speed_t rport_speed = rport->rpf.rpsc_speed;
+	struct bfa_port_attr_s port_attr;
+
+	bfa_fcport_get_attr(rport->fcs->bfa, &port_attr);
 
 	memset(rport_attr, 0, sizeof(struct bfa_rport_attr_s));
 	memset(&qos_attr, 0, sizeof(struct bfa_rport_qos_attr_s));
@@ -3056,7 +3059,8 @@ bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
 			rport_speed =
 				bfa_fcport_get_ratelim_speed(rport->fcs->bfa);
 
-		if (rport_speed < bfa_fcs_lport_get_rport_max_speed(port))
+		if ((bfa_fcs_lport_get_rport_max_speed(port) !=
+		    BFA_PORT_SPEED_UNKNOWN) && (rport_speed < port_attr.speed))
 			rport_attr->trl_enforced = BFA_TRUE;
 	}
 }

@@ -983,7 +983,8 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 		cfg_info->single_msix_vec = 1;
 	cfg_info->endian_sig = BFI_IOC_ENDIAN_SIG;
 	cfg_info->num_cqs = cfg->fwcfg.num_cqs;
-	cfg_info->num_ioim_reqs = cpu_to_be16(cfg->fwcfg.num_ioim_reqs);
+	cfg_info->num_ioim_reqs = cpu_to_be16(bfa_fcpim_get_throttle_cfg(bfa,
+					       cfg->fwcfg.num_ioim_reqs));
 	cfg_info->num_fwtio_reqs = cpu_to_be16(cfg->fwcfg.num_fwtio_reqs);
 
 	bfa_dma_be_addr_set(cfg_info->cfgrsp_addr, iocfc->cfgrsp_dma.pa);
@@ -1245,10 +1246,14 @@ bfa_iocfc_qreg(struct bfa_s *bfa, struct bfi_iocfc_qreg_s *qreg)
 static void
 bfa_iocfc_res_recfg(struct bfa_s *bfa, struct bfa_iocfc_fwcfg_s *fwcfg)
 {
+	struct bfa_iocfc_s	*iocfc   = &bfa->iocfc;
+	struct bfi_iocfc_cfg_s	*cfg_info = iocfc->cfginfo;
+
 	bfa_fcxp_res_recfg(bfa, fwcfg->num_fcxp_reqs);
 	bfa_uf_res_recfg(bfa, fwcfg->num_uf_bufs);
 	bfa_rport_res_recfg(bfa, fwcfg->num_rports);
-	bfa_fcp_res_recfg(bfa, fwcfg->num_ioim_reqs);
+	bfa_fcp_res_recfg(bfa, cpu_to_be16(cfg_info->num_ioim_reqs),
+			  fwcfg->num_ioim_reqs);
 	bfa_tskim_res_recfg(bfa, fwcfg->num_tskim_reqs);
 }
 

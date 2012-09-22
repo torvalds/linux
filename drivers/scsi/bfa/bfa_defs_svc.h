@@ -875,6 +875,19 @@ struct bfa_lunmask_cfg_s {
 	struct bfa_lun_mask_s	lun_list[MAX_LUN_MASK_CFG];
 };
 
+struct bfa_throttle_cfg_s {
+	u16	is_valid;
+	u16	value;
+	u32	rsvd;
+};
+
+struct bfa_defs_fcpim_throttle_s {
+	u16	max_value;
+	u16	cur_value;
+	u16	cfg_value;
+	u16	rsvd;
+};
+
 /*
  *      Physical port configuration
  */

@@ -716,6 +716,7 @@ struct bfa_dconf_hdr_s {
 struct bfa_dconf_s {
 	struct bfa_dconf_hdr_s		hdr;
 	struct bfa_lunmask_cfg_s	lun_mask;
+	struct bfa_throttle_cfg_s	throttle_cfg;
 };
 #pragma pack()
 
@@ -738,6 +739,8 @@ struct bfa_dconf_mod_s {
 #define bfa_dconf_read_data_valid(__bfa)	\
 	(BFA_DCONF_MOD(__bfa)->read_data_valid)
 #define BFA_DCONF_UPDATE_TOV	5000	/* memtest timeout in msec */
+#define bfa_dconf_get_min_cfg(__bfa)	\
+	(BFA_DCONF_MOD(__bfa)->min_cfg)
 
 void	bfa_dconf_modinit(struct bfa_s *bfa);
 void	bfa_dconf_modexit(struct bfa_s *bfa);
