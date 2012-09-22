@@ -187,6 +187,8 @@ enum omap_overlay_caps {
 	OMAP_DSS_OVL_CAP_GLOBAL_ALPHA = 1 << 1,
 	OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA = 1 << 2,
 	OMAP_DSS_OVL_CAP_ZORDER = 1 << 3,
+	OMAP_DSS_OVL_CAP_POS = 1 << 4,
+	OMAP_DSS_OVL_CAP_REPLICATION = 1 << 5,
 };
 
 enum omap_overlay_manager_caps {
