@@ -27,7 +27,6 @@
 
 #include <asm/gpio.h>
 
-#include <mach/gpio-tegra.h>
 #include <linux/platform_data/mmc-sdhci-tegra.h>
 
 #include "sdhci-pltfm.h"
