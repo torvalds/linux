@@ -191,7 +191,6 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	if (list_empty(&flow->flowchain)) {
 		list_add_tail(&flow->flowchain, &q->new_flows);
-		codel_vars_init(&flow->cvars);
 		q->new_flow_count++;
 		flow->deficit = q->quantum;
 		flow->dropped = 0;
@@ -418,6 +417,7 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
 			struct fq_codel_flow *flow = q->flows + i;
 
 			INIT_LIST_HEAD(&flow->flowchain);
+			codel_vars_init(&flow->cvars);
 		}
 	}
 	if (sch->limit >= 1)

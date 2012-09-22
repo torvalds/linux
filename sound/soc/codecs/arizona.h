@@ -17,8 +17,10 @@
 
 #include <sound/soc.h>
 
-#define ARIZONA_CLK_SYSCLK   1
-#define ARIZONA_CLK_ASYNCCLK 2
+#define ARIZONA_CLK_SYSCLK         1
+#define ARIZONA_CLK_ASYNCCLK       2
+#define ARIZONA_CLK_OPCLK          3
+#define ARIZONA_CLK_ASYNC_OPCLK    4
 
 #define ARIZONA_CLK_SRC_MCLK1    0x0
 #define ARIZONA_CLK_SRC_MCLK2    0x1

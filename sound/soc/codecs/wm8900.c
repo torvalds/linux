@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -137,7 +138,7 @@
 #define WM8900_LRC_MASK 0x03ff
 
 struct wm8900_priv {
-	enum snd_soc_control_type control_type;
+	struct regmap *regmap;
 
 	u32 fll_in; /* FLL input frequency */
 	u32 fll_out; /* FLL output frequency */
@@ -147,54 +148,77 @@ struct wm8900_priv {
  * wm8900 register cache.  We can't read the entire register space and we
  * have slow control buses so we cache the registers.
  */
-static const u16 wm8900_reg_defaults[WM8900_MAXREG] = {
-	0x8900, 0x0000,
-	0xc000, 0x0000,
-	0x4050, 0x4000,
-	0x0008, 0x0000,
-	0x0040, 0x0040,
-	0x1004, 0x00c0,
-	0x00c0, 0x0000,
-	0x0100, 0x00c0,
-	0x00c0, 0x0000,
-	0xb001, 0x0000,
-	0x0000, 0x0044,
-	0x004c, 0x004c,
-	0x0044, 0x0044,
-	0x0000, 0x0044,
-	0x0000, 0x0000,
-	0x0002, 0x0000,
-	0x0000, 0x0000,
-	0x0000, 0x0000,
-	0x0008, 0x0000,
-	0x0000, 0x0008,
-	0x0097, 0x0100,
-	0x0000, 0x0000,
-	0x0050, 0x0050,
-	0x0055, 0x0055,
-	0x0055, 0x0000,
-	0x0000, 0x0079,
-	0x0079, 0x0079,
-	0x0079, 0x0000,
-	/* Remaining registers all zero */
+static const struct reg_default wm8900_reg_defaults[] = {
+	{  1, 0x0000 },
+	{  2, 0xc000 },
+	{  3, 0x0000 },
+	{  4, 0x4050 },
+	{  5, 0x4000 },
+	{  6, 0x0008 },
+	{  7, 0x0000 },
+	{  8, 0x0040 },
+	{  9, 0x0040 },
+	{ 10, 0x1004 },
+	{ 11, 0x00c0 },
+	{ 12, 0x00c0 },
+	{ 13, 0x0000 },
+	{ 14, 0x0100 },
+	{ 15, 0x00c0 },
+	{ 16, 0x00c0 },
+	{ 17, 0x0000 },
+	{ 18, 0xb001 },
+	{ 19, 0x0000 },
+	{ 20, 0x0000 },
+	{ 21, 0x0044 },
+	{ 22, 0x004c },
+	{ 23, 0x004c },
+	{ 24, 0x0044 },
+	{ 25, 0x0044 },
+	{ 26, 0x0000 },
+	{ 27, 0x0044 },
+	{ 28, 0x0000 },
+	{ 29, 0x0000 },
+	{ 30, 0x0002 },
+	{ 31, 0x0000 },
+	{ 32, 0x0000 },
+	{ 33, 0x0000 },
+	{ 34, 0x0000 },
+	{ 35, 0x0000 },
+	{ 36, 0x0008 },
+	{ 37, 0x0000 },
+	{ 38, 0x0000 },
+	{ 39, 0x0008 },
+	{ 40, 0x0097 },
+	{ 41, 0x0100 },
+	{ 42, 0x0000 },
+	{ 43, 0x0000 },
+	{ 44, 0x0050 },
+	{ 45, 0x0050 },
+	{ 46, 0x0055 },
+	{ 47, 0x0055 },
+	{ 48, 0x0055 },
+	{ 49, 0x0000 },
+	{ 50, 0x0000 },
+	{ 51, 0x0079 },
+	{ 52, 0x0079 },
+	{ 53, 0x0079 },
+	{ 54, 0x0079 },
+	{ 55, 0x0000 },
 };
 
-static int wm8900_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
+static bool wm8900_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case WM8900_REG_ID:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
 static void wm8900_reset(struct snd_soc_codec *codec)
 {
 	snd_soc_write(codec, WM8900_REG_RESET, 0);
-
-	memcpy(codec->reg_cache, wm8900_reg_defaults,
-	       sizeof(wm8900_reg_defaults));
 }
 
 static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
@@ -469,10 +493,10 @@ SOC_DAPM_SINGLE("RINPUT2 Switch", WM8900_REG_INCTL, 1, 1, 0),
 SOC_DAPM_SINGLE("RINPUT3 Switch", WM8900_REG_INCTL, 0, 1, 0),
 };
 
-static const char *wm9700_lp_mux[] = { "Disabled", "Enabled" };
+static const char *wm8900_lp_mux[] = { "Disabled", "Enabled" };
 
 static const struct soc_enum wm8900_lineout2_lp_mux =
-SOC_ENUM_SINGLE(WM8900_REG_LOUTMIXCTL1, 1, 2, wm9700_lp_mux);
+SOC_ENUM_SINGLE(WM8900_REG_LOUTMIXCTL1, 1, 2, wm8900_lp_mux);
 
 static const struct snd_kcontrol_new wm8900_lineout2_lp =
 SOC_DAPM_ENUM("Route", wm8900_lineout2_lp_mux);
@@ -1119,13 +1143,16 @@ static int wm8900_suspend(struct snd_soc_codec *codec)
 static int wm8900_resume(struct snd_soc_codec *codec)
 {
 	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
-	u16 *cache;
-	int i, ret;
-
-	cache = kmemdup(codec->reg_cache, sizeof(wm8900_reg_defaults),
-			GFP_KERNEL);
+	int ret;
 
 	wm8900_reset(codec);
+
+	ret = regcache_sync(wm8900->regmap);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to restore cache: %d\n", ret);
+		return ret;
+	}
+
 	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Restart the FLL? */
@@ -1139,27 +1166,18 @@ static int wm8900_resume(struct snd_soc_codec *codec)
 		ret = wm8900_set_fll(codec, 0, fll_in, fll_out);
 		if (ret != 0) {
 			dev_err(codec->dev, "Failed to restart FLL\n");
-			kfree(cache);
 			return ret;
 		}
 	}
-
-	if (cache) {
-		for (i = 0; i < WM8900_MAXREG; i++)
-			snd_soc_write(codec, i, cache[i]);
-		kfree(cache);
-	} else
-		dev_err(codec->dev, "Unable to allocate register cache\n");
 
 	return 0;
 }
 
 static int wm8900_probe(struct snd_soc_codec *codec)
 {
-	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0, reg;
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, wm8900->control_type);
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
@@ -1207,10 +1225,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
 	.suspend =	wm8900_suspend,
 	.resume =	wm8900_resume,
 	.set_bias_level = wm8900_set_bias_level,
-	.volatile_register = wm8900_volatile_register,
-	.reg_cache_size = ARRAY_SIZE(wm8900_reg_defaults),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_default = wm8900_reg_defaults,
 
 	.controls = wm8900_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8900_snd_controls),
@@ -1220,30 +1234,44 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8900_dapm_routes),
 };
 
+static const struct regmap_config wm8900_regmap = {
+	.reg_bits = 8,
+	.val_bits = 16,
+	.max_register = WM8900_MAXREG,
+
+	.reg_defaults = wm8900_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(wm8900_reg_defaults),
+	.cache_type = REGCACHE_RBTREE,
+
+	.volatile_reg = wm8900_volatile_register,
+};
+
 #if defined(CONFIG_SPI_MASTER)
 static int __devinit wm8900_spi_probe(struct spi_device *spi)
 {
 	struct wm8900_priv *wm8900;
 	int ret;
 
-	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
+	wm8900 = devm_kzalloc(&spi->dev, sizeof(struct wm8900_priv),
+			      GFP_KERNEL);
 	if (wm8900 == NULL)
 		return -ENOMEM;
 
-	wm8900->control_type = SND_SOC_SPI;
+	wm8900->regmap = devm_regmap_init_spi(spi, &wm8900_regmap);
+	if (IS_ERR(wm8900->regmap))
+		return PTR_ERR(wm8900->regmap);
+
 	spi_set_drvdata(spi, wm8900);
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_dev_wm8900, &wm8900_dai, 1);
-	if (ret < 0)
-		kfree(wm8900);
+
 	return ret;
 }
 
 static int __devexit wm8900_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
 	return 0;
 }
 
@@ -1264,24 +1292,26 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 	struct wm8900_priv *wm8900;
 	int ret;
 
-	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
+	wm8900 = devm_kzalloc(&i2c->dev, sizeof(struct wm8900_priv),
+			      GFP_KERNEL);
 	if (wm8900 == NULL)
 		return -ENOMEM;
 
+	wm8900->regmap = devm_regmap_init_i2c(i2c, &wm8900_regmap);
+	if (IS_ERR(wm8900->regmap))
+		return PTR_ERR(wm8900->regmap);
+
 	i2c_set_clientdata(i2c, wm8900);
-	wm8900->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8900, &wm8900_dai, 1);
-	if (ret < 0)
-		kfree(wm8900);
+
 	return ret;
 }
 
 static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 

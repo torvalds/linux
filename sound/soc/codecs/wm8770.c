@@ -724,24 +724,7 @@ static struct spi_driver wm8770_spi_driver = {
 	.remove = __devexit_p(wm8770_spi_remove)
 };
 
-static int __init wm8770_modinit(void)
-{
-	int ret = 0;
-
-	ret = spi_register_driver(&wm8770_spi_driver);
-	if (ret) {
-		printk(KERN_ERR "Failed to register wm8770 SPI driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(wm8770_modinit);
-
-static void __exit wm8770_exit(void)
-{
-	spi_unregister_driver(&wm8770_spi_driver);
-}
-module_exit(wm8770_exit);
+module_spi_driver(wm8770_spi_driver);
 
 MODULE_DESCRIPTION("ASoC WM8770 driver");
 MODULE_AUTHOR("Dimitris Papastamos <dp@opensource.wolfsonmicro.com>");

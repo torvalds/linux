@@ -22,10 +22,11 @@
 #include <linux/davinci_emac.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/platform_data/davinci_asp.h>
 
-#include <mach/asp.h>
 #include <mach/keyscan.h>
 #include <mach/hardware.h>
+#include <mach/edma.h>
 
 #include <media/davinci/vpfe_capture.h>
 #include <media/davinci/vpif_types.h>

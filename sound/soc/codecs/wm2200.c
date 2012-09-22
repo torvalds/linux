@@ -1117,8 +1117,8 @@ SND_SOC_DAPM_SUPPLY("MICBIAS1", WM2200_MIC_BIAS_CTRL_1, WM2200_MICB1_ENA_SHIFT,
 		    0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS2", WM2200_MIC_BIAS_CTRL_2, WM2200_MICB2_ENA_SHIFT,
 		    0, NULL, 0),
-SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20),
-SND_SOC_DAPM_REGULATOR_SUPPLY("AVDD", 20),
+SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20, 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("AVDD", 20, 0),
 
 SND_SOC_DAPM_INPUT("IN1L"),
 SND_SOC_DAPM_INPUT("IN1R"),
@@ -2270,17 +2270,7 @@ static struct i2c_driver wm2200_i2c_driver = {
 	.id_table = wm2200_i2c_id,
 };
 
-static int __init wm2200_modinit(void)
-{
-	return i2c_add_driver(&wm2200_i2c_driver);
-}
-module_init(wm2200_modinit);
-
-static void __exit wm2200_exit(void)
-{
-	i2c_del_driver(&wm2200_i2c_driver);
-}
-module_exit(wm2200_exit);
+module_i2c_driver(wm2200_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM2200 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

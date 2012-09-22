@@ -66,6 +66,14 @@
 #define	CC_RB_BACKEND_DISABLE				0x98F4
 #define		BACKEND_DISABLE(x)				((x) << 16)
 
+#define R_028808_CB_COLOR_CONTROL			0x28808
+#define   S_028808_SPECIAL_OP(x)                       (((x) & 0x7) << 4)
+#define   G_028808_SPECIAL_OP(x)                       (((x) >> 4) & 0x7)
+#define   C_028808_SPECIAL_OP                          0xFFFFFF8F
+#define     V_028808_SPECIAL_NORMAL                     0x00
+#define     V_028808_SPECIAL_DISABLE                    0x01
+#define     V_028808_SPECIAL_RESOLVE_BOX                0x07
+
 #define	CB_COLOR0_BASE					0x28040
 #define	CB_COLOR1_BASE					0x28044
 #define	CB_COLOR2_BASE					0x28048

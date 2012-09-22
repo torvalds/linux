@@ -19,7 +19,8 @@
 #define DAVINCI_MCASP_H
 
 #include <linux/io.h>
-#include <mach/asp.h>
+#include <linux/platform_data/davinci_asp.h>
+
 #include "davinci-pcm.h"
 
 #define DAVINCI_MCASP_RATES	SNDRV_PCM_RATE_8000_96000
@@ -40,9 +41,8 @@ struct davinci_audio_dev {
 	struct davinci_pcm_dma_params dma_params[2];
 	void __iomem *base;
 	int sample_rate;
-	struct clk *clk;
+	struct device *dev;
 	unsigned int codec_fmt;
-	u8 clk_active;
 
 	/* McASP specific data */
 	int	tdm_slots;
