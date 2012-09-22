@@ -966,13 +966,9 @@ static int __devexit ade7758_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ade7758_state *st = iio_priv(indio_dev);
-	int ret;
 
 	iio_device_unregister(indio_dev);
-	ret = ade7758_stop_device(&indio_dev->dev);
-	if (ret)
-		goto err_ret;
-
+	ade7758_stop_device(&indio_dev->dev);
 	ade7758_remove_trigger(indio_dev);
 	ade7758_uninitialize_ring(indio_dev);
 	ade7758_unconfigure_ring(indio_dev);
@@ -981,8 +977,7 @@ static int __devexit ade7758_remove(struct spi_device *spi)
 
 	iio_device_free(indio_dev);
 
-err_ret:
-	return ret;
+	return 0;
 }
 
 static const struct spi_device_id ade7758_id[] = {
