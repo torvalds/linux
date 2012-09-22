@@ -36,8 +36,8 @@ u32 iop13xx_atux_pmmr_offset; /* This offset can change based on strapping */
 u32 iop13xx_atue_pmmr_offset; /* This offset can change based on strapping */
 static struct pci_bus *pci_bus_atux = 0;
 static struct pci_bus *pci_bus_atue = 0;
-u32 iop13xx_atue_mem_base;
-u32 iop13xx_atux_mem_base;
+void __iomem *iop13xx_atue_mem_base;
+void __iomem *iop13xx_atux_mem_base;
 size_t iop13xx_atue_mem_size;
 size_t iop13xx_atux_mem_size;
 
@@ -88,8 +88,7 @@ void iop13xx_map_pci_memory(void)
 				}
 
 				if (end) {
-					iop13xx_atux_mem_base =
-					(u32) __arm_ioremap_pfn(
+					iop13xx_atux_mem_base = __arm_ioremap_pfn(
 					__phys_to_pfn(IOP13XX_PCIX_LOWER_MEM_PA)
 					, 0, iop13xx_atux_mem_size, MT_DEVICE);
 					if (!iop13xx_atux_mem_base) {
@@ -99,7 +98,7 @@ void iop13xx_map_pci_memory(void)
 					}
 				} else
 					iop13xx_atux_mem_size = 0;
-				PRINTK("%s: atu: %d bus_size: %d mem_base: %x\n",
+				PRINTK("%s: atu: %d bus_size: %d mem_base: %p\n",
 				__func__, atu, iop13xx_atux_mem_size,
 				iop13xx_atux_mem_base);
 				break;
@@ -114,8 +113,7 @@ void iop13xx_map_pci_memory(void)
 				}
 
 				if (end) {
-					iop13xx_atue_mem_base =
-					(u32) __arm_ioremap_pfn(
+					iop13xx_atue_mem_base = __arm_ioremap_pfn(
 					__phys_to_pfn(IOP13XX_PCIE_LOWER_MEM_PA)
 					, 0, iop13xx_atue_mem_size, MT_DEVICE);
 					if (!iop13xx_atue_mem_base) {
@@ -125,13 +123,13 @@ void iop13xx_map_pci_memory(void)
 					}
 				} else
 					iop13xx_atue_mem_size = 0;
-				PRINTK("%s: atu: %d bus_size: %d mem_base: %x\n",
+				PRINTK("%s: atu: %d bus_size: %d mem_base: %p\n",
 				__func__, atu, iop13xx_atue_mem_size,
 				iop13xx_atue_mem_base);
 				break;
 			}
 
-			printk("%s: Initialized (%uM @ resource/virtual: %08lx/%08x)\n",
+			printk("%s: Initialized (%uM @ resource/virtual: %08lx/%p)\n",
 			atu ? "ATUE" : "ATUX",
 			(atu ? iop13xx_atue_mem_size : iop13xx_atux_mem_size) /
 			SZ_1M,

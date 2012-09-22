@@ -133,8 +133,8 @@ static struct platform_device usb_host_device = {
 
 /* USB Func CN17 */
 struct usbhs_private {
-	unsigned int phy;
-	unsigned int cr2;
+	void __iomem *phy;
+	void __iomem *cr2;
 	struct renesas_usbhs_platform_info info;
 };
 
@@ -232,8 +232,8 @@ static u32 usbhs_pipe_cfg[] = {
 };
 
 static struct usbhs_private usbhs_private = {
-	.phy	= 0xe60781e0,		/* USBPHYINT */
-	.cr2	= 0xe605810c,		/* USBCR2 */
+	.phy	= IOMEM(0xe60781e0),		/* USBPHYINT */
+	.cr2	= IOMEM(0xe605810c),		/* USBCR2 */
 	.info = {
 		.platform_callback = {
 			.hardware_init	= usbhs_hardware_init,

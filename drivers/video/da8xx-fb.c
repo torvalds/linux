@@ -131,7 +131,7 @@
 #define UPPER_MARGIN	32
 #define LOWER_MARGIN	32
 
-static resource_size_t da8xx_fb_reg_base;
+static void __iomem *da8xx_fb_reg_base;
 static struct resource *lcdc_regs;
 static unsigned int lcd_revision;
 static irq_handler_t lcdc_irq_handler;
@@ -951,7 +951,7 @@ static int __devexit fb_remove(struct platform_device *dev)
 		clk_disable(par->lcdc_clk);
 		clk_put(par->lcdc_clk);
 		framebuffer_release(info);
-		iounmap((void __iomem *)da8xx_fb_reg_base);
+		iounmap(da8xx_fb_reg_base);
 		release_mem_region(lcdc_regs->start, resource_size(lcdc_regs));
 
 	}
@@ -1171,7 +1171,7 @@ static int __devinit fb_probe(struct platform_device *device)
 	if (!lcdc_regs)
 		return -EBUSY;
 
-	da8xx_fb_reg_base = (resource_size_t)ioremap(lcdc_regs->start, len);
+	da8xx_fb_reg_base = ioremap(lcdc_regs->start, len);
 	if (!da8xx_fb_reg_base) {
 		ret = -EBUSY;
 		goto err_request_mem;
@@ -1392,7 +1392,7 @@ err_clk_put:
 	clk_put(fb_clk);
 
 err_ioremap:
-	iounmap((void __iomem *)da8xx_fb_reg_base);
+	iounmap(da8xx_fb_reg_base);
 
 err_request_mem:
 	release_mem_region(lcdc_regs->start, len);
