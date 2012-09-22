@@ -731,8 +731,7 @@ bfa_iocpf_sm_fwcheck_entry(struct bfa_iocpf_s *iocpf)
 	/*
 	 * Unlock the hw semaphore. Should be here only once per boot.
 	 */
-	readl(iocpf->ioc->ioc_regs.ioc_sem_reg);
-	writel(1, iocpf->ioc->ioc_regs.ioc_sem_reg);
+	bfa_ioc_ownership_reset(iocpf->ioc);
 
 	/*
 	 * unlock init semaphore.
@@ -2923,7 +2922,7 @@ bfa_ioc_poll_fwinit(struct bfa_ioc_s *ioc)
 		return;
 	}
 
-	if (ioc->iocpf.poll_time >= BFA_IOC_TOV)
+	if (ioc->iocpf.poll_time >= (3 * BFA_IOC_TOV))
 		bfa_iocpf_timeout(ioc);
 	else {
 		ioc->iocpf.poll_time += BFA_IOC_POLL_TOV;
@@ -5615,7 +5614,7 @@ bfa_dconf_sm_uninit(struct bfa_dconf_mod_s *dconf, enum bfa_dconf_event event)
 		}
 		bfa_sm_set_state(dconf, bfa_dconf_sm_flash_read);
 		bfa_timer_start(dconf->bfa, &dconf->timer,
-			bfa_dconf_timer, dconf, BFA_DCONF_UPDATE_TOV);
+			bfa_dconf_timer, dconf, 2 * BFA_DCONF_UPDATE_TOV);
 		bfa_status = bfa_flash_read_part(BFA_FLASH(dconf->bfa),
 					BFA_FLASH_PART_DRV, dconf->instance,
 					dconf->dconf,
@@ -5655,7 +5654,7 @@ bfa_dconf_sm_flash_read(struct bfa_dconf_mod_s *dconf,
 		break;
 	case BFA_DCONF_SM_TIMEOUT:
 		bfa_sm_set_state(dconf, bfa_dconf_sm_ready);
-		bfa_fsm_send_event(&dconf->bfa->iocfc, IOCFC_E_IOC_FAILED);
+		bfa_ioc_suspend(&dconf->bfa->ioc);
 		break;
 	case BFA_DCONF_SM_EXIT:
 		bfa_timer_stop(&dconf->timer);
@@ -5853,7 +5852,6 @@ bfa_dconf_init_cb(void *arg, bfa_status_t status)
 	struct bfa_s *bfa = arg;
 	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
 
-	bfa_sm_send_event(dconf, BFA_DCONF_SM_FLASH_COMP);
 	if (status == BFA_STATUS_OK) {
 		bfa_dconf_read_data_valid(bfa) = BFA_TRUE;
 		if (dconf->dconf->hdr.signature != BFI_DCONF_SIGNATURE)
@@ -5861,6 +5859,7 @@ bfa_dconf_init_cb(void *arg, bfa_status_t status)
 		if (dconf->dconf->hdr.version != BFI_DCONF_VERSION)
 			dconf->dconf->hdr.version = BFI_DCONF_VERSION;
 	}
+	bfa_sm_send_event(dconf, BFA_DCONF_SM_FLASH_COMP);
 	bfa_fsm_send_event(&bfa->iocfc, IOCFC_E_DCONF_DONE);
 }
 

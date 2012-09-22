@@ -274,6 +274,15 @@ bfa_iocfc_sm_initing(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	case IOCFC_E_IOC_ENABLED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_dconf_read);
 		break;
+
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_stopping);
+		break;
+
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_failed);
 		break;
@@ -298,6 +307,15 @@ bfa_iocfc_sm_dconf_read(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	case IOCFC_E_DCONF_DONE:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_cfg_wait);
 		break;
+
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_stopping);
+		break;
+
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_failed);
 		break;
@@ -322,6 +340,15 @@ bfa_iocfc_sm_init_cfg_wait(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	case IOCFC_E_CFG_DONE:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_cfg_done);
 		break;
+
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_stopping);
+		break;
+
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_failed);
 		break;
@@ -433,6 +460,12 @@ bfa_iocfc_sm_stopping(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 		bfa_cb_queue(iocfc->bfa, &iocfc->bfa->iocfc.stop_hcb_qe,
 			     bfa_iocfc_stop_cb, iocfc->bfa);
 		break;
+
+	case IOCFC_E_IOC_ENABLED:
+	case IOCFC_E_DCONF_DONE:
+	case IOCFC_E_CFG_DONE:
+		break;
+
 	default:
 		bfa_sm_fault(iocfc->bfa, event);
 		break;
@@ -454,6 +487,15 @@ bfa_iocfc_sm_enabling(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	case IOCFC_E_IOC_ENABLED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_cfg_wait);
 		break;
+
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_dconf_write);
+		break;
+
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_failed);
 
@@ -493,6 +535,13 @@ bfa_iocfc_sm_cfg_wait(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 			     bfa_iocfc_enable_cb, iocfc->bfa);
 		iocfc->bfa->iocfc.cb_reqd = BFA_FALSE;
 		break;
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_dconf_write);
+		break;
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_failed);
 		if (iocfc->bfa->iocfc.cb_reqd == BFA_FALSE)
@@ -523,6 +572,10 @@ bfa_iocfc_sm_disabling(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	switch (event) {
 	case IOCFC_E_IOC_DISABLED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabled);
+		break;
+	case IOCFC_E_IOC_ENABLED:
+	case IOCFC_E_DCONF_DONE:
+	case IOCFC_E_CFG_DONE:
 		break;
 	default:
 		bfa_sm_fault(iocfc->bfa, event);

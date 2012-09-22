@@ -57,13 +57,6 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	u32 usecnt;
 	struct bfi_ioc_image_hdr_s fwhdr;
 
-	/*
-	 * If bios boot (flash based) -- do not increment usage count
-	 */
-	if (bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)) <
-						BFA_IOC_FWIMG_MINSZ)
-		return BFA_TRUE;
-
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 	usecnt = readl(ioc->ioc_regs.ioc_usage_reg);
 
@@ -113,13 +106,6 @@ static void
 bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 {
 	u32 usecnt;
-
-	/*
-	 * If bios boot (flash based) -- do not decrement usage count
-	 */
-	if (bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)) <
-						BFA_IOC_FWIMG_MINSZ)
-		return;
 
 	/*
 	 * decrement usage count
@@ -400,13 +386,12 @@ static void
 bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 {
 
-	if (bfa_ioc_is_cna(ioc)) {
-		bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
-		writel(0, ioc->ioc_regs.ioc_usage_reg);
-		readl(ioc->ioc_regs.ioc_usage_sem_reg);
-		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
-	}
+	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
+	writel(0, ioc->ioc_regs.ioc_usage_reg);
+	readl(ioc->ioc_regs.ioc_usage_sem_reg);
+	writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 
+	writel(0, ioc->ioc_regs.ioc_fail_sync);
 	/*
 	 * Read the hw sem reg to make sure that it is locked
 	 * before we clear it. If it is not locked, writing 1
