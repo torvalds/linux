@@ -487,9 +487,6 @@ struct dvb_frontend *fc2580_attach(struct dvb_frontend *fe,
 
 	priv->cfg = cfg;
 	priv->i2c = i2c;
-	fe->tuner_priv = priv;
-	memcpy(&fe->ops.tuner_ops, &fc2580_tuner_ops,
-			sizeof(struct dvb_tuner_ops));
 
 	/* check if the tuner is there */
 	ret = fc2580_rd_reg(priv, 0x01, &chip_id);
@@ -509,6 +506,10 @@ struct dvb_frontend *fc2580_attach(struct dvb_frontend *fe,
 	dev_info(&priv->i2c->dev,
 			"%s: FCI FC2580 successfully identified\n",
 			KBUILD_MODNAME);
+
+	fe->tuner_priv = priv;
+	memcpy(&fe->ops.tuner_ops, &fc2580_tuner_ops,
+			sizeof(struct dvb_tuner_ops));
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
