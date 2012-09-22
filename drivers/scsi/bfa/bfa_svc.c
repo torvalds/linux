@@ -69,6 +69,7 @@ enum bfa_fcport_sm_event {
 	BFA_FCPORT_SM_HWFAIL	= 9,	/*  IOC h/w failure		*/
 	BFA_FCPORT_SM_DPORTENABLE = 10, /*  enable dport      */
 	BFA_FCPORT_SM_DPORTDISABLE = 11,/*  disable dport     */
+	BFA_FCPORT_SM_FAA_MISCONFIG = 12,	/* FAA misconfiguratin */
 };
 
 /*
@@ -201,6 +202,8 @@ static void     bfa_fcport_sm_iocfail(struct bfa_fcport_s *fcport,
 					enum bfa_fcport_sm_event event);
 static void	bfa_fcport_sm_dport(struct bfa_fcport_s *fcport,
 					enum bfa_fcport_sm_event event);
+static void	bfa_fcport_sm_faa_misconfig(struct bfa_fcport_s *fcport,
+					enum bfa_fcport_sm_event event);
 
 static void     bfa_fcport_ln_sm_dn(struct bfa_fcport_ln_s *ln,
 					enum bfa_fcport_ln_sm_event event);
@@ -231,6 +234,7 @@ static struct bfa_sm_table_s hal_port_sm_table[] = {
 	{BFA_SM(bfa_fcport_sm_iocdown), BFA_PORT_ST_IOCDOWN},
 	{BFA_SM(bfa_fcport_sm_iocfail), BFA_PORT_ST_IOCDOWN},
 	{BFA_SM(bfa_fcport_sm_dport), BFA_PORT_ST_DPORT},
+	{BFA_SM(bfa_fcport_sm_faa_misconfig), BFA_PORT_ST_FAA_MISCONFIG},
 };
 
 
@@ -2180,6 +2184,12 @@ bfa_fcport_sm_enabling_qwait(struct bfa_fcport_s *fcport,
 		bfa_sm_set_state(fcport, bfa_fcport_sm_iocdown);
 		break;
 
+	case BFA_FCPORT_SM_FAA_MISCONFIG:
+		bfa_fcport_reset_linkinfo(fcport);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISCONNECT);
+		bfa_sm_set_state(fcport, bfa_fcport_sm_faa_misconfig);
+		break;
+
 	default:
 		bfa_sm_fault(fcport->bfa, event);
 	}
@@ -2234,6 +2244,12 @@ bfa_fcport_sm_enabling(struct bfa_fcport_s *fcport,
 
 	case BFA_FCPORT_SM_HWFAIL:
 		bfa_sm_set_state(fcport, bfa_fcport_sm_iocdown);
+		break;
+
+	case BFA_FCPORT_SM_FAA_MISCONFIG:
+		bfa_fcport_reset_linkinfo(fcport);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISCONNECT);
+		bfa_sm_set_state(fcport, bfa_fcport_sm_faa_misconfig);
 		break;
 
 	default:
@@ -2320,6 +2336,12 @@ bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 
 	case BFA_FCPORT_SM_HWFAIL:
 		bfa_sm_set_state(fcport, bfa_fcport_sm_iocdown);
+		break;
+
+	case BFA_FCPORT_SM_FAA_MISCONFIG:
+		bfa_fcport_reset_linkinfo(fcport);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISCONNECT);
+		bfa_sm_set_state(fcport, bfa_fcport_sm_faa_misconfig);
 		break;
 
 	default:
@@ -2415,6 +2437,12 @@ bfa_fcport_sm_linkup(struct bfa_fcport_s *fcport,
 		}
 		break;
 
+	case BFA_FCPORT_SM_FAA_MISCONFIG:
+		bfa_fcport_reset_linkinfo(fcport);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISCONNECT);
+		bfa_sm_set_state(fcport, bfa_fcport_sm_faa_misconfig);
+		break;
+
 	default:
 		bfa_sm_fault(fcport->bfa, event);
 	}
@@ -2458,6 +2486,12 @@ bfa_fcport_sm_disabling_qwait(struct bfa_fcport_s *fcport,
 	case BFA_FCPORT_SM_HWFAIL:
 		bfa_sm_set_state(fcport, bfa_fcport_sm_iocfail);
 		bfa_reqq_wcancel(&fcport->reqq_wait);
+		break;
+
+	case BFA_FCPORT_SM_FAA_MISCONFIG:
+		bfa_fcport_reset_linkinfo(fcport);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISCONNECT);
+		bfa_sm_set_state(fcport, bfa_fcport_sm_faa_misconfig);
 		break;
 
 	default:
@@ -2720,6 +2754,49 @@ bfa_fcport_sm_dport(struct bfa_fcport_s *fcport, enum bfa_fcport_sm_event event)
 
 	case BFA_FCPORT_SM_DPORTDISABLE:
 		bfa_sm_set_state(fcport, bfa_fcport_sm_disabled);
+		break;
+
+	default:
+		bfa_sm_fault(fcport->bfa, event);
+	}
+}
+
+static void
+bfa_fcport_sm_faa_misconfig(struct bfa_fcport_s *fcport,
+			    enum bfa_fcport_sm_event event)
+{
+	bfa_trc(fcport->bfa, event);
+
+	switch (event) {
+	case BFA_FCPORT_SM_DPORTENABLE:
+	case BFA_FCPORT_SM_ENABLE:
+	case BFA_FCPORT_SM_START:
+		/*
+		 * Ignore event for a port as there is FAA misconfig
+		 */
+		break;
+
+	case BFA_FCPORT_SM_DISABLE:
+		if (bfa_fcport_send_disable(fcport))
+			bfa_sm_set_state(fcport, bfa_fcport_sm_disabling);
+		else
+			bfa_sm_set_state(fcport, bfa_fcport_sm_disabling_qwait);
+
+		bfa_fcport_reset_linkinfo(fcport);
+		bfa_fcport_scn(fcport, BFA_PORT_LINKDOWN, BFA_FALSE);
+		bfa_plog_str(fcport->bfa->plog, BFA_PL_MID_HAL,
+			     BFA_PL_EID_PORT_DISABLE, 0, "Port Disable");
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISABLE);
+		break;
+
+	case BFA_FCPORT_SM_STOP:
+		bfa_sm_set_state(fcport, bfa_fcport_sm_stopped);
+		break;
+
+	case BFA_FCPORT_SM_HWFAIL:
+		bfa_fcport_reset_linkinfo(fcport);
+		bfa_fcport_scn(fcport, BFA_PORT_LINKDOWN, BFA_FALSE);
+		bfa_sm_set_state(fcport, bfa_fcport_sm_iocdown);
 		break;
 
 	default:
@@ -3554,8 +3631,15 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 	case BFI_FCPORT_I2H_EVENT:
 		if (i2hmsg.event->link_state.linkstate == BFA_PORT_LINKUP)
 			bfa_sm_send_event(fcport, BFA_FCPORT_SM_LINKUP);
-		else
-			bfa_sm_send_event(fcport, BFA_FCPORT_SM_LINKDOWN);
+		else {
+			if (i2hmsg.event->link_state.linkstate_rsn ==
+			    BFA_PORT_LINKSTATE_RSN_FAA_MISCONFIG)
+				bfa_sm_send_event(fcport,
+						  BFA_FCPORT_SM_FAA_MISCONFIG);
+			else
+				bfa_sm_send_event(fcport,
+						  BFA_FCPORT_SM_LINKDOWN);
+		}
 		break;
 
 	case BFI_FCPORT_I2H_TRUNK_SCN:
