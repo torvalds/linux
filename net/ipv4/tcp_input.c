@@ -5969,7 +5969,8 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 		if (tcp_check_req(sk, skb, req, NULL, true) == NULL)
 			goto discard;
-	} else if (!tcp_validate_incoming(sk, skb, th, 0))
+	}
+	if (!tcp_validate_incoming(sk, skb, th, 0))
 		return 0;
 
 	/* step 5: check the ACK field */
