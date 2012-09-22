@@ -776,7 +776,7 @@ static int __init samsung_gpiolib_unregister(struct platform_device *pdev,
 static const struct of_device_id samsung_pinctrl_dt_match[];
 
 /* retrieve the soc specific data */
-static inline struct samsung_pin_ctrl *samsung_pinctrl_get_soc_data(
+static struct samsung_pin_ctrl *samsung_pinctrl_get_soc_data(
 				struct platform_device *pdev)
 {
 	int id;

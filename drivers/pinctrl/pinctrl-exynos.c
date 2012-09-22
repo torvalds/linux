@@ -58,7 +58,7 @@ static void exynos_gpio_irq_mask(struct irq_data *irqd)
 	unsigned long mask;
 
 	mask = readl(d->virt_base + reg_mask);
-	mask |= ~(1 << edata->pin);
+	mask |= 1 << edata->pin;
 	writel(mask, d->virt_base + reg_mask);
 }
 
@@ -76,9 +76,11 @@ static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 	struct samsung_pinctrl_drv_data *d = irqd->domain->host_data;
 	struct samsung_pin_ctrl *ctrl = d->ctrl;
 	struct exynos_geint_data *edata = irq_data_get_irq_handler_data(irqd);
+	struct samsung_pin_bank *bank = edata->bank;
 	unsigned int shift = EXYNOS_EINT_CON_LEN * edata->pin;
 	unsigned int con, trig_type;
 	unsigned long reg_con = ctrl->geint_con + edata->eint_offset;
+	unsigned int mask;
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -110,6 +112,16 @@ static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 	con &= ~(EXYNOS_EINT_CON_MASK << shift);
 	con |= trig_type << shift;
 	writel(con, d->virt_base + reg_con);
+
+	reg_con = bank->pctl_offset;
+	shift = edata->pin * bank->func_width;
+	mask = (1 << bank->func_width) - 1;
+
+	con = readl(d->virt_base + reg_con);
+	con &= ~(mask << shift);
+	con |= EXYNOS_EINT_FUNC << shift;
+	writel(con, d->virt_base + reg_con);
+
 	return 0;
 }
 
@@ -278,7 +290,7 @@ static void exynos_wkup_irq_mask(struct irq_data *irqd)
 	unsigned long mask;
 
 	mask = readl(d->virt_base + reg_mask);
-	mask &= ~(1 << pin);
+	mask |= 1 << pin;
 	writel(mask, d->virt_base + reg_mask);
 }
 
@@ -364,7 +376,7 @@ static void exynos_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void exynos_irq_demux_eint(int irq_base, unsigned long pend,
+static inline void exynos_irq_demux_eint(int irq_base, unsigned long pend,
 					struct irq_domain *domain)
 {
 	unsigned int irq;
@@ -383,12 +395,15 @@ static void exynos_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 	struct exynos_weint_data *eintd = irq_get_handler_data(irq);
 	struct samsung_pinctrl_drv_data *d = eintd->domain->host_data;
 	unsigned long pend;
+	unsigned long mask;
 
 	chained_irq_enter(chip, desc);
 	pend = readl(d->virt_base + d->ctrl->weint_pend + 0x8);
-	exynos_irq_demux_eint(16, pend, eintd->domain);
+	mask = readl(d->virt_base + d->ctrl->weint_mask + 0x8);
+	exynos_irq_demux_eint(16, pend & ~mask, eintd->domain);
 	pend = readl(d->virt_base + d->ctrl->weint_pend + 0xC);
-	exynos_irq_demux_eint(24, pend, eintd->domain);
+	mask = readl(d->virt_base + d->ctrl->weint_mask + 0xC);
+	exynos_irq_demux_eint(24, pend & ~mask, eintd->domain);
 	chained_irq_exit(chip, desc);
 }
 
@@ -416,19 +431,23 @@ static const struct irq_domain_ops exynos_wkup_irqd_ops = {
 static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 {
 	struct device *dev = d->dev;
-	struct device_node *wkup_np;
+	struct device_node *wkup_np = NULL;
+	struct device_node *np;
 	struct exynos_weint_data *weint_data;
 	int idx, irq;
 
-	wkup_np = of_find_matching_node(dev->of_node, exynos_wkup_irq_ids);
-	if (!wkup_np) {
-		dev_err(dev, "wakeup controller node not found\n");
-		return -ENODEV;
+	for_each_child_of_node(dev->of_node, np) {
+		if (of_match_node(exynos_wkup_irq_ids, np)) {
+			wkup_np = np;
+			break;
+		}
 	}
+	if (!wkup_np)
+		return -ENODEV;
 
 	d->wkup_irqd = irq_domain_add_linear(wkup_np, d->ctrl->nr_wint,
 				&exynos_wkup_irqd_ops, d);
-	if (!d->gpio_irqd) {
+	if (!d->wkup_irqd) {
 		dev_err(dev, "wakeup irq domain allocation failed\n");
 		return -ENXIO;
 	}

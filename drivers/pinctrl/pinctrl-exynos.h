@@ -144,6 +144,7 @@ enum exynos4210_gpio_xc_start {
 #define EXYNOS_WKUP_EMASK_OFFSET	0xF00
 #define EXYNOS_WKUP_EPEND_OFFSET	0xF40
 #define EXYNOS_SVC_OFFSET		0xB08
+#define EXYNOS_EINT_FUNC		0xF
 
 /* helpers to access interrupt service register */
 #define EXYNOS_SVC_GROUP_SHIFT		3
