@@ -135,7 +135,6 @@ struct seq_file;
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 /*
  * Return saved PC of a blocked thread.
