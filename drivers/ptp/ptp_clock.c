@@ -147,6 +147,7 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct timex *tx)
 	} else if (tx->modes & ADJ_FREQUENCY) {
 
 		err = ops->adjfreq(ops, scaled_ppm_to_ppb(tx->freq));
+		ptp->dialed_frequency = tx->freq;
 	}
 
 	return err;
