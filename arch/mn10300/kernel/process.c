@@ -162,24 +162,6 @@ void show_regs(struct pt_regs *regs)
 }
 
 /*
- * create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs = {
-		.a0 = (unsigned long) fn;
-		.d0 = (unsigned long) arg;
-	};
-
-	local_save_flags(regs.epsw);
-	regs.epsw |= EPSW_IE | EPSW_IM_7;
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0,
-		       NULL, NULL);
-}
-
-/*
  * free current thread data structures etc..
  */
 void exit_thread(void)
@@ -232,29 +214,34 @@ int copy_thread(unsigned long clone_flags,
 	/* allocate the userspace exception frame and set it up */
 	c_ksp -= sizeof(struct pt_regs);
 	c_regs = (struct pt_regs *) c_ksp;
-
-	p->thread.uregs = c_regs;
-	*c_regs = *kregs;
-	c_regs->sp = c_usp;
-	c_regs->epsw &= ~EPSW_FE; /* my FPU */
-
 	c_ksp -= 12; /* allocate function call ABI slack */
 
-	/* the new TLS pointer is passed in as arg #5 to sys_clone() */
-	if (clone_flags & CLONE_SETTLS)
-		c_regs->e2 = current_frame()->d3;
-
-	if (unlikely(!user_mode(kregs)))
-		p->thread.pc	= (unsigned long) ret_from_kernel_thread;
-	else
-		p->thread.pc	= (unsigned long) ret_from_fork;
-
 	/* set up things up so the scheduler can start the new task */
+	p->thread.uregs = c_regs;
 	ti->frame	= c_regs;
 	p->thread.a3	= (unsigned long) c_regs;
 	p->thread.sp	= c_ksp;
 	p->thread.wchan	= p->thread.pc;
 	p->thread.usp	= c_usp;
+
+	if (unlikely(!kregs)) {
+		memset(c_regs, 0, sizeof(struct pt_regs));
+		c_regs->a0 = c_usp; /* function */
+		c_regs->d0 = ustk_size; /* argument */
+		local_save_flags(c_regs->epsw);
+		c_regs->epsw |= EPSW_IE | EPSW_IM_7;
+		p->thread.pc	= (unsigned long) ret_from_kernel_thread;
+		return 0;
+	}
+	*c_regs = *kregs;
+	c_regs->sp = c_usp;
+	c_regs->epsw &= ~EPSW_FE; /* my FPU */
+
+	/* the new TLS pointer is passed in as arg #5 to sys_clone() */
+	if (clone_flags & CLONE_SETTLS)
+		c_regs->e2 = current_frame()->d3;
+
+	p->thread.pc	= (unsigned long) ret_from_fork;
 
 	return 0;
 }
