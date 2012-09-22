@@ -384,7 +384,7 @@ static int __devinit mxr_probe(struct platform_device *pdev)
 
 	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
 	if (!mdev) {
-		mxr_err(mdev, "not enough memory.\n");
+		dev_err(dev, "not enough memory.\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
