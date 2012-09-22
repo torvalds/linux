@@ -876,9 +876,22 @@ s3c24xx_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 
 static struct console s3c24xx_serial_console;
 
+static int __init s3c24xx_serial_console_init(void)
+{
+	register_console(&s3c24xx_serial_console);
+	return 0;
+}
+console_initcall(s3c24xx_serial_console_init);
+
 #define S3C24XX_SERIAL_CONSOLE &s3c24xx_serial_console
 #else
 #define S3C24XX_SERIAL_CONSOLE NULL
+#endif
+
+#ifdef CONFIG_CONSOLE_POLL
+static int s3c24xx_serial_get_poll_char(struct uart_port *port);
+static void s3c24xx_serial_put_poll_char(struct uart_port *port,
+			 unsigned char c);
 #endif
 
 static struct uart_ops s3c24xx_serial_ops = {
@@ -899,6 +912,10 @@ static struct uart_ops s3c24xx_serial_ops = {
 	.request_port	= s3c24xx_serial_request_port,
 	.config_port	= s3c24xx_serial_config_port,
 	.verify_port	= s3c24xx_serial_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char = s3c24xx_serial_get_poll_char,
+	.poll_put_char = s3c24xx_serial_put_poll_char,
+#endif
 };
 
 static struct uart_driver s3c24xx_uart_drv = {
@@ -1315,6 +1332,36 @@ s3c24xx_serial_console_txrdy(struct uart_port *port, unsigned int ufcon)
 	utrstat = rd_regl(port, S3C2410_UTRSTAT);
 	return (utrstat & S3C2410_UTRSTAT_TXE) ? 1 : 0;
 }
+
+#ifdef CONFIG_CONSOLE_POLL
+/*
+ * Console polling routines for writing and reading from the uart while
+ * in an interrupt or debug context.
+ */
+
+static int s3c24xx_serial_get_poll_char(struct uart_port *port)
+{
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+	unsigned int ufstat;
+
+	ufstat = rd_regl(port, S3C2410_UFSTAT);
+	if (s3c24xx_serial_rx_fifocnt(ourport, ufstat) == 0)
+		return NO_POLL_CHAR;
+
+	return rd_regb(port, S3C2410_URXH);
+}
+
+static void s3c24xx_serial_put_poll_char(struct uart_port *port,
+		unsigned char c)
+{
+	unsigned int ufcon = rd_regl(cons_uart, S3C2410_UFCON);
+
+	while (!s3c24xx_serial_console_txrdy(port, ufcon))
+		cpu_relax();
+	wr_regb(cons_uart, S3C2410_UTXH, c);
+}
+
+#endif /* CONFIG_CONSOLE_POLL */
 
 static void
 s3c24xx_serial_console_putchar(struct uart_port *port, int ch)
