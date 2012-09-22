@@ -1324,7 +1324,6 @@ void __cpuinit cpu_init(void)
 	dbg_restore_debug_regs();
 
 	fpu_init();
-	xsave_init();
 
 	raw_local_save_flags(kernel_eflags);
 
@@ -1379,6 +1378,5 @@ void __cpuinit cpu_init(void)
 	dbg_restore_debug_regs();
 
 	fpu_init();
-	xsave_init();
 }
 #endif

@@ -2888,11 +2888,9 @@ static void bnx2x_get_channels(struct net_device *dev,
  */
 static void bnx2x_change_num_queues(struct bnx2x *bp, int num_rss)
 {
-	bnx2x_del_all_napi(bp);
 	bnx2x_disable_msi(bp);
 	BNX2X_NUM_QUEUES(bp) = num_rss + NON_ETH_CONTEXT_USE;
 	bnx2x_set_int_mode(bp);
-	bnx2x_add_all_napi(bp);
 }
 
 /**

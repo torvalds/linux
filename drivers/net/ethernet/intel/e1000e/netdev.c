@@ -3517,6 +3517,15 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	}
 
 	/*
+	 * Alignment of Tx data is on an arbitrary byte boundary with the
+	 * maximum size per Tx descriptor limited only to the transmit
+	 * allocation of the packet buffer minus 96 bytes with an upper
+	 * limit of 24KB due to receive synchronization limitations.
+	 */
+	adapter->tx_fifo_limit = min_t(u32, ((er32(PBA) >> 16) << 10) - 96,
+				       24 << 10);
+
+	/*
 	 * Disable Adaptive Interrupt Moderation if 2 full packets cannot
 	 * fit in receive buffer.
 	 */
@@ -4785,12 +4794,9 @@ static bool e1000_tx_csum(struct e1000_ring *tx_ring, struct sk_buff *skb)
 	return 1;
 }
 
-#define E1000_MAX_PER_TXD	8192
-#define E1000_MAX_TXD_PWR	12
-
 static int e1000_tx_map(struct e1000_ring *tx_ring, struct sk_buff *skb,
 			unsigned int first, unsigned int max_per_txd,
-			unsigned int nr_frags, unsigned int mss)
+			unsigned int nr_frags)
 {
 	struct e1000_adapter *adapter = tx_ring->adapter;
 	struct pci_dev *pdev = adapter->pdev;
@@ -5023,20 +5029,19 @@ static int __e1000_maybe_stop_tx(struct e1000_ring *tx_ring, int size)
 
 static int e1000_maybe_stop_tx(struct e1000_ring *tx_ring, int size)
 {
+	BUG_ON(size > tx_ring->count);
+
 	if (e1000_desc_unused(tx_ring) >= size)
 		return 0;
 	return __e1000_maybe_stop_tx(tx_ring, size);
 }
 
-#define TXD_USE_COUNT(S, X) (((S) >> (X)) + 1)
 static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_ring *tx_ring = adapter->tx_ring;
 	unsigned int first;
-	unsigned int max_per_txd = E1000_MAX_PER_TXD;
-	unsigned int max_txd_pwr = E1000_MAX_TXD_PWR;
 	unsigned int tx_flags = 0;
 	unsigned int len = skb_headlen(skb);
 	unsigned int nr_frags;
@@ -5056,18 +5061,8 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	}
 
 	mss = skb_shinfo(skb)->gso_size;
-	/*
-	 * The controller does a simple calculation to
-	 * make sure there is enough room in the FIFO before
-	 * initiating the DMA for each buffer.  The calc is:
-	 * 4 = ceil(buffer len/mss).  To make sure we don't
-	 * overrun the FIFO, adjust the max buffer len if mss
-	 * drops.
-	 */
 	if (mss) {
 		u8 hdr_len;
-		max_per_txd = min(mss << 2, max_per_txd);
-		max_txd_pwr = fls(max_per_txd) - 1;
 
 		/*
 		 * TSO Workaround for 82571/2/3 Controllers -- if skb->data
@@ -5097,12 +5092,12 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 		count++;
 	count++;
 
-	count += TXD_USE_COUNT(len, max_txd_pwr);
+	count += DIV_ROUND_UP(len, adapter->tx_fifo_limit);
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	for (f = 0; f < nr_frags; f++)
-		count += TXD_USE_COUNT(skb_frag_size(&skb_shinfo(skb)->frags[f]),
-				       max_txd_pwr);
+		count += DIV_ROUND_UP(skb_frag_size(&skb_shinfo(skb)->frags[f]),
+				      adapter->tx_fifo_limit);
 
 	if (adapter->hw.mac.tx_pkt_filtering)
 		e1000_transfer_dhcp_info(adapter, skb);
@@ -5144,15 +5139,18 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 		tx_flags |= E1000_TX_FLAGS_NO_FCS;
 
 	/* if count is 0 then mapping error has occurred */
-	count = e1000_tx_map(tx_ring, skb, first, max_per_txd, nr_frags, mss);
+	count = e1000_tx_map(tx_ring, skb, first, adapter->tx_fifo_limit,
+			     nr_frags);
 	if (count) {
 		skb_tx_timestamp(skb);
 
 		netdev_sent_queue(netdev, skb->len);
 		e1000_tx_queue(tx_ring, tx_flags, count);
 		/* Make sure there is space in the ring for the next send. */
-		e1000_maybe_stop_tx(tx_ring, MAX_SKB_FRAGS + 2);
-
+		e1000_maybe_stop_tx(tx_ring,
+				    (MAX_SKB_FRAGS *
+				     DIV_ROUND_UP(PAGE_SIZE,
+						  adapter->tx_fifo_limit) + 2));
 	} else {
 		dev_kfree_skb_any(skb);
 		tx_ring->buffer_info[first].time_stamp = 0;
@@ -6327,8 +6325,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	adapter->hw.phy.autoneg_advertised = 0x2f;
 
 	/* ring size defaults */
-	adapter->rx_ring->count = 256;
-	adapter->tx_ring->count = 256;
+	adapter->rx_ring->count = E1000_DEFAULT_RXD;
+	adapter->tx_ring->count = E1000_DEFAULT_TXD;
 
 	/*
 	 * Initial Wake on LAN setting - If APM wake is enabled in
