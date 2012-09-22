@@ -28,11 +28,11 @@
 
 #include <mach/cp_intc.h>
 #include <mach/mux.h>
-#include <mach/nand.h>
+#include <linux/platform_data/mtd-davinci.h>
 #include <mach/da8xx.h>
-#include <mach/usb.h>
-#include <mach/aemif.h>
-#include <mach/spi.h>
+#include <linux/platform_data/usb-davinci.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
+#include <linux/platform_data/spi-davinci.h>
 
 #define DA830_EVM_PHY_ID		""
 /*

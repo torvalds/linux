@@ -25,8 +25,8 @@
 #include <media/soc_mediabus.h>
 
 #include <mach/ipu.h>
-#include <mach/mx3_camera.h>
-#include <mach/dma.h>
+#include <linux/platform_data/camera-mx3.h>
+#include <linux/platform_data/dma-imx.h>
 
 #define MX3_CAM_DRV_NAME "mx3-camera"
 

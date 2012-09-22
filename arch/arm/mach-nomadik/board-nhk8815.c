@@ -34,7 +34,7 @@
 #include <plat/gpio-nomadik.h>
 #include <plat/mtu.h>
 
-#include <mach/nand.h>
+#include <linux/platform_data/mtd-nomadik-nand.h>
 #include <mach/fsmc.h>
 
 #include "cpu-8815.h"

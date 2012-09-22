@@ -43,7 +43,7 @@
 #include <mach/hardware.h>
 
 #include <plat/regs-udc.h>
-#include <plat/udc.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
 
 
 #include "s3c2410_udc.h"

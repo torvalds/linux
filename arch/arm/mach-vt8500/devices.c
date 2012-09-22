@@ -23,7 +23,7 @@
 
 #include <asm/mach/arch.h>
 
-#include <mach/vt8500fb.h>
+#include <linux/platform_data/video-vt8500lcdfb.h>
 #include <mach/i8042.h>
 #include "devices.h"
 

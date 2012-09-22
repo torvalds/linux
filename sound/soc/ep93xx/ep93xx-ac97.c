@@ -21,7 +21,7 @@
 #include <sound/ac97_codec.h>
 #include <sound/soc.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-ep93xx.h>
 #include "ep93xx-pcm.h"
 
 /*

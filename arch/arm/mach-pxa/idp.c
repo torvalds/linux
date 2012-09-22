@@ -33,9 +33,9 @@
 
 #include <mach/pxa25x.h>
 #include <mach/idp.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 #include <mach/bitfield.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-pxamci.h>
 
 #include "generic.h"
 #include "devices.h"

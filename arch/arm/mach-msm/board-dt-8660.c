@@ -20,7 +20,6 @@
 
 #include <mach/board.h>
 #include "common.h"
-#include "core.h"
 
 static const struct of_device_id msm_dt_gic_match[] __initconst = {
 	{ .compatible = "qcom,msm-8660-qgic", .data = gic_of_init },

@@ -13,7 +13,7 @@
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 
-#include "core.h"
+#include "common.h"
 
 static inline void cpu_enter_lowpower(void)
 {
