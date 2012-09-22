@@ -1169,7 +1169,6 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	}
 have_isn:
 	tcp_rsk(req)->snt_isn = isn;
-	tcp_rsk(req)->snt_synack = tcp_time_stamp;
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_release;
@@ -1180,6 +1179,7 @@ have_isn:
 	    want_cookie)
 		goto drop_and_free;
 
+	tcp_rsk(req)->snt_synack = tcp_time_stamp;
 	tcp_rsk(req)->listener = NULL;
 	inet6_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 	return 0;
