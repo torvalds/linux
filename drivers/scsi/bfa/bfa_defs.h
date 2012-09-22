@@ -190,6 +190,7 @@ enum bfa_status {
 	BFA_STATUS_TOPOLOGY_LOOP = 230, /* Topology is set to Loop */
 	BFA_STATUS_LOOP_UNSUPP_MEZZ = 231, /* Loop topology is not supported
 					    * on mezz cards */
+	BFA_STATUS_INVALID_BW = 233,	/* Invalid bandwidth value */
 	BFA_STATUS_QOS_BW_INVALID = 234,   /* Invalid QOS bandwidth
 					    * configuration */
 	BFA_STATUS_DPORT_ENABLED = 235, /* D-port mode is already enabled */
@@ -749,7 +750,8 @@ struct bfa_ablk_cfg_pf_s {
 	u8	rsvd[1];
 	u16	num_qpairs;
 	u16	num_vectors;
-	u32	bw;
+	u16	bw_min;
+	u16	bw_max;
 };
 
 struct bfa_ablk_cfg_port_s {

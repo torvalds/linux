@@ -3019,7 +3019,6 @@ bfa_ablk_config_swap(struct bfa_ablk_cfg_s *cfg)
 	struct bfa_ablk_cfg_inst_s *cfg_inst;
 	int i, j;
 	u16	be16;
-	u32	be32;
 
 	for (i = 0; i < BFA_ABLK_MAX; i++) {
 		cfg_inst = &cfg->inst[i];
@@ -3030,8 +3029,10 @@ bfa_ablk_config_swap(struct bfa_ablk_cfg_s *cfg)
 			cfg_inst->pf_cfg[j].num_qpairs = be16_to_cpu(be16);
 			be16 = cfg_inst->pf_cfg[j].num_vectors;
 			cfg_inst->pf_cfg[j].num_vectors = be16_to_cpu(be16);
-			be32 = cfg_inst->pf_cfg[j].bw;
-			cfg_inst->pf_cfg[j].bw = be16_to_cpu(be32);
+			be16 = cfg_inst->pf_cfg[j].bw_min;
+			cfg_inst->pf_cfg[j].bw_min = be16_to_cpu(be16);
+			be16 = cfg_inst->pf_cfg[j].bw_max;
+			cfg_inst->pf_cfg[j].bw_max = be16_to_cpu(be16);
 		}
 	}
 }
@@ -3173,7 +3174,8 @@ bfa_ablk_query(struct bfa_ablk_s *ablk, struct bfa_ablk_cfg_s *ablk_cfg,
 
 bfa_status_t
 bfa_ablk_pf_create(struct bfa_ablk_s *ablk, u16 *pcifn,
-		u8 port, enum bfi_pcifn_class personality, int bw,
+		u8 port, enum bfi_pcifn_class personality,
+		u16 bw_min, u16 bw_max,
 		bfa_ablk_cbfn_t cbfn, void *cbarg)
 {
 	struct bfi_ablk_h2i_pf_req_s *m;
@@ -3197,7 +3199,8 @@ bfa_ablk_pf_create(struct bfa_ablk_s *ablk, u16 *pcifn,
 	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_PF_CREATE,
 		    bfa_ioc_portid(ablk->ioc));
 	m->pers = cpu_to_be16((u16)personality);
-	m->bw = cpu_to_be32(bw);
+	m->bw_min = cpu_to_be16(bw_min);
+	m->bw_max = cpu_to_be16(bw_max);
 	m->port = port;
 	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
 
@@ -3297,8 +3300,8 @@ bfa_ablk_port_config(struct bfa_ablk_s *ablk, int port, enum bfa_mode_s mode,
 }
 
 bfa_status_t
-bfa_ablk_pf_update(struct bfa_ablk_s *ablk, int pcifn, int bw,
-		bfa_ablk_cbfn_t cbfn, void *cbarg)
+bfa_ablk_pf_update(struct bfa_ablk_s *ablk, int pcifn, u16 bw_min,
+		   u16 bw_max, bfa_ablk_cbfn_t cbfn, void *cbarg)
 {
 	struct bfi_ablk_h2i_pf_req_s *m;
 
@@ -3320,7 +3323,8 @@ bfa_ablk_pf_update(struct bfa_ablk_s *ablk, int pcifn, int bw,
 	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_PF_UPDATE,
 		bfa_ioc_portid(ablk->ioc));
 	m->pcifn = (u8)pcifn;
-	m->bw = cpu_to_be32(bw);
+	m->bw_min = cpu_to_be16(bw_min);
+	m->bw_max = cpu_to_be16(bw_max);
 	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
 
 	return BFA_STATUS_OK;

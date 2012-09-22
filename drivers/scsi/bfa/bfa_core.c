@@ -838,19 +838,20 @@ void
 bfa_isr_enable(struct bfa_s *bfa)
 {
 	u32 umsk;
-	int pci_func = bfa_ioc_pcifn(&bfa->ioc);
+	int port_id = bfa_ioc_portid(&bfa->ioc);
 
-	bfa_trc(bfa, pci_func);
+	bfa_trc(bfa, bfa_ioc_pcifn(&bfa->ioc));
+	bfa_trc(bfa, port_id);
 
 	bfa_msix_ctrl_install(bfa);
 
 	if (bfa_asic_id_ct2(bfa->ioc.pcidev.device_id)) {
 		umsk = __HFN_INT_ERR_MASK_CT2;
-		umsk |= pci_func == 0 ?
+		umsk |= port_id == 0 ?
 			__HFN_INT_FN0_MASK_CT2 : __HFN_INT_FN1_MASK_CT2;
 	} else {
 		umsk = __HFN_INT_ERR_MASK;
-		umsk |= pci_func == 0 ? __HFN_INT_FN0_MASK : __HFN_INT_FN1_MASK;
+		umsk |= port_id == 0 ? __HFN_INT_FN0_MASK : __HFN_INT_FN1_MASK;
 	}
 
 	writel(umsk, bfa->iocfc.bfa_regs.intr_status);

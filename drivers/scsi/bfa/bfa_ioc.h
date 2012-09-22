@@ -889,12 +889,12 @@ bfa_status_t bfa_ablk_port_config(struct bfa_ablk_s *ablk, int port,
 		enum bfa_mode_s mode, int max_pf, int max_vf,
 		bfa_ablk_cbfn_t cbfn, void *cbarg);
 bfa_status_t bfa_ablk_pf_create(struct bfa_ablk_s *ablk, u16 *pcifn,
-		u8 port, enum bfi_pcifn_class personality, int bw,
-		bfa_ablk_cbfn_t cbfn, void *cbarg);
+		u8 port, enum bfi_pcifn_class personality,
+		u16 bw_min, u16 bw_max, bfa_ablk_cbfn_t cbfn, void *cbarg);
 bfa_status_t bfa_ablk_pf_delete(struct bfa_ablk_s *ablk, int pcifn,
 		bfa_ablk_cbfn_t cbfn, void *cbarg);
-bfa_status_t bfa_ablk_pf_update(struct bfa_ablk_s *ablk, int pcifn, int bw,
-		bfa_ablk_cbfn_t cbfn, void *cbarg);
+bfa_status_t bfa_ablk_pf_update(struct bfa_ablk_s *ablk, int pcifn,
+		u16 bw_min, u16 bw_max, bfa_ablk_cbfn_t cbfn, void *cbarg);
 bfa_status_t bfa_ablk_optrom_en(struct bfa_ablk_s *ablk,
 		bfa_ablk_cbfn_t cbfn, void *cbarg);
 bfa_status_t bfa_ablk_optrom_dis(struct bfa_ablk_s *ablk,

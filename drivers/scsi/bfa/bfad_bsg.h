@@ -469,7 +469,8 @@ struct bfa_bsg_pcifn_s {
 	bfa_status_t		status;
 	u16			bfad_num;
 	u16			pcifn_id;
-	u32			bandwidth;
+	u16			bw_min;
+	u16			bw_max;
 	u8			port;
 	enum bfi_pcifn_class	pcifn_class;
 	u8			rsvd[1];

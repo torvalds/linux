@@ -690,7 +690,8 @@ struct bfi_ablk_h2i_pf_req_s {
 	u8			pcifn;
 	u8			port;
 	u16			pers;
-	u32			bw;
+	u16			bw_min; /* percent BW @ max speed */
+	u16			bw_max; /* percent BW @ max speed */
 };
 
 /* BFI_ABLK_H2I_OPTROM_ENABLE, BFI_ABLK_H2I_OPTROM_DISABLE */

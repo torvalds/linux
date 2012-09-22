@@ -33,7 +33,7 @@ bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 	/* If IOC is not in disabled state - return */
 	if (!bfa_ioc_is_disabled(&bfad->bfa.ioc)) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		iocmd->status = BFA_STATUS_IOC_FAILURE;
+		iocmd->status = BFA_STATUS_OK;
 		return rc;
 	}
 
@@ -54,6 +54,12 @@ bfad_iocmd_ioc_disable(struct bfad_s *bfad, void *cmd)
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (bfa_ioc_is_disabled(&bfad->bfa.ioc)) {
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		iocmd->status = BFA_STATUS_OK;
+		return rc;
+	}
+
 	if (bfad->disable_active) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		return -EBUSY;
@@ -1191,8 +1197,8 @@ bfad_iocmd_pcifn_create(struct bfad_s *bfad, void *cmd)
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	iocmd->status = bfa_ablk_pf_create(&bfad->bfa.modules.ablk,
 				&iocmd->pcifn_id, iocmd->port,
-				iocmd->pcifn_class, iocmd->bandwidth,
-				bfad_hcb_comp, &fcomp);
+				iocmd->pcifn_class, iocmd->bw_min,
+				iocmd->bw_max, bfad_hcb_comp, &fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	if (iocmd->status != BFA_STATUS_OK)
 		goto out;
@@ -1235,8 +1241,8 @@ bfad_iocmd_pcifn_bw(struct bfad_s *bfad, void *cmd)
 	init_completion(&fcomp.comp);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	iocmd->status = bfa_ablk_pf_update(&bfad->bfa.modules.ablk,
-				iocmd->pcifn_id, iocmd->bandwidth,
-				bfad_hcb_comp, &fcomp);
+				iocmd->pcifn_id, iocmd->bw_min,
+				iocmd->bw_max, bfad_hcb_comp, &fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	bfa_trc(bfad, iocmd->status);
 	if (iocmd->status != BFA_STATUS_OK)
@@ -2122,7 +2128,7 @@ bfad_iocmd_boot_cfg(struct bfad_s *bfad, void *cmd)
 	init_completion(&fcomp.comp);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	iocmd->status = bfa_flash_update_part(BFA_FLASH(&bfad->bfa),
-			BFA_FLASH_PART_BOOT, PCI_FUNC(bfad->pcidev->devfn),
+			BFA_FLASH_PART_BOOT, bfad->bfa.ioc.port_id,
 			&iocmd->cfg, sizeof(struct bfa_boot_cfg_s), 0,
 			bfad_hcb_comp, &fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -2144,7 +2150,7 @@ bfad_iocmd_boot_query(struct bfad_s *bfad, void *cmd)
 	init_completion(&fcomp.comp);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	iocmd->status = bfa_flash_read_part(BFA_FLASH(&bfad->bfa),
-			BFA_FLASH_PART_BOOT, PCI_FUNC(bfad->pcidev->devfn),
+			BFA_FLASH_PART_BOOT, bfad->bfa.ioc.port_id,
 			&iocmd->cfg, sizeof(struct bfa_boot_cfg_s), 0,
 			bfad_hcb_comp, &fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
