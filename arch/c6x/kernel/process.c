@@ -104,22 +104,6 @@ void machine_power_off(void)
 	halt_loop();
 }
 
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	struct pt_regs regs = {
-		.a0 = (unsigned long)fn,
-		.a1 = (unsigned long)arg,
-		.tsr = 0, /* kernel mode */
-	};
-
-	/* Ok, create the new process.. */
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, -1, &regs,
-		       0, NULL, NULL);
-}
-
 void flush_thread(void)
 {
 }
@@ -177,14 +161,16 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	childregs = task_pt_regs(p);
 
-	*childregs = *regs;
-
-	if (usp == -1) {
+	if (!regs) {
 		/* case of  __kernel_thread: we return to supervisor space */
+		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->sp = (unsigned long)(childregs + 1);
 		p->thread.pc = (unsigned long) ret_from_kernel_thread;
+		childregs->a0 = usp;		/* function */
+		childregs->a1 = ustk_size;	/* argument */
 	} else {
 		/* Otherwise use the given stack */
+		*childregs = *regs;
 		childregs->sp = usp;
 		p->thread.pc = (unsigned long) ret_from_fork;
 	}
