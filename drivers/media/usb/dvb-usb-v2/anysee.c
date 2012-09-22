@@ -1217,6 +1217,8 @@ static int anysee_ci_init(struct dvb_usb_device *d)
 	if (ret)
 		return ret;
 
+	state->ci_attached = true;
+
 	return 0;
 }
 
@@ -1225,7 +1227,7 @@ static void anysee_ci_release(struct dvb_usb_device *d)
 	struct anysee_state *state = d_to_priv(d);
 
 	/* detach CI */
-	if (state->has_ci)
+	if (state->ci_attached)
 		dvb_ca_en50221_release(&state->ci);
 
 	return;
@@ -1257,10 +1259,8 @@ static int anysee_init(struct dvb_usb_device *d)
 	/* attach CI */
 	if (state->has_ci) {
 		ret = anysee_ci_init(d);
-		if (ret) {
-			state->has_ci = false;
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;

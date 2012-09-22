@@ -56,6 +56,7 @@ struct anysee_state {
 	u8 seq;
 	u8 fe_id:1; /* frondend ID */
 	u8 has_ci:1;
+	u8 ci_attached:1;
 	struct dvb_ca_en50221 ci;
 	unsigned long ci_cam_ready; /* jiffies */
 };
