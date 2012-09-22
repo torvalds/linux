@@ -3185,10 +3185,10 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
-int i915_gem_get_cacheing_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file)
+int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file)
 {
-	struct drm_i915_gem_cacheing *args = data;
+	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
@@ -3202,7 +3202,7 @@ int i915_gem_get_cacheing_ioctl(struct drm_device *dev, void *data,
 		goto unlock;
 	}
 
-	args->cacheing = obj->cache_level != I915_CACHE_NONE;
+	args->caching = obj->cache_level != I915_CACHE_NONE;
 
 	drm_gem_object_unreference(&obj->base);
 unlock:
@@ -3210,10 +3210,10 @@ unlock:
 	return ret;
 }
 
-int i915_gem_set_cacheing_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file)
+int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file)
 {
-	struct drm_i915_gem_cacheing *args = data;
+	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
 	enum i915_cache_level level;
 	int ret;
@@ -3222,11 +3222,11 @@ int i915_gem_set_cacheing_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	switch (args->cacheing) {
-	case I915_CACHEING_NONE:
+	switch (args->caching) {
+	case I915_CACHING_NONE:
 		level = I915_CACHE_NONE;
 		break;
-	case I915_CACHEING_CACHED:
+	case I915_CACHING_CACHED:
 		level = I915_CACHE_LLC;
 		break;
 	default:
