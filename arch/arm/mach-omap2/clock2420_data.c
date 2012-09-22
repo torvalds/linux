@@ -1897,9 +1897,9 @@ static struct omap_clk omap2420_clks[] = {
 	CLK(NULL,	"pka_ick",	&pka_ick,	CK_242X),
 	CLK(NULL,	"usb_fck",	&usb_fck,	CK_242X),
 	CLK("musb-hdrc",	"fck",	&osc_ck,	CK_242X),
-	CLK(NULL,	"timer_32k_ck",	&func_32k_ck,	CK_243X),
-	CLK(NULL,	"timer_sys_ck",	&sys_ck,	CK_243X),
-	CLK(NULL,	"timer_ext_ck",	&alt_ck,	CK_243X),
+	CLK(NULL,	"timer_32k_ck",	&func_32k_ck,	CK_242X),
+	CLK(NULL,	"timer_sys_ck",	&sys_ck,	CK_242X),
+	CLK(NULL,	"timer_ext_ck",	&alt_ck,	CK_242X),
 };
 
 /*
