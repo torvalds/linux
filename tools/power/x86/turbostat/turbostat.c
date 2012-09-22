@@ -223,6 +223,8 @@ void print_header(void)
 	if (has_aperf)
 		outp += sprintf(outp, "  GHz");
 	outp += sprintf(outp, "  TSC");
+	if (extra_msr_offset)
+		outp += sprintf(outp, "          MSR 0x%04X", extra_msr_offset);
 	if (do_nhm_cstates)
 		outp += sprintf(outp, "    %%c1");
 	if (do_nhm_cstates)
@@ -239,8 +241,6 @@ void print_header(void)
 		outp += sprintf(outp, "   %%pc6");
 	if (do_snb_cstates)
 		outp += sprintf(outp, "   %%pc7");
-	if (extra_msr_offset)
-		outp += sprintf(outp, "        MSR 0x%x ", extra_msr_offset);
 
 	outp += sprintf(outp, "\n");
 }
@@ -361,6 +361,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* TSC */
 	outp += sprintf(outp, "%5.2f", 1.0 * t->tsc/units/interval_float);
 
+	/* MSR */
+	if (extra_msr_offset)
+		outp += sprintf(outp, "  0x%016llx", t->extra_msr);
+
 	if (do_nhm_cstates) {
 		if (!skip_c1)
 			outp += sprintf(outp, " %6.2f", 100.0 * t->c1/t->tsc);
@@ -392,8 +396,6 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (do_snb_cstates)
 		outp += sprintf(outp, " %6.2f", 100.0 * p->pc7/t->tsc);
 done:
-	if (extra_msr_offset)
-		outp += sprintf(outp, "  0x%016llx", t->extra_msr);
 	outp += sprintf(outp, "\n");
 
 	return 0;
