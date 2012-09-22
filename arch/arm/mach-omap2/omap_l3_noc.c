@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
+#include "soc.h"
 #include "omap_l3_noc.h"
 
 /*
@@ -190,7 +191,7 @@ static int __devinit omap4_l3_probe(struct platform_device *pdev)
 			IRQF_DISABLED, "l3-dbg-irq", l3);
 	if (ret) {
 		pr_crit("L3: request_irq failed to register for 0x%x\n",
-						OMAP44XX_IRQ_L3_DBG);
+						9 + OMAP44XX_IRQ_GIC_START);
 		goto err3;
 	}
 
@@ -200,7 +201,7 @@ static int __devinit omap4_l3_probe(struct platform_device *pdev)
 			IRQF_DISABLED, "l3-app-irq", l3);
 	if (ret) {
 		pr_crit("L3: request_irq failed to register for 0x%x\n",
-						OMAP44XX_IRQ_L3_APP);
+						10 + OMAP44XX_IRQ_GIC_START);
 		goto err4;
 	}
 

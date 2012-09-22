@@ -46,6 +46,7 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <mach/hardware.h>
+#include <plat/cpu.h>
 #include <plat/prcm.h>
 
 #include "omap_wdt.h"
@@ -218,12 +219,16 @@ static long omap_wdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETSTATUS:
 		return put_user(0, (int __user *)arg);
 	case WDIOC_GETBOOTSTATUS:
+#ifdef CONFIG_ARCH_OMAP1
 		if (cpu_is_omap16xx())
 			return put_user(__raw_readw(ARM_SYSST),
 					(int __user *)arg);
+#endif
+#ifdef CONFIG_ARCH_OMAP2PLUS
 		if (cpu_is_omap24xx())
 			return put_user(omap_prcm_get_reset_sources(),
 					(int __user *)arg);
+#endif
 		return put_user(0, (int __user *)arg);
 	case WDIOC_KEEPALIVE:
 		spin_lock(&wdt_lock);

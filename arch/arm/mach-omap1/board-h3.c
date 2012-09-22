@@ -31,6 +31,7 @@
 #include <linux/i2c/tps65010.h>
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>

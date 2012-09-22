@@ -18,8 +18,8 @@
 #include <linux/list.h>
 #include <linux/clk.h>
 #include <plat/clkdev_omap.h>
-#include <plat/am33xx.h>
 
+#include "am33xx.h"
 #include "iomap.h"
 #include "control.h"
 #include "clock.h"

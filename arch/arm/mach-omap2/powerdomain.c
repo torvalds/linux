@@ -28,11 +28,13 @@
 #include "prm44xx.h"
 
 #include <asm/cpu.h>
-#include <plat/cpu.h>
-#include "powerdomain.h"
-#include "clockdomain.h"
+
 #include <plat/prcm.h>
 
+#include "powerdomain.h"
+#include "clockdomain.h"
+
+#include "soc.h"
 #include "pm.h"
 
 #define PWRDM_TRACE_STATES_FLAG	(1<<31)

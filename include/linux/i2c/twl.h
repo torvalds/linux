@@ -561,9 +561,6 @@ struct twl4030_bci_platform_data {
 
 /* TWL4030_GPIO_MAX (18) GPIOs, with interrupts */
 struct twl4030_gpio_platform_data {
-	int		gpio_base;
-	unsigned	irq_base, irq_end;
-
 	/* package the two LED signals as output-only GPIOs? */
 	bool		use_leds;
 

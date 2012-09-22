@@ -130,12 +130,6 @@ static void metrousb_read_int_callback(struct urb *urb)
 
 	/* Set the data read from the usb port into the serial port buffer. */
 	tty = tty_port_tty_get(&port->port);
-	if (!tty) {
-		dev_err(&port->dev, "%s - bad tty pointer - exiting\n",
-			__func__);
-		return;
-	}
-
 	if (tty && urb->actual_length) {
 		/* Loop through the data copying each byte to the tty layer. */
 		tty_insert_flip_string(tty, data, urb->actual_length);

@@ -29,6 +29,7 @@
 #include <plat/i2c.h>
 #include <plat/usb.h>
 
+#include "soc.h"
 #include "twl-common.h"
 #include "pm.h"
 #include "voltage.h"
@@ -84,7 +85,7 @@ void __init omap4_pmic_init(const char *pmic_type,
 	omap_mux_init_signal("sys_nirq1", OMAP_PIN_INPUT_PULLUP | OMAP_PIN_OFF_WAKEUPENABLE);
 	strncpy(omap4_i2c1_board_info[0].type, pmic_type,
 		sizeof(omap4_i2c1_board_info[0].type));
-	omap4_i2c1_board_info[0].irq = OMAP44XX_IRQ_SYS_1N;
+	omap4_i2c1_board_info[0].irq = 7 + OMAP44XX_IRQ_GIC_START;
 	omap4_i2c1_board_info[0].platform_data = pmic_data;
 
 	/* TWL6040 audio IC part */
