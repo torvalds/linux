@@ -1,0 +1,72 @@
+* Marvell Dove SoC pinctrl driver for mpp
+
+Please refer to marvell,mvebu-pinctrl.txt in this directory for common binding
+part and usage.
+
+Required properties:
+- compatible: "marvell,dove-pinctrl"
+- clocks: (optional) phandle of pdma clock
+
+Available mpp pins/groups and functions:
+Note: brackets (x) are not part of the mpp name for marvell,function and given
+only for more detailed description in this document.
+
+name          pins     functions
+================================================================================
+mpp0          0        gpio, pmu, uart2(rts), sdio0(cd), lcd0(pwm)
+mpp1          1        gpio, pmu, uart2(cts), sdio0(wp), lcd1(pwm)
+mpp2          2        gpio, pmu, uart2(txd), sdio0(buspwr), sata(prsnt),
+                       uart1(rts)
+mpp3          3        gpio, pmu, uart2(rxd), sdio0(ledctrl), sata(act),
+                       uart1(cts), lcd-spi(cs1)
+mpp4          4        gpio, pmu, uart3(rts), sdio1(cd), spi1(miso)
+mpp5          5        gpio, pmu, uart3(cts), sdio1(wp), spi1(cs)
+mpp6          6        gpio, pmu, uart3(txd), sdio1(buspwr), spi1(mosi)
+mpp7          7        gpio, pmu, uart3(rxd), sdio1(ledctrl), spi1(sck)
+mpp8          8        gpio, pmu, watchdog(rstout)
+mpp9          9        gpio, pmu, pex1(clkreq)
+mpp10         10       gpio, pmu, ssp(sclk)
+mpp11         11       gpio, pmu, sata(prsnt), sata-1(act), sdio0(ledctrl),
+                       sdio1(ledctrl), pex0(clkreq)
+mpp12         12       gpio, pmu, uart2(rts), audio0(extclk), sdio1(cd), sata(act)
+mpp13         13       gpio, pmu, uart2(cts), audio1(extclk), sdio1(wp),
+                       ssp(extclk)
+mpp14         14       gpio, pmu, uart2(txd), sdio1(buspwr), ssp(rxd)
+mpp15         15       gpio, pmu, uart2(rxd), sdio1(ledctrl), ssp(sfrm)
+mpp16         16       gpio, uart3(rts), sdio0(cd), ac97(sdi1), lcd-spi(cs1)
+mpp17         17       gpio, uart3(cts), sdio0(wp), ac97(sdi2), twsi(sda),
+                       ac97-1(sysclko)
+mpp18         18       gpio, uart3(txd), sdio0(buspwr), ac97(sdi3), lcd0(pwm)
+mpp19         19       gpio, uart3(rxd), sdio0(ledctrl), twsi(sck)
+mpp20         20       gpio, sdio0(cd), sdio1(cd), spi1(miso), lcd-spi(miso),
+                       ac97(sysclko)
+mpp21         21       gpio, sdio0(wp), sdio1(wp), spi1(cs), lcd-spi(cs0),
+                       uart1(cts), ssp(sfrm)
+mpp22         22       gpio, sdio0(buspwr), sdio1(buspwr), spi1(mosi),
+                       lcd-spi(mosi), uart1(cts), ssp(txd)
+mpp23         23       gpio, sdio0(ledctrl), sdio1(ledctrl), spi1(sck),
+                       lcd-spi(sck), ssp(sclk)
+mpp_camera    24-39    gpio, camera
+mpp_sdio0     40-45    gpio, sdio0
+mpp_sdio1     46-51    gpio, sdio1
+mpp_audio1    52-57    gpio, i2s1/spdifo, i2s1, spdifo, twsi, ssp/spdifo, ssp,
+                       ssp/twsi
+mpp_spi0      58-61    gpio, spi0
+mpp_uart1     62-63    gpio, uart1
+mpp_nand      64-71    gpo, nand
+audio0        -        i2s, ac97
+twsi          -        none, opt1, opt2, opt3
+
+Notes:
+* group "mpp_audio1" allows the following functions and gpio pins:
+  - gpio          : gpio on pins 52-57
+  - i2s1/spdifo   : audio1 i2s on pins 52-55 and spdifo on 57, no gpios
+  - i2s1          : audio1 i2s on pins 52-55, gpio on pins 56,57
+  - spdifo        : spdifo on pin 57, gpio on pins 52-55
+  - twsi          : twsi on pins 56,57, gpio on pins 52-55
+  - ssp/spdifo    : ssp on pins 52-55, spdifo on pin 57, no gpios
+  - ssp           : ssp on pins 52-55, gpio on pins 56,57
+  - ssp/twsi      : ssp on pins 52-55, twsi on pins 56,57, no gpios
+* group "audio0" internally muxes i2s0 or ac97 controller to the dedicated
+  audio0 pins.
+* group "twsi" internally muxes twsi controller to the dedicated or option pins.
