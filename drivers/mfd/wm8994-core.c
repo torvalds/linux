@@ -414,7 +414,7 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	ret = mfd_add_devices(wm8994->dev, -1,
 			      wm8994_regulator_devs,
 			      ARRAY_SIZE(wm8994_regulator_devs),
-			      NULL, 0);
+			      NULL, 0, NULL);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to add children: %d\n", ret);
 		goto err;
@@ -648,7 +648,7 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 
 	ret = mfd_add_devices(wm8994->dev, -1,
 			      wm8994_devs, ARRAY_SIZE(wm8994_devs),
-			      NULL, 0);
+			      NULL, 0, NULL);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to add children: %d\n", ret);
 		goto err_irq;

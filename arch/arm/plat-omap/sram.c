@@ -67,6 +67,7 @@
 
 static unsigned long omap_sram_start;
 static void __iomem *omap_sram_base;
+static unsigned long omap_sram_skip;
 static unsigned long omap_sram_size;
 static void __iomem *omap_sram_ceil;
 
@@ -105,6 +106,7 @@ static int is_sram_locked(void)
  */
 static void __init omap_detect_sram(void)
 {
+	omap_sram_skip = SRAM_BOOTLOADER_SZ;
 	if (cpu_class_is_omap2()) {
 		if (is_sram_locked()) {
 			if (cpu_is_omap34xx()) {
@@ -112,6 +114,7 @@ static void __init omap_detect_sram(void)
 				if ((omap_type() == OMAP2_DEVICE_TYPE_EMU) ||
 				    (omap_type() == OMAP2_DEVICE_TYPE_SEC)) {
 					omap_sram_size = 0x7000; /* 28K */
+					omap_sram_skip += SZ_16K;
 				} else {
 					omap_sram_size = 0x8000; /* 32K */
 				}
@@ -174,8 +177,10 @@ static void __init omap_map_sram(void)
 		return;
 
 #ifdef CONFIG_OMAP4_ERRATA_I688
+	if (cpu_is_omap44xx()) {
 		omap_sram_start += PAGE_SIZE;
 		omap_sram_size -= SZ_16K;
+	}
 #endif
 	if (cpu_is_omap34xx()) {
 		/*
@@ -202,8 +207,8 @@ static void __init omap_map_sram(void)
 	 * Looks like we need to preserve some bootloader code at the
 	 * beginning of SRAM for jumping to flash for reboot to work...
 	 */
-	memset_io(omap_sram_base + SRAM_BOOTLOADER_SZ, 0,
-		  omap_sram_size - SRAM_BOOTLOADER_SZ);
+	memset_io(omap_sram_base + omap_sram_skip, 0,
+		  omap_sram_size - omap_sram_skip);
 }
 
 /*
@@ -217,7 +222,7 @@ void *omap_sram_push_address(unsigned long size)
 {
 	unsigned long available, new_ceil = (unsigned long)omap_sram_ceil;
 
-	available = omap_sram_ceil - (omap_sram_base + SRAM_BOOTLOADER_SZ);
+	available = omap_sram_ceil - (omap_sram_base + omap_sram_skip);
 
 	if (size > available) {
 		pr_err("Not enough space in SRAM\n");
