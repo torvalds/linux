@@ -357,12 +357,12 @@ static struct fb_ops udlfb_ops = {
 	.fb_release = udl_fb_release,
 };
 
-void udl_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
+static void udl_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 			   u16 blue, int regno)
 {
 }
 
-void udl_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+static void udl_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 			     u16 *blue, int regno)
 {
 	*red = 0;
