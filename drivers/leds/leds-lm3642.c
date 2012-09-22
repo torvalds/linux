@@ -95,23 +95,14 @@ struct lm3642_chip_data {
 /* chip initialize */
 static int __devinit lm3642_chip_init(struct lm3642_chip_data *chip)
 {
-	unsigned int reg_val;
 	int ret;
 	struct lm3642_platform_data *pdata = chip->pdata;
 
 	/* set enable register */
-	ret = regmap_read(chip->regmap, REG_ENABLE, &reg_val);
+	ret = regmap_update_bits(chip->regmap, REG_ENABLE, EX_PIN_ENABLE_MASK,
+				 pdata->tx_pin);
 	if (ret < 0)
-		goto out;
-
-	reg_val &= (~EX_PIN_ENABLE_MASK);
-	reg_val |= pdata->tx_pin;
-	ret = regmap_write(chip->regmap, REG_ENABLE, reg_val);
-	if (ret < 0)
-		goto out;
-
-out:
-	dev_err(chip->dev, "Failed to read REG_ENABLE Register\n");
+		dev_err(chip->dev, "Failed to update REG_ENABLE Register\n");
 	return ret;
 }
 
