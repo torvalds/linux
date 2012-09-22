@@ -692,6 +692,12 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (!(flg & TCP_FLAG_ACK))
 		return NULL;
 
+	/* Got ACK for our SYNACK, so update baseline for SYNACK RTT sample. */
+	if (tmp_opt.saw_tstamp && tmp_opt.rcv_tsecr)
+		tcp_rsk(req)->snt_synack = tmp_opt.rcv_tsecr;
+	else if (req->retrans) /* don't take RTT sample if retrans && ~TS */
+		tcp_rsk(req)->snt_synack = 0;
+
 	/* For Fast Open no more processing is needed (sk is the
 	 * child socket).
 	 */
@@ -705,10 +711,6 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPDEFERACCEPTDROP);
 		return NULL;
 	}
-	if (tmp_opt.saw_tstamp && tmp_opt.rcv_tsecr)
-		tcp_rsk(req)->snt_synack = tmp_opt.rcv_tsecr;
-	else if (req->retrans) /* don't take RTT sample if retrans && ~TS */
-		tcp_rsk(req)->snt_synack = 0;
 
 	/* OK, ACK is valid, create big socket and
 	 * feed this segment to it. It will repeat all
