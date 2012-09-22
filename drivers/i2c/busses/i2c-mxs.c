@@ -365,10 +365,6 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	struct device_node *node = dev->of_node;
 	int ret;
 
-	if (!node)
-		return -EINVAL;
-
-	i2c->speed = &mxs_i2c_95kHz_config;
 	ret = of_property_read_u32(node, "clock-frequency", &speed);
 	if (ret)
 		dev_warn(dev, "No I2C speed selected, using 100kHz\n");
@@ -419,10 +415,13 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 		return err;
 
 	i2c->dev = dev;
+	i2c->speed = &mxs_i2c_95kHz_config;
 
-	err = mxs_i2c_get_ofdata(i2c);
-	if (err)
-		return err;
+	if (dev->of_node) {
+		err = mxs_i2c_get_ofdata(i2c);
+		if (err)
+			return err;
+	}
 
 	platform_set_drvdata(pdev, i2c);
 

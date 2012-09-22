@@ -345,7 +345,7 @@ static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		DRM_LOG_KMS("failed to alloc common hdmi context.\n");
 		return -ENOMEM;
@@ -371,7 +371,6 @@ static int __devexit exynos_drm_hdmi_remove(struct platform_device *pdev)
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	exynos_drm_subdrv_unregister(&ctx->subdrv);
-	kfree(ctx);
 
 	return 0;
 }

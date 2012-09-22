@@ -100,7 +100,7 @@ static const struct reg_default wm8904_reg_defaults[] = {
 	{ 14,  0x0000 },     /* R14  - Power Management 2 */
 	{ 15,  0x0000 },     /* R15  - Power Management 3 */
 	{ 18,  0x0000 },     /* R18  - Power Management 6 */
-	{ 19,  0x945E },     /* R20  - Clock Rates 0 */
+	{ 20,  0x945E },     /* R20  - Clock Rates 0 */
 	{ 21,  0x0C05 },     /* R21  - Clock Rates 1 */
 	{ 22,  0x0006 },     /* R22  - Clock Rates 2 */
 	{ 24,  0x0050 },     /* R24  - Audio Interface 0 */

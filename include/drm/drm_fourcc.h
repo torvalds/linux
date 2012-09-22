@@ -107,8 +107,7 @@
 #define DRM_FORMAT_NV16		fourcc_code('N', 'V', '1', '6') /* 2x1 subsampled Cr:Cb plane */
 #define DRM_FORMAT_NV61		fourcc_code('N', 'V', '6', '1') /* 2x1 subsampled Cb:Cr plane */
 
-/* 2 non contiguous plane YCbCr */
-#define DRM_FORMAT_NV12M	fourcc_code('N', 'M', '1', '2') /* 2x2 subsampled Cr:Cb plane */
+/* special NV12 tiled format */
 #define DRM_FORMAT_NV12MT	fourcc_code('T', 'M', '1', '2') /* 2x2 subsampled Cr:Cb plane 64x32 macroblocks */
 
 /*
@@ -130,8 +129,5 @@
 #define DRM_FORMAT_YVU422	fourcc_code('Y', 'V', '1', '6') /* 2x1 subsampled Cr (1) and Cb (2) planes */
 #define DRM_FORMAT_YUV444	fourcc_code('Y', 'U', '2', '4') /* non-subsampled Cb (1) and Cr (2) planes */
 #define DRM_FORMAT_YVU444	fourcc_code('Y', 'V', '2', '4') /* non-subsampled Cr (1) and Cb (2) planes */
-
-/* 3 non contiguous plane YCbCr */
-#define DRM_FORMAT_YUV420M	fourcc_code('Y', 'M', '1', '2') /* 2x2 subsampled Cb (1) and Cr (2) planes */
 
 #endif /* DRM_FOURCC_H */

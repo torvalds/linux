@@ -394,8 +394,10 @@ static int __devexit davinci_mdio_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct davinci_mdio_data *data = dev_get_drvdata(dev);
 
-	if (data->bus)
+	if (data->bus) {
+		mdiobus_unregister(data->bus);
 		mdiobus_free(data->bus);
+	}
 
 	if (data->clk)
 		clk_put(data->clk);
