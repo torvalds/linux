@@ -514,6 +514,7 @@ struct bfa_fcport_s {
 	struct bfa_fcport_trunk_s trunk;
 	u16		fcoe_vlan;
 	struct bfa_mem_dma_s	fcport_dma;
+	bfa_boolean_t		stats_dma_ready;
 };
 
 #define BFA_FCPORT_MOD(__bfa)	(&(__bfa)->modules.fcport)
@@ -551,6 +552,8 @@ void bfa_fcport_event_register(struct bfa_s *bfa,
 			enum bfa_port_linkstate event), void *event_cbarg);
 bfa_boolean_t bfa_fcport_is_disabled(struct bfa_s *bfa);
 bfa_boolean_t bfa_fcport_is_dport(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_set_qos_bw(struct bfa_s *bfa,
+				   struct bfa_qos_bw_s *qos_bw);
 enum bfa_port_speed bfa_fcport_get_ratelim_speed(struct bfa_s *bfa);
 
 void bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit, u8 bb_scn);

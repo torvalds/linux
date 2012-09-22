@@ -144,6 +144,7 @@ enum {
 	IOCMD_DIAG_DPORT_ENABLE,
 	IOCMD_DIAG_DPORT_DISABLE,
 	IOCMD_DIAG_DPORT_GET_STATE,
+	IOCMD_QOS_SET_BW,
 };
 
 struct bfa_bsg_gen_s {
@@ -702,6 +703,13 @@ struct bfa_bsg_qos_vc_attr_s {
 	u16		bfad_num;
 	u16		rsvd;
 	struct bfa_qos_vc_attr_s attr;
+};
+
+struct bfa_bsg_qos_bw_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_qos_bw_s qos_bw;
 };
 
 struct bfa_bsg_vf_stats_s {

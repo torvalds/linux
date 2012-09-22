@@ -880,6 +880,19 @@ out:
 }
 
 int
+bfad_iocmd_qos_set_bw(struct bfad_s *bfad, void *pcmd)
+{
+	struct bfa_bsg_qos_bw_s *iocmd = (struct bfa_bsg_qos_bw_s *)pcmd;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fcport_set_qos_bw(&bfad->bfa, &iocmd->qos_bw);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	return 0;
+}
+
+int
 bfad_iocmd_ratelim(struct bfad_s *bfad, unsigned int cmd, void *pcmd)
 {
 	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)pcmd;
@@ -2284,8 +2297,12 @@ bfad_iocmd_qos(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
 		else {
 			if (v_cmd == IOCMD_QOS_ENABLE)
 				fcport->cfg.qos_enabled = BFA_TRUE;
-			else if (v_cmd == IOCMD_QOS_DISABLE)
+			else if (v_cmd == IOCMD_QOS_DISABLE) {
 				fcport->cfg.qos_enabled = BFA_FALSE;
+				fcport->cfg.qos_bw.high = BFA_QOS_BW_HIGH;
+				fcport->cfg.qos_bw.med = BFA_QOS_BW_MED;
+				fcport->cfg.qos_bw.low = BFA_QOS_BW_LOW;
+			}
 		}
 	}
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -2308,6 +2325,10 @@ bfad_iocmd_qos_get_attr(struct bfad_s *bfad, void *cmd)
 		iocmd->attr.state = fcport->qos_attr.state;
 		iocmd->attr.total_bb_cr =
 			be32_to_cpu(fcport->qos_attr.total_bb_cr);
+		iocmd->attr.qos_bw.high = fcport->cfg.qos_bw.high;
+		iocmd->attr.qos_bw.med = fcport->cfg.qos_bw.med;
+		iocmd->attr.qos_bw.low = fcport->cfg.qos_bw.low;
+		iocmd->attr.qos_bw_op = fcport->qos_attr.qos_bw_op;
 		iocmd->status = BFA_STATUS_OK;
 	}
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -2838,6 +2859,9 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_QOS_RESET_STATS:
 		rc = bfad_iocmd_qos_reset_stats(bfad, iocmd);
+		break;
+	case IOCMD_QOS_SET_BW:
+		rc = bfad_iocmd_qos_set_bw(bfad, iocmd);
 		break;
 	case IOCMD_VF_GET_STATS:
 		rc = bfad_iocmd_vf_get_stats(bfad, iocmd);

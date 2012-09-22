@@ -522,6 +522,14 @@ enum bfa_qos_bw_alloc {
 	BFA_QOS_BW_LOW  =  10,	/*  bandwidth allocation for Low */
 };
 #pragma pack(1)
+
+struct bfa_qos_bw_s {
+	u8	qos_bw_set;
+	u8	high;
+	u8	med;
+	u8	low;
+};
+
 /*
  * QoS attribute returned in QoS Query
  */
@@ -529,7 +537,8 @@ struct bfa_qos_attr_s {
 	u8	state;		/*  QoS current state */
 	u8	rsvd1[3];
 	u32	total_bb_cr;	/*  Total BB Credits */
-	u32	rsvd2[2];
+	struct bfa_qos_bw_s qos_bw;	/* QOS bw cfg */
+	struct bfa_qos_bw_s qos_bw_op;	/* QOS bw operational */
 };
 
 /*
@@ -887,7 +896,7 @@ struct bfa_port_cfg_s {
 	u8	 rsvd1;
 	u16	 path_tov;	/*  device path timeout	*/
 	u16	 q_depth;	/*  SCSI Queue depth		*/
-	u32	 rsvd2;
+	struct bfa_qos_bw_s qos_bw;	/* QOS bandwidth	*/
 };
 #pragma pack()
 
@@ -935,7 +944,7 @@ struct bfa_port_attr_s {
 
 	/* FCoE specific  */
 	u16			fcoe_vlan;
-	u8			rsvd1[2];
+	u8			rsvd1[6];
 };
 
 /*

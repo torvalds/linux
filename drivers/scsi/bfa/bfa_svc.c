@@ -3067,6 +3067,7 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	 */
 	do_gettimeofday(&tv);
 	fcport->stats_reset_time = tv.tv_sec;
+	fcport->stats_dma_ready = BFA_FALSE;
 
 	/*
 	 * initialize and set default configuration
@@ -3077,6 +3078,9 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	port_cfg->maxfrsize = 0;
 
 	port_cfg->trl_def_speed = BFA_PORT_SPEED_1GBPS;
+	port_cfg->qos_bw.high = BFA_QOS_BW_HIGH;
+	port_cfg->qos_bw.med = BFA_QOS_BW_MED;
+	port_cfg->qos_bw.low = BFA_QOS_BW_LOW;
 
 	INIT_LIST_HEAD(&fcport->stats_pending_q);
 	INIT_LIST_HEAD(&fcport->statsclr_pending_q);
@@ -3596,6 +3600,7 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 	case BFI_FCPORT_I2H_ENABLE_RSP:
 		if (fcport->msgtag == i2hmsg.penable_rsp->msgtag) {
 
+			fcport->stats_dma_ready = BFA_TRUE;
 			if (fcport->use_flash_cfg) {
 				fcport->cfg = i2hmsg.penable_rsp->port_cfg;
 				fcport->cfg.maxfrsize =
@@ -3611,6 +3616,8 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 				else
 					fcport->trunk.attr.state =
 						BFA_TRUNK_DISABLED;
+				fcport->qos_attr.qos_bw =
+					i2hmsg.penable_rsp->port_cfg.qos_bw;
 				fcport->use_flash_cfg = BFA_FALSE;
 			}
 
@@ -3618,6 +3625,9 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 				fcport->qos_attr.state = BFA_QOS_OFFLINE;
 			else
 				fcport->qos_attr.state = BFA_QOS_DISABLED;
+
+			fcport->qos_attr.qos_bw_op =
+					i2hmsg.penable_rsp->port_cfg.qos_bw;
 
 			bfa_sm_send_event(fcport, BFA_FCPORT_SM_FWRSP);
 		}
@@ -3640,6 +3650,8 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 				bfa_sm_send_event(fcport,
 						  BFA_FCPORT_SM_LINKDOWN);
 		}
+		fcport->qos_attr.qos_bw_op =
+				i2hmsg.event->link_state.qos_attr.qos_bw_op;
 		break;
 
 	case BFI_FCPORT_I2H_TRUNK_SCN:
@@ -4035,8 +4047,9 @@ bfa_fcport_get_stats(struct bfa_s *bfa, struct bfa_cb_pending_q_s *cb)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
-	if (bfa_ioc_is_disabled(&bfa->ioc))
-		return BFA_STATUS_IOC_DISABLED;
+	if (!bfa_iocfc_is_operational(bfa) ||
+	    !fcport->stats_dma_ready)
+		return BFA_STATUS_IOC_NON_OP;
 
 	if (!list_empty(&fcport->statsclr_pending_q))
 		return BFA_STATUS_DEVBUSY;
@@ -4060,6 +4073,10 @@ bfa_status_t
 bfa_fcport_clear_stats(struct bfa_s *bfa, struct bfa_cb_pending_q_s *cb)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+
+	if (!bfa_iocfc_is_operational(bfa) ||
+	    !fcport->stats_dma_ready)
+		return BFA_STATUS_IOC_NON_OP;
 
 	if (!list_empty(&fcport->stats_pending_q))
 		return BFA_STATUS_DEVBUSY;
@@ -4096,6 +4113,31 @@ bfa_fcport_is_dport(struct bfa_s *bfa)
 
 	return (bfa_sm_to_state(hal_port_sm_table, fcport->sm) ==
 		BFA_PORT_ST_DPORT);
+}
+
+bfa_status_t
+bfa_fcport_set_qos_bw(struct bfa_s *bfa, struct bfa_qos_bw_s *qos_bw)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	enum bfa_ioc_type_e ioc_type = bfa_get_type(bfa);
+
+	bfa_trc(bfa, ioc_type);
+
+	if ((qos_bw->high == 0) || (qos_bw->med == 0) || (qos_bw->low == 0))
+		return BFA_STATUS_QOS_BW_INVALID;
+
+	if ((qos_bw->high + qos_bw->med + qos_bw->low) != 100)
+		return BFA_STATUS_QOS_BW_INVALID;
+
+	if ((qos_bw->med > qos_bw->high) || (qos_bw->low > qos_bw->med) ||
+	    (qos_bw->low > qos_bw->high))
+		return BFA_STATUS_QOS_BW_INVALID;
+
+	if ((ioc_type == BFA_IOC_TYPE_FC) &&
+	    (fcport->cfg.topology != BFA_PORT_TOPOLOGY_LOOP))
+		fcport->cfg.qos_bw = *qos_bw;
+
+	return BFA_STATUS_OK;
 }
 
 bfa_boolean_t

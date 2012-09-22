@@ -190,6 +190,8 @@ enum bfa_status {
 	BFA_STATUS_TOPOLOGY_LOOP = 230, /* Topology is set to Loop */
 	BFA_STATUS_LOOP_UNSUPP_MEZZ = 231, /* Loop topology is not supported
 					    * on mezz cards */
+	BFA_STATUS_QOS_BW_INVALID = 234,   /* Invalid QOS bandwidth
+					    * configuration */
 	BFA_STATUS_DPORT_ENABLED = 235, /* D-port mode is already enabled */
 	BFA_STATUS_DPORT_DISABLED = 236, /* D-port mode is already disabled */
 	BFA_STATUS_CMD_NOTSUPP_MEZZ = 239, /* Cmd not supported for MEZZ card */
