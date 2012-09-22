@@ -141,6 +141,9 @@ enum {
 	IOCMD_FCPIM_LUNMASK_QUERY,
 	IOCMD_FCPIM_LUNMASK_ADD,
 	IOCMD_FCPIM_LUNMASK_DELETE,
+	IOCMD_DIAG_DPORT_ENABLE,
+	IOCMD_DIAG_DPORT_DISABLE,
+	IOCMD_DIAG_DPORT_GET_STATE,
 };
 
 struct bfa_bsg_gen_s {
@@ -611,6 +614,13 @@ struct bfa_bsg_diag_lb_stat_s {
 	bfa_status_t	status;
 	u16		bfad_num;
 	u16		rsvd;
+};
+
+struct bfa_bsg_diag_dport_get_state_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	enum bfa_dport_state state;
 };
 
 struct bfa_bsg_phy_attr_s {

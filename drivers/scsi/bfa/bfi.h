@@ -960,6 +960,7 @@ enum bfi_diag_h2i {
 	BFI_DIAG_H2I_TEMPSENSOR = 4,
 	BFI_DIAG_H2I_LEDTEST = 5,
 	BFI_DIAG_H2I_QTEST      = 6,
+	BFI_DIAG_H2I_DPORT	= 7,
 };
 
 enum bfi_diag_i2h {
@@ -969,6 +970,7 @@ enum bfi_diag_i2h {
 	BFI_DIAG_I2H_TEMPSENSOR = BFA_I2HM(BFI_DIAG_H2I_TEMPSENSOR),
 	BFI_DIAG_I2H_LEDTEST = BFA_I2HM(BFI_DIAG_H2I_LEDTEST),
 	BFI_DIAG_I2H_QTEST      = BFA_I2HM(BFI_DIAG_H2I_QTEST),
+	BFI_DIAG_I2H_DPORT	= BFA_I2HM(BFI_DIAG_H2I_DPORT),
 };
 
 #define BFI_DIAG_MAX_SGES	2
@@ -1053,6 +1055,23 @@ struct bfi_diag_qtest_req_s {
 	u32	data[BFI_LMSG_PL_WSZ]; /* fill up tcm prefetch area */
 };
 #define bfi_diag_qtest_rsp_t struct bfi_diag_qtest_req_s
+
+/*
+ *	D-port test
+ */
+enum bfi_dport_req {
+	BFI_DPORT_DISABLE	= 0,	/* disable dport request	*/
+	BFI_DPORT_ENABLE	= 1,	/* enable dport request		*/
+};
+
+struct bfi_diag_dport_req_s {
+	struct bfi_mhdr_s	mh;	/* 4 bytes                      */
+	u8			req;    /* request 1: enable 0: disable */
+	u8			status; /* reply status			*/
+	u8			rsvd[2];
+	u32			msgtag; /* msgtag for reply		*/
+};
+#define bfi_diag_dport_rsp_t struct bfi_diag_dport_req_s
 
 /*
  *	PHY module specific

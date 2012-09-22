@@ -165,6 +165,7 @@ enum bfa_status {
 	BFA_STATUS_MEMTEST_FAILED = 90, /* Memory test failed contact support */
 	BFA_STATUS_LEDTEST_OP = 109, /* LED test is operating */
 	BFA_STATUS_INVALID_MAC  = 134, /*  Invalid MAC address */
+	BFA_STATUS_CMD_NOTSUPP_CNA = 146, /* Command not supported for CNA */
 	BFA_STATUS_PBC		= 154, /*  Operation not allowed for pre-boot
 					*  configuration */
 	BFA_STATUS_BAD_FWCFG = 156,	/* Bad firmware configuration */
@@ -189,6 +190,10 @@ enum bfa_status {
 	BFA_STATUS_TOPOLOGY_LOOP = 230, /* Topology is set to Loop */
 	BFA_STATUS_LOOP_UNSUPP_MEZZ = 231, /* Loop topology is not supported
 					    * on mezz cards */
+	BFA_STATUS_DPORT_ENABLED = 235, /* D-port mode is already enabled */
+	BFA_STATUS_DPORT_DISABLED = 236, /* D-port mode is already disabled */
+	BFA_STATUS_CMD_NOTSUPP_MEZZ = 239, /* Cmd not supported for MEZZ card */
+	BFA_STATUS_DPORT_ERR = 245,	/* D-port mode is enabled */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
 #define bfa_status_t enum bfa_status
@@ -505,6 +510,17 @@ struct bfa_ioc_aen_data_s {
 	wwn_t	pwwn;
 	u16	ioc_type;
 	mac_t	mac;
+};
+
+/*
+ *	D-port states
+ *
+*/
+enum bfa_dport_state {
+	BFA_DPORT_ST_DISABLED	= 0,	/* D-port is Disabled */
+	BFA_DPORT_ST_DISABLING	= 1,	/* D-port is Disabling */
+	BFA_DPORT_ST_ENABLING	= 2,	/* D-port is Enabling */
+	BFA_DPORT_ST_ENABLED	= 3,	/* D-port is Enabled */
 };
 
 /*

@@ -550,6 +550,7 @@ void bfa_fcport_event_register(struct bfa_s *bfa,
 			void (*event_cbfn) (void *cbarg,
 			enum bfa_port_linkstate event), void *event_cbarg);
 bfa_boolean_t bfa_fcport_is_disabled(struct bfa_s *bfa);
+bfa_boolean_t bfa_fcport_is_dport(struct bfa_s *bfa);
 enum bfa_port_speed bfa_fcport_get_ratelim_speed(struct bfa_s *bfa);
 
 void bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit, u8 bb_scn);
@@ -563,6 +564,8 @@ bfa_status_t bfa_fcport_clear_stats(struct bfa_s *bfa,
 			struct bfa_cb_pending_q_s *cb);
 bfa_boolean_t bfa_fcport_is_qos_enabled(struct bfa_s *bfa);
 bfa_boolean_t bfa_fcport_is_trunk_enabled(struct bfa_s *bfa);
+void bfa_fcport_dportenable(struct bfa_s *bfa);
+void bfa_fcport_dportdisable(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_is_pbcdisabled(struct bfa_s *bfa);
 void bfa_fcport_cfg_faa(struct bfa_s *bfa, u8 state);
 
@@ -703,11 +706,21 @@ struct bfa_fcdiag_lb_s {
 	u32        status;
 };
 
+struct bfa_dport_s {
+	struct bfa_s	*bfa;		/* Back pointer to BFA	*/
+	bfa_sm_t	sm;		/* finite state machine */
+	u32		msgtag;		/* firmware msg tag for reply */
+	struct bfa_reqq_wait_s reqq_wait;
+	bfa_cb_diag_t	cbfn;
+	void		*cbarg;
+};
+
 struct bfa_fcdiag_s {
 	struct bfa_s    *bfa;           /* Back pointer to BFA */
 	struct bfa_trc_mod_s   *trcmod;
 	struct bfa_fcdiag_lb_s lb;
 	struct bfa_fcdiag_qtest_s qtest;
+	struct bfa_dport_s	dport;
 };
 
 #define BFA_FCDIAG_MOD(__bfa)	(&(__bfa)->modules.fcdiag)
@@ -723,5 +736,11 @@ bfa_status_t	bfa_fcdiag_queuetest(struct bfa_s *bfa, u32 ignore,
 			u32 queue, struct bfa_diag_qtest_result_s *result,
 			bfa_cb_diag_t cbfn, void *cbarg);
 bfa_status_t	bfa_fcdiag_lb_is_running(struct bfa_s *bfa);
+bfa_status_t	bfa_dport_enable(struct bfa_s *bfa, bfa_cb_diag_t cbfn,
+				 void *cbarg);
+bfa_status_t	bfa_dport_disable(struct bfa_s *bfa, bfa_cb_diag_t cbfn,
+				  void *cbarg);
+bfa_status_t	bfa_dport_get_state(struct bfa_s *bfa,
+				    enum bfa_dport_state *state);
 
 #endif /* __BFA_SVC_H__ */

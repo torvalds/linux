@@ -1747,6 +1747,52 @@ bfad_iocmd_diag_lb_stat(struct bfad_s *bfad, void *cmd)
 }
 
 int
+bfad_iocmd_diag_cfg_dport(struct bfad_s *bfad, unsigned int cmd, void *pcmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)pcmd;
+	unsigned long	flags;
+	struct bfad_hal_comp fcomp;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (cmd == IOCMD_DIAG_DPORT_ENABLE)
+		iocmd->status = bfa_dport_enable(&bfad->bfa,
+					bfad_hcb_comp, &fcomp);
+	else if (cmd == IOCMD_DIAG_DPORT_DISABLE)
+		iocmd->status = bfa_dport_disable(&bfad->bfa,
+					bfad_hcb_comp, &fcomp);
+	else {
+		bfa_trc(bfad, 0);
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	if (iocmd->status != BFA_STATUS_OK)
+		bfa_trc(bfad, iocmd->status);
+	else {
+		wait_for_completion(&fcomp.comp);
+		iocmd->status = fcomp.status;
+	}
+
+	return 0;
+}
+
+int
+bfad_iocmd_diag_dport_get_state(struct bfad_s *bfad, void *pcmd)
+{
+	struct bfa_bsg_diag_dport_get_state_s *iocmd =
+			(struct bfa_bsg_diag_dport_get_state_s *)pcmd;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_dport_get_state(&bfad->bfa, &iocmd->state);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	return 0;
+}
+
+int
 bfad_iocmd_phy_get_attr(struct bfad_s *bfad, void *cmd)
 {
 	struct bfa_bsg_phy_attr_s *iocmd =
@@ -2171,6 +2217,9 @@ bfad_iocmd_cfg_trunk(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
+
+	if (bfa_fcport_is_dport(&bfad->bfa))
+		return BFA_STATUS_DPORT_ERR;
 
 	if ((fcport->cfg.topology == BFA_PORT_TOPOLOGY_LOOP) ||
 		(fcport->topology == BFA_PORT_TOPOLOGY_LOOP))
@@ -2701,6 +2750,13 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_DIAG_LB_STAT:
 		rc = bfad_iocmd_diag_lb_stat(bfad, iocmd);
+		break;
+	case IOCMD_DIAG_DPORT_ENABLE:
+	case IOCMD_DIAG_DPORT_DISABLE:
+		rc = bfad_iocmd_diag_cfg_dport(bfad, cmd, iocmd);
+		break;
+	case IOCMD_DIAG_DPORT_GET_STATE:
+		rc = bfad_iocmd_diag_dport_get_state(bfad, iocmd);
 		break;
 	case IOCMD_PHY_GET_ATTR:
 		rc = bfad_iocmd_phy_get_attr(bfad, iocmd);
