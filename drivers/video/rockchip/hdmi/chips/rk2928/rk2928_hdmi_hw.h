@@ -238,7 +238,7 @@ enum {
 	#define v_LDO_PWR_DOWN(n)	(n << 2)
 
 #define HDMIRdReg(addr)						readl_relaxed(hdmi->regbase + (addr) * 0x04)
-#define HDMIWrReg(addr, val)        		writel_relaxed((val), hdmi->regbase + (addr) * 0x04);
+#define HDMIWrReg(addr, val)        		writel_relaxed((val), hdmi->regbase + (addr) * 0x04)
 #define HDMIMskReg(temp, addr, msk, val)	\
 	temp = readl_relaxed(hdmi->regbase + (addr) * 0x04) & (0xFF - (msk)) ; \
 	writel_relaxed(temp | ( (val) & (msk) ),  hdmi->regbase + (addr) * 0x04); 

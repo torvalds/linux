@@ -33,7 +33,6 @@ static void rk2928_hdmi_sys_power_down(void)
 
 static void rk2928_hdmi_set_pwr_mode(int mode)
 {
-	int c=0;
 	hdmi_dbg(hdmi->dev,"%s \n",__FUNCTION__);
 	if(hdmi->pwr_mode == mode)
 		return; 
@@ -271,7 +270,13 @@ static int rk2928_hdmi_config_video(struct hdmi_video_para *vpara)
 	else {
 		hdmi_dbg(hdmi->dev, "[%s] sucess output DVI.\n", __FUNCTION__);	
 	}
-
+	
+	if(hdmi->tmdsclk >= 148500000) {
+		HDMIWrReg(0xe3, 0x4f);
+	}
+	else {
+		HDMIWrReg(0xe3, 0x0f);
+	}
 	return 0;
 }
 
