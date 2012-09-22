@@ -848,7 +848,7 @@ static struct netpoll_info *team_netpoll_info(struct team *team)
 }
 #endif
 
-static void __team_port_change_check(struct team_port *port, bool linkup);
+static void __team_port_change_port_added(struct team_port *port, bool linkup);
 
 static int team_port_add(struct team *team, struct net_device *port_dev)
 {
@@ -948,7 +948,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 	team_port_enable(team, port);
 	list_add_tail_rcu(&port->list, &team->port_list);
 	__team_compute_features(team);
-	__team_port_change_check(port, !!netif_carrier_ok(port_dev));
+	__team_port_change_port_added(port, !!netif_carrier_ok(port_dev));
 	__team_options_change_check(team);
 
 	netdev_info(dev, "Port device %s added\n", portname);
@@ -983,6 +983,8 @@ err_set_mtu:
 	return err;
 }
 
+static void __team_port_change_port_removed(struct team_port *port);
+
 static int team_port_del(struct team *team, struct net_device *port_dev)
 {
 	struct net_device *dev = team->dev;
@@ -999,8 +1001,7 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	__team_option_inst_mark_removed_port(team, port);
 	__team_options_change_check(team);
 	__team_option_inst_del_port(team, port);
-	port->removed = true;
-	__team_port_change_check(port, false);
+	__team_port_change_port_removed(port);
 	team_port_disable(team, port);
 	list_del_rcu(&port->list);
 	netdev_rx_handler_unregister(port_dev);
@@ -2251,12 +2252,10 @@ static void __team_options_change_check(struct team *team)
 }
 
 /* rtnl lock is held */
-static void __team_port_change_check(struct team_port *port, bool linkup)
+
+static void __team_port_change_send(struct team_port *port, bool linkup)
 {
 	int err;
-
-	if (!port->removed && port->state.linkup == linkup)
-		return;
 
 	port->changed = true;
 	port->state.linkup = linkup;
@@ -2280,6 +2279,23 @@ send_event:
 		netdev_warn(port->team->dev, "Failed to send port change of device %s via netlink\n",
 			    port->dev->name);
 
+}
+
+static void __team_port_change_check(struct team_port *port, bool linkup)
+{
+	if (port->state.linkup != linkup)
+		__team_port_change_send(port, linkup);
+}
+
+static void __team_port_change_port_added(struct team_port *port, bool linkup)
+{
+	__team_port_change_send(port, linkup);
+}
+
+static void __team_port_change_port_removed(struct team_port *port)
+{
+	port->removed = true;
+	__team_port_change_send(port, false);
 }
 
 static void team_port_change_check(struct team_port *port, bool linkup)
