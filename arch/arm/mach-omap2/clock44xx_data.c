@@ -3316,6 +3316,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK("usbhs_tll",	"usbtll_fck",		&dummy_ck,	CK_443X),
 	CLK("omap_wdt",	"ick",				&dummy_ck,	CK_443X),
 	CLK(NULL,	"timer_32k_ck",	&sys_32k_ck,	CK_443X),
+	/* TODO: Remove "omap_timer.X" aliases once DT migration is complete */
 	CLK("omap_timer.1",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
 	CLK("omap_timer.2",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
 	CLK("omap_timer.3",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
@@ -3327,6 +3328,17 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK("omap_timer.6",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
 	CLK("omap_timer.7",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
 	CLK("omap_timer.8",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4a318000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48032000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48034000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48036000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("4803e000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48086000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("48088000.timer",	"timer_sys_ck",	&sys_clkin_ck,	CK_443X),
+	CLK("49038000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4903a000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4903c000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
+	CLK("4903e000.timer",	"timer_sys_ck",	&syc_clk_div_ck,	CK_443X),
 	CLK(NULL,	"cpufreq_ck",	&dpll_mpu_ck,	CK_443X),
 };
 
