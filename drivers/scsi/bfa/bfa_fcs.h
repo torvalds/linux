@@ -642,9 +642,9 @@ struct bfa_fcs_fdmi_hba_attr_s {
 	u8         model[16];
 	u8         model_desc[256];
 	u8         hw_version[8];
-	u8         driver_version[8];
+	u8         driver_version[BFA_VERSION_LEN];
 	u8         option_rom_ver[BFA_VERSION_LEN];
-	u8         fw_version[8];
+	u8         fw_version[BFA_VERSION_LEN];
 	u8         os_name[256];
 	__be32        max_ct_pyld;
 };

@@ -2014,13 +2014,10 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 					 sizeof(templen));
 	}
 
-	/*
-	 * f/w Version = driver version
-	 */
 	attr = (struct fdmi_attr_s *) curr_ptr;
 	attr->type = cpu_to_be16(FDMI_HBA_ATTRIB_FW_VERSION);
-	templen = (u16) strlen(fcs_hba_attr->driver_version);
-	memcpy(attr->value, fcs_hba_attr->driver_version, templen);
+	templen = (u16) strlen(fcs_hba_attr->fw_version);
+	memcpy(attr->value, fcs_hba_attr->fw_version, templen);
 	templen = fc_roundup(templen, sizeof(u32));
 	curr_ptr += sizeof(attr->type) + sizeof(templen) + templen;
 	len += templen;
@@ -2422,6 +2419,7 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 {
 	struct bfa_fcs_lport_s *port = fdmi->ms->port;
 	struct bfa_fcs_driver_info_s  *driver_info = &port->fcs->driver_info;
+	struct bfa_fcs_fdmi_port_attr_s fcs_port_attr;
 
 	memset(hba_attr, 0, sizeof(struct bfa_fcs_fdmi_hba_attr_s));
 
@@ -2457,7 +2455,9 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 				sizeof(driver_info->host_os_patch));
 	}
 
-	hba_attr->max_ct_pyld = cpu_to_be32(FC_MAX_PDUSZ);
+	/* Retrieve the max frame size from the port attr */
+	bfa_fcs_fdmi_get_portattr(fdmi, &fcs_port_attr);
+	hba_attr->max_ct_pyld = fcs_port_attr.max_frm_size;
 }
 
 static void
@@ -2517,7 +2517,7 @@ bfa_fcs_fdmi_get_portattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	/*
 	 * Max PDU Size.
 	 */
-	port_attr->max_frm_size = cpu_to_be32(FC_MAX_PDUSZ);
+	port_attr->max_frm_size = cpu_to_be32(pport_attr.pport_cfg.maxfrsize);
 
 	/*
 	 * OS device Name

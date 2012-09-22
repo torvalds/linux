@@ -761,7 +761,8 @@ bfa_status_t	bfa_dconf_update(struct bfa_s *bfa);
 #define bfa_ioc_maxfrsize(__ioc)	((__ioc)->attr->maxfrsize)
 #define bfa_ioc_rx_bbcredit(__ioc)	((__ioc)->attr->rx_bbcredit)
 #define bfa_ioc_speed_sup(__ioc)	\
-	BFI_ADAPTER_GETP(SPEED, (__ioc)->attr->adapter_prop)
+	((bfa_ioc_is_cna(__ioc)) ? BFA_PORT_SPEED_10GBPS :	\
+	 BFI_ADAPTER_GETP(SPEED, (__ioc)->attr->adapter_prop))
 #define bfa_ioc_get_nports(__ioc)	\
 	BFI_ADAPTER_GETP(NPORTS, (__ioc)->attr->adapter_prop)
 
