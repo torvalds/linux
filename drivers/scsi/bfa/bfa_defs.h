@@ -254,6 +254,10 @@ struct bfa_adapter_attr_s {
 
 	u8		is_mezz;
 	u8		trunk_capable;
+	u8		mfg_day;	/* manufacturing day */
+	u8		mfg_month;	/* manufacturing month */
+	u16		mfg_year;	/* manufacturing year */
+	u16		rsvd;
 };
 
 /*

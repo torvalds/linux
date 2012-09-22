@@ -288,6 +288,9 @@ struct bfi_ioc_attr_s {
 	char		optrom_version[BFA_VERSION_LEN];
 	struct		bfa_mfg_vpd_s	vpd;
 	u32	card_type;	/*  card type			*/
+	u8	mfg_day;	/* manufacturing day */
+	u8	mfg_month;	/* manufacturing month */
+	u16	mfg_year;	/* manufacturing year */
 };
 
 /*

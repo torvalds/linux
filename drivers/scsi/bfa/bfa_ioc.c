@@ -1750,6 +1750,7 @@ bfa_ioc_getattr_reply(struct bfa_ioc_s *ioc)
 	attr->card_type     = be32_to_cpu(attr->card_type);
 	attr->maxfrsize	    = be16_to_cpu(attr->maxfrsize);
 	ioc->fcmode	= (attr->port_mode == BFI_PORT_MODE_FC);
+	attr->mfg_year	= be16_to_cpu(attr->mfg_year);
 
 	bfa_fsm_send_event(ioc, IOC_E_FWRSP_GETATTR);
 }
@@ -2496,6 +2497,9 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 	ad_attr->cna_capable = bfa_ioc_is_cna(ioc);
 	ad_attr->trunk_capable = (ad_attr->nports > 1) &&
 				  !bfa_ioc_is_cna(ioc) && !ad_attr->is_mezz;
+	ad_attr->mfg_day = ioc_attr->mfg_day;
+	ad_attr->mfg_month = ioc_attr->mfg_month;
+	ad_attr->mfg_year = ioc_attr->mfg_year;
 }
 
 enum bfa_ioc_type_e
