@@ -879,7 +879,7 @@ static int __init gpmc_init(void)
 		BUG();
 	}
 
-	clk_enable(gpmc_l3_clk);
+	clk_prepare_enable(gpmc_l3_clk);
 
 	l = gpmc_read_reg(GPMC_REVISION);
 	printk(KERN_INFO "GPMC revision %d.%d\n", (l >> 4) & 0x0f, l & 0x0f);
