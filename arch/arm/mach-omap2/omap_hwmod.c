@@ -697,7 +697,7 @@ static int _init_main_clk(struct omap_hwmod *oh)
 
 	if (!oh->_clk->clkdm)
 		pr_warning("omap_hwmod: %s: missing clockdomain for %s.\n",
-			   oh->main_clk, oh->_clk->name);
+			   oh->name, oh->main_clk);
 
 	return ret;
 }
@@ -854,7 +854,7 @@ static void _enable_optional_clocks(struct omap_hwmod *oh)
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
 		if (oc->_clk) {
 			pr_debug("omap_hwmod: enable %s:%s\n", oc->role,
-				 oc->_clk->name);
+				 __clk_get_name(oc->_clk));
 			clk_enable(oc->_clk);
 		}
 }
@@ -869,7 +869,7 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
 		if (oc->_clk) {
 			pr_debug("omap_hwmod: disable %s:%s\n", oc->role,
-				 oc->_clk->name);
+				 __clk_get_name(oc->_clk));
 			clk_disable(oc->_clk);
 		}
 }
