@@ -1617,17 +1617,20 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* first half of local IO error, failure to attach,
 	 * or administrative detach */
 	if (os.disk != D_FAILED && ns.disk == D_FAILED) {
-		enum drbd_io_error_p eh = EP_PASS_ON;
-		int was_io_error = 0;
 		/* corresponding get_ldev was in __drbd_set_state, to serialize
 		 * our cleanup here with the transition to D_DISKLESS.
-		 * But is is still not save to dreference ldev here, since
-		 * we might come from an failed Attach before ldev was set. */
+		 * But it is still not safe to dreference ldev here, we may end
+		 * up here from a failed attach, before ldev was even set.  */
 		if (mdev->ldev) {
-			eh = mdev->ldev->dc.on_io_error;
-			was_io_error = drbd_test_and_clear_flag(mdev, WAS_IO_ERROR);
+			enum drbd_io_error_p eh = mdev->ldev->dc.on_io_error;
 
-			if (was_io_error && eh == EP_CALL_HELPER)
+			/* In some setups, this handler triggers a suicide,
+			 * basically mapping IO error to node failure, to
+			 * reduce the number of different failure scenarios.
+			 *
+			 * This handler intentionally runs before we abort IO,
+			 * notify the peer, or try to update our meta data. */
+			if (eh == EP_CALL_HELPER && drbd_test_flag(mdev, WAS_IO_ERROR))
 				drbd_khelper(mdev, "local-io-error");
 
 			/* Immediately allow completion of all application IO,
@@ -1643,7 +1646,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			 * So aborting local requests may cause crashes,
 			 * or even worse, silent data corruption.
 			 */
-			if (drbd_test_and_clear_flag(mdev, FORCE_DETACH))
+			if (drbd_test_flag(mdev, FORCE_DETACH))
 				tl_abort_disk_io(mdev);
 
 			/* current state still has to be D_FAILED,
@@ -4220,6 +4223,26 @@ static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused
 	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
 	 * the protected members anymore, though, so once put_ldev reaches zero
 	 * again, it will be safe to free them. */
+
+	/* Try to write changed bitmap pages, read errors may have just
+	 * set some bits outside the area covered by the activity log.
+	 *
+	 * If we have an IO error during the bitmap writeout,
+	 * we will want a full sync next time, just in case.
+	 * (Do we want a specific meta data flag for this?)
+	 *
+	 * If that does not make it to stable storage either,
+	 * we cannot do anything about that anymore.  */
+	if (mdev->bitmap) {
+		if (drbd_bitmap_io_from_worker(mdev, drbd_bm_write,
+					"detach", BM_LOCKED_MASK)) {
+			if (drbd_test_flag(mdev, WAS_READ_ERROR)) {
+				drbd_md_set_flag(mdev, MDF_FULL_SYNC);
+				drbd_md_sync(mdev);
+			}
+		}
+	}
+
 	drbd_force_state(mdev, NS(disk, D_DISKLESS));
 	return 1;
 }

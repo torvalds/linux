@@ -455,7 +455,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		__drbd_chk_io_error(mdev, DRBD_IO_ERROR);
+		__drbd_chk_io_error(mdev, DRBD_WRITE_ERROR);
 		_req_may_be_done_not_susp(req, m);
 		break;
 
@@ -477,7 +477,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			break;
 		}
 
-		__drbd_chk_io_error(mdev, DRBD_IO_ERROR);
+		__drbd_chk_io_error(mdev, DRBD_READ_ERROR);
 
 	goto_queue_for_net_read:
 

@@ -831,7 +831,8 @@ enum drbd_flag {
 				   once no more io in flight, start bitmap io */
 	BITMAP_IO_QUEUED,       /* Started bitmap IO */
 	GO_DISKLESS,		/* Disk is being detached, on io-error or admin request. */
-	WAS_IO_ERROR,		/* Local disk failed returned IO error */
+	WAS_IO_ERROR,		/* Local disk failed, returned IO error */
+	WAS_READ_ERROR,		/* Local disk READ failed (set additionally to the above) */
 	FORCE_DETACH,		/* Force-detach from local disk, aborting any pending local IO */
 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
 	NET_CONGESTED,		/* The data socket is congested */
@@ -1879,30 +1880,53 @@ static inline int drbd_request_state(struct drbd_conf *mdev,
 }
 
 enum drbd_force_detach_flags {
-	DRBD_IO_ERROR,
+	DRBD_READ_ERROR,
+	DRBD_WRITE_ERROR,
 	DRBD_META_IO_ERROR,
 	DRBD_FORCE_DETACH,
 };
 
 #define __drbd_chk_io_error(m,f) __drbd_chk_io_error_(m,f, __func__)
 static inline void __drbd_chk_io_error_(struct drbd_conf *mdev,
-		enum drbd_force_detach_flags forcedetach,
+		enum drbd_force_detach_flags df,
 		const char *where)
 {
 	switch (mdev->ldev->dc.on_io_error) {
 	case EP_PASS_ON:
-		if (forcedetach == DRBD_IO_ERROR) {
+		if (df == DRBD_READ_ERROR || df == DRBD_WRITE_ERROR) {
 			if (__ratelimit(&drbd_ratelimit_state))
 				dev_err(DEV, "Local IO failed in %s.\n", where);
 			if (mdev->state.disk > D_INCONSISTENT)
 				_drbd_set_state(_NS(mdev, disk, D_INCONSISTENT), CS_HARD, NULL);
 			break;
 		}
-		/* NOTE fall through to detach case if forcedetach set */
+		/* NOTE fall through for DRBD_META_IO_ERROR or DRBD_FORCE_DETACH */
 	case EP_DETACH:
 	case EP_CALL_HELPER:
+		/* Remember whether we saw a READ or WRITE error.
+		 *
+		 * Recovery of the affected area for WRITE failure is covered
+		 * by the activity log.
+		 * READ errors may fall outside that area though. Certain READ
+		 * errors can be "healed" by writing good data to the affected
+		 * blocks, which triggers block re-allocation in lower layers.
+		 *
+		 * If we can not write the bitmap after a READ error,
+		 * we may need to trigger a full sync (see w_go_diskless()).
+		 *
+		 * Force-detach is not really an IO error, but rather a
+		 * desperate measure to try to deal with a completely
+		 * unresponsive lower level IO stack.
+		 * Still it should be treated as a WRITE error.
+		 *
+		 * Meta IO error is always WRITE error:
+		 * we read meta data only once during attach,
+		 * which will fail in case of errors.
+		 */
 		drbd_set_flag(mdev, WAS_IO_ERROR);
-		if (forcedetach == DRBD_FORCE_DETACH)
+		if (df == DRBD_READ_ERROR)
+			drbd_set_flag(mdev, WAS_READ_ERROR);
+		if (df == DRBD_FORCE_DETACH)
 			drbd_set_flag(mdev, FORCE_DETACH);
 		if (mdev->state.disk > D_FAILED) {
 			_drbd_set_state(_NS(mdev, disk, D_FAILED), CS_HARD, NULL);
