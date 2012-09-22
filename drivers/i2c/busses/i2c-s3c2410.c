@@ -42,7 +42,7 @@
 #include <asm/irq.h>
 
 #include <plat/regs-iic.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 
 /* Treat S3C2410 as baseline hardware, anything else is supported via quirks */
 #define QUIRK_S3C2440		(1 << 0)

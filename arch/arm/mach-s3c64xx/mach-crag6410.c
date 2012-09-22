@@ -61,14 +61,14 @@
 #include <plat/fb.h>
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
-#include <plat/s3c64xx-spi.h>
+#include <linux/platform_data/spi-s3c64xx.h>
 
 #include <plat/keypad.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/adc.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/pm.h>
 
 #include "common.h"

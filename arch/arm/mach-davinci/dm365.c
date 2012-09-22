@@ -30,8 +30,8 @@
 #include <mach/serial.h>
 #include <mach/common.h>
 #include <mach/asp.h>
-#include <mach/keyscan.h>
-#include <mach/spi.h>
+#include <linux/platform_data/keyscan-davinci.h>
+#include <linux/platform_data/spi-davinci.h>
 #include <mach/gpio-davinci.h>
 
 #include "davinci.h"

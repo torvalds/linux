@@ -19,7 +19,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/rfkill-gpio.h>
-
+#include "board.h"
 #include "board-paz00.h"
 
 static struct rfkill_gpio_platform_data wifi_rfkill_platform_data = {

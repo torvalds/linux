@@ -40,7 +40,7 @@
 
 #include <linux/videodev2.h>
 
-#include <mach/mx2_cam.h>
+#include <linux/platform_data/camera-mx2.h>
 #include <mach/hardware.h>
 
 #include <asm/dma.h>

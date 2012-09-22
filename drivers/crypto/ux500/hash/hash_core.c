@@ -31,7 +31,7 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/algapi.h>
 
-#include <mach/crypto-ux500.h>
+#include <linux/platform_data/crypto-ux500.h>
 #include <mach/hardware.h>
 
 #include "hash_alg.h"

@@ -38,9 +38,9 @@
 #include <asm/dma.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-mxcmmc.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-imx.h>
 #include <mach/hardware.h>
 
 #define DRIVER_NAME "mxc-mmc"

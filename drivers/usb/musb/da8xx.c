@@ -35,7 +35,7 @@
 #include <linux/dma-mapping.h>
 
 #include <mach/da8xx.h>
-#include <mach/usb.h>
+#include <linux/platform_data/usb-davinci.h>
 
 #include "musb_core.h"
 

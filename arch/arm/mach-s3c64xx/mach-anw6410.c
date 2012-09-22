@@ -42,7 +42,7 @@
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
 #include <plat/regs-fb-v4.h>
 

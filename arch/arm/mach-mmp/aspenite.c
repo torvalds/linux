@@ -27,7 +27,7 @@
 #include <mach/irqs.h>
 #include <video/pxa168fb.h>
 #include <linux/input.h>
-#include <plat/pxa27x_keypad.h>
+#include <linux/platform_data/keypad-pxa27x.h>
 
 #include "common.h"
 

@@ -24,7 +24,7 @@
 #include <sound/wm8962.h>
 #include <sound/wm9081.h>
 
-#include <plat/s3c64xx-spi.h>
+#include <linux/platform_data/spi-s3c64xx.h>
 
 #include <mach/crag6410.h>
 

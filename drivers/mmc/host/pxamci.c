@@ -35,7 +35,7 @@
 
 #include <mach/hardware.h>
 #include <mach/dma.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-pxamci.h>
 
 #include "pxamci.h"
 
