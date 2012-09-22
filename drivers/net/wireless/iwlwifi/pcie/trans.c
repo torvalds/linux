@@ -1442,6 +1442,7 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 	return err;
 
 err_free_irq:
+	trans_pcie->irq_requested = false;
 	free_irq(trans_pcie->irq, trans);
 error:
 	iwl_free_isr_ict(trans);
