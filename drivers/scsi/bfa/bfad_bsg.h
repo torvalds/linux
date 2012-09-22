@@ -146,7 +146,12 @@ enum {
 	IOCMD_DIAG_DPORT_GET_STATE,
 	IOCMD_QOS_SET_BW,
 	IOCMD_FCPIM_THROTTLE_QUERY,
-	IOCMD_FCPIM_THROTTLE_SET
+	IOCMD_FCPIM_THROTTLE_SET,
+	IOCMD_TFRU_READ,
+	IOCMD_TFRU_WRITE,
+	IOCMD_FRUVPD_READ,
+	IOCMD_FRUVPD_UPDATE,
+	IOCMD_FRUVPD_GET_MAX_SIZE,
 };
 
 struct bfa_bsg_gen_s {
@@ -748,6 +753,34 @@ struct bfa_bsg_fcpim_throttle_s {
 	u16		bfad_num;
 	u16		vf_id;
 	struct bfa_defs_fcpim_throttle_s throttle;
+};
+
+#define BFA_TFRU_DATA_SIZE		64
+#define BFA_MAX_FRUVPD_TRANSFER_SIZE	0x1000
+
+struct bfa_bsg_tfru_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		offset;
+	u32		len;
+	u8		data[BFA_TFRU_DATA_SIZE];
+};
+
+struct bfa_bsg_fruvpd_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		offset;
+	u32		len;
+	u8		data[BFA_MAX_FRUVPD_TRANSFER_SIZE];
+};
+
+struct bfa_bsg_fruvpd_max_size_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		max_size;
 };
 
 struct bfa_bsg_fcpt_s {

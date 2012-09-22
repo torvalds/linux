@@ -426,6 +426,7 @@ struct bfi_lps_login_req_s {
 	u8		auth_en;
 	u8		lps_role;
 	u8		bb_scn;
+	u32		vvl_flag;
 };
 
 struct bfi_lps_login_rsp_s {

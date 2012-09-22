@@ -702,6 +702,55 @@ void bfa_phy_memclaim(struct bfa_phy_s *phy,
 void bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg);
 
 /*
+ * FRU module specific
+ */
+typedef void (*bfa_cb_fru_t) (void *cbarg, bfa_status_t status);
+
+struct bfa_fru_s {
+	struct bfa_ioc_s *ioc;		/* back pointer to ioc */
+	struct bfa_trc_mod_s *trcmod;	/* trace module */
+	u8		op_busy;	/* operation busy flag */
+	u8		rsv[3];
+	u32		residue;	/* residual length */
+	u32		offset;		/* offset */
+	bfa_status_t	status;		/* status */
+	u8		*dbuf_kva;	/* dma buf virtual address */
+	u64		dbuf_pa;	/* dma buf physical address */
+	struct bfa_reqq_wait_s reqq_wait; /* to wait for room in reqq */
+	bfa_cb_fru_t	cbfn;		/* user callback function */
+	void		*cbarg;		/* user callback arg */
+	u8		*ubuf;		/* user supplied buffer */
+	struct bfa_cb_qe_s	hcb_qe;	/* comp: BFA callback qelem */
+	u32		addr_off;	/* fru address offset */
+	struct bfa_mbox_cmd_s mb;	/* mailbox */
+	struct bfa_ioc_notify_s ioc_notify; /* ioc event notify */
+	struct bfa_mem_dma_s	fru_dma;
+};
+
+#define BFA_FRU(__bfa)	(&(__bfa)->modules.fru)
+#define BFA_MEM_FRU_DMA(__bfa)	(&(BFA_FRU(__bfa)->fru_dma))
+
+bfa_status_t bfa_fruvpd_update(struct bfa_fru_s *fru,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_fru_t cbfn, void *cbarg);
+bfa_status_t bfa_fruvpd_read(struct bfa_fru_s *fru,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_fru_t cbfn, void *cbarg);
+bfa_status_t bfa_fruvpd_get_max_size(struct bfa_fru_s *fru, u32 *max_size);
+bfa_status_t bfa_tfru_write(struct bfa_fru_s *fru,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_fru_t cbfn, void *cbarg);
+bfa_status_t bfa_tfru_read(struct bfa_fru_s *fru,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_fru_t cbfn, void *cbarg);
+u32	bfa_fru_meminfo(bfa_boolean_t mincfg);
+void bfa_fru_attach(struct bfa_fru_s *fru, struct bfa_ioc_s *ioc,
+		void *dev, struct bfa_trc_mod_s *trcmod, bfa_boolean_t mincfg);
+void bfa_fru_memclaim(struct bfa_fru_s *fru,
+		u8 *dm_kva, u64 dm_pa, bfa_boolean_t mincfg);
+void bfa_fru_intr(void *fruarg, struct bfi_mbmsg_s *msg);
+
+/*
  * Driver Config( dconf) specific
  */
 #define BFI_DCONF_SIGNATURE	0xabcdabcd

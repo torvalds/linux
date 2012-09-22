@@ -5956,3 +5956,448 @@ bfa_dconf_modexit(struct bfa_s *bfa)
 	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
 	bfa_sm_send_event(dconf, BFA_DCONF_SM_EXIT);
 }
+
+/*
+ * FRU specific functions
+ */
+
+#define BFA_FRU_DMA_BUF_SZ	0x02000		/* 8k dma buffer */
+#define BFA_FRU_CHINOOK_MAX_SIZE 0x10000
+#define BFA_FRU_LIGHTNING_MAX_SIZE 0x200
+
+static void
+bfa_fru_notify(void *cbarg, enum bfa_ioc_event_e event)
+{
+	struct bfa_fru_s *fru = cbarg;
+
+	bfa_trc(fru, event);
+
+	switch (event) {
+	case BFA_IOC_E_DISABLED:
+	case BFA_IOC_E_FAILED:
+		if (fru->op_busy) {
+			fru->status = BFA_STATUS_IOC_FAILURE;
+			fru->cbfn(fru->cbarg, fru->status);
+			fru->op_busy = 0;
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
+/*
+ * Send fru write request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_fru_write_send(void *cbarg, enum bfi_fru_h2i_msgs msg_type)
+{
+	struct bfa_fru_s *fru = cbarg;
+	struct bfi_fru_write_req_s *msg =
+			(struct bfi_fru_write_req_s *) fru->mb.msg;
+	u32 len;
+
+	msg->offset = cpu_to_be32(fru->addr_off + fru->offset);
+	len = (fru->residue < BFA_FRU_DMA_BUF_SZ) ?
+				fru->residue : BFA_FRU_DMA_BUF_SZ;
+	msg->length = cpu_to_be32(len);
+
+	/*
+	 * indicate if it's the last msg of the whole write operation
+	 */
+	msg->last = (len == fru->residue) ? 1 : 0;
+
+	bfi_h2i_set(msg->mh, BFI_MC_FRU, msg_type, bfa_ioc_portid(fru->ioc));
+	bfa_alen_set(&msg->alen, len, fru->dbuf_pa);
+
+	memcpy(fru->dbuf_kva, fru->ubuf + fru->offset, len);
+	bfa_ioc_mbox_queue(fru->ioc, &fru->mb);
+
+	fru->residue -= len;
+	fru->offset += len;
+}
+
+/*
+ * Send fru read request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_fru_read_send(void *cbarg, enum bfi_fru_h2i_msgs msg_type)
+{
+	struct bfa_fru_s *fru = cbarg;
+	struct bfi_fru_read_req_s *msg =
+			(struct bfi_fru_read_req_s *) fru->mb.msg;
+	u32 len;
+
+	msg->offset = cpu_to_be32(fru->addr_off + fru->offset);
+	len = (fru->residue < BFA_FRU_DMA_BUF_SZ) ?
+				fru->residue : BFA_FRU_DMA_BUF_SZ;
+	msg->length = cpu_to_be32(len);
+	bfi_h2i_set(msg->mh, BFI_MC_FRU, msg_type, bfa_ioc_portid(fru->ioc));
+	bfa_alen_set(&msg->alen, len, fru->dbuf_pa);
+	bfa_ioc_mbox_queue(fru->ioc, &fru->mb);
+}
+
+/*
+ * Flash memory info API.
+ *
+ * @param[in] mincfg - minimal cfg variable
+ */
+u32
+bfa_fru_meminfo(bfa_boolean_t mincfg)
+{
+	/* min driver doesn't need fru */
+	if (mincfg)
+		return 0;
+
+	return BFA_ROUNDUP(BFA_FRU_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+}
+
+/*
+ * Flash attach API.
+ *
+ * @param[in] fru - fru structure
+ * @param[in] ioc  - ioc structure
+ * @param[in] dev  - device structure
+ * @param[in] trcmod - trace module
+ * @param[in] logmod - log module
+ */
+void
+bfa_fru_attach(struct bfa_fru_s *fru, struct bfa_ioc_s *ioc, void *dev,
+	struct bfa_trc_mod_s *trcmod, bfa_boolean_t mincfg)
+{
+	fru->ioc = ioc;
+	fru->trcmod = trcmod;
+	fru->cbfn = NULL;
+	fru->cbarg = NULL;
+	fru->op_busy = 0;
+
+	bfa_ioc_mbox_regisr(fru->ioc, BFI_MC_FRU, bfa_fru_intr, fru);
+	bfa_q_qe_init(&fru->ioc_notify);
+	bfa_ioc_notify_init(&fru->ioc_notify, bfa_fru_notify, fru);
+	list_add_tail(&fru->ioc_notify.qe, &fru->ioc->notify_q);
+
+	/* min driver doesn't need fru */
+	if (mincfg) {
+		fru->dbuf_kva = NULL;
+		fru->dbuf_pa = 0;
+	}
+}
+
+/*
+ * Claim memory for fru
+ *
+ * @param[in] fru - fru structure
+ * @param[in] dm_kva - pointer to virtual memory address
+ * @param[in] dm_pa - frusical memory address
+ * @param[in] mincfg - minimal cfg variable
+ */
+void
+bfa_fru_memclaim(struct bfa_fru_s *fru, u8 *dm_kva, u64 dm_pa,
+	bfa_boolean_t mincfg)
+{
+	if (mincfg)
+		return;
+
+	fru->dbuf_kva = dm_kva;
+	fru->dbuf_pa = dm_pa;
+	memset(fru->dbuf_kva, 0, BFA_FRU_DMA_BUF_SZ);
+	dm_kva += BFA_ROUNDUP(BFA_FRU_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+	dm_pa += BFA_ROUNDUP(BFA_FRU_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+}
+
+/*
+ * Update fru vpd image.
+ *
+ * @param[in] fru - fru structure
+ * @param[in] buf - update data buffer
+ * @param[in] len - data buffer length
+ * @param[in] offset - offset relative to starting address
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_fruvpd_update(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
+		  bfa_cb_fru_t cbfn, void *cbarg)
+{
+	bfa_trc(fru, BFI_FRUVPD_H2I_WRITE_REQ);
+	bfa_trc(fru, len);
+	bfa_trc(fru, offset);
+
+	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
+		return BFA_STATUS_FRU_NOT_PRESENT;
+
+	if (fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK)
+		return BFA_STATUS_CMD_NOTSUPP;
+
+	if (!bfa_ioc_is_operational(fru->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (fru->op_busy) {
+		bfa_trc(fru, fru->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	fru->op_busy = 1;
+
+	fru->cbfn = cbfn;
+	fru->cbarg = cbarg;
+	fru->residue = len;
+	fru->offset = 0;
+	fru->addr_off = offset;
+	fru->ubuf = buf;
+
+	bfa_fru_write_send(fru, BFI_FRUVPD_H2I_WRITE_REQ);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Read fru vpd image.
+ *
+ * @param[in] fru - fru structure
+ * @param[in] buf - read data buffer
+ * @param[in] len - data buffer length
+ * @param[in] offset - offset relative to starting address
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_fruvpd_read(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
+		bfa_cb_fru_t cbfn, void *cbarg)
+{
+	bfa_trc(fru, BFI_FRUVPD_H2I_READ_REQ);
+	bfa_trc(fru, len);
+	bfa_trc(fru, offset);
+
+	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
+		return BFA_STATUS_FRU_NOT_PRESENT;
+
+	if (fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK)
+		return BFA_STATUS_CMD_NOTSUPP;
+
+	if (!bfa_ioc_is_operational(fru->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (fru->op_busy) {
+		bfa_trc(fru, fru->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	fru->op_busy = 1;
+
+	fru->cbfn = cbfn;
+	fru->cbarg = cbarg;
+	fru->residue = len;
+	fru->offset = 0;
+	fru->addr_off = offset;
+	fru->ubuf = buf;
+	bfa_fru_read_send(fru, BFI_FRUVPD_H2I_READ_REQ);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Get maximum size fru vpd image.
+ *
+ * @param[in] fru - fru structure
+ * @param[out] size - maximum size of fru vpd data
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_fruvpd_get_max_size(struct bfa_fru_s *fru, u32 *max_size)
+{
+	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
+		return BFA_STATUS_FRU_NOT_PRESENT;
+
+	if (!bfa_ioc_is_operational(fru->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (fru->ioc->attr->card_type == BFA_MFG_TYPE_CHINOOK)
+		*max_size = BFA_FRU_CHINOOK_MAX_SIZE;
+	else
+		return BFA_STATUS_CMD_NOTSUPP;
+	return BFA_STATUS_OK;
+}
+/*
+ * tfru write.
+ *
+ * @param[in] fru - fru structure
+ * @param[in] buf - update data buffer
+ * @param[in] len - data buffer length
+ * @param[in] offset - offset relative to starting address
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_tfru_write(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
+	       bfa_cb_fru_t cbfn, void *cbarg)
+{
+	bfa_trc(fru, BFI_TFRU_H2I_WRITE_REQ);
+	bfa_trc(fru, len);
+	bfa_trc(fru, offset);
+	bfa_trc(fru, *((u8 *) buf));
+
+	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
+		return BFA_STATUS_FRU_NOT_PRESENT;
+
+	if (!bfa_ioc_is_operational(fru->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (fru->op_busy) {
+		bfa_trc(fru, fru->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	fru->op_busy = 1;
+
+	fru->cbfn = cbfn;
+	fru->cbarg = cbarg;
+	fru->residue = len;
+	fru->offset = 0;
+	fru->addr_off = offset;
+	fru->ubuf = buf;
+
+	bfa_fru_write_send(fru, BFI_TFRU_H2I_WRITE_REQ);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * tfru read.
+ *
+ * @param[in] fru - fru structure
+ * @param[in] buf - read data buffer
+ * @param[in] len - data buffer length
+ * @param[in] offset - offset relative to starting address
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_tfru_read(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
+	      bfa_cb_fru_t cbfn, void *cbarg)
+{
+	bfa_trc(fru, BFI_TFRU_H2I_READ_REQ);
+	bfa_trc(fru, len);
+	bfa_trc(fru, offset);
+
+	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
+		return BFA_STATUS_FRU_NOT_PRESENT;
+
+	if (!bfa_ioc_is_operational(fru->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (fru->op_busy) {
+		bfa_trc(fru, fru->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	fru->op_busy = 1;
+
+	fru->cbfn = cbfn;
+	fru->cbarg = cbarg;
+	fru->residue = len;
+	fru->offset = 0;
+	fru->addr_off = offset;
+	fru->ubuf = buf;
+	bfa_fru_read_send(fru, BFI_TFRU_H2I_READ_REQ);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Process fru response messages upon receiving interrupts.
+ *
+ * @param[in] fruarg - fru structure
+ * @param[in] msg - message structure
+ */
+void
+bfa_fru_intr(void *fruarg, struct bfi_mbmsg_s *msg)
+{
+	struct bfa_fru_s *fru = fruarg;
+	struct bfi_fru_rsp_s *rsp = (struct bfi_fru_rsp_s *)msg;
+	u32 status;
+
+	bfa_trc(fru, msg->mh.msg_id);
+
+	if (!fru->op_busy) {
+		/*
+		 * receiving response after ioc failure
+		 */
+		bfa_trc(fru, 0x9999);
+		return;
+	}
+
+	switch (msg->mh.msg_id) {
+	case BFI_FRUVPD_I2H_WRITE_RSP:
+	case BFI_TFRU_I2H_WRITE_RSP:
+		status = be32_to_cpu(rsp->status);
+		bfa_trc(fru, status);
+
+		if (status != BFA_STATUS_OK || fru->residue == 0) {
+			fru->status = status;
+			fru->op_busy = 0;
+			if (fru->cbfn)
+				fru->cbfn(fru->cbarg, fru->status);
+		} else {
+			bfa_trc(fru, fru->offset);
+			if (msg->mh.msg_id == BFI_FRUVPD_I2H_WRITE_RSP)
+				bfa_fru_write_send(fru,
+					BFI_FRUVPD_H2I_WRITE_REQ);
+			else
+				bfa_fru_write_send(fru,
+					BFI_TFRU_H2I_WRITE_REQ);
+		}
+		break;
+	case BFI_FRUVPD_I2H_READ_RSP:
+	case BFI_TFRU_I2H_READ_RSP:
+		status = be32_to_cpu(rsp->status);
+		bfa_trc(fru, status);
+
+		if (status != BFA_STATUS_OK) {
+			fru->status = status;
+			fru->op_busy = 0;
+			if (fru->cbfn)
+				fru->cbfn(fru->cbarg, fru->status);
+		} else {
+			u32 len = be32_to_cpu(rsp->length);
+
+			bfa_trc(fru, fru->offset);
+			bfa_trc(fru, len);
+
+			memcpy(fru->ubuf + fru->offset, fru->dbuf_kva, len);
+			fru->residue -= len;
+			fru->offset += len;
+
+			if (fru->residue == 0) {
+				fru->status = status;
+				fru->op_busy = 0;
+				if (fru->cbfn)
+					fru->cbfn(fru->cbarg, fru->status);
+			} else {
+				if (msg->mh.msg_id == BFI_FRUVPD_I2H_READ_RSP)
+					bfa_fru_read_send(fru,
+						BFI_FRUVPD_H2I_READ_REQ);
+				else
+					bfa_fru_read_send(fru,
+						BFI_TFRU_H2I_READ_REQ);
+			}
+		}
+		break;
+	default:
+		WARN_ON(1);
+	}
+}

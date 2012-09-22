@@ -107,9 +107,10 @@ bfad_iocmd_ioc_get_info(struct bfad_s *bfad, void *cmd)
 
 	/* set adapter hw path */
 	strcpy(iocmd->adapter_hwpath, bfad->pci_name);
-	i = strlen(iocmd->adapter_hwpath) - 1;
-	while (iocmd->adapter_hwpath[i] != '.')
-		i--;
+	for (i = 0; iocmd->adapter_hwpath[i] != ':' && i < BFA_STRING_32; i++)
+		;
+	for (; iocmd->adapter_hwpath[++i] != ':' && i < BFA_STRING_32; )
+		;
 	iocmd->adapter_hwpath[i] = '\0';
 	iocmd->status = BFA_STATUS_OK;
 	return 0;
@@ -2583,6 +2584,109 @@ bfad_iocmd_fcpim_throttle_set(struct bfad_s *bfad, void *cmd)
 	return 0;
 }
 
+int
+bfad_iocmd_tfru_read(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_tfru_s *iocmd =
+			(struct bfa_bsg_tfru_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags = 0;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_tfru_read(BFA_FRU(&bfad->bfa),
+				&iocmd->data, iocmd->len, iocmd->offset,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status == BFA_STATUS_OK) {
+		wait_for_completion(&fcomp.comp);
+		iocmd->status = fcomp.status;
+	}
+
+	return 0;
+}
+
+int
+bfad_iocmd_tfru_write(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_tfru_s *iocmd =
+			(struct bfa_bsg_tfru_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags = 0;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_tfru_write(BFA_FRU(&bfad->bfa),
+				&iocmd->data, iocmd->len, iocmd->offset,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status == BFA_STATUS_OK) {
+		wait_for_completion(&fcomp.comp);
+		iocmd->status = fcomp.status;
+	}
+
+	return 0;
+}
+
+int
+bfad_iocmd_fruvpd_read(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_fruvpd_s *iocmd =
+			(struct bfa_bsg_fruvpd_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags = 0;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fruvpd_read(BFA_FRU(&bfad->bfa),
+				&iocmd->data, iocmd->len, iocmd->offset,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status == BFA_STATUS_OK) {
+		wait_for_completion(&fcomp.comp);
+		iocmd->status = fcomp.status;
+	}
+
+	return 0;
+}
+
+int
+bfad_iocmd_fruvpd_update(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_fruvpd_s *iocmd =
+			(struct bfa_bsg_fruvpd_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags = 0;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fruvpd_update(BFA_FRU(&bfad->bfa),
+				&iocmd->data, iocmd->len, iocmd->offset,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status == BFA_STATUS_OK) {
+		wait_for_completion(&fcomp.comp);
+		iocmd->status = fcomp.status;
+	}
+
+	return 0;
+}
+
+int
+bfad_iocmd_fruvpd_get_max_size(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_fruvpd_max_size_s *iocmd =
+			(struct bfa_bsg_fruvpd_max_size_s *)cmd;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fruvpd_get_max_size(BFA_FRU(&bfad->bfa),
+						&iocmd->max_size);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -2922,6 +3026,23 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_FCPIM_THROTTLE_SET:
 		rc = bfad_iocmd_fcpim_throttle_set(bfad, iocmd);
+		break;
+	/* TFRU */
+	case IOCMD_TFRU_READ:
+		rc = bfad_iocmd_tfru_read(bfad, iocmd);
+		break;
+	case IOCMD_TFRU_WRITE:
+		rc = bfad_iocmd_tfru_write(bfad, iocmd);
+		break;
+	/* FRU */
+	case IOCMD_FRUVPD_READ:
+		rc = bfad_iocmd_fruvpd_read(bfad, iocmd);
+		break;
+	case IOCMD_FRUVPD_UPDATE:
+		rc = bfad_iocmd_fruvpd_update(bfad, iocmd);
+		break;
+	case IOCMD_FRUVPD_GET_MAX_SIZE:
+		rc = bfad_iocmd_fruvpd_get_max_size(bfad, iocmd);
 		break;
 	default:
 		rc = -EINVAL;

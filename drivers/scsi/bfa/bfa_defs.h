@@ -196,6 +196,7 @@ enum bfa_status {
 	BFA_STATUS_DPORT_ENABLED = 235, /* D-port mode is already enabled */
 	BFA_STATUS_DPORT_DISABLED = 236, /* D-port mode is already disabled */
 	BFA_STATUS_CMD_NOTSUPP_MEZZ = 239, /* Cmd not supported for MEZZ card */
+	BFA_STATUS_FRU_NOT_PRESENT = 240, /* fru module not present */
 	BFA_STATUS_DPORT_ERR = 245,	/* D-port mode is enabled */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
