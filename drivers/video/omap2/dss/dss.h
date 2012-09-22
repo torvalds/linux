@@ -486,6 +486,11 @@ int dispc_mgr_get_clock_div(enum omap_channel channel,
 void dispc_mgr_setup(enum omap_channel channel,
 		struct omap_overlay_manager_info *info);
 
+u32 dispc_wb_get_framedone_irq(void);
+bool dispc_wb_go_busy(void);
+void dispc_wb_go(void);
+void dispc_wb_enable(bool enable);
+bool dispc_wb_is_enabled(void);
 void dispc_wb_set_channel_in(enum dss_writeback_channel channel);
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		bool mem_to_mem, const struct omap_video_timings *timings);

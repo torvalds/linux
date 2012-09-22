@@ -536,6 +536,11 @@ u32 dispc_mgr_get_framedone_irq(enum omap_channel channel)
 	return mgr_desc[channel].framedone_irq;
 }
 
+u32 dispc_wb_get_framedone_irq(void)
+{
+	return DISPC_IRQ_FRAMEDONEWB;
+}
+
 bool dispc_mgr_go_busy(enum omap_channel channel)
 {
 	return mgr_fld_read(channel, DISPC_MGR_FLD_GO) == 1;
@@ -561,6 +566,30 @@ void dispc_mgr_go(enum omap_channel channel)
 	DSSDBG("GO %s\n", mgr_desc[channel].name);
 
 	mgr_fld_write(channel, DISPC_MGR_FLD_GO, 1);
+}
+
+bool dispc_wb_go_busy(void)
+{
+	return REG_GET(DISPC_CONTROL2, 6, 6) == 1;
+}
+
+void dispc_wb_go(void)
+{
+	enum omap_plane plane = OMAP_DSS_WB;
+	bool enable, go;
+
+	enable = REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0) == 1;
+
+	if (!enable)
+		return;
+
+	go = REG_GET(DISPC_CONTROL2, 6, 6) == 1;
+	if (go) {
+		DSSERR("GO bit not down for WB\n");
+		return;
+	}
+
+	REG_FLD_MOD(DISPC_CONTROL2, 1, 6, 6);
 }
 
 static void dispc_ovl_write_firh_reg(enum omap_plane plane, int reg, u32 value)
@@ -2690,6 +2719,47 @@ void dispc_mgr_enable(enum omap_channel channel, bool enable)
 		dispc_mgr_enable_digit_out(enable);
 	else
 		BUG();
+}
+
+void dispc_wb_enable(bool enable)
+{
+	enum omap_plane plane = OMAP_DSS_WB;
+	struct completion frame_done_completion;
+	bool is_on;
+	int r;
+	u32 irq;
+
+	is_on = REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
+	irq = DISPC_IRQ_FRAMEDONEWB;
+
+	if (!enable && is_on) {
+		init_completion(&frame_done_completion);
+
+		r = omap_dispc_register_isr(dispc_disable_isr,
+				&frame_done_completion, irq);
+		if (r)
+			DSSERR("failed to register FRAMEDONEWB isr\n");
+	}
+
+	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable ? 1 : 0, 0, 0);
+
+	if (!enable && is_on) {
+		if (!wait_for_completion_timeout(&frame_done_completion,
+					msecs_to_jiffies(100)))
+			DSSERR("timeout waiting for FRAMEDONEWB\n");
+
+		r = omap_dispc_unregister_isr(dispc_disable_isr,
+				&frame_done_completion, irq);
+		if (r)
+			DSSERR("failed to unregister FRAMEDONEWB isr\n");
+	}
+}
+
+bool dispc_wb_is_enabled(void)
+{
+	enum omap_plane plane = OMAP_DSS_WB;
+
+	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
 }
 
 void dispc_lcd_enable_signal_polarity(bool act_high)
