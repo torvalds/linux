@@ -612,8 +612,10 @@ err_dvb_unregister_frontend:
 
 err_dvb_frontend_detach:
 	for (i = MAX_NO_OF_FE_PER_ADAP - 1; i >= 0; i--) {
-		if (adap->fe[i])
+		if (adap->fe[i]) {
 			dvb_frontend_detach(adap->fe[i]);
+			adap->fe[i] = NULL;
+		}
 	}
 
 err:
