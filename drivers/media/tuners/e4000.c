@@ -366,9 +366,6 @@ struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
 
 	priv->cfg = cfg;
 	priv->i2c = i2c;
-	fe->tuner_priv = priv;
-	memcpy(&fe->ops.tuner_ops, &e4000_tuner_ops,
-			sizeof(struct dvb_tuner_ops));
 
 	/* check if the tuner is there */
 	ret = e4000_rd_reg(priv, 0x02, &chip_id);
@@ -388,6 +385,10 @@ struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
 	dev_info(&priv->i2c->dev,
 			"%s: Elonics E4000 successfully identified\n",
 			KBUILD_MODNAME);
+
+	fe->tuner_priv = priv;
+	memcpy(&fe->ops.tuner_ops, &e4000_tuner_ops,
+			sizeof(struct dvb_tuner_ops));
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
