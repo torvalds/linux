@@ -41,12 +41,12 @@
  ****************************************************************************/
 static struct map_desc dove_io_desc[] __initdata = {
 	{
-		.virtual	= DOVE_SB_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) DOVE_SB_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(DOVE_SB_REGS_PHYS_BASE),
 		.length		= DOVE_SB_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= DOVE_NB_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) DOVE_NB_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(DOVE_NB_REGS_PHYS_BASE),
 		.length		= DOVE_NB_REGS_SIZE,
 		.type		= MT_DEVICE,

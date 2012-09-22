@@ -701,7 +701,7 @@ static void __init dns323_init(void)
 		 * Note: AFAIK, rev B1 needs the same treatement but I'll let
 		 * somebody else test it.
 		 */
-		writel(0x5, ORION5X_SATA_VIRT_BASE | 0x2c);
+		writel(0x5, ORION5X_SATA_VIRT_BASE + 0x2c);
 		break;
 	}
 }

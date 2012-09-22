@@ -34,8 +34,8 @@ static struct resource pcie_io_space;
 
 void __init mv78xx0_pcie_id(u32 *dev, u32 *rev)
 {
-	*dev = orion_pcie_dev_id((void __iomem *)PCIE00_VIRT_BASE);
-	*rev = orion_pcie_rev((void __iomem *)PCIE00_VIRT_BASE);
+	*dev = orion_pcie_dev_id(PCIE00_VIRT_BASE);
+	*rev = orion_pcie_rev(PCIE00_VIRT_BASE);
 }
 
 u32 pcie_port_size[8] = {
@@ -223,11 +223,11 @@ static struct hw_pci mv78xx0_pci __initdata = {
 	.map_irq	= mv78xx0_pcie_map_irq,
 };
 
-static void __init add_pcie_port(int maj, int min, unsigned long base)
+static void __init add_pcie_port(int maj, int min, void __iomem *base)
 {
 	printk(KERN_INFO "MV78xx0 PCIe port %d.%d: ", maj, min);
 
-	if (orion_pcie_link_up((void __iomem *)base)) {
+	if (orion_pcie_link_up(base)) {
 		struct pcie_port *pp = &pcie_port[num_pcie_ports++];
 
 		printk("link up\n");
@@ -235,7 +235,7 @@ static void __init add_pcie_port(int maj, int min, unsigned long base)
 		pp->maj = maj;
 		pp->min = min;
 		pp->root_bus_nr = -1;
-		pp->base = (void __iomem *)base;
+		pp->base = base;
 		spin_lock_init(&pp->conf_lock);
 		memset(&pp->res, 0, sizeof(pp->res));
 	} else {
@@ -249,7 +249,7 @@ void __init mv78xx0_pcie_init(int init_port0, int init_port1)
 
 	if (init_port0) {
 		add_pcie_port(0, 0, PCIE00_VIRT_BASE);
-		if (!orion_pcie_x4_mode((void __iomem *)PCIE00_VIRT_BASE)) {
+		if (!orion_pcie_x4_mode(PCIE00_VIRT_BASE)) {
 			add_pcie_port(0, 1, PCIE01_VIRT_BASE);
 			add_pcie_port(0, 2, PCIE02_VIRT_BASE);
 			add_pcie_port(0, 3, PCIE03_VIRT_BASE);
