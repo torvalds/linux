@@ -782,19 +782,13 @@ err_ret:
 /* fixme, confirm ordering in this function */
 static int __devexit lis3l02dq_remove(struct spi_device *spi)
 {
-	int ret;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 
-	ret = lis3l02dq_disable_all_events(indio_dev);
-	if (ret)
-		goto err_ret;
-
-	ret = lis3l02dq_stop_device(indio_dev);
-	if (ret)
-		goto err_ret;
+	lis3l02dq_disable_all_events(indio_dev);
+	lis3l02dq_stop_device(indio_dev);
 
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
 		free_irq(st->us->irq, indio_dev);
@@ -804,8 +798,8 @@ static int __devexit lis3l02dq_remove(struct spi_device *spi)
 	lis3l02dq_unconfigure_buffer(indio_dev);
 
 	iio_device_free(indio_dev);
-err_ret:
-	return ret;
+
+	return 0;
 }
 
 static struct spi_driver lis3l02dq_driver = {
