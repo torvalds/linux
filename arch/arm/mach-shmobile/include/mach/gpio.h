@@ -35,12 +35,12 @@ static inline int irq_to_gpio(unsigned int irq)
  * the method to control only pull up/down/free.
  * this function should be replaced by correct gpio function
  */
-static inline void __init gpio_direction_none(u32 addr)
+static inline void __init gpio_direction_none(void __iomem * addr)
 {
 	__raw_writeb(0x00, addr);
 }
 
-static inline void __init gpio_request_pullup(u32 addr)
+static inline void __init gpio_request_pullup(void __iomem * addr)
 {
 	u8 data = __raw_readb(addr);
 
@@ -49,7 +49,7 @@ static inline void __init gpio_request_pullup(u32 addr)
 	__raw_writeb(data, addr);
 }
 
-static inline void __init gpio_request_pulldown(u32 addr)
+static inline void __init gpio_request_pulldown(void __iomem * addr)
 {
 	u8 data = __raw_readb(addr);
 

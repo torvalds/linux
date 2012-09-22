@@ -484,7 +484,7 @@ static void __init sh7377_earlytimer_init(void)
 	shmobile_earlytimer_init();
 }
 
-#define SMSTPCR3 0xe615013c
+#define SMSTPCR3 IOMEM(0xe615013c)
 #define SMSTPCR3_CMT1 (1 << 29)
 
 void __init sh7377_add_early_devices(void)
