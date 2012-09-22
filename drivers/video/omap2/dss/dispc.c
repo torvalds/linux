@@ -983,6 +983,13 @@ static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane plane)
 	return channel;
 }
 
+void dispc_wb_set_channel_in(enum dss_writeback_channel channel)
+{
+	enum omap_plane plane = OMAP_DSS_WB;
+
+	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), channel, 18, 16);
+}
+
 static void dispc_ovl_set_burst_size(enum omap_plane plane,
 		enum omap_burst_size burst_size)
 {
