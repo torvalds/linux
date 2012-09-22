@@ -931,7 +931,8 @@ static int efx_ptp_probe_channel(struct efx_channel *channel)
 	ptp->phc_clock_info.settime = efx_phc_settime;
 	ptp->phc_clock_info.enable = efx_phc_enable;
 
-	ptp->phc_clock = ptp_clock_register(&ptp->phc_clock_info);
+	ptp->phc_clock = ptp_clock_register(&ptp->phc_clock_info,
+					    &efx->pci_dev->dev);
 	if (!ptp->phc_clock)
 		goto fail3;
 

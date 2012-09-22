@@ -182,7 +182,8 @@ static void delete_ptp_clock(struct posix_clock *pc)
 
 /* public interface */
 
-struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info)
+struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
+				     struct device *parent)
 {
 	struct ptp_clock *ptp;
 	int err = 0, index, major = MAJOR(ptp_devt);
@@ -215,7 +216,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info)
 	init_waitqueue_head(&ptp->tsev_wq);
 
 	/* Create a new device in our class. */
-	ptp->dev = device_create(ptp_class, NULL, ptp->devid, ptp,
+	ptp->dev = device_create(ptp_class, parent, ptp->devid, ptp,
 				 "ptp%d", ptp->index);
 	if (IS_ERR(ptp->dev))
 		goto no_device;

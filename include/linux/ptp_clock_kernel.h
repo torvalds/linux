@@ -21,6 +21,7 @@
 #ifndef _PTP_CLOCK_KERNEL_H_
 #define _PTP_CLOCK_KERNEL_H_
 
+#include <linux/device.h>
 #include <linux/pps_kernel.h>
 #include <linux/ptp_clock.h>
 
@@ -93,10 +94,12 @@ struct ptp_clock;
 /**
  * ptp_clock_register() - register a PTP hardware clock driver
  *
- * @info:  Structure describing the new clock.
+ * @info:   Structure describing the new clock.
+ * @parent: Pointer to the parent device of the new clock.
  */
 
-extern struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info);
+extern struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
+					    struct device *parent);
 
 /**
  * ptp_clock_unregister() - unregister a PTP hardware clock driver
