@@ -793,7 +793,7 @@ int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	}
 
 	drbd_start_resync(mdev, C_SYNC_SOURCE);
-	clear_bit(AHEAD_TO_SYNC_SOURCE, &mdev->flags);
+	drbd_clear_flag(mdev, AHEAD_TO_SYNC_SOURCE);
 	return 1;
 }
 
@@ -817,10 +817,10 @@ static int w_resync_finished(struct drbd_conf *mdev, struct drbd_work *w, int ca
 
 static void ping_peer(struct drbd_conf *mdev)
 {
-	clear_bit(GOT_PING_ACK, &mdev->flags);
+	drbd_clear_flag(mdev, GOT_PING_ACK);
 	request_ping(mdev);
 	wait_event(mdev->misc_wait,
-		   test_bit(GOT_PING_ACK, &mdev->flags) || mdev->state.conn < C_CONNECTED);
+		   drbd_test_flag(mdev, GOT_PING_ACK) || mdev->state.conn < C_CONNECTED);
 }
 
 int drbd_resync_finished(struct drbd_conf *mdev)
@@ -1749,8 +1749,8 @@ int drbd_worker(struct drbd_thread *thi)
 						NS(conn, C_NETWORK_FAILURE));
 		}
 	}
-	D_ASSERT(test_bit(DEVICE_DYING, &mdev->flags));
-	D_ASSERT(test_bit(CONFIG_PENDING, &mdev->flags));
+	D_ASSERT(drbd_test_flag(mdev, DEVICE_DYING));
+	D_ASSERT(drbd_test_flag(mdev, CONFIG_PENDING));
 
 	spin_lock_irq(&mdev->data.work.q_lock);
 	i = 0;
@@ -1783,8 +1783,8 @@ int drbd_worker(struct drbd_thread *thi)
 
 	dev_info(DEV, "worker terminated\n");
 
-	clear_bit(DEVICE_DYING, &mdev->flags);
-	clear_bit(CONFIG_PENDING, &mdev->flags);
+	drbd_clear_flag(mdev, DEVICE_DYING);
+	drbd_clear_flag(mdev, CONFIG_PENDING);
 	wake_up(&mdev->state_wait);
 
 	return 0;

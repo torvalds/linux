@@ -808,7 +808,7 @@ enum {
 #define EE_HAS_DIGEST          (1<<__EE_HAS_DIGEST)
 
 /* global flag bits */
-enum {
+enum drbd_flag {
 	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
 	SEND_PING,		/* whether asender should send a ping asap */
@@ -858,6 +858,9 @@ enum {
 				 * and potentially deadlock on, this drbd worker.
 				 */
 	DISCONNECT_SENT,	/* Currently the last bit in this 32bit word */
+
+	/* keep last */
+	DRBD_N_FLAGS,
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */
@@ -970,8 +973,7 @@ struct fifo_buffer {
 };
 
 struct drbd_conf {
-	/* things that are stored as / read from meta data on disk */
-	unsigned long flags;
+	unsigned long drbd_flags[(DRBD_N_FLAGS + BITS_PER_LONG -1)/BITS_PER_LONG];
 
 	/* configured by drbdsetup */
 	struct net_conf *net_conf; /* protected by get_net_conf() and put_net_conf() */
@@ -1142,6 +1144,31 @@ struct drbd_conf {
 	unsigned int peer_max_bio_size;
 	unsigned int local_max_bio_size;
 };
+
+static inline void drbd_set_flag(struct drbd_conf *mdev, enum drbd_flag f)
+{
+	set_bit(f, &mdev->drbd_flags[0]);
+}
+
+static inline void drbd_clear_flag(struct drbd_conf *mdev, enum drbd_flag f)
+{
+	clear_bit(f, &mdev->drbd_flags[0]);
+}
+
+static inline int drbd_test_flag(struct drbd_conf *mdev, enum drbd_flag f)
+{
+	return test_bit(f, &mdev->drbd_flags[0]);
+}
+
+static inline int drbd_test_and_set_flag(struct drbd_conf *mdev, enum drbd_flag f)
+{
+	return test_and_set_bit(f, &mdev->drbd_flags[0]);
+}
+
+static inline int drbd_test_and_clear_flag(struct drbd_conf *mdev, enum drbd_flag f)
+{
+	return test_and_clear_bit(f, &mdev->drbd_flags[0]);
+}
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
 {
@@ -1812,12 +1839,12 @@ static inline int drbd_ee_has_active_page(struct drbd_epoch_entry *e)
 static inline void drbd_state_lock(struct drbd_conf *mdev)
 {
 	wait_event(mdev->misc_wait,
-		   !test_and_set_bit(CLUSTER_ST_CHANGE, &mdev->flags));
+		   !drbd_test_and_set_flag(mdev, CLUSTER_ST_CHANGE));
 }
 
 static inline void drbd_state_unlock(struct drbd_conf *mdev)
 {
-	clear_bit(CLUSTER_ST_CHANGE, &mdev->flags);
+	drbd_clear_flag(mdev, CLUSTER_ST_CHANGE);
 	wake_up(&mdev->misc_wait);
 }
 
@@ -1874,9 +1901,9 @@ static inline void __drbd_chk_io_error_(struct drbd_conf *mdev,
 		/* NOTE fall through to detach case if forcedetach set */
 	case EP_DETACH:
 	case EP_CALL_HELPER:
-		set_bit(WAS_IO_ERROR, &mdev->flags);
+		drbd_set_flag(mdev, WAS_IO_ERROR);
 		if (forcedetach == DRBD_FORCE_DETACH)
-			set_bit(FORCE_DETACH, &mdev->flags);
+			drbd_set_flag(mdev, FORCE_DETACH);
 		if (mdev->state.disk > D_FAILED) {
 			_drbd_set_state(_NS(mdev, disk, D_FAILED), CS_HARD, NULL);
 			dev_err(DEV,
@@ -2037,13 +2064,13 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
 
 static inline void wake_asender(struct drbd_conf *mdev)
 {
-	if (test_bit(SIGNAL_ASENDER, &mdev->flags))
+	if (drbd_test_flag(mdev, SIGNAL_ASENDER))
 		force_sig(DRBD_SIG, mdev->asender.task);
 }
 
 static inline void request_ping(struct drbd_conf *mdev)
 {
-	set_bit(SEND_PING, &mdev->flags);
+	drbd_set_flag(mdev, SEND_PING);
 	wake_asender(mdev);
 }
 
@@ -2374,7 +2401,7 @@ static inline bool may_inc_ap_bio(struct drbd_conf *mdev)
 
 	if (is_susp(mdev->state))
 		return false;
-	if (test_bit(SUSPEND_IO, &mdev->flags))
+	if (drbd_test_flag(mdev, SUSPEND_IO))
 		return false;
 
 	/* to avoid potential deadlock or bitmap corruption,
@@ -2389,7 +2416,7 @@ static inline bool may_inc_ap_bio(struct drbd_conf *mdev)
 	 * and we are within the spinlock anyways, we have this workaround.  */
 	if (atomic_read(&mdev->ap_bio_cnt) > mxb)
 		return false;
-	if (test_bit(BITMAP_IO, &mdev->flags))
+	if (drbd_test_flag(mdev, BITMAP_IO))
 		return false;
 	return true;
 }
@@ -2427,8 +2454,8 @@ static inline void dec_ap_bio(struct drbd_conf *mdev)
 
 	D_ASSERT(ap_bio >= 0);
 
-	if (ap_bio == 0 && test_bit(BITMAP_IO, &mdev->flags)) {
-		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
+	if (ap_bio == 0 && drbd_test_flag(mdev, BITMAP_IO)) {
+		if (!drbd_test_and_set_flag(mdev, BITMAP_IO_QUEUED))
 			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
 	}
 
@@ -2477,7 +2504,7 @@ static inline void drbd_update_congested(struct drbd_conf *mdev)
 {
 	struct sock *sk = mdev->data.socket->sk;
 	if (sk->sk_wmem_queued > sk->sk_sndbuf * 4 / 5)
-		set_bit(NET_CONGESTED, &mdev->flags);
+		drbd_set_flag(mdev, NET_CONGESTED);
 }
 
 static inline int drbd_queue_order_type(struct drbd_conf *mdev)
@@ -2494,14 +2521,15 @@ static inline void drbd_md_flush(struct drbd_conf *mdev)
 {
 	int r;
 
-	if (test_bit(MD_NO_FUA, &mdev->flags))
+	if (drbd_test_flag(mdev, MD_NO_FUA))
 		return;
 
 	r = blkdev_issue_flush(mdev->ldev->md_bdev, GFP_NOIO, NULL);
 	if (r) {
-		set_bit(MD_NO_FUA, &mdev->flags);
+		drbd_set_flag(mdev, MD_NO_FUA);
 		dev_err(DEV, "meta data flush failed with status %d, disabling md-flushes\n", r);
 	}
 }
+
 
 #endif

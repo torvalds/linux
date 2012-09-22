@@ -270,7 +270,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   mdev->state.peer_isp ? 'p' : '-',
 			   mdev->state.user_isp ? 'u' : '-',
 			   mdev->congestion_reason ?: '-',
-			   test_bit(AL_SUSPENDED, &mdev->flags) ? 's' : '-',
+			   drbd_test_flag(mdev, AL_SUSPENDED) ? 's' : '-',
 			   mdev->send_cnt/2,
 			   mdev->recv_cnt/2,
 			   mdev->writ_cnt/2,

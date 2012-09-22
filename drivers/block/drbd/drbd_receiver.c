@@ -525,7 +525,7 @@ static int drbd_recv(struct drbd_conf *mdev, void *buf, size_t size)
 		else if (rv != -ERESTARTSYS)
 			dev_err(DEV, "sock_recvmsg returned %d\n", rv);
 	} else if (rv == 0) {
-		if (test_bit(DISCONNECT_SENT, &mdev->flags)) {
+		if (drbd_test_flag(mdev, DISCONNECT_SENT)) {
 			long t; /* time_left */
 			t = wait_event_timeout(mdev->state_wait, mdev->state.conn < C_CONNECTED,
 					       mdev->net_conf->ping_timeo * HZ/10);
@@ -749,7 +749,7 @@ static int drbd_connect(struct drbd_conf *mdev)
 
 	D_ASSERT(!mdev->data.socket);
 
-	clear_bit(DISCONNECT_SENT, &mdev->flags);
+	drbd_clear_flag(mdev, DISCONNECT_SENT);
 	if (drbd_request_state(mdev, NS(conn, C_WF_CONNECTION)) < SS_SUCCESS)
 		return -2;
 
@@ -772,7 +772,7 @@ static int drbd_connect(struct drbd_conf *mdev)
 				sock = s;
 				s = NULL;
 			} else if (!msock) {
-				clear_bit(DISCARD_CONCURRENT, &mdev->flags);
+				drbd_clear_flag(mdev, DISCARD_CONCURRENT);
 				drbd_send_fp(mdev, s, P_HAND_SHAKE_M);
 				msock = s;
 				s = NULL;
@@ -810,7 +810,7 @@ retry:
 					sock_release(msock);
 				}
 				msock = s;
-				set_bit(DISCARD_CONCURRENT, &mdev->flags);
+				drbd_set_flag(mdev, DISCARD_CONCURRENT);
 				break;
 			default:
 				dev_warn(DEV, "Error receiving initial packet\n");
@@ -892,18 +892,18 @@ retry:
 
 	if (drbd_send_protocol(mdev) == -1)
 		return -1;
-	set_bit(STATE_SENT, &mdev->flags);
+	drbd_set_flag(mdev, STATE_SENT);
 	drbd_send_sync_param(mdev, &mdev->sync_conf);
 	drbd_send_sizes(mdev, 0, 0);
 	drbd_send_uuids(mdev);
 	drbd_send_current_state(mdev);
-	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
-	clear_bit(RESIZE_PENDING, &mdev->flags);
+	drbd_clear_flag(mdev, USE_DEGR_WFC_T);
+	drbd_clear_flag(mdev, RESIZE_PENDING);
 
 	spin_lock_irq(&mdev->req_lock);
 	rv = _drbd_set_state(_NS(mdev, conn, C_WF_REPORT_PARAMS), CS_VERBOSE, NULL);
 	if (mdev->state.conn != C_WF_REPORT_PARAMS)
-		clear_bit(STATE_SENT, &mdev->flags);
+		drbd_clear_flag(mdev, STATE_SENT);
 	spin_unlock_irq(&mdev->req_lock);
 
 	if (rv < SS_SUCCESS)
@@ -1732,7 +1732,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 		/* don't get the req_lock yet,
 		 * we may sleep in drbd_wait_peer_seq */
 		const int size = e->size;
-		const int discard = test_bit(DISCARD_CONCURRENT, &mdev->flags);
+		const int discard = drbd_test_flag(mdev, DISCARD_CONCURRENT);
 		DEFINE_WAIT(wait);
 		struct drbd_request *i;
 		struct hlist_node *n;
@@ -2200,7 +2200,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 		     "Using discard-least-changes instead\n");
 	case ASB_DISCARD_ZERO_CHG:
 		if (ch_peer == 0 && ch_self == 0) {
-			rv = test_bit(DISCARD_CONCURRENT, &mdev->flags)
+			rv = drbd_test_flag(mdev, DISCARD_CONCURRENT)
 				? -1 : 1;
 			break;
 		} else {
@@ -2216,7 +2216,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 			rv =  1;
 		else /* ( ch_self == ch_peer ) */
 		     /* Well, then use something else. */
-			rv = test_bit(DISCARD_CONCURRENT, &mdev->flags)
+			rv = drbd_test_flag(mdev, DISCARD_CONCURRENT)
 				? -1 : 1;
 		break;
 	case ASB_DISCARD_LOCAL:
@@ -2420,7 +2420,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 		}
 
 		/* Common power [off|failure] */
-		rct = (test_bit(CRASHED_PRIMARY, &mdev->flags) ? 1 : 0) +
+		rct = (drbd_test_flag(mdev, CRASHED_PRIMARY) ? 1 : 0) +
 			(mdev->p_uuid[UI_FLAGS] & 2);
 		/* lowest bit is set when we were primary,
 		 * next bit (weight 2) is set when peer was primary */
@@ -2431,7 +2431,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 		case 1: /*  self_pri && !peer_pri */ return 1;
 		case 2: /* !self_pri &&  peer_pri */ return -1;
 		case 3: /*  self_pri &&  peer_pri */
-			dc = test_bit(DISCARD_CONCURRENT, &mdev->flags);
+			dc = drbd_test_flag(mdev, DISCARD_CONCURRENT);
 			return dc ? -1 : 1;
 		}
 	}
@@ -2648,7 +2648,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		}
 	}
 
-	if (mdev->net_conf->dry_run || test_bit(CONN_DRY_RUN, &mdev->flags)) {
+	if (mdev->net_conf->dry_run || drbd_test_flag(mdev, CONN_DRY_RUN)) {
 		if (hg == 0)
 			dev_info(DEV, "dry-run connect: No resync, would become Connected immediately.\n");
 		else
@@ -2716,10 +2716,10 @@ static int receive_protocol(struct drbd_conf *mdev, enum drbd_packets cmd, unsig
 	cf		= be32_to_cpu(p->conn_flags);
 	p_want_lose = cf & CF_WANT_LOSE;
 
-	clear_bit(CONN_DRY_RUN, &mdev->flags);
+	drbd_clear_flag(mdev, CONN_DRY_RUN);
 
 	if (cf & CF_DRY_RUN)
-		set_bit(CONN_DRY_RUN, &mdev->flags);
+		drbd_set_flag(mdev, CONN_DRY_RUN);
 
 	if (p_proto != mdev->net_conf->wire_protocol) {
 		dev_err(DEV, "incompatible communication protocols\n");
@@ -3051,7 +3051,7 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 			 * needs to know my new size... */
 			drbd_send_sizes(mdev, 0, ddsf);
 		}
-		if (test_and_clear_bit(RESIZE_PENDING, &mdev->flags) ||
+		if (drbd_test_and_clear_flag(mdev, RESIZE_PENDING) ||
 		    (dd == grew && mdev->state.conn == C_CONNECTED)) {
 			if (mdev->state.pdsk >= D_INCONSISTENT &&
 			    mdev->state.disk >= D_INCONSISTENT) {
@@ -3060,7 +3060,7 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 				else
 					resync_after_online_grow(mdev);
 			} else
-				set_bit(RESYNC_AFTER_NEG, &mdev->flags);
+				drbd_set_flag(mdev, RESYNC_AFTER_NEG);
 		}
 	}
 
@@ -3121,7 +3121,7 @@ static int receive_uuids(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	   ongoing cluster wide state change is finished. That is important if
 	   we are primary and are detaching from our disk. We need to see the
 	   new disk state... */
-	wait_event(mdev->misc_wait, !test_bit(CLUSTER_ST_CHANGE, &mdev->flags));
+	wait_event(mdev->misc_wait, !drbd_test_flag(mdev, CLUSTER_ST_CHANGE));
 	if (mdev->state.conn >= C_CONNECTED && mdev->state.disk < D_INCONSISTENT)
 		updated_uuids |= drbd_set_ed_uuid(mdev, p_uuid[UI_CURRENT]);
 
@@ -3170,8 +3170,8 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 	mask.i = be32_to_cpu(p->mask);
 	val.i = be32_to_cpu(p->val);
 
-	if (test_bit(DISCARD_CONCURRENT, &mdev->flags) &&
-	    test_bit(CLUSTER_ST_CHANGE, &mdev->flags)) {
+	if (drbd_test_flag(mdev, DISCARD_CONCURRENT) &&
+	    drbd_test_flag(mdev, CLUSTER_ST_CHANGE)) {
 		drbd_send_sr_reply(mdev, SS_CONCURRENT_ST_CHG);
 		return true;
 	}
@@ -3280,7 +3280,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 			os.disk == D_NEGOTIATING));
 		/* if we have both been inconsistent, and the peer has been
 		 * forced to be UpToDate with --overwrite-data */
-		cr |= test_bit(CONSIDER_RESYNC, &mdev->flags);
+		cr |= drbd_test_flag(mdev, CONSIDER_RESYNC);
 		/* if we had been plain connected, and the admin requested to
 		 * start a sync by "invalidate" or "invalidate-remote" */
 		cr |= (os.conn == C_CONNECTED &&
@@ -3300,7 +3300,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 				peer_state.disk = D_DISKLESS;
 				real_peer_disk = D_DISKLESS;
 			} else {
-				if (test_and_clear_bit(CONN_DRY_RUN, &mdev->flags))
+				if (drbd_test_and_clear_flag(mdev, CONN_DRY_RUN))
 					return false;
 				D_ASSERT(os.conn == C_WF_REPORT_PARAMS);
 				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
@@ -3312,7 +3312,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	spin_lock_irq(&mdev->req_lock);
 	if (mdev->state.i != os.i)
 		goto retry;
-	clear_bit(CONSIDER_RESYNC, &mdev->flags);
+	drbd_clear_flag(mdev, CONSIDER_RESYNC);
 	ns.peer = peer_state.role;
 	ns.pdsk = real_peer_disk;
 	ns.peer_isp = (peer_state.aftr_isp | peer_state.user_isp);
@@ -3320,14 +3320,14 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		ns.disk = mdev->new_state_tmp.disk;
 	cs_flags = CS_VERBOSE + (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED ? 0 : CS_HARD);
 	if (ns.pdsk == D_CONSISTENT && is_susp(ns) && ns.conn == C_CONNECTED && os.conn < C_CONNECTED &&
-	    test_bit(NEW_CUR_UUID, &mdev->flags)) {
+	    drbd_test_flag(mdev, NEW_CUR_UUID)) {
 		/* Do not allow tl_restart(resend) for a rebooted peer. We can only allow this
 		   for temporal network outages! */
 		spin_unlock_irq(&mdev->req_lock);
 		dev_err(DEV, "Aborting Connect, can not thaw IO with an only Consistent peer\n");
 		tl_clear(mdev);
 		drbd_uuid_new_current(mdev);
-		clear_bit(NEW_CUR_UUID, &mdev->flags);
+		drbd_clear_flag(mdev, NEW_CUR_UUID);
 		drbd_force_state(mdev, NS2(conn, C_PROTOCOL_ERROR, susp, 0));
 		return false;
 	}
@@ -3931,7 +3931,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	/* serialize with bitmap writeout triggered by the state change,
 	 * if any. */
-	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
+	wait_event(mdev->misc_wait, !drbd_test_flag(mdev, BITMAP_IO));
 
 	/* tcp_close and release of sendpage pages can be deferred.  I don't
 	 * want to use SO_LINGER, because apparently it can be deferred for
@@ -4267,9 +4267,9 @@ static int got_RqSReply(struct drbd_conf *mdev, struct p_header80 *h)
 	int retcode = be32_to_cpu(p->retcode);
 
 	if (retcode >= SS_SUCCESS) {
-		set_bit(CL_ST_CHG_SUCCESS, &mdev->flags);
+		drbd_set_flag(mdev, CL_ST_CHG_SUCCESS);
 	} else {
-		set_bit(CL_ST_CHG_FAIL, &mdev->flags);
+		drbd_set_flag(mdev, CL_ST_CHG_FAIL);
 		dev_err(DEV, "Requested state change failed by peer: %s (%d)\n",
 		    drbd_set_st_err_str(retcode), retcode);
 	}
@@ -4288,7 +4288,7 @@ static int got_PingAck(struct drbd_conf *mdev, struct p_header80 *h)
 {
 	/* restore idle timeout */
 	mdev->meta.socket->sk->sk_rcvtimeo = mdev->net_conf->ping_int*HZ;
-	if (!test_and_set_bit(GOT_PING_ACK, &mdev->flags))
+	if (!drbd_test_and_set_flag(mdev, GOT_PING_ACK))
 		wake_up(&mdev->misc_wait);
 
 	return true;
@@ -4504,7 +4504,7 @@ static int got_BarrierAck(struct drbd_conf *mdev, struct p_header80 *h)
 
 	if (mdev->state.conn == C_AHEAD &&
 	    atomic_read(&mdev->ap_in_flight) == 0 &&
-	    !test_and_set_bit(AHEAD_TO_SYNC_SOURCE, &mdev->flags)) {
+	    !drbd_test_and_set_flag(mdev, AHEAD_TO_SYNC_SOURCE)) {
 		mdev->start_resync_timer.expires = jiffies + HZ;
 		add_timer(&mdev->start_resync_timer);
 	}
@@ -4614,7 +4614,7 @@ int drbd_asender(struct drbd_thread *thi)
 
 	while (get_t_state(thi) == Running) {
 		drbd_thread_current_set_cpu(mdev);
-		if (test_and_clear_bit(SEND_PING, &mdev->flags)) {
+		if (drbd_test_and_clear_flag(mdev, SEND_PING)) {
 			ERR_IF(!drbd_send_ping(mdev)) goto reconnect;
 			mdev->meta.socket->sk->sk_rcvtimeo =
 				mdev->net_conf->ping_timeo*HZ/10;
@@ -4627,12 +4627,12 @@ int drbd_asender(struct drbd_thread *thi)
 			3 < atomic_read(&mdev->unacked_cnt))
 			drbd_tcp_cork(mdev->meta.socket);
 		while (1) {
-			clear_bit(SIGNAL_ASENDER, &mdev->flags);
+			drbd_clear_flag(mdev, SIGNAL_ASENDER);
 			flush_signals(current);
 			if (!drbd_process_done_ee(mdev))
 				goto reconnect;
 			/* to avoid race with newly queued ACKs */
-			set_bit(SIGNAL_ASENDER, &mdev->flags);
+			drbd_set_flag(mdev, SIGNAL_ASENDER);
 			spin_lock_irq(&mdev->req_lock);
 			empty = list_empty(&mdev->done_ee);
 			spin_unlock_irq(&mdev->req_lock);
@@ -4652,7 +4652,7 @@ int drbd_asender(struct drbd_thread *thi)
 
 		rv = drbd_recv_short(mdev, mdev->meta.socket,
 				     buf, expect-received, 0);
-		clear_bit(SIGNAL_ASENDER, &mdev->flags);
+		drbd_clear_flag(mdev, SIGNAL_ASENDER);
 
 		flush_signals(current);
 
@@ -4670,7 +4670,7 @@ int drbd_asender(struct drbd_thread *thi)
 			received += rv;
 			buf	 += rv;
 		} else if (rv == 0) {
-			if (test_bit(DISCONNECT_SENT, &mdev->flags)) {
+			if (drbd_test_flag(mdev, DISCONNECT_SENT)) {
 				long t; /* time_left */
 				t = wait_event_timeout(mdev->state_wait, mdev->state.conn < C_CONNECTED,
 						       mdev->net_conf->ping_timeo * HZ/10);
@@ -4689,7 +4689,7 @@ int drbd_asender(struct drbd_thread *thi)
 				dev_err(DEV, "PingAck did not arrive in time.\n");
 				goto reconnect;
 			}
-			set_bit(SEND_PING, &mdev->flags);
+			drbd_set_flag(mdev, SEND_PING);
 			continue;
 		} else if (rv == -EINTR) {
 			continue;
@@ -4747,7 +4747,7 @@ disconnect:
 		drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
 		drbd_md_sync(mdev);
 	}
-	clear_bit(SIGNAL_ASENDER, &mdev->flags);
+	drbd_clear_flag(mdev, SIGNAL_ASENDER);
 
 	D_ASSERT(mdev->state.conn < C_CONNECTED);
 	dev_info(DEV, "asender terminated\n");

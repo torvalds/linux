@@ -90,7 +90,7 @@ void wait_until_done_or_force_detached(struct drbd_conf *mdev, struct drbd_backi
 		dt = MAX_SCHEDULE_TIMEOUT;
 
 	dt = wait_event_timeout(mdev->misc_wait,
-			*done || test_bit(FORCE_DETACH, &mdev->flags), dt);
+			*done || drbd_test_flag(mdev, FORCE_DETACH), dt);
 	if (dt == 0) {
 		dev_err(DEV, "meta-data IO operation timed out\n");
 		drbd_chk_io_error(mdev, 1, DRBD_FORCE_DETACH);
@@ -108,7 +108,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	mdev->md_io.done = 0;
 	mdev->md_io.error = -ENODEV;
 
-	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &mdev->flags))
+	if ((rw & WRITE) && !drbd_test_flag(mdev, MD_NO_FUA))
 		rw |= REQ_FUA | REQ_FLUSH;
 	rw |= REQ_SYNC;
 

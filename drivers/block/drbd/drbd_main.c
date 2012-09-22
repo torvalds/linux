@@ -322,7 +322,7 @@ void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 	list_splice_init(&b->requests, &mdev->barrier_acked_requests);
 
 	nob = b->next;
-	if (test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
+	if (drbd_test_and_clear_flag(mdev, CREATE_BARRIER)) {
 		_tl_add_barrier(mdev, b);
 		if (nob)
 			mdev->oldest_tle = nob;
@@ -381,7 +381,7 @@ static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 				if (b->w.cb == NULL) {
 					b->w.cb = w_send_barrier;
 					inc_ap_pending(mdev);
-					set_bit(CREATE_BARRIER, &mdev->flags);
+					drbd_set_flag(mdev, CREATE_BARRIER);
 				}
 
 				drbd_queue_work(&mdev->data.work, &b->w);
@@ -464,7 +464,7 @@ static void _tl_clear(struct drbd_conf *mdev)
 	}
 
 	/* ensure bit indicating barrier is required is clear */
-	clear_bit(CREATE_BARRIER, &mdev->flags);
+	drbd_clear_flag(mdev, CREATE_BARRIER);
 
 	memset(mdev->app_reads_hash, 0, APP_R_HSIZE*sizeof(void *));
 
@@ -582,10 +582,10 @@ _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
 	unsigned long flags;
 	enum drbd_state_rv rv;
 
-	if (test_and_clear_bit(CL_ST_CHG_SUCCESS, &mdev->flags))
+	if (drbd_test_and_clear_flag(mdev, CL_ST_CHG_SUCCESS))
 		return SS_CW_SUCCESS;
 
-	if (test_and_clear_bit(CL_ST_CHG_FAIL, &mdev->flags))
+	if (drbd_test_and_clear_flag(mdev, CL_ST_CHG_FAIL))
 		return SS_CW_FAILED_BY_PEER;
 
 	rv = 0;
@@ -660,7 +660,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 		}
 
 		if (mask.conn == C_MASK && val.conn == C_DISCONNECTING)
-			set_bit(DISCONNECT_SENT, &mdev->flags);
+			drbd_set_flag(mdev, DISCONNECT_SENT);
 
 		wait_event(mdev->state_wait,
 			(rv = _req_st_cond(mdev, mask, val)));
@@ -850,7 +850,7 @@ is_valid_state_transition(struct drbd_conf *mdev, union drbd_state ns,
 
 	/* While establishing a connection only allow cstate to change.
 	   Delay/refuse role changes, detach attach etc... */
-	if (test_bit(STATE_SENT, &mdev->flags) &&
+	if (drbd_test_flag(mdev, STATE_SENT) &&
 	    !(os.conn == C_WF_REPORT_PARAMS ||
 	      (ns.conn == C_WF_REPORT_PARAMS && os.conn == C_WF_CONNECTION)))
 		rv = SS_IN_TRANSIENT_STATE;
@@ -1109,7 +1109,7 @@ static void set_ov_position(struct drbd_conf *mdev, enum drbd_conns cs)
 
 static void drbd_resume_al(struct drbd_conf *mdev)
 {
-	if (test_and_clear_bit(AL_SUSPENDED, &mdev->flags))
+	if (drbd_test_and_clear_flag(mdev, AL_SUSPENDED))
 		dev_info(DEV, "Resumed AL updates\n");
 }
 
@@ -1215,8 +1215,8 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	if (ns.disk == D_DISKLESS &&
 	    ns.conn == C_STANDALONE &&
 	    ns.role == R_SECONDARY &&
-	    !test_and_set_bit(CONFIG_PENDING, &mdev->flags))
-		set_bit(DEVICE_DYING, &mdev->flags);
+	    !drbd_test_and_set_flag(mdev, CONFIG_PENDING))
+		drbd_set_flag(mdev, DEVICE_DYING);
 
 	/* if we are going -> D_FAILED or D_DISKLESS, grab one extra reference
 	 * on the ldev here, to be sure the transition -> D_DISKLESS resp.
@@ -1291,7 +1291,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 						 MDF_CONNECTED_IND|MDF_WAS_UP_TO_DATE|
 						 MDF_PEER_OUT_DATED|MDF_CRASHED_PRIMARY);
 
-		if (test_bit(CRASHED_PRIMARY, &mdev->flags))
+		if (drbd_test_flag(mdev, CRASHED_PRIMARY))
 			mdf |= MDF_CRASHED_PRIMARY;
 		if (mdev->state.role == R_PRIMARY ||
 		    (mdev->state.pdsk < D_INCONSISTENT && mdev->state.peer == R_PRIMARY))
@@ -1316,7 +1316,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	/* Peer was forced D_UP_TO_DATE & R_PRIMARY, consider to resync */
 	if (os.disk == D_INCONSISTENT && os.pdsk == D_INCONSISTENT &&
 	    os.peer == R_SECONDARY && ns.peer == R_PRIMARY)
-		set_bit(CONSIDER_RESYNC, &mdev->flags);
+		drbd_set_flag(mdev, CONSIDER_RESYNC);
 
 	/* Receiver should clean up itself */
 	if (os.conn != C_DISCONNECTING && ns.conn == C_DISCONNECTING)
@@ -1400,7 +1400,7 @@ int drbd_bitmap_io_from_worker(struct drbd_conf *mdev,
 	D_ASSERT(current == mdev->worker.task);
 
 	/* open coded non-blocking drbd_suspend_io(mdev); */
-	set_bit(SUSPEND_IO, &mdev->flags);
+	drbd_set_flag(mdev, SUSPEND_IO);
 
 	drbd_bm_lock(mdev, why, flags);
 	rv = io_fn(mdev);
@@ -1426,7 +1426,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	union drbd_state nsm = (union drbd_state){ .i = -1 };
 
 	if (os.conn != C_CONNECTED && ns.conn == C_CONNECTED) {
-		clear_bit(CRASHED_PRIMARY, &mdev->flags);
+		drbd_clear_flag(mdev, CRASHED_PRIMARY);
 		if (mdev->p_uuid)
 			mdev->p_uuid[UI_FLAGS] &= ~((u64)2);
 	}
@@ -1466,9 +1466,9 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	if (ns.susp_fen) {
 		/* case1: The outdate peer handler is successful: */
 		if (os.pdsk > D_OUTDATED  && ns.pdsk <= D_OUTDATED) {
-			if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
+			if (drbd_test_flag(mdev, NEW_CUR_UUID)) {
 				drbd_uuid_new_current(mdev);
-				clear_bit(NEW_CUR_UUID, &mdev->flags);
+				drbd_clear_flag(mdev, NEW_CUR_UUID);
 			}
 			spin_lock_irq(&mdev->req_lock);
 			_tl_clear(mdev);
@@ -1477,7 +1477,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		}
 		/* case2: The connection was established again: */
 		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
-			clear_bit(NEW_CUR_UUID, &mdev->flags);
+			drbd_clear_flag(mdev, NEW_CUR_UUID);
 			what = resend;
 			nsm.susp_fen = 0;
 		}
@@ -1534,7 +1534,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
 			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
 				if (is_susp(mdev->state)) {
-					set_bit(NEW_CUR_UUID, &mdev->flags);
+					drbd_set_flag(mdev, NEW_CUR_UUID);
 				} else {
 					drbd_uuid_new_current(mdev);
 					drbd_send_uuids(mdev);
@@ -1625,7 +1625,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		 * we might come from an failed Attach before ldev was set. */
 		if (mdev->ldev) {
 			eh = mdev->ldev->dc.on_io_error;
-			was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
+			was_io_error = drbd_test_and_clear_flag(mdev, WAS_IO_ERROR);
 
 			if (was_io_error && eh == EP_CALL_HELPER)
 				drbd_khelper(mdev, "local-io-error");
@@ -1643,7 +1643,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			 * So aborting local requests may cause crashes,
 			 * or even worse, silent data corruption.
 			 */
-			if (test_and_clear_bit(FORCE_DETACH, &mdev->flags))
+			if (drbd_test_and_clear_flag(mdev, FORCE_DETACH))
 				tl_abort_disk_io(mdev);
 
 			/* current state still has to be D_FAILED,
@@ -1692,7 +1692,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	/* Disks got bigger while they were detached */
 	if (ns.disk > D_NEGOTIATING && ns.pdsk > D_NEGOTIATING &&
-	    test_and_clear_bit(RESYNC_AFTER_NEG, &mdev->flags)) {
+	    drbd_test_and_clear_flag(mdev, RESYNC_AFTER_NEG)) {
 		if (ns.conn == C_CONNECTED)
 			resync_after_online_grow(mdev);
 	}
@@ -1717,7 +1717,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	/* Wake up role changes, that were delayed because of connection establishing */
 	if (os.conn == C_WF_REPORT_PARAMS && ns.conn != C_WF_REPORT_PARAMS) {
-		clear_bit(STATE_SENT, &mdev->flags);
+		drbd_clear_flag(mdev, STATE_SENT);
 		wake_up(&mdev->state_wait);
 	}
 
@@ -1750,7 +1750,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		if (os.aftr_isp != ns.aftr_isp)
 			resume_next_sg(mdev);
 		/* set in __drbd_set_state, unless CONFIG_PENDING was set */
-		if (test_bit(DEVICE_DYING, &mdev->flags))
+		if (drbd_test_flag(mdev, DEVICE_DYING))
 			drbd_thread_stop_nowait(&mdev->worker);
 	}
 
@@ -2145,7 +2145,7 @@ int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 	mdev->comm_bm_set = drbd_bm_total_weight(mdev);
 	p.uuid[UI_SIZE] = cpu_to_be64(mdev->comm_bm_set);
 	uuid_flags |= mdev->net_conf->want_lose ? 1 : 0;
-	uuid_flags |= test_bit(CRASHED_PRIMARY, &mdev->flags) ? 2 : 0;
+	uuid_flags |= drbd_test_flag(mdev, CRASHED_PRIMARY) ? 2 : 0;
 	uuid_flags |= mdev->new_state_tmp.disk == D_INCONSISTENT ? 4 : 0;
 	p.uuid[UI_FLAGS] = cpu_to_be64(uuid_flags);
 
@@ -2775,7 +2775,7 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
 		offset += sent;
 	} while (len > 0 /* THINK && mdev->cstate >= C_CONNECTED*/);
 	set_fs(oldfs);
-	clear_bit(NET_CONGESTED, &mdev->flags);
+	drbd_clear_flag(mdev, NET_CONGESTED);
 
 	ok = (len == 0);
 	if (likely(ok))
@@ -2877,7 +2877,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 		dp_flags |= DP_MAY_SET_IN_SYNC;
 
 	p.dp_flags = cpu_to_be32(dp_flags);
-	set_bit(UNPLUG_REMOTE, &mdev->flags);
+	drbd_set_flag(mdev, UNPLUG_REMOTE);
 	ok = (sizeof(p) ==
 		drbd_send(mdev, mdev->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0));
 	if (ok && dgs) {
@@ -3056,7 +3056,7 @@ int drbd_send(struct drbd_conf *mdev, struct socket *sock,
 	} while (sent < size);
 
 	if (sock == mdev->data.socket)
-		clear_bit(NET_CONGESTED, &mdev->flags);
+		drbd_clear_flag(mdev, NET_CONGESTED);
 
 	if (rv <= 0) {
 		if (rv != -EAGAIN) {
@@ -3263,7 +3263,7 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	}
 
 	drbd_free_resources(mdev);
-	clear_bit(AL_SUSPENDED, &mdev->flags);
+	drbd_clear_flag(mdev, AL_SUSPENDED);
 
 	/*
 	 * currently we drbd_init_ee only on module load, so
@@ -3556,7 +3556,7 @@ static int drbd_congested(void *congested_data, int bdi_bits)
 		goto out;
 	}
 
-	if (test_bit(CALLBACK_PENDING, &mdev->flags)) {
+	if (drbd_test_flag(mdev, CALLBACK_PENDING)) {
 		r |= (1 << BDI_async_congested);
 		/* Without good local data, we would need to read from remote,
 		 * and that would need the worker thread as well, which is
@@ -3580,7 +3580,7 @@ static int drbd_congested(void *congested_data, int bdi_bits)
 			reason = 'b';
 	}
 
-	if (bdi_bits & (1 << BDI_async_congested) && test_bit(NET_CONGESTED, &mdev->flags)) {
+	if (bdi_bits & (1 << BDI_async_congested) && drbd_test_flag(mdev, NET_CONGESTED)) {
 		r |= (1 << BDI_async_congested);
 		reason = reason == 'b' ? 'a' : 'n';
 	}
@@ -3867,7 +3867,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
 
 	del_timer(&mdev->md_sync_timer);
 	/* timer may be rearmed by drbd_md_mark_dirty() now. */
-	if (!test_and_clear_bit(MD_DIRTY, &mdev->flags))
+	if (!drbd_test_and_clear_flag(mdev, MD_DIRTY))
 		return;
 
 	/* We use here D_FAILED and not D_ATTACHING because we try to write
@@ -4011,7 +4011,7 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 #ifdef DEBUG
 void drbd_md_mark_dirty_(struct drbd_conf *mdev, unsigned int line, const char *func)
 {
-	if (!test_and_set_bit(MD_DIRTY, &mdev->flags)) {
+	if (!drbd_test_and_set_flag(mdev, MD_DIRTY)) {
 		mod_timer(&mdev->md_sync_timer, jiffies + HZ);
 		mdev->last_md_mark_dirty.line = line;
 		mdev->last_md_mark_dirty.func = func;
@@ -4020,7 +4020,7 @@ void drbd_md_mark_dirty_(struct drbd_conf *mdev, unsigned int line, const char *
 #else
 void drbd_md_mark_dirty(struct drbd_conf *mdev)
 {
-	if (!test_and_set_bit(MD_DIRTY, &mdev->flags))
+	if (!drbd_test_and_set_flag(mdev, MD_DIRTY))
 		mod_timer(&mdev->md_sync_timer, jiffies + 5*HZ);
 }
 #endif
@@ -4182,14 +4182,14 @@ static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 		put_ldev(mdev);
 	}
 
-	clear_bit(BITMAP_IO, &mdev->flags);
+	drbd_clear_flag(mdev, BITMAP_IO);
 	smp_mb__after_clear_bit();
 	wake_up(&mdev->misc_wait);
 
 	if (work->done)
 		work->done(mdev, rv);
 
-	clear_bit(BITMAP_IO_QUEUED, &mdev->flags);
+	drbd_clear_flag(mdev, BITMAP_IO_QUEUED);
 	work->why = NULL;
 	work->flags = 0;
 
@@ -4210,7 +4210,7 @@ void drbd_ldev_destroy(struct drbd_conf *mdev)
 		__free_page(mdev->md_io_tmpp);
 		mdev->md_io_tmpp = NULL;
 	}
-	clear_bit(GO_DISKLESS, &mdev->flags);
+	drbd_clear_flag(mdev, GO_DISKLESS);
 }
 
 static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused)
@@ -4227,7 +4227,7 @@ static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused
 void drbd_go_diskless(struct drbd_conf *mdev)
 {
 	D_ASSERT(mdev->state.disk == D_FAILED);
-	if (!test_and_set_bit(GO_DISKLESS, &mdev->flags))
+	if (!drbd_test_and_set_flag(mdev, GO_DISKLESS))
 		drbd_queue_work(&mdev->data.work, &mdev->go_diskless);
 }
 
@@ -4250,8 +4250,8 @@ void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 {
 	D_ASSERT(current == mdev->worker.task);
 
-	D_ASSERT(!test_bit(BITMAP_IO_QUEUED, &mdev->flags));
-	D_ASSERT(!test_bit(BITMAP_IO, &mdev->flags));
+	D_ASSERT(!drbd_test_flag(mdev, BITMAP_IO_QUEUED));
+	D_ASSERT(!drbd_test_flag(mdev, BITMAP_IO));
 	D_ASSERT(list_empty(&mdev->bm_io_work.w.list));
 	if (mdev->bm_io_work.why)
 		dev_err(DEV, "FIXME going to queue '%s' but '%s' still pending?\n",
@@ -4263,9 +4263,9 @@ void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 	mdev->bm_io_work.flags = flags;
 
 	spin_lock_irq(&mdev->req_lock);
-	set_bit(BITMAP_IO, &mdev->flags);
+	drbd_set_flag(mdev, BITMAP_IO);
 	if (atomic_read(&mdev->ap_bio_cnt) == 0) {
-		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
+		if (!drbd_test_and_set_flag(mdev, BITMAP_IO_QUEUED))
 			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
 	}
 	spin_unlock_irq(&mdev->req_lock);
