@@ -1994,6 +1994,7 @@ static struct omap_clk omap2430_clks[] = {
 	CLK(NULL,	"timer_32k_ck",  &func_32k_ck,   CK_243X),
 	CLK(NULL,	"timer_sys_ck",	&sys_ck,	CK_243X),
 	CLK(NULL,	"timer_ext_ck",	&alt_ck,	CK_243X),
+	CLK(NULL,	"cpufreq_ck",	&virt_prcm_set,	CK_243X),
 };
 
 /*
