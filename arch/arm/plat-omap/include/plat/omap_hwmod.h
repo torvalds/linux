@@ -591,9 +591,7 @@ int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 int __init omap_hwmod_setup_one(const char *name);
 
 int omap_hwmod_enable(struct omap_hwmod *oh);
-int _omap_hwmod_enable(struct omap_hwmod *oh);
 int omap_hwmod_idle(struct omap_hwmod *oh);
-int _omap_hwmod_idle(struct omap_hwmod *oh);
 int omap_hwmod_shutdown(struct omap_hwmod *oh);
 
 int omap_hwmod_assert_hardreset(struct omap_hwmod *oh, const char *name);
@@ -625,11 +623,6 @@ int omap_hwmod_add_initiator_dep(struct omap_hwmod *oh,
 				 struct omap_hwmod *init_oh);
 int omap_hwmod_del_initiator_dep(struct omap_hwmod *oh,
 				 struct omap_hwmod *init_oh);
-
-int omap_hwmod_set_clockact_both(struct omap_hwmod *oh);
-int omap_hwmod_set_clockact_main(struct omap_hwmod *oh);
-int omap_hwmod_set_clockact_iclk(struct omap_hwmod *oh);
-int omap_hwmod_set_clockact_none(struct omap_hwmod *oh);
 
 int omap_hwmod_enable_wakeup(struct omap_hwmod *oh);
 int omap_hwmod_disable_wakeup(struct omap_hwmod *oh);
