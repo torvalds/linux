@@ -76,9 +76,18 @@
 						0x20c3 /* MX28_PAD_SSP1_SCK__GPIO_2_12 */
 						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
 						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
-						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
 						0x3083 /* MX28_PAD_AUART2_RX__GPIO_3_8 */
 						0x3093 /* MX28_PAD_AUART2_TX__GPIO_3_9 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				led_pin_gpio3_5: led_gpio3_5@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -288,6 +297,8 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pin_gpio3_5>;
 
 		user {
 			label = "Heartbeat";
