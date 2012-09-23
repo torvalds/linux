@@ -927,10 +927,10 @@ static void _am33xx_enable_module(struct omap_hwmod *oh)
  */
 static int _omap4_wait_target_disable(struct omap_hwmod *oh)
 {
-	if (!oh || !oh->clkdm)
+	if (!oh)
 		return -EINVAL;
 
-	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
+	if (oh->_int_flags & _HWMOD_NO_MPU_PORT || !oh->clkdm)
 		return 0;
 
 	if (oh->flags & HWMOD_NO_IDLEST)
@@ -2635,10 +2635,10 @@ static int _omap2_wait_target_ready(struct omap_hwmod *oh)
  */
 static int _omap4_wait_target_ready(struct omap_hwmod *oh)
 {
-	if (!oh || !oh->clkdm)
+	if (!oh)
 		return -EINVAL;
 
-	if (oh->flags & HWMOD_NO_IDLEST)
+	if (oh->flags & HWMOD_NO_IDLEST || !oh->clkdm)
 		return 0;
 
 	if (!_find_mpu_rt_port(oh))
