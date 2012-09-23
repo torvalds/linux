@@ -765,7 +765,7 @@ static void __init kzm_init(void)
 
 static void kzm9g_restart(char mode, const char *cmd)
 {
-#define RESCNT2 0xe6188020
+#define RESCNT2 IOMEM(0xe6188020)
 	/* Do soft power on reset */
 	writel((1 << 31), RESCNT2);
 }
