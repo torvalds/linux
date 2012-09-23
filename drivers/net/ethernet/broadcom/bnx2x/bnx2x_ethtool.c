@@ -1607,7 +1607,7 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
-static char *bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF] = {
+static const char bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF][ETH_GSTRING_LEN] = {
 	"register_test (offline)    ",
 	"memory_test (offline)      ",
 	"int_loopback_test (offline)",
@@ -2536,7 +2536,7 @@ static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int i, j, k, offset, start;
+	int i, j, k, start;
 	char queue_name[MAX_QUEUE_NAME_LEN+1];
 
 	switch (stringset) {
@@ -2572,13 +2572,8 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			start = 0;
 		else
 			start = 4;
-		for (i = 0, j = start; j < (start + BNX2X_NUM_TESTS(bp));
-		     i++, j++) {
-			offset = sprintf(buf+32*i, "%s",
-					 bnx2x_tests_str_arr[j]);
-			*(buf+offset) = '\0';
-		}
-		break;
+		memcpy(buf, bnx2x_tests_str_arr + start,
+		       ETH_GSTRING_LEN * BNX2X_NUM_TESTS(bp));
 	}
 }
 
