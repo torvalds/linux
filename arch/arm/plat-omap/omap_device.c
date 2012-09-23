@@ -261,10 +261,10 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 		return;
 	}
 
-	r = omap_clk_get_by_name(clk_name);
+	r = clk_get(NULL, clk_name);
 	if (IS_ERR(r)) {
 		dev_err(&od->pdev->dev,
-			"omap_clk_get_by_name for %s failed\n", clk_name);
+			"clk_get for %s failed\n", clk_name);
 		return;
 	}
 

@@ -188,7 +188,7 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 		goto exit;
 	}
 
-	freq = clk->rate;
+	freq = clk_get_rate(clk);
 	clk_put(clk);
 
 	rcu_read_lock();

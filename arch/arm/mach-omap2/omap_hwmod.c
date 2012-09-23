@@ -679,16 +679,25 @@ static int _init_main_clk(struct omap_hwmod *oh)
 	if (!oh->main_clk)
 		return 0;
 
-	oh->_clk = omap_clk_get_by_name(oh->main_clk);
-	if (!oh->_clk) {
+	oh->_clk = clk_get(NULL, oh->main_clk);
+	if (IS_ERR(oh->_clk)) {
 		pr_warning("omap_hwmod: %s: cannot clk_get main_clk %s\n",
 			   oh->name, oh->main_clk);
 		return -EINVAL;
 	}
+	/*
+	 * HACK: This needs a re-visit once clk_prepare() is implemented
+	 * to do something meaningful. Today its just a no-op.
+	 * If clk_prepare() is used at some point to do things like
+	 * voltage scaling etc, then this would have to be moved to
+	 * some point where subsystems like i2c and pmic become
+	 * available.
+	 */
+	clk_prepare(oh->_clk);
 
 	if (!oh->_clk->clkdm)
 		pr_warning("omap_hwmod: %s: missing clockdomain for %s.\n",
-			   oh->main_clk, oh->_clk->name);
+			   oh->name, oh->main_clk);
 
 	return ret;
 }
@@ -715,13 +724,22 @@ static int _init_interface_clks(struct omap_hwmod *oh)
 		if (!os->clk)
 			continue;
 
-		c = omap_clk_get_by_name(os->clk);
-		if (!c) {
+		c = clk_get(NULL, os->clk);
+		if (IS_ERR(c)) {
 			pr_warning("omap_hwmod: %s: cannot clk_get interface_clk %s\n",
 				   oh->name, os->clk);
 			ret = -EINVAL;
 		}
 		os->_clk = c;
+		/*
+		 * HACK: This needs a re-visit once clk_prepare() is implemented
+		 * to do something meaningful. Today its just a no-op.
+		 * If clk_prepare() is used at some point to do things like
+		 * voltage scaling etc, then this would have to be moved to
+		 * some point where subsystems like i2c and pmic become
+		 * available.
+		 */
+		clk_prepare(os->_clk);
 	}
 
 	return ret;
@@ -742,13 +760,22 @@ static int _init_opt_clks(struct omap_hwmod *oh)
 	int ret = 0;
 
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++) {
-		c = omap_clk_get_by_name(oc->clk);
-		if (!c) {
+		c = clk_get(NULL, oc->clk);
+		if (IS_ERR(c)) {
 			pr_warning("omap_hwmod: %s: cannot clk_get opt_clk %s\n",
 				   oh->name, oc->clk);
 			ret = -EINVAL;
 		}
 		oc->_clk = c;
+		/*
+		 * HACK: This needs a re-visit once clk_prepare() is implemented
+		 * to do something meaningful. Today its just a no-op.
+		 * If clk_prepare() is used at some point to do things like
+		 * voltage scaling etc, then this would have to be moved to
+		 * some point where subsystems like i2c and pmic become
+		 * available.
+		 */
+		clk_prepare(oc->_clk);
 	}
 
 	return ret;
@@ -827,7 +854,7 @@ static void _enable_optional_clocks(struct omap_hwmod *oh)
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
 		if (oc->_clk) {
 			pr_debug("omap_hwmod: enable %s:%s\n", oc->role,
-				 oc->_clk->name);
+				 __clk_get_name(oc->_clk));
 			clk_enable(oc->_clk);
 		}
 }
@@ -842,7 +869,7 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
 		if (oc->_clk) {
 			pr_debug("omap_hwmod: disable %s:%s\n", oc->role,
-				 oc->_clk->name);
+				 __clk_get_name(oc->_clk));
 			clk_disable(oc->_clk);
 		}
 }
