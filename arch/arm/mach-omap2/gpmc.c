@@ -31,9 +31,12 @@
 #include <plat/cpu.h>
 #include <plat/gpmc.h>
 #include <plat/sdrc.h>
+#include <plat/omap_device.h>
 
 #include "soc.h"
 #include "common.h"
+
+#define	DEVICE_NAME		"omap-gpmc"
 
 /* GPMC register offsets */
 #define GPMC_REVISION		0x00
@@ -897,6 +900,25 @@ static int __init gpmc_init(void)
 	return ret;
 }
 postcore_initcall(gpmc_init);
+
+static int __init omap_gpmc_init(void)
+{
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
+	char *oh_name = "gpmc";
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return -ENODEV;
+	}
+
+	pdev = omap_device_build(DEVICE_NAME, -1, oh, NULL, 0, NULL, 0, 0);
+	WARN(IS_ERR(pdev), "could not build omap_device for %s\n", oh_name);
+
+	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
+}
+postcore_initcall(omap_gpmc_init);
 
 static irqreturn_t gpmc_handle_irq(int irq, void *dev)
 {
