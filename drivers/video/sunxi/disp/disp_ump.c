@@ -24,17 +24,24 @@
 #include "dev_disp.h"
 #include <ump/ump_kernel_interface_ref_drv.h>
 
-static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t *g_fbi, unsigned long arg)
+static int _disp_get_ump_secure_id(struct fb_info *info, fb_info_t *g_fbi, unsigned long arg, int buf)
 {
 	u32 __user *psecureid = (u32 __user *) arg;
+	int buf_len = info->fix.smem_len;
 	ump_secure_id secure_id;
-	if (!g_fbi->ump_wrapped_buffer[info->node]) {
-		ump_dd_physical_block ump_memory_description;
-		ump_memory_description.addr = info->fix.smem_start;
-		ump_memory_description.size = info->fix.smem_len;
-		g_fbi->ump_wrapped_buffer[info->node] = ump_dd_handle_create_from_phys_blocks( &ump_memory_description, 1);
+	if (info->var.yres*2 == info->var.yres_virtual) {
+		buf_len = buf_len >> 1; /* divide by two */
+	} else {
+		__wrn("UMP: Double-buffering not enabled");
 	}
-	secure_id = ump_dd_secure_id_get(g_fbi->ump_wrapped_buffer[info->node]);
+
+	if (!g_fbi->ump_wrapped_buffer[info->node][buf]) {
+		ump_dd_physical_block ump_memory_description;
+		ump_memory_description.addr = info->fix.smem_start + (buf_len*buf);
+		ump_memory_description.size = buf_len;
+		g_fbi->ump_wrapped_buffer[info->node][buf] = ump_dd_handle_create_from_phys_blocks( &ump_memory_description, 1);
+	}
+	secure_id = ump_dd_secure_id_get(g_fbi->ump_wrapped_buffer[info->node][buf]);
 	return put_user( (unsigned int)secure_id, psecureid );
 }
 

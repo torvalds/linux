@@ -1041,13 +1041,14 @@ __s32 DRV_disp_int_process(__u32 sel)
 }
 
 #ifdef CONFIG_FB_SUNXI_UMP
-int (*disp_get_ump_secure_id)(struct fb_info *info, fb_info_t *g_fbi, unsigned long arg);
+int (*disp_get_ump_secure_id)(struct fb_info *info, fb_info_t *g_fbi, unsigned long arg, int buf);
 EXPORT_SYMBOL(disp_get_ump_secure_id);
 #endif
 
 static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 {
 	long ret = 0;
+	int secure_id_buf_num = 0;
 	unsigned long layer_hdl = 0;
 
 	switch (cmd)
@@ -1114,12 +1115,14 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
     }
 
 #ifdef CONFIG_FB_SUNXI_UMP
-	case GET_UMP_SECURE_ID:
+	case GET_UMP_SECURE_ID_BUF2: /* flow trough */
+		secure_id_buf_num = 1;
+	case GET_UMP_SECURE_ID_BUF1:
 	{
 		if (!disp_get_ump_secure_id)
 			request_module("disp_ump");
 		if (disp_get_ump_secure_id)
-			return disp_get_ump_secure_id(info, &g_fbi, arg);
+			return disp_get_ump_secure_id(info, &g_fbi, arg, secure_id_buf_num);
 		else
 			return -ENOTSUPP;
 	}
