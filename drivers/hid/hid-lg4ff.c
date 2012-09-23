@@ -193,7 +193,7 @@ static int hid_lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *e
 	__s32 *value = report->field[0]->value;
 	int x;
 
-#define CLAMP(x) if (x < 0) x = 0; if (x > 0xff) x = 0xff
+#define CLAMP(x) do { if (x < 0) x = 0; else if (x > 0xff) x = 0xff; } while (0)
 
 	switch (effect->type) {
 	case FF_CONSTANT:
@@ -285,7 +285,7 @@ static void hid_lg4ff_set_range_dfp(struct hid_device *hid, __u16 range)
 
 	/* Prepare "coarse" limit command */
 	value[0] = 0xf8;
-	value[1] = 0x00; 	/* Set later */
+	value[1] = 0x00;	/* Set later */
 	value[2] = 0x00;
 	value[3] = 0x00;
 	value[4] = 0x00;
