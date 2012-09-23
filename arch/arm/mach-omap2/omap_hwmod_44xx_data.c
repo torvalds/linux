@@ -2615,6 +2615,8 @@ static struct omap_hwmod_class omap44xx_mpu_hwmod_class = {
 
 /* mpu */
 static struct omap_hwmod_irq_info omap44xx_mpu_irqs[] = {
+	{ .name = "pmu0", .irq = 54 + OMAP44XX_IRQ_GIC_START },
+	{ .name = "pmu1", .irq = 55 + OMAP44XX_IRQ_GIC_START },
 	{ .name = "pl310", .irq = 0 + OMAP44XX_IRQ_GIC_START },
 	{ .name = "cti0", .irq = 1 + OMAP44XX_IRQ_GIC_START },
 	{ .name = "cti1", .irq = 2 + OMAP44XX_IRQ_GIC_START },

@@ -2223,7 +2223,7 @@ static struct omap_hwmod_addr_space omap3xxx_l4_emu_addrs[] = {
 static struct omap_hwmod_ocp_if omap3xxx_l3_main__l4_debugss = {
 	.master		= &omap3xxx_l3_main_hwmod,
 	.slave		= &omap3xxx_debugss_hwmod,
-	.addr		= &omap3xxx_l4_emu_hwmod,
+	.addr		= omap3xxx_l4_emu_addrs,
 	.user		= OCP_USER_MPU,
 };
 
