@@ -2526,8 +2526,19 @@ static struct omap_hwmod omap44xx_ocmc_ram_hwmod = {
  * protocol
  */
 
+static struct omap_hwmod_class_sysconfig omap44xx_ocp2scp_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SIDLEMODE |
+			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
 static struct omap_hwmod_class omap44xx_ocp2scp_hwmod_class = {
 	.name	= "ocp2scp",
+	.sysc	= &omap44xx_ocp2scp_sysc,
 };
 
 /* ocp2scp_usb_phy */
@@ -5311,11 +5322,21 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__ocmc_ram = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+static struct omap_hwmod_addr_space omap44xx_ocp2scp_usb_phy_addrs[] = {
+	{
+		.pa_start	= 0x4a0ad000,
+		.pa_end		= 0x4a0ad01f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
 /* l4_cfg -> ocp2scp_usb_phy */
 static struct omap_hwmod_ocp_if omap44xx_l4_cfg__ocp2scp_usb_phy = {
 	.master		= &omap44xx_l4_cfg_hwmod,
 	.slave		= &omap44xx_ocp2scp_usb_phy_hwmod,
 	.clk		= "l4_div_ck",
+	.addr		= omap44xx_ocp2scp_usb_phy_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -5935,7 +5956,7 @@ static struct omap_hwmod_ocp_if omap44xx_l4_cfg__usb_host_hs = {
 static struct omap_hwmod_addr_space omap44xx_usb_otg_hs_addrs[] = {
 	{
 		.pa_start	= 0x4a0ab000,
-		.pa_end		= 0x4a0ab003,
+		.pa_end		= 0x4a0ab7ff,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }
