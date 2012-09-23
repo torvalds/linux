@@ -29,14 +29,13 @@
  * Register page 0:
  *
  * Address	Description
- * 0x02		Red balance control
- * 0x03		Green balance control
- * 0x04 	Blue balance control
- *		     Valus are inverted (0=max, 255=min).
+ * 0x01		Red balance control
+ * 0x02		Green balance control
+ * 0x03		Blue balance control
  *		     The Windows driver uses a quadratic approach to map
  *		     the settable values (0-200) on register values:
- *		     min=0x80, default=0x40, max=0x20
- * 0x0f-0x20	Colors, saturation and exposure control
+ *		     min=0x20, default=0x40, max=0x80
+ * 0x0f-0x20	Color and saturation control
  * 0xa2-0xab	Brightness, contrast and gamma control
  * 0xb6		Sharpness control (bits 0-4)
  *
