@@ -19,6 +19,7 @@
 
 static char *omap2_pmu_oh_names[] = {"mpu"};
 static char *omap3_pmu_oh_names[] = {"mpu", "debugss"};
+static char *omap4430_pmu_oh_names[] = {"l3_main_3", "l3_instr", "debugss"};
 static struct platform_device *omap_pmu_dev;
 
 /**
@@ -27,16 +28,16 @@ static struct platform_device *omap_pmu_dev;
  * @oh_names:	Array of OMAP HWMODS names required to create PMU device
  *
  * Uses OMAP HWMOD framework to create and register an ARM PMU device
- * from a list of HWMOD names passed. Currently supports OMAP2 and
- * OMAP3 devices.
+ * from a list of HWMOD names passed. Currently supports OMAP2, OMAP3
+ * and OMAP4430 devices.
  */
 static int __init omap2_init_pmu(unsigned oh_num, char *oh_names[])
 {
 	int i;
-	struct omap_hwmod *oh[2];
+	struct omap_hwmod *oh[3];
 	char *dev_name = "arm-pmu";
 
-	if ((!oh_num) || (oh_num > 2))
+	if ((!oh_num) || (oh_num > 3))
 		return -EINVAL;
 
 	for (i = 0; i < oh_num; i++) {
@@ -66,6 +67,7 @@ static int __init omap_init_pmu(void)
 	 *
 	 * OMAP24xx:	mpu
 	 * OMAP3xxx:	mpu, debugss
+	 * OMAP4430:	l3_main_3, l3_instr, debugss
 	 */
 	if (cpu_is_omap24xx()) {
 		oh_num = ARRAY_SIZE(omap2_pmu_oh_names);
@@ -73,6 +75,12 @@ static int __init omap_init_pmu(void)
 	} else if (cpu_is_omap34xx()) {
 		oh_num = ARRAY_SIZE(omap3_pmu_oh_names);
 		oh_names = omap3_pmu_oh_names;
+	} else if (cpu_is_omap443x()) {
+		oh_num = ARRAY_SIZE(omap4430_pmu_oh_names);
+		oh_names = omap4430_pmu_oh_names;
+		/* XXX Remove the next two lines when CTI driver available */
+		pr_info("ARM PMU: not yet supported on OMAP4430 due to missing CTI driver\n");
+		return 0;
 	} else {
 		return 0;
 	}
