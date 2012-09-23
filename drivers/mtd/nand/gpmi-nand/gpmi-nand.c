@@ -222,7 +222,7 @@ void prepare_data_dma(struct gpmi_nand_data *this, enum dma_data_direction dr)
 
 		ret = dma_map_sg(this->dev, sgl, 1, dr);
 		if (ret == 0)
-			pr_err("map failed.\n");
+			pr_err("DMA mapping failed.\n");
 
 		this->direct_dma_map_ok = false;
 	}
@@ -456,7 +456,7 @@ static int __devinit acquire_dma_channels(struct gpmi_nand_data *this)
 
 	dma_chan = dma_request_channel(mask, gpmi_dma_filter, this);
 	if (!dma_chan) {
-		pr_err("dma_request_channel failed.\n");
+		pr_err("Failed to request DMA channel.\n");
 		goto acquire_err;
 	}
 
@@ -625,7 +625,8 @@ static int read_page_prepare(struct gpmi_nand_data *this,
 						length, DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, dest_phys)) {
 			if (alt_size < length) {
-				pr_err("Alternate buffer is too small\n");
+				pr_err("%s, Alternate buffer is too small\n",
+					__func__);
 				return -ENOMEM;
 			}
 			goto map_failed;
@@ -675,7 +676,8 @@ static int send_page_prepare(struct gpmi_nand_data *this,
 						DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, source_phys)) {
 			if (alt_size < length) {
-				pr_err("Alternate buffer is too small\n");
+				pr_err("%s, Alternate buffer is too small\n",
+					__func__);
 				return -ENOMEM;
 			}
 			goto map_failed;
@@ -763,7 +765,7 @@ static int gpmi_alloc_dma_buffer(struct gpmi_nand_data *this)
 
 error_alloc:
 	gpmi_free_dma_buffer(this);
-	pr_err("allocate DMA buffer ret!!\n");
+	pr_err("Error allocating DMA buffers!\n");
 	return -ENOMEM;
 }
 
@@ -1474,7 +1476,7 @@ static int gpmi_set_geometry(struct gpmi_nand_data *this)
 	/* Set up the NFC geometry which is used by BCH. */
 	ret = bch_set_geometry(this);
 	if (ret) {
-		pr_err("set geometry ret : %d\n", ret);
+		pr_err("Error setting BCH geometry : %d\n", ret);
 		return ret;
 	}
 
