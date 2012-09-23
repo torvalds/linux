@@ -124,6 +124,24 @@ static struct omap_hwmod omap3xxx_iva_hwmod = {
 	},
 };
 
+/*
+ * 'debugss' class
+ * debug and emulation sub system
+ */
+
+static struct omap_hwmod_class omap3xxx_debugss_hwmod_class = {
+	.name	= "debugss",
+};
+
+/* debugss */
+static struct omap_hwmod omap3xxx_debugss_hwmod = {
+	.name		= "debugss",
+	.class		= &omap3xxx_debugss_hwmod_class,
+	.clkdm_name	= "emu_clkdm",
+	.main_clk	= "emu_src_ck",
+	.flags		= HWMOD_NO_IDLEST,
+};
+
 /* timer class */
 static struct omap_hwmod_class_sysconfig omap3xxx_timer_1ms_sysc = {
 	.rev_offs	= 0x0000,
@@ -2186,6 +2204,23 @@ static struct omap_hwmod_ocp_if omap3xxx_mpu__l3_main = {
 	.user	= OCP_USER_MPU,
 };
 
+static struct omap_hwmod_addr_space omap3xxx_l4_emu_addrs[] = {
+	{
+		.pa_start	= 0x54000000,
+		.pa_end		= 0x547fffff,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l3 -> debugss */
+static struct omap_hwmod_ocp_if omap3xxx_l3_main__l4_debugss = {
+	.master		= &omap3xxx_l3_main_hwmod,
+	.slave		= &omap3xxx_debugss_hwmod,
+	.addr		= &omap3xxx_l4_emu_hwmod,
+	.user		= OCP_USER_MPU,
+};
+
 /* DSS -> l3 */
 static struct omap_hwmod_ocp_if omap3430es1_dss__l3 = {
 	.master		= &omap3430es1_dss_core_hwmod,
@@ -3506,6 +3541,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l3_main__l4_core,
 	&omap3xxx_l3_main__l4_per,
 	&omap3xxx_mpu__l3_main,
+	&omap3xxx_l3_main__l4_debugss,
 	&omap3xxx_l4_core__l4_wkup,
 	&omap3xxx_l4_core__mmc3,
 	&omap3_l4_core__uart1,
