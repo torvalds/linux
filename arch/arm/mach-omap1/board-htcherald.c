@@ -476,8 +476,7 @@ static void __init htcherald_lcd_init(void)
 				break;
 		}
 		if (!tries)
-			printk(KERN_WARNING "Timeout waiting for end of frame "
-			       "-- LCD may not be available\n");
+			pr_err("Timeout waiting for end of frame -- LCD may not be available\n");
 
 		/* turn off DMA */
 		reg = omap_readw(OMAP_DMA_LCD_CCR);

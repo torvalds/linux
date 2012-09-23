@@ -330,8 +330,9 @@ static int __init omap1_system_dma_init(void)
 	d->chan = kzalloc(sizeof(struct omap_dma_lch) *
 					(d->lch_count), GFP_KERNEL);
 	if (!d->chan) {
-		dev_err(&pdev->dev, "%s: Memory allocation failed"
-					"for d->chan!!!\n", __func__);
+		dev_err(&pdev->dev,
+			"%s: Memory allocation failed for d->chan!\n",
+			__func__);
 		goto exit_release_d;
 	}
 

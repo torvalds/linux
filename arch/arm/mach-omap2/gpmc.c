@@ -279,7 +279,7 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 
 	div = gpmc_cs_calc_divider(cs, t->sync_clk);
 	if (div < 0)
-		return -1;
+		return div;
 
 	GPMC_SET_ONE(GPMC_CS_CONFIG2,  0,  3, cs_on);
 	GPMC_SET_ONE(GPMC_CS_CONFIG2,  8, 12, cs_rd_off);

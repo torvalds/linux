@@ -1438,8 +1438,8 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
  * Return the bit position of the reset line that match the
  * input name. Return -ENOENT if not found.
  */
-static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name,
-			    struct omap_hwmod_rst_info *ohri)
+static int _lookup_hardreset(struct omap_hwmod *oh, const char *name,
+			     struct omap_hwmod_rst_info *ohri)
 {
 	int i;
 
@@ -1475,7 +1475,7 @@ static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name,
 static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
 {
 	struct omap_hwmod_rst_info ohri;
-	u8 ret = -EINVAL;
+	int ret = -EINVAL;
 
 	if (!oh)
 		return -EINVAL;
@@ -1484,7 +1484,7 @@ static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
 		return -ENOSYS;
 
 	ret = _lookup_hardreset(oh, name, &ohri);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		return ret;
 
 	ret = soc_ops.assert_hardreset(oh, &ohri);
@@ -1542,7 +1542,7 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 static int _read_hardreset(struct omap_hwmod *oh, const char *name)
 {
 	struct omap_hwmod_rst_info ohri;
-	u8 ret = -EINVAL;
+	int ret = -EINVAL;
 
 	if (!oh)
 		return -EINVAL;
@@ -1551,7 +1551,7 @@ static int _read_hardreset(struct omap_hwmod *oh, const char *name)
 		return -ENOSYS;
 
 	ret = _lookup_hardreset(oh, name, &ohri);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		return ret;
 
 	return soc_ops.is_hardreset_asserted(oh, &ohri);
@@ -1641,8 +1641,8 @@ static int _ocp_softreset(struct omap_hwmod *oh)
 
 	/* clocks must be on for this operation */
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
-		pr_warning("omap_hwmod: %s: reset can only be entered from "
-			   "enabled state\n", oh->name);
+		pr_warn("omap_hwmod: %s: reset can only be entered from enabled state\n",
+			oh->name);
 		return -EINVAL;
 	}
 

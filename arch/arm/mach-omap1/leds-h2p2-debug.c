@@ -68,11 +68,13 @@ void h2p2_dbg_leds_event(led_event_t evt)
 			gpio_set_value(GPIO_IDLE, 0);
 		}
 
-		__raw_writew(~0, &fpga->leds);
 		led_state &= ~LED_STATE_ENABLED;
-		if (evt == led_halted) {
-			iounmap(fpga);
-			fpga = NULL;
+		if (fpga) {
+			__raw_writew(~0, &fpga->leds);
+			if (evt == led_halted) {
+				iounmap(fpga);
+				fpga = NULL;
+			}
 		}
 
 		goto done;
@@ -158,7 +160,7 @@ void h2p2_dbg_leds_event(led_event_t evt)
 	/*
 	 *  Actually burn the LEDs
 	 */
-	if (led_state & LED_STATE_ENABLED)
+	if (led_state & LED_STATE_ENABLED && fpga)
 		__raw_writew(~hw_led_state, &fpga->leds);
 
 done:

@@ -49,8 +49,7 @@ int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 	 * on DPLL4.
 	 */
 	if (omap_rev() == OMAP3430_REV_ES1_0) {
-		pr_err("clock: DPLL4 cannot change rate due to "
-		       "silicon 'Limitation 2.5' on 3430ES1.\n");
+		pr_err("clock: DPLL4 cannot change rate due to silicon 'Limitation 2.5' on 3430ES1.\n");
 		return -EINVAL;
 	}
 
