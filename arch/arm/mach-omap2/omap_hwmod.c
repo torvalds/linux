@@ -1634,25 +1634,28 @@ static int _read_hardreset(struct omap_hwmod *oh, const char *name)
 }
 
 /**
- * _are_any_hardreset_lines_asserted - return true if part of @oh is hard-reset
+ * _are_all_hardreset_lines_asserted - return true if the @oh is hard-reset
  * @oh: struct omap_hwmod *
  *
- * If any hardreset line associated with @oh is asserted, then return true.
- * Otherwise, if @oh has no hardreset lines associated with it, or if
- * no hardreset lines associated with @oh are asserted, then return false.
+ * If all hardreset lines associated with @oh are asserted, then return true.
+ * Otherwise, if part of @oh is out hardreset or if no hardreset lines
+ * associated with @oh are asserted, then return false.
  * This function is used to avoid executing some parts of the IP block
- * enable/disable sequence if a hardreset line is set.
+ * enable/disable sequence if its hardreset line is set.
  */
-static bool _are_any_hardreset_lines_asserted(struct omap_hwmod *oh)
+static bool _are_all_hardreset_lines_asserted(struct omap_hwmod *oh)
 {
-	int i;
+	int i, rst_cnt = 0;
 
 	if (oh->rst_lines_cnt == 0)
 		return false;
 
 	for (i = 0; i < oh->rst_lines_cnt; i++)
 		if (_read_hardreset(oh, oh->rst_lines[i].name) > 0)
-			return true;
+			rst_cnt++;
+
+	if (oh->rst_lines_cnt == rst_cnt)
+		return true;
 
 	return false;
 }
@@ -1671,15 +1674,19 @@ static int _omap4_disable_module(struct omap_hwmod *oh)
 	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
 		return -EINVAL;
 
+	/*
+	 * Since integration code might still be doing something, only
+	 * disable if all lines are under hardreset.
+	 */
+	if (!_are_all_hardreset_lines_asserted(oh))
+		return 0;
+
 	pr_debug("omap_hwmod: %s: %s\n", oh->name, __func__);
 
 	omap4_cminst_module_disable(oh->clkdm->prcm_partition,
 				    oh->clkdm->cm_inst,
 				    oh->clkdm->clkdm_offs,
 				    oh->prcm.omap4.clkctrl_offs);
-
-	if (_are_any_hardreset_lines_asserted(oh))
-		return 0;
 
 	v = _omap4_wait_target_disable(oh);
 	if (v)
@@ -1708,7 +1715,7 @@ static int _am33xx_disable_module(struct omap_hwmod *oh)
 	am33xx_cm_module_disable(oh->clkdm->cm_inst, oh->clkdm->clkdm_offs,
 				 oh->prcm.omap4.clkctrl_offs);
 
-	if (_are_any_hardreset_lines_asserted(oh))
+	if (_are_all_hardreset_lines_asserted(oh))
 		return 0;
 
 	v = _am33xx_wait_target_disable(oh);
@@ -1936,7 +1943,7 @@ static int _enable(struct omap_hwmod *oh)
 	}
 
 	/*
-	 * If an IP block contains HW reset lines and any of them are
+	 * If an IP block contains HW reset lines and all of them are
 	 * asserted, we let integration code associated with that
 	 * block handle the enable.  We've received very little
 	 * information on what those driver authors need, and until
@@ -1944,7 +1951,7 @@ static int _enable(struct omap_hwmod *oh)
 	 * posted to the public lists, this is probably the best we
 	 * can do.
 	 */
-	if (_are_any_hardreset_lines_asserted(oh))
+	if (_are_all_hardreset_lines_asserted(oh))
 		return 0;
 
 	/* Mux pins for device runtime if populated */
@@ -2025,7 +2032,7 @@ static int _idle(struct omap_hwmod *oh)
 		return -EINVAL;
 	}
 
-	if (_are_any_hardreset_lines_asserted(oh))
+	if (_are_all_hardreset_lines_asserted(oh))
 		return 0;
 
 	if (oh->class->sysc)
@@ -2113,7 +2120,7 @@ static int _shutdown(struct omap_hwmod *oh)
 		return -EINVAL;
 	}
 
-	if (_are_any_hardreset_lines_asserted(oh))
+	if (_are_all_hardreset_lines_asserted(oh))
 		return 0;
 
 	pr_debug("omap_hwmod: %s: disabling\n", oh->name);
