@@ -1744,6 +1744,45 @@ struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 }
 EXPORT_SYMBOL(sock_alloc_send_skb);
 
+/* On 32bit arches, an skb frag is limited to 2^15 */
+#define SKB_FRAG_PAGE_ORDER	get_order(32768)
+
+bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag)
+{
+	int order;
+
+	if (pfrag->page) {
+		if (atomic_read(&pfrag->page->_count) == 1) {
+			pfrag->offset = 0;
+			return true;
+		}
+		if (pfrag->offset < pfrag->size)
+			return true;
+		put_page(pfrag->page);
+	}
+
+	/* We restrict high order allocations to users that can afford to wait */
+	order = (sk->sk_allocation & __GFP_WAIT) ? SKB_FRAG_PAGE_ORDER : 0;
+
+	do {
+		gfp_t gfp = sk->sk_allocation;
+
+		if (order)
+			gfp |= __GFP_COMP | __GFP_NOWARN;
+		pfrag->page = alloc_pages(gfp, order);
+		if (likely(pfrag->page)) {
+			pfrag->offset = 0;
+			pfrag->size = PAGE_SIZE << order;
+			return true;
+		}
+	} while (--order >= 0);
+
+	sk_enter_memory_pressure(sk);
+	sk_stream_moderate_sndbuf(sk);
+	return false;
+}
+EXPORT_SYMBOL(sk_page_frag_refill);
+
 static void __lock_sock(struct sock *sk)
 	__releases(&sk->sk_lock.slock)
 	__acquires(&sk->sk_lock.slock)
@@ -2173,8 +2212,8 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_error_report	=	sock_def_error_report;
 	sk->sk_destruct		=	sock_def_destruct;
 
-	sk->sk_sndmsg_page	=	NULL;
-	sk->sk_sndmsg_off	=	0;
+	sk->sk_frag.page	=	NULL;
+	sk->sk_frag.offset	=	0;
 	sk->sk_peek_off		=	-1;
 
 	sk->sk_peer_pid 	=	NULL;
@@ -2417,6 +2456,12 @@ void sk_common_release(struct sock *sk)
 	xfrm_sk_free_policy(sk);
 
 	sk_refcnt_debug_release(sk);
+
+	if (sk->sk_frag.page) {
+		put_page(sk->sk_frag.page);
+		sk->sk_frag.page = NULL;
+	}
+
 	sock_put(sk);
 }
 EXPORT_SYMBOL(sk_common_release);

@@ -1655,38 +1655,19 @@ static struct page *linear_to_page(struct page *page, unsigned int *len,
 				   unsigned int *offset,
 				   struct sk_buff *skb, struct sock *sk)
 {
-	struct page *p = sk->sk_sndmsg_page;
-	unsigned int off;
+	struct page_frag *pfrag = sk_page_frag(sk);
 
-	if (!p) {
-new_page:
-		p = sk->sk_sndmsg_page = alloc_pages(sk->sk_allocation, 0);
-		if (!p)
-			return NULL;
+	if (!sk_page_frag_refill(sk, pfrag))
+		return NULL;
 
-		off = sk->sk_sndmsg_off = 0;
-		/* hold one ref to this page until it's full */
-	} else {
-		unsigned int mlen;
+	*len = min_t(unsigned int, *len, pfrag->size - pfrag->offset);
 
-		/* If we are the only user of the page, we can reset offset */
-		if (page_count(p) == 1)
-			sk->sk_sndmsg_off = 0;
-		off = sk->sk_sndmsg_off;
-		mlen = PAGE_SIZE - off;
-		if (mlen < 64 && mlen < *len) {
-			put_page(p);
-			goto new_page;
-		}
+	memcpy(page_address(pfrag->page) + pfrag->offset,
+	       page_address(page) + *offset, *len);
+	*offset = pfrag->offset;
+	pfrag->offset += *len;
 
-		*len = min_t(unsigned int, *len, mlen);
-	}
-
-	memcpy(page_address(p) + off, page_address(page) + *offset, *len);
-	sk->sk_sndmsg_off += *len;
-	*offset = off;
-
-	return p;
+	return pfrag->page;
 }
 
 static bool spd_can_coalesce(const struct splice_pipe_desc *spd,

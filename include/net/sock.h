@@ -247,8 +247,7 @@ struct cg_proto;
   *	@sk_stamp: time stamp of last packet received
   *	@sk_socket: Identd and reporting IO signals
   *	@sk_user_data: RPC layer private data
-  *	@sk_sndmsg_page: cached page for sendmsg
-  *	@sk_sndmsg_off: cached offset for sendmsg
+  *	@sk_frag: cached page frag
   *	@sk_peek_off: current peek_offset value
   *	@sk_send_head: front of stuff to transmit
   *	@sk_security: used by security modules
@@ -362,9 +361,8 @@ struct sock {
 	ktime_t			sk_stamp;
 	struct socket		*sk_socket;
 	void			*sk_user_data;
-	struct page		*sk_sndmsg_page;
+	struct page_frag	sk_frag;
 	struct sk_buff		*sk_send_head;
-	__u32			sk_sndmsg_off;
 	__s32			sk_peek_off;
 	int			sk_write_pending;
 #ifdef CONFIG_SECURITY
@@ -2034,17 +2032,22 @@ static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 
 struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp);
 
-static inline struct page *sk_stream_alloc_page(struct sock *sk)
+/**
+ * sk_page_frag - return an appropriate page_frag
+ * @sk: socket
+ *
+ * If socket allocation mode allows current thread to sleep, it means its
+ * safe to use the per task page_frag instead of the per socket one.
+ */
+static inline struct page_frag *sk_page_frag(struct sock *sk)
 {
-	struct page *page = NULL;
+	if (sk->sk_allocation & __GFP_WAIT)
+		return &current->task_frag;
 
-	page = alloc_pages(sk->sk_allocation, 0);
-	if (!page) {
-		sk_enter_memory_pressure(sk);
-		sk_stream_moderate_sndbuf(sk);
-	}
-	return page;
+	return &sk->sk_frag;
 }
+
+extern bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag);
 
 /*
  *	Default write policy as shown to user space via poll/select/SIGIO

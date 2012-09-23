@@ -1150,78 +1150,43 @@ new_segment:
 				if (err)
 					goto do_fault;
 			} else {
-				bool merge = false;
+				bool merge = true;
 				int i = skb_shinfo(skb)->nr_frags;
-				struct page *page = sk->sk_sndmsg_page;
-				int off;
+				struct page_frag *pfrag = sk_page_frag(sk);
 
-				if (page && page_count(page) == 1)
-					sk->sk_sndmsg_off = 0;
+				if (!sk_page_frag_refill(sk, pfrag))
+					goto wait_for_memory;
 
-				off = sk->sk_sndmsg_off;
-
-				if (skb_can_coalesce(skb, i, page, off) &&
-				    off != PAGE_SIZE) {
-					/* We can extend the last page
-					 * fragment. */
-					merge = true;
-				} else if (i == MAX_SKB_FRAGS || !sg) {
-					/* Need to add new fragment and cannot
-					 * do this because interface is non-SG,
-					 * or because all the page slots are
-					 * busy. */
-					tcp_mark_push(tp, skb);
-					goto new_segment;
-				} else if (page) {
-					if (off == PAGE_SIZE) {
-						put_page(page);
-						sk->sk_sndmsg_page = page = NULL;
-						off = 0;
+				if (!skb_can_coalesce(skb, i, pfrag->page,
+						      pfrag->offset)) {
+					if (i == MAX_SKB_FRAGS || !sg) {
+						tcp_mark_push(tp, skb);
+						goto new_segment;
 					}
-				} else
-					off = 0;
+					merge = false;
+				}
 
-				if (copy > PAGE_SIZE - off)
-					copy = PAGE_SIZE - off;
+				copy = min_t(int, copy, pfrag->size - pfrag->offset);
 
 				if (!sk_wmem_schedule(sk, copy))
 					goto wait_for_memory;
 
-				if (!page) {
-					/* Allocate new cache page. */
-					if (!(page = sk_stream_alloc_page(sk)))
-						goto wait_for_memory;
-				}
-
-				/* Time to copy data. We are close to
-				 * the end! */
 				err = skb_copy_to_page_nocache(sk, from, skb,
-							       page, off, copy);
-				if (err) {
-					/* If this page was new, give it to the
-					 * socket so it does not get leaked.
-					 */
-					if (!sk->sk_sndmsg_page) {
-						sk->sk_sndmsg_page = page;
-						sk->sk_sndmsg_off = 0;
-					}
+							       pfrag->page,
+							       pfrag->offset,
+							       copy);
+				if (err)
 					goto do_error;
-				}
 
 				/* Update the skb. */
 				if (merge) {
 					skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], copy);
 				} else {
-					skb_fill_page_desc(skb, i, page, off, copy);
-					if (sk->sk_sndmsg_page) {
-						get_page(page);
-					} else if (off + copy < PAGE_SIZE) {
-						get_page(page);
-						sk->sk_sndmsg_page = page;
-					}
+					skb_fill_page_desc(skb, i, pfrag->page,
+							   pfrag->offset, copy);
+					get_page(pfrag->page);
 				}
-
-				sk->sk_sndmsg_off = off + copy;
+				pfrag->offset += copy;
 			}
 
 			if (!copied)

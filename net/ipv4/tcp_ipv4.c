@@ -2200,14 +2200,6 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind_hash)
 		inet_put_port(sk);
 
-	/*
-	 * If sendmsg cached page exists, toss it.
-	 */
-	if (sk->sk_sndmsg_page) {
-		__free_page(sk->sk_sndmsg_page);
-		sk->sk_sndmsg_page = NULL;
-	}
-
 	/* TCP Cookie Transactions */
 	if (tp->cookie_values != NULL) {
 		kref_put(&tp->cookie_values->kref,
