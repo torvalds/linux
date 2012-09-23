@@ -28,6 +28,8 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/platform_data/gpio-omap.h>
+
 #include <trace/events/power.h>
 
 #include <asm/suspend.h>

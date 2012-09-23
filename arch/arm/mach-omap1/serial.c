@@ -22,7 +22,6 @@
 
 #include <asm/mach-types.h>
 
-#include <plat/board.h>
 #include <plat/mux.h>
 #include <plat/fpga.h>
 

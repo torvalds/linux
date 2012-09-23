@@ -1803,7 +1803,7 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 	ioc4_set_proto(port, the_port->mapbase);
 
 	/* set the speed of the serial port */
-	ioc4_change_speed(the_port, state->port.tty->termios,
+	ioc4_change_speed(the_port, &state->port.tty->termios,
 			  (struct ktermios *)0);
 
 	return 0;
@@ -2069,13 +2069,14 @@ static inline int do_read(struct uart_port *the_port, unsigned char *buf,
 	struct ioc4_port *port = get_ioc4_port(the_port, 0);
 	struct ring *inring;
 	struct ring_entry *entry;
-	struct hooks *hooks = port->ip_hooks;
+	struct hooks *hooks;
 	int byte_num;
 	char *sc;
 	int loop_counter;
 
 	BUG_ON(!(len >= 0));
 	BUG_ON(!port);
+	hooks = port->ip_hooks;
 
 	/* There is a nasty timing issue in the IOC4. When the rx_timer
 	 * expires or the rx_high condition arises, we take an interrupt.

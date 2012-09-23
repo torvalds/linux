@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/io.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <mach/hardware.h>
 #include <asm/leds.h>

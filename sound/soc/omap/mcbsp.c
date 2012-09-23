@@ -27,6 +27,8 @@
 
 #include <plat/mcbsp.h>
 
+#include <plat/cpu.h>
+
 #include "mcbsp.h"
 
 static void omap_mcbsp_write(struct omap_mcbsp *mcbsp, u16 reg, u32 val)

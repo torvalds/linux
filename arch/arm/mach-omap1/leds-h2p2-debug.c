@@ -14,6 +14,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
 #include <linux/io.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <mach/hardware.h>
 #include <asm/leds.h>

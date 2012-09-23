@@ -32,19 +32,18 @@
 #include <linux/wl12xx.h>
 #include <linux/platform_data/omap-abe-twl6040.h>
 
-#include <mach/hardware.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <video/omapdss.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/usb.h>
 #include <plat/mmc.h>
 #include <video/omap-panel-tfp410.h>
 
+#include "soc.h"
 #include "hsmmc.h"
 #include "control.h"
 #include "mux.h"
@@ -263,7 +262,6 @@ static struct twl6040_codec_data twl6040_codec = {
 static struct twl6040_platform_data twl6040_data = {
 	.codec		= &twl6040_codec,
 	.audpwron_gpio	= 127,
-	.irq_base	= TWL6040_CODEC_IRQ_BASE,
 };
 
 /* Panda board uses the common PMIC configuration */
@@ -294,7 +292,7 @@ static int __init omap4_panda_i2c_init(void)
 			TWL_COMMON_REGULATOR_V1V8 |
 			TWL_COMMON_REGULATOR_V2V1);
 	omap4_pmic_init("twl6030", &omap4_panda_twldata,
-			&twl6040_data, OMAP44XX_IRQ_SYS_2N);
+			&twl6040_data, 119 + OMAP44XX_IRQ_GIC_START);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	/*
 	 * Bus 3 is attached to the DVI port where devices like the pico DLP

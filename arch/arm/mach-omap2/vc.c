@@ -12,8 +12,7 @@
 #include <linux/init.h>
 #include <linux/bug.h>
 
-#include <plat/cpu.h>
-
+#include "soc.h"
 #include "voltage.h"
 #include "vc.h"
 #include "prm-regbits-34xx.h"

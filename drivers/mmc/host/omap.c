@@ -33,7 +33,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <plat/board.h>
 #include <plat/mmc.h>
 #include <asm/gpio.h>
 #include <plat/dma.h>
