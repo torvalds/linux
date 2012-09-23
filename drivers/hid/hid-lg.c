@@ -342,6 +342,9 @@ static int lg_event(struct hid_device *hdev, struct hid_field *field,
 				-value);
 		return 1;
 	}
+	if (drv_data->quirks & LG_FF4) {
+		return lg4ff_adjust_input_event(hdev, field, usage, value, drv_data);
+	}
 
 	return 0;
 }

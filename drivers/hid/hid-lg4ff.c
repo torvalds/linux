@@ -53,6 +53,7 @@ static ssize_t lg4ff_range_store(struct device *dev, struct device_attribute *at
 static DEVICE_ATTR(range, S_IRWXU | S_IRWXG | S_IRWXO, lg4ff_range_show, lg4ff_range_store);
 
 struct lg4ff_device_entry {
+	__u32 product_id;
 	__u16 range;
 	__u16 min_range;
 	__u16 max_range;
@@ -128,6 +129,56 @@ static const struct lg4ff_usb_revision lg4ff_revs[] = {
 	{G25_REV_MAJ,  G25_REV_MIN,  &native_g25},	/* G25 */
 	{G27_REV_MAJ,  G27_REV_MIN,  &native_g27},	/* G27 */
 };
+
+/* Recalculates X axis value accordingly to currently selected range */
+static __s32 lg4ff_adjust_dfp_x_axis(__s32 value, __u16 range)
+{
+	__u16 max_range;
+	__s32 new_value;
+
+	if (range == 900)
+		return value;
+	else if (range == 200)
+		return value;
+	else if (range < 200)
+		max_range = 200;
+	else
+		max_range = 900;
+
+	new_value = 8192 + mult_frac(value - 8192, max_range, range);
+	if (new_value < 0)
+		return 0;
+	else if (new_value > 16383)
+		return 16383;
+	else
+		return new_value;
+}
+
+int lg4ff_adjust_input_event(struct hid_device *hid, struct hid_field *field,
+			     struct hid_usage *usage, __s32 value, struct lg_drv_data *drv_data)
+{
+	struct lg4ff_device_entry *entry = drv_data->device_props;
+	__s32 new_value = 0;
+
+	if (!entry) {
+		hid_err(hid, "Device properties not found");
+		return 0;
+	}
+
+	switch (entry->product_id) {
+	case USB_DEVICE_ID_LOGITECH_DFP_WHEEL:
+		switch (usage->code) {
+		case ABS_X:
+			new_value = lg4ff_adjust_dfp_x_axis(value, entry->range);
+			input_event(field->hidinput->input, usage->type, usage->code, new_value);
+			return 1;
+		default:
+			return 0;
+		}
+	default:
+		return 0;
+	}
+}
 
 static int hid_lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *effect)
 {
@@ -531,6 +582,7 @@ int lg4ff_init(struct hid_device *hid)
 	}
 	drv_data->device_props = entry;
 
+	entry->product_id = lg4ff_devices[i].product_id;
 	entry->min_range = lg4ff_devices[i].min_range;
 	entry->max_range = lg4ff_devices[i].max_range;
 	entry->set_range = lg4ff_devices[i].set_range;
@@ -600,6 +652,8 @@ out:
 	hid_info(hid, "Force feedback support for Logitech Gaming Wheels\n");
 	return 0;
 }
+
+
 
 int lg4ff_deinit(struct hid_device *hid)
 {
