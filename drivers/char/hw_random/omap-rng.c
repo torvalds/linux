@@ -220,9 +220,6 @@ static struct platform_driver omap_rng_driver = {
 
 static int __init omap_rng_init(void)
 {
-	if (!cpu_is_omap16xx() && !cpu_is_omap24xx())
-		return -ENODEV;
-
 	return platform_driver_register(&omap_rng_driver);
 }
 

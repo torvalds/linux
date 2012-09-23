@@ -376,6 +376,9 @@ static struct platform_device omap1_rng_device = {
 
 static void omap1_init_rng(void)
 {
+	if (!cpu_is_omap16xx())
+		return;
+
 	(void) platform_device_register(&omap1_rng_device);
 }
 
