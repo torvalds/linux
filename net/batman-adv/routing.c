@@ -711,12 +711,6 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
 			     BATADV_TT_CLIENT_ROAM,
 			     atomic_read(&orig_node->last_ttvn) + 1);
 
-	/* Roaming phase starts: I have new information but the ttvn has not
-	 * been incremented yet. This flag will make me check all the incoming
-	 * packets for the correct destination.
-	 */
-	bat_priv->tt.poss_change = true;
-
 	batadv_orig_node_free_ref(orig_node);
 out:
 	/* returning NET_RX_DROP will make the caller function kfree the skb */
@@ -899,14 +893,67 @@ out:
 	return ret;
 }
 
+/**
+ * batadv_reroute_unicast_packet - update the unicast header for re-routing
+ * @bat_priv: the bat priv with all the soft interface information
+ * @unicast_packet: the unicast header to be updated
+ * @dst_addr: the payload destination
+ *
+ * Search the translation table for dst_addr and update the unicast header with
+ * the new corresponding information (originator address where the destination
+ * client currently is and its known TTVN)
+ *
+ * Returns true if the packet header has been updated, false otherwise
+ */
+static bool
+batadv_reroute_unicast_packet(struct batadv_priv *bat_priv,
+			      struct batadv_unicast_packet *unicast_packet,
+			      uint8_t *dst_addr)
+{
+	struct batadv_orig_node *orig_node = NULL;
+	struct batadv_hard_iface *primary_if = NULL;
+	bool ret = false;
+	uint8_t *orig_addr, orig_ttvn;
+
+	if (batadv_is_my_client(bat_priv, dst_addr)) {
+		primary_if = batadv_primary_if_get_selected(bat_priv);
+		if (!primary_if)
+			goto out;
+		orig_addr = primary_if->net_dev->dev_addr;
+		orig_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
+	} else {
+		orig_node = batadv_transtable_search(bat_priv, NULL, dst_addr);
+		if (!orig_node)
+			goto out;
+
+		if (batadv_compare_eth(orig_node->orig, unicast_packet->dest))
+			goto out;
+
+		orig_addr = orig_node->orig;
+		orig_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
+	}
+
+	/* update the packet header */
+	memcpy(unicast_packet->dest, orig_addr, ETH_ALEN);
+	unicast_packet->ttvn = orig_ttvn;
+
+	ret = true;
+out:
+	if (primary_if)
+		batadv_hardif_free_ref(primary_if);
+	if (orig_node)
+		batadv_orig_node_free_ref(orig_node);
+
+	return ret;
+}
+
 static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 				     struct sk_buff *skb) {
-	uint8_t curr_ttvn;
+	uint8_t curr_ttvn, old_ttvn;
 	struct batadv_orig_node *orig_node;
 	struct ethhdr *ethhdr;
 	struct batadv_hard_iface *primary_if;
 	struct batadv_unicast_packet *unicast_packet;
-	bool tt_poss_change;
 	int is_old_ttvn;
 
 	/* check if there is enough data before accessing it */
@@ -918,65 +965,89 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 		return 0;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
+	ethhdr = (struct ethhdr *)(skb->data + sizeof(*unicast_packet));
 
-	if (batadv_is_my_mac(unicast_packet->dest)) {
-		tt_poss_change = bat_priv->tt.poss_change;
-		curr_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
-	} else {
+	/* check if the destination client was served by this node and it is now
+	 * roaming. In this case, it means that the node has got a ROAM_ADV
+	 * message and that it knows the new destination in the mesh to re-route
+	 * the packet to
+	 */
+	if (batadv_tt_local_client_is_roaming(bat_priv, ethhdr->h_dest)) {
+		if (batadv_reroute_unicast_packet(bat_priv, unicast_packet,
+						  ethhdr->h_dest))
+			net_ratelimited_function(batadv_dbg, BATADV_DBG_TT,
+						 bat_priv,
+						 "Rerouting unicast packet to %pM (dst=%pM): Local Roaming\n",
+						 unicast_packet->dest,
+						 ethhdr->h_dest);
+		/* at this point the mesh destination should have been
+		 * substituted with the originator address found in the global
+		 * table. If not, let the packet go untouched anyway because
+		 * there is nothing the node can do
+		 */
+		return 1;
+	}
+
+	/* retrieve the TTVN known by this node for the packet destination. This
+	 * value is used later to check if the node which sent (or re-routed
+	 * last time) the packet had an updated information or not
+	 */
+	curr_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
+	if (!batadv_is_my_mac(unicast_packet->dest)) {
 		orig_node = batadv_orig_hash_find(bat_priv,
 						  unicast_packet->dest);
-
+		/* if it is not possible to find the orig_node representing the
+		 * destination, the packet can immediately be dropped as it will
+		 * not be possible to deliver it
+		 */
 		if (!orig_node)
 			return 0;
 
 		curr_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
-		tt_poss_change = orig_node->tt_poss_change;
 		batadv_orig_node_free_ref(orig_node);
 	}
 
-	/* Check whether I have to reroute the packet */
+	/* check if the TTVN contained in the packet is fresher than what the
+	 * node knows
+	 */
 	is_old_ttvn = batadv_seq_before(unicast_packet->ttvn, curr_ttvn);
-	if (is_old_ttvn || tt_poss_change) {
-		/* check if there is enough data before accessing it */
-		if (pskb_may_pull(skb, sizeof(struct batadv_unicast_packet) +
-				  ETH_HLEN) < 0)
-			return 0;
+	if (!is_old_ttvn)
+		return 1;
 
-		ethhdr = (struct ethhdr *)(skb->data + sizeof(*unicast_packet));
-
-		/* we don't have an updated route for this client, so we should
-		 * not try to reroute the packet!!
-		 */
-		if (batadv_tt_global_client_is_roaming(bat_priv,
-						       ethhdr->h_dest))
-			return 1;
-
-		orig_node = batadv_transtable_search(bat_priv, NULL,
-						     ethhdr->h_dest);
-
-		if (!orig_node) {
-			if (!batadv_is_my_client(bat_priv, ethhdr->h_dest))
-				return 0;
-			primary_if = batadv_primary_if_get_selected(bat_priv);
-			if (!primary_if)
-				return 0;
-			memcpy(unicast_packet->dest,
-			       primary_if->net_dev->dev_addr, ETH_ALEN);
-			batadv_hardif_free_ref(primary_if);
-		} else {
-			memcpy(unicast_packet->dest, orig_node->orig,
-			       ETH_ALEN);
-			curr_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
-			batadv_orig_node_free_ref(orig_node);
-		}
-
+	old_ttvn = unicast_packet->ttvn;
+	/* the packet was forged based on outdated network information. Its
+	 * destination can possibly be updated and forwarded towards the new
+	 * target host
+	 */
+	if (batadv_reroute_unicast_packet(bat_priv, unicast_packet,
+					  ethhdr->h_dest)) {
 		net_ratelimited_function(batadv_dbg, BATADV_DBG_TT, bat_priv,
-					 "TTVN mismatch (old_ttvn %u new_ttvn %u)! Rerouting unicast packet (for %pM) to %pM\n",
-					 unicast_packet->ttvn, curr_ttvn,
-					 ethhdr->h_dest, unicast_packet->dest);
-
-		unicast_packet->ttvn = curr_ttvn;
+					 "Rerouting unicast packet to %pM (dst=%pM): TTVN mismatch old_ttvn=%u new_ttvn=%u\n",
+					 unicast_packet->dest, ethhdr->h_dest,
+					 old_ttvn, curr_ttvn);
+		return 1;
 	}
+
+	/* the packet has not been re-routed: either the destination is
+	 * currently served by this node or there is no destination at all and
+	 * it is possible to drop the packet
+	 */
+	if (!batadv_is_my_client(bat_priv, ethhdr->h_dest))
+		return 0;
+
+	/* update the header in order to let the packet be delivered to this
+	 * node's soft interface
+	 */
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		return 0;
+
+	memcpy(unicast_packet->dest, primary_if->net_dev->dev_addr, ETH_ALEN);
+
+	batadv_hardif_free_ref(primary_if);
+
+	unicast_packet->ttvn = curr_ttvn;
+
 	return 1;
 }
 

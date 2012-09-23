@@ -101,13 +101,6 @@ struct batadv_orig_node {
 	spinlock_t tt_buff_lock; /* protects tt_buff */
 	atomic_t tt_size;
 	bool tt_initialised;
-	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
-	 * If true, then I sent a Roaming_adv to this orig_node and I have to
-	 * inspect every packet directed to it to check whether it is still
-	 * the true destination or not. This flag will be reset to false as
-	 * soon as I receive a new TTVN from this orig_node
-	 */
-	bool tt_poss_change;
 	uint32_t last_real_seqno;
 	uint8_t last_ttl;
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
@@ -212,7 +205,6 @@ struct batadv_priv_tt {
 	atomic_t vn;
 	atomic_t ogm_append_cnt;
 	atomic_t local_changes;
-	bool poss_change;
 	struct list_head changes_list;
 	struct batadv_hashtable *local_hash;
 	struct batadv_hashtable *global_hash;

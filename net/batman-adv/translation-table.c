@@ -306,8 +306,6 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 		head = &tt_global_entry->orig_list;
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_entry, node, head, list) {
-			orig_entry->orig_node->tt_poss_change = true;
-
 			batadv_send_roam_adv(bat_priv,
 					     tt_global_entry->common.addr,
 					     orig_entry->orig_node);
@@ -512,8 +510,11 @@ uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
 	curr_flags = tt_local_entry->common.flags;
 
 	flags = BATADV_TT_CLIENT_DEL;
-	if (roaming)
+	if (roaming) {
 		flags |= BATADV_TT_CLIENT_ROAM;
+		/* mark the local client as ROAMed */
+		tt_local_entry->common.flags |= BATADV_TT_CLIENT_ROAM;
+	}
 
 	batadv_tt_local_set_pending(bat_priv, tt_local_entry, flags, message);
 
@@ -1945,7 +1946,8 @@ bool batadv_is_my_client(struct batadv_priv *bat_priv, const uint8_t *addr)
 	/* Check if the client has been logically deleted (but is kept for
 	 * consistency purpose)
 	 */
-	if (tt_local_entry->common.flags & BATADV_TT_CLIENT_PENDING)
+	if ((tt_local_entry->common.flags & BATADV_TT_CLIENT_PENDING) ||
+	    (tt_local_entry->common.flags & BATADV_TT_CLIENT_ROAM))
 		goto out;
 	ret = true;
 out:
@@ -1996,10 +1998,6 @@ void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 
 	/* Recalculate the CRC for this orig_node and store it */
 	orig_node->tt_crc = batadv_tt_global_crc(bat_priv, orig_node);
-	/* Roaming phase is over: tables are in sync again. I can
-	 * unset the flag
-	 */
-	orig_node->tt_poss_change = false;
 out:
 	if (orig_node)
 		batadv_orig_node_free_ref(orig_node);
@@ -2290,7 +2288,6 @@ static int batadv_tt_commit_changes(struct batadv_priv *bat_priv,
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Local changes committed, updating to ttvn %u\n",
 		   (uint8_t)atomic_read(&bat_priv->tt.vn));
-	bat_priv->tt.poss_change = false;
 
 	/* reset the sending counter */
 	atomic_set(&bat_priv->tt.ogm_append_cnt, BATADV_TT_OGM_APPEND_MAX);
@@ -2402,11 +2399,6 @@ void batadv_tt_update_orig(struct batadv_priv *bat_priv,
 		 */
 		if (orig_node->tt_crc != tt_crc)
 			goto request_table;
-
-		/* Roaming phase is over: tables are in sync again. I can
-		 * unset the flag
-		 */
-		orig_node->tt_poss_change = false;
 	} else {
 		/* if we missed more than one change or our tables are not
 		 * in sync anymore -> request fresh tt data
@@ -2443,6 +2435,32 @@ bool batadv_tt_global_client_is_roaming(struct batadv_priv *bat_priv,
 	batadv_tt_global_entry_free_ref(tt_global_entry);
 out:
 	return ret;
+}
+
+/**
+ * batadv_tt_local_client_is_roaming - tells whether the client is roaming
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the MAC address of the local client to query
+ *
+ * Returns true if the local client is known to be roaming (it is not served by
+ * this node anymore) or not. If yes, the client is still present in the table
+ * to keep the latter consistent with the node TTVN
+ */
+bool batadv_tt_local_client_is_roaming(struct batadv_priv *bat_priv,
+				       uint8_t *addr)
+{
+	struct batadv_tt_local_entry *tt_local_entry;
+	bool ret = false;
+
+	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr);
+	if (!tt_local_entry)
+		goto out;
+
+	ret = tt_local_entry->common.flags & BATADV_TT_CLIENT_ROAM;
+	batadv_tt_local_entry_free_ref(tt_local_entry);
+out:
+	return ret;
+
 }
 
 bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
