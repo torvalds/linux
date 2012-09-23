@@ -70,7 +70,7 @@ typedef struct
 	unsigned long           wait_count[SUNXI_MAX_FB];
 	__u32 pseudo_palette [SUNXI_MAX_FB][16];
 #ifdef CONFIG_FB_SUNXI_UMP
-	ump_dd_handle ump_wrapped_buffer[SUNXI_MAX_FB];
+	ump_dd_handle ump_wrapped_buffer[SUNXI_MAX_FB][2];
 #endif
 }fb_info_t;
 
@@ -124,7 +124,7 @@ extern __s32 DRV_lcd_close(__u32 sel);
 extern __s32 Fb_Init(__u32 from);
 extern __s32 Fb_Exit(void);
 #ifdef CONFIG_FB_SUNXI_UMP
-extern int (*disp_get_ump_secure_id)(struct fb_info *info, fb_info_t *g_fbi, unsigned long arg);
+extern int (*disp_get_ump_secure_id)(struct fb_info *info, fb_info_t *g_fbi, unsigned long arg, int buf);
 #endif
 
 #endif
