@@ -308,48 +308,52 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 			return err;
 	}
 
+	/*
+	 * Search for the partition definition matching master->name.
+	 * If master->name is not set, stop at first partition definition.
+	 */
 	for (part = partitions; part; part = part->next) {
-		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id))) {
-			for (i = 0, offset = 0; i < part->num_parts; i++) {
-				if (part->parts[i].offset == OFFSET_CONTINUOUS)
-					part->parts[i].offset = offset;
-				else
-					offset = part->parts[i].offset;
-
-				if (part->parts[i].size == SIZE_REMAINING)
-					part->parts[i].size = master->size - offset;
-
-				if (part->parts[i].size == 0) {
-					printk(KERN_WARNING ERRP
-					       "%s: skipping zero sized partition\n",
-					       part->mtd_id);
-					part->num_parts--;
-					memmove(&part->parts[i],
-						&part->parts[i + 1],
-						sizeof(*part->parts) * (part->num_parts - i));
-					continue;
-				}
-
-				if (offset + part->parts[i].size > master->size) {
-					printk(KERN_WARNING ERRP
-					       "%s: partitioning exceeds flash size, truncating\n",
-					       part->mtd_id);
-					part->parts[i].size = master->size - offset;
-				}
-				offset += part->parts[i].size;
-			}
-
-			*pparts = kmemdup(part->parts,
-					sizeof(*part->parts) * part->num_parts,
-					GFP_KERNEL);
-			if (!*pparts)
-				return -ENOMEM;
-
-			return part->num_parts;
-		}
+		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id)))
+			break;
 	}
 
-	return 0;
+	if (!part)
+		return 0;
+
+	for (i = 0, offset = 0; i < part->num_parts; i++) {
+		if (part->parts[i].offset == OFFSET_CONTINUOUS)
+			part->parts[i].offset = offset;
+		else
+			offset = part->parts[i].offset;
+
+		if (part->parts[i].size == SIZE_REMAINING)
+			part->parts[i].size = master->size - offset;
+
+		if (part->parts[i].size == 0) {
+			printk(KERN_WARNING ERRP
+			       "%s: skipping zero sized partition\n",
+			       part->mtd_id);
+			part->num_parts--;
+			memmove(&part->parts[i], &part->parts[i + 1],
+				sizeof(*part->parts) * (part->num_parts - i));
+			continue;
+		}
+
+		if (offset + part->parts[i].size > master->size) {
+			printk(KERN_WARNING ERRP
+			       "%s: partitioning exceeds flash size, truncating\n",
+			       part->mtd_id);
+			part->parts[i].size = master->size - offset;
+		}
+		offset += part->parts[i].size;
+	}
+
+	*pparts = kmemdup(part->parts, sizeof(*part->parts) * part->num_parts,
+			  GFP_KERNEL);
+	if (!*pparts)
+		return -ENOMEM;
+
+	return part->num_parts;
 }
 
 
