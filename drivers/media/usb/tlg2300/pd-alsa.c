@@ -306,7 +306,7 @@ int poseidon_audio_init(struct poseidon *p)
 
 	ret = snd_pcm_new(card, "poseidon audio", 0, 0, 1, &pcm);
 	if (ret < 0) {
-		snd_free_card(card);
+		snd_card_free(card);
 		return ret;
 	}
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pcm_capture_ops);
