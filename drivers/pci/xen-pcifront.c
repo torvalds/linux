@@ -21,6 +21,7 @@
 #include <linux/bitops.h>
 #include <linux/time.h>
 
+#include <asm/xen/swiotlb-xen.h>
 #define INVALID_GRANT_REF (0)
 #define INVALID_EVTCHN    (-1)
 
@@ -668,7 +669,7 @@ static irqreturn_t pcifront_handler_aer(int irq, void *dev)
 	schedule_pcifront_aer_op(pdev);
 	return IRQ_HANDLED;
 }
-static int pcifront_connect(struct pcifront_device *pdev)
+static int pcifront_connect_and_init_dma(struct pcifront_device *pdev)
 {
 	int err = 0;
 
@@ -681,9 +682,13 @@ static int pcifront_connect(struct pcifront_device *pdev)
 		dev_err(&pdev->xdev->dev, "PCI frontend already installed!\n");
 		err = -EEXIST;
 	}
-
 	spin_unlock(&pcifront_dev_lock);
 
+	if (!err && !swiotlb_nr_tbl()) {
+		err = pci_xen_swiotlb_init_late();
+		if (err)
+			dev_err(&pdev->xdev->dev, "Could not setup SWIOTLB!\n");
+	}
 	return err;
 }
 
@@ -842,10 +847,10 @@ static int __devinit pcifront_try_connect(struct pcifront_device *pdev)
 	    XenbusStateInitialised)
 		goto out;
 
-	err = pcifront_connect(pdev);
+	err = pcifront_connect_and_init_dma(pdev);
 	if (err) {
 		xenbus_dev_fatal(pdev->xdev, err,
-				 "Error connecting PCI Frontend");
+				 "Error setting up PCI Frontend");
 		goto out;
 	}
 
