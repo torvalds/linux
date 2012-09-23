@@ -190,6 +190,25 @@ static void copy_opcode(struct page *page, unsigned long vaddr, uprobe_opcode_t 
 	kunmap_atomic(kaddr);
 }
 
+static int verify_opcode(struct page *page, unsigned long vaddr, uprobe_opcode_t *new_opcode)
+{
+	uprobe_opcode_t old_opcode;
+	bool is_swbp;
+
+	copy_opcode(page, vaddr, &old_opcode);
+	is_swbp = is_swbp_insn(&old_opcode);
+
+	if (is_swbp_insn(new_opcode)) {
+		if (is_swbp)		/* register: already installed? */
+			return 0;
+	} else {
+		if (!is_swbp)		/* unregister: was it changed by us? */
+			return -EINVAL;
+	}
+
+	return 1;
+}
+
 /*
  * NOTE:
  * Expect the breakpoint instruction to be the smallest size instruction for
@@ -225,6 +244,10 @@ retry:
 	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &old_page, &vma);
 	if (ret <= 0)
 		return ret;
+
+	ret = verify_opcode(old_page, vaddr, &opcode);
+	if (ret <= 0)
+		goto put_old;
 
 	ret = -ENOMEM;
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
@@ -311,15 +334,6 @@ int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned 
 int __weak
 set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	int result;
-
-	result = is_swbp_at_addr(mm, vaddr);
-	if (!result)
-		return -EINVAL;
-
-	if (result != 1)
-		return result;
-
 	return write_opcode(mm, vaddr, *(uprobe_opcode_t *)auprobe->insn);
 }
 
