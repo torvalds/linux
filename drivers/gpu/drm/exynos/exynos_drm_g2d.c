@@ -129,7 +129,6 @@ struct g2d_runqueue_node {
 struct g2d_data {
 	struct device			*dev;
 	struct clk			*gate_clk;
-	struct resource			*regs_res;
 	void __iomem			*regs;
 	int				irq;
 	struct workqueue_struct		*g2d_workq;
@@ -751,7 +750,7 @@ static int __devinit g2d_probe(struct platform_device *pdev)
 	struct exynos_drm_subdrv *subdrv;
 	int ret;
 
-	g2d = kzalloc(sizeof(*g2d), GFP_KERNEL);
+	g2d = devm_kzalloc(&pdev->dev, sizeof(*g2d), GFP_KERNEL);
 	if (!g2d) {
 		dev_err(dev, "failed to allocate driver data\n");
 		return -ENOMEM;
@@ -759,10 +758,8 @@ static int __devinit g2d_probe(struct platform_device *pdev)
 
 	g2d->runqueue_slab = kmem_cache_create("g2d_runqueue_slab",
 			sizeof(struct g2d_runqueue_node), 0, 0, NULL);
-	if (!g2d->runqueue_slab) {
-		ret = -ENOMEM;
-		goto err_free_mem;
-	}
+	if (!g2d->runqueue_slab)
+		return -ENOMEM;
 
 	g2d->dev = dev;
 
@@ -794,38 +791,26 @@ static int __devinit g2d_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "failed to get I/O memory\n");
-		ret = -ENOENT;
-		goto err_put_clk;
-	}
 
-	g2d->regs_res = request_mem_region(res->start, resource_size(res),
-					   dev_name(dev));
-	if (!g2d->regs_res) {
-		dev_err(dev, "failed to request I/O memory\n");
-		ret = -ENOENT;
-		goto err_put_clk;
-	}
-
-	g2d->regs = ioremap(res->start, resource_size(res));
+	g2d->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!g2d->regs) {
 		dev_err(dev, "failed to remap I/O memory\n");
 		ret = -ENXIO;
-		goto err_release_res;
+		goto err_put_clk;
 	}
 
 	g2d->irq = platform_get_irq(pdev, 0);
 	if (g2d->irq < 0) {
 		dev_err(dev, "failed to get irq\n");
 		ret = g2d->irq;
-		goto err_unmap_base;
+		goto err_put_clk;
 	}
 
-	ret = request_irq(g2d->irq, g2d_irq_handler, 0, "drm_g2d", g2d);
+	ret = devm_request_irq(&pdev->dev, g2d->irq, g2d_irq_handler, 0,
+								"drm_g2d", g2d);
 	if (ret < 0) {
 		dev_err(dev, "irq request failed\n");
-		goto err_unmap_base;
+		goto err_put_clk;
 	}
 
 	platform_set_drvdata(pdev, g2d);
@@ -838,7 +823,7 @@ static int __devinit g2d_probe(struct platform_device *pdev)
 	ret = exynos_drm_subdrv_register(subdrv);
 	if (ret < 0) {
 		dev_err(dev, "failed to register drm g2d device\n");
-		goto err_free_irq;
+		goto err_put_clk;
 	}
 
 	dev_info(dev, "The exynos g2d(ver %d.%d) successfully probed\n",
@@ -846,13 +831,6 @@ static int __devinit g2d_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_free_irq:
-	free_irq(g2d->irq, g2d);
-err_unmap_base:
-	iounmap(g2d->regs);
-err_release_res:
-	release_resource(g2d->regs_res);
-	kfree(g2d->regs_res);
 err_put_clk:
 	pm_runtime_disable(dev);
 	clk_put(g2d->gate_clk);
@@ -862,8 +840,6 @@ err_destroy_workqueue:
 	destroy_workqueue(g2d->g2d_workq);
 err_destroy_slab:
 	kmem_cache_destroy(g2d->runqueue_slab);
-err_free_mem:
-	kfree(g2d);
 	return ret;
 }
 
@@ -873,16 +849,11 @@ static int __devexit g2d_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&g2d->runqueue_work);
 	exynos_drm_subdrv_unregister(&g2d->subdrv);
-	free_irq(g2d->irq, g2d);
 
 	while (g2d->runqueue_node) {
 		g2d_free_runqueue_node(g2d, g2d->runqueue_node);
 		g2d->runqueue_node = g2d_get_runqueue_node(g2d);
 	}
-
-	iounmap(g2d->regs);
-	release_resource(g2d->regs_res);
-	kfree(g2d->regs_res);
 
 	pm_runtime_disable(&pdev->dev);
 	clk_put(g2d->gate_clk);
@@ -890,7 +861,6 @@ static int __devexit g2d_remove(struct platform_device *pdev)
 	g2d_fini_cmdlist(g2d);
 	destroy_workqueue(g2d->g2d_workq);
 	kmem_cache_destroy(g2d->runqueue_slab);
-	kfree(g2d);
 
 	return 0;
 }
@@ -924,7 +894,7 @@ static int g2d_resume(struct device *dev)
 }
 #endif
 
-SIMPLE_DEV_PM_OPS(g2d_pm_ops, g2d_suspend, g2d_resume);
+static SIMPLE_DEV_PM_OPS(g2d_pm_ops, g2d_suspend, g2d_resume);
 
 struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,

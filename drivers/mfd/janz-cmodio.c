@@ -147,7 +147,7 @@ static int __devinit cmodio_probe_submodules(struct cmodio_device *priv)
 	}
 
 	return mfd_add_devices(&pdev->dev, 0, priv->cells,
-			       num_probed, NULL, pdev->irq);
+			       num_probed, NULL, pdev->irq, NULL);
 }
 
 /*

@@ -463,9 +463,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 		ah->config.spurchans[i][1] = AR_NO_SPUR;
 	}
 
-	/* PAPRD needs some more work to be enabled */
-	ah->config.paprd_disable = 1;
-
 	ah->config.rx_intr_mitigation = true;
 	ah->config.pcieSerDesWrite = true;
 
@@ -977,9 +974,6 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 		imr_reg |= AR_IMR_TXINTM | AR_IMR_TXMINTR;
 	else
 		imr_reg |= AR_IMR_TXOK;
-
-	if (opmode == NL80211_IFTYPE_AP)
-		imr_reg |= AR_IMR_MIB;
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -1778,6 +1772,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		/* Operating channel changed, reset channel calibration data */
 		memset(caldata, 0, sizeof(*caldata));
 		ath9k_init_nfcal_hist_buffer(ah, chan);
+	} else if (caldata) {
+		caldata->paprd_packet_sent = false;
 	}
 	ah->noise = ath9k_hw_getchan_noise(ah, chan);
 
@@ -2502,7 +2498,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->tx_desc_len = sizeof(struct ar9003_txc);
 		pCap->txs_len = sizeof(struct ar9003_txs);
 		if (!ah->config.paprd_disable &&
-		    ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
+		    ah->eep_ops->get_eeprom(ah, EEP_PAPRD) &&
+		    !AR_SREV_9462(ah))
 			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
 	} else {
 		pCap->tx_desc_len = sizeof(struct ath_desc);

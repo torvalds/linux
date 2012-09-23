@@ -194,6 +194,8 @@
 			interrupts = <0 47 0x4>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			ranges;
 
 			prcmu-timer-4@80157450 {
@@ -330,6 +332,7 @@
 			ab8500@5 {
 				compatible = "stericsson,ab8500";
 				reg = <5>; /* mailbox 5 is i2c */
+				interrupt-parent = <&intc>;
 				interrupts = <0 40 0x4>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
@@ -371,7 +374,7 @@
 				};
 
 				ab8500-ponkey {
-					compatible = "stericsson,ab8500-ponkey";
+					compatible = "stericsson,ab8500-poweron-key";
 					interrupts = <6 0x4
 						      7 0x4>;
 					interrupt-names = "ONKEY_DBF", "ONKEY_DBR";
@@ -387,6 +390,12 @@
 
 				ab8500-debugfs {
 					compatible = "stericsson,ab8500-debug";
+				};
+
+				codec: ab8500-codec {
+					compatible = "stericsson,ab8500-codec";
+
+					stericsson,earpeice-cmv = <950>; /* Units in mV. */
 				};
 
 				ab8500-regulators {
@@ -471,48 +480,63 @@
 		};
 
 		i2c@80004000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80004000 0x1000>;
 			interrupts = <0 21 0x4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
 		};
 
 		i2c@80122000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80122000 0x1000>;
 			interrupts = <0 22 0x4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
 		};
 
 		i2c@80128000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80128000 0x1000>;
 			interrupts = <0 55 0x4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
 		};
 
 		i2c@80110000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x80110000 0x1000>;
 			interrupts = <0 12 0x4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
 		};
 
 		i2c@8012a000 {
-			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
 			reg = <0x8012a000 0x1000>;
 			interrupts = <0 51 0x4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
 		};
 
 		ssp@80002000 {
 			compatible = "arm,pl022", "arm,primecell";
-			reg = <80002000 0x1000>;
+			reg = <0x80002000 0x1000>;
 			interrupts = <0 14 0x4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -577,6 +601,39 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80114000 0x1000>;
 			interrupts = <0 100 0x4>;
+			status = "disabled";
+		};
+
+		msp0: msp@80123000 {
+			compatible = "stericsson,ux500-msp-i2s";
+			reg = <0x80123000 0x1000>;
+			interrupts = <0 31 0x4>;
+			v-ape-supply = <&db8500_vape_reg>;
+			status = "disabled";
+		};
+
+		msp1: msp@80124000 {
+			compatible = "stericsson,ux500-msp-i2s";
+			reg = <0x80124000 0x1000>;
+			interrupts = <0 62 0x4>;
+			v-ape-supply = <&db8500_vape_reg>;
+			status = "disabled";
+		};
+
+		// HDMI sound
+		msp2: msp@80117000 {
+			compatible = "stericsson,ux500-msp-i2s";
+			reg = <0x80117000 0x1000>;
+			interrupts = <0 98 0x4>;
+			v-ape-supply = <&db8500_vape_reg>;
+			status = "disabled";
+		};
+
+		msp3: msp@80125000 {
+			compatible = "stericsson,ux500-msp-i2s";
+			reg = <0x80125000 0x1000>;
+			interrupts = <0 62 0x4>;
+			v-ape-supply = <&db8500_vape_reg>;
 			status = "disabled";
 		};
 

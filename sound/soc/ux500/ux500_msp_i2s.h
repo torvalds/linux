@@ -524,14 +524,18 @@ struct ux500_msp {
 	struct dma_chan *rx_pipeid;
 	enum msp_state msp_state;
 	int (*transfer) (struct ux500_msp *msp, struct i2s_message *message);
-	int (*plat_init) (void);
-	int (*plat_exit) (void);
 	struct timer_list notify_timer;
 	int def_elem_len;
 	unsigned int dir_busy;
 	int loopback_enable;
 	u32 backup_regs[MAX_MSP_BACKUP_REGS];
 	unsigned int f_bitclk;
+	/* Pin modes */
+	struct pinctrl *pinctrl_p;
+	struct pinctrl_state *pinctrl_def;
+	struct pinctrl_state *pinctrl_sleep;
+	/* Reference Count */
+	int pinctrl_rxtx_ref;
 };
 
 struct ux500_msp_dma_params {

@@ -807,7 +807,7 @@ static void __init pmd_empty_section_gap(unsigned long addr)
 	vm = early_alloc_aligned(sizeof(*vm), __alignof__(*vm));
 	vm->addr = (void *)addr;
 	vm->size = SECTION_SIZE;
-	vm->flags = VM_IOREMAP | VM_ARM_STATIC_MAPPING;
+	vm->flags = VM_IOREMAP | VM_ARM_EMPTY_MAPPING;
 	vm->caller = pmd_empty_section_gap;
 	vm_area_add_early(vm);
 }
@@ -820,7 +820,7 @@ static void __init fill_pmd_gaps(void)
 
 	/* we're still single threaded hence no lock needed here */
 	for (vm = vmlist; vm; vm = vm->next) {
-		if (!(vm->flags & VM_ARM_STATIC_MAPPING))
+		if (!(vm->flags & (VM_ARM_STATIC_MAPPING | VM_ARM_EMPTY_MAPPING)))
 			continue;
 		addr = (unsigned long)vm->addr;
 		if (addr < next)
@@ -961,8 +961,8 @@ void __init sanity_check_meminfo(void)
 		 * Check whether this memory bank would partially overlap
 		 * the vmalloc area.
 		 */
-		if (__va(bank->start + bank->size) > vmalloc_min ||
-		    __va(bank->start + bank->size) < __va(bank->start)) {
+		if (__va(bank->start + bank->size - 1) >= vmalloc_min ||
+		    __va(bank->start + bank->size - 1) <= __va(bank->start)) {
 			unsigned long newsize = vmalloc_min - __va(bank->start);
 			printk(KERN_NOTICE "Truncating RAM at %.8llx-%.8llx "
 			       "to -%.8llx (vmalloc region overlap).\n",
