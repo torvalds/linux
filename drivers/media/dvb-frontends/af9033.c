@@ -335,6 +335,18 @@ static int af9033_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
+	if (state->cfg.ts_mode == AF9033_TS_MODE_SERIAL) {
+		ret = af9033_wr_reg_mask(state, 0x00d91c, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+		ret = af9033_wr_reg_mask(state, 0x00d917, 0x00, 0x01);
+		if (ret < 0)
+			goto err;
+		ret = af9033_wr_reg_mask(state, 0x00d916, 0x00, 0x01);
+		if (ret < 0)
+			goto err;
+	}
+
 	state->bandwidth_hz = 0; /* force to program all parameters */
 
 	return 0;

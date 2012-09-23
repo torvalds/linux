@@ -56,6 +56,8 @@ struct state {
 	bool dual_mode;
 
 	struct af9033_config af9033_config[2];
+
+	u8 tuner_address[2];
 };
 
 u32 clock_lut[] = {
@@ -92,6 +94,7 @@ u32 clock_lut_it9135[] = {
 /* EEPROM locations */
 #define EEPROM_IR_MODE            0x430d
 #define EEPROM_DUAL_MODE          0x4326
+#define EEPROM_2WIREADDR          0x4327
 #define EEPROM_IR_TYPE            0x4329
 #define EEPROM_1_IFFREQ_L         0x432d
 #define EEPROM_1_IFFREQ_H         0x432e
