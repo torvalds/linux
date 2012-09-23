@@ -11,6 +11,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
+#include <linux/pm_runtime.h>
 
 #include <asm/pmu.h>
 
@@ -53,7 +54,12 @@ static int __init omap2_init_pmu(unsigned oh_num, char *oh_names[])
 	WARN(IS_ERR(omap_pmu_dev), "Can't build omap_device for %s.\n",
 	     dev_name);
 
-	return IS_ERR(omap_pmu_dev) ? PTR_ERR(omap_pmu_dev) : 0;
+	if (IS_ERR(omap_pmu_dev))
+		return PTR_ERR(omap_pmu_dev);
+
+	pm_runtime_enable(&omap_pmu_dev->dev);
+
+	return 0;
 }
 
 static int __init omap_init_pmu(void)
