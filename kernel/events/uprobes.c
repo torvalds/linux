@@ -282,32 +282,6 @@ put_old:
 	return ret;
 }
 
-static int is_swbp_at_addr(struct mm_struct *mm, unsigned long vaddr)
-{
-	struct page *page;
-	uprobe_opcode_t opcode;
-	int result;
-
-	if (current->mm == mm) {
-		pagefault_disable();
-		result = __copy_from_user_inatomic(&opcode, (void __user*)vaddr,
-								sizeof(opcode));
-		pagefault_enable();
-
-		if (likely(result == 0))
-			goto out;
-	}
-
-	result = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
-	if (result < 0)
-		return result;
-
-	copy_opcode(page, vaddr, &opcode);
-	put_page(page);
- out:
-	return is_swbp_insn(&opcode);
-}
-
 /**
  * set_swbp - store breakpoint at a given address.
  * @auprobe: arch specific probepoint information.
@@ -589,29 +563,6 @@ static int copy_insn(struct uprobe *uprobe, struct file *filp)
 	return __copy_insn(mapping, filp, uprobe->arch.insn, bytes, uprobe->offset);
 }
 
-/*
- * How mm->uprobes_state.count gets updated
- * uprobe_mmap() increments the count if
- * 	- it successfully adds a breakpoint.
- * 	- it cannot add a breakpoint, but sees that there is a underlying
- * 	  breakpoint (via a is_swbp_at_addr()).
- *
- * uprobe_munmap() decrements the count if
- * 	- it sees a underlying breakpoint, (via is_swbp_at_addr)
- * 	  (Subsequent uprobe_unregister wouldnt find the breakpoint
- * 	  unless a uprobe_mmap kicks in, since the old vma would be
- * 	  dropped just after uprobe_munmap.)
- *
- * uprobe_register increments the count if:
- * 	- it successfully adds a breakpoint.
- *
- * uprobe_unregister decrements the count if:
- * 	- it sees a underlying breakpoint and removes successfully.
- * 	  (via is_swbp_at_addr)
- * 	  (Subsequent uprobe_munmap wouldnt find the breakpoint
- * 	  since there is no underlying breakpoint after the
- * 	  breakpoint removal.)
- */
 static int
 install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 			struct vm_area_struct *vma, unsigned long vaddr)
@@ -1387,6 +1338,30 @@ static void mmf_recalc_uprobes(struct mm_struct *mm)
 	}
 
 	clear_bit(MMF_HAS_UPROBES, &mm->flags);
+}
+
+static int is_swbp_at_addr(struct mm_struct *mm, unsigned long vaddr)
+{
+	struct page *page;
+	uprobe_opcode_t opcode;
+	int result;
+
+	pagefault_disable();
+	result = __copy_from_user_inatomic(&opcode, (void __user*)vaddr,
+							sizeof(opcode));
+	pagefault_enable();
+
+	if (likely(result == 0))
+		goto out;
+
+	result = get_user_pages(NULL, mm, vaddr, 1, 0, 1, &page, NULL);
+	if (result < 0)
+		return result;
+
+	copy_opcode(page, vaddr, &opcode);
+	put_page(page);
+ out:
+	return is_swbp_insn(&opcode);
 }
 
 static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
