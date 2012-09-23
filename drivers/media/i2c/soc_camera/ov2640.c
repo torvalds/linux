@@ -586,9 +586,20 @@ static const struct regval_list ov2640_format_change_preamble_regs[] = {
 	ENDMARKER,
 };
 
-static const struct regval_list ov2640_yuv422_regs[] = {
+static const struct regval_list ov2640_yuyv_regs[] = {
+	{ IMAGE_MODE, IMAGE_MODE_YUV422 },
+	{ 0xd7, 0x03 },
+	{ 0x33, 0xa0 },
+	{ 0xe5, 0x1f },
+	{ 0xe1, 0x67 },
+	{ RESET,  0x00 },
+	{ R_BYPASS, R_BYPASS_USE_DSP },
+	ENDMARKER,
+};
+
+static const struct regval_list ov2640_uyvy_regs[] = {
 	{ IMAGE_MODE, IMAGE_MODE_LBYTE_FIRST | IMAGE_MODE_YUV422 },
-	{ 0xD7, 0x01 },
+	{ 0xd7, 0x01 },
 	{ 0x33, 0xa0 },
 	{ 0xe1, 0x67 },
 	{ RESET,  0x00 },
@@ -596,7 +607,15 @@ static const struct regval_list ov2640_yuv422_regs[] = {
 	ENDMARKER,
 };
 
-static const struct regval_list ov2640_rgb565_regs[] = {
+static const struct regval_list ov2640_rgb565_be_regs[] = {
+	{ IMAGE_MODE, IMAGE_MODE_RGB565 },
+	{ 0xd7, 0x03 },
+	{ RESET,  0x00 },
+	{ R_BYPASS, R_BYPASS_USE_DSP },
+	ENDMARKER,
+};
+
+static const struct regval_list ov2640_rgb565_le_regs[] = {
 	{ IMAGE_MODE, IMAGE_MODE_LBYTE_FIRST | IMAGE_MODE_RGB565 },
 	{ 0xd7, 0x03 },
 	{ RESET,  0x00 },
@@ -605,7 +624,9 @@ static const struct regval_list ov2640_rgb565_regs[] = {
 };
 
 static enum v4l2_mbus_pixelcode ov2640_codes[] = {
+	V4L2_MBUS_FMT_YUYV8_2X8,
 	V4L2_MBUS_FMT_UYVY8_2X8,
+	V4L2_MBUS_FMT_RGB565_2X8_BE,
 	V4L2_MBUS_FMT_RGB565_2X8_LE,
 };
 
@@ -787,14 +808,22 @@ static int ov2640_set_params(struct i2c_client *client, u32 *width, u32 *height,
 	/* select format */
 	priv->cfmt_code = 0;
 	switch (code) {
+	case V4L2_MBUS_FMT_RGB565_2X8_BE:
+		dev_dbg(&client->dev, "%s: Selected cfmt RGB565 BE", __func__);
+		selected_cfmt_regs = ov2640_rgb565_be_regs;
+		break;
 	case V4L2_MBUS_FMT_RGB565_2X8_LE:
-		dev_dbg(&client->dev, "%s: Selected cfmt RGB565", __func__);
-		selected_cfmt_regs = ov2640_rgb565_regs;
+		dev_dbg(&client->dev, "%s: Selected cfmt RGB565 LE", __func__);
+		selected_cfmt_regs = ov2640_rgb565_le_regs;
+		break;
+	case V4L2_MBUS_FMT_YUYV8_2X8:
+		dev_dbg(&client->dev, "%s: Selected cfmt YUYV (YUV422)", __func__);
+		selected_cfmt_regs = ov2640_yuyv_regs;
 		break;
 	default:
 	case V4L2_MBUS_FMT_UYVY8_2X8:
-		dev_dbg(&client->dev, "%s: Selected cfmt YUV422", __func__);
-		selected_cfmt_regs = ov2640_yuv422_regs;
+		dev_dbg(&client->dev, "%s: Selected cfmt UYVY", __func__);
+		selected_cfmt_regs = ov2640_uyvy_regs;
 	}
 
 	/* reset hardware */
@@ -859,10 +888,12 @@ static int ov2640_g_fmt(struct v4l2_subdev *sd,
 	mf->code	= priv->cfmt_code;
 
 	switch (mf->code) {
+	case V4L2_MBUS_FMT_RGB565_2X8_BE:
 	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
+	case V4L2_MBUS_FMT_YUYV8_2X8:
 	case V4L2_MBUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
@@ -879,11 +910,13 @@ static int ov2640_s_fmt(struct v4l2_subdev *sd,
 
 
 	switch (mf->code) {
+	case V4L2_MBUS_FMT_RGB565_2X8_BE:
 	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
 		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
+	case V4L2_MBUS_FMT_YUYV8_2X8:
 	case V4L2_MBUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
@@ -904,11 +937,13 @@ static int ov2640_try_fmt(struct v4l2_subdev *sd,
 	mf->field	= V4L2_FIELD_NONE;
 
 	switch (mf->code) {
+	case V4L2_MBUS_FMT_RGB565_2X8_BE:
 	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
 		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
+	case V4L2_MBUS_FMT_YUYV8_2X8:
 	case V4L2_MBUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
