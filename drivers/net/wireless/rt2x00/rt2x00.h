@@ -741,6 +741,14 @@ enum rt2x00_capability_flags {
 };
 
 /*
+ * Interface combinations
+ */
+enum {
+	IF_COMB_AP = 0,
+	NUM_IF_COMB,
+};
+
+/*
  * rt2x00 device structure.
  */
 struct rt2x00_dev {
@@ -865,6 +873,12 @@ struct rt2x00_dev {
 	unsigned int intf_sta_count;
 	unsigned int intf_associated;
 	unsigned int intf_beaconing;
+
+	/*
+	 * Interface combinations
+	 */
+	struct ieee80211_iface_limit if_limits_ap;
+	struct ieee80211_iface_combination if_combinations[NUM_IF_COMB];
 
 	/*
 	 * Link quality
