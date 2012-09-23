@@ -356,18 +356,6 @@ config ARCH_AT91
 	  This enables support for systems based on Atmel
 	  AT91RM9200 and AT91SAM9* processors.
 
-config ARCH_BCMRING
-	bool "Broadcom BCMRING"
-	depends on MMU
-	select CPU_V6
-	select ARM_AMBA
-	select ARM_TIMER_SP804
-	select CLKDEV_LOOKUP
-	select GENERIC_CLOCKEVENTS
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	help
-	  Support for Broadcom's BCMRing platform.
-
 config ARCH_HIGHBANK
 	bool "Calxeda Highbank-based"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -1036,8 +1024,6 @@ endchoice
 source "arch/arm/mach-mvebu/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
-
-source "arch/arm/mach-bcmring/Kconfig"
 
 source "arch/arm/mach-clps711x/Kconfig"
 
