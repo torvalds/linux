@@ -35,7 +35,7 @@
 #define OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP		0x3
 
 static const u8 cm_idlest_offs[] = {
-	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3
+	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3, OMAP24XX_CM_IDLEST4
 };
 
 u32 omap2_cm_read_mod_reg(s16 module, u16 idx)

@@ -792,3 +792,47 @@ struct omap_hwmod omap2xxx_gpmc_hwmod = {
 		},
 	},
 };
+
+/* RNG */
+
+static struct omap_hwmod_class_sysconfig omap2_rng_sysc = {
+	.rev_offs	= 0x3c,
+	.sysc_offs	= 0x40,
+	.syss_offs	= 0x44,
+	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2_rng_hwmod_class = {
+	.name		= "rng",
+	.sysc		= &omap2_rng_sysc,
+};
+
+static struct omap_hwmod_irq_info omap2_rng_mpu_irqs[] = {
+	{ .irq = 52 },
+	{ .irq = -1 }
+};
+
+struct omap_hwmod omap2xxx_rng_hwmod = {
+	.name		= "rng",
+	.mpu_irqs	= omap2_rng_mpu_irqs,
+	.main_clk	= "l4_ck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 4,
+			.module_bit = OMAP24XX_EN_RNG_SHIFT,
+			.idlest_reg_id = 4,
+			.idlest_idle_bit = OMAP24XX_ST_RNG_SHIFT,
+		},
+	},
+	/*
+	 * XXX The first read from the SYSSTATUS register of the RNG
+	 * after the SYSCONFIG SOFTRESET bit is set triggers an
+	 * imprecise external abort.  It's unclear why this happens.
+	 * Until this is analyzed, skip the IP block reset.
+	 */
+	.flags		= HWMOD_INIT_NO_RESET,
+	.class		= &omap2_rng_hwmod_class,
+};
