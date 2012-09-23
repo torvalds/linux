@@ -540,8 +540,11 @@ int main(int argc, char **argv)
 	if (connect) {
 		lseek(fd, sizeof(struct acpi_rsdp_descriptor), SEEK_SET);
 	}
-	if (!acpi_dump_XSDT(fd, &rsdpx))
-		goto not_found;
+	if (rsdpx.revision > 1 && rsdpx.xsdt_physical_address) {
+		/* ACPIDUMP uses xsdt table */
+		if (!acpi_dump_XSDT(fd, &rsdpx))
+			goto not_found;
+	}
 	if (!acpi_dump_RSDT(fd, &rsdpx))
 		goto not_found;
 	if (connect) {
