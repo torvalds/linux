@@ -927,18 +927,17 @@ batadv_tt_global_del_orig_entry(struct batadv_priv *bat_priv,
 	spin_unlock_bh(&tt_global_entry->list_lock);
 }
 
-static void
-batadv_tt_global_del_struct(struct batadv_priv *bat_priv,
-			    struct batadv_tt_global_entry *tt_global_entry,
-			    const char *message)
+static void batadv_tt_global_free(struct batadv_priv *bat_priv,
+				  struct batadv_tt_global_entry *tt_global,
+				  const char *message)
 {
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Deleting global tt entry %pM: %s\n",
-		   tt_global_entry->common.addr, message);
+		   tt_global->common.addr, message);
 
 	batadv_hash_remove(bat_priv->tt.global_hash, batadv_compare_tt,
-			   batadv_choose_orig, tt_global_entry->common.addr);
-	batadv_tt_global_entry_free_ref(tt_global_entry);
+			   batadv_choose_orig, tt_global->common.addr);
+	batadv_tt_global_entry_free_ref(tt_global);
 
 }
 
@@ -1002,8 +1001,8 @@ static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 						orig_node, message);
 
 		if (hlist_empty(&tt_global_entry->orig_list))
-			batadv_tt_global_del_struct(bat_priv, tt_global_entry,
-						    message);
+			batadv_tt_global_free(bat_priv, tt_global_entry,
+					      message);
 
 		goto out;
 	}
@@ -1026,7 +1025,7 @@ static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 	if (local_entry) {
 		/* local entry exists, case 2: client roamed to us. */
 		batadv_tt_global_del_orig_list(tt_global_entry);
-		batadv_tt_global_del_struct(bat_priv, tt_global_entry, message);
+		batadv_tt_global_free(bat_priv, tt_global_entry, message);
 	} else
 		/* no local entry exists, case 1: check for roaming */
 		batadv_tt_global_del_roaming(bat_priv, tt_global_entry,
