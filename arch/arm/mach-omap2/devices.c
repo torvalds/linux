@@ -434,34 +434,6 @@ static void omap_init_mcspi(void)
 static inline void omap_init_mcspi(void) {}
 #endif
 
-static struct resource omap2_pmu_resource = {
-	.start	= 3 + OMAP_INTC_START,
-	.flags	= IORESOURCE_IRQ,
-};
-
-static struct resource omap3_pmu_resource = {
-	.start	= 3 + OMAP_INTC_START,
-	.flags	= IORESOURCE_IRQ,
-};
-
-static struct platform_device omap_pmu_device = {
-	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
-	.num_resources	= 1,
-};
-
-static void omap_init_pmu(void)
-{
-	if (cpu_is_omap24xx())
-		omap_pmu_device.resource = &omap2_pmu_resource;
-	else if (cpu_is_omap34xx())
-		omap_pmu_device.resource = &omap3_pmu_resource;
-	else
-		return;
-
-	platform_device_register(&omap_pmu_device);
-}
-
 /**
  * omap_init_rng - bind the RNG hwmod to the RNG omap_device
  *
@@ -664,7 +636,6 @@ static int __init omap2_init_devices(void)
 		omap_init_mcpdm();
 		omap_init_mcspi();
 	}
-	omap_init_pmu();
 	omap_init_sti();
 	omap_init_rng();
 	omap_init_sham();

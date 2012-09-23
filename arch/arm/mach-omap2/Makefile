@@ -199,6 +199,7 @@ obj-$(CONFIG_ARCH_OMAP4)		+= omap_hwmod_44xx_data.o
 
 # EMU peripherals
 obj-$(CONFIG_OMAP3_EMU)			+= emu.o
+obj-$(CONFIG_HW_PERF_EVENTS)		+= pmu.o
 
 # L3 interconnect
 obj-$(CONFIG_ARCH_OMAP3)		+= omap_l3_smx.o

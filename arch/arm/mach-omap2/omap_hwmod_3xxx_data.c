@@ -93,8 +93,14 @@ static struct omap_hwmod omap3xxx_l4_sec_hwmod = {
 };
 
 /* MPU */
+static struct omap_hwmod_irq_info omap3xxx_mpu_irqs[] = {
+	{ .name = "pmu", .irq = 3 },
+	{ .irq = -1 }
+};
+
 static struct omap_hwmod omap3xxx_mpu_hwmod = {
 	.name		= "mpu",
+	.mpu_irqs	= omap3xxx_mpu_irqs,
 	.class		= &mpu_hwmod_class,
 	.main_clk	= "arm_fck",
 };
