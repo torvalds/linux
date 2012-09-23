@@ -202,6 +202,8 @@ static struct omap_hwmod omap44xx_l4_abe_hwmod = {
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM1_ABE_L4ABE_CLKCTRL_OFFSET,
+			.context_offs = OMAP4_RM_ABE_AESS_CONTEXT_OFFSET,
+			.lostcontext_mask = OMAP4430_LOSTMEM_AESSMEM_MASK,
 		},
 	},
 };
@@ -342,6 +344,7 @@ static struct omap_hwmod omap44xx_aess_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM1_ABE_AESS_CLKCTRL_OFFSET,
 			.context_offs = OMAP4_RM_ABE_AESS_CONTEXT_OFFSET,
+			.lostcontext_mask = OMAP4430_LOSTCONTEXT_DFF_MASK,
 			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},

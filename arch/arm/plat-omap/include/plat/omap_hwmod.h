@@ -389,14 +389,21 @@ struct omap_hwmod_omap2_prcm {
  * struct omap_hwmod_omap4_prcm - OMAP4-specific PRCM data
  * @clkctrl_reg: PRCM address of the clock control register
  * @rstctrl_reg: address of the XXX_RSTCTRL register located in the PRM
+ * @lostcontext_mask: bitmask for selecting bits from RM_*_CONTEXT register
  * @rstst_reg: (AM33XX only) address of the XXX_RSTST register in the PRM
  * @submodule_wkdep_bit: bit shift of the WKDEP range
+ *
+ * If @lostcontext_mask is not defined, context loss check code uses
+ * whole register without masking. @lostcontext_mask should only be
+ * defined in cases where @context_offs register is shared by two or
+ * more hwmods.
  */
 struct omap_hwmod_omap4_prcm {
 	u16		clkctrl_offs;
 	u16		rstctrl_offs;
 	u16		rstst_offs;
 	u16		context_offs;
+	u32		lostcontext_mask;
 	u8		submodule_wkdep_bit;
 	u8		modulemode;
 };
