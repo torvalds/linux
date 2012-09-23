@@ -204,6 +204,7 @@ static struct omap_hwmod omap44xx_l4_abe_hwmod = {
 			.clkctrl_offs = OMAP4_CM1_ABE_L4ABE_CLKCTRL_OFFSET,
 			.context_offs = OMAP4_RM_ABE_AESS_CONTEXT_OFFSET,
 			.lostcontext_mask = OMAP4430_LOSTMEM_AESSMEM_MASK,
+			.flags	      = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
 		},
 	},
 };
@@ -260,6 +261,11 @@ static struct omap_hwmod omap44xx_mpu_private_hwmod = {
 	.name		= "mpu_private",
 	.class		= &omap44xx_mpu_bus_hwmod_class,
 	.clkdm_name	= "mpuss_clkdm",
+	.prcm = {
+		.omap4 = {
+			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+		},
+	},
 };
 
 /*
@@ -449,6 +455,11 @@ static struct omap_hwmod omap44xx_ctrl_module_core_hwmod = {
 	.class		= &omap44xx_ctrl_module_hwmod_class,
 	.clkdm_name	= "l4_cfg_clkdm",
 	.mpu_irqs	= omap44xx_ctrl_module_core_irqs,
+	.prcm = {
+		.omap4 = {
+			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+		},
+	},
 };
 
 /* ctrl_module_pad_core */
@@ -456,6 +467,11 @@ static struct omap_hwmod omap44xx_ctrl_module_pad_core_hwmod = {
 	.name		= "ctrl_module_pad_core",
 	.class		= &omap44xx_ctrl_module_hwmod_class,
 	.clkdm_name	= "l4_cfg_clkdm",
+	.prcm = {
+		.omap4 = {
+			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+		},
+	},
 };
 
 /* ctrl_module_wkup */
@@ -463,6 +479,11 @@ static struct omap_hwmod omap44xx_ctrl_module_wkup_hwmod = {
 	.name		= "ctrl_module_wkup",
 	.class		= &omap44xx_ctrl_module_hwmod_class,
 	.clkdm_name	= "l4_wkup_clkdm",
+	.prcm = {
+		.omap4 = {
+			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+		},
+	},
 };
 
 /* ctrl_module_pad_wkup */
@@ -470,6 +491,11 @@ static struct omap_hwmod omap44xx_ctrl_module_pad_wkup_hwmod = {
 	.name		= "ctrl_module_pad_wkup",
 	.class		= &omap44xx_ctrl_module_hwmod_class,
 	.clkdm_name	= "l4_wkup_clkdm",
+	.prcm = {
+		.omap4 = {
+			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+		},
+	},
 };
 
 /*
@@ -2539,18 +2565,33 @@ static struct omap_hwmod omap44xx_prcm_mpu_hwmod = {
 	.name		= "prcm_mpu",
 	.class		= &omap44xx_prcm_hwmod_class,
 	.clkdm_name	= "l4_wkup_clkdm",
+	.prcm = {
+		.omap4 = {
+			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+		},
+	},
 };
 
 /* cm_core_aon */
 static struct omap_hwmod omap44xx_cm_core_aon_hwmod = {
 	.name		= "cm_core_aon",
 	.class		= &omap44xx_prcm_hwmod_class,
+	.prcm = {
+		.omap4 = {
+			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+		},
+	},
 };
 
 /* cm_core */
 static struct omap_hwmod omap44xx_cm_core_hwmod = {
 	.name		= "cm_core",
 	.class		= &omap44xx_prcm_hwmod_class,
+	.prcm = {
+		.omap4 = {
+			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+		},
+	},
 };
 
 /* prm */
@@ -2586,6 +2627,11 @@ static struct omap_hwmod omap44xx_scrm_hwmod = {
 	.name		= "scrm",
 	.class		= &omap44xx_scrm_hwmod_class,
 	.clkdm_name	= "l4_wkup_clkdm",
+	.prcm = {
+		.omap4 = {
+			.flags = HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT,
+		},
+	},
 };
 
 /*

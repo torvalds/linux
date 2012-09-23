@@ -2,7 +2,7 @@
  * omap_hwmod macros, structures
  *
  * Copyright (C) 2009-2011 Nokia Corporation
- * Copyright (C) 2011 Texas Instruments, Inc.
+ * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
  *
  * Created in collaboration with (alphabetical order): Benoît Cousson,
@@ -384,6 +384,14 @@ struct omap_hwmod_omap2_prcm {
 	u8 idlest_stdby_bit;
 };
 
+/*
+ * Possible values for struct omap_hwmod_omap4_prcm.flags
+ *
+ * HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT: Some IP blocks don't have a PRCM
+ *     module-level context loss register associated with them; this
+ *     flag bit should be set in those cases
+ */
+#define HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT		(1 << 0)
 
 /**
  * struct omap_hwmod_omap4_prcm - OMAP4-specific PRCM data
@@ -392,6 +400,7 @@ struct omap_hwmod_omap2_prcm {
  * @lostcontext_mask: bitmask for selecting bits from RM_*_CONTEXT register
  * @rstst_reg: (AM33XX only) address of the XXX_RSTST register in the PRM
  * @submodule_wkdep_bit: bit shift of the WKDEP range
+ * @flags: PRCM register capabilities for this IP block
  *
  * If @lostcontext_mask is not defined, context loss check code uses
  * whole register without masking. @lostcontext_mask should only be
@@ -406,6 +415,7 @@ struct omap_hwmod_omap4_prcm {
 	u32		lostcontext_mask;
 	u8		submodule_wkdep_bit;
 	u8		modulemode;
+	u8		flags;
 };
 
 
