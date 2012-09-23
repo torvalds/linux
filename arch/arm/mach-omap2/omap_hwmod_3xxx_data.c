@@ -2033,6 +2033,33 @@ static struct omap_hwmod omap3xxx_hdq1w_hwmod = {
 	.class		= &omap2_hdq1w_class,
 };
 
+/* SAD2D */
+static struct omap_hwmod_rst_info omap3xxx_sad2d_resets[] = {
+	{ .name = "rst_modem_pwron_sw", .rst_shift = 0 },
+	{ .name = "rst_modem_sw", .rst_shift = 1 },
+};
+
+static struct omap_hwmod_class omap3xxx_sad2d_class = {
+	.name			= "sad2d",
+};
+
+static struct omap_hwmod omap3xxx_sad2d_hwmod = {
+	.name		= "sad2d",
+	.rst_lines	= omap3xxx_sad2d_resets,
+	.rst_lines_cnt	= ARRAY_SIZE(omap3xxx_sad2d_resets),
+	.main_clk	= "sad2d_ick",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_SAD2D_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_SAD2D_SHIFT,
+		},
+	},
+	.class		= &omap3xxx_sad2d_class,
+};
+
 /*
  * '32K sync counter' class
  * 32-bit ordinary counter, clocked by the falling edge of the 32 khz clock
@@ -2134,6 +2161,14 @@ static struct omap_hwmod_ocp_if am35xx_usbhsotg__l3 = {
 	.master		= &am35xx_usbhsotg_hwmod,
 	.slave		= &omap3xxx_l3_main_hwmod,
 	.clk		= "hsotgusb_ick",
+	.user		= OCP_USER_MPU,
+};
+
+/* l3_core -> sad2d interface */
+static struct omap_hwmod_ocp_if omap3xxx_sad2d__l3 = {
+	.master		= &omap3xxx_sad2d_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "core_l3_ick",
 	.user		= OCP_USER_MPU,
 };
 
@@ -3371,6 +3406,7 @@ static struct omap_hwmod_ocp_if *omap34xx_hwmod_ocp_ifs[] __initdata = {
 	&omap34xx_l4_core__sr2,
 	&omap3xxx_l4_core__mailbox,
 	&omap3xxx_l4_core__hdq1w,
+	&omap3xxx_sad2d__l3,
 	NULL
 };
 
@@ -3391,6 +3427,7 @@ static struct omap_hwmod_ocp_if *omap36xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_core__es3plus_mmc1,
 	&omap3xxx_l4_core__es3plus_mmc2,
 	&omap3xxx_l4_core__hdq1w,
+	&omap3xxx_sad2d__l3,
 	NULL
 };
 
