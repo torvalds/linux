@@ -183,10 +183,10 @@ extern void netlink_table_ungrab(void);
 /* optional Netlink kernel configuration parameters */
 struct netlink_kernel_cfg {
 	unsigned int	groups;
+	unsigned int	flags;
 	void		(*input)(struct sk_buff *skb);
 	struct mutex	*cb_mutex;
 	void		(*bind)(int group);
-	unsigned int	flags;
 };
 
 extern struct sock *__netlink_kernel_create(struct net *net, int unit,
