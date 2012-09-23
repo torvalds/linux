@@ -243,10 +243,9 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 			return -ENOBUFS;
 
 		/*
-		 * Check if we exceeded the maximum amount
-		 * of supported interfaces.
+		 * We don't support multiple STA interfaces.
 		 */
-		if (rt2x00dev->intf_sta_count >= rt2x00dev->ops->max_sta_intf)
+		if (rt2x00dev->intf_sta_count)
 			return -ENOBUFS;
 
 		break;
