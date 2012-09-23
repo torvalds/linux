@@ -12,3 +12,7 @@ CLEANFILES= $(PROG)
 clean : 
 	rm -f $(CLEANFILES) $(patsubst %.c,%.o, $(SRCS)) *~
 
+install :
+	install acpidump /usr/bin/acpidump
+	install acpidump.8 /usr/share/man/man8
+
