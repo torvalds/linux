@@ -171,6 +171,16 @@ static struct omap_timer_capability_dev_attr capability_pwm_dev_attr = {
 	.timer_capability	= OMAP_TIMER_HAS_PWM,
 };
 
+/* timers with DSP interrupt dev attribute */
+static struct omap_timer_capability_dev_attr capability_dsp_dev_attr = {
+	.timer_capability       = OMAP_TIMER_HAS_DSP_IRQ,
+};
+
+/* pwm timers with DSP interrupt dev attribute */
+static struct omap_timer_capability_dev_attr capability_dsp_pwm_dev_attr = {
+	.timer_capability       = OMAP_TIMER_HAS_DSP_IRQ | OMAP_TIMER_HAS_PWM,
+};
+
 /* timer1 */
 static struct omap_hwmod omap3xxx_timer1_hwmod = {
 	.name		= "timer1",
@@ -254,6 +264,7 @@ static struct omap_hwmod omap3xxx_timer5_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT5_SHIFT,
 		},
 	},
+	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -271,6 +282,7 @@ static struct omap_hwmod omap3xxx_timer6_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT6_SHIFT,
 		},
 	},
+	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -288,6 +300,7 @@ static struct omap_hwmod omap3xxx_timer7_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT7_SHIFT,
 		},
 	},
+	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
@@ -305,7 +318,7 @@ static struct omap_hwmod omap3xxx_timer8_hwmod = {
 			.idlest_idle_bit = OMAP3430_ST_GPT8_SHIFT,
 		},
 	},
-	.dev_attr	= &capability_pwm_dev_attr,
+	.dev_attr	= &capability_dsp_pwm_dev_attr,
 	.class		= &omap3xxx_timer_hwmod_class,
 };
 
