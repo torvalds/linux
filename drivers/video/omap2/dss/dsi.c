@@ -1612,7 +1612,7 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	u8 regn_start, regn_end, regm_start, regm_end;
 	u8 regm_dispc_start, regm_dispc_end, regm_dsi_start, regm_dsi_end;
 
-	DSSDBGF();
+	DSSDBG("DSI PLL clock config starts");
 
 	dsi->current_cinfo.clkin = cinfo->clkin;
 	dsi->current_cinfo.fint = cinfo->fint;
@@ -2431,7 +2431,7 @@ static int dsi_cio_init(struct platform_device *dsidev)
 	int r;
 	u32 l;
 
-	DSSDBGF();
+	DSSDBG("DSI CIO init starts");
 
 	r = dss_dsi_enable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
 	if (r)
@@ -2782,7 +2782,7 @@ static void dsi_vc_initial_config(struct platform_device *dsidev, int channel)
 {
 	u32 r;
 
-	DSSDBGF("%d", channel);
+	DSSDBG("Initial config of virtual channel %d", channel);
 
 	r = dsi_read_reg(dsidev, DSI_VC_CTRL(channel));
 
@@ -2814,7 +2814,7 @@ static int dsi_vc_config_source(struct platform_device *dsidev, int channel,
 	if (dsi->vc[channel].source == source)
 		return 0;
 
-	DSSDBGF("%d", channel);
+	DSSDBG("Source config of virtual channel %d", channel);
 
 	dsi_sync_vc(dsidev, channel);
 
@@ -3572,7 +3572,7 @@ static int dsi_enter_ulps(struct platform_device *dsidev)
 	int r, i;
 	unsigned mask;
 
-	DSSDBGF();
+	DSSDBG("Entering ULPS");
 
 	WARN_ON(!dsi_bus_is_locked(dsidev));
 
@@ -4276,7 +4276,7 @@ int omapdss_dsi_set_clocks(struct omap_dss_device *dssdev,
 	unsigned long pck;
 	int r;
 
-	DSSDBGF("ddr_clk %lu, lp_clk %lu", ddr_clk, lp_clk);
+	DSSDBG("Setting DSI clocks: ddr_clk %lu, lp_clk %lu", ddr_clk, lp_clk);
 
 	mutex_lock(&dsi->lock);
 

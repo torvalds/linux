@@ -25,38 +25,20 @@
 
 #ifdef DEBUG
 extern bool dss_debug;
-#ifdef DSS_SUBSYS_NAME
-#define DSSDBG(format, ...) \
-	if (dss_debug) \
-		printk(KERN_DEBUG "omapdss " DSS_SUBSYS_NAME ": " format, \
-		## __VA_ARGS__)
-#else
-#define DSSDBG(format, ...) \
-	if (dss_debug) \
-		printk(KERN_DEBUG "omapdss: " format, ## __VA_ARGS__)
+#endif
+
+#ifdef pr_fmt
+#undef pr_fmt
 #endif
 
 #ifdef DSS_SUBSYS_NAME
-#define DSSDBGF(format, ...) \
-	if (dss_debug) \
-		printk(KERN_DEBUG "omapdss " DSS_SUBSYS_NAME \
-				": %s(" format ")\n", \
-				__func__, \
-				## __VA_ARGS__)
+#define pr_fmt(fmt) DSS_SUBSYS_NAME ": " fmt
 #else
-#define DSSDBGF(format, ...) \
-	if (dss_debug) \
-		printk(KERN_DEBUG "omapdss: " \
-				": %s(" format ")\n", \
-				__func__, \
-				## __VA_ARGS__)
+#define pr_fmt(fmt) fmt
 #endif
 
-#else /* DEBUG */
-#define DSSDBG(format, ...)
-#define DSSDBGF(format, ...)
-#endif
-
+#define DSSDBG(format, ...) \
+	pr_debug(format, ## __VA_ARGS__)
 
 #ifdef DSS_SUBSYS_NAME
 #define DSSERR(format, ...) \

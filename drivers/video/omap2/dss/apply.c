@@ -573,7 +573,7 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 	struct mgr_priv_data *mp;
 	int r;
 
-	DSSDBGF("%d", ovl->id);
+	DSSDBG("writing ovl %d regs", ovl->id);
 
 	if (!op->enabled || !op->info_dirty)
 		return;
@@ -608,7 +608,7 @@ static void dss_ovl_write_regs_extra(struct omap_overlay *ovl)
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	struct mgr_priv_data *mp;
 
-	DSSDBGF("%d", ovl->id);
+	DSSDBG("writing ovl %d regs extra", ovl->id);
 
 	if (!op->extra_info_dirty)
 		return;
@@ -632,7 +632,7 @@ static void dss_mgr_write_regs(struct omap_overlay_manager *mgr)
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	struct omap_overlay *ovl;
 
-	DSSDBGF("%d", mgr->id);
+	DSSDBG("writing mgr %d regs", mgr->id);
 
 	if (!mp->enabled)
 		return;
@@ -658,7 +658,7 @@ static void dss_mgr_write_regs_extra(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 
-	DSSDBGF("%d", mgr->id);
+	DSSDBG("writing mgr %d regs extra", mgr->id);
 
 	if (!mp->extra_info_dirty)
 		return;
