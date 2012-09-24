@@ -164,9 +164,8 @@ static int mxr_querycap(struct file *file, void *priv,
 	strlcpy(cap->driver, MXR_DRIVER_NAME, sizeof cap->driver);
 	strlcpy(cap->card, layer->vfd.name, sizeof cap->card);
 	sprintf(cap->bus_info, "%d", layer->idx);
-	cap->version = KERNEL_VERSION(0, 1, 0);
-	cap->capabilities = V4L2_CAP_STREAMING |
-		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
+	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
@@ -718,7 +717,7 @@ static int mxr_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 static const struct v4l2_ioctl_ops mxr_ioctl_ops = {
 	.vidioc_querycap = mxr_querycap,
 	/* format handling */
-	.vidioc_enum_fmt_vid_out = mxr_enum_fmt,
+	.vidioc_enum_fmt_vid_out_mplane = mxr_enum_fmt,
 	.vidioc_s_fmt_vid_out_mplane = mxr_s_fmt,
 	.vidioc_g_fmt_vid_out_mplane = mxr_g_fmt,
 	/* buffer control */
