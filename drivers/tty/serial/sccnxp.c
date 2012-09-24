@@ -531,7 +531,6 @@ static void sccnxp_set_termios(struct uart_port *port,
 
 	/* Mask termios capabilities we don't support */
 	termios->c_cflag &= ~CMSPAR;
-	termios->c_iflag &= ~(IXON | IXOFF | IXANY);
 
 	/* Disable RX & TX, reset break condition, status and FIFOs */
 	sccnxp_port_write(port, SCCNXP_CR_REG, CR_CMD_RX_RESET |
