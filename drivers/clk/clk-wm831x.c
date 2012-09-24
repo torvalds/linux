@@ -371,20 +371,20 @@ static __devinit int wm831x_clk_probe(struct platform_device *pdev)
 
 	clkdata->xtal_hw.init = &wm831x_xtal_init;
 	clkdata->xtal = clk_register(&pdev->dev, &clkdata->xtal_hw);
-	if (!clkdata->xtal)
-		return -EINVAL;
+	if (IS_ERR(clkdata->xtal))
+		return PTR_ERR(clkdata->xtal);
 
 	clkdata->fll_hw.init = &wm831x_fll_init;
 	clkdata->fll = clk_register(&pdev->dev, &clkdata->fll_hw);
-	if (!clkdata->fll) {
-		ret = -EINVAL;
+	if (IS_ERR(clkdata->fll)) {
+		ret = PTR_ERR(clkdata->fll);
 		goto err_xtal;
 	}
 
 	clkdata->clkout_hw.init = &wm831x_clkout_init;
 	clkdata->clkout = clk_register(&pdev->dev, &clkdata->clkout_hw);
-	if (!clkdata->clkout) {
-		ret = -EINVAL;
+	if (IS_ERR(clkdata->clkout)) {
+		ret = PTR_ERR(clkdata->clkout);
 		goto err_fll;
 	}
 
