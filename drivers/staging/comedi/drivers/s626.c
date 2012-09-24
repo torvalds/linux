@@ -2453,11 +2453,12 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	struct comedi_subdevice *s;
 
 	comedi_set_hw_dev(dev, &pcidev->dev);
+	dev->board_name = dev->driver->driver_name;
 
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	result = comedi_pci_enable(pcidev, "s626");
+	result = comedi_pci_enable(pcidev, dev->board_name);
 	if (result < 0) {
 		printk(KERN_ERR "s626_attach: comedi_pci_enable fails\n");
 		return -ENODEV;
@@ -2510,8 +2511,6 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 	}
 
-	dev->board_name = dev->driver->driver_name;
-
 	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
 		return ret;
@@ -2524,7 +2523,7 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		printk(KERN_ERR " unknown irq (bad)\n");
 	} else {
 		ret = request_irq(dev->irq, s626_irq_handler, IRQF_SHARED,
-				  "s626", dev);
+				  dev->board_name, dev);
 
 		if (ret < 0) {
 			printk(KERN_ERR " irq not available\n");
