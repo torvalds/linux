@@ -184,7 +184,17 @@ static struct fimc_fmt fimc_formats[] = {
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.mbus_code	= V4L2_MBUS_FMT_JPEG_1X8,
-		.flags		= FMT_FLAGS_CAM,
+		.flags		= FMT_FLAGS_CAM | FMT_FLAGS_COMPRESSED,
+	}, {
+		.name		= "S5C73MX interleaved UYVY/JPEG",
+		.fourcc		= V4L2_PIX_FMT_S5C_UYVY_JPG,
+		.color		= FIMC_FMT_YUYV_JPEG,
+		.depth		= { 8 },
+		.memplanes	= 2,
+		.colplanes	= 1,
+		.mdataplanes	= 0x2, /* plane 1 holds frame meta data */
+		.mbus_code	= V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8,
+		.flags		= FMT_FLAGS_CAM | FMT_FLAGS_COMPRESSED,
 	},
 };
 
@@ -371,7 +381,7 @@ int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 		default:
 			return -EINVAL;
 		}
-	} else {
+	} else if (!frame->fmt->mdataplanes) {
 		if (frame->fmt->memplanes >= 2)
 			paddr->cb = vb2_dma_contig_plane_dma_addr(vb, 1);
 
@@ -698,6 +708,11 @@ int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f)
 		if (frame->fmt->colplanes == 1) /* packed formats */
 			bpl = (bpl * frame->fmt->depth[0]) / 8;
 		pixm->plane_fmt[i].bytesperline = bpl;
+
+		if (frame->fmt->flags & FMT_FLAGS_COMPRESSED) {
+			pixm->plane_fmt[i].sizeimage = frame->payload[i];
+			continue;
+		}
 		pixm->plane_fmt[i].sizeimage = (frame->o_width *
 			frame->o_height * frame->fmt->depth[i]) / 8;
 	}

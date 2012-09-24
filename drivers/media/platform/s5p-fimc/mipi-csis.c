@@ -214,7 +214,11 @@ static const struct csis_pix_format s5pcsis_formats[] = {
 		.code = V4L2_MBUS_FMT_JPEG_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
 		.data_alignment = 32,
-	},
+	}, {
+		.code = V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8,
+		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
+		.data_alignment = 32,
+	}
 };
 
 #define s5pcsis_write(__csis, __r, __v) writel(__v, __csis->regs + __r)
@@ -278,7 +282,7 @@ static void __s5pcsis_set_format(struct csis_state *state)
 	struct v4l2_mbus_framefmt *mf = &state->format;
 	u32 val;
 
-	v4l2_dbg(1, debug, &state->sd, "fmt: %d, %d x %d\n",
+	v4l2_dbg(1, debug, &state->sd, "fmt: %#x, %d x %d\n",
 		 mf->code, mf->width, mf->height);
 
 	/* Color format */
