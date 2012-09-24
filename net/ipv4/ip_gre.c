@@ -214,11 +214,25 @@ static struct rtnl_link_stats64 *ipgre_get_stats64(struct net_device *dev,
 	return tot;
 }
 
+/* Does key in tunnel parameters match packet */
+static bool ipgre_key_match(const struct ip_tunnel_parm *p,
+			    __u32 flags, __be32 key)
+{
+	if (p->i_flags & GRE_KEY) {
+		if (flags & GRE_KEY)
+			return key == p->i_key;
+		else
+			return false;	/* key expected, none present */
+	} else
+		return !(flags & GRE_KEY);
+}
+
 /* Given src, dst and key, find appropriate for input tunnel. */
 
 static struct ip_tunnel *ipgre_tunnel_lookup(struct net_device *dev,
 					     __be32 remote, __be32 local,
-					     __be32 key, __be16 gre_proto)
+					     __u32 flags, __be32 key,
+					     __be16 gre_proto)
 {
 	struct net *net = dev_net(dev);
 	int link = dev->ifindex;
@@ -233,8 +247,10 @@ static struct ip_tunnel *ipgre_tunnel_lookup(struct net_device *dev,
 	for_each_ip_tunnel_rcu(ign->tunnels_r_l[h0 ^ h1]) {
 		if (local != t->parms.iph.saddr ||
 		    remote != t->parms.iph.daddr ||
-		    key != t->parms.i_key ||
 		    !(t->dev->flags & IFF_UP))
+			continue;
+
+		if (!ipgre_key_match(&t->parms, flags, key))
 			continue;
 
 		if (t->dev->type != ARPHRD_IPGRE &&
@@ -257,8 +273,10 @@ static struct ip_tunnel *ipgre_tunnel_lookup(struct net_device *dev,
 
 	for_each_ip_tunnel_rcu(ign->tunnels_r[h0 ^ h1]) {
 		if (remote != t->parms.iph.daddr ||
-		    key != t->parms.i_key ||
 		    !(t->dev->flags & IFF_UP))
+			continue;
+
+		if (!ipgre_key_match(&t->parms, flags, key))
 			continue;
 
 		if (t->dev->type != ARPHRD_IPGRE &&
@@ -283,8 +301,10 @@ static struct ip_tunnel *ipgre_tunnel_lookup(struct net_device *dev,
 		if ((local != t->parms.iph.saddr &&
 		     (local != t->parms.iph.daddr ||
 		      !ipv4_is_multicast(local))) ||
-		    key != t->parms.i_key ||
 		    !(t->dev->flags & IFF_UP))
+			continue;
+
+		if (!ipgre_key_match(&t->parms, flags, key))
 			continue;
 
 		if (t->dev->type != ARPHRD_IPGRE &&
@@ -489,6 +509,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	const int code = icmp_hdr(skb)->code;
 	struct ip_tunnel *t;
 	__be16 flags;
+	__be32 key = 0;
 
 	flags = p[0];
 	if (flags&(GRE_CSUM|GRE_KEY|GRE_SEQ|GRE_ROUTING|GRE_VERSION)) {
@@ -504,6 +525,9 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	/* If only 8 bytes returned, keyed message will be dropped here */
 	if (skb_headlen(skb) < grehlen)
 		return;
+
+	if (flags & GRE_KEY)
+		key = *(((__be32 *)p) + (grehlen / 4) - 1);
 
 	switch (type) {
 	default:
@@ -535,9 +559,8 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 
 	rcu_read_lock();
 	t = ipgre_tunnel_lookup(skb->dev, iph->daddr, iph->saddr,
-				flags & GRE_KEY ?
-				*(((__be32 *)p) + (grehlen / 4) - 1) : 0,
-				p[1]);
+				flags, key, p[1]);
+
 	if (t == NULL)
 		goto out;
 
@@ -642,9 +665,10 @@ static int ipgre_rcv(struct sk_buff *skb)
 	gre_proto = *(__be16 *)(h + 2);
 
 	rcu_read_lock();
-	if ((tunnel = ipgre_tunnel_lookup(skb->dev,
-					  iph->saddr, iph->daddr, key,
-					  gre_proto))) {
+	tunnel = ipgre_tunnel_lookup(skb->dev,
+				     iph->saddr, iph->daddr, flags, key,
+				     gre_proto);
+	if (tunnel) {
 		struct pcpu_tstats *tstats;
 
 		secpath_reset(skb);
