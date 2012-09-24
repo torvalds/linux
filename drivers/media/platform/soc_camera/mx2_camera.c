@@ -1655,6 +1655,7 @@ static int __devinit mx27_camera_emma_init(struct platform_device *pdev)
 	irq_emma = platform_get_irq(pdev, 1);
 	if (!res_emma || !irq_emma) {
 		dev_err(pcdev->dev, "no EMMA resources\n");
+		err = -ENODEV;
 		goto out;
 	}
 
