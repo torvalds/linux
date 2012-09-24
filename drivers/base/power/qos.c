@@ -24,32 +24,26 @@
  *  . a system-wide notification callback using the dev_pm_qos_*_global_notifier
  *    API. The notification chain data is stored in a static variable.
  *
- * Notes about the per-device constraint data struct allocation:
- * . The per-device constraints data struct ptr is stored into the device
+ * Note about the per-device constraint data struct allocation:
+ * . The per-device constraints data struct ptr is tored into the device
  *    dev_pm_info.
  * . To minimize the data usage by the per-device constraints, the data struct
- *    is only allocated at the first call to dev_pm_qos_add_request.
+ *   is only allocated at the first call to dev_pm_qos_add_request.
  * . The data is later free'd when the device is removed from the system.
- *
- * Notes about locking:
- * . The dev->power.lock lock protects the constraints list
- *    (dev->power.constraints) allocation and free, as triggered by the
- *   driver core code at device insertion and removal,
- * . A global lock dev_pm_qos_lock protects the constraints list entries
- *    from any modification and the notifiers registration and unregistration.
- * . For both locks a spinlock is needed since this code can be called from
- *    interrupt context or spinlock protected context.
+ *  . A global mutex protects the constraints users from the data being
+ *     allocated and free'd.
  */
 
 #include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 #include <linux/export.h>
 
 #include "power.h"
 
-static DEFINE_SPINLOCK(dev_pm_qos_lock);
+static DEFINE_MUTEX(dev_pm_qos_mtx);
 
 static BLOCKING_NOTIFIER_HEAD(dev_pm_notifiers);
 
@@ -116,19 +110,18 @@ static int apply_constraint(struct dev_pm_qos_request *req,
  * @dev: device to allocate data for
  *
  * Called at the first call to add_request, for constraint data allocation
- * Must be called with the dev_pm_qos_lock lock held
+ * Must be called with the dev_pm_qos_mtx mutex held
  */
 static int dev_pm_qos_constraints_allocate(struct device *dev)
 {
 	struct pm_qos_constraints *c;
 	struct blocking_notifier_head *n;
-	unsigned long flags;
 
-	c = kzalloc(sizeof(*c), GFP_ATOMIC);
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return -ENOMEM;
 
-	n = kzalloc(sizeof(*n), GFP_ATOMIC);
+	n = kzalloc(sizeof(*n), GFP_KERNEL);
 	if (!n) {
 		kfree(c);
 		return -ENOMEM;
@@ -141,9 +134,9 @@ static int dev_pm_qos_constraints_allocate(struct device *dev)
 	c->type = PM_QOS_MIN;
 	c->notifiers = n;
 
-	spin_lock_irqsave(&dev->power.lock, flags);
+	spin_lock_irq(&dev->power.lock);
 	dev->power.constraints = c;
-	spin_unlock_irqrestore(&dev->power.lock, flags);
+	spin_unlock_irq(&dev->power.lock);
 
 	return 0;
 }
@@ -157,12 +150,10 @@ static int dev_pm_qos_constraints_allocate(struct device *dev)
  */
 void dev_pm_qos_constraints_init(struct device *dev)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev_pm_qos_lock, flags);
+	mutex_lock(&dev_pm_qos_mtx);
 	dev->power.constraints = NULL;
 	dev->power.power_state = PMSG_ON;
-	spin_unlock_irqrestore(&dev_pm_qos_lock, flags);
+	mutex_unlock(&dev_pm_qos_mtx);
 }
 
 /**
@@ -175,7 +166,6 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 {
 	struct dev_pm_qos_request *req, *tmp;
 	struct pm_qos_constraints *c;
-	unsigned long flags;
 
 	/*
 	 * If the device's PM QoS resume latency limit has been exposed to user
@@ -183,7 +173,7 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 	 */
 	dev_pm_qos_hide_latency_limit(dev);
 
-	spin_lock_irqsave(&dev_pm_qos_lock, flags);
+	mutex_lock(&dev_pm_qos_mtx);
 
 	dev->power.power_state = PMSG_INVALID;
 	c = dev->power.constraints;
@@ -208,7 +198,7 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 	kfree(c);
 
  out:
-	spin_unlock_irqrestore(&dev_pm_qos_lock, flags);
+	mutex_unlock(&dev_pm_qos_mtx);
 }
 
 /**
@@ -233,7 +223,6 @@ int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 			   s32 value)
 {
 	int ret = 0;
-	unsigned long flags;
 
 	if (!dev || !req) /*guard against callers passing in null */
 		return -EINVAL;
@@ -244,7 +233,7 @@ int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 
 	req->dev = dev;
 
-	spin_lock_irqsave(&dev_pm_qos_lock, flags);
+	mutex_lock(&dev_pm_qos_mtx);
 
 	if (!dev->power.constraints) {
 		if (dev->power.power_state.event == PM_EVENT_INVALID) {
@@ -266,7 +255,7 @@ int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 		ret = apply_constraint(req, PM_QOS_ADD_REQ, value);
 
  out:
-	spin_unlock_irqrestore(&dev_pm_qos_lock, flags);
+	mutex_unlock(&dev_pm_qos_mtx);
 
 	return ret;
 }
@@ -291,7 +280,6 @@ int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 			      s32 new_value)
 {
 	int ret = 0;
-	unsigned long flags;
 
 	if (!req) /*guard against callers passing in null */
 		return -EINVAL;
@@ -300,7 +288,7 @@ int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 		 "%s() called for unknown object\n", __func__))
 		return -EINVAL;
 
-	spin_lock_irqsave(&dev_pm_qos_lock, flags);
+	mutex_lock(&dev_pm_qos_mtx);
 
 	if (req->dev->power.constraints) {
 		if (new_value != req->node.prio)
@@ -311,7 +299,7 @@ int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 		ret = -ENODEV;
 	}
 
-	spin_unlock_irqrestore(&dev_pm_qos_lock, flags);
+	mutex_unlock(&dev_pm_qos_mtx);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_update_request);
@@ -331,7 +319,6 @@ EXPORT_SYMBOL_GPL(dev_pm_qos_update_request);
 int dev_pm_qos_remove_request(struct dev_pm_qos_request *req)
 {
 	int ret = 0;
-	unsigned long flags;
 
 	if (!req) /*guard against callers passing in null */
 		return -EINVAL;
@@ -340,7 +327,7 @@ int dev_pm_qos_remove_request(struct dev_pm_qos_request *req)
 		 "%s() called for unknown object\n", __func__))
 		return -EINVAL;
 
-	spin_lock_irqsave(&dev_pm_qos_lock, flags);
+	mutex_lock(&dev_pm_qos_mtx);
 
 	if (req->dev->power.constraints) {
 		ret = apply_constraint(req, PM_QOS_REMOVE_REQ,
@@ -351,7 +338,7 @@ int dev_pm_qos_remove_request(struct dev_pm_qos_request *req)
 		ret = -ENODEV;
 	}
 
-	spin_unlock_irqrestore(&dev_pm_qos_lock, flags);
+	mutex_unlock(&dev_pm_qos_mtx);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_remove_request);
@@ -372,9 +359,8 @@ EXPORT_SYMBOL_GPL(dev_pm_qos_remove_request);
 int dev_pm_qos_add_notifier(struct device *dev, struct notifier_block *notifier)
 {
 	int ret = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_pm_qos_lock, flags);
+	mutex_lock(&dev_pm_qos_mtx);
 
 	if (!dev->power.constraints)
 		ret = dev->power.power_state.event != PM_EVENT_INVALID ?
@@ -384,7 +370,7 @@ int dev_pm_qos_add_notifier(struct device *dev, struct notifier_block *notifier)
 		ret = blocking_notifier_chain_register(
 				dev->power.constraints->notifiers, notifier);
 
-	spin_unlock_irqrestore(&dev_pm_qos_lock, flags);
+	mutex_unlock(&dev_pm_qos_mtx);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_notifier);
@@ -403,9 +389,8 @@ int dev_pm_qos_remove_notifier(struct device *dev,
 			       struct notifier_block *notifier)
 {
 	int retval = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_pm_qos_lock, flags);
+	mutex_lock(&dev_pm_qos_mtx);
 
 	/* Silently return if the constraints object is not present. */
 	if (dev->power.constraints)
@@ -413,7 +398,7 @@ int dev_pm_qos_remove_notifier(struct device *dev,
 				dev->power.constraints->notifiers,
 				notifier);
 
-	spin_unlock_irqrestore(&dev_pm_qos_lock, flags);
+	mutex_unlock(&dev_pm_qos_mtx);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_remove_notifier);
