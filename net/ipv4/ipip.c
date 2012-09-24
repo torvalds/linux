@@ -365,8 +365,6 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	}
 
 	err = -ENOENT;
-
-	rcu_read_lock();
 	t = ipip_tunnel_lookup(dev_net(skb->dev), iph->daddr, iph->saddr);
 	if (t == NULL)
 		goto out;
@@ -398,7 +396,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 		t->err_count = 1;
 	t->err_time = jiffies;
 out:
-	rcu_read_unlock();
+
 	return err;
 }
 
@@ -416,13 +414,11 @@ static int ipip_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph = ip_hdr(skb);
 
-	rcu_read_lock();
 	tunnel = ipip_tunnel_lookup(dev_net(skb->dev), iph->saddr, iph->daddr);
 	if (tunnel != NULL) {
 		struct pcpu_tstats *tstats;
 
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-			rcu_read_unlock();
 			kfree_skb(skb);
 			return 0;
 		}
@@ -445,11 +441,8 @@ static int ipip_rcv(struct sk_buff *skb)
 		ipip_ecn_decapsulate(iph, skb);
 
 		netif_rx(skb);
-
-		rcu_read_unlock();
 		return 0;
 	}
-	rcu_read_unlock();
 
 	return -1;
 }
