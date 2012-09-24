@@ -99,7 +99,6 @@ struct s626_private {
 	uint16_t Dacpol;	/* Image of DAC polarity register. */
 	uint8_t TrimSetpoint[12];	/* Images of TrimDAC setpoints */
 	/* Charge Enabled (0 or WRMISC2_CHARGE_ENABLE). */
-	uint16_t WDInterval;	/* Image of MISC2 watchdog interval control bits. */
 	uint32_t I2CAdrs;
 	/* I2C device address for onboard EEPROM (board rev dependent). */
 	/*   short         I2Cards; */
@@ -2665,12 +2664,6 @@ static void s626_initialize(struct comedi_device *dev)
 	 */
 	for (chan = 0; chan < S626_DAC_CHANNELS; chan++)
 		SetDAC(dev, chan, 0);
-
-	/* Init image of watchdog timer interval in WRMISC2.  This image
-	 * maintains the value of the control bits of MISC2 are
-	 * continuously reset to zero as long as the WD timer is disabled.
-	 */
-	devpriv->WDInterval = 0;
 
 	/* Init Counter Interrupt enab mask for RDMISC2.  This mask is
 	 * applied against MISC2 when testing to determine which timer
