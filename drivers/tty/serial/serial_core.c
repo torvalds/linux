@@ -2129,6 +2129,7 @@ static int uart_poll_init(struct tty_driver *driver, int line, char *options)
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
+	int ret;
 
 	if (!state || !state->uart_port)
 		return -1;
@@ -2136,6 +2137,22 @@ static int uart_poll_init(struct tty_driver *driver, int line, char *options)
 	port = state->uart_port;
 	if (!(port->ops->poll_get_char && port->ops->poll_put_char))
 		return -1;
+
+	if (port->ops->poll_init) {
+		struct tty_port *tport = &state->port;
+
+		ret = 0;
+		mutex_lock(&tport->mutex);
+		/*
+		 * We don't set ASYNCB_INITIALIZED as we only initialized the
+		 * hw, e.g. state->xmit is still uninitialized.
+		 */
+		if (!test_bit(ASYNCB_INITIALIZED, &tport->flags))
+			ret = port->ops->poll_init(port);
+		mutex_unlock(&tport->mutex);
+		if (ret)
+			return ret;
+	}
 
 	if (options) {
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
