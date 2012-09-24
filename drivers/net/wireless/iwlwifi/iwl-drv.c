@@ -64,6 +64,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 
 #include "iwl-drv.h"
 #include "iwl-debug.h"
@@ -164,10 +165,8 @@ struct fw_sec {
 
 static void iwl_free_fw_desc(struct iwl_drv *drv, struct fw_desc *desc)
 {
-	if (desc->v_addr)
-		dma_free_coherent(drv->trans->dev, desc->len,
-				  desc->v_addr, desc->p_addr);
-	desc->v_addr = NULL;
+	vfree(desc->data);
+	desc->data = NULL;
 	desc->len = 0;
 }
 
@@ -186,21 +185,24 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 }
 
 static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
-		      struct fw_sec *sec)
+			     struct fw_sec *sec)
 {
-	if (!sec || !sec->size) {
-		desc->v_addr = NULL;
-		return -EINVAL;
-	}
+	void *data;
 
-	desc->v_addr = dma_alloc_coherent(drv->trans->dev, sec->size,
-					  &desc->p_addr, GFP_KERNEL);
-	if (!desc->v_addr)
+	desc->data = NULL;
+
+	if (!sec || !sec->size)
+		return -EINVAL;
+
+	data = vmalloc(sec->size);
+	if (!data)
 		return -ENOMEM;
 
 	desc->len = sec->size;
 	desc->offset = sec->offset;
-	memcpy(desc->v_addr, sec->data, sec->size);
+	memcpy(data, sec->data, desc->len);
+	desc->data = data;
+
 	return 0;
 }
 

@@ -124,8 +124,7 @@ struct iwl_ucode_capabilities {
 
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
 struct fw_desc {
-	dma_addr_t p_addr;	/* hardware address */
-	void *v_addr;		/* software address */
+	const void *data;	/* vmalloc'ed data */
 	u32 len;		/* size in bytes */
 	u32 offset;		/* offset in the device */
 };

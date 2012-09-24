@@ -216,7 +216,7 @@ static int iwl_rx_init(struct iwl_trans *trans)
 	rxq->free_count = 0;
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
-	iwlagn_rx_replenish(trans);
+	iwl_rx_replenish(trans);
 
 	iwl_trans_rx_hw_init(trans, rxq);
 
@@ -855,10 +855,8 @@ static int iwl_nic_init(struct iwl_trans *trans)
 
 	iwl_op_mode_nic_config(trans->op_mode);
 
-#ifndef CONFIG_IWLWIFI_IDI
 	/* Allocate the RX queue, or reset if it is already allocated */
 	iwl_rx_init(trans);
-#endif
 
 	/* Allocate or reset and init all Tx and Command queues */
 	if (iwl_tx_init(trans))
@@ -925,13 +923,10 @@ static int iwl_prepare_card_hw(struct iwl_trans *trans)
 /*
  * ucode
  */
-static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
-			    const struct fw_desc *section)
+static int iwl_load_firmware_chunk(struct iwl_trans *trans, u32 dst_addr,
+				   dma_addr_t phy_addr, u32 byte_cnt)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	dma_addr_t phy_addr = section->p_addr;
-	u32 byte_cnt = section->len;
-	u32 dst_addr = section->offset;
 	int ret;
 
 	trans_pcie->ucode_write_complete = false;
@@ -945,8 +940,8 @@ static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
 			   dst_addr);
 
 	iwl_write_direct32(trans,
-		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
-		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
+			   FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
+			   phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
 
 	iwl_write_direct32(trans,
 			   FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL),
@@ -965,33 +960,64 @@ static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
 			   FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
 			   FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
-	IWL_DEBUG_FW(trans, "[%d] uCode section being loaded...\n",
-		     section_num);
 	ret = wait_event_timeout(trans_pcie->ucode_write_waitq,
 				 trans_pcie->ucode_write_complete, 5 * HZ);
 	if (!ret) {
-		IWL_ERR(trans, "Could not load the [%d] uCode section\n",
-			section_num);
+		IWL_ERR(trans, "Failed to load firmware chunk!\n");
 		return -ETIMEDOUT;
 	}
 
 	return 0;
 }
 
+static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
+			    const struct fw_desc *section)
+{
+	u8 *v_addr;
+	dma_addr_t p_addr;
+	u32 offset;
+	int ret = 0;
+
+	IWL_DEBUG_FW(trans, "[%d] uCode section being loaded...\n",
+		     section_num);
+
+	v_addr = dma_alloc_coherent(trans->dev, PAGE_SIZE, &p_addr, GFP_KERNEL);
+	if (!v_addr)
+		return -ENOMEM;
+
+	for (offset = 0; offset < section->len; offset += PAGE_SIZE) {
+		u32 copy_size;
+
+		copy_size = min_t(u32, PAGE_SIZE, section->len - offset);
+
+		memcpy(v_addr, (u8 *)section->data + offset, copy_size);
+		ret = iwl_load_firmware_chunk(trans, section->offset + offset,
+					      p_addr, copy_size);
+		if (ret) {
+			IWL_ERR(trans,
+				"Could not load the [%d] uCode section\n",
+				section_num);
+			break;
+		}
+	}
+
+	dma_free_coherent(trans->dev, PAGE_SIZE, v_addr, p_addr);
+	return ret;
+}
+
 static int iwl_load_given_ucode(struct iwl_trans *trans,
 				const struct fw_img *image)
 {
-	int ret = 0;
-		int i;
+	int i, ret = 0;
 
-		for (i = 0; i < IWL_UCODE_SECTION_MAX; i++) {
-			if (!image->sec[i].p_addr)
-				break;
+	for (i = 0; i < IWL_UCODE_SECTION_MAX; i++) {
+		if (!image->sec[i].data)
+			break;
 
-			ret = iwl_load_section(trans, i, &image->sec[i]);
-			if (ret)
-				return ret;
-		}
+		ret = iwl_load_section(trans, i, &image->sec[i]);
+		if (ret)
+			return ret;
+	}
 
 	/* Remove all resets to allow NIC to operate */
 	iwl_write32(trans, CSR_RESET, 0);
@@ -1184,9 +1210,8 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	 */
 	if (test_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status)) {
 		iwl_trans_tx_stop(trans);
-#ifndef CONFIG_IWLWIFI_IDI
 		iwl_trans_rx_stop(trans);
-#endif
+
 		/* Power-down device's busmaster DMA clocks */
 		iwl_write_prph(trans, APMG_CLK_DIS_REG,
 			       APMG_CLK_VAL_DMA_CLK_RQT);
@@ -1456,13 +1481,15 @@ static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans,
 	bool hw_rfkill;
 	unsigned long flags;
 
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
+	iwl_disable_interrupts(trans);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
+
 	iwl_apm_stop(trans);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwl_disable_interrupts(trans);
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
-
-	iwl_write32(trans, CSR_INT, 0xFFFFFFFF);
 
 	if (!op_mode_leaving) {
 		/*
@@ -1551,9 +1578,8 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	iwl_trans_pcie_tx_free(trans);
-#ifndef CONFIG_IWLWIFI_IDI
 	iwl_trans_pcie_rx_free(trans);
-#endif
+
 	if (trans_pcie->irq_requested == true) {
 		free_irq(trans_pcie->irq, trans);
 		iwl_free_isr_ict(trans);
