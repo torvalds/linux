@@ -377,6 +377,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 		port = VIDEO_DIP_PORT_C;
 		break;
 	default:
+		BUG();
 		return;
 	}
 
@@ -435,6 +436,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 		port = VIDEO_DIP_PORT_D;
 		break;
 	default:
+		BUG();
 		return;
 	}
 
