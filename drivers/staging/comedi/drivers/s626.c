@@ -2437,6 +2437,33 @@ static void CountersInit(struct comedi_device *dev)
 	}
 }
 
+static int s626_allocate_dma_buffers(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	void *addr;
+	dma_addr_t appdma;
+
+	devpriv->allocatedBuf = 0;
+
+	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
+	if (!addr)
+		return -ENOMEM;
+	devpriv->ANABuf.LogicalBase = addr;
+	devpriv->ANABuf.PhysicalBase = appdma;
+
+	devpriv->allocatedBuf++;
+
+	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
+	if (!addr)
+		return -ENOMEM;
+	devpriv->RPSBuf.LogicalBase = addr;
+	devpriv->RPSBuf.PhysicalBase = appdma;
+
+	devpriv->allocatedBuf++;
+
+	return 0;
+}
+
 static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 {
 /*   uint8_t	PollList; */
@@ -2446,7 +2473,6 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 /*   unsigned int data[16]; */
 	int i;
 	int ret;
-	dma_addr_t appdma;
 	struct comedi_subdevice *s;
 
 	comedi_set_hw_dev(dev, &pcidev->dev);
@@ -2473,32 +2499,9 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 	/* DMA FIXME DMA// */
 
-	/* adc buffer allocation */
-	devpriv->allocatedBuf = 0;
-
-	devpriv->ANABuf.LogicalBase =
-		pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
-
-	if (devpriv->ANABuf.LogicalBase == NULL) {
-		printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
-		return -ENOMEM;
-	}
-
-	devpriv->ANABuf.PhysicalBase = appdma;
-
-	devpriv->allocatedBuf++;
-
-	devpriv->RPSBuf.LogicalBase =
-		pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
-
-	if (devpriv->RPSBuf.LogicalBase == NULL) {
-		printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
-		return -ENOMEM;
-	}
-
-	devpriv->RPSBuf.PhysicalBase = appdma;
-
-	devpriv->allocatedBuf++;
+	ret = s626_allocate_dma_buffers(dev);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
