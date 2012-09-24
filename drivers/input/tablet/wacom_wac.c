@@ -606,7 +606,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 				input_report_abs(input, ABS_WHEEL, 0);
 			}
 
-			if (data[2] | (data[3] & 0x01) | data[4]) {
+			if (data[2] | (data[3] & 0x01) | data[4] | data[5]) {
 				input_report_key(input, wacom->tool[1], 1);
 				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
 			} else {
