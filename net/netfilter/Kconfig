@@ -648,6 +648,16 @@ config NETFILTER_XT_TARGET_MARK
 	(e.g. when running oldconfig). It selects
 	CONFIG_NETFILTER_XT_MARK (combined mark/MARK module).
 
+config NETFILTER_XT_TARGET_NETMAP
+	tristate '"NETMAP" target support'
+	depends on NF_NAT
+	---help---
+	NETMAP is an implementation of static 1:1 NAT mapping of network
+	addresses. It maps the network address part, while keeping the host
+	address part intact.
+
+	To compile it as a module, choose M here. If unsure, say N.
+
 config NETFILTER_XT_TARGET_NFLOG
 	tristate '"NFLOG" target support'
 	default m if NETFILTER_ADVANCED=n
@@ -679,6 +689,17 @@ config NETFILTER_XT_TARGET_RATEEST
 	  used to match on the measured rates.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_REDIRECT
+	tristate "REDIRECT target support"
+	depends on NF_NAT
+	---help---
+	REDIRECT is a special case of NAT: all incoming connections are
+	mapped onto the incoming interface's address, causing the packets to
+	come to the local machine instead of passing through. This is
+	useful for transparent proxies.
+
+	To compile it as a module, choose M here. If unsure, say N.
 
 config NETFILTER_XT_TARGET_TEE
 	tristate '"TEE" - packet cloning to alternate destination'

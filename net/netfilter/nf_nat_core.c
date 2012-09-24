@@ -201,10 +201,8 @@ find_appropriate_src(struct net *net, u16 zone,
 				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 			result->dst = tuple->dst;
 
-			if (in_range(l3proto, l4proto, result, range)) {
-				rcu_read_unlock();
+			if (in_range(l3proto, l4proto, result, range))
 				return 1;
-			}
 		}
 	}
 	return 0;
@@ -480,6 +478,8 @@ static int nf_nat_proto_clean(struct nf_conn *i, void *data)
 	struct nf_conn_nat *nat = nfct_nat(i);
 
 	if (!nat)
+		return 0;
+	if (!(i->status & IPS_SRC_NAT_DONE))
 		return 0;
 	if ((clean->l3proto && nf_ct_l3num(i) != clean->l3proto) ||
 	    (clean->l4proto && nf_ct_protonum(i) != clean->l4proto))
