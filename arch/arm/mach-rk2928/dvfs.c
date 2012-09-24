@@ -904,6 +904,7 @@ int dvfs_scale_volt_direct(struct vd_node *vd_clk, int volt_new)
 	DVFS_DBG("ENTER %s, volt=%d(old=%d)\n", __func__, volt_new, vd_clk->cur_volt);
 	if (!IS_ERR_OR_NULL(vd_clk->regulator)) {
 		ret = dvfs_regulator_set_voltage_readback(vd_clk->regulator, volt_new, volt_new);
+		udelay(get_volt_up_delay(volt_new, vd_clk->cur_volt));
 		if (ret < 0) {
 			vd_clk->volt_set_flag = DVFS_SET_VOLT_FAILURE;
 			DVFS_ERR("%s %s set voltage up err ret = %d, Vnew = %d(was %d)mV\n", 
