@@ -141,7 +141,11 @@ EXPORT_SYMBOL_GPL(vga_default_device);
 
 void vga_set_default_device(struct pci_dev *pdev)
 {
-	vga_default = pdev;
+	if (vga_default == pdev)
+		return;
+
+	pci_dev_put(vga_default);
+	vga_default = pci_dev_get(pdev);
 }
 #endif
 
@@ -577,7 +581,7 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 #ifndef __ARCH_HAS_VGA_DEFAULT_DEVICE
 	if (vga_default == NULL &&
 	    ((vgadev->owns & VGA_RSRC_LEGACY_MASK) == VGA_RSRC_LEGACY_MASK))
-		vga_default = pci_dev_get(pdev);
+		vga_set_default_device(pdev);
 #endif
 
 	vga_arbiter_check_bridge_sharing(vgadev);
@@ -613,10 +617,8 @@ static bool vga_arbiter_del_pci_device(struct pci_dev *pdev)
 	}
 
 #ifndef __ARCH_HAS_VGA_DEFAULT_DEVICE
-	if (vga_default == pdev) {
-		pci_dev_put(vga_default);
-		vga_default = NULL;
-	}
+	if (vga_default == pdev)
+		vga_set_default_device(NULL);
 #endif
 
 	if (vgadev->decodes & (VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM))
