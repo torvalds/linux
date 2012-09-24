@@ -2848,9 +2848,6 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	s->maxdata = 0xffffff;
 	s->range_table = &range_unknown;
 
-	/* stop ai_command */
-	devpriv->ai_cmd_running = 0;
-
 	s626_initialize(dev);
 
 	return 1;
