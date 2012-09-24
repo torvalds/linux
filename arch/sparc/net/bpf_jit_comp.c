@@ -464,7 +464,11 @@ void bpf_jit_compile(struct sk_filter *fp)
 				emit_alu_K(OR, K);
 				break;
 			case BPF_S_ANC_ALU_XOR_X: /* A ^= X; */
+			case BPF_S_ALU_XOR_X:
 				emit_alu_X(XOR);
+				break;
+			case BPF_S_ALU_XOR_K:	/* A ^= K */
+				emit_alu_K(XOR, K);
 				break;
 			case BPF_S_ALU_LSH_X:	/* A <<= X */
 				emit_alu_X(SLL);
