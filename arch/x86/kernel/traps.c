@@ -258,13 +258,25 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	conditional_sti(regs);
 
 #ifdef CONFIG_X86_32
-	if (regs->flags & X86_VM_MASK)
-		goto gp_in_vm86;
+	if (regs->flags & X86_VM_MASK) {
+		local_irq_enable();
+		handle_vm86_fault((struct kernel_vm86_regs *) regs, error_code);
+		return;
+	}
 #endif
 
 	tsk = current;
-	if (!user_mode(regs))
-		goto gp_in_kernel;
+	if (!user_mode(regs)) {
+		if (fixup_exception(regs))
+			return;
+
+		tsk->thread.error_code = error_code;
+		tsk->thread.trap_nr = X86_TRAP_GP;
+		if (!notify_die(DIE_GPF, "general protection fault", regs, error_code,
+			       X86_TRAP_GP, SIGSEGV) == NOTIFY_STOP)
+			die("general protection fault", regs, error_code);
+		return;
+	}
 
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_nr = X86_TRAP_GP;
@@ -280,24 +292,6 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	force_sig(SIGSEGV, tsk);
 	return;
-
-#ifdef CONFIG_X86_32
-gp_in_vm86:
-	local_irq_enable();
-	handle_vm86_fault((struct kernel_vm86_regs *) regs, error_code);
-	return;
-#endif
-
-gp_in_kernel:
-	if (fixup_exception(regs))
-		return;
-
-	tsk->thread.error_code = error_code;
-	tsk->thread.trap_nr = X86_TRAP_GP;
-	if (notify_die(DIE_GPF, "general protection fault", regs, error_code,
-			X86_TRAP_GP, SIGSEGV) == NOTIFY_STOP)
-		return;
-	die("general protection fault", regs, error_code);
 }
 
 /* May run on IST stack. */
