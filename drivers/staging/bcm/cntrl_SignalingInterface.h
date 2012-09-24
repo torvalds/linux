@@ -34,12 +34,7 @@
 #define NUM_ETHERTYPE_BYTES		3
 #define NUM_IPV6_FLOWLABLE_BYTES	3
 
-/*
- * structure Definitions
- *
- * brief class cCPacketClassificationRule
- */
-struct _stCPacketClassificationRuleSI {
+struct bcm_packet_class_rules {
 	/* 16bit UserPriority Of The Service Flow */
 	B_UINT16 u16UserPriority;
 	/* 16bit VLANID Of The Service Flow */
@@ -96,7 +91,6 @@ struct _stCPacketClassificationRuleSI {
 	B_UINT8 u8ClassifierActionRule;
 	B_UINT16 u16ValidityBitMap;
 };
-typedef struct _stCPacketClassificationRuleSI CCPacketClassificationRuleSI, stCPacketClassificationRuleSI, *pstCPacketClassificationRuleSI;
 
 struct bcm_phs_rules {
 	/* 8bit PHS Index Of The Service Flow */
@@ -127,8 +121,8 @@ struct bcm_convergence_types {
 	B_UINT8 u8PhsDSCAction;
 	/* 16bit Padding */
 	B_UINT8 u8Padding[2];
-	/* brief class cCPacketClassificationRule */
-	stCPacketClassificationRuleSI cCPacketClassificationRule;
+	/* Packet classification rules structure */
+	struct bcm_packet_class_rules cCPacketClassificationRule;
 	/* Payload header suppression rules structure */
 	struct bcm_phs_rules cPhsRule;
 };
