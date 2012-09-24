@@ -80,7 +80,6 @@ INSN_CONFIG instructions:
 
 struct s626_private {
 	void __iomem *base_addr;
-	short allocatedBuf;
 	uint8_t ai_cmd_running;	/*  ai_cmd is running */
 	uint8_t ai_continous;	/*  continous acquisition */
 	int ai_sample_count;	/*  number of samples to acquire */
@@ -2443,23 +2442,17 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 	void *addr;
 	dma_addr_t appdma;
 
-	devpriv->allocatedBuf = 0;
-
 	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
 	if (!addr)
 		return -ENOMEM;
 	devpriv->ANABuf.LogicalBase = addr;
 	devpriv->ANABuf.PhysicalBase = appdma;
 
-	devpriv->allocatedBuf++;
-
 	addr = pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
 	if (!addr)
 		return -ENOMEM;
 	devpriv->RPSBuf.LogicalBase = addr;
 	devpriv->RPSBuf.PhysicalBase = appdma;
-
-	devpriv->allocatedBuf++;
 
 	return 0;
 }
@@ -2471,117 +2464,116 @@ static void s626_initialize(struct comedi_device *dev)
 /*   uint16_t	StartVal; */
 /*   uint16_t	index; */
 /*   unsigned int data[16]; */
+	dma_addr_t pPhysBuf;
+	uint16_t chan;
 	int i;
 
-	if (devpriv->allocatedBuf == 2) {
-		dma_addr_t pPhysBuf;
-		uint16_t chan;
 
-		/*  enab DEBI and audio pins, enable I2C interface. */
-		MC_ENABLE(P_MC1, MC1_DEBI | MC1_AUDIO | MC1_I2C);
-		/*  Configure DEBI operating mode. */
-		WR7146(P_DEBICFG, DEBI_CFG_SLAVE16	/*  Local bus is 16 */
-		       /*  bits wide. */
-		       | (DEBI_TOUT << DEBI_CFG_TOUT_BIT)
+	/*  enab DEBI and audio pins, enable I2C interface. */
+	MC_ENABLE(P_MC1, MC1_DEBI | MC1_AUDIO | MC1_I2C);
+	/*  Configure DEBI operating mode. */
+	WR7146(P_DEBICFG, DEBI_CFG_SLAVE16	/*  Local bus is 16 */
+	       /*  bits wide. */
+	       | (DEBI_TOUT << DEBI_CFG_TOUT_BIT)
 
-		       /*  Declare DEBI */
-		       /*  transfer timeout */
-		       /*  interval. */
-		       |DEBI_SWAP	/*  Set up byte lane */
-		       /*  steering. */
-		       | DEBI_CFG_INTEL);	/*  Intel-compatible */
-		/*  local bus (DEBI */
-		/*  never times out). */
+	       /*  Declare DEBI */
+	       /*  transfer timeout */
+	       /*  interval. */
+	       |DEBI_SWAP	/*  Set up byte lane */
+	       /*  steering. */
+	       | DEBI_CFG_INTEL);	/*  Intel-compatible */
+	/*  local bus (DEBI */
+	/*  never times out). */
 
-		/* DEBI INIT S626 WR7146( P_DEBICFG, DEBI_CFG_INTEL | DEBI_CFG_TOQ */
-		/* | DEBI_CFG_INCQ| DEBI_CFG_16Q); //end */
+	/* DEBI INIT S626 WR7146( P_DEBICFG, DEBI_CFG_INTEL | DEBI_CFG_TOQ */
+	/* | DEBI_CFG_INCQ| DEBI_CFG_16Q); //end */
 
-		/*  Paging is disabled. */
-		WR7146(P_DEBIPAGE, DEBI_PAGE_DISABLE);	/*  Disable MMU paging. */
+	/*  Paging is disabled. */
+	WR7146(P_DEBIPAGE, DEBI_PAGE_DISABLE);	/*  Disable MMU paging. */
 
-		/*  Init GPIO so that ADC Start* is negated. */
-		WR7146(P_GPIO, GPIO_BASE | GPIO1_HI);
+	/*  Init GPIO so that ADC Start* is negated. */
+	WR7146(P_GPIO, GPIO_BASE | GPIO1_HI);
 
-		/* IsBoardRevA is a boolean that indicates whether the board is RevA.
-		 *
-		 * VERSION 2.01 CHANGE: REV A & B BOARDS NOW SUPPORTED BY DYNAMIC
-		 * EEPROM ADDRESS SELECTION.  Initialize the I2C interface, which
-		 * is used to access the onboard serial EEPROM.  The EEPROM's I2C
-		 * DeviceAddress is hardwired to a value that is dependent on the
-		 * 626 board revision.  On all board revisions, the EEPROM stores
-		 * TrimDAC calibration constants for analog I/O.  On RevB and
-		 * higher boards, the DeviceAddress is hardwired to 0 to enable
-		 * the EEPROM to also store the PCI SubVendorID and SubDeviceID;
-		 * this is the address at which the SAA7146 expects a
-		 * configuration EEPROM to reside.  On RevA boards, the EEPROM
-		 * device address, which is hardwired to 4, prevents the SAA7146
-		 * from retrieving PCI sub-IDs, so the SAA7146 uses its built-in
-		 * default values, instead.
-		 */
+	/* IsBoardRevA is a boolean that indicates whether the board is RevA.
+	 *
+	 * VERSION 2.01 CHANGE: REV A & B BOARDS NOW SUPPORTED BY DYNAMIC
+	 * EEPROM ADDRESS SELECTION.  Initialize the I2C interface, which
+	 * is used to access the onboard serial EEPROM.  The EEPROM's I2C
+	 * DeviceAddress is hardwired to a value that is dependent on the
+	 * 626 board revision.  On all board revisions, the EEPROM stores
+	 * TrimDAC calibration constants for analog I/O.  On RevB and
+	 * higher boards, the DeviceAddress is hardwired to 0 to enable
+	 * the EEPROM to also store the PCI SubVendorID and SubDeviceID;
+	 * this is the address at which the SAA7146 expects a
+	 * configuration EEPROM to reside.  On RevA boards, the EEPROM
+	 * device address, which is hardwired to 4, prevents the SAA7146
+	 * from retrieving PCI sub-IDs, so the SAA7146 uses its built-in
+	 * default values, instead.
+	 */
 
-		/*     devpriv->I2Cards= IsBoardRevA ? 0xA8 : 0xA0; // Set I2C EEPROM */
-		/*  DeviceType (0xA0) */
-		/*  and DeviceAddress<<1. */
+	/*     devpriv->I2Cards= IsBoardRevA ? 0xA8 : 0xA0; // Set I2C EEPROM */
+	/*  DeviceType (0xA0) */
+	/*  and DeviceAddress<<1. */
 
-		devpriv->I2CAdrs = 0xA0;	/*  I2C device address for onboard */
-		/*  eeprom(revb) */
+	devpriv->I2CAdrs = 0xA0;	/*  I2C device address for onboard */
+	/*  eeprom(revb) */
 
-		/*  Issue an I2C ABORT command to halt any I2C operation in */
-		/* progress and reset BUSY flag. */
-		WR7146(P_I2CSTAT, I2C_CLKSEL | I2C_ABORT);
-		/*  Write I2C control: abort any I2C activity. */
-		MC_ENABLE(P_MC2, MC2_UPLD_IIC);
-		/*  Invoke command  upload */
-		while ((RR7146(P_MC2) & MC2_UPLD_IIC) == 0)
+	/*  Issue an I2C ABORT command to halt any I2C operation in */
+	/* progress and reset BUSY flag. */
+	WR7146(P_I2CSTAT, I2C_CLKSEL | I2C_ABORT);
+	/*  Write I2C control: abort any I2C activity. */
+	MC_ENABLE(P_MC2, MC2_UPLD_IIC);
+	/*  Invoke command  upload */
+	while ((RR7146(P_MC2) & MC2_UPLD_IIC) == 0)
+		;
+	/*  and wait for upload to complete. */
+
+	/* Per SAA7146 data sheet, write to STATUS reg twice to
+	 * reset all  I2C error flags. */
+	for (i = 0; i < 2; i++) {
+		WR7146(P_I2CSTAT, I2C_CLKSEL);
+		/*  Write I2C control: reset  error flags. */
+		MC_ENABLE(P_MC2, MC2_UPLD_IIC);	/*  Invoke command upload */
+		while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
 			;
-		/*  and wait for upload to complete. */
+		/* and wait for upload to complete. */
+	}
 
-		/* Per SAA7146 data sheet, write to STATUS reg twice to
-		 * reset all  I2C error flags. */
-		for (i = 0; i < 2; i++) {
-			WR7146(P_I2CSTAT, I2C_CLKSEL);
-			/*  Write I2C control: reset  error flags. */
-			MC_ENABLE(P_MC2, MC2_UPLD_IIC);	/*  Invoke command upload */
-			while (!MC_TEST(P_MC2, MC2_UPLD_IIC))
-				;
-			/* and wait for upload to complete. */
-		}
+	/* Init audio interface functional attributes: set DAC/ADC
+	 * serial clock rates, invert DAC serial clock so that
+	 * DAC data setup times are satisfied, enable DAC serial
+	 * clock out.
+	 */
 
-		/* Init audio interface functional attributes: set DAC/ADC
-		 * serial clock rates, invert DAC serial clock so that
-		 * DAC data setup times are satisfied, enable DAC serial
-		 * clock out.
-		 */
+	WR7146(P_ACON2, ACON2_INIT);
 
-		WR7146(P_ACON2, ACON2_INIT);
+	/* Set up TSL1 slot list, which is used to control the
+	 * accumulation of ADC data: RSD1 = shift data in on SD1.
+	 * SIB_A1  = store data uint8_t at next available location in
+	 * FB BUFFER1  register. */
+	WR7146(P_TSL1, RSD1 | SIB_A1);
+	/*  Fetch ADC high data uint8_t. */
+	WR7146(P_TSL1 + 4, RSD1 | SIB_A1 | EOS);
+	/*  Fetch ADC low data uint8_t; end of TSL1. */
 
-		/* Set up TSL1 slot list, which is used to control the
-		 * accumulation of ADC data: RSD1 = shift data in on SD1.
-		 * SIB_A1  = store data uint8_t at next available location in
-		 * FB BUFFER1  register. */
-		WR7146(P_TSL1, RSD1 | SIB_A1);
-		/*  Fetch ADC high data uint8_t. */
-		WR7146(P_TSL1 + 4, RSD1 | SIB_A1 | EOS);
-		/*  Fetch ADC low data uint8_t; end of TSL1. */
+	/*  enab TSL1 slot list so that it executes all the time. */
+	WR7146(P_ACON1, ACON1_ADCSTART);
 
-		/*  enab TSL1 slot list so that it executes all the time. */
-		WR7146(P_ACON1, ACON1_ADCSTART);
+	/*  Initialize RPS registers used for ADC. */
 
-		/*  Initialize RPS registers used for ADC. */
+	/* Physical start of RPS program. */
+	WR7146(P_RPSADDR1, (uint32_t) devpriv->RPSBuf.PhysicalBase);
 
-		/* Physical start of RPS program. */
-		WR7146(P_RPSADDR1, (uint32_t) devpriv->RPSBuf.PhysicalBase);
+	WR7146(P_RPSPAGE1, 0);
+	/*  RPS program performs no explicit mem writes. */
+	WR7146(P_RPS1_TOUT, 0);	/*  Disable RPS timeouts. */
 
-		WR7146(P_RPSPAGE1, 0);
-		/*  RPS program performs no explicit mem writes. */
-		WR7146(P_RPS1_TOUT, 0);	/*  Disable RPS timeouts. */
-
-		/* SAA7146 BUG WORKAROUND.  Initialize SAA7146 ADC interface
-		 * to a known state by invoking ADCs until FB BUFFER 1
-		 * register shows that it is correctly receiving ADC data.
-		 * This is necessary because the SAA7146 ADC interface does
-		 * not start up in a defined state after a PCI reset.
-		 */
+	/* SAA7146 BUG WORKAROUND.  Initialize SAA7146 ADC interface
+	 * to a known state by invoking ADCs until FB BUFFER 1
+	 * register shows that it is correctly receiving ADC data.
+	 * This is necessary because the SAA7146 ADC interface does
+	 * not start up in a defined state after a PCI reset.
+	 */
 
 /*     PollList = EOPL;		// Create a simple polling */
 /*				// list for analog input */
@@ -2609,124 +2601,121 @@ static void s626_initialize(struct comedi_device *dev)
 /*		break; */
 /*       } */
 
-		/*  end initADC */
+	/*  end initADC */
 
-		/*  init the DAC interface */
+	/*  init the DAC interface */
 
-		/* Init Audio2's output DMAC attributes: burst length = 1
-		 * DWORD,  threshold = 1 DWORD.
-		 */
-		WR7146(P_PCI_BT_A, 0);
+	/* Init Audio2's output DMAC attributes: burst length = 1
+	 * DWORD,  threshold = 1 DWORD.
+	 */
+	WR7146(P_PCI_BT_A, 0);
 
-		/* Init Audio2's output DMA physical addresses.  The protection
-		 * address is set to 1 DWORD past the base address so that a
-		 * single DWORD will be transferred each time a DMA transfer is
-		 * enabled. */
+	/* Init Audio2's output DMA physical addresses.  The protection
+	 * address is set to 1 DWORD past the base address so that a
+	 * single DWORD will be transferred each time a DMA transfer is
+	 * enabled. */
 
-		pPhysBuf =
-		    devpriv->ANABuf.PhysicalBase +
-		    (DAC_WDMABUF_OS * sizeof(uint32_t));
+	pPhysBuf = devpriv->ANABuf.PhysicalBase +
+		   (DAC_WDMABUF_OS * sizeof(uint32_t));
 
-		WR7146(P_BASEA2_OUT, (uint32_t) pPhysBuf);	/*  Buffer base adrs. */
-		WR7146(P_PROTA2_OUT, (uint32_t) (pPhysBuf + sizeof(uint32_t)));	/*  Protection address. */
+	WR7146(P_BASEA2_OUT, (uint32_t) pPhysBuf);	/*  Buffer base adrs. */
+	WR7146(P_PROTA2_OUT, (uint32_t) (pPhysBuf + sizeof(uint32_t)));	/*  Protection address. */
 
-		/* Cache Audio2's output DMA buffer logical address.  This is
-		 * where DAC data is buffered for A2 output DMA transfers. */
-		devpriv->pDacWBuf =
-		    (uint32_t *) devpriv->ANABuf.LogicalBase + DAC_WDMABUF_OS;
+	/* Cache Audio2's output DMA buffer logical address.  This is
+	 * where DAC data is buffered for A2 output DMA transfers. */
+	devpriv->pDacWBuf = (uint32_t *)devpriv->ANABuf.LogicalBase +
+			    DAC_WDMABUF_OS;
 
-		/* Audio2's output channels does not use paging.  The protection
-		 * violation handling bit is set so that the DMAC will
-		 * automatically halt and its PCI address pointer will be reset
-		 * when the protection address is reached. */
+	/* Audio2's output channels does not use paging.  The protection
+	 * violation handling bit is set so that the DMAC will
+	 * automatically halt and its PCI address pointer will be reset
+	 * when the protection address is reached. */
 
-		WR7146(P_PAGEA2_OUT, 8);
+	WR7146(P_PAGEA2_OUT, 8);
 
-		/* Initialize time slot list 2 (TSL2), which is used to control
-		 * the clock generation for and serialization of data to be sent
-		 * to the DAC devices.  Slot 0 is a NOP that is used to trap TSL
-		 * execution; this permits other slots to be safely modified
-		 * without first turning off the TSL sequencer (which is
-		 * apparently impossible to do).  Also, SD3 (which is driven by a
-		 * pull-up resistor) is shifted in and stored to the MSB of
-		 * FB_BUFFER2 to be used as evidence that the slot sequence has
-		 * not yet finished executing.
-		 */
+	/* Initialize time slot list 2 (TSL2), which is used to control
+	 * the clock generation for and serialization of data to be sent
+	 * to the DAC devices.  Slot 0 is a NOP that is used to trap TSL
+	 * execution; this permits other slots to be safely modified
+	 * without first turning off the TSL sequencer (which is
+	 * apparently impossible to do).  Also, SD3 (which is driven by a
+	 * pull-up resistor) is shifted in and stored to the MSB of
+	 * FB_BUFFER2 to be used as evidence that the slot sequence has
+	 * not yet finished executing.
+	 */
 
-		SETVECT(0, XSD2 | RSD3 | SIB_A2 | EOS);
-		/*  Slot 0: Trap TSL execution, shift 0xFF into FB_BUFFER2. */
+	SETVECT(0, XSD2 | RSD3 | SIB_A2 | EOS);
+	/*  Slot 0: Trap TSL execution, shift 0xFF into FB_BUFFER2. */
 
-		/* Initialize slot 1, which is constant.  Slot 1 causes a
-		 * DWORD to be transferred from audio channel 2's output FIFO
-		 * to the FIFO's output buffer so that it can be serialized
-		 * and sent to the DAC during subsequent slots.  All remaining
-		 * slots are dynamically populated as required by the target
-		 * DAC device.
-		 */
-		SETVECT(1, LF_A2);
-		/*  Slot 1: Fetch DWORD from Audio2's output FIFO. */
+	/* Initialize slot 1, which is constant.  Slot 1 causes a
+	 * DWORD to be transferred from audio channel 2's output FIFO
+	 * to the FIFO's output buffer so that it can be serialized
+	 * and sent to the DAC during subsequent slots.  All remaining
+	 * slots are dynamically populated as required by the target
+	 * DAC device.
+	 */
+	SETVECT(1, LF_A2);
+	/*  Slot 1: Fetch DWORD from Audio2's output FIFO. */
 
-		/*  Start DAC's audio interface (TSL2) running. */
-		WR7146(P_ACON1, ACON1_DACSTART);
+	/*  Start DAC's audio interface (TSL2) running. */
+	WR7146(P_ACON1, ACON1_DACSTART);
 
-		/* end init DAC interface */
+	/* end init DAC interface */
 
-		/* Init Trim DACs to calibrated values.  Do it twice because the
-		 * SAA7146 audio channel does not always reset properly and
-		 * sometimes causes the first few TrimDAC writes to malfunction.
-		 */
+	/* Init Trim DACs to calibrated values.  Do it twice because the
+	 * SAA7146 audio channel does not always reset properly and
+	 * sometimes causes the first few TrimDAC writes to malfunction.
+	 */
 
-		LoadTrimDACs(dev);
-		LoadTrimDACs(dev);	/*  Insurance. */
+	LoadTrimDACs(dev);
+	LoadTrimDACs(dev);	/*  Insurance. */
 
-		/* Manually init all gate array hardware in case this is a soft
-		 * reset (we have no way of determining whether this is a warm
-		 * or cold start).  This is necessary because the gate array will
-		 * reset only in response to a PCI hard reset; there is no soft
-		 * reset function. */
+	/* Manually init all gate array hardware in case this is a soft
+	 * reset (we have no way of determining whether this is a warm
+	 * or cold start).  This is necessary because the gate array will
+	 * reset only in response to a PCI hard reset; there is no soft
+	 * reset function. */
 
-		/* Init all DAC outputs to 0V and init all DAC setpoint and
-		 * polarity images.
-		 */
-		for (chan = 0; chan < S626_DAC_CHANNELS; chan++)
-			SetDAC(dev, chan, 0);
+	/* Init all DAC outputs to 0V and init all DAC setpoint and
+	 * polarity images.
+	 */
+	for (chan = 0; chan < S626_DAC_CHANNELS; chan++)
+		SetDAC(dev, chan, 0);
 
-		/* Init image of WRMISC2 Battery Charger Enabled control bit.
-		 * This image is used when the state of the charger control bit,
-		 * which has no direct hardware readback mechanism, is queried.
-		 */
-		devpriv->ChargeEnabled = 0;
+	/* Init image of WRMISC2 Battery Charger Enabled control bit.
+	 * This image is used when the state of the charger control bit,
+	 * which has no direct hardware readback mechanism, is queried.
+	 */
+	devpriv->ChargeEnabled = 0;
 
-		/* Init image of watchdog timer interval in WRMISC2.  This image
-		 * maintains the value of the control bits of MISC2 are
-		 * continuously reset to zero as long as the WD timer is disabled.
-		 */
-		devpriv->WDInterval = 0;
+	/* Init image of watchdog timer interval in WRMISC2.  This image
+	 * maintains the value of the control bits of MISC2 are
+	 * continuously reset to zero as long as the WD timer is disabled.
+	 */
+	devpriv->WDInterval = 0;
 
-		/* Init Counter Interrupt enab mask for RDMISC2.  This mask is
-		 * applied against MISC2 when testing to determine which timer
-		 * events are requesting interrupt service.
-		 */
-		devpriv->CounterIntEnabs = 0;
+	/* Init Counter Interrupt enab mask for RDMISC2.  This mask is
+	 * applied against MISC2 when testing to determine which timer
+	 * events are requesting interrupt service.
+	 */
+	devpriv->CounterIntEnabs = 0;
 
-		/*  Init counters. */
-		CountersInit(dev);
+	/*  Init counters. */
+	CountersInit(dev);
 
-		/* Without modifying the state of the Battery Backup enab, disable
-		 * the watchdog timer, set DIO channels 0-5 to operate in the
-		 * standard DIO (vs. counter overflow) mode, disable the battery
-		 * charger, and reset the watchdog interval selector to zero.
-		 */
-		WriteMISC2(dev, (uint16_t) (DEBIread(dev,
-						     LP_RDMISC2) &
-					    MISC2_BATT_ENABLE));
+	/* Without modifying the state of the Battery Backup enab, disable
+	 * the watchdog timer, set DIO channels 0-5 to operate in the
+	 * standard DIO (vs. counter overflow) mode, disable the battery
+	 * charger, and reset the watchdog interval selector to zero.
+	 */
+	WriteMISC2(dev, (uint16_t)(DEBIread(dev, LP_RDMISC2) &
+				   MISC2_BATT_ENABLE));
 
-		/*  Initialize the digital I/O subsystem. */
-		s626_dio_init(dev);
+	/*  Initialize the digital I/O subsystem. */
+	s626_dio_init(dev);
 
-		/* enable interrupt test */
-		/*  writel(IRQ_GPIO3 | IRQ_RPS1,devpriv->base_addr+P_IER); */
-	}
+	/* enable interrupt test */
+	/*  writel(IRQ_GPIO3 | IRQ_RPS1,devpriv->base_addr+P_IER); */
 }
 
 static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
