@@ -2827,6 +2827,13 @@ static struct module *load_module(void __user *umod,
 	list_add_rcu(&mod->list, &modules);
 	mutex_unlock(&module_mutex);
 
+#ifdef CONFIG_RK_CONFIG
+{
+	extern int module_parse_kernel_cmdline(const char *name, const struct kernel_param *params, unsigned num);
+	module_parse_kernel_cmdline(mod->name, mod->kp, mod->num_kp);
+}
+#endif
+
 	/* Module is ready to execute: parsing args may do that. */
 	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp, NULL);
 	if (err < 0)

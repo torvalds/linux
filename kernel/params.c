@@ -217,6 +217,43 @@ int parse_args(const char *name,
 	return 0;
 }
 
+#ifdef CONFIG_RK_CONFIG
+int module_parse_kernel_cmdline(const char *name, const struct kernel_param *params, unsigned num)
+{
+	int ret;
+	unsigned i;
+	size_t name_len = strlen(name);
+	struct kernel_param new_params[num];
+	char args[strlen(saved_command_line) + 1];
+
+	if (!num)
+		return 0;
+
+	strcpy(args, saved_command_line);
+	memcpy(new_params, params, sizeof(struct kernel_param) * num);
+
+	for (i = 0; i < num; i++)
+		new_params[i].name = NULL;
+	for (i = 0; i < num; i++) {
+		char *new_name = kmalloc(strlen(params[i].name) + name_len + 2, GFP_KERNEL);
+		if (!new_name) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		sprintf(new_name, "%s.%s", name, params[i].name);
+		new_params[i].name = new_name;
+	}
+
+	ret = parse_args(name, args, new_params, num, NULL);
+
+out:
+	for (i = 0; i < num; i++)
+		if (new_params[i].name)
+			kfree(new_params[i].name);
+	return ret;
+}
+#endif
+
 /* Lazy bastard, eh? */
 #define STANDARD_PARAM_DEF(name, type, format, tmptype, strtolfn)      	\
 	int param_set_##name(const char *val, const struct kernel_param *kp) \
