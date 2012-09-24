@@ -213,7 +213,7 @@ const struct baud_table baud_std[] = {
 	{ 0, 0, 0, 0 }
 };
 
-static void sccnxp_set_baud(struct uart_port *port, int baud)
+static int sccnxp_set_baud(struct uart_port *port, int baud)
 {
 	struct sccnxp_port *s = dev_get_drvdata(port->dev);
 	int div_std, tmp_baud, bestbaud = baud, besterr = -1;
@@ -244,8 +244,11 @@ static void sccnxp_set_baud(struct uart_port *port, int baud)
 	sccnxp_port_write(port, SCCNXP_ACR_REG, acr | ACR_TIMER_MODE);
 	sccnxp_port_write(port, SCCNXP_CSR_REG, (csr << 4) | csr);
 
-	dev_dbg(port->dev, "Baudrate desired: %i, calculated: %i\n",
-		baud, bestbaud);
+	if (baud != bestbaud)
+		dev_dbg(port->dev, "Baudrate desired: %i, calculated: %i\n",
+			baud, bestbaud);
+
+	return bestbaud;
 }
 
 static void sccnxp_enable_irq(struct uart_port *port, int mask)
@@ -587,10 +590,13 @@ static void sccnxp_set_termios(struct uart_port *port,
 	baud = uart_get_baud_rate(port, termios, old, 50,
 				  (s->flags & SCCNXP_HAVE_MR0) ?
 				  230400 : 38400);
-	sccnxp_set_baud(port, baud);
+	baud = sccnxp_set_baud(port, baud);
 
 	/* Update timeout according to new baud rate */
 	uart_update_timeout(port, termios->c_cflag, baud);
+
+	if (tty_termios_baud_rate(termios))
+		tty_termios_encode_baud_rate(termios, baud, baud);
 
 	/* Enable RX & TX */
 	sccnxp_port_write(port, SCCNXP_CR_REG, CR_RX_ENABLE | CR_TX_ENABLE);
