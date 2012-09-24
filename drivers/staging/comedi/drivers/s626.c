@@ -1804,6 +1804,9 @@ static int s626_dio_insn_config(struct comedi_device *dev,
 /* Now this function initializes the value of the counter (data[0])
    and set the subdevice. To complete with trigger and interrupt
    configuration */
+/* FIXME: data[0] is supposed to be an INSN_CONFIG_xxx constant indicating
+ * what is being configured, but this function appears to be using data[0]
+ * as a variable. */
 static int s626_enc_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
