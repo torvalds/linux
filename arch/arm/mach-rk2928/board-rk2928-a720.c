@@ -390,7 +390,7 @@ static struct sensor_platform_data mma7660_info = {
 
 
 #if CONFIG_RK30_PWM_REGULATOR
-const static int pwm_voltage_map[] = {
+static int pwm_voltage_map[] = {
 	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
 };
 
@@ -449,7 +449,7 @@ struct platform_device pwm_regulator_device[1] = {
 #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
 
 static void rkusb_wifi_power(int on) {
-	struct regulator *ldo;
+	struct regulator *ldo = NULL;
 	
 #if defined(CONFIG_MFD_TPS65910)	
 	if(g_pmic_type == PMIC_TYPE_TPS65910) {
@@ -613,8 +613,10 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 
 int __sramdata gpio0d4_iomux,gpio0d4_do,gpio0d4_dir;
 
+#ifndef gpio_readl
 #define gpio_readl(offset)	readl_relaxed(RK2928_GPIO0_BASE + offset)
 #define gpio_writel(v, offset)	do { writel_relaxed(v, RK2928_GPIO0_BASE + offset); dsb(); } while (0)
+#endif
 
 void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 {
