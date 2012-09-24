@@ -73,7 +73,6 @@
 #include <linux/slab.h>
 
 #define S626_SIZE 0x0200
-#define SIZEOF_ADDRESS_SPACE		0x0200
 #define DMABUF_SIZE			4096	/*  4k pages */
 
 #define S626_ADC_CHANNELS       16

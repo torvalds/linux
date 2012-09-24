@@ -2446,7 +2446,6 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 /*   unsigned int data[16]; */
 	int i;
 	int ret;
-	resource_size_t resourceStart;
 	dma_addr_t appdma;
 	struct comedi_subdevice *s;
 
@@ -2461,13 +2460,10 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		return ret;
 	dev->iobase = 1;	/* detach needs this */
 
-	resourceStart = pci_resource_start(pcidev, 0);
-
-	devpriv->base_addr = ioremap(resourceStart, SIZEOF_ADDRESS_SPACE);
-	if (devpriv->base_addr == NULL) {
-		printk(KERN_ERR "s626_attach: IOREMAP failed\n");
-		return -ENODEV;
-	}
+	devpriv->base_addr = ioremap(pci_resource_start(pcidev, 0),
+				     pci_resource_len(pcidev, 0));
+	if (!devpriv->base_addr)
+		return -ENOMEM;
 
 	if (devpriv->base_addr) {
 		/* disable master interrupt */
