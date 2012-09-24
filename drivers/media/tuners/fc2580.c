@@ -147,7 +147,7 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 	f_vco = c->frequency;
 	f_vco *= fc2580_pll_lut[i].div;
 
-	if (f_vco >= 2600000000)
+	if (f_vco >= 2600000000UL)
 		tmp_val = 0x0e | fc2580_pll_lut[i].band;
 	else
 		tmp_val = 0x06 | fc2580_pll_lut[i].band;
