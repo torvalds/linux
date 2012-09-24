@@ -1766,20 +1766,18 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int ni_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	unsigned long flags = 0;
+	unsigned long flags;
 	int count;
 
 	/*  lock to avoid race with interrupt handler */
-	if (in_interrupt() == 0)
-		spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 #ifndef PCIDMA
 	ni_handle_fifo_dregs(dev);
 #else
 	ni_sync_ai_dma(dev);
 #endif
 	count = s->async->buf_write_count - s->async->buf_read_count;
-	if (in_interrupt() == 0)
-		spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return count;
 }
