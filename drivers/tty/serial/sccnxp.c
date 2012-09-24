@@ -550,8 +550,8 @@ static void sccnxp_set_termios(struct uart_port *port,
 	case CS7:
 		mr1 = MR1_BITS_7;
 		break;
-	default:
 	case CS8:
+	default:
 		mr1 = MR1_BITS_8;
 		break;
 	}
