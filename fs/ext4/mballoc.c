@@ -1660,9 +1660,12 @@ int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 	int max;
 	int err;
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
+	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
 	struct ext4_free_extent ex;
 
 	if (!(ac->ac_flags & EXT4_MB_HINT_TRY_GOAL))
+		return 0;
+	if (grp->bb_free == 0)
 		return 0;
 
 	err = ext4_mb_load_buddy(ac->ac_sb, group, e4b);
