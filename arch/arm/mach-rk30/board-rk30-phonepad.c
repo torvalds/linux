@@ -83,6 +83,9 @@
 #if defined(CONFIG_ANDROID_TIMED_GPIO)
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
+#if defined(CONFIG_TOUCHSCREEN_GT8110)
+#include <linux/gt8110.h>
+#endif
 
 #if defined(CONFIG_MT6620)
 #include <linux/gps.h>
@@ -782,6 +785,7 @@ static struct rmi_device_platform_data s3202_platformdata = {
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN4_PD0
 #define TOUCH_PWR_PIN    INVALID_GPIO
+
 int goodix_init_platform_hw(void)
 {
 	int ret;
@@ -952,6 +956,59 @@ static struct ct360_platform_data ct360_info = {
 #endif
 
 
+#ifdef CONFIG_TOUCHSCREEN_GT8110 
+#define TOUCH_ENABLE_PIN	INVALID_GPIO
+#define TOUCH_INT_PIN		RK30_PIN4_PC2
+#define TOUCH_RESET_PIN		RK30_PIN4_PD0
+int goodix_init_platform_hw(void)
+{
+
+	int ret;
+	rk30_mux_api_set(GPIO4D0_SMCDATA8_TRACEDATA8_NAME, GPIO4D_GPIO4D0);
+	rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, GPIO4C_GPIO4C2);
+	printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO4D0_SMCDATA8_TRACEDATA8_NAME),rk30_mux_api_get(GPIO4C2_SMCDATA2_TRACEDATA2_NAME));
+
+	if (TOUCH_ENABLE_PIN != INVALID_GPIO) {
+		ret = gpio_request(TOUCH_ENABLE_PIN, "goodix power pin");
+		if (ret != 0) {
+			gpio_free(TOUCH_ENABLE_PIN);
+			printk("goodix power error\n");
+			return -EIO;
+		}
+		gpio_direction_output(TOUCH_ENABLE_PIN, 0);
+		gpio_set_value(TOUCH_ENABLE_PIN, GPIO_LOW);
+		msleep(100);
+	}
+
+	if (TOUCH_RESET_PIN != INVALID_GPIO) {
+		ret = gpio_request(TOUCH_RESET_PIN, "goodix reset pin");
+		if (ret != 0) {
+			gpio_free(TOUCH_RESET_PIN);
+			printk("goodix gpio_request error\n");
+			return -EIO;
+		}
+		gpio_direction_output(TOUCH_RESET_PIN, 0);
+        	//msleep(100);
+		gpio_set_value(TOUCH_RESET_PIN, GPIO_LOW);
+		msleep(100);
+		//gpio_set_value(TOUCH_RESET_PIN, GPIO_HIGH);
+		//msleep(500);
+	}
+	return 0;
+}
+
+int goodix_exit_platform_hw(void)
+{
+    return 0;
+}
+
+struct goodix_8110_platform_data  goodix_info = {
+	.irq_pin = TOUCH_INT_PIN,
+	.reset= TOUCH_RESET_PIN,
+        .hw_init = goodix_init_platform_hw,
+        .hw_exit = goodix_exit_platform_hw,
+};
+#endif
 
 static struct spi_board_info board_spi_devices[] = {
 };
@@ -2503,7 +2560,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 	},
 #endif
 
-
+#if  defined(CONFIG_TOUCHSCREEN_GT8110)
+	{
+		.type          = "Goodix-TS",
+		.addr          = 0x5c,
+		.flags         = 0,
+		.irq           = TOUCH_INT_PIN,
+		.platform_data = &goodix_info,
+	},
+#endif
 };
 #endif
 

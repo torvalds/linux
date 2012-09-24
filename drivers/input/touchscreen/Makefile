@@ -77,6 +77,7 @@ obj-$(CONFIG_ATMEL_MXT1386)		+= atmel_mxt1386.o
 obj-$(CONFIG_TOUCHSCREEN_GT801_IIC)	+= gt801_ts.o
 obj-$(CONFIG_TOUCHSCREEN_GT82X_IIC)	+= goodix_touch_82x.o
 obj-$(CONFIG_TOUCHSCREEN_GT818_IIC)	+= gt818_ts.o
+obj-$(CONFIG_TOUCHSCREEN_GT8110)        += gt8110_ts.o
 obj-$(CONFIG_TOUCHSCREEN_CT360_IIC)	+= ct360_ts.o
 obj-$(CONFIG_TOUCHSCREEN_ILI2102_IIC)	+= ili2102_ts.o
 obj-$(CONFIG_D70_L3188A)		+= goodix_touch.o
