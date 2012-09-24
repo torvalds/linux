@@ -114,6 +114,14 @@ void __init rk2928_init_irq(void)
 extern void __init rk2928_map_common_io(void);
 extern int __init clk_disable_unused(void);
 
+static unsigned int __initdata ddr_freq = DDR_FREQ;
+static int __init ddr_freq_setup(char *str)
+{
+	get_option(&str, &ddr_freq);
+	return 0;
+}
+early_param("ddr_freq", ddr_freq_setup);
+
 void __init rk2928_map_io(void)
 {
 	rk2928_map_common_io();
@@ -135,7 +143,7 @@ void __init rk2928_map_io(void)
 	rk29_sram_init();
 	board_clock_init();
 	rk2928_l2_cache_init();
-	ddr_init(DDR_TYPE, DDR_FREQ);
+	ddr_init(DDR_TYPE, ddr_freq);
 //	clk_disable_unused();
 	rk2928_iomux_init();
 	rk2928_boot_mode_init();
