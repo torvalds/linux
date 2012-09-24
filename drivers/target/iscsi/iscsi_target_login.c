@@ -221,6 +221,7 @@ static int iscsi_login_zero_tsih_s1(
 {
 	struct iscsi_session *sess = NULL;
 	struct iscsi_login_req *pdu = (struct iscsi_login_req *)buf;
+	int ret;
 
 	sess = kzalloc(sizeof(struct iscsi_session), GFP_KERNEL);
 	if (!sess) {
@@ -257,8 +258,16 @@ static int iscsi_login_zero_tsih_s1(
 		return -ENOMEM;
 	}
 	spin_lock(&sess_idr_lock);
-	idr_get_new(&sess_idr, NULL, &sess->session_index);
+	ret = idr_get_new(&sess_idr, NULL, &sess->session_index);
 	spin_unlock(&sess_idr_lock);
+
+	if (ret < 0) {
+		pr_err("idr_get_new() for sess_idr failed\n");
+		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+				ISCSI_LOGIN_STATUS_NO_RESOURCES);
+		kfree(sess);
+		return -ENOMEM;
+	}
 
 	sess->creation_time = get_jiffies_64();
 	spin_lock_init(&sess->session_stats_lock);

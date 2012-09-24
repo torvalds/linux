@@ -263,6 +263,7 @@ static u32 notrace dmtimer_read_sched_clock(void)
 	return 0;
 }
 
+#ifdef CONFIG_OMAP_32K_TIMER
 /* Setup free-running counter for clocksource */
 static int __init omap2_sync32k_clocksource_init(void)
 {
@@ -302,6 +303,12 @@ static int __init omap2_sync32k_clocksource_init(void)
 
 	return ret;
 }
+#else
+static inline int omap2_sync32k_clocksource_init(void)
+{
+	return -ENODEV;
+}
+#endif
 
 static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 						const char *fck_source)

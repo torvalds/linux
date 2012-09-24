@@ -475,8 +475,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 	unsigned long	flags;
 
 	if (!_ep || !ep
-			|| !desc || ep->ep.desc
-			|| _ep->name == ep0name
+			|| !desc || _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| (maxpacket = usb_endpoint_maxp(desc)) == 0
 			|| maxpacket > ep->maxpacket) {
@@ -530,7 +529,6 @@ ok:
 	tmp |= AT91_UDP_EPEDS;
 	__raw_writel(tmp, ep->creg);
 
-	ep->ep.desc = desc;
 	ep->ep.maxpacket = maxpacket;
 
 	/*
@@ -1635,7 +1633,6 @@ static int at91_start(struct usb_gadget *gadget,
 	udc->driver = driver;
 	udc->gadget.dev.driver = &driver->driver;
 	udc->gadget.dev.of_node = udc->pdev->dev.of_node;
-	dev_set_drvdata(&udc->gadget.dev, &driver->driver);
 	udc->enabled = 1;
 	udc->selfpowered = 1;
 
@@ -1656,7 +1653,6 @@ static int at91_stop(struct usb_gadget *gadget,
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	udc->gadget.dev.driver = NULL;
-	dev_set_drvdata(&udc->gadget.dev, NULL);
 	udc->driver = NULL;
 
 	DBG("unbound from %s\n", driver->driver.name);

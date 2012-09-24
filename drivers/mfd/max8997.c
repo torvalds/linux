@@ -160,7 +160,7 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 
 	mfd_add_devices(max8997->dev, -1, max8997_devs,
 			ARRAY_SIZE(max8997_devs),
-			NULL, 0);
+			NULL, 0, NULL);
 
 	/*
 	 * TODO: enable others (flash, muic, rtc, battery, ...) and

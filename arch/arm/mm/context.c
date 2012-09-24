@@ -63,10 +63,11 @@ static int contextidr_notifier(struct notifier_block *unused, unsigned long cmd,
 	pid = task_pid_nr(thread->task) << ASID_BITS;
 	asm volatile(
 	"	mrc	p15, 0, %0, c13, c0, 1\n"
-	"	bfi	%1, %0, #0, %2\n"
-	"	mcr	p15, 0, %1, c13, c0, 1\n"
+	"	and	%0, %0, %2\n"
+	"	orr	%0, %0, %1\n"
+	"	mcr	p15, 0, %0, c13, c0, 1\n"
 	: "=r" (contextidr), "+r" (pid)
-	: "I" (ASID_BITS));
+	: "I" (~ASID_MASK));
 	isb();
 
 	return NOTIFY_OK;
