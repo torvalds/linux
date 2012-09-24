@@ -77,6 +77,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	if (!ppgtt)
 		return ret;
 
+	ppgtt->dev = dev;
 	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
 	ppgtt->pt_pages = kzalloc(sizeof(struct page *)*ppgtt->num_pd_entries,
 				  GFP_KERNEL);
@@ -218,7 +219,7 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 	switch (cache_level) {
 	case I915_CACHE_LLC_MLC:
 		/* Haswell doesn't set L3 this way */
-		if (IS_HASWELL(obj->base.dev))
+		if (IS_HASWELL(ppgtt->dev))
 			pte_flags |= GEN6_PTE_CACHE_LLC;
 		else
 			pte_flags |= GEN6_PTE_CACHE_LLC_MLC;
@@ -227,7 +228,7 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 		pte_flags |= GEN6_PTE_CACHE_LLC;
 		break;
 	case I915_CACHE_NONE:
-		if (IS_HASWELL(obj->base.dev))
+		if (IS_HASWELL(ppgtt->dev))
 			pte_flags |= HSW_PTE_UNCACHED;
 		else
 			pte_flags |= GEN6_PTE_UNCACHED;
