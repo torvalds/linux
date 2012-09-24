@@ -264,6 +264,14 @@ static struct twl6040_platform_data twl6040_data = {
 	.audpwron_gpio	= 127,
 };
 
+static struct i2c_board_info __initdata panda_i2c_1_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("twl6040", 0x4b),
+		.irq = 119 + OMAP44XX_IRQ_GIC_START,
+		.platform_data = &twl6040_data,
+	},
+};
+
 /* Panda board uses the common PMIC configuration */
 static struct twl4030_platform_data omap4_panda_twldata;
 
@@ -291,8 +299,8 @@ static int __init omap4_panda_i2c_init(void)
 			TWL_COMMON_REGULATOR_CLK32KG |
 			TWL_COMMON_REGULATOR_V1V8 |
 			TWL_COMMON_REGULATOR_V2V1);
-	omap4_pmic_init("twl6030", &omap4_panda_twldata,
-			&twl6040_data, 119 + OMAP44XX_IRQ_GIC_START);
+	omap4_pmic_init("twl6030", &omap4_panda_twldata, panda_i2c_1_boardinfo,
+			ARRAY_SIZE(panda_i2c_1_boardinfo));
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	/*
 	 * Bus 3 is attached to the DVI port where devices like the pico DLP
