@@ -228,6 +228,13 @@ static int get_num_brps(void)
  * be put into halting debug mode at any time by an external debugger
  * but there is nothing we can do to prevent that.
  */
+static int monitor_mode_enabled(void)
+{
+	u32 dscr;
+	ARM_DBG_READ(c1, 0, dscr);
+	return !!(dscr & ARM_DSCR_MDBGEN);
+}
+
 static int enable_monitor_mode(void)
 {
 	u32 dscr;
@@ -321,13 +328,8 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 {
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 	struct perf_event **slot, **slots;
-	int i, max_slots, ctrl_base, val_base, ret = 0;
+	int i, max_slots, ctrl_base, val_base;
 	u32 addr, ctrl;
-
-	/* Ensure that we are in monitor mode and halting mode is disabled. */
-	ret = enable_monitor_mode();
-	if (ret)
-		goto out;
 
 	addr = info->address;
 	ctrl = encode_ctrl_reg(info->ctrl) | 0x1;
@@ -355,10 +357,8 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 		}
 	}
 
-	if (WARN_ONCE(i == max_slots, "Can't find any breakpoint slot\n")) {
-		ret = -EBUSY;
-		goto out;
-	}
+	if (WARN_ONCE(i == max_slots, "Can't find any breakpoint slot\n"))
+		return -EBUSY;
 
 	/* Override the breakpoint data with the step data. */
 	if (info->step_ctrl.enabled) {
@@ -376,9 +376,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 
 	/* Setup the control register. */
 	write_wb_reg(ctrl_base + i, ctrl);
-
-out:
-	return ret;
+	return 0;
 }
 
 void arch_uninstall_hw_breakpoint(struct perf_event *bp)
@@ -588,6 +586,10 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 	int ret = 0;
 	u32 offset, alignment_mask = 0x3;
+
+	/* Ensure that we are in monitor debug mode. */
+	if (!monitor_mode_enabled())
+		return -ENODEV;
 
 	/* Build the arch_hw_breakpoint. */
 	ret = arch_build_bp_info(bp);
