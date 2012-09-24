@@ -1289,7 +1289,7 @@ void ar9003_mci_set_power_awake(struct ath_hw *ah)
 	}
 	REG_WRITE(ah, AR_DIAG_SW, (diag_sw | BIT(27) | BIT(19) | BIT(18)));
 	lna_ctrl = REG_READ(ah, AR_OBS_BUS_CTRL) & 0x3;
-	bt_sleep = REG_READ(ah, AR_MCI_RX_STATUS) & AR_MCI_RX_REMOTE_SLEEP;
+	bt_sleep = MS(REG_READ(ah, AR_MCI_RX_STATUS), AR_MCI_RX_REMOTE_SLEEP);
 
 	REG_WRITE(ah, AR_BTCOEX_CTRL2, btcoex_ctrl2);
 	REG_WRITE(ah, AR_DIAG_SW, diag_sw);
