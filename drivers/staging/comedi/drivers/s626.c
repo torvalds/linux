@@ -2503,24 +2503,17 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	if (ret)
 		return ret;
 
+	if (pcidev->irq) {
+		ret = request_irq(pcidev->irq, s626_irq_handler, IRQF_SHARED,
+				  dev->board_name, dev);
+
+		if (ret == 0)
+			dev->irq = pcidev->irq;
+	}
+
 	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
 		return ret;
-
-	dev->irq = pcidev->irq;
-
-	/* set up interrupt handler */
-	if (dev->irq == 0) {
-		printk(KERN_ERR " unknown irq (bad)\n");
-	} else {
-		ret = request_irq(dev->irq, s626_irq_handler, IRQF_SHARED,
-				  dev->board_name, dev);
-
-		if (ret < 0) {
-			printk(KERN_ERR " irq not available\n");
-			dev->irq = 0;
-		}
-	}
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
