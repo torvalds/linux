@@ -894,7 +894,7 @@ static int m2mtest_open(struct file *file)
 
 	if (mutex_lock_interruptible(&dev->dev_mutex))
 		return -ERESTARTSYS;
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto open_unlock;
@@ -1020,7 +1020,7 @@ static int m2mtest_probe(struct platform_device *pdev)
 	struct video_device *vfd;
 	int ret;
 
-	dev = kzalloc(sizeof *dev, GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
