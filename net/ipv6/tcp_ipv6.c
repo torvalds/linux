@@ -403,8 +403,9 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		tp->mtu_info = ntohl(info);
 		if (!sock_owned_by_user(sk))
 			tcp_v6_mtu_reduced(sk);
-		else
-			set_bit(TCP_MTU_REDUCED_DEFERRED, &tp->tsq_flags);
+		else if (!test_and_set_bit(TCP_MTU_REDUCED_DEFERRED,
+					   &tp->tsq_flags))
+			sock_hold(sk);
 		goto out;
 	}
 

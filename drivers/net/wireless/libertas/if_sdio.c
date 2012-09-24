@@ -1326,6 +1326,11 @@ static int if_sdio_suspend(struct device *dev)
 
 	mmc_pm_flag_t flags = sdio_get_host_pm_caps(func);
 
+	/* If we're powered off anyway, just let the mmc layer remove the
+	 * card. */
+	if (!lbs_iface_active(card->priv))
+		return -ENOSYS;
+
 	dev_info(dev, "%s: suspend: PM flags = 0x%x\n",
 		 sdio_func_id(func), flags);
 

@@ -258,7 +258,6 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 		radeon_crtc->enabled = true;
 		/* adjust pm to dpms changes BEFORE enabling crtcs */
 		radeon_pm_compute_clocks(rdev);
-		/* disable crtc pair power gating before programming */
 		if (ASIC_IS_DCE6(rdev) && !radeon_crtc->in_mode_set)
 			atombios_powergate_crtc(crtc, ATOM_DISABLE);
 		atombios_enable_crtc(crtc, ATOM_ENABLE);
@@ -278,25 +277,8 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 			atombios_enable_crtc_memreq(crtc, ATOM_DISABLE);
 		atombios_enable_crtc(crtc, ATOM_DISABLE);
 		radeon_crtc->enabled = false;
-		/* power gating is per-pair */
-		if (ASIC_IS_DCE6(rdev) && !radeon_crtc->in_mode_set) {
-			struct drm_crtc *other_crtc;
-			struct radeon_crtc *other_radeon_crtc;
-			list_for_each_entry(other_crtc, &rdev->ddev->mode_config.crtc_list, head) {
-				other_radeon_crtc = to_radeon_crtc(other_crtc);
-				if (((radeon_crtc->crtc_id == 0) && (other_radeon_crtc->crtc_id == 1)) ||
-				    ((radeon_crtc->crtc_id == 1) && (other_radeon_crtc->crtc_id == 0)) ||
-				    ((radeon_crtc->crtc_id == 2) && (other_radeon_crtc->crtc_id == 3)) ||
-				    ((radeon_crtc->crtc_id == 3) && (other_radeon_crtc->crtc_id == 2)) ||
-				    ((radeon_crtc->crtc_id == 4) && (other_radeon_crtc->crtc_id == 5)) ||
-				    ((radeon_crtc->crtc_id == 5) && (other_radeon_crtc->crtc_id == 4))) {
-					/* if both crtcs in the pair are off, enable power gating */
-					if (other_radeon_crtc->enabled == false)
-						atombios_powergate_crtc(crtc, ATOM_ENABLE);
-					break;
-				}
-			}
-		}
+		if (ASIC_IS_DCE6(rdev) && !radeon_crtc->in_mode_set)
+			atombios_powergate_crtc(crtc, ATOM_ENABLE);
 		/* adjust pm to dpms changes AFTER disabling crtcs */
 		radeon_pm_compute_clocks(rdev);
 		break;
@@ -1682,8 +1664,21 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_atom_ss ss;
+	int i;
 
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (rdev->mode_info.crtcs[i] &&
+		    rdev->mode_info.crtcs[i]->enabled &&
+		    i != radeon_crtc->crtc_id &&
+		    radeon_crtc->pll_id == rdev->mode_info.crtcs[i]->pll_id) {
+			/* one other crtc is using this pll don't turn
+			 * off the pll
+			 */
+			goto done;
+		}
+	}
 
 	switch (radeon_crtc->pll_id) {
 	case ATOM_PPLL1:
@@ -1701,6 +1696,7 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	default:
 		break;
 	}
+done:
 	radeon_crtc->pll_id = -1;
 }
 

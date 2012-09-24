@@ -222,10 +222,8 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[lcdc_ipg], "ipg", "imx-fb.0");
 	clk_register_clkdev(clk[lcdc_ahb], "ahb", "imx-fb.0");
 	clk_register_clkdev(clk[wdt_ipg], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[ssi1_ipg_per], "per", "imx-ssi.0");
-	clk_register_clkdev(clk[ssi1_ipg], "ipg", "imx-ssi.0");
-	clk_register_clkdev(clk[ssi2_ipg_per], "per", "imx-ssi.1");
-	clk_register_clkdev(clk[ssi2_ipg], "ipg", "imx-ssi.1");
+	clk_register_clkdev(clk[ssi1_ipg], NULL, "imx-ssi.0");
+	clk_register_clkdev(clk[ssi2_ipg], NULL, "imx-ssi.1");
 	clk_register_clkdev(clk[esdhc1_ipg_per], "per", "sdhci-esdhc-imx25.0");
 	clk_register_clkdev(clk[esdhc1_ipg], "ipg", "sdhci-esdhc-imx25.0");
 	clk_register_clkdev(clk[esdhc1_ahb], "ahb", "sdhci-esdhc-imx25.0");
@@ -243,6 +241,6 @@ int __init mx25_clocks_init(void)
 	clk_register_clkdev(clk[sdma_ahb], "ahb", "imx35-sdma");
 	clk_register_clkdev(clk[iim_ipg], "iim", NULL);
 
-	mxc_timer_init(MX25_IO_ADDRESS(MX25_GPT1_BASE_ADDR), 54);
+	mxc_timer_init(MX25_IO_ADDRESS(MX25_GPT1_BASE_ADDR), MX25_INT_GPT1);
 	return 0;
 }

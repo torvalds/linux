@@ -3502,7 +3502,9 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 	if (!skb_cloned(from))
 		skb_shinfo(from)->nr_frags = 0;
 
-	/* if the skb is cloned this does nothing since we set nr_frags to 0 */
+	/* if the skb is not cloned this does nothing
+	 * since we set nr_frags to 0.
+	 */
 	for (i = 0; i < skb_shinfo(from)->nr_frags; i++)
 		skb_frag_ref(from, i);
 

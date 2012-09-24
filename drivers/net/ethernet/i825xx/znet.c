@@ -139,8 +139,11 @@ struct znet_private {
 /* Only one can be built-in;-> */
 static struct net_device *znet_dev;
 
+#define NETIDBLK_MAGIC		"NETIDBLK"
+#define NETIDBLK_MAGIC_SIZE	8
+
 struct netidblk {
-	char magic[8];		/* The magic number (string) "NETIDBLK" */
+	char magic[NETIDBLK_MAGIC_SIZE];	/* The magic number (string) "NETIDBLK" */
 	unsigned char netid[8]; /* The physical station address */
 	char nettype, globalopt;
 	char vendor[8];		/* The machine vendor and product name. */
@@ -373,14 +376,16 @@ static int __init znet_probe (void)
 	struct znet_private *znet;
 	struct net_device *dev;
 	char *p;
+	char *plast = phys_to_virt(0x100000 - NETIDBLK_MAGIC_SIZE);
 	int err = -ENOMEM;
 
 	/* This code scans the region 0xf0000 to 0xfffff for a "NETIDBLK". */
-	for(p = (char *)phys_to_virt(0xf0000); p < (char *)phys_to_virt(0x100000); p++)
-		if (*p == 'N'  &&  strncmp(p, "NETIDBLK", 8) == 0)
+	for(p = (char *)phys_to_virt(0xf0000); p <= plast; p++)
+		if (*p == 'N' &&
+		    strncmp(p, NETIDBLK_MAGIC, NETIDBLK_MAGIC_SIZE) == 0)
 			break;
 
-	if (p >= (char *)phys_to_virt(0x100000)) {
+	if (p > plast) {
 		if (znet_debug > 1)
 			printk(KERN_INFO "No Z-Note ethernet adaptor found.\n");
 		return -ENODEV;
