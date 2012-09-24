@@ -71,7 +71,7 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo);
 
 /**************************************************************/
 
-#define HW_BUF_SPD_THRESHOLD    9600
+#define HW_BUF_SPD_THRESHOLD    2400
 
 /*
  * Check, if transmit buffers are processed
@@ -505,7 +505,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	pr_debug("CPM uart[%d]:set_termios\n", port->line);
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
-	if (baud <= HW_BUF_SPD_THRESHOLD ||
+	if (baud < HW_BUF_SPD_THRESHOLD ||
 	    (pinfo->port.state && pinfo->port.state->port.tty->low_latency))
 		pinfo->rx_fifosize = 1;
 	else
