@@ -25,4 +25,14 @@ config PUBLIC_KEY_ALGO_RSA
 	help
 	  This option enables support for the RSA algorithm (PKCS#1, RFC3447).
 
+config X509_CERTIFICATE_PARSER
+	tristate "X.509 certificate parser"
+	depends on ASYMMETRIC_PUBLIC_KEY_SUBTYPE
+	select ASN1
+	select OID_REGISTRY
+	help
+	  This option procides support for parsing X.509 format blobs for key
+	  data and provides the ability to instantiate a crypto key from a
+	  public key packet found inside the certificate.
+
 endif # ASYMMETRIC_KEY_TYPE
