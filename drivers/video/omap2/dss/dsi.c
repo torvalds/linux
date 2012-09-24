@@ -1454,26 +1454,17 @@ found:
 }
 
 static int dsi_pll_calc_ddrfreq(struct platform_device *dsidev,
-		unsigned long req_clk, struct dsi_clock_info *cinfo)
+		unsigned long req_clkin4ddr, struct dsi_clock_info *cinfo)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct dsi_clock_info cur, best;
-	unsigned long dss_sys_clk, max_dss_fck, max_dsi_fck;
-	unsigned long req_clkin4ddr;
 
 	DSSDBG("dsi_pll_calc_ddrfreq\n");
-
-	dss_sys_clk = clk_get_rate(dsi->sys_clk);
-
-	max_dss_fck = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
-	max_dsi_fck = dss_feat_get_param_max(FEAT_PARAM_DSI_FCK);
 
 	memset(&best, 0, sizeof(best));
 	memset(&cur, 0, sizeof(cur));
 
-	cur.clkin = dss_sys_clk;
-
-	req_clkin4ddr = req_clk * 4;
+	cur.clkin = clk_get_rate(dsi->sys_clk);
 
 	for (cur.regn = 1; cur.regn < dsi->regn_max; ++cur.regn) {
 		cur.fint = cur.clkin / cur.regn;
@@ -1503,14 +1494,103 @@ static int dsi_pll_calc_ddrfreq(struct platform_device *dsidev,
 		}
 	}
 found:
-	best.regm_dispc = DIV_ROUND_UP(best.clkin4ddr, max_dss_fck);
-	best.dsi_pll_hsdiv_dispc_clk = best.clkin4ddr / best.regm_dispc;
-
-	best.regm_dsi = DIV_ROUND_UP(best.clkin4ddr, max_dsi_fck);
-	best.dsi_pll_hsdiv_dsi_clk = best.clkin4ddr / best.regm_dsi;
-
 	if (cinfo)
 		*cinfo = best;
+
+	return 0;
+}
+
+static void dsi_pll_calc_dsi_fck(struct platform_device *dsidev,
+		struct dsi_clock_info *cinfo)
+{
+	unsigned long max_dsi_fck;
+
+	max_dsi_fck = dss_feat_get_param_max(FEAT_PARAM_DSI_FCK);
+
+	cinfo->regm_dsi = DIV_ROUND_UP(cinfo->clkin4ddr, max_dsi_fck);
+	cinfo->dsi_pll_hsdiv_dsi_clk = cinfo->clkin4ddr / cinfo->regm_dsi;
+}
+
+static int dsi_pll_calc_dispc_fck(struct platform_device *dsidev,
+		unsigned long req_pck, struct dsi_clock_info *cinfo,
+		struct dispc_clock_info *dispc_cinfo)
+{
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	unsigned regm_dispc, best_regm_dispc;
+	unsigned long dispc_clk, best_dispc_clk;
+	int min_fck_per_pck;
+	unsigned long max_dss_fck;
+	struct dispc_clock_info best_dispc;
+	bool match;
+
+	max_dss_fck = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+
+	min_fck_per_pck = CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK;
+
+	if (min_fck_per_pck &&
+			req_pck * min_fck_per_pck > max_dss_fck) {
+		DSSERR("Requested pixel clock not possible with the current "
+				"OMAP2_DSS_MIN_FCK_PER_PCK setting. Turning "
+				"the constraint off.\n");
+		min_fck_per_pck = 0;
+	}
+
+retry:
+	best_regm_dispc = 0;
+	best_dispc_clk = 0;
+	memset(&best_dispc, 0, sizeof(best_dispc));
+	match = false;
+
+	for (regm_dispc = 1; regm_dispc < dsi->regm_dispc_max; ++regm_dispc) {
+		struct dispc_clock_info cur_dispc;
+
+		dispc_clk = cinfo->clkin4ddr / regm_dispc;
+
+		/* this will narrow down the search a bit,
+		 * but still give pixclocks below what was
+		 * requested */
+		if (dispc_clk  < req_pck)
+			break;
+
+		if (dispc_clk > max_dss_fck)
+			continue;
+
+		if (min_fck_per_pck && dispc_clk < req_pck * min_fck_per_pck)
+			continue;
+
+		match = true;
+
+		dispc_find_clk_divs(req_pck, dispc_clk, &cur_dispc);
+
+		if (abs(cur_dispc.pck - req_pck) <
+				abs(best_dispc.pck - req_pck)) {
+			best_regm_dispc = regm_dispc;
+			best_dispc_clk = dispc_clk;
+			best_dispc = cur_dispc;
+
+			if (cur_dispc.pck == req_pck)
+				goto found;
+		}
+	}
+
+	if (!match) {
+		if (min_fck_per_pck) {
+			DSSERR("Could not find suitable clock settings.\n"
+					"Turning FCK/PCK constraint off and"
+					"trying again.\n");
+			min_fck_per_pck = 0;
+			goto retry;
+		}
+
+		DSSERR("Could not find suitable clock settings.\n");
+
+		return -EINVAL;
+	}
+found:
+	cinfo->regm_dispc = best_regm_dispc;
+	cinfo->dsi_pll_hsdiv_dispc_clk = best_dispc_clk;
+
+	*dispc_cinfo = best_dispc;
 
 	return 0;
 }
@@ -4188,32 +4268,34 @@ int omapdss_dsi_set_clocks(struct omap_dss_device *dssdev,
 
 	mutex_lock(&dsi->lock);
 
-	r = dsi_pll_calc_ddrfreq(dsidev, ddr_clk, &cinfo);
+	/* Calculate PLL output clock */
+	r = dsi_pll_calc_ddrfreq(dsidev, ddr_clk * 4, &cinfo);
 	if (r)
 		goto err;
+
+	/* Calculate PLL's DSI clock */
+	dsi_pll_calc_dsi_fck(dsidev, &cinfo);
+
+	/* Calculate PLL's DISPC clock and pck & lck divs */
+	pck = cinfo.clkin4ddr / 16 * (dsi->num_lanes_used - 1) * 8 / bpp;
+	DSSDBG("finding dispc dividers for pck %lu\n", pck);
+	r = dsi_pll_calc_dispc_fck(dsidev, pck, &cinfo, &dispc_cinfo);
+	if (r)
+		goto err;
+
+	/* Calculate LP clock */
+	dsi_fclk = cinfo.dsi_pll_hsdiv_dsi_clk;
+	lp_clk_div = DIV_ROUND_UP(dsi_fclk, lp_clk * 2);
 
 	dssdev->clocks.dsi.regn = cinfo.regn;
 	dssdev->clocks.dsi.regm = cinfo.regm;
 	dssdev->clocks.dsi.regm_dispc = cinfo.regm_dispc;
 	dssdev->clocks.dsi.regm_dsi = cinfo.regm_dsi;
 
-
-	dsi_fclk = cinfo.dsi_pll_hsdiv_dsi_clk;
-	lp_clk_div = DIV_ROUND_UP(dsi_fclk, lp_clk * 2);
-
 	dssdev->clocks.dsi.lp_clk_div = lp_clk_div;
-
-	/* pck = TxByteClkHS * datalanes * 8 / bitsperpixel */
-
-	pck = cinfo.clkin4ddr / 16 * (dsi->num_lanes_used - 1) * 8 / bpp;
-
-	DSSDBG("finding dispc dividers for pck %lu\n", pck);
-
-	dispc_find_clk_divs(pck, cinfo.dsi_pll_hsdiv_dispc_clk, &dispc_cinfo);
 
 	dssdev->clocks.dispc.channel.lck_div = dispc_cinfo.lck_div;
 	dssdev->clocks.dispc.channel.pck_div = dispc_cinfo.pck_div;
-
 
 	dssdev->clocks.dispc.dispc_fclk_src = OMAP_DSS_CLK_SRC_FCK;
 
