@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 
 #include <asm/cputype.h>
+#include <asm/smp_plat.h>
 #include <asm/topology.h>
 
 /*
@@ -310,7 +311,7 @@ void __init arch_get_fast_and_slow_cpus(struct cpumask *fast,
 					struct cpumask *slow)
 {
 	struct device_node *cn = NULL;
-	int cpu = 0;
+	int cpu;
 
 	cpumask_clear(fast);
 	cpumask_clear(slow);
@@ -332,15 +333,26 @@ void __init arch_get_fast_and_slow_cpus(struct cpumask *fast,
 	 */
 	while ((cn = of_find_node_by_type(cn, "cpu"))) {
 
-		if (cpu >= num_possible_cpus())
+		const u32 *mpidr;
+		int len;
+
+		mpidr = of_get_property(cn, "reg", &len);
+		if (!mpidr || len != 4) {
+			pr_err("* %s missing reg property\n", cn->full_name);
+			continue;
+		}
+
+		cpu = get_logical_index(be32_to_cpup(mpidr));
+		if (cpu == -EINVAL) {
+			pr_err("couldn't get logical index for mpidr %x\n",
+							be32_to_cpup(mpidr));
 			break;
+		}
 
 		if (is_little_cpu(cn))
 			cpumask_set_cpu(cpu, slow);
 		else
 			cpumask_set_cpu(cpu, fast);
-
-		cpu++;
 	}
 
 	if (!cpumask_empty(fast) && !cpumask_empty(slow))
