@@ -73,7 +73,7 @@ static __inline__ void scm_destroy_cred(struct scm_cookie *scm)
 static __inline__ void scm_destroy(struct scm_cookie *scm)
 {
 	scm_destroy_cred(scm);
-	if (scm && scm->fp)
+	if (scm->fp)
 		__scm_destroy(scm);
 }
 
