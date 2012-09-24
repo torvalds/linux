@@ -2292,6 +2292,13 @@ static void dsi_cio_timings(struct platform_device *dsidev)
 	r = FLD_MOD(r, tlpx_half, 22, 16);
 	r = FLD_MOD(r, tclk_trail, 15, 8);
 	r = FLD_MOD(r, tclk_zero, 7, 0);
+
+	if (dss_has_feature(FEAT_DSI_PHY_DCC)) {
+		r = FLD_MOD(r, 0, 21, 21);	/* DCCEN = disable */
+		r = FLD_MOD(r, 1, 22, 22);	/* CLKINP_DIVBY2EN = enable */
+		r = FLD_MOD(r, 1, 23, 23);	/* CLKINP_SEL = enable */
+	}
+
 	dsi_write_reg(dsidev, DSI_DSIPHY_CFG1, r);
 
 	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG2);

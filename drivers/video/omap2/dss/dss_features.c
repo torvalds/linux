@@ -521,6 +521,7 @@ static const enum dss_feat_id omap5_dss_feat_list[] = {
 	FEAT_BURST_2D,
 	FEAT_DSI_PLL_SELFREQDCO,
 	FEAT_DSI_PLL_REFSEL,
+	FEAT_DSI_PHY_DCC,
 };
 
 /* OMAP2 DSS Features */
