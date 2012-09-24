@@ -1019,7 +1019,7 @@ static int m2mtest_probe(struct platform_device *pdev)
 	struct video_device *vfd;
 	int ret;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -1027,7 +1027,7 @@ static int m2mtest_probe(struct platform_device *pdev)
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
-		goto free_dev;
+		return ret;
 
 	atomic_set(&dev->num_inst, 0);
 	mutex_init(&dev->dev_mutex);
@@ -1073,8 +1073,6 @@ rel_vdev:
 	video_device_release(vfd);
 unreg_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
-free_dev:
-	kfree(dev);
 
 	return ret;
 }
@@ -1089,7 +1087,6 @@ static int m2mtest_remove(struct platform_device *pdev)
 	del_timer_sync(&dev->timer);
 	video_unregister_device(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
-	kfree(dev);
 
 	return 0;
 }
