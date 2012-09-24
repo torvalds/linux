@@ -32,11 +32,7 @@ Authors: Gianluca Palli <gpalli@deis.unibo.it>,
 Updated: Fri, 15 Feb 2008 10:28:42 +0000
 Status: experimental
 
-Configuration options:
-  [0] - PCI bus of device (optional)
-  [1] - PCI slot of device (optional)
-  If bus/slot is not specified, the first supported
-  PCI device found will be used.
+Configuration options: not applicable, uses PCI auto config
 
 INSN_CONFIG instructions:
   analog input:
@@ -2442,35 +2438,7 @@ static void CountersInit(struct comedi_device *dev)
 	}
 }
 
-static struct pci_dev *s626_find_pci(struct comedi_device *dev,
-				     struct comedi_devconfig *it)
-{
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-	int i;
-
-	do {
-		pcidev = pci_get_subsys(PCI_VENDOR_ID_S626,
-					PCI_DEVICE_ID_S626,
-					PCI_SUBVENDOR_ID_S626,
-					PCI_SUBDEVICE_ID_S626,
-					pcidev);
-
-		if ((bus || slot) && pcidev) {
-			/* matches requested bus/slot */
-			if (pcidev->bus->number == bus &&
-				PCI_SLOT(pcidev->devfn) == slot)
-				break;
-		} else {
-			break;
-		}
-	} while (1);
-
-	return pcidev;
-}
-
-static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 {
 /*   uint8_t	PollList; */
 /*   uint16_t	AdcData; */
@@ -2487,11 +2455,7 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	devpriv->pdev = s626_find_pci(dev, it);
-	if (!devpriv->pdev) {
-		printk(KERN_ERR "s626_attach: Board not present!!!\n");
-		return -ENODEV;
-	}
+	devpriv->pdev = pcidev;
 
 	result = comedi_pci_enable(devpriv->pdev, "s626");
 	if (result < 0) {
@@ -2932,7 +2896,6 @@ static void s626_detach(struct comedi_device *dev)
 		if (devpriv->pdev) {
 			if (devpriv->got_regions)
 				comedi_pci_disable(devpriv->pdev);
-			pci_dev_put(devpriv->pdev);
 		}
 	}
 }
@@ -2940,7 +2903,7 @@ static void s626_detach(struct comedi_device *dev)
 static struct comedi_driver s626_driver = {
 	.driver_name	= "s626",
 	.module		= THIS_MODULE,
-	.attach		= s626_attach,
+	.attach_pci	= s626_attach_pci,
 	.detach		= s626_detach,
 };
 
