@@ -2445,7 +2445,6 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 /*   uint16_t	StartVal; */
 /*   uint16_t	index; */
 /*   unsigned int data[16]; */
-	int result;
 	int i;
 	int ret;
 	resource_size_t resourceStart;
@@ -2458,11 +2457,9 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	result = comedi_pci_enable(pcidev, dev->board_name);
-	if (result < 0) {
-		printk(KERN_ERR "s626_attach: comedi_pci_enable fails\n");
-		return -ENODEV;
-	}
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
 	devpriv->got_regions = 1;
 
 	resourceStart = pci_resource_start(pcidev, 0);
