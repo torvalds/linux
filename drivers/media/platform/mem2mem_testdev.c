@@ -397,8 +397,7 @@ static void device_isr(unsigned long priv)
 	curr_ctx = v4l2_m2m_get_curr_priv(m2mtest_dev->m2m_dev);
 
 	if (NULL == curr_ctx) {
-		printk(KERN_ERR
-			"Instance released before the end of transaction\n");
+		pr_err("Instance released before the end of transaction\n");
 		return;
 	}
 
