@@ -2665,12 +2665,6 @@ static void s626_initialize(struct comedi_device *dev)
 	for (chan = 0; chan < S626_DAC_CHANNELS; chan++)
 		SetDAC(dev, chan, 0);
 
-	/* Init Counter Interrupt enab mask for RDMISC2.  This mask is
-	 * applied against MISC2 when testing to determine which timer
-	 * events are requesting interrupt service.
-	 */
-	devpriv->CounterIntEnabs = 0;
-
 	/*  Init counters. */
 	CountersInit(dev);
 
