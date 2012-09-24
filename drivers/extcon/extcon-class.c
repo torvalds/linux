@@ -570,6 +570,10 @@ static void extcon_cleanup(struct extcon_dev *edev, bool skip)
 			kfree(edev->cables);
 		}
 
+#if defined(CONFIG_ANDROID)
+		if (switch_class)
+			class_compat_remove_link(switch_class, edev->dev, NULL);
+#endif
 		device_unregister(edev->dev);
 		put_device(edev->dev);
 	}
