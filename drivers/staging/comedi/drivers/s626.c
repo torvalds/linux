@@ -82,40 +82,6 @@ INSN_CONFIG instructions:
 #define PCI_SUBVENDOR_ID_S626 0x6000
 #define PCI_SUBDEVICE_ID_S626 0x0272
 
-struct s626_board {
-	const char *name;
-	int vendor_id;
-	int device_id;
-	int subvendor_id;
-	int subdevice_id;
-	int ai_chans;
-	int ai_bits;
-	int ao_chans;
-	int ao_bits;
-	int dio_chans;
-	int dio_banks;
-	int enc_chans;
-};
-
-static const struct s626_board s626_boards[] = {
-	{
-	 .name = "s626",
-	 .vendor_id = PCI_VENDOR_ID_S626,
-	 .device_id = PCI_DEVICE_ID_S626,
-	 .subvendor_id = PCI_SUBVENDOR_ID_S626,
-	 .subdevice_id = PCI_SUBDEVICE_ID_S626,
-	 .ai_chans = S626_ADC_CHANNELS,
-	 .ai_bits = 14,
-	 .ao_chans = S626_DAC_CHANNELS,
-	 .ao_bits = 13,
-	 .dio_chans = S626_DIO_CHANNELS,
-	 .dio_banks = S626_DIO_BANKS,
-	 .enc_chans = S626_ENCODER_CHANNELS,
-	 }
-};
-
-#define thisboard ((const struct s626_board *)dev->board_ptr)
-
 struct s626_private {
 	struct pci_dev *pdev;
 	void __iomem *base_addr;
@@ -2484,24 +2450,23 @@ static struct pci_dev *s626_find_pci(struct comedi_device *dev,
 	int slot = it->options[1];
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(s626_boards) && !pcidev; i++) {
-		do {
-			pcidev = pci_get_subsys(s626_boards[i].vendor_id,
-						s626_boards[i].device_id,
-						s626_boards[i].subvendor_id,
-						s626_boards[i].subdevice_id,
-						pcidev);
+	do {
+		pcidev = pci_get_subsys(PCI_VENDOR_ID_S626,
+					PCI_DEVICE_ID_S626,
+					PCI_SUBVENDOR_ID_S626,
+					PCI_SUBDEVICE_ID_S626,
+					pcidev);
 
-			if ((bus || slot) && pcidev) {
-				/* matches requested bus/slot */
-				if (pcidev->bus->number == bus &&
-				    PCI_SLOT(pcidev->devfn) == slot)
-					break;
-			} else {
+		if ((bus || slot) && pcidev) {
+			/* matches requested bus/slot */
+			if (pcidev->bus->number == bus &&
+				PCI_SLOT(pcidev->devfn) == slot)
 				break;
-			}
-		} while (1);
-	}
+		} else {
+			break;
+		}
+	} while (1);
+
 	return pcidev;
 }
 
@@ -2581,8 +2546,7 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	}
 
-	dev->board_ptr = s626_boards;
-	dev->board_name = thisboard->name;
+	dev->board_name = dev->driver->driver_name;
 
 	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
@@ -2610,12 +2574,10 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* we support single-ended (ground) and differential */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = thisboard->ai_chans;
+	s->n_chan = S626_ADC_CHANNELS;
 	s->maxdata = (0xffff >> 2);
 	s->range_table = &s626_range_table;
-	s->len_chanlist = thisboard->ai_chans;	/* This is the maximum chanlist
-						   length that the board can
-						   handle */
+	s->len_chanlist = S626_ADC_CHANNELS;
 	s->insn_config = s626_ai_insn_config;
 	s->insn_read = s626_ai_insn_read;
 	s->do_cmd = s626_ai_cmd;
@@ -2626,7 +2588,7 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = thisboard->ao_chans;
+	s->n_chan = S626_DAC_CHANNELS;
 	s->maxdata = (0x3fff);
 	s->range_table = &range_bipolar10;
 	s->insn_write = s626_ao_winsn;
@@ -2672,7 +2634,7 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* encoder (counter) subdevice */
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE | SDF_LSAMPL;
-	s->n_chan = thisboard->enc_chans;
+	s->n_chan = S626_ENCODER_CHANNELS;
 	s->private = enc_private_data;
 	s->insn_config = s626_enc_insn_config;
 	s->insn_read = s626_enc_insn_read;
