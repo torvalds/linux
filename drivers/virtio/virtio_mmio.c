@@ -331,6 +331,16 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 	 * and two rings (which makes it "alignment_size * 2")
 	 */
 	info->num = readl(vm_dev->base + VIRTIO_MMIO_QUEUE_NUM_MAX);
+
+	/* If the device reports a 0 entry queue, we won't be able to
+	 * use it to perform I/O, and vring_new_virtqueue() can't create
+	 * empty queues anyway, so don't bother to set up the device.
+	 */
+	if (info->num == 0) {
+		err = -ENOENT;
+		goto error_alloc_pages;
+	}
+
 	while (1) {
 		size = PAGE_ALIGN(vring_size(info->num,
 				VIRTIO_MMIO_VRING_ALIGN));
