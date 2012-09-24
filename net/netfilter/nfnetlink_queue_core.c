@@ -225,7 +225,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 {
 	sk_buff_data_t old_tail;
 	size_t size;
-	size_t data_len = 0;
+	size_t data_len = 0, cap_len = 0;
 	struct sk_buff *skb;
 	struct nlattr *nla;
 	struct nfqnl_msg_packet_hdr *pmsg;
@@ -247,7 +247,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 #endif
 		+ nla_total_size(sizeof(u_int32_t))	/* mark */
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hw))
-		+ nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp));
+		+ nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp)
+		+ nla_total_size(sizeof(u_int32_t)));	/* cap_len */
 
 	outdev = entry->outdev;
 
@@ -266,6 +267,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 			data_len = entskb->len;
 
 		size += nla_total_size(data_len);
+		cap_len = entskb->len;
 		break;
 	}
 
@@ -400,6 +402,9 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	}
 
 	if (ct && nfqnl_ct_put(skb, ct, ctinfo) < 0)
+		goto nla_put_failure;
+
+	if (cap_len > 0 && nla_put_be32(skb, NFQA_CAP_LEN, htonl(cap_len)))
 		goto nla_put_failure;
 
 	nlh->nlmsg_len = skb->tail - old_tail;
