@@ -323,10 +323,7 @@ typedef struct _stLocalSFDeleteRequest {
 	B_UINT32 u32SFID; /* < SFID */
 } stLocalSFDeleteRequest, *pstLocalSFDeleteRequest;
 
-/*
- * structure stLocalSFDeleteIndication
- */
-typedef struct stLocalSFDeleteIndication {
+struct bcm_del_indication {
 	B_UINT8 u8Type;	/* < Type */
 	B_UINT8 u8Padding; /* < Padding */
 	B_UINT16 u16TID; /* < TID */
@@ -339,7 +336,7 @@ typedef struct stLocalSFDeleteIndication {
 	/* brief 8bit Confirmation code */
 	B_UINT8 u8ConfirmationCode; /* < Confirmation code */
 	B_UINT8 u8Padding1[3]; /* < 3 byte Padding */
-} stLocalSFDeleteIndication;
+};
 
 struct bcm_stim_sfhostnotify {
 	B_UINT32 SFID; /* SFID of the service flow */
