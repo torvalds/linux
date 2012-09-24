@@ -28,6 +28,7 @@ static void __init rk30_cpu_axi_init(void)
 #else
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x4008);	// peri
 #endif
+#if 0
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x5008);	// gpu
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x6008);	// vpu
 	writel_relaxed(0xa, RK30_CPU_AXI_BUS_BASE + 0x7008);	// lcdc0
@@ -36,6 +37,7 @@ static void __init rk30_cpu_axi_init(void)
 	writel_relaxed(0xa, RK30_CPU_AXI_BUS_BASE + 0x7188);	// lcdc1
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7208);	// cif1
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7288);	// rga
+#endif
 	writel_relaxed(0x3f, RK30_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
 	dsb();
 }
