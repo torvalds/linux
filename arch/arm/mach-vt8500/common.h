@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-vt8500/restart.h
+/* linux/arch/arm/mach-vt8500/dt_common.h
  *
  * Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
  *
@@ -13,5 +13,16 @@
  *
  */
 
-void vt8500_setup_restart(void);
-void vt8500_restart(char mode, const char *cmd);
+#ifndef __ARCH_ARM_MACH_VT8500_DT_COMMON_H
+#define __ARCH_ARM_MACH_VT8500_DT_COMMON_H
+
+#include <linux/of.h>
+
+void __init vt8500_timer_init(void);
+int __init vt8500_irq_init(struct device_node *node,
+				struct device_node *parent);
+
+/* defined in drivers/clk/clk-vt8500.c */
+void __init vtwm_clk_init(void __iomem *pmc_base);
+
+#endif

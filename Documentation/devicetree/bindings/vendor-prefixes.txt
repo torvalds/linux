@@ -47,5 +47,7 @@ sirf	SiRF Technology, Inc.
 st	STMicroelectronics
 stericsson	ST-Ericsson
 ti	Texas Instruments
+via	VIA Technologies, Inc.
 wlf	Wolfson Microelectronics
+wm	Wondermedia Technologies, Inc.
 xlnx	Xilinx

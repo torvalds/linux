@@ -35,6 +35,13 @@
 #include "vt8500lcdfb.h"
 #include "wmt_ge_rops.h"
 
+#ifdef CONFIG_OF
+#include <linux/of.h>
+#include <linux/of_fdt.h>
+#include <linux/memblock.h>
+#endif
+
+
 #define to_vt8500lcd_info(__info) container_of(__info, \
 						struct vt8500lcd_info, fb)
 
@@ -270,15 +277,21 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 {
 	struct vt8500lcd_info *fbi;
 	struct resource *res;
-	struct vt8500fb_platform_data *pdata = pdev->dev.platform_data;
 	void *addr;
 	int irq, ret;
+
+	struct fb_videomode	of_mode;
+	struct device_node	*np;
+	u32			bpp;
+	dma_addr_t fb_mem_phys;
+	unsigned long fb_mem_len;
+	void *fb_mem_virt;
 
 	ret = -ENOMEM;
 	fbi = NULL;
 
-	fbi = kzalloc(sizeof(struct vt8500lcd_info) + sizeof(u32) * 16,
-							GFP_KERNEL);
+	fbi = devm_kzalloc(&pdev->dev, sizeof(struct vt8500lcd_info)
+			+ sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbi) {
 		dev_err(&pdev->dev, "Failed to initialize framebuffer device\n");
 		ret = -ENOMEM;
@@ -333,9 +346,45 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 		goto failed_free_res;
 	}
 
-	fbi->fb.fix.smem_start	= pdata->video_mem_phys;
-	fbi->fb.fix.smem_len	= pdata->video_mem_len;
-	fbi->fb.screen_base	= pdata->video_mem_virt;
+	np = of_parse_phandle(pdev->dev.of_node, "default-mode", 0);
+	if (!np) {
+		pr_err("%s: No display description in Device Tree\n", __func__);
+		ret = -EINVAL;
+		goto failed_free_res;
+	}
+
+	/*
+	 * This code is copied from Sascha Hauer's of_videomode helper
+	 * and can be replaced with a call to the helper once mainlined
+	 */
+	ret = 0;
+	ret |= of_property_read_u32(np, "hactive", &of_mode.xres);
+	ret |= of_property_read_u32(np, "vactive", &of_mode.yres);
+	ret |= of_property_read_u32(np, "hback-porch", &of_mode.left_margin);
+	ret |= of_property_read_u32(np, "hfront-porch", &of_mode.right_margin);
+	ret |= of_property_read_u32(np, "hsync-len", &of_mode.hsync_len);
+	ret |= of_property_read_u32(np, "vback-porch", &of_mode.upper_margin);
+	ret |= of_property_read_u32(np, "vfront-porch", &of_mode.lower_margin);
+	ret |= of_property_read_u32(np, "vsync-len", &of_mode.vsync_len);
+	ret |= of_property_read_u32(np, "bpp", &bpp);
+	if (ret) {
+		pr_err("%s: Unable to read display properties\n", __func__);
+		goto failed_free_res;
+	}
+	of_mode.vmode = FB_VMODE_NONINTERLACED;
+
+	/* try allocating the framebuffer */
+	fb_mem_len = of_mode.xres * of_mode.yres * 2 * (bpp / 8);
+	fb_mem_virt = dma_alloc_coherent(&pdev->dev, fb_mem_len, &fb_mem_phys,
+				GFP_KERNEL);
+	if (!fb_mem_virt) {
+		pr_err("%s: Failed to allocate framebuffer\n", __func__);
+		return -ENOMEM;
+	};
+
+	fbi->fb.fix.smem_start	= fb_mem_phys;
+	fbi->fb.fix.smem_len	= fb_mem_len;
+	fbi->fb.screen_base	= fb_mem_virt;
 
 	fbi->palette_size	= PAGE_ALIGN(512);
 	fbi->palette_cpu	= dma_alloc_coherent(&pdev->dev,
@@ -370,10 +419,11 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 		goto failed_free_irq;
 	}
 
-	fb_videomode_to_var(&fbi->fb.var, &pdata->mode);
-	fbi->fb.var.bits_per_pixel	= pdata->bpp;
-	fbi->fb.var.xres_virtual	= pdata->xres_virtual;
-	fbi->fb.var.yres_virtual	= pdata->yres_virtual;
+	fb_videomode_to_var(&fbi->fb.var, &of_mode);
+
+	fbi->fb.var.xres_virtual	= of_mode.xres;
+	fbi->fb.var.yres_virtual	= of_mode.yres * 2;
+	fbi->fb.var.bits_per_pixel	= bpp;
 
 	ret = vt8500lcd_set_par(&fbi->fb);
 	if (ret) {
@@ -448,12 +498,18 @@ static int __devexit vt8500lcd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id via_dt_ids[] = {
+	{ .compatible = "via,vt8500-fb", },
+	{}
+};
+
 static struct platform_driver vt8500lcd_driver = {
 	.probe		= vt8500lcd_probe,
 	.remove		= __devexit_p(vt8500lcd_remove),
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "vt8500-lcd",
+		.of_match_table = of_match_ptr(via_dt_ids),
 	},
 };
 
@@ -461,4 +517,5 @@ module_platform_driver(vt8500lcd_driver);
 
 MODULE_AUTHOR("Alexey Charkov <alchark@gmail.com>");
 MODULE_DESCRIPTION("LCD controller driver for VIA VT8500");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(of, via_dt_ids);
