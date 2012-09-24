@@ -2195,7 +2195,8 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 		const struct omap_video_timings *mgr_timings,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
-		int *x_predecim, int *y_predecim, u16 pos_x)
+		int *x_predecim, int *y_predecim, u16 pos_x,
+		enum omap_dss_rotation_type rotation_type)
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
@@ -2210,7 +2211,8 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 		return -EINVAL;
 
 	*x_predecim = max_decim_limit;
-	*y_predecim = max_decim_limit;
+	*y_predecim = (rotation_type == OMAP_DSS_ROT_TILER &&
+			dss_has_feature(FEAT_BURST_2D)) ? 2 : max_decim_limit;
 
 	if (color_mode == OMAP_DSS_COLOR_CLUT1 ||
 	    color_mode == OMAP_DSS_COLOR_CLUT2 ||
@@ -2306,7 +2308,8 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 
 	r = dispc_ovl_calc_scaling(plane, channel, mgr_timings, in_width,
 			in_height, out_width, out_height, oi->color_mode,
-			&five_taps, &x_predecim, &y_predecim, oi->pos_x);
+			&five_taps, &x_predecim, &y_predecim, oi->pos_x,
+			oi->rotation_type);
 	if (r)
 		return r;
 
