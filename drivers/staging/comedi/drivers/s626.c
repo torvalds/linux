@@ -80,7 +80,6 @@ INSN_CONFIG instructions:
 
 struct s626_private {
 	void __iomem *base_addr;
-	int got_regions;
 	short allocatedBuf;
 	uint8_t ai_cmd_running;	/*  ai_cmd is running */
 	uint8_t ai_continous;	/*  continous acquisition */
@@ -2460,7 +2459,7 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
-	devpriv->got_regions = 1;
+	dev->iobase = 1;	/* detach needs this */
 
 	resourceStart = pci_resource_start(pcidev, 0);
 
@@ -2512,7 +2511,6 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	if (ret)
 		return ret;
 
-	dev->iobase = (unsigned long)devpriv->base_addr;
 	dev->irq = pcidev->irq;
 
 	/* set up interrupt handler */
@@ -2893,7 +2891,7 @@ static void s626_detach(struct comedi_device *dev)
 			iounmap(devpriv->base_addr);
 	}
 	if (pcidev) {
-		if (devpriv->got_regions)
+		if (dev->iobase)
 			comedi_pci_disable(pcidev);
 	}
 }
