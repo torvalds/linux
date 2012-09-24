@@ -82,7 +82,7 @@ static struct spi_board_info board_spi_devices[] = {
 #define PWM_GPIO 	  RK2928_PIN0_PD2
 #define PWM_EFFECT_VALUE  0
 
-#define LCD_DISP_ON_PIN
+//#define LCD_DISP_ON_PIN
 
 #ifdef  LCD_DISP_ON_PIN
 
@@ -183,7 +183,11 @@ static struct platform_device rk29_device_backlight = {
 #define LCD_MUX_NAME  GPIO0C2_UART0_RTSN_NAME
 #define LCD_GPIO_MODE GPIO0C_GPIO0C2
 
+#ifdef CONFIG_MACH_RK2926_M713
+#define LCD_EN        RK2928_PIN1_PB3
+#else
 #define LCD_EN        RK2928_PIN0_PC2
+#endif
 #define LCD_EN_VALUE  GPIO_LOW
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
@@ -334,7 +338,11 @@ static struct platform_device device_ion = {
 #if defined(CONFIG_TOUCHSCREEN_SITRONIX_A720)
 
 #define TOUCH_RESET_PIN	 RK2928_PIN1_PA3
+#ifdef CONFIG_MACH_RK2926_M713
+#define TOUCH_INT_PIN 	 RK2928_PIN1_PB0
+#else
 #define TOUCH_INT_PIN 	 RK2928_PIN1_PB3
+#endif
 int ft5306_init_platform_hw(void)
 {
 
@@ -370,11 +378,19 @@ struct ft5x0x_platform_data sitronix_info = {
 
 /*MMA7660 gsensor*/
 #if defined (CONFIG_GS_MMA7660)
+#ifdef CONFIG_MACH_RK2926_M713
+#define MMA7660_INT_PIN   RK2928_PIN1_PB2
+#else
 #define MMA7660_INT_PIN   RK2928_PIN1_PB1
+#endif
 
 static int mma7660_init_platform_hw(void)
 {
+#ifdef CONFIG_MACH_RK2926_M713
+	rk30_mux_api_set(GPIO1B2_SPI_RXD_UART1_SIN_NAME, GPIO1B_GPIO1B2);
+#else
 	rk30_mux_api_set(GPIO1B1_SPI_TXD_UART1_SOUT_NAME, GPIO1B_GPIO1B1);
+#endif
 
 	return 0;
 }
@@ -586,6 +602,11 @@ static struct platform_device *devices[] __initdata = {
 #include "board-rk2928-a720-tps65910.c"
 #endif
 #ifdef CONFIG_REGULATOR_ACT8931
+#ifdef CONFIG_MACH_RK2926_M713
+#define ACT8931_HOST_IRQ		RK2928_PIN1_PB1
+#else
+#define ACT8931_HOST_IRQ		RK2928_PIN1_PB2
+#endif
 #include "board-rk2928-sdk-act8931.c"
 #endif
 
@@ -604,10 +625,20 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.type    		= "act8931",
 		.addr           = 0x5b, 
 		.flags			= 0,
+		.irq            = ACT8931_HOST_IRQ,
 		.platform_data=&act8931_data,
 	},
 #endif
-
+#ifdef CONFIG_MACH_RK2926_M713
+#if defined (CONFIG_RTC_HYM8563)
+	{
+		.type    		= "rtc_hym8563",
+		.addr           = 0x51,
+		.flags			= 0,
+		.irq            = RK2928_PIN1_PA5,
+	},
+#endif
+#endif
 };
 #endif
 
@@ -679,7 +710,11 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 #if defined (CONFIG_TOUCHSCREEN_SITRONIX_A720)
 {
         .type	        ="sitronix",
+#ifdef CONFIG_MACH_RK2926_M713
+	.addr           = 0x60,
+#else
 	.addr           = 0x38,
+#endif
 	.flags          = 0,
 	.irq            = TOUCH_INT_PIN,
 	.platform_data = &sitronix_info,

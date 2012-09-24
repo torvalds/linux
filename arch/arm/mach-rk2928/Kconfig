@@ -17,6 +17,13 @@ config MACH_RK2928_SDK
 config MACH_RK2928_A720
 	bool "RK2928 A720 board"
 
+	config MACH_RK2926_M713
+		bool "RK2926 M713 board"
+		depends on MACH_RK2928_A720
+		default n
+		help
+			support rk2926 m713 board with pmu act8931
+
 endchoice
 
 endif

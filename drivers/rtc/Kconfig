@@ -163,7 +163,7 @@ config RTC_DRV_88PM860X
 
 config RTC_HYM8563
         tristate "RK2818 or RK29 extern HYM8563 RTC"
-	depends on I2C_RK2818 || I2C_RK29
+	depends on I2C_RK2818 || I2C_RK29 || I2C_RK30
         help
           If you say yes here you will get support for the
           HYM8563 I2C RTC chip.
