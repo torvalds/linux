@@ -376,7 +376,7 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 		   The above periods must be expressed as a multiple of the
 		   pulse frequency on the selected source
 		 */
-		if ((data[1] < data[0]) || !data[0])
+		if ((data[1] <= data[0]) || !data[0])
 			return -EINVAL;
 
 		/* Fall thru to write the PULSE_WIDTH */
