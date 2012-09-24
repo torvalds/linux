@@ -4,6 +4,10 @@ choice
 	prompt "RK2928 Board Type"
 	default MACH_RK2928_SDK
 
+config MACH_RK2928
+	bool "RK2928 Board"
+	select RK_CONFIG
+
 config MACH_RK2928_FPGA
 	bool "RK2928 FPGA board"
 
@@ -12,6 +16,7 @@ config MACH_RK2928_SDK
 
 config MACH_RK2928_A720
 	bool "RK2928 A720 board"
+
 endchoice
 
 endif

@@ -15,6 +15,8 @@ obj-$(CONFIG_PM) += pm.o
 CFLAGS_pm.o += -Os -mthumb
 obj-$(CONFIG_RK30_I2C_INSRAM) += i2c_sram.o
 
+board-y := board-rk2928.o
+obj-$(CONFIG_MACH_RK2928) += board.o
 obj-$(CONFIG_MACH_RK2928_FPGA) += board-rk2928-fpga.o
 obj-$(CONFIG_MACH_RK2928_SDK) += board-rk2928-sdk.o
 obj-$(CONFIG_MACH_RK2928_A720) += board-rk2928-a720.o
