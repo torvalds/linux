@@ -501,6 +501,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	smc_t __iomem *smcp = pinfo->smcp;
 	scc_t __iomem *sccp = pinfo->sccp;
+	int maxidl;
 
 	pr_debug("CPM uart[%d]:set_termios\n", port->line);
 
@@ -510,6 +511,17 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		pinfo->rx_fifosize = 1;
 	else
 		pinfo->rx_fifosize = RX_BUF_SIZE;
+
+	/* MAXIDL is the timeout after which a receive buffer is closed
+	 * when not full if no more characters are received.
+	 * We calculate it from the baudrate so that the duration is
+	 * always the same at standard rates: about 4ms.
+	 */
+	maxidl = baud / 2400;
+	if (maxidl < 1)
+		maxidl = 1;
+	if (maxidl > 0x10)
+		maxidl = 0x10;
 
 	/* Character length programmed into the mode register is the
 	 * sum of: 1 start bit, number of data bits, 0 or 1 parity bit,
@@ -611,6 +623,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		 * SMC/SCC receiver is disabled.
 		 */
 		out_be16(&pinfo->smcup->smc_mrblr, pinfo->rx_fifosize);
+		out_be16(&pinfo->smcup->smc_maxidl, maxidl);
 
 		/* Set the mode register.  We want to keep a copy of the
 		 * enables, because we want to put them back if they were
@@ -623,6 +636,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		    SMCMR_SM_UART | prev_mode);
 	} else {
 		out_be16(&pinfo->sccup->scc_genscc.scc_mrblr, pinfo->rx_fifosize);
+		out_be16(&pinfo->sccup->scc_maxidl, maxidl);
 		out_be16(&sccp->scc_psmr, (sbits << 12) | scval);
 	}
 
