@@ -2465,43 +2465,40 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	if (!devpriv->base_addr)
 		return -ENOMEM;
 
-	if (devpriv->base_addr) {
-		/* disable master interrupt */
-		writel(0, devpriv->base_addr + P_IER);
+	/* disable master interrupt */
+	writel(0, devpriv->base_addr + P_IER);
 
-		/* soft reset */
-		writel(MC1_SOFT_RESET, devpriv->base_addr + P_MC1);
+	/* soft reset */
+	writel(MC1_SOFT_RESET, devpriv->base_addr + P_MC1);
 
-		/* DMA FIXME DMA// */
+	/* DMA FIXME DMA// */
 
-		/* adc buffer allocation */
-		devpriv->allocatedBuf = 0;
+	/* adc buffer allocation */
+	devpriv->allocatedBuf = 0;
 
-		devpriv->ANABuf.LogicalBase =
-		    pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
+	devpriv->ANABuf.LogicalBase =
+		pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
 
-		if (devpriv->ANABuf.LogicalBase == NULL) {
-			printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
-			return -ENOMEM;
-		}
-
-		devpriv->ANABuf.PhysicalBase = appdma;
-
-		devpriv->allocatedBuf++;
-
-		devpriv->RPSBuf.LogicalBase =
-		    pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
-
-		if (devpriv->RPSBuf.LogicalBase == NULL) {
-			printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
-			return -ENOMEM;
-		}
-
-		devpriv->RPSBuf.PhysicalBase = appdma;
-
-		devpriv->allocatedBuf++;
-
+	if (devpriv->ANABuf.LogicalBase == NULL) {
+		printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
+		return -ENOMEM;
 	}
+
+	devpriv->ANABuf.PhysicalBase = appdma;
+
+	devpriv->allocatedBuf++;
+
+	devpriv->RPSBuf.LogicalBase =
+		pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
+
+	if (devpriv->RPSBuf.LogicalBase == NULL) {
+		printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
+		return -ENOMEM;
+	}
+
+	devpriv->RPSBuf.PhysicalBase = appdma;
+
+	devpriv->allocatedBuf++;
 
 	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
@@ -2599,7 +2596,7 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	/* stop ai_command */
 	devpriv->ai_cmd_running = 0;
 
-	if (devpriv->base_addr && (devpriv->allocatedBuf == 2)) {
+	if (devpriv->allocatedBuf == 2) {
 		dma_addr_t pPhysBuf;
 		uint16_t chan;
 
