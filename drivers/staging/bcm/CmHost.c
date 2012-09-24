@@ -428,7 +428,7 @@ VOID DeleteAllClassifiersForSF(struct bcm_mini_adapter *Adapter, UINT uiSearchRu
  * @ingroup ctrl_pkt_functions
  */
 static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer to the Adapter structure */
-			register pstServiceFlowParamSI psfLocalSet, /* <Pointer to the ServiceFlowParamSI structure */
+			register struct bcm_connect_mgr_params *psfLocalSet, /* Pointer to the connection manager parameters structure */
 			register UINT uiSearchRuleIndex, /* <Index of Queue, to which this data belongs */
 			register UCHAR ucDsxType,
 			stLocalSFAddIndicationAlt *pstAddIndication) {
@@ -1300,7 +1300,7 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 
 static inline ULONG RestoreSFParam(struct bcm_mini_adapter *Adapter, ULONG ulAddrSFParamSet, PUCHAR pucDestBuffer)
 {
-	UINT  nBytesToRead = sizeof(stServiceFlowParamSI);
+	UINT  nBytesToRead = sizeof(struct bcm_connect_mgr_params);
 
 	if (ulAddrSFParamSet == 0 || NULL == pucDestBuffer) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Got Param address as 0!!");
@@ -1317,7 +1317,7 @@ static inline ULONG RestoreSFParam(struct bcm_mini_adapter *Adapter, ULONG ulAdd
 
 static ULONG StoreSFParam(struct bcm_mini_adapter *Adapter, PUCHAR pucSrcBuffer, ULONG ulAddrSFParamSet)
 {
-	UINT nBytesToWrite = sizeof(stServiceFlowParamSI);
+	UINT nBytesToWrite = sizeof(struct bcm_connect_mgr_params);
 	int ret = 0;
 
 	if (ulAddrSFParamSet == 0 || NULL == pucSrcBuffer)
@@ -1370,7 +1370,7 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 		return 0;
 
 	/* AUTHORIZED SET */
-	pstAddIndication->psfAuthorizedSet = (stServiceFlowParamSI *)
+	pstAddIndication->psfAuthorizedSet = (struct bcm_connect_mgr_params *)
 			GetNextTargetBufferLocation(Adapter, pstAddIndicationAlt->u16TID);
 	if (!pstAddIndication->psfAuthorizedSet) {
 		kfree(pstAddIndication);
@@ -1384,7 +1384,7 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 	}
 
 	/* this can't possibly be right */
-	pstAddIndication->psfAuthorizedSet = (stServiceFlowParamSI *)ntohl((ULONG)pstAddIndication->psfAuthorizedSet);
+	pstAddIndication->psfAuthorizedSet = (struct bcm_connect_mgr_params *)ntohl((ULONG)pstAddIndication->psfAuthorizedSet);
 
 	if (pstAddIndicationAlt->u8Type == DSA_REQ) {
 		struct bcm_add_request AddRequest;
@@ -1412,7 +1412,7 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 	pstAddIndication->u8CC = pstAddIndicationAlt->u8CC;
 
 	/* ADMITTED SET */
-	pstAddIndication->psfAdmittedSet = (stServiceFlowParamSI *)
+	pstAddIndication->psfAdmittedSet = (struct bcm_connect_mgr_params *)
 		GetNextTargetBufferLocation(Adapter, pstAddIndicationAlt->u16TID);
 	if (!pstAddIndication->psfAdmittedSet) {
 		kfree(pstAddIndication);
@@ -1423,10 +1423,10 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 		return 0;
 	}
 
-	pstAddIndication->psfAdmittedSet = (stServiceFlowParamSI *)ntohl((ULONG)pstAddIndication->psfAdmittedSet);
+	pstAddIndication->psfAdmittedSet = (struct bcm_connect_mgr_params *)ntohl((ULONG)pstAddIndication->psfAdmittedSet);
 
 	/* ACTIVE SET */
-	pstAddIndication->psfActiveSet = (stServiceFlowParamSI *)
+	pstAddIndication->psfActiveSet = (struct bcm_connect_mgr_params *)
 		GetNextTargetBufferLocation(Adapter, pstAddIndicationAlt->u16TID);
 	if (!pstAddIndication->psfActiveSet) {
 		kfree(pstAddIndication);
@@ -1437,7 +1437,7 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 		return 0;
 	}
 
-	pstAddIndication->psfActiveSet = (stServiceFlowParamSI *)ntohl((ULONG)pstAddIndication->psfActiveSet);
+	pstAddIndication->psfActiveSet = (struct bcm_connect_mgr_params *)ntohl((ULONG)pstAddIndication->psfActiveSet);
 
 	(*puBufferLength) = sizeof(struct bcm_add_indication);
 	*(struct bcm_add_indication *)pvBuffer = *pstAddIndication;
@@ -1539,7 +1539,7 @@ ULONG SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter)
 	if (Adapter->astTargetDsxBuffer[0].ulTargetDsxBuffer)
 		return 1;
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Size of Each DSX Buffer(Also size of ServiceFlowParamSI): %zx ", sizeof(stServiceFlowParamSI));
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Size of Each DSX Buffer(Also size of connection manager parameters): %zx ", sizeof(struct bcm_connect_mgr_params));
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Reading DSX buffer From Target location %x ", DSX_MESSAGE_EXCHANGE_BUFFER);
 
 	Status = rdmalt(Adapter, DSX_MESSAGE_EXCHANGE_BUFFER, (PUINT)&ulTargetDsxBuffersBase, sizeof(UINT));
@@ -1550,7 +1550,7 @@ ULONG SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter)
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Base Address Of DSX  Target Buffer : 0x%lx", ulTargetDsxBuffersBase);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "Tgt Buffer is Now %lx :", ulTargetDsxBuffersBase);
-	ulCntTargetBuffers = DSX_MESSAGE_EXCHANGE_BUFFER_SIZE / sizeof(stServiceFlowParamSI);
+	ulCntTargetBuffers = DSX_MESSAGE_EXCHANGE_BUFFER_SIZE / sizeof(struct bcm_connect_mgr_params);
 
 	Adapter->ulTotalTargetBuffersAvailable =
 		ulCntTargetBuffers > MAX_TARGET_DSX_BUFFERS ?
@@ -1562,7 +1562,7 @@ ULONG SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter)
 		Adapter->astTargetDsxBuffer[i].ulTargetDsxBuffer = ulTargetDsxBuffersBase;
 		Adapter->astTargetDsxBuffer[i].valid = 1;
 		Adapter->astTargetDsxBuffer[i].tid = 0;
-		ulTargetDsxBuffersBase += sizeof(stServiceFlowParamSI);
+		ulTargetDsxBuffersBase += sizeof(struct bcm_connect_mgr_params);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "  Target DSX Buffer %lx setup at 0x%lx",
 				i, Adapter->astTargetDsxBuffer[i].ulTargetDsxBuffer);
 	}
@@ -1633,7 +1633,7 @@ int FreeAdapterDsxBuffer(struct bcm_mini_adapter *Adapter)
 BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer to the Adapter structure */
 				PVOID pvBuffer /* Starting Address of the Buffer, that contains the AddIndication Data */)
 {
-	stServiceFlowParamSI *psfLocalSet = NULL;
+	struct bcm_connect_mgr_params *psfLocalSet = NULL;
 	stLocalSFAddIndicationAlt *pstAddIndication = NULL;
 	stLocalSFChangeIndicationAlt *pstChangeIndication = NULL;
 	struct bcm_leader *pLeader = NULL;

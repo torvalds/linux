@@ -137,8 +137,7 @@ struct _stConvergenceSLTypes {
 };
 typedef struct _stConvergenceSLTypes stConvergenceSLTypes, CConvergenceSLTypes, *pstConvergenceSLTypes;
 
-/* brief structure CServiceFlowParamSI */
-typedef struct _stServiceFlowParamSI {
+struct bcm_connect_mgr_params {
 	/* 32bitSFID Of The Service Flow */
 	B_UINT32 u32SFID;
 	/* 32bit Maximum Sustained Traffic Rate of the Service Flow */
@@ -256,9 +255,7 @@ typedef struct _stServiceFlowParamSI {
  * Structure for Convergence SubLayer Types with a maximum of 4 classifiers
  */
 	stConvergenceSLTypes cConvergenceSLTypes[MAX_CLASSIFIERS_IN_SF];
-
-} stServiceFlowParamSI, *pstServiceFlowParamSI;
-typedef stServiceFlowParamSI CServiceFlowParamSI;
+};
 
 struct bcm_add_request {
 	B_UINT8 u8Type;	/* < Type */
@@ -269,8 +266,7 @@ struct bcm_add_request {
 	B_UINT16 u16CID; /* < 16bit CID */
 	/* brief 16bitVCID */
 	B_UINT16 u16VCID; /* < 16bit VCID */
-	/* brief structure ParameterSet */
-	stServiceFlowParamSI *psfParameterSet; /* < structure ParameterSet */
+	struct bcm_connect_mgr_params *psfParameterSet; /* < connection manager parameters */
 };
 
 struct bcm_add_indication {
@@ -282,13 +278,9 @@ struct bcm_add_indication {
 	B_UINT16 u16CID; /* < 16bitCID */
 	/* brief 16bitVCID */
 	B_UINT16 u16VCID; /* < 16bitVCID */
-	/* brief structure AuthorizedSet */
-	/* brief structure AuthorizedSet */
-	stServiceFlowParamSI *psfAuthorizedSet; /* < AuthorizedSet of type stServiceFlowParamSI */
-	/* brief structure AdmittedSet */
-	stServiceFlowParamSI *psfAdmittedSet; /* < AdmittedSet of type stServiceFlowParamSI */
-	/* brief structure ActiveSet */
-	stServiceFlowParamSI *psfActiveSet; /* < sfActiveSet of type stServiceFlowParamSI */
+	struct bcm_connect_mgr_params *psfAuthorizedSet; /* Authorized set of connection manager parameters */
+	struct bcm_connect_mgr_params *psfAdmittedSet; /* Admitted set of connection manager parameters */
+	struct bcm_connect_mgr_params *psfActiveSet; /* Activeset of connection manager parameters */
 	B_UINT8 u8CC; /* <Confirmation Code */
 	B_UINT8 u8Padd; /* < 8-bit Padding */
 	B_UINT16 u16Padd; /* < 16 bit Padding */
