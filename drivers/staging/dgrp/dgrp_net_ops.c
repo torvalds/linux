@@ -3156,6 +3156,12 @@ check_query:
 						nd->nd_hw_id = b[6];
 						desclen = ((plen - 12) > MAX_DESC_LEN) ? MAX_DESC_LEN :
 							plen - 12;
+
+						if (desclen <= 0) {
+							error = "Response Packet desclen error";
+							goto prot_error;
+						}
+
 						strncpy(nd->nd_ps_desc, b + 12, desclen);
 						nd->nd_ps_desc[desclen] = 0;
 					}
