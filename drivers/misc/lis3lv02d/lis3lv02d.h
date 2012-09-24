@@ -104,9 +104,9 @@ enum lis3_who_am_i {
 };
 
 enum lis3_type {
+	LIS3LV02D,
 	LIS3DC,
 	HP3DC,
-	LIS3LV02D,
 	LIS2302D,
 	LIS331DLF,
 	LIS331DLH,

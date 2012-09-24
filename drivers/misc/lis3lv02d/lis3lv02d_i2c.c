@@ -235,7 +235,7 @@ static int lis3_i2c_runtime_resume(struct device *dev)
 #endif /* CONFIG_PM_RUNTIME */
 
 static const struct i2c_device_id lis3lv02d_id[] = {
-	{"lis3lv02d", 0 },
+	{"lis3lv02d", LIS3LV02D},
 	{"lis331dlh", LIS331DLH},
 	{}
 };

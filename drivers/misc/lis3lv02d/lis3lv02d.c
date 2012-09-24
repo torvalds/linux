@@ -81,9 +81,10 @@
 #define LIS3_SENSITIVITY_8B		(18 * LIS3_ACCURACY)
 
 /*
- * LIS3331DLH spec says 1LSBs corresponds 4G/1024 -> 1LSB is 1000/1024 mG.
- * Sensitivity values for +/-2G, outdata in 12 bits for +/-2G scale. so 4
- * bits adjustment is required
+ * LIS331DLH spec says 1LSBs corresponds 4G/4096 -> 1LSB is 1000/1024 mG.
+ * Below macros defines sensitivity values for +/-2G. Dataout bits for
+ * +/-2G range is 12 bits so 4 bits adjustment must be done to get 12bit
+ * data from 16bit value. Currently this driver supports only 2G range.
  */
 #define LIS3DLH_SENSITIVITY_2G		((LIS3_ACCURACY * 1000) / 1024)
 #define SHIFT_ADJ_2G			4
@@ -144,7 +145,7 @@ static s16 lis3lv02d_read_12(struct lis3lv02d *lis3, int reg)
 }
 
 /* 12bits for 2G range, 13 bits for 4G range and 14 bits for 8G range */
-static s16 lis3lv02d_read_16(struct lis3lv02d *lis3, int reg)
+static s16 lis331dlh_read_data(struct lis3lv02d *lis3, int reg)
 {
 	u8 lo, hi;
 	int v;
@@ -987,8 +988,8 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 		lis3->scale = LIS3_SENSITIVITY_8B;
 		break;
 	case WAI_3DLH:
-		pr_info("16 bits 3DLH sensor found\n");
-		lis3->read_data = lis3lv02d_read_16;
+		pr_info("16 bits lis331dlh sensor found\n");
+		lis3->read_data = lis331dlh_read_data;
 		lis3->mdps_max_val = 2048; /* 12 bits for 2G */
 		lis3->shift_adj = SHIFT_ADJ_2G;
 		lis3->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
