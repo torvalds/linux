@@ -277,10 +277,7 @@ typedef struct _stLocalSFAddRequest {
 
 } stLocalSFAddRequest, *pstLocalSFAddRequest;
 
-/*
- * structure stLocalSFAddIndication
- */
-typedef struct _stLocalSFAddIndication {
+struct bcm_add_indication {
 	B_UINT8 u8Type;	/* < Type */
 	B_UINT8 eConnectionDir;	/* < Connection Direction */
 	/* brief 16 bit TID */
@@ -299,18 +296,7 @@ typedef struct _stLocalSFAddIndication {
 	B_UINT8 u8CC; /* <Confirmation Code */
 	B_UINT8 u8Padd; /* < 8-bit Padding */
 	B_UINT16 u16Padd; /* < 16 bit Padding */
-
-} stLocalSFAddIndication;
-
-typedef struct _stLocalSFAddIndication *pstLocalSFAddIndication;
-/*
- * structure stLocalSFChangeRequest is same as structure stLocalSFAddIndication
- */
-typedef struct _stLocalSFAddIndication stLocalSFChangeRequest, *pstLocalSFChangeRequest;
-/*
- * structure stLocalSFChangeIndication is same as structure stLocalSFAddIndication
- */
-typedef struct _stLocalSFAddIndication stLocalSFChangeIndication, *pstLocalSFChangeIndication;
+};
 
 struct bcm_del_request {
 	B_UINT8 u8Type; /* < Type */

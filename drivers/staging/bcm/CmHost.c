@@ -1334,7 +1334,7 @@ static ULONG StoreSFParam(struct bcm_mini_adapter *Adapter, PUCHAR pucSrcBuffer,
 ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer, UINT *puBufferLength)
 {
 	stLocalSFAddIndicationAlt *pstAddIndicationAlt = NULL;
-	stLocalSFAddIndication *pstAddIndication = NULL;
+	struct bcm_add_indication *pstAddIndication = NULL;
 	struct bcm_del_request *pstDeletionRequest;
 	UINT uiSearchRuleIndex;
 	ULONG ulSFID;
@@ -1365,7 +1365,7 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 	}
 	/* For DSA_REQ, only up to "psfAuthorizedSet" parameter should be accessed by driver! */
 
-	pstAddIndication = kmalloc(sizeof(*pstAddIndication), GFP_KERNEL);
+	pstAddIndication = kmalloc(sizeof(struct bcm_add_indication), GFP_KERNEL);
 	if (pstAddIndication == NULL)
 		return 0;
 
@@ -1439,8 +1439,8 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 
 	pstAddIndication->psfActiveSet = (stServiceFlowParamSI *)ntohl((ULONG)pstAddIndication->psfActiveSet);
 
-	(*puBufferLength) = sizeof(stLocalSFAddIndication);
-	*(stLocalSFAddIndication *)pvBuffer = *pstAddIndication;
+	(*puBufferLength) = sizeof(struct bcm_add_indication);
+	*(struct bcm_add_indication *)pvBuffer = *pstAddIndication;
 	kfree(pstAddIndication);
 	return 1;
 }
@@ -1449,10 +1449,10 @@ static inline stLocalSFAddIndicationAlt
 *RestoreCmControlResponseMessage(register struct bcm_mini_adapter *Adapter, register PVOID pvBuffer)
 {
 	ULONG ulStatus = 0;
-	stLocalSFAddIndication *pstAddIndication = NULL;
+	struct bcm_add_indication *pstAddIndication = NULL;
 	stLocalSFAddIndicationAlt *pstAddIndicationDest = NULL;
 
-	pstAddIndication = (stLocalSFAddIndication *)(pvBuffer);
+	pstAddIndication = (struct bcm_add_indication *)(pvBuffer);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "=====>");
 	if ((pstAddIndication->u8Type == DSD_REQ) ||
 		(pstAddIndication->u8Type == DSD_RSP) ||
@@ -1644,7 +1644,7 @@ BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter,  /* <Pointer 
 	 */
 	pstAddIndication = RestoreCmControlResponseMessage(Adapter, pvBuffer);
 	if (pstAddIndication == NULL) {
-		ClearTargetDSXBuffer(Adapter, ((stLocalSFAddIndication *)pvBuffer)->u16TID, FALSE);
+		ClearTargetDSXBuffer(Adapter, ((struct bcm_add_indication *)pvBuffer)->u16TID, FALSE);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Error in restoring Service Flow param structure from DSx message");
 		return FALSE;
 	}
