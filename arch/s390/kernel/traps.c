@@ -231,7 +231,6 @@ void show_registers(struct pt_regs *regs)
 
 void show_regs(struct pt_regs *regs)
 {
-	print_modules();
 	printk("CPU: %d %s %s %.*s\n",
 	       task_thread_info(current)->cpu, print_tainted(),
 	       init_utsname()->release,
@@ -271,6 +270,7 @@ void die(struct pt_regs *regs, const char *str)
 #endif
 	printk("\n");
 	notify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
+	print_modules();
 	show_regs(regs);
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE);
