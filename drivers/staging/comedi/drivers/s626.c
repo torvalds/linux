@@ -2464,7 +2464,7 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 	return 0;
 }
 
-static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
+static void s626_initialize(struct comedi_device *dev)
 {
 /*   uint8_t	PollList; */
 /*   uint16_t	AdcData; */
@@ -2472,125 +2472,6 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 /*   uint16_t	index; */
 /*   unsigned int data[16]; */
 	int i;
-	int ret;
-	struct comedi_subdevice *s;
-
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	dev->board_name = dev->driver->driver_name;
-
-	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
-		return -ENOMEM;
-
-	ret = comedi_pci_enable(pcidev, dev->board_name);
-	if (ret)
-		return ret;
-	dev->iobase = 1;	/* detach needs this */
-
-	devpriv->base_addr = ioremap(pci_resource_start(pcidev, 0),
-				     pci_resource_len(pcidev, 0));
-	if (!devpriv->base_addr)
-		return -ENOMEM;
-
-	/* disable master interrupt */
-	writel(0, devpriv->base_addr + P_IER);
-
-	/* soft reset */
-	writel(MC1_SOFT_RESET, devpriv->base_addr + P_MC1);
-
-	/* DMA FIXME DMA// */
-
-	ret = s626_allocate_dma_buffers(dev);
-	if (ret)
-		return ret;
-
-	if (pcidev->irq) {
-		ret = request_irq(pcidev->irq, s626_irq_handler, IRQF_SHARED,
-				  dev->board_name, dev);
-
-		if (ret == 0)
-			dev->irq = pcidev->irq;
-	}
-
-	ret = comedi_alloc_subdevices(dev, 6);
-	if (ret)
-		return ret;
-
-	s = dev->subdevices + 0;
-	/* analog input subdevice */
-	dev->read_subdev = s;
-	/* we support single-ended (ground) and differential */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan = S626_ADC_CHANNELS;
-	s->maxdata = (0xffff >> 2);
-	s->range_table = &s626_range_table;
-	s->len_chanlist = S626_ADC_CHANNELS;
-	s->insn_config = s626_ai_insn_config;
-	s->insn_read = s626_ai_insn_read;
-	s->do_cmd = s626_ai_cmd;
-	s->do_cmdtest = s626_ai_cmdtest;
-	s->cancel = s626_ai_cancel;
-
-	s = dev->subdevices + 1;
-	/* analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = S626_DAC_CHANNELS;
-	s->maxdata = (0x3fff);
-	s->range_table = &range_bipolar10;
-	s->insn_write = s626_ao_winsn;
-	s->insn_read = s626_ao_rinsn;
-
-	s = dev->subdevices + 2;
-	/* digital I/O subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->io_bits = 0xffff;
-	s->private = &dio_private_A;
-	s->range_table = &range_digital;
-	s->insn_config = s626_dio_insn_config;
-	s->insn_bits = s626_dio_insn_bits;
-
-	s = dev->subdevices + 3;
-	/* digital I/O subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->io_bits = 0xffff;
-	s->private = &dio_private_B;
-	s->range_table = &range_digital;
-	s->insn_config = s626_dio_insn_config;
-	s->insn_bits = s626_dio_insn_bits;
-
-	s = dev->subdevices + 4;
-	/* digital I/O subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->io_bits = 0xffff;
-	s->private = &dio_private_C;
-	s->range_table = &range_digital;
-	s->insn_config = s626_dio_insn_config;
-	s->insn_bits = s626_dio_insn_bits;
-
-	s = dev->subdevices + 5;
-	/* encoder (counter) subdevice */
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE | SDF_LSAMPL;
-	s->n_chan = S626_ENCODER_CHANNELS;
-	s->private = enc_private_data;
-	s->insn_config = s626_enc_insn_config;
-	s->insn_read = s626_enc_insn_read;
-	s->insn_write = s626_enc_insn_write;
-	s->maxdata = 0xffffff;
-	s->range_table = &range_unknown;
-
-	/* stop ai_command */
-	devpriv->ai_cmd_running = 0;
 
 	if (devpriv->allocatedBuf == 2) {
 		dma_addr_t pPhysBuf;
@@ -2846,6 +2727,131 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		/* enable interrupt test */
 		/*  writel(IRQ_GPIO3 | IRQ_RPS1,devpriv->base_addr+P_IER); */
 	}
+}
+
+static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
+{
+	struct comedi_subdevice *s;
+	int ret;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+	dev->board_name = dev->driver->driver_name;
+
+	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
+		return -ENOMEM;
+
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
+	dev->iobase = 1;	/* detach needs this */
+
+	devpriv->base_addr = ioremap(pci_resource_start(pcidev, 0),
+				     pci_resource_len(pcidev, 0));
+	if (!devpriv->base_addr)
+		return -ENOMEM;
+
+	/* disable master interrupt */
+	writel(0, devpriv->base_addr + P_IER);
+
+	/* soft reset */
+	writel(MC1_SOFT_RESET, devpriv->base_addr + P_MC1);
+
+	/* DMA FIXME DMA// */
+
+	ret = s626_allocate_dma_buffers(dev);
+	if (ret)
+		return ret;
+
+	if (pcidev->irq) {
+		ret = request_irq(pcidev->irq, s626_irq_handler, IRQF_SHARED,
+				  dev->board_name, dev);
+
+		if (ret == 0)
+			dev->irq = pcidev->irq;
+	}
+
+	ret = comedi_alloc_subdevices(dev, 6);
+	if (ret)
+		return ret;
+
+	s = dev->subdevices + 0;
+	/* analog input subdevice */
+	dev->read_subdev = s;
+	/* we support single-ended (ground) and differential */
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_CMD_READ;
+	s->n_chan = S626_ADC_CHANNELS;
+	s->maxdata = (0xffff >> 2);
+	s->range_table = &s626_range_table;
+	s->len_chanlist = S626_ADC_CHANNELS;
+	s->insn_config = s626_ai_insn_config;
+	s->insn_read = s626_ai_insn_read;
+	s->do_cmd = s626_ai_cmd;
+	s->do_cmdtest = s626_ai_cmdtest;
+	s->cancel = s626_ai_cancel;
+
+	s = dev->subdevices + 1;
+	/* analog output subdevice */
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = S626_DAC_CHANNELS;
+	s->maxdata = (0x3fff);
+	s->range_table = &range_bipolar10;
+	s->insn_write = s626_ao_winsn;
+	s->insn_read = s626_ao_rinsn;
+
+	s = dev->subdevices + 2;
+	/* digital I/O subdevice */
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = 16;
+	s->maxdata = 1;
+	s->io_bits = 0xffff;
+	s->private = &dio_private_A;
+	s->range_table = &range_digital;
+	s->insn_config = s626_dio_insn_config;
+	s->insn_bits = s626_dio_insn_bits;
+
+	s = dev->subdevices + 3;
+	/* digital I/O subdevice */
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = 16;
+	s->maxdata = 1;
+	s->io_bits = 0xffff;
+	s->private = &dio_private_B;
+	s->range_table = &range_digital;
+	s->insn_config = s626_dio_insn_config;
+	s->insn_bits = s626_dio_insn_bits;
+
+	s = dev->subdevices + 4;
+	/* digital I/O subdevice */
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = 16;
+	s->maxdata = 1;
+	s->io_bits = 0xffff;
+	s->private = &dio_private_C;
+	s->range_table = &range_digital;
+	s->insn_config = s626_dio_insn_config;
+	s->insn_bits = s626_dio_insn_bits;
+
+	s = dev->subdevices + 5;
+	/* encoder (counter) subdevice */
+	s->type = COMEDI_SUBD_COUNTER;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE | SDF_LSAMPL;
+	s->n_chan = S626_ENCODER_CHANNELS;
+	s->private = enc_private_data;
+	s->insn_config = s626_enc_insn_config;
+	s->insn_read = s626_enc_insn_read;
+	s->insn_write = s626_enc_insn_write;
+	s->maxdata = 0xffffff;
+	s->range_table = &range_unknown;
+
+	/* stop ai_command */
+	devpriv->ai_cmd_running = 0;
+
+	s626_initialize(dev);
 
 	return 1;
 }
