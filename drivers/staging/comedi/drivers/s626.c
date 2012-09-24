@@ -2488,29 +2488,8 @@ static void s626_initialize(struct comedi_device *dev)
 	/*  Init GPIO so that ADC Start* is negated. */
 	WR7146(P_GPIO, GPIO_BASE | GPIO1_HI);
 
-	/* IsBoardRevA is a boolean that indicates whether the board is RevA.
-	 *
-	 * VERSION 2.01 CHANGE: REV A & B BOARDS NOW SUPPORTED BY DYNAMIC
-	 * EEPROM ADDRESS SELECTION.  Initialize the I2C interface, which
-	 * is used to access the onboard serial EEPROM.  The EEPROM's I2C
-	 * DeviceAddress is hardwired to a value that is dependent on the
-	 * 626 board revision.  On all board revisions, the EEPROM stores
-	 * TrimDAC calibration constants for analog I/O.  On RevB and
-	 * higher boards, the DeviceAddress is hardwired to 0 to enable
-	 * the EEPROM to also store the PCI SubVendorID and SubDeviceID;
-	 * this is the address at which the SAA7146 expects a
-	 * configuration EEPROM to reside.  On RevA boards, the EEPROM
-	 * device address, which is hardwired to 4, prevents the SAA7146
-	 * from retrieving PCI sub-IDs, so the SAA7146 uses its built-in
-	 * default values, instead.
-	 */
-
-	/*     devpriv->I2Cards= IsBoardRevA ? 0xA8 : 0xA0; // Set I2C EEPROM */
-	/*  DeviceType (0xA0) */
-	/*  and DeviceAddress<<1. */
-
-	devpriv->I2CAdrs = 0xA0;	/*  I2C device address for onboard */
-	/*  eeprom(revb) */
+	/* I2C device address for onboard eeprom (revb) */
+	devpriv->I2CAdrs = 0xA0;
 
 	/*  Issue an I2C ABORT command to halt any I2C operation in */
 	/* progress and reset BUSY flag. */
