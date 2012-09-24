@@ -75,6 +75,7 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
 #define         BPF_RSH         0x70
 #define         BPF_NEG         0x80
 #define		BPF_MOD		0x90
+#define		BPF_XOR		0xa0
 
 #define         BPF_JA          0x00
 #define         BPF_JEQ         0x10
@@ -204,6 +205,8 @@ enum {
 	BPF_S_ALU_AND_X,
 	BPF_S_ALU_OR_K,
 	BPF_S_ALU_OR_X,
+	BPF_S_ALU_XOR_K,
+	BPF_S_ALU_XOR_X,
 	BPF_S_ALU_LSH_K,
 	BPF_S_ALU_LSH_X,
 	BPF_S_ALU_RSH_K,
