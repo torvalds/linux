@@ -319,25 +319,6 @@ config MIPS_MALTA
 	  This enables support for the MIPS Technologies Malta evaluation
 	  board.
 
-config MIPS_SIM
-	bool 'MIPS simulator (MIPSsim)'
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select SYS_HAS_EARLY_PRINTK
-	select IRQ_CPU
-	select BOOT_RAW
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_MULTITHREADING
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	help
-	  This option enables support for MIPS Technologies MIPSsim software
-	  emulator.
-
 config NEC_MARKEINS
 	bool "NEC EMMA2RH Mark-eins board"
 	select SOC_EMMA2RH

@@ -1,6 +1,0 @@
-#
-# MIPS SIM
-#
-platform-$(CONFIG_MIPS_SIM)	+= mipssim/
-cflags-$(CONFIG_MIPS_SIM)	+= -I$(srctree)/arch/mips/include/asm/mach-mipssim
-load-$(CONFIG_MIPS_SIM)		+= 0x80100000
