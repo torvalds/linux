@@ -170,9 +170,10 @@ void u8500_clk_init(void)
 	clk_register_clkdev(clk, NULL, "mtu0");
 	clk_register_clkdev(clk, NULL, "mtu1");
 
-	clk = clk_reg_prcmu_gate("sdmmcclk", NULL, PRCMU_SDMMCCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_opp_volt_scalable("sdmmcclk", NULL, PRCMU_SDMMCCLK,
+					100000000,
+					CLK_IS_ROOT|CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "sdmmc");
-
 
 	clk = clk_reg_prcmu_scalable("dsi_pll", "hdmiclk",
 				PRCMU_PLLDSI, 0, CLK_SET_RATE_GATE);
