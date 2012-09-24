@@ -115,7 +115,7 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 {
 	struct fc2580_priv *priv = fe->tuner_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret, i;
+	int ret = 0, i;
 	unsigned int r_val, n_val, k_val, k_val_reg, f_ref;
 	u8 tmp_val, r18_val;
 	u64 f_vco;
