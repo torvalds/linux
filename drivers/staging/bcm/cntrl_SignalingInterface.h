@@ -312,16 +312,13 @@ typedef struct _stLocalSFAddIndication stLocalSFChangeRequest, *pstLocalSFChange
  */
 typedef struct _stLocalSFAddIndication stLocalSFChangeIndication, *pstLocalSFChangeIndication;
 
-/*
- * structure stLocalSFDeleteRequest
- */
-typedef struct _stLocalSFDeleteRequest {
+struct bcm_del_request {
 	B_UINT8 u8Type; /* < Type */
 	B_UINT8 u8Padding; /* < Padding byte */
 	B_UINT16 u16TID; /* < TID */
 	/* brief 32bitSFID */
 	B_UINT32 u32SFID; /* < SFID */
-} stLocalSFDeleteRequest, *pstLocalSFDeleteRequest;
+};
 
 struct bcm_del_indication {
 	B_UINT8 u8Type;	/* < Type */

@@ -1335,7 +1335,7 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 {
 	stLocalSFAddIndicationAlt *pstAddIndicationAlt = NULL;
 	stLocalSFAddIndication *pstAddIndication = NULL;
-	stLocalSFDeleteRequest *pstDeletionRequest;
+	struct bcm_del_request *pstDeletionRequest;
 	UINT uiSearchRuleIndex;
 	ULONG ulSFID;
 
@@ -1346,7 +1346,7 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 	 * we can stop the further classifying the pkt for this SF.
 	 */
 	if (pstAddIndicationAlt->u8Type == DSD_REQ) {
-		pstDeletionRequest = (stLocalSFDeleteRequest *)pvBuffer;
+		pstDeletionRequest = (struct bcm_del_request *)pvBuffer;
 
 		ulSFID = ntohl(pstDeletionRequest->u32SFID);
 		uiSearchRuleIndex = SearchSfid(Adapter, ulSFID);
