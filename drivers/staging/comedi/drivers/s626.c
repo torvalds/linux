@@ -2459,15 +2459,9 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 
 static void s626_initialize(struct comedi_device *dev)
 {
-/*   uint8_t	PollList; */
-/*   uint16_t	AdcData; */
-/*   uint16_t	StartVal; */
-/*   uint16_t	index; */
-/*   unsigned int data[16]; */
 	dma_addr_t pPhysBuf;
 	uint16_t chan;
 	int i;
-
 
 	/*  enab DEBI and audio pins, enable I2C interface. */
 	MC_ENABLE(P_MC1, MC1_DEBI | MC1_AUDIO | MC1_I2C);
@@ -2568,38 +2562,50 @@ static void s626_initialize(struct comedi_device *dev)
 	/*  RPS program performs no explicit mem writes. */
 	WR7146(P_RPS1_TOUT, 0);	/*  Disable RPS timeouts. */
 
-	/* SAA7146 BUG WORKAROUND.  Initialize SAA7146 ADC interface
-	 * to a known state by invoking ADCs until FB BUFFER 1
-	 * register shows that it is correctly receiving ADC data.
-	 * This is necessary because the SAA7146 ADC interface does
-	 * not start up in a defined state after a PCI reset.
+#if 0
+	/*
+	 * SAA7146 BUG WORKAROUND
+	 *
+	 * Initialize SAA7146 ADC interface to a known state by
+	 * invoking ADCs until FB BUFFER 1 register shows that it
+	 * is correctly receiving ADC data. This is necessary
+	 * because the SAA7146 ADC interface does not start up in
+	 * a defined state after a PCI reset.
 	 */
 
-/*     PollList = EOPL;		// Create a simple polling */
-/*				// list for analog input */
-/*				// channel 0. */
-/*     ResetADC( dev, &PollList ); */
+	{
+	uint8_t PollList;
+	uint16_t AdcData;
+	uint16_t StartVal;
+	uint16_t index;
+	unsigned int data[16];
 
-/*     s626_ai_rinsn(dev,dev->subdevices,NULL,data); //( &AdcData ); // */
-/*							//Get initial ADC */
-/*							//value. */
+	/* Create a simple polling list for analog input channel 0 */
+	PollList = EOPL;
+	ResetADC(dev, &PollList);
 
-/*     StartVal = data[0]; */
+	/* Get initial ADC value */
+	s626_ai_rinsn(dev, dev->subdevices, NULL, data);
+	StartVal = data[0];
 
-/*     // VERSION 2.01 CHANGE: TIMEOUT ADDED TO PREVENT HANGED EXECUTION. */
-/*     // Invoke ADCs until the new ADC value differs from the initial */
-/*     // value or a timeout occurs.  The timeout protects against the */
-/*     // possibility that the driver is restarting and the ADC data is a */
-/*     // fixed value resulting from the applied ADC analog input being */
-/*     // unusually quiet or at the rail. */
+	/*
+	 * VERSION 2.01 CHANGE: TIMEOUT ADDED TO PREVENT HANGED EXECUTION.
+	 *
+	 * Invoke ADCs until the new ADC value differs from the initial
+	 * value or a timeout occurs.  The timeout protects against the
+	 * possibility that the driver is restarting and the ADC data is a
+	 * fixed value resulting from the applied ADC analog input being
+	 * unusually quiet or at the rail.
+	 */
+	for (index = 0; index < 500; index++) {
+		s626_ai_rinsn(dev, dev->subdevices, NULL, data);
+		AdcData = data[0];
+		if (AdcData != StartVal)
+			break;
+	}
 
-/*     for ( index = 0; index < 500; index++ ) */
-/*       { */
-/*	s626_ai_rinsn(dev,dev->subdevices,NULL,data); */
-/*	AdcData = data[0];	//ReadADC(  &AdcData ); */
-/*	if ( AdcData != StartVal ) */
-/*		break; */
-/*       } */
+	}
+#endif	/* SAA7146 BUG WORKAROUND */
 
 	/*  end initADC */
 
