@@ -3817,10 +3817,10 @@ commit:
 }
 
 enum flush_state {
-	FLUSH_DELALLOC		=	1,
-	FLUSH_DELALLOC_WAIT	=	2,
-	FLUSH_DELAYED_ITEMS_NR	=	3,
-	FLUSH_DELAYED_ITEMS	=	4,
+	FLUSH_DELAYED_ITEMS_NR	=	1,
+	FLUSH_DELAYED_ITEMS	=	2,
+	FLUSH_DELALLOC		=	3,
+	FLUSH_DELALLOC_WAIT	=	4,
 	ALLOC_CHUNK		=	5,
 	COMMIT_TRANS		=	6,
 };
@@ -3834,11 +3834,6 @@ static int flush_space(struct btrfs_root *root,
 	int ret = 0;
 
 	switch (state) {
-	case FLUSH_DELALLOC:
-	case FLUSH_DELALLOC_WAIT:
-		shrink_delalloc(root, num_bytes, orig_bytes,
-				state == FLUSH_DELALLOC_WAIT);
-		break;
 	case FLUSH_DELAYED_ITEMS_NR:
 	case FLUSH_DELAYED_ITEMS:
 		if (state == FLUSH_DELAYED_ITEMS_NR) {
@@ -3858,6 +3853,11 @@ static int flush_space(struct btrfs_root *root,
 		}
 		ret = btrfs_run_delayed_items_nr(trans, root, nr);
 		btrfs_end_transaction(trans, root);
+		break;
+	case FLUSH_DELALLOC:
+	case FLUSH_DELALLOC_WAIT:
+		shrink_delalloc(root, num_bytes, orig_bytes,
+				state == FLUSH_DELALLOC_WAIT);
 		break;
 	case ALLOC_CHUNK:
 		trans = btrfs_join_transaction(root);
@@ -3903,7 +3903,7 @@ static int reserve_metadata_bytes(struct btrfs_root *root,
 	struct btrfs_space_info *space_info = block_rsv->space_info;
 	u64 used;
 	u64 num_bytes = orig_bytes;
-	int flush_state = FLUSH_DELALLOC;
+	int flush_state = FLUSH_DELAYED_ITEMS_NR;
 	int ret = 0;
 	bool flushing = false;
 	bool committed = false;
