@@ -57,7 +57,7 @@ static void exynos_drm_connector_power(struct drm_encoder *encoder, int mode)
 	struct drm_connector *connector;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
+		if (exynos_drm_best_encoder(connector) == encoder) {
 			DRM_DEBUG_KMS("connector[%d] dpms[%d]\n",
 					connector->base.id, mode);
 

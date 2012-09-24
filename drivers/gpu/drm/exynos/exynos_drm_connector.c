@@ -199,8 +199,7 @@ static int exynos_drm_connector_mode_valid(struct drm_connector *connector,
 	return ret;
 }
 
-static struct drm_encoder *exynos_drm_best_encoder(
-						struct drm_connector *connector)
+struct drm_encoder *exynos_drm_best_encoder(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct exynos_drm_connector *exynos_connector =
@@ -231,7 +230,7 @@ static struct drm_connector_helper_funcs exynos_connector_helper_funcs = {
 
 void exynos_drm_display_power(struct drm_connector *connector, int mode)
 {
-	struct drm_encoder *encoder = connector->encoder;
+	struct drm_encoder *encoder = exynos_drm_best_encoder(connector);
 	struct exynos_drm_connector *exynos_connector;
 	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
 	struct exynos_drm_display_ops *display_ops = manager->display_ops;
