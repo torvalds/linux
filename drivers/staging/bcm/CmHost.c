@@ -235,7 +235,7 @@ void ClearTargetDSXBuffer(struct bcm_mini_adapter *Adapter, B_UINT16 TID, BOOLEA
  * @ingroup ctrl_pkt_functions
  * copy classifier rule into the specified SF index
  */
-static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, stConvergenceSLTypes  *psfCSType, UINT uiSearchRuleIndex, UINT nClassifierIndex)
+static inline VOID CopyClassifierRuleToSF(struct bcm_mini_adapter *Adapter, struct bcm_convergence_types *psfCSType, UINT uiSearchRuleIndex, UINT nClassifierIndex)
 {
 	struct bcm_classifier_rule *pstClassifierEntry = NULL;
 	/* VOID *pvPhsContext = NULL; */
@@ -439,7 +439,7 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	enum E_CLASSIFIER_ACTION eClassifierAction = eInvalidClassifierAction;
 	B_UINT16 u16PacketClassificationRuleIndex = 0;
 	int i;
-	stConvergenceSLTypes *psfCSType = NULL;
+	struct bcm_convergence_types *psfCSType = NULL;
 	S_PHS_RULE sPhsRule;
 	USHORT uVCID = Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value;
 	UINT UGIValue = 0;
@@ -915,7 +915,7 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 	if (!pstAddIndication->sfAuthorizedSet.bValid)
 		pstAddIndication->sfAuthorizedSet.bValid = 1;
 	for (nIndex = 0; nIndex < nCurClassifierCnt; nIndex++) {
-		stConvergenceSLTypes *psfCSType = NULL;
+		struct bcm_convergence_types *psfCSType = NULL;
 		psfCSType =  &pstAddIndication->sfAuthorizedSet.cConvergenceSLTypes[nIndex];
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "psfCSType = %p", psfCSType);
@@ -1059,7 +1059,7 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		nCurClassifierCnt = MAX_CLASSIFIERS_IN_SF;
 
 	for (nIndex = 0; nIndex < nCurClassifierCnt; nIndex++) {
-		stConvergenceSLTypes *psfCSType = NULL;
+		struct bcm_convergence_types *psfCSType = NULL;
 
 		psfCSType =  &pstAddIndication->sfAdmittedSet.cConvergenceSLTypes[nIndex];
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " CCPacketClassificationRuleSI====>");
@@ -1198,7 +1198,7 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		nCurClassifierCnt = MAX_CLASSIFIERS_IN_SF;
 
 	for (nIndex = 0; nIndex < nCurClassifierCnt; nIndex++)	{
-		stConvergenceSLTypes *psfCSType = NULL;
+		struct bcm_convergence_types *psfCSType = NULL;
 
 		psfCSType =  &pstAddIndication->sfActiveSet.cConvergenceSLTypes[nIndex];
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, " CCPacketClassificationRuleSI====>");

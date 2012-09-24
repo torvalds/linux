@@ -122,8 +122,7 @@ typedef struct _stPhsRuleSI {
 } stPhsRuleSI, *pstPhsRuleSI;
 typedef stPhsRuleSI CPhsRuleSI;
 
-/* brief structure cConvergenceSLTypes */
-struct _stConvergenceSLTypes {
+struct bcm_convergence_types {
 	/* 8bit Phs Classfier Action Of The Service Flow */
 	B_UINT8 u8ClassfierDSCAction;
 	/* 8bit Phs DSC Action Of The Service Flow */
@@ -135,7 +134,6 @@ struct _stConvergenceSLTypes {
 	/* brief class CPhsRuleSI */
 	struct _stPhsRuleSI cPhsRule;
 };
-typedef struct _stConvergenceSLTypes stConvergenceSLTypes, CConvergenceSLTypes, *pstConvergenceSLTypes;
 
 struct bcm_connect_mgr_params {
 	/* 32bitSFID Of The Service Flow */
@@ -251,10 +249,10 @@ struct bcm_connect_mgr_params {
 	B_UINT8 u8TotalClassifiers;  /* < Total number of valid classifiers */
 	B_UINT8 bValid;	/* < Validity flag */
 	B_UINT8 u8Padding;	 /* < Padding byte */
-/*
- * Structure for Convergence SubLayer Types with a maximum of 4 classifiers
- */
-	stConvergenceSLTypes cConvergenceSLTypes[MAX_CLASSIFIERS_IN_SF];
+	/*
+	 * Structure for Convergence SubLayer Types with a maximum of 4 classifiers
+	 */
+	struct bcm_convergence_types cConvergenceSLTypes[MAX_CLASSIFIERS_IN_SF];
 };
 
 struct bcm_add_request {
