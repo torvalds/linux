@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdint.h>
+#include <limits.h>
 
 #include "event-parse.h"
 #include "event-utils.h"
@@ -117,14 +118,7 @@ void breakpoint(void)
 
 struct print_arg *alloc_arg(void)
 {
-	struct print_arg *arg;
-
-	arg = malloc_or_die(sizeof(*arg));
-	if (!arg)
-		return NULL;
-	memset(arg, 0, sizeof(*arg));
-
-	return arg;
+	return calloc(1, sizeof(struct print_arg));
 }
 
 struct cmdline {
@@ -158,7 +152,9 @@ static int cmdline_init(struct pevent *pevent)
 	struct cmdline *cmdlines;
 	int i;
 
-	cmdlines = malloc_or_die(sizeof(*cmdlines) * pevent->cmdline_count);
+	cmdlines = malloc(sizeof(*cmdlines) * pevent->cmdline_count);
+	if (!cmdlines)
+		return -1;
 
 	i = 0;
 	while (cmdlist) {
@@ -186,8 +182,8 @@ static char *find_cmdline(struct pevent *pevent, int pid)
 	if (!pid)
 		return "<idle>";
 
-	if (!pevent->cmdlines)
-		cmdline_init(pevent);
+	if (!pevent->cmdlines && cmdline_init(pevent))
+		return "<not enough memory for cmdlines!>";
 
 	key.pid = pid;
 
@@ -215,8 +211,8 @@ int pevent_pid_is_registered(struct pevent *pevent, int pid)
 	if (!pid)
 		return 1;
 
-	if (!pevent->cmdlines)
-		cmdline_init(pevent);
+	if (!pevent->cmdlines && cmdline_init(pevent))
+		return 0;
 
 	key.pid = pid;
 
@@ -258,10 +254,14 @@ static int add_new_comm(struct pevent *pevent, const char *comm, int pid)
 		return -1;
 	}
 
-	cmdlines[pevent->cmdline_count].pid = pid;
 	cmdlines[pevent->cmdline_count].comm = strdup(comm);
-	if (!cmdlines[pevent->cmdline_count].comm)
-		die("malloc comm");
+	if (!cmdlines[pevent->cmdline_count].comm) {
+		free(cmdlines);
+		errno = ENOMEM;
+		return -1;
+	}
+
+	cmdlines[pevent->cmdline_count].pid = pid;
 		
 	if (cmdlines[pevent->cmdline_count].comm)
 		pevent->cmdline_count++;
@@ -288,10 +288,15 @@ int pevent_register_comm(struct pevent *pevent, const char *comm, int pid)
 	if (pevent->cmdlines)
 		return add_new_comm(pevent, comm, pid);
 
-	item = malloc_or_die(sizeof(*item));
+	item = malloc(sizeof(*item));
+	if (!item)
+		return -1;
+
 	item->comm = strdup(comm);
-	if (!item->comm)
-		die("malloc comm");
+	if (!item->comm) {
+		free(item);
+		return -1;
+	}
 	item->pid = pid;
 	item->next = pevent->cmdlist;
 
@@ -355,7 +360,10 @@ static int func_map_init(struct pevent *pevent)
 	struct func_map *func_map;
 	int i;
 
-	func_map = malloc_or_die(sizeof(*func_map) * (pevent->func_count + 1));
+	func_map = malloc(sizeof(*func_map) * (pevent->func_count + 1));
+	if (!func_map)
+		return -1;
+
 	funclist = pevent->funclist;
 
 	i = 0;
@@ -455,25 +463,36 @@ pevent_find_function_address(struct pevent *pevent, unsigned long long addr)
 int pevent_register_function(struct pevent *pevent, char *func,
 			     unsigned long long addr, char *mod)
 {
-	struct func_list *item;
+	struct func_list *item = malloc(sizeof(*item));
 
-	item = malloc_or_die(sizeof(*item));
+	if (!item)
+		return -1;
 
 	item->next = pevent->funclist;
 	item->func = strdup(func);
-	if (mod)
+	if (!item->func)
+		goto out_free;
+
+	if (mod) {
 		item->mod = strdup(mod);
-	else
+		if (!item->mod)
+			goto out_free_func;
+	} else
 		item->mod = NULL;
 	item->addr = addr;
-
-	if (!item->func || (mod && !item->mod))
-		die("malloc func");
 
 	pevent->funclist = item;
 	pevent->func_count++;
 
 	return 0;
+
+out_free_func:
+	free(item->func);
+	item->func = NULL;
+out_free:
+	free(item);
+	errno = ENOMEM;
+	return -1;
 }
 
 /**
@@ -524,14 +543,16 @@ static int printk_cmp(const void *a, const void *b)
 	return 0;
 }
 
-static void printk_map_init(struct pevent *pevent)
+static int printk_map_init(struct pevent *pevent)
 {
 	struct printk_list *printklist;
 	struct printk_list *item;
 	struct printk_map *printk_map;
 	int i;
 
-	printk_map = malloc_or_die(sizeof(*printk_map) * (pevent->printk_count + 1));
+	printk_map = malloc(sizeof(*printk_map) * (pevent->printk_count + 1));
+	if (!printk_map)
+		return -1;
 
 	printklist = pevent->printklist;
 
@@ -549,6 +570,8 @@ static void printk_map_init(struct pevent *pevent)
 
 	pevent->printk_map = printk_map;
 	pevent->printklist = NULL;
+
+	return 0;
 }
 
 static struct printk_map *
@@ -557,8 +580,8 @@ find_printk(struct pevent *pevent, unsigned long long addr)
 	struct printk_map *printk;
 	struct printk_map key;
 
-	if (!pevent->printk_map)
-		printk_map_init(pevent);
+	if (!pevent->printk_map && printk_map_init(pevent))
+		return NULL;
 
 	key.addr = addr;
 
@@ -580,21 +603,27 @@ find_printk(struct pevent *pevent, unsigned long long addr)
 int pevent_register_print_string(struct pevent *pevent, char *fmt,
 				 unsigned long long addr)
 {
-	struct printk_list *item;
+	struct printk_list *item = malloc(sizeof(*item));
 
-	item = malloc_or_die(sizeof(*item));
+	if (!item)
+		return -1;
 
 	item->next = pevent->printklist;
-	item->printk = strdup(fmt);
 	item->addr = addr;
 
+	item->printk = strdup(fmt);
 	if (!item->printk)
-		die("malloc fmt");
+		goto out_free;
 
 	pevent->printklist = item;
 	pevent->printk_count++;
 
 	return 0;
+
+out_free:
+	free(item);
+	errno = ENOMEM;
+	return -1;
 }
 
 /**
@@ -619,24 +648,18 @@ void pevent_print_printk(struct pevent *pevent)
 
 static struct event_format *alloc_event(void)
 {
-	struct event_format *event;
-
-	event = malloc(sizeof(*event));
-	if (!event)
-		return NULL;
-	memset(event, 0, sizeof(*event));
-
-	return event;
+	return calloc(1, sizeof(struct event_format));
 }
 
-static void add_event(struct pevent *pevent, struct event_format *event)
+static int add_event(struct pevent *pevent, struct event_format *event)
 {
 	int i;
+	struct event_format **events = realloc(pevent->events, sizeof(event) *
+					       (pevent->nr_events + 1));
+	if (!events)
+		return -1;
 
-	pevent->events = realloc(pevent->events, sizeof(event) *
-				 (pevent->nr_events + 1));
-	if (!pevent->events)
-		die("Can not allocate events");
+	pevent->events = events;
 
 	for (i = 0; i < pevent->nr_events; i++) {
 		if (pevent->events[i]->id > event->id)
@@ -651,6 +674,8 @@ static void add_event(struct pevent *pevent, struct event_format *event)
 	pevent->nr_events++;
 
 	event->pevent = pevent;
+
+	return 0;
 }
 
 static int event_item_type(enum event_type type)
@@ -827,9 +852,9 @@ static enum event_type __read_token(char **tok)
 	switch (type) {
 	case EVENT_NEWLINE:
 	case EVENT_DELIM:
-		*tok = malloc_or_die(2);
-		(*tok)[0] = ch;
-		(*tok)[1] = 0;
+		if (asprintf(tok, "%c", ch) < 0)
+			return EVENT_ERROR;
+
 		return type;
 
 	case EVENT_OP:
@@ -1240,8 +1265,10 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 
 		last_token = token;
 
-		field = malloc_or_die(sizeof(*field));
-		memset(field, 0, sizeof(*field));
+		field = calloc(1, sizeof(*field));
+		if (!field)
+			goto fail;
+
 		field->event = event;
 
 		/* read the rest of the type */
@@ -1282,7 +1309,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 		}
 
 		if (!field->type) {
-			die("no type found");
+			do_warning("%s: no type found", __func__);
 			goto fail;
 		}
 		field->name = last_token;
@@ -1329,7 +1356,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 				free_token(token);
 				type = read_token(&token);
 				if (type == EVENT_NONE) {
-					die("failed to find token");
+					do_warning("failed to find token");
 					goto fail;
 				}
 			}
@@ -1538,6 +1565,14 @@ process_cond(struct event_format *event, struct print_arg *top, char **tok)
 	left = alloc_arg();
 	right = alloc_arg();
 
+	if (!arg || !left || !right) {
+		do_warning("%s: not enough memory!", __func__);
+		/* arg will be freed at out_free */
+		free_arg(left);
+		free_arg(right);
+		goto out_free;
+	}
+
 	arg->type = PRINT_OP;
 	arg->op.left = left;
 	arg->op.right = right;
@@ -1580,6 +1615,12 @@ process_array(struct event_format *event, struct print_arg *top, char **tok)
 	char *token = NULL;
 
 	arg = alloc_arg();
+	if (!arg) {
+		do_warning("%s: not enough memory!", __func__);
+		/* '*tok' is set to top->op.op.  No need to free. */
+		*tok = NULL;
+		return EVENT_ERROR;
+	}
 
 	*tok = NULL;
 	type = process_arg(event, arg, &token);
@@ -1595,8 +1636,7 @@ process_array(struct event_format *event, struct print_arg *top, char **tok)
 	return type;
 
 out_free:
-	free_token(*tok);
-	*tok = NULL;
+	free_token(token);
 	free_arg(arg);
 	return EVENT_ERROR;
 }
@@ -1682,7 +1722,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 	if (arg->type == PRINT_OP && !arg->op.left) {
 		/* handle single op */
 		if (token[1]) {
-			die("bad op token %s", token);
+			do_warning("bad op token %s", token);
 			goto out_free;
 		}
 		switch (token[0]) {
@@ -1699,10 +1739,16 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 
 		/* make an empty left */
 		left = alloc_arg();
+		if (!left)
+			goto out_warn_free;
+
 		left->type = PRINT_NULL;
 		arg->op.left = left;
 
 		right = alloc_arg();
+		if (!right)
+			goto out_warn_free;
+
 		arg->op.right = right;
 
 		/* do not free the token, it belongs to an op */
@@ -1712,6 +1758,9 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 	} else if (strcmp(token, "?") == 0) {
 
 		left = alloc_arg();
+		if (!left)
+			goto out_warn_free;
+
 		/* copy the top arg to the left */
 		*left = *arg;
 
@@ -1720,6 +1769,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		arg->op.left = left;
 		arg->op.prio = 0;
 
+		/* it will set arg->op.right */
 		type = process_cond(event, arg, tok);
 
 	} else if (strcmp(token, ">>") == 0 ||
@@ -1739,6 +1789,8 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		   strcmp(token, "!=") == 0) {
 
 		left = alloc_arg();
+		if (!left)
+			goto out_warn_free;
 
 		/* copy the top arg to the left */
 		*left = *arg;
@@ -1746,6 +1798,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		arg->type = PRINT_OP;
 		arg->op.op = token;
 		arg->op.left = left;
+		arg->op.right = NULL;
 
 		if (set_op_prio(arg) == -1) {
 			event->flags |= EVENT_FL_FAILED;
@@ -1762,12 +1815,14 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		    type == EVENT_DELIM && (strcmp(token, ")") == 0)) {
 			char *new_atom;
 
-			if (left->type != PRINT_ATOM)
-				die("bad pointer type");
+			if (left->type != PRINT_ATOM) {
+				do_warning("bad pointer type");
+				goto out_free;
+			}
 			new_atom = realloc(left->atom.atom,
 					    strlen(left->atom.atom) + 3);
 			if (!new_atom)
-				goto out_free;
+				goto out_warn_free;
 
 			left->atom.atom = new_atom;
 			strcat(left->atom.atom, " *");
@@ -1779,12 +1834,18 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		}
 
 		right = alloc_arg();
+		if (!right)
+			goto out_warn_free;
+
 		type = process_arg_token(event, right, tok, type);
 		arg->op.right = right;
 
 	} else if (strcmp(token, "[") == 0) {
 
 		left = alloc_arg();
+		if (!left)
+			goto out_warn_free;
+
 		*left = *arg;
 
 		arg->type = PRINT_OP;
@@ -1793,6 +1854,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 
 		arg->op.prio = 0;
 
+		/* it will set arg->op.right */
 		type = process_array(event, arg, tok);
 
 	} else {
@@ -1816,7 +1878,9 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 
 	return type;
 
- out_free:
+out_warn_free:
+	do_warning("%s: not enough memory!", __func__);
+out_free:
 	free_token(token);
 	*tok = NULL;
 	return EVENT_ERROR;
@@ -1880,7 +1944,11 @@ eval_type_str(unsigned long long val, const char *type, int pointer)
 			return val;
 		}
 
-		ref = malloc_or_die(len);
+		ref = malloc(len);
+		if (!ref) {
+			do_warning("%s: not enough memory!", __func__);
+			return val;
+		}
 		memcpy(ref, type, len);
 
 		/* chop off the " *" */
@@ -1957,8 +2025,10 @@ eval_type_str(unsigned long long val, const char *type, int pointer)
 static unsigned long long
 eval_type(unsigned long long val, struct print_arg *arg, int pointer)
 {
-	if (arg->type != PRINT_TYPE)
-		die("expected type argument");
+	if (arg->type != PRINT_TYPE) {
+		do_warning("expected type argument");
+		return 0;
+	}
 
 	return eval_type_str(val, arg->typecast.type, pointer);
 }
@@ -2143,7 +2213,7 @@ static char *arg_eval (struct print_arg *arg)
 	case PRINT_STRING:
 	case PRINT_BSTRING:
 	default:
-		die("invalid eval type %d", arg->type);
+		do_warning("invalid eval type %d", arg->type);
 		break;
 	}
 
@@ -2166,6 +2236,8 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 			break;
 
 		arg = alloc_arg();
+		if (!arg)
+			goto out_free;
 
 		free_token(token);
 		type = process_arg(event, arg, &token);
@@ -2179,30 +2251,33 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 		if (test_type_token(type, token, EVENT_DELIM, ","))
 			goto out_free;
 
-		field = malloc_or_die(sizeof(*field));
-		memset(field, 0, sizeof(*field));
+		field = calloc(1, sizeof(*field));
+		if (!field)
+			goto out_free;
 
 		value = arg_eval(arg);
 		if (value == NULL)
-			goto out_free;
+			goto out_free_field;
 		field->value = strdup(value);
 		if (field->value == NULL)
-			goto out_free;
+			goto out_free_field;
 
 		free_arg(arg);
 		arg = alloc_arg();
+		if (!arg)
+			goto out_free;
 
 		free_token(token);
 		type = process_arg(event, arg, &token);
 		if (test_type_token(type, token, EVENT_OP, "}"))
-			goto out_free;
+			goto out_free_field;
 
 		value = arg_eval(arg);
 		if (value == NULL)
-			goto out_free;
+			goto out_free_field;
 		field->str = strdup(value);
 		if (field->str == NULL)
-			goto out_free;
+			goto out_free_field;
 		free_arg(arg);
 		arg = NULL;
 
@@ -2216,6 +2291,8 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 	*tok = token;
 	return type;
 
+out_free_field:
+	free_flag_sym(field);
 out_free:
 	free_arg(arg);
 	free_token(token);
@@ -2235,6 +2312,10 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 	arg->type = PRINT_FLAGS;
 
 	field = alloc_arg();
+	if (!field) {
+		do_warning("%s: not enough memory!", __func__);
+		goto out_free;
+	}
 
 	type = process_arg(event, field, &token);
 
@@ -2243,7 +2324,7 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 		type = process_op(event, field, &token);
 
 	if (test_type_token(type, token, EVENT_DELIM, ","))
-		goto out_free;
+		goto out_free_field;
 	free_token(token);
 
 	arg->flags.field = field;
@@ -2265,7 +2346,9 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 	type = read_token_item(tok);
 	return type;
 
- out_free:
+out_free_field:
+	free_arg(field);
+out_free:
 	free_token(token);
 	*tok = NULL;
 	return EVENT_ERROR;
@@ -2282,10 +2365,14 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 	arg->type = PRINT_SYMBOL;
 
 	field = alloc_arg();
+	if (!field) {
+		do_warning("%s: not enough memory!", __func__);
+		goto out_free;
+	}
 
 	type = process_arg(event, field, &token);
 	if (test_type_token(type, token, EVENT_DELIM, ","))
-		goto out_free;
+		goto out_free_field;
 
 	arg->symbol.field = field;
 
@@ -2297,7 +2384,9 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 	type = read_token_item(tok);
 	return type;
 
- out_free:
+out_free_field:
+	free_arg(field);
+out_free:
 	free_token(token);
 	*tok = NULL;
 	return EVENT_ERROR;
@@ -2314,6 +2403,11 @@ process_hex(struct event_format *event, struct print_arg *arg, char **tok)
 	arg->type = PRINT_HEX;
 
 	field = alloc_arg();
+	if (!field) {
+		do_warning("%s: not enough memory!", __func__);
+		goto out_free;
+	}
+
 	type = process_arg(event, field, &token);
 
 	if (test_type_token(type, token, EVENT_DELIM, ","))
@@ -2324,6 +2418,12 @@ process_hex(struct event_format *event, struct print_arg *arg, char **tok)
 	free_token(token);
 
 	field = alloc_arg();
+	if (!field) {
+		do_warning("%s: not enough memory!", __func__);
+		*tok = NULL;
+		return EVENT_ERROR;
+	}
+
 	type = process_arg(event, field, &token);
 
 	if (test_type_token(type, token, EVENT_DELIM, ")"))
@@ -2381,6 +2481,12 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 
 	free_token(token);
 	arg = alloc_arg();
+	if (!field) {
+		do_warning("%s: not enough memory!", __func__);
+		*tok = NULL;
+		return EVENT_ERROR;
+	}
+
 	type = process_arg(event, arg, &token);
 	if (type == EVENT_ERROR)
 		goto out_free_arg;
@@ -2434,10 +2540,16 @@ process_paren(struct event_format *event, struct print_arg *arg, char **tok)
 		/* make this a typecast and contine */
 
 		/* prevous must be an atom */
-		if (arg->type != PRINT_ATOM)
-			die("previous needed to be PRINT_ATOM");
+		if (arg->type != PRINT_ATOM) {
+			do_warning("previous needed to be PRINT_ATOM");
+			goto out_free;
+		}
 
 		item_arg = alloc_arg();
+		if (!item_arg) {
+			do_warning("%s: not enough memory!", __func__);
+			goto out_free;
+		}
 
 		arg->type = PRINT_TYPE;
 		arg->typecast.type = arg->atom.atom;
@@ -2533,6 +2645,11 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 	next_arg = &(arg->func.args);
 	for (i = 0; i < func->nr_args; i++) {
 		farg = alloc_arg();
+		if (!farg) {
+			do_warning("%s: not enough memory!", __func__);
+			return EVENT_ERROR;
+		}
+
 		type = process_arg(event, farg, &token);
 		if (i < (func->nr_args - 1))
 			test = ",";
@@ -2677,7 +2794,8 @@ process_arg_token(struct event_format *event, struct print_arg *arg,
 
 	case EVENT_ERROR ... EVENT_NEWLINE:
 	default:
-		die("unexpected type %d", type);
+		do_warning("unexpected type %d", type);
+		return EVENT_ERROR;
 	}
 	*tok = token;
 
@@ -2698,6 +2816,10 @@ static int event_read_print_args(struct event_format *event, struct print_arg **
 		}
 
 		arg = alloc_arg();
+		if (!arg) {
+			do_warning("%s: not enough memory!", __func__);
+			return -1;
+		}
 
 		type = process_arg(event, arg, &token);
 
@@ -2769,10 +2891,8 @@ static int event_read_print(struct event_format *event)
 	if (type == EVENT_DQUOTE) {
 		char *cat;
 
-		cat = malloc_or_die(strlen(event->print_fmt.format) +
-				    strlen(token) + 1);
-		strcpy(cat, event->print_fmt.format);
-		strcat(cat, token);
+		if (asprintf(&cat, "%s%s", event->print_fmt.format, token) < 0)
+			goto fail;
 		free_token(token);
 		free_token(event->print_fmt.format);
 		event->print_fmt.format = NULL;
@@ -2926,8 +3046,10 @@ static int get_common_info(struct pevent *pevent,
 	 * All events should have the same common elements.
 	 * Pick any event to find where the type is;
 	 */
-	if (!pevent->events)
-		die("no event_list!");
+	if (!pevent->events) {
+		do_warning("no event_list!");
+		return -1;
+	}
 
 	event = pevent->events[0];
 	field = pevent_find_common_field(event, type);
@@ -3085,7 +3207,8 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		if (!arg->field.field) {
 			arg->field.field = pevent_find_any_field(event, arg->field.name);
 			if (!arg->field.field)
-				die("field %s not found", arg->field.name);
+				goto out_warning_field;
+			
 		}
 		/* must be a number */
 		val = pevent_read_number(pevent, data + arg->field.field->offset,
@@ -3146,8 +3269,10 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 				if (!larg->field.field) {
 					larg->field.field =
 						pevent_find_any_field(event, larg->field.name);
-					if (!larg->field.field)
-						die("field %s not found", larg->field.name);
+					if (!larg->field.field) {
+						arg = larg;
+						goto out_warning_field;
+					}
 				}
 				field_size = larg->field.field->elementsize;
 				offset = larg->field.field->offset +
@@ -3183,7 +3308,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 				val = left != right;
 				break;
 			default:
-				die("unknown op '%s'", arg->op.op);
+				goto out_warning_op;
 			}
 			break;
 		case '~':
@@ -3213,7 +3338,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 				val = left <= right;
 				break;
 			default:
-				die("unknown op '%s'", arg->op.op);
+				goto out_warning_op;
 			}
 			break;
 		case '>':
@@ -3228,12 +3353,13 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 				val = left >= right;
 				break;
 			default:
-				die("unknown op '%s'", arg->op.op);
+				goto out_warning_op;
 			}
 			break;
 		case '=':
 			if (arg->op.op[1] != '=')
-				die("unknown op '%s'", arg->op.op);
+				goto out_warning_op;
+
 			val = left == right;
 			break;
 		case '-':
@@ -3249,13 +3375,21 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 			val = left * right;
 			break;
 		default:
-			die("unknown op '%s'", arg->op.op);
+			goto out_warning_op;
 		}
 		break;
 	default: /* not sure what to do there */
 		return 0;
 	}
 	return val;
+
+out_warning_op:
+	do_warning("%s: unknown op '%s'", __func__, arg->op.op);
+	return 0;
+
+out_warning_field:
+	do_warning("%s: field %s not found", __func__, arg->field.name);
+	return 0;
 }
 
 struct flag {
@@ -3332,8 +3466,10 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		field = arg->field.field;
 		if (!field) {
 			field = pevent_find_any_field(event, arg->field.name);
-			if (!field)
-				die("field %s not found", arg->field.name);
+			if (!field) {
+				str = arg->field.name;
+				goto out_warning_field;
+			}
 			arg->field.field = field;
 		}
 		/* Zero sized fields, mean the rest of the data */
@@ -3350,7 +3486,11 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			trace_seq_printf(s, "%lx", addr);
 			break;
 		}
-		str = malloc_or_die(len + 1);
+		str = malloc(len + 1);
+		if (!str) {
+			do_warning("%s: not enough memory!", __func__);
+			return;
+		}
 		memcpy(str, data + field->offset, len);
 		str[len] = 0;
 		print_str_to_seq(s, format, len_arg, str);
@@ -3390,7 +3530,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 			str = arg->hex.field->field.name;
 			field = pevent_find_any_field(event, str);
 			if (!field)
-				die("field %s not found", str);
+				goto out_warning_field;
 			arg->hex.field->field.field = field;
 		}
 		hex = data + field->offset;
@@ -3442,6 +3582,11 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		/* well... */
 		break;
 	}
+
+	return;
+
+out_warning_field:
+	do_warning("%s: field %s not found", __func__, arg->field.name);
 }
 
 static unsigned long long
@@ -3468,7 +3613,11 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 	farg = arg->func.args;
 	param = func_handle->params;
 
-	args = malloc_or_die(sizeof(*args) * func_handle->nr_args);
+	ret = ULLONG_MAX;
+	args = malloc(sizeof(*args) * func_handle->nr_args);
+	if (!args)
+		goto out;
+
 	for (i = 0; i < func_handle->nr_args; i++) {
 		switch (param->type) {
 		case PEVENT_FUNC_ARG_INT:
@@ -3480,12 +3629,18 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 			trace_seq_init(&str);
 			print_str_arg(&str, data, size, event, "%s", -1, farg);
 			trace_seq_terminate(&str);
-			string = malloc_or_die(sizeof(*string));
+			string = malloc(sizeof(*string));
+			if (!string) {
+				do_warning("%s(%d): malloc str", __func__, __LINE__);
+				goto out_free;
+			}
 			string->next = strings;
 			string->str = strdup(str.buffer);
-			if (!string->str)
-				die("malloc str");
-
+			if (!string->str) {
+				free(string);
+				do_warning("%s(%d): malloc str", __func__, __LINE__);
+				goto out_free;
+			}
 			args[i] = (uintptr_t)string->str;
 			strings = string;
 			trace_seq_destroy(&str);
@@ -3495,14 +3650,15 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 			 * Something went totally wrong, this is not
 			 * an input error, something in this code broke.
 			 */
-			die("Unexpected end of arguments\n");
-			break;
+			do_warning("Unexpected end of arguments\n");
+			goto out_free;
 		}
 		farg = farg->next;
 		param = param->next;
 	}
 
 	ret = (*func_handle->func)(s, args);
+out_free:
 	free(args);
 	while (strings) {
 		string = strings;
@@ -3514,6 +3670,18 @@ process_defined_func(struct trace_seq *s, void *data, int size,
  out:
 	/* TBD : handle return type here */
 	return ret;
+}
+
+static void free_args(struct print_arg *args)
+{
+	struct print_arg *next;
+
+	while (args) {
+		next = args->next;
+
+		free_arg(args);
+		args = next;
+	}
 }
 
 static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struct event_format *event)
@@ -3531,11 +3699,15 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 
 	if (!field) {
 		field = pevent_find_field(event, "buf");
-		if (!field)
-			die("can't find buffer field for binary printk");
+		if (!field) {
+			do_warning("can't find buffer field for binary printk");
+			return NULL;
+		}
 		ip_field = pevent_find_field(event, "ip");
-		if (!ip_field)
-			die("can't find ip field for binary printk");
+		if (!ip_field) {
+			do_warning("can't find ip field for binary printk");
+			return NULL;
+		}
 		pevent->bprint_buf_field = field;
 		pevent->bprint_ip_field = ip_field;
 	}
@@ -3546,13 +3718,18 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 	 * The first arg is the IP pointer.
 	 */
 	args = alloc_arg();
+	if (!args) {
+		do_warning("%s(%d): not enough memory!", __func__, __LINE__);
+		return NULL;
+	}
 	arg = args;
 	arg->next = NULL;
 	next = &arg->next;
 
 	arg->type = PRINT_ATOM;
-	arg->atom.atom = malloc_or_die(32);
-	sprintf(arg->atom.atom, "%lld", ip);
+		
+	if (asprintf(&arg->atom.atom, "%lld", ip) < 0)
+		goto out_free;
 
 	/* skip the first "%pf : " */
 	for (ptr = fmt + 6, bptr = data + field->offset;
@@ -3607,10 +3784,17 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				val = pevent_read_number(pevent, bptr, vsize);
 				bptr += vsize;
 				arg = alloc_arg();
+				if (!arg) {
+					do_warning("%s(%d): not enough memory!",
+						   __func__, __LINE__);
+					goto out_free;
+				}
 				arg->next = NULL;
 				arg->type = PRINT_ATOM;
-				arg->atom.atom = malloc_or_die(32);
-				sprintf(arg->atom.atom, "%lld", val);
+				if (asprintf(&arg->atom.atom, "%lld", val) < 0) {
+					free(arg);
+					goto out_free;
+				}
 				*next = arg;
 				next = &arg->next;
 				/*
@@ -3623,11 +3807,16 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				break;
 			case 's':
 				arg = alloc_arg();
+				if (!arg) {
+					do_warning("%s(%d): not enough memory!",
+						   __func__, __LINE__);
+					goto out_free;
+				}
 				arg->next = NULL;
 				arg->type = PRINT_BSTRING;
 				arg->string.string = strdup(bptr);
 				if (!arg->string.string)
-					break;
+					goto out_free;
 				bptr += strlen(bptr) + 1;
 				*next = arg;
 				next = &arg->next;
@@ -3638,18 +3827,10 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 	}
 
 	return args;
-}
 
-static void free_args(struct print_arg *args)
-{
-	struct print_arg *next;
-
-	while (args) {
-		next = args->next;
-
-		free_arg(args);
-		args = next;
-	}
+out_free:
+	free_args(args);
+	return NULL;
 }
 
 static char *
@@ -3667,8 +3848,10 @@ get_bprint_format(void *data, int size __maybe_unused,
 
 	if (!field) {
 		field = pevent_find_field(event, "fmt");
-		if (!field)
-			die("can't find format field for binary printk");
+		if (!field) {
+			do_warning("can't find format field for binary printk");
+			return NULL;
+		}
 		pevent->bprint_fmt_field = field;
 	}
 
@@ -3676,9 +3859,8 @@ get_bprint_format(void *data, int size __maybe_unused,
 
 	printk = find_printk(pevent, addr);
 	if (!printk) {
-		format = malloc_or_die(45);
-		sprintf(format, "%%pf : (NO FORMAT FOUND at %llx)\n",
-			addr);
+		if (asprintf(&format, "%%pf : (NO FORMAT FOUND at %llx)\n", addr) < 0)
+			return NULL;
 		return format;
 	}
 
@@ -3686,8 +3868,8 @@ get_bprint_format(void *data, int size __maybe_unused,
 	/* Remove any quotes. */
 	if (*p == '"')
 		p++;
-	format = malloc_or_die(strlen(p) + 10);
-	sprintf(format, "%s : %s", "%pf", p);
+	if (asprintf(&format, "%s : %s", "%pf", p) < 0)
+		return NULL;
 	/* remove ending quotes and new line since we will add one too */
 	p = format + strlen(format) - 1;
 	if (*p == '"')
@@ -3722,8 +3904,11 @@ static void print_mac_arg(struct trace_seq *s, int mac, void *data, int size,
 	if (!arg->field.field) {
 		arg->field.field =
 			pevent_find_any_field(event, arg->field.name);
-		if (!arg->field.field)
-			die("field %s not found", arg->field.name);
+		if (!arg->field.field) {
+			do_warning("%s: field %s not found",
+				   __func__, arg->field.name);
+			return;
+		}
 	}
 	if (arg->field.field->size != 6) {
 		trace_seq_printf(s, "INVALIDMAC");
@@ -4379,7 +4564,10 @@ get_event_fields(const char *type, const char *name,
 	struct format_field *field;
 	int i = 0;
 
-	fields = malloc_or_die(sizeof(*fields) * (count + 1));
+	fields = malloc(sizeof(*fields) * (count + 1));
+	if (!fields)
+		return NULL;
+
 	for (field = list; field; field = field->next) {
 		fields[i++] = field;
 		if (i == count + 1) {
@@ -4695,8 +4883,7 @@ static int find_event_handle(struct pevent *pevent, struct event_format *event)
 }
 
 /**
- * pevent_parse_event - parse the event format
- * @pevent: the handle to the pevent
+ * __pevent_parse_format - parse the event format
  * @buf: the buffer storing the event format string
  * @size: the size of @buf
  * @sys: the system the event belongs to
@@ -4708,15 +4895,16 @@ static int find_event_handle(struct pevent *pevent, struct event_format *event)
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
-				     unsigned long size, const char *sys)
+enum pevent_errno __pevent_parse_format(struct event_format **eventp,
+					struct pevent *pevent, const char *buf,
+					unsigned long size, const char *sys)
 {
 	struct event_format *event;
 	int ret;
 
 	init_input_buf(buf, size);
 
-	event = alloc_event();
+	*eventp = event = alloc_event();
 	if (!event)
 		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 
@@ -4750,9 +4938,6 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 		goto event_alloc_failed;
 	}
 
-	/* Add pevent to event so that it can be referenced */
-	event->pevent = pevent;
-
 	ret = event_read_format(event);
 	if (ret < 0) {
 		ret = PEVENT_ERRNO__READ_FORMAT_FAILED;
@@ -4763,18 +4948,16 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 	 * If the event has an override, don't print warnings if the event
 	 * print format fails to parse.
 	 */
-	if (find_event_handle(pevent, event))
+	if (pevent && find_event_handle(pevent, event))
 		show_warning = 0;
 
 	ret = event_read_print(event);
+	show_warning = 1;
+
 	if (ret < 0) {
-		show_warning = 1;
 		ret = PEVENT_ERRNO__READ_PRINT_FAILED;
 		goto event_parse_failed;
 	}
-	show_warning = 1;
-
-	add_event(pevent, event);
 
 	if (!ret && (event->flags & EVENT_FL_ISFTRACE)) {
 		struct format_field *field;
@@ -4784,6 +4967,10 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 		list = &event->print_fmt.args;
 		for (field = event->format.fields; field; field = field->next) {
 			arg = alloc_arg();
+			if (!arg) {
+				event->flags |= EVENT_FL_FAILED;
+				return PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED;
+			}
 			arg->type = PRINT_FIELD;
 			arg->field.name = strdup(field->name);
 			if (!arg->field.name) {
@@ -4798,19 +4985,75 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 		return 0;
 	}
 
+	return 0;
+
+ event_parse_failed:
+	event->flags |= EVENT_FL_FAILED;
+	return ret;
+
+ event_alloc_failed:
+	free(event->system);
+	free(event->name);
+	free(event);
+	*eventp = NULL;
+	return ret;
+}
+
+/**
+ * pevent_parse_format - parse the event format
+ * @buf: the buffer storing the event format string
+ * @size: the size of @buf
+ * @sys: the system the event belongs to
+ *
+ * This parses the event format and creates an event structure
+ * to quickly parse raw data for a given event.
+ *
+ * These files currently come from:
+ *
+ * /sys/kernel/debug/tracing/events/.../.../format
+ */
+enum pevent_errno pevent_parse_format(struct event_format **eventp, const char *buf,
+				      unsigned long size, const char *sys)
+{
+	return __pevent_parse_format(eventp, NULL, buf, size, sys);
+}
+
+/**
+ * pevent_parse_event - parse the event format
+ * @pevent: the handle to the pevent
+ * @buf: the buffer storing the event format string
+ * @size: the size of @buf
+ * @sys: the system the event belongs to
+ *
+ * This parses the event format and creates an event structure
+ * to quickly parse raw data for a given event.
+ *
+ * These files currently come from:
+ *
+ * /sys/kernel/debug/tracing/events/.../.../format
+ */
+enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
+				     unsigned long size, const char *sys)
+{
+	struct event_format *event = NULL;
+	int ret = __pevent_parse_format(&event, pevent, buf, size, sys);
+
+	if (event == NULL)
+		return ret;
+
+	/* Add pevent to event so that it can be referenced */
+	event->pevent = pevent;
+
+	if (add_event(pevent, event))
+		goto event_add_failed;
+
 #define PRINT_ARGS 0
 	if (PRINT_ARGS && event->print_fmt.args)
 		print_args(event->print_fmt.args);
 
 	return 0;
 
- event_parse_failed:
-	event->flags |= EVENT_FL_FAILED;
-	/* still add it even if it failed */
-	add_event(pevent, event);
-	return ret;
-
- event_alloc_failed:
+event_add_failed:
 	free(event->system);
 	free(event->name);
 	free(event);
@@ -5094,12 +5337,11 @@ int pevent_register_print_function(struct pevent *pevent,
 		remove_func_handler(pevent, name);
 	}
 
-	func_handle = malloc(sizeof(*func_handle));
+	func_handle = calloc(1, sizeof(*func_handle));
 	if (!func_handle) {
 		do_warning("Failed to allocate function handler");
 		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 	}
-	memset(func_handle, 0, sizeof(*func_handle));
 
 	func_handle->ret_type = ret_type;
 	func_handle->name = strdup(name);
@@ -5198,13 +5440,12 @@ int pevent_register_event_handler(struct pevent *pevent,
 
  not_found:
 	/* Save for later use. */
-	handle = malloc(sizeof(*handle));
+	handle = calloc(1, sizeof(*handle));
 	if (!handle) {
 		do_warning("Failed to allocate event handler");
 		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 	}
 
-	memset(handle, 0, sizeof(*handle));
 	handle->id = id;
 	if (event_name)
 		handle->event_name = strdup(event_name);
@@ -5233,13 +5474,10 @@ int pevent_register_event_handler(struct pevent *pevent,
  */
 struct pevent *pevent_alloc(void)
 {
-	struct pevent *pevent;
+	struct pevent *pevent = calloc(1, sizeof(*pevent));
 
-	pevent = malloc(sizeof(*pevent));
-	if (!pevent)
-		return NULL;
-	memset(pevent, 0, sizeof(*pevent));
-	pevent->ref_count = 1;
+	if (pevent)
+		pevent->ref_count = 1;
 
 	return pevent;
 }
@@ -5268,7 +5506,7 @@ static void free_formats(struct format *format)
 	free_format_fields(format->fields);
 }
 
-static void free_event(struct event_format *event)
+void pevent_free_format(struct event_format *event)
 {
 	free(event->name);
 	free(event->system);
@@ -5354,7 +5592,7 @@ void pevent_free(struct pevent *pevent)
 	}
 
 	for (i = 0; i < pevent->nr_events; i++)
-		free_event(pevent->events[i]);
+		pevent_free_format(pevent->events[i]);
 
 	while (pevent->handlers) {
 		handle = pevent->handlers;

@@ -1100,6 +1100,7 @@ static int parse_probe_trace_command(const char *cmd,
 	struct probe_trace_point *tp = &tev->point;
 	char pr;
 	char *p;
+	char *argv0_str = NULL, *fmt, *fmt1_str, *fmt2_str, *fmt3_str;
 	int ret, i, argc;
 	char **argv;
 
@@ -1116,12 +1117,25 @@ static int parse_probe_trace_command(const char *cmd,
 	}
 
 	/* Scan event and group name. */
-	ret = sscanf(argv[0], "%c:%a[^/ \t]/%a[^ \t]",
-		     &pr, (float *)(void *)&tev->group,
-		     (float *)(void *)&tev->event);
-	if (ret != 3) {
+	argv0_str = strdup(argv[0]);
+	if (argv0_str == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	fmt1_str = strtok_r(argv0_str, ":", &fmt);
+	fmt2_str = strtok_r(NULL, "/", &fmt);
+	fmt3_str = strtok_r(NULL, " \t", &fmt);
+	if (fmt1_str == NULL || strlen(fmt1_str) != 1 || fmt2_str == NULL
+	    || fmt3_str == NULL) {
 		semantic_error("Failed to parse event name: %s\n", argv[0]);
 		ret = -EINVAL;
+		goto out;
+	}
+	pr = fmt1_str[0];
+	tev->group = strdup(fmt2_str);
+	tev->event = strdup(fmt3_str);
+	if (tev->group == NULL || tev->event == NULL) {
+		ret = -ENOMEM;
 		goto out;
 	}
 	pr_debug("Group:%s Event:%s probe:%c\n", tev->group, tev->event, pr);
@@ -1135,10 +1149,17 @@ static int parse_probe_trace_command(const char *cmd,
 		p++;
 	} else
 		p = argv[1];
-	ret = sscanf(p, "%a[^+]+%lu", (float *)(void *)&tp->symbol,
-		     &tp->offset);
-	if (ret == 1)
+	fmt1_str = strtok_r(p, "+", &fmt);
+	tp->symbol = strdup(fmt1_str);
+	if (tp->symbol == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	fmt2_str = strtok_r(NULL, "", &fmt);
+	if (fmt2_str == NULL)
 		tp->offset = 0;
+	else
+		tp->offset = strtoul(fmt2_str, NULL, 10);
 
 	tev->nargs = argc - 2;
 	tev->args = zalloc(sizeof(struct probe_trace_arg) * tev->nargs);
@@ -1162,6 +1183,7 @@ static int parse_probe_trace_command(const char *cmd,
 	}
 	ret = 0;
 out:
+	free(argv0_str);
 	argv_free(argv);
 	return ret;
 }

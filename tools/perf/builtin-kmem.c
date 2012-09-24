@@ -1,6 +1,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/util.h"
 #include "util/cache.h"
@@ -212,36 +213,38 @@ static int insert_caller_stat(unsigned long call_site,
 }
 
 static int perf_evsel__process_alloc_event(struct perf_evsel *evsel,
-					   struct perf_sample *sample, int node)
+					   struct perf_sample *sample)
 {
-	struct event_format *event = evsel->tp_format;
-	void *data = sample->raw_data;
-	unsigned long call_site;
-	unsigned long ptr;
-	int bytes_req, cpu = sample->cpu;
-	int bytes_alloc;
-	int node1, node2;
+	unsigned long ptr = perf_evsel__intval(evsel, sample, "ptr"),
+		      call_site = perf_evsel__intval(evsel, sample, "call_site");
+	int bytes_req = perf_evsel__intval(evsel, sample, "bytes_req"),
+	    bytes_alloc = perf_evsel__intval(evsel, sample, "bytes_alloc");
 
-	ptr = raw_field_value(event, "ptr", data);
-	call_site = raw_field_value(event, "call_site", data);
-	bytes_req = raw_field_value(event, "bytes_req", data);
-	bytes_alloc = raw_field_value(event, "bytes_alloc", data);
-
-	if (insert_alloc_stat(call_site, ptr, bytes_req, bytes_alloc, cpu) ||
+	if (insert_alloc_stat(call_site, ptr, bytes_req, bytes_alloc, sample->cpu) ||
 	    insert_caller_stat(call_site, bytes_req, bytes_alloc))
 		return -1;
 
 	total_requested += bytes_req;
 	total_allocated += bytes_alloc;
 
-	if (node) {
-		node1 = cpunode_map[cpu];
-		node2 = raw_field_value(event, "node", data);
+	nr_allocs++;
+	return 0;
+}
+
+static int perf_evsel__process_alloc_node_event(struct perf_evsel *evsel,
+						struct perf_sample *sample)
+{
+	int ret = perf_evsel__process_alloc_event(evsel, sample);
+
+	if (!ret) {
+		int node1 = cpunode_map[sample->cpu],
+		    node2 = perf_evsel__intval(evsel, sample, "node");
+
 		if (node1 != node2)
 			nr_cross_allocs++;
 	}
-	nr_allocs++;
-	return 0;
+
+	return ret;
 }
 
 static int ptr_cmp(struct alloc_stat *, struct alloc_stat *);
@@ -275,8 +278,7 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 static int perf_evsel__process_free_event(struct perf_evsel *evsel,
 					  struct perf_sample *sample)
 {
-	unsigned long ptr = raw_field_value(evsel->tp_format, "ptr",
-					    sample->raw_data);
+	unsigned long ptr = perf_evsel__intval(evsel, sample, "ptr");
 	struct alloc_stat *s_alloc, *s_caller;
 
 	s_alloc = search_alloc_stat(ptr, 0, &root_alloc_stat, ptr_cmp);
@@ -297,28 +299,8 @@ static int perf_evsel__process_free_event(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_kmem_event(struct perf_evsel *evsel,
-					  struct perf_sample *sample)
-{
-	struct event_format *event = evsel->tp_format;
-
-	if (!strcmp(event->name, "kmalloc") ||
-	    !strcmp(event->name, "kmem_cache_alloc")) {
-		return perf_evsel__process_alloc_event(evsel, sample, 0);
-	}
-
-	if (!strcmp(event->name, "kmalloc_node") ||
-	    !strcmp(event->name, "kmem_cache_alloc_node")) {
-		return perf_evsel__process_alloc_event(evsel, sample, 1);
-	}
-
-	if (!strcmp(event->name, "kfree") ||
-	    !strcmp(event->name, "kmem_cache_free")) {
-		return perf_evsel__process_free_event(evsel, sample);
-	}
-
-	return 0;
-}
+typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
+				  struct perf_sample *sample);
 
 static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
@@ -336,7 +318,12 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	return perf_evsel__process_kmem_event(evsel, sample);
+	if (evsel->handler.func != NULL) {
+		tracepoint_handler f = evsel->handler.func;
+		return f(evsel, sample);
+	}
+
+	return 0;
 }
 
 static struct perf_tool perf_kmem = {
@@ -498,6 +485,14 @@ static int __cmd_kmem(void)
 {
 	int err = -EINVAL;
 	struct perf_session *session;
+	const struct perf_evsel_str_handler kmem_tracepoints[] = {
+		{ "kmem:kmalloc",		perf_evsel__process_alloc_event, },
+    		{ "kmem:kmem_cache_alloc",	perf_evsel__process_alloc_event, },
+		{ "kmem:kmalloc_node",		perf_evsel__process_alloc_node_event, },
+    		{ "kmem:kmem_cache_alloc_node", perf_evsel__process_alloc_node_event, },
+		{ "kmem:kfree",			perf_evsel__process_free_event, },
+    		{ "kmem:kmem_cache_free",	perf_evsel__process_free_event, },
+	};
 
 	session = perf_session__new(input_name, O_RDONLY, 0, false, &perf_kmem);
 	if (session == NULL)
@@ -508,6 +503,11 @@ static int __cmd_kmem(void)
 
 	if (!perf_session__has_traces(session, "kmem record"))
 		goto out_delete;
+
+	if (perf_session__set_tracepoints_handlers(session, kmem_tracepoints)) {
+		pr_err("Initializing perf session tracepoint handlers failed\n");
+		return -1;
+	}
 
 	setup_pager();
 	err = perf_session__process_events(session, &perf_kmem);

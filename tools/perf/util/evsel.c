@@ -10,6 +10,7 @@
 #include <byteswap.h>
 #include <linux/bitops.h>
 #include "asm/bug.h"
+#include "debugfs.h"
 #include "event-parse.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -67,6 +68,72 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 		perf_evsel__init(evsel, attr, idx);
 
 	return evsel;
+}
+
+static struct event_format *event_format__new(const char *sys, const char *name)
+{
+	int fd, n;
+	char *filename;
+	void *bf = NULL, *nbf;
+	size_t size = 0, alloc_size = 0;
+	struct event_format *format = NULL;
+
+	if (asprintf(&filename, "%s/%s/%s/format", tracing_events_path, sys, name) < 0)
+		goto out;
+
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		goto out_free_filename;
+
+	do {
+		if (size == alloc_size) {
+			alloc_size += BUFSIZ;
+			nbf = realloc(bf, alloc_size);
+			if (nbf == NULL)
+				goto out_free_bf;
+			bf = nbf;
+		}
+
+		n = read(fd, bf + size, BUFSIZ);
+		if (n < 0)
+			goto out_free_bf;
+		size += n;
+	} while (n > 0);
+
+	pevent_parse_format(&format, bf, size, sys);
+
+out_free_bf:
+	free(bf);
+	close(fd);
+out_free_filename:
+	free(filename);
+out:
+	return format;
+}
+
+struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx)
+{
+	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
+
+	if (evsel != NULL) {
+		struct perf_event_attr attr = {
+			.type = PERF_TYPE_TRACEPOINT,
+		};
+
+		evsel->tp_format = event_format__new(sys, name);
+		if (evsel->tp_format == NULL)
+			goto out_free;
+
+		attr.config = evsel->tp_format->id;
+		perf_evsel__init(evsel, &attr, idx);
+		evsel->name = evsel->tp_format->name;
+	}
+
+	return evsel;
+
+out_free:
+	free(evsel);
+	return NULL;
 }
 
 const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
@@ -495,6 +562,10 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 	perf_evsel__exit(evsel);
 	close_cgroup(evsel->cgrp);
 	free(evsel->group_name);
+	if (evsel->tp_format && evsel->name == evsel->tp_format->name) {
+		evsel->name = NULL;
+		pevent_free_format(evsel->tp_format);
+	}
 	free(evsel->name);
 	free(evsel);
 }
@@ -1002,14 +1073,19 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 	return 0;
 }
 
+struct format_field *perf_evsel__field(struct perf_evsel *evsel, const char *name)
+{
+	return pevent_find_field(evsel->tp_format, name);
+}
+
 char *perf_evsel__strval(struct perf_evsel *evsel, struct perf_sample *sample,
 			 const char *name)
 {
-	struct format_field *field = pevent_find_field(evsel->tp_format, name);
+	struct format_field *field = perf_evsel__field(evsel, name);
 	int offset;
 
-        if (!field)
-                return NULL;
+	if (!field)
+		return NULL;
 
 	offset = field->offset;
 
@@ -1024,11 +1100,11 @@ char *perf_evsel__strval(struct perf_evsel *evsel, struct perf_sample *sample,
 u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 		       const char *name)
 {
-	struct format_field *field = pevent_find_field(evsel->tp_format, name);
+	struct format_field *field = perf_evsel__field(evsel, name);
 	u64 val;
 
-        if (!field)
-                return 0;
+	if (!field)
+		return 0;
 
 	val = pevent_read_number(evsel->tp_format->pevent,
 				 sample->raw_data + field->offset, field->size);

@@ -34,6 +34,7 @@ static inline char *bfd_demangle(void __maybe_unused *v,
 	return NULL;
 }
 #else
+#define PACKAGE 'perf'
 #include <bfd.h>
 #endif
 #endif

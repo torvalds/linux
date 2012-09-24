@@ -168,9 +168,8 @@ static struct per_pid *find_create_pid(int pid)
 			return cursor;
 		cursor = cursor->next;
 	}
-	cursor = malloc(sizeof(struct per_pid));
+	cursor = zalloc(sizeof(*cursor));
 	assert(cursor != NULL);
-	memset(cursor, 0, sizeof(struct per_pid));
 	cursor->pid = pid;
 	cursor->next = all_data;
 	all_data = cursor;
@@ -195,9 +194,8 @@ static void pid_set_comm(int pid, char *comm)
 		}
 		c = c->next;
 	}
-	c = malloc(sizeof(struct per_pidcomm));
+	c = zalloc(sizeof(*c));
 	assert(c != NULL);
-	memset(c, 0, sizeof(struct per_pidcomm));
 	c->comm = strdup(comm);
 	p->current = c;
 	c->next = p->all;
@@ -239,17 +237,15 @@ pid_put_sample(int pid, int type, unsigned int cpu, u64 start, u64 end)
 	p = find_create_pid(pid);
 	c = p->current;
 	if (!c) {
-		c = malloc(sizeof(struct per_pidcomm));
+		c = zalloc(sizeof(*c));
 		assert(c != NULL);
-		memset(c, 0, sizeof(struct per_pidcomm));
 		p->current = c;
 		c->next = p->all;
 		p->all = c;
 	}
 
-	sample = malloc(sizeof(struct cpu_sample));
+	sample = zalloc(sizeof(*sample));
 	assert(sample != NULL);
-	memset(sample, 0, sizeof(struct cpu_sample));
 	sample->start_time = start;
 	sample->end_time = end;
 	sample->type = type;
@@ -373,11 +369,10 @@ static void c_state_start(int cpu, u64 timestamp, int state)
 
 static void c_state_end(int cpu, u64 timestamp)
 {
-	struct power_event *pwr;
-	pwr = malloc(sizeof(struct power_event));
+	struct power_event *pwr = zalloc(sizeof(*pwr));
+
 	if (!pwr)
 		return;
-	memset(pwr, 0, sizeof(struct power_event));
 
 	pwr->state = cpus_cstate_state[cpu];
 	pwr->start_time = cpus_cstate_start_times[cpu];
@@ -392,14 +387,13 @@ static void c_state_end(int cpu, u64 timestamp)
 static void p_state_change(int cpu, u64 timestamp, u64 new_freq)
 {
 	struct power_event *pwr;
-	pwr = malloc(sizeof(struct power_event));
 
 	if (new_freq > 8000000) /* detect invalid data */
 		return;
 
+	pwr = zalloc(sizeof(*pwr));
 	if (!pwr)
 		return;
-	memset(pwr, 0, sizeof(struct power_event));
 
 	pwr->state = cpus_pstate_state[cpu];
 	pwr->start_time = cpus_pstate_start_times[cpu];
@@ -429,15 +423,13 @@ static void p_state_change(int cpu, u64 timestamp, u64 new_freq)
 static void
 sched_wakeup(int cpu, u64 timestamp, int pid, struct trace_entry *te)
 {
-	struct wake_event *we;
 	struct per_pid *p;
 	struct wakeup_entry *wake = (void *)te;
+	struct wake_event *we = zalloc(sizeof(*we));
 
-	we = malloc(sizeof(struct wake_event));
 	if (!we)
 		return;
 
-	memset(we, 0, sizeof(struct wake_event));
 	we->time = timestamp;
 	we->waker = pid;
 
@@ -579,13 +571,12 @@ static void end_sample_processing(void)
 	struct power_event *pwr;
 
 	for (cpu = 0; cpu <= numcpus; cpu++) {
-		pwr = malloc(sizeof(struct power_event));
-		if (!pwr)
-			return;
-		memset(pwr, 0, sizeof(struct power_event));
-
 		/* C state */
 #if 0
+		pwr = zalloc(sizeof(*pwr));
+		if (!pwr)
+			return;
+
 		pwr->state = cpus_cstate_state[cpu];
 		pwr->start_time = cpus_cstate_start_times[cpu];
 		pwr->end_time = last_time;
@@ -597,10 +588,9 @@ static void end_sample_processing(void)
 #endif
 		/* P state */
 
-		pwr = malloc(sizeof(struct power_event));
+		pwr = zalloc(sizeof(*pwr));
 		if (!pwr)
 			return;
-		memset(pwr, 0, sizeof(struct power_event));
 
 		pwr->state = cpus_pstate_state[cpu];
 		pwr->start_time = cpus_pstate_start_times[cpu];
@@ -830,11 +820,9 @@ static void draw_process_bars(void)
 
 static void add_process_filter(const char *string)
 {
-	struct process_filter *filt;
-	int pid;
+	int pid = strtoull(string, NULL, 10);
+	struct process_filter *filt = malloc(sizeof(*filt));
 
-	pid = strtoull(string, NULL, 10);
-	filt = malloc(sizeof(struct process_filter));
 	if (!filt)
 		return;
 

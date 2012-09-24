@@ -81,6 +81,7 @@ struct perf_evlist;
 struct perf_record_opts;
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx);
+struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx);
 void perf_evsel__init(struct perf_evsel *evsel,
 		      struct perf_event_attr *attr, int idx);
 void perf_evsel__exit(struct perf_evsel *evsel);
@@ -127,6 +128,10 @@ char *perf_evsel__strval(struct perf_evsel *evsel, struct perf_sample *sample,
 			 const char *name);
 u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 		       const char *name);
+
+struct format_field;
+
+struct format_field *perf_evsel__field(struct perf_evsel *evsel, const char *name);
 
 #define perf_evsel__match(evsel, t, c)		\
 	(evsel->attr.type == PERF_TYPE_##t &&	\
