@@ -664,15 +664,8 @@ static struct perf_tool eops = {
 
 static int get_cpu_isa(struct perf_session *session)
 {
-	char *cpuid;
+	char *cpuid = session->header.env.cpuid;
 	int isa;
-
-	cpuid = perf_header__read_feature(session, HEADER_CPUID);
-
-	if (!cpuid) {
-		pr_err("read HEADER_CPUID failed.\n");
-		return -ENOTSUP;
-	}
 
 	if (strstr(cpuid, "Intel"))
 		isa = 1;
@@ -683,7 +676,6 @@ static int get_cpu_isa(struct perf_session *session)
 		isa = -ENOTSUP;
 	}
 
-	free(cpuid);
 	return isa;
 }
 
