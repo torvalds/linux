@@ -334,8 +334,8 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 	while (1) {
 		size = PAGE_ALIGN(vring_size(info->num,
 				VIRTIO_MMIO_VRING_ALIGN));
-		/* Already smallest possible allocation? */
-		if (size <= VIRTIO_MMIO_VRING_ALIGN * 2) {
+		/* Did the last iter shrink the queue below minimum size? */
+		if (size < VIRTIO_MMIO_VRING_ALIGN * 2) {
 			err = -ENOMEM;
 			goto error_alloc_pages;
 		}
