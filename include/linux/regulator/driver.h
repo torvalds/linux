@@ -181,6 +181,8 @@ enum regulator_type {
  * @type: Indicates if the regulator is a voltage or current regulator.
  * @owner: Module providing the regulator, used for refcounting.
  *
+ * @continuous_voltage_range: Indicates if the regulator can set any
+ *                            voltage within constrains range.
  * @n_voltages: Number of selectors available for ops.list_voltage().
  *
  * @min_uV: Voltage given by the lowest selector (if linear mapping)
@@ -199,6 +201,7 @@ struct regulator_desc {
 	const char *name;
 	const char *supply_name;
 	int id;
+	bool continuous_voltage_range;
 	unsigned n_voltages;
 	struct regulator_ops *ops;
 	int irq;
