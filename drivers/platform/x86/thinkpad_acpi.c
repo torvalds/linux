@@ -8574,7 +8574,8 @@ static bool __pure __init tpacpi_is_valid_fw_id(const char* const s,
 	return s && strlen(s) >= 8 &&
 		tpacpi_is_fw_digit(s[0]) &&
 		tpacpi_is_fw_digit(s[1]) &&
-		s[2] == t && s[3] == 'T' &&
+		s[2] == t &&
+		(s[3] == 'T' || s[3] == 'N') &&
 		tpacpi_is_fw_digit(s[4]) &&
 		tpacpi_is_fw_digit(s[5]);
 }
@@ -8607,7 +8608,8 @@ static int __must_check __init get_thinkpad_model_data(
 		return -ENOMEM;
 
 	/* Really ancient ThinkPad 240X will fail this, which is fine */
-	if (!tpacpi_is_valid_fw_id(tp->bios_version_str, 'E'))
+	if (!(tpacpi_is_valid_fw_id(tp->bios_version_str, 'E') ||
+	      tpacpi_is_valid_fw_id(tp->bios_version_str, 'C')))
 		return 0;
 
 	tp->bios_model = tp->bios_version_str[0]
