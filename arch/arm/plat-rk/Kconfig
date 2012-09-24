@@ -192,4 +192,7 @@ config RK_PL330_DMA_TEST
 config RK_FPGA
 	bool
 
+config RK_CONFIG
+	bool
+
 endif
