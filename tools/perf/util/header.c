@@ -1690,11 +1690,6 @@ static int process_total_mem(struct perf_file_section *section __maybe_unused,
 	return 0;
 }
 
-static char *read_cpuid(struct perf_header *ph, int fd)
-{
-	return do_read_string(fd, ph);
-}
-
 static struct perf_evsel *
 perf_evlist__find_by_index(struct perf_evlist *evlist, int idx)
 {
@@ -1952,7 +1947,6 @@ error:
 struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
-	char *(*read)(struct perf_header *h, int fd);
 	int (*process)(struct perf_file_section *section,
 		       struct perf_header *h, int fd, void *data);
 	const char *name;
@@ -1967,10 +1961,6 @@ struct feature_ops {
 #define FEAT_OPF(n, func) \
 	[n] = { .name = #n, .write = write_##func, .print = print_##func, \
 		.process = process_##func, .full_only = true }
-#define FEAT_OPA_R(n, func) \
-	[n] = { .name = #n, .write = write_##func, .print = print_##func, \
-		.read  = read_##func, .process = process_##func, \
-		.full_only = true }
 
 /* feature_ops not implemented: */
 #define print_tracing_data	NULL
@@ -1985,7 +1975,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPP(HEADER_ARCH,		arch),
 	FEAT_OPP(HEADER_NRCPUS,		nrcpus),
 	FEAT_OPP(HEADER_CPUDESC,	cpudesc),
-	FEAT_OPA_R(HEADER_CPUID,	cpuid),
+	FEAT_OPP(HEADER_CPUID,		cpuid),
 	FEAT_OPP(HEADER_TOTAL_MEM,	total_mem),
 	FEAT_OPP(HEADER_EVENT_DESC,	event_desc),
 	FEAT_OPP(HEADER_CMDLINE,	cmdline),
@@ -2038,54 +2028,6 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 	perf_header__process_sections(header, fd, &hd,
 				      perf_file_section__fprintf_info);
 	return 0;
-}
-
-struct header_read_data {
-	int feat;
-	char *result;
-};
-
-static int perf_file_section__read_feature(struct perf_file_section *section,
-				struct perf_header *ph,
-				int feat, int fd, void *data)
-{
-	struct header_read_data *hd = data;
-
-	if (feat != hd->feat)
-		return 0;
-
-	if (lseek(fd, section->offset, SEEK_SET) == (off_t)-1) {
-		pr_debug("Failed to lseek to %" PRIu64 " offset for feature "
-				"%d, continuing...\n", section->offset, feat);
-	return 0;
-	}
-
-	if (feat >= HEADER_LAST_FEATURE) {
-		pr_warning("unknown feature %d\n", feat);
-		return 0;
-	}
-
-	if (!feat_ops[feat].read) {
-		pr_warning("read is not supported for feature %d\n", feat);
-		return 0;
-	}
-
-	hd->result = feat_ops[feat].read(ph, fd);
-	return 0;
-}
-
-char *perf_header__read_feature(struct perf_session *session, int feat)
-{
-	struct perf_header *header = &session->header;
-	struct header_read_data hd;
-	int fd = session->fd;
-
-	hd.feat = feat;
-	hd.result = NULL;
-
-	perf_header__process_sections(header, fd, &hd,
-				perf_file_section__read_feature);
-	return hd.result;
 }
 
 static int do_write_feat(int fd, struct perf_header *h, int type,
