@@ -2289,7 +2289,7 @@ static void dsi_cio_timings(struct platform_device *dsidev)
 	dsi_write_reg(dsidev, DSI_DSIPHY_CFG0, r);
 
 	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG1);
-	r = FLD_MOD(r, tlpx_half, 22, 16);
+	r = FLD_MOD(r, tlpx_half, 20, 16);
 	r = FLD_MOD(r, tclk_trail, 15, 8);
 	r = FLD_MOD(r, tclk_zero, 7, 0);
 
@@ -4107,7 +4107,7 @@ static void dsi_proto_timings(struct omap_dss_device *dssdev)
 	ths_exit = FLD_GET(r, 7, 0);
 
 	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG1);
-	tlpx = FLD_GET(r, 22, 16) * 2;
+	tlpx = FLD_GET(r, 20, 16) * 2;
 	tclk_trail = FLD_GET(r, 15, 8);
 	tclk_zero = FLD_GET(r, 7, 0);
 
