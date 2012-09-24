@@ -39,6 +39,7 @@
 #include <linux/proc_fs.h>
 #include <linux/ctype.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
 
 #include "dgrp_common.h"
 
