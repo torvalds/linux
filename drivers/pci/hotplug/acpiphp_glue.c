@@ -382,10 +382,10 @@ static inline void config_p2p_bridge_flags(struct acpiphp_bridge *bridge)
 
 
 /* allocate and initialize host bridge data structure */
-static void add_host_bridge(acpi_handle *handle)
+static void add_host_bridge(struct acpi_pci_root *root)
 {
 	struct acpiphp_bridge *bridge;
-	struct acpi_pci_root *root = acpi_pci_find_root(handle);
+	acpi_handle handle = root->device->handle;
 
 	bridge = kzalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
 	if (bridge == NULL)
@@ -468,11 +468,12 @@ find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 
 /* find hot-pluggable slots, and then find P2P bridge */
-static int add_bridge(acpi_handle handle)
+static int add_bridge(struct acpi_pci_root *root)
 {
 	acpi_status status;
 	unsigned long long tmp;
 	acpi_handle dummy_handle;
+	acpi_handle handle = root->device->handle;
 
 	/* if the bridge doesn't have _STA, we assume it is always there */
 	status = acpi_get_handle(handle, "_STA", &dummy_handle);
@@ -490,7 +491,7 @@ static int add_bridge(acpi_handle handle)
 	/* check if this bridge has ejectable slots */
 	if (detect_ejectable_slots(handle) > 0) {
 		dbg("found PCI host-bus bridge with hot-pluggable slots\n");
-		add_host_bridge(handle);
+		add_host_bridge(root);
 	}
 
 	/* search P2P bridges under this host bridge */
@@ -588,9 +589,10 @@ cleanup_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-static void remove_bridge(acpi_handle handle)
+static void remove_bridge(struct acpi_pci_root *root)
 {
 	struct acpiphp_bridge *bridge;
+	acpi_handle handle = root->device->handle;
 
 	/* cleanup p2p bridges under this host bridge
 	   in a depth-first manner */
