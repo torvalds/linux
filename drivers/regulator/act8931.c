@@ -169,7 +169,7 @@ static int act8931_ldo_get_voltage(struct regulator_dev *dev)
 	return val;
 }
 static int act8931_ldo_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV, unsigned *selector)
 {
 	struct act8931 *act8931 = rdev_get_drvdata(dev);
 	int ldo= rdev_get_id(dev) -ACT8931_LDO1;
@@ -191,11 +191,10 @@ static int act8931_ldo_set_voltage(struct regulator_dev *dev,
 
 	ret = act8931_set_bits(act8931, act8931_LDO_SET_VOL_REG(ldo),
 	       	LDO_VOL_MASK, val);
-	if (ret)
-		return ret;
+	return ret;
 
 }
-static int act8931_ldo_get_mode(struct regulator_dev *dev, unsigned index)
+static unsigned int act8931_ldo_get_mode(struct regulator_dev *dev)
 {
 	struct act8931 *act8931 = rdev_get_drvdata(dev);
 	int ldo = rdev_get_id(dev) -ACT8931_LDO1 ;
@@ -287,7 +286,7 @@ static int act8931_dcdc_get_voltage(struct regulator_dev *dev)
 	return val;
 }
 static int act8931_dcdc_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV, unsigned *selector)
 {
 	struct act8931 *act8931 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) -ACT8931_DCDC1 ;
@@ -315,7 +314,7 @@ static int act8931_dcdc_set_voltage(struct regulator_dev *dev,
 	//if (ret)
 		return ret;
 }
-static int act8931_dcdc_get_mode(struct regulator_dev *dev, unsigned index)
+static unsigned int act8931_dcdc_get_mode(struct regulator_dev *dev)
 {
 	struct act8931 *act8931 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) -ACT8931_DCDC1 ;
@@ -441,7 +440,7 @@ static int act8931_i2c_read(struct i2c_client *i2c, char reg, int count,	u16 *de
     msgs[0].len = 1;
     msgs[0].scl_rate = 200*1000;
     
-    msgs[1].buf = dest;
+    msgs[1].buf = (u8 *)dest;
     msgs[1].addr = i2c->addr;
     msgs[1].flags = i2c->flags | I2C_M_RD;
     msgs[1].len = 1;

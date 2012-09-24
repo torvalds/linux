@@ -37,10 +37,6 @@ struct act8931;
 /*
  * Register definitions to all subdrivers
  */
-static u8 act8931_reg_read(struct act8931 *act8931, u8 reg);
-static int act8931_set_bits(struct act8931 *act8931, u8 reg, u16 mask, u16 val);
-
-
 #define act8931_BUCK1_SET_VOL_BASE 0x20
 #define act8931_BUCK2_SET_VOL_BASE 0x30
 #define act8931_BUCK3_SET_VOL_BASE 0x40
