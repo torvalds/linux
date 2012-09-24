@@ -31,7 +31,7 @@
 enum shdlc_state {
 	SHDLC_DISCONNECTED = 0,
 	SHDLC_CONNECTING = 1,
-	SHDLC_NEGOCIATING = 2,
+	SHDLC_NEGOTIATING = 2,
 	SHDLC_HALF_CONNECTED = 3,
 	SHDLC_CONNECTED = 4
 };
@@ -416,7 +416,7 @@ static void llc_shdlc_rcv_u_frame(struct llc_shdlc *shdlc,
 	switch (u_frame_modifier) {
 	case U_FRAME_RSET:
 		switch (shdlc->state) {
-		case SHDLC_NEGOCIATING:
+		case SHDLC_NEGOTIATING:
 		case SHDLC_CONNECTING:
 			/*
 			 * We sent RSET, but chip wants to negociate or we
@@ -457,7 +457,7 @@ static void llc_shdlc_rcv_u_frame(struct llc_shdlc *shdlc,
 	case U_FRAME_UA:
 		if ((shdlc->state == SHDLC_CONNECTING &&
 		     shdlc->connect_tries > 0) ||
-		    (shdlc->state == SHDLC_NEGOCIATING)) {
+		    (shdlc->state == SHDLC_NEGOTIATING)) {
 			llc_shdlc_connect_complete(shdlc, 0);
 			shdlc->state = SHDLC_CONNECTED;
 		}
@@ -640,10 +640,10 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 			mod_timer(&shdlc->connect_timer, jiffies +
 				  msecs_to_jiffies(SHDLC_CONNECT_VALUE_MS));
 
-			shdlc->state = SHDLC_NEGOCIATING;
+			shdlc->state = SHDLC_NEGOTIATING;
 		}
 		break;
-	case SHDLC_NEGOCIATING:
+	case SHDLC_NEGOTIATING:
 		if (timer_pending(&shdlc->connect_timer) == 0) {
 			shdlc->state = SHDLC_CONNECTING;
 			queue_work(system_nrt_wq, &shdlc->sm_work);
