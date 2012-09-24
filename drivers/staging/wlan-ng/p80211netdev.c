@@ -461,7 +461,7 @@ failed:
 /*----------------------------------------------------------------
 * p80211knetdev_set_multicast_list
 *
-* Called from higher lavers whenever there's a need to set/clear
+* Called from higher layers whenever there's a need to set/clear
 * promiscuous mode or rewrite the multicast list.
 *
 * Arguments:
