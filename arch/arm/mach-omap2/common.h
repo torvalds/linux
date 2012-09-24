@@ -26,10 +26,17 @@
 #define __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H
 #ifndef __ASSEMBLER__
 
+#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/i2c/twl.h>
-#include <plat/common.h>
+
 #include <asm/proc-fns.h>
+
+#include <plat/cpu.h>
+#include <plat/serial.h>
+#include <plat/common.h>
+
+#define OMAP_INTC_START		NR_IRQS
 
 #ifdef CONFIG_SOC_OMAP2420
 extern void omap242x_map_common_io(void);

@@ -21,7 +21,7 @@
 #include <mach/ctrl_module_pad_core_44xx.h>
 #include <mach/ctrl_module_pad_wkup_44xx.h>
 
-#include <plat/am33xx.h>
+#include "am33xx.h"
 
 #ifndef __ASSEMBLY__
 #define OMAP242X_CTRL_REGADDR(reg)					\
@@ -354,6 +354,7 @@
 
 /* AM33XX CONTROL_STATUS bitfields (partial) */
 #define AM33XX_CONTROL_STATUS_SYSBOOT1_SHIFT		22
+#define AM33XX_CONTROL_STATUS_SYSBOOT1_WIDTH		0x2
 #define AM33XX_CONTROL_STATUS_SYSBOOT1_MASK		(0x3 << 22)
 
 /* CONTROL OMAP STATUS register to identify OMAP3 features */

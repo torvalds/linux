@@ -80,7 +80,8 @@ static void __init omap2_init_processor_devices(void)
 
 int __init omap_pm_clkdms_setup(struct clockdomain *clkdm, void *unused)
 {
-	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
+	if ((clkdm->flags & CLKDM_CAN_ENABLE_AUTO) &&
+	    !(clkdm->flags & CLKDM_MISSING_IDLE_REPORTING))
 		clkdm_allow_idle(clkdm);
 	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
 		 atomic_read(&clkdm->usecount) == 0)
@@ -188,7 +189,7 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 		goto exit;
 	}
 
-	freq = clk->rate;
+	freq = clk_get_rate(clk);
 	clk_put(clk);
 
 	rcu_read_lock();
@@ -203,8 +204,8 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 	bootup_volt = opp_get_voltage(opp);
 	rcu_read_unlock();
 	if (!bootup_volt) {
-		pr_err("%s: unable to find voltage corresponding "
-			"to the bootup OPP for vdd_%s\n", __func__, vdd_name);
+		pr_err("%s: unable to find voltage corresponding to the bootup OPP for vdd_%s\n",
+		       __func__, vdd_name);
 		goto exit;
 	}
 

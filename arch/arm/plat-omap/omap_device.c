@@ -1,4 +1,3 @@
-
 /*
  * omap_device implementation
  *
@@ -153,21 +152,19 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 		act_lat = timespec_to_ns(&c);
 
 		dev_dbg(&od->pdev->dev,
-			"omap_device: pm_lat %d: activate: elapsed time "
-			"%llu nsec\n", od->pm_lat_level, act_lat);
+			"omap_device: pm_lat %d: activate: elapsed time %llu nsec\n",
+			od->pm_lat_level, act_lat);
 
 		if (act_lat > odpl->activate_lat) {
 			odpl->activate_lat_worst = act_lat;
 			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
 				odpl->activate_lat = act_lat;
 				dev_dbg(&od->pdev->dev,
-					"new worst case activate latency "
-					"%d: %llu\n",
+					"new worst case activate latency %d: %llu\n",
 					od->pm_lat_level, act_lat);
 			} else
 				dev_warn(&od->pdev->dev,
-					 "activate latency %d "
-					 "higher than exptected. (%llu > %d)\n",
+					 "activate latency %d higher than expected. (%llu > %d)\n",
 					 od->pm_lat_level, act_lat,
 					 odpl->activate_lat);
 		}
@@ -220,21 +217,19 @@ static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 		deact_lat = timespec_to_ns(&c);
 
 		dev_dbg(&od->pdev->dev,
-			"omap_device: pm_lat %d: deactivate: elapsed time "
-			"%llu nsec\n", od->pm_lat_level, deact_lat);
+			"omap_device: pm_lat %d: deactivate: elapsed time %llu nsec\n",
+			od->pm_lat_level, deact_lat);
 
 		if (deact_lat > odpl->deactivate_lat) {
 			odpl->deactivate_lat_worst = deact_lat;
 			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
 				odpl->deactivate_lat = deact_lat;
 				dev_dbg(&od->pdev->dev,
-					"new worst case deactivate latency "
-					"%d: %llu\n",
+					"new worst case deactivate latency %d: %llu\n",
 					od->pm_lat_level, deact_lat);
 			} else
 				dev_warn(&od->pdev->dev,
-					 "deactivate latency %d "
-					 "higher than exptected. (%llu > %d)\n",
+					 "deactivate latency %d higher than expected. (%llu > %d)\n",
 					 od->pm_lat_level, deact_lat,
 					 odpl->deactivate_lat);
 		}
@@ -266,10 +261,10 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 		return;
 	}
 
-	r = omap_clk_get_by_name(clk_name);
+	r = clk_get(NULL, clk_name);
 	if (IS_ERR(r)) {
 		dev_err(&od->pdev->dev,
-			"omap_clk_get_by_name for %s failed\n", clk_name);
+			"clk_get for %s failed\n", clk_name);
 		return;
 	}
 
@@ -449,8 +444,8 @@ static int omap_device_count_resources(struct omap_device *od)
 	for (i = 0; i < od->hwmods_cnt; i++)
 		c += omap_hwmod_count_resources(od->hwmods[i]);
 
-	pr_debug("omap_device: %s: counted %d total resources across %d "
-		 "hwmods\n", od->pdev->name, c, od->hwmods_cnt);
+	pr_debug("omap_device: %s: counted %d total resources across %d hwmods\n",
+		 od->pdev->name, c, od->hwmods_cnt);
 
 	return c;
 }
@@ -920,6 +915,61 @@ int omap_device_shutdown(struct platform_device *pdev)
 		omap_hwmod_shutdown(od->hwmods[i]);
 
 	od->_state = OMAP_DEVICE_STATE_SHUTDOWN;
+
+	return ret;
+}
+
+/**
+ * omap_device_assert_hardreset - set a device's hardreset line
+ * @pdev: struct platform_device * to reset
+ * @name: const char * name of the reset line
+ *
+ * Set the hardreset line identified by @name on the IP blocks
+ * associated with the hwmods backing the platform_device @pdev.  All
+ * of the hwmods associated with @pdev must have the same hardreset
+ * line linked to them for this to work.  Passes along the return value
+ * of omap_hwmod_assert_hardreset() in the event of any failure, or
+ * returns 0 upon success.
+ */
+int omap_device_assert_hardreset(struct platform_device *pdev, const char *name)
+{
+	struct omap_device *od = to_omap_device(pdev);
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < od->hwmods_cnt; i++) {
+		ret = omap_hwmod_assert_hardreset(od->hwmods[i], name);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+/**
+ * omap_device_deassert_hardreset - release a device's hardreset line
+ * @pdev: struct platform_device * to reset
+ * @name: const char * name of the reset line
+ *
+ * Release the hardreset line identified by @name on the IP blocks
+ * associated with the hwmods backing the platform_device @pdev.  All
+ * of the hwmods associated with @pdev must have the same hardreset
+ * line linked to them for this to work.  Passes along the return
+ * value of omap_hwmod_deassert_hardreset() in the event of any
+ * failure, or returns 0 upon success.
+ */
+int omap_device_deassert_hardreset(struct platform_device *pdev,
+				   const char *name)
+{
+	struct omap_device *od = to_omap_device(pdev);
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < od->hwmods_cnt; i++) {
+		ret = omap_hwmod_deassert_hardreset(od->hwmods[i], name);
+		if (ret)
+			break;
+	}
 
 	return ret;
 }

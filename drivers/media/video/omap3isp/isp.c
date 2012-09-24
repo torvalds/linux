@@ -70,6 +70,8 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 
+#include <plat/cpu.h>
+
 #include "isp.h"
 #include "ispreg.h"
 #include "ispccdc.h"

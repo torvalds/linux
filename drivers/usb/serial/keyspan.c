@@ -158,7 +158,7 @@ static void keyspan_set_termios(struct tty_struct *tty,
 
 	p_priv = usb_get_serial_port_data(port);
 	d_details = p_priv->device_details;
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 	device_port = port->number - port->serial->minor;
 
 	/* Baud rate calculation takes baud rate as an integer
@@ -179,7 +179,7 @@ static void keyspan_set_termios(struct tty_struct *tty,
 	p_priv->flow_control = (cflag & CRTSCTS) ? flow_cts : flow_none;
 
 	/* Mark/Space not supported */
-	tty->termios->c_cflag &= ~CMSPAR;
+	tty->termios.c_cflag &= ~CMSPAR;
 
 	keyspan_send_setup(port, 0);
 }
@@ -1086,7 +1086,7 @@ static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	device_port = port->number - port->serial->minor;
 	if (tty) {
-		cflag = tty->termios->c_cflag;
+		cflag = tty->termios.c_cflag;
 		/* Baud rate calculation takes baud rate as an integer
 		   so other rates can be generated if desired. */
 		baud_rate = tty_get_baud_rate(tty);

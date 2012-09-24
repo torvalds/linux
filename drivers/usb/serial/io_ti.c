@@ -1870,7 +1870,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* set up the port settings */
 	if (tty)
-		edge_set_termios(tty, port, tty->termios);
+		edge_set_termios(tty, port, &tty->termios);
 
 	/* open up the port */
 
@@ -2272,13 +2272,13 @@ static void change_port_settings(struct tty_struct *tty,
 
 	config = kmalloc (sizeof (*config), GFP_KERNEL);
 	if (!config) {
-		*tty->termios = *old_termios;
+		tty->termios = *old_termios;
 		dev_err(&edge_port->port->dev, "%s - out of memory\n",
 								__func__);
 		return;
 	}
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	config->wFlags = 0;
 
@@ -2362,7 +2362,7 @@ static void change_port_settings(struct tty_struct *tty,
 	} else
 		dbg("%s - OUTBOUND XON/XOFF is disabled", __func__);
 
-	tty->termios->c_cflag &= ~CMSPAR;
+	tty->termios.c_cflag &= ~CMSPAR;
 
 	/* Round the baud rate */
 	baud = tty_get_baud_rate(tty);
@@ -2408,10 +2408,10 @@ static void edge_set_termios(struct tty_struct *tty,
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	unsigned int cflag;
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	dbg("%s - clfag %08x iflag %08x", __func__,
-	    tty->termios->c_cflag, tty->termios->c_iflag);
+	    tty->termios.c_cflag, tty->termios.c_iflag);
 	dbg("%s - old clfag %08x old iflag %08x", __func__,
 	    old_termios->c_cflag, old_termios->c_iflag);
 	dbg("%s - port %d", __func__, port->number);

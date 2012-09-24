@@ -1,6 +1,4 @@
 /*
- * arch/arm/plat-omap/include/mach/gpio.h
- *
  * OMAP GPIO handling defines and functions
  *
  * Copyright (C) 2003-2005 Nokia Corporation
@@ -155,6 +153,8 @@
 #define OMAP4_GPIO_CLEARDATAOUT		0x0190
 #define OMAP4_GPIO_SETDATAOUT		0x0194
 
+#define OMAP_MAX_GPIO_LINES		192
+
 #define OMAP_MPUIO(nr)		(OMAP_MAX_GPIO_LINES + (nr))
 #define OMAP_GPIO_IS_MPUIO(nr)	((nr) >= OMAP_MAX_GPIO_LINES)
 
@@ -213,16 +213,5 @@ extern void omap2_gpio_prepare_for_idle(int off_mode);
 extern void omap2_gpio_resume_after_idle(void);
 extern void omap_set_gpio_debounce(int gpio, int enable);
 extern void omap_set_gpio_debounce_time(int gpio, int enable);
-/*-------------------------------------------------------------------------*/
-
-/*
- * Wrappers for "new style" GPIO calls, using the new infrastructure
- * which lets us plug in FPGA, I2C, and other implementations.
- *
- * The original OMAP-specific calls should eventually be removed.
- */
-
-#include <linux/errno.h>
-#include <asm-generic/gpio.h>
 
 #endif

@@ -275,7 +275,7 @@ static void qt2_set_termios(struct tty_struct *tty,
 {
 	struct usb_device *dev = port->serial->dev;
 	struct qt2_port_private *port_priv;
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	u16 baud;
 	unsigned int cflag = termios->c_cflag;
 	u16 new_lcr = 0;
@@ -406,7 +406,7 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 	port_priv->device_port = (u8) device_port;
 
 	if (tty)
-		qt2_set_termios(tty, port, tty->termios);
+		qt2_set_termios(tty, port, &tty->termios);
 
 	return 0;
 

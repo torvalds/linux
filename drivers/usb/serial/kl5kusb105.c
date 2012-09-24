@@ -311,12 +311,12 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* set up termios structure */
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->termios.c_iflag = tty->termios->c_iflag;
-	priv->termios.c_oflag = tty->termios->c_oflag;
-	priv->termios.c_cflag = tty->termios->c_cflag;
-	priv->termios.c_lflag = tty->termios->c_lflag;
+	priv->termios.c_iflag = tty->termios.c_iflag;
+	priv->termios.c_oflag = tty->termios.c_oflag;
+	priv->termios.c_cflag = tty->termios.c_cflag;
+	priv->termios.c_lflag = tty->termios.c_lflag;
 	for (i = 0; i < NCCS; i++)
-		priv->termios.c_cc[i] = tty->termios->c_cc[i];
+		priv->termios.c_cc[i] = tty->termios.c_cc[i];
 	priv->cfg.pktlen   = cfg->pktlen;
 	priv->cfg.baudrate = cfg->baudrate;
 	priv->cfg.databits = cfg->databits;
@@ -445,9 +445,9 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 				 struct ktermios *old_termios)
 {
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
-	unsigned int iflag = tty->termios->c_iflag;
+	unsigned int iflag = tty->termios.c_iflag;
 	unsigned int old_iflag = old_termios->c_iflag;
-	unsigned int cflag = tty->termios->c_cflag;
+	unsigned int cflag = tty->termios.c_cflag;
 	unsigned int old_cflag = old_termios->c_cflag;
 	struct klsi_105_port_settings *cfg;
 	unsigned long flags;
@@ -560,7 +560,7 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	if ((cflag & (PARENB|PARODD)) != (old_cflag & (PARENB|PARODD))
 	    || (cflag & CSTOPB) != (old_cflag & CSTOPB)) {
 		/* Not currently supported */
-		tty->termios->c_cflag &= ~(PARENB|PARODD|CSTOPB);
+		tty->termios.c_cflag &= ~(PARENB|PARODD|CSTOPB);
 #if 0
 		priv->last_lcr = 0;
 
@@ -587,7 +587,7 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	    || (iflag & IXON) != (old_iflag & IXON)
 	    ||  (cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
 		/* Not currently supported */
-		tty->termios->c_cflag &= ~CRTSCTS;
+		tty->termios.c_cflag &= ~CRTSCTS;
 		/* Drop DTR/RTS if no flow control otherwise assert */
 #if 0
 		if ((iflag & IXOFF) || (iflag & IXON) || (cflag & CRTSCTS))

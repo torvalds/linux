@@ -32,7 +32,6 @@
 #include <plat/flash.h>
 #include <plat/fpga.h>
 #include <plat/keypad.h>
-#include <plat/board.h>
 
 #include <mach/hardware.h>
 
