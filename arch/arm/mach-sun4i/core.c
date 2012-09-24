@@ -101,15 +101,8 @@ EXPORT_SYMBOL(fb_size);
 
 static void __init reserve_fb(void)
 {
-    char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
-
-    if (sw_cfg_get_int(script_base, "disp_init", "disp_init_enable"))
-    {
-		memblock_reserve(fb_start, fb_size);
-		pr_reserve_info("LCD ", fb_start, fb_size);
-    }
-	else
-		fb_start = fb_size = 0;
+	memblock_reserve(fb_start, fb_size);
+	pr_reserve_info("LCD ", fb_start, fb_size);
 }
 
 #else
@@ -132,24 +125,9 @@ EXPORT_SYMBOL(g2d_size);
 
 static void __init reserve_g2d(void)
 {
-    char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
-
-    if (sw_cfg_get_int(script_base, "g2d_para", "g2d_used"))
-    {
-		g2d_size = sw_cfg_get_int(script_base, "g2d_para", "g2d_size");
-		if ((g2d_size < 0) || (g2d_size > SW_G2D_MEM_MAX))
-			g2d_size = SW_G2D_MEM_MAX;
-
-		g2d_start = SW_G2D_MEM_BASE;
-		g2d_size = g2d_size;
-		memblock_reserve(g2d_start, g2d_size);
-
-		pr_reserve_info("G2D ", g2d_start, g2d_size);
-    }
-    else
-    	g2d_start = g2d_size = 0;
+	memblock_reserve(g2d_start, g2d_size);
+	pr_reserve_info("G2D ", g2d_start, g2d_size);
 }
-
 #else
 static void __init reserve_g2d(void) {}
 #endif
