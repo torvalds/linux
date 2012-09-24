@@ -437,14 +437,12 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	ipv6h = (const struct ipv6hdr *)skb->data;
 	p = (__be16 *)(skb->data + offset);
 
-	rcu_read_lock();
-
 	t = ip6gre_tunnel_lookup(skb->dev, &ipv6h->daddr, &ipv6h->saddr,
 				flags & GRE_KEY ?
 				*(((__be32 *)p) + (grehlen / 4) - 1) : 0,
 				p[1]);
 	if (t == NULL)
-		goto out;
+		return;
 
 	switch (type) {
 		__u32 teli;
@@ -489,8 +487,6 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	else
 		t->err_count = 1;
 	t->err_time = jiffies;
-out:
-	rcu_read_unlock();
 }
 
 static inline void ip6gre_ecn_decapsulate_ipv4(const struct ip6_tnl *t,
@@ -528,7 +524,7 @@ static int ip6gre_rcv(struct sk_buff *skb)
 	__be16 gre_proto;
 
 	if (!pskb_may_pull(skb, sizeof(struct in6_addr)))
-		goto drop_nolock;
+		goto drop;
 
 	ipv6h = ipv6_hdr(skb);
 	h = skb->data;
@@ -539,7 +535,7 @@ static int ip6gre_rcv(struct sk_buff *skb)
 		   - We do not support routing headers.
 		 */
 		if (flags&(GRE_VERSION|GRE_ROUTING))
-			goto drop_nolock;
+			goto drop;
 
 		if (flags&GRE_CSUM) {
 			switch (skb->ip_summed) {
@@ -567,7 +563,6 @@ static int ip6gre_rcv(struct sk_buff *skb)
 
 	gre_proto = *(__be16 *)(h + 2);
 
-	rcu_read_lock();
 	tunnel = ip6gre_tunnel_lookup(skb->dev,
 					  &ipv6h->saddr, &ipv6h->daddr, key,
 					  gre_proto);
@@ -646,14 +641,11 @@ static int ip6gre_rcv(struct sk_buff *skb)
 
 		netif_rx(skb);
 
-		rcu_read_unlock();
 		return 0;
 	}
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 
 drop:
-	rcu_read_unlock();
-drop_nolock:
 	kfree_skb(skb);
 	return 0;
 }
