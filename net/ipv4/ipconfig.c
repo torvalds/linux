@@ -583,6 +583,17 @@ static void __init ic_rarp_send_if(struct ic_device *d)
 #endif
 
 /*
+ *  Predefine Nameservers
+ */
+static inline void __init ic_nameservers_predef(void)
+{
+	int i;
+
+	for (i = 0; i < CONF_NAMESERVERS_MAX; i++)
+		ic_nameservers[i] = NONE;
+}
+
+/*
  *	DHCP/BOOTP support.
  */
 
@@ -741,17 +752,6 @@ static void __init ic_bootp_init_ext(u8 *e)
 	*e++ = 255;		/* End of the list */
 }
 
-
-/*
- *  Predefine Nameservers
- */
-static inline void __init ic_nameservers_predef(void)
-{
-	int i;
-
-	for (i = 0; i < CONF_NAMESERVERS_MAX; i++)
-		ic_nameservers[i] = NONE;
-}
 
 /*
  *  Initialize the DHCP/BOOTP mechanism.
