@@ -168,8 +168,7 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 	}
 
 	f_ref = 2UL * priv->cfg->clock / r_val;
-	n_val = f_vco / f_ref;
-	k_val = f_vco % f_ref;
+	n_val = div_u64_rem(f_vco, f_ref, &k_val);
 	k_val_reg = 1UL * k_val * (1 << 20) / f_ref;
 
 	ret = fc2580_wr_reg(priv, 0x18, r18_val | ((k_val_reg >> 16) & 0xff));
