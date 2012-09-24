@@ -1073,16 +1073,13 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 			BUG_ON(kaddr == NULL);
 			base = kaddr + con->out_msg_pos.page_pos + bio_offset;
 			crc = crc32c(crc, base, len);
+			kunmap(page);
 			msg->footer.data_crc = cpu_to_le32(crc);
 			con->out_msg_pos.did_page_crc = true;
 		}
 		ret = ceph_tcp_sendpage(con->sock, page,
 				      con->out_msg_pos.page_pos + bio_offset,
 				      len, 1);
-
-		if (do_datacrc)
-			kunmap(page);
-
 		if (ret <= 0)
 			goto out;
 
