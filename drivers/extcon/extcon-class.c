@@ -819,6 +819,9 @@ module_init(extcon_class_init);
 
 static void __exit extcon_class_exit(void)
 {
+#if defined(CONFIG_ANDROID)
+	class_compat_unregister(switch_class);
+#endif
 	class_destroy(extcon_class);
 }
 module_exit(extcon_class_exit);
