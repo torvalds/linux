@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.h 354837 2012-09-04 06:58:44Z $
+ * $Id: wl_cfgp2p.h 358186 2012-09-21 14:36:14Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -72,6 +72,7 @@ struct p2p_bss {
 struct p2p_info {
 	bool on;    /* p2p on/off switch */
 	bool scan;
+	bool dev_open;
 	bool vif_created;
 	s8 vir_ifname[IFNAMSIZ];
 	unsigned long status;
@@ -299,6 +300,9 @@ wl_cfgp2p_unregister_ndev(struct wl_priv *wl);
 #define SOCIAL_CHAN_1 1
 #define SOCIAL_CHAN_2 6
 #define SOCIAL_CHAN_3 11
+#define IS_P2P_SOCIAL_CHANNEL(channel) ((channel == SOCIAL_CHAN_1) || \
+					(channel == SOCIAL_CHAN_2) || \
+					(channel == SOCIAL_CHAN_3))
 #define SOCIAL_CHAN_CNT 3
 #define AF_PEER_SEARCH_CNT 2
 #define WL_P2P_WILDCARD_SSID "DIRECT-"

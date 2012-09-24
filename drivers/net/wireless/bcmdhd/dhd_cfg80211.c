@@ -80,7 +80,7 @@ s32 dhd_cfg80211_set_p2p_info(struct wl_priv *wl, int val)
 {
 	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
 	dhd->op_mode |= val;
-	WL_ERR(("Set : op_mode=%d\n", dhd->op_mode));
+	WL_ERR(("Set : op_mode=0x%04x\n", dhd->op_mode));
 #ifdef ARP_OFFLOAD_SUPPORT
 	/* IF P2P is enabled, disable arpoe */
 	dhd_arp_offload_set(dhd, 0);
@@ -93,8 +93,8 @@ s32 dhd_cfg80211_set_p2p_info(struct wl_priv *wl, int val)
 s32 dhd_cfg80211_clean_p2p_info(struct wl_priv *wl)
 {
 	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
-	dhd->op_mode &= ~CONCURENT_MASK;
-	WL_ERR(("Clean : op_mode=%d\n", dhd->op_mode));
+	dhd->op_mode &= ~(DHD_FLAG_P2P_GC_MODE | DHD_FLAG_P2P_GO_MODE);
+	WL_ERR(("Clean : op_mode=0x%04x\n", dhd->op_mode));
 
 #ifdef ARP_OFFLOAD_SUPPORT
 	/* IF P2P is disabled, enable arpoe back for STA mode. */

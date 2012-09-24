@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.c 354837 2012-09-04 06:58:44Z $
+ * $Id: wl_cfgp2p.c 357347 2012-09-17 21:22:01Z $
  *
  */
 #include <typedefs.h>
@@ -990,7 +990,7 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 	struct parsed_vndr_ies new_vndr_ies;
 	s32 i;
 	u8 *ptr;
-	u32 remained_buf_len;
+	s32 remained_buf_len;
 
 #define IE_TYPE(type, bsstype) (wl_to_p2p_bss_saved_ie(wl, bsstype).p2p_ ## type ## _ie)
 #define IE_TYPE_LEN(type, bsstype) (wl_to_p2p_bss_saved_ie(wl, bsstype).p2p_ ## type ## _ie_len)
@@ -1153,7 +1153,9 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 					"add");
 
 				/* verify remained buf size before copy data */
-				if ((remained_buf_len -= vndrie_info->ie_len) < 0) {
+				if (remained_buf_len >= vndrie_info->ie_len) {
+					remained_buf_len -= vndrie_info->ie_len;
+				} else {
 					CFGP2P_ERR(("no space in mgmt_ie_buf: pktflag = %d, "
 						"found vndr ies # = %d(cur %d), remained len %d, "
 						"cur mgmt_ie_len %d, new ie len = %d\n",
@@ -1383,6 +1385,8 @@ wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
 {
 	s32 ret = BCME_OK;
 	struct net_device *netdev;
+	if (!wl || !wl->p2p)
+		return BCME_ERROR;
 	if (wl->p2p_net == ndev) {
 		netdev = wl_to_prmry_ndev(wl);
 	} else {
@@ -2225,21 +2229,23 @@ static int wl_cfgp2p_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd
 
 static int wl_cfgp2p_if_open(struct net_device *net)
 {
+	extern struct wl_priv *wlcfg_drv_priv;
 	struct wireless_dev *wdev = net->ieee80211_ptr;
-
-	if (!wdev)
+	struct wl_priv *wl = NULL;
+	wl = wlcfg_drv_priv;
+	if (!wdev || !wl || !wl->p2p)
 		return -EINVAL;
-
+	WL_TRACE(("Enter\n"));
 	/* If suppose F/W download (ifconfig wlan0 up) hasn't been done by now,
 	 * do it here. This will make sure that in concurrent mode, supplicant
 	 * is not dependent on a particular order of interface initialization.
 	 * i.e you may give wpa_supp -iwlan0 -N -ip2p0 or wpa_supp -ip2p0 -N
 	 * -iwlan0.
 	 */
-	wl_cfg80211_do_driver_init(net);
-
 	wdev->wiphy->interface_modes |= (BIT(NL80211_IFTYPE_P2P_CLIENT)
 		| BIT(NL80211_IFTYPE_P2P_GO));
+	wl->p2p->dev_open = true;
+	wl_cfg80211_do_driver_init(net);
 
 	return 0;
 }
@@ -2270,6 +2276,6 @@ static int wl_cfgp2p_if_stop(struct net_device *net)
 	wdev->wiphy->interface_modes = (wdev->wiphy->interface_modes)
 					& (~(BIT(NL80211_IFTYPE_P2P_CLIENT)|
 					BIT(NL80211_IFTYPE_P2P_GO)));
-
+	wl->p2p->dev_open = false;
 	return 0;
 }

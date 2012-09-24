@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_android.c 355613 2012-09-07 13:03:47Z $
+ * $Id: wl_android.c 358186 2012-09-21 14:36:14Z $
  */
 
 #include <linux/module.h>
@@ -141,9 +141,7 @@ extern bool ap_fw_loaded;
 extern char iface_name[IFNAMSIZ];
 #endif
 
-#ifndef WIFI_TURNOFF_DELAY
 #define WIFI_TURNOFF_DELAY	0
-#endif
 /**
  * Local (static) functions and variables
  */
@@ -575,7 +573,16 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 	else if (strnicmp(command, CMD_SETBAND, strlen(CMD_SETBAND)) == 0) {
 		uint band = *(command + strlen(CMD_SETBAND) + 1) - '0';
+#ifdef WL_HOST_BAND_MGMT
+		if (wl_cfg80211_set_band(net, band) < 0) {
+			bytes_written = -1;
+			goto exit;
+		}
+		if (band == WLC_BAND_AUTO)
+			bytes_written = wldev_set_band(net, band);
+#else
 		bytes_written = wldev_set_band(net, band);
+#endif /* WL_HOST_BAND_MGMT */
 	}
 	else if (strnicmp(command, CMD_GETBAND, strlen(CMD_GETBAND)) == 0) {
 		bytes_written = wl_android_get_band(net, command, priv_cmd.total_len);

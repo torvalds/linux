@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 356056 2012-09-11 01:08:09Z $
+ * $Id: dhd.h 356711 2012-09-13 15:58:32Z $
  */
 
 /****************
@@ -71,17 +71,20 @@ enum dhd_bus_state {
 	DHD_BUS_DATA		/* Ready for frame transfers */
 };
 
-
+enum dhd_op_flags {
 /* Firmware requested operation mode */
-#define STA_MASK			0x0001
-#define HOSTAPD_MASK		0x0002
-#define WFD_MASK			0x0004
-#define SOFTAP_FW_MASK		0x0008
-#define	CONCURRENT_FW_MASK	(STA_MASK | WFD_MASK)
-#define P2P_GO_ENABLED		0x0010
-#define P2P_GC_ENABLED		0x0020
-#define CONCURENT_MASK		0x00F0
-#define CONCURRENT_MULTI_CHAN	0x0100
+	DHD_FLAG_STA_MODE				= BIT(0), /* STA only */
+	DHD_FLAG_HOSTAP_MODE				= BIT(1), /* SOFTAP only */
+	DHD_FLAG_P2P_MODE				= BIT(2), /* P2P Only */
+	/* STA + P2P */
+	DHD_FLAG_CONCURR_SINGLE_CHAN_MODE = (DHD_FLAG_STA_MODE | DHD_FLAG_P2P_MODE),
+	DHD_FLAG_CONCURR_MULTI_CHAN_MODE		= BIT(4), /* STA + P2P */
+	/* Current P2P mode for P2P connection */
+	DHD_FLAG_P2P_GC_MODE				= BIT(5),
+	DHD_FLAG_P2P_GO_MODE				= BIT(6),
+	DHD_FLAG_MBSS_MODE				= BIT(7) /* MBSS in future */
+};
+
 #define MANUFACTRING_FW 	"WLTEST"
 
 /* max sequential rxcntl timeouts to set HANG event */
@@ -491,7 +494,7 @@ extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
 #endif /* PKT_FILTER_SUPPORT */
 
 extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
-extern bool dhd_check_ap_wfd_mode_set(dhd_pub_t *dhd);
+extern bool dhd_support_sta_mode(dhd_pub_t *dhd);
 
 #ifdef DHD_DEBUG
 extern int write_to_file(dhd_pub_t *dhd, uint8 *buf, int size);
@@ -562,7 +565,7 @@ extern int dhd_keep_alive_onoff(dhd_pub_t *dhd);
 extern void dhd_arp_offload_set(dhd_pub_t * dhd, int arp_mode);
 extern void dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable);
 #endif /* ARP_OFFLOAD_SUPPORT */
-
+extern bool dhd_is_concurrent_mode(dhd_pub_t *dhd);
 
 typedef enum cust_gpio_modes {
 	WLAN_RESET_ON,

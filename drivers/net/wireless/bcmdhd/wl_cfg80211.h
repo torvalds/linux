@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.h 355340 2012-09-06 09:34:37Z $
+ * $Id: wl_cfg80211.h 358186 2012-09-21 14:36:14Z $
  */
 
 #ifndef _wl_cfg80211_h_
@@ -300,6 +300,7 @@ struct wl_security {
 	u32 cipher_pairwise;
 	u32 cipher_group;
 	u32 wpa_auth;
+	u32 auth_assoc_res_status;
 };
 
 /* ibss information for currently joined ibss network */
@@ -548,6 +549,9 @@ struct wl_priv {
 #ifdef WL_SCHED_SCAN
 	struct cfg80211_sched_scan_request *sched_scan_req;	/* scheduled scan req */
 #endif /* WL_SCHED_SCAN */
+#ifdef WL_HOST_BAND_MGMT
+	u8 curr_band;
+#endif /* WL_HOST_BAND_MGMT */
 };
 
 
@@ -810,5 +814,6 @@ extern s32 wl_cfg80211_if_is_group_owner(void);
 extern chanspec_t wl_ch_host_to_driver(u16 channel);
 extern s32 wl_add_remove_eventmsg(struct net_device *ndev, u16 event, bool add);
 extern void wl_stop_wait_next_action_frame(struct wl_priv *wl, struct net_device *ndev);
+extern s32 wl_cfg80211_set_band(struct net_device *ndev, int band);
 extern int wl_cfg80211_update_power_mode(struct net_device *dev);
 #endif				/* _wl_cfg80211_h_ */
