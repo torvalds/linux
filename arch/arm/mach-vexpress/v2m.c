@@ -658,6 +658,7 @@ static void __init v2m_dt_init(void)
 
 const static char *v2m_dt_match[] __initconst = {
 	"arm,vexpress",
+	"xen,xenvm",
 	NULL,
 };
 
