@@ -1067,8 +1067,8 @@ static int m2mtest_probe(struct platform_device *pdev)
 
 	return 0;
 
-	v4l2_m2m_release(dev->m2m_dev);
 err_m2m:
+	v4l2_m2m_release(dev->m2m_dev);
 	video_unregister_device(dev->vfd);
 rel_vdev:
 	video_device_release(vfd);
