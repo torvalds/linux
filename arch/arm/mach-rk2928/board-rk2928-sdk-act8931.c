@@ -10,13 +10,7 @@
 
 extern int platform_device_register(struct platform_device *pdev);
 
-int act8931_pre_init(struct act8931 *act8931){
-		
-	printk("%s,line=%d\n", __func__,__LINE__);	
-	
-
-}
-int act8931_set_init(struct act8931 *act8931)
+static int act8931_set_init(struct act8931 *act8931)
 {
 	struct regulator *dcdc;
 	struct regulator *ldo;
@@ -238,7 +232,7 @@ static struct regulator_init_data act8931_ldo4 = {
 	.consumer_supplies =  act8931_ldo4_supply,
 };
 
-struct act8931_regulator_subdev act8931_regulator_subdev_id[] = {
+static struct act8931_regulator_subdev act8931_regulator_subdev_id[] = {
 	{
 		.id=0,
 		.initdata=&act8931_ldo1,		
@@ -275,7 +269,7 @@ struct act8931_regulator_subdev act8931_regulator_subdev_id[] = {
 
 };
 
-struct act8931_platform_data act8931_data={
+static struct act8931_platform_data act8931_data={
 	.set_init=act8931_set_init,
 	.num_regulators=7,
 	.regulators=act8931_regulator_subdev_id,
