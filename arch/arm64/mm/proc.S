@@ -108,17 +108,6 @@ cpu_name:
  *	value of the SCTLR_EL1 register.
  */
 ENTRY(__cpu_setup)
-#ifdef CONFIG_SMP
-	/* TODO: only do this for certain CPUs */
-	/*
-	 * Enable SMP/nAMP mode.
-	 */
-	mrs	x0, actlr_el1
-	tbnz	x0, #6, 1f			// already enabled?
-	orr	x0, x0, #1 << 6
-	msr	actlr_el1, x0
-1:
-#endif
 	/*
 	 * Preserve the link register across the function call.
 	 */
