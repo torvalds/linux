@@ -2850,7 +2850,9 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 	s626_initialize(dev);
 
-	return 1;
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
+
+	return 0;
 }
 
 static void s626_detach(struct comedi_device *dev)
