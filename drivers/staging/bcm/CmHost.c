@@ -1387,7 +1387,7 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 	pstAddIndication->psfAuthorizedSet = (stServiceFlowParamSI *)ntohl((ULONG)pstAddIndication->psfAuthorizedSet);
 
 	if (pstAddIndicationAlt->u8Type == DSA_REQ) {
-		stLocalSFAddRequest AddRequest;
+		struct bcm_add_request AddRequest;
 
 		AddRequest.u8Type = pstAddIndicationAlt->u8Type;
 		AddRequest.eConnectionDir = pstAddIndicationAlt->u8Direction;
@@ -1395,8 +1395,8 @@ ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBu
 		AddRequest.u16CID = pstAddIndicationAlt->u16CID;
 		AddRequest.u16VCID = pstAddIndicationAlt->u16VCID;
 		AddRequest.psfParameterSet = pstAddIndication->psfAuthorizedSet;
-		(*puBufferLength) = sizeof(stLocalSFAddRequest);
-		memcpy(pvBuffer, &AddRequest, sizeof(stLocalSFAddRequest));
+		(*puBufferLength) = sizeof(struct bcm_add_request);
+		memcpy(pvBuffer, &AddRequest, sizeof(struct bcm_add_request));
 		kfree(pstAddIndication);
 		return 1;
 	}

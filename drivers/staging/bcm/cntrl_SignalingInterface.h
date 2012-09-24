@@ -260,10 +260,7 @@ typedef struct _stServiceFlowParamSI {
 } stServiceFlowParamSI, *pstServiceFlowParamSI;
 typedef stServiceFlowParamSI CServiceFlowParamSI;
 
-/*
- * structure stLocalSFAddRequest
- */
-typedef struct _stLocalSFAddRequest {
+struct bcm_add_request {
 	B_UINT8 u8Type;	/* < Type */
 	B_UINT8 eConnectionDir; /* < Connection direction */
 	/* brief 16 bit TID */
@@ -274,8 +271,7 @@ typedef struct _stLocalSFAddRequest {
 	B_UINT16 u16VCID; /* < 16bit VCID */
 	/* brief structure ParameterSet */
 	stServiceFlowParamSI *psfParameterSet; /* < structure ParameterSet */
-
-} stLocalSFAddRequest, *pstLocalSFAddRequest;
+};
 
 struct bcm_add_indication {
 	B_UINT8 u8Type;	/* < Type */
