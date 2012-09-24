@@ -98,8 +98,7 @@ struct _stCPacketClassificationRuleSI {
 };
 typedef struct _stCPacketClassificationRuleSI CCPacketClassificationRuleSI, stCPacketClassificationRuleSI, *pstCPacketClassificationRuleSI;
 
-/* brief class CPhsRuleSI */
-typedef struct _stPhsRuleSI {
+struct bcm_phs_rules {
 	/* 8bit PHS Index Of The Service Flow */
 	B_UINT8 u8PHSI;
 	/* PHSF Length Of The Service Flow */
@@ -119,8 +118,7 @@ typedef struct _stPhsRuleSI {
 	/* Vendor Specific PHS param Of The Service Flow */
 	B_UINT8 u8VendorSpecificPHSParams[VENDOR_PHS_PARAM_LENGTH];
 	B_UINT8 u8Padding[2];
-} stPhsRuleSI, *pstPhsRuleSI;
-typedef stPhsRuleSI CPhsRuleSI;
+};
 
 struct bcm_convergence_types {
 	/* 8bit Phs Classfier Action Of The Service Flow */
@@ -131,8 +129,8 @@ struct bcm_convergence_types {
 	B_UINT8 u8Padding[2];
 	/* brief class cCPacketClassificationRule */
 	stCPacketClassificationRuleSI cCPacketClassificationRule;
-	/* brief class CPhsRuleSI */
-	struct _stPhsRuleSI cPhsRule;
+	/* Payload header suppression rules structure */
+	struct bcm_phs_rules cPhsRule;
 };
 
 struct bcm_connect_mgr_params {
