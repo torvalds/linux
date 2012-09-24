@@ -79,7 +79,6 @@ INSN_CONFIG instructions:
 #define PCI_SUBDEVICE_ID_S626 0x0272
 
 struct s626_private {
-	struct pci_dev *pdev;
 	void __iomem *base_addr;
 	int got_regions;
 	short allocatedBuf;
@@ -1882,6 +1881,7 @@ static void WriteMISC2(struct comedi_device *dev, uint16_t NewImage)
 static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma,
 		      size_t bsize)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	void *vbptr;
 	dma_addr_t vpptr;
 
@@ -1892,7 +1892,7 @@ static void CloseDMAB(struct comedi_device *dev, struct bufferDMA *pdma,
 	vbptr = pdma->LogicalBase;
 	vpptr = pdma->PhysicalBase;
 	if (vbptr) {
-		pci_free_consistent(devpriv->pdev, bsize, vbptr, vpptr);
+		pci_free_consistent(pcidev, bsize, vbptr, vpptr);
 		pdma->LogicalBase = NULL;
 		pdma->PhysicalBase = 0;
 	}
@@ -2452,19 +2452,19 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 	dma_addr_t appdma;
 	struct comedi_subdevice *s;
 
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	devpriv->pdev = pcidev;
-
-	result = comedi_pci_enable(devpriv->pdev, "s626");
+	result = comedi_pci_enable(pcidev, "s626");
 	if (result < 0) {
 		printk(KERN_ERR "s626_attach: comedi_pci_enable fails\n");
 		return -ENODEV;
 	}
 	devpriv->got_regions = 1;
 
-	resourceStart = pci_resource_start(devpriv->pdev, 0);
+	resourceStart = pci_resource_start(pcidev, 0);
 
 	devpriv->base_addr = ioremap(resourceStart, SIZEOF_ADDRESS_SPACE);
 	if (devpriv->base_addr == NULL) {
@@ -2485,7 +2485,7 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		devpriv->allocatedBuf = 0;
 
 		devpriv->ANABuf.LogicalBase =
-		    pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE, &appdma);
+		    pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
 
 		if (devpriv->ANABuf.LogicalBase == NULL) {
 			printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
@@ -2497,7 +2497,7 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		devpriv->allocatedBuf++;
 
 		devpriv->RPSBuf.LogicalBase =
-		    pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE, &appdma);
+		    pci_alloc_consistent(pcidev, DMABUF_SIZE, &appdma);
 
 		if (devpriv->RPSBuf.LogicalBase == NULL) {
 			printk(KERN_ERR "s626_attach: DMA Memory mapping error\n");
@@ -2517,7 +2517,7 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 		return ret;
 
 	dev->iobase = (unsigned long)devpriv->base_addr;
-	dev->irq = devpriv->pdev->irq;
+	dev->irq = pcidev->irq;
 
 	/* set up interrupt handler */
 	if (dev->irq == 0) {
@@ -2869,6 +2869,8 @@ static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
 
 static void s626_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (devpriv) {
 		/* stop ai_command */
 		devpriv->ai_cmd_running = 0;
@@ -2893,10 +2895,10 @@ static void s626_detach(struct comedi_device *dev)
 			free_irq(dev->irq, dev);
 		if (devpriv->base_addr)
 			iounmap(devpriv->base_addr);
-		if (devpriv->pdev) {
-			if (devpriv->got_regions)
-				comedi_pci_disable(devpriv->pdev);
-		}
+	}
+	if (pcidev) {
+		if (devpriv->got_regions)
+			comedi_pci_disable(pcidev);
 	}
 }
 
