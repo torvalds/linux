@@ -959,8 +959,8 @@ static int sco_debugfs_show(struct seq_file *f, void *p)
 	read_lock(&sco_sk_list.lock);
 
 	sk_for_each(sk, node, &sco_sk_list.head) {
-		seq_printf(f, "%s %s %d\n", batostr(&bt_sk(sk)->src),
-			   batostr(&bt_sk(sk)->dst), sk->sk_state);
+		seq_printf(f, "%pMR %pMR %d\n", &bt_sk(sk)->src,
+			   &bt_sk(sk)->dst, sk->sk_state);
 	}
 
 	read_unlock(&sco_sk_list.lock);

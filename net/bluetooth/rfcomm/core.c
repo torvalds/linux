@@ -2125,11 +2125,10 @@ static int rfcomm_dlc_debugfs_show(struct seq_file *f, void *x)
 		list_for_each_entry(d, &s->dlcs, list) {
 			struct sock *sk = s->sock->sk;
 
-			seq_printf(f, "%s %s %ld %d %d %d %d\n",
-						batostr(&bt_sk(sk)->src),
-						batostr(&bt_sk(sk)->dst),
-						d->state, d->dlci, d->mtu,
-						d->rx_credits, d->tx_credits);
+			seq_printf(f, "%pMR %pMR %ld %d %d %d %d\n",
+				   &bt_sk(sk)->src, &bt_sk(sk)->dst,
+				   d->state, d->dlci, d->mtu,
+				   d->rx_credits, d->tx_credits);
 		}
 	}
 

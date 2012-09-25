@@ -5640,12 +5640,11 @@ static int l2cap_debugfs_show(struct seq_file *f, void *p)
 	list_for_each_entry(c, &chan_list, global_l) {
 		struct sock *sk = c->sk;
 
-		seq_printf(f, "%s %s %d %d 0x%4.4x 0x%4.4x %d %d %d %d\n",
-					batostr(&bt_sk(sk)->src),
-					batostr(&bt_sk(sk)->dst),
-					c->state, __le16_to_cpu(c->psm),
-					c->scid, c->dcid, c->imtu, c->omtu,
-					c->sec_level, c->mode);
+		seq_printf(f, "%pMR %pMR %d %d 0x%4.4x 0x%4.4x %d %d %d %d\n",
+			   &bt_sk(sk)->src, &bt_sk(sk)->dst,
+			   c->state, __le16_to_cpu(c->psm),
+			   c->scid, c->dcid, c->imtu, c->omtu,
+			   c->sec_level, c->mode);
 	}
 
 	read_unlock(&chan_list_lock);
