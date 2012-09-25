@@ -20,7 +20,8 @@
 #include "rate.h"
 #include "mesh.h"
 
-static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy, char *name,
+static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy,
+						const char *name,
 						enum nl80211_iftype type,
 						u32 *flags,
 						struct vif_params *params)
