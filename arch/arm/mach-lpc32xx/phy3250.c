@@ -24,8 +24,6 @@
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/eeprom.h>
 #include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
