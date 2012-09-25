@@ -374,11 +374,11 @@ smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
 }
 
-static int
+static void
 smb2_close_file(const unsigned int xid, struct cifs_tcon *tcon,
 		struct cifs_fid *fid)
 {
-	return SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
+	SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
 }
 
 static int

@@ -720,11 +720,11 @@ cifs_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
 }
 
-static int
+static void
 cifs_close_file(const unsigned int xid, struct cifs_tcon *tcon,
 		struct cifs_fid *fid)
 {
-	return CIFSSMBClose(xid, tcon, fid->netfid);
+	CIFSSMBClose(xid, tcon, fid->netfid);
 }
 
 static int

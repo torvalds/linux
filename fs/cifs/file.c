@@ -355,12 +355,11 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	if (!tcon->need_reconnect && !cifs_file->invalidHandle) {
 		struct TCP_Server_Info *server = tcon->ses->server;
 		unsigned int xid;
-		int rc = -ENOSYS;
 
 		xid = get_xid();
 		if (server->ops->close)
-			rc = server->ops->close(xid, tcon, &cifs_file->fid);
-		free_xid(xid);
+			server->ops->close(xid, tcon, &cifs_file->fid);
+		_free_xid(xid);
 	}
 
 	cifs_del_pending_open(&open);
