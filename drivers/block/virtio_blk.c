@@ -274,15 +274,18 @@ static void virtblk_done(struct virtqueue *vq)
 	unsigned int len;
 
 	spin_lock_irqsave(vblk->disk->queue->queue_lock, flags);
-	while ((vbr = virtqueue_get_buf(vblk->vq, &len)) != NULL) {
-		if (vbr->bio) {
-			virtblk_bio_done(vbr);
-			bio_done = true;
-		} else {
-			virtblk_request_done(vbr);
-			req_done = true;
+	do {
+		virtqueue_disable_cb(vq);
+		while ((vbr = virtqueue_get_buf(vblk->vq, &len)) != NULL) {
+			if (vbr->bio) {
+				virtblk_bio_done(vbr);
+				bio_done = true;
+			} else {
+				virtblk_request_done(vbr);
+				req_done = true;
+			}
 		}
-	}
+	} while (!virtqueue_enable_cb(vq));
 	/* In case queue is stopped waiting for more buffers. */
 	if (req_done)
 		blk_start_queue(vblk->disk->queue);
