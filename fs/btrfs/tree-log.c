@@ -2944,6 +2944,55 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+static void fill_inode_item(struct btrfs_trans_handle *trans,
+			    struct extent_buffer *leaf,
+			    struct btrfs_inode_item *item,
+			    struct inode *inode, int log_inode_only)
+{
+	btrfs_set_inode_uid(leaf, item, inode->i_uid);
+	btrfs_set_inode_gid(leaf, item, inode->i_gid);
+	btrfs_set_inode_mode(leaf, item, inode->i_mode);
+	btrfs_set_inode_nlink(leaf, item, inode->i_nlink);
+
+	btrfs_set_timespec_sec(leaf, btrfs_inode_atime(item),
+			       inode->i_atime.tv_sec);
+	btrfs_set_timespec_nsec(leaf, btrfs_inode_atime(item),
+				inode->i_atime.tv_nsec);
+
+	btrfs_set_timespec_sec(leaf, btrfs_inode_mtime(item),
+			       inode->i_mtime.tv_sec);
+	btrfs_set_timespec_nsec(leaf, btrfs_inode_mtime(item),
+				inode->i_mtime.tv_nsec);
+
+	btrfs_set_timespec_sec(leaf, btrfs_inode_ctime(item),
+			       inode->i_ctime.tv_sec);
+	btrfs_set_timespec_nsec(leaf, btrfs_inode_ctime(item),
+				inode->i_ctime.tv_nsec);
+
+	btrfs_set_inode_nbytes(leaf, item, inode_get_bytes(inode));
+
+	btrfs_set_inode_sequence(leaf, item, inode->i_version);
+	btrfs_set_inode_transid(leaf, item, trans->transid);
+	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
+	btrfs_set_inode_flags(leaf, item, BTRFS_I(inode)->flags);
+	btrfs_set_inode_block_group(leaf, item, 0);
+
+	if (log_inode_only) {
+		/* set the generation to zero so the recover code
+		 * can tell the difference between an logging
+		 * just to say 'this inode exists' and a logging
+		 * to say 'update this inode with these values'
+		 */
+		btrfs_set_inode_generation(leaf, item, 0);
+		btrfs_set_inode_size(leaf, item, 0);
+	} else {
+		btrfs_set_inode_generation(leaf, item,
+					   BTRFS_I(inode)->generation);
+		btrfs_set_inode_size(leaf, item, inode->i_size);
+	}
+
+}
+
 static noinline int copy_items(struct btrfs_trans_handle *trans,
 			       struct inode *inode,
 			       struct btrfs_path *dst_path,
@@ -2990,24 +3039,17 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 
 		src_offset = btrfs_item_ptr_offset(src, start_slot + i);
 
-		copy_extent_buffer(dst_path->nodes[0], src, dst_offset,
-				   src_offset, ins_sizes[i]);
-
-		if (inode_only == LOG_INODE_EXISTS &&
-		    ins_keys[i].type == BTRFS_INODE_ITEM_KEY) {
+		if (ins_keys[i].type == BTRFS_INODE_ITEM_KEY) {
 			inode_item = btrfs_item_ptr(dst_path->nodes[0],
 						    dst_path->slots[0],
 						    struct btrfs_inode_item);
-			btrfs_set_inode_size(dst_path->nodes[0], inode_item, 0);
-
-			/* set the generation to zero so the recover code
-			 * can tell the difference between an logging
-			 * just to say 'this inode exists' and a logging
-			 * to say 'update this inode with these values'
-			 */
-			btrfs_set_inode_generation(dst_path->nodes[0],
-						   inode_item, 0);
+			fill_inode_item(trans, dst_path->nodes[0], inode_item,
+					inode, inode_only == LOG_INODE_EXISTS);
+		} else {
+			copy_extent_buffer(dst_path->nodes[0], src, dst_offset,
+					   src_offset, ins_sizes[i]);
 		}
+
 		/* take a reference on file data extents so that truncates
 		 * or deletes of this inode don't have to relog the inode
 		 * again
@@ -3361,11 +3403,15 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		max_key.type = (u8)-1;
 	max_key.offset = (u64)-1;
 
-	ret = btrfs_commit_inode_delayed_items(trans, inode);
-	if (ret) {
-		btrfs_free_path(path);
-		btrfs_free_path(dst_path);
-		return ret;
+	/* Only run delayed items if we are a dir or a new file */
+	if (S_ISDIR(inode->i_mode) ||
+	    BTRFS_I(inode)->generation > root->fs_info->last_trans_committed) {
+		ret = btrfs_commit_inode_delayed_items(trans, inode);
+		if (ret) {
+			btrfs_free_path(path);
+			btrfs_free_path(dst_path);
+			return ret;
+		}
 	}
 
 	mutex_lock(&BTRFS_I(inode)->log_mutex);
