@@ -111,6 +111,7 @@ struct iio_channel *iio_channel_get(const char *name, const char *channel_name)
 {
 	struct iio_map_internal *c_i = NULL, *c = NULL;
 	struct iio_channel *channel;
+	int err;
 
 	if (name == NULL && channel_name == NULL)
 		return ERR_PTR(-ENODEV);
@@ -131,8 +132,10 @@ struct iio_channel *iio_channel_get(const char *name, const char *channel_name)
 		return ERR_PTR(-ENODEV);
 
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
-	if (channel == NULL)
-		return ERR_PTR(-ENOMEM);
+	if (channel == NULL) {
+		err = -ENOMEM;
+		goto error_no_mem;
+	}
 
 	channel->indio_dev = c->indio_dev;
 
@@ -141,16 +144,19 @@ struct iio_channel *iio_channel_get(const char *name, const char *channel_name)
 			iio_chan_spec_from_name(channel->indio_dev,
 						c->map->adc_channel_label);
 
-		if (channel->channel == NULL)
+		if (channel->channel == NULL) {
+			err = -EINVAL;
 			goto error_no_chan;
+		}
 	}
 
 	return channel;
 
 error_no_chan:
-	iio_device_put(c->indio_dev);
 	kfree(channel);
-	return ERR_PTR(-EINVAL);
+error_no_mem:
+	iio_device_put(c->indio_dev);
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(iio_channel_get);
 

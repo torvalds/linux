@@ -451,9 +451,9 @@ static int __devinit ad5755_setup_pdata(struct iio_dev *indio_dev,
 	const struct ad5755_platform_data *pdata)
 {
 	struct ad5755_state *st = iio_priv(indio_dev);
-	unsigned int ret;
 	unsigned int val;
 	unsigned int i;
+	int ret;
 
 	if (pdata->dc_dc_phase > AD5755_DC_DC_PHASE_90_DEGREE ||
 		pdata->dc_dc_freq > AD5755_DC_DC_FREQ_650kHZ ||

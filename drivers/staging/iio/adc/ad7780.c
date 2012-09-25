@@ -1,5 +1,5 @@
 /*
- * AD7780/AD7781 SPI ADC driver
+ * AD7170/AD7171 and AD7780/AD7781 SPI ADC driver
  *
  * Copyright 2011 Analog Devices Inc.
  *
@@ -34,7 +34,9 @@
 #define AD7780_PAT0	(1 << 0)
 
 struct ad7780_chip_info {
-	struct iio_chan_spec		channel;
+	struct iio_chan_spec	channel;
+	unsigned int		pattern_mask;
+	unsigned int		pattern;
 };
 
 struct ad7780_state {
@@ -48,6 +50,8 @@ struct ad7780_state {
 };
 
 enum ad7780_supported_device_ids {
+	ID_AD7170,
+	ID_AD7171,
 	ID_AD7780,
 	ID_AD7781,
 };
@@ -73,7 +77,8 @@ static int ad7780_set_mode(struct ad_sigma_delta *sigma_delta,
 		break;
 	}
 
-	gpio_set_value(st->powerdown_gpio, val);
+	if (gpio_is_valid(st->powerdown_gpio))
+		gpio_set_value(st->powerdown_gpio, val);
 
 	return 0;
 }
@@ -108,9 +113,10 @@ static int ad7780_postprocess_sample(struct ad_sigma_delta *sigma_delta,
 	unsigned int raw_sample)
 {
 	struct ad7780_state *st = ad_sigma_delta_to_ad7780(sigma_delta);
+	const struct ad7780_chip_info *chip_info = st->chip_info;
 
 	if ((raw_sample & AD7780_ERR) ||
-		!((raw_sample & AD7780_PAT0) && !(raw_sample & AD7780_PAT1)))
+		((raw_sample & chip_info->pattern_mask) != chip_info->pattern))
 		return -EIO;
 
 	if (raw_sample & AD7780_GAIN)
@@ -127,12 +133,29 @@ static const struct ad_sigma_delta_info ad7780_sigma_delta_info = {
 	.has_registers = false,
 };
 
+#define AD7780_CHANNEL(bits, wordsize) \
+	AD_SD_CHANNEL(1, 0, 0, bits, 32, wordsize - bits)
+
 static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
+	[ID_AD7170] = {
+		.channel = AD7780_CHANNEL(12, 24),
+		.pattern = 0x5,
+		.pattern_mask = 0x7,
+	},
+	[ID_AD7171] = {
+		.channel = AD7780_CHANNEL(16, 24),
+		.pattern = 0x5,
+		.pattern_mask = 0x7,
+	},
 	[ID_AD7780] = {
-		.channel = AD_SD_CHANNEL(1, 0, 0, 24, 32, 8),
+		.channel = AD7780_CHANNEL(24, 32),
+		.pattern = 0x1,
+		.pattern_mask = 0x3,
 	},
 	[ID_AD7781] = {
-		.channel = AD_SD_CHANNEL(1, 0, 0, 20, 32, 12),
+		.channel = AD7780_CHANNEL(20, 32),
+		.pattern = 0x1,
+		.pattern_mask = 0x3,
 	},
 };
 
@@ -147,11 +170,6 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 	struct ad7780_state *st;
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
-
-	if (!pdata) {
-		dev_dbg(&spi->dev, "no platform data?\n");
-		return -ENODEV;
-	}
 
 	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL)
@@ -174,8 +192,6 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 	st->chip_info =
 		&ad7780_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
-	st->powerdown_gpio = pdata->gpio_pdrst;
-
 	if (pdata && pdata->vref_mv)
 		st->int_vref_mv = pdata->vref_mv;
 	else if (voltage_uv)
@@ -192,11 +208,17 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 	indio_dev->num_channels = 1;
 	indio_dev->info = &ad7780_info;
 
-	ret = gpio_request_one(pdata->gpio_pdrst, GPIOF_OUT_INIT_LOW,
+	if (pdata && gpio_is_valid(pdata->gpio_pdrst)) {
+
+		ret = gpio_request_one(pdata->gpio_pdrst, GPIOF_OUT_INIT_LOW,
 			       "AD7780 /PDRST");
-	if (ret) {
-		dev_err(&spi->dev, "failed to request GPIO PDRST\n");
-		goto error_disable_reg;
+		if (ret) {
+			dev_err(&spi->dev, "failed to request GPIO PDRST\n");
+			goto error_disable_reg;
+		}
+		st->powerdown_gpio = pdata->gpio_pdrst;
+	} else {
+		st->powerdown_gpio = -1;
 	}
 
 	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
@@ -212,7 +234,8 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 error_cleanup_buffer_and_trigger:
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 error_free_gpio:
-	gpio_free(pdata->gpio_pdrst);
+	if (pdata && gpio_is_valid(pdata->gpio_pdrst))
+		gpio_free(pdata->gpio_pdrst);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
@@ -233,7 +256,9 @@ static int __devexit ad7780_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 
-	gpio_free(st->powerdown_gpio);
+	if (gpio_is_valid(st->powerdown_gpio))
+		gpio_free(st->powerdown_gpio);
+
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
@@ -244,6 +269,8 @@ static int __devexit ad7780_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7780_id[] = {
+	{"ad7170", ID_AD7170},
+	{"ad7171", ID_AD7171},
 	{"ad7780", ID_AD7780},
 	{"ad7781", ID_AD7781},
 	{}
@@ -262,5 +289,5 @@ static struct spi_driver ad7780_driver = {
 module_spi_driver(ad7780_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("Analog Devices AD7780/1 ADC");
+MODULE_DESCRIPTION("Analog Devices AD7780 and similar ADCs");
 MODULE_LICENSE("GPL v2");

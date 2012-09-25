@@ -1237,11 +1237,9 @@ static int __devexit sca3000_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct sca3000_state *st = iio_priv(indio_dev);
-	int ret;
+
 	/* Must ensure no interrupts can be generated after this!*/
-	ret = sca3000_stop_all_interrupts(st);
-	if (ret)
-		return ret;
+	sca3000_stop_all_interrupts(st);
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
 	iio_device_unregister(indio_dev);

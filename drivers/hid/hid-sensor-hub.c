@@ -173,7 +173,7 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 			spin_unlock(&pdata->dyn_callback_lock);
 			return -EINVAL;
 		}
-	callback = kzalloc(sizeof(*callback), GFP_KERNEL);
+	callback = kzalloc(sizeof(*callback), GFP_ATOMIC);
 	if (!callback) {
 		spin_unlock(&pdata->dyn_callback_lock);
 		return -ENOMEM;
@@ -214,9 +214,6 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	struct sensor_hub_data *data =  hid_get_drvdata(hsdev->hdev);
 	int ret = 0;
 
-	if (report_id < 0)
-		return -EINVAL;
-
 	mutex_lock(&data->mutex);
 	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
 	if (!report || (field_index >=  report->maxfield)) {
@@ -240,9 +237,6 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	struct hid_report *report;
 	struct sensor_hub_data *data =  hid_get_drvdata(hsdev->hdev);
 	int ret = 0;
-
-	if (report_id < 0)
-		return -EINVAL;
 
 	mutex_lock(&data->mutex);
 	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
@@ -270,9 +264,6 @@ int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 	unsigned long flags;
 	struct hid_report *report;
 	int ret_val = 0;
-
-	if (report_id < 0)
-		return -EINVAL;
 
 	mutex_lock(&data->mutex);
 	memset(&data->pending, 0, sizeof(data->pending));
@@ -462,7 +453,7 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 		if (pdata->pending.status && pdata->pending.attr_usage_id ==
 				report->field[i]->usage->hid) {
 			hid_dbg(hdev, "data was pending ...\n");
-			pdata->pending.raw_data = kmalloc(sz, GFP_KERNEL);
+			pdata->pending.raw_data = kmalloc(sz, GFP_ATOMIC);
 			if (pdata->pending.raw_data) {
 				memcpy(pdata->pending.raw_data, ptr, sz);
 				pdata->pending.raw_size  = sz;
@@ -539,7 +530,6 @@ static int sensor_hub_probe(struct hid_device *hdev,
 	}
 	INIT_LIST_HEAD(&hdev->inputs);
 
-	hdev->claimed = HID_CLAIMED_INPUT;
 	ret = hid_hw_start(hdev, 0);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
@@ -565,8 +555,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 						sizeof(struct mfd_cell),
 						GFP_KERNEL);
 	if (sd->hid_sensor_hub_client_devs == NULL) {
-		hid_err(hdev,
-			"Failed to allocate memory for mfd cells\n");
+		hid_err(hdev, "Failed to allocate memory for mfd cells\n");
 			ret = -ENOMEM;
 			goto err_close;
 	}
@@ -578,10 +567,9 @@ static int sensor_hub_probe(struct hid_device *hdev,
 			name = kasprintf(GFP_KERNEL, "HID-SENSOR-%x",
 						field->physical);
 			if (name  == NULL) {
-				hid_err(hdev,
-					"Failed MFD device name\n");
+				hid_err(hdev, "Failed MFD device name\n");
 					ret = -ENOMEM;
-					goto err_free_cells;
+					goto err_free_names;
 			}
 			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].name = name;
@@ -596,7 +584,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 		}
 	}
 	ret = mfd_add_devices(&hdev->dev, 0, sd->hid_sensor_hub_client_devs,
-		sd->hid_sensor_client_cnt, NULL, 0);
+		sd->hid_sensor_client_cnt, NULL, 0, NULL);
 	if (ret < 0)
 		goto err_free_names;
 
@@ -605,10 +593,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 err_free_names:
 	for (i = 0; i < sd->hid_sensor_client_cnt ; ++i)
 		kfree(sd->hid_sensor_hub_client_devs[i].name);
-err_free_cells:
 	kfree(sd->hid_sensor_hub_client_devs);
 err_close:
-	hid_hw_stop(hdev);
 	hid_hw_close(hdev);
 err_stop_hw:
 	hid_hw_stop(hdev);
@@ -627,9 +613,8 @@ static void sensor_hub_remove(struct hid_device *hdev)
 	int i;
 
 	hid_dbg(hdev, " hardware removed\n");
-	hdev->claimed &= ~HID_CLAIMED_INPUT;
-	hid_hw_stop(hdev);
 	hid_hw_close(hdev);
+	hid_hw_stop(hdev);
 	spin_lock_irqsave(&data->lock, flags);
 	if (data->pending.status)
 		complete(&data->pending.ready);
