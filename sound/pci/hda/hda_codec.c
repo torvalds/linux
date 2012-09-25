@@ -1209,6 +1209,9 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	kfree(codec);
 }
 
+static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
+				hda_nid_t fg, unsigned int power_state);
+
 static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state);
 
@@ -1317,6 +1320,10 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
 					   AC_VERB_GET_SUBSYSTEM_ID, 0);
 	}
 
+	codec->epss = snd_hda_codec_get_supported_ps(codec,
+					codec->afg ? codec->afg : codec->mfg,
+					AC_PWRST_EPSS);
+
 	/* power-up all before initialization */
 	hda_set_power_state(codec,
 			    codec->afg ? codec->afg : codec->mfg,
@@ -1386,6 +1393,44 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_configure);
 
+/* update the stream-id if changed */
+static void update_pcm_stream_id(struct hda_codec *codec,
+				 struct hda_cvt_setup *p, hda_nid_t nid,
+				 u32 stream_tag, int channel_id)
+{
+	unsigned int oldval, newval;
+
+	if (p->stream_tag != stream_tag || p->channel_id != channel_id) {
+		oldval = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
+		newval = (stream_tag << 4) | channel_id;
+		if (oldval != newval)
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_CHANNEL_STREAMID,
+					    newval);
+		p->stream_tag = stream_tag;
+		p->channel_id = channel_id;
+	}
+}
+
+/* update the format-id if changed */
+static void update_pcm_format(struct hda_codec *codec, struct hda_cvt_setup *p,
+			      hda_nid_t nid, int format)
+{
+	unsigned int oldval;
+
+	if (p->format_id != format) {
+		oldval = snd_hda_codec_read(codec, nid, 0,
+					    AC_VERB_GET_STREAM_FORMAT, 0);
+		if (oldval != format) {
+			msleep(1);
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_STREAM_FORMAT,
+					    format);
+		}
+		p->format_id = format;
+	}
+}
+
 /**
  * snd_hda_codec_setup_stream - set up the codec for streaming
  * @codec: the CODEC to set up
@@ -1400,7 +1445,6 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 {
 	struct hda_codec *c;
 	struct hda_cvt_setup *p;
-	unsigned int oldval, newval;
 	int type;
 	int i;
 
@@ -1413,29 +1457,13 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	p = get_hda_cvt_setup(codec, nid);
 	if (!p)
 		return;
-	/* update the stream-id if changed */
-	if (p->stream_tag != stream_tag || p->channel_id != channel_id) {
-		oldval = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
-		newval = (stream_tag << 4) | channel_id;
-		if (oldval != newval)
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_CHANNEL_STREAMID,
-					    newval);
-		p->stream_tag = stream_tag;
-		p->channel_id = channel_id;
-	}
-	/* update the format-id if changed */
-	if (p->format_id != format) {
-		oldval = snd_hda_codec_read(codec, nid, 0,
-					    AC_VERB_GET_STREAM_FORMAT, 0);
-		if (oldval != format) {
-			msleep(1);
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_STREAM_FORMAT,
-					    format);
-		}
-		p->format_id = format;
-	}
+
+	if (codec->pcm_format_first)
+		update_pcm_format(codec, p, nid, format);
+	update_pcm_stream_id(codec, p, nid, stream_tag, channel_id);
+	if (!codec->pcm_format_first)
+		update_pcm_format(codec, p, nid, format);
+
 	p->active = 1;
 	p->dirty = 0;
 
@@ -2325,6 +2353,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	}
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
+	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
 	snd_hda_jack_tbl_clear(codec);
 	codec->proc_widget_hook = NULL;
 	codec->spec = NULL;
@@ -2340,7 +2369,6 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	codec->num_pcms = 0;
 	codec->pcm_info = NULL;
 	codec->preset = NULL;
-	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
 	codec->slave_dig_outs = NULL;
 	codec->spdif_status_reset = 0;
 	module_put(codec->owner);
@@ -3497,7 +3525,7 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec, hda_nid_t fg
 {
 	int sup = snd_hda_param_read(codec, fg, AC_PAR_POWER_STATE);
 
-	if (sup < 0)
+	if (sup == -1)
 		return false;
 	if (sup & power_state)
 		return true;
@@ -3522,8 +3550,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	/* this delay seems necessary to avoid click noise at power-down */
 	if (power_state == AC_PWRST_D3) {
 		/* transition time less than 10ms for power down */
-		bool epss = snd_hda_codec_get_supported_ps(codec, fg, AC_PWRST_EPSS);
-		msleep(epss ? 10 : 100);
+		msleep(codec->epss ? 10 : 100);
 	}
 
 	/* repeat power states setting at most 10 times*/
@@ -4433,6 +4460,8 @@ static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 	 * then there is no need to go through power up here.
 	 */
 	if (codec->power_on) {
+		if (codec->power_transition < 0)
+			codec->power_transition = 0;
 		spin_unlock(&codec->power_lock);
 		return;
 	}

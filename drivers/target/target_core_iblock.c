@@ -325,17 +325,30 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 	struct iblock_dev *ibd = dev->dev_ptr;
 	unsigned char *buf, *ptr = NULL;
 	sector_t lba;
-	int size = cmd->data_length;
+	int size;
 	u32 range;
 	int ret = 0;
 	int dl, bd_dl;
+
+	if (cmd->data_length < 8) {
+		pr_warn("UNMAP parameter list length %u too small\n",
+			cmd->data_length);
+		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+		return -EINVAL;
+	}
 
 	buf = transport_kmap_data_sg(cmd);
 
 	dl = get_unaligned_be16(&buf[0]);
 	bd_dl = get_unaligned_be16(&buf[2]);
 
-	size = min(size - 8, bd_dl);
+	size = cmd->data_length - 8;
+	if (bd_dl > size)
+		pr_warn("UNMAP parameter list length %u too small, ignoring bd_dl %u\n",
+			cmd->data_length, bd_dl);
+	else
+		size = bd_dl;
+
 	if (size / 16 > dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
 		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
 		ret = -EINVAL;

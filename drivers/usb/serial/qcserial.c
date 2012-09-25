@@ -199,43 +199,49 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	/* default to enabling interface */
 	altsetting = 0;
-	switch (ifnum) {
-		/* Composite mode; don't bind to the QMI/net interface as that
-		 * gets handled by other drivers.
-		 */
 
+	/* Composite mode; don't bind to the QMI/net interface as that
+	 * gets handled by other drivers.
+	 */
+
+	if (is_gobi1k) {
 		/* Gobi 1K USB layout:
 		 * 0: serial port (doesn't respond)
 		 * 1: serial port (doesn't respond)
 		 * 2: AT-capable modem port
 		 * 3: QMI/net
-		 *
-		 * Gobi 2K+ USB layout:
+		 */
+		if (ifnum == 2)
+			dev_dbg(dev, "Modem port found\n");
+		else
+			altsetting = -1;
+	} else {
+		/* Gobi 2K+ USB layout:
 		 * 0: QMI/net
 		 * 1: DM/DIAG (use libqcdm from ModemManager for communication)
 		 * 2: AT-capable modem port
 		 * 3: NMEA
 		 */
-
-	case 1:
-		if (is_gobi1k)
+		switch (ifnum) {
+		case 0:
+			/* Don't claim the QMI/net interface */
 			altsetting = -1;
-		else
+			break;
+		case 1:
 			dev_dbg(dev, "Gobi 2K+ DM/DIAG interface found\n");
-		break;
-	case 2:
-		dev_dbg(dev, "Modem port found\n");
-		break;
-	case 3:
-		if (is_gobi1k)
-			altsetting = -1;
-		else
+			break;
+		case 2:
+			dev_dbg(dev, "Modem port found\n");
+			break;
+		case 3:
 			/*
 			 * NMEA (serial line 9600 8N1)
 			 * # echo "\$GPS_START" > /dev/ttyUSBx
 			 * # echo "\$GPS_STOP"  > /dev/ttyUSBx
 			 */
 			dev_dbg(dev, "Gobi 2K+ NMEA GPS interface found\n");
+			break;
+		}
 	}
 
 done:
@@ -262,8 +268,7 @@ static void qc_release(struct usb_serial *serial)
 {
 	struct usb_wwan_intf_private *priv = usb_get_serial_data(serial);
 
-	/* Call usb_wwan release & free the private data allocated in qcprobe */
-	usb_wwan_release(serial);
+	/* Free the private data allocated in qcprobe */
 	usb_set_serial_data(serial, NULL);
 	kfree(priv);
 }
@@ -283,8 +288,8 @@ static struct usb_serial_driver qcdevice = {
 	.write_room	     = usb_wwan_write_room,
 	.chars_in_buffer     = usb_wwan_chars_in_buffer,
 	.attach		     = usb_wwan_startup,
-	.disconnect	     = usb_wwan_disconnect,
 	.release	     = qc_release,
+	.port_remove	     = usb_wwan_port_remove,
 #ifdef CONFIG_PM
 	.suspend	     = usb_wwan_suspend,
 	.resume		     = usb_wwan_resume,

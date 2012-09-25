@@ -68,7 +68,7 @@ static int __devinit sram_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = 0;
 
-	if (!pdata && !pdata->pool_name)
+	if (!pdata || !pdata->pool_name)
 		return -ENODEV;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);

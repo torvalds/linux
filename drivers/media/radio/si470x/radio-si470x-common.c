@@ -151,6 +151,7 @@ static const struct v4l2_frequency_band bands[] = {
 		.index = 0,
 		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO |
+			    V4L2_TUNER_CAP_FREQ_BANDS |
 			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
 			    V4L2_TUNER_CAP_HWSEEK_WRAP,
 		.rangelow   =  87500 * 16,
@@ -162,6 +163,7 @@ static const struct v4l2_frequency_band bands[] = {
 		.index = 1,
 		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO |
+			    V4L2_TUNER_CAP_FREQ_BANDS |
 			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
 			    V4L2_TUNER_CAP_HWSEEK_WRAP,
 		.rangelow   =  76000 * 16,
@@ -173,6 +175,7 @@ static const struct v4l2_frequency_band bands[] = {
 		.index = 2,
 		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO |
+			    V4L2_TUNER_CAP_FREQ_BANDS |
 			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
 			    V4L2_TUNER_CAP_HWSEEK_WRAP,
 		.rangelow   =  76000 * 16,

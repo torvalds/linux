@@ -6,6 +6,7 @@
 config C6X
 	def_bool y
 	select CLKDEV_LOOKUP
+	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG

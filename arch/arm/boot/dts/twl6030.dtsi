@@ -66,6 +66,7 @@
 
 	vcxio: regulator@8 {
 		compatible = "ti,twl6030-vcxio";
+		regulator-always-on;
 	};
 
 	vusb: regulator@9 {
@@ -74,10 +75,12 @@
 
 	v1v8: regulator@10 {
 		compatible = "ti,twl6030-v1v8";
+		regulator-always-on;
 	};
 
 	v2v1: regulator@11 {
 		compatible = "ti,twl6030-v2v1";
+		regulator-always-on;
 	};
 
 	clk32kg: regulator@12 {

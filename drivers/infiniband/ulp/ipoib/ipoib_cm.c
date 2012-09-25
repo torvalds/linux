@@ -1271,12 +1271,15 @@ struct ipoib_cm_tx *ipoib_cm_create_tx(struct net_device *dev, struct ipoib_path
 void ipoib_cm_destroy_tx(struct ipoib_cm_tx *tx)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(tx->dev);
+	unsigned long flags;
 	if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &tx->flags)) {
+		spin_lock_irqsave(&priv->lock, flags);
 		list_move(&tx->list, &priv->cm.reap_list);
 		queue_work(ipoib_workqueue, &priv->cm.reap_task);
 		ipoib_dbg(priv, "Reap connection for gid %pI6\n",
 			  tx->neigh->daddr + 4);
 		tx->neigh = NULL;
+		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 }
 

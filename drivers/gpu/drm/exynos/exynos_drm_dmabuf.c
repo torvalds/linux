@@ -163,6 +163,12 @@ static void exynos_gem_dmabuf_kunmap(struct dma_buf *dma_buf,
 	/* TODO */
 }
 
+static int exynos_gem_dmabuf_mmap(struct dma_buf *dma_buf,
+	struct vm_area_struct *vma)
+{
+	return -ENOTTY;
+}
+
 static struct dma_buf_ops exynos_dmabuf_ops = {
 	.map_dma_buf		= exynos_gem_map_dma_buf,
 	.unmap_dma_buf		= exynos_gem_unmap_dma_buf,
@@ -170,6 +176,7 @@ static struct dma_buf_ops exynos_dmabuf_ops = {
 	.kmap_atomic		= exynos_gem_dmabuf_kmap_atomic,
 	.kunmap			= exynos_gem_dmabuf_kunmap,
 	.kunmap_atomic		= exynos_gem_dmabuf_kunmap_atomic,
+	.mmap			= exynos_gem_dmabuf_mmap,
 	.release		= exynos_dmabuf_release,
 };
 

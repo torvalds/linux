@@ -131,6 +131,7 @@ extern struct list_head ft_lport_list;
 extern struct mutex ft_lport_lock;
 extern struct fc4_prov ft_prov;
 extern struct target_fabric_configfs *ft_configfs;
+extern unsigned int ft_debug_logging;
 
 /*
  * Fabric methods.

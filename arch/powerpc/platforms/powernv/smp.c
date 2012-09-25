@@ -106,14 +106,6 @@ static void pnv_smp_cpu_kill_self(void)
 {
 	unsigned int cpu;
 
-	/* If powersave_nap is enabled, use NAP mode, else just
-	 * spin aimlessly
-	 */
-	if (!powersave_nap) {
-		generic_mach_cpu_die();
-		return;
-	}
-
 	/* Standard hot unplug procedure */
 	local_irq_disable();
 	idle_task_exit();
@@ -128,7 +120,7 @@ static void pnv_smp_cpu_kill_self(void)
 	 */
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
 	while (!generic_check_cpu_restart(cpu)) {
-		power7_idle();
+		power7_nap();
 		if (!generic_check_cpu_restart(cpu)) {
 			DBG("CPU%d Unexpected exit while offline !\n", cpu);
 			/* We may be getting an IPI, so we re-enable
