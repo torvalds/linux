@@ -65,6 +65,9 @@ enum dss_feat_id {
 	/* An unknown HW bug causing the normal FIFO thresholds not to work */
 	FEAT_OMAP3_DSI_FIFO_BUG,
 	FEAT_BURST_2D,
+	FEAT_DSI_PLL_SELFREQDCO,
+	FEAT_DSI_PLL_REFSEL,
+	FEAT_DSI_PHY_DCC,
 };
 
 /* DSS register field id */

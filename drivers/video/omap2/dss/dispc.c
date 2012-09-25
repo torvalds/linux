@@ -3829,6 +3829,8 @@ static int __init dispc_init_features(struct device *dev)
 			src = &omap34xx_rev3_0_dispc_feats;
 	} else if (cpu_is_omap44xx()) {
 		src = &omap44xx_dispc_feats;
+	} else if (soc_is_omap54xx()) {
+		src = &omap44xx_dispc_feats;
 	} else {
 		return -ENODEV;
 	}

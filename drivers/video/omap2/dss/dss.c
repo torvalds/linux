@@ -69,6 +69,7 @@ struct dss_features {
 	u8 fck_div_max;
 	u8 dss_fck_multiplier;
 	const char *clk_name;
+	int (*dpi_select_source)(enum omap_channel channel);
 };
 
 static struct {
@@ -97,30 +98,6 @@ static const char * const dss_generic_clk_source_names[] = {
 	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DSI_PLL_HSDIV_DISPC",
 	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "DSI_PLL_HSDIV_DSI",
 	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_FCK",
-};
-
-static const struct dss_features omap24xx_dss_feats __initconst = {
-	.fck_div_max		=	16,
-	.dss_fck_multiplier	=	2,
-	.clk_name		=	NULL,
-};
-
-static const struct dss_features omap34xx_dss_feats __initconst = {
-	.fck_div_max		=	16,
-	.dss_fck_multiplier	=	2,
-	.clk_name		=	"dpll4_m4_ck",
-};
-
-static const struct dss_features omap3630_dss_feats __initconst = {
-	.fck_div_max		=	32,
-	.dss_fck_multiplier	=	1,
-	.clk_name		=	"dpll4_m4_ck",
-};
-
-static const struct dss_features omap44xx_dss_feats __initconst = {
-	.fck_div_max		=	32,
-	.dss_fck_multiplier	=	1,
-	.clk_name		=	"dpll_per_m5x2_ck",
 };
 
 static inline void dss_write_reg(const struct dss_reg idx, u32 val)
@@ -647,6 +624,65 @@ enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void)
 	return REG_GET(DSS_CONTROL, 15, 15);
 }
 
+static int dss_dpi_select_source_omap2_omap3(enum omap_channel channel)
+{
+	if (channel != OMAP_DSS_CHANNEL_LCD)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int dss_dpi_select_source_omap4(enum omap_channel channel)
+{
+	int val;
+
+	switch (channel) {
+	case OMAP_DSS_CHANNEL_LCD2:
+		val = 0;
+		break;
+	case OMAP_DSS_CHANNEL_DIGIT:
+		val = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	REG_FLD_MOD(DSS_CONTROL, val, 17, 17);
+
+	return 0;
+}
+
+static int dss_dpi_select_source_omap5(enum omap_channel channel)
+{
+	int val;
+
+	switch (channel) {
+	case OMAP_DSS_CHANNEL_LCD:
+		val = 1;
+		break;
+	case OMAP_DSS_CHANNEL_LCD2:
+		val = 2;
+		break;
+	case OMAP_DSS_CHANNEL_LCD3:
+		val = 3;
+		break;
+	case OMAP_DSS_CHANNEL_DIGIT:
+		val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	REG_FLD_MOD(DSS_CONTROL, val, 17, 16);
+
+	return 0;
+}
+
+int dss_dpi_select_source(enum omap_channel channel)
+{
+	return dss.feat->dpi_select_source(channel);
+}
+
 static int dss_get_clocks(void)
 {
 	struct clk *clk;
@@ -721,6 +757,41 @@ void dss_debug_dump_clocks(struct seq_file *s)
 }
 #endif
 
+static const struct dss_features omap24xx_dss_feats __initconst = {
+	.fck_div_max		=	16,
+	.dss_fck_multiplier	=	2,
+	.clk_name		=	NULL,
+	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+};
+
+static const struct dss_features omap34xx_dss_feats __initconst = {
+	.fck_div_max		=	16,
+	.dss_fck_multiplier	=	2,
+	.clk_name		=	"dpll4_m4_ck",
+	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+};
+
+static const struct dss_features omap3630_dss_feats __initconst = {
+	.fck_div_max		=	32,
+	.dss_fck_multiplier	=	1,
+	.clk_name		=	"dpll4_m4_ck",
+	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+};
+
+static const struct dss_features omap44xx_dss_feats __initconst = {
+	.fck_div_max		=	32,
+	.dss_fck_multiplier	=	1,
+	.clk_name		=	"dpll_per_m5x2_ck",
+	.dpi_select_source	=	&dss_dpi_select_source_omap4,
+};
+
+static const struct dss_features omap54xx_dss_feats __initconst = {
+	.fck_div_max		=	64,
+	.dss_fck_multiplier	=	1,
+	.clk_name		=	"dpll_per_h12x2_ck",
+	.dpi_select_source	=	&dss_dpi_select_source_omap5,
+};
+
 static int __init dss_init_features(struct device *dev)
 {
 	const struct dss_features *src;
@@ -740,6 +811,8 @@ static int __init dss_init_features(struct device *dev)
 		src = &omap3630_dss_feats;
 	else if (cpu_is_omap44xx())
 		src = &omap44xx_dss_feats;
+	else if (soc_is_omap54xx())
+		src = &omap54xx_dss_feats;
 	else
 		return -ENODEV;
 
