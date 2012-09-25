@@ -50,6 +50,7 @@ struct uas_dev_info {
 	unsigned use_streams:1;
 	unsigned uas_sense_old:1;
 	struct scsi_cmnd *cmnd;
+	spinlock_t lock;
 };
 
 enum {
@@ -91,6 +92,7 @@ static void uas_do_work(struct work_struct *work)
 	struct uas_cmd_info *cmdinfo;
 	struct uas_cmd_info *temp;
 	struct list_head list;
+	unsigned long flags;
 	int err;
 
 	spin_lock_irq(&uas_work_lock);
@@ -101,7 +103,10 @@ static void uas_do_work(struct work_struct *work)
 		struct scsi_pointer *scp = (void *)cmdinfo;
 		struct scsi_cmnd *cmnd = container_of(scp,
 							struct scsi_cmnd, SCp);
-		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_NOIO);
+		struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
+		spin_lock_irqsave(&devinfo->lock, flags);
+		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_ATOMIC);
+		spin_unlock_irqrestore(&devinfo->lock, flags);
 		if (err) {
 			list_del(&cmdinfo->list);
 			spin_lock_irq(&uas_work_lock);
@@ -182,7 +187,9 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 {
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
+	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
 
+	WARN_ON(!spin_is_locked(&devinfo->lock));
 	if (cmdinfo->state & (COMMAND_INFLIGHT |
 			      DATA_IN_URB_INFLIGHT |
 			      DATA_OUT_URB_INFLIGHT))
@@ -222,6 +229,7 @@ static void uas_stat_cmplt(struct urb *urb)
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 	struct scsi_cmnd *cmnd;
 	struct uas_cmd_info *cmdinfo;
+	unsigned long flags;
 	u16 tag;
 
 	if (urb->status) {
@@ -235,6 +243,7 @@ static void uas_stat_cmplt(struct urb *urb)
 		return;
 	}
 
+	spin_lock_irqsave(&devinfo->lock, flags);
 	tag = be16_to_cpup(&iu->tag) - 1;
 	if (tag == 0)
 		cmnd = devinfo->cmnd;
@@ -243,6 +252,7 @@ static void uas_stat_cmplt(struct urb *urb)
 	if (!cmnd) {
 		if (iu->iu_id != IU_ID_RESPONSE) {
 			usb_free_urb(urb);
+			spin_unlock_irqrestore(&devinfo->lock, flags);
 			return;
 		}
 	} else {
@@ -262,10 +272,16 @@ static void uas_stat_cmplt(struct urb *urb)
 			uas_sense(urb, cmnd);
 		if (cmnd->result != 0) {
 			/* cancel data transfers on error */
-			if (cmdinfo->state & DATA_IN_URB_INFLIGHT)
+			if (cmdinfo->state & DATA_IN_URB_INFLIGHT) {
+				spin_unlock_irqrestore(&devinfo->lock, flags);
 				usb_unlink_urb(cmdinfo->data_in_urb);
-			if (cmdinfo->state & DATA_OUT_URB_INFLIGHT)
+				spin_lock_irqsave(&devinfo->lock, flags);
+			}
+			if (cmdinfo->state & DATA_OUT_URB_INFLIGHT) {
+				spin_unlock_irqrestore(&devinfo->lock, flags);
 				usb_unlink_urb(cmdinfo->data_out_urb);
+				spin_lock_irqsave(&devinfo->lock, flags);
+			}
 		}
 		cmdinfo->state &= ~COMMAND_INFLIGHT;
 		uas_try_complete(cmnd, __func__);
@@ -285,14 +301,18 @@ static void uas_stat_cmplt(struct urb *urb)
 			"Bogus IU (%d) received on status pipe\n", iu->iu_id);
 	}
 	usb_free_urb(urb);
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
 static void uas_data_cmplt(struct urb *urb)
 {
 	struct scsi_cmnd *cmnd = urb->context;
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
+	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
 	struct scsi_data_buffer *sdb = NULL;
+	unsigned long flags;
 
+	spin_lock_irqsave(&devinfo->lock, flags);
 	if (cmdinfo->data_in_urb == urb) {
 		sdb = scsi_in(cmnd);
 		cmdinfo->state &= ~DATA_IN_URB_INFLIGHT;
@@ -308,6 +328,7 @@ static void uas_data_cmplt(struct urb *urb)
 		sdb->resid = sdb->length - urb->actual_length;
 	}
 	uas_try_complete(cmnd, __func__);
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
 static struct urb *uas_alloc_data_urb(struct uas_dev_info *devinfo, gfp_t gfp,
@@ -474,6 +495,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	int err;
 
+	WARN_ON(!spin_is_locked(&devinfo->lock));
 	if (cmdinfo->state & SUBMIT_STATUS_URB) {
 		err = uas_submit_sense_urb(cmnd->device->host, gfp,
 					   cmdinfo->stream);
@@ -554,12 +576,16 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 	struct scsi_device *sdev = cmnd->device;
 	struct uas_dev_info *devinfo = sdev->hostdata;
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
+	unsigned long flags;
 	int err;
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
-	if (devinfo->cmnd)
+	spin_lock_irqsave(&devinfo->lock, flags);
+	if (devinfo->cmnd) {
+		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return SCSI_MLQUEUE_DEVICE_BUSY;
+	}
 
 	if (blk_rq_tagged(cmnd->request)) {
 		cmdinfo->stream = cmnd->request->tag + 2;
@@ -594,6 +620,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 	if (err) {
 		/* If we did nothing, give up now */
 		if (cmdinfo->state & SUBMIT_STATUS_URB) {
+			spin_unlock_irqrestore(&devinfo->lock, flags);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		spin_lock(&uas_work_lock);
@@ -602,6 +629,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		schedule_work(&uas_work);
 	}
 
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 	return 0;
 }
 
@@ -613,21 +641,25 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 	u16 tag = devinfo->qdepth - 1;
+	unsigned long flags;
 
+	spin_lock_irqsave(&devinfo->lock, flags);
 	memset(&devinfo->response, 0, sizeof(devinfo->response));
-	if (uas_submit_sense_urb(shost, GFP_NOIO, tag)) {
+	if (uas_submit_sense_urb(shost, GFP_ATOMIC, tag)) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit sense urb failed\n",
 			     __func__, fname);
 		return FAILED;
 	}
-	if (uas_submit_task_urb(cmnd, GFP_NOIO, function, tag)) {
+	if (uas_submit_task_urb(cmnd, GFP_ATOMIC, function, tag)) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit task mgmt urb failed\n",
 			     __func__, fname);
 		return FAILED;
 	}
-	if (0 == usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 3000)) {
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
+	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 3000) == 0) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s timed out\n", __func__, fname);
 		return FAILED;
@@ -650,10 +682,14 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 {
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
+	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
+	unsigned long flags;
 	int ret;
 
 	uas_log_cmd_state(cmnd, __func__);
+	spin_lock_irqsave(&devinfo->lock, flags);
 	cmdinfo->state |= COMMAND_ABORTED;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 	ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
 	return ret;
 }
@@ -875,6 +911,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	init_usb_anchor(&devinfo->cmd_urbs);
 	init_usb_anchor(&devinfo->sense_urbs);
 	init_usb_anchor(&devinfo->data_urbs);
+	spin_lock_init(&devinfo->lock);
 	uas_configure_endpoints(devinfo);
 
 	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 3);
