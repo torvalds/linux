@@ -78,6 +78,7 @@ struct nfs_direct_req {
 	atomic_t		io_count;	/* i/os we're waiting for */
 	spinlock_t		lock;		/* protect completion state */
 	ssize_t			count,		/* bytes actually processed */
+				bytes_left,	/* bytes left to be sent */
 				error;		/* any reported error */
 	struct completion	completion;	/* wait for i/o completion */
 
@@ -390,6 +391,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_pageio_descriptor *de
 			user_addr += req_len;
 			pos += req_len;
 			count -= req_len;
+			dreq->bytes_left -= req_len;
 		}
 		/* The nfs_page now hold references to these pages */
 		nfs_direct_release_pages(pagevec, npages);
@@ -457,6 +459,7 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 
 	dreq->inode = inode;
+	dreq->bytes_left = iov_length(iov, nr_segs);
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	l_ctx = nfs_get_lock_context(dreq->ctx);
 	if (IS_ERR(l_ctx)) {
@@ -710,6 +713,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
 			user_addr += req_len;
 			pos += req_len;
 			count -= req_len;
+			dreq->bytes_left -= req_len;
 		}
 		/* The nfs_page now hold references to these pages */
 		nfs_direct_release_pages(pagevec, npages);
@@ -860,6 +864,7 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 
 	dreq->inode = inode;
+	dreq->bytes_left = count;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	l_ctx = nfs_get_lock_context(dreq->ctx);
 	if (IS_ERR(l_ctx)) {
