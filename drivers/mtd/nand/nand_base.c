@@ -2984,8 +2984,10 @@ static void nand_decode_ext_id(struct mtd_info *mtd, struct nand_chip *chip,
 	 * Field definitions are in the following datasheets:
 	 * Old style (4,5 byte ID): Samsung K9GAG08U0M (p.32)
 	 * New style   (6 byte ID): Samsung K9GBG08U0M (p.40)
+	 * Hynix MLC   (6 byte ID): Hynix H27UBG8T2B (p.22)
 	 *
-	 * Check for ID length + Samsung ID to decide what to do.
+	 * Check for ID length, cell type, and Hynix/Samsung ID to decide what
+	 * to do.
 	 */
 	if (id_len == 6 && id_data[0] == NAND_MFR_SAMSUNG &&
 			(chip->cellinfo & NAND_CI_CELLTYPE_MSK)) {
@@ -3011,6 +3013,47 @@ static void nand_decode_ext_id(struct mtd_info *mtd, struct nand_chip *chip,
 		/* Calc blocksize */
 		mtd->erasesize = (128 * 1024) <<
 			(((extid >> 1) & 0x04) | (extid & 0x03));
+		*busw = 0;
+	} else if (id_len == 6 && id_data[0] == NAND_MFR_HYNIX &&
+			(chip->cellinfo & NAND_CI_CELLTYPE_MSK)) {
+		unsigned int tmp;
+
+		/* Calc pagesize */
+		mtd->writesize = 2048 << (extid & 0x03);
+		extid >>= 2;
+		/* Calc oobsize */
+		switch (((extid >> 2) & 0x04) | (extid & 0x03)) {
+		case 0:
+			mtd->oobsize = 128;
+			break;
+		case 1:
+			mtd->oobsize = 224;
+			break;
+		case 2:
+			mtd->oobsize = 448;
+			break;
+		case 3:
+			mtd->oobsize = 64;
+			break;
+		case 4:
+			mtd->oobsize = 32;
+			break;
+		case 5:
+			mtd->oobsize = 16;
+			break;
+		default:
+			mtd->oobsize = 640;
+			break;
+		}
+		extid >>= 2;
+		/* Calc blocksize */
+		tmp = ((extid >> 1) & 0x04) | (extid & 0x03);
+		if (tmp < 0x03)
+			mtd->erasesize = (128 * 1024) << tmp;
+		else if (tmp == 0x03)
+			mtd->erasesize = 768 * 1024;
+		else
+			mtd->erasesize = (64 * 1024) << tmp;
 		*busw = 0;
 	} else {
 		/* Calc pagesize */
