@@ -168,7 +168,8 @@ static void wm0010_halt(struct snd_soc_codec *codec)
 	case WM0010_STAGE2:
 	case WM0010_FIRMWARE:
 		/* Remember to put chip back into reset */
-		gpio_set_value(wm0010->gpio_reset, wm0010->gpio_reset_value);
+		gpio_set_value_cansleep(wm0010->gpio_reset,
+					wm0010->gpio_reset_value);
 		/* Disable the regulators */
 		regulator_disable(wm0010->dbvdd);
 		regulator_bulk_disable(ARRAY_SIZE(wm0010->core_supplies),
@@ -387,7 +388,7 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	}
 
 	/* Release reset */
-	gpio_set_value(wm0010->gpio_reset, !wm0010->gpio_reset_value);
+	gpio_set_value_cansleep(wm0010->gpio_reset, !wm0010->gpio_reset_value);
 	spin_lock_irqsave(&wm0010->irq_lock, flags);
 	wm0010->state = WM0010_OUT_OF_RESET;
 	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
@@ -918,7 +919,8 @@ static int __devexit wm0010_spi_remove(struct spi_device *spi)
 
 	if (wm0010->gpio_reset) {
 		/* Remember to put chip back into reset */
-		gpio_set_value(wm0010->gpio_reset, wm0010->gpio_reset_value);
+		gpio_set_value_cansleep(wm0010->gpio_reset,
+					wm0010->gpio_reset_value);
 	}
 
 	if (wm0010->irq)
