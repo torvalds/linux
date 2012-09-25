@@ -19,6 +19,7 @@
 #define pr_fmt(fmt) "CPU PMU: " fmt
 
 #include <linux/bitmap.h>
+#include <linux/cpu_pm.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -36,6 +37,8 @@ static DEFINE_PER_CPU(struct arm_pmu *, cpu_pmu);
 static DEFINE_PER_CPU(struct perf_event * [ARMPMU_MAX_HWEVENTS], hw_events);
 static DEFINE_PER_CPU(unsigned long [BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)], used_mask);
 static DEFINE_PER_CPU(struct pmu_hw_events, cpu_hw_events);
+
+static DEFINE_PER_CPU(struct cpupmu_regs, cpu_pmu_regs);
 
 /*
  * Despite the names, these two functions are CPU-specific and are used
@@ -179,8 +182,31 @@ static int cpu_pmu_notify(struct notifier_block *b, unsigned long action,
 	return NOTIFY_OK;
 }
 
+static int cpu_pmu_pm_notify(struct notifier_block *b,
+				    unsigned long action, void *hcpu)
+{
+	int cpu = smp_processor_id();
+	struct arm_pmu *pmu = per_cpu(cpu_pmu, cpu);
+	struct cpupmu_regs *pmuregs = &per_cpu(cpu_pmu_regs, cpu);
+
+	if (!pmu)
+		return NOTIFY_DONE;
+
+	if (action == CPU_PM_ENTER && pmu->save_regs) {
+		pmu->save_regs(pmu, pmuregs);
+	} else if (action == CPU_PM_EXIT && pmu->restore_regs) {
+		pmu->restore_regs(pmu, pmuregs);
+	}
+
+	return NOTIFY_OK;
+}
+
 static struct notifier_block cpu_pmu_hotplug_notifier = {
 	.notifier_call = cpu_pmu_notify,
+};
+
+static struct notifier_block cpu_pmu_pm_notifier = {
+	.notifier_call = cpu_pmu_pm_notify,
 };
 
 /*
@@ -341,9 +367,17 @@ static int __init register_pmu_driver(void)
 	if (err)
 		return err;
 
-	err = platform_driver_register(&cpu_pmu_driver);
-	if (err)
+	err = cpu_pm_register_notifier(&cpu_pmu_pm_notifier);
+	if (err) {
 		unregister_cpu_notifier(&cpu_pmu_hotplug_notifier);
+		return err;
+	}
+
+	err = platform_driver_register(&cpu_pmu_driver);
+	if (err) {
+		cpu_pm_unregister_notifier(&cpu_pmu_pm_notifier);
+		unregister_cpu_notifier(&cpu_pmu_hotplug_notifier);
+	}
 
 	return err;
 }

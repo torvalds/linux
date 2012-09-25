@@ -950,6 +950,51 @@ static void armv7_pmnc_dump_regs(struct arm_pmu *cpu_pmu)
 }
 #endif
 
+static void armv7pmu_save_regs(struct arm_pmu *cpu_pmu,
+					struct cpupmu_regs *regs)
+{
+	unsigned int cnt;
+	asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r" (regs->pmc));
+	if (!(regs->pmc & ARMV7_PMNC_E))
+		return;
+
+	asm volatile("mrc p15, 0, %0, c9, c12, 1" : "=r" (regs->pmcntenset));
+	asm volatile("mrc p15, 0, %0, c9, c14, 0" : "=r" (regs->pmuseren));
+	asm volatile("mrc p15, 0, %0, c9, c14, 1" : "=r" (regs->pmintenset));
+	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r" (regs->pmxevtcnt[0]));
+	for (cnt = ARMV7_IDX_COUNTER0;
+			cnt <= ARMV7_IDX_COUNTER_LAST(cpu_pmu); cnt++) {
+		armv7_pmnc_select_counter(cnt);
+		asm volatile("mrc p15, 0, %0, c9, c13, 1"
+					: "=r"(regs->pmxevttype[cnt]));
+		asm volatile("mrc p15, 0, %0, c9, c13, 2"
+					: "=r"(regs->pmxevtcnt[cnt]));
+	}
+	return;
+}
+
+static void armv7pmu_restore_regs(struct arm_pmu *cpu_pmu,
+					struct cpupmu_regs *regs)
+{
+	unsigned int cnt;
+	if (!(regs->pmc & ARMV7_PMNC_E))
+		return;
+
+	asm volatile("mcr p15, 0, %0, c9, c12, 1" : : "r" (regs->pmcntenset));
+	asm volatile("mcr p15, 0, %0, c9, c14, 0" : : "r" (regs->pmuseren));
+	asm volatile("mcr p15, 0, %0, c9, c14, 1" : : "r" (regs->pmintenset));
+	asm volatile("mcr p15, 0, %0, c9, c13, 0" : : "r" (regs->pmxevtcnt[0]));
+	for (cnt = ARMV7_IDX_COUNTER0;
+			cnt <= ARMV7_IDX_COUNTER_LAST(cpu_pmu); cnt++) {
+		armv7_pmnc_select_counter(cnt);
+		asm volatile("mcr p15, 0, %0, c9, c13, 1"
+					: : "r"(regs->pmxevttype[cnt]));
+		asm volatile("mcr p15, 0, %0, c9, c13, 2"
+					: : "r"(regs->pmxevtcnt[cnt]));
+	}
+	asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r" (regs->pmc));
+}
+
 static void armv7pmu_enable_event(struct perf_event *event)
 {
 	unsigned long flags;
@@ -1223,6 +1268,8 @@ static void armv7pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->start		= armv7pmu_start;
 	cpu_pmu->stop		= armv7pmu_stop;
 	cpu_pmu->reset		= armv7pmu_reset;
+	cpu_pmu->save_regs	= armv7pmu_save_regs;
+	cpu_pmu->restore_regs	= armv7pmu_restore_regs;
 	cpu_pmu->max_period	= (1LLU << 32) - 1;
 };
 
