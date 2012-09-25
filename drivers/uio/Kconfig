@@ -44,6 +44,22 @@ config UIO_PDRV_GENIRQ
 
 	  If you don't know what to do here, say N.
 
+config UIO_DMEM_GENIRQ
+	tristate "Userspace platform driver with generic irq and dynamic memory"
+	help
+	  Platform driver for Userspace I/O devices, including generic
+	  interrupt handling code. Shared interrupts are not supported.
+
+	  Memory regions can be specified with the same platform device
+	  resources as the UIO_PDRV drivers, but dynamic regions can also
+	  be specified.
+	  The number and size of these regions is static,
+	  but the memory allocation is not performed until
+	  the associated device file is opened. The
+	  memory is freed once the uio device is closed.
+
+	  If you don't know what to do here, say N.
+
 config UIO_AEC
 	tristate "AEC video timestamp device"
 	depends on PCI
