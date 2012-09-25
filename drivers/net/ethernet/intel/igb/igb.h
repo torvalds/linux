@@ -204,22 +204,6 @@ struct igb_ring_container {
 	u8 itr;				/* current ITR setting for ring */
 };
 
-struct igb_q_vector {
-	struct igb_adapter *adapter;	/* backlink */
-	int cpu;			/* CPU for DCA */
-	u32 eims_value;			/* EIMS mask value */
-
-	struct igb_ring_container rx, tx;
-
-	struct napi_struct napi;
-
-	u16 itr_val;
-	u8 set_itr;
-	void __iomem *itr_register;
-
-	char name[IFNAMSIZ + 9];
-};
-
 struct igb_ring {
 	struct igb_q_vector *q_vector;	/* backlink to q_vector */
 	struct net_device *netdev;	/* back pointer to net_device */
@@ -231,14 +215,15 @@ struct igb_ring {
 	void *desc;			/* descriptor ring memory */
 	unsigned long flags;		/* ring specific flags */
 	void __iomem *tail;		/* pointer to ring tail register */
+	dma_addr_t dma;			/* phys address of the ring */
+	unsigned int  size;		/* length of desc. ring in bytes */
 
 	u16 count;			/* number of desc. in the ring */
 	u8 queue_index;			/* logical index of the ring*/
 	u8 reg_idx;			/* physical index of the ring */
-	u32 size;			/* length of desc. ring in bytes */
 
 	/* everything past this point are written often */
-	u16 next_to_clean ____cacheline_aligned_in_smp;
+	u16 next_to_clean;
 	u16 next_to_use;
 	u16 next_to_alloc;
 
@@ -256,8 +241,25 @@ struct igb_ring {
 			struct u64_stats_sync rx_syncp;
 		};
 	};
-	/* Items past this point are only used during ring alloc / free */
-	dma_addr_t dma;                /* phys address of the ring */
+} ____cacheline_internodealigned_in_smp;
+
+struct igb_q_vector {
+	struct igb_adapter *adapter;	/* backlink */
+	int cpu;			/* CPU for DCA */
+	u32 eims_value;			/* EIMS mask value */
+
+	u16 itr_val;
+	u8 set_itr;
+	void __iomem *itr_register;
+
+	struct igb_ring_container rx, tx;
+
+	struct napi_struct napi;
+	struct rcu_head rcu;	/* to avoid race with update stats on free */
+	char name[IFNAMSIZ + 9];
+
+	/* for dynamic allocation of rings associated with this q_vector */
+	struct igb_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
 
 enum e1000_ring_flags_t {

@@ -652,80 +652,6 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 	}
 }
 
-static void igb_free_queues(struct igb_adapter *adapter)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		kfree(adapter->tx_ring[i]);
-		adapter->tx_ring[i] = NULL;
-	}
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		kfree(adapter->rx_ring[i]);
-		adapter->rx_ring[i] = NULL;
-	}
-	adapter->num_rx_queues = 0;
-	adapter->num_tx_queues = 0;
-}
-
-/**
- * igb_alloc_queues - Allocate memory for all rings
- * @adapter: board private structure to initialize
- *
- * We allocate one ring per queue at run-time since we don't know the
- * number of queues at compile-time.
- **/
-static int igb_alloc_queues(struct igb_adapter *adapter)
-{
-	struct igb_ring *ring;
-	int i;
-
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		ring = kzalloc(sizeof(struct igb_ring), GFP_KERNEL);
-		if (!ring)
-			goto err;
-		ring->count = adapter->tx_ring_count;
-		ring->queue_index = i;
-		ring->dev = &adapter->pdev->dev;
-		ring->netdev = adapter->netdev;
-		/* For 82575, context index must be unique per ring. */
-		if (adapter->hw.mac.type == e1000_82575)
-			set_bit(IGB_RING_FLAG_TX_CTX_IDX, &ring->flags);
-		adapter->tx_ring[i] = ring;
-	}
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		ring = kzalloc(sizeof(struct igb_ring), GFP_KERNEL);
-		if (!ring)
-			goto err;
-		ring->count = adapter->rx_ring_count;
-		ring->queue_index = i;
-		ring->dev = &adapter->pdev->dev;
-		ring->netdev = adapter->netdev;
-		/* set flag indicating ring supports SCTP checksum offload */
-		if (adapter->hw.mac.type >= e1000_82576)
-			set_bit(IGB_RING_FLAG_RX_SCTP_CSUM, &ring->flags);
-
-		/*
-		 * On i350, i210, and i211, loopback VLAN packets
-		 * have the tag byte-swapped.
-		 * */
-		if (adapter->hw.mac.type >= e1000_i350)
-			set_bit(IGB_RING_FLAG_RX_LB_VLAN_BSWAP, &ring->flags);
-
-		adapter->rx_ring[i] = ring;
-	}
-
-	igb_cache_ring_register(adapter);
-
-	return 0;
-
-err:
-	igb_free_queues(adapter);
-
-	return -ENOMEM;
-}
-
 /**
  *  igb_write_ivar - configure ivar for given MSI-X vector
  *  @hw: pointer to the HW structure
@@ -956,6 +882,35 @@ static void igb_reset_interrupt_capability(struct igb_adapter *adapter)
 }
 
 /**
+ * igb_free_q_vector - Free memory allocated for specific interrupt vector
+ * @adapter: board private structure to initialize
+ * @v_idx: Index of vector to be freed
+ *
+ * This function frees the memory allocated to the q_vector.  In addition if
+ * NAPI is enabled it will delete any references to the NAPI struct prior
+ * to freeing the q_vector.
+ **/
+static void igb_free_q_vector(struct igb_adapter *adapter, int v_idx)
+{
+	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
+
+	if (q_vector->tx.ring)
+		adapter->tx_ring[q_vector->tx.ring->queue_index] = NULL;
+
+	if (q_vector->rx.ring)
+		adapter->tx_ring[q_vector->rx.ring->queue_index] = NULL;
+
+	adapter->q_vector[v_idx] = NULL;
+	netif_napi_del(&q_vector->napi);
+
+	/*
+	 * ixgbe_get_stats64() might access the rings on this vector,
+	 * we must wait a grace period before freeing it.
+	 */
+	kfree_rcu(q_vector, rcu);
+}
+
+/**
  * igb_free_q_vectors - Free memory allocated for interrupt vectors
  * @adapter: board private structure to initialize
  *
@@ -965,17 +920,14 @@ static void igb_reset_interrupt_capability(struct igb_adapter *adapter)
  **/
 static void igb_free_q_vectors(struct igb_adapter *adapter)
 {
-	int v_idx;
+	int v_idx = adapter->num_q_vectors;
 
-	for (v_idx = 0; v_idx < adapter->num_q_vectors; v_idx++) {
-		struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
-		adapter->q_vector[v_idx] = NULL;
-		if (!q_vector)
-			continue;
-		netif_napi_del(&q_vector->napi);
-		kfree(q_vector);
-	}
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
 	adapter->num_q_vectors = 0;
+
+	while (v_idx--)
+		igb_free_q_vector(adapter, v_idx);
 }
 
 /**
@@ -986,7 +938,6 @@ static void igb_free_q_vectors(struct igb_adapter *adapter)
  */
 static void igb_clear_interrupt_scheme(struct igb_adapter *adapter)
 {
-	igb_free_queues(adapter);
 	igb_free_q_vectors(adapter);
 	igb_reset_interrupt_capability(adapter);
 }
@@ -1074,6 +1025,125 @@ out:
 	return err;
 }
 
+static void igb_add_ring(struct igb_ring *ring,
+			 struct igb_ring_container *head)
+{
+	head->ring = ring;
+	head->count++;
+}
+
+/**
+ * igb_alloc_q_vector - Allocate memory for a single interrupt vector
+ * @adapter: board private structure to initialize
+ * @v_count: q_vectors allocated on adapter, used for ring interleaving
+ * @v_idx: index of vector in adapter struct
+ * @txr_count: total number of Tx rings to allocate
+ * @txr_idx: index of first Tx ring to allocate
+ * @rxr_count: total number of Rx rings to allocate
+ * @rxr_idx: index of first Rx ring to allocate
+ *
+ * We allocate one q_vector.  If allocation fails we return -ENOMEM.
+ **/
+static int igb_alloc_q_vector(struct igb_adapter *adapter,
+			      int v_count, int v_idx,
+			      int txr_count, int txr_idx,
+			      int rxr_count, int rxr_idx)
+{
+	struct igb_q_vector *q_vector;
+	struct igb_ring *ring;
+	int ring_count, size;
+
+	/* igb only supports 1 Tx and/or 1 Rx queue per vector */
+	if (txr_count > 1 || rxr_count > 1)
+		return -ENOMEM;
+
+	ring_count = txr_count + rxr_count;
+	size = sizeof(struct igb_q_vector) +
+	       (sizeof(struct igb_ring) * ring_count);
+
+	/* allocate q_vector and rings */
+	q_vector = kzalloc(size, GFP_KERNEL);
+	if (!q_vector)
+		return -ENOMEM;
+
+	/* initialize NAPI */
+	netif_napi_add(adapter->netdev, &q_vector->napi,
+		       igb_poll, 64);
+
+	/* tie q_vector and adapter together */
+	adapter->q_vector[v_idx] = q_vector;
+	q_vector->adapter = adapter;
+
+	/* initialize work limits */
+	q_vector->tx.work_limit = adapter->tx_work_limit;
+
+	/* initialize ITR configuration */
+	q_vector->itr_register = adapter->hw.hw_addr + E1000_EITR(0);
+	q_vector->itr_val = IGB_START_ITR;
+
+	/* initialize pointer to rings */
+	ring = q_vector->ring;
+
+	if (txr_count) {
+		/* assign generic ring traits */
+		ring->dev = &adapter->pdev->dev;
+		ring->netdev = adapter->netdev;
+
+		/* configure backlink on ring */
+		ring->q_vector = q_vector;
+
+		/* update q_vector Tx values */
+		igb_add_ring(ring, &q_vector->tx);
+
+		/* For 82575, context index must be unique per ring. */
+		if (adapter->hw.mac.type == e1000_82575)
+			set_bit(IGB_RING_FLAG_TX_CTX_IDX, &ring->flags);
+
+		/* apply Tx specific ring traits */
+		ring->count = adapter->tx_ring_count;
+		ring->queue_index = txr_idx;
+
+		/* assign ring to adapter */
+		adapter->tx_ring[txr_idx] = ring;
+
+		/* push pointer to next ring */
+		ring++;
+	}
+
+	if (rxr_count) {
+		/* assign generic ring traits */
+		ring->dev = &adapter->pdev->dev;
+		ring->netdev = adapter->netdev;
+
+		/* configure backlink on ring */
+		ring->q_vector = q_vector;
+
+		/* update q_vector Rx values */
+		igb_add_ring(ring, &q_vector->rx);
+
+		/* set flag indicating ring supports SCTP checksum offload */
+		if (adapter->hw.mac.type >= e1000_82576)
+			set_bit(IGB_RING_FLAG_RX_SCTP_CSUM, &ring->flags);
+
+		/*
+		 * On i350, i210, and i211, loopback VLAN packets
+		 * have the tag byte-swapped.
+		 * */
+		if (adapter->hw.mac.type >= e1000_i350)
+			set_bit(IGB_RING_FLAG_RX_LB_VLAN_BSWAP, &ring->flags);
+
+		/* apply Rx specific ring traits */
+		ring->count = adapter->rx_ring_count;
+		ring->queue_index = rxr_idx;
+
+		/* assign ring to adapter */
+		adapter->rx_ring[rxr_idx] = ring;
+	}
+
+	return 0;
+}
+
+
 /**
  * igb_alloc_q_vectors - Allocate memory for interrupt vectors
  * @adapter: board private structure to initialize
@@ -1083,86 +1153,53 @@ out:
  **/
 static int igb_alloc_q_vectors(struct igb_adapter *adapter)
 {
-	struct igb_q_vector *q_vector;
-	struct e1000_hw *hw = &adapter->hw;
-	int v_idx;
+	int q_vectors = adapter->num_q_vectors;
+	int rxr_remaining = adapter->num_rx_queues;
+	int txr_remaining = adapter->num_tx_queues;
+	int rxr_idx = 0, txr_idx = 0, v_idx = 0;
+	int err;
 
-	for (v_idx = 0; v_idx < adapter->num_q_vectors; v_idx++) {
-		q_vector = kzalloc(sizeof(struct igb_q_vector),
-				   GFP_KERNEL);
-		if (!q_vector)
+	if (q_vectors >= (rxr_remaining + txr_remaining)) {
+		for (; rxr_remaining; v_idx++) {
+			err = igb_alloc_q_vector(adapter, q_vectors, v_idx,
+						 0, 0, 1, rxr_idx);
+
+			if (err)
+				goto err_out;
+
+			/* update counts and index */
+			rxr_remaining--;
+			rxr_idx++;
+		}
+	}
+
+	for (; v_idx < q_vectors; v_idx++) {
+		int rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors - v_idx);
+		int tqpv = DIV_ROUND_UP(txr_remaining, q_vectors - v_idx);
+		err = igb_alloc_q_vector(adapter, q_vectors, v_idx,
+					 tqpv, txr_idx, rqpv, rxr_idx);
+
+		if (err)
 			goto err_out;
-		q_vector->adapter = adapter;
-		q_vector->itr_register = hw->hw_addr + E1000_EITR(0);
-		q_vector->itr_val = IGB_START_ITR;
-		netif_napi_add(adapter->netdev, &q_vector->napi, igb_poll, 64);
-		adapter->q_vector[v_idx] = q_vector;
+
+		/* update counts and index */
+		rxr_remaining -= rqpv;
+		txr_remaining -= tqpv;
+		rxr_idx++;
+		txr_idx++;
 	}
 
 	return 0;
 
 err_out:
-	igb_free_q_vectors(adapter);
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
+	adapter->num_q_vectors = 0;
+
+	while (v_idx--)
+		igb_free_q_vector(adapter, v_idx);
+
 	return -ENOMEM;
-}
-
-static void igb_map_rx_ring_to_vector(struct igb_adapter *adapter,
-                                      int ring_idx, int v_idx)
-{
-	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
-
-	q_vector->rx.ring = adapter->rx_ring[ring_idx];
-	q_vector->rx.ring->q_vector = q_vector;
-	q_vector->rx.count++;
-	q_vector->itr_val = adapter->rx_itr_setting;
-	if (q_vector->itr_val && q_vector->itr_val <= 3)
-		q_vector->itr_val = IGB_START_ITR;
-}
-
-static void igb_map_tx_ring_to_vector(struct igb_adapter *adapter,
-                                      int ring_idx, int v_idx)
-{
-	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
-
-	q_vector->tx.ring = adapter->tx_ring[ring_idx];
-	q_vector->tx.ring->q_vector = q_vector;
-	q_vector->tx.count++;
-	q_vector->itr_val = adapter->tx_itr_setting;
-	q_vector->tx.work_limit = adapter->tx_work_limit;
-	if (q_vector->itr_val && q_vector->itr_val <= 3)
-		q_vector->itr_val = IGB_START_ITR;
-}
-
-/**
- * igb_map_ring_to_vector - maps allocated queues to vectors
- *
- * This function maps the recently allocated queues to vectors.
- **/
-static int igb_map_ring_to_vector(struct igb_adapter *adapter)
-{
-	int i;
-	int v_idx = 0;
-
-	if ((adapter->num_q_vectors < adapter->num_rx_queues) ||
-	    (adapter->num_q_vectors < adapter->num_tx_queues))
-		return -ENOMEM;
-
-	if (adapter->num_q_vectors >=
-	    (adapter->num_rx_queues + adapter->num_tx_queues)) {
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			igb_map_rx_ring_to_vector(adapter, i, v_idx++);
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			igb_map_tx_ring_to_vector(adapter, i, v_idx++);
-	} else {
-		for (i = 0; i < adapter->num_rx_queues; i++) {
-			if (i < adapter->num_tx_queues)
-				igb_map_tx_ring_to_vector(adapter, i, v_idx);
-			igb_map_rx_ring_to_vector(adapter, i, v_idx++);
-		}
-		for (; i < adapter->num_tx_queues; i++)
-			igb_map_tx_ring_to_vector(adapter, i, v_idx++);
-	}
-	return 0;
 }
 
 /**
@@ -1185,24 +1222,10 @@ static int igb_init_interrupt_scheme(struct igb_adapter *adapter)
 		goto err_alloc_q_vectors;
 	}
 
-	err = igb_alloc_queues(adapter);
-	if (err) {
-		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
-		goto err_alloc_queues;
-	}
-
-	err = igb_map_ring_to_vector(adapter);
-	if (err) {
-		dev_err(&pdev->dev, "Invalid q_vector to ring mapping\n");
-		goto err_map_queues;
-	}
-
+	igb_cache_ring_register(adapter);
 
 	return 0;
-err_map_queues:
-	igb_free_queues(adapter);
-err_alloc_queues:
-	igb_free_q_vectors(adapter);
+
 err_alloc_q_vectors:
 	igb_reset_interrupt_capability(adapter);
 	return err;
@@ -1225,11 +1248,11 @@ static int igb_request_irq(struct igb_adapter *adapter)
 		if (!err)
 			goto request_done;
 		/* fall back to MSI */
+		igb_free_all_tx_resources(adapter);
+		igb_free_all_rx_resources(adapter);
 		igb_clear_interrupt_scheme(adapter);
 		if (!pci_enable_msi(pdev))
 			adapter->flags |= IGB_FLAG_HAS_MSI;
-		igb_free_all_tx_resources(adapter);
-		igb_free_all_rx_resources(adapter);
 		adapter->num_tx_queues = 1;
 		adapter->num_rx_queues = 1;
 		adapter->num_q_vectors = 1;
@@ -1237,13 +1260,6 @@ static int igb_request_irq(struct igb_adapter *adapter)
 		if (err) {
 			dev_err(&pdev->dev,
 			        "Unable to allocate memory for vectors\n");
-			goto request_done;
-		}
-		err = igb_alloc_queues(adapter);
-		if (err) {
-			dev_err(&pdev->dev,
-			        "Unable to allocate memory for queues\n");
-			igb_free_q_vectors(adapter);
 			goto request_done;
 		}
 		igb_setup_all_tx_resources(adapter);
@@ -2633,10 +2649,8 @@ int igb_setup_tx_resources(struct igb_ring *tx_ring)
 	tx_ring->size = tx_ring->count * sizeof(union e1000_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
-	tx_ring->desc = dma_alloc_coherent(dev,
-					   tx_ring->size,
-					   &tx_ring->dma,
-					   GFP_KERNEL);
+	tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
+					   &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->desc)
 		goto err;
 
@@ -2773,15 +2787,12 @@ int igb_setup_rx_resources(struct igb_ring *rx_ring)
 	if (!rx_ring->rx_buffer_info)
 		goto err;
 
-
 	/* Round up to nearest 4K */
 	rx_ring->size = rx_ring->count * sizeof(union e1000_adv_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 
-	rx_ring->desc = dma_alloc_coherent(dev,
-					   rx_ring->size,
-					   &rx_ring->dma,
-					   GFP_KERNEL);
+	rx_ring->desc = dma_alloc_coherent(dev, rx_ring->size,
+					   &rx_ring->dma, GFP_KERNEL);
 	if (!rx_ring->desc)
 		goto err;
 
