@@ -102,6 +102,7 @@ struct net {
 #endif
 	struct netns_ipvs	*ipvs;
 	struct sock		*diag_nlsk;
+	atomic_t		rt_genid;
 };
 
 
@@ -300,5 +301,14 @@ static inline void unregister_net_sysctl_table(struct ctl_table_header *header)
 }
 #endif
 
+static inline int rt_genid(struct net *net)
+{
+	return atomic_read(&net->rt_genid);
+}
+
+static inline void rt_genid_bump(struct net *net)
+{
+	atomic_inc(&net->rt_genid);
+}
 
 #endif /* __NET_NET_NAMESPACE_H */
