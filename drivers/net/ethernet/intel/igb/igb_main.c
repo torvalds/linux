@@ -4851,45 +4851,63 @@ static irqreturn_t igb_msix_ring(int irq, void *data)
 }
 
 #ifdef CONFIG_IGB_DCA
+static void igb_update_tx_dca(struct igb_adapter *adapter,
+			      struct igb_ring *tx_ring,
+			      int cpu)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 txctrl = dca3_get_tag(tx_ring->dev, cpu);
+
+	if (hw->mac.type != e1000_82575)
+		txctrl <<= E1000_DCA_TXCTRL_CPUID_SHIFT;
+
+	/*
+	 * We can enable relaxed ordering for reads, but not writes when
+	 * DCA is enabled.  This is due to a known issue in some chipsets
+	 * which will cause the DCA tag to be cleared.
+	 */
+	txctrl |= E1000_DCA_TXCTRL_DESC_RRO_EN |
+		  E1000_DCA_TXCTRL_DATA_RRO_EN |
+		  E1000_DCA_TXCTRL_DESC_DCA_EN;
+
+	wr32(E1000_DCA_TXCTRL(tx_ring->reg_idx), txctrl);
+}
+
+static void igb_update_rx_dca(struct igb_adapter *adapter,
+			      struct igb_ring *rx_ring,
+			      int cpu)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 rxctrl = dca3_get_tag(&adapter->pdev->dev, cpu);
+
+	if (hw->mac.type != e1000_82575)
+		rxctrl <<= E1000_DCA_RXCTRL_CPUID_SHIFT;
+
+	/*
+	 * We can enable relaxed ordering for reads, but not writes when
+	 * DCA is enabled.  This is due to a known issue in some chipsets
+	 * which will cause the DCA tag to be cleared.
+	 */
+	rxctrl |= E1000_DCA_RXCTRL_DESC_RRO_EN |
+		  E1000_DCA_RXCTRL_DESC_DCA_EN;
+
+	wr32(E1000_DCA_RXCTRL(rx_ring->reg_idx), rxctrl);
+}
+
 static void igb_update_dca(struct igb_q_vector *q_vector)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
-	struct e1000_hw *hw = &adapter->hw;
 	int cpu = get_cpu();
 
 	if (q_vector->cpu == cpu)
 		goto out_no_update;
 
-	if (q_vector->tx.ring) {
-		int q = q_vector->tx.ring->reg_idx;
-		u32 dca_txctrl = rd32(E1000_DCA_TXCTRL(q));
-		if (hw->mac.type == e1000_82575) {
-			dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK;
-			dca_txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
-		} else {
-			dca_txctrl &= ~E1000_DCA_TXCTRL_CPUID_MASK_82576;
-			dca_txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu) <<
-			              E1000_DCA_TXCTRL_CPUID_SHIFT;
-		}
-		dca_txctrl |= E1000_DCA_TXCTRL_DESC_DCA_EN;
-		wr32(E1000_DCA_TXCTRL(q), dca_txctrl);
-	}
-	if (q_vector->rx.ring) {
-		int q = q_vector->rx.ring->reg_idx;
-		u32 dca_rxctrl = rd32(E1000_DCA_RXCTRL(q));
-		if (hw->mac.type == e1000_82575) {
-			dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK;
-			dca_rxctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
-		} else {
-			dca_rxctrl &= ~E1000_DCA_RXCTRL_CPUID_MASK_82576;
-			dca_rxctrl |= dca3_get_tag(&adapter->pdev->dev, cpu) <<
-			              E1000_DCA_RXCTRL_CPUID_SHIFT;
-		}
-		dca_rxctrl |= E1000_DCA_RXCTRL_DESC_DCA_EN;
-		dca_rxctrl |= E1000_DCA_RXCTRL_HEAD_DCA_EN;
-		dca_rxctrl |= E1000_DCA_RXCTRL_DATA_DCA_EN;
-		wr32(E1000_DCA_RXCTRL(q), dca_rxctrl);
-	}
+	if (q_vector->tx.ring)
+		igb_update_tx_dca(adapter, q_vector->tx.ring, cpu);
+
+	if (q_vector->rx.ring)
+		igb_update_rx_dca(adapter, q_vector->rx.ring, cpu);
+
 	q_vector->cpu = cpu;
 out_no_update:
 	put_cpu();
