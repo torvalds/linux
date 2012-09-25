@@ -94,8 +94,7 @@
 
 		user {
 			label = "green";
-			gpios = <&gpio2 1 0>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio2 1 1>;
 		};
 	};
 };
