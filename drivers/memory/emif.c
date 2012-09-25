@@ -75,6 +75,7 @@ static unsigned long	irq_state;
 static u32		t_ck; /* DDR clock period in ps */
 static LIST_HEAD(device_list);
 
+#ifdef CONFIG_DEBUG_FS
 static void do_emif_regdump_show(struct seq_file *s, struct emif_data *emif,
 	struct emif_regs *regs)
 {
@@ -166,23 +167,23 @@ static int __init_or_module emif_debugfs_init(struct emif_data *emif)
 	int		ret;
 
 	dentry = debugfs_create_dir(dev_name(emif->dev), NULL);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err0;
 	}
 	emif->debugfs_root = dentry;
 
 	dentry = debugfs_create_file("regcache_dump", S_IRUGO,
 			emif->debugfs_root, emif, &emif_regdump_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
 	dentry = debugfs_create_file("mr4", S_IRUGO,
 			emif->debugfs_root, emif, &emif_mr4_fops);
-	if (IS_ERR(dentry)) {
-		ret = PTR_ERR(dentry);
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
@@ -198,6 +199,16 @@ static void __exit emif_debugfs_exit(struct emif_data *emif)
 	debugfs_remove_recursive(emif->debugfs_root);
 	emif->debugfs_root = NULL;
 }
+#else
+static inline int __init_or_module emif_debugfs_init(struct emif_data *emif)
+{
+	return 0;
+}
+
+static inline void __exit emif_debugfs_exit(struct emif_data *emif)
+{
+}
+#endif
 
 /*
  * Calculate the period of DDR clock from frequency value
