@@ -136,8 +136,8 @@ struct omap_voltdm_pmic {
 	u8 vp_erroroffset;
 	u8 vp_vstepmin;
 	u8 vp_vstepmax;
-	u32 vp_vddmin;
-	u32 vp_vddmax;
+	u32 vddmin;
+	u32 vddmax;
 	u8 vp_timeout_us;
 	bool i2c_high_speed;
 	u8 i2c_mcode;
