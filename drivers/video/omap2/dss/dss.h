@@ -175,6 +175,7 @@ struct seq_file;
 struct platform_device;
 
 /* core */
+const char *dss_get_default_display_name(void);
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
@@ -184,10 +185,13 @@ void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
 int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
 
-int omap_dss_register_device(struct omap_dss_device *dssdev,
-		struct device *parent, int disp_num);
-void omap_dss_unregister_device(struct omap_dss_device *dssdev);
-void omap_dss_unregister_child_devices(struct device *parent);
+struct omap_dss_device *dss_alloc_and_init_device(struct device *parent);
+int dss_add_device(struct omap_dss_device *dssdev);
+void dss_unregister_device(struct omap_dss_device *dssdev);
+void dss_unregister_child_devices(struct device *parent);
+void dss_put_device(struct omap_dss_device *dssdev);
+void dss_copy_device_pdata(struct omap_dss_device *dst,
+		const struct omap_dss_device *src);
 
 /* apply */
 void dss_apply_init(void);
@@ -227,7 +231,7 @@ int dss_suspend_all_devices(void);
 int dss_resume_all_devices(void);
 void dss_disable_all_devices(void);
 
-void dss_init_device(struct platform_device *pdev,
+int dss_init_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
 void dss_uninit_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
@@ -262,7 +266,6 @@ void dss_manager_kobj_uninit(struct omap_overlay_manager *mgr);
 void dss_init_overlays(struct platform_device *pdev);
 void dss_uninit_overlays(struct platform_device *pdev);
 void dss_overlay_setup_dispc_manager(struct omap_overlay_manager *mgr);
-void dss_recheck_connections(struct omap_dss_device *dssdev, bool force);
 int dss_ovl_simple_check(struct omap_overlay *ovl,
 		const struct omap_overlay_info *info);
 int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,

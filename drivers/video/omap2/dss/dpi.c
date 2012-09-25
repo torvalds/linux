@@ -371,10 +371,14 @@ static int __init dpi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void __init dpi_probe_pdata(struct platform_device *pdev)
+static struct omap_dss_device * __init dpi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	int i, r;
+	const char *def_disp_name = dss_get_default_display_name();
+	struct omap_dss_device *def_dssdev;
+	int i;
+
+	def_dssdev = NULL;
 
 	for (i = 0; i < pdata->num_devices; ++i) {
 		struct omap_dss_device *dssdev = pdata->devices[i];
@@ -382,16 +386,48 @@ static void __init dpi_probe_pdata(struct platform_device *pdev)
 		if (dssdev->type != OMAP_DISPLAY_TYPE_DPI)
 			continue;
 
-		r = dpi_init_display(dssdev);
-		if (r) {
-			DSSERR("device %s init failed: %d\n", dssdev->name, r);
-			continue;
-		}
+		if (def_dssdev == NULL)
+			def_dssdev = dssdev;
 
-		r = omap_dss_register_device(dssdev, &pdev->dev, i);
-		if (r)
-			DSSERR("device %s register failed: %d\n",
-					dssdev->name, r);
+		if (def_disp_name != NULL &&
+				strcmp(dssdev->name, def_disp_name) == 0) {
+			def_dssdev = dssdev;
+			break;
+		}
+	}
+
+	return def_dssdev;
+}
+
+static void __init dpi_probe_pdata(struct platform_device *dpidev)
+{
+	struct omap_dss_device *plat_dssdev;
+	struct omap_dss_device *dssdev;
+	int r;
+
+	plat_dssdev = dpi_find_dssdev(dpidev);
+
+	if (!plat_dssdev)
+		return;
+
+	dssdev = dss_alloc_and_init_device(&dpidev->dev);
+	if (!dssdev)
+		return;
+
+	dss_copy_device_pdata(dssdev, plat_dssdev);
+
+	r = dpi_init_display(dssdev);
+	if (r) {
+		DSSERR("device %s init failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
+		return;
+	}
+
+	r = dss_add_device(dssdev);
+	if (r) {
+		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		dss_put_device(dssdev);
+		return;
 	}
 }
 
@@ -406,7 +442,7 @@ static int __init omap_dpi_probe(struct platform_device *pdev)
 
 static int __exit omap_dpi_remove(struct platform_device *pdev)
 {
-	omap_dss_unregister_child_devices(&pdev->dev);
+	dss_unregister_child_devices(&pdev->dev);
 
 	return 0;
 }
