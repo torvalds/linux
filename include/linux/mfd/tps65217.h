@@ -22,6 +22,9 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 
+/* TPS chip id list */
+#define TPS65217			0xF0
+
 /* I2C ID for TPS65217 part */
 #define TPS65217_I2C_ID			0x24
 
@@ -248,18 +251,21 @@ struct tps_info {
 struct tps65217 {
 	struct device *dev;
 	struct tps65217_board *pdata;
+	unsigned int id;
 	struct regulator_desc desc[TPS65217_NUM_REGULATOR];
 	struct regulator_dev *rdev[TPS65217_NUM_REGULATOR];
 	struct tps_info *info[TPS65217_NUM_REGULATOR];
 	struct regmap *regmap;
-
-	/* Client devices */
-	struct platform_device *regulator_pdev[TPS65217_NUM_REGULATOR];
 };
 
 static inline struct tps65217 *dev_to_tps65217(struct device *dev)
 {
 	return dev_get_drvdata(dev);
+}
+
+static inline int tps65217_chip_id(struct tps65217 *tps65217)
+{
+	return tps65217->id;
 }
 
 int tps65217_reg_read(struct tps65217 *tps, unsigned int reg,

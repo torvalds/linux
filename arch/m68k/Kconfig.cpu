@@ -28,6 +28,7 @@ config COLDFIRE
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_MULDIV64
 	select GENERIC_CSUM
+	select HAVE_CLK
 
 endchoice
 
@@ -58,7 +59,6 @@ config MCPU32
 config M68020
 	bool "68020 support"
 	depends on MMU
-	select GENERIC_ATOMIC64
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68020
@@ -69,7 +69,6 @@ config M68020
 config M68030
 	bool "68030 support"
 	depends on MMU && !MMU_SUN3
-	select GENERIC_ATOMIC64
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68030
@@ -79,7 +78,6 @@ config M68030
 config M68040
 	bool "68040 support"
 	depends on MMU && !MMU_SUN3
-	select GENERIC_ATOMIC64
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68LC040
@@ -90,7 +88,6 @@ config M68040
 config M68060
 	bool "68060 support"
 	depends on MMU && !MMU_SUN3
-	select GENERIC_ATOMIC64
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68060

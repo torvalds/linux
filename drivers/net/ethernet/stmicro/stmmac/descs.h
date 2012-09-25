@@ -20,6 +20,10 @@
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
+
+#ifndef __DESCS_H__
+#define __DESCS_H__
+
 struct dma_desc {
 	/* Receive descriptor */
 	union {
@@ -166,3 +170,5 @@ enum tdes_csum_insertion {
 					 * is not calculated */
 	cic_full = 3,		/* IP header and pseudoheader */
 };
+
+#endif /* __DESCS_H__ */

@@ -1418,25 +1418,25 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 
 	ret = mfd_add_devices(ab8500->dev, 0, abx500_common_devs,
 			ARRAY_SIZE(abx500_common_devs), NULL,
-			ab8500->irq_base);
+			ab8500->irq_base, ab8500->domain);
 	if (ret)
 		goto out_freeirq;
 
 	if (is_ab9540(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
 				ARRAY_SIZE(ab9540_devs), NULL,
-				ab8500->irq_base);
+				ab8500->irq_base, ab8500->domain);
 	else
 		ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
 				ARRAY_SIZE(ab8500_devs), NULL,
-				ab8500->irq_base);
+				ab8500->irq_base, ab8500->domain);
 	if (ret)
 		goto out_freeirq;
 
 	if (is_ab9540(ab8500) || is_ab8505(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_ab8505_devs,
 				ARRAY_SIZE(ab9540_ab8505_devs), NULL,
-				ab8500->irq_base);
+				ab8500->irq_base, ab8500->domain);
 	if (ret)
 		goto out_freeirq;
 
@@ -1444,7 +1444,7 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 		/* Add battery management devices */
 		ret = mfd_add_devices(ab8500->dev, 0, ab8500_bm_devs,
 				      ARRAY_SIZE(ab8500_bm_devs), NULL,
-				      ab8500->irq_base);
+				      ab8500->irq_base, ab8500->domain);
 		if (ret)
 			dev_err(ab8500->dev, "error adding bm devices\n");
 	}

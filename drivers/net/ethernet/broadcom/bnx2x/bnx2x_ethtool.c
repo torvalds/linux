@@ -775,7 +775,7 @@ static void bnx2x_get_regs(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 	struct dump_hdr dump_hdr = {0};
 
-	regs->version = 0;
+	regs->version = 1;
 	memset(p, 0, regs->len);
 
 	if (!netif_running(bp->dev))
@@ -1587,6 +1587,12 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 			bp->link_params.req_flow_ctrl[cfg_idx] =
 				BNX2X_FLOW_CTRL_AUTO;
 		}
+		bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_NONE;
+		if (epause->rx_pause)
+			bp->link_params.req_fc_auto_adv |= BNX2X_FLOW_CTRL_RX;
+
+		if (epause->tx_pause)
+			bp->link_params.req_fc_auto_adv |= BNX2X_FLOW_CTRL_TX;
 	}
 
 	DP(BNX2X_MSG_ETHTOOL,
@@ -2888,11 +2894,9 @@ static void bnx2x_get_channels(struct net_device *dev,
  */
 static void bnx2x_change_num_queues(struct bnx2x *bp, int num_rss)
 {
-	bnx2x_del_all_napi(bp);
 	bnx2x_disable_msi(bp);
 	BNX2X_NUM_QUEUES(bp) = num_rss + NON_ETH_CONTEXT_USE;
 	bnx2x_set_int_mode(bp);
-	bnx2x_add_all_napi(bp);
 }
 
 /**

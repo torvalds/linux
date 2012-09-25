@@ -62,13 +62,14 @@ config ARCH_OMAP4
 	select PM_OPP if PM
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARM_CPU_SUSPEND if PM
-	select ARCH_NEEDS_CPU_IDLE_COUPLED
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 
 config SOC_OMAP5
 	bool "TI OMAP5"
 	select CPU_V7
 	select ARM_GIC
 	select HAVE_SMP
+	select ARM_CPU_SUSPEND if PM
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
@@ -231,10 +232,11 @@ config MACH_OMAP3_PANDORA
 	select OMAP_PACKAGE_CBB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
-config MACH_OMAP3_TOUCHBOOK
+config MACH_TOUCHBOOK
 	bool "OMAP3 Touch Book"
 	depends on ARCH_OMAP3
 	default y
+	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP_3430SDP
 	bool "OMAP 3430 SDP board"

@@ -657,11 +657,7 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev)
 	if (p != NULL)
 		return ERR_PTR(-EBUSY);
 
-	p = create_pinctrl(dev);
-	if (IS_ERR(p))
-		return p;
-
-	return p;
+	return create_pinctrl(dev);
 }
 
 /**
@@ -738,11 +734,8 @@ static struct pinctrl_state *pinctrl_lookup_state_locked(struct pinctrl *p,
 			dev_dbg(p->dev, "using pinctrl dummy state (%s)\n",
 				name);
 			state = create_state(p, name);
-			if (IS_ERR(state))
-				return state;
-		} else {
-			return ERR_PTR(-ENODEV);
-		}
+		} else
+			state = ERR_PTR(-ENODEV);
 	}
 
 	return state;

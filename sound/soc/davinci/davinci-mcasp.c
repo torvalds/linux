@@ -380,14 +380,20 @@ static void mcasp_start_tx(struct davinci_audio_dev *dev)
 static void davinci_mcasp_start(struct davinci_audio_dev *dev, int stream)
 {
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (dev->txnumevt)	/* enable FIFO */
+		if (dev->txnumevt) {	/* enable FIFO */
+			mcasp_clr_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+								FIFO_ENABLE);
 			mcasp_set_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
 								FIFO_ENABLE);
+		}
 		mcasp_start_tx(dev);
 	} else {
-		if (dev->rxnumevt)	/* enable FIFO */
+		if (dev->rxnumevt) {	/* enable FIFO */
+			mcasp_clr_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+								FIFO_ENABLE);
 			mcasp_set_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
 								FIFO_ENABLE);
+		}
 		mcasp_start_rx(dev);
 	}
 }

@@ -21,7 +21,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
-#include <linux/delay.h>
 
 #include <linux/mfd/da9052/reg.h>
 #include <linux/mfd/da9052/da9052.h>

@@ -37,7 +37,7 @@
 #define WIN0_OFF(n)		(BRIDGE_VIRT_BASE + 0x0000 + ((n) << 4))
 #define WIN8_OFF(n)		(BRIDGE_VIRT_BASE + 0x0900 + (((n) - 8) << 4))
 
-static void __init __iomem *win_cfg_base(int win)
+static void __init __iomem *win_cfg_base(const struct orion_addr_map_cfg *cfg, int win)
 {
 	/*
 	 * Find the control register base address for this window.

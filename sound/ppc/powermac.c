@@ -143,7 +143,7 @@ static int __devexit snd_pmac_remove(struct platform_device *devptr)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_pmac_driver_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);

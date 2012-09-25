@@ -1654,8 +1654,8 @@ SYSCALL_DEFINE1(epoll_create1, int, flags)
 		error = PTR_ERR(file);
 		goto out_free_fd;
 	}
-	fd_install(fd, file);
 	ep->file = file;
+	fd_install(fd, file);
 	return fd;
 
 out_free_fd:

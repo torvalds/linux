@@ -5045,22 +5045,19 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 			 struct nfs_getaclres *res)
 {
 	unsigned int savep;
-	__be32 *bm_p;
 	uint32_t attrlen,
 		 bitmap[3] = {0};
 	int status;
-	size_t page_len = xdr->buf->page_len;
+	unsigned int pg_offset;
 
 	res->acl_len = 0;
 	if ((status = decode_op_hdr(xdr, OP_GETATTR)) != 0)
 		goto out;
 
-	bm_p = xdr->p;
-	res->acl_data_offset = be32_to_cpup(bm_p) + 2;
-	res->acl_data_offset <<= 2;
-	/* Check if the acl data starts beyond the allocated buffer */
-	if (res->acl_data_offset > page_len)
-		return -ERANGE;
+	xdr_enter_page(xdr, xdr->buf->page_len);
+
+	/* Calculate the offset of the page data */
+	pg_offset = xdr->buf->head[0].iov_len;
 
 	if ((status = decode_attr_bitmap(xdr, bitmap)) != 0)
 		goto out;
@@ -5074,23 +5071,16 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 		/* The bitmap (xdr len + bitmaps) and the attr xdr len words
 		 * are stored with the acl data to handle the problem of
 		 * variable length bitmaps.*/
-		xdr->p = bm_p;
-
-		/* We ignore &savep and don't do consistency checks on
-		 * the attr length.  Let userspace figure it out.... */
-		attrlen += res->acl_data_offset;
-		if (attrlen > page_len) {
-			if (res->acl_flags & NFS4_ACL_LEN_REQUEST) {
-				/* getxattr interface called with a NULL buf */
-				res->acl_len = attrlen;
-				goto out;
-			}
-			dprintk("NFS: acl reply: attrlen %u > page_len %zu\n",
-					attrlen, page_len);
-			return -EINVAL;
-		}
-		xdr_read_pages(xdr, attrlen);
+		res->acl_data_offset = xdr_stream_pos(xdr) - pg_offset;
 		res->acl_len = attrlen;
+
+		/* Check for receive buffer overflow */
+		if (res->acl_len > (xdr->nwords << 2) ||
+		    res->acl_len + res->acl_data_offset > xdr->buf->page_len) {
+			res->acl_flags |= NFS4_ACL_TRUNC;
+			dprintk("NFS: acl reply: attrlen %u > page_len %u\n",
+					attrlen, xdr->nwords << 2);
+		}
 	} else
 		status = -EOPNOTSUPP;
 
@@ -6235,7 +6225,8 @@ static int nfs4_xdr_dec_open(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	status = decode_open(xdr, res);
 	if (status)
 		goto out;
-	if (decode_getfh(xdr, &res->fh) != 0)
+	status = decode_getfh(xdr, &res->fh);
+	if (status)
 		goto out;
 	decode_getfattr(xdr, res->f_attr, res->server);
 out:
