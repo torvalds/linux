@@ -945,34 +945,33 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 {
-	int r = -EINVAL;
+	int r = 0;
 
-	switch (reg->id) {
+	switch (id) {
 	case KVM_REG_PPC_HIOR:
-		r = copy_to_user((u64 __user *)(long)reg->addr,
-				&to_book3s(vcpu)->hior, sizeof(u64));
+		*val = get_reg_val(id, to_book3s(vcpu)->hior);
 		break;
 	default:
+		r = -EINVAL;
 		break;
 	}
 
 	return r;
 }
 
-int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 {
-	int r = -EINVAL;
+	int r = 0;
 
-	switch (reg->id) {
+	switch (id) {
 	case KVM_REG_PPC_HIOR:
-		r = copy_from_user(&to_book3s(vcpu)->hior,
-				   (u64 __user *)(long)reg->addr, sizeof(u64));
-		if (!r)
-			to_book3s(vcpu)->hior_explicit = true;
+		to_book3s(vcpu)->hior = set_reg_val(id, *val);
+		to_book3s(vcpu)->hior_explicit = true;
 		break;
 	default:
+		r = -EINVAL;
 		break;
 	}
 

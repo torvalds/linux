@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
+#include <linux/bug.h>
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/kvm_book3s.h>
 #else
@@ -196,6 +197,35 @@ static inline u32 kvmppc_set_field(u64 inst, int msb, int lsb, int value)
 	return r;
 }
 
+union kvmppc_one_reg {
+	u32	wval;
+	u64	dval;
+};
+
+#define one_reg_size(id)	\
+	(1ul << (((id) & KVM_REG_SIZE_MASK) >> KVM_REG_SIZE_SHIFT))
+
+#define get_reg_val(id, reg)	({		\
+	union kvmppc_one_reg __u;		\
+	switch (one_reg_size(id)) {		\
+	case 4: __u.wval = (reg); break;	\
+	case 8: __u.dval = (reg); break;	\
+	default: BUG();				\
+	}					\
+	__u;					\
+})
+
+
+#define set_reg_val(id, val)	({		\
+	u64 __v;				\
+	switch (one_reg_size(id)) {		\
+	case 4: __v = (val).wval; break;	\
+	case 8: __v = (val).dval; break;	\
+	default: BUG();				\
+	}					\
+	__v;					\
+})
+
 void kvmppc_core_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 int kvmppc_core_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 
@@ -204,6 +234,8 @@ int kvmppc_set_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 
 int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg);
 int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg);
+int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *);
+int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *);
 
 void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
 

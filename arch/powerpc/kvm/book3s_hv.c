@@ -544,36 +544,88 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 {
-	int r = -EINVAL;
+	int r = 0;
+	long int i;
 
-	switch (reg->id) {
+	switch (id) {
 	case KVM_REG_PPC_HIOR:
-		r = put_user(0, (u64 __user *)reg->addr);
+		*val = get_reg_val(id, 0);
+		break;
+	case KVM_REG_PPC_DABR:
+		*val = get_reg_val(id, vcpu->arch.dabr);
+		break;
+	case KVM_REG_PPC_DSCR:
+		*val = get_reg_val(id, vcpu->arch.dscr);
+		break;
+	case KVM_REG_PPC_PURR:
+		*val = get_reg_val(id, vcpu->arch.purr);
+		break;
+	case KVM_REG_PPC_SPURR:
+		*val = get_reg_val(id, vcpu->arch.spurr);
+		break;
+	case KVM_REG_PPC_AMR:
+		*val = get_reg_val(id, vcpu->arch.amr);
+		break;
+	case KVM_REG_PPC_UAMOR:
+		*val = get_reg_val(id, vcpu->arch.uamor);
+		break;
+	case KVM_REG_PPC_MMCR0 ... KVM_REG_PPC_MMCRA:
+		i = id - KVM_REG_PPC_MMCR0;
+		*val = get_reg_val(id, vcpu->arch.mmcr[i]);
+		break;
+	case KVM_REG_PPC_PMC1 ... KVM_REG_PPC_PMC8:
+		i = id - KVM_REG_PPC_PMC1;
+		*val = get_reg_val(id, vcpu->arch.pmc[i]);
 		break;
 	default:
+		r = -EINVAL;
 		break;
 	}
 
 	return r;
 }
 
-int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 {
-	int r = -EINVAL;
+	int r = 0;
+	long int i;
 
-	switch (reg->id) {
+	switch (id) {
 	case KVM_REG_PPC_HIOR:
-	{
-		u64 hior;
 		/* Only allow this to be set to zero */
-		r = get_user(hior, (u64 __user *)reg->addr);
-		if (!r && (hior != 0))
+		if (set_reg_val(id, *val))
 			r = -EINVAL;
 		break;
-	}
+	case KVM_REG_PPC_DABR:
+		vcpu->arch.dabr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_DSCR:
+		vcpu->arch.dscr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_PURR:
+		vcpu->arch.purr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_SPURR:
+		vcpu->arch.spurr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_AMR:
+		vcpu->arch.amr = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_UAMOR:
+		vcpu->arch.uamor = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_MMCR0 ... KVM_REG_PPC_MMCRA:
+		i = id - KVM_REG_PPC_MMCR0;
+		vcpu->arch.mmcr[i] = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_PMC1 ... KVM_REG_PPC_PMC8:
+		i = id - KVM_REG_PPC_PMC1;
+		vcpu->arch.pmc[i] = set_reg_val(id, *val);
+		break;
 	default:
+		r = -EINVAL;
 		break;
 	}
 

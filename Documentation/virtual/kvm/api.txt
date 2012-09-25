@@ -1740,6 +1740,25 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_IAC4      | 64
   PPC   | KVM_REG_PPC_DAC1      | 64
   PPC   | KVM_REG_PPC_DAC2      | 64
+  PPC   | KVM_REG_PPC_DABR      | 64
+  PPC   | KVM_REG_PPC_DSCR      | 64
+  PPC   | KVM_REG_PPC_PURR      | 64
+  PPC   | KVM_REG_PPC_SPURR     | 64
+  PPC   | KVM_REG_PPC_DAR       | 64
+  PPC   | KVM_REG_PPC_DSISR     | 32
+  PPC   | KVM_REG_PPC_AMR       | 64
+  PPC   | KVM_REG_PPC_UAMOR     | 64
+  PPC   | KVM_REG_PPC_MMCR0     | 64
+  PPC   | KVM_REG_PPC_MMCR1     | 64
+  PPC   | KVM_REG_PPC_MMCRA     | 64
+  PPC   | KVM_REG_PPC_PMC1      | 32
+  PPC   | KVM_REG_PPC_PMC2      | 32
+  PPC   | KVM_REG_PPC_PMC3      | 32
+  PPC   | KVM_REG_PPC_PMC4      | 32
+  PPC   | KVM_REG_PPC_PMC5      | 32
+  PPC   | KVM_REG_PPC_PMC6      | 32
+  PPC   | KVM_REG_PPC_PMC7      | 32
+  PPC   | KVM_REG_PPC_PMC8      | 32
 
 4.69 KVM_GET_ONE_REG
 
