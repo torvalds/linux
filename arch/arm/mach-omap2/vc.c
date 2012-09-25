@@ -308,11 +308,105 @@ static void __init omap3_vc_init_channel(struct voltagedomain *voltdm)
 	omap3_set_off_timings(voltdm);
 }
 
+/**
+ * omap4_calc_volt_ramp - calculates voltage ramping delays on omap4
+ * @voltdm: channel to calculate values for
+ * @voltage_diff: voltage difference in microvolts
+ *
+ * Calculates voltage ramp prescaler + counter values for a voltage
+ * difference on omap4. Returns a field value suitable for writing to
+ * VOLTSETUP register for a channel in following format:
+ * bits[8:9] prescaler ... bits[0:5] counter. See OMAP4 TRM for reference.
+ */
+static u32 omap4_calc_volt_ramp(struct voltagedomain *voltdm, u32 voltage_diff)
+{
+	u32 prescaler;
+	u32 cycles;
+	u32 time;
+
+	time = voltage_diff / voltdm->pmic->slew_rate;
+
+	cycles = voltdm->sys_clk.rate / 1000 * time / 1000;
+
+	cycles /= 64;
+	prescaler = 0;
+
+	/* shift to next prescaler until no overflow */
+
+	/* scale for div 256 = 64 * 4 */
+	if (cycles > 63) {
+		cycles /= 4;
+		prescaler++;
+	}
+
+	/* scale for div 512 = 256 * 2 */
+	if (cycles > 63) {
+		cycles /= 2;
+		prescaler++;
+	}
+
+	/* scale for div 2048 = 512 * 4 */
+	if (cycles > 63) {
+		cycles /= 4;
+		prescaler++;
+	}
+
+	/* check for overflow => invalid ramp time */
+	if (cycles > 63) {
+		pr_warn("%s: invalid setuptime for vdd_%s\n", __func__,
+			voltdm->name);
+		return 0;
+	}
+
+	cycles++;
+
+	return (prescaler << OMAP4430_RAMP_UP_PRESCAL_SHIFT) |
+		(cycles << OMAP4430_RAMP_UP_COUNT_SHIFT);
+}
+
+/**
+ * omap4_set_timings - set voltage ramp timings for a channel
+ * @voltdm: channel to configure
+ * @off_mode: whether off-mode values are used
+ *
+ * Calculates and sets the voltage ramp up / down values for a channel.
+ */
+static void omap4_set_timings(struct voltagedomain *voltdm, bool off_mode)
+{
+	u32 val;
+	u32 ramp;
+	int offset;
+
+	if (off_mode) {
+		ramp = omap4_calc_volt_ramp(voltdm,
+			voltdm->vc_param->on - voltdm->vc_param->off);
+		offset = voltdm->vfsm->voltsetup_off_reg;
+	} else {
+		ramp = omap4_calc_volt_ramp(voltdm,
+			voltdm->vc_param->on - voltdm->vc_param->ret);
+		offset = voltdm->vfsm->voltsetup_reg;
+	}
+
+	if (!ramp)
+		return;
+
+	val = voltdm->read(offset);
+
+	val |= ramp << OMAP4430_RAMP_DOWN_COUNT_SHIFT;
+
+	val |= ramp << OMAP4430_RAMP_UP_COUNT_SHIFT;
+
+	voltdm->write(val, offset);
+}
+
 /* OMAP4 specific voltage init functions */
 static void __init omap4_vc_init_channel(struct voltagedomain *voltdm)
 {
 	static bool is_initialized;
 	u32 vc_val;
+
+	omap4_set_timings(voltdm, true);
+	omap4_set_timings(voltdm, false);
 
 	if (is_initialized)
 		return;
