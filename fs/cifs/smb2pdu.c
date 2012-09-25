@@ -409,11 +409,6 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	if (rc != 0)
 		goto neg_exit;
 
-	if (rsp == NULL) {
-		rc = -EIO;
-		goto neg_exit;
-	}
-
 	cFYI(1, "mode 0x%x", rsp->SecurityMode);
 
 	if (rsp->DialectRevision == smb2protocols[SMB21_PROT].name)
@@ -637,13 +632,14 @@ ssetup_ntlmssp_authenticate:
 
 	kfree(security_blob);
 	rsp = (struct smb2_sess_setup_rsp *)iov[0].iov_base;
-	if (rsp->hdr.Status == STATUS_MORE_PROCESSING_REQUIRED) {
+	if (resp_buftype != CIFS_NO_BUFFER &&
+	    rsp->hdr.Status == STATUS_MORE_PROCESSING_REQUIRED) {
 		if (phase != NtLmNegotiate) {
 			cERROR(1, "Unexpected more processing error");
 			goto ssetup_exit;
 		}
 		if (offsetof(struct smb2_sess_setup_rsp, Buffer) - 4 !=
-			le16_to_cpu(rsp->SecurityBufferOffset)) {
+				le16_to_cpu(rsp->SecurityBufferOffset)) {
 			cERROR(1, "Invalid security buffer offset %d",
 				  le16_to_cpu(rsp->SecurityBufferOffset));
 			rc = -EIO;
@@ -668,11 +664,6 @@ ssetup_ntlmssp_authenticate:
 	 */
 	if (rc != 0)
 		goto ssetup_exit;
-
-	if (rsp == NULL) {
-		rc = -EIO;
-		goto ssetup_exit;
-	}
 
 	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
 ssetup_exit:
@@ -791,11 +782,6 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 			tcon->need_reconnect = true;
 		}
 		goto tcon_error_exit;
-	}
-
-	if (rsp == NULL) {
-		rc = -EIO;
-		goto tcon_exit;
 	}
 
 	if (tcon == NULL) {
@@ -1046,10 +1032,6 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 		goto creat_exit;
 	}
 
-	if (rsp == NULL) {
-		rc = -EIO;
-		goto creat_exit;
-	}
 	*persistent_fid = rsp->PersistentFileId;
 	*volatile_fid = rsp->VolatileFileId;
 
@@ -1108,11 +1090,6 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc != 0) {
 		if (tcon)
 			cifs_stats_fail_inc(tcon, SMB2_CLOSE_HE);
-		goto close_exit;
-	}
-
-	if (rsp == NULL) {
-		rc = -EIO;
 		goto close_exit;
 	}
 
@@ -1950,12 +1927,6 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 		cifs_stats_fail_inc(tcon, SMB2_SET_INFO_HE);
 		goto out;
 	}
-
-	if (rsp == NULL) {
-		rc = -EIO;
-		goto out;
-	}
-
 out:
 	free_rsp_buf(resp_buftype, rsp);
 	kfree(iov);
