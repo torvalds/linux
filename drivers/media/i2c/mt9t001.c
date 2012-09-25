@@ -371,7 +371,7 @@ static int mt9t001_set_crop(struct v4l2_subdev *subdev,
  * V4L2 subdev control operations
  */
 
-#define V4L2_CID_TEST_PATTERN		(V4L2_CID_USER_BASE | 0x1001)
+#define V4L2_CID_TEST_PATTERN_COLOR	(V4L2_CID_USER_BASE | 0x1001)
 #define V4L2_CID_BLACK_LEVEL_AUTO	(V4L2_CID_USER_BASE | 0x1002)
 #define V4L2_CID_BLACK_LEVEL_OFFSET	(V4L2_CID_USER_BASE | 0x1003)
 #define V4L2_CID_BLACK_LEVEL_CALIBRATE	(V4L2_CID_USER_BASE | 0x1004)
@@ -487,12 +487,11 @@ static int mt9t001_s_ctrl(struct v4l2_ctrl *ctrl)
 				     ctrl->val >> 16);
 
 	case V4L2_CID_TEST_PATTERN:
-		ret = mt9t001_set_output_control(mt9t001,
+		return mt9t001_set_output_control(mt9t001,
 			ctrl->val ? 0 : MT9T001_OUTPUT_CONTROL_TEST_DATA,
 			ctrl->val ? MT9T001_OUTPUT_CONTROL_TEST_DATA : 0);
-		if (ret < 0)
-			return ret;
 
+	case V4L2_CID_TEST_PATTERN_COLOR:
 		return mt9t001_write(client, MT9T001_TEST_DATA, ctrl->val << 2);
 
 	case V4L2_CID_BLACK_LEVEL_AUTO:
@@ -533,12 +532,17 @@ static struct v4l2_ctrl_ops mt9t001_ctrl_ops = {
 	.s_ctrl = mt9t001_s_ctrl,
 };
 
+static const char * const mt9t001_test_pattern_menu[] = {
+	"Disabled",
+	"Enabled",
+};
+
 static const struct v4l2_ctrl_config mt9t001_ctrls[] = {
 	{
 		.ops		= &mt9t001_ctrl_ops,
-		.id		= V4L2_CID_TEST_PATTERN,
+		.id		= V4L2_CID_TEST_PATTERN_COLOR,
 		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.name		= "Test pattern",
+		.name		= "Test Pattern Color",
 		.min		= 0,
 		.max		= 1023,
 		.step		= 1,
@@ -741,7 +745,7 @@ static int mt9t001_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	v4l2_ctrl_handler_init(&mt9t001->ctrls, ARRAY_SIZE(mt9t001_ctrls) +
-						ARRAY_SIZE(mt9t001_gains) + 3);
+						ARRAY_SIZE(mt9t001_gains) + 4);
 
 	v4l2_ctrl_new_std(&mt9t001->ctrls, &mt9t001_ctrl_ops,
 			  V4L2_CID_EXPOSURE, MT9T001_SHUTTER_WIDTH_MIN,
@@ -752,6 +756,10 @@ static int mt9t001_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&mt9t001->ctrls, &mt9t001_ctrl_ops,
 			  V4L2_CID_PIXEL_RATE, pdata->ext_clk, pdata->ext_clk,
 			  1, pdata->ext_clk);
+	v4l2_ctrl_new_std_menu_items(&mt9t001->ctrls, &mt9t001_ctrl_ops,
+			V4L2_CID_TEST_PATTERN,
+			ARRAY_SIZE(mt9t001_test_pattern_menu) - 1, 0,
+			0, mt9t001_test_pattern_menu);
 
 	for (i = 0; i < ARRAY_SIZE(mt9t001_ctrls); ++i)
 		v4l2_ctrl_new_custom(&mt9t001->ctrls, &mt9t001_ctrls[i], NULL);
