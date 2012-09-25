@@ -377,8 +377,8 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 	int err = 0;
 	u8 dlci;
 
-	BT_DBG("dlc %p state %ld %s %s channel %d",
-			d, d->state, batostr(src), batostr(dst), channel);
+	BT_DBG("dlc %p state %ld %pMR -> %pMR channel %d",
+	       d, d->state, src, dst, channel);
 
 	if (channel < 1 || channel > 30)
 		return -EINVAL;
@@ -676,7 +676,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src,
 	struct socket *sock;
 	struct sock *sk;
 
-	BT_DBG("%s %s", batostr(src), batostr(dst));
+	BT_DBG("%pMR -> %pMR", src, dst);
 
 	*err = rfcomm_l2sock_create(&sock);
 	if (*err < 0)

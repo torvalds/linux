@@ -1266,7 +1266,7 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
 
-	BT_DBG("%s bdaddr %s hcon %p", hdev->name, batostr(&cp->bdaddr), conn);
+	BT_DBG("%s bdaddr %pMR hcon %p", hdev->name, &cp->bdaddr, conn);
 
 	if (status) {
 		if (conn && conn->state == BT_CONNECT) {
@@ -1695,8 +1695,7 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, __u8 status)
 			return;
 		}
 
-		BT_DBG("%s bdaddr %s conn %p", hdev->name, batostr(&conn->dst),
-		       conn);
+		BT_DBG("%s bdaddr %pMR conn %p", hdev->name, &conn->dst, conn);
 
 		conn->state = BT_CLOSED;
 		mgmt_connect_failed(hdev, &conn->dst, conn->type,
@@ -1910,7 +1909,7 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	struct hci_ev_conn_request *ev = (void *) skb->data;
 	int mask = hdev->link_mode;
 
-	BT_DBG("%s bdaddr %s type 0x%x", hdev->name, batostr(&ev->bdaddr),
+	BT_DBG("%s bdaddr %pMR type 0x%x", hdev->name, &ev->bdaddr,
 	       ev->link_type);
 
 	mask |= hci_proto_connect_ind(hdev, &ev->bdaddr, ev->link_type);
@@ -2809,13 +2808,13 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	key = hci_find_link_key(hdev, &ev->bdaddr);
 	if (!key) {
-		BT_DBG("%s link key not found for %s", hdev->name,
-		       batostr(&ev->bdaddr));
+		BT_DBG("%s link key not found for %pMR", hdev->name,
+		       &ev->bdaddr);
 		goto not_found;
 	}
 
-	BT_DBG("%s found key type %u for %s", hdev->name, key->type,
-	       batostr(&ev->bdaddr));
+	BT_DBG("%s found key type %u for %pMR", hdev->name, key->type,
+	       &ev->bdaddr);
 
 	if (!test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags) &&
 	    key->type == HCI_LK_DEBUG_COMBINATION) {

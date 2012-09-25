@@ -1471,7 +1471,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	__u8 auth_type;
 	int err;
 
-	BT_DBG("%s -> %s (type %u) psm 0x%2.2x", batostr(src), batostr(dst),
+	BT_DBG("%pMR -> %pMR (type %u) psm 0x%2.2x", src, dst,
 	       dst_type, __le16_to_cpu(psm));
 
 	hdev = hci_get_route(dst, src);
@@ -5346,7 +5346,7 @@ int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	int exact = 0, lm1 = 0, lm2 = 0;
 	struct l2cap_chan *c;
 
-	BT_DBG("hdev %s, bdaddr %s", hdev->name, batostr(bdaddr));
+	BT_DBG("hdev %s, bdaddr %pMR", hdev->name, bdaddr);
 
 	/* Find listening sockets and check their link_mode */
 	read_lock(&chan_list_lock);
@@ -5376,7 +5376,7 @@ void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 {
 	struct l2cap_conn *conn;
 
-	BT_DBG("hcon %p bdaddr %s status %d", hcon, batostr(&hcon->dst), status);
+	BT_DBG("hcon %p bdaddr %pMR status %d", hcon, &hcon->dst, status);
 
 	if (!status) {
 		conn = l2cap_conn_add(hcon, status);

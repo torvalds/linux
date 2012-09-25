@@ -405,7 +405,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev,
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *e;
 
-	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
+	BT_DBG("cache %p, %pMR", cache, bdaddr);
 
 	list_for_each_entry(e, &cache->all, all) {
 		if (!bacmp(&e->data.bdaddr, bdaddr))
@@ -421,7 +421,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *e;
 
-	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
+	BT_DBG("cache %p, %pMR", cache, bdaddr);
 
 	list_for_each_entry(e, &cache->unknown, list) {
 		if (!bacmp(&e->data.bdaddr, bdaddr))
@@ -438,7 +438,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *e;
 
-	BT_DBG("cache %p bdaddr %s state %d", cache, batostr(bdaddr), state);
+	BT_DBG("cache %p bdaddr %pMR state %d", cache, bdaddr, state);
 
 	list_for_each_entry(e, &cache->resolve, list) {
 		if (!bacmp(bdaddr, BDADDR_ANY) && e->name_state == state)
@@ -475,7 +475,7 @@ bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *ie;
 
-	BT_DBG("cache %p, %s", cache, batostr(&data->bdaddr));
+	BT_DBG("cache %p, %pMR", cache, &data->bdaddr);
 
 	if (ssp)
 		*ssp = data->ssp_mode;
@@ -1257,7 +1257,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 		list_add(&key->list, &hdev->link_keys);
 	}
 
-	BT_DBG("%s key for %s type %u", hdev->name, batostr(bdaddr), type);
+	BT_DBG("%s key for %pMR type %u", hdev->name, bdaddr, type);
 
 	/* Some buggy controller combinations generate a changed
 	 * combination key for legacy pairing even when there's no
@@ -1336,7 +1336,7 @@ int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	if (!key)
 		return -ENOENT;
 
-	BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+	BT_DBG("%s removing %pMR", hdev->name, bdaddr);
 
 	list_del(&key->list);
 	kfree(key);
@@ -1352,7 +1352,7 @@ int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr)
 		if (bacmp(bdaddr, &k->bdaddr))
 			continue;
 
-		BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+		BT_DBG("%s removing %pMR", hdev->name, bdaddr);
 
 		list_del(&k->list);
 		kfree(k);
@@ -1399,7 +1399,7 @@ int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	if (!data)
 		return -ENOENT;
 
-	BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+	BT_DBG("%s removing %pMR", hdev->name, bdaddr);
 
 	list_del(&data->list);
 	kfree(data);
@@ -1438,7 +1438,7 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 	memcpy(data->hash, hash, sizeof(data->hash));
 	memcpy(data->randomizer, randomizer, sizeof(data->randomizer));
 
-	BT_DBG("%s for %s", hdev->name, batostr(bdaddr));
+	BT_DBG("%s for %pMR", hdev->name, bdaddr);
 
 	return 0;
 }
@@ -2309,8 +2309,8 @@ static void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
 	/* Kill stalled connections */
 	list_for_each_entry_rcu(c, &h->list, list) {
 		if (c->type == type && c->sent) {
-			BT_ERR("%s killing stalled connection %s",
-			       hdev->name, batostr(&c->dst));
+			BT_ERR("%s killing stalled connection %pMR",
+			       hdev->name, &c->dst);
 			hci_acl_disconn(c, HCI_ERROR_REMOTE_USER_TERM);
 		}
 	}

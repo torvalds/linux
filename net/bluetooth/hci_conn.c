@@ -320,7 +320,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 {
 	struct hci_conn *conn;
 
-	BT_DBG("%s dst %s", hdev->name, batostr(dst));
+	BT_DBG("%s dst %pMR", hdev->name, dst);
 
 	conn = kzalloc(sizeof(struct hci_conn), GFP_KERNEL);
 	if (!conn)
@@ -437,7 +437,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 	int use_src = bacmp(src, BDADDR_ANY);
 	struct hci_dev *hdev = NULL, *d;
 
-	BT_DBG("%s -> %s", batostr(src), batostr(dst));
+	BT_DBG("%pMR -> %pMR", src, dst);
 
 	read_lock(&hci_dev_list_lock);
 
@@ -567,7 +567,7 @@ static struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type,
 struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 			     __u8 dst_type, __u8 sec_level, __u8 auth_type)
 {
-	BT_DBG("%s dst %s type 0x%x", hdev->name, batostr(dst), type);
+	BT_DBG("%s dst %pMR type 0x%x", hdev->name, dst, type);
 
 	switch (type) {
 	case LE_LINK:
