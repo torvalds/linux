@@ -29,7 +29,9 @@ typedef uint32_t uint32 ;
 #define DDR3_DDR2_DLL_DISABLE_FREQ    (125)   //lvddr3 频率太低时dll不能正常工作
 #define DDR3_DDR2_ODT_DISABLE_FREQ    (333)
 #define SR_IDLE                       (0x1)   //unit:32*DDR clk cycle, and 0 for disable auto self-refresh
-#define PD_IDLE                       (0X40)  //unit:DDR clk cycle, and 0 for disable auto power-down
+#define PD_IDLE                       (0x40)  //unit:DDR clk cycle, and 0 for disable auto power-down
+#define PHY_ODT_DISABLE_FREQ          (333)  //定义odt disable的频率
+#define PHY_DLL_DISABLE_FREQ          (666)  //定义dll bypass的频率
 
 //#define PMU_BASE_ADDR           RK30_PMU_BASE //??RK 2928 PMU在哪里
 #define SDRAMC_BASE_ADDR        RK2928_DDR_PCTL_BASE
@@ -850,12 +852,15 @@ __sramfunc void ddr_move_to_Lowpower_state(void)
         {
             case Init_mem:
                 pDDR_Reg->SCTL = CFG_STATE;
+                dsb();
                 while((pDDR_Reg->STAT.b.ctl_stat) != Config);
             case Config:
                 pDDR_Reg->SCTL = GO_STATE;
+                dsb();
                 while((pDDR_Reg->STAT.b.ctl_stat) != Access);
             case Access:
                 pDDR_Reg->SCTL = SLEEP_STATE;
+                dsb();
                 while((pDDR_Reg->STAT.b.ctl_stat) != Low_power);
                 break;
             default:  //Transitional state
@@ -876,7 +881,7 @@ __sramfunc void ddr_move_to_Access_state(void)
     volatile uint32 value;
 
     //set auto self-refresh idle
-    pDDR_Reg->MCFG1=(pDDR_Reg->MCFG1&0xffffff00)|ddr_sr_idle;
+    pDDR_Reg->MCFG1=(pDDR_Reg->MCFG1&0xffffff00)|ddr_sr_idle | (1<<31);
 
     while(1)
     {
@@ -890,13 +895,16 @@ __sramfunc void ddr_move_to_Access_state(void)
         {
             case Low_power:
                 pDDR_Reg->SCTL = WAKEUP_STATE;
+                dsb();
                 while((pDDR_Reg->STAT.b.ctl_stat) != Access);
                 break;
             case Init_mem:
                 pDDR_Reg->SCTL = CFG_STATE;
+                dsb();
                 while((pDDR_Reg->STAT.b.ctl_stat) != Config);
             case Config:
                 pDDR_Reg->SCTL = GO_STATE;
+                dsb();
                 while(!(((pDDR_Reg->STAT.b.ctl_stat) == Access)
                       || ((pDDR_Reg->STAT.b.lp_trig == 1) && ((pDDR_Reg->STAT.b.ctl_stat) == Low_power))));
                 break;
@@ -904,6 +912,7 @@ __sramfunc void ddr_move_to_Access_state(void)
                 break;
         }
     }
+    pGRF_Reg->GRF_SOC_CON[2] = (1<<16 | 0);//de_hw_wakeup :enable auto sr if sr_idle != 0
 }
 
 /*----------------------------------------------------------------------
@@ -916,33 +925,19 @@ Notes   :
 __sramfunc void ddr_move_to_Config_state(void)
 {
     volatile uint32 value;
-
+    pGRF_Reg->GRF_SOC_CON[2] = (1<<16 | 1); //hw_wakeup :disable auto sr
     while(1)
     {
         value = pDDR_Reg->STAT.b.ctl_stat;
         if(value == Config)
-        {
-            if(pDDR_Reg->MCFG1 & 0xFF)
-            {
-                pDDR_Reg->MCFG1=(pDDR_Reg->MCFG1&0xffffff00)|0x0;
-                dsb();
-            }
+        {          
             break;
         }
         switch(value)
         {
             case Low_power:
-                do
-                {
-                    if(pDDR_Reg->MCFG1 & 0xFF)
-                    {
-                        pDDR_Reg->MCFG1=(pDDR_Reg->MCFG1&0xffffff00)|0x0;
-                        dsb();
-                    }
-                    pDDR_Reg->SCTL = WAKEUP_STATE;
-                    dsb();
-                }
-                while((pDDR_Reg->STAT.b.ctl_stat) != Access);
+                pDDR_Reg->SCTL = WAKEUP_STATE;
+                dsb();
             case Access:
             case Init_mem:
                 pDDR_Reg->SCTL = CFG_STATE;
@@ -1015,14 +1010,27 @@ Notes   :
 ----------------------------------------------------------------------*/
 void __sramlocalfunc ddr_set_dll_bypass(uint32 freq)
 {
-    pPHY_Reg->PHY_REG2a = 0x1F;         //set cmd,left right dll bypass
-    pPHY_Reg->PHY_REG19 = 0x08;         //cmd slave dll
-    pPHY_Reg->PHY_REG6 = 0x18;          //left TX DQ DLL
-    pPHY_Reg->PHY_REG7 = 0x00;          //left TX DQS DLL
-    pPHY_Reg->PHY_REG9 = 0x18;          //right TX DQ DLL
-    pPHY_Reg->PHY_REG10 = 0x00;         //right TX DQS DLL
+    if(freq <= PHY_DLL_DISABLE_FREQ)
+    {
+        pPHY_Reg->PHY_REG2a = 0x1F;         //set cmd,left right dll bypass
+        pPHY_Reg->PHY_REG19 = 0x08;         //cmd slave dll
+        pPHY_Reg->PHY_REG6 = 0x18;          //left TX DQ DLL
+        pPHY_Reg->PHY_REG7 = 0x00;          //left TX DQS DLL
+        pPHY_Reg->PHY_REG9 = 0x18;          //right TX DQ DLL
+        pPHY_Reg->PHY_REG10 = 0x00;         //right TX DQS DLL
+        
+    }
+    else 
+    {
+        pPHY_Reg->PHY_REG2a = 0x03;         //set cmd,left right dll bypass
+        pPHY_Reg->PHY_REG19 = 0x08;         //cmd slave dll
+        pPHY_Reg->PHY_REG6 = 0x0c;          //left TX DQ DLL
+        pPHY_Reg->PHY_REG7 = 0x00;          //left TX DQS DLL
+        pPHY_Reg->PHY_REG9 = 0x0c;          //right TX DQ DLL
+        pPHY_Reg->PHY_REG10 = 0x00;         //right TX DQS DLL                
+    }
     dsb();
-    //dll常关
+    //其他与dll相关的寄存器有:REG8(RX DQS),REG11(RX DQS),REG18(CMD),REG21(CK) 保持默认值
 }
 
 
@@ -1742,10 +1750,20 @@ void __sramlocalfunc ddr_update_odt(void)
     uint32_t tmp;
     
     //adjust DRV and ODT
-    pPHY_Reg->PHY_REG27 = PHY_RTT_DISABLE;  //dynamic RTT disable, Left 8bit ODT
-    pPHY_Reg->PHY_REG28 = PHY_RTT_DISABLE;  //Right 8bit ODT
-    pPHY_Reg->PHY_REG0e4 = (0x0E & 0xc)|0x1;//off DQS ODT  bit[1:0]=2'b01 
-    pPHY_Reg->PHY_REG124 = (0x0E & 0xc)|0x1;//off DQS ODT  bit[1:0]=2'b01 
+    if(ddr_freq <= PHY_ODT_DISABLE_FREQ)
+    {
+        pPHY_Reg->PHY_REG27 = PHY_RTT_DISABLE;  //dynamic RTT disable, Left 8bit ODT
+        pPHY_Reg->PHY_REG28 = PHY_RTT_DISABLE;  //Right 8bit ODT
+        pPHY_Reg->PHY_REG0e4 = (0x0E & 0xc)|0x1;//off DQS ODT  bit[1:0]=2'b01 
+        pPHY_Reg->PHY_REG124 = (0x0E & 0xc)|0x1;//off DQS ODT  bit[1:0]=2'b01 
+    }
+    else
+    {
+        pPHY_Reg->PHY_REG27 = ((PHY_RTT_212O<<3) | PHY_RTT_212O);       //0x5 ODT =  71ohm
+        pPHY_Reg->PHY_REG28 = ((PHY_RTT_212O<<3) | PHY_RTT_212O);    
+        pPHY_Reg->PHY_REG0e4 = 0x0E;           //on DQS ODT default:0x0E
+        pPHY_Reg->PHY_REG124 = 0x0E;           //on DQS ODT default:0x0E
+    }
     
     tmp = ((PHY_RON_46O<<3) | PHY_RON_46O);     //0x5 = 46ohm
     pPHY_Reg->PHY_REG16 = tmp;  //CMD driver strength
@@ -1779,7 +1797,7 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     flush_tlb_all();
     DDR_SAVE_SP(save_sp);
 
-    for(i=0;i<8;i++)        //8KB SRAM
+    for(i=0;i<2;i++)        //8KB SRAM
     {
         n=temp[1024*i];
         barrier();
@@ -1792,6 +1810,7 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     
     //enter config state
     ddr_move_to_Config_state();
+    pDDR_Reg->DFIODTCFG = ((1<<3) | (1<<11));  //loader中漏了初始化
     //set auto power down idle
     pDDR_Reg->MCFG=(pDDR_Reg->MCFG&0xffff00ff)|(PD_IDLE<<8);
 
@@ -1814,27 +1833,45 @@ Return  : void
 Notes   : 
 ----------------------------------------------------------------------*/
 void __sramlocalfunc ddr_selfrefresh_enter(uint32 nMHz)
-{
-    uint32 ddrMR1 = ddr_reg.ddrMR[1];
-    uint32 cs;
-    
+{    
     ddr_move_to_Config_state();
-    pDDR_Reg->TZQCSI = 0;
-    dsb();
-    if((nMHz<=DDR3_DDR2_DLL_DISABLE_FREQ) && ((mem_type == DDR3) || (mem_type == DDR2)))  // DLL disable
-    {
-        cs = (pGRF_Reg->GRF_OS_REG[1] >> DDR_RANK_COUNT) & 0x1;            //get rank num
-        cs = cs + (1 << cs);                                //case 0:1rank cs=1; case 1:2rank cs =3;
-        ddr_dll_status =  DDR3_DLL_DISABLE;
-        ddr_send_command(cs, MRS_cmd, bank_addr(0x1) | cmd_addr(((uint8_t)ddrMR1) | DDR3_DLL_DISABLE));
-    }
     ddr_move_to_Lowpower_state();
 	pPHY_Reg->PHY_REG264 &= ~(1<<1);
     pPHY_Reg->PHY_REG1 = (pPHY_Reg->PHY_REG1 & (~(0x3<<2)));     //phy soft reset
     dsb();
-    ddr_set_dll_bypass(0);  //phy dll bypass
     pCRU_Reg->CRU_CLKGATE_CON[0] = ((0x1<<2)<<16) | (1<<2);  //disable DDR PHY clock
     ddr_delayus(1);
+}
+
+uint32 dtt_buffer[8];
+
+/*----------------------------------------------------------------------
+Name    : void ddr_dtt_check(void)
+Desc    : data training check
+Params  : void
+Return  : void
+Notes   : 
+----------------------------------------------------------------------*/
+void ddr_dtt_check(void)
+{
+    uint32 i;
+    for(i=0;i<8;i++)
+    {
+        dtt_buffer[i] = copy_data[i];
+    }
+    dsb();
+    flush_cache_all();
+    outer_flush_all();
+    for(i=0;i<8;i++)
+    {
+        if(dtt_buffer[i] != copy_data[i])
+        {
+            sram_printascii("DTT failed!\n");
+            break;
+        }
+        dtt_buffer[i] = 0;
+    }
+
 }
 
 /*----------------------------------------------------------------------
@@ -1846,37 +1883,74 @@ Notes   :
 ----------------------------------------------------------------------*/
 void __sramlocalfunc ddr_selfrefresh_exit(void)
 {
-    uint32 i;
-    volatile uint32* p;    
     pCRU_Reg->CRU_CLKGATE_CON[0] = ((0x1<<2)<<16) | (0<<2);  //enable DDR PHY clock
     dsb();
     ddr_delayus(1);
-    ddr_set_dll_bypass(ddr_freq);    //set phy dll mode;
 	pPHY_Reg->PHY_REG1 = (pPHY_Reg->PHY_REG1 | (0x3 << 2)); //phy soft de-reset
 	pPHY_Reg->PHY_REG264 |= (1<<1);
 	dsb();
     ddr_move_to_Config_state();    
-    ddr_update_timing();
-    ddr_update_mr();  
-    ddr_update_odt();    
-    ddr_data_training();   
+    ddr_data_training(); 
     ddr_move_to_Access_state();
-    p = phys_to_virt(0x60000000);
-    for(i=0;i<8;i++)
-    {
-        p[i] = copy_data[i];
-    }
-    for(i=0;i<8;i++)
-    {
-        if(p[i] != copy_data[i])
-        {
-            sram_printascii("DTT failed!\n");
-            break;
-        }
-        p[i] = 0;
-    }
+    ddr_dtt_check();
 }
 
+/*----------------------------------------------------------------------
+Name    : void __sramlocalfunc ddr_change_freq_in(uint32 freq_slew)
+Desc    : 设置ddr pll前的timing及mr参数调整
+Params  : freq_slew :变频斜率 1升平  0降频
+Return  : void
+Notes   : 
+----------------------------------------------------------------------*/
+void __sramlocalfunc ddr_change_freq_in(uint32 freq_slew)
+{
+    uint32 value_100n, value_1u;
+    
+    if(freq_slew == 1)
+    {
+        value_100n = ddr_reg.pctl.pctl_timing.togcnt100n;
+        value_1u = ddr_reg.pctl.pctl_timing.togcnt1u;
+        ddr_reg.pctl.pctl_timing.togcnt1u = pDDR_Reg->TOGCNT1U;
+        ddr_reg.pctl.pctl_timing.togcnt100n = pDDR_Reg->TOGCNT100N;
+        ddr_update_timing();                
+        ddr_update_mr();
+        ddr_reg.pctl.pctl_timing.togcnt100n = value_100n;
+        ddr_reg.pctl.pctl_timing.togcnt1u = value_1u;
+    }
+    else
+    {
+        pDDR_Reg->TOGCNT100N = ddr_reg.pctl.pctl_timing.togcnt100n;
+        pDDR_Reg->TOGCNT1U = ddr_reg.pctl.pctl_timing.togcnt1u;
+    }
+
+    pDDR_Reg->TZQCSI = 0;    
+
+}
+
+/*----------------------------------------------------------------------
+Name    : void __sramlocalfunc ddr_change_freq_out(uint32 freq_slew)
+Desc    : 设置ddr pll后的timing及mr参数调整
+Params  : freq_slew :变频斜率 1升平  0降频
+Return  : void
+Notes   : 
+----------------------------------------------------------------------*/
+void __sramlocalfunc ddr_change_freq_out(uint32 freq_slew)
+{
+    if(freq_slew == 1)
+    {
+        pDDR_Reg->TOGCNT100N = ddr_reg.pctl.pctl_timing.togcnt100n;
+        pDDR_Reg->TOGCNT1U = ddr_reg.pctl.pctl_timing.togcnt1u;
+        pDDR_Reg->TZQCSI = ddr_reg.pctl.pctl_timing.tzqcsi;
+    }
+    else
+    {
+        ddr_update_timing();
+        ddr_update_mr();
+    }
+    ddr_data_training();
+}
+
+static uint32 save_sp;
 /*----------------------------------------------------------------------
 Name    : uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 Desc    : ddr变频
@@ -1891,10 +1965,10 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     volatile u32 n;	
     unsigned long flags;
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
-    unsigned long save_sp;
     uint32_t regvalue0 = pCRU_Reg->CRU_PLL_CON[0][0];
     uint32_t regvalue1 = pCRU_Reg->CRU_PLL_CON[0][1];
     uint32_t freq;
+	uint32 freq_slew;
 	
      // freq = (fin*fbdiv/(refdiv * postdiv1 * postdiv2))
      if((pCRU_Reg->CRU_MODE_CON & 1) == 1)             // CPLL Normal mode
@@ -1909,8 +1983,15 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     loops_per_us = LPJ_100MHZ*freq / 1000000;
     
     ret=ddr_set_pll(nMHz,0);
+    if(ret == ddr_freq)
+    {
+        goto out;
+    }
+    else 
+    {
+        freq_slew = (ret>ddr_freq)? 1 : -1;
+    }    
     ddr_get_parameter(ret);
-
     /** 1. Make sure there is no host access */
     local_irq_save(flags);
 	local_fiq_disable();
@@ -1918,7 +1999,7 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 	outer_flush_all();
 	flush_tlb_all();
 	DDR_SAVE_SP(save_sp);
-	for(i=0;i<8;i++)    //8KB SRAM
+	for(i=0;i<2;i++)    //8KB SRAM
 	{
 	    n=temp[1024*i];
         barrier();
@@ -1929,23 +2010,33 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     n= *(volatile uint32_t *)SysSrv_DdrConf;
     n= pGRF_Reg->GRF_SOC_STATUS0;
     dsb();
-    /** 2. ddr enter self-refresh mode or precharge power-down mode */
-    ddr_selfrefresh_enter(ret);
-
+    ddr_move_to_Config_state();    
+    ddr_freq = ret;
+    ddr_change_freq_in(freq_slew);
+    ddr_move_to_Lowpower_state();
+    pPHY_Reg->PHY_REG264 &= ~(1<<1);
+    pPHY_Reg->PHY_REG1 = (pPHY_Reg->PHY_REG1 & (~(0x3<<2)));     //phy soft reset
+    dsb();    
     /** 3. change frequence  */
     ddr_set_pll(ret,1);
-    ddr_freq = ret;
-    
-    /** 5. Issues a Mode Exit command   */
-    ddr_selfrefresh_exit();
-
+    ddr_set_dll_bypass(ddr_freq);    //set phy dll mode;
+	pPHY_Reg->PHY_REG1 = (pPHY_Reg->PHY_REG1 | (0x3 << 2)); //phy soft de-reset
+	pPHY_Reg->PHY_REG264 |= (1<<1);
 	dsb();
+	ddr_update_odt();
+    ddr_move_to_Config_state();
+    ddr_change_freq_out(freq_slew);
+    ddr_move_to_Access_state();
+    ddr_dtt_check();
+    /** 5. Issues a Mode Exit command   */
     DDR_RESTORE_SP(save_sp);
     local_fiq_enable();
     local_irq_restore(flags);
-    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
+//    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);    
+out:
     return ret;
 }
+
 
 EXPORT_SYMBOL(ddr_change_freq);
 
@@ -1957,12 +2048,11 @@ Return  : 频率值
 Notes   : 周期数为1*32 cycle  
 ----------------------------------------------------------------------*/
 void ddr_set_auto_self_refresh(bool en)
-{
-    //set auto self-refresh idle
+{   
+    //set auto self-refresh idle    
     ddr_sr_idle = en ? SR_IDLE : 0;
-    ddr_move_to_Config_state();
-    ddr_move_to_Access_state();
 }
+
 EXPORT_SYMBOL(ddr_set_auto_self_refresh);
 
 /*----------------------------------------------------------------------
@@ -1982,7 +2072,7 @@ void __sramfunc ddr_suspend(void)
     outer_flush_all();
 //    flush_tlb_all();
 
-    for(i=0;i<8;i++)  //sram size = 8KB
+    for(i=0;i<2;i++)  //sram size = 8KB
     {
         n=temp[1024*i];
         barrier();
@@ -2106,7 +2196,6 @@ __attribute__((aligned(4))) __sramdata uint32 ddr_reg_resume[] =
 };
 */
 
-
 /*----------------------------------------------------------------------
 Name    : int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
 Desc    : ddr  初始化函数
@@ -2121,7 +2210,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t cs,die=1;
     uint32_t calStatusLeft, calStatusRight;
 
-    ddr_print("version 1.00 20120917 \n");
+    ddr_print("version 1.00 20120925 \n");
     cs = (1 << (((pGRF_Reg->GRF_OS_REG[1]) >> DDR_RANK_COUNT)&0x1));    //case 0:1rank ; case 1:2rank ;                            
     mem_type = ((pGRF_Reg->GRF_OS_REG[1] >> 13) &0x7);
     ddr_speed_bin = dram_speed_bin;
@@ -2152,7 +2241,6 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
                                                                     ddr_get_col(), \
                                                                     (ddr_get_cap()>>20));
     ddr_adjust_config(mem_type);
-
     value=ddr_change_freq(freq);
     ddr_print("init success!!! freq=%dMHz\n", value);
 
@@ -2171,7 +2259,6 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     
     ddr_print("DRV Pull-Up=0x%x, DRV Pull-Dwn=0x%x\n", (pPHY_Reg->PHY_REG25>>3)&0x7, pPHY_Reg->PHY_REG25&0x7);
     ddr_print("ODT Pull-Up=0x%x, ODT Pull-Dwn=0x%x\n", (pPHY_Reg->PHY_REG27>>3)&0x7, pPHY_Reg->PHY_REG27&0x7);		
-
     return 0;
 }
 
