@@ -362,6 +362,7 @@ static int __devinit pcistub_init_device(struct pci_dev *dev)
 	else {
 		dev_dbg(&dev->dev, "reseting (FLR, D3, etc) the device\n");
 		__pci_reset_function_locked(dev);
+		pci_restore_state(dev);
 	}
 	/* Now disable the device (this also ensures some private device
 	 * data is setup before we export)
