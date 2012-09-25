@@ -85,6 +85,7 @@
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50004000 0x4000>;
 					interrupts = <1>;
+					bus-width = <4>;
 					status = "disabled";
 				};
 
@@ -92,6 +93,7 @@
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50008000 0x4000>;
 					interrupts = <2>;
+					bus-width = <4>;
 					status = "disabled";
 				};
 
@@ -124,6 +126,7 @@
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50020000 0x4000>;
 					interrupts = <3>;
+					bus-width = <4>;
 					status = "disabled";
 				};
 
@@ -131,6 +134,7 @@
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50024000 0x4000>;
 					interrupts = <4>;
+					bus-width = <4>;
 					status = "disabled";
 				};
 			};

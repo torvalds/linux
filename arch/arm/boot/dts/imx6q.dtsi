@@ -849,6 +849,7 @@
 				interrupts = <0 22 0x04>;
 				clocks = <&clks 163>, <&clks 163>, <&clks 163>;
 				clock-names = "ipg", "ahb", "per";
+				bus-width = <4>;
 				status = "disabled";
 			};
 
@@ -858,6 +859,7 @@
 				interrupts = <0 23 0x04>;
 				clocks = <&clks 164>, <&clks 164>, <&clks 164>;
 				clock-names = "ipg", "ahb", "per";
+				bus-width = <4>;
 				status = "disabled";
 			};
 
@@ -867,6 +869,7 @@
 				interrupts = <0 24 0x04>;
 				clocks = <&clks 165>, <&clks 165>, <&clks 165>;
 				clock-names = "ipg", "ahb", "per";
+				bus-width = <4>;
 				status = "disabled";
 			};
 
@@ -876,6 +879,7 @@
 				interrupts = <0 25 0x04>;
 				clocks = <&clks 166>, <&clks 166>, <&clks 166>;
 				clock-names = "ipg", "ahb", "per";
+				bus-width = <4>;
 				status = "disabled";
 			};
 
