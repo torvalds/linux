@@ -442,9 +442,22 @@ extern void igb_ptp_stop(struct igb_adapter *adapter);
 extern void igb_ptp_reset(struct igb_adapter *adapter);
 extern void igb_ptp_tx_work(struct work_struct *work);
 extern void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
-extern void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
-				union e1000_adv_rx_desc *rx_desc,
+extern void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 				struct sk_buff *skb);
+extern void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector,
+				unsigned char *va,
+				struct sk_buff *skb);
+static inline void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
+				       union e1000_adv_rx_desc *rx_desc,
+				       struct sk_buff *skb)
+{
+	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
+		igb_ptp_rx_pktstamp(q_vector, skb->data, skb);
+		skb_pull(skb, IGB_TS_HDR_LEN);
+	} else if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS)) {
+		igb_ptp_rx_rgtstamp(q_vector, skb);
+	}
+}
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 				  struct ifreq *ifr, int cmd);
 #endif /* CONFIG_IGB_PTP */
