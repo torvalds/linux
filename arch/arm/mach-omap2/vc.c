@@ -135,6 +135,8 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 	vc_cmdval |= (*target_vsel << vc->common->cmd_on_shift);
 	voltdm->write(vc_cmdval, vc->cmdval_reg);
 
+	voltdm->vc_param->on = target_volt;
+
 	omap_vp_update_errorgain(voltdm, target_volt);
 
 	return 0;
@@ -284,6 +286,30 @@ static void __init omap_vc_i2c_init(struct voltagedomain *voltdm)
 	initialized = true;
 }
 
+/**
+ * omap_vc_calc_vsel - calculate vsel value for a channel
+ * @voltdm: channel to calculate value for
+ * @uvolt: microvolt value to convert to vsel
+ *
+ * Converts a microvolt value to vsel value for the used PMIC.
+ * This checks whether the microvolt value is out of bounds, and
+ * adjusts the value accordingly. If unsupported value detected,
+ * warning is thrown.
+ */
+static u8 omap_vc_calc_vsel(struct voltagedomain *voltdm, u32 uvolt)
+{
+	if (voltdm->pmic->vddmin > uvolt)
+		uvolt = voltdm->pmic->vddmin;
+	if (voltdm->pmic->vddmax < uvolt) {
+		WARN(1, "%s: voltage not supported by pmic: %u vs max %u\n",
+			__func__, uvolt, voltdm->pmic->vddmax);
+		/* Lets try maximum value anyway */
+		uvolt = voltdm->pmic->vddmax;
+	}
+
+	return voltdm->pmic->uv_to_vsel(uvolt);
+}
+
 void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 {
 	struct omap_vc_channel *vc = voltdm->vc;
@@ -335,10 +361,11 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	}
 
 	/* Set up the on, inactive, retention and off voltage */
-	on_vsel = voltdm->pmic->uv_to_vsel(voltdm->pmic->on_volt);
-	onlp_vsel = voltdm->pmic->uv_to_vsel(voltdm->pmic->onlp_volt);
-	ret_vsel = voltdm->pmic->uv_to_vsel(voltdm->pmic->ret_volt);
-	off_vsel = voltdm->pmic->uv_to_vsel(voltdm->pmic->off_volt);
+	on_vsel = omap_vc_calc_vsel(voltdm, voltdm->vc_param->on);
+	onlp_vsel = omap_vc_calc_vsel(voltdm, voltdm->vc_param->onlp);
+	ret_vsel = omap_vc_calc_vsel(voltdm, voltdm->vc_param->ret);
+	off_vsel = omap_vc_calc_vsel(voltdm, voltdm->vc_param->off);
+
 	val = ((on_vsel << vc->common->cmd_on_shift) |
 	       (onlp_vsel << vc->common->cmd_onlp_shift) |
 	       (ret_vsel << vc->common->cmd_ret_shift) |
