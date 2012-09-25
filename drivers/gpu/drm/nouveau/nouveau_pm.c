@@ -916,6 +916,8 @@ nouveau_pm_init(struct drm_device *dev)
 	nouveau_volt_init(dev);
 	nouveau_temp_init(dev);
 
+	INIT_LIST_HEAD(&pm->profiles);
+
 	/* determine current ("boot") performance level */
 	ret = nouveau_pm_perflvl_get(dev, &pm->boot);
 	if (ret) {
@@ -927,7 +929,6 @@ nouveau_pm_init(struct drm_device *dev)
 	strncpy(pm->boot.profile.name, "boot", 4);
 	pm->boot.profile.func = &nouveau_pm_static_profile_func;
 
-	INIT_LIST_HEAD(&pm->profiles);
 	list_add(&pm->boot.profile.head, &pm->profiles);
 
 	pm->profile_ac = &pm->boot.profile;
