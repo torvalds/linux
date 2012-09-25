@@ -1822,10 +1822,8 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_file_extent_encryption(leaf, fi, encryption);
 	btrfs_set_file_extent_other_encoding(leaf, fi, other_encoding);
 
-	btrfs_unlock_up_safe(path, 1);
-	btrfs_set_lock_blocking(leaf);
-
 	btrfs_mark_buffer_dirty(leaf);
+	btrfs_release_path(path);
 
 	inode_add_bytes(inode, num_bytes);
 
