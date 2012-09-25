@@ -64,13 +64,13 @@ enum {
 	DATA_IN_URB_INFLIGHT    = (1 << 9),
 	DATA_OUT_URB_INFLIGHT   = (1 << 10),
 	COMMAND_COMPLETED       = (1 << 11),
+	COMMAND_ABORTED         = (1 << 12),
 };
 
 /* Overrides scsi_pointer */
 struct uas_cmd_info {
 	unsigned int state;
 	unsigned int stream;
-	unsigned int aborted;
 	struct urb *cmd_urb;
 	struct urb *data_in_urb;
 	struct urb *data_out_urb;
@@ -163,7 +163,7 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
 
 	scmd_printk(KERN_INFO, cmnd, "%s %p tag %d, inflight:"
-		    "%s%s%s%s%s%s%s%s%s%s%s\n",
+		    "%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		    caller, cmnd, cmnd->request->tag,
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
@@ -175,7 +175,8 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 		    (ci->state & COMMAND_INFLIGHT)      ? " CMD"   : "",
 		    (ci->state & DATA_IN_URB_INFLIGHT)  ? " IN"    : "",
 		    (ci->state & DATA_OUT_URB_INFLIGHT) ? " OUT"   : "",
-		    (ci->state & COMMAND_COMPLETED)     ? " done"  : "");
+		    (ci->state & COMMAND_COMPLETED)     ? " done"  : "",
+		    (ci->state & COMMAND_ABORTED)       ? " abort" : "");
 }
 
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
@@ -302,7 +303,7 @@ static void uas_data_cmplt(struct urb *urb)
 	} else {
 		sdb->resid = sdb->length - urb->actual_length;
 	}
-	if (cmdinfo->aborted) {
+	if (cmdinfo->state & COMMAND_ABORTED) {
 		return;
 	}
 	uas_try_complete(cmnd, __func__);
@@ -570,7 +571,6 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	cmdinfo->state = SUBMIT_STATUS_URB |
 			ALLOC_CMD_URB | SUBMIT_CMD_URB;
-	cmdinfo->aborted = 0;
 
 	switch (cmnd->sc_data_direction) {
 	case DMA_FROM_DEVICE:
@@ -652,7 +652,7 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 	int ret;
 
 	uas_log_cmd_state(cmnd, __func__);
-	cmdinfo->aborted = 1;
+	cmdinfo->state |= COMMAND_ABORTED;
 	ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
 	if (cmdinfo->state & DATA_IN_URB_INFLIGHT)
 		usb_kill_urb(cmdinfo->data_in_urb);
