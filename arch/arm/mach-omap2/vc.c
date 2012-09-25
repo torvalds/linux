@@ -11,13 +11,19 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/bug.h>
+#include <linux/io.h>
 
+#include <asm/div64.h>
+
+#include "iomap.h"
 #include "soc.h"
 #include "voltage.h"
 #include "vc.h"
 #include "prm-regbits-34xx.h"
 #include "prm-regbits-44xx.h"
 #include "prm44xx.h"
+#include "pm.h"
+#include "scrm44xx.h"
 
 /**
  * struct omap_vc_channel_cfg - describe the cfg_channel bitfield
@@ -204,6 +210,18 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 	return 0;
 }
 
+/* Convert microsecond value to number of 32kHz clock cycles */
+static inline u32 omap_usec_to_32k(u32 usec)
+{
+	return DIV_ROUND_UP_ULL(32768ULL * (u64)usec, 1000000ULL);
+}
+
+/* Set oscillator setup time for omap3 */
+static void omap3_set_clksetup(u32 usec, struct voltagedomain *voltdm)
+{
+	voltdm->write(omap_usec_to_32k(usec), OMAP3_PRM_CLKSETUP_OFFSET);
+}
+
 /**
  * omap3_set_i2c_timings - sets i2c sleep timings for a channel
  * @voltdm: channel to configure
@@ -219,6 +237,12 @@ static void omap3_set_i2c_timings(struct voltagedomain *voltdm, bool off_mode)
 {
 	unsigned long voltsetup1;
 	u32 tgt_volt;
+
+	/*
+	 * Oscillator is shut down only if we are using sys_off_mode pad,
+	 * thus we set a minimal setup time here
+	 */
+	omap3_set_clksetup(1, voltdm);
 
 	if (off_mode)
 		tgt_volt = voltdm->vc_param->off;
@@ -260,6 +284,7 @@ static void omap3_set_off_timings(struct voltagedomain *voltdm)
 	unsigned long voltsetup2;
 	unsigned long voltsetup2_old;
 	u32 val;
+	u32 tstart, tshut;
 
 	/* check if sys_off_mode is used to control off-mode voltages */
 	val = voltdm->read(OMAP3_PRM_VOLTCTRL_OFFSET);
@@ -268,6 +293,9 @@ static void omap3_set_off_timings(struct voltagedomain *voltdm)
 		omap3_set_i2c_timings(voltdm, true);
 		return;
 	}
+
+	omap_pm_get_oscillator(&tstart, &tshut);
+	omap3_set_clksetup(tstart, voltdm);
 
 	clksetup = voltdm->read(OMAP3_PRM_CLKSETUP_OFFSET);
 
@@ -365,6 +393,30 @@ static u32 omap4_calc_volt_ramp(struct voltagedomain *voltdm, u32 voltage_diff)
 }
 
 /**
+ * omap4_usec_to_val_scrm - convert microsecond value to SCRM module bitfield
+ * @usec: microseconds
+ * @shift: number of bits to shift left
+ * @mask: bitfield mask
+ *
+ * Converts microsecond value to OMAP4 SCRM bitfield. Bitfield is
+ * shifted to requested position, and checked agains the mask value.
+ * If larger, forced to the max value of the field (i.e. the mask itself.)
+ * Returns the SCRM bitfield value.
+ */
+static u32 omap4_usec_to_val_scrm(u32 usec, int shift, u32 mask)
+{
+	u32 val;
+
+	val = omap_usec_to_32k(usec) << shift;
+
+	/* Check for overflow, if yes, force to max value */
+	if (val > mask)
+		val = mask;
+
+	return val;
+}
+
+/**
  * omap4_set_timings - set voltage ramp timings for a channel
  * @voltdm: channel to configure
  * @off_mode: whether off-mode values are used
@@ -376,6 +428,7 @@ static void omap4_set_timings(struct voltagedomain *voltdm, bool off_mode)
 	u32 val;
 	u32 ramp;
 	int offset;
+	u32 tstart, tshut;
 
 	if (off_mode) {
 		ramp = omap4_calc_volt_ramp(voltdm,
@@ -397,6 +450,15 @@ static void omap4_set_timings(struct voltagedomain *voltdm, bool off_mode)
 	val |= ramp << OMAP4430_RAMP_UP_COUNT_SHIFT;
 
 	voltdm->write(val, offset);
+
+	omap_pm_get_oscillator(&tstart, &tshut);
+
+	val = omap4_usec_to_val_scrm(tstart, OMAP4_SETUPTIME_SHIFT,
+		OMAP4_SETUPTIME_MASK);
+	val |= omap4_usec_to_val_scrm(tshut, OMAP4_DOWNTIME_SHIFT,
+		OMAP4_DOWNTIME_MASK);
+
+	__raw_writel(val, OMAP4_SCRM_CLKSETUPTIME);
 }
 
 /* OMAP4 specific voltage init functions */
