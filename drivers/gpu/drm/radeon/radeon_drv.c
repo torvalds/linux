@@ -65,9 +65,10 @@
  *   2.21.0 - r600-r700: FMASK and CMASK
  *   2.22.0 - r600 only: RESOLVE_BOX allowed
  *   2.23.0 - allow STRMOUT_BASE_UPDATE on RS780 and RS880
+ *   2.24.0 - eg only: allow MIP_ADDRESS=0 for MSAA textures
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	23
+#define KMS_DRIVER_MINOR	24
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
