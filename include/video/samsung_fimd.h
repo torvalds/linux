@@ -116,6 +116,7 @@
 
 /* VIDTCON0 */
 
+#define VIDTCON0				(0x10)
 #define VIDTCON0_VBPDE_MASK			(0xff << 24)
 #define VIDTCON0_VBPDE_SHIFT			(24)
 #define VIDTCON0_VBPDE_LIMIT			(0xff)
@@ -138,6 +139,7 @@
 
 /* VIDTCON1 */
 
+#define VIDTCON1				(0x14)
 #define VIDTCON1_VFPDE_MASK			(0xff << 24)
 #define VIDTCON1_VFPDE_SHIFT			(24)
 #define VIDTCON1_VFPDE_LIMIT			(0xff)
@@ -158,6 +160,7 @@
 #define VIDTCON1_HSPW_LIMIT			(0xff)
 #define VIDTCON1_HSPW(_x)			((_x) << 0)
 
+#define VIDTCON2				(0x18)
 #define VIDTCON2				(0x18)
 #define VIDTCON2_LINEVAL_E(_x)			((((_x) & 0x800) >> 11) << 23)
 #define VIDTCON2_LINEVAL_MASK			(0x7ff << 11)
@@ -404,11 +407,6 @@
 
 #define S3C_FB_MAX_WIN (5)  /* number of hardware windows available. */
 #define VIDCON1_FSTATUS_EVEN	(1 << 15)
-
-/* Video timing controls */
-#define VIDTCON0				(0x10)
-#define VIDTCON1				(0x14)
-#define VIDTCON2				(0x18)
 
 /* OSD1 and OSD4 do not have register D */
 
