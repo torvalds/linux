@@ -734,6 +734,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	cancel_work_sync(&hdev->le_scan);
 
+	cancel_delayed_work(&hdev->power_off);
+
 	hci_req_cancel(hdev, ENODEV);
 	hci_req_lock(hdev);
 
