@@ -7,6 +7,10 @@
  *   Steve VanDeBogart (vandebo@uclink.berkeley.edu)
  *   Greg Alexander (galexand@acm.org)
  *
+ * For the TDA9875 part:
+ * Copyright (c) 2000 Guillaume Delvit based on Gerd Knorr source
+ * and Eric Sandeen
+ *
  * Copyright(c) 2005-2008 Mauro Carvalho Chehab
  *	- Some cleanups, code fixes, etc
  *	- Convert it to V4L2 API
