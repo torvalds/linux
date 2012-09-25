@@ -36,14 +36,19 @@
  */
 #define MCLK_RATE 24576000
 
-#define WM9081_AUDIO_RATE 44100
-#define WM9081_MCLK_RATE  (WM9081_AUDIO_RATE * 256)
+#define SYS_AUDIO_RATE 44100
+#define SYS_MCLK_RATE  (SYS_AUDIO_RATE * 256)
+
+#define DAI_AP_DSP    0
+#define DAI_DSP_CODEC 1
+#define DAI_CODEC_CP  2
+#define DAI_CODEC_SUB 3
 
 static int bells_set_bias_level(struct snd_soc_card *card,
 				struct snd_soc_dapm_context *dapm,
 				enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_dai *codec_dai = card->rtd[DAI_DSP_CODEC].codec_dai;
 	struct snd_soc_codec *codec = codec_dai->codec;
 	int ret;
 
@@ -80,7 +85,7 @@ static int bells_set_bias_level_post(struct snd_soc_card *card,
 				     struct snd_soc_dapm_context *dapm,
 				     enum snd_soc_bias_level level)
 {
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
+	struct snd_soc_dai *codec_dai = card->rtd[DAI_DSP_CODEC].codec_dai;
 	struct snd_soc_codec *codec = codec_dai->codec;
 	int ret;
 
@@ -113,12 +118,19 @@ static int bells_set_bias_level_post(struct snd_soc_card *card,
 
 static int bells_late_probe(struct snd_soc_card *card)
 {
-	struct snd_soc_codec *codec = card->rtd[0].codec;
-	struct snd_soc_dai *aif1_dai = card->rtd[0].codec_dai;
-	struct snd_soc_dai *aif2_dai = card->rtd[1].cpu_dai;
-	struct snd_soc_dai *aif3_dai = card->rtd[2].cpu_dai;
-	struct snd_soc_dai *wm9081_dai = card->rtd[2].codec_dai;
+	struct snd_soc_codec *wm0010 = card->rtd[DAI_AP_DSP].codec;
+	struct snd_soc_codec *codec = card->rtd[DAI_DSP_CODEC].codec;
+	struct snd_soc_dai *aif1_dai = card->rtd[DAI_DSP_CODEC].codec_dai;
+	struct snd_soc_dai *aif2_dai = card->rtd[DAI_CODEC_CP].cpu_dai;
+	struct snd_soc_dai *aif3_dai = card->rtd[DAI_CODEC_SUB].cpu_dai;
+	struct snd_soc_dai *wm9081_dai = card->rtd[DAI_CODEC_SUB].codec_dai;
 	int ret;
+
+	ret = snd_soc_codec_set_sysclk(wm0010, 0, 0, SYS_MCLK_RATE, 0);
+	if (ret != 0) {
+		dev_err(wm0010->dev, "Failed to set WM0010 clock: %d\n", ret);
+		return ret;
+	}
 
 	ret = snd_soc_dai_set_sysclk(aif1_dai, ARIZONA_CLK_SYSCLK, 0, 0);
 	if (ret != 0) {
@@ -147,7 +159,7 @@ static int bells_late_probe(struct snd_soc_card *card)
 	}
 
 	ret = snd_soc_codec_set_sysclk(codec, ARIZONA_CLK_OPCLK, 0,
-				       WM9081_MCLK_RATE, SND_SOC_CLOCK_OUT);
+				       SYS_MCLK_RATE, SND_SOC_CLOCK_OUT);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set OPCLK: %d\n", ret);
 		return ret;
@@ -162,7 +174,7 @@ static int bells_late_probe(struct snd_soc_card *card)
 	}
 
 	ret = snd_soc_codec_set_sysclk(wm9081_dai->codec, WM9081_SYSCLK_MCLK,
-				       0, WM9081_MCLK_RATE, 0);
+				       0, SYS_MCLK_RATE, 0);
 	if (ret != 0) {
 		dev_err(wm9081_dai->dev, "Failed to set MCLK: %d\n", ret);
 		return ret;
@@ -181,22 +193,33 @@ static const struct snd_soc_pcm_stream baseband_params = {
 
 static const struct snd_soc_pcm_stream sub_params = {
 	.formats = SNDRV_PCM_FMTBIT_S32_LE,
-	.rate_min = WM9081_AUDIO_RATE,
-	.rate_max = WM9081_AUDIO_RATE,
+	.rate_min = SYS_AUDIO_RATE,
+	.rate_max = SYS_AUDIO_RATE,
 	.channels_min = 2,
 	.channels_max = 2,
 };
 
 static struct snd_soc_dai_link bells_dai_wm5102[] = {
 	{
-		.name = "CPU",
-		.stream_name = "CPU",
+		.name = "CPU-DSP",
+		.stream_name = "CPU-DSP",
 		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm5102-aif1",
+		.codec_dai_name = "wm0010-sdi1",
 		.platform_name = "samsung-audio",
+		.codec_name = "spi0.0",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
+				| SND_SOC_DAIFMT_CBM_CFM,
+	},
+	{
+		.name = "DSP-CODEC",
+		.stream_name = "DSP-CODEC",
+		.cpu_dai_name = "wm0010-sdi2",
+		.codec_dai_name = "wm5102-aif1",
 		.codec_name = "wm5102-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
+		.params = &sub_params,
+		.ignore_suspend = 1,
 	},
 	{
 		.name = "Baseband",
@@ -224,14 +247,25 @@ static struct snd_soc_dai_link bells_dai_wm5102[] = {
 
 static struct snd_soc_dai_link bells_dai_wm5110[] = {
 	{
-		.name = "CPU",
-		.stream_name = "CPU",
+		.name = "CPU-DSP",
+		.stream_name = "CPU-DSP",
 		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm5110-aif1",
+		.codec_dai_name = "wm0010-sdi1",
 		.platform_name = "samsung-audio",
+		.codec_name = "spi0.0",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
+				| SND_SOC_DAIFMT_CBM_CFM,
+	},
+	{
+		.name = "DSP-CODEC",
+		.stream_name = "DSP-CODEC",
+		.cpu_dai_name = "wm0010-sdi2",
+		.codec_dai_name = "wm5110-aif1",
 		.codec_name = "wm5110-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
+		.params = &sub_params,
+		.ignore_suspend = 1,
 	},
 	{
 		.name = "Baseband",
