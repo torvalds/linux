@@ -204,29 +204,109 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 	return 0;
 }
 
-static void __init omap3_vfsm_init(struct voltagedomain *voltdm)
+/**
+ * omap3_set_i2c_timings - sets i2c sleep timings for a channel
+ * @voltdm: channel to configure
+ * @off_mode: select whether retention or off mode values used
+ *
+ * Calculates and sets up voltage controller to use I2C based
+ * voltage scaling for sleep modes. This can be used for either off mode
+ * or retention. Off mode has additionally an option to use sys_off_mode
+ * pad, which uses a global signal to program the whole power IC to
+ * off-mode.
+ */
+static void omap3_set_i2c_timings(struct voltagedomain *voltdm, bool off_mode)
 {
+	unsigned long voltsetup1;
+	u32 tgt_volt;
+
+	if (off_mode)
+		tgt_volt = voltdm->vc_param->off;
+	else
+		tgt_volt = voltdm->vc_param->ret;
+
+	voltsetup1 = (voltdm->vc_param->on - tgt_volt) /
+			voltdm->pmic->slew_rate;
+
+	voltsetup1 = voltsetup1 * voltdm->sys_clk.rate / 8 / 1000000 + 1;
+
+	voltdm->rmw(voltdm->vfsm->voltsetup_mask,
+		voltsetup1 << __ffs(voltdm->vfsm->voltsetup_mask),
+		voltdm->vfsm->voltsetup_reg);
+
 	/*
-	 * Voltage Manager FSM parameters init
-	 * XXX This data should be passed in from the board file
+	 * pmic is not controlling the voltage scaling during retention,
+	 * thus set voltsetup2 to 0
 	 */
-	voltdm->write(OMAP3_CLKSETUP, OMAP3_PRM_CLKSETUP_OFFSET);
-	voltdm->write(OMAP3_VOLTOFFSET, OMAP3_PRM_VOLTOFFSET_OFFSET);
-	voltdm->write(OMAP3_VOLTSETUP2, OMAP3_PRM_VOLTSETUP2_OFFSET);
+	voltdm->write(0, OMAP3_PRM_VOLTSETUP2_OFFSET);
+}
+
+/**
+ * omap3_set_off_timings - sets off-mode timings for a channel
+ * @voltdm: channel to configure
+ *
+ * Calculates and sets up off-mode timings for a channel. Off-mode
+ * can use either I2C based voltage scaling, or alternatively
+ * sys_off_mode pad can be used to send a global command to power IC.
+ * This function first checks which mode is being used, and calls
+ * omap3_set_i2c_timings() if the system is using I2C control mode.
+ * sys_off_mode has the additional benefit that voltages can be
+ * scaled to zero volt level with TWL4030 / TWL5030, I2C can only
+ * scale to 600mV.
+ */
+static void omap3_set_off_timings(struct voltagedomain *voltdm)
+{
+	unsigned long clksetup;
+	unsigned long voltsetup2;
+	unsigned long voltsetup2_old;
+	u32 val;
+
+	/* check if sys_off_mode is used to control off-mode voltages */
+	val = voltdm->read(OMAP3_PRM_VOLTCTRL_OFFSET);
+	if (!(val & OMAP3430_SEL_OFF_MASK)) {
+		/* No, omap is controlling them over I2C */
+		omap3_set_i2c_timings(voltdm, true);
+		return;
+	}
+
+	clksetup = voltdm->read(OMAP3_PRM_CLKSETUP_OFFSET);
+
+	/* voltsetup 2 in us */
+	voltsetup2 = voltdm->vc_param->on / voltdm->pmic->slew_rate;
+
+	/* convert to 32k clk cycles */
+	voltsetup2 = DIV_ROUND_UP(voltsetup2 * 32768, 1000000);
+
+	voltsetup2_old = voltdm->read(OMAP3_PRM_VOLTSETUP2_OFFSET);
+
+	/*
+	 * Update voltsetup2 if higher than current value (needed because
+	 * we have multiple channels with different ramp times), also
+	 * update voltoffset always to value recommended by TRM
+	 */
+	if (voltsetup2 > voltsetup2_old) {
+		voltdm->write(voltsetup2, OMAP3_PRM_VOLTSETUP2_OFFSET);
+		voltdm->write(clksetup - voltsetup2,
+			OMAP3_PRM_VOLTOFFSET_OFFSET);
+	} else
+		voltdm->write(clksetup - voltsetup2_old,
+			OMAP3_PRM_VOLTOFFSET_OFFSET);
+
+	/*
+	 * omap is not controlling voltage scaling during off-mode,
+	 * thus set voltsetup1 to 0
+	 */
+	voltdm->rmw(voltdm->vfsm->voltsetup_mask, 0,
+		voltdm->vfsm->voltsetup_reg);
+
+	/* voltoffset must be clksetup minus voltsetup2 according to TRM */
+	voltdm->write(clksetup - voltsetup2, OMAP3_PRM_VOLTOFFSET_OFFSET);
 }
 
 static void __init omap3_vc_init_channel(struct voltagedomain *voltdm)
 {
-	static bool is_initialized;
-
-	if (is_initialized)
-		return;
-
-	omap3_vfsm_init(voltdm);
-
-	is_initialized = true;
+	omap3_set_off_timings(voltdm);
 }
-
 
 /* OMAP4 specific voltage init functions */
 static void __init omap4_vc_init_channel(struct voltagedomain *voltdm)
@@ -337,7 +417,6 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	vc->i2c_slave_addr = voltdm->pmic->i2c_slave_addr;
 	vc->volt_reg_addr = voltdm->pmic->volt_reg_addr;
 	vc->cmd_reg_addr = voltdm->pmic->cmd_reg_addr;
-	vc->setup_time = voltdm->pmic->volt_setup_time;
 
 	/* Configure the i2c slave address for this VC */
 	voltdm->rmw(vc->smps_sa_mask,
@@ -375,11 +454,6 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 
 	/* Channel configuration */
 	omap_vc_config_channel(voltdm);
-
-	/* Configure the setup times */
-	voltdm->rmw(voltdm->vfsm->voltsetup_mask,
-		    vc->setup_time << __ffs(voltdm->vfsm->voltsetup_mask),
-		    voltdm->vfsm->voltsetup_reg);
 
 	omap_vc_i2c_init(voltdm);
 
