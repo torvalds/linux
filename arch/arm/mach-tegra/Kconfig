@@ -57,35 +57,6 @@ config TEGRA_AHB
 	  which controls AHB bus master arbitration and some
 	  perfomance parameters(priority, prefech size).
 
-choice
-        prompt "Low-level debug console UART"
-
-config TEGRA_DEBUG_UART_AUTO_ODMDATA
-	bool "Via ODMDATA"
-	help
-	  Automatically determines which UART to use for low-level debug based
-	  on the ODMDATA value. This value is part of the BCT, and is written
-	  to the boot memory device using nvflash, or other flashing tool.
-	  When bits 19:18 are 3, then bits 17:15 indicate which UART to use;
-	  0/1/2/3/4 are UART A/B/C/D/E.
-
-config TEGRA_DEBUG_UARTA
-        bool "UART-A"
-
-config TEGRA_DEBUG_UARTB
-        bool "UART-B"
-
-config TEGRA_DEBUG_UARTC
-        bool "UART-C"
-
-config TEGRA_DEBUG_UARTD
-        bool "UART-D"
-
-config TEGRA_DEBUG_UARTE
-        bool "UART-E"
-
-endchoice
-
 config TEGRA_EMC_SCALING_ENABLE
 	bool "Enable scaling the memory frequency"
 

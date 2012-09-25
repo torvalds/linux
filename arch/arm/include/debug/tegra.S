@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-tegra/include/mach/debug-macro.S
- *
  * Copyright (C) 2010,2011 Google, Inc.
  * Copyright (C) 2011-2012 NVIDIA CORPORATION. All Rights Reserved.
  *
