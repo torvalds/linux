@@ -810,7 +810,6 @@ static int wm0010_probe(struct snd_soc_codec *codec)
 
 static int __devinit wm0010_spi_probe(struct spi_device *spi)
 {
-	unsigned long flags;
 	unsigned long gpio_flags;
 	int ret;
 	int trigger;
@@ -877,6 +876,8 @@ static int __devinit wm0010_spi_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
+	wm0010->state = WM0010_POWER_OFF;
+
 	irq = spi->irq;
 	if (wm0010->pdata.irq_flags)
 		trigger = wm0010->pdata.irq_flags;
@@ -897,10 +898,6 @@ static int __devinit wm0010_spi_probe(struct spi_device *spi)
 		wm0010->board_max_spi_speed = spi->max_speed_hz;
 	else
 		wm0010->board_max_spi_speed = 0;
-
-	spin_lock_irqsave(&wm0010->irq_lock, flags);
-	wm0010->state = WM0010_POWER_OFF;
-	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
 
 	ret = snd_soc_register_codec(&spi->dev,
 				     &soc_codec_dev_wm0010, wm0010_dai,
