@@ -1794,6 +1794,10 @@
 
 /* Video Data Island Packet control */
 #define VIDEO_DIP_DATA		0x61178
+/* Read the description of VIDEO_DIP_DATA (before Haswel) or VIDEO_DIP_ECC
+ * (Haswell and newer) to see which VIDEO_DIP_DATA byte corresponds to each byte
+ * of the infoframe structure specified by CEA-861. */
+#define   VIDEO_DIP_DATA_SIZE	32
 #define VIDEO_DIP_CTL		0x61170
 /* Pre HSW: */
 #define   VIDEO_DIP_ENABLE		(1 << 31)
