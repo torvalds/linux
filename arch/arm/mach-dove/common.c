@@ -110,8 +110,8 @@ static void __init dove_clk_init(void)
 
 	orion_clkdev_add(NULL, "orion-ehci.0", usb0);
 	orion_clkdev_add(NULL, "orion-ehci.1", usb1);
-	orion_clkdev_add(NULL, "mv643xx_eth.0", ge);
-	orion_clkdev_add("0", "sata_mv.0", sata);
+	orion_clkdev_add(NULL, "mv643xx_eth_port.0", ge);
+	orion_clkdev_add(NULL, "sata_mv.0", sata);
 	orion_clkdev_add("0", "pcie", pex0);
 	orion_clkdev_add("1", "pcie", pex1);
 	orion_clkdev_add(NULL, "sdhci-dove.0", sdio0);
