@@ -3402,7 +3402,7 @@ static void cx_auto_update_speakers(struct hda_codec *codec)
 	do_automute(codec, cfg->line_outs, cfg->line_out_pins, on);
 }
 
-static void cx_auto_hp_automute(struct hda_codec *codec)
+static void cx_auto_hp_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
 {
 	struct conexant_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
@@ -3413,7 +3413,7 @@ static void cx_auto_hp_automute(struct hda_codec *codec)
 	cx_auto_update_speakers(codec);
 }
 
-static void cx_auto_line_automute(struct hda_codec *codec)
+static void cx_auto_line_automute(struct hda_codec *codec, struct hda_jack_tbl *jack)
 {
 	struct conexant_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
@@ -3664,7 +3664,7 @@ static bool select_automic(struct hda_codec *codec, int idx, bool detect)
 }
 
 /* automatic switch internal and external mic */
-static void cx_auto_automic(struct hda_codec *codec)
+static void cx_auto_automic(struct hda_codec *codec, struct hda_jack_tbl *jack)
 {
 	struct conexant_spec *spec = codec->spec;
 
@@ -3673,22 +3673,6 @@ static void cx_auto_automic(struct hda_codec *codec)
 	if (!select_automic(codec, spec->auto_mic_ext, true))
 		if (!select_automic(codec, spec->auto_mic_dock, true))
 			select_automic(codec, spec->auto_mic_int, false);
-}
-
-static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
-{
-	switch (snd_hda_jack_get_action(codec, res >> 26)) {
-	case CONEXANT_HP_EVENT:
-		cx_auto_hp_automute(codec);
-		break;
-	case CONEXANT_LINE_EVENT:
-		cx_auto_line_automute(codec);
-		break;
-	case CONEXANT_MIC_EVENT:
-		cx_auto_automic(codec);
-		break;
-	}
-	snd_hda_jack_report_sync(codec);
 }
 
 /* check whether the pin config is suitable for auto-mic switching;
@@ -3900,11 +3884,12 @@ static void mute_outputs(struct hda_codec *codec, int num_nids,
 }
 
 static void enable_unsol_pins(struct hda_codec *codec, int num_pins,
-			      hda_nid_t *pins, unsigned int action)
+			      hda_nid_t *pins, unsigned int action,
+			      hda_jack_callback cb)
 {
 	int i;
 	for (i = 0; i < num_pins; i++)
-		snd_hda_jack_detect_enable(codec, pins[i], action);
+		snd_hda_jack_detect_enable_callback(codec, pins[i], action, cb);
 }
 
 static bool found_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
@@ -3992,13 +3977,14 @@ static void cx_auto_init_output(struct hda_codec *codec)
 	}
 	if (spec->auto_mute) {
 		enable_unsol_pins(codec, cfg->hp_outs, cfg->hp_pins,
-				  CONEXANT_HP_EVENT);
+				  CONEXANT_HP_EVENT, cx_auto_hp_automute);
 		spec->hp_present = detect_jacks(codec, cfg->hp_outs,
 						cfg->hp_pins);
 		if (spec->detect_line) {
 			enable_unsol_pins(codec, cfg->line_outs,
 					  cfg->line_out_pins,
-					  CONEXANT_LINE_EVENT);
+					  CONEXANT_LINE_EVENT,
+					  cx_auto_line_automute);
 			spec->line_present =
 				detect_jacks(codec, cfg->line_outs,
 					     cfg->line_out_pins);
@@ -4039,16 +4025,16 @@ static void cx_auto_init_input(struct hda_codec *codec)
 
 	if (spec->auto_mic) {
 		if (spec->auto_mic_ext >= 0) {
-			snd_hda_jack_detect_enable(codec,
+			snd_hda_jack_detect_enable_callback(codec,
 				cfg->inputs[spec->auto_mic_ext].pin,
-				CONEXANT_MIC_EVENT);
+				CONEXANT_MIC_EVENT, cx_auto_automic);
 		}
 		if (spec->auto_mic_dock >= 0) {
-			snd_hda_jack_detect_enable(codec,
+			snd_hda_jack_detect_enable_callback(codec,
 				cfg->inputs[spec->auto_mic_dock].pin,
-				CONEXANT_MIC_EVENT);
+				CONEXANT_MIC_EVENT, cx_auto_automic);
 		}
-		cx_auto_automic(codec);
+		cx_auto_automic(codec, NULL);
 	} else {
 		select_input_connection(codec, spec->imux_info[0].adc,
 					spec->imux_info[0].pin);
@@ -4406,7 +4392,7 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_pcms = conexant_build_pcms,
 	.init = cx_auto_init,
 	.free = conexant_free,
-	.unsol_event = cx_auto_unsol_event,
+	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.suspend = conexant_suspend,
 #endif

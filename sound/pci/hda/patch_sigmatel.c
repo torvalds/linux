@@ -4212,6 +4212,9 @@ static int stac_add_event(struct hda_codec *codec, hda_nid_t nid,
 	return 0;
 }
 
+static void handle_unsol_event(struct hda_codec *codec,
+			       struct hda_jack_tbl *event);
+
 /* check if given nid is a valid pin and no other events are assigned
  * to it.  If OK, assign the event, set the unsol flag, and returns 1.
  * Otherwise, returns zero.
@@ -4229,6 +4232,7 @@ static int enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
 	if (event->action && event->action != type)
 		return 0;
 	event->action = type;
+	event->callback = handle_unsol_event;
 	snd_hda_jack_detect_enable(codec, nid, 0);
 	return 1;
 }
@@ -4867,20 +4871,6 @@ static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid)
 	handle_unsol_event(codec, event);
 }
 
-static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
-{
-	struct hda_jack_tbl *event;
-	int tag;
-
-	tag = (res >> 26) & 0x7f;
-	event = snd_hda_jack_tbl_get_from_tag(codec, tag);
-	if (!event)
-		return;
-	event->jack_dirty = 1;
-	handle_unsol_event(codec, event);
-	snd_hda_jack_report_sync(codec);
-}
-
 static int hp_blike_system(u32 subsystem_id);
 
 static void set_hp_led_gpio(struct hda_codec *codec)
@@ -5131,7 +5121,7 @@ static const struct hda_codec_ops stac92xx_patch_ops = {
 	.build_pcms = stac92xx_build_pcms,
 	.init = stac92xx_init,
 	.free = stac92xx_free,
-	.unsol_event = stac92xx_unsol_event,
+	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.suspend = stac92xx_suspend,
 	.resume = stac92xx_resume,
