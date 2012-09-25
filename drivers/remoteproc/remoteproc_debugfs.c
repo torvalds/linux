@@ -161,7 +161,7 @@ rproc_recovery_write(struct file *filp, const char __user *user_buf,
 
 	ret = copy_from_user(buf, user_buf, count);
 	if (ret)
-		return ret;
+		return -EFAULT;
 
 	/* remove end of line */
 	if (buf[count - 1] == '\n')
