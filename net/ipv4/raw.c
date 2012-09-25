@@ -131,23 +131,18 @@ found:
  *	0 - deliver
  *	1 - block
  */
-static int icmp_filter(const struct sock *sk, const struct sk_buff *skb)
+static __inline__ int icmp_filter(struct sock *sk, struct sk_buff *skb)
 {
-	struct icmphdr _hdr;
-	const struct icmphdr *hdr;
+	int type;
 
-	pr_err("icmp_filter skb_transport_offset %d data-head %ld len %d/%d\n",
-		skb_transport_offset(skb), skb->data - skb->head, skb->len, skb->data_len);
-	hdr = skb_header_pointer(skb, skb_transport_offset(skb),
-				 sizeof(_hdr), &_hdr);
-	pr_err("head %p data %p hdr %p type %d\n", skb->head, skb->data, hdr, hdr ? hdr->type : -1);
-	if (!hdr)
+	if (!pskb_may_pull(skb, sizeof(struct icmphdr)))
 		return 1;
 
-	if (hdr->type < 32) {
+	type = icmp_hdr(skb)->type;
+	if (type < 32) {
 		__u32 data = raw_sk(sk)->filter.data;
 
-		return ((1U << hdr->type) & data) != 0;
+		return ((1 << type) & data) != 0;
 	}
 
 	/* Do not block unknown ICMP types */
