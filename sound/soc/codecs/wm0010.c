@@ -917,11 +917,8 @@ static int __devexit wm0010_spi_remove(struct spi_device *spi)
 
 	snd_soc_unregister_codec(&spi->dev);
 
-	if (wm0010->gpio_reset) {
-		/* Remember to put chip back into reset */
-		gpio_set_value_cansleep(wm0010->gpio_reset,
-					wm0010->gpio_reset_value);
-	}
+	gpio_set_value_cansleep(wm0010->gpio_reset,
+				wm0010->gpio_reset_value);
 
 	if (wm0010->irq)
 		free_irq(wm0010->irq, wm0010);
