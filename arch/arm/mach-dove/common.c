@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <plat/time.h>
 #include <linux/platform_data/usb-ehci-orion.h>
+#include <plat/irq.h>
 #include <plat/common.h>
 #include <plat/addr-map.h>
 #include "common.h"
@@ -399,7 +400,7 @@ static void __init dove_dt_init(void)
 		(dove_tclk + 499999) / 1000000);
 
 #ifdef CONFIG_CACHE_TAUROS2
-	tauros2_init();
+	tauros2_init(0);
 #endif
 	dove_setup_cpu_mbus();
 
