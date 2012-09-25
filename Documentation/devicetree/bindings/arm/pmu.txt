@@ -16,6 +16,9 @@ Required properties:
 	"arm,arm1176-pmu"
 	"arm,arm1136-pmu"
 - interrupts : 1 combined interrupt or 1 per core.
+- cluster : a phandle to the cluster to which it belongs
+	If there are more than one cluster with same CPU type
+	then there should be separate PMU nodes per cluster.
 
 Example:
 
