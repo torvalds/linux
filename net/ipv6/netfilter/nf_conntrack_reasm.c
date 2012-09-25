@@ -106,7 +106,7 @@ static int __net_init nf_ct_frag6_sysctl_register(struct net *net)
 	if (hdr == NULL)
 		goto err_reg;
 
-	net->ipv6.sysctl.frags_hdr = hdr;
+	net->nf_frag.sysctl.frags_hdr = hdr;
 	return 0;
 
 err_reg:
