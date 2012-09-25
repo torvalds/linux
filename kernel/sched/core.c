@@ -6122,6 +6122,17 @@ static void sched_init_numa(void)
 	 * numbers.
 	 */
 
+	/*
+	 * Here, we should temporarily reset sched_domains_numa_levels to 0.
+	 * If it fails to allocate memory for array sched_domains_numa_masks[][],
+	 * the array will contain less then 'level' members. This could be
+	 * dangerous when we use it to iterate array sched_domains_numa_masks[][]
+	 * in other functions.
+	 *
+	 * We reset it to 'level' at the end of this function.
+	 */
+	sched_domains_numa_levels = 0;
+
 	sched_domains_numa_masks = kzalloc(sizeof(void *) * level, GFP_KERNEL);
 	if (!sched_domains_numa_masks)
 		return;
@@ -6176,6 +6187,8 @@ static void sched_init_numa(void)
 	}
 
 	sched_domain_topology = tl;
+
+	sched_domains_numa_levels = level;
 }
 #else
 static inline void sched_init_numa(void)
