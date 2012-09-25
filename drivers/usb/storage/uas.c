@@ -191,6 +191,10 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 	cmdinfo->state |= COMMAND_COMPLETED;
 	usb_free_urb(cmdinfo->data_in_urb);
 	usb_free_urb(cmdinfo->data_out_urb);
+	if (cmdinfo->state & COMMAND_ABORTED) {
+		scmd_printk(KERN_INFO, cmnd, "abort completed\n");
+		cmnd->result = DID_ABORT << 16;
+	}
 	cmnd->scsi_done(cmnd);
 	return 0;
 }
@@ -302,9 +306,6 @@ static void uas_data_cmplt(struct urb *urb)
 		sdb->resid = sdb->length;
 	} else {
 		sdb->resid = sdb->length - urb->actual_length;
-	}
-	if (cmdinfo->state & COMMAND_ABORTED) {
-		return;
 	}
 	uas_try_complete(cmnd, __func__);
 }
@@ -654,10 +655,6 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 	uas_log_cmd_state(cmnd, __func__);
 	cmdinfo->state |= COMMAND_ABORTED;
 	ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
-	if (cmdinfo->state & DATA_IN_URB_INFLIGHT)
-		usb_kill_urb(cmdinfo->data_in_urb);
-	if (cmdinfo->state & DATA_OUT_URB_INFLIGHT)
-		usb_kill_urb(cmdinfo->data_out_urb);
 	return ret;
 }
 
