@@ -108,37 +108,32 @@ void of_dma_controller_free(struct device_node *np)
 EXPORT_SYMBOL_GPL(of_dma_controller_free);
 
 /**
- * of_dma_find_channel - Find a DMA channel by name
+ * of_dma_match_channel - Check if a DMA specifier matches name
  * @np:		device node to look for DMA channels
- * @name:	name of desired channel
+ * @name:	channel name to be matched
+ * @index:	index of DMA specifier in list of DMA specifiers
  * @dma_spec:	pointer to DMA specifier as found in the device tree
  *
- * Find a DMA channel by the name. Returns 0 on success or appropriate
- * errno value on error.
+ * Check if the DMA specifier pointed to by the index in a list of DMA
+ * specifiers, matches the name provided. Returns 0 if the name matches and
+ * a valid pointer to the DMA specifier is found. Otherwise returns -ENODEV.
  */
-static int of_dma_find_channel(struct device_node *np, char *name,
-			       struct of_phandle_args *dma_spec)
+static int of_dma_match_channel(struct device_node *np, char *name, int index,
+				struct of_phandle_args *dma_spec)
 {
-	int count, i;
 	const char *s;
 
-	count = of_property_count_strings(np, "dma-names");
-	if (count < 0)
-		return count;
+	if (of_property_read_string_index(np, "dma-names", index, &s))
+		return -ENODEV;
 
-	for (i = 0; i < count; i++) {
-		if (of_property_read_string_index(np, "dma-names", i, &s))
-			continue;
+	if (strcmp(name, s))
+		return -ENODEV;
 
-		if (strcmp(name, s))
-			continue;
+	if (of_parse_phandle_with_args(np, "dmas", "#dma-cells", index,
+				       dma_spec))
+		return -ENODEV;
 
-		if (!of_parse_phandle_with_args(np, "dmas", "#dma-cells", i,
-						dma_spec))
-			return 0;
-	}
-
-	return -ENODEV;
+	return 0;
 }
 
 /**
@@ -154,19 +149,22 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 	struct of_phandle_args	dma_spec;
 	struct of_dma		*ofdma;
 	struct dma_chan		*chan;
-	int			r;
+	int			count, i;
 
 	if (!np || !name) {
 		pr_err("%s: not enough information provided\n", __func__);
 		return NULL;
 	}
 
-	do {
-		r = of_dma_find_channel(np, name, &dma_spec);
-		if (r) {
-			pr_err("%s: can't find DMA channel\n", np->full_name);
-			return NULL;
-		}
+	count = of_property_count_strings(np, "dma-names");
+	if (count < 0) {
+		pr_err("%s: dma-names property missing or empty\n", __func__);
+		return NULL;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (of_dma_match_channel(np, name, i, &dma_spec))
+			continue;
 
 		ofdma = of_dma_find_controller(dma_spec.np);
 		if (!ofdma) {
@@ -185,9 +183,11 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 
 		of_node_put(dma_spec.np);
 
-	} while (!chan);
+		if (chan)
+			return chan;
+	}
 
-	return chan;
+	return NULL;
 }
 
 /**
