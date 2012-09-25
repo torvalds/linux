@@ -5044,8 +5044,10 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 	/* Add pevent to event so that it can be referenced */
 	event->pevent = pevent;
 
-	if (add_event(pevent, event))
+	if (add_event(pevent, event)) {
+		ret = PEVENT_ERRNO__MEM_ALLOC_FAILED;
 		goto event_add_failed;
+	}
 
 #define PRINT_ARGS 0
 	if (PRINT_ARGS && event->print_fmt.args)
@@ -5054,9 +5056,7 @@ enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
 	return 0;
 
 event_add_failed:
-	free(event->system);
-	free(event->name);
-	free(event);
+	pevent_free_format(event);
 	return ret;
 }
 
