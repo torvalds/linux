@@ -5928,6 +5928,74 @@ static bool igb_add_rx_frag(struct igb_ring *rx_ring,
 	return true;
 }
 
+static struct sk_buff *igb_fetch_rx_buffer(struct igb_ring *rx_ring,
+					   union e1000_adv_rx_desc *rx_desc,
+					   struct sk_buff *skb)
+{
+	struct igb_rx_buffer *rx_buffer;
+	struct page *page;
+
+	rx_buffer = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
+
+	/*
+	 * This memory barrier is needed to keep us from reading
+	 * any other fields out of the rx_desc until we know the
+	 * RXD_STAT_DD bit is set
+	 */
+	rmb();
+
+	page = rx_buffer->page;
+	prefetchw(page);
+
+	if (likely(!skb)) {
+		void *page_addr = page_address(page) +
+				  rx_buffer->page_offset;
+
+		/* prefetch first cache line of first page */
+		prefetch(page_addr);
+#if L1_CACHE_BYTES < 128
+		prefetch(page_addr + L1_CACHE_BYTES);
+#endif
+
+		/* allocate a skb to store the frags */
+		skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
+						IGB_RX_HDR_LEN);
+		if (unlikely(!skb)) {
+			rx_ring->rx_stats.alloc_failed++;
+			return NULL;
+		}
+
+		/*
+		 * we will be copying header into skb->data in
+		 * pskb_may_pull so it is in our interest to prefetch
+		 * it now to avoid a possible cache miss
+		 */
+		prefetchw(skb->data);
+	}
+
+	/* we are reusing so sync this buffer for CPU use */
+	dma_sync_single_range_for_cpu(rx_ring->dev,
+				      rx_buffer->dma,
+				      rx_buffer->page_offset,
+				      PAGE_SIZE / 2,
+				      DMA_FROM_DEVICE);
+
+	/* pull page into skb */
+	if (igb_add_rx_frag(rx_ring, rx_buffer, rx_desc, skb)) {
+		/* hand second half of page back to the ring */
+		igb_reuse_rx_page(rx_ring, rx_buffer);
+	} else {
+		/* we are not reusing the buffer so unmap it */
+		dma_unmap_page(rx_ring->dev, rx_buffer->dma,
+			       PAGE_SIZE, DMA_FROM_DEVICE);
+	}
+
+	/* clear contents of rx_buffer */
+	rx_buffer->page = NULL;
+
+	return skb;
+}
+
 static inline void igb_rx_checksum(struct igb_ring *ring,
 				   union e1000_adv_rx_desc *rx_desc,
 				   struct sk_buff *skb)
@@ -5975,6 +6043,34 @@ static inline void igb_rx_hash(struct igb_ring *ring,
 {
 	if (ring->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
+}
+
+/**
+ * igb_is_non_eop - process handling of non-EOP buffers
+ * @rx_ring: Rx ring being processed
+ * @rx_desc: Rx descriptor for current buffer
+ * @skb: current socket buffer containing buffer in progress
+ *
+ * This function updates next to clean.  If the buffer is an EOP buffer
+ * this function exits returning false, otherwise it will place the
+ * sk_buff in the next buffer to be chained and return true indicating
+ * that this is in fact a non-EOP buffer.
+ **/
+static bool igb_is_non_eop(struct igb_ring *rx_ring,
+			   union e1000_adv_rx_desc *rx_desc)
+{
+	u32 ntc = rx_ring->next_to_clean + 1;
+
+	/* fetch, update, and store next to clean */
+	ntc = (ntc < rx_ring->count) ? ntc : 0;
+	rx_ring->next_to_clean = ntc;
+
+	prefetch(IGB_RX_DESC(rx_ring, ntc));
+
+	if (likely(igb_test_staterr(rx_desc, E1000_RXD_STAT_EOP)))
+		return false;
+
+	return true;
 }
 
 /**
@@ -6227,87 +6323,39 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 }
 
-static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
+static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 {
 	struct igb_ring *rx_ring = q_vector->rx.ring;
-	union e1000_adv_rx_desc *rx_desc;
 	struct sk_buff *skb = rx_ring->skb;
 	unsigned int total_bytes = 0, total_packets = 0;
 	u16 cleaned_count = igb_desc_unused(rx_ring);
-	u16 i = rx_ring->next_to_clean;
 
-	rx_desc = IGB_RX_DESC(rx_ring, i);
+	do {
+		union e1000_adv_rx_desc *rx_desc;
 
-	while (igb_test_staterr(rx_desc, E1000_RXD_STAT_DD)) {
-		struct igb_rx_buffer *buffer_info = &rx_ring->rx_buffer_info[i];
-		struct page *page;
-		union e1000_adv_rx_desc *next_rxd;
-
-		i++;
-		if (i == rx_ring->count)
-			i = 0;
-
-		next_rxd = IGB_RX_DESC(rx_ring, i);
-		prefetch(next_rxd);
-
-		/*
-		 * This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
-		 * RXD_STAT_DD bit is set
-		 */
-		rmb();
-
-		page = buffer_info->page;
-		prefetchw(page);
-
-		if (likely(!skb)) {
-			void *page_addr = page_address(page) +
-					  buffer_info->page_offset;
-
-			/* prefetch first cache line of first page */
-			prefetch(page_addr);
-#if L1_CACHE_BYTES < 128
-			prefetch(page_addr + L1_CACHE_BYTES);
-#endif
-
-			/* allocate a skb to store the frags */
-			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
-							IGB_RX_HDR_LEN);
-			if (unlikely(!skb)) {
-				rx_ring->rx_stats.alloc_failed++;
-				break;
-			}
-
-			/*
-			 * we will be copying header into skb->data in
-			 * pskb_may_pull so it is in our interest to prefetch
-			 * it now to avoid a possible cache miss
-			 */
-			prefetchw(skb->data);
+		/* return some buffers to hardware, one at a time is too slow */
+		if (cleaned_count >= IGB_RX_BUFFER_WRITE) {
+			igb_alloc_rx_buffers(rx_ring, cleaned_count);
+			cleaned_count = 0;
 		}
 
-		/* we are reusing so sync this buffer for CPU use */
-		dma_sync_single_range_for_cpu(rx_ring->dev,
-					      buffer_info->dma,
-					      buffer_info->page_offset,
-					      PAGE_SIZE / 2,
-					      DMA_FROM_DEVICE);
+		rx_desc = IGB_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
-		/* pull page into skb */
-		if (igb_add_rx_frag(rx_ring, buffer_info, rx_desc, skb)) {
-			/* hand second half of page back to the ring */
-			igb_reuse_rx_page(rx_ring, buffer_info);
-		} else {
-			/* we are not reusing the buffer so unmap it */
-			dma_unmap_page(rx_ring->dev, buffer_info->dma,
-				       PAGE_SIZE, DMA_FROM_DEVICE);
-		}
+		if (!igb_test_staterr(rx_desc, E1000_RXD_STAT_DD))
+			break;
 
-		/* clear contents of buffer_info */
-		buffer_info->page = NULL;
+		/* retrieve a buffer from the ring */
+		skb = igb_fetch_rx_buffer(rx_ring, rx_desc, skb);
 
-		if (!igb_test_staterr(rx_desc, E1000_RXD_STAT_EOP))
-			goto next_desc;
+		/* exit if we failed to retrieve a buffer */
+		if (!skb)
+			break;
+
+		cleaned_count++;
+
+		/* fetch next buffer in frame if non-eop */
+		if (igb_is_non_eop(rx_ring, rx_desc))
+			continue;
 
 		/* verify the packet layout is correct */
 		if (igb_cleanup_headers(rx_ring, rx_desc, skb)) {
@@ -6317,7 +6365,6 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 
 		/* probably a little skewed due to removing CRC */
 		total_bytes += skb->len;
-		total_packets++;
 
 		/* populate checksum, timestamp, VLAN, and protocol */
 		igb_process_skb_fields(rx_ring, rx_desc, skb);
@@ -6327,26 +6374,13 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 		/* reset skb pointer */
 		skb = NULL;
 
-		budget--;
-next_desc:
-		if (!budget)
-			break;
-
-		cleaned_count++;
-		/* return some buffers to hardware, one at a time is too slow */
-		if (cleaned_count >= IGB_RX_BUFFER_WRITE) {
-			igb_alloc_rx_buffers(rx_ring, cleaned_count);
-			cleaned_count = 0;
-		}
-
-		/* use prefetched values */
-		rx_desc = next_rxd;
-	}
+		/* update budget accounting */
+		total_packets++;
+	} while (likely(total_packets < budget));
 
 	/* place incomplete frames back on ring for completion */
 	rx_ring->skb = skb;
 
-	rx_ring->next_to_clean = i;
 	u64_stats_update_begin(&rx_ring->rx_syncp);
 	rx_ring->rx_stats.packets += total_packets;
 	rx_ring->rx_stats.bytes += total_bytes;
@@ -6357,7 +6391,7 @@ next_desc:
 	if (cleaned_count)
 		igb_alloc_rx_buffers(rx_ring, cleaned_count);
 
-	return !!budget;
+	return (total_packets < budget);
 }
 
 static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
