@@ -308,6 +308,7 @@
 
 /* Interrupt controls and status */
 
+#define VIDINTCON0				(0x130)
 #define VIDINTCON0_FIFOINTERVAL_MASK		(0x3f << 20)
 #define VIDINTCON0_FIFOINTERVAL_SHIFT		(20)
 #define VIDINTCON0_FIFOINTERVAL_LIMIT		(0x3f)
@@ -336,6 +337,9 @@
 #define VIDINTCON0_FIFIOSEL_SHIFT		(5)
 #define VIDINTCON0_FIFIOSEL_WINDOW0		(0x1 << 5)
 #define VIDINTCON0_FIFIOSEL_WINDOW1		(0x2 << 5)
+#define VIDINTCON0_FIFIOSEL_WINDOW2		(0x10 << 5)
+#define VIDINTCON0_FIFIOSEL_WINDOW3		(0x20 << 5)
+#define VIDINTCON0_FIFIOSEL_WINDOW4		(0x40 << 5)
 
 #define VIDINTCON0_FIFOLEVEL_MASK		(0x7 << 2)
 #define VIDINTCON0_FIFOLEVEL_SHIFT		(2)
@@ -410,12 +414,6 @@
 
 #define S3C_FB_MAX_WIN (5)  /* number of hardware windows available. */
 #define VIDCON1_FSTATUS_EVEN	(1 << 15)
-
-#define VIDINTCON0				(0x130)
-
-#define VIDINTCON0_FIFIOSEL_WINDOW2		(0x10 << 5)
-#define VIDINTCON0_FIFIOSEL_WINDOW3		(0x20 << 5)
-#define VIDINTCON0_FIFIOSEL_WINDOW4		(0x40 << 5)
 
 #define DITHMODE				(0x170)
 #define WINxMAP(_win)				(0x180 + ((_win) * 4))
