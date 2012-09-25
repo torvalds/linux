@@ -5877,22 +5877,6 @@ static inline void igb_rx_hash(struct igb_ring *ring,
 		skb->rxhash = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 }
 
-static void igb_rx_vlan(struct igb_ring *ring,
-			union e1000_adv_rx_desc *rx_desc,
-			struct sk_buff *skb)
-{
-	if (igb_test_staterr(rx_desc, E1000_RXD_STAT_VP)) {
-		u16 vid;
-		if (igb_test_staterr(rx_desc, E1000_RXDEXT_STATERR_LB) &&
-		    test_bit(IGB_RING_FLAG_RX_LB_VLAN_BSWAP, &ring->flags))
-			vid = be16_to_cpu(rx_desc->wb.upper.vlan);
-		else
-			vid = le16_to_cpu(rx_desc->wb.upper.vlan);
-
-		__vlan_hwaccel_put_tag(skb, vid);
-	}
-}
-
 /**
  * igb_get_headlen - determine size of header for LRO/GRO
  * @data: pointer to the start of the headers
@@ -6101,6 +6085,47 @@ static bool igb_cleanup_headers(struct igb_ring *rx_ring,
 	return false;
 }
 
+/**
+ * igb_process_skb_fields - Populate skb header fields from Rx descriptor
+ * @rx_ring: rx descriptor ring packet is being transacted on
+ * @rx_desc: pointer to the EOP Rx descriptor
+ * @skb: pointer to current skb being populated
+ *
+ * This function checks the ring, descriptor, and packet information in
+ * order to populate the hash, checksum, VLAN, timestamp, protocol, and
+ * other fields within the skb.
+ **/
+static void igb_process_skb_fields(struct igb_ring *rx_ring,
+				   union e1000_adv_rx_desc *rx_desc,
+				   struct sk_buff *skb)
+{
+	struct net_device *dev = rx_ring->netdev;
+
+	igb_rx_hash(rx_ring, rx_desc, skb);
+
+	igb_rx_checksum(rx_ring, rx_desc, skb);
+
+#ifdef CONFIG_IGB_PTP
+	igb_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
+#endif /* CONFIG_IGB_PTP */
+
+	if ((dev->features & NETIF_F_HW_VLAN_RX) &&
+	    igb_test_staterr(rx_desc, E1000_RXD_STAT_VP)) {
+		u16 vid;
+		if (igb_test_staterr(rx_desc, E1000_RXDEXT_STATERR_LB) &&
+		    test_bit(IGB_RING_FLAG_RX_LB_VLAN_BSWAP, &rx_ring->flags))
+			vid = be16_to_cpu(rx_desc->wb.upper.vlan);
+		else
+			vid = le16_to_cpu(rx_desc->wb.upper.vlan);
+
+		__vlan_hwaccel_put_tag(skb, vid);
+	}
+
+	skb_record_rx_queue(skb, rx_ring->queue_index);
+
+	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+}
+
 static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 {
 	struct igb_ring *rx_ring = q_vector->rx.ring;
@@ -6185,18 +6210,12 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 			continue;
 		}
 
-#ifdef CONFIG_IGB_PTP
-		igb_ptp_rx_hwtstamp(q_vector, rx_desc, skb);
-#endif /* CONFIG_IGB_PTP */
-		igb_rx_hash(rx_ring, rx_desc, skb);
-		igb_rx_checksum(rx_ring, rx_desc, skb);
-		igb_rx_vlan(rx_ring, rx_desc, skb);
-
+		/* probably a little skewed due to removing CRC */
 		total_bytes += skb->len;
 		total_packets++;
 
-		skb_record_rx_queue(skb, rx_ring->queue_index);
-		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+		/* populate checksum, timestamp, VLAN, and protocol */
+		igb_process_skb_fields(rx_ring, rx_desc, skb);
 
 		napi_gro_receive(&q_vector->napi, skb);
 
