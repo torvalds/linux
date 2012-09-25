@@ -2916,7 +2916,6 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 {
 	int i, maf_idx;
 	u8 id_data[8];
-	int ret;
 
 	/* Select the device */
 	chip->select_chip(mtd, 0);
@@ -2963,8 +2962,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	chip->onfi_version = 0;
 	if (!type->name || !type->pagesize) {
 		/* Check is chip is ONFI compliant */
-		ret = nand_flash_detect_onfi(mtd, chip, &busw);
-		if (ret)
+		if (nand_flash_detect_onfi(mtd, chip, &busw))
 			goto ident_done;
 	}
 
