@@ -40,12 +40,14 @@ struct powerdomain;
  * data
  * @voltsetup_mask: SETUP_TIME* bitmask in the PRM_VOLTSETUP* register
  * @voltsetup_reg: register offset of PRM_VOLTSETUP from PRM base
+ * @voltsetup_off_reg: register offset of PRM_VOLTSETUP_OFF from PRM base
  *
  * XXX What about VOLTOFFSET/VOLTCTRL?
  */
 struct omap_vfsm_instance {
 	u32 voltsetup_mask;
 	u8 voltsetup_reg;
+	u8 voltsetup_off_reg;
 };
 
 /**
