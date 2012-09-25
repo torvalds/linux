@@ -2785,6 +2785,7 @@ int igb_setup_rx_resources(struct igb_ring *rx_ring)
 	if (!rx_ring->desc)
 		goto err;
 
+	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
 
@@ -3312,16 +3313,16 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 	for (i = 0; i < rx_ring->count; i++) {
 		struct igb_rx_buffer *buffer_info = &rx_ring->rx_buffer_info[i];
 
-		if (buffer_info->dma)
-			dma_unmap_page(rx_ring->dev,
-				       buffer_info->dma,
-				       PAGE_SIZE / 2,
-				       DMA_FROM_DEVICE);
-		buffer_info->dma = 0;
-		if (buffer_info->page)
-			__free_page(buffer_info->page);
+		if (!buffer_info->page)
+			continue;
+
+		dma_unmap_page(rx_ring->dev,
+			       buffer_info->dma,
+			       PAGE_SIZE,
+			       DMA_FROM_DEVICE);
+		__free_page(buffer_info->page);
+
 		buffer_info->page = NULL;
-		buffer_info->page_offset = 0;
 	}
 
 	size = sizeof(struct igb_rx_buffer) * rx_ring->count;
@@ -3330,6 +3331,7 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 	/* Zero out the descriptor ring */
 	memset(rx_ring->desc, 0, rx_ring->size);
 
+	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
 }
@@ -5828,6 +5830,104 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 	return !!budget;
 }
 
+/**
+ * igb_reuse_rx_page - page flip buffer and store it back on the ring
+ * @rx_ring: rx descriptor ring to store buffers on
+ * @old_buff: donor buffer to have page reused
+ *
+ * Synchronizes page for reuse by the adapter
+ **/
+static void igb_reuse_rx_page(struct igb_ring *rx_ring,
+			      struct igb_rx_buffer *old_buff)
+{
+	struct igb_rx_buffer *new_buff;
+	u16 nta = rx_ring->next_to_alloc;
+
+	new_buff = &rx_ring->rx_buffer_info[nta];
+
+	/* update, and store next to alloc */
+	nta++;
+	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
+
+	/* transfer page from old buffer to new buffer */
+	memcpy(new_buff, old_buff, sizeof(struct igb_rx_buffer));
+
+	/* sync the buffer for use by the device */
+	dma_sync_single_range_for_device(rx_ring->dev, old_buff->dma,
+					 old_buff->page_offset,
+					 PAGE_SIZE / 2,
+					 DMA_FROM_DEVICE);
+}
+
+/**
+ * igb_add_rx_frag - Add contents of Rx buffer to sk_buff
+ * @rx_ring: rx descriptor ring to transact packets on
+ * @rx_buffer: buffer containing page to add
+ * @rx_desc: descriptor containing length of buffer written by hardware
+ * @skb: sk_buff to place the data into
+ *
+ * This function will add the data contained in rx_buffer->page to the skb.
+ * This is done either through a direct copy if the data in the buffer is
+ * less than the skb header size, otherwise it will just attach the page as
+ * a frag to the skb.
+ *
+ * The function will then update the page offset if necessary and return
+ * true if the buffer can be reused by the adapter.
+ **/
+static bool igb_add_rx_frag(struct igb_ring *rx_ring,
+			    struct igb_rx_buffer *rx_buffer,
+			    union e1000_adv_rx_desc *rx_desc,
+			    struct sk_buff *skb)
+{
+	struct page *page = rx_buffer->page;
+	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
+
+	if ((size <= IGB_RX_HDR_LEN) && !skb_is_nonlinear(skb)) {
+		unsigned char *va = page_address(page) + rx_buffer->page_offset;
+
+#ifdef CONFIG_IGB_PTP
+		if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
+			igb_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
+			va += IGB_TS_HDR_LEN;
+			size -= IGB_TS_HDR_LEN;
+		}
+
+#endif
+		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
+
+		/* we can reuse buffer as-is, just make sure it is local */
+		if (likely(page_to_nid(page) == numa_node_id()))
+			return true;
+
+		/* this page cannot be reused so discard it */
+		put_page(page);
+		return false;
+	}
+
+	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+			rx_buffer->page_offset, size, PAGE_SIZE / 2);
+
+	/* avoid re-using remote pages */
+	if (unlikely(page_to_nid(page) != numa_node_id()))
+		return false;
+
+	/* if we are only owner of page we can reuse it */
+	if (unlikely(page_count(page) != 1))
+		return false;
+
+	/* flip page offset to other buffer */
+	rx_buffer->page_offset ^= PAGE_SIZE / 2;
+
+	/*
+	 * since we are the only owner of the page and we need to
+	 * increment it, just set the value to 2 in order to avoid
+	 * an unnecessary locked operation
+	 */
+	atomic_set(&page->_count, 2);
+
+	return true;
+}
+
 static inline void igb_rx_checksum(struct igb_ring *ring,
 				   union e1000_adv_rx_desc *rx_desc,
 				   struct sk_buff *skb)
@@ -5985,6 +6085,7 @@ static unsigned int igb_get_headlen(unsigned char *data,
 /**
  * igb_pull_tail - igb specific version of skb_pull_tail
  * @rx_ring: rx descriptor ring packet is being transacted on
+ * @rx_desc: pointer to the EOP Rx descriptor
  * @skb: pointer to current skb being adjusted
  *
  * This function is an igb specific version of __pskb_pull_tail.  The
@@ -6131,7 +6232,6 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 	struct igb_ring *rx_ring = q_vector->rx.ring;
 	union e1000_adv_rx_desc *rx_desc;
 	struct sk_buff *skb = rx_ring->skb;
-	const int current_node = numa_node_id();
 	unsigned int total_bytes = 0, total_packets = 0;
 	u16 cleaned_count = igb_desc_unused(rx_ring);
 	u16 i = rx_ring->next_to_clean;
@@ -6186,20 +6286,25 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 			prefetchw(skb->data);
 		}
 
-		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-				buffer_info->page_offset,
-				le16_to_cpu(rx_desc->wb.upper.length),
-				PAGE_SIZE / 2);
+		/* we are reusing so sync this buffer for CPU use */
+		dma_sync_single_range_for_cpu(rx_ring->dev,
+					      buffer_info->dma,
+					      buffer_info->page_offset,
+					      PAGE_SIZE / 2,
+					      DMA_FROM_DEVICE);
 
-		if ((page_count(buffer_info->page) != 1) ||
-		    (page_to_nid(buffer_info->page) != current_node))
-			buffer_info->page = NULL;
-		else
-			get_page(buffer_info->page);
+		/* pull page into skb */
+		if (igb_add_rx_frag(rx_ring, buffer_info, rx_desc, skb)) {
+			/* hand second half of page back to the ring */
+			igb_reuse_rx_page(rx_ring, buffer_info);
+		} else {
+			/* we are not reusing the buffer so unmap it */
+			dma_unmap_page(rx_ring->dev, buffer_info->dma,
+				       PAGE_SIZE, DMA_FROM_DEVICE);
+		}
 
-		dma_unmap_page(rx_ring->dev, buffer_info->dma,
-			       PAGE_SIZE / 2, DMA_FROM_DEVICE);
-		buffer_info->dma = 0;
+		/* clear contents of buffer_info */
+		buffer_info->page = NULL;
 
 		if (!igb_test_staterr(rx_desc, E1000_RXD_STAT_EOP))
 			goto next_desc;
@@ -6259,32 +6364,36 @@ static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
 				  struct igb_rx_buffer *bi)
 {
 	struct page *page = bi->page;
-	dma_addr_t dma = bi->dma;
-	unsigned int page_offset = bi->page_offset ^ (PAGE_SIZE / 2);
+	dma_addr_t dma;
 
-	if (dma)
+	/* since we are recycling buffers we should seldom need to alloc */
+	if (likely(page))
 		return true;
 
-	if (!page) {
-		page = __skb_alloc_page(GFP_ATOMIC | __GFP_COLD, NULL);
-		if (unlikely(!page)) {
-			rx_ring->rx_stats.alloc_failed++;
-			return false;
-		}
-		bi->page = page;
+	/* alloc new page for storage */
+	page = __skb_alloc_page(GFP_ATOMIC | __GFP_COLD, NULL);
+	if (unlikely(!page)) {
+		rx_ring->rx_stats.alloc_failed++;
+		return false;
 	}
 
-	dma = dma_map_page(rx_ring->dev, page,
-			   page_offset, PAGE_SIZE / 2,
-			   DMA_FROM_DEVICE);
+	/* map page for use */
+	dma = dma_map_page(rx_ring->dev, page, 0, PAGE_SIZE, DMA_FROM_DEVICE);
 
+	/*
+	 * if mapping failed free memory back to system since
+	 * there isn't much point in holding memory we can't use
+	 */
 	if (dma_mapping_error(rx_ring->dev, dma)) {
+		__free_page(page);
+
 		rx_ring->rx_stats.alloc_failed++;
 		return false;
 	}
 
 	bi->dma = dma;
-	bi->page_offset = page_offset;
+	bi->page = page;
+	bi->page_offset = 0;
 
 	return true;
 }
@@ -6299,17 +6408,23 @@ void igb_alloc_rx_buffers(struct igb_ring *rx_ring, u16 cleaned_count)
 	struct igb_rx_buffer *bi;
 	u16 i = rx_ring->next_to_use;
 
+	/* nothing to do */
+	if (!cleaned_count)
+		return;
+
 	rx_desc = IGB_RX_DESC(rx_ring, i);
 	bi = &rx_ring->rx_buffer_info[i];
 	i -= rx_ring->count;
 
-	while (cleaned_count--) {
+	do {
 		if (!igb_alloc_mapped_page(rx_ring, bi))
 			break;
 
-		/* Refresh the desc even if buffer_addrs didn't change
-		 * because each write-back erases this info. */
-		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma);
+		/*
+		 * Refresh the desc even if buffer_addrs didn't change
+		 * because each write-back erases this info.
+		 */
+		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma + bi->page_offset);
 
 		rx_desc++;
 		bi++;
@@ -6322,17 +6437,25 @@ void igb_alloc_rx_buffers(struct igb_ring *rx_ring, u16 cleaned_count)
 
 		/* clear the hdr_addr for the next_to_use descriptor */
 		rx_desc->read.hdr_addr = 0;
-	}
+
+		cleaned_count--;
+	} while (cleaned_count);
 
 	i += rx_ring->count;
 
 	if (rx_ring->next_to_use != i) {
+		/* record the next descriptor to use */
 		rx_ring->next_to_use = i;
 
-		/* Force memory writes to complete before letting h/w
+		/* update next to alloc since we have filled the ring */
+		rx_ring->next_to_alloc = i;
+
+		/*
+		 * Force memory writes to complete before letting h/w
 		 * know there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
-		 * such as IA-64). */
+		 * such as IA-64).
+		 */
 		wmb();
 		writel(i, rx_ring->tail);
 	}

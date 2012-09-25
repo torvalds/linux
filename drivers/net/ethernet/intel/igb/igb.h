@@ -239,6 +239,7 @@ struct igb_ring {
 	/* everything past this point are written often */
 	u16 next_to_clean ____cacheline_aligned_in_smp;
 	u16 next_to_use;
+	u16 next_to_alloc;
 
 	union {
 		/* TX */
