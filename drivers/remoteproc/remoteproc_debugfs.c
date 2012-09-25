@@ -82,7 +82,7 @@ static ssize_t rproc_state_read(struct file *filp, char __user *userbuf,
 
 	state = rproc->state > RPROC_LAST ? RPROC_LAST : rproc->state;
 
-	i = snprintf(buf, 30, "%.28s (%d)\n", rproc_state_string[state],
+	i = scnprintf(buf, 30, "%.28s (%d)\n", rproc_state_string[state],
 							rproc->state);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, i);
@@ -103,7 +103,7 @@ static ssize_t rproc_name_read(struct file *filp, char __user *userbuf,
 	char buf[100];
 	int i;
 
-	i = snprintf(buf, sizeof(buf), "%.98s\n", rproc->name);
+	i = scnprintf(buf, sizeof(buf), "%.98s\n", rproc->name);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, i);
 }
