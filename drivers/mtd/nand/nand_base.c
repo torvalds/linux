@@ -2906,6 +2906,43 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /*
+ * Set the bad block marker/indicator (BBM/BBI) patterns according to some
+ * heuristic patterns using various detected parameters (e.g., manufacturer,
+ * page size, cell-type information).
+ */
+static void nand_decode_bbm_options(struct mtd_info *mtd,
+				    struct nand_chip *chip, u8 id_data[8])
+{
+	int maf_id = id_data[0];
+
+	/* Set the bad block position */
+	if (mtd->writesize > 512 || (chip->options & NAND_BUSWIDTH_16))
+		chip->badblockpos = NAND_LARGE_BADBLOCK_POS;
+	else
+		chip->badblockpos = NAND_SMALL_BADBLOCK_POS;
+
+	/*
+	 * Bad block marker is stored in the last page of each block on Samsung
+	 * and Hynix MLC devices; stored in first two pages of each block on
+	 * Micron devices with 2KiB pages and on SLC Samsung, Hynix, Toshiba,
+	 * AMD/Spansion, and Macronix.  All others scan only the first page.
+	 */
+	if ((chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
+			(maf_id == NAND_MFR_SAMSUNG ||
+			 maf_id == NAND_MFR_HYNIX))
+		chip->bbt_options |= NAND_BBT_SCANLASTPAGE;
+	else if ((!(chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
+				(maf_id == NAND_MFR_SAMSUNG ||
+				 maf_id == NAND_MFR_HYNIX ||
+				 maf_id == NAND_MFR_TOSHIBA ||
+				 maf_id == NAND_MFR_AMD ||
+				 maf_id == NAND_MFR_MACRONIX)) ||
+			(mtd->writesize == 2048 &&
+			 maf_id == NAND_MFR_MICRON))
+		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
+}
+
+/*
  * Get the flash and manufacturer id and lookup if the type is supported.
  */
 static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
@@ -3087,6 +3124,8 @@ ident_done:
 		return ERR_PTR(-EINVAL);
 	}
 
+	nand_decode_bbm_options(mtd, chip, id_data);
+
 	/* Calculate the address shift from the page size */
 	chip->page_shift = ffs(mtd->writesize) - 1;
 	/* Convert chipsize to number of pages per chip -1 */
@@ -3102,33 +3141,6 @@ ident_done:
 	}
 
 	chip->badblockbits = 8;
-
-	/* Set the bad block position */
-	if (mtd->writesize > 512 || (busw & NAND_BUSWIDTH_16))
-		chip->badblockpos = NAND_LARGE_BADBLOCK_POS;
-	else
-		chip->badblockpos = NAND_SMALL_BADBLOCK_POS;
-
-	/*
-	 * Bad block marker is stored in the last page of each block
-	 * on Samsung and Hynix MLC devices; stored in first two pages
-	 * of each block on Micron devices with 2KiB pages and on
-	 * SLC Samsung, Hynix, Toshiba, AMD/Spansion, and Macronix.
-	 * All others scan only the first page.
-	 */
-	if ((chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
-			(*maf_id == NAND_MFR_SAMSUNG ||
-			 *maf_id == NAND_MFR_HYNIX))
-		chip->bbt_options |= NAND_BBT_SCANLASTPAGE;
-	else if ((!(chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
-				(*maf_id == NAND_MFR_SAMSUNG ||
-				 *maf_id == NAND_MFR_HYNIX ||
-				 *maf_id == NAND_MFR_TOSHIBA ||
-				 *maf_id == NAND_MFR_AMD ||
-				 *maf_id == NAND_MFR_MACRONIX)) ||
-			(mtd->writesize == 2048 &&
-			 *maf_id == NAND_MFR_MICRON))
-		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
 
 	/* Check for AND chips with 4 page planes */
 	if (chip->options & NAND_4PAGE_ARRAY)
