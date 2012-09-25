@@ -730,10 +730,10 @@ static __init int sun4i_cpufreq_initclks(void)
 
     #ifdef CONFIG_CPU_FREQ_DVFS
     corevdd = regulator_get(NULL, "axp20_core");
-    if(!corevdd) {
-        CPUFREQ_INF("try to get regulator failed, core vdd will not changed!\n");
-    }
-    else {
+	if (IS_ERR(corevdd)) {
+		CPUFREQ_INF("try to get regulator failed, core vdd will not changed!\n");
+		corevdd = NULL;
+	} else {
         CPUFREQ_INF("try to get regulator(0x%x) successed.\n", (__u32)corevdd);
         last_vdd = regulator_get_voltage(corevdd) / 1000;
     }
