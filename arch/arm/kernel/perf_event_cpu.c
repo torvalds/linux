@@ -286,7 +286,7 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 
 	pmu->plat_device = pdev;
 	cpu_pmu_init(pmu);
-	ret = armpmu_register(pmu, PERF_TYPE_RAW);
+	ret = armpmu_register(pmu, -1);
 
 	if (!ret)
 		return 0;

@@ -86,6 +86,9 @@ armpmu_map_event(struct perf_event *event,
 		return armpmu_map_cache_event(cache_map, config);
 	case PERF_TYPE_RAW:
 		return armpmu_map_raw_event(raw_event_mask, config);
+	default:
+		if (event->attr.type >= PERF_TYPE_MAX)
+			return armpmu_map_raw_event(raw_event_mask, config);
 	}
 
 	return -ENOENT;
