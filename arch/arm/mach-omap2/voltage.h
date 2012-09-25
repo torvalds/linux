@@ -92,6 +92,24 @@ struct voltagedomain {
 	struct omap_volt_data *volt_data;
 };
 
+/* Min and max voltages from OMAP perspective */
+#define OMAP3430_VP1_VLIMITTO_VDDMIN	850000
+#define OMAP3430_VP1_VLIMITTO_VDDMAX	1425000
+#define OMAP3430_VP2_VLIMITTO_VDDMIN	900000
+#define OMAP3430_VP2_VLIMITTO_VDDMAX	1150000
+
+#define OMAP3630_VP1_VLIMITTO_VDDMIN	900000
+#define OMAP3630_VP1_VLIMITTO_VDDMAX	1350000
+#define OMAP3630_VP2_VLIMITTO_VDDMIN	900000
+#define OMAP3630_VP2_VLIMITTO_VDDMAX	1200000
+
+#define OMAP4_VP_MPU_VLIMITTO_VDDMIN	830000
+#define OMAP4_VP_MPU_VLIMITTO_VDDMAX	1410000
+#define OMAP4_VP_IVA_VLIMITTO_VDDMIN	830000
+#define OMAP4_VP_IVA_VLIMITTO_VDDMAX	1260000
+#define OMAP4_VP_CORE_VLIMITTO_VDDMIN	830000
+#define OMAP4_VP_CORE_VLIMITTO_VDDMAX	1200000
+
 /**
  * struct omap_voltdm_pmic - PMIC specific data required by voltage driver.
  * @slew_rate:	PMIC slew rate (in uv/us)
@@ -118,8 +136,8 @@ struct omap_voltdm_pmic {
 	u8 vp_erroroffset;
 	u8 vp_vstepmin;
 	u8 vp_vstepmax;
-	u8 vp_vddmin;
-	u8 vp_vddmax;
+	u32 vp_vddmin;
+	u32 vp_vddmax;
 	u8 vp_timeout_us;
 	bool i2c_high_speed;
 	u8 i2c_mcode;
