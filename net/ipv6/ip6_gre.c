@@ -56,6 +56,10 @@
 #include <net/ip6_tunnel.h>
 
 
+static bool log_ecn_error = true;
+module_param(log_ecn_error, bool, 0644);
+MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
+
 #define IPV6_TCLASS_MASK (IPV6_FLOWINFO_MASK & ~IPV6_FLOWLABEL_MASK)
 #define IPV6_TCLASS_SHIFT 20
 
@@ -149,7 +153,9 @@ static struct rtnl_link_stats64 *ip6gre_get_stats64(struct net_device *dev,
 	tot->rx_crc_errors = dev->stats.rx_crc_errors;
 	tot->rx_fifo_errors = dev->stats.rx_fifo_errors;
 	tot->rx_length_errors = dev->stats.rx_length_errors;
+	tot->rx_frame_errors = dev->stats.rx_frame_errors;
 	tot->rx_errors = dev->stats.rx_errors;
+
 	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
 	tot->tx_carrier_errors = dev->stats.tx_carrier_errors;
 	tot->tx_dropped = dev->stats.tx_dropped;
@@ -489,28 +495,6 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	t->err_time = jiffies;
 }
 
-static inline void ip6gre_ecn_decapsulate_ipv4(const struct ip6_tnl *t,
-		const struct ipv6hdr *ipv6h, struct sk_buff *skb)
-{
-	__u8 dsfield = ipv6_get_dsfield(ipv6h) & ~INET_ECN_MASK;
-
-	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
-		ipv4_change_dsfield(ip_hdr(skb), INET_ECN_MASK, dsfield);
-
-	if (INET_ECN_is_ce(dsfield))
-		IP_ECN_set_ce(ip_hdr(skb));
-}
-
-static inline void ip6gre_ecn_decapsulate_ipv6(const struct ip6_tnl *t,
-		const struct ipv6hdr *ipv6h, struct sk_buff *skb)
-{
-	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
-		ipv6_copy_dscp(ipv6_get_dsfield(ipv6h), ipv6_hdr(skb));
-
-	if (INET_ECN_is_ce(ipv6_get_dsfield(ipv6h)))
-		IP6_ECN_set_ce(ipv6_hdr(skb));
-}
-
 static int ip6gre_rcv(struct sk_buff *skb)
 {
 	const struct ipv6hdr *ipv6h;
@@ -522,6 +506,7 @@ static int ip6gre_rcv(struct sk_buff *skb)
 	struct ip6_tnl *tunnel;
 	int    offset = 4;
 	__be16 gre_proto;
+	int err;
 
 	if (!pskb_may_pull(skb, sizeof(struct in6_addr)))
 		goto drop;
@@ -625,19 +610,28 @@ static int ip6gre_rcv(struct sk_buff *skb)
 			skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 		}
 
+		__skb_tunnel_rx(skb, tunnel->dev);
+
+		skb_reset_network_header(skb);
+
+		err = IP6_ECN_decapsulate(ipv6h, skb);
+		if (unlikely(err)) {
+			if (log_ecn_error)
+				net_info_ratelimited("non-ECT from %pI6 with dsfield=%#x\n",
+						     &ipv6h->saddr,
+						     ipv6_get_dsfield(ipv6h));
+			if (err > 1) {
+				++tunnel->dev->stats.rx_frame_errors;
+				++tunnel->dev->stats.rx_errors;
+				goto drop;
+			}
+		}
+
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
 		u64_stats_update_begin(&tstats->syncp);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
-
-		__skb_tunnel_rx(skb, tunnel->dev);
-
-		skb_reset_network_header(skb);
-		if (skb->protocol == htons(ETH_P_IP))
-			ip6gre_ecn_decapsulate_ipv4(tunnel, ipv6h, skb);
-		else if (skb->protocol == htons(ETH_P_IPV6))
-			ip6gre_ecn_decapsulate_ipv6(tunnel, ipv6h, skb);
 
 		netif_rx(skb);
 

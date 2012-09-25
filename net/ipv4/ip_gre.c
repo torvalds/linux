@@ -120,6 +120,10 @@
    Alexey Kuznetsov.
  */
 
+static bool log_ecn_error = true;
+module_param(log_ecn_error, bool, 0644);
+MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
+
 static struct rtnl_link_ops ipgre_link_ops __read_mostly;
 static int ipgre_tunnel_init(struct net_device *dev);
 static void ipgre_tunnel_setup(struct net_device *dev);
@@ -204,7 +208,9 @@ static struct rtnl_link_stats64 *ipgre_get_stats64(struct net_device *dev,
 	tot->rx_crc_errors = dev->stats.rx_crc_errors;
 	tot->rx_fifo_errors = dev->stats.rx_fifo_errors;
 	tot->rx_length_errors = dev->stats.rx_length_errors;
+	tot->rx_frame_errors = dev->stats.rx_frame_errors;
 	tot->rx_errors = dev->stats.rx_errors;
+
 	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
 	tot->tx_carrier_errors = dev->stats.tx_carrier_errors;
 	tot->tx_dropped = dev->stats.tx_dropped;
@@ -587,17 +593,6 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	t->err_time = jiffies;
 }
 
-static inline void ipgre_ecn_decapsulate(const struct iphdr *iph, struct sk_buff *skb)
-{
-	if (INET_ECN_is_ce(iph->tos)) {
-		if (skb->protocol == htons(ETH_P_IP)) {
-			IP_ECN_set_ce(ip_hdr(skb));
-		} else if (skb->protocol == htons(ETH_P_IPV6)) {
-			IP6_ECN_set_ce(ipv6_hdr(skb));
-		}
-	}
-}
-
 static inline u8
 ipgre_ecn_encapsulate(u8 tos, const struct iphdr *old_iph, struct sk_buff *skb)
 {
@@ -620,6 +615,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	int    offset = 4;
 	__be16 gre_proto;
+	int    err;
 
 	if (!pskb_may_pull(skb, 16))
 		goto drop;
@@ -723,16 +719,26 @@ static int ipgre_rcv(struct sk_buff *skb)
 			skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 		}
 
+		__skb_tunnel_rx(skb, tunnel->dev);
+
+		skb_reset_network_header(skb);
+		err = IP_ECN_decapsulate(iph, skb);
+		if (unlikely(err)) {
+			if (log_ecn_error)
+				net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
+						     &iph->saddr, iph->tos);
+			if (err > 1) {
+				++tunnel->dev->stats.rx_frame_errors;
+				++tunnel->dev->stats.rx_errors;
+				goto drop;
+			}
+		}
+
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
 		u64_stats_update_begin(&tstats->syncp);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
-
-		__skb_tunnel_rx(skb, tunnel->dev);
-
-		skb_reset_network_header(skb);
-		ipgre_ecn_decapsulate(iph, skb);
 
 		netif_rx(skb);
 
