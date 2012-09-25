@@ -200,6 +200,8 @@ static inline u32 kvmppc_set_field(u64 inst, int msb, int lsb, int value)
 union kvmppc_one_reg {
 	u32	wval;
 	u64	dval;
+	vector128 vval;
+	u64	vsxval[2];
 };
 
 #define one_reg_size(id)	\

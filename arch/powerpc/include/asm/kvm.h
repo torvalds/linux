@@ -360,4 +360,24 @@ struct kvm_book3e_206_tlb_params {
 #define KVM_REG_PPC_PMC7	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x1e)
 #define KVM_REG_PPC_PMC8	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x1f)
 
+/* 32 floating-point registers */
+#define KVM_REG_PPC_FPR0	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x20)
+#define KVM_REG_PPC_FPR(n)	(KVM_REG_PPC_FPR0 + (n))
+#define KVM_REG_PPC_FPR31	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x3f)
+
+/* 32 VMX/Altivec vector registers */
+#define KVM_REG_PPC_VR0		(KVM_REG_PPC | KVM_REG_SIZE_U128 | 0x40)
+#define KVM_REG_PPC_VR(n)	(KVM_REG_PPC_VR0 + (n))
+#define KVM_REG_PPC_VR31	(KVM_REG_PPC | KVM_REG_SIZE_U128 | 0x5f)
+
+/* 32 double-width FP registers for VSX */
+/* High-order halves overlap with FP regs */
+#define KVM_REG_PPC_VSR0	(KVM_REG_PPC | KVM_REG_SIZE_U128 | 0x60)
+#define KVM_REG_PPC_VSR(n)	(KVM_REG_PPC_VSR0 + (n))
+#define KVM_REG_PPC_VSR31	(KVM_REG_PPC | KVM_REG_SIZE_U128 | 0x7f)
+
+/* FP and vector status/control registers */
+#define KVM_REG_PPC_FPSCR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x80)
+#define KVM_REG_PPC_VSCR	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x81)
+
 #endif /* __LINUX_KVM_POWERPC_H */
