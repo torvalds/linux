@@ -237,6 +237,9 @@
 /* Local input channels (windows 0-2) */
 #define SHADOWCON_CHx_LOCAL_ENABLE(_win)	(1 << (5 + (_win)))
 
+/* VIDOSDx */
+
+#define VIDOSD_BASE				(0x40)
 #define VIDOSDxA_TOPLEFT_X_E(_x)		((((_x) & 0x800) >> 11) << 23)
 #define VIDOSDxA_TOPLEFT_X_MASK			(0x7ff << 11)
 #define VIDOSDxA_TOPLEFT_X_SHIFT		(11)
@@ -407,10 +410,6 @@
 
 #define S3C_FB_MAX_WIN (5)  /* number of hardware windows available. */
 #define VIDCON1_FSTATUS_EVEN	(1 << 15)
-
-/* OSD1 and OSD4 do not have register D */
-
-#define VIDOSD_BASE				(0x40)
 
 #define VIDINTCON0				(0x130)
 
