@@ -315,7 +315,7 @@ static inline int restore_user_xstate(void __user *buf, u64 xbv, int fx_only)
 		if ((unsigned long)buf % 64 || fx_only) {
 			u64 init_bv = pcntxt_mask & ~XSTATE_FPSSE;
 			xrstor_state(init_xstate_buf, init_bv);
-			return fxrstor_checking((__force void *) buf);
+			return fxrstor_user(buf);
 		} else {
 			u64 init_bv = pcntxt_mask & ~xbv;
 			if (unlikely(init_bv))
@@ -323,9 +323,9 @@ static inline int restore_user_xstate(void __user *buf, u64 xbv, int fx_only)
 			return xrestore_user(buf, xbv);
 		}
 	} else if (use_fxsr()) {
-		return fxrstor_checking((__force void *) buf);
+		return fxrstor_user(buf);
 	} else
-		return frstor_checking((__force void *) buf);
+		return frstor_user(buf);
 }
 
 int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
