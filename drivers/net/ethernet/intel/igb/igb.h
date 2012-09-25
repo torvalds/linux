@@ -132,9 +132,10 @@ struct vf_data_storage {
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
 
 /* Supported Rx Buffer Sizes */
-#define IGB_RXBUFFER_256   256
-#define IGB_RXBUFFER_16384 16384
-#define IGB_RX_HDR_LEN     IGB_RXBUFFER_256
+#define IGB_RXBUFFER_256	256
+#define IGB_RXBUFFER_2048	2048
+#define IGB_RX_HDR_LEN		IGB_RXBUFFER_256
+#define IGB_RX_BUFSZ		IGB_RXBUFFER_2048
 
 /* How many Tx Descriptors do we need to call netif_wake_queue ? */
 #define IGB_TX_QUEUE_WAKE	16

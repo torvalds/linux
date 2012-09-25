@@ -554,7 +554,7 @@ rx_ring_summary:
 					  16, 1,
 					  page_address(buffer_info->page) +
 						      buffer_info->page_offset,
-					  PAGE_SIZE/2, true);
+					  IGB_RX_BUFSZ, true);
 				}
 			}
 		}
@@ -3103,11 +3103,7 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 
 	/* set descriptor configuration */
 	srrctl = IGB_RX_HDR_LEN << E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
-#if (PAGE_SIZE / 2) > IGB_RXBUFFER_16384
-	srrctl |= IGB_RXBUFFER_16384 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
-#else
-	srrctl |= (PAGE_SIZE / 2) >> E1000_SRRCTL_BSIZEPKT_SHIFT;
-#endif
+	srrctl |= IGB_RX_BUFSZ >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 #ifdef CONFIG_IGB_PTP
 	if (hw->mac.type >= e1000_82580)
@@ -5855,7 +5851,7 @@ static void igb_reuse_rx_page(struct igb_ring *rx_ring,
 	/* sync the buffer for use by the device */
 	dma_sync_single_range_for_device(rx_ring->dev, old_buff->dma,
 					 old_buff->page_offset,
-					 PAGE_SIZE / 2,
+					 IGB_RX_BUFSZ,
 					 DMA_FROM_DEVICE);
 }
 
@@ -5905,18 +5901,19 @@ static bool igb_add_rx_frag(struct igb_ring *rx_ring,
 	}
 
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			rx_buffer->page_offset, size, PAGE_SIZE / 2);
+			rx_buffer->page_offset, size, IGB_RX_BUFSZ);
 
 	/* avoid re-using remote pages */
 	if (unlikely(page_to_nid(page) != numa_node_id()))
 		return false;
 
+#if (PAGE_SIZE < 8192)
 	/* if we are only owner of page we can reuse it */
 	if (unlikely(page_count(page) != 1))
 		return false;
 
 	/* flip page offset to other buffer */
-	rx_buffer->page_offset ^= PAGE_SIZE / 2;
+	rx_buffer->page_offset ^= IGB_RX_BUFSZ;
 
 	/*
 	 * since we are the only owner of the page and we need to
@@ -5924,6 +5921,16 @@ static bool igb_add_rx_frag(struct igb_ring *rx_ring,
 	 * an unnecessary locked operation
 	 */
 	atomic_set(&page->_count, 2);
+#else
+	/* move offset up to the next cache line */
+	rx_buffer->page_offset += SKB_DATA_ALIGN(size);
+
+	if (rx_buffer->page_offset > (PAGE_SIZE - IGB_RX_BUFSZ))
+		return false;
+
+	/* bump ref count on page before it is given to the stack */
+	get_page(page);
+#endif
 
 	return true;
 }
@@ -5977,7 +5984,7 @@ static struct sk_buff *igb_fetch_rx_buffer(struct igb_ring *rx_ring,
 	dma_sync_single_range_for_cpu(rx_ring->dev,
 				      rx_buffer->dma,
 				      rx_buffer->page_offset,
-				      PAGE_SIZE / 2,
+				      IGB_RX_BUFSZ,
 				      DMA_FROM_DEVICE);
 
 	/* pull page into skb */

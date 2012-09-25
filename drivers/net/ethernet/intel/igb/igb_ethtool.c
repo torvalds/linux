@@ -1727,7 +1727,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		/* sync Rx buffer for CPU read */
 		dma_sync_single_for_cpu(rx_ring->dev,
 					rx_buffer_info->dma,
-					PAGE_SIZE / 2,
+					IGB_RX_BUFSZ,
 					DMA_FROM_DEVICE);
 
 		/* verify contents of skb */
@@ -1737,7 +1737,7 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		/* sync Rx buffer for device write */
 		dma_sync_single_for_device(rx_ring->dev,
 					   rx_buffer_info->dma,
-					   PAGE_SIZE / 2,
+					   IGB_RX_BUFSZ,
 					   DMA_FROM_DEVICE);
 
 		/* unmap buffer on tx side */
