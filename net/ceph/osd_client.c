@@ -52,7 +52,7 @@ static int op_has_extent(int op)
 		op == CEPH_OSD_OP_WRITE);
 }
 
-void ceph_calc_raw_layout(struct ceph_osd_client *osdc,
+int ceph_calc_raw_layout(struct ceph_osd_client *osdc,
 			struct ceph_file_layout *layout,
 			u64 snapid,
 			u64 off, u64 *plen, u64 *bno,
@@ -62,12 +62,15 @@ void ceph_calc_raw_layout(struct ceph_osd_client *osdc,
 	struct ceph_osd_request_head *reqhead = req->r_request->front.iov_base;
 	u64 orig_len = *plen;
 	u64 objoff, objlen;    /* extent in object */
+	int r;
 
 	reqhead->snapid = cpu_to_le64(snapid);
 
 	/* object extent? */
-	ceph_calc_file_object_mapping(layout, off, plen, bno,
-				      &objoff, &objlen);
+	r = ceph_calc_file_object_mapping(layout, off, plen, bno,
+					  &objoff, &objlen);
+	if (r < 0)
+		return r;
 	if (*plen < orig_len)
 		dout(" skipping last %llu, final file extent %llu~%llu\n",
 		     orig_len - *plen, off, *plen);
@@ -83,7 +86,7 @@ void ceph_calc_raw_layout(struct ceph_osd_client *osdc,
 
 	dout("calc_layout bno=%llx %llu~%llu (%d pages)\n",
 	     *bno, objoff, objlen, req->r_num_pages);
-
+	return 0;
 }
 EXPORT_SYMBOL(ceph_calc_raw_layout);
 
@@ -112,20 +115,25 @@ EXPORT_SYMBOL(ceph_calc_raw_layout);
  *
  * fill osd op in request message.
  */
-static void calc_layout(struct ceph_osd_client *osdc,
-			struct ceph_vino vino,
-			struct ceph_file_layout *layout,
-			u64 off, u64 *plen,
-			struct ceph_osd_request *req,
-			struct ceph_osd_req_op *op)
+static int calc_layout(struct ceph_osd_client *osdc,
+		       struct ceph_vino vino,
+		       struct ceph_file_layout *layout,
+		       u64 off, u64 *plen,
+		       struct ceph_osd_request *req,
+		       struct ceph_osd_req_op *op)
 {
 	u64 bno;
+	int r;
 
-	ceph_calc_raw_layout(osdc, layout, vino.snap, off,
-			     plen, &bno, req, op);
+	r = ceph_calc_raw_layout(osdc, layout, vino.snap, off,
+				 plen, &bno, req, op);
+	if (r < 0)
+		return r;
 
 	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
 	req->r_oid_len = strlen(req->r_oid);
+
+	return r;
 }
 
 /*
