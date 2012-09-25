@@ -137,7 +137,7 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	int cpu;
-	for_each_possible_cpu(cpu) {
+	for_each_cpu_mask(cpu, cpu_pmu->valid_cpus) {
 		struct pmu_hw_events *events = &per_cpu(cpu_hw_events, cpu);
 		events->events = per_cpu(hw_events, cpu);
 		events->used_mask = per_cpu(used_mask, cpu);
@@ -150,7 +150,7 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 
 	/* Ensure the PMU has sane values out of reset. */
 	if (cpu_pmu->reset)
-		on_each_cpu(cpu_pmu->reset, cpu_pmu, 1);
+		on_each_cpu_mask(&cpu_pmu->valid_cpus, cpu_pmu->reset, cpu_pmu, 1);
 }
 
 /*
@@ -250,6 +250,9 @@ static int probe_current_pmu(struct arm_pmu *pmu)
 		}
 	}
 
+	/* assume PMU support all the CPUs in this case */
+	cpumask_setall(&pmu->valid_cpus);
+
 	put_cpu();
 	return ret;
 }
@@ -257,10 +260,9 @@ static int probe_current_pmu(struct arm_pmu *pmu)
 static int cpu_pmu_device_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
-	const int (*init_fn)(struct arm_pmu *);
 	struct device_node *node = pdev->dev.of_node;
 	struct arm_pmu *pmu;
-	int ret = -ENODEV;
+	int ret = 0;
 	int cpu;
 
 	pmu = kzalloc(sizeof(struct arm_pmu), GFP_KERNEL);
@@ -270,8 +272,28 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	}
 
 	if (node && (of_id = of_match_node(cpu_pmu_of_device_ids, pdev->dev.of_node))) {
-		init_fn = of_id->data;
-		ret = init_fn(pmu);
+		smp_call_func_t init_fn = (smp_call_func_t)of_id->data;
+		struct device_node *ncluster;
+		int cluster = -1;
+		cpumask_t sibling_mask;
+
+		ncluster = of_parse_phandle(node, "cluster", 0);
+		if (ncluster) {
+			int len;
+			const u32 *hwid;
+			hwid = of_get_property(ncluster, "reg", &len);
+			if (hwid && len == 4)
+				cluster = be32_to_cpup(hwid);
+		}
+		/* set sibling mask to all cpu mask if socket is not specified */
+		if (cluster == -1 ||
+			cluster_to_logical_mask(cluster, &sibling_mask))
+			cpumask_setall(&sibling_mask);
+
+		smp_call_function_any(&sibling_mask, init_fn, pmu, 1);
+
+		/* now set the valid_cpus after init */
+		cpumask_copy(&pmu->valid_cpus, &sibling_mask);
 	} else {
 		ret = probe_current_pmu(pmu);
 	}
@@ -281,7 +303,7 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	for_each_possible_cpu(cpu)
+	for_each_cpu_mask(cpu, pmu->valid_cpus)
 		per_cpu(cpu_pmu, cpu) = pmu;
 
 	pmu->plat_device = pdev;
