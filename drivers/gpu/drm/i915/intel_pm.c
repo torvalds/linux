@@ -2734,7 +2734,7 @@ static const struct cparams {
 	{ 0, 800, 231, 23784 },
 };
 
-unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
+static unsigned long __i915_chipset_val(struct drm_i915_private *dev_priv)
 {
 	u64 total_count, diff, ret;
 	u32 count1, count2, count3, m = 0, c = 0;
@@ -2786,6 +2786,22 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 	dev_priv->ips.chipset_power = ret;
 
 	return ret;
+}
+
+unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
+{
+	unsigned long val;
+
+	if (dev_priv->info->gen != 5)
+		return 0;
+
+	spin_lock_irq(&mchdev_lock);
+
+	val = __i915_chipset_val(dev_priv);
+
+	spin_unlock_irq(&mchdev_lock);
+
+	return val;
 }
 
 unsigned long i915_mch_val(struct drm_i915_private *dev_priv)
@@ -2991,7 +3007,7 @@ void i915_update_gfx_val(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&mchdev_lock);
 }
 
-unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
+static unsigned long __i915_gfx_val(struct drm_i915_private *dev_priv)
 {
 	unsigned long t, corr, state1, corr2, state2;
 	u32 pxvid, ext_v;
@@ -3028,6 +3044,22 @@ unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 	return dev_priv->ips.gfx_power + state2;
 }
 
+unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
+{
+	unsigned long val;
+
+	if (dev_priv->info->gen != 5)
+		return 0;
+
+	spin_lock_irq(&mchdev_lock);
+
+	val = __i915_gfx_val(dev_priv);
+
+	spin_unlock_irq(&mchdev_lock);
+
+	return val;
+}
+
 /**
  * i915_read_mch_val - return value for IPS use
  *
@@ -3044,8 +3076,8 @@ unsigned long i915_read_mch_val(void)
 		goto out_unlock;
 	dev_priv = i915_mch_dev;
 
-	chipset_val = i915_chipset_val(dev_priv);
-	graphics_val = i915_gfx_val(dev_priv);
+	chipset_val = __i915_chipset_val(dev_priv);
+	graphics_val = __i915_gfx_val(dev_priv);
 
 	ret = chipset_val + graphics_val;
 
