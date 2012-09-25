@@ -611,7 +611,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
-	u16 tag = 9999; /* FIXME */
+	u16 tag = devinfo->qdepth - 1;
 
 	memset(&devinfo->response, 0, sizeof(devinfo->response));
 	if (uas_submit_sense_urb(shost, GFP_NOIO, tag)) {
@@ -701,7 +701,7 @@ static int uas_slave_configure(struct scsi_device *sdev)
 {
 	struct uas_dev_info *devinfo = sdev->hostdata;
 	scsi_set_tag_type(sdev, MSG_ORDERED_TAG);
-	scsi_activate_tcq(sdev, devinfo->qdepth - 2);
+	scsi_activate_tcq(sdev, devinfo->qdepth - 3);
 	return 0;
 }
 
@@ -880,7 +880,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	init_usb_anchor(&devinfo->data_urbs);
 	uas_configure_endpoints(devinfo);
 
-	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 2);
+	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 3);
 	if (result)
 		goto free;
 
