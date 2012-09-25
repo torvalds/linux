@@ -974,11 +974,13 @@ static void __init setup_hwcaps(void)
 	if (MACHINE_HAS_HPAGE)
 		elf_hwcap |= HWCAP_S390_HPAGE;
 
+#if defined(CONFIG_64BIT)
 	/*
 	 * 64-bit register support for 31-bit processes
 	 * HWCAP_S390_HIGH_GPRS is bit 9.
 	 */
 	elf_hwcap |= HWCAP_S390_HIGH_GPRS;
+#endif
 
 	get_cpu_id(&cpu_id);
 	switch (cpu_id.machine) {

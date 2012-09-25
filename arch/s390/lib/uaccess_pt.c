@@ -2,69 +2,82 @@
  *  User access functions based on page table walks for enhanced
  *  system layout without hardware support.
  *
- *    Copyright IBM Corp. 2006
+ *    Copyright IBM Corp. 2006, 2012
  *    Author(s): Gerald Schaefer (gerald.schaefer@de.ibm.com)
  */
 
 #include <linux/errno.h>
 #include <linux/hardirq.h>
 #include <linux/mm.h>
+#include <linux/hugetlb.h>
 #include <asm/uaccess.h>
 #include <asm/futex.h>
 #include "uaccess.h"
 
-static inline pte_t *follow_table(struct mm_struct *mm, unsigned long addr)
+
+/*
+ * Returns kernel address for user virtual address. If the returned address is
+ * >= -4095 (IS_ERR_VALUE(x) returns true), a fault has occured and the address
+ * contains the (negative) exception code.
+ */
+static __always_inline unsigned long follow_table(struct mm_struct *mm,
+						  unsigned long addr, int write)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
+	pte_t *ptep;
 
 	pgd = pgd_offset(mm, addr);
 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		return (pte_t *) 0x3a;
+		return -0x3aUL;
 
 	pud = pud_offset(pgd, addr);
 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
-		return (pte_t *) 0x3b;
+		return -0x3bUL;
 
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		return (pte_t *) 0x10;
+	if (pmd_none(*pmd))
+		return -0x10UL;
+	if (pmd_huge(*pmd)) {
+		if (write && (pmd_val(*pmd) & _SEGMENT_ENTRY_RO))
+			return -0x04UL;
+		return (pmd_val(*pmd) & HPAGE_MASK) + (addr & ~HPAGE_MASK);
+	}
+	if (unlikely(pmd_bad(*pmd)))
+		return -0x10UL;
 
-	return pte_offset_map(pmd, addr);
+	ptep = pte_offset_map(pmd, addr);
+	if (!pte_present(*ptep))
+		return -0x11UL;
+	if (write && !pte_write(*ptep))
+		return -0x04UL;
+
+	return (pte_val(*ptep) & PAGE_MASK) + (addr & ~PAGE_MASK);
 }
 
 static __always_inline size_t __user_copy_pt(unsigned long uaddr, void *kptr,
 					     size_t n, int write_user)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long offset, pfn, done, size;
-	pte_t *pte;
+	unsigned long offset, done, size, kaddr;
 	void *from, *to;
 
 	done = 0;
 retry:
 	spin_lock(&mm->page_table_lock);
 	do {
-		pte = follow_table(mm, uaddr);
-		if ((unsigned long) pte < 0x1000)
+		kaddr = follow_table(mm, uaddr, write_user);
+		if (IS_ERR_VALUE(kaddr))
 			goto fault;
-		if (!pte_present(*pte)) {
-			pte = (pte_t *) 0x11;
-			goto fault;
-		} else if (write_user && !pte_write(*pte)) {
-			pte = (pte_t *) 0x04;
-			goto fault;
-		}
 
-		pfn = pte_pfn(*pte);
-		offset = uaddr & (PAGE_SIZE - 1);
+		offset = uaddr & ~PAGE_MASK;
 		size = min(n - done, PAGE_SIZE - offset);
 		if (write_user) {
-			to = (void *)((pfn << PAGE_SHIFT) + offset);
+			to = (void *) kaddr;
 			from = kptr + done;
 		} else {
-			from = (void *)((pfn << PAGE_SHIFT) + offset);
+			from = (void *) kaddr;
 			to = kptr + done;
 		}
 		memcpy(to, from, size);
@@ -75,7 +88,7 @@ retry:
 	return n - done;
 fault:
 	spin_unlock(&mm->page_table_lock);
-	if (__handle_fault(uaddr, (unsigned long) pte, write_user))
+	if (__handle_fault(uaddr, -kaddr, write_user))
 		return n - done;
 	goto retry;
 }
@@ -84,27 +97,22 @@ fault:
  * Do DAT for user address by page table walk, return kernel address.
  * This function needs to be called with current->mm->page_table_lock held.
  */
-static __always_inline unsigned long __dat_user_addr(unsigned long uaddr)
+static __always_inline unsigned long __dat_user_addr(unsigned long uaddr,
+						     int write)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long pfn;
-	pte_t *pte;
+	unsigned long kaddr;
 	int rc;
 
 retry:
-	pte = follow_table(mm, uaddr);
-	if ((unsigned long) pte < 0x1000)
+	kaddr = follow_table(mm, uaddr, write);
+	if (IS_ERR_VALUE(kaddr))
 		goto fault;
-	if (!pte_present(*pte)) {
-		pte = (pte_t *) 0x11;
-		goto fault;
-	}
 
-	pfn = pte_pfn(*pte);
-	return (pfn << PAGE_SHIFT) + (uaddr & (PAGE_SIZE - 1));
+	return kaddr;
 fault:
 	spin_unlock(&mm->page_table_lock);
-	rc = __handle_fault(uaddr, (unsigned long) pte, 0);
+	rc = __handle_fault(uaddr, -kaddr, write);
 	spin_lock(&mm->page_table_lock);
 	if (!rc)
 		goto retry;
@@ -159,11 +167,9 @@ static size_t clear_user_pt(size_t n, void __user *to)
 
 static size_t strnlen_user_pt(size_t count, const char __user *src)
 {
-	char *addr;
 	unsigned long uaddr = (unsigned long) src;
 	struct mm_struct *mm = current->mm;
-	unsigned long offset, pfn, done, len;
-	pte_t *pte;
+	unsigned long offset, done, len, kaddr;
 	size_t len_str;
 
 	if (segment_eq(get_fs(), KERNEL_DS))
@@ -172,19 +178,13 @@ static size_t strnlen_user_pt(size_t count, const char __user *src)
 retry:
 	spin_lock(&mm->page_table_lock);
 	do {
-		pte = follow_table(mm, uaddr);
-		if ((unsigned long) pte < 0x1000)
+		kaddr = follow_table(mm, uaddr, 0);
+		if (IS_ERR_VALUE(kaddr))
 			goto fault;
-		if (!pte_present(*pte)) {
-			pte = (pte_t *) 0x11;
-			goto fault;
-		}
 
-		pfn = pte_pfn(*pte);
-		offset = uaddr & (PAGE_SIZE-1);
-		addr = (char *)(pfn << PAGE_SHIFT) + offset;
+		offset = uaddr & ~PAGE_MASK;
 		len = min(count - done, PAGE_SIZE - offset);
-		len_str = strnlen(addr, len);
+		len_str = strnlen((char *) kaddr, len);
 		done += len_str;
 		uaddr += len_str;
 	} while ((len_str == len) && (done < count));
@@ -192,7 +192,7 @@ retry:
 	return done + 1;
 fault:
 	spin_unlock(&mm->page_table_lock);
-	if (__handle_fault(uaddr, (unsigned long) pte, 0))
+	if (__handle_fault(uaddr, -kaddr, 0))
 		return 0;
 	goto retry;
 }
@@ -225,11 +225,10 @@ static size_t copy_in_user_pt(size_t n, void __user *to,
 			      const void __user *from)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long offset_from, offset_to, offset_max, pfn_from, pfn_to,
-		      uaddr, done, size, error_code;
+	unsigned long offset_max, uaddr, done, size, error_code;
 	unsigned long uaddr_from = (unsigned long) from;
 	unsigned long uaddr_to = (unsigned long) to;
-	pte_t *pte_from, *pte_to;
+	unsigned long kaddr_to, kaddr_from;
 	int write_user;
 
 	if (segment_eq(get_fs(), KERNEL_DS)) {
@@ -242,38 +241,23 @@ retry:
 	do {
 		write_user = 0;
 		uaddr = uaddr_from;
-		pte_from = follow_table(mm, uaddr_from);
-		error_code = (unsigned long) pte_from;
-		if (error_code < 0x1000)
+		kaddr_from = follow_table(mm, uaddr_from, 0);
+		error_code = kaddr_from;
+		if (IS_ERR_VALUE(error_code))
 			goto fault;
-		if (!pte_present(*pte_from)) {
-			error_code = 0x11;
-			goto fault;
-		}
 
 		write_user = 1;
 		uaddr = uaddr_to;
-		pte_to = follow_table(mm, uaddr_to);
-		error_code = (unsigned long) pte_to;
-		if (error_code < 0x1000)
+		kaddr_to = follow_table(mm, uaddr_to, 1);
+		error_code = (unsigned long) kaddr_to;
+		if (IS_ERR_VALUE(error_code))
 			goto fault;
-		if (!pte_present(*pte_to)) {
-			error_code = 0x11;
-			goto fault;
-		} else if (!pte_write(*pte_to)) {
-			error_code = 0x04;
-			goto fault;
-		}
 
-		pfn_from = pte_pfn(*pte_from);
-		pfn_to = pte_pfn(*pte_to);
-		offset_from = uaddr_from & (PAGE_SIZE-1);
-		offset_to = uaddr_from & (PAGE_SIZE-1);
-		offset_max = max(offset_from, offset_to);
+		offset_max = max(uaddr_from & ~PAGE_MASK,
+				 uaddr_to & ~PAGE_MASK);
 		size = min(n - done, PAGE_SIZE - offset_max);
 
-		memcpy((void *)(pfn_to << PAGE_SHIFT) + offset_to,
-		       (void *)(pfn_from << PAGE_SHIFT) + offset_from, size);
+		memcpy((void *) kaddr_to, (void *) kaddr_from, size);
 		done += size;
 		uaddr_from += size;
 		uaddr_to += size;
@@ -282,7 +266,7 @@ retry:
 	return n - done;
 fault:
 	spin_unlock(&mm->page_table_lock);
-	if (__handle_fault(uaddr, error_code, write_user))
+	if (__handle_fault(uaddr, -error_code, write_user))
 		return n - done;
 	goto retry;
 }
@@ -341,7 +325,7 @@ int futex_atomic_op_pt(int op, u32 __user *uaddr, int oparg, int *old)
 		return __futex_atomic_op_pt(op, uaddr, oparg, old);
 	spin_lock(&current->mm->page_table_lock);
 	uaddr = (u32 __force __user *)
-		__dat_user_addr((__force unsigned long) uaddr);
+		__dat_user_addr((__force unsigned long) uaddr, 1);
 	if (!uaddr) {
 		spin_unlock(&current->mm->page_table_lock);
 		return -EFAULT;
@@ -378,7 +362,7 @@ int futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
 		return __futex_atomic_cmpxchg_pt(uval, uaddr, oldval, newval);
 	spin_lock(&current->mm->page_table_lock);
 	uaddr = (u32 __force __user *)
-		__dat_user_addr((__force unsigned long) uaddr);
+		__dat_user_addr((__force unsigned long) uaddr, 1);
 	if (!uaddr) {
 		spin_unlock(&current->mm->page_table_lock);
 		return -EFAULT;

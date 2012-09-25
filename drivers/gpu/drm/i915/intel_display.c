@@ -1376,7 +1376,8 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
 
-	WARN(HAS_PCH_IBX(dev_priv->dev) && (val & SDVO_PIPE_B_SELECT),
+	WARN(HAS_PCH_IBX(dev_priv->dev) && (val & DP_PORT_EN) == 0
+	     && (val & DP_PIPEB_SELECT),
 	     "IBX PCH dp port still using transcoder B\n");
 }
 
@@ -1388,7 +1389,8 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 	     "PCH HDMI (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
 
-	WARN(HAS_PCH_IBX(dev_priv->dev) && (val & SDVO_PIPE_B_SELECT),
+	WARN(HAS_PCH_IBX(dev_priv->dev) && (val & PORT_ENABLE) == 0
+	     && (val & SDVO_PIPE_B_SELECT),
 	     "IBX PCH hdmi port still using transcoder B\n");
 }
 
@@ -4189,18 +4191,18 @@ static void i8xx_update_pll(struct drm_crtc *crtc,
 	POSTING_READ(DPLL(pipe));
 	udelay(150);
 
-	I915_WRITE(DPLL(pipe), dpll);
-
-	/* Wait for the clocks to stabilize. */
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
 	 * This is an exception to the general rule that mode_set doesn't turn
 	 * things on.
 	 */
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 		intel_update_lvds(crtc, clock, adjusted_mode);
+
+	I915_WRITE(DPLL(pipe), dpll);
+
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
 
 	/* The pixel multiplier can only be updated once the
 	 * DPLL is enabled and the clocks are stable.

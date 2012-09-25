@@ -16,6 +16,8 @@
 
 #include <linux/platform_device.h>
 
+struct irq_domain;
+
 /*
  * This struct describes the MFD part ("cell").
  * After registration the copy of this structure will become the platform data
@@ -98,7 +100,7 @@ static inline const struct mfd_cell *mfd_get_cell(struct platform_device *pdev)
 extern int mfd_add_devices(struct device *parent, int id,
 			   struct mfd_cell *cells, int n_devs,
 			   struct resource *mem_base,
-			   int irq_base);
+			   int irq_base, struct irq_domain *irq_domain);
 
 extern void mfd_remove_devices(struct device *parent);
 

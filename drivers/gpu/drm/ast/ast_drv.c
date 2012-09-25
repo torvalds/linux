@@ -193,6 +193,9 @@ static const struct file_operations ast_fops = {
 	.mmap = ast_mmap,
 	.poll = drm_poll,
 	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.read = drm_read,
 };
 
