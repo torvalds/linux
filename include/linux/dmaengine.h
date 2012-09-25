@@ -992,7 +992,7 @@ static inline struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask,
 static inline struct dma_chan *dma_request_slave_channel(struct device *dev,
 							 char *name)
 {
-	return NULL
+	return NULL;
 }
 static inline void dma_release_channel(struct dma_chan *chan)
 {
