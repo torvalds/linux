@@ -300,9 +300,6 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *uaddr,
 	pr_debug("%p %d %d %d\n", sk, llcp_sock->target_idx,
 		 llcp_sock->dsap, llcp_sock->ssap);
 
-	if (llcp_sock == NULL || llcp_sock->dev == NULL)
-		return -EBADFD;
-
 	uaddr->sa_family = AF_NFC;
 
 	*len = sizeof(struct sockaddr_nfc_llcp);
