@@ -5544,6 +5544,8 @@ F:	Documentation/devicetree/bindings/pwm/
 F:	include/linux/pwm.h
 F:	include/linux/of_pwm.h
 F:	drivers/pwm/
+F:	drivers/video/backlight/pwm_bl.c
+F:	include/linux/pwm_backlight.h
 
 PXA2xx/PXA3xx SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
