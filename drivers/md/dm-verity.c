@@ -472,7 +472,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 		return -EIO;
 	}
 
-	if ((bio->bi_sector + bio_sectors(bio)) >>
+	if (bio_end_sector(bio) >>
 	    (v->data_dev_block_bits - SECTOR_SHIFT) > v->data_blocks) {
 		DMERR_LIMIT("io out of range");
 		return -EIO;
