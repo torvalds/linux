@@ -24,6 +24,7 @@
 #include "prm44xx.h"
 #include "pm.h"
 #include "scrm44xx.h"
+#include "control.h"
 
 /**
  * struct omap_vc_channel_cfg - describe the cfg_channel bitfield
@@ -69,6 +70,9 @@ static struct omap_vc_channel_cfg vc_mutant_channel_cfg = {
 };
 
 static struct omap_vc_channel_cfg *vc_cfg_bits;
+
+/* Default I2C trace length on pcb, 6.3cm. Used for capacitance calculations. */
+static u32 sr_i2c_pcb_length = 63;
 #define CFG_CHANNEL_MASK 0x1f
 
 /**
@@ -464,21 +468,134 @@ static void omap4_set_timings(struct voltagedomain *voltdm, bool off_mode)
 /* OMAP4 specific voltage init functions */
 static void __init omap4_vc_init_channel(struct voltagedomain *voltdm)
 {
-	static bool is_initialized;
-	u32 vc_val;
-
 	omap4_set_timings(voltdm, true);
 	omap4_set_timings(voltdm, false);
-
-	if (is_initialized)
-		return;
-
-	/* XXX These are magic numbers and do not belong! */
-	vc_val = (0x60 << OMAP4430_SCLL_SHIFT | 0x26 << OMAP4430_SCLH_SHIFT);
-	voltdm->write(vc_val, OMAP4_PRM_VC_CFG_I2C_CLK_OFFSET);
-
-	is_initialized = true;
 }
+
+struct i2c_init_data {
+	u8 loadbits;
+	u8 load;
+	u8 hsscll_38_4;
+	u8 hsscll_26;
+	u8 hsscll_19_2;
+	u8 hsscll_16_8;
+	u8 hsscll_12;
+};
+
+static const __initdata struct i2c_init_data omap4_i2c_timing_data[] = {
+	{
+		.load = 50,
+		.loadbits = 0x3,
+		.hsscll_38_4 = 13,
+		.hsscll_26 = 11,
+		.hsscll_19_2 = 9,
+		.hsscll_16_8 = 9,
+		.hsscll_12 = 8,
+	},
+	{
+		.load = 25,
+		.loadbits = 0x2,
+		.hsscll_38_4 = 13,
+		.hsscll_26 = 11,
+		.hsscll_19_2 = 9,
+		.hsscll_16_8 = 9,
+		.hsscll_12 = 8,
+	},
+	{
+		.load = 12,
+		.loadbits = 0x1,
+		.hsscll_38_4 = 11,
+		.hsscll_26 = 10,
+		.hsscll_19_2 = 9,
+		.hsscll_16_8 = 9,
+		.hsscll_12 = 8,
+	},
+	{
+		.load = 0,
+		.loadbits = 0x0,
+		.hsscll_38_4 = 12,
+		.hsscll_26 = 10,
+		.hsscll_19_2 = 9,
+		.hsscll_16_8 = 8,
+		.hsscll_12 = 8,
+	},
+};
+
+/**
+ * omap4_vc_i2c_timing_init - sets up board I2C timing parameters
+ * @voltdm: voltagedomain pointer to get data from
+ *
+ * Use PMIC + board supplied settings for calculating the total I2C
+ * channel capacitance and set the timing parameters based on this.
+ * Pre-calculated values are provided in data tables, as it is not
+ * too straightforward to calculate these runtime.
+ */
+static void __init omap4_vc_i2c_timing_init(struct voltagedomain *voltdm)
+{
+	u32 capacitance;
+	u32 val;
+	u16 hsscll;
+	const struct i2c_init_data *i2c_data;
+
+	if (!voltdm->pmic->i2c_high_speed) {
+		pr_warn("%s: only high speed supported!\n", __func__);
+		return;
+	}
+
+	/* PCB trace capacitance, 0.125pF / mm => mm / 8 */
+	capacitance = DIV_ROUND_UP(sr_i2c_pcb_length, 8);
+
+	/* OMAP pad capacitance */
+	capacitance += 4;
+
+	/* PMIC pad capacitance */
+	capacitance += voltdm->pmic->i2c_pad_load;
+
+	/* Search for capacitance match in the table */
+	i2c_data = omap4_i2c_timing_data;
+
+	while (i2c_data->load > capacitance)
+		i2c_data++;
+
+	/* Select proper values based on sysclk frequency */
+	switch (voltdm->sys_clk.rate) {
+	case 38400000:
+		hsscll = i2c_data->hsscll_38_4;
+		break;
+	case 26000000:
+		hsscll = i2c_data->hsscll_26;
+		break;
+	case 19200000:
+		hsscll = i2c_data->hsscll_19_2;
+		break;
+	case 16800000:
+		hsscll = i2c_data->hsscll_16_8;
+		break;
+	case 12000000:
+		hsscll = i2c_data->hsscll_12;
+		break;
+	default:
+		pr_warn("%s: unsupported sysclk rate: %d!\n", __func__,
+			voltdm->sys_clk.rate);
+		return;
+	}
+
+	/* Loadbits define pull setup for the I2C channels */
+	val = i2c_data->loadbits << 25 | i2c_data->loadbits << 29;
+
+	/* Write to SYSCTRL_PADCONF_WKUP_CTRL_I2C_2 to setup I2C pull */
+	__raw_writel(val, OMAP2_L4_IO_ADDRESS(OMAP4_CTRL_MODULE_PAD_WKUP +
+				OMAP4_CTRL_MODULE_PAD_WKUP_CONTROL_I2C_2));
+
+	/* HSSCLH can always be zero */
+	val = hsscll << OMAP4430_HSSCLL_SHIFT;
+	val |= (0x28 << OMAP4430_SCLL_SHIFT | 0x2c << OMAP4430_SCLH_SHIFT);
+
+	/* Write setup times to I2C config register */
+	voltdm->write(val, OMAP4_PRM_VC_CFG_I2C_CLK_OFFSET);
+}
+
+
 
 /**
  * omap_vc_i2c_init - initialize I2C interface to PMIC
@@ -519,6 +636,9 @@ static void __init omap_vc_i2c_init(struct voltagedomain *voltdm)
 			    mcode << __ffs(vc->common->i2c_mcode_mask),
 			    vc->common->i2c_cfg_reg);
 
+	if (cpu_is_omap44xx())
+		omap4_vc_i2c_timing_init(voltdm);
+
 	initialized = true;
 }
 
@@ -544,6 +664,19 @@ static u8 omap_vc_calc_vsel(struct voltagedomain *voltdm, u32 uvolt)
 	}
 
 	return voltdm->pmic->uv_to_vsel(uvolt);
+}
+
+/**
+ * omap_pm_setup_sr_i2c_pcb_length - set length of SR I2C traces on PCB
+ * @mm: length of the PCB trace in millimetres
+ *
+ * Sets the PCB trace length for the I2C channel. By default uses 63mm.
+ * This is needed for properly calculating the capacitance value for
+ * the PCB trace, and for setting the SR I2C channel timing parameters.
+ */
+void __init omap_pm_setup_sr_i2c_pcb_length(u32 mm)
+{
+	sr_i2c_pcb_length = mm;
 }
 
 void __init omap_vc_init_channel(struct voltagedomain *voltdm)

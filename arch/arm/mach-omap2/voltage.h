@@ -139,6 +139,7 @@ struct omap_voltdm_pmic {
 	u32 vddmax;
 	u8 vp_timeout_us;
 	bool i2c_high_speed;
+	u32 i2c_pad_load;
 	u8 i2c_mcode;
 	unsigned long (*vsel_to_uv) (const u8 vsel);
 	u8 (*uv_to_vsel) (unsigned long uV);
