@@ -1220,16 +1220,24 @@ out_forget_reply:
 void
 pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 {
+	u64 rd_size = req->wb_bytes;
+
 	BUG_ON(pgio->pg_lseg != NULL);
 
 	if (req->wb_offset != req->wb_pgbase) {
 		nfs_pageio_reset_read_mds(pgio);
 		return;
 	}
+
+	if (pgio->pg_dreq == NULL)
+		rd_size = i_size_read(pgio->pg_inode) - req_offset(req);
+	else
+		rd_size = nfs_dreq_bytes_left(pgio->pg_dreq);
+
 	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 					   req->wb_context,
 					   req_offset(req),
-					   req->wb_bytes,
+					   rd_size,
 					   IOMODE_READ,
 					   GFP_KERNEL);
 	/* If no lseg, fall back to read through mds */
