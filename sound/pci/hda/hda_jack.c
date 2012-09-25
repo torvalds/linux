@@ -192,8 +192,9 @@ EXPORT_SYMBOL_HDA(snd_hda_jack_detect);
 /**
  * snd_hda_jack_detect_enable - enable the jack-detection
  */
-int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid,
-			       unsigned char action)
+int snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
+					unsigned char action,
+					hda_jack_callback cb)
 {
 	struct hda_jack_tbl *jack = snd_hda_jack_tbl_new(codec, nid);
 	if (!jack)
@@ -203,9 +204,18 @@ int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid,
 	jack->jack_detect = 1;
 	if (action)
 		jack->action = action;
+	if (cb)
+		jack->callback = cb;
 	return snd_hda_codec_write_cache(codec, nid, 0,
 					 AC_VERB_SET_UNSOLICITED_ENABLE,
 					 AC_USRSP_EN | jack->tag);
+}
+EXPORT_SYMBOL_HDA(snd_hda_jack_detect_enable_callback);
+
+int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid,
+			       unsigned char action)
+{
+	return snd_hda_jack_detect_enable_callback(codec, nid, action, NULL);
 }
 EXPORT_SYMBOL_HDA(snd_hda_jack_detect_enable);
 
@@ -411,3 +421,21 @@ int snd_hda_jack_add_kctls(struct hda_codec *codec,
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_jack_add_kctls);
+
+void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	struct hda_jack_tbl *event;
+	int tag = (res >> AC_UNSOL_RES_TAG_SHIFT) & 0x7f;
+
+	event = snd_hda_jack_tbl_get_from_tag(codec, tag);
+	if (!event)
+		return;
+	event->jack_dirty = 1;
+
+	if (event->callback)
+		event->callback(codec, event);
+
+	snd_hda_jack_report_sync(codec);
+}
+EXPORT_SYMBOL_HDA(snd_hda_jack_unsol_event);
+
