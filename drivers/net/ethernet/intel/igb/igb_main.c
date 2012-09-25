@@ -534,25 +534,21 @@ rx_ring_summary:
 
 			if (staterr & E1000_RXD_STAT_DD) {
 				/* Descriptor Done */
-				pr_info("%s[0x%03X]     %016llX %016llX -------"
-					"--------- %p%s\n", "RWB", i,
+				pr_info("%s[0x%03X]     %016llX %016llX ---------------- %s\n",
+					"RWB", i,
 					le64_to_cpu(u0->a),
 					le64_to_cpu(u0->b),
-					buffer_info->skb, next_desc);
+					next_desc);
 			} else {
-				pr_info("%s[0x%03X]     %016llX %016llX %016llX"
-					" %p%s\n", "R  ", i,
+				pr_info("%s[0x%03X]     %016llX %016llX %016llX %s\n",
+					"R  ", i,
 					le64_to_cpu(u0->a),
 					le64_to_cpu(u0->b),
 					(u64)buffer_info->dma,
-					buffer_info->skb, next_desc);
+					next_desc);
 
 				if (netif_msg_pktdata(adapter) &&
-				    buffer_info->dma && buffer_info->skb) {
-					print_hex_dump(KERN_INFO, "",
-						  DUMP_PREFIX_ADDRESS,
-						  16, 1, buffer_info->skb->data,
-						  IGB_RX_HDR_LEN, true);
+				    buffer_info->dma && buffer_info->page) {
 					print_hex_dump(KERN_INFO, "",
 					  DUMP_PREFIX_ADDRESS,
 					  16, 1,
@@ -3111,7 +3107,7 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 #else
 	srrctl |= (PAGE_SIZE / 2) >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 #endif
-	srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
+	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 #ifdef CONFIG_IGB_PTP
 	if (hw->mac.type >= e1000_82580)
 		srrctl |= E1000_SRRCTL_TIMESTAMP;
@@ -3305,36 +3301,27 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 	unsigned long size;
 	u16 i;
 
+	if (rx_ring->skb)
+		dev_kfree_skb(rx_ring->skb);
+	rx_ring->skb = NULL;
+
 	if (!rx_ring->rx_buffer_info)
 		return;
 
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
 		struct igb_rx_buffer *buffer_info = &rx_ring->rx_buffer_info[i];
-		if (buffer_info->dma) {
-			dma_unmap_single(rx_ring->dev,
-			                 buffer_info->dma,
-					 IGB_RX_HDR_LEN,
-					 DMA_FROM_DEVICE);
-			buffer_info->dma = 0;
-		}
 
-		if (buffer_info->skb) {
-			dev_kfree_skb(buffer_info->skb);
-			buffer_info->skb = NULL;
-		}
-		if (buffer_info->page_dma) {
+		if (buffer_info->dma)
 			dma_unmap_page(rx_ring->dev,
-			               buffer_info->page_dma,
+				       buffer_info->dma,
 				       PAGE_SIZE / 2,
 				       DMA_FROM_DEVICE);
-			buffer_info->page_dma = 0;
-		}
-		if (buffer_info->page) {
-			put_page(buffer_info->page);
-			buffer_info->page = NULL;
-			buffer_info->page_offset = 0;
-		}
+		buffer_info->dma = 0;
+		if (buffer_info->page)
+			__free_page(buffer_info->page);
+		buffer_info->page = NULL;
+		buffer_info->page_offset = 0;
 	}
 
 	size = sizeof(struct igb_rx_buffer) * rx_ring->count;
@@ -5906,23 +5893,219 @@ static void igb_rx_vlan(struct igb_ring *ring,
 	}
 }
 
-static inline u16 igb_get_hlen(union e1000_adv_rx_desc *rx_desc)
+/**
+ * igb_get_headlen - determine size of header for LRO/GRO
+ * @data: pointer to the start of the headers
+ * @max_len: total length of section to find headers in
+ *
+ * This function is meant to determine the length of headers that will
+ * be recognized by hardware for LRO, and GRO offloads.  The main
+ * motivation of doing this is to only perform one pull for IPv4 TCP
+ * packets so that we can do basic things like calculating the gso_size
+ * based on the average data per packet.
+ **/
+static unsigned int igb_get_headlen(unsigned char *data,
+				    unsigned int max_len)
 {
-	/* HW will not DMA in data larger than the given buffer, even if it
-	 * parses the (NFS, of course) header to be larger.  In that case, it
-	 * fills the header buffer and spills the rest into the page.
+	union {
+		unsigned char *network;
+		/* l2 headers */
+		struct ethhdr *eth;
+		struct vlan_hdr *vlan;
+		/* l3 headers */
+		struct iphdr *ipv4;
+		struct ipv6hdr *ipv6;
+	} hdr;
+	__be16 protocol;
+	u8 nexthdr = 0;	/* default to not TCP */
+	u8 hlen;
+
+	/* this should never happen, but better safe than sorry */
+	if (max_len < ETH_HLEN)
+		return max_len;
+
+	/* initialize network frame pointer */
+	hdr.network = data;
+
+	/* set first protocol and move network header forward */
+	protocol = hdr.eth->h_proto;
+	hdr.network += ETH_HLEN;
+
+	/* handle any vlan tag if present */
+	if (protocol == __constant_htons(ETH_P_8021Q)) {
+		if ((hdr.network - data) > (max_len - VLAN_HLEN))
+			return max_len;
+
+		protocol = hdr.vlan->h_vlan_encapsulated_proto;
+		hdr.network += VLAN_HLEN;
+	}
+
+	/* handle L3 protocols */
+	if (protocol == __constant_htons(ETH_P_IP)) {
+		if ((hdr.network - data) > (max_len - sizeof(struct iphdr)))
+			return max_len;
+
+		/* access ihl as a u8 to avoid unaligned access on ia64 */
+		hlen = (hdr.network[0] & 0x0F) << 2;
+
+		/* verify hlen meets minimum size requirements */
+		if (hlen < sizeof(struct iphdr))
+			return hdr.network - data;
+
+		/* record next protocol */
+		nexthdr = hdr.ipv4->protocol;
+		hdr.network += hlen;
+	} else if (protocol == __constant_htons(ETH_P_IPV6)) {
+		if ((hdr.network - data) > (max_len - sizeof(struct ipv6hdr)))
+			return max_len;
+
+		/* record next protocol */
+		nexthdr = hdr.ipv6->nexthdr;
+		hdr.network += sizeof(struct ipv6hdr);
+	} else {
+		return hdr.network - data;
+	}
+
+	/* finally sort out TCP */
+	if (nexthdr == IPPROTO_TCP) {
+		if ((hdr.network - data) > (max_len - sizeof(struct tcphdr)))
+			return max_len;
+
+		/* access doff as a u8 to avoid unaligned access on ia64 */
+		hlen = (hdr.network[12] & 0xF0) >> 2;
+
+		/* verify hlen meets minimum size requirements */
+		if (hlen < sizeof(struct tcphdr))
+			return hdr.network - data;
+
+		hdr.network += hlen;
+	} else if (nexthdr == IPPROTO_UDP) {
+		if ((hdr.network - data) > (max_len - sizeof(struct udphdr)))
+			return max_len;
+
+		hdr.network += sizeof(struct udphdr);
+	}
+
+	/*
+	 * If everything has gone correctly hdr.network should be the
+	 * data section of the packet and will be the end of the header.
+	 * If not then it probably represents the end of the last recognized
+	 * header.
 	 */
-	u16 hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hdr_info) &
-	           E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
-	if (hlen > IGB_RX_HDR_LEN)
-		hlen = IGB_RX_HDR_LEN;
-	return hlen;
+	if ((hdr.network - data) < max_len)
+		return hdr.network - data;
+	else
+		return max_len;
+}
+
+/**
+ * igb_pull_tail - igb specific version of skb_pull_tail
+ * @rx_ring: rx descriptor ring packet is being transacted on
+ * @skb: pointer to current skb being adjusted
+ *
+ * This function is an igb specific version of __pskb_pull_tail.  The
+ * main difference between this version and the original function is that
+ * this function can make several assumptions about the state of things
+ * that allow for significant optimizations versus the standard function.
+ * As a result we can do things like drop a frag and maintain an accurate
+ * truesize for the skb.
+ */
+static void igb_pull_tail(struct igb_ring *rx_ring,
+			  union e1000_adv_rx_desc *rx_desc,
+			  struct sk_buff *skb)
+{
+	struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
+	unsigned char *va;
+	unsigned int pull_len;
+
+	/*
+	 * it is valid to use page_address instead of kmap since we are
+	 * working with pages allocated out of the lomem pool per
+	 * alloc_page(GFP_ATOMIC)
+	 */
+	va = skb_frag_address(frag);
+
+#ifdef CONFIG_IGB_PTP
+	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
+		/* retrieve timestamp from buffer */
+		igb_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
+
+		/* update pointers to remove timestamp header */
+		skb_frag_size_sub(frag, IGB_TS_HDR_LEN);
+		frag->page_offset += IGB_TS_HDR_LEN;
+		skb->data_len -= IGB_TS_HDR_LEN;
+		skb->len -= IGB_TS_HDR_LEN;
+
+		/* move va to start of packet data */
+		va += IGB_TS_HDR_LEN;
+	}
+
+#endif
+	/*
+	 * we need the header to contain the greater of either ETH_HLEN or
+	 * 60 bytes if the skb->len is less than 60 for skb_pad.
+	 */
+	pull_len = igb_get_headlen(va, IGB_RX_HDR_LEN);
+
+	/* align pull length to size of long to optimize memcpy performance */
+	skb_copy_to_linear_data(skb, va, ALIGN(pull_len, sizeof(long)));
+
+	/* update all of the pointers */
+	skb_frag_size_sub(frag, pull_len);
+	frag->page_offset += pull_len;
+	skb->data_len -= pull_len;
+	skb->tail += pull_len;
+}
+
+/**
+ * igb_cleanup_headers - Correct corrupted or empty headers
+ * @rx_ring: rx descriptor ring packet is being transacted on
+ * @rx_desc: pointer to the EOP Rx descriptor
+ * @skb: pointer to current skb being fixed
+ *
+ * Address the case where we are pulling data in on pages only
+ * and as such no data is present in the skb header.
+ *
+ * In addition if skb is not at least 60 bytes we need to pad it so that
+ * it is large enough to qualify as a valid Ethernet frame.
+ *
+ * Returns true if an error was encountered and skb was freed.
+ **/
+static bool igb_cleanup_headers(struct igb_ring *rx_ring,
+				union e1000_adv_rx_desc *rx_desc,
+				struct sk_buff *skb)
+{
+
+	if (unlikely((igb_test_staterr(rx_desc,
+				       E1000_RXDEXT_ERR_FRAME_ERR_MASK)))) {
+		struct net_device *netdev = rx_ring->netdev;
+		if (!(netdev->features & NETIF_F_RXALL)) {
+			dev_kfree_skb_any(skb);
+			return true;
+		}
+	}
+
+	/* place header in linear portion of buffer */
+	if (skb_is_nonlinear(skb))
+		igb_pull_tail(rx_ring, rx_desc, skb);
+
+	/* if skb_pad returns an error the skb was freed */
+	if (unlikely(skb->len < 60)) {
+		int pad_len = 60 - skb->len;
+
+		if (skb_pad(skb, pad_len))
+			return true;
+		__skb_put(skb, pad_len);
+	}
+
+	return false;
 }
 
 static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 {
 	struct igb_ring *rx_ring = q_vector->rx.ring;
 	union e1000_adv_rx_desc *rx_desc;
+	struct sk_buff *skb = rx_ring->skb;
 	const int current_node = numa_node_id();
 	unsigned int total_bytes = 0, total_packets = 0;
 	u16 cleaned_count = igb_desc_unused(rx_ring);
@@ -5932,11 +6115,8 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 
 	while (igb_test_staterr(rx_desc, E1000_RXD_STAT_DD)) {
 		struct igb_rx_buffer *buffer_info = &rx_ring->rx_buffer_info[i];
-		struct sk_buff *skb = buffer_info->skb;
+		struct page *page;
 		union e1000_adv_rx_desc *next_rxd;
-
-		buffer_info->skb = NULL;
-		prefetch(skb->data);
 
 		i++;
 		if (i == rx_ring->count)
@@ -5952,52 +6132,57 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 		 */
 		rmb();
 
-		if (!skb_is_nonlinear(skb)) {
-			__skb_put(skb, igb_get_hlen(rx_desc));
-			dma_unmap_single(rx_ring->dev, buffer_info->dma,
-					 IGB_RX_HDR_LEN,
-					 DMA_FROM_DEVICE);
-			buffer_info->dma = 0;
+		page = buffer_info->page;
+		prefetchw(page);
+
+		if (likely(!skb)) {
+			void *page_addr = page_address(page) +
+					  buffer_info->page_offset;
+
+			/* prefetch first cache line of first page */
+			prefetch(page_addr);
+#if L1_CACHE_BYTES < 128
+			prefetch(page_addr + L1_CACHE_BYTES);
+#endif
+
+			/* allocate a skb to store the frags */
+			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
+							IGB_RX_HDR_LEN);
+			if (unlikely(!skb)) {
+				rx_ring->rx_stats.alloc_failed++;
+				break;
+			}
+
+			/*
+			 * we will be copying header into skb->data in
+			 * pskb_may_pull so it is in our interest to prefetch
+			 * it now to avoid a possible cache miss
+			 */
+			prefetchw(skb->data);
 		}
 
-		if (rx_desc->wb.upper.length) {
-			u16 length = le16_to_cpu(rx_desc->wb.upper.length);
+		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+				buffer_info->page_offset,
+				le16_to_cpu(rx_desc->wb.upper.length),
+				PAGE_SIZE / 2);
 
-			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
-						buffer_info->page,
-						buffer_info->page_offset,
-						length);
+		if ((page_count(buffer_info->page) != 1) ||
+		    (page_to_nid(buffer_info->page) != current_node))
+			buffer_info->page = NULL;
+		else
+			get_page(buffer_info->page);
 
-			skb->len += length;
-			skb->data_len += length;
-			skb->truesize += PAGE_SIZE / 2;
+		dma_unmap_page(rx_ring->dev, buffer_info->dma,
+			       PAGE_SIZE / 2, DMA_FROM_DEVICE);
+		buffer_info->dma = 0;
 
-			if ((page_count(buffer_info->page) != 1) ||
-			    (page_to_nid(buffer_info->page) != current_node))
-				buffer_info->page = NULL;
-			else
-				get_page(buffer_info->page);
-
-			dma_unmap_page(rx_ring->dev, buffer_info->page_dma,
-				       PAGE_SIZE / 2, DMA_FROM_DEVICE);
-			buffer_info->page_dma = 0;
-		}
-
-		if (!igb_test_staterr(rx_desc, E1000_RXD_STAT_EOP)) {
-			struct igb_rx_buffer *next_buffer;
-			next_buffer = &rx_ring->rx_buffer_info[i];
-			buffer_info->skb = next_buffer->skb;
-			buffer_info->dma = next_buffer->dma;
-			next_buffer->skb = skb;
-			next_buffer->dma = 0;
+		if (!igb_test_staterr(rx_desc, E1000_RXD_STAT_EOP))
 			goto next_desc;
-		}
 
-		if (unlikely((igb_test_staterr(rx_desc,
-					       E1000_RXDEXT_ERR_FRAME_ERR_MASK))
-			     && !(rx_ring->netdev->features & NETIF_F_RXALL))) {
-			dev_kfree_skb_any(skb);
-			goto next_desc;
+		/* verify the packet layout is correct */
+		if (igb_cleanup_headers(rx_ring, rx_desc, skb)) {
+			skb = NULL;
+			continue;
 		}
 
 #ifdef CONFIG_IGB_PTP
@@ -6010,9 +6195,13 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 		total_bytes += skb->len;
 		total_packets++;
 
+		skb_record_rx_queue(skb, rx_ring->queue_index);
 		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
 		napi_gro_receive(&q_vector->napi, skb);
+
+		/* reset skb pointer */
+		skb = NULL;
 
 		budget--;
 next_desc:
@@ -6030,6 +6219,9 @@ next_desc:
 		rx_desc = next_rxd;
 	}
 
+	/* place incomplete frames back on ring for completion */
+	rx_ring->skb = skb;
+
 	rx_ring->next_to_clean = i;
 	u64_stats_update_begin(&rx_ring->rx_syncp);
 	rx_ring->rx_stats.packets += total_packets;
@@ -6044,30 +6236,28 @@ next_desc:
 	return !!budget;
 }
 
-static bool igb_alloc_mapped_skb(struct igb_ring *rx_ring,
-				 struct igb_rx_buffer *bi)
+static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
+				  struct igb_rx_buffer *bi)
 {
-	struct sk_buff *skb = bi->skb;
+	struct page *page = bi->page;
 	dma_addr_t dma = bi->dma;
+	unsigned int page_offset = bi->page_offset ^ (PAGE_SIZE / 2);
 
 	if (dma)
 		return true;
 
-	if (likely(!skb)) {
-		skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
-						IGB_RX_HDR_LEN);
-		bi->skb = skb;
-		if (!skb) {
+	if (!page) {
+		page = __skb_alloc_page(GFP_ATOMIC | __GFP_COLD, NULL);
+		if (unlikely(!page)) {
 			rx_ring->rx_stats.alloc_failed++;
 			return false;
 		}
-
-		/* initialize skb for ring */
-		skb_record_rx_queue(skb, rx_ring->queue_index);
+		bi->page = page;
 	}
 
-	dma = dma_map_single(rx_ring->dev, skb->data,
-			     IGB_RX_HDR_LEN, DMA_FROM_DEVICE);
+	dma = dma_map_page(rx_ring->dev, page,
+			   page_offset, PAGE_SIZE / 2,
+			   DMA_FROM_DEVICE);
 
 	if (dma_mapping_error(rx_ring->dev, dma)) {
 		rx_ring->rx_stats.alloc_failed++;
@@ -6075,39 +6265,8 @@ static bool igb_alloc_mapped_skb(struct igb_ring *rx_ring,
 	}
 
 	bi->dma = dma;
-	return true;
-}
-
-static bool igb_alloc_mapped_page(struct igb_ring *rx_ring,
-				  struct igb_rx_buffer *bi)
-{
-	struct page *page = bi->page;
-	dma_addr_t page_dma = bi->page_dma;
-	unsigned int page_offset = bi->page_offset ^ (PAGE_SIZE / 2);
-
-	if (page_dma)
-		return true;
-
-	if (!page) {
-		page = __skb_alloc_page(GFP_ATOMIC, bi->skb);
-		bi->page = page;
-		if (unlikely(!page)) {
-			rx_ring->rx_stats.alloc_failed++;
-			return false;
-		}
-	}
-
-	page_dma = dma_map_page(rx_ring->dev, page,
-				page_offset, PAGE_SIZE / 2,
-				DMA_FROM_DEVICE);
-
-	if (dma_mapping_error(rx_ring->dev, page_dma)) {
-		rx_ring->rx_stats.alloc_failed++;
-		return false;
-	}
-
-	bi->page_dma = page_dma;
 	bi->page_offset = page_offset;
+
 	return true;
 }
 
@@ -6126,17 +6285,12 @@ void igb_alloc_rx_buffers(struct igb_ring *rx_ring, u16 cleaned_count)
 	i -= rx_ring->count;
 
 	while (cleaned_count--) {
-		if (!igb_alloc_mapped_skb(rx_ring, bi))
+		if (!igb_alloc_mapped_page(rx_ring, bi))
 			break;
 
 		/* Refresh the desc even if buffer_addrs didn't change
 		 * because each write-back erases this info. */
-		rx_desc->read.hdr_addr = cpu_to_le64(bi->dma);
-
-		if (!igb_alloc_mapped_page(rx_ring, bi))
-			break;
-
-		rx_desc->read.pkt_addr = cpu_to_le64(bi->page_dma);
+		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma);
 
 		rx_desc++;
 		bi++;

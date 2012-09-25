@@ -174,11 +174,9 @@ struct igb_tx_buffer {
 };
 
 struct igb_rx_buffer {
-	struct sk_buff *skb;
 	dma_addr_t dma;
 	struct page *page;
-	dma_addr_t page_dma;
-	u32 page_offset;
+	unsigned int page_offset;
 };
 
 struct igb_tx_queue_stats {
@@ -251,6 +249,7 @@ struct igb_ring {
 		};
 		/* RX */
 		struct {
+			struct sk_buff *skb;
 			struct igb_rx_queue_stats rx_stats;
 			struct u64_stats_sync rx_syncp;
 		};
@@ -451,13 +450,11 @@ static inline void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
 				       union e1000_adv_rx_desc *rx_desc,
 				       struct sk_buff *skb)
 {
-	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
-		igb_ptp_rx_pktstamp(q_vector, skb->data, skb);
-		skb_pull(skb, IGB_TS_HDR_LEN);
-	} else if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS)) {
+	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS) &&
+	    !igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP))
 		igb_ptp_rx_rgtstamp(q_vector, skb);
-	}
 }
+
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 				  struct ifreq *ifr, int cmd);
 #endif /* CONFIG_IGB_PTP */
