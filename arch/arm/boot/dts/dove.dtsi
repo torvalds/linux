@@ -145,5 +145,14 @@
 			nr-ports = <1>;
 			status = "disabled";
 		};
+
+		crypto: crypto@30000 {
+			compatible = "marvell,orion-crypto";
+			reg = <0x30000 0x10000>,
+			      <0xc8000000 0x800>;
+			reg-names = "regs", "sram";
+			interrupts = <31>;
+			status = "okay";
+		};
 	};
 };

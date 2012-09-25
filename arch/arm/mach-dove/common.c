@@ -416,7 +416,6 @@ static void __init dove_dt_init(void)
 	dove_ehci0_init();
 	dove_ehci1_init();
 	dove_pcie_init(1, 1);
-	dove_crypto_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     dove_auxdata_lookup, NULL);
