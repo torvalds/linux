@@ -41,6 +41,7 @@ struct sense_iu_old {
 struct uas_dev_info {
 	struct usb_interface *intf;
 	struct usb_device *udev;
+	struct usb_anchor cmd_urbs;
 	struct usb_anchor sense_urbs;
 	struct usb_anchor data_urbs;
 	int qdepth, resetting;
@@ -431,6 +432,7 @@ static int uas_submit_task_urb(struct scsi_cmnd *cmnd, gfp_t gfp,
 	err = usb_submit_urb(urb, gfp);
 	if (err)
 		goto err;
+	usb_anchor_urb(urb, &devinfo->cmd_urbs);
 
 	return 0;
 
@@ -521,18 +523,22 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	if (cmdinfo->state & ALLOC_CMD_URB) {
 		cmdinfo->cmd_urb = uas_alloc_cmd_urb(devinfo, gfp, cmnd,
-							cmdinfo->stream);
+						     cmdinfo->stream);
 		if (!cmdinfo->cmd_urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		cmdinfo->state &= ~ALLOC_CMD_URB;
 	}
 
 	if (cmdinfo->state & SUBMIT_CMD_URB) {
+		usb_get_urb(cmdinfo->cmd_urb);
 		if (usb_submit_urb(cmdinfo->cmd_urb, gfp)) {
 			scmd_printk(KERN_INFO, cmnd,
 					"cmd urb submission failure\n");
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
+		usb_anchor_urb(cmdinfo->cmd_urb, &devinfo->cmd_urbs);
+		usb_put_urb(cmdinfo->cmd_urb);
+		cmdinfo->cmd_urb = NULL;
 		cmdinfo->state &= ~SUBMIT_CMD_URB;
 		cmdinfo->state |= COMMAND_INFLIGHT;
 	}
@@ -670,6 +676,7 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	int err;
 
 	devinfo->resetting = 1;
+	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
 	err = usb_reset_device(udev);
@@ -868,6 +875,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	devinfo->intf = intf;
 	devinfo->udev = udev;
 	devinfo->resetting = 0;
+	init_usb_anchor(&devinfo->cmd_urbs);
 	init_usb_anchor(&devinfo->sense_urbs);
 	init_usb_anchor(&devinfo->data_urbs);
 	uas_configure_endpoints(devinfo);
@@ -913,6 +921,7 @@ static void uas_disconnect(struct usb_interface *intf)
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 
 	scsi_remove_host(shost);
+	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
 	uas_free_streams(devinfo);
