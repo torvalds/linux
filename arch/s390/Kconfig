@@ -545,8 +545,8 @@ config PFAULT
 	  this option.
 
 config SHARED_KERNEL
-	def_bool y
-	prompt "VM shared kernel support"
+	bool "VM shared kernel support"
+	depends on !JUMP_LABEL
 	help
 	  Select this option, if you want to share the text segment of the
 	  Linux kernel between different VM guests. This reduces memory
