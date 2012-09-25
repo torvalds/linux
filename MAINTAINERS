@@ -3552,11 +3552,12 @@ K:	\b(ABS|SYN)_MT_
 
 INTEL C600 SERIES SAS CONTROLLER DRIVER
 M:	Intel SCU Linux support <intel-linux-scu@intel.com>
+M:	Lukasz Dorau <lukasz.dorau@intel.com>
+M:	Maciej Patelczyk <maciej.patelczyk@intel.com>
 M:	Dave Jiang <dave.jiang@intel.com>
-M:	Ed Nadolski <edmund.nadolski@intel.com>
 L:	linux-scsi@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/djbw/isci.git
-S:	Maintained
+T:	git git://git.code.sf.net/p/intel-sas/isci
+S:	Supported
 F:	drivers/scsi/isci/
 F:	firmware/isci/
 
