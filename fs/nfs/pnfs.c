@@ -1240,7 +1240,8 @@ pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *r
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_init_read);
 
 void
-pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
+pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
+			   struct nfs_page *req, u64 wb_size)
 {
 	BUG_ON(pgio->pg_lseg != NULL);
 
@@ -1248,10 +1249,11 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *
 		nfs_pageio_reset_write_mds(pgio);
 		return;
 	}
+
 	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 					   req->wb_context,
 					   req_offset(req),
-					   req->wb_bytes,
+					   wb_size,
 					   IOMODE_RW,
 					   GFP_NOFS);
 	/* If no lseg, fall back to write through mds */
