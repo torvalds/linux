@@ -1770,6 +1770,9 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_VSR31     | 128
   PPC   | KVM_REG_PPC_FPSCR     | 64
   PPC   | KVM_REG_PPC_VSCR      | 32
+  PPC   | KVM_REG_PPC_VPA_ADDR  | 64
+  PPC   | KVM_REG_PPC_VPA_SLB   | 128
+  PPC   | KVM_REG_PPC_VPA_DTL   | 128
 
 4.69 KVM_GET_ONE_REG
 

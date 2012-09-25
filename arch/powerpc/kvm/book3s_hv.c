@@ -143,6 +143,22 @@ static void init_vpa(struct kvm_vcpu *vcpu, struct lppaca *vpa)
 	vpa->yield_count = 1;
 }
 
+static int set_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *v,
+		   unsigned long addr, unsigned long len)
+{
+	/* check address is cacheline aligned */
+	if (addr & (L1_CACHE_BYTES - 1))
+		return -EINVAL;
+	spin_lock(&vcpu->arch.vpa_update_lock);
+	if (v->next_gpa != addr || v->len != len) {
+		v->next_gpa = addr;
+		v->len = addr ? len : 0;
+		v->update_pending = 1;
+	}
+	spin_unlock(&vcpu->arch.vpa_update_lock);
+	return 0;
+}
+
 /* Length for a per-processor buffer is passed in at offset 4 in the buffer */
 struct reg_vpa {
 	u32 dummy;
@@ -321,7 +337,8 @@ static void kvmppc_update_vpas(struct kvm_vcpu *vcpu)
 	spin_lock(&vcpu->arch.vpa_update_lock);
 	if (vcpu->arch.vpa.update_pending) {
 		kvmppc_update_vpa(vcpu, &vcpu->arch.vpa);
-		init_vpa(vcpu, vcpu->arch.vpa.pinned_addr);
+		if (vcpu->arch.vpa.pinned_addr)
+			init_vpa(vcpu, vcpu->arch.vpa.pinned_addr);
 	}
 	if (vcpu->arch.dtl.update_pending) {
 		kvmppc_update_vpa(vcpu, &vcpu->arch.dtl);
@@ -600,6 +617,23 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 		}
 		break;
 #endif /* CONFIG_VSX */
+	case KVM_REG_PPC_VPA_ADDR:
+		spin_lock(&vcpu->arch.vpa_update_lock);
+		*val = get_reg_val(id, vcpu->arch.vpa.next_gpa);
+		spin_unlock(&vcpu->arch.vpa_update_lock);
+		break;
+	case KVM_REG_PPC_VPA_SLB:
+		spin_lock(&vcpu->arch.vpa_update_lock);
+		val->vpaval.addr = vcpu->arch.slb_shadow.next_gpa;
+		val->vpaval.length = vcpu->arch.slb_shadow.len;
+		spin_unlock(&vcpu->arch.vpa_update_lock);
+		break;
+	case KVM_REG_PPC_VPA_DTL:
+		spin_lock(&vcpu->arch.vpa_update_lock);
+		val->vpaval.addr = vcpu->arch.dtl.next_gpa;
+		val->vpaval.length = vcpu->arch.dtl.len;
+		spin_unlock(&vcpu->arch.vpa_update_lock);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -612,6 +646,7 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 {
 	int r = 0;
 	long int i;
+	unsigned long addr, len;
 
 	switch (id) {
 	case KVM_REG_PPC_HIOR:
@@ -666,6 +701,33 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 		}
 		break;
 #endif /* CONFIG_VSX */
+	case KVM_REG_PPC_VPA_ADDR:
+		addr = set_reg_val(id, *val);
+		r = -EINVAL;
+		if (!addr && (vcpu->arch.slb_shadow.next_gpa ||
+			      vcpu->arch.dtl.next_gpa))
+			break;
+		r = set_vpa(vcpu, &vcpu->arch.vpa, addr, sizeof(struct lppaca));
+		break;
+	case KVM_REG_PPC_VPA_SLB:
+		addr = val->vpaval.addr;
+		len = val->vpaval.length;
+		r = -EINVAL;
+		if (addr && !vcpu->arch.vpa.next_gpa)
+			break;
+		r = set_vpa(vcpu, &vcpu->arch.slb_shadow, addr, len);
+		break;
+	case KVM_REG_PPC_VPA_DTL:
+		addr = val->vpaval.addr;
+		len = val->vpaval.length;
+		r = -EINVAL;
+		if (len < sizeof(struct dtl_entry))
+			break;
+		if (addr && !vcpu->arch.vpa.next_gpa)
+			break;
+		len -= len % sizeof(struct dtl_entry);
+		r = set_vpa(vcpu, &vcpu->arch.dtl, addr, len);
+		break;
 	default:
 		r = -EINVAL;
 		break;

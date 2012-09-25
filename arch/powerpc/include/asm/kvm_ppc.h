@@ -202,6 +202,10 @@ union kvmppc_one_reg {
 	u64	dval;
 	vector128 vval;
 	u64	vsxval[2];
+	struct {
+		u64	addr;
+		u64	length;
+	}	vpaval;
 };
 
 #define one_reg_size(id)	\
