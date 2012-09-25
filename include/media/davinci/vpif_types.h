@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 
 #define VPIF_CAPTURE_MAX_CHANNELS	2
+#define VPIF_DISPLAY_MAX_CHANNELS	2
 
 enum vpif_if_type {
 	VPIF_IF_BT656,
@@ -39,15 +40,25 @@ struct vpif_subdev_info {
 	struct i2c_board_info board_info;
 };
 
+struct vpif_output {
+	struct v4l2_output output;
+	const char *subdev_name;
+	u32 input_route;
+	u32 output_route;
+};
+
+struct vpif_display_chan_config {
+	const struct vpif_output *outputs;
+	int output_count;
+	bool clip_en;
+};
+
 struct vpif_display_config {
 	int (*set_clock)(int, int);
 	struct vpif_subdev_info *subdevinfo;
 	int subdev_count;
-	const char **output;
-	int output_count;
+	struct vpif_display_chan_config chan_config[VPIF_DISPLAY_MAX_CHANNELS];
 	const char *card_name;
-	bool ch2_clip_en;
-	bool ch3_clip_en;
 };
 
 struct vpif_input {

@@ -46,6 +46,7 @@
 #include <mach/spi.h>
 
 #include <media/tvp514x.h>
+#include <media/adv7343.h>
 
 #define DA850_EVM_PHY_ID		"davinci_mdio-0:00"
 #define DA850_LCD_PWR_PIN		GPIO_TO_PIN(2, 8)
@@ -1259,16 +1260,38 @@ static struct vpif_subdev_info da850_vpif_subdev[] = {
 	},
 };
 
-static const char const *vpif_output[] = {
-		"Composite",
-		"S-Video",
+static const struct vpif_output da850_ch0_outputs[] = {
+	{
+		.output = {
+			.index = 0,
+			.name = "Composite",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_STD,
+			.std = V4L2_STD_ALL,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_COMPOSITE_ID,
+	},
+	{
+		.output = {
+			.index = 1,
+			.name = "S-Video",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_STD,
+			.std = V4L2_STD_ALL,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_SVIDEO_ID,
+	},
 };
 
 static struct vpif_display_config da850_vpif_display_config = {
 	.subdevinfo   = da850_vpif_subdev,
 	.subdev_count = ARRAY_SIZE(da850_vpif_subdev),
-	.output       = vpif_output,
-	.output_count = ARRAY_SIZE(vpif_output),
+	.chan_config[0] = {
+		.outputs = da850_ch0_outputs,
+		.output_count = ARRAY_SIZE(da850_ch0_outputs),
+	},
 	.card_name    = "DA850/OMAP-L138 Video Display",
 };
 

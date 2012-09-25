@@ -26,6 +26,7 @@
 #include <linux/i2c/pcf857x.h>
 
 #include <media/tvp514x.h>
+#include <media/adv7343.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -496,18 +497,49 @@ static struct vpif_subdev_info dm646x_vpif_subdev[] = {
 	},
 };
 
-static const char *output[] = {
-	"Composite",
-	"Component",
-	"S-Video",
+static const struct vpif_output dm6467_ch0_outputs[] = {
+	{
+		.output = {
+			.index = 0,
+			.name = "Composite",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_STD,
+			.std = V4L2_STD_ALL,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_COMPOSITE_ID,
+	},
+	{
+		.output = {
+			.index = 1,
+			.name = "Component",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_CUSTOM_TIMINGS,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_COMPONENT_ID,
+	},
+	{
+		.output = {
+			.index = 2,
+			.name = "S-Video",
+			.type = V4L2_OUTPUT_TYPE_ANALOG,
+			.capabilities = V4L2_OUT_CAP_STD,
+			.std = V4L2_STD_ALL,
+		},
+		.subdev_name = "adv7343",
+		.output_route = ADV7343_SVIDEO_ID,
+	},
 };
 
 static struct vpif_display_config dm646x_vpif_display_config = {
 	.set_clock	= set_vpif_clock,
 	.subdevinfo	= dm646x_vpif_subdev,
 	.subdev_count	= ARRAY_SIZE(dm646x_vpif_subdev),
-	.output		= output,
-	.output_count	= ARRAY_SIZE(output),
+	.chan_config[0] = {
+		.outputs = dm6467_ch0_outputs,
+		.output_count = ARRAY_SIZE(dm6467_ch0_outputs),
+	},
 	.card_name	= "DM646x EVM",
 };
 
