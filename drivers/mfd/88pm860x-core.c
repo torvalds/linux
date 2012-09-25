@@ -644,7 +644,7 @@ static void __devinit device_bk_init(struct pm860x_chip *chip,
 			bk_devs[i].resources = &bk_resources[j];
 			ret = mfd_add_devices(chip->dev, 0,
 					      &bk_devs[i], 1,
-					      &bk_resources[j], 0);
+					      &bk_resources[j], 0, NULL);
 			if (ret < 0) {
 				dev_err(chip->dev, "Failed to add "
 					"backlight subdev\n");
@@ -679,7 +679,7 @@ static void __devinit device_led_init(struct pm860x_chip *chip,
 			led_devs[i].resources = &led_resources[j],
 			ret = mfd_add_devices(chip->dev, 0,
 					      &led_devs[i], 1,
-					      &led_resources[j], 0);
+					      &led_resources[j], 0, NULL);
 			if (ret < 0) {
 				dev_err(chip->dev, "Failed to add "
 					"led subdev\n");
@@ -716,7 +716,7 @@ static void __devinit device_regulator_init(struct pm860x_chip *chip,
 		regulator_devs[i].resources = &regulator_resources[seq];
 
 		ret = mfd_add_devices(chip->dev, 0, &regulator_devs[i], 1,
-				      &regulator_resources[seq], 0);
+				      &regulator_resources[seq], 0, NULL);
 		if (ret < 0) {
 			dev_err(chip->dev, "Failed to add regulator subdev\n");
 			goto out;
@@ -740,7 +740,7 @@ static void __devinit device_rtc_init(struct pm860x_chip *chip,
 	rtc_devs[0].resources = &rtc_resources[0];
 	ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
 			      ARRAY_SIZE(rtc_devs), &rtc_resources[0],
-			      chip->irq_base);
+			      chip->irq_base, NULL);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add rtc subdev\n");
 }
@@ -759,7 +759,7 @@ static void __devinit device_touch_init(struct pm860x_chip *chip,
 	touch_devs[0].resources = &touch_resources[0];
 	ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
 			      ARRAY_SIZE(touch_devs), &touch_resources[0],
-			      chip->irq_base);
+			      chip->irq_base, NULL);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add touch subdev\n");
 }
@@ -777,7 +777,7 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 	power_devs[0].num_resources = ARRAY_SIZE(battery_resources);
 	power_devs[0].resources = &battery_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &power_devs[0], 1,
-			      &battery_resources[0], chip->irq_base);
+			      &battery_resources[0], chip->irq_base, NULL);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add battery subdev\n");
 
@@ -786,7 +786,7 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 	power_devs[1].num_resources = ARRAY_SIZE(charger_resources);
 	power_devs[1].resources = &charger_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &power_devs[1], 1,
-			      &charger_resources[0], chip->irq_base);
+			      &charger_resources[0], chip->irq_base, NULL);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add charger subdev\n");
 
@@ -795,7 +795,7 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 	power_devs[2].num_resources = ARRAY_SIZE(preg_resources);
 	power_devs[2].resources = &preg_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &power_devs[2], 1,
-			      &preg_resources[0], chip->irq_base);
+			      &preg_resources[0], chip->irq_base, NULL);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add preg subdev\n");
 
@@ -807,7 +807,7 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 		power_devs[3].platform_data = pdata->chg_desc;
 		power_devs[3].pdata_size = sizeof(*pdata->chg_desc);
 		ret = mfd_add_devices(chip->dev, 0, &power_devs[3], 1,
-				      NULL, chip->irq_base);
+				      NULL, chip->irq_base, NULL);
 		if (ret < 0)
 			dev_err(chip->dev, "Failed to add chg-manager subdev\n");
 	}
@@ -822,7 +822,7 @@ static void __devinit device_onkey_init(struct pm860x_chip *chip,
 	onkey_devs[0].resources = &onkey_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &onkey_devs[0],
 			      ARRAY_SIZE(onkey_devs), &onkey_resources[0],
-			      chip->irq_base);
+			      chip->irq_base, NULL);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add onkey subdev\n");
 }
@@ -835,7 +835,8 @@ static void __devinit device_codec_init(struct pm860x_chip *chip,
 	codec_devs[0].num_resources = ARRAY_SIZE(codec_resources);
 	codec_devs[0].resources = &codec_resources[0],
 	ret = mfd_add_devices(chip->dev, 0, &codec_devs[0],
-			      ARRAY_SIZE(codec_devs), &codec_resources[0], 0);
+			      ARRAY_SIZE(codec_devs), &codec_resources[0], 0,
+			      NULL);
 	if (ret < 0)
 		dev_err(chip->dev, "Failed to add codec subdev\n");
 }
