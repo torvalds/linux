@@ -138,7 +138,7 @@ KBUILD_CFLAGS += $(call cc-option,-mno-avx,)
 KBUILD_CFLAGS += $(mflags-y)
 KBUILD_AFLAGS += $(mflags-y)
 
-archscripts: scripts_basic
+archscripts:
 	$(Q)$(MAKE) $(build)=arch/x86/tools relocs
 
 ###
