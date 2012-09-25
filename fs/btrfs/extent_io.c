@@ -45,6 +45,7 @@ struct extent_page_data {
 	struct bio *bio;
 	struct extent_io_tree *tree;
 	get_extent_t *get_extent;
+	unsigned long bio_flags;
 
 	/* tells writepage not to lock the state bits for this range
 	 * it still does the unlocking
@@ -3163,12 +3164,16 @@ static int write_one_eb(struct extent_buffer *eb,
 	struct block_device *bdev = fs_info->fs_devices->latest_bdev;
 	u64 offset = eb->start;
 	unsigned long i, num_pages;
+	unsigned long bio_flags = 0;
 	int rw = (epd->sync_io ? WRITE_SYNC : WRITE);
 	int ret = 0;
 
 	clear_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
 	num_pages = num_extent_pages(eb->start, eb->len);
 	atomic_set(&eb->io_pages, num_pages);
+	if (btrfs_header_owner(eb) == BTRFS_TREE_LOG_OBJECTID)
+		bio_flags = EXTENT_BIO_TREE_LOG;
+
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = extent_buffer_page(eb, i);
 
@@ -3177,7 +3182,8 @@ static int write_one_eb(struct extent_buffer *eb,
 		ret = submit_extent_page(rw, eb->tree, p, offset >> 9,
 					 PAGE_CACHE_SIZE, 0, bdev, &epd->bio,
 					 -1, end_bio_extent_buffer_writepage,
-					 0, 0, 0);
+					 0, epd->bio_flags, bio_flags);
+		epd->bio_flags = bio_flags;
 		if (ret) {
 			set_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
 			SetPageError(p);
@@ -3212,6 +3218,7 @@ int btree_write_cache_pages(struct address_space *mapping,
 		.tree = tree,
 		.extent_locked = 0,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
+		.bio_flags = 0,
 	};
 	int ret = 0;
 	int done = 0;
@@ -3474,7 +3481,7 @@ static void flush_epd_write_bio(struct extent_page_data *epd)
 		if (epd->sync_io)
 			rw = WRITE_SYNC;
 
-		ret = submit_one_bio(rw, epd->bio, 0, 0);
+		ret = submit_one_bio(rw, epd->bio, 0, epd->bio_flags);
 		BUG_ON(ret < 0); /* -ENOMEM */
 		epd->bio = NULL;
 	}
@@ -3497,6 +3504,7 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 		.get_extent = get_extent,
 		.extent_locked = 0,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
+		.bio_flags = 0,
 	};
 
 	ret = __extent_writepage(page, wbc, &epd);
@@ -3521,6 +3529,7 @@ int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 		.get_extent = get_extent,
 		.extent_locked = 1,
 		.sync_io = mode == WB_SYNC_ALL,
+		.bio_flags = 0,
 	};
 	struct writeback_control wbc_writepages = {
 		.sync_mode	= mode,
@@ -3560,6 +3569,7 @@ int extent_writepages(struct extent_io_tree *tree,
 		.get_extent = get_extent,
 		.extent_locked = 0,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
+		.bio_flags = 0,
 	};
 
 	ret = extent_write_cache_pages(tree, mapping, wbc,

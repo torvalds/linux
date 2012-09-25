@@ -46,6 +46,10 @@
 #include "check-integrity.h"
 #include "rcu-string.h"
 
+#ifdef CONFIG_X86
+#include <asm/cpufeature.h>
+#endif
+
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
 static void free_fs_root(struct btrfs_root *root);
@@ -859,10 +863,22 @@ static int __btree_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
 	return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio, mirror_num, 1);
 }
 
+static int check_async_write(struct inode *inode, unsigned long bio_flags)
+{
+	if (bio_flags & EXTENT_BIO_TREE_LOG)
+		return 0;
+#ifdef CONFIG_X86
+	if (cpu_has_xmm4_2)
+		return 0;
+#endif
+	return 1;
+}
+
 static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags,
 				 u64 bio_offset)
 {
+	int async = check_async_write(inode, bio_flags);
 	int ret;
 
 	if (!(rw & REQ_WRITE)) {
@@ -873,6 +889,12 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		 */
 		ret = btrfs_bio_wq_end_io(BTRFS_I(inode)->root->fs_info,
 					  bio, 1);
+		if (ret)
+			return ret;
+		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
+				     mirror_num, 0);
+	} else if (!async) {
+		ret = btree_csum_one_bio(bio);
 		if (ret)
 			return ret;
 		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
