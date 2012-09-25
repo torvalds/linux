@@ -176,7 +176,11 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 		np = of_find_compatible_node(from, NULL, "fsl,imx28-fec");
 		if (!np)
 			return;
+
 		from = np;
+
+		if (of_get_property(np, "local-mac-address", NULL))
+			continue;
 
 		newmac = kzalloc(sizeof(*newmac) + 6, GFP_KERNEL);
 		if (!newmac)
