@@ -32,7 +32,6 @@
 #include <linux/of_platform.h>
 
 #include <mach/restart.h>
-#include <mach/gpio.h>
 
 #include "common.h"
 
