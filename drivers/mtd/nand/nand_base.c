@@ -2971,6 +2971,36 @@ static void nand_decode_ext_id(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /*
+ * Old devices have chip data hardcoded in the device ID table. nand_decode_id
+ * decodes a matching ID table entry and assigns the MTD size parameters for
+ * the chip.
+ */
+static void nand_decode_id(struct mtd_info *mtd, struct nand_chip *chip,
+				struct nand_flash_dev *type, u8 id_data[8],
+				int *busw)
+{
+	int maf_id = id_data[0];
+
+	mtd->erasesize = type->erasesize;
+	mtd->writesize = type->pagesize;
+	mtd->oobsize = mtd->writesize / 32;
+	*busw = type->options & NAND_BUSWIDTH_16;
+
+	/*
+	 * Check for Spansion/AMD ID + repeating 5th, 6th byte since
+	 * some Spansion chips have erasesize that conflicts with size
+	 * listed in nand_ids table.
+	 * Data sheet (5 byte ID): Spansion S30ML-P ORNAND (p.39)
+	 */
+	if (maf_id == NAND_MFR_AMD && id_data[4] != 0x00 && id_data[5] == 0x00
+			&& id_data[6] == 0x00 && id_data[7] == 0x00
+			&& mtd->writesize == 512) {
+		mtd->erasesize = 128 * 1024;
+		mtd->erasesize <<= ((id_data[3] & 0x03) << 1);
+	}
+}
+
+/*
  * Set the bad block marker/indicator (BBM/BBI) patterns according to some
  * heuristic patterns using various detected parameters (e.g., manufacturer,
  * page size, cell-type information).
@@ -3084,26 +3114,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		/* Decode parameters from extended ID */
 		nand_decode_ext_id(mtd, chip, id_data, &busw);
 	} else {
-		/*
-		 * Old devices have chip data hardcoded in the device id table.
-		 */
-		mtd->erasesize = type->erasesize;
-		mtd->writesize = type->pagesize;
-		mtd->oobsize = mtd->writesize / 32;
-		busw = type->options & NAND_BUSWIDTH_16;
-
-		/*
-		 * Check for Spansion/AMD ID + repeating 5th, 6th byte since
-		 * some Spansion chips have erasesize that conflicts with size
-		 * listed in nand_ids table.
-		 * Data sheet (5 byte ID): Spansion S30ML-P ORNAND (p.39)
-		 */
-		if (*maf_id == NAND_MFR_AMD && id_data[4] != 0x00 &&
-				id_data[5] == 0x00 && id_data[6] == 0x00 &&
-				id_data[7] == 0x00 && mtd->writesize == 512) {
-			mtd->erasesize = 128 * 1024;
-			mtd->erasesize <<= ((id_data[3] & 0x03) << 1);
-		}
+		nand_decode_id(mtd, chip, type, id_data, &busw);
 	}
 	/* Get chip options */
 	chip->options |= type->options;
