@@ -1156,8 +1156,8 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 
 	INIT_WORK(&local->timeout_work, nfc_llcp_timeout_work);
 
-	local->sockets.lock = __RW_LOCK_UNLOCKED(local->sockets.lock);
-	local->connecting_sockets.lock = __RW_LOCK_UNLOCKED(local->connecting_sockets.lock);
+	rwlock_init(&local->sockets.lock);
+	rwlock_init(&local->connecting_sockets.lock);
 
 	nfc_llcp_build_gb(local);
 
