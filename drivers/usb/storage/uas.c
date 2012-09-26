@@ -249,16 +249,18 @@ static void uas_stat_cmplt(struct urb *urb)
 		cmnd = devinfo->cmnd;
 	else
 		cmnd = scsi_host_find_tag(shost, tag - 1);
+
 	if (!cmnd) {
-		if (iu->iu_id != IU_ID_RESPONSE) {
-			usb_free_urb(urb);
-			spin_unlock_irqrestore(&devinfo->lock, flags);
-			return;
+		if (iu->iu_id == IU_ID_RESPONSE) {
+			/* store results for uas_eh_task_mgmt() */
+			memcpy(&devinfo->response, iu, sizeof(devinfo->response));
 		}
-	} else {
-		cmdinfo = (void *)&cmnd->SCp;
+		usb_free_urb(urb);
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		return;
 	}
 
+	cmdinfo = (void *)&cmnd->SCp;
 	switch (iu->iu_id) {
 	case IU_ID_STATUS:
 		if (devinfo->cmnd == cmnd)
@@ -291,10 +293,6 @@ static void uas_stat_cmplt(struct urb *urb)
 		break;
 	case IU_ID_WRITE_READY:
 		uas_xfer_data(urb, cmnd, SUBMIT_DATA_OUT_URB);
-		break;
-	case IU_ID_RESPONSE:
-		/* store results for uas_eh_task_mgmt() */
-		memcpy(&devinfo->response, iu, sizeof(devinfo->response));
 		break;
 	default:
 		scmd_printk(KERN_ERR, cmnd,
