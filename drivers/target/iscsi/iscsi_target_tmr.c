@@ -61,7 +61,7 @@ u8 iscsit_tmr_abort_task(
 		return ISCSI_TMF_RSP_REJECTED;
 	}
 
-	se_tmr->ref_task_tag		= hdr->rtt;
+	se_tmr->ref_task_tag		= (__force u32)hdr->rtt;
 	tmr_req->ref_cmd		= ref_cmd;
 	tmr_req->ref_cmd_sn		= hdr->refcmdsn;
 	tmr_req->exp_data_sn		= hdr->exp_datasn;
@@ -171,7 +171,7 @@ u8 iscsit_tmr_task_reassign(
 		return ISCSI_TMF_RSP_REJECTED;
 	}
 
-	se_tmr->ref_task_tag		= hdr->rtt;
+	se_tmr->ref_task_tag		= (__force u32)hdr->rtt;
 	tmr_req->ref_cmd		= ref_cmd;
 	tmr_req->ref_cmd_sn		= hdr->refcmdsn;
 	tmr_req->exp_data_sn		= hdr->exp_datasn;

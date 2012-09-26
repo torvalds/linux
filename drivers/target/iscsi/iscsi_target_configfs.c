@@ -1475,7 +1475,8 @@ static u32 iscsi_get_task_tag(struct se_cmd *se_cmd)
 {
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
-	return cmd->init_task_tag;
+	/* only used for printks or comparism with ->ref_task_tag */
+	return (__force u32)cmd->init_task_tag;
 }
 
 static int iscsi_get_cmd_state(struct se_cmd *se_cmd)

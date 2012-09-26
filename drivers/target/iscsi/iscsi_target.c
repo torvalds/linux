@@ -785,7 +785,6 @@ static int iscsit_handle_scsi_cmd(
 
 	hdr			= (struct iscsi_scsi_req *) buf;
 	payload_length		= ntoh24(hdr->dlength);
-	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->data_length	= be32_to_cpu(hdr->data_length);
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
 	hdr->exp_statsn		= be32_to_cpu(hdr->exp_statsn);
@@ -1194,7 +1193,6 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 
 	hdr			= (struct iscsi_data *) buf;
 	payload_length		= ntoh24(hdr->dlength);
-	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->ttt		= be32_to_cpu(hdr->ttt);
 	hdr->exp_statsn		= be32_to_cpu(hdr->exp_statsn);
 	hdr->datasn		= be32_to_cpu(hdr->datasn);
@@ -1425,12 +1423,11 @@ static int iscsit_handle_nop_out(
 
 	hdr			= (struct iscsi_nopout *) buf;
 	payload_length		= ntoh24(hdr->dlength);
-	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->ttt		= be32_to_cpu(hdr->ttt);
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
 	hdr->exp_statsn		= be32_to_cpu(hdr->exp_statsn);
 
-	if ((hdr->itt == 0xFFFFFFFF) && !(hdr->opcode & ISCSI_OP_IMMEDIATE)) {
+	if (hdr->itt == RESERVED_ITT && !(hdr->opcode & ISCSI_OP_IMMEDIATE)) {
 		pr_err("NOPOUT ITT is reserved, but Immediate Bit is"
 			" not set, protocol error.\n");
 		return iscsit_add_reject(ISCSI_REASON_PROTOCOL_ERROR, 1,
@@ -1448,7 +1445,7 @@ static int iscsit_handle_nop_out(
 
 	pr_debug("Got NOPOUT Ping %s ITT: 0x%08x, TTT: 0x%09x,"
 		" CmdSN: 0x%08x, ExpStatSN: 0x%08x, Length: %u\n",
-		(hdr->itt == 0xFFFFFFFF) ? "Response" : "Request",
+		hdr->itt == RESERVED_ITT ? "Response" : "Request",
 		hdr->itt, hdr->ttt, hdr->cmdsn, hdr->exp_statsn,
 		payload_length);
 	/*
@@ -1556,7 +1553,7 @@ static int iscsit_handle_nop_out(
 		pr_debug("Ping Data: \"%s\"\n", ping_data);
 	}
 
-	if (hdr->itt != 0xFFFFFFFF) {
+	if (hdr->itt != RESERVED_ITT) {
 		if (!cmd) {
 			pr_err("Checking CmdSN for NOPOUT,"
 				" but cmd is NULL!\n");
@@ -1639,8 +1636,6 @@ static int iscsit_handle_task_mgt_cmd(
 	u8 function;
 
 	hdr			= (struct iscsi_tm *) buf;
-	hdr->itt		= be32_to_cpu(hdr->itt);
-	hdr->rtt		= be32_to_cpu(hdr->rtt);
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
 	hdr->exp_statsn		= be32_to_cpu(hdr->exp_statsn);
 	hdr->refcmdsn		= be32_to_cpu(hdr->refcmdsn);
@@ -1655,9 +1650,9 @@ static int iscsit_handle_task_mgt_cmd(
 
 	if ((function != ISCSI_TM_FUNC_ABORT_TASK) &&
 	    ((function != ISCSI_TM_FUNC_TASK_REASSIGN) &&
-	     (hdr->rtt != ISCSI_RESERVED_TAG))) {
+	     hdr->rtt != RESERVED_ITT)) {
 		pr_err("RefTaskTag should be set to 0xFFFFFFFF.\n");
-		hdr->rtt = ISCSI_RESERVED_TAG;
+		hdr->rtt = RESERVED_ITT;
 	}
 
 	if ((function == ISCSI_TM_FUNC_TASK_REASSIGN) &&
@@ -1869,7 +1864,6 @@ static int iscsit_handle_text_cmd(
 
 	hdr			= (struct iscsi_text *) buf;
 	payload_length		= ntoh24(hdr->dlength);
-	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->ttt		= be32_to_cpu(hdr->ttt);
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
 	hdr->exp_statsn		= be32_to_cpu(hdr->exp_statsn);
@@ -2131,7 +2125,6 @@ static int iscsit_handle_logout_cmd(
 
 	hdr			= (struct iscsi_logout *) buf;
 	reason_code		= (hdr->flags & 0x7f);
-	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->cid		= be16_to_cpu(hdr->cid);
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
 	hdr->exp_statsn	= be32_to_cpu(hdr->exp_statsn);
@@ -2219,7 +2212,6 @@ static int iscsit_handle_snack(
 
 	hdr			= (struct iscsi_snack *) buf;
 	hdr->flags		&= ~ISCSI_FLAG_CMD_FINAL;
-	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->ttt		= be32_to_cpu(hdr->ttt);
 	hdr->exp_statsn		= be32_to_cpu(hdr->exp_statsn);
 	hdr->begrun		= be32_to_cpu(hdr->begrun);
@@ -2414,7 +2406,7 @@ static int iscsit_send_conn_drop_async_message(
 	hdr			= (struct iscsi_async *) cmd->pdu;
 	hdr->opcode		= ISCSI_OP_ASYNC_EVENT;
 	hdr->flags		= ISCSI_FLAG_CMD_FINAL;
-	cmd->init_task_tag	= 0xFFFFFFFF;
+	cmd->init_task_tag	= RESERVED_ITT;
 	cmd->targ_xfer_tag	= 0xFFFFFFFF;
 	put_unaligned_be64(0xFFFFFFFFFFFFFFFFULL, &hdr->rsvd4[0]);
 	cmd->stat_sn		= conn->stat_sn++;
@@ -2536,7 +2528,7 @@ static int iscsit_send_data_in(
 	else
 		put_unaligned_le64(0xFFFFFFFFFFFFFFFFULL, &hdr->lun);
 
-	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
+	hdr->itt		= cmd->init_task_tag;
 	hdr->ttt		= (hdr->flags & ISCSI_FLAG_DATA_ACK) ?
 				   cpu_to_be32(cmd->targ_xfer_tag) :
 				   0xFFFFFFFF;
@@ -2708,7 +2700,7 @@ static int iscsit_send_logout_response(
 	hdr->opcode		= ISCSI_OP_LOGOUT_RSP;
 	hdr->flags		|= ISCSI_FLAG_CMD_FINAL;
 	hdr->response		= cmd->logout_response;
-	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
+	hdr->itt		= cmd->init_task_tag;
 	cmd->stat_sn		= conn->stat_sn++;
 	hdr->statsn		= cpu_to_be32(cmd->stat_sn);
 
@@ -2759,7 +2751,7 @@ static int iscsit_send_unsolicited_nopin(
 	memset(hdr, 0, ISCSI_HDR_LEN);
 	hdr->opcode		= ISCSI_OP_NOOP_IN;
 	hdr->flags		|= ISCSI_FLAG_CMD_FINAL;
-	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
+	hdr->itt		= cmd->init_task_tag;
 	hdr->ttt		= cpu_to_be32(cmd->targ_xfer_tag);
 	cmd->stat_sn		= conn->stat_sn;
 	hdr->statsn		= cpu_to_be32(cmd->stat_sn);
@@ -2816,7 +2808,7 @@ static int iscsit_send_nopin_response(
 	hdr->flags		|= ISCSI_FLAG_CMD_FINAL;
 	hton24(hdr->dlength, cmd->buf_ptr_size);
 	put_unaligned_le64(0xFFFFFFFFFFFFFFFFULL, &hdr->lun);
-	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
+	hdr->itt		= cmd->init_task_tag;
 	hdr->ttt		= cpu_to_be32(cmd->targ_xfer_tag);
 	cmd->stat_sn		= conn->stat_sn++;
 	hdr->statsn		= cpu_to_be32(cmd->stat_sn);
@@ -2906,7 +2898,7 @@ static int iscsit_send_r2t(
 	hdr->flags		|= ISCSI_FLAG_CMD_FINAL;
 	int_to_scsilun(cmd->se_cmd.orig_fe_lun,
 			(struct scsi_lun *)&hdr->lun);
-	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
+	hdr->itt		= cmd->init_task_tag;
 	spin_lock_bh(&conn->sess->ttt_lock);
 	r2t->targ_xfer_tag	= conn->sess->targ_xfer_tag++;
 	if (r2t->targ_xfer_tag == 0xFFFFFFFF)
@@ -3074,7 +3066,7 @@ static int iscsit_send_status(
 	}
 	hdr->response		= cmd->iscsi_response;
 	hdr->cmd_status		= cmd->se_cmd.scsi_status;
-	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
+	hdr->itt		= cmd->init_task_tag;
 	hdr->statsn		= cpu_to_be32(cmd->stat_sn);
 
 	iscsit_increment_maxcmdsn(cmd, conn->sess);
@@ -3187,7 +3179,7 @@ static int iscsit_send_task_mgt_rsp(
 	hdr->opcode		= ISCSI_OP_SCSI_TMFUNC_RSP;
 	hdr->flags		= ISCSI_FLAG_CMD_FINAL;
 	hdr->response		= iscsit_convert_tcm_tmr_rsp(se_tmr);
-	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
+	hdr->itt		= cmd->init_task_tag;
 	cmd->stat_sn		= conn->stat_sn++;
 	hdr->statsn		= cpu_to_be32(cmd->stat_sn);
 
@@ -3360,7 +3352,7 @@ static int iscsit_send_text_rsp(
 	hdr->opcode		= ISCSI_OP_TEXT_RSP;
 	hdr->flags		|= ISCSI_FLAG_CMD_FINAL;
 	hton24(hdr->dlength, text_length);
-	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
+	hdr->itt		= cmd->init_task_tag;
 	hdr->ttt		= cpu_to_be32(cmd->targ_xfer_tag);
 	cmd->stat_sn		= conn->stat_sn++;
 	hdr->statsn		= cpu_to_be32(cmd->stat_sn);

@@ -953,9 +953,9 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	pdu			= (struct iscsi_login_req *) buffer;
 	pdu->cid		= be16_to_cpu(pdu->cid);
 	pdu->tsih		= be16_to_cpu(pdu->tsih);
-	pdu->itt		= be32_to_cpu(pdu->itt);
 	pdu->cmdsn		= be32_to_cpu(pdu->cmdsn);
 	pdu->exp_statsn		= be32_to_cpu(pdu->exp_statsn);
+
 	/*
 	 * Used by iscsit_tx_login_rsp() for Login Resonses PDUs
 	 * when Status-Class != 0.
