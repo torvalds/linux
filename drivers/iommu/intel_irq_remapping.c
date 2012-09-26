@@ -617,6 +617,14 @@ static int __init intel_enable_irq_remapping(void)
 		goto error;
 
 	irq_remapping_enabled = 1;
+
+	/*
+	 * VT-d has a different layout for IO-APIC entries when
+	 * interrupt remapping is enabled. So it needs a special routine
+	 * to print IO-APIC entries for debugging purposes too.
+	 */
+	x86_io_apic_ops.print_entries = intel_ir_io_apic_print_entries;
+
 	pr_info("Enabled IRQ remapping in %s mode\n", eim ? "x2apic" : "xapic");
 
 	return eim ? IRQ_REMAP_X2APIC_MODE : IRQ_REMAP_XAPIC_MODE;
