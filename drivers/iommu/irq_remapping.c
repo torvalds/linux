@@ -36,7 +36,8 @@ static void irq_remapping_disable_io_apic(void)
 
 static void __init irq_remapping_modify_x86_ops(void)
 {
-	x86_io_apic_ops.disable	=	irq_remapping_disable_io_apic;
+	x86_io_apic_ops.disable		= irq_remapping_disable_io_apic;
+	x86_msi.setup_hpet_msi		= setup_hpet_msi_remapped;
 }
 
 static __init int setup_nointremap(char *str)

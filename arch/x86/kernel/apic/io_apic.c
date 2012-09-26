@@ -3399,17 +3399,11 @@ static struct irq_chip hpet_msi_type = {
 	.irq_retrigger = ioapic_retrigger_irq,
 };
 
-int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
+int default_setup_hpet_msi(unsigned int irq, unsigned int id)
 {
 	struct irq_chip *chip = &hpet_msi_type;
 	struct msi_msg msg;
 	int ret;
-
-	if (irq_remapping_enabled) {
-		ret = setup_hpet_msi_remapped(irq, id);
-		if (ret)
-			return ret;
-	}
 
 	ret = msi_compose_msg(NULL, irq, &msg, id);
 	if (ret < 0)
