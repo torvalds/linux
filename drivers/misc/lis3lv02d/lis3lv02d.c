@@ -945,7 +945,7 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *lis3,
 }
 
 #ifdef CONFIG_OF
-static int lis3lv02d_init_dt(struct lis3lv02d *lis3)
+int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 {
 	struct lis3lv02d_platform_data *pdata;
 	struct device_node *np = lis3->of_node;
@@ -1085,7 +1085,7 @@ static int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 }
 
 #else
-static int lis3lv02d_init_dt(struct lis3lv02d *lis3)
+int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 {
 	return 0;
 }
@@ -1101,10 +1101,6 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 	int err;
 	irq_handler_t thread_fn;
 	int irq_flags = 0;
-
-	err = lis3lv02d_init_dt(lis3);
-	if (err < 0)
-		return err;
 
 	lis3->whoami = lis3lv02d_read_8(lis3, WHO_AM_I);
 
