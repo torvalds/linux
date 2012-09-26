@@ -47,6 +47,9 @@ struct ft5x0x_platform_data{
 	int	max_y;
 	int	key_min_x;
 	int	key_min_y;
+	int	xy_swap;
+	int	x_revert;
+	int	y_revert;
 	int     (*get_pendown_state)(void);
 	int     (*init_platform_hw)(void);
 	int     (*ft5x0x_platform_sleep)(void);

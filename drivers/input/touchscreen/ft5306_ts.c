@@ -240,7 +240,7 @@ static int ft5x0x_read_data(void)
 	struct ft5x0x_ts_dev *data = i2c_get_clientdata(g_dev->client);
 	struct ft5x0x_platform_data *pdata = g_dev->client->dev.platform_data;
 	struct ts_event *event = &data->event;
-
+	u16 i = 0;
 	u8 buf[32]= {0};//set send addr to 0x00 *important*
 	int ret = -1;
        int key;
@@ -371,18 +371,37 @@ static int ft5x0x_read_data(void)
 		case 1:
 			event->point[0].status = (buf[0x03] & 0xc0)>>6;
 			event->point[0].id = (buf[0x05] & 0xf0)>>4;
-
-			event->point[0].y = (s16)(buf[0x03] & 0x0f)<<8 | (s16)buf[0x04];
-			event->point[0].x = (s16)(buf[0x05] & 0x0f)<<8 | (s16)buf[0x06];
+			event->point[0].x = (s16)(buf[0x03] & 0x0f)<<8 | (s16)buf[0x04];
+			event->point[0].y = (s16)(buf[0x05] & 0x0f)<<8 | (s16)buf[0x06];
 			
-			event->point[0].x = pdata->max_x - event->point[0].x;
 			if(event->point[0].x < 0){
 				event->point[0].x = 0;
 			}
 
-        default:
+
+		for(i=0; i<event->touch_point; i++)
+    		{
+		    	if(pdata->xy_swap)
+			{
+				swap(event->point[i].x, event->point[i].y);
+			}
+
+			if(pdata->x_revert)
+			{
+				event->point[i].x = pdata->max_x - event->point[i].x;	
+			}
+
+			if(pdata->y_revert)
+			{
+				event->point[i].y = pdata->max_y - event->point[i].y;
+			}
+    		}
+
+        	default:
 		    return 0;
 	}
+
+    	
 #endif
 }
 
