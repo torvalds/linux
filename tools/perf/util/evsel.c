@@ -122,6 +122,9 @@ struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx)
 					  PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD),
 		};
 
+		if (asprintf(&evsel->name, "%s:%s", sys, name) < 0)
+			goto out_free;
+
 		evsel->tp_format = event_format__new(sys, name);
 		if (evsel->tp_format == NULL)
 			goto out_free;
@@ -130,12 +133,12 @@ struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx)
 		attr.config = evsel->tp_format->id;
 		attr.sample_period = 1;
 		perf_evsel__init(evsel, &attr, idx);
-		evsel->name = evsel->tp_format->name;
 	}
 
 	return evsel;
 
 out_free:
+	free(evsel->name);
 	free(evsel);
 	return NULL;
 }
@@ -584,10 +587,8 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 	perf_evsel__exit(evsel);
 	close_cgroup(evsel->cgrp);
 	free(evsel->group_name);
-	if (evsel->tp_format && evsel->name == evsel->tp_format->name) {
-		evsel->name = NULL;
+	if (evsel->tp_format)
 		pevent_free_format(evsel->tp_format);
-	}
 	free(evsel->name);
 	free(evsel);
 }
