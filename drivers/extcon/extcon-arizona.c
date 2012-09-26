@@ -434,6 +434,11 @@ static int __devinit arizona_extcon_probe(struct platform_device *pdev)
 	regmap_update_bits(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE,
 			   ARIZONA_JD1_ENA, ARIZONA_JD1_ENA);
 
+	ret = regulator_allow_bypass(info->micvdd, true);
+	if (ret != 0)
+		dev_warn(arizona->dev, "Failed to set MICVDD to bypass: %d\n",
+			 ret);
+
 	pm_runtime_put(&pdev->dev);
 
 	return 0;
