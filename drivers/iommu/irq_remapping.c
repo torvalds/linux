@@ -31,6 +31,11 @@ static int set_remapped_irq_affinity(struct irq_data *data,
 				     const struct cpumask *mask,
 				     bool force);
 
+static bool irq_remapped(struct irq_cfg *cfg)
+{
+	return (cfg->remapped == 1);
+}
+
 static void irq_remapping_disable_io_apic(void)
 {
 	/*
