@@ -1118,7 +1118,7 @@ unhash_client_locked(struct nfs4_client *clp)
 }
 
 static void
-expire_client(struct nfs4_client *clp)
+destroy_client(struct nfs4_client *clp)
 {
 	struct nfs4_openowner *oo;
 	struct nfs4_delegation *dp;
@@ -1150,6 +1150,12 @@ expire_client(struct nfs4_client *clp)
 	if (atomic_read(&clp->cl_refcount) == 0)
 		free_client(clp);
 	spin_unlock(&client_lock);
+}
+
+static void expire_client(struct nfs4_client *clp)
+{
+	nfsd4_client_record_remove(clp);
+	destroy_client(clp);
 }
 
 static void copy_verf(struct nfs4_client *target, nfs4_verifier *source)
@@ -2273,10 +2279,8 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		unsigned int hash = clientstr_hashval(unconf->cl_recdir);
 
 		conf = find_confirmed_client_by_str(unconf->cl_recdir, hash);
-		if (conf) {
-			nfsd4_client_record_remove(conf);
+		if (conf)
 			expire_client(conf);
-		}
 		move_to_confirmed(unconf);
 		nfsd4_probe_callback(unconf);
 	}
@@ -3191,7 +3195,6 @@ nfs4_laundromat(void)
 		clp = list_entry(pos, struct nfs4_client, cl_lru);
 		dprintk("NFSD: purging unused client (clientid %08x)\n",
 			clp->cl_clientid.cl_id);
-		nfsd4_client_record_remove(clp);
 		expire_client(clp);
 	}
 	spin_lock(&recall_lock);
@@ -4562,7 +4565,6 @@ void nfsd_forget_clients(u64 num)
 
 	nfs4_lock_state();
 	list_for_each_entry_safe(clp, next, &client_lru, cl_lru) {
-		nfsd4_client_record_remove(clp);
 		expire_client(clp);
 		if (++count == num)
 			break;
@@ -4787,11 +4789,11 @@ __nfs4_state_shutdown(void)
 	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
 		while (!list_empty(&conf_id_hashtbl[i])) {
 			clp = list_entry(conf_id_hashtbl[i].next, struct nfs4_client, cl_idhash);
-			expire_client(clp);
+			destroy_client(clp);
 		}
 		while (!list_empty(&unconf_str_hashtbl[i])) {
 			clp = list_entry(unconf_str_hashtbl[i].next, struct nfs4_client, cl_strhash);
-			expire_client(clp);
+			destroy_client(clp);
 		}
 	}
 	INIT_LIST_HEAD(&reaplist);
