@@ -342,15 +342,15 @@ ENDPROC(native_usergs_sysret64)
 	.macro SAVE_ARGS_IRQ
 	cld
 	/* start from rbp in pt_regs and jump over */
-	movq_cfi rdi, RDI-RBP
-	movq_cfi rsi, RSI-RBP
-	movq_cfi rdx, RDX-RBP
-	movq_cfi rcx, RCX-RBP
-	movq_cfi rax, RAX-RBP
-	movq_cfi  r8,  R8-RBP
-	movq_cfi  r9,  R9-RBP
-	movq_cfi r10, R10-RBP
-	movq_cfi r11, R11-RBP
+	movq_cfi rdi, (RDI-RBP)
+	movq_cfi rsi, (RSI-RBP)
+	movq_cfi rdx, (RDX-RBP)
+	movq_cfi rcx, (RCX-RBP)
+	movq_cfi rax, (RAX-RBP)
+	movq_cfi  r8,  (R8-RBP)
+	movq_cfi  r9,  (R9-RBP)
+	movq_cfi r10, (R10-RBP)
+	movq_cfi r11, (R11-RBP)
 
 	/* Save rbp so that we can unwind from get_irq_regs() */
 	movq_cfi rbp, 0
@@ -384,7 +384,7 @@ ENDPROC(native_usergs_sysret64)
 	.endm
 
 ENTRY(save_rest)
-	PARTIAL_FRAME 1 REST_SKIP+8
+	PARTIAL_FRAME 1 (REST_SKIP+8)
 	movq 5*8+16(%rsp), %r11	/* save return address */
 	movq_cfi rbx, RBX+16
 	movq_cfi rbp, RBP+16
