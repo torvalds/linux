@@ -170,11 +170,8 @@ void Wb35Tx_destroy(struct hw_data *pHwData)
 	} while ((pWb35Tx->EP2vm_state != VM_STOP) && (pWb35Tx->EP4vm_state != VM_STOP));
 	msleep(10); /* Delay for waiting function enter 940623.1.b */
 
-	if (pWb35Tx->Tx4Urb)
-		usb_free_urb(pWb35Tx->Tx4Urb);
-
-	if (pWb35Tx->Tx2Urb)
-		usb_free_urb(pWb35Tx->Tx2Urb);
+	usb_free_urb(pWb35Tx->Tx4Urb);
+	usb_free_urb(pWb35Tx->Tx2Urb);
 
 	pr_debug("Wb35Tx_destroy OK\n");
 }
