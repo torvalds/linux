@@ -558,6 +558,46 @@ static void nfc_llcp_set_nrns(struct nfc_llcp_sock *sock, struct sk_buff *pdu)
 	sock->recv_ack_n = (sock->recv_n - 1) % 16;
 }
 
+void nfc_llcp_send_to_raw_sock(struct nfc_llcp_local *local,
+			       struct sk_buff *skb, u8 direction)
+{
+	struct hlist_node *node;
+	struct sk_buff *skb_copy = NULL, *nskb;
+	struct sock *sk;
+	u8 *data;
+
+	read_lock(&local->raw_sockets.lock);
+
+	sk_for_each(sk, node, &local->raw_sockets.head) {
+		if (sk->sk_state != LLCP_BOUND)
+			continue;
+
+		if (skb_copy == NULL) {
+			skb_copy = __pskb_copy(skb, NFC_LLCP_RAW_HEADER_SIZE,
+					       GFP_ATOMIC);
+
+			if (skb_copy == NULL)
+				continue;
+
+			data = skb_push(skb_copy, NFC_LLCP_RAW_HEADER_SIZE);
+
+			data[0] = local->dev ? local->dev->idx : 0xFF;
+			data[1] = direction;
+		}
+
+		nskb = skb_clone(skb_copy, GFP_ATOMIC);
+		if (!nskb)
+			continue;
+
+		if (sock_queue_rcv_skb(sk, nskb))
+			kfree_skb(nskb);
+	}
+
+	read_unlock(&local->raw_sockets.lock);
+
+	kfree_skb(skb_copy);
+}
+
 static void nfc_llcp_tx_work(struct work_struct *work)
 {
 	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
@@ -577,6 +617,9 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 			print_hex_dump(KERN_DEBUG, "LLCP Tx: ",
 				       DUMP_PREFIX_OFFSET, 16, 1,
 				       skb->data, skb->len, true);
+
+			nfc_llcp_send_to_raw_sock(local, skb,
+						  NFC_LLCP_DIRECTION_TX);
 
 			ret = nfc_data_exchange(local->dev, local->target_idx,
 						skb, nfc_llcp_recv, local);
@@ -1022,6 +1065,8 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 		print_hex_dump(KERN_DEBUG, "LLCP Rx: ", DUMP_PREFIX_OFFSET,
 			       16, 1, skb->data, skb->len, true);
 
+	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_RX);
+
 	switch (ptype) {
 	case LLCP_PDU_SYMM:
 		pr_debug("SYMM\n");
@@ -1158,6 +1203,7 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 
 	rwlock_init(&local->sockets.lock);
 	rwlock_init(&local->connecting_sockets.lock);
+	rwlock_init(&local->raw_sockets.lock);
 
 	nfc_llcp_build_gb(local);
 
