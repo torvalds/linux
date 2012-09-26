@@ -2300,6 +2300,45 @@ pl022_remove(struct amba_device *adev)
 	return 0;
 }
 
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_PM_RUNTIME)
+/*
+ * These two functions are used from both suspend/resume and
+ * the runtime counterparts to handle external resources like
+ * clocks, pins and regulators when going to sleep.
+ */
+static void pl022_suspend_resources(struct pl022 *pl022)
+{
+	int ret;
+
+	clk_disable(pl022->clk);
+
+	/* Optionally let pins go into sleep states */
+	if (!IS_ERR(pl022->pins_sleep)) {
+		ret = pinctrl_select_state(pl022->pinctrl,
+					   pl022->pins_sleep);
+		if (ret)
+			dev_err(&pl022->adev->dev,
+				"could not set pins to sleep state\n");
+	}
+}
+
+static void pl022_resume_resources(struct pl022 *pl022)
+{
+	int ret;
+
+	/* Optionaly enable pins to be muxed in and configured */
+	if (!IS_ERR(pl022->pins_default)) {
+		ret = pinctrl_select_state(pl022->pinctrl,
+					   pl022->pins_default);
+		if (ret)
+			dev_err(&pl022->adev->dev,
+				"could not set default pins\n");
+	}
+
+	clk_enable(pl022->clk);
+}
+#endif
+
 #ifdef CONFIG_SUSPEND
 static int pl022_suspend(struct device *dev)
 {
@@ -2311,6 +2350,7 @@ static int pl022_suspend(struct device *dev)
 		dev_warn(dev, "cannot suspend master\n");
 		return ret;
 	}
+	pl022_suspend_resources(pl022);
 
 	dev_dbg(dev, "suspended\n");
 	return 0;
@@ -2320,6 +2360,8 @@ static int pl022_resume(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
 	int ret;
+
+	pl022_resume_resources(pl022);
 
 	/* Start the queue running */
 	ret = spi_master_resume(pl022->master);
@@ -2336,36 +2378,16 @@ static int pl022_resume(struct device *dev)
 static int pl022_runtime_suspend(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
-	int status = 0;
 
-	clk_disable(pl022->clk);
-
-	/* Optionally let pins go into sleep states */
-	if (!IS_ERR(pl022->pins_sleep)) {
-		status = pinctrl_select_state(pl022->pinctrl,
-				pl022->pins_sleep);
-		if (status)
-			dev_err(dev, "could not set pins to sleep state\n");
-	}
-
+	pl022_suspend_resources(pl022);
 	return 0;
 }
 
 static int pl022_runtime_resume(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
-	int status = 0;
 
-	/* Optionaly enable pins to be muxed in and configured */
-	if (!IS_ERR(pl022->pins_default)) {
-		status = pinctrl_select_state(pl022->pinctrl,
-				pl022->pins_default);
-		if (status)
-			dev_err(dev, "could not set default pins\n");
-	}
-
-	clk_enable(pl022->clk);
-
+	pl022_resume_resources(pl022);
 	return 0;
 }
 #endif
