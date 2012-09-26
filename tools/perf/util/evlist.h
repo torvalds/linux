@@ -115,7 +115,7 @@ static inline void perf_evlist__set_maps(struct perf_evlist *evlist,
 int perf_evlist__create_maps(struct perf_evlist *evlist,
 			     struct perf_target *target);
 void perf_evlist__delete_maps(struct perf_evlist *evlist);
-int perf_evlist__set_filters(struct perf_evlist *evlist);
+int perf_evlist__apply_filters(struct perf_evlist *evlist);
 
 void __perf_evlist__set_leader(struct list_head *list);
 void perf_evlist__set_leader(struct perf_evlist *evlist);

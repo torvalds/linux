@@ -666,7 +666,7 @@ void perf_evlist__delete_maps(struct perf_evlist *evlist)
 	evlist->threads = NULL;
 }
 
-int perf_evlist__set_filters(struct perf_evlist *evlist)
+int perf_evlist__apply_filters(struct perf_evlist *evlist)
 {
 	const struct thread_map *threads = evlist->threads;
 	const struct cpu_map *cpus = evlist->cpus;
