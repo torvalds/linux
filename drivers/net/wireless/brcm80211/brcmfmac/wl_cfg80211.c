@@ -3297,8 +3297,8 @@ brcmf_notify_sched_scan_results(struct brcmf_cfg80211_priv *cfg_priv,
 		int i;
 
 		request = kzalloc(sizeof(*request), GFP_KERNEL);
-		ssid = kzalloc(sizeof(*ssid) * result_count, GFP_KERNEL);
-		channel = kzalloc(sizeof(*channel) * result_count, GFP_KERNEL);
+		ssid = kcalloc(result_count, sizeof(*ssid), GFP_KERNEL);
+		channel = kcalloc(result_count, sizeof(*channel), GFP_KERNEL);
 		if (!request || !ssid || !channel) {
 			err = -ENOMEM;
 			goto out_err;
