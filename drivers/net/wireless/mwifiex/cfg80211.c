@@ -1704,8 +1704,9 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 {
 	struct net_device *dev = request->wdev->netdev;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	int i;
+	int i, offset;
 	struct ieee80211_channel *chan;
+	struct ieee_types_header *ie;
 
 	wiphy_dbg(wiphy, "info: received scan request on %s\n", dev->name);
 
@@ -1728,13 +1729,17 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	priv->user_scan_cfg->ssid_list = request->ssids;
 
 	if (request->ie && request->ie_len) {
+		offset = 0;
 		for (i = 0; i < MWIFIEX_MAX_VSIE_NUM; i++) {
 			if (priv->vs_ie[i].mask != MWIFIEX_VSIE_MASK_CLEAR)
 				continue;
 			priv->vs_ie[i].mask = MWIFIEX_VSIE_MASK_SCAN;
-			memcpy(&priv->vs_ie[i].ie, request->ie,
-			       request->ie_len);
-			break;
+			ie = (struct ieee_types_header *)(request->ie + offset);
+			memcpy(&priv->vs_ie[i].ie, ie, sizeof(*ie) + ie->len);
+			offset += sizeof(*ie) + ie->len;
+
+			if (offset >= request->ie_len)
+				break;
 		}
 	}
 
