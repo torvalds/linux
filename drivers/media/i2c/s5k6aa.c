@@ -1061,10 +1061,9 @@ __s5k6aa_get_crop_rect(struct s5k6aa *s5k6aa, struct v4l2_subdev_fh *fh,
 {
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return &s5k6aa->ccd_rect;
-	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(fh, 0);
 
-	return NULL;
+	WARN_ON(which != V4L2_SUBDEV_FORMAT_TRY);
+	return v4l2_subdev_get_try_crop(fh, 0);
 }
 
 static void s5k6aa_try_format(struct s5k6aa *s5k6aa,
@@ -1169,12 +1168,10 @@ static int s5k6aa_get_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	struct v4l2_rect *rect;
 
 	memset(crop->reserved, 0, sizeof(crop->reserved));
+
 	mutex_lock(&s5k6aa->lock);
-
 	rect = __s5k6aa_get_crop_rect(s5k6aa, fh, crop->which);
-	if (rect)
-		crop->rect = *rect;
-
+	crop->rect = *rect;
 	mutex_unlock(&s5k6aa->lock);
 
 	v4l2_dbg(1, debug, sd, "Current crop rectangle: (%d,%d)/%dx%d\n",
