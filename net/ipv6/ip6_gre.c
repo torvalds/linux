@@ -1279,16 +1279,8 @@ static int ip6gre_header(struct sk_buff *skb, struct net_device *dev,
 	return -t->hlen;
 }
 
-static int ip6gre_header_parse(const struct sk_buff *skb, unsigned char *haddr)
-{
-	const struct ipv6hdr *ipv6h = (const struct ipv6hdr *)skb_mac_header(skb);
-	memcpy(haddr, &ipv6h->saddr, sizeof(struct in6_addr));
-	return sizeof(struct in6_addr);
-}
-
 static const struct header_ops ip6gre_header_ops = {
 	.create	= ip6gre_header,
-	.parse	= ip6gre_header_parse,
 };
 
 static const struct net_device_ops ip6gre_netdev_ops = {
