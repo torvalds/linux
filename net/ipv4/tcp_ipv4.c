@@ -925,8 +925,7 @@ EXPORT_SYMBOL(tcp_syn_flood_action);
 /*
  * Save and compile IPv4 options into the request_sock if needed.
  */
-static struct ip_options_rcu *tcp_v4_save_options(struct sock *sk,
-						  struct sk_buff *skb)
+static struct ip_options_rcu *tcp_v4_save_options(struct sk_buff *skb)
 {
 	const struct ip_options *opt = &(IPCB(skb)->opt);
 	struct ip_options_rcu *dopt = NULL;
@@ -1568,7 +1567,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq->loc_addr = daddr;
 	ireq->rmt_addr = saddr;
 	ireq->no_srccheck = inet_sk(sk)->transparent;
-	ireq->opt = tcp_v4_save_options(sk, skb);
+	ireq->opt = tcp_v4_save_options(skb);
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
