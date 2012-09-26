@@ -94,6 +94,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 };
 
 #define CAL_SNR(RSSI, NF)		((s16)((s16)(RSSI)-(s16)(NF)))
+#define CAL_RSSI(SNR, NF)		((s16)((s16)(SNR)+(s16)(NF)))
 
 #define UAP_BSS_PARAMS_I			0
 #define UAP_CUSTOM_IE_I				1

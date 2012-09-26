@@ -217,6 +217,12 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
 		}
 
 		return 0;
+	} else if (rx_pkt_type == PKT_TYPE_MGMT) {
+		ret = mwifiex_process_mgmt_packet(adapter, skb);
+		if (ret)
+			dev_err(adapter->dev, "Rx of mgmt packet failed");
+		dev_kfree_skb_any(skb);
+		return ret;
 	}
 
 	memcpy(ta, rx_pkt_hdr->eth803_hdr.h_source, ETH_ALEN);
