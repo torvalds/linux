@@ -441,7 +441,8 @@ static void ab8500_charger_set_usb_connected(struct ab8500_charger *di,
 			mutex_lock(&di->charger_attached_mutex);
 			mutex_unlock(&di->charger_attached_mutex);
 
-			queue_delayed_work(di->charger_wq,
+			if (is_ab8500(di->parent))
+				queue_delayed_work(di->charger_wq,
 					   &di->usb_charger_attached_work,
 					   HZ);
 		} else {
@@ -2622,7 +2623,9 @@ static irqreturn_t ab8500_charger_mainchplugdet_handler(int irq, void *_di)
 
 	mutex_lock(&di->charger_attached_mutex);
 	mutex_unlock(&di->charger_attached_mutex);
-	queue_delayed_work(di->charger_wq,
+
+	if (is_ab8500(di->parent))
+		queue_delayed_work(di->charger_wq,
 			   &di->ac_charger_attached_work,
 			   HZ);
 	return IRQ_HANDLED;
@@ -3690,14 +3693,16 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	ch_stat = ab8500_charger_detect_chargers(di, false);
 
 	if ((ch_stat & AC_PW_CONN) == AC_PW_CONN) {
-		queue_delayed_work(di->charger_wq,
-				   &di->ac_charger_attached_work,
-				   HZ);
+		if (is_ab8500(di->parent))
+			queue_delayed_work(di->charger_wq,
+					   &di->ac_charger_attached_work,
+					   HZ);
 	}
 	if ((ch_stat & USB_PW_CONN) == USB_PW_CONN) {
-		queue_delayed_work(di->charger_wq,
-				   &di->usb_charger_attached_work,
-				   HZ);
+		if (is_ab8500(di->parent))
+			queue_delayed_work(di->charger_wq,
+					   &di->usb_charger_attached_work,
+					   HZ);
 	}
 
 	mutex_unlock(&di->charger_attached_mutex);
