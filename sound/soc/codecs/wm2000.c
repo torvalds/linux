@@ -692,7 +692,7 @@ static int wm2000_resume(struct snd_soc_codec *codec)
 #endif
 
 static const struct regmap_config wm2000_regmap = {
-	.reg_bits = 8,
+	.reg_bits = 16,
 	.val_bits = 8,
 };
 
