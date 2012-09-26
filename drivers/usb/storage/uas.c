@@ -649,12 +649,14 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit sense urb failed\n",
 			     __func__, fname);
+		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return FAILED;
 	}
 	if (uas_submit_task_urb(cmnd, GFP_ATOMIC, function, tag)) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit task mgmt urb failed\n",
 			     __func__, fname);
+		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return FAILED;
 	}
 	spin_unlock_irqrestore(&devinfo->lock, flags);
