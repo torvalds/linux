@@ -71,8 +71,14 @@ module_param_named(dbg_level, rk30_battery_dbg_level, int, 0644);
 #define   NUM_CHARGE_FULL_DELAY_TIMES         ((CHARGE_FULL_DELAY_TIMES * 1000) / TIMER_MS_COUNTS)	//充电满状态持续时间长度
 #define   NUM_USBCHARGE_IDENTIFY_TIMES      ((USBCHARGE_IDENTIFY_TIMES * 1000) / TIMER_MS_COUNTS)	//充电满状态持续时间长度
 
-#define BAT_2V5_VALUE	                                     2500
+#if defined(CONFIG_ARCH_RK3066B)
 
+#define  BAT_DEFINE_VALUE	                                     1800
+#else
+#define  BAT_DEFINE_VALUE	                                     2500
+
+
+#endif
 
 #define BATT_FILENAME "/data/bat_last_capacity.dat"
 
@@ -92,8 +98,11 @@ struct batt_vol_cal{
 #define BATT_NOMAL_VOL_VALUE                         3800               
 //divider resistance 
 #define BAT_PULL_UP_R                                         200
+#if defined(CONFIG_ARCH_RK3066B)
+#define BAT_PULL_DOWN_R                                    100
+#else
 #define BAT_PULL_DOWN_R                                    200
-
+#endif
 static struct batt_vol_cal  batt_table[] = {
 	{0,3400,3520},{1,3420,3525},{2,3420,3575},{3,3475,3600},{5,3505,3620},{7,3525,3644},
 	{9,3540,3662},{11,3557,3670},{13,3570,3684},{15,3580,3700},{17,3610,3715},
@@ -134,7 +143,7 @@ static struct batt_vol_cal  batt_table[] = {
 
 #define BATT_NUM  ARRAY_SIZE(batt_table)
 
-#define adc_to_voltage(adc_val)                           ((adc_val * BAT_2V5_VALUE * (BAT_PULL_UP_R + BAT_PULL_DOWN_R)) / (1024 * BAT_PULL_DOWN_R))
+#define adc_to_voltage(adc_val)                           ((adc_val * BAT_DEFINE_VALUE * (BAT_PULL_UP_R + BAT_PULL_DOWN_R)) / (1024 * BAT_PULL_DOWN_R))
 
 /********************************************************************************/
 
