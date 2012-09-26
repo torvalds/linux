@@ -28,6 +28,7 @@ nouveau_ibus(void *obj)
 #define _nouveau_ibus_init _nouveau_subdev_init
 #define _nouveau_ibus_fini _nouveau_subdev_fini
 
+extern struct nouveau_oclass nvc0_ibus_oclass;
 extern struct nouveau_oclass nve0_ibus_oclass;
 
 #endif
