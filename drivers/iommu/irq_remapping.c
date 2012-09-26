@@ -355,3 +355,12 @@ void irq_remap_modify_chip_defaults(struct irq_chip *chip)
 	chip->irq_eoi = ir_ack_apic_level;
 	chip->irq_set_affinity = x86_io_apic_ops.set_affinity;
 }
+
+bool setup_remapped_irq(int irq, struct irq_cfg *cfg, struct irq_chip *chip)
+{
+	if (!irq_remapped(cfg))
+		return false;
+	irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
+	irq_remap_modify_chip_defaults(chip);
+	return true;
+}
