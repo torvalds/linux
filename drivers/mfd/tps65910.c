@@ -410,14 +410,10 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	ret = of_property_read_u32(np, "ti,vmbch-threshold", &prop);
 	if (!ret)
 		board_info->vmbch_threshold = prop;
-	else if (*chip_id == TPS65911)
-		dev_warn(&client->dev, "VMBCH-Threshold not specified");
 
 	ret = of_property_read_u32(np, "ti,vmbch2-threshold", &prop);
 	if (!ret)
 		board_info->vmbch2_threshold = prop;
-	else if (*chip_id == TPS65911)
-		dev_warn(&client->dev, "VMBCH2-Threshold not specified");
 
 	prop = of_property_read_bool(np, "ti,en-ck32k-xtal");
 	board_info->en_ck32k_xtal = prop;
