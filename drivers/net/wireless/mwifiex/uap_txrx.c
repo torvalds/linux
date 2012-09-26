@@ -284,12 +284,15 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 	struct uap_txpd *txpd;
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
 	int pad, len;
+	u16 pkt_type;
 
 	if (!skb->len) {
 		dev_err(adapter->dev, "Tx: bad packet length: %d\n", skb->len);
 		tx_info->status_code = -1;
 		return skb->data;
 	}
+
+	pkt_type = mwifiex_is_skb_mgmt_frame(skb) ? PKT_TYPE_MGMT : 0;
 
 	/* If skb->data is not aligned, add padding */
 	pad = (4 - (((void *)skb->data - NULL) & 0x3)) % 4;
@@ -318,6 +321,12 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 		    cpu_to_le32(priv->wmm.user_pri_pkt_tx_ctrl[txpd->priority]);
 
 	/* Offset of actual data */
+	if (pkt_type == PKT_TYPE_MGMT) {
+		/* Set the packet type and add header for management frame */
+		txpd->tx_pkt_type = cpu_to_le16(pkt_type);
+		len += MWIFIEX_MGMT_FRAME_HEADER_SIZE;
+	}
+
 	txpd->tx_pkt_offset = cpu_to_le16(len);
 
 	/* make space for INTF_HEADER_LEN */
