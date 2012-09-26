@@ -1069,7 +1069,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rpmodectl1, gt_core_status, rcctl1;
+	u32 rpmodectl1, gt_core_status, rcctl1, rc6vids = 0;
 	unsigned forcewake_count;
 	int count=0, ret;
 
@@ -1097,6 +1097,7 @@ static int gen6_drpc_info(struct seq_file *m)
 
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
+	sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
 	mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "Video Turbo Mode: %s\n",
@@ -1149,6 +1150,12 @@ static int gen6_drpc_info(struct seq_file *m)
 	seq_printf(m, "RC6++ residency since boot: %u\n",
 		   I915_READ(GEN6_GT_GFX_RC6pp));
 
+	seq_printf(m, "RC6   voltage: %dmV\n",
+		   GEN6_DECODE_RC6_VID(((rc6vids >> 0) & 0xff)));
+	seq_printf(m, "RC6+  voltage: %dmV\n",
+		   GEN6_DECODE_RC6_VID(((rc6vids >> 8) & 0xff)));
+	seq_printf(m, "RC6++ voltage: %dmV\n",
+		   GEN6_DECODE_RC6_VID(((rc6vids >> 16) & 0xff)));
 	return 0;
 }
 
