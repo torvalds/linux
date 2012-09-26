@@ -162,7 +162,10 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	DB8500_MUX("lcd_d8_d11_a_1", "lcd", "mcde-tvout"),
 	DB8500_MUX("lcdaclk_b_1", "lcda", "mcde-tvout"),
 	/* Mux in LCD VSI1 and pull it up for MCDE HDMI output */
-	DB8500_MUX("lcdvsi1_a_1", "lcd", "av8100-hdmi"),
+	DB8500_MUX("lcdvsi1_a_1", "lcd", "0-0070"),
+	DB8500_PIN("GPIO69_E2", in_pu, "0-0070"),
+	/* LCD VSI1 sleep state */
+	DB8500_PIN_SLEEP("GPIO69_E2", slpm_in_wkup_pdis, "0-0070"),
 	/* Mux in i2c0 block, default state */
 	DB8500_MUX("i2c0_a_1", "i2c0", "nmk-i2c.0"),
 	/* i2c0 sleep state */
