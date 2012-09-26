@@ -654,6 +654,22 @@ static int mwifiex_ret_ver_ext(struct mwifiex_private *priv,
 }
 
 /*
+ * This function handles the command response of remain on channel.
+ */
+static int
+mwifiex_ret_remain_on_chan(struct mwifiex_private *priv,
+			   struct host_cmd_ds_command *resp,
+			   struct host_cmd_ds_remain_on_chan *roc_cfg)
+{
+	struct host_cmd_ds_remain_on_chan *resp_cfg = &resp->params.roc_cfg;
+
+	if (roc_cfg)
+		memcpy(roc_cfg, resp_cfg, sizeof(*roc_cfg));
+
+	return 0;
+}
+
+/*
  * This function handles the command response of register access.
  *
  * The register value and offset are returned to the user. For EEPROM
@@ -874,6 +890,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_VERSION_EXT:
 		ret = mwifiex_ret_ver_ext(priv, resp, data_buf);
+		break;
+	case HostCmd_CMD_REMAIN_ON_CHAN:
+		ret = mwifiex_ret_remain_on_chan(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_MGMT_FRAME_REG:
 	case HostCmd_CMD_FUNC_INIT:

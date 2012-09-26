@@ -370,6 +370,12 @@ struct wps {
 	u8 session_enable;
 };
 
+struct mwifiex_roc_cfg {
+	u64 cookie;
+	struct ieee80211_channel chan;
+	enum nl80211_channel_type chan_type;
+};
+
 struct mwifiex_adapter;
 struct mwifiex_private;
 
@@ -497,7 +503,7 @@ struct mwifiex_private {
 	struct timer_list scan_delay_timer;
 	u8 ap_11n_enabled;
 	u32 mgmt_frame_mask;
-	u32 mgmt_rx_freq;
+	struct mwifiex_roc_cfg roc_cfg;
 };
 
 enum mwifiex_ba_status {
@@ -1007,6 +1013,11 @@ int mwifiex_set_gen_ie(struct mwifiex_private *priv, u8 *ie, int ie_len);
 
 int mwifiex_get_ver_ext(struct mwifiex_private *priv);
 
+int mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
+			       struct ieee80211_channel *chan,
+			       enum nl80211_channel_type *channel_type,
+			       unsigned int duration);
+
 int mwifiex_get_stats_info(struct mwifiex_private *priv,
 			   struct mwifiex_ds_get_stats *log);
 
@@ -1048,6 +1059,8 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 				    struct mwifiex_bssdescriptor *bss_entry);
 int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 					struct mwifiex_bssdescriptor *bss_desc);
+
+u8 mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type);
 
 struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					      const char *name,

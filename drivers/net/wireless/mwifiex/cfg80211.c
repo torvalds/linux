@@ -77,8 +77,7 @@ static const struct ieee80211_regdomain mwifiex_world_regdom_custom = {
  *      NL80211_CHAN_HT40MINUS -> IEEE80211_HT_PARAM_CHA_SEC_BELOW
  *      Others                 -> IEEE80211_HT_PARAM_CHA_SEC_NONE
  */
-static u8
-mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type)
+u8 mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type)
 {
 	switch (chan_type) {
 	case NL80211_CHAN_NO_HT:
@@ -245,6 +244,79 @@ mwifiex_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
 			       HostCmd_ACT_GEN_SET, 0, &priv->mgmt_frame_mask);
 
 	wiphy_dbg(wiphy, "info: mgmt frame registered\n");
+}
+
+/*
+ * CFG802.11 operation handler to remain on channel.
+ */
+static int
+mwifiex_cfg80211_remain_on_channel(struct wiphy *wiphy,
+				   struct wireless_dev *wdev,
+				   struct ieee80211_channel *chan,
+				   enum nl80211_channel_type channel_type,
+				   unsigned int duration, u64 *cookie)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
+	int ret;
+
+	if (!chan || !cookie) {
+		wiphy_err(wiphy, "Invalid parameter for ROC\n");
+		return -EINVAL;
+	}
+
+	if (priv->roc_cfg.cookie) {
+		wiphy_dbg(wiphy, "info: ongoing ROC, cookie = 0x%llu\n",
+			  priv->roc_cfg.cookie);
+		return -EBUSY;
+	}
+
+	ret = mwifiex_remain_on_chan_cfg(priv, HostCmd_ACT_GEN_SET, chan,
+					 &channel_type, duration);
+
+	if (!ret) {
+		*cookie = random32() | 1;
+		priv->roc_cfg.cookie = *cookie;
+		priv->roc_cfg.chan = *chan;
+		priv->roc_cfg.chan_type = channel_type;
+
+		cfg80211_ready_on_channel(wdev, *cookie, chan, channel_type,
+					  duration, GFP_ATOMIC);
+
+		wiphy_dbg(wiphy, "info: ROC, cookie = 0x%llx\n", *cookie);
+	}
+
+	return ret;
+}
+
+/*
+ * CFG802.11 operation handler to cancel remain on channel.
+ */
+static int
+mwifiex_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
+					  struct wireless_dev *wdev, u64 cookie)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
+	int ret;
+
+	if (cookie != priv->roc_cfg.cookie)
+		return -ENOENT;
+
+	ret = mwifiex_remain_on_chan_cfg(priv, HostCmd_ACT_GEN_REMOVE,
+					 &priv->roc_cfg.chan,
+					 &priv->roc_cfg.chan_type, 0);
+
+	if (!ret) {
+		cfg80211_remain_on_channel_expired(wdev, cookie,
+						   &priv->roc_cfg.chan,
+						   priv->roc_cfg.chan_type,
+						   GFP_ATOMIC);
+
+		memset(&priv->roc_cfg, 0, sizeof(struct mwifiex_roc_cfg));
+
+		wiphy_dbg(wiphy, "info: cancel ROC, cookie = 0x%llx\n", cookie);
+	}
+
+	return ret;
 }
 
 /*
@@ -1950,6 +2022,8 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.del_key = mwifiex_cfg80211_del_key,
 	.mgmt_tx = mwifiex_cfg80211_mgmt_tx,
 	.mgmt_frame_register = mwifiex_cfg80211_mgmt_frame_register,
+	.remain_on_channel = mwifiex_cfg80211_remain_on_channel,
+	.cancel_remain_on_channel = mwifiex_cfg80211_cancel_remain_on_channel,
 	.set_default_key = mwifiex_cfg80211_set_default_key,
 	.set_power_mgmt = mwifiex_cfg80211_set_power_mgmt,
 	.set_tx_power = mwifiex_cfg80211_set_tx_power,
@@ -1987,6 +2061,7 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->max_scan_ssids = MWIFIEX_MAX_SSID_LIST_LENGTH;
 	wiphy->max_scan_ie_len = MWIFIEX_MAX_VSIE_LEN;
 	wiphy->mgmt_stypes = mwifiex_mgmt_stypes;
+	wiphy->max_remain_on_channel_duration = 5000;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_ADHOC) |
 				 BIT(NL80211_IFTYPE_AP);
@@ -2008,7 +2083,8 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
-			WIPHY_FLAG_CUSTOM_REGULATORY;
+			WIPHY_FLAG_CUSTOM_REGULATORY |
+			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	wiphy_apply_custom_regulatory(wiphy, &mwifiex_world_regdom_custom);
 
