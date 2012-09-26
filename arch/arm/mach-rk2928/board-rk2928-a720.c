@@ -82,7 +82,11 @@ static struct spi_board_info board_spi_devices[] = {
 #define PWM_GPIO 	  RK2928_PIN0_PD2
 #define PWM_EFFECT_VALUE  0
 
+#if defined(CONFIG_MACH_RK2926_M713)
 //#define LCD_DISP_ON_PIN
+#else
+#define LCD_DISP_ON_PIN
+#endif
 
 #ifdef  LCD_DISP_ON_PIN
 
