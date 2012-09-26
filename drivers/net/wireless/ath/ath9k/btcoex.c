@@ -282,7 +282,7 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 		ath9k_hw_btcoex_enable_2wire(ah);
 		break;
 	case ATH_BTCOEX_CFG_3WIRE:
-		if (AR_SREV_9462(ah)) {
+		if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 			ath9k_hw_btcoex_enable_mci(ah);
 			return;
 		}
@@ -304,7 +304,7 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 	int i;
 
 	btcoex_hw->enabled = false;
-	if (AR_SREV_9462(ah)) {
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
 		for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
 			REG_WRITE(ah, AR_MCI_COEX_WL_WEIGHTS(i),
@@ -339,7 +339,7 @@ static void ar9003_btcoex_bt_stomp(struct ath_hw *ah,
 	const u32 *weight = ar9003_wlan_weights[stomp_type];
 	int i;
 
-	if (AR_SREV_9462(ah)) {
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		if ((stomp_type == ATH_BTCOEX_STOMP_LOW) &&
 		    btcoex->mci.stomp_ftp)
 			stomp_type = ATH_BTCOEX_STOMP_LOW_FTP;
