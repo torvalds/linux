@@ -421,13 +421,6 @@ asmlinkage long sparc32_execve(struct pt_regs *regs)
 				 compat_ptr(regs->u_regs[base + UREG_I2]), regs);
 
 	putname(filename);
-
-	if (!error) {
-		fprs_write(0);
-		current_thread_info()->xfsr[0] = 0;
-		current_thread_info()->fpsaved[0] = 0;
-		regs->tstate &= ~TSTATE_PEF;
-	}
 out:
 	return error;
 }

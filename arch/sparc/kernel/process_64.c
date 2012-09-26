@@ -692,12 +692,6 @@ asmlinkage int sparc_execve(struct pt_regs *regs)
 			  (const char __user *const __user *)
 			  regs->u_regs[base + UREG_I2], regs);
 	putname(filename);
-	if (!error) {
-		fprs_write(0);
-		current_thread_info()->xfsr[0] = 0;
-		current_thread_info()->fpsaved[0] = 0;
-		regs->tstate &= ~TSTATE_PEF;
-	}
 out:
 	return error;
 }
