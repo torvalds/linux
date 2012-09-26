@@ -135,30 +135,6 @@
  */
 #define WL_MAX_FAILURES 32
 
-/**
- * struct ubi_work - UBI work description data structure.
- * @list: a link in the list of pending works
- * @func: worker function
- * @e: physical eraseblock to erase
- * @vol_id: the volume ID on which this erasure is being performed
- * @lnum: the logical eraseblock number
- * @torture: if the physical eraseblock has to be tortured
- *
- * The @func pointer points to the worker function. If the @cancel argument is
- * not zero, the worker has to free the resources and exit immediately. The
- * worker has to return zero in case of success and a negative error code in
- * case of failure.
- */
-struct ubi_work {
-	struct list_head list;
-	int (*func)(struct ubi_device *ubi, struct ubi_work *wrk, int cancel);
-	/* The below fields are only relevant to erasure works */
-	struct ubi_wl_entry *e;
-	int vol_id;
-	int lnum;
-	int torture;
-};
-
 static int self_check_ec(struct ubi_device *ubi, int pnum, int ec);
 static int self_check_in_wl_tree(const struct ubi_device *ubi,
 				 struct ubi_wl_entry *e, struct rb_root *root);
