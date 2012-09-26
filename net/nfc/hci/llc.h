@@ -56,6 +56,14 @@ int nfc_llc_register(const char *name, struct nfc_llc_ops *ops);
 void nfc_llc_unregister(const char *name);
 
 int nfc_llc_nop_register(void);
+
+#if defined(CONFIG_NFC_SHDLC)
 int nfc_llc_shdlc_register(void);
+#else
+static inline int nfc_llc_shdlc_register(void)
+{
+	return 0;
+}
+#endif
 
 #endif /* __LOCAL_LLC_H_ */
