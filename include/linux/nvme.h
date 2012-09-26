@@ -137,6 +137,34 @@ enum {
 	NVME_LBAF_RP_DEGRADED	= 3,
 };
 
+struct nvme_smart_log {
+	__u8			critical_warning;
+	__u8			temperature[2];
+	__u8			avail_spare;
+	__u8			spare_thresh;
+	__u8			percent_used;
+	__u8			rsvd6[26];
+	__u8			data_units_read[16];
+	__u8			data_units_written[16];
+	__u8			host_reads[16];
+	__u8			host_writes[16];
+	__u8			ctrl_busy_time[16];
+	__u8			power_cycles[16];
+	__u8			power_on_hours[16];
+	__u8			unsafe_shutdowns[16];
+	__u8			media_errors[16];
+	__u8			num_err_log_entries[16];
+	__u8			rsvd192[320];
+};
+
+enum {
+	NVME_SMART_CRIT_SPARE		= 1 << 0,
+	NVME_SMART_CRIT_TEMPERATURE	= 1 << 1,
+	NVME_SMART_CRIT_RELIABILITY	= 1 << 2,
+	NVME_SMART_CRIT_MEDIA		= 1 << 3,
+	NVME_SMART_CRIT_VOLATILE_MEMORY	= 1 << 4,
+};
+
 struct nvme_lba_range_type {
 	__u8			type;
 	__u8			attributes;
