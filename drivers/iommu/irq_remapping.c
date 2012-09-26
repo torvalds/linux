@@ -282,10 +282,13 @@ int set_remapped_irq_affinity(struct irq_data *data, const struct cpumask *mask,
 
 void free_remapped_irq(int irq)
 {
+	struct irq_cfg *cfg = irq_get_chip_data(irq);
+
 	if (!remap_ops || !remap_ops->free_irq)
 		return;
 
-	remap_ops->free_irq(irq);
+	if (irq_remapped(cfg))
+		remap_ops->free_irq(irq);
 }
 
 void compose_remapped_msi_msg(struct pci_dev *pdev,
