@@ -47,9 +47,6 @@ extern void free_remapped_irq(int irq);
 extern void compose_remapped_msi_msg(struct pci_dev *pdev,
 				     unsigned int irq, unsigned int dest,
 				     struct msi_msg *msg, u8 hpet_id);
-extern int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec);
-extern int msi_setup_remapped_irq(struct pci_dev *pdev, unsigned int irq,
-				  int index, int sub_handle);
 extern int setup_hpet_msi_remapped(unsigned int irq, unsigned int id);
 
 #else  /* CONFIG_IRQ_REMAP */
@@ -82,15 +79,6 @@ static inline void compose_remapped_msi_msg(struct pci_dev *pdev,
 					    unsigned int irq, unsigned int dest,
 					    struct msi_msg *msg, u8 hpet_id)
 {
-}
-static inline int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec)
-{
-	return -ENODEV;
-}
-static inline int msi_setup_remapped_irq(struct pci_dev *pdev, unsigned int irq,
-					 int index, int sub_handle)
-{
-	return -ENODEV;
 }
 static inline int setup_hpet_msi_remapped(unsigned int irq, unsigned int id)
 {

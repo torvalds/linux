@@ -3066,7 +3066,7 @@ void destroy_irq(unsigned int irq)
 	free_irq_at(irq, cfg);
 }
 
-static inline void destroy_irqs(unsigned int irq, unsigned int count)
+void destroy_irqs(unsigned int irq, unsigned int count)
 {
 	unsigned int i;
 
@@ -3165,8 +3165,8 @@ static struct irq_chip msi_chip = {
 	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
-static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			 unsigned int irq_base, unsigned int irq_offset)
+int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
+		  unsigned int irq_base, unsigned int irq_offset)
 {
 	struct irq_chip *chip = &msi_chip;
 	struct msi_msg msg;
@@ -3198,118 +3198,34 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	return 0;
 }
 
-int setup_msix_irqs(struct pci_dev *dev, int nvec)
+int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	int node, ret, sub_handle, index = 0;
 	unsigned int irq, irq_want;
 	struct msi_desc *msidesc;
+	int node, ret;
+
+	/* Multiple MSI vectors only supported with interrupt remapping */
+	if (type == PCI_CAP_ID_MSI && nvec > 1)
+		return 1;
 
 	node = dev_to_node(&dev->dev);
 	irq_want = nr_irqs_gsi;
-	sub_handle = 0;
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
 		irq = create_irq_nr(irq_want, node);
 		if (irq == 0)
 			return -ENOSPC;
-		irq_want = irq + 1;
-		if (!irq_remapping_enabled)
-			goto no_ir;
 
-		if (!sub_handle) {
-			/*
-			 * allocate the consecutive block of IRTE's
-			 * for 'nvec'
-			 */
-			index = msi_alloc_remapped_irq(dev, irq, nvec);
-			if (index < 0) {
-				ret = index;
-				goto error;
-			}
-		} else {
-			ret = msi_setup_remapped_irq(dev, irq, index,
-						     sub_handle);
-			if (ret < 0)
-				goto error;
-		}
-no_ir:
+		irq_want = irq + 1;
+
 		ret = setup_msi_irq(dev, msidesc, irq, 0);
 		if (ret < 0)
 			goto error;
-		sub_handle++;
 	}
 	return 0;
 
 error:
 	destroy_irq(irq);
 	return ret;
-}
-
-int setup_msi_irqs(struct pci_dev *dev, int nvec)
-{
-	int node, ret, sub_handle, index = 0;
-	unsigned int irq;
-	struct msi_desc *msidesc;
-
-	if (nvec > 1 && !irq_remapping_enabled)
-		return 1;
-
-	nvec = __roundup_pow_of_two(nvec);
-
-	WARN_ON(!list_is_singular(&dev->msi_list));
-	msidesc = list_entry(dev->msi_list.next, struct msi_desc, list);
-	WARN_ON(msidesc->irq);
-	WARN_ON(msidesc->msi_attrib.multiple);
-
-	node = dev_to_node(&dev->dev);
-	irq = __create_irqs(nr_irqs_gsi, nvec, node);
-	if (irq == 0)
-		return -ENOSPC;
-
-	if (!irq_remapping_enabled) {
-		ret = setup_msi_irq(dev, msidesc, irq, 0);
-		if (ret < 0)
-			goto error;
-		return 0;
-	}
-
-	msidesc->msi_attrib.multiple = ilog2(nvec);
-	for (sub_handle = 0; sub_handle < nvec; sub_handle++) {
-		if (!sub_handle) {
-			index = msi_alloc_remapped_irq(dev, irq, nvec);
-			if (index < 0) {
-				ret = index;
-				goto error;
-			}
-		} else {
-			ret = msi_setup_remapped_irq(dev, irq + sub_handle,
-						     index, sub_handle);
-			if (ret < 0)
-				goto error;
-		}
-		ret = setup_msi_irq(dev, msidesc, irq, sub_handle);
-		if (ret < 0)
-			goto error;
-	}
-	return 0;
-
-error:
-	destroy_irqs(irq, nvec);
-
-	/*
-	 * Restore altered MSI descriptor fields and prevent just destroyed
-	 * IRQs from tearing down again in default_teardown_msi_irqs()
-	 */
-	msidesc->irq = 0;
-	msidesc->msi_attrib.multiple = 0;
-
-	return ret;
-}
-
-int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
-{
-	if (type == PCI_CAP_ID_MSI)
-		return setup_msi_irqs(dev, nvec);
-	return setup_msix_irqs(dev, nvec);
 }
 
 void native_teardown_msi_irq(unsigned int irq)
