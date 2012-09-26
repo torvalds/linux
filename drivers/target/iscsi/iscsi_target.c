@@ -427,7 +427,7 @@ int iscsit_reset_np_thread(
 	return 0;
 }
 
-int iscsit_del_np_comm(struct iscsi_np *np)
+static int iscsit_del_np_comm(struct iscsi_np *np)
 {
 	if (np->np_socket)
 		sock_release(np->np_socket);

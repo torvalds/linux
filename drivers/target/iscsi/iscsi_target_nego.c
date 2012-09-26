@@ -44,7 +44,7 @@ void convert_null_to_semi(char *buf, int len)
 			buf[i] = ';';
 }
 
-int strlen_semi(char *buf)
+static int strlen_semi(char *buf)
 {
 	int i = 0;
 

@@ -135,7 +135,7 @@ static struct configfs_attribute *lio_target_portal_attrs[] = {
 
 #define MAX_PORTAL_LEN		256
 
-struct se_tpg_np *lio_target_call_addnptotpg(
+static struct se_tpg_np *lio_target_call_addnptotpg(
 	struct se_portal_group *se_tpg,
 	struct config_group *group,
 	const char *name)
@@ -1170,7 +1170,7 @@ static struct configfs_attribute *lio_target_tpg_attrs[] = {
 
 /* Start items for lio_target_tiqn_cit */
 
-struct se_portal_group *lio_target_tiqn_addtpg(
+static struct se_portal_group *lio_target_tiqn_addtpg(
 	struct se_wwn *wwn,
 	struct config_group *group,
 	const char *name)
@@ -1220,7 +1220,7 @@ out:
 	return NULL;
 }
 
-void lio_target_tiqn_deltpg(struct se_portal_group *se_tpg)
+static void lio_target_tiqn_deltpg(struct se_portal_group *se_tpg)
 {
 	struct iscsi_portal_group *tpg;
 	struct iscsi_tiqn *tiqn;
@@ -1252,7 +1252,7 @@ static struct configfs_attribute *lio_target_wwn_attrs[] = {
 	NULL,
 };
 
-struct se_wwn *lio_target_call_coreaddtiqn(
+static struct se_wwn *lio_target_call_coreaddtiqn(
 	struct target_fabric_configfs *tf,
 	struct config_group *group,
 	const char *name)
@@ -1300,7 +1300,7 @@ struct se_wwn *lio_target_call_coreaddtiqn(
 	return &tiqn->tiqn_wwn;
 }
 
-void lio_target_call_coredeltiqn(
+static void lio_target_call_coredeltiqn(
 	struct se_wwn *wwn)
 {
 	struct iscsi_tiqn *tiqn = container_of(wwn, struct iscsi_tiqn, tiqn_wwn);

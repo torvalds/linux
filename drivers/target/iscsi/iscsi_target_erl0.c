@@ -685,7 +685,7 @@ recover:
  *	Called from iscsit_handle_data_out() before DataOUT Payload is received
  *	and CRC computed.
  */
-extern int iscsit_check_pre_dataout(
+int iscsit_check_pre_dataout(
 	struct iscsi_cmd *cmd,
 	unsigned char *buf)
 {
@@ -789,7 +789,7 @@ static void iscsit_handle_time2retain_timeout(unsigned long data)
 	target_put_session(sess->se_sess);
 }
 
-extern void iscsit_start_time2retain_handler(struct iscsi_session *sess)
+void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 {
 	int tpg_active;
 	/*
@@ -822,7 +822,7 @@ extern void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 /*
  *	Called with spin_lock_bh(&struct se_portal_group->session_lock) held
  */
-extern int iscsit_stop_time2retain_timer(struct iscsi_session *sess)
+int iscsit_stop_time2retain_timer(struct iscsi_session *sess)
 {
 	struct iscsi_portal_group *tpg = ISCSI_TPG_S(sess);
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
@@ -926,7 +926,7 @@ static void iscsit_handle_connection_cleanup(struct iscsi_conn *conn)
 	}
 }
 
-extern void iscsit_take_action_for_connection_exit(struct iscsi_conn *conn)
+void iscsit_take_action_for_connection_exit(struct iscsi_conn *conn)
 {
 	spin_lock_bh(&conn->state_lock);
 	if (atomic_read(&conn->connection_exit)) {

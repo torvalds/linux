@@ -39,10 +39,6 @@
 #include "iscsi_target.h"
 #include "iscsi_target_parameters.h"
 
-extern struct idr sess_idr;
-extern struct mutex auth_id_lock;
-extern spinlock_t sess_idr_lock;
-
 static int iscsi_login_init_conn(struct iscsi_conn *conn)
 {
 	INIT_LIST_HEAD(&conn->conn_list);
