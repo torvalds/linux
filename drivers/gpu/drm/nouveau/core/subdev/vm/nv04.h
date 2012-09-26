@@ -6,8 +6,8 @@
 struct nv04_vmmgr_priv {
 	struct nouveau_vmmgr base;
 	struct nouveau_vm *vm;
-	struct page *page;
 	dma_addr_t null;
+	void *nullp;
 };
 
 static inline struct nv04_vmmgr_priv *

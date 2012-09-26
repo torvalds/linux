@@ -132,10 +132,9 @@ nv04_vmmgr_dtor(struct nouveau_object *object)
 		nouveau_gpuobj_ref(NULL, &priv->vm->pgt[0].obj[0]);
 		nouveau_vm_ref(NULL, &priv->vm, NULL);
 	}
-	if (priv->page) {
-		pci_unmap_page(nv_device(priv)->pdev, priv->null,
-			       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-		__free_page(priv->page);
+	if (priv->nullp) {
+		pci_free_consistent(nv_device(priv)->pdev, 16 * 1024,
+				    priv->nullp, priv->null);
 	}
 	nouveau_vmmgr_destroy(&priv->base);
 }

@@ -23,6 +23,7 @@
  */
 
 #include <core/gpuobj.h>
+#include <core/option.h>
 
 #include <subdev/timer.h>
 #include <subdev/vm.h>
@@ -37,16 +38,6 @@
  ******************************************************************************/
 
 static void
-nv44_vm_flush_priv(struct nv04_vmmgr_priv *priv, u32 base, u32 size)
-{
-	nv_wr32(priv, 0x100814, (size - 1) << 12);
-	nv_wr32(priv, 0x100808, base | 0x20);
-	if (!nv_wait(priv, 0x100808, 0x00000001, 0x00000001))
-		nv_error(priv, "timeout: 0x%08x\n", nv_rd32(priv, 0x100808));
-	nv_wr32(priv, 0x100808, 0x00000000);
-}
-
-static void
 nv44_vm_fill(struct nouveau_gpuobj *pgt, dma_addr_t null,
 	     dma_addr_t *list, u32 pte, u32 cnt)
 {
@@ -57,6 +48,7 @@ nv44_vm_fill(struct nouveau_gpuobj *pgt, dma_addr_t null,
 	tmp[1] = nv_ro32(pgt, base + 0x4);
 	tmp[2] = nv_ro32(pgt, base + 0x8);
 	tmp[3] = nv_ro32(pgt, base + 0xc);
+
 	while (cnt--) {
 		u32 addr = list ? (*list++ >> 12) : (null >> 12);
 		switch (pte++ & 0x3) {
@@ -96,8 +88,6 @@ nv44_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	       struct nouveau_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
 	struct nv04_vmmgr_priv *priv = (void *)vma->vm->vmm;
-	u32 base = pte << 12;
-	u32 size = cnt;
 	u32 tmp[4];
 	int i;
 
@@ -122,15 +112,12 @@ nv44_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 
 	if (cnt)
 		nv44_vm_fill(pgt, priv->null, list, pte, cnt);
-	nv44_vm_flush_priv(priv, base, size);
 }
 
 static void
 nv44_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 {
 	struct nv04_vmmgr_priv *priv = (void *)nouveau_vmmgr(pgt);
-	u32 base = pte << 12;
-	u32 size = cnt;
 
 	if (pte & 3) {
 		u32  max = 4 - (pte & 3);
@@ -150,12 +137,17 @@ nv44_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 
 	if (cnt)
 		nv44_vm_fill(pgt, priv->null, NULL, pte, cnt);
-	nv44_vm_flush_priv(priv, base, size);
 }
 
 static void
 nv44_vm_flush(struct nouveau_vm *vm)
 {
+	struct nv04_vmmgr_priv *priv = (void *)vm->vmm;
+	nv_wr32(priv, 0x100814, priv->base.limit - NV44_GART_PAGE);
+	nv_wr32(priv, 0x100808, 0x00000020);
+	if (!nv_wait(priv, 0x100808, 0x00000001, 0x00000001))
+		nv_error(priv, "timeout: 0x%08x\n", nv_rd32(priv, 0x100808));
+	nv_wr32(priv, 0x100808, 0x00000000);
 }
 
 /*******************************************************************************
@@ -170,6 +162,11 @@ nv44_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nouveau_device *device = nv_device(parent);
 	struct nv04_vmmgr_priv *priv;
 	int ret;
+
+	if (!nouveau_boolopt(device->cfgopt, "NvPCIE", true)) {
+		return nouveau_object_ctor(parent, engine, &nv04_vmmgr_oclass,
+					   data, size, pobject);
+	}
 
 	ret = nouveau_vmmgr_create(parent, engine, oclass, "PCIEGART",
 				   "pciegart", &priv);
@@ -187,19 +184,11 @@ nv44_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.unmap = nv44_vm_unmap;
 	priv->base.flush = nv44_vm_flush;
 
-	priv->page = alloc_page(GFP_DMA32 | GFP_KERNEL);
-	if (priv->page) {
-		priv->null = pci_map_page(device->pdev, priv->page, 0,
-					  PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(device->pdev, priv->null)) {
-			__free_page(priv->page);
-			priv->page = NULL;
-			priv->null = 0;
-		}
+	priv->nullp = pci_alloc_consistent(device->pdev, 16 * 1024, &priv->null);
+	if (!priv->nullp) {
+		nv_error(priv, "unable to allocate dummy pages\n");
+		return -ENOMEM;
 	}
-
-	if (!priv->page)
-		nv_warn(priv, "unable to allocate dummy page\n");
 
 	ret = nouveau_vm_create(&priv->base, 0, NV44_GART_SIZE, 0, 4096,
 				&priv->vm);
