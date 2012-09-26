@@ -1104,7 +1104,7 @@ struct format_field *perf_evsel__field(struct perf_evsel *evsel, const char *nam
 	return pevent_find_field(evsel->tp_format, name);
 }
 
-char *perf_evsel__strval(struct perf_evsel *evsel, struct perf_sample *sample,
+void *perf_evsel__rawptr(struct perf_evsel *evsel, struct perf_sample *sample,
 			 const char *name)
 {
 	struct format_field *field = perf_evsel__field(evsel, name);

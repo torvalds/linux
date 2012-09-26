@@ -128,10 +128,17 @@ void perf_evsel__close(struct perf_evsel *evsel, int ncpus, int nthreads);
 
 struct perf_sample;
 
-char *perf_evsel__strval(struct perf_evsel *evsel, struct perf_sample *sample,
+void *perf_evsel__rawptr(struct perf_evsel *evsel, struct perf_sample *sample,
 			 const char *name);
 u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 		       const char *name);
+
+static inline char *perf_evsel__strval(struct perf_evsel *evsel,
+				       struct perf_sample *sample,
+				       const char *name)
+{
+	return perf_evsel__rawptr(evsel, sample, name);
+}
 
 struct format_field;
 
