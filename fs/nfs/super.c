@@ -1112,7 +1112,7 @@ static int nfs_get_option_ul(substring_t args[], unsigned long *option)
 	string = match_strdup(args);
 	if (string == NULL)
 		return -ENOMEM;
-	rc = strict_strtoul(string, 10, option);
+	rc = kstrtoul(string, 10, option);
 	kfree(string);
 
 	return rc;
@@ -2681,7 +2681,7 @@ static int param_set_portnr(const char *val, const struct kernel_param *kp)
 
 	if (!val)
 		return -EINVAL;
-	ret = strict_strtoul(val, 0, &num);
+	ret = kstrtoul(val, 0, &num);
 	if (ret == -EINVAL || num > NFS_CALLBACK_MAXPORTNR)
 		return -EINVAL;
 	*((unsigned int *)kp->arg) = num;

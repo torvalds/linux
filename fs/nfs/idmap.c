@@ -158,7 +158,7 @@ static int nfs_map_string_to_numeric(const char *name, size_t namelen, __u32 *re
 		return 0;
 	memcpy(buf, name, namelen);
 	buf[namelen] = '\0';
-	if (strict_strtoul(buf, 0, &val) != 0)
+	if (kstrtoul(buf, 0, &val) != 0)
 		return 0;
 	*res = val;
 	return 1;
@@ -364,7 +364,7 @@ static int nfs_idmap_lookup_id(const char *name, size_t namelen, const char *typ
 	if (data_size <= 0) {
 		ret = -EINVAL;
 	} else {
-		ret = strict_strtol(id_str, 10, &id_long);
+		ret = kstrtol(id_str, 10, &id_long);
 		*id = (__u32)id_long;
 	}
 	return ret;
