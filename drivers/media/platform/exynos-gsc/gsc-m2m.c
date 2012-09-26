@@ -99,7 +99,7 @@ static void gsc_m2m_job_abort(void *priv)
 		gsc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
 }
 
-int gsc_fill_addr(struct gsc_ctx *ctx)
+static int gsc_fill_addr(struct gsc_ctx *ctx)
 {
 	struct gsc_frame *s_frame, *d_frame;
 	struct vb2_buffer *vb = NULL;
@@ -249,7 +249,7 @@ static void gsc_m2m_buf_queue(struct vb2_buffer *vb)
 		v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
 }
 
-struct vb2_ops gsc_m2m_qops = {
+static struct vb2_ops gsc_m2m_qops = {
 	.queue_setup	 = gsc_m2m_queue_setup,
 	.buf_prepare	 = gsc_m2m_buf_prepare,
 	.buf_queue	 = gsc_m2m_buf_queue,

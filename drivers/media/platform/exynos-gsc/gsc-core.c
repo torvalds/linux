@@ -310,7 +310,7 @@ int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f)
 	return 0;
 }
 
-u32 get_plane_info(struct gsc_frame *frm, u32 addr, u32 *index)
+static u32 get_plane_info(struct gsc_frame *frm, u32 addr, u32 *index)
 {
 	if (frm->addr.y == addr) {
 		*index = 0;
@@ -743,7 +743,7 @@ static int gsc_s_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-const struct v4l2_ctrl_ops gsc_ctrl_ops = {
+static const struct v4l2_ctrl_ops gsc_ctrl_ops = {
 	.s_ctrl = gsc_s_ctrl,
 };
 
