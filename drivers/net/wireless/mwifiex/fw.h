@@ -1379,6 +1379,7 @@ struct host_cmd_ds_802_11_ibss_status {
 
 #define CONNECTION_TYPE_INFRA   0
 #define CONNECTION_TYPE_ADHOC   1
+#define CONNECTION_TYPE_AP      2
 
 struct host_cmd_ds_set_bss_mode {
 	u8 con_type;

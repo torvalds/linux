@@ -736,6 +736,9 @@ void mwifiex_stop_net_dev_queue(struct net_device *netdev,
 void mwifiex_wake_up_net_dev_queue(struct net_device *netdev,
 		struct mwifiex_adapter *adapter);
 
+int mwifiex_init_priv(struct mwifiex_private *priv);
+void mwifiex_free_priv(struct mwifiex_private *priv);
+
 int mwifiex_init_fw(struct mwifiex_adapter *adapter);
 
 int mwifiex_init_fw_complete(struct mwifiex_adapter *adapter);
@@ -1017,6 +1020,8 @@ int mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 			       struct ieee80211_channel *chan,
 			       enum nl80211_channel_type *channel_type,
 			       unsigned int duration);
+
+int mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role);
 
 int mwifiex_get_stats_info(struct mwifiex_private *priv,
 			   struct mwifiex_ds_get_stats *log);

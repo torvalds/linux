@@ -679,6 +679,9 @@ mwifiex_cfg80211_deinit_p2p(struct mwifiex_private *priv)
 {
 	u16 mode = P2P_MODE_DISABLE;
 
+	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_STA)
+		mwifiex_set_bss_role(priv, MWIFIEX_BSS_ROLE_STA);
+
 	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
 				  HostCmd_ACT_GEN_SET, 0, &mode))
 		return -1;
@@ -708,6 +711,35 @@ mwifiex_cfg80211_init_p2p_client(struct mwifiex_private *priv)
 	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
 				  HostCmd_ACT_GEN_SET, 0, &mode))
 		return -1;
+
+	return 0;
+}
+
+/*
+ * This function initializes the functionalities for P2P GO.
+ * The P2P GO initialization sequence is:
+ * disable -> device -> GO
+ */
+static int
+mwifiex_cfg80211_init_p2p_go(struct mwifiex_private *priv)
+{
+	u16 mode;
+
+	if (mwifiex_cfg80211_deinit_p2p(priv))
+		return -1;
+
+	mode = P2P_MODE_DEVICE;
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
+				  HostCmd_ACT_GEN_SET, 0, &mode))
+		return -1;
+
+	mode = P2P_MODE_GO;
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
+				  HostCmd_ACT_GEN_SET, 0, &mode))
+		return -1;
+
+	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_UAP)
+		mwifiex_set_bss_role(priv, MWIFIEX_BSS_ROLE_UAP);
 
 	return 0;
 }
@@ -749,6 +781,11 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 				return -EFAULT;
 			dev->ieee80211_ptr->iftype = type;
 			return 0;
+		case NL80211_IFTYPE_P2P_GO:
+			if (mwifiex_cfg80211_init_p2p_go(priv))
+				return -EFAULT;
+			dev->ieee80211_ptr->iftype = type;
+			return 0;
 		case NL80211_IFTYPE_UNSPECIFIED:
 			wiphy_warn(wiphy, "%s: kept type as STA\n", dev->name);
 		case NL80211_IFTYPE_STATION:	/* This shouldn't happen */
@@ -775,6 +812,7 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		}
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_P2P_GO:
 		switch (type) {
 		case NL80211_IFTYPE_STATION:
 			if (mwifiex_cfg80211_deinit_p2p(priv))
@@ -1135,7 +1173,7 @@ static int mwifiex_cfg80211_change_beacon(struct wiphy *wiphy,
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
-	if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
+	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_UAP) {
 		wiphy_err(wiphy, "%s: bss_type mismatched\n", __func__);
 		return -EINVAL;
 	}
@@ -1223,7 +1261,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	u8 config_bands = 0;
 
-	if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP)
+	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_UAP)
 		return -1;
 	if (mwifiex_set_mgmt_ies(priv, &params->beacon))
 		return -1;
