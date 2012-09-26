@@ -245,8 +245,10 @@ static void pm_pll_wait_lock(int pll_idx)
 }
 
 #define power_on_pll(id) \
-	cru_writel(PLL_PWR_DN_W_MSK|PLL_PWR_ON,PLL_CONS((id),3));\
+	cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_ON, PLL_CONS((id), 3));\
 	pm_pll_wait_lock((id))
+#define power_off_pll(id) \
+	cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_DN, PLL_CONS((id), 3))
 
 #define DDR_SAVE_SP(save_sp)		do { save_sp = ddr_save_sp(((unsigned long)SRAM_DATA_END & (~7))); } while (0)
 #define DDR_RESTORE_SP(save_sp)		do { ddr_save_sp(save_sp); } while (0)
@@ -568,7 +570,7 @@ static int rk30_pm_enter(suspend_state_t state)
 	//cpll
 	cru_writel(PLL_MODE_SLOW(CPLL_ID), CRU_MODE_CON);
 	cpll_con3 = cru_readl(PLL_CONS(CPLL_ID, 3));
-	cru_writel(PLL_PWR_DN_MSK | PLL_PWR_DN, PLL_CONS(CPLL_ID, 3));
+	power_off_pll(CPLL_ID);
 
 	//gpll
 	cru_writel(PLL_MODE_SLOW(GPLL_ID), CRU_MODE_CON);
@@ -577,7 +579,7 @@ static int rk30_pm_enter(suspend_state_t state)
 		   | CRU_W_MSK_SETBITS(0, PERI_HCLK_DIV_OFF, PERI_HCLK_DIV_MASK)
 		   | CRU_W_MSK_SETBITS(0, PERI_PCLK_DIV_OFF, PERI_PCLK_DIV_MASK)
 		   , CRU_CLKSELS_CON(10));
-	cru_writel(PLL_PWR_DN_MSK | PLL_PWR_DN, PLL_CONS(GPLL_ID, 3));
+	power_off_pll(GPLL_ID);
 
 	//apll
 	clk_sel0 = cru_readl(CRU_CLKSELS_CON(0));
@@ -596,7 +598,7 @@ static int rk30_pm_enter(suspend_state_t state)
 		   | ACLK_PCLK_W_MSK | ACLK_PCLK_11
 		   | AHB2APB_W_MSK | AHB2APB_11
 		   , CRU_CLKSELS_CON(1));
-	cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_DN, PLL_CONS(APLL_ID, 3));
+	power_off_pll(APLL_ID);
 
 	sram_printch('3');
 	rk30_pwm_suspend_voltage_set();
