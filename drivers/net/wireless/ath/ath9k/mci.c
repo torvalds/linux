@@ -392,6 +392,7 @@ int ath_mci_setup(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_mci_coex *mci = &sc->mci_coex;
 	struct ath_mci_buf *buf = &mci->sched_buf;
+	int ret;
 
 	buf->bf_addr = dma_alloc_coherent(sc->dev,
 				  ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE,
@@ -411,9 +412,13 @@ int ath_mci_setup(struct ath_softc *sc)
 	mci->gpm_buf.bf_addr = (u8 *)mci->sched_buf.bf_addr + mci->sched_buf.bf_len;
 	mci->gpm_buf.bf_paddr = mci->sched_buf.bf_paddr + mci->sched_buf.bf_len;
 
-	ar9003_mci_setup(sc->sc_ah, mci->gpm_buf.bf_paddr,
-			 mci->gpm_buf.bf_addr, (mci->gpm_buf.bf_len >> 4),
-			 mci->sched_buf.bf_paddr);
+	ret = ar9003_mci_setup(sc->sc_ah, mci->gpm_buf.bf_paddr,
+			       mci->gpm_buf.bf_addr, (mci->gpm_buf.bf_len >> 4),
+			       mci->sched_buf.bf_paddr);
+	if (ret) {
+		ath_err(common, "Failed to initialize MCI\n");
+		return ret;
+	}
 
 	INIT_WORK(&sc->mci_work, ath9k_mci_work);
 	ath_dbg(common, MCI, "MCI Initialized\n");

@@ -249,8 +249,8 @@ bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
 			     u32 *payload, u8 len, bool wait_done,
 			     bool check_bt);
 u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type);
-void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
-		      u16 len, u32 sched_addr);
+int ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
+		     u16 len, u32 sched_addr);
 void ar9003_mci_cleanup(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
@@ -272,8 +272,8 @@ void ar9003_mci_check_bt(struct ath_hw *ah);
 bool ar9003_mci_start_reset(struct ath_hw *ah, struct ath9k_channel *chan);
 int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 			 struct ath9k_hw_cal_data *caldata);
-void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
-		      bool is_full_sleep);
+int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
+		     bool is_full_sleep);
 void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
 void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah);
 void ar9003_mci_set_power_awake(struct ath_hw *ah);
