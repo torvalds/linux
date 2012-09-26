@@ -31,7 +31,6 @@
 #include <asm/cpu.h>
 
 #include <plat/clock.h>
-#include <plat/omap-pm.h>
 #include <plat/common.h>
 #include <plat/omap_device.h>
 
