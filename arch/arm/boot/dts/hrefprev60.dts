@@ -17,6 +17,12 @@
 	model = "ST-Ericsson HREF (pre-v60) platform with Device Tree";
 	compatible = "st-ericsson,mop500";
 
+	gpio_keys {
+		button@1 {
+			gpios = <&tc3589x_gpio 7 0x4>;
+		};
+	};
+
 	soc-u9500 {
 		i2c@80004000 {
 			tps61052@33 {
