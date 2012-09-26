@@ -44,21 +44,24 @@ nv04_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 		 struct nouveau_dmaobj *dmaobj,
 		 struct nouveau_gpuobj **pgpuobj)
 {
+	struct nv04_vmmgr_priv *vmm = nv04_vmmgr(dmaeng);
 	struct nouveau_gpuobj *gpuobj;
 	u32 flags0 = nv_mclass(dmaobj);
 	u32 flags2 = 0x00000000;
-	u32 offset = (dmaobj->start & 0xfffff000);
-	u32 adjust = (dmaobj->start & 0x00000fff);
+	u64 offset = dmaobj->start & 0xfffff000;
+	u64 adjust = dmaobj->start & 0x00000fff;
 	u32 length = dmaobj->limit - dmaobj->start;
 	int ret;
 
 	if (dmaobj->target == NV_MEM_TARGET_VM) {
-		gpuobj = nv04_vmmgr(dmaeng)->vm->pgt[0].obj[0];
-		if (dmaobj->start == 0)
-			return nouveau_gpuobj_dup(parent, gpuobj, pgpuobj);
+		if (nv_object(vmm)->oclass == &nv04_vmmgr_oclass) {
+			struct nouveau_gpuobj *pgt = vmm->vm->pgt[0].obj[0];
+			if (!dmaobj->start)
+				return nouveau_gpuobj_dup(parent, pgt, pgpuobj);
+			offset  = nv_ro32(pgt, 8 + (offset >> 10));
+			offset &= 0xfffff000;
+		}
 
-		offset  = nv_ro32(gpuobj, 8 + (offset >> 10));
-		offset &= 0xfffff000;
 		dmaobj->target = NV_MEM_TARGET_PCI;
 		dmaobj->access = NV_MEM_ACCESS_RW;
 	}
