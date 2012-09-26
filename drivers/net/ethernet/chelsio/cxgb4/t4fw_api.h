@@ -317,8 +317,14 @@ struct fw_reset_cmd {
 	__be32 op_to_write;
 	__be32 retval_len16;
 	__be32 val;
-	__be32 r3;
+	__be32 halt_pkd;
 };
+
+#define FW_RESET_CMD_HALT_SHIFT    31
+#define FW_RESET_CMD_HALT_MASK     0x1
+#define FW_RESET_CMD_HALT(x)       ((x) << FW_RESET_CMD_HALT_SHIFT)
+#define FW_RESET_CMD_HALT_GET(x)  \
+	(((x) >> FW_RESET_CMD_HALT_SHIFT) & FW_RESET_CMD_HALT_MASK)
 
 enum fw_hellow_cmd {
 	fw_hello_cmd_stage_os		= 0x0
@@ -1648,6 +1654,7 @@ struct fw_debug_cmd {
 
 #define FW_PCIE_FW_ERR           (1U << 31)
 #define FW_PCIE_FW_INIT          (1U << 30)
+#define FW_PCIE_FW_HALT          (1U << 29)
 #define FW_PCIE_FW_MASTER_VLD    (1U << 15)
 #define FW_PCIE_FW_MASTER_MASK   0x7
 #define FW_PCIE_FW_MASTER_SHIFT  12
@@ -1669,12 +1676,20 @@ struct fw_hdr {
 	u8 intfver_iscsi;
 	u8 intfver_fcoe;
 	u8 reserved2;
-	__be32  reserved3[27];
+	__u32   reserved3;
+	__u32   reserved4;
+	__u32   reserved5;
+	__be32  flags;
+	__be32  reserved6[23];
 };
 
 #define FW_HDR_FW_VER_MAJOR_GET(x) (((x) >> 24) & 0xff)
 #define FW_HDR_FW_VER_MINOR_GET(x) (((x) >> 16) & 0xff)
 #define FW_HDR_FW_VER_MICRO_GET(x) (((x) >> 8) & 0xff)
 #define FW_HDR_FW_VER_BUILD_GET(x) (((x) >> 0) & 0xff)
+
+enum fw_hdr_flags {
+	FW_HDR_FLAGS_RESET_HALT = 0x00000001,
+};
 
 #endif /* _T4FW_INTERFACE_H_ */

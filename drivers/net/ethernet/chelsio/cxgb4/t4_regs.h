@@ -321,6 +321,8 @@
 #define  WINDOW(x)       ((x) << WINDOW_SHIFT)
 #define PCIE_MEM_ACCESS_OFFSET 0x306c
 
+#define PCIE_FW 0x30b8
+
 #define PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS 0x5908
 #define  RNPP 0x80000000U
 #define  RPCP 0x20000000U
@@ -419,6 +421,7 @@
 
 #define CIM_BOOT_CFG 0x7b00
 #define  BOOTADDR_MASK 0xffffff00U
+#define  UPCRST        0x1U
 
 #define CIM_PF_MAILBOX_DATA 0x240
 #define CIM_PF_MAILBOX_CTRL 0x280

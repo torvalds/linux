@@ -2537,6 +2537,177 @@ int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset)
 }
 
 /**
+ *	t4_fw_halt - issue a reset/halt to FW and put uP into RESET
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW RESET command (if desired)
+ *	@force: force uP into RESET even if FW RESET command fails
+ *
+ *	Issues a RESET command to firmware (if desired) with a HALT indication
+ *	and then puts the microprocessor into RESET state.  The RESET command
+ *	will only be issued if a legitimate mailbox is provided (mbox <=
+ *	FW_PCIE_FW_MASTER_MASK).
+ *
+ *	This is generally used in order for the host to safely manipulate the
+ *	adapter without fear of conflicting with whatever the firmware might
+ *	be doing.  The only way out of this state is to RESTART the firmware
+ *	...
+ */
+int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
+{
+	int ret = 0;
+
+	/*
+	 * If a legitimate mailbox is provided, issue a RESET command
+	 * with a HALT indication.
+	 */
+	if (mbox <= FW_PCIE_FW_MASTER_MASK) {
+		struct fw_reset_cmd c;
+
+		memset(&c, 0, sizeof(c));
+		INIT_CMD(c, RESET, WRITE);
+		c.val = htonl(PIORST | PIORSTMODE);
+		c.halt_pkd = htonl(FW_RESET_CMD_HALT(1U));
+		ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+	}
+
+	/*
+	 * Normally we won't complete the operation if the firmware RESET
+	 * command fails but if our caller insists we'll go ahead and put the
+	 * uP into RESET.  This can be useful if the firmware is hung or even
+	 * missing ...  We'll have to take the risk of putting the uP into
+	 * RESET without the cooperation of firmware in that case.
+	 *
+	 * We also force the firmware's HALT flag to be on in case we bypassed
+	 * the firmware RESET command above or we're dealing with old firmware
+	 * which doesn't have the HALT capability.  This will serve as a flag
+	 * for the incoming firmware to know that it's coming out of a HALT
+	 * rather than a RESET ... if it's new enough to understand that ...
+	 */
+	if (ret == 0 || force) {
+		t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, UPCRST);
+		t4_set_reg_field(adap, PCIE_FW, FW_PCIE_FW_HALT,
+				 FW_PCIE_FW_HALT);
+	}
+
+	/*
+	 * And we always return the result of the firmware RESET command
+	 * even when we force the uP into RESET ...
+	 */
+	return ret;
+}
+
+/**
+ *	t4_fw_restart - restart the firmware by taking the uP out of RESET
+ *	@adap: the adapter
+ *	@reset: if we want to do a RESET to restart things
+ *
+ *	Restart firmware previously halted by t4_fw_halt().  On successful
+ *	return the previous PF Master remains as the new PF Master and there
+ *	is no need to issue a new HELLO command, etc.
+ *
+ *	We do this in two ways:
+ *
+ *	 1. If we're dealing with newer firmware we'll simply want to take
+ *	    the chip's microprocessor out of RESET.  This will cause the
+ *	    firmware to start up from its start vector.  And then we'll loop
+ *	    until the firmware indicates it's started again (PCIE_FW.HALT
+ *	    reset to 0) or we timeout.
+ *
+ *	 2. If we're dealing with older firmware then we'll need to RESET
+ *	    the chip since older firmware won't recognize the PCIE_FW.HALT
+ *	    flag and automatically RESET itself on startup.
+ */
+int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
+{
+	if (reset) {
+		/*
+		 * Since we're directing the RESET instead of the firmware
+		 * doing it automatically, we need to clear the PCIE_FW.HALT
+		 * bit.
+		 */
+		t4_set_reg_field(adap, PCIE_FW, FW_PCIE_FW_HALT, 0);
+
+		/*
+		 * If we've been given a valid mailbox, first try to get the
+		 * firmware to do the RESET.  If that works, great and we can
+		 * return success.  Otherwise, if we haven't been given a
+		 * valid mailbox or the RESET command failed, fall back to
+		 * hitting the chip with a hammer.
+		 */
+		if (mbox <= FW_PCIE_FW_MASTER_MASK) {
+			t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, 0);
+			msleep(100);
+			if (t4_fw_reset(adap, mbox,
+					PIORST | PIORSTMODE) == 0)
+				return 0;
+		}
+
+		t4_write_reg(adap, PL_RST, PIORST | PIORSTMODE);
+		msleep(2000);
+	} else {
+		int ms;
+
+		t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, 0);
+		for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
+			if (!(t4_read_reg(adap, PCIE_FW) & FW_PCIE_FW_HALT))
+				return 0;
+			msleep(100);
+			ms += 100;
+		}
+		return -ETIMEDOUT;
+	}
+	return 0;
+}
+
+/**
+ *	t4_fw_upgrade - perform all of the steps necessary to upgrade FW
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW RESET command (if desired)
+ *	@fw_data: the firmware image to write
+ *	@size: image size
+ *	@force: force upgrade even if firmware doesn't cooperate
+ *
+ *	Perform all of the steps necessary for upgrading an adapter's
+ *	firmware image.  Normally this requires the cooperation of the
+ *	existing firmware in order to halt all existing activities
+ *	but if an invalid mailbox token is passed in we skip that step
+ *	(though we'll still put the adapter microprocessor into RESET in
+ *	that case).
+ *
+ *	On successful return the new firmware will have been loaded and
+ *	the adapter will have been fully RESET losing all previous setup
+ *	state.  On unsuccessful return the adapter may be completely hosed ...
+ *	positive errno indicates that the adapter is ~probably~ intact, a
+ *	negative errno indicates that things are looking bad ...
+ */
+int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+		  const u8 *fw_data, unsigned int size, int force)
+{
+	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
+	int reset, ret;
+
+	ret = t4_fw_halt(adap, mbox, force);
+	if (ret < 0 && !force)
+		return ret;
+
+	ret = t4_load_fw(adap, fw_data, size);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Older versions of the firmware don't understand the new
+	 * PCIE_FW.HALT flag and so won't know to perform a RESET when they
+	 * restart.  So for newly loaded older firmware we'll have to do the
+	 * RESET for it so it starts up on a clean slate.  We can tell if
+	 * the newly loaded firmware will handle this right by checking
+	 * its header flags to see if it advertises the capability.
+	 */
+	reset = ((ntohl(fw_hdr->flags) & FW_HDR_FLAGS_RESET_HALT) == 0);
+	return t4_fw_restart(adap, mbox, reset);
+}
+
+
+/**
  *	t4_fw_config_file - setup an adapter via a Configuration File
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
