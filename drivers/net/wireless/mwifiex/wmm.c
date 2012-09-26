@@ -462,7 +462,7 @@ mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter)
 	for (i = 0; i < adapter->priv_num; ++i) {
 		priv = adapter->priv[i];
 		if (priv && atomic_read(&priv->wmm.tx_pkts_queued))
-				return false;
+			return false;
 	}
 
 	return true;

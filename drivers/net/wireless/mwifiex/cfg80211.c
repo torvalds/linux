@@ -688,7 +688,6 @@ mwifiex_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 /* Supported rates to be advertised to the cfg80211 */
-
 static struct ieee80211_rate mwifiex_rates[] = {
 	{.bitrate = 10, .hw_value = 2, },
 	{.bitrate = 20, .hw_value = 4, },
@@ -705,7 +704,6 @@ static struct ieee80211_rate mwifiex_rates[] = {
 };
 
 /* Channel definitions to be advertised to cfg80211 */
-
 static struct ieee80211_channel mwifiex_channels_2ghz[] = {
 	{.center_freq = 2412, .hw_value = 1, },
 	{.center_freq = 2417, .hw_value = 2, },
@@ -773,7 +771,6 @@ static struct ieee80211_supported_band mwifiex_band_5ghz = {
 
 
 /* Supported crypto cipher suits to be advertised to cfg80211 */
-
 static const u32 mwifiex_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP40,
 	WLAN_CIPHER_SUITE_WEP104,
