@@ -1371,9 +1371,19 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, nmk_chip);
 
-	nmk_chip->domain = irq_domain_add_legacy(np, NMK_GPIO_PER_CHIP,
-						NOMADIK_GPIO_TO_IRQ(pdata->first_gpio),
-						0, &nmk_gpio_irq_simple_ops, nmk_chip);
+	if (np) {
+		/* The DT case will just grab a set of IRQ numbers */
+		nmk_chip->domain = irq_domain_add_linear(np, NMK_GPIO_PER_CHIP,
+				&nmk_gpio_irq_simple_ops, nmk_chip);
+	} else {
+		/* Non-DT legacy mode, use hardwired IRQ numbers */
+		int irq_start;
+
+		irq_start = NOMADIK_GPIO_TO_IRQ(pdata->first_gpio);
+		nmk_chip->domain = irq_domain_add_simple(NULL,
+				NMK_GPIO_PER_CHIP, irq_start,
+				&nmk_gpio_irq_simple_ops, nmk_chip);
+	}
 	if (!nmk_chip->domain) {
 		dev_err(&dev->dev, "failed to create irqdomain\n");
 		ret = -ENOSYS;
