@@ -55,6 +55,7 @@ static struct cmd_struct commands[] = {
 	{ "lock",	cmd_lock,	0 },
 	{ "kvm",	cmd_kvm,	0 },
 	{ "test",	cmd_test,	0 },
+	{ "trace",	cmd_trace,	0 },
 	{ "inject",	cmd_inject,	0 },
 };
 
