@@ -139,6 +139,94 @@ mwifiex_cfg80211_del_key(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 /*
+ * This function forms an skb for management frame.
+ */
+static int
+mwifiex_form_mgmt_frame(struct sk_buff *skb, const u8 *buf, size_t len)
+{
+	u8 addr[ETH_ALEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+	u16 pkt_len;
+	u32 tx_control = 0, pkt_type = PKT_TYPE_MGMT;
+	struct timeval tv;
+
+	pkt_len = len + ETH_ALEN;
+
+	skb_reserve(skb, MWIFIEX_MIN_DATA_HEADER_LEN +
+		    MWIFIEX_MGMT_FRAME_HEADER_SIZE + sizeof(pkt_len));
+	memcpy(skb_push(skb, sizeof(pkt_len)), &pkt_len, sizeof(pkt_len));
+
+	memcpy(skb_push(skb, sizeof(tx_control)),
+	       &tx_control, sizeof(tx_control));
+
+	memcpy(skb_push(skb, sizeof(pkt_type)), &pkt_type, sizeof(pkt_type));
+
+	/* Add packet data and address4 */
+	memcpy(skb_put(skb, sizeof(struct ieee80211_hdr_3addr)), buf,
+	       sizeof(struct ieee80211_hdr_3addr));
+	memcpy(skb_put(skb, ETH_ALEN), addr, ETH_ALEN);
+	memcpy(skb_put(skb, len - sizeof(struct ieee80211_hdr_3addr)),
+	       buf + sizeof(struct ieee80211_hdr_3addr),
+	       len - sizeof(struct ieee80211_hdr_3addr));
+
+	skb->priority = LOW_PRIO_TID;
+	do_gettimeofday(&tv);
+	skb->tstamp = timeval_to_ktime(tv);
+
+	return 0;
+}
+
+/*
+ * CFG802.11 operation handler to transmit a management frame.
+ */
+static int
+mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+			 struct ieee80211_channel *chan, bool offchan,
+			 enum nl80211_channel_type channel_type,
+			 bool channel_type_valid, unsigned int wait,
+			 const u8 *buf, size_t len, bool no_cck,
+			 bool dont_wait_for_ack, u64 *cookie)
+{
+	struct sk_buff *skb;
+	u16 pkt_len;
+	const struct ieee80211_mgmt *mgmt;
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
+
+	if (!buf || !len) {
+		wiphy_err(wiphy, "invalid buffer and length\n");
+		return -EFAULT;
+	}
+
+	mgmt = (const struct ieee80211_mgmt *)buf;
+	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_STA &&
+	    ieee80211_is_probe_resp(mgmt->frame_control)) {
+		/* Since we support offload probe resp, we need to skip probe
+		 * resp in AP or GO mode */
+		wiphy_dbg(wiphy,
+			  "info: skip to send probe resp in AP or GO mode\n");
+		return 0;
+	}
+
+	pkt_len = len + ETH_ALEN;
+	skb = dev_alloc_skb(MWIFIEX_MIN_DATA_HEADER_LEN +
+			    MWIFIEX_MGMT_FRAME_HEADER_SIZE +
+			    pkt_len + sizeof(pkt_len));
+
+	if (!skb) {
+		wiphy_err(wiphy, "allocate skb failed for management frame\n");
+		return -ENOMEM;
+	}
+
+	mwifiex_form_mgmt_frame(skb, buf, len);
+	mwifiex_queue_tx_pkt(priv, skb);
+
+	*cookie = random32() | 1;
+	cfg80211_mgmt_tx_status(wdev, *cookie, buf, len, true, GFP_ATOMIC);
+
+	wiphy_dbg(wiphy, "info: management frame transmitted\n");
+	return 0;
+}
+
+/*
  * CFG802.11 operation handler to set Tx power.
  */
 static int
@@ -1810,6 +1898,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.leave_ibss = mwifiex_cfg80211_leave_ibss,
 	.add_key = mwifiex_cfg80211_add_key,
 	.del_key = mwifiex_cfg80211_del_key,
+	.mgmt_tx = mwifiex_cfg80211_mgmt_tx,
 	.set_default_key = mwifiex_cfg80211_set_default_key,
 	.set_power_mgmt = mwifiex_cfg80211_set_power_mgmt,
 	.set_tx_power = mwifiex_cfg80211_set_tx_power,
@@ -1872,7 +1961,8 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy_apply_custom_regulatory(wiphy, &mwifiex_world_regdom_custom);
 
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
-				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2;
+				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
+				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P;
 
 	wiphy->available_antennas_tx = BIT(adapter->number_of_antenna) - 1;
 	wiphy->available_antennas_rx = BIT(adapter->number_of_antenna) - 1;

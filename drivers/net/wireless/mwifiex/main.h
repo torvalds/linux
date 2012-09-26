@@ -98,6 +98,8 @@ enum {
 #define MWIFIEX_OUI_NOT_PRESENT			0
 #define MWIFIEX_OUI_PRESENT				1
 
+#define PKT_TYPE_MGMT	0xE5
+
 /*
  * Do not check for data_received for USB, as data_received
  * is handled in mwifiex_usb_recv for USB
@@ -960,6 +962,14 @@ mwifiex_netdev_get_priv(struct net_device *dev)
 	return (struct mwifiex_private *) (*(unsigned long *) netdev_priv(dev));
 }
 
+/*
+ * This function checks if a skb holds a management frame.
+ */
+static inline bool mwifiex_is_skb_mgmt_frame(struct sk_buff *skb)
+{
+	return (*(u32 *)skb->data == PKT_TYPE_MGMT);
+}
+
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
@@ -1021,6 +1031,8 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 			 struct mwifiex_power_cfg *power_cfg);
 
 int mwifiex_main_process(struct mwifiex_adapter *);
+
+int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb);
 
 int mwifiex_get_bss_info(struct mwifiex_private *,
 			 struct mwifiex_bss_info *);

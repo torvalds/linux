@@ -469,6 +469,27 @@ mwifiex_close(struct net_device *dev)
 }
 
 /*
+ * Add buffer into wmm tx queue and queue work to transmit it.
+ */
+int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
+{
+	mwifiex_wmm_add_buf_txqueue(priv, skb);
+	atomic_inc(&priv->adapter->tx_pending);
+
+	if (priv->adapter->scan_delay_cnt)
+		atomic_set(&priv->adapter->is_tx_received, true);
+
+	if (atomic_read(&priv->adapter->tx_pending) >= MAX_TX_PENDING) {
+		mwifiex_set_trans_start(priv->netdev);
+		mwifiex_stop_net_dev_queue(priv->netdev, priv->adapter);
+	}
+
+	queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
+
+	return 0;
+}
+
+/*
  * CFG802.11 network device handler for data transmission.
  */
 static int
@@ -516,18 +537,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info->bss_type = priv->bss_type;
 	mwifiex_fill_buffer(skb);
 
-	mwifiex_wmm_add_buf_txqueue(priv, skb);
-	atomic_inc(&priv->adapter->tx_pending);
-
-	if (priv->adapter->scan_delay_cnt)
-		atomic_set(&priv->adapter->is_tx_received, true);
-
-	if (atomic_read(&priv->adapter->tx_pending) >= MAX_TX_PENDING) {
-		mwifiex_set_trans_start(dev);
-		mwifiex_stop_net_dev_queue(priv->netdev, priv->adapter);
-	}
-
-	queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
+	mwifiex_queue_tx_pkt(priv, skb);
 
 	return 0;
 }
