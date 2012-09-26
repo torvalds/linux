@@ -68,6 +68,8 @@ static struct {
 	int ct_cp_hpd_gpio;
 	int ls_oe_gpio;
 	int hpd_gpio;
+
+	struct omap_dss_output output;
 } hdmi;
 
 /*
@@ -502,6 +504,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 {
 	int r;
 	struct omap_video_timings *p;
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	unsigned long phy;
 
 	gpio_set_value(hdmi.ct_cp_hpd_gpio, 1);
@@ -518,7 +521,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_runtime_get;
 
-	dss_mgr_disable(dssdev->manager);
+	dss_mgr_disable(mgr);
 
 	p = &hdmi.ip_data.cfg.timings;
 
@@ -560,13 +563,13 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	dispc_enable_gamma_table(0);
 
 	/* tv size */
-	dss_mgr_set_timings(dssdev->manager, p);
+	dss_mgr_set_timings(mgr, p);
 
 	r = hdmi.ip_data.ops->video_enable(&hdmi.ip_data);
 	if (r)
 		goto err_vid_enable;
 
-	r = dss_mgr_enable(dssdev->manager);
+	r = dss_mgr_enable(mgr);
 	if (r)
 		goto err_mgr_enable;
 
@@ -590,7 +593,9 @@ err_vdac_enable:
 
 static void hdmi_power_off(struct omap_dss_device *dssdev)
 {
-	dss_mgr_disable(dssdev->manager);
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
+
+	dss_mgr_disable(mgr);
 
 	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
@@ -687,14 +692,15 @@ bool omapdss_hdmi_detect(void)
 
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 {
+	struct omap_dss_output *out = dssdev->output;
 	int r = 0;
 
 	DSSDBG("ENTER hdmi_display_enable\n");
 
 	mutex_lock(&hdmi.lock);
 
-	if (dssdev->manager == NULL) {
-		DSSERR("failed to enable display: no manager\n");
+	if (out == NULL || out->manager == NULL) {
+		DSSERR("failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err0;
 	}
@@ -970,6 +976,24 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 	}
 }
 
+static void __init hdmi_init_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &hdmi.output;
+
+	out->pdev = pdev;
+	out->id = OMAP_DSS_OUTPUT_HDMI;
+	out->type = OMAP_DISPLAY_TYPE_HDMI;
+
+	dss_register_output(out);
+}
+
+static void __exit hdmi_uninit_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &hdmi.output;
+
+	dss_unregister_output(out);
+}
+
 /* HDMI HW IP initialisation */
 static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 {
@@ -1013,6 +1037,8 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
 
+	hdmi_init_output(pdev);
+
 	hdmi_probe_pdata(pdev);
 
 	return 0;
@@ -1032,6 +1058,8 @@ static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 	dss_unregister_child_devices(&pdev->dev);
 
 	hdmi_panel_exit();
+
+	hdmi_uninit_output(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 

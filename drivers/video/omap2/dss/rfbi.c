@@ -116,6 +116,8 @@ static struct {
 	int pixel_size;
 	int data_lines;
 	struct rfbi_timings intf_timings;
+
+	struct omap_dss_output output;
 } rfbi;
 
 static inline void rfbi_write_reg(const struct rfbi_reg idx, u32 val)
@@ -310,6 +312,7 @@ static int rfbi_transfer_area(struct omap_dss_device *dssdev,
 {
 	u32 l;
 	int r;
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	u16 width = rfbi.timings.x_res;
 	u16 height = rfbi.timings.y_res;
 
@@ -318,9 +321,9 @@ static int rfbi_transfer_area(struct omap_dss_device *dssdev,
 
 	DSSDBG("rfbi_transfer_area %dx%d\n", width, height);
 
-	dss_mgr_set_timings(dssdev->manager, &rfbi.timings);
+	dss_mgr_set_timings(mgr, &rfbi.timings);
 
-	r = dss_mgr_enable(dssdev->manager);
+	r = dss_mgr_enable(mgr);
 	if (r)
 		return r;
 
@@ -849,6 +852,7 @@ static void rfbi_dump_regs(struct seq_file *s)
 
 static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	struct dss_lcd_mgr_config mgr_config;
 
 	mgr_config.io_pad_mode = DSS_IO_PAD_MODE_RFBI;
@@ -860,7 +864,7 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 	mgr_config.video_port_width = rfbi.pixel_size;
 	mgr_config.lcden_sig_polarity = 0;
 
-	dss_mgr_set_lcd_config(dssdev->manager, &mgr_config);
+	dss_mgr_set_lcd_config(mgr, &mgr_config);
 
 	/*
 	 * Set rfbi.timings with default values, the x_res and y_res fields
@@ -881,15 +885,16 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 	rfbi.timings.de_level = OMAPDSS_SIG_ACTIVE_HIGH;
 	rfbi.timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
 
-	dss_mgr_set_timings(dssdev->manager, &rfbi.timings);
+	dss_mgr_set_timings(mgr, &rfbi.timings);
 }
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 {
+	struct omap_dss_output *out = dssdev->output;
 	int r;
 
-	if (dssdev->manager == NULL) {
-		DSSERR("failed to enable display: no manager\n");
+	if (out == NULL || out->manager == NULL) {
+		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
 	}
 
@@ -1002,6 +1007,24 @@ static void __init rfbi_probe_pdata(struct platform_device *rfbidev)
 	}
 }
 
+static void __init rfbi_init_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &rfbi.output;
+
+	out->pdev = pdev;
+	out->id = OMAP_DSS_OUTPUT_DBI;
+	out->type = OMAP_DISPLAY_TYPE_DBI;
+
+	dss_register_output(out);
+}
+
+static void __exit rfbi_uninit_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &rfbi.output;
+
+	dss_unregister_output(out);
+}
+
 /* RFBI HW IP initialisation */
 static int __init omap_rfbihw_probe(struct platform_device *pdev)
 {
@@ -1053,6 +1076,8 @@ static int __init omap_rfbihw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("rfbi", rfbi_dump_regs);
 
+	rfbi_init_output(pdev);
+
 	rfbi_probe_pdata(pdev);
 
 	return 0;
@@ -1065,7 +1090,11 @@ err_runtime_get:
 static int __exit omap_rfbihw_remove(struct platform_device *pdev)
 {
 	dss_unregister_child_devices(&pdev->dev);
+
+	rfbi_uninit_output(pdev);
+
 	pm_runtime_disable(&pdev->dev);
+
 	return 0;
 }
 

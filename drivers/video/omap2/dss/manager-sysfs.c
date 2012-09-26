@@ -38,8 +38,10 @@ static ssize_t manager_name_show(struct omap_overlay_manager *mgr, char *buf)
 
 static ssize_t manager_display_show(struct omap_overlay_manager *mgr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			mgr->device ? mgr->device->name : "<none>");
+	struct omap_dss_device *dssdev = mgr->get_device(mgr);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", dssdev ?
+			dssdev->name : "<none>");
 }
 
 static ssize_t manager_display_store(struct omap_overlay_manager *mgr,
@@ -67,18 +69,29 @@ static ssize_t manager_display_store(struct omap_overlay_manager *mgr,
 	if (dssdev)
 		DSSDBG("display %s found\n", dssdev->name);
 
-	if (mgr->device) {
-		r = mgr->unset_device(mgr);
+	if (mgr->output) {
+		r = mgr->unset_output(mgr);
 		if (r) {
-			DSSERR("failed to unset display\n");
+			DSSERR("failed to unset current output\n");
 			goto put_device;
 		}
 	}
 
 	if (dssdev) {
-		r = mgr->set_device(mgr, dssdev);
+		struct omap_dss_output *out = dssdev->output;
+
+		/*
+		 * a registered device should have an output connected to it
+		 * already
+		 */
+		if (!out) {
+			DSSERR("device has no output connected to it\n");
+			goto put_device;
+		}
+
+		r = mgr->set_output(mgr, out);
 		if (r) {
-			DSSERR("failed to set manager\n");
+			DSSERR("failed to set manager output\n");
 			goto put_device;
 		}
 

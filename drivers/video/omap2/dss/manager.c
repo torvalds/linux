@@ -36,9 +36,15 @@
 static int num_managers;
 static struct omap_overlay_manager *managers;
 
+static inline struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
+{
+	return mgr->output ? mgr->output->device : NULL;
+}
+
 static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
+	struct omap_dss_device *dssdev = mgr->get_device(mgr);
 	u32 irq;
 	int r;
 
@@ -46,9 +52,9 @@ static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 	if (r)
 		return r;
 
-	if (mgr->device->type == OMAP_DISPLAY_TYPE_VENC)
+	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC)
 		irq = DISPC_IRQ_EVSYNC_ODD;
-	else if (mgr->device->type == OMAP_DISPLAY_TYPE_HDMI)
+	else if (dssdev->type == OMAP_DISPLAY_TYPE_HDMI)
 		irq = DISPC_IRQ_EVSYNC_EVEN;
 	else
 		irq = dispc_mgr_get_vsync_irq(mgr->id);
@@ -93,17 +99,20 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 			break;
 		}
 
-		mgr->set_device = &dss_mgr_set_device;
-		mgr->unset_device = &dss_mgr_unset_device;
+		mgr->set_output = &dss_mgr_set_output;
+		mgr->unset_output = &dss_mgr_unset_output;
 		mgr->apply = &omap_dss_mgr_apply;
 		mgr->set_manager_info = &dss_mgr_set_info;
 		mgr->get_manager_info = &dss_mgr_get_info;
 		mgr->wait_for_go = &dss_mgr_wait_for_go;
 		mgr->wait_for_vsync = &dss_mgr_wait_for_vsync;
+		mgr->get_device = &dss_mgr_get_device;
 
 		mgr->caps = 0;
 		mgr->supported_displays =
 			dss_feat_get_supported_displays(mgr->id);
+		mgr->supported_outputs =
+			dss_feat_get_supported_outputs(mgr->id);
 
 		INIT_LIST_HEAD(&mgr->overlays);
 

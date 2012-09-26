@@ -208,6 +208,16 @@ enum omap_hdmi_flags {
 	OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP = 1 << 0,
 };
 
+enum omap_dss_output_id {
+	OMAP_DSS_OUTPUT_DPI	= 1 << 0,
+	OMAP_DSS_OUTPUT_DBI	= 1 << 1,
+	OMAP_DSS_OUTPUT_SDI	= 1 << 2,
+	OMAP_DSS_OUTPUT_DSI1	= 1 << 3,
+	OMAP_DSS_OUTPUT_DSI2	= 1 << 4,
+	OMAP_DSS_OUTPUT_VENC	= 1 << 5,
+	OMAP_DSS_OUTPUT_HDMI	= 1 << 6,
+};
+
 /* RFBI */
 
 struct rfbi_timings {
@@ -425,6 +435,8 @@ struct omap_overlay {
 			struct omap_overlay_info *info);
 
 	int (*wait_for_go)(struct omap_overlay *ovl);
+
+	struct omap_dss_device *(*get_device)(struct omap_overlay *ovl);
 };
 
 struct omap_overlay_manager_info {
@@ -449,9 +461,10 @@ struct omap_overlay_manager {
 	enum omap_overlay_manager_caps caps;
 	struct list_head overlays;
 	enum omap_display_type supported_displays;
+	enum omap_dss_output_id supported_outputs;
 
 	/* dynamic fields */
-	struct omap_dss_device *device;
+	struct omap_dss_output *output;
 
 	/*
 	 * The following functions do not block:
@@ -464,9 +477,9 @@ struct omap_overlay_manager {
 	 * interrupt context
 	 */
 
-	int (*set_device)(struct omap_overlay_manager *mgr,
-		struct omap_dss_device *dssdev);
-	int (*unset_device)(struct omap_overlay_manager *mgr);
+	int (*set_output)(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *output);
+	int (*unset_output)(struct omap_overlay_manager *mgr);
 
 	int (*set_manager_info)(struct omap_overlay_manager *mgr,
 			struct omap_overlay_manager_info *info);
@@ -476,6 +489,8 @@ struct omap_overlay_manager {
 	int (*apply)(struct omap_overlay_manager *mgr);
 	int (*wait_for_go)(struct omap_overlay_manager *mgr);
 	int (*wait_for_vsync)(struct omap_overlay_manager *mgr);
+
+	struct omap_dss_device *(*get_device)(struct omap_overlay_manager *mgr);
 };
 
 /* 22 pins means 1 clk lane and 10 data lanes */
@@ -491,6 +506,24 @@ struct omap_dsi_pin_config {
 	 * ...
 	 */
 	int pins[OMAP_DSS_MAX_DSI_PINS];
+};
+
+struct omap_dss_output {
+	struct list_head list;
+
+	/* display type supported by the output */
+	enum omap_display_type type;
+
+	/* output instance */
+	enum omap_dss_output_id id;
+
+	/* output's platform device pointer */
+	struct platform_device *pdev;
+
+	/* dynamic fields */
+	struct omap_overlay_manager *manager;
+
+	struct omap_dss_device *device;
 };
 
 struct omap_dss_device {
@@ -591,7 +624,7 @@ struct omap_dss_device {
 
 	enum omap_display_caps caps;
 
-	struct omap_overlay_manager *manager;
+	struct omap_dss_output *output;
 
 	enum omap_dss_display_state state;
 
@@ -701,6 +734,11 @@ struct omap_overlay_manager *omap_dss_get_overlay_manager(int num);
 
 int omap_dss_get_num_overlays(void);
 struct omap_overlay *omap_dss_get_overlay(int num);
+
+struct omap_dss_output *omap_dss_get_output(enum omap_dss_output_id id);
+int omapdss_output_set_device(struct omap_dss_output *out,
+		struct omap_dss_device *dssdev);
+int omapdss_output_unset_device(struct omap_dss_output *out);
 
 void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 		u16 *xres, u16 *yres);

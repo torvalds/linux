@@ -303,6 +303,8 @@ static struct {
 	struct omap_video_timings timings;
 	enum omap_dss_venc_type type;
 	bool invert_polarity;
+
+	struct omap_dss_output output;
 } venc;
 
 static inline void venc_write_reg(int idx, u32 val)
@@ -427,6 +429,7 @@ static const struct venc_config *venc_timings_to_config(
 
 static int venc_power_on(struct omap_dss_device *dssdev)
 {
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	u32 l;
 	int r;
 
@@ -452,13 +455,13 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, l);
 
-	dss_mgr_set_timings(dssdev->manager, &venc.timings);
+	dss_mgr_set_timings(mgr, &venc.timings);
 
 	r = regulator_enable(venc.vdda_dac_reg);
 	if (r)
 		goto err1;
 
-	r = dss_mgr_enable(dssdev->manager);
+	r = dss_mgr_enable(mgr);
 	if (r)
 		goto err2;
 
@@ -477,10 +480,12 @@ err0:
 
 static void venc_power_off(struct omap_dss_device *dssdev)
 {
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
+
 	venc_write_reg(VENC_OUTPUT_CONTROL, 0);
 	dss_set_dac_pwrdn_bgz(0);
 
-	dss_mgr_disable(dssdev->manager);
+	dss_mgr_disable(mgr);
 
 	regulator_disable(venc.vdda_dac_reg);
 
@@ -495,14 +500,15 @@ unsigned long venc_get_pixel_clock(void)
 
 int omapdss_venc_display_enable(struct omap_dss_device *dssdev)
 {
+	struct omap_dss_output *out = dssdev->output;
 	int r;
 
 	DSSDBG("venc_display_enable\n");
 
 	mutex_lock(&venc.venc_lock);
 
-	if (dssdev->manager == NULL) {
-		DSSERR("Failed to enable display: no manager\n");
+	if (out == NULL || out->manager == NULL) {
+		DSSERR("Failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err0;
 	}
@@ -797,6 +803,24 @@ static void __init venc_probe_pdata(struct platform_device *vencdev)
 	}
 }
 
+static void __init venc_init_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &venc.output;
+
+	out->pdev = pdev;
+	out->id = OMAP_DSS_OUTPUT_VENC;
+	out->type = OMAP_DISPLAY_TYPE_VENC;
+
+	dss_register_output(out);
+}
+
+static void __exit venc_uninit_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &venc.output;
+
+	dss_unregister_output(out);
+}
+
 /* VENC HW IP initialisation */
 static int __init omap_venchw_probe(struct platform_device *pdev)
 {
@@ -844,6 +868,8 @@ static int __init omap_venchw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("venc", venc_dump_regs);
 
+	venc_init_output(pdev);
+
 	venc_probe_pdata(pdev);
 
 	return 0;
@@ -865,6 +891,8 @@ static int __exit omap_venchw_remove(struct platform_device *pdev)
 	}
 
 	venc_panel_exit();
+
+	venc_uninit_output(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 	venc_put_clocks();
