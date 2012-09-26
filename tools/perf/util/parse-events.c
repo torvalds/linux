@@ -356,42 +356,28 @@ int parse_events_add_cache(struct list_head **list, int *idx,
 	return add_event(list, idx, &attr, name);
 }
 
-static int add_tracepoint(struct list_head **list, int *idx,
+static int add_tracepoint(struct list_head **listp, int *idx,
 			  char *sys_name, char *evt_name)
 {
-	struct perf_event_attr attr;
-	char name[MAX_NAME_LEN];
-	char evt_path[MAXPATHLEN];
-	char id_buf[4];
-	u64 id;
-	int fd;
+	struct perf_evsel *evsel;
+	struct list_head *list = *listp;
 
-	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", tracing_events_path,
-		 sys_name, evt_name);
-
-	fd = open(evt_path, O_RDONLY);
-	if (fd < 0)
-		return -1;
-
-	if (read(fd, id_buf, sizeof(id_buf)) < 0) {
-		close(fd);
-		return -1;
+	if (!list) {
+		list = malloc(sizeof(*list));
+		if (!list)
+			return -ENOMEM;
+		INIT_LIST_HEAD(list);
 	}
 
-	close(fd);
-	id = atoll(id_buf);
+	evsel = perf_evsel__newtp(sys_name, evt_name, (*idx)++);
+	if (!evsel) {
+		free(list);
+		return -ENOMEM;
+	}
 
-	memset(&attr, 0, sizeof(attr));
-	attr.config = id;
-	attr.type = PERF_TYPE_TRACEPOINT;
-	attr.sample_type |= PERF_SAMPLE_RAW;
-	attr.sample_type |= PERF_SAMPLE_TIME;
-	attr.sample_type |= PERF_SAMPLE_CPU;
-	attr.sample_type |= PERF_SAMPLE_PERIOD;
-	attr.sample_period = 1;
-
-	snprintf(name, MAX_NAME_LEN, "%s:%s", sys_name, evt_name);
-	return add_event(list, idx, &attr, name);
+	list_add_tail(&evsel->node, list);
+	*listp = list;
+	return 0;
 }
 
 static int add_tracepoint_multi(struct list_head **list, int *idx,
