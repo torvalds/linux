@@ -149,6 +149,10 @@ extern int io_apic_set_pci_routing(struct device *dev, int irq,
 void setup_IO_APIC_irq_extra(u32 gsi);
 extern void ioapic_insert_resources(void);
 
+extern int native_setup_ioapic_entry(int, struct IO_APIC_route_entry *,
+				     unsigned int, int,
+				     struct io_apic_irq_attr *);
+
 int io_apic_setup_irq_pin_once(unsigned int irq, int node, struct io_apic_irq_attr *attr);
 
 extern int save_ioapic_entries(void);
@@ -232,6 +236,7 @@ static inline void disable_ioapic_support(void) { }
 #define native_disable_io_apic		NULL
 #define native_io_apic_print_entries	NULL
 #define native_ioapic_set_affinity	NULL
+#define native_setup_ioapic_entry	NULL
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */

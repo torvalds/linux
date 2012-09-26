@@ -127,4 +127,5 @@ struct x86_io_apic_ops x86_io_apic_ops = {
 	.disable		= native_disable_io_apic,
 	.print_entries		= native_io_apic_print_entries,
 	.set_affinity		= native_ioapic_set_affinity,
+	.setup_entry		= native_setup_ioapic_entry,
 };

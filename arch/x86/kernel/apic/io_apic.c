@@ -1315,14 +1315,10 @@ static void ioapic_register_intr(unsigned int irq, struct irq_cfg *cfg,
 				      fasteoi ? "fasteoi" : "edge");
 }
 
-static int setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
-			       unsigned int destination, int vector,
-			       struct io_apic_irq_attr *attr)
+int native_setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
+			      unsigned int destination, int vector,
+			      struct io_apic_irq_attr *attr)
 {
-	if (irq_remapping_enabled)
-		return setup_ioapic_remapped_entry(irq, entry, destination,
-						   vector, attr);
-
 	memset(entry, 0, sizeof(*entry));
 
 	entry->delivery_mode = apic->irq_delivery_mode;
@@ -1370,8 +1366,8 @@ static void setup_ioapic_irq(unsigned int irq, struct irq_cfg *cfg,
 		    attr->ioapic, mpc_ioapic_id(attr->ioapic), attr->ioapic_pin,
 		    cfg->vector, irq, attr->trigger, attr->polarity, dest);
 
-	if (setup_ioapic_entry(irq, &entry, dest, cfg->vector, attr)) {
-		pr_warn("Failed to setup ioapic entry for ioapic %d, pin %d\n",
+	if (x86_io_apic_ops.setup_entry(irq, &entry, dest, cfg->vector, attr)) {
+		pr_warn("Failed to setup ioapic entry for ioapic  %d, pin %d\n",
 			mpc_ioapic_id(attr->ioapic), attr->ioapic_pin);
 		__clear_irq_vector(irq, cfg);
 
