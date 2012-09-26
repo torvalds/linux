@@ -3274,7 +3274,6 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 		len += 1;
 
 		if ((len + payload_len) > buffer_len) {
-			spin_unlock(&tiqn->tiqn_tpg_lock);
 			end_of_buf = 1;
 			goto eob;
 		}
