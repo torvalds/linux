@@ -36,6 +36,8 @@ static struct {
 	struct dss_lcd_mgr_config mgr_config;
 	struct omap_video_timings timings;
 	int datapairs;
+
+	struct omap_dss_output output;
 } sdi;
 
 static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
@@ -255,8 +257,28 @@ static void __init sdi_probe_pdata(struct platform_device *sdidev)
 	}
 }
 
+static void __init sdi_init_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &sdi.output;
+
+	out->pdev = pdev;
+	out->id = OMAP_DSS_OUTPUT_SDI;
+	out->type = OMAP_DISPLAY_TYPE_SDI;
+
+	dss_register_output(out);
+}
+
+static void __exit sdi_uninit_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &sdi.output;
+
+	dss_unregister_output(out);
+}
+
 static int __init omap_sdi_probe(struct platform_device *pdev)
 {
+	sdi_init_output(pdev);
+
 	sdi_probe_pdata(pdev);
 
 	return 0;
@@ -265,6 +287,8 @@ static int __init omap_sdi_probe(struct platform_device *pdev)
 static int __exit omap_sdi_remove(struct platform_device *pdev)
 {
 	dss_unregister_child_devices(&pdev->dev);
+
+	sdi_uninit_output(pdev);
 
 	return 0;
 }

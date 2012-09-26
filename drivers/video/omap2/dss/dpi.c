@@ -44,6 +44,8 @@ static struct {
 	struct omap_video_timings timings;
 	struct dss_lcd_mgr_config mgr_config;
 	int data_lines;
+
+	struct omap_dss_output output;
 } dpi;
 
 static struct platform_device *dpi_get_dsidev(enum omap_dss_clk_source clk)
@@ -436,9 +438,29 @@ static void __init dpi_probe_pdata(struct platform_device *dpidev)
 	}
 }
 
+static void __init dpi_init_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &dpi.output;
+
+	out->pdev = pdev;
+	out->id = OMAP_DSS_OUTPUT_DPI;
+	out->type = OMAP_DISPLAY_TYPE_DPI;
+
+	dss_register_output(out);
+}
+
+static void __exit dpi_uninit_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &dpi.output;
+
+	dss_unregister_output(out);
+}
+
 static int __init omap_dpi_probe(struct platform_device *pdev)
 {
 	mutex_init(&dpi.lock);
+
+	dpi_init_output(pdev);
 
 	dpi_probe_pdata(pdev);
 
@@ -448,6 +470,8 @@ static int __init omap_dpi_probe(struct platform_device *pdev)
 static int __exit omap_dpi_remove(struct platform_device *pdev)
 {
 	dss_unregister_child_devices(&pdev->dev);
+
+	dpi_uninit_output(pdev);
 
 	return 0;
 }

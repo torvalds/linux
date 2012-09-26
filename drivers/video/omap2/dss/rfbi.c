@@ -116,6 +116,8 @@ static struct {
 	int pixel_size;
 	int data_lines;
 	struct rfbi_timings intf_timings;
+
+	struct omap_dss_output output;
 } rfbi;
 
 static inline void rfbi_write_reg(const struct rfbi_reg idx, u32 val)
@@ -1002,6 +1004,24 @@ static void __init rfbi_probe_pdata(struct platform_device *rfbidev)
 	}
 }
 
+static void __init rfbi_init_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &rfbi.output;
+
+	out->pdev = pdev;
+	out->id = OMAP_DSS_OUTPUT_DBI;
+	out->type = OMAP_DISPLAY_TYPE_DBI;
+
+	dss_register_output(out);
+}
+
+static void __exit rfbi_uninit_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &rfbi.output;
+
+	dss_unregister_output(out);
+}
+
 /* RFBI HW IP initialisation */
 static int __init omap_rfbihw_probe(struct platform_device *pdev)
 {
@@ -1053,6 +1073,8 @@ static int __init omap_rfbihw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("rfbi", rfbi_dump_regs);
 
+	rfbi_init_output(pdev);
+
 	rfbi_probe_pdata(pdev);
 
 	return 0;
@@ -1065,7 +1087,11 @@ err_runtime_get:
 static int __exit omap_rfbihw_remove(struct platform_device *pdev)
 {
 	dss_unregister_child_devices(&pdev->dev);
+
+	rfbi_uninit_output(pdev);
+
 	pm_runtime_disable(&pdev->dev);
+
 	return 0;
 }
 

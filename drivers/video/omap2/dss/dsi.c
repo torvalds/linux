@@ -336,6 +336,8 @@ struct dsi_data {
 	enum omap_dss_dsi_pixel_format pix_fmt;
 	enum omap_dss_dsi_mode mode;
 	struct omap_dss_dsi_videomode_timings vm_timings;
+
+	struct omap_dss_output output;
 };
 
 struct dsi_packet_sent_handler_data {
@@ -5156,6 +5158,28 @@ static void __init dsi_probe_pdata(struct platform_device *dsidev)
 	}
 }
 
+static void __init dsi_init_output(struct platform_device *dsidev)
+{
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct omap_dss_output *out = &dsi->output;
+
+	out->pdev = dsidev;
+	out->id = dsi->module_id == 0 ?
+			OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
+
+	out->type = OMAP_DISPLAY_TYPE_DSI;
+
+	dss_register_output(out);
+}
+
+static void __exit dsi_uninit_output(struct platform_device *dsidev)
+{
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct omap_dss_output *out = &dsi->output;
+
+	dss_unregister_output(out);
+}
+
 /* DSI1 HW IP initialisation */
 static int __init omap_dsihw_probe(struct platform_device *dsidev)
 {
@@ -5250,6 +5274,8 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 	else
 		dsi->num_lanes_supported = 3;
 
+	dsi_init_output(dsidev);
+
 	dsi_probe_pdata(dsidev);
 
 	dsi_runtime_put(dsidev);
@@ -5280,6 +5306,8 @@ static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 	WARN_ON(dsi->scp_clk_refcount > 0);
 
 	dss_unregister_child_devices(&dsidev->dev);
+
+	dsi_uninit_output(dsidev);
 
 	pm_runtime_disable(&dsidev->dev);
 

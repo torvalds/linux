@@ -68,6 +68,8 @@ static struct {
 	int ct_cp_hpd_gpio;
 	int ls_oe_gpio;
 	int hpd_gpio;
+
+	struct omap_dss_output output;
 } hdmi;
 
 /*
@@ -970,6 +972,24 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 	}
 }
 
+static void __init hdmi_init_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &hdmi.output;
+
+	out->pdev = pdev;
+	out->id = OMAP_DSS_OUTPUT_HDMI;
+	out->type = OMAP_DISPLAY_TYPE_HDMI;
+
+	dss_register_output(out);
+}
+
+static void __exit hdmi_uninit_output(struct platform_device *pdev)
+{
+	struct omap_dss_output *out = &hdmi.output;
+
+	dss_unregister_output(out);
+}
+
 /* HDMI HW IP initialisation */
 static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 {
@@ -1013,6 +1033,8 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
 
+	hdmi_init_output(pdev);
+
 	hdmi_probe_pdata(pdev);
 
 	return 0;
@@ -1032,6 +1054,8 @@ static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 	dss_unregister_child_devices(&pdev->dev);
 
 	hdmi_panel_exit();
+
+	hdmi_uninit_output(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 
