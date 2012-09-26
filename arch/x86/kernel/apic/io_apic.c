@@ -2369,9 +2369,10 @@ int __ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	return 0;
 }
 
-static int
-ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
-		    bool force)
+
+int native_ioapic_set_affinity(struct irq_data *data,
+			       const struct cpumask *mask,
+			       bool force)
 {
 	unsigned int dest, irq = data->irq;
 	unsigned long flags;
@@ -2570,8 +2571,7 @@ static void irq_remap_modify_chip_defaults(struct irq_chip *chip)
 	chip->irq_print_chip = ir_print_prefix;
 	chip->irq_ack = ir_ack_apic_edge;
 	chip->irq_eoi = ir_ack_apic_level;
-
-	chip->irq_set_affinity = set_remapped_irq_affinity;
+	chip->irq_set_affinity = x86_io_apic_ops.set_affinity;
 }
 #endif /* CONFIG_IRQ_REMAP */
 
@@ -2582,7 +2582,7 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.irq_unmask		= unmask_ioapic_irq,
 	.irq_ack		= ack_apic_edge,
 	.irq_eoi		= ack_apic_level,
-	.irq_set_affinity	= ioapic_set_affinity,
+	.irq_set_affinity	= native_ioapic_set_affinity,
 	.irq_retrigger		= ioapic_retrigger_irq,
 };
 
@@ -3694,10 +3694,7 @@ void __init setup_ioapic_dest(void)
 		else
 			mask = apic->target_cpus();
 
-		if (irq_remapping_enabled)
-			set_remapped_irq_affinity(idata, mask, false);
-		else
-			ioapic_set_affinity(idata, mask, false);
+		x86_io_apic_ops.set_affinity(idata, mask, false);
 	}
 
 }

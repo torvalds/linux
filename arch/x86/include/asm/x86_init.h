@@ -190,6 +190,9 @@ struct x86_msi_ops {
 	int  (*setup_hpet_msi)(unsigned int irq, unsigned int id);
 };
 
+struct irq_data;
+struct cpumask;
+
 struct x86_io_apic_ops {
 	void		(*init)   (void);
 	unsigned int	(*read)   (unsigned int apic, unsigned int reg);
@@ -197,6 +200,9 @@ struct x86_io_apic_ops {
 	void		(*modify) (unsigned int apic, unsigned int reg, unsigned int value);
 	void		(*disable)(void);
 	void		(*print_entries)(unsigned int apic, unsigned int nr_entries);
+	int		(*set_affinity)(struct irq_data *data,
+					const struct cpumask *mask,
+					bool force);
 };
 
 extern struct x86_init_ops x86_init;

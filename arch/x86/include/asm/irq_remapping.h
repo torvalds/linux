@@ -40,9 +40,6 @@ extern int setup_ioapic_remapped_entry(int irq,
 				       unsigned int destination,
 				       int vector,
 				       struct io_apic_irq_attr *attr);
-extern int set_remapped_irq_affinity(struct irq_data *data,
-				     const struct cpumask *mask,
-				     bool force);
 extern void free_remapped_irq(int irq);
 extern void compose_remapped_msi_msg(struct pci_dev *pdev,
 				     unsigned int irq, unsigned int dest,
@@ -67,12 +64,6 @@ static inline int setup_ioapic_remapped_entry(int irq,
 					      struct io_apic_irq_attr *attr)
 {
 	return -ENODEV;
-}
-static inline int set_remapped_irq_affinity(struct irq_data *data,
-					    const struct cpumask *mask,
-					    bool force)
-{
-	return 0;
 }
 static inline void free_remapped_irq(int irq) { }
 static inline void compose_remapped_msi_msg(struct pci_dev *pdev,

@@ -26,6 +26,9 @@ static struct irq_remap_ops *remap_ops;
 static int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec);
 static int msi_setup_remapped_irq(struct pci_dev *pdev, unsigned int irq,
 				  int index, int sub_handle);
+static int set_remapped_irq_affinity(struct irq_data *data,
+				     const struct cpumask *mask,
+				     bool force);
 
 static void irq_remapping_disable_io_apic(void)
 {
@@ -142,6 +145,7 @@ static int irq_remapping_setup_msi_irqs(struct pci_dev *dev,
 static void __init irq_remapping_modify_x86_ops(void)
 {
 	x86_io_apic_ops.disable		= irq_remapping_disable_io_apic;
+	x86_io_apic_ops.set_affinity	= set_remapped_irq_affinity;
 	x86_msi.setup_msi_irqs		= irq_remapping_setup_msi_irqs;
 	x86_msi.setup_hpet_msi		= setup_hpet_msi_remapped;
 }
