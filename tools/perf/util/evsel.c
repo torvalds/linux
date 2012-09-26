@@ -117,14 +117,18 @@ struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx)
 
 	if (evsel != NULL) {
 		struct perf_event_attr attr = {
-			.type = PERF_TYPE_TRACEPOINT,
+			.type	       = PERF_TYPE_TRACEPOINT,
+			.sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
+					  PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD),
 		};
 
 		evsel->tp_format = event_format__new(sys, name);
 		if (evsel->tp_format == NULL)
 			goto out_free;
 
+		event_attr_init(&attr);
 		attr.config = evsel->tp_format->id;
+		attr.sample_period = 1;
 		perf_evsel__init(evsel, &attr, idx);
 		evsel->name = evsel->tp_format->name;
 	}
