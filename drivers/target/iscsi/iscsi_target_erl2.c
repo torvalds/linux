@@ -36,7 +36,7 @@
  */
 void iscsit_create_conn_recovery_datain_values(
 	struct iscsi_cmd *cmd,
-	u32 exp_data_sn)
+	__be32 exp_data_sn)
 {
 	u32 data_sn = 0;
 	struct iscsi_conn *conn = cmd->conn;
@@ -44,7 +44,7 @@ void iscsit_create_conn_recovery_datain_values(
 	cmd->next_burst_len = 0;
 	cmd->read_data_done = 0;
 
-	while (exp_data_sn > data_sn) {
+	while (be32_to_cpu(exp_data_sn) > data_sn) {
 		if ((cmd->next_burst_len +
 		     conn->conn_ops->MaxRecvDataSegmentLength) <
 		     conn->sess->sess_ops->MaxBurstLength) {

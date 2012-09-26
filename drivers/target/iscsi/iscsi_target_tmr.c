@@ -50,11 +50,11 @@ u8 iscsit_tmr_abort_task(
 	if (!ref_cmd) {
 		pr_err("Unable to locate RefTaskTag: 0x%08x on CID:"
 			" %hu.\n", hdr->rtt, conn->cid);
-		return ((hdr->refcmdsn >= conn->sess->exp_cmd_sn) &&
-			(hdr->refcmdsn <= conn->sess->max_cmd_sn)) ?
+		return (be32_to_cpu(hdr->refcmdsn) >= conn->sess->exp_cmd_sn &&
+			be32_to_cpu(hdr->refcmdsn) <= conn->sess->max_cmd_sn) ?
 			ISCSI_TMF_RSP_COMPLETE : ISCSI_TMF_RSP_NO_TASK;
 	}
-	if (ref_cmd->cmd_sn != hdr->refcmdsn) {
+	if (ref_cmd->cmd_sn != be32_to_cpu(hdr->refcmdsn)) {
 		pr_err("RefCmdSN 0x%08x does not equal"
 			" task's CmdSN 0x%08x. Rejecting ABORT_TASK.\n",
 			hdr->refcmdsn, ref_cmd->cmd_sn);
@@ -63,8 +63,7 @@ u8 iscsit_tmr_abort_task(
 
 	se_tmr->ref_task_tag		= (__force u32)hdr->rtt;
 	tmr_req->ref_cmd		= ref_cmd;
-	tmr_req->ref_cmd_sn		= hdr->refcmdsn;
-	tmr_req->exp_data_sn		= hdr->exp_datasn;
+	tmr_req->exp_data_sn		= be32_to_cpu(hdr->exp_datasn);
 
 	return ISCSI_TMF_RSP_COMPLETE;
 }
@@ -173,8 +172,7 @@ u8 iscsit_tmr_task_reassign(
 
 	se_tmr->ref_task_tag		= (__force u32)hdr->rtt;
 	tmr_req->ref_cmd		= ref_cmd;
-	tmr_req->ref_cmd_sn		= hdr->refcmdsn;
-	tmr_req->exp_data_sn		= hdr->exp_datasn;
+	tmr_req->exp_data_sn		= be32_to_cpu(hdr->exp_datasn);
 	tmr_req->conn_recovery		= cr;
 	tmr_req->task_reassign		= 1;
 	/*

@@ -274,14 +274,14 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
 int iscsit_sequence_cmd(
 	struct iscsi_conn *conn,
 	struct iscsi_cmd *cmd,
-	u32 cmdsn)
+	__be32 cmdsn)
 {
 	int ret;
 	int cmdsn_ret;
 
 	mutex_lock(&conn->sess->cmdsn_mutex);
 
-	cmdsn_ret = iscsit_check_received_cmdsn(conn->sess, cmdsn);
+	cmdsn_ret = iscsit_check_received_cmdsn(conn->sess, be32_to_cpu(cmdsn));
 	switch (cmdsn_ret) {
 	case CMDSN_NORMAL_OPERATION:
 		ret = iscsit_execute_cmd(cmd, 0);
@@ -289,7 +289,7 @@ int iscsit_sequence_cmd(
 			iscsit_execute_ooo_cmdsns(conn->sess);
 		break;
 	case CMDSN_HIGHER_THAN_EXP:
-		ret = iscsit_handle_ooo_cmdsn(conn->sess, cmd, cmdsn);
+		ret = iscsit_handle_ooo_cmdsn(conn->sess, cmd, be32_to_cpu(cmdsn));
 		break;
 	case CMDSN_LOWER_THAN_EXP:
 		cmd->i_state = ISTATE_REMOVE;

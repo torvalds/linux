@@ -192,10 +192,10 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 static void iscsi_login_set_conn_values(
 	struct iscsi_session *sess,
 	struct iscsi_conn *conn,
-	u16 cid)
+	__be16 cid)
 {
 	conn->sess		= sess;
-	conn->cid		= cid;
+	conn->cid		= be16_to_cpu(cid);
 	/*
 	 * Generate a random Status sequence number (statsn) for the new
 	 * iSCSI connection.
@@ -230,7 +230,7 @@ static int iscsi_login_zero_tsih_s1(
 	iscsi_login_set_conn_values(sess, conn, pdu->cid);
 	sess->init_task_tag	= pdu->itt;
 	memcpy(&sess->isid, pdu->isid, 6);
-	sess->exp_cmd_sn	= pdu->cmdsn;
+	sess->exp_cmd_sn	= be32_to_cpu(pdu->cmdsn);
 	INIT_LIST_HEAD(&sess->sess_conn_list);
 	INIT_LIST_HEAD(&sess->sess_ooo_cmdsn_list);
 	INIT_LIST_HEAD(&sess->cr_active_list);
@@ -271,7 +271,7 @@ static int iscsi_login_zero_tsih_s1(
 	 * The FFP CmdSN window values will be allocated from the TPG's
 	 * Initiator Node's ACL once the login has been successfully completed.
 	 */
-	sess->max_cmd_sn	= pdu->cmdsn;
+	sess->max_cmd_sn	= be32_to_cpu(pdu->cmdsn);
 
 	sess->sess_ops = kzalloc(sizeof(struct iscsi_sess_ops), GFP_KERNEL);
 	if (!sess->sess_ops) {
@@ -449,7 +449,7 @@ static int iscsi_login_non_zero_tsih_s2(
 		   (sess_p->time2retain_timer_flags & ISCSI_TF_EXPIRED))
 			continue;
 		if (!memcmp(sess_p->isid, pdu->isid, 6) &&
-		     (sess_p->tsih == pdu->tsih)) {
+		     (sess_p->tsih == be16_to_cpu(pdu->tsih))) {
 			iscsit_inc_session_usage_count(sess_p);
 			iscsit_stop_time2retain_timer(sess_p);
 			sess = sess_p;
@@ -951,10 +951,6 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	}
 
 	pdu			= (struct iscsi_login_req *) buffer;
-	pdu->cid		= be16_to_cpu(pdu->cid);
-	pdu->tsih		= be16_to_cpu(pdu->tsih);
-	pdu->cmdsn		= be32_to_cpu(pdu->cmdsn);
-	pdu->exp_statsn		= be32_to_cpu(pdu->exp_statsn);
 
 	/*
 	 * Used by iscsit_tx_login_rsp() for Login Resonses PDUs

@@ -360,11 +360,9 @@ static int iscsi_target_do_tx_login_io(struct iscsi_conn *conn, struct iscsi_log
 		return -1;
 
 	login->rsp_length		= 0;
-	login_rsp->tsih			= be16_to_cpu(login_rsp->tsih);
-	login_rsp->statsn		= be32_to_cpu(login_rsp->statsn);
 	mutex_lock(&sess->cmdsn_mutex);
-	login_rsp->exp_cmdsn		= be32_to_cpu(sess->exp_cmd_sn);
-	login_rsp->max_cmdsn		= be32_to_cpu(sess->max_cmd_sn);
+	login_rsp->exp_cmdsn		= cpu_to_be32(sess->exp_cmd_sn);
+	login_rsp->max_cmdsn		= cpu_to_be32(sess->max_cmd_sn);
 	mutex_unlock(&sess->cmdsn_mutex);
 
 	return 0;
@@ -380,10 +378,6 @@ static int iscsi_target_do_rx_login_io(struct iscsi_conn *conn, struct iscsi_log
 
 	login_req = (struct iscsi_login_req *) login->req;
 	payload_length			= ntoh24(login_req->dlength);
-	login_req->tsih			= be16_to_cpu(login_req->tsih);
-	login_req->cid			= be16_to_cpu(login_req->cid);
-	login_req->cmdsn		= be32_to_cpu(login_req->cmdsn);
-	login_req->exp_statsn		= be32_to_cpu(login_req->exp_statsn);
 
 	pr_debug("Got Login Command, Flags 0x%02x, ITT: 0x%08x,"
 		" CmdSN: 0x%08x, ExpStatSN: 0x%08x, CID: %hu, Length: %u\n",
@@ -760,11 +754,11 @@ static int iscsi_target_locate_portal(
 	login->version_min	= login_req->min_version;
 	login->version_max	= login_req->max_version;
 	memcpy(login->isid, login_req->isid, 6);
-	login->cmd_sn		= login_req->cmdsn;
+	login->cmd_sn		= be32_to_cpu(login_req->cmdsn);
 	login->init_task_tag	= login_req->itt;
-	login->initial_exp_statsn = login_req->exp_statsn;
-	login->cid		= login_req->cid;
-	login->tsih		= login_req->tsih;
+	login->initial_exp_statsn = be32_to_cpu(login_req->exp_statsn);
+	login->cid		= be16_to_cpu(login_req->cid);
+	login->tsih		= be16_to_cpu(login_req->tsih);
 
 	if (iscsi_target_get_initial_payload(conn, login) < 0)
 		return -1;
