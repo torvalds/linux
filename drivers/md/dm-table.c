@@ -1212,6 +1212,41 @@ struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector)
 	return &t->targets[(KEYS_PER_NODE * n) + k];
 }
 
+static int count_device(struct dm_target *ti, struct dm_dev *dev,
+			sector_t start, sector_t len, void *data)
+{
+	unsigned *num_devices = data;
+
+	(*num_devices)++;
+
+	return 0;
+}
+
+/*
+ * Check whether a table has no data devices attached using each
+ * target's iterate_devices method.
+ * Returns false if the result is unknown because a target doesn't
+ * support iterate_devices.
+ */
+bool dm_table_has_no_data_devices(struct dm_table *table)
+{
+	struct dm_target *uninitialized_var(ti);
+	unsigned i = 0, num_devices = 0;
+
+	while (i < dm_table_get_num_targets(table)) {
+		ti = dm_table_get_target(table, i++);
+
+		if (!ti->type->iterate_devices)
+			return false;
+
+		ti->type->iterate_devices(ti, count_device, &num_devices);
+		if (num_devices)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * Establish the new table's queue_limits and validate them.
  */
