@@ -70,7 +70,7 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
-static struct event_format *event_format__new(const char *sys, const char *name)
+struct event_format *event_format__new(const char *sys, const char *name)
 {
 	int fd, n;
 	char *filename;

@@ -83,6 +83,9 @@ struct perf_record_opts;
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx);
 struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx);
+
+struct event_format *event_format__new(const char *sys, const char *name);
+
 void perf_evsel__init(struct perf_evsel *evsel,
 		      struct perf_event_attr *attr, int idx);
 void perf_evsel__exit(struct perf_evsel *evsel);
