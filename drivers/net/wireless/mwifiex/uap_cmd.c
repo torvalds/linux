@@ -343,6 +343,7 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	struct host_cmd_tlv_encrypt_protocol *encrypt_protocol;
 	struct host_cmd_tlv_auth_type *auth_type;
 	struct host_cmd_tlv_rates *tlv_rates;
+	struct host_cmd_tlv_ageout_timer *ao_timer, *ps_ao_timer;
 	struct mwifiex_ie_types_htcap *htcap;
 	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
 	int i;
@@ -495,6 +496,27 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 					bss_cfg->ht_cap.antenna_selection_info;
 		cmd_size += sizeof(struct mwifiex_ie_types_htcap);
 		tlv += sizeof(struct mwifiex_ie_types_htcap);
+	}
+
+	if (bss_cfg->sta_ao_timer) {
+		ao_timer = (struct host_cmd_tlv_ageout_timer *)tlv;
+		ao_timer->tlv.type = cpu_to_le16(TLV_TYPE_UAP_AO_TIMER);
+		ao_timer->tlv.len = cpu_to_le16(sizeof(*ao_timer) -
+						sizeof(struct host_cmd_tlv));
+		ao_timer->sta_ao_timer = cpu_to_le32(bss_cfg->sta_ao_timer);
+		cmd_size += sizeof(*ao_timer);
+		tlv += sizeof(*ao_timer);
+	}
+
+	if (bss_cfg->ps_sta_ao_timer) {
+		ps_ao_timer = (struct host_cmd_tlv_ageout_timer *)tlv;
+		ps_ao_timer->tlv.type = cpu_to_le16(TLV_TYPE_UAP_PS_AO_TIMER);
+		ps_ao_timer->tlv.len = cpu_to_le16(sizeof(*ps_ao_timer) -
+						   sizeof(struct host_cmd_tlv));
+		ps_ao_timer->sta_ao_timer =
+					cpu_to_le32(bss_cfg->ps_sta_ao_timer);
+		cmd_size += sizeof(*ps_ao_timer);
+		tlv += sizeof(*ps_ao_timer);
 	}
 
 	*param_size = cmd_size;
