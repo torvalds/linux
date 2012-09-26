@@ -388,14 +388,16 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 		return old_pages;
 
 	/* Trying kmalloc first, falling back to vmalloc.
-	 * GFP_KERNEL is ok, as this is done when a lower level disk is
-	 * "attached" to the drbd.  Context is receiver thread or drbdsetup /
-	 * netlink process.  As we have no disk yet, we are not in the IO path,
-	 * not even the IO path of the peer. */
+	 * GFP_NOIO, as this is called while drbd IO is "suspended",
+	 * and during resize or attach on diskless Primary,
+	 * we must not block on IO to ourselves.
+	 * Context is receiver thread or dmsetup. */
 	bytes = sizeof(struct page *)*want;
-	new_pages = kmalloc(bytes, GFP_KERNEL);
+	new_pages = kmalloc(bytes, GFP_NOIO);
 	if (!new_pages) {
-		new_pages = vmalloc(bytes);
+		new_pages = __vmalloc(bytes,
+				GFP_NOIO | __GFP_HIGHMEM,
+				PAGE_KERNEL);
 		if (!new_pages)
 			return NULL;
 		vmalloced = 1;
@@ -406,7 +408,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 		for (i = 0; i < have; i++)
 			new_pages[i] = old_pages[i];
 		for (; i < want; i++) {
-			page = alloc_page(GFP_HIGHUSER);
+			page = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
 			if (!page) {
 				bm_free_pages(new_pages + have, i - have);
 				bm_vk_free(new_pages, vmalloced);
