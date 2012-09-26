@@ -314,7 +314,7 @@ ip_vs_conn_fill_param_proto(int af, const struct sk_buff *skb,
 	__be16 _ports[2], *pptr;
 	struct net *net = skb_net(skb);
 
-	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
+	pptr = frag_safe_skb_hp(skb, proto_off, sizeof(_ports), _ports, iph);
 	if (pptr == NULL)
 		return 1;
 

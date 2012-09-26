@@ -402,8 +402,12 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	unsigned int flags;
 
 	*ignored = 1;
+
+	/*
+	 * IPv6 frags, only the first hit here.
+	 */
 	ip_vs_fill_iph_skb(svc->af, skb, &iph);
-	pptr = skb_header_pointer(skb, iph.len, sizeof(_ports), _ports);
+	pptr = frag_safe_skb_hp(skb, iph.len, sizeof(_ports), _ports, &iph);
 	if (pptr == NULL)
 		return NULL;
 
@@ -507,8 +511,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 #endif
 
 	ip_vs_fill_iph_skb(svc->af, skb, &iph);
-
-	pptr = skb_header_pointer(skb, iph.len, sizeof(_ports), _ports);
+	pptr = frag_safe_skb_hp(skb, iph.len, sizeof(_ports), _ports, &iph);
 	if (pptr == NULL) {
 		ip_vs_service_put(svc);
 		return NF_DROP;
@@ -653,14 +656,6 @@ static inline int ip_vs_gather_frags(struct sk_buff *skb, u_int32_t user)
 
 	return err;
 }
-
-#ifdef CONFIG_IP_VS_IPV6
-static inline int ip_vs_gather_frags_v6(struct sk_buff *skb, u_int32_t user)
-{
-	/* TODO IPv6: Find out what to do here for IPv6 */
-	return 0;
-}
-#endif
 
 static int ip_vs_route_me_harder(int af, struct sk_buff *skb)
 {
@@ -939,8 +934,7 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 	ip_vs_fill_iph_skb(AF_INET6, skb, ipvsh);
 
 	*related = 1;
-
-	ic = skb_header_pointer(skb, ipvsh->len, sizeof(_icmph), &_icmph);
+	ic = frag_safe_skb_hp(skb, ipvsh->len, sizeof(_icmph), &_icmph, ipvsh);
 	if (ic == NULL)
 		return NF_DROP;
 
@@ -955,6 +949,11 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 		*related = 0;
 		return NF_ACCEPT;
 	}
+	/* Fragment header that is before ICMP header tells us that:
+	 * it's not an error message since they can't be fragmented.
+	 */
+	if (ipvsh->flags & IP6T_FH_F_FRAG)
+		return NF_DROP;
 
 	IP_VS_DBG(8, "Outgoing ICMPv6 (%d,%d) %pI6c->%pI6c\n",
 		  ic->icmp6_type, ntohs(icmpv6_id(ic)),
@@ -1117,6 +1116,12 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	ip_vs_fill_iph_skb(af, skb, &iph);
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
+		if (!iph.fragoffs && skb_nfct_reasm(skb)) {
+			struct sk_buff *reasm = skb_nfct_reasm(skb);
+			/* Save fw mark for coming frags */
+			reasm->ipvs_property = 1;
+			reasm->mark = skb->mark;
+		}
 		if (unlikely(iph.protocol == IPPROTO_ICMPV6)) {
 			int related;
 			int verdict = ip_vs_out_icmp_v6(skb, &related,
@@ -1124,7 +1129,6 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 
 			if (related)
 				return verdict;
-			ip_vs_fill_iph_skb(af, skb, &iph);
 		}
 	} else
 #endif
@@ -1134,7 +1138,6 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 
 			if (related)
 				return verdict;
-			ip_vs_fill_ip4hdr(skb_network_header(skb), &iph);
 		}
 
 	pd = ip_vs_proto_data_get(net, iph.protocol);
@@ -1167,8 +1170,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	     pp->protocol == IPPROTO_SCTP)) {
 		__be16 _ports[2], *pptr;
 
-		pptr = skb_header_pointer(skb, iph.len,
-					  sizeof(_ports), _ports);
+		pptr = frag_safe_skb_hp(skb, iph.len,
+					 sizeof(_ports), _ports, &iph);
 		if (pptr == NULL)
 			return NF_ACCEPT;	/* Not for me */
 		if (ip_vs_lookup_real_service(net, af, iph.protocol,
@@ -1468,7 +1471,7 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 
 	*related = 1;
 
-	ic = skb_header_pointer(skb, iph->len, sizeof(_icmph), &_icmph);
+	ic = frag_safe_skb_hp(skb, iph->len, sizeof(_icmph), &_icmph, iph);
 	if (ic == NULL)
 		return NF_DROP;
 
@@ -1483,6 +1486,11 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 		*related = 0;
 		return NF_ACCEPT;
 	}
+	/* Fragment header that is before ICMP header tells us that:
+	 * it's not an error message since they can't be fragmented.
+	 */
+	if (iph->flags & IP6T_FH_F_FRAG)
+		return NF_DROP;
 
 	IP_VS_DBG(8, "Incoming ICMPv6 (%d,%d) %pI6c->%pI6c\n",
 		  ic->icmp6_type, ntohs(icmpv6_id(ic)),
@@ -1514,10 +1522,20 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 	IP_VS_DBG_PKT(11, AF_INET6, pp, skb, offs_ciph,
 		      "Checking incoming ICMPv6 for");
 
-	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_in_get(AF_INET6, skb, &ciph, ciph.len, 1);
+	/* The embedded headers contain source and dest in reverse order
+	 * if not from localhost
+	 */
+	cp = pp->conn_in_get(AF_INET6, skb, &ciph, ciph.len,
+			     (hooknum == NF_INET_LOCAL_OUT) ? 0 : 1);
+
 	if (!cp)
 		return NF_ACCEPT;
+	/* VS/TUN, VS/DR and LOCALNODE just let it go */
+	if ((hooknum == NF_INET_LOCAL_OUT) &&
+	    (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ)) {
+		__ip_vs_conn_put(cp);
+		return NF_ACCEPT;
+	}
 
 	/* do the statistics and put it back */
 	ip_vs_in_stats(cp, skb);
@@ -1590,6 +1608,12 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
+		if (!iph.fragoffs && skb_nfct_reasm(skb)) {
+			struct sk_buff *reasm = skb_nfct_reasm(skb);
+			/* Save fw mark for coming frags. */
+			reasm->ipvs_property = 1;
+			reasm->mark = skb->mark;
+		}
 		if (unlikely(iph.protocol == IPPROTO_ICMPV6)) {
 			int related;
 			int verdict = ip_vs_in_icmp_v6(skb, &related, hooknum);
@@ -1614,13 +1638,16 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	pp = pd->pp;
 	/*
 	 * Check if the packet belongs to an existing connection entry
-	 * Only sched first IPv6 fragment.
 	 */
 	cp = pp->conn_in_get(af, skb, &iph, iph.len, 0);
 
 	if (unlikely(!cp) && !iph.fragoffs) {
+		/* No (second) fragments need to enter here, as nf_defrag_ipv6
+		 * replayed fragment zero will already have created the cp
+		 */
 		int v;
 
+		/* Schedule and create new connection entry into &cp */
 		if (!pp->conn_schedule(af, skb, pd, &v, &cp))
 			return v;
 	}
@@ -1629,6 +1656,14 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 		/* sorry, all this trouble for a no-hit :) */
 		IP_VS_DBG_PKT(12, af, pp, skb, 0,
 			      "ip_vs_in: packet continues traversal as normal");
+		if (iph.fragoffs && !skb_nfct_reasm(skb)) {
+			/* Fragment that couldn't be mapped to a conn entry
+			 * and don't have any pointer to a reasm skb
+			 * is missing module nf_defrag_ipv6
+			 */
+			IP_VS_DBG_RL("Unhandled frag, load nf_defrag_ipv6\n");
+			IP_VS_DBG_PKT(7, af, pp, skb, 0, "unhandled fragment");
+		}
 		return NF_ACCEPT;
 	}
 
@@ -1711,6 +1746,38 @@ ip_vs_local_request4(unsigned int hooknum, struct sk_buff *skb,
 }
 
 #ifdef CONFIG_IP_VS_IPV6
+
+/*
+ * AF_INET6 fragment handling
+ * Copy info from first fragment, to the rest of them.
+ */
+static unsigned int
+ip_vs_preroute_frag6(unsigned int hooknum, struct sk_buff *skb,
+		     const struct net_device *in,
+		     const struct net_device *out,
+		     int (*okfn)(struct sk_buff *))
+{
+	struct sk_buff *reasm = skb_nfct_reasm(skb);
+	struct net *net;
+
+	/* Skip if not a "replay" from nf_ct_frag6_output or first fragment.
+	 * ipvs_property is set when checking first fragment
+	 * in ip_vs_in() and ip_vs_out().
+	 */
+	if (reasm)
+		IP_VS_DBG(2, "Fragment recv prop:%d\n", reasm->ipvs_property);
+	if (!reasm || !reasm->ipvs_property)
+		return NF_ACCEPT;
+
+	net = skb_net(skb);
+	if (!net_ipvs(net)->enable)
+		return NF_ACCEPT;
+
+	/* Copy stored fw mark, saved in ip_vs_{in,out} */
+	skb->mark = reasm->mark;
+
+	return NF_ACCEPT;
+}
 
 /*
  *	AF_INET6 handler in NF_INET_LOCAL_IN chain
@@ -1851,6 +1918,14 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 		.priority	= 100,
 	},
 #ifdef CONFIG_IP_VS_IPV6
+	/* After mangle & nat fetch 2:nd fragment and following */
+	{
+		.hook		= ip_vs_preroute_frag6,
+		.owner		= THIS_MODULE,
+		.pf		= NFPROTO_IPV6,
+		.hooknum	= NF_INET_PRE_ROUTING,
+		.priority	= NF_IP6_PRI_NAT_DST + 1,
+	},
 	/* After packet filtering, change source only for VS/NAT */
 	{
 		.hook		= ip_vs_reply6,

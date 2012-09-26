@@ -496,13 +496,15 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		     struct ip_vs_protocol *pp)
 {
 	struct rt6_info *rt;			/* Route to the other host */
-	struct ipv6hdr  *iph = ipv6_hdr(skb);
+	struct ip_vs_iphdr iph;
 	int    mtu;
 
 	EnterFunction(10);
+	ip_vs_fill_iph_skb(cp->af, skb, &iph);
 
-	if (!(rt = __ip_vs_get_out_rt_v6(skb, NULL, &iph->daddr, NULL, 0,
-					 IP_VS_RT_MODE_NON_LOCAL)))
+	rt = __ip_vs_get_out_rt_v6(skb, NULL, &iph.daddr.in6, NULL, 0,
+				   IP_VS_RT_MODE_NON_LOCAL);
+	if (!rt)
 		goto tx_error_icmp;
 
 	/* MTU checking */
@@ -513,7 +515,9 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 			skb->dev = net->loopback_dev;
 		}
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		/* only send ICMP too big on first fragment */
+		if (!iph.fragoffs)
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		dst_release(&rt->dst);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error;
@@ -685,7 +689,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	ip_vs_fill_iph_skb(cp->af, skb, &iph);
 
 	/* check if it is a connection of no-client-port */
-	if (unlikely(cp->flags & IP_VS_CONN_F_NO_CPORT)) {
+	if (unlikely(cp->flags & IP_VS_CONN_F_NO_CPORT && !iph.fragoffs)) {
 		__be16 _pt, *p;
 		p = skb_header_pointer(skb, iph.len, sizeof(_pt), &_pt);
 		if (p == NULL)
@@ -735,7 +739,9 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 			skb->dev = net->loopback_dev;
 		}
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		/* only send ICMP too big on first fragment */
+		if (!iph.fragoffs)
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP_VS_DBG_RL_PKT(0, AF_INET6, pp, skb, 0,
 				 "ip_vs_nat_xmit_v6(): frag needed for");
 		goto tx_error_put;
@@ -940,8 +946,10 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	unsigned int max_headroom;	/* The extra header space needed */
 	int    mtu;
 	int ret;
+	struct ip_vs_iphdr ipvsh;
 
 	EnterFunction(10);
+	ip_vs_fill_iph_skb(cp->af, skb, &ipvsh);
 
 	if (!(rt = __ip_vs_get_out_rt_v6(skb, cp->dest, &cp->daddr.in6,
 					 &saddr, 1, (IP_VS_RT_MODE_LOCAL |
@@ -970,7 +978,9 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 			skb->dev = net->loopback_dev;
 		}
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		/* only send ICMP too big on first fragment */
+		if (!ipvsh.fragoffs)
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error_put;
 	}
@@ -1116,8 +1126,10 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 {
 	struct rt6_info *rt;			/* Route to the other host */
 	int    mtu;
+	struct ip_vs_iphdr iph;
 
 	EnterFunction(10);
+	ip_vs_fill_iph_skb(cp->af, skb, &iph);
 
 	if (!(rt = __ip_vs_get_out_rt_v6(skb, cp->dest, &cp->daddr.in6, NULL,
 					 0, (IP_VS_RT_MODE_LOCAL |
@@ -1136,7 +1148,9 @@ ip_vs_dr_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 			skb->dev = net->loopback_dev;
 		}
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		/* only send ICMP too big on first fragment */
+		if (!iph.fragoffs)
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		dst_release(&rt->dst);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error;
@@ -1308,8 +1322,10 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	int rc;
 	int local;
 	int rt_mode;
+	struct ip_vs_iphdr iph;
 
 	EnterFunction(10);
+	ip_vs_fill_iph_skb(cp->af, skb, &iph);
 
 	/* The ICMP packet for VS/TUN, VS/DR and LOCALNODE will be
 	   forwarded directly here, because there is no need to
@@ -1372,7 +1388,9 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 			skb->dev = net->loopback_dev;
 		}
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		/* only send ICMP too big on first fragment */
+		if (!iph.fragoffs)
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		IP_VS_DBG_RL("%s(): frag needed\n", __func__);
 		goto tx_error_put;
 	}
