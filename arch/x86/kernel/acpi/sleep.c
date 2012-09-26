@@ -43,17 +43,22 @@ int acpi_suspend_lowlevel(void)
 
 	header->video_mode = saved_video_mode;
 
+	header->pmode_behavior = 0;
+
 #ifndef CONFIG_64BIT
 	store_gdt((struct desc_ptr *)&header->pmode_gdt);
 
-	if (rdmsr_safe(MSR_EFER, &header->pmode_efer_low,
-		       &header->pmode_efer_high))
-		header->pmode_efer_low = header->pmode_efer_high = 0;
+	if (!rdmsr_safe(MSR_EFER,
+			&header->pmode_efer_low,
+			&header->pmode_efer_high))
+		header->pmode_behavior |= (1 << WAKEUP_BEHAVIOR_RESTORE_EFER);
 #endif /* !CONFIG_64BIT */
 
 	header->pmode_cr0 = read_cr0();
-	header->pmode_cr4 = read_cr4_safe();
-	header->pmode_behavior = 0;
+	if (__this_cpu_read(cpu_info.cpuid_level) >= 0) {
+		header->pmode_cr4 = read_cr4();
+		header->pmode_behavior |= (1 << WAKEUP_BEHAVIOR_RESTORE_CR4);
+	}
 	if (!rdmsr_safe(MSR_IA32_MISC_ENABLE,
 			&header->pmode_misc_en_low,
 			&header->pmode_misc_en_high))
