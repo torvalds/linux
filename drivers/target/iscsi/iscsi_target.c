@@ -3239,7 +3239,7 @@ static bool iscsit_check_inaddr_any(struct iscsi_np *np)
 		struct sockaddr_in * sock_in =
 			(struct sockaddr_in *)&np->np_sockaddr;
 
-		if (sock_in->sin_addr.s_addr == INADDR_ANY)
+		if (sock_in->sin_addr.s_addr == htonl(INADDR_ANY))
 			ret = true;
 	}
 
