@@ -2294,7 +2294,7 @@ static inline void drbd_md_flush(struct drbd_conf *mdev)
 	if (test_bit(MD_NO_FUA, &mdev->flags))
 		return;
 
-	r = blkdev_issue_flush(mdev->ldev->md_bdev, GFP_KERNEL, NULL);
+	r = blkdev_issue_flush(mdev->ldev->md_bdev, GFP_NOIO, NULL);
 	if (r) {
 		set_bit(MD_NO_FUA, &mdev->flags);
 		dev_err(DEV, "meta data flush failed with status %d, disabling md-flushes\n", r);
