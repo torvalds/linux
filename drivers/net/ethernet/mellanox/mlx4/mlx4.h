@@ -513,9 +513,9 @@ struct mlx4_cmd {
 	struct pci_pool	       *pool;
 	void __iomem	       *hcr;
 	struct mutex		hcr_mutex;
+	struct mutex		slave_cmd_mutex;
 	struct semaphore	poll_sem;
 	struct semaphore	event_sem;
-	struct semaphore	slave_sem;
 	int			max_cmds;
 	spinlock_t		context_lock;
 	int			free_head;

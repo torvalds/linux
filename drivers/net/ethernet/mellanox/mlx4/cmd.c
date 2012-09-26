@@ -395,7 +395,8 @@ static int mlx4_slave_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	struct mlx4_vhcr_cmd *vhcr = priv->mfunc.vhcr;
 	int ret;
 
-	down(&priv->cmd.slave_sem);
+	mutex_lock(&priv->cmd.slave_cmd_mutex);
+
 	vhcr->in_param = cpu_to_be64(in_param);
 	vhcr->out_param = out_param ? cpu_to_be64(*out_param) : 0;
 	vhcr->in_modifier = cpu_to_be32(in_modifier);
@@ -403,6 +404,7 @@ static int mlx4_slave_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	vhcr->token = cpu_to_be16(CMD_POLL_TOKEN);
 	vhcr->status = 0;
 	vhcr->flags = !!(priv->cmd.use_events) << 6;
+
 	if (mlx4_is_master(dev)) {
 		ret = mlx4_master_process_vhcr(dev, dev->caps.function, vhcr);
 		if (!ret) {
@@ -439,7 +441,8 @@ static int mlx4_slave_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 			mlx4_err(dev, "failed execution of VHCR_POST command"
 				 "opcode 0x%x\n", op);
 	}
-	up(&priv->cmd.slave_sem);
+
+	mutex_unlock(&priv->cmd.slave_cmd_mutex);
 	return ret;
 }
 
@@ -1559,14 +1562,15 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		if ((slave_state[slave].last_cmd != MLX4_COMM_CMD_VHCR_EN) &&
 		    (slave_state[slave].last_cmd != MLX4_COMM_CMD_VHCR_POST))
 			goto reset_slave;
-		down(&priv->cmd.slave_sem);
+
+		mutex_lock(&priv->cmd.slave_cmd_mutex);
 		if (mlx4_master_process_vhcr(dev, slave, NULL)) {
 			mlx4_err(dev, "Failed processing vhcr for slave:%d,"
 				 " resetting slave.\n", slave);
-			up(&priv->cmd.slave_sem);
+			mutex_unlock(&priv->cmd.slave_cmd_mutex);
 			goto reset_slave;
 		}
-		up(&priv->cmd.slave_sem);
+		mutex_unlock(&priv->cmd.slave_cmd_mutex);
 		break;
 	default:
 		mlx4_warn(dev, "Bad comm cmd:%d from slave:%d\n", cmd, slave);
@@ -1707,14 +1711,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 	struct mlx4_slave_state *s_state;
 	int i, j, err, port;
 
-	priv->mfunc.vhcr = dma_alloc_coherent(&(dev->pdev->dev), PAGE_SIZE,
-					    &priv->mfunc.vhcr_dma,
-					    GFP_KERNEL);
-	if (!priv->mfunc.vhcr) {
-		mlx4_err(dev, "Couldn't allocate vhcr.\n");
-		return -ENOMEM;
-	}
-
 	if (mlx4_is_master(dev))
 		priv->mfunc.comm =
 		ioremap(pci_resource_start(dev->pdev, priv->fw.comm_bar) +
@@ -1777,7 +1773,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 		if (mlx4_init_resource_tracker(dev))
 			goto err_thread;
 
-		sema_init(&priv->cmd.slave_sem, 1);
 		err = mlx4_ARM_COMM_CHANNEL(dev);
 		if (err) {
 			mlx4_err(dev, " Failed to arm comm channel eq: %x\n",
@@ -1791,8 +1786,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 			mlx4_err(dev, "Couldn't sync toggles\n");
 			goto err_comm;
 		}
-
-		sema_init(&priv->cmd.slave_sem, 1);
 	}
 	return 0;
 
@@ -1822,6 +1815,7 @@ int mlx4_cmd_init(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	mutex_init(&priv->cmd.hcr_mutex);
+	mutex_init(&priv->cmd.slave_cmd_mutex);
 	sema_init(&priv->cmd.poll_sem, 1);
 	priv->cmd.use_events = 0;
 	priv->cmd.toggle     = 1;
@@ -1838,13 +1832,29 @@ int mlx4_cmd_init(struct mlx4_dev *dev)
 		}
 	}
 
+	if (mlx4_is_mfunc(dev)) {
+		priv->mfunc.vhcr = dma_alloc_coherent(&(dev->pdev->dev), PAGE_SIZE,
+						      &priv->mfunc.vhcr_dma,
+						      GFP_KERNEL);
+		if (!priv->mfunc.vhcr) {
+			mlx4_err(dev, "Couldn't allocate VHCR.\n");
+			goto err_hcr;
+		}
+	}
+
 	priv->cmd.pool = pci_pool_create("mlx4_cmd", dev->pdev,
 					 MLX4_MAILBOX_SIZE,
 					 MLX4_MAILBOX_SIZE, 0);
 	if (!priv->cmd.pool)
-		goto err_hcr;
+		goto err_vhcr;
 
 	return 0;
+
+err_vhcr:
+	if (mlx4_is_mfunc(dev))
+		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
+				  priv->mfunc.vhcr, priv->mfunc.vhcr_dma);
+	priv->mfunc.vhcr = NULL;
 
 err_hcr:
 	if (!mlx4_is_slave(dev))
@@ -1868,9 +1878,6 @@ void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 	}
 
 	iounmap(priv->mfunc.comm);
-	dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
-		     priv->mfunc.vhcr, priv->mfunc.vhcr_dma);
-	priv->mfunc.vhcr = NULL;
 }
 
 void mlx4_cmd_cleanup(struct mlx4_dev *dev)
@@ -1881,6 +1888,10 @@ void mlx4_cmd_cleanup(struct mlx4_dev *dev)
 
 	if (!mlx4_is_slave(dev))
 		iounmap(priv->cmd.hcr);
+	if (mlx4_is_mfunc(dev))
+		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
+				  priv->mfunc.vhcr, priv->mfunc.vhcr_dma);
+	priv->mfunc.vhcr = NULL;
 }
 
 /*
