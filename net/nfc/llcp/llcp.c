@@ -56,7 +56,7 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 	sk_for_each_safe(sk, node, tmp, &local->sockets.head) {
 		llcp_sock = nfc_llcp_sock(sk);
 
-		lock_sock(sk);
+		bh_lock_sock(sk);
 
 		if (sk->sk_state == LLCP_CONNECTED)
 			nfc_put_device(llcp_sock->dev);
@@ -68,26 +68,26 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 			list_for_each_entry_safe(lsk, n, &llcp_sock->accept_queue,
 						 accept_queue) {
 				accept_sk = &lsk->sk;
-				lock_sock(accept_sk);
+				bh_lock_sock(accept_sk);
 
 				nfc_llcp_accept_unlink(accept_sk);
 
 				accept_sk->sk_state = LLCP_CLOSED;
 
-				release_sock(accept_sk);
+				bh_unlock_sock(accept_sk);
 
 				sock_orphan(accept_sk);
 			}
 
 			if (listen == true) {
-				release_sock(sk);
+				bh_unlock_sock(sk);
 				continue;
 			}
 		}
 
 		sk->sk_state = LLCP_CLOSED;
 
-		release_sock(sk);
+		bh_unlock_sock(sk);
 
 		sock_orphan(sk);
 
