@@ -113,6 +113,17 @@ enum dss_dsi_content_type {
 	DSS_DSI_CONTENT_GENERIC,
 };
 
+enum dss_writeback_channel {
+	DSS_WB_LCD1_MGR =	0,
+	DSS_WB_LCD2_MGR =	1,
+	DSS_WB_TV_MGR =		2,
+	DSS_WB_OVL0 =		3,
+	DSS_WB_OVL1 =		4,
+	DSS_WB_OVL2 =		5,
+	DSS_WB_OVL3 =		6,
+	DSS_WB_LCD3_MGR =	7,
+};
+
 struct dss_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long fck;
@@ -444,8 +455,9 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
 void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
 		bool manual_update);
-int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
-		bool replication, const struct omap_video_timings *mgr_timings);
+int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
+		bool replication, const struct omap_video_timings *mgr_timings,
+		bool mem_to_mem);
 int dispc_ovl_enable(enum omap_plane plane, bool enable);
 void dispc_ovl_set_channel_out(enum omap_plane plane,
 		enum omap_channel channel);
@@ -473,6 +485,15 @@ int dispc_mgr_get_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo);
 void dispc_mgr_setup(enum omap_channel channel,
 		struct omap_overlay_manager_info *info);
+
+u32 dispc_wb_get_framedone_irq(void);
+bool dispc_wb_go_busy(void);
+void dispc_wb_go(void);
+void dispc_wb_enable(bool enable);
+bool dispc_wb_is_enabled(void);
+void dispc_wb_set_channel_in(enum dss_writeback_channel channel);
+int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
+		bool mem_to_mem, const struct omap_video_timings *timings);
 
 /* VENC */
 #ifdef CONFIG_OMAP2_DSS_VENC

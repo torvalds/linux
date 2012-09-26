@@ -187,6 +187,8 @@ enum omap_overlay_caps {
 	OMAP_DSS_OVL_CAP_GLOBAL_ALPHA = 1 << 1,
 	OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA = 1 << 2,
 	OMAP_DSS_OVL_CAP_ZORDER = 1 << 3,
+	OMAP_DSS_OVL_CAP_POS = 1 << 4,
+	OMAP_DSS_OVL_CAP_REPLICATION = 1 << 5,
 };
 
 enum omap_overlay_manager_caps {
@@ -506,6 +508,19 @@ struct omap_dsi_pin_config {
 	 * ...
 	 */
 	int pins[OMAP_DSS_MAX_DSI_PINS];
+};
+
+struct omap_dss_writeback_info {
+	u32 paddr;
+	u32 p_uv_addr;
+	u16 buf_width;
+	u16 width;
+	u16 height;
+	enum omap_color_mode color_mode;
+	u8 rotation;
+	enum omap_dss_rotation_type rotation_type;
+	bool mirror;
+	u8 pre_mult_alpha;
 };
 
 struct omap_dss_output {
