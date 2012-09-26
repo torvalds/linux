@@ -595,6 +595,43 @@ mext_calc_swap_extents(struct ext4_extent *tmp_dext,
 }
 
 /**
+ * mext_check_coverage - Check that all extents in range has the same type
+ *
+ * @inode:		inode in question
+ * @from:		block offset of inode
+ * @count:		block count to be checked
+ * @uninit:		extents expected to be uninitialized
+ * @err:		pointer to save error value
+ *
+ * Return 1 if all extents in range has expected type, and zero otherwise.
+ */
+static int
+mext_check_coverage(struct inode *inode, ext4_lblk_t from, ext4_lblk_t count,
+			  int uninit, int *err)
+{
+	struct ext4_ext_path *path = NULL;
+	struct ext4_extent *ext;
+	ext4_lblk_t last = from + count;
+	while (from < last) {
+		*err = get_ext_path(inode, from, &path);
+		if (*err)
+			return 0;
+		ext = path[ext_depth(inode)].p_ext;
+		if (!ext) {
+			ext4_ext_drop_refs(path);
+			return 0;
+		}
+		if (uninit != ext4_ext_is_uninitialized(ext)) {
+			ext4_ext_drop_refs(path);
+			return 0;
+		}
+		from += ext4_ext_get_actual_len(ext);
+		ext4_ext_drop_refs(path);
+	}
+	return 1;
+}
+
+/**
  * mext_replace_branches - Replace original extents with new extents
  *
  * @handle:		journal handle
@@ -628,9 +665,6 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	int depth;
 	int replaced_count = 0;
 	int dext_alen;
-
-	/* Protect extent trees against block allocations via delalloc */
-	double_down_write_data_sem(orig_inode, donor_inode);
 
 	/* Get the original extent for the block "orig_off" */
 	*err = get_ext_path(orig_inode, orig_off, &orig_path);
@@ -729,8 +763,6 @@ out:
 
 	ext4_ext_invalidate_cache(orig_inode);
 	ext4_ext_invalidate_cache(donor_inode);
-
-	double_up_write_data_sem(orig_inode, donor_inode);
 
 	return replaced_count;
 }
@@ -925,7 +957,46 @@ again:
 				     pagep);
 	if (unlikely(*err < 0))
 		goto stop_journal;
+	/*
+	 * If orig extent was uninitialized it can become initialized
+	 * at any time after i_data_sem was dropped, in order to
+	 * serialize with delalloc we have recheck extent while we
+	 * hold page's lock, if it is still the case data copy is not
+	 * necessary, just swap data blocks between orig and donor.
+	 */
+	if (uninit) {
+		double_down_write_data_sem(orig_inode, donor_inode);
+		/* If any of extents in range became initialized we have to
+		 * fallback to data copying */
+		uninit = mext_check_coverage(orig_inode, orig_blk_offset,
+					     block_len_in_page, 1, err);
+		if (*err)
+			goto drop_data_sem;
 
+		uninit &= mext_check_coverage(donor_inode, orig_blk_offset,
+					      block_len_in_page, 1, err);
+		if (*err)
+			goto drop_data_sem;
+
+		if (!uninit) {
+			double_up_write_data_sem(orig_inode, donor_inode);
+			goto data_copy;
+		}
+		if ((page_has_private(pagep[0]) &&
+		     !try_to_release_page(pagep[0], 0)) ||
+		    (page_has_private(pagep[1]) &&
+		     !try_to_release_page(pagep[1], 0))) {
+			*err = -EBUSY;
+			goto drop_data_sem;
+		}
+		replaced_count = mext_replace_branches(handle, orig_inode,
+						donor_inode, orig_blk_offset,
+						block_len_in_page, err);
+	drop_data_sem:
+		double_up_write_data_sem(orig_inode, donor_inode);
+		goto unlock_pages;
+	}
+data_copy:
 	*err = mext_page_mkuptodate(pagep[0], from, from + replaced_size);
 	if (*err)
 		goto unlock_pages;
