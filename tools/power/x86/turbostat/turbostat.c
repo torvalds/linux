@@ -1038,7 +1038,7 @@ int has_nehalem_turbo_ratio_limit(unsigned int family, unsigned int model)
 	case 0x2A:	/* SNB */
 	case 0x2D:	/* SNB Xeon */
 	case 0x3A:	/* IVB */
-	case 0x3D:	/* IVB Xeon */
+	case 0x3E:	/* IVB Xeon */
 		return 1;
 	case 0x2E:	/* Nehalem-EX Xeon - Beckton */
 	case 0x2F:	/* Westmere-EX Xeon - Eagleton */
@@ -1056,7 +1056,7 @@ int is_snb(unsigned int family, unsigned int model)
 	case 0x2A:
 	case 0x2D:
 	case 0x3A:	/* IVB */
-	case 0x3D:	/* IVB Xeon */
+	case 0x3E:	/* IVB Xeon */
 		return 1;
 	}
 	return 0;
