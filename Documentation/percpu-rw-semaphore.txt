@@ -9,10 +9,10 @@ cores take the lock for reading, the cache line containing the semaphore
 is bouncing between L1 caches of the cores, causing performance
 degradation.
 
-Locking for reading it very fast, it uses RCU and it avoids any atomic
+Locking for reading is very fast, it uses RCU and it avoids any atomic
 instruction in the lock and unlock path. On the other hand, locking for
 writing is very expensive, it calls synchronize_rcu() that can take
-hundreds of microseconds.
+hundreds of milliseconds.
 
 The lock is declared with "struct percpu_rw_semaphore" type.
 The lock is initialized percpu_init_rwsem, it returns 0 on success and
