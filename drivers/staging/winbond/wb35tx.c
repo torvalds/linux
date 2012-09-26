@@ -135,8 +135,7 @@ unsigned char Wb35Tx_initial(struct hw_data *pHwData)
 		return false;
 
 	pWb35Tx->Tx2Urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!pWb35Tx->Tx2Urb)
-	{
+	if (!pWb35Tx->Tx2Urb) {
 		usb_free_urb(pWb35Tx->Tx4Urb);
 		return false;
 	}
@@ -263,7 +262,8 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 
 	/* Issuing URB */
 	usb_fill_int_urb(pUrb, pHwData->udev, usb_rcvintpipe(pHwData->udev, 2),
-			  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, adapter, 32);
+			 pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete,
+			 adapter, 32);
 
 	pWb35Tx->EP2vm_state = VM_RUNNING;
 	retv = usb_submit_urb(pUrb, GFP_ATOMIC);
