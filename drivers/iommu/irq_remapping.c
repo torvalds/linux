@@ -1,3 +1,4 @@
+#include <linux/seq_file.h>
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -326,4 +327,28 @@ void panic_if_irq_remap(const char *msg)
 {
 	if (irq_remapping_enabled)
 		panic(msg);
+}
+
+static void ir_ack_apic_edge(struct irq_data *data)
+{
+	ack_APIC_irq();
+}
+
+static void ir_ack_apic_level(struct irq_data *data)
+{
+	ack_APIC_irq();
+	eoi_ioapic_irq(data->irq, data->chip_data);
+}
+
+static void ir_print_prefix(struct irq_data *data, struct seq_file *p)
+{
+	seq_printf(p, " IR-%s", data->chip->name);
+}
+
+void irq_remap_modify_chip_defaults(struct irq_chip *chip)
+{
+	chip->irq_print_chip = ir_print_prefix;
+	chip->irq_ack = ir_ack_apic_edge;
+	chip->irq_eoi = ir_ack_apic_level;
+	chip->irq_set_affinity = x86_io_apic_ops.set_affinity;
 }
