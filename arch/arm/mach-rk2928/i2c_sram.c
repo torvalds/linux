@@ -349,6 +349,23 @@ void __sramfunc rk30_suspend_voltage_resume(unsigned int vol)
     sram_i2c_write(slaveaddr, slavereg, data);
     sram_i2c_deinit();  //deinit i2c device
 }
+
+int __sramfunc act8931_dc_det(unsigned int vol)
+{
+	uint8 slaveaddr;
+	uint16 slavereg;
+	uint8 ret = 0;
+	int data = 0;
+	slaveaddr = 0x5b;            //slave device addr
+       slavereg = 0x78;            // reg addr  
+       
+   	sram_i2c_init();  //init i2c device
+	ret = sram_i2c_read(slaveaddr,slavereg);
+	data = (ret & (1<<1) )? 1:0;
+	sram_i2c_deinit();  //deinit i2c device
+	return data;
+}
+
 #else
 void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
 {
@@ -357,6 +374,10 @@ void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
 void __sramfunc rk30_suspend_voltage_resume(unsigned int vol)
 {
    
+}
+int __sramfunc act8931_dc_det(unsigned int vol)
+{
+	return -1;
 }
 #endif
 
