@@ -211,6 +211,9 @@ struct tp_err_stats {
 struct tp_params {
 	unsigned int ntxchan;        /* # of Tx channels */
 	unsigned int tre;            /* log2 of core clocks per TP tick */
+
+	uint32_t dack_re;            /* DACK timer resolution */
+	unsigned short tx_modq[NCHAN];	/* channel to modulation queue map */
 };
 
 struct vpd_params {
@@ -519,6 +522,8 @@ struct adapter {
 	struct net_device *port[MAX_NPORTS];
 	u8 chan_map[NCHAN];                   /* channel -> port map */
 
+	unsigned int l2t_start;
+	unsigned int l2t_end;
 	struct l2t_data *l2t;
 	void *uld_handle[CXGB4_ULD_MAX];
 	struct list_head list_node;
@@ -683,7 +688,9 @@ int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
 int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
 		    __be32 *buf);
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
+int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
+unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_check_fw_version(struct adapter *adapter);
 int t4_prep_adapter(struct adapter *adapter);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
@@ -698,6 +705,8 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
 void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log);
+void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
+			    unsigned int mask, unsigned int val);
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6);
 void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
@@ -713,6 +722,12 @@ int t4_fw_hello(struct adapter *adap, unsigned int mbox, unsigned int evt_mbox,
 int t4_fw_bye(struct adapter *adap, unsigned int mbox);
 int t4_early_init(struct adapter *adap, unsigned int mbox);
 int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset);
+int t4_fw_config_file(struct adapter *adap, unsigned int mbox,
+		      unsigned int mtype, unsigned int maddr,
+		      u32 *finiver, u32 *finicsum, u32 *cfcsum);
+int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
+			  unsigned int cache_line_size);
+int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val);

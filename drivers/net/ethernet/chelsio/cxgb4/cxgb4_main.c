@@ -193,6 +193,7 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 };
 
 #define FW_FNAME "cxgb4/t4fw.bin"
+#define FW_CFNAME "cxgb4/t4-config.txt"
 
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");
@@ -200,6 +201,17 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, cxgb4_pci_tbl);
 MODULE_FIRMWARE(FW_FNAME);
+
+/*
+ * Normally we're willing to become the firmware's Master PF but will be happy
+ * if another PF has already become the Master and initialized the adapter.
+ * Setting "force_init" will cause this driver to forcibly establish itself as
+ * the Master PF and initialize the adapter.
+ */
+static uint force_init;
+
+module_param(force_init, uint, 0644);
+MODULE_PARM_DESC(force_init, "Forcibly become Master PF and initialize adapter");
 
 static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
@@ -235,6 +247,20 @@ static unsigned int intr_cnt[SGE_NCOUNTERS - 1] = { 4, 8, 16 };
 module_param_array(intr_cnt, uint, NULL, 0644);
 MODULE_PARM_DESC(intr_cnt,
 		 "thresholds 1..3 for queue interrupt packet counters");
+
+/*
+ * Normally we tell the chip to deliver Ingress Packets into our DMA buffers
+ * offset by 2 bytes in order to have the IP headers line up on 4-byte
+ * boundaries.  This is a requirement for many architectures which will throw
+ * a machine check fault if an attempt is made to access one of the 4-byte IP
+ * header fields on a non-4-byte boundary.  And it's a major performance issue
+ * even on some architectures which allow it like some implementations of the
+ * x86 ISA.  However, some architectures don't mind this and for some very
+ * edge-case performance sensitive applications (like forwarding large volumes
+ * of small packets), setting this DMA offset to 0 will decrease the number of
+ * PCI-E Bus transfers enough to measurably affect performance.
+ */
+static int rx_dma_offset = 2;
 
 static bool vf_acls;
 
@@ -3076,6 +3102,10 @@ static void setup_memwin(struct adapter *adap)
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 2),
 		     (bar0 + MEMWIN2_BASE) | BIR(0) |
 		     WINDOW(ilog2(MEMWIN2_APERTURE) - 10));
+}
+
+static void setup_memwin_rdma(struct adapter *adap)
+{
 	if (adap->vres.ocq.size) {
 		unsigned int start, sz_kb;
 
@@ -3155,6 +3185,232 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 
 /*
  * Phase 0 of initialization: contact FW, obtain config, perform basic init.
+ *
+ * If the firmware we're dealing with has Configuration File support, then
+ * we use that to perform all configuration
+ */
+
+/*
+ * Tweak configuration based on module parameters, etc.  Most of these have
+ * defaults assigned to them by Firmware Configuration Files (if we're using
+ * them) but need to be explicitly set if we're using hard-coded
+ * initialization.  But even in the case of using Firmware Configuration
+ * Files, we'd like to expose the ability to change these via module
+ * parameters so these are essentially common tweaks/settings for
+ * Configuration Files and hard-coded initialization ...
+ */
+static int adap_init0_tweaks(struct adapter *adapter)
+{
+	/*
+	 * Fix up various Host-Dependent Parameters like Page Size, Cache
+	 * Line Size, etc.  The firmware default is for a 4KB Page Size and
+	 * 64B Cache Line Size ...
+	 */
+	t4_fixup_host_params(adapter, PAGE_SIZE, L1_CACHE_BYTES);
+
+	/*
+	 * Process module parameters which affect early initialization.
+	 */
+	if (rx_dma_offset != 2 && rx_dma_offset != 0) {
+		dev_err(&adapter->pdev->dev,
+			"Ignoring illegal rx_dma_offset=%d, using 2\n",
+			rx_dma_offset);
+		rx_dma_offset = 2;
+	}
+	t4_set_reg_field(adapter, SGE_CONTROL,
+			 PKTSHIFT_MASK,
+			 PKTSHIFT(rx_dma_offset));
+
+	/*
+	 * Don't include the "IP Pseudo Header" in CPL_RX_PKT checksums: Linux
+	 * adds the pseudo header itself.
+	 */
+	t4_tp_wr_bits_indirect(adapter, TP_INGRESS_CONFIG,
+			       CSUM_HAS_PSEUDO_HDR, 0);
+
+	return 0;
+}
+
+/*
+ * Attempt to initialize the adapter via a Firmware Configuration File.
+ */
+static int adap_init0_config(struct adapter *adapter, int reset)
+{
+	struct fw_caps_config_cmd caps_cmd;
+	const struct firmware *cf;
+	unsigned long mtype = 0, maddr = 0;
+	u32 finiver, finicsum, cfcsum;
+	int ret, using_flash;
+
+	/*
+	 * Reset device if necessary.
+	 */
+	if (reset) {
+		ret = t4_fw_reset(adapter, adapter->mbox,
+				  PIORSTMODE | PIORST);
+		if (ret < 0)
+			goto bye;
+	}
+
+	/*
+	 * If we have a T4 configuration file under /lib/firmware/cxgb4/,
+	 * then use that.  Otherwise, use the configuration file stored
+	 * in the adapter flash ...
+	 */
+	ret = request_firmware(&cf, FW_CFNAME, adapter->pdev_dev);
+	if (ret < 0) {
+		using_flash = 1;
+		mtype = FW_MEMTYPE_CF_FLASH;
+		maddr = t4_flash_cfg_addr(adapter);
+	} else {
+		u32 params[7], val[7];
+
+		using_flash = 0;
+		if (cf->size >= FLASH_CFG_MAX_SIZE)
+			ret = -ENOMEM;
+		else {
+			params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+			     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+			ret = t4_query_params(adapter, adapter->mbox,
+					      adapter->fn, 0, 1, params, val);
+			if (ret == 0) {
+				/*
+				 * For t4_memory_write() below addresses and
+				 * sizes have to be in terms of multiples of 4
+				 * bytes.  So, if the Configuration File isn't
+				 * a multiple of 4 bytes in length we'll have
+				 * to write that out separately since we can't
+				 * guarantee that the bytes following the
+				 * residual byte in the buffer returned by
+				 * request_firmware() are zeroed out ...
+				 */
+				size_t resid = cf->size & 0x3;
+				size_t size = cf->size & ~0x3;
+				__be32 *data = (__be32 *)cf->data;
+
+				mtype = FW_PARAMS_PARAM_Y_GET(val[0]);
+				maddr = FW_PARAMS_PARAM_Z_GET(val[0]) << 16;
+
+				ret = t4_memory_write(adapter, mtype, maddr,
+						      size, data);
+				if (ret == 0 && resid != 0) {
+					union {
+						__be32 word;
+						char buf[4];
+					} last;
+					int i;
+
+					last.word = data[size >> 2];
+					for (i = resid; i < 4; i++)
+						last.buf[i] = 0;
+					ret = t4_memory_write(adapter, mtype,
+							      maddr + size,
+							      4, &last.word);
+				}
+			}
+		}
+
+		release_firmware(cf);
+		if (ret)
+			goto bye;
+	}
+
+	/*
+	 * Issue a Capability Configuration command to the firmware to get it
+	 * to parse the Configuration File.  We don't use t4_fw_config_file()
+	 * because we want the ability to modify various features after we've
+	 * processed the configuration file ...
+	 */
+	memset(&caps_cmd, 0, sizeof(caps_cmd));
+	caps_cmd.op_to_write =
+		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST |
+		      FW_CMD_READ);
+	caps_cmd.retval_len16 =
+		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
+		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
+		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
+		      FW_LEN16(caps_cmd));
+	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
+			 &caps_cmd);
+	if (ret < 0)
+		goto bye;
+
+	finiver = ntohl(caps_cmd.finiver);
+	finicsum = ntohl(caps_cmd.finicsum);
+	cfcsum = ntohl(caps_cmd.cfcsum);
+	if (finicsum != cfcsum)
+		dev_warn(adapter->pdev_dev, "Configuration File checksum "\
+			 "mismatch: [fini] csum=%#x, computed csum=%#x\n",
+			 finicsum, cfcsum);
+
+	/*
+	 * If we're a pure NIC driver then disable all offloading facilities.
+	 * This will allow the firmware to optimize aspects of the hardware
+	 * configuration which will result in improved performance.
+	 */
+	caps_cmd.ofldcaps = 0;
+	caps_cmd.iscsicaps = 0;
+	caps_cmd.rdmacaps = 0;
+	caps_cmd.fcoecaps = 0;
+
+	/*
+	 * And now tell the firmware to use the configuration we just loaded.
+	 */
+	caps_cmd.op_to_write =
+		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST |
+		      FW_CMD_WRITE);
+	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
+	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
+			 NULL);
+	if (ret < 0)
+		goto bye;
+
+	/*
+	 * Tweak configuration based on system architecture, module
+	 * parameters, etc.
+	 */
+	ret = adap_init0_tweaks(adapter);
+	if (ret < 0)
+		goto bye;
+
+	/*
+	 * And finally tell the firmware to initialize itself using the
+	 * parameters from the Configuration File.
+	 */
+	ret = t4_fw_initialize(adapter, adapter->mbox);
+	if (ret < 0)
+		goto bye;
+
+	/*
+	 * Return successfully and note that we're operating with parameters
+	 * not supplied by the driver, rather than from hard-wired
+	 * initialization constants burried in the driver.
+	 */
+	adapter->flags |= USING_SOFT_PARAMS;
+	dev_info(adapter->pdev_dev, "Successfully configured using Firmware "\
+		 "Configuration File %s, version %#x, computed checksum %#x\n",
+		 (using_flash
+		  ? "in device FLASH"
+		  : "/lib/firmware/" FW_CFNAME),
+		 finiver, cfcsum);
+	return 0;
+
+	/*
+	 * Something bad happened.  Return the error ...  (If the "error"
+	 * is that there's no Configuration File on the adapter we don't
+	 * want to issue a warning since this is fairly common.)
+	 */
+bye:
+	if (ret != -ENOENT)
+		dev_warn(adapter->pdev_dev, "Configuration file error %d\n",
+			 -ret);
+	return ret;
+}
+
+/*
+ * Phase 0 of initialization: contact FW, obtain config, perform basic init.
  */
 static int adap_init0(struct adapter *adap)
 {
@@ -3162,72 +3418,197 @@ static int adap_init0(struct adapter *adap)
 	u32 v, port_vec;
 	enum dev_state state;
 	u32 params[7], val[7];
-	struct fw_caps_config_cmd c;
+	int reset = 1, j;
 
-	ret = t4_check_fw_version(adap);
-	if (ret == -EINVAL || ret > 0) {
-		if (upgrade_fw(adap) >= 0)             /* recache FW version */
-			ret = t4_check_fw_version(adap);
-	}
-	if (ret < 0)
-		return ret;
-
-	/* contact FW, request master */
-	ret = t4_fw_hello(adap, adap->fn, adap->fn, MASTER_MUST, &state);
+	/*
+	 * Contact FW, advertising Master capability (and potentially forcing
+	 * ourselves as the Master PF if our module parameter force_init is
+	 * set).
+	 */
+	ret = t4_fw_hello(adap, adap->mbox, adap->fn,
+			  force_init ? MASTER_MUST : MASTER_MAY,
+			  &state);
 	if (ret < 0) {
 		dev_err(adap->pdev_dev, "could not connect to FW, error %d\n",
 			ret);
 		return ret;
 	}
+	if (ret == adap->mbox)
+		adap->flags |= MASTER_PF;
+	if (force_init && state == DEV_STATE_INIT)
+		state = DEV_STATE_UNINIT;
 
-	/* reset device */
-	ret = t4_fw_reset(adap, adap->fn, PIORSTMODE | PIORST);
+	/*
+	 * If we're the Master PF Driver and the device is uninitialized,
+	 * then let's consider upgrading the firmware ...  (We always want
+	 * to check the firmware version number in order to A. get it for
+	 * later reporting and B. to warn if the currently loaded firmware
+	 * is excessively mismatched relative to the driver.)
+	 */
+	ret = t4_check_fw_version(adap);
+	if ((adap->flags & MASTER_PF) && state != DEV_STATE_INIT) {
+		if (ret == -EINVAL || ret > 0) {
+			if (upgrade_fw(adap) >= 0) {
+				/*
+				 * Note that the chip was reset as part of the
+				 * firmware upgrade so we don't reset it again
+				 * below and grab the new firmware version.
+				 */
+				reset = 0;
+				ret = t4_check_fw_version(adap);
+			}
+		}
+		if (ret < 0)
+			return ret;
+	}
+
+	/*
+	 * Grab VPD parameters.  This should be done after we establish a
+	 * connection to the firmware since some of the VPD parameters
+	 * (notably the Core Clock frequency) are retrieved via requests to
+	 * the firmware.  On the other hand, we need these fairly early on
+	 * so we do this right after getting ahold of the firmware.
+	 */
+	ret = get_vpd_params(adap, &adap->params.vpd);
 	if (ret < 0)
 		goto bye;
 
-	for (v = 0; v < SGE_NTIMERS - 1; v++)
-		adap->sge.timer_val[v] = min(intr_holdoff[v], MAX_SGE_TIMERVAL);
-	adap->sge.timer_val[SGE_NTIMERS - 1] = MAX_SGE_TIMERVAL;
-	adap->sge.counter_val[0] = 1;
-	for (v = 1; v < SGE_NCOUNTERS; v++)
-		adap->sge.counter_val[v] = min(intr_cnt[v - 1],
-					       THRESHOLD_3_MASK);
+	/*
+	 * Find out what ports are available to us.
+	 */
+	v =
+	    FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_PORTVEC);
+	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1, &v, &port_vec);
+	if (ret < 0)
+		goto bye;
+
+	adap->params.nports = hweight32(port_vec);
+	adap->params.portvec = port_vec;
+
+	/*
+	 * If the firmware is initialized already (and we're not forcing a
+	 * master initialization), note that we're living with existing
+	 * adapter parameters.  Otherwise, it's time to try initializing the
+	 * adapter ...
+	 */
+	if (state == DEV_STATE_INIT) {
+		dev_info(adap->pdev_dev, "Coming up as %s: "\
+			 "Adapter already initialized\n",
+			 adap->flags & MASTER_PF ? "MASTER" : "SLAVE");
+		adap->flags |= USING_SOFT_PARAMS;
+	} else {
+		dev_info(adap->pdev_dev, "Coming up as MASTER: "\
+			 "Initializing adapter\n");
+		/*
+		 * Find out whether we're dealing with a version of
+		 * the firmware which has configuration file support.
+		 */
+		params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+			     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1,
+				      params, val);
+
+		/*
+		 * If the firmware doesn't support Configuration
+		 * Files warn user and exit,
+		 */
+		if (ret < 0)
+			dev_warn(adap->pdev_dev, "Firmware doesn't support "\
+				 "configuration file.\n");
+		else {
+			/*
+			 * The firmware provides us with a memory
+			 * buffer where we can load a Configuration
+			 * File from the host if we want to override
+			 * the Configuration File in flash.
+			 */
+
+			ret = adap_init0_config(adap, reset);
+			if (ret == -ENOENT) {
+				dev_info(adap->pdev_dev,
+				    "No Configuration File present "
+				    "on adapter.\n");
+			}
+		}
+		if (ret < 0) {
+			dev_err(adap->pdev_dev,
+				"could not initialize adapter, error %d\n",
+				-ret);
+			goto bye;
+		}
+	}
+
+	/*
+	 * If we're living with non-hard-coded parameters (either from a
+	 * Firmware Configuration File or values programmed by a different PF
+	 * Driver), give the SGE code a chance to pull in anything that it
+	 * needs ...  Note that this must be called after we retrieve our VPD
+	 * parameters in order to know how to convert core ticks to seconds.
+	 */
+	if (adap->flags & USING_SOFT_PARAMS) {
+		ret = t4_sge_init(adap);
+		if (ret < 0)
+			goto bye;
+	}
+
+	/*
+	 * Grab some of our basic fundamental operating parameters.
+	 */
 #define FW_PARAM_DEV(param) \
 	(FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) | \
-	 FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_##param))
-
-	params[0] = FW_PARAM_DEV(CCLK);
-	ret = t4_query_params(adap, adap->fn, adap->fn, 0, 1, params, val);
-	if (ret < 0)
-		goto bye;
-	adap->params.vpd.cclk = val[0];
-
-	ret = adap_init1(adap, &c);
-	if (ret < 0)
-		goto bye;
+	FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_##param))
 
 #define FW_PARAM_PFVF(param) \
-	(FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) | \
-	 FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_##param) | \
-	 FW_PARAMS_PARAM_Y(adap->fn))
+	FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) | \
+	FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_##param)|  \
+	FW_PARAMS_PARAM_Y(0) | \
+	FW_PARAMS_PARAM_Z(0)
 
-	params[0] = FW_PARAM_DEV(PORTVEC);
+	params[0] = FW_PARAM_PFVF(EQ_START);
 	params[1] = FW_PARAM_PFVF(L2T_START);
 	params[2] = FW_PARAM_PFVF(L2T_END);
 	params[3] = FW_PARAM_PFVF(FILTER_START);
 	params[4] = FW_PARAM_PFVF(FILTER_END);
 	params[5] = FW_PARAM_PFVF(IQFLINT_START);
-	params[6] = FW_PARAM_PFVF(EQ_START);
-	ret = t4_query_params(adap, adap->fn, adap->fn, 0, 7, params, val);
+	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 6, params, val);
 	if (ret < 0)
 		goto bye;
-	port_vec = val[0];
+	adap->sge.egr_start = val[0];
+	adap->l2t_start = val[1];
+	adap->l2t_end = val[2];
 	adap->tids.ftid_base = val[3];
 	adap->tids.nftids = val[4] - val[3] + 1;
 	adap->sge.ingr_start = val[5];
-	adap->sge.egr_start = val[6];
 
-	if (c.ofldcaps) {
+	/* query params related to active filter region */
+	params[0] = FW_PARAM_PFVF(ACTIVE_FILTER_START);
+	params[1] = FW_PARAM_PFVF(ACTIVE_FILTER_END);
+	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2, params, val);
+	/* If Active filter size is set we enable establishing
+	 * offload connection through firmware work request
+	 */
+	if ((val[0] != val[1]) && (ret >= 0)) {
+		adap->flags |= FW_OFLD_CONN;
+		adap->tids.aftid_base = val[0];
+		adap->tids.aftid_end = val[1];
+	}
+
+#ifdef CONFIG_CHELSIO_T4_OFFLOAD
+	/*
+	 * Get device capabilities so we can determine what resources we need
+	 * to manage.
+	 */
+	memset(&caps_cmd, 0, sizeof(caps_cmd));
+	caps_cmd.op_to_write = htonl(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+				     F_FW_CMD_REQUEST | F_FW_CMD_READ);
+	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
+	ret = t4_wr_mbox(adap, adap->mbox, &caps_cmd, sizeof(caps_cmd),
+			 &caps_cmd);
+	if (ret < 0)
+		goto bye;
+
+	if (caps_cmd.toecaps) {
 		/* query offload-related parameters */
 		params[0] = FW_PARAM_DEV(NTID);
 		params[1] = FW_PARAM_PFVF(SERVER_START);
@@ -3235,28 +3616,55 @@ static int adap_init0(struct adapter *adap)
 		params[3] = FW_PARAM_PFVF(TDDP_START);
 		params[4] = FW_PARAM_PFVF(TDDP_END);
 		params[5] = FW_PARAM_DEV(FLOWC_BUFFIFO_SZ);
-		ret = t4_query_params(adap, adap->fn, adap->fn, 0, 6, params,
-				      val);
+		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 6,
+				      params, val);
 		if (ret < 0)
 			goto bye;
 		adap->tids.ntids = val[0];
 		adap->tids.natids = min(adap->tids.ntids / 2, MAX_ATIDS);
 		adap->tids.stid_base = val[1];
 		adap->tids.nstids = val[2] - val[1] + 1;
+		/*
+		 * Setup server filter region. Divide the availble filter
+		 * region into two parts. Regular filters get 1/3rd and server
+		 * filters get 2/3rd part. This is only enabled if workarond
+		 * path is enabled.
+		 * 1. For regular filters.
+		 * 2. Server filter: This are special filters which are used
+		 * to redirect SYN packets to offload queue.
+		 */
+		if (adap->flags & FW_OFLD_CONN && !is_bypass(adap)) {
+			adap->tids.sftid_base = adap->tids.ftid_base +
+					DIV_ROUND_UP(adap->tids.nftids, 3);
+			adap->tids.nsftids = adap->tids.nftids -
+					 DIV_ROUND_UP(adap->tids.nftids, 3);
+			adap->tids.nftids = adap->tids.sftid_base -
+						adap->tids.ftid_base;
+		}
 		adap->vres.ddp.start = val[3];
 		adap->vres.ddp.size = val[4] - val[3] + 1;
 		adap->params.ofldq_wr_cred = val[5];
+
+		params[0] = FW_PARAM_PFVF(ETHOFLD_START);
+		params[1] = FW_PARAM_PFVF(ETHOFLD_END);
+		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2,
+				      params, val);
+		if ((val[0] != val[1]) && (ret >= 0)) {
+			adap->tids.uotid_base = val[0];
+			adap->tids.nuotids = val[1] - val[0] + 1;
+		}
+
 		adap->params.offload = 1;
 	}
-	if (c.rdmacaps) {
+	if (caps_cmd.rdmacaps) {
 		params[0] = FW_PARAM_PFVF(STAG_START);
 		params[1] = FW_PARAM_PFVF(STAG_END);
 		params[2] = FW_PARAM_PFVF(RQ_START);
 		params[3] = FW_PARAM_PFVF(RQ_END);
 		params[4] = FW_PARAM_PFVF(PBL_START);
 		params[5] = FW_PARAM_PFVF(PBL_END);
-		ret = t4_query_params(adap, adap->fn, adap->fn, 0, 6, params,
-				      val);
+		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 6,
+				      params, val);
 		if (ret < 0)
 			goto bye;
 		adap->vres.stag.start = val[0];
@@ -3272,8 +3680,7 @@ static int adap_init0(struct adapter *adap)
 		params[3] = FW_PARAM_PFVF(CQ_END);
 		params[4] = FW_PARAM_PFVF(OCQ_START);
 		params[5] = FW_PARAM_PFVF(OCQ_END);
-		ret = t4_query_params(adap, adap->fn, adap->fn, 0, 6, params,
-				      val);
+		ret = t4_query_params(adap, 0, 0, 0, 6, params, val);
 		if (ret < 0)
 			goto bye;
 		adap->vres.qp.start = val[0];
@@ -3283,11 +3690,11 @@ static int adap_init0(struct adapter *adap)
 		adap->vres.ocq.start = val[4];
 		adap->vres.ocq.size = val[5] - val[4] + 1;
 	}
-	if (c.iscsicaps) {
+	if (caps_cmd.iscsicaps) {
 		params[0] = FW_PARAM_PFVF(ISCSI_START);
 		params[1] = FW_PARAM_PFVF(ISCSI_END);
-		ret = t4_query_params(adap, adap->fn, adap->fn, 0, 2, params,
-				      val);
+		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2,
+				      params, val);
 		if (ret < 0)
 			goto bye;
 		adap->vres.iscsi.start = val[0];
@@ -3295,63 +3702,33 @@ static int adap_init0(struct adapter *adap)
 	}
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV
+#endif /* CONFIG_CHELSIO_T4_OFFLOAD */
 
-	adap->params.nports = hweight32(port_vec);
-	adap->params.portvec = port_vec;
-	adap->flags |= FW_OK;
-
-	/* These are finalized by FW initialization, load their values now */
+	/*
+	 * These are finalized by FW initialization, load their values now.
+	 */
 	v = t4_read_reg(adap, TP_TIMER_RESOLUTION);
 	adap->params.tp.tre = TIMERRESOLUTION_GET(v);
+	adap->params.tp.dack_re = DELAYEDACKRESOLUTION_GET(v);
 	t4_read_mtu_tbl(adap, adap->params.mtus, NULL);
 	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
 		     adap->params.b_wnd);
 
-#ifdef CONFIG_PCI_IOV
-	/*
-	 * Provision resource limits for Virtual Functions.  We currently
-	 * grant them all the same static resource limits except for the Port
-	 * Access Rights Mask which we're assigning based on the PF.  All of
-	 * the static provisioning stuff for both the PF and VF really needs
-	 * to be managed in a persistent manner for each device which the
-	 * firmware controls.
-	 */
-	{
-		int pf, vf;
+	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
+	for (j = 0; j < NCHAN; j++)
+		adap->params.tp.tx_modq[j] = j;
 
-		for (pf = 0; pf < ARRAY_SIZE(num_vf); pf++) {
-			if (num_vf[pf] <= 0)
-				continue;
-
-			/* VF numbering starts at 1! */
-			for (vf = 1; vf <= num_vf[pf]; vf++) {
-				ret = t4_cfg_pfvf(adap, adap->fn, pf, vf,
-						  VFRES_NEQ, VFRES_NETHCTRL,
-						  VFRES_NIQFLINT, VFRES_NIQ,
-						  VFRES_TC, VFRES_NVI,
-						  FW_PFVF_CMD_CMASK_MASK,
-						  pfvfres_pmask(adap, pf, vf),
-						  VFRES_NEXACTF,
-						  VFRES_R_CAPS, VFRES_WX_CAPS);
-				if (ret < 0)
-					dev_warn(adap->pdev_dev, "failed to "
-						 "provision pf/vf=%d/%d; "
-						 "err=%d\n", pf, vf, ret);
-			}
-		}
-	}
-#endif
-
-	setup_memwin(adap);
+	adap->flags |= FW_OK;
 	return 0;
 
 	/*
-	 * If a command timed out or failed with EIO FW does not operate within
-	 * its spec or something catastrophic happened to HW/FW, stop issuing
-	 * commands.
+	 * Something bad happened.  If a command timed out or failed with EIO
+	 * FW does not operate within its spec or something catastrophic
+	 * happened to HW/FW, stop issuing commands.
 	 */
-bye:	if (ret != -ETIMEDOUT && ret != -EIO)
-		t4_fw_bye(adap, adap->fn);
+bye:
+	if (ret != -ETIMEDOUT && ret != -EIO)
+		t4_fw_bye(adap, adap->mbox);
 	return ret;
 }
 
@@ -3814,7 +4191,9 @@ static int __devinit init_one(struct pci_dev *pdev,
 	err = t4_prep_adapter(adapter);
 	if (err)
 		goto out_unmap_bar;
+	setup_memwin(adapter);
 	err = adap_init0(adapter);
+	setup_memwin_rdma(adapter);
 	if (err)
 		goto out_unmap_bar;
 
@@ -3956,7 +4335,10 @@ static void __devexit remove_one(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
+#ifdef CONFIG_PCI_IOV
 	pci_disable_sriov(pdev);
+
+#endif
 
 	if (adapter) {
 		int i;

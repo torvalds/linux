@@ -492,8 +492,9 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
  *
  *	Reads card parameters stored in VPD EEPROM.
  */
-static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
+int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
+	u32 cclk_param, cclk_val;
 	int i, ret;
 	int ec, sn;
 	u8 vpd[VPD_LEN], csum;
@@ -555,6 +556,19 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
 	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
 	strim(p->sn);
+
+	/*
+	 * Ask firmware for the Core Clock since it knows how to translate the
+	 * Reference Clock ('V2') VPD field into a Core Clock value ...
+	 */
+	cclk_param = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+		      FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CCLK));
+	ret = t4_query_params(adapter, adapter->mbox, 0, 0,
+			      1, &cclk_param, &cclk_val);
+	if (ret)
+		return ret;
+	p->cclk = cclk_val;
+
 	return 0;
 }
 
@@ -851,6 +865,77 @@ static int t4_flash_erase_sectors(struct adapter *adapter, int start, int end)
 		start++;
 	}
 	t4_write_reg(adapter, SF_OP, 0);    /* unlock SF */
+	return ret;
+}
+
+/**
+ *	t4_flash_cfg_addr - return the address of the flash configuration file
+ *	@adapter: the adapter
+ *
+ *	Return the address within the flash where the Firmware Configuration
+ *	File is stored.
+ */
+unsigned int t4_flash_cfg_addr(struct adapter *adapter)
+{
+	if (adapter->params.sf_size == 0x100000)
+		return FLASH_FPGA_CFG_START;
+	else
+		return FLASH_CFG_START;
+}
+
+/**
+ *	t4_load_cfg - download config file
+ *	@adap: the adapter
+ *	@cfg_data: the cfg text file to write
+ *	@size: text file size
+ *
+ *	Write the supplied config text file to the card's serial flash.
+ */
+int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
+{
+	int ret, i, n;
+	unsigned int addr;
+	unsigned int flash_cfg_start_sec;
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+
+	addr = t4_flash_cfg_addr(adap);
+	flash_cfg_start_sec = addr / SF_SEC_SIZE;
+
+	if (size > FLASH_CFG_MAX_SIZE) {
+		dev_err(adap->pdev_dev, "cfg file too large, max is %u bytes\n",
+			FLASH_CFG_MAX_SIZE);
+		return -EFBIG;
+	}
+
+	i = DIV_ROUND_UP(FLASH_CFG_MAX_SIZE,	/* # of sectors spanned */
+			 sf_sec_size);
+	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
+				     flash_cfg_start_sec + i - 1);
+	/*
+	 * If size == 0 then we're simply erasing the FLASH sectors associated
+	 * with the on-adapter Firmware Configuration File.
+	 */
+	if (ret || size == 0)
+		goto out;
+
+	/* this will write to the flash up to SF_PAGE_SIZE at a time */
+	for (i = 0; i < size; i += SF_PAGE_SIZE) {
+		if ((size - i) <  SF_PAGE_SIZE)
+			n = size - i;
+		else
+			n = SF_PAGE_SIZE;
+		ret = t4_write_flash(adap, addr, n, cfg_data);
+		if (ret)
+			goto out;
+
+		addr += SF_PAGE_SIZE;
+		cfg_data += SF_PAGE_SIZE;
+	}
+
+out:
+	if (ret)
+		dev_err(adap->pdev_dev, "config file %s failed %d\n",
+			(size == 0 ? "clear" : "download"), ret);
 	return ret;
 }
 
@@ -1854,6 +1939,23 @@ void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log)
 }
 
 /**
+ *	t4_tp_wr_bits_indirect - set/clear bits in an indirect TP register
+ *	@adap: the adapter
+ *	@addr: the indirect TP register address
+ *	@mask: specifies the field within the register to modify
+ *	@val: new value for the field
+ *
+ *	Sets a field of an indirect TP register to the given value.
+ */
+void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
+			    unsigned int mask, unsigned int val)
+{
+	t4_write_reg(adap, TP_PIO_ADDR, addr);
+	val |= t4_read_reg(adap, TP_PIO_DATA) & ~mask;
+	t4_write_reg(adap, TP_PIO_DATA, val);
+}
+
+/**
  *	init_cong_ctrl - initialize congestion control parameters
  *	@a: the alpha values for congestion control
  *	@b: the beta values for congestion control
@@ -2137,9 +2239,9 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 	struct fw_ldst_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_addrspace = htonl(V_FW_CMD_OP(FW_LDST_CMD) | F_FW_CMD_REQUEST |
-			    F_FW_CMD_WRITE |
-			    V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FIRMWARE));
+	c.op_to_addrspace = htonl(FW_CMD_OP(FW_LDST_CMD) | FW_CMD_REQUEST |
+			    FW_CMD_WRITE |
+			    FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FIRMWARE));
 	c.cycles_to_len16 = htonl(FW_LEN16(c));
 	c.u.addrval.addr = htonl(addr);
 	c.u.addrval.val = htonl(val);
@@ -2239,39 +2341,129 @@ int t4_mdio_wr(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 }
 
 /**
- *	t4_fw_hello - establish communication with FW
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@evt_mbox: mailbox to receive async FW events
- *	@master: specifies the caller's willingness to be the device master
- *	@state: returns the current device state
+ *      t4_fw_hello - establish communication with FW
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @evt_mbox: mailbox to receive async FW events
+ *      @master: specifies the caller's willingness to be the device master
+ *	@state: returns the current device state (if non-NULL)
  *
- *	Issues a command to establish communication with FW.
+ *	Issues a command to establish communication with FW.  Returns either
+ *	an error (negative integer) or the mailbox of the Master PF.
  */
 int t4_fw_hello(struct adapter *adap, unsigned int mbox, unsigned int evt_mbox,
 		enum dev_master master, enum dev_state *state)
 {
 	int ret;
 	struct fw_hello_cmd c;
+	u32 v;
+	unsigned int master_mbox;
+	int retries = FW_CMD_HELLO_RETRIES;
 
+retry:
+	memset(&c, 0, sizeof(c));
 	INIT_CMD(c, HELLO, WRITE);
 	c.err_to_mbasyncnot = htonl(
 		FW_HELLO_CMD_MASTERDIS(master == MASTER_CANT) |
 		FW_HELLO_CMD_MASTERFORCE(master == MASTER_MUST) |
-		FW_HELLO_CMD_MBMASTER(master == MASTER_MUST ? mbox : 0xff) |
-		FW_HELLO_CMD_MBASYNCNOT(evt_mbox));
+		FW_HELLO_CMD_MBMASTER(master == MASTER_MUST ? mbox :
+				      FW_HELLO_CMD_MBMASTER_MASK) |
+		FW_HELLO_CMD_MBASYNCNOT(evt_mbox) |
+		FW_HELLO_CMD_STAGE(fw_hello_cmd_stage_os) |
+		FW_HELLO_CMD_CLEARINIT);
 
+	/*
+	 * Issue the HELLO command to the firmware.  If it's not successful
+	 * but indicates that we got a "busy" or "timeout" condition, retry
+	 * the HELLO until we exhaust our retry limit.
+	 */
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
-	if (ret == 0 && state) {
-		u32 v = ntohl(c.err_to_mbasyncnot);
-		if (v & FW_HELLO_CMD_INIT)
-			*state = DEV_STATE_INIT;
-		else if (v & FW_HELLO_CMD_ERR)
+	if (ret < 0) {
+		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
+			goto retry;
+		return ret;
+	}
+
+	v = ntohl(c.err_to_mbasyncnot);
+	master_mbox = FW_HELLO_CMD_MBMASTER_GET(v);
+	if (state) {
+		if (v & FW_HELLO_CMD_ERR)
 			*state = DEV_STATE_ERR;
+		else if (v & FW_HELLO_CMD_INIT)
+			*state = DEV_STATE_INIT;
 		else
 			*state = DEV_STATE_UNINIT;
 	}
-	return ret;
+
+	/*
+	 * If we're not the Master PF then we need to wait around for the
+	 * Master PF Driver to finish setting up the adapter.
+	 *
+	 * Note that we also do this wait if we're a non-Master-capable PF and
+	 * there is no current Master PF; a Master PF may show up momentarily
+	 * and we wouldn't want to fail pointlessly.  (This can happen when an
+	 * OS loads lots of different drivers rapidly at the same time).  In
+	 * this case, the Master PF returned by the firmware will be
+	 * FW_PCIE_FW_MASTER_MASK so the test below will work ...
+	 */
+	if ((v & (FW_HELLO_CMD_ERR|FW_HELLO_CMD_INIT)) == 0 &&
+	    master_mbox != mbox) {
+		int waiting = FW_CMD_HELLO_TIMEOUT;
+
+		/*
+		 * Wait for the firmware to either indicate an error or
+		 * initialized state.  If we see either of these we bail out
+		 * and report the issue to the caller.  If we exhaust the
+		 * "hello timeout" and we haven't exhausted our retries, try
+		 * again.  Otherwise bail with a timeout error.
+		 */
+		for (;;) {
+			u32 pcie_fw;
+
+			msleep(50);
+			waiting -= 50;
+
+			/*
+			 * If neither Error nor Initialialized are indicated
+			 * by the firmware keep waiting till we exaust our
+			 * timeout ... and then retry if we haven't exhausted
+			 * our retries ...
+			 */
+			pcie_fw = t4_read_reg(adap, MA_PCIE_FW);
+			if (!(pcie_fw & (FW_PCIE_FW_ERR|FW_PCIE_FW_INIT))) {
+				if (waiting <= 0) {
+					if (retries-- > 0)
+						goto retry;
+
+					return -ETIMEDOUT;
+				}
+				continue;
+			}
+
+			/*
+			 * We either have an Error or Initialized condition
+			 * report errors preferentially.
+			 */
+			if (state) {
+				if (pcie_fw & FW_PCIE_FW_ERR)
+					*state = DEV_STATE_ERR;
+				else if (pcie_fw & FW_PCIE_FW_INIT)
+					*state = DEV_STATE_INIT;
+			}
+
+			/*
+			 * If we arrived before a Master PF was selected and
+			 * there's not a valid Master PF, grab its identity
+			 * for our caller.
+			 */
+			if (master_mbox == FW_PCIE_FW_MASTER_MASK &&
+			    (pcie_fw & FW_PCIE_FW_MASTER_VLD))
+				master_mbox = FW_PCIE_FW_MASTER_GET(pcie_fw);
+			break;
+		}
+	}
+
+	return master_mbox;
 }
 
 /**
@@ -2319,6 +2511,163 @@ int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset)
 
 	INIT_CMD(c, RESET, WRITE);
 	c.val = htonl(reset);
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
+ *	t4_fw_config_file - setup an adapter via a Configuration File
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@mtype: the memory type where the Configuration File is located
+ *	@maddr: the memory address where the Configuration File is located
+ *	@finiver: return value for CF [fini] version
+ *	@finicsum: return value for CF [fini] checksum
+ *	@cfcsum: return value for CF computed checksum
+ *
+ *	Issue a command to get the firmware to process the Configuration
+ *	File located at the specified mtype/maddress.  If the Configuration
+ *	File is processed successfully and return value pointers are
+ *	provided, the Configuration File "[fini] section version and
+ *	checksum values will be returned along with the computed checksum.
+ *	It's up to the caller to decide how it wants to respond to the
+ *	checksums not matching but it recommended that a prominant warning
+ *	be emitted in order to help people rapidly identify changed or
+ *	corrupted Configuration Files.
+ *
+ *	Also note that it's possible to modify things like "niccaps",
+ *	"toecaps",etc. between processing the Configuration File and telling
+ *	the firmware to use the new configuration.  Callers which want to
+ *	do this will need to "hand-roll" their own CAPS_CONFIGS commands for
+ *	Configuration Files if they want to do this.
+ */
+int t4_fw_config_file(struct adapter *adap, unsigned int mbox,
+		      unsigned int mtype, unsigned int maddr,
+		      u32 *finiver, u32 *finicsum, u32 *cfcsum)
+{
+	struct fw_caps_config_cmd caps_cmd;
+	int ret;
+
+	/*
+	 * Tell the firmware to process the indicated Configuration File.
+	 * If there are no errors and the caller has provided return value
+	 * pointers for the [fini] section version, checksum and computed
+	 * checksum, pass those back to the caller.
+	 */
+	memset(&caps_cmd, 0, sizeof(caps_cmd));
+	caps_cmd.op_to_write =
+		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST |
+		      FW_CMD_READ);
+	caps_cmd.retval_len16 =
+		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
+		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
+		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
+		      FW_LEN16(caps_cmd));
+	ret = t4_wr_mbox(adap, mbox, &caps_cmd, sizeof(caps_cmd), &caps_cmd);
+	if (ret < 0)
+		return ret;
+
+	if (finiver)
+		*finiver = ntohl(caps_cmd.finiver);
+	if (finicsum)
+		*finicsum = ntohl(caps_cmd.finicsum);
+	if (cfcsum)
+		*cfcsum = ntohl(caps_cmd.cfcsum);
+
+	/*
+	 * And now tell the firmware to use the configuration we just loaded.
+	 */
+	caps_cmd.op_to_write =
+		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST |
+		      FW_CMD_WRITE);
+	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
+	return t4_wr_mbox(adap, mbox, &caps_cmd, sizeof(caps_cmd), NULL);
+}
+
+/**
+ *	t4_fixup_host_params - fix up host-dependent parameters
+ *	@adap: the adapter
+ *	@page_size: the host's Base Page Size
+ *	@cache_line_size: the host's Cache Line Size
+ *
+ *	Various registers in T4 contain values which are dependent on the
+ *	host's Base Page and Cache Line Sizes.  This function will fix all of
+ *	those registers with the appropriate values as passed in ...
+ */
+int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
+			 unsigned int cache_line_size)
+{
+	unsigned int page_shift = fls(page_size) - 1;
+	unsigned int sge_hps = page_shift - 10;
+	unsigned int stat_len = cache_line_size > 64 ? 128 : 64;
+	unsigned int fl_align = cache_line_size < 32 ? 32 : cache_line_size;
+	unsigned int fl_align_log = fls(fl_align) - 1;
+
+	t4_write_reg(adap, SGE_HOST_PAGE_SIZE,
+		     HOSTPAGESIZEPF0(sge_hps) |
+		     HOSTPAGESIZEPF1(sge_hps) |
+		     HOSTPAGESIZEPF2(sge_hps) |
+		     HOSTPAGESIZEPF3(sge_hps) |
+		     HOSTPAGESIZEPF4(sge_hps) |
+		     HOSTPAGESIZEPF5(sge_hps) |
+		     HOSTPAGESIZEPF6(sge_hps) |
+		     HOSTPAGESIZEPF7(sge_hps));
+
+	t4_set_reg_field(adap, SGE_CONTROL,
+			 INGPADBOUNDARY(INGPADBOUNDARY_MASK) |
+			 EGRSTATUSPAGESIZE_MASK,
+			 INGPADBOUNDARY(fl_align_log - 5) |
+			 EGRSTATUSPAGESIZE(stat_len != 64));
+
+	/*
+	 * Adjust various SGE Free List Host Buffer Sizes.
+	 *
+	 * This is something of a crock since we're using fixed indices into
+	 * the array which are also known by the sge.c code and the T4
+	 * Firmware Configuration File.  We need to come up with a much better
+	 * approach to managing this array.  For now, the first four entries
+	 * are:
+	 *
+	 *   0: Host Page Size
+	 *   1: 64KB
+	 *   2: Buffer size corresponding to 1500 byte MTU (unpacked mode)
+	 *   3: Buffer size corresponding to 9000 byte MTU (unpacked mode)
+	 *
+	 * For the single-MTU buffers in unpacked mode we need to include
+	 * space for the SGE Control Packet Shift, 14 byte Ethernet header,
+	 * possible 4 byte VLAN tag, all rounded up to the next Ingress Packet
+	 * Padding boundry.  All of these are accommodated in the Factory
+	 * Default Firmware Configuration File but we need to adjust it for
+	 * this host's cache line size.
+	 */
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0, page_size);
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE2,
+		     (t4_read_reg(adap, SGE_FL_BUFFER_SIZE2) + fl_align-1)
+		     & ~(fl_align-1));
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE3,
+		     (t4_read_reg(adap, SGE_FL_BUFFER_SIZE3) + fl_align-1)
+		     & ~(fl_align-1));
+
+	t4_write_reg(adap, ULP_RX_TDDP_PSZ, HPZ0(page_shift - 12));
+
+	return 0;
+}
+
+/**
+ *	t4_fw_initialize - ask FW to initialize the device
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *
+ *	Issues a command to FW to partially initialize the device.  This
+ *	performs initialization that generally doesn't depend on user input.
+ */
+int t4_fw_initialize(struct adapter *adap, unsigned int mbox)
+{
+	struct fw_initialize_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	INIT_CMD(c, INITIALIZE, WRITE);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -2974,10 +3323,6 @@ int __devinit t4_prep_adapter(struct adapter *adapter)
 		return ret;
 	}
 
-	ret = get_vpd_params(adapter, &adapter->params.vpd);
-	if (ret < 0)
-		return ret;
-
 	init_cong_ctrl(adapter->params.a_wnd, adapter->params.b_wnd);
 
 	/*
@@ -2985,6 +3330,7 @@ int __devinit t4_prep_adapter(struct adapter *adapter)
 	 */
 	adapter->params.nports = 1;
 	adapter->params.portvec = 1;
+	adapter->params.vpd.cclk = 50000;
 	return 0;
 }
 

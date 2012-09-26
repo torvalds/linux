@@ -155,6 +155,17 @@ struct fw_eth_tx_pkt_vm_wr {
 
 #define FW_CMD_MAX_TIMEOUT 3000
 
+/*
+ * If a host driver does a HELLO and discovers that there's already a MASTER
+ * selected, we may have to wait for that MASTER to finish issuing RESET,
+ * configuration and INITIALIZE commands.  Also, there's a possibility that
+ * our own HELLO may get lost if it happens right as the MASTER is issuign a
+ * RESET command, so we need to be willing to make a few retries of our HELLO.
+ */
+#define FW_CMD_HELLO_TIMEOUT	(3 * FW_CMD_MAX_TIMEOUT)
+#define FW_CMD_HELLO_RETRIES	3
+
+
 enum fw_cmd_opcodes {
 	FW_LDST_CMD                    = 0x01,
 	FW_RESET_CMD                   = 0x03,
@@ -307,6 +318,10 @@ struct fw_reset_cmd {
 	__be32 r3;
 };
 
+enum fw_hellow_cmd {
+	fw_hello_cmd_stage_os		= 0x0
+};
+
 struct fw_hello_cmd {
 	__be32 op_to_write;
 	__be32 retval_len16;
@@ -315,8 +330,14 @@ struct fw_hello_cmd {
 #define FW_HELLO_CMD_INIT	    (1U << 30)
 #define FW_HELLO_CMD_MASTERDIS(x)   ((x) << 29)
 #define FW_HELLO_CMD_MASTERFORCE(x) ((x) << 28)
-#define FW_HELLO_CMD_MBMASTER(x)    ((x) << 24)
+#define FW_HELLO_CMD_MBMASTER_MASK   0xfU
+#define FW_HELLO_CMD_MBMASTER_SHIFT  24
+#define FW_HELLO_CMD_MBMASTER(x)     ((x) << FW_HELLO_CMD_MBMASTER_SHIFT)
+#define FW_HELLO_CMD_MBMASTER_GET(x) \
+	(((x) >> FW_HELLO_CMD_MBMASTER_SHIFT) & FW_HELLO_CMD_MBMASTER_MASK)
 #define FW_HELLO_CMD_MBASYNCNOT(x)  ((x) << 20)
+#define FW_HELLO_CMD_STAGE(x)       ((x) << 17)
+#define FW_HELLO_CMD_CLEARINIT      (1U << 16)
 	__be32 fwrev;
 };
 
@@ -1653,19 +1674,5 @@ struct fw_hdr {
 #define FW_HDR_FW_VER_MINOR_GET(x) (((x) >> 16) & 0xff)
 #define FW_HDR_FW_VER_MICRO_GET(x) (((x) >> 8) & 0xff)
 #define FW_HDR_FW_VER_BUILD_GET(x) (((x) >> 0) & 0xff)
-
-#define S_FW_CMD_OP 24
-#define V_FW_CMD_OP(x) ((x) << S_FW_CMD_OP)
-
-#define S_FW_CMD_REQUEST 23
-#define V_FW_CMD_REQUEST(x) ((x) << S_FW_CMD_REQUEST)
-#define F_FW_CMD_REQUEST V_FW_CMD_REQUEST(1U)
-
-#define S_FW_CMD_WRITE 21
-#define V_FW_CMD_WRITE(x) ((x) << S_FW_CMD_WRITE)
-#define F_FW_CMD_WRITE V_FW_CMD_WRITE(1U)
-
-#define S_FW_LDST_CMD_ADDRSPACE 0
-#define V_FW_LDST_CMD_ADDRSPACE(x) ((x) << S_FW_LDST_CMD_ADDRSPACE)
 
 #endif /* _T4FW_INTERFACE_H_ */
