@@ -13,6 +13,8 @@
 #ifndef __ASM_MIPS_SYSCALL_H
 #define __ASM_MIPS_SYSCALL_H
 
+#include <linux/audit.h>
+#include <linux/elf-em.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
@@ -79,5 +81,17 @@ static inline void syscall_get_arguments(struct task_struct *task,
 extern const unsigned long sys_call_table[];
 extern const unsigned long sys32_call_table[];
 extern const unsigned long sysn32_call_table[];
+
+static inline int __syscall_get_arch(void)
+{
+	int arch = EM_MIPS;
+#ifdef CONFIG_64BIT
+	arch |=  __AUDIT_ARCH_64BIT;
+#endif
+#if defined(__LITTLE_ENDIAN)
+	arch |=  __AUDIT_ARCH_LE;
+#endif
+	return arch;
+}
 
 #endif	/* __ASM_MIPS_SYSCALL_H */

@@ -38,6 +38,7 @@
 #include <asm/mipsmtregs.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/syscall.h>
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
 #include <asm/reg.h>
@@ -647,18 +648,6 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
-static inline int audit_arch(void)
-{
-	int arch = EM_MIPS;
-#ifdef CONFIG_64BIT
-	arch |=	 __AUDIT_ARCH_64BIT;
-#endif
-#if defined(__LITTLE_ENDIAN)
-	arch |=	 __AUDIT_ARCH_LE;
-#endif
-	return arch;
-}
-
 /*
  * Notification of system call entry/exit
  * - triggered by current->work.syscall_trace
@@ -673,7 +662,8 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		ptrace_report_syscall(regs);
 
-	audit_syscall_entry(audit_arch(), regs->regs[2],
+	audit_syscall_entry(__syscall_get_arch(),
+			    regs->regs[2],
 			    regs->regs[4], regs->regs[5],
 			    regs->regs[6], regs->regs[7]);
 }
