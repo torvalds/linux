@@ -150,6 +150,7 @@ static void __init irq_remapping_modify_x86_ops(void)
 	x86_io_apic_ops.setup_entry	= setup_ioapic_remapped_entry;
 	x86_msi.setup_msi_irqs		= irq_remapping_setup_msi_irqs;
 	x86_msi.setup_hpet_msi		= setup_hpet_msi_remapped;
+	x86_msi.compose_msi_msg		= compose_remapped_msi_msg;
 }
 
 static __init int setup_nointremap(char *str)
@@ -295,10 +296,12 @@ void compose_remapped_msi_msg(struct pci_dev *pdev,
 			      unsigned int irq, unsigned int dest,
 			      struct msi_msg *msg, u8 hpet_id)
 {
-	if (!remap_ops || !remap_ops->compose_msi_msg)
-		return;
+	struct irq_cfg *cfg = irq_get_chip_data(irq);
 
-	remap_ops->compose_msi_msg(pdev, irq, dest, msg, hpet_id);
+	if (!irq_remapped(cfg))
+		native_compose_msi_msg(pdev, irq, dest, msg, hpet_id);
+	else if (remap_ops && remap_ops->compose_msi_msg)
+		remap_ops->compose_msi_msg(pdev, irq, dest, msg, hpet_id);
 }
 
 static int msi_alloc_remapped_irq(struct pci_dev *pdev, int irq, int nvec)
