@@ -2036,12 +2036,11 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 
 		if (num_vfs) {
-			mlx4_warn(dev, "Enabling sriov with:%d vfs\n", num_vfs);
+			mlx4_warn(dev, "Enabling SR-IOV with %d VFs\n", num_vfs);
 			err = pci_enable_sriov(pdev, num_vfs);
 			if (err) {
-				mlx4_err(dev, "Failed to enable sriov,"
-					 "continuing without sriov enabled"
-					 " (err = %d).\n", err);
+				mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d).\n",
+					 err);
 				err = 0;
 			} else {
 				mlx4_warn(dev, "Running in master mode\n");
@@ -2284,7 +2283,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		if (dev->flags & MLX4_FLAG_MSI_X)
 			pci_disable_msix(pdev);
 		if (dev->flags & MLX4_FLAG_SRIOV) {
-			mlx4_warn(dev, "Disabling sriov\n");
+			mlx4_warn(dev, "Disabling SR-IOV\n");
 			pci_disable_sriov(pdev);
 		}
 
