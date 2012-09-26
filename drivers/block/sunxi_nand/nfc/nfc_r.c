@@ -23,6 +23,7 @@
 #include "nfc_i.h"
 //#include "dma_for_nand.h"
 #include <mach/dma.h>
+#include <linux/dma-mapping.h>
 
 __u32	nand_board_version;
 __u32 	pagesize;
@@ -166,12 +167,9 @@ void _dma_config_start(__u8 rw, __u32 buff_addr, __u32 len)
 	bcnt = len;
 	dma_offset = NFC_DDMA_ID*0x20;
 
-	eLIBs_CleanFlushDCacheRegion((void *)buff_addr, len);
-
 	//reset DMA
 	nfc_write_w(NFC_DDMA_CFG + dma_offset, 0x0);
 	nfc_write_w(NFC_DMA_INT_STA, (0x3<<(2*NFC_DDMA_ID + 16)));
-
 
 	//setup DMA engine
 	if(rw)
@@ -430,6 +428,7 @@ __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 d
 	__u32 cfg;
 	NFC_CMD_LIST *cur_cmd,*read_addr_cmd;
 	__u32 read_data_cmd,random_read_cmd0,random_read_cmd1;
+	dma_addr_t this_dma_handle;
 
 	ret = 0;
 	read_addr_cmd = rcmd;
@@ -453,12 +452,17 @@ __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 d
 //		attr = 0x2800293;
 	//printk("fill with: %x\n", 0xaaaaaaa);
 	//*((int*)mainbuf) = 0xaaaaaaa;
+	this_dma_handle = dma_map_single(NULL, mainbuf, pagesize,
+					 DMA_FROM_DEVICE);
+
 	_dma_config_start(0, (__u32)mainbuf, pagesize);
 
 	/*wait cmd fifo free*/
 	ret = _wait_cmdfifo_free();
-	if (ret)
+	if (ret) {
+		dma_unmap_single(NULL, this_dma_handle, pagesize, DMA_FROM_DEVICE);
 		return ret;
+	}
 
 	/*set NFC_REG_CNT*/
 	NFC_WRITE_REG(NFC_REG_CNT,1024);
@@ -491,12 +495,13 @@ __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 d
 	/*enable ecc*/
 	_enable_ecc(1);
 	NFC_WRITE_REG(NFC_REG_CMD,cfg);
-
     NAND_WaitDmaFinish();
 
 	/*wait cmd fifo free and cmd finish*/
 	ret = _wait_cmdfifo_free();
 	ret |= _wait_cmd_finish();
+	dma_unmap_single(NULL, this_dma_handle, pagesize, DMA_FROM_DEVICE);
+
 	if (ret){
 		_disable_ecc();
 		return ret;
