@@ -23,6 +23,7 @@
  */
 
 #include <core/gpuobj.h>
+#include <core/option.h>
 
 #include <subdev/timer.h>
 #include <subdev/vm.h>
@@ -70,7 +71,7 @@ nv41_vm_flush(struct nouveau_vm *vm)
 
 	mutex_lock(&nv_subdev(priv)->mutex);
 	nv_wr32(priv, 0x100810, 0x00000022);
-	if (!nv_wait(priv, 0x100810, 0x00000100, 0x00000100)) {
+	if (!nv_wait(priv, 0x100810, 0x00000020, 0x00000020)) {
 		nv_warn(priv, "flush timeout, 0x%08x\n",
 			nv_rd32(priv, 0x100810));
 	}
@@ -87,8 +88,14 @@ nv41_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
+	struct nouveau_device *device = nv_device(parent);
 	struct nv04_vmmgr_priv *priv;
 	int ret;
+
+	if (!nouveau_boolopt(device->cfgopt, "NvPCIE", true)) {
+		return nouveau_object_ctor(parent, engine, &nv04_vmmgr_oclass,
+					   data, size, pobject);
+	}
 
 	ret = nouveau_vmmgr_create(parent, engine, oclass, "PCIEGART",
 				   "pciegart", &priv);
