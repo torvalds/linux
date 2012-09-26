@@ -338,18 +338,16 @@ struct napi_struct {
 
 	unsigned long		state;
 	int			weight;
+	unsigned int		gro_count;
 	int			(*poll)(struct napi_struct *, int);
 #ifdef CONFIG_NETPOLL
 	spinlock_t		poll_lock;
 	int			poll_owner;
 #endif
-
-	unsigned int		gro_count;
-
 	struct net_device	*dev;
-	struct list_head	dev_list;
 	struct sk_buff		*gro_list;
 	struct sk_buff		*skb;
+	struct list_head	dev_list;
 };
 
 enum {
