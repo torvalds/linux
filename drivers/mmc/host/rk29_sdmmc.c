@@ -43,6 +43,7 @@
 #include <mach/io.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include <asm/unaligned.h>
 
 #include <asm/dma.h>
 #include <mach/dma-pl330.h>
@@ -98,7 +99,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.4.04 The last modify date is 2012-09-05"
+#define RK29_SDMMC_VERSION "Ver.4.06 The last modify date is 2012-09-26"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -186,6 +187,9 @@ struct rk29_sdmmc {
 	struct mmc_request	*new_mrq;
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
+	
+	struct scatterlist	*sg;
+
 
 	dma_addr_t		dma_addr;;
 	unsigned int	use_dma:1;
@@ -1067,9 +1071,158 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 	host->intInfo.transLen = host->intInfo.desLen;	
 }
 
+static int rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
+{
+	struct scatterlist	*sg;
+	u32			*buf;
+	unsigned int		offset = 0;
+	struct mmc_data		*data;
+	u32			value;
+	unsigned int		nbytes = 0;
+    int remaining;
+
+    value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
+	if ( value& SDMMC_STAUTS_FIFO_EMPTY)
+	    goto done;
+
+    if(NULL == host->data)
+       goto done; 
+
+    if((NULL == host)&&(NULL == host->data))
+        goto done;
+
+    data = host->data;
+	sg = host->sg;
+	buf = (u32 *)sg_virt(sg);
+	
+    while ( (host->intInfo.transLen < host->intInfo.desLen)  && (!(value & SDMMC_STAUTS_FIFO_EMPTY)) )
+    {
+        if( ((offset + (host->intInfo.desLen - host->intInfo.transLen))<<2) <= sg->length )
+        {
+            buf[offset] = rk29_sdmmc_read(host->regs, SDMMC_DATA);
+            offset ++;
+	        nbytes += 4;
+	        host->intInfo.transLen++;
+
+	        if ((offset<<2) == sg->length) 
+	        {
+				flush_dcache_page(sg_page(sg));
+				host->sg = sg = sg_next(sg);
+				if (!sg)
+					goto done;
+
+				offset = 0;
+				buf = (u32 *)sg_virt(sg);
+			}
+	        
+        }
+        else
+        {
+            remaining = (sg->length>>2) - offset;
+            while( remaining>0)
+            {
+                buf[offset] = rk29_sdmmc_read(host->regs, SDMMC_DATA);
+                offset ++;
+	            nbytes += 4;
+	            remaining --;
+	            host->intInfo.transLen++;
+            }
+
+            flush_dcache_page(sg_page(sg));
+
+	        host->sg = sg = sg_next(sg);
+	        if (!sg)
+		        goto done;
+
+            offset = 0;
+	        buf = (u32 *)sg_virt(sg);                   
+        }
+
+        data->bytes_xfered += nbytes;
+
+        value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
+    }
+
+done:
+    return 0;
+}
+
+
+static int rk29_sdmmc_write_data_pio(struct rk29_sdmmc *host)
+{
+	struct scatterlist	*sg;
+	u32			*buf;
+	unsigned int		offset = 0;
+	struct mmc_data		*data;
+	u32			value;
+	unsigned int		nbytes = 0;
+    int remaining;
+
+    value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
+	if ( value& SDMMC_STAUTS_FIFO_EMPTY)
+	    goto done;
+
+    if(NULL == host->data)
+       goto done; 
+
+    if((NULL == host)&&(NULL == host->data))
+        goto done;
+
+    data = host->data;
+	sg = host->sg;
+	buf = (u32 *)sg_virt(sg);
+	
+    while ( (host->intInfo.transLen < host->intInfo.desLen)  && (!(value & SDMMC_STAUTS_FIFO_EMPTY)) )
+    {
+        if( ((offset + (host->intInfo.desLen - host->intInfo.transLen))<<2) <= sg->length )
+        {
+            rk29_sdmmc_write(host->regs, SDMMC_DATA, buf[offset]);
+            offset ++;
+	        nbytes += 4;
+	        host->intInfo.transLen++;
+
+	        if ((offset<<2) == sg->length) 
+	        {
+				host->sg = sg = sg_next(sg);
+				if (!sg)
+					goto done;
+
+				offset = 0;
+				buf = (u32 *)sg_virt(sg);
+			}
+	        
+        }
+        else
+        {
+            remaining = (sg->length>>2) - offset;
+            while( remaining>0)
+            {
+                rk29_sdmmc_write(host->regs, SDMMC_DATA, buf[offset]);
+                offset ++;
+	            nbytes += 4;
+	            remaining --;
+	            host->intInfo.transLen++;
+            }
+
+	        host->sg = sg = sg_next(sg);
+	        if (!sg)
+		        goto done;
+
+            offset = 0;
+	        buf = (u32 *)sg_virt(sg);                   
+        }
+
+        data->bytes_xfered += nbytes;
+
+        value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
+    }
+    
+done:
+    return 0;
+}
+
 static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *data)
 {
-	struct scatterlist		*sg;
 	unsigned int			i,direction, sgDirection;
 	int ret, dma_len=0;
 	
@@ -1094,16 +1247,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	        
 		return -EINVAL;
     }
-    
-	for_each_sg(data->sg, sg, data->sg_len, i) 
-	{
-		if (sg->offset & 3 || sg->length & 3)
-		{
-		    printk(KERN_WARNING "%s..%d...call for_each_sg() fail !![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
-		    host->errorstep = 0x7;
-			return -EINVAL;
-		}
-	}
+
 	if (data->flags & MMC_DATA_READ)
 	{
 		direction = RK29_DMASRC_HW;  
@@ -1179,13 +1323,25 @@ static int rk29_sdmmc_prepare_write_data(struct rk29_sdmmc *host, struct mmc_dat
  
     //SDMMC controller request the data is multiple of 4.
     count = (dataLen >> 2) + ((dataLen & 0x3) ? 1:0);
-
-    if (count <= FIFO_DEPTH)
+#if 0
+    if(count <= FIFO_DEPTH)    
+#else
+    #if defined(CONFIG_ARCH_RK29)
+    if( (count <= 0x20) && (RK29_CTRL_SDMMC_ID != host->pdev->id))
+    #else
+    if( (count <= 0x80) && (RK29_CTRL_SDMMC_ID != host->pdev->id))
+    #endif
+#endif
     {
+           
+        #if 1
         for (i=0; i<count; i++)
         {
             rk29_sdmmc_write(host->regs, SDMMC_DATA, pBuf[i]);
         }
+        #else
+        rk29_sdmmc_write_data_pio(host);
+        #endif
     }
     else
     {
@@ -1245,7 +1401,7 @@ static int rk29_sdmmc_prepare_read_data(struct rk29_sdmmc *host, struct mmc_data
     host->intInfo.transLen = 0;
     host->intInfo.pBuf = (u32 *)host->pbuf;
        
-    if (count > (RX_WMARK+1))  //datasheet error.actually, it can nont waken the interrupt when less and equal than RX_WMARK+1
+    if(count > (RX_WMARK+1))  //datasheet error.actually, it can nont waken the interrupt when less and equal than RX_WMARK+1
     {
         if(0) //(host->intInfo.desLen <= 512 )
         {
@@ -1280,112 +1436,53 @@ static int rk29_sdmmc_prepare_read_data(struct rk29_sdmmc *host, struct mmc_data
 
 static int rk29_sdmmc_read_remain_data(struct rk29_sdmmc *host, u32 originalLen, void *pDataBuf)
 {
-    u32  value = 0;
-
-    u32     i = 0;
-    u32     *pBuf = (u32 *)pDataBuf;
-    u8      *pByteBuf = (u8 *)pDataBuf;
-    u32     lastData = 0;
-
-    //SDMMC controller must be multiple of 32. so if transfer 13, then actuall we should write or read 16 byte.
-    u32  count = (originalLen >> 2) + ((originalLen & 0x3) ? 1:0);
+	struct mmc_data		*data;	
+    struct scatterlist  *sg;
+    u32   *buf,  i = 0;
 
     if(1 == host->dodma)
     {
-        //when use DMA, there are remain data only when datalen/4 less than  RX_WMARK+1 same as equaltion. or not multiple of 4
-        if (!((value = rk29_sdmmc_read(host->regs, SDMMC_STATUS)) & SDMMC_STAUTS_FIFO_EMPTY))
+        data = host->data;
+        sg = host->sg;
+        buf = (u32 *)sg_virt(sg);
+
+        for_each_sg(data->sg, sg, data->sg_len, i) 
         {
-            if (count <= (RX_WMARK+1))
-            {
-                i = 0;
-                while ((i<(originalLen >> 2))&&(!(value & SDMMC_STAUTS_FIFO_EMPTY)))
-                {
-                    pBuf[i++] = rk29_sdmmc_read(host->regs, SDMMC_DATA);
-                    value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
-                }
-            }
-
-            if (count > (originalLen >> 2))
-            {
-                lastData = rk29_sdmmc_read(host->regs, SDMMC_DATA);
-
-                //fill the 1 to 3 byte.
-                for (i=0; i<(originalLen & 0x3); i++)
-                {
-                    pByteBuf[(originalLen & 0xFFFFFFFC) + i] = (u8)((lastData >> (i << 3)) & 0xFF); //default little-endian
-                }
-            }
+            if (!sg)
+                return -1;
+            if (sg_is_last(sg))
+                break;
         }
-    }
-    else
-    {
-        if (!((value = rk29_sdmmc_read(host->regs, SDMMC_STATUS)) & SDMMC_STAUTS_FIFO_EMPTY))
-        {
-             while ( (host->intInfo.transLen < host->intInfo.desLen)  && (!(value & SDMMC_STAUTS_FIFO_EMPTY)) )
-            {
-                pBuf[host->intInfo.transLen++] = rk29_sdmmc_read(host->regs, SDMMC_DATA);  
-                value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);  
-            }
 
-            if (count > (originalLen >> 2))
-            {
-                lastData = rk29_sdmmc_read(host->regs, SDMMC_DATA); 
-
-                //fill the 1 to 3 byte.
-                for (i=0; i<(originalLen & 0x3); i++)
-                {
-                    pByteBuf[(originalLen & 0xFFFFFFFC) + i] = (u8)((lastData >> (i << 3)) & 0xFF);  //default little-endian
-                }
-            }
-        }
+        flush_dcache_page(sg_page(sg));
+        host->sg = sg;
     }
+
+    rk29_sdmmc_read_data_pio(host);
     
     return SDM_SUCCESS;
 }
 
-
-static void rk29_sdmmc_do_pio_read(struct rk29_sdmmc *host)
-{
-    int i;
-    for (i=0; i<(RX_WMARK+1); i++)
-    {
-        host->intInfo.pBuf[host->intInfo.transLen + i] = rk29_sdmmc_read(host->regs, SDMMC_DATA);
-    }
-    host->intInfo.transLen += (RX_WMARK+1);
-}
-
-static void rk29_sdmmc_do_pio_write(struct rk29_sdmmc *host)
-{
-    int i;
-    if ( (host->intInfo.desLen - host->intInfo.transLen) > (FIFO_DEPTH - TX_WMARK) )
-    {
-        for (i=0; i<(FIFO_DEPTH - TX_WMARK); i++)
-        {
-            rk29_sdmmc_write(host->regs, SDMMC_DATA, host->intInfo.pBuf[host->intInfo.transLen + i]);
-        }
-        host->intInfo.transLen += (FIFO_DEPTH - TX_WMARK);
-    }
-    else
-    {
-        for (i=0; i<(host->intInfo.desLen - host->intInfo.transLen); i++)
-        {
-            rk29_sdmmc_write(host->regs, SDMMC_DATA, host->intInfo.pBuf[host->intInfo.transLen + i]);
-        }
-        host->intInfo.transLen =  host->intInfo.desLen;
-    }
-      
-}
-
-
 static void rk29_sdmmc_submit_data(struct rk29_sdmmc *host, struct mmc_data *data)
 {
-    int ret;
+    int ret,i;
+    struct scatterlist *sg;
     
     if(data)
     {
         host->data = data;
         data->error = 0;
         host->cmd->data = data;
+        host->sg = data->sg;
+        
+        for_each_sg(data->sg, sg, data->sg_len, i) 
+        {
+    		if (sg->offset & 3 || sg->length & 3) 
+    		{
+    			data->error = -EILSEQ;
+    			return ;
+    		}
+	    }
 
         data->bytes_xfered = 0;
         host->pbuf = (u32*)sg_virt(data->sg);
@@ -3256,7 +3353,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 				__FUNCTION__, __LINE__, pending, host->dma_name);
 
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_RXDR);  //  clear interrupt
-        rk29_sdmmc_do_pio_read(host);
+        rk29_sdmmc_read_data_pio(host);
     }
 
     if (pending & SDMMC_INT_TXDR) 
@@ -3265,7 +3362,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 				__FUNCTION__, __LINE__, pending, host->dma_name);
 				
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_TXDR);  //  clear interrupt
-        rk29_sdmmc_do_pio_write(host); 
+        rk29_sdmmc_write_data_pio(host); 
     }
 
 #if SDMMC_USE_INT_UNBUSY
@@ -3375,28 +3472,25 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	if (!pdata) {
 		dev_err(&pdev->dev, "Platform data missing\n");
 		ret = -ENODEV;
-		host->errorstep = 0x87;
 		goto out;
 	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
 	{
-	    host->errorstep = 0x88;
 		return -ENXIO;
 	}
 
 	mmc = mmc_alloc_host(sizeof(struct rk29_sdmmc), &pdev->dev);
 	if (!mmc)
 	{
-	    host->errorstep = 0x89;
 		ret = -ENOMEM;
 		goto rel_regions;
 	}	
-
+    
 	host = mmc_priv(mmc);
-	host->mmc = mmc;
-	host->pdev = pdev;	
+    host->mmc = mmc;
+    host->pdev = pdev;
 
 	host->ctype = 0; // set default 1 bit mode
 	host->errorstep = 0;
