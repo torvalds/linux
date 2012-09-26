@@ -91,9 +91,10 @@ struct dispc_features {
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
-		u16 pos_x, unsigned long *core_clk);
+		u16 pos_x, unsigned long *core_clk, bool mem_to_mem);
 	unsigned long (*calc_core_clk) (enum omap_plane plane,
-		u16 width, u16 height, u16 out_width, u16 out_height);
+		u16 width, u16 height, u16 out_width, u16 out_height,
+		bool mem_to_mem);
 	u8 num_fifos;
 
 	/* swap GFX & WB fifos */
@@ -2012,7 +2013,7 @@ static unsigned long calc_core_clk_five_taps(enum omap_plane plane,
 }
 
 static unsigned long calc_core_clk_24xx(enum omap_plane plane, u16 width,
-		u16 height, u16 out_width, u16 out_height)
+		u16 height, u16 out_width, u16 out_height, bool mem_to_mem)
 {
 	unsigned long pclk = dispc_plane_pclk_rate(plane);
 
@@ -2023,7 +2024,7 @@ static unsigned long calc_core_clk_24xx(enum omap_plane plane, u16 width,
 }
 
 static unsigned long calc_core_clk_34xx(enum omap_plane plane, u16 width,
-		u16 height, u16 out_width, u16 out_height)
+		u16 height, u16 out_width, u16 out_height, bool mem_to_mem)
 {
 	unsigned int hf, vf;
 	unsigned long pclk = dispc_plane_pclk_rate(plane);
@@ -2050,9 +2051,20 @@ static unsigned long calc_core_clk_34xx(enum omap_plane plane, u16 width,
 }
 
 static unsigned long calc_core_clk_44xx(enum omap_plane plane, u16 width,
-		u16 height, u16 out_width, u16 out_height)
+		u16 height, u16 out_width, u16 out_height, bool mem_to_mem)
 {
-	unsigned long pclk = dispc_plane_pclk_rate(plane);
+	unsigned long pclk;
+
+	/*
+	 * If the overlay/writeback is in mem to mem mode, there are no
+	 * downscaling limitations with respect to pixel clock, return 1 as
+	 * required core clock to represent that we have sufficient enough
+	 * core clock to do maximum downscaling
+	 */
+	if (mem_to_mem)
+		return 1;
+
+	pclk = dispc_plane_pclk_rate(plane);
 
 	if (width > out_width)
 		return DIV_ROUND_UP(pclk, out_width) * width;
@@ -2065,7 +2077,7 @@ static int dispc_ovl_calc_scaling_24xx(enum omap_plane plane,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
-		u16 pos_x, unsigned long *core_clk)
+		u16 pos_x, unsigned long *core_clk, bool mem_to_mem)
 {
 	int error;
 	u16 in_width, in_height;
@@ -2079,7 +2091,7 @@ static int dispc_ovl_calc_scaling_24xx(enum omap_plane plane,
 		in_height = DIV_ROUND_UP(height, *decim_y);
 		in_width = DIV_ROUND_UP(width, *decim_x);
 		*core_clk = dispc.feat->calc_core_clk(plane, in_width,
-				in_height, out_width, out_height);
+				in_height, out_width, out_height, mem_to_mem);
 		error = (in_width > maxsinglelinewidth || !*core_clk ||
 			*core_clk > dispc_core_clk_rate());
 		if (error) {
@@ -2106,7 +2118,7 @@ static int dispc_ovl_calc_scaling_34xx(enum omap_plane plane,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
-		u16 pos_x, unsigned long *core_clk)
+		u16 pos_x, unsigned long *core_clk, bool mem_to_mem)
 {
 	int error;
 	u16 in_width, in_height;
@@ -2130,7 +2142,8 @@ static int dispc_ovl_calc_scaling_34xx(enum omap_plane plane,
 				*five_taps = false;
 		if (!*five_taps)
 			*core_clk = dispc.feat->calc_core_clk(plane, in_width,
-					in_height, out_width, out_height);
+					in_height, out_width, out_height,
+					mem_to_mem);
 
 		error = (error || in_width > maxsinglelinewidth * 2 ||
 			(in_width > maxsinglelinewidth && *five_taps) ||
@@ -2171,7 +2184,7 @@ static int dispc_ovl_calc_scaling_44xx(enum omap_plane plane,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
-		u16 pos_x, unsigned long *core_clk)
+		u16 pos_x, unsigned long *core_clk, bool mem_to_mem)
 {
 	u16 in_width, in_width_max;
 	int decim_x_min = *decim_x;
@@ -2179,8 +2192,13 @@ static int dispc_ovl_calc_scaling_44xx(enum omap_plane plane,
 	const int maxsinglelinewidth =
 				dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 	unsigned long pclk = dispc_plane_pclk_rate(plane);
+	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
 
-	in_width_max = dispc_core_clk_rate() / DIV_ROUND_UP(pclk, out_width);
+	if (mem_to_mem)
+		in_width_max = DIV_ROUND_UP(out_width, maxdownscale);
+	else
+		in_width_max = dispc_core_clk_rate() /
+					DIV_ROUND_UP(pclk, out_width);
 
 	*decim_x = DIV_ROUND_UP(width, in_width_max);
 
@@ -2199,7 +2217,7 @@ static int dispc_ovl_calc_scaling_44xx(enum omap_plane plane,
 	}
 
 	*core_clk = dispc.feat->calc_core_clk(plane, in_width, in_height,
-				out_width, out_height);
+				out_width, out_height, mem_to_mem);
 	return 0;
 }
 
@@ -2209,7 +2227,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, u16 pos_x,
-		enum omap_dss_rotation_type rotation_type)
+		enum omap_dss_rotation_type rotation_type, bool mem_to_mem)
 {
 	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
 	const int max_decim_limit = 16;
@@ -2247,7 +2265,8 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 
 	ret = dispc.feat->calc_scaling(plane, mgr_timings, width, height,
 		out_width, out_height, color_mode, five_taps,
-		x_predecim, y_predecim, &decim_x, &decim_y, pos_x, &core_clk);
+		x_predecim, y_predecim, &decim_x, &decim_y, pos_x, &core_clk,
+		mem_to_mem);
 	if (ret)
 		return ret;
 
@@ -2273,7 +2292,8 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 		u16 out_width, u16 out_height, enum omap_color_mode color_mode,
 		u8 rotation, bool mirror, u8 zorder, u8 pre_mult_alpha,
 		u8 global_alpha, enum omap_dss_rotation_type rotation_type,
-		bool replication, const struct omap_video_timings *mgr_timings)
+		bool replication, const struct omap_video_timings *mgr_timings,
+		bool mem_to_mem)
 {
 	bool five_taps = true;
 	bool fieldmode = 0;
@@ -2314,7 +2334,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	r = dispc_ovl_calc_scaling(plane, caps, mgr_timings, in_width,
 			in_height, out_width, out_height, color_mode,
 			&five_taps, &x_predecim, &y_predecim, pos_x,
-			rotation_type);
+			rotation_type, mem_to_mem);
 	if (r)
 		return r;
 
@@ -2412,7 +2432,8 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 }
 
 int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
-		bool replication, const struct omap_video_timings *mgr_timings)
+		bool replication, const struct omap_video_timings *mgr_timings,
+		bool mem_to_mem)
 {
 	int r;
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
@@ -2430,7 +2451,7 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		oi->screen_width, oi->pos_x, oi->pos_y, oi->width, oi->height,
 		oi->out_width, oi->out_height, oi->color_mode, oi->rotation,
 		oi->mirror, oi->zorder, oi->pre_mult_alpha, oi->global_alpha,
-		oi->rotation_type, replication, mgr_timings);
+		oi->rotation_type, replication, mgr_timings, mem_to_mem);
 
 	return r;
 }

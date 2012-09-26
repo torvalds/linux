@@ -584,7 +584,7 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 
 	replication = dss_ovl_use_replication(mp->lcd_config, oi->color_mode);
 
-	r = dispc_ovl_setup(ovl->id, oi, replication, &mp->timings);
+	r = dispc_ovl_setup(ovl->id, oi, replication, &mp->timings, false);
 	if (r) {
 		/*
 		 * We can't do much here, as this function can be called from
