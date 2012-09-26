@@ -1790,7 +1790,7 @@ static void nfs41_clear_delegation_stateid(struct nfs4_state *state)
 static int nfs41_check_open_stateid(struct nfs4_state *state)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
-	nfs4_stateid *stateid = &state->stateid;
+	nfs4_stateid *stateid = &state->open_stateid;
 	int status;
 
 	/* If a state reset has been done, test_stateid is unneeded */
