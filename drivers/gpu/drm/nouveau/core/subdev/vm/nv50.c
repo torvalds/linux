@@ -201,6 +201,7 @@ nv50_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	priv->base.limit = 1ULL << 40;
+	priv->base.dma_bits = 40;
 	priv->base.pgt_bits  = 29 - 12;
 	priv->base.spg_shift = 12;
 	priv->base.lpg_shift = 16;

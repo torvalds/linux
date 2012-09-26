@@ -340,14 +340,10 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	u32 bits;
 	int ret;
 
-	if (nv_device(drm->device)->card_type >= NV_50) {
-		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(40)))
-			bits = 40;
-		else
-			bits = 32;
-	} else {
+	bits = nouveau_vmmgr(drm->device)->dma_bits;
+	if ( drm->agp.stat == ENABLED ||
+	    !pci_dma_supported(dev->pdev, DMA_BIT_MASK(bits)))
 		bits = 32;
-	}
 
 	ret = pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(bits));
 	if (ret)

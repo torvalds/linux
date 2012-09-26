@@ -69,6 +69,7 @@ struct nouveau_vmmgr {
 	struct nouveau_subdev base;
 
 	u64 limit;
+	u8  dma_bits;
 	u32 pgt_bits;
 	u8  spg_shift;
 	u8  lpg_shift;
