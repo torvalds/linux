@@ -1027,17 +1027,15 @@ pnfs_update_layout(struct inode *ino,
 	bool first = false;
 
 	if (!pnfs_enabled_sb(NFS_SERVER(ino)))
-		return NULL;
+		goto out;
 
 	if (pnfs_within_mdsthreshold(ctx, ino, iomode))
-		return NULL;
+		goto out;
 
 	spin_lock(&ino->i_lock);
 	lo = pnfs_find_alloc_layout(ino, ctx, gfp_flags);
-	if (lo == NULL) {
-		dprintk("%s ERROR: can't get pnfs_layout_hdr\n", __func__);
+	if (lo == NULL)
 		goto out_unlock;
-	}
 
 	/* Do we even need to bother with this? */
 	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
@@ -1093,8 +1091,14 @@ pnfs_update_layout(struct inode *ino,
 	atomic_dec(&lo->plh_outstanding);
 	pnfs_put_layout_hdr(lo);
 out:
-	dprintk("%s end, state 0x%lx lseg %p\n", __func__,
-		nfsi->layout ? nfsi->layout->plh_flags : -1, lseg);
+	dprintk("%s: inode %s/%llu pNFS layout segment %s for "
+			"(%s, offset: %llu, length: %llu)\n",
+			__func__, ino->i_sb->s_id,
+			(unsigned long long)NFS_FILEID(ino),
+			lseg == NULL ? "not found" : "found",
+			iomode==IOMODE_RW ?  "read/write" : "read-only",
+			(unsigned long long)pos,
+			(unsigned long long)count);
 	return lseg;
 out_unlock:
 	spin_unlock(&ino->i_lock);
