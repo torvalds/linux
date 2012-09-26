@@ -1455,8 +1455,12 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 		if (step == 0)
 			step = 1;
 
-		xctrl->value = min + (xctrl->value - min + step/2) / step * step;
-		xctrl->value = clamp(xctrl->value, min, max);
+		xctrl->value = min + ((u32)(xctrl->value - min) + step / 2)
+			     / step * step;
+		if (mapping->data_type == UVC_CTRL_DATA_TYPE_SIGNED)
+			xctrl->value = clamp(xctrl->value, min, max);
+		else
+			xctrl->value = clamp_t(u32, xctrl->value, min, max);
 		value = xctrl->value;
 		break;
 
