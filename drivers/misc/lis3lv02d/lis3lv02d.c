@@ -39,6 +39,7 @@
 #include <linux/miscdevice.h>
 #include <linux/pm_runtime.h>
 #include <linux/atomic.h>
+#include <linux/of_device.h>
 #include "lis3lv02d.h"
 
 #define DRIVER_NAME     "lis3lv02d"
@@ -943,6 +944,154 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *lis3,
 	}
 }
 
+#ifdef CONFIG_OF
+static int lis3lv02d_init_dt(struct lis3lv02d *lis3)
+{
+	struct lis3lv02d_platform_data *pdata;
+	struct device_node *np = lis3->of_node;
+	u32 val;
+
+	if (!lis3->of_node)
+		return 0;
+
+	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	if (of_get_property(np, "st,click-single-x", NULL))
+		pdata->click_flags |= LIS3_CLICK_SINGLE_X;
+	if (of_get_property(np, "st,click-double-x", NULL))
+		pdata->click_flags |= LIS3_CLICK_DOUBLE_X;
+
+	if (of_get_property(np, "st,click-single-y", NULL))
+		pdata->click_flags |= LIS3_CLICK_SINGLE_Y;
+	if (of_get_property(np, "st,click-double-y", NULL))
+		pdata->click_flags |= LIS3_CLICK_DOUBLE_Y;
+
+	if (of_get_property(np, "st,click-single-z", NULL))
+		pdata->click_flags |= LIS3_CLICK_SINGLE_Z;
+	if (of_get_property(np, "st,click-double-z", NULL))
+		pdata->click_flags |= LIS3_CLICK_DOUBLE_Z;
+
+	if (!of_property_read_u32(np, "st,click-threshold-x", &val))
+		pdata->click_thresh_x = val;
+	if (!of_property_read_u32(np, "st,click-threshold-y", &val))
+		pdata->click_thresh_y = val;
+	if (!of_property_read_u32(np, "st,click-threshold-z", &val))
+		pdata->click_thresh_z = val;
+
+	if (!of_property_read_u32(np, "st,click-time-limit", &val))
+		pdata->click_time_limit = val;
+	if (!of_property_read_u32(np, "st,click-latency", &val))
+		pdata->click_latency = val;
+	if (!of_property_read_u32(np, "st,click-window", &val))
+		pdata->click_window = val;
+
+	if (of_get_property(np, "st,irq1-disable", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_DISABLE;
+	if (of_get_property(np, "st,irq1-ff-wu-1", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_FF_WU_1;
+	if (of_get_property(np, "st,irq1-ff-wu-2", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_FF_WU_2;
+	if (of_get_property(np, "st,irq1-data-ready", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_DATA_READY;
+	if (of_get_property(np, "st,irq1-click", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_CLICK;
+
+	if (of_get_property(np, "st,irq2-disable", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_DISABLE;
+	if (of_get_property(np, "st,irq2-ff-wu-1", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_FF_WU_1;
+	if (of_get_property(np, "st,irq2-ff-wu-2", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_FF_WU_2;
+	if (of_get_property(np, "st,irq2-data-ready", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_DATA_READY;
+	if (of_get_property(np, "st,irq2-click", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_CLICK;
+
+	if (of_get_property(np, "st,irq-open-drain", NULL))
+		pdata->irq_cfg |= LIS3_IRQ_OPEN_DRAIN;
+	if (of_get_property(np, "st,irq-active-low", NULL))
+		pdata->irq_cfg |= LIS3_IRQ_ACTIVE_LOW;
+
+	if (!of_property_read_u32(np, "st,wu-duration-1", &val))
+		pdata->duration1 = val;
+	if (!of_property_read_u32(np, "st,wu-duration-2", &val))
+		pdata->duration2 = val;
+
+	if (of_get_property(np, "st,wakeup-x-lo", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_X_LO;
+	if (of_get_property(np, "st,wakeup-x-hi", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_X_HI;
+	if (of_get_property(np, "st,wakeup-y-lo", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_Y_LO;
+	if (of_get_property(np, "st,wakeup-y-hi", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_Y_HI;
+	if (of_get_property(np, "st,wakeup-z-lo", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_Z_LO;
+	if (of_get_property(np, "st,wakeup-z-hi", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_Z_HI;
+
+	if (!of_property_read_u32(np, "st,highpass-cutoff-hz", &val)) {
+		switch (val) {
+		case 1:
+			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_1HZ;
+			break;
+		case 2:
+			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_2HZ;
+			break;
+		case 4:
+			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_4HZ;
+			break;
+		case 8:
+			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_8HZ;
+			break;
+		}
+	}
+
+	if (of_get_property(np, "st,hipass1-disable", NULL))
+		pdata->hipass_ctrl |= LIS3_HIPASS1_DISABLE;
+	if (of_get_property(np, "st,hipass2-disable", NULL))
+		pdata->hipass_ctrl |= LIS3_HIPASS2_DISABLE;
+
+	if (of_get_property(np, "st,axis-x", &val))
+		pdata->axis_x = val;
+	if (of_get_property(np, "st,axis-y", &val))
+		pdata->axis_y = val;
+	if (of_get_property(np, "st,axis-z", &val))
+		pdata->axis_z = val;
+
+	if (of_get_property(np, "st,default-rate", NULL))
+		pdata->default_rate = val;
+
+	if (of_get_property(np, "st,min-limit-x", &val))
+		pdata->st_min_limits[0] = val;
+	if (of_get_property(np, "st,min-limit-y", &val))
+		pdata->st_min_limits[1] = val;
+	if (of_get_property(np, "st,min-limit-z", &val))
+		pdata->st_min_limits[2] = val;
+
+	if (of_get_property(np, "st,max-limit-x", &val))
+		pdata->st_max_limits[0] = val;
+	if (of_get_property(np, "st,max-limit-y", &val))
+		pdata->st_max_limits[1] = val;
+	if (of_get_property(np, "st,max-limit-z", &val))
+		pdata->st_max_limits[2] = val;
+
+
+	lis3->pdata = pdata;
+
+	return 0;
+}
+
+#else
+static int lis3lv02d_init_dt(struct lis3lv02d *lis3)
+{
+	return 0;
+}
+#endif
+EXPORT_SYMBOL_GPL(lis3lv02d_init_dt);
+
 /*
  * Initialise the accelerometer and the various subsystems.
  * Should be rather independent of the bus system.
@@ -952,6 +1101,10 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 	int err;
 	irq_handler_t thread_fn;
 	int irq_flags = 0;
+
+	err = lis3lv02d_init_dt(lis3);
+	if (err < 0)
+		return err;
 
 	lis3->whoami = lis3lv02d_read_8(lis3, WHO_AM_I);
 

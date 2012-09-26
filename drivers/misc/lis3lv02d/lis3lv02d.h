@@ -314,6 +314,10 @@ struct lis3lv02d {
 
 	struct lis3lv02d_platform_data *pdata;	/* for passing board config */
 	struct mutex		mutex;     /* Serialize poll and selftest */
+
+#ifdef CONFIG_OF
+	struct device_node	*of_node;
+#endif
 };
 
 int lis3lv02d_init_device(struct lis3lv02d *lis3);
