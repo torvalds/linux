@@ -246,7 +246,15 @@ static void pcs_pin_dbg_show(struct pinctrl_dev *pctldev,
 					struct seq_file *s,
 					unsigned offset)
 {
-	seq_printf(s, " " DRIVER_NAME);
+	struct pcs_device *pcs;
+	unsigned val;
+
+	pcs = pinctrl_dev_get_drvdata(pctldev);
+
+	val = pcs->read(pcs->base + offset);
+	val &= pcs->fmask;
+
+	seq_printf(s, "%08x %s " , val, DRIVER_NAME);
 }
 
 static void pcs_dt_free_map(struct pinctrl_dev *pctldev,
