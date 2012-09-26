@@ -32,7 +32,8 @@ struct page_info {
 };
 
 static struct page_info *alloc_largest_available(unsigned long size,
-						 bool split_pages)
+						 bool split_pages,
+						 unsigned int max_order)
 {
 	static unsigned int orders[] = {8, 4, 0};
 	struct page *page;
@@ -41,6 +42,8 @@ static struct page_info *alloc_largest_available(unsigned long size,
 
 	for (i = 0; i < ARRAY_SIZE(orders); i++) {
 		if (size < (1 << orders[i]) * PAGE_SIZE)
+			continue;
+		if (max_order < orders[i])
 			continue;
 		page = alloc_pages(GFP_HIGHUSER | __GFP_ZERO |
 				   __GFP_NOWARN | __GFP_NORETRY, orders[i]);
@@ -71,13 +74,17 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	bool split_pages = ion_buffer_fault_user_mappings(buffer);
 
 
+	unsigned int max_order = orders[0];
+
 	INIT_LIST_HEAD(&pages);
 	while (size_remaining > 0) {
-		info = alloc_largest_available(size_remaining, split_pages);
+		info = alloc_largest_available(size_remaining, split_pages,
+					       max_order);
 		if (!info)
 			goto err;
 		list_add_tail(&info->list, &pages);
 		size_remaining -= (1 << info->order) * PAGE_SIZE;
+		max_order = info->order;
 		i++;
 	}
 
