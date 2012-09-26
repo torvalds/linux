@@ -1630,6 +1630,9 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
 int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
 
+int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val);
+int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val);
+
 #define __i915_read(x, y) \
 	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg);
 

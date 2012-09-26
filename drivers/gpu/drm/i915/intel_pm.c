@@ -2407,7 +2407,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	u32 pcu_mbox, rc6_mask = 0;
 	u32 gtfifodbg;
 	int rc6_mode;
-	int i;
+	int i, ret;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
@@ -2503,30 +2503,16 @@ static void gen6_enable_rps(struct drm_device *dev)
 		   GEN6_RP_UP_BUSY_AVG |
 		   (IS_HASWELL(dev) ? GEN7_RP_DOWN_IDLE_AVG : GEN6_RP_DOWN_IDLE_CONT));
 
-	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
-		     500))
-		DRM_ERROR("timeout waiting for pcode mailbox to become idle\n");
-
-	I915_WRITE(GEN6_PCODE_DATA, 0);
-	I915_WRITE(GEN6_PCODE_MAILBOX,
-		   GEN6_PCODE_READY |
-		   GEN6_PCODE_WRITE_MIN_FREQ_TABLE);
-	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
-		     500))
-		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
-
-	/* Check for overclock support */
-	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
-		     500))
-		DRM_ERROR("timeout waiting for pcode mailbox to become idle\n");
-	I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_READ_OC_PARAMS);
-	pcu_mbox = I915_READ(GEN6_PCODE_DATA);
-	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
-		     500))
-		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
-	if (pcu_mbox & (1<<31)) { /* OC supported */
-		dev_priv->rps.max_delay = pcu_mbox & 0xff;
-		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 50);
+	ret = sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_MIN_FREQ_TABLE, 0);
+	if (!ret) {
+		pcu_mbox = 0;
+		ret = sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &pcu_mbox);
+		if (ret && pcu_mbox & (1<<31)) { /* OC supported */
+			dev_priv->rps.max_delay = pcu_mbox & 0xff;
+			DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 50);
+		}
+	} else {
+		DRM_DEBUG_DRIVER("Failed to set the min frequency\n");
 	}
 
 	gen6_set_rps(dev_priv->dev, (gt_perf_status & 0xff00) >> 8);
@@ -2581,17 +2567,11 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 		else
 			ia_freq = max_ia_freq - ((diff * scaling_factor) / 2);
 		ia_freq = DIV_ROUND_CLOSEST(ia_freq, 100);
+		ia_freq <<= GEN6_PCODE_FREQ_IA_RATIO_SHIFT;
 
-		I915_WRITE(GEN6_PCODE_DATA,
-			   (ia_freq << GEN6_PCODE_FREQ_IA_RATIO_SHIFT) |
-			   gpu_freq);
-		I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY |
-			   GEN6_PCODE_WRITE_MIN_FREQ_TABLE);
-		if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) &
-			      GEN6_PCODE_READY) == 0, 10)) {
-			DRM_ERROR("pcode write of freq table timed out\n");
-			continue;
-		}
+		sandybridge_pcode_write(dev_priv,
+					GEN6_PCODE_WRITE_MIN_FREQ_TABLE,
+					ia_freq | gpu_freq);
 	}
 }
 
@@ -4152,3 +4132,49 @@ void intel_gt_init(struct drm_device *dev)
 	}
 }
 
+int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
+{
+	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
+	if (I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) {
+		DRM_DEBUG_DRIVER("warning: pcode (read) mailbox access failed\n");
+		return -EAGAIN;
+	}
+
+	I915_WRITE(GEN6_PCODE_DATA, *val);
+	I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
+
+	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
+		     500)) {
+		DRM_ERROR("timeout waiting for pcode read (%d) to finish\n", mbox);
+		return -ETIMEDOUT;
+	}
+
+	*val = I915_READ(GEN6_PCODE_DATA);
+	I915_WRITE(GEN6_PCODE_DATA, 0);
+
+	return 0;
+}
+
+int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
+{
+	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
+	if (I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) {
+		DRM_DEBUG_DRIVER("warning: pcode (write) mailbox access failed\n");
+		return -EAGAIN;
+	}
+
+	I915_WRITE(GEN6_PCODE_DATA, val);
+	I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
+
+	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
+		     500)) {
+		DRM_ERROR("timeout waiting for pcode write (%d) to finish\n", mbox);
+		return -ETIMEDOUT;
+	}
+
+	I915_WRITE(GEN6_PCODE_DATA, 0);
+
+	return 0;
+}

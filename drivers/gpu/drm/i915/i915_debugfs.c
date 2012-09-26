@@ -1283,15 +1283,10 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	for (gpu_freq = dev_priv->rps.min_delay;
 	     gpu_freq <= dev_priv->rps.max_delay;
 	     gpu_freq++) {
-		I915_WRITE(GEN6_PCODE_DATA, gpu_freq);
-		I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY |
-			   GEN6_PCODE_READ_MIN_FREQ_TABLE);
-		if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) &
-			      GEN6_PCODE_READY) == 0, 10)) {
-			DRM_ERROR("pcode read of freq table timed out\n");
-			continue;
-		}
-		ia_freq = I915_READ(GEN6_PCODE_DATA);
+		ia_freq = gpu_freq;
+		sandybridge_pcode_read(dev_priv,
+				       GEN6_PCODE_READ_MIN_FREQ_TABLE,
+				       &ia_freq);
 		seq_printf(m, "%d\t\t%d\n", gpu_freq * GT_FREQUENCY_MULTIPLIER, ia_freq * 100);
 	}
 
