@@ -270,6 +270,9 @@ static unsigned int arizona_sysclk_48k_rates[] = {
 	12288000,
 	22579200,
 	49152000,
+	73728000,
+	98304000,
+	147456000,
 };
 
 static unsigned int arizona_sysclk_44k1_rates[] = {
@@ -277,6 +280,9 @@ static unsigned int arizona_sysclk_44k1_rates[] = {
 	11289600,
 	24576000,
 	45158400,
+	67737600,
+	90316800,
+	135475200,
 };
 
 static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
