@@ -401,6 +401,14 @@ enum fw_caps_config_fcoe {
 	FW_CAPS_CONFIG_FCOE_TARGET	= 0x00000002,
 };
 
+enum fw_memtype_cf {
+	FW_MEMTYPE_CF_EDC0		= 0x0,
+	FW_MEMTYPE_CF_EDC1		= 0x1,
+	FW_MEMTYPE_CF_EXTMEM		= 0x2,
+	FW_MEMTYPE_CF_FLASH		= 0x4,
+	FW_MEMTYPE_CF_INTERNAL		= 0x5,
+};
+
 struct fw_caps_config_cmd {
 	__be32 op_to_write;
 	__be32 retval_len16;
@@ -416,9 +424,14 @@ struct fw_caps_config_cmd {
 	__be16 r4;
 	__be16 iscsicaps;
 	__be16 fcoecaps;
-	__be32 r5;
-	__be64 r6;
+	__be32 cfcsum;
+	__be32 finiver;
+	__be32 finicsum;
 };
+
+#define FW_CAPS_CONFIG_CMD_CFVALID          (1U << 27)
+#define FW_CAPS_CONFIG_CMD_MEMTYPE_CF(x)    ((x) << 24)
+#define FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(x) ((x) << 16)
 
 /*
  * params command mnemonics
@@ -451,6 +464,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_INTVER_FCOE = 0x0A,
 	FW_PARAMS_PARAM_DEV_FWREV = 0x0B,
 	FW_PARAMS_PARAM_DEV_TPREV = 0x0C,
+	FW_PARAMS_PARAM_DEV_CF = 0x0D,
 };
 
 /*
@@ -492,6 +506,8 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_IQFLINT_END = 0x2A,
 	FW_PARAMS_PARAM_PFVF_EQ_START	= 0x2B,
 	FW_PARAMS_PARAM_PFVF_EQ_END	= 0x2C,
+	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_START = 0x2D,
+	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_END = 0x2E
 };
 
 /*
@@ -507,8 +523,16 @@ enum fw_params_param_dmaq {
 
 #define FW_PARAMS_MNEM(x)      ((x) << 24)
 #define FW_PARAMS_PARAM_X(x)   ((x) << 16)
-#define FW_PARAMS_PARAM_Y(x)   ((x) << 8)
-#define FW_PARAMS_PARAM_Z(x)   ((x) << 0)
+#define FW_PARAMS_PARAM_Y_SHIFT  8
+#define FW_PARAMS_PARAM_Y_MASK   0xffU
+#define FW_PARAMS_PARAM_Y(x)     ((x) << FW_PARAMS_PARAM_Y_SHIFT)
+#define FW_PARAMS_PARAM_Y_GET(x) (((x) >> FW_PARAMS_PARAM_Y_SHIFT) &\
+		FW_PARAMS_PARAM_Y_MASK)
+#define FW_PARAMS_PARAM_Z_SHIFT  0
+#define FW_PARAMS_PARAM_Z_MASK   0xffu
+#define FW_PARAMS_PARAM_Z(x)     ((x) << FW_PARAMS_PARAM_Z_SHIFT)
+#define FW_PARAMS_PARAM_Z_GET(x) (((x) >> FW_PARAMS_PARAM_Z_SHIFT) &\
+		FW_PARAMS_PARAM_Z_MASK)
 #define FW_PARAMS_PARAM_XYZ(x) ((x) << 0)
 #define FW_PARAMS_PARAM_YZ(x)  ((x) << 0)
 
@@ -1598,6 +1622,15 @@ struct fw_debug_cmd {
 		} prt;
 	} u;
 };
+
+#define FW_PCIE_FW_ERR           (1U << 31)
+#define FW_PCIE_FW_INIT          (1U << 30)
+#define FW_PCIE_FW_MASTER_VLD    (1U << 15)
+#define FW_PCIE_FW_MASTER_MASK   0x7
+#define FW_PCIE_FW_MASTER_SHIFT  12
+#define FW_PCIE_FW_MASTER(x)     ((x) << FW_PCIE_FW_MASTER_SHIFT)
+#define FW_PCIE_FW_MASTER_GET(x) (((x) >> FW_PCIE_FW_MASTER_SHIFT) & \
+				 FW_PCIE_FW_MASTER_MASK)
 
 struct fw_hdr {
 	u8 ver;

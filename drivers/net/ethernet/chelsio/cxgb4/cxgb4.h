@@ -315,6 +315,9 @@ enum {                                 /* adapter flags */
 	USING_MSI          = (1 << 1),
 	USING_MSIX         = (1 << 2),
 	FW_OK              = (1 << 4),
+	USING_SOFT_PARAMS  = (1 << 6),
+	MASTER_PF          = (1 << 7),
+	FW_OFLD_CONN       = (1 << 9),
 };
 
 struct rx_sw_desc;
@@ -467,6 +470,11 @@ struct sge {
 	u16 rdma_rxq[NCHAN];
 	u16 timer_val[SGE_NTIMERS];
 	u8 counter_val[SGE_NCOUNTERS];
+	u32 fl_pg_order;            /* large page allocation size */
+	u32 stat_len;               /* length of status page at ring end */
+	u32 pktshift;               /* padding between CPL & packet data */
+	u32 fl_align;               /* response queue message alignment */
+	u32 fl_starve_thres;        /* Free List starvation threshold */
 	unsigned int starve_thres;
 	u8 idma_state[2];
 	unsigned int egr_start;
@@ -619,7 +627,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 			  struct net_device *dev, unsigned int iqid);
 irqreturn_t t4_sge_intr_msix(int irq, void *cookie);
-void t4_sge_init(struct adapter *adap);
+int t4_sge_init(struct adapter *adap);
 void t4_sge_start(struct adapter *adap);
 void t4_sge_stop(struct adapter *adap);
 extern int dbfifo_int_thresh;
@@ -636,6 +644,14 @@ static inline unsigned int us_to_core_ticks(const struct adapter *adap,
 					    unsigned int us)
 {
 	return (us * adap->params.vpd.cclk) / 1000;
+}
+
+static inline unsigned int core_ticks_to_us(const struct adapter *adapter,
+					    unsigned int ticks)
+{
+	/* add Core Clock / 2 to round ticks to nearest uS */
+	return ((ticks * 1000 + adapter->params.vpd.cclk/2) /
+		adapter->params.vpd.cclk);
 }
 
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask,
