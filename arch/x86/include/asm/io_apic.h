@@ -179,6 +179,7 @@ extern void __init native_io_apic_init_mappings(void);
 extern unsigned int native_io_apic_read(unsigned int apic, unsigned int reg);
 extern void native_io_apic_write(unsigned int apic, unsigned int reg, unsigned int val);
 extern void native_io_apic_modify(unsigned int apic, unsigned int reg, unsigned int val);
+extern void native_disable_io_apic(void);
 
 static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
 {
@@ -223,6 +224,7 @@ static inline void disable_ioapic_support(void) { }
 #define native_io_apic_read		NULL
 #define native_io_apic_write		NULL
 #define native_io_apic_modify		NULL
+#define native_disable_io_apic		NULL
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */

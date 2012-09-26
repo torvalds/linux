@@ -1921,30 +1921,14 @@ void __init enable_IO_APIC(void)
 	clear_IO_APIC();
 }
 
-/*
- * Not an __init, needed by the reboot code
- */
-void disable_IO_APIC(void)
+void native_disable_io_apic(void)
 {
-	/*
-	 * Clear the IO-APIC before rebooting:
-	 */
-	clear_IO_APIC();
-
-	if (!legacy_pic->nr_legacy_irqs)
-		return;
-
 	/*
 	 * If the i8259 is routed through an IOAPIC
 	 * Put that IOAPIC in virtual wire mode
 	 * so legacy interrupts can be delivered.
-	 *
-	 * With interrupt-remapping, for now we will use virtual wire A mode,
-	 * as virtual wire B is little complex (need to configure both
-	 * IOAPIC RTE as well as interrupt-remapping table entry).
-	 * As this gets called during crash dump, keep this simple for now.
 	 */
-	if (ioapic_i8259.pin != -1 && !irq_remapping_enabled) {
+	if (ioapic_i8259.pin != -1) {
 		struct IO_APIC_route_entry entry;
 
 		memset(&entry, 0, sizeof(entry));
@@ -1964,12 +1948,25 @@ void disable_IO_APIC(void)
 		ioapic_write_entry(ioapic_i8259.apic, ioapic_i8259.pin, entry);
 	}
 
-	/*
-	 * Use virtual wire A mode when interrupt remapping is enabled.
-	 */
 	if (cpu_has_apic || apic_from_smp_config())
-		disconnect_bsp_APIC(!irq_remapping_enabled &&
-				ioapic_i8259.pin != -1);
+		disconnect_bsp_APIC(ioapic_i8259.pin != -1);
+
+}
+
+/*
+ * Not an __init, needed by the reboot code
+ */
+void disable_IO_APIC(void)
+{
+	/*
+	 * Clear the IO-APIC before rebooting:
+	 */
+	clear_IO_APIC();
+
+	if (!legacy_pic->nr_legacy_irqs)
+		return;
+
+	x86_io_apic_ops.disable();
 }
 
 #ifdef CONFIG_X86_32

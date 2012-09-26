@@ -1,3 +1,4 @@
+#include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/cpumask.h>
@@ -6,6 +7,9 @@
 
 #include <asm/hw_irq.h>
 #include <asm/irq_remapping.h>
+#include <asm/processor.h>
+#include <asm/x86_init.h>
+#include <asm/apic.h>
 
 #include "irq_remapping.h"
 
@@ -16,6 +20,24 @@ int disable_sourceid_checking;
 int no_x2apic_optout;
 
 static struct irq_remap_ops *remap_ops;
+
+static void irq_remapping_disable_io_apic(void)
+{
+	/*
+	 * With interrupt-remapping, for now we will use virtual wire A
+	 * mode, as virtual wire B is little complex (need to configure
+	 * both IOAPIC RTE as well as interrupt-remapping table entry).
+	 * As this gets called during crash dump, keep this simple for
+	 * now.
+	 */
+	if (cpu_has_apic || apic_from_smp_config())
+		disconnect_bsp_APIC(0);
+}
+
+static void __init irq_remapping_modify_x86_ops(void)
+{
+	x86_io_apic_ops.disable	=	irq_remapping_disable_io_apic;
+}
 
 static __init int setup_nointremap(char *str)
 {
@@ -79,10 +101,17 @@ int __init irq_remapping_prepare(void)
 
 int __init irq_remapping_enable(void)
 {
+	int ret;
+
 	if (!remap_ops || !remap_ops->enable)
 		return -ENODEV;
 
-	return remap_ops->enable();
+	ret = remap_ops->enable();
+
+	if (irq_remapping_enabled)
+		irq_remapping_modify_x86_ops();
+
+	return ret;
 }
 
 void irq_remapping_disable(void)
