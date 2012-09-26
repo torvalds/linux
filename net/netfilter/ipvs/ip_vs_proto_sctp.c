@@ -18,7 +18,7 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	sctp_sctphdr_t *sh, _sctph;
 	struct ip_vs_iphdr iph;
 
-	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
+	ip_vs_fill_iph_skb(af, skb, &iph);
 
 	sh = skb_header_pointer(skb, iph.len, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
@@ -72,12 +72,14 @@ sctp_snat_handler(struct sk_buff *skb,
 	struct sk_buff *iter;
 	__be32 crc32;
 
+	struct ip_vs_iphdr iph;
+	ip_vs_fill_iph_skb(cp->af, skb, &iph);
+	sctphoff = iph.len;
+
 #ifdef CONFIG_IP_VS_IPV6
-	if (cp->af == AF_INET6)
-		sctphoff = sizeof(struct ipv6hdr);
-	else
+	if (cp->af == AF_INET6 && iph.fragoffs)
+		return 1;
 #endif
-		sctphoff = ip_hdrlen(skb);
 
 	/* csum_check requires unshared skb */
 	if (!skb_make_writable(skb, sctphoff + sizeof(*sctph)))
@@ -116,12 +118,14 @@ sctp_dnat_handler(struct sk_buff *skb,
 	struct sk_buff *iter;
 	__be32 crc32;
 
+	struct ip_vs_iphdr iph;
+	ip_vs_fill_iph_skb(cp->af, skb, &iph);
+	sctphoff = iph.len;
+
 #ifdef CONFIG_IP_VS_IPV6
-	if (cp->af == AF_INET6)
-		sctphoff = sizeof(struct ipv6hdr);
-	else
+	if (cp->af == AF_INET6 && iph.fragoffs)
+		return 1;
 #endif
-		sctphoff = ip_hdrlen(skb);
 
 	/* csum_check requires unshared skb */
 	if (!skb_make_writable(skb, sctphoff + sizeof(*sctph)))

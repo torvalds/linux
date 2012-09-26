@@ -679,14 +679,15 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	struct rt6_info *rt;		/* Route to the other host */
 	int mtu;
 	int local;
+	struct ip_vs_iphdr iph;
 
 	EnterFunction(10);
+	ip_vs_fill_iph_skb(cp->af, skb, &iph);
 
 	/* check if it is a connection of no-client-port */
 	if (unlikely(cp->flags & IP_VS_CONN_F_NO_CPORT)) {
 		__be16 _pt, *p;
-		p = skb_header_pointer(skb, sizeof(struct ipv6hdr),
-				       sizeof(_pt), &_pt);
+		p = skb_header_pointer(skb, iph.len, sizeof(_pt), &_pt);
 		if (p == NULL)
 			goto tx_error;
 		ip_vs_conn_fill_cport(cp, *p);

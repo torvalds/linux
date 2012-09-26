@@ -73,7 +73,7 @@ ip_vs_sip_fill_param(struct ip_vs_conn_param *p, struct sk_buff *skb)
 	const char *dptr;
 	int retc;
 
-	ip_vs_fill_iphdr(p->af, skb_network_header(skb), &iph);
+	ip_vs_fill_iph_skb(p->af, skb, &iph);
 
 	/* Only useful with UDP */
 	if (iph.protocol != IPPROTO_UDP)

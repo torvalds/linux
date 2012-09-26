@@ -40,7 +40,7 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	struct tcphdr _tcph, *th;
 	struct ip_vs_iphdr iph;
 
-	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
+	ip_vs_fill_iph_skb(af, skb, &iph);
 
 	th = skb_header_pointer(skb, iph.len, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
@@ -136,12 +136,14 @@ tcp_snat_handler(struct sk_buff *skb,
 	int oldlen;
 	int payload_csum = 0;
 
+	struct ip_vs_iphdr iph;
+	ip_vs_fill_iph_skb(cp->af, skb, &iph);
+	tcphoff = iph.len;
+
 #ifdef CONFIG_IP_VS_IPV6
-	if (cp->af == AF_INET6)
-		tcphoff = sizeof(struct ipv6hdr);
-	else
+	if (cp->af == AF_INET6 && iph.fragoffs)
+		return 1;
 #endif
-		tcphoff = ip_hdrlen(skb);
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */
@@ -216,12 +218,14 @@ tcp_dnat_handler(struct sk_buff *skb,
 	int oldlen;
 	int payload_csum = 0;
 
+	struct ip_vs_iphdr iph;
+	ip_vs_fill_iph_skb(cp->af, skb, &iph);
+	tcphoff = iph.len;
+
 #ifdef CONFIG_IP_VS_IPV6
-	if (cp->af == AF_INET6)
-		tcphoff = sizeof(struct ipv6hdr);
-	else
+	if (cp->af == AF_INET6 && iph.fragoffs)
+		return 1;
 #endif
-		tcphoff = ip_hdrlen(skb);
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */
