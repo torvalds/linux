@@ -78,28 +78,45 @@
  */
 #define MAX_SGE_TIMERVAL 200U
 
-#ifdef CONFIG_PCI_IOV
-/*
- * Virtual Function provisioning constants.  We need two extra Ingress Queues
- * with Interrupt capability to serve as the VF's Firmware Event Queue and
- * Forwarded Interrupt Queue (when using MSI mode) -- neither will have Free
- * Lists associated with them).  For each Ethernet/Control Egress Queue and
- * for each Free List, we need an Egress Context.
- */
 enum {
+	/*
+	 * Physical Function provisioning constants.
+	 */
+	PFRES_NVI = 4,			/* # of Virtual Interfaces */
+	PFRES_NETHCTRL = 128,		/* # of EQs used for ETH or CTRL Qs */
+	PFRES_NIQFLINT = 128,		/* # of ingress Qs/w Free List(s)/intr
+					 */
+	PFRES_NEQ = 256,		/* # of egress queues */
+	PFRES_NIQ = 0,			/* # of ingress queues */
+	PFRES_TC = 0,			/* PCI-E traffic class */
+	PFRES_NEXACTF = 128,		/* # of exact MPS filters */
+
+	PFRES_R_CAPS = FW_CMD_CAP_PF,
+	PFRES_WX_CAPS = FW_CMD_CAP_PF,
+
+#ifdef CONFIG_PCI_IOV
+	/*
+	 * Virtual Function provisioning constants.  We need two extra Ingress
+	 * Queues with Interrupt capability to serve as the VF's Firmware
+	 * Event Queue and Forwarded Interrupt Queue (when using MSI mode) --
+	 * neither will have Free Lists associated with them).  For each
+	 * Ethernet/Control Egress Queue and for each Free List, we need an
+	 * Egress Context.
+	 */
 	VFRES_NPORTS = 1,		/* # of "ports" per VF */
 	VFRES_NQSETS = 2,		/* # of "Queue Sets" per VF */
 
 	VFRES_NVI = VFRES_NPORTS,	/* # of Virtual Interfaces */
 	VFRES_NETHCTRL = VFRES_NQSETS,	/* # of EQs used for ETH or CTRL Qs */
 	VFRES_NIQFLINT = VFRES_NQSETS+2,/* # of ingress Qs/w Free List(s)/intr */
-	VFRES_NIQ = 0,			/* # of non-fl/int ingress queues */
 	VFRES_NEQ = VFRES_NQSETS*2,	/* # of egress queues */
+	VFRES_NIQ = 0,			/* # of non-fl/int ingress queues */
 	VFRES_TC = 0,			/* PCI-E traffic class */
 	VFRES_NEXACTF = 16,		/* # of exact MPS filters */
 
 	VFRES_R_CAPS = FW_CMD_CAP_DMAQ|FW_CMD_CAP_VF|FW_CMD_CAP_PORT,
 	VFRES_WX_CAPS = FW_CMD_CAP_DMAQ|FW_CMD_CAP_VF,
+#endif
 };
 
 /*
@@ -146,7 +163,6 @@ static unsigned int pfvfres_pmask(struct adapter *adapter,
 	}
 	/*NOTREACHED*/
 }
-#endif
 
 enum {
 	MAX_TXQ_ENTRIES      = 16384,
@@ -213,6 +229,17 @@ static uint force_init;
 module_param(force_init, uint, 0644);
 MODULE_PARM_DESC(force_init, "Forcibly become Master PF and initialize adapter");
 
+/*
+ * Normally if the firmware we connect to has Configuration File support, we
+ * use that and only fall back to the old Driver-based initialization if the
+ * Configuration File fails for some reason.  If force_old_init is set, then
+ * we'll always use the old Driver-based initialization sequence.
+ */
+static uint force_old_init;
+
+module_param(force_old_init, uint, 0644);
+MODULE_PARM_DESC(force_old_init, "Force old initialization sequence");
+
 static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
 module_param(dflt_msg_enable, int, 0644);
@@ -273,6 +300,30 @@ static unsigned int num_vf[4];
 module_param_array(num_vf, uint, NULL, 0644);
 MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3");
 #endif
+
+/*
+ * The filter TCAM has a fixed portion and a variable portion.  The fixed
+ * portion can match on source/destination IP IPv4/IPv6 addresses and TCP/UDP
+ * ports.  The variable portion is 36 bits which can include things like Exact
+ * Match MAC Index (9 bits), Ether Type (16 bits), IP Protocol (8 bits),
+ * [Inner] VLAN Tag (17 bits), etc. which, if all were somehow selected, would
+ * far exceed the 36-bit budget for this "compressed" header portion of the
+ * filter.  Thus, we have a scarce resource which must be carefully managed.
+ *
+ * By default we set this up to mostly match the set of filter matching
+ * capabilities of T3 but with accommodations for some of T4's more
+ * interesting features:
+ *
+ *   { IP Fragment (1), MPS Match Type (3), IP Protocol (8),
+ *     [Inner] VLAN (17), Port (3), FCoE (1) }
+ */
+enum {
+	TP_VLAN_PRI_MAP_DEFAULT = HW_TPL_FR_MT_PR_IV_P_FC,
+	TP_VLAN_PRI_MAP_FIRST = FCOE_SHIFT,
+	TP_VLAN_PRI_MAP_LAST = FRAGMENTATION_SHIFT,
+};
+
+static unsigned int tp_vlan_pri_map = TP_VLAN_PRI_MAP_DEFAULT;
 
 static struct dentry *cxgb4_debugfs_root;
 
@@ -3410,6 +3461,262 @@ bye:
 }
 
 /*
+ * Attempt to initialize the adapter via hard-coded, driver supplied
+ * parameters ...
+ */
+static int adap_init0_no_config(struct adapter *adapter, int reset)
+{
+	struct sge *s = &adapter->sge;
+	struct fw_caps_config_cmd caps_cmd;
+	u32 v;
+	int i, ret;
+
+	/*
+	 * Reset device if necessary
+	 */
+	if (reset) {
+		ret = t4_fw_reset(adapter, adapter->mbox,
+				  PIORSTMODE | PIORST);
+		if (ret < 0)
+			goto bye;
+	}
+
+	/*
+	 * Get device capabilities and select which we'll be using.
+	 */
+	memset(&caps_cmd, 0, sizeof(caps_cmd));
+	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+				     FW_CMD_REQUEST | FW_CMD_READ);
+	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
+	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
+			 &caps_cmd);
+	if (ret < 0)
+		goto bye;
+
+#ifndef CONFIG_CHELSIO_T4_OFFLOAD
+	/*
+	 * If we're a pure NIC driver then disable all offloading facilities.
+	 * This will allow the firmware to optimize aspects of the hardware
+	 * configuration which will result in improved performance.
+	 */
+	caps_cmd.ofldcaps = 0;
+	caps_cmd.iscsicaps = 0;
+	caps_cmd.rdmacaps = 0;
+	caps_cmd.fcoecaps = 0;
+#endif
+
+	if (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_VM)) {
+		if (!vf_acls)
+			caps_cmd.niccaps ^= htons(FW_CAPS_CONFIG_NIC_VM);
+		else
+			caps_cmd.niccaps = htons(FW_CAPS_CONFIG_NIC_VM);
+	} else if (vf_acls) {
+		dev_err(adapter->pdev_dev, "virtualization ACLs not supported");
+		goto bye;
+	}
+	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+			      FW_CMD_REQUEST | FW_CMD_WRITE);
+	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
+			 NULL);
+	if (ret < 0)
+		goto bye;
+
+	/*
+	 * Tweak configuration based on system architecture, module
+	 * parameters, etc.
+	 */
+	ret = adap_init0_tweaks(adapter);
+	if (ret < 0)
+		goto bye;
+
+	/*
+	 * Select RSS Global Mode we want to use.  We use "Basic Virtual"
+	 * mode which maps each Virtual Interface to its own section of
+	 * the RSS Table and we turn on all map and hash enables ...
+	 */
+	adapter->flags |= RSS_TNLALLLOOKUP;
+	ret = t4_config_glbl_rss(adapter, adapter->mbox,
+				 FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
+				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
+				 FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ |
+				 ((adapter->flags & RSS_TNLALLLOOKUP) ?
+					FW_RSS_GLB_CONFIG_CMD_TNLALLLKP : 0));
+	if (ret < 0)
+		goto bye;
+
+	/*
+	 * Set up our own fundamental resource provisioning ...
+	 */
+	ret = t4_cfg_pfvf(adapter, adapter->mbox, adapter->fn, 0,
+			  PFRES_NEQ, PFRES_NETHCTRL,
+			  PFRES_NIQFLINT, PFRES_NIQ,
+			  PFRES_TC, PFRES_NVI,
+			  FW_PFVF_CMD_CMASK_MASK,
+			  pfvfres_pmask(adapter, adapter->fn, 0),
+			  PFRES_NEXACTF,
+			  PFRES_R_CAPS, PFRES_WX_CAPS);
+	if (ret < 0)
+		goto bye;
+
+	/*
+	 * Perform low level SGE initialization.  We need to do this before we
+	 * send the firmware the INITIALIZE command because that will cause
+	 * any other PF Drivers which are waiting for the Master
+	 * Initialization to proceed forward.
+	 */
+	for (i = 0; i < SGE_NTIMERS - 1; i++)
+		s->timer_val[i] = min(intr_holdoff[i], MAX_SGE_TIMERVAL);
+	s->timer_val[SGE_NTIMERS - 1] = MAX_SGE_TIMERVAL;
+	s->counter_val[0] = 1;
+	for (i = 1; i < SGE_NCOUNTERS; i++)
+		s->counter_val[i] = min(intr_cnt[i - 1],
+					THRESHOLD_0_GET(THRESHOLD_0_MASK));
+	t4_sge_init(adapter);
+
+#ifdef CONFIG_PCI_IOV
+	/*
+	 * Provision resource limits for Virtual Functions.  We currently
+	 * grant them all the same static resource limits except for the Port
+	 * Access Rights Mask which we're assigning based on the PF.  All of
+	 * the static provisioning stuff for both the PF and VF really needs
+	 * to be managed in a persistent manner for each device which the
+	 * firmware controls.
+	 */
+	{
+		int pf, vf;
+
+		for (pf = 0; pf < ARRAY_SIZE(num_vf); pf++) {
+			if (num_vf[pf] <= 0)
+				continue;
+
+			/* VF numbering starts at 1! */
+			for (vf = 1; vf <= num_vf[pf]; vf++) {
+				ret = t4_cfg_pfvf(adapter, adapter->mbox,
+						  pf, vf,
+						  VFRES_NEQ, VFRES_NETHCTRL,
+						  VFRES_NIQFLINT, VFRES_NIQ,
+						  VFRES_TC, VFRES_NVI,
+						  FW_PFVF_CMD_CMASK_GET(
+						  FW_PFVF_CMD_CMASK_MASK),
+						  pfvfres_pmask(
+						  adapter, pf, vf),
+						  VFRES_NEXACTF,
+						  VFRES_R_CAPS, VFRES_WX_CAPS);
+				if (ret < 0)
+					dev_warn(adapter->pdev_dev,
+						 "failed to "\
+						 "provision pf/vf=%d/%d; "
+						 "err=%d\n", pf, vf, ret);
+			}
+		}
+	}
+#endif
+
+	/*
+	 * Set up the default filter mode.  Later we'll want to implement this
+	 * via a firmware command, etc. ...  This needs to be done before the
+	 * firmare initialization command ...  If the selected set of fields
+	 * isn't equal to the default value, we'll need to make sure that the
+	 * field selections will fit in the 36-bit budget.
+	 */
+	if (tp_vlan_pri_map != TP_VLAN_PRI_MAP_DEFAULT) {
+		int i, bits = 0;
+
+		for (i = TP_VLAN_PRI_MAP_FIRST; i <= TP_VLAN_PRI_MAP_LAST; i++)
+			switch (tp_vlan_pri_map & (1 << i)) {
+			case 0:
+				/* compressed filter field not enabled */
+				break;
+			case FCOE_MASK:
+				bits +=  1;
+				break;
+			case PORT_MASK:
+				bits +=  3;
+				break;
+			case VNIC_ID_MASK:
+				bits += 17;
+				break;
+			case VLAN_MASK:
+				bits += 17;
+				break;
+			case TOS_MASK:
+				bits +=  8;
+				break;
+			case PROTOCOL_MASK:
+				bits +=  8;
+				break;
+			case ETHERTYPE_MASK:
+				bits += 16;
+				break;
+			case MACMATCH_MASK:
+				bits +=  9;
+				break;
+			case MPSHITTYPE_MASK:
+				bits +=  3;
+				break;
+			case FRAGMENTATION_MASK:
+				bits +=  1;
+				break;
+			}
+
+		if (bits > 36) {
+			dev_err(adapter->pdev_dev,
+				"tp_vlan_pri_map=%#x needs %d bits > 36;"\
+				" using %#x\n", tp_vlan_pri_map, bits,
+				TP_VLAN_PRI_MAP_DEFAULT);
+			tp_vlan_pri_map = TP_VLAN_PRI_MAP_DEFAULT;
+		}
+	}
+	v = tp_vlan_pri_map;
+	t4_write_indirect(adapter, TP_PIO_ADDR, TP_PIO_DATA,
+			  &v, 1, TP_VLAN_PRI_MAP);
+
+	/*
+	 * We need Five Tuple Lookup mode to be set in TP_GLOBAL_CONFIG order
+	 * to support any of the compressed filter fields above.  Newer
+	 * versions of the firmware do this automatically but it doesn't hurt
+	 * to set it here.  Meanwhile, we do _not_ need to set Lookup Every
+	 * Packet in TP_INGRESS_CONFIG to support matching non-TCP packets
+	 * since the firmware automatically turns this on and off when we have
+	 * a non-zero number of filters active (since it does have a
+	 * performance impact).
+	 */
+	if (tp_vlan_pri_map)
+		t4_set_reg_field(adapter, TP_GLOBAL_CONFIG,
+				 FIVETUPLELOOKUP_MASK,
+				 FIVETUPLELOOKUP_MASK);
+
+	/*
+	 * Tweak some settings.
+	 */
+	t4_write_reg(adapter, TP_SHIFT_CNT, SYNSHIFTMAX(6) |
+		     RXTSHIFTMAXR1(4) | RXTSHIFTMAXR2(15) |
+		     PERSHIFTBACKOFFMAX(8) | PERSHIFTMAX(8) |
+		     KEEPALIVEMAXR1(4) | KEEPALIVEMAXR2(9));
+
+	/*
+	 * Get basic stuff going by issuing the Firmware Initialize command.
+	 * Note that this _must_ be after all PFVF commands ...
+	 */
+	ret = t4_fw_initialize(adapter, adapter->mbox);
+	if (ret < 0)
+		goto bye;
+
+	/*
+	 * Return successfully!
+	 */
+	dev_info(adapter->pdev_dev, "Successfully configured using built-in "\
+		 "driver parameters\n");
+	return 0;
+
+	/*
+	 * Something bad happened.  Return the error ...
+	 */
+bye:
+	return ret;
+}
+
+/*
  * Phase 0 of initialization: contact FW, obtain config, perform basic init.
  */
 static int adap_init0(struct adapter *adap)
@@ -3474,7 +3781,9 @@ static int adap_init0(struct adapter *adap)
 		goto bye;
 
 	/*
-	 * Find out what ports are available to us.
+	 * Find out what ports are available to us.  Note that we need to do
+	 * this before calling adap_init0_no_config() since it needs nports
+	 * and portvec ...
 	 */
 	v =
 	    FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
@@ -3500,35 +3809,52 @@ static int adap_init0(struct adapter *adap)
 	} else {
 		dev_info(adap->pdev_dev, "Coming up as MASTER: "\
 			 "Initializing adapter\n");
-		/*
-		 * Find out whether we're dealing with a version of
-		 * the firmware which has configuration file support.
-		 */
-		params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
-			     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
-		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1,
-				      params, val);
 
 		/*
 		 * If the firmware doesn't support Configuration
 		 * Files warn user and exit,
 		 */
 		if (ret < 0)
-			dev_warn(adap->pdev_dev, "Firmware doesn't support "\
+			dev_warn(adap->pdev_dev, "Firmware doesn't support "
 				 "configuration file.\n");
+		if (force_old_init)
+			ret = adap_init0_no_config(adap, reset);
 		else {
 			/*
-			 * The firmware provides us with a memory
-			 * buffer where we can load a Configuration
-			 * File from the host if we want to override
-			 * the Configuration File in flash.
+			 * Find out whether we're dealing with a version of
+			 * the firmware which has configuration file support.
 			 */
+			params[0] = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+				     FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CF));
+			ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1,
+					      params, val);
 
-			ret = adap_init0_config(adap, reset);
-			if (ret == -ENOENT) {
-				dev_info(adap->pdev_dev,
-				    "No Configuration File present "
-				    "on adapter.\n");
+			/*
+			 * If the firmware doesn't support Configuration
+			 * Files, use the old Driver-based, hard-wired
+			 * initialization.  Otherwise, try using the
+			 * Configuration File support and fall back to the
+			 * Driver-based initialization if there's no
+			 * Configuration File found.
+			 */
+			if (ret < 0)
+				ret = adap_init0_no_config(adap, reset);
+			else {
+				/*
+				 * The firmware provides us with a memory
+				 * buffer where we can load a Configuration
+				 * File from the host if we want to override
+				 * the Configuration File in flash.
+				 */
+
+				ret = adap_init0_config(adap, reset);
+				if (ret == -ENOENT) {
+					dev_info(adap->pdev_dev,
+					    "No Configuration File present "
+					    "on adapter.  Using hard-wired "
+					    "configuration parameters.\n");
+					ret = adap_init0_no_config(adap, reset);
+				}
 			}
 		}
 		if (ret < 0) {
@@ -3601,14 +3927,14 @@ static int adap_init0(struct adapter *adap)
 	 */
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
 	caps_cmd.op_to_write = htonl(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-				     F_FW_CMD_REQUEST | F_FW_CMD_READ);
-	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
+				     FW_CMD_REQUEST | FW_CMD_READ);
+	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adap, adap->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
 	if (ret < 0)
 		goto bye;
 
-	if (caps_cmd.toecaps) {
+	if (caps_cmd.ofldcaps) {
 		/* query offload-related parameters */
 		params[0] = FW_PARAM_DEV(NTID);
 		params[1] = FW_PARAM_PFVF(SERVER_START);

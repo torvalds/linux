@@ -120,6 +120,28 @@ static void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
 	}
 }
 
+/**
+ *	t4_write_indirect - write indirectly addressed registers
+ *	@adap: the adapter
+ *	@addr_reg: register holding the indirect addresses
+ *	@data_reg: register holding the value for the indirect registers
+ *	@vals: values to write
+ *	@nregs: how many indirect registers to write
+ *	@start_idx: address of first indirect register to write
+ *
+ *	Writes a sequential block of registers that are accessed indirectly
+ *	through an address/data register pair.
+ */
+void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
+		       unsigned int data_reg, const u32 *vals,
+		       unsigned int nregs, unsigned int start_idx)
+{
+	while (nregs--) {
+		t4_write_reg(adap, addr_reg, start_idx++);
+		t4_write_reg(adap, data_reg, *vals++);
+	}
+}
+
 /*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
  */

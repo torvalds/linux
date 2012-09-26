@@ -79,6 +79,8 @@ struct fw_wr_hdr {
 #define FW_WR_FLOWID(x)	((x) << 8)
 #define FW_WR_LEN16(x)	((x) << 0)
 
+#define HW_TPL_FR_MT_PR_IV_P_FC         0X32B
+
 struct fw_ulptx_wr {
 	__be32 op_to_compl;
 	__be32 flowid_len16;

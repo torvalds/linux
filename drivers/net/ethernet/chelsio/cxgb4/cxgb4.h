@@ -318,6 +318,7 @@ enum {                                 /* adapter flags */
 	USING_MSI          = (1 << 1),
 	USING_MSIX         = (1 << 2),
 	FW_OK              = (1 << 4),
+	RSS_TNLALLLOOKUP   = (1 << 5),
 	USING_SOFT_PARAMS  = (1 << 6),
 	MASTER_PF          = (1 << 7),
 	FW_OFLD_CONN       = (1 << 9),
@@ -677,6 +678,9 @@ static inline int t4_wr_mbox_ns(struct adapter *adap, int mbox, const void *cmd,
 	return t4_wr_mbox_meat(adap, mbox, cmd, size, rpl, false);
 }
 
+void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
+		       unsigned int data_reg, const u32 *vals,
+		       unsigned int nregs, unsigned int start_idx);
 void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
 int t4_slow_intr_handler(struct adapter *adapter);
