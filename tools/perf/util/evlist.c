@@ -304,7 +304,7 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 	int cpu, thread;
 	struct perf_evsel *pos;
 
-	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
+	for (cpu = 0; cpu < cpu_map__nr(evlist->cpus); cpu++) {
 		list_for_each_entry(pos, &evlist->entries, node) {
 			for (thread = 0; thread < evlist->threads->nr; thread++)
 				ioctl(FD(pos, cpu, thread),
@@ -315,7 +315,7 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 
 static int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 {
-	int nfds = evlist->cpus->nr * evlist->threads->nr * evlist->nr_entries;
+	int nfds = cpu_map__nr(evlist->cpus) * evlist->threads->nr * evlist->nr_entries;
 	evlist->pollfd = malloc(sizeof(struct pollfd) * nfds);
 	return evlist->pollfd != NULL ? 0 : -ENOMEM;
 }
@@ -475,8 +475,8 @@ void perf_evlist__munmap(struct perf_evlist *evlist)
 
 static int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 {
-	evlist->nr_mmaps = evlist->cpus->nr;
-	if (evlist->cpus->map[0] == -1)
+	evlist->nr_mmaps = cpu_map__nr(evlist->cpus);
+	if (cpu_map__all(evlist->cpus))
 		evlist->nr_mmaps = evlist->threads->nr;
 	evlist->mmap = zalloc(evlist->nr_mmaps * sizeof(struct perf_mmap));
 	return evlist->mmap != NULL ? 0 : -ENOMEM;
@@ -622,11 +622,11 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
 		    evsel->sample_id == NULL &&
-		    perf_evsel__alloc_id(evsel, cpus->nr, threads->nr) < 0)
+		    perf_evsel__alloc_id(evsel, cpu_map__nr(cpus), threads->nr) < 0)
 			return -ENOMEM;
 	}
 
-	if (evlist->cpus->map[0] == -1)
+	if (cpu_map__all(cpus))
 		return perf_evlist__mmap_per_thread(evlist, prot, mask);
 
 	return perf_evlist__mmap_per_cpu(evlist, prot, mask);
