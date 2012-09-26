@@ -1174,6 +1174,76 @@ err:
 	return r;
 }
 
+int dss_mgr_set_output(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *output)
+{
+	int r;
+
+	mutex_lock(&apply_lock);
+
+	if (mgr->output) {
+		DSSERR("manager %s is already connected to an output\n",
+			mgr->name);
+		r = -EINVAL;
+		goto err;
+	}
+
+	if ((mgr->supported_outputs & output->id) == 0) {
+		DSSERR("output does not support manager %s\n",
+			mgr->name);
+		r = -EINVAL;
+		goto err;
+	}
+
+	output->manager = mgr;
+	mgr->output = output;
+
+	mutex_unlock(&apply_lock);
+
+	return 0;
+err:
+	mutex_unlock(&apply_lock);
+	return r;
+}
+
+int dss_mgr_unset_output(struct omap_overlay_manager *mgr)
+{
+	int r;
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+	unsigned long flags;
+
+	mutex_lock(&apply_lock);
+
+	if (!mgr->output) {
+		DSSERR("failed to unset output, output not set\n");
+		r = -EINVAL;
+		goto err;
+	}
+
+	spin_lock_irqsave(&data_lock, flags);
+
+	if (mp->enabled) {
+		DSSERR("output can't be unset when manager is enabled\n");
+		r = -EINVAL;
+		goto err1;
+	}
+
+	spin_unlock_irqrestore(&data_lock, flags);
+
+	mgr->output->manager = NULL;
+	mgr->output = NULL;
+
+	mutex_unlock(&apply_lock);
+
+	return 0;
+err1:
+	spin_unlock_irqrestore(&data_lock, flags);
+err:
+	mutex_unlock(&apply_lock);
+
+	return r;
+}
+
 static void dss_apply_mgr_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings)
 {

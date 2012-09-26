@@ -95,6 +95,8 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 
 		mgr->set_device = &dss_mgr_set_device;
 		mgr->unset_device = &dss_mgr_unset_device;
+		mgr->set_output = &dss_mgr_set_output;
+		mgr->unset_output = &dss_mgr_unset_output;
 		mgr->apply = &omap_dss_mgr_apply;
 		mgr->set_manager_info = &dss_mgr_set_info;
 		mgr->get_manager_info = &dss_mgr_get_info;
@@ -104,6 +106,8 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		mgr->caps = 0;
 		mgr->supported_displays =
 			dss_feat_get_supported_displays(mgr->id);
+		mgr->supported_outputs =
+			dss_feat_get_supported_outputs(mgr->id);
 
 		INIT_LIST_HEAD(&mgr->overlays);
 

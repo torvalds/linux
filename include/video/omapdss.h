@@ -459,9 +459,11 @@ struct omap_overlay_manager {
 	enum omap_overlay_manager_caps caps;
 	struct list_head overlays;
 	enum omap_display_type supported_displays;
+	enum omap_dss_output_id supported_outputs;
 
 	/* dynamic fields */
 	struct omap_dss_device *device;
+	struct omap_dss_output *output;
 
 	/*
 	 * The following functions do not block:
@@ -477,6 +479,9 @@ struct omap_overlay_manager {
 	int (*set_device)(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev);
 	int (*unset_device)(struct omap_overlay_manager *mgr);
+	int (*set_output)(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *output);
+	int (*unset_output)(struct omap_overlay_manager *mgr);
 
 	int (*set_manager_info)(struct omap_overlay_manager *mgr,
 			struct omap_overlay_manager_info *info);

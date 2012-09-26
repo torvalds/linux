@@ -209,6 +209,9 @@ void dss_mgr_get_info(struct omap_overlay_manager *mgr,
 int dss_mgr_set_device(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev);
 int dss_mgr_unset_device(struct omap_overlay_manager *mgr);
+int dss_mgr_set_output(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *output);
+int dss_mgr_unset_output(struct omap_overlay_manager *mgr);
 void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings);
 void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
