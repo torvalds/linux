@@ -496,6 +496,7 @@ struct mwifiex_private {
 	u16 rsn_idx;
 	struct timer_list scan_delay_timer;
 	u8 ap_11n_enabled;
+	u32 mgmt_frame_mask;
 };
 
 enum mwifiex_ba_status {

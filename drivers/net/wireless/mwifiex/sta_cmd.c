@@ -1167,6 +1167,15 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 				    S_DS_GEN);
 		ret = 0;
 		break;
+	case HostCmd_CMD_MGMT_FRAME_REG:
+		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->params.reg_mask.action = cpu_to_le16(cmd_action);
+		cmd_ptr->params.reg_mask.mask = cpu_to_le32(*(u32 *)data_buf);
+		cmd_ptr->size =
+			cpu_to_le16(sizeof(struct host_cmd_ds_mgmt_frame_reg) +
+				    S_DS_GEN);
+		ret = 0;
+		break;
 	case HostCmd_CMD_FUNC_INIT:
 		if (priv->adapter->hw_status == MWIFIEX_HW_STATUS_RESET)
 			priv->adapter->hw_status = MWIFIEX_HW_STATUS_READY;

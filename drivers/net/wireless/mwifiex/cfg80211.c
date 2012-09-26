@@ -227,6 +227,27 @@ mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 }
 
 /*
+ * CFG802.11 operation handler to register a mgmt frame.
+ */
+static void
+mwifiex_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
+				     struct wireless_dev *wdev,
+				     u16 frame_type, bool reg)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
+
+	if (reg)
+		priv->mgmt_frame_mask |= BIT(frame_type >> 4);
+	else
+		priv->mgmt_frame_mask &= ~BIT(frame_type >> 4);
+
+	mwifiex_send_cmd_async(priv, HostCmd_CMD_MGMT_FRAME_REG,
+			       HostCmd_ACT_GEN_SET, 0, &priv->mgmt_frame_mask);
+
+	wiphy_dbg(wiphy, "info: mgmt frame registered\n");
+}
+
+/*
  * CFG802.11 operation handler to set Tx power.
  */
 static int
@@ -1928,6 +1949,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.add_key = mwifiex_cfg80211_add_key,
 	.del_key = mwifiex_cfg80211_del_key,
 	.mgmt_tx = mwifiex_cfg80211_mgmt_tx,
+	.mgmt_frame_register = mwifiex_cfg80211_mgmt_frame_register,
 	.set_default_key = mwifiex_cfg80211_set_default_key,
 	.set_power_mgmt = mwifiex_cfg80211_set_power_mgmt,
 	.set_tx_power = mwifiex_cfg80211_set_tx_power,

@@ -263,6 +263,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_CAU_REG_ACCESS                    0x00ed
 #define HostCmd_CMD_SET_BSS_MODE                      0x00f7
 #define HostCmd_CMD_PCIE_DESC_DETAILS                 0x00fa
+#define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -1336,6 +1337,11 @@ struct host_cmd_ds_version_ext {
 	char version_str[128];
 } __packed;
 
+struct host_cmd_ds_mgmt_frame_reg {
+	__le16 action;
+	__le32 mask;
+} __packed;
+
 struct host_cmd_ds_802_11_ibss_status {
 	__le16 action;
 	__le16 enable;
@@ -1444,6 +1450,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_wmm_get_status get_wmm_status;
 		struct host_cmd_ds_802_11_key_material key_material;
 		struct host_cmd_ds_version_ext verext;
+		struct host_cmd_ds_mgmt_frame_reg reg_mask;
 		struct host_cmd_ds_802_11_ibss_status ibss_coalescing;
 		struct host_cmd_ds_mac_reg_access mac_reg;
 		struct host_cmd_ds_bbp_reg_access bbp_reg;
