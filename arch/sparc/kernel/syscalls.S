@@ -1,23 +1,19 @@
 	/* SunOS's execv() call only specifies the argv argument, the
 	 * environment settings are the same as the calling processes.
 	 */
-sys_execve:
-	sethi	%hi(sparc_execve), %g1
-	ba,pt	%xcc, execve_merge
-	 or	%g1, %lo(sparc_execve), %g1
+sys64_execve:
+	set	sys_execve, %g1
+	jmpl	%g1, %g0
+	 flushw
 
 #ifdef CONFIG_COMPAT
 sunos_execv:
-	stx	%g0, [%sp + PTREGS_OFF + PT_V9_I2]
+	mov	%g0, %o2
 sys32_execve:
-	sethi	%hi(sparc32_execve), %g1
-	or	%g1, %lo(sparc32_execve), %g1
-#endif
-
-execve_merge:
-	flushw
+	set	compat_sys_execve, %g1
 	jmpl	%g1, %g0
-	 add	%sp, PTREGS_OFF, %o0
+	 flushw
+#endif
 
 	.align	32
 sys_sparc_pipe:
