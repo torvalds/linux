@@ -45,6 +45,7 @@ extern void compose_remapped_msi_msg(struct pci_dev *pdev,
 				     unsigned int irq, unsigned int dest,
 				     struct msi_msg *msg, u8 hpet_id);
 extern int setup_hpet_msi_remapped(unsigned int irq, unsigned int id);
+extern void panic_if_irq_remap(const char *msg);
 
 #else  /* CONFIG_IRQ_REMAP */
 
@@ -74,6 +75,10 @@ static inline void compose_remapped_msi_msg(struct pci_dev *pdev,
 static inline int setup_hpet_msi_remapped(unsigned int irq, unsigned int id)
 {
 	return -ENODEV;
+}
+
+static inline void panic_if_irq_remap(const char *msg)
+{
 }
 #endif /* CONFIG_IRQ_REMAP */
 
