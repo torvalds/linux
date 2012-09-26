@@ -557,9 +557,8 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 			    (THREAD_SIZE - child_stack_sz));
 	memcpy(child_trap_frame, parent_sf, child_stack_sz);
 
-	t->flags = (t->flags & ~((0xffUL << TI_FLAG_CWP_SHIFT) |
-				 (0xffUL << TI_FLAG_CURRENT_DS_SHIFT))) |
-		(((regs->tstate + 1) & TSTATE_CWP) << TI_FLAG_CWP_SHIFT);
+	__thread_flag_byte_ptr(t)[TI_FLAG_BYTE_CWP] = 
+		(regs->tstate + 1) & TSTATE_CWP;
 	t->new_child = 1;
 	t->ksp = ((unsigned long) child_trap_frame) - STACK_BIAS;
 	t->kregs = (struct pt_regs *) (child_trap_frame +
@@ -575,7 +574,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		t->kregs->u_regs[UREG_FP] =
 		  ((unsigned long) child_sf) - STACK_BIAS;
 
-		t->flags |= ((long)ASI_P << TI_FLAG_CURRENT_DS_SHIFT);
+		t->current_ds = ASI_P;
 		t->kregs->u_regs[UREG_G6] = (unsigned long) t;
 		t->kregs->u_regs[UREG_G4] = (unsigned long) t->task;
 	} else {
@@ -584,7 +583,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 			regs->u_regs[UREG_FP] &= 0x00000000ffffffffUL;
 		}
 		t->kregs->u_regs[UREG_FP] = sp;
-		t->flags |= ((long)ASI_AIUS << TI_FLAG_CURRENT_DS_SHIFT);
+		t->current_ds = ASI_AIUS;
 		if (sp != regs->u_regs[UREG_FP]) {
 			unsigned long csp;
 

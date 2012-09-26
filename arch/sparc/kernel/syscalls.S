@@ -222,7 +222,6 @@ ret_sys_call:
 	ldx	[%sp + PTREGS_OFF + PT_V9_TNPC], %l1 ! pc = npc
 
 2:
-	stb	%g0, [%g6 + TI_SYS_NOERROR]
 	/* System call success, clear Carry condition code. */
 	andn	%g3, %g2, %g3
 3:
