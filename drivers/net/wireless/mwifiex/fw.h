@@ -392,6 +392,7 @@ enum ENH_PS_MODES {
 #define EVENT_BW_CHANGE                 0x00000048
 #define EVENT_UAP_MIC_COUNTERMEASURES   0x0000004c
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
+#define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 
 #define EVENT_ID_MASK                   0xffff
 #define BSS_NUM_MASK                    0xf
