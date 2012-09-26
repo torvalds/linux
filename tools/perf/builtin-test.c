@@ -1233,7 +1233,7 @@ static int perf_evsel__test_field(struct perf_evsel *evsel, const char *name,
 		ret = -1;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int perf_evsel__tp_sched_test(void)
@@ -1286,7 +1286,7 @@ static int perf_evsel__tp_sched_test(void)
 	if (perf_evsel__test_field(evsel, "target_cpu", 4, true))
 		ret = -1;
 
-	return 0;
+	return ret;
 }
 
 static struct test {
