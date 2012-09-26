@@ -509,9 +509,9 @@ enum pool_mode {
 struct pool_features {
 	enum pool_mode mode;
 
-	unsigned zero_new_blocks:1;
-	unsigned discard_enabled:1;
-	unsigned discard_passdown:1;
+	bool zero_new_blocks:1;
+	bool discard_enabled:1;
+	bool discard_passdown:1;
 };
 
 struct thin_c;
@@ -1839,6 +1839,32 @@ static void __requeue_bios(struct pool *pool)
 /*----------------------------------------------------------------
  * Binding of control targets to a pool object
  *--------------------------------------------------------------*/
+static bool data_dev_supports_discard(struct pool_c *pt)
+{
+	struct request_queue *q = bdev_get_queue(pt->data_dev->bdev);
+
+	return q && blk_queue_discard(q);
+}
+
+/*
+ * If discard_passdown was enabled verify that the data device
+ * supports discards.  Disable discard_passdown if not; otherwise
+ * -EOPNOTSUPP will be returned.
+ */
+static void disable_passdown_if_not_supported(struct pool_c *pt,
+					      struct pool_features *pf)
+{
+	char buf[BDEVNAME_SIZE];
+
+	if (!pf->discard_passdown || data_dev_supports_discard(pt))
+		return;
+
+	DMWARN("Discard unsupported by data device (%s): Disabling discard passdown.",
+	       bdevname(pt->data_dev->bdev, buf));
+
+	pf->discard_passdown = false;
+}
+
 static int bind_control_target(struct pool *pool, struct dm_target *ti)
 {
 	struct pool_c *pt = ti->private;
@@ -1855,23 +1881,9 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 	pool->ti = ti;
 	pool->low_water_blocks = pt->low_water_blocks;
 	pool->pf = pt->pf;
-	set_pool_mode(pool, new_mode);
 
-	/*
-	 * If discard_passdown was enabled verify that the data device
-	 * supports discards.  Disable discard_passdown if not; otherwise
-	 * -EOPNOTSUPP will be returned.
-	 */
-	/* FIXME: pull this out into a sep fn. */
-	if (pt->pf.discard_passdown) {
-		struct request_queue *q = bdev_get_queue(pt->data_dev->bdev);
-		if (!q || !blk_queue_discard(q)) {
-			char buf[BDEVNAME_SIZE];
-			DMWARN("Discard unsupported by data device (%s): Disabling discard passdown.",
-			       bdevname(pt->data_dev->bdev, buf));
-			pool->pf.discard_passdown = 0;
-		}
-	}
+	disable_passdown_if_not_supported(pt, &pool->pf);
+	set_pool_mode(pool, new_mode);
 
 	return 0;
 }
@@ -1889,9 +1901,9 @@ static void unbind_control_target(struct pool *pool, struct dm_target *ti)
 static void pool_features_init(struct pool_features *pf)
 {
 	pf->mode = PM_WRITE;
-	pf->zero_new_blocks = 1;
-	pf->discard_enabled = 1;
-	pf->discard_passdown = 1;
+	pf->zero_new_blocks = true;
+	pf->discard_enabled = true;
+	pf->discard_passdown = true;
 }
 
 static void __pool_destroy(struct pool *pool)
@@ -2119,13 +2131,13 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 		argc--;
 
 		if (!strcasecmp(arg_name, "skip_block_zeroing"))
-			pf->zero_new_blocks = 0;
+			pf->zero_new_blocks = false;
 
 		else if (!strcasecmp(arg_name, "ignore_discard"))
-			pf->discard_enabled = 0;
+			pf->discard_enabled = false;
 
 		else if (!strcasecmp(arg_name, "no_discard_passdown"))
-			pf->discard_passdown = 0;
+			pf->discard_passdown = false;
 
 		else if (!strcasecmp(arg_name, "read_only"))
 			pf->mode = PM_READ_ONLY;
@@ -2261,6 +2273,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	pt->low_water_blocks = low_water_blocks;
 	pt->pf = pf;
 	ti->num_flush_requests = 1;
+
 	/*
 	 * Only need to enable discards if the pool should pass
 	 * them down to the data device.  The thin device's discard
@@ -2268,6 +2281,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	 */
 	if (pf.discard_enabled && pf.discard_passdown) {
 		ti->num_discard_requests = 1;
+
 		/*
 		 * Setting 'discards_supported' circumvents the normal
 		 * stacking of discard limits (this keeps the pool and
