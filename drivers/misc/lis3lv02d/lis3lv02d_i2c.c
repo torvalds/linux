@@ -31,6 +31,10 @@
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/of_device.h>
+
 #include "lis3lv02d.h"
 
 #define DRV_NAME	"lis3lv02d_i2c"
@@ -102,11 +106,29 @@ static int lis3_i2c_init(struct lis3lv02d *lis3)
 static union axis_conversion lis3lv02d_axis_map =
 	{ .as_array = { LIS3_DEV_X, LIS3_DEV_Y, LIS3_DEV_Z } };
 
+#ifdef CONFIG_OF
+static struct of_device_id lis3lv02d_i2c_dt_ids[] = {
+	{ .compatible = "st,lis3lv02d" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, lis3lv02d_i2c_dt_ids);
+#endif
+
 static int __devinit lis3lv02d_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	int ret = 0;
 	struct lis3lv02d_platform_data *pdata = client->dev.platform_data;
+
+#ifdef CONFIG_OF
+	if (of_match_device(lis3lv02d_i2c_dt_ids, &client->dev)) {
+		lis3_dev.of_node = client->dev.of_node;
+		ret = lis3lv02d_init_dt(&lis3_dev);
+		if (ret)
+			return ret;
+		pdata = lis3_dev.pdata;
+	}
+#endif
 
 	if (pdata) {
 		if ((pdata->driver_features & LIS3_USE_BLOCK_READ) &&
@@ -255,6 +277,7 @@ static struct i2c_driver lis3lv02d_i2c_driver = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
 		.pm     = &lis3_pm_ops,
+		.of_match_table = of_match_ptr(lis3lv02d_i2c_dt_ids),
 	},
 	.probe	= lis3lv02d_i2c_probe,
 	.remove	= __devexit_p(lis3lv02d_i2c_remove),
