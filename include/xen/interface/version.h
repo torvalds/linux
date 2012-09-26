@@ -45,7 +45,7 @@ struct xen_changeset_info {
 
 #define XENVER_platform_parameters 5
 struct xen_platform_parameters {
-    unsigned long virt_start;
+    xen_ulong_t virt_start;
 };
 
 #define XENVER_get_features 6

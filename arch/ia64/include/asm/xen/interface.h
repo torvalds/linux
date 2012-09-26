@@ -71,6 +71,7 @@
  * with Xen so that we could have one ABI that works for 32 and 64 bit
  * guests. */
 typedef unsigned long xen_pfn_t;
+typedef unsigned long xen_ulong_t;
 /* Guest handles for primitive C types. */
 __DEFINE_GUEST_HANDLE(uchar, unsigned char);
 __DEFINE_GUEST_HANDLE(uint, unsigned int);

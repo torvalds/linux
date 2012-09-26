@@ -33,6 +33,7 @@
 #include <linux/memblock.h>
 
 #include <xen/xen.h>
+#include <xen/events.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>
 #include <xen/interface/physdev.h>

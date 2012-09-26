@@ -56,7 +56,7 @@ struct physdev_eoi {
 #define PHYSDEVOP_pirq_eoi_gmfn_v2       28
 struct physdev_pirq_eoi_gmfn {
     /* IN */
-    unsigned long gmfn;
+    xen_ulong_t gmfn;
 };
 
 /*
