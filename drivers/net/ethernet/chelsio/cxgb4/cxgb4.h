@@ -664,6 +664,8 @@ int t4_wait_dev_ready(struct adapter *adap);
 int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc);
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
+int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
+		    __be32 *buf);
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
 int t4_check_fw_version(struct adapter *adapter);

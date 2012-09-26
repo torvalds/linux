@@ -330,6 +330,143 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	return 0;
 }
 
+/*
+ *	t4_mem_win_rw - read/write memory through PCIE memory window
+ *	@adap: the adapter
+ *	@addr: address of first byte requested
+ *	@data: MEMWIN0_APERTURE bytes of data containing the requested address
+ *	@dir: direction of transfer 1 => read, 0 => write
+ *
+ *	Read/write MEMWIN0_APERTURE bytes of data from MC starting at a
+ *	MEMWIN0_APERTURE-byte-aligned address that covers the requested
+ *	address @addr.
+ */
+static int t4_mem_win_rw(struct adapter *adap, u32 addr, __be32 *data, int dir)
+{
+	int i;
+
+	/*
+	 * Setup offset into PCIE memory window.  Address must be a
+	 * MEMWIN0_APERTURE-byte-aligned address.  (Read back MA register to
+	 * ensure that changes propagate before we attempt to use the new
+	 * values.)
+	 */
+	t4_write_reg(adap, PCIE_MEM_ACCESS_OFFSET,
+		     addr & ~(MEMWIN0_APERTURE - 1));
+	t4_read_reg(adap, PCIE_MEM_ACCESS_OFFSET);
+
+	/* Collecting data 4 bytes at a time upto MEMWIN0_APERTURE */
+	for (i = 0; i < MEMWIN0_APERTURE; i = i+0x4) {
+		if (dir)
+			*data++ = t4_read_reg(adap, (MEMWIN0_BASE + i));
+		else
+			t4_write_reg(adap, (MEMWIN0_BASE + i), *data++);
+	}
+
+	return 0;
+}
+
+/**
+ *	t4_memory_rw - read/write EDC 0, EDC 1 or MC via PCIE memory window
+ *	@adap: the adapter
+ *	@mtype: memory type: MEM_EDC0, MEM_EDC1 or MEM_MC
+ *	@addr: address within indicated memory type
+ *	@len: amount of memory to transfer
+ *	@buf: host memory buffer
+ *	@dir: direction of transfer 1 => read, 0 => write
+ *
+ *	Reads/writes an [almost] arbitrary memory region in the firmware: the
+ *	firmware memory address, length and host buffer must be aligned on
+ *	32-bit boudaries.  The memory is transferred as a raw byte sequence
+ *	from/to the firmware's memory.  If this memory contains data
+ *	structures which contain multi-byte integers, it's the callers
+ *	responsibility to perform appropriate byte order conversions.
+ */
+static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
+			__be32 *buf, int dir)
+{
+	u32 pos, start, end, offset, memoffset;
+	int ret;
+
+	/*
+	 * Argument sanity checks ...
+	 */
+	if ((addr & 0x3) || (len & 0x3))
+		return -EINVAL;
+
+	/*
+	 * Offset into the region of memory which is being accessed
+	 * MEM_EDC0 = 0
+	 * MEM_EDC1 = 1
+	 * MEM_MC   = 2
+	 */
+	memoffset = (mtype * (5 * 1024 * 1024));
+
+	/* Determine the PCIE_MEM_ACCESS_OFFSET */
+	addr = addr + memoffset;
+
+	/*
+	 * The underlaying EDC/MC read routines read MEMWIN0_APERTURE bytes
+	 * at a time so we need to round down the start and round up the end.
+	 * We'll start copying out of the first line at (addr - start) a word
+	 * at a time.
+	 */
+	start = addr & ~(MEMWIN0_APERTURE-1);
+	end = (addr + len + MEMWIN0_APERTURE-1) & ~(MEMWIN0_APERTURE-1);
+	offset = (addr - start)/sizeof(__be32);
+
+	for (pos = start; pos < end; pos += MEMWIN0_APERTURE, offset = 0) {
+		__be32 data[MEMWIN0_APERTURE/sizeof(__be32)];
+
+		/*
+		 * If we're writing, copy the data from the caller's memory
+		 * buffer
+		 */
+		if (!dir) {
+			/*
+			 * If we're doing a partial write, then we need to do
+			 * a read-modify-write ...
+			 */
+			if (offset || len < MEMWIN0_APERTURE) {
+				ret = t4_mem_win_rw(adap, pos, data, 1);
+				if (ret)
+					return ret;
+			}
+			while (offset < (MEMWIN0_APERTURE/sizeof(__be32)) &&
+			       len > 0) {
+				data[offset++] = *buf++;
+				len -= sizeof(__be32);
+			}
+		}
+
+		/*
+		 * Transfer a block of memory and bail if there's an error.
+		 */
+		ret = t4_mem_win_rw(adap, pos, data, dir);
+		if (ret)
+			return ret;
+
+		/*
+		 * If we're reading, copy the data into the caller's memory
+		 * buffer.
+		 */
+		if (dir)
+			while (offset < (MEMWIN0_APERTURE/sizeof(__be32)) &&
+			       len > 0) {
+				*buf++ = data[offset++];
+				len -= sizeof(__be32);
+			}
+	}
+
+	return 0;
+}
+
+int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
+		    __be32 *buf)
+{
+	return t4_memory_rw(adap, mtype, addr, len, buf, 0);
+}
+
 #define EEPROM_STAT_ADDR   0x7bfc
 #define VPD_BASE           0
 #define VPD_LEN            512
