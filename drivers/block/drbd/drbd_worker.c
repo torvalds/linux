@@ -134,8 +134,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 
 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	mdev->writ_cnt += peer_req->i.size >> 9;
-	list_del(&peer_req->w.list); /* has been on active_ee or sync_ee */
-	list_add_tail(&peer_req->w.list, &mdev->done_ee);
+	list_move_tail(&peer_req->w.list, &mdev->done_ee);
 
 	/*
 	 * Do not remove from the write_requests tree here: we did not send the
