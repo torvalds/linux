@@ -22,7 +22,7 @@
 
 static const struct ieee80211_iface_limit mwifiex_ap_sta_limits[] = {
 	{
-		.max = 1, .types = BIT(NL80211_IFTYPE_STATION),
+		.max = 2, .types = BIT(NL80211_IFTYPE_STATION),
 	},
 	{
 		.max = 1, .types = BIT(NL80211_IFTYPE_AP),
@@ -1918,6 +1918,41 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->bss_mode = type;
 
 		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		priv = adapter->priv[MWIFIEX_BSS_TYPE_P2P];
+
+		if (priv->bss_mode) {
+			wiphy_err(wiphy, "Can't create multiple P2P ifaces");
+			return ERR_PTR(-EINVAL);
+		}
+
+		wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
+		if (!wdev)
+			return ERR_PTR(-ENOMEM);
+
+		priv->wdev = wdev;
+		wdev->wiphy = wiphy;
+
+		/* At start-up, wpa_supplicant tries to change the interface
+		 * to NL80211_IFTYPE_STATION if it is not managed mode.
+		 * So, we initialize it to STA mode.
+		 */
+		wdev->iftype = NL80211_IFTYPE_STATION;
+		priv->bss_mode = NL80211_IFTYPE_STATION;
+
+		/* Setting bss_type to P2P tells firmware that this interface
+		 * is receiving P2P peers found during find phase and doing
+		 * action frame handshake.
+		 */
+		priv->bss_type = MWIFIEX_BSS_TYPE_P2P;
+
+		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
+		priv->bss_priority = MWIFIEX_BSS_ROLE_STA;
+		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
+		priv->bss_started = 0;
+		priv->bss_num = 0;
+
+		break;
 	default:
 		wiphy_err(wiphy, "type not supported\n");
 		return ERR_PTR(-EINVAL);
@@ -2069,6 +2104,8 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->max_remain_on_channel_duration = 5000;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_ADHOC) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				 BIT(NL80211_IFTYPE_P2P_GO) |
 				 BIT(NL80211_IFTYPE_AP);
 
 	wiphy->bands[IEEE80211_BAND_2GHZ] = &mwifiex_band_2ghz;
