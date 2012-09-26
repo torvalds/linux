@@ -933,7 +933,13 @@ static int upgrade_fw(struct adapter *adap)
 		if (!ret)
 			dev_info(dev, "firmware upgraded to version %pI4 from "
 				 FW_FNAME "\n", &hdr->fw_ver);
+	} else {
+		/*
+		 * Tell our caller that we didn't upgrade the firmware.
+		 */
+		ret = -EINVAL;
 	}
+
 out:	release_firmware(fw);
 	return ret;
 }
