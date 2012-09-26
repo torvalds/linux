@@ -60,10 +60,16 @@
 							697  0x80000000	/* MX53_PAD_EIM_DA12__GPIO3_12 */
 							701  0x80000000	/* MX53_PAD_EIM_DA13__GPIO3_13 */
 							868  0x80000000	/* MX53_PAD_PATA_DA_0__GPIO7_6 */
+						>;
+					};
+
+					led_pin_gpio7_7: led_gpio7_7@0 {
+						fsl,pins = <
 							873  0x80000000	/* MX53_PAD_PATA_DA_1__GPIO7_7 */
 						>;
 					};
 				};
+
 			};
 
 			uart1: serial@53fbc000 {
@@ -216,6 +222,8 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pin_gpio7_7>;
 
 		user {
 			label = "Heartbeat";
