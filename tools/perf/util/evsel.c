@@ -1108,13 +1108,43 @@ u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 		       const char *name)
 {
 	struct format_field *field = perf_evsel__field(evsel, name);
-	u64 val;
+	void *ptr;
+	u64 value;
 
 	if (!field)
 		return 0;
 
-	val = pevent_read_number(evsel->tp_format->pevent,
-				 sample->raw_data + field->offset, field->size);
-	return val;
+	ptr = sample->raw_data + field->offset;
 
+	switch (field->size) {
+	case 1:
+		return *(u8 *)ptr;
+	case 2:
+		value = *(u16 *)ptr;
+		break;
+	case 4:
+		value = *(u32 *)ptr;
+		break;
+	case 8:
+		value = *(u64 *)ptr;
+		break;
+	default:
+		return 0;
+	}
+
+	if (!evsel->needs_swap)
+		return value;
+
+	switch (field->size) {
+	case 2:
+		return bswap_16(value);
+	case 4:
+		return bswap_32(value);
+	case 8:
+		return bswap_64(value);
+	default:
+		return 0;
+	}
+
+	return 0;
 }
