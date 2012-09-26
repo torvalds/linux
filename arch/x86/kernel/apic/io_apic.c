@@ -1475,9 +1475,6 @@ static void __init setup_timer_IRQ0_pin(unsigned int ioapic_idx,
 	struct IO_APIC_route_entry entry;
 	unsigned int dest;
 
-	if (irq_remapping_enabled)
-		return;
-
 	memset(&entry, 0, sizeof(entry));
 
 	/*
