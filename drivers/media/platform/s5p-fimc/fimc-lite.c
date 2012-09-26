@@ -829,7 +829,7 @@ static int fimc_lite_reqbufs(struct file *file, void *priv,
 
 	reqbufs->count = max_t(u32, FLITE_REQ_BUFS_MIN, reqbufs->count);
 	ret = vb2_reqbufs(&fimc->vb_queue, reqbufs);
-	if (!ret < 0)
+	if (!ret)
 		fimc->reqbufs_count = reqbufs->count;
 
 	return ret;
