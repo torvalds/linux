@@ -1,7 +1,7 @@
 /*
  * A driver for the ARM PL022 PrimeCell SSP/SPI bus master.
  *
- * Copyright (C) 2008-2009 ST-Ericsson AB
+ * Copyright (C) 2008-2012 ST-Ericsson AB
  * Copyright (C) 2006 STMicroelectronics Pvt. Ltd.
  *
  * Author: Linus Walleij <linus.walleij@stericsson.com>
@@ -2074,24 +2074,21 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	if (!platform_info) {
 		dev_err(dev, "probe: no platform data defined\n");
-		status = -ENODEV;
-		goto err_no_pdata;
+		return -ENODEV;
 	}
 
 	if (platform_info->num_chipselect) {
 		num_cs = platform_info->num_chipselect;
 	} else {
 		dev_err(dev, "probe: no chip select defined\n");
-		status = -ENODEV;
-		goto err_no_pdata;
+		return -ENODEV;
 	}
 
 	/* Allocate master with space for data */
 	master = spi_alloc_master(dev, sizeof(struct pl022));
 	if (master == NULL) {
 		dev_err(&adev->dev, "probe - cannot alloc SPI master\n");
-		status = -ENOMEM;
-		goto err_no_master;
+		return -ENOMEM;
 	}
 
 	pl022 = spi_master_get_devdata(master);
@@ -2153,7 +2150,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			pl022->chipselects[i] = cs_gpio;
 
 			if (gpio_is_valid(cs_gpio)) {
-				if (gpio_request(cs_gpio, "ssp-pl022"))
+				if (devm_gpio_request(dev, cs_gpio, "ssp-pl022"))
 					dev_err(&adev->dev,
 						"could not request %d gpio\n",
 						cs_gpio);
@@ -2180,7 +2177,8 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_ioregion;
 
 	pl022->phybase = adev->res.start;
-	pl022->virtbase = ioremap(adev->res.start, resource_size(&adev->res));
+	pl022->virtbase = devm_ioremap(dev, adev->res.start,
+				       resource_size(&adev->res));
 	if (pl022->virtbase == NULL) {
 		status = -ENOMEM;
 		goto err_no_ioremap;
@@ -2190,7 +2188,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	pm_runtime_resume(dev);
 
-	pl022->clk = clk_get(&adev->dev, NULL);
+	pl022->clk = devm_clk_get(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {
 		status = PTR_ERR(pl022->clk);
 		dev_err(&adev->dev, "could not retrieve SSP/SPI bus clock\n");
@@ -2218,8 +2216,8 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	       SSP_CR1(pl022->virtbase));
 	load_ssp_default_config(pl022);
 
-	status = request_irq(adev->irq[0], pl022_interrupt_handler, 0, "pl022",
-			     pl022);
+	status = devm_request_irq(dev, adev->irq[0], pl022_interrupt_handler,
+				  0, "pl022", pl022);
 	if (status < 0) {
 		dev_err(&adev->dev, "probe - cannot get IRQ (%d)\n", status);
 		goto err_no_irq;
@@ -2259,24 +2257,18 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
  err_spi_register:
 	if (platform_info->enable_dma)
 		pl022_dma_remove(pl022);
-
-	free_irq(adev->irq[0], pl022);
  err_no_irq:
 	clk_disable(pl022->clk);
  err_no_clk_en:
 	clk_unprepare(pl022->clk);
  err_clk_prep:
-	clk_put(pl022->clk);
  err_no_clk:
-	iounmap(pl022->virtbase);
  err_no_ioremap:
 	amba_release_regions(adev);
  err_no_ioregion:
  err_no_gpio:
  err_no_pinctrl:
 	spi_master_put(master);
- err_no_master:
- err_no_pdata:
 	return status;
 }
 
@@ -2298,12 +2290,9 @@ pl022_remove(struct amba_device *adev)
 	if (pl022->master_info->enable_dma)
 		pl022_dma_remove(pl022);
 
-	free_irq(adev->irq[0], pl022);
 	clk_disable(pl022->clk);
 	clk_unprepare(pl022->clk);
-	clk_put(pl022->clk);
 	pm_runtime_disable(&adev->dev);
-	iounmap(pl022->virtbase);
 	amba_release_regions(adev);
 	tasklet_disable(&pl022->pump_transfers);
 	spi_unregister_master(pl022->master);
