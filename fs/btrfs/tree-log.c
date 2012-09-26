@@ -3011,8 +3011,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 				continue;
 
 			found_type = btrfs_file_extent_type(src, extent);
-			if (found_type == BTRFS_FILE_EXTENT_REG ||
-			    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
+			if (found_type == BTRFS_FILE_EXTENT_REG) {
 				u64 ds, dl, cs, cl;
 				ds = btrfs_file_extent_disk_bytenr(src,
 								extent);
