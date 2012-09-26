@@ -20,6 +20,12 @@
 / {
 	model = "Marvell Armada 370 family SoC";
 	compatible = "marvell,armada370", "marvell,armada-370-xp";
+	L2: l2-cache {
+		compatible = "marvell,aurora-outer-cache";
+		reg = <0xd0008000 0x1000>;
+		cache-id-part = <0x100>;
+		wt-override;
+	};
 
 	aliases {
 		gpio0 = &gpio0;
