@@ -549,7 +549,10 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	 * allocated into separate TFDs, then we will need to
 	 * increase the size of the buffers.
 	 */
-	if (WARN_ON(copy_size > TFD_MAX_PAYLOAD_SIZE))
+	if (WARN(copy_size > TFD_MAX_PAYLOAD_SIZE,
+		 "Command %s (%#x) is too large (%d bytes)\n",
+		 trans_pcie_get_cmd_string(trans_pcie, cmd->id),
+		 cmd->id, copy_size))
 		return -EINVAL;
 
 	spin_lock_bh(&txq->lock);
