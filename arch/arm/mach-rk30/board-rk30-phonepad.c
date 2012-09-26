@@ -837,7 +837,7 @@ struct goodix_platform_data goodix_info = {
 #define TOUCH_INT_PIN 	 RK30_PIN4_PC2
 int ft5306_init_platform_hw(void)
 {
-	printk("ft5406_init_platform_hw\n");
+	printk("ft5306_init_platform_hw\n");
 
 	rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, 0);
 	if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
@@ -888,14 +888,17 @@ int ft5306_platform_wakeup(void)
 }
 
 struct ft5x0x_platform_data ft5306_info = {
-	.max_x = 1024,
-	.max_y = 768,
-	.key_min_x = 1024,
-	.init_platform_hw= ft5306_init_platform_hw,
-	.exit_platform_hw= ft5306_exit_platform_hw,
-	.ft5x0x_platform_sleep  = ft5306_platform_sleep,
-	.ft5x0x_platform_wakeup = ft5306_platform_wakeup,
-
+  .model = 5306,
+  .max_x = 1024,
+  .max_y = 768,
+  .key_min_x = 1024,
+  .xy_swap = 1,
+  .x_revert = 1,
+  .y_revert = 0,
+  .init_platform_hw= ft5306_init_platform_hw,
+  .exit_platform_hw= ft5306_exit_platform_hw,
+  .ft5x0x_platform_sleep  = ft5306_platform_sleep,
+  .ft5x0x_platform_wakeup = ft5306_platform_wakeup,
 };
 
 
@@ -1522,6 +1525,15 @@ static struct sensor_platform_data light_stk3171_info = {
 	.poll_delay_ms = 200,
 };
 #endif
+
+#if defined(CONFIG_LS_ISL29023)
+static struct sensor_platform_data light_isl29023_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
 
 
 
@@ -2569,6 +2581,17 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.platform_data = &goodix_info,
 	},
 #endif
+
+#if defined (CONFIG_LS_ISL29023)
+	{
+		.type           = "ls_isl29023",
+		.addr           = 0x44,            
+		.flags          = 0,
+		.irq            = RK30_PIN4_PC6,	
+		.platform_data = &light_isl29023_info,
+	},
+#endif
+
 };
 #endif
 
