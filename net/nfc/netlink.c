@@ -761,30 +761,62 @@ static struct genl_ops nfc_genl_ops[] = {
 	},
 };
 
+
+struct urelease_work {
+	struct	work_struct w;
+	int	pid;
+};
+
+static void nfc_urelease_event_work(struct work_struct *work)
+{
+	struct urelease_work *w = container_of(work, struct urelease_work, w);
+	struct class_dev_iter iter;
+	struct nfc_dev *dev;
+
+	pr_debug("pid %d\n", w->pid);
+
+	mutex_lock(&nfc_devlist_mutex);
+
+	nfc_device_iter_init(&iter);
+	dev = nfc_device_iter_next(&iter);
+
+	while (dev) {
+		mutex_lock(&dev->genl_data.genl_data_mutex);
+
+		if (dev->genl_data.poll_req_pid == w->pid) {
+			nfc_stop_poll(dev);
+			dev->genl_data.poll_req_pid = 0;
+		}
+
+		mutex_unlock(&dev->genl_data.genl_data_mutex);
+
+		dev = nfc_device_iter_next(&iter);
+	}
+
+	nfc_device_iter_exit(&iter);
+
+	mutex_unlock(&nfc_devlist_mutex);
+
+	kfree(w);
+}
+
 static int nfc_genl_rcv_nl_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	struct netlink_notify *n = ptr;
-	struct class_dev_iter iter;
-	struct nfc_dev *dev;
+	struct urelease_work *w;
 
 	if (event != NETLINK_URELEASE || n->protocol != NETLINK_GENERIC)
 		goto out;
 
 	pr_debug("NETLINK_URELEASE event from id %d\n", n->pid);
 
-	nfc_device_iter_init(&iter);
-	dev = nfc_device_iter_next(&iter);
-
-	while (dev) {
-		if (dev->genl_data.poll_req_pid == n->pid) {
-			nfc_stop_poll(dev);
-			dev->genl_data.poll_req_pid = 0;
-		}
-		dev = nfc_device_iter_next(&iter);
+	w = kmalloc(sizeof(*w), GFP_ATOMIC);
+	if (w) {
+		INIT_WORK((struct work_struct *) w, nfc_urelease_event_work);
+		w->pid = n->pid;
+		schedule_work((struct work_struct *) w);
 	}
-
-	nfc_device_iter_exit(&iter);
 
 out:
 	return NOTIFY_DONE;
