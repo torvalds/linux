@@ -85,6 +85,11 @@ int coda_init_inodecache(void)
 
 void coda_destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(coda_inode_cachep);
 }
 

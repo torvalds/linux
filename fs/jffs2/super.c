@@ -418,6 +418,12 @@ static void __exit exit_jffs2_fs(void)
 	unregister_filesystem(&jffs2_fs_type);
 	jffs2_destroy_slab_caches();
 	jffs2_compressors_exit();
+
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(jffs2_inode_cachep);
 }
 
