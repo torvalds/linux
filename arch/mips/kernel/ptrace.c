@@ -654,13 +654,15 @@ long arch_ptrace(struct task_struct *child, long request,
  */
 asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 {
+	long ret = 0;
 	user_exit();
 
 	/* do the secure computing check first */
 	secure_computing_strict(regs->regs[2]);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		ptrace_report_syscall(regs);
+	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    tracehook_report_syscall_entry(regs))
+		ret = -1;
 
 	audit_syscall_entry(__syscall_get_arch(),
 			    regs->regs[2],
