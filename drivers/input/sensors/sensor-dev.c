@@ -302,6 +302,8 @@ static int sensor_irq_init(struct i2c_client *client)
 		client->irq = irq;
 		if((sensor->pdata->type == SENSOR_TYPE_GYROSCOPE) || (sensor->pdata->type == SENSOR_TYPE_ACCEL))
 		disable_irq_nosync(client->irq);//disable irq
+		if(((sensor->pdata->type == SENSOR_TYPE_LIGHT) || ((sensor->pdata->type == SENSOR_TYPE_PROXIMITY))) && (!(sensor->ops->trig & IRQF_SHARED)))	
+		disable_irq_nosync(client->irq);//disable irq
 		printk("%s:use irq=%d\n",__func__,irq);
 	}
 	else if(!sensor->pdata->irq_enable)
@@ -777,12 +779,17 @@ static long light_dev_ioctl(struct file *file,
 					printk("%s:fail to active sensor,ret=%d\n",__func__,result);         
 					goto error;           
 		            		}	
-					
-					if(!sensor->pdata->irq_enable)
+					if(sensor->pdata->irq_enable && (!(sensor->ops->trig & IRQF_SHARED)))
+					{
+						DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
+						enable_irq(client->irq);	//enable irq
+					}	
+					else
 					{
 						PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 					}
+					
 					sensor->status_cur = SENSOR_ON;
 				}	
 			}
@@ -795,8 +802,14 @@ static long light_dev_ioctl(struct file *file,
 					goto error;
 		            		}
 					
-					if(!sensor->pdata->irq_enable)
-					cancel_delayed_work_sync(&sensor->delaywork);		
+					if(sensor->pdata->irq_enable && (!(sensor->ops->trig & IRQF_SHARED)))
+					{				
+						DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
+						disable_irq_nosync(client->irq);//disable irq
+					}
+					else
+					cancel_delayed_work_sync(&sensor->delaywork);	
+					
 					sensor->status_cur = SENSOR_OFF;
 	        		}
 			}
@@ -861,11 +874,17 @@ static long proximity_dev_ioctl(struct file *file,
 					goto error;           
 					}
 					
-					if(!sensor->pdata->irq_enable)
+					if(sensor->pdata->irq_enable && (!(sensor->ops->trig & IRQF_SHARED)))
+					{
+						DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
+						enable_irq(client->irq);	//enable irq
+					}	
+					else
 					{
 						PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
 						schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
 					}
+					
 					sensor->status_cur = SENSOR_ON;
 				}	
 			}
@@ -877,7 +896,12 @@ static long proximity_dev_ioctl(struct file *file,
 		                	mutex_unlock(&sensor->operation_mutex);              
 					goto error;
 					}
-					if(!sensor->pdata->irq_enable)
+					if(sensor->pdata->irq_enable && (!(sensor->ops->trig & IRQF_SHARED)))
+					{				
+						DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
+						disable_irq_nosync(client->irq);//disable irq
+					}
+					else
 					cancel_delayed_work_sync(&sensor->delaywork);		
 					sensor->status_cur = SENSOR_OFF;
 	        		}
@@ -1377,6 +1401,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"light_cm3217", LIGHT_ID_CM3217},
 	{"light_al3006", LIGHT_ID_AL3006},
 	{"ls_stk3171", LIGHT_ID_STK3171},
+	{"ls_isl29023", LIGHT_ID_ISL29023},
 	/*proximity sensor*/
 	{"psensor", PROXIMITY_ID_ALL},
 	{"proximity_al3006", PROXIMITY_ID_AL3006},	
