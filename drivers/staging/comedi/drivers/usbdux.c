@@ -98,6 +98,8 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 
 #include "../comedidev.h"
 
+#include "comedi_fc.h"
+
 /* timeout for the USB-transfer in ms*/
 #define BULK_TIMEOUT 1000
 
@@ -929,9 +931,9 @@ static int usbduxsub_submit_OutURBs(struct usbduxsub *usbduxsub)
 static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	int err = 0, tmp, i;
-	unsigned int tmpTimer;
 	struct usbduxsub *this_usbduxsub = dev->private;
+	int err = 0, i;
+	unsigned int tmpTimer;
 
 	if (!(this_usbduxsub->probed))
 		return -ENODEV;
@@ -939,51 +941,23 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 	dev_dbg(&this_usbduxsub->interface->dev,
 		"comedi%d: usbdux_ai_cmdtest\n", dev->minor);
 
-	/* make sure triggers are valid */
-	/* Only immediate triggers are allowed */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* trigger should happen timed */
-	tmp = cmd->scan_begin_src;
-	/* start a new _scan_ with a timer */
-	cmd->scan_begin_src &= TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	/* scanning is continuous */
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	/* issue a trigger when scan is finished and start a new scan */
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	/* trigger at the end of count events or not, stop condition or not */
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/*
-	 * step 2: make sure trigger sources are unique and mutually compatible
-	 * note that mutual compatibility is not an issue here
-	 */
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-	    cmd->scan_begin_src != TRIG_EXT &&
-	    cmd->scan_begin_src != TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -1488,8 +1462,9 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 static int usbdux_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	int err = 0, tmp;
 	struct usbduxsub *this_usbduxsub = dev->private;
+	int err = 0;
+	unsigned int flags;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -1500,69 +1475,46 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	dev_dbg(&this_usbduxsub->interface->dev,
 		"comedi%d: usbdux_ao_cmdtest\n", dev->minor);
 
-	/* make sure triggers are valid */
-	/* Only immediate triggers are allowed */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	/* Step 1 : check if triggers are trivially valid */
 
-	/* trigger should happen timed */
-	tmp = cmd->scan_begin_src;
-	/* just now we scan also in the high speed mode every frame */
-	/* this is due to ehci driver limitations */
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+
 	if (0) {		/* (this_usbduxsub->high_speed) */
-		/* start immediately a new scan */
 		/* the sampling rate is set by the coversion rate */
-		cmd->scan_begin_src &= TRIG_FOLLOW;
+		flags = TRIG_FOLLOW;
 	} else {
 		/* start a new scan (output at once) with a timer */
-		cmd->scan_begin_src &= TRIG_TIMER;
+		flags = TRIG_TIMER;
 	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, flags);
 
-	/* scanning is continuous */
-	tmp = cmd->convert_src;
-	/* we always output at 1kHz just now all channels at once */
 	if (0) {		/* (this_usbduxsub->high_speed) */
 		/*
-		 * in usb-2.0 only one conversion it transmitted but with 8kHz/n
+		 * in usb-2.0 only one conversion it transmitted
+		 * but with 8kHz/n
 		 */
-		cmd->convert_src &= TRIG_TIMER;
+		flags = TRIG_TIMER;
 	} else {
-		/* all conversion events happen simultaneously with a rate of
-		 * 1kHz/n */
-		cmd->convert_src &= TRIG_NOW;
+		/*
+		 * all conversion events happen simultaneously with
+		 * a rate of 1kHz/n
+		 */
+		flags = TRIG_NOW;
 	}
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->convert_src, flags);
 
-	/* issue a trigger when scan is finished and start a new scan */
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	/* trigger at the end of count events or not, stop condition or not */
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/*
-	 * step 2: make sure trigger sources are unique and mutually compatible
-	 * note that mutual compatibility is not an issue here
-	 */
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-	    cmd->scan_begin_src != TRIG_EXT &&
-	    cmd->scan_begin_src != TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;

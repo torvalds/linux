@@ -52,6 +52,7 @@ broken.
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+#include "comedi_fc.h"
 #include "8253.h"
 
 #if 0
@@ -895,18 +896,6 @@ static int me4000_ai_do_cmd(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * me4000_ai_do_cmd_test():
- *
- * The demo cmd.c in ./comedilib/demo specifies 6 return values:
- * - success
- * - invalid source
- * - source conflict
- * - invalid argument
- * - argument conflict
- * - invalid chanlist
- * So I tried to adopt this scheme.
- */
 static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
@@ -923,81 +912,29 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	/* Round the timer arguments */
 	ai_round_cmd_args(dev, s, cmd, &init_ticks, &scan_ticks, &chan_ticks);
 
-	/*
-	 * Stage 1. Check if the trigger sources are generally valid.
-	 */
-	switch (cmd->start_src) {
-	case TRIG_NOW:
-	case TRIG_EXT:
-		break;
-	case TRIG_ANY:
-		cmd->start_src &= TRIG_NOW | TRIG_EXT;
-		err++;
-		break;
-	default:
-		dev_err(dev->class_dev, "Invalid start source\n");
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
-	switch (cmd->scan_begin_src) {
-	case TRIG_FOLLOW:
-	case TRIG_TIMER:
-	case TRIG_EXT:
-		break;
-	case TRIG_ANY:
-		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT;
-		err++;
-		break;
-	default:
-		dev_err(dev->class_dev, "Invalid scan begin source\n");
-		cmd->scan_begin_src = TRIG_FOLLOW;
-		err++;
-	}
-	switch (cmd->convert_src) {
-	case TRIG_TIMER:
-	case TRIG_EXT:
-		break;
-	case TRIG_ANY:
-		cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-		err++;
-		break;
-	default:
-		dev_err(dev->class_dev, "Invalid convert source\n");
-		cmd->convert_src = TRIG_TIMER;
-		err++;
-	}
-	switch (cmd->scan_end_src) {
-	case TRIG_NONE:
-	case TRIG_COUNT:
-		break;
-	case TRIG_ANY:
-		cmd->scan_end_src &= TRIG_NONE | TRIG_COUNT;
-		err++;
-		break;
-	default:
-		dev_err(dev->class_dev, "Invalid scan end source\n");
-		cmd->scan_end_src = TRIG_NONE;
-		err++;
-	}
-	switch (cmd->stop_src) {
-	case TRIG_NONE:
-	case TRIG_COUNT:
-		break;
-	case TRIG_ANY:
-		cmd->stop_src &= TRIG_NONE | TRIG_COUNT;
-		err++;
-		break;
-	default:
-		dev_err(dev->class_dev, "Invalid stop source\n");
-		cmd->stop_src = TRIG_NONE;
-		err++;
-	}
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src,
+					TRIG_NONE | TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE | TRIG_COUNT);
+
 	if (err)
 		return 1;
 
-	/*
-	 * Stage 2. Check for trigger source conflicts.
-	 */
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_end_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
 	if (cmd->start_src == TRIG_NOW &&
 	    cmd->scan_begin_src == TRIG_TIMER &&
 	    cmd->convert_src == TRIG_TIMER) {
@@ -1017,11 +954,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_EXT) {
 	} else {
-		dev_err(dev->class_dev, "Invalid start trigger combination\n");
-		cmd->start_src = TRIG_NOW;
-		cmd->scan_begin_src = TRIG_FOLLOW;
-		cmd->convert_src = TRIG_TIMER;
-		err++;
+		err |= -EINVAL;
 	}
 
 	if (cmd->stop_src == TRIG_NONE && cmd->scan_end_src == TRIG_NONE) {
@@ -1032,11 +965,9 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->stop_src == TRIG_COUNT &&
 		   cmd->scan_end_src == TRIG_COUNT) {
 	} else {
-		dev_err(dev->class_dev, "Invalid stop trigger combination\n");
-		cmd->stop_src = TRIG_NONE;
-		cmd->scan_end_src = TRIG_NONE;
-		err++;
+		err |= -EINVAL;
 	}
+
 	if (err)
 		return 2;
 

@@ -332,7 +332,7 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	int range, reference;
 	int i;
 
-	/* Step 1 : check if trigger are trivialy valid */
+	/* Step 1 : check if triggers are trivially valid */
 
 	error |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
 	error |= cfc_check_trigger_src(&cmd->scan_begin_src,

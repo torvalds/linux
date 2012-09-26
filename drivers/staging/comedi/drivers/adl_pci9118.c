@@ -1102,7 +1102,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	int tmp;
 	unsigned int divisor1 = 0, divisor2 = 0;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
 	err |= cfc_check_trigger_src(&cmd->start_src,
 					TRIG_NOW | TRIG_EXT | TRIG_INT);
@@ -1124,70 +1124,31 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/*
-	 * step 2:
-	 * make sure trigger sources are
-	 * unique and mutually compatible
-	 */
+	/* Step 2a : make sure trigger sources are unique */
 
-	if (cmd->start_src != TRIG_NOW &&
-	    cmd->start_src != TRIG_INT && cmd->start_src != TRIG_EXT) {
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-	    cmd->scan_begin_src != TRIG_EXT &&
-	    cmd->scan_begin_src != TRIG_INT &&
-	    cmd->scan_begin_src != TRIG_FOLLOW) {
-		cmd->scan_begin_src = TRIG_FOLLOW;
-		err++;
-	}
+	/* Step 2b : and mutually compatible */
 
-	if (cmd->convert_src != TRIG_TIMER &&
-	    cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_NOW) {
-		cmd->convert_src = TRIG_TIMER;
-		err++;
-	}
+	if (cmd->start_src == TRIG_EXT && cmd->scan_begin_src == TRIG_EXT)
+		err |= -EINVAL;
 
-	if (cmd->scan_end_src != TRIG_COUNT) {
-		cmd->scan_end_src = TRIG_COUNT;
-		err++;
-	}
-
-	if (cmd->stop_src != TRIG_NONE &&
-	    cmd->stop_src != TRIG_COUNT &&
-	    cmd->stop_src != TRIG_INT && cmd->stop_src != TRIG_EXT) {
-		cmd->stop_src = TRIG_COUNT;
-		err++;
-	}
-
-	if (cmd->start_src == TRIG_EXT && cmd->scan_begin_src == TRIG_EXT) {
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
-
-	if (cmd->start_src == TRIG_INT && cmd->scan_begin_src == TRIG_INT) {
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
+	if (cmd->start_src == TRIG_INT && cmd->scan_begin_src == TRIG_INT)
+		err |= -EINVAL;
 
 	if ((cmd->scan_begin_src & (TRIG_TIMER | TRIG_EXT)) &&
-	    (!(cmd->convert_src & (TRIG_TIMER | TRIG_NOW)))) {
-		cmd->convert_src = TRIG_TIMER;
-		err++;
-	}
+	    (!(cmd->convert_src & (TRIG_TIMER | TRIG_NOW))))
+		err |= -EINVAL;
 
 	if ((cmd->scan_begin_src == TRIG_FOLLOW) &&
-	    (!(cmd->convert_src & (TRIG_TIMER | TRIG_EXT)))) {
-		cmd->convert_src = TRIG_TIMER;
-		err++;
-	}
+	    (!(cmd->convert_src & (TRIG_TIMER | TRIG_EXT))))
+		err |= -EINVAL;
 
-	if (cmd->stop_src == TRIG_EXT && cmd->scan_begin_src == TRIG_EXT) {
-		cmd->stop_src = TRIG_COUNT;
-		err++;
-	}
+	if (cmd->stop_src == TRIG_EXT && cmd->scan_begin_src == TRIG_EXT)
+		err |= -EINVAL;
 
 	if (err)
 		return 2;

@@ -1046,7 +1046,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	int tmp;
 	unsigned int divisor1 = 0, divisor2 = 0;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
 	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
