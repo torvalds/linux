@@ -668,30 +668,37 @@ void perf_evlist__delete_maps(struct perf_evlist *evlist)
 
 int perf_evlist__apply_filters(struct perf_evlist *evlist)
 {
-	const struct thread_map *threads = evlist->threads;
-	const struct cpu_map *cpus = evlist->cpus;
 	struct perf_evsel *evsel;
-	char *filter;
-	int thread;
-	int cpu;
-	int err;
-	int fd;
+	int err = 0;
+	const int ncpus = cpu_map__nr(evlist->cpus),
+		  nthreads = evlist->threads->nr;
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
-		filter = evsel->filter;
-		if (!filter)
+		if (evsel->filter == NULL)
 			continue;
-		for (cpu = 0; cpu < cpus->nr; cpu++) {
-			for (thread = 0; thread < threads->nr; thread++) {
-				fd = FD(evsel, cpu, thread);
-				err = ioctl(fd, PERF_EVENT_IOC_SET_FILTER, filter);
-				if (err)
-					return err;
-			}
-		}
+
+		err = perf_evsel__set_filter(evsel, ncpus, nthreads, evsel->filter);
+		if (err)
+			break;
 	}
 
-	return 0;
+	return err;
+}
+
+int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
+{
+	struct perf_evsel *evsel;
+	int err = 0;
+	const int ncpus = cpu_map__nr(evlist->cpus),
+		  nthreads = evlist->threads->nr;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		err = perf_evsel__set_filter(evsel, ncpus, nthreads, filter);
+		if (err)
+			break;
+	}
+
+	return err;
 }
 
 bool perf_evlist__valid_sample_type(struct perf_evlist *evlist)
