@@ -351,7 +351,7 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 	struct cpufreq_cooling_device *cpufreq_dev = NULL;
 	unsigned int cpufreq_dev_count = 0, min = 0, max = 0;
 	char dev_name[THERMAL_NAME_LENGTH];
-	int ret = 0, id = 0, i;
+	int ret = 0, i;
 	struct cpufreq_policy policy;
 
 	list_for_each_entry(cpufreq_dev, &cooling_cpufreq_list, node)
@@ -396,7 +396,6 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 		kfree(cpufreq_dev);
 		return ERR_PTR(-EINVAL);
 	}
-	cpufreq_dev->id = id;
 	cpufreq_dev->cool_dev = cool_dev;
 	cpufreq_dev->cpufreq_state = 0;
 	mutex_lock(&cooling_cpufreq_lock);
