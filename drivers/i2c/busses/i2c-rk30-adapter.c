@@ -566,7 +566,6 @@ static int rk30_i2c_xfer(struct i2c_adapter *adap,
 	}
         if(i2c->is_div_from_arm[i2c->adap.nr]){
                 mutex_lock(&i2c->m_lock);
-		wake_lock(&i2c->idlelock[i2c->adap.nr]);
         }
 
 	rk30_i2c_set_clk(i2c, scl_rate);
@@ -575,7 +574,6 @@ static int rk30_i2c_xfer(struct i2c_adapter *adap,
         i2c_dbg(i2c->dev, "i2c transfer stop: addr: 0x%x, state: %d, ret: %d\n", msgs[0].addr, ret, i2c->state);
 
         if(i2c->is_div_from_arm[i2c->adap.nr]){
-		wake_unlock(&i2c->idlelock[i2c->adap.nr]);
                 mutex_unlock(&i2c->m_lock);
         }
 
