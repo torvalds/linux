@@ -1648,7 +1648,7 @@ ssize_t blkdev_aio_write(struct kiocb *iocb, const struct iovec *iov,
 }
 EXPORT_SYMBOL_GPL(blkdev_aio_write);
 
-int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
+static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int ret;
 	struct block_device *bdev = I_BDEV(file->f_mapping->host);
