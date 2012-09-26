@@ -702,7 +702,7 @@ static bool wm2000_readable_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config wm2000_regmap = {
-	.reg_bits = 8,
+	.reg_bits = 16,
 	.val_bits = 8,
 
 	.max_register = WM2000_REG_IF_CTL,
