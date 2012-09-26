@@ -31,11 +31,12 @@ struct page_info {
 	struct list_head list;
 };
 
+static unsigned int orders[] = {8, 4, 0};
+
 static struct page_info *alloc_largest_available(unsigned long size,
 						 bool split_pages,
 						 unsigned int max_order)
 {
-	static unsigned int orders[] = {8, 4, 0};
 	struct page *page;
 	struct page_info *info;
 	int i;
