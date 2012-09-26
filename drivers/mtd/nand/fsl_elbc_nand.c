@@ -109,20 +109,6 @@ static struct nand_ecclayout fsl_elbc_oob_lp_eccm1 = {
 };
 
 /*
- * fsl_elbc_oob_lp_eccm* specify that LP NAND's OOB free area starts at offset
- * 1, so we have to adjust bad block pattern. This pattern should be used for
- * x8 chips only. So far hardware does not support x16 chips anyway.
- */
-static u8 scan_ff_pattern[] = { 0xff, };
-
-static struct nand_bbt_descr largepage_memorybased = {
-	.options = 0,
-	.offs = 0,
-	.len = 1,
-	.pattern = scan_ff_pattern,
-};
-
-/*
  * ELBC may use HW ECC, so that OOB offsets, that NAND core uses for bbt,
  * interfere with ECC positions, that's why we implement our own descriptors.
  * OOB {11, 5}, works for both SP and LP chips, with ECCM = 1 and ECCM = 0.
@@ -699,7 +685,6 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 			chip->ecc.layout = (priv->fmr & FMR_ECCM) ?
 			                   &fsl_elbc_oob_lp_eccm1 :
 			                   &fsl_elbc_oob_lp_eccm0;
-			chip->badblock_pattern = &largepage_memorybased;
 		}
 	} else {
 		dev_err(priv->dev,
