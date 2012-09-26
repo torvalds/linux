@@ -1427,7 +1427,7 @@ int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_idle(struct drm_device *dev);
 int i915_add_request(struct intel_ring_buffer *ring,
 		     struct drm_file *file,
-		     struct drm_i915_gem_request *request);
+		     u32 *seqno);
 int __must_check i915_wait_seqno(struct intel_ring_buffer *ring,
 				 uint32_t seqno);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
