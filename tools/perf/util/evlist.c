@@ -884,10 +884,10 @@ int perf_evlist__start_workload(struct perf_evlist *evlist)
 }
 
 int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
-			      struct perf_sample *sample, bool swapped)
+			      struct perf_sample *sample)
 {
 	struct perf_evsel *evsel = perf_evlist__first(evlist);
-	return perf_evsel__parse_sample(evsel, event, sample, swapped);
+	return perf_evsel__parse_sample(evsel, event, sample);
 }
 
 size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp)

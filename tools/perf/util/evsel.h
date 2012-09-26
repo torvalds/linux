@@ -69,6 +69,7 @@ struct perf_evsel {
 	struct cpu_map		*cpus;
 	unsigned int		sample_size;
 	bool 			supported;
+	bool 			needs_swap;
 	/* parse modifier helper */
 	int			exclude_GH;
 	struct perf_evsel	*leader;
@@ -205,7 +206,7 @@ static inline int perf_evsel__read_scaled(struct perf_evsel *evsel,
 void hists__init(struct hists *hists);
 
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
-			     struct perf_sample *sample, bool swapped);
+			     struct perf_sample *sample);
 
 static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 {

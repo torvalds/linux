@@ -722,8 +722,7 @@ static int flush_sample_queue(struct perf_session *s,
 		if (iter->timestamp > limit)
 			break;
 
-		ret = perf_evlist__parse_sample(s->evlist, iter->event, &sample,
-						s->header.needs_swap);
+		ret = perf_evlist__parse_sample(s->evlist, iter->event, &sample);
 		if (ret)
 			pr_err("Can't parse sample, err = %d\n", ret);
 		else {
@@ -1174,8 +1173,7 @@ static int perf_session__process_event(struct perf_session *session,
 	/*
 	 * For all kernel events we get the sample data
 	 */
-	ret = perf_evlist__parse_sample(session->evlist, event, &sample,
-					session->header.needs_swap);
+	ret = perf_evlist__parse_sample(session->evlist, event, &sample);
 	if (ret)
 		return ret;
 

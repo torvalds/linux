@@ -767,11 +767,13 @@ int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads);
 }
 
-static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
-				       struct perf_sample *sample,
-				       bool swapped)
+static int perf_evsel__parse_id_sample(const struct perf_evsel *evsel,
+				       const union perf_event *event,
+				       struct perf_sample *sample)
 {
+	u64 type = evsel->attr.sample_type;
 	const u64 *array = event->sample.array;
+	bool swapped = evsel->needs_swap;
 	union u64_swap u;
 
 	array += ((event->header.size -
@@ -832,10 +834,11 @@ static bool sample_overlap(const union perf_event *event,
 }
 
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
-			     struct perf_sample *data, bool swapped)
+			     struct perf_sample *data)
 {
 	u64 type = evsel->attr.sample_type;
 	u64 regs_user = evsel->attr.sample_regs_user;
+	bool swapped = evsel->needs_swap;
 	const u64 *array;
 
 	/*
@@ -852,7 +855,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!evsel->attr.sample_id_all)
 			return 0;
-		return perf_event__parse_id_sample(event, type, data, swapped);
+		return perf_evsel__parse_id_sample(evsel, event, data);
 	}
 
 	array = event->sample.array;
