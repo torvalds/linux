@@ -387,6 +387,20 @@ out_conflict:
 	return 1;
 }
 
+static void drbd_report_io_error(struct drbd_conf *mdev, struct drbd_request *req)
+{
+        char b[BDEVNAME_SIZE];
+
+	if (__ratelimit(&drbd_ratelimit_state))
+		return;
+
+	dev_warn(DEV, "local %s IO error sector %llu+%u on %s\n",
+			(req->rq_state & RQ_WRITE) ? "WRITE" : "READ",
+			(unsigned long long)req->sector,
+			req->size >> 9,
+			bdevname(mdev->ldev->backing_bdev, b));
+}
+
 /* obviously this could be coded as many single functions
  * instead of one huge switch,
  * or by putting the code directly in the respective locations
@@ -455,6 +469,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
+		drbd_report_io_error(mdev, req);
 		__drbd_chk_io_error(mdev, DRBD_WRITE_ERROR);
 		_req_may_be_done_not_susp(req, m);
 		break;
@@ -477,6 +492,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			break;
 		}
 
+		drbd_report_io_error(mdev, req);
 		__drbd_chk_io_error(mdev, DRBD_READ_ERROR);
 
 	goto_queue_for_net_read:
@@ -900,7 +916,8 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, uns
 
 	if (!(local || remote) && !is_susp(mdev->state)) {
 		if (__ratelimit(&drbd_ratelimit_state))
-			dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
+			dev_err(DEV, "IO ERROR: neither local nor remote data, sector %llu+%u\n",
+					(unsigned long long)req->sector, req->size >> 9);
 		goto fail_free_complete;
 	}
 
