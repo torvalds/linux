@@ -2100,7 +2100,9 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	if (platform->driver->pcm_new) {
 		ret = platform->driver->pcm_new(rtd);
 		if (ret < 0) {
-			dev_err(platform->dev, "ASoC: pcm constructor failed\n");
+			dev_err(platform->dev,
+				"ASoC: pcm constructor failed: %d\n",
+				ret);
 			return ret;
 		}
 	}
