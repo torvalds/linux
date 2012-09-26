@@ -25,6 +25,7 @@
 #include <asm/mach/arch.h>
 #include <asm/exception.h>
 #include <asm/smp_plat.h>
+#include <asm/hardware/cache-l2x0.h>
 
 /* Interrupt Controller Registers Map */
 #define ARMADA_370_XP_INT_SET_MASK_OFFS		(0x48)
@@ -210,4 +211,7 @@ static const struct of_device_id mpic_of_match[] __initconst = {
 void __init armada_370_xp_init_irq(void)
 {
 	of_irq_init(mpic_of_match);
+#ifdef CONFIG_CACHE_L2X0
+	l2x0_of_init(0, ~0UL);
+#endif
 }
