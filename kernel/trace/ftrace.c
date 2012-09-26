@@ -4381,7 +4381,7 @@ ftrace_pid_write(struct file *filp, const char __user *ubuf,
 	if (strlen(tmp) == 0)
 		return 1;
 
-	ret = strict_strtol(tmp, 10, &val);
+	ret = kstrtol(tmp, 10, &val);
 	if (ret < 0)
 		return ret;
 

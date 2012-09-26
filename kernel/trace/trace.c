@@ -431,7 +431,7 @@ static int __init set_tracing_thresh(char *str)
 
 	if (!str)
 		return 0;
-	ret = strict_strtoul(str, 0, &threshold);
+	ret = kstrtoul(str, 0, &threshold);
 	if (ret < 0)
 		return 0;
 	tracing_thresh = threshold * 1000;

@@ -366,7 +366,7 @@ ftrace_trace_onoff_callback(struct ftrace_hash *hash,
 	 * We use the callback data field (which is a pointer)
 	 * as our counter.
 	 */
-	ret = strict_strtoul(number, 0, (unsigned long *)&count);
+	ret = kstrtoul(number, 0, (unsigned long *)&count);
 	if (ret)
 		return ret;
 
