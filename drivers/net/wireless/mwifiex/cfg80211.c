@@ -674,6 +674,44 @@ mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	return 0;
 }
 
+static int
+mwifiex_cfg80211_deinit_p2p(struct mwifiex_private *priv)
+{
+	u16 mode = P2P_MODE_DISABLE;
+
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
+				  HostCmd_ACT_GEN_SET, 0, &mode))
+		return -1;
+
+	return 0;
+}
+
+/*
+ * This function initializes the functionalities for P2P client.
+ * The P2P client initialization sequence is:
+ * disable -> device -> client
+ */
+static int
+mwifiex_cfg80211_init_p2p_client(struct mwifiex_private *priv)
+{
+	u16 mode;
+
+	if (mwifiex_cfg80211_deinit_p2p(priv))
+		return -1;
+
+	mode = P2P_MODE_DEVICE;
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
+				  HostCmd_ACT_GEN_SET, 0, &mode))
+		return -1;
+
+	mode = P2P_MODE_CLIENT;
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_P2P_MODE_CFG,
+				  HostCmd_ACT_GEN_SET, 0, &mode))
+		return -1;
+
+	return 0;
+}
+
 /*
  * CFG802.11 operation handler to change interface type.
  */
@@ -706,6 +744,11 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		switch (type) {
 		case NL80211_IFTYPE_ADHOC:
 			break;
+		case NL80211_IFTYPE_P2P_CLIENT:
+			if (mwifiex_cfg80211_init_p2p_client(priv))
+				return -EFAULT;
+			dev->ieee80211_ptr->iftype = type;
+			return 0;
 		case NL80211_IFTYPE_UNSPECIFIED:
 			wiphy_warn(wiphy, "%s: kept type as STA\n", dev->name);
 		case NL80211_IFTYPE_STATION:	/* This shouldn't happen */
@@ -728,6 +771,17 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		default:
 			wiphy_err(wiphy, "%s: changing to %d not supported\n",
 				  dev->name, type);
+			return -EOPNOTSUPP;
+		}
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		switch (type) {
+		case NL80211_IFTYPE_STATION:
+			if (mwifiex_cfg80211_deinit_p2p(priv))
+				return -EFAULT;
+			dev->ieee80211_ptr->iftype = type;
+			return 0;
+		default:
 			return -EOPNOTSUPP;
 		}
 		break;

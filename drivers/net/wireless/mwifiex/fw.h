@@ -261,6 +261,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_TX_RATE_CFG                       0x00d6
 #define HostCmd_CMD_802_11_PS_MODE_ENH                0x00e4
 #define HostCmd_CMD_802_11_HS_CFG_ENH                 0x00e5
+#define HostCmd_CMD_P2P_MODE_CFG                      0x00eb
 #define HostCmd_CMD_CAU_REG_ACCESS                    0x00ed
 #define HostCmd_CMD_SET_BSS_MODE                      0x00f7
 #define HostCmd_CMD_PCIE_DESC_DETAILS                 0x00fa
@@ -289,6 +290,13 @@ enum ENH_PS_MODES {
 	GET_PS = 0,
 	EN_AUTO_PS = 0xff,
 	DIS_AUTO_PS = 0xfe,
+};
+
+enum P2P_MODES {
+	P2P_MODE_DISABLE = 0,
+	P2P_MODE_DEVICE = 1,
+	P2P_MODE_GO = 2,
+	P2P_MODE_CLIENT = 3,
 };
 
 #define HostCmd_RET_BIT                       0x8000
@@ -1346,6 +1354,11 @@ struct host_cmd_ds_mgmt_frame_reg {
 	__le32 mask;
 } __packed;
 
+struct host_cmd_ds_p2p_mode_cfg {
+	__le16 action;
+	__le16 mode;
+} __packed;
+
 struct host_cmd_ds_remain_on_chan {
 	__le16 action;
 	u8 status;
@@ -1465,6 +1478,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_version_ext verext;
 		struct host_cmd_ds_mgmt_frame_reg reg_mask;
 		struct host_cmd_ds_remain_on_chan roc_cfg;
+		struct host_cmd_ds_p2p_mode_cfg mode_cfg;
 		struct host_cmd_ds_802_11_ibss_status ibss_coalescing;
 		struct host_cmd_ds_mac_reg_access mac_reg;
 		struct host_cmd_ds_bbp_reg_access bbp_reg;

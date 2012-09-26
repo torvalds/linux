@@ -1184,6 +1184,14 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		      cpu_to_le16(sizeof(struct host_cmd_ds_remain_on_chan) +
 				  S_DS_GEN);
 		break;
+	case HostCmd_CMD_P2P_MODE_CFG:
+		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->params.mode_cfg.action = cpu_to_le16(cmd_action);
+		cmd_ptr->params.mode_cfg.mode = cpu_to_le16(*(u16 *)data_buf);
+		cmd_ptr->size =
+			cpu_to_le16(sizeof(struct host_cmd_ds_p2p_mode_cfg) +
+				    S_DS_GEN);
+		break;
 	case HostCmd_CMD_FUNC_INIT:
 		if (priv->adapter->hw_status == MWIFIEX_HW_STATUS_RESET)
 			priv->adapter->hw_status = MWIFIEX_HW_STATUS_READY;
