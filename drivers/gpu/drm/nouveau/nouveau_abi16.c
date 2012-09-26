@@ -179,7 +179,7 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 			return 0;
 	} else
 	if (init->class == 0x906e) {
-		NV_ERROR(dev, "906e not supported yet\n");
+		NV_DEBUG(dev, "906e not supported yet\n");
 		return -EINVAL;
 	}
 
