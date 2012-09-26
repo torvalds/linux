@@ -2404,7 +2404,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	struct intel_ring_buffer *ring;
 	u32 rp_state_cap;
 	u32 gt_perf_status;
-	u32 pcu_mbox, rc6_mask = 0;
+	u32 rc6vids, pcu_mbox, rc6_mask = 0;
 	u32 gtfifodbg;
 	int rc6_mode;
 	int i, ret;
@@ -2525,6 +2525,20 @@ static void gen6_enable_rps(struct drm_device *dev)
 	spin_unlock_irq(&dev_priv->rps.lock);
 	/* enable all PM interrupts */
 	I915_WRITE(GEN6_PMINTRMSK, 0);
+
+	rc6vids = 0;
+	ret = sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
+	if (IS_GEN6(dev) && ret) {
+		DRM_DEBUG_DRIVER("Couldn't check for BIOS workaround\n");
+	} else if (IS_GEN6(dev) && (GEN6_DECODE_RC6_VID(rc6vids & 0xff) < 450)) {
+		DRM_DEBUG_DRIVER("You should update your BIOS. Correcting minimum rc6 voltage (%dmV->%dmV)\n",
+			  GEN6_DECODE_RC6_VID(rc6vids & 0xff), 450);
+		rc6vids &= 0xffff00;
+		rc6vids |= GEN6_ENCODE_RC6_VID(450);
+		ret = sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_RC6VIDS, rc6vids);
+		if (ret)
+			DRM_ERROR("Couldn't fix incorrect rc6 voltage\n");
+	}
 
 	gen6_gt_force_wake_put(dev_priv);
 }
