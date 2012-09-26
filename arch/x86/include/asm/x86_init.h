@@ -212,6 +212,7 @@ struct x86_io_apic_ops {
 	int		(*setup_entry)(int irq, struct IO_APIC_route_entry *entry,
 				       unsigned int destination, int vector,
 				       struct io_apic_irq_attr *attr);
+	void		(*eoi_ioapic_pin)(int apic, int pin, int vector);
 };
 
 extern struct x86_init_ops x86_init;

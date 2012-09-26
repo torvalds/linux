@@ -129,4 +129,5 @@ struct x86_io_apic_ops x86_io_apic_ops = {
 	.print_entries		= native_io_apic_print_entries,
 	.set_affinity		= native_ioapic_set_affinity,
 	.setup_entry		= native_setup_ioapic_entry,
+	.eoi_ioapic_pin		= native_eoi_ioapic_pin,
 };
