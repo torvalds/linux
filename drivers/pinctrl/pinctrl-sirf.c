@@ -1670,6 +1670,8 @@ static int __devinit sirfsoc_gpio_probe(struct device_node *np)
 		irq_set_handler_data(bank->parent_irq, bank);
 	}
 
+	return 0;
+
 out:
 	iounmap(regs);
 	return err;
