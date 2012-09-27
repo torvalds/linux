@@ -638,7 +638,7 @@ static struct l2cap_ops a2mp_chan_ops = {
 	.ready = l2cap_chan_no_ready,
 };
 
-static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
+static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
 {
 	struct l2cap_chan *chan;
 	int err;
@@ -673,7 +673,10 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn)
 
 	chan->conf_state = 0;
 
-	l2cap_chan_add(conn, chan);
+	if (locked)
+		__l2cap_chan_add(conn, chan);
+	else
+		l2cap_chan_add(conn, chan);
 
 	chan->remote_mps = chan->omtu;
 	chan->mps = chan->omtu;
@@ -712,7 +715,7 @@ int amp_mgr_put(struct amp_mgr *mgr)
 	return kref_put(&mgr->kref, &amp_mgr_destroy);
 }
 
-static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn)
+static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn, bool locked)
 {
 	struct amp_mgr *mgr;
 	struct l2cap_chan *chan;
@@ -725,7 +728,7 @@ static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn)
 
 	mgr->l2cap_conn = conn;
 
-	chan = a2mp_chan_open(conn);
+	chan = a2mp_chan_open(conn, locked);
 	if (!chan) {
 		kfree(mgr);
 		return NULL;
@@ -754,7 +757,7 @@ struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 {
 	struct amp_mgr *mgr;
 
-	mgr = amp_mgr_create(conn);
+	mgr = amp_mgr_create(conn, false);
 	if (!mgr) {
 		BT_ERR("Could not create AMP manager");
 		return NULL;
@@ -841,4 +844,25 @@ void a2mp_send_getampassoc_rsp(struct hci_dev *hdev, u8 status)
 	a2mp_send(mgr, A2MP_GETAMPASSOC_RSP, mgr->ident, len, rsp);
 	amp_mgr_put(mgr);
 	kfree(rsp);
+}
+
+void a2mp_discover_amp(struct l2cap_chan *chan)
+{
+	struct l2cap_conn *conn = chan->conn;
+	struct amp_mgr *mgr = conn->hcon->amp_mgr;
+	struct a2mp_discov_req req;
+
+	BT_DBG("chan %p conn %p mgr %p", chan, conn, mgr);
+
+	if (!mgr) {
+		mgr = amp_mgr_create(conn, true);
+		if (!mgr)
+			return;
+	}
+
+	mgr->bredr_chan = chan;
+
+	req.mtu = cpu_to_le16(L2CAP_A2MP_DEFAULT_MTU);
+	req.ext_feat = 0;
+	a2mp_send(mgr, A2MP_DISCOVER_REQ, 1, sizeof(req), &req);
 }
