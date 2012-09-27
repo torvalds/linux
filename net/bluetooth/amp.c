@@ -161,6 +161,51 @@ static int hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
 	return ret;
 }
 
+int phylink_gen_key(struct hci_conn *conn, u8 *data, u8 *len, u8 *type)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct link_key *key;
+	u8 keybuf[HCI_AMP_LINK_KEY_SIZE];
+	u8 gamp_key[HCI_AMP_LINK_KEY_SIZE];
+	int err;
+
+	if (!hci_conn_check_link_mode(conn))
+		return -EACCES;
+
+	BT_DBG("conn %p key_type %d", conn, conn->key_type);
+
+	/* Legacy key */
+	if (conn->key_type < 3) {
+		BT_ERR("Legacy key type %d", conn->key_type);
+		return -EACCES;
+	}
+
+	*type = conn->key_type;
+	*len = HCI_AMP_LINK_KEY_SIZE;
+
+	key = hci_find_link_key(hdev, &conn->dst);
+
+	/* BR/EDR Link Key concatenated together with itself */
+	memcpy(&keybuf[0], key->val, HCI_LINK_KEY_SIZE);
+	memcpy(&keybuf[HCI_LINK_KEY_SIZE], key->val, HCI_LINK_KEY_SIZE);
+
+	/* Derive Generic AMP Link Key (gamp) */
+	err = hmac_sha256(keybuf, HCI_AMP_LINK_KEY_SIZE, "gamp", 4, gamp_key);
+	if (err) {
+		BT_ERR("Could not derive Generic AMP Key: err %d", err);
+		return err;
+	}
+
+	if (conn->key_type == HCI_LK_DEBUG_COMBINATION) {
+		BT_DBG("Use Generic AMP Key (gamp)");
+		memcpy(data, gamp_key, HCI_AMP_LINK_KEY_SIZE);
+		return err;
+	}
+
+	/* Derive Dedicated AMP Link Key: "802b" is 802.11 PAL keyID */
+	return hmac_sha256(gamp_key, HCI_AMP_LINK_KEY_SIZE, "802b", 4, data);
+}
+
 void amp_read_loc_assoc_frag(struct hci_dev *hdev, u8 phy_handle)
 {
 	struct hci_cp_read_local_amp_assoc cp;
