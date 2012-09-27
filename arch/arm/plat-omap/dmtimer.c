@@ -128,8 +128,8 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 	}
 
 	__omap_dm_timer_reset(timer, 0, 0);
+	__omap_dm_timer_enable_posted(timer);
 	omap_dm_timer_disable(timer);
-	timer->posted = 1;
 }
 
 int omap_dm_timer_prepare(struct omap_dm_timer *timer)
@@ -797,6 +797,7 @@ static int __devinit omap_dm_timer_probe(struct platform_device *pdev)
 			timer->capability |= OMAP_TIMER_SECURE;
 	} else {
 		timer->id = pdev->id;
+		timer->errata = pdata->timer_errata;
 		timer->capability = pdata->timer_capability;
 		timer->reserved = omap_dm_timer_reserved_systimer(timer->id);
 		timer->get_context_loss_count = pdata->get_context_loss_count;
