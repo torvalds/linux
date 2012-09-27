@@ -3226,6 +3226,26 @@ static int w_go_diskless(struct drbd_work *w, int unused)
 	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
 	 * the protected members anymore, though, so once put_ldev reaches zero
 	 * again, it will be safe to free them. */
+
+	/* Try to write changed bitmap pages, read errors may have just
+	 * set some bits outside the area covered by the activity log.
+	 *
+	 * If we have an IO error during the bitmap writeout,
+	 * we will want a full sync next time, just in case.
+	 * (Do we want a specific meta data flag for this?)
+	 *
+	 * If that does not make it to stable storage either,
+	 * we cannot do anything about that anymore.  */
+	if (mdev->bitmap) {
+		if (drbd_bitmap_io_from_worker(mdev, drbd_bm_write,
+					"detach", BM_LOCKED_MASK)) {
+			if (test_bit(WAS_READ_ERROR, &mdev->flags)) {
+				drbd_md_set_flag(mdev, MDF_FULL_SYNC);
+				drbd_md_sync(mdev);
+			}
+		}
+	}
+
 	drbd_force_state(mdev, NS(disk, D_DISKLESS));
 	return 0;
 }

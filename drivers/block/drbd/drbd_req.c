@@ -492,11 +492,14 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		mod_rq_state(req, m, 0, RQ_LOCAL_ABORTED);
 		break;
 
+	case WRITE_COMPLETED_WITH_ERROR:
+		__drbd_chk_io_error(mdev, DRBD_WRITE_ERROR);
+		mod_rq_state(req, m, RQ_LOCAL_PENDING, RQ_LOCAL_COMPLETED);
+		break;
+
 	case READ_COMPLETED_WITH_ERROR:
 		drbd_set_out_of_sync(mdev, req->i.sector, req->i.size);
-		/* fall through. */
-	case WRITE_COMPLETED_WITH_ERROR:
-		__drbd_chk_io_error(mdev, DRBD_IO_ERROR);
+		__drbd_chk_io_error(mdev, DRBD_READ_ERROR);
 		/* fall through. */
 	case READ_AHEAD_COMPLETED_WITH_ERROR:
 		/* it is legal to fail READA, no __drbd_chk_io_error in that case. */
