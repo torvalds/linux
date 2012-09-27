@@ -112,6 +112,12 @@ enum pn544_state {
 
 #define PN544_NFC_WI_MGMT_GATE			0xA1
 
+#define PN544_HCI_EVT_SND_DATA			0x01
+#define PN544_HCI_EVT_ACTIVATED			0x02
+#define PN544_HCI_EVT_DEACTIVATED		0x03
+#define PN544_HCI_EVT_RCV_DATA			0x04
+#define PN544_HCI_EVT_CONTINUE_MI		0x05
+
 static struct nfc_hci_gate pn544_gates[] = {
 	{NFC_HCI_ADMIN_GATE, NFC_HCI_INVALID_PIPE},
 	{NFC_HCI_LOOPBACK_GATE, NFC_HCI_INVALID_PIPE},
@@ -897,6 +903,44 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 				NULL, 0, NULL);
 }
 
+void pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate, u8 event,
+				struct sk_buff *skb)
+{
+	struct sk_buff *rgb_skb = NULL;
+	int r = 0;
+
+	pr_debug("hci event %d", event);
+	switch (event) {
+	case PN544_HCI_EVT_ACTIVATED:
+		if (gate == PN544_RF_READER_NFCIP1_INITIATOR_GATE)
+			nfc_hci_target_discovered(hdev, gate);
+		else if (gate == PN544_RF_READER_NFCIP1_TARGET_GATE) {
+			r = nfc_hci_get_param(hdev, gate, PN544_DEP_ATR_REQ,
+						&rgb_skb);
+
+			if (r < 0)
+				goto exit;
+
+			nfc_tm_activated(hdev->ndev, NFC_PROTO_NFC_DEP_MASK,
+					NFC_COMM_PASSIVE, rgb_skb->data,
+					rgb_skb->len);
+
+			kfree_skb(rgb_skb);
+		}
+
+		break;
+	case PN544_HCI_EVT_DEACTIVATED:
+		nfc_hci_send_event(hdev, gate,
+			NFC_HCI_EVT_END_OPERATION, NULL, 0);
+		break;
+	default:
+		break;
+	}
+
+exit:
+	kfree_skb(skb);
+}
+
 static struct nfc_hci_ops pn544_hci_ops = {
 	.open = pn544_hci_open,
 	.close = pn544_hci_close,
@@ -907,6 +951,7 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.complete_target_discovered = pn544_hci_complete_target_discovered,
 	.data_exchange = pn544_hci_data_exchange,
 	.check_presence = pn544_hci_check_presence,
+	.event_received = pn544_hci_event_received,
 };
 
 static int __devinit pn544_hci_probe(struct i2c_client *client,

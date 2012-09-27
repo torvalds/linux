@@ -47,6 +47,8 @@ struct nfc_hci_ops {
 			      data_exchange_cb_t cb, void *cb_context);
 	int (*check_presence)(struct nfc_hci_dev *hdev,
 			      struct nfc_target *target);
+	void (*event_received)(struct nfc_hci_dev *hdev, u8 gate, u8 event,
+				struct sk_buff *skb);
 };
 
 /* Pipes */
@@ -222,5 +224,6 @@ int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
 			  const u8 *param, size_t param_len);
 int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 		       const u8 *param, size_t param_len);
+int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate);
 
 #endif /* __NET_HCI_H */

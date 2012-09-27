@@ -182,7 +182,7 @@ static u32 nfc_hci_sak_to_protocol(u8 sak)
 	}
 }
 
-static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
+int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 {
 	struct nfc_target *targets;
 	struct sk_buff *atqa_skb = NULL;
@@ -275,6 +275,7 @@ exit:
 
 	return r;
 }
+EXPORT_SYMBOL(nfc_hci_target_discovered);
 
 void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			    struct sk_buff *skb)
@@ -307,8 +308,13 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 					      nfc_hci_pipe2gate(hdev, pipe));
 		break;
 	default:
-		/* TODO: Unknown events are hardware specific
-		 * pass them to the driver (needs a new hci_ops) */
+		if (hdev->ops->event_received) {
+			hdev->ops->event_received(hdev,
+						nfc_hci_pipe2gate(hdev, pipe),
+						event, skb);
+			return;
+		}
+
 		break;
 	}
 
