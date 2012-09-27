@@ -29,17 +29,17 @@ static const u16 tpci200_status_error[] = {
 };
 
 static const size_t tpci200_space_size[IPACK_SPACE_COUNT] = {
-	[IPACK_IO_SPACE]  = TPCI200_IO_SPACE_SIZE,
-	[IPACK_ID_SPACE]  = TPCI200_ID_SPACE_SIZE,
-	[IPACK_INT_SPACE] = TPCI200_INT_SPACE_SIZE,
-	[IPACK_MEM_SPACE] = TPCI200_MEM8_SPACE_SIZE,
+	[IPACK_IO_SPACE]    = TPCI200_IO_SPACE_SIZE,
+	[IPACK_ID_SPACE]    = TPCI200_ID_SPACE_SIZE,
+	[IPACK_INT_SPACE]   = TPCI200_INT_SPACE_SIZE,
+	[IPACK_MEM8_SPACE]  = TPCI200_MEM8_SPACE_SIZE,
 };
 
 static const size_t tpci200_space_interval[IPACK_SPACE_COUNT] = {
-	[IPACK_IO_SPACE]  = TPCI200_IO_SPACE_INTERVAL,
-	[IPACK_ID_SPACE]  = TPCI200_ID_SPACE_INTERVAL,
-	[IPACK_INT_SPACE] = TPCI200_INT_SPACE_INTERVAL,
-	[IPACK_MEM_SPACE] = TPCI200_MEM8_SPACE_INTERVAL,
+	[IPACK_IO_SPACE]    = TPCI200_IO_SPACE_INTERVAL,
+	[IPACK_ID_SPACE]    = TPCI200_ID_SPACE_INTERVAL,
+	[IPACK_INT_SPACE]   = TPCI200_INT_SPACE_INTERVAL,
+	[IPACK_MEM8_SPACE]  = TPCI200_MEM8_SPACE_INTERVAL,
 };
 
 static struct tpci200_board *check_slot(struct ipack_device *dev)
@@ -271,12 +271,12 @@ static int tpci200_register(struct tpci200_board *tpci200)
 		goto out_release_ip_space;
 	}
 
-	/* Request MEM space (Bar 4) */
+	/* Request MEM8 space (Bar 5) */
 	res = pci_request_region(tpci200->info->pdev, TPCI200_MEM8_SPACE_BAR,
-				 "Carrier MEM space");
+				 "Carrier MEM8 space");
 	if (res) {
 		dev_err(&tpci200->info->pdev->dev,
-			"(bn 0x%X, sn 0x%X) failed to allocate PCI resource for BAR 4!",
+			"(bn 0x%X, sn 0x%X) failed to allocate PCI resource for BAR 5!",
 			tpci200->info->pdev->bus->number,
 			tpci200->info->pdev->devfn);
 		goto out_release_ioid_int_space;
@@ -297,7 +297,7 @@ static int tpci200_register(struct tpci200_board *tpci200)
 	tpci200->mod_mem[IPACK_ID_SPACE] = ioidint_base + TPCI200_ID_SPACE_OFF;
 	tpci200->mod_mem[IPACK_INT_SPACE] =
 		ioidint_base + TPCI200_INT_SPACE_OFF;
-	tpci200->mod_mem[IPACK_MEM_SPACE] =
+	tpci200->mod_mem[IPACK_MEM8_SPACE] =
 		pci_resource_start(tpci200->info->pdev,
 				   TPCI200_MEM8_SPACE_BAR);
 

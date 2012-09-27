@@ -53,7 +53,7 @@ struct ipoctal {
 	struct ipoctal_channel		channel[NR_CHANNELS];
 	unsigned char			write;
 	struct tty_driver		*tty_drv;
-	u8 __iomem			*mem_space;
+	u8 __iomem			*mem8_space;
 	u8 __iomem			*int_space;
 };
 
@@ -306,13 +306,13 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		return -EADDRNOTAVAIL;
 	}
 
-	region = &ipoctal->dev->region[IPACK_MEM_SPACE];
-	ipoctal->mem_space =
+	region = &ipoctal->dev->region[IPACK_MEM8_SPACE];
+	ipoctal->mem8_space =
 		devm_ioremap_nocache(&ipoctal->dev->dev,
 				     region->start, 0x8000);
 	if (!addr) {
 		dev_err(&ipoctal->dev->dev,
-			"Unable to map slot [%d:%d] MEM space!\n",
+			"Unable to map slot [%d:%d] MEM8 space!\n",
 			bus_nr, slot);
 		return -EADDRNOTAVAIL;
 	}
@@ -359,7 +359,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	ipoctal->dev->bus->ops->request_irq(ipoctal->dev,
 				       ipoctal_irq_handler, ipoctal);
 	/* Dummy write */
-	iowrite8(1, ipoctal->mem_space + 1);
+	iowrite8(1, ipoctal->mem8_space + 1);
 
 	/* Register the TTY device */
 
