@@ -321,6 +321,7 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	struct a2mp_physlink_rsp rsp;
 	struct hci_dev *hdev;
+	struct hci_conn *hcon;
 
 	if (le16_to_cpu(hdr->len) < sizeof(*req))
 		return -EINVAL;
@@ -338,7 +339,14 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	/* TODO process physlink create */
 
-	rsp.status = A2MP_STATUS_SUCCESS;
+	hcon = phylink_add(hdev, mgr, req->local_id);
+	if (hcon) {
+		BT_DBG("hcon %p", hcon);
+
+		rsp.status = A2MP_STATUS_SUCCESS;
+	} else {
+		rsp.status = A2MP_STATUS_UNABLE_START_LINK_CREATION;
+	}
 
 send_rsp:
 	if (hdev)
@@ -357,6 +365,7 @@ static int a2mp_discphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	struct a2mp_physlink_req *req = (void *) skb->data;
 	struct a2mp_physlink_rsp rsp;
 	struct hci_dev *hdev;
+	struct hci_conn *hcon;
 
 	if (le16_to_cpu(hdr->len) < sizeof(*req))
 		return -EINVAL;
@@ -367,14 +376,22 @@ static int a2mp_discphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	rsp.remote_id = req->local_id;
 	rsp.status = A2MP_STATUS_SUCCESS;
 
-	hdev = hci_dev_get(req->local_id);
+	hdev = hci_dev_get(req->remote_id);
 	if (!hdev) {
 		rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
 		goto send_rsp;
 	}
 
+	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK, mgr->l2cap_conn->dst);
+	if (!hcon) {
+		BT_ERR("No phys link exist");
+		rsp.status = A2MP_STATUS_NO_PHYSICAL_LINK_EXISTS;
+		goto clean;
+	}
+
 	/* TODO Disconnect Phys Link here */
 
+clean:
 	hci_dev_put(hdev);
 
 send_rsp:
