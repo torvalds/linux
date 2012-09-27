@@ -33,8 +33,6 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 
-#include <plat/clock.h>
-
 #include "../plat-omap/sram.h"
 
 #include "soc.h"

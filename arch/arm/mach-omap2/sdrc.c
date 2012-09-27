@@ -23,10 +23,10 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include "common.h"
-#include <plat/clock.h>
 #include "../plat-omap/sram.h"
 
+#include "common.h"
+#include "clock.h"
 #include "sdrc.h"
 
 static struct omap_sdrc_params *sdrc_init_params_cs0, *sdrc_init_params_cs1;

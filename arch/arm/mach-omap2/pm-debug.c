@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <plat/clock.h>
+#include "clock.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include <plat/dmtimer.h>

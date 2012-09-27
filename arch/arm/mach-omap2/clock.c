@@ -26,7 +26,6 @@
 
 #include <asm/cpu.h>
 
-#include <plat/clock.h>
 #include <plat/prcm.h>
 
 #include <trace/events/power.h>

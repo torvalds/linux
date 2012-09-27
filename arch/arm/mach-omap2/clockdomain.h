@@ -18,7 +18,7 @@
 #include <linux/spinlock.h>
 
 #include "powerdomain.h"
-#include <plat/clock.h>
+#include "clock.h"
 #include "omap_hwmod.h"
 #include <plat/cpu.h>
 

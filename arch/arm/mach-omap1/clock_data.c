@@ -22,7 +22,6 @@
 
 #include <asm/mach-types.h>  /* for machine_is_* */
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/clkdev_omap.h>
 

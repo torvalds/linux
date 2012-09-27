@@ -18,8 +18,6 @@
 #include <linux/io.h>
 
 #include "common.h"
-#include <plat/clock.h>
-
 #include "sdram-nokia.h"
 #include "sdrc.h"
 

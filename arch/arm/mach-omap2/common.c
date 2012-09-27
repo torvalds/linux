@@ -18,12 +18,12 @@
 #include <linux/io.h>
 #include <linux/platform_data/dsp-omap.h>
 
-#include <plat/clock.h>
 #include <plat/vram.h>
 
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
+#include "clock.h"
 #include "sdrc.h"
 #include "control.h"
 #include "omap-secure.h"

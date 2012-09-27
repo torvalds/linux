@@ -21,8 +21,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/clock.h>
-
 #include "../plat-omap/sram.h"
 
 #include "clock.h"

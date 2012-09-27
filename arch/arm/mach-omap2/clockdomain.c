@@ -27,7 +27,7 @@
 
 #include <linux/bitops.h>
 
-#include <plat/clock.h>
+#include "clock.h"
 #include "clockdomain.h"
 
 /* clkdm_list contains all registered struct clockdomains */

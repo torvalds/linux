@@ -24,7 +24,6 @@
 
 #include <plat/cpu.h>
 #include <plat/usb.h>
-#include <plat/clock.h>
 #include <plat/clkdev_omap.h>
 
 #include <mach/hardware.h>

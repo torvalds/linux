@@ -91,7 +91,6 @@
 
 #include "omap_device.h"
 #include "omap_hwmod.h"
-#include <plat/clock.h>
 
 /* These parameters are passed to _omap_device_{de,}activate() */
 #define USE_WAKEUP_LAT			0
