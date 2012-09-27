@@ -208,7 +208,9 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 	kfree(pathbuf);
 out:
 	mutex_unlock(&inode->i_mutex);
-	return (rc && must_appraise) ? -EACCES : 0;
+	if ((rc && must_appraise) && (ima_appraise & IMA_APPRAISE_ENFORCE))
+		return -EACCES;
+	return 0;
 }
 
 /**
@@ -219,19 +221,15 @@ out:
  * Measure files being mmapped executable based on the ima_must_measure()
  * policy decision.
  *
- * Return 0 on success, an error code on failure.
- * (Based on the results of appraise_measurement().)
+ * On success return 0.  On integrity appraisal error, assuming the file
+ * is in policy and IMA-appraisal is in enforcing mode, return -EACCES.
  */
 int ima_file_mmap(struct file *file, unsigned long prot)
 {
-	int rc = 0;
-
-	if (!file)
-		return 0;
-	if (prot & PROT_EXEC)
-		rc = process_measurement(file, file->f_dentry->d_name.name,
-					 MAY_EXEC, FILE_MMAP);
-	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? rc : 0;
+	if (file && (prot & PROT_EXEC))
+		return process_measurement(file, file->f_dentry->d_name.name,
+					   MAY_EXEC, FILE_MMAP);
+	return 0;
 }
 
 /**
@@ -244,18 +242,15 @@ int ima_file_mmap(struct file *file, unsigned long prot)
  * So we can be certain that what we verify and measure here is actually
  * what is being executed.
  *
- * Return 0 on success, an error code on failure.
- * (Based on the results of appraise_measurement().)
+ * On success return 0.  On integrity appraisal error, assuming the file
+ * is in policy and IMA-appraisal is in enforcing mode, return -EACCES.
  */
 int ima_bprm_check(struct linux_binprm *bprm)
 {
-	int rc;
-
-	rc = process_measurement(bprm->file,
+	return process_measurement(bprm->file,
 				 (strcmp(bprm->filename, bprm->interp) == 0) ?
 				 bprm->filename : bprm->interp,
 				 MAY_EXEC, BPRM_CHECK);
-	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? rc : 0;
 }
 
 /**
@@ -265,18 +260,15 @@ int ima_bprm_check(struct linux_binprm *bprm)
  *
  * Measure files based on the ima_must_measure() policy decision.
  *
- * Always return 0 and audit dentry_open failures.
- * (Return code will be based upon measurement appraisal.)
+ * On success return 0.  On integrity appraisal error, assuming the file
+ * is in policy and IMA-appraisal is in enforcing mode, return -EACCES.
  */
 int ima_file_check(struct file *file, int mask)
 {
-	int rc;
-
 	ima_rdwr_violation_check(file);
-	rc = process_measurement(file, file->f_dentry->d_name.name,
+	return process_measurement(file, file->f_dentry->d_name.name,
 				 mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
 				 FILE_CHECK);
-	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? rc : 0;
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
 
@@ -286,19 +278,15 @@ EXPORT_SYMBOL_GPL(ima_file_check);
  *
  * Measure/appraise kernel modules based on policy.
  *
- * Always return 0 and audit dentry_open failures.
- * Return code is based upon measurement appraisal.
+ * On success return 0.  On integrity appraisal error, assuming the file
+ * is in policy and IMA-appraisal is in enforcing mode, return -EACCES.
  */
 int ima_module_check(struct file *file)
 {
-	int rc;
-
 	if (!file)
-		rc = INTEGRITY_UNKNOWN;
-	else
-		rc = process_measurement(file, file->f_dentry->d_name.name,
-					 MAY_EXEC, MODULE_CHECK);
-	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? rc : 0;
+		return -EACCES;	/* INTEGRITY_UNKNOWN */
+	return process_measurement(file, file->f_dentry->d_name.name,
+				   MAY_EXEC, MODULE_CHECK);
 }
 
 static int __init init_ima(void)
