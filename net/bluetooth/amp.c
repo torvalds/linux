@@ -16,6 +16,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/a2mp.h>
 #include <net/bluetooth/amp.h>
+#include <crypto/hash.h>
 
 /* Remote AMP Controllers interface */
 static void amp_ctrl_get(struct amp_ctrl *ctrl)
@@ -123,6 +124,41 @@ struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
 	hcon->amp_mgr = mgr;
 
 	return hcon;
+}
+
+/* AMP crypto key generation interface */
+static int hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
+{
+	int ret = 0;
+	struct crypto_shash *tfm;
+
+	if (!ksize)
+		return -EINVAL;
+
+	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+	if (IS_ERR(tfm)) {
+		BT_DBG("crypto_alloc_ahash failed: err %ld", PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+
+	ret = crypto_shash_setkey(tfm, key, ksize);
+	if (ret) {
+		BT_DBG("crypto_ahash_setkey failed: err %d", ret);
+	} else {
+		struct {
+			struct shash_desc shash;
+			char ctx[crypto_shash_descsize(tfm)];
+		} desc;
+
+		desc.shash.tfm = tfm;
+		desc.shash.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+		ret = crypto_shash_digest(&desc.shash, plaintext, psize,
+					  output);
+	}
+
+	crypto_free_shash(tfm);
+	return ret;
 }
 
 void amp_read_loc_assoc_frag(struct hci_dev *hdev, u8 phy_handle)
