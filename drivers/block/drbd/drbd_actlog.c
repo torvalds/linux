@@ -123,13 +123,7 @@ void drbd_md_put_buffer(struct drbd_conf *mdev)
 		wake_up(&mdev->misc_wait);
 }
 
-static bool md_io_allowed(struct drbd_conf *mdev)
-{
-	enum drbd_disk_state ds = mdev->state.disk;
-	return ds >= D_NEGOTIATING || ds == D_ATTACHING;
-}
-
-void wait_until_done_or_disk_failure(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
+void wait_until_done_or_force_detached(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 				     unsigned int *done)
 {
 	long dt;
@@ -141,9 +135,12 @@ void wait_until_done_or_disk_failure(struct drbd_conf *mdev, struct drbd_backing
 	if (dt == 0)
 		dt = MAX_SCHEDULE_TIMEOUT;
 
-	dt = wait_event_timeout(mdev->misc_wait, *done || !md_io_allowed(mdev), dt);
-	if (dt == 0)
+	dt = wait_event_timeout(mdev->misc_wait,
+			*done || test_bit(FORCE_DETACH, &mdev->flags), dt);
+	if (dt == 0) {
 		dev_err(DEV, "meta-data IO operation timed out\n");
+		drbd_chk_io_error(mdev, 1, DRBD_FORCE_DETACH);
+	}
 }
 
 static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
@@ -183,7 +180,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 		bio_endio(bio, -EIO);
 	else
 		submit_bio(rw, bio);
-	wait_until_done_or_disk_failure(mdev, bdev, &mdev->md_io.done);
+	wait_until_done_or_force_detached(mdev, bdev, &mdev->md_io.done);
 	if (bio_flagged(bio, BIO_UPTODATE))
 		err = mdev->md_io.error;
 
