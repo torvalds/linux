@@ -1,4 +1,4 @@
-/* NG4copy_from_user.S: Niagara-2 optimized copy from userspace.
+/* NG4copy_from_user.S: Niagara-4 optimized copy from userspace.
  *
  * Copyright (C) 2012 David S. Miller (davem@davemloft.net)
  */
