@@ -26,7 +26,6 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <mach/clk.h>
-#include <mach/dma.h>
 #include <sound/soc.h>
 #include "tegra30_ahub.h"
 
