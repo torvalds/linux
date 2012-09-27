@@ -31,6 +31,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
 #include <net/bluetooth/a2mp.h>
+#include <net/bluetooth/amp.h>
 
 /* Handle HCI Event packets */
 
@@ -864,6 +865,42 @@ static void hci_cc_read_local_amp_info(struct hci_dev *hdev,
 
 a2mp_rsp:
 	a2mp_send_getinfo_rsp(hdev);
+}
+
+static void hci_cc_read_local_amp_assoc(struct hci_dev *hdev,
+					struct sk_buff *skb)
+{
+	struct hci_rp_read_local_amp_assoc *rp = (void *) skb->data;
+	struct amp_assoc *assoc = &hdev->loc_assoc;
+	size_t rem_len, frag_len;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		goto a2mp_rsp;
+
+	frag_len = skb->len - sizeof(*rp);
+	rem_len = __le16_to_cpu(rp->rem_len);
+
+	if (rem_len > frag_len) {
+		BT_DBG("frag_len %d rem_len %d", frag_len, rem_len);
+
+		memcpy(assoc->data + assoc->offset, rp->frag, frag_len);
+		assoc->offset += frag_len;
+
+		/* Read other fragments */
+		amp_read_loc_assoc_frag(hdev, rp->phy_handle);
+
+		return;
+	}
+
+	memcpy(assoc->data + assoc->offset, rp->frag, rem_len);
+	assoc->len = assoc->offset + rem_len;
+	assoc->offset = 0;
+
+a2mp_rsp:
+	/* Send A2MP Rsp when all fragments are received */
+	a2mp_send_getampassoc_rsp(hdev, rp->status);
 }
 
 static void hci_cc_delete_stored_link_key(struct hci_dev *hdev,
@@ -2316,6 +2353,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_READ_LOCAL_AMP_INFO:
 		hci_cc_read_local_amp_info(hdev, skb);
+		break;
+
+	case HCI_OP_READ_LOCAL_AMP_ASSOC:
+		hci_cc_read_local_amp_assoc(hdev, skb);
 		break;
 
 	case HCI_OP_DELETE_STORED_LINK_KEY:

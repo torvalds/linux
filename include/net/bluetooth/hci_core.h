@@ -124,6 +124,12 @@ struct le_scan_params {
 
 #define HCI_MAX_SHORT_NAME_LENGTH	10
 
+struct amp_assoc {
+	__u16	len;
+	__u16	offset;
+	__u8	data[HCI_MAX_AMP_ASSOC_SIZE];
+};
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -176,6 +182,8 @@ struct hci_dev {
 	__u16		amp_assoc_size;
 	__u32		amp_max_flush_to;
 	__u32		amp_be_flush_to;
+
+	struct amp_assoc	loc_assoc;
 
 	__u8		flow_ctl_mode;
 

@@ -16,6 +16,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/a2mp.h>
+#include <net/bluetooth/amp.h>
 
 /* Global AMP Manager list */
 LIST_HEAD(amp_mgr_list);
@@ -218,26 +219,37 @@ static int a2mp_getampassoc_req(struct amp_mgr *mgr, struct sk_buff *skb,
 {
 	struct a2mp_amp_assoc_req *req = (void *) skb->data;
 	struct hci_dev *hdev;
+	struct amp_mgr *tmp;
 
 	if (le16_to_cpu(hdr->len) < sizeof(*req))
 		return -EINVAL;
 
 	BT_DBG("id %d", req->id);
 
+	/* Make sure that other request is not processed */
+	tmp = amp_mgr_lookup_by_state(READ_LOC_AMP_ASSOC);
+
 	hdev = hci_dev_get(req->id);
-	if (!hdev || hdev->amp_type == HCI_BREDR) {
+	if (!hdev || hdev->amp_type == HCI_BREDR || tmp) {
 		struct a2mp_amp_assoc_rsp rsp;
 		rsp.id = req->id;
-		rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
+
+		if (tmp) {
+			rsp.status = A2MP_STATUS_COLLISION_OCCURED;
+			amp_mgr_put(tmp);
+		} else {
+			rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
+		}
 
 		a2mp_send(mgr, A2MP_GETAMPASSOC_RSP, hdr->ident, sizeof(rsp),
 			  &rsp);
-		goto clean;
+
+		goto done;
 	}
 
-	/* Placeholder for HCI Read AMP Assoc */
+	amp_read_loc_assoc(hdev, mgr);
 
-clean:
+done:
 	if (hdev)
 		hci_dev_put(hdev);
 
@@ -623,4 +635,38 @@ void a2mp_send_getinfo_rsp(struct hci_dev *hdev)
 
 	a2mp_send(mgr, A2MP_GETINFO_RSP, mgr->ident, sizeof(rsp), &rsp);
 	amp_mgr_put(mgr);
+}
+
+void a2mp_send_getampassoc_rsp(struct hci_dev *hdev, u8 status)
+{
+	struct amp_mgr *mgr;
+	struct amp_assoc *loc_assoc = &hdev->loc_assoc;
+	struct a2mp_amp_assoc_rsp *rsp;
+	size_t len;
+
+	mgr = amp_mgr_lookup_by_state(READ_LOC_AMP_ASSOC);
+	if (!mgr)
+		return;
+
+	BT_DBG("%s mgr %p", hdev->name, mgr);
+
+	len = sizeof(struct a2mp_amp_assoc_rsp) + loc_assoc->len;
+	rsp = kzalloc(len, GFP_KERNEL);
+	if (!rsp) {
+		amp_mgr_put(mgr);
+		return;
+	}
+
+	rsp->id = hdev->id;
+
+	if (status) {
+		rsp->status = A2MP_STATUS_INVALID_CTRL_ID;
+	} else {
+		rsp->status = A2MP_STATUS_SUCCESS;
+		memcpy(rsp->amp_assoc, loc_assoc->data, loc_assoc->len);
+	}
+
+	a2mp_send(mgr, A2MP_GETAMPASSOC_RSP, mgr->ident, len, rsp);
+	amp_mgr_put(mgr);
+	kfree(rsp);
 }
