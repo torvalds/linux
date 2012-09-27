@@ -27,6 +27,7 @@
  * IO codes that are interpreted by dongle firmware
  ******************************************************************************/
 #define BRCMF_C_UP				2
+#define BRCMF_C_DOWN				3
 #define BRCMF_C_SET_PROMISC			10
 #define BRCMF_C_GET_RATE			12
 #define BRCMF_C_GET_INFRA			19
@@ -50,7 +51,10 @@
 #define BRCMF_C_REASSOC				53
 #define BRCMF_C_SET_ROAM_TRIGGER		55
 #define BRCMF_C_SET_ROAM_DELTA			57
+#define BRCMF_C_GET_BCNPRD			75
+#define BRCMF_C_SET_BCNPRD			76
 #define BRCMF_C_GET_DTIMPRD			77
+#define BRCMF_C_SET_DTIMPRD			78
 #define BRCMF_C_SET_COUNTRY			84
 #define BRCMF_C_GET_PM				85
 #define BRCMF_C_SET_PM				86
@@ -133,6 +137,9 @@
 #define BRCMF_ESCAN_REQ_VERSION 1
 
 #define WLC_BSS_RSSI_ON_CHANNEL		0x0002
+
+#define BRCMF_MAXRATES_IN_SET		16	/* max # of rates in rateset */
+#define BRCMF_STA_ASSOC			0x10		/* Associated */
 
 struct brcmf_event_msg {
 	__be16 version;
@@ -564,6 +571,28 @@ struct brcmf_channel_info_le {
 	__le32 hw_channel;
 	__le32 target_channel;
 	__le32 scan_channel;
+};
+
+struct brcmf_sta_info_le {
+	__le16	ver;		/* version of this struct */
+	__le16	len;		/* length in bytes of this structure */
+	__le16	cap;		/* sta's advertised capabilities */
+	__le32	flags;		/* flags defined below */
+	__le32	idle;		/* time since data pkt rx'd from sta */
+	u8	ea[ETH_ALEN];		/* Station address */
+	__le32	count;			/* # rates in this set */
+	u8	rates[BRCMF_MAXRATES_IN_SET];	/* rates in 500kbps units */
+						/* w/hi bit set if basic */
+	__le32	in;		/* seconds elapsed since associated */
+	__le32	listen_interval_inms; /* Min Listen interval in ms for STA */
+	__le32	tx_pkts;	/* # of packets transmitted */
+	__le32	tx_failures;	/* # of packets failed */
+	__le32	rx_ucast_pkts;	/* # of unicast packets received */
+	__le32	rx_mcast_pkts;	/* # of multicast packets received */
+	__le32	tx_rate;	/* Rate of last successful tx frame */
+	__le32	rx_rate;	/* Rate of last successful rx frame */
+	__le32	rx_decrypt_succeeds;	/* # of packet decrypted successfully */
+	__le32	rx_decrypt_failures;	/* # of packet decrypted failed */
 };
 
 /* Bus independent dongle command */

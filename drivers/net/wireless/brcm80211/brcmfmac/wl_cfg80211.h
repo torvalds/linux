@@ -125,6 +125,7 @@ do {								\
 #define WL_ESCAN_ACTION_ABORT		3
 
 #define WL_AUTH_SHARED_KEY		1	/* d11 shared authentication */
+#define IE_MAX_LEN			512
 
 /* dongle status */
 enum wl_status {
@@ -132,7 +133,9 @@ enum wl_status {
 	WL_STATUS_SCANNING,
 	WL_STATUS_SCAN_ABORTING,
 	WL_STATUS_CONNECTING,
-	WL_STATUS_CONNECTED
+	WL_STATUS_CONNECTED,
+	WL_STATUS_AP_CREATING,
+	WL_STATUS_AP_CREATED
 };
 
 /* wi-fi mode */
@@ -285,6 +288,17 @@ struct escan_info {
 	struct net_device *ndev;
 };
 
+/* Structure to hold WPS, WPA IEs for a AP */
+struct ap_info {
+	u8 probe_res_ie[IE_MAX_LEN];
+	u8 beacon_ie[IE_MAX_LEN];
+	u32 probe_res_ie_len;
+	u32 beacon_ie_len;
+	u8 *wpa_ie;
+	u8 *rsn_ie;
+	bool security_mode;
+};
+
 /**
  * struct brcmf_pno_param_le - PNO scan configuration parameters
  *
@@ -407,6 +421,7 @@ struct brcmf_pno_scanresults_le {
  * @escan_timeout: Timer for catch scan timeout.
  * @escan_timeout_work: scan timeout worker.
  * @escan_ioctl_buf: dongle command buffer for escan commands.
+ * @ap_info: host ap information.
  * @ci: used to link this structure to netdev private data.
  */
 struct brcmf_cfg80211_priv {
@@ -448,6 +463,7 @@ struct brcmf_cfg80211_priv {
 	struct timer_list escan_timeout;
 	struct work_struct escan_timeout_work;
 	u8 *escan_ioctl_buf;
+	struct ap_info *ap_info;
 };
 
 static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_priv *w)
