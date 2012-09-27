@@ -53,7 +53,7 @@ static int act8931_set_init(struct act8931 *act8931)
 	udelay(100);
 	
 	dcdc = regulator_get(NULL, "act_dcdc1");	//vcc_io
-	regulator_set_voltage(dcdc, 3000000, 3000000);
+	regulator_set_voltage(dcdc, 3200000, 3200000);
 	regulator_enable(dcdc);
 	printk("%s set dcdc1 vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
