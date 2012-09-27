@@ -252,8 +252,8 @@ static void bind_cdev(struct thermal_cooling_device *cdev)
 		}
 
 		tzp = pos->tzp;
-		if (!tzp->tbp)
-			return;
+		if (!tzp || !tzp->tbp)
+			continue;
 
 		for (i = 0; i < tzp->num_tbps; i++) {
 			if (tzp->tbp[i].cdev || !tzp->tbp[i].match)
@@ -289,7 +289,7 @@ static void bind_tz(struct thermal_zone_device *tz)
 		goto exit;
 	}
 
-	if (!tzp->tbp)
+	if (!tzp || !tzp->tbp)
 		goto exit;
 
 	list_for_each_entry(pos, &thermal_cdev_list, node) {
@@ -387,12 +387,13 @@ static void update_temperature(struct thermal_zone_device *tz)
 	ret = tz->ops->get_temp(tz, &temp);
 	if (ret) {
 		pr_warn("failed to read out thermal zone %d\n", tz->id);
-		return;
+		goto exit;
 	}
 
 	tz->last_temperature = tz->temperature;
 	tz->temperature = temp;
 
+exit:
 	mutex_unlock(&tz->lock);
 }
 
