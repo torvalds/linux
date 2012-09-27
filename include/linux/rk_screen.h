@@ -48,6 +48,8 @@ struct rk29lcd_info {
 	u32	reset_pin;
 	int (*io_init)(void);
 	int (*io_deinit)(void);
+	int (*io_enable)(void);
+	int (*io_disable)(void);
 };
 
 

@@ -67,6 +67,26 @@ struct ft5x0x_platform_data{
     void    (*exit_platform_hw)(void);
 };
 #endif
+
+#if defined (CONFIG_TOUCHSCREEN_I30)
+struct ft5306_platform_data {
+    int rest_pin;
+    int irq_pin ;
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+#endif
+
+#if defined (CONFIG_GPIOEXP_AW9523B)
+struct gpio_exp_platform_data {
+    int     (*init_platform_hw)(void);
+    void    (*exit_platform_hw)(void);
+};
+#endif
+
 enum _periph_pll {
 	periph_pll_1485mhz = 148500000,
 	periph_pll_297mhz = 297000000,
