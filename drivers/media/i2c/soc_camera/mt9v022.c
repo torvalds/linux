@@ -15,6 +15,7 @@
 #include <linux/log2.h>
 #include <linux/module.h>
 
+#include <media/mt9v022.h>
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
 #include <media/v4l2-subdev.h>
@@ -869,6 +870,7 @@ static int mt9v022_probe(struct i2c_client *client,
 	struct mt9v022 *mt9v022;
 	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct mt9v022_platform_data *pdata = icl->priv;
 	int ret;
 
 	if (!icl) {
@@ -932,10 +934,10 @@ static int mt9v022_probe(struct i2c_client *client,
 	mt9v022->chip_control = MT9V022_CHIP_CONTROL_DEFAULT;
 
 	/*
-	 * MT9V022 _really_ corrupts the first read out line.
-	 * TODO: verify on i.MX31
+	 * On some platforms the first read out line is corrupted.
+	 * Workaround it by skipping if indicated by platform data.
 	 */
-	mt9v022->y_skip_top	= 1;
+	mt9v022->y_skip_top	= pdata ? pdata->y_skip_top : 0;
 	mt9v022->rect.left	= MT9V022_COLUMN_SKIP;
 	mt9v022->rect.top	= MT9V022_ROW_SKIP;
 	mt9v022->rect.width	= MT9V022_MAX_WIDTH;
