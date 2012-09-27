@@ -1265,9 +1265,6 @@ void unregister_c_can_dev(struct net_device *dev)
 {
 	struct c_can_priv *priv = netdev_priv(dev);
 
-	/* disable all interrupts */
-	c_can_enable_all_interrupts(priv, DISABLE_ALL_INTERRUPTS);
-
 	unregister_candev(dev);
 
 	c_can_pm_runtime_disable(priv);
