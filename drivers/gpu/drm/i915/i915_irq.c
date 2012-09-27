@@ -2012,7 +2012,6 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 #endif
 
 	I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
-#if 0 /* FIXME: check register definitions; some have moved */
 	/* Note HDMI and DP share bits */
 	if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
 		hotplug_en |= HDMIB_HOTPLUG_INT_EN;
@@ -2020,15 +2019,14 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 		hotplug_en |= HDMIC_HOTPLUG_INT_EN;
 	if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
 		hotplug_en |= HDMID_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
+	if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_I915)
 		hotplug_en |= SDVOC_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
+	if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_I915)
 		hotplug_en |= SDVOB_HOTPLUG_INT_EN;
 	if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
 		hotplug_en |= CRT_HOTPLUG_INT_EN;
 		hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
 	}
-#endif
 
 	I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
 
