@@ -2803,6 +2803,8 @@ void tcp4_proc_exit(void)
 struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
 	const struct iphdr *iph = skb_gro_network_header(skb);
+	__wsum wsum;
+	__sum16 sum;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
@@ -2811,11 +2813,22 @@ struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			break;
 		}
-
-		/* fall through */
-	case CHECKSUM_NONE:
+flush:
 		NAPI_GRO_CB(skb)->flush = 1;
 		return NULL;
+
+	case CHECKSUM_NONE:
+		wsum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
+					  skb_gro_len(skb), IPPROTO_TCP, 0);
+		sum = csum_fold(skb_checksum(skb,
+					     skb_gro_offset(skb),
+					     skb_gro_len(skb),
+					     wsum));
+		if (sum)
+			goto flush;
+
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		break;
 	}
 
 	return tcp_gro_receive(head, skb);

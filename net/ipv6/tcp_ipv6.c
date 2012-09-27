@@ -763,6 +763,8 @@ static struct sk_buff **tcp6_gro_receive(struct sk_buff **head,
 					 struct sk_buff *skb)
 {
 	const struct ipv6hdr *iph = skb_gro_network_header(skb);
+	__wsum wsum;
+	__sum16 sum;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
@@ -771,11 +773,23 @@ static struct sk_buff **tcp6_gro_receive(struct sk_buff **head,
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			break;
 		}
-
-		/* fall through */
-	case CHECKSUM_NONE:
+flush:
 		NAPI_GRO_CB(skb)->flush = 1;
 		return NULL;
+
+	case CHECKSUM_NONE:
+		wsum = ~csum_unfold(csum_ipv6_magic(&iph->saddr, &iph->daddr,
+						    skb_gro_len(skb),
+						    IPPROTO_TCP, 0));
+		sum = csum_fold(skb_checksum(skb,
+					     skb_gro_offset(skb),
+					     skb_gro_len(skb),
+					     wsum));
+		if (sum)
+			goto flush;
+
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		break;
 	}
 
 	return tcp_gro_receive(head, skb);
