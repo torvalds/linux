@@ -193,6 +193,7 @@ struct rk29_vmac_platform_data {
 	int (*rmii_io_init)(void);
 	int (*rmii_io_deinit)(void);
 	int (*rmii_power_control)(int enable);
+        int(*rmii_speed_switch)(int speed);
 };
 
 #define BOOT_MODE_NORMAL		0

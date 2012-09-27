@@ -136,6 +136,7 @@ static void vmac_handle_link_change(struct net_device *dev)
 	struct phy_device *phydev = ap->phy_dev;
 	unsigned long flags;
 	int report_change = 0;
+	struct rk29_vmac_platform_data *pdata = ap->pdev->dev.platform_data;
 
 	spin_lock_irqsave(&ap->lock, flags);
 
@@ -159,6 +160,9 @@ static void vmac_handle_link_change(struct net_device *dev)
 		ap->speed = phydev->speed;
 		report_change = 1;
 	}
+
+	if (pdata && pdata->rmii_speed_switch)
+		pdata->rmii_speed_switch(phydev->speed);
 
 	if (phydev->link != ap->link) {
 		ap->link = phydev->link;
@@ -1432,10 +1436,10 @@ static void vmac_set_multicast_list(struct net_device *dev)
 	spin_lock_irqsave(&ap->lock, flags);
 
 	promisc = !!(dev->flags & IFF_PROMISC);
-	reg = vmac_readl(ap, ENABLE);
+	reg = vmac_readl(ap, CONTROL);
 	if (promisc != !!(reg & PROM_MASK)) {
 		reg ^= PROM_MASK;
-		vmac_writel(ap, reg, ENABLE);
+		vmac_writel(ap, reg, CONTROL);
 	}
 
 	if (dev->flags & IFF_ALLMULTI)

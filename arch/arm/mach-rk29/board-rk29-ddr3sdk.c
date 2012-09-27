@@ -2948,6 +2948,18 @@ static struct platform_device *devices[] __initdata = {
  * spi devices
  * author: cmc@rock-chips.com
  *****************************************************************************************/
+
+#define BIT_EMAC_SPEED      (1 << 10)
+static int rk29_vmac_speed_switch(int speed)
+{
+	printk("%s--speed=%d\n", __FUNCTION__, speed);
+	if (10 == speed) {
+            writel(readl(RK29_GRF_BASE + 0xbc) & (~BIT_EMAC_SPEED), RK29_GRF_BASE + 0xbc);
+        } else {
+            writel(readl(RK29_GRF_BASE + 0xbc) | BIT_EMAC_SPEED, RK29_GRF_BASE + 0xbc);
+        }
+} 
+ 
 static int rk29_vmac_register_set(void)
 {
 	//config rk29 vmac as rmii, 100MHz
