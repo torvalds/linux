@@ -1005,7 +1005,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			ret = compat_ptrace_write_user(child, addr, data);
 			break;
 
-		case PTRACE_GETREGS:
+		case COMPAT_PTRACE_GETREGS:
 			ret = copy_regset_to_user(child,
 						  &user_aarch32_view,
 						  REGSET_COMPAT_GPR,
@@ -1013,7 +1013,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 						  datap);
 			break;
 
-		case PTRACE_SETREGS:
+		case COMPAT_PTRACE_SETREGS:
 			ret = copy_regset_from_user(child,
 						    &user_aarch32_view,
 						    REGSET_COMPAT_GPR,
@@ -1021,12 +1021,12 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 						    datap);
 			break;
 
-		case PTRACE_GET_THREAD_AREA:
+		case COMPAT_PTRACE_GET_THREAD_AREA:
 			ret = put_user((compat_ulong_t)child->thread.tp_value,
 				       (compat_ulong_t __user *)datap);
 			break;
 
-		case PTRACE_SET_SYSCALL:
+		case COMPAT_PTRACE_SET_SYSCALL:
 			task_pt_regs(child)->syscallno = data;
 			ret = 0;
 			break;
@@ -1048,11 +1048,11 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			break;
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-		case PTRACE_GETHBPREGS:
+		case COMPAT_PTRACE_GETHBPREGS:
 			ret = compat_ptrace_gethbpregs(child, addr, datap);
 			break;
 
-		case PTRACE_SETHBPREGS:
+		case COMPAT_PTRACE_SETHBPREGS:
 			ret = compat_ptrace_sethbpregs(child, addr, datap);
 			break;
 #endif
