@@ -280,12 +280,13 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	/* clock settings */
-	ret =
-	    vpif_config_data->set_clock(ch->vpifparams.std_info.ycmux_mode,
-					ch->vpifparams.std_info.hd_sd);
-	if (ret < 0) {
-		vpif_err("can't set clock\n");
-		return ret;
+	if (vpif_config_data->set_clock) {
+		ret = vpif_config_data->set_clock(ch->vpifparams.std_info.
+		ycmux_mode, ch->vpifparams.std_info.hd_sd);
+		if (ret < 0) {
+			vpif_err("can't set clock\n");
+			return ret;
+		}
 	}
 
 	/* set the parameters and addresses */

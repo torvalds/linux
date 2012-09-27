@@ -311,12 +311,13 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	/* configure 1 or 2 channel mode */
-	ret = vpif_config_data->setup_input_channel_mode
-					(vpif->std_info.ycmux_mode);
-
-	if (ret < 0) {
-		vpif_dbg(1, debug, "can't set vpif channel mode\n");
-		return ret;
+	if (vpif_config_data->setup_input_channel_mode) {
+		ret = vpif_config_data->
+			setup_input_channel_mode(vpif->std_info.ycmux_mode);
+		if (ret < 0) {
+			vpif_dbg(1, debug, "can't set vpif channel mode\n");
+			return ret;
+		}
 	}
 
 	/* Call vpif_set_params function to set the parameters and addresses */
