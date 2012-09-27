@@ -175,12 +175,12 @@ static int process_measurement(struct file *file, const char *filename,
 	if (!action) {
 		if (iint->flags & IMA_APPRAISED)
 			rc = iint->ima_status;
-		goto out;
+		goto out_digsig;
 	}
 
 	rc = ima_collect_measurement(iint, file);
 	if (rc != 0)
-		goto out;
+		goto out_digsig;
 
 	if (function != BPRM_CHECK)
 		pathname = ima_d_path(&file->f_path, &pathbuf);
@@ -195,6 +195,9 @@ static int process_measurement(struct file *file, const char *filename,
 	if (action & IMA_AUDIT)
 		ima_audit_measurement(iint, pathname);
 	kfree(pathbuf);
+out_digsig:
+	if ((mask & MAY_WRITE) && (iint->flags & IMA_DIGSIG))
+		rc = -EACCES;
 out:
 	mutex_unlock(&inode->i_mutex);
 	if ((rc && must_appraise) && (ima_appraise & IMA_APPRAISE_ENFORCE))
