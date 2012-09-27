@@ -165,8 +165,7 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 		return -ENOMEM;
 	}
 
-	node = kcalloc(G2D_CMDLIST_NUM, G2D_CMDLIST_NUM * sizeof(*node),
-			GFP_KERNEL);
+	node = kcalloc(G2D_CMDLIST_NUM, sizeof(*node), GFP_KERNEL);
 	if (!node) {
 		dev_err(dev, "failed to allocate memory\n");
 		ret = -ENOMEM;
