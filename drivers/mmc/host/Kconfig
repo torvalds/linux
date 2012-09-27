@@ -32,6 +32,16 @@ if SDMMC_RK29
 			 You will add the feature of write-protect for sdmmc-card if you say Yes.
 			 Please note that this feature requires hardware support.
 	
+	config SDMMC0_RK29_SDCARD_DET_FROM_GPIO
+        bool "use the gpio-interrupt to detect card"
+        default n
+        depends on SDMMC0_RK29
+            help
+	           You can detect the presence of card by the gpio-interrupt if you say Yes.
+			   Of course, you must define the pin-name for the detect-pin.
+
+			   If you say No, then detect the card by register interrupt.
+
 #	config USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD
 #	    depends on SDMMC0_RK29
 #		bool "Switch the driver SDMMC0 for the debug of wifi_develop_board."

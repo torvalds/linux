@@ -520,6 +520,10 @@ static void rkusb_wifi_power(int on) {
 
 #define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK2928_PIN0_PB2
 
+#define RK29SDK_SD_CARD_DETECT_N        RK2928_PIN2_PA7  //According to your own project to set the value of card-detect-pin.
+#define RK29SDK_SD_CARD_INSERT_LEVEL    GPIO_LOW         // set the voltage of insert-card. Please pay attention to the default setting.
+
+
 #endif //endif ---#ifdef CONFIG_SDMMC_RK29
 
 #ifdef CONFIG_SDMMC0_RK29
@@ -527,7 +531,13 @@ static int rk29_sdmmc0_cfg_gpio(void)
 {
 	rk29_sdmmc_set_iomux(0, 0xFFFF);
 
+#if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+    rk30_mux_api_set(GPIO1C1_MMC0_DETN_NAME, GPIO1C_GPIO1C1);
+   // gpio_request(RK29SDK_SD_CARD_DETECT_N, "sd-detect");
+   // gpio_direction_output(RK29SDK_SD_CARD_DETECT_N,GPIO_HIGH);//set mmc0-data1 to high.
+#else
 	rk30_mux_api_set(GPIO1C1_MMC0_DETN_NAME, GPIO1C_MMC0_DETN);
+#endif	
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
 	gpio_request(SDMMC0_WRITE_PROTECT_PIN, "sdmmc-wp");
@@ -557,7 +567,14 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
-	.detect_irq = RK2928_PIN1_PC1,	// INVALID_GPIO
+
+#if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+    .detect_irq = RK29SDK_SD_CARD_DETECT_N,
+    .insert_card_level = RK29SDK_SD_CARD_INSERT_LEVEL,
+#else
+	.detect_irq = INVALID_GPIO,
+#endif
+
 	.enable_sd_wakeup = 0,
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)

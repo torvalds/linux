@@ -83,6 +83,45 @@ struct rk29fb_info {
 	void (*set_screen_info)(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info );
 };
 
+struct rksdmmc_iomux {
+    char    *name;  //set the MACRO of gpio
+    int     fgpio;
+    int     fmux;
+};
+
+struct rksdmmc_gpio {
+    int     io;                             //set the address of gpio
+    char    name[64];   //
+    int     enable;  // disable = !enable   //set the default value,i.e,GPIO_HIGH or GPIO_LOW
+    struct rksdmmc_iomux  iomux;
+};
+
+
+struct rksdmmc_gpio_board {
+    struct rksdmmc_gpio   clk_gpio;
+    struct rksdmmc_gpio   cmd_gpio;
+    struct rksdmmc_gpio   data0_gpio;
+    struct rksdmmc_gpio   data1_gpio;    
+    struct rksdmmc_gpio   data2_gpio;
+    struct rksdmmc_gpio   data3_gpio;
+   
+    struct rksdmmc_gpio   detect_irq;    
+    struct rksdmmc_gpio   power_en_gpio;   
+    struct rksdmmc_gpio   write_prt;
+    struct rksdmmc_gpio   sdio_irq_gpio;
+};
+
+
+struct rksdmmc_gpio_wifi_moudle {
+    struct rksdmmc_gpio   power_n;    
+    struct rksdmmc_gpio   reset_n;   
+    struct rksdmmc_gpio   vddio;
+    struct rksdmmc_gpio   bgf_int_b;
+    struct rksdmmc_gpio   wifi_int_b;
+    struct rksdmmc_gpio   gps_sync;
+};
+
+
 struct rk29_sdmmc_platform_data {
 	unsigned int host_caps;
 	unsigned int host_ocr_avail;
@@ -94,6 +133,7 @@ struct rk29_sdmmc_platform_data {
 	int (*status)(struct device *);
 	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
 	int detect_irq;
+	int insert_card_level;
 	int enable_sd_wakeup;
 	int write_prt;
 	unsigned int sdio_INT_gpio; //add gpio INT for sdio interrupt.Modifed by xbw at 2012-08-09
