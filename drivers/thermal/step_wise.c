@@ -150,7 +150,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
  * step. If the zone is 'cooling down' it brings back the performance of
  * the devices by one step.
  */
-int step_wise_throttle(struct thermal_zone_device *tz, int trip)
+static int step_wise_throttle(struct thermal_zone_device *tz, int trip)
 {
 	struct thermal_instance *instance;
 
@@ -169,7 +169,7 @@ int step_wise_throttle(struct thermal_zone_device *tz, int trip)
 	return 0;
 }
 
-struct thermal_governor thermal_gov_step_wise = {
+static struct thermal_governor thermal_gov_step_wise = {
 	.name		= DEFAULT_THERMAL_GOVERNOR,
 	.throttle	= step_wise_throttle,
 	.owner		= THIS_MODULE,
