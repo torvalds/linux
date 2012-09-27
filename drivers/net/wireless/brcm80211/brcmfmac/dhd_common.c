@@ -88,6 +88,52 @@ brcmf_c_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 	return len;
 }
 
+uint
+brcmf_c_mkiovar_bsscfg(char *name, char *data, uint datalen,
+		       char *buf, uint buflen, s32 bssidx)
+{
+	const s8 *prefix = "bsscfg:";
+	s8 *p;
+	u32 prefixlen;
+	u32 namelen;
+	u32 iolen;
+	__le32 bssidx_le;
+
+	if (bssidx == 0)
+		return brcmf_c_mkiovar(name, data, datalen, buf, buflen);
+
+	prefixlen = (u32) strlen(prefix); /* lengh of bsscfg prefix */
+	namelen = (u32) strlen(name) + 1; /* lengh of iovar  name + null */
+	iolen = prefixlen + namelen + sizeof(bssidx_le) + datalen;
+
+	if (buflen < 0 || iolen > (u32)buflen) {
+		brcmf_dbg(ERROR, "buffer is too short\n");
+		return 0;
+	}
+
+	p = buf;
+
+	/* copy prefix, no null */
+	memcpy(p, prefix, prefixlen);
+	p += prefixlen;
+
+	/* copy iovar name including null */
+	memcpy(p, name, namelen);
+	p += namelen;
+
+	/* bss config index as first data */
+	bssidx_le = cpu_to_le32(bssidx);
+	memcpy(p, &bssidx_le, sizeof(bssidx_le));
+	p += sizeof(bssidx_le);
+
+	/* parameter buffer follows */
+	if (datalen)
+		memcpy(p, data, datalen);
+
+	return iolen;
+
+}
+
 bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 		      struct sk_buff *pkt, int prec)
 {

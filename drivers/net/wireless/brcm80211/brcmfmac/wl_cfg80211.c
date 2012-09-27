@@ -366,6 +366,44 @@ brcmf_exec_dcmd_u32(struct net_device *ndev, u32 cmd, u32 *par)
 	return err;
 }
 
+static s32
+brcmf_dev_iovar_setbuf_bsscfg(struct net_device *ndev, s8 *name,
+			      void *param, s32 paramlen,
+			      void *buf, s32 buflen, s32 bssidx)
+{
+	s32 err = -ENOMEM;
+	u32 len;
+
+	len = brcmf_c_mkiovar_bsscfg(name, param, paramlen,
+				     buf, buflen, bssidx);
+	BUG_ON(!len);
+	if (len > 0)
+		err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_VAR, buf, len);
+	if (err)
+		WL_ERR("error (%d)\n", err);
+
+	return err;
+}
+
+static s32
+brcmf_dev_iovar_getbuf_bsscfg(struct net_device *ndev, s8 *name,
+			      void *param, s32 paramlen,
+			      void *buf, s32 buflen, s32 bssidx)
+{
+	s32 err = -ENOMEM;
+	u32 len;
+
+	len = brcmf_c_mkiovar_bsscfg(name, param, paramlen,
+				     buf, buflen, bssidx);
+	BUG_ON(!len);
+	if (len > 0)
+		err = brcmf_exec_dcmd(ndev, BRCMF_C_GET_VAR, buf, len);
+	if (err)
+		WL_ERR("error (%d)\n", err);
+
+	return err;
+}
+
 static void convert_key_from_CPU(struct brcmf_wsec_key *key,
 				 struct brcmf_wsec_key_le *key_le)
 {
@@ -380,16 +418,22 @@ static void convert_key_from_CPU(struct brcmf_wsec_key *key,
 	memcpy(key_le->ea, key->ea, sizeof(key->ea));
 }
 
-static int send_key_to_dongle(struct net_device *ndev,
-			      struct brcmf_wsec_key *key)
+static int
+send_key_to_dongle(struct brcmf_cfg80211_priv *cfg_priv, s32 bssidx,
+		   struct net_device *ndev, struct brcmf_wsec_key *key)
 {
 	int err;
 	struct brcmf_wsec_key_le key_le;
 
 	convert_key_from_CPU(key, &key_le);
-	err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_KEY, &key_le, sizeof(key_le));
+
+	err  = brcmf_dev_iovar_setbuf_bsscfg(ndev, "wsec_key", &key_le,
+					     sizeof(key_le),
+					     cfg_priv->extra_buf,
+					     WL_EXTRA_BUF_MAX, bssidx);
+
 	if (err)
-		WL_ERR("WLC_SET_KEY error (%d)\n", err);
+		WL_ERR("wsec_key error (%d)\n", err);
 	return err;
 }
 
@@ -485,6 +529,49 @@ brcmf_dev_intvar_get(struct net_device *ndev, s8 *name, s32 *retval)
 	*retval = le32_to_cpu(var.val);
 
 	return err;
+}
+
+static s32
+brcmf_dev_intvar_set_bsscfg(struct net_device *ndev, s8 *name, u32 val,
+			    s32 bssidx)
+{
+	s8 buf[BRCMF_DCMD_SMLEN];
+	__le32 val_le;
+
+	val_le = cpu_to_le32(val);
+
+	return brcmf_dev_iovar_setbuf_bsscfg(ndev, name, &val_le,
+					     sizeof(val_le), buf, sizeof(buf),
+					     bssidx);
+}
+
+static s32
+brcmf_dev_intvar_get_bsscfg(struct net_device *ndev, s8 *name, s32 *val,
+			    s32 bssidx)
+{
+	s8 buf[BRCMF_DCMD_SMLEN];
+	s32 err;
+	__le32 val_le;
+
+	memset(buf, 0, sizeof(buf));
+	err = brcmf_dev_iovar_getbuf_bsscfg(ndev, name, val, sizeof(*val), buf,
+					    sizeof(buf), bssidx);
+	if (err == 0) {
+		memcpy(&val_le, buf, sizeof(val_le));
+		*val = le32_to_cpu(val_le);
+	}
+	return err;
+}
+
+
+/*
+ * For now brcmf_find_bssidx will return 0. Once p2p gets implemented this
+ * should return the ndev matching bssidx.
+ */
+static s32
+brcmf_find_bssidx(struct brcmf_cfg80211_priv *cfg_priv, struct net_device *ndev)
+{
+	return 0;
 }
 
 static void brcmf_set_mpc(struct net_device *ndev, int mpc)
@@ -1600,14 +1687,15 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 }
 
 static s32
-brcmf_set_wep_sharedkey(struct net_device *ndev,
-		     struct cfg80211_connect_params *sme)
+brcmf_set_sharedkey(struct net_device *ndev,
+		    struct cfg80211_connect_params *sme)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = ndev_to_cfg(ndev);
 	struct brcmf_cfg80211_security *sec;
 	struct brcmf_wsec_key key;
 	s32 val;
 	s32 err = 0;
+	s32 bssidx;
 
 	WL_CONN("key len (%d)\n", sme->key_len);
 
@@ -1621,46 +1709,46 @@ brcmf_set_wep_sharedkey(struct net_device *ndev,
 	if (sec->wpa_versions & (NL80211_WPA_VERSION_1 | NL80211_WPA_VERSION_2))
 		return 0;
 
-	if (sec->cipher_pairwise &
-	    (WLAN_CIPHER_SUITE_WEP40 | WLAN_CIPHER_SUITE_WEP104)) {
-		memset(&key, 0, sizeof(key));
-		key.len = (u32) sme->key_len;
-		key.index = (u32) sme->key_idx;
-		if (key.len > sizeof(key.data)) {
-			WL_ERR("Too long key length (%u)\n", key.len);
-			return -EINVAL;
-		}
-		memcpy(key.data, sme->key, key.len);
-		key.flags = BRCMF_PRIMARY_KEY;
-		switch (sec->cipher_pairwise) {
-		case WLAN_CIPHER_SUITE_WEP40:
-			key.algo = CRYPTO_ALGO_WEP1;
-			break;
-		case WLAN_CIPHER_SUITE_WEP104:
-			key.algo = CRYPTO_ALGO_WEP128;
-			break;
-		default:
-			WL_ERR("Invalid algorithm (%d)\n",
-			       sme->crypto.ciphers_pairwise[0]);
-			return -EINVAL;
-		}
-		/* Set the new key/index */
-		WL_CONN("key length (%d) key index (%d) algo (%d)\n",
-			key.len, key.index, key.algo);
-		WL_CONN("key \"%s\"\n", key.data);
-		err = send_key_to_dongle(ndev, &key);
-		if (err)
-			return err;
+	if (!(sec->cipher_pairwise &
+	    (WLAN_CIPHER_SUITE_WEP40 | WLAN_CIPHER_SUITE_WEP104)))
+		return 0;
 
-		if (sec->auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM) {
-			WL_CONN("set auth_type to shared key\n");
-			val = 1;	/* shared key */
-			err = brcmf_dev_intvar_set(ndev, "auth", val);
-			if (err) {
-				WL_ERR("set auth failed (%d)\n", err);
-				return err;
-			}
-		}
+	memset(&key, 0, sizeof(key));
+	key.len = (u32) sme->key_len;
+	key.index = (u32) sme->key_idx;
+	if (key.len > sizeof(key.data)) {
+		WL_ERR("Too long key length (%u)\n", key.len);
+		return -EINVAL;
+	}
+	memcpy(key.data, sme->key, key.len);
+	key.flags = BRCMF_PRIMARY_KEY;
+	switch (sec->cipher_pairwise) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		key.algo = CRYPTO_ALGO_WEP1;
+		break;
+	case WLAN_CIPHER_SUITE_WEP104:
+		key.algo = CRYPTO_ALGO_WEP128;
+		break;
+	default:
+		WL_ERR("Invalid algorithm (%d)\n",
+		       sme->crypto.ciphers_pairwise[0]);
+		return -EINVAL;
+	}
+	/* Set the new key/index */
+	WL_CONN("key length (%d) key index (%d) algo (%d)\n",
+		key.len, key.index, key.algo);
+	WL_CONN("key \"%s\"\n", key.data);
+	bssidx = brcmf_find_bssidx(cfg_priv, ndev);
+	err = send_key_to_dongle(cfg_priv, bssidx, ndev, &key);
+	if (err)
+		return err;
+
+	if (sec->auth_type == NL80211_AUTHTYPE_SHARED_KEY) {
+		WL_CONN("set auth_type to shared key\n");
+		val = WL_AUTH_SHARED_KEY;	/* shared key */
+		err = brcmf_dev_intvar_set_bsscfg(ndev, "auth", val, bssidx);
+		if (err)
+			WL_ERR("set auth failed (%d)\n", err);
 	}
 	return err;
 }
@@ -1722,9 +1810,9 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		goto done;
 	}
 
-	err = brcmf_set_wep_sharedkey(ndev, sme);
+	err = brcmf_set_sharedkey(ndev, sme);
 	if (err) {
-		WL_ERR("brcmf_set_wep_sharedkey failed (%d)\n", err);
+		WL_ERR("brcmf_set_sharedkey failed (%d)\n", err);
 		goto done;
 	}
 
@@ -1863,16 +1951,19 @@ static s32
 brcmf_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *ndev,
 			       u8 key_idx, bool unicast, bool multicast)
 {
+	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 	u32 index;
 	u32 wsec;
 	s32 err = 0;
+	s32 bssidx;
 
 	WL_TRACE("Enter\n");
 	WL_CONN("key index (%d)\n", key_idx);
 	if (!check_sys_up(wiphy))
 		return -EIO;
 
-	err = brcmf_exec_dcmd_u32(ndev, BRCMF_C_GET_WSEC, &wsec);
+	bssidx = brcmf_find_bssidx(cfg_priv, ndev);
+	err = brcmf_dev_intvar_get_bsscfg(ndev, "wsec", &wsec, bssidx);
 	if (err) {
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		goto done;
@@ -1895,9 +1986,11 @@ static s32
 brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
 	      u8 key_idx, const u8 *mac_addr, struct key_params *params)
 {
+	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 	struct brcmf_wsec_key key;
 	struct brcmf_wsec_key_le key_le;
 	s32 err = 0;
+	s32 bssidx;
 
 	memset(&key, 0, sizeof(key));
 	key.index = (u32) key_idx;
@@ -1906,12 +1999,13 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
 	if (!is_multicast_ether_addr(mac_addr))
 		memcpy((char *)&key.ea, (void *)mac_addr, ETH_ALEN);
 	key.len = (u32) params->key_len;
+	bssidx = brcmf_find_bssidx(cfg_priv, ndev);
 	/* check for key index change */
 	if (key.len == 0) {
 		/* key delete */
-		err = send_key_to_dongle(ndev, &key);
+		err = send_key_to_dongle(cfg_priv, bssidx, ndev, &key);
 		if (err)
-			return err;
+			WL_ERR("key delete error (%d)\n", err);
 	} else {
 		if (key.len > sizeof(key.data)) {
 			WL_ERR("Invalid key length (%d)\n", key.len);
@@ -1967,12 +2061,12 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
 		convert_key_from_CPU(&key, &key_le);
 
 		brcmf_netdev_wait_pend8021x(ndev);
-		err = brcmf_exec_dcmd(ndev, BRCMF_C_SET_KEY, &key_le,
-				      sizeof(key_le));
-		if (err) {
-			WL_ERR("WLC_SET_KEY error (%d)\n", err);
-			return err;
-		}
+		err  = brcmf_dev_iovar_setbuf_bsscfg(ndev, "wsec_key", &key_le,
+						     sizeof(key_le),
+						     cfg_priv->extra_buf,
+						     WL_EXTRA_BUF_MAX, bssidx);
+		if (err)
+			WL_ERR("wsec_key error (%d)\n", err);
 	}
 	return err;
 }
@@ -1982,11 +2076,13 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		    u8 key_idx, bool pairwise, const u8 *mac_addr,
 		    struct key_params *params)
 {
+	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 	struct brcmf_wsec_key key;
 	s32 val;
 	s32 wsec;
 	s32 err = 0;
 	u8 keybuf[8];
+	s32 bssidx;
 
 	WL_TRACE("Enter\n");
 	WL_CONN("key index (%d)\n", key_idx);
@@ -2013,10 +2109,12 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 		key.algo = CRYPTO_ALGO_WEP1;
+		val = WEP_ENABLED;
 		WL_CONN("WLAN_CIPHER_SUITE_WEP40\n");
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
 		key.algo = CRYPTO_ALGO_WEP128;
+		val = WEP_ENABLED;
 		WL_CONN("WLAN_CIPHER_SUITE_WEP104\n");
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -2024,14 +2122,17 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
 		memcpy(&key.data[16], keybuf, sizeof(keybuf));
 		key.algo = CRYPTO_ALGO_TKIP;
+		val = TKIP_ENABLED;
 		WL_CONN("WLAN_CIPHER_SUITE_TKIP\n");
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		key.algo = CRYPTO_ALGO_AES_CCM;
+		val = AES_ENABLED;
 		WL_CONN("WLAN_CIPHER_SUITE_AES_CMAC\n");
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		key.algo = CRYPTO_ALGO_AES_CCM;
+		val = AES_ENABLED;
 		WL_CONN("WLAN_CIPHER_SUITE_CCMP\n");
 		break;
 	default:
@@ -2040,28 +2141,23 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		goto done;
 	}
 
-	err = send_key_to_dongle(ndev, &key); /* Set the new key/index */
+	bssidx = brcmf_find_bssidx(cfg_priv, ndev);
+	err = send_key_to_dongle(cfg_priv, bssidx, ndev, &key);
 	if (err)
 		goto done;
 
-	val = WEP_ENABLED;
-	err = brcmf_dev_intvar_get(ndev, "wsec", &wsec);
+	err = brcmf_dev_intvar_get_bsscfg(ndev, "wsec", &wsec, bssidx);
 	if (err) {
 		WL_ERR("get wsec error (%d)\n", err);
 		goto done;
 	}
-	wsec &= ~(WEP_ENABLED);
 	wsec |= val;
-	err = brcmf_dev_intvar_set(ndev, "wsec", wsec);
+	err = brcmf_dev_intvar_set_bsscfg(ndev, "wsec", wsec, bssidx);
 	if (err) {
 		WL_ERR("set wsec error (%d)\n", err);
 		goto done;
 	}
 
-	val = 1;		/* assume shared key. otherwise 0 */
-	err = brcmf_exec_dcmd_u32(ndev, BRCMF_C_SET_AUTH, &val);
-	if (err)
-		WL_ERR("WLC_SET_AUTH error (%d)\n", err);
 done:
 	WL_TRACE("Exit\n");
 	return err;
@@ -2071,10 +2167,10 @@ static s32
 brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 		    u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
+	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
 	struct brcmf_wsec_key key;
 	s32 err = 0;
-	s32 val;
-	s32 wsec;
+	s32 bssidx;
 
 	WL_TRACE("Enter\n");
 	if (!check_sys_up(wiphy))
@@ -2089,7 +2185,8 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 	WL_CONN("key index (%d)\n", key_idx);
 
 	/* Set the new key/index */
-	err = send_key_to_dongle(ndev, &key);
+	bssidx = brcmf_find_bssidx(cfg_priv, ndev);
+	err = send_key_to_dongle(cfg_priv, bssidx, ndev, &key);
 	if (err) {
 		if (err == -EINVAL) {
 			if (key.index >= DOT11_MAX_DEFAULT_KEYS)
@@ -2098,35 +2195,8 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 		}
 		/* Ignore this error, may happen during DISASSOC */
 		err = -EAGAIN;
-		goto done;
 	}
 
-	val = 0;
-	err = brcmf_dev_intvar_get(ndev, "wsec", &wsec);
-	if (err) {
-		WL_ERR("get wsec error (%d)\n", err);
-		/* Ignore this error, may happen during DISASSOC */
-		err = -EAGAIN;
-		goto done;
-	}
-	wsec &= ~(WEP_ENABLED);
-	wsec |= val;
-	err = brcmf_dev_intvar_set(ndev, "wsec", wsec);
-	if (err) {
-		WL_ERR("set wsec error (%d)\n", err);
-		/* Ignore this error, may happen during DISASSOC */
-		err = -EAGAIN;
-		goto done;
-	}
-
-	val = 0;		/* assume open key. otherwise 1 */
-	err = brcmf_exec_dcmd_u32(ndev, BRCMF_C_SET_AUTH, &val);
-	if (err) {
-		WL_ERR("WLC_SET_AUTH error (%d)\n", err);
-		/* Ignore this error, may happen during DISASSOC */
-		err = -EAGAIN;
-	}
-done:
 	WL_TRACE("Exit\n");
 	return err;
 }
@@ -2141,6 +2211,7 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_cfg80211_security *sec;
 	s32 wsec;
 	s32 err = 0;
+	s32 bssidx;
 
 	WL_TRACE("Enter\n");
 	WL_CONN("key index (%d)\n", key_idx);
@@ -2149,14 +2220,15 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	memset(&params, 0, sizeof(params));
 
-	err = brcmf_exec_dcmd_u32(ndev, BRCMF_C_GET_WSEC, &wsec);
+	bssidx = brcmf_find_bssidx(cfg_priv, ndev);
+	err = brcmf_dev_intvar_get_bsscfg(ndev, "wsec", &wsec, bssidx);
 	if (err) {
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		/* Ignore this error, may happen during DISASSOC */
 		err = -EAGAIN;
 		goto done;
 	}
-	switch (wsec) {
+	switch (wsec & ~SES_OW_ENABLED) {
 	case WEP_ENABLED:
 		sec = brcmf_read_prof(cfg_priv, WL_PROF_SEC);
 		if (sec->cipher_pairwise & WLAN_CIPHER_SUITE_WEP40) {

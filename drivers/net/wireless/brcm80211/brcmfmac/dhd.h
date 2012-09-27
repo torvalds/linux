@@ -658,6 +658,8 @@ extern const struct bcmevent_name bcmevent_names[];
 
 extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);
+extern uint brcmf_c_mkiovar_bsscfg(char *name, char *data, uint datalen,
+				   char *buf, uint buflen, s32 bssidx);
 
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 

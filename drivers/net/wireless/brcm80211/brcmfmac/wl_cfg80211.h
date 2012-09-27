@@ -130,6 +130,8 @@ do {								\
 #define WL_ESCAN_ACTION_CONTINUE	2
 #define WL_ESCAN_ACTION_ABORT		3
 
+#define WL_AUTH_SHARED_KEY		1	/* d11 shared authentication */
+
 /* dongle status */
 enum wl_status {
 	WL_STATUS_READY,
