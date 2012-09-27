@@ -40,6 +40,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/sched.h>
+#include <linux/uaccess.h>
 
 #include "dgrp_common.h"
 
