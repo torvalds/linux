@@ -23,10 +23,6 @@
 #ifndef __OMAP2_DSS_H
 #define __OMAP2_DSS_H
 
-#ifdef CONFIG_OMAP2_DSS_DEBUG_SUPPORT
-#define DEBUG
-#endif
-
 #ifdef DEBUG
 extern bool dss_debug;
 #ifdef DSS_SUBSYS_NAME
