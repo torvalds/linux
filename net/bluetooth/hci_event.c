@@ -883,7 +883,7 @@ static void hci_cc_read_local_amp_assoc(struct hci_dev *hdev,
 	rem_len = __le16_to_cpu(rp->rem_len);
 
 	if (rem_len > frag_len) {
-		BT_DBG("frag_len %d rem_len %d", frag_len, rem_len);
+		BT_DBG("frag_len %ld rem_len %ld", frag_len, rem_len);
 
 		memcpy(assoc->data + assoc->offset, rp->frag, frag_len);
 		assoc->offset += frag_len;

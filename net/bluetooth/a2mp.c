@@ -383,7 +383,7 @@ static int a2mp_getampassoc_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 	if (len < sizeof(*rsp))
 		return -EINVAL;
 
-	BT_DBG("id %d status 0x%2.2x assoc len %u", rsp->id, rsp->status,
+	BT_DBG("id %d status 0x%2.2x assoc len %lu", rsp->id, rsp->status,
 	       len - sizeof(*rsp));
 
 	if (rsp->status)
