@@ -5,4 +5,3 @@ config BOARD_TPCI200
 	help
 	  This driver supports the TEWS TPCI200 device for the IndustryPack bus.
 	default n
-
