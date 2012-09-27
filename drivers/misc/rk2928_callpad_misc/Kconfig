@@ -1,0 +1,15 @@
+#
+# rk2928 callpad misc device configuration
+#
+
+menuconfig RK2928_CALLPAD_MISC
+	tristate "3G module for phonepad"
+	---help---
+	  Say Y here if you have a support modem
+
+config AUDIO_SWITCH
+	bool "RK2928 callpad audio switch"
+	default n
+config GPIOEXP_AW9523B
+  bool "RK2928 callpad gpio exp"
+  default n

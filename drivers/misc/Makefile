@@ -58,3 +58,4 @@ obj-$(CONFIG_GPS_DEVICES)	+= gps/
 obj-y += inv_mpu/
 obj-$(CONFIG_TDSC8800) += tdsc8800.o
 obj-$(CONFIG_RK29_SC8800)	+=	sc8800.o
+obj-y += rk2928_callpad_misc/
