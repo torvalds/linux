@@ -966,7 +966,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 			       block_group->key.offset)) {
 		ret = find_first_extent_bit(unpin, start,
 					    &extent_start, &extent_end,
-					    EXTENT_DIRTY);
+					    EXTENT_DIRTY, NULL);
 		if (ret) {
 			ret = 0;
 			break;

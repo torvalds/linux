@@ -3621,7 +3621,7 @@ next:
 
 		ret = find_first_extent_bit(&rc->processed_blocks,
 					    key.objectid, &start, &end,
-					    EXTENT_DIRTY);
+					    EXTENT_DIRTY, NULL);
 
 		if (ret == 0 && start <= key.objectid) {
 			btrfs_release_path(path);

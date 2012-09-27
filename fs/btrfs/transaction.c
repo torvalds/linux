@@ -687,13 +687,15 @@ int btrfs_write_marked_extents(struct btrfs_root *root,
 	int err = 0;
 	int werr = 0;
 	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
+	struct extent_state *cached_state = NULL;
 	u64 start = 0;
 	u64 end;
 
 	while (!find_first_extent_bit(dirty_pages, start, &start, &end,
-				      mark)) {
-		convert_extent_bit(dirty_pages, start, end, EXTENT_NEED_WAIT, mark,
-				   GFP_NOFS);
+				      mark, &cached_state)) {
+		convert_extent_bit(dirty_pages, start, end, EXTENT_NEED_WAIT,
+				   mark, &cached_state, GFP_NOFS);
+		cached_state = NULL;
 		err = filemap_fdatawrite_range(mapping, start, end);
 		if (err)
 			werr = err;
@@ -717,12 +719,14 @@ int btrfs_wait_marked_extents(struct btrfs_root *root,
 	int err = 0;
 	int werr = 0;
 	struct address_space *mapping = root->fs_info->btree_inode->i_mapping;
+	struct extent_state *cached_state = NULL;
 	u64 start = 0;
 	u64 end;
 
 	while (!find_first_extent_bit(dirty_pages, start, &start, &end,
-				      EXTENT_NEED_WAIT)) {
-		clear_extent_bits(dirty_pages, start, end, EXTENT_NEED_WAIT, GFP_NOFS);
+				      EXTENT_NEED_WAIT, &cached_state)) {
+		clear_extent_bit(dirty_pages, start, end, EXTENT_NEED_WAIT,
+				 0, 0, &cached_state, GFP_NOFS);
 		err = filemap_fdatawait_range(mapping, start, end);
 		if (err)
 			werr = err;

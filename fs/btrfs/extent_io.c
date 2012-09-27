@@ -937,6 +937,7 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits,
  * @end:	the end offset in bytes (inclusive)
  * @bits:	the bits to set in this range
  * @clear_bits:	the bits to clear in this range
+ * @cached_state:	state that we're going to cache
  * @mask:	the allocation mask
  *
  * This will go through and set bits for the given range.  If any states exist
@@ -946,7 +947,8 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits,
  * boundary bits like LOCK.
  */
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       int bits, int clear_bits, gfp_t mask)
+		       int bits, int clear_bits,
+		       struct extent_state **cached_state, gfp_t mask)
 {
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
@@ -963,6 +965,15 @@ again:
 	}
 
 	spin_lock(&tree->lock);
+	if (cached_state && *cached_state) {
+		state = *cached_state;
+		if (state->start <= start && state->end > start &&
+		    state->tree) {
+			node = &state->rb_node;
+			goto hit_next;
+		}
+	}
+
 	/*
 	 * this search will find all the extents that end after
 	 * our range starts.
@@ -993,6 +1004,7 @@ hit_next:
 	 */
 	if (state->start == start && state->end <= end) {
 		set_state_bits(tree, state, &bits);
+		cache_state(state, cached_state);
 		state = clear_state_bit(tree, state, &clear_bits, 0);
 		if (last_end == (u64)-1)
 			goto out;
@@ -1033,6 +1045,7 @@ hit_next:
 			goto out;
 		if (state->end <= end) {
 			set_state_bits(tree, state, &bits);
+			cache_state(state, cached_state);
 			state = clear_state_bit(tree, state, &clear_bits, 0);
 			if (last_end == (u64)-1)
 				goto out;
@@ -1071,6 +1084,7 @@ hit_next:
 				   &bits);
 		if (err)
 			extent_io_tree_panic(tree, err);
+		cache_state(prealloc, cached_state);
 		prealloc = NULL;
 		start = this_end + 1;
 		goto search_again;
@@ -1093,6 +1107,7 @@ hit_next:
 			extent_io_tree_panic(tree, err);
 
 		set_state_bits(tree, prealloc, &bits);
+		cache_state(prealloc, cached_state);
 		clear_state_bit(tree, prealloc, &clear_bits, 0);
 		prealloc = NULL;
 		goto out;
@@ -1297,18 +1312,42 @@ out:
  * If nothing was found, 1 is returned. If found something, return 0.
  */
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
-			  u64 *start_ret, u64 *end_ret, int bits)
+			  u64 *start_ret, u64 *end_ret, int bits,
+			  struct extent_state **cached_state)
 {
 	struct extent_state *state;
+	struct rb_node *n;
 	int ret = 1;
 
 	spin_lock(&tree->lock);
+	if (cached_state && *cached_state) {
+		state = *cached_state;
+		if (state->end == start - 1 && state->tree) {
+			n = rb_next(&state->rb_node);
+			while (n) {
+				state = rb_entry(n, struct extent_state,
+						 rb_node);
+				if (state->state & bits)
+					goto got_it;
+				n = rb_next(n);
+			}
+			free_extent_state(*cached_state);
+			*cached_state = NULL;
+			goto out;
+		}
+		free_extent_state(*cached_state);
+		*cached_state = NULL;
+	}
+
 	state = find_first_extent_bit_state(tree, start, bits);
+got_it:
 	if (state) {
+		cache_state(state, cached_state);
 		*start_ret = state->start;
 		*end_ret = state->end;
 		ret = 0;
 	}
+out:
 	spin_unlock(&tree->lock);
 	return ret;
 }
