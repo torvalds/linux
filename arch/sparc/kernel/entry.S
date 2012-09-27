@@ -959,16 +959,8 @@ flush_patch_four:
         .align  4
 linux_sparc_ni_syscall:
 	sethi   %hi(sys_ni_syscall), %l7
-	b       syscall_is_too_hard
+	b       do_syscall
 	 or     %l7, %lo(sys_ni_syscall), %l7
-
-linux_fast_syscall:
-	andn	%l7, 3, %l7
-	mov	%i0, %o0
-	mov	%i1, %o1
-	mov 	%i2, %o2
-	jmpl	%l7 + %g0, %g0
-	 mov	%i3, %o3
 
 linux_syscall_trace:
 	add	%sp, STACKFRAME_SZ, %o0
@@ -1002,11 +994,8 @@ linux_sparc_syscall:
 	bgeu	linux_sparc_ni_syscall
 	 sll	%g1, 2, %l4
 	ld	[%l7 + %l4], %l7
-	andcc	%l7, 1, %g0
-	bne	linux_fast_syscall
-	 /* Just do first insn from SAVE_ALL in the delay slot */
 
-syscall_is_too_hard:
+do_syscall:
 	SAVE_ALL_HEAD
 	 rd	%wim, %l3
 
