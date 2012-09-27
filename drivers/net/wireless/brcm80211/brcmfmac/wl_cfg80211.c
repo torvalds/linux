@@ -48,6 +48,8 @@
 #define BRCMF_PNO_SCAN_COMPLETE		1
 #define BRCMF_PNO_SCAN_INCOMPLETE	0
 
+#define TLV_HDR_LEN			2	/* header length */
+
 #define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
 	(sizeof(struct brcmf_assoc_params_le) - sizeof(u16))
 
@@ -2608,15 +2610,15 @@ static struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key)
 	totlen = buflen;
 
 	/* find tagged parameter */
-	while (totlen >= 2) {
+	while (totlen >= TLV_HDR_LEN) {
 		int len = elt->len;
 
 		/* validate remaining totlen */
-		if ((elt->id == key) && (totlen >= (len + 2)))
+		if ((elt->id == key) && (totlen >= (len + TLV_HDR_LEN)))
 			return elt;
 
-		elt = (struct brcmf_tlv *) ((u8 *) elt + (len + 2));
-		totlen -= (len + 2);
+		elt = (struct brcmf_tlv *) ((u8 *) elt + (len + TLV_HDR_LEN));
+		totlen -= (len + TLV_HDR_LEN);
 	}
 
 	return NULL;
