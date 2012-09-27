@@ -465,6 +465,8 @@ static void brcmf_usb_tx_complete(struct urb *urb)
 	else
 		devinfo->bus_pub.bus->dstats.tx_errors++;
 
+	brcmf_txcomplete(devinfo->dev, req->skb, urb->status == 0);
+
 	brcmu_pkt_buf_free_skb(req->skb);
 	req->skb = NULL;
 	brcmf_usb_enq(devinfo, &devinfo->tx_freeq, req, &devinfo->tx_freecount);
