@@ -770,6 +770,7 @@ struct _rule_hw {
 
 enum {
 	MLX4_PCI_DEV_IS_VF		= 1 << 0,
+	MLX4_PCI_DEV_FORCE_SENSE_PORT	= 1 << 1,
 };
 
 struct mlx4_priv {
