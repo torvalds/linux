@@ -286,6 +286,10 @@ intel_hrawclk(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t clkcfg;
 
+	/* There is no CLKCFG reg in Valleyview. VLV hrawclk is 200 MHz */
+	if (IS_VALLEYVIEW(dev))
+		return 200;
+
 	clkcfg = I915_READ(CLKCFG);
 	switch (clkcfg & CLKCFG_FSB_MASK) {
 	case CLKCFG_FSB_400:
@@ -366,7 +370,9 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	 * clock divider.
 	 */
 	if (is_cpu_edp(intel_dp)) {
-		if (IS_GEN6(dev) || IS_GEN7(dev))
+		if (IS_VALLEYVIEW(dev))
+			aux_clock_divider = 100;
+		else if (IS_GEN6(dev) || IS_GEN7(dev))
 			aux_clock_divider = 200; /* SNB & IVB eDP input clock at 400Mhz */
 		else
 			aux_clock_divider = 225; /* eDP input clock at 450Mhz */
