@@ -155,7 +155,8 @@ static const struct ath6kl_hw hw_list[] = {
 		.refclk_hz                      = 40000000,
 		.uarttx_pin                     = 11,
 		.flags				= ATH6KL_HW_64BIT_RATES |
-						  ATH6KL_HW_AP_INACTIVITY_MINS,
+						  ATH6KL_HW_AP_INACTIVITY_MINS |
+						  ATH6KL_HW_MAP_LP_ENDPOINT,
 
 		.fw = {
 			.dir            = AR6004_HW_1_3_FW_DIR,
@@ -360,7 +361,7 @@ static int ath6kl_init_service_ep(struct ath6kl *ar)
 	if (ath6kl_connectservice(ar, &connect, "WMI DATA BK"))
 		return -EIO;
 
-	/* connect to Video service, map this to to HI PRI */
+	/* connect to Video service, map this to HI PRI */
 	connect.svc_id = WMI_DATA_VI_SVC;
 	if (ath6kl_connectservice(ar, &connect, "WMI DATA VI"))
 		return -EIO;
