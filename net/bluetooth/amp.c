@@ -233,6 +233,86 @@ void amp_read_loc_assoc(struct hci_dev *hdev, struct amp_mgr *mgr)
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
 }
 
+
+/* Write AMP Assoc data fragments, returns true with last fragment written*/
+static bool amp_write_rem_assoc_frag(struct hci_dev *hdev,
+				     struct hci_conn *hcon)
+{
+	struct hci_cp_write_remote_amp_assoc *cp;
+	struct amp_mgr *mgr = hcon->amp_mgr;
+	struct amp_ctrl *ctrl;
+	u16 frag_len, len;
+
+	ctrl = amp_ctrl_lookup(mgr, hcon->remote_id);
+	if (!ctrl)
+		return false;
+
+	if (!ctrl->assoc_rem_len) {
+		BT_DBG("all fragments are written");
+		ctrl->assoc_rem_len = ctrl->assoc_len;
+		ctrl->assoc_len_so_far = 0;
+
+		amp_ctrl_put(ctrl);
+		return true;
+	}
+
+	frag_len = min_t(u16, 248, ctrl->assoc_rem_len);
+	len = frag_len + sizeof(*cp);
+
+	cp = kzalloc(len, GFP_KERNEL);
+	if (!cp) {
+		amp_ctrl_put(ctrl);
+		return false;
+	}
+
+	BT_DBG("hcon %p ctrl %p frag_len %u assoc_len %u rem_len %u",
+	       hcon, ctrl, frag_len, ctrl->assoc_len, ctrl->assoc_rem_len);
+
+	cp->phy_handle = hcon->handle;
+	cp->len_so_far = cpu_to_le16(ctrl->assoc_len_so_far);
+	cp->rem_len = cpu_to_le16(ctrl->assoc_rem_len);
+	memcpy(cp->frag, ctrl->assoc, frag_len);
+
+	ctrl->assoc_len_so_far += frag_len;
+	ctrl->assoc_rem_len -= frag_len;
+
+	amp_ctrl_put(ctrl);
+
+	hci_send_cmd(hdev, HCI_OP_WRITE_REMOTE_AMP_ASSOC, len, cp);
+
+	kfree(cp);
+
+	return false;
+}
+
+void amp_write_rem_assoc_continue(struct hci_dev *hdev, u8 handle)
+{
+	struct hci_conn *hcon;
+
+	BT_DBG("%s phy handle 0x%2.2x", hdev->name, handle);
+
+	hcon = hci_conn_hash_lookup_handle(hdev, handle);
+	if (!hcon)
+		return;
+
+	amp_write_rem_assoc_frag(hdev, hcon);
+}
+
+void amp_write_remote_assoc(struct hci_dev *hdev, u8 handle)
+{
+	struct hci_conn *hcon;
+
+	BT_DBG("%s phy handle 0x%2.2x", hdev->name, handle);
+
+	hcon = hci_conn_hash_lookup_handle(hdev, handle);
+	if (!hcon)
+		return;
+
+	BT_DBG("%s phy handle 0x%2.2x hcon %p", hdev->name, handle, hcon);
+
+	amp_write_rem_assoc_frag(hdev, hcon);
+}
+
 void amp_create_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 			struct hci_conn *hcon)
 {

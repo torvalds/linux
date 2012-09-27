@@ -1215,6 +1215,20 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 	hci_req_complete(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED, status);
 }
 
+static void hci_cc_write_remote_amp_assoc(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_rp_write_remote_amp_assoc *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x phy_handle 0x%2.2x",
+	       hdev->name, rp->status, rp->phy_handle);
+
+	if (rp->status)
+		return;
+
+	amp_write_rem_assoc_continue(hdev, rp->phy_handle);
+}
+
 static void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
@@ -1700,7 +1714,18 @@ static void hci_cs_le_start_enc(struct hci_dev *hdev, u8 status)
 
 static void hci_cs_create_phylink(struct hci_dev *hdev, u8 status)
 {
+	struct hci_cp_create_phy_link *cp;
+
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_CREATE_PHY_LINK);
+	if (!cp)
+		return;
+
+	amp_write_remote_assoc(hdev, cp->phy_handle);
 }
 
 static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -2434,6 +2459,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_WRITE_LE_HOST_SUPPORTED:
 		hci_cc_write_le_host_supported(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_REMOTE_AMP_ASSOC:
+		hci_cc_write_remote_amp_assoc(hdev, skb);
 		break;
 
 	default:
