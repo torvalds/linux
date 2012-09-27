@@ -33,6 +33,9 @@ struct amp_mgr {
 	__u8			handle;
 	enum amp_mgr_state	state;
 	unsigned long		flags;
+
+	struct list_head	amp_ctrls;
+	struct mutex		amp_ctrls_lock;
 };
 
 struct a2mp_cmd {

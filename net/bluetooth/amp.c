@@ -17,6 +17,85 @@
 #include <net/bluetooth/a2mp.h>
 #include <net/bluetooth/amp.h>
 
+/* Remote AMP Controllers interface */
+static void amp_ctrl_get(struct amp_ctrl *ctrl)
+{
+	BT_DBG("ctrl %p orig refcnt %d", ctrl,
+	       atomic_read(&ctrl->kref.refcount));
+
+	kref_get(&ctrl->kref);
+}
+
+static void amp_ctrl_destroy(struct kref *kref)
+{
+	struct amp_ctrl *ctrl = container_of(kref, struct amp_ctrl, kref);
+
+	BT_DBG("ctrl %p", ctrl);
+
+	kfree(ctrl->assoc);
+	kfree(ctrl);
+}
+
+int amp_ctrl_put(struct amp_ctrl *ctrl)
+{
+	BT_DBG("ctrl %p orig refcnt %d", ctrl,
+	       atomic_read(&ctrl->kref.refcount));
+
+	return kref_put(&ctrl->kref, &amp_ctrl_destroy);
+}
+
+struct amp_ctrl *amp_ctrl_add(struct amp_mgr *mgr)
+{
+	struct amp_ctrl *ctrl;
+
+	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	if (!ctrl)
+		return NULL;
+
+	mutex_lock(&mgr->amp_ctrls_lock);
+	list_add(&ctrl->list, &mgr->amp_ctrls);
+	mutex_unlock(&mgr->amp_ctrls_lock);
+
+	kref_init(&ctrl->kref);
+
+	BT_DBG("mgr %p ctrl %p", mgr, ctrl);
+
+	return ctrl;
+}
+
+void amp_ctrl_list_flush(struct amp_mgr *mgr)
+{
+	struct amp_ctrl *ctrl, *n;
+
+	BT_DBG("mgr %p", mgr);
+
+	mutex_lock(&mgr->amp_ctrls_lock);
+	list_for_each_entry_safe(ctrl, n, &mgr->amp_ctrls, list) {
+		list_del(&ctrl->list);
+		amp_ctrl_put(ctrl);
+	}
+	mutex_unlock(&mgr->amp_ctrls_lock);
+}
+
+struct amp_ctrl *amp_ctrl_lookup(struct amp_mgr *mgr, u8 id)
+{
+	struct amp_ctrl *ctrl;
+
+	BT_DBG("mgr %p id %d", mgr, id);
+
+	mutex_lock(&mgr->amp_ctrls_lock);
+	list_for_each_entry(ctrl, &mgr->amp_ctrls, list) {
+		if (ctrl->id == id) {
+			amp_ctrl_get(ctrl);
+			mutex_unlock(&mgr->amp_ctrls_lock);
+			return ctrl;
+		}
+	}
+	mutex_unlock(&mgr->amp_ctrls_lock);
+
+	return NULL;
+}
+
 /* Physical Link interface */
 static u8 __next_handle(struct amp_mgr *mgr)
 {

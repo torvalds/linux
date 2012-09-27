@@ -594,6 +594,7 @@ static void amp_mgr_destroy(struct kref *kref)
 	list_del(&mgr->list);
 	mutex_unlock(&amp_mgr_list_lock);
 
+	amp_ctrl_list_flush(mgr);
 	kfree(mgr);
 }
 
@@ -629,6 +630,10 @@ static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn)
 	conn->hcon->amp_mgr = mgr;
 
 	kref_init(&mgr->kref);
+
+	/* Remote AMP ctrl list initialization */
+	INIT_LIST_HEAD(&mgr->amp_ctrls);
+	mutex_init(&mgr->amp_ctrls_lock);
 
 	mutex_lock(&amp_mgr_list_lock);
 	list_add(&mgr->list, &amp_mgr_list);
