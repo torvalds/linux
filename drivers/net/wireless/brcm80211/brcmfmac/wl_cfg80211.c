@@ -3646,8 +3646,7 @@ static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
 #endif
 }
 
-static struct wireless_dev *brcmf_alloc_wdev(s32 sizeof_iface,
-					  struct device *ndev)
+static struct wireless_dev *brcmf_alloc_wdev(struct device *ndev)
 {
 	struct wireless_dev *wdev;
 	s32 err = 0;
@@ -3656,9 +3655,8 @@ static struct wireless_dev *brcmf_alloc_wdev(s32 sizeof_iface,
 	if (!wdev)
 		return ERR_PTR(-ENOMEM);
 
-	wdev->wiphy =
-	    wiphy_new(&wl_cfg80211_ops,
-		      sizeof(struct brcmf_cfg80211_priv) + sizeof_iface);
+	wdev->wiphy = wiphy_new(&wl_cfg80211_ops,
+				sizeof(struct brcmf_cfg80211_priv));
 	if (!wdev->wiphy) {
 		WL_ERR("Could not allocate wiphy device\n");
 		err = -ENOMEM;
@@ -4323,21 +4321,15 @@ struct brcmf_cfg80211_priv *brcmf_cfg80211_attach(struct net_device *ndev,
 {
 	struct wireless_dev *wdev;
 	struct brcmf_cfg80211_priv *cfg_priv;
-	struct brcmf_cfg80211_iface *ci;
-	struct brcmf_cfg80211_dev *cfg_dev;
 	s32 err = 0;
 
 	if (!ndev) {
 		WL_ERR("ndev is invalid\n");
 		return NULL;
 	}
-	cfg_dev = kzalloc(sizeof(struct brcmf_cfg80211_dev), GFP_KERNEL);
-	if (!cfg_dev)
-		return NULL;
 
-	wdev = brcmf_alloc_wdev(sizeof(struct brcmf_cfg80211_iface), busdev);
+	wdev = brcmf_alloc_wdev(busdev);
 	if (IS_ERR(wdev)) {
-		kfree(cfg_dev);
 		return NULL;
 	}
 
@@ -4345,8 +4337,6 @@ struct brcmf_cfg80211_priv *brcmf_cfg80211_attach(struct net_device *ndev,
 	cfg_priv = wdev_to_cfg(wdev);
 	cfg_priv->wdev = wdev;
 	cfg_priv->pub = drvr;
-	ci = (struct brcmf_cfg80211_iface *)&cfg_priv->ci;
-	ci->cfg_priv = cfg_priv;
 	ndev->ieee80211_ptr = wdev;
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
@@ -4355,12 +4345,11 @@ struct brcmf_cfg80211_priv *brcmf_cfg80211_attach(struct net_device *ndev,
 		WL_ERR("Failed to init iwm_priv (%d)\n", err);
 		goto cfg80211_attach_out;
 	}
-	kfree(cfg_dev);
+
 	return cfg_priv;
 
 cfg80211_attach_out:
 	brcmf_free_wdev(cfg_priv);
-	kfree(cfg_dev);
 	return NULL;
 }
 

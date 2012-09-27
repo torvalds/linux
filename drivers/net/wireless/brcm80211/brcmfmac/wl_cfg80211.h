@@ -17,12 +17,6 @@
 #ifndef _wl_cfg80211_h_
 #define _wl_cfg80211_h_
 
-struct brcmf_cfg80211_conf;
-struct brcmf_cfg80211_iface;
-struct brcmf_cfg80211_priv;
-struct brcmf_cfg80211_security;
-struct brcmf_cfg80211_ibss;
-
 #define WL_DBG_NONE		0
 #define WL_DBG_CONN		(1 << 5)
 #define WL_DBG_SCAN		(1 << 4)
@@ -178,21 +172,15 @@ struct brcmf_cfg80211_conf {
 	struct ieee80211_channel channel;
 };
 
+/* forward declaration */
+struct brcmf_cfg80211_priv;
+
 /* cfg80211 main event loop */
 struct brcmf_cfg80211_event_loop {
 	s32(*handler[BRCMF_E_LAST]) (struct brcmf_cfg80211_priv *cfg_priv,
 				     struct net_device *ndev,
 				     const struct brcmf_event_msg *e,
 				     void *data);
-};
-
-/* representing interface of cfg80211 plane */
-struct brcmf_cfg80211_iface {
-	struct brcmf_cfg80211_priv *cfg_priv;
-};
-
-struct brcmf_cfg80211_dev {
-	void *driver_data;	/* to store cfg80211 object information */
 };
 
 /* basic structure of scan request */
@@ -460,7 +448,6 @@ struct brcmf_cfg80211_priv {
 	struct timer_list escan_timeout;
 	struct work_struct escan_timeout_work;
 	u8 *escan_ioctl_buf;
-	u8 ci[0] __aligned(NETDEV_ALIGN);
 };
 
 static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_priv *w)
