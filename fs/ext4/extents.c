@@ -2136,13 +2136,10 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 }
 
 /*
- * ext4_ext_check_cache()
+ * ext4_ext_in_cache()
  * Checks to see if the given block is in the cache.
  * If it is, the cached extent is stored in the given
- * cache extent pointer.  If the cached extent is a hole,
- * this routine should be used instead of
- * ext4_ext_in_cache if the calling function needs to
- * know the size of the hole.
+ * cache extent pointer.
  *
  * @inode: The files inode
  * @block: The block to look for in the cache
@@ -2151,8 +2148,10 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
  *
  * Return 0 if cache is invalid; 1 if the cache is valid
  */
-static int ext4_ext_check_cache(struct inode *inode, ext4_lblk_t block,
-	struct ext4_ext_cache *ex){
+static int
+ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
+		  struct ext4_extent *ex)
+{
 	struct ext4_ext_cache *cex;
 	struct ext4_sb_info *sbi;
 	int ret = 0;
@@ -2169,7 +2168,9 @@ static int ext4_ext_check_cache(struct inode *inode, ext4_lblk_t block,
 		goto errout;
 
 	if (in_range(block, cex->ec_block, cex->ec_len)) {
-		memcpy(ex, cex, sizeof(struct ext4_ext_cache));
+		ex->ee_block = cpu_to_le32(cex->ec_block);
+		ext4_ext_store_pblock(ex, cex->ec_start);
+		ex->ee_len = cpu_to_le16(cex->ec_len);
 		ext_debug("%u cached by %u:%u:%llu\n",
 				block,
 				cex->ec_block, cex->ec_len, cex->ec_start);
@@ -2180,37 +2181,6 @@ errout:
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 	return ret;
 }
-
-/*
- * ext4_ext_in_cache()
- * Checks to see if the given block is in the cache.
- * If it is, the cached extent is stored in the given
- * extent pointer.
- *
- * @inode: The files inode
- * @block: The block to look for in the cache
- * @ex:    Pointer where the cached extent will be stored
- *         if it contains block
- *
- * Return 0 if cache is invalid; 1 if the cache is valid
- */
-static int
-ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
-			struct ext4_extent *ex)
-{
-	struct ext4_ext_cache cex;
-	int ret = 0;
-
-	if (ext4_ext_check_cache(inode, block, &cex)) {
-		ex->ee_block = cpu_to_le32(cex.ec_block);
-		ext4_ext_store_pblock(ex, cex.ec_start);
-		ex->ee_len = cpu_to_le16(cex.ec_len);
-		ret = 1;
-	}
-
-	return ret;
-}
-
 
 /*
  * ext4_ext_rm_idx:
