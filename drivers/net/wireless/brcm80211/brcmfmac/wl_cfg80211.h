@@ -497,15 +497,15 @@ brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_priv *cfg)
 	return &cfg->conn_info;
 }
 
-struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
-						 struct device *busdev,
-						 struct brcmf_pub *drvr);
-void brcmf_cfg80211_detach(struct brcmf_cfg80211_dev *cfg);
+struct brcmf_cfg80211_priv *brcmf_cfg80211_attach(struct net_device *ndev,
+						  struct device *busdev,
+						  struct brcmf_pub *drvr);
+void brcmf_cfg80211_detach(struct brcmf_cfg80211_priv *cfg_priv);
 
 /* event handler from dongle */
 void brcmf_cfg80211_event(struct net_device *ndev,
 			  const struct brcmf_event_msg *e, void *data);
-s32 brcmf_cfg80211_up(struct brcmf_cfg80211_dev *cfg_dev);
-s32 brcmf_cfg80211_down(struct brcmf_cfg80211_dev *cfg_dev);
+s32 brcmf_cfg80211_up(struct brcmf_cfg80211_priv *cfg_priv);
+s32 brcmf_cfg80211_down(struct brcmf_cfg80211_priv *cfg_priv);
 
 #endif				/* _wl_cfg80211_h_ */

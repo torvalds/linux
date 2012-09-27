@@ -585,7 +585,7 @@ struct brcmf_pub {
 	/* Linkage ponters */
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *prot;
-	struct brcmf_cfg80211_dev *config;
+	struct brcmf_cfg80211_priv *config;
 	struct device *dev;		/* fullmac dongle device pointer */
 
 	/* Internal brcmf items */

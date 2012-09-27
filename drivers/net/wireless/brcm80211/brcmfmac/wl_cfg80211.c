@@ -57,27 +57,6 @@ static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 
 static u32 brcmf_dbg_level = WL_DBG_ERR;
 
-static void brcmf_set_drvdata(struct brcmf_cfg80211_dev *dev, void *data)
-{
-	dev->driver_data = data;
-}
-
-static void *brcmf_get_drvdata(struct brcmf_cfg80211_dev *dev)
-{
-	void *data = NULL;
-
-	if (dev)
-		data = dev->driver_data;
-	return data;
-}
-
-static
-struct brcmf_cfg80211_priv *brcmf_priv_get(struct brcmf_cfg80211_dev *cfg_dev)
-{
-	struct brcmf_cfg80211_iface *ci = brcmf_get_drvdata(cfg_dev);
-	return ci->cfg_priv;
-}
-
 static bool check_sys_up(struct wiphy *wiphy)
 {
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
@@ -4338,9 +4317,9 @@ static void wl_deinit_priv(struct brcmf_cfg80211_priv *cfg_priv)
 	brcmf_deinit_priv_mem(cfg_priv);
 }
 
-struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
-						 struct device *busdev,
-						 struct brcmf_pub *drvr)
+struct brcmf_cfg80211_priv *brcmf_cfg80211_attach(struct net_device *ndev,
+						  struct device *busdev,
+						  struct brcmf_pub *drvr)
 {
 	struct wireless_dev *wdev;
 	struct brcmf_cfg80211_priv *cfg_priv;
@@ -4376,9 +4355,8 @@ struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
 		WL_ERR("Failed to init iwm_priv (%d)\n", err);
 		goto cfg80211_attach_out;
 	}
-	brcmf_set_drvdata(cfg_dev, ci);
-
-	return cfg_dev;
+	kfree(cfg_dev);
+	return cfg_priv;
 
 cfg80211_attach_out:
 	brcmf_free_wdev(cfg_priv);
@@ -4386,16 +4364,10 @@ cfg80211_attach_out:
 	return NULL;
 }
 
-void brcmf_cfg80211_detach(struct brcmf_cfg80211_dev *cfg_dev)
+void brcmf_cfg80211_detach(struct brcmf_cfg80211_priv *cfg_priv)
 {
-	struct brcmf_cfg80211_priv *cfg_priv;
-
-	cfg_priv = brcmf_priv_get(cfg_dev);
-
 	wl_deinit_priv(cfg_priv);
 	brcmf_free_wdev(cfg_priv);
-	brcmf_set_drvdata(cfg_dev, NULL);
-	kfree(cfg_dev);
 }
 
 void
@@ -4754,12 +4726,10 @@ static s32 __brcmf_cfg80211_down(struct brcmf_cfg80211_priv *cfg_priv)
 	return 0;
 }
 
-s32 brcmf_cfg80211_up(struct brcmf_cfg80211_dev *cfg_dev)
+s32 brcmf_cfg80211_up(struct brcmf_cfg80211_priv *cfg_priv)
 {
-	struct brcmf_cfg80211_priv *cfg_priv;
 	s32 err = 0;
 
-	cfg_priv = brcmf_priv_get(cfg_dev);
 	mutex_lock(&cfg_priv->usr_sync);
 	err = __brcmf_cfg80211_up(cfg_priv);
 	mutex_unlock(&cfg_priv->usr_sync);
@@ -4767,12 +4737,10 @@ s32 brcmf_cfg80211_up(struct brcmf_cfg80211_dev *cfg_dev)
 	return err;
 }
 
-s32 brcmf_cfg80211_down(struct brcmf_cfg80211_dev *cfg_dev)
+s32 brcmf_cfg80211_down(struct brcmf_cfg80211_priv *cfg_priv)
 {
-	struct brcmf_cfg80211_priv *cfg_priv;
 	s32 err = 0;
 
-	cfg_priv = brcmf_priv_get(cfg_dev);
 	mutex_lock(&cfg_priv->usr_sync);
 	err = __brcmf_cfg80211_down(cfg_priv);
 	mutex_unlock(&cfg_priv->usr_sync);
