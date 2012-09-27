@@ -431,7 +431,7 @@ static void __save_error_info(struct super_block *sb, const char *func,
 	 */
 	if (!es->s_error_count)
 		mod_timer(&EXT4_SB(sb)->s_err_report, jiffies + 24*60*60*HZ);
-	es->s_error_count = cpu_to_le32(le32_to_cpu(es->s_error_count) + 1);
+	le32_add_cpu(&es->s_error_count, 1);
 }
 
 static void save_error_info(struct super_block *sb, const char *func,

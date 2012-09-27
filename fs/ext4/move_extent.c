@@ -570,9 +570,8 @@ mext_calc_swap_extents(struct ext4_extent *tmp_dext,
 	diff = donor_off - le32_to_cpu(tmp_dext->ee_block);
 
 	ext4_ext_store_pblock(tmp_dext, ext4_ext_pblock(tmp_dext) + diff);
-	tmp_dext->ee_block =
-			cpu_to_le32(le32_to_cpu(tmp_dext->ee_block) + diff);
-	tmp_dext->ee_len = cpu_to_le16(le16_to_cpu(tmp_dext->ee_len) - diff);
+	le32_add_cpu(&tmp_dext->ee_block, diff);
+	le16_add_cpu(&tmp_dext->ee_len, -diff);
 
 	if (max_count < ext4_ext_get_actual_len(tmp_dext))
 		tmp_dext->ee_len = cpu_to_le16(max_count);
