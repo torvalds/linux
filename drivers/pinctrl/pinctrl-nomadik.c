@@ -827,16 +827,14 @@ static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
 {
 	struct nmk_gpio_chip *nmk_chip;
 	struct irq_chip *host_chip = irq_get_chip(irq);
-	unsigned int first_irq;
 
 	chained_irq_enter(host_chip, desc);
 
 	nmk_chip = irq_get_handler_data(irq);
-	first_irq = nmk_chip->domain->revmap_data.legacy.first_irq;
 	while (status) {
 		int bit = __ffs(status);
 
-		generic_handle_irq(first_irq + bit);
+		generic_handle_irq(irq_find_mapping(nmk_chip->domain, bit));
 		status &= ~BIT(bit);
 	}
 
