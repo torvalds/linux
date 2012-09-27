@@ -114,6 +114,9 @@ struct nfc_hci_dev {
 	int async_cb_type;
 	data_exchange_cb_t async_cb;
 	void *async_cb_context;
+
+	u8 *gb;
+	size_t gb_len;
 };
 
 /* hci device allocation */

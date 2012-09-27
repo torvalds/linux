@@ -100,6 +100,10 @@ enum pn544_state {
 #define PN544_SYS_MGMT_INFO_NOTIFICATION	0x02
 
 #define PN544_POLLING_LOOP_MGMT_GATE		0x94
+#define PN544_DEP_MODE				0x01
+#define PN544_DEP_ATR_REQ			0x02
+#define PN544_DEP_ATR_RES			0x03
+#define PN544_DEP_MERGE				0x0D
 #define PN544_PL_RDPHASES			0x06
 #define PN544_PL_EMULATION			0x07
 #define PN544_PL_NFCT_DEACTIVATED		0x09
@@ -630,6 +634,9 @@ static int pn544_hci_start_poll(struct nfc_hci_dev *hdev,
 	int r;
 	u8 duration[2];
 	u8 activated;
+	u8 i_mode = 0x3f; /* Enable all supported modes */
+	u8 t_mode = 0x0f;
+	u8 t_merge = 0x01; /* Enable merge by default */
 
 	pr_info(DRIVER_DESC ": %s protocols 0x%x 0x%x\n",
 		__func__, im_protocols, tm_protocols);
@@ -666,6 +673,61 @@ static int pn544_hci_start_poll(struct nfc_hci_dev *hdev,
 			      PN544_PL_RDPHASES, &phases, 1);
 	if (r < 0)
 		return r;
+
+	if ((im_protocols | tm_protocols) & NFC_PROTO_NFC_DEP_MASK) {
+		hdev->gb = nfc_get_local_general_bytes(hdev->ndev,
+							&hdev->gb_len);
+		pr_debug("generate local bytes %p", hdev->gb);
+		if (hdev->gb == NULL || hdev->gb_len == 0) {
+			im_protocols &= ~NFC_PROTO_NFC_DEP_MASK;
+			tm_protocols &= ~NFC_PROTO_NFC_DEP_MASK;
+		}
+	}
+
+	if (im_protocols & NFC_PROTO_NFC_DEP_MASK) {
+		r = nfc_hci_send_event(hdev,
+				PN544_RF_READER_NFCIP1_INITIATOR_GATE,
+				NFC_HCI_EVT_END_OPERATION, NULL, 0);
+		if (r < 0)
+			return r;
+
+		r = nfc_hci_set_param(hdev,
+				PN544_RF_READER_NFCIP1_INITIATOR_GATE,
+				PN544_DEP_MODE, &i_mode, 1);
+		if (r < 0)
+			return r;
+
+		r = nfc_hci_set_param(hdev,
+				PN544_RF_READER_NFCIP1_INITIATOR_GATE,
+				PN544_DEP_ATR_REQ, hdev->gb, hdev->gb_len);
+		if (r < 0)
+			return r;
+
+		r = nfc_hci_send_event(hdev,
+				PN544_RF_READER_NFCIP1_INITIATOR_GATE,
+				NFC_HCI_EVT_READER_REQUESTED, NULL, 0);
+		if (r < 0)
+			nfc_hci_send_event(hdev,
+					PN544_RF_READER_NFCIP1_INITIATOR_GATE,
+					NFC_HCI_EVT_END_OPERATION, NULL, 0);
+	}
+
+	if (tm_protocols & NFC_PROTO_NFC_DEP_MASK) {
+		r = nfc_hci_set_param(hdev, PN544_RF_READER_NFCIP1_TARGET_GATE,
+				PN544_DEP_MODE, &t_mode, 1);
+		if (r < 0)
+			return r;
+
+		r = nfc_hci_set_param(hdev, PN544_RF_READER_NFCIP1_TARGET_GATE,
+				PN544_DEP_ATR_RES, hdev->gb, hdev->gb_len);
+		if (r < 0)
+			return r;
+
+		r = nfc_hci_set_param(hdev, PN544_RF_READER_NFCIP1_TARGET_GATE,
+				PN544_DEP_MERGE, &t_merge, 1);
+		if (r < 0)
+			return r;
+	}
 
 	r = nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
 			       NFC_HCI_EVT_READER_REQUESTED, NULL, 0);
