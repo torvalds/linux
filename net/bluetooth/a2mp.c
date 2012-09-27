@@ -453,12 +453,9 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 		goto send_rsp;
 	}
 
-	/* TODO process physlink create */
-
 	hcon = phylink_add(hdev, mgr, req->local_id);
 	if (hcon) {
-		BT_DBG("hcon %p", hcon);
-
+		amp_accept_phylink(hdev, mgr, hcon);
 		rsp.status = A2MP_STATUS_SUCCESS;
 	} else {
 		rsp.status = A2MP_STATUS_UNABLE_START_LINK_CREATION;
