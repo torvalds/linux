@@ -9,4 +9,5 @@ obj-$(CONFIG_RTL8192CU) += rkusbwifi/
 obj-$(CONFIG_RTL8188EU)	+= rkusbwifi/
 obj-$(CONFIG_AR6003)   += ar6003/
 obj-$(CONFIG_RKWIFI)   += rkwifi/
+obj-$(CONFIG_RDA5990) += rda5990/
 #obj-m	+= wlan/

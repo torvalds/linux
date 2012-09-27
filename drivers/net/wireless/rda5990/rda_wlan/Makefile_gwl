@@ -1,0 +1,23 @@
+MODULE_NAME = rda5890
+CONFIG_RDA5890 = m
+$(MODULE_NAME)-y += \
+	rda5890_if_sdio.o \
+	rda5890_dev.o \
+	rda5890_txrx.o \
+	rda5890_wid.o \
+	rda5890_wext.o \
+	rda5890_debugfs.o\
+	rda5890_sdio_patch.o\
+	rda5890_nvram.o\
+    rda5890_scan.o
+	
+obj-$(CONFIG_RDA5890) += $(MODULE_NAME).o
+
+KERNEL_DIR = /home/dxj/share/rk2928/kernel
+
+all:
+	make -C $(KERNEL_DIR) M=`pwd` modules
+
+clean:
+	rm -f Module.symvers *.o modules.order *.ko wifi_launcher.mod.c
+	rm -rf .wifi* .tmp* wlan.mod.c
