@@ -33,9 +33,12 @@ struct ipack_driver;
 
 enum ipack_space {
 	IPACK_IO_SPACE    = 0,
-	IPACK_ID_SPACE    = 1,
-	IPACK_MEM_SPACE   = 2,
+	IPACK_ID_SPACE,
+	IPACK_MEM_SPACE,
 	IPACK_INT_SPACE,
+	/* Dummy for counting the number of entries.  Must remain the last
+	 * entry */
+	IPACK_SPACE_COUNT,
 };
 
 /**

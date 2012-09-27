@@ -165,6 +165,7 @@ struct tpci200_board {
 	spinlock_t		regs_lock;
 	struct tpci200_slot	*slots;
 	struct tpci200_infos	*info;
+	phys_addr_t             mod_mem[IPACK_SPACE_COUNT];
 };
 
 #endif /* _TPCI200_H_ */

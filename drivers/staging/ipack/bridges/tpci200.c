@@ -242,7 +242,6 @@ static int tpci200_register(struct tpci200_board *tpci200)
 	int i;
 	int res;
 	phys_addr_t ioidint_base;
-	phys_addr_t mem_base;
 	unsigned short slot_ctrl;
 
 	if (pci_enable_device(tpci200->info->pdev) < 0)
@@ -293,7 +292,12 @@ static int tpci200_register(struct tpci200_board *tpci200)
 
 	ioidint_base = pci_resource_start(tpci200->info->pdev,
 					  TPCI200_IO_ID_INT_SPACES_BAR);
-	mem_base = pci_resource_start(tpci200->info->pdev,
+	tpci200->mod_mem[IPACK_IO_SPACE] = ioidint_base + TPCI200_IO_SPACE_OFF;
+	tpci200->mod_mem[IPACK_ID_SPACE] = ioidint_base + TPCI200_ID_SPACE_OFF;
+	tpci200->mod_mem[IPACK_INT_SPACE] =
+		ioidint_base + TPCI200_INT_SPACE_OFF;
+	tpci200->mod_mem[IPACK_MEM_SPACE] =
+		pci_resource_start(tpci200->info->pdev,
 				      TPCI200_MEM8_SPACE_BAR);
 
 	/* Set the default parameters of the slot
@@ -308,19 +312,23 @@ static int tpci200_register(struct tpci200_board *tpci200)
 
 	/* Set all slot physical address space */
 	for (i = 0; i < TPCI200_NB_SLOT; i++) {
-		tpci200->slots[i].io_phys.start = ioidint_base +
-			TPCI200_IO_SPACE_OFF + TPCI200_IO_SPACE_GAP*i;
+		tpci200->slots[i].io_phys.start =
+			tpci200->mod_mem[IPACK_IO_SPACE] +
+			TPCI200_IO_SPACE_GAP * i;
 		tpci200->slots[i].io_phys.size = TPCI200_IO_SPACE_SIZE;
 
-		tpci200->slots[i].id_phys.start = ioidint_base +
-			TPCI200_ID_SPACE_OFF + TPCI200_ID_SPACE_GAP*i;
+		tpci200->slots[i].id_phys.start =
+			tpci200->mod_mem[IPACK_ID_SPACE] +
+			TPCI200_ID_SPACE_GAP * i;
 		tpci200->slots[i].id_phys.size = TPCI200_ID_SPACE_SIZE;
 
-		tpci200->slots[i].int_phys.start = ioidint_base +
-			TPCI200_INT_SPACE_OFF + TPCI200_INT_SPACE_GAP * i;
+		tpci200->slots[i].int_phys.start =
+			tpci200->mod_mem[IPACK_INT_SPACE] +
+			TPCI200_INT_SPACE_GAP * i;
 		tpci200->slots[i].int_phys.size = TPCI200_INT_SPACE_SIZE;
 
-		tpci200->slots[i].mem_phys.start = mem_base +
+		tpci200->slots[i].mem_phys.start =
+			tpci200->mod_mem[IPACK_MEM_SPACE] +
 			TPCI200_MEM8_GAP * i;
 		tpci200->slots[i].mem_phys.size = TPCI200_MEM8_SIZE;
 
