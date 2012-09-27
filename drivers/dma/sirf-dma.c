@@ -109,7 +109,7 @@ static void sirfsoc_dma_execute(struct sirfsoc_dma_chan *schan)
 	sdesc = list_first_entry(&schan->queued, struct sirfsoc_dma_desc,
 		node);
 	/* Move the first queued descriptor to active list */
-	list_move_tail(&schan->queued, &schan->active);
+	list_move_tail(&sdesc->node, &schan->active);
 
 	/* Start the DMA transfer */
 	writel_relaxed(sdesc->width, sdma->base + SIRFSOC_DMA_WIDTH_0 +
