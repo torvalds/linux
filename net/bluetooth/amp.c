@@ -233,6 +233,21 @@ void amp_read_loc_assoc(struct hci_dev *hdev, struct amp_mgr *mgr)
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
 }
 
+void amp_read_loc_assoc_final_data(struct hci_dev *hdev,
+				   struct hci_conn *hcon)
+{
+	struct hci_cp_read_local_amp_assoc cp;
+	struct amp_mgr *mgr = hcon->amp_mgr;
+
+	cp.phy_handle = hcon->handle;
+	cp.len_so_far = cpu_to_le16(0);
+	cp.max_len = cpu_to_le16(hdev->amp_assoc_size);
+
+	mgr->state = READ_LOC_AMP_ASSOC_FINAL;
+
+	/* Read Local AMP Assoc final link information data */
+	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
+}
 
 /* Write AMP Assoc data fragments, returns true with last fragment written*/
 static bool amp_write_rem_assoc_frag(struct hci_dev *hdev,

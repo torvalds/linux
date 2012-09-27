@@ -67,7 +67,7 @@ void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data)
 	kfree(cmd);
 }
 
-static u8 __next_ident(struct amp_mgr *mgr)
+u8 __next_ident(struct amp_mgr *mgr)
 {
 	if (++mgr->ident == 0)
 		mgr->ident = 1;
@@ -419,6 +419,8 @@ static int a2mp_getampassoc_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 		goto done;
 
 	BT_DBG("Created hcon %p: loc:%d -> rem:%d", hcon, hdev->id, rsp->id);
+
+	mgr->bredr_chan->ctrl_id = rsp->id;
 
 	amp_create_phylink(hdev, mgr, hcon);
 
@@ -874,6 +876,43 @@ void a2mp_send_getampassoc_rsp(struct hci_dev *hdev, u8 status)
 	a2mp_send(mgr, A2MP_GETAMPASSOC_RSP, mgr->ident, len, rsp);
 	amp_mgr_put(mgr);
 	kfree(rsp);
+}
+
+void a2mp_send_create_phy_link_req(struct hci_dev *hdev, u8 status)
+{
+	struct amp_mgr *mgr;
+	struct amp_assoc *loc_assoc = &hdev->loc_assoc;
+	struct a2mp_physlink_req *req;
+	struct l2cap_chan *bredr_chan;
+	size_t len;
+
+	mgr = amp_mgr_lookup_by_state(READ_LOC_AMP_ASSOC_FINAL);
+	if (!mgr)
+		return;
+
+	len = sizeof(*req) + loc_assoc->len;
+
+	BT_DBG("%s mgr %p assoc_len %zu", hdev->name, mgr, len);
+
+	req = kzalloc(len, GFP_KERNEL);
+	if (!req) {
+		amp_mgr_put(mgr);
+		return;
+	}
+
+	bredr_chan = mgr->bredr_chan;
+	if (!bredr_chan)
+		goto clean;
+
+	req->local_id = hdev->id;
+	req->remote_id = bredr_chan->ctrl_id;
+	memcpy(req->amp_assoc, loc_assoc->data, loc_assoc->len);
+
+	a2mp_send(mgr, A2MP_CREATEPHYSLINK_REQ, __next_ident(mgr), len, req);
+
+clean:
+	amp_mgr_put(mgr);
+	kfree(req);
 }
 
 void a2mp_discover_amp(struct l2cap_chan *chan)
