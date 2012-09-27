@@ -45,9 +45,10 @@ struct nfc_hci_ops {
 				 struct nfc_target *target);
 	int (*complete_target_discovered) (struct nfc_hci_dev *hdev, u8 gate,
 					   struct nfc_target *target);
-	int (*data_exchange) (struct nfc_hci_dev *hdev,
+	int (*im_transceive) (struct nfc_hci_dev *hdev,
 			      struct nfc_target *target, struct sk_buff *skb,
 			      data_exchange_cb_t cb, void *cb_context);
+	int (*tm_send)(struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_hci_dev *hdev,
 			      struct nfc_target *target);
 	void (*event_received)(struct nfc_hci_dev *hdev, u8 gate, u8 event,

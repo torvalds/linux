@@ -616,8 +616,8 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	switch (target->hci_reader_gate) {
 	case NFC_HCI_RF_READER_A_GATE:
 	case NFC_HCI_RF_READER_B_GATE:
-		if (hdev->ops->data_exchange) {
-			r = hdev->ops->data_exchange(hdev, target, skb, cb,
+		if (hdev->ops->im_transceive) {
+			r = hdev->ops->im_transceive(hdev, target, skb, cb,
 						     cb_context);
 			if (r <= 0)	/* handled */
 				break;
@@ -634,8 +634,8 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 					   skb->len, hci_transceive_cb, hdev);
 		break;
 	default:
-		if (hdev->ops->data_exchange) {
-			r = hdev->ops->data_exchange(hdev, target, skb, cb,
+		if (hdev->ops->im_transceive) {
+			r = hdev->ops->im_transceive(hdev, target, skb, cb,
 						     cb_context);
 			if (r == 1)
 				r = -ENOTSUPP;
@@ -648,6 +648,16 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	kfree_skb(skb);
 
 	return r;
+}
+
+int hci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->tm_send)
+		return hdev->ops->tm_send(hdev, skb);
+	else
+		return -ENOTSUPP;
 }
 
 static int hci_check_presence(struct nfc_dev *nfc_dev,
@@ -758,6 +768,7 @@ static struct nfc_ops hci_nfc_ops = {
 	.activate_target = hci_activate_target,
 	.deactivate_target = hci_deactivate_target,
 	.im_transceive = hci_transceive,
+	.tm_send = hci_tm_send,
 	.check_presence = hci_check_presence,
 };
 

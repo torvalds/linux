@@ -900,7 +900,7 @@ static void pn544_hci_data_exchange_cb(void *context, struct sk_buff *skb,
  * <= 0: driver handled the data exchange
  *    1: driver doesn't especially handle, please do standard processing
  */
-static int pn544_hci_data_exchange(struct nfc_hci_dev *hdev,
+static int pn544_hci_im_transceive(struct nfc_hci_dev *hdev,
 				   struct nfc_target *target,
 				   struct sk_buff *skb, data_exchange_cb_t cb,
 				   void *cb_context)
@@ -953,9 +953,24 @@ static int pn544_hci_data_exchange(struct nfc_hci_dev *hdev,
 		return nfc_hci_send_cmd_async(hdev, target->hci_reader_gate,
 					      PN544_JEWEL_RAW_CMD, skb->data,
 					      skb->len, cb, cb_context);
+	case PN544_RF_READER_NFCIP1_INITIATOR_GATE:
+		*skb_push(skb, 1) = 0;
+
+		return nfc_hci_send_event(hdev, target->hci_reader_gate,
+					PN544_HCI_EVT_SND_DATA, skb->data,
+					skb->len);
 	default:
 		return 1;
 	}
+}
+
+static int pn544_hci_tm_send(struct nfc_hci_dev *hdev, struct sk_buff *skb)
+{
+	/* Set default false for multiple information chaining */
+	*skb_push(skb, 1) = 0;
+
+	return nfc_hci_send_event(hdev, PN544_RF_READER_NFCIP1_TARGET_GATE,
+				PN544_HCI_EVT_SND_DATA, skb->data, skb->len);
 }
 
 static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
@@ -996,6 +1011,22 @@ void pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 		nfc_hci_send_event(hdev, gate,
 			NFC_HCI_EVT_END_OPERATION, NULL, 0);
 		break;
+	case PN544_HCI_EVT_RCV_DATA:
+		if (skb->len < 2) {
+			r = -EPROTO;
+			goto exit;
+		}
+
+		if (skb->data[0] != 0) {
+			pr_debug("data0 %d", skb->data[0]);
+			r = -EPROTO;
+			goto exit;
+		}
+
+		skb_pull(skb, 2);
+		nfc_tm_data_received(hdev->ndev, skb);
+
+		return;
 	default:
 		break;
 	}
@@ -1014,7 +1045,8 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.dep_link_down = pn544_hci_dep_link_down,
 	.target_from_gate = pn544_hci_target_from_gate,
 	.complete_target_discovered = pn544_hci_complete_target_discovered,
-	.data_exchange = pn544_hci_data_exchange,
+	.im_transceive = pn544_hci_im_transceive,
+	.tm_send = pn544_hci_tm_send,
 	.check_presence = pn544_hci_check_presence,
 	.event_received = pn544_hci_event_received,
 };
