@@ -392,6 +392,8 @@ static int a2mp_getampassoc_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	BT_DBG("Created hcon %p: loc:%d -> rem:%d", hcon, hdev->id, rsp->id);
 
+	amp_create_phylink(hdev, mgr, hcon);
+
 done:
 	hci_dev_put(hdev);
 	skb_pull(skb, len);

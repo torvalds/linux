@@ -232,3 +232,22 @@ void amp_read_loc_assoc(struct hci_dev *hdev, struct amp_mgr *mgr)
 	mgr->state = READ_LOC_AMP_ASSOC;
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
 }
+
+void amp_create_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
+			struct hci_conn *hcon)
+{
+	struct hci_cp_create_phy_link cp;
+
+	cp.phy_handle = hcon->handle;
+
+	BT_DBG("%s hcon %p phy handle 0x%2.2x", hdev->name, hcon,
+	       hcon->handle);
+
+	if (phylink_gen_key(mgr->l2cap_conn->hcon, cp.key, &cp.key_len,
+			    &cp.key_type)) {
+		BT_DBG("Cannot create link key");
+		return;
+	}
+
+	hci_send_cmd(hdev, HCI_OP_CREATE_PHY_LINK, sizeof(cp), &cp);
+}
