@@ -437,11 +437,19 @@ struct regulator_init_data pwm_regulator_init_dcdc[1] =
 
 static struct pwm_platform_data pwm_regulator_info[1] = {
 	{
+#ifdef CONFIG_MACH_RK2926_M713
+		.pwm_id = 1,
+		.pwm_gpio = RK2928_PIN0_PD3,
+		.pwm_iomux_name = GPIO0D3_PWM_1_NAME,
+		.pwm_iomux_pwm = GPIO0D_PWM_1, 
+		.pwm_iomux_gpio = GPIO0D_GPIO0D3,
+#else
 		.pwm_id = 2,
 		.pwm_gpio = RK2928_PIN0_PD4,
 		.pwm_iomux_name = GPIO0D4_PWM_2_NAME,
 		.pwm_iomux_pwm = GPIO0D_PWM_2, 
 		.pwm_iomux_gpio = GPIO0D_GPIO0D4,
+#endif
 		.pwm_voltage = 1200000,
 		.suspend_voltage = 1050000,
 		.min_uV = 1000000,
@@ -646,36 +654,56 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 };
 #endif
 
+#ifdef CONFIG_MACH_RK2926_M713
+int __sramdata gpio0d3_iomux,gpio0d3_do,gpio0d3_dir;
+#else
 int __sramdata gpio0d4_iomux,gpio0d4_do,gpio0d4_dir;
-
-#ifndef gpio_readl
-#define gpio_readl(offset)	readl_relaxed(RK2928_GPIO0_BASE + offset)
-#define gpio_writel(v, offset)	do { writel_relaxed(v, RK2928_GPIO0_BASE + offset); dsb(); } while (0)
 #endif
+
+#define gpio0_readl(offset)	readl_relaxed(RK2928_GPIO0_BASE + offset)
+#define gpio0_writel(v, offset)	do { writel_relaxed(v, RK2928_GPIO0_BASE + offset); dsb(); } while (0)
 
 void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 {
 #ifdef CONFIG_RK30_PWM_REGULATOR
 
+#ifdef CONFIG_MACH_RK2926_M713
+	sram_udelay(10000);
+	gpio0d3_iomux = readl_relaxed(GRF_GPIO0D_IOMUX);
+	gpio0d3_do = gpio0_readl(GPIO_SWPORTA_DR);
+	gpio0d3_dir = gpio0_readl(GPIO_SWPORTA_DDR);
+
+	writel_relaxed((gpio0d3_iomux |(1<<22)) & (~(1<<6)), GRF_GPIO0D_IOMUX);
+	gpio0_writel(gpio0d3_dir |(1<<27), GPIO_SWPORTA_DDR);
+	gpio0_writel(gpio0d3_do |(1<<27), GPIO_SWPORTA_DR);
+#else
 //	int gpio0d7_iomux,gpio0d7_do,gpio0d7_dir,gpio0d7_en;
 	sram_udelay(10000);
 	gpio0d4_iomux = readl_relaxed(GRF_GPIO0D_IOMUX);
-	gpio0d4_do = gpio_readl(GPIO_SWPORTA_DR);
-	gpio0d4_dir = gpio_readl(GPIO_SWPORTA_DDR);
+	gpio0d4_do = gpio0_readl(GPIO_SWPORTA_DR);
+	gpio0d4_dir = gpio0_readl(GPIO_SWPORTA_DDR);
 
 	writel_relaxed((gpio0d4_iomux |(1<<24)) & (~(1<<8)), GRF_GPIO0D_IOMUX);
-	gpio_writel(gpio0d4_dir |(1<<28), GPIO_SWPORTA_DDR);
-	gpio_writel(gpio0d4_do |(1<<28), GPIO_SWPORTA_DR);
+	gpio0_writel(gpio0d4_dir |(1<<28), GPIO_SWPORTA_DDR);
+	gpio0_writel(gpio0d4_do |(1<<28), GPIO_SWPORTA_DR);
+#endif
 	
 #endif 
 }
 void __sramfunc rk30_pwm_logic_resume_voltage(void)
 {
 #ifdef CONFIG_RK30_PWM_REGULATOR
+#ifdef CONFIG_MACH_RK2926_M713
+	writel_relaxed((1<<22)|gpio0d3_iomux, GRF_GPIO0D_IOMUX);
+	gpio_writel(gpio0d3_dir, GPIO_SWPORTA_DDR);
+	gpio_writel(gpio0d3_do, GPIO_SWPORTA_DR);
+	sram_udelay(10000);
+#else
 	writel_relaxed((1<<24)|gpio0d4_iomux, GRF_GPIO0D_IOMUX);
 	gpio_writel(gpio0d4_dir, GPIO_SWPORTA_DDR);
 	gpio_writel(gpio0d4_do, GPIO_SWPORTA_DR);
 	sram_udelay(10000);
+#endif
 
 #endif
 
