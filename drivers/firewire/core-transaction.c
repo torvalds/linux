@@ -519,7 +519,7 @@ static struct fw_address_handler *lookup_enclosing_address_handler(
 	return NULL;
 }
 
-static DEFINE_SPINLOCK(address_handler_lock);
+static DEFINE_SPINLOCK(address_handler_list_lock);
 static LIST_HEAD(address_handler_list);
 
 const struct fw_address_region fw_high_memory_region =
@@ -556,6 +556,7 @@ static bool is_in_fcp_region(u64 offset, size_t length)
  * the specified callback is invoked.  The parameters passed to the callback
  * give the details of the particular request.
  *
+ * To be called in process context.
  * Return value:  0 on success, non-zero otherwise.
  *
  * The start offset of the handler's address region is determined by
@@ -576,7 +577,7 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 	    handler->length == 0)
 		return -EINVAL;
 
-	spin_lock_bh(&address_handler_lock);
+	spin_lock(&address_handler_list_lock);
 
 	handler->offset = region->start;
 	while (handler->offset + handler->length <= region->end) {
@@ -595,7 +596,7 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 		}
 	}
 
-	spin_unlock_bh(&address_handler_lock);
+	spin_unlock(&address_handler_list_lock);
 
 	return ret;
 }
@@ -604,14 +605,16 @@ EXPORT_SYMBOL(fw_core_add_address_handler);
 /**
  * fw_core_remove_address_handler() - unregister an address handler
  *
+ * To be called in process context.
+ *
  * When fw_core_remove_address_handler() returns, @handler->callback() is
  * guaranteed to not run on any CPU anymore.
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
-	spin_lock_bh(&address_handler_lock);
+	spin_lock(&address_handler_list_lock);
 	list_del_rcu(&handler->link);
-	spin_unlock_bh(&address_handler_lock);
+	spin_unlock(&address_handler_list_lock);
 	synchronize_rcu();
 }
 EXPORT_SYMBOL(fw_core_remove_address_handler);
