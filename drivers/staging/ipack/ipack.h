@@ -52,7 +52,6 @@ struct ipack_addr_space {
 /**
  *	struct ipack_device
  *
- *	@bus_nr: IP bus number where the device is plugged
  *	@slot: Slot where the device is plugged in the carrier board
  *	@bus: ipack_bus_device where the device is plugged to.
  *	@id_space: Virtual address to ID space.
@@ -65,7 +64,6 @@ struct ipack_addr_space {
  * by the carrier board throught bus->ops.
  */
 struct ipack_device {
-	unsigned int bus_nr;
 	unsigned int slot;
 	struct ipack_bus_device *bus;
 	struct ipack_addr_space id_space;

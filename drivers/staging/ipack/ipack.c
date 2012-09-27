@@ -234,7 +234,7 @@ static int ipack_unregister_bus_member(struct device *dev, void *data)
 	struct ipack_device *idev = to_ipack_dev(dev);
 	struct ipack_bus_device *bus = data;
 
-	if (idev->bus_nr == bus->bus_nr)
+	if (idev->bus == bus)
 		ipack_device_unregister(idev);
 
 	return 1;
@@ -440,10 +440,9 @@ struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
 	dev->dev.release = ipack_device_release;
 	dev->dev.parent = bus->parent;
 	dev->slot = slot;
-	dev->bus_nr = bus->bus_nr;
 	dev->bus = bus;
 	dev_set_name(&dev->dev,
-		     "ipack-dev.%u.%u", dev->bus_nr, dev->slot);
+		     "ipack-dev.%u.%u", dev->bus->bus_nr, dev->slot);
 
 	if (bus->ops->set_clockrate(dev, 8))
 		dev_warn(&dev->dev, "failed to switch to 8 MHz operation for reading of device ID.\n");

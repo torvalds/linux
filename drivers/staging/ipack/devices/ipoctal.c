@@ -719,7 +719,7 @@ static int ipoctal_probe(struct ipack_device *dev)
 		return -ENOMEM;
 
 	ipoctal->dev = dev;
-	res = ipoctal_inst_slot(ipoctal, dev->bus_nr, dev->slot);
+	res = ipoctal_inst_slot(ipoctal, dev->bus->bus_nr, dev->slot);
 	if (res)
 		goto out_uninst;
 

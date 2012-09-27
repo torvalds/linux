@@ -46,7 +46,7 @@ static struct tpci200_board *check_slot(struct ipack_device *dev)
 	if (dev->slot >= TPCI200_NB_SLOT) {
 		dev_info(&dev->dev,
 			 "Slot [%d:%d] doesn't exist! Last tpci200 slot is %d.\n",
-			 dev->bus_nr, dev->slot, TPCI200_NB_SLOT-1);
+			 dev->bus->bus_nr, dev->slot, TPCI200_NB_SLOT-1);
 		return NULL;
 	}
 
@@ -206,7 +206,7 @@ static int tpci200_request_irq(struct ipack_device *dev,
 
 	if (tpci200->slots[dev->slot].irq != NULL) {
 		dev_err(&dev->dev,
-			"Slot [%d:%d] IRQ already registered !\n", dev->bus_nr,
+			"Slot [%d:%d] IRQ already registered !\n", dev->bus->bus_nr,
 			dev->slot);
 		res = -EINVAL;
 		goto out_unlock;
@@ -216,7 +216,7 @@ static int tpci200_request_irq(struct ipack_device *dev,
 	if (slot_irq == NULL) {
 		dev_err(&dev->dev,
 			"Slot [%d:%d] unable to allocate memory for IRQ !\n",
-			dev->bus_nr, dev->slot);
+			dev->bus->bus_nr, dev->slot);
 		res = -ENOMEM;
 		goto out_unlock;
 	}
@@ -379,7 +379,7 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 		if (dev->io_space.address == NULL) {
 			dev_info(&dev->dev,
 				 "Slot [%d:%d] IO space not mapped !\n",
-				 dev->bus_nr, dev->slot);
+				 dev->bus->bus_nr, dev->slot);
 			goto out_unlock;
 		}
 		virt_addr_space = &dev->io_space;
@@ -388,7 +388,7 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 		if (dev->id_space.address == NULL) {
 			dev_info(&dev->dev,
 				 "Slot [%d:%d] ID space not mapped !\n",
-				 dev->bus_nr, dev->slot);
+				 dev->bus->bus_nr, dev->slot);
 			goto out_unlock;
 		}
 		virt_addr_space = &dev->id_space;
@@ -397,7 +397,7 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 		if (dev->int_space.address == NULL) {
 			dev_info(&dev->dev,
 				 "Slot [%d:%d] INT space not mapped !\n",
-				 dev->bus_nr, dev->slot);
+				 dev->bus->bus_nr, dev->slot);
 			goto out_unlock;
 		}
 		virt_addr_space = &dev->int_space;
@@ -406,7 +406,7 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 		if (dev->mem_space.address == NULL) {
 			dev_info(&dev->dev,
 				 "Slot [%d:%d] MEM space not mapped !\n",
-				 dev->bus_nr, dev->slot);
+				 dev->bus->bus_nr, dev->slot);
 			goto out_unlock;
 		}
 		virt_addr_space = &dev->mem_space;
@@ -414,7 +414,7 @@ static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
 	default:
 		dev_err(&dev->dev,
 			"Slot [%d:%d] space number %d doesn't exist !\n",
-			dev->bus_nr, dev->slot, space);
+			dev->bus->bus_nr, dev->slot, space);
 		mutex_unlock(&tpci200->mutex);
 		return -EINVAL;
 	}
@@ -497,7 +497,7 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 		if (memory_size > tpci200->slots[dev->slot].mem_phys.size) {
 			dev_err(&dev->dev,
 				"Slot [%d:%d] request is 0x%X memory, only 0x%X available !\n",
-				dev->bus_nr, dev->slot, memory_size,
+				dev->bus->bus_nr, dev->slot, memory_size,
 				tpci200->slots[dev->slot].mem_phys.size);
 			res = -EINVAL;
 			goto out_unlock;
