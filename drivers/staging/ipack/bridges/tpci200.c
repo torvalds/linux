@@ -78,8 +78,6 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 	free_irq(tpci200->info->pdev->irq, (void *) tpci200);
 
 	pci_iounmap(tpci200->info->pdev, tpci200->info->interface_regs);
-	pci_iounmap(tpci200->info->pdev, tpci200->info->ioidint_space);
-	pci_iounmap(tpci200->info->pdev, tpci200->info->mem8_space);
 	pci_iounmap(tpci200->info->pdev, tpci200->info->cfg_regs);
 
 	pci_release_region(tpci200->info->pdev, TPCI200_IP_INTERFACE_BAR);
@@ -289,14 +287,6 @@ static int tpci200_register(struct tpci200_board *tpci200)
 		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
 					   TPCI200_IP_INTERFACE_BAR),
 			TPCI200_IFACE_SIZE);
-	tpci200->info->ioidint_space =
-		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
-					   TPCI200_IO_ID_INT_SPACES_BAR),
-			TPCI200_IOIDINT_SIZE);
-	tpci200->info->mem8_space =
-		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
-					   TPCI200_MEM8_SPACE_BAR),
-			TPCI200_MEM8_SIZE);
 
 	/* Initialize lock that protects interface_regs */
 	spin_lock_init(&tpci200->regs_lock);

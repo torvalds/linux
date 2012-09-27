@@ -156,8 +156,6 @@ struct tpci200_infos {
 	struct pci_dev			*pdev;
 	struct pci_device_id		*id_table;
 	struct tpci200_regs __iomem	*interface_regs;
-	void __iomem			*ioidint_space;
-	void __iomem			*mem8_space;
 	void __iomem			*cfg_regs;
 	struct ipack_bus_device		*ipack_bus;
 };
