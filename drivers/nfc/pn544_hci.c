@@ -118,6 +118,7 @@ enum pn544_state {
 #define PN544_HCI_EVT_RCV_DATA			0x04
 #define PN544_HCI_EVT_CONTINUE_MI		0x05
 
+#define PN544_HCI_CMD_ATTREQUEST		0x12
 #define PN544_HCI_CMD_CONTINUE_ACTIVATION	0x13
 
 static struct nfc_hci_gate pn544_gates[] = {
@@ -976,9 +977,33 @@ static int pn544_hci_tm_send(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 				   struct nfc_target *target)
 {
-	return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
-				PN544_RF_READER_CMD_PRESENCE_CHECK,
-				NULL, 0, NULL);
+	pr_debug("supported protocol %d", target->supported_protocols);
+	if (target->supported_protocols & (NFC_PROTO_ISO14443_MASK |
+					NFC_PROTO_ISO14443_B_MASK)) {
+		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
+					PN544_RF_READER_CMD_PRESENCE_CHECK,
+					NULL, 0, NULL);
+	} else if (target->supported_protocols & NFC_PROTO_MIFARE_MASK) {
+		if (target->nfcid1_len != 4 && target->nfcid1_len != 7 &&
+		    target->nfcid1_len != 10)
+			return -EPROTO;
+
+		 return nfc_hci_send_cmd(hdev, NFC_HCI_RF_READER_A_GATE,
+				     PN544_RF_READER_CMD_ACTIVATE_NEXT,
+				     target->nfcid1, target->nfcid1_len, NULL);
+	} else if (target->supported_protocols & NFC_PROTO_JEWEL_MASK) {
+		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
+					PN544_JEWEL_RAW_CMD, NULL, 0, NULL);
+	} else if (target->supported_protocols & NFC_PROTO_FELICA_MASK) {
+		return nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
+					PN544_FELICA_RAW, NULL, 0, NULL);
+	} else if (target->supported_protocols & NFC_PROTO_NFC_DEP_MASK) {
+		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
+					PN544_HCI_CMD_ATTREQUEST,
+					NULL, 0, NULL);
+	}
+
+	return 0;
 }
 
 void pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate, u8 event,
