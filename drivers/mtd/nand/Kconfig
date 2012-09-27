@@ -57,8 +57,15 @@ config MTD_NAND_AUTCPU12
 	  access the SmartMediaCard.
 
 config MTD_NAND_DENALI
-       depends on PCI
+        tristate "Support Denali NAND controller"
+        help
+	  Enable support for the Denali NAND controller.  This should be
+	  combined with either the PCI or platform drivers to provide device
+	  registration.
+
+config MTD_NAND_DENALI_PCI
         tristate "Support Denali NAND controller on Intel Moorestown"
+	depends on PCI && MTD_NAND_DENALI
         help
           Enable the driver for NAND flash on Intel Moorestown, using the
           Denali NAND controller core.
@@ -66,7 +73,7 @@ config MTD_NAND_DENALI
 config MTD_NAND_DENALI_SCRATCH_REG_ADDR
         hex "Denali NAND size scratch register address"
         default "0xFF108018"
-        depends on MTD_NAND_DENALI
+        depends on MTD_NAND_DENALI_PCI
         help
           Some platforms place the NAND chip size in a scratch register
           because (some versions of) the driver aren't able to automatically
