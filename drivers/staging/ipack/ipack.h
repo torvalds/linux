@@ -36,6 +36,7 @@ enum ipack_space {
 	IPACK_ID_SPACE,
 	IPACK_INT_SPACE,
 	IPACK_MEM8_SPACE,
+	IPACK_MEM16_SPACE,
 	/* Dummy for counting the number of entries.  Must remain the last
 	 * entry */
 	IPACK_SPACE_COUNT,

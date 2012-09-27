@@ -33,6 +33,7 @@ static const size_t tpci200_space_size[IPACK_SPACE_COUNT] = {
 	[IPACK_ID_SPACE]    = TPCI200_ID_SPACE_SIZE,
 	[IPACK_INT_SPACE]   = TPCI200_INT_SPACE_SIZE,
 	[IPACK_MEM8_SPACE]  = TPCI200_MEM8_SPACE_SIZE,
+	[IPACK_MEM16_SPACE] = TPCI200_MEM16_SPACE_SIZE,
 };
 
 static const size_t tpci200_space_interval[IPACK_SPACE_COUNT] = {
@@ -40,6 +41,7 @@ static const size_t tpci200_space_interval[IPACK_SPACE_COUNT] = {
 	[IPACK_ID_SPACE]    = TPCI200_ID_SPACE_INTERVAL,
 	[IPACK_INT_SPACE]   = TPCI200_INT_SPACE_INTERVAL,
 	[IPACK_MEM8_SPACE]  = TPCI200_MEM8_SPACE_INTERVAL,
+	[IPACK_MEM16_SPACE] = TPCI200_MEM16_SPACE_INTERVAL,
 };
 
 static struct tpci200_board *check_slot(struct ipack_device *dev)
@@ -94,6 +96,7 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 
 	pci_release_region(tpci200->info->pdev, TPCI200_IP_INTERFACE_BAR);
 	pci_release_region(tpci200->info->pdev, TPCI200_IO_ID_INT_SPACES_BAR);
+	pci_release_region(tpci200->info->pdev, TPCI200_MEM16_SPACE_BAR);
 	pci_release_region(tpci200->info->pdev, TPCI200_MEM8_SPACE_BAR);
 	pci_release_region(tpci200->info->pdev, TPCI200_CFG_MEM_BAR);
 
@@ -282,6 +285,17 @@ static int tpci200_register(struct tpci200_board *tpci200)
 		goto out_release_ioid_int_space;
 	}
 
+	/* Request MEM16 space (Bar 4) */
+	res = pci_request_region(tpci200->info->pdev, TPCI200_MEM16_SPACE_BAR,
+				 "Carrier MEM16 space");
+	if (res) {
+		dev_err(&tpci200->info->pdev->dev,
+			"(bn 0x%X, sn 0x%X) failed to allocate PCI resource for BAR 4!",
+			tpci200->info->pdev->bus->number,
+			tpci200->info->pdev->devfn);
+		goto out_release_mem8_space;
+	}
+
 	/* Map internal tpci200 driver user space */
 	tpci200->info->interface_regs =
 		ioremap_nocache(pci_resource_start(tpci200->info->pdev,
@@ -300,6 +314,9 @@ static int tpci200_register(struct tpci200_board *tpci200)
 	tpci200->mod_mem[IPACK_MEM8_SPACE] =
 		pci_resource_start(tpci200->info->pdev,
 				   TPCI200_MEM8_SPACE_BAR);
+	tpci200->mod_mem[IPACK_MEM16_SPACE] =
+		pci_resource_start(tpci200->info->pdev,
+				   TPCI200_MEM16_SPACE_BAR);
 
 	/* Set the default parameters of the slot
 	 * INT0 disabled, level sensitive
@@ -326,6 +343,8 @@ static int tpci200_register(struct tpci200_board *tpci200)
 
 	return 0;
 
+out_release_mem8_space:
+	pci_release_region(tpci200->info->pdev, TPCI200_MEM8_SPACE_BAR);
 out_release_ioid_int_space:
 	pci_release_region(tpci200->info->pdev, TPCI200_IO_ID_INT_SPACES_BAR);
 out_release_ip_space:
