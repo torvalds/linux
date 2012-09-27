@@ -263,7 +263,9 @@ int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 		break;
 	}
 
-	targets->hci_reader_gate = gate;
+	/* if driver set the new gate, we will skip the old one */
+	if (targets->hci_reader_gate == 0x00)
+		targets->hci_reader_gate = gate;
 
 	r = nfc_targets_found(hdev->ndev, targets, 1);
 

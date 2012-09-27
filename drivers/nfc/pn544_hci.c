@@ -118,6 +118,8 @@ enum pn544_state {
 #define PN544_HCI_EVT_RCV_DATA			0x04
 #define PN544_HCI_EVT_CONTINUE_MI		0x05
 
+#define PN544_HCI_CMD_CONTINUE_ACTIVATION	0x13
+
 static struct nfc_hci_gate pn544_gates[] = {
 	{NFC_HCI_ADMIN_GATE, NFC_HCI_INVALID_PIPE},
 	{NFC_HCI_LOOPBACK_GATE, NFC_HCI_INVALID_PIPE},
@@ -755,6 +757,9 @@ static int pn544_hci_target_from_gate(struct nfc_hci_dev *hdev, u8 gate,
 		target->supported_protocols = NFC_PROTO_JEWEL_MASK;
 		target->sens_res = 0x0c00;
 		break;
+	case PN544_RF_READER_NFCIP1_INITIATOR_GATE:
+		target->supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+		break;
 	default:
 		return -EPROTO;
 	}
@@ -769,7 +774,18 @@ static int pn544_hci_complete_target_discovered(struct nfc_hci_dev *hdev,
 	struct sk_buff *uid_skb;
 	int r = 0;
 
-	if (target->supported_protocols & NFC_PROTO_MIFARE_MASK) {
+	if (gate == PN544_RF_READER_NFCIP1_INITIATOR_GATE)
+		return r;
+
+	if (target->supported_protocols & NFC_PROTO_NFC_DEP_MASK) {
+		r = nfc_hci_send_cmd(hdev,
+			PN544_RF_READER_NFCIP1_INITIATOR_GATE,
+			PN544_HCI_CMD_CONTINUE_ACTIVATION, NULL, 0, NULL);
+		if (r < 0)
+			return r;
+
+		target->hci_reader_gate = PN544_RF_READER_NFCIP1_INITIATOR_GATE;
+	} else if (target->supported_protocols & NFC_PROTO_MIFARE_MASK) {
 		if (target->nfcid1_len != 4 && target->nfcid1_len != 7 &&
 		    target->nfcid1_len != 10)
 			return -EPROTO;
@@ -792,6 +808,16 @@ static int pn544_hci_complete_target_discovered(struct nfc_hci_dev *hdev,
 				     PN544_RF_READER_CMD_ACTIVATE_NEXT,
 				     uid_skb->data, uid_skb->len, NULL);
 		kfree_skb(uid_skb);
+
+		r = nfc_hci_send_cmd(hdev,
+					PN544_RF_READER_NFCIP1_INITIATOR_GATE,
+					PN544_HCI_CMD_CONTINUE_ACTIVATION,
+					NULL, 0, NULL);
+		if (r < 0)
+			return r;
+
+		target->hci_reader_gate = PN544_RF_READER_NFCIP1_INITIATOR_GATE;
+		target->supported_protocols = NFC_PROTO_NFC_DEP_MASK;
 	} else if (target->supported_protocols & NFC_PROTO_ISO14443_MASK) {
 		/*
 		 * TODO: maybe other ISO 14443 require some kind of continue
