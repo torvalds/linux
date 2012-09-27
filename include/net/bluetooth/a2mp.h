@@ -132,5 +132,7 @@ int amp_mgr_put(struct amp_mgr *mgr);
 struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 				       struct sk_buff *skb);
 struct amp_mgr *amp_mgr_lookup_by_state(u8 state);
+void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data);
+void a2mp_send_getinfo_rsp(struct hci_dev *hdev);
 
 #endif /* __A2MP_H */

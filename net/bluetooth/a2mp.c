@@ -41,8 +41,7 @@ static struct a2mp_cmd *__a2mp_build(u8 code, u8 ident, u16 len, void *data)
 	return cmd;
 }
 
-static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len,
-		      void *data)
+void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data)
 {
 	struct l2cap_chan *chan = mgr->a2mp_chan;
 	struct a2mp_cmd *cmd;
@@ -185,7 +184,6 @@ static int a2mp_getinfo_req(struct amp_mgr *mgr, struct sk_buff *skb,
 			    struct a2mp_cmd *hdr)
 {
 	struct a2mp_info_req *req  = (void *) skb->data;
-	struct a2mp_info_rsp rsp;
 	struct hci_dev *hdev;
 
 	if (le16_to_cpu(hdr->len) < sizeof(*req))
@@ -193,23 +191,23 @@ static int a2mp_getinfo_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	BT_DBG("id %d", req->id);
 
-	rsp.id = req->id;
-	rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
-
 	hdev = hci_dev_get(req->id);
-	if (hdev && hdev->amp_type != HCI_BREDR) {
-		rsp.status = 0;
-		rsp.total_bw = cpu_to_le32(hdev->amp_total_bw);
-		rsp.max_bw = cpu_to_le32(hdev->amp_max_bw);
-		rsp.min_latency = cpu_to_le32(hdev->amp_min_latency);
-		rsp.pal_cap = cpu_to_le16(hdev->amp_pal_cap);
-		rsp.assoc_size = cpu_to_le16(hdev->amp_assoc_size);
+	if (!hdev) {
+		struct a2mp_info_rsp rsp;
+
+		rsp.id = req->id;
+		rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
+
+		a2mp_send(mgr, A2MP_GETINFO_RSP, hdr->ident, sizeof(rsp),
+			  &rsp);
 	}
 
-	if (hdev)
-		hci_dev_put(hdev);
+	if (hdev->dev_type != HCI_BREDR) {
+		mgr->state = READ_LOC_AMP_INFO;
+		hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
+	}
 
-	a2mp_send(mgr, A2MP_GETINFO_RSP, hdr->ident, sizeof(rsp), &rsp);
+	hci_dev_put(hdev);
 
 	skb_pull(skb, sizeof(*req));
 	return 0;
@@ -598,4 +596,31 @@ struct amp_mgr *amp_mgr_lookup_by_state(u8 state)
 	mutex_unlock(&amp_mgr_list_lock);
 
 	return NULL;
+}
+
+void a2mp_send_getinfo_rsp(struct hci_dev *hdev)
+{
+	struct amp_mgr *mgr;
+	struct a2mp_info_rsp rsp;
+
+	mgr = amp_mgr_lookup_by_state(READ_LOC_AMP_INFO);
+	if (!mgr)
+		return;
+
+	BT_DBG("%s mgr %p", hdev->name, mgr);
+
+	rsp.id = hdev->id;
+	rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
+
+	if (hdev->amp_type != HCI_BREDR) {
+		rsp.status = 0;
+		rsp.total_bw = cpu_to_le32(hdev->amp_total_bw);
+		rsp.max_bw = cpu_to_le32(hdev->amp_max_bw);
+		rsp.min_latency = cpu_to_le32(hdev->amp_min_latency);
+		rsp.pal_cap = cpu_to_le16(hdev->amp_pal_cap);
+		rsp.assoc_size = cpu_to_le16(hdev->amp_assoc_size);
+	}
+
+	a2mp_send(mgr, A2MP_GETINFO_RSP, mgr->ident, sizeof(rsp), &rsp);
+	amp_mgr_put(mgr);
 }
