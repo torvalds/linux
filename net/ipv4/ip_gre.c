@@ -740,8 +740,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
 
-		netif_rx(skb);
-
+		gro_cells_receive(&tunnel->gro_cells, skb);
 		return 0;
 	}
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
@@ -1319,6 +1318,9 @@ static const struct net_device_ops ipgre_netdev_ops = {
 
 static void ipgre_dev_free(struct net_device *dev)
 {
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+
+	gro_cells_destroy(&tunnel->gro_cells);
 	free_percpu(dev->tstats);
 	free_netdev(dev);
 }
@@ -1350,6 +1352,7 @@ static int ipgre_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel;
 	struct iphdr *iph;
+	int err;
 
 	tunnel = netdev_priv(dev);
 	iph = &tunnel->parms.iph;
@@ -1375,6 +1378,12 @@ static int ipgre_tunnel_init(struct net_device *dev)
 	dev->tstats = alloc_percpu(struct pcpu_tstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+
+	err = gro_cells_init(&tunnel->gro_cells, dev);
+	if (err) {
+		free_percpu(dev->tstats);
+		return err;
+	}
 
 	return 0;
 }
