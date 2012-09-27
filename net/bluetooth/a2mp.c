@@ -438,6 +438,7 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	struct a2mp_physlink_rsp rsp;
 	struct hci_dev *hdev;
 	struct hci_conn *hcon;
+	struct amp_ctrl *ctrl;
 
 	if (le16_to_cpu(hdr->len) < sizeof(*req))
 		return -EINVAL;
@@ -451,6 +452,37 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	if (!hdev || hdev->amp_type != HCI_AMP) {
 		rsp.status = A2MP_STATUS_INVALID_CTRL_ID;
 		goto send_rsp;
+	}
+
+	ctrl = amp_ctrl_lookup(mgr, rsp.remote_id);
+	if (!ctrl) {
+		ctrl = amp_ctrl_add(mgr);
+		if (ctrl) {
+			amp_ctrl_get(ctrl);
+		} else {
+			rsp.status = A2MP_STATUS_UNABLE_START_LINK_CREATION;
+			goto send_rsp;
+		}
+	}
+
+	if (ctrl) {
+		u8 *assoc, assoc_len = le16_to_cpu(hdr->len) - sizeof(*req);
+
+		ctrl->id = rsp.remote_id;
+
+		assoc = kzalloc(assoc_len, GFP_KERNEL);
+		if (!assoc) {
+			amp_ctrl_put(ctrl);
+			return -ENOMEM;
+		}
+
+		memcpy(assoc, req->amp_assoc, assoc_len);
+		ctrl->assoc = assoc;
+		ctrl->assoc_len = assoc_len;
+		ctrl->assoc_rem_len = assoc_len;
+		ctrl->assoc_len_so_far = 0;
+
+		amp_ctrl_put(ctrl);
 	}
 
 	hcon = phylink_add(hdev, mgr, req->local_id);

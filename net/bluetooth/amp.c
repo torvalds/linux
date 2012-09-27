@@ -19,7 +19,7 @@
 #include <crypto/hash.h>
 
 /* Remote AMP Controllers interface */
-static void amp_ctrl_get(struct amp_ctrl *ctrl)
+void amp_ctrl_get(struct amp_ctrl *ctrl)
 {
 	BT_DBG("ctrl %p orig refcnt %d", ctrl,
 	       atomic_read(&ctrl->kref.refcount));

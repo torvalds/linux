@@ -25,6 +25,7 @@ struct amp_ctrl {
 };
 
 int amp_ctrl_put(struct amp_ctrl *ctrl);
+void amp_ctrl_get(struct amp_ctrl *ctrl);
 struct amp_ctrl *amp_ctrl_add(struct amp_mgr *mgr);
 struct amp_ctrl *amp_ctrl_lookup(struct amp_mgr *mgr, u8 id);
 void amp_ctrl_list_flush(struct amp_mgr *mgr);
