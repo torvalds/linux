@@ -14,14 +14,14 @@
 #include <linux/module.h>
 #include "tpci200.h"
 
-static u16 tpci200_status_timeout[] = {
+static const u16 tpci200_status_timeout[] = {
 	TPCI200_A_TIMEOUT,
 	TPCI200_B_TIMEOUT,
 	TPCI200_C_TIMEOUT,
 	TPCI200_D_TIMEOUT,
 };
 
-static u16 tpci200_status_error[] = {
+static const u16 tpci200_status_error[] = {
 	TPCI200_A_ERROR,
 	TPCI200_B_ERROR,
 	TPCI200_C_ERROR,
@@ -298,7 +298,7 @@ static int tpci200_register(struct tpci200_board *tpci200)
 		ioidint_base + TPCI200_INT_SPACE_OFF;
 	tpci200->mod_mem[IPACK_MEM_SPACE] =
 		pci_resource_start(tpci200->info->pdev,
-				      TPCI200_MEM8_SPACE_BAR);
+				   TPCI200_MEM8_SPACE_BAR);
 
 	/* Set the default parameters of the slot
 	 * INT0 disabled, level sensitive
@@ -313,24 +313,24 @@ static int tpci200_register(struct tpci200_board *tpci200)
 	/* Set all slot physical address space */
 	for (i = 0; i < TPCI200_NB_SLOT; i++) {
 		tpci200->slots[i].io_phys.start =
-			tpci200->mod_mem[IPACK_IO_SPACE] +
-			TPCI200_IO_SPACE_GAP * i;
+			tpci200->mod_mem[IPACK_IO_SPACE]
+			+ TPCI200_IO_SPACE_INTERVAL * i;
 		tpci200->slots[i].io_phys.size = TPCI200_IO_SPACE_SIZE;
 
 		tpci200->slots[i].id_phys.start =
-			tpci200->mod_mem[IPACK_ID_SPACE] +
-			TPCI200_ID_SPACE_GAP * i;
+			tpci200->mod_mem[IPACK_ID_SPACE]
+			+ TPCI200_ID_SPACE_INTERVAL * i;
 		tpci200->slots[i].id_phys.size = TPCI200_ID_SPACE_SIZE;
 
 		tpci200->slots[i].int_phys.start =
-			tpci200->mod_mem[IPACK_INT_SPACE] +
-			TPCI200_INT_SPACE_GAP * i;
+			tpci200->mod_mem[IPACK_INT_SPACE]
+			+ TPCI200_INT_SPACE_INTERVAL * i;
 		tpci200->slots[i].int_phys.size = TPCI200_INT_SPACE_SIZE;
 
 		tpci200->slots[i].mem_phys.start =
-			tpci200->mod_mem[IPACK_MEM_SPACE] +
-			TPCI200_MEM8_GAP * i;
-		tpci200->slots[i].mem_phys.size = TPCI200_MEM8_SIZE;
+			tpci200->mod_mem[IPACK_MEM_SPACE]
+			+ TPCI200_MEM8_SPACE_INTERVAL * i;
+		tpci200->slots[i].mem_phys.size = TPCI200_MEM8_SPACE_SIZE;
 
 		writew(slot_ctrl, &tpci200->info->interface_regs->control[i]);
 	}

@@ -49,20 +49,20 @@ struct tpci200_regs {
 #define TPCI200_IFACE_SIZE            0x100
 
 #define TPCI200_IO_SPACE_OFF          0x0000
-#define TPCI200_IO_SPACE_GAP          0x0100
+#define TPCI200_IO_SPACE_INTERVAL     0x0100
 #define TPCI200_IO_SPACE_SIZE         0x0080
 #define TPCI200_ID_SPACE_OFF          0x0080
-#define TPCI200_ID_SPACE_GAP          0x0100
+#define TPCI200_ID_SPACE_INTERVAL     0x0100
 #define TPCI200_ID_SPACE_SIZE         0x0040
 #define TPCI200_INT_SPACE_OFF         0x00C0
-#define TPCI200_INT_SPACE_GAP         0x0100
+#define TPCI200_INT_SPACE_INTERVAL    0x0100
 #define TPCI200_INT_SPACE_SIZE        0x0040
 #define TPCI200_IOIDINT_SIZE          0x0400
 
-#define TPCI200_MEM8_GAP              0x00400000
-#define TPCI200_MEM8_SIZE             0x00400000
-#define TPCI200_MEM16_GAP             0x00800000
-#define TPCI200_MEM16_SIZE            0x00800000
+#define TPCI200_MEM8_SPACE_INTERVAL   0x00400000
+#define TPCI200_MEM8_SPACE_SIZE       0x00400000
+#define TPCI200_MEM16_SPACE_INTERVAL  0x00800000
+#define TPCI200_MEM16_SPACE_SIZE      0x00800000
 
 /* control field in tpci200_regs */
 #define TPCI200_INT0_EN               0x0040
