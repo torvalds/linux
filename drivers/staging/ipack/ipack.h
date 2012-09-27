@@ -82,6 +82,7 @@ struct ipack_device {
 	struct ipack_addr_space mem_space;
 	struct device dev;
 	void (*release) (struct ipack_device *dev);
+	struct ipack_region      region[IPACK_SPACE_COUNT];
 	u8                      *id;
 	size_t			 id_avail;
 	u32			 id_vendor;
@@ -195,8 +196,9 @@ void ipack_driver_unregister(struct ipack_driver *edrv);
  *
  *	Register a new IPack device ("module" in IndustryPack jargon). The call
  *	is done by the carrier driver.  The carrier should populate the fields
- *	bus and slot of @dev prior to calling this function.  The rest of the
- *	fields will be allocated and populated during registration.
+ *	bus and slot as well as the region array of @dev prior to calling this
+ *	function.  The rest of the fields will be allocated and populated
+ *	during registration.
  *
  *	Return zero on success or error code on failure.
  */

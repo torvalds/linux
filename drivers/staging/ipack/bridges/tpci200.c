@@ -28,6 +28,20 @@ static const u16 tpci200_status_error[] = {
 	TPCI200_D_ERROR,
 };
 
+static const size_t tpci200_space_size[IPACK_SPACE_COUNT] = {
+	[IPACK_IO_SPACE]  = TPCI200_IO_SPACE_SIZE,
+	[IPACK_ID_SPACE]  = TPCI200_ID_SPACE_SIZE,
+	[IPACK_INT_SPACE] = TPCI200_INT_SPACE_SIZE,
+	[IPACK_MEM_SPACE] = TPCI200_MEM8_SPACE_SIZE,
+};
+
+static const size_t tpci200_space_interval[IPACK_SPACE_COUNT] = {
+	[IPACK_IO_SPACE]  = TPCI200_IO_SPACE_INTERVAL,
+	[IPACK_ID_SPACE]  = TPCI200_ID_SPACE_INTERVAL,
+	[IPACK_INT_SPACE] = TPCI200_INT_SPACE_INTERVAL,
+	[IPACK_MEM_SPACE] = TPCI200_MEM8_SPACE_INTERVAL,
+};
+
 static struct tpci200_board *check_slot(struct ipack_device *dev)
 {
 	struct tpci200_board *tpci200;
@@ -642,6 +656,7 @@ static void tpci200_release_device(struct ipack_device *dev)
 
 static int tpci200_create_device(struct tpci200_board *tpci200, int i)
 {
+	enum ipack_space space;
 	struct ipack_device *dev =
 		kzalloc(sizeof(struct ipack_device), GFP_KERNEL);
 	if (!dev)
@@ -649,6 +664,13 @@ static int tpci200_create_device(struct tpci200_board *tpci200, int i)
 	dev->slot = i;
 	dev->bus = tpci200->info->ipack_bus;
 	dev->release = tpci200_release_device;
+
+	for (space = 0; space < IPACK_SPACE_COUNT; space++) {
+		dev->region[space].start =
+			tpci200->mod_mem[space]
+			+ tpci200_space_interval[space] * i;
+		dev->region[space].size = tpci200_space_size[space];
+	}
 	return ipack_device_register(dev);
 }
 
