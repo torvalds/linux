@@ -80,10 +80,11 @@ struct ipack_device {
 };
 
 /**
- *	struct ipack_driver_ops -- callbacks to mezzanine driver for installing/removing one device
+ * struct ipack_driver_ops -- Callbacks to IPack device driver
  *
- *	@probe: Probe function
- *	@remove: tell the driver that the carrier board wants to remove one device
+ * @probe:  Probe function
+ * @remove: Prepare imminent removal of the device.  Services provided by the
+ *          device should be revoked.
  */
 
 struct ipack_driver_ops {
@@ -92,10 +93,10 @@ struct ipack_driver_ops {
 };
 
 /**
- *	struct ipack_driver -- Specific data to each ipack board driver
+ * struct ipack_driver -- Specific data to each ipack device driver
  *
- *	@driver: Device driver kernel representation
- *	@ops: Mezzanine driver operations specific for the ipack bus.
+ * @driver: Device driver kernel representation
+ * @ops:    Callbacks provided by the IPack device driver
  */
 struct ipack_driver {
 	struct device_driver driver;
@@ -165,7 +166,7 @@ struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 int ipack_bus_unregister(struct ipack_bus_device *bus);
 
 /**
- *	ipack_driver_register -- Register a new driver
+ * ipack_driver_register -- Register a new ipack device driver
  *
  * Called by a ipack driver to register itself as a driver
  * that can manage ipack devices.

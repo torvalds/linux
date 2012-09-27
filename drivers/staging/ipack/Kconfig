@@ -6,11 +6,14 @@ menuconfig IPACK_BUS
 	tristate "IndustryPack bus support"
 	depends on HAS_IOMEM
 	---help---
-	  If you say Y here you get support for the IndustryPack Framework
-	  for drivers for many types of boards that support this industrial
-	  bus. The IndustryPack Framework is a virtual bus allowing to
-	  communicate between carrier and mezzanine cards connected through
-	  this bus.
+	  This option provides support for the IndustryPack framework.  There
+	  are IndustryPack carrier boards, which interface another bus (such as
+	  PCI) to an IndustryPack bus, and IndustryPack modules, that are
+	  hosted on these buses.  While IndustryPack modules can provide a
+	  large variety of functionality, they are most often found in
+	  industrial control applications.
+
+	  Say N if unsure.
 
 if IPACK_BUS
 
