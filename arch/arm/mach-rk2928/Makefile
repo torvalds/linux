@@ -20,3 +20,4 @@ obj-$(CONFIG_MACH_RK2928) += board.o
 obj-$(CONFIG_MACH_RK2928_FPGA) += board-rk2928-fpga.o
 obj-$(CONFIG_MACH_RK2928_SDK) += board-rk2928-sdk.o
 obj-$(CONFIG_MACH_RK2928_A720) += board-rk2928-a720.o
+obj-$(CONFIG_MACH_RK2928_PHONEPAD) += board-rk2928-phonepad.o

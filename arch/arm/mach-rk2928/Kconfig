@@ -24,6 +24,9 @@ config MACH_RK2928_A720
 		help
 			support rk2926 m713 board with pmu act8931
 
+config MACH_RK2928_PHONEPAD
+	bool "RK2928_PhonePad board"
+
 endchoice
 
 endif
