@@ -9,15 +9,20 @@
 
 static struct syscall_fmt {
 	const char *name;
+	const char *alias;
 	bool	   errmsg;
 	bool	   timeout;
 } syscall_fmts[] = {
-	{ .name	    = "futex",	  .errmsg = true, },
-	{ .name	    = "poll",	  .errmsg = true, .timeout = true, },
-	{ .name	    = "ppoll",	  .errmsg = true, .timeout = true, },
-	{ .name	    = "read",	  .errmsg = true, },
-	{ .name	    = "recvfrom", .errmsg = true, },
-	{ .name	    = "select",	  .errmsg = true, .timeout = true, },
+	{ .name	    = "arch_prctl", .errmsg = true, .alias = "prctl", },
+	{ .name	    = "fstat",	    .errmsg = true, .alias = "newfstat", },
+	{ .name	    = "fstatat",    .errmsg = true, .alias = "newfstatat", },
+	{ .name	    = "futex",	    .errmsg = true, },
+	{ .name	    = "poll",	    .errmsg = true, .timeout = true, },
+	{ .name	    = "ppoll",	    .errmsg = true, .timeout = true, },
+	{ .name	    = "read",	    .errmsg = true, },
+	{ .name	    = "recvfrom",   .errmsg = true, },
+	{ .name	    = "select",	    .errmsg = true, .timeout = true, },
+	{ .name	    = "stat",	    .errmsg = true, .alias = "newstat", },
 };
 
 static int syscall_fmt__cmp(const void *name, const void *fmtp)
@@ -74,10 +79,15 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	if (sc->name == NULL)
 		return -1;
 
-	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
-
-	sc->tp_format = event_format__new("syscalls", tp_name);
 	sc->fmt = syscall_fmt__find(sc->name);
+
+	snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->name);
+	sc->tp_format = event_format__new("syscalls", tp_name);
+
+	if (sc->tp_format == NULL && sc->fmt && sc->fmt->alias) {
+		snprintf(tp_name, sizeof(tp_name), "sys_enter_%s", sc->fmt->alias);
+		sc->tp_format = event_format__new("syscalls", tp_name);
+	}
 
 	return sc->tp_format != NULL ? 0 : -1;
 }
