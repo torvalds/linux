@@ -351,12 +351,12 @@ static int ipack_device_read_id(struct ipack_device *dev)
 	int i;
 	int ret = 0;
 
-	ret = dev->bus->ops->map_space(dev, 0, IPACK_ID_SPACE);
-	if (ret) {
+	idmem = ioremap(dev->region[IPACK_ID_SPACE].start,
+			dev->region[IPACK_ID_SPACE].size);
+	if (!idmem) {
 		dev_err(&dev->dev, "error mapping memory\n");
 		return ret;
 	}
-	idmem = dev->id_space.address;
 
 	/* Determine ID PROM Data Format.  If we find the ids "IPAC" or "IPAH"
 	 * we are dealing with a IndustryPack  format 1 device.  If we detect
@@ -421,7 +421,7 @@ static int ipack_device_read_id(struct ipack_device *dev)
 	}
 
 out:
-	dev->bus->ops->unmap_space(dev, IPACK_ID_SPACE);
+	iounmap(idmem);
 
 	return ret;
 }

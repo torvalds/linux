@@ -53,6 +53,8 @@ struct ipoctal {
 	struct ipoctal_channel		channel[NR_CHANNELS];
 	unsigned char			write;
 	struct tty_driver		*tty_drv;
+	u8 __iomem			*mem_space;
+	u8 __iomem			*int_space;
 };
 
 static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
@@ -252,8 +254,8 @@ static irqreturn_t ipoctal_irq_handler(void *arg)
 		ipoctal_irq_channel(&ipoctal->channel[i]);
 
 	/* Clear the IPack device interrupt */
-	readw(ipoctal->dev->int_space.address + ACK_INT_REQ0);
-	readw(ipoctal->dev->int_space.address + ACK_INT_REQ1);
+	readw(ipoctal->int_space + ACK_INT_REQ0);
+	readw(ipoctal->int_space + ACK_INT_REQ1);
 
 	return IRQ_HANDLED;
 }
@@ -266,48 +268,55 @@ static const struct tty_port_operations ipoctal_tty_port_ops = {
 static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 			     unsigned int slot)
 {
-	int res = 0;
+	int res;
 	int i;
 	struct tty_driver *tty;
 	char name[20];
 	struct ipoctal_channel *channel;
+	struct ipack_region *region;
+	void __iomem *addr;
 	union scc2698_channel __iomem *chan_regs;
 	union scc2698_block __iomem *block_regs;
 
 	ipoctal->board_id = ipoctal->dev->id_device;
 
-	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev, 0,
-						IPACK_IO_SPACE);
-	if (res) {
+	region = &ipoctal->dev->region[IPACK_IO_SPACE];
+	addr = devm_ioremap_nocache(&ipoctal->dev->dev,
+				    region->start, region->size);
+	if (!addr) {
 		dev_err(&ipoctal->dev->dev,
 			"Unable to map slot [%d:%d] IO space!\n",
 			bus_nr, slot);
-		return res;
+		return -EADDRNOTAVAIL;
 	}
+	/* Save the virtual address to access the registers easily */
+	chan_regs =
+		(union scc2698_channel __iomem *) addr;
+	block_regs =
+		(union scc2698_block __iomem *) addr;
 
-	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev, 0,
-						IPACK_INT_SPACE);
-	if (res) {
+	region = &ipoctal->dev->region[IPACK_INT_SPACE];
+	ipoctal->int_space =
+		devm_ioremap_nocache(&ipoctal->dev->dev,
+				     region->start, region->size);
+	if (!ipoctal->int_space) {
 		dev_err(&ipoctal->dev->dev,
 			"Unable to map slot [%d:%d] INT space!\n",
 			bus_nr, slot);
-		goto out_unregister_io_space;
+		return -EADDRNOTAVAIL;
 	}
 
-	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev,
-					   0x8000, IPACK_MEM_SPACE);
-	if (res) {
+	region = &ipoctal->dev->region[IPACK_MEM_SPACE];
+	ipoctal->mem_space =
+		devm_ioremap_nocache(&ipoctal->dev->dev,
+				     region->start, 0x8000);
+	if (!addr) {
 		dev_err(&ipoctal->dev->dev,
 			"Unable to map slot [%d:%d] MEM space!\n",
 			bus_nr, slot);
-		goto out_unregister_int_space;
+		return -EADDRNOTAVAIL;
 	}
 
-	/* Save the virtual address to access the registers easily */
-	chan_regs =
-		(union scc2698_channel __iomem *) ipoctal->dev->io_space.address;
-	block_regs =
-		(union scc2698_block __iomem *) ipoctal->dev->io_space.address;
 
 	/* Disable RX and TX before touching anything */
 	for (i = 0; i < NR_CHANNELS ; i++) {
@@ -350,17 +359,15 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	ipoctal->dev->bus->ops->request_irq(ipoctal->dev,
 				       ipoctal_irq_handler, ipoctal);
 	/* Dummy write */
-	iowrite8(1, ipoctal->dev->mem_space.address + 1);
+	iowrite8(1, ipoctal->mem_space + 1);
 
 	/* Register the TTY device */
 
 	/* Each IP-OCTAL channel is a TTY port */
 	tty = alloc_tty_driver(NR_CHANNELS);
 
-	if (!tty) {
-		res = -ENOMEM;
-		goto out_unregister_slot_unmap;
-	}
+	if (!tty)
+		return -ENOMEM;
 
 	/* Fill struct tty_driver with ipoctal data */
 	tty->owner = THIS_MODULE;
@@ -383,7 +390,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	if (res) {
 		dev_err(&ipoctal->dev->dev, "Can't register tty driver.\n");
 		put_tty_driver(tty);
-		goto out_unregister_slot_unmap;
+		return res;
 	}
 
 	/* Save struct tty_driver for use it when uninstalling the device */
@@ -419,14 +426,6 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	}
 
 	return 0;
-
-out_unregister_slot_unmap:
-	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_MEM_SPACE);
-out_unregister_int_space:
-	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_INT_SPACE);
-out_unregister_io_space:
-	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_IO_SPACE);
-	return res;
 }
 
 static inline int ipoctal_copy_write_buffer(struct ipoctal_channel *channel,
@@ -704,9 +703,6 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 
 	tty_unregister_driver(ipoctal->tty_drv);
 	put_tty_driver(ipoctal->tty_drv);
-	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_MEM_SPACE);
-	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_INT_SPACE);
-	ipoctal->dev->bus->ops->unmap_space(ipoctal->dev, IPACK_IO_SPACE);
 	kfree(ipoctal);
 }
 
