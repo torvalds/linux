@@ -393,10 +393,10 @@ static const intel_limit_t intel_limits_vlv_hdmi = {
 };
 
 static const intel_limit_t intel_limits_vlv_dp = {
-	.dot = { .min = 162000, .max = 270000 },
-	.vco = { .min = 5994000, .max = 4000000 },
+	.dot = { .min = 25000, .max = 270000 },
+	.vco = { .min = 4000000, .max = 6000000 },
 	.n = { .min = 1, .max = 7 },
-	.m = { .min = 60, .max = 300 }, /* guess */
+	.m = { .min = 22, .max = 450 },
 	.m1 = { .min = 2, .max = 3 },
 	.m2 = { .min = 11, .max = 156 },
 	.p = { .min = 10, .max = 30 },

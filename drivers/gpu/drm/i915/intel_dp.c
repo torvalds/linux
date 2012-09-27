@@ -805,6 +805,11 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		I915_WRITE(TRANSDATA_N1(pipe), m_n.gmch_n);
 		I915_WRITE(TRANSDPLINK_M1(pipe), m_n.link_m);
 		I915_WRITE(TRANSDPLINK_N1(pipe), m_n.link_n);
+	} else if (IS_VALLEYVIEW(dev)) {
+		I915_WRITE(PIPE_DATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
+		I915_WRITE(PIPE_DATA_N1(pipe), m_n.gmch_n);
+		I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
+		I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
 	} else {
 		I915_WRITE(PIPE_GMCH_DATA_M(pipe),
 			   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
