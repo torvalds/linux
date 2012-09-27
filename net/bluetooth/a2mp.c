@@ -271,6 +271,35 @@ static int a2mp_getinfo_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	return 0;
 }
 
+static int a2mp_getinfo_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
+			    struct a2mp_cmd *hdr)
+{
+	struct a2mp_info_rsp *rsp = (struct a2mp_info_rsp *) skb->data;
+	struct a2mp_amp_assoc_req req;
+	struct amp_ctrl *ctrl;
+
+	if (le16_to_cpu(hdr->len) < sizeof(*rsp))
+		return -EINVAL;
+
+	BT_DBG("id %d status 0x%2.2x", rsp->id, rsp->status);
+
+	if (rsp->status)
+		return -EINVAL;
+
+	ctrl = amp_ctrl_add(mgr);
+	if (!ctrl)
+		return -ENOMEM;
+
+	ctrl->id = rsp->id;
+
+	req.id = rsp->id;
+	a2mp_send(mgr, A2MP_GETAMPASSOC_REQ, __next_ident(mgr), sizeof(req),
+		  &req);
+
+	skb_pull(skb, sizeof(*rsp));
+	return 0;
+}
+
 static int a2mp_getampassoc_req(struct amp_mgr *mgr, struct sk_buff *skb,
 				struct a2mp_cmd *hdr)
 {
@@ -469,8 +498,11 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 			err = a2mp_discover_rsp(mgr, skb, hdr);
 			break;
 
-		case A2MP_CHANGE_RSP:
 		case A2MP_GETINFO_RSP:
+			err = a2mp_getinfo_rsp(mgr, skb, hdr);
+			break;
+
+		case A2MP_CHANGE_RSP:
 		case A2MP_GETAMPASSOC_RSP:
 		case A2MP_CREATEPHYSLINK_RSP:
 		case A2MP_DISCONNPHYSLINK_RSP:
