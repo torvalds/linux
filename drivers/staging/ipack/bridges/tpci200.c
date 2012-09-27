@@ -640,6 +640,23 @@ static int tpci200_install(struct tpci200_board *tpci200)
 	return 0;
 }
 
+static void tpci200_release_device(struct ipack_device *dev)
+{
+	kfree(dev);
+}
+
+static int tpci200_create_device(struct tpci200_board *tpci200, int i)
+{
+	struct ipack_device *dev =
+		kzalloc(sizeof(struct ipack_device), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+	dev->slot = i;
+	dev->bus = tpci200->info->ipack_bus;
+	dev->release = tpci200_release_device;
+	return ipack_device_register(dev);
+}
+
 static int tpci200_pci_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
@@ -715,7 +732,7 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 	dev_set_drvdata(&pdev->dev, tpci200);
 
 	for (i = 0; i < TPCI200_NB_SLOT; i++)
-		ipack_device_register(tpci200->info->ipack_bus, i);
+		tpci200_create_device(tpci200, i);
 	return 0;
 
 out_err_bus_register:

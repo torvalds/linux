@@ -24,7 +24,7 @@ static void ipack_device_release(struct device *dev)
 {
 	struct ipack_device *device = to_ipack_dev(dev);
 	kfree(device->id);
-	kfree(device);
+	device->release(device);
 }
 
 static inline const struct ipack_device_id *
@@ -426,51 +426,39 @@ out:
 	return ret;
 }
 
-struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
-					   int slot)
+int ipack_device_register(struct ipack_device *dev)
 {
 	int ret;
-	struct ipack_device *dev;
-
-	dev = kzalloc(sizeof(struct ipack_device), GFP_KERNEL);
-	if (!dev)
-		return NULL;
 
 	dev->dev.bus = &ipack_bus_type;
 	dev->dev.release = ipack_device_release;
-	dev->dev.parent = bus->parent;
-	dev->slot = slot;
-	dev->bus = bus;
+	dev->dev.parent = dev->bus->parent;
 	dev_set_name(&dev->dev,
 		     "ipack-dev.%u.%u", dev->bus->bus_nr, dev->slot);
 
-	if (bus->ops->set_clockrate(dev, 8))
+	if (dev->bus->ops->set_clockrate(dev, 8))
 		dev_warn(&dev->dev, "failed to switch to 8 MHz operation for reading of device ID.\n");
-	if (bus->ops->reset_timeout(dev))
+	if (dev->bus->ops->reset_timeout(dev))
 		dev_warn(&dev->dev, "failed to reset potential timeout.");
 
 	ret = ipack_device_read_id(dev);
 	if (ret < 0) {
 		dev_err(&dev->dev, "error reading device id section.\n");
-		kfree(dev);
-		return NULL;
+		return ret;
 	}
 
 	/* if the device supports 32 MHz operation, use it. */
 	if (dev->speed_32mhz) {
-		ret = bus->ops->set_clockrate(dev, 32);
+		ret = dev->bus->ops->set_clockrate(dev, 32);
 		if (ret < 0)
 			dev_err(&dev->dev, "failed to switch to 32 MHz operation.\n");
 	}
 
 	ret = device_register(&dev->dev);
-	if (ret < 0) {
+	if (ret < 0)
 		kfree(dev->id);
-		kfree(dev);
-		return NULL;
-	}
 
-	return dev;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(ipack_device_register);
 
