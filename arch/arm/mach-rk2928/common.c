@@ -15,6 +15,7 @@
 #include <mach/fiq.h>
 #include <mach/loader.h>
 #include <mach/ddr.h>
+#include <mach/cpu.h>
 
 static void __init rk2928_cpu_axi_init(void)
 {
@@ -109,6 +110,7 @@ void __init rk2928_init_irq(void)
 	rk_fiq_init();
 #endif
 	rk30_gpio_init();
+        soc_gpio_init();
 }
 
 extern void __init rk2928_map_common_io(void);
