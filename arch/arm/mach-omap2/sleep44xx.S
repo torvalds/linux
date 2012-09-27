@@ -56,9 +56,13 @@ ppa_por_params:
  * The restore function pointer is stored at CPUx_WAKEUP_NS_PA_ADDR_OFFSET.
  * It returns to the caller for CPU INACTIVE and ON power states or in case
  * CPU failed to transition to targeted OFF/DORMANT state.
+ *
+ * omap4_finish_suspend() calls v7_flush_dcache_all() which doesn't save
+ * stack frame and it expects the caller to take care of it. Hence the entire
+ * stack frame is saved to avoid possible stack corruption.
  */
 ENTRY(omap4_finish_suspend)
-	stmfd	sp!, {lr}
+	stmfd	sp!, {r4-r12, lr}
 	cmp	r0, #0x0
 	beq	do_WFI				@ No lowpower state, jump to WFI
 
@@ -226,7 +230,7 @@ scu_gp_clear:
 skip_scu_gp_clear:
 	isb
 	dsb
-	ldmfd	sp!, {pc}
+	ldmfd	sp!, {r4-r12, pc}
 ENDPROC(omap4_finish_suspend)
 
 /*
