@@ -423,9 +423,7 @@ no_timer:
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_bh(&vcpu->arch.local_int.lock);
 		spin_unlock(&vcpu->arch.local_int.float_int->lock);
-		vcpu_put(vcpu);
 		schedule();
-		vcpu_load(vcpu);
 		spin_lock(&vcpu->arch.local_int.float_int->lock);
 		spin_lock_bh(&vcpu->arch.local_int.lock);
 	}
