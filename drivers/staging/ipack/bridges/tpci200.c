@@ -89,13 +89,13 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 	pci_dev_put(tpci200->info->pdev);
 
 	for (i = 0; i < TPCI200_NB_SLOT; i++) {
-		tpci200->slots[i].io_phys.address = NULL;
+		tpci200->slots[i].io_phys.start = 0;
 		tpci200->slots[i].io_phys.size = 0;
-		tpci200->slots[i].id_phys.address = NULL;
+		tpci200->slots[i].id_phys.start = 0;
 		tpci200->slots[i].id_phys.size = 0;
-		tpci200->slots[i].int_phys.address = NULL;
+		tpci200->slots[i].int_phys.start = 0;
 		tpci200->slots[i].int_phys.size = 0;
-		tpci200->slots[i].mem_phys.address = NULL;
+		tpci200->slots[i].mem_phys.start = 0;
 		tpci200->slots[i].mem_phys.size = 0;
 	}
 }
@@ -241,8 +241,8 @@ static int tpci200_register(struct tpci200_board *tpci200)
 {
 	int i;
 	int res;
-	unsigned long ioidint_base;
-	unsigned long mem_base;
+	phys_addr_t ioidint_base;
+	phys_addr_t mem_base;
 	unsigned short slot_ctrl;
 
 	if (pci_enable_device(tpci200->info->pdev) < 0)
@@ -308,23 +308,20 @@ static int tpci200_register(struct tpci200_board *tpci200)
 
 	/* Set all slot physical address space */
 	for (i = 0; i < TPCI200_NB_SLOT; i++) {
-		tpci200->slots[i].io_phys.address =
-			(void __iomem *)ioidint_base +
+		tpci200->slots[i].io_phys.start = ioidint_base +
 			TPCI200_IO_SPACE_OFF + TPCI200_IO_SPACE_GAP*i;
 		tpci200->slots[i].io_phys.size = TPCI200_IO_SPACE_SIZE;
 
-		tpci200->slots[i].id_phys.address =
-			(void __iomem *)ioidint_base +
+		tpci200->slots[i].id_phys.start = ioidint_base +
 			TPCI200_ID_SPACE_OFF + TPCI200_ID_SPACE_GAP*i;
 		tpci200->slots[i].id_phys.size = TPCI200_ID_SPACE_SIZE;
 
-		tpci200->slots[i].int_phys.address =
-			(void __iomem *)ioidint_base +
+		tpci200->slots[i].int_phys.start = ioidint_base +
 			TPCI200_INT_SPACE_OFF + TPCI200_INT_SPACE_GAP * i;
 		tpci200->slots[i].int_phys.size = TPCI200_INT_SPACE_SIZE;
 
-		tpci200->slots[i].mem_phys.address =
-			(void __iomem *)mem_base + TPCI200_MEM8_GAP*i;
+		tpci200->slots[i].mem_phys.start = mem_base +
+			TPCI200_MEM8_GAP * i;
 		tpci200->slots[i].mem_phys.size = TPCI200_MEM8_SIZE;
 
 		writew(slot_ctrl, &tpci200->info->interface_regs->control[i]);
@@ -419,11 +416,11 @@ out_unlock:
 }
 
 static int tpci200_slot_map_space(struct ipack_device *dev,
-				  unsigned int memory_size, int space)
+				  ssize_t memory_size, int space)
 {
 	int res = 0;
-	unsigned int size_to_map;
-	void __iomem *phys_address;
+	size_t size_to_map;
+	phys_addr_t phys_address;
 	struct ipack_addr_space *virt_addr_space;
 	struct tpci200_board *tpci200;
 
@@ -445,7 +442,7 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 		}
 		virt_addr_space = &dev->io_space;
 
-		phys_address = tpci200->slots[dev->slot].io_phys.address;
+		phys_address = tpci200->slots[dev->slot].io_phys.start;
 		size_to_map = tpci200->slots[dev->slot].io_phys.size;
 		break;
 	case IPACK_ID_SPACE:
@@ -458,7 +455,7 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 		}
 		virt_addr_space = &dev->id_space;
 
-		phys_address = tpci200->slots[dev->slot].id_phys.address;
+		phys_address = tpci200->slots[dev->slot].id_phys.start;
 		size_to_map = tpci200->slots[dev->slot].id_phys.size;
 		break;
 	case IPACK_INT_SPACE:
@@ -471,7 +468,7 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 		}
 		virt_addr_space = &dev->int_space;
 
-		phys_address = tpci200->slots[dev->slot].int_phys.address;
+		phys_address = tpci200->slots[dev->slot].int_phys.start;
 		size_to_map = tpci200->slots[dev->slot].int_phys.size;
 		break;
 	case IPACK_MEM_SPACE:
@@ -486,14 +483,14 @@ static int tpci200_slot_map_space(struct ipack_device *dev,
 
 		if (memory_size > tpci200->slots[dev->slot].mem_phys.size) {
 			dev_err(&dev->dev,
-				"Slot [%d:%d] request is 0x%X memory, only 0x%X available !\n",
+				"Slot [%d:%d] request is 0x%zX memory, only 0x%zX available !\n",
 				dev->bus->bus_nr, dev->slot, memory_size,
 				tpci200->slots[dev->slot].mem_phys.size);
 			res = -EINVAL;
 			goto out_unlock;
 		}
 
-		phys_address = tpci200->slots[dev->slot].mem_phys.address;
+		phys_address = tpci200->slots[dev->slot].mem_phys.start;
 		size_to_map = memory_size;
 		break;
 	default:

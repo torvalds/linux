@@ -137,11 +137,11 @@ struct slot_irq {
  *
  */
 struct tpci200_slot {
-	struct slot_irq		*irq;
-	struct ipack_addr_space io_phys;
-	struct ipack_addr_space id_phys;
-	struct ipack_addr_space int_phys;
-	struct ipack_addr_space mem_phys;
+	struct slot_irq	    *irq;
+	struct ipack_region  io_phys;
+	struct ipack_region  id_phys;
+	struct ipack_region  int_phys;
+	struct ipack_region  mem_phys;
 };
 
 /**

@@ -50,6 +50,13 @@ struct ipack_addr_space {
 };
 
 /**
+ */
+struct ipack_region {
+	phys_addr_t start;
+	size_t      size;
+};
+
+/**
  *	struct ipack_device
  *
  *	@slot: Slot where the device is plugged in the carrier board
@@ -124,7 +131,7 @@ struct ipack_driver {
  *	@reset_timeout: Resets the state returned by get_timeout.
  */
 struct ipack_bus_ops {
-	int (*map_space) (struct ipack_device *dev, unsigned int memory_size, int space);
+	int (*map_space) (struct ipack_device *dev, ssize_t memory_size, int space);
 	int (*unmap_space) (struct ipack_device *dev, int space);
 	int (*request_irq) (struct ipack_device *dev,
 			    irqreturn_t (*handler)(void *), void *arg);
