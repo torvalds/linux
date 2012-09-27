@@ -1350,10 +1350,7 @@ static int isp_enable_clocks(struct isp_device *isp)
 	 * has to be twice of what is set on OMAP3430 to get
 	 * the required value for cam_mclk
 	 */
-	if (cpu_is_omap3630())
-		divisor = 1;
-	else
-		divisor = 2;
+	divisor = isp->revision == ISP_REVISION_15_0 ? 1 : 2;
 
 	r = clk_prepare_enable(isp->clock[ISP_CLK_CAM_ICK]);
 	if (r) {
@@ -2111,7 +2108,11 @@ static int __devinit isp_probe(struct platform_device *pdev)
 	isp->isp_csiphy1.vdd = regulator_get(&pdev->dev, "VDD_CSIPHY1");
 	isp->isp_csiphy2.vdd = regulator_get(&pdev->dev, "VDD_CSIPHY2");
 
-	/* Clocks */
+	/* Clocks
+	 *
+	 * The ISP clock tree is revision-dependent. We thus need to enable ICLK
+	 * manually to read the revision before calling __omap3isp_get().
+	 */
 	ret = isp_map_mem_resource(pdev, isp, OMAP3_ISP_IOMEM_MAIN);
 	if (ret < 0)
 		goto error;
@@ -2119,6 +2120,16 @@ static int __devinit isp_probe(struct platform_device *pdev)
 	ret = isp_get_clocks(isp);
 	if (ret < 0)
 		goto error;
+
+	ret = clk_enable(isp->clock[ISP_CLK_CAM_ICK]);
+	if (ret < 0)
+		goto error;
+
+	isp->revision = isp_reg_readl(isp, OMAP3_ISP_IOMEM_MAIN, ISP_REVISION);
+	dev_info(isp->dev, "Revision %d.%d found\n",
+		 (isp->revision & 0xf0) >> 4, isp->revision & 0x0f);
+
+	clk_disable(isp->clock[ISP_CLK_CAM_ICK]);
 
 	if (__omap3isp_get(isp, false) == NULL) {
 		ret = -ENODEV;
@@ -2130,10 +2141,6 @@ static int __devinit isp_probe(struct platform_device *pdev)
 		goto error_isp;
 
 	/* Memory resources */
-	isp->revision = isp_reg_readl(isp, OMAP3_ISP_IOMEM_MAIN, ISP_REVISION);
-	dev_info(isp->dev, "Revision %d.%d found\n",
-		 (isp->revision & 0xf0) >> 4, isp->revision & 0x0f);
-
 	for (m = 0; m < ARRAY_SIZE(isp_res_maps); m++)
 		if (isp->revision == isp_res_maps[m].isp_rev)
 			break;
