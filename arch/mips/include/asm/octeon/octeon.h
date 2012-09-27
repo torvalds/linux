@@ -254,4 +254,7 @@ extern uint64_t octeon_bootloader_entry_addr;
 
 extern void (*octeon_irq_setup_secondary)(void);
 
+typedef void (*octeon_irq_ip4_handler_t)(void);
+void octeon_irq_set_ip4_handler(octeon_irq_ip4_handler_t);
+
 #endif /* __ASM_OCTEON_OCTEON_H */
