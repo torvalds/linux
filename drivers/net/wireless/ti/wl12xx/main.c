@@ -1714,17 +1714,7 @@ static struct platform_driver wl12xx_driver = {
 	}
 };
 
-static int __init wl12xx_init(void)
-{
-	return platform_driver_register(&wl12xx_driver);
-}
-module_init(wl12xx_init);
-
-static void __exit wl12xx_exit(void)
-{
-	platform_driver_unregister(&wl12xx_driver);
-}
-module_exit(wl12xx_exit);
+module_platform_driver(wl12xx_driver);
 
 module_param_named(fref, fref_param, charp, 0);
 MODULE_PARM_DESC(fref, "FREF clock: 19.2, 26, 26x, 38.4, 38.4x, 52");
