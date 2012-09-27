@@ -1085,8 +1085,6 @@ int __init am33xx_clk_init(void)
 		cpu_clkflg = CK_AM33XX;
 	}
 
-	clk_init(&omap2_clk_functions);
-
 	for (c = am33xx_clks; c < am33xx_clks + ARRAY_SIZE(am33xx_clks); c++)
 		clk_preinit(c->lk.clk);
 

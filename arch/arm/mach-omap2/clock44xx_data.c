@@ -3366,8 +3366,6 @@ int __init omap4xxx_clk_init(void)
 		return 0;
 	}
 
-	clk_init(&omap2_clk_functions);
-
 	/*
 	 * Must stay commented until all OMAP SoC drivers are
 	 * converted to runtime PM, or drivers may start crashing

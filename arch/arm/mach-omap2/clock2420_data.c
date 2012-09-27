@@ -1935,8 +1935,6 @@ int __init omap2420_clk_init(void)
 	cpu_mask = RATE_IN_242X;
 	rate_table = omap2420_rate_table;
 
-	clk_init(&omap2_clk_functions);
-
 	for (c = omap2420_clks; c < omap2420_clks + ARRAY_SIZE(omap2420_clks);
 	     c++)
 		clk_preinit(c->lk.clk);

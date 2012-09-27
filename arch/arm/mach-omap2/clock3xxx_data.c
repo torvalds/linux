@@ -3573,8 +3573,6 @@ int __init omap3xxx_clk_init(void)
 	else
 		dpll4_dd = dpll4_dd_34xx;
 
-	clk_init(&omap2_clk_functions);
-
 	for (c = omap3xxx_clks; c < omap3xxx_clks + ARRAY_SIZE(omap3xxx_clks);
 	     c++)
 		clk_preinit(c->lk.clk);
