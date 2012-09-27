@@ -189,7 +189,7 @@ struct s3c_fb_vsync {
 
 /**
  * struct s3c_fb - overall hardware state of the hardware
- * @slock: The spinlock protection for this data sturucture.
+ * @slock: The spinlock protection for this data structure.
  * @dev: The device that we bound to, for printing, etc.
  * @bus_clk: The clk (hclk) feeding our interface and possibly pixclk.
  * @lcd_clk: The clk (sclk) feeding pixclk.
