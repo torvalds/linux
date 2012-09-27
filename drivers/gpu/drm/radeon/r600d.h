@@ -590,9 +590,59 @@
 #define         WAIT_2D_IDLECLEAN_bit                           (1 << 16)
 #define         WAIT_3D_IDLECLEAN_bit                           (1 << 17)
 
+/* async DMA */
+#define DMA_TILING_CONFIG                                 0x3ec4
+#define DMA_CONFIG                                        0x3e4c
+
+#define DMA_RB_CNTL                                       0xd000
+#       define DMA_RB_ENABLE                              (1 << 0)
+#       define DMA_RB_SIZE(x)                             ((x) << 1) /* log2 */
+#       define DMA_RB_SWAP_ENABLE                         (1 << 9) /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_ENABLE                  (1 << 12)
+#       define DMA_RPTR_WRITEBACK_SWAP_ENABLE             (1 << 13)  /* 8IN32 */
+#       define DMA_RPTR_WRITEBACK_TIMER(x)                ((x) << 16) /* log2 */
+#define DMA_RB_BASE                                       0xd004
+#define DMA_RB_RPTR                                       0xd008
+#define DMA_RB_WPTR                                       0xd00c
+
+#define DMA_RB_RPTR_ADDR_HI                               0xd01c
+#define DMA_RB_RPTR_ADDR_LO                               0xd020
+
+#define DMA_IB_CNTL                                       0xd024
+#       define DMA_IB_ENABLE                              (1 << 0)
+#       define DMA_IB_SWAP_ENABLE                         (1 << 4)
+#define DMA_IB_RPTR                                       0xd028
+#define DMA_CNTL                                          0xd02c
+#       define TRAP_ENABLE                                (1 << 0)
+#       define SEM_INCOMPLETE_INT_ENABLE                  (1 << 1)
+#       define SEM_WAIT_INT_ENABLE                        (1 << 2)
+#       define DATA_SWAP_ENABLE                           (1 << 3)
+#       define FENCE_SWAP_ENABLE                          (1 << 4)
+#       define CTXEMPTY_INT_ENABLE                        (1 << 28)
+#define DMA_STATUS_REG                                    0xd034
+#       define DMA_IDLE                                   (1 << 0)
+#define DMA_SEM_INCOMPLETE_TIMER_CNTL                     0xd044
+#define DMA_SEM_WAIT_FAIL_TIMER_CNTL                      0xd048
+#define DMA_MODE                                          0xd0bc
+
+/* async DMA packets */
+#define DMA_PACKET(cmd, t, s, n)	((((cmd) & 0xF) << 28) |	\
+					 (((t) & 0x1) << 23) |		\
+					 (((s) & 0x1) << 22) |		\
+					 (((n) & 0xFFFF) << 0))
+/* async DMA Packet types */
+#define	DMA_PACKET_WRITE				  0x2
+#define	DMA_PACKET_COPY					  0x3
+#define	DMA_PACKET_INDIRECT_BUFFER			  0x4
+#define	DMA_PACKET_SEMAPHORE				  0x5
+#define	DMA_PACKET_FENCE				  0x6
+#define	DMA_PACKET_TRAP					  0x7
+#define	DMA_PACKET_CONSTANT_FILL			  0xd /* 7xx only */
+#define	DMA_PACKET_NOP					  0xf
+
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
-#       define IH_IB_SIZE(x)                              ((x) << 1) /* log2 */
+#       define IH_RB_SIZE(x)                              ((x) << 1) /* log2 */
 #       define IH_RB_FULL_DRAIN_ENABLE                    (1 << 6)
 #       define IH_WPTR_WRITEBACK_ENABLE                   (1 << 8)
 #       define IH_WPTR_WRITEBACK_TIMER(x)                 ((x) << 9) /* log2 */
@@ -637,7 +687,9 @@
 #define TN_RLC_CLEAR_STATE_RESTORE_BASE                   0x3f20
 
 #define SRBM_SOFT_RESET                                   0xe60
+#       define SOFT_RESET_DMA                             (1 << 12)
 #       define SOFT_RESET_RLC                             (1 << 13)
+#       define RV770_SOFT_RESET_DMA                       (1 << 20)
 
 #define CP_INT_CNTL                                       0xc124
 #       define CNTX_BUSY_INT_ENABLE                       (1 << 19)

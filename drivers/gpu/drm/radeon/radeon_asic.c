@@ -947,6 +947,15 @@ static struct radeon_asic r600_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &r600_gpu_is_lockup,
+		},
+		[R600_RING_TYPE_DMA_INDEX] = {
+			.ib_execute = &r600_dma_ring_ib_execute,
+			.emit_fence = &r600_dma_fence_ring_emit,
+			.emit_semaphore = &r600_dma_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_dma_ring_test,
+			.ib_test = &r600_dma_ib_test,
+			.is_lockup = &r600_dma_is_lockup,
 		}
 	},
 	.irq = {
@@ -963,8 +972,8 @@ static struct radeon_asic r600_asic = {
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
-		.dma = NULL,
-		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = &r600_copy_dma,
+		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
@@ -1022,6 +1031,15 @@ static struct radeon_asic rs780_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &r600_gpu_is_lockup,
+		},
+		[R600_RING_TYPE_DMA_INDEX] = {
+			.ib_execute = &r600_dma_ring_ib_execute,
+			.emit_fence = &r600_dma_fence_ring_emit,
+			.emit_semaphore = &r600_dma_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_dma_ring_test,
+			.ib_test = &r600_dma_ib_test,
+			.is_lockup = &r600_dma_is_lockup,
 		}
 	},
 	.irq = {
@@ -1038,8 +1056,8 @@ static struct radeon_asic rs780_asic = {
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
-		.dma = NULL,
-		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = &r600_copy_dma,
+		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
@@ -1097,6 +1115,15 @@ static struct radeon_asic rv770_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &r600_gpu_is_lockup,
+		},
+		[R600_RING_TYPE_DMA_INDEX] = {
+			.ib_execute = &r600_dma_ring_ib_execute,
+			.emit_fence = &r600_dma_fence_ring_emit,
+			.emit_semaphore = &r600_dma_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_dma_ring_test,
+			.ib_test = &r600_dma_ib_test,
+			.is_lockup = &r600_dma_is_lockup,
 		}
 	},
 	.irq = {
@@ -1113,8 +1140,8 @@ static struct radeon_asic rv770_asic = {
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
-		.dma = NULL,
-		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = &r600_copy_dma,
+		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},

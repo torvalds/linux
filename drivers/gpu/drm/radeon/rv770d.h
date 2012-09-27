@@ -109,6 +109,9 @@
 #define     PIPE_TILING__SHIFT              1
 #define     PIPE_TILING__MASK               0x0000000e
 
+#define DMA_TILING_CONFIG                               0x3ec8
+#define DMA_TILING_CONFIG2                              0xd0b8
+
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)
 #define		INACTIVE_QD_PIPES_MASK				0x0000FF00
@@ -357,6 +360,26 @@
 #define		L2_BUSY						(1 << 0)
 
 #define	WAIT_UNTIL					0x8040
+
+/* async DMA */
+#define DMA_RB_RPTR                                       0xd008
+#define DMA_RB_WPTR                                       0xd00c
+
+/* async DMA packets */
+#define DMA_PACKET(cmd, t, s, n)	((((cmd) & 0xF) << 28) |	\
+					 (((t) & 0x1) << 23) |		\
+					 (((s) & 0x1) << 22) |		\
+					 (((n) & 0xFFFF) << 0))
+/* async DMA Packet types */
+#define	DMA_PACKET_WRITE				  0x2
+#define	DMA_PACKET_COPY					  0x3
+#define	DMA_PACKET_INDIRECT_BUFFER			  0x4
+#define	DMA_PACKET_SEMAPHORE				  0x5
+#define	DMA_PACKET_FENCE				  0x6
+#define	DMA_PACKET_TRAP					  0x7
+#define	DMA_PACKET_CONSTANT_FILL			  0xd
+#define	DMA_PACKET_NOP					  0xf
+
 
 #define	SRBM_STATUS				        0x0E50
 

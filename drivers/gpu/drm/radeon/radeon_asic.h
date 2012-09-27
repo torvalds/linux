@@ -309,6 +309,14 @@ void r600_semaphore_ring_emit(struct radeon_device *rdev,
 			      struct radeon_ring *cp,
 			      struct radeon_semaphore *semaphore,
 			      bool emit_wait);
+void r600_dma_fence_ring_emit(struct radeon_device *rdev,
+			      struct radeon_fence *fence);
+void r600_dma_semaphore_ring_emit(struct radeon_device *rdev,
+				  struct radeon_ring *ring,
+				  struct radeon_semaphore *semaphore,
+				  bool emit_wait);
+void r600_dma_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
+bool r600_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
 bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 int r600_asic_reset(struct radeon_device *rdev);
 int r600_set_surface_reg(struct radeon_device *rdev, int reg,
@@ -316,11 +324,16 @@ int r600_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t offset, uint32_t obj_size);
 void r600_clear_surface_reg(struct radeon_device *rdev, int reg);
 int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
+int r600_dma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
+int r600_dma_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_gpu_pages, struct radeon_fence **fence);
+int r600_copy_dma(struct radeon_device *rdev,
+		  uint64_t src_offset, uint64_t dst_offset,
+		  unsigned num_gpu_pages, struct radeon_fence **fence);
 void r600_hpd_init(struct radeon_device *rdev);
 void r600_hpd_fini(struct radeon_device *rdev);
 bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
