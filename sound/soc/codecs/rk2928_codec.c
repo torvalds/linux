@@ -155,8 +155,8 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 			}
 			else {
 				rk2928_write(codec, CODEC_REG_ADC_PGA_GAIN, 0xFF);
-//				rk2928_write(codec, 0x08, 0xff);
-//				rk2928_write(codec, 0x09, 0x07);
+				rk2928_write(codec, 0x08, 0xff);
+				rk2928_write(codec, 0x09, 0x07);
 			}
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
