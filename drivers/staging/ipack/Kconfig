@@ -14,7 +14,7 @@ menuconfig IPACK_BUS
 
 if IPACK_BUS
 
-source "drivers/staging/ipack/bridges/Kconfig"
+source "drivers/staging/ipack/carriers/Kconfig"
 
 source "drivers/staging/ipack/devices/Kconfig"
 
