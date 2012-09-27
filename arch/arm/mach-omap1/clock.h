@@ -16,8 +16,33 @@
 #include <linux/clk.h>
 #include <linux/list.h>
 
+#include <linux/clkdev.h>
+
 struct module;
 struct clk;
+
+struct omap_clk {
+	u16				cpu;
+	struct clk_lookup		lk;
+};
+
+#define CLK(dev, con, ck, cp)		\
+	{				\
+		 .cpu = cp,		\
+		.lk = {			\
+			.dev_id = dev,	\
+			.con_id = con,	\
+			.clk = ck,	\
+		},			\
+	}
+
+/* Platform flags for the clkdev-OMAP integration code */
+#define CK_310		(1 << 0)
+#define CK_7XX		(1 << 1)	/* 7xx, 850 */
+#define CK_1510		(1 << 2)
+#define CK_16XX		(1 << 3)	/* 16xx, 17xx, 5912 */
+#define CK_1710		(1 << 4)	/* 1710 extra for rate selection */
+
 
 /* Temporary, needed during the common clock framework conversion */
 #define __clk_get_name(clk)	(clk->name)

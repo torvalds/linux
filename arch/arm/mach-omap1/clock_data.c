@@ -23,7 +23,6 @@
 #include <asm/mach-types.h>  /* for machine_is_* */
 
 #include <plat/cpu.h>
-#include <plat/clkdev_omap.h>
 
 #include <mach/hardware.h>
 #include <mach/usb.h>   /* for OTG_BASE */
