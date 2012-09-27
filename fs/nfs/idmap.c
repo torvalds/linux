@@ -330,7 +330,6 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 		ret = nfs_idmap_request_key(&key_type_id_resolver_legacy,
 					    name, namelen, type, data,
 					    data_size, idmap);
-		idmap->idmap_key_cons = NULL;
 		mutex_unlock(&idmap->idmap_mutex);
 	}
 	return ret;
@@ -662,6 +661,34 @@ out:
 	return ret;
 }
 
+static bool
+nfs_idmap_prepare_pipe_upcall(struct idmap *idmap,
+		struct key_construction *cons)
+{
+	if (idmap->idmap_key_cons != NULL) {
+		WARN_ON_ONCE(1);
+		return false;
+	}
+	idmap->idmap_key_cons = cons;
+	return true;
+}
+
+static void
+nfs_idmap_complete_pipe_upcall_locked(struct idmap *idmap, int ret)
+{
+	struct key_construction *cons = idmap->idmap_key_cons;
+
+	idmap->idmap_key_cons = NULL;
+	complete_request_key(cons, ret);
+}
+
+static void
+nfs_idmap_abort_pipe_upcall(struct idmap *idmap, int ret)
+{
+	if (idmap->idmap_key_cons != NULL)
+		nfs_idmap_complete_pipe_upcall_locked(idmap, ret);
+}
+
 static int nfs_idmap_legacy_upcall(struct key_construction *cons,
 				   const char *op,
 				   void *aux)
@@ -686,21 +713,17 @@ static int nfs_idmap_legacy_upcall(struct key_construction *cons,
 	if (ret < 0)
 		goto out2;
 
-	if (idmap->idmap_key_cons != NULL) {
-		WARN_ON_ONCE(1);
-		ret = -EAGAIN;
+	ret = -EAGAIN;
+	if (!nfs_idmap_prepare_pipe_upcall(idmap, cons))
 		goto out2;
-	}
-	idmap->idmap_key_cons = cons;
 
 	ret = rpc_queue_upcall(idmap->idmap_pipe, msg);
-	if (ret < 0)
-		goto out3;
+	if (ret < 0) {
+		nfs_idmap_abort_pipe_upcall(idmap, ret);
+		kfree(data);
+	}
 
 	return ret;
-
-out3:
-	idmap->idmap_key_cons = NULL;
 out2:
 	kfree(data);
 out1:
@@ -741,14 +764,15 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	struct key_construction *cons;
 	struct idmap_msg im;
 	size_t namelen_in;
-	int ret;
+	int ret = -ENOKEY;
 
 	/* If instantiation is successful, anyone waiting for key construction
 	 * will have been woken up and someone else may now have used
 	 * idmap_key_cons - so after this point we may no longer touch it.
 	 */
 	cons = idmap->idmap_key_cons;
-	idmap->idmap_key_cons = NULL;
+	if (cons == NULL)
+		goto out_noupcall;
 
 	if (mlen != sizeof(im)) {
 		ret = -ENOSPC;
@@ -778,7 +802,8 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	}
 
 out:
-	complete_request_key(cons, ret);
+	nfs_idmap_complete_pipe_upcall_locked(idmap, ret);
+out_noupcall:
 	return ret;
 }
 
@@ -789,12 +814,9 @@ idmap_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 			struct idmap_legacy_upcalldata,
 			pipe_msg);
 	struct idmap *idmap = data->idmap;
-	struct key_construction *cons;
-	if (msg->errno) {
-		cons = idmap->idmap_key_cons;
-		idmap->idmap_key_cons = NULL;
-		complete_request_key(cons, msg->errno);
-	}
+
+	if (msg->errno)
+		nfs_idmap_abort_pipe_upcall(idmap, msg->errno);
 	/* Free memory allocated in nfs_idmap_legacy_upcall() */
 	kfree(data);
 }
@@ -804,7 +826,8 @@ idmap_release_pipe(struct inode *inode)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
 	struct idmap *idmap = (struct idmap *)rpci->private;
-	idmap->idmap_key_cons = NULL;
+
+	nfs_idmap_abort_pipe_upcall(idmap, -EPIPE);
 }
 
 int nfs_map_name_to_uid(const struct nfs_server *server, const char *name, size_t namelen, __u32 *uid)
