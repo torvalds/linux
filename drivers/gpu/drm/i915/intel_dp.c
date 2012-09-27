@@ -886,7 +886,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	/* Split out the IBX/CPU vs CPT settings */
 
-	if (is_cpu_edp(intel_dp) && IS_GEN7(dev)) {
+	if (is_cpu_edp(intel_dp) && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 			intel_dp->DP |= DP_SYNC_HS_HIGH;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
@@ -1475,7 +1475,7 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 
-	if (IS_GEN7(dev) && is_cpu_edp(intel_dp)) {
+	if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_400:
 			return DP_TRAIN_PRE_EMPHASIS_6;
@@ -1774,7 +1774,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		uint32_t    signal_levels;
 
 
-		if (IS_GEN7(dev) && is_cpu_edp(intel_dp)) {
+		if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
 			signal_levels = intel_gen7_edp_signal_levels(intel_dp->train_set[0]);
 			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_IVB) | signal_levels;
 		} else if (IS_GEN6(dev) && is_cpu_edp(intel_dp)) {
@@ -1860,7 +1860,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			break;
 		}
 
-		if (IS_GEN7(dev) && is_cpu_edp(intel_dp)) {
+		if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
 			signal_levels = intel_gen7_edp_signal_levels(intel_dp->train_set[0]);
 			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_IVB) | signal_levels;
 		} else if (IS_GEN6(dev) && is_cpu_edp(intel_dp)) {
@@ -2517,7 +2517,14 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		if (intel_dpd_is_edp(dev))
 			intel_dp->is_pch_edp = true;
 
-	if (output_reg == DP_A || is_pch_edp(intel_dp)) {
+	/*
+	 * FIXME : We need to initialize built-in panels before external panels.
+	 * For X0, DP_C is fixed as eDP. Revisit this as part of VLV eDP cleanup
+	 */
+	if (IS_VALLEYVIEW(dev) && output_reg == DP_C) {
+		type = DRM_MODE_CONNECTOR_eDP;
+		intel_encoder->type = INTEL_OUTPUT_EDP;
+	} else if (output_reg == DP_A || is_pch_edp(intel_dp)) {
 		type = DRM_MODE_CONNECTOR_eDP;
 		intel_encoder->type = INTEL_OUTPUT_EDP;
 	} else {

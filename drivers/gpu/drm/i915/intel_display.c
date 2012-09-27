@@ -4415,6 +4415,14 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
+	if (IS_VALLEYVIEW(dev) && intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
+		if (adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
+			pipeconf |= PIPECONF_BPP_6 |
+					PIPECONF_ENABLE |
+					I965_PIPECONF_ACTIVE;
+		}
+	}
+
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
 
@@ -7673,6 +7681,10 @@ static void intel_setup_outputs(struct drm_device *dev)
 	} else if (IS_VALLEYVIEW(dev)) {
 		int found;
 
+		/* Check for built-in panel first. Shares lanes with HDMI on SDVOC */
+		if (I915_READ(DP_C) & DP_DETECTED)
+			intel_dp_init(dev, DP_C, PORT_C);
+
 		if (I915_READ(SDVOB) & PORT_DETECTED) {
 			/* SDVOB multiplex with HDMIB */
 			found = intel_sdvo_init(dev, SDVOB, true);
@@ -7685,9 +7697,6 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(SDVOC) & PORT_DETECTED)
 			intel_hdmi_init(dev, SDVOC, PORT_C);
 
-		/* Shares lanes with HDMI on SDVOC */
-		if (I915_READ(DP_C) & DP_DETECTED)
-			intel_dp_init(dev, DP_C, PORT_C);
 	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {
 		bool found = false;
 
