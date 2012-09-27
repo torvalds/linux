@@ -1458,15 +1458,10 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 static inline void sirfsoc_gpio_set_input(struct sirfsoc_gpio_bank *bank, unsigned ctrl_offset)
 {
 	u32 val;
-	unsigned long flags;
-
-	spin_lock_irqsave(&bank->lock, flags);
 
 	val = readl(bank->chip.regs + ctrl_offset);
 	val &= ~SIRFSOC_GPIO_CTL_OUT_EN_MASK;
 	writel(val, bank->chip.regs + ctrl_offset);
-
-	spin_unlock_irqrestore(&bank->lock, flags);
 }
 
 static int sirfsoc_gpio_request(struct gpio_chip *chip, unsigned offset)
