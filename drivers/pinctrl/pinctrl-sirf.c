@@ -1210,8 +1210,10 @@ static int __devinit sirfsoc_pinmux_probe(struct platform_device *pdev)
 		goto out_no_pmx;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sirfsoc_gpio_ranges); i++)
+	for (i = 0; i < ARRAY_SIZE(sirfsoc_gpio_ranges); i++) {
+		sirfsoc_gpio_ranges[i].gc = &sgpio_bank[i].chip.gc;
 		pinctrl_add_gpio_range(spmx->pmx, &sirfsoc_gpio_ranges[i]);
+	}
 
 	dev_info(&pdev->dev, "initialized SIRFSOC pinmux driver\n");
 
