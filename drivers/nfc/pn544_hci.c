@@ -746,6 +746,43 @@ static int pn544_hci_start_poll(struct nfc_hci_dev *hdev,
 	return r;
 }
 
+static int pn544_hci_dep_link_up(struct nfc_hci_dev *hdev,
+				struct nfc_target *target, u8 comm_mode,
+				u8 *gb, size_t gb_len)
+{
+	struct sk_buff *rgb_skb = NULL;
+	int r;
+
+	r = nfc_hci_get_param(hdev, target->hci_reader_gate,
+				PN544_DEP_ATR_RES, &rgb_skb);
+	if (r < 0)
+		return r;
+
+	if (rgb_skb->len == 0 || rgb_skb->len > NFC_GB_MAXSIZE) {
+		r = -EPROTO;
+		goto exit;
+	}
+	print_hex_dump(KERN_DEBUG, "remote gb: ", DUMP_PREFIX_OFFSET,
+			16, 1, rgb_skb->data, rgb_skb->len, true);
+
+	r = nfc_set_remote_general_bytes(hdev->ndev, rgb_skb->data,
+						rgb_skb->len);
+
+	if (r == 0)
+		r = nfc_dep_link_is_up(hdev->ndev, target->idx, comm_mode,
+					NFC_RF_INITIATOR);
+exit:
+	kfree_skb(rgb_skb);
+	return r;
+}
+
+static int pn544_hci_dep_link_down(struct nfc_hci_dev *hdev)
+{
+
+	return nfc_hci_send_event(hdev, PN544_RF_READER_NFCIP1_INITIATOR_GATE,
+					NFC_HCI_EVT_END_OPERATION, NULL, 0);
+}
+
 static int pn544_hci_target_from_gate(struct nfc_hci_dev *hdev, u8 gate,
 				      struct nfc_target *target)
 {
@@ -973,6 +1010,8 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.hci_ready = pn544_hci_ready,
 	.xmit = pn544_hci_xmit,
 	.start_poll = pn544_hci_start_poll,
+	.dep_link_up = pn544_hci_dep_link_up,
+	.dep_link_down = pn544_hci_dep_link_down,
 	.target_from_gate = pn544_hci_target_from_gate,
 	.complete_target_discovered = pn544_hci_complete_target_discovered,
 	.data_exchange = pn544_hci_data_exchange,

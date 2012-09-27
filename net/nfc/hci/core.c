@@ -546,6 +546,28 @@ static void hci_stop_poll(struct nfc_dev *nfc_dev)
 			   NFC_HCI_EVT_END_OPERATION, NULL, 0);
 }
 
+static int hci_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
+				__u8 comm_mode, __u8 *gb, size_t gb_len)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->dep_link_up)
+		return hdev->ops->dep_link_up(hdev, target, comm_mode,
+						gb, gb_len);
+
+	return 0;
+}
+
+static int hci_dep_link_down(struct nfc_dev *nfc_dev)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->dep_link_down)
+		return hdev->ops->dep_link_down(hdev);
+
+	return 0;
+}
+
 static int hci_activate_target(struct nfc_dev *nfc_dev,
 			       struct nfc_target *target, u32 protocol)
 {
@@ -731,6 +753,8 @@ static struct nfc_ops hci_nfc_ops = {
 	.dev_down = hci_dev_down,
 	.start_poll = hci_start_poll,
 	.stop_poll = hci_stop_poll,
+	.dep_link_up = hci_dep_link_up,
+	.dep_link_down = hci_dep_link_down,
 	.activate_target = hci_activate_target,
 	.deactivate_target = hci_deactivate_target,
 	.im_transceive = hci_transceive,
