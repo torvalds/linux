@@ -92,3 +92,4 @@ obj-$(CONFIG_TOUCHSCREEN_NAS)		+= nas_ts.o
 obj-$(CONFIG_LAIBAO_TS)		+= ft5x0x_i2c_ts.o
 obj-$(CONFIG_TOUCHSCREEN_PIXCIR)      += pixcir_i2c_ts.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C_RK)      += rmi4/
+obj-$(CONFIG_TOUCHSCREEN_I30)	+= i30_ts.o
