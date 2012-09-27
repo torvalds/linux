@@ -369,6 +369,7 @@
 #define   DPIO_PLL_MODESEL_SHIFT	24 /* 3 bits */
 #define   DPIO_BIAS_CURRENT_CTL_SHIFT	21 /* 3 bits, always 0x7 */
 #define   DPIO_PLL_REFCLK_SEL_SHIFT	16 /* 2 bits */
+#define   DPIO_PLL_REFCLK_SEL_MASK	3
 #define   DPIO_DRIVER_CTL_SHIFT		12 /* always set to 0x8 */
 #define   DPIO_CLK_BIAS_CTL_SHIFT	8 /* always set to 0x5 */
 #define _DPIO_REFSFR_B			0x8034
@@ -383,6 +384,13 @@
 #define DPIO_LFP_COEFF(pipe) _PIPE(pipe, _DPIO_LFP_COEFF_A, _DPIO_LFP_COEFF_B)
 
 #define DPIO_FASTCLK_DISABLE		0x8100
+
+#define _DPIO_DATA_LANE0		0x0220
+#define _DPIO_DATA_LANE1		0x0420
+#define _DPIO_DATA_LANE2		0x2620
+#define _DPIO_DATA_LANE3		0x2820
+#define DPIO_DATA_LANE_A(pipe) _PIPE(pipe, _DPIO_DATA_LANE0, _DPIO_DATA_LANE2)
+#define DPIO_DATA_LANE_B(pipe) _PIPE(pipe, _DPIO_DATA_LANE1, _DPIO_DATA_LANE3)
 
 /*
  * Fence registers
