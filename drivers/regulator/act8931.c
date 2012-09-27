@@ -20,6 +20,8 @@
 #include <linux/delay.h>
 #include <mach/iomux.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
+#include <plat/board.h>
 
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
@@ -34,6 +36,7 @@
 #define PM_CONTROL
 
 struct act8931 {
+	unsigned int irq;
 	struct device *dev;
 	struct mutex io_lock;
 	struct i2c_client *i2c;
@@ -66,6 +69,20 @@ static int act8931_set_bits(struct act8931 *act8931, u8 reg, u16 mask, u16 val);
 
 #define VOL_MIN_IDX 0x00
 #define VOL_MAX_IDX 0x3f
+
+#define INSTAT_MASK (1<<5)
+#define CHGSTAT_MASK (1<<4)
+#define INDAT_MASK (1<<1)
+#define CHGDAT_MASK (1<<0)
+
+#define INCON_MASK (1<<5)
+#define CHGEOCIN_MASK (1<<4)
+#define INDIS_MASK (1<<1)
+#define CHGEOCOUT_MASK (1<<0)
+
+int act8931_charge_det, act8931_charge_ok;
+EXPORT_SYMBOL(act8931_charge_det);
+EXPORT_SYMBOL(act8931_charge_ok);
 
 const static int buck_set_vol_base_addr[] = {
 	act8931_BUCK1_SET_VOL_BASE,
@@ -547,11 +564,34 @@ error:
 	return err;
 }
 
+static irqreturn_t act8931_irq_thread(unsigned int irq, void *dev_id)
+{
+	struct act8931 *act8931 = (struct act8931 *)dev_id;
+	int ret;
+	u8 val;
+	val = act8931_reg_read(act8931,0x78);
+	act8931_charge_det = (val & INDAT_MASK )? 1:0;
+	act8931_charge_ok = (val & CHGDAT_MASK )? 1:0;
+	DBG(charge_det? "connect! " : "disconnect! ");
+	DBG(charge_ok? "charge ok! \n" : "charging or discharge! \n");
+
+	/* reset related regs according to spec */
+	ret = act8931_set_bits(act8931, 0x78, INSTAT_MASK | CHGSTAT_MASK, 
+			INSTAT_MASK | CHGSTAT_MASK);
+	if (ret < 0) {
+		printk("act8931 set 0x78 error!\n");
+	}
+
+	/* FIXME: it's better that waking up screen in battery driver */
+	rk28_send_wakeup_key();
+	return IRQ_HANDLED;
+}
 static int __devinit act8931_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct act8931 *act8931;	
 	struct act8931_platform_data *pdata = i2c->dev.platform_data;
 	int ret;
+	u8 val;
 	act8931 = kzalloc(sizeof(struct act8931), GFP_KERNEL);
 	if (act8931 == NULL) {
 		ret = -ENOMEM;		
@@ -577,6 +617,46 @@ static int __devinit act8931_i2c_probe(struct i2c_client *i2c, const struct i2c_
 	
 	pdata->set_init(act8931);
 
+	/* Initialize charge status */
+	val = act8931_reg_read(act8931,0x78);
+	act8931_charge_det = (val & INDAT_MASK )? 1:0;
+	act8931_charge_ok = (val & CHGDAT_MASK )? 1:0;
+	DBG(charge_det? "connect! " : "disconnect! ");
+	DBG(charge_ok? "charge ok! \n" : "charging or discharge! \n");
+	
+	ret = act8931_set_bits(act8931, 0x78, INSTAT_MASK | CHGSTAT_MASK, 
+			INSTAT_MASK | CHGSTAT_MASK);
+	if (ret < 0) {
+		printk("act8931 set 0x78 error!\n");
+		goto err;
+	}
+	
+	ret = act8931_set_bits(act8931, 0x79, INCON_MASK | CHGEOCIN_MASK | INDIS_MASK | CHGEOCOUT_MASK, 
+			INCON_MASK | CHGEOCIN_MASK | INDIS_MASK | CHGEOCOUT_MASK);
+	if (ret < 0) {
+		printk("act8931 set 0x79 error!\n");
+		goto err;
+	}
+
+	ret = gpio_request(i2c->irq, "act8931 gpio");
+	if(ret)
+	{
+		printk("act8931 gpio request fail\n");
+		gpio_free(i2c->irq);
+		goto err;
+	}
+	
+	act8931->irq = gpio_to_irq(i2c->irq);
+	gpio_pull_updown(i2c->irq,GPIOPullUp);
+	ret = request_threaded_irq(act8931->irq, NULL, act8931_irq_thread,
+				IRQF_TRIGGER_FALLING | IRQF_ONESHOT, i2c->dev.driver->name, act8931);
+	if (ret < 0)
+	{
+		printk("request act8931 irq fail\n");
+		goto err;
+	}	
+
+	enable_irq_wake(act8931->irq);
 	return 0;
 
 err:
