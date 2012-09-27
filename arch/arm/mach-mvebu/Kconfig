@@ -6,6 +6,8 @@ config ARCH_MVEBU
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
+	select PINCTRL
+	select PLAT_ORION
 	select SPARSE_IRQ
 
 if ARCH_MVEBU
