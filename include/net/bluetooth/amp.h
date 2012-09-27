@@ -14,6 +14,9 @@
 #ifndef __AMP_H
 #define __AMP_H
 
+struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
+			     u8 remote_id);
+
 void amp_read_loc_info(struct hci_dev *hdev, struct amp_mgr *mgr);
 void amp_read_loc_assoc_frag(struct hci_dev *hdev, u8 phy_handle);
 void amp_read_loc_assoc(struct hci_dev *hdev, struct amp_mgr *mgr);

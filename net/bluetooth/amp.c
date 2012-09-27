@@ -17,6 +17,35 @@
 #include <net/bluetooth/a2mp.h>
 #include <net/bluetooth/amp.h>
 
+/* Physical Link interface */
+static u8 __next_handle(struct amp_mgr *mgr)
+{
+	if (++mgr->handle == 0)
+		mgr->handle = 1;
+
+	return mgr->handle;
+}
+
+struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
+			     u8 remote_id)
+{
+	bdaddr_t *dst = mgr->l2cap_conn->dst;
+	struct hci_conn *hcon;
+
+	hcon = hci_conn_add(hdev, AMP_LINK, dst);
+	if (!hcon)
+		return NULL;
+
+	hcon->state = BT_CONNECT;
+	hcon->out = true;
+	hcon->attempt++;
+	hcon->handle = __next_handle(mgr);
+	hcon->remote_id = remote_id;
+	hcon->amp_mgr = mgr;
+
+	return hcon;
+}
+
 void amp_read_loc_assoc_frag(struct hci_dev *hdev, u8 phy_handle)
 {
 	struct hci_cp_read_local_amp_assoc cp;
