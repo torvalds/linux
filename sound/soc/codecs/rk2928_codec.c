@@ -61,9 +61,11 @@ static const struct snd_soc_dapm_widget rk2928_dapm_widgets[] = {
 	SND_SOC_DAPM_OUT_DRV("DACR Drv", CODEC_REG_DAC_MUTE, 0, 1, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPKL"),
 	SND_SOC_DAPM_OUTPUT("SPKR"),
+	#ifndef CONFIG_MACH_RK2928_A720
 	SND_SOC_DAPM_ADC("ADCL", "HIFI Capture", CODEC_REG_POWER, 3, 1),
-	SND_SOC_DAPM_ADC("ADCR", "HIFI Capture", CODEC_REG_POWER, 2, 1),
 	SND_SOC_DAPM_INPUT("MICL"),
+	#endif
+	SND_SOC_DAPM_ADC("ADCR", "HIFI Capture", CODEC_REG_POWER, 2, 1),
 	SND_SOC_DAPM_INPUT("MICR"),
 };
 
@@ -72,7 +74,9 @@ static const struct snd_soc_dapm_route rk2928_audio_map[] = {
 	{"SPKR", "DACR Amp", "DACR"},
 //	{"SPKL", NULL, "DACL Drv"},
 //	{"SPKR", NULL, "DACR Drv"},
+	#ifndef CONFIG_MACH_RK2928_A720
 	{"ADCL", NULL, "MICL"},
+	#endif
 	{"ADCR", NULL, "MICR"},
 };
 
