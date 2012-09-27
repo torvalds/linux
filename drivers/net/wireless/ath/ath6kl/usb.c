@@ -185,9 +185,10 @@ static int ath6kl_usb_alloc_pipe_resources(struct ath6kl_usb_pipe *pipe,
 	for (i = 0; i < urb_cnt; i++) {
 		urb_context = kzalloc(sizeof(struct ath6kl_urb_context),
 				      GFP_KERNEL);
-		if (urb_context == NULL)
-			/* FIXME: set status to -ENOMEM */
-			break;
+		if (urb_context == NULL) {
+			status = -ENOMEM;
+			goto fail_alloc_pipe_resources;
+		}
 
 		urb_context->pipe = pipe;
 
@@ -204,6 +205,7 @@ static int ath6kl_usb_alloc_pipe_resources(struct ath6kl_usb_pipe *pipe,
 		   pipe->logical_pipe_num, pipe->usb_pipe_handle,
 		   pipe->urb_alloc);
 
+fail_alloc_pipe_resources:
 	return status;
 }
 
