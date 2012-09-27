@@ -69,7 +69,14 @@ config MTD_NAND_DENALI_PCI
         help
           Enable the driver for NAND flash on Intel Moorestown, using the
           Denali NAND controller core.
- 
+
+config MTD_NAND_DENALI_DT
+	tristate "Support Denali NAND controller as a DT device"
+	depends on HAVE_CLK && MTD_NAND_DENALI
+	help
+	  Enable the driver for NAND flash on platforms using a Denali NAND
+	  controller as a DT device.
+
 config MTD_NAND_DENALI_SCRATCH_REG_ADDR
         hex "Denali NAND size scratch register address"
         default "0xFF108018"
