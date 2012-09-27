@@ -19,12 +19,18 @@
 
 #define A2MP_FEAT_EXT	0x8000
 
+enum amp_mgr_state {
+	READ_LOC_AMP_INFO,
+};
+
 struct amp_mgr {
+	struct list_head	list;
 	struct l2cap_conn	*l2cap_conn;
 	struct l2cap_chan	*a2mp_chan;
 	struct kref		kref;
 	__u8			ident;
 	__u8			handle;
+	enum amp_mgr_state	state;
 	unsigned long		flags;
 };
 
@@ -118,9 +124,13 @@ struct a2mp_physlink_rsp {
 #define A2MP_STATUS_PHYS_LINK_EXISTS		0x05
 #define A2MP_STATUS_SECURITY_VIOLATION		0x06
 
+extern struct list_head amp_mgr_list;
+extern struct mutex amp_mgr_list_lock;
+
 void amp_mgr_get(struct amp_mgr *mgr);
 int amp_mgr_put(struct amp_mgr *mgr);
 struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 				       struct sk_buff *skb);
+struct amp_mgr *amp_mgr_lookup_by_state(u8 state);
 
 #endif /* __A2MP_H */

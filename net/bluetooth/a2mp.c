@@ -17,6 +17,10 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/a2mp.h>
 
+/* Global AMP Manager list */
+LIST_HEAD(amp_mgr_list);
+DEFINE_MUTEX(amp_mgr_list_lock);
+
 /* A2MP build & send command helper functions */
 static struct a2mp_cmd *__a2mp_build(u8 code, u8 ident, u16 len, void *data)
 {
@@ -516,6 +520,10 @@ static void amp_mgr_destroy(struct kref *kref)
 
 	BT_DBG("mgr %p", mgr);
 
+	mutex_lock(&amp_mgr_list_lock);
+	list_del(&mgr->list);
+	mutex_unlock(&amp_mgr_list_lock);
+
 	kfree(mgr);
 }
 
@@ -552,6 +560,10 @@ static struct amp_mgr *amp_mgr_create(struct l2cap_conn *conn)
 
 	kref_init(&mgr->kref);
 
+	mutex_lock(&amp_mgr_list_lock);
+	list_add(&mgr->list, &amp_mgr_list);
+	mutex_unlock(&amp_mgr_list_lock);
+
 	return mgr;
 }
 
@@ -569,4 +581,21 @@ struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 	BT_DBG("mgr: %p chan %p", mgr, mgr->a2mp_chan);
 
 	return mgr->a2mp_chan;
+}
+
+struct amp_mgr *amp_mgr_lookup_by_state(u8 state)
+{
+	struct amp_mgr *mgr;
+
+	mutex_lock(&amp_mgr_list_lock);
+	list_for_each_entry(mgr, &amp_mgr_list, list) {
+		if (mgr->state == state) {
+			amp_mgr_get(mgr);
+			mutex_unlock(&amp_mgr_list_lock);
+			return mgr;
+		}
+	}
+	mutex_unlock(&amp_mgr_list_lock);
+
+	return NULL;
 }
