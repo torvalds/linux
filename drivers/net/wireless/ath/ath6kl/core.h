@@ -149,7 +149,8 @@ struct ath6kl_fw_ie {
 };
 
 enum ath6kl_hw_flags {
-	ATH6KL_HW_64BIT_RATES	= BIT(0),
+	ATH6KL_HW_64BIT_RATES		= BIT(0),
+	ATH6KL_HW_AP_INACTIVITY_MINS	= BIT(1),
 };
 
 #define ATH6KL_FW_API2_FILE "fw-2.bin"
