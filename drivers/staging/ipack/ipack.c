@@ -355,7 +355,7 @@ static int ipack_device_read_id(struct ipack_device *dev)
 			dev->region[IPACK_ID_SPACE].size);
 	if (!idmem) {
 		dev_err(&dev->dev, "error mapping memory\n");
-		return ret;
+		return -ENOMEM;
 	}
 
 	/* Determine ID PROM Data Format.  If we find the ids "IPAC" or "IPAH"
