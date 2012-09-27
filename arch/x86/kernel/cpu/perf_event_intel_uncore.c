@@ -1950,7 +1950,7 @@ struct intel_uncore_box *uncore_alloc_box(struct intel_uncore_type *type, int cp
 static struct intel_uncore_box *
 uncore_pmu_to_box(struct intel_uncore_pmu *pmu, int cpu)
 {
-	static struct intel_uncore_box *box;
+	struct intel_uncore_box *box;
 
 	box = *per_cpu_ptr(pmu->box, cpu);
 	if (box)
