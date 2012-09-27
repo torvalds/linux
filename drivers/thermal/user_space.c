@@ -35,7 +35,7 @@
  *
  * This function notifies the user space through UEvents.
  */
-int notify_user_space(struct thermal_zone_device *tz, int trip)
+static int notify_user_space(struct thermal_zone_device *tz, int trip)
 {
 	mutex_lock(&tz->lock);
 	kobject_uevent(&tz->device.kobj, KOBJ_CHANGE);
@@ -43,7 +43,7 @@ int notify_user_space(struct thermal_zone_device *tz, int trip)
 	return 0;
 }
 
-struct thermal_governor thermal_gov_user_space = {
+static struct thermal_governor thermal_gov_user_space = {
 	.name		= "user_space",
 	.throttle	= notify_user_space,
 	.owner		= THIS_MODULE,
