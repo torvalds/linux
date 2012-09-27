@@ -108,7 +108,7 @@ static int omap2_gp_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
 {
 	__omap_dm_timer_load_start(&clkev, OMAP_TIMER_CTRL_ST,
-						0xffffffff - cycles, 1);
+				   0xffffffff - cycles, OMAP_TIMER_POSTED);
 
 	return 0;
 }
@@ -118,7 +118,7 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 {
 	u32 period;
 
-	__omap_dm_timer_stop(&clkev, 1, clkev.rate);
+	__omap_dm_timer_stop(&clkev, OMAP_TIMER_POSTED, clkev.rate);
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
@@ -126,10 +126,10 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 		period -= 1;
 		/* Looks like we need to first set the load value separately */
 		__omap_dm_timer_write(&clkev, OMAP_TIMER_LOAD_REG,
-					0xffffffff - period, 1);
+				      0xffffffff - period, OMAP_TIMER_POSTED);
 		__omap_dm_timer_load_start(&clkev,
 					OMAP_TIMER_CTRL_AR | OMAP_TIMER_CTRL_ST,
-						0xffffffff - period, 1);
+					0xffffffff - period, OMAP_TIMER_POSTED);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		break;
@@ -359,7 +359,8 @@ static bool use_gptimer_clksrc;
  */
 static cycle_t clocksource_read_cycles(struct clocksource *cs)
 {
-	return (cycle_t)__omap_dm_timer_read_counter(&clksrc, 1);
+	return (cycle_t)__omap_dm_timer_read_counter(&clksrc,
+						     OMAP_TIMER_POSTED);
 }
 
 static struct clocksource clocksource_gpt = {
@@ -373,7 +374,8 @@ static struct clocksource clocksource_gpt = {
 static u32 notrace dmtimer_read_sched_clock(void)
 {
 	if (clksrc.reserved)
-		return __omap_dm_timer_read_counter(&clksrc, 1);
+		return __omap_dm_timer_read_counter(&clksrc,
+						    OMAP_TIMER_POSTED);
 
 	return 0;
 }
@@ -455,7 +457,8 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 	BUG_ON(res);
 
 	__omap_dm_timer_load_start(&clksrc,
-			OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR, 0, 1);
+				   OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR, 0,
+				   OMAP_TIMER_POSTED);
 	setup_sched_clock(dmtimer_read_sched_clock, 32, clksrc.rate);
 
 	if (clocksource_register_hz(&clocksource_gpt, clksrc.rate))
