@@ -933,7 +933,7 @@ ret_with_reschedule:
 
 	pta	restore_all, tr1
 
-	movi	_TIF_SIGPENDING, r8
+	movi	(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME), r8
 	and	r8, r7, r8
 	pta	work_notifysig, tr0
 	bne	r8, ZERO, tr0

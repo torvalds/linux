@@ -673,7 +673,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 			sm_pm_get_ls(smc,port_to_mib(smc,port))) ;
 		break ;
 	case SMT_P_REASON :
-		* (u_long *) to = 0 ;
+		*(u32 *)to = 0 ;
 		sp_len = 4 ;
 		goto sp_done ;
 	case SMT_P1033 :			/* time stamp */

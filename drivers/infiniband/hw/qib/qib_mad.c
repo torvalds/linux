@@ -471,9 +471,10 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		if (port_num != port) {
 			ibp = to_iport(ibdev, port_num);
 			ret = check_mkey(ibp, smp, 0);
-			if (ret)
+			if (ret) {
 				ret = IB_MAD_RESULT_FAILURE;
 				goto bail;
+			}
 		}
 	}
 

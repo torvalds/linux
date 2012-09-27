@@ -262,8 +262,8 @@ static int __devinit tc3589x_device_init(struct tc3589x *tc3589x)
 
 	if (blocks & TC3589x_BLOCK_GPIO) {
 		ret = mfd_add_devices(tc3589x->dev, -1, tc3589x_dev_gpio,
-				ARRAY_SIZE(tc3589x_dev_gpio), NULL,
-				tc3589x->irq_base);
+				      ARRAY_SIZE(tc3589x_dev_gpio), NULL,
+				      tc3589x->irq_base, NULL);
 		if (ret) {
 			dev_err(tc3589x->dev, "failed to add gpio child\n");
 			return ret;
@@ -273,8 +273,8 @@ static int __devinit tc3589x_device_init(struct tc3589x *tc3589x)
 
 	if (blocks & TC3589x_BLOCK_KEYPAD) {
 		ret = mfd_add_devices(tc3589x->dev, -1, tc3589x_dev_keypad,
-				ARRAY_SIZE(tc3589x_dev_keypad), NULL,
-				tc3589x->irq_base);
+				      ARRAY_SIZE(tc3589x_dev_keypad), NULL,
+				      tc3589x->irq_base, NULL);
 		if (ret) {
 			dev_err(tc3589x->dev, "failed to keypad child\n");
 			return ret;

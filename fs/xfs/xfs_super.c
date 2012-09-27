@@ -919,6 +919,7 @@ xfs_fs_put_super(
 	struct xfs_mount	*mp = XFS_M(sb);
 
 	xfs_filestream_unmount(mp);
+	cancel_delayed_work_sync(&mp->m_sync_work);
 	xfs_unmountfs(mp);
 	xfs_syncd_stop(mp);
 	xfs_freesb(mp);
