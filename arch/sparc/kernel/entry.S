@@ -983,6 +983,16 @@ ret_from_fork:
 	b	ret_sys_call
 	 ld	[%sp + STACKFRAME_SZ + PT_I0], %o0
 
+	.globl	ret_from_kernel_thread
+ret_from_kernel_thread:
+	call	schedule_tail
+	 ld	[%g3 + TI_TASK], %o0
+	ld	[%sp + STACKFRAME_SZ + PT_G1], %l0
+	call	%l0
+	 ld	[%sp + STACKFRAME_SZ + PT_G2], %o0
+	call	do_exit	/* won't return */
+	 clr	%o0
+
 	/* Linux native system calls enter here... */
 	.align	4
 	.globl	linux_sparc_syscall
