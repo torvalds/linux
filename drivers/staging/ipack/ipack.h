@@ -42,17 +42,6 @@ enum ipack_space {
 };
 
 /**
- *	struct ipack_addr_space - Virtual address space mapped for a specified type.
- *
- *	@address: virtual address
- *	@size: size of the mapped space
- */
-struct ipack_addr_space {
-	void __iomem *address;
-	unsigned int size;
-};
-
-/**
  */
 struct ipack_region {
 	phys_addr_t start;
@@ -76,10 +65,6 @@ struct ipack_region {
 struct ipack_device {
 	unsigned int slot;
 	struct ipack_bus_device *bus;
-	struct ipack_addr_space id_space;
-	struct ipack_addr_space io_space;
-	struct ipack_addr_space int_space;
-	struct ipack_addr_space mem_space;
 	struct device dev;
 	void (*release) (struct ipack_device *dev);
 	struct ipack_region      region[IPACK_SPACE_COUNT];
@@ -135,8 +120,6 @@ struct ipack_driver {
  *	@reset_timeout: Resets the state returned by get_timeout.
  */
 struct ipack_bus_ops {
-	int (*map_space) (struct ipack_device *dev, ssize_t memory_size, int space);
-	int (*unmap_space) (struct ipack_device *dev, int space);
 	int (*request_irq) (struct ipack_device *dev,
 			    irqreturn_t (*handler)(void *), void *arg);
 	int (*free_irq) (struct ipack_device *dev);

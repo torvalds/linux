@@ -87,8 +87,6 @@ static void tpci200_set_mask(struct tpci200_board *tpci200,
 
 static void tpci200_unregister(struct tpci200_board *tpci200)
 {
-	int i;
-
 	free_irq(tpci200->info->pdev->irq, (void *) tpci200);
 
 	pci_iounmap(tpci200->info->pdev, tpci200->info->interface_regs);
@@ -101,17 +99,6 @@ static void tpci200_unregister(struct tpci200_board *tpci200)
 
 	pci_disable_device(tpci200->info->pdev);
 	pci_dev_put(tpci200->info->pdev);
-
-	for (i = 0; i < TPCI200_NB_SLOT; i++) {
-		tpci200->slots[i].io_phys.start = 0;
-		tpci200->slots[i].io_phys.size = 0;
-		tpci200->slots[i].id_phys.start = 0;
-		tpci200->slots[i].id_phys.size = 0;
-		tpci200->slots[i].int_phys.start = 0;
-		tpci200->slots[i].int_phys.size = 0;
-		tpci200->slots[i].mem_phys.start = 0;
-		tpci200->slots[i].mem_phys.size = 0;
-	}
 }
 
 static void tpci200_enable_irq(struct tpci200_board *tpci200,
@@ -323,31 +310,8 @@ static int tpci200_register(struct tpci200_board *tpci200)
 	 * clock rate 8 MHz
 	 */
 	slot_ctrl = 0;
-
-	/* Set all slot physical address space */
-	for (i = 0; i < TPCI200_NB_SLOT; i++) {
-		tpci200->slots[i].io_phys.start =
-			tpci200->mod_mem[IPACK_IO_SPACE]
-			+ TPCI200_IO_SPACE_INTERVAL * i;
-		tpci200->slots[i].io_phys.size = TPCI200_IO_SPACE_SIZE;
-
-		tpci200->slots[i].id_phys.start =
-			tpci200->mod_mem[IPACK_ID_SPACE]
-			+ TPCI200_ID_SPACE_INTERVAL * i;
-		tpci200->slots[i].id_phys.size = TPCI200_ID_SPACE_SIZE;
-
-		tpci200->slots[i].int_phys.start =
-			tpci200->mod_mem[IPACK_INT_SPACE]
-			+ TPCI200_INT_SPACE_INTERVAL * i;
-		tpci200->slots[i].int_phys.size = TPCI200_INT_SPACE_SIZE;
-
-		tpci200->slots[i].mem_phys.start =
-			tpci200->mod_mem[IPACK_MEM_SPACE]
-			+ TPCI200_MEM8_SPACE_INTERVAL * i;
-		tpci200->slots[i].mem_phys.size = TPCI200_MEM8_SPACE_SIZE;
-
+	for (i = 0; i < TPCI200_NB_SLOT; i++)
 		writew(slot_ctrl, &tpci200->info->interface_regs->control[i]);
-	}
 
 	res = request_irq(tpci200->info->pdev->irq,
 			  tpci200_interrupt, IRQF_SHARED,
@@ -368,166 +332,6 @@ out_release_ip_space:
 	pci_release_region(tpci200->info->pdev, TPCI200_IP_INTERFACE_BAR);
 out_disable_pci:
 	pci_disable_device(tpci200->info->pdev);
-	return res;
-}
-
-static int tpci200_slot_unmap_space(struct ipack_device *dev, int space)
-{
-	struct ipack_addr_space *virt_addr_space;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	if (mutex_lock_interruptible(&tpci200->mutex))
-		return -ERESTARTSYS;
-
-	switch (space) {
-	case IPACK_IO_SPACE:
-		if (dev->io_space.address == NULL) {
-			dev_info(&dev->dev,
-				 "Slot [%d:%d] IO space not mapped !\n",
-				 dev->bus->bus_nr, dev->slot);
-			goto out_unlock;
-		}
-		virt_addr_space = &dev->io_space;
-		break;
-	case IPACK_ID_SPACE:
-		if (dev->id_space.address == NULL) {
-			dev_info(&dev->dev,
-				 "Slot [%d:%d] ID space not mapped !\n",
-				 dev->bus->bus_nr, dev->slot);
-			goto out_unlock;
-		}
-		virt_addr_space = &dev->id_space;
-		break;
-	case IPACK_INT_SPACE:
-		if (dev->int_space.address == NULL) {
-			dev_info(&dev->dev,
-				 "Slot [%d:%d] INT space not mapped !\n",
-				 dev->bus->bus_nr, dev->slot);
-			goto out_unlock;
-		}
-		virt_addr_space = &dev->int_space;
-		break;
-	case IPACK_MEM_SPACE:
-		if (dev->mem_space.address == NULL) {
-			dev_info(&dev->dev,
-				 "Slot [%d:%d] MEM space not mapped !\n",
-				 dev->bus->bus_nr, dev->slot);
-			goto out_unlock;
-		}
-		virt_addr_space = &dev->mem_space;
-		break;
-	default:
-		dev_err(&dev->dev,
-			"Slot [%d:%d] space number %d doesn't exist !\n",
-			dev->bus->bus_nr, dev->slot, space);
-		mutex_unlock(&tpci200->mutex);
-		return -EINVAL;
-	}
-
-	iounmap(virt_addr_space->address);
-
-	virt_addr_space->address = NULL;
-	virt_addr_space->size = 0;
-out_unlock:
-	mutex_unlock(&tpci200->mutex);
-	return 0;
-}
-
-static int tpci200_slot_map_space(struct ipack_device *dev,
-				  ssize_t memory_size, int space)
-{
-	int res = 0;
-	size_t size_to_map;
-	phys_addr_t phys_address;
-	struct ipack_addr_space *virt_addr_space;
-	struct tpci200_board *tpci200;
-
-	tpci200 = check_slot(dev);
-	if (tpci200 == NULL)
-		return -EINVAL;
-
-	if (mutex_lock_interruptible(&tpci200->mutex))
-		return -ERESTARTSYS;
-
-	switch (space) {
-	case IPACK_IO_SPACE:
-		if (dev->io_space.address != NULL) {
-			dev_err(&dev->dev,
-				"Slot [%d:%d] IO space already mapped !\n",
-				tpci200->number, dev->slot);
-			res = -EINVAL;
-			goto out_unlock;
-		}
-		virt_addr_space = &dev->io_space;
-
-		phys_address = tpci200->slots[dev->slot].io_phys.start;
-		size_to_map = tpci200->slots[dev->slot].io_phys.size;
-		break;
-	case IPACK_ID_SPACE:
-		if (dev->id_space.address != NULL) {
-			dev_err(&dev->dev,
-				"Slot [%d:%d] ID space already mapped !\n",
-				tpci200->number, dev->slot);
-			res = -EINVAL;
-			goto out_unlock;
-		}
-		virt_addr_space = &dev->id_space;
-
-		phys_address = tpci200->slots[dev->slot].id_phys.start;
-		size_to_map = tpci200->slots[dev->slot].id_phys.size;
-		break;
-	case IPACK_INT_SPACE:
-		if (dev->int_space.address != NULL) {
-			dev_err(&dev->dev,
-				"Slot [%d:%d] INT space already mapped !\n",
-				tpci200->number, dev->slot);
-			res = -EINVAL;
-			goto out_unlock;
-		}
-		virt_addr_space = &dev->int_space;
-
-		phys_address = tpci200->slots[dev->slot].int_phys.start;
-		size_to_map = tpci200->slots[dev->slot].int_phys.size;
-		break;
-	case IPACK_MEM_SPACE:
-		if (dev->mem_space.address != NULL) {
-			dev_err(&dev->dev,
-				"Slot [%d:%d] MEM space already mapped !\n",
-				tpci200->number, dev->slot);
-			res = -EINVAL;
-			goto out_unlock;
-		}
-		virt_addr_space = &dev->mem_space;
-
-		if (memory_size > tpci200->slots[dev->slot].mem_phys.size) {
-			dev_err(&dev->dev,
-				"Slot [%d:%d] request is 0x%zX memory, only 0x%zX available !\n",
-				dev->bus->bus_nr, dev->slot, memory_size,
-				tpci200->slots[dev->slot].mem_phys.size);
-			res = -EINVAL;
-			goto out_unlock;
-		}
-
-		phys_address = tpci200->slots[dev->slot].mem_phys.start;
-		size_to_map = memory_size;
-		break;
-	default:
-		dev_err(&dev->dev, "Slot [%d:%d] space %d doesn't exist !\n",
-			tpci200->number, dev->slot, space);
-		res = -EINVAL;
-		goto out_unlock;
-	}
-
-	virt_addr_space->size = size_to_map;
-	virt_addr_space->address =
-		ioremap_nocache((unsigned long)phys_address, size_to_map);
-
-out_unlock:
-	mutex_unlock(&tpci200->mutex);
 	return res;
 }
 
@@ -618,8 +422,6 @@ static void tpci200_uninstall(struct tpci200_board *tpci200)
 }
 
 static const struct ipack_bus_ops tpci200_bus_ops = {
-	.map_space = tpci200_slot_map_space,
-	.unmap_space = tpci200_slot_unmap_space,
 	.request_irq = tpci200_request_irq,
 	.free_irq = tpci200_free_irq,
 	.get_clockrate = tpci200_get_clockrate,
