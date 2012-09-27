@@ -224,6 +224,13 @@ static void rk29_sdmmc_set_iomux(int device_id, unsigned int bus_width)
 #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE GPIO_HIGH 
 #endif
 
+#if defined(CONFIG_RDA5990)
+#define RK30SDK_WIFI_GPIO_POWER_N       RK2928_PIN0_PD6
+#define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE GPIO_HIGH 
+#define RK30SDK_WIFI_GPIO_RESET_N       RK2928_PIN3_PC2
+#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE GPIO_HIGH 
+#endif
+
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
 #define PREALLOC_WLAN_SECTION_HEADER    24

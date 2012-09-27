@@ -54,9 +54,159 @@
 
 #define AUTO_OFF_TIMEOUT 2000
 
+
+#ifndef RDA_BT_SUPPORT
+#define RDA_BT_SUPPORT
+#include <linux/fs.h>
+#include <linux/tty.h>
+#include <linux/time.h>
+#define BT_NVRAM_FILE_NAME "/data/misc/bluetooth/.rdabtaddr"
+
+typedef enum
+{
+    HOST_WAKEUP_BT = 1,
+    BT_WAKEUP_HOST,
+    BT_SEND_WAKEUP
+}bt_wakeup_status;
+
+struct hci_uart {
+    struct tty_struct       *tty;
+    struct hci_dev          *hdev;
+    unsigned long           flags;
+
+    struct hci_uart_proto   *proto;
+    void                    *priv;
+
+    struct sk_buff          *tx_skb;
+    unsigned long           tx_state;
+    spinlock_t              rx_lock;
+};
+
+static int nvram_read(char *filename, char *buf, ssize_t len, int offset)
+{
+    struct file *fd;
+    //ssize_t ret;
+    int retLen = -1;
+
+    mm_segment_t old_fs = get_fs();
+    set_fs(KERNEL_DS);
+
+    fd = filp_open(filename, O_WRONLY|O_CREAT, 0666);
+
+    if(IS_ERR(fd)) {
+        printk("[rda5890][nvram_read] : failed to open fd = %d !!\n" ,fd);
+        return -1;
+    }
+    do{
+        if ((fd->f_op == NULL) || (fd->f_op->read == NULL))
+        {
+            printk("[rda5890][nvram_read] : file can not be read!!\n");
+            break;
+        }
+
+        if (fd->f_pos != offset) {
+            if (fd->f_op->llseek) 
+            {
+                if(fd->f_op->llseek(fd, offset, 0) != offset) 
+                {
+                    printk("[rda5890][nvram_read] : failed to seek!!\n");
+                    break;
+                }
+            } 
+            else 
+            {
+                fd->f_pos = offset;
+            }
+        }
+
+        retLen = fd->f_op->read(fd,
+                              buf,
+                              len,
+                              &fd->f_pos);
+    }while(false);
+    
+
+    filp_close(fd, NULL);
+    set_fs(old_fs);
+    return retLen;
+}
+
+static int nvram_write(char *filename, char *buf, ssize_t len, int offset)
+{
+    struct file *fd;
+    int retLen = -1;
+
+    mm_segment_t old_fs = get_fs();
+    set_fs(KERNEL_DS);
+
+    fd = filp_open(filename, O_WRONLY|O_CREAT, 0666);
+
+    if(IS_ERR(fd)) 
+    {
+        printk("[rda5890][nvram_write] : failed to open!!\n");
+        return -1;
+    }
+    
+    do{
+        if ((fd->f_op == NULL) || (fd->f_op->write == NULL))
+        {
+            printk("[rda5890][nvram_write] : file can not be write!!\n");
+            break;
+        } /* End of if */
+
+        if (fd->f_pos != offset) 
+        {
+            if (fd->f_op->llseek) 
+            {
+                if(fd->f_op->llseek(fd, offset, 0) != offset) 
+                {
+                                    printk("[rda5890][nvram_write] : failed to seek!!\n");
+                    break;
+                }
+            } 
+            else 
+            {
+                fd->f_pos = offset;
+            }
+        }
+        
+        retLen = fd->f_op->write(fd,
+                                 buf,
+                                 len,
+                                 &fd->f_pos);
+    }while(false);
+    
+    filp_close(fd, NULL);
+    set_fs(old_fs);
+    return retLen;
+}
+
+static int rda5890_read_bt_addr(char* buf)
+{
+    return nvram_read(BT_NVRAM_FILE_NAME, buf, 6, 0);
+}
+
+static int rda5890_write_bt_addr(char * buf)
+{
+    return nvram_write(BT_NVRAM_FILE_NAME, buf, 6, 0);
+}
+
+#endif
+
 static void hci_cmd_task(unsigned long arg);
 static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
+#ifdef RDA_BT_SUPPORT
+
+volatile int need_wakeup_bt;
+//atomic_t	  need_wakeup_bt;
+EXPORT_SYMBOL(need_wakeup_bt);
+
+static struct delayed_work bt_pm_delayed_work;
+static void hci_bt_pm_task(struct work_struct *work);
+extern int hci_uart_tx_wakeup(struct hci_uart *hu);
+
+#endif
 
 static DEFINE_RWLOCK(hci_task_lock);
 
@@ -541,7 +691,23 @@ int hci_dev_open(__u16 dev)
 		atomic_set(&hdev->cmd_cnt, 1);
 		set_bit(HCI_INIT, &hdev->flags);
 		hdev->init_last_cmd = 0;
+#ifdef RDA_BT_SUPPORT
+		{
+		    unsigned char bt_addr_cmd[10]= {0x01,0x1a,0xfc,0x06,0x00,0x00,0x00,0x00,0x90,0x59};
+		    struct hci_uart *hu  = (struct hci_uart *) hdev->driver_data;
+    		struct tty_struct *tty = hu->tty;
 
+		    if(rda5890_read_bt_addr(&bt_addr_cmd[4]) != 6)
+		    {
+    			get_random_bytes(&bt_addr_cmd[4], 4);
+    			rda5890_write_bt_addr(&bt_addr_cmd[4]);
+		    }
+	
+        tty->ops->write(tty, bt_addr_cmd, 10);
+        msleep(50);	
+		    printk("bt_addr:%x:%x:%x:%x:%x:%x \n", bt_addr_cmd[4], bt_addr_cmd[5],bt_addr_cmd[6],bt_addr_cmd[7],bt_addr_cmd[8],bt_addr_cmd[9]);
+		}
+#endif
 		ret = __hci_request(hdev, hci_init_req, 0,
 					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 
@@ -563,6 +729,11 @@ int hci_dev_open(__u16 dev)
 		tasklet_kill(&hdev->rx_task);
 		tasklet_kill(&hdev->tx_task);
 		tasklet_kill(&hdev->cmd_task);
+#ifdef RDA_BT_SUPPORT
+        cancel_delayed_work(&bt_pm_delayed_work);
+	need_wakeup_bt = -1;
+        //atomic_set(&need_wakeup_bt, -1);
+#endif
 
 		skb_queue_purge(&hdev->cmd_q);
 		skb_queue_purge(&hdev->rx_q);
@@ -601,7 +772,12 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	/* Kill RX and TX tasks */
 	tasklet_kill(&hdev->rx_task);
 	tasklet_kill(&hdev->tx_task);
-
+#ifdef RDA_BT_SUPPORT
+    cancel_delayed_work_sync(&bt_pm_delayed_work);
+	flush_scheduled_work();
+	//atomic_set(&need_wakeup_bt, -1);
+	need_wakeup_bt = -1;
+#endif
 	hci_dev_lock_bh(hdev);
 	inquiry_cache_flush(hdev);
 	hci_conn_hash_flush(hdev);
@@ -676,7 +852,11 @@ int hci_dev_reset(__u16 dev)
 
 	hci_req_lock(hdev);
 	tasklet_disable(&hdev->tx_task);
-
+#ifdef RDA_BT_SUPPORT
+    	cancel_delayed_work(&bt_pm_delayed_work);
+    	//atomic_set(&need_wakeup_bt, 0);
+	need_wakeup_bt = 0;
+#endif
 	if (!test_bit(HCI_UP, &hdev->flags))
 		goto done;
 
@@ -1485,7 +1665,11 @@ int hci_register_dev(struct hci_dev *hdev)
 	tasklet_init(&hdev->cmd_task, hci_cmd_task, (unsigned long) hdev);
 	tasklet_init(&hdev->rx_task, hci_rx_task, (unsigned long) hdev);
 	tasklet_init(&hdev->tx_task, hci_tx_task, (unsigned long) hdev);
-
+#ifdef RDA_BT_SUPPORT    
+    	//atomic_set(&need_wakeup_bt, 0);
+	need_wakeup_bt = 0;
+    	INIT_DELAYED_WORK(&bt_pm_delayed_work, hci_bt_pm_task);
+#endif
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);
 	skb_queue_head_init(&hdev->raw_q);
@@ -2347,6 +2531,17 @@ static void hci_rx_task(unsigned long arg)
 	struct hci_dev *hdev = (struct hci_dev *) arg;
 	struct sk_buff *skb;
 
+#ifdef RDA_BT_SUPPORT
+    	struct hci_event_hdr *hdr;
+    	__u8 event;
+    	int action = 0;
+
+    	cancel_delayed_work(&bt_pm_delayed_work);
+	//if(atomic_read(&need_wakeup_bt) >= 0)
+        if(need_wakeup_bt>=0)
+		schedule_delayed_work(&bt_pm_delayed_work, 4*HZ);
+#endif
+
 	BT_DBG("%s", hdev->name);
 
 	read_lock(&hci_task_lock);
@@ -2375,6 +2570,26 @@ static void hci_rx_task(unsigned long arg)
 		/* Process frame */
 		switch (bt_cb(skb)->pkt_type) {
 		case HCI_EVENT_PKT:
+#ifdef RDA_BT_SUPPORT
+                    {
+                        hdr = (struct hci_event_hdr *) skb->data;
+                        event = hdr->evt;
+
+                        if(event == HCI_EV_CMD_COMPLETE)
+                        {
+                            //struct hci_uart *hu  = (struct hci_uart *) hdev->driver_data;
+                            struct hci_ev_cmd_complete *ev = (void *) skb->data + HCI_EVENT_HDR_SIZE;
+                            if((ev->opcode == (0x3f<<10 | 0xc0)) || (ev->opcode == (0x3f<<10 | 0xc1)))
+                            {
+                                //if(hu)
+					//hci_uart_tx_wakeup(hu);
+                                 action = 1; 
+                                 kfree_skb(skb);
+                                 break;
+                            }
+                        }
+                    }                   
+#endif
 			hci_event_packet(hdev, skb);
 			break;
 
@@ -2395,6 +2610,21 @@ static void hci_rx_task(unsigned long arg)
 	}
 
 	read_unlock(&hci_task_lock);
+
+#ifdef RDA_BT_SUPPORT
+	if(action == 1)
+	{
+		struct hci_uart *hu  = (struct hci_uart *) hdev->driver_data;
+
+               	//atomic_set(&need_wakeup_bt, 0);
+                need_wakeup_bt = 0;                
+		if(hu)
+		{
+			hci_uart_tx_wakeup(hu);
+		}
+	}
+#endif
+
 }
 
 static void hci_cmd_task(unsigned long arg)
@@ -2427,3 +2657,36 @@ static void hci_cmd_task(unsigned long arg)
 		}
 	}
 }
+
+
+#ifdef RDA_BT_SUPPORT
+static void hci_bt_pm_task(struct work_struct *work)
+{
+    //if(atomic_read(&need_wakeup_bt) != BT_WAKEUP_HOST)
+        //atomic_set(&need_wakeup_bt, HOST_WAKEUP_BT);
+    if(need_wakeup_bt != BT_WAKEUP_HOST)
+	need_wakeup_bt = HOST_WAKEUP_BT;
+}
+
+void export_bt_hci_wakeup_chip(void)
+{
+    struct hci_dev * hdev = hci_dev_get(0);
+    struct hci_uart *hu  = NULL;
+
+    if(hdev)
+        hu = (struct hci_uart *) hdev->driver_data;
+    else
+        {
+            //atomic_set(&need_wakeup_bt, 0);
+            	need_wakeup_bt = 0;
+		return ;
+        }
+    
+    //atomic_set(&need_wakeup_bt, BT_WAKEUP_HOST);  
+    	need_wakeup_bt = BT_WAKEUP_HOST;
+	hci_uart_tx_wakeup(hu);
+}
+
+EXPORT_SYMBOL(export_bt_hci_wakeup_chip);
+#endif
+
