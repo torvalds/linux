@@ -88,17 +88,21 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 
 	ipoib_create_debug_files(priv->dev);
 
-	if (ipoib_cm_add_mode_attr(priv->dev))
-		goto sysfs_failed;
-	if (ipoib_add_pkey_attr(priv->dev))
-		goto sysfs_failed;
-	if (ipoib_add_umcast_attr(priv->dev))
-		goto sysfs_failed;
+	/* RTNL childs don't need proprietary sysfs entries */
+	if (type == IPOIB_LEGACY_CHILD) {
+		if (ipoib_cm_add_mode_attr(priv->dev))
+			goto sysfs_failed;
+		if (ipoib_add_pkey_attr(priv->dev))
+			goto sysfs_failed;
+		if (ipoib_add_umcast_attr(priv->dev))
+			goto sysfs_failed;
 
-	if (device_create_file(&priv->dev->dev, &dev_attr_parent))
-		goto sysfs_failed;
+		if (device_create_file(&priv->dev->dev, &dev_attr_parent))
+			goto sysfs_failed;
+	}
 
-	priv->child_type = type;
+	priv->child_type  = type;
+	priv->dev->iflink = ppriv->dev->ifindex;
 	list_add_tail(&priv->list, &ppriv->child_intfs);
 
 	return 0;

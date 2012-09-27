@@ -523,6 +523,9 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 int  __init ipoib_netlink_init(void);
 void __exit ipoib_netlink_fini(void);
 
+void ipoib_set_umcast(struct net_device *ndev, int umcast_val);
+int  ipoib_set_mode(struct net_device *dev, const char *buf);
+
 void ipoib_setup(struct net_device *dev);
 
 void ipoib_pkey_poll(struct work_struct *work);

@@ -37,7 +37,59 @@
 
 static const struct nla_policy ipoib_policy[IFLA_IPOIB_MAX + 1] = {
 	[IFLA_IPOIB_PKEY]	= { .type = NLA_U16 },
+	[IFLA_IPOIB_MODE]	= { .type = NLA_U16 },
+	[IFLA_IPOIB_UMCAST]	= { .type = NLA_U16 },
 };
+
+static int ipoib_fill_info(struct sk_buff *skb, const struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	u16 val;
+
+	if (nla_put_u16(skb, IFLA_IPOIB_PKEY, priv->pkey))
+		goto nla_put_failure;
+
+	val = test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
+	if (nla_put_u16(skb, IFLA_IPOIB_MODE, val))
+		goto nla_put_failure;
+
+	val = test_bit(IPOIB_FLAG_UMCAST, &priv->flags);
+	if (nla_put_u16(skb, IFLA_IPOIB_UMCAST, val))
+		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static int ipoib_changelink(struct net_device *dev,
+			    struct nlattr *tb[], struct nlattr *data[])
+{
+	u16 mode, umcast;
+	int ret = 0;
+
+	if (data[IFLA_IPOIB_MODE]) {
+		mode  = nla_get_u16(data[IFLA_IPOIB_MODE]);
+		if (mode == IPOIB_MODE_DATAGRAM)
+			ret = ipoib_set_mode(dev, "datagram\n");
+		else if (mode == IPOIB_MODE_CONNECTED)
+			ret = ipoib_set_mode(dev, "connected\n");
+		else
+			ret = -EINVAL;
+
+		if (ret < 0)
+			goto out_err;
+	}
+
+	if (data[IFLA_IPOIB_UMCAST]) {
+		umcast = nla_get_u16(data[IFLA_IPOIB_UMCAST]);
+		ipoib_set_umcast(dev, umcast);
+	}
+
+out_err:
+	return ret;
+}
 
 static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
 			       struct nlattr *tb[], struct nlattr *data[])
@@ -69,6 +121,8 @@ static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
 
 	err = __ipoib_vlan_add(ppriv, netdev_priv(dev), child_pkey, IPOIB_RTNL_CHILD);
 
+	if (!err && data)
+		err = ipoib_changelink(dev, tb, data);
 	return err;
 }
 
@@ -87,7 +141,9 @@ static void ipoib_unregister_child_dev(struct net_device *dev, struct list_head 
 
 static size_t ipoib_get_size(const struct net_device *dev)
 {
-	return nla_total_size(2);	/* IFLA_IPOIB_PKEY */
+	return nla_total_size(2) +	/* IFLA_IPOIB_PKEY   */
+		nla_total_size(2) +	/* IFLA_IPOIB_MODE   */
+		nla_total_size(2);	/* IFLA_IPOIB_UMCAST */
 }
 
 static struct rtnl_link_ops ipoib_link_ops __read_mostly = {
@@ -97,8 +153,10 @@ static struct rtnl_link_ops ipoib_link_ops __read_mostly = {
 	.priv_size	= sizeof(struct ipoib_dev_priv),
 	.setup		= ipoib_setup,
 	.newlink	= ipoib_new_child_link,
+	.changelink	= ipoib_changelink,
 	.dellink	= ipoib_unregister_child_dev,
 	.get_size	= ipoib_get_size,
+	.fill_info	= ipoib_fill_info,
 };
 
 int __init ipoib_netlink_init(void)

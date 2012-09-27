@@ -404,7 +404,14 @@ struct ifla_port_vsi {
 enum {
 	IFLA_IPOIB_UNSPEC,
 	IFLA_IPOIB_PKEY,
+	IFLA_IPOIB_MODE,
+	IFLA_IPOIB_UMCAST,
 	__IFLA_IPOIB_MAX
+};
+
+enum {
+	IPOIB_MODE_DATAGRAM  = 0, /* using unreliable datagram QPs */
+	IPOIB_MODE_CONNECTED = 1, /* using connected QPs */
 };
 
 #define IFLA_IPOIB_MAX (__IFLA_IPOIB_MAX - 1)

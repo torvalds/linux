@@ -1381,12 +1381,9 @@ static ssize_t show_umcast(struct device *dev,
 	return sprintf(buf, "%d\n", test_bit(IPOIB_FLAG_UMCAST, &priv->flags));
 }
 
-static ssize_t set_umcast(struct device *dev,
-			  struct device_attribute *attr,
-			  const char *buf, size_t count)
+void ipoib_set_umcast(struct net_device *ndev, int umcast_val)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(to_net_dev(dev));
-	unsigned long umcast_val = simple_strtoul(buf, NULL, 0);
+	struct ipoib_dev_priv *priv = netdev_priv(ndev);
 
 	if (umcast_val > 0) {
 		set_bit(IPOIB_FLAG_UMCAST, &priv->flags);
@@ -1394,6 +1391,15 @@ static ssize_t set_umcast(struct device *dev,
 				"by userspace\n");
 	} else
 		clear_bit(IPOIB_FLAG_UMCAST, &priv->flags);
+}
+
+static ssize_t set_umcast(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	unsigned long umcast_val = simple_strtoul(buf, NULL, 0);
+
+	ipoib_set_umcast(to_net_dev(dev), umcast_val);
 
 	return count;
 }
