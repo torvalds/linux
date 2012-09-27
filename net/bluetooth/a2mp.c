@@ -180,6 +180,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 	u16 len = le16_to_cpu(hdr->len);
 	struct a2mp_cl *cl;
 	u16 ext_feat;
+	bool found = false;
 
 	if (len < sizeof(*rsp))
 		return -EINVAL;
@@ -210,6 +211,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 		if (cl->id != HCI_BREDR_ID && cl->type == HCI_AMP) {
 			struct a2mp_info_req req;
 
+			found = true;
 			req.id = cl->id;
 			a2mp_send(mgr, A2MP_GETINFO_REQ, __next_ident(mgr),
 				  sizeof(req), &req);
@@ -217,6 +219,32 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 
 		len -= sizeof(*cl);
 		cl = (void *) skb_pull(skb, sizeof(*cl));
+	}
+
+	/* Fall back to L2CAP init sequence */
+	if (!found) {
+		struct l2cap_conn *conn = mgr->l2cap_conn;
+		struct l2cap_chan *chan;
+
+		mutex_lock(&conn->chan_lock);
+
+		list_for_each_entry(chan, &conn->chan_l, list) {
+
+			BT_DBG("chan %p state %s", chan,
+			       state_to_string(chan->state));
+
+			if (chan->chan_type == L2CAP_CHAN_CONN_FIX_A2MP)
+				continue;
+
+			l2cap_chan_lock(chan);
+
+			if (chan->state == BT_CONNECT)
+				l2cap_send_conn_req(chan);
+
+			l2cap_chan_unlock(chan);
+		}
+
+		mutex_unlock(&conn->chan_lock);
 	}
 
 	return 0;

@@ -958,7 +958,7 @@ static bool __amp_capable(struct l2cap_chan *chan)
 		return false;
 }
 
-static void l2cap_send_conn_req(struct l2cap_chan *chan)
+void l2cap_send_conn_req(struct l2cap_chan *chan)
 {
 	struct l2cap_conn *conn = chan->conn;
 	struct l2cap_conn_req req;
