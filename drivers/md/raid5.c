@@ -1591,6 +1591,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 		#ifdef CONFIG_MULTICORE_RAID456
 		init_waitqueue_head(&nsh->ops.wait_for_ops);
 		#endif
+		spin_lock_init(&nsh->stripe_lock);
 
 		list_add(&nsh->lru, &newstripes);
 	}
