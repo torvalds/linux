@@ -246,9 +246,13 @@ static int rk29_backlight_io_deinit(void)
 {
 	int ret = 0;
 #ifdef  LCD_DISP_ON_PIN
+	gpio_direction_output(BL_EN_PIN, 0);
+	gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
 	gpio_free(BL_EN_PIN);
 #endif
 	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
+	gpio_request(PWM_GPIO, NULL);
+	gpio_direction_output(PWM_GPIO, GPIO_LOW);
 	return ret;
 }
 
