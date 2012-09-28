@@ -743,11 +743,9 @@ ifeq ($(NO_PERF_REGS),0)
 	BASIC_CFLAGS += -DHAVE_PERF_REGS
 endif
 
-ifdef NO_STRLCPY
-	BASIC_CFLAGS += -DNO_STRLCPY
-else
-	ifneq ($(call try-cc,$(SOURCE_STRLCPY),),y)
-		BASIC_CFLAGS += -DNO_STRLCPY
+ifndef NO_STRLCPY
+	ifeq ($(call try-cc,$(SOURCE_STRLCPY),),y)
+		BASIC_CFLAGS += -DHAVE_STRLCPY
 	endif
 endif
 
