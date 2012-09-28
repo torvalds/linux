@@ -46,6 +46,8 @@
 #define RCU_TREE_NONCORE
 #include "rcutree.h"
 
+#define ulong2long(a) (*(long *)(&(a)))
+
 static int r_open(struct inode *inode, struct file *file,
 					const struct seq_operations *op)
 {
@@ -116,10 +118,10 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 {
 	if (!rdp->beenonline)
 		return;
-	seq_printf(m, "%3d%cc=%lu g=%lu pq=%d qp=%d",
+	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d qp=%d",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
-		   rdp->completed, rdp->gpnum,
+		   ulong2long(rdp->completed), ulong2long(rdp->gpnum),
 		   rdp->passed_quiesce, rdp->qs_pending);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
 		   atomic_read(&rdp->dynticks->dynticks),
@@ -246,8 +248,9 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	struct rcu_node *rnp;
 
 	gpnum = rsp->gpnum;
-	seq_printf(m, "%s: c=%lu g=%lu s=%d jfq=%ld j=%x ",
-		   rsp->name, rsp->completed, gpnum, rsp->fqs_state,
+	seq_printf(m, "%s: c=%ld g=%ld s=%d jfq=%ld j=%x ",
+		   rsp->name, ulong2long(rsp->completed), ulong2long(gpnum),
+		   rsp->fqs_state,
 		   (long)(rsp->jiffies_force_qs - jiffies),
 		   (int)(jiffies & 0xffff));
 	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
@@ -301,16 +304,16 @@ static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
 	struct rcu_node *rnp = &rsp->node[0];
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
-	completed = rsp->completed;
-	gpnum = rsp->gpnum;
-	if (rsp->completed == rsp->gpnum)
+	completed = ACCESS_ONCE(rsp->completed);
+	gpnum = ACCESS_ONCE(rsp->gpnum);
+	if (completed == gpnum)
 		gpage = 0;
 	else
 		gpage = jiffies - rsp->gp_start;
 	gpmax = rsp->gp_max;
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	seq_printf(m, "%s: completed=%ld  gpnum=%lu  age=%ld  max=%ld\n",
-		   rsp->name, completed, gpnum, gpage, gpmax);
+	seq_printf(m, "%s: completed=%ld  gpnum=%ld  age=%ld  max=%ld\n",
+		   rsp->name, ulong2long(completed), ulong2long(gpnum), gpage, gpmax);
 }
 
 static int show_rcugp(struct seq_file *m, void *unused)

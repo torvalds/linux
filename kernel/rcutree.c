@@ -68,8 +68,8 @@ static struct lock_class_key rcu_fqs_class[RCU_NUM_LVLS];
 	.level = { &sname##_state.node[0] }, \
 	.call = cr, \
 	.fqs_state = RCU_GP_IDLE, \
-	.gpnum = -300, \
-	.completed = -300, \
+	.gpnum = 0UL - 300UL, \
+	.completed = 0UL - 300UL, \
 	.orphan_lock = __RAW_SPIN_LOCK_UNLOCKED(&sname##_state.orphan_lock), \
 	.orphan_nxttail = &sname##_state.orphan_nxtlist, \
 	.orphan_donetail = &sname##_state.orphan_donelist, \
