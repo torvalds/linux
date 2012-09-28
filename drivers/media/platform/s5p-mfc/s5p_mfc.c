@@ -1215,7 +1215,7 @@ static int s5p_mfc_suspend(struct device *dev)
 
 	if (m_dev->num_inst == 0)
 		return 0;
-	return s5p_mfc_sleep(m_dev);
+
 	if (test_and_set_bit(0, &m_dev->enter_suspend) != 0) {
 		mfc_err("Error: going to suspend for a second time\n");
 		return -EIO;
@@ -1234,7 +1234,8 @@ static int s5p_mfc_suspend(struct device *dev)
 			return -EIO;
 		}
 	}
-	return 0;
+
+	return s5p_mfc_sleep(m_dev);
 }
 
 static int s5p_mfc_resume(struct device *dev)
