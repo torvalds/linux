@@ -42,7 +42,7 @@
 #define DBG(x...)
 #endif
 
-static int rk30_battery_dbg_level = 1;
+static int rk30_battery_dbg_level = 0;
 module_param_named(dbg_level, rk30_battery_dbg_level, int, 0644);
 #define pr_bat( args...) \
 	do { \
@@ -71,7 +71,13 @@ module_param_named(dbg_level, rk30_battery_dbg_level, int, 0644);
 #define   NUM_CHARGE_FULL_DELAY_TIMES         ((CHARGE_FULL_DELAY_TIMES * 1000) / TIMER_MS_COUNTS)	//充电满状态持续时间长度
 #define   NUM_USBCHARGE_IDENTIFY_TIMES      ((USBCHARGE_IDENTIFY_TIMES * 1000) / TIMER_MS_COUNTS)	//充电满状态持续时间长度
 
-#define BAT_2V5_VALUE	                                     2500
+#if defined(CONFIG_ARCH_RK3066B)
+#define  BAT_DEFINE_VALUE	                                     1800
+#elif defined(CONFIG_ARCH_RK2928)
+#define  BAT_DEFINE_VALUE                                         3300
+#else
+#define  BAT_DEFINE_VALUE	                                     2500
+#endif
 
 
 #define BATT_FILENAME "/data/bat_last_capacity.dat"
@@ -162,7 +168,7 @@ static int batt_table[2*BATT_NUM+6] =
 	3496, 3548, 3599, 3626, 3655, 3697, 3751, 3812, 3877, 3949, 4030,  //discharge
 	3540, 3785, 3842, 3861, 3915, 3980, 4041, 4135, 4169, 4175, 4185	  //charge
 };
-#define adc_to_voltage(adc_val) ((adc_val * BAT_2V5_VALUE * (batt_table[4] +batt_table[5])) / (1024 *batt_table[5]))
+#define adc_to_voltage(adc_val) ((adc_val * BAT_DEFINE_VALUE * (batt_table[4] +batt_table[5])) / (1024 *batt_table[5]))
 #else
 #define BATT_MAX_VOL_VALUE                              8284              	//Full charge voltage
 #define BATT_ZERO_VOL_VALUE                             6800            	// power down voltage 
@@ -177,7 +183,7 @@ static int batt_table[2*BATT_NUM+6] =
 	6800,7242,7332,7404,7470,7520,7610,7744,7848,8016,8284,
 	7630, 7754, 7852, 7908, 7956, 8024, 8112, 8220, 8306, 8318, 8328
 };
-#define adc_to_voltage(adc_val) ((adc_val * BAT_2V5_VALUE * (batt_table[4] +batt_table[5])) / (1024 *batt_table[5]))
+#define adc_to_voltage(adc_val) ((adc_val * BAT_DEFINE_VALUE * (batt_table[4] +batt_table[5])) / (1024 *batt_table[5]))
 
 
 #endif
@@ -451,6 +457,12 @@ static void rk30_adc_battery_charge_disable(struct rk30_adc_battery_data *bat)
 }
 
 //extern int suspend_flag;
+#if defined (CONFIG_REGULATOR_ACT8931)
+extern  int act8931_charge_det ;
+#endif
+extern int __sramdata g_pmic_type ;
+#define PMIC_TYPE_TPS65910	2
+#define PMIC_TYPE_ACT8931	3
 static int rk30_adc_battery_get_charge_level(struct rk30_adc_battery_data *bat)
 {
 	int charge_on = 0;
@@ -458,9 +470,17 @@ static int rk30_adc_battery_get_charge_level(struct rk30_adc_battery_data *bat)
 
 #if defined (CONFIG_BATTERY_RK30_AC_CHARGE)
 	if (pdata->dc_det_pin != INVALID_GPIO){
-		if (gpio_get_value (pdata->dc_det_pin) == pdata->dc_det_level){
+	       	if (gpio_get_value (pdata->dc_det_pin) == pdata->dc_det_level){
 			charge_on = 1;
 		}
+	}else{
+	                   	
+              #if defined (CONFIG_REGULATOR_ACT8931)
+              if(g_pmic_type == PMIC_TYPE_ACT8931)
+	        {
+            	        charge_on = act8931_charge_det;//act8931_dc_det(11000);
+               }
+               #endif
 	}
 #endif
 
@@ -681,7 +701,7 @@ static int rk30_adc_battery_voltage_to_capacity(struct rk30_adc_battery_data *ba
 				for(i = BATT_NUM +6; i <2*BATT_NUM +6; i++){
 
 					if(((p[i]) <= BatVoltage) && (BatVoltage < (p[i+1]))){
-						capacity = (i-BATT_NUM +6)*10 + ((BatVoltage - p[i]) *  10)/ (p[i+1]- p[i]);
+						capacity = (i-(BATT_NUM +6))*10 + ((BatVoltage - p[i]) *  10)/ (p[i+1]- p[i]);
 						break;
 					}
 				}
@@ -837,7 +857,17 @@ static void rk30_adc_battery_poweron_capacity_check(void)
 	int new_capacity, old_capacity;
 
 	new_capacity = gBatteryData->bat_capacity;
-	old_capacity = rk30_adc_battery_load_capacity();
+
+      int cnt = 50 ;
+	while( cnt -- ){
+	    old_capacity = rk30_adc_battery_load_capacity();
+	   // printk("------------------->> : %d \n",old_capacity);
+	    if( old_capacity >= 0 ){
+	        break ;
+	    }
+	    msleep(100);
+	}
+//	printk("---------------------------------------------------------->> : %d \n",old_capacity);
 	if ((old_capacity <= 0) || (old_capacity >= 100)){
 		old_capacity = new_capacity;
 	}    
@@ -864,7 +894,7 @@ static void rk30_adc_battery_poweron_capacity_check(void)
 	}
 
 
-	//printk("capacity = %d, new_capacity = %d, old_capacity = %d\n",gBatteryData->bat_capacity, new_capacity, old_capacity);
+	printk("capacity = %d, new_capacity = %d, old_capacity = %d\n",gBatteryData->bat_capacity, new_capacity, old_capacity);
 
 	gBatteryData->bat_change = 1;
 }
@@ -1248,7 +1278,7 @@ static int rk30_adc_battery_io_init(struct rk30_adc_battery_platform_data *pdata
 	    		goto error;
 	    	}
 	
-	    	gpio_pull_updown(pdata->dc_det_pin, GPIOPullUp);//important
+	    	gpio_pull_updown(pdata->dc_det_pin, 0);//GPIOPullUp);//important
 	    	ret = gpio_direction_input(pdata->dc_det_pin);
 	    	if (ret) {
 	    		printk("failed to set gpio dc_det input\n");
@@ -1339,12 +1369,12 @@ static void rk30_adc_battery_check(struct rk30_adc_battery_data *bat)
 
 
 
-#if 1
+#if 0
 	rk30_adc_battery_poweron_capacity_check();
 #else
 	gBatteryData->poweron_check = 1;
 #endif
-	gBatteryData->poweron_check = 0;
+//	gBatteryData->poweron_check = 0;
 
 /*******************************************
 //开机采样到的电压和上次关机保存电压相差较大，怎么处理？
@@ -1477,7 +1507,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&data->delay_work, rk30_adc_battery_timer_work);
 	//Power on Battery detect
 	rk30_adc_battery_check(data);
-	queue_delayed_work(data->wq, &data->delay_work, msecs_to_jiffies(TIMER_MS_COUNTS));
+	queue_delayed_work(data->wq, &data->delay_work, msecs_to_jiffies(TIMER_MS_COUNTS*10));
 
 #if  defined (CONFIG_BATTERY_RK30_AC_CHARGE)
 	ret = power_supply_register(&pdev->dev, &rk30_ac_supply);
@@ -1603,7 +1633,7 @@ static void __exit rk30_adc_battery_exit(void)
 	platform_driver_unregister(&rk30_adc_battery_driver);
 }
 
-subsys_initcall(rk30_adc_battery_init);//subsys_initcall(rk30_adc_battery_init);
+fs_initcall(rk30_adc_battery_init);//module_init(rk30_adc_battery_init);//subsys_initcall(rk30_adc_battery_init);
 module_exit(rk30_adc_battery_exit);
 
 MODULE_DESCRIPTION("Battery detect driver for the rk30");
