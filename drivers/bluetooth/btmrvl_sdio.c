@@ -514,7 +514,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	}
 
 	blksz = SDIO_BLOCK_SIZE;
-	num_blocks = (buf_len + blksz - 1) / blksz;
+	num_blocks = DIV_ROUND_UP(buf_len, blksz);
 
 	if (buf_len <= SDIO_HEADER_LEN
 	    || (num_blocks * blksz) > ALLOC_BUF_SIZE) {
