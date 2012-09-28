@@ -241,9 +241,8 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	status = be_cmd_mac_addr_query(adapter, current_mac,
-				MAC_ADDRESS_TYPE_NETWORK, false,
-				adapter->if_handle, 0);
+	status = be_cmd_mac_addr_query(adapter, current_mac, false,
+				       adapter->if_handle, 0);
 	if (status)
 		goto err;
 
@@ -2693,21 +2692,16 @@ static int be_get_mac_addr(struct be_adapter *adapter, u8 *mac, u32 if_handle,
 		status = be_cmd_get_mac_from_list(adapter, mac,
 						  active_mac, pmac_id, 0);
 		if (*active_mac) {
-			status = be_cmd_mac_addr_query(adapter, mac,
-						       MAC_ADDRESS_TYPE_NETWORK,
-						       false, if_handle,
-						       *pmac_id);
+			status = be_cmd_mac_addr_query(adapter, mac, false,
+						       if_handle, *pmac_id);
 		}
 	} else if (be_physfn(adapter)) {
 		/* For BE3, for PF get permanent MAC */
-		status = be_cmd_mac_addr_query(adapter, mac,
-					       MAC_ADDRESS_TYPE_NETWORK, true,
-					       0, 0);
+		status = be_cmd_mac_addr_query(adapter, mac, true, 0, 0);
 		*active_mac = false;
 	} else {
 		/* For BE3, for VF get soft MAC assigned by PF*/
-		status = be_cmd_mac_addr_query(adapter, mac,
-					       MAC_ADDRESS_TYPE_NETWORK, false,
+		status = be_cmd_mac_addr_query(adapter, mac, false,
 					       if_handle, 0);
 		*active_mac = true;
 	}

@@ -717,7 +717,7 @@ int be_cmd_eq_create(struct be_adapter *adapter,
 
 /* Use MCC */
 int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
-			u8 type, bool permanent, u32 if_handle, u32 pmac_id)
+			  bool permanent, u32 if_handle, u32 pmac_id)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_mac_query *req;
@@ -734,7 +734,7 @@ int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_MAC_QUERY, sizeof(*req), wrb, NULL);
-	req->type = type;
+	req->type = MAC_ADDRESS_TYPE_NETWORK;
 	if (permanent) {
 		req->permanent = 1;
 	} else {
