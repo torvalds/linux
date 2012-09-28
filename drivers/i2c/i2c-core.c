@@ -586,6 +586,87 @@ out_err_silent:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(i2c_new_device);
+#ifdef CONFIG_PLAT_RK
+#ifdef CONFIG_I2C_RK30
+int i2c_add_device(int nr, struct i2c_board_info const *info)
+{
+	int			status;
+	struct i2c_client	*client;
+        struct i2c_adapter *adap = i2c_get_adapter(nr);
+        
+        if(!adap){
+                printk(KERN_ERR "%s: adap(%d) is not exist\n", __func__, nr);
+                return -EINVAL;
+        }
+
+	client = kzalloc(sizeof *client, GFP_KERNEL);
+	if (!client){
+                dev_err(&adap->dev, "no memory for client\n");
+		return -ENOMEM;
+        }
+
+	client->adapter = adap;
+
+	client->dev.platform_data = info->platform_data;
+
+	if (info->archdata)
+		client->dev.archdata = *info->archdata;
+
+	client->flags = info->flags;
+	client->addr = info->addr;
+	client->irq = info->irq;
+	client->udelay = info->udelay;  // add by kfx
+
+	strlcpy(client->name, info->type, sizeof(client->name));
+
+	/* Check for address validity */
+	status = i2c_check_client_addr_validity(client);
+	if (status) {
+		dev_err(&adap->dev, "Invalid %d-bit I2C address 0x%02hx\n",
+			client->flags & I2C_CLIENT_TEN ? 10 : 7, client->addr);
+		goto out_err_silent;
+	}
+
+	/* Check for address business */
+	status = i2c_check_addr_busy(adap, client->addr);
+	if (status){
+                status = -EEXIST;
+		dev_warn(&adap->dev, "i2c clients have been registered at 0x%02x\n", client->addr);   
+		goto out_err_silent;
+        }
+
+	client->dev.parent = &client->adapter->dev;
+	client->dev.bus = &i2c_bus_type;
+	client->dev.type = &i2c_client_type;
+	client->dev.of_node = info->of_node;
+
+        dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
+    		     client->addr);
+    
+	status = device_register(&client->dev);
+	if (status)
+		goto out_err;
+
+	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
+		client->name, dev_name(&client->dev));
+
+	return 0;
+
+out_err:
+	dev_err(&adap->dev, "Failed to register i2c client %s at 0x%02x "
+		"(%d)\n", client->name, client->addr, status);
+out_err_silent:
+	kfree(client);
+	return status;
+}
+#else
+int i2c_add_device(int nr, struct i2c_board_info const *info)
+{
+        return 0;
+}
+#endif
+EXPORT_SYMBOL_GPL(i2c_add_device);
+#endif
 
 
 /**

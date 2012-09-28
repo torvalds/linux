@@ -70,6 +70,7 @@ extern int i2c_master_reg8_recv(const struct i2c_client *client, const char reg,
 extern int i2c_master_reg16_send(const struct i2c_client *client, const short regs, const short *buf, int count, int scl_rate);
 extern int i2c_master_reg16_recv(const struct i2c_client *client, const short regs, short *buf, int count, int scl_rate);
 extern int i2c_suspended(struct i2c_adapter *adap);
+extern int i2c_add_device(int nr, struct i2c_board_info const *info);
 #endif
 
 /* Transfer num messages.
