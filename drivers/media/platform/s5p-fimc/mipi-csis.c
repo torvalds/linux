@@ -383,6 +383,30 @@ err:
 	return -ENXIO;
 }
 
+static void dump_regs(struct csis_state *state, const char *label)
+{
+	struct {
+		u32 offset;
+		const char * const name;
+	} registers[] = {
+		{ 0x00, "CTRL" },
+		{ 0x04, "DPHYCTRL" },
+		{ 0x08, "CONFIG" },
+		{ 0x0c, "DPHYSTS" },
+		{ 0x10, "INTMSK" },
+		{ 0x2c, "RESOL" },
+		{ 0x38, "SDW_CONFIG" },
+	};
+	u32 i;
+
+	v4l2_info(&state->sd, "--- %s ---\n", label);
+
+	for (i = 0; i < ARRAY_SIZE(registers); i++) {
+		u32 cfg = s5pcsis_read(state, registers[i].offset);
+		v4l2_info(&state->sd, "%10s: 0x%08x\n", registers[i].name, cfg);
+	}
+}
+
 static void s5pcsis_start_stream(struct csis_state *state)
 {
 	s5pcsis_reset(state);
@@ -583,7 +607,11 @@ static int s5pcsis_log_status(struct v4l2_subdev *sd)
 {
 	struct csis_state *state = sd_to_csis_state(sd);
 
+	mutex_lock(&state->lock);
 	s5pcsis_log_counters(state, true);
+	if (debug && (state->flags & ST_POWERED))
+		dump_regs(state, __func__);
+	mutex_unlock(&state->lock);
 	return 0;
 }
 
