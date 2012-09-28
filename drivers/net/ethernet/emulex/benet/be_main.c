@@ -3889,7 +3889,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 
 	status = be_setup(adapter);
 	if (status)
-		goto msix_disable;
+		goto stats_clean;
 
 	be_netdev_init(netdev);
 	status = register_netdev(netdev);
@@ -3910,8 +3910,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 
 unsetup:
 	be_clear(adapter);
-msix_disable:
-	be_msix_disable(adapter);
 stats_clean:
 	be_stats_cleanup(adapter);
 ctrl_clean:
