@@ -231,8 +231,8 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 	/* Store largest notifyid */
 	rproc->max_notifyid = max(rproc->max_notifyid, notifyid);
 
-	dev_dbg(dev, "vring%d: va %p dma %x size %x idr %d\n", i, va,
-					dma, size, notifyid);
+	dev_dbg(dev, "vring%d: va %p dma %llx size %x idr %d\n", i, va,
+				(unsigned long long)dma, size, notifyid);
 
 	rvring->va = va;
 	rvring->dma = dma;
@@ -586,7 +586,8 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		goto free_carv;
 	}
 
-	dev_dbg(dev, "carveout va %p, dma %x, len 0x%x\n", va, dma, rsc->len);
+	dev_dbg(dev, "carveout va %p, dma %llx, len 0x%x\n", va,
+					(unsigned long long)dma, rsc->len);
 
 	/*
 	 * Ok, this is non-standard.
@@ -631,7 +632,8 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		mapping->len = rsc->len;
 		list_add_tail(&mapping->node, &rproc->mappings);
 
-		dev_dbg(dev, "carveout mapped 0x%x to 0x%x\n", rsc->da, dma);
+		dev_dbg(dev, "carveout mapped 0x%x to 0x%llx\n",
+					rsc->da, (unsigned long long)dma);
 	}
 
 	/*
