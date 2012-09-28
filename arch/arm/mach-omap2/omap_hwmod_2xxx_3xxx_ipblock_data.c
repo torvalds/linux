@@ -12,7 +12,7 @@
 #include <plat/omap_hwmod.h>
 #include <plat/serial.h>
 #include <plat-omap/dma-omap.h>
-#include <plat/common.h>
+#include "../plat-omap/common.h"
 #include "hdq1w.h"
 
 #include "omap_hwmod_common_data.h"

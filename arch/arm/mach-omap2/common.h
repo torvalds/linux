@@ -36,7 +36,8 @@
 
 #include <plat/cpu.h>
 #include <plat/serial.h>
-#include <plat/common.h>
+
+#include "../plat-omap/common.h"
 
 #include "i2c.h"
 

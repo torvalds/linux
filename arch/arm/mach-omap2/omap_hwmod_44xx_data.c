@@ -28,8 +28,9 @@
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <plat/dmtimer.h>
-#include <plat/common.h>
 #include <plat/iommu.h>
+
+#include "../plat-omap/common.h"
 
 #include "omap_hwmod_common_data.h"
 #include "cm1_44xx.h"
