@@ -896,7 +896,7 @@ static int samsung_smt_7020_set_voltage(struct dvb_frontend *fe,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return (i2c_transfer(&dev->core->i2c_adap, &msg, 1) == 1) ? 0 : -EIO;
 }

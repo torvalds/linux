@@ -2309,7 +2309,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		fepriv->tune_mode_flags = (unsigned long) parg;
 		err = 0;
 		break;
-	};
+	}
 
 	return err;
 }
