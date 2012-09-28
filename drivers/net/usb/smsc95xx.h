@@ -63,6 +63,7 @@
 #define INT_STS_TDFO_			(0x00001000)
 #define INT_STS_RXDF_			(0x00000800)
 #define INT_STS_GPIOS_			(0x000007FF)
+#define INT_STS_CLEAR_ALL_		(0xFFFFFFFF)
 
 #define RX_CFG				(0x0C)
 #define RX_FIFO_FLUSH_			(0x00000001)
