@@ -36,6 +36,9 @@ config MIPS
 	select BUILDTIME_EXTABLE_SORT
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
+	select HAVE_MOD_ARCH_SPECIFIC
+	select MODULES_USE_ELF_REL
+	select MODULES_USE_ELF_RELA if 64BIT
 
 menu "Machine selection"
 
