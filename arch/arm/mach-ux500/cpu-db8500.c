@@ -345,7 +345,7 @@ DT_MACHINE_START(U8500_DT, "ST-Ericsson U8500 platform (Device Tree Support)")
 	.timer		= &ux500_timer,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= u8500_init_machine,
-	.init_late	= ux500_init_late,
+	.init_late	= NULL,
 	.dt_compat      = u8500_dt_board_compat,
 MACHINE_END
 
