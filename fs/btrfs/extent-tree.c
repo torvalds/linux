@@ -3907,7 +3907,6 @@ static int reserve_metadata_bytes(struct btrfs_root *root,
 	int flush_state = FLUSH_DELAYED_ITEMS_NR;
 	int ret = 0;
 	bool flushing = false;
-	bool committed = false;
 
 again:
 	ret = 0;
@@ -3970,33 +3969,12 @@ again:
 			(orig_bytes * 2);
 	}
 
-	if (ret) {
-		u64 avail;
-
-		/*
-		 * If we have a lot of space that's pinned, don't bother doing
-		 * the overcommit dance yet and just commit the transaction.
-		 */
-		avail = (space_info->total_bytes - space_info->bytes_used) * 8;
-		do_div(avail, 10);
-		if (space_info->bytes_pinned >= avail && flush && !committed) {
-			space_info->flush = 1;
-			flushing = true;
-			spin_unlock(&space_info->lock);
-			ret = may_commit_transaction(root, space_info,
-						     orig_bytes, 1);
-			if (ret)
-				goto out;
-			committed = true;
-			goto again;
-		}
-
-		if (can_overcommit(root, space_info, orig_bytes, flush)) {
-			space_info->bytes_may_use += orig_bytes;
-			trace_btrfs_space_reservation(root->fs_info,
-				"space_info", space_info->flags, orig_bytes, 1);
-			ret = 0;
-		}
+	if (ret && can_overcommit(root, space_info, orig_bytes, flush)) {
+		space_info->bytes_may_use += orig_bytes;
+		trace_btrfs_space_reservation(root->fs_info, "space_info",
+					      space_info->flags, orig_bytes,
+					      1);
+		ret = 0;
 	}
 
 	/*
