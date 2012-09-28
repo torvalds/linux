@@ -1542,6 +1542,15 @@ static int ab8500_probe(struct platform_device *pdev)
 		"Battery level lower than power on reset threshold",
 		"Power on key 1 pressed longer than 10 seconds",
 		"DB8500 thermal shutdown"};
+	static char *turn_on_status[] = {
+		"Battery rising (Vbat)",
+		"Power On Key 1 dbF",
+		"Power On Key 2 dbF",
+		"RTC Alarm",
+		"Main Charger Detect",
+		"Vbus Detect (USB)",
+		"USB ID Detect",
+		"UART Factory Mode Detect"};
 	struct ab8500_platform_data *plat = dev_get_platdata(&pdev->dev);
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	enum ab8500_version version = AB8500_VERSION_UNDEFINED;
@@ -1655,9 +1664,26 @@ static int ab8500_probe(struct platform_device *pdev)
 	} else {
 		printk(KERN_CONT " None\n");
 	}
+	ret = get_register_interruptible(ab8500, AB8500_SYS_CTRL1_BLOCK,
+		AB8500_TURN_ON_STATUS, &value);
+	if (ret < 0)
+		return ret;
+	dev_info(ab8500->dev, "turn on reason(s) (%#x): ", value);
+
+	if (value) {
+		for (i = 0; i < ARRAY_SIZE(turn_on_status); i++) {
+			if (value & 1)
+				printk("\"%s\" ", turn_on_status[i]);
+			value = value >> 1;
+		}
+		printk("\n");
+	} else {
+		printk("None\n");
+	}
 
 	if (plat && plat->init)
 		plat->init(ab8500);
+
 	if (is_ab9540(ab8500)) {
 		ret = get_register_interruptible(ab8500, AB8500_CHARGER,
 			AB8500_CH_USBCH_STAT1_REG, &value);
