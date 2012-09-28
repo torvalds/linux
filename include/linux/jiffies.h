@@ -51,9 +51,10 @@
 #define SH_DIV(NOM,DEN,LSH) (   (((NOM) / (DEN)) << (LSH))              \
                              + ((((NOM) % (DEN)) << (LSH)) + (DEN) / 2) / (DEN))
 
-#ifdef CLOCK_TICK_RATE
 /* LATCH is used in the interval timer and ftape setup. */
-# define LATCH ((CLOCK_TICK_RATE + HZ/2) / HZ)	/* For divider */
+#define LATCH ((CLOCK_TICK_RATE + HZ/2) / HZ)	/* For divider */
+
+#ifdef CLOCK_TICK_RATE
 
 /*
  * HZ is the requested value. However the CLOCK_TICK_RATE may not allow
