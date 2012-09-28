@@ -2901,6 +2901,7 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 	int ret;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
+	int start_slot;
 
 	key.objectid = objectid;
 	key.type = max_key_type;
@@ -2922,8 +2923,18 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 		if (found_key.objectid != objectid)
 			break;
 
-		ret = btrfs_del_item(trans, log, path);
-		if (ret)
+		found_key.offset = 0;
+		found_key.type = 0;
+		ret = btrfs_bin_search(path->nodes[0], &found_key, 0,
+				       &start_slot);
+
+		ret = btrfs_del_items(trans, log, path, start_slot,
+				      path->slots[0] - start_slot + 1);
+		/*
+		 * If start slot isn't 0 then we don't need to re-search, we've
+		 * found the last guy with the objectid in this tree.
+		 */
+		if (ret || start_slot != 0)
 			break;
 		btrfs_release_path(path);
 	}
