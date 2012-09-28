@@ -197,6 +197,8 @@ enum rq_flag_bits {
 	 REQ_SECURE)
 #define REQ_CLONE_MASK		REQ_COMMON_MASK
 
+#define BIO_NO_ADVANCE_ITER_MASK	(REQ_DISCARD|REQ_WRITE_SAME)
+
 /* This mask is used for both bio and request merge checking */
 #define REQ_NOMERGE_FLAGS \
 	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_FLUSH | REQ_FUA)
