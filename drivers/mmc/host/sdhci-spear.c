@@ -20,6 +20,8 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -68,8 +70,42 @@ static irqreturn_t sdhci_gpio_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_OF
+static struct sdhci_plat_data * __devinit
+sdhci_probe_config_dt(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct sdhci_plat_data *pdata = NULL;
+	int cd_gpio;
+
+	cd_gpio = of_get_named_gpio(np, "cd-gpios", 0);
+	if (!gpio_is_valid(cd_gpio))
+		cd_gpio = -1;
+
+	/* If pdata is required */
+	if (cd_gpio != -1) {
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata) {
+			dev_err(&pdev->dev, "DT: kzalloc failed\n");
+			return ERR_PTR(-ENOMEM);
+		}
+	}
+
+	pdata->card_int_gpio = cd_gpio;
+
+	return pdata;
+}
+#else
+static struct sdhci_plat_data * __devinit
+sdhci_probe_config_dt(struct platform_device *pdev)
+{
+	return ERR_PTR(-ENOSYS);
+}
+#endif
+
 static int __devinit sdhci_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct sdhci_host *host;
 	struct resource *iomem;
 	struct spear_sdhci *sdhci;
@@ -110,8 +146,16 @@ static int __devinit sdhci_probe(struct platform_device *pdev)
 		goto put_clk;
 	}
 
-	/* overwrite platform_data */
-	sdhci->data = dev_get_platdata(&pdev->dev);
+	if (np) {
+		sdhci->data = sdhci_probe_config_dt(pdev);
+		if (IS_ERR(sdhci->data)) {
+			dev_err(&pdev->dev, "DT: Failed to get pdata\n");
+			return -ENODEV;
+		}
+	} else {
+		sdhci->data = dev_get_platdata(&pdev->dev);
+	}
+
 	pdev->dev.platform_data = sdhci;
 
 	if (pdev->dev.parent)
@@ -276,11 +320,20 @@ static int sdhci_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(sdhci_pm_ops, sdhci_suspend, sdhci_resume);
 
+#ifdef CONFIG_OF
+static const struct of_device_id sdhci_spear_id_table[] = {
+	{ .compatible = "st,spear300-sdhci" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, sdhci_spear_id_table);
+#endif
+
 static struct platform_driver sdhci_driver = {
 	.driver = {
 		.name	= "sdhci",
 		.owner	= THIS_MODULE,
 		.pm	= &sdhci_pm_ops,
+		.of_match_table = of_match_ptr(sdhci_spear_id_table),
 	},
 	.probe		= sdhci_probe,
 	.remove		= __devexit_p(sdhci_remove),
