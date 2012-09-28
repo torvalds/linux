@@ -337,7 +337,6 @@ struct phy_info {
 	u16 auto_speeds_supported;
 	u16 fixed_speeds_supported;
 	int link_speed;
-	int forced_port_speed;
 	u32 dac_cable_len;
 	u32 advertising;
 	u32 supported;

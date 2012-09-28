@@ -2440,8 +2440,7 @@ static int be_open(struct net_device *netdev)
 		be_eq_notify(adapter, eqo->q.id, true, false, 0);
 	}
 
-	status = be_cmd_link_status_query(adapter, NULL, NULL,
-					  &link_status, 0);
+	status = be_cmd_link_status_query(adapter, NULL, &link_status, 0);
 	if (!status)
 		be_link_status_update(adapter, link_status);
 
@@ -2670,7 +2669,6 @@ static void be_setup_init(struct be_adapter *adapter)
 	adapter->be3_native = false;
 	adapter->promiscuous = false;
 	adapter->eq_next_idx = 0;
-	adapter->phy.forced_port_speed = -1;
 }
 
 static int be_get_mac_addr(struct be_adapter *adapter, u8 *mac, u32 if_handle,

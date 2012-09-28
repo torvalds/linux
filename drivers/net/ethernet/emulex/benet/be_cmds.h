@@ -1714,8 +1714,8 @@ extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
 extern int be_cmd_rxq_destroy(struct be_adapter *adapter,
 			struct be_queue_info *q);
-extern int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
-				    u16 *link_speed, u8 *link_status, u32 dom);
+extern int be_cmd_link_status_query(struct be_adapter *adapter, u16 *link_speed,
+				    u8 *link_status, u32 dom);
 extern int be_cmd_reset(struct be_adapter *adapter);
 extern int be_cmd_get_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);
