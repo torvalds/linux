@@ -205,6 +205,11 @@
 #define WUFF				(0x128)
 
 #define WUCSR				(0x12C)
+#define WUCSR_GUE_			(0x00000200)
+#define WUCSR_WUFR_			(0x00000040)
+#define WUCSR_MPR_			(0x00000020)
+#define WUCSR_WAKE_EN_			(0x00000004)
+#define WUCSR_MPEN_			(0x00000002)
 
 #define COE_CR				(0x130)
 #define Tx_COE_EN_			(0x00010000)
