@@ -4113,16 +4113,21 @@ static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
 		LIST_HEAD(invalid_list);
 
 		/*
+		 * Never scan more than sc->nr_to_scan VM instances.
+		 * Will not hit this condition practically since we do not try
+		 * to shrink more than one VM and it is very unlikely to see
+		 * !n_used_mmu_pages so many times.
+		 */
+		if (!nr_to_scan--)
+			break;
+		/*
 		 * n_used_mmu_pages is accessed without holding kvm->mmu_lock
 		 * here. We may skip a VM instance errorneosly, but we do not
 		 * want to shrink a VM that only started to populate its MMU
 		 * anyway.
 		 */
-		if (kvm->arch.n_used_mmu_pages > 0) {
-			if (!nr_to_scan--)
-				break;
+		if (!kvm->arch.n_used_mmu_pages)
 			continue;
-		}
 
 		idx = srcu_read_lock(&kvm->srcu);
 		spin_lock(&kvm->mmu_lock);

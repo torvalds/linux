@@ -67,6 +67,7 @@
 #define OMAP3430_EN_IVA2_DPLL_MASK			(0x7 << 0)
 
 /* CM_IDLEST_IVA2 */
+#define OMAP3430_ST_IVA2_SHIFT				0
 #define OMAP3430_ST_IVA2_MASK				(1 << 0)
 
 /* CM_IDLEST_PLL_IVA2 */

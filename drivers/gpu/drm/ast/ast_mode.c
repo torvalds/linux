@@ -841,7 +841,7 @@ int ast_cursor_init(struct drm_device *dev)
 
 	ast->cursor_cache = obj;
 	ast->cursor_cache_gpu_addr = gpu_addr;
-	DRM_ERROR("pinned cursor cache at %llx\n", ast->cursor_cache_gpu_addr);
+	DRM_DEBUG_KMS("pinned cursor cache at %llx\n", ast->cursor_cache_gpu_addr);
 	return 0;
 fail:
 	return ret;

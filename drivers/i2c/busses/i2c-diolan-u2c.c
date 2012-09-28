@@ -405,6 +405,7 @@ static int diolan_usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 			}
 		}
 	}
+	ret = num;
 abort:
 	sret = diolan_i2c_stop(dev);
 	if (sret < 0 && ret >= 0)

@@ -41,8 +41,12 @@
 		};
 		power-blue {
 			label = "power:blue";
-			gpios = <&gpio1 11 0>;
+			gpios = <&gpio1 10 0>;
 			linux,default-trigger = "timer";
+		};
+		power-red {
+			label = "power:red";
+			gpios = <&gpio1 11 0>;
 		};
 		usb1 {
 			label = "usb1:blue";

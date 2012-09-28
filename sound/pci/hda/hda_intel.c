@@ -151,6 +151,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, CPT},"
 			 "{Intel, PPT},"
 			 "{Intel, LPT},"
+			 "{Intel, LPT_LP},"
 			 "{Intel, HPT},"
 			 "{Intel, PBG},"
 			 "{Intel, SCH},"
@@ -2700,6 +2701,8 @@ static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x81b3, "ASUS", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x81e7, "ASUS M2V", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1043, 0x1ac3, "ASUS X53S", POS_FIX_POSBUF),
+	SND_PCI_QUIRK(0x1043, 0x1b43, "ASUS K53E", POS_FIX_POSBUF),
 	SND_PCI_QUIRK(0x104d, 0x9069, "Sony VPCS11V9E", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x10de, 0xcb89, "Macbook Pro 7,1", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1297, 0x3166, "Shuttle", POS_FIX_LPIB),
@@ -3268,6 +3271,14 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	  AZX_DCAPS_BUFSIZE | AZX_DCAPS_POSFIX_COMBO },
 	/* Lynx Point */
 	{ PCI_DEVICE(0x8086, 0x8c20),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_SCH_SNOOP |
+	  AZX_DCAPS_BUFSIZE | AZX_DCAPS_POSFIX_COMBO },
+	/* Lynx Point-LP */
+	{ PCI_DEVICE(0x8086, 0x9c20),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_SCH_SNOOP |
+	  AZX_DCAPS_BUFSIZE | AZX_DCAPS_POSFIX_COMBO },
+	/* Lynx Point-LP */
+	{ PCI_DEVICE(0x8086, 0x9c21),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_SCH_SNOOP |
 	  AZX_DCAPS_BUFSIZE | AZX_DCAPS_POSFIX_COMBO },
 	/* Haswell */

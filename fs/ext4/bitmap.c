@@ -79,7 +79,6 @@ int ext4_block_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
 	if (provided == calculated)
 		return 1;
 
-	ext4_error(sb, "Bad block bitmap checksum: block_group = %u", group);
 	return 0;
 }
 

@@ -812,8 +812,9 @@ nj_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
+		cancel_work_sync(&bch->workq);
 		spin_lock_irqsave(&card->lock, flags);
-		mISDN_freebchannel(bch);
+		mISDN_clear_bchannel(bch);
 		mode_tiger(bc, ISDN_P_NONE);
 		spin_unlock_irqrestore(&card->lock, flags);
 		ch->protocol = ISDN_P_NONE;

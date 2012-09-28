@@ -106,11 +106,15 @@ int __init bcm63xx_spi_register(void)
 	if (BCMCPU_IS_6338() || BCMCPU_IS_6348()) {
 		spi_resources[0].end += BCM_6338_RSET_SPI_SIZE - 1;
 		spi_pdata.fifo_size = SPI_6338_MSG_DATA_SIZE;
+		spi_pdata.msg_type_shift = SPI_6338_MSG_TYPE_SHIFT;
+		spi_pdata.msg_ctl_width = SPI_6338_MSG_CTL_WIDTH;
 	}
 
 	if (BCMCPU_IS_6358() || BCMCPU_IS_6368()) {
 		spi_resources[0].end += BCM_6358_RSET_SPI_SIZE - 1;
 		spi_pdata.fifo_size = SPI_6358_MSG_DATA_SIZE;
+		spi_pdata.msg_type_shift = SPI_6358_MSG_TYPE_SHIFT;
+		spi_pdata.msg_ctl_width = SPI_6358_MSG_CTL_WIDTH;
 	}
 
 	bcm63xx_spi_regs_init();

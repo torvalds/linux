@@ -2441,17 +2441,10 @@ static void gen6_enable_rps(struct drm_device *dev)
 		   dev_priv->max_delay << 24 |
 		   dev_priv->min_delay << 16);
 
-	if (IS_HASWELL(dev)) {
-		I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
-		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 245000);
-		I915_WRITE(GEN6_RP_UP_EI, 66000);
-		I915_WRITE(GEN6_RP_DOWN_EI, 350000);
-	} else {
-		I915_WRITE(GEN6_RP_UP_THRESHOLD, 10000);
-		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 1000000);
-		I915_WRITE(GEN6_RP_UP_EI, 100000);
-		I915_WRITE(GEN6_RP_DOWN_EI, 5000000);
-	}
+	I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
+	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 245000);
+	I915_WRITE(GEN6_RP_UP_EI, 66000);
+	I915_WRITE(GEN6_RP_DOWN_EI, 350000);
 
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 	I915_WRITE(GEN6_RP_CONTROL,
@@ -3679,6 +3672,9 @@ static void gen3_init_clock_gating(struct drm_device *dev)
 
 	if (IS_PINEVIEW(dev))
 		I915_WRITE(ECOSKPD, _MASKED_BIT_ENABLE(ECO_GATING_CX_ONLY));
+
+	/* IIR "flip pending" means done if this bit is set */
+	I915_WRITE(ECOSKPD, _MASKED_BIT_DISABLE(ECO_FLIP_DONE));
 }
 
 static void i85x_init_clock_gating(struct drm_device *dev)

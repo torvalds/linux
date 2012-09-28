@@ -342,7 +342,7 @@ static int at76_dfu_get_status(struct usb_device *udev,
 	return ret;
 }
 
-static u8 at76_dfu_get_state(struct usb_device *udev, u8 *state)
+static int at76_dfu_get_state(struct usb_device *udev, u8 *state)
 {
 	int ret;
 

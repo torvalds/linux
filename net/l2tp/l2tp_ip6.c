@@ -410,6 +410,7 @@ static int l2tp_ip6_getname(struct socket *sock, struct sockaddr *uaddr,
 	lsa->l2tp_family = AF_INET6;
 	lsa->l2tp_flowinfo = 0;
 	lsa->l2tp_scope_id = 0;
+	lsa->l2tp_unused = 0;
 	if (peer) {
 		if (!lsk->peer_conn_id)
 			return -ENOTCONN;
