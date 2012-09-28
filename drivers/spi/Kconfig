@@ -377,12 +377,6 @@ config SPI_MXS
 	help
 	  SPI driver for Freescale MXS devices.
 
-config SPI_TEGRA
-	tristate "Nvidia Tegra SPI controller"
-	depends on ARCH_TEGRA && (TEGRA_SYSTEM_DMA || TEGRA20_APB_DMA)
-	help
-	  SPI driver for NVidia Tegra SoCs
-
 config SPI_TI_SSP
 	tristate "TI Sequencer Serial Port - SPI Support"
 	depends on MFD_TI_SSP
