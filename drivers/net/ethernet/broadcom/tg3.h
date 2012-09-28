@@ -3038,6 +3038,7 @@ struct tg3 {
 	void				(*write32_tx_mbox) (struct tg3 *, u32,
 							    u32);
 	u32				dma_limit;
+	u32				txq_req;
 	u32				txq_cnt;
 	u32				txq_max;
 
@@ -3054,6 +3055,7 @@ struct tg3 {
 	u32				rx_std_max_post;
 	u32				rx_offset;
 	u32				rx_pkt_map_sz;
+	u32				rxq_req;
 	u32				rxq_cnt;
 	u32				rxq_max;
 	bool				rx_refill;
