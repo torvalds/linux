@@ -1101,9 +1101,9 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 	phydev = of_phy_connect(dev, phy_dn, &pasemi_adjust_link, 0,
 				PHY_INTERFACE_MODE_SGMII);
 
-	if (IS_ERR(phydev)) {
+	if (!phydev) {
 		printk(KERN_ERR "%s: Could not attach to phy\n", dev->name);
-		return PTR_ERR(phydev);
+		return -ENODEV;
 	}
 
 	mac->phydev = phydev;

@@ -534,11 +534,11 @@ static void dasd_change_state(struct dasd_device *device)
 	if (rc)
 		device->target = device->state;
 
-	if (device->state == device->target)
-		wake_up(&dasd_init_waitq);
-
 	/* let user-space know that the device status changed */
 	kobject_uevent(&device->cdev->dev.kobj, KOBJ_CHANGE);
+
+	if (device->state == device->target)
+		wake_up(&dasd_init_waitq);
 }
 
 /*
@@ -2157,6 +2157,7 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 		    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags) &&
 		    (!dasd_eer_enabled(device))) {
 			cqr->status = DASD_CQR_FAILED;
+			cqr->intrc = -EAGAIN;
 			continue;
 		}
 		/* Don't try to start requests if device is stopped */
@@ -3270,6 +3271,16 @@ void dasd_generic_path_event(struct ccw_device *cdev, int *path_event)
 			dasd_schedule_device_bh(device);
 		}
 		if (path_event[chp] & PE_PATHGROUP_ESTABLISHED) {
+			if (!(device->path_data.opm & eventlpm) &&
+			    !(device->path_data.tbvpm & eventlpm)) {
+				/*
+				 * we can not establish a pathgroup on an
+				 * unavailable path, so trigger a path
+				 * verification first
+				 */
+				device->path_data.tbvpm |= eventlpm;
+				dasd_schedule_device_bh(device);
+			}
 			DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 				      "Pathgroup re-established\n");
 			if (device->discipline->kick_validate)

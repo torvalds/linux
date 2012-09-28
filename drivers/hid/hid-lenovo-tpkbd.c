@@ -519,6 +519,8 @@ static void tpkbd_remove_tp(struct hid_device *hdev)
 	led_classdev_unregister(&data_pointer->led_mute);
 
 	hid_set_drvdata(hdev, NULL);
+	kfree(data_pointer->led_micmute.name);
+	kfree(data_pointer->led_mute.name);
 	kfree(data_pointer);
 }
 

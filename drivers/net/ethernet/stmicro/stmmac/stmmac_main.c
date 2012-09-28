@@ -1066,7 +1066,7 @@ static int stmmac_open(struct net_device *dev)
 	} else
 		priv->tm->enable = 1;
 #endif
-	clk_enable(priv->stmmac_clk);
+	clk_prepare_enable(priv->stmmac_clk);
 
 	stmmac_check_ether_addr(priv);
 
@@ -1188,7 +1188,7 @@ open_error:
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
 
-	clk_disable(priv->stmmac_clk);
+	clk_disable_unprepare(priv->stmmac_clk);
 
 	return ret;
 }
@@ -1246,7 +1246,7 @@ static int stmmac_release(struct net_device *dev)
 #ifdef CONFIG_STMMAC_DEBUG_FS
 	stmmac_exit_fs();
 #endif
-	clk_disable(priv->stmmac_clk);
+	clk_disable_unprepare(priv->stmmac_clk);
 
 	return 0;
 }
@@ -2178,7 +2178,7 @@ int stmmac_suspend(struct net_device *ndev)
 	else {
 		stmmac_set_mac(priv->ioaddr, false);
 		/* Disable clock in case of PWM is off */
-		clk_disable(priv->stmmac_clk);
+		clk_disable_unprepare(priv->stmmac_clk);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
@@ -2203,7 +2203,7 @@ int stmmac_resume(struct net_device *ndev)
 		priv->hw->mac->pmt(priv->ioaddr, 0);
 	else
 		/* enable the clk prevously disabled */
-		clk_enable(priv->stmmac_clk);
+		clk_prepare_enable(priv->stmmac_clk);
 
 	netif_device_attach(ndev);
 

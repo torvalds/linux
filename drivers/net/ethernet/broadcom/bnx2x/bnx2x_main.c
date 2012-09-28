@@ -9841,12 +9841,13 @@ static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
 	}
 
 #ifdef CONFIG_PCI_MSI
-	/*
-	 * It's expected that number of CAM entries for this functions is equal
-	 * to the number evaluated based on the MSI-X table size. We want a
-	 * harsh warning if these values are different!
+	/* Due to new PF resource allocation by MFW T7.4 and above, it's
+	 * optional that number of CAM entries will not be equal to the value
+	 * advertised in PCI.
+	 * Driver should use the minimal value of both as the actual status
+	 * block count
 	 */
-	WARN_ON(bp->igu_sb_cnt != igu_sb_cnt);
+	bp->igu_sb_cnt = min_t(int, bp->igu_sb_cnt, igu_sb_cnt);
 #endif
 
 	if (igu_sb_cnt == 0)

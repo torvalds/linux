@@ -246,12 +246,11 @@ static int rbd_open(struct block_device *bdev, fmode_t mode)
 {
 	struct rbd_device *rbd_dev = bdev->bd_disk->private_data;
 
-	rbd_get_dev(rbd_dev);
-
-	set_device_ro(bdev, rbd_dev->read_only);
-
 	if ((mode & FMODE_WRITE) && rbd_dev->read_only)
 		return -EROFS;
+
+	rbd_get_dev(rbd_dev);
+	set_device_ro(bdev, rbd_dev->read_only);
 
 	return 0;
 }

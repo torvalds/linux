@@ -97,19 +97,19 @@ static struct clk *timer_clock;
 static void stmmac_tmu_start(unsigned int new_freq)
 {
 	clk_set_rate(timer_clock, new_freq);
-	clk_enable(timer_clock);
+	clk_prepare_enable(timer_clock);
 }
 
 static void stmmac_tmu_stop(void)
 {
-	clk_disable(timer_clock);
+	clk_disable_unprepare(timer_clock);
 }
 
 int stmmac_open_ext_timer(struct net_device *dev, struct stmmac_timer *tm)
 {
 	timer_clock = clk_get(NULL, TMU_CHANNEL);
 
-	if (timer_clock == NULL)
+	if (IS_ERR(timer_clock))
 		return -1;
 
 	if (tmu2_register_user(stmmac_timer_handler, (void *)dev) < 0) {
@@ -126,7 +126,7 @@ int stmmac_open_ext_timer(struct net_device *dev, struct stmmac_timer *tm)
 
 int stmmac_close_ext_timer(void)
 {
-	clk_disable(timer_clock);
+	clk_disable_unprepare(timer_clock);
 	tmu2_unregister_user();
 	clk_put(timer_clock);
 	return 0;

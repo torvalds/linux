@@ -15,7 +15,7 @@ qlcnic_poll_rsp(struct qlcnic_adapter *adapter)
 
 	do {
 		/* give atleast 1ms for firmware to respond */
-		msleep(1);
+		mdelay(1);
 
 		if (++timeout > QLCNIC_OS_CRB_RETRY_COUNT)
 			return QLCNIC_CDRP_RSP_TIMEOUT;
@@ -601,7 +601,7 @@ void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
 		qlcnic_fw_cmd_destroy_tx_ctx(adapter);
 
 		/* Allow dma queues to drain after context reset */
-		msleep(20);
+		mdelay(20);
 	}
 }
 
