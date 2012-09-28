@@ -1099,9 +1099,10 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd)
 }
 
 static int mx2_camera_set_crop(struct soc_camera_device *icd,
-				struct v4l2_crop *a)
+				const struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_crop a_writable = *a;
+	struct v4l2_rect *rect = &a_writable.c;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct v4l2_mbus_framefmt mf;
 	int ret;
