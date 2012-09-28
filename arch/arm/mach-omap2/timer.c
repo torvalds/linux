@@ -39,6 +39,8 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/platform_data/dmtimer-omap.h>
 
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>

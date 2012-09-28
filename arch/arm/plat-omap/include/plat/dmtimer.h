@@ -124,14 +124,6 @@ struct omap_dm_timer {
 	struct list_head node;
 };
 
-struct dmtimer_platform_data {
-	/* set_timer_src - Only used for OMAP1 devices */
-	int (*set_timer_src)(struct platform_device *pdev, int source);
-	u32 timer_errata;
-	u32 timer_capability;
-	int (*get_context_loss_count)(struct device *);
-};
-
 int omap_dm_timer_reserve_systimer(int id);
 struct omap_dm_timer *omap_dm_timer_request(void);
 struct omap_dm_timer *omap_dm_timer_request_specific(int timer_id);
