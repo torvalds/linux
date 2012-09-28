@@ -181,7 +181,7 @@ static DEFINE_RAW_SPINLOCK(v3_lock);
 #undef V3_LB_BASE_PREFETCH
 #define V3_LB_BASE_PREFETCH 0
 
-static unsigned long v3_open_config_window(struct pci_bus *bus,
+static void __iomem *v3_open_config_window(struct pci_bus *bus,
 					   unsigned int devfn, int offset)
 {
 	unsigned int address, mapaddress, busnr;
@@ -280,7 +280,7 @@ static void v3_close_config_window(void)
 static int v3_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 			  int size, u32 *val)
 {
-	unsigned long addr;
+	void __iomem *addr;
 	unsigned long flags;
 	u32 v;
 
@@ -311,7 +311,7 @@ static int v3_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 static int v3_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 			   int size, u32 val)
 {
-	unsigned long addr;
+	void __iomem *addr;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&v3_lock, flags);
@@ -391,9 +391,9 @@ static int __init pci_v3_setup_resources(struct pci_sys_data *sys)
  * means I can't get additional information on the reason for the pm2fb
  * problems.  I suppose I'll just have to mind-meld with the machine. ;)
  */
-#define SC_PCI     IO_ADDRESS(INTEGRATOR_SC_PCIENABLE)
-#define SC_LBFADDR IO_ADDRESS(INTEGRATOR_SC_BASE + 0x20)
-#define SC_LBFCODE IO_ADDRESS(INTEGRATOR_SC_BASE + 0x24)
+#define SC_PCI     __io_address(INTEGRATOR_SC_PCIENABLE)
+#define SC_LBFADDR __io_address(INTEGRATOR_SC_BASE + 0x20)
+#define SC_LBFCODE __io_address(INTEGRATOR_SC_BASE + 0x24)
 
 static int
 v3_pci_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)

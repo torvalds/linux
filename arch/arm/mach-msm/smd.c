@@ -52,13 +52,14 @@ static int msm_smd_debug_mask;
 
 struct shared_info {
 	int ready;
-	unsigned state;
+	void __iomem *state;
 };
 
 static unsigned dummy_state[SMSM_STATE_COUNT];
 
 static struct shared_info smd_info = {
-	.state = (unsigned) &dummy_state,
+	/* FIXME: not a real __iomem pointer */
+	.state = &dummy_state,
 };
 
 module_param_named(debug_mask, msm_smd_debug_mask,
@@ -796,22 +797,22 @@ void *smem_alloc(unsigned id, unsigned size)
 	return smem_find(id, size);
 }
 
-void *smem_item(unsigned id, unsigned *size)
+void __iomem *smem_item(unsigned id, unsigned *size)
 {
 	struct smem_shared *shared = (void *) MSM_SHARED_RAM_BASE;
 	struct smem_heap_entry *toc = shared->heap_toc;
 
 	if (id >= SMEM_NUM_ITEMS)
-		return 0;
+		return NULL;
 
 	if (toc[id].allocated) {
 		*size = toc[id].size;
-		return (void *) (MSM_SHARED_RAM_BASE + toc[id].offset);
+		return (MSM_SHARED_RAM_BASE + toc[id].offset);
 	} else {
 		*size = 0;
 	}
 
-	return 0;
+	return NULL;
 }
 
 void *smem_find(unsigned id, unsigned size_in)
@@ -857,7 +858,7 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 int smsm_change_state(enum smsm_state_item item,
 		      uint32_t clear_mask, uint32_t set_mask)
 {
-	unsigned long addr = smd_info.state + item * 4;
+	void __iomem *addr = smd_info.state + item * 4;
 	unsigned long flags;
 	unsigned state;
 
@@ -943,10 +944,10 @@ int smd_core_init(void)
 	/* wait for essential items to be initialized */
 	for (;;) {
 		unsigned size;
-		void *state;
+		void __iomem *state;
 		state = smem_item(SMEM_SMSM_SHARED_STATE, &size);
 		if (size == SMSM_V1_SIZE || size == SMSM_V2_SIZE) {
-			smd_info.state = (unsigned)state;
+			smd_info.state = state;
 			break;
 		}
 	}
