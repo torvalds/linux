@@ -84,7 +84,6 @@ struct omap_dm_timer;
 
 struct timer_regs {
 	u32 tidr;
-	u32 tistat;
 	u32 tisr;
 	u32 tier;
 	u32 twer;
