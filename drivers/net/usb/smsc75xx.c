@@ -1106,6 +1106,57 @@ static void smsc75xx_unbind(struct usbnet *dev, struct usb_interface *intf)
 	}
 }
 
+static int smsc75xx_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct usbnet *dev = usb_get_intfdata(intf);
+	int ret;
+	u32 val;
+
+	if (WARN_ON_ONCE(!dev))
+		return -EINVAL;
+
+	ret = usbnet_suspend(intf, message);
+	check_warn_return(ret, "usbnet_suspend error");
+
+	netdev_info(dev->net, "entering SUSPEND2 mode");
+
+	ret = smsc75xx_read_reg(dev, PMT_CTL, &val);
+	check_warn_return(ret, "Error reading PMT_CTL");
+
+	val &= ~(PMT_CTL_SUS_MODE | PMT_CTL_WUPS | PMT_CTL_PHY_RST);
+	val |= PMT_CTL_SUS_MODE_2;
+
+	ret = smsc75xx_write_reg(dev, PMT_CTL, val);
+	check_warn_return(ret, "Error writing PMT_CTL");
+
+	return 0;
+}
+
+static int smsc75xx_resume(struct usb_interface *intf)
+{
+	struct usbnet *dev = usb_get_intfdata(intf);
+	int ret;
+	u32 val;
+
+	if (WARN_ON_ONCE(!dev))
+		return -EINVAL;
+
+	netdev_info(dev->net, "resuming from SUSPEND2");
+
+	ret = smsc75xx_read_reg(dev, PMT_CTL, &val);
+	check_warn_return(ret, "Error reading PMT_CTL");
+
+	val |= PMT_CTL_PHY_PWRUP;
+
+	ret = smsc75xx_write_reg(dev, PMT_CTL, val);
+	check_warn_return(ret, "Error writing PMT_CTL");
+
+	ret = smsc75xx_wait_ready(dev);
+	check_warn_return(ret, "device not ready in smsc75xx_resume");
+
+	return usbnet_resume(intf);
+}
+
 static void smsc75xx_rx_csum_offload(struct usbnet *dev, struct sk_buff *skb,
 				     u32 rx_cmd_a, u32 rx_cmd_b)
 {
@@ -1274,9 +1325,9 @@ static struct usb_driver smsc75xx_driver = {
 	.name		= SMSC_CHIPNAME,
 	.id_table	= products,
 	.probe		= usbnet_probe,
-	.suspend	= usbnet_suspend,
-	.resume		= usbnet_resume,
-	.reset_resume	= usbnet_resume,
+	.suspend	= smsc75xx_suspend,
+	.resume		= smsc75xx_resume,
+	.reset_resume	= smsc75xx_resume,
 	.disconnect	= usbnet_disconnect,
 	.disable_hub_initiated_lpm = 1,
 };
