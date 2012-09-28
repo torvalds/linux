@@ -2013,7 +2013,7 @@ int mmc_suspend_host(struct mmc_host *host)
 		if (host->bus_ops->suspend)
 			err = host->bus_ops->suspend(host);
 
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
                //deleted all detail code. //fix the crash bug when error occur during suspend. Modiefyed by xbw at 2012-08-09
 #else
 		if (err == -ENOSYS || !host->bus_ops->resume) {
