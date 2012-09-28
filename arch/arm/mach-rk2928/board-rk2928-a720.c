@@ -816,9 +816,20 @@ static void __init rk30_i2c_register_board_info(void)
 //end of i2c
 
 #define POWER_ON_PIN RK2928_PIN1_PA2   //power_hold
+#if defined(CONFIG_REGULATOR_ACT8931)
+extern  int act8931_charge_det ;
+#endif
 static void rk2928_pm_power_off(void)
 {
 	printk(KERN_ERR "rk2928_pm_power_off start...\n");
+        
+        #if defined(CONFIG_REGULATOR_ACT8931)
+        if(g_pmic_type == PMIC_TYPE_ACT8931)
+        {
+              if(act8931_charge_det)
+                   arm_pm_restart(0, NULL);
+        }
+        #endif
 	
 	#if defined(CONFIG_MFD_TPS65910)	
 	if(g_pmic_type == PMIC_TYPE_TPS65910)
