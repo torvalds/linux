@@ -442,6 +442,7 @@ ENDPROC(xscale_dma_unmap_area)
 	a0_alias flush_icache_all
 	a0_alias flush_user_cache_all
 	a0_alias flush_kern_cache_all
+	a0_alias flush_kern_cache_louis
 	a0_alias flush_user_cache_range
 	a0_alias coherent_kern_range
 	a0_alias coherent_user_range
