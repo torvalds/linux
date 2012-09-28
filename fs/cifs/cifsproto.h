@@ -140,6 +140,8 @@ void cifs_fill_uniqueid(struct super_block *sb, struct cifs_fattr *fattr);
 extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
 				     FILE_UNIX_BASIC_INFO *info,
 				     struct cifs_sb_info *cifs_sb);
+extern void cifs_dir_info_to_fattr(struct cifs_fattr *, FILE_DIRECTORY_INFO *,
+					struct cifs_sb_info *);
 extern void cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr);
 extern struct inode *cifs_iget(struct super_block *sb,
 			       struct cifs_fattr *fattr);
@@ -216,10 +218,10 @@ extern int CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 		    const struct nls_table *);
 
 extern int CIFSFindFirst(const unsigned int xid, struct cifs_tcon *tcon,
-		const char *searchName, const struct nls_table *nls_codepage,
+		const char *searchName, struct cifs_sb_info *cifs_sb,
 		__u16 *searchHandle, __u16 search_flags,
 		struct cifs_search_info *psrch_inf,
-		int map, const char dirsep);
+		bool msearch);
 
 extern int CIFSFindNext(const unsigned int xid, struct cifs_tcon *tcon,
 		__u16 searchHandle, __u16 search_flags,
