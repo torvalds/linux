@@ -2845,6 +2845,20 @@ static int post_relocation(struct module *mod, const struct load_info *info)
 	return module_finalize(info->hdr, info->sechdrs, mod);
 }
 
+/* Is this module of this name done loading?  No locks held. */
+static bool finished_loading(const char *name)
+{
+	struct module *mod;
+	bool ret;
+
+	mutex_lock(&module_mutex);
+	mod = find_module(name);
+	ret = !mod || mod->state != MODULE_STATE_COMING;
+	mutex_unlock(&module_mutex);
+
+	return ret;
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static struct module *load_module(void __user *umod,
@@ -2852,7 +2866,7 @@ static struct module *load_module(void __user *umod,
 				  const char __user *uargs)
 {
 	struct load_info info = { NULL, };
-	struct module *mod;
+	struct module *mod, *old;
 	long err;
 
 	pr_debug("load_module: umod=%p, len=%lu, uargs=%p\n",
@@ -2918,8 +2932,18 @@ static struct module *load_module(void __user *umod,
 	 * function to insert in a way safe to concurrent readers.
 	 * The mutex protects against concurrent writers.
 	 */
+again:
 	mutex_lock(&module_mutex);
-	if (find_module(mod->name)) {
+	if ((old = find_module(mod->name)) != NULL) {
+		if (old->state == MODULE_STATE_COMING) {
+			/* Wait in case it fails to load. */
+			mutex_unlock(&module_mutex);
+			err = wait_event_interruptible(module_wq,
+					       finished_loading(mod->name));
+			if (err)
+				goto free_arch_cleanup;
+			goto again;
+		}
 		err = -EEXIST;
 		goto unlock;
 	}
