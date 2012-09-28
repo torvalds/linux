@@ -1391,15 +1391,11 @@ iso_stream_schedule (
 	 */
 	if (likely (!list_empty (&stream->td_list))) {
 
-		/* For high speed devices, allow scheduling within the
-		 * isochronous scheduling threshold.  For full speed devices
-		 * and Intel PCI-based controllers, don't (work around for
-		 * Intel ICH9 bug).
-		 */
-		if (!stream->highspeed && ehci->fs_i_thresh)
-			next = now + ehci->i_thresh;
+		/* Take the isochronous scheduling threshold into account */
+		if (ehci->i_thresh)
+			next = now + ehci->i_thresh;	/* uframe cache */
 		else
-			next = now;
+			next = (now + 2 + 7) & ~0x07;	/* full frame cache */
 
 		/*
 		 * Use ehci->last_iso_frame as the base.  There can't be any
