@@ -1282,7 +1282,7 @@ static struct clk clk_gpu = {
 	.clksel_con 	= CRU_CLKSELS_CON(33),
 	.gate_idx	= CLK_GATE_CLK_GPU,
 	CRU_DIV_SET(0x1f, 0, 32),
-	CRU_SRC_SET(0x1, 8),
+	CRU_SRC_SET(0x1, 7),
 	CRU_PARENTS_SET(gpu_parents),
 };
 #ifdef ARCH_RK31
