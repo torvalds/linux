@@ -15,6 +15,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #define PEN_DOWN_INTR	0
 #define MAX_FINGERS	2
@@ -445,6 +447,45 @@ static void bu21013_cs_disable(struct bu21013_ts_data *bu21013_data)
 	gpio_free(bu21013_data->chip->cs_pin);
 }
 
+#ifdef CONFIG_OF
+static const struct bu21013_platform_device *
+bu21013_parse_dt(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct bu21013_platform_device *pdata;
+
+	if (!np) {
+		dev_err(dev, "no device tree or platform data\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->y_flip = pdata->x_flip = false;
+
+	pdata->x_flip = of_property_read_bool(np, "rohm,flip-x");
+	pdata->y_flip = of_property_read_bool(np, "rohm,flip-y");
+
+	of_property_read_u32(np, "rohm,touch-max-x", &pdata->touch_x_max);
+	of_property_read_u32(np, "rohm,touch-max-y", &pdata->touch_y_max);
+
+	pdata->touch_pin = of_get_named_gpio(np, "touch-gpio", 0);
+	pdata->cs_pin = of_get_named_gpio(np, "reset-gpio", 0);
+
+	pdata->ext_clk = false;
+
+	return pdata;
+}
+#else
+static inline const struct bu21013_platform_device *
+bu21013_parse_dt(struct device *dev)
+{
+	dev_err(dev, "no platform data available\n");
+	return ERR_PTR(-EINVAL);
+}
+#endif
 
 /**
  * bu21013_probe() - initializes the i2c-client touchscreen driver
@@ -457,10 +498,10 @@ static void bu21013_cs_disable(struct bu21013_ts_data *bu21013_data)
 static int bu21013_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	const struct bu21013_platform_device *pdata =
+					dev_get_platdata(&client->dev);
 	struct bu21013_ts_data *bu21013_data;
 	struct input_dev *in_dev;
-	const struct bu21013_platform_device *pdata =
-					client->dev.platform_data;
 	int error;
 
 	if (!i2c_check_functionality(client->adapter,
@@ -470,8 +511,9 @@ static int bu21013_probe(struct i2c_client *client,
 	}
 
 	if (!pdata) {
-		dev_err(&client->dev, "platform data not defined\n");
-		return -EINVAL;
+		pdata = bu21013_parse_dt(&client->dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
 	}
 
 	if (!gpio_is_valid(pdata->touch_pin)) {
