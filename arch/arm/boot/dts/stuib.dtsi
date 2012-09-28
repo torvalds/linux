@@ -9,18 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/dts-v1/;
-/include/ "dbx5x0.dtsi"
-/include/ "href.dtsi"
-/include/ "stuib.dtsi"
-
 / {
-	model = "ST-Ericsson HREF (v60+) platform with Device Tree";
-	compatible = "st-ericsson,hrefv60+";
-
-	gpio_keys {
-		button@1 {
-			gpios = <&gpio6 25 0x4>;
-		};
+	soc-u9500 {
 	};
 };
