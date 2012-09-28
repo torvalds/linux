@@ -2242,6 +2242,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
                                                                     (ddr_get_cap()>>20));
     ddr_adjust_config(mem_type);
     value=ddr_change_freq(freq);
+    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
     ddr_print("init success!!! freq=%dMHz\n", value);
 
     calStatusLeft = pPHY_Reg->PHY_REG60;
