@@ -17,7 +17,7 @@
 /* ---- Include Files ---------------------------------------------------- */
 #include <mach/reg_umi.h>
 #include <mach/reg_nand.h>
-#include <cfg_global.h>
+#include <mach/cfg_global.h>
 
 /* ---- Constants and Types ---------------------------------------------- */
 #if (CFG_GLOBAL_CHIP_FAMILY == CFG_GLOBAL_CHIP_FAMILY_BCMRING)
@@ -48,7 +48,7 @@ int nand_bcm_umi_bch_correct_page(uint8_t *datap, uint8_t *readEccData,
 /* Check in device is ready */
 static inline int nand_bcm_umi_dev_ready(void)
 {
-	return REG_UMI_NAND_RCSR & REG_UMI_NAND_RCSR_RDY;
+	return readl(&REG_UMI_NAND_RCSR) & REG_UMI_NAND_RCSR_RDY;
 }
 
 /* Wait until device is ready */
@@ -62,10 +62,11 @@ static inline void nand_bcm_umi_wait_till_ready(void)
 static inline void nand_bcm_umi_hamming_enable_hwecc(void)
 {
 	/* disable and reset ECC, 512 byte page */
-	REG_UMI_NAND_ECC_CSR &= ~(REG_UMI_NAND_ECC_CSR_ECC_ENABLE |
-		REG_UMI_NAND_ECC_CSR_256BYTE);
+	writel(readl(&REG_UMI_NAND_ECC_CSR) & ~(REG_UMI_NAND_ECC_CSR_ECC_ENABLE |
+		REG_UMI_NAND_ECC_CSR_256BYTE), &REG_UMI_NAND_ECC_CSR);
 	/* enable ECC */
-	REG_UMI_NAND_ECC_CSR |= REG_UMI_NAND_ECC_CSR_ECC_ENABLE;
+	writel(readl(&REG_UMI_NAND_ECC_CSR) | REG_UMI_NAND_ECC_CSR_ECC_ENABLE,
+		&REG_UMI_NAND_ECC_CSR);
 }
 
 #if NAND_ECC_BCH
@@ -76,18 +77,18 @@ static inline void nand_bcm_umi_hamming_enable_hwecc(void)
 static inline void nand_bcm_umi_bch_enable_read_hwecc(void)
 {
 	/* disable and reset ECC */
-	REG_UMI_BCH_CTRL_STATUS = REG_UMI_BCH_CTRL_STATUS_RD_ECC_VALID;
+	writel(REG_UMI_BCH_CTRL_STATUS_RD_ECC_VALID, &REG_UMI_BCH_CTRL_STATUS);
 	/* Turn on ECC */
-	REG_UMI_BCH_CTRL_STATUS = REG_UMI_BCH_CTRL_STATUS_ECC_RD_EN;
+	writel(REG_UMI_BCH_CTRL_STATUS_ECC_RD_EN, &REG_UMI_BCH_CTRL_STATUS);
 }
 
 /* Enable BCH Write ECC */
 static inline void nand_bcm_umi_bch_enable_write_hwecc(void)
 {
 	/* disable and reset ECC */
-	REG_UMI_BCH_CTRL_STATUS = REG_UMI_BCH_CTRL_STATUS_WR_ECC_VALID;
+	writel(REG_UMI_BCH_CTRL_STATUS_WR_ECC_VALID, &REG_UMI_BCH_CTRL_STATUS);
 	/* Turn on ECC */
-	REG_UMI_BCH_CTRL_STATUS = REG_UMI_BCH_CTRL_STATUS_ECC_WR_EN;
+	writel(REG_UMI_BCH_CTRL_STATUS_ECC_WR_EN, &REG_UMI_BCH_CTRL_STATUS);
 }
 
 /* Config number of BCH ECC bytes */
@@ -99,9 +100,9 @@ static inline void nand_bcm_umi_bch_config_ecc(uint8_t numEccBytes)
 	uint32_t numBits = numEccBytes * 8;
 
 	/* disable and reset ECC */
-	REG_UMI_BCH_CTRL_STATUS =
-	    REG_UMI_BCH_CTRL_STATUS_WR_ECC_VALID |
-	    REG_UMI_BCH_CTRL_STATUS_RD_ECC_VALID;
+	writel(REG_UMI_BCH_CTRL_STATUS_WR_ECC_VALID |
+	       REG_UMI_BCH_CTRL_STATUS_RD_ECC_VALID,
+	       &REG_UMI_BCH_CTRL_STATUS);
 
 	/* Every correctible bit requires 13 ECC bits */
 	tValue = (uint32_t) (numBits / ECC_BITS_PER_CORRECTABLE_BIT);
@@ -113,23 +114,21 @@ static inline void nand_bcm_umi_bch_config_ecc(uint8_t numEccBytes)
 	kValue = nValue - (tValue * ECC_BITS_PER_CORRECTABLE_BIT);
 
 	/* Write the settings */
-	REG_UMI_BCH_N = nValue;
-	REG_UMI_BCH_T = tValue;
-	REG_UMI_BCH_K = kValue;
+	writel(nValue, &REG_UMI_BCH_N);
+	writel(tValue, &REG_UMI_BCH_T);
+	writel(kValue, &REG_UMI_BCH_K);
 }
 
 /* Pause during ECC read calculation to skip bytes in OOB */
 static inline void nand_bcm_umi_bch_pause_read_ecc_calc(void)
 {
-	REG_UMI_BCH_CTRL_STATUS =
-	    REG_UMI_BCH_CTRL_STATUS_ECC_RD_EN |
-	    REG_UMI_BCH_CTRL_STATUS_PAUSE_ECC_DEC;
+	writel(REG_UMI_BCH_CTRL_STATUS_ECC_RD_EN | REG_UMI_BCH_CTRL_STATUS_PAUSE_ECC_DEC, &REG_UMI_BCH_CTRL_STATUS);
 }
 
 /* Resume during ECC read calculation after skipping bytes in OOB */
 static inline void nand_bcm_umi_bch_resume_read_ecc_calc(void)
 {
-	REG_UMI_BCH_CTRL_STATUS = REG_UMI_BCH_CTRL_STATUS_ECC_RD_EN;
+	writel(REG_UMI_BCH_CTRL_STATUS_ECC_RD_EN, &REG_UMI_BCH_CTRL_STATUS);
 }
 
 /* Poll read ECC calc to check when hardware completes */
@@ -139,7 +138,7 @@ static inline uint32_t nand_bcm_umi_bch_poll_read_ecc_calc(void)
 
 	do {
 		/* wait for ECC to be valid */
-		regVal = REG_UMI_BCH_CTRL_STATUS;
+		regVal = readl(&REG_UMI_BCH_CTRL_STATUS);
 	} while ((regVal & REG_UMI_BCH_CTRL_STATUS_RD_ECC_VALID) == 0);
 
 	return regVal;
@@ -149,7 +148,7 @@ static inline uint32_t nand_bcm_umi_bch_poll_read_ecc_calc(void)
 static inline void nand_bcm_umi_bch_poll_write_ecc_calc(void)
 {
 	/* wait for ECC to be valid */
-	while ((REG_UMI_BCH_CTRL_STATUS & REG_UMI_BCH_CTRL_STATUS_WR_ECC_VALID)
+	while ((readl(&REG_UMI_BCH_CTRL_STATUS) & REG_UMI_BCH_CTRL_STATUS_WR_ECC_VALID)
 	       == 0)
 		;
 }
@@ -170,9 +169,9 @@ static inline void nand_bcm_umi_bch_read_oobEcc(uint32_t pageSize,
 	if (pageSize != NAND_DATA_ACCESS_SIZE) {
 		/* skip BI */
 #if defined(__KERNEL__) && !defined(STANDALONE)
-		*oobp++ = REG_NAND_DATA8;
+		*oobp++ = readb(&REG_NAND_DATA8);
 #else
-		REG_NAND_DATA8;
+		readb(&REG_NAND_DATA8);
 #endif
 		numToRead--;
 	}
@@ -180,9 +179,9 @@ static inline void nand_bcm_umi_bch_read_oobEcc(uint32_t pageSize,
 	while (numToRead > numEccBytes) {
 		/* skip free oob region */
 #if defined(__KERNEL__) && !defined(STANDALONE)
-		*oobp++ = REG_NAND_DATA8;
+		*oobp++ = readb(&REG_NAND_DATA8);
 #else
-		REG_NAND_DATA8;
+		readb(&REG_NAND_DATA8);
 #endif
 		numToRead--;
 	}
@@ -193,11 +192,11 @@ static inline void nand_bcm_umi_bch_read_oobEcc(uint32_t pageSize,
 
 		while (numToRead > 11) {
 #if defined(__KERNEL__) && !defined(STANDALONE)
-			*oobp = REG_NAND_DATA8;
+			*oobp = readb(&REG_NAND_DATA8);
 			eccCalc[eccPos++] = *oobp;
 			oobp++;
 #else
-			eccCalc[eccPos++] = REG_NAND_DATA8;
+			eccCalc[eccPos++] = readb(&REG_NAND_DATA8);
 #endif
 			numToRead--;
 		}
@@ -207,9 +206,9 @@ static inline void nand_bcm_umi_bch_read_oobEcc(uint32_t pageSize,
 		if (numToRead == 11) {
 			/* read BI */
 #if defined(__KERNEL__) && !defined(STANDALONE)
-			*oobp++ = REG_NAND_DATA8;
+			*oobp++ = readb(&REG_NAND_DATA8);
 #else
-			REG_NAND_DATA8;
+			readb(&REG_NAND_DATA8);
 #endif
 			numToRead--;
 		}
@@ -219,11 +218,11 @@ static inline void nand_bcm_umi_bch_read_oobEcc(uint32_t pageSize,
 	nand_bcm_umi_bch_resume_read_ecc_calc();
 	while (numToRead) {
 #if defined(__KERNEL__) && !defined(STANDALONE)
-		*oobp = REG_NAND_DATA8;
+		*oobp = readb(&REG_NAND_DATA8);
 		eccCalc[eccPos++] = *oobp;
 		oobp++;
 #else
-		eccCalc[eccPos++] = REG_NAND_DATA8;
+		eccCalc[eccPos++] = readb(&REG_NAND_DATA8);
 #endif
 		numToRead--;
 	}
@@ -255,7 +254,7 @@ static inline void nand_bcm_umi_bch_write_oobEcc(uint32_t pageSize,
 	if (pageSize == NAND_DATA_ACCESS_SIZE) {
 		/* Now fill in the ECC bytes */
 		if (numEccBytes >= 13)
-			eccVal = REG_UMI_BCH_WR_ECC_3;
+			eccVal = readl(&REG_UMI_BCH_WR_ECC_3);
 
 		/* Usually we skip CM in oob[0,1] */
 		NAND_BCM_UMI_ECC_WRITE(numEccBytes, 15, &oobp[0],
@@ -268,7 +267,7 @@ static inline void nand_bcm_umi_bch_write_oobEcc(uint32_t pageSize,
 			eccVal & 0xff);	/* ECC 12 */
 
 		if (numEccBytes >= 9)
-			eccVal = REG_UMI_BCH_WR_ECC_2;
+			eccVal = readl(&REG_UMI_BCH_WR_ECC_2);
 
 		NAND_BCM_UMI_ECC_WRITE(numEccBytes, 12, &oobp[3],
 			(eccVal >> 24) & 0xff);	/* ECC11 */
@@ -281,7 +280,7 @@ static inline void nand_bcm_umi_bch_write_oobEcc(uint32_t pageSize,
 
 		/* Now fill in the ECC bytes */
 		if (numEccBytes >= 13)
-			eccVal = REG_UMI_BCH_WR_ECC_3;
+			eccVal = readl(&REG_UMI_BCH_WR_ECC_3);
 
 		/* Usually skip CM in oob[1,2] */
 		NAND_BCM_UMI_ECC_WRITE(numEccBytes, 15, &oobp[1],
@@ -294,7 +293,7 @@ static inline void nand_bcm_umi_bch_write_oobEcc(uint32_t pageSize,
 			eccVal & 0xff);	/* ECC12 */
 
 		if (numEccBytes >= 9)
-			eccVal = REG_UMI_BCH_WR_ECC_2;
+			eccVal = readl(&REG_UMI_BCH_WR_ECC_2);
 
 		NAND_BCM_UMI_ECC_WRITE(numEccBytes, 12, &oobp[4],
 			(eccVal >> 24) & 0xff);	/* ECC11 */
@@ -309,7 +308,7 @@ static inline void nand_bcm_umi_bch_write_oobEcc(uint32_t pageSize,
 		eccVal & 0xff);	/* ECC8 */
 
 	if (numEccBytes >= 5)
-		eccVal = REG_UMI_BCH_WR_ECC_1;
+		eccVal = readl(&REG_UMI_BCH_WR_ECC_1);
 
 	NAND_BCM_UMI_ECC_WRITE(numEccBytes, 8, &oobp[8],
 		(eccVal >> 24) & 0xff);	/* ECC7 */
@@ -321,7 +320,7 @@ static inline void nand_bcm_umi_bch_write_oobEcc(uint32_t pageSize,
 		eccVal & 0xff);	/* ECC4 */
 
 	if (numEccBytes >= 1)
-		eccVal = REG_UMI_BCH_WR_ECC_0;
+		eccVal = readl(&REG_UMI_BCH_WR_ECC_0);
 
 	NAND_BCM_UMI_ECC_WRITE(numEccBytes, 4, &oobp[12],
 		(eccVal >> 24) & 0xff);	/* ECC3 */
