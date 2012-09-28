@@ -1416,7 +1416,7 @@ iso_stream_schedule (
 
 		/* Behind the scheduling threshold?  Assume URB_ISO_ASAP. */
 		if (unlikely(start < next))
-			start += period * DIV_ROUND_UP(next - start, period);
+			start += (next - start + period - 1) & (- period);
 
 		start += base;
 	}
