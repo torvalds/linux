@@ -229,6 +229,12 @@ static void pm_pll_wait_lock(int pll_idx)
 	u32 bit = 0x10u << pll_state[pll_idx];
 #endif
 	u32 delay = 2400000U;
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
+	dsb();
 	while (delay > 0) {
 		if (grf_readl(GRF_SOC_STATUS0) & bit)
 			break;
@@ -271,7 +277,7 @@ static noinline void interface_ctr_reg_pread(void)
 	readl_relaxed(RK30_GRF_BASE);
 	readl_relaxed(RK30_DDR_PCTL_BASE);
 	readl_relaxed(RK30_DDR_PUBL_BASE);
-	readl_relaxed(RK30_I2C1_BASE);
+	readl_relaxed(RK30_I2C1_BASE+SZ_4K);
 }
 
 static inline bool pm_pmu_power_domain_is_on(enum pmu_power_domain pd, u32 pmu_pwrdn_st)
