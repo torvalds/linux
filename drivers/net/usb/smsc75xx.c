@@ -756,6 +756,26 @@ static int smsc75xx_set_features(struct net_device *netdev,
 	return 0;
 }
 
+static int smsc75xx_wait_ready(struct usbnet *dev)
+{
+	int timeout = 0;
+
+	do {
+		u32 buf;
+		int ret = smsc75xx_read_reg(dev, PMT_CTL, &buf);
+		check_warn_return(ret, "Failed to read PMT_CTL: %d", ret);
+
+		if (buf & PMT_CTL_DEV_RDY)
+			return 0;
+
+		msleep(10);
+		timeout++;
+	} while (timeout < 100);
+
+	netdev_warn(dev->net, "timeout waiting for device ready");
+	return -EIO;
+}
+
 static int smsc75xx_reset(struct usbnet *dev)
 {
 	struct smsc75xx_priv *pdata = (struct smsc75xx_priv *)(dev->data[0]);
@@ -763,6 +783,9 @@ static int smsc75xx_reset(struct usbnet *dev)
 	int ret = 0, timeout;
 
 	netif_dbg(dev, ifup, dev->net, "entering smsc75xx_reset");
+
+	ret = smsc75xx_wait_ready(dev);
+	check_warn_return(ret, "device not ready in smsc75xx_reset");
 
 	ret = smsc75xx_read_reg(dev, HW_CFG, &buf);
 	check_warn_return(ret, "Failed to read HW_CFG: %d", ret);
