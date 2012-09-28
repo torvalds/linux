@@ -24,6 +24,7 @@
 #include "rc.h"
 #include "ar9003_mac.h"
 #include "ar9003_mci.h"
+#include "ar9003_phy.h"
 #include "debug.h"
 #include "ath9k.h"
 
@@ -1733,11 +1734,11 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (!ret)
 		goto fail;
 
-	ath9k_hw_loadnf(ah, ah->curchan);
-	ath9k_hw_start_nfcal(ah, true);
-
 	if (ath9k_hw_mci_is_enabled(ah))
 		ar9003_mci_2g5g_switch(ah, false);
+
+	ath9k_hw_loadnf(ah, ah->curchan);
+	ath9k_hw_start_nfcal(ah, true);
 
 	if (AR_SREV_9271(ah))
 		ar9002_hw_load_ani_reg(ah, chan);
@@ -2024,6 +2025,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	ath9k_hw_apply_gpio_override(ah);
+
+	if (AR_SREV_9565(ah) && ah->shared_chain_lnadiv)
+		REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV, AR_BTCOEX_WL_LNADIV_FORCE_ON);
 
 	return 0;
 }
@@ -2539,7 +2543,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 
-	if (AR_SREV_9330(ah) || AR_SREV_9485(ah)) {
+	if (AR_SREV_9330(ah) || AR_SREV_9485(ah) || AR_SREV_9565(ah)) {
 		ant_div_ctl1 = ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
 		/*
 		 * enable the diversity-combining algorithm only when

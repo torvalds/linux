@@ -91,6 +91,8 @@ enum {
 #define MWIFIEX_MAX_EMPTY_TX_Q_CNT			10
 #define MWIFIEX_SCAN_DELAY_MSEC				20
 
+#define MWIFIEX_MIN_TX_PENDING_TO_CANCEL_SCAN		2
+
 #define RSN_GTK_OUI_OFFSET				2
 
 #define MWIFIEX_OUI_NOT_PRESENT			0
@@ -1031,7 +1033,7 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 					struct mwifiex_bssdescriptor *bss_desc);
 
 struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
-					      char *name,
+					      const char *name,
 					      enum nl80211_iftype type,
 					      u32 *flags,
 					      struct vif_params *params);

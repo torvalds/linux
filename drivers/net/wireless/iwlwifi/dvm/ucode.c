@@ -295,7 +295,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 static int iwl_verify_sec_sparse(struct iwl_priv *priv,
 				  const struct fw_desc *fw_desc)
 {
-	__le32 *image = (__le32 *)fw_desc->v_addr;
+	__le32 *image = (__le32 *)fw_desc->data;
 	u32 len = fw_desc->len;
 	u32 val;
 	u32 i;
@@ -319,7 +319,7 @@ static int iwl_verify_sec_sparse(struct iwl_priv *priv,
 static void iwl_print_mismatch_sec(struct iwl_priv *priv,
 				    const struct fw_desc *fw_desc)
 {
-	__le32 *image = (__le32 *)fw_desc->v_addr;
+	__le32 *image = (__le32 *)fw_desc->data;
 	u32 len = fw_desc->len;
 	u32 val;
 	u32 offs;

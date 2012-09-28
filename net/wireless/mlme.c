@@ -612,6 +612,17 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp)
 }
 EXPORT_SYMBOL(cfg80211_del_sta);
 
+void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
+			  enum nl80211_connect_failed_reason reason,
+			  gfp_t gfp)
+{
+	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_send_conn_failed_event(rdev, dev, mac_addr, reason, gfp);
+}
+EXPORT_SYMBOL(cfg80211_conn_failed);
+
 struct cfg80211_mgmt_registration {
 	struct list_head list;
 

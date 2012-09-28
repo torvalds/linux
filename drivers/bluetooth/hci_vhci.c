@@ -156,7 +156,7 @@ static inline ssize_t vhci_put_user(struct vhci_data *data,
 	case HCI_SCODATA_PKT:
 		data->hdev->stat.sco_tx++;
 		break;
-	};
+	}
 
 	return total;
 }

@@ -567,8 +567,6 @@ static void bt_seq_stop(struct seq_file *seq, void *v)
 
 static int bt_seq_show(struct seq_file *seq, void *v)
 {
-	struct sock *sk;
-	struct bt_sock *bt;
 	struct bt_seq_state *s = seq->private;
 	struct bt_sock_list *l = s->l;
 	bdaddr_t src_baswapped, dst_baswapped;
@@ -583,8 +581,8 @@ static int bt_seq_show(struct seq_file *seq, void *v)
 
 		seq_putc(seq, '\n');
 	} else {
-		sk = sk_entry(v);
-		bt = bt_sk(sk);
+		struct sock *sk = sk_entry(v);
+		struct bt_sock *bt = bt_sk(sk);
 		baswap(&src_baswapped, &bt->src);
 		baswap(&dst_baswapped, &bt->dst);
 
@@ -624,7 +622,7 @@ static int bt_seq_open(struct inode *inode, struct file *file)
 	sk_list = PDE(inode)->data;
 	s = __seq_open_private(file, &bt_seq_ops,
 			       sizeof(struct bt_seq_state));
-	if (s == NULL)
+	if (!s)
 		return -ENOMEM;
 
 	s->l = sk_list;
@@ -646,7 +644,7 @@ int bt_procfs_init(struct module* module, struct net *net, const char *name,
 	sk_list->fops.release   = seq_release_private;
 
 	pde = proc_net_fops_create(net, name, 0, &sk_list->fops);
-	if (pde == NULL)
+	if (!pde)
 		return -ENOMEM;
 
 	pde->data = sk_list;

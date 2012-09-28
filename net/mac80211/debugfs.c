@@ -70,6 +70,7 @@ DEBUGFS_READONLY_FILE(wep_iv, "%#08x",
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, "%s",
 	local->rate_ctrl ? local->rate_ctrl->ops->name : "hw/driver");
 
+#ifdef CONFIG_PM
 static ssize_t reset_write(struct file *file, const char __user *user_buf,
 			   size_t count, loff_t *ppos)
 {
@@ -88,6 +89,7 @@ static const struct file_operations reset_ops = {
 	.open = simple_open,
 	.llseek = noop_llseek,
 };
+#endif
 
 static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 			    size_t count, loff_t *ppos)
@@ -245,7 +247,9 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(queues);
+#ifdef CONFIG_PM
 	DEBUGFS_ADD_MODE(reset, 0200);
+#endif
 	DEBUGFS_ADD(hwflags);
 	DEBUGFS_ADD(user_power);
 	DEBUGFS_ADD(power);

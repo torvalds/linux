@@ -68,16 +68,14 @@ ieee80211_get_channel_mode(struct ieee80211_local *local,
 	return mode;
 }
 
-bool ieee80211_set_channel_type(struct ieee80211_local *local,
-				struct ieee80211_sub_if_data *sdata,
-				enum nl80211_channel_type chantype)
+static enum nl80211_channel_type
+ieee80211_get_superchan(struct ieee80211_local *local,
+			struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *tmp;
 	enum nl80211_channel_type superchan = NL80211_CHAN_NO_HT;
-	bool result;
+	struct ieee80211_sub_if_data *tmp;
 
 	mutex_lock(&local->iflist_mtx);
-
 	list_for_each_entry(tmp, &local->interfaces, list) {
 		if (tmp == sdata)
 			continue;
@@ -103,39 +101,70 @@ bool ieee80211_set_channel_type(struct ieee80211_local *local,
 			break;
 		}
 	}
+	mutex_unlock(&local->iflist_mtx);
 
-	switch (superchan) {
+	return superchan;
+}
+
+static bool
+ieee80211_channel_types_are_compatible(enum nl80211_channel_type chantype1,
+				       enum nl80211_channel_type chantype2,
+				       enum nl80211_channel_type *compat)
+{
+	/*
+	 * start out with chantype1 being the result,
+	 * overwriting later if needed
+	 */
+	if (compat)
+		*compat = chantype1;
+
+	switch (chantype1) {
 	case NL80211_CHAN_NO_HT:
+		if (compat)
+			*compat = chantype2;
+		break;
 	case NL80211_CHAN_HT20:
 		/*
 		 * allow any change that doesn't go to no-HT
 		 * (if it already is no-HT no change is needed)
 		 */
-		if (chantype == NL80211_CHAN_NO_HT)
+		if (chantype2 == NL80211_CHAN_NO_HT)
 			break;
-		superchan = chantype;
+		if (compat)
+			*compat = chantype2;
 		break;
 	case NL80211_CHAN_HT40PLUS:
 	case NL80211_CHAN_HT40MINUS:
 		/* allow smaller bandwidth and same */
-		if (chantype == NL80211_CHAN_NO_HT)
+		if (chantype2 == NL80211_CHAN_NO_HT)
 			break;
-		if (chantype == NL80211_CHAN_HT20)
+		if (chantype2 == NL80211_CHAN_HT20)
 			break;
-		if (superchan == chantype)
+		if (chantype2 == chantype1)
 			break;
-		result = false;
-		goto out;
+		return false;
 	}
 
-	local->_oper_channel_type = superchan;
+	return true;
+}
+
+bool ieee80211_set_channel_type(struct ieee80211_local *local,
+				struct ieee80211_sub_if_data *sdata,
+				enum nl80211_channel_type chantype)
+{
+	enum nl80211_channel_type superchan;
+	enum nl80211_channel_type compatchan;
+
+	superchan = ieee80211_get_superchan(local, sdata);
+	if (!ieee80211_channel_types_are_compatible(superchan, chantype,
+						    &compatchan))
+		return false;
+
+	local->_oper_channel_type = compatchan;
 
 	if (sdata)
 		sdata->vif.bss_conf.channel_type = chantype;
 
-	result = true;
- out:
-	mutex_unlock(&local->iflist_mtx);
+	return true;
 
-	return result;
 }

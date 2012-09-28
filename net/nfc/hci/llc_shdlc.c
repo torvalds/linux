@@ -1,10 +1,11 @@
 /*
+ * shdlc Link Layer Control
+ *
  * Copyright (C) 2012  Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -19,18 +20,65 @@
 
 #define pr_fmt(fmt) "shdlc: %s: " fmt, __func__
 
+#include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/export.h>
 #include <linux/wait.h>
-#include <linux/crc-ccitt.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 
-#include <net/nfc/hci.h>
-#include <net/nfc/shdlc.h>
+#include "llc.h"
+
+enum shdlc_state {
+	SHDLC_DISCONNECTED = 0,
+	SHDLC_CONNECTING = 1,
+	SHDLC_NEGOTIATING = 2,
+	SHDLC_HALF_CONNECTED = 3,
+	SHDLC_CONNECTED = 4
+};
+
+struct llc_shdlc {
+	struct nfc_hci_dev *hdev;
+	xmit_to_drv_t xmit_to_drv;
+	rcv_to_hci_t rcv_to_hci;
+
+	struct mutex state_mutex;
+	enum shdlc_state state;
+	int hard_fault;
+
+	wait_queue_head_t *connect_wq;
+	int connect_tries;
+	int connect_result;
+	struct timer_list connect_timer;/* aka T3 in spec 10.6.1 */
+
+	u8 w;				/* window size */
+	bool srej_support;
+
+	struct timer_list t1_timer;	/* send ack timeout */
+	bool t1_active;
+
+	struct timer_list t2_timer;	/* guard/retransmit timeout */
+	bool t2_active;
+
+	int ns;				/* next seq num for send */
+	int nr;				/* next expected seq num for receive */
+	int dnr;			/* oldest sent unacked seq num */
+
+	struct sk_buff_head rcv_q;
+
+	struct sk_buff_head send_q;
+	bool rnr;			/* other side is not ready to receive */
+
+	struct sk_buff_head ack_pending_q;
+
+	struct work_struct sm_work;
+
+	int tx_headroom;
+	int tx_tailroom;
+
+	llc_failure_t llc_failure;
+};
 
 #define SHDLC_LLC_HEAD_ROOM	2
-#define SHDLC_LLC_TAIL_ROOM	2
 
 #define SHDLC_MAX_WINDOW	4
 #define SHDLC_SREJ_SUPPORT	false
@@ -71,7 +119,7 @@ do {								  \
 } while (0)
 
 /* checks x < y <= z modulo 8 */
-static bool nfc_shdlc_x_lt_y_lteq_z(int x, int y, int z)
+static bool llc_shdlc_x_lt_y_lteq_z(int x, int y, int z)
 {
 	if (x < z)
 		return ((x < y) && (y <= z)) ? true : false;
@@ -80,7 +128,7 @@ static bool nfc_shdlc_x_lt_y_lteq_z(int x, int y, int z)
 }
 
 /* checks x <= y < z modulo 8 */
-static bool nfc_shdlc_x_lteq_y_lt_z(int x, int y, int z)
+static bool llc_shdlc_x_lteq_y_lt_z(int x, int y, int z)
 {
 	if (x <= z)
 		return ((x <= y) && (y < z)) ? true : false;
@@ -88,36 +136,21 @@ static bool nfc_shdlc_x_lteq_y_lt_z(int x, int y, int z)
 		return ((y >= x) || (y < z)) ? true : false;
 }
 
-static struct sk_buff *nfc_shdlc_alloc_skb(struct nfc_shdlc *shdlc,
+static struct sk_buff *llc_shdlc_alloc_skb(struct llc_shdlc *shdlc,
 					   int payload_len)
 {
 	struct sk_buff *skb;
 
-	skb = alloc_skb(shdlc->client_headroom + SHDLC_LLC_HEAD_ROOM +
-			shdlc->client_tailroom + SHDLC_LLC_TAIL_ROOM +
-			payload_len, GFP_KERNEL);
+	skb = alloc_skb(shdlc->tx_headroom + SHDLC_LLC_HEAD_ROOM +
+			shdlc->tx_tailroom + payload_len, GFP_KERNEL);
 	if (skb)
-		skb_reserve(skb, shdlc->client_headroom + SHDLC_LLC_HEAD_ROOM);
+		skb_reserve(skb, shdlc->tx_headroom + SHDLC_LLC_HEAD_ROOM);
 
 	return skb;
 }
 
-static void nfc_shdlc_add_len_crc(struct sk_buff *skb)
-{
-	u16 crc;
-	int len;
-
-	len = skb->len + 2;
-	*skb_push(skb, 1) = len;
-
-	crc = crc_ccitt(0xffff, skb->data, skb->len);
-	crc = ~crc;
-	*skb_put(skb, 1) = crc & 0xff;
-	*skb_put(skb, 1) = crc >> 8;
-}
-
 /* immediately sends an S frame. */
-static int nfc_shdlc_send_s_frame(struct nfc_shdlc *shdlc,
+static int llc_shdlc_send_s_frame(struct llc_shdlc *shdlc,
 				  enum sframe_type sframe_type, int nr)
 {
 	int r;
@@ -125,15 +158,13 @@ static int nfc_shdlc_send_s_frame(struct nfc_shdlc *shdlc,
 
 	pr_debug("sframe_type=%d nr=%d\n", sframe_type, nr);
 
-	skb = nfc_shdlc_alloc_skb(shdlc, 0);
+	skb = llc_shdlc_alloc_skb(shdlc, 0);
 	if (skb == NULL)
 		return -ENOMEM;
 
 	*skb_push(skb, 1) = SHDLC_CONTROL_HEAD_S | (sframe_type << 3) | nr;
 
-	nfc_shdlc_add_len_crc(skb);
-
-	r = shdlc->ops->xmit(shdlc, skb);
+	r = shdlc->xmit_to_drv(shdlc->hdev, skb);
 
 	kfree_skb(skb);
 
@@ -141,7 +172,7 @@ static int nfc_shdlc_send_s_frame(struct nfc_shdlc *shdlc,
 }
 
 /* immediately sends an U frame. skb may contain optional payload */
-static int nfc_shdlc_send_u_frame(struct nfc_shdlc *shdlc,
+static int llc_shdlc_send_u_frame(struct llc_shdlc *shdlc,
 				  struct sk_buff *skb,
 				  enum uframe_modifier uframe_modifier)
 {
@@ -151,9 +182,7 @@ static int nfc_shdlc_send_u_frame(struct nfc_shdlc *shdlc,
 
 	*skb_push(skb, 1) = SHDLC_CONTROL_HEAD_U | uframe_modifier;
 
-	nfc_shdlc_add_len_crc(skb);
-
-	r = shdlc->ops->xmit(shdlc, skb);
+	r = shdlc->xmit_to_drv(shdlc->hdev, skb);
 
 	kfree_skb(skb);
 
@@ -164,7 +193,7 @@ static int nfc_shdlc_send_u_frame(struct nfc_shdlc *shdlc,
  * Free ack_pending frames until y_nr - 1, and reset t2 according to
  * the remaining oldest ack_pending frame sent time
  */
-static void nfc_shdlc_reset_t2(struct nfc_shdlc *shdlc, int y_nr)
+static void llc_shdlc_reset_t2(struct llc_shdlc *shdlc, int y_nr)
 {
 	struct sk_buff *skb;
 	int dnr = shdlc->dnr;	/* MUST initially be < y_nr */
@@ -204,7 +233,7 @@ static void nfc_shdlc_reset_t2(struct nfc_shdlc *shdlc, int y_nr)
  * Receive validated frames from lower layer. skb contains HCI payload only.
  * Handle according to algorithm at spec:10.8.2
  */
-static void nfc_shdlc_rcv_i_frame(struct nfc_shdlc *shdlc,
+static void llc_shdlc_rcv_i_frame(struct llc_shdlc *shdlc,
 				  struct sk_buff *skb, int ns, int nr)
 {
 	int x_ns = ns;
@@ -216,66 +245,64 @@ static void nfc_shdlc_rcv_i_frame(struct nfc_shdlc *shdlc,
 		goto exit;
 
 	if (x_ns != shdlc->nr) {
-		nfc_shdlc_send_s_frame(shdlc, S_FRAME_REJ, shdlc->nr);
+		llc_shdlc_send_s_frame(shdlc, S_FRAME_REJ, shdlc->nr);
 		goto exit;
 	}
 
 	if (shdlc->t1_active == false) {
 		shdlc->t1_active = true;
-		mod_timer(&shdlc->t1_timer,
+		mod_timer(&shdlc->t1_timer, jiffies +
 			  msecs_to_jiffies(SHDLC_T1_VALUE_MS(shdlc->w)));
 		pr_debug("(re)Start T1(send ack)\n");
 	}
 
 	if (skb->len) {
-		nfc_hci_recv_frame(shdlc->hdev, skb);
+		shdlc->rcv_to_hci(shdlc->hdev, skb);
 		skb = NULL;
 	}
 
 	shdlc->nr = (shdlc->nr + 1) % 8;
 
-	if (nfc_shdlc_x_lt_y_lteq_z(shdlc->dnr, y_nr, shdlc->ns)) {
-		nfc_shdlc_reset_t2(shdlc, y_nr);
+	if (llc_shdlc_x_lt_y_lteq_z(shdlc->dnr, y_nr, shdlc->ns)) {
+		llc_shdlc_reset_t2(shdlc, y_nr);
 
 		shdlc->dnr = y_nr;
 	}
 
 exit:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 }
 
-static void nfc_shdlc_rcv_ack(struct nfc_shdlc *shdlc, int y_nr)
+static void llc_shdlc_rcv_ack(struct llc_shdlc *shdlc, int y_nr)
 {
 	pr_debug("remote acked up to frame %d excluded\n", y_nr);
 
-	if (nfc_shdlc_x_lt_y_lteq_z(shdlc->dnr, y_nr, shdlc->ns)) {
-		nfc_shdlc_reset_t2(shdlc, y_nr);
+	if (llc_shdlc_x_lt_y_lteq_z(shdlc->dnr, y_nr, shdlc->ns)) {
+		llc_shdlc_reset_t2(shdlc, y_nr);
 		shdlc->dnr = y_nr;
 	}
 }
 
-static void nfc_shdlc_requeue_ack_pending(struct nfc_shdlc *shdlc)
+static void llc_shdlc_requeue_ack_pending(struct llc_shdlc *shdlc)
 {
 	struct sk_buff *skb;
 
 	pr_debug("ns reset to %d\n", shdlc->dnr);
 
 	while ((skb = skb_dequeue_tail(&shdlc->ack_pending_q))) {
-		skb_pull(skb, 2);	/* remove len+control */
-		skb_trim(skb, skb->len - 2);	/* remove crc */
+		skb_pull(skb, 1);	/* remove control field */
 		skb_queue_head(&shdlc->send_q, skb);
 	}
 	shdlc->ns = shdlc->dnr;
 }
 
-static void nfc_shdlc_rcv_rej(struct nfc_shdlc *shdlc, int y_nr)
+static void llc_shdlc_rcv_rej(struct llc_shdlc *shdlc, int y_nr)
 {
 	struct sk_buff *skb;
 
 	pr_debug("remote asks retransmition from frame %d\n", y_nr);
 
-	if (nfc_shdlc_x_lteq_y_lt_z(shdlc->dnr, y_nr, shdlc->ns)) {
+	if (llc_shdlc_x_lteq_y_lt_z(shdlc->dnr, y_nr, shdlc->ns)) {
 		if (shdlc->t2_active) {
 			del_timer_sync(&shdlc->t2_timer);
 			shdlc->t2_active = false;
@@ -289,12 +316,12 @@ static void nfc_shdlc_rcv_rej(struct nfc_shdlc *shdlc, int y_nr)
 			}
 		}
 
-		nfc_shdlc_requeue_ack_pending(shdlc);
+		llc_shdlc_requeue_ack_pending(shdlc);
 	}
 }
 
 /* See spec RR:10.8.3 REJ:10.8.4 */
-static void nfc_shdlc_rcv_s_frame(struct nfc_shdlc *shdlc,
+static void llc_shdlc_rcv_s_frame(struct llc_shdlc *shdlc,
 				  enum sframe_type s_frame_type, int nr)
 {
 	struct sk_buff *skb;
@@ -304,21 +331,21 @@ static void nfc_shdlc_rcv_s_frame(struct nfc_shdlc *shdlc,
 
 	switch (s_frame_type) {
 	case S_FRAME_RR:
-		nfc_shdlc_rcv_ack(shdlc, nr);
+		llc_shdlc_rcv_ack(shdlc, nr);
 		if (shdlc->rnr == true) {	/* see SHDLC 10.7.7 */
 			shdlc->rnr = false;
 			if (shdlc->send_q.qlen == 0) {
-				skb = nfc_shdlc_alloc_skb(shdlc, 0);
+				skb = llc_shdlc_alloc_skb(shdlc, 0);
 				if (skb)
 					skb_queue_tail(&shdlc->send_q, skb);
 			}
 		}
 		break;
 	case S_FRAME_REJ:
-		nfc_shdlc_rcv_rej(shdlc, nr);
+		llc_shdlc_rcv_rej(shdlc, nr);
 		break;
 	case S_FRAME_RNR:
-		nfc_shdlc_rcv_ack(shdlc, nr);
+		llc_shdlc_rcv_ack(shdlc, nr);
 		shdlc->rnr = true;
 		break;
 	default:
@@ -326,7 +353,7 @@ static void nfc_shdlc_rcv_s_frame(struct nfc_shdlc *shdlc,
 	}
 }
 
-static void nfc_shdlc_connect_complete(struct nfc_shdlc *shdlc, int r)
+static void llc_shdlc_connect_complete(struct llc_shdlc *shdlc, int r)
 {
 	pr_debug("result=%d\n", r);
 
@@ -337,7 +364,7 @@ static void nfc_shdlc_connect_complete(struct nfc_shdlc *shdlc, int r)
 		shdlc->nr = 0;
 		shdlc->dnr = 0;
 
-		shdlc->state = SHDLC_CONNECTED;
+		shdlc->state = SHDLC_HALF_CONNECTED;
 	} else {
 		shdlc->state = SHDLC_DISCONNECTED;
 	}
@@ -347,36 +374,36 @@ static void nfc_shdlc_connect_complete(struct nfc_shdlc *shdlc, int r)
 	wake_up(shdlc->connect_wq);
 }
 
-static int nfc_shdlc_connect_initiate(struct nfc_shdlc *shdlc)
+static int llc_shdlc_connect_initiate(struct llc_shdlc *shdlc)
 {
 	struct sk_buff *skb;
 
 	pr_debug("\n");
 
-	skb = nfc_shdlc_alloc_skb(shdlc, 2);
+	skb = llc_shdlc_alloc_skb(shdlc, 2);
 	if (skb == NULL)
 		return -ENOMEM;
 
 	*skb_put(skb, 1) = SHDLC_MAX_WINDOW;
 	*skb_put(skb, 1) = SHDLC_SREJ_SUPPORT ? 1 : 0;
 
-	return nfc_shdlc_send_u_frame(shdlc, skb, U_FRAME_RSET);
+	return llc_shdlc_send_u_frame(shdlc, skb, U_FRAME_RSET);
 }
 
-static int nfc_shdlc_connect_send_ua(struct nfc_shdlc *shdlc)
+static int llc_shdlc_connect_send_ua(struct llc_shdlc *shdlc)
 {
 	struct sk_buff *skb;
 
 	pr_debug("\n");
 
-	skb = nfc_shdlc_alloc_skb(shdlc, 0);
+	skb = llc_shdlc_alloc_skb(shdlc, 0);
 	if (skb == NULL)
 		return -ENOMEM;
 
-	return nfc_shdlc_send_u_frame(shdlc, skb, U_FRAME_UA);
+	return llc_shdlc_send_u_frame(shdlc, skb, U_FRAME_UA);
 }
 
-static void nfc_shdlc_rcv_u_frame(struct nfc_shdlc *shdlc,
+static void llc_shdlc_rcv_u_frame(struct llc_shdlc *shdlc,
 				  struct sk_buff *skb,
 				  enum uframe_modifier u_frame_modifier)
 {
@@ -388,8 +415,13 @@ static void nfc_shdlc_rcv_u_frame(struct nfc_shdlc *shdlc,
 
 	switch (u_frame_modifier) {
 	case U_FRAME_RSET:
-		if (shdlc->state == SHDLC_NEGOCIATING) {
-			/* we sent RSET, but chip wants to negociate */
+		switch (shdlc->state) {
+		case SHDLC_NEGOTIATING:
+		case SHDLC_CONNECTING:
+			/*
+			 * We sent RSET, but chip wants to negociate or we
+			 * got RSET before we managed to send out our.
+			 */
 			if (skb->len > 0)
 				w = skb->data[0];
 
@@ -401,22 +433,34 @@ static void nfc_shdlc_rcv_u_frame(struct nfc_shdlc *shdlc,
 			    (SHDLC_SREJ_SUPPORT || (srej_support == false))) {
 				shdlc->w = w;
 				shdlc->srej_support = srej_support;
-				r = nfc_shdlc_connect_send_ua(shdlc);
-				nfc_shdlc_connect_complete(shdlc, r);
+				r = llc_shdlc_connect_send_ua(shdlc);
+				llc_shdlc_connect_complete(shdlc, r);
 			}
-		} else if (shdlc->state == SHDLC_CONNECTED) {
+			break;
+		case SHDLC_HALF_CONNECTED:
+			/*
+			 * Chip resent RSET due to its timeout - Ignote it
+			 * as we already sent UA.
+			 */
+			break;
+		case SHDLC_CONNECTED:
 			/*
 			 * Chip wants to reset link. This is unexpected and
 			 * unsupported.
 			 */
 			shdlc->hard_fault = -ECONNRESET;
+			break;
+		default:
+			break;
 		}
 		break;
 	case U_FRAME_UA:
 		if ((shdlc->state == SHDLC_CONNECTING &&
 		     shdlc->connect_tries > 0) ||
-		    (shdlc->state == SHDLC_NEGOCIATING))
-			nfc_shdlc_connect_complete(shdlc, 0);
+		    (shdlc->state == SHDLC_NEGOTIATING)) {
+			llc_shdlc_connect_complete(shdlc, 0);
+			shdlc->state = SHDLC_CONNECTED;
+		}
 		break;
 	default:
 		break;
@@ -425,7 +469,7 @@ static void nfc_shdlc_rcv_u_frame(struct nfc_shdlc *shdlc,
 	kfree_skb(skb);
 }
 
-static void nfc_shdlc_handle_rcv_queue(struct nfc_shdlc *shdlc)
+static void llc_shdlc_handle_rcv_queue(struct llc_shdlc *shdlc)
 {
 	struct sk_buff *skb;
 	u8 control;
@@ -443,19 +487,25 @@ static void nfc_shdlc_handle_rcv_queue(struct nfc_shdlc *shdlc)
 		switch (control & SHDLC_CONTROL_HEAD_MASK) {
 		case SHDLC_CONTROL_HEAD_I:
 		case SHDLC_CONTROL_HEAD_I2:
+			if (shdlc->state == SHDLC_HALF_CONNECTED)
+				shdlc->state = SHDLC_CONNECTED;
+
 			ns = (control & SHDLC_CONTROL_NS_MASK) >> 3;
 			nr = control & SHDLC_CONTROL_NR_MASK;
-			nfc_shdlc_rcv_i_frame(shdlc, skb, ns, nr);
+			llc_shdlc_rcv_i_frame(shdlc, skb, ns, nr);
 			break;
 		case SHDLC_CONTROL_HEAD_S:
+			if (shdlc->state == SHDLC_HALF_CONNECTED)
+				shdlc->state = SHDLC_CONNECTED;
+
 			s_frame_type = (control & SHDLC_CONTROL_TYPE_MASK) >> 3;
 			nr = control & SHDLC_CONTROL_NR_MASK;
-			nfc_shdlc_rcv_s_frame(shdlc, s_frame_type, nr);
+			llc_shdlc_rcv_s_frame(shdlc, s_frame_type, nr);
 			kfree_skb(skb);
 			break;
 		case SHDLC_CONTROL_HEAD_U:
 			u_frame_modifier = control & SHDLC_CONTROL_M_MASK;
-			nfc_shdlc_rcv_u_frame(shdlc, skb, u_frame_modifier);
+			llc_shdlc_rcv_u_frame(shdlc, skb, u_frame_modifier);
 			break;
 		default:
 			pr_err("UNKNOWN Control=%d\n", control);
@@ -465,7 +515,7 @@ static void nfc_shdlc_handle_rcv_queue(struct nfc_shdlc *shdlc)
 	}
 }
 
-static int nfc_shdlc_w_used(int ns, int dnr)
+static int llc_shdlc_w_used(int ns, int dnr)
 {
 	int unack_count;
 
@@ -478,7 +528,7 @@ static int nfc_shdlc_w_used(int ns, int dnr)
 }
 
 /* Send frames according to algorithm at spec:10.8.1 */
-static void nfc_shdlc_handle_send_queue(struct nfc_shdlc *shdlc)
+static void llc_shdlc_handle_send_queue(struct llc_shdlc *shdlc)
 {
 	struct sk_buff *skb;
 	int r;
@@ -489,7 +539,7 @@ static void nfc_shdlc_handle_send_queue(struct nfc_shdlc *shdlc)
 		    ("sendQlen=%d ns=%d dnr=%d rnr=%s w_room=%d unackQlen=%d\n",
 		     shdlc->send_q.qlen, shdlc->ns, shdlc->dnr,
 		     shdlc->rnr == false ? "false" : "true",
-		     shdlc->w - nfc_shdlc_w_used(shdlc->ns, shdlc->dnr),
+		     shdlc->w - llc_shdlc_w_used(shdlc->ns, shdlc->dnr),
 		     shdlc->ack_pending_q.qlen);
 
 	while (shdlc->send_q.qlen && shdlc->ack_pending_q.qlen < shdlc->w &&
@@ -508,11 +558,9 @@ static void nfc_shdlc_handle_send_queue(struct nfc_shdlc *shdlc)
 
 		pr_debug("Sending I-Frame %d, waiting to rcv %d\n", shdlc->ns,
 			 shdlc->nr);
-	/*	SHDLC_DUMP_SKB("shdlc frame written", skb); */
+		SHDLC_DUMP_SKB("shdlc frame written", skb);
 
-		nfc_shdlc_add_len_crc(skb);
-
-		r = shdlc->ops->xmit(shdlc, skb);
+		r = shdlc->xmit_to_drv(shdlc->hdev, skb);
 		if (r < 0) {
 			shdlc->hard_fault = r;
 			break;
@@ -534,36 +582,36 @@ static void nfc_shdlc_handle_send_queue(struct nfc_shdlc *shdlc)
 	}
 }
 
-static void nfc_shdlc_connect_timeout(unsigned long data)
+static void llc_shdlc_connect_timeout(unsigned long data)
 {
-	struct nfc_shdlc *shdlc = (struct nfc_shdlc *)data;
+	struct llc_shdlc *shdlc = (struct llc_shdlc *)data;
 
 	pr_debug("\n");
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 
-static void nfc_shdlc_t1_timeout(unsigned long data)
+static void llc_shdlc_t1_timeout(unsigned long data)
 {
-	struct nfc_shdlc *shdlc = (struct nfc_shdlc *)data;
+	struct llc_shdlc *shdlc = (struct llc_shdlc *)data;
 
 	pr_debug("SoftIRQ: need to send ack\n");
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 
-static void nfc_shdlc_t2_timeout(unsigned long data)
+static void llc_shdlc_t2_timeout(unsigned long data)
 {
-	struct nfc_shdlc *shdlc = (struct nfc_shdlc *)data;
+	struct llc_shdlc *shdlc = (struct llc_shdlc *)data;
 
 	pr_debug("SoftIRQ: need to retransmit\n");
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 
-static void nfc_shdlc_sm_work(struct work_struct *work)
+static void llc_shdlc_sm_work(struct work_struct *work)
 {
-	struct nfc_shdlc *shdlc = container_of(work, struct nfc_shdlc, sm_work);
+	struct llc_shdlc *shdlc = container_of(work, struct llc_shdlc, sm_work);
 	int r;
 
 	pr_debug("\n");
@@ -578,46 +626,47 @@ static void nfc_shdlc_sm_work(struct work_struct *work)
 		break;
 	case SHDLC_CONNECTING:
 		if (shdlc->hard_fault) {
-			nfc_shdlc_connect_complete(shdlc, shdlc->hard_fault);
+			llc_shdlc_connect_complete(shdlc, shdlc->hard_fault);
 			break;
 		}
 
 		if (shdlc->connect_tries++ < 5)
-			r = nfc_shdlc_connect_initiate(shdlc);
+			r = llc_shdlc_connect_initiate(shdlc);
 		else
 			r = -ETIME;
 		if (r < 0)
-			nfc_shdlc_connect_complete(shdlc, r);
+			llc_shdlc_connect_complete(shdlc, r);
 		else {
 			mod_timer(&shdlc->connect_timer, jiffies +
 				  msecs_to_jiffies(SHDLC_CONNECT_VALUE_MS));
 
-			shdlc->state = SHDLC_NEGOCIATING;
+			shdlc->state = SHDLC_NEGOTIATING;
 		}
 		break;
-	case SHDLC_NEGOCIATING:
+	case SHDLC_NEGOTIATING:
 		if (timer_pending(&shdlc->connect_timer) == 0) {
 			shdlc->state = SHDLC_CONNECTING;
-			queue_work(shdlc->sm_wq, &shdlc->sm_work);
+			queue_work(system_nrt_wq, &shdlc->sm_work);
 		}
 
-		nfc_shdlc_handle_rcv_queue(shdlc);
+		llc_shdlc_handle_rcv_queue(shdlc);
 
 		if (shdlc->hard_fault) {
-			nfc_shdlc_connect_complete(shdlc, shdlc->hard_fault);
+			llc_shdlc_connect_complete(shdlc, shdlc->hard_fault);
 			break;
 		}
 		break;
+	case SHDLC_HALF_CONNECTED:
 	case SHDLC_CONNECTED:
-		nfc_shdlc_handle_rcv_queue(shdlc);
-		nfc_shdlc_handle_send_queue(shdlc);
+		llc_shdlc_handle_rcv_queue(shdlc);
+		llc_shdlc_handle_send_queue(shdlc);
 
 		if (shdlc->t1_active && timer_pending(&shdlc->t1_timer) == 0) {
 			pr_debug
 			    ("Handle T1(send ack) elapsed (T1 now inactive)\n");
 
 			shdlc->t1_active = false;
-			r = nfc_shdlc_send_s_frame(shdlc, S_FRAME_RR,
+			r = llc_shdlc_send_s_frame(shdlc, S_FRAME_RR,
 						   shdlc->nr);
 			if (r < 0)
 				shdlc->hard_fault = r;
@@ -629,12 +678,12 @@ static void nfc_shdlc_sm_work(struct work_struct *work)
 
 			shdlc->t2_active = false;
 
-			nfc_shdlc_requeue_ack_pending(shdlc);
-			nfc_shdlc_handle_send_queue(shdlc);
+			llc_shdlc_requeue_ack_pending(shdlc);
+			llc_shdlc_handle_send_queue(shdlc);
 		}
 
 		if (shdlc->hard_fault) {
-			nfc_hci_driver_failure(shdlc->hdev, shdlc->hard_fault);
+			shdlc->llc_failure(shdlc->hdev, shdlc->hard_fault);
 		}
 		break;
 	default:
@@ -647,7 +696,7 @@ static void nfc_shdlc_sm_work(struct work_struct *work)
  * Called from syscall context to establish shdlc link. Sleeps until
  * link is ready or failure.
  */
-static int nfc_shdlc_connect(struct nfc_shdlc *shdlc)
+static int llc_shdlc_connect(struct llc_shdlc *shdlc)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(connect_wq);
 
@@ -662,14 +711,14 @@ static int nfc_shdlc_connect(struct nfc_shdlc *shdlc)
 
 	mutex_unlock(&shdlc->state_mutex);
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 
 	wait_event(connect_wq, shdlc->connect_result != 1);
 
 	return shdlc->connect_result;
 }
 
-static void nfc_shdlc_disconnect(struct nfc_shdlc *shdlc)
+static void llc_shdlc_disconnect(struct llc_shdlc *shdlc)
 {
 	pr_debug("\n");
 
@@ -679,7 +728,7 @@ static void nfc_shdlc_disconnect(struct nfc_shdlc *shdlc)
 
 	mutex_unlock(&shdlc->state_mutex);
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 
 /*
@@ -687,7 +736,7 @@ static void nfc_shdlc_disconnect(struct nfc_shdlc *shdlc)
  * skb contains only LLC header and payload.
  * If skb == NULL, it is a notification that the link below is dead.
  */
-void nfc_shdlc_recv_frame(struct nfc_shdlc *shdlc, struct sk_buff *skb)
+static void llc_shdlc_recv_frame(struct llc_shdlc *shdlc, struct sk_buff *skb)
 {
 	if (skb == NULL) {
 		pr_err("NULL Frame -> link is dead\n");
@@ -697,176 +746,37 @@ void nfc_shdlc_recv_frame(struct nfc_shdlc *shdlc, struct sk_buff *skb)
 		skb_queue_tail(&shdlc->rcv_q, skb);
 	}
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
-}
-EXPORT_SYMBOL(nfc_shdlc_recv_frame);
-
-static int nfc_shdlc_open(struct nfc_hci_dev *hdev)
-{
-	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
-	int r;
-
-	pr_debug("\n");
-
-	if (shdlc->ops->open) {
-		r = shdlc->ops->open(shdlc);
-		if (r < 0)
-			return r;
-	}
-
-	r = nfc_shdlc_connect(shdlc);
-	if (r < 0 && shdlc->ops->close)
-		shdlc->ops->close(shdlc);
-
-	return r;
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 
-static void nfc_shdlc_close(struct nfc_hci_dev *hdev)
+static void *llc_shdlc_init(struct nfc_hci_dev *hdev, xmit_to_drv_t xmit_to_drv,
+			    rcv_to_hci_t rcv_to_hci, int tx_headroom,
+			    int tx_tailroom, int *rx_headroom, int *rx_tailroom,
+			    llc_failure_t llc_failure)
 {
-	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
+	struct llc_shdlc *shdlc;
 
-	pr_debug("\n");
+	*rx_headroom = SHDLC_LLC_HEAD_ROOM;
+	*rx_tailroom = 0;
 
-	nfc_shdlc_disconnect(shdlc);
-
-	if (shdlc->ops->close)
-		shdlc->ops->close(shdlc);
-}
-
-static int nfc_shdlc_hci_ready(struct nfc_hci_dev *hdev)
-{
-	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
-	int r = 0;
-
-	pr_debug("\n");
-
-	if (shdlc->ops->hci_ready)
-		r = shdlc->ops->hci_ready(shdlc);
-
-	return r;
-}
-
-static int nfc_shdlc_xmit(struct nfc_hci_dev *hdev, struct sk_buff *skb)
-{
-	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
-
-	SHDLC_DUMP_SKB("queuing HCP packet to shdlc", skb);
-
-	skb_queue_tail(&shdlc->send_q, skb);
-
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
-
-	return 0;
-}
-
-static int nfc_shdlc_start_poll(struct nfc_hci_dev *hdev,
-				u32 im_protocols, u32 tm_protocols)
-{
-	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
-
-	pr_debug("\n");
-
-	if (shdlc->ops->start_poll)
-		return shdlc->ops->start_poll(shdlc,
-					      im_protocols, tm_protocols);
-
-	return 0;
-}
-
-static int nfc_shdlc_target_from_gate(struct nfc_hci_dev *hdev, u8 gate,
-				      struct nfc_target *target)
-{
-	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
-
-	if (shdlc->ops->target_from_gate)
-		return shdlc->ops->target_from_gate(shdlc, gate, target);
-
-	return -EPERM;
-}
-
-static int nfc_shdlc_complete_target_discovered(struct nfc_hci_dev *hdev,
-						u8 gate,
-						struct nfc_target *target)
-{
-	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
-
-	pr_debug("\n");
-
-	if (shdlc->ops->complete_target_discovered)
-		return shdlc->ops->complete_target_discovered(shdlc, gate,
-							      target);
-
-	return 0;
-}
-
-static int nfc_shdlc_data_exchange(struct nfc_hci_dev *hdev,
-				   struct nfc_target *target,
-				   struct sk_buff *skb,
-				   struct sk_buff **res_skb)
-{
-	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
-
-	if (shdlc->ops->data_exchange)
-		return shdlc->ops->data_exchange(shdlc, target, skb, res_skb);
-
-	return -EPERM;
-}
-
-static int nfc_shdlc_check_presence(struct nfc_hci_dev *hdev,
-				    struct nfc_target *target)
-{
-	struct nfc_shdlc *shdlc = nfc_hci_get_clientdata(hdev);
-
-	if (shdlc->ops->check_presence)
-		return shdlc->ops->check_presence(shdlc, target);
-
-	return 0;
-}
-
-static struct nfc_hci_ops shdlc_ops = {
-	.open = nfc_shdlc_open,
-	.close = nfc_shdlc_close,
-	.hci_ready = nfc_shdlc_hci_ready,
-	.xmit = nfc_shdlc_xmit,
-	.start_poll = nfc_shdlc_start_poll,
-	.target_from_gate = nfc_shdlc_target_from_gate,
-	.complete_target_discovered = nfc_shdlc_complete_target_discovered,
-	.data_exchange = nfc_shdlc_data_exchange,
-	.check_presence = nfc_shdlc_check_presence,
-};
-
-struct nfc_shdlc *nfc_shdlc_allocate(struct nfc_shdlc_ops *ops,
-				     struct nfc_hci_init_data *init_data,
-				     u32 protocols,
-				     int tx_headroom, int tx_tailroom,
-				     int max_link_payload, const char *devname)
-{
-	struct nfc_shdlc *shdlc;
-	int r;
-	char name[32];
-
-	if (ops->xmit == NULL)
-		return NULL;
-
-	shdlc = kzalloc(sizeof(struct nfc_shdlc), GFP_KERNEL);
+	shdlc = kzalloc(sizeof(struct llc_shdlc), GFP_KERNEL);
 	if (shdlc == NULL)
 		return NULL;
 
 	mutex_init(&shdlc->state_mutex);
-	shdlc->ops = ops;
 	shdlc->state = SHDLC_DISCONNECTED;
 
 	init_timer(&shdlc->connect_timer);
 	shdlc->connect_timer.data = (unsigned long)shdlc;
-	shdlc->connect_timer.function = nfc_shdlc_connect_timeout;
+	shdlc->connect_timer.function = llc_shdlc_connect_timeout;
 
 	init_timer(&shdlc->t1_timer);
 	shdlc->t1_timer.data = (unsigned long)shdlc;
-	shdlc->t1_timer.function = nfc_shdlc_t1_timeout;
+	shdlc->t1_timer.function = llc_shdlc_t1_timeout;
 
 	init_timer(&shdlc->t2_timer);
 	shdlc->t2_timer.data = (unsigned long)shdlc;
-	shdlc->t2_timer.function = nfc_shdlc_t2_timeout;
+	shdlc->t2_timer.function = llc_shdlc_t2_timeout;
 
 	shdlc->w = SHDLC_MAX_WINDOW;
 	shdlc->srej_support = SHDLC_SREJ_SUPPORT;
@@ -875,52 +785,21 @@ struct nfc_shdlc *nfc_shdlc_allocate(struct nfc_shdlc_ops *ops,
 	skb_queue_head_init(&shdlc->send_q);
 	skb_queue_head_init(&shdlc->ack_pending_q);
 
-	INIT_WORK(&shdlc->sm_work, nfc_shdlc_sm_work);
-	snprintf(name, sizeof(name), "%s_shdlc_sm_wq", devname);
-	shdlc->sm_wq = alloc_workqueue(name, WQ_NON_REENTRANT | WQ_UNBOUND |
-				       WQ_MEM_RECLAIM, 1);
-	if (shdlc->sm_wq == NULL)
-		goto err_allocwq;
+	INIT_WORK(&shdlc->sm_work, llc_shdlc_sm_work);
 
-	shdlc->client_headroom = tx_headroom;
-	shdlc->client_tailroom = tx_tailroom;
-
-	shdlc->hdev = nfc_hci_allocate_device(&shdlc_ops, init_data, protocols,
-					      tx_headroom + SHDLC_LLC_HEAD_ROOM,
-					      tx_tailroom + SHDLC_LLC_TAIL_ROOM,
-					      max_link_payload);
-	if (shdlc->hdev == NULL)
-		goto err_allocdev;
-
-	nfc_hci_set_clientdata(shdlc->hdev, shdlc);
-
-	r = nfc_hci_register_device(shdlc->hdev);
-	if (r < 0)
-		goto err_regdev;
+	shdlc->hdev = hdev;
+	shdlc->xmit_to_drv = xmit_to_drv;
+	shdlc->rcv_to_hci = rcv_to_hci;
+	shdlc->tx_headroom = tx_headroom;
+	shdlc->tx_tailroom = tx_tailroom;
+	shdlc->llc_failure = llc_failure;
 
 	return shdlc;
-
-err_regdev:
-	nfc_hci_free_device(shdlc->hdev);
-
-err_allocdev:
-	destroy_workqueue(shdlc->sm_wq);
-
-err_allocwq:
-	kfree(shdlc);
-
-	return NULL;
 }
-EXPORT_SYMBOL(nfc_shdlc_allocate);
 
-void nfc_shdlc_free(struct nfc_shdlc *shdlc)
+static void llc_shdlc_deinit(struct nfc_llc *llc)
 {
-	pr_debug("\n");
-
-	nfc_hci_unregister_device(shdlc->hdev);
-	nfc_hci_free_device(shdlc->hdev);
-
-	destroy_workqueue(shdlc->sm_wq);
+	struct llc_shdlc *shdlc = nfc_llc_get_data(llc);
 
 	skb_queue_purge(&shdlc->rcv_q);
 	skb_queue_purge(&shdlc->send_q);
@@ -928,24 +807,51 @@ void nfc_shdlc_free(struct nfc_shdlc *shdlc)
 
 	kfree(shdlc);
 }
-EXPORT_SYMBOL(nfc_shdlc_free);
 
-void nfc_shdlc_set_clientdata(struct nfc_shdlc *shdlc, void *clientdata)
+static int llc_shdlc_start(struct nfc_llc *llc)
 {
-	pr_debug("\n");
+	struct llc_shdlc *shdlc = nfc_llc_get_data(llc);
 
-	shdlc->clientdata = clientdata;
+	return llc_shdlc_connect(shdlc);
 }
-EXPORT_SYMBOL(nfc_shdlc_set_clientdata);
 
-void *nfc_shdlc_get_clientdata(struct nfc_shdlc *shdlc)
+static int llc_shdlc_stop(struct nfc_llc *llc)
 {
-	return shdlc->clientdata;
-}
-EXPORT_SYMBOL(nfc_shdlc_get_clientdata);
+	struct llc_shdlc *shdlc = nfc_llc_get_data(llc);
 
-struct nfc_hci_dev *nfc_shdlc_get_hci_dev(struct nfc_shdlc *shdlc)
-{
-	return shdlc->hdev;
+	llc_shdlc_disconnect(shdlc);
+
+	return 0;
 }
-EXPORT_SYMBOL(nfc_shdlc_get_hci_dev);
+
+static void llc_shdlc_rcv_from_drv(struct nfc_llc *llc, struct sk_buff *skb)
+{
+	struct llc_shdlc *shdlc = nfc_llc_get_data(llc);
+
+	llc_shdlc_recv_frame(shdlc, skb);
+}
+
+static int llc_shdlc_xmit_from_hci(struct nfc_llc *llc, struct sk_buff *skb)
+{
+	struct llc_shdlc *shdlc = nfc_llc_get_data(llc);
+
+	skb_queue_tail(&shdlc->send_q, skb);
+
+	queue_work(system_nrt_wq, &shdlc->sm_work);
+
+	return 0;
+}
+
+static struct nfc_llc_ops llc_shdlc_ops = {
+	.init = llc_shdlc_init,
+	.deinit = llc_shdlc_deinit,
+	.start = llc_shdlc_start,
+	.stop = llc_shdlc_stop,
+	.rcv_from_drv = llc_shdlc_rcv_from_drv,
+	.xmit_from_hci = llc_shdlc_xmit_from_hci,
+};
+
+int nfc_llc_shdlc_register(void)
+{
+	return nfc_llc_register(LLC_SHDLC_NAME, &llc_shdlc_ops);
+}

@@ -119,6 +119,16 @@ exit:
 	nci_req_complete(ndev, rsp_1->status);
 }
 
+static void nci_core_set_config_rsp_packet(struct nci_dev *ndev,
+					   struct sk_buff *skb)
+{
+	struct nci_core_set_config_rsp *rsp = (void *) skb->data;
+
+	pr_debug("status 0x%x\n", rsp->status);
+
+	nci_req_complete(ndev, rsp->status);
+}
+
 static void nci_rf_disc_map_rsp_packet(struct nci_dev *ndev,
 				       struct sk_buff *skb)
 {
@@ -192,6 +202,10 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	case NCI_OP_CORE_INIT_RSP:
 		nci_core_init_rsp_packet(ndev, skb);
+		break;
+
+	case NCI_OP_CORE_SET_CONFIG_RSP:
+		nci_core_set_config_rsp_packet(ndev, skb);
 		break;
 
 	case NCI_OP_RF_DISCOVER_MAP_RSP:

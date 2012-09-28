@@ -1502,6 +1502,12 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 
 	wiphy_dbg(wiphy, "info: received scan request on %s\n", dev->name);
 
+	if (atomic_read(&priv->wmm.tx_pkts_queued) >=
+	    MWIFIEX_MIN_TX_PENDING_TO_CANCEL_SCAN) {
+		dev_dbg(priv->adapter->dev, "scan rejected due to traffic\n");
+		return -EBUSY;
+	}
+
 	priv->scan_request = request;
 
 	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
@@ -1630,7 +1636,7 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
  *  create a new virtual interface with the given name
  */
 struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
-					      char *name,
+					      const char *name,
 					      enum nl80211_iftype type,
 					      u32 *flags,
 					      struct vif_params *params)

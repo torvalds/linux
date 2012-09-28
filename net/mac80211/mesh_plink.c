@@ -537,7 +537,8 @@ int mesh_plink_open(struct sta_info *sta)
 	spin_lock_bh(&sta->lock);
 	get_random_bytes(&llid, 2);
 	sta->llid = llid;
-	if (sta->plink_state != NL80211_PLINK_LISTEN) {
+	if (sta->plink_state != NL80211_PLINK_LISTEN &&
+	    sta->plink_state != NL80211_PLINK_BLOCKED) {
 		spin_unlock_bh(&sta->lock);
 		return -EBUSY;
 	}

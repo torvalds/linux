@@ -4797,6 +4797,7 @@ M:	Lauro Ramos Venancio <lauro.venancio@openbossa.org>
 M:	Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
 M:	Samuel Ortiz <sameo@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
+L:	linux-nfc@lists.01.org (moderated for non-subscribers)
 S:	Maintained
 F:	net/nfc/
 F:	include/linux/nfc.h

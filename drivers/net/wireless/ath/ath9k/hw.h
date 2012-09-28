@@ -687,7 +687,7 @@ struct ath_hw_ops {
 			struct ath_hw_antcomb_conf *antconf);
 	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
 			struct ath_hw_antcomb_conf *antconf);
-
+	void (*antctrl_shared_chain_lnadiv)(struct ath_hw *hw, bool enable);
 };
 
 struct ath_nf_limits {
@@ -731,6 +731,7 @@ struct ath_hw {
 	bool aspm_enabled;
 	bool is_monitoring;
 	bool need_an_top2_fixup;
+	bool shared_chain_lnadiv;
 	u16 tx_trig_level;
 
 	u32 nf_regs[6];
