@@ -1018,6 +1018,32 @@ static void smsc95xx_unbind(struct usbnet *dev, struct usb_interface *intf)
 	}
 }
 
+static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct usbnet *dev = usb_get_intfdata(intf);
+	int ret;
+	u32 val;
+
+	if (WARN_ON_ONCE(!dev))
+		return -EINVAL;
+
+	ret = usbnet_suspend(intf, message);
+	check_warn_return(ret, "usbnet_suspend error");
+
+	netdev_info(dev->net, "entering SUSPEND2 mode");
+
+	ret = smsc95xx_read_reg(dev, PM_CTRL, &val);
+	check_warn_return(ret, "Error reading PM_CTRL");
+
+	val &= ~(PM_CTL_SUS_MODE_ | PM_CTL_WUPS_ | PM_CTL_PHY_RST_);
+	val |= PM_CTL_SUS_MODE_2;
+
+	ret = smsc95xx_write_reg(dev, PM_CTRL, val);
+	check_warn_return(ret, "Error writing PM_CTRL");
+
+	return 0;
+}
+
 static void smsc95xx_rx_csum_offload(struct sk_buff *skb)
 {
 	skb->csum = *(u16 *)(skb_tail_pointer(skb) - 2);
@@ -1280,7 +1306,7 @@ static struct usb_driver smsc95xx_driver = {
 	.name		= "smsc95xx",
 	.id_table	= products,
 	.probe		= usbnet_probe,
-	.suspend	= usbnet_suspend,
+	.suspend	= smsc95xx_suspend,
 	.resume		= usbnet_resume,
 	.reset_resume	= usbnet_resume,
 	.disconnect	= usbnet_disconnect,

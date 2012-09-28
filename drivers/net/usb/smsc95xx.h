@@ -84,12 +84,16 @@
 #define HW_CFG_BCE_			(0x00000002)
 #define HW_CFG_SRST_			(0x00000001)
 
+#define RX_FIFO_INF			(0x18)
+
 #define PM_CTRL				(0x20)
+#define PM_CTL_RES_CLR_WKP_STS		(0x00000200)
 #define PM_CTL_DEV_RDY_			(0x00000080)
 #define PM_CTL_SUS_MODE_		(0x00000060)
 #define PM_CTL_SUS_MODE_0		(0x00000000)
 #define PM_CTL_SUS_MODE_1		(0x00000020)
-#define PM_CTL_SUS_MODE_2		(0x00000060)
+#define PM_CTL_SUS_MODE_2		(0x00000040)
+#define PM_CTL_SUS_MODE_3		(0x00000060)
 #define PM_CTL_PHY_RST_			(0x00000010)
 #define PM_CTL_WOL_EN_			(0x00000008)
 #define PM_CTL_ED_EN_			(0x00000004)
