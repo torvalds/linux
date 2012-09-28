@@ -1041,7 +1041,7 @@ perfexec_instdir = $(prefix)/$(perfexecdir)
 endif
 perfexec_instdir_SQ = $(subst ','\'',$(perfexec_instdir))
 
-install: all
+install: all try-install-man
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
 	$(INSTALL) $(OUTPUT)perf '$(DESTDIR_SQ)$(bindir_SQ)'
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'
@@ -1066,6 +1066,9 @@ install-doc:
 
 install-man:
 	$(MAKE) -C Documentation install-man
+
+try-install-man:
+	$(MAKE) -C Documentation try-install-man
 
 install-html:
 	$(MAKE) -C Documentation install-html
