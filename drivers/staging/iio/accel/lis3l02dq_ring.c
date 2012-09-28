@@ -263,7 +263,7 @@ static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 	/* If gpio still high (or high again)
 	 * In theory possible we will need to do this several times */
 	for (i = 0; i < 5; i++)
-		if (gpio_get_value(irq_to_gpio(st->us->irq)))
+		if (gpio_get_value(st->gpio))
 			lis3l02dq_read_all(indio_dev, NULL);
 		else
 			break;
