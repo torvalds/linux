@@ -32,6 +32,7 @@
 struct nvc0_fence_priv {
 	struct nouveau_fence_priv base;
 	struct nouveau_bo *bo;
+	u32 *suspend;
 };
 
 struct nvc0_fence_chan {
@@ -125,12 +126,36 @@ nvc0_fence_context_new(struct nouveau_channel *chan, int engine)
 static int
 nvc0_fence_fini(struct drm_device *dev, int engine, bool suspend)
 {
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
+	struct nvc0_fence_priv *priv = nv_engine(dev, engine);
+	int i;
+
+	if (suspend) {
+		priv->suspend = vmalloc(pfifo->channels * sizeof(u32));
+		if (!priv->suspend)
+			return -ENOMEM;
+
+		for (i = 0; i < pfifo->channels; i++)
+			priv->suspend[i] = nouveau_bo_rd32(priv->bo, i);
+	}
+
 	return 0;
 }
 
 static int
 nvc0_fence_init(struct drm_device *dev, int engine)
 {
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
+	struct nvc0_fence_priv *priv = nv_engine(dev, engine);
+	int i;
+
+	if (priv->suspend) {
+		for (i = 0; i < pfifo->channels; i++)
+			nouveau_bo_wr32(priv->bo, i, priv->suspend[i]);
+		vfree(priv->suspend);
+		priv->suspend = NULL;
+	}
+
 	return 0;
 }
 
