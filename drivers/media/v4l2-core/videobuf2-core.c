@@ -348,6 +348,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 		 * Fill in plane-related data if userspace provided an array
 		 * for it. The caller has already verified memory and size.
 		 */
+		b->length = vb->num_planes;
 		memcpy(b->m.planes, vb->v4l2_planes,
 			b->length * sizeof(struct v4l2_plane));
 	} else {
