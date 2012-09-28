@@ -30,7 +30,6 @@
 #include "ds3000.h"
 
 static int debug;
-static int force_fw_upload;
 
 #define dprintk(args...) \
 	do { \
@@ -234,7 +233,6 @@ struct ds3000_state {
 	struct i2c_adapter *i2c;
 	const struct ds3000_config *config;
 	struct dvb_frontend frontend;
-	u8 skip_fw_load;
 	/* previous uncorrected block counter for DVB-S2 */
 	u16 prevUCBS2;
 };
@@ -397,9 +395,6 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 
-	if (state->skip_fw_load || !force_fw_upload)
-		return 0;	/* Firmware already uploaded, skipping */
-
 	/* Load firmware */
 	/* request the firmware, this will block until someone uploads it */
 	printk(KERN_INFO "%s: Waiting for firmware upload (%s)...\n", __func__,
@@ -413,9 +408,6 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 		return ret;
 	}
 
-	/* Make sure we don't recurse back through here during loading */
-	state->skip_fw_load = 1;
-
 	ret = ds3000_load_firmware(fe, fw);
 	if (ret)
 		printk("%s: Writing firmware to device failed\n", __func__);
@@ -424,9 +416,6 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 
 	dprintk("%s: Firmware upload %s\n", __func__,
 			ret == 0 ? "complete" : "failed");
-
-	/* Ensure firmware is always loaded if required */
-	state->skip_fw_load = 0;
 
 	return ret;
 }
@@ -1308,9 +1297,6 @@ static struct dvb_frontend_ops ds3000_ops = {
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
-
-module_param(force_fw_upload, int, 0644);
-MODULE_PARM_DESC(force_fw_upload, "Force firmware upload (default:0)");
 
 MODULE_DESCRIPTION("DVB Frontend module for Montage Technology "
 			"DS3000/TS2020 hardware");
