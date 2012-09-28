@@ -325,9 +325,6 @@ static void __init u8500_init_machine(void)
 
 	/* automatically probe child nodes of db8500 device */
 	of_platform_populate(NULL, u8500_local_bus_nodes, u8500_auxdata_lookup, parent);
-
-	/* This board has full regulator constraints */
-	regulator_has_full_constraints();
 }
 
 static const char * u8500_dt_board_compat[] = {
