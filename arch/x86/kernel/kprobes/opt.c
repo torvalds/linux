@@ -37,7 +37,7 @@
 #include <asm/insn.h>
 #include <asm/debugreg.h>
 
-#include "kprobes-common.h"
+#include "common.h"
 
 unsigned long __recover_optprobed_insn(kprobe_opcode_t *buf, unsigned long addr)
 {

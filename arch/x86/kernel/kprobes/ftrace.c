@@ -23,7 +23,7 @@
 #include <linux/preempt.h>
 #include <linux/ftrace.h>
 
-#include "kprobes-common.h"
+#include "common.h"
 
 static int __skip_singlestep(struct kprobe *p, struct pt_regs *regs,
 			     struct kprobe_ctlblk *kcb)
