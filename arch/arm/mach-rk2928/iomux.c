@@ -21,9 +21,10 @@
 
 #include <mach/io.h>  
 #include <mach/iomux.h>
+#include <mach/gpio.h>
 
 //#define IOMUX_DBG
-
+#define INVALID_MUX     "invalid"
 static struct mux_config rk30_muxs[] = {
 /*
  *	 description				mux  mode   mux	  mux  
@@ -34,6 +35,8 @@ MUX_CFG(GPIO0A0_I2C0_SCL_NAME,                  GPIO0A,    0,    1,    0,    DEF
 MUX_CFG(GPIO0A1_I2C0_SDA_NAME,                  GPIO0A,    2,    1,    0,    DEFAULT)
 MUX_CFG(GPIO0A2_I2C1_SCL_NAME,                  GPIO0A,    4,    1,    0,    DEFAULT)
 MUX_CFG(GPIO0A3_I2C1_SDA_NAME,                  GPIO0A,    6,    1,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
 MUX_CFG(GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME,      GPIO0A,    12,    2,    0,    DEFAULT)
 MUX_CFG(GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME,      GPIO0A,    14,    2,    0,    DEFAULT)
 
@@ -53,6 +56,8 @@ MUX_CFG(GPIO0C1_UART0_SIN_NAME,                 GPIO0C,    2,    1,    0,    DEF
 MUX_CFG(GPIO0C2_UART0_RTSN_NAME,                GPIO0C,    4,    1,    0,    DEFAULT)
 MUX_CFG(GPIO0C3_UART0_CTSN_NAME,                GPIO0C,    6,    1,    0,    DEFAULT)
 MUX_CFG(GPIO0C4_HDMI_CECSDA_NAME,               GPIO0C,    8,    1,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
 MUX_CFG(GPIO0C7_NAND_CS1_NAME,                  GPIO0C,    14,    1,    0,    DEFAULT)
 
 //gpio0d
@@ -138,11 +143,49 @@ MUX_CFG(GPIO2C7_LCDC0_D21_LCDC1_D21_UART2_SOUT_NAME,GPIO2C,    14,    2,    0,  
 //gpio2d
 MUX_CFG(GPIO2D0_LCDC0_D22_LCDC1_D22_NAME,       GPIO2D,    0,    2,    0,    DEFAULT)
 MUX_CFG(GPIO2D1_LCDC0_D23_LCDC1_D23_NAME,       GPIO2D,    2,    2,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
 
+//gpio3a
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+//gpio3b
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
 //gpio3c
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
 MUX_CFG(GPIO3C1_OTG_DRVVBUS_NAME,               GPIO3C,    2,    1,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
 
 //gpio3d
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
+MUX_CFG(INVALID_MUX,                  GPIO0A,    0,    0,    0,    DEFAULT)
 MUX_CFG(GPIO3D7_TESTCLK_OUT_NAME,               GPIO3D,    14,    1,    0,    DEFAULT)
 };     
 
@@ -151,6 +194,9 @@ void rk30_mux_set(struct mux_config *cfg)
 {
 	int regValue = 0;
 	int mask;
+
+        if(strcmp(cfg->name, INVALID_MUX) == 0)
+                return;
 	
 	mask = (((1<<(cfg->interleave))-1)<<cfg->offset) << 16;
 	regValue |= mask;
@@ -255,7 +301,15 @@ void rk30_mux_api_set(char *name, unsigned int mode)
 	}
 }
 EXPORT_SYMBOL(rk30_mux_api_set);
-
+void gpio_set_iomux(int gpio)
+{
+        struct mux_config *cfg;
+        
+        cfg = &rk30_muxs[(gpio - PIN_BASE)];
+        
+        rk30_mux_set(cfg);
+}
+EXPORT_SYMBOL(gpio_set_iomux);
 
 int rk30_mux_api_get(char *name)
 {

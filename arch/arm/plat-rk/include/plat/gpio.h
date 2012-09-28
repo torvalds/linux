@@ -36,17 +36,6 @@ struct gpio_config{
 #endif	
 };
 
-#if defined(CONFIG_ARCH_RK2928)
-#define PORT_BASE       RK2928_PIN0_PA0
-#elif defined(CONFIG_ARCH_RK30)
-#define PORT_BASE       RK30_PIN0_PA0
-#elif defined(CONFIG_ARCH_RK29)
-#define PORT_BASE       RK29_PIN0_PA0
-#else
-#error	"Arm system type is not support"
-#endif	
-
-
 struct port_config {
         union{
                 struct irq_config irq;
@@ -60,10 +49,11 @@ static inline struct port_config get_port_config(unsigned int value)
         struct port_config port;
 
         port.v = value;
-        port.gpio = PORT_BASE + port.io.bank * 32 + (port.io.goff - 0x0A) * 8 + port.io.off;
+        port.gpio = PIN_BASE + port.io.bank * 32 + (port.io.goff - 0x0A) * 8 + port.io.off;
 
         return port;
 }
+void gpio_set_iomux(int gpio);
 
 typedef enum eGPIOPinLevel
 {
