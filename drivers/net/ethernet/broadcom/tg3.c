@@ -92,10 +92,10 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 
 #define DRV_MODULE_NAME		"tg3"
 #define TG3_MAJ_NUM			3
-#define TG3_MIN_NUM			124
+#define TG3_MIN_NUM			125
 #define DRV_MODULE_VERSION	\
 	__stringify(TG3_MAJ_NUM) "." __stringify(TG3_MIN_NUM)
-#define DRV_MODULE_RELDATE	"March 21, 2012"
+#define DRV_MODULE_RELDATE	"September 26, 2012"
 
 #define RESET_KIND_SHUTDOWN	0
 #define RESET_KIND_INIT		1
@@ -10245,10 +10245,13 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		tp->rxq_cnt = netif_get_num_default_rss_queues();
 	if (tp->rxq_cnt > tp->rxq_max)
 		tp->rxq_cnt = tp->rxq_max;
-	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
-	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) &&
-	    !tp->txq_req)
-		tp->txq_cnt = min(tp->rxq_cnt, tp->txq_max);
+
+	/* Disable multiple TX rings by default.  Simple round-robin hardware
+	 * scheduling of the TX rings can cause starvation of rings with
+	 * small packets when other rings have TSO or jumbo packets.
+	 */
+	if (!tp->txq_req)
+		tp->txq_cnt = 1;
 
 	tp->irq_cnt = tg3_irq_count(tp);
 
