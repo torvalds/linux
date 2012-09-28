@@ -80,7 +80,7 @@ int debug_level = 5;
     #define RK29_SDMMC0DETECTN_GPIO RK30_PIN3_PB6
     #define RK29_SDMMC0PWREN_GPIO   RK30_PIN3_PA7
 #elif defined(CONFIG_ARCH_RK2928)
-    #define RK29_SDMMC0DETECTN_GPIO RK2928_PIN1_PC1
+    #define RK29_SDMMC0DETECTN_GPIO RK2928_PIN1_PC7
     #define RK29_SDMMC0PWREN_GPIO   RK2928_PIN1_PB6
 #endif
 
@@ -2593,15 +2593,6 @@ static void rk29_sdmmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
     
 }
 
-//+++RDA+++
-struct mmc_host *mmc_prt;
-void rk29_sdio_irq_enable(int enable)
-{
-	rk29_sdmmc_enable_sdio_irq(mmc_prt, enable);
-}
-EXPORT_SYMBOL(rk29_sdio_irq_enable);
-//+++RDA+++
-
 static void  rk29_sdmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
 {
         card->quirks = MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
@@ -3895,9 +3886,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mmc); 	
 
 	mmc_add_host(mmc);
-//+++RDA+++
-	mmc_prt = mmc;
-//+++RDA+++
+
 #ifdef RK29_SDMMC_NOTIFY_REMOVE_INSERTION
     
     globalSDhost[pdev->id] = (struct rk29_sdmmc	*)host;
