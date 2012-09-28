@@ -154,7 +154,15 @@ int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
 
 struct perf_evlist;
 
-#ifdef NO_NEWT_SUPPORT
+#ifdef NEWT_SUPPORT
+#include "../ui/keysyms.h"
+int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
+			     void(*timer)(void *arg), void *arg, int delay_secs);
+
+int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
+				  void(*timer)(void *arg), void *arg,
+				  int refresh);
+#else
 static inline
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
@@ -177,14 +185,6 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self
 }
 #define K_LEFT -1
 #define K_RIGHT -2
-#else
-#include "../ui/keysyms.h"
-int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
-			     void(*timer)(void *arg), void *arg, int delay_secs);
-
-int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
-				  void(*timer)(void *arg), void *arg,
-				  int refresh);
 #endif
 
 #ifdef NO_GTK2_SUPPORT
