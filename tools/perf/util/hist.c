@@ -410,8 +410,13 @@ static bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
 		cmp = hist_entry__collapse(iter, he);
 
 		if (!cmp) {
-			iter->period += he->period;
-			iter->nr_events += he->nr_events;
+			iter->period		+= he->period;
+			iter->period_sys	+= he->period_sys;
+			iter->period_us		+= he->period_us;
+			iter->period_guest_sys	+= he->period_guest_sys;
+			iter->period_guest_us	+= he->period_guest_us;
+			iter->nr_events		+= he->nr_events;
+
 			if (symbol_conf.use_callchain) {
 				callchain_cursor_reset(&callchain_cursor);
 				callchain_merge(&callchain_cursor,

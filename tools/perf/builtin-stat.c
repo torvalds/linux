@@ -478,7 +478,7 @@ static int run_perf_stat(int argc __maybe_unused, const char **argv)
 		counter->supported = true;
 	}
 
-	if (perf_evlist__set_filters(evsel_list)) {
+	if (perf_evlist__apply_filters(evsel_list)) {
 		error("failed to set filter with %d (%s)\n", errno,
 			strerror(errno));
 		return -1;

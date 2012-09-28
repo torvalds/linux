@@ -70,7 +70,7 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
-static struct event_format *event_format__new(const char *sys, const char *name)
+struct event_format *event_format__new(const char *sys, const char *name)
 {
 	int fd, n;
 	char *filename;
@@ -117,21 +117,28 @@ struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx)
 
 	if (evsel != NULL) {
 		struct perf_event_attr attr = {
-			.type = PERF_TYPE_TRACEPOINT,
+			.type	       = PERF_TYPE_TRACEPOINT,
+			.sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
+					  PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD),
 		};
+
+		if (asprintf(&evsel->name, "%s:%s", sys, name) < 0)
+			goto out_free;
 
 		evsel->tp_format = event_format__new(sys, name);
 		if (evsel->tp_format == NULL)
 			goto out_free;
 
+		event_attr_init(&attr);
 		attr.config = evsel->tp_format->id;
+		attr.sample_period = 1;
 		perf_evsel__init(evsel, &attr, idx);
-		evsel->name = evsel->tp_format->name;
 	}
 
 	return evsel;
 
 out_free:
+	free(evsel->name);
 	free(evsel);
 	return NULL;
 }
@@ -501,6 +508,24 @@ int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 	return evsel->fd != NULL ? 0 : -ENOMEM;
 }
 
+int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
+			   const char *filter)
+{
+	int cpu, thread;
+
+	for (cpu = 0; cpu < ncpus; cpu++) {
+		for (thread = 0; thread < nthreads; thread++) {
+			int fd = FD(evsel, cpu, thread),
+			    err = ioctl(fd, PERF_EVENT_IOC_SET_FILTER, filter);
+
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	evsel->sample_id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
@@ -562,10 +587,8 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 	perf_evsel__exit(evsel);
 	close_cgroup(evsel->cgrp);
 	free(evsel->group_name);
-	if (evsel->tp_format && evsel->name == evsel->tp_format->name) {
-		evsel->name = NULL;
+	if (evsel->tp_format)
 		pevent_free_format(evsel->tp_format);
-	}
 	free(evsel->name);
 	free(evsel);
 }
@@ -763,11 +786,13 @@ int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads);
 }
 
-static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
-				       struct perf_sample *sample,
-				       bool swapped)
+static int perf_evsel__parse_id_sample(const struct perf_evsel *evsel,
+				       const union perf_event *event,
+				       struct perf_sample *sample)
 {
+	u64 type = evsel->attr.sample_type;
 	const u64 *array = event->sample.array;
+	bool swapped = evsel->needs_swap;
 	union u64_swap u;
 
 	array += ((event->header.size -
@@ -828,10 +853,11 @@ static bool sample_overlap(const union perf_event *event,
 }
 
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
-			     struct perf_sample *data, bool swapped)
+			     struct perf_sample *data)
 {
 	u64 type = evsel->attr.sample_type;
 	u64 regs_user = evsel->attr.sample_regs_user;
+	bool swapped = evsel->needs_swap;
 	const u64 *array;
 
 	/*
@@ -848,7 +874,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!evsel->attr.sample_id_all)
 			return 0;
-		return perf_event__parse_id_sample(event, type, data, swapped);
+		return perf_evsel__parse_id_sample(evsel, event, data);
 	}
 
 	array = event->sample.array;
@@ -1078,7 +1104,7 @@ struct format_field *perf_evsel__field(struct perf_evsel *evsel, const char *nam
 	return pevent_find_field(evsel->tp_format, name);
 }
 
-char *perf_evsel__strval(struct perf_evsel *evsel, struct perf_sample *sample,
+void *perf_evsel__rawptr(struct perf_evsel *evsel, struct perf_sample *sample,
 			 const char *name)
 {
 	struct format_field *field = perf_evsel__field(evsel, name);
@@ -1101,13 +1127,43 @@ u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 		       const char *name)
 {
 	struct format_field *field = perf_evsel__field(evsel, name);
-	u64 val;
+	void *ptr;
+	u64 value;
 
 	if (!field)
 		return 0;
 
-	val = pevent_read_number(evsel->tp_format->pevent,
-				 sample->raw_data + field->offset, field->size);
-	return val;
+	ptr = sample->raw_data + field->offset;
 
+	switch (field->size) {
+	case 1:
+		return *(u8 *)ptr;
+	case 2:
+		value = *(u16 *)ptr;
+		break;
+	case 4:
+		value = *(u32 *)ptr;
+		break;
+	case 8:
+		value = *(u64 *)ptr;
+		break;
+	default:
+		return 0;
+	}
+
+	if (!evsel->needs_swap)
+		return value;
+
+	switch (field->size) {
+	case 2:
+		return bswap_16(value);
+	case 4:
+		return bswap_32(value);
+	case 8:
+		return bswap_64(value);
+	default:
+		return 0;
+	}
+
+	return 0;
 }

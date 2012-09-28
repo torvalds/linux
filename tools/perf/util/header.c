@@ -1256,8 +1256,10 @@ read_event_desc(struct perf_header *ph, int fd)
 		if (ret != (ssize_t)sizeof(nr))
 			goto error;
 
-		if (ph->needs_swap)
+		if (ph->needs_swap) {
 			nr = bswap_32(nr);
+			evsel->needs_swap = true;
+		}
 
 		evsel->name = do_read_string(fd, ph);
 
@@ -2626,6 +2628,8 @@ int perf_session__read_header(struct perf_session *session, int fd)
 
 		if (evsel == NULL)
 			goto out_delete_evlist;
+
+		evsel->needs_swap = header->needs_swap;
 		/*
 		 * Do it before so that if perf_evsel__alloc_id fails, this
 		 * entry gets purged too at perf_evlist__delete().

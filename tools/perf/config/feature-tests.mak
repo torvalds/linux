@@ -193,3 +193,14 @@ int main(void)
 }
 endef
 endif
+
+ifndef NO_LIBAUDIT
+define SOURCE_LIBAUDIT
+#include <libaudit.h>
+
+int main(void)
+{
+	return audit_open();
+}
+endef
+endif

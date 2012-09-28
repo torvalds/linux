@@ -69,6 +69,7 @@ struct perf_evsel {
 	struct cpu_map		*cpus;
 	unsigned int		sample_size;
 	bool 			supported;
+	bool 			needs_swap;
 	/* parse modifier helper */
 	int			exclude_GH;
 	struct perf_evsel	*leader;
@@ -82,6 +83,9 @@ struct perf_record_opts;
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx);
 struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx);
+
+struct event_format *event_format__new(const char *sys, const char *name);
+
 void perf_evsel__init(struct perf_evsel *evsel,
 		      struct perf_event_attr *attr, int idx);
 void perf_evsel__exit(struct perf_evsel *evsel);
@@ -114,6 +118,9 @@ void perf_evsel__free_fd(struct perf_evsel *evsel);
 void perf_evsel__free_id(struct perf_evsel *evsel);
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 
+int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
+			   const char *filter);
+
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
 			     struct cpu_map *cpus);
 int perf_evsel__open_per_thread(struct perf_evsel *evsel,
@@ -124,10 +131,17 @@ void perf_evsel__close(struct perf_evsel *evsel, int ncpus, int nthreads);
 
 struct perf_sample;
 
-char *perf_evsel__strval(struct perf_evsel *evsel, struct perf_sample *sample,
+void *perf_evsel__rawptr(struct perf_evsel *evsel, struct perf_sample *sample,
 			 const char *name);
 u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 		       const char *name);
+
+static inline char *perf_evsel__strval(struct perf_evsel *evsel,
+				       struct perf_sample *sample,
+				       const char *name)
+{
+	return perf_evsel__rawptr(evsel, sample, name);
+}
 
 struct format_field;
 
@@ -205,7 +219,7 @@ static inline int perf_evsel__read_scaled(struct perf_evsel *evsel,
 void hists__init(struct hists *hists);
 
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
-			     struct perf_sample *sample, bool swapped);
+			     struct perf_sample *sample);
 
 static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 {

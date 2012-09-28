@@ -559,6 +559,19 @@ else
 	LIB_OBJS += $(OUTPUT)util/unwind.o
 endif
 
+ifdef NO_LIBAUDIT
+	BASIC_CFLAGS += -DNO_LIBAUDIT_SUPPORT
+else
+	FLAGS_LIBAUDIT = $(ALL_CFLAGS) $(ALL_LDFLAGS) -laudit
+	ifneq ($(call try-cc,$(SOURCE_LIBAUDIT),$(FLAGS_LIBAUDIT)),y)
+		msg := $(warning No libaudit.h found, disables 'trace' tool, please install audit-libs-devel or libaudit-dev);
+		BASIC_CFLAGS += -DNO_LIBAUDIT_SUPPORT
+	else
+		BUILTIN_OBJS += $(OUTPUT)builtin-trace.o
+		EXTLIBS += -laudit
+	endif
+endif
+
 ifdef NO_NEWT
 	BASIC_CFLAGS += -DNO_NEWT_SUPPORT
 else

@@ -805,7 +805,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 		if (pyevent == NULL)
 			return PyErr_NoMemory();
 
-		err = perf_evlist__parse_sample(evlist, event, &pevent->sample, false);
+		err = perf_evlist__parse_sample(evlist, event, &pevent->sample);
 		if (err)
 			return PyErr_Format(PyExc_OSError,
 					    "perf: can't parse sample, err=%d", err);
