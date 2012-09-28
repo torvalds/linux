@@ -24,10 +24,7 @@ config MACH_RK3066_SDK
 
 config MACH_RK30_DS1001B
         bool "RK30 DS1001B board"
-
-config MACH_RK30_PHONE_PAD
-        bool "RK30 smart phone pad board"
-        
+     
 config MACH_RK30_PHONE
 	bool "RK30 smart phone board"
 
@@ -37,7 +34,24 @@ config MACH_RK30_PHONE_LOQUAT
 config MACH_RK30_PHONE_A22
         bool "RK30 smart phone a22 board"
 	
+config MACH_RK30_PHONE_PAD
+        bool "RK30 phone pad board"
+	
 endchoice
+
+if MACH_RK30_PHONE_PAD
+choice
+	prompt "RK30 phone pad board type"
+	default MACH_RK30_PHONE_PAD_DS763
+
+	config MACH_RK30_PHONE_PAD_DS763
+	bool "ds763"
+
+	config MACH_RK30_PHONE_PAD_C8003
+	bool "c8003"
+
+endchoice
+endif
 
 endif
 
