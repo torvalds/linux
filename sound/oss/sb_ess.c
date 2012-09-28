@@ -1104,15 +1104,15 @@ int ess_init(sb_devc * devc, struct address_info *hw_config)
 		default:
 			printk (KERN_ERR "Invalid esstype=%d specified\n", devc->sbmo.esstype);
 			return 0;
-		};
+		}
 		if (submodel != -1) {
 			devc->submodel = submodel;
 			sprintf (modelname, "ES%d", devc->sbmo.esstype);
 			chip = modelname;
-		};
+		}
 		if (chip == NULL && (ess_minor & 0x0f) < 8) {
 			chip = "ES688";
-		};
+		}
 #ifdef FKS_TEST
 FKS_test (devc);
 #endif
@@ -1122,7 +1122,7 @@ FKS_test (devc);
 		 */
 		if (chip == NULL && devc->sbmo.esstype == ESSTYPE_LIKE20) {
 			chip = "ES1688";
-		};
+		}
 
 		if (chip == NULL) {
 			int type;
@@ -1150,8 +1150,8 @@ FKS_test (devc);
 				if ((type & 0x00ff) != ((type >> 8) & 0x00ff)) {
 					printk ("ess_init: Unrecognized %04x\n", type);
 				}
-			};
-		};
+			}
+		}
 #if 0
 		/*
 		 * this one failed:
@@ -1182,10 +1182,10 @@ FKS_test (devc);
 				chip = "ES1788";
 				devc->submodel = SUBMDL_ES1788;
 			}
-		};
+		}
 		if (chip == NULL) {
 			chip = "ES1688";
-		};
+		}
 
 	    printk ( KERN_INFO "ESS chip %s %s%s\n"
                , chip
@@ -1293,7 +1293,7 @@ printk(KERN_INFO "ess_set_dma_hw: dma8=%d,dma16=%d,dup=%d\n"
 			default:
 				printk(KERN_ERR "ESS1887: Invalid DMA16 %d\n", dma);
 				return 0;
-			};
+			}
 			ess_chgmixer (devc, 0x78, 0x20, dma16_bits);
 			ess_chgmixer (devc, 0x7d, 0x07, dma_bits);
 		}
@@ -1584,7 +1584,7 @@ printk(KERN_INFO "FKS: write mixer %x: %x\n", port, value);
 		udelay(20);
 		outb(((unsigned char) (value & 0xff)), MIXER_DATA);
 		udelay(20);
-	};
+	}
 	spin_unlock_irqrestore(&devc->lock, flags);
 }
 
@@ -1761,7 +1761,7 @@ int ess_mixer_reset (sb_devc * devc)
 			ess_chgmixer(devc, 0x7a, 0x18, 0x08);
 			ess_chgmixer(devc, 0x1c, 0x07, 0x07);
 			break;
-		};
+		}
 		/*
 		 * Call set_recmask for proper initialization
 		 */

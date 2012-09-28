@@ -2658,7 +2658,7 @@ static int __devinit snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 					hpi_ctl.dst_node_type,
 					hpi_ctl.dst_node_index);
 			continue;
-		};
+		}
 		if (err < 0)
 			return err;
 	}
