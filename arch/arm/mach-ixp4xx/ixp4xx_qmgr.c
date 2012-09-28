@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <mach/qmgr.h>
 
-static const struct qmgr_regs __iomem *qmgr_regs = (void __iomem *)IXP4XX_QMGR_BASE_VIRT;
+static struct qmgr_regs __iomem *qmgr_regs = IXP4XX_QMGR_BASE_VIRT;
 static struct resource *mem_res;
 static spinlock_t qmgr_lock;
 static u32 used_sram_bitmap[4]; /* 128 16-dword pages */
@@ -32,7 +32,7 @@ void qmgr_set_irq(unsigned int queue, int src,
 
 	spin_lock_irqsave(&qmgr_lock, flags);
 	if (queue < HALF_QUEUES) {
-		const u32 __iomem *reg;
+		u32 __iomem *reg;
 		int bit;
 		BUG_ON(src > QUEUE_IRQ_SRC_NOT_FULL);
 		reg = &qmgr_regs->irqsrc[queue >> 3]; /* 8 queues per u32 */
