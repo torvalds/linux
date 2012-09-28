@@ -27,8 +27,7 @@ config VIRTIO_PCI
 
 config VIRTIO_BALLOON
 	tristate "Virtio balloon driver (EXPERIMENTAL)"
-	select VIRTIO
-	select VIRTIO_RING
+	depends on EXPERIMENTAL && VIRTIO
 	---help---
 	 This driver supports increasing and decreasing the amount
 	 of memory within a KVM guest.
