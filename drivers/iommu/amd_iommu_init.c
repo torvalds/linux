@@ -1114,8 +1114,8 @@ static void print_iommu_info(void)
 				if (iommu_feature(iommu, (1ULL << i)))
 					pr_cont(" %s", feat_str[i]);
 			}
-		}
 		pr_cont("\n");
+		}
 	}
 }
 
