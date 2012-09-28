@@ -245,8 +245,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	const char *oh_name;
 	struct device_node *np;
 	struct omap_hwmod *oh;
-	struct resource irq_rsrc, mem_rsrc;
-	size_t size;
+	struct resource irq, mem;
 	int res = 0;
 	int r;
 
@@ -280,20 +279,18 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 
 	if (!of_have_populated_dt()) {
 		r = omap_hwmod_get_resource_byname(oh, IORESOURCE_IRQ, NULL,
-						   &irq_rsrc);
+						   &irq);
 		if (r)
 			return -ENXIO;
-		timer->irq = irq_rsrc.start;
+		timer->irq = irq.start;
 
 		r = omap_hwmod_get_resource_byname(oh, IORESOURCE_MEM, NULL,
-						   &mem_rsrc);
+						   &mem);
 		if (r)
 			return -ENXIO;
-		timer->phys_base = mem_rsrc.start;
-		size = mem_rsrc.end - mem_rsrc.start;
 
 		/* Static mapping, never released */
-		timer->io_base = ioremap(timer->phys_base, size);
+		timer->io_base = ioremap(mem.start, mem.end - mem.start);
 	}
 
 	if (!timer->io_base)

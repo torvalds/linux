@@ -261,7 +261,6 @@ int omap_dm_timers_active(void);
 		(_OMAP_TIMER_TICK_INT_MASK_COUNT_OFFSET | (WP_TOWR << WPSHIFT))
 
 struct omap_dm_timer {
-	unsigned long phys_base;
 	int id;
 	int irq;
 	struct clk *fclk;
