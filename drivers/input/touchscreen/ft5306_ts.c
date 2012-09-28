@@ -476,10 +476,10 @@ static void ft5x0x_report_value(void)
 					input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, event->point[i].id);
 
 					down_table |= 1 << event->point[i].id;
-					input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, 100);
+					input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, 1);
 					input_report_abs(data->input_dev, ABS_MT_POSITION_X, event->point[i].x);
 					input_report_abs(data->input_dev, ABS_MT_POSITION_Y, event->point[i].y);
-					input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, 100);
+					input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, 1);
 				   //printk("ABS_MT_TRACKING_ID == %d, ABS_MT_POSITION_X == %d, ABS_MT_POSITION_Y == %d\n",event->point[i].id,event->point[i].x,event->point[i].y);
 
 				}
@@ -504,10 +504,10 @@ static void ft5x0x_report_value(void)
 		if(event->point[i].status == 0 || event->point[i].status == 2 ) {
 			input_mt_slot(data->input_dev, event->point[i].id);
 			input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, event->point[i].id);
-			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, 200);
+			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, 1);
 			input_report_abs(data->input_dev, ABS_MT_POSITION_X, event->point[i].x);
 			input_report_abs(data->input_dev, ABS_MT_POSITION_Y, event->point[i].y);
-			input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, 100);
+			input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, 1);
 		}
 		else if(event->point[i].status == 1) {
 			input_mt_slot(data->input_dev, event->point[i].id);
