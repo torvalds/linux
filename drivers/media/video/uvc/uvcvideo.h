@@ -501,6 +501,7 @@ struct uvc_streaming {
 	__u8 last_fid;
 
     struct tasklet_struct *tasklet[UVC_URBS];     /* ddl@rock-chips.com */
+    unsigned int flags;
 };
 
 enum uvc_device_state {

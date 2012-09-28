@@ -349,6 +349,11 @@ int uvc_dequeue_buffer(struct uvc_video_queue *queue,
 			v4l2_buf->memory);
 		return -EINVAL;
 	}
+    /* ddl@rock-chips.com */
+    if (!(queue->flags & UVC_QUEUE_STREAMING)) {
+        printk("uvcvideo: Not streaming\n");
+		return -EINVAL;
+    }
 
 	mutex_lock(&queue->mutex);
     /* ddl@rock-chips.com : This design copied from video-buf */
@@ -371,8 +376,10 @@ checks:
 				((!list_empty(&queue->mainqueue)) || (!(queue->flags & UVC_QUEUE_STREAMING))));
 			mutex_lock(&queue->mutex);
 
-			if (ret || (!(queue->flags & UVC_QUEUE_STREAMING)))
-				goto done;
+			if (ret || (!(queue->flags & UVC_QUEUE_STREAMING))) {
+                printk("uvcvideo: Stream off\n");
+                goto done;
+			}
 
 			goto checks;
 		}	
@@ -592,6 +599,7 @@ int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
 		queue->flags |= UVC_QUEUE_STREAMING;
 		queue->buf_used = 0;
 	} else {
+	    queue->flags &= ~UVC_QUEUE_STREAMING;
 		uvc_queue_cancel(queue, 0);
 		INIT_LIST_HEAD(&queue->mainqueue);
 
@@ -599,8 +607,6 @@ int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
 			queue->buffer[i].error = 0;
 			queue->buffer[i].state = UVC_BUF_STATE_IDLE;
 		}
-
-		queue->flags &= ~UVC_QUEUE_STREAMING;
 	}
 
 done:

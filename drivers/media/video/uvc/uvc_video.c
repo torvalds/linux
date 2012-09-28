@@ -898,7 +898,7 @@ static void uvc_uninit_video(struct uvc_streaming *stream, int free_buffers)
 {
 	struct urb *urb;
 	unsigned int i;
-
+   
 	for (i = 0; i < UVC_URBS; ++i) {
 		urb = stream->urb[i];
 		if (urb == NULL)
@@ -1312,11 +1312,14 @@ int uvc_video_init(struct uvc_streaming *stream)
 int uvc_video_enable(struct uvc_streaming *stream, int enable)
 {
 	int ret;
-
+    
 	if (!enable) {
-		uvc_uninit_video(stream, 1);
-		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
-		uvc_queue_enable(&stream->queue, 0);
+        if (stream->flags & UVC_QUEUE_STREAMING) {      /* ddl@rock-chips.com */
+            uvc_queue_enable(&stream->queue, 0);
+    		uvc_uninit_video(stream, 1);
+    		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
+    		stream->flags &= ~UVC_QUEUE_STREAMING;
+        }
 		return 0;
 	}
 
@@ -1330,7 +1333,7 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 		uvc_queue_enable(&stream->queue, 0);
 		return ret;
 	}
-
+    stream->flags |= UVC_QUEUE_STREAMING;
 	return uvc_init_video(stream, GFP_KERNEL);
 }
 
