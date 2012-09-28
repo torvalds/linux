@@ -389,7 +389,7 @@ static int adis16204_write_raw(struct iio_dev *indio_dev,
 			break;
 		default:
 			return -EINVAL;
-		};
+		}
 		val16 = val & ((1 << bits) - 1);
 		addr = adis16204_addresses[chan->address][1];
 		return adis16204_spi_write_reg_16(indio_dev, addr, val16);

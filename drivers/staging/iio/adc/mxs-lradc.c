@@ -351,7 +351,7 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 		writel(chan_value, lradc->base + LRADC_CH(ofs));
 		enable |= 1 << ofs;
 		ofs++;
-	};
+	}
 
 	writel(LRADC_DELAY_TRIGGER_LRADCS_MASK | LRADC_DELAY_KICK,
 		lradc->base + LRADC_DELAY(0) + STMP_OFFSET_REG_CLR);

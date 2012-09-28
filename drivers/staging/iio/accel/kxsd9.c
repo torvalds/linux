@@ -171,7 +171,7 @@ static int kxsd9_read_raw(struct iio_dev *indio_dev,
 		*val2 = kxsd9_micro_scales[ret & KXSD9_FS_MASK];
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
-	};
+	}
 
 error_ret:
 	return ret;

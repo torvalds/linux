@@ -295,7 +295,7 @@ static int adis16209_write_raw(struct iio_dev *indio_dev,
 			break;
 		default:
 			return -EINVAL;
-		};
+		}
 		val16 = val & ((1 << bits) - 1);
 		addr = adis16209_addresses[chan->address][1];
 		return adis16209_spi_write_reg_16(indio_dev, addr, val16);
@@ -373,7 +373,7 @@ static int adis16209_read_raw(struct iio_dev *indio_dev,
 			break;
 		default:
 			return -EINVAL;
-		};
+		}
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16209_addresses[chan->address][1];
 		ret = adis16209_spi_read_reg_16(indio_dev, addr, &val16);
