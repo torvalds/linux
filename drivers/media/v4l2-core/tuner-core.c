@@ -1013,6 +1013,11 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 	t->standby = false;
 
 	analog_ops->set_params(&t->fe, &params);
+	/*
+	 * The tuner driver might decide to change the audmode if it only
+	 * supports stereo, so update t->audmode.
+	 */
+	t->audmode = params.audmode;
 }
 
 /*
@@ -1235,8 +1240,18 @@ static int tuner_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	if (set_mode(t, vt->type))
 		return 0;
 
-	if (t->mode == V4L2_TUNER_RADIO)
+	if (t->mode == V4L2_TUNER_RADIO) {
 		t->audmode = vt->audmode;
+		/*
+		 * For radio audmode can only be mono or stereo. Map any
+		 * other values to stereo. The actual tuner driver that is
+		 * called in set_radio_freq can decide to limit the audmode to
+		 * mono if only mono is supported.
+		 */
+		if (t->audmode != V4L2_TUNER_MODE_MONO &&
+		    t->audmode != V4L2_TUNER_MODE_STEREO)
+			t->audmode = V4L2_TUNER_MODE_STEREO;
+	}
 	set_freq(t, 0);
 
 	return 0;
