@@ -825,10 +825,20 @@ static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
 
 };
 
-void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data)
+void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data,
+		enum omapdss_version version)
 {
-	if (cpu_is_omap44xx())
+	switch (version) {
+	case OMAPDSS_VER_OMAP4430_ES1:
+	case OMAPDSS_VER_OMAP4430_ES2:
+	case OMAPDSS_VER_OMAP4:
 		ip_data->ops = &omap4_hdmi_functions;
+		break;
+	default:
+		ip_data->ops = NULL;
+	}
+
+	WARN_ON(ip_data->ops == NULL);
 }
 #endif
 
