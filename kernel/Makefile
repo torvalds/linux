@@ -194,6 +194,7 @@ x509.genkey:
 	@echo >>x509.genkey "default_bits = 4096"
 	@echo >>x509.genkey "distinguished_name = req_distinguished_name"
 	@echo >>x509.genkey "prompt = no"
+	@echo >>x509.genkey "string_mask = utf8only"
 	@echo >>x509.genkey "x509_extensions = myexts"
 	@echo >>x509.genkey
 	@echo >>x509.genkey "[ req_distinguished_name ]"
