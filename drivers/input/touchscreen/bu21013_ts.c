@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
+#include <linux/gpio.h>
 
 #define PEN_DOWN_INTR	0
 #define MAX_FINGERS	2
@@ -148,11 +149,12 @@
 struct bu21013_ts_data {
 	struct i2c_client *client;
 	wait_queue_head_t wait;
-	bool touch_stopped;
 	const struct bu21013_platform_device *chip;
 	struct input_dev *in_dev;
-	unsigned int intr_pin;
 	struct regulator *regulator;
+	unsigned int irq;
+	unsigned int intr_pin;
+	bool touch_stopped;
 };
 
 /**
@@ -262,7 +264,7 @@ static irqreturn_t bu21013_gpio_irq(int irq, void *device_data)
 			return IRQ_NONE;
 		}
 
-		data->intr_pin = data->chip->irq_read_val();
+		data->intr_pin = gpio_get_value(data->chip->touch_pin);
 		if (data->intr_pin == PEN_DOWN_INTR)
 			wait_event_timeout(data->wait, data->touch_stopped,
 					   msecs_to_jiffies(2));
@@ -418,8 +420,31 @@ static void bu21013_free_irq(struct bu21013_ts_data *bu21013_data)
 {
 	bu21013_data->touch_stopped = true;
 	wake_up(&bu21013_data->wait);
-	free_irq(bu21013_data->chip->irq, bu21013_data);
+	free_irq(bu21013_data->irq, bu21013_data);
 }
+
+/**
+ * bu21013_cs_disable() - deconfigures the touch panel controller
+ * @bu21013_data: device structure pointer
+ *
+ * This function is used to deconfigure the chip selection
+ * for touch panel controller.
+ */
+static void bu21013_cs_disable(struct bu21013_ts_data *bu21013_data)
+{
+	int error;
+
+	error = gpio_direction_output(bu21013_data->chip->cs_pin, 0);
+	if (error < 0)
+		dev_warn(&bu21013_data->client->dev,
+			 "%s: gpio direction failed, error: %d\n",
+			 __func__, error);
+	else
+		gpio_set_value(bu21013_data->chip->cs_pin, 0);
+
+	gpio_free(bu21013_data->chip->cs_pin);
+}
+
 
 /**
  * bu21013_probe() - initializes the i2c-client touchscreen driver
@@ -430,7 +455,7 @@ static void bu21013_free_irq(struct bu21013_ts_data *bu21013_data)
  * driver and returns integer.
  */
 static int bu21013_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+			 const struct i2c_device_id *id)
 {
 	struct bu21013_ts_data *bu21013_data;
 	struct input_dev *in_dev;
@@ -449,6 +474,11 @@ static int bu21013_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	if (!gpio_is_valid(pdata->touch_pin)) {
+		dev_err(&client->dev, "invalid touch_pin supplied\n");
+		return -EINVAL;
+	}
+
 	bu21013_data = kzalloc(sizeof(struct bu21013_ts_data), GFP_KERNEL);
 	in_dev = input_allocate_device();
 	if (!bu21013_data || !in_dev) {
@@ -460,6 +490,7 @@ static int bu21013_probe(struct i2c_client *client,
 	bu21013_data->in_dev = in_dev;
 	bu21013_data->chip = pdata;
 	bu21013_data->client = client;
+	bu21013_data->irq = gpio_to_irq(pdata->touch_pin);
 
 	bu21013_data->regulator = regulator_get(&client->dev, "avdd");
 	if (IS_ERR(bu21013_data->regulator)) {
@@ -478,12 +509,11 @@ static int bu21013_probe(struct i2c_client *client,
 	init_waitqueue_head(&bu21013_data->wait);
 
 	/* configure the gpio pins */
-	if (pdata->cs_en) {
-		error = pdata->cs_en(pdata->cs_pin);
-		if (error < 0) {
-			dev_err(&client->dev, "chip init failed\n");
-			goto err_disable_regulator;
-		}
+	error = gpio_request_one(pdata->cs_pin, GPIOF_OUT_INIT_HIGH,
+				 "touchp_reset");
+	if (error < 0) {
+		dev_err(&client->dev, "Unable to request gpio reset_pin\n");
+		goto err_disable_regulator;
 	}
 
 	/* configure the touch panel controller */
@@ -508,12 +538,13 @@ static int bu21013_probe(struct i2c_client *client,
 						pdata->touch_y_max, 0, 0);
 	input_set_drvdata(in_dev, bu21013_data);
 
-	error = request_threaded_irq(pdata->irq, NULL, bu21013_gpio_irq,
+	error = request_threaded_irq(bu21013_data->irq, NULL, bu21013_gpio_irq,
 				     IRQF_TRIGGER_FALLING | IRQF_SHARED |
 					IRQF_ONESHOT,
 				     DRIVER_TP, bu21013_data);
 	if (error) {
-		dev_err(&client->dev, "request irq %d failed\n", pdata->irq);
+		dev_err(&client->dev, "request irq %d failed\n",
+			bu21013_data->irq);
 		goto err_cs_disable;
 	}
 
@@ -531,7 +562,7 @@ static int bu21013_probe(struct i2c_client *client,
 err_free_irq:
 	bu21013_free_irq(bu21013_data);
 err_cs_disable:
-	pdata->cs_dis(pdata->cs_pin);
+	bu21013_cs_disable(bu21013_data);
 err_disable_regulator:
 	regulator_disable(bu21013_data->regulator);
 err_put_regulator:
@@ -555,7 +586,7 @@ static int bu21013_remove(struct i2c_client *client)
 
 	bu21013_free_irq(bu21013_data);
 
-	bu21013_data->chip->cs_dis(bu21013_data->chip->cs_pin);
+	bu21013_cs_disable(bu21013_data);
 
 	input_unregister_device(bu21013_data->in_dev);
 
@@ -584,9 +615,9 @@ static int bu21013_suspend(struct device *dev)
 
 	bu21013_data->touch_stopped = true;
 	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(bu21013_data->chip->irq);
+		enable_irq_wake(bu21013_data->irq);
 	else
-		disable_irq(bu21013_data->chip->irq);
+		disable_irq(bu21013_data->irq);
 
 	regulator_disable(bu21013_data->regulator);
 
@@ -621,9 +652,9 @@ static int bu21013_resume(struct device *dev)
 	bu21013_data->touch_stopped = false;
 
 	if (device_may_wakeup(&client->dev))
-		disable_irq_wake(bu21013_data->chip->irq);
+		disable_irq_wake(bu21013_data->irq);
 	else
-		enable_irq(bu21013_data->chip->irq);
+		enable_irq(bu21013_data->irq);
 
 	return 0;
 }
