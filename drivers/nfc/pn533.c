@@ -716,7 +716,7 @@ static int pn533_send_cmd_frame_async(struct pn533 *dev,
 					void *arg, gfp_t flags)
 {
 	struct pn533_cmd *cmd;
-	int rc;
+	int rc = 0;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
@@ -729,16 +729,16 @@ static int pn533_send_cmd_frame_async(struct pn533 *dev,
 		if (!rc)
 			dev->cmd_pending = 1;
 
-		mutex_unlock(&dev->cmd_lock);
-
-		return rc;
+		goto unlock;
 	}
 
 	nfc_dev_dbg(&dev->interface->dev, "%s Queueing command", __func__);
 
 	cmd = kzalloc(sizeof(struct pn533_cmd), flags);
-	if (!cmd)
-		return -ENOMEM;
+	if (!cmd) {
+		rc = -ENOMEM;
+		goto unlock;
+	}
 
 	INIT_LIST_HEAD(&cmd->queue);
 	cmd->out_frame = out_frame;
@@ -750,9 +750,10 @@ static int pn533_send_cmd_frame_async(struct pn533 *dev,
 
 	list_add_tail(&cmd->queue, &dev->cmd_queue);
 
+unlock:
 	mutex_unlock(&dev->cmd_lock);
 
-	return 0;
+	return rc;
 }
 
 struct pn533_sync_cmd_response {
