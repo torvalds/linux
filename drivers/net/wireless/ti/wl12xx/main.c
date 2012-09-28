@@ -32,7 +32,6 @@
 #include "../wlcore/acx.h"
 #include "../wlcore/tx.h"
 #include "../wlcore/rx.h"
-#include "../wlcore/io.h"
 #include "../wlcore/boot.h"
 
 #include "wl12xx.h"
@@ -1185,9 +1184,16 @@ static int wl12xx_enable_interrupts(struct wl1271 *wl)
 	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK,
 			       WL1271_ACX_INTR_ALL & ~(WL12XX_INTR_MASK));
 	if (ret < 0)
-		goto out;
+		goto disable_interrupts;
 
 	ret = wlcore_write32(wl, WL12XX_HI_CFG, HI_CFG_DEF_VAL);
+	if (ret < 0)
+		goto disable_interrupts;
+
+	return ret;
+
+disable_interrupts:
+	wlcore_disable_interrupts(wl);
 
 out:
 	return ret;
@@ -1583,7 +1589,10 @@ static int wl12xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	return wlcore_set_key(wl, cmd, vif, sta, key_conf);
 }
 
+static int wl12xx_setup(struct wl1271 *wl);
+
 static struct wlcore_ops wl12xx_ops = {
+	.setup			= wl12xx_setup,
 	.identify_chip		= wl12xx_identify_chip,
 	.identify_fw		= wl12xx_identify_fw,
 	.boot			= wl12xx_boot,
@@ -1624,26 +1633,15 @@ static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
 		},
 };
 
-static int __devinit wl12xx_probe(struct platform_device *pdev)
+static int wl12xx_setup(struct wl1271 *wl)
 {
-	struct wl12xx_platform_data *pdata = pdev->dev.platform_data;
-	struct wl1271 *wl;
-	struct ieee80211_hw *hw;
-	struct wl12xx_priv *priv;
+	struct wl12xx_priv *priv = wl->priv;
+	struct wl12xx_platform_data *pdata = wl->pdev->dev.platform_data;
 
-	hw = wlcore_alloc_hw(sizeof(*priv));
-	if (IS_ERR(hw)) {
-		wl1271_error("can't allocate hw");
-		return PTR_ERR(hw);
-	}
-
-	wl = hw->priv;
-	priv = wl->priv;
-	wl->ops = &wl12xx_ops;
-	wl->ptable = wl12xx_ptable;
 	wl->rtable = wl12xx_rtable;
-	wl->num_tx_desc = 16;
-	wl->num_rx_desc = 8;
+	wl->num_tx_desc = WL12XX_NUM_TX_DESCRIPTORS;
+	wl->num_rx_desc = WL12XX_NUM_RX_DESCRIPTORS;
+	wl->num_mac_addr = WL12XX_NUM_MAC_ADDRESSES;
 	wl->band_rate_to_idx = wl12xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL12XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL12XX_CONF_HW_RXTX_RATE_MCS0;
@@ -1695,7 +1693,36 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 			wl1271_error("Invalid tcxo parameter %s", tcxo_param);
 	}
 
-	return wlcore_probe(wl, pdev);
+	return 0;
+}
+
+static int __devinit wl12xx_probe(struct platform_device *pdev)
+{
+	struct wl1271 *wl;
+	struct ieee80211_hw *hw;
+	int ret;
+
+	hw = wlcore_alloc_hw(sizeof(struct wl12xx_priv),
+			     WL12XX_AGGR_BUFFER_SIZE);
+	if (IS_ERR(hw)) {
+		wl1271_error("can't allocate hw");
+		ret = PTR_ERR(hw);
+		goto out;
+	}
+
+	wl = hw->priv;
+	wl->ops = &wl12xx_ops;
+	wl->ptable = wl12xx_ptable;
+	ret = wlcore_probe(wl, pdev);
+	if (ret)
+		goto out_free;
+
+	return ret;
+
+out_free:
+	wlcore_free_hw(wl);
+out:
+	return ret;
 }
 
 static const struct platform_device_id wl12xx_id_table[] __devinitconst = {
@@ -1714,17 +1741,7 @@ static struct platform_driver wl12xx_driver = {
 	}
 };
 
-static int __init wl12xx_init(void)
-{
-	return platform_driver_register(&wl12xx_driver);
-}
-module_init(wl12xx_init);
-
-static void __exit wl12xx_exit(void)
-{
-	platform_driver_unregister(&wl12xx_driver);
-}
-module_exit(wl12xx_exit);
+module_platform_driver(wl12xx_driver);
 
 module_param_named(fref, fref_param, charp, 0);
 MODULE_PARM_DESC(fref, "FREF clock: 19.2, 26, 26x, 38.4, 38.4x, 52");

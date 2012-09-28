@@ -31,12 +31,19 @@
 /* The maximum number of Tx descriptors in all chip families */
 #define WLCORE_MAX_TX_DESCRIPTORS 32
 
+/*
+ * We always allocate this number of mac addresses. If we don't
+ * have enough allocated addresses, the LAA bit is used
+ */
+#define WLCORE_NUM_MAC_ADDRESSES 3
+
 /* forward declaration */
 struct wl1271_tx_hw_descr;
 enum wl_rx_buf_align;
 struct wl1271_rx_descriptor;
 
 struct wlcore_ops {
+	int (*setup)(struct wl1271 *wl);
 	int (*identify_chip)(struct wl1271 *wl);
 	int (*identify_fw)(struct wl1271 *wl);
 	int (*boot)(struct wl1271 *wl);
@@ -139,10 +146,12 @@ struct wl1271_stats {
 };
 
 struct wl1271 {
+	bool initialized;
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
 
 	struct device *dev;
+	struct platform_device *pdev;
 
 	void *if_priv;
 
@@ -153,7 +162,7 @@ struct wl1271 {
 
 	spinlock_t wl_lock;
 
-	enum wl1271_state state;
+	enum wlcore_state state;
 	enum wl12xx_fw_type fw_type;
 	bool plt;
 	enum plt_mode plt_mode;
@@ -181,7 +190,7 @@ struct wl1271 {
 	u32 fuse_nic_addr;
 
 	/* we have up to 2 MAC addresses */
-	struct mac_address addresses[2];
+	struct mac_address addresses[WLCORE_NUM_MAC_ADDRESSES];
 	int channel;
 	u8 system_hlid;
 
@@ -190,6 +199,8 @@ struct wl1271 {
 	unsigned long roc_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 	unsigned long rate_policies_map[
 			BITS_TO_LONGS(WL12XX_MAX_RATE_POLICIES)];
+	unsigned long klv_templates_map[
+			BITS_TO_LONGS(WLCORE_MAX_KLV_TEMPLATES)];
 
 	struct list_head wlvif_list;
 
@@ -237,6 +248,7 @@ struct wl1271 {
 
 	/* Intermediate buffer, used for packet aggregation */
 	u8 *aggr_buf;
+	u32 aggr_buf_size;
 
 	/* Reusable dummy packet template */
 	struct sk_buff *dummy_packet;
@@ -393,13 +405,18 @@ struct wl1271 {
 	/* sleep auth value currently configured to FW */
 	int sleep_auth;
 
+	/* the number of allocated MAC addresses in this chip */
+	int num_mac_addr;
+
 	/* the minimum FW version required for the driver to work */
 	unsigned int min_fw_ver[NUM_FW_VER];
+
+	struct completion nvs_loading_complete;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
 int __devexit wlcore_remove(struct platform_device *pdev);
-struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size);
+struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size);
 int wlcore_free_hw(struct wl1271 *wl);
 int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		   struct ieee80211_vif *vif,
