@@ -552,7 +552,16 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	 */
 
 	buf_len = payload[0];
-	buf_len |= (u16) payload[1] << 8;
+	buf_len |= payload[1] << 8;
+	buf_len |= payload[2] << 16;
+
+	if (buf_len > blksz * num_blocks) {
+		BT_ERR("Skip incorrect packet: hdrlen %d buffer %d",
+		       buf_len, blksz * num_blocks);
+		ret = -EIO;
+		goto exit;
+	}
+
 	type = payload[3];
 
 	switch (type) {
