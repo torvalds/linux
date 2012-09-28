@@ -274,9 +274,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 		oh_name = name;
 	}
 
-	omap_hwmod_setup_one(oh_name);
 	oh = omap_hwmod_lookup(oh_name);
-
 	if (!oh)
 		return -ENODEV;
 
@@ -306,8 +304,6 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	if (IS_ERR(timer->fclk))
 		return -ENODEV;
 
-	omap_hwmod_enable(oh);
-
 	/* FIXME: Need to remove hard-coded test on timer ID */
 	if (gptimer_id != 12) {
 		struct clk *src;
@@ -316,13 +312,16 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 		if (IS_ERR(src)) {
 			res = -EINVAL;
 		} else {
-			res = __omap_dm_timer_set_source(timer->fclk, src);
+			res = clk_set_parent(timer->fclk, src);
 			if (IS_ERR_VALUE(res))
 				pr_warn("%s: %s cannot set source\n",
 					__func__, oh->name);
 			clk_put(src);
 		}
 	}
+
+	omap_hwmod_setup_one(oh_name);
+	omap_hwmod_enable(oh);
 	__omap_dm_timer_init_regs(timer);
 
 	if (posted)

@@ -32,7 +32,6 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -395,24 +394,6 @@ static inline void __omap_dm_timer_override_errata(struct omap_dm_timer *timer,
 						   u32 errata)
 {
 	timer->errata &= ~errata;
-}
-
-static inline int __omap_dm_timer_set_source(struct clk *timer_fck,
-						struct clk *parent)
-{
-	int ret;
-
-	clk_disable(timer_fck);
-	ret = clk_set_parent(timer_fck, parent);
-	clk_enable(timer_fck);
-
-	/*
-	 * When the functional clock disappears, too quick writes seem
-	 * to cause an abort. XXX Is this still necessary?
-	 */
-	__delay(300000);
-
-	return ret;
 }
 
 static inline void __omap_dm_timer_stop(struct omap_dm_timer *timer,
