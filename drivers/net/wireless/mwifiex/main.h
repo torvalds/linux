@@ -535,6 +535,7 @@ struct mwifiex_rx_reorder_tbl {
 	int win_size;
 	void **rx_reorder_ptr;
 	struct reorder_tmr_cnxt timer_context;
+	u8 flags;
 };
 
 struct mwifiex_bss_prio_node {

@@ -302,6 +302,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 		new_node->start_win = last_seq + 1;
 
 	new_node->win_size = win_size;
+	new_node->flags = 0;
 
 	new_node->rx_reorder_ptr = kzalloc(sizeof(void *) * win_size,
 					GFP_KERNEL);
@@ -457,13 +458,20 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	 * If seq_num is less then starting win then ignore and drop the
 	 * packet
 	 */
-	if ((start_win + TWOPOW11) > (MAX_TID_VALUE - 1)) {/* Wrap */
-		if (seq_num >= ((start_win + TWOPOW11) &
-				(MAX_TID_VALUE - 1)) && (seq_num < start_win))
+	if (tbl->flags & RXREOR_FORCE_NO_DROP) {
+		dev_dbg(priv->adapter->dev,
+			"RXREOR_FORCE_NO_DROP when HS is activated\n");
+		tbl->flags &= ~RXREOR_FORCE_NO_DROP;
+	} else {
+		if ((start_win + TWOPOW11) > (MAX_TID_VALUE - 1)) {
+			if (seq_num >= ((start_win + TWOPOW11) &
+					(MAX_TID_VALUE - 1)) &&
+			    seq_num < start_win)
+				return -1;
+		} else if ((seq_num < start_win) ||
+			   (seq_num > (start_win + TWOPOW11))) {
 			return -1;
-	} else if ((seq_num < start_win) ||
-		   (seq_num > (start_win + TWOPOW11))) {
-		return -1;
+		}
 	}
 
 	/*
@@ -474,8 +482,7 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 		seq_num = ((seq_num + win_size) - 1) & (MAX_TID_VALUE - 1);
 
 	if (((end_win < start_win) &&
-	     (seq_num < (TWOPOW11 - (MAX_TID_VALUE - start_win))) &&
-	     (seq_num > end_win)) ||
+	     (seq_num < start_win) && (seq_num > end_win)) ||
 	    ((end_win > start_win) && ((seq_num > end_win) ||
 				       (seq_num < start_win)))) {
 		end_win = seq_num;
@@ -636,4 +643,30 @@ void mwifiex_11n_cleanup_reorder_tbl(struct mwifiex_private *priv)
 
 	INIT_LIST_HEAD(&priv->rx_reorder_tbl_ptr);
 	mwifiex_reset_11n_rx_seq_num(priv);
+}
+
+/*
+ * This function updates all rx_reorder_tbl's flags.
+ */
+void mwifiex_update_rxreor_flags(struct mwifiex_adapter *adapter, u8 flags)
+{
+	struct mwifiex_private *priv;
+	struct mwifiex_rx_reorder_tbl *tbl;
+	unsigned long lock_flags;
+	int i;
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		if (!priv)
+			continue;
+		if (list_empty(&priv->rx_reorder_tbl_ptr))
+			continue;
+
+		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, lock_flags);
+		list_for_each_entry(tbl, &priv->rx_reorder_tbl_ptr, list)
+			tbl->flags = flags;
+		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, lock_flags);
+	}
+
+	return;
 }
