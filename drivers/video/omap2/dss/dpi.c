@@ -29,6 +29,7 @@
 #include <linux/errno.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/string.h>
 
 #include <video/omapdss.h>
 

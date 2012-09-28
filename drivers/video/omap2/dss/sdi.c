@@ -25,6 +25,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/export.h>
 #include <linux/platform_device.h>
+#include <linux/string.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
