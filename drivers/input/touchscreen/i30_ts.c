@@ -118,7 +118,7 @@ static struct i2c_client *this_client;
 
 static u8 CTPM_FW[]=
 {
-#include "ft5406_app.i"
+//#include "ft5406_app.i"
 };
 
 typedef enum
