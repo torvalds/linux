@@ -9,13 +9,10 @@ Required properties:
 Optional properties:
 - cd-gpios: card detect gpio, with zero flags.
 
-If your board don't support these gpios then don't pass the entry.
-
 Example:
 
 	sdhci@fc000000 {
 		compatible = "st,spear300-sdhci";
 		reg = <0xfc000000 0x1000>;
-
-		cd-gpios = <&gpio0 6 0>
+		cd-gpios = <&gpio0 6 0>;
 	};

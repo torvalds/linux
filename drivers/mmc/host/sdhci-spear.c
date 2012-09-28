@@ -140,7 +140,7 @@ static int __devinit sdhci_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = clk_enable(sdhci->clk);
+	ret = clk_prepare_enable(sdhci->clk);
 	if (ret) {
 		dev_dbg(&pdev->dev, "Error enabling clock\n");
 		goto put_clk;
@@ -260,7 +260,7 @@ set_drvdata:
 free_host:
 	sdhci_free_host(host);
 disable_clk:
-	clk_disable(sdhci->clk);
+	clk_disable_unprepare(sdhci->clk);
 put_clk:
 	clk_put(sdhci->clk);
 err:
@@ -282,7 +282,7 @@ static int __devexit sdhci_remove(struct platform_device *pdev)
 
 	sdhci_remove_host(host, dead);
 	sdhci_free_host(host);
-	clk_disable(sdhci->clk);
+	clk_disable_unprepare(sdhci->clk);
 	clk_put(sdhci->clk);
 
 	return 0;
@@ -297,7 +297,7 @@ static int sdhci_suspend(struct device *dev)
 
 	ret = sdhci_suspend_host(host);
 	if (!ret)
-		clk_disable(sdhci->clk);
+		clk_disable_unprepare(sdhci->clk);
 
 	return ret;
 }
@@ -308,7 +308,7 @@ static int sdhci_resume(struct device *dev)
 	struct spear_sdhci *sdhci = dev_get_platdata(dev);
 	int ret;
 
-	ret = clk_enable(sdhci->clk);
+	ret = clk_prepare_enable(sdhci->clk);
 	if (ret) {
 		dev_dbg(dev, "Resume: Error enabling clock\n");
 		return ret;
