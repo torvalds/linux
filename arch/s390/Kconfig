@@ -587,7 +587,6 @@ config S390_GUEST
 	depends on 64BIT && EXPERIMENTAL
 	select VIRTUALIZATION
 	select VIRTIO
-	select VIRTIO_RING
 	select VIRTIO_CONSOLE
 	help
 	  Select this option if you want to run the kernel as a guest under

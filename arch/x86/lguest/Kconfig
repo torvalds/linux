@@ -4,7 +4,6 @@ config LGUEST_GUEST
 	depends on X86_32
 	select VIRTUALIZATION
 	select VIRTIO
-	select VIRTIO_RING
 	select VIRTIO_CONSOLE
 	help
 	  Lguest is a tiny in-kernel hypervisor.  Selecting this will
