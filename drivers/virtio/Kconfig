@@ -1,8 +1,10 @@
-# Virtio always gets selected by whoever wants it.
 config VIRTIO
 	tristate
+	---help---
+	  This option is selected by any driver which implements the virtio
+	  bus, such as CONFIG_VIRTIO_PCI, CONFIG_VIRTIO_MMIO, CONFIG_LGUEST,
+	  CONFIG_RPMSG or CONFIG_S390_GUEST.
 
-# Similarly the virtio ring implementation.
 config VIRTIO_RING
 	tristate
 	depends on VIRTIO
