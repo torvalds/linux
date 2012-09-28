@@ -1716,7 +1716,7 @@ static inline void note_cmpxchg_failure(const char *n,
 	stat(s, CMPXCHG_DOUBLE_CPU_FAIL);
 }
 
-void init_kmem_cache_cpus(struct kmem_cache *s)
+static void init_kmem_cache_cpus(struct kmem_cache *s)
 {
 	int cpu;
 
@@ -1941,7 +1941,7 @@ static void unfreeze_partials(struct kmem_cache *s)
  * If we did not find a slot then simply move all the partials to the
  * per node partial list.
  */
-int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 {
 	struct page *oldpage;
 	int pages;
