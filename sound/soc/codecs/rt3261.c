@@ -825,7 +825,7 @@ static const SOC_ENUM_SINGLE_DECL(
 
 /* Interface data select */
 static const char *rt3261_data_select[] = {
-	"Normal", "left copy to right", "right copy to left", "Swap"};
+	"Normal", "Swap", "left copy to right", "right copy to left"};
 
 static const SOC_ENUM_SINGLE_DECL(rt3261_if1_dac_enum, RT3261_DIG_INF_DATA,
 				RT3261_IF1_DAC_SEL_SFT, rt3261_data_select);
@@ -1040,6 +1040,11 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	SOC_ENUM_EXT("Modem Input Switch", rt3261_modem_input_switch_enum,
 		rt3261_modem_input_switch_get, rt3261_modem_input_switch_put),
 	#endif
+
+	SOC_ENUM("ADC IF1 Data Switch", rt3261_if1_adc_enum), 
+	SOC_ENUM("DAC IF1 Data Switch", rt3261_if1_dac_enum), 
+	SOC_ENUM("ADC IF2 Data Switch", rt3261_if2_adc_enum), 
+	SOC_ENUM("DAC IF2 Data Switch", rt3261_if2_dac_enum), 
 };
 
 /**
