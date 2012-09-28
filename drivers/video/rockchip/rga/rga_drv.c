@@ -70,7 +70,7 @@
 #define DRIVER_DESC		"RGA Device Driver"
 #define DRIVER_NAME		"rga"
 
-#define RGA_VERSION   "1.000"
+#define RGA_VERSION   "1.001"
 
 ktime_t rga_start;
 ktime_t rga_end;
