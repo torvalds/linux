@@ -465,8 +465,6 @@ nfs_idmap_new(struct nfs_client *clp)
 	struct rpc_pipe *pipe;
 	int error;
 
-	BUG_ON(clp->cl_idmap != NULL);
-
 	idmap = kzalloc(sizeof(*idmap), GFP_KERNEL);
 	if (idmap == NULL)
 		return -ENOMEM;
@@ -510,7 +508,6 @@ static int __rpc_pipefs_event(struct nfs_client *clp, unsigned long event,
 
 	switch (event) {
 	case RPC_PIPEFS_MOUNT:
-		BUG_ON(clp->cl_rpcclient->cl_dentry == NULL);
 		err = __nfs_idmap_register(clp->cl_rpcclient->cl_dentry,
 						clp->cl_idmap,
 						clp->cl_idmap->idmap_pipe);
@@ -689,7 +686,11 @@ static int nfs_idmap_legacy_upcall(struct key_construction *cons,
 	if (ret < 0)
 		goto out2;
 
-	BUG_ON(idmap->idmap_key_cons != NULL);
+	if (idmap->idmap_key_cons != NULL) {
+		WARN_ON_ONCE(1);
+		ret = -EAGAIN;
+		goto out2;
+	}
 	idmap->idmap_key_cons = cons;
 
 	ret = rpc_queue_upcall(idmap->idmap_pipe, msg);
@@ -746,7 +747,7 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	 * will have been woken up and someone else may now have used
 	 * idmap_key_cons - so after this point we may no longer touch it.
 	 */
-	cons = ACCESS_ONCE(idmap->idmap_key_cons);
+	cons = idmap->idmap_key_cons;
 	idmap->idmap_key_cons = NULL;
 
 	if (mlen != sizeof(im)) {
@@ -790,7 +791,7 @@ idmap_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	struct idmap *idmap = data->idmap;
 	struct key_construction *cons;
 	if (msg->errno) {
-		cons = ACCESS_ONCE(idmap->idmap_key_cons);
+		cons = idmap->idmap_key_cons;
 		idmap->idmap_key_cons = NULL;
 		complete_request_key(cons, msg->errno);
 	}
