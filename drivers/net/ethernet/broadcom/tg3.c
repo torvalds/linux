@@ -6278,7 +6278,7 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 		u32 jmb_prod_idx = dpr->rx_jmb_prod_idx;
 
 		tp->rx_refill = false;
-		for (i = 1; i < tp->irq_cnt; i++)
+		for (i = 1; i <= tp->rxq_cnt; i++)
 			err |= tg3_rx_prodring_xfer(tp, dpr,
 						    &tp->napi[i].prodring);
 
@@ -8654,13 +8654,12 @@ static void __tg3_set_rx_mode(struct net_device *dev)
 	}
 }
 
-static void tg3_rss_init_dflt_indir_tbl(struct tg3 *tp)
+static void tg3_rss_init_dflt_indir_tbl(struct tg3 *tp, u32 qcnt)
 {
 	int i;
 
 	for (i = 0; i < TG3_RSS_INDIR_TBL_SIZE; i++)
-		tp->rss_ind_tbl[i] =
-			ethtool_rxfh_indir_default(i, tp->irq_cnt - 1);
+		tp->rss_ind_tbl[i] = ethtool_rxfh_indir_default(i, qcnt);
 }
 
 static void tg3_rss_check_indir_tbl(struct tg3 *tp)
@@ -8682,7 +8681,7 @@ static void tg3_rss_check_indir_tbl(struct tg3 *tp)
 	}
 
 	if (i != TG3_RSS_INDIR_TBL_SIZE)
-		tg3_rss_init_dflt_indir_tbl(tp);
+		tg3_rss_init_dflt_indir_tbl(tp, tp->rxq_cnt);
 }
 
 static void tg3_rss_write_indir_tbl(struct tg3 *tp)
@@ -10203,21 +10202,35 @@ static int tg3_request_firmware(struct tg3 *tp)
 	return 0;
 }
 
-static bool tg3_enable_msix(struct tg3 *tp)
+static u32 tg3_irq_count(struct tg3 *tp)
 {
-	int i, rc;
-	struct msix_entry msix_ent[tp->irq_max];
+	u32 irq_cnt = max(tp->rxq_cnt, tp->txq_cnt);
 
-	tp->irq_cnt = netif_get_num_default_rss_queues();
-	if (tp->irq_cnt > 1) {
+	if (irq_cnt > 1) {
 		/* We want as many rx rings enabled as there are cpus.
 		 * In multiqueue MSI-X mode, the first MSI-X vector
 		 * only deals with link interrupts, etc, so we add
 		 * one to the number of vectors we are requesting.
 		 */
-		tp->irq_cnt = min_t(unsigned, tp->irq_cnt + 1, tp->irq_max);
-		tp->rxq_cnt = tp->irq_cnt - 1;
+		irq_cnt = min_t(unsigned, irq_cnt + 1, tp->irq_max);
 	}
+
+	return irq_cnt;
+}
+
+static bool tg3_enable_msix(struct tg3 *tp)
+{
+	int i, rc;
+	struct msix_entry msix_ent[tp->irq_max];
+
+	tp->rxq_cnt = netif_get_num_default_rss_queues();
+	if (tp->rxq_cnt > tp->rxq_max)
+		tp->rxq_cnt = tp->rxq_max;
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
+		tp->txq_cnt = min(tp->rxq_cnt, tp->txq_max);
+
+	tp->irq_cnt = tg3_irq_count(tp);
 
 	for (i = 0; i < tp->irq_max; i++) {
 		msix_ent[i].entry  = i;
@@ -10234,6 +10247,8 @@ static bool tg3_enable_msix(struct tg3 *tp)
 			      tp->irq_cnt, rc);
 		tp->irq_cnt = rc;
 		tp->rxq_cnt = max(rc - 1, 1);
+		if (tp->txq_cnt)
+			tp->txq_cnt = min(tp->rxq_cnt, tp->txq_max);
 	}
 
 	for (i = 0; i < tp->irq_max; i++)
@@ -10244,16 +10259,15 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		return false;
 	}
 
-	if (tp->irq_cnt > 1) {
-		tg3_flag_set(tp, ENABLE_RSS);
+	if (tp->irq_cnt == 1)
+		return true;
 
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
-			tg3_flag_set(tp, ENABLE_TSS);
-			tp->txq_cnt = tp->rxq_cnt;
-			netif_set_real_num_tx_queues(tp->dev, tp->txq_cnt);
-		}
-	}
+	tg3_flag_set(tp, ENABLE_RSS);
+
+	if (tp->txq_cnt > 1)
+		tg3_flag_set(tp, ENABLE_TSS);
+
+	netif_set_real_num_tx_queues(tp->dev, tp->txq_cnt);
 
 	return true;
 }
@@ -11275,11 +11289,11 @@ static int tg3_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	switch (info->cmd) {
 	case ETHTOOL_GRXRINGS:
 		if (netif_running(tp->dev))
-			info->data = tp->irq_cnt;
+			info->data = tp->rxq_cnt;
 		else {
 			info->data = num_online_cpus();
-			if (info->data > TG3_IRQ_MAX_VECS_RSS)
-				info->data = TG3_IRQ_MAX_VECS_RSS;
+			if (info->data > TG3_RSS_MAX_NUM_QS)
+				info->data = TG3_RSS_MAX_NUM_QS;
 		}
 
 		/* The first interrupt vector only
@@ -14600,8 +14614,18 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		if (tg3_flag(tp, 57765_PLUS)) {
 			tg3_flag_set(tp, SUPPORT_MSIX);
 			tp->irq_max = TG3_IRQ_MAX_VECS;
-			tg3_rss_init_dflt_indir_tbl(tp);
 		}
+	}
+
+	tp->txq_max = 1;
+	tp->rxq_max = 1;
+	if (tp->irq_max > 1) {
+		tp->rxq_max = TG3_RSS_MAX_NUM_QS;
+		tg3_rss_init_dflt_indir_tbl(tp, TG3_RSS_MAX_NUM_QS);
+
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
+			tp->txq_max = tp->irq_max - 1;
 	}
 
 	if (tg3_flag(tp, 5755_PLUS) ||
