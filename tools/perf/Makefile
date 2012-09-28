@@ -503,8 +503,6 @@ ifneq ($(OUTPUT),)
 endif
 
 ifdef NO_LIBELF
-BASIC_CFLAGS += -DNO_LIBELF_SUPPORT
-
 EXTLIBS := $(filter-out -lelf,$(EXTLIBS))
 
 # Remove ELF/DWARF dependent codes
@@ -519,9 +517,10 @@ BUILTIN_OBJS := $(filter-out $(OUTPUT)builtin-probe.o,$(BUILTIN_OBJS))
 LIB_OBJS += $(OUTPUT)util/symbol-minimal.o
 
 else # NO_LIBELF
+BASIC_CFLAGS += -DLIBELF_SUPPORT
 
-ifneq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_COMMON)),y)
-	BASIC_CFLAGS += -DLIBELF_NO_MMAP
+ifeq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_COMMON)),y)
+	BASIC_CFLAGS += -DLIBELF_MMAP
 endif
 
 ifndef NO_DWARF
