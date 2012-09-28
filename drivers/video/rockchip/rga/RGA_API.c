@@ -190,6 +190,9 @@ int32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
     msg1->src.act_h = msg->dst.act_h;
     msg1->src.vir_w = msg->dst.vir_w;
     msg1->src.vir_h = msg->dst.vir_h;
+
+    msg1->src.x_offset = 0;
+    msg1->src.y_offset = 0;
             
     return 0;
 }

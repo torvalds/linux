@@ -878,6 +878,10 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     #endif
 
     ret = rga_blit(session, req);
+    if(ret < 0)
+    {
+        return ret;
+    }
 
     ret_timeout = wait_event_interruptible_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);
 
