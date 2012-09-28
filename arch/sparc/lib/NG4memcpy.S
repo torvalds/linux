@@ -113,7 +113,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	and		%g1, 0x7, %g1
 	brz,pt		%g1, 51f
 	 sub		%o2, %g1, %o2
-	
+
 1:	EX_LD(LOAD(ldub, %o1 + 0x00, %g2))
 	add		%o1, 1, %o1
 	subcc		%g1, 1, %g1
@@ -143,7 +143,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	and		%g1, 0x3f, %g1
 	brz,pt		%g1, .Llarge_aligned
 	 sub		%o2, %g1, %o2
-	
+
 1:	EX_LD(LOAD(ldx, %o1 + 0x00, %g2))
 	add		%o1, 8, %o1
 	subcc		%g1, 8, %g1
@@ -287,7 +287,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	and		%g1, 0x7, %g1
 	brz,pt		%g1, 2f
 	 sub		%o2, %g1, %o2
-	
+
 1:	EX_LD(LOAD(ldub, %o1 + 0x00, %g2))
 	add		%o1, 1, %o1
 	subcc		%g1, 1, %g1
