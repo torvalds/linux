@@ -379,12 +379,15 @@ static int a2mp_getampassoc_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 	struct hci_dev *hdev;
 	struct amp_ctrl *ctrl;
 	struct hci_conn *hcon;
+	size_t assoc_len;
 
 	if (len < sizeof(*rsp))
 		return -EINVAL;
 
-	BT_DBG("id %d status 0x%2.2x assoc len %lu", rsp->id, rsp->status,
-	       len - sizeof(*rsp));
+	assoc_len = len - sizeof(*rsp);
+
+	BT_DBG("id %d status 0x%2.2x assoc len %zu", rsp->id, rsp->status,
+	       assoc_len);
 
 	if (rsp->status)
 		return -EINVAL;
@@ -392,7 +395,7 @@ static int a2mp_getampassoc_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 	/* Save remote ASSOC data */
 	ctrl = amp_ctrl_lookup(mgr, rsp->id);
 	if (ctrl) {
-		u8 *assoc, assoc_len = len - sizeof(*rsp);
+		u8 *assoc;
 
 		assoc = kzalloc(assoc_len, GFP_KERNEL);
 		if (!assoc) {
@@ -466,7 +469,8 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	}
 
 	if (ctrl) {
-		u8 *assoc, assoc_len = le16_to_cpu(hdr->len) - sizeof(*req);
+		size_t assoc_len = le16_to_cpu(hdr->len) - sizeof(*req);
+		u8 *assoc;
 
 		ctrl->id = rsp.remote_id;
 
