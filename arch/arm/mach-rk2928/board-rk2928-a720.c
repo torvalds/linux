@@ -607,6 +607,23 @@ static struct platform_device device_acodec = {
 };
 #endif
 
+#ifdef CONFIG_BATTERY_RK30_ADC_FAC
+static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
+        .dc_det_pin      = INVALID_GPIO,
+        .batt_low_pin    = INVALID_GPIO,
+        .charge_set_pin  = INVALID_GPIO,
+        .charge_ok_pin   = INVALID_GPIO,
+};
+
+static struct platform_device rk30_device_adc_battery = {
+        .name   = "rk30-battery",
+        .id     = -1,
+        .dev = {
+                .platform_data = &rk30_adc_battery_platdata,
+        },
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
@@ -622,6 +639,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_SND_SOC_RK2928
 	&device_acodec,
+#endif
+#ifdef CONFIG_BATTERY_RK30_ADC_FAC
+	&rk30_device_adc_battery,
 #endif
 };
 //i2c
