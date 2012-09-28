@@ -7607,6 +7607,118 @@ static int tg3_init_rings(struct tg3 *tp)
 	return 0;
 }
 
+static void tg3_mem_tx_release(struct tg3 *tp)
+{
+	int i;
+
+	for (i = 0; i < tp->irq_max; i++) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+
+		if (tnapi->tx_ring) {
+			dma_free_coherent(&tp->pdev->dev, TG3_TX_RING_BYTES,
+				tnapi->tx_ring, tnapi->tx_desc_mapping);
+			tnapi->tx_ring = NULL;
+		}
+
+		kfree(tnapi->tx_buffers);
+		tnapi->tx_buffers = NULL;
+	}
+}
+
+static int tg3_mem_tx_acquire(struct tg3 *tp)
+{
+	int i;
+	struct tg3_napi *tnapi = &tp->napi[0];
+
+	/* If multivector TSS is enabled, vector 0 does not handle
+	 * tx interrupts.  Don't allocate any resources for it.
+	 */
+	if (tg3_flag(tp, ENABLE_TSS))
+		tnapi++;
+
+	for (i = 0; i < tp->txq_cnt; i++, tnapi++) {
+		tnapi->tx_buffers = kzalloc(sizeof(struct tg3_tx_ring_info) *
+					    TG3_TX_RING_SIZE, GFP_KERNEL);
+		if (!tnapi->tx_buffers)
+			goto err_out;
+
+		tnapi->tx_ring = dma_alloc_coherent(&tp->pdev->dev,
+						    TG3_TX_RING_BYTES,
+						    &tnapi->tx_desc_mapping,
+						    GFP_KERNEL);
+		if (!tnapi->tx_ring)
+			goto err_out;
+	}
+
+	return 0;
+
+err_out:
+	tg3_mem_tx_release(tp);
+	return -ENOMEM;
+}
+
+static void tg3_mem_rx_release(struct tg3 *tp)
+{
+	int i;
+
+	for (i = 0; i < tp->irq_max; i++) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+
+		tg3_rx_prodring_fini(tp, &tnapi->prodring);
+
+		if (!tnapi->rx_rcb)
+			continue;
+
+		dma_free_coherent(&tp->pdev->dev,
+				  TG3_RX_RCB_RING_BYTES(tp),
+				  tnapi->rx_rcb,
+				  tnapi->rx_rcb_mapping);
+		tnapi->rx_rcb = NULL;
+	}
+}
+
+static int tg3_mem_rx_acquire(struct tg3 *tp)
+{
+	unsigned int i, limit;
+
+	limit = tp->rxq_cnt;
+
+	/* If RSS is enabled, we need a (dummy) producer ring
+	 * set on vector zero.  This is the true hw prodring.
+	 */
+	if (tg3_flag(tp, ENABLE_RSS))
+		limit++;
+
+	for (i = 0; i < limit; i++) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+
+		if (tg3_rx_prodring_init(tp, &tnapi->prodring))
+			goto err_out;
+
+		/* If multivector RSS is enabled, vector 0
+		 * does not handle rx or tx interrupts.
+		 * Don't allocate any resources for it.
+		 */
+		if (!i && tg3_flag(tp, ENABLE_RSS))
+			continue;
+
+		tnapi->rx_rcb = dma_alloc_coherent(&tp->pdev->dev,
+						   TG3_RX_RCB_RING_BYTES(tp),
+						   &tnapi->rx_rcb_mapping,
+						   GFP_KERNEL);
+		if (!tnapi->rx_rcb)
+			goto err_out;
+
+		memset(tnapi->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
+	}
+
+	return 0;
+
+err_out:
+	tg3_mem_rx_release(tp);
+	return -ENOMEM;
+}
+
 /*
  * Must not be invoked with interrupt sources disabled and
  * the hardware shutdown down.
@@ -7618,25 +7730,6 @@ static void tg3_free_consistent(struct tg3 *tp)
 	for (i = 0; i < tp->irq_cnt; i++) {
 		struct tg3_napi *tnapi = &tp->napi[i];
 
-		if (tnapi->tx_ring) {
-			dma_free_coherent(&tp->pdev->dev, TG3_TX_RING_BYTES,
-				tnapi->tx_ring, tnapi->tx_desc_mapping);
-			tnapi->tx_ring = NULL;
-		}
-
-		kfree(tnapi->tx_buffers);
-		tnapi->tx_buffers = NULL;
-
-		if (tnapi->rx_rcb) {
-			dma_free_coherent(&tp->pdev->dev,
-					  TG3_RX_RCB_RING_BYTES(tp),
-					  tnapi->rx_rcb,
-					  tnapi->rx_rcb_mapping);
-			tnapi->rx_rcb = NULL;
-		}
-
-		tg3_rx_prodring_fini(tp, &tnapi->prodring);
-
 		if (tnapi->hw_status) {
 			dma_free_coherent(&tp->pdev->dev, TG3_HW_STATUS_SIZE,
 					  tnapi->hw_status,
@@ -7644,6 +7737,9 @@ static void tg3_free_consistent(struct tg3 *tp)
 			tnapi->hw_status = NULL;
 		}
 	}
+
+	tg3_mem_rx_release(tp);
+	tg3_mem_tx_release(tp);
 
 	if (tp->hw_stats) {
 		dma_free_coherent(&tp->pdev->dev, sizeof(struct tg3_hw_stats),
@@ -7683,71 +7779,37 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		memset(tnapi->hw_status, 0, TG3_HW_STATUS_SIZE);
 		sblk = tnapi->hw_status;
 
-		if (tg3_rx_prodring_init(tp, &tnapi->prodring))
-			goto err_out;
+		if (tg3_flag(tp, ENABLE_RSS)) {
+			u16 *prodptr = 0;
 
-		/* If multivector TSS is enabled, vector 0 does not handle
-		 * tx interrupts.  Don't allocate any resources for it.
-		 */
-		if ((!i && !tg3_flag(tp, ENABLE_TSS)) ||
-		    (i && tg3_flag(tp, ENABLE_TSS))) {
-			tnapi->tx_buffers = kzalloc(
-					       sizeof(struct tg3_tx_ring_info) *
-					       TG3_TX_RING_SIZE, GFP_KERNEL);
-			if (!tnapi->tx_buffers)
-				goto err_out;
-
-			tnapi->tx_ring = dma_alloc_coherent(&tp->pdev->dev,
-							    TG3_TX_RING_BYTES,
-							&tnapi->tx_desc_mapping,
-							    GFP_KERNEL);
-			if (!tnapi->tx_ring)
-				goto err_out;
-		}
-
-		/*
-		 * When RSS is enabled, the status block format changes
-		 * slightly.  The "rx_jumbo_consumer", "reserved",
-		 * and "rx_mini_consumer" members get mapped to the
-		 * other three rx return ring producer indexes.
-		 */
-		switch (i) {
-		default:
-			if (tg3_flag(tp, ENABLE_RSS)) {
-				tnapi->rx_rcb_prod_idx = NULL;
+			/*
+			 * When RSS is enabled, the status block format changes
+			 * slightly.  The "rx_jumbo_consumer", "reserved",
+			 * and "rx_mini_consumer" members get mapped to the
+			 * other three rx return ring producer indexes.
+			 */
+			switch (i) {
+			case 1:
+				prodptr = &sblk->idx[0].rx_producer;
+				break;
+			case 2:
+				prodptr = &sblk->rx_jumbo_consumer;
+				break;
+			case 3:
+				prodptr = &sblk->reserved;
+				break;
+			case 4:
+				prodptr = &sblk->rx_mini_consumer;
 				break;
 			}
-			/* Fall through */
-		case 1:
+			tnapi->rx_rcb_prod_idx = prodptr;
+		} else {
 			tnapi->rx_rcb_prod_idx = &sblk->idx[0].rx_producer;
-			break;
-		case 2:
-			tnapi->rx_rcb_prod_idx = &sblk->rx_jumbo_consumer;
-			break;
-		case 3:
-			tnapi->rx_rcb_prod_idx = &sblk->reserved;
-			break;
-		case 4:
-			tnapi->rx_rcb_prod_idx = &sblk->rx_mini_consumer;
-			break;
 		}
-
-		/*
-		 * If multivector RSS is enabled, vector 0 does not handle
-		 * rx or tx interrupts.  Don't allocate any resources for it.
-		 */
-		if (!i && tg3_flag(tp, ENABLE_RSS))
-			continue;
-
-		tnapi->rx_rcb = dma_alloc_coherent(&tp->pdev->dev,
-						   TG3_RX_RCB_RING_BYTES(tp),
-						   &tnapi->rx_rcb_mapping,
-						   GFP_KERNEL);
-		if (!tnapi->rx_rcb)
-			goto err_out;
-
-		memset(tnapi->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
 	}
+
+	if (tg3_mem_tx_acquire(tp) || tg3_mem_rx_acquire(tp))
+		goto err_out;
 
 	return 0;
 
@@ -10154,6 +10216,7 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		 * one to the number of vectors we are requesting.
 		 */
 		tp->irq_cnt = min_t(unsigned, tp->irq_cnt + 1, tp->irq_max);
+		tp->rxq_cnt = tp->irq_cnt - 1;
 	}
 
 	for (i = 0; i < tp->irq_max; i++) {
@@ -10170,14 +10233,13 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		netdev_notice(tp->dev, "Requested %d MSI-X vectors, received %d\n",
 			      tp->irq_cnt, rc);
 		tp->irq_cnt = rc;
+		tp->rxq_cnt = max(rc - 1, 1);
 	}
 
 	for (i = 0; i < tp->irq_max; i++)
 		tp->napi[i].irq_vec = msix_ent[i].vector;
 
-	netif_set_real_num_tx_queues(tp->dev, 1);
-	rc = tp->irq_cnt > 1 ? tp->irq_cnt - 1 : 1;
-	if (netif_set_real_num_rx_queues(tp->dev, rc)) {
+	if (netif_set_real_num_rx_queues(tp->dev, tp->rxq_cnt)) {
 		pci_disable_msix(tp->pdev);
 		return false;
 	}
@@ -10188,7 +10250,8 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
 			tg3_flag_set(tp, ENABLE_TSS);
-			netif_set_real_num_tx_queues(tp->dev, tp->irq_cnt - 1);
+			tp->txq_cnt = tp->rxq_cnt;
+			netif_set_real_num_tx_queues(tp->dev, tp->txq_cnt);
 		}
 	}
 
@@ -10224,6 +10287,11 @@ defcfg:
 	if (!tg3_flag(tp, USING_MSIX)) {
 		tp->irq_cnt = 1;
 		tp->napi[0].irq_vec = tp->pdev->irq;
+	}
+
+	if (tp->irq_cnt == 1) {
+		tp->txq_cnt = 1;
+		tp->rxq_cnt = 1;
 		netif_set_real_num_tx_queues(tp->dev, 1);
 		netif_set_real_num_rx_queues(tp->dev, 1);
 	}
