@@ -10448,6 +10448,43 @@ err_out1:
 	return err;
 }
 
+static void tg3_stop(struct tg3 *tp)
+{
+	int i;
+
+	tg3_napi_disable(tp);
+	tg3_reset_task_cancel(tp);
+
+	netif_tx_disable(tp->dev);
+
+	tg3_timer_stop(tp);
+
+	tg3_hwmon_close(tp);
+
+	tg3_phy_stop(tp);
+
+	tg3_full_lock(tp, 1);
+
+	tg3_disable_ints(tp);
+
+	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
+	tg3_free_rings(tp);
+	tg3_flag_clear(tp, INIT_COMPLETE);
+
+	tg3_full_unlock(tp);
+
+	for (i = tp->irq_cnt - 1; i >= 0; i--) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+		free_irq(tnapi->irq_vec, tnapi);
+	}
+
+	tg3_ints_fini(tp);
+
+	tg3_napi_fini(tp);
+
+	tg3_free_consistent(tp);
+}
+
 static int tg3_open(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -10490,44 +10527,13 @@ static int tg3_open(struct net_device *dev)
 
 static int tg3_close(struct net_device *dev)
 {
-	int i;
 	struct tg3 *tp = netdev_priv(dev);
 
-	tg3_napi_disable(tp);
-	tg3_reset_task_cancel(tp);
-
-	netif_tx_stop_all_queues(dev);
-
-	tg3_timer_stop(tp);
-
-	tg3_hwmon_close(tp);
-
-	tg3_phy_stop(tp);
-
-	tg3_full_lock(tp, 1);
-
-	tg3_disable_ints(tp);
-
-	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-	tg3_free_rings(tp);
-	tg3_flag_clear(tp, INIT_COMPLETE);
-
-	tg3_full_unlock(tp);
-
-	for (i = tp->irq_cnt - 1; i >= 0; i--) {
-		struct tg3_napi *tnapi = &tp->napi[i];
-		free_irq(tnapi->irq_vec, tnapi);
-	}
-
-	tg3_ints_fini(tp);
+	tg3_stop(tp);
 
 	/* Clear stats across close / open calls */
 	memset(&tp->net_stats_prev, 0, sizeof(tp->net_stats_prev));
 	memset(&tp->estats_prev, 0, sizeof(tp->estats_prev));
-
-	tg3_napi_fini(tp);
-
-	tg3_free_consistent(tp);
 
 	tg3_power_down(tp);
 
