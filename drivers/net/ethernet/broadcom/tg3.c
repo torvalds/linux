@@ -8331,9 +8331,10 @@ static void tg3_set_bdinfo(struct tg3 *tp, u32 bdinfo_addr,
 			      nic_addr);
 }
 
-static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
+
+static void tg3_coal_tx_init(struct tg3 *tp, struct ethtool_coalesce *ec)
 {
-	int i;
+	int i = 0;
 
 	if (!tg3_flag(tp, ENABLE_TSS)) {
 		tw32(HOSTCC_TXCOL_TICKS, ec->tx_coalesce_usecs);
@@ -8343,17 +8344,64 @@ static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 		tw32(HOSTCC_TXCOL_TICKS, 0);
 		tw32(HOSTCC_TXMAX_FRAMES, 0);
 		tw32(HOSTCC_TXCOAL_MAXF_INT, 0);
+
+		for (; i < tp->txq_cnt; i++) {
+			u32 reg;
+
+			reg = HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18;
+			tw32(reg, ec->tx_coalesce_usecs);
+			reg = HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18;
+			tw32(reg, ec->tx_max_coalesced_frames);
+			reg = HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18;
+			tw32(reg, ec->tx_max_coalesced_frames_irq);
+		}
 	}
+
+	for (; i < tp->irq_max - 1; i++) {
+		tw32(HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18, 0);
+		tw32(HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18, 0);
+		tw32(HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
+	}
+}
+
+static void tg3_coal_rx_init(struct tg3 *tp, struct ethtool_coalesce *ec)
+{
+	int i = 0;
+	u32 limit = tp->rxq_cnt;
 
 	if (!tg3_flag(tp, ENABLE_RSS)) {
 		tw32(HOSTCC_RXCOL_TICKS, ec->rx_coalesce_usecs);
 		tw32(HOSTCC_RXMAX_FRAMES, ec->rx_max_coalesced_frames);
 		tw32(HOSTCC_RXCOAL_MAXF_INT, ec->rx_max_coalesced_frames_irq);
+		limit--;
 	} else {
 		tw32(HOSTCC_RXCOL_TICKS, 0);
 		tw32(HOSTCC_RXMAX_FRAMES, 0);
 		tw32(HOSTCC_RXCOAL_MAXF_INT, 0);
 	}
+
+	for (; i < limit; i++) {
+		u32 reg;
+
+		reg = HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18;
+		tw32(reg, ec->rx_coalesce_usecs);
+		reg = HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18;
+		tw32(reg, ec->rx_max_coalesced_frames);
+		reg = HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18;
+		tw32(reg, ec->rx_max_coalesced_frames_irq);
+	}
+
+	for (; i < tp->irq_max - 1; i++) {
+		tw32(HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18, 0);
+		tw32(HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18, 0);
+		tw32(HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
+	}
+}
+
+static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
+{
+	tg3_coal_tx_init(tp, ec);
+	tg3_coal_rx_init(tp, ec);
 
 	if (!tg3_flag(tp, 5705_PLUS)) {
 		u32 val = ec->stats_block_coalesce_usecs;
@@ -8365,38 +8413,6 @@ static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 			val = 0;
 
 		tw32(HOSTCC_STAT_COAL_TICKS, val);
-	}
-
-	for (i = 0; i < tp->irq_cnt - 1; i++) {
-		u32 reg;
-
-		reg = HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18;
-		tw32(reg, ec->rx_coalesce_usecs);
-		reg = HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18;
-		tw32(reg, ec->rx_max_coalesced_frames);
-		reg = HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18;
-		tw32(reg, ec->rx_max_coalesced_frames_irq);
-
-		if (tg3_flag(tp, ENABLE_TSS)) {
-			reg = HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18;
-			tw32(reg, ec->tx_coalesce_usecs);
-			reg = HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18;
-			tw32(reg, ec->tx_max_coalesced_frames);
-			reg = HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18;
-			tw32(reg, ec->tx_max_coalesced_frames_irq);
-		}
-	}
-
-	for (; i < tp->irq_max - 1; i++) {
-		tw32(HOSTCC_RXCOL_TICKS_VEC1 + i * 0x18, 0);
-		tw32(HOSTCC_RXMAX_FRAMES_VEC1 + i * 0x18, 0);
-		tw32(HOSTCC_RXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
-
-		if (tg3_flag(tp, ENABLE_TSS)) {
-			tw32(HOSTCC_TXCOL_TICKS_VEC1 + i * 0x18, 0);
-			tw32(HOSTCC_TXMAX_FRAMES_VEC1 + i * 0x18, 0);
-			tw32(HOSTCC_TXCOAL_MAXF_INT_VEC1 + i * 0x18, 0);
-		}
 	}
 }
 
