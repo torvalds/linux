@@ -161,7 +161,7 @@ void ath9k_htc_start_btcoex(struct ath9k_htc_priv *priv)
 
 	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE) {
 		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-					   AR_STOMP_LOW_WLAN_WGHT);
+					   AR_STOMP_LOW_WLAN_WGHT, 0);
 		ath9k_hw_btcoex_enable(ah);
 		ath_htc_resume_btcoex_work(priv);
 	}
