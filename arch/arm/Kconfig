@@ -345,18 +345,6 @@ config ARCH_BCM2835
 	  This enables support for the Broadcom BCM2835 SoC. This SoC is
 	  use in the Raspberry Pi, and Roku 2 devices.
 
-config ARCH_BCMRING
-	bool "Broadcom BCMRING"
-	depends on MMU
-	select CPU_V6
-	select ARM_AMBA
-	select ARM_TIMER_SP804
-	select CLKDEV_LOOKUP
-	select GENERIC_CLOCKEVENTS
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	help
-	  Support for Broadcom's BCMRing platform.
-
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
 	select CPU_ARM720T
@@ -1019,8 +1007,6 @@ endmenu
 source "arch/arm/mach-mvebu/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
-
-source "arch/arm/mach-bcmring/Kconfig"
 
 source "arch/arm/mach-clps711x/Kconfig"
 
