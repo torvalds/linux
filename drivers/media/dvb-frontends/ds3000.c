@@ -1316,3 +1316,4 @@ MODULE_DESCRIPTION("DVB Frontend module for Montage Technology "
 			"DS3000/TS2020 hardware");
 MODULE_AUTHOR("Konstantin Dimitrov");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(DS3000_DEFAULT_FIRMWARE);
