@@ -159,7 +159,7 @@ static int virtio_dev_remove(struct device *_d)
 	drv->remove(dev);
 
 	/* Driver should have reset device. */
-	BUG_ON(dev->config->get_status(dev));
+	WARN_ON_ONCE(dev->config->get_status(dev));
 
 	/* Acknowledge the device's existence again. */
 	add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
