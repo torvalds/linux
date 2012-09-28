@@ -278,7 +278,7 @@ static int a2mp_getinfo_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	BT_DBG("id %d", req->id);
 
 	hdev = hci_dev_get(req->id);
-	if (!hdev) {
+	if (!hdev || hdev->dev_type != HCI_AMP) {
 		struct a2mp_info_rsp rsp;
 
 		rsp.id = req->id;
@@ -286,14 +286,16 @@ static int a2mp_getinfo_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 		a2mp_send(mgr, A2MP_GETINFO_RSP, hdr->ident, sizeof(rsp),
 			  &rsp);
+
+		goto done;
 	}
 
-	if (hdev->dev_type != HCI_BREDR) {
-		mgr->state = READ_LOC_AMP_INFO;
-		hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
-	}
+	mgr->state = READ_LOC_AMP_INFO;
+	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
 
-	hci_dev_put(hdev);
+done:
+	if (hdev)
+		hci_dev_put(hdev);
 
 	skb_pull(skb, sizeof(*req));
 	return 0;
