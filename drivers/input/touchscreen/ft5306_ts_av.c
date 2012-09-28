@@ -73,7 +73,7 @@
 
 #define CONFIG_FT5X0X_MULTITOUCH  1
 #define MAX_POINT                 5
-#define FT5306_IIC_SPEED          400*1000    //300*1000
+#define FT5306_IIC_SPEED          100*1000    //300*1000
 //#define TOUCH_RESET_PIN           RK30_PIN1_PC0
 #define FT5X0X_REG_THRES          0x80         /* Thresshold, the threshold be low, the sensitivy will be high */
 #define FT5X0X_REG_REPORT_RATE    0x88         /* **************report rate, in unit of 10Hz **************/
