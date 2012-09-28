@@ -8,7 +8,6 @@
  * e.g.  bank=2, goff=A, off=3 ==>gpio is RKXX_PIN2_PA3
  */
 struct irq_config{
-#if defined(__LITTLE_ENDIAN_BITFIELD)
         unsigned int off:4,  //bit[3:0]
                      goff:4,
                      bank:4,
@@ -16,14 +15,8 @@ struct irq_config{
                      wake_en:4,
                      irq_flags:4,
                      reserve:8;
-
-
-#else
-#error	"Adjust your <asm/byteorder.h> defines"
-#endif	
 };
 struct gpio_config{
-#if defined(__LITTLE_ENDIAN_BITFIELD)
         unsigned int off:4, //bit[3:0]
                      goff:4,
                      bank:4,
@@ -31,11 +24,7 @@ struct gpio_config{
                      active_low:4,
                      pull_mode:4, 
                      reserve:8;
-#else
-#error	"Adjust your <asm/byteorder.h> defines"
-#endif	
 };
-
 struct port_config {
         union{
                 struct irq_config irq;
