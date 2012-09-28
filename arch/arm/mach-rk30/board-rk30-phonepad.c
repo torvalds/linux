@@ -1077,7 +1077,7 @@ static int rk29_backlight_pwm_suspend(void)
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return -1;
 	}
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	gpio_direction_output(PWM_GPIO, !PWM_EFFECT_VALUE);
 #ifdef  LCD_DISP_ON_PIN
 	gpio_direction_output(BL_EN_PIN, 0);
 	gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
@@ -1547,6 +1547,9 @@ static struct sensor_platform_data light_isl29023_info = {
 #define LCD_STANDBY_PIN         RK30_PIN4_PD2
 #define LCD_STANDBY_VALUE       GPIO_HIGH
 
+#define LCD_RST_MUX_NAME    GPIO4D1_SMCDATA9_TRACEDATA9_NAME
+#define LCD_RST_PIN         RK30_PIN4_PD1
+#define LCD_RST_VALUE       GPIO_HIGH
 
 #define LCD_EN_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
 #define LCD_EN_PIN         RK30_PIN6_PB4
@@ -1560,19 +1563,6 @@ static struct sensor_platform_data light_isl29023_info = {
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
-
-	rk30_mux_api_set(LCD_STANDBY_MUX_NAME, GPIO4D_GPIO4D2);
-	ret = gpio_request(LCD_STANDBY_PIN, NULL);
-	if (ret != 0)
-	{
-		gpio_free(LCD_STANDBY_PIN);
-		printk(KERN_ERR "request lcd cs pin fail!\n");
-		return -1;
-	}
-	else
-	{
-		gpio_direction_output(LCD_STANDBY_PIN, LCD_STANDBY_VALUE);
-	}
 
 	rk30_mux_api_set(GPIO3A6_SDMMC0RSTNOUT_NAME, GPIO3A_GPIO3A6);
 	ret = gpio_request(HDMI11_EN_PIN, NULL);
@@ -1610,6 +1600,33 @@ static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 	{
 		gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
 	}
+
+	rk30_mux_api_set(LCD_STANDBY_MUX_NAME, GPIO4D_GPIO4D2);
+	ret = gpio_request(LCD_STANDBY_PIN, NULL);
+	if (ret != 0)
+	{
+		gpio_free(LCD_STANDBY_PIN);
+		printk(KERN_ERR "request lcd cs pin fail!\n");
+		return -1;
+	}
+	else
+	{
+		gpio_direction_output(LCD_STANDBY_PIN, LCD_STANDBY_VALUE);
+	}
+
+	rk30_mux_api_set(LCD_RST_MUX_NAME, GPIO4D_GPIO4D1);
+	ret = gpio_request(LCD_RST_PIN, NULL);
+	if (ret != 0)
+	{
+		gpio_free(LCD_RST_PIN);
+		printk(KERN_ERR "request lcd cs pin fail!\n");
+		return -1;
+	}
+	else
+	{
+		gpio_direction_output(LCD_RST_PIN, LCD_RST_VALUE);
+	}
+	
 	return 0;
 }
 static int rk_fb_io_disable(void)
@@ -1617,7 +1634,9 @@ static int rk_fb_io_disable(void)
 	msleep(30);		//Response Time (Rising + Falling)
 	gpio_set_value(HDMI11_EN_PIN, HDMI11_EN_VALUE? 0:1);
 	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE? 0:1);
-	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE? 0:1);
+	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE? 0:1);	
+	gpio_set_value(LCD_RST_PIN, LCD_RST_VALUE? 0:1);
+	gpio_set_value(LCD_STANDBY_PIN, LCD_STANDBY_VALUE? 0:1);	
 	return 0;
 }
 static int rk_fb_io_enable(void)
@@ -1625,6 +1644,8 @@ static int rk_fb_io_enable(void)
 	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);	
 	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
 	gpio_set_value(HDMI11_EN_PIN, HDMI11_EN_VALUE);
+	gpio_set_value(LCD_RST_PIN, LCD_RST_VALUE);		
+	gpio_set_value(LCD_STANDBY_PIN, LCD_STANDBY_VALUE);	
 	msleep(150);	//wait for power stable
 	return 0;
 }
