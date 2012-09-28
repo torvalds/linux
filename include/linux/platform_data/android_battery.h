@@ -20,6 +20,7 @@ enum {
 struct android_bat_callbacks {
 	void (*charge_source_changed)
 		(struct android_bat_callbacks *, int);
+	void (*battery_set_full)(struct android_bat_callbacks *);
 };
 
 struct android_bat_platform_data {
@@ -37,6 +38,10 @@ struct android_bat_platform_data {
 	int temp_high_recovery;
 	int temp_low_recovery;
 	int temp_low_threshold;
+
+	unsigned long full_charging_time;
+	unsigned long recharging_time;
+	unsigned int recharging_voltage;
 };
 
 #endif
