@@ -272,15 +272,14 @@ static int ds3000_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 static int ds3000_writeFW(struct ds3000_state *state, int reg,
 				const u8 *data, u16 len)
 {
-	int i, ret = -EREMOTEIO;
+	int i, ret = 0;
 	struct i2c_msg msg;
 	u8 *buf;
 
 	buf = kmalloc(33, GFP_KERNEL);
 	if (buf == NULL) {
 		printk(KERN_ERR "Unable to kmalloc\n");
-		ret = -ENOMEM;
-		goto error;
+		return -ENOMEM;
 	}
 
 	*(buf) = reg;
@@ -300,8 +299,10 @@ static int ds3000_writeFW(struct ds3000_state *state, int reg,
 			printk(KERN_ERR "%s: write error(err == %i, "
 				"reg == 0x%02x\n", __func__, ret, reg);
 			ret = -EREMOTEIO;
+			goto error;
 		}
 	}
+	ret = 0;
 
 error:
 	kfree(buf);
@@ -384,6 +385,7 @@ static int ds3000_load_firmware(struct dvb_frontend *fe,
 					const struct firmware *fw)
 {
 	struct ds3000_state *state = fe->demodulator_priv;
+	int ret = 0;
 
 	dprintk("%s\n", __func__);
 	dprintk("Firmware is %zu bytes (%02x %02x .. %02x %02x)\n",
@@ -396,10 +398,10 @@ static int ds3000_load_firmware(struct dvb_frontend *fe,
 	/* Begin the firmware load process */
 	ds3000_writereg(state, 0xb2, 0x01);
 	/* write the entire firmware */
-	ds3000_writeFW(state, 0xb0, fw->data, fw->size);
+	ret = ds3000_writeFW(state, 0xb0, fw->data, fw->size);
 	ds3000_writereg(state, 0xb2, 0x00);
 
-	return 0;
+	return ret;
 }
 
 static int ds3000_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
