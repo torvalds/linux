@@ -60,6 +60,8 @@ struct android_bat_data {
 	unsigned int		batt_vcell;
 	unsigned int		batt_soc;
 	unsigned int		charging_status;
+	bool			recharging;
+	unsigned long		charging_start_time;
 
 	struct workqueue_struct *monitor_wqueue;
 	struct work_struct	monitor_work;
@@ -92,6 +94,8 @@ static enum power_supply_property android_power_props[] = {
 };
 
 static void android_bat_update_data(struct android_bat_data *battery);
+static int android_bat_enable_charging(struct android_bat_data *battery,
+					bool enable);
 
 static char *charge_source_str(int charge_source)
 {
@@ -250,6 +254,21 @@ static void android_bat_update_data(struct android_bat_data *battery)
 	android_bat_get_temp(battery);
 }
 
+static void android_bat_set_charge_time(struct android_bat_data *battery,
+					bool enable)
+{
+	if (enable && !battery->charging_start_time) {
+		struct timespec cur_time;
+
+		get_monotonic_boottime(&cur_time);
+		/* record start time for charge timeout timer */
+		battery->charging_start_time = cur_time.tv_sec;
+	} else if (!enable) {
+		/* clear charge timeout timer */
+		battery->charging_start_time = 0;
+	}
+}
+
 static int android_bat_enable_charging(struct android_bat_data *battery,
 				       bool enable)
 {
@@ -268,10 +287,58 @@ static int android_bat_enable_charging(struct android_bat_data *battery,
 	if (battery->pdata && battery->pdata->set_charging_enable)
 		battery->pdata->set_charging_enable(enable);
 
+	android_bat_set_charge_time(battery, enable);
 	pr_info("battery: enable=%d charger: %s\n", enable,
 		charge_source_str(battery->charge_source));
-
 	return 0;
+}
+
+static bool android_bat_charge_timeout(struct android_bat_data *battery,
+				       unsigned long timeout)
+{
+	struct timespec cur_time;
+
+	if (!battery->charging_start_time)
+		return 0;
+
+	get_monotonic_boottime(&cur_time);
+	pr_debug("%s: Start time: %ld, End time: %ld, current time: %ld\n",
+		 __func__, battery->charging_start_time,
+		 battery->charging_start_time + timeout,
+		 cur_time.tv_sec);
+	return cur_time.tv_sec >= battery->charging_start_time + timeout;
+}
+
+static void android_bat_charging_timer(struct android_bat_data *battery)
+{
+	if (!battery->charging_start_time &&
+	    battery->charging_status == POWER_SUPPLY_STATUS_CHARGING) {
+		android_bat_enable_charging(battery, true);
+		battery->recharging = true;
+		pr_debug("%s: charge status charging but timer is expired\n",
+			__func__);
+	} else if (battery->charging_start_time == 0) {
+		pr_debug("%s: charging_start_time never initialized\n",
+				__func__);
+		return;
+	}
+
+	if (android_bat_charge_timeout(
+		    battery,
+		    battery->recharging ? battery->pdata->recharging_time :
+		    battery->pdata->full_charging_time)) {
+		android_bat_enable_charging(battery, false);
+		if (battery->batt_vcell >
+		    battery->pdata->recharging_voltage &&
+		    battery->batt_soc == 100)
+			battery->charging_status =
+				POWER_SUPPLY_STATUS_FULL;
+		battery->recharging = false;
+		battery->charging_start_time = 0;
+		pr_info("battery: charging timer expired\n");
+	}
+
+	return;
 }
 
 static void android_bat_charge_source_changed(struct android_bat_callbacks *ptr,
@@ -289,6 +356,18 @@ static void android_bat_charge_source_changed(struct android_bat_callbacks *ptr,
 	queue_work(battery->monitor_wqueue, &battery->charger_work);
 }
 
+static void android_bat_set_full_status(struct android_bat_callbacks *ptr)
+{
+	struct android_bat_data *battery =
+		container_of(ptr, struct android_bat_data, callbacks);
+
+	pr_info("battery: battery full\n");
+	battery->charging_status = POWER_SUPPLY_STATUS_FULL;
+	android_bat_enable_charging(battery, false);
+	battery->recharging = false;
+	power_supply_changed(&battery->psy_bat);
+}
+
 static void android_bat_charger_work(struct work_struct *work)
 {
 	struct android_bat_data *battery =
@@ -298,8 +377,9 @@ static void android_bat_charger_work(struct work_struct *work)
 	case CHARGE_SOURCE_NONE:
 		battery->charging_status = POWER_SUPPLY_STATUS_DISCHARGING;
 		android_bat_enable_charging(battery, false);
-		if (battery->batt_health == POWER_SUPPLY_HEALTH_OVERVOLTAGE)
-			battery->batt_health = POWER_SUPPLY_HEALTH_GOOD;
+		battery->batt_health = POWER_SUPPLY_HEALTH_GOOD;
+		battery->recharging = false;
+		battery->charging_start_time = 0;
 		break;
 	case CHARGE_SOURCE_USB:
 	case CHARGE_SOURCE_AC:
@@ -327,14 +407,23 @@ static void android_bat_monitor_set_alarm(struct android_bat_data *battery,
 
 static void android_bat_monitor_work(struct work_struct *work)
 {
-	struct android_bat_data *battery;
-	battery = container_of(work, struct android_bat_data, monitor_work);
+	struct android_bat_data *battery =
+		container_of(work, struct android_bat_data, monitor_work);
+	struct timespec cur_time;
 
 	wake_lock(&battery->monitor_wake_lock);
 	android_bat_update_data(battery);
 
 	switch (battery->charging_status) {
 	case POWER_SUPPLY_STATUS_FULL:
+		if (battery->batt_vcell < battery->pdata->recharging_voltage &&
+		    !battery->recharging) {
+			battery->recharging = true;
+			android_bat_enable_charging(battery, true);
+			pr_info("battery: start recharging, v=%d\n",
+				battery->batt_vcell/1000);
+		}
+		break;
 	case POWER_SUPPLY_STATUS_DISCHARGING:
 		break;
 	case POWER_SUPPLY_STATUS_CHARGING:
@@ -362,9 +451,10 @@ static void android_bat_monitor_work(struct work_struct *work)
 				android_bat_enable_charging(battery, true);
 				battery->charging_status
 					= POWER_SUPPLY_STATUS_CHARGING;
-			} else
+			} else {
 				battery->charging_status
 					= POWER_SUPPLY_STATUS_DISCHARGING;
+			}
 		}
 		break;
 	default:
@@ -373,11 +463,16 @@ static void android_bat_monitor_work(struct work_struct *work)
 		break;
 	}
 
-	pr_info("battery: l=%d v=%d c=%d temp=%s%ld.%ld h=%d st=%d type=%s\n",
+	android_bat_charging_timer(battery);
+	get_monotonic_boottime(&cur_time);
+	pr_info("battery: l=%d v=%d c=%d temp=%s%ld.%ld h=%d st=%d%s ct=%lu type=%s\n",
 		battery->batt_soc, battery->batt_vcell/1000,
 		battery->batt_current, battery->batt_temp < 0 ? "-" : "",
 		abs(battery->batt_temp / 10), abs(battery->batt_temp % 10),
 		battery->batt_health, battery->charging_status,
+		   battery->recharging ? "r" : "",
+		   battery->charging_start_time ?
+		   cur_time.tv_sec - battery->charging_start_time : 0,
 		charge_source_str(battery->charge_source));
 	power_supply_changed(&battery->psy_bat);
 	battery->last_poll = ktime_get_boottime();
@@ -400,13 +495,18 @@ static enum alarmtimer_restart android_bat_monitor_alarm(
 static int android_power_debug_dump(struct seq_file *s, void *unused)
 {
 	struct android_bat_data *battery = s->private;
+	struct timespec cur_time;
 
 	android_bat_update_data(battery);
-	seq_printf(s, "l=%d v=%d c=%d temp=%s%ld.%ld h=%d st=%d type=%s\n",
+	get_monotonic_boottime(&cur_time);
+	seq_printf(s, "l=%d v=%d c=%d temp=%s%ld.%ld h=%d st=%d%s ct=%lu type=%s\n",
 		   battery->batt_soc, battery->batt_vcell/1000,
 		   battery->batt_current, battery->batt_temp < 0 ? "-" : "",
 		   abs(battery->batt_temp / 10), abs(battery->batt_temp % 10),
 		   battery->batt_health, battery->charging_status,
+		   battery->recharging ? "r" : "",
+		   battery->charging_start_time ?
+		   cur_time.tv_sec - battery->charging_start_time : 0,
 		   charge_source_str(battery->charge_source));
 
 	return 0;
@@ -510,6 +610,8 @@ static int android_bat_probe(struct platform_device *pdev)
 
 	battery->callbacks.charge_source_changed =
 		android_bat_charge_source_changed;
+	battery->callbacks.battery_set_full =
+		android_bat_set_full_status;
 	if (battery->pdata && battery->pdata->register_callbacks)
 		battery->pdata->register_callbacks(&battery->callbacks);
 
