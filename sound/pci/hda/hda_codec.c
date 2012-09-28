@@ -3612,7 +3612,7 @@ static inline void hda_exec_init_verbs(struct hda_codec *codec) {}
  * call suspend and power-down; used both from PM and power-save
  * this function returns the power state in the end
  */
-static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
+static unsigned int hda_call_codec_suspend(struct hda_codec *codec, bool in_wq)
 {
 	unsigned int state;
 
@@ -3620,7 +3620,9 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
 		codec->patch_ops.suspend(codec);
 	hda_cleanup_all_streams(codec);
 	state = hda_set_power_state(codec, AC_PWRST_D3);
-	cancel_delayed_work(&codec->power_work);
+	/* Cancel delayed work if we aren't currently running from it. */
+	if (!in_wq)
+		cancel_delayed_work_sync(&codec->power_work);
 	spin_lock(&codec->power_lock);
 	snd_hda_update_power_acct(codec);
 	trace_hda_power_down(codec);
@@ -4478,7 +4480,7 @@ static void hda_power_work(struct work_struct *work)
 	}
 	spin_unlock(&codec->power_lock);
 
-	state = hda_call_codec_suspend(codec);
+	state = hda_call_codec_suspend(codec, true);
 	codec->pm_down_notified = 0;
 	if (!bus->power_keep_link_on && (state & AC_PWRST_CLK_STOP_OK)) {
 		codec->pm_down_notified = 1;
@@ -5127,7 +5129,7 @@ int snd_hda_suspend(struct hda_bus *bus)
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		if (hda_codec_is_power_on(codec))
-			hda_call_codec_suspend(codec);
+			hda_call_codec_suspend(codec, false);
 	}
 	return 0;
 }
