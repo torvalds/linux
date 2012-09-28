@@ -2425,6 +2425,9 @@ int be_cmd_req_native_mode(struct be_adapter *adapter)
 		struct be_cmd_resp_set_func_cap *resp = embedded_payload(wrb);
 		adapter->be3_native = le32_to_cpu(resp->cap_flags) &
 					CAPABILITY_BE3_NATIVE_ERX_API;
+		if (!adapter->be3_native)
+			dev_warn(&adapter->pdev->dev,
+				 "adapter not in advanced mode\n");
 	}
 err:
 	mutex_unlock(&adapter->mbox_lock);
