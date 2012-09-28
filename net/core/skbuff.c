@@ -3483,8 +3483,7 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 		    skb_shinfo(from)->nr_frags > MAX_SKB_FRAGS)
 			return false;
 
-		delta = from->truesize -
-			SKB_TRUESIZE(skb_end_pointer(from) - from->head);
+		delta = from->truesize - SKB_TRUESIZE(skb_end_offset(from));
 	}
 
 	WARN_ON_ONCE(delta < len);
