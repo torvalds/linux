@@ -1361,7 +1361,7 @@ sitd_slot_ok (
  * given EHCI_TUNE_FLS and the slop).  Or, write a smarter scheduler!
  */
 
-#define SCHEDULE_SLOP	80	/* microframes */
+#define SCHEDULING_DELAY	40	/* microframes */
 
 static int
 iso_stream_schedule (
@@ -1370,7 +1370,7 @@ iso_stream_schedule (
 	struct ehci_iso_stream	*stream
 )
 {
-	u32			now, next, start, period, span;
+	u32			now, base, next, start, period, span;
 	int			status;
 	unsigned		mod = ehci->periodic_size << 3;
 	struct ehci_iso_sched	*sched = urb->hcpriv;
@@ -1382,12 +1382,6 @@ iso_stream_schedule (
 		span <<= 3;
 	}
 
-	if (span > mod - SCHEDULE_SLOP) {
-		ehci_dbg (ehci, "iso request %p too long\n", urb);
-		status = -EFBIG;
-		goto fail;
-	}
-
 	now = ehci_read_frame_index(ehci) & (mod - 1);
 
 	/* Typical case: reuse current schedule, stream is still active.
@@ -1396,7 +1390,6 @@ iso_stream_schedule (
 	 * slot in the schedule, implicitly assuming URB_ISO_ASAP.
 	 */
 	if (likely (!list_empty (&stream->td_list))) {
-		u32	excess;
 
 		/* For high speed devices, allow scheduling within the
 		 * isochronous scheduling threshold.  For full speed devices
@@ -1408,36 +1401,41 @@ iso_stream_schedule (
 		else
 			next = now;
 
-		/* Fell behind (by up to twice the slop amount)?
-		 * We decide based on the time of the last currently-scheduled
-		 * slot, not the time of the next available slot.
+		/*
+		 * Use ehci->last_iso_frame as the base.  There can't be any
+		 * TDs scheduled for earlier than that.
 		 */
-		excess = (stream->next_uframe - period - next) & (mod - 1);
-		if (excess >= mod - 2 * SCHEDULE_SLOP)
-			start = next + excess - mod + period *
-					DIV_ROUND_UP(mod - excess, period);
-		else
-			start = next + excess + period;
-		if (start - now >= mod) {
-			ehci_dbg(ehci, "request %p would overflow (%d+%d >= %d)\n",
-					urb, start - now - period, period,
-					mod);
-			status = -EFBIG;
+		base = ehci->last_iso_frame << 3;
+		next = (next - base) & (mod - 1);
+		start = (stream->next_uframe - base) & (mod - 1);
+
+		/* Is the schedule already full? */
+		if (unlikely(start < period)) {
+			ehci_dbg(ehci, "iso sched full %p (%u-%u < %u mod %u)\n",
+					urb, stream->next_uframe, base,
+					period, mod);
+			status = -ENOSPC;
 			goto fail;
 		}
+
+		/* Behind the scheduling threshold?  Assume URB_ISO_ASAP. */
+		if (unlikely(start < next))
+			start += period * DIV_ROUND_UP(next - start, period);
+
+		start += base;
 	}
 
 	/* need to schedule; when's the next (u)frame we could start?
 	 * this is bigger than ehci->i_thresh allows; scheduling itself
-	 * isn't free, the slop should handle reasonably slow cpus.  it
+	 * isn't free, the delay should handle reasonably slow cpus.  it
 	 * can also help high bandwidth if the dma and irq loads don't
 	 * jump until after the queue is primed.
 	 */
 	else {
 		int done = 0;
-		start = SCHEDULE_SLOP + (now & ~0x07);
 
-		/* NOTE:  assumes URB_ISO_ASAP, to limit complexity/bugs */
+		base = now & ~0x07;
+		start = base + SCHEDULING_DELAY;
 
 		/* find a uframe slot with enough bandwidth.
 		 * Early uframes are more precious because full-speed
@@ -1464,19 +1462,16 @@ iso_stream_schedule (
 
 		/* no room in the schedule */
 		if (!done) {
-			ehci_dbg(ehci, "iso resched full %p (now %d max %d)\n",
-				urb, now, now + mod);
+			ehci_dbg(ehci, "iso sched full %p", urb);
 			status = -ENOSPC;
 			goto fail;
 		}
 	}
 
 	/* Tried to schedule too far into the future? */
-	if (unlikely(start - now + span - period
-				>= mod - 2 * SCHEDULE_SLOP)) {
-		ehci_dbg(ehci, "request %p would overflow (%d+%d >= %d)\n",
-				urb, start - now, span - period,
-				mod - 2 * SCHEDULE_SLOP);
+	if (unlikely(start - base + span - period >= mod)) {
+		ehci_dbg(ehci, "request %p would overflow (%u+%u >= %u)\n",
+				urb, start - base, span - period, mod);
 		status = -EFBIG;
 		goto fail;
 	}
@@ -1490,7 +1485,7 @@ iso_stream_schedule (
 
 	/* Make sure scan_isoc() sees these */
 	if (ehci->isoc_count == 0)
-		ehci->next_frame = now >> 3;
+		ehci->last_iso_frame = now >> 3;
 	return 0;
 
  fail:
@@ -2220,16 +2215,16 @@ static void scan_isoc(struct ehci_hcd *ehci)
 		now_frame = (uf >> 3) & fmask;
 		live = true;
 	} else  {
-		now_frame = (ehci->next_frame - 1) & fmask;
+		now_frame = (ehci->last_iso_frame - 1) & fmask;
 		live = false;
 	}
 	ehci->now_frame = now_frame;
 
-	frame = ehci->next_frame;
 	for (;;) {
 		union ehci_shadow	q, *q_p;
 		__hc32			type, *hw_p;
 
+		frame = ehci->last_iso_frame;
 restart:
 		/* scan each element in frame's queue for completions */
 		q_p = &ehci->pshadow [frame];
@@ -2334,7 +2329,6 @@ restart:
 		/* Stop when we have reached the current frame */
 		if (frame == now_frame)
 			break;
-		frame = (frame + 1) & fmask;
+		ehci->last_iso_frame = (frame + 1) & fmask;
 	}
-	ehci->next_frame = now_frame;
 }

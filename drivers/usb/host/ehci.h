@@ -143,7 +143,7 @@ struct ehci_hcd {			/* one per controller */
 	struct ehci_qh		*intr_unlink_last;
 	unsigned		intr_unlink_cycle;
 	unsigned		now_frame;	/* frame from HC hardware */
-	unsigned		next_frame;	/* scan periodic, start here */
+	unsigned		last_iso_frame;	/* last frame scanned for iso */
 	unsigned		intr_count;	/* intr activity count */
 	unsigned		isoc_count;	/* isoc activity count */
 	unsigned		periodic_count;	/* periodic activity count */
