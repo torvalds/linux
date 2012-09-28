@@ -35,8 +35,6 @@
 
 #include <video/omapdss.h>
 
-#include <plat/cpu.h>
-
 #include "dss.h"
 #include "dss_features.h"
 
