@@ -336,7 +336,7 @@ config ARCH_AT91
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_ERRATA_411920
 	select ARM_TIMER_SP804
@@ -344,7 +344,10 @@ config ARCH_BCM2835
 	select COMMON_CLK
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
 	select MULTI_IRQ_HANDLER
+	select PINCTRL
+	select PINCTRL_BCM2835
 	select SPARSE_IRQ
 	select USE_OF
 	help
