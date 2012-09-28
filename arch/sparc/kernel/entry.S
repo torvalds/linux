@@ -990,8 +990,15 @@ ret_from_kernel_thread:
 	ld	[%sp + STACKFRAME_SZ + PT_G1], %l0
 	call	%l0
 	 ld	[%sp + STACKFRAME_SZ + PT_G2], %o0
-	call	do_exit	/* won't return */
-	 clr	%o0
+	rd	%psr, %l1
+	ld	[%sp + STACKFRAME_SZ + PT_PSR], %l0
+	andn	%l0, PSR_CWP, %l0
+	nop
+	and	%l1, PSR_CWP, %l1
+	or	%l0, %l1, %l0
+	st	%l0, [%sp + STACKFRAME_SZ + PT_PSR]
+	b	ret_sys_call
+	 mov	0, %o0
 
 	/* Linux native system calls enter here... */
 	.align	4
