@@ -4833,7 +4833,9 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
 	}
 
 	/* finish any pending end_io work */
-	ext4_flush_completed_IO(inode);
+	err = ext4_flush_completed_IO(inode);
+	if (err)
+		return err;
 
 	credits = ext4_writepage_trans_blocks(inode);
 	handle = ext4_journal_start(inode, credits);
