@@ -1695,8 +1695,14 @@ struct fcf_record {
 #define lpfc_fcf_record_fc_map_2_MASK		0x000000FF
 #define lpfc_fcf_record_fc_map_2_WORD		word7
 #define lpfc_fcf_record_fcf_valid_SHIFT		24
-#define lpfc_fcf_record_fcf_valid_MASK		0x000000FF
+#define lpfc_fcf_record_fcf_valid_MASK		0x00000001
 #define lpfc_fcf_record_fcf_valid_WORD		word7
+#define lpfc_fcf_record_fcf_fc_SHIFT		25
+#define lpfc_fcf_record_fcf_fc_MASK		0x00000001
+#define lpfc_fcf_record_fcf_fc_WORD		word7
+#define lpfc_fcf_record_fcf_sol_SHIFT		31
+#define lpfc_fcf_record_fcf_sol_MASK		0x00000001
+#define lpfc_fcf_record_fcf_sol_WORD		word7
 	uint32_t word8;
 #define lpfc_fcf_record_fcf_index_SHIFT		0
 #define lpfc_fcf_record_fcf_index_MASK		0x0000FFFF
