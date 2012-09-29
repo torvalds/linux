@@ -1285,6 +1285,10 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		    (priv->id == TDA18271HDC2))
 			tda18271c2_rf_cal_init(fe);
 
+		/* enter standby mode, with required output features enabled */
+		ret = tda18271_toggle_output(fe, 1);
+		tda_fail(ret);
+
 		mutex_unlock(&priv->lock);
 		break;
 	default:
@@ -1322,9 +1326,6 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 
 	if (tda18271_debug & (DBG_MAP | DBG_ADV))
 		tda18271_dump_std_map(fe);
-
-	ret = tda18271_sleep(fe);
-	tda_fail(ret);
 
 	return fe;
 fail:
