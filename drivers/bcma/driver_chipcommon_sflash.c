@@ -12,7 +12,7 @@
 
 static struct resource bcma_sflash_resource = {
 	.name	= "bcma_sflash",
-	.start	= BCMA_SFLASH,
+	.start	= BCMA_SOC_FLASH2,
 	.end	= 0,
 	.flags  = IORESOURCE_MEM | IORESOURCE_READONLY,
 };
@@ -116,7 +116,7 @@ int bcma_sflash_init(struct bcma_drv_cc *cc)
 		return -ENOTSUPP;
 	}
 
-	sflash->window = BCMA_SFLASH;
+	sflash->window = BCMA_SOC_FLASH2;
 	sflash->blocksize = e->blocksize;
 	sflash->numblocks = e->numblocks;
 	sflash->size = sflash->blocksize * sflash->numblocks;
