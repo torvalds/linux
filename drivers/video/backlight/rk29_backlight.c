@@ -152,7 +152,6 @@ static struct backlight_ops rk29_bl_ops = {
 
 static void rk29_backlight_work_func(struct work_struct *work)
 {
-	suspend_flag = 0;
 	rk29_bl_update_status(rk29_bl);
 }
 static DECLARE_DELAYED_WORK(rk29_backlight_work, rk29_backlight_work_func);
@@ -190,6 +189,7 @@ static void rk29_bl_resume(struct early_suspend *h)
 
 	clk_enable(pwm_clk);
 
+	suspend_flag = 0;
 	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(rk29_bl_info->delay_ms));
 }
 
