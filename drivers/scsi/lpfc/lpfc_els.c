@@ -3160,7 +3160,8 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				retry = 1;
 				break;
 			}
-			if (cmd == ELS_CMD_PLOGI) {
+			if ((cmd == ELS_CMD_PLOGI) ||
+			    (cmd == ELS_CMD_PRLI)) {
 				delay = 1000;
 				maxretry = lpfc_max_els_tries + 1;
 				retry = 1;
@@ -3305,7 +3306,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			ndlp->nlp_prev_state = ndlp->nlp_state;
 			if (cmd == ELS_CMD_PRLI)
 				lpfc_nlp_set_state(vport, ndlp,
-					NLP_STE_REG_LOGIN_ISSUE);
+					NLP_STE_PRLI_ISSUE);
 			else
 				lpfc_nlp_set_state(vport, ndlp,
 					NLP_STE_NPR_NODE);
