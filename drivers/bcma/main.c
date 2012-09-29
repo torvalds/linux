@@ -182,6 +182,20 @@ int __devinit bcma_bus_register(struct bcma_bus *bus)
 		return -1;
 	}
 
+	/* Early init CC core */
+	core = bcma_find_core(bus, bcma_cc_core_id(bus));
+	if (core) {
+		bus->drv_cc.core = core;
+		bcma_core_chipcommon_early_init(&bus->drv_cc);
+	}
+
+	/* Try to get SPROM */
+	err = bcma_sprom_get(bus);
+	if (err == -ENOENT) {
+		bcma_err(bus, "No SPROM available\n");
+	} else if (err)
+		bcma_err(bus, "Failed to get SPROM: %d\n", err);
+
 	/* Init CC core */
 	core = bcma_find_core(bus, bcma_cc_core_id(bus));
 	if (core) {
@@ -209,13 +223,6 @@ int __devinit bcma_bus_register(struct bcma_bus *bus)
 		bus->drv_gmac_cmn.core = core;
 		bcma_core_gmac_cmn_init(&bus->drv_gmac_cmn);
 	}
-
-	/* Try to get SPROM */
-	err = bcma_sprom_get(bus);
-	if (err == -ENOENT) {
-		bcma_err(bus, "No SPROM available\n");
-	} else if (err)
-		bcma_err(bus, "Failed to get SPROM: %d\n", err);
 
 	/* Register found cores */
 	bcma_register_cores(bus);
