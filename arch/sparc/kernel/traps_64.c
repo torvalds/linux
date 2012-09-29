@@ -850,7 +850,7 @@ void __init cheetah_ecache_flush_init(void)
 	ecache_flush_physbase = find_ecache_flush_span(ecache_flush_size);
 
 	if (ecache_flush_physbase == ~0UL) {
-		prom_printf("cheetah_ecache_flush_init: Cannot find %d byte "
+		prom_printf("cheetah_ecache_flush_init: Cannot find %ld byte "
 			    "contiguous physical memory.\n",
 			    ecache_flush_size);
 		prom_halt();

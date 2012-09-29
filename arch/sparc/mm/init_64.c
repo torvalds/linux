@@ -119,7 +119,8 @@ static void __init read_obp_memory(const char *property,
 
 	ret = prom_getproperty(node, property, (char *) regs, prop_size);
 	if (ret == -1) {
-		prom_printf("Couldn't get %s property from /memory.\n");
+		prom_printf("Couldn't get %s property from /memory.\n",
+				property);
 		prom_halt();
 	}
 
@@ -497,7 +498,7 @@ static void __init read_obp_translations(void)
 		prom_halt();
 	}
 	if (unlikely(n > sizeof(prom_trans))) {
-		prom_printf("prom_mappings: Size %Zd is too big.\n", n);
+		prom_printf("prom_mappings: Size %d is too big.\n", n);
 		prom_halt();
 	}
 
@@ -559,7 +560,7 @@ static void __init hypervisor_tlb_lock(unsigned long vaddr,
 	unsigned long ret = sun4v_mmu_map_perm_addr(vaddr, 0, pte, mmu);
 
 	if (ret != 0) {
-		prom_printf("hypervisor_tlb_lock[%lx:%lx:%lx:%lx]: "
+		prom_printf("hypervisor_tlb_lock[%lx:%x:%lx:%lx]: "
 			    "errors with %lx\n", vaddr, 0, pte, mmu, ret);
 		prom_halt();
 	}

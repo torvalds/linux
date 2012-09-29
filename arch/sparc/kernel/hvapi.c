@@ -194,7 +194,7 @@ void __init sun4v_hvapi_init(void)
 
 bad:
 	prom_printf("HVAPI: Cannot register API group "
-		    "%lx with major(%u) minor(%u)\n",
+		    "%lx with major(%lu) minor(%lu)\n",
 		    group, major, minor);
 	prom_halt();
 }
