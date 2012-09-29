@@ -912,7 +912,7 @@ struct ext4_inode_info {
 	struct list_head i_completed_io_list;
 	spinlock_t i_completed_io_lock;
 	atomic_t i_ioend_count;	/* Number of outstanding io_end structs */
-	atomic_t i_aiodio_unwritten; /* Nr. of inflight conversions pending */
+	atomic_t i_unwritten; /* Nr. of inflight conversions pending */
 
 	spinlock_t i_block_reservation_lock;
 
@@ -1332,7 +1332,7 @@ static inline void ext4_set_io_unwritten_flag(struct inode *inode,
 {
 	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
 		io_end->flag |= EXT4_IO_END_UNWRITTEN;
-		atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+		atomic_inc(&EXT4_I(inode)->i_unwritten);
 	}
 }
 
