@@ -596,6 +596,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 		BUG_ON((uprobe->offset & ~PAGE_MASK) +
 				UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
 
+		smp_wmb(); /* pairs with rmb() in find_active_uprobe() */
 		uprobe->flags |= UPROBE_COPY_INSN;
 	}
 
@@ -1436,6 +1437,14 @@ static void handle_swbp(struct pt_regs *regs)
 		}
 		return;
 	}
+	/*
+	 * TODO: move copy_insn/etc into _register and remove this hack.
+	 * After we hit the bp, _unregister + _register can install the
+	 * new and not-yet-analyzed uprobe at the same address, restart.
+	 */
+	smp_rmb(); /* pairs with wmb() in install_breakpoint() */
+	if (unlikely(!(uprobe->flags & UPROBE_COPY_INSN)))
+		goto restart;
 
 	utask = current->utask;
 	if (!utask) {
