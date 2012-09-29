@@ -7072,6 +7072,40 @@ lpfc_sli4_async_mbox_unblock(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_wait_bmbx_ready - Wait for bootstrap mailbox register ready
+ * @phba: Pointer to HBA context object.
+ * @mboxq: Pointer to mailbox object.
+ *
+ * The function waits for the bootstrap mailbox register ready bit from
+ * port for twice the regular mailbox command timeout value.
+ *
+ *      0 - no timeout on waiting for bootstrap mailbox register ready.
+ *      MBXERR_ERROR - wait for bootstrap mailbox register timed out.
+ **/
+static int
+lpfc_sli4_wait_bmbx_ready(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	uint32_t db_ready;
+	unsigned long timeout;
+	struct lpfc_register bmbx_reg;
+
+	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, mboxq)
+				   * 1000) + jiffies;
+
+	do {
+		bmbx_reg.word0 = readl(phba->sli4_hba.BMBXregaddr);
+		db_ready = bf_get(lpfc_bmbx_rdy, &bmbx_reg);
+		if (!db_ready)
+			msleep(2);
+
+		if (time_after(jiffies, timeout))
+			return MBXERR_ERROR;
+	} while (!db_ready);
+
+	return 0;
+}
+
+/**
  * lpfc_sli4_post_sync_mbox - Post an SLI4 mailbox to the bootstrap mailbox
  * @phba: Pointer to HBA context object.
  * @mboxq: Pointer to mailbox object.
@@ -7092,15 +7126,12 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	int rc = MBX_SUCCESS;
 	unsigned long iflag;
-	uint32_t db_ready;
 	uint32_t mcqe_status;
 	uint32_t mbx_cmnd;
-	unsigned long timeout;
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_mqe *mb = &mboxq->u.mqe;
 	struct lpfc_bmbx_create *mbox_rgn;
 	struct dma_address *dma_address;
-	struct lpfc_register bmbx_reg;
 
 	/*
 	 * Only one mailbox can be active to the bootstrap mailbox region
@@ -7124,6 +7155,11 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	phba->sli.mbox_active = mboxq;
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 
+	/* wait for bootstrap mbox register for readyness */
+	rc = lpfc_sli4_wait_bmbx_ready(phba, mboxq);
+	if (rc)
+		goto exit;
+
 	/*
 	 * Initialize the bootstrap memory region to avoid stale data areas
 	 * in the mailbox post.  Then copy the caller's mailbox contents to
@@ -7138,35 +7174,18 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	dma_address = &phba->sli4_hba.bmbx.dma_address;
 	writel(dma_address->addr_hi, phba->sli4_hba.BMBXregaddr);
 
-	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, mboxq)
-				   * 1000) + jiffies;
-	do {
-		bmbx_reg.word0 = readl(phba->sli4_hba.BMBXregaddr);
-		db_ready = bf_get(lpfc_bmbx_rdy, &bmbx_reg);
-		if (!db_ready)
-			msleep(2);
-
-		if (time_after(jiffies, timeout)) {
-			rc = MBXERR_ERROR;
-			goto exit;
-		}
-	} while (!db_ready);
+	/* wait for bootstrap mbox register for hi-address write done */
+	rc = lpfc_sli4_wait_bmbx_ready(phba, mboxq);
+	if (rc)
+		goto exit;
 
 	/* Post the low mailbox dma address to the port. */
 	writel(dma_address->addr_lo, phba->sli4_hba.BMBXregaddr);
-	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, mboxq)
-				   * 1000) + jiffies;
-	do {
-		bmbx_reg.word0 = readl(phba->sli4_hba.BMBXregaddr);
-		db_ready = bf_get(lpfc_bmbx_rdy, &bmbx_reg);
-		if (!db_ready)
-			msleep(2);
 
-		if (time_after(jiffies, timeout)) {
-			rc = MBXERR_ERROR;
-			goto exit;
-		}
-	} while (!db_ready);
+	/* wait for bootstrap mbox register for low address write done */
+	rc = lpfc_sli4_wait_bmbx_ready(phba, mboxq);
+	if (rc)
+		goto exit;
 
 	/*
 	 * Read the CQ to ensure the mailbox has completed.
