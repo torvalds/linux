@@ -545,6 +545,14 @@ static struct twl6040_platform_data twl6040_data = {
 	.audpwron_gpio	= 127,
 };
 
+static struct i2c_board_info __initdata sdp4430_i2c_1_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("twl6040", 0x4b),
+		.irq = 119 + OMAP44XX_IRQ_GIC_START,
+		.platform_data = &twl6040_data,
+	},
+};
+
 static struct twl4030_platform_data sdp4430_twldata = {
 	/* Regulators */
 	.vusim		= &sdp4430_vusim,
@@ -578,8 +586,8 @@ static int __init omap4_i2c_init(void)
 			TWL_COMMON_REGULATOR_CLK32KG |
 			TWL_COMMON_REGULATOR_V1V8 |
 			TWL_COMMON_REGULATOR_V2V1);
-	omap4_pmic_init("twl6030", &sdp4430_twldata,
-			&twl6040_data, 119 + OMAP44XX_IRQ_GIC_START);
+	omap4_pmic_init("twl6030", &sdp4430_twldata, sdp4430_i2c_1_boardinfo,
+			ARRAY_SIZE(sdp4430_i2c_1_boardinfo));
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, sdp4430_i2c_3_boardinfo,
 				ARRAY_SIZE(sdp4430_i2c_3_boardinfo));
