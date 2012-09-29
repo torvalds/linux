@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
@@ -360,6 +361,10 @@ static struct i2c_board_info hdmiphy_info = {
 	I2C_BOARD_INFO("hdmiphy-exynos4210", 0x38),
 };
 
+static struct pwm_lookup smdkv310_pwm_lookup[] = {
+	PWM_LOOKUP("s3c24xx-pwm.1", 0, "pwm-backlight.0", NULL),
+};
+
 static void s5p_tv_setup(void)
 {
 	/* direct HPD to HDMI chip */
@@ -399,6 +404,8 @@ static void __init smdkv310_machine_init(void)
 	samsung_keypad_set_platdata(&smdkv310_keypad_data);
 
 	samsung_bl_set(&smdkv310_bl_gpio_info, &smdkv310_bl_data);
+	pwm_add_table(smdkv310_pwm_lookup, ARRAY_SIZE(smdkv310_pwm_lookup));
+
 #ifdef CONFIG_DRM_EXYNOS
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
 	exynos4_fimd0_gpio_setup_24bpp();

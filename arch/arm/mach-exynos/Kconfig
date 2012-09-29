@@ -221,6 +221,7 @@ config MACH_SMDKV310
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
+	select S3C24XX_PWM
 	help
 	  Machine support for Samsung SMDKV310
 
@@ -348,6 +349,7 @@ config MACH_ORIGEN
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
+	select S3C24XX_PWM
 	help
 	  Machine support for ORIGEN based on Samsung EXYNOS4210
 
@@ -383,6 +385,7 @@ config MACH_SMDK4212
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
+	select S3C24XX_PWM
 	help
 	  Machine support for Samsung SMDK4212
 

@@ -62,32 +62,40 @@
 
 		up {
 			label = "Up";
-			gpios = <&gpx2 0 0 0 2>;
+			gpios = <&gpx2 0 0 0x10000 2>;
 			linux,code = <103>;
 		};
 
 		down {
 			label = "Down";
-			gpios = <&gpx2 1 0 0 2>;
+			gpios = <&gpx2 1 0 0x10000 2>;
 			linux,code = <108>;
 		};
 
 		back {
 			label = "Back";
-			gpios = <&gpx1 7 0 0 2>;
+			gpios = <&gpx1 7 0 0x10000 2>;
 			linux,code = <158>;
 		};
 
 		home {
 			label = "Home";
-			gpios = <&gpx1 6 0 0 2>;
+			gpios = <&gpx1 6 0 0x10000 2>;
 			linux,code = <102>;
 		};
 
 		menu {
 			label = "Menu";
-			gpios = <&gpx1 5 0 0 2>;
+			gpios = <&gpx1 5 0 0x10000 2>;
 			linux,code = <139>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		status {
+			gpios = <&gpx1 3 0 0x10000 2>;
+			linux,default-trigger = "heartbeat";
 		};
 	};
 
