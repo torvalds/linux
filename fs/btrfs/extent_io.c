@@ -3986,18 +3986,6 @@ out:
 	return ret;
 }
 
-inline struct page *extent_buffer_page(struct extent_buffer *eb,
-					      unsigned long i)
-{
-	return eb->pages[i];
-}
-
-inline unsigned long num_extent_pages(u64 start, u64 len)
-{
-	return ((start + len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT) -
-		(start >> PAGE_CACHE_SHIFT);
-}
-
 static void __free_extent_buffer(struct extent_buffer *eb)
 {
 #if LEAK_DEBUG
