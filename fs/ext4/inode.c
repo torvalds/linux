@@ -4333,9 +4333,14 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	if (attr->ia_valid & ATTR_SIZE) {
 		if (attr->ia_size != i_size_read(inode)) {
 			truncate_setsize(inode, attr->ia_size);
-			/* Inode size will be reduced, wait for dio in flight */
-			if (orphan)
+			/* Inode size will be reduced, wait for dio in flight.
+			 * Temporarily disable dioread_nolock to prevent
+			 * livelock. */
+			if (orphan) {
+				ext4_inode_block_unlocked_dio(inode);
 				inode_dio_wait(inode);
+				ext4_inode_resume_unlocked_dio(inode);
+			}
 		}
 		ext4_truncate(inode);
 	}
