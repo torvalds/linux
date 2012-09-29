@@ -4947,7 +4947,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	phba->sli4_hba.msix_entries = kzalloc((sizeof(struct msix_entry) *
-				      phba->sli4_hba.cfg_eqn), GFP_KERNEL);
+				      phba->cfg_fcp_io_channel), GFP_KERNEL);
 	if (!phba->sli4_hba.msix_entries) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2573 Failed allocate memory for msi-x "
@@ -6559,7 +6559,8 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 		i++;
 	}
 	if (i < cfg_fcp_io_channel) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+		lpfc_printf_log(phba,
+				KERN_ERR, LOG_INIT,
 				"3188 Reducing IO channels to match number of "
 				"CPUs: from %d to %d\n", cfg_fcp_io_channel, i);
 		cfg_fcp_io_channel = i;
@@ -6567,8 +6568,8 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 
 	if (cfg_fcp_io_channel >
 	    phba->sli4_hba.max_cfg_param.max_eq) {
-		cfg_fcp_io_channel = phba->sli4_hba.max_cfg_param.max_eq;
-		if (cfg_fcp_io_channel < LPFC_FCP_IO_CHAN_MIN) {
+		if (phba->sli4_hba.max_cfg_param.max_eq <
+		    LPFC_FCP_IO_CHAN_MIN) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"2574 Not enough EQs (%d) from the "
 					"pci function for supporting FCP "
@@ -6577,13 +6578,12 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 					phba->cfg_fcp_io_channel);
 			goto out_error;
 		}
-		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-				"2575 Not enough EQs (%d) from the pci "
-				"function for supporting the requested "
-				"FCP EQs (%d), the actual FCP EQs can "
-				"be supported: %d\n",
-				phba->sli4_hba.max_cfg_param.max_eq,
-				phba->cfg_fcp_io_channel, cfg_fcp_io_channel);
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2575 Reducing IO channels to match number of "
+				"available EQs: from %d to %d\n",
+				cfg_fcp_io_channel,
+				phba->sli4_hba.max_cfg_param.max_eq);
+		cfg_fcp_io_channel = phba->sli4_hba.max_cfg_param.max_eq;
 	}
 
 	/* Eventually cfg_fcp_eq_count / cfg_fcp_wq_count will be depricated */
@@ -6592,7 +6592,6 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	phba->cfg_fcp_eq_count = cfg_fcp_io_channel;
 	phba->cfg_fcp_wq_count = cfg_fcp_io_channel;
 	phba->cfg_fcp_io_channel = cfg_fcp_io_channel;
-	phba->sli4_hba.cfg_eqn = cfg_fcp_io_channel;
 
 	/* Get EQ depth from module parameter, fake the default for now */
 	phba->sli4_hba.eq_esize = LPFC_EQE_SIZE_4B;
@@ -8095,11 +8094,11 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 	int vectors, rc, index;
 
 	/* Set up MSI-X multi-message vectors */
-	for (index = 0; index < phba->sli4_hba.cfg_eqn; index++)
+	for (index = 0; index < phba->cfg_fcp_io_channel; index++)
 		phba->sli4_hba.msix_entries[index].entry = index;
 
 	/* Configure MSI-X capability structure */
-	vectors = phba->sli4_hba.cfg_eqn;
+	vectors = phba->cfg_fcp_io_channel;
 enable_msix_vectors:
 	rc = pci_enable_msix(phba->pcidev, phba->sli4_hba.msix_entries,
 			     vectors);
@@ -8142,8 +8141,14 @@ enable_msix_vectors:
 			goto cfg_fail_out;
 		}
 	}
-	phba->sli4_hba.msix_vec_nr = vectors;
 
+	if (vectors != phba->cfg_fcp_io_channel) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3238 Reducing IO channels to match number of "
+				"MSI-X vectors, requested %d got %d\n",
+				phba->cfg_fcp_io_channel, vectors);
+		phba->cfg_fcp_io_channel = vectors;
+	}
 	return rc;
 
 cfg_fail_out:
@@ -8171,7 +8176,7 @@ lpfc_sli4_disable_msix(struct lpfc_hba *phba)
 	int index;
 
 	/* Free up MSI-X multi-message vectors */
-	for (index = 0; index < phba->sli4_hba.msix_vec_nr; index++)
+	for (index = 0; index < phba->cfg_fcp_io_channel; index++)
 		free_irq(phba->sli4_hba.msix_entries[index].vector,
 			 &phba->sli4_hba.fcp_eq_hdl[index]);
 
@@ -9525,9 +9530,6 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		/* Default to single EQ for non-MSI-X */
 		if (phba->intr_type != MSIX)
 			adjusted_fcp_io_channel = 1;
-		else if (phba->sli4_hba.msix_vec_nr <
-					phba->cfg_fcp_io_channel)
-			adjusted_fcp_io_channel = phba->sli4_hba.msix_vec_nr;
 		else
 			adjusted_fcp_io_channel = phba->cfg_fcp_io_channel;
 		phba->cfg_fcp_io_channel = adjusted_fcp_io_channel;
