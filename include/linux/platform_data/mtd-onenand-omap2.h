@@ -9,6 +9,9 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef	__MTD_ONENAND_OMAP2_H
+#define	__MTD_ONENAND_OMAP2_H
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
@@ -27,20 +30,4 @@ struct omap_onenand_platform_data {
 	u8			regulator_can_sleep;
 	u8			skip_initial_unlocking;
 };
-
-#define ONENAND_MAX_PARTITIONS 8
-
-#if defined(CONFIG_MTD_ONENAND_OMAP2) || \
-	defined(CONFIG_MTD_ONENAND_OMAP2_MODULE)
-
-extern void gpmc_onenand_init(struct omap_onenand_platform_data *d);
-
-#else
-
-#define board_onenand_data	NULL
-
-static inline void gpmc_onenand_init(struct omap_onenand_platform_data *d)
-{
-}
-
 #endif

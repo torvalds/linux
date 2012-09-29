@@ -43,6 +43,7 @@
 #include "common-board-devices.h"
 #include "board-flash.h"
 #include "control.h"
+#include "gpmc-onenand.h"
 
 #define IGEP2_SMSC911X_CS       5
 #define IGEP2_SMSC911X_GPIO     176

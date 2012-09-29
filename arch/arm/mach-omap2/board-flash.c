@@ -25,6 +25,7 @@
 
 #include "common.h"
 #include "board-flash.h"
+#include "gpmc-onenand.h"
 
 #define REG_FPGA_REV			0x10
 #define REG_FPGA_DIP_SWITCH_INPUT2	0x60

@@ -23,6 +23,7 @@
 #include <plat/gpmc.h>
 
 #include "soc.h"
+#include "gpmc-onenand.h"
 
 #define	ONENAND_IO_SIZE	SZ_128K
 
