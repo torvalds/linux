@@ -53,6 +53,7 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
+#include "gpmc-nand.h"
 
 #define CM_T35_GPIO_PENDOWN		57
 #define SB_T35_USB_HUB_RESET_GPIO	167
@@ -181,7 +182,7 @@ static struct omap_nand_platform_data cm_t35_nand_data = {
 
 static void __init cm_t35_init_nand(void)
 {
-	if (gpmc_nand_init(&cm_t35_nand_data) < 0)
+	if (gpmc_nand_init(&cm_t35_nand_data, NULL) < 0)
 		pr_err("CM-T35: Unable to register NAND device\n");
 }
 #else

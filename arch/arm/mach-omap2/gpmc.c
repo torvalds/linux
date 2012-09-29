@@ -26,6 +26,8 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
+#include <linux/platform_data/mtd-nand-omap2.h>
+
 #include <asm/mach-types.h>
 #include <plat/gpmc.h>
 

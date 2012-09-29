@@ -20,6 +20,10 @@
 #include <plat/gpmc.h>
 
 #include "soc.h"
+#include "gpmc-nand.h"
+
+/* minimum size for IO mapping */
+#define	NAND_IO_SIZE	4
 
 static struct resource gpmc_nand_resource[] = {
 	{
@@ -40,41 +44,36 @@ static struct platform_device gpmc_nand_device = {
 	.resource	= gpmc_nand_resource,
 };
 
-static int omap2_nand_gpmc_retime(struct omap_nand_platform_data *gpmc_nand_data)
+static int omap2_nand_gpmc_retime(
+				struct omap_nand_platform_data *gpmc_nand_data,
+				struct gpmc_timings *gpmc_t)
 {
 	struct gpmc_timings t;
 	int err;
 
-	if (!gpmc_nand_data->gpmc_t)
-		return 0;
-
 	memset(&t, 0, sizeof(t));
-	t.sync_clk = gpmc_nand_data->gpmc_t->sync_clk;
-	t.cs_on = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->cs_on);
-	t.adv_on = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->adv_on);
+	t.sync_clk = gpmc_t->sync_clk;
+	t.cs_on = gpmc_round_ns_to_ticks(gpmc_t->cs_on);
+	t.adv_on = gpmc_round_ns_to_ticks(gpmc_t->adv_on);
 
 	/* Read */
-	t.adv_rd_off = gpmc_round_ns_to_ticks(
-				gpmc_nand_data->gpmc_t->adv_rd_off);
+	t.adv_rd_off = gpmc_round_ns_to_ticks(gpmc_t->adv_rd_off);
 	t.oe_on  = t.adv_on;
-	t.access = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->access);
-	t.oe_off = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->oe_off);
-	t.cs_rd_off = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->cs_rd_off);
-	t.rd_cycle  = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->rd_cycle);
+	t.access = gpmc_round_ns_to_ticks(gpmc_t->access);
+	t.oe_off = gpmc_round_ns_to_ticks(gpmc_t->oe_off);
+	t.cs_rd_off = gpmc_round_ns_to_ticks(gpmc_t->cs_rd_off);
+	t.rd_cycle  = gpmc_round_ns_to_ticks(gpmc_t->rd_cycle);
 
 	/* Write */
-	t.adv_wr_off = gpmc_round_ns_to_ticks(
-				gpmc_nand_data->gpmc_t->adv_wr_off);
+	t.adv_wr_off = gpmc_round_ns_to_ticks(gpmc_t->adv_wr_off);
 	t.we_on  = t.oe_on;
 	if (cpu_is_omap34xx()) {
-	    t.wr_data_mux_bus =	gpmc_round_ns_to_ticks(
-				gpmc_nand_data->gpmc_t->wr_data_mux_bus);
-	    t.wr_access = gpmc_round_ns_to_ticks(
-				gpmc_nand_data->gpmc_t->wr_access);
+	    t.wr_data_mux_bus =	gpmc_round_ns_to_ticks(gpmc_t->wr_data_mux_bus);
+	    t.wr_access = gpmc_round_ns_to_ticks(gpmc_t->wr_access);
 	}
-	t.we_off = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->we_off);
-	t.cs_wr_off = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->cs_wr_off);
-	t.wr_cycle  = gpmc_round_ns_to_ticks(gpmc_nand_data->gpmc_t->wr_cycle);
+	t.we_off = gpmc_round_ns_to_ticks(gpmc_t->we_off);
+	t.cs_wr_off = gpmc_round_ns_to_ticks(gpmc_t->cs_wr_off);
+	t.wr_cycle  = gpmc_round_ns_to_ticks(gpmc_t->wr_cycle);
 
 	/* Configure GPMC */
 	if (gpmc_nand_data->devsize == NAND_BUSWIDTH_16)
@@ -91,7 +90,8 @@ static int omap2_nand_gpmc_retime(struct omap_nand_platform_data *gpmc_nand_data
 	return 0;
 }
 
-int __init gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data)
+int __init gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
+			  struct gpmc_timings *gpmc_t)
 {
 	int err	= 0;
 	struct device *dev = &gpmc_nand_device.dev;
@@ -112,11 +112,13 @@ int __init gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data)
 				gpmc_get_client_irq(GPMC_IRQ_FIFOEVENTENABLE);
 	gpmc_nand_resource[2].start =
 				gpmc_get_client_irq(GPMC_IRQ_COUNT_EVENT);
-	 /* Set timings in GPMC */
-	err = omap2_nand_gpmc_retime(gpmc_nand_data);
-	if (err < 0) {
-		dev_err(dev, "Unable to set gpmc timings: %d\n", err);
-		return err;
+
+	if (gpmc_t) {
+		err = omap2_nand_gpmc_retime(gpmc_nand_data, gpmc_t);
+		if (err < 0) {
+			dev_err(dev, "Unable to set gpmc timings: %d\n", err);
+			return err;
+		}
 	}
 
 	/* Enable RD PIN Monitoring Reg */
