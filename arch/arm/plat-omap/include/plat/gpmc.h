@@ -34,15 +34,6 @@
 #define GPMC_SET_IRQ_STATUS	0x00000004
 #define GPMC_CONFIG_WP		0x00000005
 
-#define GPMC_GET_IRQ_STATUS	0x00000006
-#define GPMC_PREFETCH_FIFO_CNT	0x00000007 /* bytes available in FIFO for r/w */
-#define GPMC_PREFETCH_COUNT	0x00000008 /* remaining bytes to be read/write*/
-#define GPMC_STATUS_BUFFER	0x00000009 /* 1: buffer is available to write */
-
-#define GPMC_NAND_COMMAND	0x0000000a
-#define GPMC_NAND_ADDRESS	0x0000000b
-#define GPMC_NAND_DATA		0x0000000c
-
 #define GPMC_ENABLE_IRQ		0x0000000d
 
 /* ECC commands */
@@ -78,15 +69,10 @@
 #define GPMC_DEVICETYPE_NOR		0
 #define GPMC_DEVICETYPE_NAND		2
 #define GPMC_CONFIG_WRITEPROTECT	0x00000010
-#define GPMC_STATUS_BUFF_EMPTY		0x00000001
 #define WR_RD_PIN_MONITORING		0x00600000
-#define GPMC_PREFETCH_STATUS_FIFO_CNT(val)	((val >> 24) & 0x7F)
-#define GPMC_PREFETCH_STATUS_COUNT(val)	(val & 0x00003fff)
 #define GPMC_IRQ_FIFOEVENTENABLE	0x01
 #define GPMC_IRQ_COUNT_EVENT		0x02
 
-#define PREFETCH_FIFOTHRESHOLD_MAX	0x40
-#define PREFETCH_FIFOTHRESHOLD(val)	((val) << 8)
 
 /*
  * Note that all values in this struct are in nanoseconds except sync_clk
@@ -142,25 +128,8 @@ extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
 extern int gpmc_cs_set_reserved(int cs, int reserved);
 extern int gpmc_cs_reserved(int cs);
-extern int gpmc_prefetch_enable(int cs, int fifo_th, int dma_mode,
-					unsigned int u32_count, int is_write);
-extern int gpmc_prefetch_reset(int cs);
 extern void omap3_gpmc_save_context(void);
 extern void omap3_gpmc_restore_context(void);
-extern int gpmc_read_status(int cmd);
 extern int gpmc_cs_configure(int cs, int cmd, int wval);
-extern int gpmc_nand_read(int cs, int cmd);
-extern int gpmc_nand_write(int cs, int cmd, int wval);
-
-int gpmc_enable_hwecc(int cs, int mode, int dev_width, int ecc_size);
-int gpmc_calculate_ecc(int cs, const u_char *dat, u_char *ecc_code);
-
-#ifdef CONFIG_ARCH_OMAP3
-int gpmc_init_hwecc_bch(int cs, int nsectors, int nerrors);
-int gpmc_enable_hwecc_bch(int cs, int mode, int dev_width, int nsectors,
-			  int nerrors);
-int gpmc_calculate_ecc_bch4(int cs, const u_char *dat, u_char *ecc);
-int gpmc_calculate_ecc_bch8(int cs, const u_char *dat, u_char *ecc);
-#endif /* CONFIG_ARCH_OMAP3 */
 
 #endif
