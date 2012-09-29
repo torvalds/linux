@@ -1892,8 +1892,10 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		max_speed = 4;
 	else if (phba->lmt & LMT_2Gb)
 		max_speed = 2;
-	else
+	else if (phba->lmt & LMT_1Gb)
 		max_speed = 1;
+	else
+		max_speed = 0;
 
 	vp = &phba->vpd;
 
@@ -2078,9 +2080,13 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	if (descp && descp[0] == '\0') {
 		if (oneConnect)
 			snprintf(descp, 255,
-				"Emulex OneConnect %s, %s Initiator, Port %s",
+				"Emulex OneConnect %s, %s Initiator %s",
 				m.name, m.function,
 				phba->Port);
+		else if (max_speed == 0)
+			snprintf(descp, 255,
+				"Emulex %s %s %s ",
+				m.name, m.bus, m.function);
 		else
 			snprintf(descp, 255,
 				"Emulex %s %d%s %s %s",
