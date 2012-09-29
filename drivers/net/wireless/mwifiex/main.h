@@ -88,6 +88,7 @@ enum {
 #define MWIFIEX_MAX_TOTAL_SCAN_TIME	(MWIFIEX_TIMER_10S - MWIFIEX_TIMER_1S)
 
 #define MWIFIEX_MAX_SCAN_DELAY_CNT			50
+#define MWIFIEX_MAX_EMPTY_TX_Q_CNT			10
 #define MWIFIEX_SCAN_DELAY_MSEC				20
 
 #define RSN_GTK_OUI_OFFSET				2
@@ -199,6 +200,9 @@ struct mwifiex_ra_list_tbl {
 	u8 ra[ETH_ALEN];
 	u32 total_pkts_size;
 	u32 is_11n_enabled;
+	u16 max_amsdu;
+	u16 pkt_count;
+	u8 ba_packet_thr;
 };
 
 struct mwifiex_tid_tbl {
@@ -431,6 +435,9 @@ struct mwifiex_private {
 	u8 wmm_enabled;
 	u8 wmm_qosinfo;
 	struct mwifiex_wmm_desc wmm;
+	struct list_head sta_list;
+	/* spin lock for associated station list */
+	spinlock_t sta_list_spinlock;
 	struct list_head tx_ba_stream_tbl_ptr;
 	/* spin lock for tx_ba_stream_tbl_ptr queue */
 	spinlock_t tx_ba_stream_tbl_lock;
@@ -486,6 +493,7 @@ struct mwifiex_private {
 	u16 assocresp_idx;
 	u16 rsn_idx;
 	struct timer_list scan_delay_timer;
+	u8 ap_11n_enabled;
 };
 
 enum mwifiex_ba_status {
@@ -548,6 +556,19 @@ struct cmd_ctrl_node {
 struct mwifiex_bss_priv {
 	u8 band;
 	u64 fw_tsf;
+};
+
+/* This is AP specific structure which stores information
+ * about associated STA
+ */
+struct mwifiex_sta_node {
+	struct list_head list;
+	u8 mac_addr[ETH_ALEN];
+	u8 is_wmm_enabled;
+	u8 is_11n_enabled;
+	u8 ampdu_sta[MAX_NUM_TID];
+	u16 rx_seq[MAX_NUM_TID];
+	u16 max_amsdu;
 };
 
 struct mwifiex_if_ops {
@@ -690,6 +711,9 @@ struct mwifiex_adapter {
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	u16 max_mgmt_ie_index;
 	u8 scan_delay_cnt;
+	u8 empty_tx_q_cnt;
+	atomic_t is_tx_received;
+	atomic_t pending_bridged_pkts;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -780,7 +804,15 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *, u16 cmdresp_no,
 				struct host_cmd_ds_command *resp);
 int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *,
 				  struct sk_buff *skb);
+int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
+				  struct sk_buff *skb);
+int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
+				  struct sk_buff *skb);
 int mwifiex_process_sta_event(struct mwifiex_private *);
+int mwifiex_process_uap_event(struct mwifiex_private *);
+struct mwifiex_sta_node *
+mwifiex_get_sta_entry(struct mwifiex_private *priv, u8 *mac);
+void mwifiex_delete_all_station_list(struct mwifiex_private *priv);
 void *mwifiex_process_sta_txpd(struct mwifiex_private *, struct sk_buff *skb);
 int mwifiex_sta_init_cmd(struct mwifiex_private *, u8 first_sta);
 int mwifiex_cmd_802_11_scan(struct host_cmd_ds_command *cmd,
@@ -949,9 +981,9 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 			  const struct mwifiex_user_scan_cfg *user_scan_in);
 int mwifiex_set_radio(struct mwifiex_private *priv, u8 option);
 
-int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
-		       int key_len, u8 key_index, const u8 *mac_addr,
-		       int disable);
+int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
+		       const u8 *key, int key_len, u8 key_index,
+		       const u8 *mac_addr, int disable);
 
 int mwifiex_set_gen_ie(struct mwifiex_private *priv, u8 *ie, int ie_len);
 

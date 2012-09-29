@@ -447,7 +447,10 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 			priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	}
 
-	ret = mwifiex_process_sta_event(priv);
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+		ret = mwifiex_process_uap_event(priv);
+	else
+		ret = mwifiex_process_sta_event(priv);
 
 	adapter->event_cause = 0;
 	adapter->event_skb = NULL;

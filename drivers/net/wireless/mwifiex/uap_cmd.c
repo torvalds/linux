@@ -167,6 +167,7 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 	if (ht_ie) {
 		memcpy(&bss_cfg->ht_cap, ht_ie + 2,
 		       sizeof(struct ieee80211_ht_cap));
+		priv->ap_11n_enabled = 1;
 	} else {
 		memset(&bss_cfg->ht_cap , 0, sizeof(struct ieee80211_ht_cap));
 		bss_cfg->ht_cap.cap_info = cpu_to_le16(MWIFIEX_DEF_HT_CAP);

@@ -504,7 +504,7 @@ static void _rtl_pci_tx_chk_waitq(struct ieee80211_hw *hw)
 				_rtl_update_earlymode_info(hw, skb,
 							   &tcb_desc, tid);
 
-			rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
+			rtlpriv->intf_ops->adapter_tx(hw, NULL, skb, &tcb_desc);
 		}
 	}
 }
@@ -929,7 +929,7 @@ static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 	info = IEEE80211_SKB_CB(pskb);
 	pdesc = &ring->desc[0];
 	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *) pdesc,
-		info, pskb, BEACON_QUEUE, &tcb_desc);
+		info, NULL, pskb, BEACON_QUEUE, &tcb_desc);
 
 	__skb_queue_tail(&ring->queue, pskb);
 
@@ -1305,11 +1305,10 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 }
 
 static bool rtl_pci_tx_chk_waitq_insert(struct ieee80211_hw *hw,
+					struct ieee80211_sta *sta,
 					struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_sta *sta = info->control.sta;
 	struct rtl_sta_info *sta_entry = NULL;
 	u8 tid = rtl_get_tid(skb);
 
@@ -1337,13 +1336,14 @@ static bool rtl_pci_tx_chk_waitq_insert(struct ieee80211_hw *hw,
 	return true;
 }
 
-static int rtl_pci_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
-		struct rtl_tcb_desc *ptcb_desc)
+static int rtl_pci_tx(struct ieee80211_hw *hw,
+		      struct ieee80211_sta *sta,
+		      struct sk_buff *skb,
+		      struct rtl_tcb_desc *ptcb_desc)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_sta_info *sta_entry = NULL;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_sta *sta = info->control.sta;
 	struct rtl8192_tx_ring *ring;
 	struct rtl_tx_desc *pdesc;
 	u8 idx;
@@ -1418,7 +1418,7 @@ static int rtl_pci_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		rtlpriv->cfg->ops->led_control(hw, LED_CTL_TX);
 
 	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *)pdesc,
-			info, skb, hw_queue, ptcb_desc);
+			info, sta, skb, hw_queue, ptcb_desc);
 
 	__skb_queue_tail(&ring->queue, skb);
 

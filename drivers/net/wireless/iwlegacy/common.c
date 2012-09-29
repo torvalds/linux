@@ -4860,7 +4860,7 @@ EXPORT_SYMBOL(il_add_beacon_time);
 
 #ifdef CONFIG_PM
 
-int
+static int
 il_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -4877,9 +4877,8 @@ il_pci_suspend(struct device *device)
 
 	return 0;
 }
-EXPORT_SYMBOL(il_pci_suspend);
 
-int
+static int
 il_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -4906,16 +4905,8 @@ il_pci_resume(struct device *device)
 
 	return 0;
 }
-EXPORT_SYMBOL(il_pci_resume);
 
-const struct dev_pm_ops il_pm_ops = {
-	.suspend = il_pci_suspend,
-	.resume = il_pci_resume,
-	.freeze = il_pci_suspend,
-	.thaw = il_pci_resume,
-	.poweroff = il_pci_suspend,
-	.restore = il_pci_resume,
-};
+SIMPLE_DEV_PM_OPS(il_pm_ops, il_pci_suspend, il_pci_resume);
 EXPORT_SYMBOL(il_pm_ops);
 
 #endif /* CONFIG_PM */

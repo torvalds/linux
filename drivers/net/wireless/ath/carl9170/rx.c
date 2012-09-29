@@ -206,6 +206,7 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_MESH_POINT:
 			carl9170_update_beacon(ar, true);
 			break;
 

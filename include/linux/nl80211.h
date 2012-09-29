@@ -565,6 +565,14 @@
  *	%NL80211_ATTR_IFINDEX is now on %NL80211_ATTR_WIPHY_FREQ with
  *	%NL80211_ATTR_WIPHY_CHANNEL_TYPE.
  *
+ * @NL80211_CMD_START_P2P_DEVICE: Start the given P2P Device, identified by
+ *	its %NL80211_ATTR_WDEV identifier. It must have been created with
+ *	%NL80211_CMD_NEW_INTERFACE previously. After it has been started, the
+ *	P2P Device can be used for P2P operations, e.g. remain-on-channel and
+ *	public action frame TX.
+ * @NL80211_CMD_STOP_P2P_DEVICE: Stop the given P2P Device, identified by
+ *	its %NL80211_ATTR_WDEV identifier.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -707,6 +715,9 @@ enum nl80211_commands {
 	NL80211_CMD_SET_NOACK_MAP,
 
 	NL80211_CMD_CH_SWITCH_NOTIFY,
+
+	NL80211_CMD_START_P2P_DEVICE,
+	NL80211_CMD_STOP_P2P_DEVICE,
 
 	/* add new commands above here */
 
@@ -1575,6 +1586,10 @@ enum nl80211_attrs {
  * @NL80211_IFTYPE_MESH_POINT: mesh point
  * @NL80211_IFTYPE_P2P_CLIENT: P2P client
  * @NL80211_IFTYPE_P2P_GO: P2P group owner
+ * @NL80211_IFTYPE_P2P_DEVICE: P2P device interface type, this is not a netdev
+ *	and therefore can't be created in the normal ways, use the
+ *	%NL80211_CMD_START_P2P_DEVICE and %NL80211_CMD_STOP_P2P_DEVICE
+ *	commands to create and destroy one
  * @NL80211_IFTYPE_MAX: highest interface type number currently defined
  * @NUM_NL80211_IFTYPES: number of defined interface types
  *
@@ -1593,6 +1608,7 @@ enum nl80211_iftype {
 	NL80211_IFTYPE_MESH_POINT,
 	NL80211_IFTYPE_P2P_CLIENT,
 	NL80211_IFTYPE_P2P_GO,
+	NL80211_IFTYPE_P2P_DEVICE,
 
 	/* keep last */
 	NUM_NL80211_IFTYPES,
@@ -2994,12 +3010,18 @@ enum nl80211_ap_sme_features {
  * @NL80211_FEATURE_CELL_BASE_REG_HINTS: This driver has been tested
  *	to work properly to suppport receiving regulatory hints from
  *	cellular base stations.
+ * @NL80211_FEATURE_P2P_DEVICE_NEEDS_CHANNEL: If this is set, an active
+ *	P2P Device (%NL80211_IFTYPE_P2P_DEVICE) requires its own channel
+ *	in the interface combinations, even when it's only used for scan
+ *	and remain-on-channel. This could be due to, for example, the
+ *	remain-on-channel implementation requiring a channel context.
  */
 enum nl80211_feature_flags {
-	NL80211_FEATURE_SK_TX_STATUS	= 1 << 0,
-	NL80211_FEATURE_HT_IBSS		= 1 << 1,
-	NL80211_FEATURE_INACTIVITY_TIMER = 1 << 2,
-	NL80211_FEATURE_CELL_BASE_REG_HINTS = 1 << 3,
+	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
+	NL80211_FEATURE_HT_IBSS				= 1 << 1,
+	NL80211_FEATURE_INACTIVITY_TIMER		= 1 << 2,
+	NL80211_FEATURE_CELL_BASE_REG_HINTS		= 1 << 3,
+	NL80211_FEATURE_P2P_DEVICE_NEEDS_CHANNEL	= 1 << 4,
 };
 
 /**

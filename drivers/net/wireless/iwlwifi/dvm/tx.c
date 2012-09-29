@@ -127,6 +127,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 				     struct iwl_tx_cmd *tx_cmd,
 				     struct ieee80211_tx_info *info,
+				     struct ieee80211_sta *sta,
 				     __le16 fc)
 {
 	u32 rate_flags;
@@ -187,8 +188,7 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS ||
 			(rate_idx < 0) || (rate_idx > IWL_RATE_COUNT_LEGACY))
 		rate_idx = rate_lowest_index(
-				&priv->eeprom_data->bands[info->band],
-				info->control.sta);
+				&priv->eeprom_data->bands[info->band], sta);
 	/* For 5 GHZ band, remap mac80211 rate indices into driver indices */
 	if (info->band == IEEE80211_BAND_5GHZ)
 		rate_idx += IWL_FIRST_OFDM_RATE;
@@ -291,7 +291,9 @@ static int iwl_sta_id_or_broadcast(struct iwl_rxon_context *context,
 /*
  * start REPLY_TX command process
  */
-int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
+int iwlagn_tx_skb(struct iwl_priv *priv,
+		  struct ieee80211_sta *sta,
+		  struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -345,7 +347,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		sta_id = ctx->bcast_sta_id;
 	else {
 		/* Find index into station table for destination station */
-		sta_id = iwl_sta_id_or_broadcast(ctx, info->control.sta);
+		sta_id = iwl_sta_id_or_broadcast(ctx, sta);
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 				       hdr->addr1);
@@ -355,8 +357,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	IWL_DEBUG_TX(priv, "station Id %d\n", sta_id);
 
-	if (info->control.sta)
-		sta_priv = (void *)info->control.sta->drv_priv;
+	if (sta)
+		sta_priv = (void *)sta->drv_priv;
 
 	if (sta_priv && sta_priv->asleep &&
 	    (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER)) {
@@ -397,7 +399,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* TODO need this for burst mode later on */
 	iwlagn_tx_cmd_build_basic(priv, skb, tx_cmd, info, hdr, sta_id);
 
-	iwlagn_tx_cmd_build_rate(priv, tx_cmd, info, fc);
+	iwlagn_tx_cmd_build_rate(priv, tx_cmd, info, sta, fc);
 
 	memset(&info->status, 0, sizeof(info->status));
 

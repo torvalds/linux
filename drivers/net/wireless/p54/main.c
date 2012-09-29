@@ -158,7 +158,7 @@ static int p54_beacon_update(struct p54_common *priv,
 	 * to cancel the old beacon template by hand, instead the firmware
 	 * will release the previous one through the feedback mechanism.
 	 */
-	p54_tx_80211(priv->hw, beacon);
+	p54_tx_80211(priv->hw, NULL, beacon);
 	priv->tsf_high32 = 0;
 	priv->tsf_low32 = 0;
 

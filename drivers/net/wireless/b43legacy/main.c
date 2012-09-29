@@ -1920,7 +1920,7 @@ static int b43legacy_gpio_init(struct b43legacy_wldev *dev)
 		return 0;
 	ssb_write32(gpiodev, B43legacy_GPIO_CONTROL,
 		    (ssb_read32(gpiodev, B43legacy_GPIO_CONTROL)
-		     & mask) | set);
+		     & ~mask) | set);
 
 	return 0;
 }
@@ -2492,6 +2492,7 @@ static void b43legacy_tx_work(struct work_struct *work)
 }
 
 static void b43legacy_op_tx(struct ieee80211_hw *hw,
+			    struct ieee80211_tx_control *control,
 			    struct sk_buff *skb)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);

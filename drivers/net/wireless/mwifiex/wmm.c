@@ -127,6 +127,29 @@ mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, u8 *ra)
 	return ra_list;
 }
 
+/* This function returns random no between 16 and 32 to be used as threshold
+ * for no of packets after which BA setup is initiated.
+ */
+static u8 mwifiex_get_random_ba_threshold(void)
+{
+	u32 sec, usec;
+	struct timeval ba_tstamp;
+	u8 ba_threshold;
+
+	/* setup ba_packet_threshold here random number between
+	 * [BA_SETUP_PACKET_OFFSET,
+	 * BA_SETUP_PACKET_OFFSET+BA_SETUP_MAX_PACKET_THRESHOLD-1]
+	 */
+
+	do_gettimeofday(&ba_tstamp);
+	sec = (ba_tstamp.tv_sec & 0xFFFF) + (ba_tstamp.tv_sec >> 16);
+	usec = (ba_tstamp.tv_usec & 0xFFFF) + (ba_tstamp.tv_usec >> 16);
+	ba_threshold = (((sec << 16) + usec) % BA_SETUP_MAX_PACKET_THRESHOLD)
+						      + BA_SETUP_PACKET_OFFSET;
+
+	return ba_threshold;
+}
+
 /*
  * This function allocates and adds a RA list for all TIDs
  * with the given RA.
@@ -137,6 +160,12 @@ mwifiex_ralist_add(struct mwifiex_private *priv, u8 *ra)
 	int i;
 	struct mwifiex_ra_list_tbl *ra_list;
 	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_sta_node *node;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+	node = mwifiex_get_sta_entry(priv, ra);
+	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
 		ra_list = mwifiex_wmm_allocate_ralist_node(adapter, ra);
@@ -145,14 +174,24 @@ mwifiex_ralist_add(struct mwifiex_private *priv, u8 *ra)
 		if (!ra_list)
 			break;
 
-		if (!mwifiex_queuing_ra_based(priv))
+		ra_list->is_11n_enabled = 0;
+		if (!mwifiex_queuing_ra_based(priv)) {
 			ra_list->is_11n_enabled = IS_11N_ENABLED(priv);
-		else
-			ra_list->is_11n_enabled = false;
+		} else {
+			ra_list->is_11n_enabled =
+				      mwifiex_is_sta_11n_enabled(priv, node);
+			if (ra_list->is_11n_enabled)
+				ra_list->max_amsdu = node->max_amsdu;
+		}
 
 		dev_dbg(adapter->dev, "data: ralist %p: is_11n_enabled=%d\n",
 			ra_list, ra_list->is_11n_enabled);
 
+		if (ra_list->is_11n_enabled) {
+			ra_list->pkt_count = 0;
+			ra_list->ba_packet_thr =
+					      mwifiex_get_random_ba_threshold();
+		}
 		list_add_tail(&ra_list->list,
 			      &priv->wmm.tid_tbl_ptr[i].ra_list);
 
@@ -647,6 +686,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	skb_queue_tail(&ra_list->skb_head, skb);
 
 	ra_list->total_pkts_size += skb->len;
+	ra_list->pkt_count++;
 
 	atomic_inc(&priv->wmm.tx_pkts_queued);
 
@@ -986,10 +1026,17 @@ mwifiex_is_11n_aggragation_possible(struct mwifiex_private *priv,
 {
 	int count = 0, total_size = 0;
 	struct sk_buff *skb, *tmp;
+	int max_amsdu_size;
+
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP && priv->ap_11n_enabled &&
+	    ptr->is_11n_enabled)
+		max_amsdu_size = min_t(int, ptr->max_amsdu, max_buf_size);
+	else
+		max_amsdu_size = max_buf_size;
 
 	skb_queue_walk_safe(&ptr->skb_head, skb, tmp) {
 		total_size += skb->len;
-		if (total_size >= max_buf_size)
+		if (total_size >= max_amsdu_size)
 			break;
 		if (++count >= MIN_NUM_AMSDU)
 			return true;
@@ -1050,6 +1097,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 		skb_queue_tail(&ptr->skb_head, skb);
 
 		ptr->total_pkts_size += skb->len;
+		ptr->pkt_count++;
 		tx_info->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
@@ -1231,7 +1279,8 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 		/* ra_list_spinlock has been freed in
 		   mwifiex_send_single_packet() */
 	} else {
-		if (mwifiex_is_ampdu_allowed(priv, tid)) {
+		if (mwifiex_is_ampdu_allowed(priv, tid) &&
+		    ptr->pkt_count > ptr->ba_packet_thr) {
 			if (mwifiex_space_avail_for_new_ba_stream(adapter)) {
 				mwifiex_create_ba_tbl(priv, ptr->ra, tid,
 						      BA_SETUP_INPROGRESS);

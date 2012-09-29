@@ -519,19 +519,27 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		u64 cookie = (unsigned long)skb;
 		acked = info->flags & IEEE80211_TX_STAT_ACK;
 
-		/*
-		 * TODO: When we have non-netdev frame TX,
-		 * we cannot use skb->dev->ieee80211_ptr
-		 */
-
 		if (ieee80211_is_nullfunc(hdr->frame_control) ||
-		    ieee80211_is_qos_nullfunc(hdr->frame_control))
+		    ieee80211_is_qos_nullfunc(hdr->frame_control)) {
 			cfg80211_probe_status(skb->dev, hdr->addr1,
 					      cookie, acked, GFP_ATOMIC);
-		else
+		} else if (skb->dev) {
 			cfg80211_mgmt_tx_status(
 				skb->dev->ieee80211_ptr, cookie, skb->data,
 				skb->len, acked, GFP_ATOMIC);
+		} else {
+			struct ieee80211_sub_if_data *p2p_sdata;
+
+			rcu_read_lock();
+
+			p2p_sdata = rcu_dereference(local->p2p_sdata);
+			if (p2p_sdata) {
+				cfg80211_mgmt_tx_status(
+					&p2p_sdata->wdev, cookie, skb->data,
+					skb->len, acked, GFP_ATOMIC);
+			}
+			rcu_read_unlock();
+		}
 	}
 
 	if (unlikely(info->ack_frame_id)) {

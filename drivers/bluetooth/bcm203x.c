@@ -177,7 +177,7 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		BT_ERR("Can't allocate memory for data structure");
 		return -ENOMEM;
@@ -189,14 +189,12 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 	data->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!data->urb) {
 		BT_ERR("Can't allocate URB");
-		kfree(data);
 		return -ENOMEM;
 	}
 
 	if (request_firmware(&firmware, "BCM2033-MD.hex", &udev->dev) < 0) {
 		BT_ERR("Mini driver request failed");
 		usb_free_urb(data->urb);
-		kfree(data);
 		return -EIO;
 	}
 
@@ -209,7 +207,6 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 		BT_ERR("Can't allocate memory for mini driver");
 		release_firmware(firmware);
 		usb_free_urb(data->urb);
-		kfree(data);
 		return -ENOMEM;
 	}
 
@@ -224,7 +221,6 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 		BT_ERR("Firmware request failed");
 		usb_free_urb(data->urb);
 		kfree(data->buffer);
-		kfree(data);
 		return -EIO;
 	}
 
@@ -236,7 +232,6 @@ static int bcm203x_probe(struct usb_interface *intf, const struct usb_device_id 
 		release_firmware(firmware);
 		usb_free_urb(data->urb);
 		kfree(data->buffer);
-		kfree(data);
 		return -ENOMEM;
 	}
 
@@ -271,7 +266,6 @@ static void bcm203x_disconnect(struct usb_interface *intf)
 	usb_free_urb(data->urb);
 	kfree(data->fw_data);
 	kfree(data->buffer);
-	kfree(data);
 }
 
 static struct usb_driver bcm203x_driver = {

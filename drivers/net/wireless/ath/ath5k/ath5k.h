@@ -1331,7 +1331,6 @@ struct ath5k_hw {
 	unsigned int		nexttbtt;	/* next beacon time in TU */
 	struct ath5k_txq	*cabq;		/* content after beacon */
 
-	int			power_level;	/* Requested tx power in dBm */
 	bool			assoc;		/* associate state */
 	bool			enable_beacon;	/* true if beacons are on */
 
@@ -1425,6 +1424,7 @@ struct ath5k_hw {
 		/* Value in dB units */
 		s16		txp_cck_ofdm_pwr_delta;
 		bool		txp_setup;
+		int		txp_requested;	/* Requested tx power in dBm */
 	} ah_txpower;
 
 	struct ath5k_nfcal_hist ah_nfcal_hist;

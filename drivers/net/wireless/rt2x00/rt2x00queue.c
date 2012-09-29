@@ -315,6 +315,7 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct rt2x00_dev *rt2x00dev,
 static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 						struct sk_buff *skb,
 						struct txentry_desc *txdesc,
+						struct ieee80211_sta *sta,
 						const struct rt2x00_rate *hwrate)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -322,11 +323,11 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rt2x00_sta *sta_priv = NULL;
 
-	if (tx_info->control.sta) {
+	if (sta) {
 		txdesc->u.ht.mpdu_density =
-		    tx_info->control.sta->ht_cap.ampdu_density;
+		    sta->ht_cap.ampdu_density;
 
-		sta_priv = sta_to_rt2x00_sta(tx_info->control.sta);
+		sta_priv = sta_to_rt2x00_sta(sta);
 		txdesc->u.ht.wcid = sta_priv->wcid;
 	}
 
@@ -341,8 +342,8 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 		 * MIMO PS should be set to 1 for STA's using dynamic SM PS
 		 * when using more then one tx stream (>MCS7).
 		 */
-		if (tx_info->control.sta && txdesc->u.ht.mcs > 7 &&
-		    ((tx_info->control.sta->ht_cap.cap &
+		if (sta && txdesc->u.ht.mcs > 7 &&
+		    ((sta->ht_cap.cap &
 		      IEEE80211_HT_CAP_SM_PS) >>
 		     IEEE80211_HT_CAP_SM_PS_SHIFT) ==
 		    WLAN_HT_CAP_SM_PS_DYNAMIC)
@@ -409,7 +410,8 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 
 static void rt2x00queue_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
 					     struct sk_buff *skb,
-					     struct txentry_desc *txdesc)
+					     struct txentry_desc *txdesc,
+					     struct ieee80211_sta *sta)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -503,7 +505,7 @@ static void rt2x00queue_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
 
 	if (test_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags))
 		rt2x00queue_create_tx_descriptor_ht(rt2x00dev, skb, txdesc,
-						    hwrate);
+						   sta, hwrate);
 	else
 		rt2x00queue_create_tx_descriptor_plcp(rt2x00dev, skb, txdesc,
 						      hwrate);
@@ -595,7 +597,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 * after that we are free to use the skb->cb array
 	 * for our information.
 	 */
-	rt2x00queue_create_tx_descriptor(queue->rt2x00dev, skb, &txdesc);
+	rt2x00queue_create_tx_descriptor(queue->rt2x00dev, skb, &txdesc, NULL);
 
 	/*
 	 * All information is retrieved from the skb->cb array,
@@ -740,7 +742,7 @@ int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
 	 * after that we are free to use the skb->cb array
 	 * for our information.
 	 */
-	rt2x00queue_create_tx_descriptor(rt2x00dev, intf->beacon->skb, &txdesc);
+	rt2x00queue_create_tx_descriptor(rt2x00dev, intf->beacon->skb, &txdesc, NULL);
 
 	/*
 	 * Fill in skb descriptor
