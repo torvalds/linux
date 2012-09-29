@@ -18,16 +18,26 @@ config OMAP2_VRAM_SIZE
 	  You can also set this with "vram=<bytes>" kernel argument, or
 	  in the board file.
 
-config OMAP2_DSS_DEBUG_SUPPORT
-        bool "Debug support"
-	default y
+config OMAP2_DSS_DEBUG
+	bool "Debug support"
+	default n
 	help
-	  This enables debug messages. You need to enable printing
-	  with 'debug' module parameter.
+	  This enables printing of debug messages. Alternatively, debug messages
+	  can also be enabled by setting CONFIG_DYNAMIC_DEBUG and then setting
+	  appropriate flags in <debugfs>/dynamic_debug/control.
+
+config OMAP2_DSS_DEBUGFS
+	bool "Debugfs filesystem support"
+	depends on DEBUG_FS
+	default n
+	help
+	  This enables debugfs for OMAPDSS at <debugfs>/omapdss. This enables
+	  querying about clock configuration and register configuration of dss,
+	  dispc, dsi, hdmi and rfbi.
 
 config OMAP2_DSS_COLLECT_IRQ_STATS
 	bool "Collect DSS IRQ statistics"
-	depends on OMAP2_DSS_DEBUG_SUPPORT
+	depends on OMAP2_DSS_DEBUGFS
 	default n
 	help
 	  Collect DSS IRQ statistics, printable via debugfs.

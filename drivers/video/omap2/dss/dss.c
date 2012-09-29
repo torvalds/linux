@@ -746,7 +746,7 @@ static void dss_runtime_put(void)
 }
 
 /* DEBUGFS */
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
+#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
 void dss_debug_dump_clocks(struct seq_file *s)
 {
 	dss_dump_clocks(s);
