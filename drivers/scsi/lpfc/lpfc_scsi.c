@@ -4163,7 +4163,7 @@ lpfc_info(struct Scsi_Host *host)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	int len;
+	int len, link_speed = 0;
 	static char  lpfcinfobuf[384];
 
 	memset(lpfcinfobuf,0,384);
@@ -4184,12 +4184,18 @@ lpfc_info(struct Scsi_Host *host)
 				 phba->Port);
 		}
 		len = strlen(lpfcinfobuf);
-		if (phba->sli4_hba.link_state.logical_speed) {
-			snprintf(lpfcinfobuf + len,
-				 384-len,
-				 " Logical Link Speed: %d Mbps",
-				 phba->sli4_hba.link_state.logical_speed * 10);
+		if (phba->sli_rev <= LPFC_SLI_REV3) {
+			link_speed = lpfc_sli_port_speed_get(phba);
+		} else {
+			if (phba->sli4_hba.link_state.logical_speed)
+				link_speed =
+				      phba->sli4_hba.link_state.logical_speed;
+			else
+				link_speed = phba->sli4_hba.link_state.speed;
 		}
+		if (link_speed != 0)
+			snprintf(lpfcinfobuf + len, 384-len,
+				 " Logical Link Speed: %d Mbps", link_speed);
 	}
 	return lpfcinfobuf;
 }

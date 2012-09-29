@@ -168,7 +168,7 @@ struct lpfc_queue {
 };
 
 struct lpfc_sli4_link {
-	uint8_t speed;
+	uint16_t speed;
 	uint8_t duplex;
 	uint8_t status;
 	uint8_t type;

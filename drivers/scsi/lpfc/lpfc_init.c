@@ -3508,6 +3508,119 @@ lpfc_sli4_parse_latt_link_speed(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_sli_port_speed_get - Get sli3 link speed code to link speed
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is to get an SLI3 FC port's link speed in Mbps.
+ *
+ * Return: link speed in terms of Mbps.
+ **/
+uint32_t
+lpfc_sli_port_speed_get(struct lpfc_hba *phba)
+{
+	uint32_t link_speed;
+
+	if (!lpfc_is_link_up(phba))
+		return 0;
+
+	switch (phba->fc_linkspeed) {
+	case LPFC_LINK_SPEED_1GHZ:
+		link_speed = 1000;
+		break;
+	case LPFC_LINK_SPEED_2GHZ:
+		link_speed = 2000;
+		break;
+	case LPFC_LINK_SPEED_4GHZ:
+		link_speed = 4000;
+		break;
+	case LPFC_LINK_SPEED_8GHZ:
+		link_speed = 8000;
+		break;
+	case LPFC_LINK_SPEED_10GHZ:
+		link_speed = 10000;
+		break;
+	case LPFC_LINK_SPEED_16GHZ:
+		link_speed = 16000;
+		break;
+	default:
+		link_speed = 0;
+	}
+	return link_speed;
+}
+
+/**
+ * lpfc_sli4_port_speed_parse - Parse async evt link speed code to link speed
+ * @phba: pointer to lpfc hba data structure.
+ * @evt_code: asynchronous event code.
+ * @speed_code: asynchronous event link speed code.
+ *
+ * This routine is to parse the giving SLI4 async event link speed code into
+ * value of Mbps for the link speed.
+ *
+ * Return: link speed in terms of Mbps.
+ **/
+static uint32_t
+lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
+			   uint8_t speed_code)
+{
+	uint32_t port_speed;
+
+	switch (evt_code) {
+	case LPFC_TRAILER_CODE_LINK:
+		switch (speed_code) {
+		case LPFC_EVT_CODE_LINK_NO_LINK:
+			port_speed = 0;
+			break;
+		case LPFC_EVT_CODE_LINK_10_MBIT:
+			port_speed = 10;
+			break;
+		case LPFC_EVT_CODE_LINK_100_MBIT:
+			port_speed = 100;
+			break;
+		case LPFC_EVT_CODE_LINK_1_GBIT:
+			port_speed = 1000;
+			break;
+		case LPFC_EVT_CODE_LINK_10_GBIT:
+			port_speed = 10000;
+			break;
+		default:
+			port_speed = 0;
+		}
+		break;
+	case LPFC_TRAILER_CODE_FC:
+		switch (speed_code) {
+		case LPFC_EVT_CODE_FC_NO_LINK:
+			port_speed = 0;
+			break;
+		case LPFC_EVT_CODE_FC_1_GBAUD:
+			port_speed = 1000;
+			break;
+		case LPFC_EVT_CODE_FC_2_GBAUD:
+			port_speed = 2000;
+			break;
+		case LPFC_EVT_CODE_FC_4_GBAUD:
+			port_speed = 4000;
+			break;
+		case LPFC_EVT_CODE_FC_8_GBAUD:
+			port_speed = 8000;
+			break;
+		case LPFC_EVT_CODE_FC_10_GBAUD:
+			port_speed = 10000;
+			break;
+		case LPFC_EVT_CODE_FC_16_GBAUD:
+			port_speed = 16000;
+			break;
+		default:
+			port_speed = 0;
+		}
+		break;
+	default:
+		port_speed = 0;
+	}
+	return port_speed;
+}
+
+/**
  * lpfc_sli4_async_link_evt - Process the asynchronous FCoE link event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async link completion queue entry.
@@ -3564,7 +3677,8 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 
 	/* Keep the link status for extra SLI4 state machine reference */
 	phba->sli4_hba.link_state.speed =
-				bf_get(lpfc_acqe_link_speed, acqe_link);
+			lpfc_sli4_port_speed_parse(phba, LPFC_TRAILER_CODE_LINK,
+				bf_get(lpfc_acqe_link_speed, acqe_link));
 	phba->sli4_hba.link_state.duplex =
 				bf_get(lpfc_acqe_link_duplex, acqe_link);
 	phba->sli4_hba.link_state.status =
@@ -3576,7 +3690,8 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_link);
 	phba->sli4_hba.link_state.logical_speed =
-			bf_get(lpfc_acqe_logical_link_speed, acqe_link);
+			bf_get(lpfc_acqe_logical_link_speed, acqe_link) * 10;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2900 Async FC/FCoE Link event - Speed:%dGBit "
 			"duplex:x%x LA Type:x%x Port Type:%d Port Number:%d "
@@ -3586,7 +3701,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 			phba->sli4_hba.link_state.status,
 			phba->sli4_hba.link_state.type,
 			phba->sli4_hba.link_state.number,
-			phba->sli4_hba.link_state.logical_speed * 10,
+			phba->sli4_hba.link_state.logical_speed,
 			phba->sli4_hba.link_state.fault);
 	/*
 	 * For FC Mode: issue the READ_TOPOLOGY mailbox command to fetch
@@ -3658,7 +3773,8 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	}
 	/* Keep the link status for extra SLI4 state machine reference */
 	phba->sli4_hba.link_state.speed =
-				bf_get(lpfc_acqe_fc_la_speed, acqe_fc);
+			lpfc_sli4_port_speed_parse(phba, LPFC_TRAILER_CODE_FC,
+				bf_get(lpfc_acqe_fc_la_speed, acqe_fc));
 	phba->sli4_hba.link_state.duplex = LPFC_ASYNC_LINK_DUPLEX_FULL;
 	phba->sli4_hba.link_state.topology =
 				bf_get(lpfc_acqe_fc_la_topology, acqe_fc);
@@ -3671,7 +3787,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_fc);
 	phba->sli4_hba.link_state.logical_speed =
-				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc);
+				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc) * 10;
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2896 Async FC event - Speed:%dGBaud Topology:x%x "
 			"LA Type:x%x Port Type:%d Port Number:%d Logical speed:"
@@ -3681,7 +3797,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 			phba->sli4_hba.link_state.status,
 			phba->sli4_hba.link_state.type,
 			phba->sli4_hba.link_state.number,
-			phba->sli4_hba.link_state.logical_speed * 10,
+			phba->sli4_hba.link_state.logical_speed,
 			phba->sli4_hba.link_state.fault);
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
@@ -4171,11 +4287,11 @@ lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
 	phba->fcoe_eventtag = acqe_grp5->event_tag;
 	prev_ll_spd = phba->sli4_hba.link_state.logical_speed;
 	phba->sli4_hba.link_state.logical_speed =
-		(bf_get(lpfc_acqe_grp5_llink_spd, acqe_grp5));
+		(bf_get(lpfc_acqe_grp5_llink_spd, acqe_grp5)) * 10;
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2789 GRP5 Async Event: Updating logical link speed "
-			"from %dMbps to %dMbps\n", (prev_ll_spd * 10),
-			(phba->sli4_hba.link_state.logical_speed*10));
+			"from %dMbps to %dMbps\n", prev_ll_spd,
+			phba->sli4_hba.link_state.logical_speed);
 }
 
 /**
