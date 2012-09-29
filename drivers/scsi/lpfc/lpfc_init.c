@@ -9428,7 +9428,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	int mcnt;
 	int adjusted_fcp_io_channel;
 	const struct firmware *fw;
-	uint8_t file_name[16];
+	uint8_t file_name[ELX_MODEL_NAME_SIZE];
 
 	/* Allocate memory for HBA structure */
 	phba = lpfc_hba_alloc(pdev);
@@ -9574,7 +9574,8 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* check for firmware upgrade or downgrade (if_type 2 only) */
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
 	    LPFC_SLI_INTF_IF_TYPE_2) {
-		snprintf(file_name, 16, "%s.grp", phba->ModelName);
+		snprintf(file_name, ELX_MODEL_NAME_SIZE, "%s.grp",
+			 phba->ModelName);
 		error = request_firmware(&fw, file_name, &phba->pcidev->dev);
 		if (!error) {
 			lpfc_write_firmware(phba, fw);
