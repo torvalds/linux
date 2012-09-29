@@ -3783,14 +3783,18 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	case LPFC_SLI_EVENT_STATUS_VALID:
 		return; /* no message if the sfp is okay */
 	case LPFC_SLI_EVENT_STATUS_NOT_PRESENT:
-		sprintf(message, "Not installed");
+		sprintf(message, "Optics faulted/incorrectly installed/not " \
+				"installed - Reseat optics, if issue not "
+				"resolved, replace.");
 		break;
 	case LPFC_SLI_EVENT_STATUS_WRONG_TYPE:
 		sprintf(message,
-			"Optics of two types installed");
+			"Optics of two types installed - Remove one optic or " \
+			"install matching pair of optics.");
 		break;
 	case LPFC_SLI_EVENT_STATUS_UNSUPPORTED:
-		sprintf(message, "Incompatible optics");
+		sprintf(message, "Incompatible optics - Replace with " \
+				"compatible optics for card to function.");
 		break;
 	default:
 		/* firmware is reporting a status we don't know about */
