@@ -212,16 +212,33 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 	}
 }
 
+void bcma_core_mips_early_init(struct bcma_drv_mips *mcore)
+{
+	struct bcma_bus *bus = mcore->core->bus;
+
+	if (mcore->early_setup_done)
+		return;
+
+	bcma_chipco_serial_init(&bus->drv_cc);
+	bcma_core_mips_flash_detect(mcore);
+
+	mcore->early_setup_done = true;
+}
+
 void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 {
 	struct bcma_bus *bus;
 	struct bcma_device *core;
 	bus = mcore->core->bus;
 
+	if (mcore->setup_done)
+		return;
+
 	bcma_info(bus, "Initializing MIPS core...\n");
 
-	if (!mcore->setup_done)
-		mcore->assigned_irqs = 1;
+	bcma_core_mips_early_init(mcore);
+
+	mcore->assigned_irqs = 1;
 
 	/* Assign IRQs to all cores on the bus */
 	list_for_each_entry(core, &bus->cores, list) {
@@ -256,10 +273,5 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 	bcma_info(bus, "IRQ reconfiguration done\n");
 	bcma_core_mips_dump_irq(bus);
 
-	if (mcore->setup_done)
-		return;
-
-	bcma_chipco_serial_init(&bus->drv_cc);
-	bcma_core_mips_flash_detect(mcore);
 	mcore->setup_done = true;
 }

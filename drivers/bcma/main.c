@@ -274,18 +274,18 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 		return -1;
 	}
 
-	/* Init CC core */
+	/* Early init CC core */
 	core = bcma_find_core(bus, bcma_cc_core_id(bus));
 	if (core) {
 		bus->drv_cc.core = core;
-		bcma_core_chipcommon_init(&bus->drv_cc);
+		bcma_core_chipcommon_early_init(&bus->drv_cc);
 	}
 
-	/* Init MIPS core */
+	/* Early init MIPS core */
 	core = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
 	if (core) {
 		bus->drv_mips.core = core;
-		bcma_core_mips_init(&bus->drv_mips);
+		bcma_core_mips_early_init(&bus->drv_mips);
 	}
 
 	bcma_info(bus, "Early bus registered\n");
