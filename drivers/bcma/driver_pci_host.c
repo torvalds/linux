@@ -452,6 +452,8 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 			pc_host->mem_resource.start = BCMA_SOC_PCI_MEM;
 			pc_host->mem_resource.end = BCMA_SOC_PCI_MEM +
 						    BCMA_SOC_PCI_MEM_SZ - 1;
+			pc_host->io_resource.start = 0x100;
+			pc_host->io_resource.end = 0x47F;
 			pci_membase_1G = BCMA_SOC_PCIE_DMA_H32;
 			pcicore_write32(pc, BCMA_CORE_PCI_SBTOPCI0,
 					tmp | BCMA_SOC_PCI_MEM);
@@ -459,6 +461,8 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 			pc_host->mem_resource.start = BCMA_SOC_PCI1_MEM;
 			pc_host->mem_resource.end = BCMA_SOC_PCI1_MEM +
 						    BCMA_SOC_PCI_MEM_SZ - 1;
+			pc_host->io_resource.start = 0x480;
+			pc_host->io_resource.end = 0x7FF;
 			pci_membase_1G = BCMA_SOC_PCIE1_DMA_H32;
 			pc_host->host_cfg_addr = BCMA_SOC_PCI1_CFG;
 			pcicore_write32(pc, BCMA_CORE_PCI_SBTOPCI0,

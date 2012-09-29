@@ -81,6 +81,18 @@ struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid)
 }
 EXPORT_SYMBOL_GPL(bcma_find_core);
 
+static struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
+					       u8 unit)
+{
+	struct bcma_device *core;
+
+	list_for_each_entry(core, &bus->cores, list) {
+		if (core->id.id == coreid && core->core_unit == unit)
+			return core;
+	}
+	return NULL;
+}
+
 static void bcma_release_core_dev(struct device *dev)
 {
 	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
@@ -211,10 +223,17 @@ int __devinit bcma_bus_register(struct bcma_bus *bus)
 	}
 
 	/* Init PCIE core */
-	core = bcma_find_core(bus, BCMA_CORE_PCIE);
+	core = bcma_find_core_unit(bus, BCMA_CORE_PCIE, 0);
 	if (core) {
-		bus->drv_pci.core = core;
-		bcma_core_pci_init(&bus->drv_pci);
+		bus->drv_pci[0].core = core;
+		bcma_core_pci_init(&bus->drv_pci[0]);
+	}
+
+	/* Init PCIE core */
+	core = bcma_find_core_unit(bus, BCMA_CORE_PCIE, 1);
+	if (core) {
+		bus->drv_pci[1].core = core;
+		bcma_core_pci_init(&bus->drv_pci[1]);
 	}
 
 	/* Init GBIT MAC COMMON core */
