@@ -1,6 +1,4 @@
 /*
- * arch/arm/plat-omap/include/mach/omap24xx.h
- *
  * This file contains the processor specific definitions
  * of the TI OMAP24XX.
  *

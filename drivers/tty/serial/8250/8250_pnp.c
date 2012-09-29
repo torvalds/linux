@@ -424,7 +424,7 @@ static int __devinit serial_pnp_guess_board(struct pnp_dev *dev, int *flags)
 static int __devinit
 serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
-	struct uart_port port;
+	struct uart_8250_port uart;
 	int ret, line, flags = dev_id->driver_data;
 
 	if (flags & UNKNOWN_DEV) {
@@ -433,32 +433,32 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 			return ret;
 	}
 
-	memset(&port, 0, sizeof(struct uart_port));
+	memset(&uart, 0, sizeof(uart));
 	if (pnp_irq_valid(dev, 0))
-		port.irq = pnp_irq(dev, 0);
+		uart.port.irq = pnp_irq(dev, 0);
 	if (pnp_port_valid(dev, 0)) {
-		port.iobase = pnp_port_start(dev, 0);
-		port.iotype = UPIO_PORT;
+		uart.port.iobase = pnp_port_start(dev, 0);
+		uart.port.iotype = UPIO_PORT;
 	} else if (pnp_mem_valid(dev, 0)) {
-		port.mapbase = pnp_mem_start(dev, 0);
-		port.iotype = UPIO_MEM;
-		port.flags = UPF_IOREMAP;
+		uart.port.mapbase = pnp_mem_start(dev, 0);
+		uart.port.iotype = UPIO_MEM;
+		uart.port.flags = UPF_IOREMAP;
 	} else
 		return -ENODEV;
 
 #ifdef SERIAL_DEBUG_PNP
 	printk(KERN_DEBUG
 		"Setup PNP port: port %x, mem 0x%lx, irq %d, type %d\n",
-		       port.iobase, port.mapbase, port.irq, port.iotype);
+		       uart.port.iobase, uart.port.mapbase, uart.port.irq, uart.port.iotype);
 #endif
 
-	port.flags |= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
+	uart.port.flags |= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
 	if (pnp_irq_flags(dev, 0) & IORESOURCE_IRQ_SHAREABLE)
-		port.flags |= UPF_SHARE_IRQ;
-	port.uartclk = 1843200;
-	port.dev = &dev->dev;
+		uart.port.flags |= UPF_SHARE_IRQ;
+	uart.port.uartclk = 1843200;
+	uart.port.dev = &dev->dev;
 
-	line = serial8250_register_port(&port);
+	line = serial8250_register_8250_port(&uart);
 	if (line < 0)
 		return -ENODEV;
 

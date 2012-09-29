@@ -32,15 +32,12 @@
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
-
-#include <mach/hardware.h>
 #include <mach/id.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/gpmc.h>
 #include <plat/nand.h>
@@ -56,7 +53,6 @@
 #include <linux/interrupt.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
-
 #include "mux.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
@@ -236,9 +232,6 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data devkit8000_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.pulldowns	= BIT(1) | BIT(2) | BIT(6) | BIT(8) | BIT(13)
 				| BIT(15) | BIT(16) | BIT(17),

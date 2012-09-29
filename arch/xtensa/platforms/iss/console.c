@@ -223,6 +223,7 @@ int __init rs_init(void)
 	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 
 	tty_set_operations(serial_driver, &serial_ops);
+	tty_port_link_device(&serial_port, serial_driver, 0);
 
 	if (tty_register_driver(serial_driver))
 		panic("Couldn't register serial driver\n");
