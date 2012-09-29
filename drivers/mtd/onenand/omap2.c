@@ -38,7 +38,6 @@
 #include <linux/regulator/consumer.h>
 
 #include <asm/mach/flash.h>
-#include <plat/gpmc.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 #include <asm/gpio.h>
 
@@ -803,7 +802,6 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 	}
 	iounmap(c->onenand.base);
 	release_mem_region(c->phys_base, c->mem_size);
-	gpmc_cs_free(c->gpmc_cs);
 	kfree(c);
 
 	return 0;
