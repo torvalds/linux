@@ -1323,6 +1323,12 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 	/* Protect orig and donor inodes against a truncate */
 	mext_inode_double_lock(orig_inode, donor_inode);
 
+	/* Wait for all existing dio workers */
+	ext4_inode_block_unlocked_dio(orig_inode);
+	ext4_inode_block_unlocked_dio(donor_inode);
+	inode_dio_wait(orig_inode);
+	inode_dio_wait(donor_inode);
+
 	/* Protect extent tree against block allocations via delalloc */
 	double_down_write_data_sem(orig_inode, donor_inode);
 	/* Check the filesystem environment whether move_extent can be done */
@@ -1521,6 +1527,8 @@ out:
 		kfree(holecheck_path);
 	}
 	double_up_write_data_sem(orig_inode, donor_inode);
+	ext4_inode_resume_unlocked_dio(orig_inode);
+	ext4_inode_resume_unlocked_dio(donor_inode);
 	mext_inode_double_unlock(orig_inode, donor_inode);
 
 	return ret;
