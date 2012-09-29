@@ -21,6 +21,6 @@ struct reginfo
 
 #define SEQUENCE_PROPERTY    0xFFFD
 #define SEQUENCE_WAIT_MS     0xFFFE
-#define SEQUENCE_END	     0xFFFF
+#define SEQUENCE_END	     0x0000
 #endif
 
