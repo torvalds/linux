@@ -8109,6 +8109,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_lenloc, &wqe->fcp_icmd.wqe_com,
 		       LPFC_WQE_LENLOC_NONE);
 		bf_set(wqe_ebde_cnt, &wqe->fcp_icmd.wqe_com, 0);
+		bf_set(wqe_erp, &wqe->fcp_icmd.wqe_com,
+		       iocbq->iocb.ulpFCP2Rcvy);
 		break;
 	case CMD_GEN_REQUEST64_CR:
 		/* For this command calculate the xmit length of the
