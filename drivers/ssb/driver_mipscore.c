@@ -192,6 +192,7 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 
 	/* When there is no chipcommon on the bus there is 4MB flash */
 	if (!bus->chipco.dev) {
+		mcore->pflash.present = true;
 		mcore->pflash.buswidth = 2;
 		mcore->pflash.window = SSB_FLASH1;
 		mcore->pflash.window_size = SSB_FLASH1_SZ;
@@ -206,6 +207,7 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 		break;
 	case SSB_CHIPCO_FLASHT_PARA:
 		pr_debug("Found parallel flash\n");
+		mcore->pflash.present = true;
 		mcore->pflash.window = SSB_FLASH2;
 		mcore->pflash.window_size = SSB_FLASH2_SZ;
 		if ((ssb_read32(bus->chipco.dev, SSB_CHIPCO_FLASH_CFG)

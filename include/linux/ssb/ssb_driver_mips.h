@@ -14,6 +14,7 @@ struct ssb_serial_port {
 };
 
 struct ssb_pflash {
+	bool present;
 	u8 buswidth;
 	u32 window;
 	u32 window_size;
