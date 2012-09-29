@@ -510,6 +510,7 @@ struct bcma_chipcommon_pmu {
 
 #ifdef CONFIG_BCMA_DRIVER_MIPS
 struct bcma_pflash {
+	bool present;
 	u8 buswidth;
 	u32 window;
 	u32 window_size;

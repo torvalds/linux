@@ -190,6 +190,7 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 		break;
 	case BCMA_CC_FLASHT_PARA:
 		bcma_debug(bus, "Found parallel flash\n");
+		bus->drv_cc.pflash.present = true;
 		bus->drv_cc.pflash.window = 0x1c000000;
 		bus->drv_cc.pflash.window_size = 0x02000000;
 
