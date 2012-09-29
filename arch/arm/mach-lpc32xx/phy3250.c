@@ -24,12 +24,9 @@
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/eeprom.h>
 #include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
-#include <linux/amba/pl022.h>
 #include <linux/amba/pl08x.h>
 #include <linux/amba/mmci.h>
 #include <linux/of.h>
@@ -158,21 +155,6 @@ static struct clcd_board lpc32xx_clcd_data = {
 	.remove		= lpc32xx_clcd_remove,
 };
 
-/*
- * AMBA SSP (SPI)
- */
-static struct pl022_ssp_controller lpc32xx_ssp0_data = {
-	.bus_id			= 0,
-	.num_chipselect		= 1,
-	.enable_dma		= 0,
-};
-
-static struct pl022_ssp_controller lpc32xx_ssp1_data = {
-	.bus_id			= 1,
-	.num_chipselect		= 1,
-	.enable_dma		= 0,
-};
-
 static struct pl08x_channel_data pl08x_slave_channels[] = {
 	{
 		.bus_id = "nand-slc",
@@ -234,8 +216,8 @@ static struct lpc32xx_mlc_platform_data lpc32xx_mlc_data = {
 };
 
 static const struct of_dev_auxdata lpc32xx_auxdata_lookup[] __initconst = {
-	OF_DEV_AUXDATA("arm,pl022", 0x20084000, "dev:ssp0", &lpc32xx_ssp0_data),
-	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", &lpc32xx_ssp1_data),
+	OF_DEV_AUXDATA("arm,pl022", 0x20084000, "dev:ssp0", NULL),
+	OF_DEV_AUXDATA("arm,pl022", 0x2008C000, "dev:ssp1", NULL),
 	OF_DEV_AUXDATA("arm,pl110", 0x31040000, "dev:clcd", &lpc32xx_clcd_data),
 	OF_DEV_AUXDATA("arm,pl080", 0x31000000, "pl08xdmac", &pl08x_pd),
 	OF_DEV_AUXDATA("arm,pl18x", 0x20098000, "20098000.sd",
