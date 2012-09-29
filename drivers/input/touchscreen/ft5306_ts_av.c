@@ -721,11 +721,25 @@ static int ft5306_suspend(struct early_suspend *h)
 static int ft5306_resume(struct early_suspend *h)
 {
 	struct ft5x0x_ts_data *ft5x0x_ts;	
+	int trytimes;
+	u8 val = 0;
 	ft5x0x_ts = container_of(h, struct ft5x0x_ts_data, ft5306_early_suspend);
 	FTprintk("TSP ft5306_resume\n");
 	enable_irq(ft5x0x_ts->irq);
 	if (ft5x0x_ts->platform_wakeup)                              
 		ft5x0x_ts->platform_wakeup();
+
+	for(trytimes = 0 ;trytimes < 5; trytimes++){
+		if(ft5306_read_regs(this_client, 0x00,  &val,1)<0){
+			if (ft5x0x_ts->platform_sleep) 
+				ft5x0x_ts->platform_sleep();
+			if (ft5x0x_ts->platform_wakeup)                              
+				ft5x0x_ts->platform_wakeup();
+		}else{
+			break;
+		}
+	}
+
 	//gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
 	//mdelay(100);
 	//gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
