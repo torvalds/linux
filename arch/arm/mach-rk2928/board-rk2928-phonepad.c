@@ -440,7 +440,7 @@ struct platform_device pwm_regulator_device[1] = {
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
 #ifdef CONFIG_SDMMC_RK29
-#include "board-rk2928-sdk-sdmmc.c"
+#include "board-rk2928-phonepad-sdmmc.c"
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
 #define SDMMC0_WRITE_PROTECT_PIN	RK2928_PIN1_PA7	//According to your own project to set the value of write-protect-pin.
