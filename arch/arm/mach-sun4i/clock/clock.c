@@ -175,60 +175,34 @@ int clk_init(void)
         tmpSclk->clk->onoff = AW_CCU_CLK_ON;
         tmpSclk->set_clk(tmpSclk->clk);
         #endif
-
-        /* sata pll set to 960mhz for c ver. */
-        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
-        #if(USE_PLL6M_REPLACE_PLL4)
-        tmpSclk->clk->rate  = 960000000;
-        #else
-        tmpSclk->clk->rate  = 600000000;
-        #endif
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6M];
-        #if(USE_PLL6M_REPLACE_PLL4)
-        tmpSclk->clk->rate  = 160000000;
-        #else
-        tmpSclk->clk->rate  = 100000000;
-        #endif
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL62];
-        #if(USE_PLL6M_REPLACE_PLL4)
-        tmpSclk->clk->rate  = 480000000;
-        #else
-        tmpSclk->clk->rate  = 300000000;
-        #endif
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-        tmpSclk->set_clk(tmpSclk->clk);
-    } else {
-        /* initiate PLL4 */
-        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL4];
-        tmpSclk->clk->rate  = 960000000;
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-        tmpSclk->set_clk(tmpSclk->clk);
-
-        /* initiate PLL6 */
-        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
-        tmpSclk->clk->rate  = 600000000;
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6M];
-        tmpSclk->clk->rate  = 100000000;
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL62];
-        tmpSclk->clk->rate  = 300000000;
-        tmpSclk->set_clk(tmpSclk->clk);
-        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-        tmpSclk->set_clk(tmpSclk->clk);
     }
+
+	/* initiate PLL6 */
+	tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
+	tmpSclk->clk->rate  = 1200000000;
+	tmpSclk->set_clk(tmpSclk->clk);
+	tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+	tmpSclk->set_clk(tmpSclk->clk);
+
+	tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6M];
+	tmpSclk->clk->rate  = 100000000;
+	tmpSclk->set_clk(tmpSclk->clk);
+	tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+	tmpSclk->set_clk(tmpSclk->clk);
+
+	tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL62];
+	tmpSclk->clk->rate  = 600000000;
+	tmpSclk->set_clk(tmpSclk->clk);
+	tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+	tmpSclk->set_clk(tmpSclk->clk);
+
+	tmpSclk = clk_get(NULL, "apb1");
+	if (tmpSclk) {
+		struct clk *tmpClk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
+		clk_set_parent(tmpSclk, tmpClk);
+	} else {
+		CCU_ERR("try to get apb1 clock handle failed!\n");
+	}
 
     tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL7];
     tmpSclk->clk->onoff = AW_CCU_CLK_ON;
