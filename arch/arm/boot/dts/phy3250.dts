@@ -189,16 +189,14 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led0 {
-			gpios = <&gpio 5 1 1>; /* GPO_P3 1, GPIO 80, active low */
-			linux,default-trigger = "heartbeat";
+		led0 { /* red */
+			gpios = <&gpio 5 1 0>; /* GPO_P3 1, GPIO 80, active high */
 			default-state = "off";
 		};
 
-		led1 {
-			gpios = <&gpio 5 14 1>; /* GPO_P3 14, GPIO 93, active low */
-			linux,default-trigger = "timer";
-			default-state = "off";
+		led1 { /* green */
+			gpios = <&gpio 5 14 0>; /* GPO_P3 14, GPIO 93, active high */
+			linux,default-trigger = "heartbeat";
 		};
 	};
 };
