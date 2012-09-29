@@ -806,23 +806,10 @@ sys_nis_syscall:
 	call	c_sys_nis_syscall
 	 mov	%l5, %o7
 
-	.align	4
-	.globl	sys_execve
-sys_execve:
-	mov	%o7, %l5
-	add	%sp, STACKFRAME_SZ, %o0		! pt_regs *regs arg
-	call	sparc_execve
-	 mov	%l5, %o7
-
-	.globl	sunos_execv
 sunos_execv:
-	st	%g0, [%sp + STACKFRAME_SZ + PT_I2]
-
-	call	sparc_execve
-	 add	%sp, STACKFRAME_SZ, %o0
-
-	b	ret_sys_call
-	 ld	[%sp + STACKFRAME_SZ + PT_I0], %o0
+	.globl	sunos_execv
+	b	sys_execve
+	 clr	%i2
 
 	.align	4
 	.globl	sys_sparc_pipe

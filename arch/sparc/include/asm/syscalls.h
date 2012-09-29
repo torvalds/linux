@@ -8,8 +8,4 @@ extern asmlinkage long sparc_do_fork(unsigned long clone_flags,
 				     struct pt_regs *regs,
 				     unsigned long stack_size);
 
-#ifndef __arch64__
-extern asmlinkage int sparc_execve(struct pt_regs *regs);
-#endif
-
 #endif /* _SPARC64_SYSCALLS_H */

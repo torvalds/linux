@@ -476,34 +476,6 @@ int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs)
 	return 1;
 }
 
-/*
- * sparc_execve() executes a new program after the asm stub has set
- * things up for us.  This should basically do what I want it to.
- */
-asmlinkage int sparc_execve(struct pt_regs *regs)
-{
-	int error, base = 0;
-	struct filename *filename;
-
-	/* Check for indirect call. */
-	if(regs->u_regs[UREG_G1] == 0)
-		base = 1;
-
-	filename = getname((char __user *)regs->u_regs[base + UREG_I0]);
-	error = PTR_ERR(filename);
-	if(IS_ERR(filename))
-		goto out;
-	error = do_execve(filename->name,
-			  (const char __user *const  __user *)
-			  regs->u_regs[base + UREG_I1],
-			  (const char __user *const  __user *)
-			  regs->u_regs[base + UREG_I2],
-			  regs);
-	putname(filename);
-out:
-	return error;
-}
-
 unsigned long get_wchan(struct task_struct *task)
 {
 	unsigned long pc, fp, bias = 0;
