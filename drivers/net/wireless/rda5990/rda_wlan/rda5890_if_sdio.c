@@ -37,13 +37,13 @@ extern void rk29_sdio_irq_enable(int enable);
 void export_wifi_eirq_enable(void)
 {
 	// todo...
-	rk29_sdio_irq_enable(1);
+	//rk29_sdio_irq_enable(1);
 }
 
 void export_wifi_eirq_disable(void)
 {
 	// todo...
-	rk29_sdio_irq_enable(0);
+	//rk29_sdio_irq_enable(0);
 }
 
 /* Module parameters */

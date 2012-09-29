@@ -1592,13 +1592,13 @@ static int rda_5990_pw_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	switch(cmd)
 	{
 		case RDA_WIFI_POWER_ON_IOCTL:
-			rda_wifi_power_on();
-			rk29sdk_wifi_set_carddetect(1);
+			//rda_wifi_power_on();
+			//rk29sdk_wifi_set_carddetect(1);
 			break;
 
 		case RDA_WIFI_POWER_OFF_IOCTL:
-		    rk29sdk_wifi_set_carddetect(0);
-			rda_wifi_power_off();
+		    	//rk29sdk_wifi_set_carddetect(0);
+			//rda_wifi_power_off();
 			break;
 
 		case RDA_WIFI_POWER_SET_TEST_MODE_IOCTL:
@@ -1658,9 +1658,10 @@ static int rda_5990_pw_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 	return ret;
 }	
-
+extern int rk29sdk_wifi_power(int on);
 void mmc_rescan_slot(int id)
 {
+	rk29sdk_wifi_power(1);
     rda_wifi_power_on();
     rk29sdk_wifi_set_carddetect(1);
 }
@@ -1669,7 +1670,8 @@ EXPORT_SYMBOL(mmc_rescan_slot);
 void mmc_remove(int id)
 {
     rk29sdk_wifi_set_carddetect(0);
-			rda_wifi_power_off();
+	rda_wifi_power_off();
+	rk29sdk_wifi_power(0);
 }
 EXPORT_SYMBOL(mmc_remove);
 
