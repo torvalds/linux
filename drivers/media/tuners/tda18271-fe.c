@@ -1323,6 +1323,9 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	if (tda18271_debug & (DBG_MAP | DBG_ADV))
 		tda18271_dump_std_map(fe);
 
+	ret = tda18271_sleep(fe);
+	tda_fail(ret);
+
 	return fe;
 fail:
 	mutex_unlock(&tda18271_list_mutex);
