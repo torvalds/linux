@@ -3669,7 +3669,6 @@ int omap_dispc_unregister_isr(omap_dispc_isr_t isr, void *arg, u32 mask)
 }
 EXPORT_SYMBOL(omap_dispc_unregister_isr);
 
-#ifdef DEBUG
 static void print_irq_status(u32 status)
 {
 	if ((status & dispc.irq_error_mask) == 0)
@@ -3690,7 +3689,6 @@ static void print_irq_status(u32 status)
 		dss_has_feature(FEAT_MGR_LCD3) ? PIS(SYNC_LOST3) : "");
 #undef PIS
 }
-#endif
 
 /* Called from dss.c. Note that we don't touch clocks here,
  * but we presume they are on because we got an IRQ. However,
@@ -3723,10 +3721,8 @@ static irqreturn_t omap_dispc_irq_handler(int irq, void *arg)
 	spin_unlock(&dispc.irq_stats_lock);
 #endif
 
-#ifdef DEBUG
-	if (dss_debug)
-		print_irq_status(irqstatus);
-#endif
+	print_irq_status(irqstatus);
+
 	/* Ack the interrupt. Do it here before clocks are possibly turned
 	 * off */
 	dispc_write_reg(DISPC_IRQSTATUS, irqstatus);

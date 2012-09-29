@@ -1095,14 +1095,10 @@ static inline void dsi_enable_pll_clock(struct platform_device *dsidev,
 	}
 }
 
-#ifdef DEBUG
 static void _dsi_print_reset_status(struct platform_device *dsidev)
 {
 	u32 l;
 	int b0, b1, b2;
-
-	if (!dss_debug)
-		return;
 
 	/* A dummy read using the SCP interface to any DSIPHY register is
 	 * required after DSIPHY reset to complete the reset of the DSI complex
@@ -1134,9 +1130,6 @@ static void _dsi_print_reset_status(struct platform_device *dsidev)
 
 #undef DSI_FLD_GET
 }
-#else
-#define _dsi_print_reset_status(x)
-#endif
 
 static inline int dsi_if_enable(struct platform_device *dsidev, bool enable)
 {

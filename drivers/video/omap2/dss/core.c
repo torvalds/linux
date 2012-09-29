@@ -53,11 +53,6 @@ static char *def_disp_name;
 module_param_named(def_disp, def_disp_name, charp, 0);
 MODULE_PARM_DESC(def_disp, "default display name");
 
-#ifdef DEBUG
-bool dss_debug;
-module_param_named(debug, dss_debug, bool, 0644);
-#endif
-
 const char *dss_get_default_display_name(void)
 {
 	return core.default_display_name;

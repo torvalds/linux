@@ -23,10 +23,6 @@
 #ifndef __OMAP2_DSS_H
 #define __OMAP2_DSS_H
 
-#ifdef DEBUG
-extern bool dss_debug;
-#endif
-
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
