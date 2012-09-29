@@ -631,8 +631,10 @@ asmlinkage void __init start_kernel(void)
 	acpi_early_init(); /* before LAPIC and SMP init */
 	sfi_init_late();
 
-	if (efi_enabled)
+	if (efi_enabled) {
+		efi_late_init();
 		efi_free_boot_services();
+	}
 
 	ftrace_init();
 
