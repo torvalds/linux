@@ -996,7 +996,7 @@ static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
 		cond_resched();
 	}
 
-	status = gpmc_nand_read(info->gpmc_cs, GPMC_NAND_DATA);
+	status = readb(info->reg.gpmc_nand_data);
 	return status;
 }
 
