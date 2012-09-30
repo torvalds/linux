@@ -813,7 +813,9 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	mutex_lock(uprobes_hash(inode));
 	uprobe = alloc_uprobe(inode, offset);
 
-	if (uprobe && !consumer_add(uprobe, uc)) {
+	if (!uprobe) {
+		ret = -ENOMEM;
+	} else if (!consumer_add(uprobe, uc)) {
 		ret = __uprobe_register(uprobe);
 		if (ret) {
 			uprobe->consumers = NULL;
