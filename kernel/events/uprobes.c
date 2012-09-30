@@ -89,6 +89,7 @@ struct uprobe {
 	struct rb_node		rb_node;	/* node in the rb tree */
 	atomic_t		ref;
 	struct rw_semaphore	consumer_rwsem;
+	struct mutex		copy_mutex;	/* TODO: kill me and UPROBE_COPY_INSN */
 	struct list_head	pending_list;
 	struct uprobe_consumer	*consumers;
 	struct inode		*inode;		/* Also hold a ref to inode */
@@ -444,6 +445,7 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset)
 	uprobe->inode = igrab(inode);
 	uprobe->offset = offset;
 	init_rwsem(&uprobe->consumer_rwsem);
+	mutex_init(&uprobe->copy_mutex);
 
 	/* add to uprobes_tree, sorted on inode:offset */
 	cur_uprobe = insert_uprobe(uprobe);
@@ -578,6 +580,10 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 	if (uprobe->flags & UPROBE_COPY_INSN)
 		return ret;
 
+	mutex_lock(&uprobe->copy_mutex);
+	if (uprobe->flags & UPROBE_COPY_INSN)
+		goto out;
+
 	ret = copy_insn(uprobe, file);
 	if (ret)
 		goto out;
@@ -598,6 +604,8 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 	uprobe->flags |= UPROBE_COPY_INSN;
 
  out:
+	mutex_unlock(&uprobe->copy_mutex);
+
 	return ret;
 }
 
