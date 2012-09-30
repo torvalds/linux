@@ -6,6 +6,7 @@ config REMOTEPROC
 	depends on EXPERIMENTAL
 	depends on HAS_DMA
 	select FW_CONFIG
+	select VIRTIO
 
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
