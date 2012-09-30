@@ -610,7 +610,7 @@ struct ieee80211_if_mesh {
 		IEEE80211_MESH_SEC_SECURED = 0x2,
 	} security;
 	/* Extensible Synchronization Framework */
-	struct ieee80211_mesh_sync_ops *sync_ops;
+	const struct ieee80211_mesh_sync_ops *sync_ops;
 	s64 sync_offset_clockdrift_max;
 	spinlock_t sync_offset_lock;
 	bool adjusting_tbtt;
