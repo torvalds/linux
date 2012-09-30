@@ -2318,3 +2318,25 @@ int dump_seek(struct file *file, loff_t off)
 	return ret;
 }
 EXPORT_SYMBOL(dump_seek);
+
+#ifdef __ARCH_WANT_KERNEL_EXECVE
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
+{
+	struct pt_regs *p = current_pt_regs();
+	int ret;
+
+	ret = do_execve(filename,
+			(const char __user *const __user *)argv,
+			(const char __user *const __user *)envp, p);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * We were successful.  We won't be returning to our caller, but
+	 * instead to user space by manipulating the kernel stack.
+	 */
+	ret_from_kernel_execve(p);
+}
+#endif
