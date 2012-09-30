@@ -78,6 +78,13 @@ static struct mutex uprobes_mmap_mutex[UPROBES_HASH_SZ];
  */
 static atomic_t uprobe_events = ATOMIC_INIT(0);
 
+/* Have a copy of original instruction */
+#define UPROBE_COPY_INSN	0x1
+/* Dont run handlers when first register/ last unregister in progress*/
+#define UPROBE_RUN_HANDLER	0x2
+/* Can skip singlestep */
+#define UPROBE_SKIP_SSTEP	0x4
+
 struct uprobe {
 	struct rb_node		rb_node;	/* node in the rb tree */
 	atomic_t		ref;
@@ -563,6 +570,37 @@ static int copy_insn(struct uprobe *uprobe, struct file *filp)
 	return __copy_insn(mapping, filp, uprobe->arch.insn, bytes, uprobe->offset);
 }
 
+static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
+				struct mm_struct *mm, unsigned long vaddr)
+{
+	int ret = 0;
+
+	if (uprobe->flags & UPROBE_COPY_INSN)
+		return ret;
+
+	ret = copy_insn(uprobe, file);
+	if (ret)
+		goto out;
+
+	ret = -ENOTSUPP;
+	if (is_swbp_insn((uprobe_opcode_t *)uprobe->arch.insn))
+		goto out;
+
+	ret = arch_uprobe_analyze_insn(&uprobe->arch, mm, vaddr);
+	if (ret)
+		goto out;
+
+	/* write_opcode() assumes we don't cross page boundary */
+	BUG_ON((uprobe->offset & ~PAGE_MASK) +
+			UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
+
+	smp_wmb(); /* pairs with rmb() in find_active_uprobe() */
+	uprobe->flags |= UPROBE_COPY_INSN;
+
+ out:
+	return ret;
+}
+
 static int
 install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 			struct vm_area_struct *vma, unsigned long vaddr)
@@ -580,25 +618,9 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 	if (!uprobe->consumers)
 		return 0;
 
-	if (!(uprobe->flags & UPROBE_COPY_INSN)) {
-		ret = copy_insn(uprobe, vma->vm_file);
-		if (ret)
-			return ret;
-
-		if (is_swbp_insn((uprobe_opcode_t *)uprobe->arch.insn))
-			return -ENOTSUPP;
-
-		ret = arch_uprobe_analyze_insn(&uprobe->arch, mm, vaddr);
-		if (ret)
-			return ret;
-
-		/* write_opcode() assumes we don't cross page boundary */
-		BUG_ON((uprobe->offset & ~PAGE_MASK) +
-				UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
-
-		smp_wmb(); /* pairs with rmb() in find_active_uprobe() */
-		uprobe->flags |= UPROBE_COPY_INSN;
-	}
+	ret = prepare_uprobe(uprobe, vma->vm_file, mm, vaddr);
+	if (ret)
+		return ret;
 
 	/*
 	 * set MMF_HAS_UPROBES in advance for uprobe_pre_sstep_notifier(),
