@@ -14,7 +14,6 @@
 
 #include "util/parse-options.h"
 
-static char		const *input_name = "-";
 static bool		inject_build_ids;
 
 static int perf_event__repipe_synth(struct perf_tool *tool __maybe_unused,
@@ -245,7 +244,7 @@ static int __cmd_inject(void)
 		perf_inject.tracing_data = perf_event__repipe_tracing_data;
 	}
 
-	session = perf_session__new(input_name, O_RDONLY, false, true, &perf_inject);
+	session = perf_session__new("-", O_RDONLY, false, true, &perf_inject);
 	if (session == NULL)
 		return -ENOMEM;
 
