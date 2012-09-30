@@ -173,54 +173,83 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 		pr_info("%u MB reserved for MALI\n", mali);
 }
 
+#define pr_reserve_info(L, START, SIZE) \
+	pr_info("\t" L " : 0x%08x - 0x%08x  (%4d %s)\n", \
+		(u32)(START), (u32)((START) + (SIZE) - 1), \
+		(u32)((SIZE) < SZ_1M ? (SIZE) / SZ_1K : (SIZE) / SZ_1M), \
+		(SIZE) < SZ_1M ? "kB" : "MB")
+
+#if defined CONFIG_FB || defined CONFIG_FB_MODULE
 unsigned long fb_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_64M - SZ_32M);
 unsigned long fb_size = SZ_32M;
 EXPORT_SYMBOL(fb_start);
 EXPORT_SYMBOL(fb_size);
 
+static inline void reserve_fb(void)
+{
+	memblock_reserve(fb_start, fb_size);
+	pr_reserve_info("LCD ", fb_start, fb_size);
+}
+#else
+static inline void reserve_fb(void) {}
+#endif
+
+#if 0
 unsigned long g2d_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_128M);
 unsigned long g2d_size = SZ_1M * 16;
 EXPORT_SYMBOL(g2d_start);
 EXPORT_SYMBOL(g2d_size);
 
+static inline void reserve_g2d(void)
+{
+	int g2d_used = 0;
+	char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
+
+	g2d_used = sw_cfg_get_int(script_base, "g2d_para", "g2d_used");
+	if (g2d_used > 0) {
+		int size = sw_cfg_get_int(script_base, "g2d_para", "g2d_size");
+		if (size < 0 || size > SW_G2D_MEM_MAX)
+			g2d_size = SW_G2D_MEM_MAX;
+		else
+			g2d_size = size;
+
+		memblock_reserve(g2d_start, g2d_size);
+		pr_reserve_info("G2D ", g2d_start, g2d_size);
+	}
+}
+#else
+static inline void reserve_g2d(void) {}
+#endif
+
+#if defined CONFIG_VIDEO_DECODER_SUN5I || defined CONFIG_VIDEO_DECODER_SUN5I_MODULE
 unsigned long ve_start = (PLAT_PHYS_OFFSET + SZ_64M);
 unsigned long ve_size = (SZ_64M + SZ_16M);
 EXPORT_SYMBOL(ve_start);
 EXPORT_SYMBOL(ve_size);
 
-static void __init sw_core_reserve(void)
+static inline void reserve_ve(void)
 {
-	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
-	memblock_reserve(fb_start, fb_size);
 	memblock_reserve(ve_start, SZ_64M);
 	memblock_reserve(ve_start + SZ_64M, SZ_16M);
-
-#if 0
-        int g2d_used = 0;
-        char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
-
-        g2d_used = sw_cfg_get_int(script_base, "g2d_para", "g2d_used");
-
-	memblock_reserve(fb_start, fb_size);
-	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
-	memblock_reserve(ve_start, ve_start);
-
-        if (g2d_used) {
-                g2d_size = sw_cfg_get_int(script_base, "g2d_para", "g2d_size");
-                if (g2d_size < 0 || g2d_size > SW_G2D_MEM_MAX) {
-                        g2d_size = SW_G2D_MEM_MAX;
-                }
-                g2d_start = SW_G2D_MEM_BASE;
-                g2d_size = g2d_size;
-                memblock_reserve(g2d_start, g2d_size);
-        }
-
+	pr_reserve_info("VE  ", ve_start, ve_size);
+}
+#else
+static inline void reserve_ve(void) {}
 #endif
-	pr_info("Memory Reserved(in bytes):\n");
-	pr_info("\tLCD: 0x%08x, 0x%08x\n", (unsigned int)fb_start, (unsigned int)fb_size);
-	pr_info("\tSYS: 0x%08x, 0x%08x\n", (unsigned int)SYS_CONFIG_MEMBASE, (unsigned int)SYS_CONFIG_MEMSIZE);
-	pr_info("\tG2D: 0x%08x, 0x%08x\n", (unsigned int)g2d_start, (unsigned int)g2d_size);
-	pr_info("\tVE : 0x%08x, 0x%08x\n", (unsigned int)ve_start, (unsigned int)ve_size);
+
+static inline void reserve_sys(void)
+{
+	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
+	pr_reserve_info("SYS ", SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
+}
+
+static void __init sw_core_reserve(void)
+{
+	pr_info("Memory Reserved:\n");
+	reserve_sys();
+	reserve_fb();
+	reserve_g2d();
+	reserve_ve();
 }
 
 void sw_irq_ack(struct irq_data *irqd)
