@@ -1,10 +1,5 @@
 if ARCH_SUN5I
 
-config SUN5I_FPGA
-	bool "FPGA Board Support"
-	help
-	  Only for FPGA board. 
-
 config SW_DEBUG_UART
 	int "UART to use for low-level debug"
 	depends on DEBUG_LL

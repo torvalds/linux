@@ -136,12 +136,6 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 {
 	u32 size;
 
-#ifdef CONFIG_SUN5I_FPGA
-	size = 256;
-	mi->nr_banks = 1;
-	mi->bank[0].start = 0x40000000;
-	mi->bank[0].size = SZ_1M * size;
-#else
 	size = DRAMC_get_dram_size();
 	early_printk("DRAM: %d", size);
 
@@ -156,7 +150,6 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 		mi->bank[1].start = 0x60000000;
 		mi->bank[1].size = SZ_1M * (size - 512);
 	}
-#endif
 
 	pr_info("Total Detected Memory: %uMB with %d banks\n", size, mi->nr_banks);
 }
@@ -179,8 +172,6 @@ EXPORT_SYMBOL(ve_size);
 static void __init sw_core_reserve(void)
 {
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
-#ifdef CONFIG_SUN5I_FPGA
-#else
 	memblock_reserve(fb_start, fb_size);
 	memblock_reserve(ve_start, SZ_64M);
 	memblock_reserve(ve_start + SZ_64M, SZ_16M);
@@ -211,7 +202,6 @@ static void __init sw_core_reserve(void)
 	pr_info("\tSYS: 0x%08x, 0x%08x\n", (unsigned int)SYS_CONFIG_MEMBASE, (unsigned int)SYS_CONFIG_MEMSIZE);
 	pr_info("\tG2D: 0x%08x, 0x%08x\n", (unsigned int)g2d_start, (unsigned int)g2d_size);
 	pr_info("\tVE : 0x%08x, 0x%08x\n", (unsigned int)ve_start, (unsigned int)ve_size);
-#endif
 }
 
 void sw_irq_ack(struct irq_data *irqd)
