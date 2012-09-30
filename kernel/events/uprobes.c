@@ -203,7 +203,7 @@ static int verify_opcode(struct page *page, unsigned long vaddr, uprobe_opcode_t
 			return 0;
 	} else {
 		if (!is_swbp)		/* unregister: was it changed by us? */
-			return -EINVAL;
+			return 0;
 	}
 
 	return 1;
@@ -616,15 +616,15 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 	return ret;
 }
 
-static void
+static int
 remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vaddr)
 {
 	/* can happen if uprobe_register() fails */
 	if (!test_bit(MMF_HAS_UPROBES, &mm->flags))
-		return;
+		return 0;
 
 	set_bit(MMF_RECALC_UPROBES, &mm->flags);
-	set_orig_insn(&uprobe->arch, mm, vaddr);
+	return set_orig_insn(&uprobe->arch, mm, vaddr);
 }
 
 /*
@@ -740,7 +740,7 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 		struct mm_struct *mm = info->mm;
 		struct vm_area_struct *vma;
 
-		if (err)
+		if (err && is_register)
 			goto free;
 
 		down_write(&mm->mmap_sem);
@@ -756,7 +756,7 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 		if (is_register)
 			err = install_breakpoint(uprobe, mm, vma, info->vaddr);
 		else
-			remove_breakpoint(uprobe, mm, info->vaddr);
+			err |= remove_breakpoint(uprobe, mm, info->vaddr);
 
  unlock:
 		up_write(&mm->mmap_sem);
