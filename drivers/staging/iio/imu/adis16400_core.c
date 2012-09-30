@@ -622,7 +622,7 @@ static const struct iio_chan_spec adis16400_channels[] = {
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_supply,
 		.scan_index = ADIS16400_SCAN_SUPPLY,
-		.scan_type = IIO_ST('u', 14, 16, 0)
+		.scan_type = IIO_ST('u', 14, 16, 0),
 	}, {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
@@ -633,7 +633,7 @@ static const struct iio_chan_spec adis16400_channels[] = {
 		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SHARED_BIT,
 		.address = gyro_x,
 		.scan_index = ADIS16400_SCAN_GYRO_X,
-		.scan_type = IIO_ST('s', 14, 16, 0)
+		.scan_type = IIO_ST('s', 14, 16, 0),
 	}, {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
@@ -752,7 +752,7 @@ static const struct iio_chan_spec adis16350_channels[] = {
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_supply,
 		.scan_index = ADIS16400_SCAN_SUPPLY,
-		.scan_type = IIO_ST('u', 12, 16, 0)
+		.scan_type = IIO_ST('u', 12, 16, 0),
 	}, {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
@@ -763,7 +763,7 @@ static const struct iio_chan_spec adis16350_channels[] = {
 		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SHARED_BIT,
 		.address = gyro_x,
 		.scan_index = ADIS16400_SCAN_GYRO_X,
-		.scan_type = IIO_ST('s', 14, 16, 0)
+		.scan_type = IIO_ST('s', 14, 16, 0),
 	}, {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
@@ -877,7 +877,7 @@ static const struct iio_chan_spec adis16300_channels[] = {
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_supply,
 		.scan_index = ADIS16400_SCAN_SUPPLY,
-		.scan_type = IIO_ST('u', 12, 16, 0)
+		.scan_type = IIO_ST('u', 12, 16, 0),
 	}, {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
