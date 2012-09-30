@@ -1898,8 +1898,13 @@ ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	status_code = le16_to_cpu(mgmt->u.auth.status_code);
 
 	if (auth_alg != ifmgd->auth_data->algorithm ||
-	    auth_transaction != ifmgd->auth_data->expected_transaction)
+	    auth_transaction != ifmgd->auth_data->expected_transaction) {
+		sdata_info(sdata, "%pM unexpected authentication state: alg %d (expected %d) transact %d (expected %d)\n",
+			   mgmt->sa, auth_alg, ifmgd->auth_data->algorithm,
+			   auth_transaction,
+			   ifmgd->auth_data->expected_transaction);
 		return RX_MGMT_NONE;
+	}
 
 	if (status_code != WLAN_STATUS_SUCCESS) {
 		sdata_info(sdata, "%pM denied authentication (status %d)\n",
