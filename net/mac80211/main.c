@@ -599,6 +599,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 		wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	wiphy->features = NL80211_FEATURE_SK_TX_STATUS |
+			  NL80211_FEATURE_SAE |
 			  NL80211_FEATURE_HT_IBSS;
 
 	if (!ops->set_key)

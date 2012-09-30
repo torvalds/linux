@@ -1917,6 +1917,7 @@ ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	case WLAN_AUTH_OPEN:
 	case WLAN_AUTH_LEAP:
 	case WLAN_AUTH_FT:
+	case WLAN_AUTH_SAE:
 		break;
 	case WLAN_AUTH_SHARED_KEY:
 		if (ifmgd->auth_data->expected_transaction != 4) {
@@ -1935,6 +1936,15 @@ ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	ifmgd->auth_data->done = true;
 	ifmgd->auth_data->timeout = jiffies + IEEE80211_AUTH_WAIT_ASSOC;
 	run_again(ifmgd, ifmgd->auth_data->timeout);
+
+	if (ifmgd->auth_data->algorithm == WLAN_AUTH_SAE &&
+	    ifmgd->auth_data->expected_transaction != 2) {
+		/*
+		 * Report auth frame to user space for processing since another
+		 * round of Authentication frames is still needed.
+		 */
+		return RX_MGMT_CFG80211_RX_AUTH;
+	}
 
 	/* move station state to auth */
 	mutex_lock(&sdata->local->sta_mtx);
@@ -2762,13 +2772,23 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 	drv_mgd_prepare_tx(local, sdata);
 
 	if (auth_data->bss->proberesp_ies) {
+		u16 trans = 1;
+		u16 status = 0;
+
 		sdata_info(sdata, "send auth to %pM (try %d/%d)\n",
 			   auth_data->bss->bssid, auth_data->tries,
 			   IEEE80211_AUTH_MAX_TRIES);
 
 		auth_data->expected_transaction = 2;
-		ieee80211_send_auth(sdata, 1, auth_data->algorithm, 0,
-				    auth_data->ie, auth_data->ie_len,
+
+		if (auth_data->algorithm == WLAN_AUTH_SAE) {
+			trans = auth_data->sae_trans;
+			status = auth_data->sae_status;
+			auth_data->expected_transaction = trans;
+		}
+
+		ieee80211_send_auth(sdata, trans, auth_data->algorithm, status,
+				    auth_data->data, auth_data->data_len,
 				    auth_data->bss->bssid,
 				    auth_data->bss->bssid, NULL, 0, 0);
 	} else {
@@ -3329,19 +3349,33 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	case NL80211_AUTHTYPE_NETWORK_EAP:
 		auth_alg = WLAN_AUTH_LEAP;
 		break;
+	case NL80211_AUTHTYPE_SAE:
+		auth_alg = WLAN_AUTH_SAE;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	auth_data = kzalloc(sizeof(*auth_data) + req->ie_len, GFP_KERNEL);
+	auth_data = kzalloc(sizeof(*auth_data) + req->sae_data_len +
+			    req->ie_len, GFP_KERNEL);
 	if (!auth_data)
 		return -ENOMEM;
 
 	auth_data->bss = req->bss;
 
+	if (req->sae_data_len >= 4) {
+		__le16 *pos = (__le16 *) req->sae_data;
+		auth_data->sae_trans = le16_to_cpu(pos[0]);
+		auth_data->sae_status = le16_to_cpu(pos[1]);
+		memcpy(auth_data->data, req->sae_data + 4,
+		       req->sae_data_len - 4);
+		auth_data->data_len += req->sae_data_len - 4;
+	}
+
 	if (req->ie && req->ie_len) {
-		memcpy(auth_data->ie, req->ie, req->ie_len);
-		auth_data->ie_len = req->ie_len;
+		memcpy(&auth_data->data[auth_data->data_len],
+		       req->ie, req->ie_len);
+		auth_data->data_len += req->ie_len;
 	}
 
 	if (req->key && req->key_len) {

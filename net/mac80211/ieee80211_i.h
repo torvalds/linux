@@ -378,8 +378,9 @@ struct ieee80211_mgd_auth_data {
 	u8 key_len, key_idx;
 	bool done;
 
-	size_t ie_len;
-	u8 ie[];
+	u16 sae_trans, sae_status;
+	size_t data_len;
+	u8 data[];
 };
 
 struct ieee80211_mgd_assoc_data {
