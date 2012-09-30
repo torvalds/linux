@@ -35,11 +35,6 @@ bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 	    chipid_top != 0x5300)
 		return false;
 
-	if (bus->sprom.boardflags_lo & BCMA_CORE_PCI_BFL_NOPCI) {
-		bcma_info(bus, "This PCI core is disabled and not working\n");
-		return false;
-	}
-
 	bcma_core_enable(pc->core, 0);
 
 	return !mips_busprobe32(tmp, pc->core->io_addr);
@@ -395,6 +390,11 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	unsigned long io_map_base;
 
 	bcma_info(bus, "PCIEcore in host mode found\n");
+
+	if (bus->sprom.boardflags_lo & BCMA_CORE_PCI_BFL_NOPCI) {
+		bcma_info(bus, "This PCIE core is disabled and not working\n");
+		return;
+	}
 
 	pc_host = kzalloc(sizeof(*pc_host), GFP_KERNEL);
 	if (!pc_host)  {
