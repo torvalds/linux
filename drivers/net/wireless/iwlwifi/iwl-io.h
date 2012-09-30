@@ -87,7 +87,7 @@ void _iwl_read_targ_mem_dwords(struct iwl_trans *trans, u32 addr,
 	} while (0)
 
 int _iwl_write_targ_mem_dwords(struct iwl_trans *trans, u32 addr,
-			       void *buf, int dwords);
+			       const void *buf, int dwords);
 
 u32 iwl_read_targ_mem(struct iwl_trans *trans, u32 addr);
 int iwl_write_targ_mem(struct iwl_trans *trans, u32 addr, u32 val);
