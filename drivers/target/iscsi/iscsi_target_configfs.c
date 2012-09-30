@@ -1034,6 +1034,9 @@ TPG_PARAM_ATTR(ImmediateData, S_IRUGO | S_IWUSR);
 DEF_TPG_PARAM(MaxRecvDataSegmentLength);
 TPG_PARAM_ATTR(MaxRecvDataSegmentLength, S_IRUGO | S_IWUSR);
 
+DEF_TPG_PARAM(MaxXmitDataSegmentLength);
+TPG_PARAM_ATTR(MaxXmitDataSegmentLength, S_IRUGO | S_IWUSR);
+
 DEF_TPG_PARAM(MaxBurstLength);
 TPG_PARAM_ATTR(MaxBurstLength, S_IRUGO | S_IWUSR);
 
@@ -1079,6 +1082,7 @@ static struct configfs_attribute *lio_target_tpg_param_attrs[] = {
 	&iscsi_tpg_param_InitialR2T.attr,
 	&iscsi_tpg_param_ImmediateData.attr,
 	&iscsi_tpg_param_MaxRecvDataSegmentLength.attr,
+	&iscsi_tpg_param_MaxXmitDataSegmentLength.attr,
 	&iscsi_tpg_param_MaxBurstLength.attr,
 	&iscsi_tpg_param_FirstBurstLength.attr,
 	&iscsi_tpg_param_DefaultTime2Wait.attr,

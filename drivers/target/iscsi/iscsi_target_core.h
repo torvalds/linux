@@ -239,6 +239,7 @@ struct iscsi_conn_ops {
 	u8	HeaderDigest;			/* [0,1] == [None,CRC32C] */
 	u8	DataDigest;			/* [0,1] == [None,CRC32C] */
 	u32	MaxRecvDataSegmentLength;	/* [512..2**24-1] */
+	u32	MaxXmitDataSegmentLength;	/* [512..2**24-1] */
 	u8	OFMarker;			/* [0,1] == [No,Yes] */
 	u8	IFMarker;			/* [0,1] == [No,Yes] */
 	u32	OFMarkInt;			/* [1..65535] */

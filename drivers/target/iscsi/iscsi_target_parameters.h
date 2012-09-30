@@ -70,6 +70,7 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define INITIALR2T			"InitialR2T"
 #define IMMEDIATEDATA			"ImmediateData"
 #define MAXRECVDATASEGMENTLENGTH	"MaxRecvDataSegmentLength"
+#define MAXXMITDATASEGMENTLENGTH	"MaxXmitDataSegmentLength"
 #define MAXBURSTLENGTH			"MaxBurstLength"
 #define FIRSTBURSTLENGTH		"FirstBurstLength"
 #define DEFAULTTIME2WAIT		"DefaultTime2Wait"
@@ -113,6 +114,10 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define INITIAL_INITIALR2T			YES
 #define INITIAL_IMMEDIATEDATA			YES
 #define INITIAL_MAXRECVDATASEGMENTLENGTH	"8192"
+/*
+ * Match outgoing MXDSL default to incoming Open-iSCSI default
+ */
+#define INITIAL_MAXXMITDATASEGMENTLENGTH	"262144"
 #define INITIAL_MAXBURSTLENGTH			"262144"
 #define INITIAL_FIRSTBURSTLENGTH		"65536"
 #define INITIAL_DEFAULTTIME2WAIT		"2"

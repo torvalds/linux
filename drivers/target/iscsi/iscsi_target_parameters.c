@@ -334,6 +334,13 @@ int iscsi_create_default_params(struct iscsi_param_list **param_list_ptr)
 	if (!param)
 		goto out;
 
+	param = iscsi_set_default_param(pl, MAXXMITDATASEGMENTLENGTH,
+			INITIAL_MAXXMITDATASEGMENTLENGTH,
+			PHASE_OPERATIONAL, SCOPE_CONNECTION_ONLY, SENDER_BOTH,
+			TYPERANGE_512_TO_16777215, USE_ALL);
+	if (!param)
+		goto out;
+
 	param = iscsi_set_default_param(pl, MAXRECVDATASEGMENTLENGTH,
 			INITIAL_MAXRECVDATASEGMENTLENGTH,
 			PHASE_OPERATIONAL, SCOPE_CONNECTION_ONLY, SENDER_BOTH,
@@ -467,6 +474,8 @@ int iscsi_set_keys_to_negotiate(
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, MAXRECVDATASEGMENTLENGTH)) {
 			SET_PSTATE_NEGOTIATE(param);
+		} else if (!strcmp(param->name, MAXXMITDATASEGMENTLENGTH)) {
+			continue;
 		} else if (!strcmp(param->name, MAXBURSTLENGTH)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, FIRSTBURSTLENGTH)) {
@@ -1720,6 +1729,18 @@ void iscsi_set_connection_parameters(
 	pr_debug("---------------------------------------------------"
 			"---------------\n");
 	list_for_each_entry(param, &param_list->param_list, p_list) {
+		/*
+		 * Special case to set MAXXMITDATASEGMENTLENGTH from the
+		 * target requested MaxRecvDataSegmentLength, even though
+		 * this key is not sent over the wire.
+		 */
+		if (!strcmp(param->name, MAXXMITDATASEGMENTLENGTH)) {
+			ops->MaxXmitDataSegmentLength =
+				simple_strtoul(param->value, &tmpptr, 0);
+			pr_debug("MaxXmitDataSegmentLength:     %s\n",
+				param->value);
+		}
+
 		if (!IS_PSTATE_ACCEPTOR(param) && !IS_PSTATE_PROPOSER(param))
 			continue;
 		if (!strcmp(param->name, AUTHMETHOD)) {
