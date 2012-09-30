@@ -2356,6 +2356,13 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
 	unsigned long base, start, end, last_end;
 	bool purged = false;
 
+	{
+		int i;
+		for (i=0; i<nr_vms; i++) {
+			printk(KERN_ERR "%s:  offsets[%d]=%d, size[%d]=%d\n",
+				__FUNCTION__, i, offsets[i], i, sizes[i], i);
+		}
+	}
 	/* verify parameters and allocate data structures */
 	BUG_ON(align & ~PAGE_MASK || !is_power_of_2(align));
 	for (last_area = 0, area = 0; area < nr_vms; area++) {
