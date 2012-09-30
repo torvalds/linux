@@ -411,12 +411,11 @@ copy_thread(unsigned long clone_flags,
 
 	rbs = (unsigned long) current + IA64_RBS_OFFSET;
 	child_rbs = (unsigned long) p + IA64_RBS_OFFSET;
-	rbs_size = stack->ar_bspstore - rbs;
-
-	/* copy the parent's register backing store to the child: */
-	memcpy((void *) child_rbs, (void *) rbs, rbs_size);
 
 	if (likely(user_mode(child_ptregs))) {
+		/* copy the parent's register backing store to the child: */
+		rbs_size = stack->ar_bspstore - rbs;
+		memcpy((void *) child_rbs, (void *) rbs, rbs_size);
 		if (clone_flags & CLONE_SETTLS)
 			child_ptregs->r13 = regs->r16;	/* see sys_clone2() in entry.S */
 		if (user_stack_base) {
@@ -433,6 +432,7 @@ copy_thread(unsigned long clone_flags,
 		 * been taken care of by the caller of sys_clone()
 		 * already.
 		 */
+		rbs_size = 0;
 		child_ptregs->r12 = (unsigned long) child_ptregs - 16; /* kernel sp */
 		child_ptregs->r13 = (unsigned long) p;		/* set `current' pointer */
 	}
@@ -637,7 +637,6 @@ kernel_thread (int (*fn)(void *), void *arg, unsigned long flags)
 	regs.pt.cr_ipsr = ia64_getreg(_IA64_REG_PSR) | IA64_PSR_BN;
 	regs.pt.cr_ifs = 1UL << 63;		/* mark as valid, empty frame */
 	regs.sw.ar_fpsr = regs.pt.ar_fpsr = ia64_getreg(_IA64_REG_AR_FPSR);
-	regs.sw.ar_bspstore = (unsigned long) current + IA64_RBS_OFFSET;
 	regs.sw.pr = (1 << PRED_KERNEL_STACK);
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs.pt, 0, NULL, NULL);
 }
