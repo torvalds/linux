@@ -146,12 +146,19 @@ u8 iscsit_tmr_task_reassign(
 	}
 	/*
 	 * Temporary check to prevent connection recovery for
-	 * connections with a differing MaxRecvDataSegmentLength.
+	 * connections with a differing Max*DataSegmentLength.
 	 */
 	if (cr->maxrecvdatasegmentlength !=
 	    conn->conn_ops->MaxRecvDataSegmentLength) {
 		pr_err("Unable to perform connection recovery for"
 			" differing MaxRecvDataSegmentLength, rejecting"
+			" TMR TASK_REASSIGN.\n");
+		return ISCSI_TMF_RSP_REJECTED;
+	}
+	if (cr->maxxmitdatasegmentlength !=
+	    conn->conn_ops->MaxXmitDataSegmentLength) {
+		pr_err("Unable to perform connection recovery for"
+			" differing MaxXmitDataSegmentLength, rejecting"
 			" TMR TASK_REASSIGN.\n");
 		return ISCSI_TMF_RSP_REJECTED;
 	}
