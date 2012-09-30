@@ -279,7 +279,7 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
 		ibss_dbg(sdata,
 			 "TX Auth SA=%pM DA=%pM BSSID=%pM (auth_transaction=1)\n",
 			 sdata->vif.addr, addr, sdata->u.ibss.bssid);
-		ieee80211_send_auth(sdata, 1, WLAN_AUTH_OPEN, NULL, 0,
+		ieee80211_send_auth(sdata, 1, WLAN_AUTH_OPEN, 0, NULL, 0,
 				    addr, sdata->u.ibss.bssid, NULL, 0, 0);
 	}
 	return sta;
@@ -397,7 +397,7 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 	 * However, try to reply to authentication attempts if someone
 	 * has actually implemented this.
 	 */
-	ieee80211_send_auth(sdata, 2, WLAN_AUTH_OPEN, NULL, 0,
+	ieee80211_send_auth(sdata, 2, WLAN_AUTH_OPEN, 0, NULL, 0,
 			    mgmt->sa, sdata->u.ibss.bssid, NULL, 0, 0);
 }
 

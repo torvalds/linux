@@ -978,7 +978,7 @@ u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 }
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
-			 u16 transaction, u16 auth_alg,
+			 u16 transaction, u16 auth_alg, u16 status,
 			 u8 *extra, size_t extra_len, const u8 *da,
 			 const u8 *bssid, const u8 *key, u8 key_len, u8 key_idx)
 {
@@ -1003,7 +1003,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->bssid, bssid, ETH_ALEN);
 	mgmt->u.auth.auth_alg = cpu_to_le16(auth_alg);
 	mgmt->u.auth.auth_transaction = cpu_to_le16(transaction);
-	mgmt->u.auth.status_code = cpu_to_le16(0);
+	mgmt->u.auth.status_code = cpu_to_le16(status);
 	if (extra)
 		memcpy(skb_put(skb, extra_len), extra, extra_len);
 
