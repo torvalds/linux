@@ -187,6 +187,25 @@ static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 	}
 }
 
+static void ath_mci_ftp_adjust(struct ath_softc *sc)
+{
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_mci_profile *mci = &btcoex->mci;
+	struct ath_hw *ah = sc->sc_ah;
+
+	btcoex->bt_wait_time += btcoex->btcoex_period;
+	if (btcoex->bt_wait_time > ATH_BTCOEX_RX_WAIT_TIME) {
+		if (ar9003_mci_state(ah, MCI_STATE_NEED_FTP_STOMP) &&
+		    (mci->num_pan || mci->num_other_acl))
+			ah->btcoex_hw.mci.stomp_ftp =
+				(sc->rx.num_pkts < ATH_BTCOEX_STOMP_FTP_THRESH);
+		else
+			ah->btcoex_hw.mci.stomp_ftp = false;
+		btcoex->bt_wait_time = 0;
+		sc->rx.num_pkts = 0;
+	}
+}
+
 /*
  * This is the master bt coex timer which runs for every
  * 45ms, bt traffic will be given priority during 55% of this
@@ -197,7 +216,6 @@ static void ath_btcoex_period_timer(unsigned long data)
 	struct ath_softc *sc = (struct ath_softc *) data;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_mci_profile *mci = &btcoex->mci;
 	u32 timer_period;
 	bool is_btscan;
 	unsigned long flags;
@@ -214,17 +232,8 @@ static void ath_btcoex_period_timer(unsigned long data)
 		ath_detect_bt_priority(sc);
 	is_btscan = test_bit(BT_OP_SCAN, &btcoex->op_flags);
 
-	btcoex->bt_wait_time += btcoex->btcoex_period;
-	if (btcoex->bt_wait_time > ATH_BTCOEX_RX_WAIT_TIME) {
-		if (ar9003_mci_state(ah, MCI_STATE_NEED_FTP_STOMP) &&
-		    (mci->num_pan || mci->num_other_acl))
-			ah->btcoex_hw.mci.stomp_ftp =
-				(sc->rx.num_pkts < ATH_BTCOEX_STOMP_FTP_THRESH);
-		else
-			ah->btcoex_hw.mci.stomp_ftp = false;
-		btcoex->bt_wait_time = 0;
-		sc->rx.num_pkts = 0;
-	}
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+		ath_mci_ftp_adjust(sc);
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
