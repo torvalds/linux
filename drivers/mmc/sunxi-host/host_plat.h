@@ -68,13 +68,6 @@ enum mclk_src {
 #define SMC_MAX_IO_CLOCK(n)     (52000000)
 #define SMC_MOD_CLK_SRC(n)      (SMC_MCLK_SRC_SATAPLL)
 
-#ifdef CONFIG_SUN5I_FPGA
-#undef   SMC_MAX_IO_CLOCK
-#define  SMC_MAX_IO_CLOCK       (26000000)
-#define  SUNXI_MMC_HOST_NUM     3
-#define  SUNXI_MMC_USED_CTRL    (SUNXI_MMC0_USED | SUNXI_MMC1_USED | SUNXI_MMC2_USED)
-#endif //CONFIG_SUN5I_FPGA
-
 #endif
 
 #define SMC_DBG_ERR     (1 << 0)

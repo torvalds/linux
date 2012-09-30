@@ -275,7 +275,6 @@ CONFIG_ARCH_SUN5I=y
 # System MMU
 #
 CONFIG_SW_DEBUG_UART=0
-# CONFIG_SUN5I_FPGA is not set
 
 #
 # Processor Type

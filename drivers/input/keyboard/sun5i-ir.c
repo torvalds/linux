@@ -56,13 +56,8 @@ static struct clk *apb_ir_clk;
 static struct clk *ir_clk;
 static u32 ir_gpio_hdle;
 
-#ifdef CONFIG_SUN5I_FPGA
-#define FPGA_SIM_CONFIG            //input clk is 24M
-//#define SYS_CLK_CFG_EN
-#else
 //#define FPGA_SIM_CONFIG            //input clk is 24M
 #define SYS_CLK_CFG_EN
-#endif
 
 #define SYS_GPIO_CFG_EN
 //#define DEBUG_IR

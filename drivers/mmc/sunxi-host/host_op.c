@@ -66,11 +66,7 @@ static int sunximmc_set_src_clk(struct sunxi_mmc_host* smc_host)
     clk_set_rate(smc_host->mclk, smc_host->mod_clk);
     clk_enable(smc_host->mclk);
 
-    #ifdef CONFIG_SUN5I_FPGA
-    smc_host->mod_clk = 24000000;
-    #else
     smc_host->mod_clk = clk_get_rate(smc_host->mclk);
-    #endif
     clk_enable(smc_host->hclk);
 
     SMC_INFO("smc %d, source = %s, src_clk = %u, mclk %u, \n", smc_host->pdev->id, name[smc_host->clk_source], (unsigned)clk_get_rate(source_clock), smc_host->mod_clk);
