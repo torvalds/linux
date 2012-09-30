@@ -312,6 +312,7 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 	}
 
 	tps65217_bl->bl->props.brightness = 0;
+	platform_set_drvdata(pdev, tps65217_bl);
 
 	return 0;
 }
@@ -334,18 +335,7 @@ static struct platform_driver tps65217_bl_driver = {
 	},
 };
 
-static int __init tps65217_bl_init(void)
-{
-	return platform_driver_register(&tps65217_bl_driver);
-}
-
-static void __exit tps65217_bl_exit(void)
-{
-	platform_driver_unregister(&tps65217_bl_driver);
-}
-
-module_init(tps65217_bl_init);
-module_exit(tps65217_bl_exit);
+module_platform_driver(tps65217_bl_driver);
 
 MODULE_DESCRIPTION("TPS65217 Backlight driver");
 MODULE_LICENSE("GPL v2");
