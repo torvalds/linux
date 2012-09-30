@@ -491,12 +491,6 @@ GLOBAL_ENTRY(kernel_execve)
 	br.ret.sptk.many rp
 END(kernel_execve)
 
-GLOBAL_ENTRY(clone)
-	mov r15=__NR_clone			// put syscall number in place
-	break __BREAK_SYSCALL
-	br.ret.sptk.many rp
-END(clone)
-
 	/*
 	 * Invoke a system call, but do some tracing before and after the call.
 	 * We MUST preserve the current register frame throughout this routine
