@@ -672,6 +672,12 @@ int iscsit_ta_generate_node_acls(
 	pr_debug("iSCSI_TPG[%hu] - Generate Initiator Portal Group ACLs: %s\n",
 		tpg->tpgt, (a->generate_node_acls) ? "Enabled" : "Disabled");
 
+	if (flag == 1 && a->cache_dynamic_acls == 0) {
+		pr_debug("Explicitly setting cache_dynamic_acls=1 when "
+			"generate_node_acls=1\n");
+		a->cache_dynamic_acls = 1;
+	}
+
 	return 0;
 }
 
@@ -709,6 +715,12 @@ int iscsit_ta_cache_dynamic_acls(
 	if ((flag != 0) && (flag != 1)) {
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
+	}
+
+	if (a->generate_node_acls == 1 && flag == 0) {
+		pr_debug("Skipping cache_dynamic_acls=0 when"
+			" generate_node_acls=1\n");
+		return 0;
 	}
 
 	a->cache_dynamic_acls = flag;
