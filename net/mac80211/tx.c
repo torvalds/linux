@@ -944,7 +944,6 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	fragnum = 0;
 
 	skb_queue_walk(&tx->skbs, skb) {
-		int next_len;
 		const __le16 morefrags = cpu_to_le16(IEEE80211_FCTL_MOREFRAGS);
 
 		hdr = (void *)skb->data;
@@ -963,7 +962,6 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 			info->flags &= ~IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 		} else {
 			hdr->frame_control &= ~morefrags;
-			next_len = 0;
 		}
 		hdr->seq_ctrl |= cpu_to_le16(fragnum & IEEE80211_SCTL_FRAG);
 		fragnum++;

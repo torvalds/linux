@@ -2823,7 +2823,6 @@ static int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_tx_info *info;
 	struct sk_buff *skb = NULL;
 	bool send_direct;
 	int ret;
@@ -2849,7 +2848,6 @@ static int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	if (!skb)
 		return -ENOMEM;
 
-	info = IEEE80211_SKB_CB(skb);
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
 	switch (action_code) {
