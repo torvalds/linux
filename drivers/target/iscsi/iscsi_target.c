@@ -869,10 +869,10 @@ done:
 				buf, conn);
 	}
 
-	if (payload_length > conn->conn_ops->MaxRecvDataSegmentLength) {
+	if (payload_length > conn->conn_ops->MaxXmitDataSegmentLength) {
 		pr_err("DataSegmentLength: %u is greater than"
-			" MaxRecvDataSegmentLength: %u, protocol error.\n",
-			payload_length, conn->conn_ops->MaxRecvDataSegmentLength);
+			" MaxXmitDataSegmentLength: %u, protocol error.\n",
+			payload_length, conn->conn_ops->MaxXmitDataSegmentLength);
 		return iscsit_add_reject(ISCSI_REASON_PROTOCOL_ERROR, 1,
 				buf, conn);
 	}
@@ -1216,10 +1216,10 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 	}
 	spin_unlock_bh(&conn->sess->session_stats_lock);
 
-	if (payload_length > conn->conn_ops->MaxRecvDataSegmentLength) {
+	if (payload_length > conn->conn_ops->MaxXmitDataSegmentLength) {
 		pr_err("DataSegmentLength: %u is greater than"
-			" MaxRecvDataSegmentLength: %u\n", payload_length,
-			conn->conn_ops->MaxRecvDataSegmentLength);
+			" MaxXmitDataSegmentLength: %u\n", payload_length,
+			conn->conn_ops->MaxXmitDataSegmentLength);
 		return iscsit_add_reject(ISCSI_REASON_PROTOCOL_ERROR, 1,
 					buf, conn);
 	}
@@ -1437,11 +1437,11 @@ static int iscsit_handle_nop_out(
 					buf, conn);
 	}
 
-	if (payload_length > conn->conn_ops->MaxRecvDataSegmentLength) {
+	if (payload_length > conn->conn_ops->MaxXmitDataSegmentLength) {
 		pr_err("NOPOUT Ping Data DataSegmentLength: %u is"
-			" greater than MaxRecvDataSegmentLength: %u, protocol"
+			" greater than MaxXmitDataSegmentLength: %u, protocol"
 			" error.\n", payload_length,
-			conn->conn_ops->MaxRecvDataSegmentLength);
+			conn->conn_ops->MaxXmitDataSegmentLength);
 		return iscsit_add_reject(ISCSI_REASON_PROTOCOL_ERROR, 1,
 					buf, conn);
 	}
@@ -1874,10 +1874,10 @@ static int iscsit_handle_text_cmd(
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
 	hdr->exp_statsn		= be32_to_cpu(hdr->exp_statsn);
 
-	if (payload_length > conn->conn_ops->MaxRecvDataSegmentLength) {
+	if (payload_length > conn->conn_ops->MaxXmitDataSegmentLength) {
 		pr_err("Unable to accept text parameter length: %u"
-			"greater than MaxRecvDataSegmentLength %u.\n",
-		       payload_length, conn->conn_ops->MaxRecvDataSegmentLength);
+			"greater than MaxXmitDataSegmentLength %u.\n",
+		       payload_length, conn->conn_ops->MaxXmitDataSegmentLength);
 		return iscsit_add_reject(ISCSI_REASON_PROTOCOL_ERROR, 1,
 					buf, conn);
 	}
