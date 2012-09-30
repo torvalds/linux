@@ -14,7 +14,10 @@
 
 #include "util/parse-options.h"
 
-static bool		inject_build_ids;
+struct perf_inject {
+	struct perf_tool tool;
+	bool		 build_ids;
+};
 
 static int perf_event__repipe_synth(struct perf_tool *tool __maybe_unused,
 				    union perf_event *event,
@@ -207,22 +210,6 @@ repipe:
 	return 0;
 }
 
-struct perf_tool perf_inject = {
-	.sample		= perf_event__repipe_sample,
-	.mmap		= perf_event__repipe,
-	.comm		= perf_event__repipe,
-	.fork		= perf_event__repipe,
-	.exit		= perf_event__repipe,
-	.lost		= perf_event__repipe,
-	.read		= perf_event__repipe_sample,
-	.throttle	= perf_event__repipe,
-	.unthrottle	= perf_event__repipe,
-	.attr		= perf_event__repipe_attr,
-	.event_type	= perf_event__repipe_event_type_synth,
-	.tracing_data	= perf_event__repipe_tracing_data_synth,
-	.build_id	= perf_event__repipe_op2_synth,
-};
-
 extern volatile int session_done;
 
 static void sig_handler(int sig __maybe_unused)
@@ -230,25 +217,25 @@ static void sig_handler(int sig __maybe_unused)
 	session_done = 1;
 }
 
-static int __cmd_inject(void)
+static int __cmd_inject(struct perf_inject *inject)
 {
 	struct perf_session *session;
 	int ret = -EINVAL;
 
 	signal(SIGINT, sig_handler);
 
-	if (inject_build_ids) {
-		perf_inject.sample	 = perf_event__inject_buildid;
-		perf_inject.mmap	 = perf_event__repipe_mmap;
-		perf_inject.fork	 = perf_event__repipe_task;
-		perf_inject.tracing_data = perf_event__repipe_tracing_data;
+	if (inject->build_ids) {
+		inject->tool.sample	  = perf_event__inject_buildid;
+		inject->tool.mmap	  = perf_event__repipe_mmap;
+		inject->tool.fork	  = perf_event__repipe_task;
+		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 	}
 
-	session = perf_session__new("-", O_RDONLY, false, true, &perf_inject);
+	session = perf_session__new("-", O_RDONLY, false, true, &inject->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
-	ret = perf_session__process_events(session, &perf_inject);
+	ret = perf_session__process_events(session, &inject->tool);
 
 	perf_session__delete(session);
 
@@ -260,16 +247,33 @@ static const char * const report_usage[] = {
 	NULL
 };
 
-static const struct option options[] = {
-	OPT_BOOLEAN('b', "build-ids", &inject_build_ids,
-		    "Inject build-ids into the output stream"),
-	OPT_INCR('v', "verbose", &verbose,
-		 "be more verbose (show build ids, etc)"),
-	OPT_END()
-};
-
 int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 {
+	struct perf_inject inject = {
+		.tool = {
+			.sample		= perf_event__repipe_sample,
+			.mmap		= perf_event__repipe,
+			.comm		= perf_event__repipe,
+			.fork		= perf_event__repipe,
+			.exit		= perf_event__repipe,
+			.lost		= perf_event__repipe,
+			.read		= perf_event__repipe_sample,
+			.throttle	= perf_event__repipe,
+			.unthrottle	= perf_event__repipe,
+			.attr		= perf_event__repipe_attr,
+			.event_type	= perf_event__repipe_event_type_synth,
+			.tracing_data	= perf_event__repipe_tracing_data_synth,
+			.build_id	= perf_event__repipe_op2_synth,
+		},
+	};
+	const struct option options[] = {
+		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
+			    "Inject build-ids into the output stream"),
+		OPT_INCR('v', "verbose", &verbose,
+			 "be more verbose (show build ids, etc)"),
+		OPT_END()
+	};
+
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
 	/*
@@ -281,5 +285,5 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (symbol__init() < 0)
 		return -1;
 
-	return __cmd_inject();
+	return __cmd_inject(&inject);
 }
