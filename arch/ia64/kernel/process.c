@@ -401,15 +401,6 @@ copy_thread(unsigned long clone_flags,
 	struct pt_regs *child_ptregs;
 	int retval = 0;
 
-#ifdef CONFIG_SMP
-	/*
-	 * For SMP idle threads, fork_by_hand() calls do_fork with
-	 * NULL regs.
-	 */
-	if (!regs)
-		return 0;
-#endif
-
 	stack = ((struct switch_stack *) regs) - 1;
 
 	child_ptregs = (struct pt_regs *) ((unsigned long) p + IA64_STK_OFFSET) - 1;
