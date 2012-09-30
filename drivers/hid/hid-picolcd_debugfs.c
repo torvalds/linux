@@ -402,7 +402,7 @@ void picolcd_debug_out_report(struct picolcd_data *data,
 #define BUFF_SZ 256
 
 	/* Avoid unnecessary overhead if debugfs is disabled */
-	if (!hdev->debug_events)
+	if (list_empty(&hdev->debug_list))
 		return;
 
 	buff = kmalloc(BUFF_SZ, GFP_ATOMIC);
