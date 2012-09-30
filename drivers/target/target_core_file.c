@@ -138,6 +138,19 @@ static struct se_device *fd_create_virtdevice(
 	 * of pure timestamp updates.
 	 */
 	flags = O_RDWR | O_CREAT | O_LARGEFILE | O_DSYNC;
+	/*
+	 * Optionally allow fd_buffered_io=1 to be enabled for people
+	 * who want use the fs buffer cache as an WriteCache mechanism.
+	 *
+	 * This means that in event of a hard failure, there is a risk
+	 * of silent data-loss if the SCSI client has *not* performed a
+	 * forced unit access (FUA) write, or issued SYNCHRONIZE_CACHE
+	 * to write-out the entire device cache.
+	 */
+	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) {
+		pr_debug("FILEIO: Disabling O_DSYNC, using buffered FILEIO\n");
+		flags &= ~O_DSYNC;
+	}
 
 	file = filp_open(dev_p, flags, 0600);
 	if (IS_ERR(file)) {
@@ -204,6 +217,12 @@ static struct se_device *fd_create_virtdevice(
 				&dev_limits, "FILEIO", FD_VERSION);
 	if (!dev)
 		goto fail;
+
+	if (fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) {
+		pr_debug("FILEIO: Forcing setting of emulate_write_cache=1"
+			" with FDBD_HAS_BUFFERED_IO_WCE\n");
+		dev->se_sub_dev->se_dev_attrib.emulate_write_cache = 1;
+	}
 
 	fd_dev->fd_dev_id = fd_host->fd_host_dev_id_count++;
 	fd_dev->fd_queue_depth = dev->queue_depth;
@@ -449,6 +468,7 @@ enum {
 static match_table_t tokens = {
 	{Opt_fd_dev_name, "fd_dev_name=%s"},
 	{Opt_fd_dev_size, "fd_dev_size=%s"},
+	{Opt_fd_buffered_io, "fd_buffered_io=%d"},
 	{Opt_err, NULL}
 };
 
@@ -460,7 +480,7 @@ static ssize_t fd_set_configfs_dev_params(
 	struct fd_dev *fd_dev = se_dev->se_dev_su_ptr;
 	char *orig, *ptr, *arg_p, *opts;
 	substring_t args[MAX_OPT_ARGS];
-	int ret = 0, token;
+	int ret = 0, arg, token;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -504,6 +524,19 @@ static ssize_t fd_set_configfs_dev_params(
 					" bytes\n", fd_dev->fd_dev_size);
 			fd_dev->fbd_flags |= FBDF_HAS_SIZE;
 			break;
+		case Opt_fd_buffered_io:
+			match_int(args, &arg);
+			if (arg != 1) {
+				pr_err("bogus fd_buffered_io=%d value\n", arg);
+				ret = -EINVAL;
+				goto out;
+			}
+
+			pr_debug("FILEIO: Using buffered I/O"
+				" operations for struct fd_dev\n");
+
+			fd_dev->fbd_flags |= FDBD_HAS_BUFFERED_IO_WCE;
+			break;
 		default:
 			break;
 		}
@@ -535,8 +568,10 @@ static ssize_t fd_show_configfs_dev_params(
 	ssize_t bl = 0;
 
 	bl = sprintf(b + bl, "TCM FILEIO ID: %u", fd_dev->fd_dev_id);
-	bl += sprintf(b + bl, "        File: %s  Size: %llu  Mode: O_DSYNC\n",
-		fd_dev->fd_dev_name, fd_dev->fd_dev_size);
+	bl += sprintf(b + bl, "        File: %s  Size: %llu  Mode: %s\n",
+		fd_dev->fd_dev_name, fd_dev->fd_dev_size,
+		(fd_dev->fbd_flags & FDBD_HAS_BUFFERED_IO_WCE) ?
+		"Buffered-WCE" : "O_DSYNC");
 	return bl;
 }
 
