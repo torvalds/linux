@@ -233,8 +233,7 @@ static void ieee80211_hw_roc_start(struct work_struct *work)
 			u32 dur = dep->duration;
 			dep->duration = dur - roc->duration;
 			roc->duration = dur;
-			list_del(&dep->list);
-			list_add(&dep->list, &roc->list);
+			list_move(&dep->list, &roc->list);
 		}
 	}
  out_unlock:

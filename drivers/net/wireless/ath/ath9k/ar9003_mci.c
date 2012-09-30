@@ -1027,6 +1027,7 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force)
 
 		if (!(mci->config & ATH_MCI_CONFIG_DISABLE_OSLA))
 			ar9003_mci_osla_setup(ah, true);
+		REG_WRITE(ah, AR_SELFGEN_MASK, 0x02);
 	} else {
 		ar9003_mci_send_lna_take(ah, true);
 		udelay(5);
@@ -1235,6 +1236,10 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 	case MCI_STATE_NEED_FTP_STOMP:
 		value = !(mci->config & ATH_MCI_CONFIG_DISABLE_FTP_STOMP);
 		break;
+	case MCI_STATE_NEED_FLUSH_BT_INFO:
+		value = (!mci->unhalt_bt_gpm && mci->need_flush_btinfo) ? 1 : 0;
+		mci->need_flush_btinfo = false;
+		break;
 	default:
 		break;
 	}
@@ -1284,7 +1289,7 @@ void ar9003_mci_set_power_awake(struct ath_hw *ah)
 	}
 	REG_WRITE(ah, AR_DIAG_SW, (diag_sw | BIT(27) | BIT(19) | BIT(18)));
 	lna_ctrl = REG_READ(ah, AR_OBS_BUS_CTRL) & 0x3;
-	bt_sleep = REG_READ(ah, AR_MCI_RX_STATUS) & AR_MCI_RX_REMOTE_SLEEP;
+	bt_sleep = MS(REG_READ(ah, AR_MCI_RX_STATUS), AR_MCI_RX_REMOTE_SLEEP);
 
 	REG_WRITE(ah, AR_BTCOEX_CTRL2, btcoex_ctrl2);
 	REG_WRITE(ah, AR_DIAG_SW, diag_sw);

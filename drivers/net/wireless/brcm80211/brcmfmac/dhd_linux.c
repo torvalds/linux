@@ -272,30 +272,6 @@ static void brcmf_netdev_set_multicast_list(struct net_device *ndev)
 	schedule_work(&drvr->multicast_work);
 }
 
-int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx, struct sk_buff *pktbuf)
-{
-	/* Reject if down */
-	if (!drvr->bus_if->drvr_up || (drvr->bus_if->state == BRCMF_BUS_DOWN))
-		return -ENODEV;
-
-	/* Update multicast statistic */
-	if (pktbuf->len >= ETH_ALEN) {
-		u8 *pktdata = (u8 *) (pktbuf->data);
-		struct ethhdr *eh = (struct ethhdr *)pktdata;
-
-		if (is_multicast_ether_addr(eh->h_dest))
-			drvr->tx_multicast++;
-		if (ntohs(eh->h_proto) == ETH_P_PAE)
-			atomic_inc(&drvr->pend_8021x_cnt);
-	}
-
-	/* If the protocol uses a data header, apply it */
-	brcmf_proto_hdrpush(drvr, ifidx, pktbuf);
-
-	/* Use bus module to send data frame */
-	return drvr->bus_if->brcmf_bus_txdata(drvr->dev, pktbuf);
-}
-
 static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	int ret;
@@ -338,7 +314,22 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		}
 	}
 
-	ret = brcmf_sendpkt(drvr, ifp->idx, skb);
+	/* Update multicast statistic */
+	if (skb->len >= ETH_ALEN) {
+		u8 *pktdata = (u8 *)(skb->data);
+		struct ethhdr *eh = (struct ethhdr *)pktdata;
+
+		if (is_multicast_ether_addr(eh->h_dest))
+			drvr->tx_multicast++;
+		if (ntohs(eh->h_proto) == ETH_P_PAE)
+			atomic_inc(&drvr->pend_8021x_cnt);
+	}
+
+	/* If the protocol uses a data header, apply it */
+	brcmf_proto_hdrpush(drvr, ifp->idx, skb);
+
+	/* Use bus module to send data frame */
+	ret =  drvr->bus_if->brcmf_bus_txdata(drvr->dev, skb);
 
 done:
 	if (ret)

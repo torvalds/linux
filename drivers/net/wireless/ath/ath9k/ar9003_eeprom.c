@@ -3566,9 +3566,9 @@ static u16 ar9003_hw_ant_ctrl_chain_get(struct ath_hw *ah, int chain,
 
 static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 {
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	int chain;
 	u32 regval;
-	u32 ant_div_ctl1;
 	static const u32 switch_chain_reg[AR9300_MAX_CHAINS] = {
 			AR_PHY_SWITCH_CHAIN_0,
 			AR_PHY_SWITCH_CHAIN_1,
@@ -3633,6 +3633,16 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		/* enable_lnadiv */
 		regval &= (~AR_PHY_ANT_DIV_LNADIV);
 		regval |= ((value >> 6) & 0x1) << AR_PHY_ANT_DIV_LNADIV_S;
+
+		if (AR_SREV_9565(ah)) {
+			if (ah->shared_chain_lnadiv) {
+				regval |= (1 << AR_PHY_ANT_SW_RX_PROT_S);
+			} else {
+				regval &= ~(1 << AR_PHY_ANT_DIV_LNADIV_S);
+				regval &= ~(1 << AR_PHY_ANT_SW_RX_PROT_S);
+			}
+		}
+
 		REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 
 		/*enable fast_div */
@@ -3640,9 +3650,8 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		regval &= (~AR_FAST_DIV_ENABLE);
 		regval |= ((value >> 7) & 0x1) << AR_FAST_DIV_ENABLE_S;
 		REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
-		ant_div_ctl1 = ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
-		/* check whether antenna diversity is enabled */
-		if ((ant_div_ctl1 >> 0x6) == 0x3) {
+
+		if (pCap->hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) {
 			regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
 			/*
 			 * clear bits 25-30 main_lnaconf, alt_lnaconf,
@@ -3659,10 +3668,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 				   AR_PHY_ANT_DIV_ALT_LNACONF_S);
 			REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 		}
-
-
 	}
-
 }
 
 static void ar9003_hw_drive_strength_apply(struct ath_hw *ah)

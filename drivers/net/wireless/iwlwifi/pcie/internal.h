@@ -311,7 +311,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans);
 ******************************************************/
 void iwl_bg_rx_replenish(struct work_struct *data);
 void iwl_irq_tasklet(struct iwl_trans *trans);
-void iwlagn_rx_replenish(struct iwl_trans *trans);
+void iwl_rx_replenish(struct iwl_trans *trans);
 void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 				   struct iwl_rx_queue *q);
 

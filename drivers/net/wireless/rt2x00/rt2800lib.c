@@ -1763,36 +1763,15 @@ static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
 
 	rt2800_rfcsr_read(rt2x00dev, 1, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR1_RX0_PD, 0);
+	rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD,
+			  rt2x00dev->default_ant.rx_chain_num <= 1);
+	rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD,
+			  rt2x00dev->default_ant.rx_chain_num <= 2);
 	rt2x00_set_field8(&rfcsr, RFCSR1_TX0_PD, 0);
-	if (rt2x00_rt(rt2x00dev, RT3390)) {
-		rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD,
-				  rt2x00dev->default_ant.rx_chain_num == 1);
-		rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD,
-				  rt2x00dev->default_ant.tx_chain_num == 1);
-	} else {
-		rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 0);
-		rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 0);
-		rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 0);
-		rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 0);
-
-		switch (rt2x00dev->default_ant.tx_chain_num) {
-		case 1:
-			rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 1);
-			/* fall through */
-		case 2:
-			rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 1);
-			break;
-		}
-
-		switch (rt2x00dev->default_ant.rx_chain_num) {
-		case 1:
-			rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 1);
-			/* fall through */
-		case 2:
-			rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 1);
-			break;
-		}
-	}
+	rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD,
+			  rt2x00dev->default_ant.tx_chain_num <= 1);
+	rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD,
+			  rt2x00dev->default_ant.tx_chain_num <= 2);
 	rt2800_rfcsr_write(rt2x00dev, 1, rfcsr);
 
 	rt2800_rfcsr_read(rt2x00dev, 30, &rfcsr);
@@ -2896,23 +2875,32 @@ EXPORT_SYMBOL_GPL(rt2800_link_stats);
 
 static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 {
+	u8 vgc;
+
 	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
 		if (rt2x00_rt(rt2x00dev, RT3070) ||
 		    rt2x00_rt(rt2x00dev, RT3071) ||
 		    rt2x00_rt(rt2x00dev, RT3090) ||
 		    rt2x00_rt(rt2x00dev, RT3290) ||
 		    rt2x00_rt(rt2x00dev, RT3390) ||
+		    rt2x00_rt(rt2x00dev, RT3572) ||
 		    rt2x00_rt(rt2x00dev, RT5390) ||
 		    rt2x00_rt(rt2x00dev, RT5392))
-			return 0x1c + (2 * rt2x00dev->lna_gain);
+			vgc = 0x1c + (2 * rt2x00dev->lna_gain);
 		else
-			return 0x2e + rt2x00dev->lna_gain;
+			vgc = 0x2e + rt2x00dev->lna_gain;
+	} else { /* 5GHZ band */
+		if (rt2x00_rt(rt2x00dev, RT3572))
+			vgc = 0x22 + (rt2x00dev->lna_gain * 5) / 3;
+		else {
+			if (!test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
+				vgc = 0x32 + (rt2x00dev->lna_gain * 5) / 3;
+			else
+				vgc = 0x3a + (rt2x00dev->lna_gain * 5) / 3;
+		}
 	}
 
-	if (!test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
-		return 0x32 + (rt2x00dev->lna_gain * 5) / 3;
-	else
-		return 0x3a + (rt2x00dev->lna_gain * 5) / 3;
+	return vgc;
 }
 
 static inline void rt2800_set_vgc(struct rt2x00_dev *rt2x00dev,
@@ -3081,7 +3069,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000400);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00080606);
 	} else if (rt2x00_rt(rt2x00dev, RT5390) ||
-			   rt2x00_rt(rt2x00dev, RT5392)) {
+		   rt2x00_rt(rt2x00dev, RT5392)) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000404);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00080606);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x00000000);
@@ -3526,19 +3514,17 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	} else if (rt2800_is_305x_soc(rt2x00dev)) {
 		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
 		rt2800_bbp_write(rt2x00dev, 80, 0x08);
+	} else if (rt2x00_rt(rt2x00dev, RT3290)) {
+		rt2800_bbp_write(rt2x00dev, 74, 0x0b);
+		rt2800_bbp_write(rt2x00dev, 79, 0x18);
+		rt2800_bbp_write(rt2x00dev, 80, 0x09);
+		rt2800_bbp_write(rt2x00dev, 81, 0x33);
 	} else if (rt2x00_rt(rt2x00dev, RT3352)) {
 		rt2800_bbp_write(rt2x00dev, 78, 0x0e);
 		rt2800_bbp_write(rt2x00dev, 80, 0x08);
 		rt2800_bbp_write(rt2x00dev, 81, 0x37);
 	} else {
 		rt2800_bbp_write(rt2x00dev, 81, 0x37);
-	}
-
-	if (rt2x00_rt(rt2x00dev, RT3290)) {
-		rt2800_bbp_write(rt2x00dev, 74, 0x0b);
-		rt2800_bbp_write(rt2x00dev, 79, 0x18);
-		rt2800_bbp_write(rt2x00dev, 80, 0x09);
-		rt2800_bbp_write(rt2x00dev, 81, 0x33);
 	}
 
 	rt2800_bbp_write(rt2x00dev, 82, 0x62);

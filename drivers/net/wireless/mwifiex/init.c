@@ -118,6 +118,7 @@ static void scan_delay_timer_fn(unsigned long data)
 
 			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
 							true);
+			queue_work(adapter->workqueue, &adapter->main_work);
 			goto done;
 		}
 	} else {

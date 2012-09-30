@@ -1072,14 +1072,15 @@ static void ath9k_hif_usb_dev_deinit(struct hif_device_usb *hif_dev)
  */
 static void ath9k_hif_usb_firmware_fail(struct hif_device_usb *hif_dev)
 {
-	struct device *parent = hif_dev->udev->dev.parent;
+	struct device *dev = &hif_dev->udev->dev;
+	struct device *parent = dev->parent;
 
 	complete(&hif_dev->fw_done);
 
 	if (parent)
 		device_lock(parent);
 
-	device_release_driver(&hif_dev->udev->dev);
+	device_release_driver(dev);
 
 	if (parent)
 		device_unlock(parent);

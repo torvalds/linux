@@ -81,10 +81,12 @@ enum usbdev_suspend_state {
 };
 
 struct brcmf_usb_image {
-	void *data;
-	u32 len;
+	struct list_head list;
+	s8 *fwname;
+	u8 *image;
+	int image_len;
 };
-static struct brcmf_usb_image g_image = { NULL, 0 };
+static struct list_head fw_image_list;
 
 struct intr_transfer_buf {
 	u32 notification;
@@ -131,8 +133,6 @@ struct brcmf_usbdev_info {
 	wait_queue_head_t ioctl_resp_wait;
 	wait_queue_head_t ctrl_wait;
 	ulong ctl_op;
-
-	bool rxctl_deferrespok;
 
 	struct urb *bulk_urb; /* used for FW download */
 	struct urb *intr_urb; /* URB for interrupt endpoint */
@@ -299,17 +299,9 @@ brcmf_usb_recv_ctl(struct brcmf_usbdev_info *devinfo, u8 *buf, int len)
 	devinfo->ctl_read.wLength = cpu_to_le16p(&size);
 	devinfo->ctl_urb->transfer_buffer_length = size;
 
-	if (devinfo->rxctl_deferrespok) {
-		/* BMAC model */
-		devinfo->ctl_read.bRequestType = USB_DIR_IN
-			| USB_TYPE_VENDOR | USB_RECIP_INTERFACE;
-		devinfo->ctl_read.bRequest = DL_DEFER_RESP_OK;
-	} else {
-		/* full dongle model */
-		devinfo->ctl_read.bRequestType = USB_DIR_IN
-			| USB_TYPE_CLASS | USB_RECIP_INTERFACE;
-		devinfo->ctl_read.bRequest = 1;
-	}
+	devinfo->ctl_read.bRequestType = USB_DIR_IN
+		| USB_TYPE_CLASS | USB_RECIP_INTERFACE;
+	devinfo->ctl_read.bRequest = 1;
 
 	usb_fill_control_urb(devinfo->ctl_urb,
 		devinfo->usbdev,
@@ -345,6 +337,7 @@ static int brcmf_usb_tx_ctlpkt(struct device *dev, u8 *buf, u32 len)
 	err = brcmf_usb_send_ctl(devinfo, buf, len);
 	if (err) {
 		brcmf_dbg(ERROR, "fail %d bytes: %d\n", err, len);
+		clear_bit(0, &devinfo->ctl_op);
 		return err;
 	}
 
@@ -375,6 +368,7 @@ static int brcmf_usb_rx_ctlpkt(struct device *dev, u8 *buf, u32 len)
 	err = brcmf_usb_recv_ctl(devinfo, buf, len);
 	if (err) {
 		brcmf_dbg(ERROR, "fail %d bytes: %d\n", err, len);
+		clear_bit(0, &devinfo->ctl_op);
 		return err;
 	}
 	devinfo->ctl_completed = false;
@@ -1152,10 +1146,6 @@ static void brcmf_usb_detach(struct brcmf_usbdev_info *devinfo)
 {
 	brcmf_dbg(TRACE, "devinfo %p\n", devinfo);
 
-	/* store the image globally */
-	g_image.data = devinfo->image;
-	g_image.len = devinfo->image_len;
-
 	/* free the URBS */
 	brcmf_usb_free_q(&devinfo->rx_freeq, false);
 	brcmf_usb_free_q(&devinfo->tx_freeq, false);
@@ -1207,16 +1197,8 @@ static int brcmf_usb_get_fw(struct brcmf_usbdev_info *devinfo)
 {
 	s8 *fwname;
 	const struct firmware *fw;
+	struct brcmf_usb_image *fw_image;
 	int err;
-
-	devinfo->image = g_image.data;
-	devinfo->image_len = g_image.len;
-
-	/*
-	 * if we have an image we can leave here.
-	 */
-	if (devinfo->image)
-		return 0;
 
 	switch (devinfo->bus_pub.devid) {
 	case 43143:
@@ -1235,6 +1217,14 @@ static int brcmf_usb_get_fw(struct brcmf_usbdev_info *devinfo)
 		break;
 	}
 
+	list_for_each_entry(fw_image, &fw_image_list, list) {
+		if (fw_image->fwname == fwname) {
+			devinfo->image = fw_image->image;
+			devinfo->image_len = fw_image->image_len;
+			return 0;
+		}
+	}
+	/* fw image not yet loaded. Load it now and add to list */
 	err = request_firmware(&fw, fwname, devinfo->dev);
 	if (!fw) {
 		brcmf_dbg(ERROR, "fail to request firmware %s\n", fwname);
@@ -1245,14 +1235,24 @@ static int brcmf_usb_get_fw(struct brcmf_usbdev_info *devinfo)
 		return -EINVAL;
 	}
 
-	devinfo->image = vmalloc(fw->size); /* plus nvram */
-	if (!devinfo->image)
+	fw_image = kzalloc(sizeof(*fw_image), GFP_ATOMIC);
+	if (!fw_image)
+		return -ENOMEM;
+	INIT_LIST_HEAD(&fw_image->list);
+	list_add_tail(&fw_image->list, &fw_image_list);
+	fw_image->fwname = fwname;
+	fw_image->image = vmalloc(fw->size);
+	if (!fw_image->image)
 		return -ENOMEM;
 
-	memcpy(devinfo->image, fw->data, fw->size);
-	devinfo->image_len = fw->size;
+	memcpy(fw_image->image, fw->data, fw->size);
+	fw_image->image_len = fw->size;
 
 	release_firmware(fw);
+
+	devinfo->image = fw_image->image;
+	devinfo->image_len = fw_image->image_len;
+
 	return 0;
 }
 
@@ -1304,8 +1304,6 @@ struct brcmf_usbdev *brcmf_usb_attach(struct brcmf_usbdev_info *devinfo,
 		brcmf_dbg(ERROR, "usb_alloc_urb (ctl) failed\n");
 		goto error;
 	}
-	devinfo->rxctl_deferrespok = 0;
-
 	devinfo->bulk_urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!devinfo->bulk_urb) {
 		brcmf_dbg(ERROR, "usb_alloc_urb (bulk) failed\n");
@@ -1340,10 +1338,8 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo,
 	struct device *dev = devinfo->dev;
 
 	bus_pub = brcmf_usb_attach(devinfo, BRCMF_USB_NRXQ, BRCMF_USB_NTXQ);
-	if (!bus_pub) {
-		ret = -ENODEV;
-		goto fail;
-	}
+	if (!bus_pub)
+		return -ENODEV;
 
 	bus = kzalloc(sizeof(struct brcmf_bus), GFP_ATOMIC);
 	if (!bus) {
@@ -1596,15 +1592,25 @@ static struct usb_driver brcmf_usbdrvr = {
 	.disable_hub_initiated_lpm = 1,
 };
 
+static void brcmf_release_fw(struct list_head *q)
+{
+	struct brcmf_usb_image *fw_image, *next;
+
+	list_for_each_entry_safe(fw_image, next, q, list) {
+		vfree(fw_image->image);
+		list_del_init(&fw_image->list);
+	}
+}
+
+
 void brcmf_usb_exit(void)
 {
 	usb_deregister(&brcmf_usbdrvr);
-	vfree(g_image.data);
-	g_image.data = NULL;
-	g_image.len = 0;
+	brcmf_release_fw(&fw_image_list);
 }
 
 void brcmf_usb_init(void)
 {
+	INIT_LIST_HEAD(&fw_image_list);
 	usb_register(&brcmf_usbdrvr);
 }

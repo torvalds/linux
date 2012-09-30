@@ -183,4 +183,15 @@ struct sockaddr_nfc_llcp {
 
 #define NFC_HEADER_SIZE 1
 
+/**
+ * Pseudo-header info for raw socket packets
+ * First byte is the adapter index
+ * Second byte contains flags
+ *  - 0x01 - Direction (0=RX, 1=TX)
+ *  - 0x02-0x80 - Reserved
+ **/
+#define NFC_LLCP_RAW_HEADER_SIZE	2
+#define NFC_LLCP_DIRECTION_RX		0x00
+#define NFC_LLCP_DIRECTION_TX		0x01
+
 #endif /*__LINUX_NFC_H */
