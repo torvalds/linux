@@ -174,9 +174,11 @@ void *ion_system_heap_map_kernel(struct ion_heap *heap,
 	pgprot_t pgprot;
 	struct sg_table *table = buffer->priv_virt;
 	int npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
-	struct page **pages = kzalloc(sizeof(struct page *) * npages,
-				     GFP_KERNEL);
+	struct page **pages = vmalloc(sizeof(struct page *) * npages);
 	struct page **tmp = pages;
+
+	if (!pages)
+		return 0;
 
 	if (buffer->flags & ION_FLAG_CACHED)
 		pgprot = PAGE_KERNEL;
@@ -192,7 +194,7 @@ void *ion_system_heap_map_kernel(struct ion_heap *heap,
 		}
 	}
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
-	kfree(pages);
+	vfree(pages);
 
 	return vaddr;
 }
