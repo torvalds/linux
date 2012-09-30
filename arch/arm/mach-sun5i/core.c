@@ -136,8 +136,13 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 				 struct tag *t, char **cmdline,
 				 struct meminfo *mi)
 {
-	u32 size = 0;
+	u32 mali, size = 0;
 	int banks = 0;
+#if defined(CONFIG_MALI) || defined(CONFIG_MALI_MODULE)
+	mali = 64;
+#else
+	mali = 0;
+#endif
 
 #ifdef CONFIG_SUNXI_IGNORE_ATAG_MEM
 	size = DRAMC_get_dram_size();
@@ -146,11 +151,11 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 	if (size <= 512) {
 		mi->nr_banks = 1;
 		mi->bank[0].start = 0x40000000;
-		mi->bank[0].size = SZ_1M * (size - 64);
+		mi->bank[0].size = SZ_1M * (size - mali);
 	} else {
 		mi->nr_banks = 2;
 		mi->bank[0].start = 0x40000000;
-		mi->bank[0].size = SZ_1M * (512 - 64);
+		mi->bank[0].size = SZ_1M * (512 - mali);
 		mi->bank[1].start = 0x60000000;
 		mi->bank[1].size = SZ_1M * (size - 512);
 	}
@@ -159,11 +164,13 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 	for (; t->hdr.size; t = tag_next(t)) if (t->hdr.tag == ATAG_MEM) {
 		size += t->u.mem.size / SZ_1M;
 		if (banks++ == 0)
-			t->u.mem.size -= 64 * SZ_1M;
+			t->u.mem.size -= mali * SZ_1M;
 	}
 #endif
 
 	pr_info("Total Detected Memory: %uMB with %d banks\n", size, banks);
+	if (mali > 0)
+		pr_info("%u MB reserved for MALI\n", mali);
 }
 
 unsigned long fb_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_64M - SZ_32M);
