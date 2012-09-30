@@ -1065,7 +1065,8 @@ out:
 	return proposer_values;
 }
 
-static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value)
+static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
+				struct iscsi_conn *conn)
 {
 	u8 acceptor_boolean_value = 0, proposer_boolean_value = 0;
 	char *negoitated_value = NULL;
@@ -1140,8 +1141,35 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value)
 				return -1;
 		}
 
-		if (!strcmp(param->name, MAXRECVDATASEGMENTLENGTH))
-			SET_PSTATE_REPLY_OPTIONAL(param);
+		if (!strcmp(param->name, MAXRECVDATASEGMENTLENGTH)) {
+			struct iscsi_param *param_mxdsl;
+			unsigned long long tmp;
+			int rc;
+
+			rc = strict_strtoull(param->value, 0, &tmp);
+			if (rc < 0)
+				return -1;
+
+			conn->conn_ops->MaxRecvDataSegmentLength = tmp;
+			pr_debug("Saving op->MaxRecvDataSegmentLength from"
+				" original initiator received value: %u\n",
+				conn->conn_ops->MaxRecvDataSegmentLength);
+
+			param_mxdsl = iscsi_find_param_from_key(
+						MAXXMITDATASEGMENTLENGTH,
+						conn->param_list);
+			if (!param_mxdsl)
+				return -1;
+
+			rc = iscsi_update_param_value(param,
+						param_mxdsl->value);
+			if (rc < 0)
+				return -1;
+
+			pr_debug("Updated %s to target MXDSL value: %s\n",
+					param->name, param->value);
+		}
+
 	} else if (IS_TYPE_NUMBER_RANGE(param)) {
 		negoitated_value = iscsi_get_value_from_number_range(
 					param, value);
@@ -1535,8 +1563,9 @@ int iscsi_decode_text_input(
 	u8 sender,
 	char *textbuf,
 	u32 length,
-	struct iscsi_param_list *param_list)
+	struct iscsi_conn *conn)
 {
+	struct iscsi_param_list *param_list = conn->param_list;
 	char *tmpbuf, *start = NULL, *end = NULL;
 
 	tmpbuf = kzalloc(length + 1, GFP_KERNEL);
@@ -1594,7 +1623,7 @@ int iscsi_decode_text_input(
 			}
 			SET_PSTATE_RESPONSE_GOT(param);
 		} else {
-			if (iscsi_check_acceptor_state(param, value) < 0) {
+			if (iscsi_check_acceptor_state(param, value, conn) < 0) {
 				kfree(tmpbuf);
 				return -1;
 			}
@@ -1755,10 +1784,13 @@ void iscsi_set_connection_parameters(
 			pr_debug("DataDigest:                   %s\n",
 				param->value);
 		} else if (!strcmp(param->name, MAXRECVDATASEGMENTLENGTH)) {
-			ops->MaxRecvDataSegmentLength =
-				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("MaxRecvDataSegmentLength:     %s\n",
-				param->value);
+			/*
+			 * At this point iscsi_check_acceptor_state() will have
+			 * set ops->MaxRecvDataSegmentLength from the original
+			 * initiator provided value.
+			 */
+			pr_debug("MaxRecvDataSegmentLength:     %u\n",
+				ops->MaxRecvDataSegmentLength);
 		} else if (!strcmp(param->name, OFMARKER)) {
 			ops->OFMarker = !strcmp(param->value, YES);
 			pr_debug("OFMarker:                     %s\n",

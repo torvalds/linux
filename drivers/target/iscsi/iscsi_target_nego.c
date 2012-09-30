@@ -550,7 +550,7 @@ static int iscsi_target_handle_csg_zero(
 			SENDER_INITIATOR|SENDER_RECEIVER,
 			login->req_buf,
 			payload_length,
-			conn->param_list);
+			conn);
 	if (ret < 0)
 		return -1;
 
@@ -627,7 +627,7 @@ static int iscsi_target_handle_csg_one(struct iscsi_conn *conn, struct iscsi_log
 			SENDER_INITIATOR|SENDER_RECEIVER,
 			login->req_buf,
 			payload_length,
-			conn->param_list);
+			conn);
 	if (ret < 0)
 		return -1;
 
