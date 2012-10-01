@@ -1530,7 +1530,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 			__set_bit(BTN_TOOL_QUADTAP, input_dev->keybit);
 
-			input_mt_init_slots(input_dev, features->touch_max);
+			input_mt_init_slots(input_dev, features->touch_max, 0);
 
 			input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			                     0, 255, 0, 0);
@@ -1575,7 +1575,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case TABLETPC2FG:
 		if (features->device_type == BTN_TOOL_FINGER) {
-			input_mt_init_slots(input_dev, features->touch_max);
+			input_mt_init_slots(input_dev, features->touch_max, 0);
 			input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
 					0, MT_TOOL_MAX, 0, 0);
 			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
@@ -1631,7 +1631,7 @@ int wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 			__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
 			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
-			input_mt_init_slots(input_dev, features->touch_max);
+			input_mt_init_slots(input_dev, features->touch_max, 0);
 
 			if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
 				__set_bit(BTN_TOOL_TRIPLETAP,
