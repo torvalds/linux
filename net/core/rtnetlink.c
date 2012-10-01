@@ -2090,7 +2090,8 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
 	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
 		master = dev->master;
-		err = master->netdev_ops->ndo_fdb_add(ndm, dev, addr,
+		err = master->netdev_ops->ndo_fdb_add(ndm, tb,
+						      dev, addr,
 						      nlh->nlmsg_flags);
 		if (err)
 			goto out;
@@ -2100,7 +2101,8 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	/* Embedded bridge, macvlan, and any other device support */
 	if ((ndm->ndm_flags & NTF_SELF) && dev->netdev_ops->ndo_fdb_add) {
-		err = dev->netdev_ops->ndo_fdb_add(ndm, dev, addr,
+		err = dev->netdev_ops->ndo_fdb_add(ndm, tb,
+						   dev, addr,
 						   nlh->nlmsg_flags);
 
 		if (!err) {

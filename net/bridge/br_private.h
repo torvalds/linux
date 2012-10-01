@@ -364,7 +364,7 @@ extern void br_fdb_update(struct net_bridge *br,
 extern int br_fdb_delete(struct ndmsg *ndm,
 			 struct net_device *dev,
 			 const unsigned char *addr);
-extern int br_fdb_add(struct ndmsg *nlh,
+extern int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[],
 		      struct net_device *dev,
 		      const unsigned char *addr,
 		      u16 nlh_flags);

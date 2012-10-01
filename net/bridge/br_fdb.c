@@ -608,7 +608,8 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 }
 
 /* Add new permanent fdb entry with RTM_NEWNEIGH */
-int br_fdb_add(struct ndmsg *ndm, struct net_device *dev,
+int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+	       struct net_device *dev,
 	       const unsigned char *addr, u16 nlh_flags)
 {
 	struct net_bridge_port *p;

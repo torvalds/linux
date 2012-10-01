@@ -904,7 +904,8 @@ struct netdev_fcoe_hbainfo {
  *	feature set might be less than what was returned by ndo_fix_features()).
  *	Must return >0 or -errno if it changed dev->features itself.
  *
- * int (*ndo_fdb_add)(struct ndmsg *ndm, struct net_device *dev,
+ * int (*ndo_fdb_add)(struct ndmsg *ndm, struct nlattr *tb[],
+ *		      struct net_device *dev,
  *		      const unsigned char *addr, u16 flags)
  *	Adds an FDB entry to dev for addr.
  * int (*ndo_fdb_del)(struct ndmsg *ndm, struct net_device *dev,
@@ -1014,6 +1015,7 @@ struct net_device_ops {
 	void			(*ndo_neigh_destroy)(struct neighbour *n);
 
 	int			(*ndo_fdb_add)(struct ndmsg *ndm,
+					       struct nlattr *tb[],
 					       struct net_device *dev,
 					       const unsigned char *addr,
 					       u16 flags);
