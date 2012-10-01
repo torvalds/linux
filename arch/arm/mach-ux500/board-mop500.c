@@ -1,6 +1,5 @@
-
 /*
- * Copyright (C) 2008-2009 ST-Ericsson
+ * Copyright (C) 2008-2012 ST-Ericsson
  *
  * Author: Srinidhi KASAGAR <srinidhi.kasagar@stericsson.com>
  *
@@ -695,6 +694,16 @@ MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	.map_io		= u8500_map_io,
 	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
+	.timer		= &ux500_timer,
+	.handle_irq	= gic_handle_irq,
+	.init_machine	= mop500_init_machine,
+	.init_late	= ux500_init_late,
+MACHINE_END
+
+MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
+	.atag_offset	= 0x100,
+	.map_io		= u8500_map_io,
+	.init_irq	= ux500_init_irq,
 	.timer		= &ux500_timer,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= mop500_init_machine,
