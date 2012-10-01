@@ -5035,6 +5035,7 @@ S:	Maintained
 F:	Documentation/devicetree
 F:	drivers/of
 F:	include/linux/of*.h
+F:	scripts/dtc
 K:	of_get_property
 K:	of_match_table
 
