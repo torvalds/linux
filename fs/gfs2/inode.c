@@ -712,14 +712,9 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock2;
 
-	/* The newly created inode needs a reservation so it can allocate
-	   xattrs. At the same time, we want new blocks allocated to the new
-	   dinode to be as contiguous as possible. Since we allocated the
-	   dinode block under the directory's reservation, we transfer
-	   ownership of that reservation to the new inode. The directory
-	   doesn't need a reservation unless it needs a new allocation. */
-	ip->i_res = dip->i_res;
-	dip->i_res = NULL;
+	error = gfs2_rs_alloc(ip);
+	if (error)
+		goto fail_gunlock2;
 
 	error = gfs2_acl_create(dip, inode);
 	if (error)
@@ -737,10 +732,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		brelse(bh);
 
 	gfs2_trans_end(sdp);
-	/* Check if we reserved space in the rgrp. Function link_dinode may
-	   not, depending on whether alloc is required. */
-	if (gfs2_mb_reserved(dip))
-		gfs2_inplace_release(dip);
+	gfs2_inplace_release(dip);
 	gfs2_quota_unlock(dip);
 	mark_inode_dirty(inode);
 	gfs2_glock_dq_uninit_m(2, ghs);
@@ -897,7 +889,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 			goto out_gunlock_q;
 
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
-					 gfs2_rg_blocks(dip) +
+					 gfs2_rg_blocks(dip, sdp->sd_max_dirres) +
 					 2 * RES_DINODE + RES_STATFS +
 					 RES_QUOTA, 0);
 		if (error)
@@ -1378,7 +1370,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			goto out_gunlock_q;
 
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
-					 gfs2_rg_blocks(ndip) +
+					 gfs2_rg_blocks(ndip, sdp->sd_max_dirres) +
 					 4 * RES_DINODE + 4 * RES_LEAF +
 					 RES_STATFS + RES_QUOTA + 4, 0);
 		if (error)
