@@ -15,22 +15,6 @@
 #include "util/strlist.h"
 #include "util/symbol.h"
 
-static char const *add_name_list_str, *remove_name_list_str;
-
-static const char * const buildid_cache_usage[] = {
-	"perf buildid-cache [<options>]",
-	NULL
-};
-
-static const struct option buildid_cache_options[] = {
-	OPT_STRING('a', "add", &add_name_list_str,
-		   "file list", "file(s) to add"),
-	OPT_STRING('r', "remove", &remove_name_list_str, "file list",
-		    "file(s) to remove"),
-	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
-	OPT_END()
-};
-
 static int build_id_cache__add_file(const char *filename, const char *debugdir)
 {
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
@@ -51,8 +35,8 @@ static int build_id_cache__add_file(const char *filename, const char *debugdir)
 	return err;
 }
 
-static int build_id_cache__remove_file(const char *filename __maybe_unused,
-				       const char *debugdir __maybe_unused)
+static int build_id_cache__remove_file(const char *filename,
+				       const char *debugdir)
 {
 	u8 build_id[BUILD_ID_SIZE];
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
@@ -73,11 +57,34 @@ static int build_id_cache__remove_file(const char *filename __maybe_unused,
 	return err;
 }
 
-static int __cmd_buildid_cache(void)
+int cmd_buildid_cache(int argc, const char **argv,
+		      const char *prefix __maybe_unused)
 {
 	struct strlist *list;
 	struct str_node *pos;
 	char debugdir[PATH_MAX];
+	char const *add_name_list_str = NULL,
+		   *remove_name_list_str = NULL;
+	const struct option buildid_cache_options[] = {
+	OPT_STRING('a', "add", &add_name_list_str,
+		   "file list", "file(s) to add"),
+	OPT_STRING('r', "remove", &remove_name_list_str, "file list",
+		    "file(s) to remove"),
+	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
+	OPT_END()
+	};
+	const char * const buildid_cache_usage[] = {
+		"perf buildid-cache [<options>]",
+		NULL
+	};
+
+	argc = parse_options(argc, argv, buildid_cache_options,
+			     buildid_cache_usage, 0);
+
+	if (symbol__init() < 0)
+		return -1;
+
+	setup_pager();
 
 	snprintf(debugdir, sizeof(debugdir), "%s", buildid_dir);
 
@@ -118,17 +125,4 @@ static int __cmd_buildid_cache(void)
 	}
 
 	return 0;
-}
-
-int cmd_buildid_cache(int argc, const char **argv,
-		      const char *prefix __maybe_unused)
-{
-	argc = parse_options(argc, argv, buildid_cache_options,
-			     buildid_cache_usage, 0);
-
-	if (symbol__init() < 0)
-		return -1;
-
-	setup_pager();
-	return __cmd_buildid_cache();
 }
