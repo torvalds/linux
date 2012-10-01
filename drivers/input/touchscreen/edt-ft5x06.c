@@ -566,9 +566,12 @@ static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
 	}
 
 	read = min_t(size_t, count, tsdata->raw_bufsize - *off);
-	error = copy_to_user(buf, tsdata->raw_buffer + *off, read);
-	if (!error)
-		*off += read;
+	if (copy_to_user(buf, tsdata->raw_buffer + *off, read)) {
+		error = -EFAULT;
+		goto out;
+	}
+
+	*off += read;
 out:
 	mutex_unlock(&tsdata->mutex);
 	return error ?: read;
@@ -602,6 +605,7 @@ edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 {
 	if (tsdata->debug_dir)
 		debugfs_remove_recursive(tsdata->debug_dir);
+	kfree(tsdata->raw_buffer);
 }
 
 #else
@@ -843,7 +847,6 @@ static int __devexit edt_ft5x06_ts_remove(struct i2c_client *client)
 	if (gpio_is_valid(pdata->reset_pin))
 		gpio_free(pdata->reset_pin);
 
-	kfree(tsdata->raw_buffer);
 	kfree(tsdata);
 
 	return 0;

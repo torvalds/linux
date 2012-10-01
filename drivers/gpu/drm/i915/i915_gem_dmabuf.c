@@ -28,35 +28,62 @@
 #include <linux/dma-buf.h>
 
 static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachment,
-				      enum dma_data_direction dir)
+					     enum dma_data_direction dir)
 {
 	struct drm_i915_gem_object *obj = attachment->dmabuf->priv;
-	struct drm_device *dev = obj->base.dev;
-	int npages = obj->base.size / PAGE_SIZE;
-	struct sg_table *sg;
-	int ret;
-	int nents;
+	struct sg_table *st;
+	struct scatterlist *src, *dst;
+	int ret, i;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_mutex_lock_interruptible(obj->base.dev);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = i915_gem_object_get_pages_gtt(obj);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret) {
-		sg = ERR_PTR(ret);
+		st = ERR_PTR(ret);
 		goto out;
 	}
 
-	/* link the pages into an SG then map the sg */
-	sg = drm_prime_pages_to_sg(obj->pages, npages);
-	nents = dma_map_sg(attachment->dev, sg->sgl, sg->nents, dir);
+	/* Copy sg so that we make an independent mapping */
+	st = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	if (st == NULL) {
+		st = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	ret = sg_alloc_table(st, obj->pages->nents, GFP_KERNEL);
+	if (ret) {
+		kfree(st);
+		st = ERR_PTR(ret);
+		goto out;
+	}
+
+	src = obj->pages->sgl;
+	dst = st->sgl;
+	for (i = 0; i < obj->pages->nents; i++) {
+		sg_set_page(dst, sg_page(src), PAGE_SIZE, 0);
+		dst = sg_next(dst);
+		src = sg_next(src);
+	}
+
+	if (!dma_map_sg(attachment->dev, st->sgl, st->nents, dir)) {
+		sg_free_table(st);
+		kfree(st);
+		st = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	i915_gem_object_pin_pages(obj);
+
 out:
-	mutex_unlock(&dev->struct_mutex);
-	return sg;
+	mutex_unlock(&obj->base.dev->struct_mutex);
+	return st;
 }
 
 static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
-			    struct sg_table *sg, enum dma_data_direction dir)
+				   struct sg_table *sg,
+				   enum dma_data_direction dir)
 {
 	dma_unmap_sg(attachment->dev, sg->sgl, sg->nents, dir);
 	sg_free_table(sg);
@@ -78,7 +105,9 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 {
 	struct drm_i915_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->base.dev;
-	int ret;
+	struct scatterlist *sg;
+	struct page **pages;
+	int ret, i;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
@@ -89,22 +118,34 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 		goto out_unlock;
 	}
 
-	ret = i915_gem_object_get_pages_gtt(obj);
-	if (ret) {
-		mutex_unlock(&dev->struct_mutex);
-		return ERR_PTR(ret);
-	}
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		goto error;
 
-	obj->dma_buf_vmapping = vmap(obj->pages, obj->base.size / PAGE_SIZE, 0, PAGE_KERNEL);
-	if (!obj->dma_buf_vmapping) {
-		DRM_ERROR("failed to vmap object\n");
-		goto out_unlock;
-	}
+	ret = -ENOMEM;
+
+	pages = drm_malloc_ab(obj->pages->nents, sizeof(struct page *));
+	if (pages == NULL)
+		goto error;
+
+	for_each_sg(obj->pages->sgl, sg, obj->pages->nents, i)
+		pages[i] = sg_page(sg);
+
+	obj->dma_buf_vmapping = vmap(pages, obj->pages->nents, 0, PAGE_KERNEL);
+	drm_free_large(pages);
+
+	if (!obj->dma_buf_vmapping)
+		goto error;
 
 	obj->vmapping_count = 1;
+	i915_gem_object_pin_pages(obj);
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return obj->dma_buf_vmapping;
+
+error:
+	mutex_unlock(&dev->struct_mutex);
+	return ERR_PTR(ret);
 }
 
 static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
@@ -117,10 +158,11 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 	if (ret)
 		return;
 
-	--obj->vmapping_count;
-	if (obj->vmapping_count == 0) {
+	if (--obj->vmapping_count == 0) {
 		vunmap(obj->dma_buf_vmapping);
 		obj->dma_buf_vmapping = NULL;
+
+		i915_gem_object_unpin_pages(obj);
 	}
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -180,22 +222,43 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 };
 
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
-				struct drm_gem_object *gem_obj, int flags)
+				      struct drm_gem_object *gem_obj, int flags)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 
-	return dma_buf_export(obj, &i915_dmabuf_ops,
-						  obj->base.size, 0600);
+	return dma_buf_export(obj, &i915_dmabuf_ops, obj->base.size, 0600);
 }
 
+static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
+{
+	struct sg_table *sg;
+
+	sg = dma_buf_map_attachment(obj->base.import_attach, DMA_BIDIRECTIONAL);
+	if (IS_ERR(sg))
+		return PTR_ERR(sg);
+
+	obj->pages = sg;
+	obj->has_dma_mapping = true;
+	return 0;
+}
+
+static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj)
+{
+	dma_buf_unmap_attachment(obj->base.import_attach,
+				 obj->pages, DMA_BIDIRECTIONAL);
+	obj->has_dma_mapping = false;
+}
+
+static const struct drm_i915_gem_object_ops i915_gem_object_dmabuf_ops = {
+	.get_pages = i915_gem_object_get_pages_dmabuf,
+	.put_pages = i915_gem_object_put_pages_dmabuf,
+};
+
 struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
-				struct dma_buf *dma_buf)
+					     struct dma_buf *dma_buf)
 {
 	struct dma_buf_attachment *attach;
-	struct sg_table *sg;
 	struct drm_i915_gem_object *obj;
-	int npages;
-	int size;
 	int ret;
 
 	/* is this one of own objects? */
@@ -213,34 +276,24 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	if (IS_ERR(attach))
 		return ERR_CAST(attach);
 
-	sg = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-	if (IS_ERR(sg)) {
-		ret = PTR_ERR(sg);
-		goto fail_detach;
-	}
-
-	size = dma_buf->size;
-	npages = size / PAGE_SIZE;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (obj == NULL) {
 		ret = -ENOMEM;
-		goto fail_unmap;
+		goto fail_detach;
 	}
 
-	ret = drm_gem_private_object_init(dev, &obj->base, size);
+	ret = drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
 	if (ret) {
 		kfree(obj);
-		goto fail_unmap;
+		goto fail_detach;
 	}
 
-	obj->sg_table = sg;
+	i915_gem_object_init(obj, &i915_gem_object_dmabuf_ops);
 	obj->base.import_attach = attach;
 
 	return &obj->base;
 
-fail_unmap:
-	dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
 	return ERR_PTR(ret);

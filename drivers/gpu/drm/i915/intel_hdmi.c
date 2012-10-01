@@ -151,6 +151,9 @@ static void g4x_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(VIDEO_DIP_DATA, *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(VIDEO_DIP_DATA, 0);
 	mmiowb();
 
 	val |= g4x_infoframe_enable(frame);
@@ -186,6 +189,9 @@ static void ibx_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), 0);
 	mmiowb();
 
 	val |= g4x_infoframe_enable(frame);
@@ -224,6 +230,9 @@ static void cpt_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), 0);
 	mmiowb();
 
 	val |= g4x_infoframe_enable(frame);
@@ -259,6 +268,9 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(VLV_TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(VLV_TVIDEO_DIP_DATA(intel_crtc->pipe), 0);
 	mmiowb();
 
 	val |= g4x_infoframe_enable(frame);
@@ -292,6 +304,9 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 		I915_WRITE(data_reg + i, *data);
 		data++;
 	}
+	/* Write every possible data byte to force correct ECC calculation. */
+	for (; i < VIDEO_DIP_DATA_SIZE; i += 4)
+		I915_WRITE(data_reg + i, 0);
 	mmiowb();
 
 	val |= hsw_infoframe_enable(frame);
@@ -377,6 +392,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 		port = VIDEO_DIP_PORT_C;
 		break;
 	default:
+		BUG();
 		return;
 	}
 
@@ -435,6 +451,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 		port = VIDEO_DIP_PORT_D;
 		break;
 	default:
+		BUG();
 		return;
 	}
 
@@ -674,10 +691,7 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	u32 temp;
-	u32 enable_bits = SDVO_ENABLE;
-
-	if (intel_hdmi->has_audio)
-		enable_bits |= SDVO_AUDIO_ENABLE;
+	u32 enable_bits = SDVO_ENABLE | SDVO_AUDIO_ENABLE;
 
 	temp = I915_READ(intel_hdmi->sdvox_reg);
 

@@ -470,18 +470,20 @@ i915_gem_swizzle_page(struct page *page)
 void
 i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
+	struct scatterlist *sg;
 	int page_count = obj->base.size >> PAGE_SHIFT;
 	int i;
 
 	if (obj->bit_17 == NULL)
 		return;
 
-	for (i = 0; i < page_count; i++) {
-		char new_bit_17 = page_to_phys(obj->pages[i]) >> 17;
+	for_each_sg(obj->pages->sgl, sg, page_count, i) {
+		struct page *page = sg_page(sg);
+		char new_bit_17 = page_to_phys(page) >> 17;
 		if ((new_bit_17 & 0x1) !=
 		    (test_bit(i, obj->bit_17) != 0)) {
-			i915_gem_swizzle_page(obj->pages[i]);
-			set_page_dirty(obj->pages[i]);
+			i915_gem_swizzle_page(page);
+			set_page_dirty(page);
 		}
 	}
 }
@@ -489,6 +491,7 @@ i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 void
 i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
+	struct scatterlist *sg;
 	int page_count = obj->base.size >> PAGE_SHIFT;
 	int i;
 
@@ -502,8 +505,9 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 		}
 	}
 
-	for (i = 0; i < page_count; i++) {
-		if (page_to_phys(obj->pages[i]) & (1 << 17))
+	for_each_sg(obj->pages->sgl, sg, page_count, i) {
+		struct page *page = sg_page(sg);
+		if (page_to_phys(page) & (1 << 17))
 			__set_bit(i, obj->bit_17);
 		else
 			__clear_bit(i, obj->bit_17);

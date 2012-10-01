@@ -343,7 +343,7 @@ shmem_pread_fast(struct page *page, int shmem_page_offset, int page_length,
 				      page_length);
 	kunmap_atomic(vaddr);
 
-	return ret;
+	return ret ? -EFAULT : 0;
 }
 
 static void
@@ -394,7 +394,7 @@ shmem_pread_slow(struct page *page, int shmem_page_offset, int page_length,
 				     page_length);
 	kunmap(page);
 
-	return ret;
+	return ret ? - EFAULT : 0;
 }
 
 static int
@@ -403,7 +403,6 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		     struct drm_i915_gem_pread *args,
 		     struct drm_file *file)
 {
-	struct address_space *mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
 	char __user *user_data;
 	ssize_t remain;
 	loff_t offset;
@@ -412,7 +411,8 @@ i915_gem_shmem_pread(struct drm_device *dev,
 	int hit_slowpath = 0;
 	int prefaulted = 0;
 	int needs_clflush = 0;
-	int release_page;
+	struct scatterlist *sg;
+	int i;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
@@ -433,10 +433,22 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		}
 	}
 
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		return ret;
+
+	i915_gem_object_pin_pages(obj);
+
 	offset = args->offset;
 
-	while (remain > 0) {
+	for_each_sg(obj->pages->sgl, sg, obj->pages->nents, i) {
 		struct page *page;
+
+		if (i < offset >> PAGE_SHIFT)
+			continue;
+
+		if (remain <= 0)
+			break;
 
 		/* Operation in this page
 		 *
@@ -448,18 +460,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		if ((shmem_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - shmem_page_offset;
 
-		if (obj->pages) {
-			page = obj->pages[offset >> PAGE_SHIFT];
-			release_page = 0;
-		} else {
-			page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
-			if (IS_ERR(page)) {
-				ret = PTR_ERR(page);
-				goto out;
-			}
-			release_page = 1;
-		}
-
+		page = sg_page(sg);
 		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
 			(page_to_phys(page) & (1 << 17)) != 0;
 
@@ -470,7 +471,6 @@ i915_gem_shmem_pread(struct drm_device *dev,
 			goto next_page;
 
 		hit_slowpath = 1;
-		page_cache_get(page);
 		mutex_unlock(&dev->struct_mutex);
 
 		if (!prefaulted) {
@@ -488,16 +488,12 @@ i915_gem_shmem_pread(struct drm_device *dev,
 				       needs_clflush);
 
 		mutex_lock(&dev->struct_mutex);
-		page_cache_release(page);
+
 next_page:
 		mark_page_accessed(page);
-		if (release_page)
-			page_cache_release(page);
 
-		if (ret) {
-			ret = -EFAULT;
+		if (ret)
 			goto out;
-		}
 
 		remain -= page_length;
 		user_data += page_length;
@@ -505,6 +501,8 @@ next_page:
 	}
 
 out:
+	i915_gem_object_unpin_pages(obj);
+
 	if (hit_slowpath) {
 		/* Fixup: Kill any reinstated backing storage pages */
 		if (obj->madv == __I915_MADV_PURGED)
@@ -690,7 +688,7 @@ shmem_pwrite_fast(struct page *page, int shmem_page_offset, int page_length,
 				       page_length);
 	kunmap_atomic(vaddr);
 
-	return ret;
+	return ret ? -EFAULT : 0;
 }
 
 /* Only difference to the fast-path function is that this can handle bit17
@@ -724,7 +722,7 @@ shmem_pwrite_slow(struct page *page, int shmem_page_offset, int page_length,
 					     page_do_bit17_swizzling);
 	kunmap(page);
 
-	return ret;
+	return ret ? -EFAULT : 0;
 }
 
 static int
@@ -733,7 +731,6 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		      struct drm_i915_gem_pwrite *args,
 		      struct drm_file *file)
 {
-	struct address_space *mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
 	ssize_t remain;
 	loff_t offset;
 	char __user *user_data;
@@ -742,7 +739,8 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	int hit_slowpath = 0;
 	int needs_clflush_after = 0;
 	int needs_clflush_before = 0;
-	int release_page;
+	int i;
+	struct scatterlist *sg;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
@@ -768,12 +766,24 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	    && obj->cache_level == I915_CACHE_NONE)
 		needs_clflush_before = 1;
 
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		return ret;
+
+	i915_gem_object_pin_pages(obj);
+
 	offset = args->offset;
 	obj->dirty = 1;
 
-	while (remain > 0) {
+	for_each_sg(obj->pages->sgl, sg, obj->pages->nents, i) {
 		struct page *page;
 		int partial_cacheline_write;
+
+		if (i < offset >> PAGE_SHIFT)
+			continue;
+
+		if (remain <= 0)
+			break;
 
 		/* Operation in this page
 		 *
@@ -793,18 +803,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 			((shmem_page_offset | page_length)
 				& (boot_cpu_data.x86_clflush_size - 1));
 
-		if (obj->pages) {
-			page = obj->pages[offset >> PAGE_SHIFT];
-			release_page = 0;
-		} else {
-			page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
-			if (IS_ERR(page)) {
-				ret = PTR_ERR(page);
-				goto out;
-			}
-			release_page = 1;
-		}
-
+		page = sg_page(sg);
 		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
 			(page_to_phys(page) & (1 << 17)) != 0;
 
@@ -816,26 +815,20 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 			goto next_page;
 
 		hit_slowpath = 1;
-		page_cache_get(page);
 		mutex_unlock(&dev->struct_mutex);
-
 		ret = shmem_pwrite_slow(page, shmem_page_offset, page_length,
 					user_data, page_do_bit17_swizzling,
 					partial_cacheline_write,
 					needs_clflush_after);
 
 		mutex_lock(&dev->struct_mutex);
-		page_cache_release(page);
+
 next_page:
 		set_page_dirty(page);
 		mark_page_accessed(page);
-		if (release_page)
-			page_cache_release(page);
 
-		if (ret) {
-			ret = -EFAULT;
+		if (ret)
 			goto out;
-		}
 
 		remain -= page_length;
 		user_data += page_length;
@@ -843,6 +836,8 @@ next_page:
 	}
 
 out:
+	i915_gem_object_unpin_pages(obj);
+
 	if (hit_slowpath) {
 		/* Fixup: Kill any reinstated backing storage pages */
 		if (obj->madv == __I915_MADV_PURGED)
@@ -1650,18 +1645,13 @@ i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj)
 	return obj->madv == I915_MADV_DONTNEED;
 }
 
-static int
+static void
 i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 {
 	int page_count = obj->base.size / PAGE_SIZE;
+	struct scatterlist *sg;
 	int ret, i;
 
-	BUG_ON(obj->gtt_space);
-
-	if (obj->pages == NULL)
-		return 0;
-
-	BUG_ON(obj->gtt_space);
 	BUG_ON(obj->madv == __I915_MADV_PURGED);
 
 	ret = i915_gem_object_set_to_cpu_domain(obj, true);
@@ -1680,22 +1670,40 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	if (obj->madv == I915_MADV_DONTNEED)
 		obj->dirty = 0;
 
-	for (i = 0; i < page_count; i++) {
+	for_each_sg(obj->pages->sgl, sg, page_count, i) {
+		struct page *page = sg_page(sg);
+
 		if (obj->dirty)
-			set_page_dirty(obj->pages[i]);
+			set_page_dirty(page);
 
 		if (obj->madv == I915_MADV_WILLNEED)
-			mark_page_accessed(obj->pages[i]);
+			mark_page_accessed(page);
 
-		page_cache_release(obj->pages[i]);
+		page_cache_release(page);
 	}
 	obj->dirty = 0;
 
-	drm_free_large(obj->pages);
+	sg_free_table(obj->pages);
+	kfree(obj->pages);
+}
+
+static int
+i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
+{
+	const struct drm_i915_gem_object_ops *ops = obj->ops;
+
+	if (obj->pages == NULL)
+		return 0;
+
+	BUG_ON(obj->gtt_space);
+
+	if (obj->pages_pin_count)
+		return -EBUSY;
+
+	ops->put_pages(obj);
 	obj->pages = NULL;
 
 	list_del(&obj->gtt_list);
-
 	if (i915_gem_object_is_purgeable(obj))
 		i915_gem_object_truncate(obj);
 
@@ -1712,7 +1720,7 @@ i915_gem_purge(struct drm_i915_private *dev_priv, long target)
 				 &dev_priv->mm.unbound_list,
 				 gtt_list) {
 		if (i915_gem_object_is_purgeable(obj) &&
-		    i915_gem_object_put_pages_gtt(obj) == 0) {
+		    i915_gem_object_put_pages(obj) == 0) {
 			count += obj->base.size >> PAGE_SHIFT;
 			if (count >= target)
 				return count;
@@ -1724,7 +1732,7 @@ i915_gem_purge(struct drm_i915_private *dev_priv, long target)
 				 mm_list) {
 		if (i915_gem_object_is_purgeable(obj) &&
 		    i915_gem_object_unbind(obj) == 0 &&
-		    i915_gem_object_put_pages_gtt(obj) == 0) {
+		    i915_gem_object_put_pages(obj) == 0) {
 			count += obj->base.size >> PAGE_SHIFT;
 			if (count >= target)
 				return count;
@@ -1742,20 +1750,19 @@ i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 	i915_gem_evict_everything(dev_priv->dev);
 
 	list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list, gtt_list)
-		i915_gem_object_put_pages_gtt(obj);
+		i915_gem_object_put_pages(obj);
 }
 
-int
+static int
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	int page_count, i;
 	struct address_space *mapping;
+	struct sg_table *st;
+	struct scatterlist *sg;
 	struct page *page;
 	gfp_t gfp;
-
-	if (obj->pages || obj->sg_table)
-		return 0;
 
 	/* Assert that the object is not currently in any GPU domain. As it
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
@@ -1764,20 +1771,27 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	BUG_ON(obj->base.read_domains & I915_GEM_GPU_DOMAINS);
 	BUG_ON(obj->base.write_domain & I915_GEM_GPU_DOMAINS);
 
-	/* Get the list of pages out of our struct file.  They'll be pinned
-	 * at this point until we release them.
-	 */
-	page_count = obj->base.size / PAGE_SIZE;
-	obj->pages = drm_malloc_ab(page_count, sizeof(struct page *));
-	if (obj->pages == NULL)
+	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	if (st == NULL)
 		return -ENOMEM;
 
-	/* Fail silently without starting the shrinker */
+	page_count = obj->base.size / PAGE_SIZE;
+	if (sg_alloc_table(st, page_count, GFP_KERNEL)) {
+		sg_free_table(st);
+		kfree(st);
+		return -ENOMEM;
+	}
+
+	/* Get the list of pages out of our struct file.  They'll be pinned
+	 * at this point until we release them.
+	 *
+	 * Fail silently without starting the shrinker
+	 */
 	mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
 	gfp = mapping_gfp_mask(mapping);
 	gfp |= __GFP_NORETRY | __GFP_NOWARN;
 	gfp &= ~(__GFP_IO | __GFP_WAIT);
-	for (i = 0; i < page_count; i++) {
+	for_each_sg(st->sgl, sg, page_count, i) {
 		page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 		if (IS_ERR(page)) {
 			i915_gem_purge(dev_priv, page_count);
@@ -1800,22 +1814,48 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 			gfp &= ~(__GFP_IO | __GFP_WAIT);
 		}
 
-		obj->pages[i] = page;
+		sg_set_page(sg, page, PAGE_SIZE, 0);
 	}
 
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj);
 
-	list_add_tail(&obj->gtt_list, &dev_priv->mm.unbound_list);
+	obj->pages = st;
 	return 0;
 
 err_pages:
-	while (i--)
-		page_cache_release(obj->pages[i]);
-
-	drm_free_large(obj->pages);
-	obj->pages = NULL;
+	for_each_sg(st->sgl, sg, i, page_count)
+		page_cache_release(sg_page(sg));
+	sg_free_table(st);
+	kfree(st);
 	return PTR_ERR(page);
+}
+
+/* Ensure that the associated pages are gathered from the backing storage
+ * and pinned into our object. i915_gem_object_get_pages() may be called
+ * multiple times before they are released by a single call to
+ * i915_gem_object_put_pages() - once the pages are no longer referenced
+ * either as a result of memory pressure (reaping pages under the shrinker)
+ * or as the object is itself released.
+ */
+int
+i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	const struct drm_i915_gem_object_ops *ops = obj->ops;
+	int ret;
+
+	if (obj->pages)
+		return 0;
+
+	BUG_ON(obj->pages_pin_count);
+
+	ret = ops->get_pages(obj);
+	if (ret)
+		return ret;
+
+	list_add_tail(&obj->gtt_list, &dev_priv->mm.unbound_list);
+	return 0;
 }
 
 void
@@ -2070,7 +2110,6 @@ void i915_gem_reset(struct drm_device *dev)
 	{
 		obj->base.read_domains &= ~I915_GEM_GPU_DOMAINS;
 	}
-
 
 	/* The fence registers are invalidated so clear them out */
 	i915_gem_reset_fences(dev);
@@ -2871,7 +2910,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 		return -E2BIG;
 	}
 
-	ret = i915_gem_object_get_pages_gtt(obj);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret)
 		return ret;
 
@@ -2971,7 +3010,7 @@ i915_gem_clflush_object(struct drm_i915_gem_object *obj)
 
 	trace_i915_gem_object_clflush(obj);
 
-	drm_clflush_pages(obj->pages, obj->base.size / PAGE_SIZE);
+	drm_clflush_sg(obj->pages);
 }
 
 /** Flushes the GTT write domain for the object if it's dirty. */
@@ -3146,10 +3185,10 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
-int i915_gem_get_cacheing_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file)
+int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file)
 {
-	struct drm_i915_gem_cacheing *args = data;
+	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
@@ -3163,7 +3202,7 @@ int i915_gem_get_cacheing_ioctl(struct drm_device *dev, void *data,
 		goto unlock;
 	}
 
-	args->cacheing = obj->cache_level != I915_CACHE_NONE;
+	args->caching = obj->cache_level != I915_CACHE_NONE;
 
 	drm_gem_object_unreference(&obj->base);
 unlock:
@@ -3171,10 +3210,10 @@ unlock:
 	return ret;
 }
 
-int i915_gem_set_cacheing_ioctl(struct drm_device *dev, void *data,
-				struct drm_file *file)
+int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file)
 {
-	struct drm_i915_gem_cacheing *args = data;
+	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
 	enum i915_cache_level level;
 	int ret;
@@ -3183,11 +3222,11 @@ int i915_gem_set_cacheing_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	switch (args->cacheing) {
-	case I915_CACHEING_NONE:
+	switch (args->caching) {
+	case I915_CACHING_NONE:
 		level = I915_CACHE_NONE;
 		break;
-	case I915_CACHEING_CACHED:
+	case I915_CACHING_CACHED:
 		level = I915_CACHE_LLC;
 		break;
 	default:
@@ -3386,7 +3425,8 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 {
 	int ret;
 
-	BUG_ON(obj->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT);
+	if (WARN_ON(obj->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
+		return -EBUSY;
 
 	if (obj->gtt_space != NULL) {
 		if ((alignment && obj->gtt_offset & (alignment - 1)) ||
@@ -3610,14 +3650,15 @@ unlock:
 	return ret;
 }
 
-void i915_gem_object_init(struct drm_i915_gem_object *obj)
+void i915_gem_object_init(struct drm_i915_gem_object *obj,
+			  const struct drm_i915_gem_object_ops *ops)
 {
-	obj->base.driver_private = NULL;
-
 	INIT_LIST_HEAD(&obj->mm_list);
 	INIT_LIST_HEAD(&obj->gtt_list);
 	INIT_LIST_HEAD(&obj->ring_list);
 	INIT_LIST_HEAD(&obj->exec_list);
+
+	obj->ops = ops;
 
 	obj->fence_reg = I915_FENCE_REG_NONE;
 	obj->madv = I915_MADV_WILLNEED;
@@ -3626,6 +3667,11 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj)
 
 	i915_gem_info_add_obj(obj->base.dev->dev_private, obj->base.size);
 }
+
+static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
+	.get_pages = i915_gem_object_get_pages_gtt,
+	.put_pages = i915_gem_object_put_pages_gtt,
+};
 
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size)
@@ -3653,7 +3699,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 	mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
 	mapping_set_gfp_mask(mapping, mask);
 
-	i915_gem_object_init(obj);
+	i915_gem_object_init(obj, &i915_gem_object_ops);
 
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
@@ -3693,9 +3739,6 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 
 	trace_i915_gem_object_destroy(obj);
 
-	if (gem_obj->import_attach)
-		drm_prime_gem_destroy(gem_obj, obj->sg_table);
-
 	if (obj->phys_obj)
 		i915_gem_detach_phys_object(dev, obj);
 
@@ -3711,8 +3754,14 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		dev_priv->mm.interruptible = was_interruptible;
 	}
 
-	i915_gem_object_put_pages_gtt(obj);
+	obj->pages_pin_count = 0;
+	i915_gem_object_put_pages(obj);
 	i915_gem_object_free_mmap_offset(obj);
+
+	BUG_ON(obj->pages);
+
+	if (obj->base.import_attach)
+		drm_prime_gem_destroy(&obj->base, NULL);
 
 	drm_gem_object_release(&obj->base);
 	i915_gem_info_remove_obj(dev_priv, obj->base.size);
@@ -4370,9 +4419,10 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 
 	cnt = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list)
-		cnt += obj->base.size >> PAGE_SHIFT;
+		if (obj->pages_pin_count == 0)
+			cnt += obj->base.size >> PAGE_SHIFT;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list)
-		if (obj->pin_count == 0)
+		if (obj->pin_count == 0 && obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
 
 	mutex_unlock(&dev->struct_mutex);

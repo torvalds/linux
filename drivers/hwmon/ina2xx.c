@@ -69,22 +69,6 @@ struct ina2xx_data {
 	u16 regs[INA2XX_MAX_REGISTERS];
 };
 
-int ina2xx_read_word(struct i2c_client *client, int reg)
-{
-	int val = i2c_smbus_read_word_data(client, reg);
-	if (unlikely(val < 0)) {
-		dev_dbg(&client->dev,
-			"Failed to read register: %d\n", reg);
-		return val;
-	}
-	return be16_to_cpu(val);
-}
-
-void ina2xx_write_word(struct i2c_client *client, int reg, int data)
-{
-	i2c_smbus_write_word_data(client, reg, cpu_to_be16(data));
-}
-
 static struct ina2xx_data *ina2xx_update_device(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -102,7 +86,7 @@ static struct ina2xx_data *ina2xx_update_device(struct device *dev)
 
 		/* Read all registers */
 		for (i = 0; i < data->registers; i++) {
-			int rv = ina2xx_read_word(client, i);
+			int rv = i2c_smbus_read_word_swapped(client, i);
 			if (rv < 0) {
 				ret = ERR_PTR(rv);
 				goto abort;
@@ -279,22 +263,26 @@ static int ina2xx_probe(struct i2c_client *client,
 	switch (data->kind) {
 	case ina219:
 		/* device configuration */
-		ina2xx_write_word(client, INA2XX_CONFIG, INA219_CONFIG_DEFAULT);
+		i2c_smbus_write_word_swapped(client, INA2XX_CONFIG,
+					     INA219_CONFIG_DEFAULT);
 
 		/* set current LSB to 1mA, shunt is in uOhms */
 		/* (equation 13 in datasheet) */
-		ina2xx_write_word(client, INA2XX_CALIBRATION, 40960000 / shunt);
+		i2c_smbus_write_word_swapped(client, INA2XX_CALIBRATION,
+					     40960000 / shunt);
 		dev_info(&client->dev,
 			 "power monitor INA219 (Rshunt = %li uOhm)\n", shunt);
 		data->registers = INA219_REGISTERS;
 		break;
 	case ina226:
 		/* device configuration */
-		ina2xx_write_word(client, INA2XX_CONFIG, INA226_CONFIG_DEFAULT);
+		i2c_smbus_write_word_swapped(client, INA2XX_CONFIG,
+					     INA226_CONFIG_DEFAULT);
 
 		/* set current LSB to 1mA, shunt is in uOhms */
 		/* (equation 1 in datasheet)*/
-		ina2xx_write_word(client, INA2XX_CALIBRATION, 5120000 / shunt);
+		i2c_smbus_write_word_swapped(client, INA2XX_CALIBRATION,
+					     5120000 / shunt);
 		dev_info(&client->dev,
 			 "power monitor INA226 (Rshunt = %li uOhm)\n", shunt);
 		data->registers = INA226_REGISTERS;

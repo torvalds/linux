@@ -382,7 +382,13 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	else
 		new_delay = dev_priv->rps.cur_delay - 1;
 
-	gen6_set_rps(dev_priv->dev, new_delay);
+	/* sysfs frequency interfaces may have snuck in while servicing the
+	 * interrupt
+	 */
+	if (!(new_delay > dev_priv->rps.max_delay ||
+	      new_delay < dev_priv->rps.min_delay)) {
+		gen6_set_rps(dev_priv->dev, new_delay);
+	}
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
@@ -888,20 +894,20 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct drm_i915_gem_object *src)
 {
 	struct drm_i915_error_object *dst;
-	int page, page_count;
+	int i, count;
 	u32 reloc_offset;
 
 	if (src == NULL || src->pages == NULL)
 		return NULL;
 
-	page_count = src->base.size / PAGE_SIZE;
+	count = src->base.size / PAGE_SIZE;
 
-	dst = kmalloc(sizeof(*dst) + page_count * sizeof(u32 *), GFP_ATOMIC);
+	dst = kmalloc(sizeof(*dst) + count * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
 	reloc_offset = src->gtt_offset;
-	for (page = 0; page < page_count; page++) {
+	for (i = 0; i < count; i++) {
 		unsigned long flags;
 		void *d;
 
@@ -924,30 +930,33 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
 		} else {
+			struct page *page;
 			void *s;
 
-			drm_clflush_pages(&src->pages[page], 1);
+			page = i915_gem_object_get_page(src, i);
 
-			s = kmap_atomic(src->pages[page]);
+			drm_clflush_pages(&page, 1);
+
+			s = kmap_atomic(page);
 			memcpy(d, s, PAGE_SIZE);
 			kunmap_atomic(s);
 
-			drm_clflush_pages(&src->pages[page], 1);
+			drm_clflush_pages(&page, 1);
 		}
 		local_irq_restore(flags);
 
-		dst->pages[page] = d;
+		dst->pages[i] = d;
 
 		reloc_offset += PAGE_SIZE;
 	}
-	dst->page_count = page_count;
+	dst->page_count = count;
 	dst->gtt_offset = src->gtt_offset;
 
 	return dst;
 
 unwind:
-	while (page--)
-		kfree(dst->pages[page]);
+	while (i--)
+		kfree(dst->pages[i]);
 	kfree(dst);
 	return NULL;
 }
@@ -2735,9 +2744,6 @@ void intel_irq_init(struct drm_device *dev)
 			dev->driver->irq_handler = i8xx_irq_handler;
 			dev->driver->irq_uninstall = i8xx_irq_uninstall;
 		} else if (INTEL_INFO(dev)->gen == 3) {
-			/* IIR "flip pending" means done if this bit is set */
-			I915_WRITE(ECOSKPD, _MASKED_BIT_DISABLE(ECO_FLIP_DONE));
-
 			dev->driver->irq_preinstall = i915_irq_preinstall;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
 			dev->driver->irq_uninstall = i915_irq_uninstall;

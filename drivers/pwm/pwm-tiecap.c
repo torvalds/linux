@@ -100,6 +100,13 @@ static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		writel(period_cycles, pc->mmio_base + CAP3);
 	}
 
+	if (!test_bit(PWMF_ENABLED, &pwm->flags)) {
+		reg_val = readw(pc->mmio_base + ECCTL2);
+		/* Disable APWM mode to put APWM output Low */
+		reg_val &= ~ECCTL2_APWM_MODE;
+		writew(reg_val, pc->mmio_base + ECCTL2);
+	}
+
 	pm_runtime_put_sync(pc->chip.dev);
 	return 0;
 }

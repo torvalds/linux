@@ -152,8 +152,10 @@ struct intel_encoder {
 	bool cloneable;
 	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
+	void (*pre_enable)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
 	void (*disable)(struct intel_encoder *);
+	void (*post_disable)(struct intel_encoder *);
 	/* Read out the current hw state of this connector, returning true if
 	 * the encoder is active. If the encoder is enabled it also set the pipe
 	 * it is connected to in the pipe parameter. */

@@ -203,8 +203,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_WAIT	0x2c
 #define DRM_I915_GEM_CONTEXT_CREATE	0x2d
 #define DRM_I915_GEM_CONTEXT_DESTROY	0x2e
-#define DRM_I915_GEM_SET_CACHEING	0x2f
-#define DRM_I915_GEM_GET_CACHEING	0x30
+#define DRM_I915_GEM_SET_CACHING	0x2f
+#define DRM_I915_GEM_GET_CACHING	0x30
 #define DRM_I915_REG_READ		0x31
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
@@ -230,8 +230,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_PIN		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_PIN, struct drm_i915_gem_pin)
 #define DRM_IOCTL_I915_GEM_UNPIN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_UNPIN, struct drm_i915_gem_unpin)
 #define DRM_IOCTL_I915_GEM_BUSY		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_BUSY, struct drm_i915_gem_busy)
-#define DRM_IOCTL_I915_GEM_SET_CACHEING		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_SET_CACHEING, struct drm_i915_gem_cacheing)
-#define DRM_IOCTL_I915_GEM_GET_CACHEING		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_GET_CACHEING, struct drm_i915_gem_cacheing)
+#define DRM_IOCTL_I915_GEM_SET_CACHING		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_SET_CACHING, struct drm_i915_gem_caching)
+#define DRM_IOCTL_I915_GEM_GET_CACHING		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_GET_CACHING, struct drm_i915_gem_caching)
 #define DRM_IOCTL_I915_GEM_THROTTLE	DRM_IO ( DRM_COMMAND_BASE + DRM_I915_GEM_THROTTLE)
 #define DRM_IOCTL_I915_GEM_ENTERVT	DRM_IO(DRM_COMMAND_BASE + DRM_I915_GEM_ENTERVT)
 #define DRM_IOCTL_I915_GEM_LEAVEVT	DRM_IO(DRM_COMMAND_BASE + DRM_I915_GEM_LEAVEVT)
@@ -313,6 +313,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_WAIT_TIMEOUT	 19
 #define I915_PARAM_HAS_SEMAPHORES	 20
 #define I915_PARAM_HAS_PRIME_VMAP_FLUSH	 21
+#define I915_PARAM_RSVD_FOR_FUTURE_USE	 22
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -714,21 +715,21 @@ struct drm_i915_gem_busy {
 	__u32 busy;
 };
 
-#define I915_CACHEING_NONE		0
-#define I915_CACHEING_CACHED		1
+#define I915_CACHING_NONE		0
+#define I915_CACHING_CACHED		1
 
-struct drm_i915_gem_cacheing {
+struct drm_i915_gem_caching {
 	/**
-	 * Handle of the buffer to set/get the cacheing level of. */
+	 * Handle of the buffer to set/get the caching level of. */
 	__u32 handle;
 
 	/**
 	 * Cacheing level to apply or return value
 	 *
-	 * bits0-15 are for generic cacheing control (i.e. the above defined
+	 * bits0-15 are for generic caching control (i.e. the above defined
 	 * values). bits16-31 are reserved for platform-specific variations
 	 * (e.g. l3$ caching on gen7). */
-	__u32 cacheing;
+	__u32 caching;
 };
 
 #define I915_TILING_NONE	0

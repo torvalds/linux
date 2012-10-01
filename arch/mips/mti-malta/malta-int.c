@@ -273,16 +273,19 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 	int irq;
 
+	if (unlikely(!pending)) {
+		spurious_interrupt();
+		return;
+	}
+
 	irq = irq_ffs(pending);
 
 	if (irq == MIPSCPU_INT_I8259A)
 		malta_hw0_irqdispatch();
 	else if (gic_present && ((1 << irq) & ipi_map[smp_processor_id()]))
 		malta_ipi_irqdispatch();
-	else if (irq >= 0)
-		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
 	else
-		spurious_interrupt();
+		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
 }
 
 #ifdef CONFIG_MIPS_MT_SMP
