@@ -53,21 +53,18 @@ int set_memory_ro(unsigned long addr, int numpages)
 	change_page_attr(addr, numpages, pte_wrprotect);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(set_memory_ro);
 
 int set_memory_rw(unsigned long addr, int numpages)
 {
 	change_page_attr(addr, numpages, pte_mkwrite);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(set_memory_rw);
 
 /* not possible */
 int set_memory_nx(unsigned long addr, int numpages)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(set_memory_nx);
 
 int set_memory_x(unsigned long addr, int numpages)
 {
