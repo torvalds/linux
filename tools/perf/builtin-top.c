@@ -1159,11 +1159,6 @@ setup:
 	return 0;
 }
 
-static const char * const top_usage[] = {
-	"perf top [<options>]",
-	NULL
-};
-
 int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_evsel *pos;
@@ -1249,6 +1244,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_STRING('u', "uid", &top.target.uid_str, "user", "user to profile"),
 	OPT_END()
+	};
+	const char * const top_usage[] = {
+		"perf top [<options>]",
+		NULL
 	};
 
 	top.evlist = perf_evlist__new(NULL, NULL);
