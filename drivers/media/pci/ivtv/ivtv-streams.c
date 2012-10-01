@@ -65,6 +65,14 @@ static const struct v4l2_file_operations ivtv_v4l2_dec_fops = {
 	.poll = ivtv_v4l2_dec_poll,
 };
 
+static const struct v4l2_file_operations ivtv_v4l2_radio_fops = {
+	.owner = THIS_MODULE,
+	.open = ivtv_v4l2_open,
+	.unlocked_ioctl = video_ioctl2,
+	.release = ivtv_v4l2_close,
+	.poll = ivtv_v4l2_enc_poll,
+};
+
 #define IVTV_V4L2_DEC_MPG_OFFSET  16	/* offset from 0 to register decoder mpg v4l2 minors on */
 #define IVTV_V4L2_ENC_PCM_OFFSET  24	/* offset from 0 to register pcm v4l2 minors on */
 #define IVTV_V4L2_ENC_YUV_OFFSET  32	/* offset from 0 to register yuv v4l2 minors on */
@@ -116,7 +124,7 @@ static struct {
 		VFL_TYPE_RADIO, 0,
 		PCI_DMA_NONE, 1,
 		V4L2_CAP_RADIO | V4L2_CAP_TUNER,
-		&ivtv_v4l2_enc_fops
+		&ivtv_v4l2_radio_fops
 	},
 	{	/* IVTV_DEC_STREAM_TYPE_MPG */
 		"decoder MPG",

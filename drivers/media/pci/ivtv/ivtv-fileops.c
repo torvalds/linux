@@ -435,7 +435,7 @@ int ivtv_start_capture(struct ivtv_open_id *id)
 	    s->type == IVTV_DEC_STREAM_TYPE_YUV ||
 	    s->type == IVTV_DEC_STREAM_TYPE_VOUT) {
 		/* you cannot read from these stream types. */
-		return -EPERM;
+		return -EINVAL;
 	}
 
 	/* Try to claim this stream. */
@@ -564,7 +564,7 @@ static ssize_t ivtv_write(struct file *filp, const char __user *user_buf, size_t
 	    s->type != IVTV_DEC_STREAM_TYPE_YUV &&
 	    s->type != IVTV_DEC_STREAM_TYPE_VOUT)
 		/* not decoder streams */
-		return -EPERM;
+		return -EINVAL;
 
 	/* Try to claim this stream */
 	if (ivtv_claim_stream(id, s->type))
@@ -775,6 +775,7 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 
 	/* Start a capture if there is none */
 	if (!eof && !test_bit(IVTV_F_S_STREAMING, &s->s_flags) &&
+			s->type != IVTV_ENC_STREAM_TYPE_RAD &&
 			(req_events & (POLLIN | POLLRDNORM))) {
 		int rc;
 
