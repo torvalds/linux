@@ -121,12 +121,13 @@ int nfs40_discover_server_trunking(struct nfs_client *clp,
 		.clientid = clp->cl_clientid,
 		.confirm = clp->cl_confirm,
 	};
+	struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
 	unsigned short port;
 	int status;
 
-	port = nfs_callback_tcpport;
+	port = nn->nfs_callback_tcpport;
 	if (clp->cl_addr.ss_family == AF_INET6)
-		port = nfs_callback_tcpport6;
+		port = nn->nfs_callback_tcpport6;
 
 	status = nfs4_proc_setclientid(clp, NFS4_CALLBACK, port, cred, &clid);
 	if (status != 0)
