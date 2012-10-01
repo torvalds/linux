@@ -56,10 +56,7 @@ static int __init amiga_init_bus(void)
 	n = AMIGAHW_PRESENT(ZORRO3) ? 4 : 2;
 	pdev = platform_device_register_simple("amiga-zorro", -1,
 					       zorro_resources, n);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	return 0;
+	return PTR_RET(pdev);
 }
 
 subsys_initcall(amiga_init_bus);
