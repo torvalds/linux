@@ -342,6 +342,9 @@ static int lg_event(struct hid_device *hdev, struct hid_field *field,
 				-value);
 		return 1;
 	}
+	if (drv_data->quirks & LG_FF4) {
+		return lg4ff_adjust_input_event(hdev, field, usage, value, drv_data);
+	}
 
 	return 0;
 }
@@ -358,7 +361,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENOMEM;
 	}
 	drv_data->quirks = id->driver_data;
-	
+
 	hid_set_drvdata(hdev, (void *)drv_data);
 
 	if (drv_data->quirks & LG_NOGET)
@@ -380,7 +383,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	/* Setup wireless link with Logitech Wii wheel */
-	if(hdev->product == USB_DEVICE_ID_LOGITECH_WII_WHEEL) {
+	if (hdev->product == USB_DEVICE_ID_LOGITECH_WII_WHEEL) {
 		unsigned char buf[] = { 0x00, 0xAF,  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 		ret = hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
@@ -476,7 +479,7 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_NOGET | LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WII_WHEEL),
 		.driver_data = LG_FF4 },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FFG ),
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FFG),
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2),
 		.driver_data = LG_FF2 },
