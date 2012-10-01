@@ -251,7 +251,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 		get_user_ex(tmp, &sc->fpstate);
 		buf = compat_ptr(tmp);
-		err |= restore_i387_xstate_ia32(buf);
+		err |= restore_xstate_sig(buf, 1);
 
 		get_user_ex(*pax, &sc->ax);
 	} get_user_catch(err);
@@ -382,9 +382,12 @@ static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 		sp = (unsigned long) ka->sa.sa_restorer;
 
 	if (used_math()) {
-		sp = sp - sig_xstate_ia32_size;
+		unsigned long fx_aligned, math_size;
+
+		sp = alloc_mathframe(sp, 1, &fx_aligned, &math_size);
 		*fpstate = (struct _fpstate_ia32 __user *) sp;
-		if (save_i387_xstate_ia32(*fpstate) < 0)
+		if (save_xstate_sig(*fpstate, (void __user *)fx_aligned,
+				    math_size) < 0)
 			return (void __user *) -1L;
 	}
 
