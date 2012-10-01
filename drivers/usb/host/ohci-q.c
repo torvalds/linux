@@ -596,7 +596,6 @@ static void td_submit_urb (
 		urb_priv->ed->hwHeadP &= ~cpu_to_hc32 (ohci, ED_C);
 	}
 
-	urb_priv->td_cnt = 0;
 	list_add (&urb_priv->pending, &ohci->pending);
 
 	if (data_len)
@@ -672,7 +671,8 @@ static void td_submit_urb (
 	 * we could often reduce the number of TDs here.
 	 */
 	case PIPE_ISOCHRONOUS:
-		for (cnt = 0; cnt < urb->number_of_packets; cnt++) {
+		for (cnt = urb_priv->td_cnt; cnt < urb->number_of_packets;
+				cnt++) {
 			int	frame = urb->start_frame;
 
 			// FIXME scheduling should handle frame counter

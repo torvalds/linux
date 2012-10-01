@@ -231,13 +231,41 @@ static int ohci_urb_enqueue (
 			frame &= ~(ed->interval - 1);
 			frame |= ed->branch;
 			urb->start_frame = frame;
-
-			/* yes, only URB_ISO_ASAP is supported, and
-			 * urb->start_frame is never used as input.
-			 */
 		}
-	} else if (ed->type == PIPE_ISOCHRONOUS)
-		urb->start_frame = ed->last_iso + ed->interval;
+	} else if (ed->type == PIPE_ISOCHRONOUS) {
+		u16	next = ohci_frame_no(ohci) + 2;
+		u16	frame = ed->last_iso + ed->interval;
+
+		/* Behind the scheduling threshold? */
+		if (unlikely(tick_before(frame, next))) {
+
+			/* USB_ISO_ASAP: Round up to the first available slot */
+			if (urb->transfer_flags & URB_ISO_ASAP)
+				frame += (next - frame + ed->interval - 1) &
+						-ed->interval;
+
+			/*
+			 * Not ASAP: Use the next slot in the stream.  If
+			 * the entire URB falls before the threshold, fail.
+			 */
+			else if (tick_before(frame + ed->interval *
+					(urb->number_of_packets - 1), next)) {
+				retval = -EXDEV;
+				usb_hcd_unlink_urb_from_ep(hcd, urb);
+				goto fail;
+			}
+
+			/*
+			 * Some OHCI hardware doesn't handle late TDs
+			 * correctly.  After retiring them it proceeds to
+			 * the next ED instead of the next TD.  Therefore
+			 * we have to omit the late TDs entirely.
+			 */
+			urb_priv->td_cnt = DIV_ROUND_UP(next - frame,
+					ed->interval);
+		}
+		urb->start_frame = frame;
+	}
 
 	/* fill the TDs and link them to the ed; and
 	 * enable that part of the schedule, if needed
