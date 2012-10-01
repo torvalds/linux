@@ -685,8 +685,9 @@ static int dcon_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int dcon_suspend(struct i2c_client *client, pm_message_t state)
+static int dcon_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct dcon_priv *dcon = i2c_get_clientdata(client);
 
 	if (!dcon->asleep) {
@@ -697,8 +698,9 @@ static int dcon_suspend(struct i2c_client *client, pm_message_t state)
 	return 0;
 }
 
-static int dcon_resume(struct i2c_client *client)
+static int dcon_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct dcon_priv *dcon = i2c_get_clientdata(client);
 
 	if (!dcon->asleep) {
@@ -709,7 +711,12 @@ static int dcon_resume(struct i2c_client *client)
 	return 0;
 }
 
-#endif
+#else
+
+#define dcon_suspend NULL
+#define dcon_resume NULL
+
+#endif /* CONFIG_PM */
 
 
 irqreturn_t dcon_interrupt(int irq, void *id)
@@ -753,16 +760,21 @@ irqreturn_t dcon_interrupt(int irq, void *id)
 	return IRQ_HANDLED;
 }
 
+static const struct dev_pm_ops dcon_pm_ops = {
+	.suspend = dcon_suspend,
+	.resume = dcon_resume,
+};
+
 static const struct i2c_device_id dcon_idtable[] = {
 	{ "olpc_dcon",  0 },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(i2c, dcon_idtable);
 
 struct i2c_driver dcon_driver = {
 	.driver = {
 		.name	= "olpc_dcon",
+		.pm = &dcon_pm_ops,
 	},
 	.class = I2C_CLASS_DDC | I2C_CLASS_HWMON,
 	.id_table = dcon_idtable,
@@ -770,10 +782,6 @@ struct i2c_driver dcon_driver = {
 	.remove = __devexit_p(dcon_remove),
 	.detect = dcon_detect,
 	.address_list = normal_i2c,
-#ifdef CONFIG_PM
-	.suspend = dcon_suspend,
-	.resume = dcon_resume,
-#endif
 };
 
 static int __init olpc_dcon_init(void)
