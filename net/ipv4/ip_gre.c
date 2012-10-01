@@ -222,7 +222,7 @@ static struct rtnl_link_stats64 *ipgre_get_stats64(struct net_device *dev,
 
 /* Does key in tunnel parameters match packet */
 static bool ipgre_key_match(const struct ip_tunnel_parm *p,
-			    __u32 flags, __be32 key)
+			    __be16 flags, __be32 key)
 {
 	if (p->i_flags & GRE_KEY) {
 		if (flags & GRE_KEY)
@@ -237,7 +237,7 @@ static bool ipgre_key_match(const struct ip_tunnel_parm *p,
 
 static struct ip_tunnel *ipgre_tunnel_lookup(struct net_device *dev,
 					     __be32 remote, __be32 local,
-					     __u32 flags, __be32 key,
+					     __be16 flags, __be32 key,
 					     __be16 gre_proto)
 {
 	struct net *net = dev_net(dev);
