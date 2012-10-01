@@ -986,25 +986,25 @@ config X86_REBOOTFIXUPS
 	  Say N otherwise.
 
 config MICROCODE
-	tristate "/dev/cpu/microcode - microcode support"
+	tristate "CPU microcode loading support"
 	select FW_LOADER
 	---help---
+
 	  If you say Y here, you will be able to update the microcode on
 	  certain Intel and AMD processors. The Intel support is for the
-	  IA32 family, e.g. Pentium Pro, Pentium II, Pentium III,
-	  Pentium 4, Xeon etc. The AMD support is for family 0x10 and
-	  0x11 processors, e.g. Opteron, Phenom and Turion 64 Ultra.
-	  You will obviously need the actual microcode binary data itself
-	  which is not shipped with the Linux kernel.
+	  IA32 family, e.g. Pentium Pro, Pentium II, Pentium III, Pentium 4,
+	  Xeon etc. The AMD support is for families 0x10 and later. You will
+	  obviously need the actual microcode binary data itself which is not
+	  shipped with the Linux kernel.
 
 	  This option selects the general module only, you need to select
 	  at least one vendor specific module as well.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called microcode.
+	  To compile this driver as a module, choose M here: the module
+	  will be called microcode.
 
 config MICROCODE_INTEL
-	bool "Intel microcode patch loading support"
+	bool "Intel microcode loading support"
 	depends on MICROCODE
 	default MICROCODE
 	select FW_LOADER
@@ -1017,7 +1017,7 @@ config MICROCODE_INTEL
 	  <http://www.urbanmyth.org/microcode/>.
 
 config MICROCODE_AMD
-	bool "AMD microcode patch loading support"
+	bool "AMD microcode loading support"
 	depends on MICROCODE
 	select FW_LOADER
 	---help---
