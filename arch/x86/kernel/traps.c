@@ -108,30 +108,45 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 	dec_preempt_count();
 }
 
+static int __kprobes
+do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
+		  struct pt_regs *regs,	long error_code)
+{
+#ifdef CONFIG_X86_32
+	if (regs->flags & X86_VM_MASK) {
+		/*
+		 * Traps 0, 1, 3, 4, and 5 should be forwarded to vm86.
+		 * On nmi (interrupt 2), do_trap should not be called.
+		 */
+		if (trapnr < X86_TRAP_UD) {
+			if (!handle_vm86_trap((struct kernel_vm86_regs *) regs,
+						error_code, trapnr))
+				return 0;
+		}
+		return -1;
+	}
+#endif
+	if (!user_mode(regs)) {
+		if (!fixup_exception(regs)) {
+			tsk->thread.error_code = error_code;
+			tsk->thread.trap_nr = trapnr;
+			die(str, regs, error_code);
+		}
+		return 0;
+	}
+
+	return -1;
+}
+
 static void __kprobes
 do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	long error_code, siginfo_t *info)
 {
 	struct task_struct *tsk = current;
 
-#ifdef CONFIG_X86_32
-	if (regs->flags & X86_VM_MASK) {
-		/*
-		 * traps 0, 1, 3, 4, and 5 should be forwarded to vm86.
-		 * On nmi (interrupt 2), do_trap should not be called.
-		 */
-		if (trapnr < X86_TRAP_UD)
-			goto vm86_trap;
-		goto trap_signal;
-	}
-#endif
 
-	if (!user_mode(regs))
-		goto kernel_trap;
-
-#ifdef CONFIG_X86_32
-trap_signal:
-#endif
+	if (!do_trap_no_signal(tsk, trapnr, str, regs, error_code))
+		return;
 	/*
 	 * We want error_code and trap_nr set for userspace faults and
 	 * kernelspace faults which result in die(), but not
@@ -159,23 +174,6 @@ trap_signal:
 		force_sig_info(signr, info, tsk);
 	else
 		force_sig(signr, tsk);
-	return;
-
-kernel_trap:
-	if (!fixup_exception(regs)) {
-		tsk->thread.error_code = error_code;
-		tsk->thread.trap_nr = trapnr;
-		die(str, regs, error_code);
-	}
-	return;
-
-#ifdef CONFIG_X86_32
-vm86_trap:
-	if (handle_vm86_trap((struct kernel_vm86_regs *) regs,
-						error_code, trapnr))
-		goto trap_signal;
-	return;
-#endif
 }
 
 #define DO_ERROR(trapnr, signr, str, name)				\

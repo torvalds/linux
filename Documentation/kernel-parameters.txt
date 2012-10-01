@@ -2649,9 +2649,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	smart2=		[HW]
 			Format: <io1>[,<io2>[,...,<io8>]]
 
-	smp-alt-once	[X86-32,SMP] On a hotplug CPU system, only
-			attempt to substitute SMP alternatives once at boot.
-
 	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
 	smsc-ircc2.ircc_cfg=	[HW] Device configuration I/O port
 	smsc-ircc2.ircc_sir=	[HW] SIR base I/O port

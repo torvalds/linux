@@ -447,14 +447,6 @@ EXPORT_SYMBOL_GPL(cpu_up);
 #ifdef CONFIG_PM_SLEEP_SMP
 static cpumask_var_t frozen_cpus;
 
-void __weak arch_disable_nonboot_cpus_begin(void)
-{
-}
-
-void __weak arch_disable_nonboot_cpus_end(void)
-{
-}
-
 int disable_nonboot_cpus(void)
 {
 	int cpu, first_cpu, error = 0;
@@ -466,7 +458,6 @@ int disable_nonboot_cpus(void)
 	 * with the userspace trying to use the CPU hotplug at the same time
 	 */
 	cpumask_clear(frozen_cpus);
-	arch_disable_nonboot_cpus_begin();
 
 	printk("Disabling non-boot CPUs ...\n");
 	for_each_online_cpu(cpu) {
@@ -481,8 +472,6 @@ int disable_nonboot_cpus(void)
 			break;
 		}
 	}
-
-	arch_disable_nonboot_cpus_end();
 
 	if (!error) {
 		BUG_ON(num_online_cpus() > 1);
