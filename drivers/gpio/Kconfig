@@ -183,6 +183,12 @@ config GPIO_STA2X11
 	  Say yes here to support the STA2x11/ConneXt GPIO device.
 	  The GPIO module has 128 GPIO pins with alternate functions.
 
+config GPIO_VT8500
+	bool "VIA/Wondermedia SoC GPIO Support"
+	depends on ARCH_VT8500
+	help
+	  Say yes here to support the VT8500/WM8505/WM8650 GPIO controller.
+
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
 	depends on PPC_OF || MICROBLAZE

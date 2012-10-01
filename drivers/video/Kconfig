@@ -1788,7 +1788,7 @@ config FB_AU1200
 
 config FB_VT8500
 	bool "VT8500 LCD Driver"
-	depends on (FB = y) && ARM && ARCH_VT8500 && VTWM_VERSION_VT8500
+	depends on (FB = y) && ARM && ARCH_VT8500
 	select FB_WMT_GE_ROPS
 	select FB_SYS_IMAGEBLIT
 	help
@@ -1797,11 +1797,11 @@ config FB_VT8500
 
 config FB_WM8505
 	bool "WM8505 frame buffer support"
-	depends on (FB = y) && ARM && ARCH_VT8500 && VTWM_VERSION_WM8505
+	depends on (FB = y) && ARM && ARCH_VT8500
 	select FB_WMT_GE_ROPS
 	select FB_SYS_IMAGEBLIT
 	help
-	  This is the framebuffer driver for WonderMedia WM8505
+	  This is the framebuffer driver for WonderMedia WM8505/WM8650
 	  integrated LCD controller.
 
 source "drivers/video/geode/Kconfig"

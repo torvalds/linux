@@ -23,10 +23,6 @@
 	soc {
 		aipi@10000000 { /* aipi */
 
-			wdog@10002000 {
-				status = "okay";
-			};
-
 			serial@1000a000 {
 				fsl,uart-has-rtscts;
 				status = "okay";

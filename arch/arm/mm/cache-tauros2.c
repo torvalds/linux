@@ -15,8 +15,11 @@
  */
 
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
+#include <asm/cputype.h>
 #include <asm/hardware/cache-tauros2.h>
 
 
@@ -144,25 +147,8 @@ static inline void __init write_extra_features(u32 u)
 	__asm__("mcr p15, 1, %0, c15, c1, 0" : : "r" (u));
 }
 
-static void __init disable_l2_prefetch(void)
-{
-	u32 u;
-
-	/*
-	 * Read the CPU Extra Features register and verify that the
-	 * Disable L2 Prefetch bit is set.
-	 */
-	u = read_extra_features();
-	if (!(u & 0x01000000)) {
-		printk(KERN_INFO "Tauros2: Disabling L2 prefetch.\n");
-		write_extra_features(u | 0x01000000);
-	}
-}
-
 static inline int __init cpuid_scheme(void)
 {
-	extern int processor_id;
-
 	return !!((processor_id & 0x000f0000) == 0x000f0000);
 }
 
@@ -189,12 +175,36 @@ static inline void __init write_actlr(u32 actlr)
 	__asm__("mcr p15, 0, %0, c1, c0, 1\n" : : "r" (actlr));
 }
 
-void __init tauros2_init(void)
+static void enable_extra_feature(unsigned int features)
 {
-	extern int processor_id;
-	char *mode;
+	u32 u;
 
-	disable_l2_prefetch();
+	u = read_extra_features();
+
+	if (features & CACHE_TAUROS2_PREFETCH_ON)
+		u &= ~0x01000000;
+	else
+		u |= 0x01000000;
+	printk(KERN_INFO "Tauros2: %s L2 prefetch.\n",
+			(features & CACHE_TAUROS2_PREFETCH_ON)
+			? "Enabling" : "Disabling");
+
+	if (features & CACHE_TAUROS2_LINEFILL_BURST8)
+		u |= 0x00100000;
+	else
+		u &= ~0x00100000;
+	printk(KERN_INFO "Tauros2: %s line fill burt8.\n",
+			(features & CACHE_TAUROS2_LINEFILL_BURST8)
+			? "Enabling" : "Disabling");
+
+	write_extra_features(u);
+}
+
+static void __init tauros2_internal_init(unsigned int features)
+{
+	char *mode = NULL;
+
+	enable_extra_feature(features);
 
 #ifdef CONFIG_CPU_32v5
 	if ((processor_id & 0xff0f0000) == 0x56050000) {
@@ -285,4 +295,35 @@ void __init tauros2_init(void)
 
 	printk(KERN_INFO "Tauros2: L2 cache support initialised "
 			 "in %s mode.\n", mode);
+}
+
+#ifdef CONFIG_OF
+static const struct of_device_id tauros2_ids[] __initconst = {
+	{ .compatible = "marvell,tauros2-cache"},
+	{}
+};
+#endif
+
+void __init tauros2_init(unsigned int features)
+{
+#ifdef CONFIG_OF
+	struct device_node *node;
+	int ret;
+	unsigned int f;
+
+	node = of_find_matching_node(NULL, tauros2_ids);
+	if (!node) {
+		pr_info("Not found marvell,tauros2-cache, disable it\n");
+		return;
+	}
+
+	ret = of_property_read_u32(node, "marvell,tauros2-cache-features", &f);
+	if (ret) {
+		pr_info("Not found marvell,tauros-cache-features property, "
+			"disable extra features\n");
+		features = 0;
+	} else
+		features = f;
+#endif
+	tauros2_internal_init(features);
 }
