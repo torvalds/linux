@@ -20,6 +20,7 @@
 #include <linux/compat.h>
 #include <linux/init.h>
 
+#include <asm/css_chars.h>
 #include <asm/debug.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
@@ -31,8 +32,6 @@
 
 #include "dasd_int.h"
 #include "dasd_eckd.h"
-#include "../cio/chsc.h"
-
 
 #ifdef PRINTK_HEADER
 #undef PRINTK_HEADER
@@ -140,6 +139,10 @@ dasd_eckd_set_online(struct ccw_device *cdev)
 static const int sizes_trk0[] = { 28, 148, 84 };
 #define LABEL_SIZE 140
 
+/* head and record addresses of count_area read in analysis ccw */
+static const int count_area_head[] = { 0, 0, 0, 0, 2 };
+static const int count_area_rec[] = { 1, 2, 3, 4, 1 };
+
 static inline unsigned int
 round_up_multiple(unsigned int no, unsigned int mult)
 {
@@ -212,7 +215,7 @@ check_XRC (struct ccw1         *de_ccw,
 
 	rc = get_sync_clock(&data->ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
-	if (rc == -ENOSYS || rc == -EACCES)
+	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
 
 	de_ccw->count = sizeof(struct DE_eckd_data);
@@ -323,7 +326,7 @@ static int check_XRC_on_prefix(struct PFX_eckd_data *pfxdata,
 
 	rc = get_sync_clock(&pfxdata->define_extent.ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
-	if (rc == -ENOSYS || rc == -EACCES)
+	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
 	return rc;
 }
@@ -1940,7 +1943,10 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 	count_area = NULL;
 	for (i = 0; i < 3; i++) {
 		if (private->count_area[i].kl != 4 ||
-		    private->count_area[i].dl != dasd_eckd_cdl_reclen(i) - 4) {
+		    private->count_area[i].dl != dasd_eckd_cdl_reclen(i) - 4 ||
+		    private->count_area[i].cyl != 0 ||
+		    private->count_area[i].head != count_area_head[i] ||
+		    private->count_area[i].record != count_area_rec[i]) {
 			private->uses_cdl = 0;
 			break;
 		}
@@ -1952,7 +1958,10 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 		for (i = 0; i < 5; i++) {
 			if ((private->count_area[i].kl != 0) ||
 			    (private->count_area[i].dl !=
-			     private->count_area[0].dl))
+			     private->count_area[0].dl) ||
+			    private->count_area[i].cyl !=  0 ||
+			    private->count_area[i].head != count_area_head[i] ||
+			    private->count_area[i].record != count_area_rec[i])
 				break;
 		}
 		if (i == 5)

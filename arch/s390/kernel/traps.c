@@ -57,6 +57,23 @@ static int kstack_depth_to_print = 12;
 static int kstack_depth_to_print = 20;
 #endif /* CONFIG_64BIT */
 
+static inline void __user *get_trap_ip(struct pt_regs *regs)
+{
+#ifdef CONFIG_64BIT
+	unsigned long address;
+
+	if (regs->int_code & 0x200)
+		address = *(unsigned long *)(current->thread.trap_tdb + 24);
+	else
+		address = regs->psw.addr;
+	return (void __user *)
+		((address - (regs->int_code >> 16)) & PSW_ADDR_INSN);
+#else
+	return (void __user *)
+		((regs->psw.addr - (regs->int_code >> 16)) & PSW_ADDR_INSN);
+#endif
+}
+
 /*
  * For show_trace we have tree different stack to consider:
  *   - the panic stack which is used if the kernel stack has overflown
@@ -214,7 +231,6 @@ void show_registers(struct pt_regs *regs)
 
 void show_regs(struct pt_regs *regs)
 {
-	print_modules();
 	printk("CPU: %d %s %s %.*s\n",
 	       task_thread_info(current)->cpu, print_tainted(),
 	       init_utsname()->release,
@@ -254,6 +270,7 @@ void die(struct pt_regs *regs, const char *str)
 #endif
 	printk("\n");
 	notify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
+	print_modules();
 	show_regs(regs);
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE);
@@ -285,12 +302,6 @@ int is_valid_bugaddr(unsigned long addr)
 	return 1;
 }
 
-static inline void __user *get_psw_address(struct pt_regs *regs)
-{
-	return (void __user *)
-		((regs->psw.addr - (regs->int_code >> 16)) & PSW_ADDR_INSN);
-}
-
 static void __kprobes do_trap(struct pt_regs *regs,
 			      int si_signo, int si_code, char *str)
 {
@@ -304,14 +315,14 @@ static void __kprobes do_trap(struct pt_regs *regs,
 		info.si_signo = si_signo;
 		info.si_errno = 0;
 		info.si_code = si_code;
-		info.si_addr = get_psw_address(regs);
+		info.si_addr = get_trap_ip(regs);
 		force_sig_info(si_signo, &info, current);
 		report_user_fault(regs, si_signo);
         } else {
                 const struct exception_table_entry *fixup;
                 fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
                 if (fixup)
-                        regs->psw.addr = fixup->fixup | PSW_ADDR_AMODE;
+			regs->psw.addr = extable_fixup(fixup) | PSW_ADDR_AMODE;
 		else {
 			enum bug_trap_type btt;
 
@@ -381,6 +392,11 @@ DO_ERROR_INFO(special_op_exception, SIGILL, ILL_ILLOPN,
 DO_ERROR_INFO(translation_exception, SIGILL, ILL_ILLOPN,
 	      "translation exception")
 
+#ifdef CONFIG_64BIT
+DO_ERROR_INFO(transaction_exception, SIGILL, ILL_ILLOPN,
+	      "transaction constraint exception")
+#endif
+
 static inline void do_fp_trap(struct pt_regs *regs, int fpc)
 {
 	int si_code = 0;
@@ -408,7 +424,7 @@ static void __kprobes illegal_op(struct pt_regs *regs)
 	__u16 __user *location;
 	int signal = 0;
 
-	location = get_psw_address(regs);
+	location = get_trap_ip(regs);
 
 	if (user_mode(regs)) {
 		if (get_user(*((__u16 *) opcode), (__u16 __user *) location))
@@ -476,7 +492,7 @@ void specification_exception(struct pt_regs *regs)
 	__u16 __user *location = NULL;
 	int signal = 0;
 
-	location = (__u16 __user *) get_psw_address(regs);
+	location = (__u16 __user *) get_trap_ip(regs);
 
 	if (user_mode(regs)) {
 		get_user(*((__u16 *) opcode), location);
@@ -525,7 +541,7 @@ static void data_exception(struct pt_regs *regs)
 	__u16 __user *location;
 	int signal = 0;
 
-	location = get_psw_address(regs);
+	location = get_trap_ip(regs);
 
 	if (MACHINE_HAS_IEEE)
 		asm volatile("stfpc %0" : "=m" (current->thread.fp_regs.fpc));
@@ -641,6 +657,7 @@ void __init trap_init(void)
         pgm_check_table[0x12] = &translation_exception;
         pgm_check_table[0x13] = &special_op_exception;
 #ifdef CONFIG_64BIT
+	pgm_check_table[0x18] = &transaction_exception;
 	pgm_check_table[0x38] = &do_asce_exception;
 	pgm_check_table[0x39] = &do_dat_exception;
 	pgm_check_table[0x3A] = &do_dat_exception;

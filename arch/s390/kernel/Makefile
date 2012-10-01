@@ -23,10 +23,11 @@ CFLAGS_sysinfo.o += -Iinclude/math-emu -Iarch/s390/math-emu -w
 obj-y	:=  bitmap.o traps.o time.o process.o base.o early.o setup.o vtime.o \
 	    processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o \
 	    debug.o irq.o ipl.o dis.o diag.o mem_detect.o sclp.o vdso.o \
-	    sysinfo.o jump_label.o lgr.o os_info.o
+	    sysinfo.o jump_label.o lgr.o os_info.o machine_kexec.o
 
 obj-y	+= $(if $(CONFIG_64BIT),entry64.o,entry.o)
 obj-y	+= $(if $(CONFIG_64BIT),reipl64.o,reipl.o)
+obj-y	+= $(if $(CONFIG_64BIT),relocate_kernel64.o,relocate_kernel.o)
 
 extra-y				+= head.o vmlinux.lds
 extra-y				+= $(if $(CONFIG_64BIT),head64.o,head31.o)
@@ -48,12 +49,11 @@ obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER) += ftrace.o
 obj-$(CONFIG_FTRACE_SYSCALLS)  += ftrace.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
-obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o
 
-# Kexec part
-S390_KEXEC_OBJS := machine_kexec.o crash.o
-S390_KEXEC_OBJS += $(if $(CONFIG_64BIT),relocate_kernel64.o,relocate_kernel.o)
-obj-$(CONFIG_KEXEC) += $(S390_KEXEC_OBJS)
+ifdef CONFIG_64BIT
+obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o
+obj-y				+= runtime_instr.o cache.o
+endif
 
 # vdso
 obj-$(CONFIG_64BIT)		+= vdso64/

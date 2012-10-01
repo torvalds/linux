@@ -211,7 +211,7 @@ static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 	spin_unlock(&fi->lock);
 
 	/* deal with other level 3 hypervisors */
-	if (stsi(mem, 3, 2, 2) == -ENOSYS)
+	if (stsi(mem, 3, 2, 2))
 		mem->count = 0;
 	if (mem->count < 8)
 		mem->count++;
@@ -259,7 +259,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 		mem = get_zeroed_page(GFP_KERNEL);
 		if (!mem)
 			goto out_fail;
-		if (stsi((void *) mem, fc, sel1, sel2) == -ENOSYS)
+		if (stsi((void *) mem, fc, sel1, sel2))
 			goto out_mem;
 		break;
 	case 3:

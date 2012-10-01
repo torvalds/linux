@@ -445,6 +445,7 @@ void css_sched_sch_todo(struct subchannel *sch, enum sch_todo todo)
 		put_device(&sch->dev);
 	}
 }
+EXPORT_SYMBOL_GPL(css_sched_sch_todo);
 
 static void css_sch_todo(struct work_struct *work)
 {

@@ -609,8 +609,8 @@ static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
  */
 unsigned long *page_table_alloc(struct mm_struct *mm, unsigned long vmaddr)
 {
-	struct page *page;
-	unsigned long *table;
+	unsigned long *uninitialized_var(table);
+	struct page *uninitialized_var(page);
 	unsigned int mask, bit;
 
 	if (mm_has_pgste(mm))
@@ -796,7 +796,7 @@ int s390_enable_sie(void)
 	struct mm_struct *mm, *old_mm;
 
 	/* Do we have switched amode? If no, we cannot do sie */
-	if (addressing_mode == HOME_SPACE_MODE)
+	if (s390_user_mode == HOME_SPACE_MODE)
 		return -EINVAL;
 
 	/* Do we have pgstes? if yes, we are done */
