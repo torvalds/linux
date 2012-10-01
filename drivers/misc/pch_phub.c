@@ -699,7 +699,7 @@ static int __devinit pch_phub_probe(struct pci_dev *pdev,
 	chip->pch_phub_base_address = pci_iomap(pdev, 1, 0);
 
 
-	if (chip->pch_phub_base_address == 0) {
+	if (chip->pch_phub_base_address == NULL) {
 		dev_err(&pdev->dev, "%s : pci_iomap FAILED", __func__);
 		ret = -ENOMEM;
 		goto err_pci_iomap;
@@ -893,18 +893,7 @@ static struct pci_driver pch_phub_driver = {
 	.resume = pch_phub_resume
 };
 
-static int __init pch_phub_pci_init(void)
-{
-	return pci_register_driver(&pch_phub_driver);
-}
-
-static void __exit pch_phub_pci_exit(void)
-{
-	pci_unregister_driver(&pch_phub_driver);
-}
-
-module_init(pch_phub_pci_init);
-module_exit(pch_phub_pci_exit);
+module_pci_driver(pch_phub_driver);
 
 MODULE_DESCRIPTION("Intel EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7223) PHUB");
 MODULE_LICENSE("GPL");

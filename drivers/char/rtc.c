@@ -411,7 +411,7 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, int kernel)
 		case RTC_IRQP_READ:
 		case RTC_IRQP_SET:
 			return -EINVAL;
-		};
+		}
 	}
 #endif
 

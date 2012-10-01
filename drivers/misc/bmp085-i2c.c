@@ -57,12 +57,6 @@ static int bmp085_i2c_remove(struct i2c_client *client)
 	return bmp085_remove(&client->dev);
 }
 
-static const struct of_device_id bmp085_of_match[] = {
-	{ .compatible = "bosch,bmp085", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, bmp085_of_match);
-
 static const struct i2c_device_id bmp085_id[] = {
 	{ BMP085_NAME, 0 },
 	{ "bmp180", 0 },
@@ -74,7 +68,6 @@ static struct i2c_driver bmp085_i2c_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= BMP085_NAME,
-		.of_match_table = bmp085_of_match
 	},
 	.id_table	= bmp085_id,
 	.probe		= bmp085_i2c_probe,

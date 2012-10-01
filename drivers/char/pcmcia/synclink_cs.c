@@ -891,6 +891,14 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
 	int work = 0;
  	struct mgsl_icount *icount = &info->icount;
 
+	if (!tty) {
+		/* tty is not available anymore */
+		issue_command(info, CHA, CMD_RXRESET);
+		if (debug_level >= DEBUG_LEVEL_ISR)
+			printk("%s(%d):rx_ready_async(tty=NULL)\n",__FILE__,__LINE__);
+		return;
+	}
+
 	if (tcd) {
 		/* early termination, get FIFO count from RBCL register */
 		fifo_count = (unsigned char)(read_reg(info, CHA+RBCL) & 0x1f);
@@ -980,7 +988,7 @@ static void tx_done(MGSLPC_INFO *info, struct tty_struct *tty)
 	else
 #endif
 	{
-		if (tty->stopped || tty->hw_stopped) {
+		if (tty && (tty->stopped || tty->hw_stopped)) {
 			tx_stop(info);
 			return;
 		}
@@ -1000,7 +1008,7 @@ static void tx_ready(MGSLPC_INFO *info, struct tty_struct *tty)
 		if (!info->tx_active)
 			return;
 	} else {
-		if (tty->stopped || tty->hw_stopped) {
+		if (tty && (tty->stopped || tty->hw_stopped)) {
 			tx_stop(info);
 			return;
 		}
@@ -1050,13 +1058,12 @@ static void cts_change(MGSLPC_INFO *info, struct tty_struct *tty)
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
 
-	if (info->port.flags & ASYNC_CTS_FLOW) {
+	if (tty && (info->port.flags & ASYNC_CTS_FLOW)) {
 		if (tty->hw_stopped) {
 			if (info->serial_signals & SerialSignal_CTS) {
 				if (debug_level >= DEBUG_LEVEL_ISR)
 					printk("CTS tx start...");
-				if (tty)
-					tty->hw_stopped = 0;
+				tty->hw_stopped = 0;
 				tx_start(info, tty);
 				info->pending_bh |= BH_TRANSMIT;
 				return;
@@ -1065,8 +1072,7 @@ static void cts_change(MGSLPC_INFO *info, struct tty_struct *tty)
 			if (!(info->serial_signals & SerialSignal_CTS)) {
 				if (debug_level >= DEBUG_LEVEL_ISR)
 					printk("CTS tx stop...");
-				if (tty)
-					tty->hw_stopped = 1;
+				tty->hw_stopped = 1;
 				tx_stop(info);
 			}
 		}

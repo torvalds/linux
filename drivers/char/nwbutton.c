@@ -93,9 +93,9 @@ int button_del_callback (void (*callback) (void))
 			button_callback_list [lp].count = 0;
 			callback_count--;
 			return 0;
-		};
+		}
 		lp--;
-	};
+	}
 	return -EINVAL;
 }
 

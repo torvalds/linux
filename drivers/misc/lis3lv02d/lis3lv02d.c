@@ -39,6 +39,7 @@
 #include <linux/miscdevice.h>
 #include <linux/pm_runtime.h>
 #include <linux/atomic.h>
+#include <linux/of_device.h>
 #include "lis3lv02d.h"
 
 #define DRIVER_NAME     "lis3lv02d"
@@ -79,6 +80,15 @@
 /* Sensitivity values for -2G +2G scale */
 #define LIS3_SENSITIVITY_12B		((LIS3_ACCURACY * 1000) / 1024)
 #define LIS3_SENSITIVITY_8B		(18 * LIS3_ACCURACY)
+
+/*
+ * LIS331DLH spec says 1LSBs corresponds 4G/4096 -> 1LSB is 1000/1024 mG.
+ * Below macros defines sensitivity values for +/-2G. Dataout bits for
+ * +/-2G range is 12 bits so 4 bits adjustment must be done to get 12bit
+ * data from 16bit value. Currently this driver supports only 2G range.
+ */
+#define LIS3DLH_SENSITIVITY_2G		((LIS3_ACCURACY * 1000) / 1024)
+#define SHIFT_ADJ_2G			4
 
 #define LIS3_DEFAULT_FUZZ_12B		3
 #define LIS3_DEFAULT_FLAT_12B		3
@@ -133,6 +143,19 @@ static s16 lis3lv02d_read_12(struct lis3lv02d *lis3, int reg)
 	lis3->read(lis3, reg, &hi);
 	/* In "12 bit right justified" mode, bit 6, bit 7, bit 8 = bit 5 */
 	return (s16)((hi << 8) | lo);
+}
+
+/* 12bits for 2G range, 13 bits for 4G range and 14 bits for 8G range */
+static s16 lis331dlh_read_data(struct lis3lv02d *lis3, int reg)
+{
+	u8 lo, hi;
+	int v;
+
+	lis3->read(lis3, reg - 1, &lo);
+	lis3->read(lis3, reg, &hi);
+	v = (int) ((hi << 8) | lo);
+
+	return (s16) v >> lis3->shift_adj;
 }
 
 /**
@@ -195,6 +218,7 @@ static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 static int lis3_12_rates[4] = {40, 160, 640, 2560};
 static int lis3_8_rates[2] = {100, 400};
 static int lis3_3dc_rates[16] = {0, 1, 10, 25, 50, 100, 200, 400, 1600, 5000};
+static int lis3_3dlh_rates[4] = {50, 100, 400, 1000};
 
 /* ODR is Output Data Rate */
 static int lis3lv02d_get_odr(struct lis3lv02d *lis3)
@@ -267,7 +291,7 @@ static int lis3lv02d_selftest(struct lis3lv02d *lis3, s16 results[3])
 				(LIS3_IRQ1_DATA_READY | LIS3_IRQ2_DATA_READY));
 	}
 
-	if (lis3->whoami == WAI_3DC) {
+	if ((lis3->whoami == WAI_3DC) || (lis3->whoami == WAI_3DLH)) {
 		ctlreg = CTRL_REG4;
 		selftest = CTRL4_ST0;
 	} else {
@@ -398,9 +422,17 @@ int lis3lv02d_poweron(struct lis3lv02d *lis3)
 		lis3->read(lis3, CTRL_REG2, &reg);
 		if (lis3->whoami ==  WAI_12B)
 			reg |= CTRL2_BDU | CTRL2_BOOT;
+		else if (lis3->whoami ==  WAI_3DLH)
+			reg |= CTRL2_BOOT_3DLH;
 		else
 			reg |= CTRL2_BOOT_8B;
 		lis3->write(lis3, CTRL_REG2, reg);
+
+		if (lis3->whoami ==  WAI_3DLH) {
+			lis3->read(lis3, CTRL_REG4, &reg);
+			reg |= CTRL4_BDU;
+			lis3->write(lis3, CTRL_REG4, reg);
+		}
 	}
 
 	err = lis3lv02d_get_pwron_wait(lis3);
@@ -912,6 +944,154 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *lis3,
 	}
 }
 
+#ifdef CONFIG_OF
+int lis3lv02d_init_dt(struct lis3lv02d *lis3)
+{
+	struct lis3lv02d_platform_data *pdata;
+	struct device_node *np = lis3->of_node;
+	u32 val;
+
+	if (!lis3->of_node)
+		return 0;
+
+	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	if (of_get_property(np, "st,click-single-x", NULL))
+		pdata->click_flags |= LIS3_CLICK_SINGLE_X;
+	if (of_get_property(np, "st,click-double-x", NULL))
+		pdata->click_flags |= LIS3_CLICK_DOUBLE_X;
+
+	if (of_get_property(np, "st,click-single-y", NULL))
+		pdata->click_flags |= LIS3_CLICK_SINGLE_Y;
+	if (of_get_property(np, "st,click-double-y", NULL))
+		pdata->click_flags |= LIS3_CLICK_DOUBLE_Y;
+
+	if (of_get_property(np, "st,click-single-z", NULL))
+		pdata->click_flags |= LIS3_CLICK_SINGLE_Z;
+	if (of_get_property(np, "st,click-double-z", NULL))
+		pdata->click_flags |= LIS3_CLICK_DOUBLE_Z;
+
+	if (!of_property_read_u32(np, "st,click-threshold-x", &val))
+		pdata->click_thresh_x = val;
+	if (!of_property_read_u32(np, "st,click-threshold-y", &val))
+		pdata->click_thresh_y = val;
+	if (!of_property_read_u32(np, "st,click-threshold-z", &val))
+		pdata->click_thresh_z = val;
+
+	if (!of_property_read_u32(np, "st,click-time-limit", &val))
+		pdata->click_time_limit = val;
+	if (!of_property_read_u32(np, "st,click-latency", &val))
+		pdata->click_latency = val;
+	if (!of_property_read_u32(np, "st,click-window", &val))
+		pdata->click_window = val;
+
+	if (of_get_property(np, "st,irq1-disable", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_DISABLE;
+	if (of_get_property(np, "st,irq1-ff-wu-1", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_FF_WU_1;
+	if (of_get_property(np, "st,irq1-ff-wu-2", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_FF_WU_2;
+	if (of_get_property(np, "st,irq1-data-ready", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_DATA_READY;
+	if (of_get_property(np, "st,irq1-click", NULL))
+		pdata->irq_cfg |= LIS3_IRQ1_CLICK;
+
+	if (of_get_property(np, "st,irq2-disable", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_DISABLE;
+	if (of_get_property(np, "st,irq2-ff-wu-1", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_FF_WU_1;
+	if (of_get_property(np, "st,irq2-ff-wu-2", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_FF_WU_2;
+	if (of_get_property(np, "st,irq2-data-ready", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_DATA_READY;
+	if (of_get_property(np, "st,irq2-click", NULL))
+		pdata->irq_cfg |= LIS3_IRQ2_CLICK;
+
+	if (of_get_property(np, "st,irq-open-drain", NULL))
+		pdata->irq_cfg |= LIS3_IRQ_OPEN_DRAIN;
+	if (of_get_property(np, "st,irq-active-low", NULL))
+		pdata->irq_cfg |= LIS3_IRQ_ACTIVE_LOW;
+
+	if (!of_property_read_u32(np, "st,wu-duration-1", &val))
+		pdata->duration1 = val;
+	if (!of_property_read_u32(np, "st,wu-duration-2", &val))
+		pdata->duration2 = val;
+
+	if (of_get_property(np, "st,wakeup-x-lo", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_X_LO;
+	if (of_get_property(np, "st,wakeup-x-hi", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_X_HI;
+	if (of_get_property(np, "st,wakeup-y-lo", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_Y_LO;
+	if (of_get_property(np, "st,wakeup-y-hi", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_Y_HI;
+	if (of_get_property(np, "st,wakeup-z-lo", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_Z_LO;
+	if (of_get_property(np, "st,wakeup-z-hi", NULL))
+		pdata->wakeup_flags |= LIS3_WAKEUP_Z_HI;
+
+	if (!of_property_read_u32(np, "st,highpass-cutoff-hz", &val)) {
+		switch (val) {
+		case 1:
+			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_1HZ;
+			break;
+		case 2:
+			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_2HZ;
+			break;
+		case 4:
+			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_4HZ;
+			break;
+		case 8:
+			pdata->hipass_ctrl = LIS3_HIPASS_CUTFF_8HZ;
+			break;
+		}
+	}
+
+	if (of_get_property(np, "st,hipass1-disable", NULL))
+		pdata->hipass_ctrl |= LIS3_HIPASS1_DISABLE;
+	if (of_get_property(np, "st,hipass2-disable", NULL))
+		pdata->hipass_ctrl |= LIS3_HIPASS2_DISABLE;
+
+	if (of_get_property(np, "st,axis-x", &val))
+		pdata->axis_x = val;
+	if (of_get_property(np, "st,axis-y", &val))
+		pdata->axis_y = val;
+	if (of_get_property(np, "st,axis-z", &val))
+		pdata->axis_z = val;
+
+	if (of_get_property(np, "st,default-rate", NULL))
+		pdata->default_rate = val;
+
+	if (of_get_property(np, "st,min-limit-x", &val))
+		pdata->st_min_limits[0] = val;
+	if (of_get_property(np, "st,min-limit-y", &val))
+		pdata->st_min_limits[1] = val;
+	if (of_get_property(np, "st,min-limit-z", &val))
+		pdata->st_min_limits[2] = val;
+
+	if (of_get_property(np, "st,max-limit-x", &val))
+		pdata->st_max_limits[0] = val;
+	if (of_get_property(np, "st,max-limit-y", &val))
+		pdata->st_max_limits[1] = val;
+	if (of_get_property(np, "st,max-limit-z", &val))
+		pdata->st_max_limits[2] = val;
+
+
+	lis3->pdata = pdata;
+
+	return 0;
+}
+
+#else
+int lis3lv02d_init_dt(struct lis3lv02d *lis3)
+{
+	return 0;
+}
+#endif
+EXPORT_SYMBOL_GPL(lis3lv02d_init_dt);
+
 /*
  * Initialise the accelerometer and the various subsystems.
  * Should be rather independent of the bus system.
@@ -955,6 +1135,16 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 		lis3->odrs = lis3_3dc_rates;
 		lis3->odr_mask = CTRL1_ODR0|CTRL1_ODR1|CTRL1_ODR2|CTRL1_ODR3;
 		lis3->scale = LIS3_SENSITIVITY_8B;
+		break;
+	case WAI_3DLH:
+		pr_info("16 bits lis331dlh sensor found\n");
+		lis3->read_data = lis331dlh_read_data;
+		lis3->mdps_max_val = 2048; /* 12 bits for 2G */
+		lis3->shift_adj = SHIFT_ADJ_2G;
+		lis3->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
+		lis3->odrs = lis3_3dlh_rates;
+		lis3->odr_mask = CTRL1_DR0 | CTRL1_DR1;
+		lis3->scale = LIS3DLH_SENSITIVITY_2G;
 		break;
 	default:
 		pr_err("unknown sensor type 0x%X\n", lis3->whoami);
