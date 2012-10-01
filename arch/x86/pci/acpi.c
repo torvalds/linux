@@ -305,7 +305,6 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->flags = flags;
 	res->start = start;
 	res->end = end;
-	res->child = NULL;
 
 	if (!pci_use_crs) {
 		dev_printk(KERN_DEBUG, &info->bridge->dev,
@@ -434,7 +433,7 @@ probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
 
 	size = sizeof(*info->res) * info->res_num;
 	info->res_num = 0;
-	info->res = kmalloc(size, GFP_KERNEL);
+	info->res = kzalloc(size, GFP_KERNEL);
 	if (!info->res)
 		return;
 

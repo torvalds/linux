@@ -4799,7 +4799,7 @@ static void __devexit vxge_remove(struct pci_dev *pdev)
 			     __LINE__);
 }
 
-static struct pci_error_handlers vxge_err_handler = {
+static const struct pci_error_handlers vxge_err_handler = {
 	.error_detected = vxge_io_error_detected,
 	.slot_reset = vxge_io_slot_reset,
 	.resume = vxge_io_resume,

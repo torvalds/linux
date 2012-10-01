@@ -253,38 +253,6 @@ Who:	Dave Jones <davej@redhat.com>, Matthew Garrett <mjg@redhat.com>
 
 -----------------------------
 
-What:	fakephp and associated sysfs files in /sys/bus/pci/slots/
-When:	2011
-Why:	In 2.6.27, the semantics of /sys/bus/pci/slots was redefined to
-	represent a machine's physical PCI slots. The change in semantics
-	had userspace implications, as the hotplug core no longer allowed
-	drivers to create multiple sysfs files per physical slot (required
-	for multi-function devices, e.g.). fakephp was seen as a developer's
-	tool only, and its interface changed. Too late, we learned that
-	there were some users of the fakephp interface.
-
-	In 2.6.30, the original fakephp interface was restored. At the same
-	time, the PCI core gained the ability that fakephp provided, namely
-	function-level hot-remove and hot-add.
-
-	Since the PCI core now provides the same functionality, exposed in:
-
-		/sys/bus/pci/rescan
-		/sys/bus/pci/devices/.../remove
-		/sys/bus/pci/devices/.../rescan
-
-	there is no functional reason to maintain fakephp as well.
-
-	We will keep the existing module so that 'modprobe fakephp' will
-	present the old /sys/bus/pci/slots/... interface for compatibility,
-	but users are urged to migrate their applications to the API above.
-
-	After a reasonable transition period, we will remove the legacy
-	fakephp interface.
-Who:	Alex Chiang <achiang@hp.com>
-
----------------------------
-
 What:	CONFIG_RFKILL_INPUT
 When:	2.6.33
 Why:	Should be implemented in userspace, policy daemon.

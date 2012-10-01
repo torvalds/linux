@@ -31,12 +31,10 @@ static void rtl8192_parse_pci_configuration(struct pci_dev *pdev,
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
 	u8 tmp;
-	int pos;
-	u8 LinkCtrlReg;
+	u16 LinkCtrlReg;
 
-	pos = pci_find_capability(priv->pdev, PCI_CAP_ID_EXP);
-	pci_read_config_byte(priv->pdev, pos + PCI_EXP_LNKCTL, &LinkCtrlReg);
-	priv->NdisAdapter.LinkCtrlReg = LinkCtrlReg;
+	pcie_capability_read_word(priv->pdev, PCI_EXP_LNKCTL, &LinkCtrlReg);
+	priv->NdisAdapter.LinkCtrlReg = (u8)LinkCtrlReg;
 
 	RT_TRACE(COMP_INIT, "Link Control Register =%x\n",
 		 priv->NdisAdapter.LinkCtrlReg);

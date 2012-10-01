@@ -2741,11 +2741,9 @@ static void __devinit get_pci_mode(struct adapter *adapter,
 				   struct pci_params *p)
 {
 	u16 val;
-	u32 pcie_cap = pci_pcie_cap(adapter->pdev);
 
-	if (pcie_cap) {
-		pci_read_config_word(adapter->pdev, pcie_cap + PCI_EXP_LNKSTA,
-				     &val);
+	if (pci_is_pcie(adapter->pdev)) {
+		pcie_capability_read_word(adapter->pdev, PCI_EXP_LNKSTA, &val);
 		p->speed = val & PCI_EXP_LNKSTA_CLS;
 		p->width = (val & PCI_EXP_LNKSTA_NLW) >> 4;
 	}

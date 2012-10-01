@@ -9228,7 +9228,7 @@ static struct pci_device_id ipr_pci_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, ipr_pci_table);
 
-static struct pci_error_handlers ipr_err_handler = {
+static const struct pci_error_handlers ipr_err_handler = {
 	.error_detected = ipr_pci_error_detected,
 	.slot_reset = ipr_pci_slot_reset,
 };

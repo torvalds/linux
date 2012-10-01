@@ -3256,7 +3256,7 @@ static void ixgbevf_io_resume(struct pci_dev *pdev)
 }
 
 /* PCI Error Recovery (ERS) */
-static struct pci_error_handlers ixgbevf_err_handler = {
+static const struct pci_error_handlers ixgbevf_err_handler = {
 	.error_detected = ixgbevf_io_error_detected,
 	.slot_reset = ixgbevf_io_slot_reset,
 	.resume = ixgbevf_io_resume,
