@@ -262,8 +262,6 @@ struct hci_dev {
 
 	struct sk_buff_head	driver_init;
 
-	void			*core_data;
-
 	atomic_t		promisc;
 
 	struct dentry		*debugfs;
