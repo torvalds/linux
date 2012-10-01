@@ -30,6 +30,7 @@
 #include <linux/err.h>
 #include <linux/extcon.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 
 /*
  * extcon_cable_name suggests the standard cable names for commonly used
@@ -442,7 +443,7 @@ static int _call_per_cable(struct notifier_block *nb, unsigned long val,
 
 /**
  * extcon_register_interest() - Register a notifier for a state change of a
- *			      specific cable, not a entier set of cables of a
+ *			      specific cable, not an entier set of cables of a
  *			      extcon device.
  * @obj:	an empty extcon_specific_cable_nb object to be returned.
  * @extcon_name:	the name of extcon device.
@@ -498,7 +499,7 @@ int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
 }
 
 /**
- * extcon_register_notifier() - Register a notifee to get notified by
+ * extcon_register_notifier() - Register a notifiee to get notified by
  *			      any attach status changes from the extcon.
  * @edev:	the extcon device.
  * @nb:		a notifier block to be registered.
@@ -515,7 +516,7 @@ int extcon_register_notifier(struct extcon_dev *edev,
 EXPORT_SYMBOL_GPL(extcon_register_notifier);
 
 /**
- * extcon_unregister_notifier() - Unregister a notifee from the extcon device.
+ * extcon_unregister_notifier() - Unregister a notifiee from the extcon device.
  * @edev:	the extcon device.
  * @nb:		a registered notifier block to be unregistered.
  */
@@ -673,10 +674,12 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 			cable->attr_g.name = str;
 			cable->attr_g.attrs = cable->attrs;
 
+			sysfs_attr_init(&cable->attr_name.attr);
 			cable->attr_name.attr.name = "name";
 			cable->attr_name.attr.mode = 0444;
 			cable->attr_name.show = cable_name_show;
 
+			sysfs_attr_init(&cable->attr_state.attr);
 			cable->attr_state.attr.name = "state";
 			cable->attr_state.attr.mode = 0644;
 			cable->attr_state.show = cable_state_show;
@@ -722,6 +725,7 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 				goto err_muex;
 			}
 			strcpy(name, buf);
+			sysfs_attr_init(&edev->d_attrs_muex[index].attr);
 			edev->d_attrs_muex[index].attr.name = name;
 			edev->d_attrs_muex[index].attr.mode = 0000;
 			edev->attrs_muex[index] = &edev->d_attrs_muex[index]
@@ -802,7 +806,7 @@ EXPORT_SYMBOL_GPL(extcon_dev_register);
 
 /**
  * extcon_dev_unregister() - Unregister the extcon device.
- * @edev:	the extcon device instance to be unregitered.
+ * @edev:	the extcon device instance to be unregistered.
  *
  * Note that this does not call kfree(edev) because edev was not allocated
  * by this class.
