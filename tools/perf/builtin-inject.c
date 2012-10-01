@@ -242,11 +242,6 @@ static int __cmd_inject(struct perf_inject *inject)
 	return ret;
 }
 
-static const char * const report_usage[] = {
-	"perf inject [<options>]",
-	NULL
-};
-
 int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_inject inject = {
@@ -273,14 +268,18 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			 "be more verbose (show build ids, etc)"),
 		OPT_END()
 	};
+	const char * const inject_usage[] = {
+		"perf inject [<options>]",
+		NULL
+	};
 
-	argc = parse_options(argc, argv, options, report_usage, 0);
+	argc = parse_options(argc, argv, options, inject_usage, 0);
 
 	/*
 	 * Any (unrecognized) arguments left?
 	 */
 	if (argc)
-		usage_with_options(report_usage, options);
+		usage_with_options(inject_usage, options);
 
 	if (symbol__init() < 0)
 		return -1;
