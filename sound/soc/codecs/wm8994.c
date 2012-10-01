@@ -3389,6 +3389,26 @@ static irqreturn_t wm8994_mic_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void wm1811_micd_stop(struct snd_soc_codec *codec)
+{
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	if (!wm8994->jackdet)
+		return;
+
+	mutex_lock(&wm8994->accdet_lock);
+
+	snd_soc_update_bits(codec, WM8958_MIC_DETECT_1, WM8958_MICD_ENA, 0);
+
+	wm1811_jackdet_set_mode(codec, WM1811_JACKDET_MODE_JACK);
+
+	mutex_unlock(&wm8994->accdet_lock);
+
+	if (wm8994->wm8994->pdata.jd_ext_cap)
+		snd_soc_dapm_disable_pin(&codec->dapm,
+					 "MICBIAS2");
+}
+
 /* Default microphone detection handler for WM8958 - the user can
  * override this if they wish.
  */
@@ -3402,18 +3422,18 @@ static void wm8958_default_micdet(u16 status, void *data)
 
 	/* Either nothing present or just starting detection */
 	if (!(status & WM8958_MICD_STS)) {
-		if (!wm8994->jackdet) {
-			/* If nothing present then clear our statuses */
-			dev_dbg(codec->dev, "Detected open circuit\n");
-			wm8994->jack_mic = false;
-			wm8994->mic_detecting = true;
+		/* If nothing present then clear our statuses */
+		dev_dbg(codec->dev, "Detected open circuit\n");
+		wm8994->jack_mic = false;
+		wm8994->mic_detecting = true;
 
-			wm8958_micd_set_rate(codec);
+		wm1811_micd_stop(codec);
 
-			snd_soc_jack_report(wm8994->micdet[0].jack, 0,
-					    wm8994->btn_mask |
-					    SND_JACK_HEADSET);
-		}
+		wm8958_micd_set_rate(codec);
+
+		snd_soc_jack_report(wm8994->micdet[0].jack, 0,
+				    wm8994->btn_mask |
+				    SND_JACK_HEADSET);
 		return;
 	}
 
@@ -3440,21 +3460,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 		wm8958_micd_set_rate(codec);
 
 		/* If we have jackdet that will detect removal */
-		if (wm8994->jackdet) {
-			mutex_lock(&wm8994->accdet_lock);
-
-			snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
-					    WM8958_MICD_ENA, 0);
-
-			wm1811_jackdet_set_mode(codec,
-						WM1811_JACKDET_MODE_JACK);
-
-			mutex_unlock(&wm8994->accdet_lock);
-
-			if (wm8994->wm8994->pdata.jd_ext_cap)
-				snd_soc_dapm_disable_pin(&codec->dapm,
-							 "MICBIAS2");
-		}
+		wm1811_micd_stop(codec);
 
 		snd_soc_jack_report(wm8994->micdet[0].jack, SND_JACK_HEADPHONE,
 				    SND_JACK_HEADSET);
