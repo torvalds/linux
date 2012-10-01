@@ -252,21 +252,6 @@ error:
 }
 
 /*
- * Returns true if the client IDs match
- */
-static bool nfs4_match_clientids(struct nfs_client *a, struct nfs_client *b)
-{
-	if (a->cl_clientid != b->cl_clientid) {
-		dprintk("NFS: --> %s client ID %llx does not match %llx\n",
-			__func__, a->cl_clientid, b->cl_clientid);
-		return false;
-	}
-	dprintk("NFS: --> %s client ID %llx matches %llx\n",
-		__func__, a->cl_clientid, b->cl_clientid);
-	return true;
-}
-
-/*
  * SETCLIENTID just did a callback update with the callback ident in
  * "drop," but server trunking discovery claims "drop" and "keep" are
  * actually the same server.  Swap the callback IDs so that "keep"
@@ -383,6 +368,21 @@ int nfs40_walk_client_list(struct nfs_client *new,
 }
 
 #ifdef CONFIG_NFS_V4_1
+/*
+ * Returns true if the client IDs match
+ */
+static bool nfs4_match_clientids(struct nfs_client *a, struct nfs_client *b)
+{
+	if (a->cl_clientid != b->cl_clientid) {
+		dprintk("NFS: --> %s client ID %llx does not match %llx\n",
+			__func__, a->cl_clientid, b->cl_clientid);
+		return false;
+	}
+	dprintk("NFS: --> %s client ID %llx matches %llx\n",
+		__func__, a->cl_clientid, b->cl_clientid);
+	return true;
+}
+
 /*
  * Returns true if the server owners match
  */
