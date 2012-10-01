@@ -1493,6 +1493,17 @@ config ARCH_RANDOM
 	  If supported, this is a high bandwidth, cryptographically
 	  secure hardware random number generator.
 
+config X86_SMAP
+	def_bool y
+	prompt "Supervisor Mode Access Prevention" if EXPERT
+	---help---
+	  Supervisor Mode Access Prevention (SMAP) is a security
+	  feature in newer Intel processors.  There is a small
+	  performance cost if this enabled and turned on; there is
+	  also a small increase in the kernel size if this is enabled.
+
+	  If unsure, say Y.
+
 config EFI
 	bool "EFI runtime service support"
 	depends on ACPI

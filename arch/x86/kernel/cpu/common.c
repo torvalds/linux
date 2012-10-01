@@ -259,23 +259,36 @@ static inline void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 }
 #endif
 
-static int disable_smep __cpuinitdata;
 static __init int setup_disable_smep(char *arg)
 {
-	disable_smep = 1;
+	setup_clear_cpu_cap(X86_FEATURE_SMEP);
 	return 1;
 }
 __setup("nosmep", setup_disable_smep);
 
-static __cpuinit void setup_smep(struct cpuinfo_x86 *c)
+static __always_inline void setup_smep(struct cpuinfo_x86 *c)
 {
-	if (cpu_has(c, X86_FEATURE_SMEP)) {
-		if (unlikely(disable_smep)) {
-			setup_clear_cpu_cap(X86_FEATURE_SMEP);
-			clear_in_cr4(X86_CR4_SMEP);
-		} else
-			set_in_cr4(X86_CR4_SMEP);
-	}
+	if (cpu_has(c, X86_FEATURE_SMEP))
+		set_in_cr4(X86_CR4_SMEP);
+}
+
+static __init int setup_disable_smap(char *arg)
+{
+	setup_clear_cpu_cap(X86_FEATURE_SMAP);
+	return 1;
+}
+__setup("nosmap", setup_disable_smap);
+
+static __always_inline void setup_smap(struct cpuinfo_x86 *c)
+{
+	unsigned long eflags;
+
+	/* This should have been cleared long ago */
+	raw_local_save_flags(eflags);
+	BUG_ON(eflags & X86_EFLAGS_AC);
+
+	if (cpu_has(c, X86_FEATURE_SMAP))
+		set_in_cr4(X86_CR4_SMAP);
 }
 
 /*
@@ -712,8 +725,6 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	c->cpu_index = 0;
 	filter_cpuid_features(c, false);
 
-	setup_smep(c);
-
 	if (this_cpu->c_bsp_init)
 		this_cpu->c_bsp_init(c);
 }
@@ -798,8 +809,6 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		c->phys_proc_id = c->initial_apicid;
 	}
 
-	setup_smep(c);
-
 	get_model_name(c); /* Default name */
 
 	detect_nopl(c);
@@ -863,6 +872,10 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	/* Disable the PN if appropriate */
 	squash_the_stupid_serial_number(c);
+
+	/* Set up SMEP/SMAP */
+	setup_smep(c);
+	setup_smap(c);
 
 	/*
 	 * The vendor-specific functions might have changed features.
@@ -1114,7 +1127,8 @@ void syscall_init(void)
 
 	/* Flags to clear on syscall */
 	wrmsrl(MSR_SYSCALL_MASK,
-	       X86_EFLAGS_TF|X86_EFLAGS_DF|X86_EFLAGS_IF|X86_EFLAGS_IOPL);
+	       X86_EFLAGS_TF|X86_EFLAGS_DF|X86_EFLAGS_IF|
+	       X86_EFLAGS_IOPL|X86_EFLAGS_AC);
 }
 
 /*

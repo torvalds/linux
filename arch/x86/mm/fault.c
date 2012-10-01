@@ -996,6 +996,17 @@ static int fault_in_kernel_space(unsigned long address)
 	return address >= TASK_SIZE_MAX;
 }
 
+static inline bool smap_violation(int error_code, struct pt_regs *regs)
+{
+	if (error_code & PF_USER)
+		return false;
+
+	if (!user_mode_vm(regs) && (regs->flags & X86_EFLAGS_AC))
+		return false;
+
+	return true;
+}
+
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
@@ -1088,6 +1099,13 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(regs, error_code, address);
+
+	if (static_cpu_has(X86_FEATURE_SMAP)) {
+		if (unlikely(smap_violation(error_code, regs))) {
+			bad_area_nosemaphore(regs, error_code, address);
+			return;
+		}
+	}
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
