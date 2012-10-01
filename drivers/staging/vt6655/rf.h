@@ -75,7 +75,7 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-bool IFRFbWriteEmbeded(unsigned long dwIoBase, unsigned long dwData);
+bool IFRFbWriteEmbedded(unsigned long dwIoBase, unsigned long dwData);
 bool RFbSelectChannel(unsigned long dwIoBase, unsigned char byRFType, unsigned char byChannel);
 bool RFbInit (
     PSDevice  pDevice

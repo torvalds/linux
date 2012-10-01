@@ -658,18 +658,7 @@ static struct i2c_driver cp_tm1217_driver = {
 	.resume     = cp_tm1217_resume,
 };
 
-static int __init clearpad_tm1217_init(void)
-{
-	return i2c_add_driver(&cp_tm1217_driver);
-}
-
-static void __exit clearpad_tm1217_exit(void)
-{
-	i2c_del_driver(&cp_tm1217_driver);
-}
-
-module_init(clearpad_tm1217_init);
-module_exit(clearpad_tm1217_exit);
+module_i2c_driver(cp_tm1217_driver);
 
 MODULE_AUTHOR("Ramesh Agarwal <ramesh.agarwal@intel.com>");
 MODULE_DESCRIPTION("Synaptics TM1217 TouchScreen Driver");

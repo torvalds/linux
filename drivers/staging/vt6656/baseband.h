@@ -104,7 +104,7 @@ BBuGetFrameTime(
      WORD wRate
     );
 
-void BBvCaculateParameter(PSDevice pDevice,
+void BBvCalculateParameter(PSDevice pDevice,
 			  unsigned int cbFrameLength,
 			  WORD wRate,
 			  BYTE byPacketType,

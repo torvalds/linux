@@ -20,18 +20,18 @@
 
 #define BOOLEAN	u8
 
-#define QOS_MAX						16
-#define IPTYPEOFSERVICE				0x8000
-#define	PROTOCOL				0x4000
-#define	IPMASKEDSRCADDRESS			0x2000
-#define	IPMASKEDDSTADDRESS			0x1000
+#define QOS_MAX				16
+#define IPTYPEOFSERVICE			0x8000
+#define	PROTOCOL			0x4000
+#define	IPMASKEDSRCADDRESS		0x2000
+#define	IPMASKEDDSTADDRESS		0x1000
 #define	PROTOCOLSRCPORTRANGE		0x800
 #define	PROTOCOLDSTPORTRANGE		0x400
-#define	DSTMACADDR					0x200
-#define	SRCMACADDR					0x100
-#define	ETHERTYPE					0x80
+#define	DSTMACADDR			0x200
+#define	SRCMACADDR			0x100
+#define	ETHERTYPE			0x80
 #define	IEEE802_1DUSERPRIORITY		0x40
-#define	IEEE802_1QVLANID			0x10
+#define	IEEE802_1QVLANID		0x10
 
 struct gdm_wimax_csr_s {
 	/*	union{
@@ -51,28 +51,28 @@ struct gdm_wimax_csr_s {
 			Reserved:5;
 		} fields;
 	} */
-	BOOLEAN		Enabled;
-	u32			SFID;
-	u8			QoSBufCount;
-	u16		ClassifierRuleEnable;
-	u8			IPToSLow;
-	u8			IPToSHigh;
-	u8			IPToSMask;
-	u8			Protocol;
-	u8			IPSrcAddr[16];
-	u8			IPSrcAddrMask[16];
-	u8			IPDstAddr[16];
-	u8			IPDstAddrMask[16];
-	u16		SrcPortLow;
-	u16		SrcPortHigh;
-	u16		DstPortLow;
-	u16		DstPortHigh;
+	BOOLEAN		enabled;
+	u32		SFID;
+	u8		qos_buf_count;
+	u16		classifier_rule_en;
+	u8		ip2s_lo;
+	u8		ip2s_hi;
+	u8		ip2s_mask;
+	u8		protocol;
+	u8		ipsrc_addr[16];
+	u8		ipsrc_addrmask[16];
+	u8		ipdst_addr[16];
+	u8		ipdst_addrmask[16];
+	u16		srcport_lo;
+	u16		srcport_hi;
+	u16		dstport_lo;
+	u16		dstport_hi;
 };
 
 struct qos_entry_s {
-	struct list_head list;
-	struct sk_buff *skb;
-	struct net_device *dev;
+	struct list_head	list;
+	struct sk_buff		*skb;
+	struct net_device	*dev;
 
 };
 
@@ -81,7 +81,7 @@ struct qos_cb_s {
 	u32			qos_list_cnt;
 	u32			qos_null_idx;
 	struct gdm_wimax_csr_s	csr[QOS_MAX];
-	spinlock_t	qos_lock;
+	spinlock_t		qos_lock;
 	u32			qos_limit_size;
 };
 

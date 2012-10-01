@@ -728,7 +728,7 @@ static int mass_storage_function_init(struct ccg_usb_function *f,
 	struct fsg_common *common;
 	int err;
 
-	memset(&fsg, 0, sizeof fsg);
+	memset(&fsg, 0, sizeof(fsg));
 	fsg.nluns = 1;
 	fsg.luns[0].removable = 1;
 	fsg.vendor_name = iManufacturer;
@@ -1101,13 +1101,7 @@ static struct device_attribute *ccg_usb_attributes[] = {
 static int ccg_bind_config(struct usb_configuration *c)
 {
 	struct ccg_dev *dev = _ccg_dev;
-	int ret = 0;
-
-	ret = ccg_bind_enabled_functions(dev, c);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ccg_bind_enabled_functions(dev, c);
 }
 
 static void ccg_unbind_config(struct usb_configuration *c)
@@ -1254,8 +1248,10 @@ static int __init init(void)
 		return PTR_ERR(ccg_class);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
+	if (!dev) {
+		class_destroy(ccg_class);
 		return -ENOMEM;
+	}
 
 	dev->functions = supported_functions;
 	INIT_LIST_HEAD(&dev->enabled_functions);

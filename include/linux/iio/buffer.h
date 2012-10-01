@@ -36,7 +36,7 @@ struct iio_buffer;
  * any of them not existing.
  **/
 struct iio_buffer_access_funcs {
-	int (*store_to)(struct iio_buffer *buffer, u8 *data, s64 timestamp);
+	int (*store_to)(struct iio_buffer *buffer, u8 *data);
 	int (*read_first_n)(struct iio_buffer *buffer,
 			    size_t n,
 			    char __user *buf);
@@ -118,10 +118,8 @@ int iio_scan_mask_set(struct iio_dev *indio_dev,
  * iio_push_to_buffer() - push to a registered buffer.
  * @buffer:		IIO buffer structure for device
  * @data:		the data to push to the buffer
- * @timestamp:		timestamp to associate with the data
  */
-int iio_push_to_buffer(struct iio_buffer *buffer, unsigned char *data,
-		       s64 timestamp);
+int iio_push_to_buffer(struct iio_buffer *buffer, unsigned char *data);
 
 int iio_update_demux(struct iio_dev *indio_dev);
 

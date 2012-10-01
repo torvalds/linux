@@ -3955,12 +3955,7 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 	 * EEPROM then we need to generate the last octet and set it on the
 	 * device
 	 */
-	if (adapter->rom_addr[0] == 0x00 &&
-	    adapter->rom_addr[1] == 0x00 &&
-	    adapter->rom_addr[2] == 0x00 &&
-	    adapter->rom_addr[3] == 0x00 &&
-	    adapter->rom_addr[4] == 0x00 &&
-	    adapter->rom_addr[5] == 0x00) {
+	if (is_zero_ether_addr(adapter->rom_addr)) {
 		/*
 		 * We need to randomly generate the last octet so we
 		 * decrease our chances of setting the mac address to

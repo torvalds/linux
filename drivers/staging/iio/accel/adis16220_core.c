@@ -372,8 +372,7 @@ static ssize_t adis16220_accel_bin_read(struct file *filp, struct kobject *kobj,
 					loff_t off,
 					size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(kobj_to_dev(kobj));
 
 	return adis16220_capture_buffer_read(indio_dev, buf,
 					off, count,
@@ -394,8 +393,7 @@ static ssize_t adis16220_adc1_bin_read(struct file *filp, struct kobject *kobj,
 				char *buf, loff_t off,
 				size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(kobj_to_dev(kobj));
 
 	return adis16220_capture_buffer_read(indio_dev, buf,
 					off, count,
@@ -416,8 +414,7 @@ static ssize_t adis16220_adc2_bin_read(struct file *filp, struct kobject *kobj,
 				char *buf, loff_t off,
 				size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(kobj_to_dev(kobj));
 
 	return adis16220_capture_buffer_read(indio_dev, buf,
 					off, count,
@@ -666,7 +663,7 @@ error_ret:
 	return ret;
 }
 
-static int adis16220_remove(struct spi_device *spi)
+static int __devexit adis16220_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 

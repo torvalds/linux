@@ -1269,7 +1269,7 @@ static unsigned char GetXG27FPBits(struct vb_device_info *pVBInfo)
 	if (temp <= 2)
 		temp &= 0x03;
 	else
-		temp = ((temp & 0x04) >> 1) || ((~temp) & 0x01);
+		temp = ((temp & 0x04) >> 1) | ((~temp) & 0x01);
 
 	xgifb_reg_set(pVBInfo->P3d4, 0x4A, CR4A);
 
@@ -1298,8 +1298,6 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	}
 
 	outb(0x67, (pVBInfo->BaseAddr + 0x12)); /* 3c2 <- 67 ,ynlai */
-
-	pVBInfo->ISXPDOS = 0;
 
 	pVBInfo->P3c4 = pVBInfo->BaseAddr + 0x14;
 	pVBInfo->P3d4 = pVBInfo->BaseAddr + 0x24;
@@ -1494,7 +1492,6 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	XGINew_SetModeScratch(HwDeviceExtension, pVBInfo);
 
 	xgifb_reg_set(pVBInfo->P3d4, 0x8c, 0x87);
-	xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x31);
 
 	return 1;
 } /* end of init */

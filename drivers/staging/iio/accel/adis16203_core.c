@@ -355,7 +355,7 @@ static int adis16203_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static struct iio_chan_spec adis16203_channels[] = {
+static const struct iio_chan_spec adis16203_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
@@ -500,7 +500,7 @@ error_ret:
 	return ret;
 }
 
-static int adis16203_remove(struct spi_device *spi)
+static int __devexit adis16203_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 

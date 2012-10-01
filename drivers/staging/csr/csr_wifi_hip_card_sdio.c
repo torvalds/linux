@@ -1612,13 +1612,13 @@ static CsrResult card_allocate_memory_resources(card_t *card)
     /* Reset any state carried forward from a previous life */
     card->fh_command_queue.q_rd_ptr = 0;
     card->fh_command_queue.q_wr_ptr = 0;
-    (void)CsrSnprintf(card->fh_command_queue.name, UNIFI_QUEUE_NAME_MAX_LENGTH,
+    (void)scnprintf(card->fh_command_queue.name, UNIFI_QUEUE_NAME_MAX_LENGTH,
                       "fh_cmd_q");
     for (i = 0; i < UNIFI_NO_OF_TX_QS; i++)
     {
         card->fh_traffic_queue[i].q_rd_ptr = 0;
         card->fh_traffic_queue[i].q_wr_ptr = 0;
-        (void)CsrSnprintf(card->fh_traffic_queue[i].name,
+        (void)scnprintf(card->fh_traffic_queue[i].name,
                           UNIFI_QUEUE_NAME_MAX_LENGTH, "fh_data_q%d", i);
     }
 #ifndef CSR_WIFI_HIP_TA_DISABLE
@@ -1826,13 +1826,13 @@ static void card_init_soft_queues(card_t *card)
     /* Reset any state carried forward from a previous life */
     card->fh_command_queue.q_rd_ptr = 0;
     card->fh_command_queue.q_wr_ptr = 0;
-    (void)CsrSnprintf(card->fh_command_queue.name, UNIFI_QUEUE_NAME_MAX_LENGTH,
+    (void)scnprintf(card->fh_command_queue.name, UNIFI_QUEUE_NAME_MAX_LENGTH,
                       "fh_cmd_q");
     for (i = 0; i < UNIFI_NO_OF_TX_QS; i++)
     {
         card->fh_traffic_queue[i].q_rd_ptr = 0;
         card->fh_traffic_queue[i].q_wr_ptr = 0;
-        (void)CsrSnprintf(card->fh_traffic_queue[i].name,
+        (void)scnprintf(card->fh_traffic_queue[i].name,
                           UNIFI_QUEUE_NAME_MAX_LENGTH, "fh_data_q%d", i);
     }
 #ifndef CSR_WIFI_HIP_TA_DISABLE

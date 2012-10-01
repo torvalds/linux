@@ -719,7 +719,7 @@ static int sep_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	if (remap_pfn_range(vma, vma->vm_start, bus_addr >> PAGE_SHIFT,
 		vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
-		dev_dbg(&sep->pdev->dev, "[PID%d] remap_page_range failed\n",
+		dev_dbg(&sep->pdev->dev, "[PID%d] remap_pfn_range failed\n",
 						current->pid);
 		error = -EAGAIN;
 		goto end_function_with_error;

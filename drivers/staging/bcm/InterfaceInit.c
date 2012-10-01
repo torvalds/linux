@@ -8,6 +8,7 @@ static struct usb_device_id InterfaceUsbtable[] = {
 	{ USB_DEVICE(BCM_USB_VENDOR_ID_ZTE, BCM_USB_PRODUCT_ID_226) },
 	{ USB_DEVICE(BCM_USB_VENDOR_ID_FOXCONN, BCM_USB_PRODUCT_ID_1901) },
 	{ USB_DEVICE(BCM_USB_VENDOR_ID_ZTE, BCM_USB_PRODUCT_ID_ZTE_TU25) },
+	{ USB_DEVICE(BCM_USB_VENDOR_ID_ZTE, BCM_USB_PRODUCT_ID_ZTE_226) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, InterfaceUsbtable);
@@ -669,16 +670,24 @@ struct class *bcm_class;
 
 static __init int bcm_init(void)
 {
-	printk(KERN_INFO "%s: %s, %s\n", DRV_NAME, DRV_DESCRIPTION, DRV_VERSION);
-	printk(KERN_INFO "%s\n", DRV_COPYRIGHT);
+	int retval;
+
+	pr_info("%s: %s, %s\n", DRV_NAME, DRV_DESCRIPTION, DRV_VERSION);
+	pr_info("%s\n", DRV_COPYRIGHT);
 
 	bcm_class = class_create(THIS_MODULE, DRV_NAME);
 	if (IS_ERR(bcm_class)) {
-		printk(KERN_ERR DRV_NAME ": could not create class\n");
+		pr_err(DRV_NAME ": could not create class\n");
 		return PTR_ERR(bcm_class);
 	}
 
-	return usb_register(&usbbcm_driver);
+	retval = usb_register(&usbbcm_driver);
+	if (retval < 0) {
+		pr_err(DRV_NAME ": could not register usb driver\n");
+		class_destroy(bcm_class);
+		return retval;
+	}
+	return 0;
 }
 
 static __exit void bcm_exit(void)

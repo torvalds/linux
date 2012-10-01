@@ -43,13 +43,6 @@ struct XGI_LCDDesStruct {
 	unsigned short LCDVRS;
 };
 
-struct XGI_LCDDataTablStruct {
-	unsigned char  PANELID;
-	unsigned short MASK;
-	unsigned short CAP;
-	unsigned short DATAPTR;
-};
-
 struct XGI330_LCDDataDesStruct2 {
 	unsigned short LCDHDES;
 	unsigned short LCDHRS;
@@ -57,19 +50,6 @@ struct XGI330_LCDDataDesStruct2 {
 	unsigned short LCDVRS;
 	unsigned short LCDHSync;
 	unsigned short LCDVSync;
-};
-
-
-struct XGI330_TVDataStruct {
-	unsigned short RVBHCMAX;
-	unsigned short RVBHCFACT;
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short TVHDE;
-	unsigned short TVVDE;
-	unsigned short RVBHRS;
-	unsigned char FlickerMode;
-	unsigned short HALFRVBHRS;
 };
 
 struct XGI330_LCDDataTablStruct {
@@ -82,7 +62,7 @@ struct XGI330_LCDDataTablStruct {
 struct XGI330_TVDataTablStruct {
 	unsigned short MASK;
 	unsigned short CAP;
-	unsigned short DATAPTR;
+	struct SiS_TVData const *DATAPTR;
 };
 
 
@@ -137,10 +117,10 @@ struct XGI21_LVDSCapStruct {
 	unsigned short LVDSVSYNC;
 	unsigned char  VCLKData1;
 	unsigned char  VCLKData2;
-	unsigned char  PSC_S1;
-	unsigned char  PSC_S2;
-	unsigned char  PSC_S3;
-	unsigned char  PSC_S4;
+	unsigned char  PSC_S1; /* Duration between CPL on and signal on */
+	unsigned char  PSC_S2; /* Duration signal on and Vdd on */
+	unsigned char  PSC_S3; /* Duration between CPL off and signal off */
+	unsigned char  PSC_S4; /* Duration signal off and Vdd off */
 	unsigned char  PSC_S5;
 };
 
@@ -155,7 +135,6 @@ struct XGI301C_Tap4TimingStruct {
 };
 
 struct vb_device_info {
-	unsigned char  ISXPDOS;
 	unsigned long   P3c4, P3d4, P3c0, P3ce, P3c2, P3cc;
 	unsigned long   P3ca, P3c6, P3c7, P3c8, P3c9, P3da;
 	unsigned long   Part0Port, Part1Port, Part2Port;
@@ -168,12 +147,10 @@ struct vb_device_info {
 	unsigned short   ModeType;
 	unsigned short   IF_DEF_LVDS, IF_DEF_TRUMPION, IF_DEF_DSTN;
 	unsigned short   IF_DEF_CRT2Monitor;
-	unsigned short   IF_DEF_LCDA, IF_DEF_YPbPr;
-	unsigned short   IF_DEF_ExpLink;
+	unsigned short   IF_DEF_YPbPr;
 	unsigned short   IF_DEF_HiVision;
 	unsigned short   LCDResInfo, LCDTypeInfo, VBType;/*301b*/
 	unsigned short   VBInfo, TVInfo, LCDInfo;
-	unsigned short   VBExtInfo;/*301lv*/
 	unsigned short   SetFlag;
 	unsigned short   NewFlickerMode;
 	unsigned short   SelectCRT2Rate;
@@ -197,20 +174,6 @@ struct vb_device_info {
 	struct SiS_MCLKData  *MCLKData;
 	struct XGI_ECLKDataStruct  *ECLKData;
 
-	unsigned char   *NTSCTiming;
-	unsigned char   *PALTiming;
-	unsigned char   *HiTVExtTiming;
-	unsigned char   *HiTVSt1Timing;
-	unsigned char   *HiTVSt2Timing;
-	unsigned char   *HiTVTextTiming;
-	unsigned char   *YPbPr750pTiming;
-	unsigned char   *YPbPr525pTiming;
-	unsigned char   *YPbPr525iTiming;
-	unsigned char   *HiTVGroup3Data;
-	unsigned char   *HiTVGroup3Simu;
-	unsigned char   *HiTVGroup3Text;
-	unsigned char   *Ren525pGroup3;
-	unsigned char   *Ren750pGroup3;
 	unsigned char   *ScreenOffset;
 	unsigned char   *pXGINew_DRAMTypeDefinition;
 	unsigned char   XGINew_CR97;

@@ -1,5 +1,5 @@
 /*
- * AD7792/AD7793 SPI ADC driver
+ * AD7785/AD7792/AD7793/AD7794/AD7795 SPI ADC driver
  *
  * Copyright 2011-2012 Analog Devices Inc.
  *
@@ -24,6 +24,7 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/iio/adc/ad_sigma_delta.h>
 
 #include "ad7793.h"
 
@@ -36,198 +37,65 @@
  */
 
 struct ad7793_chip_info {
-	struct iio_chan_spec		channel[7];
+	const struct iio_chan_spec *channels;
+	unsigned int num_channels;
 };
 
 struct ad7793_state {
-	struct spi_device		*spi;
-	struct iio_trigger		*trig;
 	const struct ad7793_chip_info	*chip_info;
 	struct regulator		*reg;
-	struct ad7793_platform_data	*pdata;
-	wait_queue_head_t		wq_data_avail;
-	bool				done;
-	bool				irq_dis;
 	u16				int_vref_mv;
 	u16				mode;
 	u16				conf;
 	u32				scale_avail[8][2];
 
-	/*
-	 * DMA (thus cache coherency maintenance) requires the
-	 * transfer buffers to live in their own cache lines.
-	 */
-	u8				data[4] ____cacheline_aligned;
+	struct ad_sigma_delta		sd;
+
 };
 
 enum ad7793_supported_device_ids {
+	ID_AD7785,
 	ID_AD7792,
 	ID_AD7793,
+	ID_AD7794,
+	ID_AD7795,
 };
 
-static int __ad7793_write_reg(struct ad7793_state *st, bool locked,
-			      bool cs_change, unsigned char reg,
-			      unsigned size, unsigned val)
+static struct ad7793_state *ad_sigma_delta_to_ad7793(struct ad_sigma_delta *sd)
 {
-	u8 *data = st->data;
-	struct spi_transfer t = {
-		.tx_buf		= data,
-		.len		= size + 1,
-		.cs_change	= cs_change,
-	};
-	struct spi_message m;
-
-	data[0] = AD7793_COMM_WRITE | AD7793_COMM_ADDR(reg);
-
-	switch (size) {
-	case 3:
-		data[1] = val >> 16;
-		data[2] = val >> 8;
-		data[3] = val;
-		break;
-	case 2:
-		data[1] = val >> 8;
-		data[2] = val;
-		break;
-	case 1:
-		data[1] = val;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-
-	if (locked)
-		return spi_sync_locked(st->spi, &m);
-	else
-		return spi_sync(st->spi, &m);
+	return container_of(sd, struct ad7793_state, sd);
 }
 
-static int ad7793_write_reg(struct ad7793_state *st,
-			    unsigned reg, unsigned size, unsigned val)
+static int ad7793_set_channel(struct ad_sigma_delta *sd, unsigned int channel)
 {
-	return __ad7793_write_reg(st, false, false, reg, size, val);
+	struct ad7793_state *st = ad_sigma_delta_to_ad7793(sd);
+
+	st->conf &= ~AD7793_CONF_CHAN_MASK;
+	st->conf |= AD7793_CONF_CHAN(channel);
+
+	return ad_sd_write_reg(&st->sd, AD7793_REG_CONF, 2, st->conf);
 }
 
-static int __ad7793_read_reg(struct ad7793_state *st, bool locked,
-			     bool cs_change, unsigned char reg,
-			     int *val, unsigned size)
+static int ad7793_set_mode(struct ad_sigma_delta *sd,
+			   enum ad_sigma_delta_mode mode)
 {
-	u8 *data = st->data;
-	int ret;
-	struct spi_transfer t[] = {
-		{
-			.tx_buf = data,
-			.len = 1,
-		}, {
-			.rx_buf = data,
-			.len = size,
-			.cs_change = cs_change,
-		},
-	};
-	struct spi_message m;
+	struct ad7793_state *st = ad_sigma_delta_to_ad7793(sd);
 
-	data[0] = AD7793_COMM_READ | AD7793_COMM_ADDR(reg);
+	st->mode &= ~AD7793_MODE_SEL_MASK;
+	st->mode |= AD7793_MODE_SEL(mode);
 
-	spi_message_init(&m);
-	spi_message_add_tail(&t[0], &m);
-	spi_message_add_tail(&t[1], &m);
-
-	if (locked)
-		ret = spi_sync_locked(st->spi, &m);
-	else
-		ret = spi_sync(st->spi, &m);
-
-	if (ret < 0)
-		return ret;
-
-	switch (size) {
-	case 3:
-		*val = data[0] << 16 | data[1] << 8 | data[2];
-		break;
-	case 2:
-		*val = data[0] << 8 | data[1];
-		break;
-	case 1:
-		*val = data[0];
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
+	return ad_sd_write_reg(&st->sd, AD7793_REG_MODE, 2, st->mode);
 }
 
-static int ad7793_read_reg(struct ad7793_state *st,
-			   unsigned reg, int *val, unsigned size)
-{
-	return __ad7793_read_reg(st, 0, 0, reg, val, size);
-}
+static const struct ad_sigma_delta_info ad7793_sigma_delta_info = {
+	.set_channel = ad7793_set_channel,
+	.set_mode = ad7793_set_mode,
+	.has_registers = true,
+	.addr_shift = 3,
+	.read_mask = BIT(6),
+};
 
-static int ad7793_read(struct ad7793_state *st, unsigned ch,
-		       unsigned len, int *val)
-{
-	int ret;
-	st->conf = (st->conf & ~AD7793_CONF_CHAN(-1)) | AD7793_CONF_CHAN(ch);
-	st->mode = (st->mode & ~AD7793_MODE_SEL(-1)) |
-		AD7793_MODE_SEL(AD7793_MODE_SINGLE);
-
-	ad7793_write_reg(st, AD7793_REG_CONF, sizeof(st->conf), st->conf);
-
-	spi_bus_lock(st->spi->master);
-	st->done = false;
-
-	ret = __ad7793_write_reg(st, 1, 1, AD7793_REG_MODE,
-				 sizeof(st->mode), st->mode);
-	if (ret < 0)
-		goto out;
-
-	st->irq_dis = false;
-	enable_irq(st->spi->irq);
-	wait_event_interruptible(st->wq_data_avail, st->done);
-
-	ret = __ad7793_read_reg(st, 1, 0, AD7793_REG_DATA, val, len);
-out:
-	spi_bus_unlock(st->spi->master);
-
-	return ret;
-}
-
-static int ad7793_calibrate(struct ad7793_state *st, unsigned mode, unsigned ch)
-{
-	int ret;
-
-	st->conf = (st->conf & ~AD7793_CONF_CHAN(-1)) | AD7793_CONF_CHAN(ch);
-	st->mode = (st->mode & ~AD7793_MODE_SEL(-1)) | AD7793_MODE_SEL(mode);
-
-	ad7793_write_reg(st, AD7793_REG_CONF, sizeof(st->conf), st->conf);
-
-	spi_bus_lock(st->spi->master);
-	st->done = false;
-
-	ret = __ad7793_write_reg(st, 1, 1, AD7793_REG_MODE,
-				 sizeof(st->mode), st->mode);
-	if (ret < 0)
-		goto out;
-
-	st->irq_dis = false;
-	enable_irq(st->spi->irq);
-	wait_event_interruptible(st->wq_data_avail, st->done);
-
-	st->mode = (st->mode & ~AD7793_MODE_SEL(-1)) |
-		AD7793_MODE_SEL(AD7793_MODE_IDLE);
-
-	ret = __ad7793_write_reg(st, 1, 0, AD7793_REG_MODE,
-				 sizeof(st->mode), st->mode);
-out:
-	spi_bus_unlock(st->spi->master);
-
-	return ret;
-}
-
-static const u8 ad7793_calib_arr[6][2] = {
+static const struct ad_sd_calib_data ad7793_calib_arr[6] = {
 	{AD7793_MODE_CAL_INT_ZERO, AD7793_CH_AIN1P_AIN1M},
 	{AD7793_MODE_CAL_INT_FULL, AD7793_CH_AIN1P_AIN1M},
 	{AD7793_MODE_CAL_INT_ZERO, AD7793_CH_AIN2P_AIN2M},
@@ -238,59 +106,49 @@ static const u8 ad7793_calib_arr[6][2] = {
 
 static int ad7793_calibrate_all(struct ad7793_state *st)
 {
-	int i, ret;
-
-	for (i = 0; i < ARRAY_SIZE(ad7793_calib_arr); i++) {
-		ret = ad7793_calibrate(st, ad7793_calib_arr[i][0],
-				       ad7793_calib_arr[i][1]);
-		if (ret)
-			goto out;
-	}
-
-	return 0;
-out:
-	dev_err(&st->spi->dev, "Calibration failed\n");
-	return ret;
+	return ad_sd_calibrate_all(&st->sd, ad7793_calib_arr,
+				   ARRAY_SIZE(ad7793_calib_arr));
 }
 
-static int ad7793_setup(struct ad7793_state *st)
+static int ad7793_setup(struct iio_dev *indio_dev,
+	const struct ad7793_platform_data *pdata)
 {
+	struct ad7793_state *st = iio_priv(indio_dev);
 	int i, ret = -1;
 	unsigned long long scale_uv;
 	u32 id;
 
 	/* reset the serial interface */
-	ret = spi_write(st->spi, (u8 *)&ret, sizeof(ret));
+	ret = spi_write(st->sd.spi, (u8 *)&ret, sizeof(ret));
 	if (ret < 0)
 		goto out;
 	msleep(1); /* Wait for at least 500us */
 
 	/* write/read test for device presence */
-	ret = ad7793_read_reg(st, AD7793_REG_ID, &id, 1);
+	ret = ad_sd_read_reg(&st->sd, AD7793_REG_ID, 1, &id);
 	if (ret)
 		goto out;
 
 	id &= AD7793_ID_MASK;
 
-	if (!((id == AD7792_ID) || (id == AD7793_ID))) {
-		dev_err(&st->spi->dev, "device ID query failed\n");
+	if (!((id == AD7792_ID) || (id == AD7793_ID) || (id == AD7795_ID))) {
+		dev_err(&st->sd.spi->dev, "device ID query failed\n");
 		goto out;
 	}
 
-	st->mode  = (st->pdata->mode & ~AD7793_MODE_SEL(-1)) |
-			AD7793_MODE_SEL(AD7793_MODE_IDLE);
-	st->conf  = st->pdata->conf & ~AD7793_CONF_CHAN(-1);
+	st->mode = pdata->mode;
+	st->conf = pdata->conf;
 
-	ret = ad7793_write_reg(st, AD7793_REG_MODE, sizeof(st->mode), st->mode);
+	ret = ad7793_set_mode(&st->sd, AD_SD_MODE_IDLE);
 	if (ret)
 		goto out;
 
-	ret = ad7793_write_reg(st, AD7793_REG_CONF, sizeof(st->conf), st->conf);
+	ret = ad7793_set_channel(&st->sd, 0);
 	if (ret)
 		goto out;
 
-	ret = ad7793_write_reg(st, AD7793_REG_IO,
-			       sizeof(st->pdata->io), st->pdata->io);
+	ret = ad_sd_write_reg(&st->sd, AD7793_REG_IO,
+			       sizeof(pdata->io), pdata->io);
 	if (ret)
 		goto out;
 
@@ -301,7 +159,7 @@ static int ad7793_setup(struct ad7793_state *st)
 	/* Populate available ADC input ranges */
 	for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++) {
 		scale_uv = ((u64)st->int_vref_mv * 100000000)
-			>> (st->chip_info->channel[0].scan_type.realbits -
+			>> (st->chip_info->channels[0].scan_type.realbits -
 			(!!(st->conf & AD7793_CONF_UNIPOLAR) ? 0 : 1));
 		scale_uv >>= i;
 
@@ -311,182 +169,8 @@ static int ad7793_setup(struct ad7793_state *st)
 
 	return 0;
 out:
-	dev_err(&st->spi->dev, "setup failed\n");
+	dev_err(&st->sd.spi->dev, "setup failed\n");
 	return ret;
-}
-
-static int ad7793_ring_preenable(struct iio_dev *indio_dev)
-{
-	struct ad7793_state *st = iio_priv(indio_dev);
-	unsigned channel;
-	int ret;
-
-	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
-		return -EINVAL;
-	ret = iio_sw_buffer_preenable(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	channel = find_first_bit(indio_dev->active_scan_mask,
-				 indio_dev->masklength);
-
-	st->mode  = (st->mode & ~AD7793_MODE_SEL(-1)) |
-		    AD7793_MODE_SEL(AD7793_MODE_CONT);
-	st->conf  = (st->conf & ~AD7793_CONF_CHAN(-1)) |
-		    AD7793_CONF_CHAN(indio_dev->channels[channel].address);
-
-	ad7793_write_reg(st, AD7793_REG_CONF, sizeof(st->conf), st->conf);
-
-	spi_bus_lock(st->spi->master);
-	__ad7793_write_reg(st, 1, 1, AD7793_REG_MODE,
-			   sizeof(st->mode), st->mode);
-
-	st->irq_dis = false;
-	enable_irq(st->spi->irq);
-
-	return 0;
-}
-
-static int ad7793_ring_postdisable(struct iio_dev *indio_dev)
-{
-	struct ad7793_state *st = iio_priv(indio_dev);
-
-	st->mode  = (st->mode & ~AD7793_MODE_SEL(-1)) |
-		    AD7793_MODE_SEL(AD7793_MODE_IDLE);
-
-	st->done = false;
-	wait_event_interruptible(st->wq_data_avail, st->done);
-
-	if (!st->irq_dis)
-		disable_irq_nosync(st->spi->irq);
-
-	__ad7793_write_reg(st, 1, 0, AD7793_REG_MODE,
-			   sizeof(st->mode), st->mode);
-
-	return spi_bus_unlock(st->spi->master);
-}
-
-/**
- * ad7793_trigger_handler() bh of trigger launched polling to ring buffer
- **/
-
-static irqreturn_t ad7793_trigger_handler(int irq, void *p)
-{
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->indio_dev;
-	struct iio_buffer *ring = indio_dev->buffer;
-	struct ad7793_state *st = iio_priv(indio_dev);
-	s64 dat64[2];
-	s32 *dat32 = (s32 *)dat64;
-
-	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
-		__ad7793_read_reg(st, 1, 1, AD7793_REG_DATA,
-				  dat32,
-				  indio_dev->channels[0].scan_type.realbits/8);
-
-	/* Guaranteed to be aligned with 8 byte boundary */
-	if (indio_dev->scan_timestamp)
-		dat64[1] = pf->timestamp;
-
-	ring->access->store_to(ring, (u8 *)dat64, pf->timestamp);
-
-	iio_trigger_notify_done(indio_dev->trig);
-	st->irq_dis = false;
-	enable_irq(st->spi->irq);
-
-	return IRQ_HANDLED;
-}
-
-static const struct iio_buffer_setup_ops ad7793_ring_setup_ops = {
-	.preenable = &ad7793_ring_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
-	.postdisable = &ad7793_ring_postdisable,
-	.validate_scan_mask = &iio_validate_scan_mask_onehot,
-};
-
-static int ad7793_register_ring_funcs_and_init(struct iio_dev *indio_dev)
-{
-	return iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
-			&ad7793_trigger_handler, &ad7793_ring_setup_ops);
-}
-
-static void ad7793_ring_cleanup(struct iio_dev *indio_dev)
-{
-	iio_triggered_buffer_cleanup(indio_dev);
-}
-
-/**
- * ad7793_data_rdy_trig_poll() the event handler for the data rdy trig
- **/
-static irqreturn_t ad7793_data_rdy_trig_poll(int irq, void *private)
-{
-	struct ad7793_state *st = iio_priv(private);
-
-	st->done = true;
-	wake_up_interruptible(&st->wq_data_avail);
-	disable_irq_nosync(irq);
-	st->irq_dis = true;
-	iio_trigger_poll(st->trig, iio_get_time_ns());
-
-	return IRQ_HANDLED;
-}
-
-static struct iio_trigger_ops ad7793_trigger_ops = {
-	.owner = THIS_MODULE,
-};
-
-static int ad7793_probe_trigger(struct iio_dev *indio_dev)
-{
-	struct ad7793_state *st = iio_priv(indio_dev);
-	int ret;
-
-	st->trig = iio_trigger_alloc("%s-dev%d",
-					spi_get_device_id(st->spi)->name,
-					indio_dev->id);
-	if (st->trig == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	st->trig->ops = &ad7793_trigger_ops;
-
-	ret = request_irq(st->spi->irq,
-			  ad7793_data_rdy_trig_poll,
-			  IRQF_TRIGGER_LOW,
-			  spi_get_device_id(st->spi)->name,
-			  indio_dev);
-	if (ret)
-		goto error_free_trig;
-
-	disable_irq_nosync(st->spi->irq);
-	st->irq_dis = true;
-	st->trig->dev.parent = &st->spi->dev;
-	st->trig->private_data = indio_dev;
-
-	ret = iio_trigger_register(st->trig);
-
-	/* select default trigger */
-	indio_dev->trig = st->trig;
-	if (ret)
-		goto error_free_irq;
-
-	return 0;
-
-error_free_irq:
-	free_irq(st->spi->irq, indio_dev);
-error_free_trig:
-	iio_trigger_free(st->trig);
-error_ret:
-	return ret;
-}
-
-static void ad7793_remove_trigger(struct iio_dev *indio_dev)
-{
-	struct ad7793_state *st = iio_priv(indio_dev);
-
-	iio_trigger_unregister(st->trig);
-	free_irq(st->spi->irq, indio_dev);
-	iio_trigger_free(st->trig);
 }
 
 static const u16 sample_freq_avail[16] = {0, 470, 242, 123, 62, 50, 39, 33, 19,
@@ -531,7 +215,7 @@ static ssize_t ad7793_write_frequency(struct device *dev,
 			mutex_lock(&indio_dev->mlock);
 			st->mode &= ~AD7793_MODE_RATE(-1);
 			st->mode |= AD7793_MODE_RATE(i);
-			ad7793_write_reg(st, AD7793_REG_MODE,
+			ad_sd_write_reg(&st->sd, AD7793_REG_MODE,
 					 sizeof(st->mode), st->mode);
 			mutex_unlock(&indio_dev->mlock);
 			ret = 0;
@@ -585,25 +269,15 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad7793_state *st = iio_priv(indio_dev);
-	int ret, smpl = 0;
+	int ret;
 	unsigned long long scale_uv;
 	bool unipolar = !!(st->conf & AD7793_CONF_UNIPOLAR);
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
-		if (iio_buffer_enabled(indio_dev))
-			ret = -EBUSY;
-		else
-			ret = ad7793_read(st, chan->address,
-					chan->scan_type.realbits / 8, &smpl);
-		mutex_unlock(&indio_dev->mlock);
-
+		ret = ad_sigma_delta_single_conversion(indio_dev, chan, val);
 		if (ret < 0)
 			return ret;
-
-		*val = (smpl >> chan->scan_type.shift) &
-			((1 << (chan->scan_type.realbits)) - 1);
 
 		return IIO_VAL_INT;
 
@@ -675,17 +349,18 @@ static int ad7793_write_raw(struct iio_dev *indio_dev,
 		ret = -EINVAL;
 		for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++)
 			if (val2 == st->scale_avail[i][1]) {
+				ret = 0;
 				tmp = st->conf;
 				st->conf &= ~AD7793_CONF_GAIN(-1);
 				st->conf |= AD7793_CONF_GAIN(i);
 
-				if (tmp != st->conf) {
-					ad7793_write_reg(st, AD7793_REG_CONF,
-							 sizeof(st->conf),
-							 st->conf);
-					ad7793_calibrate_all(st);
-				}
-				ret = 0;
+				if (tmp == st->conf)
+					break;
+
+				ad_sd_write_reg(&st->sd, AD7793_REG_CONF,
+						sizeof(st->conf), st->conf);
+				ad7793_calibrate_all(st);
+				break;
 			}
 		break;
 	default:
@@ -694,15 +369,6 @@ static int ad7793_write_raw(struct iio_dev *indio_dev,
 
 	mutex_unlock(&indio_dev->mlock);
 	return ret;
-}
-
-static int ad7793_validate_trigger(struct iio_dev *indio_dev,
-				   struct iio_trigger *trig)
-{
-	if (indio_dev->trig != trig)
-		return -EINVAL;
-
-	return 0;
 }
 
 static int ad7793_write_raw_get_fmt(struct iio_dev *indio_dev,
@@ -717,172 +383,67 @@ static const struct iio_info ad7793_info = {
 	.write_raw = &ad7793_write_raw,
 	.write_raw_get_fmt = &ad7793_write_raw_get_fmt,
 	.attrs = &ad7793_attribute_group,
-	.validate_trigger = ad7793_validate_trigger,
+	.validate_trigger = ad_sd_validate_trigger,
 	.driver_module = THIS_MODULE,
 };
 
+#define DECLARE_AD7793_CHANNELS(_name, _b, _sb, _s) \
+const struct iio_chan_spec _name##_channels[] = { \
+	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), (_s)), \
+	AD_SD_DIFF_CHANNEL(1, 1, 1, AD7793_CH_AIN2P_AIN2M, (_b), (_sb), (_s)), \
+	AD_SD_DIFF_CHANNEL(2, 2, 2, AD7793_CH_AIN3P_AIN3M, (_b), (_sb), (_s)), \
+	AD_SD_SHORTED_CHANNEL(3, 0, AD7793_CH_AIN1M_AIN1M, (_b), (_sb), (_s)), \
+	AD_SD_TEMP_CHANNEL(4, AD7793_CH_TEMP, (_b), (_sb), (_s)), \
+	AD_SD_SUPPLY_CHANNEL(5, 3, AD7793_CH_AVDD_MONITOR, (_b), (_sb), (_s)), \
+	IIO_CHAN_SOFT_TIMESTAMP(6), \
+}
+
+#define DECLARE_AD7795_CHANNELS(_name, _b, _sb) \
+const struct iio_chan_spec _name##_channels[] = { \
+	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(1, 1, 1, AD7793_CH_AIN2P_AIN2M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(2, 2, 2, AD7793_CH_AIN3P_AIN3M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(3, 3, 3, AD7795_CH_AIN4P_AIN4M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(4, 4, 4, AD7795_CH_AIN5P_AIN5M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(5, 5, 5, AD7795_CH_AIN6P_AIN6M, (_b), (_sb), 0), \
+	AD_SD_SHORTED_CHANNEL(6, 0, AD7795_CH_AIN1M_AIN1M, (_b), (_sb), 0), \
+	AD_SD_TEMP_CHANNEL(7, AD7793_CH_TEMP, (_b), (_sb), 0), \
+	AD_SD_SUPPLY_CHANNEL(8, 3, AD7793_CH_AVDD_MONITOR, (_b), (_sb), 0), \
+	IIO_CHAN_SOFT_TIMESTAMP(9), \
+}
+
+static DECLARE_AD7793_CHANNELS(ad7785, 20, 32, 4);
+static DECLARE_AD7793_CHANNELS(ad7792, 16, 32, 0);
+static DECLARE_AD7793_CHANNELS(ad7793, 24, 32, 0);
+static DECLARE_AD7795_CHANNELS(ad7794, 16, 32);
+static DECLARE_AD7795_CHANNELS(ad7795, 24, 32);
+
 static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
-	[ID_AD7793] = {
-		.channel[0] = {
-			.type = IIO_VOLTAGE,
-			.differential = 1,
-			.indexed = 1,
-			.channel = 0,
-			.channel2 = 0,
-			.address = AD7793_CH_AIN1P_AIN1M,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 0,
-			.scan_type = IIO_ST('u', 24, 32, 0)
-		},
-		.channel[1] = {
-			.type = IIO_VOLTAGE,
-			.differential = 1,
-			.indexed = 1,
-			.channel = 1,
-			.channel2 = 1,
-			.address = AD7793_CH_AIN2P_AIN2M,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 1,
-			.scan_type = IIO_ST('u', 24, 32, 0)
-		},
-		.channel[2] = {
-			.type = IIO_VOLTAGE,
-			.differential = 1,
-			.indexed = 1,
-			.channel = 2,
-			.channel2 = 2,
-			.address = AD7793_CH_AIN3P_AIN3M,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 2,
-			.scan_type = IIO_ST('u', 24, 32, 0)
-		},
-		.channel[3] = {
-			.type = IIO_VOLTAGE,
-			.differential = 1,
-			.extend_name = "shorted",
-			.indexed = 1,
-			.channel = 2,
-			.channel2 = 2,
-			.address = AD7793_CH_AIN1M_AIN1M,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 3,
-			.scan_type = IIO_ST('u', 24, 32, 0)
-		},
-		.channel[4] = {
-			.type = IIO_TEMP,
-			.indexed = 1,
-			.channel = 0,
-			.address = AD7793_CH_TEMP,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-			.scan_index = 4,
-			.scan_type = IIO_ST('u', 24, 32, 0),
-		},
-		.channel[5] = {
-			.type = IIO_VOLTAGE,
-			.extend_name = "supply",
-			.indexed = 1,
-			.channel = 4,
-			.address = AD7793_CH_AVDD_MONITOR,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 5,
-			.scan_type = IIO_ST('u', 24, 32, 0),
-		},
-		.channel[6] = IIO_CHAN_SOFT_TIMESTAMP(6),
+	[ID_AD7785] = {
+		.channels = ad7785_channels,
+		.num_channels = ARRAY_SIZE(ad7785_channels),
 	},
 	[ID_AD7792] = {
-		.channel[0] = {
-			.type = IIO_VOLTAGE,
-			.differential = 1,
-			.indexed = 1,
-			.channel = 0,
-			.channel2 = 0,
-			.address = AD7793_CH_AIN1P_AIN1M,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 0,
-			.scan_type = IIO_ST('u', 16, 32, 0)
-		},
-		.channel[1] = {
-			.type = IIO_VOLTAGE,
-			.differential = 1,
-			.indexed = 1,
-			.channel = 1,
-			.channel2 = 1,
-			.address = AD7793_CH_AIN2P_AIN2M,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 1,
-			.scan_type = IIO_ST('u', 16, 32, 0)
-		},
-		.channel[2] = {
-			.type = IIO_VOLTAGE,
-			.differential = 1,
-			.indexed = 1,
-			.channel = 2,
-			.channel2 = 2,
-			.address = AD7793_CH_AIN3P_AIN3M,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 2,
-			.scan_type = IIO_ST('u', 16, 32, 0)
-		},
-		.channel[3] = {
-			.type = IIO_VOLTAGE,
-			.differential = 1,
-			.extend_name = "shorted",
-			.indexed = 1,
-			.channel = 2,
-			.channel2 = 2,
-			.address = AD7793_CH_AIN1M_AIN1M,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 3,
-			.scan_type = IIO_ST('u', 16, 32, 0)
-		},
-		.channel[4] = {
-			.type = IIO_TEMP,
-			.indexed = 1,
-			.channel = 0,
-			.address = AD7793_CH_TEMP,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-			.scan_index = 4,
-			.scan_type = IIO_ST('u', 16, 32, 0),
-		},
-		.channel[5] = {
-			.type = IIO_VOLTAGE,
-			.extend_name = "supply",
-			.indexed = 1,
-			.channel = 4,
-			.address = AD7793_CH_AVDD_MONITOR,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
-			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
-			.scan_index = 5,
-			.scan_type = IIO_ST('u', 16, 32, 0),
-		},
-		.channel[6] = IIO_CHAN_SOFT_TIMESTAMP(6),
+		.channels = ad7792_channels,
+		.num_channels = ARRAY_SIZE(ad7792_channels),
+	},
+	[ID_AD7793] = {
+		.channels = ad7793_channels,
+		.num_channels = ARRAY_SIZE(ad7793_channels),
+	},
+	[ID_AD7794] = {
+		.channels = ad7794_channels,
+		.num_channels = ARRAY_SIZE(ad7794_channels),
+	},
+	[ID_AD7795] = {
+		.channels = ad7795_channels,
+		.num_channels = ARRAY_SIZE(ad7795_channels),
 	},
 };
 
 static int __devinit ad7793_probe(struct spi_device *spi)
 {
-	struct ad7793_platform_data *pdata = spi->dev.platform_data;
+	const struct ad7793_platform_data *pdata = spi->dev.platform_data;
 	struct ad7793_state *st;
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
@@ -903,6 +464,8 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
+	ad_sd_init(&st->sd, indio_dev, spi, &ad7793_sigma_delta_info);
+
 	st->reg = regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
@@ -915,8 +478,6 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	st->chip_info =
 		&ad7793_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
-	st->pdata = pdata;
-
 	if (pdata && pdata->vref_mv)
 		st->int_vref_mv = pdata->vref_mv;
 	else if (voltage_uv)
@@ -925,26 +486,19 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 		st->int_vref_mv = 1170; /* Build-in ref */
 
 	spi_set_drvdata(spi, indio_dev);
-	st->spi = spi;
 
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = st->chip_info->channel;
-	indio_dev->num_channels = 7;
+	indio_dev->channels = st->chip_info->channels;
+	indio_dev->num_channels = st->chip_info->num_channels;
 	indio_dev->info = &ad7793_info;
 
-	init_waitqueue_head(&st->wq_data_avail);
-
-	ret = ad7793_register_ring_funcs_and_init(indio_dev);
+	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
 	if (ret)
 		goto error_disable_reg;
 
-	ret = ad7793_probe_trigger(indio_dev);
-	if (ret)
-		goto error_unreg_ring;
-
-	ret = ad7793_setup(st);
+	ret = ad7793_setup(indio_dev, pdata);
 	if (ret)
 		goto error_remove_trigger;
 
@@ -955,9 +509,7 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	ad7793_remove_trigger(indio_dev);
-error_unreg_ring:
-	ad7793_ring_cleanup(indio_dev);
+	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
@@ -970,14 +522,13 @@ error_put_reg:
 	return ret;
 }
 
-static int ad7793_remove(struct spi_device *spi)
+static int __devexit ad7793_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7793_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	ad7793_remove_trigger(indio_dev);
-	ad7793_ring_cleanup(indio_dev);
+	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
@@ -990,8 +541,11 @@ static int ad7793_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7793_id[] = {
+	{"ad7785", ID_AD7785},
 	{"ad7792", ID_AD7792},
 	{"ad7793", ID_AD7793},
+	{"ad7794", ID_AD7794},
+	{"ad7795", ID_AD7795},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7793_id);
@@ -1008,5 +562,5 @@ static struct spi_driver ad7793_driver = {
 module_spi_driver(ad7793_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("Analog Devices AD7792/3 ADC");
+MODULE_DESCRIPTION("Analog Devices AD7793 and simialr ADCs");
 MODULE_LICENSE("GPL v2");

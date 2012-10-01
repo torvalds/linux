@@ -97,7 +97,7 @@ enum {
 	mz = 0x0020,
 	changeV2 = 0x0040,
 	changeV1 = 0x0080
-} vect_bits_t;
+};
 
 /* WARNING_BITS */
 /* The warning_bits structure shows the bit pattern for the warning
@@ -116,7 +116,7 @@ enum {
 	mx_near_sat = 0x0008,
 	my_near_sat = 0x0010,
 	mz_near_sat = 0x0020
-} warning_bits_t;
+};
 
 /*  ERROR_BITS */
 /*  XX_SAT */

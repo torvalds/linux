@@ -56,9 +56,9 @@
  *      MACbSafeStop - Stop MAC function
  *      MACbShutdown - Shut down MAC
  *      MACvInitialize - Initialize MAC
- *      MACvSetCurrRxDescAddr - Set Rx Descriptos Address
- *      MACvSetCurrTx0DescAddr - Set Tx0 Descriptos Address
- *      MACvSetCurrTx1DescAddr - Set Tx1 Descriptos Address
+ *      MACvSetCurrRxDescAddr - Set Rx Descriptors Address
+ *      MACvSetCurrTx0DescAddr - Set Tx0 Descriptors Address
+ *      MACvSetCurrTx1DescAddr - Set Tx1 Descriptors Address
  *      MACvTimer0MicroSDelay - Micro Second Delay Loop by MAC
  *
  * Revision History:
@@ -1498,7 +1498,7 @@ int     ii;
 
     wOffset += (uKeyIdx * 4);
     for (ii=0;ii<4;ii++) {
-        // alway push 128 bits
+        // always push 128 bits
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"3.(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
         VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
@@ -1567,7 +1567,7 @@ int     ii;
     wOffset++;
     wOffset++;
     wOffset += (uKeyIdx * 4);
-    // alway push 128 bits
+    // always push 128 bits
     for (ii=0; ii<3; ii++) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
@@ -1696,7 +1696,7 @@ int     ii;
 
     wOffset += (uKeyIdx * 4);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1. wOffset: %d, Data: %lX, idx:%d\n", wOffset, *pdwKey, uKeyIdx);
-    // alway push 128 bits
+    // always push 128 bits
     for (ii=0; ii<4; ii++) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);

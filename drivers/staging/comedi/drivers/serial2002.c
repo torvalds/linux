@@ -588,7 +588,9 @@ static int serial_2002_open(struct comedi_device *dev)
 				kfree(s->range_table_list);
 				s->range_table = NULL;
 				s->range_table_list = NULL;
-				if (range) {
+				if (kind == 1 || kind == 2) {
+					s->range_table = &range_digital;
+				} else if (range) {
 					s->range_table_list = range_table_list =
 					    kmalloc(sizeof
 						    (struct
@@ -798,7 +800,7 @@ static int serial2002_attach(struct comedi_device *dev,
 		return ret;
 
 	/* digital input subdevice */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 0;
@@ -807,7 +809,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->insn_read = &serial2002_di_rinsn;
 
 	/* digital output subdevice */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
@@ -816,7 +818,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->insn_write = &serial2002_do_winsn;
 
 	/* analog input subdevice */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 0;
@@ -825,7 +827,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->insn_read = &serial2002_ai_rinsn;
 
 	/* analog output subdevice */
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
@@ -835,7 +837,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->insn_read = &serial2002_ao_rinsn;
 
 	/* encoder input subdevice */
-	s = dev->subdevices + 4;
+	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
 	s->n_chan = 0;

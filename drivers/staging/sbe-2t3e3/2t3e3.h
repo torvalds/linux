@@ -789,7 +789,6 @@ void dc_restart(struct channel *);
 void dc_receiver_onoff(struct channel *, u32);
 void dc_transmitter_onoff(struct channel *, u32);
 void dc_set_loopback(struct channel *, u32);
-u32 dc_init_descriptor_list(struct channel *);
 void dc_clear_descriptor_list(struct channel *);
 void dc_drop_descriptor_list(struct channel *);
 void dc_set_output_port(struct channel *);

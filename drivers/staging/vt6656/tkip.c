@@ -168,7 +168,7 @@ static unsigned int rotr1(unsigned int a)
 
 
 /*
- * Description: Caculate RC4Key fom TK, TA, and TSC
+ * Description: Calculate RC4Key fom TK, TA, and TSC
  *
  * Parameters:
  *  In:

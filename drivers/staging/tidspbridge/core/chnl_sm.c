@@ -20,7 +20,7 @@
  *      The lower edge functions must be implemented by the Bridge driver
  *      writer, and are declared in chnl_sm.h.
  *
- *      Care is taken in this code to prevent simulataneous access to channel
+ *      Care is taken in this code to prevent simultaneous access to channel
  *      queues from
  *      1. Threads.
  *      2. io_dpc(), scheduled from the io_isr() as an event.
@@ -34,7 +34,7 @@
  *  Channel Invariant:
  *      There is an important invariant condition which must be maintained per
  *      channel outside of bridge_chnl_get_ioc() and IO_Dispatch(), violation of
- *      which may cause timeouts and/or failure offunction sync_wait_on_event.
+ *      which may cause timeouts and/or failure of function sync_wait_on_event.
  *      This invariant condition is:
  *
  *          list_empty(&pchnl->io_completions) ==> pchnl->sync_event is reset
@@ -94,7 +94,7 @@ int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *host_buf,
 	struct dev_object *dev_obj;
 	u8 dw_state;
 	bool is_eos;
-	struct chnl_mgr *chnl_mgr_obj = pchnl->chnl_mgr_obj;
+	struct chnl_mgr *chnl_mgr_obj;
 	u8 *host_sys_buf = NULL;
 	bool sched_dpc = false;
 	u16 mb_val = 0;
@@ -153,6 +153,7 @@ func_cont:
 	 * If DPC is scheduled in process context (iosm_schedule) and any
 	 * non-mailbox interrupt occurs, that DPC will run and break CS. Hence
 	 * we disable ALL DPCs. We will try to disable ONLY IO DPC later. */
+	chnl_mgr_obj = pchnl->chnl_mgr_obj;
 	spin_lock_bh(&chnl_mgr_obj->chnl_mgr_lock);
 	omap_mbox_disable_irq(dev_ctxt->mbox, IRQ_RX);
 	if (pchnl->chnl_type == CHNL_PCPY) {
@@ -602,7 +603,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 		/*  Since DSPStream_Reclaim() does not take a timeout
 		 *  parameter, we pass the stream's timeout value to
 		 *  bridge_chnl_get_ioc. We cannot determine whether or not
-		 *  we have waited in User mode. Since the stream's timeout
+		 *  we have waited in user mode. Since the stream's timeout
 		 *  value may be non-zero, we still have to set the event.
 		 *  Therefore, this optimization is taken out.
 		 *

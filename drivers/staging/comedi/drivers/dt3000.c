@@ -63,6 +63,8 @@ AO commands are not supported.
 #include "../comedidev.h"
 #include <linux/delay.h>
 
+#include "comedi_fc.h"
+
 #define PCI_VENDOR_ID_DT	0x1116
 
 static const struct comedi_lrange range_dt3000_ai = { 4, {
@@ -330,7 +332,7 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	status = readw(devpriv->io_addr + DPR_Intr_Flag);
 #ifdef DEBUG
 	debug_intr_flags(status);
@@ -408,37 +410,19 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 	int err = 0;
 	int tmp;
 
-	/* step 1: make sure trigger sources are trivially valid */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* Step 2a : make sure trigger sources are unique */
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
@@ -842,7 +826,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	s = dev->subdevices;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 
 	/* ai subdevice */
@@ -857,7 +841,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->do_cmdtest = dt3k_ai_cmdtest;
 	s->cancel = dt3k_ai_cancel;
 
-	s++;
+	s = &dev->subdevices[1];
 	/* ao subsystem */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -868,7 +852,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 1;
 	s->range_table = &range_bipolar10;
 
-	s++;
+	s = &dev->subdevices[2];
 	/* dio subsystem */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -879,7 +863,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
 
-	s++;
+	s = &dev->subdevices[3];
 	/* mem subsystem */
 	s->type = COMEDI_SUBD_MEMORY;
 	s->subdev_flags = SDF_READABLE;
@@ -890,7 +874,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_unknown;
 
 #if 0
-	s++;
+	s = &dev->subdevices[4];
 	/* proc subsystem */
 	s->type = COMEDI_SUBD_PROC;
 #endif

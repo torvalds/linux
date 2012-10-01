@@ -21,13 +21,13 @@
 #include <linux/interrupt.h>
 #include "2t3e3.h"
 
-int t3e3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int t3e3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct channel *sc = dev_to_priv(dev);
 	int cmd_2t3e3, len, rlen;
 	t3e3_param_t param;
 	t3e3_resp_t  resp;
-	void *data = ifr->ifr_data + sizeof(cmd_2t3e3) + sizeof(len);
+	void __user *data = ifr->ifr_data + sizeof(cmd_2t3e3) + sizeof(len);
 
 	if (cmd == SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
@@ -82,7 +82,7 @@ static struct net_device_stats* t3e3_get_stats(struct net_device *dev)
 	return nstats;
 }
 
-int t3e3_open(struct net_device *dev)
+static int t3e3_open(struct net_device *dev)
 {
 	struct channel *sc = dev_to_priv(dev);
 	int ret = hdlc_open(dev);
@@ -97,7 +97,7 @@ int t3e3_open(struct net_device *dev)
 	return 0;
 }
 
-int t3e3_close(struct net_device *dev)
+static int t3e3_close(struct net_device *dev)
 {
 	struct channel *sc = dev_to_priv(dev);
 	hdlc_close(dev);
