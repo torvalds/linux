@@ -30,7 +30,6 @@
 #include "clock.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
-#include <plat/dmtimer.h>
 #include "omap-pm.h"
 
 #include "soc.h"
