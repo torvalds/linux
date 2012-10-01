@@ -3026,8 +3026,9 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	first_bd = tx_start_bd;
 
 	tx_start_bd->bd_flags.as_bitfield = ETH_TX_BD_FLAGS_START_BD;
-	SET_FLAG(tx_start_bd->general_data, ETH_TX_START_BD_ETH_ADDR_TYPE,
-		 mac_type);
+	SET_FLAG(tx_start_bd->general_data,
+		 ETH_TX_START_BD_PARSE_NBDS,
+		 0);
 
 	/* header nbd */
 	SET_FLAG(tx_start_bd->general_data, ETH_TX_START_BD_HDR_NBDS, 1);
@@ -3077,13 +3078,20 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					      &pbd_e2->dst_mac_addr_lo,
 					      eth->h_dest);
 		}
+
+		SET_FLAG(pbd_e2_parsing_data,
+			 ETH_TX_PARSE_BD_E2_ETH_ADDR_TYPE, mac_type);
 	} else {
+		u16 global_data = 0;
 		pbd_e1x = &txdata->tx_desc_ring[bd_prod].parse_bd_e1x;
 		memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
 		/* Set PBD in checksum offload case */
 		if (xmit_type & XMIT_CSUM)
 			hlen = bnx2x_set_pbd_csum(bp, skb, pbd_e1x, xmit_type);
 
+		SET_FLAG(global_data,
+			 ETH_TX_PARSE_BD_E1X_ETH_ADDR_TYPE, mac_type);
+		pbd_e1x->global_data |= cpu_to_le16(global_data);
 	}
 
 	/* Setup the data pointer of the first BD of the packet */

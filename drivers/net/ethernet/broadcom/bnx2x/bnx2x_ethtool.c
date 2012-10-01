@@ -2040,8 +2040,6 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	u16 pkt_prod, bd_prod;
 	struct sw_tx_bd *tx_buf;
 	struct eth_tx_start_bd *tx_start_bd;
-	struct eth_tx_parse_bd_e1x  *pbd_e1x = NULL;
-	struct eth_tx_parse_bd_e2  *pbd_e2 = NULL;
 	dma_addr_t mapping;
 	union eth_rx_cqe *cqe;
 	u8 cqe_fp_flags, cqe_fp_type;
@@ -2133,21 +2131,32 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
 	tx_start_bd->bd_flags.as_bitfield = ETH_TX_BD_FLAGS_START_BD;
 	SET_FLAG(tx_start_bd->general_data,
-		 ETH_TX_START_BD_ETH_ADDR_TYPE,
-		 UNICAST_ADDRESS);
-	SET_FLAG(tx_start_bd->general_data,
 		 ETH_TX_START_BD_HDR_NBDS,
 		 1);
+	SET_FLAG(tx_start_bd->general_data,
+		 ETH_TX_START_BD_PARSE_NBDS,
+		 0);
 
 	/* turn on parsing and get a BD */
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
 
-	pbd_e1x = &txdata->tx_desc_ring[bd_prod].parse_bd_e1x;
-	pbd_e2 = &txdata->tx_desc_ring[bd_prod].parse_bd_e2;
-
-	memset(pbd_e2, 0, sizeof(struct eth_tx_parse_bd_e2));
-	memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
-
+	if (CHIP_IS_E1x(bp)) {
+		u16 global_data = 0;
+		struct eth_tx_parse_bd_e1x  *pbd_e1x =
+			&txdata->tx_desc_ring[bd_prod].parse_bd_e1x;
+		memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
+		SET_FLAG(global_data,
+			 ETH_TX_PARSE_BD_E1X_ETH_ADDR_TYPE, UNICAST_ADDRESS);
+		pbd_e1x->global_data = cpu_to_le16(global_data);
+	} else {
+		u32 parsing_data = 0;
+		struct eth_tx_parse_bd_e2  *pbd_e2 =
+			&txdata->tx_desc_ring[bd_prod].parse_bd_e2;
+		memset(pbd_e2, 0, sizeof(struct eth_tx_parse_bd_e2));
+		SET_FLAG(parsing_data,
+			 ETH_TX_PARSE_BD_E2_ETH_ADDR_TYPE, UNICAST_ADDRESS);
+		pbd_e2->parsing_data = cpu_to_le32(parsing_data);
+	}
 	wmb();
 
 	txdata->tx_db.data.prod += 2;
