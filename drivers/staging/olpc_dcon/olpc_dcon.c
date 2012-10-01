@@ -39,10 +39,6 @@
 static ushort resumeline = 898;
 module_param(resumeline, ushort, 0444);
 
-/* Default off since it doesn't work on DCON ASIC in B-test OLPC board */
-static int useaa = 1;
-module_param(useaa, int, 0444);
-
 static struct dcon_platform_data *pdata;
 
 /* I2C structures */
@@ -103,9 +99,7 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 	/* Colour swizzle, AA, no passthrough, backlight */
 	if (is_init) {
 		dcon->disp_mode = MODE_PASSTHRU | MODE_BL_ENABLE |
-				MODE_CSWIZZLE;
-		if (useaa)
-			dcon->disp_mode |= MODE_COL_AA;
+				MODE_CSWIZZLE | MODE_COL_AA;
 	}
 	dcon_write(dcon, DCON_REG_MODE, dcon->disp_mode);
 
@@ -191,9 +185,7 @@ static int dcon_set_mono_mode(struct dcon_priv *dcon, bool enable_mono)
 		dcon->disp_mode |= MODE_MONO_LUMA;
 	} else {
 		dcon->disp_mode &= ~(MODE_MONO_LUMA);
-		dcon->disp_mode |= MODE_CSWIZZLE;
-		if (useaa)
-			dcon->disp_mode |= MODE_COL_AA;
+		dcon->disp_mode |= MODE_CSWIZZLE | MODE_COL_AA;
 	}
 
 	dcon_write(dcon, DCON_REG_MODE, dcon->disp_mode);
