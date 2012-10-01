@@ -928,51 +928,53 @@ static int ivtv_g_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 
 static int ivtv_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdesc *fmt)
 {
-	static struct v4l2_fmtdesc formats[] = {
-		{ 0, 0, 0,
-		  "HM12 (YUV 4:2:0)", V4L2_PIX_FMT_HM12,
-		  { 0, 0, 0, 0 }
-		},
-		{ 1, 0, V4L2_FMT_FLAG_COMPRESSED,
-		  "MPEG", V4L2_PIX_FMT_MPEG,
-		  { 0, 0, 0, 0 }
-		}
+	static const struct v4l2_fmtdesc hm12 = {
+		0, V4L2_BUF_TYPE_VIDEO_CAPTURE, 0,
+		"HM12 (YUV 4:2:0)", V4L2_PIX_FMT_HM12,
+		{ 0, 0, 0, 0 }
 	};
-	enum v4l2_buf_type type = fmt->type;
+	static const struct v4l2_fmtdesc mpeg = {
+		0, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FMT_FLAG_COMPRESSED,
+		"MPEG", V4L2_PIX_FMT_MPEG,
+		{ 0, 0, 0, 0 }
+	};
+	struct ivtv *itv = fh2id(fh)->itv;
+	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
 
-	if (fmt->index > 1)
+	if (fmt->index)
 		return -EINVAL;
-
-	*fmt = formats[fmt->index];
-	fmt->type = type;
+	if (s->type == IVTV_ENC_STREAM_TYPE_MPG)
+		*fmt = mpeg;
+	else if (s->type == IVTV_ENC_STREAM_TYPE_YUV)
+		*fmt = hm12;
+	else
+		return -EINVAL;
 	return 0;
 }
 
 static int ivtv_enum_fmt_vid_out(struct file *file, void *fh, struct v4l2_fmtdesc *fmt)
 {
-	struct ivtv *itv = fh2id(fh)->itv;
-
-	static struct v4l2_fmtdesc formats[] = {
-		{ 0, 0, 0,
-		  "HM12 (YUV 4:2:0)", V4L2_PIX_FMT_HM12,
-		  { 0, 0, 0, 0 }
-		},
-		{ 1, 0, V4L2_FMT_FLAG_COMPRESSED,
-		  "MPEG", V4L2_PIX_FMT_MPEG,
-		  { 0, 0, 0, 0 }
-		}
+	static const struct v4l2_fmtdesc hm12 = {
+		0, V4L2_BUF_TYPE_VIDEO_OUTPUT, 0,
+		"HM12 (YUV 4:2:0)", V4L2_PIX_FMT_HM12,
+		{ 0, 0, 0, 0 }
 	};
-	enum v4l2_buf_type type = fmt->type;
+	static const struct v4l2_fmtdesc mpeg = {
+		0, V4L2_BUF_TYPE_VIDEO_OUTPUT, V4L2_FMT_FLAG_COMPRESSED,
+		"MPEG", V4L2_PIX_FMT_MPEG,
+		{ 0, 0, 0, 0 }
+	};
+	struct ivtv *itv = fh2id(fh)->itv;
+	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
 
-	if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
+	if (fmt->index)
 		return -EINVAL;
-
-	if (fmt->index > 1)
+	if (s->type == IVTV_DEC_STREAM_TYPE_MPG)
+		*fmt = mpeg;
+	else if (s->type == IVTV_DEC_STREAM_TYPE_YUV)
+		*fmt = hm12;
+	else
 		return -EINVAL;
-
-	*fmt = formats[fmt->index];
-	fmt->type = type;
-
 	return 0;
 }
 
