@@ -4267,6 +4267,16 @@ interface and may change in the future.</para>
 	    pixels / second.
 	    </entry>
 	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_TEST_PATTERN</constant></entry>
+	    <entry>menu</entry>
+	  </row>
+	  <row id="v4l2-test-pattern">
+	    <entry spanname="descr"> Some capture/display/sensor devices have
+	    the capability to generate test pattern images. These hardware
+	    specific test patterns can be used to test if a device is working
+	    properly.</entry>
+	  </row>
 	  <row><entry></entry></row>
 	</tbody>
       </tgroup>
