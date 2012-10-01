@@ -171,6 +171,7 @@ int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
  * @BATADV_DBG_ROUTES: route added / changed / deleted
  * @BATADV_DBG_TT: translation table messages
  * @BATADV_DBG_BLA: bridge loop avoidance messages
+ * @BATADV_DBG_DAT: ARP snooping and DAT related messages
  * @BATADV_DBG_ALL: the union of all the above log levels
  */
 enum batadv_dbg_level {
@@ -178,7 +179,8 @@ enum batadv_dbg_level {
 	BATADV_DBG_ROUTES = BIT(1),
 	BATADV_DBG_TT	  = BIT(2),
 	BATADV_DBG_BLA    = BIT(3),
-	BATADV_DBG_ALL    = 15,
+	BATADV_DBG_DAT    = BIT(4),
+	BATADV_DBG_ALL    = 31,
 };
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
