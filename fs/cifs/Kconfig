@@ -9,13 +9,14 @@ config CIFS
 	select CRYPTO_ARC4
 	select CRYPTO_ECB
 	select CRYPTO_DES
+	select CRYPTO_SHA256
 	help
 	  This is the client VFS module for the Common Internet File System
 	  (CIFS) protocol which is the successor to the Server Message Block
 	  (SMB) protocol, the native file sharing mechanism for most early
 	  PC operating systems.  The CIFS protocol is fully supported by
-	  file servers such as Windows 2000 (including Windows 2003, NT 4
-	  and Windows XP) as well by Samba (which provides excellent CIFS
+	  file servers such as Windows 2000 (including Windows 2003, Windows 2008,
+	  NT 4 and Windows XP) as well by Samba (which provides excellent CIFS
 	  server support for Linux and many other operating systems). Limited
 	  support for OS/2 and Windows ME and similar servers is provided as
 	  well.
@@ -114,6 +115,13 @@ config CIFS_POSIX
 	  (such as Samba 3.10 and later) which can negotiate
 	  CIFS POSIX ACL support.  If unsure, say N.
 
+config CIFS_ACL
+	  bool "Provide CIFS ACL support"
+	  depends on CIFS_XATTR && KEYS
+	  help
+	    Allows fetching CIFS/NTFS ACL from the server.  The DACL blob
+	    is handed over to the application/caller.
+
 config CIFS_DEBUG2
 	bool "Enable additional CIFS debugging routines"
 	depends on CIFS
@@ -138,21 +146,6 @@ config CIFS_DFS_UPCALL
 	    IP addresses) which is needed for implicit mounts of DFS junction
 	    points. If unsure, say N.
 
-config CIFS_FSCACHE
-	  bool "Provide CIFS client caching support"
-	  depends on CIFS=m && FSCACHE || CIFS=y && FSCACHE=y
-	  help
-	    Makes CIFS FS-Cache capable. Say Y here if you want your CIFS data
-	    to be cached locally on disk through the general filesystem cache
-	    manager. If unsure, say N.
-
-config CIFS_ACL
-	  bool "Provide CIFS ACL support"
-	  depends on CIFS_XATTR && KEYS
-	  help
-	    Allows to fetch CIFS/NTFS ACL from the server.  The DACL blob
-	    is handed over to the application/caller.
-
 config CIFS_NFSD_EXPORT
 	  bool "Allow nfsd to export CIFS file system (EXPERIMENTAL)"
 	  depends on CIFS && EXPERIMENTAL && BROKEN
@@ -161,7 +154,7 @@ config CIFS_NFSD_EXPORT
 
 config CIFS_SMB2
 	bool "SMB2 network file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && INET && BROKEN
+	depends on CIFS && EXPERIMENTAL && INET
 	select NLS
 	select KEYS
 	select FSCACHE
@@ -178,3 +171,12 @@ config CIFS_SMB2
 	  (compared to cifs) due to protocol improvements.
 
 	  Unless you are a developer or tester, say N.
+
+config CIFS_FSCACHE
+	  bool "Provide CIFS client caching support"
+	  depends on CIFS=m && FSCACHE || CIFS=y && FSCACHE=y
+	  help
+	    Makes CIFS FS-Cache capable. Say Y here if you want your CIFS data
+	    to be cached locally on disk through the general filesystem cache
+	    manager. If unsure, say N.
+
