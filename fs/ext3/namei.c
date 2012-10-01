@@ -559,7 +559,7 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 {
 	struct buffer_head *bh;
 	struct ext3_dir_entry_2 *de, *top;
-	int err, count = 0;
+	int err = 0, count = 0;
 
 	dxtrace(printk("In htree dirblock_to_tree: block %d\n", block));
 	if (!(bh = ext3_bread (NULL, dir, block, 0, &err)))
