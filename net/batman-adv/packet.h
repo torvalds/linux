@@ -23,14 +23,23 @@
 #define BATADV_ETH_P_BATMAN  0x4305 /* unofficial/not registered Ethertype */
 
 enum batadv_packettype {
-	BATADV_IV_OGM	    = 0x01,
-	BATADV_ICMP	    = 0x02,
-	BATADV_UNICAST	    = 0x03,
-	BATADV_BCAST	    = 0x04,
-	BATADV_VIS	    = 0x05,
-	BATADV_UNICAST_FRAG = 0x06,
-	BATADV_TT_QUERY	    = 0x07,
-	BATADV_ROAM_ADV	    = 0x08,
+	BATADV_IV_OGM		= 0x01,
+	BATADV_ICMP		= 0x02,
+	BATADV_UNICAST		= 0x03,
+	BATADV_BCAST		= 0x04,
+	BATADV_VIS		= 0x05,
+	BATADV_UNICAST_FRAG	= 0x06,
+	BATADV_TT_QUERY		= 0x07,
+	BATADV_ROAM_ADV		= 0x08,
+	BATADV_UNICAST_4ADDR	= 0x09,
+};
+
+/**
+ * enum batadv_subtype - packet subtype for unicast4addr
+ * @BATADV_P_DATA: user payload
+ */
+enum batadv_subtype {
+	BATADV_P_DATA		= 0x01,
 };
 
 /* this file is included by batctl which needs these defines */
@@ -162,6 +171,22 @@ struct batadv_unicast_packet {
 	struct batadv_header header;
 	uint8_t  ttvn; /* destination translation table version number */
 	uint8_t  dest[ETH_ALEN];
+	/* "4 bytes boundary + 2 bytes" long to make the payload after the
+	 * following ethernet header again 4 bytes boundary aligned
+	 */
+};
+
+/**
+ * struct batadv_unicast_4addr_packet - extended unicast packet
+ * @u: common unicast packet header
+ * @src: address of the source
+ * @subtype: packet subtype
+ */
+struct batadv_unicast_4addr_packet {
+	struct batadv_unicast_packet u;
+	uint8_t src[ETH_ALEN];
+	uint8_t subtype;
+	uint8_t reserved;
 	/* "4 bytes boundary + 2 bytes" long to make the payload after the
 	 * following ethernet header again 4 bytes boundary aligned
 	 */

@@ -260,7 +260,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 				goto dropped;
 		}
 
-		ret = batadv_unicast_send_skb(skb, bat_priv);
+		ret = batadv_unicast_send_skb(bat_priv, skb);
 		if (ret != 0)
 			goto dropped_freed;
 	}
