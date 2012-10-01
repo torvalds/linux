@@ -520,6 +520,10 @@ static int dcon_bl_update(struct backlight_device *dev)
 	if (level != dcon->bl_val)
 		dcon_set_backlight(dcon, level);
 
+	/* power down the DCON when the screen is blanked */
+	if (!dcon->ignore_fb_events)
+		dcon_sleep(dcon, !!(dev->props.state & BL_CORE_FBBLANK));
+
 	return 0;
 }
 
@@ -565,24 +569,6 @@ static struct notifier_block dcon_panic_nb = {
 	.notifier_call = unfreeze_on_panic,
 };
 
-/*
- * When the framebuffer sleeps due to external sources (e.g. user idle), power
- * down the DCON as well.  Power it back up when the fb comes back to life.
- */
-static int dcon_fb_notifier(struct notifier_block *self,
-				unsigned long event, void *data)
-{
-	struct fb_event *evdata = data;
-	struct dcon_priv *dcon = container_of(self, struct dcon_priv,
-			fbevent_nb);
-	int *blank = (int *)evdata->data;
-	if (((event != FB_EVENT_BLANK) && (event != FB_EVENT_CONBLANK)) ||
-			dcon->ignore_fb_events)
-		return 0;
-	dcon_sleep(dcon, *blank ? true : false);
-	return 0;
-}
-
 static int dcon_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	strlcpy(info->type, "olpc_dcon", I2C_NAME_SIZE);
@@ -607,7 +593,6 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	INIT_WORK(&dcon->switch_source, dcon_source_switch);
 	dcon->reboot_nb.notifier_call = dcon_reboot_notify;
 	dcon->reboot_nb.priority = -1;
-	dcon->fbevent_nb.notifier_call = dcon_fb_notifier;
 
 	i2c_set_clientdata(client, dcon);
 
@@ -662,7 +647,6 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	register_reboot_notifier(&dcon->reboot_nb);
 	atomic_notifier_chain_register(&panic_notifier_list, &dcon_panic_nb);
-	fb_register_client(&dcon->fbevent_nb);
 
 	return 0;
 
@@ -683,7 +667,6 @@ static int dcon_remove(struct i2c_client *client)
 {
 	struct dcon_priv *dcon = i2c_get_clientdata(client);
 
-	fb_unregister_client(&dcon->fbevent_nb);
 	unregister_reboot_notifier(&dcon->reboot_nb);
 	atomic_notifier_chain_unregister(&panic_notifier_list, &dcon_panic_nb);
 
