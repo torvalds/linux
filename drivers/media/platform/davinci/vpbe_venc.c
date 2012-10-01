@@ -298,7 +298,7 @@ static int venc_set_480p59_94(struct v4l2_subdev *sd)
 		return -EINVAL;
 
 	/* Setup clock at VPSS & VENC for SD */
-	if (pdata->setup_clock(VPBE_ENC_DV_PRESET, V4L2_DV_480P59_94) < 0)
+	if (pdata->setup_clock(VPBE_ENC_CUSTOM_TIMINGS, 27000000) < 0)
 		return -EINVAL;
 
 	venc_enabledigitaloutput(sd, 0);
@@ -345,7 +345,7 @@ static int venc_set_576p50(struct v4l2_subdev *sd)
 	  (pdata->venc_type != VPBE_VERSION_2))
 		return -EINVAL;
 	/* Setup clock at VPSS & VENC for SD */
-	if (pdata->setup_clock(VPBE_ENC_DV_PRESET, V4L2_DV_576P50) < 0)
+	if (pdata->setup_clock(VPBE_ENC_CUSTOM_TIMINGS, 27000000) < 0)
 		return -EINVAL;
 
 	venc_enabledigitaloutput(sd, 0);
@@ -385,7 +385,7 @@ static int venc_set_720p60_internal(struct v4l2_subdev *sd)
 	struct venc_state *venc = to_state(sd);
 	struct venc_platform_data *pdata = venc->pdata;
 
-	if (pdata->setup_clock(VPBE_ENC_DV_PRESET, V4L2_DV_720P60) < 0)
+	if (pdata->setup_clock(VPBE_ENC_CUSTOM_TIMINGS, 74250000) < 0)
 		return -EINVAL;
 
 	venc_enabledigitaloutput(sd, 0);
@@ -413,7 +413,7 @@ static int venc_set_1080i30_internal(struct v4l2_subdev *sd)
 	struct venc_state *venc = to_state(sd);
 	struct venc_platform_data *pdata = venc->pdata;
 
-	if (pdata->setup_clock(VPBE_ENC_DV_PRESET, V4L2_DV_1080P30) < 0)
+	if (pdata->setup_clock(VPBE_ENC_CUSTOM_TIMINGS, 74250000) < 0)
 		return -EINVAL;
 
 	venc_enabledigitaloutput(sd, 0);
@@ -446,26 +446,27 @@ static int venc_s_std_output(struct v4l2_subdev *sd, v4l2_std_id norm)
 	return -EINVAL;
 }
 
-static int venc_s_dv_preset(struct v4l2_subdev *sd,
-			    struct v4l2_dv_preset *dv_preset)
+static int venc_s_dv_timings(struct v4l2_subdev *sd,
+			    struct v4l2_dv_timings *dv_timings)
 {
 	struct venc_state *venc = to_state(sd);
+	u32 height = dv_timings->bt.height;
 	int ret;
 
-	v4l2_dbg(debug, 1, sd, "venc_s_dv_preset\n");
+	v4l2_dbg(debug, 1, sd, "venc_s_dv_timings\n");
 
-	if (dv_preset->preset == V4L2_DV_576P50)
+	if (height == 576)
 		return venc_set_576p50(sd);
-	else if (dv_preset->preset == V4L2_DV_480P59_94)
+	else if (height == 480)
 		return venc_set_480p59_94(sd);
-	else if ((dv_preset->preset == V4L2_DV_720P60) &&
+	else if ((height == 720) &&
 			(venc->pdata->venc_type == VPBE_VERSION_2)) {
 		/* TBD setup internal 720p mode here */
 		ret = venc_set_720p60_internal(sd);
 		/* for DM365 VPBE, there is DAC inside */
 		vdaccfg_write(sd, VDAC_CONFIG_HD_V2);
 		return ret;
-	} else if ((dv_preset->preset == V4L2_DV_1080I30) &&
+	} else if ((height == 1080) &&
 		(venc->pdata->venc_type == VPBE_VERSION_2)) {
 		/* TBD setup internal 1080i mode here */
 		ret = venc_set_1080i30_internal(sd);
@@ -518,7 +519,7 @@ static const struct v4l2_subdev_core_ops venc_core_ops = {
 static const struct v4l2_subdev_video_ops venc_video_ops = {
 	.s_routing = venc_s_routing,
 	.s_std_output = venc_s_std_output,
-	.s_dv_preset = venc_s_dv_preset,
+	.s_dv_timings = venc_s_dv_timings,
 };
 
 static const struct v4l2_subdev_ops venc_ops = {

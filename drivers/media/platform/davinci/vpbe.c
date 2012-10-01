@@ -174,26 +174,6 @@ static int vpbe_get_current_mode_info(struct vpbe_device *vpbe_dev,
 	return 0;
 }
 
-static int vpbe_get_dv_preset_info(struct vpbe_device *vpbe_dev,
-				   unsigned int dv_preset)
-{
-	struct vpbe_config *cfg = vpbe_dev->cfg;
-	struct vpbe_enc_mode_info var;
-	int curr_output = vpbe_dev->current_out_index;
-	int i;
-
-	for (i = 0; i < vpbe_dev->cfg->outputs[curr_output].num_modes; i++) {
-		var = cfg->outputs[curr_output].modes[i];
-		if ((var.timings_type & VPBE_ENC_DV_PRESET) &&
-		  (var.timings.dv_preset == dv_preset)) {
-			vpbe_dev->current_timings = var;
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
-
 /* Get std by std id */
 static int vpbe_get_std_info(struct vpbe_device *vpbe_dev,
 			     v4l2_std_id std_id)
@@ -206,7 +186,7 @@ static int vpbe_get_std_info(struct vpbe_device *vpbe_dev,
 	for (i = 0; i < vpbe_dev->cfg->outputs[curr_output].num_modes; i++) {
 		var = cfg->outputs[curr_output].modes[i];
 		if ((var.timings_type & VPBE_ENC_STD) &&
-		  (var.timings.std_id & std_id)) {
+		  (var.std_id & std_id)) {
 			vpbe_dev->current_timings = var;
 			return 0;
 		}
@@ -344,38 +324,42 @@ static unsigned int vpbe_get_output(struct vpbe_device *vpbe_dev)
 }
 
 /**
- * vpbe_s_dv_preset - Set the given preset timings in the encoder
+ * vpbe_s_dv_timings - Set the given preset timings in the encoder
  *
- * Sets the preset if supported by the current encoder. Return the status.
+ * Sets the timings if supported by the current encoder. Return the status.
  * 0 - success & -EINVAL on error
  */
-static int vpbe_s_dv_preset(struct vpbe_device *vpbe_dev,
-		     struct v4l2_dv_preset *dv_preset)
+static int vpbe_s_dv_timings(struct vpbe_device *vpbe_dev,
+		    struct v4l2_dv_timings *dv_timings)
 {
 	struct vpbe_config *cfg = vpbe_dev->cfg;
 	int out_index = vpbe_dev->current_out_index;
+	struct vpbe_output *output = &cfg->outputs[out_index];
 	int sd_index = vpbe_dev->current_sd_index;
-	int ret;
+	int ret, i;
 
 
 	if (!(cfg->outputs[out_index].output.capabilities &
-	    V4L2_OUT_CAP_PRESETS))
+	    V4L2_OUT_CAP_CUSTOM_TIMINGS))
 		return -EINVAL;
 
-	ret = vpbe_get_dv_preset_info(vpbe_dev, dv_preset->preset);
-
-	if (ret)
-		return ret;
-
+	for (i = 0; i < output->num_modes; i++) {
+		if (output->modes[i].timings_type == VPBE_ENC_CUSTOM_TIMINGS &&
+		    !memcmp(&output->modes[i].dv_timings,
+				dv_timings, sizeof(*dv_timings)))
+			break;
+	}
+	if (i >= output->num_modes)
+		return -EINVAL;
+	vpbe_dev->current_timings = output->modes[i];
 	mutex_lock(&vpbe_dev->lock);
 
-
 	ret = v4l2_subdev_call(vpbe_dev->encoders[sd_index], video,
-					s_dv_preset, dv_preset);
+					s_dv_timings, dv_timings);
 	if (!ret && (vpbe_dev->amp != NULL)) {
 		/* Call amplifier subdevice */
 		ret = v4l2_subdev_call(vpbe_dev->amp, video,
-				s_dv_preset, dv_preset);
+				s_dv_timings, dv_timings);
 	}
 	/* set the lcd controller output for the given mode */
 	if (!ret) {
@@ -392,17 +376,17 @@ static int vpbe_s_dv_preset(struct vpbe_device *vpbe_dev,
 }
 
 /**
- * vpbe_g_dv_preset - Get the preset in the current encoder
+ * vpbe_g_dv_timings - Get the timings in the current encoder
  *
- * Get the preset in the current encoder. Return the status. 0 - success
+ * Get the timings in the current encoder. Return the status. 0 - success
  * -EINVAL on error
  */
-static int vpbe_g_dv_preset(struct vpbe_device *vpbe_dev,
-		     struct v4l2_dv_preset *dv_preset)
+static int vpbe_g_dv_timings(struct vpbe_device *vpbe_dev,
+		     struct v4l2_dv_timings *dv_timings)
 {
 	if (vpbe_dev->current_timings.timings_type &
-	  VPBE_ENC_DV_PRESET) {
-		dv_preset->preset = vpbe_dev->current_timings.timings.dv_preset;
+	  VPBE_ENC_CUSTOM_TIMINGS) {
+		*dv_timings = vpbe_dev->current_timings.dv_timings;
 		return 0;
 	}
 
@@ -410,13 +394,13 @@ static int vpbe_g_dv_preset(struct vpbe_device *vpbe_dev,
 }
 
 /**
- * vpbe_enum_dv_presets - Enumerate the dv presets in the current encoder
+ * vpbe_enum_dv_timings - Enumerate the dv timings in the current encoder
  *
- * Get the preset in the current encoder. Return the status. 0 - success
+ * Get the timings in the current encoder. Return the status. 0 - success
  * -EINVAL on error
  */
-static int vpbe_enum_dv_presets(struct vpbe_device *vpbe_dev,
-			 struct v4l2_dv_enum_preset *preset_info)
+static int vpbe_enum_dv_timings(struct vpbe_device *vpbe_dev,
+			 struct v4l2_enum_dv_timings *timings)
 {
 	struct vpbe_config *cfg = vpbe_dev->cfg;
 	int out_index = vpbe_dev->current_out_index;
@@ -424,12 +408,12 @@ static int vpbe_enum_dv_presets(struct vpbe_device *vpbe_dev,
 	int j = 0;
 	int i;
 
-	if (!(output->output.capabilities & V4L2_OUT_CAP_PRESETS))
+	if (!(output->output.capabilities & V4L2_OUT_CAP_CUSTOM_TIMINGS))
 		return -EINVAL;
 
 	for (i = 0; i < output->num_modes; i++) {
-		if (output->modes[i].timings_type == VPBE_ENC_DV_PRESET) {
-			if (j == preset_info->index)
+		if (output->modes[i].timings_type == VPBE_ENC_CUSTOM_TIMINGS) {
+			if (j == timings->index)
 				break;
 			j++;
 		}
@@ -437,9 +421,8 @@ static int vpbe_enum_dv_presets(struct vpbe_device *vpbe_dev,
 
 	if (i == output->num_modes)
 		return -EINVAL;
-
-	return v4l_fill_dv_preset_info(output->modes[i].timings.dv_preset,
-					preset_info);
+	timings->timings = output->modes[i].dv_timings;
+	return 0;
 }
 
 /**
@@ -489,10 +472,10 @@ static int vpbe_s_std(struct vpbe_device *vpbe_dev, v4l2_std_id *std_id)
  */
 static int vpbe_g_std(struct vpbe_device *vpbe_dev, v4l2_std_id *std_id)
 {
-	struct vpbe_enc_mode_info cur_timings = vpbe_dev->current_timings;
+	struct vpbe_enc_mode_info *cur_timings = &vpbe_dev->current_timings;
 
-	if (cur_timings.timings_type & VPBE_ENC_STD) {
-		*std_id = cur_timings.timings.std_id;
+	if (cur_timings->timings_type & VPBE_ENC_STD) {
+		*std_id = cur_timings->std_id;
 		return 0;
 	}
 
@@ -511,7 +494,7 @@ static int vpbe_set_mode(struct vpbe_device *vpbe_dev,
 {
 	struct vpbe_enc_mode_info *preset_mode = NULL;
 	struct vpbe_config *cfg = vpbe_dev->cfg;
-	struct v4l2_dv_preset dv_preset;
+	struct v4l2_dv_timings dv_timings;
 	struct osd_state *osd_device;
 	int out_index = vpbe_dev->current_out_index;
 	int ret = 0;
@@ -530,11 +513,12 @@ static int vpbe_set_mode(struct vpbe_device *vpbe_dev,
 			 */
 			if (preset_mode->timings_type & VPBE_ENC_STD)
 				return vpbe_s_std(vpbe_dev,
-						 &preset_mode->timings.std_id);
-			if (preset_mode->timings_type & VPBE_ENC_DV_PRESET) {
-				dv_preset.preset =
-					preset_mode->timings.dv_preset;
-				return vpbe_s_dv_preset(vpbe_dev, &dv_preset);
+						 &preset_mode->std_id);
+			if (preset_mode->timings_type &
+						VPBE_ENC_CUSTOM_TIMINGS) {
+				dv_timings =
+					preset_mode->dv_timings;
+				return vpbe_s_dv_timings(vpbe_dev, &dv_timings);
 			}
 		}
 	}
@@ -810,9 +794,9 @@ static struct vpbe_device_ops vpbe_dev_ops = {
 	.enum_outputs = vpbe_enum_outputs,
 	.set_output = vpbe_set_output,
 	.get_output = vpbe_get_output,
-	.s_dv_preset = vpbe_s_dv_preset,
-	.g_dv_preset = vpbe_g_dv_preset,
-	.enum_dv_presets = vpbe_enum_dv_presets,
+	.s_dv_timings = vpbe_s_dv_timings,
+	.g_dv_timings = vpbe_g_dv_timings,
+	.enum_dv_timings = vpbe_enum_dv_timings,
 	.s_std = vpbe_s_std,
 	.g_std = vpbe_g_std,
 	.initialize = vpbe_initialize,
