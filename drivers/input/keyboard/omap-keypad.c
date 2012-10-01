@@ -214,7 +214,7 @@ static void omap_kp_tasklet(unsigned long data)
 	memcpy(keypad_state, new_state, sizeof(keypad_state));
 
 	if (key_down) {
-                int delay = HZ / 20;
+		int delay = HZ / 20;
 		/* some key is pressed - keep irq disabled and use timer
 		 * to poll the keypad */
 		if (spurious)
@@ -413,7 +413,7 @@ static int __devinit omap_kp_probe(struct platform_device *pdev)
 	}
 	return 0;
 err5:
-	for (i = irq_idx - 1; i >=0; i--)
+	for (i = irq_idx - 1; i >= 0; i--)
 		free_irq(row_gpios[i], omap_kp);
 err4:
 	input_unregister_device(omap_kp->input);
@@ -421,10 +421,10 @@ err4:
 err3:
 	device_remove_file(&pdev->dev, &dev_attr_enable);
 err2:
-	for (i = row_idx - 1; i >=0; i--)
+	for (i = row_idx - 1; i >= 0; i--)
 		gpio_free(row_gpios[i]);
 err1:
-	for (i = col_idx - 1; i >=0; i--)
+	for (i = col_idx - 1; i >= 0; i--)
 		gpio_free(col_gpios[i]);
 
 	kfree(omap_kp);

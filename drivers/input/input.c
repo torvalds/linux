@@ -844,18 +844,10 @@ int input_set_keycode(struct input_dev *dev,
 }
 EXPORT_SYMBOL(input_set_keycode);
 
-#define MATCH_BIT(bit, max) \
-		for (i = 0; i < BITS_TO_LONGS(max); i++) \
-			if ((id->bit[i] & dev->bit[i]) != id->bit[i]) \
-				break; \
-		if (i != BITS_TO_LONGS(max)) \
-			continue;
-
 static const struct input_device_id *input_match_device(struct input_handler *handler,
 							struct input_dev *dev)
 {
 	const struct input_device_id *id;
-	int i;
 
 	for (id = handler->id_table; id->flags || id->driver_info; id++) {
 
@@ -875,15 +867,32 @@ static const struct input_device_id *input_match_device(struct input_handler *ha
 			if (id->version != dev->id.version)
 				continue;
 
-		MATCH_BIT(evbit,  EV_MAX);
-		MATCH_BIT(keybit, KEY_MAX);
-		MATCH_BIT(relbit, REL_MAX);
-		MATCH_BIT(absbit, ABS_MAX);
-		MATCH_BIT(mscbit, MSC_MAX);
-		MATCH_BIT(ledbit, LED_MAX);
-		MATCH_BIT(sndbit, SND_MAX);
-		MATCH_BIT(ffbit,  FF_MAX);
-		MATCH_BIT(swbit,  SW_MAX);
+		if (!bitmap_subset(id->evbit, dev->evbit, EV_MAX))
+			continue;
+
+		if (!bitmap_subset(id->keybit, dev->keybit, KEY_MAX))
+			continue;
+
+		if (!bitmap_subset(id->relbit, dev->relbit, REL_MAX))
+			continue;
+
+		if (!bitmap_subset(id->absbit, dev->absbit, ABS_MAX))
+			continue;
+
+		if (!bitmap_subset(id->mscbit, dev->mscbit, MSC_MAX))
+			continue;
+
+		if (!bitmap_subset(id->ledbit, dev->ledbit, LED_MAX))
+			continue;
+
+		if (!bitmap_subset(id->sndbit, dev->sndbit, SND_MAX))
+			continue;
+
+		if (!bitmap_subset(id->ffbit, dev->ffbit, FF_MAX))
+			continue;
+
+		if (!bitmap_subset(id->swbit, dev->swbit, SW_MAX))
+			continue;
 
 		if (!handler->match || handler->match(handler, dev))
 			return id;
