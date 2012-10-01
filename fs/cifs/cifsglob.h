@@ -179,6 +179,7 @@ struct smb_rqst {
 enum smb_version {
 	Smb_1 = 1,
 	Smb_21,
+	Smb_30,
 };
 
 struct mid_q_entry;
@@ -372,6 +373,8 @@ struct smb_version_operations {
 
 struct smb_version_values {
 	char		*version_string;
+	__u16		protocol_id;
+	__u32		req_capabilities;
 	__u32		large_lock_type;
 	__u32		exclusive_lock_type;
 	__u32		shared_lock_type;
@@ -1496,7 +1499,13 @@ extern mempool_t *cifs_mid_poolp;
 #define SMB1_VERSION_STRING	"1.0"
 extern struct smb_version_operations smb1_operations;
 extern struct smb_version_values smb1_values;
+#define SMB20_VERSION_STRING	"2.0"
+/*extern struct smb_version_operations smb20_operations; */ /* not needed yet */
+extern struct smb_version_values smb20_values;
 #define SMB21_VERSION_STRING	"2.1"
 extern struct smb_version_operations smb21_operations;
 extern struct smb_version_values smb21_values;
+#define SMB30_VERSION_STRING	"3.0"
+/*extern struct smb_version_operations smb30_operations; */ /* not needed yet */
+extern struct smb_version_values smb30_values;
 #endif	/* _CIFS_GLOB_H */

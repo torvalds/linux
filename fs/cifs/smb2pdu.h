@@ -163,8 +163,14 @@ struct smb2_negotiate_req {
 	__le32 Capabilities;
 	__u8   ClientGUID[SMB2_CLIENT_GUID_SIZE];
 	__le64 ClientStartTime;	/* MBZ */
-	__le16 Dialects[2]; /* variable length */
+	__le16 Dialects[1]; /* One dialect (vers=) at a time for now */
 } __packed;
+
+/* Dialects */
+#define SMB20_PROT_ID 0x0202
+#define SMB21_PROT_ID 0x0210
+#define SMB30_PROT_ID 0x0300
+#define BAD_PROT_ID   0xFFFF
 
 /* SecurityMode flags */
 #define	SMB2_NEGOTIATE_SIGNING_ENABLED	0x0001
@@ -173,6 +179,10 @@ struct smb2_negotiate_req {
 #define SMB2_GLOBAL_CAP_DFS		0x00000001
 #define SMB2_GLOBAL_CAP_LEASING		0x00000002 /* Resp only New to SMB2.1 */
 #define SMB2_GLOBAL_CAP_LARGE_MTU	0X00000004 /* Resp only New to SMB2.1 */
+#define SMB2_GLOBAL_CAP_MULTI_CHANNEL	0x00000008 /* New to SMB3 */
+#define SMB2_GLOBAL_CAP_PERSISTENT_HANDLES 0x00000010 /* New to SMB3 */
+#define SMB2_GLOBAL_CAP_DIRECTORY_LEASING  0x00000020 /* New to SMB3 */
+#define SMB2_GLOBAL_CAP_ENCRYPTION	0x00000040 /* New to SMB3 */
 /* Internal types */
 #define SMB2_NT_FIND			0x00100000
 #define SMB2_LARGE_FILES		0x00200000

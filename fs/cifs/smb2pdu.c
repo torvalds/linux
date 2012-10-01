@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/smb2pdu.c
  *
- *   Copyright (C) International Business Machines  Corp., 2009, 2011
+ *   Copyright (C) International Business Machines  Corp., 2009, 2012
  *                 Etersoft, 2012
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Pavel Shilovsky (pshilovsky@samba.org) 2012
@@ -304,24 +304,6 @@ free_rsp_buf(int resp_buftype, void *rsp)
 		cifs_buf_release(rsp);
 }
 
-#define SMB2_NUM_PROT 2
-
-#define SMB2_PROT   0
-#define SMB21_PROT  1
-#define BAD_PROT 0xFFFF
-
-#define SMB2_PROT_ID  0x0202
-#define SMB21_PROT_ID 0x0210
-#define BAD_PROT_ID   0xFFFF
-
-static struct {
-	int index;
-	__le16 name;
-} smb2protocols[] = {
-	{SMB2_PROT,  cpu_to_le16(SMB2_PROT_ID)},
-	{SMB21_PROT, cpu_to_le16(SMB21_PROT_ID)},
-	{BAD_PROT,   cpu_to_le16(BAD_PROT_ID)}
-};
 
 /*
  *
@@ -348,7 +330,6 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	int resp_buftype;
 	struct TCP_Server_Info *server;
 	unsigned int sec_flags;
-	u16 i;
 	u16 temp = 0;
 	int blob_offset, blob_length;
 	char *security_blob;
@@ -377,11 +358,10 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 
 	req->hdr.SessionId = 0;
 
-	for (i = 0; i < SMB2_NUM_PROT; i++)
-		req->Dialects[i] = smb2protocols[i].name;
+	req->Dialects[0] = cpu_to_le16(ses->server->vals->protocol_id);
 
-	req->DialectCount = cpu_to_le16(i);
-	inc_rfc1001_len(req, i * 2);
+	req->DialectCount = cpu_to_le16(1); /* One vers= at a time for now */
+	inc_rfc1001_len(req, 2);
 
 	/* only one of SMB2 signing flags may be set in SMB2 request */
 	if ((sec_flags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN)
@@ -391,7 +371,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 
 	req->SecurityMode = cpu_to_le16(temp);
 
-	req->Capabilities = cpu_to_le32(SMB2_GLOBAL_CAP_DFS);
+	req->Capabilities = cpu_to_le32(ses->server->vals->req_capabilities);
 
 	memcpy(req->ClientGUID, cifs_client_guid, SMB2_CLIENT_GUID_SIZE);
 
@@ -411,10 +391,14 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 
 	cFYI(1, "mode 0x%x", rsp->SecurityMode);
 
-	if (rsp->DialectRevision == smb2protocols[SMB21_PROT].name)
+	/* BB we may eventually want to match the negotiated vs. requested
+	   dialect, even though we are only requesting one at a time */
+	if (rsp->DialectRevision == cpu_to_le16(SMB20_PROT_ID))
+		cFYI(1, "negotiated smb2.0 dialect");
+	else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID))
 		cFYI(1, "negotiated smb2.1 dialect");
-	else if (rsp->DialectRevision == smb2protocols[SMB2_PROT].name)
-		cFYI(1, "negotiated smb2 dialect");
+	else if (rsp->DialectRevision == cpu_to_le16(SMB30_PROT_ID))
+		cFYI(1, "negotiated smb3.0 dialect");
 	else {
 		cERROR(1, "Illegal dialect returned by server %d",
 			   le16_to_cpu(rsp->DialectRevision));
