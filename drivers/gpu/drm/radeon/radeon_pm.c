@@ -167,8 +167,21 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 		if (sclk > rdev->pm.default_sclk)
 			sclk = rdev->pm.default_sclk;
 
-		mclk = rdev->pm.power_state[rdev->pm.requested_power_state_index].
-			clock_info[rdev->pm.requested_clock_mode_index].mclk;
+		/* starting with BTC, there is one state that is used for both
+		 * MH and SH.  Difference is that we always use the high clock index for
+		 * mclk.
+		 */
+		if ((rdev->pm.pm_method == PM_METHOD_PROFILE) &&
+		    (rdev->family >= CHIP_BARTS) &&
+		    rdev->pm.active_crtc_count &&
+		    ((rdev->pm.profile_index == PM_PROFILE_MID_MH_IDX) ||
+		     (rdev->pm.profile_index == PM_PROFILE_LOW_MH_IDX)))
+			mclk = rdev->pm.power_state[rdev->pm.requested_power_state_index].
+				clock_info[rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_cm_idx].mclk;
+		else
+			mclk = rdev->pm.power_state[rdev->pm.requested_power_state_index].
+				clock_info[rdev->pm.requested_clock_mode_index].mclk;
+
 		if (mclk > rdev->pm.default_mclk)
 			mclk = rdev->pm.default_mclk;
 

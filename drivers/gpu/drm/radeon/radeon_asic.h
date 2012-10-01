@@ -420,6 +420,7 @@ extern void evergreen_pm_misc(struct radeon_device *rdev);
 extern void evergreen_pm_prepare(struct radeon_device *rdev);
 extern void evergreen_pm_finish(struct radeon_device *rdev);
 extern void sumo_pm_init_profile(struct radeon_device *rdev);
+extern void btc_pm_init_profile(struct radeon_device *rdev);
 extern void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc);
 extern u32 evergreen_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void evergreen_post_page_flip(struct radeon_device *rdev, int crtc);
