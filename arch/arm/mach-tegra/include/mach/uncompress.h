@@ -29,7 +29,6 @@
 #include <linux/serial_reg.h>
 
 #include "../../iomap.h"
-#include "../../irammap.h"
 
 #define BIT(x) (1 << (x))
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -50,17 +49,6 @@ static void putc(int c)
 
 static inline void flush(void)
 {
-}
-
-static inline void save_uart_address(void)
-{
-	u32 *buf = (u32 *)(TEGRA_IRAM_BASE + TEGRA_IRAM_DEBUG_UART_OFFSET);
-
-	if (uart) {
-		buf[0] = TEGRA_IRAM_DEBUG_UART_COOKIE;
-		buf[1] = (u32)uart;
-	} else
-		buf[0] = 0;
 }
 
 static const struct {
@@ -169,7 +157,6 @@ static inline void arch_decomp_setup(void)
 	else
 		uart = (volatile u8 *)uarts[uart_id].base;
 
-	save_uart_address();
 	if (uart == NULL)
 		return;
 

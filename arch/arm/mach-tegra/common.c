@@ -44,12 +44,14 @@
  * kernel is loaded. The data is declared here rather than debug-macro.S so
  * that multiple inclusions of debug-macro.S point at the same data.
  */
-u32 tegra_uart_config[3] = {
+u32 tegra_uart_config[4] = {
 	/* Debug UART initialization required */
 	1,
 	/* Debug UART physical address */
 	0,
 	/* Debug UART virtual address */
+	0,
+	/* Scratch space for debug macro */
 	0,
 };
 
