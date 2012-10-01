@@ -27,6 +27,7 @@
 #include <linux/amba/mmci.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
+#include <linux/platform_data/clk-realview.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -414,6 +415,7 @@ static void __init realview_eb_timer_init(void)
 	else
 		timer_irq = IRQ_EB_TIMER0_1;
 
+	realview_clk_init(__io_address(REALVIEW_SYS_BASE), false);
 	realview_timer_init(timer_irq);
 	realview_eb_twd_init();
 }
