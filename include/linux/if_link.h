@@ -272,6 +272,22 @@ enum macvlan_mode {
 
 #define MACVLAN_FLAG_NOPROMISC	1
 
+/* VXLAN section */
+enum {
+	IFLA_VXLAN_UNSPEC,
+	IFLA_VXLAN_ID,
+	IFLA_VXLAN_GROUP,
+	IFLA_VXLAN_LINK,
+	IFLA_VXLAN_LOCAL,
+	IFLA_VXLAN_TTL,
+	IFLA_VXLAN_TOS,
+	IFLA_VXLAN_LEARNING,
+	IFLA_VXLAN_AGEING,
+	IFLA_VXLAN_LIMIT,
+	__IFLA_VXLAN_MAX
+};
+#define IFLA_VXLAN_MAX	(__IFLA_VXLAN_MAX - 1)
+
 /* SR-IOV virtual function management section */
 
 enum {
