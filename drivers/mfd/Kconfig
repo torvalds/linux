@@ -375,6 +375,18 @@ config MFD_T7L66XB
 	help
 	  Support for Toshiba Mobile IO Controller T7L66XB
 
+config MFD_SMSC
+       bool "Support for the SMSC ECE1099 series chips"
+       depends on I2C=y
+       select MFD_CORE
+       select REGMAP_I2C
+       help
+        If you say yes here you get support for the
+        ece1099 chips from SMSC.
+
+        To compile this driver as a module, choose M here: the
+        module will be called smsc.
+
 config MFD_TC6387XB
 	bool "Support Toshiba TC6387XB"
 	depends on ARM && HAVE_CLK
