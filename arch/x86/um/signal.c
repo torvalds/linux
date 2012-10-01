@@ -416,9 +416,6 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 	PT_REGS_AX(regs) = (unsigned long) sig;
 	PT_REGS_DX(regs) = (unsigned long) 0;
 	PT_REGS_CX(regs) = (unsigned long) 0;
-
-	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
-		ptrace_notify(SIGTRAP);
 	return 0;
 }
 
@@ -466,9 +463,6 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 	PT_REGS_AX(regs) = (unsigned long) sig;
 	PT_REGS_DX(regs) = (unsigned long) &frame->info;
 	PT_REGS_CX(regs) = (unsigned long) &frame->uc;
-
-	if ((current->ptrace & PT_DTRACE) && (current->ptrace & PT_PTRACED))
-		ptrace_notify(SIGTRAP);
 	return 0;
 }
 

@@ -318,7 +318,7 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 		if (val & 0x10) {
 			u8 edge_irr = s->irr & ~s->elcr;
 			int i;
-			bool found;
+			bool found = false;
 			struct kvm_vcpu *vcpu;
 
 			s->init4 = val & 1;

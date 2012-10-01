@@ -1012,6 +1012,10 @@ static void handle_channel(struct i5000_pvt *pvt, int slot, int channel,
 			/* add the number of COLUMN bits */
 			addrBits += MTR_DIMM_COLS_ADDR_BITS(mtr);
 
+			/* Dual-rank memories have twice the size */
+			if (dinfo->dual_rank)
+				addrBits++;
+
 			addrBits += 6;	/* add 64 bits per DIMM */
 			addrBits -= 20;	/* divide by 2^^20 */
 			addrBits -= 3;	/* 8 bits per bytes */

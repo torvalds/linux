@@ -3388,7 +3388,7 @@ M:	"Wolfram Sang (embedded platforms)" <w.sang@pengutronix.de>
 L:	linux-i2c@vger.kernel.org
 W:	http://i2c.wiki.kernel.org/
 T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-i2c/
-T:	git git://git.fluff.org/bjdooks/linux.git
+T:	git git://git.pengutronix.de/git/wsa/linux.git
 S:	Maintained
 F:	Documentation/i2c/
 F:	drivers/i2c/
@@ -3552,11 +3552,12 @@ K:	\b(ABS|SYN)_MT_
 
 INTEL C600 SERIES SAS CONTROLLER DRIVER
 M:	Intel SCU Linux support <intel-linux-scu@intel.com>
+M:	Lukasz Dorau <lukasz.dorau@intel.com>
+M:	Maciej Patelczyk <maciej.patelczyk@intel.com>
 M:	Dave Jiang <dave.jiang@intel.com>
-M:	Ed Nadolski <edmund.nadolski@intel.com>
 L:	linux-scsi@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/djbw/isci.git
-S:	Maintained
+T:	git git://git.code.sf.net/p/intel-sas/isci
+S:	Supported
 F:	drivers/scsi/isci/
 F:	firmware/isci/
 
@@ -3666,11 +3667,12 @@ F:	Documentation/networking/README.ipw2200
 F:	drivers/net/wireless/ipw2x00/
 
 INTEL(R) TRUSTED EXECUTION TECHNOLOGY (TXT)
-M:	Joseph Cihula <joseph.cihula@intel.com>
+M:	Richard L Maliszewski <richard.l.maliszewski@intel.com>
+M:	Gang Wei <gang.wei@intel.com>
 M:	Shane Wang <shane.wang@intel.com>
 L:	tboot-devel@lists.sourceforge.net
 W:	http://tboot.sourceforge.net
-T:	Mercurial http://www.bughost.org/repos.hg/tboot.hg
+T:	hg http://tboot.hg.sourceforge.net:8000/hgroot/tboot/tboot
 S:	Supported
 F:	Documentation/intel_txt.txt
 F:	include/linux/tboot.h
@@ -5543,6 +5545,8 @@ F:	Documentation/devicetree/bindings/pwm/
 F:	include/linux/pwm.h
 F:	include/linux/of_pwm.h
 F:	drivers/pwm/
+F:	drivers/video/backlight/pwm_bl.c
+F:	include/linux/pwm_backlight.h
 
 PXA2xx/PXA3xx SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>

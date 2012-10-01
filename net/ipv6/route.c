@@ -226,7 +226,7 @@ static struct rt6_info ip6_null_entry_template = {
 	.dst = {
 		.__refcnt	= ATOMIC_INIT(1),
 		.__use		= 1,
-		.obsolete	= -1,
+		.obsolete	= DST_OBSOLETE_FORCE_CHK,
 		.error		= -ENETUNREACH,
 		.input		= ip6_pkt_discard,
 		.output		= ip6_pkt_discard_out,
@@ -246,7 +246,7 @@ static struct rt6_info ip6_prohibit_entry_template = {
 	.dst = {
 		.__refcnt	= ATOMIC_INIT(1),
 		.__use		= 1,
-		.obsolete	= -1,
+		.obsolete	= DST_OBSOLETE_FORCE_CHK,
 		.error		= -EACCES,
 		.input		= ip6_pkt_prohibit,
 		.output		= ip6_pkt_prohibit_out,
@@ -261,7 +261,7 @@ static struct rt6_info ip6_blk_hole_entry_template = {
 	.dst = {
 		.__refcnt	= ATOMIC_INIT(1),
 		.__use		= 1,
-		.obsolete	= -1,
+		.obsolete	= DST_OBSOLETE_FORCE_CHK,
 		.error		= -EINVAL,
 		.input		= dst_discard,
 		.output		= dst_discard,
@@ -281,13 +281,14 @@ static inline struct rt6_info *ip6_dst_alloc(struct net *net,
 					     struct fib6_table *table)
 {
 	struct rt6_info *rt = dst_alloc(&net->ipv6.ip6_dst_ops, dev,
-					0, DST_OBSOLETE_NONE, flags);
+					0, DST_OBSOLETE_FORCE_CHK, flags);
 
 	if (rt) {
 		struct dst_entry *dst = &rt->dst;
 
 		memset(dst + 1, 0, sizeof(*rt) - sizeof(*dst));
 		rt6_init_peer(rt, table ? &table->tb6_peers : net->ipv6.peers);
+		rt->rt6i_genid = rt_genid(net);
 	}
 	return rt;
 }
@@ -1031,6 +1032,13 @@ static struct dst_entry *ip6_dst_check(struct dst_entry *dst, u32 cookie)
 
 	rt = (struct rt6_info *) dst;
 
+	/* All IPV6 dsts are created with ->obsolete set to the value
+	 * DST_OBSOLETE_FORCE_CHK which forces validation calls down
+	 * into this function always.
+	 */
+	if (rt->rt6i_genid != rt_genid(dev_net(rt->dst.dev)))
+		return NULL;
+
 	if (rt->rt6i_node && (rt->rt6i_node->fn_sernum == cookie)) {
 		if (rt->rt6i_peer_genid != rt6_peer_genid()) {
 			if (!rt6_has_peer(rt))
@@ -1396,8 +1404,6 @@ int ip6_route_add(struct fib6_config *cfg)
 		err = -ENOMEM;
 		goto out;
 	}
-
-	rt->dst.obsolete = -1;
 
 	if (cfg->fc_flags & RTF_EXPIRES)
 		rt6_set_expires(rt, jiffies +
@@ -2080,7 +2086,6 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	rt->dst.input = ip6_input;
 	rt->dst.output = ip6_output;
 	rt->rt6i_idev = idev;
-	rt->dst.obsolete = -1;
 
 	rt->rt6i_flags = RTF_UP | RTF_NONEXTHOP;
 	if (anycast)

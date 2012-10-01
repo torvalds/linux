@@ -183,7 +183,7 @@ extern int	mISDN_initbchannel(struct bchannel *, unsigned short,
 				   unsigned short);
 extern int	mISDN_freedchannel(struct dchannel *);
 extern void	mISDN_clear_bchannel(struct bchannel *);
-extern int	mISDN_freebchannel(struct bchannel *);
+extern void	mISDN_freebchannel(struct bchannel *);
 extern int	mISDN_ctrl_bchannel(struct bchannel *, struct mISDN_ctrl_req *);
 extern void	queue_ch_frame(struct mISDNchannel *, u_int,
 			int, struct sk_buff *);
