@@ -1136,6 +1136,9 @@ static __net_init int vxlan_init_net(struct net *net)
 		pr_debug("UDP socket create failed\n");
 		return rc;
 	}
+	/* Put in proper namespace */
+	sk = vn->sock->sk;
+	sk_change_net(sk, net);
 
 	vxlan_addr.sin_port = htons(vxlan_port);
 
@@ -1144,13 +1147,12 @@ static __net_init int vxlan_init_net(struct net *net)
 	if (rc < 0) {
 		pr_debug("bind for UDP socket %pI4:%u (%d)\n",
 			 &vxlan_addr.sin_addr, ntohs(vxlan_addr.sin_port), rc);
-		sock_release(vn->sock);
+		sk_release_kernel(sk);
 		vn->sock = NULL;
 		return rc;
 	}
 
 	/* Disable multicast loopback */
-	sk = vn->sock->sk;
 	inet_sk(sk)->mc_loop = 0;
 
 	/* Mark socket as an encapsulation socket. */
@@ -1169,7 +1171,7 @@ static __net_exit void vxlan_exit_net(struct net *net)
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 
 	if (vn->sock) {
-		sock_release(vn->sock);
+		sk_release_kernel(vn->sock->sk);
 		vn->sock = NULL;
 	}
 }
