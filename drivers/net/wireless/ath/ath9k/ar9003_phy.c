@@ -1360,7 +1360,7 @@ static void ar9003_hw_antctrl_shared_chain_lnadiv(struct ath_hw *ah,
 	if (enable) {
 		REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL,
 			    (1 << AR_PHY_ANT_SW_RX_PROT_S));
-		if (IS_CHAN_2GHZ(ah->curchan))
+		if (ah->curchan && IS_CHAN_2GHZ(ah->curchan))
 			REG_SET_BIT(ah, AR_PHY_RESTART,
 				    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
 		REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV,

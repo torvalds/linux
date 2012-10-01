@@ -614,9 +614,8 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 
 			/* Increment the TLV header length by the size
 			   appended */
-			chan_tlv_out->header.len =
-			cpu_to_le16(le16_to_cpu(chan_tlv_out->header.len) +
-			(sizeof(chan_tlv_out->chan_scan_param)));
+			le16_add_cpu(&chan_tlv_out->header.len,
+				     sizeof(chan_tlv_out->chan_scan_param));
 
 			/*
 			 * The tlv buffer length is set to the number of bytes

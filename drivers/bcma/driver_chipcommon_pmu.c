@@ -76,7 +76,10 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 	if (max_msk)
 		bcma_cc_write32(cc, BCMA_CC_PMU_MAXRES_MSK, max_msk);
 
-	/* Add some delay; allow resources to come up and settle. */
+	/*
+	 * Add some delay; allow resources to come up and settle.
+	 * Delay is required for SoC (early init).
+	 */
 	mdelay(2);
 }
 

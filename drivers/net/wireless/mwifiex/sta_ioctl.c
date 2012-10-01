@@ -1043,6 +1043,65 @@ mwifiex_get_ver_ext(struct mwifiex_private *priv)
 	return 0;
 }
 
+int
+mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
+			   struct ieee80211_channel *chan,
+			   enum nl80211_channel_type *ct,
+			   unsigned int duration)
+{
+	struct host_cmd_ds_remain_on_chan roc_cfg;
+	u8 sc;
+
+	memset(&roc_cfg, 0, sizeof(roc_cfg));
+	roc_cfg.action = cpu_to_le16(action);
+	if (action == HostCmd_ACT_GEN_SET) {
+		roc_cfg.band_cfg = chan->band;
+		sc = mwifiex_chan_type_to_sec_chan_offset(*ct);
+		roc_cfg.band_cfg |= (sc << 2);
+
+		roc_cfg.channel =
+			ieee80211_frequency_to_channel(chan->center_freq);
+		roc_cfg.duration = cpu_to_le32(duration);
+	}
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_REMAIN_ON_CHAN,
+				  action, 0, &roc_cfg)) {
+		dev_err(priv->adapter->dev, "failed to remain on channel\n");
+		return -1;
+	}
+
+	return roc_cfg.status;
+}
+
+int
+mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role)
+{
+	if (GET_BSS_ROLE(priv) == bss_role) {
+		dev_dbg(priv->adapter->dev,
+			"info: already in the desired role.\n");
+		return 0;
+	}
+
+	mwifiex_free_priv(priv);
+	mwifiex_init_priv(priv);
+
+	priv->bss_role = bss_role;
+	switch (bss_role) {
+	case MWIFIEX_BSS_ROLE_UAP:
+		priv->bss_mode = NL80211_IFTYPE_AP;
+		break;
+	case MWIFIEX_BSS_ROLE_STA:
+	case MWIFIEX_BSS_ROLE_ANY:
+	default:
+		priv->bss_mode = NL80211_IFTYPE_STATION;
+		break;
+	}
+
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_SET_BSS_MODE,
+			      HostCmd_ACT_GEN_SET, 0, NULL);
+
+	return mwifiex_sta_init_cmd(priv, false);
+}
+
 /*
  * Sends IOCTL request to get statistics information.
  *

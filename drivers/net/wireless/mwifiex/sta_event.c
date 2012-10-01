@@ -410,6 +410,18 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "event: HOSTWAKE_STAIE %d\n", eventcause);
 		break;
 
+	case EVENT_REMAIN_ON_CHAN_EXPIRED:
+		dev_dbg(adapter->dev, "event: Remain on channel expired\n");
+		cfg80211_remain_on_channel_expired(priv->wdev,
+						   priv->roc_cfg.cookie,
+						   &priv->roc_cfg.chan,
+						   priv->roc_cfg.chan_type,
+						   GFP_ATOMIC);
+
+		memset(&priv->roc_cfg, 0x00, sizeof(struct mwifiex_roc_cfg));
+
+		break;
+
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);

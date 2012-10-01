@@ -813,8 +813,8 @@ static void ar9003_mci_osla_setup(struct ath_hw *ah, bool enable)
 		      AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN, 1);
 }
 
-void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
-		      bool is_full_sleep)
+int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
+		     bool is_full_sleep)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
@@ -824,14 +824,13 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		is_full_sleep, is_2g);
 
 	if (!mci->gpm_addr && !mci->sched_addr) {
-		ath_dbg(common, MCI,
-			"MCI GPM and schedule buffers are not allocated\n");
-		return;
+		ath_err(common, "MCI GPM and schedule buffers are not allocated\n");
+		return -ENOMEM;
 	}
 
 	if (REG_READ(ah, AR_BTCOEX_CTRL) == 0xdeadbeef) {
-		ath_dbg(common, MCI, "BTCOEX control register is dead\n");
-		return;
+		ath_err(common, "BTCOEX control register is dead\n");
+		return -EINVAL;
 	}
 
 	/* Program MCI DMA related registers */
@@ -913,6 +912,8 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 
 	if (en_int)
 		ar9003_mci_enable_interrupt(ah);
+
+	return 0;
 }
 
 void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep)
@@ -1144,8 +1145,8 @@ void ar9003_mci_init_cal_done(struct ath_hw *ah)
 	ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
 }
 
-void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
-		      u16 len, u32 sched_addr)
+int ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
+		     u16 len, u32 sched_addr)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 
@@ -1154,7 +1155,7 @@ void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 	mci->gpm_len = len;
 	mci->sched_addr = sched_addr;
 
-	ar9003_mci_reset(ah, true, true, true);
+	return ar9003_mci_reset(ah, true, true, true);
 }
 EXPORT_SYMBOL(ar9003_mci_setup);
 

@@ -193,7 +193,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	int id, ret = -EBUSY, ac;
 	u32 spare_blocks;
 
-	if (buf_offset + total_len > WL1271_AGGR_BUFFER_SIZE)
+	if (buf_offset + total_len > wl->aggr_buf_size)
 		return -EAGAIN;
 
 	spare_blocks = wlcore_hw_get_spare_blocks(wl, is_gem);
@@ -319,8 +319,12 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		if (hlid == wlvif->ap.global_hlid)
 			rate_idx = wlvif->ap.mgmt_rate_idx;
 		else if (hlid == wlvif->ap.bcast_hlid ||
-			 skb->protocol == cpu_to_be16(ETH_P_PAE))
-			/* send AP bcast and EAPOLs using the min basic rate */
+			 skb->protocol == cpu_to_be16(ETH_P_PAE) ||
+			 !ieee80211_is_data(frame_control))
+			/*
+			 * send non-data, bcast and EAPOLs using the
+			 * min basic rate
+			 */
 			rate_idx = wlvif->ap.bcast_rate_idx;
 		else
 			rate_idx = wlvif->ap.ucast_rate_idx[ac];
@@ -687,7 +691,7 @@ int wlcore_tx_work_locked(struct wl1271 *wl)
 	int bus_ret = 0;
 	u8 hlid;
 
-	if (unlikely(wl->state == WL1271_STATE_OFF))
+	if (unlikely(wl->state != WLCORE_STATE_ON))
 		return 0;
 
 	while ((skb = wl1271_skb_dequeue(wl, &hlid))) {
@@ -1072,39 +1076,54 @@ void wl12xx_tx_reset(struct wl1271 *wl)
 /* caller must *NOT* hold wl->mutex */
 void wl1271_tx_flush(struct wl1271 *wl)
 {
-	unsigned long timeout;
+	unsigned long timeout, start_time;
 	int i;
-	timeout = jiffies + usecs_to_jiffies(WL1271_TX_FLUSH_TIMEOUT);
+	start_time = jiffies;
+	timeout = start_time + usecs_to_jiffies(WL1271_TX_FLUSH_TIMEOUT);
 
 	/* only one flush should be in progress, for consistent queue state */
 	mutex_lock(&wl->flush_mutex);
 
+	mutex_lock(&wl->mutex);
+	if (wl->tx_frames_cnt == 0 && wl1271_tx_total_queue_count(wl) == 0) {
+		mutex_unlock(&wl->mutex);
+		goto out;
+	}
+
 	wlcore_stop_queues(wl, WLCORE_QUEUE_STOP_REASON_FLUSH);
 
 	while (!time_after(jiffies, timeout)) {
-		mutex_lock(&wl->mutex);
-		wl1271_debug(DEBUG_TX, "flushing tx buffer: %d %d",
+		wl1271_debug(DEBUG_MAC80211, "flushing tx buffer: %d %d",
 			     wl->tx_frames_cnt,
 			     wl1271_tx_total_queue_count(wl));
+
+		/* force Tx and give the driver some time to flush data */
+		mutex_unlock(&wl->mutex);
+		if (wl1271_tx_total_queue_count(wl))
+			wl1271_tx_work(&wl->tx_work);
+		msleep(20);
+		mutex_lock(&wl->mutex);
+
 		if ((wl->tx_frames_cnt == 0) &&
 		    (wl1271_tx_total_queue_count(wl) == 0)) {
-			mutex_unlock(&wl->mutex);
-			goto out;
+			wl1271_debug(DEBUG_MAC80211, "tx flush took %d ms",
+				     jiffies_to_msecs(jiffies - start_time));
+			goto out_wake;
 		}
-		mutex_unlock(&wl->mutex);
-		msleep(1);
 	}
 
-	wl1271_warning("Unable to flush all TX buffers, timed out.");
+	wl1271_warning("Unable to flush all TX buffers, "
+		       "timed out (timeout %d ms",
+		       WL1271_TX_FLUSH_TIMEOUT / 1000);
 
 	/* forcibly flush all Tx buffers on our queues */
-	mutex_lock(&wl->mutex);
 	for (i = 0; i < WL12XX_MAX_LINKS; i++)
 		wl1271_tx_reset_link_queues(wl, i);
-	mutex_unlock(&wl->mutex);
 
-out:
+out_wake:
 	wlcore_wake_queues(wl, WLCORE_QUEUE_STOP_REASON_FLUSH);
+	mutex_unlock(&wl->mutex);
+out:
 	mutex_unlock(&wl->flush_mutex);
 }
 EXPORT_SYMBOL_GPL(wl1271_tx_flush);

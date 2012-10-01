@@ -173,6 +173,8 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 
 #define ATH_AN_2_TID(_an, _tidno)  (&(_an)->tid[(_tidno)])
 
+#define IS_CCK_RATE(rate) ((rate >= 0x18) && (rate <= 0x1e))
+
 #define ATH_TX_COMPLETE_POLL_INT	1000
 
 enum ATH_AGGR_STATUS {

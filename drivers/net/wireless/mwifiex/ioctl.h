@@ -105,6 +105,8 @@ struct mwifiex_uap_bss_param {
 	struct wep_key wep_cfg[NUM_WEP_KEYS];
 	struct ieee80211_ht_cap ht_cap;
 	u8 rates[MWIFIEX_SUPPORTED_RATES];
+	u32 sta_ao_timer;
+	u32 ps_sta_ao_timer;
 };
 
 enum {
