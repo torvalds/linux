@@ -1386,8 +1386,8 @@ iso_stream_schedule (
 
 	/* Typical case: reuse current schedule, stream is still active.
 	 * Hopefully there are no gaps from the host falling behind
-	 * (irq delays etc), but if there are we'll take the next
-	 * slot in the schedule, implicitly assuming URB_ISO_ASAP.
+	 * (irq delays etc).  If there are, the behavior depends on
+	 * whether URB_ISO_ASAP is set.
 	 */
 	if (likely (!list_empty (&stream->td_list))) {
 
@@ -1414,9 +1414,25 @@ iso_stream_schedule (
 			goto fail;
 		}
 
-		/* Behind the scheduling threshold?  Assume URB_ISO_ASAP. */
-		if (unlikely(start < next))
-			start += (next - start + period - 1) & (- period);
+		/* Behind the scheduling threshold? */
+		if (unlikely(start < next)) {
+
+			/* USB_ISO_ASAP: Round up to the first available slot */
+			if (urb->transfer_flags & URB_ISO_ASAP)
+				start += (next - start + period - 1) & -period;
+
+			/*
+			 * Not ASAP: Use the next slot in the stream.  If
+			 * the entire URB falls before the threshold, fail.
+			 */
+			else if (start + span - period < next) {
+				ehci_dbg(ehci, "iso urb late %p (%u+%u < %u)\n",
+						urb, start + base,
+						span - period, next + base);
+				status = -EXDEV;
+				goto fail;
+			}
+		}
 
 		start += base;
 	}
@@ -1699,7 +1715,7 @@ static bool itd_complete(struct ehci_hcd *ehci, struct ehci_itd *itd)
 			urb->actual_length += desc->actual_length;
 		} else {
 			/* URB was too late */
-			desc->status = -EXDEV;
+			urb->error_count++;
 		}
 	}
 
@@ -2072,7 +2088,7 @@ static bool sitd_complete(struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 	t = hc32_to_cpup(ehci, &sitd->hw_results);
 
 	/* report transfer status */
-	if (t & SITD_ERRS) {
+	if (unlikely(t & SITD_ERRS)) {
 		urb->error_count++;
 		if (t & SITD_STS_DBE)
 			desc->status = usb_pipein (urb->pipe)
@@ -2082,6 +2098,9 @@ static bool sitd_complete(struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 			desc->status = -EOVERFLOW;
 		else /* XACT, MMF, etc */
 			desc->status = -EPROTO;
+	} else if (unlikely(t & SITD_STS_ACTIVE)) {
+		/* URB was too late */
+		urb->error_count++;
 	} else {
 		desc->status = 0;
 		desc->actual_length = desc->length - SITD_LENGTH(t);
