@@ -30,6 +30,8 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/mfd/tmio.h>
 #include <mach/hardware.h>
 #include <mach/r8a7779.h>
 #include <mach/common.h>
@@ -38,6 +40,12 @@
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
 #include <asm/traps.h>
+
+/* Fixed 3.3V regulator to be used by SDHI0 */
+static struct regulator_consumer_supply fixed3v3_power_consumers[] = {
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+};
 
 /* Dummy supplies, where voltage doesn't matter */
 static struct regulator_consumer_supply dummy_supplies[] = {
@@ -75,13 +83,61 @@ static struct platform_device eth_device = {
 	.num_resources	= ARRAY_SIZE(smsc911x_resources),
 };
 
+static struct resource sdhi0_resources[] = {
+	[0] = {
+		.name	= "sdhi0",
+		.start	= 0xffe4c000,
+		.end	= 0xffe4c0ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(104),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_mobile_sdhi_info sdhi0_platform_data = {
+	.tmio_flags = TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_HAS_IDLE_WAIT,
+	.tmio_caps = MMC_CAP_SD_HIGHSPEED,
+};
+
+static struct platform_device sdhi0_device = {
+	.name = "sh_mobile_sdhi",
+	.num_resources = ARRAY_SIZE(sdhi0_resources),
+	.resource = sdhi0_resources,
+	.id = 0,
+	.dev = {
+		.platform_data = &sdhi0_platform_data,
+	}
+};
+
+/* Thermal */
+static struct resource thermal_resources[] = {
+	[0] = {
+		.start		= 0xFFC48000,
+		.end		= 0xFFC48038 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device thermal_device = {
+	.name		= "rcar_thermal",
+	.resource	= thermal_resources,
+	.num_resources	= ARRAY_SIZE(thermal_resources),
+};
+
 static struct platform_device *marzen_devices[] __initdata = {
 	&eth_device,
+	&sdhi0_device,
+	&thermal_device,
 };
 
 static void __init marzen_init(void)
 {
-	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
+				ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
+	regulator_register_fixed(1, dummy_supplies,
+				ARRAY_SIZE(dummy_supplies));
 
 	r8a7779_pinmux_init();
 
@@ -96,6 +152,16 @@ static void __init marzen_init(void)
 	/* LAN89218 */
 	gpio_request(GPIO_FN_EX_CS0, NULL); /* nCS */
 	gpio_request(GPIO_FN_IRQ1_B, NULL); /* IRQ + PME */
+
+	/* SD0 (CN20) */
+	gpio_request(GPIO_FN_SD0_CLK, NULL);
+	gpio_request(GPIO_FN_SD0_CMD, NULL);
+	gpio_request(GPIO_FN_SD0_DAT0, NULL);
+	gpio_request(GPIO_FN_SD0_DAT1, NULL);
+	gpio_request(GPIO_FN_SD0_DAT2, NULL);
+	gpio_request(GPIO_FN_SD0_DAT3, NULL);
+	gpio_request(GPIO_FN_SD0_CD, NULL);
+	gpio_request(GPIO_FN_SD0_WP, NULL);
 
 	r8a7779_add_standard_devices();
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
