@@ -855,9 +855,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		}
 		slave_data->sliver_reg_ofs = prop;
 
-		if (!of_property_read_u32(slave_node, "phy_if_mode", &prop))
-			slave_data->phy_if = prop;
-
 		mac_addr = of_get_mac_address(slave_node);
 		if (mac_addr)
 			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);

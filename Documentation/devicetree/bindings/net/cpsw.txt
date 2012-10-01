@@ -25,8 +25,6 @@ Required properties:
 - slave_reg_ofs		: Specifies slave register offset
 - sliver_reg_ofs	: Specifies slave sliver register offset
 - phy_id		: Specifies slave phy id
-- phy_if_mode		: Specified slave phy interface mode (optional)
-			  (one of the PHY_INTERFACE_MODE_* as numerical value)
 - mac-address		: Specifies slave MAC address
 
 Optional properties:
@@ -64,7 +62,6 @@ Examples:
 			slave_reg_ofs = <0x208>;
 			sliver_reg_ofs = <0xd80>;
 			phy_id = "davinci_mdio.16:00";
-			phy_if_mode = <6>; /* PHY_INTERFACE_MODE_RGMII */
 			/* Filled in by U-Boot */
 			mac-address = [ 00 00 00 00 00 00 ];
 		};
