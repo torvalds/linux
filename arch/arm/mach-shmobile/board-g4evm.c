@@ -126,7 +126,7 @@ static void usb_host_port_power(int port, int power)
 		return;
 
 	/* set VBOUT/PWEN and EXTLP0 in DVSTCTR */
-	__raw_writew(__raw_readw(0xe6890008) | 0x600, 0xe6890008);
+	__raw_writew(__raw_readw(IOMEM(0xe6890008)) | 0x600, IOMEM(0xe6890008));
 }
 
 static struct r8a66597_platdata usb_host_data = {
@@ -270,17 +270,17 @@ static struct platform_device *g4evm_devices[] __initdata = {
 	&sdhi1_device,
 };
 
-#define GPIO_SDHID0_D0	0xe60520fc
-#define GPIO_SDHID0_D1	0xe60520fd
-#define GPIO_SDHID0_D2	0xe60520fe
-#define GPIO_SDHID0_D3	0xe60520ff
-#define GPIO_SDHICMD0	0xe6052100
+#define GPIO_SDHID0_D0	IOMEM(0xe60520fc)
+#define GPIO_SDHID0_D1	IOMEM(0xe60520fd)
+#define GPIO_SDHID0_D2	IOMEM(0xe60520fe)
+#define GPIO_SDHID0_D3	IOMEM(0xe60520ff)
+#define GPIO_SDHICMD0	IOMEM(0xe6052100)
 
-#define GPIO_SDHID1_D0	0xe6052103
-#define GPIO_SDHID1_D1	0xe6052104
-#define GPIO_SDHID1_D2	0xe6052105
-#define GPIO_SDHID1_D3	0xe6052106
-#define GPIO_SDHICMD1	0xe6052107
+#define GPIO_SDHID1_D0	IOMEM(0xe6052103)
+#define GPIO_SDHID1_D1	IOMEM(0xe6052104)
+#define GPIO_SDHID1_D2	IOMEM(0xe6052105)
+#define GPIO_SDHID1_D3	IOMEM(0xe6052106)
+#define GPIO_SDHICMD1	IOMEM(0xe6052107)
 
 static void __init g4evm_init(void)
 {
@@ -318,10 +318,10 @@ static void __init g4evm_init(void)
 	gpio_request(GPIO_FN_IDIN, NULL);
 
 	/* setup USB phy */
-	__raw_writew(0x0200, 0xe605810a);       /* USBCR1 */
-	__raw_writew(0x00e0, 0xe60581c0);       /* CPFCH */
-	__raw_writew(0x6010, 0xe60581c6);       /* CGPOSR */
-	__raw_writew(0x8a0a, 0xe605810c);       /* USBCR2 */
+	__raw_writew(0x0200, IOMEM(0xe605810a));       /* USBCR1 */
+	__raw_writew(0x00e0, IOMEM(0xe60581c0));       /* CPFCH */
+	__raw_writew(0x6010, IOMEM(0xe60581c6));       /* CGPOSR */
+	__raw_writew(0x8a0a, IOMEM(0xe605810c));       /* USBCR2 */
 
 	/* KEYSC @ CN31 */
 	gpio_request(GPIO_FN_PORT60_KEYOUT5, NULL);

@@ -14,18 +14,10 @@
 #ifndef __ASM_ARM_ARCH_IO_H
 #define __ASM_ARM_ARCH_IO_H
 
-#ifdef CONFIG_MMU
-#define MMU_IO(a, b)	(a)
-#else
-#define MMU_IO(a, b)	(b)
-#endif
-
-#define PCIO_SIZE       0x00100000
-#define PCIO_BASE       MMU_IO(0xff000000, 0x7c000000)
-
 /*
- * Translation of various region addresses to virtual addresses
+ * Translation of various i/o addresses to host addresses for !CONFIG_MMU
  */
+#define PCIO_BASE       0x7c000000
 #define __io(a)			((void __iomem *)(PCIO_BASE + (a)))
 
 #endif

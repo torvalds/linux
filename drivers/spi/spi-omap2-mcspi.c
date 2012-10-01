@@ -42,7 +42,7 @@
 #include <linux/spi/spi.h>
 
 #include <plat/clock.h>
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #define OMAP2_MCSPI_MAX_FREQ		48000000
 #define SPI_AUTOSUSPEND_TIMEOUT		2000

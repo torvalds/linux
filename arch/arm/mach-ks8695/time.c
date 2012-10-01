@@ -25,53 +25,98 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/io.h>
+#include <linux/clockchips.h>
 
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
 
-#include <mach/regs-timer.h>
 #include <mach/regs-irq.h>
 
 #include "generic.h"
 
+#define KS8695_TMR_OFFSET	(0xF0000 + 0xE400)
+#define KS8695_TMR_VA		(KS8695_IO_VA + KS8695_TMR_OFFSET)
+#define KS8695_TMR_PA		(KS8695_IO_PA + KS8695_TMR_OFFSET)
+
 /*
- * Returns number of ms since last clock interrupt.  Note that interrupts
- * will have been disabled by do_gettimeoffset()
+ * Timer registers
  */
-static unsigned long ks8695_gettimeoffset (void)
+#define KS8695_TMCON		(0x00)		/* Timer Control Register */
+#define KS8695_T1TC		(0x04)		/* Timer 1 Timeout Count Register */
+#define KS8695_T0TC		(0x08)		/* Timer 0 Timeout Count Register */
+#define KS8695_T1PD		(0x0C)		/* Timer 1 Pulse Count Register */
+#define KS8695_T0PD		(0x10)		/* Timer 0 Pulse Count Register */
+
+/* Timer Control Register */
+#define TMCON_T1EN		(1 << 1)	/* Timer 1 Enable */
+#define TMCON_T0EN		(1 << 0)	/* Timer 0 Enable */
+
+/* Timer0 Timeout Counter Register */
+#define T0TC_WATCHDOG		(0xff)		/* Enable watchdog mode */
+
+static void ks8695_set_mode(enum clock_event_mode mode,
+			    struct clock_event_device *evt)
 {
-	unsigned long elapsed, tick2, intpending;
+	u32 tmcon;
 
-	/*
-	 * Get the current number of ticks.  Note that there is a race
-	 * condition between us reading the timer and checking for an
-	 * interrupt.  We solve this by ensuring that the counter has not
-	 * reloaded between our two reads.
-	 */
-	elapsed = __raw_readl(KS8695_TMR_VA + KS8695_T1TC) + __raw_readl(KS8695_TMR_VA + KS8695_T1PD);
-	do {
-		tick2 = elapsed;
-		intpending = __raw_readl(KS8695_IRQ_VA + KS8695_INTST) & (1 << KS8695_IRQ_TIMER1);
-		elapsed = __raw_readl(KS8695_TMR_VA + KS8695_T1TC) + __raw_readl(KS8695_TMR_VA + KS8695_T1PD);
-	} while (elapsed > tick2);
+	if (mode == CLOCK_EVT_FEAT_PERIODIC) {
+		u32 rate = DIV_ROUND_CLOSEST(KS8695_CLOCK_RATE, HZ);
+		u32 half = DIV_ROUND_CLOSEST(rate, 2);
 
-	/* Convert to number of ticks expired (not remaining) */
-	elapsed = (CLOCK_TICK_RATE / HZ) - elapsed;
+		/* Disable timer 1 */
+		tmcon = readl_relaxed(KS8695_TMR_VA + KS8695_TMCON);
+		tmcon &= ~TMCON_T1EN;
+		writel_relaxed(tmcon, KS8695_TMR_VA + KS8695_TMCON);
 
-	/* Is interrupt pending?  If so, then timer has been reloaded already. */
-	if (intpending)
-		elapsed += (CLOCK_TICK_RATE / HZ);
+		/* Both registers need to count down */
+		writel_relaxed(half, KS8695_TMR_VA + KS8695_T1TC);
+		writel_relaxed(half, KS8695_TMR_VA + KS8695_T1PD);
 
-	/* Convert ticks to usecs */
-	return (unsigned long)(elapsed * (tick_nsec / 1000)) / LATCH;
+		/* Re-enable timer1 */
+		tmcon |= TMCON_T1EN;
+		writel_relaxed(tmcon, KS8695_TMR_VA + KS8695_TMCON);
+	}
 }
+
+static int ks8695_set_next_event(unsigned long cycles,
+				 struct clock_event_device *evt)
+
+{
+	u32 half = DIV_ROUND_CLOSEST(cycles, 2);
+	u32 tmcon;
+
+	/* Disable timer 1 */
+	tmcon = readl_relaxed(KS8695_TMR_VA + KS8695_TMCON);
+	tmcon &= ~TMCON_T1EN;
+	writel_relaxed(tmcon, KS8695_TMR_VA + KS8695_TMCON);
+
+	/* Both registers need to count down */
+	writel_relaxed(half, KS8695_TMR_VA + KS8695_T1TC);
+	writel_relaxed(half, KS8695_TMR_VA + KS8695_T1PD);
+
+	/* Re-enable timer1 */
+	tmcon |= TMCON_T1EN;
+	writel_relaxed(tmcon, KS8695_TMR_VA + KS8695_TMCON);
+
+	return 0;
+}
+
+static struct clock_event_device clockevent_ks8695 = {
+	.name		= "ks8695_t1tc",
+	.rating		= 300, /* Reasonably fast and accurate clock event */
+	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
+	.set_next_event	= ks8695_set_next_event,
+	.set_mode	= ks8695_set_mode,
+};
 
 /*
  * IRQ handler for the timer.
  */
 static irqreturn_t ks8695_timer_interrupt(int irq, void *dev_id)
 {
-	timer_tick();
+	struct clock_event_device *evt = &clockevent_ks8695;
+
+	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
 
@@ -83,18 +128,22 @@ static struct irqaction ks8695_timer_irq = {
 
 static void ks8695_timer_setup(void)
 {
-	unsigned long tmout = CLOCK_TICK_RATE / HZ;
 	unsigned long tmcon;
 
-	/* disable timer1 */
-	tmcon = __raw_readl(KS8695_TMR_VA + KS8695_TMCON);
-	__raw_writel(tmcon & ~TMCON_T1EN, KS8695_TMR_VA + KS8695_TMCON);
+	/* Disable timer 0 and 1 */
+	tmcon = readl_relaxed(KS8695_TMR_VA + KS8695_TMCON);
+	tmcon &= ~TMCON_T0EN;
+	tmcon &= ~TMCON_T1EN;
+	writel_relaxed(tmcon, KS8695_TMR_VA + KS8695_TMCON);
 
-	__raw_writel(tmout / 2, KS8695_TMR_VA + KS8695_T1TC);
-	__raw_writel(tmout / 2, KS8695_TMR_VA + KS8695_T1PD);
-
-	/* re-enable timer1 */
-	__raw_writel(tmcon | TMCON_T1EN, KS8695_TMR_VA + KS8695_TMCON);
+	/*
+	 * Use timer 1 to fire IRQs on the timeline, minimum 2 cycles
+	 * (one on each counter) maximum 2*2^32, but the API will only
+	 * accept up to a 32bit full word (0xFFFFFFFFU).
+	 */
+	clockevents_config_and_register(&clockevent_ks8695,
+					KS8695_CLOCK_RATE, 2,
+					0xFFFFFFFFU);
 }
 
 static void __init ks8695_timer_init (void)
@@ -107,8 +156,6 @@ static void __init ks8695_timer_init (void)
 
 struct sys_timer ks8695_timer = {
 	.init		= ks8695_timer_init,
-	.offset		= ks8695_gettimeoffset,
-	.resume		= ks8695_timer_setup,
 };
 
 void ks8695_restart(char mode, const char *cmd)
@@ -119,12 +166,12 @@ void ks8695_restart(char mode, const char *cmd)
 		soft_restart(0);
 
 	/* disable timer0 */
-	reg = __raw_readl(KS8695_TMR_VA + KS8695_TMCON);
-	__raw_writel(reg & ~TMCON_T0EN, KS8695_TMR_VA + KS8695_TMCON);
+	reg = readl_relaxed(KS8695_TMR_VA + KS8695_TMCON);
+	writel_relaxed(reg & ~TMCON_T0EN, KS8695_TMR_VA + KS8695_TMCON);
 
 	/* enable watchdog mode */
-	__raw_writel((10 << 8) | T0TC_WATCHDOG, KS8695_TMR_VA + KS8695_T0TC);
+	writel_relaxed((10 << 8) | T0TC_WATCHDOG, KS8695_TMR_VA + KS8695_T0TC);
 
 	/* re-enable timer0 */
-	__raw_writel(reg | TMCON_T0EN, KS8695_TMR_VA + KS8695_TMCON);
+	writel_relaxed(reg | TMCON_T0EN, KS8695_TMR_VA + KS8695_TMCON);
 }

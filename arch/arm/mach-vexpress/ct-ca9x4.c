@@ -13,7 +13,6 @@
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
-#include <asm/pmu.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
 
@@ -144,7 +143,7 @@ static struct resource pmu_resources[] = {
 
 static struct platform_device pmu_device = {
 	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(pmu_resources),
 	.resource	= pmu_resources,
 };

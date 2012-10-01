@@ -34,7 +34,6 @@ config ARCH_TEGRA_3x_SOC
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select USB_ULPI if USB
 	select USB_ULPI_VIEWPORT if USB_SUPPORT
-	select USE_OF
 	select ARM_ERRATA_743622
 	select ARM_ERRATA_751472
 	select ARM_ERRATA_754322
@@ -59,25 +58,6 @@ config TEGRA_AHB
 	  perfomance parameters(priority, prefech size).
 
 comment "Tegra board type"
-
-config MACH_HARMONY
-       bool "Harmony board"
-       depends on ARCH_TEGRA_2x_SOC
-       help
-         Support for nVidia Harmony development platform
-
-config MACH_PAZ00
-       bool "Paz00 board"
-       depends on ARCH_TEGRA_2x_SOC
-       help
-         Support for the Toshiba AC100/Dynabook AZ netbook
-
-config MACH_TRIMSLICE
-       bool "TrimSlice board"
-       depends on ARCH_TEGRA_2x_SOC
-       select TEGRA_PCI
-       help
-         Support for CompuLab TrimSlice platform
 
 choice
         prompt "Default low-level debug console UART"
@@ -129,13 +109,6 @@ config TEGRA_DEBUG_UART_AUTO_SCRATCH
 	  UART.
 
 endchoice
-
-config TEGRA_SYSTEM_DMA
-	bool "Enable system DMA driver for NVIDIA Tegra SoCs"
-	default y
-	help
-	  Adds system DMA functionality for NVIDIA Tegra SoCs, used by
-	  several Tegra device drivers
 
 config TEGRA_EMC_SCALING_ENABLE
 	bool "Enable scaling the memory frequency"

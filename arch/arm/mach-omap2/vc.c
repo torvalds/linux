@@ -12,8 +12,7 @@
 #include <linux/init.h>
 #include <linux/bug.h>
 
-#include <plat/cpu.h>
-
+#include "soc.h"
 #include "voltage.h"
 #include "vc.h"
 #include "prm-regbits-34xx.h"
@@ -116,9 +115,8 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 	}
 
 	if (!voltdm->pmic->uv_to_vsel) {
-		pr_err("%s: PMIC function to convert voltage in uV to"
-			"vsel not registered. Hence unable to scale voltage"
-			"for vdd_%s\n", __func__, voltdm->name);
+		pr_err("%s: PMIC function to convert voltage in uV to vsel not registered. Hence unable to scale voltage for vdd_%s\n",
+		       __func__, voltdm->name);
 		return -ENODATA;
 	}
 

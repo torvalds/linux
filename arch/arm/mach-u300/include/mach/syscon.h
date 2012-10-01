@@ -3,7 +3,7 @@
  * arch/arm/mach-u300/include/mach/syscon.h
  *
  *
- * Copyright (C) 2008 ST-Ericsson AB
+ * Copyright (C) 2008-2012 ST-Ericsson AB
  *
  * Author: Rickard Andersson <rickard.andersson@stericsson.com>
  */
@@ -36,9 +36,7 @@
 #define U300_SYSCON_CSR_PLL13_LOCK_IND				(0x0001)
 /* Reset lines for SLOW devices 16bit (R/W) */
 #define U300_SYSCON_RSR						(0x0014)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_RSR_PPM_RESET_EN				(0x0200)
-#endif
 #define U300_SYSCON_RSR_ACC_TMR_RESET_EN			(0x0100)
 #define U300_SYSCON_RSR_APP_TMR_RESET_EN			(0x0080)
 #define U300_SYSCON_RSR_RTC_RESET_EN				(0x0040)
@@ -50,9 +48,7 @@
 #define U300_SYSCON_RSR_SLOW_BRIDGE_RESET_EN			(0x0001)
 /* Reset lines for FAST devices 16bit (R/W) */
 #define U300_SYSCON_RFR						(0x0018)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_RFR_UART1_RESET_ENABLE			(0x0080)
-#endif
 #define U300_SYSCON_RFR_SPI_RESET_ENABLE			(0x0040)
 #define U300_SYSCON_RFR_MMC_RESET_ENABLE			(0x0020)
 #define U300_SYSCON_RFR_PCM_I2S1_RESET_ENABLE			(0x0010)
@@ -62,10 +58,8 @@
 #define U300_SYSCON_RFR_FAST_BRIDGE_RESET_ENABLE		(0x0001)
 /* Reset lines for the rest of the peripherals 16bit (R/W) */
 #define U300_SYSCON_RRR						(0x001c)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_RRR_CDS_RESET_EN				(0x4000)
 #define U300_SYSCON_RRR_ISP_RESET_EN				(0x2000)
-#endif
 #define U300_SYSCON_RRR_INTCON_RESET_EN				(0x1000)
 #define U300_SYSCON_RRR_MSPRO_RESET_EN				(0x0800)
 #define U300_SYSCON_RRR_XGAM_RESET_EN				(0x0100)
@@ -79,9 +73,7 @@
 #define U300_SYSCON_RRR_AAIF_RESET_EN				(0x0001)
 /* Clock enable for SLOW peripherals 16bit (R/W) */
 #define U300_SYSCON_CESR					(0x0020)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_CESR_PPM_CLK_EN				(0x0200)
-#endif
 #define U300_SYSCON_CESR_ACC_TMR_CLK_EN				(0x0100)
 #define U300_SYSCON_CESR_APP_TMR_CLK_EN				(0x0080)
 #define U300_SYSCON_CESR_KEYPAD_CLK_EN				(0x0040)
@@ -92,24 +84,20 @@
 #define U300_SYSCON_CESR_SLOW_BRIDGE_CLK_EN			(0x0001)
 /* Clock enable for FAST peripherals 16bit (R/W) */
 #define U300_SYSCON_CEFR					(0x0024)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_CEFR_UART1_CLK_EN				(0x0200)
-#endif
 #define U300_SYSCON_CEFR_I2S1_CORE_CLK_EN			(0x0100)
 #define U300_SYSCON_CEFR_I2S0_CORE_CLK_EN			(0x0080)
 #define U300_SYSCON_CEFR_SPI_CLK_EN				(0x0040)
 #define U300_SYSCON_CEFR_MMC_CLK_EN				(0x0020)
-#define U300_SYSCON_CEFR_I2S1_CLK_EN    			(0x0010)
-#define U300_SYSCON_CEFR_I2S0_CLK_EN     			(0x0008)
-#define U300_SYSCON_CEFR_I2C1_CLK_EN     			(0x0004)
-#define U300_SYSCON_CEFR_I2C0_CLK_EN     			(0x0002)
+#define U300_SYSCON_CEFR_I2S1_CLK_EN				(0x0010)
+#define U300_SYSCON_CEFR_I2S0_CLK_EN				(0x0008)
+#define U300_SYSCON_CEFR_I2C1_CLK_EN				(0x0004)
+#define U300_SYSCON_CEFR_I2C0_CLK_EN				(0x0002)
 #define U300_SYSCON_CEFR_FAST_BRIDGE_CLK_EN			(0x0001)
 /* Clock enable for the rest of the peripherals 16bit (R/W) */
 #define U300_SYSCON_CERR					(0x0028)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_CERR_CDS_CLK_EN				(0x2000)
 #define U300_SYSCON_CERR_ISP_CLK_EN				(0x1000)
-#endif
 #define U300_SYSCON_CERR_MSPRO_CLK_EN				(0x0800)
 #define U300_SYSCON_CERR_AHB_SUBSYS_BRIDGE_CLK_EN		(0x0400)
 #define U300_SYSCON_CERR_SEMI_CLK_EN				(0x0200)
@@ -124,9 +112,7 @@
 #define U300_SYSCON_CERR_AAIF_CLK_EN				(0x0001)
 /* Single block clock enable 16bit (-/W) */
 #define U300_SYSCON_SBCER					(0x002c)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_SBCER_PPM_CLK_EN				(0x0009)
-#endif
 #define U300_SYSCON_SBCER_ACC_TMR_CLK_EN			(0x0008)
 #define U300_SYSCON_SBCER_APP_TMR_CLK_EN			(0x0007)
 #define U300_SYSCON_SBCER_KEYPAD_CLK_EN				(0x0006)
@@ -135,9 +121,7 @@
 #define U300_SYSCON_SBCER_BTR_CLK_EN				(0x0002)
 #define U300_SYSCON_SBCER_UART_CLK_EN				(0x0001)
 #define U300_SYSCON_SBCER_SLOW_BRIDGE_CLK_EN			(0x0000)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_SBCER_UART1_CLK_EN				(0x0019)
-#endif
 #define U300_SYSCON_SBCER_I2S1_CORE_CLK_EN			(0x0018)
 #define U300_SYSCON_SBCER_I2S0_CORE_CLK_EN			(0x0017)
 #define U300_SYSCON_SBCER_SPI_CLK_EN				(0x0016)
@@ -147,10 +131,8 @@
 #define U300_SYSCON_SBCER_I2C1_CLK_EN				(0x0012)
 #define U300_SYSCON_SBCER_I2C0_CLK_EN				(0x0011)
 #define U300_SYSCON_SBCER_FAST_BRIDGE_CLK_EN			(0x0010)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_SBCER_CDS_CLK_EN				(0x002D)
 #define U300_SYSCON_SBCER_ISP_CLK_EN				(0x002C)
-#endif
 #define U300_SYSCON_SBCER_MSPRO_CLK_EN				(0x002B)
 #define U300_SYSCON_SBCER_AHB_SUBSYS_BRIDGE_CLK_EN		(0x002A)
 #define U300_SYSCON_SBCER_SEMI_CLK_EN				(0x0029)
@@ -168,9 +150,7 @@
 /* Same values as above for SBCER */
 /* Clock force SLOW peripherals 16bit (R/W) */
 #define U300_SYSCON_CFSR					(0x003c)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_CFSR_PPM_CLK_FORCE_EN			(0x0200)
-#endif
 #define U300_SYSCON_CFSR_ACC_TMR_CLK_FORCE_EN			(0x0100)
 #define U300_SYSCON_CFSR_APP_TMR_CLK_FORCE_EN			(0x0080)
 #define U300_SYSCON_CFSR_KEYPAD_CLK_FORCE_EN			(0x0020)
@@ -184,10 +164,8 @@
 /* Values not defined. Define if you want to use them. */
 /* Clock force the rest of the peripherals 16bit (R/W) */
 #define U300_SYSCON_CFRR					(0x44)
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SYSCON_CFRR_CDS_CLK_FORCE_EN			(0x2000)
 #define U300_SYSCON_CFRR_ISP_CLK_FORCE_EN			(0x1000)
-#endif
 #define U300_SYSCON_CFRR_MSPRO_CLK_FORCE_EN			(0x0800)
 #define U300_SYSCON_CFRR_AHB_SUBSYS_BRIDGE_CLK_FORCE_EN		(0x0400)
 #define U300_SYSCON_CFRR_SEMI_CLK_FORCE_EN			(0x0200)

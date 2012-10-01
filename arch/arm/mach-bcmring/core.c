@@ -43,11 +43,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <cfg_global.h>
+#include <mach/cfg_global.h>
 
 #include "clock.h"
 
-#include <csp/secHw.h>
 #include <mach/csp/secHw_def.h>
 #include <mach/csp/chipcHw_inline.h>
 #include <mach/csp/tmrHw_reg.h>

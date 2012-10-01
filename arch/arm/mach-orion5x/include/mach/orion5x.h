@@ -31,31 +31,29 @@
  * fc000000	device bus mappings (cs0/cs1)
  *
  * virt		phys		size
- * fdd00000	f1000000	1M	on-chip peripheral registers
- * fde00000	f2000000	1M	PCIe I/O space
- * fdf00000	f2100000	1M	PCI I/O space
- * fe000000	f0000000	16M	PCIe WA space (Orion-1/Orion-NAS only)
+ * fe000000	f1000000	1M	on-chip peripheral registers
+ * fee00000	f2000000	64K	PCIe I/O space
+ * fee10000	f2100000	64K	PCI I/O space
+ * fd000000	f0000000	16M	PCIe WA space (Orion-1/Orion-NAS only)
  ****************************************************************************/
 #define ORION5X_REGS_PHYS_BASE		0xf1000000
-#define ORION5X_REGS_VIRT_BASE		0xfdd00000
+#define ORION5X_REGS_VIRT_BASE		0xfe000000
 #define ORION5X_REGS_SIZE		SZ_1M
 
 #define ORION5X_PCIE_IO_PHYS_BASE	0xf2000000
-#define ORION5X_PCIE_IO_VIRT_BASE	0xfde00000
 #define ORION5X_PCIE_IO_BUS_BASE	0x00000000
-#define ORION5X_PCIE_IO_SIZE		SZ_1M
+#define ORION5X_PCIE_IO_SIZE		SZ_64K
 
 #define ORION5X_PCI_IO_PHYS_BASE	0xf2100000
-#define ORION5X_PCI_IO_VIRT_BASE	0xfdf00000
-#define ORION5X_PCI_IO_BUS_BASE		0x00100000
-#define ORION5X_PCI_IO_SIZE		SZ_1M
+#define ORION5X_PCI_IO_BUS_BASE		0x00010000
+#define ORION5X_PCI_IO_SIZE		SZ_64K
 
 #define ORION5X_SRAM_PHYS_BASE		(0xf2200000)
 #define ORION5X_SRAM_SIZE		SZ_8K
 
 /* Relevant only for Orion-1/Orion-NAS */
 #define ORION5X_PCIE_WA_PHYS_BASE	0xf0000000
-#define ORION5X_PCIE_WA_VIRT_BASE	0xfe000000
+#define ORION5X_PCIE_WA_VIRT_BASE	0xfd000000
 #define ORION5X_PCIE_WA_SIZE		SZ_16M
 
 #define ORION5X_PCIE_MEM_PHYS_BASE	0xe0000000

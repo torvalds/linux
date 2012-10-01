@@ -28,18 +28,18 @@
 #include <linux/interrupt.h>
 #include <linux/apm-emulation.h>
 #include <linux/omapfb.h>
+#include <linux/platform_data/omap1_bl.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/flash.h>
-#include <plat/mux.h>
+#include <mach/flash.h>
+#include <mach/mux.h>
 #include <plat/tc.h>
 #include <plat/dma.h>
-#include <plat/board.h>
-#include <plat/irda.h>
-#include <plat/keypad.h>
+#include <mach/irda.h>
+#include <linux/platform_data/keypad-omap.h>
 
 #include <mach/hardware.h>
 #include <mach/usb.h>

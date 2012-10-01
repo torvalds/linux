@@ -28,9 +28,9 @@
 #include <linux/bitops.h>
 #include <linux/clkdev.h>
 
-#include <plat/cpu.h>
 #include <plat/clock.h>
 
+#include "soc.h"
 #include "clock.h"
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
@@ -623,8 +623,11 @@ unsigned long omap3_clkoutx2_recalc(struct clk *clk)
 	while (pclk && !pclk->dpll_data)
 		pclk = pclk->parent;
 
-	/* clk does not have a DPLL as a parent? */
-	WARN_ON(!pclk);
+	/* clk does not have a DPLL as a parent?  error in the clock data */
+	if (!pclk) {
+		WARN_ON(1);
+		return 0;
+	}
 
 	dd = pclk->dpll_data;
 
