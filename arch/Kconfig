@@ -304,4 +304,13 @@ config HAVE_RCU_USER_QS
 	  are already protected inside rcu_irq_enter/rcu_irq_exit() but
 	  preemption or signal handling on irq exit still need to be protected.
 
+config HAVE_VIRT_CPU_ACCOUNTING
+	bool
+
+config HAVE_IRQ_TIME_ACCOUNTING
+	bool
+	help
+	  Archs need to ensure they use a high enough resolution clock to
+	  support irq time accounting and then call enable_sched_clock_irqtime().
+
 source "kernel/gcov/Kconfig"
