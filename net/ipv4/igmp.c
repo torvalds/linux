@@ -1904,6 +1904,7 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 	rtnl_unlock();
 	return ret;
 }
+EXPORT_SYMBOL(ip_mc_leave_group);
 
 int ip_mc_source(int add, int omode, struct sock *sk, struct
 	ip_mreq_source *mreqs, int ifindex)
