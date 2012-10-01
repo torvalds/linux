@@ -2110,7 +2110,7 @@ static int bio_readpage_error(struct bio *failed_bio, struct page *page,
 		}
 		read_unlock(&em_tree->lock);
 
-		if (!em || IS_ERR(em)) {
+		if (!em) {
 			kfree(failrec);
 			return -EIO;
 		}
