@@ -4290,6 +4290,55 @@ static void i8xx_update_pll(struct drm_crtc *crtc,
 	I915_WRITE(DPLL(pipe), dpll);
 }
 
+static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
+				   struct drm_display_mode *mode,
+				   struct drm_display_mode *adjusted_mode)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe = intel_crtc->pipe;
+	uint32_t vsyncshift;
+
+	if (!IS_GEN2(dev) && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		/* the chip adds 2 halflines automatically */
+		adjusted_mode->crtc_vtotal -= 1;
+		adjusted_mode->crtc_vblank_end -= 1;
+		vsyncshift = adjusted_mode->crtc_hsync_start
+			     - adjusted_mode->crtc_htotal / 2;
+	} else {
+		vsyncshift = 0;
+	}
+
+	if (INTEL_INFO(dev)->gen > 3)
+		I915_WRITE(VSYNCSHIFT(pipe), vsyncshift);
+
+	I915_WRITE(HTOTAL(pipe),
+		   (adjusted_mode->crtc_hdisplay - 1) |
+		   ((adjusted_mode->crtc_htotal - 1) << 16));
+	I915_WRITE(HBLANK(pipe),
+		   (adjusted_mode->crtc_hblank_start - 1) |
+		   ((adjusted_mode->crtc_hblank_end - 1) << 16));
+	I915_WRITE(HSYNC(pipe),
+		   (adjusted_mode->crtc_hsync_start - 1) |
+		   ((adjusted_mode->crtc_hsync_end - 1) << 16));
+
+	I915_WRITE(VTOTAL(pipe),
+		   (adjusted_mode->crtc_vdisplay - 1) |
+		   ((adjusted_mode->crtc_vtotal - 1) << 16));
+	I915_WRITE(VBLANK(pipe),
+		   (adjusted_mode->crtc_vblank_start - 1) |
+		   ((adjusted_mode->crtc_vblank_end - 1) << 16));
+	I915_WRITE(VSYNC(pipe),
+		   (adjusted_mode->crtc_vsync_start - 1) |
+		   ((adjusted_mode->crtc_vsync_end - 1) << 16));
+
+	/* pipesrc controls the size that is scaled from, which should
+	 * always be the user's requested size.
+	 */
+	I915_WRITE(PIPESRC(pipe),
+		   ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
+}
+
 static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *mode,
 			      struct drm_display_mode *adjusted_mode,
@@ -4303,7 +4352,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dspcntr, pipeconf, vsyncshift;
+	u32 dspcntr, pipeconf;
 	bool ok, has_reduced_clock = false, is_sdvo = false;
 	bool is_lvds = false, is_tv = false, is_dp = false;
 	struct intel_encoder *encoder;
@@ -4438,40 +4487,12 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	pipeconf &= ~PIPECONF_INTERLACE_MASK;
 	if (!IS_GEN2(dev) &&
-	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
-		/* the chip adds 2 halflines automatically */
-		adjusted_mode->crtc_vtotal -= 1;
-		adjusted_mode->crtc_vblank_end -= 1;
-		vsyncshift = adjusted_mode->crtc_hsync_start
-			     - adjusted_mode->crtc_htotal/2;
-	} else {
+	else
 		pipeconf |= PIPECONF_PROGRESSIVE;
-		vsyncshift = 0;
-	}
 
-	if (!IS_GEN3(dev))
-		I915_WRITE(VSYNCSHIFT(pipe), vsyncshift);
-
-	I915_WRITE(HTOTAL(pipe),
-		   (adjusted_mode->crtc_hdisplay - 1) |
-		   ((adjusted_mode->crtc_htotal - 1) << 16));
-	I915_WRITE(HBLANK(pipe),
-		   (adjusted_mode->crtc_hblank_start - 1) |
-		   ((adjusted_mode->crtc_hblank_end - 1) << 16));
-	I915_WRITE(HSYNC(pipe),
-		   (adjusted_mode->crtc_hsync_start - 1) |
-		   ((adjusted_mode->crtc_hsync_end - 1) << 16));
-
-	I915_WRITE(VTOTAL(pipe),
-		   (adjusted_mode->crtc_vdisplay - 1) |
-		   ((adjusted_mode->crtc_vtotal - 1) << 16));
-	I915_WRITE(VBLANK(pipe),
-		   (adjusted_mode->crtc_vblank_start - 1) |
-		   ((adjusted_mode->crtc_vblank_end - 1) << 16));
-	I915_WRITE(VSYNC(pipe),
-		   (adjusted_mode->crtc_vsync_start - 1) |
-		   ((adjusted_mode->crtc_vsync_end - 1) << 16));
+	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
 	/* pipesrc and dspsize control the size that is scaled from,
 	 * which should always be the user's requested size.
@@ -4480,8 +4501,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		   ((mode->vdisplay - 1) << 16) |
 		   (mode->hdisplay - 1));
 	I915_WRITE(DSPPOS(plane), 0);
-	I915_WRITE(PIPESRC(pipe),
-		   ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
 
 	I915_WRITE(PIPECONF(pipe), pipeconf);
 	POSTING_READ(PIPECONF(pipe));
@@ -5087,42 +5106,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		/* the chip adds 2 halflines automatically */
-		adjusted_mode->crtc_vtotal -= 1;
-		adjusted_mode->crtc_vblank_end -= 1;
-		I915_WRITE(VSYNCSHIFT(pipe),
-			   adjusted_mode->crtc_hsync_start
-			   - adjusted_mode->crtc_htotal/2);
-	} else {
-		I915_WRITE(VSYNCSHIFT(pipe), 0);
-	}
-
-	I915_WRITE(HTOTAL(pipe),
-		   (adjusted_mode->crtc_hdisplay - 1) |
-		   ((adjusted_mode->crtc_htotal - 1) << 16));
-	I915_WRITE(HBLANK(pipe),
-		   (adjusted_mode->crtc_hblank_start - 1) |
-		   ((adjusted_mode->crtc_hblank_end - 1) << 16));
-	I915_WRITE(HSYNC(pipe),
-		   (adjusted_mode->crtc_hsync_start - 1) |
-		   ((adjusted_mode->crtc_hsync_end - 1) << 16));
-
-	I915_WRITE(VTOTAL(pipe),
-		   (adjusted_mode->crtc_vdisplay - 1) |
-		   ((adjusted_mode->crtc_vtotal - 1) << 16));
-	I915_WRITE(VBLANK(pipe),
-		   (adjusted_mode->crtc_vblank_start - 1) |
-		   ((adjusted_mode->crtc_vblank_end - 1) << 16));
-	I915_WRITE(VSYNC(pipe),
-		   (adjusted_mode->crtc_vsync_start - 1) |
-		   ((adjusted_mode->crtc_vsync_end - 1) << 16));
-
-	/* pipesrc controls the size that is scaled from, which should
-	 * always be the user's requested size.
-	 */
-	I915_WRITE(PIPESRC(pipe),
-		   ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
+	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
 	ironlake_set_m_n(crtc, mode, adjusted_mode);
 
