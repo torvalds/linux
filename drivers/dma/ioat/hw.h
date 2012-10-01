@@ -22,7 +22,6 @@
 #define _IOAT_HW_H_
 
 /* PCI Configuration Space Values */
-#define IOAT_PCI_VID            0x8086
 #define IOAT_MMIO_BAR		0
 
 /* CB device ID's */
@@ -31,9 +30,6 @@
 #define IOAT_PCI_DID_SCNB       0x65FF
 #define IOAT_PCI_DID_SNB        0x402F
 
-#define IOAT_PCI_RID            0x00
-#define IOAT_PCI_SVID           0x8086
-#define IOAT_PCI_SID            0x8086
 #define IOAT_VER_1_2            0x12    /* Version 1.2 */
 #define IOAT_VER_2_0            0x20    /* Version 2.0 */
 #define IOAT_VER_3_0            0x30    /* Version 3.0 */

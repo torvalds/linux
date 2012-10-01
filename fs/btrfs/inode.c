@@ -1971,8 +1971,8 @@ out:
 				      ordered_extent->len - 1, NULL, GFP_NOFS);
 
 	/*
-	 * This needs to be dont to make sure anybody waiting knows we are done
-	 * upating everything for this ordered extent.
+	 * This needs to be done to make sure anybody waiting knows we are done
+	 * updating everything for this ordered extent.
 	 */
 	btrfs_remove_ordered_extent(inode, ordered_extent);
 

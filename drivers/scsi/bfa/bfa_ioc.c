@@ -5587,7 +5587,7 @@ static bfa_status_t bfa_dconf_flash_write(struct bfa_dconf_mod_s *dconf);
 static void bfa_dconf_init_cb(void *arg, bfa_status_t status);
 
 /*
- * Begining state of dconf module. Waiting for an event to start.
+ * Beginning state of dconf module. Waiting for an event to start.
  */
 static void
 bfa_dconf_sm_uninit(struct bfa_dconf_mod_s *dconf, enum bfa_dconf_event event)

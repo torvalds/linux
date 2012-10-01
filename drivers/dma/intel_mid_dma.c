@@ -427,7 +427,7 @@ DMA engine callback Functions*/
  * intel_mid_dma_tx_submit -	callback to submit DMA transaction
  * @tx: dma engine descriptor
  *
- * Submit the DMA trasaction for this descriptor, start if ch idle
+ * Submit the DMA transaction for this descriptor, start if ch idle
  */
 static dma_cookie_t intel_mid_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 {

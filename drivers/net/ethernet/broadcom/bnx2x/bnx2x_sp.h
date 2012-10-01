@@ -1321,7 +1321,7 @@ void bnx2x_init_mcast_obj(struct bnx2x *bp,
  * the current command will be enqueued to the tail of the
  * pending commands list.
  *
- * Return: 0 is operation was sucessfull and there are no pending completions,
+ * Return: 0 is operation was successfull and there are no pending completions,
  *         negative if there were errors, positive if there are pending
  *         completions.
  */

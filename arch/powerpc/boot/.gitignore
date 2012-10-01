@@ -1,10 +1,6 @@
 addnote
 empty.c
 hack-coff
-infblock.c
-infblock.h
-infcodes.c
-infcodes.h
 inffast.c
 inffast.h
 inffixed.h

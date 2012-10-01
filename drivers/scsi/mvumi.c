@@ -122,7 +122,7 @@ static struct mvumi_res *mvumi_alloc_mem_resource(struct mvumi_hba *mhba,
 
 	if (!res) {
 		dev_err(&mhba->pdev->dev,
-			"Failed to allocate memory for resouce manager.\n");
+			"Failed to allocate memory for resource manager.\n");
 		return NULL;
 	}
 
@@ -1007,13 +1007,13 @@ static int mvumi_handshake(struct mvumi_hba *mhba)
 		tmp |= INT_MAP_COMAOUT | INT_MAP_COMAERR;
 		iowrite32(tmp, regs + CPU_ENPOINTA_MASK_REG);
 		iowrite32(mhba->list_num_io, mhba->ib_shadow);
-		/* Set InBound List Avaliable count shadow */
+		/* Set InBound List Available count shadow */
 		iowrite32(lower_32_bits(mhba->ib_shadow_phys),
 					regs + CLA_INB_AVAL_COUNT_BASEL);
 		iowrite32(upper_32_bits(mhba->ib_shadow_phys),
 					regs + CLA_INB_AVAL_COUNT_BASEH);
 
-		/* Set OutBound List Avaliable count shadow */
+		/* Set OutBound List Available count shadow */
 		iowrite32((mhba->list_num_io-1) | CL_POINTER_TOGGLE,
 						mhba->ob_shadow);
 		iowrite32(lower_32_bits(mhba->ob_shadow_phys), regs + 0x5B0);

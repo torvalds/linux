@@ -522,7 +522,7 @@ enum desc_status {
 	/* In the DMAC pool */
 	FREE,
 	/*
-	 * Allocted to some channel during prep_xxx
+	 * Allocated to some channel during prep_xxx
 	 * Also may be sitting on the work_list.
 	 */
 	PREP,

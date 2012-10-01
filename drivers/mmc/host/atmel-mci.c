@@ -1022,7 +1022,7 @@ static void atmci_stop_transfer(struct atmel_mci *host)
 }
 
 /*
- * Stop data transfer because error(s) occured.
+ * Stop data transfer because error(s) occurred.
  */
 static void atmci_stop_transfer_pdc(struct atmel_mci *host)
 {

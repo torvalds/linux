@@ -129,7 +129,7 @@ static int tiny_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	unsigned int i;
 
 	if (hw->irq >= 0) {
-		/* use intrrupt driven data transfer */
+		/* use interrupt driven data transfer */
 		hw->len = t->len;
 		hw->txp = t->tx_buf;
 		hw->rxp = t->rx_buf;
