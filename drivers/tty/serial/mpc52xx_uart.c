@@ -598,7 +598,7 @@ static struct psc_ops mpc512x_psc_ops = {
 };
 #endif
 
-static struct psc_ops *psc_ops;
+static const struct psc_ops *psc_ops;
 
 /* ======================================================================== */
 /* UART operations                                                          */
