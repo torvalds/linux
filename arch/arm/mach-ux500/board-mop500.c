@@ -524,33 +524,12 @@ static struct stedma40_chan_cfg uart2_dma_cfg_tx = {
 };
 #endif
 
-#define PRCC_K_SOFTRST_SET      0x18
-#define PRCC_K_SOFTRST_CLEAR    0x1C
-static void ux500_uart0_reset(void)
-{
-	void __iomem *prcc_rst_set, *prcc_rst_clr;
-
-	prcc_rst_set = (void __iomem *)IO_ADDRESS(U8500_CLKRST1_BASE +
-			PRCC_K_SOFTRST_SET);
-	prcc_rst_clr = (void __iomem *)IO_ADDRESS(U8500_CLKRST1_BASE +
-			PRCC_K_SOFTRST_CLEAR);
-
-	/* Activate soft reset PRCC_K_SOFTRST_CLEAR */
-	writel((readl(prcc_rst_clr) | 0x1), prcc_rst_clr);
-	udelay(1);
-
-	/* Release soft reset PRCC_K_SOFTRST_SET */
-	writel((readl(prcc_rst_set) | 0x1), prcc_rst_set);
-	udelay(1);
-}
-
 static struct amba_pl011_data uart0_plat = {
 #ifdef CONFIG_STE_DMA40
 	.dma_filter = stedma40_filter,
 	.dma_rx_param = &uart0_dma_cfg_rx,
 	.dma_tx_param = &uart0_dma_cfg_tx,
 #endif
-	.reset = ux500_uart0_reset,
 };
 
 static struct amba_pl011_data uart1_plat = {

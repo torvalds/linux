@@ -214,8 +214,8 @@ config CYCLADES
 	  If you haven't heard about it, it's safe to say N.
 
 config CYZ_INTR
-	bool "Cyclades-Z interrupt mode operation (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && CYCLADES
+	bool "Cyclades-Z interrupt mode operation"
+	depends on CYCLADES
 	help
 	  The Cyclades-Z family of multiport cards allows 2 (two) driver op
 	  modes: polling and interrupt. In polling mode, the driver will check
@@ -285,7 +285,7 @@ config SYNCLINK_GT
 
 config NOZOMI
 	tristate "HSDPA Broadband Wireless Data Card - Globe Trotter"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  If you have a HSDPA driver Broadband Wireless Data Card -
 	  Globe Trotter PCMCIA card, say Y here.
@@ -294,7 +294,7 @@ config NOZOMI
 	  will be called nozomi.
 
 config ISI
-	tristate "Multi-Tech multiport card support (EXPERIMENTAL)"
+	tristate "Multi-Tech multiport card support"
 	depends on SERIAL_NONSTANDARD && PCI
 	select FW_LOADER
 	help
@@ -317,7 +317,6 @@ config N_HDLC
 
 config N_GSM
 	tristate "GSM MUX line discipline support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 	depends on NET
 	help
 	  This line discipline provides support for the GSM MUX protocol and

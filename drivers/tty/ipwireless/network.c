@@ -274,7 +274,12 @@ static void do_go_online(struct work_struct *work_go_online)
 		network->xaccm[0] = ~0U;
 		network->xaccm[3] = 0x60000000U;
 		network->raccm = ~0U;
-		ppp_register_channel(channel);
+		if (ppp_register_channel(channel) < 0) {
+			printk(KERN_ERR IPWIRELESS_PCCARD_NAME
+					": unable to register PPP channel\n");
+			kfree(channel);
+			return;
+		}
 		spin_lock_irqsave(&network->lock, flags);
 		network->ppp_channel = channel;
 	}
