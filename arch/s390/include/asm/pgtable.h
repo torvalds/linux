@@ -507,6 +507,15 @@ static inline int pmd_none(pmd_t pmd)
 	return (pmd_val(pmd) & _SEGMENT_ENTRY_INV) != 0UL;
 }
 
+static inline int pmd_large(pmd_t pmd)
+{
+#ifdef CONFIG_64BIT
+	return !!(pmd_val(pmd) & _SEGMENT_ENTRY_LARGE);
+#else
+	return 0;
+#endif
+}
+
 static inline int pmd_bad(pmd_t pmd)
 {
 	unsigned long mask = ~_SEGMENT_ENTRY_ORIGIN & ~_SEGMENT_ENTRY_INV;

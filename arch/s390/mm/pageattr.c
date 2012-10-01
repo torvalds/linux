@@ -21,7 +21,7 @@ static void change_page_attr(unsigned long addr, int numpages,
 		pgdp = pgd_offset(&init_mm, addr);
 		pudp = pud_offset(pgdp, addr);
 		pmdp = pmd_offset(pudp, addr);
-		if (pmd_huge(*pmdp)) {
+		if (pmd_large(*pmdp)) {
 			WARN_ON_ONCE(1);
 			continue;
 		}
