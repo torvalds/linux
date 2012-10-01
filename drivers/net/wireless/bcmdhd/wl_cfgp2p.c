@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.c 357347 2012-09-17 21:22:01Z $
+ * $Id: wl_cfgp2p.c 358702 2012-09-25 06:48:56Z $
  *
  */
 #include <typedefs.h>
@@ -2244,7 +2244,6 @@ static int wl_cfgp2p_if_open(struct net_device *net)
 	 */
 	wdev->wiphy->interface_modes |= (BIT(NL80211_IFTYPE_P2P_CLIENT)
 		| BIT(NL80211_IFTYPE_P2P_GO));
-	wl->p2p->dev_open = true;
 	wl_cfg80211_do_driver_init(net);
 
 	return 0;
@@ -2276,6 +2275,5 @@ static int wl_cfgp2p_if_stop(struct net_device *net)
 	wdev->wiphy->interface_modes = (wdev->wiphy->interface_modes)
 					& (~(BIT(NL80211_IFTYPE_P2P_CLIENT)|
 					BIT(NL80211_IFTYPE_P2P_GO)));
-	wl->p2p->dev_open = false;
 	return 0;
 }
