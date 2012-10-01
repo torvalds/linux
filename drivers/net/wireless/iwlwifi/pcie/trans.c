@@ -1516,14 +1516,13 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
 	/* n_bd is usually 256 => n_bd - 1 = 0xff */
 	int tfd_num = ssn & (txq->q.n_bd - 1);
-	int freed = 0;
 
 	spin_lock(&txq->lock);
 
 	if (txq->q.read_ptr != tfd_num) {
 		IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
 				   txq_id, txq->q.read_ptr, tfd_num, ssn);
-		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
+		iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark)
 			iwl_wake_queue(trans, txq);
 	}
