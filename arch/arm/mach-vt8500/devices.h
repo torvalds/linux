@@ -81,6 +81,7 @@ extern struct platform_device vt8500_device_uart5;
 extern struct platform_device vt8500_device_lcdc;
 extern struct platform_device vt8500_device_wm8505_fb;
 extern struct platform_device vt8500_device_ehci;
+extern struct platform_device vt8500_device_uhci;
 extern struct platform_device vt8500_device_ge_rops;
 extern struct platform_device vt8500_device_pwm;
 extern struct platform_device vt8500_device_pwmbl;

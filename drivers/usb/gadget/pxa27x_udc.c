@@ -1672,7 +1672,7 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 }
 
 static int pxa27x_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int pxa27x_udc_stop(struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops pxa_udc_ops = {
@@ -1803,7 +1803,7 @@ static void udc_enable(struct pxa_udc *udc)
  * Returns 0 if no error, -EINVAL, -ENODEV, -EBUSY otherwise
  */
 static int pxa27x_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct pxa_udc *udc = the_controller;
 	int retval;
@@ -1826,7 +1826,7 @@ static int pxa27x_udc_start(struct usb_gadget_driver *driver,
 		dev_err(udc->dev, "device_add error %d\n", retval);
 		goto add_fail;
 	}
-	retval = bind(&udc->gadget);
+	retval = bind(&udc->gadget, driver);
 	if (retval) {
 		dev_err(udc->dev, "bind to driver %s --> error %d\n",
 			driver->driver.name, retval);

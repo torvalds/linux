@@ -11,7 +11,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -37,17 +36,13 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#include "composite.c"
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-
 #include "f_acm.c"
 #include "f_obex.c"
 #include "f_serial.c"
 #include "u_serial.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 /* Thanks to NetChip Technologies for donating this product ID.
 *
@@ -61,15 +56,12 @@
 
 /* string IDs are assigned dynamically */
 
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-#define STRING_DESCRIPTION_IDX		2
-
-static char manufacturer[50];
+#define STRING_DESCRIPTION_IDX		USB_GADGET_FIRST_AVAIL_IDX
 
 static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer,
-	[STRING_PRODUCT_IDX].s = GS_VERSION_NAME,
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = GS_VERSION_NAME,
+	[USB_GADGET_SERIAL_IDX].s = "",
 	[STRING_DESCRIPTION_IDX].s = NULL /* updated; f(use_acm) */,
 	{  } /* end of list */
 };
@@ -94,7 +86,7 @@ static struct usb_device_descriptor device_desc = {
 	/* .bMaxPacketSize0 = f(hardware) */
 	.idVendor =		cpu_to_le16(GS_VENDOR_ID),
 	/* .idProduct =	f(use_acm) */
-	/* .bcdDevice = f(hardware) */
+	.bcdDevice = cpu_to_le16(GS_VERSION_NUM),
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
 	.bNumConfigurations =	1,
@@ -162,8 +154,6 @@ static struct usb_configuration serial_config_driver = {
 
 static int __init gs_bind(struct usb_composite_dev *cdev)
 {
-	int			gcnum;
-	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
 
 	status = gserial_setup(cdev->gadget, n_ports);
@@ -174,49 +164,13 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	 * contents can be overridden by the composite_dev glue.
 	 */
 
-	/* device description: manufacturer, product */
-	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
-		init_utsname()->sysname, init_utsname()->release,
-		gadget->name);
-	status = usb_string_id(cdev);
+	status = usb_string_ids_tab(cdev, strings_dev);
 	if (status < 0)
 		goto fail;
-	strings_dev[STRING_MANUFACTURER_IDX].id = status;
-
-	device_desc.iManufacturer = status;
-
-	status = usb_string_id(cdev);
-	if (status < 0)
-		goto fail;
-	strings_dev[STRING_PRODUCT_IDX].id = status;
-
-	device_desc.iProduct = status;
-
-	/* config description */
-	status = usb_string_id(cdev);
-	if (status < 0)
-		goto fail;
-	strings_dev[STRING_DESCRIPTION_IDX].id = status;
-
+	device_desc.iManufacturer = strings_dev[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
+	status = strings_dev[STRING_DESCRIPTION_IDX].id;
 	serial_config_driver.iConfiguration = status;
-
-	/* set up other descriptors */
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(GS_VERSION_NUM | gcnum);
-	else {
-		/* this is so simple (for now, no altsettings) that it
-		 * SHOULD NOT have problems with bulk-capable hardware.
-		 * so warn about unrcognized controllers -- don't panic.
-		 *
-		 * things like configuration and altsetting numbering
-		 * can need hardware-specific attention though.
-		 */
-		pr_warning("gs_bind: controller '%s' not recognized\n",
-			gadget->name);
-		device_desc.bcdDevice =
-			cpu_to_le16(GS_VERSION_NUM | 0x0099);
-	}
 
 	if (gadget_is_otg(cdev->gadget)) {
 		serial_config_driver.descriptors = otg_desc;
@@ -229,6 +183,7 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto fail;
 
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	INFO(cdev, "%s\n", GS_VERSION_NAME);
 
 	return 0;
@@ -238,11 +193,12 @@ fail:
 	return status;
 }
 
-static struct usb_composite_driver gserial_driver = {
+static __refdata struct usb_composite_driver gserial_driver = {
 	.name		= "g_serial",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_SUPER,
+	.bind		= gs_bind,
 };
 
 static int __init init(void)
@@ -271,7 +227,7 @@ static int __init init(void)
 	}
 	strings_dev[STRING_DESCRIPTION_IDX].s = serial_config_driver.label;
 
-	return usb_composite_probe(&gserial_driver, gs_bind);
+	return usb_composite_probe(&gserial_driver);
 }
 module_init(init);
 

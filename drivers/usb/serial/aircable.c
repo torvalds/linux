@@ -52,8 +52,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-static bool debug;
-
 /* Vendor and Product ID */
 #define AIRCABLE_VID		0x16CA
 #define AIRCABLE_USB_PID	0x1502
@@ -196,6 +194,3 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

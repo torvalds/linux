@@ -33,6 +33,7 @@ static struct platform_device *devices[] __initdata = {
 	&vt8500_device_uart0,
 	&vt8500_device_lcdc,
 	&vt8500_device_ehci,
+	&vt8500_device_uhci,
 	&vt8500_device_ge_rops,
 	&vt8500_device_pwm,
 	&vt8500_device_pwmbl,

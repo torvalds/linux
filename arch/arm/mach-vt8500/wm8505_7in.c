@@ -32,6 +32,7 @@ static void __iomem *pmc_hiber;
 static struct platform_device *devices[] __initdata = {
 	&vt8500_device_uart0,
 	&vt8500_device_ehci,
+	&vt8500_device_uhci,
 	&vt8500_device_wm8505_fb,
 	&vt8500_device_ge_rops,
 	&vt8500_device_pwm,

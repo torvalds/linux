@@ -48,6 +48,7 @@ config USB_ARCH_HAS_EHCI
 	default y if SPARC_LEON
 	default y if ARCH_MMP
 	default y if MACH_LOONGSON1
+	default y if PLAT_ORION
 	default PCI
 
 # some non-PCI HCDs implement xHCI

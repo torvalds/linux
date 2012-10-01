@@ -55,6 +55,10 @@ void __init wm8505_set_resources(void)
 	tmp[1] = wmt_irq_res(IRQ_EHCI);
 	wmt_res_add(&vt8500_device_ehci, tmp, 2);
 
+	tmp[0] = wmt_mmio_res(WM8505_UHCI_BASE, SZ_512);
+	tmp[1] = wmt_irq_res(IRQ_UHCI);
+	wmt_res_add(&vt8500_device_uhci, tmp, 2);
+
 	tmp[0] = wmt_mmio_res(WM8505_GEGEA_BASE, SZ_256);
 	wmt_res_add(&vt8500_device_ge_rops, tmp, 1);
 

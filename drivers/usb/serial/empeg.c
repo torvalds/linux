@@ -28,8 +28,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-static bool debug;
-
 /*
  * Version Information
  */
@@ -134,6 +132,3 @@ module_usb_serial_driver(serial_drivers, id_table);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
