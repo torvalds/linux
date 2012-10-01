@@ -357,16 +357,6 @@ Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 
 ----------------------------
 
-What:	Legacy, non-standard chassis intrusion detection interface.
-When:	June 2011
-Why:	The adm9240, w83792d and w83793 hardware monitoring drivers have
-	legacy interfaces for chassis intrusion detection. A standard
-	interface has been added to each driver, so the legacy interface
-	can be removed.
-Who:	Jean Delvare <khali@linux-fr.org>
-
-----------------------------
-
 What:	i2c_driver.attach_adapter
 	i2c_driver.detach_adapter
 When:	September 2011
