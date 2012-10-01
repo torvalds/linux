@@ -1064,7 +1064,10 @@ static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 static int ivtv_g_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
+	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
 
+	if (s->vdev->vfl_dir)
+		return -ENOTTY;
 	if (vf->tuner != 0)
 		return -EINVAL;
 
@@ -1075,7 +1078,10 @@ static int ivtv_g_frequency(struct file *file, void *fh, struct v4l2_frequency *
 int ivtv_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
+	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
 
+	if (s->vdev->vfl_dir)
+		return -ENOTTY;
 	if (vf->tuner != 0)
 		return -EINVAL;
 

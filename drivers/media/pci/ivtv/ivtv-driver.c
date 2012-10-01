@@ -1325,6 +1325,7 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	int video_input;
 
 	fh.itv = itv;
+	fh.type = IVTV_ENC_STREAM_TYPE_MPG;
 
 	if (test_bit(IVTV_F_I_FAILED, &itv->i_flags))
 		return -ENXIO;
