@@ -51,7 +51,7 @@ void __init ux500_init_irq(void)
 
 	gic_arch_extn.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
 
-	if (cpu_is_u8500_family()) {
+	if (cpu_is_u8500_family() || cpu_is_ux540_family()) {
 		dist_base = __io_address(U8500_GIC_DIST_BASE);
 		cpu_base = __io_address(U8500_GIC_CPU_BASE);
 	} else

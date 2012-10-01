@@ -48,7 +48,7 @@ static void write_pen_release(int val)
 
 static void __iomem *scu_base_addr(void)
 {
-	if (cpu_is_u8500_family())
+	if (cpu_is_u8500_family() || cpu_is_ux540_family())
 		return __io_address(U8500_SCU_BASE);
 	else
 		ux500_unknown_soc();
@@ -118,7 +118,7 @@ static void __init wakeup_secondary(void)
 {
 	void __iomem *backupram;
 
-	if (cpu_is_u8500_family())
+	if (cpu_is_u8500_family() || cpu_is_ux540_family())
 		backupram = __io_address(U8500_BACKUPRAM0_BASE);
 	else
 		ux500_unknown_soc();
