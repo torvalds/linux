@@ -35,9 +35,8 @@ USB-specific:
 		d) ISO: number_of_packets is < 0
 		e) various other cases
 
--EAGAIN		a) specified ISO start frame too early
-		b) (using ISO-ASAP) too much scheduled for the future
-		   wait some time and try again.
+-EXDEV		ISO: URB_ISO_ASAP wasn't specified and all the frames
+		the URB would be scheduled in have already expired.
 
 -EFBIG		Host controller driver can't schedule that many ISO frames.
 
