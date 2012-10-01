@@ -132,9 +132,9 @@ int check_for_xstate(struct i387_fxsave_struct __user *buf,
 	    fx_sw_user->xstate_size > fx_sw_user->extended_size)
 		return -EINVAL;
 
-	err = __get_user(magic2, (__u32 *) (((void *)fpstate) +
-					    fx_sw_user->extended_size -
-					    FP_XSTATE_MAGIC2_SIZE));
+	err = __get_user(magic2, (__u32 __user *) (fpstate +
+						   fx_sw_user->extended_size -
+						   FP_XSTATE_MAGIC2_SIZE));
 	if (err)
 		return err;
 	/*
