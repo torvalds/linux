@@ -600,7 +600,6 @@ MACHINE_START(HERALD, "HTC Herald")
 	.atag_offset    = 0x100,
 	.map_io         = htcherald_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq       = omap1_init_irq,
 	.init_machine   = htcherald_init,
 	.init_late	= omap1_init_late,

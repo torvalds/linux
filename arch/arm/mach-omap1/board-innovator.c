@@ -456,7 +456,6 @@ MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")
 	.atag_offset	= 0x100,
 	.map_io		= innovator_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= innovator_init,
 	.init_late	= omap1_init_late,

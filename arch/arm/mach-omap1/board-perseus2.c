@@ -324,7 +324,6 @@ MACHINE_START(OMAP_PERSEUS2, "OMAP730 Perseus2")
 	.atag_offset	= 0x100,
 	.map_io		= omap_perseus2_map_io,
 	.init_early     = omap1_init_early,
-	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_perseus2_init,
 	.init_late	= omap1_init_late,
