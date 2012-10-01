@@ -207,7 +207,9 @@ out:
 	return 0;
 }
 
-/* Test and clear MC-rebooted flag for this port/function */
+/* Test and clear MC-rebooted flag for this port/function; reset
+ * software state as necessary.
+ */
 int efx_mcdi_poll_reboot(struct efx_nic *efx)
 {
 	unsigned int addr = FR_CZ_MC_TREG_SMEM + MCDI_STATUS(efx);
@@ -222,6 +224,11 @@ int efx_mcdi_poll_reboot(struct efx_nic *efx)
 
 	if (value == 0)
 		return 0;
+
+	/* MAC statistics have been cleared on the NIC; clear our copy
+	 * so that efx_update_diff_stat() can continue to work.
+	 */
+	memset(&efx->mac_stats, 0, sizeof(efx->mac_stats));
 
 	EFX_ZERO_DWORD(reg);
 	efx_writed(efx, &reg, addr);
