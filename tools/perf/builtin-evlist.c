@@ -108,23 +108,20 @@ static int __cmd_evlist(const char *input_name, struct perf_attr_details *detail
 	return 0;
 }
 
-static const char * const evlist_usage[] = {
-	"perf evlist [<options>]",
-	NULL
-};
-
 int cmd_evlist(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_attr_details details = { .verbose = false, };
 	const char *input_name = NULL;
 	const struct option options[] = {
-		OPT_STRING('i', "input", &input_name, "file",
-			    "Input file name"),
-		OPT_BOOLEAN('F', "freq", &details.freq,
-			    "Show the sample frequency"),
-		OPT_BOOLEAN('v', "verbose", &details.verbose,
-			    "Show all event attr details"),
-		OPT_END()
+	OPT_STRING('i', "input", &input_name, "file", "Input file name"),
+	OPT_BOOLEAN('F', "freq", &details.freq, "Show the sample frequency"),
+	OPT_BOOLEAN('v', "verbose", &details.verbose,
+		    "Show all event attr details"),
+	OPT_END()
+	};
+	const char * const evlist_usage[] = {
+		"perf evlist [<options>]",
+		NULL
 	};
 
 	argc = parse_options(argc, argv, options, evlist_usage, 0);
