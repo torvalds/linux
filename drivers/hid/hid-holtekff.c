@@ -100,8 +100,7 @@ static void holtekff_send(struct holtekff_device *holtekff,
 		holtekff->field->value[i] = data[i];
 	}
 
-	dbg_hid("sending %02x %02x %02x %02x %02x %02x %02x\n", data[0],
-		data[1], data[2], data[3], data[4], data[5], data[6]);
+	dbg_hid("sending %*ph\n", 7, data);
 
 	usbhid_submit_report(hid, holtekff->field->report, USB_DIR_OUT);
 }
