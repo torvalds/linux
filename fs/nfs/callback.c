@@ -12,6 +12,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/nfs_fs.h>
+#include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
@@ -177,15 +178,11 @@ nfs41_callback_up(struct svc_serv *serv)
 	return rqstp;
 }
 
-static inline int nfs_minorversion_callback_svc_setup(u32 minorversion,
-		struct svc_serv *serv,
+static void nfs_minorversion_callback_svc_setup(struct svc_serv *serv,
 		struct svc_rqst **rqstpp, int (**callback_svc)(void *vrqstp))
 {
-	if (minorversion) {
-		*rqstpp = nfs41_callback_up(serv);
-		*callback_svc = nfs41_callback_svc;
-	}
-	return minorversion;
+	*rqstpp = nfs41_callback_up(serv);
+	*callback_svc = nfs41_callback_svc;
 }
 
 static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
@@ -204,11 +201,11 @@ static int nfs41_callback_up_net(struct svc_serv *serv, struct net *net)
 	return 0;
 }
 
-static inline int nfs_minorversion_callback_svc_setup(u32 minorversion,
-		struct svc_serv *serv,
+static void nfs_minorversion_callback_svc_setup(struct svc_serv *serv,
 		struct svc_rqst **rqstpp, int (**callback_svc)(void *vrqstp))
 {
-	return 0;
+	*rqstpp = ERR_PTR(-ENOTSUPP);
+	*callback_svc = ERR_PTR(-ENOTSUPP);
 }
 
 static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
@@ -225,19 +222,21 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 	struct nfs_callback_data *cb_info = &nfs_callback_info[minorversion];
 	char svc_name[12];
 	int ret;
-	int minorversion_setup;
 
 	nfs_callback_bc_serv(minorversion, xprt, serv);
 
 	if (cb_info->task)
 		return 0;
 
-	minorversion_setup =  nfs_minorversion_callback_svc_setup(minorversion,
-					serv, &rqstp, &callback_svc);
-	if (!minorversion_setup) {
+	switch (minorversion) {
+	case 0:
 		/* v4.0 callback setup */
 		rqstp = nfs4_callback_up(serv);
 		callback_svc = nfs4_callback_svc;
+		break;
+	default:
+		nfs_minorversion_callback_svc_setup(serv,
+				&rqstp, &callback_svc);
 	}
 
 	if (IS_ERR(rqstp))
