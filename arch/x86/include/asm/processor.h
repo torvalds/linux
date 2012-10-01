@@ -759,6 +759,8 @@ static inline void update_debugctlmsr(unsigned long debugctlmsr)
 	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
 }
 
+extern void set_task_blockstep(struct task_struct *task, bool on);
+
 /*
  * from system description table in BIOS. Mostly for MCA use, but
  * others may find it useful:

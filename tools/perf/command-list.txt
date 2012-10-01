@@ -17,8 +17,9 @@ perf-report			mainporcelain common
 perf-stat			mainporcelain common
 perf-timechart			mainporcelain common
 perf-top			mainporcelain common
+perf-trace			mainporcelain common
 perf-script			mainporcelain common
-perf-probe			mainporcelain common
+perf-probe			mainporcelain full
 perf-kmem			mainporcelain common
 perf-lock			mainporcelain common
 perf-kvm			mainporcelain common

@@ -69,25 +69,51 @@
 	.section .entry.text, "ax"
 
 #ifdef CONFIG_FUNCTION_TRACER
+
+#ifdef CC_USING_FENTRY
+# define function_hook	__fentry__
+#else
+# define function_hook	mcount
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
-ENTRY(mcount)
+
+ENTRY(function_hook)
 	retq
-END(mcount)
+END(function_hook)
+
+/* skip is set if stack has been adjusted */
+.macro ftrace_caller_setup skip=0
+	MCOUNT_SAVE_FRAME \skip
+
+	/* Load the ftrace_ops into the 3rd parameter */
+	leaq function_trace_op, %rdx
+
+	/* Load ip into the first parameter */
+	movq RIP(%rsp), %rdi
+	subq $MCOUNT_INSN_SIZE, %rdi
+	/* Load the parent_ip into the second parameter */
+#ifdef CC_USING_FENTRY
+	movq SS+16(%rsp), %rsi
+#else
+	movq 8(%rbp), %rsi
+#endif
+.endm
 
 ENTRY(ftrace_caller)
+	/* Check if tracing was disabled (quick check) */
 	cmpl $0, function_trace_stop
 	jne  ftrace_stub
 
-	MCOUNT_SAVE_FRAME
-
-	movq 0x38(%rsp), %rdi
-	movq 8(%rbp), %rsi
-	subq $MCOUNT_INSN_SIZE, %rdi
+	ftrace_caller_setup
+	/* regs go into 4th parameter (but make it NULL) */
+	movq $0, %rcx
 
 GLOBAL(ftrace_call)
 	call ftrace_stub
 
 	MCOUNT_RESTORE_FRAME
+ftrace_return:
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 GLOBAL(ftrace_graph_call)
@@ -98,8 +124,78 @@ GLOBAL(ftrace_stub)
 	retq
 END(ftrace_caller)
 
+ENTRY(ftrace_regs_caller)
+	/* Save the current flags before compare (in SS location)*/
+	pushfq
+
+	/* Check if tracing was disabled (quick check) */
+	cmpl $0, function_trace_stop
+	jne  ftrace_restore_flags
+
+	/* skip=8 to skip flags saved in SS */
+	ftrace_caller_setup 8
+
+	/* Save the rest of pt_regs */
+	movq %r15, R15(%rsp)
+	movq %r14, R14(%rsp)
+	movq %r13, R13(%rsp)
+	movq %r12, R12(%rsp)
+	movq %r11, R11(%rsp)
+	movq %r10, R10(%rsp)
+	movq %rbp, RBP(%rsp)
+	movq %rbx, RBX(%rsp)
+	/* Copy saved flags */
+	movq SS(%rsp), %rcx
+	movq %rcx, EFLAGS(%rsp)
+	/* Kernel segments */
+	movq $__KERNEL_DS, %rcx
+	movq %rcx, SS(%rsp)
+	movq $__KERNEL_CS, %rcx
+	movq %rcx, CS(%rsp)
+	/* Stack - skipping return address */
+	leaq SS+16(%rsp), %rcx
+	movq %rcx, RSP(%rsp)
+
+	/* regs go into 4th parameter */
+	leaq (%rsp), %rcx
+
+GLOBAL(ftrace_regs_call)
+	call ftrace_stub
+
+	/* Copy flags back to SS, to restore them */
+	movq EFLAGS(%rsp), %rax
+	movq %rax, SS(%rsp)
+
+	/* Handlers can change the RIP */
+	movq RIP(%rsp), %rax
+	movq %rax, SS+8(%rsp)
+
+	/* restore the rest of pt_regs */
+	movq R15(%rsp), %r15
+	movq R14(%rsp), %r14
+	movq R13(%rsp), %r13
+	movq R12(%rsp), %r12
+	movq R10(%rsp), %r10
+	movq RBP(%rsp), %rbp
+	movq RBX(%rsp), %rbx
+
+	/* skip=8 to skip flags saved in SS */
+	MCOUNT_RESTORE_FRAME 8
+
+	/* Restore flags */
+	popfq
+
+	jmp ftrace_return
+ftrace_restore_flags:
+	popfq
+	jmp  ftrace_stub
+
+END(ftrace_regs_caller)
+
+
 #else /* ! CONFIG_DYNAMIC_FTRACE */
-ENTRY(mcount)
+
+ENTRY(function_hook)
 	cmpl $0, function_trace_stop
 	jne  ftrace_stub
 
@@ -120,8 +216,12 @@ GLOBAL(ftrace_stub)
 trace:
 	MCOUNT_SAVE_FRAME
 
-	movq 0x38(%rsp), %rdi
+	movq RIP(%rsp), %rdi
+#ifdef CC_USING_FENTRY
+	movq SS+16(%rsp), %rsi
+#else
 	movq 8(%rbp), %rsi
+#endif
 	subq $MCOUNT_INSN_SIZE, %rdi
 
 	call   *ftrace_trace_function
@@ -129,20 +229,22 @@ trace:
 	MCOUNT_RESTORE_FRAME
 
 	jmp ftrace_stub
-END(mcount)
+END(function_hook)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
-	cmpl $0, function_trace_stop
-	jne ftrace_stub
-
 	MCOUNT_SAVE_FRAME
 
+#ifdef CC_USING_FENTRY
+	leaq SS+16(%rsp), %rdi
+	movq $0, %rdx	/* No framepointers needed */
+#else
 	leaq 8(%rbp), %rdi
-	movq 0x38(%rsp), %rsi
 	movq (%rbp), %rdx
+#endif
+	movq RIP(%rsp), %rsi
 	subq $MCOUNT_INSN_SIZE, %rsi
 
 	call	prepare_ftrace_return

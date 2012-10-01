@@ -41,7 +41,7 @@
 #include "symbol.h"
 #include "thread.h"
 #include "debugfs.h"
-#include "trace-event.h"	/* For __unused */
+#include "trace-event.h"	/* For __maybe_unused */
 #include "probe-event.h"
 #include "probe-finder.h"
 #include "session.h"
@@ -647,8 +647,8 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 }
 
 static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
-				struct probe_trace_event **tevs __unused,
-				int max_tevs __unused, const char *target)
+				struct probe_trace_event **tevs __maybe_unused,
+				int max_tevs __maybe_unused, const char *target)
 {
 	if (perf_probe_event_need_dwarf(pev)) {
 		pr_warning("Debuginfo-analysis is not supported.\n");
@@ -661,17 +661,18 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	return 0;
 }
 
-int show_line_range(struct line_range *lr __unused, const char *module __unused)
+int show_line_range(struct line_range *lr __maybe_unused,
+		    const char *module __maybe_unused)
 {
 	pr_warning("Debuginfo-analysis is not supported.\n");
 	return -ENOSYS;
 }
 
-int show_available_vars(struct perf_probe_event *pevs __unused,
-			int npevs __unused, int max_vls __unused,
-			const char *module __unused,
-			struct strfilter *filter __unused,
-			bool externs __unused)
+int show_available_vars(struct perf_probe_event *pevs __maybe_unused,
+			int npevs __maybe_unused, int max_vls __maybe_unused,
+			const char *module __maybe_unused,
+			struct strfilter *filter __maybe_unused,
+			bool externs __maybe_unused)
 {
 	pr_warning("Debuginfo-analysis is not supported.\n");
 	return -ENOSYS;
@@ -1099,6 +1100,7 @@ static int parse_probe_trace_command(const char *cmd,
 	struct probe_trace_point *tp = &tev->point;
 	char pr;
 	char *p;
+	char *argv0_str = NULL, *fmt, *fmt1_str, *fmt2_str, *fmt3_str;
 	int ret, i, argc;
 	char **argv;
 
@@ -1115,12 +1117,25 @@ static int parse_probe_trace_command(const char *cmd,
 	}
 
 	/* Scan event and group name. */
-	ret = sscanf(argv[0], "%c:%a[^/ \t]/%a[^ \t]",
-		     &pr, (float *)(void *)&tev->group,
-		     (float *)(void *)&tev->event);
-	if (ret != 3) {
+	argv0_str = strdup(argv[0]);
+	if (argv0_str == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	fmt1_str = strtok_r(argv0_str, ":", &fmt);
+	fmt2_str = strtok_r(NULL, "/", &fmt);
+	fmt3_str = strtok_r(NULL, " \t", &fmt);
+	if (fmt1_str == NULL || strlen(fmt1_str) != 1 || fmt2_str == NULL
+	    || fmt3_str == NULL) {
 		semantic_error("Failed to parse event name: %s\n", argv[0]);
 		ret = -EINVAL;
+		goto out;
+	}
+	pr = fmt1_str[0];
+	tev->group = strdup(fmt2_str);
+	tev->event = strdup(fmt3_str);
+	if (tev->group == NULL || tev->event == NULL) {
+		ret = -ENOMEM;
 		goto out;
 	}
 	pr_debug("Group:%s Event:%s probe:%c\n", tev->group, tev->event, pr);
@@ -1134,10 +1149,17 @@ static int parse_probe_trace_command(const char *cmd,
 		p++;
 	} else
 		p = argv[1];
-	ret = sscanf(p, "%a[^+]+%lu", (float *)(void *)&tp->symbol,
-		     &tp->offset);
-	if (ret == 1)
+	fmt1_str = strtok_r(p, "+", &fmt);
+	tp->symbol = strdup(fmt1_str);
+	if (tp->symbol == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	fmt2_str = strtok_r(NULL, "", &fmt);
+	if (fmt2_str == NULL)
 		tp->offset = 0;
+	else
+		tp->offset = strtoul(fmt2_str, NULL, 10);
 
 	tev->nargs = argc - 2;
 	tev->args = zalloc(sizeof(struct probe_trace_arg) * tev->nargs);
@@ -1161,6 +1183,7 @@ static int parse_probe_trace_command(const char *cmd,
 	}
 	ret = 0;
 out:
+	free(argv0_str);
 	argv_free(argv);
 	return ret;
 }
@@ -2183,7 +2206,7 @@ static struct strfilter *available_func_filter;
  * If a symbol corresponds to a function with global binding and
  * matches filter return 0. For all others return 1.
  */
-static int filter_available_functions(struct map *map __unused,
+static int filter_available_functions(struct map *map __maybe_unused,
 				      struct symbol *sym)
 {
 	if (sym->binding == STB_GLOBAL &&
@@ -2307,10 +2330,17 @@ static int convert_name_to_addr(struct perf_probe_event *pev, const char *exec)
 		function = NULL;
 	}
 	if (!pev->group) {
-		char *ptr1, *ptr2;
+		char *ptr1, *ptr2, *exec_copy;
 
 		pev->group = zalloc(sizeof(char *) * 64);
-		ptr1 = strdup(basename(exec));
+		exec_copy = strdup(exec);
+		if (!exec_copy) {
+			ret = -ENOMEM;
+			pr_warning("Failed to copy exec string.\n");
+			goto out;
+		}
+
+		ptr1 = strdup(basename(exec_copy));
 		if (ptr1) {
 			ptr2 = strpbrk(ptr1, "-._");
 			if (ptr2)
@@ -2319,6 +2349,7 @@ static int convert_name_to_addr(struct perf_probe_event *pev, const char *exec)
 					ptr1);
 			free(ptr1);
 		}
+		free(exec_copy);
 	}
 	free(pp->function);
 	pp->function = zalloc(sizeof(char *) * MAX_PROBE_ARGS);

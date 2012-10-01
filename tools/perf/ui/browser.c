@@ -269,7 +269,7 @@ int ui_browser__show(struct ui_browser *browser, const char *title,
 	return err ? 0 : -1;
 }
 
-void ui_browser__hide(struct ui_browser *browser __used)
+void ui_browser__hide(struct ui_browser *browser __maybe_unused)
 {
 	pthread_mutex_lock(&ui__lock);
 	ui_helpline__pop();
@@ -518,7 +518,7 @@ static struct ui_browser__colorset {
 
 
 static int ui_browser__color_config(const char *var, const char *value,
-				    void *data __used)
+				    void *data __maybe_unused)
 {
 	char *fg = NULL, *bg;
 	int i;
@@ -602,7 +602,8 @@ void __ui_browser__vline(struct ui_browser *browser, unsigned int column,
 	SLsmg_set_char_set(0);
 }
 
-void ui_browser__write_graph(struct ui_browser *browser __used, int graph)
+void ui_browser__write_graph(struct ui_browser *browser __maybe_unused,
+			     int graph)
 {
 	SLsmg_set_char_set(1);
 	SLsmg_write_char(graph);

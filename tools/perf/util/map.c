@@ -9,6 +9,7 @@
 #include "map.h"
 #include "thread.h"
 #include "strlist.h"
+#include "vdso.h"
 
 const char *map_type__name[MAP__NR_TYPES] = {
 	[MAP__FUNCTION] = "Functions",
@@ -23,7 +24,6 @@ static inline int is_anon_memory(const char *filename)
 static inline int is_no_dso_memory(const char *filename)
 {
 	return !strcmp(filename, "[stack]") ||
-	       !strcmp(filename, "[vdso]")  ||
 	       !strcmp(filename, "[heap]");
 }
 
@@ -52,9 +52,10 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 	if (self != NULL) {
 		char newfilename[PATH_MAX];
 		struct dso *dso;
-		int anon, no_dso;
+		int anon, no_dso, vdso;
 
 		anon = is_anon_memory(filename);
+		vdso = is_vdso_map(filename);
 		no_dso = is_no_dso_memory(filename);
 
 		if (anon) {
@@ -62,7 +63,12 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 			filename = newfilename;
 		}
 
-		dso = __dsos__findnew(dsos__list, filename);
+		if (vdso) {
+			pgoff = 0;
+			dso = vdso__dso_findnew(dsos__list);
+		} else
+			dso = __dsos__findnew(dsos__list, filename);
+
 		if (dso == NULL)
 			goto out_delete;
 
@@ -84,6 +90,25 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 out_delete:
 	free(self);
 	return NULL;
+}
+
+/*
+ * Constructor variant for modules (where we know from /proc/modules where
+ * they are loaded) and for vmlinux, where only after we load all the
+ * symbols we'll know where it starts and ends.
+ */
+struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
+{
+	struct map *map = calloc(1, (sizeof(*map) +
+				     (dso->kernel ? sizeof(struct kmap) : 0)));
+	if (map != NULL) {
+		/*
+		 * ->end will be filled after we load all the symbols
+		 */
+		map__init(map, type, start, 0, 0, dso);
+	}
+
+	return map;
 }
 
 void map__delete(struct map *self)
@@ -137,6 +162,7 @@ int map__load(struct map *self, symbol_filter_t filter)
 		pr_warning(", continuing without symbols\n");
 		return -1;
 	} else if (nr == 0) {
+#ifndef NO_LIBELF_SUPPORT
 		const size_t len = strlen(name);
 		const size_t real_len = len - sizeof(DSO__DELETED);
 
@@ -149,7 +175,7 @@ int map__load(struct map *self, symbol_filter_t filter)
 			pr_warning("no symbols found in %s, maybe install "
 				   "a debug package?\n", name);
 		}
-
+#endif
 		return -1;
 	}
 	/*
@@ -217,15 +243,14 @@ size_t map__fprintf(struct map *self, FILE *fp)
 
 size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 {
-	const char *dsoname;
+	const char *dsoname = "[unknown]";
 
 	if (map && map->dso && (map->dso->name || map->dso->long_name)) {
 		if (symbol_conf.show_kernel_path && map->dso->long_name)
 			dsoname = map->dso->long_name;
 		else if (map->dso->name)
 			dsoname = map->dso->name;
-	} else
-		dsoname = "[unknown]";
+	}
 
 	return fprintf(fp, "%s", dsoname);
 }
@@ -240,14 +265,6 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 			map->unmap_ip(map, rip) :	/* RIP -> IP */
 			rip;
 	return addr;
-}
-
-u64 map__objdump_2ip(struct map *map, u64 addr)
-{
-	u64 ip = map->dso->adjust_symbols ?
-			addr :
-			map->unmap_ip(map, addr);	/* RIP -> IP */
-	return ip;
 }
 
 void map_groups__init(struct map_groups *mg)

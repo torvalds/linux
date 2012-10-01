@@ -3,6 +3,14 @@
 
 #include <asm/types.h>
 
+#ifndef __bitwise
+#define __bitwise
+#endif
+
+#ifndef __le32
+typedef __u32 __bitwise __le32;
+#endif
+
 #define DECLARE_BITMAP(name,bits) \
 	unsigned long name[BITS_TO_LONGS(bits)]
 

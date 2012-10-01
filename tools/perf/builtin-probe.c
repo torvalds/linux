@@ -143,8 +143,8 @@ static int parse_probe_event_argv(int argc, const char **argv)
 	return ret;
 }
 
-static int opt_add_probe_event(const struct option *opt __used,
-			      const char *str, int unset __used)
+static int opt_add_probe_event(const struct option *opt __maybe_unused,
+			      const char *str, int unset __maybe_unused)
 {
 	if (str) {
 		params.mod_events = true;
@@ -153,8 +153,8 @@ static int opt_add_probe_event(const struct option *opt __used,
 		return 0;
 }
 
-static int opt_del_probe_event(const struct option *opt __used,
-			       const char *str, int unset __used)
+static int opt_del_probe_event(const struct option *opt __maybe_unused,
+			       const char *str, int unset __maybe_unused)
 {
 	if (str) {
 		params.mod_events = true;
@@ -166,7 +166,7 @@ static int opt_del_probe_event(const struct option *opt __used,
 }
 
 static int opt_set_target(const struct option *opt, const char *str,
-			int unset __used)
+			int unset __maybe_unused)
 {
 	int ret = -ENOENT;
 
@@ -188,8 +188,8 @@ static int opt_set_target(const struct option *opt, const char *str,
 }
 
 #ifdef DWARF_SUPPORT
-static int opt_show_lines(const struct option *opt __used,
-			  const char *str, int unset __used)
+static int opt_show_lines(const struct option *opt __maybe_unused,
+			  const char *str, int unset __maybe_unused)
 {
 	int ret = 0;
 
@@ -209,8 +209,8 @@ static int opt_show_lines(const struct option *opt __used,
 	return ret;
 }
 
-static int opt_show_vars(const struct option *opt __used,
-			 const char *str, int unset __used)
+static int opt_show_vars(const struct option *opt __maybe_unused,
+			 const char *str, int unset __maybe_unused)
 {
 	struct perf_probe_event *pev = &params.events[params.nevents];
 	int ret;
@@ -229,8 +229,8 @@ static int opt_show_vars(const struct option *opt __used,
 }
 #endif
 
-static int opt_set_filter(const struct option *opt __used,
-			  const char *str, int unset __used)
+static int opt_set_filter(const struct option *opt __maybe_unused,
+			  const char *str, int unset __maybe_unused)
 {
 	const char *err;
 
@@ -327,7 +327,7 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-int cmd_probe(int argc, const char **argv, const char *prefix __used)
+int cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int ret;
 

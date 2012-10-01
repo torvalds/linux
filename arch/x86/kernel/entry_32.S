@@ -1109,17 +1109,21 @@ ENTRY(ftrace_caller)
 	pushl %eax
 	pushl %ecx
 	pushl %edx
-	movl 0xc(%esp), %eax
+	pushl $0	/* Pass NULL as regs pointer */
+	movl 4*4(%esp), %eax
 	movl 0x4(%ebp), %edx
+	leal function_trace_op, %ecx
 	subl $MCOUNT_INSN_SIZE, %eax
 
 .globl ftrace_call
 ftrace_call:
 	call ftrace_stub
 
+	addl $4,%esp	/* skip NULL pointer */
 	popl %edx
 	popl %ecx
 	popl %eax
+ftrace_ret:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .globl ftrace_graph_call
 ftrace_graph_call:
@@ -1131,6 +1135,71 @@ ftrace_stub:
 	ret
 END(ftrace_caller)
 
+ENTRY(ftrace_regs_caller)
+	pushf	/* push flags before compare (in cs location) */
+	cmpl $0, function_trace_stop
+	jne ftrace_restore_flags
+
+	/*
+	 * i386 does not save SS and ESP when coming from kernel.
+	 * Instead, to get sp, &regs->sp is used (see ptrace.h).
+	 * Unfortunately, that means eflags must be at the same location
+	 * as the current return ip is. We move the return ip into the
+	 * ip location, and move flags into the return ip location.
+	 */
+	pushl 4(%esp)	/* save return ip into ip slot */
+
+	pushl $0	/* Load 0 into orig_ax */
+	pushl %gs
+	pushl %fs
+	pushl %es
+	pushl %ds
+	pushl %eax
+	pushl %ebp
+	pushl %edi
+	pushl %esi
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+
+	movl 13*4(%esp), %eax	/* Get the saved flags */
+	movl %eax, 14*4(%esp)	/* Move saved flags into regs->flags location */
+				/* clobbering return ip */
+	movl $__KERNEL_CS,13*4(%esp)
+
+	movl 12*4(%esp), %eax	/* Load ip (1st parameter) */
+	subl $MCOUNT_INSN_SIZE, %eax	/* Adjust ip */
+	movl 0x4(%ebp), %edx	/* Load parent ip (2nd parameter) */
+	leal function_trace_op, %ecx /* Save ftrace_pos in 3rd parameter */
+	pushl %esp		/* Save pt_regs as 4th parameter */
+
+GLOBAL(ftrace_regs_call)
+	call ftrace_stub
+
+	addl $4, %esp		/* Skip pt_regs */
+	movl 14*4(%esp), %eax	/* Move flags back into cs */
+	movl %eax, 13*4(%esp)	/* Needed to keep addl from modifying flags */
+	movl 12*4(%esp), %eax	/* Get return ip from regs->ip */
+	movl %eax, 14*4(%esp)	/* Put return ip back for ret */
+
+	popl %ebx
+	popl %ecx
+	popl %edx
+	popl %esi
+	popl %edi
+	popl %ebp
+	popl %eax
+	popl %ds
+	popl %es
+	popl %fs
+	popl %gs
+	addl $8, %esp		/* Skip orig_ax and ip */
+	popf			/* Pop flags at end (no addl to corrupt flags) */
+	jmp ftrace_ret
+
+ftrace_restore_flags:
+	popf
+	jmp  ftrace_stub
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
 ENTRY(mcount)
@@ -1171,9 +1240,6 @@ END(mcount)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
-	cmpl $0, function_trace_stop
-	jne ftrace_stub
-
 	pushl %eax
 	pushl %ecx
 	pushl %edx

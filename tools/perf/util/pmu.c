@@ -9,6 +9,9 @@
 #include "util.h"
 #include "pmu.h"
 #include "parse-events.h"
+#include "cpumap.h"
+
+#define EVENT_SOURCE_DEVICE_PATH "/bus/event_source/devices/"
 
 int perf_pmu_parse(struct list_head *list, char *name);
 extern FILE *perf_pmu_in;
@@ -69,7 +72,7 @@ static int pmu_format(char *name, struct list_head *format)
 		return -1;
 
 	snprintf(path, PATH_MAX,
-		 "%s/bus/event_source/devices/%s/format", sysfs, name);
+		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/format", sysfs, name);
 
 	if (stat(path, &st) < 0)
 		return 0;	/* no error if format does not exist */
@@ -206,7 +209,7 @@ static int pmu_type(char *name, __u32 *type)
 		return -1;
 
 	snprintf(path, PATH_MAX,
-		 "%s/bus/event_source/devices/%s/type", sysfs, name);
+		 "%s" EVENT_SOURCE_DEVICE_PATH "%s/type", sysfs, name);
 
 	if (stat(path, &st) < 0)
 		return -1;
@@ -220,6 +223,62 @@ static int pmu_type(char *name, __u32 *type)
 
 	fclose(file);
 	return ret;
+}
+
+/* Add all pmus in sysfs to pmu list: */
+static void pmu_read_sysfs(void)
+{
+	char path[PATH_MAX];
+	const char *sysfs;
+	DIR *dir;
+	struct dirent *dent;
+
+	sysfs = sysfs_find_mountpoint();
+	if (!sysfs)
+		return;
+
+	snprintf(path, PATH_MAX,
+		 "%s" EVENT_SOURCE_DEVICE_PATH, sysfs);
+
+	dir = opendir(path);
+	if (!dir)
+		return;
+
+	while ((dent = readdir(dir))) {
+		if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, ".."))
+			continue;
+		/* add to static LIST_HEAD(pmus): */
+		perf_pmu__find(dent->d_name);
+	}
+
+	closedir(dir);
+}
+
+static struct cpu_map *pmu_cpumask(char *name)
+{
+	struct stat st;
+	char path[PATH_MAX];
+	const char *sysfs;
+	FILE *file;
+	struct cpu_map *cpus;
+
+	sysfs = sysfs_find_mountpoint();
+	if (!sysfs)
+		return NULL;
+
+	snprintf(path, PATH_MAX,
+		 "%s/bus/event_source/devices/%s/cpumask", sysfs, name);
+
+	if (stat(path, &st) < 0)
+		return NULL;
+
+	file = fopen(path, "r");
+	if (!file)
+		return NULL;
+
+	cpus = cpu_map__read(file);
+	fclose(file);
+	return cpus;
 }
 
 static struct perf_pmu *pmu_lookup(char *name)
@@ -244,6 +303,8 @@ static struct perf_pmu *pmu_lookup(char *name)
 	if (!pmu)
 		return NULL;
 
+	pmu->cpus = pmu_cpumask(name);
+
 	pmu_aliases(name, &aliases);
 
 	INIT_LIST_HEAD(&pmu->format);
@@ -264,6 +325,21 @@ static struct perf_pmu *pmu_find(char *name)
 		if (!strcmp(pmu->name, name))
 			return pmu;
 
+	return NULL;
+}
+
+struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu)
+{
+	/*
+	 * pmu iterator: If pmu is NULL, we start at the begin,
+	 * otherwise return the next pmu. Returns NULL on end.
+	 */
+	if (!pmu) {
+		pmu_read_sysfs();
+		pmu = list_prepare_entry(pmu, &pmus, list);
+	}
+	list_for_each_entry_continue(pmu, &pmus, list)
+		return pmu;
 	return NULL;
 }
 
