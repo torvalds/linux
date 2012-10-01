@@ -19,7 +19,6 @@
 #include <linux/platform_data/dsp-omap.h>
 
 #include <plat/clock.h>
-#include <plat/omap-secure.h>
 #include <plat/vram.h>
 
 #include "soc.h"
@@ -27,6 +26,7 @@
 #include "common.h"
 #include "sdrc.h"
 #include "control.h"
+#include "omap-secure.h"
 
 /* Global address base setup code */
 
