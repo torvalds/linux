@@ -33,7 +33,7 @@
 #define RADEON_WAIT_VBLANK_TIMEOUT 200
 
 static const char *radeon_pm_state_type_name[5] = {
-	"Default",
+	"",
 	"Powersave",
 	"Battery",
 	"Balanced",
@@ -294,17 +294,15 @@ static void radeon_pm_print_states(struct radeon_device *rdev)
 		for (j = 0; j < power_state->num_clock_modes; j++) {
 			clock_info = &(power_state->clock_info[j]);
 			if (rdev->flags & RADEON_IS_IGP)
-				DRM_DEBUG_DRIVER("\t\t%d e: %d%s\n",
-					j,
-					clock_info->sclk * 10,
-					clock_info->flags & RADEON_PM_MODE_NO_DISPLAY ? "\tNo display only" : "");
+				DRM_DEBUG_DRIVER("\t\t%d e: %d\n",
+						 j,
+						 clock_info->sclk * 10);
 			else
-				DRM_DEBUG_DRIVER("\t\t%d e: %d\tm: %d\tv: %d%s\n",
-					j,
-					clock_info->sclk * 10,
-					clock_info->mclk * 10,
-					clock_info->voltage.voltage,
-					clock_info->flags & RADEON_PM_MODE_NO_DISPLAY ? "\tNo display only" : "");
+				DRM_DEBUG_DRIVER("\t\t%d e: %d\tm: %d\tv: %d\n",
+						 j,
+						 clock_info->sclk * 10,
+						 clock_info->mclk * 10,
+						 clock_info->voltage.voltage);
 		}
 	}
 }
