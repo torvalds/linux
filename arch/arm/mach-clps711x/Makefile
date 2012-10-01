@@ -15,5 +15,3 @@ obj-$(CONFIG_ARCH_CLEP7312) += clep7312.o
 obj-$(CONFIG_ARCH_EDB7211)  += edb7211-arch.o edb7211-mm.o
 obj-$(CONFIG_ARCH_FORTUNET) += fortunet.o
 obj-$(CONFIG_ARCH_P720T)    += p720t.o
-leds-$(CONFIG_ARCH_P720T)   += p720t-leds.o
-obj-$(CONFIG_LEDS)          += $(leds-y)

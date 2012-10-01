@@ -30,7 +30,6 @@
 #include <linux/platform_data/clk-realview.h>
 
 #include <asm/irq.h>
-#include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
@@ -300,10 +299,6 @@ static void __init realview_pba8_init(void)
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
-
-#ifdef CONFIG_LEDS
-	leds_event = realview_leds_event;
-#endif
 }
 
 MACHINE_START(REALVIEW_PBA8, "ARM-RealView PB-A8")

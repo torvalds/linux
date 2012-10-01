@@ -406,46 +406,6 @@ config MTD_NAND_ATMEL
 	help
 	  Enables support for NAND Flash / Smart Media Card interface
 	  on Atmel AT91 and AVR32 processors.
-choice
-	prompt "ECC management for NAND Flash / SmartMedia on AT91 / AVR32"
-	depends on MTD_NAND_ATMEL
-
-config MTD_NAND_ATMEL_ECC_HW
-	bool "Hardware ECC"
-	depends on ARCH_AT91SAM9263 || ARCH_AT91SAM9260 || AVR32
-	help
-	  Use hardware ECC instead of software ECC when the chip
-	  supports it.
-
-	  The hardware ECC controller is capable of single bit error
-	  correction and 2-bit random detection per page.
-
-	  NB : hardware and software ECC schemes are incompatible.
-	  If you switch from one to another, you'll have to erase your
-	  mtd partition.
-
-	  If unsure, say Y
-
-config MTD_NAND_ATMEL_ECC_SOFT
-	bool "Software ECC"
-	help
-	  Use software ECC.
-
-	  NB : hardware and software ECC schemes are incompatible.
-	  If you switch from one to another, you'll have to erase your
-	  mtd partition.
-
-config MTD_NAND_ATMEL_ECC_NONE
-	bool "No ECC (testing only, DANGEROUS)"
-	depends on DEBUG_KERNEL
-	help
-	  No ECC will be used.
-	  It's not a good idea and it should be reserved for testing
-	  purpose only.
-
-	  If unsure, say N
-
-endchoice
 
 config MTD_NAND_PXA3xx
 	tristate "Support for NAND flash devices on PXA3xx"

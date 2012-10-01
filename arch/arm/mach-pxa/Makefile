@@ -98,12 +98,4 @@ obj-$(CONFIG_MACH_RAUMFELD_CONNECTOR)	+= raumfeld.o
 obj-$(CONFIG_MACH_RAUMFELD_SPEAKER)	+= raumfeld.o
 obj-$(CONFIG_MACH_ZIPIT2)	+= z2.o
 
-# Support for blinky lights
-led-y := leds.o
-led-$(CONFIG_ARCH_LUBBOCK)	+= leds-lubbock.o
-led-$(CONFIG_MACH_MAINSTONE)	+= leds-mainstone.o
-led-$(CONFIG_ARCH_PXA_IDP)	+= leds-idp.o
-
-obj-$(CONFIG_LEDS)		+= $(led-y)
-
 obj-$(CONFIG_TOSA_BT)		+= tosa-bt.o

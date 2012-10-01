@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <linux/major.h>
@@ -23,6 +24,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/smc91x.h>
+#include <linux/slab.h>
+#include <linux/leds.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -548,6 +551,98 @@ static void __init lubbock_map_io(void)
 
 	PCFR |= PCFR_OPDE;
 }
+
+/*
+ * Driver for the 8 discrete LEDs available for general use:
+ * Note: bits [15-8] are used to enable/blank the 8 7 segment hex displays
+ * so be sure to not monkey with them here.
+ */
+
+#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
+struct lubbock_led {
+	struct led_classdev	cdev;
+	u8			mask;
+};
+
+/*
+ * The triggers lines up below will only be used if the
+ * LED triggers are compiled in.
+ */
+static const struct {
+	const char *name;
+	const char *trigger;
+} lubbock_leds[] = {
+	{ "lubbock:D28", "default-on", },
+	{ "lubbock:D27", "cpu0", },
+	{ "lubbock:D26", "heartbeat" },
+	{ "lubbock:D25", },
+	{ "lubbock:D24", },
+	{ "lubbock:D23", },
+	{ "lubbock:D22", },
+	{ "lubbock:D21", },
+};
+
+static void lubbock_led_set(struct led_classdev *cdev,
+			      enum led_brightness b)
+{
+	struct lubbock_led *led = container_of(cdev,
+					 struct lubbock_led, cdev);
+	u32 reg = LUB_DISC_BLNK_LED;
+
+	if (b != LED_OFF)
+		reg |= led->mask;
+	else
+		reg &= ~led->mask;
+
+	LUB_DISC_BLNK_LED = reg;
+}
+
+static enum led_brightness lubbock_led_get(struct led_classdev *cdev)
+{
+	struct lubbock_led *led = container_of(cdev,
+					 struct lubbock_led, cdev);
+	u32 reg = LUB_DISC_BLNK_LED;
+
+	return (reg & led->mask) ? LED_FULL : LED_OFF;
+}
+
+static int __init lubbock_leds_init(void)
+{
+	int i;
+
+	if (!machine_is_lubbock())
+		return -ENODEV;
+
+	/* All ON */
+	LUB_DISC_BLNK_LED |= 0xff;
+	for (i = 0; i < ARRAY_SIZE(lubbock_leds); i++) {
+		struct lubbock_led *led;
+
+		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		if (!led)
+			break;
+
+		led->cdev.name = lubbock_leds[i].name;
+		led->cdev.brightness_set = lubbock_led_set;
+		led->cdev.brightness_get = lubbock_led_get;
+		led->cdev.default_trigger = lubbock_leds[i].trigger;
+		led->mask = BIT(i);
+
+		if (led_classdev_register(NULL, &led->cdev) < 0) {
+			kfree(led);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Since we may have triggers on any subsystem, defer registration
+ * until after subsystem_init.
+ */
+fs_initcall(lubbock_leds_init);
+#endif
 
 MACHINE_START(LUBBOCK, "Intel DBPXA250 Development Platform (aka Lubbock)")
 	/* Maintainer: MontaVista Software Inc. */

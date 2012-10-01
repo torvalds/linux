@@ -119,11 +119,12 @@ static struct at91_udc_data __initdata yl9200_udc_data = {
 /*
  * MMC
  */
-static struct at91_mmc_data __initdata yl9200_mmc_data = {
-	.det_pin	= AT91_PIN_PB9,
-	.wire4		= 1,
-	.wp_pin		= -EINVAL,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata yl9200_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PB9,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 /*
@@ -541,9 +542,6 @@ void __init yl9200_add_device_video(void) {}
 
 static void __init yl9200_board_init(void)
 {
-	/* Setup the LEDs D2=PB17 (timer), D3=PB16 (cpu) */
-	at91_init_leds(AT91_PIN_PB16, AT91_PIN_PB17);
-
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -568,7 +566,7 @@ static void __init yl9200_board_init(void)
 	/* I2C */
 	at91_add_device_i2c(yl9200_i2c_devices, ARRAY_SIZE(yl9200_i2c_devices));
 	/* MMC */
-	at91_add_device_mmc(0, &yl9200_mmc_data);
+	at91_add_device_mci(0, &yl9200_mci0_data);
 	/* NAND */
 	at91_add_device_nand(&yl9200_nand_data);
 	/* NOR Flash */
