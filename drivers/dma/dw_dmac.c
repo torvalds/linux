@@ -716,6 +716,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	size_t			offset;
 	unsigned int		src_width;
 	unsigned int		dst_width;
+	unsigned int		data_width;
 	u32			ctllo;
 
 	dev_vdbg(chan2dev(chan),
@@ -728,11 +729,11 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		return NULL;
 	}
 
-	src_width = min_t(unsigned int, dwc->dw->data_width[dwc_get_sms(dws)],
-			  dwc_fast_fls(src | len));
+	data_width = min_t(unsigned int, dwc->dw->data_width[dwc_get_sms(dws)],
+					 dwc->dw->data_width[dwc_get_dms(dws)]);
 
-	dst_width = min_t(unsigned int, dwc->dw->data_width[dwc_get_dms(dws)],
-			  dwc_fast_fls(dest | len));
+	src_width = dst_width = min_t(unsigned int, data_width,
+				      dwc_fast_fls(src | dest | len));
 
 	ctllo = DWC_DEFAULT_CTLLO(chan)
 			| DWC_CTLL_DST_WIDTH(dst_width)
