@@ -1524,6 +1524,8 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+		cmd->request_desc->SCSIIO.DevHandle =
+			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
 	} else {
 		io_request->Function  = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = device_id;
