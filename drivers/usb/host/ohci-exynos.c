@@ -123,7 +123,7 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 		goto fail_clk;
 	}
 
-	err = clk_enable(exynos_ohci->clk);
+	err = clk_prepare_enable(exynos_ohci->clk);
 	if (err)
 		goto fail_clken;
 
@@ -167,7 +167,7 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 	return 0;
 
 fail_io:
-	clk_disable(exynos_ohci->clk);
+	clk_disable_unprepare(exynos_ohci->clk);
 fail_clken:
 	clk_put(exynos_ohci->clk);
 fail_clk:
@@ -186,7 +186,7 @@ static int __devexit exynos_ohci_remove(struct platform_device *pdev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
-	clk_disable(exynos_ohci->clk);
+	clk_disable_unprepare(exynos_ohci->clk);
 	clk_put(exynos_ohci->clk);
 
 	usb_put_hcd(hcd);
@@ -232,7 +232,7 @@ static int exynos_ohci_suspend(struct device *dev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
-	clk_disable(exynos_ohci->clk);
+	clk_disable_unprepare(exynos_ohci->clk);
 
 fail:
 	spin_unlock_irqrestore(&ohci->lock, flags);
@@ -247,7 +247,7 @@ static int exynos_ohci_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos4_ohci_platdata *pdata = pdev->dev.platform_data;
 
-	clk_enable(exynos_ohci->clk);
+	clk_prepare_enable(exynos_ohci->clk);
 
 	if (pdata && pdata->phy_init)
 		pdata->phy_init(pdev, S5P_USB_PHY_HOST);
