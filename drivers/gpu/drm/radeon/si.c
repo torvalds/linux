@@ -2789,10 +2789,9 @@ void si_vm_fini(struct radeon_device *rdev)
 {
 }
 
-void si_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib)
+void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 {
-	struct radeon_ring *ring = &rdev->ring[ib->ring];
-	struct radeon_vm *vm = ib->vm;
+	struct radeon_ring *ring = &rdev->ring[ridx];
 
 	if (vm == NULL)
 		return;
@@ -2826,7 +2825,7 @@ void si_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib)
 				 WRITE_DATA_DST_SEL(0)));
 	radeon_ring_write(ring, VM_INVALIDATE_REQUEST >> 2);
 	radeon_ring_write(ring, 0);
-	radeon_ring_write(ring, 1 << ib->vm->id);
+	radeon_ring_write(ring, 1 << vm->id);
 }
 
 /*

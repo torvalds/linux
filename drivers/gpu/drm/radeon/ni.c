@@ -1565,10 +1565,9 @@ void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
  * Update the page table base and flush the VM TLB
  * using the CP (cayman-si).
  */
-void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib)
+void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 {
-	struct radeon_ring *ring = &rdev->ring[ib->ring];
-	struct radeon_vm *vm = ib->vm;
+	struct radeon_ring *ring = &rdev->ring[ridx];
 
 	if (vm == NULL)
 		return;
@@ -1588,5 +1587,5 @@ void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib)
 
 	/* bits 0-7 are the VM contexts0-7 */
 	radeon_ring_write(ring, PACKET0(VM_INVALIDATE_REQUEST, 0));
-	radeon_ring_write(ring, 1 << ib->vm->id);
+	radeon_ring_write(ring, 1 << vm->id);
 }

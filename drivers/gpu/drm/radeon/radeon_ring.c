@@ -162,7 +162,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 	}
 	/* if we can't remember our last VM flush then flush now! */
 	if (ib->vm && !ib->vm->last_flush) {
-		radeon_ring_vm_flush(rdev, ib->ring, ib);
+		radeon_ring_vm_flush(rdev, ib->ring, ib->vm);
 	}
 	if (const_ib) {
 		radeon_ring_ib_execute(rdev, const_ib->ring, const_ib);

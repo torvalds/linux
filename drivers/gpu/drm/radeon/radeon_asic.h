@@ -443,7 +443,7 @@ int cayman_asic_reset(struct radeon_device *rdev);
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int cayman_vm_init(struct radeon_device *rdev);
 void cayman_vm_fini(struct radeon_device *rdev);
-void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib);
+void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags);
 void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 			uint64_t addr, unsigned count,
@@ -470,7 +470,7 @@ int si_irq_set(struct radeon_device *rdev);
 int si_irq_process(struct radeon_device *rdev);
 int si_vm_init(struct radeon_device *rdev);
 void si_vm_fini(struct radeon_device *rdev);
-void si_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib);
+void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 uint64_t si_get_gpu_clock(struct radeon_device *rdev);
 

@@ -1165,7 +1165,7 @@ struct radeon_asic {
 		int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 		int (*ib_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 		bool (*is_lockup)(struct radeon_device *rdev, struct radeon_ring *cp);
-		void (*vm_flush)(struct radeon_device *rdev, struct radeon_ib *ib);
+		void (*vm_flush)(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 	} ring[RADEON_NUM_RINGS];
 	/* irqs */
 	struct {
@@ -1772,7 +1772,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_ring_ib_execute(rdev, r, ib) (rdev)->asic->ring[(r)].ib_execute((rdev), (ib))
 #define radeon_ring_ib_parse(rdev, r, ib) (rdev)->asic->ring[(r)].ib_parse((rdev), (ib))
 #define radeon_ring_is_lockup(rdev, r, cp) (rdev)->asic->ring[(r)].is_lockup((rdev), (cp))
-#define radeon_ring_vm_flush(rdev, r, ib) (rdev)->asic->ring[(r)].vm_flush((rdev), (ib))
+#define radeon_ring_vm_flush(rdev, r, vm) (rdev)->asic->ring[(r)].vm_flush((rdev), (r), (vm))
 #define radeon_irq_set(rdev) (rdev)->asic->irq.set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq.process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->display.get_vblank_counter((rdev), (crtc))
