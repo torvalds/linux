@@ -45,7 +45,8 @@ struct rndis_request {
 
 	/* Simplify allocation by having a netvsc packet inline */
 	struct hv_netvsc_packet	pkt;
-	struct hv_page_buffer buf;
+	/* Set 2 pages for rndis requests crossing page boundary */
+	struct hv_page_buffer buf[2];
 
 	struct rndis_message request_msg;
 	/*
@@ -226,6 +227,18 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	packet->page_buf[0].len = req->request_msg.msg_len;
 	packet->page_buf[0].offset =
 		(unsigned long)&req->request_msg & (PAGE_SIZE - 1);
+
+	/* Add one page_buf when request_msg crossing page boundary */
+	if (packet->page_buf[0].offset + packet->page_buf[0].len > PAGE_SIZE) {
+		packet->page_buf_cnt++;
+		packet->page_buf[0].len = PAGE_SIZE -
+			packet->page_buf[0].offset;
+		packet->page_buf[1].pfn = virt_to_phys((void *)&req->request_msg
+			+ packet->page_buf[0].len) >> PAGE_SHIFT;
+		packet->page_buf[1].offset = 0;
+		packet->page_buf[1].len = req->request_msg.msg_len -
+			packet->page_buf[0].len;
+	}
 
 	packet->completion.send.send_completion_ctx = req;/* packet; */
 	packet->completion.send.send_completion =
