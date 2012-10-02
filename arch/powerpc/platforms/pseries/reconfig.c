@@ -326,7 +326,7 @@ static int do_add_property(char *buf, size_t bufsize)
 	if (!prop)
 		return -ENOMEM;
 
-	prom_add_property(np, prop);
+	of_add_property(np, prop);
 
 	return 0;
 }
@@ -350,7 +350,7 @@ static int do_remove_property(char *buf, size_t bufsize)
 
 	prop = of_find_property(np, buf, NULL);
 
-	return prom_remove_property(np, prop);
+	return of_remove_property(np, prop);
 }
 
 static int do_update_property(char *buf, size_t bufsize)
@@ -380,7 +380,7 @@ static int do_update_property(char *buf, size_t bufsize)
 	if (!strcmp(name, "slb-size") || !strcmp(name, "ibm,slb-size"))
 		slb_set_size(*(int *)value);
 
-	return prom_update_property(np, newprop);
+	return of_update_property(np, newprop);
 }
 
 /**

@@ -760,7 +760,7 @@ static void remove_ddw(struct device_node *np)
 	__remove_ddw(np, ddw_avail, liobn);
 
 delprop:
-	ret = prom_remove_property(np, win64);
+	ret = of_remove_property(np, win64);
 	if (ret)
 		pr_warning("%s: failed to remove direct window property: %d\n",
 			np->full_name, ret);
@@ -1070,7 +1070,7 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 		goto out_free_window;
 	}
 
-	ret = prom_add_property(pdn, win64);
+	ret = of_add_property(pdn, win64);
 	if (ret) {
 		dev_err(&dev->dev, "unable to add dma window property for %s: %d",
 			 pdn->full_name, ret);

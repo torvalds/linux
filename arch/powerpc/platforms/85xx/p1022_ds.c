@@ -539,7 +539,7 @@ static void __init p1022_ds_setup_arch(void)
 				};
 
 				/*
-				 * prom_update_property() is called before
+				 * of_update_property() is called before
 				 * kmalloc() is available, so the 'new' object
 				 * should be allocated in the global area.
 				 * The easiest way is to do that is to
@@ -548,7 +548,7 @@ static void __init p1022_ds_setup_arch(void)
 				 */
 				pr_info("p1022ds: disabling %s node",
 					np2->full_name);
-				prom_update_property(np2, &nor_status);
+				of_update_property(np2, &nor_status);
 				of_node_put(np2);
 			}
 
@@ -564,7 +564,7 @@ static void __init p1022_ds_setup_arch(void)
 
 				pr_info("p1022ds: disabling %s node",
 					np2->full_name);
-				prom_update_property(np2, &nand_status);
+				of_update_property(np2, &nand_status);
 				of_node_put(np2);
 			}
 
