@@ -71,6 +71,10 @@ static int msix_disable;
 module_param(msix_disable, int, S_IRUGO);
 MODULE_PARM_DESC(msix_disable, "Disable MSI-X interrupt handling. Default: 0");
 
+static unsigned int msix_vectors;
+module_param(msix_vectors, int, S_IRUGO);
+MODULE_PARM_DESC(msix_vectors, "MSI-X max vector count. Default: Set by FW");
+
 static int throttlequeuedepth = MEGASAS_THROTTLE_QUEUE_DEPTH;
 module_param(throttlequeuedepth, int, S_IRUGO);
 MODULE_PARM_DESC(throttlequeuedepth,
@@ -3520,6 +3524,10 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			instance->msix_vectors = (readl(&instance->reg_set->
 							outbound_scratch_pad_2
 							  ) & 0x1F) + 1;
+			if (msix_vectors)
+				instance->msix_vectors =
+					min(msix_vectors,
+					    instance->msix_vectors);
 		} else
 			instance->msix_vectors = 1;
 		/* Don't bother allocating more MSI-X vectors than cpus */
