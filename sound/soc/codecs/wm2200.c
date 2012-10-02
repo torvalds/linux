@@ -2091,6 +2091,7 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 
 	switch (wm2200->rev) {
 	case 0:
+	case 1:
 		ret = regmap_register_patch(wm2200->regmap, wm2200_reva_patch,
 					    ARRAY_SIZE(wm2200_reva_patch));
 		if (ret != 0) {
