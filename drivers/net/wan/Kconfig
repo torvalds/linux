@@ -375,7 +375,7 @@ config WAN_ROUTER_DRIVERS
 	  If unsure, say N.
 
 config CYCLADES_SYNC
-	tristate "Cyclom 2X(tm) cards (EXPERIMENTAL)"
+	tristate "Cyclom 2X(tm) cards"
 	depends on WAN_ROUTER_DRIVERS && (PCI || ISA)
 	---help---
 	  Cyclom 2X from Cyclades Corporation <http://www.avocent.com/> is an
@@ -403,7 +403,7 @@ config CYCLADES_SYNC
 	  module will be called cyclomx.
 
 config CYCLOMX_X25
-	bool "Cyclom 2X X.25 support (EXPERIMENTAL)"
+	bool "Cyclom 2X X.25 support"
 	depends on CYCLADES_SYNC
 	help
 	  Connect a Cyclom 2X card to an X.25 network.
@@ -412,7 +412,7 @@ config CYCLOMX_X25
 
 # X.25 network drivers
 config LAPBETHER
-	tristate "LAPB over Ethernet driver (EXPERIMENTAL)"
+	tristate "LAPB over Ethernet driver"
 	depends on LAPB && X25
 	---help---
 	  Driver for a pseudo device (typically called /dev/lapb0) which allows
@@ -428,7 +428,7 @@ config LAPBETHER
 	  If unsure, say N.
 
 config X25_ASY
-	tristate "X.25 async driver (EXPERIMENTAL)"
+	tristate "X.25 async driver"
 	depends on LAPB && X25
 	---help---
 	  Send and receive X.25 frames over regular asynchronous serial
