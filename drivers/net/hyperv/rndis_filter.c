@@ -32,16 +32,19 @@
 #include "hyperv_net.h"
 
 
+#define RNDIS_EXT_LEN 100
 struct rndis_request {
 	struct list_head list_ent;
 	struct completion  wait_event;
 
-	/*
-	 * FIXME: We assumed a fixed size response here. If we do ever need to
-	 * handle a bigger response, we can either define a max response
-	 * message or add a response buffer variable above this field
-	 */
 	struct rndis_message response_msg;
+	/*
+	 * The buffer for extended info after the RNDIS response message. It's
+	 * referenced based on the data offset in the RNDIS message. Its size
+	 * is enough for current needs, and should be sufficient for the near
+	 * future.
+	 */
+	u8 response_ext[RNDIS_EXT_LEN];
 
 	/* Simplify allocation by having a netvsc packet inline */
 	struct hv_netvsc_packet	pkt;
@@ -50,12 +53,10 @@ struct rndis_request {
 
 	struct rndis_message request_msg;
 	/*
-	 * The buffer for the extended info after the RNDIS message. It's
-	 * referenced based on the data offset in the RNDIS message. Its size
-	 * is enough for current needs, and should be sufficient for the near
-	 * future.
+	 * The buffer for the extended info after the RNDIS request message.
+	 * It is referenced and sized in a similar way as response_ext.
 	 */
-	u8 ext[100];
+	u8 request_ext[RNDIS_EXT_LEN];
 };
 
 static void rndis_filter_send_completion(void *ctx);
@@ -274,7 +275,8 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 	spin_unlock_irqrestore(&dev->request_lock, flags);
 
 	if (found) {
-		if (resp->msg_len <= sizeof(struct rndis_message)) {
+		if (resp->msg_len <=
+		    sizeof(struct rndis_message) + RNDIS_EXT_LEN) {
 			memcpy(&request->response_msg, resp,
 			       resp->msg_len);
 		} else {
