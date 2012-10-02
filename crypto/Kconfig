@@ -796,6 +796,7 @@ config CRYPTO_DES
 
 config CRYPTO_DES_SPARC64
 	tristate "DES and Triple DES EDE cipher algorithms (SPARC64)"
+	depends on SPARC64
 	select CRYPTO_ALGAPI
 	select CRYPTO_DES
 	help
