@@ -423,7 +423,7 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 			if (i2s->op_clk) {
 				if ((clk_id && !(mod & MOD_IMS_SYSMUX)) ||
 					(!clk_id && (mod & MOD_IMS_SYSMUX))) {
-					clk_disable(i2s->op_clk);
+					clk_disable_unprepare(i2s->op_clk);
 					clk_put(i2s->op_clk);
 				} else {
 					i2s->rclk_srcrate =
@@ -434,7 +434,7 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 
 			i2s->op_clk = clk_get(&i2s->pdev->dev,
 						i2s->src_clk[clk_id]);
-			clk_enable(i2s->op_clk);
+			clk_prepare_enable(i2s->op_clk);
 			i2s->rclk_srcrate = clk_get_rate(i2s->op_clk);
 
 			/* Over-ride the other's */
@@ -880,7 +880,7 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 		iounmap(i2s->addr);
 		return -ENOENT;
 	}
-	clk_enable(i2s->clk);
+	clk_prepare_enable(i2s->clk);
 
 	if (other) {
 		other->addr = i2s->addr;
@@ -922,7 +922,7 @@ static int samsung_i2s_dai_remove(struct snd_soc_dai *dai)
 		if (i2s->quirks & QUIRK_NEED_RSTCLR)
 			writel(0, i2s->addr + I2SCON);
 
-		clk_disable(i2s->clk);
+		clk_disable_unprepare(i2s->clk);
 		clk_put(i2s->clk);
 
 		iounmap(i2s->addr);
