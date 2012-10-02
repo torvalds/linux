@@ -38,7 +38,6 @@
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 
-#include <mach/iomap.h>
 #include <mach/tegra-ahb.h>
 
 enum smmu_hwgrp {
