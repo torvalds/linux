@@ -220,7 +220,7 @@ config SYSVIPC_SYSCTL
 
 config POSIX_MQUEUE
 	bool "POSIX Message Queues"
-	depends on NET && EXPERIMENTAL
+	depends on NET
 	---help---
 	  POSIX variant of message queues is a part of IPC. In POSIX message
 	  queues every message has a priority which decides about succession
@@ -366,7 +366,7 @@ config BSD_PROCESS_ACCT_V3
 	  at <http://www.gnu.org/software/acct/>.
 
 config TASKSTATS
-	bool "Export task/process statistics through netlink (EXPERIMENTAL)"
+	bool "Export task/process statistics through netlink"
 	depends on NET
 	default n
 	help
@@ -379,7 +379,7 @@ config TASKSTATS
 	  Say N if unsure.
 
 config TASK_DELAY_ACCT
-	bool "Enable per-task delay accounting (EXPERIMENTAL)"
+	bool "Enable per-task delay accounting"
 	depends on TASKSTATS
 	help
 	  Collect information on time spent by a task waiting for system
@@ -390,7 +390,7 @@ config TASK_DELAY_ACCT
 	  Say N if unsure.
 
 config TASK_XACCT
-	bool "Enable extended accounting over taskstats (EXPERIMENTAL)"
+	bool "Enable extended accounting over taskstats"
 	depends on TASKSTATS
 	help
 	  Collect extended task accounting data and send the data
@@ -399,7 +399,7 @@ config TASK_XACCT
 	  Say N if unsure.
 
 config TASK_IO_ACCOUNTING
-	bool "Enable per-task storage I/O accounting (EXPERIMENTAL)"
+	bool "Enable per-task storage I/O accounting"
 	depends on TASK_XACCT
 	help
 	  Collect information on the number of bytes of storage I/O which this
@@ -853,8 +853,8 @@ config MEMCG_SWAP_ENABLED
 	  select this option (if, for some reason, they need to disable it
 	  then swapaccount=0 does the trick).
 config MEMCG_KMEM
-	bool "Memory Resource Controller Kernel Memory accounting (EXPERIMENTAL)"
-	depends on MEMCG && EXPERIMENTAL
+	bool "Memory Resource Controller Kernel Memory accounting"
+	depends on MEMCG
 	depends on SLUB || SLAB
 	help
 	  The Kernel Memory extension for Memory Resource Controller can limit
@@ -866,7 +866,7 @@ config MEMCG_KMEM
 
 config CGROUP_HUGETLB
 	bool "HugeTLB Resource Controller for Control Groups"
-	depends on RESOURCE_COUNTERS && HUGETLB_PAGE && EXPERIMENTAL
+	depends on RESOURCE_COUNTERS && HUGETLB_PAGE
 	default n
 	help
 	  Provides a cgroup Resource Controller for HugeTLB pages.
@@ -905,7 +905,6 @@ config FAIR_GROUP_SCHED
 
 config CFS_BANDWIDTH
 	bool "CPU bandwidth provisioning for FAIR_GROUP_SCHED"
-	depends on EXPERIMENTAL
 	depends on FAIR_GROUP_SCHED
 	default n
 	help
@@ -917,7 +916,6 @@ config CFS_BANDWIDTH
 
 config RT_GROUP_SCHED
 	bool "Group scheduling for SCHED_RR/FIFO"
-	depends on EXPERIMENTAL
 	depends on CGROUP_SCHED
 	default n
 	help
@@ -999,8 +997,7 @@ config IPC_NS
 	  different IPC objects in different namespaces.
 
 config USER_NS
-	bool "User namespace (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "User namespace"
 	depends on UIDGID_CONVERTED
 	select UIDGID_STRICT_TYPE_CHECKS
 
@@ -1581,7 +1578,7 @@ config MODULE_UNLOAD
 
 config MODULE_FORCE_UNLOAD
 	bool "Forced module unloading"
-	depends on MODULE_UNLOAD && EXPERIMENTAL
+	depends on MODULE_UNLOAD
 	help
 	  This option allows you to force a module to unload, even if the
 	  kernel believes it is unsafe: the kernel will remove the module
