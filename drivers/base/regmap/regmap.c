@@ -519,7 +519,7 @@ struct regmap *regmap_init(struct device *dev,
 	}
 
 	map->range_tree = RB_ROOT;
-	for (i = 0; i < config->n_ranges; i++) {
+	for (i = 0; i < config->num_ranges; i++) {
 		const struct regmap_range_cfg *range_cfg = &config->ranges[i];
 		struct regmap_range_node *new;
 
@@ -532,7 +532,7 @@ struct regmap *regmap_init(struct device *dev,
 
 		/* Make sure, that this register range has no selector
 		   or data window within its boundary */
-		for (j = 0; j < config->n_ranges; j++) {
+		for (j = 0; j < config->num_ranges; j++) {
 			unsigned sel_reg = config->ranges[j].selector_reg;
 			unsigned win_min = config->ranges[j].window_start;
 			unsigned win_max = win_min +

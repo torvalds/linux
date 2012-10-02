@@ -133,7 +133,7 @@ struct regmap_config {
 	enum regmap_endian val_format_endian;
 
 	const struct regmap_range_cfg *ranges;
-	unsigned int n_ranges;
+	unsigned int num_ranges;
 };
 
 /**
