@@ -3069,18 +3069,9 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		}
 
 		nesqp->ibqp_state = attr->qp_state;
-		if (((nesqp->iwarp_state & NES_CQP_QP_IWARP_STATE_MASK) ==
-				(u32)NES_CQP_QP_IWARP_STATE_RTS) &&
-				((next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK) >
-				(u32)NES_CQP_QP_IWARP_STATE_RTS)) {
-			nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
-			nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
-					nesqp->iwarp_state);
-		} else {
-			nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
-			nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
-					nesqp->iwarp_state);
-		}
+		nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
+		nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
+				nesqp->iwarp_state);
 	}
 
 	if (attr_mask & IB_QP_ACCESS_FLAGS) {
