@@ -3006,6 +3006,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 					switch (nesqp->hw_iwarp_state) {
 						case NES_AEQE_IWARP_STATE_CLOSING:
 							next_iwarp_state = NES_CQP_QP_IWARP_STATE_CLOSING;
+							break;
 						case NES_AEQE_IWARP_STATE_TERMINATE:
 							next_iwarp_state = NES_CQP_QP_IWARP_STATE_TERMINATE;
 							break;
