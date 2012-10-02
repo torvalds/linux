@@ -1159,10 +1159,18 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	char *name;
+	int ret;
 
 	mutex_lock(&priv->lock);
-	tda18271_read_regs(fe);
+	ret = tda18271_read_regs(fe);
 	mutex_unlock(&priv->lock);
+
+	if (ret) {
+		tda_info("Error reading device ID @ %d-%04x, bailing out.\n",
+			 i2c_adapter_id(priv->i2c_props.adap),
+			 priv->i2c_props.addr);
+		return -EIO;
+	}
 
 	switch (regs[R_ID] & 0x7f) {
 	case 3:
