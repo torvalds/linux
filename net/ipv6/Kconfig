@@ -50,16 +50,15 @@ config IPV6_ROUTER_PREF
 	  If unsure, say N.
 
 config IPV6_ROUTE_INFO
-	bool "IPv6: Route Information (RFC 4191) support (EXPERIMENTAL)"
-	depends on IPV6_ROUTER_PREF && EXPERIMENTAL
+	bool "IPv6: Route Information (RFC 4191) support"
+	depends on IPV6_ROUTER_PREF
 	---help---
 	  This is experimental support of Route Information.
 
 	  If unsure, say N.
 
 config IPV6_OPTIMISTIC_DAD
-	bool "IPv6: Enable RFC 4429 Optimistic DAD (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "IPv6: Enable RFC 4429 Optimistic DAD"
 	---help---
 	  This is experimental support for optimistic Duplicate
 	  Address Detection.  It allows for autoconfigured addresses
@@ -105,8 +104,7 @@ config INET6_IPCOMP
 	  If unsure, say Y.
 
 config IPV6_MIP6
-	tristate "IPv6: Mobility (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "IPv6: Mobility"
 	select XFRM
 	---help---
 	  Support for IPv6 Mobility described in RFC 3775.
@@ -150,8 +148,7 @@ config INET6_XFRM_MODE_BEET
 	  If unsure, say Y.
 
 config INET6_XFRM_MODE_ROUTEOPTIMIZATION
-	tristate "IPv6: MIPv6 route optimization mode (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "IPv6: MIPv6 route optimization mode"
 	select XFRM
 	---help---
 	  Support for MIPv6 route optimization mode.
@@ -171,8 +168,8 @@ config IPV6_SIT
 	  Saying M here will produce a module called sit. If unsure, say Y.
 
 config IPV6_SIT_6RD
-	bool "IPv6: IPv6 Rapid Deployment (6RD) (EXPERIMENTAL)"
-	depends on IPV6_SIT && EXPERIMENTAL
+	bool "IPv6: IPv6 Rapid Deployment (6RD)"
+	depends on IPV6_SIT
 	default n
 	---help---
 	  IPv6 Rapid Deployment (6rd; draft-ietf-softwire-ipv6-6rd) builds upon
@@ -219,7 +216,6 @@ config IPV6_GRE
 
 config IPV6_MULTIPLE_TABLES
 	bool "IPv6: Multiple Routing Tables"
-	depends on EXPERIMENTAL
 	select FIB_RULES
 	---help---
 	  Support multiple routing tables.
@@ -239,8 +235,8 @@ config IPV6_SUBTREES
 	  If unsure, say N.
 
 config IPV6_MROUTE
-	bool "IPv6: multicast routing (EXPERIMENTAL)"
-	depends on IPV6 && EXPERIMENTAL
+	bool "IPv6: multicast routing"
+	depends on IPV6
 	---help---
 	  Experimental support for IPv6 multicast forwarding.
 	  If unsure, say N.
@@ -260,7 +256,7 @@ config IPV6_MROUTE_MULTIPLE_TABLES
 	  If unsure, say N.
 
 config IPV6_PIMSM_V2
-	bool "IPv6: PIM-SM version 2 support (EXPERIMENTAL)"
+	bool "IPv6: PIM-SM version 2 support"
 	depends on IPV6_MROUTE
 	---help---
 	  Support for IPv6 PIM multicast routing protocol PIM-SMv2.
