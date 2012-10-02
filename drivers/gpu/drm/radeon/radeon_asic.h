@@ -470,6 +470,9 @@ int si_irq_set(struct radeon_device *rdev);
 int si_irq_process(struct radeon_device *rdev);
 int si_vm_init(struct radeon_device *rdev);
 void si_vm_fini(struct radeon_device *rdev);
+void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
+		    uint64_t addr, unsigned count,
+		    uint32_t incr, uint32_t flags);
 void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 uint64_t si_get_gpu_clock(struct radeon_device *rdev);

@@ -1602,7 +1602,7 @@ static struct radeon_asic si_asic = {
 		.init = &si_vm_init,
 		.fini = &si_vm_fini,
 		.pt_ring_index = RADEON_RING_TYPE_GFX_INDEX,
-		.set_page = &cayman_vm_set_page,
+		.set_page = &si_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
