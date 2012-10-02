@@ -2514,7 +2514,7 @@ EXPORT_SYMBOL_GPL(nfs_kill_super);
 /*
  * Clone an NFS2/3/4 server record on xdev traversal (FSID-change)
  */
-struct dentry *
+static struct dentry *
 nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 		const char *dev_name, void *raw_data)
 {
