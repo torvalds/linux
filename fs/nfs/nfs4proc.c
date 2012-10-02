@@ -1661,10 +1661,10 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 		return 0;
 
 	mask = 0;
+	/* don't check MAY_WRITE - a newly created file may not have
+	 * write mode bits, but POSIX allows the creating process to write */
 	if (fmode & FMODE_READ)
 		mask |= MAY_READ;
-	if (fmode & FMODE_WRITE)
-		mask |= MAY_WRITE;
 	if (fmode & FMODE_EXEC)
 		mask |= MAY_EXEC;
 
@@ -1673,7 +1673,7 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 	nfs_access_set_mask(&cache, opendata->o_res.access_result);
 	nfs_access_add_cache(state->inode, &cache);
 
-	if ((mask & ~cache.mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) == 0)
+	if ((mask & ~cache.mask & (MAY_READ | MAY_EXEC)) == 0)
 		return 0;
 
 	/* even though OPEN succeeded, access is denied. Close the file */
