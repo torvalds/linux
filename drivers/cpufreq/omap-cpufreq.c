@@ -108,6 +108,14 @@ static int omap_target(struct cpufreq_policy *policy,
 	}
 
 	freq = freqs.new * 1000;
+	ret = clk_round_rate(mpu_clk, freq);
+	if (IS_ERR_VALUE(ret)) {
+		dev_warn(mpu_dev,
+			 "CPUfreq: Cannot find matching frequency for %lu\n",
+			 freq);
+		return ret;
+	}
+	freq = ret;
 
 	if (mpu_reg) {
 		opp = opp_find_freq_ceil(mpu_dev, &freq);
