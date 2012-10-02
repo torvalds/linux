@@ -57,8 +57,6 @@ config TEGRA_AHB
 	  which controls AHB bus master arbitration and some
 	  perfomance parameters(priority, prefech size).
 
-comment "Tegra board type"
-
 choice
         prompt "Default low-level debug console UART"
         default TEGRA_DEBUG_UART_NONE
