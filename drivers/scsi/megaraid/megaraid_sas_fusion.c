@@ -1855,10 +1855,8 @@ megasas_complete_cmd_dpc_fusion(unsigned long instance_addr)
 	}
 	spin_unlock_irqrestore(&instance->hba_lock, flags);
 
-	spin_lock_irqsave(&instance->completion_lock, flags);
 	for (MSIxIndex = 0 ; MSIxIndex < count; MSIxIndex++)
 		complete_cmd_fusion(instance, MSIxIndex);
-	spin_unlock_irqrestore(&instance->completion_lock, flags);
 }
 
 /**
