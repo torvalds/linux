@@ -157,8 +157,7 @@ static const char *v4l2_memory_names[] = {
 	[V4L2_MEMORY_OVERLAY] = "overlay",
 };
 
-#define prt_names(a, arr) ((((a) >= 0) && ((a) < ARRAY_SIZE(arr))) ? \
-			   arr[a] : "unknown")
+#define prt_names(a, arr) (((unsigned)(a)) < ARRAY_SIZE(arr) ? arr[a] : "unknown")
 
 /* ------------------------------------------------------------------ */
 /* debug help functions                                               */
