@@ -90,7 +90,6 @@ config NETWORK_SECMARK
 
 config NETWORK_PHY_TIMESTAMPING
 	bool "Timestamping in PHY devices"
-	depends on EXPERIMENTAL
 	help
 	  This allows timestamping of network packets by PHYs with
 	  hardware timestamping capabilities. This option adds some
@@ -278,7 +277,7 @@ config NET_PKTGEN
 
 config NET_TCPPROBE
 	tristate "TCP connection probing"
-	depends on INET && EXPERIMENTAL && PROC_FS && KPROBES
+	depends on INET && PROC_FS && KPROBES
 	---help---
 	This module allows for capturing the changes to TCP connection
 	state in response to incoming packets. It is used for debugging
@@ -295,7 +294,7 @@ config NET_TCPPROBE
 
 config NET_DROP_MONITOR
 	tristate "Network packet drop alerting service"
-	depends on INET && EXPERIMENTAL && TRACEPOINTS
+	depends on INET && TRACEPOINTS
 	---help---
 	This feature provides an alerting service to userspace in the
 	event that packets are discarded in the network stack.  Alerts
