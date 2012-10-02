@@ -32,10 +32,10 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_edid.h"
-#include "drm_fourcc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_fourcc.h>
 
 /* Avoid boilerplate.  I'm tired of typing. */
 #define DRM_ENUM_NAME_FN(fnname, list)				\

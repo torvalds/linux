@@ -25,13 +25,13 @@
 
 #include <linux/swab.h>
 #include <linux/slab.h>
-#include "drmP.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
 #include "nouveau_drv.h"
-#include "nouveau_drm.h"
+#include <drm/nouveau_drm.h>
 #include "nouveau_fbcon.h"
 #include "nouveau_ramht.h"
 #include "nouveau_gpio.h"

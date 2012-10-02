@@ -28,10 +28,10 @@
 
 #include <linux/export.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "vmwgfx_drv.h"
 
-#include "ttm/ttm_placement.h"
+#include <drm/ttm/ttm_placement.h>
 
 #define VMW_DIRTY_DELAY (HZ / 30)
 

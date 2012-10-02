@@ -22,8 +22,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "drmP.h"
-#include "savage_drm.h"
+#include <drm/drmP.h>
+#include <drm/savage_drm.h>
 #include "savage_drv.h"
 
 /* Need a long timeout for shadow status updates can take a while

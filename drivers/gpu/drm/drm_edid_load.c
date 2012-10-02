@@ -21,10 +21,10 @@
 
 #include <linux/module.h>
 #include <linux/firmware.h>
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-#include "drm_edid.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
 
 static char edid_firmware[PATH_MAX];
 module_param_string(edid_firmware, edid_firmware, sizeof(edid_firmware), 0644);

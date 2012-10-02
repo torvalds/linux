@@ -28,15 +28,15 @@
  */
 
 #include <linux/device.h>
-#include "drmP.h"
-#include "i915_drm.h"
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 
 #include <linux/console.h>
 #include <linux/module.h>
-#include "drm_crtc_helper.h"
+#include <drm/drm_crtc_helper.h>
 
 static int i915_modeset __read_mostly = -1;
 module_param_named(modeset, i915_modeset, int, 0400);

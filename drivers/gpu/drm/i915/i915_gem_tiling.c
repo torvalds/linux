@@ -25,10 +25,10 @@
  *
  */
 
-#include "linux/string.h"
-#include "linux/bitops.h"
-#include "drmP.h"
-#include "i915_drm.h"
+#include <linux/string.h>
+#include <linux/bitops.h>
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 /** @file i915_gem_tiling.c

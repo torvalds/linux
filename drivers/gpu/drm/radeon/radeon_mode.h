@@ -30,11 +30,11 @@
 #ifndef RADEON_MODE_H
 #define RADEON_MODE_H
 
-#include <drm_crtc.h>
-#include <drm_edid.h>
-#include <drm_dp_helper.h>
-#include <drm_fixed.h>
-#include <drm_crtc_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_fixed.h>
+#include <drm/drm_crtc_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 

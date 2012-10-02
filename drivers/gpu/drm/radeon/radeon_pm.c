@@ -20,7 +20,7 @@
  * Authors: Rafał Miłecki <zajec5@gmail.com>
  *          Alex Deucher <alexdeucher@gmail.com>
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "avivod.h"
 #include "atom.h"

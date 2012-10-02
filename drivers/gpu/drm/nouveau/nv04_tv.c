@@ -24,15 +24,15 @@
  *
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "nouveau_drv.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 #include "nouveau_crtc.h"
 #include "nouveau_hw.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_crtc_helper.h>
 
-#include "i2c/ch7006.h"
+#include <drm/i2c/ch7006.h>
 
 static struct i2c_board_info nv04_tv_encoder_info[] = {
 	{

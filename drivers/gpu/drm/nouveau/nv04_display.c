@@ -22,8 +22,8 @@
  * Author: Ben Skeggs
  */
 
-#include "drmP.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_fb.h"

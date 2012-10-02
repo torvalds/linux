@@ -25,7 +25,7 @@
 #ifndef __NOUVEAU_VM_H__
 #define __NOUVEAU_VM_H__
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_mm.h"

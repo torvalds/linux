@@ -18,8 +18,8 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
-#include "drmP.h"
-#include "exynos_drm.h"
+#include <drm/drmP.h>
+#include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 

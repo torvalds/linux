@@ -23,7 +23,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #include <linux/shmem_fs.h>
 #include <drm/exynos_drm.h>

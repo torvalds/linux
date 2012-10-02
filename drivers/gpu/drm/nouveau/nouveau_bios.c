@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #define NV_DEBUG_NOTRACE
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"

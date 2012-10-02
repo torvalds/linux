@@ -30,10 +30,10 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "intel_drv.h"
 #include "intel_ringbuffer.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 #define DRM_I915_RING_DEBUG 1

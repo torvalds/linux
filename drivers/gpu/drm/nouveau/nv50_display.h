@@ -27,7 +27,7 @@
 #ifndef __NV50_DISPLAY_H__
 #define __NV50_DISPLAY_H__
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_reg.h"

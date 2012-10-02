@@ -15,7 +15,7 @@
 #include <linux/fb.h>
 #include <linux/prefetch.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "udl_drv.h"
 
 #define MAX_CMD_PIXELS		255

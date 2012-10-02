@@ -32,7 +32,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
-#include "radeon_drm.h"
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_trace.h"
 

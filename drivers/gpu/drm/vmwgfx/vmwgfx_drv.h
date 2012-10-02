@@ -29,15 +29,15 @@
 #define _VMWGFX_DRV_H_
 
 #include "vmwgfx_reg.h"
-#include "drmP.h"
-#include "vmwgfx_drm.h"
-#include "drm_hashtab.h"
-#include "linux/suspend.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_object.h"
-#include "ttm/ttm_lock.h"
-#include "ttm/ttm_execbuf_util.h"
-#include "ttm/ttm_module.h"
+#include <drm/drmP.h>
+#include <drm/vmwgfx_drm.h>
+#include <drm/drm_hashtab.h>
+#include <linux/suspend.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_object.h>
+#include <drm/ttm/ttm_lock.h>
+#include <drm/ttm/ttm_execbuf_util.h>
+#include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
 #define VMWGFX_DRIVER_DATE "20120209"

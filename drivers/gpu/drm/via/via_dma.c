@@ -34,8 +34,8 @@
  *    Thomas Hellstrom.
  */
 
-#include "drmP.h"
-#include "via_drm.h"
+#include <drm/drmP.h>
+#include <drm/via_drm.h>
 #include "via_drv.h"
 #include "via_3d_reg.h"
 

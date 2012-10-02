@@ -29,7 +29,7 @@
  */
 
 #include <linux/export.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #if defined(CONFIG_X86)
 static void

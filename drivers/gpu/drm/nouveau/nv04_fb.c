@@ -1,6 +1,6 @@
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "nouveau_drv.h"
-#include "nouveau_drm.h"
+#include <drm/nouveau_drm.h>
 
 int
 nv04_fb_vram_init(struct drm_device *dev)

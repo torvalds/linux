@@ -10,7 +10,7 @@
  * License v2. See the file COPYING in the main directory of this archive for
  * more details.
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "udl_drv.h"
 
 /* -BULK_SIZE as per usb-skeleton. Can we get full page and avoid overhead? */

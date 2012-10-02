@@ -31,8 +31,8 @@
 #include <linux/acpi_io.h>
 #include <acpi/video.h>
 
-#include "drmP.h"
-#include "i915_drm.h"
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 

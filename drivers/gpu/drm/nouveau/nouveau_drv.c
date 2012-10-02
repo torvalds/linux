@@ -25,8 +25,8 @@
 #include <linux/console.h>
 #include <linux/module.h>
 
-#include "drmP.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 #include "nouveau_drv.h"
 #include "nouveau_abi16.h"
 #include "nouveau_hw.h"
@@ -36,7 +36,7 @@
 #include "nouveau_fifo.h"
 #include "nv50_display.h"
 
-#include "drm_pciids.h"
+#include <drm/drm_pciids.h>
 
 MODULE_PARM_DESC(agpmode, "AGP mode (0 to disable AGP)");
 int nouveau_agpmode = -1;

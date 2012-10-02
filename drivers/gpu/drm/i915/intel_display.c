@@ -32,13 +32,13 @@
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
 #include <drm/drm_edid.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "intel_drv.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
-#include "drm_dp_helper.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_crtc_helper.h>
 #include <linux/dma_remapping.h>
 
 #define HAS_eDP (intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))

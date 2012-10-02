@@ -26,7 +26,7 @@
  *          Jerome Glisse
  */
 #include <linux/kernel.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "r600d.h"
 #include "r600_reg_safe.h"

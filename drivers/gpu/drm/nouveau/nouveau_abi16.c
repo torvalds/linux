@@ -21,7 +21,7 @@
  *
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"

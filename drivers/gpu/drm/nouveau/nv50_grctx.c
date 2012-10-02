@@ -105,7 +105,7 @@
 #define CP_SEEK_1      0x00c000ff
 #define CP_SEEK_2      0x00c800ff
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "nouveau_drv.h"
 #include "nouveau_grctx.h"
 

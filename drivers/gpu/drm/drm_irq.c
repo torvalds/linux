@@ -33,7 +33,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "drm_trace.h"
 
 #include <linux/interrupt.h>	/* For task queue support */

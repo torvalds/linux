@@ -24,8 +24,8 @@
  *     Alex Deucher <alexander.deucher@amd.com>
  */
 
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 
 #include "evergreend.h"

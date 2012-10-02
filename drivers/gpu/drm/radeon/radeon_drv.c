@@ -29,11 +29,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon_drv.h"
 
-#include "drm_pciids.h"
+#include <drm/drm_pciids.h>
 #include <linux/console.h>
 #include <linux/module.h>
 

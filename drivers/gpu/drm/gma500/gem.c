@@ -25,7 +25,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 
 int psb_gem_init_object(struct drm_gem_object *obj)

@@ -1,4 +1,4 @@
-#include "drmP.h"
+#include <drm/drmP.h>
 #include <linux/usb.h>
 #include <linux/module.h>
 

@@ -24,8 +24,8 @@
 #define _INTEL_DVO_H
 
 #include <linux/i2c.h>
-#include "drmP.h"
-#include "drm_crtc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
 #include "intel_drv.h"
 
 struct intel_dvo_device {
