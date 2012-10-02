@@ -684,8 +684,7 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	init = &request->request_msg.msg.init_req;
 	init->major_ver = RNDIS_MAJOR_VERSION;
 	init->minor_ver = RNDIS_MINOR_VERSION;
-	/* FIXME: Use 1536 - rounded ethernet frame size */
-	init->max_xfer_size = 2048;
+	init->max_xfer_size = 0x4000;
 
 	dev->state = RNDIS_DEV_INITIALIZING;
 
