@@ -880,7 +880,7 @@ static DECLARE_TLV_DB_SCALE(out_tlv, -6400, 100, 0);
 static const char *wm2200_mixer_texts[] = {
 	"None",
 	"Tone Generator",
-	"AEC loopback",
+	"AEC Loopback",
 	"IN1L",
 	"IN1R",
 	"IN2L",
@@ -1066,6 +1066,7 @@ WM2200_MIXER_ENUMS(LHPF2, WM2200_LHPF2MIX_INPUT_1_SOURCE);
 
 #define WM2200_MIXER_INPUT_ROUTES(name)	\
 	{ name, "Tone Generator", "Tone Generator" }, \
+	{ name, "AEC Loopback", "AEC Loopback" }, \
         { name, "IN1L", "IN1L PGA" }, \
         { name, "IN1R", "IN1R PGA" }, \
         { name, "IN2L", "IN2L PGA" }, \
@@ -1105,6 +1106,20 @@ WM2200_MIXER_ENUMS(LHPF2, WM2200_LHPF2MIX_INPUT_1_SOURCE);
 	WM2200_MIXER_INPUT_ROUTES(name " Input 2"), \
 	WM2200_MIXER_INPUT_ROUTES(name " Input 3"), \
 	WM2200_MIXER_INPUT_ROUTES(name " Input 4")
+
+
+static const char *wm2200_aec_loopback_texts[] = {
+	"OUT1L", "OUT1R", "OUT2L", "OUT2R",
+};
+
+static const struct soc_enum wm2200_aec_loopback =
+	SOC_ENUM_SINGLE(WM2200_DAC_AEC_CONTROL_1,
+			WM2200_AEC_LOOPBACK_SRC_SHIFT,
+			ARRAY_SIZE(wm2200_aec_loopback_texts),
+			wm2200_aec_loopback_texts);
+
+static const struct snd_kcontrol_new wm2200_aec_loopback_mux =
+	SOC_DAPM_ENUM("AEC Loopback", wm2200_aec_loopback);
 
 static const struct snd_soc_dapm_widget wm2200_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", WM2200_CLOCKING_3, WM2200_SYSCLK_ENA_SHIFT, 0,
@@ -1180,6 +1195,9 @@ SND_SOC_DAPM_AIF_OUT("AIF1TX5", "Capture", 4,
 		    WM2200_AUDIO_IF_1_22, WM2200_AIF1TX5_ENA_SHIFT, 0),
 SND_SOC_DAPM_AIF_OUT("AIF1TX6", "Capture", 5,
 		    WM2200_AUDIO_IF_1_22, WM2200_AIF1TX6_ENA_SHIFT, 0),
+
+SND_SOC_DAPM_MUX("AEC Loopback", WM2200_DAC_AEC_CONTROL_1,
+		 WM2200_AEC_LOOPBACK_ENA_SHIFT, 0, &wm2200_aec_loopback_mux),
 
 SND_SOC_DAPM_PGA_S("OUT1L", 0, WM2200_OUTPUT_ENABLES,
 		   WM2200_OUT1L_ENA_SHIFT, 0, NULL, 0),
@@ -1325,6 +1343,11 @@ static const struct snd_soc_dapm_route wm2200_dapm_routes[] = {
 
 	{ "SPK", NULL, "OUT2L" },
 	{ "SPK", NULL, "OUT2R" },
+
+	{ "AEC Loopback", "OUT1L", "OUT1L" },
+	{ "AEC Loopback", "OUT1R", "OUT1R" },
+	{ "AEC Loopback", "OUT2L", "OUT2L" },
+	{ "AEC Loopback", "OUT2R", "OUT2R" },
 
 	WM2200_MIXER_ROUTES("DSP1", "DSP1L"),
 	WM2200_MIXER_ROUTES("DSP1", "DSP1R"),
