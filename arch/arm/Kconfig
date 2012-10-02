@@ -1768,59 +1768,6 @@ config FORCE_MAX_ZONEORDER
 	  This config option is actually maximum order plus one. For example,
 	  a value of 11 means that the largest free memory block is 2^10 pages.
 
-config LEDS
-	bool "Timer and CPU usage LEDs"
-	depends on ARCH_CDB89712 || ARCH_EBSA110 || \
-		   ARCH_EBSA285 || ARCH_INTEGRATOR || \
-		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
-		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
-		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
-		   ARCH_AT91 || ARCH_DAVINCI || \
-		   ARCH_KS8695 || MACH_RD88F5182 || ARCH_REALVIEW
-	help
-	  If you say Y here, the LEDs on your machine will be used
-	  to provide useful information about your current system status.
-
-	  If you are compiling a kernel for a NetWinder or EBSA-285, you will
-	  be able to select which LEDs are active using the options below. If
-	  you are compiling a kernel for the EBSA-110 or the LART however, the
-	  red LED will simply flash regularly to indicate that the system is
-	  still functional. It is safe to say Y here if you have a CATS
-	  system, but the driver will do nothing.
-
-config LEDS_TIMER
-	bool "Timer LED" if (!ARCH_CDB89712 && !ARCH_OMAP) || \
-			    OMAP_OSK_MISTRAL || MACH_OMAP_H2 \
-			    || MACH_OMAP_PERSEUS2
-	depends on LEDS
-	depends on !GENERIC_CLOCKEVENTS
-	default y if ARCH_EBSA110
-	help
-	  If you say Y here, one of the system LEDs (the green one on the
-	  NetWinder, the amber one on the EBSA285, or the red one on the LART)
-	  will flash regularly to indicate that the system is still
-	  operational. This is mainly useful to kernel hackers who are
-	  debugging unstable kernels.
-
-	  The LART uses the same LED for both Timer LED and CPU usage LED
-	  functions. You may choose to use both, but the Timer LED function
-	  will overrule the CPU usage LED.
-
-config LEDS_CPU
-	bool "CPU usage LED" if (!ARCH_CDB89712 && !ARCH_EBSA110 && \
-			!ARCH_OMAP) \
-			|| OMAP_OSK_MISTRAL || MACH_OMAP_H2 \
-			|| MACH_OMAP_PERSEUS2
-	depends on LEDS
-	help
-	  If you say Y here, the red LED will be used to give a good real
-	  time indication of CPU usage, by lighting whenever the idle task
-	  is not currently executing.
-
-	  The LART uses the same LED for both Timer LED and CPU usage LED
-	  functions. You may choose to use both, but the Timer LED function
-	  will overrule the CPU usage LED.
-
 config ALIGNMENT_TRAP
 	bool
 	depends on CPU_CP15_MMU

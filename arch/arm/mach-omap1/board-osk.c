@@ -382,10 +382,37 @@ static struct platform_device osk5912_lcd_device = {
 	.id		= -1,
 };
 
+static struct gpio_led mistral_gpio_led_pins[] = {
+	{
+		.name		= "mistral:red",
+		.default_trigger = "heartbeat",
+		.gpio		= 3,
+	},
+	{
+		.name		= "mistral:green",
+		.default_trigger = "cpu0",
+		.gpio		= OMAP_MPUIO(4),
+	},
+};
+
+static struct gpio_led_platform_data mistral_gpio_led_data = {
+	.leds		= mistral_gpio_led_pins,
+	.num_leds	= ARRAY_SIZE(mistral_gpio_led_pins),
+};
+
+static struct platform_device mistral_gpio_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &mistral_gpio_led_data,
+	},
+};
+
 static struct platform_device *mistral_devices[] __initdata = {
 	&osk5912_kp_device,
 	&mistral_bl_device,
 	&osk5912_lcd_device,
+	&mistral_gpio_leds,
 };
 
 static int mistral_get_pendown_state(void)
@@ -509,6 +536,12 @@ static void __init osk_mistral_init(void)
 	omap_cfg_reg(PWL);
 	if (gpio_request(2, "lcd_pwr") == 0)
 		gpio_direction_output(2, 1);
+
+	/*
+	 * GPIO based LEDs
+	 */
+	omap_cfg_reg(P18_1610_GPIO3);
+	omap_cfg_reg(MPUIO4);
 
 	i2c_register_board_info(1, mistral_i2c_board_info,
 			ARRAY_SIZE(mistral_i2c_board_info));

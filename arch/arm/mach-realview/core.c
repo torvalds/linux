@@ -34,7 +34,6 @@
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst.h>
@@ -329,44 +328,6 @@ struct clcd_board clcd_plat_data = {
 	.mmap		= versatile_clcd_mmap_dma,
 	.remove		= versatile_clcd_remove_dma,
 };
-
-#ifdef CONFIG_LEDS
-#define VA_LEDS_BASE (__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_LED_OFFSET)
-
-void realview_leds_event(led_event_t ledevt)
-{
-	unsigned long flags;
-	u32 val;
-	u32 led = 1 << smp_processor_id();
-
-	local_irq_save(flags);
-	val = readl(VA_LEDS_BASE);
-
-	switch (ledevt) {
-	case led_idle_start:
-		val = val & ~led;
-		break;
-
-	case led_idle_end:
-		val = val | led;
-		break;
-
-	case led_timer:
-		val = val ^ REALVIEW_SYS_LED7;
-		break;
-
-	case led_halted:
-		val = 0;
-		break;
-
-	default:
-		break;
-	}
-
-	writel(val, VA_LEDS_BASE);
-	local_irq_restore(flags);
-}
-#endif	/* CONFIG_LEDS */
 
 /*
  * Where is the timer (VA)?

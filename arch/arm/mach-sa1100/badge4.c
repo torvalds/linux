@@ -22,6 +22,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/errno.h>
+#include <linux/gpio.h>
+#include <linux/leds.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -76,8 +78,36 @@ static struct platform_device sa1111_device = {
 	.resource	= sa1111_resources,
 };
 
+/* LEDs */
+struct gpio_led badge4_gpio_leds[] = {
+	{
+		.name			= "badge4:red",
+		.default_trigger	= "heartbeat",
+		.gpio			= 7,
+	},
+	{
+		.name			= "badge4:green",
+		.default_trigger	= "cpu0",
+		.gpio			= 9,
+	},
+};
+
+static struct gpio_led_platform_data badge4_gpio_led_info = {
+	.leds		= badge4_gpio_leds,
+	.num_leds	= ARRAY_SIZE(badge4_gpio_leds),
+};
+
+static struct platform_device badge4_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &badge4_gpio_led_info,
+	}
+};
+
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
+	&badge4_leds,
 };
 
 static int __init badge4_sa1111_init(void)

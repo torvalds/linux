@@ -145,6 +145,15 @@ config PINCTRL_COH901
 	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
 	  ports of 8 GPIO pins each.
 
+config PINCTRL_SAMSUNG
+	bool "Samsung pinctrl driver"
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_EXYNOS4
+	bool "Pinctrl driver data for Exynos4 SoC"
+	select PINCTRL_SAMSUNG
+
 source "drivers/pinctrl/spear/Kconfig"
 
 endmenu

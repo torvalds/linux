@@ -42,9 +42,8 @@ config OMAP_DEBUG_DEVICES
 	  For debug cards on TI reference boards.
 
 config OMAP_DEBUG_LEDS
-	bool
+	def_bool y if NEW_LEDS
 	depends on OMAP_DEBUG_DEVICES
-	default y if LEDS_CLASS
 
 config POWER_AVS_OMAP
 	bool "AVS(Adaptive Voltage Scaling) support for OMAP IP versions 1&2"

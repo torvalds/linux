@@ -28,6 +28,8 @@
 #include <linux/pwm_backlight.h>
 #include <linux/smc91x.h>
 #include <linux/i2c/pxa-i2c.h>
+#include <linux/slab.h>
+#include <linux/leds.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -612,6 +614,98 @@ static void __init mainstone_map_io(void)
  	PSLR |= 0xF04;
  	PCFR = 0x66;
 }
+
+/*
+ * Driver for the 8 discrete LEDs available for general use:
+ * Note: bits [15-8] are used to enable/blank the 8 7 segment hex displays
+ * so be sure to not monkey with them here.
+ */
+
+#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
+struct mainstone_led {
+	struct led_classdev	cdev;
+	u8			mask;
+};
+
+/*
+ * The triggers lines up below will only be used if the
+ * LED triggers are compiled in.
+ */
+static const struct {
+	const char *name;
+	const char *trigger;
+} mainstone_leds[] = {
+	{ "mainstone:D28", "default-on", },
+	{ "mainstone:D27", "cpu0", },
+	{ "mainstone:D26", "heartbeat" },
+	{ "mainstone:D25", },
+	{ "mainstone:D24", },
+	{ "mainstone:D23", },
+	{ "mainstone:D22", },
+	{ "mainstone:D21", },
+};
+
+static void mainstone_led_set(struct led_classdev *cdev,
+			      enum led_brightness b)
+{
+	struct mainstone_led *led = container_of(cdev,
+					 struct mainstone_led, cdev);
+	u32 reg = MST_LEDCTRL;
+
+	if (b != LED_OFF)
+		reg |= led->mask;
+	else
+		reg &= ~led->mask;
+
+	MST_LEDCTRL = reg;
+}
+
+static enum led_brightness mainstone_led_get(struct led_classdev *cdev)
+{
+	struct mainstone_led *led = container_of(cdev,
+					 struct mainstone_led, cdev);
+	u32 reg = MST_LEDCTRL;
+
+	return (reg & led->mask) ? LED_FULL : LED_OFF;
+}
+
+static int __init mainstone_leds_init(void)
+{
+	int i;
+
+	if (!machine_is_mainstone())
+		return -ENODEV;
+
+	/* All ON */
+	MST_LEDCTRL |= 0xff;
+	for (i = 0; i < ARRAY_SIZE(mainstone_leds); i++) {
+		struct mainstone_led *led;
+
+		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		if (!led)
+			break;
+
+		led->cdev.name = mainstone_leds[i].name;
+		led->cdev.brightness_set = mainstone_led_set;
+		led->cdev.brightness_get = mainstone_led_get;
+		led->cdev.default_trigger = mainstone_leds[i].trigger;
+		led->mask = BIT(i);
+
+		if (led_classdev_register(NULL, &led->cdev) < 0) {
+			kfree(led);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Since we may have triggers on any subsystem, defer registration
+ * until after subsystem_init.
+ */
+fs_initcall(mainstone_leds_init);
+#endif
 
 MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
 	/* Maintainer: MontaVista Software Inc. */
