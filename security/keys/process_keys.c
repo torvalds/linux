@@ -46,9 +46,11 @@ int install_user_keyrings(void)
 	struct user_struct *user;
 	const struct cred *cred;
 	struct key *uid_keyring, *session_keyring;
+	key_perm_t user_keyring_perm;
 	char buf[20];
 	int ret;
 
+	user_keyring_perm = (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL;
 	cred = current_cred();
 	user = cred->user;
 
@@ -72,8 +74,8 @@ int install_user_keyrings(void)
 		uid_keyring = find_keyring_by_name(buf, true);
 		if (IS_ERR(uid_keyring)) {
 			uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1,
-						    cred, KEY_ALLOC_IN_QUOTA,
-						    NULL);
+						    cred, user_keyring_perm,
+						    KEY_ALLOC_IN_QUOTA, NULL);
 			if (IS_ERR(uid_keyring)) {
 				ret = PTR_ERR(uid_keyring);
 				goto error;
@@ -88,7 +90,8 @@ int install_user_keyrings(void)
 		if (IS_ERR(session_keyring)) {
 			session_keyring =
 				keyring_alloc(buf, user->uid, (gid_t) -1,
-					      cred, KEY_ALLOC_IN_QUOTA, NULL);
+					      cred, user_keyring_perm,
+					      KEY_ALLOC_IN_QUOTA, NULL);
 			if (IS_ERR(session_keyring)) {
 				ret = PTR_ERR(session_keyring);
 				goto error_release;
@@ -129,6 +132,7 @@ int install_thread_keyring_to_cred(struct cred *new)
 	struct key *keyring;
 
 	keyring = keyring_alloc("_tid", new->uid, new->gid, new,
+				KEY_POS_ALL | KEY_USR_VIEW,
 				KEY_ALLOC_QUOTA_OVERRUN, NULL);
 	if (IS_ERR(keyring))
 		return PTR_ERR(keyring);
@@ -173,8 +177,9 @@ int install_process_keyring_to_cred(struct cred *new)
 	if (new->process_keyring)
 		return -EEXIST;
 
-	keyring = keyring_alloc("_pid", new->uid, new->gid,
-				new, KEY_ALLOC_QUOTA_OVERRUN, NULL);
+	keyring = keyring_alloc("_pid", new->uid, new->gid, new,
+				KEY_POS_ALL | KEY_USR_VIEW,
+				KEY_ALLOC_QUOTA_OVERRUN, NULL);
 	if (IS_ERR(keyring))
 		return PTR_ERR(keyring);
 
@@ -223,8 +228,9 @@ int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 		if (cred->session_keyring)
 			flags = KEY_ALLOC_IN_QUOTA;
 
-		keyring = keyring_alloc("_ses", cred->uid, cred->gid,
-					cred, flags, NULL);
+		keyring = keyring_alloc("_ses", cred->uid, cred->gid, cred,
+					KEY_POS_ALL | KEY_USR_VIEW | KEY_USR_READ,
+					flags, NULL);
 		if (IS_ERR(keyring))
 			return PTR_ERR(keyring);
 	} else {
@@ -773,8 +779,10 @@ long join_session_keyring(const char *name)
 	keyring = find_keyring_by_name(name, false);
 	if (PTR_ERR(keyring) == -ENOKEY) {
 		/* not found - try and create a new one */
-		keyring = keyring_alloc(name, old->uid, old->gid, old,
-					KEY_ALLOC_IN_QUOTA, NULL);
+		keyring = keyring_alloc(
+			name, old->uid, old->gid, old,
+			KEY_POS_ALL | KEY_USR_VIEW | KEY_USR_READ | KEY_USR_LINK,
+			KEY_ALLOC_IN_QUOTA, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error2;
