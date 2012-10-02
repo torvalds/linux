@@ -707,6 +707,7 @@ static int nfs_idmap_legacy_upcall(struct key_construction *cons,
 	msg = &data->pipe_msg;
 	im = &data->idmap_msg;
 	data->idmap = idmap;
+	data->key_cons = cons;
 
 	ret = nfs_idmap_prepare_message(key->description, idmap, im, msg);
 	if (ret < 0)
