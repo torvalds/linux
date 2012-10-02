@@ -1258,11 +1258,10 @@ wemac_rx(struct net_device *dev)
 
 	/* Check packet ready or not */
 	do {
-
-		/* dummy read: lundman */
+		/* race warning: the first packet might arrive with
+		   the interrupts disabled, but the second will fix
+		   it */
 		Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
-
-			Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
 
 		if (netif_msg_rx_status(db))
 			dev_dbg(db->dev, "RXCount: %x\n", Rxcount);
@@ -1282,13 +1281,17 @@ wemac_rx(struct net_device *dev)
 			reg_val &= (~(0x1<<2));
 			writel(reg_val, db->emac_vbase + EMAC_RX_CTL_REG);
 		}
-		if(!Rxcount){
 
+		if (!Rxcount) {
 			emacrx_completed_flag = 1;
 			reg_val = readl(db->emac_vbase + EMAC_INT_CTL_REG);
 			reg_val |= (0xf<<0) | (0x01<<8);
 			writel(reg_val, db->emac_vbase + EMAC_INT_CTL_REG);
-			return;
+
+			/* had one stuck? */
+			Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
+			if (!Rxcount)
+				return;
 		}
 
 		reg_val = readl(db->emac_vbase + EMAC_RX_IO_DATA_REG);
