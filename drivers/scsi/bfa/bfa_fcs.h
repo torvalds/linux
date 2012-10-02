@@ -62,9 +62,9 @@ struct bfa_fcs_s;
 #define N2N_LOCAL_PID	    0x010000
 #define N2N_REMOTE_PID		0x020000
 #define	BFA_FCS_RETRY_TIMEOUT 2000
+#define BFA_FCS_MAX_NS_RETRIES 5
 #define BFA_FCS_PID_IS_WKA(pid)  ((bfa_ntoh3b(pid) > 0xFFF000) ?  1 : 0)
-
-
+#define BFA_FCS_MAX_RPORT_LOGINS 1024
 
 struct bfa_fcs_lport_ns_s {
 	bfa_sm_t        sm;		/*  state machine */
@@ -72,6 +72,8 @@ struct bfa_fcs_lport_ns_s {
 	struct bfa_fcs_lport_s *port;	/*  parent port */
 	struct bfa_fcxp_s *fcxp;
 	struct bfa_fcxp_wqe_s fcxp_wqe;
+	u8	num_rnnid_retries;
+	u8	num_rsnn_nn_retries;
 };
 
 
@@ -205,6 +207,7 @@ struct bfa_fcs_fabric_s {
 	struct bfa_lps_s	*lps;	/*  lport login services	*/
 	u8	fabric_ip_addr[BFA_FCS_FABRIC_IPADDR_SZ];
 					/*  attached fabric's ip addr  */
+	struct bfa_wc_s stop_wc;	/*  wait counter for stop */
 };
 
 #define bfa_fcs_fabric_npiv_capable(__f)    ((__f)->is_npiv)
@@ -264,6 +267,7 @@ struct bfa_fcs_fabric_s;
 #define bfa_fcs_lport_get_pwwn(_lport)	((_lport)->port_cfg.pwwn)
 #define bfa_fcs_lport_get_nwwn(_lport)	((_lport)->port_cfg.nwwn)
 #define bfa_fcs_lport_get_psym_name(_lport)	((_lport)->port_cfg.sym_name)
+#define bfa_fcs_lport_get_nsym_name(_lport) ((_lport)->port_cfg.node_sym_name)
 #define bfa_fcs_lport_is_initiator(_lport)			\
 	((_lport)->port_cfg.roles & BFA_LPORT_ROLE_FCP_IM)
 #define bfa_fcs_lport_get_nrports(_lport)	\
@@ -286,9 +290,8 @@ bfa_fcs_lport_get_drvport(struct bfa_fcs_lport_s *port)
 
 bfa_boolean_t   bfa_fcs_lport_is_online(struct bfa_fcs_lport_s *port);
 struct bfa_fcs_lport_s *bfa_fcs_get_base_port(struct bfa_fcs_s *fcs);
-void bfa_fcs_lport_get_rports(struct bfa_fcs_lport_s *port,
-			      wwn_t rport_wwns[], int *nrports);
-
+void bfa_fcs_lport_get_rport_quals(struct bfa_fcs_lport_s *port,
+			struct bfa_rport_qualifier_s rport[], int *nrports);
 wwn_t bfa_fcs_lport_get_rport(struct bfa_fcs_lport_s *port, wwn_t wwn,
 			      int index, int nrports, bfa_boolean_t bwwn);
 
@@ -324,12 +327,17 @@ void bfa_fcs_lport_init(struct bfa_fcs_lport_s *lport,
 void            bfa_fcs_lport_online(struct bfa_fcs_lport_s *port);
 void            bfa_fcs_lport_offline(struct bfa_fcs_lport_s *port);
 void            bfa_fcs_lport_delete(struct bfa_fcs_lport_s *port);
+void		bfa_fcs_lport_stop(struct bfa_fcs_lport_s *port);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_pid(
+		struct bfa_fcs_lport_s *port, u32 pid);
+struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_old_pid(
 		struct bfa_fcs_lport_s *port, u32 pid);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_pwwn(
 		struct bfa_fcs_lport_s *port, wwn_t pwwn);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_nwwn(
 		struct bfa_fcs_lport_s *port, wwn_t nwwn);
+struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_qualifier(
+		struct bfa_fcs_lport_s *port, wwn_t pwwn, u32 pid);
 void            bfa_fcs_lport_add_rport(struct bfa_fcs_lport_s *port,
 				       struct bfa_fcs_rport_s *rport);
 void            bfa_fcs_lport_del_rport(struct bfa_fcs_lport_s *port,
@@ -338,6 +346,8 @@ void            bfa_fcs_lport_ns_init(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_ns_offline(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_ns_online(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_ns_query(struct bfa_fcs_lport_s *port);
+void		bfa_fcs_lport_ns_util_send_rspn_id(void *cbarg,
+				struct bfa_fcxp_s *fcxp_alloced);
 void            bfa_fcs_lport_scn_init(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_scn_offline(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_scn_online(struct bfa_fcs_lport_s *vport);
@@ -382,6 +392,7 @@ void bfa_fcs_vport_online(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_offline(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_delete_comp(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_fcs_delete(struct bfa_fcs_vport_s *vport);
+void bfa_fcs_vport_fcs_stop(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_stop_comp(struct bfa_fcs_vport_s *vport);
 
 #define BFA_FCS_RPORT_DEF_DEL_TIMEOUT	90	/* in secs */
@@ -419,6 +430,7 @@ struct bfa_fcs_rport_s {
 	struct bfa_fcs_s	*fcs;	/*  fcs instance */
 	struct bfad_rport_s	*rp_drv;	/*  driver peer instance */
 	u32	pid;	/*  port ID of rport */
+	u32	old_pid;	/* PID before rport goes offline */
 	u16	maxfrsize;	/*  maximum frame size */
 	__be16	reply_oxid;	/*  OX_ID of inbound requests */
 	enum fc_cos	fc_cos;	/*  FC classes of service supp */
@@ -459,7 +471,7 @@ struct bfa_fcs_rport_s *bfa_fcs_rport_lookup(struct bfa_fcs_lport_s *port,
 struct bfa_fcs_rport_s *bfa_fcs_rport_lookup_by_nwwn(
 	struct bfa_fcs_lport_s *port, wwn_t rnwwn);
 void bfa_fcs_rport_set_del_timeout(u8 rport_tmo);
-
+void bfa_fcs_rport_set_max_logins(u32 max_logins);
 void bfa_fcs_rport_uf_recv(struct bfa_fcs_rport_s *rport,
 	 struct fchs_s *fchs, u16 len);
 void bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport);
@@ -505,12 +517,13 @@ struct bfa_fcs_itnim_s {
 	struct bfa_fcxp_s	*fcxp;		/*  FCXP in use	*/
 	struct bfa_itnim_stats_s	stats;	/*  itn statistics	*/
 };
-#define bfa_fcs_fcxp_alloc(__fcs)	\
-	bfa_fcxp_alloc(NULL, (__fcs)->bfa, 0, 0, NULL, NULL, NULL, NULL)
-
-#define bfa_fcs_fcxp_alloc_wait(__bfa, __wqe, __alloc_cbfn, __alloc_cbarg) \
-	bfa_fcxp_alloc_wait(__bfa, __wqe, __alloc_cbfn, __alloc_cbarg, \
-					NULL, 0, 0, NULL, NULL, NULL, NULL)
+#define bfa_fcs_fcxp_alloc(__fcs, __req)				\
+	bfa_fcxp_req_rsp_alloc(NULL, (__fcs)->bfa, 0, 0,		\
+			       NULL, NULL, NULL, NULL, __req)
+#define bfa_fcs_fcxp_alloc_wait(__bfa, __wqe, __alloc_cbfn,		\
+				__alloc_cbarg, __req)			\
+	bfa_fcxp_req_rsp_alloc_wait(__bfa, __wqe, __alloc_cbfn,		\
+		__alloc_cbarg, NULL, 0, 0, NULL, NULL, NULL, NULL, __req)
 
 static inline struct bfad_port_s *
 bfa_fcs_itnim_get_drvport(struct bfa_fcs_itnim_s *itnim)
@@ -592,7 +605,7 @@ bfa_status_t bfa_fcs_itnim_stats_clear(struct bfa_fcs_lport_s *port,
 struct bfa_fcs_itnim_s *bfa_fcs_itnim_create(struct bfa_fcs_rport_s *rport);
 void bfa_fcs_itnim_delete(struct bfa_fcs_itnim_s *itnim);
 void bfa_fcs_itnim_rport_offline(struct bfa_fcs_itnim_s *itnim);
-void bfa_fcs_itnim_rport_online(struct bfa_fcs_itnim_s *itnim);
+void bfa_fcs_itnim_brp_online(struct bfa_fcs_itnim_s *itnim);
 bfa_status_t bfa_fcs_itnim_get_online_state(struct bfa_fcs_itnim_s *itnim);
 void bfa_fcs_itnim_is_initiator(struct bfa_fcs_itnim_s *itnim);
 void bfa_fcs_fcpim_uf_recv(struct bfa_fcs_itnim_s *itnim,
@@ -676,6 +689,7 @@ struct bfa_fcs_s {
 	struct bfa_fcs_stats_s	stats;	/*  FCS statistics */
 	struct bfa_wc_s		wc;	/*  waiting counter */
 	int			fcs_aen_seq;
+	u32		num_rport_logins;
 };
 
 /*
@@ -702,6 +716,9 @@ enum bfa_fcs_fabric_event {
 	BFA_FCS_FABRIC_SM_DELCOMP       = 14,   /*  all vports deleted event */
 	BFA_FCS_FABRIC_SM_LOOPBACK      = 15,   /*  Received our own FLOGI   */
 	BFA_FCS_FABRIC_SM_START         = 16,   /*  from driver       */
+	BFA_FCS_FABRIC_SM_STOP		= 17,	/*  Stop from driver	*/
+	BFA_FCS_FABRIC_SM_STOPCOMP	= 18,	/*  Stop completion	*/
+	BFA_FCS_FABRIC_SM_LOGOCOMP	= 19,	/*  FLOGO completion	*/
 };
 
 /*
@@ -727,6 +744,26 @@ enum rport_event {
 	RPSM_EVENT_ADDRESS_DISC = 16,   /*  Need to Discover rport's PID */
 	RPSM_EVENT_PRLO_RCVD   = 17,    /*  PRLO from remote device     */
 	RPSM_EVENT_PLOGI_RETRY = 18,    /*  Retry PLOGI continuously */
+	RPSM_EVENT_FC4_FCS_ONLINE = 19, /*!< FC-4 FCS online complete */
+};
+
+/*
+ * fcs_itnim_sm FCS itnim state machine events
+ */
+enum bfa_fcs_itnim_event {
+	BFA_FCS_ITNIM_SM_FCS_ONLINE = 1,        /*  rport online event */
+	BFA_FCS_ITNIM_SM_OFFLINE = 2,   /*  rport offline */
+	BFA_FCS_ITNIM_SM_FRMSENT = 3,   /*  prli frame is sent */
+	BFA_FCS_ITNIM_SM_RSP_OK = 4,    /*  good response */
+	BFA_FCS_ITNIM_SM_RSP_ERROR = 5, /*  error response */
+	BFA_FCS_ITNIM_SM_TIMEOUT = 6,   /*  delay timeout */
+	BFA_FCS_ITNIM_SM_HCB_OFFLINE = 7, /*  BFA online callback */
+	BFA_FCS_ITNIM_SM_HCB_ONLINE = 8, /*  BFA offline callback */
+	BFA_FCS_ITNIM_SM_INITIATOR = 9, /*  rport is initiator */
+	BFA_FCS_ITNIM_SM_DELETE = 10,   /*  delete event from rport */
+	BFA_FCS_ITNIM_SM_PRLO = 11,     /*  delete event from rport */
+	BFA_FCS_ITNIM_SM_RSP_NOT_SUPP = 12, /* cmd not supported rsp */
+	BFA_FCS_ITNIM_SM_HAL_ONLINE = 13, /*!< bfa rport online event */
 };
 
 /*
@@ -741,6 +778,7 @@ void bfa_fcs_update_cfg(struct bfa_fcs_s *fcs);
 void bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
 			      struct bfa_fcs_driver_info_s *driver_info);
 void bfa_fcs_exit(struct bfa_fcs_s *fcs);
+void bfa_fcs_stop(struct bfa_fcs_s *fcs);
 
 /*
  * bfa fcs vf public functions
@@ -766,11 +804,13 @@ void bfa_fcs_fabric_modstart(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_uf_recv(struct bfa_fcs_fabric_s *fabric,
 		struct fchs_s *fchs, u16 len);
 void	bfa_fcs_fabric_psymb_init(struct bfa_fcs_fabric_s *fabric);
+void	bfa_fcs_fabric_nsymb_init(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 	       wwn_t fabric_name);
 u16 bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_uf_attach(struct bfa_fcs_s *fcs);
 void bfa_fcs_port_attach(struct bfa_fcs_s *fcs);
+void bfa_fcs_fabric_modstop(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_sm_online(struct bfa_fcs_fabric_s *fabric,
 			enum bfa_fcs_fabric_event event);
 void bfa_fcs_fabric_sm_loopback(struct bfa_fcs_fabric_s *fabric,

@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.06.15-rc1"
-#define MEGASAS_RELDATE				"Mar. 19, 2012"
-#define MEGASAS_EXT_VERSION			"Mon. Mar. 19 17:00:00 PDT 2012"
+#define MEGASAS_VERSION				"00.00.06.18-rc1"
+#define MEGASAS_RELDATE				"Jun. 17, 2012"
+#define MEGASAS_EXT_VERSION			"Tue. Jun. 17 17:00:00 PDT 2012"
 
 /*
  * Device IDs
@@ -747,6 +747,7 @@ struct megasas_ctrl_info {
 #define	MEGASAS_RESET_NOTICE_INTERVAL		5
 #define MEGASAS_IOCTL_CMD			0
 #define MEGASAS_DEFAULT_CMD_TIMEOUT		90
+#define MEGASAS_THROTTLE_QUEUE_DEPTH		16
 
 /*
  * FW reports the maximum of number of commands that it can accept (maximum
@@ -1364,6 +1365,7 @@ struct megasas_instance {
 	unsigned long bar;
 	long reset_flags;
 	struct mutex reset_mutex;
+	int throttlequeuedepth;
 };
 
 enum {
