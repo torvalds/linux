@@ -907,18 +907,19 @@ pnfs_find_alloc_layout(struct inode *ino,
 
 	dprintk("%s Begin ino=%p layout=%p\n", __func__, ino, nfsi->layout);
 
-	if (nfsi->layout) {
-		pnfs_get_layout_hdr(nfsi->layout);
-		return nfsi->layout;
-	}
+	if (nfsi->layout != NULL)
+		goto out_existing;
 	spin_unlock(&ino->i_lock);
 	new = alloc_init_layout_hdr(ino, ctx, gfp_flags);
 	spin_lock(&ino->i_lock);
 
-	if (likely(nfsi->layout == NULL))	/* Won the race? */
+	if (likely(nfsi->layout == NULL)) {	/* Won the race? */
 		nfsi->layout = new;
-	else
-		pnfs_free_layout_hdr(new);
+		return new;
+	}
+	pnfs_free_layout_hdr(new);
+out_existing:
+	pnfs_get_layout_hdr(nfsi->layout);
 	return nfsi->layout;
 }
 
