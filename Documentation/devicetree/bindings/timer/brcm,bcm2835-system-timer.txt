@@ -1,0 +1,22 @@
+BCM2835 System Timer
+
+The System Timer peripheral provides four 32-bit timer channels and a
+single 64-bit free running counter. Each channel has an output compare
+register, which is compared against the 32 least significant bits of the
+free running counter values, and generates an interrupt.
+
+Required properties:
+
+- compatible : should be "brcm,bcm2835-system-timer.txt"
+- reg : Specifies base physical address and size of the registers.
+- interrupts : A list of 4 interrupt sinks; one per timer channel.
+- clock-frequency : The frequency of the clock that drives the counter, in Hz.
+
+Example:
+
+timer {
+	compatible = "brcm,bcm2835-system-timer";
+	reg = <0x7e003000 0x1000>;
+	interrupts = <1 0>, <1 1>, <1 2>, <1 3>;
+	clock-frequency = <1000000>;
+};
