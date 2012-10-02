@@ -3865,6 +3865,7 @@ static struct irq_remap_table *get_irq_table(u16 devid, bool ioapic)
 	table->table = kmem_cache_alloc(amd_iommu_irq_cache, GFP_ATOMIC);
 	if (!table->table) {
 		kfree(table);
+		table = NULL;
 		goto out;
 	}
 
