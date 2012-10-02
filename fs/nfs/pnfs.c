@@ -558,7 +558,7 @@ pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 
 	oldseq = be32_to_cpu(lo->plh_stateid.seqid);
 	newseq = be32_to_cpu(new->seqid);
-	if ((int)(newseq - oldseq) > 0) {
+	if (list_empty(&lo->plh_segs) || (int)(newseq - oldseq) > 0) {
 		nfs4_stateid_copy(&lo->plh_stateid, new);
 		if (update_barrier) {
 			u32 new_barrier = be32_to_cpu(new->seqid);
@@ -1181,6 +1181,10 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		dprintk("%s forget reply due to state\n", __func__);
 		goto out_forget_reply;
 	}
+
+	/* Done processing layoutget. Set the layout stateid */
+	pnfs_set_layout_stateid(lo, &res->stateid, false);
+
 	init_lseg(lo, lseg);
 	lseg->pls_range = res->range;
 	pnfs_get_lseg(lseg);
@@ -1191,8 +1195,6 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		set_bit(NFS_LAYOUT_ROC, &lo->plh_flags);
 	}
 
-	/* Done processing layoutget. Set the layout stateid */
-	pnfs_set_layout_stateid(lo, &res->stateid, false);
 	spin_unlock(&ino->i_lock);
 	return lseg;
 out:
