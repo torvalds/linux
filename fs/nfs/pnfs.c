@@ -572,7 +572,7 @@ pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 		if (update_barrier) {
 			u32 new_barrier = be32_to_cpu(new->seqid);
 
-			if ((int)(new_barrier - lo->plh_barrier))
+			if (pnfs_seqid_is_newer(new_barrier, lo->plh_barrier))
 				lo->plh_barrier = new_barrier;
 		} else {
 			/* Because of wraparound, we want to keep the barrier
@@ -593,9 +593,12 @@ static bool
 pnfs_layoutgets_blocked(struct pnfs_layout_hdr *lo, nfs4_stateid *stateid,
 			int lget)
 {
-	if ((stateid) &&
-	    (int)(lo->plh_barrier - be32_to_cpu(stateid->seqid)) >= 0)
-		return true;
+	if (stateid != NULL) {
+		u32 seqid = be32_to_cpu(stateid->seqid);
+
+		if (!pnfs_seqid_is_newer(seqid, lo->plh_barrier))
+			return true;
+	}
 	return lo->plh_block_lgets ||
 		test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
 		(list_empty(&lo->plh_segs) &&
