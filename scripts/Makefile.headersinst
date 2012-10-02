@@ -3,8 +3,7 @@
 #
 # header-y  - list files to be installed. They are preprocessed
 #             to remove __KERNEL__ section of the file
-# objhdr-y  - Same as header-y but for generated files
-# genhdr-y  - Same as objhdr-y but in a generated/ directory
+# genhdr-y  - Same as header-y but in a generated/ directory
 #
 # ==========================================================================
 
@@ -37,9 +36,8 @@ wrapper-files := $(filter $(header-y), $(generic-y))
 
 # all headers files for this dir
 header-y      := $(filter-out $(generic-y), $(header-y))
-all-files     := $(header-y) $(objhdr-y) $(genhdr-y) $(wrapper-files)
+all-files     := $(header-y) $(genhdr-y) $(wrapper-files)
 input-files   := $(addprefix $(srctree)/$(obj)/,$(header-y)) \
-                 $(addprefix $(objtree)/$(obj)/,$(objhdr-y)) \
                  $(addprefix $(objtree)/$(gen)/,$(genhdr-y))
 output-files  := $(addprefix $(install)/, $(all-files))
 
@@ -56,7 +54,6 @@ quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
                             file$(if $(word 2, $(all-files)),s))
       cmd_install = \
         $(PERL) $< $(srctree)/$(obj) $(install) $(SRCARCH) $(header-y); \
-        $(PERL) $< $(objtree)/$(obj) $(install) $(SRCARCH) $(objhdr-y); \
         $(PERL) $< $(objtree)/$(gen) $(install) $(SRCARCH) $(genhdr-y); \
         for F in $(wrapper-files); do                                   \
                 echo "\#include <asm-generic/$$F>" > $(install)/$$F;    \
