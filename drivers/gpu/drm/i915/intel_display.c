@@ -6181,14 +6181,12 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	struct intel_unpin_work *work;
 	struct drm_i915_gem_object *obj;
 	struct drm_pending_vblank_event *e;
-	struct timeval tnow, tvbl;
+	struct timeval tvbl;
 	unsigned long flags;
 
 	/* Ignore early vblank irqs */
 	if (intel_crtc == NULL)
 		return;
-
-	do_gettimeofday(&tnow);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
@@ -6202,25 +6200,6 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	if (work->event) {
 		e = work->event;
 		e->event.sequence = drm_vblank_count_and_time(dev, intel_crtc->pipe, &tvbl);
-
-		/* Called before vblank count and timestamps have
-		 * been updated for the vblank interval of flip
-		 * completion? Need to increment vblank count and
-		 * add one videorefresh duration to returned timestamp
-		 * to account for this. We assume this happened if we
-		 * get called over 0.9 frame durations after the last
-		 * timestamped vblank.
-		 *
-		 * This calculation can not be used with vrefresh rates
-		 * below 5Hz (10Hz to be on the safe side) without
-		 * promoting to 64 integers.
-		 */
-		if (10 * (timeval_to_ns(&tnow) - timeval_to_ns(&tvbl)) >
-		    9 * crtc->framedur_ns) {
-			e->event.sequence++;
-			tvbl = ns_to_timeval(timeval_to_ns(&tvbl) +
-					     crtc->framedur_ns);
-		}
 
 		e->event.tv_sec = tvbl.tv_sec;
 		e->event.tv_usec = tvbl.tv_usec;
