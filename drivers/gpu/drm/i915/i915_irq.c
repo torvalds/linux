@@ -521,7 +521,7 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
 
-static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -671,7 +671,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 					 I915_READ(FDI_RX_IIR(pipe)));
 }
 
-static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -746,7 +746,7 @@ static void ilk_gt_irq_handler(struct drm_device *dev,
 		notify_ring(dev, &dev_priv->ring[VCS]);
 }
 
-static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2120,7 +2120,7 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static irqreturn_t i8xx_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2298,7 +2298,7 @@ static int i915_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t i915_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2536,7 +2536,7 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t i965_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
