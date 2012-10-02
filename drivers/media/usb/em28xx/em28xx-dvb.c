@@ -318,6 +318,7 @@ static struct drxk_config terratec_h5_drxk = {
 	.no_i2c_bridge = 1,
 	.microcode_name = "dvb-usb-terratec-h5-drxk.fw",
 	.qam_demod_parameter_count = 2,
+	.load_firmware_sync = true,
 };
 
 static struct drxk_config hauppauge_930c_drxk = {
@@ -327,6 +328,7 @@ static struct drxk_config hauppauge_930c_drxk = {
 	.microcode_name = "dvb-usb-hauppauge-hvr930c-drxk.fw",
 	.chunk_size = 56,
 	.qam_demod_parameter_count = 2,
+	.load_firmware_sync = true,
 };
 
 struct drxk_config terratec_htc_stick_drxk = {
@@ -340,12 +342,14 @@ struct drxk_config terratec_htc_stick_drxk = {
 	.antenna_dvbt = true,
 	/* The windows driver uses the same. This will disable LNA. */
 	.antenna_gpio = 0x6,
+	.load_firmware_sync = true,
 };
 
 static struct drxk_config maxmedia_ub425_tc_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.no_i2c_bridge = 1,
+	.load_firmware_sync = true,
 };
 
 static struct drxk_config pctv_520e_drxk = {
@@ -356,6 +360,7 @@ static struct drxk_config pctv_520e_drxk = {
 	.chunk_size = 58,
 	.antenna_dvbt = true, /* disable LNA */
 	.antenna_gpio = (1 << 2), /* disable LNA */
+	.load_firmware_sync = true,
 };
 
 static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
