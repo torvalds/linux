@@ -4061,7 +4061,6 @@ static int setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
 
 	/*
 	 * Mask level triggered irqs.
-	 * Use IRQ_DELAYED_DISABLE for edge triggered irqs.
 	 */
 	if (attr->trigger)
 		entry->mask = 1;
