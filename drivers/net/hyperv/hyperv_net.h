@@ -465,8 +465,6 @@ struct nvsp_message {
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 
-#define NETVSC_RECEIVE_SG_COUNT			1
-
 /* Preallocated receive packets */
 #define NETVSC_RECEIVE_PACKETLIST_COUNT		256
 

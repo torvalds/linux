@@ -904,9 +904,7 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	INIT_LIST_HEAD(&net_device->recv_pkt_list);
 
 	for (i = 0; i < NETVSC_RECEIVE_PACKETLIST_COUNT; i++) {
-		packet = kzalloc(sizeof(struct hv_netvsc_packet) +
-				 (NETVSC_RECEIVE_SG_COUNT *
-				  sizeof(struct hv_page_buffer)), GFP_KERNEL);
+		packet = kzalloc(sizeof(struct hv_netvsc_packet), GFP_KERNEL);
 		if (!packet)
 			break;
 
