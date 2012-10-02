@@ -2968,6 +2968,11 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 #if PAGE_SIZE > IXGBE_MAX_DATA_PER_TXD
 	unsigned short f;
 #endif
+	u8 *dst_mac = skb_header_pointer(skb, 0, 0, NULL);
+	if (!dst_mac || is_link_local(dst_mac)) {
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
 
 	tx_ring = &adapter->tx_ring[r_idx];
 
