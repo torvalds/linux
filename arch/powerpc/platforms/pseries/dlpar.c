@@ -16,13 +16,13 @@
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include "offline_states.h"
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/uaccess.h>
 #include <asm/rtas.h>
-#include <asm/pSeries_reconfig.h>
 
 struct cc_workarea {
 	u32	drc_index;
@@ -262,24 +262,26 @@ int dlpar_attach_node(struct device_node *dn)
 	if (!dn->parent)
 		return -ENOMEM;
 
-	rc = pSeries_reconfig_notify(PSERIES_RECONFIG_ADD, dn);
+	rc = of_attach_node(dn);
 	if (rc) {
 		printk(KERN_ERR "Failed to add device node %s\n",
 		       dn->full_name);
 		return rc;
 	}
 
-	of_attach_node(dn);
 	of_node_put(dn->parent);
 	return 0;
 }
 
 int dlpar_detach_node(struct device_node *dn)
 {
-	pSeries_reconfig_notify(PSERIES_RECONFIG_REMOVE, dn);
-	of_detach_node(dn);
-	of_node_put(dn); /* Must decrement the refcount */
+	int rc;
 
+	rc = of_detach_node(dn);
+	if (rc)
+		return rc;
+
+	of_node_put(dn); /* Must decrement the refcount */
 	return 0;
 }
 

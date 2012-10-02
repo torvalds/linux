@@ -40,6 +40,7 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/cpuidle.h>
+#include <linux/of.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -63,7 +64,6 @@
 #include <asm/smp.h>
 #include <asm/firmware.h>
 #include <asm/eeh.h>
-#include <asm/pSeries_reconfig.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
@@ -258,7 +258,7 @@ static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long act
 	int err = NOTIFY_OK;
 
 	switch (action) {
-	case PSERIES_RECONFIG_ADD:
+	case OF_RECONFIG_ATTACH_NODE:
 		pci = np->parent->data;
 		if (pci) {
 			update_dn_pci_info(np, pci->phb);
@@ -389,7 +389,7 @@ static void __init pSeries_setup_arch(void)
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
 	find_and_init_phbs();
-	pSeries_reconfig_notifier_register(&pci_dn_reconfig_nb);
+	of_reconfig_notifier_register(&pci_dn_reconfig_nb);
 
 	pSeries_nvram_init();
 
