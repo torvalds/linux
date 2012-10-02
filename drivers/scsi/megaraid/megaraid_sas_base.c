@@ -5241,7 +5241,6 @@ megasas_aen_polling(struct work_struct *work)
 
 		case MR_EVT_PD_REMOVED:
 			if (megasas_get_pd_list(instance) == 0) {
-			megasas_get_pd_list(instance);
 			for (i = 0; i < MEGASAS_MAX_PD_CHANNELS; i++) {
 				for (j = 0;
 				j < MEGASAS_MAX_DEV_PER_CHANNEL;

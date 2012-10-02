@@ -1733,8 +1733,6 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 	if (reply_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 		return IRQ_NONE;
 
-	d_val.word = desc->Words;
-
 	num_completed = 0;
 
 	while ((d_val.u.low != UINT_MAX) && (d_val.u.high != UINT_MAX)) {
