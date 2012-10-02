@@ -582,7 +582,6 @@ static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.mode_set_base = ast_crtc_mode_set_base,
 	.disable = ast_crtc_disable,
 	.load_lut = ast_crtc_load_lut,
-	.disable = ast_crtc_disable,
 	.prepare = ast_crtc_prepare,
 	.commit = ast_crtc_commit,
 
