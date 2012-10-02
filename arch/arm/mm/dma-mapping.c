@@ -1059,11 +1059,12 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size, gfp_t
 		if (!pages[i])
 			goto error;
 
-		if (order)
+		if (order) {
 			split_page(pages[i], order);
-		j = 1 << order;
-		while (--j)
-			pages[i + j] = pages[i] + j;
+			j = 1 << order;
+			while (--j)
+				pages[i + j] = pages[i] + j;
+		}
 
 		__dma_clear_buffer(pages[i], PAGE_SIZE << order);
 		i += 1 << order;
@@ -1814,7 +1815,7 @@ int arm_iommu_attach_device(struct device *dev,
 	dev->archdata.mapping = mapping;
 	set_dma_ops(dev, &iommu_ops);
 
-	pr_info("Attached IOMMU controller to %s device.\n", dev_name(dev));
+	pr_debug("Attached IOMMU controller to %s device.\n", dev_name(dev));
 	return 0;
 }
 
