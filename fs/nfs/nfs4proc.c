@@ -862,9 +862,15 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	p->o_arg.fh = NFS_FH(dir);
 	p->o_arg.open_flags = flags;
 	p->o_arg.fmode = fmode & (FMODE_READ|FMODE_WRITE);
-	/* ask server to check for all possible rights as results are cached */
-	p->o_arg.access = NFS4_ACCESS_READ | NFS4_ACCESS_MODIFY |
-			  NFS4_ACCESS_EXTEND | NFS4_ACCESS_EXECUTE;
+	/* don't put an ACCESS op in OPEN compound if O_EXCL, because ACCESS
+	 * will return permission denied for all bits until close */
+	if (!(flags & O_EXCL)) {
+		/* ask server to check for all possible rights as results
+		 * are cached */
+		p->o_arg.access = NFS4_ACCESS_READ | NFS4_ACCESS_MODIFY |
+				  NFS4_ACCESS_EXTEND | NFS4_ACCESS_EXECUTE;
+		p->o_res.access_request = p->o_arg.access;
+	}
 	p->o_arg.clientid = server->nfs_client->cl_clientid;
 	p->o_arg.id.create_time = ktime_to_ns(sp->so_seqid.create_time);
 	p->o_arg.id.uniquifier = sp->so_seqid.owner_id;
