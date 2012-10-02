@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/idr.h>
 #include <linux/fb.h>
+#include <drm/drm_mode.h>
 
 #include <drm/drm_fourcc.h>
 
