@@ -264,7 +264,7 @@ int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 	list_add_tail(&msg->node, &nvec->tx_data);
 	spin_unlock_irqrestore(&nvec->tx_lock, flags);
 
-	queue_work(system_nrt_wq, &nvec->tx_work);
+	schedule_work(&nvec->tx_work);
 
 	return 0;
 }
@@ -471,7 +471,7 @@ static void nvec_rx_completed(struct nvec_chip *nvec)
 	if (!nvec_msg_is_event(nvec->rx))
 		complete(&nvec->ec_transfer);
 
-	queue_work(system_nrt_wq, &nvec->rx_work);
+	schedule_work(&nvec->rx_work);
 }
 
 /**

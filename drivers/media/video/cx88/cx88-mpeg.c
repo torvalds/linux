@@ -70,7 +70,7 @@ static void request_modules(struct cx8802_dev *dev)
 
 static void flush_request_modules(struct cx8802_dev *dev)
 {
-	flush_work_sync(&dev->request_module_wk);
+	flush_work(&dev->request_module_wk);
 }
 #else
 #define request_modules(dev)

@@ -143,7 +143,7 @@ static int __devinit adc_jack_probe(struct platform_device *pdev)
 
 	data->handling_delay = msecs_to_jiffies(pdata->handling_delay_ms);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&data->handler, adc_jack_handler);
+	INIT_DEFERRABLE_WORK(&data->handler, adc_jack_handler);
 
 	platform_set_drvdata(pdev, data);
 

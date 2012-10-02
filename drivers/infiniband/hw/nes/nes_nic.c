@@ -243,10 +243,9 @@ static int nes_netdev_open(struct net_device *netdev)
 
 	spin_lock_irqsave(&nesdev->nesadapter->phy_lock, flags);
 	if (nesdev->nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_SFP_D) {
-		if (nesdev->link_recheck)
-			cancel_delayed_work(&nesdev->work);
 		nesdev->link_recheck = 1;
-		schedule_delayed_work(&nesdev->work, NES_LINK_RECHECK_DELAY);
+		mod_delayed_work(system_wq, &nesdev->work,
+				 NES_LINK_RECHECK_DELAY);
 	}
 	spin_unlock_irqrestore(&nesdev->nesadapter->phy_lock, flags);
 

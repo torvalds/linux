@@ -2181,8 +2181,7 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 
 	/* Make sure the RF Kill check timer is running */
 	priv->stop_rf_kill = 0;
-	cancel_delayed_work(&priv->rf_kill);
-	schedule_delayed_work(&priv->rf_kill, round_jiffies_relative(HZ));
+	mod_delayed_work(system_wq, &priv->rf_kill, round_jiffies_relative(HZ));
 }
 
 static void send_scan_event(void *data)
@@ -4322,9 +4321,8 @@ static int ipw_radio_kill_sw(struct ipw2100_priv *priv, int disable_radio)
 					  "disabled by HW switch\n");
 			/* Make sure the RF_KILL check timer is running */
 			priv->stop_rf_kill = 0;
-			cancel_delayed_work(&priv->rf_kill);
-			schedule_delayed_work(&priv->rf_kill,
-					      round_jiffies_relative(HZ));
+			mod_delayed_work(system_wq, &priv->rf_kill,
+					 round_jiffies_relative(HZ));
 		} else
 			schedule_reset(priv);
 	}

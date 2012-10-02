@@ -644,7 +644,7 @@ static int hfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 
 	/* sync the superblock to buffers */
 	sb = inode->i_sb;
-	flush_delayed_work_sync(&HFS_SB(sb)->mdb_work);
+	flush_delayed_work(&HFS_SB(sb)->mdb_work);
 	/* .. finally sync the buffers to disk */
 	err = sync_blockdev(sb->s_bdev);
 	if (!ret)

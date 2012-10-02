@@ -122,7 +122,7 @@ static void kgdboc_unregister_kbd(void)
 			i--;
 		}
 	}
-	flush_work_sync(&kgdboc_restore_input_work);
+	flush_work(&kgdboc_restore_input_work);
 }
 #else /* ! CONFIG_KDB_KEYBOARD */
 #define kgdboc_register_kbd(x) 0

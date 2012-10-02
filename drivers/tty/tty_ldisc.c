@@ -523,9 +523,9 @@ static int tty_ldisc_halt(struct tty_struct *tty)
  */
 static void tty_ldisc_flush_works(struct tty_struct *tty)
 {
-	flush_work_sync(&tty->hangup_work);
-	flush_work_sync(&tty->SAK_work);
-	flush_work_sync(&tty->buf.work);
+	flush_work(&tty->hangup_work);
+	flush_work(&tty->SAK_work);
+	flush_work(&tty->buf.work);
 }
 
 /**

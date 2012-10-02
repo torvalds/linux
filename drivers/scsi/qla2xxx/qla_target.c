@@ -969,7 +969,7 @@ void qlt_stop_phase1(struct qla_tgt *tgt)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	mutex_unlock(&ha->tgt.tgt_mutex);
 
-	flush_delayed_work_sync(&tgt->sess_del_work);
+	flush_delayed_work(&tgt->sess_del_work);
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf009,
 	    "Waiting for sess works (tgt %p)", tgt);
