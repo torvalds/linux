@@ -48,9 +48,9 @@ void iscsit_set_dataout_sequence_values(
 	if (cmd->unsolicited_data) {
 		cmd->seq_start_offset = cmd->write_data_done;
 		cmd->seq_end_offset = (cmd->write_data_done +
-			(cmd->se_cmd.data_length >
-			 conn->sess->sess_ops->FirstBurstLength) ?
-			conn->sess->sess_ops->FirstBurstLength : cmd->se_cmd.data_length);
+			((cmd->se_cmd.data_length >
+			  conn->sess->sess_ops->FirstBurstLength) ?
+			 conn->sess->sess_ops->FirstBurstLength : cmd->se_cmd.data_length));
 		return;
 	}
 
