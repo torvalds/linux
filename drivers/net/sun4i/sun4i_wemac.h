@@ -27,67 +27,6 @@
 #ifndef _WEMACX_H_
 #define _WEMACX_H_
 
-/* CTL_REG */
-#define EMAC_NCR             0x00
-#define EMAC_NSR             0x01
-#define EMAC_TCR             0x02
-#define EMAC_TSR1            0x03
-#define EMAC_TSR2            0x04
-#define EMAC_RCR             0x05
-#define EMAC_RSR             0x06
-#define EMAC_ROCR            0x07
-#define EMAC_BPTR            0x08
-#define EMAC_FCTR            0x09
-#define EMAC_FCR             0x0A
-#define EMAC_EPCR            0x0B
-#define EMAC_EPAR            0x0C
-#define EMAC_EPDRL           0x0D
-#define EMAC_EPDRH           0x0E
-#define EMAC_WCR             0x0F
-
-#define EMAC_PAR             0x10
-#define EMAC_MAR             0x16
-
-#define EMAC_GPCR            0x1e
-#define EMAC_GPR             0x1f
-#define EMAC_TRPAL           0x22
-#define EMAC_TRPAH           0x23
-#define EMAC_RWPAL           0x24
-#define EMAC_RWPAH           0x25
-
-#define EMAC_VIDL            0x28
-#define EMAC_VIDH            0x29
-#define EMAC_PIDL            0x2A
-#define EMAC_PIDH            0x2B
-#define EMAC_CHIPR           0x2C
-#define EMAC_SMCR            0x2F
-#define EMAC_ETXCSR          0x30
-#define EMAC_TCCR            0x31
-#define EMAC_RCSR            0x32
-
-/* Status bits */
-
-#define NCR_EXT_PHY         (1<<7)
-#define NCR_WAKEEN          (1<<6)
-#define NCR_FCOL            (1<<4)
-#define NCR_FDX             (1<<3)
-#define NCR_LBK             (3<<1)
-#define NCR_RST             (1<<0)
-
-#define EPCR_REEP           (1<<5)
-#define EPCR_WEP            (1<<4)
-#define EPCR_EPOS           (1<<3)
-#define EPCR_ERPRR          (1<<2)
-#define EPCR_ERPRW          (1<<1)
-#define EPCR_ERRE           (1<<0)
-
-#define WCR_LINKEN          (1<<5)
-#define WCR_SAMPLEEN        (1<<4)
-#define WCR_MAGICEN         (1<<3)
-#define WCR_LINKST          (1<<2)
-#define WCR_SAMPLEST        (1<<1)
-#define WCR_MAGICST         (1<<0)
-
 /*   registers define  */
 /*  EMAC register  */
 #define EMAC_BASE		0x01C0B000

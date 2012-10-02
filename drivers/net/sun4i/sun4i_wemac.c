@@ -316,9 +316,9 @@ wemac_reset(wemac_board_info_t * db)
 	dev_dbg(db->dev, "resetting device\n");
 
 	/* RESET device */
-	writel(EMAC_NCR, db->emac_vbase + EMAC_CTL_REG);
+	writel(0, db->emac_vbase + EMAC_CTL_REG);
 	udelay(200);
-	writel(NCR_RST, db->emac_vbase + EMAC_CTL_REG);
+	writel(1, db->emac_vbase + EMAC_CTL_REG);
 	udelay(200);
 }
 
@@ -513,7 +513,7 @@ unsigned int phy_link_check(struct net_device * dev)
 
 	reg_val = wemac_phy_read(dev,0,1);
 
-	if(reg_val & WCR_LINKST){
+	if(reg_val & 0x4){
 		printk(KERN_INFO "EMAC PHY Linked...\n");
 		return(1);
 	}else{
