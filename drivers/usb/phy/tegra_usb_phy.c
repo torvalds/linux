@@ -28,7 +28,6 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <asm/mach-types.h>
-#include <mach/gpio-tegra.h>
 #include <linux/usb/tegra_usb_phy.h>
 #include <mach/iomap.h>
 
