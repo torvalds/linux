@@ -86,6 +86,7 @@
 #define PPC_INST_DCBA_MASK		0xfc0007fe
 #define PPC_INST_DCBAL			0x7c2005ec
 #define PPC_INST_DCBZL			0x7c2007ec
+#define PPC_INST_ICBT			0x7c00002c
 #define PPC_INST_ISEL			0x7c00001e
 #define PPC_INST_ISEL_MASK		0xfc00003e
 #define PPC_INST_LDARX			0x7c0000a8
@@ -198,6 +199,7 @@
 #define __PPC_MB(s)	(((s) & 0x1f) << 6)
 #define __PPC_ME(s)	(((s) & 0x1f) << 1)
 #define __PPC_BI(s)	(((s) & 0x1f) << 16)
+#define __PPC_CT(t)	(((t) & 0x0f) << 21)
 
 /*
  * Only use the larx hint bit on 64bit CPUs. e500v1/v2 based CPUs will treat a
@@ -260,6 +262,8 @@
 					__PPC_RS(t) | __PPC_RA0(a) | __PPC_RB(b))
 #define PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE | \
 					__PPC_RT(t) | __PPC_RB(b))
+#define PPC_ICBT(c,a,b)		stringify_in_c(.long PPC_INST_ICBT | \
+				       __PPC_CT(c) | __PPC_RA0(a) | __PPC_RB(b))
 /* PASemi instructions */
 #define LBZCIX(t,a,b)		stringify_in_c(.long PPC_INST_LBZCIX | \
 				       __PPC_RT(t) | __PPC_RA(a) | __PPC_RB(b))
