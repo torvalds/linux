@@ -1680,8 +1680,8 @@ out:
 	return nfs4_recovery_handle_error(clp, status);
 }
 
-/* Set NFS4CLNT_LEASE_EXPIRED for all v4.0 errors and for recoverable errors
- * on EXCHANGE_ID for v4.1
+/* Set NFS4CLNT_LEASE_EXPIRED and reclaim reboot state for all v4.0 errors
+ * and for recoverable errors on EXCHANGE_ID for v4.1
  */
 static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 {
@@ -1691,8 +1691,12 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 			return -ESERVERFAULT;
 		/* Lease confirmation error: retry after purging the lease */
 		ssleep(1);
+		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+		break;
 	case -NFS4ERR_STALE_CLIENTID:
 		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+		nfs4_state_clear_reclaim_reboot(clp);
+		nfs4_state_start_reclaim_reboot(clp);
 		break;
 	case -NFS4ERR_CLID_INUSE:
 		pr_err("NFS: Server %s reports our clientid is in use\n",
