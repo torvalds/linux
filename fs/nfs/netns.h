@@ -5,6 +5,7 @@
 #ifndef __NFS_NETNS_H__
 #define __NFS_NETNS_H__
 
+#include <linux/nfs4.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
