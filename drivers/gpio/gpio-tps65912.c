@@ -70,7 +70,6 @@ static int tps65912_gpio_input(struct gpio_chip *gc, unsigned offset)
 
 	return tps65912_clear_bits(tps65912, TPS65912_GPIO1 + offset,
 								GPIO_CFG_MASK);
-
 }
 
 static struct gpio_chip template_chip = {
@@ -92,7 +91,8 @@ static int __devinit tps65912_gpio_probe(struct platform_device *pdev)
 	struct tps65912_gpio_data *tps65912_gpio;
 	int ret;
 
-	tps65912_gpio = kzalloc(sizeof(*tps65912_gpio), GFP_KERNEL);
+	tps65912_gpio = devm_kzalloc(&pdev->dev, sizeof(*tps65912_gpio),
+				     GFP_KERNEL);
 	if (tps65912_gpio == NULL)
 		return -ENOMEM;
 
@@ -105,28 +105,19 @@ static int __devinit tps65912_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add(&tps65912_gpio->gpio_chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register gpiochip, %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, tps65912_gpio);
 
-	return ret;
-
-err:
-	kfree(tps65912_gpio);
 	return ret;
 }
 
 static int __devexit tps65912_gpio_remove(struct platform_device *pdev)
 {
 	struct tps65912_gpio_data  *tps65912_gpio = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&tps65912_gpio->gpio_chip);
-	if (ret == 0)
-		kfree(tps65912_gpio);
-
-	return ret;
+	return gpiochip_remove(&tps65912_gpio->gpio_chip);
 }
 
 static struct platform_driver tps65912_gpio_driver = {
