@@ -172,7 +172,6 @@ extern int interrupt_mod_interval;
 extern int nes_if_count;
 extern int mpa_version;
 extern int disable_mpa_crc;
-extern unsigned int send_first;
 extern unsigned int nes_drv_opt;
 extern unsigned int nes_debug_level;
 extern unsigned int wqm_quanta;
