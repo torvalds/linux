@@ -18,8 +18,8 @@ struct x509_certificate {
 	char		*subject;		/* Name of certificate subject */
 	char		*fingerprint;		/* Key fingerprint as hex */
 	char		*authority;		/* Authority key fingerprint as hex */
-	time_t		valid_from;
-	time_t		valid_to;
+	struct tm	valid_from;
+	struct tm	valid_to;
 	enum pkey_algo	pkey_algo : 8;		/* Public key algorithm */
 	enum pkey_algo	sig_pkey_algo : 8;	/* Signature public key algorithm */
 	enum pkey_hash_algo sig_hash_algo : 8;	/* Signature hash algorithm */

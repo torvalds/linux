@@ -434,11 +434,10 @@ int x509_process_extension(void *context, size_t hdrlen,
 /*
  * Record a certificate time.
  */
-static int x509_note_time(time_t *_time,  size_t hdrlen,
+static int x509_note_time(struct tm *tm,  size_t hdrlen,
 			  unsigned char tag,
 			  const unsigned char *value, size_t vlen)
 {
-	unsigned YY, MM, DD, hh, mm, ss;
 	const unsigned char *p = value;
 
 #define dec2bin(X) ((X) - '0')
@@ -448,30 +447,30 @@ static int x509_note_time(time_t *_time,  size_t hdrlen,
 		/* UTCTime: YYMMDDHHMMSSZ */
 		if (vlen != 13)
 			goto unsupported_time;
-		YY = DD2bin(p);
-		if (YY > 50)
-			YY += 1900;
+		tm->tm_year = DD2bin(p);
+		if (tm->tm_year >= 50)
+			tm->tm_year += 1900;
 		else
-			YY += 2000;
+			tm->tm_year += 2000;
 	} else if (tag == ASN1_GENTIM) {
 		/* GenTime: YYYYMMDDHHMMSSZ */
 		if (vlen != 15)
 			goto unsupported_time;
-		YY = DD2bin(p) * 100 + DD2bin(p);
+		tm->tm_year = DD2bin(p) * 100 + DD2bin(p);
 	} else {
 		goto unsupported_time;
 	}
 
-	MM = DD2bin(p);
-	DD = DD2bin(p);
-	hh = DD2bin(p);
-	mm = DD2bin(p);
-	ss = DD2bin(p);
+	tm->tm_year -= 1900;
+	tm->tm_mon  = DD2bin(p) - 1;
+	tm->tm_mday = DD2bin(p);
+	tm->tm_hour = DD2bin(p);
+	tm->tm_min  = DD2bin(p);
+	tm->tm_sec  = DD2bin(p);
 
 	if (*p != 'Z')
 		goto unsupported_time;
 
-	*_time = mktime(YY, MM, DD, hh, mm, ss);
 	return 0;
 
 unsupported_time:

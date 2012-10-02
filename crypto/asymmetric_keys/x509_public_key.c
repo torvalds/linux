@@ -106,7 +106,7 @@ error_no_sig:
 static int x509_key_preparse(struct key_preparsed_payload *prep)
 {
 	struct x509_certificate *cert;
-	time_t now;
+	struct tm now;
 	size_t srlen, sulen;
 	char *desc = NULL;
 	int ret;
@@ -118,7 +118,14 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	pr_devel("Cert Issuer: %s\n", cert->issuer);
 	pr_devel("Cert Subject: %s\n", cert->subject);
 	pr_devel("Cert Key Algo: %s\n", pkey_algo[cert->pkey_algo]);
-	pr_devel("Cert Valid: %lu - %lu\n", cert->valid_from, cert->valid_to);
+	printk("Cert Valid From: %04ld-%02d-%02d %02d:%02d:%02d\n",
+		 cert->valid_from.tm_year + 1900, cert->valid_from.tm_mon + 1,
+		 cert->valid_from.tm_mday, cert->valid_from.tm_hour,
+		 cert->valid_from.tm_min,  cert->valid_from.tm_sec);
+	printk("Cert Valid To: %04ld-%02d-%02d %02d:%02d:%02d\n",
+		 cert->valid_to.tm_year + 1900, cert->valid_to.tm_mon + 1,
+		 cert->valid_to.tm_mday, cert->valid_to.tm_hour,
+		 cert->valid_to.tm_min,  cert->valid_to.tm_sec);
 	pr_devel("Cert Signature: %s + %s\n",
 		 pkey_algo[cert->sig_pkey_algo],
 		 pkey_hash_algo[cert->sig_hash_algo]);
@@ -130,13 +137,38 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 		goto error_free_cert;
 	}
 
-	now = CURRENT_TIME.tv_sec;
-	if (now < cert->valid_from) {
+	time_to_tm(CURRENT_TIME.tv_sec, 0, &now);
+	printk("Now: %04ld-%02d-%02d %02d:%02d:%02d\n",
+		 now.tm_year + 1900, now.tm_mon + 1, now.tm_mday,
+		 now.tm_hour, now.tm_min,  now.tm_sec);
+	if (now.tm_year < cert->valid_from.tm_year ||
+	    (now.tm_year == cert->valid_from.tm_year &&
+	     (now.tm_mon < cert->valid_from.tm_mon ||
+	      (now.tm_mon == cert->valid_from.tm_mon &&
+	       (now.tm_mday < cert->valid_from.tm_mday ||
+		(now.tm_mday == cert->valid_from.tm_mday &&
+		 (now.tm_hour < cert->valid_from.tm_hour ||
+		  (now.tm_hour == cert->valid_from.tm_hour &&
+		   (now.tm_min < cert->valid_from.tm_min ||
+		    (now.tm_min == cert->valid_from.tm_min &&
+		     (now.tm_sec < cert->valid_from.tm_sec
+		      ))))))))))) {
 		pr_warn("Cert %s is not yet valid\n", cert->fingerprint);
 		ret = -EKEYREJECTED;
 		goto error_free_cert;
 	}
-	if (now >= cert->valid_to) {
+	if (now.tm_year > cert->valid_to.tm_year ||
+	    (now.tm_year == cert->valid_to.tm_year &&
+	     (now.tm_mon > cert->valid_to.tm_mon ||
+	      (now.tm_mon == cert->valid_to.tm_mon &&
+	       (now.tm_mday > cert->valid_to.tm_mday ||
+		(now.tm_mday == cert->valid_to.tm_mday &&
+		 (now.tm_hour > cert->valid_to.tm_hour ||
+		  (now.tm_hour == cert->valid_to.tm_hour &&
+		   (now.tm_min > cert->valid_to.tm_min ||
+		    (now.tm_min == cert->valid_to.tm_min &&
+		     (now.tm_sec > cert->valid_to.tm_sec
+		      ))))))))))) {
 		pr_warn("Cert %s has expired\n", cert->fingerprint);
 		ret = -EKEYEXPIRED;
 		goto error_free_cert;
