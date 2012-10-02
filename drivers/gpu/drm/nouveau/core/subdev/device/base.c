@@ -96,14 +96,13 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		    struct nouveau_object **pobject)
 {
 	struct nouveau_client *client = nv_client(parent);
-	struct nouveau_object *subdev = NULL;
 	struct nouveau_device *device;
 	struct nouveau_devobj *devobj;
 	struct nv_device_class *args = data;
 	u64 disable, boot0, strap;
 	u64 mmio_base, mmio_size;
 	void __iomem *map;
-	int ret, i;
+	int ret, i, c;
 
 	if (size < sizeof(struct nv_device_class))
 		return -EINVAL;
@@ -234,34 +233,43 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	}
 
 	/* ensure requested subsystems are available for use */
-	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
+	for (i = 0, c = 0; i < NVDEV_SUBDEV_NR; i++) {
 		if (!(oclass = device->oclass[i]) || (disable & (1ULL << i)))
 			continue;
 
 		if (!device->subdev[i]) {
 			ret = nouveau_object_ctor(nv_object(device), NULL,
-						  oclass, NULL, i, &subdev);
+						  oclass, NULL, i,
+						  &devobj->subdev[i]);
 			if (ret == -ENODEV)
 				continue;
 			if (ret)
 				return ret;
 
-			if (nv_iclass(subdev, NV_ENGINE_CLASS))
-				nouveau_subdev_reset(subdev);
+			if (nv_iclass(devobj->subdev[i], NV_ENGINE_CLASS))
+				nouveau_subdev_reset(devobj->subdev[i]);
 		} else {
-			nouveau_object_ref(device->subdev[i], &subdev);
+			nouveau_object_ref(device->subdev[i],
+					  &devobj->subdev[i]);
 		}
 
-		if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
-			ret = nouveau_object_inc(subdev);
-			if (ret) {
-				nouveau_object_ref(NULL, &subdev);
-				return ret;
+		/* note: can't init *any* subdevs until devinit has been run
+		 * due to not knowing exactly what the vbios init tables will
+		 * mess with.  devinit also can't be run until all of its
+		 * dependencies have been created.
+		 *
+		 * this code delays init of any subdev until all of devinit's
+		 * dependencies have been created, and then initialises each
+		 * subdev in turn as they're created.
+		 */
+		while (i >= NVDEV_SUBDEV_DEVINIT_LAST && c <= i) {
+			struct nouveau_object *subdev = devobj->subdev[c++];
+			if (subdev && !nv_iclass(subdev, NV_ENGINE_CLASS)) {
+				ret = nouveau_object_inc(subdev);
+				if (ret)
+					return ret;
 			}
 		}
-
-		nouveau_object_ref(subdev, &devobj->subdev[i]);
-		nouveau_object_ref(NULL, &subdev);
 	}
 
 	return 0;

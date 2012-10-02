@@ -8,11 +8,23 @@
 enum nv_subdev_type {
 	NVDEV_SUBDEV_DEVICE,
 	NVDEV_SUBDEV_VBIOS,
+
+	/* All subdevs from DEVINIT to DEVINIT_LAST will be created before
+	 * *any* of them are initialised.  This subdev category is used
+	 * for any subdevs that the VBIOS init table parsing may call out
+	 * to during POST.
+	 */
+	NVDEV_SUBDEV_DEVINIT,
 	NVDEV_SUBDEV_GPIO,
 	NVDEV_SUBDEV_I2C,
 	NVDEV_SUBDEV_CLOCK,
+	NVDEV_SUBDEV_DEVINIT_LAST = NVDEV_SUBDEV_CLOCK,
+
+	/* This grouping of subdevs are initialised right after they've
+	 * been created, and are allowed to assume any subdevs in the
+	 * list above them exist and have been initialised.
+	 */
 	NVDEV_SUBDEV_MXM,
-	NVDEV_SUBDEV_DEVINIT,
 	NVDEV_SUBDEV_MC,
 	NVDEV_SUBDEV_TIMER,
 	NVDEV_SUBDEV_FB,
@@ -23,6 +35,7 @@ enum nv_subdev_type {
 	NVDEV_SUBDEV_BAR,
 	NVDEV_SUBDEV_VOLT,
 	NVDEV_SUBDEV_THERM,
+
 	NVDEV_ENGINE_DMAOBJ,
 	NVDEV_ENGINE_FIFO,
 	NVDEV_ENGINE_SW,
@@ -38,6 +51,7 @@ enum nv_subdev_type {
 	NVDEV_ENGINE_UNK1C1,
 	NVDEV_ENGINE_VENC,
 	NVDEV_ENGINE_DISP,
+
 	NVDEV_SUBDEV_NR,
 };
 
