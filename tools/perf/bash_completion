@@ -33,8 +33,13 @@ _perf()
 		fi
 	# List possible events for -e option
 	elif [[ $prev == "-e" && "${COMP_WORDS[1]}" == @(record|stat|top) ]]; then
-		cmds=$($cmd list --raw-dump)
-		COMPREPLY=( $( compgen -W '$cmds' -- "$cur" ) )
+		evts=$($cmd list --raw-dump)
+		COMPREPLY=( $( compgen -W '$evts' -- "$cur" ) )
+	# List long option names
+	elif [[ $cur == --* ]];  then
+		subcmd=${COMP_WORDS[1]}
+		opts=$($cmd $subcmd --list-opts)
+		COMPREPLY=( $( compgen -W '$opts' -- "$cur" ) )
 	# Fall down to list regular files
 	else
 		_filedir
