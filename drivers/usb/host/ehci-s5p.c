@@ -136,7 +136,7 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 		goto fail_clk;
 	}
 
-	err = clk_enable(s5p_ehci->clk);
+	err = clk_prepare_enable(s5p_ehci->clk);
 	if (err)
 		goto fail_clk;
 
@@ -183,7 +183,7 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 	return 0;
 
 fail_io:
-	clk_disable(s5p_ehci->clk);
+	clk_disable_unprepare(s5p_ehci->clk);
 fail_clk:
 	usb_put_hcd(hcd);
 	return err;
@@ -200,7 +200,7 @@ static int __devexit s5p_ehci_remove(struct platform_device *pdev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
-	clk_disable(s5p_ehci->clk);
+	clk_disable_unprepare(s5p_ehci->clk);
 
 	usb_put_hcd(hcd);
 
@@ -231,7 +231,7 @@ static int s5p_ehci_suspend(struct device *dev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
-	clk_disable(s5p_ehci->clk);
+	clk_disable_unprepare(s5p_ehci->clk);
 
 	return rc;
 }
@@ -243,7 +243,7 @@ static int s5p_ehci_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s5p_ehci_platdata *pdata = pdev->dev.platform_data;
 
-	clk_enable(s5p_ehci->clk);
+	clk_prepare_enable(s5p_ehci->clk);
 
 	if (pdata && pdata->phy_init)
 		pdata->phy_init(pdev, S5P_USB_PHY_HOST);
