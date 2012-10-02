@@ -100,7 +100,7 @@ static int __init mmp2_init(void)
 {
 	if (cpu_is_mmp2()) {
 #ifdef CONFIG_CACHE_TAUROS2
-		tauros2_init();
+		tauros2_init(0);
 #endif
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(mmp2_addr_map);

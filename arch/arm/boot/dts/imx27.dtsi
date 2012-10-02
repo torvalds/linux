@@ -62,7 +62,6 @@
 				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
 				reg = <0x10002000 0x4000>;
 				interrupts = <27>;
-				status = "disabled";
 			};
 
 			uart1: serial@1000a000 {

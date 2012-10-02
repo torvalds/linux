@@ -22,7 +22,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/pinctrl/machine.h>
 #include <linux/phy.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/anatop.h>
@@ -100,7 +99,6 @@ static void __init imx6q_sabrelite_cko1_setup(void)
 	clk_set_parent(cko1_sel, ahb);
 	rate = clk_round_rate(cko1, 16000000);
 	clk_set_rate(cko1, rate);
-	clk_register_clkdev(cko1, NULL, "0-000a");
 put_clk:
 	if (!IS_ERR(cko1_sel))
 		clk_put(cko1_sel);
@@ -159,12 +157,6 @@ static void __init imx6q_usb_init(void)
 
 static void __init imx6q_init_machine(void)
 {
-	/*
-	 * This should be removed when all imx6q boards have pinctrl
-	 * states for devices defined in device tree.
-	 */
-	pinctrl_provide_dummies();
-
 	if (of_machine_is_compatible("fsl,imx6q-sabrelite"))
 		imx6q_sabrelite_init();
 
@@ -218,9 +210,6 @@ static struct sys_timer imx6q_timer = {
 };
 
 static const char *imx6q_dt_compat[] __initdata = {
-	"fsl,imx6q-arm2",
-	"fsl,imx6q-sabrelite",
-	"fsl,imx6q-sabresd",
 	"fsl,imx6q",
 	NULL,
 };
