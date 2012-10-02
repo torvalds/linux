@@ -105,6 +105,11 @@ struct tda18271_config {
 	/* force rf tracking filter calibration on startup */
 	unsigned int rf_cal_on_startup:1;
 
+	/* prevent any register access during attach(),
+	 * delaying both IR & RF calibration until init()
+	 * module option 'cal' overrides this delay */
+	unsigned int delay_cal:1;
+
 	/* interface to saa713x / tda829x */
 	unsigned int config;
 };

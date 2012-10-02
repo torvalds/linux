@@ -1278,6 +1278,11 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		if (tda_fail(ret))
 			goto fail;
 
+		/* if delay_cal is set, delay IR & RF calibration until init()
+		 * module option 'cal' overrides this delay */
+		if ((cfg->delay_cal) && (!tda18271_need_cal_on_startup(cfg)))
+			break;
+
 		mutex_lock(&priv->lock);
 		tda18271_init_regs(fe);
 
