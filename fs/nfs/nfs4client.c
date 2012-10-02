@@ -450,6 +450,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 			error = nfs_wait_client_init_complete(pos);
 			if (error < 0) {
 				nfs_put_client(pos);
+				spin_lock(&nn->nfs_client_lock);
 				continue;
 			}
 
