@@ -161,13 +161,12 @@ static int __devinit adc_jack_probe(struct platform_device *pdev)
 	err = request_any_context_irq(data->irq, adc_jack_irq_thread,
 			pdata->irq_flags, pdata->name, data);
 
-	if (err) {
+	if (err < 0) {
 		dev_err(&pdev->dev, "error: irq %d\n", data->irq);
-		err = -EINVAL;
 		goto err_irq;
 	}
 
-	goto out;
+	return 0;
 
 err_irq:
 	extcon_dev_unregister(&data->edev);
