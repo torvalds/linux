@@ -8,10 +8,10 @@ obj-y	+= xenbus/
 nostackp := $(call cc-option, -fno-stack-protector)
 CFLAGS_features.o			:= $(nostackp)
 
-obj-$(CONFIG_XEN_DOM0)			+= $(dom0-y)
 dom0-$(CONFIG_PCI) += pci.o
 dom0-$(CONFIG_ACPI) += acpi.o
 dom0-$(CONFIG_X86) += pcpu.o
+obj-$(CONFIG_XEN_DOM0)			+= $(dom0-y)
 obj-$(CONFIG_BLOCK)			+= biomerge.o
 obj-$(CONFIG_XEN_XENCOMM)		+= xencomm.o
 obj-$(CONFIG_XEN_BALLOON)		+= xen-balloon.o
