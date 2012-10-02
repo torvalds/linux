@@ -25,7 +25,6 @@
  */
 
 #include "drmP.h"
-#include "drm.h"
 
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>

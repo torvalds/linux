@@ -31,7 +31,6 @@
 #define RADEON_MODE_H
 
 #include <drm_crtc.h>
-#include <drm_mode.h>
 #include <drm_edid.h>
 #include <drm_dp_helper.h>
 #include <drm_fixed.h>

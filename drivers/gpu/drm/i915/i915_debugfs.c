@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include "drmP.h"
-#include "drm.h"
 #include "intel_drv.h"
 #include "intel_ringbuffer.h"
 #include "i915_drm.h"

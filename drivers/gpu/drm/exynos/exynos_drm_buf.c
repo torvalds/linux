@@ -24,7 +24,6 @@
  */
 
 #include "drmP.h"
-#include "drm.h"
 #include "exynos_drm.h"
 
 #include "exynos_drm_drv.h"

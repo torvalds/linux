@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/console.h>
 #include "drmP.h"
-#include "drm.h"
 
 #include "cirrus_drv.h"
 

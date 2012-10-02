@@ -34,7 +34,6 @@
 #include <linux/compat.h>
 
 #include "drmP.h"
-#include "drm.h"
 
 #include "nouveau_drv.h"
 

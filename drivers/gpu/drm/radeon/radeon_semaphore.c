@@ -28,7 +28,6 @@
  *    Christian König <deathsimple@vodafone.de>
  */
 #include "drmP.h"
-#include "drm.h"
 #include "radeon.h"
 
 

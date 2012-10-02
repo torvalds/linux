@@ -33,7 +33,6 @@
 #include <linux/module.h>
 
 #include "drmP.h"
-#include "drm.h"
 #include "i810_drm.h"
 #include "i810_drv.h"
 

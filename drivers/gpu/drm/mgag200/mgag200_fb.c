@@ -12,7 +12,6 @@
  */
 #include <linux/module.h>
 #include "drmP.h"
-#include "drm.h"
 #include "drm_fb_helper.h"
 
 #include <linux/fb.h>

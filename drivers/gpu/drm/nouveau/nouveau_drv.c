@@ -26,7 +26,6 @@
 #include <linux/module.h>
 
 #include "drmP.h"
-#include "drm.h"
 #include "drm_crtc_helper.h"
 #include "nouveau_drv.h"
 #include "nouveau_abi16.h"

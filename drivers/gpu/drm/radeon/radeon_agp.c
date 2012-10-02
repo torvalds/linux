@@ -25,7 +25,6 @@
  *    Jerome Glisse <glisse@freedesktop.org>
  */
 #include "drmP.h"
-#include "drm.h"
 #include "radeon.h"
 #include "radeon_drm.h"
 

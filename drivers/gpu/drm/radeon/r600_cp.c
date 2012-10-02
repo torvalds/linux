@@ -29,7 +29,6 @@
 #include <linux/module.h>
 
 #include "drmP.h"
-#include "drm.h"
 #include "radeon_drm.h"
 #include "radeon_drv.h"
 

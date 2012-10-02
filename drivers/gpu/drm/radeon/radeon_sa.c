@@ -42,7 +42,6 @@
  * rings. We just wait for any of those fence to complete.
  */
 #include "drmP.h"
-#include "drm.h"
 #include "radeon.h"
 
 static void radeon_sa_bo_remove_locked(struct radeon_sa_bo *sa_bo);

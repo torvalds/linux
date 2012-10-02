@@ -36,8 +36,6 @@
  */
 
 #include "drmP.h"
-#include "drm.h"
-#include "drm_sarea.h"
 #include "mga_drm.h"
 #include "mga_drv.h"
 

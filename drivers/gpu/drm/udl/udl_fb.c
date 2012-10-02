@@ -15,7 +15,6 @@
 #include <linux/fb.h>
 
 #include "drmP.h"
-#include "drm.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 #include "udl_drv.h"

@@ -33,7 +33,6 @@
 #include <linux/compat.h>
 
 #include "drmP.h"
-#include "drm.h"
 #include "mga_drm.h"
 
 typedef struct drm32_mga_init {

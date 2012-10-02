@@ -25,7 +25,6 @@
  */
 
 #include "drmP.h"
-#include "drm.h"
 #include "i915_drm.h"
 #include "intel_drv.h"
 #include "i915_reg.h"

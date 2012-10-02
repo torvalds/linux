@@ -24,7 +24,6 @@
  * Authors: Alex Deucher
  */
 #include "drmP.h"
-#include "drm.h"
 
 #include "radeon.h"
 #include "radeon_drm.h"

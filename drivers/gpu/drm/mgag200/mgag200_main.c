@@ -11,7 +11,6 @@
  *          Dave Airlie
  */
 #include "drmP.h"
-#include "drm.h"
 #include "drm_crtc_helper.h"
 #include "mgag200_drv.h"
 

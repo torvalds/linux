@@ -25,7 +25,6 @@
 
 #include <linux/i2c.h>
 #include "drmP.h"
-#include "drm.h"
 #include "drm_crtc.h"
 #include "intel_drv.h"
 

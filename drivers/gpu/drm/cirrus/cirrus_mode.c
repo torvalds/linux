@@ -15,7 +15,6 @@
  * Copyright 1999-2001 Jeff Garzik <jgarzik@pobox.com>
  */
 #include "drmP.h"
-#include "drm.h"
 #include "drm_crtc_helper.h"
 
 #include <video/cirrus.h>

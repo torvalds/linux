@@ -34,7 +34,6 @@
 #include <linux/list_sort.h>
 #include <linux/export.h>
 #include "drmP.h"
-#include "drm.h"
 #include "drm_crtc.h"
 
 /**

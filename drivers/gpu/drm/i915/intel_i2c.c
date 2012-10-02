@@ -30,7 +30,6 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/export.h>
 #include "drmP.h"
-#include "drm.h"
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"

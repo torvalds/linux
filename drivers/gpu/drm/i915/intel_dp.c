@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include "drmP.h"
-#include "drm.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 #include "drm_edid.h"

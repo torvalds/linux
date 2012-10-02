@@ -8,8 +8,6 @@
 #include <linux/mxm-wmi.h>
 
 #include "drmP.h"
-#include "drm.h"
-#include "drm_sarea.h"
 #include "drm_crtc_helper.h"
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
