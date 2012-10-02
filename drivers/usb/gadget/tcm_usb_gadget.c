@@ -1815,7 +1815,7 @@ static ssize_t tcm_usbg_tpg_store_nexus(
 		ret = tcm_usbg_drop_nexus(tpg);
 		return (!ret) ? count : ret;
 	}
-	if (strlen(page) > USBG_NAMELEN) {
+	if (strlen(page) >= USBG_NAMELEN) {
 		pr_err("Emulated NAA Sas Address: %s, exceeds"
 				" max: %d\n", page, USBG_NAMELEN);
 		return -EINVAL;
