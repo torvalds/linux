@@ -1204,7 +1204,7 @@ bl_pg_test_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	return pnfs_generic_pg_test(pgio, prev, req);
 }
 
-void
+static void
 bl_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 {
 	if (pgio->pg_dreq != NULL &&
