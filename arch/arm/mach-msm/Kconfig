@@ -1,8 +1,12 @@
 if ARCH_MSM
 
+comment "Qualcomm MSM SoC Type"
+	depends on (ARCH_MSM8X60 || ARCH_MSM8960)
+
 choice
 	prompt "Qualcomm MSM SoC Type"
 	default ARCH_MSM7X00A
+	depends on !(ARCH_MSM8X60 || ARCH_MSM8960)
 
 config ARCH_MSM7X00A
 	bool "MSM7x00A / MSM7x01A"
@@ -36,6 +40,8 @@ config ARCH_QSD8X50
 	select GPIO_MSM_V1
 	select MSM_PROC_COMM
 
+endchoice
+
 config ARCH_MSM8X60
 	bool "MSM8X60"
 	select ARCH_MSM_SCORPIONMP
@@ -56,8 +62,6 @@ config ARCH_MSM8960
 	select MSM_GPIOMUX
 	select MSM_SCM if SMP
 	select USE_OF
-
-endchoice
 
 config MSM_HAS_DEBUG_UART_HS
 	bool
