@@ -24,7 +24,7 @@
 #define CHIPCHW_REG_H
 
 #include <mach/csp/mm_io.h>
-#include <csp/reg.h>
+#include <mach/csp/reg.h>
 #include <mach/csp/ddrcReg.h>
 
 #define chipcHw_BASE_ADDRESS    MM_IO_BASE_CHIPC
@@ -131,8 +131,8 @@ typedef struct {
 	uint32_t MiscInput_0_15;	/* Input type for MISC 0 - 16 */
 } chipcHw_REG_t;
 
-#define pChipcHw  ((volatile chipcHw_REG_t *) chipcHw_BASE_ADDRESS)
-#define pChipcPhysical  ((volatile chipcHw_REG_t *) MM_ADDR_IO_CHIPC)
+#define pChipcHw  ((chipcHw_REG_t __iomem *) chipcHw_BASE_ADDRESS)
+#define pChipcPhysical  (MM_ADDR_IO_CHIPC)
 
 #define chipcHw_REG_CHIPID_BASE_MASK                    0xFFFFF000
 #define chipcHw_REG_CHIPID_BASE_SHIFT                   12

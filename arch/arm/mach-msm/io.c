@@ -42,8 +42,7 @@
 		MSM_CHIP_DEVICE_TYPE(name, chip, MT_DEVICE)
 #define MSM_DEVICE(name) MSM_CHIP_DEVICE(name, MSM)
 
-#if defined(CONFIG_ARCH_MSM7X00A) || defined(CONFIG_ARCH_MSM7X27) \
-	|| defined(CONFIG_ARCH_MSM7X25)
+#if defined(CONFIG_ARCH_MSM7X00A)
 static struct map_desc msm_io_desc[] __initdata = {
 	MSM_DEVICE_TYPE(VIC, MT_DEVICE_NONSHARED),
 	MSM_CHIP_DEVICE_TYPE(CSR, MSM7X00, MT_DEVICE_NONSHARED),

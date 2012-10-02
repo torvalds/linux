@@ -35,7 +35,6 @@
 #include <media/s5p_hdmi.h>
 
 #include <asm/irq.h>
-#include <asm/pmu.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -1132,7 +1131,7 @@ static struct resource s5p_pmu_resource[] = {
 
 static struct platform_device s5p_device_pmu = {
 	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(s5p_pmu_resource),
 	.resource	= s5p_pmu_resource,
 };

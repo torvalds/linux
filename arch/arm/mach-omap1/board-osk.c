@@ -39,13 +39,15 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/i2c/tps65010.h>
+#include <linux/platform_data/gpio-omap.h>
+#include <linux/platform_data/omap1_bl.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/flash.h>
-#include <plat/mux.h>
+#include <mach/flash.h>
+#include <mach/mux.h>
 #include <plat/tc.h>
 
 #include <mach/hardware.h>
@@ -302,7 +304,7 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <plat/keypad.h>
+#include <linux/platform_data/keypad-omap.h>
 
 static struct at24_platform_data at24c04 = {
 	.byte_len	= SZ_4K / 8,

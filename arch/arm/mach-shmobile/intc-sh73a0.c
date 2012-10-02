@@ -366,10 +366,12 @@ static irqreturn_t sh73a0_irq_pin_demux(int irq, void *dev_id)
 
 static struct irqaction sh73a0_irq_pin_cascade[32];
 
-#define PINTER0 0xe69000a0
-#define PINTER1 0xe69000a4
-#define PINTRR0 0xe69000d0
-#define PINTRR1 0xe69000d4
+#define PINTER0_PHYS 0xe69000a0
+#define PINTER1_PHYS 0xe69000a4
+#define PINTER0_VIRT IOMEM(0xe69000a0)
+#define PINTER1_VIRT IOMEM(0xe69000a4)
+#define PINTRR0 IOMEM(0xe69000d0)
+#define PINTRR1 IOMEM(0xe69000d4)
 
 #define PINT0A_IRQ(n, irq) INTC_IRQ((n), SH73A0_PINT0_IRQ(irq))
 #define PINT0B_IRQ(n, irq) INTC_IRQ((n), SH73A0_PINT0_IRQ(irq + 8))
@@ -377,14 +379,14 @@ static struct irqaction sh73a0_irq_pin_cascade[32];
 #define PINT0D_IRQ(n, irq) INTC_IRQ((n), SH73A0_PINT0_IRQ(irq + 24))
 #define PINT1E_IRQ(n, irq) INTC_IRQ((n), SH73A0_PINT1_IRQ(irq))
 
-INTC_PINT(intc_pint0, PINTER0, 0xe69000b0, "sh73a0-pint0",		\
+INTC_PINT(intc_pint0, PINTER0_PHYS, 0xe69000b0, "sh73a0-pint0",		\
   INTC_PINT_E(A), INTC_PINT_E(B), INTC_PINT_E(C), INTC_PINT_E(D),	\
   INTC_PINT_V(A, PINT0A_IRQ), INTC_PINT_V(B, PINT0B_IRQ),		\
   INTC_PINT_V(C, PINT0C_IRQ), INTC_PINT_V(D, PINT0D_IRQ),		\
   INTC_PINT_E(A), INTC_PINT_E(B), INTC_PINT_E(C), INTC_PINT_E(D),	\
   INTC_PINT_E(A), INTC_PINT_E(B), INTC_PINT_E(C), INTC_PINT_E(D));
 
-INTC_PINT(intc_pint1, PINTER1, 0xe69000c0, "sh73a0-pint1",		\
+INTC_PINT(intc_pint1, PINTER1_PHYS, 0xe69000c0, "sh73a0-pint1",		\
   INTC_PINT_E(E), INTC_PINT_E_EMPTY, INTC_PINT_E_EMPTY, INTC_PINT_E_EMPTY, \
   INTC_PINT_V(E, PINT1E_IRQ), INTC_PINT_V_NONE,				\
   INTC_PINT_V_NONE, INTC_PINT_V_NONE,					\
@@ -394,7 +396,7 @@ INTC_PINT(intc_pint1, PINTER1, 0xe69000c0, "sh73a0-pint1",		\
 static struct irqaction sh73a0_pint0_cascade;
 static struct irqaction sh73a0_pint1_cascade;
 
-static void pint_demux(unsigned long rr, unsigned long er, int base_irq)
+static void pint_demux(void __iomem *rr, void __iomem *er, int base_irq)
 {
 	unsigned long value =  ioread32(rr) & ioread32(er);
 	int k;
@@ -409,13 +411,13 @@ static void pint_demux(unsigned long rr, unsigned long er, int base_irq)
 
 static irqreturn_t sh73a0_pint0_demux(int irq, void *dev_id)
 {
-	pint_demux(PINTRR0, PINTER0, SH73A0_PINT0_IRQ(0));
+	pint_demux(PINTRR0, PINTER0_VIRT, SH73A0_PINT0_IRQ(0));
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t sh73a0_pint1_demux(int irq, void *dev_id)
 {
-	pint_demux(PINTRR1, PINTER1, SH73A0_PINT1_IRQ(0));
+	pint_demux(PINTRR1, PINTER1_VIRT, SH73A0_PINT1_IRQ(0));
 	return IRQ_HANDLED;
 }
 

@@ -759,7 +759,7 @@ static struct platform_device *sh73a0_late_devices[] __initdata = {
 	&mpdma0_device,
 };
 
-#define SRCR2          0xe61580b0
+#define SRCR2          IOMEM(0xe61580b0)
 
 void __init sh73a0_add_standard_devices(void)
 {

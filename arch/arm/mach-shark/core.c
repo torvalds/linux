@@ -21,9 +21,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#define IO_BASE                 0xe0000000
-#define IO_SIZE                 0x08000000
-#define IO_START                0x40000000
 #define ROMCARD_SIZE            0x08000000
 #define ROMCARD_START           0x10000000
 
@@ -104,20 +101,6 @@ arch_initcall(shark_init);
 
 extern void shark_init_irq(void);
 
-static struct map_desc shark_io_desc[] __initdata = {
-	{
-		.virtual	= IO_BASE,
-		.pfn		= __phys_to_pfn(IO_START),
-		.length		= IO_SIZE,
-		.type		= MT_DEVICE
-	}
-};
-
-static void __init shark_map_io(void)
-{
-	iotable_init(shark_io_desc, ARRAY_SIZE(shark_io_desc));
-}
-
 #define IRQ_TIMER 0
 #define HZ_TIME ((1193180 + HZ/2) / HZ)
 
@@ -158,7 +141,6 @@ static void shark_init_early(void)
 MACHINE_START(SHARK, "Shark")
 	/* Maintainer: Alexander Schulz */
 	.atag_offset	= 0x3000,
-	.map_io		= shark_map_io,
 	.init_early	= shark_init_early,
 	.init_irq	= shark_init_irq,
 	.timer		= &shark_timer,

@@ -1,4 +1,3 @@
-
 /*
  * omap_device implementation
  *
@@ -153,21 +152,19 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 		act_lat = timespec_to_ns(&c);
 
 		dev_dbg(&od->pdev->dev,
-			"omap_device: pm_lat %d: activate: elapsed time "
-			"%llu nsec\n", od->pm_lat_level, act_lat);
+			"omap_device: pm_lat %d: activate: elapsed time %llu nsec\n",
+			od->pm_lat_level, act_lat);
 
 		if (act_lat > odpl->activate_lat) {
 			odpl->activate_lat_worst = act_lat;
 			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
 				odpl->activate_lat = act_lat;
 				dev_dbg(&od->pdev->dev,
-					"new worst case activate latency "
-					"%d: %llu\n",
+					"new worst case activate latency %d: %llu\n",
 					od->pm_lat_level, act_lat);
 			} else
 				dev_warn(&od->pdev->dev,
-					 "activate latency %d "
-					 "higher than exptected. (%llu > %d)\n",
+					 "activate latency %d higher than expected. (%llu > %d)\n",
 					 od->pm_lat_level, act_lat,
 					 odpl->activate_lat);
 		}
@@ -220,21 +217,19 @@ static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 		deact_lat = timespec_to_ns(&c);
 
 		dev_dbg(&od->pdev->dev,
-			"omap_device: pm_lat %d: deactivate: elapsed time "
-			"%llu nsec\n", od->pm_lat_level, deact_lat);
+			"omap_device: pm_lat %d: deactivate: elapsed time %llu nsec\n",
+			od->pm_lat_level, deact_lat);
 
 		if (deact_lat > odpl->deactivate_lat) {
 			odpl->deactivate_lat_worst = deact_lat;
 			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
 				odpl->deactivate_lat = deact_lat;
 				dev_dbg(&od->pdev->dev,
-					"new worst case deactivate latency "
-					"%d: %llu\n",
+					"new worst case deactivate latency %d: %llu\n",
 					od->pm_lat_level, deact_lat);
 			} else
 				dev_warn(&od->pdev->dev,
-					 "deactivate latency %d "
-					 "higher than exptected. (%llu > %d)\n",
+					 "deactivate latency %d higher than expected. (%llu > %d)\n",
 					 od->pm_lat_level, deact_lat,
 					 odpl->deactivate_lat);
 		}
@@ -449,8 +444,8 @@ static int omap_device_count_resources(struct omap_device *od)
 	for (i = 0; i < od->hwmods_cnt; i++)
 		c += omap_hwmod_count_resources(od->hwmods[i]);
 
-	pr_debug("omap_device: %s: counted %d total resources across %d "
-		 "hwmods\n", od->pdev->name, c, od->hwmods_cnt);
+	pr_debug("omap_device: %s: counted %d total resources across %d hwmods\n",
+		 od->pdev->name, c, od->hwmods_cnt);
 
 	return c;
 }

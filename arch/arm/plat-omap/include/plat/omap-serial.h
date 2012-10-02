@@ -21,8 +21,6 @@
 #include <linux/device.h>
 #include <linux/pm_qos.h>
 
-#include <plat/mux.h>
-
 #define DRIVER_NAME	"omap_uart"
 
 /*
@@ -54,7 +52,7 @@
 
 #define OMAP_UART_DMA_CH_FREE	-1
 
-#define OMAP_MAX_HSUART_PORTS	4
+#define OMAP_MAX_HSUART_PORTS	6
 
 #define MSR_SAVE_FLAGS		UART_MSR_ANY_DELTA
 

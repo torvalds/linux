@@ -17,7 +17,7 @@
 
 /* ---- Include Files ---------------------------------------------------- */
 #include <mach/csp/cap.h>
-#include <cfg_global.h>
+#include <mach/cfg_global.h>
 
 /* ---- Public Constants and Types --------------------------------------- */
 #define CAP_CONFIG0_VPM_DIS          0x00000001

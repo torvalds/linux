@@ -22,8 +22,8 @@
 #include <asm/div64.h>
 
 #include <plat/clock.h>
-#include <plat/cpu.h>
 
+#include "soc.h"
 #include "clock.h"
 #include "cm-regbits-24xx.h"
 #include "cm-regbits-34xx.h"
@@ -105,13 +105,13 @@ static int _dpll_test_fint(struct clk *clk, u8 n)
 	}
 
 	if (fint < fint_min) {
-		pr_debug("rejecting n=%d due to Fint failure, "
-			 "lowering max_divider\n", n);
+		pr_debug("rejecting n=%d due to Fint failure, lowering max_divider\n",
+			 n);
 		dd->max_divider = n;
 		ret = DPLL_FINT_UNDERFLOW;
 	} else if (fint > fint_max) {
-		pr_debug("rejecting n=%d due to Fint failure, "
-			 "boosting min_divider\n", n);
+		pr_debug("rejecting n=%d due to Fint failure, boosting min_divider\n",
+			 n);
 		dd->min_divider = n;
 		ret = DPLL_FINT_INVALID;
 	} else if (cpu_is_omap3430() && fint > OMAP3430_DPLL_FINT_BAND1_MAX &&

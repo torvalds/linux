@@ -26,15 +26,15 @@
 
 /* ---- Include Files ---------------------------------------------------- */
 
-#include <csp/errno.h>
-#include <csp/stdint.h>
-#include <csp/module.h>
+#include <linux/errno.h>
+#include <linux/types.h>
+#include <linux/export.h>
 
 #include <mach/csp/chipcHw_def.h>
 #include <mach/csp/chipcHw_inline.h>
 
-#include <csp/reg.h>
-#include <csp/delay.h>
+#include <mach/csp/reg.h>
+#include <linux/delay.h>
 /* ---- Private Constants and Types --------------------------------------- */
 
 /*
@@ -73,9 +73,9 @@ void chipcHw_pll2Enable(uint32_t vcoFreqHz)
 
 	{
 		REG_LOCAL_IRQ_SAVE;
-		pChipcHw->PLLConfig2 =
-		    chipcHw_REG_PLL_CONFIG_D_RESET |
-		    chipcHw_REG_PLL_CONFIG_A_RESET;
+		writel(chipcHw_REG_PLL_CONFIG_D_RESET |
+		       chipcHw_REG_PLL_CONFIG_A_RESET,
+			&pChipcHw->PLLConfig2);
 
 		pllPreDivider2 = chipcHw_REG_PLL_PREDIVIDER_POWER_DOWN |
 		    chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_INTEGER |
@@ -87,28 +87,30 @@ void chipcHw_pll2Enable(uint32_t vcoFreqHz)
 		     chipcHw_REG_PLL_PREDIVIDER_P2_SHIFT);
 
 		/* Enable CHIPC registers to control the PLL */
-		pChipcHw->PLLStatus |= chipcHw_REG_PLL_STATUS_CONTROL_ENABLE;
+		writel(readl(&pChipcHw->PLLStatus) | chipcHw_REG_PLL_STATUS_CONTROL_ENABLE, &pChipcHw->PLLStatus);
 
 		/* Set pre divider to get desired VCO frequency */
-		pChipcHw->PLLPreDivider2 = pllPreDivider2;
+		writel(pllPreDivider2, &pChipcHw->PLLPreDivider2);
 		/* Set NDIV Frac */
-		pChipcHw->PLLDivider2 = chipcHw_REG_PLL_DIVIDER_NDIV_f;
+		writel(chipcHw_REG_PLL_DIVIDER_NDIV_f, &pChipcHw->PLLDivider2);
 
 		/* This has to be removed once the default values are fixed for PLL2. */
-		pChipcHw->PLLControl12 = 0x38000700;
-		pChipcHw->PLLControl22 = 0x00000015;
+		writel(0x38000700, &pChipcHw->PLLControl12);
+		writel(0x00000015, &pChipcHw->PLLControl22);
 
 		/* Reset PLL2 */
 		if (vcoFreqHz > chipcHw_REG_PLL_CONFIG_VCO_SPLIT_FREQ) {
-			pChipcHw->PLLConfig2 = chipcHw_REG_PLL_CONFIG_D_RESET |
+			writel(chipcHw_REG_PLL_CONFIG_D_RESET |
 			    chipcHw_REG_PLL_CONFIG_A_RESET |
 			    chipcHw_REG_PLL_CONFIG_VCO_1601_3200 |
-			    chipcHw_REG_PLL_CONFIG_POWER_DOWN;
+			    chipcHw_REG_PLL_CONFIG_POWER_DOWN,
+			    &pChipcHw->PLLConfig2);
 		} else {
-			pChipcHw->PLLConfig2 = chipcHw_REG_PLL_CONFIG_D_RESET |
+			writel(chipcHw_REG_PLL_CONFIG_D_RESET |
 			    chipcHw_REG_PLL_CONFIG_A_RESET |
 			    chipcHw_REG_PLL_CONFIG_VCO_800_1600 |
-			    chipcHw_REG_PLL_CONFIG_POWER_DOWN;
+			    chipcHw_REG_PLL_CONFIG_POWER_DOWN,
+			    &pChipcHw->PLLConfig2);
 		}
 		REG_LOCAL_IRQ_RESTORE;
 	}
@@ -119,22 +121,25 @@ void chipcHw_pll2Enable(uint32_t vcoFreqHz)
 	{
 		REG_LOCAL_IRQ_SAVE;
 		/* Remove analog reset and Power on the PLL */
-		pChipcHw->PLLConfig2 &=
+		writel(readl(&pChipcHw->PLLConfig2) &
 		    ~(chipcHw_REG_PLL_CONFIG_A_RESET |
-		      chipcHw_REG_PLL_CONFIG_POWER_DOWN);
+		      chipcHw_REG_PLL_CONFIG_POWER_DOWN),
+		      &pChipcHw->PLLConfig2);
 
 		REG_LOCAL_IRQ_RESTORE;
 
 	}
 
 	/* Wait until PLL is locked */
-	while (!(pChipcHw->PLLStatus2 & chipcHw_REG_PLL_STATUS_LOCKED))
+	while (!(readl(&pChipcHw->PLLStatus2) & chipcHw_REG_PLL_STATUS_LOCKED))
 		;
 
 	{
 		REG_LOCAL_IRQ_SAVE;
 		/* Remove digital reset */
-		pChipcHw->PLLConfig2 &= ~chipcHw_REG_PLL_CONFIG_D_RESET;
+		writel(readl(&pChipcHw->PLLConfig2) &
+			~chipcHw_REG_PLL_CONFIG_D_RESET,
+			&pChipcHw->PLLConfig2);
 
 		REG_LOCAL_IRQ_RESTORE;
 	}
@@ -157,9 +162,9 @@ void chipcHw_pll1Enable(uint32_t vcoFreqHz, chipcHw_SPREAD_SPECTRUM_e ssSupport)
 	{
 		REG_LOCAL_IRQ_SAVE;
 
-		pChipcHw->PLLConfig =
-		    chipcHw_REG_PLL_CONFIG_D_RESET |
-		    chipcHw_REG_PLL_CONFIG_A_RESET;
+		writel(chipcHw_REG_PLL_CONFIG_D_RESET |
+		    chipcHw_REG_PLL_CONFIG_A_RESET,
+		    &pChipcHw->PLLConfig);
 		/* Setting VCO frequency */
 		if (ssSupport == chipcHw_SPREAD_SPECTRUM_ALLOW) {
 			pllPreDivider =
@@ -182,30 +187,22 @@ void chipcHw_pll1Enable(uint32_t vcoFreqHz, chipcHw_SPREAD_SPECTRUM_e ssSupport)
 		}
 
 		/* Enable CHIPC registers to control the PLL */
-		pChipcHw->PLLStatus |= chipcHw_REG_PLL_STATUS_CONTROL_ENABLE;
+		writel(readl(&pChipcHw->PLLStatus) | chipcHw_REG_PLL_STATUS_CONTROL_ENABLE, &pChipcHw->PLLStatus);
 
 		/* Set pre divider to get desired VCO frequency */
-		pChipcHw->PLLPreDivider = pllPreDivider;
+		writel(pllPreDivider, &pChipcHw->PLLPreDivider);
 		/* Set NDIV Frac */
 		if (ssSupport == chipcHw_SPREAD_SPECTRUM_ALLOW) {
-			pChipcHw->PLLDivider = chipcHw_REG_PLL_DIVIDER_M1DIV |
-			    chipcHw_REG_PLL_DIVIDER_NDIV_f_SS;
+			writel(chipcHw_REG_PLL_DIVIDER_M1DIV | chipcHw_REG_PLL_DIVIDER_NDIV_f_SS, &pChipcHw->PLLDivider);
 		} else {
-			pChipcHw->PLLDivider = chipcHw_REG_PLL_DIVIDER_M1DIV |
-			    chipcHw_REG_PLL_DIVIDER_NDIV_f;
+			writel(chipcHw_REG_PLL_DIVIDER_M1DIV | chipcHw_REG_PLL_DIVIDER_NDIV_f, &pChipcHw->PLLDivider);
 		}
 
 		/* Reset PLL1 */
 		if (vcoFreqHz > chipcHw_REG_PLL_CONFIG_VCO_SPLIT_FREQ) {
-			pChipcHw->PLLConfig = chipcHw_REG_PLL_CONFIG_D_RESET |
-			    chipcHw_REG_PLL_CONFIG_A_RESET |
-			    chipcHw_REG_PLL_CONFIG_VCO_1601_3200 |
-			    chipcHw_REG_PLL_CONFIG_POWER_DOWN;
+			writel(chipcHw_REG_PLL_CONFIG_D_RESET | chipcHw_REG_PLL_CONFIG_A_RESET | chipcHw_REG_PLL_CONFIG_VCO_1601_3200 | chipcHw_REG_PLL_CONFIG_POWER_DOWN, &pChipcHw->PLLConfig);
 		} else {
-			pChipcHw->PLLConfig = chipcHw_REG_PLL_CONFIG_D_RESET |
-			    chipcHw_REG_PLL_CONFIG_A_RESET |
-			    chipcHw_REG_PLL_CONFIG_VCO_800_1600 |
-			    chipcHw_REG_PLL_CONFIG_POWER_DOWN;
+			writel(chipcHw_REG_PLL_CONFIG_D_RESET | chipcHw_REG_PLL_CONFIG_A_RESET | chipcHw_REG_PLL_CONFIG_VCO_800_1600 | chipcHw_REG_PLL_CONFIG_POWER_DOWN, &pChipcHw->PLLConfig);
 		}
 
 		REG_LOCAL_IRQ_RESTORE;
@@ -216,22 +213,19 @@ void chipcHw_pll1Enable(uint32_t vcoFreqHz, chipcHw_SPREAD_SPECTRUM_e ssSupport)
 		{
 			REG_LOCAL_IRQ_SAVE;
 			/* Remove analog reset and Power on the PLL */
-			pChipcHw->PLLConfig &=
-			    ~(chipcHw_REG_PLL_CONFIG_A_RESET |
-			      chipcHw_REG_PLL_CONFIG_POWER_DOWN);
+			writel(readl(&pChipcHw->PLLConfig) & ~(chipcHw_REG_PLL_CONFIG_A_RESET | chipcHw_REG_PLL_CONFIG_POWER_DOWN), &pChipcHw->PLLConfig);
 			REG_LOCAL_IRQ_RESTORE;
 		}
 
 		/* Wait until PLL is locked */
-		while (!(pChipcHw->PLLStatus & chipcHw_REG_PLL_STATUS_LOCKED)
-		       || !(pChipcHw->
-			    PLLStatus2 & chipcHw_REG_PLL_STATUS_LOCKED))
+		while (!(readl(&pChipcHw->PLLStatus) & chipcHw_REG_PLL_STATUS_LOCKED)
+		       || !(readl(&pChipcHw->PLLStatus2) & chipcHw_REG_PLL_STATUS_LOCKED))
 			;
 
 		/* Remove digital reset */
 		{
 			REG_LOCAL_IRQ_SAVE;
-			pChipcHw->PLLConfig &= ~chipcHw_REG_PLL_CONFIG_D_RESET;
+			writel(readl(&pChipcHw->PLLConfig) & ~chipcHw_REG_PLL_CONFIG_D_RESET, &pChipcHw->PLLConfig);
 			REG_LOCAL_IRQ_RESTORE;
 		}
 	}
@@ -267,11 +261,7 @@ void chipcHw_Init(chipcHw_INIT_PARAM_t *initParam	/*  [ IN ] Misc chip initializ
 	chipcHw_clearStickyBits(chipcHw_REG_STICKY_CHIP_SOFT_RESET);
 
 	/* Before configuring the ARM clock, atleast we need to make sure BUS clock maintains the proper ratio with ARM clock */
-	pChipcHw->ACLKClock =
-	    (pChipcHw->
-	     ACLKClock & ~chipcHw_REG_ACLKClock_CLK_DIV_MASK) | (initParam->
-								 armBusRatio &
-								 chipcHw_REG_ACLKClock_CLK_DIV_MASK);
+	writel((readl(&pChipcHw->ACLKClock) & ~chipcHw_REG_ACLKClock_CLK_DIV_MASK) | (initParam-> armBusRatio & chipcHw_REG_ACLKClock_CLK_DIV_MASK), &pChipcHw->ACLKClock);
 
 	/* Set various core component frequencies. The order in which this is done is important for some. */
 	/* The RTBUS (DDR PHY) is derived from the BUS, and the BUS from the ARM, and VPM needs to know BUS */

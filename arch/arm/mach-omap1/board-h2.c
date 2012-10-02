@@ -31,17 +31,18 @@
 #include <linux/i2c/tps65010.h>
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/mux.h>
+#include <mach/mux.h>
 #include <plat/dma.h>
 #include <plat/tc.h>
-#include <plat/irda.h>
-#include <plat/keypad.h>
-#include <plat/flash.h>
+#include <mach/irda.h>
+#include <linux/platform_data/keypad-omap.h>
+#include <mach/flash.h>
 
 #include <mach/hardware.h>
 #include <mach/usb.h>
