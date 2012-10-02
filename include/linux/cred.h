@@ -77,21 +77,6 @@ extern int in_group_p(kgid_t);
 extern int in_egroup_p(kgid_t);
 
 /*
- * The common credentials for a thread group
- * - shared by CLONE_THREAD
- */
-#ifdef CONFIG_KEYS
-struct thread_group_cred {
-	atomic_t	usage;
-	pid_t		tgid;			/* thread group process ID */
-	spinlock_t	lock;
-	struct key __rcu *session_keyring;	/* keyring inherited over fork */
-	struct key	*process_keyring;	/* keyring private to this process */
-	struct rcu_head	rcu;			/* RCU deletion hook */
-};
-#endif
-
-/*
  * The security context of a task
  *
  * The parts of the context break down into two categories:
@@ -139,6 +124,8 @@ struct cred {
 #ifdef CONFIG_KEYS
 	unsigned char	jit_keyring;	/* default keyring to attach requested
 					 * keys to */
+	struct key __rcu *session_keyring; /* keyring inherited over fork */
+	struct key	*process_keyring; /* keyring private to this process */
 	struct key	*thread_keyring; /* keyring private to this thread */
 	struct key	*request_key_auth; /* assumed request_key authority */
 	struct thread_group_cred *tgcred; /* thread-group shared credentials */
