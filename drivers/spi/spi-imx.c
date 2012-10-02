@@ -97,7 +97,7 @@ struct spi_imx_data {
 	const void *tx_buf;
 	unsigned int txfifo; /* number of words pushed in tx FIFO */
 
-	struct spi_imx_devtype_data *devtype_data;
+	const struct spi_imx_devtype_data *devtype_data;
 	int chipselect[0];
 };
 

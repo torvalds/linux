@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/mfd/abx500/ab8500.h>
 
+#include <asm/pmu.h>
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
 #include <plat/gpio-nomadik.h>

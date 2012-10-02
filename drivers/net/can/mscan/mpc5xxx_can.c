@@ -380,12 +380,12 @@ static int mpc5xxx_can_resume(struct platform_device *ofdev)
 }
 #endif
 
-static struct mpc5xxx_can_data __devinitdata mpc5200_can_data = {
+static const struct mpc5xxx_can_data __devinitdata mpc5200_can_data = {
 	.type = MSCAN_TYPE_MPC5200,
 	.get_clock = mpc52xx_can_get_clock,
 };
 
-static struct mpc5xxx_can_data __devinitdata mpc5121_can_data = {
+static const struct mpc5xxx_can_data __devinitdata mpc5121_can_data = {
 	.type = MSCAN_TYPE_MPC5121,
 	.get_clock = mpc512x_can_get_clock,
 };
