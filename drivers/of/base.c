@@ -1160,6 +1160,22 @@ int prom_update_property(struct device_node *np,
  * device tree nodes.
  */
 
+#ifdef CONFIG_PROC_DEVICETREE
+static void of_add_proc_dt_entry(struct device_node *dn)
+{
+	struct proc_dir_entry *ent;
+
+	ent = proc_mkdir(strrchr(dn->full_name, '/') + 1, dn->parent->pde);
+	if (ent)
+		proc_device_tree_add_node(dn, ent);
+}
+#else
+static void of_add_proc_dt_entry(struct device_node *dn)
+{
+	return;
+}
+#endif
+
 /**
  * of_attach_node - Plug a device node into the tree and global list.
  */
@@ -1173,7 +1189,30 @@ void of_attach_node(struct device_node *np)
 	np->parent->child = np;
 	allnodes = np;
 	write_unlock_irqrestore(&devtree_lock, flags);
+
+	of_add_proc_dt_entry(np);
 }
+
+#ifdef CONFIG_PROC_DEVICETREE
+static void of_remove_proc_dt_entry(struct device_node *dn)
+{
+	struct device_node *parent = dn->parent;
+	struct property *prop = dn->properties;
+
+	while (prop) {
+		remove_proc_entry(prop->name, dn->pde);
+		prop = prop->next;
+	}
+
+	if (dn->pde)
+		remove_proc_entry(dn->pde->name, parent->pde);
+}
+#else
+static void of_remove_proc_dt_entry(struct device_node *dn)
+{
+	return;
+}
+#endif
 
 /**
  * of_detach_node - "Unplug" a node from the device tree.
@@ -1188,9 +1227,17 @@ void of_detach_node(struct device_node *np)
 
 	write_lock_irqsave(&devtree_lock, flags);
 
+	if (of_node_check_flag(np, OF_DETACHED)) {
+		/* someone already detached it */
+		write_unlock_irqrestore(&devtree_lock, flags);
+		return;
+	}
+
 	parent = np->parent;
-	if (!parent)
-		goto out_unlock;
+	if (!parent) {
+		write_unlock_irqrestore(&devtree_lock, flags);
+		return;
+	}
 
 	if (allnodes == np)
 		allnodes = np->allnext;
@@ -1215,9 +1262,9 @@ void of_detach_node(struct device_node *np)
 	}
 
 	of_node_set_flag(np, OF_DETACHED);
-
-out_unlock:
 	write_unlock_irqrestore(&devtree_lock, flags);
+
+	of_remove_proc_dt_entry(np);
 }
 #endif /* defined(CONFIG_OF_DYNAMIC) */
 

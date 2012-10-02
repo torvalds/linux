@@ -23,48 +23,6 @@
 #include <asm/pSeries_reconfig.h>
 #include <asm/mmu.h>
 
-
-
-/*
- * Routines for "runtime" addition and removal of device tree nodes.
- */
-#ifdef CONFIG_PROC_DEVICETREE
-/*
- * Add a node to /proc/device-tree.
- */
-static void add_node_proc_entries(struct device_node *np)
-{
-	struct proc_dir_entry *ent;
-
-	ent = proc_mkdir(strrchr(np->full_name, '/') + 1, np->parent->pde);
-	if (ent)
-		proc_device_tree_add_node(np, ent);
-}
-
-static void remove_node_proc_entries(struct device_node *np)
-{
-	struct property *pp = np->properties;
-	struct device_node *parent = np->parent;
-
-	while (pp) {
-		remove_proc_entry(pp->name, np->pde);
-		pp = pp->next;
-	}
-	if (np->pde)
-		remove_proc_entry(np->pde->name, parent->pde);
-}
-#else /* !CONFIG_PROC_DEVICETREE */
-static void add_node_proc_entries(struct device_node *np)
-{
-	return;
-}
-
-static void remove_node_proc_entries(struct device_node *np)
-{
-	return;
-}
-#endif /* CONFIG_PROC_DEVICETREE */
-
 /**
  *	derive_parent - basically like dirname(1)
  *	@path:  the full_name of a node to be added to the tree
@@ -149,9 +107,6 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 	}
 
 	of_attach_node(np);
-
-	add_node_proc_entries(np);
-
 	of_node_put(np->parent);
 
 	return 0;
@@ -178,8 +133,6 @@ static int pSeries_reconfig_remove_node(struct device_node *np)
 		of_node_put(parent);
 		return -EBUSY;
 	}
-
-	remove_node_proc_entries(np);
 
 	pSeries_reconfig_notify(PSERIES_RECONFIG_REMOVE, np);
 	of_detach_node(np);
