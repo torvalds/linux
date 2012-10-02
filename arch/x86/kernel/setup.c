@@ -941,7 +941,9 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
+#if defined(CONFIG_ACPI) && defined(CONFIG_BLK_DEV_INITRD)
 	acpi_initrd_override((void *)initrd_start, initrd_end - initrd_start);
+#endif
 
 	reserve_crashkernel();
 
