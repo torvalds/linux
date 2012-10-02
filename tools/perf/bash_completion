@@ -1,12 +1,23 @@
 # perf completion
 
+function_exists()
+{
+	declare -F $1 > /dev/null
+	return $?
+}
+
 have perf &&
 _perf()
 {
-	local cur cmd
+	local cur prev cmd
 
 	COMPREPLY=()
-	_get_comp_words_by_ref cur prev
+	if function_exists _get_comp_words_by_ref; then
+		_get_comp_words_by_ref cur prev
+	else
+		cur=$(_get_cword)
+		prev=${COMP_WORDS[COMP_CWORD-1]}
+	fi
 
 	cmd=${COMP_WORDS[0]}
 
