@@ -2212,6 +2212,10 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 		struct v4l2_subdev_edid *edid = parg;
 
 		if (edid->blocks) {
+			if (edid->blocks > 256) {
+				ret = -EINVAL;
+				break;
+			}
 			*user_ptr = (void __user *)edid->edid;
 			*kernel_ptr = (void *)&edid->edid;
 			*array_size = edid->blocks * 128;
