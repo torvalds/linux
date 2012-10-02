@@ -54,6 +54,7 @@
 #include <asm/kexec.h>
 #include <asm/opal.h>
 #include <asm/fadump.h>
+#include <asm/debug.h>
 
 #include <mm/mmu_decl.h>
 
