@@ -208,4 +208,3 @@ x509.genkey:
 	@echo >>x509.genkey "subjectKeyIdentifier=hash"
 	@echo >>x509.genkey "authorityKeyIdentifier=keyid"
 endif
-CLEAN_FILES += signing_key.priv signing_key.x509 x509.genkey extra_certificates
