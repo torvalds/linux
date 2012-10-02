@@ -225,7 +225,7 @@ config MTD_ABSENT
 
 config MTD_XIP
 	bool "XIP aware MTD support"
-	depends on !SMP && (MTD_CFI_INTELEXT || MTD_CFI_AMDSTD) && EXPERIMENTAL && ARCH_MTD_XIP
+	depends on !SMP && (MTD_CFI_INTELEXT || MTD_CFI_AMDSTD) && ARCH_MTD_XIP
 	default y if XIP_KERNEL
 	help
 	  This allows MTD support to work with flash memory which is also
