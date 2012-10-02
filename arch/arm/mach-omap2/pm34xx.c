@@ -35,11 +35,12 @@
 #include <asm/suspend.h>
 #include <asm/system_misc.h>
 
-#include <plat/sram.h>
 #include "clockdomain.h"
 #include "powerdomain.h"
 #include <plat/prcm.h>
 #include <plat-omap/dma-omap.h>
+
+#include "../plat-omap/sram.h"
 
 #include "common.h"
 #include "cm2xxx_3xxx.h"

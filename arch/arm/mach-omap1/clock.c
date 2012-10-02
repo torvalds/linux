@@ -24,10 +24,11 @@
 #include <plat/cpu.h>
 #include <plat/usb.h>
 #include <plat/clock.h>
-#include <plat/sram.h>
 #include <plat/clkdev_omap.h>
 
 #include <mach/hardware.h>
+
+#include "../plat-omap/sram.h"
 
 #include "iomap.h"
 #include "clock.h"

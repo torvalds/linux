@@ -34,7 +34,8 @@
 #include <linux/slab.h>
 
 #include <plat/clock.h>
-#include <plat/sram.h>
+
+#include "../plat-omap/sram.h"
 
 #include "soc.h"
 #include "clock.h"

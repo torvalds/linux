@@ -37,8 +37,9 @@
 #include <asm/system_misc.h>
 
 #include <plat/clock.h>
-#include <plat/sram.h>
 #include <plat-omap/dma-omap.h>
+
+#include "../plat-omap/sram.h"
 
 #include "common.h"
 #include "prm2xxx_3xxx.h"

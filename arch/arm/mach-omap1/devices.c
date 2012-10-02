@@ -26,6 +26,8 @@
 #include <mach/camera.h>
 #include <mach/hardware.h>
 
+#include "../plat-omap/sram.h"
+
 #include "common.h"
 #include "clock.h"
 #include "dma.h"

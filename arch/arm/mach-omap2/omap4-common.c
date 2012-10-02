@@ -25,11 +25,11 @@
 #include <asm/mach/map.h>
 #include <asm/memblock.h>
 
-#include <plat/sram.h>
 #include <plat/omap-secure.h>
 
-#include "omap-wakeupgen.h"
+#include "../plat-omap/sram.h"
 
+#include "omap-wakeupgen.h"
 #include "soc.h"
 #include "common.h"
 #include "mmc.h"

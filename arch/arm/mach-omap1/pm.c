@@ -51,13 +51,14 @@
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
-#include <plat/sram.h>
 #include <mach/tc.h>
 #include <mach/mux.h>
 #include <plat-omap/dma-omap.h>
 #include <plat/dmtimer.h>
 
 #include <mach/irqs.h>
+
+#include "../plat-omap/sram.h"
 
 #include "iomap.h"
 #include "pm.h"

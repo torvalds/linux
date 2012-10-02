@@ -25,12 +25,13 @@
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <plat/sram.h>
 #include <plat/serial.h>
 #include <plat/omap-pm.h>
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
 #include <plat-omap/dma-omap.h>
+
+#include "../plat-omap/sram.h"
 
 #include "soc.h"
 #include "iomap.h"
