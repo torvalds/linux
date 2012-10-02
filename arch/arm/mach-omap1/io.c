@@ -17,7 +17,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/mux.h>
-#include <plat/tc.h>
+#include <mach/tc.h>
 #include <plat-omap/dma-omap.h>
 
 #include "iomap.h"

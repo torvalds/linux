@@ -19,7 +19,7 @@
 
 #include <asm/mach/map.h>
 
-#include <plat/tc.h>
+#include <mach/tc.h>
 #include <mach/mux.h>
 
 #include <mach/omap7xx.h>

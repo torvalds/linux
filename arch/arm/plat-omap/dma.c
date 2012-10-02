@@ -38,7 +38,6 @@
 
 #include <plat/cpu.h>
 #include <plat-omap/dma-omap.h>
-#include <plat/tc.h>
 
 /*
  * MAX_LOGICAL_DMA_CH_COUNT: the maximum number of logical DMA
@@ -175,6 +174,7 @@ static inline void set_gdma_dev(int req, int dev)
 #define omap_writel(val, reg)	do {} while (0)
 #endif
 
+#ifdef CONFIG_ARCH_OMAP1
 void omap_set_dma_priority(int lch, int dst_port, int priority)
 {
 	unsigned long reg;
@@ -203,18 +203,22 @@ void omap_set_dma_priority(int lch, int dst_port, int priority)
 		l |= (priority & 0xf) << 8;
 		omap_writel(l, reg);
 	}
-
-	if (cpu_class_is_omap2()) {
-		u32 ccr;
-
-		ccr = p->dma_read(CCR, lch);
-		if (priority)
-			ccr |= (1 << 6);
-		else
-			ccr &= ~(1 << 6);
-		p->dma_write(ccr, CCR, lch);
-	}
 }
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2PLUS
+void omap_set_dma_priority(int lch, int dst_port, int priority)
+{
+	u32 ccr;
+
+	ccr = p->dma_read(CCR, lch);
+	if (priority)
+		ccr |= (1 << 6);
+	else
+		ccr &= ~(1 << 6);
+	p->dma_write(ccr, CCR, lch);
+}
+#endif
 EXPORT_SYMBOL(omap_set_dma_priority);
 
 void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,

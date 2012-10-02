@@ -26,7 +26,7 @@
 #include <linux/io.h>
 
 #include <plat-omap/dma-omap.h>
-#include <plat/tc.h>
+#include <mach/tc.h>
 
 #include <mach/irqs.h>
 

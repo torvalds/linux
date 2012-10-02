@@ -34,7 +34,7 @@
 #include <mach/mux.h>
 #include <mach/flash.h>
 #include <../plat-omap/fpga.h>
-#include <plat/tc.h>
+#include <mach/tc.h>
 #include <linux/platform_data/keypad-omap.h>
 
 #include <mach/hardware.h>

@@ -38,7 +38,7 @@
 #include <mach/mux.h>
 #include <plat-omap/dma-omap.h>
 #include <mach/irda.h>
-#include <plat/tc.h>
+#include <mach/tc.h>
 #include <mach/board-sx1.h>
 
 #include <mach/hardware.h>

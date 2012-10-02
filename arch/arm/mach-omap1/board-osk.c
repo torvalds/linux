@@ -48,7 +48,7 @@
 
 #include <mach/flash.h>
 #include <mach/mux.h>
-#include <plat/tc.h>
+#include <mach/tc.h>
 
 #include <mach/hardware.h>
 #include <mach/usb.h>
