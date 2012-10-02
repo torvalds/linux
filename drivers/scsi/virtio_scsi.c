@@ -279,6 +279,31 @@ static void virtscsi_handle_transport_reset(struct virtio_scsi *vscsi,
 	}
 }
 
+static void virtscsi_handle_param_change(struct virtio_scsi *vscsi,
+					 struct virtio_scsi_event *event)
+{
+	struct scsi_device *sdev;
+	struct Scsi_Host *shost = virtio_scsi_host(vscsi->vdev);
+	unsigned int target = event->lun[1];
+	unsigned int lun = (event->lun[2] << 8) | event->lun[3];
+	u8 asc = event->reason & 255;
+	u8 ascq = event->reason >> 8;
+
+	sdev = scsi_device_lookup(shost, 0, target, lun);
+	if (!sdev) {
+		pr_err("SCSI device %d 0 %d %d not found\n",
+			shost->host_no, target, lun);
+		return;
+	}
+
+	/* Handle "Parameters changed", "Mode parameters changed", and
+	   "Capacity data has changed".  */
+	if (asc == 0x2a && (ascq == 0x00 || ascq == 0x01 || ascq == 0x09))
+		scsi_rescan_device(&sdev->sdev_gendev);
+
+	scsi_device_put(sdev);
+}
+
 static void virtscsi_handle_event(struct work_struct *work)
 {
 	struct virtio_scsi_event_node *event_node =
@@ -296,6 +321,9 @@ static void virtscsi_handle_event(struct work_struct *work)
 		break;
 	case VIRTIO_SCSI_T_TRANSPORT_RESET:
 		virtscsi_handle_transport_reset(vscsi, event);
+		break;
+	case VIRTIO_SCSI_T_PARAM_CHANGE:
+		virtscsi_handle_param_change(vscsi, event);
 		break;
 	default:
 		pr_err("Unsupport virtio scsi event %x\n", event->event);
@@ -737,7 +765,8 @@ static struct virtio_device_id id_table[] = {
 };
 
 static unsigned int features[] = {
-	VIRTIO_SCSI_F_HOTPLUG
+	VIRTIO_SCSI_F_HOTPLUG,
+	VIRTIO_SCSI_F_CHANGE,
 };
 
 static struct virtio_driver virtio_scsi_driver = {
