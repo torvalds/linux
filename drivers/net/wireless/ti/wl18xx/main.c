@@ -30,7 +30,6 @@
 #include "../wlcore/acx.h"
 #include "../wlcore/tx.h"
 #include "../wlcore/rx.h"
-#include "../wlcore/io.h"
 #include "../wlcore/boot.h"
 
 #include "reg.h"
@@ -46,7 +45,6 @@
 static char *ht_mode_param = NULL;
 static char *board_type_param = NULL;
 static bool checksum_param = false;
-static bool enable_11a_param = true;
 static int num_rx_desc_param = -1;
 
 /* phy paramters */
@@ -416,7 +414,7 @@ static struct wlcore_conf wl18xx_conf = {
 		.snr_threshold			= 0,
 	},
 	.ht = {
-		.rx_ba_win_size = 10,
+		.rx_ba_win_size = 32,
 		.tx_ba_win_size = 64,
 		.inactivity_timeout = 10000,
 		.tx_ba_tid_bitmap = CONF_TX_BA_ENABLED_TID_BITMAP,
@@ -506,8 +504,8 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.rdl				= 0x01,
 		.auto_detect			= 0x00,
 		.dedicated_fem			= FEM_NONE,
-		.low_band_component		= COMPONENT_2_WAY_SWITCH,
-		.low_band_component_type	= 0x06,
+		.low_band_component		= COMPONENT_3_WAY_SWITCH,
+		.low_band_component_type	= 0x04,
 		.high_band_component		= COMPONENT_2_WAY_SWITCH,
 		.high_band_component_type	= 0x09,
 		.tcxo_ldo_voltage		= 0x00,
@@ -813,6 +811,13 @@ static int wl18xx_enable_interrupts(struct wl1271 *wl)
 
 	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK,
 			       WL1271_ACX_INTR_ALL & ~intr_mask);
+	if (ret < 0)
+		goto disable_interrupts;
+
+	return ret;
+
+disable_interrupts:
+	wlcore_disable_interrupts(wl);
 
 out:
 	return ret;
@@ -1203,6 +1208,12 @@ static int wl18xx_handle_static_data(struct wl1271 *wl,
 	struct wl18xx_static_data_priv *static_data_priv =
 		(struct wl18xx_static_data_priv *) static_data->priv;
 
+	strncpy(wl->chip.phy_fw_ver_str, static_data_priv->phy_version,
+		sizeof(wl->chip.phy_fw_ver_str));
+
+	/* make sure the string is NULL-terminated */
+	wl->chip.phy_fw_ver_str[sizeof(wl->chip.phy_fw_ver_str) - 1] = '\0';
+
 	wl1271_info("PHY firmware version: %s", static_data_priv->phy_version);
 
 	return 0;
@@ -1241,13 +1252,6 @@ static int wl18xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	if (!change_spare)
 		return wlcore_set_key(wl, cmd, vif, sta, key_conf);
 
-	/*
-	 * stop the queues and flush to ensure the next packets are
-	 * in sync with FW spare block accounting
-	 */
-	wlcore_stop_queues(wl, WLCORE_QUEUE_STOP_REASON_SPARE_BLK);
-	wl1271_tx_flush(wl);
-
 	ret = wlcore_set_key(wl, cmd, vif, sta, key_conf);
 	if (ret < 0)
 		goto out;
@@ -1270,7 +1274,6 @@ static int wl18xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	}
 
 out:
-	wlcore_wake_queues(wl, WLCORE_QUEUE_STOP_REASON_SPARE_BLK);
 	return ret;
 }
 
@@ -1293,7 +1296,10 @@ static u32 wl18xx_pre_pkt_send(struct wl1271 *wl,
 	return buf_offset;
 }
 
+static int wl18xx_setup(struct wl1271 *wl);
+
 static struct wlcore_ops wl18xx_ops = {
+	.setup		= wl18xx_setup,
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
 	.plt_init	= wl18xx_plt_init,
@@ -1374,27 +1380,15 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_2ghz = {
 		},
 };
 
-static int __devinit wl18xx_probe(struct platform_device *pdev)
+static int wl18xx_setup(struct wl1271 *wl)
 {
-	struct wl1271 *wl;
-	struct ieee80211_hw *hw;
-	struct wl18xx_priv *priv;
+	struct wl18xx_priv *priv = wl->priv;
 	int ret;
 
-	hw = wlcore_alloc_hw(sizeof(*priv));
-	if (IS_ERR(hw)) {
-		wl1271_error("can't allocate hw");
-		ret = PTR_ERR(hw);
-		goto out;
-	}
-
-	wl = hw->priv;
-	priv = wl->priv;
-	wl->ops = &wl18xx_ops;
-	wl->ptable = wl18xx_ptable;
 	wl->rtable = wl18xx_rtable;
-	wl->num_tx_desc = 32;
-	wl->num_rx_desc = 32;
+	wl->num_tx_desc = WL18XX_NUM_TX_DESCRIPTORS;
+	wl->num_rx_desc = WL18XX_NUM_TX_DESCRIPTORS;
+	wl->num_mac_addr = WL18XX_NUM_MAC_ADDRESSES;
 	wl->band_rate_to_idx = wl18xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL18XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL18XX_CONF_HW_RXTX_RATE_MCS0;
@@ -1405,9 +1399,9 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	if (num_rx_desc_param != -1)
 		wl->num_rx_desc = num_rx_desc_param;
 
-	ret = wl18xx_conf_init(wl, &pdev->dev);
+	ret = wl18xx_conf_init(wl, wl->dev);
 	if (ret < 0)
-		goto out_free;
+		return ret;
 
 	/* If the module param is set, update it in conf */
 	if (board_type_param) {
@@ -1424,27 +1418,14 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 		} else {
 			wl1271_error("invalid board type '%s'",
 				board_type_param);
-			ret = -EINVAL;
-			goto out_free;
+			return -EINVAL;
 		}
 	}
 
-	/* HACK! Just for now we hardcode COM8 and HDK to 0x06 */
-	switch (priv->conf.phy.board_type) {
-	case BOARD_TYPE_HDK_18XX:
-	case BOARD_TYPE_COM8_18XX:
-		priv->conf.phy.low_band_component_type = 0x06;
-		break;
-	case BOARD_TYPE_FPGA_18XX:
-	case BOARD_TYPE_DVP_18XX:
-	case BOARD_TYPE_EVB_18XX:
-		priv->conf.phy.low_band_component_type = 0x05;
-		break;
-	default:
+	if (priv->conf.phy.board_type >= NUM_BOARD_TYPES) {
 		wl1271_error("invalid board type '%d'",
 			priv->conf.phy.board_type);
-		ret = -EINVAL;
-		goto out_free;
+		return -EINVAL;
 	}
 
 	if (low_band_component_param != -1)
@@ -1476,22 +1457,21 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 			priv->conf.ht.mode = HT_MODE_SISO20;
 		else {
 			wl1271_error("invalid ht_mode '%s'", ht_mode_param);
-			ret = -EINVAL;
-			goto out_free;
+			return -EINVAL;
 		}
 	}
 
 	if (priv->conf.ht.mode == HT_MODE_DEFAULT) {
 		/*
 		 * Only support mimo with multiple antennas. Fall back to
-		 * siso20.
+		 * siso40.
 		 */
 		if (wl18xx_is_mimo_supported(wl))
 			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
 					  &wl18xx_mimo_ht_cap_2ghz);
 		else
 			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
-					  &wl18xx_siso20_ht_cap);
+					  &wl18xx_siso40_ht_cap_2ghz);
 
 		/* 5Ghz is always wide */
 		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
@@ -1513,9 +1493,34 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 		wl18xx_ops.init_vif = NULL;
 	}
 
-	wl->enable_11a = enable_11a_param;
+	/* Enable 11a Band only if we have 5G antennas */
+	wl->enable_11a = (priv->conf.phy.number_of_assembled_ant5 != 0);
 
-	return wlcore_probe(wl, pdev);
+	return 0;
+}
+
+static int __devinit wl18xx_probe(struct platform_device *pdev)
+{
+	struct wl1271 *wl;
+	struct ieee80211_hw *hw;
+	int ret;
+
+	hw = wlcore_alloc_hw(sizeof(struct wl18xx_priv),
+			     WL18XX_AGGR_BUFFER_SIZE);
+	if (IS_ERR(hw)) {
+		wl1271_error("can't allocate hw");
+		ret = PTR_ERR(hw);
+		goto out;
+	}
+
+	wl = hw->priv;
+	wl->ops = &wl18xx_ops;
+	wl->ptable = wl18xx_ptable;
+	ret = wlcore_probe(wl, pdev);
+	if (ret)
+		goto out_free;
+
+	return ret;
 
 out_free:
 	wlcore_free_hw(wl);
@@ -1539,18 +1544,7 @@ static struct platform_driver wl18xx_driver = {
 	}
 };
 
-static int __init wl18xx_init(void)
-{
-	return platform_driver_register(&wl18xx_driver);
-}
-module_init(wl18xx_init);
-
-static void __exit wl18xx_exit(void)
-{
-	platform_driver_unregister(&wl18xx_driver);
-}
-module_exit(wl18xx_exit);
-
+module_platform_driver(wl18xx_driver);
 module_param_named(ht_mode, ht_mode_param, charp, S_IRUSR);
 MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or siso20");
 
@@ -1560,9 +1554,6 @@ MODULE_PARM_DESC(board_type, "Board type: fpga, hdk (default), evb, com8 or "
 
 module_param_named(checksum, checksum_param, bool, S_IRUSR);
 MODULE_PARM_DESC(checksum, "Enable TCP checksum: boolean (defaults to false)");
-
-module_param_named(enable_11a, enable_11a_param, bool, S_IRUSR);
-MODULE_PARM_DESC(enable_11a, "Enable 11a (5GHz): boolean (defaults to true)");
 
 module_param_named(dc2dc, dc2dc_param, int, S_IRUSR);
 MODULE_PARM_DESC(dc2dc, "External DC2DC: u8 (defaults to 0)");

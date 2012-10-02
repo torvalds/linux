@@ -35,7 +35,7 @@
 
 #include "ieee802154.h"
 
-static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 pid,
+static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 	u32 seq, int flags, struct wpan_phy *phy)
 {
 	void *hdr;
@@ -105,7 +105,7 @@ static int ieee802154_list_phy(struct sk_buff *skb,
 	if (!msg)
 		goto out_dev;
 
-	rc = ieee802154_nl_fill_phy(msg, info->snd_pid, info->snd_seq,
+	rc = ieee802154_nl_fill_phy(msg, info->snd_portid, info->snd_seq,
 			0, phy);
 	if (rc < 0)
 		goto out_free;
@@ -138,7 +138,7 @@ static int ieee802154_dump_phy_iter(struct wpan_phy *phy, void *_data)
 		return 0;
 
 	rc = ieee802154_nl_fill_phy(data->skb,
-			NETLINK_CB(data->cb->skb).pid,
+			NETLINK_CB(data->cb->skb).portid,
 			data->cb->nlh->nlmsg_seq,
 			NLM_F_MULTI,
 			phy);

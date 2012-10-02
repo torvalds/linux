@@ -283,7 +283,9 @@ static int inet_csk_wait_for_connect(struct sock *sk, long timeo)
 struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
 	struct sock *newsk;
+	struct request_sock *req;
 	int error;
 
 	lock_sock(sk);
@@ -296,7 +298,7 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 		goto out_err;
 
 	/* Find already established connection */
-	if (reqsk_queue_empty(&icsk->icsk_accept_queue)) {
+	if (reqsk_queue_empty(queue)) {
 		long timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 
 		/* If this is a non blocking socket don't sleep */
@@ -308,14 +310,32 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 		if (error)
 			goto out_err;
 	}
+	req = reqsk_queue_remove(queue);
+	newsk = req->sk;
 
-	newsk = reqsk_queue_get_child(&icsk->icsk_accept_queue, sk);
-	WARN_ON(newsk->sk_state == TCP_SYN_RECV);
+	sk_acceptq_removed(sk);
+	if (sk->sk_protocol == IPPROTO_TCP && queue->fastopenq != NULL) {
+		spin_lock_bh(&queue->fastopenq->lock);
+		if (tcp_rsk(req)->listener) {
+			/* We are still waiting for the final ACK from 3WHS
+			 * so can't free req now. Instead, we set req->sk to
+			 * NULL to signify that the child socket is taken
+			 * so reqsk_fastopen_remove() will free the req
+			 * when 3WHS finishes (or is aborted).
+			 */
+			req->sk = NULL;
+			req = NULL;
+		}
+		spin_unlock_bh(&queue->fastopenq->lock);
+	}
 out:
 	release_sock(sk);
+	if (req)
+		__reqsk_free(req);
 	return newsk;
 out_err:
 	newsk = NULL;
+	req = NULL;
 	*err = error;
 	goto out;
 }
@@ -720,13 +740,14 @@ EXPORT_SYMBOL_GPL(inet_csk_listen_start);
 void inet_csk_listen_stop(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
 	struct request_sock *acc_req;
 	struct request_sock *req;
 
 	inet_csk_delete_keepalive_timer(sk);
 
 	/* make all the listen_opt local to us */
-	acc_req = reqsk_queue_yank_acceptq(&icsk->icsk_accept_queue);
+	acc_req = reqsk_queue_yank_acceptq(queue);
 
 	/* Following specs, it would be better either to send FIN
 	 * (and enter FIN-WAIT-1, it is normal close)
@@ -736,7 +757,7 @@ void inet_csk_listen_stop(struct sock *sk)
 	 * To be honest, we are not able to make either
 	 * of the variants now.			--ANK
 	 */
-	reqsk_queue_destroy(&icsk->icsk_accept_queue);
+	reqsk_queue_destroy(queue);
 
 	while ((req = acc_req) != NULL) {
 		struct sock *child = req->sk;
@@ -754,6 +775,19 @@ void inet_csk_listen_stop(struct sock *sk)
 
 		percpu_counter_inc(sk->sk_prot->orphan_count);
 
+		if (sk->sk_protocol == IPPROTO_TCP && tcp_rsk(req)->listener) {
+			BUG_ON(tcp_sk(child)->fastopen_rsk != req);
+			BUG_ON(sk != tcp_rsk(req)->listener);
+
+			/* Paranoid, to prevent race condition if
+			 * an inbound pkt destined for child is
+			 * blocked by sock lock in tcp_v4_rcv().
+			 * Also to satisfy an assertion in
+			 * tcp_v4_destroy_sock().
+			 */
+			tcp_sk(child)->fastopen_rsk = NULL;
+			sock_put(sk);
+		}
 		inet_csk_destroy_sock(child);
 
 		bh_unlock_sock(child);
@@ -762,6 +796,17 @@ void inet_csk_listen_stop(struct sock *sk)
 
 		sk_acceptq_removed(sk);
 		__reqsk_free(req);
+	}
+	if (queue->fastopenq != NULL) {
+		/* Free all the reqs queued in rskq_rst_head. */
+		spin_lock_bh(&queue->fastopenq->lock);
+		acc_req = queue->fastopenq->rskq_rst_head;
+		queue->fastopenq->rskq_rst_head = NULL;
+		spin_unlock_bh(&queue->fastopenq->lock);
+		while ((req = acc_req) != NULL) {
+			acc_req = req->dl_next;
+			__reqsk_free(req);
+		}
 	}
 	WARN_ON(sk->sk_ack_backlog);
 }

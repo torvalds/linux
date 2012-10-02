@@ -210,9 +210,7 @@ static int link_name_validate(const char *name,
 	    (z_local > 255) || (c_local > 4095) || (n_local > 4095) ||
 	    (z_peer  > 255) || (c_peer  > 4095) || (n_peer  > 4095) ||
 	    (if_local_len <= 1) || (if_local_len > TIPC_MAX_IF_NAME) ||
-	    (if_peer_len  <= 1) || (if_peer_len  > TIPC_MAX_IF_NAME) ||
-	    (strspn(if_local, tipc_alphabet) != (if_local_len - 1)) ||
-	    (strspn(if_peer, tipc_alphabet) != (if_peer_len - 1)))
+	    (if_peer_len  <= 1) || (if_peer_len  > TIPC_MAX_IF_NAME))
 		return 0;
 
 	/* return link name components, if necessary */

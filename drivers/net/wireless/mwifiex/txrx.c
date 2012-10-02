@@ -51,6 +51,9 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 	rx_info->bss_num = priv->bss_num;
 	rx_info->bss_type = priv->bss_type;
 
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+		return mwifiex_process_uap_rx_packet(adapter, skb);
+
 	return mwifiex_process_sta_rx_packet(adapter, skb);
 }
 EXPORT_SYMBOL_GPL(mwifiex_handle_rx_packet);
@@ -72,7 +75,11 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 	u8 *head_ptr;
 	struct txpd *local_tx_pd = NULL;
 
-	head_ptr = mwifiex_process_sta_txpd(priv, skb);
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+		head_ptr = mwifiex_process_uap_txpd(priv, skb);
+	else
+		head_ptr = mwifiex_process_sta_txpd(priv, skb);
+
 	if (head_ptr) {
 		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
 			local_tx_pd =
@@ -157,6 +164,8 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 		priv->stats.tx_errors++;
 	}
 
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_BRIDGED_PKT)
+		atomic_dec_return(&adapter->pending_bridged_pkts);
 	if (atomic_dec_return(&adapter->tx_pending) >= LOW_TX_PENDING)
 		goto done;
 

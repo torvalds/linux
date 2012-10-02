@@ -32,7 +32,7 @@ config TI_DAVINCI_EMAC
 
 config TI_DAVINCI_MDIO
 	tristate "TI DaVinci MDIO Support"
-	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 || SOC_AM33XX )
 	select PHYLIB
 	---help---
 	  This driver supports TI's DaVinci MDIO module.
@@ -42,7 +42,7 @@ config TI_DAVINCI_MDIO
 
 config TI_DAVINCI_CPDMA
 	tristate "TI DaVinci CPDMA Support"
-	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 || SOC_AM33XX )
 	---help---
 	  This driver supports TI's DaVinci CPDMA dma engine.
 

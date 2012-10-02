@@ -406,7 +406,7 @@ struct l2cap_chan *l2cap_chan_create(void)
 
 	chan->state = BT_OPEN;
 
-	atomic_set(&chan->refcnt, 1);
+	kref_init(&chan->kref);
 
 	/* This flag is cleared in l2cap_chan_ready() */
 	set_bit(CONF_NOT_COMPLETE, &chan->conf_state);
@@ -416,13 +416,31 @@ struct l2cap_chan *l2cap_chan_create(void)
 	return chan;
 }
 
-void l2cap_chan_destroy(struct l2cap_chan *chan)
+static void l2cap_chan_destroy(struct kref *kref)
 {
+	struct l2cap_chan *chan = container_of(kref, struct l2cap_chan, kref);
+
+	BT_DBG("chan %p", chan);
+
 	write_lock(&chan_list_lock);
 	list_del(&chan->global_l);
 	write_unlock(&chan_list_lock);
 
-	l2cap_chan_put(chan);
+	kfree(chan);
+}
+
+void l2cap_chan_hold(struct l2cap_chan *c)
+{
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
+
+	kref_get(&c->kref);
+}
+
+void l2cap_chan_put(struct l2cap_chan *c)
+{
+	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
+
+	kref_put(&c->kref, l2cap_chan_destroy);
 }
 
 void l2cap_chan_set_defaults(struct l2cap_chan *chan)
@@ -1431,7 +1449,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	int err;
 
 	BT_DBG("%s -> %s (type %u) psm 0x%2.2x", batostr(src), batostr(dst),
-	       dst_type, __le16_to_cpu(chan->psm));
+	       dst_type, __le16_to_cpu(psm));
 
 	hdev = hci_get_route(dst, src);
 	if (!hdev)
@@ -5331,7 +5349,7 @@ int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return exact ? lm1 : lm2;
 }
 
-int l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
+void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 {
 	struct l2cap_conn *conn;
 
@@ -5344,7 +5362,6 @@ int l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 	} else
 		l2cap_conn_del(hcon, bt_to_errno(status));
 
-	return 0;
 }
 
 int l2cap_disconn_ind(struct hci_conn *hcon)
@@ -5358,12 +5375,11 @@ int l2cap_disconn_ind(struct hci_conn *hcon)
 	return conn->disc_reason;
 }
 
-int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
+void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
 	l2cap_conn_del(hcon, bt_to_errno(reason));
-	return 0;
 }
 
 static inline void l2cap_check_encryption(struct l2cap_chan *chan, u8 encrypt)
@@ -5405,6 +5421,11 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 		BT_DBG("chan %p scid 0x%4.4x state %s", chan, chan->scid,
 		       state_to_string(chan->state));
+
+		if (chan->chan_type == L2CAP_CHAN_CONN_FIX_A2MP) {
+			l2cap_chan_unlock(chan);
+			continue;
+		}
 
 		if (chan->scid == L2CAP_CID_LE_DATA) {
 			if (!status && encrypt) {

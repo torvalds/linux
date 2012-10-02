@@ -89,7 +89,7 @@ void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f)
 	nf->low_thresh = 0;
 
 	local_bh_disable();
-	inet_frag_evictor(nf, f);
+	inet_frag_evictor(nf, f, true);
 	local_bh_enable();
 }
 EXPORT_SYMBOL(inet_frags_exit_net);
@@ -158,10 +158,15 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 }
 EXPORT_SYMBOL(inet_frag_destroy);
 
-int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f)
+int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
 {
 	struct inet_frag_queue *q;
 	int work, evicted = 0;
+
+	if (!force) {
+		if (atomic_read(&nf->mem) <= nf->high_thresh)
+			return 0;
+	}
 
 	work = atomic_read(&nf->mem) - nf->low_thresh;
 	while (work > 0) {

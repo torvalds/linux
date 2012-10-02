@@ -712,10 +712,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (bounce)
 		tx_desc = mlx4_en_bounce_to_desc(priv, ring, index, desc_size);
 
-	/* Run destructor before passing skb to HW */
-	if (likely(!skb_shared(skb)))
-		skb_orphan(skb);
-
 	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !vlan_tag) {
 		*(__be32 *) (&tx_desc->ctrl.vlan_tag) |= cpu_to_be32(ring->doorbell_qpn);
 		op_own |= htonl((bf_index & 0xffff) << 8);

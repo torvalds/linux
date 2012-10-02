@@ -2102,7 +2102,7 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 		if (tidx < tbl_skip || (family && tbl->family != family))
 			continue;
 
-		if (neightbl_fill_info(skb, tbl, NETLINK_CB(cb->skb).pid,
+		if (neightbl_fill_info(skb, tbl, NETLINK_CB(cb->skb).portid,
 				       cb->nlh->nlmsg_seq, RTM_NEWNEIGHTBL,
 				       NLM_F_MULTI) <= 0)
 			break;
@@ -2115,7 +2115,7 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 				goto next;
 
 			if (neightbl_fill_param_info(skb, tbl, p,
-						     NETLINK_CB(cb->skb).pid,
+						     NETLINK_CB(cb->skb).portid,
 						     cb->nlh->nlmsg_seq,
 						     RTM_NEWNEIGHTBL,
 						     NLM_F_MULTI) <= 0)
@@ -2244,7 +2244,7 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 				continue;
 			if (idx < s_idx)
 				goto next;
-			if (neigh_fill_info(skb, n, NETLINK_CB(cb->skb).pid,
+			if (neigh_fill_info(skb, n, NETLINK_CB(cb->skb).portid,
 					    cb->nlh->nlmsg_seq,
 					    RTM_NEWNEIGH,
 					    NLM_F_MULTI) <= 0) {
@@ -2281,7 +2281,7 @@ static int pneigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 				continue;
 			if (idx < s_idx)
 				goto next;
-			if (pneigh_fill_info(skb, n, NETLINK_CB(cb->skb).pid,
+			if (pneigh_fill_info(skb, n, NETLINK_CB(cb->skb).portid,
 					    cb->nlh->nlmsg_seq,
 					    RTM_NEWNEIGH,
 					    NLM_F_MULTI, tbl) <= 0) {

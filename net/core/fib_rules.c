@@ -402,7 +402,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	if (unresolved)
 		ops->unresolved_rules++;
 
-	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).pid);
+	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).portid);
 	flush_route_cache(ops);
 	rules_ops_put(ops);
 	return 0;
@@ -500,7 +500,7 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		}
 
 		notify_rule_change(RTM_DELRULE, rule, ops, nlh,
-				   NETLINK_CB(skb).pid);
+				   NETLINK_CB(skb).portid);
 		if (ops->delete)
 			ops->delete(rule);
 		fib_rule_put(rule);
@@ -601,7 +601,7 @@ static int dump_rules(struct sk_buff *skb, struct netlink_callback *cb,
 		if (idx < cb->args[1])
 			goto skip;
 
-		if (fib_nl_fill_rule(skb, rule, NETLINK_CB(cb->skb).pid,
+		if (fib_nl_fill_rule(skb, rule, NETLINK_CB(cb->skb).portid,
 				     cb->nlh->nlmsg_seq, RTM_NEWRULE,
 				     NLM_F_MULTI, ops) < 0)
 			break;

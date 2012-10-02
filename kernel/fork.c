@@ -330,6 +330,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	tsk->btrace_seq = 0;
 #endif
 	tsk->splice_pipe = NULL;
+	tsk->task_frag.page = NULL;
 
 	account_kernel_stack(ti, 1);
 

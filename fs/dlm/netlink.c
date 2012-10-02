@@ -14,7 +14,7 @@
 #include "dlm_internal.h"
 
 static uint32_t dlm_nl_seqnum;
-static uint32_t listener_nlpid;
+static uint32_t listener_nlportid;
 
 static struct genl_family family = {
 	.id		= GENL_ID_GENERATE,
@@ -64,13 +64,13 @@ static int send_data(struct sk_buff *skb)
 		return rv;
 	}
 
-	return genlmsg_unicast(&init_net, skb, listener_nlpid);
+	return genlmsg_unicast(&init_net, skb, listener_nlportid);
 }
 
 static int user_cmd(struct sk_buff *skb, struct genl_info *info)
 {
-	listener_nlpid = info->snd_pid;
-	printk("user_cmd nlpid %u\n", listener_nlpid);
+	listener_nlportid = info->snd_portid;
+	printk("user_cmd nlpid %u\n", listener_nlportid);
 	return 0;
 }
 

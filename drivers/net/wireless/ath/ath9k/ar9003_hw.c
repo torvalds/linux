@@ -24,6 +24,7 @@
 #include "ar955x_1p0_initvals.h"
 #include "ar9580_1p0_initvals.h"
 #include "ar9462_2p0_initvals.h"
+#include "ar9565_1p0_initvals.h"
 
 /* General hardware code for the AR9003 hadware family */
 
@@ -34,14 +35,12 @@
  */
 static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 {
-#define PCIE_PLL_ON_CREQ_DIS_L1_2P0 \
-		ar9462_pciephy_pll_on_clkreq_disable_L1_2p0
-
 #define AR9462_BB_CTX_COEFJ(x)	\
 		ar9462_##x##_baseband_core_txfir_coeff_japan_2484
 
 #define AR9462_BBC_TXIFR_COEFFJ \
 		ar9462_2p0_baseband_core_txfir_coeff_japan_2484
+
 	if (AR_SREV_9330_11(ah)) {
 		/* mac */
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
@@ -220,10 +219,10 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 
 		/* Awake -> Sleep Setting */
 		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-				PCIE_PLL_ON_CREQ_DIS_L1_2P0);
+			       ar9462_pciephy_pll_on_clkreq_disable_L1_2p0);
 		/* Sleep -> Awake Setting */
 		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
-				PCIE_PLL_ON_CREQ_DIS_L1_2P0);
+			       ar9462_pciephy_pll_on_clkreq_disable_L1_2p0);
 
 		/* Fast clock modal settings */
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
@@ -302,6 +301,39 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
 				ar9580_1p0_modes_fast_clock);
+	} else if (AR_SREV_9565(ah)) {
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
+			       ar9565_1p0_mac_core);
+		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_POST],
+			       ar9565_1p0_mac_postamble);
+
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_CORE],
+			       ar9565_1p0_baseband_core);
+		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_POST],
+			       ar9565_1p0_baseband_postamble);
+
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_CORE],
+			       ar9565_1p0_radio_core);
+		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_POST],
+			       ar9565_1p0_radio_postamble);
+
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_PRE],
+			       ar9565_1p0_soc_preamble);
+		INIT_INI_ARRAY(&ah->iniSOC[ATH_INI_POST],
+			       ar9565_1p0_soc_postamble);
+
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+			       ar9565_1p0_Common_rx_gain_table);
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p0_Modes_lowest_ob_db_tx_gain_table);
+
+		INIT_INI_ARRAY(&ah->iniPcieSerdes,
+			       ar9565_1p0_pciephy_pll_on_clkreq_disable_L1);
+		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
+			       ar9565_1p0_pciephy_pll_on_clkreq_disable_L1);
+
+		INIT_INI_ARRAY(&ah->iniModesFastClock,
+				ar9565_1p0_modes_fast_clock);
 	} else {
 		/* mac */
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
@@ -374,6 +406,9 @@ static void ar9003_tx_gain_table_mode0(struct ath_hw *ah)
 	else if (AR_SREV_9462_20(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9462_modes_low_ob_db_tx_gain_table_2p0);
+	else if (AR_SREV_9565(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p0_modes_low_ob_db_tx_gain_table);
 	else
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9300Modes_lowest_ob_db_tx_gain_table_2p2);
@@ -402,6 +437,9 @@ static void ar9003_tx_gain_table_mode1(struct ath_hw *ah)
 	else if (AR_SREV_9462_20(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9462_modes_high_ob_db_tx_gain_table_2p0);
+	else if (AR_SREV_9565(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p0_modes_high_ob_db_tx_gain_table);
 	else
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9300Modes_high_ob_db_tx_gain_table_2p2);
@@ -424,6 +462,9 @@ static void ar9003_tx_gain_table_mode2(struct ath_hw *ah)
 	else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9580_1p0_low_ob_db_tx_gain_table);
+	else if (AR_SREV_9565(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p0_modes_low_ob_db_tx_gain_table);
 	else
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9300Modes_low_ob_db_tx_gain_table_2p2);
@@ -446,6 +487,9 @@ static void ar9003_tx_gain_table_mode3(struct ath_hw *ah)
 	else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9580_1p0_high_power_tx_gain_table);
+	else if (AR_SREV_9565(ah))
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9565_1p0_modes_high_power_tx_gain_table);
 	else
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9300Modes_high_power_tx_gain_table_2p2);
@@ -538,6 +582,9 @@ static void ar9003_rx_gain_table_mode1(struct ath_hw *ah)
 	} else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9580_1p0_wo_xlna_rx_gain_table);
+	else if (AR_SREV_9565(ah))
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
+			       ar9565_1p0_common_wo_xlna_rx_gain_table);
 	else
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9300Common_wo_xlna_rx_gain_table_2p2);

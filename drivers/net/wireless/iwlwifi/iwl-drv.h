@@ -90,9 +90,9 @@
  * 4) The bus specific component configures the bus
  * 5) The bus specific component calls to the drv bus agnostic part
  *    (iwl_drv_start)
- * 6) iwl_drv_start fetches the fw ASYNC, iwl_ucode_callback
- * 7) iwl_ucode_callback parses the fw file
- * 8) iwl_ucode_callback starts the wifi implementation to matches the fw
+ * 6) iwl_drv_start fetches the fw ASYNC, iwl_req_fw_callback
+ * 7) iwl_req_fw_callback parses the fw file
+ * 8) iwl_req_fw_callback starts the wifi implementation to matches the fw
  */
 
 struct iwl_drv;

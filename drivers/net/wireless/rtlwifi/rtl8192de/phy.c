@@ -1314,7 +1314,7 @@ static void _rtl92d_phy_restore_rf_env(struct ieee80211_hw *hw, u8 rfpath,
 	struct bb_reg_def *pphyreg = &rtlphy->phyreg_def[rfpath];
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_LOUD, "=====>\n");
-	/*----Restore RFENV control type----*/ ;
+	/*----Restore RFENV control type----*/
 	switch (rfpath) {
 	case RF90_PATH_A:
 	case RF90_PATH_C:

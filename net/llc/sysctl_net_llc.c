@@ -47,13 +47,6 @@ static struct ctl_table llc2_timeout_table[] = {
 };
 
 static struct ctl_table llc_station_table[] = {
-	{
-		.procname	= "ack_timeout",
-		.data		= &sysctl_llc_station_ack_timeout,
-		.maxlen		= sizeof(long),
-		.mode		= 0644,
-		.proc_handler   = proc_dointvec_jiffies,
-	},
 	{ },
 };
 

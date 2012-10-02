@@ -250,7 +250,8 @@ comment 'IPVS application helper'
 
 config	IP_VS_FTP
   	tristate "FTP protocol helper"
-        depends on IP_VS_PROTO_TCP && NF_CONNTRACK && NF_NAT
+	depends on IP_VS_PROTO_TCP && NF_CONNTRACK && NF_NAT && \
+		NF_CONNTRACK_FTP
 	select IP_VS_NFCT
 	---help---
 	  FTP is a protocol that transfers IP address and/or port number in

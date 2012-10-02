@@ -1046,6 +1046,9 @@ void do_exit(long code)
 	if (tsk->splice_pipe)
 		__free_pipe_info(tsk->splice_pipe);
 
+	if (tsk->task_frag.page)
+		put_page(tsk->task_frag.page);
+
 	validate_creds_for_do_exit(tsk);
 
 	preempt_disable();

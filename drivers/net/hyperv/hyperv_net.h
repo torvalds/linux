@@ -35,6 +35,7 @@ struct hv_netvsc_packet;
 /* Represent the xfer page packet which contains 1 or more netvsc packet */
 struct xferpage_packet {
 	struct list_head list_ent;
+	u32 status;
 
 	/* # of netvsc packets this xfer packet contains */
 	u32 count;
@@ -47,6 +48,7 @@ struct xferpage_packet {
 struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
 	struct list_head list_ent;
+	u32 status;
 
 	struct hv_device *device;
 	bool is_data_pkt;
@@ -464,8 +466,6 @@ struct nvsp_message {
 #define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*2)	/* 2MB */
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
-
-#define NETVSC_RECEIVE_SG_COUNT			1
 
 /* Preallocated receive packets */
 #define NETVSC_RECEIVE_PACKETLIST_COUNT		256

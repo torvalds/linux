@@ -3268,6 +3268,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 	 *	Output : using_dac = 1 for 64 bit DMA
 	 *			   = 0 for 32 bit DMA
 	 */
+	using_dac = false;
 	err = bnad_pci_init(bnad, pdev, &using_dac);
 	if (err)
 		goto unlock_mutex;

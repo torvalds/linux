@@ -80,10 +80,58 @@ brcmf_c_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 	strncpy(buf, name, buflen);
 
 	/* append data onto the end of the name string */
-	memcpy(&buf[len], data, datalen);
-	len += datalen;
+	if (data && datalen) {
+		memcpy(&buf[len], data, datalen);
+		len += datalen;
+	}
 
 	return len;
+}
+
+uint
+brcmf_c_mkiovar_bsscfg(char *name, char *data, uint datalen,
+		       char *buf, uint buflen, s32 bssidx)
+{
+	const s8 *prefix = "bsscfg:";
+	s8 *p;
+	u32 prefixlen;
+	u32 namelen;
+	u32 iolen;
+	__le32 bssidx_le;
+
+	if (bssidx == 0)
+		return brcmf_c_mkiovar(name, data, datalen, buf, buflen);
+
+	prefixlen = (u32) strlen(prefix); /* lengh of bsscfg prefix */
+	namelen = (u32) strlen(name) + 1; /* lengh of iovar  name + null */
+	iolen = prefixlen + namelen + sizeof(bssidx_le) + datalen;
+
+	if (buflen < 0 || iolen > (u32)buflen) {
+		brcmf_dbg(ERROR, "buffer is too short\n");
+		return 0;
+	}
+
+	p = buf;
+
+	/* copy prefix, no null */
+	memcpy(p, prefix, prefixlen);
+	p += prefixlen;
+
+	/* copy iovar name including null */
+	memcpy(p, name, namelen);
+	p += namelen;
+
+	/* bss config index as first data */
+	bssidx_le = cpu_to_le32(bssidx);
+	memcpy(p, &bssidx_le, sizeof(bssidx_le));
+	p += sizeof(bssidx_le);
+
+	/* parameter buffer follows */
+	if (datalen)
+		memcpy(p, data, datalen);
+
+	return iolen;
+
 }
 
 bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
@@ -205,7 +253,8 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 		BRCMF_E_ACTION_FRAME_COMPLETE, "ACTION FRAME TX COMPLETE"}, {
 		BRCMF_E_IF, "IF"}, {
 		BRCMF_E_RSSI, "RSSI"}, {
-		BRCMF_E_PFN_SCAN_COMPLETE, "SCAN_COMPLETE"}
+		BRCMF_E_PFN_SCAN_COMPLETE, "SCAN_COMPLETE"}, {
+		BRCMF_E_ESCAN_RESULT, "ESCAN_RESULT"}
 	};
 	uint event_type, flags, auth_type, datalen;
 	static u32 seqnum_prev;
@@ -350,6 +399,11 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 		brcmf_dbg(EVENT, "MACEVENT: %s\n", event_name);
 		break;
 
+	case BRCMF_E_ESCAN_RESULT:
+		brcmf_dbg(EVENT, "MACEVENT: %s\n", event_name);
+		datalen = 0;
+		break;
+
 	case BRCMF_E_PFN_NET_FOUND:
 	case BRCMF_E_PFN_NET_LOST:
 	case BRCMF_E_PFN_SCAN_COMPLETE:
@@ -425,13 +479,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 	}
 
 	/* show any appended data */
-	if (datalen) {
-		buf = (unsigned char *) event_data;
-		brcmf_dbg(EVENT, " data (%d) : ", datalen);
-		for (i = 0; i < datalen; i++)
-			brcmf_dbg(EVENT, " 0x%02x ", *buf++);
-		brcmf_dbg(EVENT, "\n");
-	}
+	brcmf_dbg_hex_dump(datalen, event_data, datalen, "Received data");
 }
 #endif				/* DEBUG */
 
@@ -522,8 +570,9 @@ brcmf_c_host_event(struct brcmf_pub *drvr, int *ifidx, void *pktdata,
 	}
 
 #ifdef DEBUG
-	brcmf_c_show_host_event(event, event_data);
-#endif				/* DEBUG */
+	if (BRCMF_EVENT_ON())
+		brcmf_c_show_host_event(event, event_data);
+#endif /* DEBUG */
 
 	return 0;
 }

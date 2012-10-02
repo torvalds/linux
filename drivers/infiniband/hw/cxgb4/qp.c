@@ -1155,7 +1155,7 @@ static int ring_kernel_db(struct c4iw_qp *qhp, u32 qid, u16 inc)
 		 */
 		if (cxgb4_dbfifo_count(qhp->rhp->rdev.lldi.ports[0], 1) <
 		    (qhp->rhp->rdev.lldi.dbfifo_int_thresh << 5)) {
-			writel(V_QID(qid) | V_PIDX(inc), qhp->wq.db);
+			writel(QID(qid) | PIDX(inc), qhp->wq.db);
 			break;
 		}
 		set_current_state(TASK_UNINTERRUPTIBLE);

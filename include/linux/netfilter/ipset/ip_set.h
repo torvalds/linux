@@ -190,6 +190,7 @@ enum ip_set_dim {
 	 * If changed, new revision of iptables match/target is required.
 	 */
 	IPSET_DIM_MAX = 6,
+	IPSET_BIT_RETURN_NOMATCH = 7,
 };
 
 /* Option flags for kernel operations */
@@ -198,6 +199,7 @@ enum ip_set_kopt {
 	IPSET_DIM_ONE_SRC = (1 << IPSET_DIM_ONE),
 	IPSET_DIM_TWO_SRC = (1 << IPSET_DIM_TWO),
 	IPSET_DIM_THREE_SRC = (1 << IPSET_DIM_THREE),
+	IPSET_RETURN_NOMATCH = (1 << IPSET_BIT_RETURN_NOMATCH),
 };
 
 #ifdef __KERNEL__
@@ -206,8 +208,14 @@ enum ip_set_kopt {
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/x_tables.h>
+#include <linux/stringify.h>
 #include <linux/vmalloc.h>
 #include <net/netlink.h>
+
+#define _IP_SET_MODULE_DESC(a, b, c)		\
+	MODULE_DESCRIPTION(a " type of IP sets, revisions " b "-" c)
+#define IP_SET_MODULE_DESC(a, b, c)		\
+	_IP_SET_MODULE_DESC(a, __stringify(b), __stringify(c))
 
 /* Set features */
 enum ip_set_feature {
@@ -223,6 +231,8 @@ enum ip_set_feature {
 	IPSET_TYPE_NAME = (1 << IPSET_TYPE_NAME_FLAG),
 	IPSET_TYPE_IFACE_FLAG = 5,
 	IPSET_TYPE_IFACE = (1 << IPSET_TYPE_IFACE_FLAG),
+	IPSET_TYPE_NOMATCH_FLAG = 6,
+	IPSET_TYPE_NOMATCH = (1 << IPSET_TYPE_NOMATCH_FLAG),
 	/* Strictly speaking not a feature, but a flag for dumping:
 	 * this settype must be dumped last */
 	IPSET_DUMP_LAST_FLAG = 7,
@@ -249,7 +259,7 @@ struct ip_set_type_variant {
 	 *		returns negative error code,
 	 *			zero for no match/success to add/delete
 	 *			positive for matching element */
-	int (*kadt)(struct ip_set *set, const struct sk_buff * skb,
+	int (*kadt)(struct ip_set *set, const struct sk_buff *skb,
 		    const struct xt_action_param *par,
 		    enum ipset_adt adt, const struct ip_set_adt_opt *opt);
 
@@ -424,7 +434,8 @@ static inline int nla_put_ipaddr4(struct sk_buff *skb, int type, __be32 ipaddr)
 	return ret;
 }
 
-static inline int nla_put_ipaddr6(struct sk_buff *skb, int type, const struct in6_addr *ipaddrptr)
+static inline int nla_put_ipaddr6(struct sk_buff *skb, int type,
+				  const struct in6_addr *ipaddrptr)
 {
 	struct nlattr *__nested = ipset_nest_start(skb, type);
 	int ret;

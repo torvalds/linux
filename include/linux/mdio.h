@@ -377,5 +377,88 @@ static inline void mdio45_ethtool_gset(const struct mdio_if_info *mdio,
 extern int mdio_mii_ioctl(const struct mdio_if_info *mdio,
 			  struct mii_ioctl_data *mii_data, int cmd);
 
+/**
+ * mmd_eee_cap_to_ethtool_sup_t
+ * @eee_cap: value of the MMD EEE Capability register
+ *
+ * A small helper function that translates MMD EEE Capability (3.20) bits
+ * to ethtool supported settings.
+ */
+static inline u32 mmd_eee_cap_to_ethtool_sup_t(u16 eee_cap)
+{
+	u32 supported = 0;
+
+	if (eee_cap & MDIO_EEE_100TX)
+		supported |= SUPPORTED_100baseT_Full;
+	if (eee_cap & MDIO_EEE_1000T)
+		supported |= SUPPORTED_1000baseT_Full;
+	if (eee_cap & MDIO_EEE_10GT)
+		supported |= SUPPORTED_10000baseT_Full;
+	if (eee_cap & MDIO_EEE_1000KX)
+		supported |= SUPPORTED_1000baseKX_Full;
+	if (eee_cap & MDIO_EEE_10GKX4)
+		supported |= SUPPORTED_10000baseKX4_Full;
+	if (eee_cap & MDIO_EEE_10GKR)
+		supported |= SUPPORTED_10000baseKR_Full;
+
+	return supported;
+}
+
+/**
+ * mmd_eee_adv_to_ethtool_adv_t
+ * @eee_adv: value of the MMD EEE Advertisement/Link Partner Ability registers
+ *
+ * A small helper function that translates the MMD EEE Advertisment (7.60)
+ * and MMD EEE Link Partner Ability (7.61) bits to ethtool advertisement
+ * settings.
+ */
+static inline u32 mmd_eee_adv_to_ethtool_adv_t(u16 eee_adv)
+{
+	u32 adv = 0;
+
+	if (eee_adv & MDIO_EEE_100TX)
+		adv |= ADVERTISED_100baseT_Full;
+	if (eee_adv & MDIO_EEE_1000T)
+		adv |= ADVERTISED_1000baseT_Full;
+	if (eee_adv & MDIO_EEE_10GT)
+		adv |= ADVERTISED_10000baseT_Full;
+	if (eee_adv & MDIO_EEE_1000KX)
+		adv |= ADVERTISED_1000baseKX_Full;
+	if (eee_adv & MDIO_EEE_10GKX4)
+		adv |= ADVERTISED_10000baseKX4_Full;
+	if (eee_adv & MDIO_EEE_10GKR)
+		adv |= ADVERTISED_10000baseKR_Full;
+
+	return adv;
+}
+
+/**
+ * ethtool_adv_to_mmd_eee_adv_t
+ * @adv: the ethtool advertisement settings
+ *
+ * A small helper function that translates ethtool advertisement settings
+ * to EEE advertisements for the MMD EEE Advertisement (7.60) and
+ * MMD EEE Link Partner Ability (7.61) registers.
+ */
+static inline u16 ethtool_adv_to_mmd_eee_adv_t(u32 adv)
+{
+	u16 reg = 0;
+
+	if (adv & ADVERTISED_100baseT_Full)
+		reg |= MDIO_EEE_100TX;
+	if (adv & ADVERTISED_1000baseT_Full)
+		reg |= MDIO_EEE_1000T;
+	if (adv & ADVERTISED_10000baseT_Full)
+		reg |= MDIO_EEE_10GT;
+	if (adv & ADVERTISED_1000baseKX_Full)
+		reg |= MDIO_EEE_1000KX;
+	if (adv & ADVERTISED_10000baseKX4_Full)
+		reg |= MDIO_EEE_10GKX4;
+	if (adv & ADVERTISED_10000baseKR_Full)
+		reg |= MDIO_EEE_10GKR;
+
+	return reg;
+}
+
 #endif /* __KERNEL__ */
 #endif /* __LINUX_MDIO_H__ */

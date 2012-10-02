@@ -59,6 +59,9 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	u16 status;
 	u16 poll_count = 0;
 
+	if (WARN_ON(unlikely(wl->state == WLCORE_STATE_RESTARTING)))
+		return -EIO;
+
 	cmd = buf;
 	cmd->id = cpu_to_le16(id);
 	cmd->status = 0;
@@ -990,7 +993,7 @@ int wl12xx_cmd_build_klv_null_data(struct wl1271 *wl,
 
 	ret = wl1271_cmd_template_set(wl, wlvif->role_id, CMD_TEMPL_KLV,
 				      skb->data, skb->len,
-				      CMD_TEMPL_KLV_IDX_NULL_DATA,
+				      wlvif->sta.klv_template_id,
 				      wlvif->basic_rate);
 
 out:
@@ -1785,9 +1788,16 @@ int wl12xx_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		      wlvif->bss_type == BSS_TYPE_IBSS)))
 		return -EINVAL;
 
-	ret = wl12xx_cmd_role_start_dev(wl, wlvif);
+	ret = wl12xx_cmd_role_enable(wl,
+				     wl12xx_wlvif_to_vif(wlvif)->addr,
+				     WL1271_ROLE_DEVICE,
+				     &wlvif->dev_role_id);
 	if (ret < 0)
 		goto out;
+
+	ret = wl12xx_cmd_role_start_dev(wl, wlvif);
+	if (ret < 0)
+		goto out_disable;
 
 	ret = wl12xx_roc(wl, wlvif, wlvif->dev_role_id);
 	if (ret < 0)
@@ -1797,6 +1807,8 @@ int wl12xx_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 out_stop:
 	wl12xx_cmd_role_stop_dev(wl, wlvif);
+out_disable:
+	wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
 out:
 	return ret;
 }
@@ -1824,6 +1836,11 @@ int wl12xx_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	ret = wl12xx_cmd_role_stop_dev(wl, wlvif);
 	if (ret < 0)
 		goto out;
+
+	ret = wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
+	if (ret < 0)
+		goto out;
+
 out:
 	return ret;
 }

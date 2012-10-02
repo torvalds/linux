@@ -76,6 +76,14 @@ static void rfc2863_policy(struct net_device *dev)
 }
 
 
+void linkwatch_init_dev(struct net_device *dev)
+{
+	/* Handle pre-registration link state changes */
+	if (!netif_carrier_ok(dev) || netif_dormant(dev))
+		rfc2863_policy(dev);
+}
+
+
 static bool linkwatch_urgent_event(struct net_device *dev)
 {
 	if (!netif_running(dev))

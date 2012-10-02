@@ -714,6 +714,7 @@ bool ar9003_mci_start_reset(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	return true;
 }
+EXPORT_SYMBOL(ar9003_mci_start_reset);
 
 int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 			 struct ath9k_hw_cal_data *caldata)
@@ -812,8 +813,8 @@ static void ar9003_mci_osla_setup(struct ath_hw *ah, bool enable)
 		      AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN, 1);
 }
 
-void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
-		      bool is_full_sleep)
+int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
+		     bool is_full_sleep)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
@@ -823,14 +824,13 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		is_full_sleep, is_2g);
 
 	if (!mci->gpm_addr && !mci->sched_addr) {
-		ath_dbg(common, MCI,
-			"MCI GPM and schedule buffers are not allocated\n");
-		return;
+		ath_err(common, "MCI GPM and schedule buffers are not allocated\n");
+		return -ENOMEM;
 	}
 
 	if (REG_READ(ah, AR_BTCOEX_CTRL) == 0xdeadbeef) {
-		ath_dbg(common, MCI, "BTCOEX control register is dead\n");
-		return;
+		ath_err(common, "BTCOEX control register is dead\n");
+		return -EINVAL;
 	}
 
 	/* Program MCI DMA related registers */
@@ -912,6 +912,8 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 
 	if (en_int)
 		ar9003_mci_enable_interrupt(ah);
+
+	return 0;
 }
 
 void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep)
@@ -1026,6 +1028,7 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool force)
 
 		if (!(mci->config & ATH_MCI_CONFIG_DISABLE_OSLA))
 			ar9003_mci_osla_setup(ah, true);
+		REG_WRITE(ah, AR_SELFGEN_MASK, 0x02);
 	} else {
 		ar9003_mci_send_lna_take(ah, true);
 		udelay(5);
@@ -1142,8 +1145,8 @@ void ar9003_mci_init_cal_done(struct ath_hw *ah)
 	ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
 }
 
-void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
-		      u16 len, u32 sched_addr)
+int ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
+		     u16 len, u32 sched_addr)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 
@@ -1152,7 +1155,7 @@ void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 	mci->gpm_len = len;
 	mci->sched_addr = sched_addr;
 
-	ar9003_mci_reset(ah, true, true, true);
+	return ar9003_mci_reset(ah, true, true, true);
 }
 EXPORT_SYMBOL(ar9003_mci_setup);
 
@@ -1201,12 +1204,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 
 		ar9003_mci_2g5g_switch(ah, false);
 		break;
-	case MCI_STATE_SET_BT_CAL_START:
-		mci->bt_state = MCI_BT_CAL_START;
-		break;
-	case MCI_STATE_SET_BT_CAL:
-		mci->bt_state = MCI_BT_CAL;
-		break;
 	case MCI_STATE_RESET_REQ_WAKE:
 		ar9003_mci_reset_req_wakeup(ah);
 		mci->update_2g5g = true;
@@ -1239,6 +1236,10 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 		break;
 	case MCI_STATE_NEED_FTP_STOMP:
 		value = !(mci->config & ATH_MCI_CONFIG_DISABLE_FTP_STOMP);
+		break;
+	case MCI_STATE_NEED_FLUSH_BT_INFO:
+		value = (!mci->unhalt_bt_gpm && mci->need_flush_btinfo) ? 1 : 0;
+		mci->need_flush_btinfo = false;
 		break;
 	default:
 		break;
@@ -1289,7 +1290,7 @@ void ar9003_mci_set_power_awake(struct ath_hw *ah)
 	}
 	REG_WRITE(ah, AR_DIAG_SW, (diag_sw | BIT(27) | BIT(19) | BIT(18)));
 	lna_ctrl = REG_READ(ah, AR_OBS_BUS_CTRL) & 0x3;
-	bt_sleep = REG_READ(ah, AR_MCI_RX_STATUS) & AR_MCI_RX_REMOTE_SLEEP;
+	bt_sleep = MS(REG_READ(ah, AR_MCI_RX_STATUS), AR_MCI_RX_REMOTE_SLEEP);
 
 	REG_WRITE(ah, AR_BTCOEX_CTRL2, btcoex_ctrl2);
 	REG_WRITE(ah, AR_DIAG_SW, diag_sw);
@@ -1327,6 +1328,10 @@ u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more)
 
 	if (first) {
 		gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+
+		if (gpm_ptr >= mci->gpm_len)
+			gpm_ptr = 0;
+
 		mci->gpm_idx = gpm_ptr;
 		return gpm_ptr;
 	}
@@ -1371,6 +1376,10 @@ u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more)
 			more_gpm = MCI_GPM_NOMORE;
 
 		temp_index = mci->gpm_idx;
+
+		if (temp_index >= mci->gpm_len)
+			temp_index = 0;
+
 		mci->gpm_idx++;
 
 		if (mci->gpm_idx >= mci->gpm_len)

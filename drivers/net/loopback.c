@@ -157,7 +157,7 @@ static const struct net_device_ops loopback_ops = {
  */
 static void loopback_setup(struct net_device *dev)
 {
-	dev->mtu		= (16 * 1024) + 20 + 20 + 12;
+	dev->mtu		= 64 * 1024;
 	dev->hard_header_len	= ETH_HLEN;	/* 14	*/
 	dev->addr_len		= ETH_ALEN;	/* 6	*/
 	dev->tx_queue_len	= 0;
@@ -197,6 +197,7 @@ static __net_init int loopback_net_init(struct net *net)
 	if (err)
 		goto out_free_netdev;
 
+	BUG_ON(dev->ifindex != LOOPBACK_IFINDEX);
 	net->loopback_dev = dev;
 	return 0;
 

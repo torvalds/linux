@@ -846,13 +846,16 @@ static inline int skb_shared(const struct sk_buff *skb)
  *
  *	NULL is returned on a memory allocation failure.
  */
-static inline struct sk_buff *skb_share_check(struct sk_buff *skb,
-					      gfp_t pri)
+static inline struct sk_buff *skb_share_check(struct sk_buff *skb, gfp_t pri)
 {
 	might_sleep_if(pri & __GFP_WAIT);
 	if (skb_shared(skb)) {
 		struct sk_buff *nskb = skb_clone(skb, pri);
-		kfree_skb(skb);
+
+		if (likely(nskb))
+			consume_skb(skb);
+		else
+			kfree_skb(skb);
 		skb = nskb;
 	}
 	return skb;
