@@ -45,6 +45,7 @@
 
 #include "board.h"
 #include "clock.h"
+#include "common.h"
 
 struct tegra_ehci_platform_data tegra_ehci1_pdata = {
 	.operating_mode = TEGRA_USB_OTG,
@@ -177,6 +178,7 @@ static const char *tegra20_dt_board_compat[] = {
 
 DT_MACHINE_START(TEGRA_DT, "nVidia Tegra20 (Flattened Device Tree)")
 	.map_io		= tegra_map_common_io,
+	.smp		= smp_ops(tegra_smp_ops),
 	.init_early	= tegra20_init_early,
 	.init_irq	= tegra_dt_init_irq,
 	.handle_irq	= gic_handle_irq,

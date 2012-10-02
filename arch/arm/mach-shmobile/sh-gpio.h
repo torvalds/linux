@@ -12,21 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/sh_pfc.h>
 #include <linux/io.h>
-
-#ifdef CONFIG_GPIOLIB
-
-static inline int irq_to_gpio(unsigned int irq)
-{
-	return -ENOSYS;
-}
-
-#else
-
-#define __ARM_GPIOLIB_COMPLEX
-
-#endif /* CONFIG_GPIOLIB */
 
 /*
  * FIXME !!

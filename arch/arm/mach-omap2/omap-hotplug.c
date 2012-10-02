@@ -26,16 +26,11 @@
 
 #include "powerdomain.h"
 
-int platform_cpu_kill(unsigned int cpu)
-{
-	return 1;
-}
-
 /*
  * platform-specific code to shutdown a CPU
  * Called with IRQs disabled
  */
-void __ref platform_cpu_die(unsigned int cpu)
+void __ref omap4_cpu_die(unsigned int cpu)
 {
 	unsigned int boot_cpu = 0;
 	void __iomem *base = omap_get_wakeupgen_base();
@@ -74,13 +69,4 @@ void __ref platform_cpu_die(unsigned int cpu)
 		}
 		pr_debug("CPU%u: spurious wakeup call\n", cpu);
 	}
-}
-
-int platform_cpu_disable(unsigned int cpu)
-{
-	/*
-	 * we don't allow CPU 0 to be shutdown (it is still too special
-	 * e.g. clock tick interrupts)
-	 */
-	return cpu == 0 ? -EPERM : 0;
 }

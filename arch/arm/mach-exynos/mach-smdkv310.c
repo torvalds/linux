@@ -35,16 +35,16 @@
 #include <plat/fb.h>
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
 #include <plat/mfc.h>
-#include <plat/ehci.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
 #include <plat/clock.h>
 #include <plat/hdmi.h>
 
 #include <mach/map.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/usb-exynos.h>
 
 #include <drm/exynos_drm.h>
 #include "common.h"
@@ -424,6 +424,7 @@ MACHINE_START(SMDKV310, "SMDKV310")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	/* Maintainer: Changhwan Youn <chaos.youn@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdkv310_map_io,
 	.handle_irq	= gic_handle_irq,
@@ -436,6 +437,7 @@ MACHINE_END
 MACHINE_START(SMDKC210, "SMDKC210")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	.atag_offset	= 0x100,
+	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdkv310_map_io,
 	.handle_irq	= gic_handle_irq,

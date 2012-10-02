@@ -19,8 +19,8 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <net/dsa.h>
-#include <plat/mv_xor.h>
-#include <plat/ehci-orion.h>
+#include <linux/platform_data/dma-mv_xor.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 #include <mach/bridge-regs.h>
 
 /* Create a clkdev entry for a given device/clk */

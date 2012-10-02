@@ -26,7 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-subdev.h>
-#include <plat/mipi_csis.h>
+#include <linux/platform_data/mipi-csis.h>
 #include "mipi-csis.h"
 
 static int debug;

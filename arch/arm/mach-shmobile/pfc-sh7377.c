@@ -19,7 +19,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/gpio.h>
+#include <linux/sh_pfc.h>
 #include <mach/sh7377.h>
 
 #define CPU_ALL_PORT(fn, pfx, sfx)				\

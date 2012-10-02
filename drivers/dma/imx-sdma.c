@@ -38,8 +38,8 @@
 #include <linux/of_device.h>
 
 #include <asm/irq.h>
-#include <mach/sdma.h>
-#include <mach/dma.h>
+#include <linux/platform_data/dma-imx-sdma.h>
+#include <linux/platform_data/dma-imx.h>
 #include <mach/hardware.h>
 
 #include "dmaengine.h"

@@ -19,17 +19,12 @@
 
 static void (*tegra_hotplug_shutdown)(void);
 
-int platform_cpu_kill(unsigned int cpu)
-{
-	return 1;
-}
-
 /*
  * platform-specific code to shutdown a CPU
  *
  * Called with IRQs disabled
  */
-void platform_cpu_die(unsigned int cpu)
+void __ref tegra_cpu_die(unsigned int cpu)
 {
 	cpu = cpu_logical_map(cpu);
 
@@ -47,7 +42,7 @@ void platform_cpu_die(unsigned int cpu)
 	BUG();
 }
 
-int platform_cpu_disable(unsigned int cpu)
+int tegra_cpu_disable(unsigned int cpu)
 {
 	/*
 	 * we don't allow CPU 0 to be shutdown (it is still too special

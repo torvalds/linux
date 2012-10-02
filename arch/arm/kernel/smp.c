@@ -19,7 +19,6 @@
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/cpu.h>
-#include <linux/smp.h>
 #include <linux/seq_file.h>
 #include <linux/irq.h>
 #include <linux/percpu.h>
@@ -27,6 +26,7 @@
 #include <linux/completion.h>
 
 #include <linux/atomic.h>
+#include <asm/smp.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu.h>
 #include <asm/cputype.h>
@@ -42,6 +42,7 @@
 #include <asm/ptrace.h>
 #include <asm/localtimer.h>
 #include <asm/smp_plat.h>
+#include <asm/mach/arch.h>
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -49,6 +50,12 @@
  * where to place its SVC stack
  */
 struct secondary_data secondary_data;
+
+/*
+ * control for which core is the next to come out of the secondary
+ * boot "holding pen"
+ */
+volatile int __cpuinitdata pen_release = -1;
 
 enum ipi_msg_type {
 	IPI_TIMER = 2,
@@ -59,6 +66,14 @@ enum ipi_msg_type {
 };
 
 static DECLARE_COMPLETION(cpu_running);
+
+static struct smp_operations smp_ops;
+
+void __init smp_set_ops(struct smp_operations *ops)
+{
+	if (ops)
+		smp_ops = *ops;
+};
 
 int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
@@ -100,13 +115,64 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	return ret;
 }
 
+/* platform specific SMP operations */
+void __init smp_init_cpus(void)
+{
+	if (smp_ops.smp_init_cpus)
+		smp_ops.smp_init_cpus();
+}
+
+static void __init platform_smp_prepare_cpus(unsigned int max_cpus)
+{
+	if (smp_ops.smp_prepare_cpus)
+		smp_ops.smp_prepare_cpus(max_cpus);
+}
+
+static void __cpuinit platform_secondary_init(unsigned int cpu)
+{
+	if (smp_ops.smp_secondary_init)
+		smp_ops.smp_secondary_init(cpu);
+}
+
+int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	if (smp_ops.smp_boot_secondary)
+		return smp_ops.smp_boot_secondary(cpu, idle);
+	return -ENOSYS;
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 static void percpu_timer_stop(void);
 
+static int platform_cpu_kill(unsigned int cpu)
+{
+	if (smp_ops.cpu_kill)
+		return smp_ops.cpu_kill(cpu);
+	return 1;
+}
+
+static void platform_cpu_die(unsigned int cpu)
+{
+	if (smp_ops.cpu_die)
+		smp_ops.cpu_die(cpu);
+}
+
+static int platform_cpu_disable(unsigned int cpu)
+{
+	if (smp_ops.cpu_disable)
+		return smp_ops.cpu_disable(cpu);
+
+	/*
+	 * By default, allow disabling all CPUs except the first one,
+	 * since this is special on a lot of platforms, e.g. because
+	 * of clock tick interrupts.
+	 */
+	return cpu == 0 ? -EPERM : 0;
+}
 /*
  * __cpu_disable runs on the processor to be shutdown.
  */
-int __cpu_disable(void)
+int __cpuinit __cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 	int ret;
@@ -149,7 +215,7 @@ static DECLARE_COMPLETION(cpu_died);
  * called on the thread which is asking for a CPU to be shutdown -
  * waits until shutdown has completed, or it is timed out.
  */
-void __cpu_die(unsigned int cpu)
+void __cpuinit __cpu_die(unsigned int cpu)
 {
 	if (!wait_for_completion_timeout(&cpu_died, msecs_to_jiffies(5000))) {
 		pr_err("CPU%u: cpu didn't die\n", cpu);

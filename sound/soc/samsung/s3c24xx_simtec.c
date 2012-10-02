@@ -13,7 +13,7 @@
 
 #include <sound/soc.h>
 
-#include <plat/audio-simtec.h>
+#include <linux/platform_data/asoc-s3c24xx_simtec.h>
 
 #include "s3c24xx-i2s.h"
 #include "s3c24xx_simtec.h"

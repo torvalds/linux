@@ -20,7 +20,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/armada-370-xp.h>
+#include "armada-370-xp.h"
 #include "common.h"
 
 static struct map_desc armada_370_xp_io_desc[] __initdata = {

@@ -10,7 +10,7 @@
 
 #include <plat/ste_dma40.h>
 #include <mach/hardware.h>
-#include <mach/usb.h>
+#include <linux/platform_data/usb-musb-ux500.h>
 
 #define MUSB_DMA40_RX_CH { \
 		.mode = STEDMA40_MODE_LOGICAL, \

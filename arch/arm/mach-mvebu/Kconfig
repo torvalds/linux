@@ -1,3 +1,13 @@
+config ARCH_MVEBU
+	bool "Marvell SOCs with Device Tree support" if ARCH_MULTI_V7
+	select CLKSRC_MMIO
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
 if ARCH_MVEBU
 
 menu "Marvell SOC with device tree"

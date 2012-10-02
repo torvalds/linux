@@ -139,6 +139,8 @@ extern void imx_gpc_post_resume(void);
 extern int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
 extern void imx6q_clock_map_io(void);
 
+extern void imx_cpu_die(unsigned int cpu);
+
 #ifdef CONFIG_PM
 extern void imx6q_pm_init(void);
 extern void imx51_pm_init(void);
@@ -154,5 +156,7 @@ extern int mx51_neon_fixup(void);
 #else
 static inline int mx51_neon_fixup(void) { return 0; }
 #endif
+
+extern struct smp_operations imx_smp_ops;
 
 #endif

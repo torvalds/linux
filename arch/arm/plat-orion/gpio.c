@@ -23,7 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
-#include <plat/gpio.h>
+#include <plat/orion-gpio.h>
 
 /*
  * GPIO unit register offsets.
