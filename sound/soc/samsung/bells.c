@@ -40,6 +40,10 @@ struct bells_drvdata {
 	int asyncclk_rate;
 };
 
+static struct bells_drvdata wm2200_drvdata = {
+	.sysclk_rate = 22579200,
+};
+
 static struct bells_drvdata wm5102_drvdata = {
 	.sysclk_rate = 45158400,
 	.asyncclk_rate = 49152000,
@@ -223,6 +227,30 @@ static const struct snd_soc_pcm_stream sub_params = {
 	.channels_max = 2,
 };
 
+static struct snd_soc_dai_link bells_dai_wm2200[] = {
+	{
+		.name = "CPU-DSP",
+		.stream_name = "CPU-DSP",
+		.cpu_dai_name = "samsung-i2s.0",
+		.codec_dai_name = "wm0010-sdi1",
+		.platform_name = "samsung-audio",
+		.codec_name = "spi0.0",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
+				| SND_SOC_DAIFMT_CBM_CFM,
+	},
+	{
+		.name = "DSP-CODEC",
+		.stream_name = "DSP-CODEC",
+		.cpu_dai_name = "wm0010-sdi2",
+		.codec_dai_name = "wm2200",
+		.codec_name = "wm2200.1-003a",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
+				| SND_SOC_DAIFMT_CBM_CFM,
+		.params = &sub_params,
+		.ignore_suspend = 1,
+	},
+};
+
 static struct snd_soc_dai_link bells_dai_wm5102[] = {
 	{
 		.name = "CPU-DSP",
@@ -327,6 +355,24 @@ static struct snd_soc_dapm_route bells_routes[] = {
 };
 
 static struct snd_soc_card bells_cards[] = {
+	{
+		.name = "Bells WM2200",
+		.owner = THIS_MODULE,
+		.dai_link = bells_dai_wm2200,
+		.num_links = ARRAY_SIZE(bells_dai_wm2200),
+		.codec_conf = bells_codec_conf,
+		.num_configs = ARRAY_SIZE(bells_codec_conf),
+
+		.late_probe = bells_late_probe,
+
+		.dapm_routes = bells_routes,
+		.num_dapm_routes = ARRAY_SIZE(bells_routes),
+
+		.set_bias_level = bells_set_bias_level,
+		.set_bias_level_post = bells_set_bias_level_post,
+
+		.drvdata = &wm2200_drvdata,
+	},
 	{
 		.name = "Bells WM5102",
 		.owner = THIS_MODULE,
