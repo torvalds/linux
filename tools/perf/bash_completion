@@ -21,10 +21,16 @@ _perf()
 
 	cmd=${COMP_WORDS[0]}
 
-	# List perf subcommands
+	# List perf subcommands or long options
 	if [ $COMP_CWORD -eq 1 ]; then
-		cmds=$($cmd --list-cmds)
-		COMPREPLY=( $( compgen -W '$cmds' -- "$cur" ) )
+		if [[ $cur == --* ]]; then
+			COMPREPLY=( $( compgen -W '--help --version \
+			--exec-path --html-path --paginate --no-pager \
+			--perf-dir --work-tree --debugfs-dir' -- "$cur" ) )
+		else
+			cmds=$($cmd --list-cmds)
+			COMPREPLY=( $( compgen -W '$cmds' -- "$cur" ) )
+		fi
 	# List possible events for -e option
 	elif [[ $prev == "-e" && "${COMP_WORDS[1]}" == @(record|stat|top) ]]; then
 		cmds=$($cmd list --raw-dump)
