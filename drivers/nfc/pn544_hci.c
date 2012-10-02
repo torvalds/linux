@@ -986,7 +986,7 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 	} else if (target->supported_protocols & NFC_PROTO_MIFARE_MASK) {
 		if (target->nfcid1_len != 4 && target->nfcid1_len != 7 &&
 		    target->nfcid1_len != 10)
-			return -EPROTO;
+			return -EOPNOTSUPP;
 
 		 return nfc_hci_send_cmd(hdev, NFC_HCI_RF_READER_A_GATE,
 				     PN544_RF_READER_CMD_ACTIVATE_NEXT,

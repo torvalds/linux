@@ -697,6 +697,8 @@ static void nfc_check_pres_work(struct work_struct *work)
 
 	if (dev->active_target && timer_pending(&dev->check_pres_timer) == 0) {
 		rc = dev->ops->check_presence(dev, dev->active_target);
+		if (rc == -EOPNOTSUPP)
+			goto exit;
 		if (!rc) {
 			mod_timer(&dev->check_pres_timer, jiffies +
 				  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
@@ -708,6 +710,7 @@ static void nfc_check_pres_work(struct work_struct *work)
 		}
 	}
 
+exit:
 	device_unlock(&dev->dev);
 }
 
