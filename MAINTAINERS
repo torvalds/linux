@@ -4805,6 +4805,16 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
 F:	drivers/usb/musb/
 
+MXL5007T MEDIA DRIVER
+M:	Michael Krufky <mkrufky@linuxtv.org>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+W:	http://github.com/mkrufky
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+T:	git git://linuxtv.org/mkrufky/tuners.git
+S:	Maintained
+F:	drivers/media/tuners/mxl5007t.*
+
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
 M:	Andrew Gallatin <gallatin@myri.com>
 L:	netdev@vger.kernel.org
