@@ -411,9 +411,12 @@ int rndis_filter_receive(struct hv_device *dev,
 	struct rndis_device *rndis_dev;
 	struct rndis_message *rndis_msg;
 	struct net_device *ndev;
+	int ret = 0;
 
-	if (!net_dev)
-		return -EINVAL;
+	if (!net_dev) {
+		ret = -EINVAL;
+		goto exit;
+	}
 
 	ndev = net_dev->ndev;
 
@@ -421,14 +424,16 @@ int rndis_filter_receive(struct hv_device *dev,
 	if (!net_dev->extension) {
 		netdev_err(ndev, "got rndis message but no rndis device - "
 			  "dropping this message!\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto exit;
 	}
 
 	rndis_dev = (struct rndis_device *)net_dev->extension;
 	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED) {
 		netdev_err(ndev, "got rndis message but rndis device "
 			   "uninitialized...dropping this message!\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto exit;
 	}
 
 	rndis_msg = pkt->data;
@@ -460,7 +465,11 @@ int rndis_filter_receive(struct hv_device *dev,
 		break;
 	}
 
-	return 0;
+exit:
+	if (ret != 0)
+		pkt->status = NVSP_STAT_FAIL;
+
+	return ret;
 }
 
 static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,

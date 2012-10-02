@@ -265,6 +265,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	if (!net) {
 		netdev_err(net, "got receive callback but net device"
 			" not initialized yet\n");
+		packet->status = NVSP_STAT_FAIL;
 		return 0;
 	}
 
@@ -272,6 +273,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	skb = netdev_alloc_skb_ip_align(net, packet->total_data_buflen);
 	if (unlikely(!skb)) {
 		++net->stats.rx_dropped;
+		packet->status = NVSP_STAT_FAIL;
 		return 0;
 	}
 
