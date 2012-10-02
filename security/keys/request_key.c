@@ -139,8 +139,8 @@ static int call_sbin_request_key(struct key_construction *cons,
 		goto error_link;
 
 	/* record the UID and GID */
-	sprintf(uid_str, "%d", cred->fsuid);
-	sprintf(gid_str, "%d", cred->fsgid);
+	sprintf(uid_str, "%d", from_kuid(&init_user_ns, cred->fsuid));
+	sprintf(gid_str, "%d", from_kgid(&init_user_ns, cred->fsgid));
 
 	/* we say which key is under construction */
 	sprintf(key_str, "%d", key->serial);
@@ -442,7 +442,7 @@ static struct key *construct_key_and_link(struct key_type *type,
 
 	kenter("");
 
-	user = key_user_lookup(current_fsuid(), current_user_ns());
+	user = key_user_lookup(current_fsuid());
 	if (!user)
 		return ERR_PTR(-ENOMEM);
 

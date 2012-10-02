@@ -272,8 +272,8 @@ long long ubifs_calc_available(const struct ubifs_info *c, int min_idx_lebs)
  */
 static int can_use_rp(struct ubifs_info *c)
 {
-	if (current_fsuid() == c->rp_uid || capable(CAP_SYS_RESOURCE) ||
-	    (c->rp_gid != 0 && in_group_p(c->rp_gid)))
+	if (uid_eq(current_fsuid(), c->rp_uid) || capable(CAP_SYS_RESOURCE) ||
+	    (!gid_eq(c->rp_gid, GLOBAL_ROOT_GID) && in_group_p(c->rp_gid)))
 		return 1;
 	return 0;
 }

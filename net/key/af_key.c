@@ -3661,7 +3661,7 @@ static int pfkey_seq_show(struct seq_file *f, void *v)
 			       atomic_read(&s->sk_refcnt),
 			       sk_rmem_alloc_get(s),
 			       sk_wmem_alloc_get(s),
-			       sock_i_uid(s),
+			       from_kuid_munged(seq_user_ns(f), sock_i_uid(s)),
 			       sock_i_ino(s)
 			       );
 	return 0;

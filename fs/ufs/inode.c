@@ -597,8 +597,8 @@ static int ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 	/*
 	 * Linux now has 32-bit uid and gid, so we can support EFT.
 	 */
-	inode->i_uid = ufs_get_inode_uid(sb, ufs_inode);
-	inode->i_gid = ufs_get_inode_gid(sb, ufs_inode);
+	i_uid_write(inode, ufs_get_inode_uid(sb, ufs_inode));
+	i_gid_write(inode, ufs_get_inode_gid(sb, ufs_inode));
 
 	inode->i_size = fs64_to_cpu(sb, ufs_inode->ui_size);
 	inode->i_atime.tv_sec = fs32_to_cpu(sb, ufs_inode->ui_atime.tv_sec);
@@ -645,8 +645,8 @@ static int ufs2_read_inode(struct inode *inode, struct ufs2_inode *ufs2_inode)
         /*
          * Linux now has 32-bit uid and gid, so we can support EFT.
          */
-	inode->i_uid = fs32_to_cpu(sb, ufs2_inode->ui_uid);
-	inode->i_gid = fs32_to_cpu(sb, ufs2_inode->ui_gid);
+	i_uid_write(inode, fs32_to_cpu(sb, ufs2_inode->ui_uid));
+	i_gid_write(inode, fs32_to_cpu(sb, ufs2_inode->ui_gid));
 
 	inode->i_size = fs64_to_cpu(sb, ufs2_inode->ui_size);
 	inode->i_atime.tv_sec = fs64_to_cpu(sb, ufs2_inode->ui_atime);
@@ -745,8 +745,8 @@ static void ufs1_update_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 	ufs_inode->ui_mode = cpu_to_fs16(sb, inode->i_mode);
 	ufs_inode->ui_nlink = cpu_to_fs16(sb, inode->i_nlink);
 
-	ufs_set_inode_uid(sb, ufs_inode, inode->i_uid);
-	ufs_set_inode_gid(sb, ufs_inode, inode->i_gid);
+	ufs_set_inode_uid(sb, ufs_inode, i_uid_read(inode));
+	ufs_set_inode_gid(sb, ufs_inode, i_gid_read(inode));
 		
 	ufs_inode->ui_size = cpu_to_fs64(sb, inode->i_size);
 	ufs_inode->ui_atime.tv_sec = cpu_to_fs32(sb, inode->i_atime.tv_sec);
@@ -789,8 +789,8 @@ static void ufs2_update_inode(struct inode *inode, struct ufs2_inode *ufs_inode)
 	ufs_inode->ui_mode = cpu_to_fs16(sb, inode->i_mode);
 	ufs_inode->ui_nlink = cpu_to_fs16(sb, inode->i_nlink);
 
-	ufs_inode->ui_uid = cpu_to_fs32(sb, inode->i_uid);
-	ufs_inode->ui_gid = cpu_to_fs32(sb, inode->i_gid);
+	ufs_inode->ui_uid = cpu_to_fs32(sb, i_uid_read(inode));
+	ufs_inode->ui_gid = cpu_to_fs32(sb, i_gid_read(inode));
 
 	ufs_inode->ui_size = cpu_to_fs64(sb, inode->i_size);
 	ufs_inode->ui_atime = cpu_to_fs64(sb, inode->i_atime.tv_sec);

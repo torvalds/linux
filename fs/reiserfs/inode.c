@@ -1155,8 +1155,8 @@ static void init_inode(struct inode *inode, struct treepath *path)
 		set_inode_sd_version(inode, STAT_DATA_V1);
 		inode->i_mode = sd_v1_mode(sd);
 		set_nlink(inode, sd_v1_nlink(sd));
-		inode->i_uid = sd_v1_uid(sd);
-		inode->i_gid = sd_v1_gid(sd);
+		i_uid_write(inode, sd_v1_uid(sd));
+		i_gid_write(inode, sd_v1_gid(sd));
 		inode->i_size = sd_v1_size(sd);
 		inode->i_atime.tv_sec = sd_v1_atime(sd);
 		inode->i_mtime.tv_sec = sd_v1_mtime(sd);
@@ -1200,9 +1200,9 @@ static void init_inode(struct inode *inode, struct treepath *path)
 
 		inode->i_mode = sd_v2_mode(sd);
 		set_nlink(inode, sd_v2_nlink(sd));
-		inode->i_uid = sd_v2_uid(sd);
+		i_uid_write(inode, sd_v2_uid(sd));
 		inode->i_size = sd_v2_size(sd);
-		inode->i_gid = sd_v2_gid(sd);
+		i_gid_write(inode, sd_v2_gid(sd));
 		inode->i_mtime.tv_sec = sd_v2_mtime(sd);
 		inode->i_atime.tv_sec = sd_v2_atime(sd);
 		inode->i_ctime.tv_sec = sd_v2_ctime(sd);
@@ -1258,9 +1258,9 @@ static void inode2sd(void *sd, struct inode *inode, loff_t size)
 
 	set_sd_v2_mode(sd_v2, inode->i_mode);
 	set_sd_v2_nlink(sd_v2, inode->i_nlink);
-	set_sd_v2_uid(sd_v2, inode->i_uid);
+	set_sd_v2_uid(sd_v2, i_uid_read(inode));
 	set_sd_v2_size(sd_v2, size);
-	set_sd_v2_gid(sd_v2, inode->i_gid);
+	set_sd_v2_gid(sd_v2, i_gid_read(inode));
 	set_sd_v2_mtime(sd_v2, inode->i_mtime.tv_sec);
 	set_sd_v2_atime(sd_v2, inode->i_atime.tv_sec);
 	set_sd_v2_ctime(sd_v2, inode->i_ctime.tv_sec);
@@ -1280,8 +1280,8 @@ static void inode2sd_v1(void *sd, struct inode *inode, loff_t size)
 	struct stat_data_v1 *sd_v1 = (struct stat_data_v1 *)sd;
 
 	set_sd_v1_mode(sd_v1, inode->i_mode);
-	set_sd_v1_uid(sd_v1, inode->i_uid);
-	set_sd_v1_gid(sd_v1, inode->i_gid);
+	set_sd_v1_uid(sd_v1, i_uid_read(inode));
+	set_sd_v1_gid(sd_v1, i_gid_read(inode));
 	set_sd_v1_nlink(sd_v1, inode->i_nlink);
 	set_sd_v1_size(sd_v1, size);
 	set_sd_v1_atime(sd_v1, inode->i_atime.tv_sec);
@@ -1869,7 +1869,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		goto out_bad_inode;
 	}
 	if (old_format_only(sb)) {
-		if (inode->i_uid & ~0xffff || inode->i_gid & ~0xffff) {
+		if (i_uid_read(inode) & ~0xffff || i_gid_read(inode) & ~0xffff) {
 			pathrelse(&path_to_key);
 			/* i_uid or i_gid is too big to be stored in stat data v3.5 */
 			err = -EINVAL;
@@ -3140,16 +3140,16 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
-	if ((((attr->ia_valid & ATTR_UID) && (attr->ia_uid & ~0xffff)) ||
-	     ((attr->ia_valid & ATTR_GID) && (attr->ia_gid & ~0xffff))) &&
+	if ((((attr->ia_valid & ATTR_UID) && (from_kuid(&init_user_ns, attr->ia_uid) & ~0xffff)) ||
+	     ((attr->ia_valid & ATTR_GID) && (from_kgid(&init_user_ns, attr->ia_gid) & ~0xffff))) &&
 	    (get_inode_sd_version(inode) == STAT_DATA_V1)) {
 		/* stat data of format v3.5 has 16 bit uid and gid */
 		error = -EINVAL;
 		goto out;
 	}
 
-	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
-	    (ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
+	if ((ia_valid & ATTR_UID && !uid_eq(attr->ia_uid, inode->i_uid)) ||
+	    (ia_valid & ATTR_GID && !gid_eq(attr->ia_gid, inode->i_gid))) {
 		struct reiserfs_transaction_handle th;
 		int jbegin_count =
 		    2 *

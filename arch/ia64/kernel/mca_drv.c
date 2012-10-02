@@ -158,7 +158,8 @@ mca_handler_bh(unsigned long paddr, void *iip, unsigned long ipsr)
 	ia64_mlogbuf_dump();
 	printk(KERN_ERR "OS_MCA: process [cpu %d, pid: %d, uid: %d, "
 		"iip: %p, psr: 0x%lx,paddr: 0x%lx](%s) encounters MCA.\n",
-	       raw_smp_processor_id(), current->pid, current_uid(),
+	       raw_smp_processor_id(), current->pid,
+		from_kuid(&init_user_ns, current_uid()),
 		iip, ipsr, paddr, current->comm);
 
 	spin_lock(&mca_bh_lock);

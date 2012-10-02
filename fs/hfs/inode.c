@@ -594,9 +594,9 @@ int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
 
 	/* no uig/gid changes and limit which mode bits can be set */
 	if (((attr->ia_valid & ATTR_UID) &&
-	     (attr->ia_uid != hsb->s_uid)) ||
+	     (!uid_eq(attr->ia_uid, hsb->s_uid))) ||
 	    ((attr->ia_valid & ATTR_GID) &&
-	     (attr->ia_gid != hsb->s_gid)) ||
+	     (!gid_eq(attr->ia_gid, hsb->s_gid))) ||
 	    ((attr->ia_valid & ATTR_MODE) &&
 	     ((S_ISDIR(inode->i_mode) &&
 	       (attr->ia_mode != inode->i_mode)) ||

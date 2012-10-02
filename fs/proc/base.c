@@ -1089,7 +1089,8 @@ static ssize_t proc_loginuid_read(struct file * file, char __user * buf,
 	if (!task)
 		return -ESRCH;
 	length = scnprintf(tmpbuf, TMPBUFLEN, "%u",
-				audit_get_loginuid(task));
+			   from_kuid(file->f_cred->user_ns,
+				     audit_get_loginuid(task)));
 	put_task_struct(task);
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
 }
@@ -1101,6 +1102,7 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 	char *page, *tmp;
 	ssize_t length;
 	uid_t loginuid;
+	kuid_t kloginuid;
 
 	rcu_read_lock();
 	if (current != pid_task(proc_pid(inode), PIDTYPE_PID)) {
@@ -1130,7 +1132,13 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 		goto out_free_page;
 
 	}
-	length = audit_set_loginuid(loginuid);
+	kloginuid = make_kuid(file->f_cred->user_ns, loginuid);
+	if (!uid_valid(kloginuid)) {
+		length = -EINVAL;
+		goto out_free_page;
+	}
+
+	length = audit_set_loginuid(kloginuid);
 	if (likely(length == 0))
 		length = count;
 
@@ -2983,6 +2991,11 @@ static int proc_gid_map_open(struct inode *inode, struct file *file)
 	return proc_id_map_open(inode, file, &proc_gid_seq_operations);
 }
 
+static int proc_projid_map_open(struct inode *inode, struct file *file)
+{
+	return proc_id_map_open(inode, file, &proc_projid_seq_operations);
+}
+
 static const struct file_operations proc_uid_map_operations = {
 	.open		= proc_uid_map_open,
 	.write		= proc_uid_map_write,
@@ -2994,6 +3007,14 @@ static const struct file_operations proc_uid_map_operations = {
 static const struct file_operations proc_gid_map_operations = {
 	.open		= proc_gid_map_open,
 	.write		= proc_gid_map_write,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= proc_id_map_release,
+};
+
+static const struct file_operations proc_projid_map_operations = {
+	.open		= proc_projid_map_open,
+	.write		= proc_projid_map_write,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= proc_id_map_release,
@@ -3105,6 +3126,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_USER_NS
 	REG("uid_map",    S_IRUGO|S_IWUSR, proc_uid_map_operations),
 	REG("gid_map",    S_IRUGO|S_IWUSR, proc_gid_map_operations),
+	REG("projid_map", S_IRUGO|S_IWUSR, proc_projid_map_operations),
 #endif
 };
 
@@ -3468,6 +3490,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_USER_NS
 	REG("uid_map",    S_IRUGO|S_IWUSR, proc_uid_map_operations),
 	REG("gid_map",    S_IRUGO|S_IWUSR, proc_gid_map_operations),
+	REG("projid_map", S_IRUGO|S_IWUSR, proc_projid_map_operations),
 #endif
 };
 

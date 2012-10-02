@@ -452,7 +452,7 @@ static int ocfs2_xattr_get_acl(struct dentry *dentry, const char *name,
 		return PTR_ERR(acl);
 	if (acl == NULL)
 		return -ENODATA;
-	ret = posix_acl_to_xattr(acl, buffer, size);
+	ret = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 	posix_acl_release(acl);
 
 	return ret;
@@ -475,7 +475,7 @@ static int ocfs2_xattr_set_acl(struct dentry *dentry, const char *name,
 		return -EPERM;
 
 	if (value) {
-		acl = posix_acl_from_xattr(value, size);
+		acl = posix_acl_from_xattr(&init_user_ns, value, size);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 		else if (acl) {

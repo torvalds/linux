@@ -70,7 +70,7 @@ ssize_t nfs3_getxattr(struct dentry *dentry, const char *name,
 		if (type == ACL_TYPE_ACCESS && acl->a_count == 0)
 			error = -ENODATA;
 		else
-			error = posix_acl_to_xattr(acl, buffer, size);
+			error = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 		posix_acl_release(acl);
 	} else
 		error = -ENODATA;
@@ -92,7 +92,7 @@ int nfs3_setxattr(struct dentry *dentry, const char *name,
 	else
 		return -EOPNOTSUPP;
 
-	acl = posix_acl_from_xattr(value, size);
+	acl = posix_acl_from_xattr(&init_user_ns, value, size);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	error = nfs3_proc_setacl(inode, type, acl);

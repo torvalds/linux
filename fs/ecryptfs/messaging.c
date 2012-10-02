@@ -33,7 +33,7 @@ static struct hlist_head *ecryptfs_daemon_hash;
 struct mutex ecryptfs_daemon_hash_mux;
 static int ecryptfs_hash_bits;
 #define ecryptfs_current_euid_hash(uid) \
-		hash_long((unsigned long)current_euid(), ecryptfs_hash_bits)
+	hash_long((unsigned long)from_kuid(&init_user_ns, current_euid()), ecryptfs_hash_bits)
 
 static u32 ecryptfs_msg_counter;
 static struct ecryptfs_msg_ctx *ecryptfs_msg_ctx_arr;
@@ -121,8 +121,7 @@ int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon)
 	hlist_for_each_entry(*daemon, elem,
 			    &ecryptfs_daemon_hash[ecryptfs_current_euid_hash()],
 			    euid_chain) {
-		if ((*daemon)->file->f_cred->euid == current_euid() &&
-		    (*daemon)->file->f_cred->user_ns == current_user_ns()) {
+		if (uid_eq((*daemon)->file->f_cred->euid, current_euid())) {
 			rc = 0;
 			goto out;
 		}

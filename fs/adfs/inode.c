@@ -304,8 +304,8 @@ adfs_notify_change(struct dentry *dentry, struct iattr *attr)
 	 * we can't change the UID or GID of any file -
 	 * we have a global UID/GID in the superblock
 	 */
-	if ((ia_valid & ATTR_UID && attr->ia_uid != ADFS_SB(sb)->s_uid) ||
-	    (ia_valid & ATTR_GID && attr->ia_gid != ADFS_SB(sb)->s_gid))
+	if ((ia_valid & ATTR_UID && !uid_eq(attr->ia_uid, ADFS_SB(sb)->s_uid)) ||
+	    (ia_valid & ATTR_GID && !gid_eq(attr->ia_gid, ADFS_SB(sb)->s_gid)))
 		error = -EPERM;
 
 	if (error)

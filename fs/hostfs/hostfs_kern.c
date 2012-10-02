@@ -542,8 +542,8 @@ static int read_name(struct inode *ino, char *name)
 	ino->i_ino = st.ino;
 	ino->i_mode = st.mode;
 	set_nlink(ino, st.nlink);
-	ino->i_uid = st.uid;
-	ino->i_gid = st.gid;
+	i_uid_write(ino, st.uid);
+	i_gid_write(ino, st.gid);
 	ino->i_atime = st.atime;
 	ino->i_mtime = st.mtime;
 	ino->i_ctime = st.ctime;
@@ -808,11 +808,11 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 	if (attr->ia_valid & ATTR_UID) {
 		attrs.ia_valid |= HOSTFS_ATTR_UID;
-		attrs.ia_uid = attr->ia_uid;
+		attrs.ia_uid = from_kuid(&init_user_ns, attr->ia_uid);
 	}
 	if (attr->ia_valid & ATTR_GID) {
 		attrs.ia_valid |= HOSTFS_ATTR_GID;
-		attrs.ia_gid = attr->ia_gid;
+		attrs.ia_gid = from_kgid(&init_user_ns, attr->ia_gid);
 	}
 	if (attr->ia_valid & ATTR_SIZE) {
 		attrs.ia_valid |= HOSTFS_ATTR_SIZE;
