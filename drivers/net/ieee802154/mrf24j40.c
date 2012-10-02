@@ -718,7 +718,7 @@ static int __devexit mrf24j40_remove(struct spi_device *spi)
 	dev_dbg(printdev(devrec), "remove\n");
 
 	free_irq(spi->irq, devrec);
-	flush_work_sync(&devrec->irqwork); /* TODO: Is this the right call? */
+	flush_work(&devrec->irqwork); /* TODO: Is this the right call? */
 	ieee802154_unregister_device(devrec->dev);
 	ieee802154_free_device(devrec->dev);
 	/* TODO: Will ieee802154_free_device() wait until ->xmit() is

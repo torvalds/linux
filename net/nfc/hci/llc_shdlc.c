@@ -588,7 +588,7 @@ static void llc_shdlc_connect_timeout(unsigned long data)
 
 	pr_debug("\n");
 
-	queue_work(system_nrt_wq, &shdlc->sm_work);
+	schedule_work(&shdlc->sm_work);
 }
 
 static void llc_shdlc_t1_timeout(unsigned long data)
@@ -597,7 +597,7 @@ static void llc_shdlc_t1_timeout(unsigned long data)
 
 	pr_debug("SoftIRQ: need to send ack\n");
 
-	queue_work(system_nrt_wq, &shdlc->sm_work);
+	schedule_work(&shdlc->sm_work);
 }
 
 static void llc_shdlc_t2_timeout(unsigned long data)
@@ -606,7 +606,7 @@ static void llc_shdlc_t2_timeout(unsigned long data)
 
 	pr_debug("SoftIRQ: need to retransmit\n");
 
-	queue_work(system_nrt_wq, &shdlc->sm_work);
+	schedule_work(&shdlc->sm_work);
 }
 
 static void llc_shdlc_sm_work(struct work_struct *work)
@@ -646,7 +646,7 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 	case SHDLC_NEGOTIATING:
 		if (timer_pending(&shdlc->connect_timer) == 0) {
 			shdlc->state = SHDLC_CONNECTING;
-			queue_work(system_nrt_wq, &shdlc->sm_work);
+			schedule_work(&shdlc->sm_work);
 		}
 
 		llc_shdlc_handle_rcv_queue(shdlc);
@@ -711,7 +711,7 @@ static int llc_shdlc_connect(struct llc_shdlc *shdlc)
 
 	mutex_unlock(&shdlc->state_mutex);
 
-	queue_work(system_nrt_wq, &shdlc->sm_work);
+	schedule_work(&shdlc->sm_work);
 
 	wait_event(connect_wq, shdlc->connect_result != 1);
 
@@ -728,7 +728,7 @@ static void llc_shdlc_disconnect(struct llc_shdlc *shdlc)
 
 	mutex_unlock(&shdlc->state_mutex);
 
-	queue_work(system_nrt_wq, &shdlc->sm_work);
+	schedule_work(&shdlc->sm_work);
 }
 
 /*
@@ -746,7 +746,7 @@ static void llc_shdlc_recv_frame(struct llc_shdlc *shdlc, struct sk_buff *skb)
 		skb_queue_tail(&shdlc->rcv_q, skb);
 	}
 
-	queue_work(system_nrt_wq, &shdlc->sm_work);
+	schedule_work(&shdlc->sm_work);
 }
 
 static void *llc_shdlc_init(struct nfc_hci_dev *hdev, xmit_to_drv_t xmit_to_drv,
@@ -837,7 +837,7 @@ static int llc_shdlc_xmit_from_hci(struct nfc_llc *llc, struct sk_buff *skb)
 
 	skb_queue_tail(&shdlc->send_q, skb);
 
-	queue_work(system_nrt_wq, &shdlc->sm_work);
+	schedule_work(&shdlc->sm_work);
 
 	return 0;
 }

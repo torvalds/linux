@@ -715,7 +715,7 @@ static void nfc_check_pres_timeout(unsigned long data)
 {
 	struct nfc_dev *dev = (struct nfc_dev *)data;
 
-	queue_work(system_nrt_wq, &dev->check_pres_work);
+	schedule_work(&dev->check_pres_work);
 }
 
 struct class nfc_class = {

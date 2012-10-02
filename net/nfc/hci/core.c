@@ -141,7 +141,7 @@ static void __nfc_hci_cmd_completion(struct nfc_hci_dev *hdev, int err,
 	kfree(hdev->cmd_pending_msg);
 	hdev->cmd_pending_msg = NULL;
 
-	queue_work(system_nrt_wq, &hdev->msg_tx_work);
+	schedule_work(&hdev->msg_tx_work);
 }
 
 void nfc_hci_resp_received(struct nfc_hci_dev *hdev, u8 result,
@@ -326,7 +326,7 @@ static void nfc_hci_cmd_timeout(unsigned long data)
 {
 	struct nfc_hci_dev *hdev = (struct nfc_hci_dev *)data;
 
-	queue_work(system_nrt_wq, &hdev->msg_tx_work);
+	schedule_work(&hdev->msg_tx_work);
 }
 
 static int hci_dev_connect_gates(struct nfc_hci_dev *hdev, u8 gate_count,
@@ -714,7 +714,7 @@ static void nfc_hci_recv_from_llc(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 		nfc_hci_hcp_message_rx(hdev, pipe, type, instruction, hcp_skb);
 	} else {
 		skb_queue_tail(&hdev->msg_rx_queue, hcp_skb);
-		queue_work(system_nrt_wq, &hdev->msg_rx_work);
+		schedule_work(&hdev->msg_rx_work);
 	}
 }
 
