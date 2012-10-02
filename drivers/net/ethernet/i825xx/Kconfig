@@ -5,9 +5,7 @@
 config NET_VENDOR_I825XX
 	bool "Intel (82586/82593/82596) devices"
 	default y
-	depends on NET_VENDOR_INTEL && (ISA || ISA_DMA_API || ARM || \
-		   ARCH_ACORN || MCA || MCA_LEGACY || SNI_RM || SUN3 || \
-		   GSC || BVME6000 || MVME16x || EXPERIMENTAL)
+	depends on NET_VENDOR_INTEL
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -33,8 +31,8 @@ config ELPLUS
 	  will be called 3c505.
 
 config EL16
-	tristate "3c507 \"EtherLink 16\" support (EXPERIMENTAL)"
-	depends on ISA && EXPERIMENTAL
+	tristate "3c507 \"EtherLink 16\" support"
+	depends on ISA
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
@@ -149,8 +147,8 @@ config SUN3_82586
 	  VME boards.
 
 config ZNET
-	tristate "Zenith Z-Note support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && ISA_DMA_API && X86
+	tristate "Zenith Z-Note support"
+	depends on ISA_DMA_API && X86
 	---help---
 	  The Zenith Z-Note notebook computer has a built-in network
 	  (Ethernet) card, and this is the Linux driver for it. Note that the
