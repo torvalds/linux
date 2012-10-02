@@ -431,35 +431,47 @@ static void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
 	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(vf), vmolr);
 }
 
-static void ixgbe_set_vmvir(struct ixgbe_adapter *adapter, u32 vid, u32 vf)
+static void ixgbe_set_vmvir(struct ixgbe_adapter *adapter,
+			    u16 vid, u16 qos, u32 vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vmvir = vid | (qos << VLAN_PRIO_SHIFT) | IXGBE_VMVIR_VLANA_DEFAULT;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), vmvir);
+}
+
+static void ixgbe_clear_vmvir(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	if (vid)
-		IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf),
-				(vid | IXGBE_VMVIR_VLANA_DEFAULT));
-	else
-		IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), 0);
 }
-
 static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
 	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
+	u8 num_tcs = netdev_get_num_tc(adapter->netdev);
+
+	/* add PF assigned VLAN or VLAN 0 */
+	ixgbe_set_vf_vlan(adapter, true, vfinfo->pf_vlan, vf);
 
 	/* reset offloads to defaults */
-	if (adapter->vfinfo[vf].pf_vlan) {
-		ixgbe_set_vf_vlan(adapter, true,
-				  adapter->vfinfo[vf].pf_vlan, vf);
-		ixgbe_set_vmvir(adapter,
-				(adapter->vfinfo[vf].pf_vlan |
-				 (adapter->vfinfo[vf].pf_qos <<
-				  VLAN_PRIO_SHIFT)), vf);
-		ixgbe_set_vmolr(hw, vf, false);
+	ixgbe_set_vmolr(hw, vf, !vfinfo->pf_vlan);
+
+	/* set outgoing tags for VFs */
+	if (!vfinfo->pf_vlan && !vfinfo->pf_qos && !num_tcs) {
+		ixgbe_clear_vmvir(adapter, vf);
 	} else {
-		ixgbe_set_vf_vlan(adapter, true, 0, vf);
-		ixgbe_set_vmvir(adapter, 0, vf);
-		ixgbe_set_vmolr(hw, vf, true);
+		if (vfinfo->pf_qos || !num_tcs)
+			ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
+					vfinfo->pf_qos, vf);
+		else
+			ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
+					adapter->default_up, vf);
+
+		if (vfinfo->spoofchk_enabled)
+			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
 	}
 
 	/* reset multicast table array for vf */
@@ -661,8 +673,9 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 	int add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
 	int vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
 	int err;
+	u8 tcs = netdev_get_num_tc(adapter->netdev);
 
-	if (adapter->vfinfo[vf].pf_vlan) {
+	if (adapter->vfinfo[vf].pf_vlan || tcs) {
 		e_warn(drv,
 		       "VF %d attempted to override administratively set VLAN configuration\n"
 		       "Reload the VF driver to resume operations\n",
@@ -896,7 +909,7 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 		err = ixgbe_set_vf_vlan(adapter, true, vlan, vf);
 		if (err)
 			goto out;
-		ixgbe_set_vmvir(adapter, vlan | (qos << VLAN_PRIO_SHIFT), vf);
+		ixgbe_set_vmvir(adapter, vlan, qos, vf);
 		ixgbe_set_vmolr(hw, vf, false);
 		if (adapter->vfinfo[vf].spoofchk_enabled)
 			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
@@ -916,7 +929,7 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 	} else {
 		err = ixgbe_set_vf_vlan(adapter, false,
 					adapter->vfinfo[vf].pf_vlan, vf);
-		ixgbe_set_vmvir(adapter, vlan, vf);
+		ixgbe_clear_vmvir(adapter, vf);
 		ixgbe_set_vmolr(hw, vf, true);
 		hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
 		if (adapter->vfinfo[vf].vlan_count)

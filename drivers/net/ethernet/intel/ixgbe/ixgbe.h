@@ -601,6 +601,8 @@ struct ixgbe_adapter {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *ixgbe_dbg_adapter;
 #endif /*CONFIG_DEBUG_FS*/
+
+	u8 default_up;
 };
 
 struct ixgbe_fdir_filter {
