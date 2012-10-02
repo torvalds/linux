@@ -1959,7 +1959,6 @@ static void usbg_deregister_configfs(void)
 static struct usb_interface_descriptor bot_intf_desc = {
 	.bLength =              sizeof(bot_intf_desc),
 	.bDescriptorType =      USB_DT_INTERFACE,
-	.bAlternateSetting =	0,
 	.bNumEndpoints =        2,
 	.bAlternateSetting =	USB_G_ALT_INT_BBB,
 	.bInterfaceClass =      USB_CLASS_MASS_STORAGE,
