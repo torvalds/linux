@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -195,3 +196,7 @@ static struct platform_driver adc_jack_driver = {
 };
 
 module_platform_driver(adc_jack_driver);
+
+MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
+MODULE_DESCRIPTION("ADC Jack extcon driver");
+MODULE_LICENSE("GPL v2");
