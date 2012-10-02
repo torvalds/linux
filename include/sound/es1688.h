@@ -22,8 +22,8 @@
  *
  */
 
-#include "control.h"
-#include "pcm.h"
+#include <sound/control.h>
+#include <sound/pcm.h>
 #include <linux/interrupt.h>
 
 #define ES1688_HW_AUTO		0x0000

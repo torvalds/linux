@@ -28,9 +28,9 @@
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
-#include "pcm.h"
-#include "control.h"
-#include "info.h"
+#include <sound/pcm.h>
+#include <sound/control.h>
+#include <sound/info.h>
 
 /* maximum number of devices on the AC97 bus */
 #define	AC97_BUS_MAX_DEVICES	4

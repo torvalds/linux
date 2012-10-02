@@ -119,8 +119,8 @@ struct snd_sb_csp_info {
 #define SNDRV_SB_CSP_IOCTL_RESTART	_IO('H', 0x16)
 
 #ifdef __KERNEL__
-#include "sb.h"
-#include "hwdep.h"
+#include <sound/sb.h>
+#include <sound/hwdep.h>
 #include <linux/firmware.h>
 
 struct snd_sb_csp;

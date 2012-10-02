@@ -384,9 +384,9 @@ pte_t *populate_extra_pte(unsigned long vaddr);
 #endif	/* __ASSEMBLY__ */
 
 #ifdef CONFIG_X86_32
-# include "pgtable_32.h"
+# include <asm/pgtable_32.h>
 #else
-# include "pgtable_64.h"
+# include <asm/pgtable_64.h>
 #endif
 
 #ifndef __ASSEMBLY__

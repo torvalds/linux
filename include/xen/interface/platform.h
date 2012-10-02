@@ -27,7 +27,7 @@
 #ifndef __XEN_PUBLIC_PLATFORM_H__
 #define __XEN_PUBLIC_PLATFORM_H__
 
-#include "xen.h"
+#include <xen/interface/xen.h>
 
 #define XENPF_INTERFACE_VERSION 0x03000001
 

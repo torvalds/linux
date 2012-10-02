@@ -35,7 +35,7 @@
 #define snd_pcm_chip(pcm) ((pcm)->private_data)
 
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
-#include "pcm_oss.h"
+#include <sound/pcm_oss.h>
 #endif
 
 /*

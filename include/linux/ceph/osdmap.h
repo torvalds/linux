@@ -2,8 +2,8 @@
 #define _FS_CEPH_OSDMAP_H
 
 #include <linux/rbtree.h>
-#include "types.h"
-#include "ceph_fs.h"
+#include <linux/ceph/types.h>
+#include <linux/ceph/ceph_fs.h>
 #include <linux/crush/crush.h>
 
 /*

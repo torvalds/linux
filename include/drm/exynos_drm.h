@@ -29,7 +29,7 @@
 #ifndef _EXYNOS_DRM_H_
 #define _EXYNOS_DRM_H_
 
-#include "drm.h"
+#include <drm/drm.h>
 
 /**
  * User-desired buffer creation information structure.

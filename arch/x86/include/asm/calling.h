@@ -46,7 +46,7 @@ For 32-bit we have the following conventions - kernel is built with
 
 */
 
-#include "dwarf2.h"
+#include <asm/dwarf2.h>
 
 /*
  * 64-bit system call stack frame layout defines and helpers,

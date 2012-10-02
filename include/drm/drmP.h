@@ -85,9 +85,9 @@ struct module;
 struct drm_file;
 struct drm_device;
 
-#include "drm_os_linux.h"
-#include "drm_hashtab.h"
-#include "drm_mm.h"
+#include <drm/drm_os_linux.h>
+#include <drm/drm_hashtab.h>
+#include <drm/drm_mm.h>
 
 #define DRM_UT_CORE 		0x01
 #define DRM_UT_DRIVER		0x02
@@ -676,7 +676,7 @@ struct drm_gem_object {
 	struct dma_buf_attachment *import_attach;
 };
 
-#include "drm_crtc.h"
+#include <drm/drm_crtc.h>
 
 /* per-master structure */
 struct drm_master {
@@ -1304,7 +1304,7 @@ extern void drm_vm_close_locked(struct drm_device *dev, struct vm_area_struct *v
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 				/* Memory management support (drm_memory.h) */
-#include "drm_memory.h"
+#include <drm/drm_memory.h>
 extern void drm_free_agp(DRM_AGP_MEM * handle, int pages);
 extern int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start);
 extern DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
@@ -1613,7 +1613,7 @@ void drm_gem_vm_open(struct vm_area_struct *vma);
 void drm_gem_vm_close(struct vm_area_struct *vma);
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
-#include "drm_global.h"
+#include <drm/drm_global.h>
 
 static inline void
 drm_gem_object_reference(struct drm_gem_object *obj)
@@ -1722,7 +1722,7 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 {
 }
 
-#include "drm_mem_util.h"
+#include <drm/drm_mem_util.h>
 
 extern int drm_fill_in_dev(struct drm_device *dev,
 			   const struct pci_device_id *ent,

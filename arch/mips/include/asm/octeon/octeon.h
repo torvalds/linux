@@ -8,7 +8,7 @@
 #ifndef __ASM_OCTEON_OCTEON_H
 #define __ASM_OCTEON_OCTEON_H
 
-#include "cvmx.h"
+#include <asm/octeon/cvmx.h>
 
 extern uint64_t octeon_bootmem_alloc_range_phys(uint64_t size,
 						uint64_t alignment,

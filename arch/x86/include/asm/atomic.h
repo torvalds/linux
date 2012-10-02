@@ -309,9 +309,9 @@ static inline void atomic_or_long(unsigned long *v1, unsigned long v2)
 #define smp_mb__after_atomic_inc()	barrier()
 
 #ifdef CONFIG_X86_32
-# include "atomic64_32.h"
+# include <asm/atomic64_32.h>
 #else
-# include "atomic64_64.h"
+# include <asm/atomic64_64.h>
 #endif
 
 #endif /* _ASM_X86_ATOMIC_H */

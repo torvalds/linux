@@ -9,8 +9,8 @@
 #ifndef __XEN_PUBLIC_IO_NETIF_H__
 #define __XEN_PUBLIC_IO_NETIF_H__
 
-#include "ring.h"
-#include "../grant_table.h"
+#include <xen/interface/io/ring.h>
+#include <xen/interface/grant_table.h>
 
 /*
  * Notifications after enqueuing any type of message should be conditional on

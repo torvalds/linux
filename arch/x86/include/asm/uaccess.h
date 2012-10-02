@@ -589,9 +589,9 @@ extern struct movsl_mask {
 #define ARCH_HAS_NOCACHE_UACCESS 1
 
 #ifdef CONFIG_X86_32
-# include "uaccess_32.h"
+# include <asm/uaccess_32.h>
 #else
-# include "uaccess_64.h"
+# include <asm/uaccess_64.h>
 #endif
 
 #endif /* _ASM_X86_UACCESS_H */

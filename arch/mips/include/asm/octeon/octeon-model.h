@@ -313,6 +313,6 @@ static inline int __octeon_is_model_runtime__(uint32_t model)
 const char *octeon_model_get_string(uint32_t chip_id);
 const char *octeon_model_get_string_buffer(uint32_t chip_id, char *buffer);
 
-#include "octeon-feature.h"
+#include <asm/octeon/octeon-feature.h>
 
 #endif /* __OCTEON_MODEL_H__ */

@@ -5,7 +5,7 @@
 #include <linux/kref.h>
 #include <linux/rbtree.h>
 
-#include "messenger.h"
+#include <linux/ceph/messenger.h>
 
 struct ceph_client;
 struct ceph_mount_args;

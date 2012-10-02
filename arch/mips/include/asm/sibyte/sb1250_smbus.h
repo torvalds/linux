@@ -34,7 +34,7 @@
 #ifndef _SB1250_SMBUS_H
 #define _SB1250_SMBUS_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 /*
  * SMBus Clock Frequency Register (Table 14-2)

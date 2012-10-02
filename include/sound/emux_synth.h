@@ -21,15 +21,15 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include "seq_kernel.h"
-#include "seq_device.h"
-#include "soundfont.h"
-#include "seq_midi_emul.h"
+#include <sound/seq_kernel.h>
+#include <sound/seq_device.h>
+#include <sound/soundfont.h>
+#include <sound/seq_midi_emul.h>
 #ifdef CONFIG_SND_SEQUENCER_OSS
-#include "seq_oss.h"
+#include <sound/seq_oss.h>
 #endif
-#include "emux_legacy.h"
-#include "seq_virmidi.h"
+#include <sound/emux_legacy.h>
+#include <sound/seq_virmidi.h>
 
 /*
  * compile flags

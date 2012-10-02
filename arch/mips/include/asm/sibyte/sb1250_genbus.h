@@ -34,7 +34,7 @@
 #ifndef _SB1250_GENBUS_H
 #define _SB1250_GENBUS_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 /*
  * Generic Bus Region Configuration Registers (Table 11-4)
