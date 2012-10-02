@@ -2579,6 +2579,16 @@ T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/dvb-usb-v2/ec168*
 
+DVB_USB_MXL111SF MEDIA DRIVER
+M:	Michael Krufky <mkrufky@linuxtv.org>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org/
+W:	http://github.com/mkrufky
+Q:	http://patchwork.linuxtv.org/project/linux-media/list/
+T:	git git://linuxtv.org/mkrufky/mxl111sf.git
+S:	Maintained
+F:	drivers/media/usb/dvb-usb-v2/mxl111sf*
+
 DVB_USB_RTL28XXU MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
