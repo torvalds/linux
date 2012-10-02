@@ -18,46 +18,20 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/crc-ccitt.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/miscdevice.h>
-#include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/i2c.h>
 
 #include <linux/nfc.h>
 #include <net/nfc/hci.h>
 #include <net/nfc/llc.h>
 
-#include <linux/nfc/pn544.h>
-
-#define DRIVER_DESC "HCI NFC driver for PN544"
-
-#define PN544_HCI_DRIVER_NAME "pn544_hci"
+#include "pn544.h"
 
 /* Timing restrictions (ms) */
 #define PN544_HCI_RESETVEN_TIME		30
 
-static struct i2c_device_id pn544_hci_id_table[] = {
-	{"pn544", 0},
-	{}
-};
-
-MODULE_DEVICE_TABLE(i2c, pn544_hci_id_table);
-
 #define HCI_MODE 0
 #define FW_MODE 1
-
-/* framing in HCI mode */
-#define PN544_HCI_LLC_LEN		1
-#define PN544_HCI_LLC_CRC		2
-#define PN544_HCI_LLC_LEN_CRC		(PN544_HCI_LLC_LEN + PN544_HCI_LLC_CRC)
-#define PN544_HCI_LLC_MIN_SIZE		(1 + PN544_HCI_LLC_LEN_CRC)
-#define PN544_HCI_LLC_MAX_PAYLOAD	29
-#define PN544_HCI_LLC_MAX_SIZE		(PN544_HCI_LLC_LEN_CRC + 1 + \
-					 PN544_HCI_LLC_MAX_PAYLOAD)
 
 enum pn544_state {
 	PN544_ST_COLD,
@@ -141,258 +115,21 @@ static struct nfc_hci_gate pn544_gates[] = {
 
 /* Largest headroom needed for outgoing custom commands */
 #define PN544_CMDS_HEADROOM	2
-#define PN544_FRAME_HEADROOM 1
-#define PN544_FRAME_TAILROOM 2
 
 struct pn544_hci_info {
-	struct i2c_client *i2c_dev;
+	struct nfc_phy_ops *phy_ops;
+	void *phy_id;
+
 	struct nfc_hci_dev *hdev;
 
 	enum pn544_state state;
 
 	struct mutex info_lock;
 
-	unsigned int gpio_en;
-	unsigned int gpio_irq;
-	unsigned int gpio_fw;
-	unsigned int en_polarity;
-
-	int hard_fault;		/*
-				 * < 0 if hardware error occured (e.g. i2c err)
-				 * and prevents normal operation.
-				 */
 	int async_cb_type;
 	data_exchange_cb_t async_cb;
 	void *async_cb_context;
 };
-
-static void pn544_hci_platform_init(struct pn544_hci_info *info)
-{
-	int polarity, retry, ret;
-	char rset_cmd[] = { 0x05, 0xF9, 0x04, 0x00, 0xC3, 0xE5 };
-	int count = sizeof(rset_cmd);
-
-	pr_info(DRIVER_DESC ": %s\n", __func__);
-	dev_info(&info->i2c_dev->dev, "Detecting nfc_en polarity\n");
-
-	/* Disable fw download */
-	gpio_set_value(info->gpio_fw, 0);
-
-	for (polarity = 0; polarity < 2; polarity++) {
-		info->en_polarity = polarity;
-		retry = 3;
-		while (retry--) {
-			/* power off */
-			gpio_set_value(info->gpio_en, !info->en_polarity);
-			usleep_range(10000, 15000);
-
-			/* power on */
-			gpio_set_value(info->gpio_en, info->en_polarity);
-			usleep_range(10000, 15000);
-
-			/* send reset */
-			dev_dbg(&info->i2c_dev->dev, "Sending reset cmd\n");
-			ret = i2c_master_send(info->i2c_dev, rset_cmd, count);
-			if (ret == count) {
-				dev_info(&info->i2c_dev->dev,
-					 "nfc_en polarity : active %s\n",
-					 (polarity == 0 ? "low" : "high"));
-				goto out;
-			}
-		}
-	}
-
-	dev_err(&info->i2c_dev->dev,
-		"Could not detect nfc_en polarity, fallback to active high\n");
-
-out:
-	gpio_set_value(info->gpio_en, !info->en_polarity);
-}
-
-static int pn544_hci_enable(struct pn544_hci_info *info, int mode)
-{
-	pr_info(DRIVER_DESC ": %s\n", __func__);
-
-	gpio_set_value(info->gpio_fw, 0);
-	gpio_set_value(info->gpio_en, info->en_polarity);
-	usleep_range(10000, 15000);
-
-	return 0;
-}
-
-static void pn544_hci_disable(struct pn544_hci_info *info)
-{
-	pr_info(DRIVER_DESC ": %s\n", __func__);
-
-	gpio_set_value(info->gpio_fw, 0);
-	gpio_set_value(info->gpio_en, !info->en_polarity);
-	usleep_range(10000, 15000);
-
-	gpio_set_value(info->gpio_en, info->en_polarity);
-	usleep_range(10000, 15000);
-
-	gpio_set_value(info->gpio_en, !info->en_polarity);
-	usleep_range(10000, 15000);
-}
-
-static int pn544_hci_i2c_write(struct i2c_client *client, u8 *buf, int len)
-{
-	int r;
-
-	usleep_range(3000, 6000);
-
-	r = i2c_master_send(client, buf, len);
-
-	if (r == -EREMOTEIO) {	/* Retry, chip was in standby */
-		usleep_range(6000, 10000);
-		r = i2c_master_send(client, buf, len);
-	}
-
-	if (r >= 0) {
-		if (r != len)
-			return -EREMOTEIO;
-		else
-			return 0;
-	}
-
-	return r;
-}
-
-static int check_crc(u8 *buf, int buflen)
-{
-	int len;
-	u16 crc;
-
-	len = buf[0] + 1;
-	crc = crc_ccitt(0xffff, buf, len - 2);
-	crc = ~crc;
-
-	if (buf[len - 2] != (crc & 0xff) || buf[len - 1] != (crc >> 8)) {
-		pr_err(PN544_HCI_DRIVER_NAME ": CRC error 0x%x != 0x%x 0x%x\n",
-		       crc, buf[len - 1], buf[len - 2]);
-
-		pr_info(DRIVER_DESC ": %s : BAD CRC\n", __func__);
-		print_hex_dump(KERN_DEBUG, "crc: ", DUMP_PREFIX_NONE,
-			       16, 2, buf, buflen, false);
-		return -EPERM;
-	}
-	return 0;
-}
-
-/*
- * Reads an shdlc frame and returns it in a newly allocated sk_buff. Guarantees
- * that i2c bus will be flushed and that next read will start on a new frame.
- * returned skb contains only LLC header and payload.
- * returns:
- * -EREMOTEIO : i2c read error (fatal)
- * -EBADMSG : frame was incorrect and discarded
- * -ENOMEM : cannot allocate skb, frame dropped
- */
-static int pn544_hci_i2c_read(struct i2c_client *client, struct sk_buff **skb)
-{
-	int r;
-	u8 len;
-	u8 tmp[PN544_HCI_LLC_MAX_SIZE - 1];
-
-	r = i2c_master_recv(client, &len, 1);
-	if (r != 1) {
-		dev_err(&client->dev, "cannot read len byte\n");
-		return -EREMOTEIO;
-	}
-
-	if ((len < (PN544_HCI_LLC_MIN_SIZE - 1)) ||
-	    (len > (PN544_HCI_LLC_MAX_SIZE - 1))) {
-		dev_err(&client->dev, "invalid len byte\n");
-		r = -EBADMSG;
-		goto flush;
-	}
-
-	*skb = alloc_skb(1 + len, GFP_KERNEL);
-	if (*skb == NULL) {
-		r = -ENOMEM;
-		goto flush;
-	}
-
-	*skb_put(*skb, 1) = len;
-
-	r = i2c_master_recv(client, skb_put(*skb, len), len);
-	if (r != len) {
-		kfree_skb(*skb);
-		return -EREMOTEIO;
-	}
-
-	r = check_crc((*skb)->data, (*skb)->len);
-	if (r != 0) {
-		kfree_skb(*skb);
-		r = -EBADMSG;
-		goto flush;
-	}
-
-	skb_pull(*skb, 1);
-	skb_trim(*skb, (*skb)->len - 2);
-
-	usleep_range(3000, 6000);
-
-	return 0;
-
-flush:
-	if (i2c_master_recv(client, tmp, sizeof(tmp)) < 0)
-		r = -EREMOTEIO;
-
-	usleep_range(3000, 6000);
-
-	return r;
-}
-
-/*
- * Reads an shdlc frame from the chip. This is not as straightforward as it
- * seems. There are cases where we could loose the frame start synchronization.
- * The frame format is len-data-crc, and corruption can occur anywhere while
- * transiting on i2c bus, such that we could read an invalid len.
- * In order to recover synchronization with the next frame, we must be sure
- * to read the real amount of data without using the len byte. We do this by
- * assuming the following:
- * - the chip will always present only one single complete frame on the bus
- *   before triggering the interrupt
- * - the chip will not present a new frame until we have completely read
- *   the previous one (or until we have handled the interrupt).
- * The tricky case is when we read a corrupted len that is less than the real
- * len. We must detect this here in order to determine that we need to flush
- * the bus. This is the reason why we check the crc here.
- */
-static irqreturn_t pn544_hci_irq_thread_fn(int irq, void *dev_id)
-{
-	struct pn544_hci_info *info = dev_id;
-	struct i2c_client *client;
-	struct sk_buff *skb = NULL;
-	int r;
-
-	if (!info || irq != info->i2c_dev->irq) {
-		WARN_ON_ONCE(1);
-		return IRQ_NONE;
-	}
-
-	client = info->i2c_dev;
-	dev_dbg(&client->dev, "IRQ\n");
-
-	if (info->hard_fault != 0)
-		return IRQ_HANDLED;
-
-	r = pn544_hci_i2c_read(client, &skb);
-	if (r == -EREMOTEIO) {
-		info->hard_fault = r;
-
-		nfc_hci_recv_frame(info->hdev, NULL);
-
-		return IRQ_HANDLED;
-	} else if ((r == -ENOMEM) || (r == -EBADMSG)) {
-		return IRQ_HANDLED;
-	}
-
-	nfc_hci_recv_frame(info->hdev, skb);
-
-	return IRQ_HANDLED;
-}
 
 static int pn544_hci_open(struct nfc_hci_dev *hdev)
 {
@@ -406,7 +143,7 @@ static int pn544_hci_open(struct nfc_hci_dev *hdev)
 		goto out;
 	}
 
-	r = pn544_hci_enable(info, HCI_MODE);
+	r = info->phy_ops->enable(info->phy_id);
 
 	if (r == 0)
 		info->state = PN544_ST_READY;
@@ -425,7 +162,7 @@ static void pn544_hci_close(struct nfc_hci_dev *hdev)
 	if (info->state == PN544_ST_COLD)
 		goto out;
 
-	pn544_hci_disable(info);
+	info->phy_ops->disable(info->phy_id);
 
 	info->state = PN544_ST_COLD;
 
@@ -600,40 +337,11 @@ static int pn544_hci_ready(struct nfc_hci_dev *hdev)
 	return 0;
 }
 
-static void pn544_hci_add_len_crc(struct sk_buff *skb)
-{
-	u16 crc;
-	int len;
-
-	len = skb->len + 2;
-	*skb_push(skb, 1) = len;
-
-	crc = crc_ccitt(0xffff, skb->data, skb->len);
-	crc = ~crc;
-	*skb_put(skb, 1) = crc & 0xff;
-	*skb_put(skb, 1) = crc >> 8;
-}
-
-static void pn544_hci_remove_len_crc(struct sk_buff *skb)
-{
-	skb_pull(skb, PN544_FRAME_HEADROOM);
-	skb_trim(skb, PN544_FRAME_TAILROOM);
-}
-
 static int pn544_hci_xmit(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 {
 	struct pn544_hci_info *info = nfc_hci_get_clientdata(hdev);
-	struct i2c_client *client = info->i2c_dev;
-	int r;
 
-	if (info->hard_fault != 0)
-		return info->hard_fault;
-
-	pn544_hci_add_len_crc(skb);
-	r = pn544_hci_i2c_write(client, skb->data, skb->len);
-	pn544_hci_remove_len_crc(skb);
-
-	return r;
+	return info->phy_ops->write(info->phy_id, skb);
 }
 
 static int pn544_hci_start_poll(struct nfc_hci_dev *hdev,
@@ -1076,68 +784,26 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.event_received = pn544_hci_event_received,
 };
 
-static int __devinit pn544_hci_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
+		    int phy_headroom, int phy_tailroom, int phy_payload,
+		    struct nfc_hci_dev **hdev)
 {
 	struct pn544_hci_info *info;
-	struct pn544_nfc_platform_data *pdata;
-	int r = 0;
 	u32 protocols;
 	struct nfc_hci_init_data init_data;
-
-	dev_dbg(&client->dev, "%s\n", __func__);
-	dev_dbg(&client->dev, "IRQ: %d\n", client->irq);
-
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "Need I2C_FUNC_I2C\n");
-		return -ENODEV;
-	}
+	int r;
 
 	info = kzalloc(sizeof(struct pn544_hci_info), GFP_KERNEL);
 	if (!info) {
-		dev_err(&client->dev,
-			"Cannot allocate memory for pn544_hci_info.\n");
+		pr_err("Cannot allocate memory for pn544_hci_info.\n");
 		r = -ENOMEM;
 		goto err_info_alloc;
 	}
 
-	info->i2c_dev = client;
+	info->phy_ops = phy_ops;
+	info->phy_id = phy_id;
 	info->state = PN544_ST_COLD;
 	mutex_init(&info->info_lock);
-	i2c_set_clientdata(client, info);
-
-	pdata = client->dev.platform_data;
-	if (pdata == NULL) {
-		dev_err(&client->dev, "No platform data\n");
-		r = -EINVAL;
-		goto err_pdata;
-	}
-
-	if (pdata->request_resources == NULL) {
-		dev_err(&client->dev, "request_resources() missing\n");
-		r = -EINVAL;
-		goto err_pdata;
-	}
-
-	r = pdata->request_resources(client);
-	if (r) {
-		dev_err(&client->dev, "Cannot get platform resources\n");
-		goto err_pdata;
-	}
-
-	info->gpio_en = pdata->get_gpio(NFC_GPIO_ENABLE);
-	info->gpio_fw = pdata->get_gpio(NFC_GPIO_FW_RESET);
-	info->gpio_irq = pdata->get_gpio(NFC_GPIO_IRQ);
-
-	pn544_hci_platform_init(info);
-
-	r = request_threaded_irq(client->irq, NULL, pn544_hci_irq_thread_fn,
-				 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				 PN544_HCI_DRIVER_NAME, info);
-	if (r < 0) {
-		dev_err(&client->dev, "Unable to register IRQ handler\n");
-		goto err_rti;
-	}
 
 	init_data.gate_count = ARRAY_SIZE(pn544_gates);
 
@@ -1157,13 +823,11 @@ static int __devinit pn544_hci_probe(struct i2c_client *client,
 		    NFC_PROTO_NFC_DEP_MASK;
 
 	info->hdev = nfc_hci_allocate_device(&pn544_hci_ops, &init_data,
-					     protocols, LLC_SHDLC_NAME,
-					     PN544_FRAME_HEADROOM +
-					     PN544_CMDS_HEADROOM,
-					     PN544_FRAME_TAILROOM,
-					     PN544_HCI_LLC_MAX_PAYLOAD);
+					     protocols, llc_name,
+					     phy_headroom + PN544_CMDS_HEADROOM,
+					     phy_tailroom, phy_payload);
 	if (!info->hdev) {
-		dev_err(&client->dev, "Cannot allocate nfc hdev.\n");
+		pr_err("Cannot allocate nfc hdev.\n");
 		r = -ENOMEM;
 		goto err_alloc_hdev;
 	}
@@ -1174,79 +838,25 @@ static int __devinit pn544_hci_probe(struct i2c_client *client,
 	if (r)
 		goto err_regdev;
 
+	*hdev = info->hdev;
+
 	return 0;
 
 err_regdev:
 	nfc_hci_free_device(info->hdev);
 
 err_alloc_hdev:
-	free_irq(client->irq, info);
-
-err_rti:
-	if (pdata->free_resources != NULL)
-		pdata->free_resources();
-
-err_pdata:
 	kfree(info);
 
 err_info_alloc:
 	return r;
 }
 
-static __devexit int pn544_hci_remove(struct i2c_client *client)
+void pn544_hci_remove(struct nfc_hci_dev *hdev)
 {
-	struct pn544_hci_info *info = i2c_get_clientdata(client);
-	struct pn544_nfc_platform_data *pdata = client->dev.platform_data;
+	struct pn544_hci_info *info = nfc_hci_get_clientdata(hdev);
 
-	dev_dbg(&client->dev, "%s\n", __func__);
-
-	nfc_hci_free_device(info->hdev);
-
-	if (info->state != PN544_ST_COLD) {
-		if (pdata->disable)
-			pdata->disable();
-	}
-
-	free_irq(client->irq, info);
-	if (pdata->free_resources)
-		pdata->free_resources();
-
+	nfc_hci_unregister_device(hdev);
+	nfc_hci_free_device(hdev);
 	kfree(info);
-
-	return 0;
 }
-
-static struct i2c_driver pn544_hci_driver = {
-	.driver = {
-		   .name = PN544_HCI_DRIVER_NAME,
-		  },
-	.probe = pn544_hci_probe,
-	.id_table = pn544_hci_id_table,
-	.remove = __devexit_p(pn544_hci_remove),
-};
-
-static int __init pn544_hci_init(void)
-{
-	int r;
-
-	pr_debug(DRIVER_DESC ": %s\n", __func__);
-
-	r = i2c_add_driver(&pn544_hci_driver);
-	if (r) {
-		pr_err(PN544_HCI_DRIVER_NAME ": driver registration failed\n");
-		return r;
-	}
-
-	return 0;
-}
-
-static void __exit pn544_hci_exit(void)
-{
-	i2c_del_driver(&pn544_hci_driver);
-}
-
-module_init(pn544_hci_init);
-module_exit(pn544_hci_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION(DRIVER_DESC);
