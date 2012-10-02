@@ -20,8 +20,6 @@ header-y += netfilter_ipv6/
 header-y += usb/
 header-y += wimax/
 
-genhdr-y += version.h
-
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/a.out.h \
 		  $(srctree)/include/asm-$(SRCARCH)/a.out.h \
 		  $(INSTALL_HDR_PATH)/include/asm-*/a.out.h),)

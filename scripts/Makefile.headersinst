@@ -8,7 +8,7 @@
 # ==========================================================================
 
 # called may set destination dir (when installing to asm/)
-_dst := $(if $(dst),$(dst),$(obj))
+_dst := $(or $(destination-y),$(dst),$(obj))
 
 # generated header directory
 gen := $(if $(gen),$(gen),$(subst include/,include/generated/,$(obj)))
@@ -16,47 +16,64 @@ gen := $(if $(gen),$(gen),$(subst include/,include/generated/,$(obj)))
 kbuild-file := $(srctree)/$(obj)/Kbuild
 include $(kbuild-file)
 
-_dst := $(if $(destination-y),$(destination-y),$(_dst))
+old-kbuild-file := $(srctree)/$(subst uapi/,,$(obj))/Kbuild
+ifneq ($(wildcard $(old-kbuild-file)),)
+include $(old-kbuild-file)
+endif
 
 include scripts/Kbuild.include
 
-install       := $(INSTALL_HDR_PATH)/$(_dst)
+installdir    := $(INSTALL_HDR_PATH)/$(subst uapi/,,$(_dst))
 
 header-y      := $(sort $(header-y))
 subdirs       := $(patsubst %/,%,$(filter %/, $(header-y)))
 header-y      := $(filter-out %/, $(header-y))
 
 # files used to track state of install/check
-install-file  := $(install)/.install
-check-file    := $(install)/.check
+install-file  := $(installdir)/.install
+check-file    := $(installdir)/.check
 
 # generic-y list all files an architecture uses from asm-generic
 # Use this to build a list of headers which require a wrapper
 wrapper-files := $(filter $(header-y), $(generic-y))
 
+srcdir        := $(srctree)/$(obj)
+gendir        := $(objtree)/$(gen)
+
+oldsrcdir     := $(srctree)/$(subst /uapi,,$(obj))
+
 # all headers files for this dir
 header-y      := $(filter-out $(generic-y), $(header-y))
 all-files     := $(header-y) $(genhdr-y) $(wrapper-files)
-input-files   := $(addprefix $(srctree)/$(obj)/,$(header-y)) \
-                 $(addprefix $(objtree)/$(gen)/,$(genhdr-y))
-output-files  := $(addprefix $(install)/, $(all-files))
+output-files  := $(addprefix $(installdir)/, $(all-files))
+
+input-files   := $(foreach hdr, $(header-y), \
+		   $(or \
+			$(wildcard $(srcdir)/$(hdr)), \
+			$(wildcard $(oldsrcdir)/$(hdr)), \
+			$(error Missing UAPI file $(srcdir)/$(hdr)) \
+		   )) \
+		 $(foreach hdr, $(genhdr-y), \
+		   $(or \
+			$(wildcard $(gendir)/$(hdr)), \
+			$(error Missing generated UAPI file $(gendir)/$(hdr)) \
+		   ))
 
 # Work out what needs to be removed
-oldheaders    := $(patsubst $(install)/%,%,$(wildcard $(install)/*.h))
+oldheaders    := $(patsubst $(installdir)/%,%,$(wildcard $(installdir)/*.h))
 unwanted      := $(filter-out $(all-files),$(oldheaders))
 
 # Prefix unwanted with full paths to $(INSTALL_HDR_PATH)
-unwanted-file := $(addprefix $(install)/, $(unwanted))
+unwanted-file := $(addprefix $(installdir)/, $(unwanted))
 
 printdir = $(patsubst $(INSTALL_HDR_PATH)/%/,%,$(dir $@))
 
 quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
                             file$(if $(word 2, $(all-files)),s))
       cmd_install = \
-        $(PERL) $< $(srctree)/$(obj) $(install) $(SRCARCH) $(header-y); \
-        $(PERL) $< $(objtree)/$(gen) $(install) $(SRCARCH) $(genhdr-y); \
+        $(PERL) $< $(installdir) $(SRCARCH) $(input-files); \
         for F in $(wrapper-files); do                                   \
-                echo "\#include <asm-generic/$$F>" > $(install)/$$F;    \
+                echo "\#include <asm-generic/$$F>" > $(installdir)/$$F;    \
         done;                                                           \
         touch $@
 
@@ -67,7 +84,7 @@ quiet_cmd_check = CHECK   $(printdir) ($(words $(all-files)) files)
 # Headers list can be pretty long, xargs helps to avoid
 # the "Argument list too long" error.
       cmd_check = for f in $(all-files); do                          \
-                  echo "$(install)/$${f}"; done                      \
+                  echo "$(installdir)/$${f}"; done                      \
                   | xargs                                            \
                   $(PERL) $< $(INSTALL_HDR_PATH)/include $(SRCARCH); \
 	          touch $@

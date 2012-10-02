@@ -1,5 +1,5 @@
 out := $(obj)/../include/generated/asm
-uapi := $(obj)/../include/generated/asm
+uapi := $(obj)/../include/generated/uapi/asm
 
 # Create output directory if not already present
 _dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)') \
