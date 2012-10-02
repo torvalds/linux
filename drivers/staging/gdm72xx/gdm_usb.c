@@ -701,8 +701,6 @@ static int k_mode_thread(void *arg)
 	unsigned long flags, flags2, expire;
 	int ret;
 
-	daemonize("k_mode_wimax");
-
 	while (!k_mode_stop) {
 
 		spin_lock_irqsave(&k_lock, flags2);
@@ -764,7 +762,7 @@ static struct usb_driver gdm_usb_driver = {
 static int __init usb_gdm_wimax_init(void)
 {
 #ifdef CONFIG_WIMAX_GDM72XX_K_MODE
-	kthread_run(k_mode_thread, NULL, "WiMax_thread");
+	kthread_run(k_mode_thread, NULL, "k_mode_wimax");
 #endif /* CONFIG_WIMAX_GDM72XX_K_MODE */
 	return usb_register(&gdm_usb_driver);
 }

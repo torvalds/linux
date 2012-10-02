@@ -519,12 +519,6 @@ struct files_struct init_files = {
 	.file_lock	= __SPIN_LOCK_UNLOCKED(init_task.file_lock),
 };
 
-void daemonize_descriptors(void)
-{
-	atomic_inc(&init_files.count);
-	reset_files_struct(&init_files);
-}
-
 /*
  * allocate a file descriptor, mark it busy.
  */
