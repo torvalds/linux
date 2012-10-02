@@ -4259,7 +4259,7 @@ static int cx_auto_add_boost_volume(struct hda_codec *codec, int idx,
 
 	if (get_wcaps(codec, mux) & AC_WCAP_OUT_AMP) {
 		spec->imux_info[idx].boost = mux;
-		return cx_auto_add_volume(codec, label, " Boost", 0,
+		return cx_auto_add_volume(codec, label, " Boost", cidx,
 					  mux, HDA_OUTPUT);
 	}
 	return 0;
