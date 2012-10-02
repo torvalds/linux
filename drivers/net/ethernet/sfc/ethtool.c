@@ -337,7 +337,8 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
 				  unsigned int test_index,
 				  struct ethtool_string *strings, u64 *data)
 {
-	struct efx_channel *channel = efx_get_channel(efx, 0);
+	struct efx_channel *channel =
+		efx_get_channel(efx, efx->tx_channel_offset);
 	struct efx_tx_queue *tx_queue;
 
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
@@ -960,9 +961,7 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	int rc;
 
 	/* Check that user wants us to choose the location */
-	if (rule->location != RX_CLS_LOC_ANY &&
-	    rule->location != RX_CLS_LOC_FIRST &&
-	    rule->location != RX_CLS_LOC_LAST)
+	if (rule->location != RX_CLS_LOC_ANY)
 		return -EINVAL;
 
 	/* Range-check ring_cookie */
@@ -976,9 +975,7 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	     rule->m_ext.data[1]))
 		return -EINVAL;
 
-	efx_filter_init_rx(&spec, EFX_FILTER_PRI_MANUAL,
-			   (rule->location == RX_CLS_LOC_FIRST) ?
-			   EFX_FILTER_FLAG_RX_OVERRIDE_IP : 0,
+	efx_filter_init_rx(&spec, EFX_FILTER_PRI_MANUAL, 0,
 			   (rule->ring_cookie == RX_CLS_FLOW_DISC) ?
 			   0xfff : rule->ring_cookie);
 
