@@ -1508,7 +1508,8 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	local_map_ptr = fusion->ld_map[(instance->map_id & 1)];
 
 	/* Check if this is a system PD I/O */
-	if (instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) {
+	if (scmd->device->channel < MEGASAS_MAX_PD_CHANNELS &&
+	    instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) {
 		io_request->Function = 0;
 		io_request->DevHandle =
 			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
