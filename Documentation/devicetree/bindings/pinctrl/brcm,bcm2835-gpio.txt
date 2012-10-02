@@ -1,0 +1,74 @@
+Broadcom BCM2835 GPIO (and pinmux) controller
+
+The BCM2835 GPIO module is a combined GPIO controller, (GPIO) interrupt
+controller, and pinmux/control device.
+
+Required properties:
+- compatible: "brcm,bcm2835-gpio"
+- reg: Should contain the physical address of the GPIO module's registes.
+- gpio-controller: Marks the device node as a GPIO controller.
+- #gpio-cells : Should be two. The first cell is the pin number and the
+  second cell is used to specify optional parameters:
+  - bit 0 specifies polarity (0 for normal, 1 for inverted)
+- interrupts : The interrupt outputs from the controller. One interrupt per
+  individual bank followed by the "all banks" interrupt.
+- interrupt-controller: Marks the device node as an interrupt controller.
+- #interrupt-cells : Should be 2.
+  The first cell is the GPIO number.
+  The second cell is used to specify flags:
+    bits[3:0] trigger type and level flags:
+      1 = low-to-high edge triggered.
+      2 = high-to-low edge triggered.
+      4 = active high level-sensitive.
+      8 = active low level-sensitive.
+    Valid combinations are 1, 2, 3, 4, 8.
+
+Please refer to ../gpio/gpio.txt for a general description of GPIO bindings.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+Each pin configuration node lists the pin(s) to which it applies, and one or
+more of the mux function to select on those pin(s), and pull-up/down
+configuration. Each subnode only affects those parameters that are explicitly
+listed. In other words, a subnode that lists only a mux function implies no
+information about any pull configuration. Similarly, a subnode that lists only
+a pul parameter implies no information about the mux function.
+
+Required subnode-properties:
+- brcm,pins: An array of cells. Each cell contains the ID of a pin. Valid IDs
+  are the integer GPIO IDs; 0==GPIO0, 1==GPIO1, ... 53==GPIO53.
+
+Optional subnode-properties:
+- brcm,function: Integer, containing the function to mux to the pin(s):
+  0: GPIO in
+  1: GPIO out
+  2: alt5
+  3: alt4
+  4: alt0
+  5: alt1
+  6: alt2
+  7: alt3
+- brcm,pull: Integer, representing the pull-down/up to apply to the pin(s):
+  0: none
+  1: down
+  2: up
+
+Each of brcm,function and brcm,pull may contain either a single value which
+will be applied to all pins in brcm,pins, or 1 value for each entry in
+brcm,pins.
+
+Example:
+
+	gpio: gpio {
+		compatible = "brcm,bcm2835-gpio";
+		reg = <0x2200000 0xb4>;
+		interrupts = <2 17>, <2 19>, <2 18>, <2 20>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};

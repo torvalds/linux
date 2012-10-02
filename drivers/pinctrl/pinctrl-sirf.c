@@ -25,6 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <asm/mach/irq.h>
 
 #define DRIVER_NAME "pinmux-sirf"
 
@@ -69,6 +70,10 @@ static DEFINE_SPINLOCK(sgpio_lock);
  * refer to CS-131858-DC-6A.xls
  */
 static const struct pinctrl_pin_desc sirfsoc_pads[] = {
+	PINCTRL_PIN(0, "gpio0-0"),
+	PINCTRL_PIN(1, "gpio0-1"),
+	PINCTRL_PIN(2, "gpio0-2"),
+	PINCTRL_PIN(3, "gpio0-3"),
 	PINCTRL_PIN(4, "pwm0"),
 	PINCTRL_PIN(5, "pwm1"),
 	PINCTRL_PIN(6, "pwm2"),
@@ -77,7 +82,9 @@ static const struct pinctrl_pin_desc sirfsoc_pads[] = {
 	PINCTRL_PIN(9, "odo_0"),
 	PINCTRL_PIN(10, "odo_1"),
 	PINCTRL_PIN(11, "dr_dir"),
+	PINCTRL_PIN(12, "viprom_fa"),
 	PINCTRL_PIN(13, "scl_1"),
+	PINCTRL_PIN(14, "ntrst"),
 	PINCTRL_PIN(15, "sda_1"),
 	PINCTRL_PIN(16, "x_ldd[16]"),
 	PINCTRL_PIN(17, "x_ldd[17]"),
@@ -1260,8 +1267,10 @@ static int __devinit sirfsoc_pinmux_probe(struct platform_device *pdev)
 		goto out_no_pmx;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sirfsoc_gpio_ranges); i++)
+	for (i = 0; i < ARRAY_SIZE(sirfsoc_gpio_ranges); i++) {
+		sirfsoc_gpio_ranges[i].gc = &sgpio_bank[i].chip.gc;
 		pinctrl_add_gpio_range(spmx->pmx, &sirfsoc_gpio_ranges[i]);
+	}
 
 	dev_info(&pdev->dev, "initialized SIRFSOC pinmux driver\n");
 
@@ -1475,6 +1484,9 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 	u32 status, ctrl;
 	int idx = 0;
 	unsigned int first_irq;
+	struct irq_chip *chip = irq_get_chip(irq);
+
+	chained_irq_enter(chip, desc);
 
 	status = readl(bank->chip.regs + SIRFSOC_GPIO_INT_STATUS(bank->id));
 	if (!status) {
@@ -1503,20 +1515,17 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 		idx++;
 		status = status >> 1;
 	}
+
+	chained_irq_exit(chip, desc);
 }
 
 static inline void sirfsoc_gpio_set_input(struct sirfsoc_gpio_bank *bank, unsigned ctrl_offset)
 {
 	u32 val;
-	unsigned long flags;
-
-	spin_lock_irqsave(&bank->lock, flags);
 
 	val = readl(bank->chip.regs + ctrl_offset);
 	val &= ~SIRFSOC_GPIO_CTL_OUT_EN_MASK;
 	writel(val, bank->chip.regs + ctrl_offset);
-
-	spin_unlock_irqrestore(&bank->lock, flags);
 }
 
 static int sirfsoc_gpio_request(struct gpio_chip *chip, unsigned offset)
@@ -1725,6 +1734,8 @@ static int __devinit sirfsoc_gpio_probe(struct device_node *np)
 		irq_set_chained_handler(bank->parent_irq, sirfsoc_gpio_handle_irq);
 		irq_set_handler_data(bank->parent_irq, bank);
 	}
+
+	return 0;
 
 out:
 	iounmap(regs);
