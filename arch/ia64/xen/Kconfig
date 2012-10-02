@@ -5,7 +5,7 @@
 config XEN
 	bool "Xen hypervisor support"
 	default y
-	depends on PARAVIRT && MCKINLEY && IA64_PAGE_SIZE_16KB && EXPERIMENTAL
+	depends on PARAVIRT && MCKINLEY && IA64_PAGE_SIZE_16KB
 	select XEN_XENCOMM
 	select NO_IDLE_HZ
 	# followings are required to save/restore.
