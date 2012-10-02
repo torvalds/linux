@@ -28,12 +28,12 @@
 #include <linux/clk.h>
 #include <linux/smc91x.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/leds-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
-#include <plat/led.h>
 #include "common.h"
 #include "gpmc.h"
 

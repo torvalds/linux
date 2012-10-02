@@ -28,12 +28,12 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/platform_data/omap1_bl.h>
+#include <linux/platform_data/leds-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/led.h>
 #include <mach/flash.h>
 #include <mach/mux.h>
 #include <plat-omap/dma-omap.h>
