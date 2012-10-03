@@ -936,6 +936,7 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	enum v4l2_field field;
 	struct vb2_queue *q;
 	u8 index = 0;
+	int ret;
 
 	/* This file handle has not initialized the channel,
 	   It is not allowed to do settings */
@@ -981,8 +982,12 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct vpif_disp_buffer);
 
-	vb2_queue_init(q);
-
+	ret = vb2_queue_init(q);
+	if (ret) {
+		vpif_err("vpif_display: vb2_queue_init() failed\n");
+		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
+		return ret;
+	}
 	/* Set io allowed member of file handle to TRUE */
 	fh->io_allowed[index] = 1;
 	/* Increment io usrs member of channel object to 1 */
