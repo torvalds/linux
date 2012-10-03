@@ -637,7 +637,7 @@ static int vpbe_display_s_crop(struct file *file, void *priv,
 	struct vpbe_device *vpbe_dev = disp_dev->vpbe_dev;
 	struct osd_layer_config *cfg = &layer->layer_info.config;
 	struct osd_state *osd_device = disp_dev->osd_device;
-	struct v4l2_rect *rect = &crop->c;
+	struct v4l2_rect rect = crop->c;
 	int ret;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
@@ -648,21 +648,21 @@ static int vpbe_display_s_crop(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	if (rect->top < 0)
-		rect->top = 0;
-	if (rect->left < 0)
-		rect->left = 0;
+	if (rect.top < 0)
+		rect.top = 0;
+	if (rect.left < 0)
+		rect.left = 0;
 
-	vpbe_disp_check_window_params(disp_dev, rect);
+	vpbe_disp_check_window_params(disp_dev, &rect);
 
 	osd_device->ops.get_layer_config(osd_device,
 			layer->layer_info.id, cfg);
 
 	vpbe_disp_calculate_scale_factor(disp_dev, layer,
-					rect->width,
-					rect->height);
-	vpbe_disp_adj_position(disp_dev, layer, rect->top,
-					rect->left);
+					rect.width,
+					rect.height);
+	vpbe_disp_adj_position(disp_dev, layer, rect.top,
+					rect.left);
 	ret = osd_device->ops.set_layer_config(osd_device,
 				layer->layer_info.id, cfg);
 	if (ret < 0) {
