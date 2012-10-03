@@ -484,6 +484,8 @@ static int bcm63xx_spi_suspend(struct device *dev)
 			platform_get_drvdata(to_platform_device(dev));
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
+	spi_master_suspend(master);
+
 	clk_disable(bs->clk);
 
 	return 0;
@@ -496,6 +498,8 @@ static int bcm63xx_spi_resume(struct device *dev)
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
 	clk_enable(bs->clk);
+
+	spi_master_resume(master);
 
 	return 0;
 }
