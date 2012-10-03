@@ -33,13 +33,6 @@ static int max_idle_state = MAX_IDLE_STATE_COUNT - 1;
 static struct cpuidle_device __percpu *pseries_cpuidle_devices;
 static struct cpuidle_state *cpuidle_state_table;
 
-void update_smt_snooze_delay(int snooze)
-{
-	struct cpuidle_driver *drv = cpuidle_get_driver();
-	if (drv)
-		drv->states[0].target_residency = snooze;
-}
-
 static inline void idle_loop_prolog(unsigned long *in_purr, ktime_t *kt_before)
 {
 
@@ -189,6 +182,23 @@ static struct cpuidle_state shared_states[MAX_IDLE_STATE_COUNT] = {
 		.target_residency = 0,
 		.enter = &shared_cede_loop },
 };
+
+void update_smt_snooze_delay(int cpu, int residency)
+{
+	struct cpuidle_driver *drv = cpuidle_get_driver();
+	struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
+
+	if (cpuidle_state_table != dedicated_states)
+		return;
+
+	if (residency < 0) {
+		/* Disable the Nap state on that cpu */
+		if (dev)
+			dev->states_usage[1].disable = 1;
+	} else
+		if (drv)
+			drv->states[0].target_residency = residency;
+}
 
 static int pseries_cpuidle_add_cpu_notifier(struct notifier_block *n,
 			unsigned long action, void *hcpu)
