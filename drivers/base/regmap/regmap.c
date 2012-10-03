@@ -579,6 +579,7 @@ struct regmap *regmap_init(struct device *dev,
 			goto err_range;
 		}
 
+		new->name = range_cfg->name;
 		new->range_min = range_cfg->range_min;
 		new->range_max = range_cfg->range_max;
 		new->selector_reg = range_cfg->selector_reg;
