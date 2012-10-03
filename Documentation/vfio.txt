@@ -133,7 +133,7 @@ character devices for this group:
 $ lspci -n -s 0000:06:0d.0
 06:0d.0 0401: 1102:0002 (rev 08)
 # echo 0000:06:0d.0 > /sys/bus/pci/devices/0000:06:0d.0/driver/unbind
-# echo 1102 0002 > /sys/bus/pci/drivers/vfio/new_id
+# echo 1102 0002 > /sys/bus/pci/drivers/vfio-pci/new_id
 
 Now we need to look at what other devices are in the group to free
 it for use by VFIO:
