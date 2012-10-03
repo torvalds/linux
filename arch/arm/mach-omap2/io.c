@@ -27,12 +27,11 @@
 
 #include <plat/serial.h>
 #include <plat/omap-pm.h>
-#include "omap_hwmod.h"
-#include <plat/multi.h>
 #include <plat-omap/dma-omap.h>
 
 #include "../plat-omap/sram.h"
 
+#include "omap_hwmod.h"
 #include "soc.h"
 #include "iomap.h"
 #include "voltage.h"
