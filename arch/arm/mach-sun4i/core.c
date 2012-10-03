@@ -180,7 +180,7 @@ static void __init sw_core_fixup(struct machine_desc *desc,
  * drivers which use them.
  */
 
-#if defined CONFIG_FB || defined CONFIG_FB_MODULE
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 /* The FB block is used by:
  *
  * - the sun4i framebuffer driver, drivers/video/sun4i/disp.

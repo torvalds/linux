@@ -297,7 +297,13 @@ config LYCHEE_FB_SUN5I
         default m
 
 config FB_SUNXI
+	select FB_SUNXI_RESERVED_MEM if MALI
         tristate
+
+config FB_SUNXI_RESERVED_MEM
+	bool "Reserve memory block for sunxi/fb"
+	depends on FB_SUNXI
+	default y
 
 config FB_SUNXI_UMP
 	bool "Enable FB/UMP Integration"

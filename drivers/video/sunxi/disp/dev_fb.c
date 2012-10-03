@@ -297,7 +297,7 @@ __s32 fb_draw_gray_pictures(__u32 base, __u32 width, __u32 height, struct fb_var
 
 static int __init Fb_map_video_memory(struct fb_info *info)
 {
-#ifndef FB_RESERVED_MEM
+#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
 	struct page *page;
 	
@@ -329,7 +329,7 @@ static int __init Fb_map_video_memory(struct fb_info *info)
 
 static inline void Fb_unmap_video_memory(struct fb_info *info)
 {
-#ifndef FB_RESERVED_MEM
+#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(info->fix.smem_len);
 	
 	free_pages((unsigned long)info->screen_base,get_order(map_size));
@@ -1373,7 +1373,7 @@ __s32 Fb_Init(__u32 from)
 
     if(from == 0)//call from lcd driver
     {
-#ifdef FB_RESERVED_MEM
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
         __inf("fbmem: fb_start=%lu, fb_size=%lu\n", fb_start, fb_size);
         disp_create_heap((unsigned long)(__va(fb_start)),  fb_size);
 #endif

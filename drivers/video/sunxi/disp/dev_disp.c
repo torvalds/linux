@@ -286,7 +286,7 @@ __s32 DRV_DISP_Exit(void)
 
 int disp_mem_request(int sel,__u32 size)
 {
-#ifndef FB_RESERVED_MEM
+#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = 0;
 	struct page *page;
 
@@ -341,7 +341,7 @@ int disp_mem_request(int sel,__u32 size)
 
 int disp_mem_release(int sel)
 {
-#ifndef FB_RESERVED_MEM
+#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(g_disp_mm[sel].mem_len);
 	unsigned page_size = map_size;
 
