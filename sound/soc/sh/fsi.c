@@ -1701,7 +1701,7 @@ static int fsi_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, master);
 
-	ret = request_irq(irq, &fsi_interrupt, 0,
+	ret = devm_request_irq(&pdev->dev, irq, &fsi_interrupt, 0,
 			  id_entry->name, master);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request err\n");
@@ -1711,7 +1711,7 @@ static int fsi_probe(struct platform_device *pdev)
 	ret = snd_soc_register_platform(&pdev->dev, &fsi_soc_platform);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot snd soc register\n");
-		goto exit_free_irq;
+		goto exit_fsib;
 	}
 
 	ret = snd_soc_register_dais(&pdev->dev, fsi_soc_dai,
@@ -1725,8 +1725,6 @@ static int fsi_probe(struct platform_device *pdev)
 
 exit_snd_soc:
 	snd_soc_unregister_platform(&pdev->dev);
-exit_free_irq:
-	free_irq(irq, master);
 exit_fsib:
 	pm_runtime_disable(&pdev->dev);
 	fsi_stream_remove(&master->fsib);
@@ -1742,7 +1740,6 @@ static int fsi_remove(struct platform_device *pdev)
 
 	master = dev_get_drvdata(&pdev->dev);
 
-	free_irq(master->irq, master);
 	pm_runtime_disable(&pdev->dev);
 
 	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(fsi_soc_dai));
