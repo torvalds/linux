@@ -342,9 +342,8 @@ static int do_budget_space(struct ubifs_info *c)
 	lebs = c->lst.empty_lebs + c->freeable_cnt + c->idx_gc_cnt -
 	       c->lst.taken_empty_lebs;
 	if (unlikely(rsvd_idx_lebs > lebs)) {
-		dbg_budg("out of indexing space: min_idx_lebs %d (old %d), "
-			 "rsvd_idx_lebs %d", min_idx_lebs, c->bi.min_idx_lebs,
-			 rsvd_idx_lebs);
+		dbg_budg("out of indexing space: min_idx_lebs %d (old %d), rsvd_idx_lebs %d",
+			 min_idx_lebs, c->bi.min_idx_lebs, rsvd_idx_lebs);
 		return -ENOSPC;
 	}
 
