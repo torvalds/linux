@@ -123,6 +123,11 @@ void __exit afs_fs_exit(void)
 		BUG();
 	}
 
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(afs_inode_cachep);
 	_leave("");
 }

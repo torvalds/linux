@@ -68,7 +68,7 @@ struct reada_extent {
 	u32			blocksize;
 	int			err;
 	struct list_head	extctl;
-	struct kref		refcnt;
+	int 			refcnt;
 	spinlock_t		lock;
 	struct reada_zone	*zones[BTRFS_MAX_MIRRORS];
 	int			nzones;
@@ -126,7 +126,7 @@ static int __readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 	spin_lock(&fs_info->reada_lock);
 	re = radix_tree_lookup(&fs_info->reada_tree, index);
 	if (re)
-		kref_get(&re->refcnt);
+		re->refcnt++;
 	spin_unlock(&fs_info->reada_lock);
 
 	if (!re)
@@ -336,7 +336,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	spin_lock(&fs_info->reada_lock);
 	re = radix_tree_lookup(&fs_info->reada_tree, index);
 	if (re)
-		kref_get(&re->refcnt);
+		re->refcnt++;
 	spin_unlock(&fs_info->reada_lock);
 
 	if (re)
@@ -352,7 +352,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	re->top = *top;
 	INIT_LIST_HEAD(&re->extctl);
 	spin_lock_init(&re->lock);
-	kref_init(&re->refcnt);
+	re->refcnt = 1;
 
 	/*
 	 * map block
@@ -398,7 +398,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	if (ret == -EEXIST) {
 		re_exist = radix_tree_lookup(&fs_info->reada_tree, index);
 		BUG_ON(!re_exist);
-		kref_get(&re_exist->refcnt);
+		re_exist->refcnt++;
 		spin_unlock(&fs_info->reada_lock);
 		goto error;
 	}
@@ -465,10 +465,6 @@ error:
 	return re_exist;
 }
 
-static void reada_kref_dummy(struct kref *kr)
-{
-}
-
 static void reada_extent_put(struct btrfs_fs_info *fs_info,
 			     struct reada_extent *re)
 {
@@ -476,7 +472,7 @@ static void reada_extent_put(struct btrfs_fs_info *fs_info,
 	unsigned long index = re->logical >> PAGE_CACHE_SHIFT;
 
 	spin_lock(&fs_info->reada_lock);
-	if (!kref_put(&re->refcnt, reada_kref_dummy)) {
+	if (--re->refcnt) {
 		spin_unlock(&fs_info->reada_lock);
 		return;
 	}
@@ -671,7 +667,7 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 		return 0;
 	}
 	dev->reada_next = re->logical + re->blocksize;
-	kref_get(&re->refcnt);
+	re->refcnt++;
 
 	spin_unlock(&fs_info->reada_lock);
 

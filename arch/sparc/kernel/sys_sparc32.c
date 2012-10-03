@@ -506,52 +506,6 @@ long compat_sys_fadvise64_64(int fd,
 				advice);
 }
 
-asmlinkage long compat_sys_sendfile(int out_fd, int in_fd,
-				    compat_off_t __user *offset,
-				    compat_size_t count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-	
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd,
-			   offset ? (off_t __user *) &of : NULL,
-			   count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-		
-	return ret;
-}
-
-asmlinkage long compat_sys_sendfile64(int out_fd, int in_fd,
-				      compat_loff_t __user *offset,
-				      compat_size_t count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	loff_t lof;
-	
-	if (offset && get_user(lof, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile64(out_fd, in_fd,
-			     offset ? (loff_t __user *) &lof : NULL,
-			     count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(lof, offset))
-		return -EFAULT;
-		
-	return ret;
-}
-
 /* This is just a version for 32-bit applications which does
  * not force O_LARGEFILE on.
  */

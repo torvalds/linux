@@ -1563,25 +1563,25 @@ static int snd_pcm_drop(struct snd_pcm_substream *substream)
 
 
 /* WARNING: Don't forget to fput back the file */
-static struct file *snd_pcm_file_fd(int fd)
+static struct file *snd_pcm_file_fd(int fd, int *fput_needed)
 {
 	struct file *file;
 	struct inode *inode;
 	unsigned int minor;
 
-	file = fget(fd);
+	file = fget_light(fd, fput_needed);
 	if (!file)
 		return NULL;
 	inode = file->f_path.dentry->d_inode;
 	if (!S_ISCHR(inode->i_mode) ||
 	    imajor(inode) != snd_major) {
-		fput(file);
+		fput_light(file, *fput_needed);
 		return NULL;
 	}
 	minor = iminor(inode);
 	if (!snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_PLAYBACK) &&
 	    !snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_CAPTURE)) {
-		fput(file);
+		fput_light(file, *fput_needed);
 		return NULL;
 	}
 	return file;
@@ -1597,8 +1597,9 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream1;
 	struct snd_pcm_group *group;
+	int fput_needed;
 
-	file = snd_pcm_file_fd(fd);
+	file = snd_pcm_file_fd(fd, &fput_needed);
 	if (!file)
 		return -EBADFD;
 	pcm_file = file->private_data;
@@ -1633,7 +1634,7 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	write_unlock_irq(&snd_pcm_link_rwlock);
 	up_write(&snd_pcm_link_rwsem);
  _nolock:
-	fput(file);
+	fput_light(file, fput_needed);
 	if (res < 0)
 		kfree(group);
 	return res;

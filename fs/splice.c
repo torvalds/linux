@@ -1666,9 +1666,8 @@ static long vmsplice_to_pipe(struct file *file, const struct iovec __user *iov,
 SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, iov,
 		unsigned long, nr_segs, unsigned int, flags)
 {
-	struct file *file;
+	struct fd f;
 	long error;
-	int fput;
 
 	if (unlikely(nr_segs > UIO_MAXIOV))
 		return -EINVAL;
@@ -1676,14 +1675,14 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, iov,
 		return 0;
 
 	error = -EBADF;
-	file = fget_light(fd, &fput);
-	if (file) {
-		if (file->f_mode & FMODE_WRITE)
-			error = vmsplice_to_pipe(file, iov, nr_segs, flags);
-		else if (file->f_mode & FMODE_READ)
-			error = vmsplice_to_user(file, iov, nr_segs, flags);
+	f = fdget(fd);
+	if (f.file) {
+		if (f.file->f_mode & FMODE_WRITE)
+			error = vmsplice_to_pipe(f.file, iov, nr_segs, flags);
+		else if (f.file->f_mode & FMODE_READ)
+			error = vmsplice_to_user(f.file, iov, nr_segs, flags);
 
-		fput_light(file, fput);
+		fdput(f);
 	}
 
 	return error;
@@ -1693,30 +1692,27 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 		int, fd_out, loff_t __user *, off_out,
 		size_t, len, unsigned int, flags)
 {
+	struct fd in, out;
 	long error;
-	struct file *in, *out;
-	int fput_in, fput_out;
 
 	if (unlikely(!len))
 		return 0;
 
 	error = -EBADF;
-	in = fget_light(fd_in, &fput_in);
-	if (in) {
-		if (in->f_mode & FMODE_READ) {
-			out = fget_light(fd_out, &fput_out);
-			if (out) {
-				if (out->f_mode & FMODE_WRITE)
-					error = do_splice(in, off_in,
-							  out, off_out,
+	in = fdget(fd_in);
+	if (in.file) {
+		if (in.file->f_mode & FMODE_READ) {
+			out = fdget(fd_out);
+			if (out.file) {
+				if (out.file->f_mode & FMODE_WRITE)
+					error = do_splice(in.file, off_in,
+							  out.file, off_out,
 							  len, flags);
-				fput_light(out, fput_out);
+				fdput(out);
 			}
 		}
-
-		fput_light(in, fput_in);
+		fdput(in);
 	}
-
 	return error;
 }
 
@@ -2027,26 +2023,25 @@ static long do_tee(struct file *in, struct file *out, size_t len,
 
 SYSCALL_DEFINE4(tee, int, fdin, int, fdout, size_t, len, unsigned int, flags)
 {
-	struct file *in;
-	int error, fput_in;
+	struct fd in;
+	int error;
 
 	if (unlikely(!len))
 		return 0;
 
 	error = -EBADF;
-	in = fget_light(fdin, &fput_in);
-	if (in) {
-		if (in->f_mode & FMODE_READ) {
-			int fput_out;
-			struct file *out = fget_light(fdout, &fput_out);
-
-			if (out) {
-				if (out->f_mode & FMODE_WRITE)
-					error = do_tee(in, out, len, flags);
-				fput_light(out, fput_out);
+	in = fdget(fdin);
+	if (in.file) {
+		if (in.file->f_mode & FMODE_READ) {
+			struct fd out = fdget(fdout);
+			if (out.file) {
+				if (out.file->f_mode & FMODE_WRITE)
+					error = do_tee(in.file, out.file,
+							len, flags);
+				fdput(out);
 			}
 		}
- 		fput_light(in, fput_in);
+ 		fdput(in);
  	}
 
 	return error;

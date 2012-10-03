@@ -65,6 +65,7 @@ typedef enum {
 struct poll_table_struct;
 struct pipe_inode_info;
 struct inode;
+struct file;
 struct net;
 
 #define SOCK_ASYNC_NOSPACE	0
@@ -246,7 +247,7 @@ extern int   	     sock_sendmsg(struct socket *sock, struct msghdr *msg,
 				  size_t len);
 extern int	     sock_recvmsg(struct socket *sock, struct msghdr *msg,
 				  size_t size, int flags);
-extern int 	     sock_map_fd(struct socket *sock, int flags);
+extern struct file  *sock_alloc_file(struct socket *sock, int flags, const char *dname);
 extern struct socket *sockfd_lookup(int fd, int *err);
 extern struct socket *sock_from_file(struct file *file, int *err);
 #define		     sockfd_put(sock) fput(sock->file)

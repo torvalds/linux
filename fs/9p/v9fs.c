@@ -560,6 +560,11 @@ static int v9fs_init_inode_cache(void)
  */
 static void v9fs_destroy_inode_cache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(v9fs_inode_cache);
 }
 

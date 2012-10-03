@@ -2088,15 +2088,19 @@ static int selinux_bprm_secureexec(struct linux_binprm *bprm)
 	return (atsecure || cap_bprm_secureexec(bprm));
 }
 
+static int match_file(const void *p, struct file *file, unsigned fd)
+{
+	return file_has_perm(p, file, file_to_av(file)) ? fd + 1 : 0;
+}
+
 /* Derived from fs/exec.c:flush_old_files. */
 static inline void flush_unauthorized_files(const struct cred *cred,
 					    struct files_struct *files)
 {
 	struct file *file, *devnull = NULL;
 	struct tty_struct *tty;
-	struct fdtable *fdt;
-	long j = -1;
 	int drop_tty = 0;
+	unsigned n;
 
 	tty = get_current_tty();
 	if (tty) {
@@ -2123,58 +2127,23 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 		no_tty();
 
 	/* Revalidate access to inherited open files. */
-	spin_lock(&files->file_lock);
-	for (;;) {
-		unsigned long set, i;
-		int fd;
+	n = iterate_fd(files, 0, match_file, cred);
+	if (!n) /* none found? */
+		return;
 
-		j++;
-		i = j * BITS_PER_LONG;
-		fdt = files_fdtable(files);
-		if (i >= fdt->max_fds)
-			break;
-		set = fdt->open_fds[j];
-		if (!set)
-			continue;
-		spin_unlock(&files->file_lock);
-		for ( ; set ; i++, set >>= 1) {
-			if (set & 1) {
-				file = fget(i);
-				if (!file)
-					continue;
-				if (file_has_perm(cred,
-						  file,
-						  file_to_av(file))) {
-					sys_close(i);
-					fd = get_unused_fd();
-					if (fd != i) {
-						if (fd >= 0)
-							put_unused_fd(fd);
-						fput(file);
-						continue;
-					}
-					if (devnull) {
-						get_file(devnull);
-					} else {
-						devnull = dentry_open(
-							&selinux_null,
-							O_RDWR, cred);
-						if (IS_ERR(devnull)) {
-							devnull = NULL;
-							put_unused_fd(fd);
-							fput(file);
-							continue;
-						}
-					}
-					fd_install(fd, devnull);
-				}
-				fput(file);
-			}
-		}
-		spin_lock(&files->file_lock);
-
+	devnull = dentry_open(&selinux_null, O_RDWR, cred);
+	if (!IS_ERR(devnull)) {
+		/* replace all the matching ones with this */
+		do {
+			replace_fd(n - 1, get_file(devnull), 0);
+		} while ((n = iterate_fd(files, n, match_file, cred)) != 0);
+		fput(devnull);
+	} else {
+		/* just close all the matching ones */
+		do {
+			replace_fd(n - 1, NULL, 0);
+		} while ((n = iterate_fd(files, n, match_file, cred)) != 0);
 	}
-	spin_unlock(&files->file_lock);
 }
 
 /*
