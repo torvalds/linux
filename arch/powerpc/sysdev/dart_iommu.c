@@ -73,11 +73,16 @@ static int dart_is_u4;
 
 #define DBG(...)
 
+static DEFINE_SPINLOCK(invalidate_lock);
+
 static inline void dart_tlb_invalidate_all(void)
 {
 	unsigned long l = 0;
 	unsigned int reg, inv_bit;
 	unsigned long limit;
+	unsigned long flags;
+
+	spin_lock_irqsave(&invalidate_lock, flags);
 
 	DBG("dart: flush\n");
 
@@ -110,12 +115,17 @@ retry:
 			panic("DART: TLB did not flush after waiting a long "
 			      "time. Buggy U3 ?");
 	}
+
+	spin_unlock_irqrestore(&invalidate_lock, flags);
 }
 
 static inline void dart_tlb_invalidate_one(unsigned long bus_rpn)
 {
 	unsigned int reg;
 	unsigned int l, limit;
+	unsigned long flags;
+
+	spin_lock_irqsave(&invalidate_lock, flags);
 
 	reg = DART_CNTL_U4_ENABLE | DART_CNTL_U4_IONE |
 		(bus_rpn & DART_CNTL_U4_IONE_MASK);
@@ -137,6 +147,8 @@ wait_more:
 			panic("DART: TLB did not flush after waiting a long "
 			      "time. Buggy U4 ?");
 	}
+
+	spin_unlock_irqrestore(&invalidate_lock, flags);
 }
 
 static void dart_flush(struct iommu_table *tbl)
