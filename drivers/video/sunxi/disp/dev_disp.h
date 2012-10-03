@@ -30,10 +30,6 @@
 #include <ump/ump_kernel_interface.h>
 #endif
 
-// 1M + 64M(ve) + 16M(fb)
-#define FB_RESERVED_MEM
-
-
 struct info_mm {
 	void *info_base;	/* Virtual address */
 	unsigned long mem_start;	/* Start of frame buffer mem */

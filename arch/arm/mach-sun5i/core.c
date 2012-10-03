@@ -181,7 +181,7 @@ static void __init sw_core_fixup(struct tag *t, char **cmdline,
 		(u32)((SIZE) < SZ_1M ? (SIZE) / SZ_1K : (SIZE) / SZ_1M), \
 		(SIZE) < SZ_1M ? "kB" : "MB")
 
-#if defined CONFIG_FB || defined CONFIG_FB_MODULE
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 unsigned long fb_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_64M - SZ_32M);
 unsigned long fb_size = SZ_32M;
 EXPORT_SYMBOL(fb_start);
