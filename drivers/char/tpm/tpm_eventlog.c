@@ -1,7 +1,8 @@
 /*
- * Copyright (C) 2005 IBM Corporation
+ * Copyright (C) 2005, 2012 IBM Corporation
  *
  * Authors:
+ *	Kent Yoder <key@linux.vnet.ibm.com>
  *	Seiji Munetoh <munetoh@jp.ibm.com>
  *	Stefan Berger <stefanb@us.ibm.com>
  *	Reiner Sailer <sailer@watson.ibm.com>
@@ -9,7 +10,7 @@
  *
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
- * Access to the eventlog extended by the TCG BIOS of PC platform
+ * Access to the eventlog created by a system's firmware / BIOS
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,67 +24,10 @@
 #include <linux/security.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <acpi/acpi.h>
+
 #include "tpm.h"
+#include "tpm_eventlog.h"
 
-#define TCG_EVENT_NAME_LEN_MAX	255
-#define MAX_TEXT_EVENT		1000	/* Max event string length */
-#define ACPI_TCPA_SIG		"TCPA"	/* 0x41504354 /'TCPA' */
-
-enum bios_platform_class {
-	BIOS_CLIENT = 0x00,
-	BIOS_SERVER = 0x01,
-};
-
-struct tpm_bios_log {
-	void *bios_event_log;
-	void *bios_event_log_end;
-};
-
-struct acpi_tcpa {
-	struct acpi_table_header hdr;
-	u16 platform_class;
-	union {
-		struct client_hdr {
-			u32 log_max_len __attribute__ ((packed));
-			u64 log_start_addr __attribute__ ((packed));
-		} client;
-		struct server_hdr {
-			u16 reserved;
-			u64 log_max_len __attribute__ ((packed));
-			u64 log_start_addr __attribute__ ((packed));
-		} server;
-	};
-};
-
-struct tcpa_event {
-	u32 pcr_index;
-	u32 event_type;
-	u8 pcr_value[20];	/* SHA1 */
-	u32 event_size;
-	u8 event_data[0];
-};
-
-enum tcpa_event_types {
-	PREBOOT = 0,
-	POST_CODE,
-	UNUSED,
-	NO_ACTION,
-	SEPARATOR,
-	ACTION,
-	EVENT_TAG,
-	SCRTM_CONTENTS,
-	SCRTM_VERSION,
-	CPU_MICROCODE,
-	PLATFORM_CONFIG_FLAGS,
-	TABLE_OF_DEVICES,
-	COMPACT_HASH,
-	IPL,
-	IPL_PARTITION_DATA,
-	NONHOST_CODE,
-	NONHOST_CONFIG,
-	NONHOST_INFO,
-};
 
 static const char* tcpa_event_type_strings[] = {
 	"PREBOOT",
@@ -104,28 +48,6 @@ static const char* tcpa_event_type_strings[] = {
 	"Non-Host Code",
 	"Non-Host Config",
 	"Non-Host Info"
-};
-
-struct tcpa_pc_event {
-	u32 event_id;
-	u32 event_size;
-	u8 event_data[0];
-};
-
-enum tcpa_pc_event_ids {
-	SMBIOS = 1,
-	BIS_CERT,
-	POST_BIOS_ROM,
-	ESCD,
-	CMOS,
-	NVRAM,
-	OPTION_ROM_EXEC,
-	OPTION_ROM_CONFIG,
-	OPTION_ROM_MICROCODE = 10,
-	S_CRTM_VERSION,
-	S_CRTM_CONTENTS,
-	POST_CONTENTS,
-	HOST_TABLE_OF_DEVICES,
 };
 
 static const char* tcpa_pc_event_id_strings[] = {
@@ -357,65 +279,6 @@ static const struct seq_operations tpm_binary_b_measurments_seqops = {
 	.stop = tpm_bios_measurements_stop,
 	.show = tpm_binary_bios_measurements_show,
 };
-
-/* read binary bios log */
-static int read_log(struct tpm_bios_log *log)
-{
-	struct acpi_tcpa *buff;
-	acpi_status status;
-	struct acpi_table_header *virt;
-	u64 len, start;
-
-	if (log->bios_event_log != NULL) {
-		printk(KERN_ERR
-		       "%s: ERROR - Eventlog already initialized\n",
-		       __func__);
-		return -EFAULT;
-	}
-
-	/* Find TCPA entry in RSDT (ACPI_LOGICAL_ADDRESSING) */
-	status = acpi_get_table(ACPI_SIG_TCPA, 1,
-				(struct acpi_table_header **)&buff);
-
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR "%s: ERROR - Could not get TCPA table\n",
-		       __func__);
-		return -EIO;
-	}
-
-	switch(buff->platform_class) {
-	case BIOS_SERVER:
-		len = buff->server.log_max_len;
-		start = buff->server.log_start_addr;
-		break;
-	case BIOS_CLIENT:
-	default:
-		len = buff->client.log_max_len;
-		start = buff->client.log_start_addr;
-		break;
-	}
-	if (!len) {
-		printk(KERN_ERR "%s: ERROR - TCPA log area empty\n", __func__);
-		return -EIO;
-	}
-
-	/* malloc EventLog space */
-	log->bios_event_log = kmalloc(len, GFP_KERNEL);
-	if (!log->bios_event_log) {
-		printk("%s: ERROR - Not enough  Memory for BIOS measurements\n",
-			__func__);
-		return -ENOMEM;
-	}
-
-	log->bios_event_log_end = log->bios_event_log + len;
-
-	virt = acpi_os_map_memory(start, len);
-
-	memcpy(log->bios_event_log, virt, len);
-
-	acpi_os_unmap_memory(virt, len);
-	return 0;
-}
 
 static int tpm_ascii_bios_measurements_open(struct inode *inode,
 					    struct file *file)

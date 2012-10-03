@@ -369,38 +369,6 @@ static int trusted_tpm_send(const u32 chip_num, unsigned char *cmd,
 }
 
 /*
- * get a random value from TPM
- */
-static int tpm_get_random(struct tpm_buf *tb, unsigned char *buf, uint32_t len)
-{
-	int ret;
-
-	INIT_BUF(tb);
-	store16(tb, TPM_TAG_RQU_COMMAND);
-	store32(tb, TPM_GETRANDOM_SIZE);
-	store32(tb, TPM_ORD_GETRANDOM);
-	store32(tb, len);
-	ret = trusted_tpm_send(TPM_ANY_NUM, tb->data, sizeof tb->data);
-	if (!ret)
-		memcpy(buf, tb->data + TPM_GETRANDOM_SIZE, len);
-	return ret;
-}
-
-static int my_get_random(unsigned char *buf, int len)
-{
-	struct tpm_buf *tb;
-	int ret;
-
-	tb = kmalloc(sizeof *tb, GFP_KERNEL);
-	if (!tb)
-		return -ENOMEM;
-	ret = tpm_get_random(tb, buf, len);
-
-	kfree(tb);
-	return ret;
-}
-
-/*
  * Lock a trusted key, by extending a selected PCR.
  *
  * Prevents a trusted key that is sealed to PCRs from being accessed.
@@ -413,8 +381,8 @@ static int pcrlock(const int pcrnum)
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	ret = my_get_random(hash, SHA1_DIGEST_SIZE);
-	if (ret < 0)
+	ret = tpm_get_random(TPM_ANY_NUM, hash, SHA1_DIGEST_SIZE);
+	if (ret != SHA1_DIGEST_SIZE)
 		return ret;
 	return tpm_pcr_extend(TPM_ANY_NUM, pcrnum, hash) ? -EINVAL : 0;
 }
@@ -429,8 +397,8 @@ static int osap(struct tpm_buf *tb, struct osapsess *s,
 	unsigned char ononce[TPM_NONCE_SIZE];
 	int ret;
 
-	ret = tpm_get_random(tb, ononce, TPM_NONCE_SIZE);
-	if (ret < 0)
+	ret = tpm_get_random(TPM_ANY_NUM, ononce, TPM_NONCE_SIZE);
+	if (ret != TPM_NONCE_SIZE)
 		return ret;
 
 	INIT_BUF(tb);
@@ -524,8 +492,8 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 	if (ret < 0)
 		goto out;
 
-	ret = tpm_get_random(tb, td->nonceodd, TPM_NONCE_SIZE);
-	if (ret < 0)
+	ret = tpm_get_random(TPM_ANY_NUM, td->nonceodd, TPM_NONCE_SIZE);
+	if (ret != TPM_NONCE_SIZE)
 		goto out;
 	ordinal = htonl(TPM_ORD_SEAL);
 	datsize = htonl(datalen);
@@ -634,8 +602,8 @@ static int tpm_unseal(struct tpm_buf *tb,
 
 	ordinal = htonl(TPM_ORD_UNSEAL);
 	keyhndl = htonl(SRKHANDLE);
-	ret = tpm_get_random(tb, nonceodd, TPM_NONCE_SIZE);
-	if (ret < 0) {
+	ret = tpm_get_random(TPM_ANY_NUM, nonceodd, TPM_NONCE_SIZE);
+	if (ret != TPM_NONCE_SIZE) {
 		pr_info("trusted_key: tpm_get_random failed (%d)\n", ret);
 		return ret;
 	}
@@ -935,6 +903,7 @@ static int trusted_instantiate(struct key *key, const void *data,
 	char *datablob;
 	int ret = 0;
 	int key_cmd;
+	size_t key_len;
 
 	if (datalen <= 0 || datalen > 32767 || !data)
 		return -EINVAL;
@@ -974,8 +943,9 @@ static int trusted_instantiate(struct key *key, const void *data,
 			pr_info("trusted_key: key_unseal failed (%d)\n", ret);
 		break;
 	case Opt_new:
-		ret = my_get_random(payload->key, payload->key_len);
-		if (ret < 0) {
+		key_len = payload->key_len;
+		ret = tpm_get_random(TPM_ANY_NUM, payload->key, key_len);
+		if (ret != key_len) {
 			pr_info("trusted_key: key_create failed (%d)\n", ret);
 			goto out;
 		}

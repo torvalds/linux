@@ -289,3 +289,16 @@ config HW_RANDOM_EXYNOS
 	  module will be called exynos-rng.
 
 	  If unsure, say Y.
+
+config HW_RANDOM_TPM
+	tristate "TPM HW Random Number Generator support"
+	depends on HW_RANDOM && TCG_TPM
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator in the Trusted Platform Module
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tpm-rng.
+
+	  If unsure, say Y.

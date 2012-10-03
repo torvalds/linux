@@ -39,5 +39,32 @@ static inline int ima_file_mmap(struct file *file, unsigned long prot)
 {
 	return 0;
 }
+
 #endif /* CONFIG_IMA_H */
+
+#ifdef CONFIG_IMA_APPRAISE
+extern void ima_inode_post_setattr(struct dentry *dentry);
+extern int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
+		       const void *xattr_value, size_t xattr_value_len);
+extern int ima_inode_removexattr(struct dentry *dentry, const char *xattr_name);
+#else
+static inline void ima_inode_post_setattr(struct dentry *dentry)
+{
+	return;
+}
+
+static inline int ima_inode_setxattr(struct dentry *dentry,
+				     const char *xattr_name,
+				     const void *xattr_value,
+				     size_t xattr_value_len)
+{
+	return 0;
+}
+
+static inline int ima_inode_removexattr(struct dentry *dentry,
+					const char *xattr_name)
+{
+	return 0;
+}
+#endif /* CONFIG_IMA_APPRAISE_H */
 #endif /* _LINUX_IMA_H */
