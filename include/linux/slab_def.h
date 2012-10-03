@@ -45,7 +45,6 @@ struct kmem_cache {
 	unsigned int colour_off;	/* colour offset */
 	struct kmem_cache *slabp_cache;
 	unsigned int slab_size;
-	unsigned int dflags;		/* dynamic flags */
 
 	/* constructor func */
 	void (*ctor)(void *obj);
@@ -112,18 +111,12 @@ void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
 void *__kmalloc(size_t size, gfp_t flags);
 
 #ifdef CONFIG_TRACING
-extern void *kmem_cache_alloc_trace(size_t size,
-				    struct kmem_cache *cachep, gfp_t flags);
-extern size_t slab_buffer_size(struct kmem_cache *cachep);
+extern void *kmem_cache_alloc_trace(struct kmem_cache *, gfp_t, size_t);
 #else
 static __always_inline void *
-kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
+kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
 {
 	return kmem_cache_alloc(cachep, flags);
-}
-static inline size_t slab_buffer_size(struct kmem_cache *cachep)
-{
-	return 0;
 }
 #endif
 
@@ -154,7 +147,7 @@ found:
 #endif
 			cachep = malloc_sizes[i].cs_cachep;
 
-		ret = kmem_cache_alloc_trace(size, cachep, flags);
+		ret = kmem_cache_alloc_trace(cachep, flags, size);
 
 		return ret;
 	}

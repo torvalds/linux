@@ -194,7 +194,7 @@ static void *slob_new_pages(gfp_t gfp, int order, int node)
 	void *page;
 
 #ifdef CONFIG_NUMA
-	if (node != -1)
+	if (node != NUMA_NO_NODE)
 		page = alloc_pages_exact_node(node, gfp, order);
 	else
 #endif
@@ -290,7 +290,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 		 * If there's a node specification, search for a partial
 		 * page with a matching node id in the freelist.
 		 */
-		if (node != -1 && page_to_nid(sp) != node)
+		if (node != NUMA_NO_NODE && page_to_nid(sp) != node)
 			continue;
 #endif
 		/* Enough room on this page? */
@@ -425,7 +425,8 @@ out:
  * End of slob allocator proper. Begin kmem_cache_alloc and kmalloc frontend.
  */
 
-void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+static __always_inline void *
+__do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
 {
 	unsigned int *m;
 	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
@@ -446,7 +447,7 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 		*m = size;
 		ret = (void *)m + align;
 
-		trace_kmalloc_node(_RET_IP_, ret,
+		trace_kmalloc_node(caller, ret,
 				   size, size + align, gfp, node);
 	} else {
 		unsigned int order = get_order(size);
@@ -460,14 +461,34 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 			page->private = size;
 		}
 
-		trace_kmalloc_node(_RET_IP_, ret,
+		trace_kmalloc_node(caller, ret,
 				   size, PAGE_SIZE << order, gfp, node);
 	}
 
 	kmemleak_alloc(ret, size, 1, gfp);
 	return ret;
 }
+
+void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+{
+	return __do_kmalloc_node(size, gfp, node, _RET_IP_);
+}
 EXPORT_SYMBOL(__kmalloc_node);
+
+#ifdef CONFIG_TRACING
+void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
+{
+	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, caller);
+}
+
+#ifdef CONFIG_NUMA
+void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
+					int node, unsigned long caller)
+{
+	return __do_kmalloc_node(size, gfp, node, caller);
+}
+#endif
+#endif
 
 void kfree(const void *block)
 {
@@ -514,7 +535,7 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
 	struct kmem_cache *c;
 
 	c = slob_alloc(sizeof(struct kmem_cache),
-		GFP_KERNEL, ARCH_KMALLOC_MINALIGN, -1);
+		GFP_KERNEL, ARCH_KMALLOC_MINALIGN, NUMA_NO_NODE);
 
 	if (c) {
 		c->name = name;

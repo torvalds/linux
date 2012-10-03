@@ -568,6 +568,8 @@ static void slab_bug(struct kmem_cache *s, char *fmt, ...)
 	printk(KERN_ERR "BUG %s (%s): %s\n", s->name, print_tainted(), buf);
 	printk(KERN_ERR "----------------------------------------"
 			"-------------------------------------\n\n");
+
+	add_taint(TAINT_BAD_PAGE);
 }
 
 static void slab_fix(struct kmem_cache *s, char *fmt, ...)
@@ -1069,13 +1071,13 @@ bad:
 	return 0;
 }
 
-static noinline int free_debug_processing(struct kmem_cache *s,
-		 struct page *page, void *object, unsigned long addr)
+static noinline struct kmem_cache_node *free_debug_processing(
+	struct kmem_cache *s, struct page *page, void *object,
+	unsigned long addr, unsigned long *flags)
 {
-	unsigned long flags;
-	int rc = 0;
+	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 
-	local_irq_save(flags);
+	spin_lock_irqsave(&n->list_lock, *flags);
 	slab_lock(page);
 
 	if (!check_slab(s, page))
@@ -1113,15 +1115,19 @@ static noinline int free_debug_processing(struct kmem_cache *s,
 		set_track(s, object, TRACK_FREE, addr);
 	trace(s, page, object, 0);
 	init_object(s, object, SLUB_RED_INACTIVE);
-	rc = 1;
 out:
 	slab_unlock(page);
-	local_irq_restore(flags);
-	return rc;
+	/*
+	 * Keep node_lock to preserve integrity
+	 * until the object is actually freed
+	 */
+	return n;
 
 fail:
+	slab_unlock(page);
+	spin_unlock_irqrestore(&n->list_lock, *flags);
 	slab_fix(s, "Object at 0x%p not freed", object);
-	goto out;
+	return NULL;
 }
 
 static int __init setup_slub_debug(char *str)
@@ -1214,8 +1220,9 @@ static inline void setup_object_debug(struct kmem_cache *s,
 static inline int alloc_debug_processing(struct kmem_cache *s,
 	struct page *page, void *object, unsigned long addr) { return 0; }
 
-static inline int free_debug_processing(struct kmem_cache *s,
-	struct page *page, void *object, unsigned long addr) { return 0; }
+static inline struct kmem_cache_node *free_debug_processing(
+	struct kmem_cache *s, struct page *page, void *object,
+	unsigned long addr, unsigned long *flags) { return NULL; }
 
 static inline int slab_pad_check(struct kmem_cache *s, struct page *page)
 			{ return 1; }
@@ -1714,7 +1721,7 @@ static inline void note_cmpxchg_failure(const char *n,
 	stat(s, CMPXCHG_DOUBLE_CPU_FAIL);
 }
 
-void init_kmem_cache_cpus(struct kmem_cache *s)
+static void init_kmem_cache_cpus(struct kmem_cache *s)
 {
 	int cpu;
 
@@ -1939,7 +1946,7 @@ static void unfreeze_partials(struct kmem_cache *s)
  * If we did not find a slot then simply move all the partials to the
  * per node partial list.
  */
-int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 {
 	struct page *oldpage;
 	int pages;
@@ -1962,6 +1969,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 				local_irq_save(flags);
 				unfreeze_partials(s);
 				local_irq_restore(flags);
+				oldpage = NULL;
 				pobjects = 0;
 				pages = 0;
 				stat(s, CPU_PARTIAL_DRAIN);
@@ -2310,7 +2318,7 @@ new_slab:
  *
  * Otherwise we can simply pick the next object from the lockless free list.
  */
-static __always_inline void *slab_alloc(struct kmem_cache *s,
+static __always_inline void *slab_alloc_node(struct kmem_cache *s,
 		gfp_t gfpflags, int node, unsigned long addr)
 {
 	void **object;
@@ -2380,9 +2388,15 @@ redo:
 	return object;
 }
 
+static __always_inline void *slab_alloc(struct kmem_cache *s,
+		gfp_t gfpflags, unsigned long addr)
+{
+	return slab_alloc_node(s, gfpflags, NUMA_NO_NODE, addr);
+}
+
 void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
 {
-	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
+	void *ret = slab_alloc(s, gfpflags, _RET_IP_);
 
 	trace_kmem_cache_alloc(_RET_IP_, ret, s->object_size, s->size, gfpflags);
 
@@ -2393,7 +2407,7 @@ EXPORT_SYMBOL(kmem_cache_alloc);
 #ifdef CONFIG_TRACING
 void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
 {
-	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
+	void *ret = slab_alloc(s, gfpflags, _RET_IP_);
 	trace_kmalloc(_RET_IP_, ret, size, s->size, gfpflags);
 	return ret;
 }
@@ -2411,7 +2425,7 @@ EXPORT_SYMBOL(kmalloc_order_trace);
 #ifdef CONFIG_NUMA
 void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
 {
-	void *ret = slab_alloc(s, gfpflags, node, _RET_IP_);
+	void *ret = slab_alloc_node(s, gfpflags, node, _RET_IP_);
 
 	trace_kmem_cache_alloc_node(_RET_IP_, ret,
 				    s->object_size, s->size, gfpflags, node);
@@ -2425,7 +2439,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
 				    gfp_t gfpflags,
 				    int node, size_t size)
 {
-	void *ret = slab_alloc(s, gfpflags, node, _RET_IP_);
+	void *ret = slab_alloc_node(s, gfpflags, node, _RET_IP_);
 
 	trace_kmalloc_node(_RET_IP_, ret,
 			   size, s->size, gfpflags, node);
@@ -2457,7 +2471,8 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 
 	stat(s, FREE_SLOWPATH);
 
-	if (kmem_cache_debug(s) && !free_debug_processing(s, page, x, addr))
+	if (kmem_cache_debug(s) &&
+		!(n = free_debug_processing(s, page, x, addr, &flags)))
 		return;
 
 	do {
@@ -3362,7 +3377,7 @@ void *__kmalloc(size_t size, gfp_t flags)
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
-	ret = slab_alloc(s, flags, NUMA_NO_NODE, _RET_IP_);
+	ret = slab_alloc(s, flags, _RET_IP_);
 
 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
 
@@ -3405,7 +3420,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
-	ret = slab_alloc(s, flags, node, _RET_IP_);
+	ret = slab_alloc_node(s, flags, node, _RET_IP_);
 
 	trace_kmalloc_node(_RET_IP_, ret, size, s->size, flags, node);
 
@@ -3482,7 +3497,7 @@ void kfree(const void *x)
 	if (unlikely(!PageSlab(page))) {
 		BUG_ON(!PageCompound(page));
 		kmemleak_free(x);
-		put_page(page);
+		__free_pages(page, compound_order(page));
 		return;
 	}
 	slab_free(page->slab, page, object, _RET_IP_);
@@ -4033,7 +4048,7 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, unsigned long caller)
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
-	ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, caller);
+	ret = slab_alloc(s, gfpflags, caller);
 
 	/* Honor the call site pointer we received. */
 	trace_kmalloc(caller, ret, size, s->size, gfpflags);
@@ -4063,7 +4078,7 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
-	ret = slab_alloc(s, gfpflags, node, caller);
+	ret = slab_alloc_node(s, gfpflags, node, caller);
 
 	/* Honor the call site pointer we received. */
 	trace_kmalloc_node(caller, ret, size, s->size, gfpflags, node);

@@ -498,14 +498,6 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
 
 #endif
 
-#ifdef CONFIG_TRACING
-size_t slab_buffer_size(struct kmem_cache *cachep)
-{
-	return cachep->size;
-}
-EXPORT_SYMBOL(slab_buffer_size);
-#endif
-
 /*
  * Do not go above this order unless 0 objects fit into the slab or
  * overridden on the command line.
@@ -514,13 +506,6 @@ EXPORT_SYMBOL(slab_buffer_size);
 #define	SLAB_MAX_ORDER_LO	0
 static int slab_max_order = SLAB_MAX_ORDER_LO;
 static bool slab_max_order_set __initdata;
-
-static inline struct kmem_cache *page_get_cache(struct page *page)
-{
-	page = compound_head(page);
-	BUG_ON(!PageSlab(page));
-	return page->slab_cache;
-}
 
 static inline struct kmem_cache *virt_to_cache(const void *obj)
 {
@@ -818,6 +803,7 @@ static void __slab_error(const char *function, struct kmem_cache *cachep,
 	printk(KERN_ERR "slab error in %s(): cache `%s': %s\n",
 	       function, cachep->name, msg);
 	dump_stack();
+	add_taint(TAINT_BAD_PAGE);
 }
 
 /*
@@ -1781,15 +1767,15 @@ void __init kmem_cache_init_late(void)
 
 	slab_state = UP;
 
-	/* Annotate slab for lockdep -- annotate the malloc caches */
-	init_lock_keys();
-
 	/* 6) resize the head arrays to their final sizes */
 	mutex_lock(&slab_mutex);
 	list_for_each_entry(cachep, &slab_caches, list)
 		if (enable_cpucache(cachep, GFP_NOWAIT))
 			BUG();
 	mutex_unlock(&slab_mutex);
+
+	/* Annotate slab for lockdep -- annotate the malloc caches */
+	init_lock_keys();
 
 	/* Done! */
 	slab_state = FULL;
@@ -2506,8 +2492,9 @@ __kmem_cache_create (const char *name, size_t size, size_t align,
 	}
 #if FORCED_DEBUG && defined(CONFIG_DEBUG_PAGEALLOC)
 	if (size >= malloc_sizes[INDEX_L3 + 1].cs_size
-	    && cachep->object_size > cache_line_size() && ALIGN(size, align) < PAGE_SIZE) {
-		cachep->obj_offset += PAGE_SIZE - ALIGN(size, align);
+	    && cachep->object_size > cache_line_size()
+	    && ALIGN(size, cachep->align) < PAGE_SIZE) {
+		cachep->obj_offset += PAGE_SIZE - ALIGN(size, cachep->align);
 		size = PAGE_SIZE;
 	}
 #endif
@@ -3098,7 +3085,7 @@ static inline void verify_redzone_free(struct kmem_cache *cache, void *obj)
 }
 
 static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
-				   void *caller)
+				   unsigned long caller)
 {
 	struct page *page;
 	unsigned int objnr;
@@ -3118,7 +3105,7 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 		*dbg_redzone2(cachep, objp) = RED_INACTIVE;
 	}
 	if (cachep->flags & SLAB_STORE_USER)
-		*dbg_userword(cachep, objp) = caller;
+		*dbg_userword(cachep, objp) = (void *)caller;
 
 	objnr = obj_to_index(cachep, slabp, objp);
 
@@ -3131,7 +3118,7 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 	if (cachep->flags & SLAB_POISON) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
 		if ((cachep->size % PAGE_SIZE)==0 && OFF_SLAB(cachep)) {
-			store_stackinfo(cachep, objp, (unsigned long)caller);
+			store_stackinfo(cachep, objp, caller);
 			kernel_map_pages(virt_to_page(objp),
 					 cachep->size / PAGE_SIZE, 0);
 		} else {
@@ -3285,7 +3272,7 @@ static inline void cache_alloc_debugcheck_before(struct kmem_cache *cachep,
 
 #if DEBUG
 static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
-				gfp_t flags, void *objp, void *caller)
+				gfp_t flags, void *objp, unsigned long caller)
 {
 	if (!objp)
 		return objp;
@@ -3302,7 +3289,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 		poison_obj(cachep, objp, POISON_INUSE);
 	}
 	if (cachep->flags & SLAB_STORE_USER)
-		*dbg_userword(cachep, objp) = caller;
+		*dbg_userword(cachep, objp) = (void *)caller;
 
 	if (cachep->flags & SLAB_RED_ZONE) {
 		if (*dbg_redzone1(cachep, objp) != RED_INACTIVE ||
@@ -3576,8 +3563,8 @@ done:
  * Fallback to other node is possible if __GFP_THISNODE is not set.
  */
 static __always_inline void *
-__cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
-		   void *caller)
+slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+		   unsigned long caller)
 {
 	unsigned long save_flags;
 	void *ptr;
@@ -3663,7 +3650,7 @@ __do_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 #endif /* CONFIG_NUMA */
 
 static __always_inline void *
-__cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
+slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
 {
 	unsigned long save_flags;
 	void *objp;
@@ -3799,7 +3786,7 @@ free_done:
  * be in this state _before_ it is released.  Called with disabled ints.
  */
 static inline void __cache_free(struct kmem_cache *cachep, void *objp,
-    void *caller)
+				unsigned long caller)
 {
 	struct array_cache *ac = cpu_cache_get(cachep);
 
@@ -3839,7 +3826,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
  */
 void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 {
-	void *ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+	void *ret = slab_alloc(cachep, flags, _RET_IP_);
 
 	trace_kmem_cache_alloc(_RET_IP_, ret,
 			       cachep->object_size, cachep->size, flags);
@@ -3850,14 +3837,14 @@ EXPORT_SYMBOL(kmem_cache_alloc);
 
 #ifdef CONFIG_TRACING
 void *
-kmem_cache_alloc_trace(size_t size, struct kmem_cache *cachep, gfp_t flags)
+kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
 {
 	void *ret;
 
-	ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+	ret = slab_alloc(cachep, flags, _RET_IP_);
 
 	trace_kmalloc(_RET_IP_, ret,
-		      size, slab_buffer_size(cachep), flags);
+		      size, cachep->size, flags);
 	return ret;
 }
 EXPORT_SYMBOL(kmem_cache_alloc_trace);
@@ -3866,8 +3853,7 @@ EXPORT_SYMBOL(kmem_cache_alloc_trace);
 #ifdef CONFIG_NUMA
 void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 {
-	void *ret = __cache_alloc_node(cachep, flags, nodeid,
-				       __builtin_return_address(0));
+	void *ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
 
 	trace_kmem_cache_alloc_node(_RET_IP_, ret,
 				    cachep->object_size, cachep->size,
@@ -3878,17 +3864,17 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
 #ifdef CONFIG_TRACING
-void *kmem_cache_alloc_node_trace(size_t size,
-				  struct kmem_cache *cachep,
+void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
 				  gfp_t flags,
-				  int nodeid)
+				  int nodeid,
+				  size_t size)
 {
 	void *ret;
 
-	ret = __cache_alloc_node(cachep, flags, nodeid,
-				  __builtin_return_address(0));
+	ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP);
+
 	trace_kmalloc_node(_RET_IP_, ret,
-			   size, slab_buffer_size(cachep),
+			   size, cachep->size,
 			   flags, nodeid);
 	return ret;
 }
@@ -3896,34 +3882,33 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
 #endif
 
 static __always_inline void *
-__do_kmalloc_node(size_t size, gfp_t flags, int node, void *caller)
+__do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
 {
 	struct kmem_cache *cachep;
 
 	cachep = kmem_find_general_cachep(size, flags);
 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
 		return cachep;
-	return kmem_cache_alloc_node_trace(size, cachep, flags, node);
+	return kmem_cache_alloc_node_trace(cachep, flags, node, size);
 }
 
 #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
 void *__kmalloc_node(size_t size, gfp_t flags, int node)
 {
-	return __do_kmalloc_node(size, flags, node,
-			__builtin_return_address(0));
+	return __do_kmalloc_node(size, flags, node, _RET_IP_);
 }
 EXPORT_SYMBOL(__kmalloc_node);
 
 void *__kmalloc_node_track_caller(size_t size, gfp_t flags,
 		int node, unsigned long caller)
 {
-	return __do_kmalloc_node(size, flags, node, (void *)caller);
+	return __do_kmalloc_node(size, flags, node, caller);
 }
 EXPORT_SYMBOL(__kmalloc_node_track_caller);
 #else
 void *__kmalloc_node(size_t size, gfp_t flags, int node)
 {
-	return __do_kmalloc_node(size, flags, node, NULL);
+	return __do_kmalloc_node(size, flags, node, 0);
 }
 EXPORT_SYMBOL(__kmalloc_node);
 #endif /* CONFIG_DEBUG_SLAB || CONFIG_TRACING */
@@ -3936,7 +3921,7 @@ EXPORT_SYMBOL(__kmalloc_node);
  * @caller: function caller for debug tracking of the caller
  */
 static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
-					  void *caller)
+					  unsigned long caller)
 {
 	struct kmem_cache *cachep;
 	void *ret;
@@ -3949,9 +3934,9 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 	cachep = __find_general_cachep(size, flags);
 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
 		return cachep;
-	ret = __cache_alloc(cachep, flags, caller);
+	ret = slab_alloc(cachep, flags, caller);
 
-	trace_kmalloc((unsigned long) caller, ret,
+	trace_kmalloc(caller, ret,
 		      size, cachep->size, flags);
 
 	return ret;
@@ -3961,20 +3946,20 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 #if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
 void *__kmalloc(size_t size, gfp_t flags)
 {
-	return __do_kmalloc(size, flags, __builtin_return_address(0));
+	return __do_kmalloc(size, flags, _RET_IP_);
 }
 EXPORT_SYMBOL(__kmalloc);
 
 void *__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller)
 {
-	return __do_kmalloc(size, flags, (void *)caller);
+	return __do_kmalloc(size, flags, caller);
 }
 EXPORT_SYMBOL(__kmalloc_track_caller);
 
 #else
 void *__kmalloc(size_t size, gfp_t flags)
 {
-	return __do_kmalloc(size, flags, NULL);
+	return __do_kmalloc(size, flags, 0);
 }
 EXPORT_SYMBOL(__kmalloc);
 #endif
@@ -3995,7 +3980,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	debug_check_no_locks_freed(objp, cachep->object_size);
 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
 		debug_check_no_obj_freed(objp, cachep->object_size);
-	__cache_free(cachep, objp, __builtin_return_address(0));
+	__cache_free(cachep, objp, _RET_IP_);
 	local_irq_restore(flags);
 
 	trace_kmem_cache_free(_RET_IP_, objp);
@@ -4026,7 +4011,7 @@ void kfree(const void *objp)
 	debug_check_no_locks_freed(objp, c->object_size);
 
 	debug_check_no_obj_freed(objp, c->object_size);
-	__cache_free(c, (void *)objp, __builtin_return_address(0));
+	__cache_free(c, (void *)objp, _RET_IP_);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(kfree);
