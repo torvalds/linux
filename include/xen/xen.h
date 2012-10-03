@@ -24,7 +24,7 @@ extern enum xen_domain_type xen_domain_type;
 #include <asm/xen/hypervisor.h>
 
 #define xen_initial_domain()	(xen_domain() && \
-				 xen_start_info->flags & SIF_INITDOMAIN)
+				 xen_start_info && xen_start_info->flags & SIF_INITDOMAIN)
 #else  /* !CONFIG_XEN_DOM0 */
 #define xen_initial_domain()	(0)
 #endif	/* CONFIG_XEN_DOM0 */
