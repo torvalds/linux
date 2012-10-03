@@ -320,7 +320,7 @@ static const struct key_entry asus_keymap[] = {
 	{KE_KEY, 0x5D, { KEY_WLAN } }, /* WLAN Toggle */
 	{KE_KEY, 0x5E, { KEY_WLAN } }, /* WLAN Enable */
 	{KE_KEY, 0x5F, { KEY_WLAN } }, /* WLAN Disable */
-	{KE_KEY, 0x60, { KEY_SWITCHVIDEOMODE } },
+	{KE_KEY, 0x60, { KEY_TOUCHPAD_ON } },
 	{KE_KEY, 0x61, { KEY_SWITCHVIDEOMODE } }, /* LCD Only */
 	{KE_KEY, 0x62, { KEY_SWITCHVIDEOMODE } }, /* CRT Only */
 	{KE_KEY, 0x63, { KEY_SWITCHVIDEOMODE } }, /* LCD + CRT */
