@@ -285,6 +285,20 @@ out:
 	return err;
 }
 
+int perf_evlist__add_newtp(struct perf_evlist *evlist,
+			   const char *sys, const char *name, void *handler)
+{
+	struct perf_evsel *evsel;
+
+	evsel = perf_evsel__newtp(sys, name, evlist->nr_entries);
+	if (evsel == NULL)
+		return -1;
+
+	evsel->handler.func = handler;
+	perf_evlist__add(evlist, evsel);
+	return 0;
+}
+
 void perf_evlist__disable(struct perf_evlist *evlist)
 {
 	int cpu, thread;
