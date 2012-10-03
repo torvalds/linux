@@ -2631,6 +2631,18 @@ T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
 F:	sound/usb/misc/ua101.c
 
+EXTENSIBLE FIRMWARE INTERFACE (EFI)
+M:	Matt Fleming <matt.fleming@intel.com>
+L:	linux-efi@vger.kernel.org
+S:	Maintained
+F:	Documentation/x86/efi-stub.txt
+F:	arch/ia64/kernel/efi.c
+F:	arch/x86/boot/compressed/eboot.[ch]
+F:	arch/x86/include/asm/efi.h
+F:	arch/x86/platform/efi/*
+F:	drivers/firmware/efivars.c
+F:	include/linux/efi*.h
+
 EFIFB FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
 M:	Peter Jones <pjones@redhat.com>
