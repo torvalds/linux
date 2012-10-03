@@ -9,6 +9,7 @@
 #include <xen/platform_pci.h>
 #include <xen/xenbus.h>
 #include <xen/page.h>
+#include <xen/xen-ops.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 #include <linux/interrupt.h>
@@ -17,6 +18,8 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
+
+#include <linux/mm.h>
 
 struct start_info _xen_start_info;
 struct start_info *xen_start_info = &_xen_start_info;
@@ -43,14 +46,105 @@ EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
 
 static __read_mostly int xen_events_irq = -1;
 
+/* map fgmfn of domid to lpfn in the current domain */
+static int map_foreign_page(unsigned long lpfn, unsigned long fgmfn,
+			    unsigned int domid)
+{
+	int rc;
+	struct xen_add_to_physmap_range xatp = {
+		.domid = DOMID_SELF,
+		.foreign_domid = domid,
+		.size = 1,
+		.space = XENMAPSPACE_gmfn_foreign,
+	};
+	xen_ulong_t idx = fgmfn;
+	xen_pfn_t gpfn = lpfn;
+
+	set_xen_guest_handle(xatp.idxs, &idx);
+	set_xen_guest_handle(xatp.gpfns, &gpfn);
+
+	rc = HYPERVISOR_memory_op(XENMEM_add_to_physmap_range, &xatp);
+	if (rc) {
+		pr_warn("Failed to map pfn to mfn rc:%d pfn:%lx mfn:%lx\n",
+			rc, lpfn, fgmfn);
+		return 1;
+	}
+	return 0;
+}
+
+struct remap_data {
+	xen_pfn_t fgmfn; /* foreign domain's gmfn */
+	pgprot_t prot;
+	domid_t  domid;
+	struct vm_area_struct *vma;
+	int index;
+	struct page **pages;
+	struct xen_remap_mfn_info *info;
+};
+
+static int remap_pte_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
+			void *data)
+{
+	struct remap_data *info = data;
+	struct page *page = info->pages[info->index++];
+	unsigned long pfn = page_to_pfn(page);
+	pte_t pte = pfn_pte(pfn, info->prot);
+
+	if (map_foreign_page(pfn, info->fgmfn, info->domid))
+		return -EFAULT;
+	set_pte_at(info->vma->vm_mm, addr, ptep, pte);
+
+	return 0;
+}
+
 int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       unsigned long mfn, int nr,
-			       pgprot_t prot, unsigned domid)
+			       xen_pfn_t mfn, int nr,
+			       pgprot_t prot, unsigned domid,
+			       struct page **pages)
 {
-	return -ENOSYS;
+	int err;
+	struct remap_data data;
+
+	/* TBD: Batching, current sole caller only does page at a time */
+	if (nr > 1)
+		return -EINVAL;
+
+	data.fgmfn = mfn;
+	data.prot = prot;
+	data.domid = domid;
+	data.vma = vma;
+	data.index = 0;
+	data.pages = pages;
+	err = apply_to_page_range(vma->vm_mm, addr, nr << PAGE_SHIFT,
+				  remap_pte_fn, &data);
+	return err;
 }
 EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
+
+int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
+			       int nr, struct page **pages)
+{
+	int i;
+
+	for (i = 0; i < nr; i++) {
+		struct xen_remove_from_physmap xrp;
+		unsigned long rc, pfn;
+
+		pfn = page_to_pfn(pages[i]);
+
+		xrp.domid = DOMID_SELF;
+		xrp.gpfn = pfn;
+		rc = HYPERVISOR_memory_op(XENMEM_remove_from_physmap, &xrp);
+		if (rc) {
+			pr_warn("Failed to unmap pfn:%lx rc:%ld\n",
+				pfn, rc);
+			return rc;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);
 
 /*
  * see Documentation/devicetree/bindings/arm/xen.txt for the
