@@ -475,7 +475,7 @@ static __ref int acpi_processor_start(struct acpi_processor *pr)
 	acpi_processor_get_limit_info(pr);
 
 	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
-		acpi_processor_power_init(pr, device);
+		acpi_processor_power_init(pr);
 
 	pr->cdev = thermal_cooling_device_register("Processor", device,
 						   &processor_cooling_ops);
@@ -509,7 +509,7 @@ err_remove_sysfs_thermal:
 err_thermal_unregister:
 	thermal_cooling_device_unregister(pr->cdev);
 err_power_exit:
-	acpi_processor_power_exit(pr, device);
+	acpi_processor_power_exit(pr);
 
 	return result;
 }
@@ -620,7 +620,7 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 			return -EINVAL;
 	}
 
-	acpi_processor_power_exit(pr, device);
+	acpi_processor_power_exit(pr);
 
 	sysfs_remove_link(&device->dev.kobj, "sysdev");
 
@@ -904,8 +904,6 @@ static int __init acpi_processor_init(void)
 
 	if (acpi_disabled)
 		return 0;
-
-	memset(&errata, 0, sizeof(errata));
 
 	result = acpi_bus_register_driver(&acpi_processor_driver);
 	if (result < 0)

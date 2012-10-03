@@ -5,24 +5,11 @@
  *  http://www.gnu.org/licenses/gpl.html
  */
 
-enum pstate {
-	HW_PSTATE_INVALID = 0xff,
-	HW_PSTATE_0 = 0,
-	HW_PSTATE_1 = 1,
-	HW_PSTATE_2 = 2,
-	HW_PSTATE_3 = 3,
-	HW_PSTATE_4 = 4,
-	HW_PSTATE_5 = 5,
-	HW_PSTATE_6 = 6,
-	HW_PSTATE_7 = 7,
-};
-
 struct powernow_k8_data {
 	unsigned int cpu;
 
 	u32 numps;  /* number of p-states */
 	u32 batps;  /* number of p-states supported on battery */
-	u32 max_hw_pstate; /* maximum legal hardware pstate */
 
 	/* these values are constant when the PSB is used to determine
 	 * vid/fid pairings, but are modified during the ->target() call
@@ -37,7 +24,6 @@ struct powernow_k8_data {
 	/* keep track of the current fid / vid or pstate */
 	u32 currvid;
 	u32 currfid;
-	enum pstate currpstate;
 
 	/* the powernow_table includes all frequency and vid/fid pairings:
 	 * fid are the lower 8 bits of the index, vid are the upper 8 bits.
@@ -96,23 +82,6 @@ struct powernow_k8_data {
 #define MSR_S_HI_START_VID        0x00003f00
 #define MSR_S_HI_CURRENT_VID      0x0000003f
 #define MSR_C_HI_STP_GNT_BENIGN	  0x00000001
-
-
-/* Hardware Pstate _PSS and MSR definitions */
-#define USE_HW_PSTATE		0x00000080
-#define HW_PSTATE_MASK 		0x00000007
-#define HW_PSTATE_VALID_MASK 	0x80000000
-#define HW_PSTATE_MAX_MASK	0x000000f0
-#define HW_PSTATE_MAX_SHIFT	4
-#define MSR_PSTATE_DEF_BASE 	0xc0010064 /* base of Pstate MSRs */
-#define MSR_PSTATE_STATUS 	0xc0010063 /* Pstate Status MSR */
-#define MSR_PSTATE_CTRL 	0xc0010062 /* Pstate control MSR */
-#define MSR_PSTATE_CUR_LIMIT	0xc0010061 /* pstate current limit MSR */
-
-/* define the two driver architectures */
-#define CPU_OPTERON 0
-#define CPU_HW_PSTATE 1
-
 
 /*
  * There are restrictions frequencies have to follow:
@@ -218,5 +187,4 @@ static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid);
 
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned int index);
 
-static int fill_powernow_table_pstate(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table);
 static int fill_powernow_table_fidvid(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table);

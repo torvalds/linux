@@ -397,6 +397,30 @@ void clockevents_exchange_device(struct clock_event_device *old,
 	local_irq_restore(flags);
 }
 
+/**
+ * clockevents_suspend - suspend clock devices
+ */
+void clockevents_suspend(void)
+{
+	struct clock_event_device *dev;
+
+	list_for_each_entry_reverse(dev, &clockevent_devices, list)
+		if (dev->suspend)
+			dev->suspend(dev);
+}
+
+/**
+ * clockevents_resume - resume clock devices
+ */
+void clockevents_resume(void)
+{
+	struct clock_event_device *dev;
+
+	list_for_each_entry(dev, &clockevent_devices, list)
+		if (dev->resume)
+			dev->resume(dev);
+}
+
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 /**
  * clockevents_notify - notification about relevant events

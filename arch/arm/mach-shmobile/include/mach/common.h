@@ -13,8 +13,10 @@ extern int shmobile_clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);
 extern struct platform_suspend_ops shmobile_suspend_ops;
 struct cpuidle_driver;
-extern void (*shmobile_cpuidle_modes[])(void);
-extern void (*shmobile_cpuidle_setup)(struct cpuidle_driver *drv);
+struct cpuidle_device;
+extern int shmobile_enter_wfi(struct cpuidle_device *dev,
+			      struct cpuidle_driver *drv, int index);
+extern void shmobile_cpuidle_set_driver(struct cpuidle_driver *drv);
 
 extern void sh7367_init_irq(void);
 extern void sh7367_map_io(void);
@@ -75,8 +77,6 @@ extern void r8a7740_meram_workaround(void);
 
 extern void r8a7779_register_twd(void);
 
-extern void shmobile_init_late(void);
-
 #ifdef CONFIG_SUSPEND
 int shmobile_suspend_init(void);
 #else
@@ -99,5 +99,11 @@ static inline int shmobile_cpu_is_dead(unsigned int cpu) { return 1; }
 #endif
 
 extern void shmobile_smp_init_cpus(unsigned int ncores);
+
+static inline void shmobile_init_late(void)
+{
+	shmobile_suspend_init();
+	shmobile_cpuidle_init();
+}
 
 #endif /* __ARCH_MACH_COMMON_H */

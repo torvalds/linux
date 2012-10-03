@@ -98,7 +98,6 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 
 		dst_cx->type = cx->type;
 		dst_cx->latency = cx->latency;
-		dst_cx->power = cx->power;
 
 		dst_cx->dpcnt = 0;
 		set_xen_guest_handle(dst_cx->dp, NULL);
