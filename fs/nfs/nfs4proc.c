@@ -1537,7 +1537,8 @@ static void nfs4_open_done(struct rpc_task *task, void *calldata)
 		return;
 
 	if (task->tk_status == 0) {
-		switch (data->o_res.f_attr->mode & S_IFMT) {
+		if (data->o_res.f_attr->valid & NFS_ATTR_FATTR_TYPE) {
+			switch (data->o_res.f_attr->mode & S_IFMT) {
 			case S_IFREG:
 				break;
 			case S_IFLNK:
@@ -1548,6 +1549,7 @@ static void nfs4_open_done(struct rpc_task *task, void *calldata)
 				break;
 			default:
 				data->rpc_status = -ENOTDIR;
+			}
 		}
 		renew_lease(data->o_res.server, data->timestamp);
 		if (!(data->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM))
