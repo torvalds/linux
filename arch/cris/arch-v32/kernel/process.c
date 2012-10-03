@@ -186,28 +186,6 @@ sys_vfork(void)
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, rdusp(), current_pt_regs(), 0, NULL, NULL);
 }
 
-/* sys_execve() executes a new program. */
-asmlinkage int
-sys_execve(const char *fname,
-	   const char *const *argv,
-	   const char *const *envp, long r13, long mof, long srp,
-	   struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname(fname);
-	error = PTR_ERR(filename);
-
-	if (IS_ERR(filename))
-	        goto out;
-
-	error = do_execve(filename->name, argv, envp, regs);
-	putname(filename);
- out:
-	return error;
-}
-
 unsigned long
 get_wchan(struct task_struct *p)
 {

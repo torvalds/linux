@@ -92,8 +92,8 @@ ret_from_kernel_thread:
 	move.d	$r2, $r10
 	jsr	$r1
 	nop
-	moveq	0, $r10
-	jsr	sys_exit
+	moveq	0, $r9			; no syscall restarts, TYVM...
+	ba  ret_from_sys_call
 	nop
 	.size	ret_from_kernel_thread, . - ret_from_kernel_thread
 
@@ -543,15 +543,6 @@ gdb_handle_exception:
 _ugdb_handle_exception:
 	ba	do_sigtrap		; SIGTRAP the offending process.
 	move.d	[$sp+], $r0		; Restore R0 in delay slot.
-
-	.global kernel_execve
-	.type	kernel_execve,@function
-kernel_execve:
-	move.d __NR_execve, $r9
-	break 13
-	ret
-	nop
-	.size	kernel_execve, . - kernel_execve
 
 	.data
 
