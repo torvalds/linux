@@ -399,7 +399,7 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 	return 0;
 }
 
-bool radeon_fence_any_seq_signaled(struct radeon_device *rdev, u64 *seq)
+static bool radeon_fence_any_seq_signaled(struct radeon_device *rdev, u64 *seq)
 {
 	unsigned i;
 

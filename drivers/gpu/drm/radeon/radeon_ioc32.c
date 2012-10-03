@@ -369,7 +369,7 @@ static int compat_radeon_cp_setparam(struct file *file, unsigned int cmd,
 #define compat_radeon_cp_setparam NULL
 #endif /* X86_64 || IA64 */
 
-drm_ioctl_compat_t *radeon_compat_ioctls[] = {
+static drm_ioctl_compat_t *radeon_compat_ioctls[] = {
 	[DRM_RADEON_CP_INIT] = compat_radeon_cp_init,
 	[DRM_RADEON_CLEAR] = compat_radeon_cp_clear,
 	[DRM_RADEON_STIPPLE] = compat_radeon_cp_stipple,

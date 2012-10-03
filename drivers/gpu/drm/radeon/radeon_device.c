@@ -842,7 +842,7 @@ static unsigned int radeon_vga_set_decode(void *cookie, bool state)
  * Validates certain module parameters and updates
  * the associated values used by the driver (all asics).
  */
-void radeon_check_arguments(struct radeon_device *rdev)
+static void radeon_check_arguments(struct radeon_device *rdev)
 {
 	/* vramlimit must be a power of two */
 	switch (radeon_vram_limit) {
@@ -1013,13 +1013,11 @@ int radeon_device_init(struct radeon_device *rdev,
 	init_rwsem(&rdev->pm.mclk_lock);
 	init_rwsem(&rdev->exclusive_lock);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
-	init_waitqueue_head(&rdev->irq.idle_queue);
 	r = radeon_gem_init(rdev);
 	if (r)
 		return r;
 	/* initialize vm here */
 	mutex_init(&rdev->vm_manager.lock);
-	rdev->vm_manager.use_bitmap = 1;
 	rdev->vm_manager.max_pfn = 1 << 20;
 	INIT_LIST_HEAD(&rdev->vm_manager.lru_vm);
 
@@ -1284,6 +1282,13 @@ int radeon_resume_kms(struct drm_device *dev)
 	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);
 		radeon_atom_disp_eng_pll_init(rdev);
+		/* turn on the BL */
+		if (rdev->mode_info.bl_encoder) {
+			u8 bl_level = radeon_get_backlight_level(rdev,
+								 rdev->mode_info.bl_encoder);
+			radeon_set_backlight_level(rdev, rdev->mode_info.bl_encoder,
+						   bl_level);
+		}
 	}
 	/* reset hpd state */
 	radeon_hpd_init(rdev);

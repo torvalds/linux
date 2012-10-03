@@ -455,46 +455,6 @@ set_default_state(struct radeon_device *rdev)
 	radeon_ring_write(ring, sq_stack_resource_mgmt_2);
 }
 
-#define I2F_MAX_BITS 15
-#define I2F_MAX_INPUT  ((1 << I2F_MAX_BITS) - 1)
-#define I2F_SHIFT (24 - I2F_MAX_BITS)
-
-/*
- * Converts unsigned integer into 32-bit IEEE floating point representation.
- * Conversion is not universal and only works for the range from 0
- * to 2^I2F_MAX_BITS-1. Currently we only use it with inputs between
- * 0 and 16384 (inclusive), so I2F_MAX_BITS=15 is enough. If necessary,
- * I2F_MAX_BITS can be increased, but that will add to the loop iterations
- * and slow us down. Conversion is done by shifting the input and counting
- * down until the first 1 reaches bit position 23. The resulting counter
- * and the shifted input are, respectively, the exponent and the fraction.
- * The sign is always zero.
- */
-static uint32_t i2f(uint32_t input)
-{
-	u32 result, i, exponent, fraction;
-
-	WARN_ON_ONCE(input > I2F_MAX_INPUT);
-
-	if ((input & I2F_MAX_INPUT) == 0)
-		result = 0;
-	else {
-		exponent = 126 + I2F_MAX_BITS;
-		fraction = (input & I2F_MAX_INPUT) << I2F_SHIFT;
-
-		for (i = 0; i < I2F_MAX_BITS; i++) {
-			if (fraction & 0x800000)
-				break;
-			else {
-				fraction = fraction << 1;
-				exponent = exponent - 1;
-			}
-		}
-		result = exponent << 23 | (fraction & 0x7fffff);
-	}
-	return result;
-}
-
 int r600_blit_init(struct radeon_device *rdev)
 {
 	u32 obj_size;
@@ -766,14 +726,14 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 		vb_cpu_addr[3] = 0;
 
 		vb_cpu_addr[4] = 0;
-		vb_cpu_addr[5] = i2f(h);
+		vb_cpu_addr[5] = int2float(h);
 		vb_cpu_addr[6] = 0;
-		vb_cpu_addr[7] = i2f(h);
+		vb_cpu_addr[7] = int2float(h);
 
-		vb_cpu_addr[8] = i2f(w);
-		vb_cpu_addr[9] = i2f(h);
-		vb_cpu_addr[10] = i2f(w);
-		vb_cpu_addr[11] = i2f(h);
+		vb_cpu_addr[8] = int2float(w);
+		vb_cpu_addr[9] = int2float(h);
+		vb_cpu_addr[10] = int2float(w);
+		vb_cpu_addr[11] = int2float(h);
 
 		rdev->r600_blit.primitives.set_tex_resource(rdev, FMT_8_8_8_8,
 							    w, h, w, src_gpu_addr, size_in_bytes);

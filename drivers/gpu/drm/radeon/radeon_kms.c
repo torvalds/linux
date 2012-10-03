@@ -51,6 +51,7 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 
 	if (rdev == NULL)
 		return 0;
+	radeon_acpi_fini(rdev);
 	radeon_modeset_fini(rdev);
 	radeon_device_fini(rdev);
 	kfree(rdev);
@@ -103,11 +104,6 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		goto out;
 	}
 
-	/* Call ACPI methods */
-	acpi_status = radeon_acpi_init(rdev);
-	if (acpi_status)
-		dev_dbg(&dev->pdev->dev, "Error during ACPI methods call\n");
-
 	/* Again modeset_init should fail only on fatal error
 	 * otherwise it should provide enough functionalities
 	 * for shadowfb to run
@@ -115,6 +111,17 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	r = radeon_modeset_init(rdev);
 	if (r)
 		dev_err(&dev->pdev->dev, "Fatal error during modeset init\n");
+
+	/* Call ACPI methods: require modeset init
+	 * but failure is not fatal
+	 */
+	if (!r) {
+		acpi_status = radeon_acpi_init(rdev);
+		if (acpi_status)
+		dev_dbg(&dev->pdev->dev,
+				"Error during ACPI methods call\n");
+	}
+
 out:
 	if (r)
 		radeon_driver_unload_kms(dev);
