@@ -168,9 +168,9 @@ static const struct key_entry asus_nb_wmi_keymap[] = {
 	{ KE_KEY, 0x34, { KEY_DISPLAY_OFF } }, /* LCD off */
 	{ KE_KEY, 0x40, { KEY_PREVIOUSSONG } },
 	{ KE_KEY, 0x41, { KEY_NEXTSONG } },
-	{ KE_KEY, 0x43, { KEY_STOPCD } },
+	{ KE_KEY, 0x43, { KEY_STOPCD } }, /* Stop/Eject */
 	{ KE_KEY, 0x45, { KEY_PLAYPAUSE } },
-	{ KE_KEY, 0x4c, { KEY_MEDIA } },
+	{ KE_KEY, 0x4c, { KEY_MEDIA } }, /* WMP Key */
 	{ KE_KEY, 0x50, { KEY_EMAIL } },
 	{ KE_KEY, 0x51, { KEY_WWW } },
 	{ KE_KEY, 0x55, { KEY_CALC } },
@@ -181,25 +181,25 @@ static const struct key_entry asus_nb_wmi_keymap[] = {
 	{ KE_KEY, 0x5E, { KEY_WLAN } }, /* Wireless console Enable */
 	{ KE_KEY, 0x5F, { KEY_WLAN } }, /* Wireless console Disable */
 	{ KE_KEY, 0x60, { KEY_SWITCHVIDEOMODE } },
-	{ KE_KEY, 0x61, { KEY_SWITCHVIDEOMODE } },
-	{ KE_KEY, 0x62, { KEY_SWITCHVIDEOMODE } },
-	{ KE_KEY, 0x63, { KEY_SWITCHVIDEOMODE } },
+	{ KE_KEY, 0x61, { KEY_SWITCHVIDEOMODE } }, /* LCD Only */
+	{ KE_KEY, 0x62, { KEY_SWITCHVIDEOMODE } }, /* CRT Only */
+	{ KE_KEY, 0x63, { KEY_SWITCHVIDEOMODE } }, /* LCD + CRT */
 	{ KE_KEY, 0x6B, { KEY_TOUCHPAD_TOGGLE } },
 	{ KE_IGNORE, 0x6E, },  /* Low Battery notification */
-	{ KE_KEY, 0x7D, { KEY_BLUETOOTH } },
-	{ KE_KEY, 0x7E, { KEY_BLUETOOTH } },
+	{ KE_KEY, 0x7D, { KEY_BLUETOOTH } }, /* Bluetooth Enable */
+	{ KE_KEY, 0x7E, { KEY_BLUETOOTH } }, /* Bluetooth Disable */
 	{ KE_KEY, 0x82, { KEY_CAMERA } },
-	{ KE_KEY, 0x88, { KEY_RFKILL  } },
-	{ KE_KEY, 0x8A, { KEY_PROG1 } },
+	{ KE_KEY, 0x88, { KEY_RFKILL  } }, /* Radio Toggle Key */
+	{ KE_KEY, 0x8A, { KEY_PROG1 } }, /* Color enhancement mode */
 	{ KE_KEY, 0x95, { KEY_MEDIA } },
 	{ KE_KEY, 0x99, { KEY_PHONE } },
 	{ KE_KEY, 0xA0, { KEY_SWITCHVIDEOMODE } }, /* SDSP HDMI only */
 	{ KE_KEY, 0xA1, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + HDMI */
 	{ KE_KEY, 0xA2, { KEY_SWITCHVIDEOMODE } }, /* SDSP CRT + HDMI */
 	{ KE_KEY, 0xA3, { KEY_SWITCHVIDEOMODE } }, /* SDSP TV + HDMI */
-	{ KE_KEY, 0xb5, { KEY_CALC } },
-	{ KE_KEY, 0xc4, { KEY_KBDILLUMUP } },
-	{ KE_KEY, 0xc5, { KEY_KBDILLUMDOWN } },
+	{ KE_KEY, 0xB5, { KEY_CALC } },
+	{ KE_KEY, 0xC4, { KEY_KBDILLUMUP } },
+	{ KE_KEY, 0xC5, { KEY_KBDILLUMDOWN } },
 	{ KE_END, 0},
 };
 
