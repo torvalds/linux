@@ -124,6 +124,7 @@
 			calxeda,port-phys = <&combophy5 0 &combophy0 0
 					     &combophy0 1 &combophy0 2
 					     &combophy0 3>;
+			dma-coherent;
 		};
 
 		sdhci@ffe0e000 {

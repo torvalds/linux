@@ -12,6 +12,7 @@ Optional properties:
 - calxeda,port-phys: phandle-combophy and lane assignment, which maps each
 			SATA port to a combophy and a lane within that
 			combophy
+- dma-coherent      : Present if dma operations are coherent
 
 Example:
         sata@ffe08000 {
