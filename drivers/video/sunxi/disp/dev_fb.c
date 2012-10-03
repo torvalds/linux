@@ -1333,8 +1333,7 @@ __s32 Display_set_fb_timming(__u32 sel)
 {
 	__u8 fb_id=0;
 
-	for(fb_id=0; fb_id<FB_MAX; fb_id++)
-	{
+	for (fb_id=0; fb_id<SUNXI_MAX_FB; fb_id++) {
 		if(g_fbi.fb_enable[fb_id])
 		{
 	        if(((sel==0) && (g_fbi.fb_mode[fb_id] == FB_MODE_SCREEN0 || g_fbi.fb_mode[fb_id] == FB_MODE_DUAL_SAME_SCREEN_TB))
@@ -1378,8 +1377,7 @@ __s32 Fb_Init(__u32 from)
         disp_create_heap((unsigned long)(__va(fb_start)),  fb_size);
 #endif
 
-        for(i=0; i<8; i++)
-        {
+		for (i=0; i<SUNXI_MAX_FB; i++) {
         	g_fbi.fbinfo[i] = framebuffer_alloc(0, g_fbi.dev);
         	g_fbi.fbinfo[i]->fbops   = &dispfb_ops;
         	g_fbi.fbinfo[i]->flags   = 0; 
@@ -1537,7 +1535,7 @@ __s32 Fb_Init(__u32 from)
             
             //fb_draw_colorbar((__u32)g_fbi.fbinfo[i]->screen_base, fb_para.width, fb_para.height*fb_para.buffer_num, &(g_fbi.fbinfo[i]->var));
         }
-	for(i=0; i<8; i++) {
+	for (i=0; i<SUNXI_MAX_FB; i++) {
 		/* Register framebuffers after they are initialized */
 		register_framebuffer(g_fbi.fbinfo[i]);
 	}
@@ -1581,16 +1579,12 @@ __s32 Fb_Exit(void)
 {
 	__u8 fb_id=0;
 
-	for(fb_id=0; fb_id<FB_MAX; fb_id++)
-	{
+	for (fb_id=0; fb_id<SUNXI_MAX_FB; fb_id++) {
 		if(g_fbi.fbinfo[fb_id] != NULL)
 		{
 			Display_Fb_Release(FBIDTOHAND(fb_id));
 		}
-	}
 
-	for(fb_id=0; fb_id<8; fb_id++)
-	{
     	unregister_framebuffer(g_fbi.fbinfo[fb_id]);
     	framebuffer_release(g_fbi.fbinfo[fb_id]);
     	g_fbi.fbinfo[fb_id] = NULL;

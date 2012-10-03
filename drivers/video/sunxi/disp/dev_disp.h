@@ -30,6 +30,8 @@
 #include <ump/ump_kernel_interface.h>
 #endif
 
+#define SUNXI_MAX_FB 2
+
 struct info_mm {
 	void *info_base;	/* Virtual address */
 	unsigned long mem_start;	/* Start of frame buffer mem */
@@ -59,16 +61,16 @@ typedef struct
 
     __disp_init_t           disp_init;
 
-    __bool                  fb_enable[FB_MAX];
-    __fb_mode_t             fb_mode[FB_MAX];
-    __u32                   layer_hdl[FB_MAX][2];//[fb_id][0]:screen0 layer handle;[fb_id][1]:screen1 layer handle
-    struct fb_info *        fbinfo[FB_MAX];
-    __disp_fb_create_para_t fb_para[FB_MAX];
-	wait_queue_head_t       wait[2];
-	unsigned long           wait_count[2];
-	__u32 pseudo_palette [FB_MAX][16];
+	__bool                  fb_enable[SUNXI_MAX_FB];
+	__fb_mode_t             fb_mode[SUNXI_MAX_FB];
+	__u32                   layer_hdl[SUNXI_MAX_FB][2]; /*[fb_id][0]:screen0 layer handle;[fb_id][1]:screen1 layer handle */
+	struct fb_info *        fbinfo[SUNXI_MAX_FB];
+	__disp_fb_create_para_t fb_para[SUNXI_MAX_FB];
+	wait_queue_head_t       wait[SUNXI_MAX_FB];
+	unsigned long           wait_count[SUNXI_MAX_FB];
+	__u32 pseudo_palette [SUNXI_MAX_FB][16];
 #ifdef CONFIG_FB_SUNXI_UMP
-	ump_dd_handle ump_wrapped_buffer[FB_MAX];
+	ump_dd_handle ump_wrapped_buffer[SUNXI_MAX_FB];
 #endif
 }fb_info_t;
 
