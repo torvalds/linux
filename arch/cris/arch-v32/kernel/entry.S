@@ -31,6 +31,7 @@
 	.globl system_call
 	.globl ret_from_intr
 	.globl ret_from_fork
+	.globl ret_from_kernel_thread
 	.globl resume
 	.globl multiple_interrupt
 	.globl nmi_interrupt
@@ -83,6 +84,18 @@ ret_from_fork:
 	ba  ret_from_sys_call
 	nop
 	.size	ret_from_fork, . - ret_from_fork
+
+	.type	ret_from_kernel_thread,@function
+ret_from_kernel_thread:
+	jsr schedule_tail
+	nop
+	move.d	$r2, $r10
+	jsr	$r1
+	nop
+	moveq	0, $r10
+	jsr	sys_exit
+	nop
+	.size	ret_from_kernel_thread, . - ret_from_kernel_thread
 
 	.type	ret_from_intr,@function
 ret_from_intr:

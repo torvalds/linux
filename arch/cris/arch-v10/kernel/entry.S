@@ -35,6 +35,7 @@
 	.globl system_call
 	.globl ret_from_intr
 	.globl ret_from_fork
+	.globl ret_from_kernel_thread
 	.globl resume
 	.globl multiple_interrupt
 	.globl hwbreakpoint
@@ -81,7 +82,14 @@ ret_from_fork:
 	jsr schedule_tail
 	ba  ret_from_sys_call
 	nop
-		
+
+ret_from_kernel_thread:
+	jsr schedule_tail
+	move.d	$r2, $r10	; argument is here
+	jsr	$r1		; call the payload
+	moveq	0, $r10
+	jsr	sys_exit	; never returns
+
 ret_from_intr:
 	;; check for resched if preemptive kernel or if we're going back to user-mode 
 	;; this test matches the user_regs(regs) macro
