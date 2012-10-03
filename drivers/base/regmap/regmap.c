@@ -524,11 +524,29 @@ struct regmap *regmap_init(struct device *dev,
 		struct regmap_range_node *new;
 
 		/* Sanity check */
-		if (range_cfg->range_max < range_cfg->range_min ||
-		    range_cfg->range_max > map->max_register ||
-		    range_cfg->selector_reg > map->max_register ||
-		    range_cfg->window_len == 0)
+		if (range_cfg->range_max < range_cfg->range_min) {
+			dev_err(map->dev, "Invalid range %d: %d < %d\n", i,
+				range_cfg->range_max, range_cfg->range_min);
 			goto err_range;
+		}
+
+		if (range_cfg->range_max > map->max_register) {
+			dev_err(map->dev, "Invalid range %d: %d > %d\n", i,
+				range_cfg->range_max, map->max_register);
+			goto err_range;
+		}
+
+		if (range_cfg->selector_reg > map->max_register) {
+			dev_err(map->dev,
+				"Invalid range %d: selector out of map\n", i);
+			goto err_range;
+		}
+
+		if (range_cfg->window_len == 0) {
+			dev_err(map->dev, "Invalid range %d: window_len 0\n",
+				i);
+			goto err_range;
+		}
 
 		/* Make sure, that this register range has no selector
 		   or data window within its boundary */
@@ -540,11 +558,17 @@ struct regmap *regmap_init(struct device *dev,
 
 			if (range_cfg->range_min <= sel_reg &&
 			    sel_reg <= range_cfg->range_max) {
+				dev_err(map->dev,
+					"Range %d: selector for %d in window\n",
+					i, j);
 				goto err_range;
 			}
 
 			if (!(win_max < range_cfg->range_min ||
 			      win_min > range_cfg->range_max)) {
+				dev_err(map->dev,
+					"Range %d: window for %d in window\n",
+					i, j);
 				goto err_range;
 			}
 		}
@@ -564,6 +588,7 @@ struct regmap *regmap_init(struct device *dev,
 		new->window_len = range_cfg->window_len;
 
 		if (_regmap_range_add(map, new) == false) {
+			dev_err(map->dev, "Failed to add range %d\n", i);
 			kfree(new);
 			goto err_range;
 		}
