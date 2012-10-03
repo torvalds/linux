@@ -152,6 +152,12 @@ static const u32 nfs4_pnfs_open_bitmap[3] = {
 	FATTR4_WORD2_MDSTHRESHOLD
 };
 
+static const u32 nfs4_open_noattr_bitmap[3] = {
+	FATTR4_WORD0_TYPE
+	| FATTR4_WORD0_CHANGE
+	| FATTR4_WORD0_FILEID,
+};
+
 const u32 nfs4_statfs_bitmap[2] = {
 	FATTR4_WORD0_FILES_AVAIL
 	| FATTR4_WORD0_FILES_FREE
@@ -1126,11 +1132,80 @@ out_return_state:
 	return state;
 }
 
-static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data)
+static void
+nfs4_opendata_check_deleg(struct nfs4_opendata *data, struct nfs4_state *state)
+{
+	struct nfs_client *clp = NFS_SERVER(state->inode)->nfs_client;
+	struct nfs_delegation *delegation;
+	int delegation_flags = 0;
+
+	rcu_read_lock();
+	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
+	if (delegation)
+		delegation_flags = delegation->flags;
+	rcu_read_unlock();
+	if (data->o_arg.claim == NFS4_OPEN_CLAIM_DELEGATE_CUR) {
+		pr_err_ratelimited("NFS: Broken NFSv4 server %s is "
+				   "returning a delegation for "
+				   "OPEN(CLAIM_DELEGATE_CUR)\n",
+				   clp->cl_hostname);
+	} else if ((delegation_flags & 1UL<<NFS_DELEGATION_NEED_RECLAIM) == 0)
+		nfs_inode_set_delegation(state->inode,
+					 data->owner->so_cred,
+					 &data->o_res);
+	else
+		nfs_inode_reclaim_delegation(state->inode,
+					     data->owner->so_cred,
+					     &data->o_res);
+}
+
+/*
+ * Check the inode attributes against the CLAIM_PREVIOUS returned attributes
+ * and update the nfs4_state.
+ */
+static struct nfs4_state *
+_nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
+{
+	struct inode *inode = data->state->inode;
+	struct nfs4_state *state = data->state;
+	int ret;
+
+	if (!data->rpc_done) {
+		ret = data->rpc_status;
+		goto err;
+	}
+
+	ret = -ESTALE;
+	if (!(data->f_attr.valid & NFS_ATTR_FATTR_TYPE) ||
+	    !(data->f_attr.valid & NFS_ATTR_FATTR_FILEID) ||
+	    !(data->f_attr.valid & NFS_ATTR_FATTR_CHANGE))
+		goto err;
+
+	ret = -ENOMEM;
+	state = nfs4_get_open_state(inode, data->owner);
+	if (state == NULL)
+		goto err;
+
+	ret = nfs_refresh_inode(inode, &data->f_attr);
+	if (ret)
+		goto err;
+
+	if (data->o_res.delegation_type != 0)
+		nfs4_opendata_check_deleg(data, state);
+	update_open_stateid(state, &data->o_res.stateid, NULL,
+			    data->o_arg.fmode);
+
+	return state;
+err:
+	return ERR_PTR(ret);
+
+}
+
+static struct nfs4_state *
+_nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data)
 {
 	struct inode *inode;
 	struct nfs4_state *state = NULL;
-	struct nfs_delegation *delegation;
 	int ret;
 
 	if (!data->rpc_done) {
@@ -1149,30 +1224,8 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	state = nfs4_get_open_state(inode, data->owner);
 	if (state == NULL)
 		goto err_put_inode;
-	if (data->o_res.delegation_type != 0) {
-		struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
-		int delegation_flags = 0;
-
-		rcu_read_lock();
-		delegation = rcu_dereference(NFS_I(inode)->delegation);
-		if (delegation)
-			delegation_flags = delegation->flags;
-		rcu_read_unlock();
-		if (data->o_arg.claim == NFS4_OPEN_CLAIM_DELEGATE_CUR) {
-			pr_err_ratelimited("NFS: Broken NFSv4 server %s is "
-					"returning a delegation for "
-					"OPEN(CLAIM_DELEGATE_CUR)\n",
-					clp->cl_hostname);
-		} else if ((delegation_flags & 1UL<<NFS_DELEGATION_NEED_RECLAIM) == 0)
-			nfs_inode_set_delegation(state->inode,
-					data->owner->so_cred,
-					&data->o_res);
-		else
-			nfs_inode_reclaim_delegation(state->inode,
-					data->owner->so_cred,
-					&data->o_res);
-	}
-
+	if (data->o_res.delegation_type != 0)
+		nfs4_opendata_check_deleg(data, state);
 	update_open_stateid(state, &data->o_res.stateid, NULL,
 			data->o_arg.fmode);
 	iput(inode);
@@ -1182,6 +1235,14 @@ err_put_inode:
 	iput(inode);
 err:
 	return ERR_PTR(ret);
+}
+
+static struct nfs4_state *
+nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data)
+{
+	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS)
+		return _nfs4_opendata_reclaim_to_nfs4_state(data);
+	return _nfs4_opendata_to_nfs4_state(data);
 }
 
 static struct nfs_open_context *nfs4_state_find_open_context(struct nfs4_state *state)
@@ -1505,6 +1566,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	data->o_arg.clientid = sp->so_server->nfs_client->cl_clientid;
 	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
+		data->o_arg.open_bitmap = &nfs4_open_noattr_bitmap[0];
 		nfs_copy_fh(&data->o_res.fh, data->o_arg.fh);
 	}
 	data->timestamp = jiffies;

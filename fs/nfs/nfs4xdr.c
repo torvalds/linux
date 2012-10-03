@@ -2264,7 +2264,7 @@ static void nfs4_xdr_enc_open_noattr(struct rpc_rqst *req,
 	encode_open(xdr, args, &hdr);
 	if (args->access)
 		encode_access(xdr, args->access, &hdr);
-	encode_getfattr(xdr, args->bitmask, &hdr);
+	encode_getfattr_open(xdr, args->bitmask, args->open_bitmap, &hdr);
 	encode_nops(&hdr);
 }
 
