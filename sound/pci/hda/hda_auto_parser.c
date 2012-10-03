@@ -498,6 +498,38 @@ static const char *check_output_sfx(hda_nid_t nid, const hda_nid_t *pins,
 	return channel_sfx[i];
 }
 
+static const char *check_output_pfx(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid);
+	int attr = snd_hda_get_input_pin_attr(def_conf);
+
+	/* check the location */
+	switch (attr) {
+	case INPUT_PIN_ATTR_DOCK:
+		return "Dock ";
+	case INPUT_PIN_ATTR_FRONT:
+		return "Front ";
+	}
+	return "";
+}
+
+static int get_hp_label_index(struct hda_codec *codec, hda_nid_t nid,
+			      const hda_nid_t *pins, int num_pins)
+{
+	int i, j, idx = 0;
+
+	const char *pfx = check_output_pfx(codec, nid);
+
+	i = find_idx_in_nid_list(nid, pins, num_pins);
+	if (i < 0)
+		return -1;
+	for (j = 0; j < i; j++)
+		if (pfx == check_output_pfx(codec, pins[j]))
+			idx++;
+
+	return idx;
+}
+
 static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 			       const struct auto_pin_cfg *cfg,
 			       const char *name, char *label, int maxlen,
@@ -505,20 +537,13 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	int attr = snd_hda_get_input_pin_attr(def_conf);
-	const char *pfx = "", *sfx = "";
+	const char *pfx, *sfx = "";
 
 	/* handle as a speaker if it's a fixed line-out */
 	if (!strcmp(name, "Line Out") && attr == INPUT_PIN_ATTR_INT)
 		name = "Speaker";
-	/* check the location */
-	switch (attr) {
-	case INPUT_PIN_ATTR_DOCK:
-		pfx = "Dock ";
-		break;
-	case INPUT_PIN_ATTR_FRONT:
-		pfx = "Front ";
-		break;
-	}
+	pfx = check_output_pfx(codec, nid);
+
 	if (cfg) {
 		/* try to give a unique suffix if needed */
 		sfx = check_output_sfx(nid, cfg->line_out_pins, cfg->line_outs,
@@ -528,8 +553,8 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 					       indexp);
 		if (!sfx) {
 			/* don't add channel suffix for Headphone controls */
-			int idx = find_idx_in_nid_list(nid, cfg->hp_pins,
-						       cfg->hp_outs);
+			int idx = get_hp_label_index(codec, nid, cfg->hp_pins,
+						     cfg->hp_outs);
 			if (idx >= 0)
 				*indexp = idx;
 			sfx = "";
