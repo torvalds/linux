@@ -2501,7 +2501,7 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 		} else {
 			temp = 0x017C;
 		}
-	} else { /* 3nd party chip */
+	} else { /* 3rd party chip */
 		temp = SetCRT2ToLCD;
 	}
 
@@ -4390,7 +4390,7 @@ static void XGI_SetLCDRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	xgifb_reg_and_or(pVBInfo->Part2Port, 0x17, 0xFB, 0x00);
 	xgifb_reg_and_or(pVBInfo->Part2Port, 0x18, 0xDF, 0x00);
 
-	/* Customized LCDB Des no add */
+	/* Customized LCDB Does not add */
 	tempbx = 5;
 	LCDBDesPtr = XGI_GetLcdPtr(tempbx, ModeNo, ModeIdIndex,
 				   RefreshRateTableIndex, pVBInfo);
