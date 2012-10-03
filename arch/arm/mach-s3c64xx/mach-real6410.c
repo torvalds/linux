@@ -39,9 +39,9 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <plat/regs-serial.h>
-#include <plat/ts.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
 #include <plat/regs-fb-v4.h>
 
 #include <video/platform_lcd.h>

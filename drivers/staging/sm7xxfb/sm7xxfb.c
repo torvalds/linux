@@ -43,11 +43,11 @@ struct smtcfb_info {
 	u16 chip_id;
 	u8  chip_rev_id;
 
-	unsigned char __iomem *m_pMMIO;
-	char __iomem *m_pLFB;
-	char *m_pDPR;
-	char *m_pVPR;
-	char *m_pCPR;
+	void __iomem *lfb;	/* linear frame buffer */
+	void __iomem *dp_regs;	/* drawing processor control regs */
+	void __iomem *vp_regs;	/* video processor control regs */
+	void __iomem *cp_regs;	/* capture processor control regs */
+	void __iomem *mmio;	/* memory map IO port */
 
 	u_int width;
 	u_int height;
@@ -56,8 +56,7 @@ struct smtcfb_info {
 	u32 colreg[17];
 };
 
-char __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
-char __iomem *smtc_VRAMBaseAddress;	/* video memory starting address */
+void __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
 
 static struct fb_var_screeninfo smtcfb_var = {
 	.xres           = 1024,
@@ -72,14 +71,20 @@ static struct fb_var_screeninfo smtcfb_var = {
 	.height         = -1,
 	.width          = -1,
 	.vmode          = FB_VMODE_NONINTERLACED,
+	.nonstd         = 0,
+	.accel_flags    = FB_ACCELF_TEXT,
 };
 
 static struct fb_fix_screeninfo smtcfb_fix = {
-	.id             = "sm712fb",
+	.id             = "smXXXfb",
 	.type           = FB_TYPE_PACKED_PIXELS,
 	.visual         = FB_VISUAL_TRUECOLOR,
 	.line_length    = 800 * 3,
 	.accel          = FB_ACCEL_SMI_LYNX,
+	.type_aux       = 0,
+	.xpanstep       = 0,
+	.ypanstep       = 0,
+	.ywrapstep      = 0,
 };
 
 struct vesa_mode {
@@ -545,28 +550,28 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 	smtc_mmiowb(0x67, 0x3c2);
 
 	/* set VPR registers */
-	writel(0x0, sfb->m_pVPR + 0x0C);
-	writel(0x0, sfb->m_pVPR + 0x40);
+	writel(0x0, sfb->vp_regs + 0x0C);
+	writel(0x0, sfb->vp_regs + 0x40);
 
 	/* set data width */
 	m_nScreenStride =
 		(sfb->width * sfb->fb.var.bits_per_pixel) / 64;
 	switch (sfb->fb.var.bits_per_pixel) {
 	case 8:
-		writel(0x0, sfb->m_pVPR + 0x0);
+		writel(0x0, sfb->vp_regs + 0x0);
 		break;
 	case 16:
-		writel(0x00020000, sfb->m_pVPR + 0x0);
+		writel(0x00020000, sfb->vp_regs + 0x0);
 		break;
 	case 24:
-		writel(0x00040000, sfb->m_pVPR + 0x0);
+		writel(0x00040000, sfb->vp_regs + 0x0);
 		break;
 	case 32:
-		writel(0x00030000, sfb->m_pVPR + 0x0);
+		writel(0x00030000, sfb->vp_regs + 0x0);
 		break;
 	}
 	writel((u32) (((m_nScreenStride + 2) << 16) | m_nScreenStride),
-	       sfb->m_pVPR + 0x10);
+	       sfb->vp_regs + 0x10);
 
 }
 
@@ -673,9 +678,9 @@ static struct fb_ops smtcfb_ops = {
 };
 
 /*
- * alloc struct smtcfb_info and assign the default value
+ * alloc struct smtcfb_info and assign default values
  */
-static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev, char *name)
+static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev)
 {
 	struct smtcfb_info *sfb;
 
@@ -686,32 +691,12 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *pdev, char *name)
 
 	sfb->pdev = pdev;
 
-	/* init sfb->fb with default value */
-
-	sfb->fb.flags = FBINFO_FLAG_DEFAULT;
-	sfb->fb.fbops = &smtcfb_ops;
-
-	sfb->fb.fix = smtcfb_fix;
-	strcpy(sfb->fb.fix.id, name);
-
-	sfb->fb.fix.type        = FB_TYPE_PACKED_PIXELS;
-	sfb->fb.fix.type_aux    = 0;
-	sfb->fb.fix.xpanstep    = 0;
-	sfb->fb.fix.ypanstep    = 0;
-	sfb->fb.fix.ywrapstep   = 0;
-	sfb->fb.fix.accel       = FB_ACCEL_SMI_LYNX;
-
-	sfb->fb.var             = smtcfb_var;
-	sfb->fb.var.nonstd      = 0;
-	sfb->fb.var.activate    = FB_ACTIVATE_NOW;
-	sfb->fb.var.height      = -1;
-	sfb->fb.var.width       = -1;
-	sfb->fb.var.accel_flags = FB_ACCELF_TEXT;
-	sfb->fb.var.vmode       = FB_VMODE_NONINTERLACED;
-
-	sfb->fb.pseudo_palette  = sfb->colreg;
-
-	sfb->fb.par = sfb;
+	sfb->fb.flags          = FBINFO_FLAG_DEFAULT;
+	sfb->fb.fbops          = &smtcfb_ops;
+	sfb->fb.fix            = smtcfb_fix;
+	sfb->fb.var            = smtcfb_var;
+	sfb->fb.pseudo_palette = sfb->colreg;
+	sfb->fb.par            = sfb;
 
 	return sfb;
 }
@@ -751,7 +736,7 @@ static int smtc_map_smem(struct smtcfb_info *sfb,
 
 	sfb->fb.fix.smem_len = smem_len;
 
-	sfb->fb.screen_base = smtc_VRAMBaseAddress;
+	sfb->fb.screen_base = sfb->lfb;
 
 	if (!sfb->fb.screen_base) {
 		dev_err(&pdev->dev,
@@ -788,9 +773,8 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 {
 	struct smtcfb_info *sfb;
 	u_long smem_size = 0x00800000;	/* default 8MB */
-	char name[16];
 	int err;
-	unsigned long pFramebufferPhysical;
+	unsigned long mmio_base;
 
 	dev_info(&pdev->dev, "Silicon Motion display driver.");
 
@@ -798,7 +782,9 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	sfb = smtc_alloc_fb_info(pdev, name);
+	sprintf(smtcfb_fix.id, "sm%Xfb", ent->device);
+
+	sfb = smtc_alloc_fb_info(pdev);
 
 	if (!sfb) {
 		err = -ENOMEM;
@@ -806,7 +792,6 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	}
 
 	sfb->chip_id = ent->device;
-	sprintf(name, "sm%Xfb", sfb->chip_id);
 
 	pci_set_drvdata(pdev, sfb);
 
@@ -829,33 +814,28 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		sfb->fb.var.bits_per_pixel = (smtc_scr_info.lfb_depth = 32);
 #endif
 	/* Map address and memory detection */
-	pFramebufferPhysical = pci_resource_start(pdev, 0);
+	mmio_base = pci_resource_start(pdev, 0);
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &sfb->chip_rev_id);
 
 	switch (sfb->chip_id) {
 	case 0x710:
 	case 0x712:
-		sfb->fb.fix.mmio_start = pFramebufferPhysical + 0x00400000;
+		sfb->fb.fix.mmio_start = mmio_base + 0x00400000;
 		sfb->fb.fix.mmio_len = 0x00400000;
 		smem_size = SM712_VIDEOMEMORYSIZE;
 #ifdef __BIG_ENDIAN
-		sfb->m_pLFB = (smtc_VRAMBaseAddress =
-		    ioremap(pFramebufferPhysical, 0x00c00000));
+		sfb->lfb = ioremap(mmio_base, 0x00c00000);
 #else
-		sfb->m_pLFB = (smtc_VRAMBaseAddress =
-		    ioremap(pFramebufferPhysical, 0x00800000));
+		sfb->lfb = ioremap(mmio_base, 0x00800000);
 #endif
-		sfb->m_pMMIO = (smtc_RegBaseAddress =
-		    smtc_VRAMBaseAddress + 0x00700000);
-		sfb->m_pDPR = smtc_VRAMBaseAddress + 0x00408000;
-		sfb->m_pVPR = sfb->m_pLFB + 0x0040c000;
+		sfb->mmio = (smtc_RegBaseAddress =
+		    sfb->lfb + 0x00700000);
+		sfb->dp_regs = sfb->lfb + 0x00408000;
+		sfb->vp_regs = sfb->lfb + 0x0040c000;
 #ifdef __BIG_ENDIAN
 		if (sfb->fb.var.bits_per_pixel == 32) {
-			smtc_VRAMBaseAddress += 0x800000;
-			sfb->m_pLFB += 0x800000;
-			dev_info(&pdev->dev,
-				 "smtc_VRAMBaseAddress=%p sfb->m_pLFB=%p",
-				  smtc_VRAMBaseAddress, sfb->m_pLFB);
+			sfb->lfb += 0x800000;
+			dev_info(&pdev->dev, "sfb->lfb=%p", sfb->lfb);
 		}
 #endif
 		if (!smtc_RegBaseAddress) {
@@ -879,15 +859,14 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 #endif
 		break;
 	case 0x720:
-		sfb->fb.fix.mmio_start = pFramebufferPhysical;
+		sfb->fb.fix.mmio_start = mmio_base;
 		sfb->fb.fix.mmio_len = 0x00200000;
 		smem_size = SM722_VIDEOMEMORYSIZE;
-		sfb->m_pDPR = ioremap(pFramebufferPhysical, 0x00a00000);
-		sfb->m_pLFB = (smtc_VRAMBaseAddress =
-		    sfb->m_pDPR + 0x00200000);
-		sfb->m_pMMIO = (smtc_RegBaseAddress =
-		    sfb->m_pDPR + 0x000c0000);
-		sfb->m_pVPR = sfb->m_pDPR + 0x800;
+		sfb->dp_regs = ioremap(mmio_base, 0x00a00000);
+		sfb->lfb = sfb->dp_regs + 0x00200000;
+		sfb->mmio = (smtc_RegBaseAddress =
+		    sfb->dp_regs + 0x000c0000);
+		sfb->vp_regs = sfb->dp_regs + 0x800;
 
 		smtc_seqw(0x62, 0xff);
 		smtc_seqw(0x6a, 0x0d);

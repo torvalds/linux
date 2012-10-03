@@ -1278,7 +1278,8 @@ static int __devinit abituguru_probe(struct platform_device *pdev)
 		0x00, 0x01, 0x03, 0x04, 0x0A, 0x08, 0x0E, 0x02,
 		0x09, 0x06, 0x05, 0x0B, 0x0F, 0x0D, 0x07, 0x0C };
 
-	data = kzalloc(sizeof(struct abituguru_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct abituguru_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1430,8 +1431,6 @@ abituguru_probe_error:
 	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru_sysfs_attr[i].dev_attr);
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
 	return res;
 }
 
@@ -1446,8 +1445,6 @@ static int __devexit abituguru_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru_sysfs_attr[i].dev_attr);
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
 
 	return 0;
 }

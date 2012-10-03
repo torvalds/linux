@@ -202,7 +202,7 @@
 /* LLI related structures */
 
 /**
- * struct d40_phy_lli - The basic configration register for each physical
+ * struct d40_phy_lli - The basic configuration register for each physical
  * channel.
  *
  * @reg_cfg: The configuration register.

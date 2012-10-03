@@ -1120,13 +1120,14 @@ static inline int do_read(struct uart_port *the_port, char *buf, int len)
 	struct ioc3_port *port = get_ioc3_port(the_port);
 	struct ring *inring;
 	struct ring_entry *entry;
-	struct port_hooks *hooks = port->ip_hooks;
+	struct port_hooks *hooks;
 	int byte_num;
 	char *sc;
 	int loop_counter;
 
 	BUG_ON(!(len >= 0));
 	BUG_ON(!port);
+	hooks = port->ip_hooks;
 
 	/* There is a nasty timing issue in the IOC3. When the rx_timer
 	 * expires or the rx_high condition arises, we take an interrupt.

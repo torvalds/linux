@@ -5,7 +5,7 @@
  *		3d Magnetometers via SPI
  *
  * Copyright (c) 2009 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
- * Copyright (c) 2007 Jonathan Cameron <jic23@cam.ac.uk>
+ * Copyright (c) 2007 Jonathan Cameron <jic23@kernel.org>
  * Copyright (c) 2011 Analog Devices Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -612,7 +612,7 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static struct iio_chan_spec adis16400_channels[] = {
+static const struct iio_chan_spec adis16400_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
@@ -742,7 +742,7 @@ static struct iio_chan_spec adis16400_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(12)
 };
 
-static struct iio_chan_spec adis16350_channels[] = {
+static const struct iio_chan_spec adis16350_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
@@ -867,7 +867,7 @@ static struct iio_chan_spec adis16350_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(11)
 };
 
-static struct iio_chan_spec adis16300_channels[] = {
+static const struct iio_chan_spec adis16300_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
@@ -1206,15 +1206,12 @@ error_ret:
 }
 
 /* fixme, confirm ordering in this function */
-static int adis16400_remove(struct spi_device *spi)
+static int __devexit adis16400_remove(struct spi_device *spi)
 {
-	int ret;
 	struct iio_dev *indio_dev =  spi_get_drvdata(spi);
 
 	iio_device_unregister(indio_dev);
-	ret = adis16400_stop_device(indio_dev);
-	if (ret)
-		goto err_ret;
+	adis16400_stop_device(indio_dev);
 
 	adis16400_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
@@ -1222,9 +1219,6 @@ static int adis16400_remove(struct spi_device *spi)
 	iio_device_free(indio_dev);
 
 	return 0;
-
-err_ret:
-	return ret;
 }
 
 static const struct spi_device_id adis16400_id[] = {

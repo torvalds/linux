@@ -42,8 +42,8 @@
 
 #include <mach/pxa25x.h>
 #include <mach/reset.h>
-#include <mach/irda.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/mmc-pxamci.h>
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
 #include <mach/audio.h>

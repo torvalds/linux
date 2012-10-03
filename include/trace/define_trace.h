@@ -1,5 +1,5 @@
 /*
- * Trace files that want to automate creationg of all tracepoints defined
+ * Trace files that want to automate creation of all tracepoints defined
  * in their file should include this file. The following are macros that the
  * trace file may define:
  *

@@ -399,7 +399,7 @@ void _rxadc_dc_offset_cancellation_winbond(struct hw_data *phw_data, u32 frequen
 	val |= MASK_ADC_DC_CAL_STR;
 	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, val);
 
-	/* e. The result are shown in "adc_dc_cal_i[8:0] and adc_dc_cal_q[8:0]" */
+	/* e. The results are shown in "adc_dc_cal_i[8:0] and adc_dc_cal_q[8:0]" */
 #ifdef _DEBUG
 	hw_get_dxx_reg(phw_data, REG_OFFSET_READ, &val);
 	PHY_DEBUG(("[CAL]    REG_OFFSET_READ = 0x%08X\n", val));
@@ -720,7 +720,7 @@ u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
 		for (capture_time = 0; capture_time < 10; capture_time++) {
 			/*
 			 * a. Set iqcal_mode[1:0] to 0x2 and set "calib_start" to 0x1 to
-			 *    enable "IQ alibration Mode II"
+			 *    enable "IQ calibration Mode II"
 			 */
 			reg_mode_ctrl &= ~(MASK_IQCAL_TONE_SEL|MASK_IQCAL_MODE);
 			reg_mode_ctrl &= ~MASK_IQCAL_MODE;
@@ -750,7 +750,7 @@ u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
 
 			/*
 			 * d. Set iqcal_mode[1:0] to 0x3 and set "calib_start" to 0x1 to
-			 *    enable "IQ alibration Mode II"
+			 *    enable "IQ calibration Mode II"
 			 */
 			/* hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &val); */
 			hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &reg_mode_ctrl);
@@ -980,7 +980,7 @@ void _tx_iq_calibration_winbond(struct hw_data *phw_data)
 	phy_set_rf_data(phw_data, 0, (0<<24)|0xFDF1C0);
 	/* ; [BB-chip]: Calibration (6f).Send test pattern */
 	/* ; [BB-chip]: Calibration (6g). Search RXGCL optimal value */
-	/* ; [BB-chip]: Calibration (6h). Caculate TX-path IQ imbalance and setting TX path IQ compensation table */
+	/* ; [BB-chip]: Calibration (6h). Calculate TX-path IQ imbalance and setting TX path IQ compensation table */
 	/* phy_set_rf_data(phw_data, 3, (3<<24)|0x025586); */
 
 	msleep(30); /* 20060612.1.a 30ms delay. Add the follow 2 lines */
@@ -1373,7 +1373,7 @@ u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 fre
 /***************************************************************/
 void _rx_iq_calibration_winbond(struct hw_data *phw_data, u32 frequency)
 {
-/* figo 20050523 marked this flag for can't compile for relesase */
+/* figo 20050523 marked this flag for can't compile for release */
 #ifdef _DEBUG
 	s32     rx_cal_reg[4];
 	u32     val;
@@ -1397,7 +1397,7 @@ void _rx_iq_calibration_winbond(struct hw_data *phw_data, u32 frequency)
 
 	/*  ; [BB-chip]: Calibration (7f). Send test pattern */
 	/*	; [BB-chip]: Calibration (7g). Search RXGCL optimal value */
-	/*	; [BB-chip]: Calibration (7h). Caculate RX-path IQ imbalance and setting RX path IQ compensation table */
+	/*	; [BB-chip]: Calibration (7h). Calculate RX-path IQ imbalance and setting RX path IQ compensation table */
 
 	result = _rx_iq_calibration_loop_winbond(phw_data, 12589, frequency);
 
@@ -1454,7 +1454,7 @@ void phy_calibration_winbond(struct hw_data *phw_data, u32 frequency)
 
 	_rxadc_dc_offset_cancellation_winbond(phw_data, frequency);
 	/* _txidac_dc_offset_cancellation_winbond(phw_data); */
-	/* _txqdac_dc_offset_cacellation_winbond(phw_data); */
+	/* _txqdac_dc_offset_cancellation_winbond(phw_data); */
 
 	_tx_iq_calibration_winbond(phw_data);
 	_rx_iq_calibration_winbond(phw_data, frequency);

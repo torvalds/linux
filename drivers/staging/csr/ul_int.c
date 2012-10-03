@@ -12,6 +12,7 @@
  *
  * ***************************************************************************
  */
+#include <linux/version.h>
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_conversions.h"
 #include "unifi_priv.h"
@@ -44,11 +45,7 @@ ul_init_clients(unifi_priv_t *priv)
     int id;
     ul_client_t *ul_clients;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
     sema_init(&priv->udi_logging_mutex, 1);
-#else
-    init_MUTEX(&priv->udi_logging_mutex);
-#endif
     priv->logging_client = NULL;
 
     ul_clients = priv->ul_clients;

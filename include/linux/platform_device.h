@@ -14,11 +14,15 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 
+#define PLATFORM_DEVID_NONE	(-1)
+#define PLATFORM_DEVID_AUTO	(-2)
+
 struct mfd_cell;
 
 struct platform_device {
 	const char	* name;
 	int		id;
+	bool		id_auto;
 	struct device	dev;
 	u32		num_resources;
 	struct resource	* resource;

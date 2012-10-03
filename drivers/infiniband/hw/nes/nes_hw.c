@@ -2679,11 +2679,9 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 			}
 		}
 		if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_SFP_D) {
-			if (nesdev->link_recheck)
-				cancel_delayed_work(&nesdev->work);
 			nesdev->link_recheck = 1;
-			schedule_delayed_work(&nesdev->work,
-					      NES_LINK_RECHECK_DELAY);
+			mod_delayed_work(system_wq, &nesdev->work,
+					 NES_LINK_RECHECK_DELAY);
 		}
 	}
 
@@ -3577,10 +3575,10 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 	tcp_state = (aeq_info & NES_AEQE_TCP_STATE_MASK) >> NES_AEQE_TCP_STATE_SHIFT;
 	iwarp_state = (aeq_info & NES_AEQE_IWARP_STATE_MASK) >> NES_AEQE_IWARP_STATE_SHIFT;
 	nes_debug(NES_DBG_AEQ, "aeid = 0x%04X, qp-cq id = %d, aeqe = %p,"
-			" Tcp state = %s, iWARP state = %s\n",
+			" Tcp state = %d, iWARP state = %d\n",
 			async_event_id,
 			le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]), aeqe,
-			nes_tcp_state_str[tcp_state], nes_iwarp_state_str[iwarp_state]);
+			tcp_state, iwarp_state);
 
 	aeqe_cq_id = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]);
 	if (aeq_info & NES_AEQE_QP) {

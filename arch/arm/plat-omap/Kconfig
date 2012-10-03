@@ -25,6 +25,7 @@ config ARCH_OMAP2PLUS
 	bool "TI OMAP2/3/4"
 	select CLKDEV_LOOKUP
 	select GENERIC_IRQ_CHIP
+	select SPARSE_IRQ
 	select OMAP_DM_TIMER
 	select USE_OF
 	select PROC_DEVICETREE if PROC_FS
@@ -41,9 +42,8 @@ config OMAP_DEBUG_DEVICES
 	  For debug cards on TI reference boards.
 
 config OMAP_DEBUG_LEDS
-	bool
+	def_bool y if NEW_LEDS
 	depends on OMAP_DEBUG_DEVICES
-	default y if LEDS_CLASS
 
 config POWER_AVS_OMAP
 	bool "AVS(Adaptive Voltage Scaling) support for OMAP IP versions 1&2"

@@ -154,7 +154,6 @@ static int ads7828_remove(struct i2c_client *client)
 	struct ads7828_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &ads7828_group);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -217,11 +216,10 @@ static int ads7828_probe(struct i2c_client *client,
 	struct ads7828_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct ads7828_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct ads7828_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -229,7 +227,7 @@ static int ads7828_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &ads7828_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -241,9 +239,6 @@ static int ads7828_probe(struct i2c_client *client,
 
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &ads7828_group);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 

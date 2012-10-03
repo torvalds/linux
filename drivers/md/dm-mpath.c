@@ -944,7 +944,7 @@ static void flush_multipath_work(struct multipath *m)
 	flush_workqueue(kmpath_handlerd);
 	multipath_wait_for_pg_init_completion(m);
 	flush_workqueue(kmultipathd);
-	flush_work_sync(&m->trigger_event);
+	flush_work(&m->trigger_event);
 }
 
 static void multipath_dtr(struct dm_target *ti)
@@ -1555,6 +1555,7 @@ static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 			   unsigned long arg)
 {
 	struct multipath *m = ti->private;
+	struct pgpath *pgpath;
 	struct block_device *bdev;
 	fmode_t mode;
 	unsigned long flags;
@@ -1570,12 +1571,14 @@ again:
 	if (!m->current_pgpath)
 		__choose_pgpath(m, 0);
 
-	if (m->current_pgpath) {
-		bdev = m->current_pgpath->path.dev->bdev;
-		mode = m->current_pgpath->path.dev->mode;
+	pgpath = m->current_pgpath;
+
+	if (pgpath) {
+		bdev = pgpath->path.dev->bdev;
+		mode = pgpath->path.dev->mode;
 	}
 
-	if (m->queue_io)
+	if ((pgpath && m->queue_io) || (!pgpath && m->queue_if_no_path))
 		r = -EAGAIN;
 	else if (!bdev)
 		r = -EIO;

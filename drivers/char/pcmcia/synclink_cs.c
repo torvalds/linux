@@ -891,6 +891,14 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd, struct tty_struct *tty)
 	int work = 0;
  	struct mgsl_icount *icount = &info->icount;
 
+	if (!tty) {
+		/* tty is not available anymore */
+		issue_command(info, CHA, CMD_RXRESET);
+		if (debug_level >= DEBUG_LEVEL_ISR)
+			printk("%s(%d):rx_ready_async(tty=NULL)\n",__FILE__,__LINE__);
+		return;
+	}
+
 	if (tcd) {
 		/* early termination, get FIFO count from RBCL register */
 		fifo_count = (unsigned char)(read_reg(info, CHA+RBCL) & 0x1f);
@@ -980,7 +988,7 @@ static void tx_done(MGSLPC_INFO *info, struct tty_struct *tty)
 	else
 #endif
 	{
-		if (tty->stopped || tty->hw_stopped) {
+		if (tty && (tty->stopped || tty->hw_stopped)) {
 			tx_stop(info);
 			return;
 		}
@@ -1000,7 +1008,7 @@ static void tx_ready(MGSLPC_INFO *info, struct tty_struct *tty)
 		if (!info->tx_active)
 			return;
 	} else {
-		if (tty->stopped || tty->hw_stopped) {
+		if (tty && (tty->stopped || tty->hw_stopped)) {
 			tx_stop(info);
 			return;
 		}
@@ -1050,13 +1058,12 @@ static void cts_change(MGSLPC_INFO *info, struct tty_struct *tty)
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
 
-	if (info->port.flags & ASYNC_CTS_FLOW) {
+	if (tty && tty_port_cts_enabled(&info->port)) {
 		if (tty->hw_stopped) {
 			if (info->serial_signals & SerialSignal_CTS) {
 				if (debug_level >= DEBUG_LEVEL_ISR)
 					printk("CTS tx start...");
-				if (tty)
-					tty->hw_stopped = 0;
+				tty->hw_stopped = 0;
 				tx_start(info, tty);
 				info->pending_bh |= BH_TRANSMIT;
 				return;
@@ -1065,8 +1072,7 @@ static void cts_change(MGSLPC_INFO *info, struct tty_struct *tty)
 			if (!(info->serial_signals & SerialSignal_CTS)) {
 				if (debug_level >= DEBUG_LEVEL_ISR)
 					printk("CTS tx stop...");
-				if (tty)
-					tty->hw_stopped = 1;
+				tty->hw_stopped = 1;
 				tx_stop(info);
 			}
 		}
@@ -1344,7 +1350,7 @@ static void shutdown(MGSLPC_INFO * info, struct tty_struct *tty)
 	/* TODO:disable interrupts instead of reset to preserve signal states */
 	reset_device(info);
 
- 	if (!tty || tty->termios->c_cflag & HUPCL) {
+ 	if (!tty || tty->termios.c_cflag & HUPCL) {
  		info->serial_signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
 		set_signals(info);
 	}
@@ -1385,7 +1391,7 @@ static void mgslpc_program_hw(MGSLPC_INFO *info, struct tty_struct *tty)
 	port_irq_enable(info, (unsigned char) PVR_DSR | PVR_RI);
 	get_signals(info);
 
-	if (info->netcount || (tty && (tty->termios->c_cflag & CREAD)))
+	if (info->netcount || (tty && (tty->termios.c_cflag & CREAD)))
 		rx_start(info);
 
 	spin_unlock_irqrestore(&info->lock,flags);
@@ -1398,14 +1404,14 @@ static void mgslpc_change_params(MGSLPC_INFO *info, struct tty_struct *tty)
 	unsigned cflag;
 	int bits_per_char;
 
-	if (!tty || !tty->termios)
+	if (!tty)
 		return;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgslpc_change_params(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	/* if B0 rate (hangup) specified then negate DTR and RTS */
 	/* otherwise assert DTR and RTS */
@@ -1728,7 +1734,7 @@ static void mgslpc_throttle(struct tty_struct * tty)
 	if (I_IXOFF(tty))
 		mgslpc_send_xchar(tty, STOP_CHAR(tty));
 
- 	if (tty->termios->c_cflag & CRTSCTS) {
+ 	if (tty->termios.c_cflag & CRTSCTS) {
 		spin_lock_irqsave(&info->lock,flags);
 		info->serial_signals &= ~SerialSignal_RTS;
 	 	set_signals(info);
@@ -1757,7 +1763,7 @@ static void mgslpc_unthrottle(struct tty_struct * tty)
 			mgslpc_send_xchar(tty, START_CHAR(tty));
 	}
 
- 	if (tty->termios->c_cflag & CRTSCTS) {
+ 	if (tty->termios.c_cflag & CRTSCTS) {
 		spin_lock_irqsave(&info->lock,flags);
 		info->serial_signals |= SerialSignal_RTS;
 	 	set_signals(info);
@@ -2293,8 +2299,8 @@ static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_term
 			tty->driver->name );
 
 	/* just return if nothing has changed */
-	if ((tty->termios->c_cflag == old_termios->c_cflag)
-	    && (RELEVANT_IFLAG(tty->termios->c_iflag)
+	if ((tty->termios.c_cflag == old_termios->c_cflag)
+	    && (RELEVANT_IFLAG(tty->termios.c_iflag)
 		== RELEVANT_IFLAG(old_termios->c_iflag)))
 	  return;
 
@@ -2302,7 +2308,7 @@ static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_term
 
 	/* Handle transition to B0 status */
 	if (old_termios->c_cflag & CBAUD &&
-	    !(tty->termios->c_cflag & CBAUD)) {
+	    !(tty->termios.c_cflag & CBAUD)) {
 		info->serial_signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
 		spin_lock_irqsave(&info->lock,flags);
 	 	set_signals(info);
@@ -2311,9 +2317,9 @@ static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_term
 
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) &&
-	    tty->termios->c_cflag & CBAUD) {
+	    tty->termios.c_cflag & CBAUD) {
 		info->serial_signals |= SerialSignal_DTR;
- 		if (!(tty->termios->c_cflag & CRTSCTS) ||
+ 		if (!(tty->termios.c_cflag & CRTSCTS) ||
  		    !test_bit(TTY_THROTTLED, &tty->flags)) {
 			info->serial_signals |= SerialSignal_RTS;
  		}
@@ -2324,7 +2330,7 @@ static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_term
 
 	/* Handle turning off CRTSCTS */
 	if (old_termios->c_cflag & CRTSCTS &&
-	    !(tty->termios->c_cflag & CRTSCTS)) {
+	    !(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		tx_release(tty);
 	}
@@ -2731,6 +2737,8 @@ static void mgslpc_add_device(MGSLPC_INFO *info)
 #if SYNCLINK_GENERIC_HDLC
 	hdlcdev_init(info);
 #endif
+	tty_port_register_device(&info->port, serial_driver, info->line,
+			&info->p_dev->dev);
 }
 
 static void mgslpc_remove_device(MGSLPC_INFO *remove_info)
@@ -2744,6 +2752,7 @@ static void mgslpc_remove_device(MGSLPC_INFO *remove_info)
 				last->next_device = info->next_device;
 			else
 				mgslpc_device_list = info->next_device;
+			tty_unregister_device(serial_driver, info->line);
 #if SYNCLINK_GENERIC_HDLC
 			hdlcdev_exit(info);
 #endif
@@ -2798,77 +2807,63 @@ static const struct tty_operations mgslpc_ops = {
 	.proc_fops = &mgslpc_proc_fops,
 };
 
-static void synclink_cs_cleanup(void)
+static int __init synclink_cs_init(void)
 {
 	int rc;
 
-	while(mgslpc_device_list)
-		mgslpc_remove_device(mgslpc_device_list);
-
-	if (serial_driver) {
-		if ((rc = tty_unregister_driver(serial_driver)))
-			printk("%s(%d) failed to unregister tty driver err=%d\n",
-			       __FILE__,__LINE__,rc);
-		put_tty_driver(serial_driver);
+	if (break_on_load) {
+		mgslpc_get_text_ptr();
+		BREAKPOINT();
 	}
 
-	pcmcia_unregister_driver(&mgslpc_driver);
-}
+	serial_driver = tty_alloc_driver(MAX_DEVICE_COUNT,
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(serial_driver)) {
+		rc = PTR_ERR(serial_driver);
+		goto err;
+	}
 
-static int __init synclink_cs_init(void)
-{
-    int rc;
+	/* Initialize the tty_driver structure */
+	serial_driver->driver_name = "synclink_cs";
+	serial_driver->name = "ttySLP";
+	serial_driver->major = ttymajor;
+	serial_driver->minor_start = 64;
+	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
+	serial_driver->subtype = SERIAL_TYPE_NORMAL;
+	serial_driver->init_termios = tty_std_termios;
+	serial_driver->init_termios.c_cflag =
+	B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	tty_set_operations(serial_driver, &mgslpc_ops);
 
-    if (break_on_load) {
-	    mgslpc_get_text_ptr();
-	    BREAKPOINT();
-    }
+	rc = tty_register_driver(serial_driver);
+	if (rc < 0) {
+		printk(KERN_ERR "%s(%d):Couldn't register serial driver\n",
+				__FILE__, __LINE__);
+		goto err_put_tty;
+	}
 
-    if ((rc = pcmcia_register_driver(&mgslpc_driver)) < 0)
-	    return rc;
+	rc = pcmcia_register_driver(&mgslpc_driver);
+	if (rc < 0)
+		goto err_unreg_tty;
 
-    serial_driver = alloc_tty_driver(MAX_DEVICE_COUNT);
-    if (!serial_driver) {
-	    rc = -ENOMEM;
-	    goto error;
-    }
+	printk(KERN_INFO "%s %s, tty major#%d\n", driver_name, driver_version,
+			serial_driver->major);
 
-    /* Initialize the tty_driver structure */
-
-    serial_driver->driver_name = "synclink_cs";
-    serial_driver->name = "ttySLP";
-    serial_driver->major = ttymajor;
-    serial_driver->minor_start = 64;
-    serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
-    serial_driver->subtype = SERIAL_TYPE_NORMAL;
-    serial_driver->init_termios = tty_std_termios;
-    serial_driver->init_termios.c_cflag =
-	    B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-    serial_driver->flags = TTY_DRIVER_REAL_RAW;
-    tty_set_operations(serial_driver, &mgslpc_ops);
-
-    if ((rc = tty_register_driver(serial_driver)) < 0) {
-	    printk("%s(%d):Couldn't register serial driver\n",
-		   __FILE__,__LINE__);
-	    put_tty_driver(serial_driver);
-	    serial_driver = NULL;
-	    goto error;
-    }
-
-    printk("%s %s, tty major#%d\n",
-	   driver_name, driver_version,
-	   serial_driver->major);
-
-    return 0;
-
-error:
-    synclink_cs_cleanup();
-    return rc;
+	return 0;
+err_unreg_tty:
+	tty_unregister_driver(serial_driver);
+err_put_tty:
+	put_tty_driver(serial_driver);
+err:
+	return rc;
 }
 
 static void __exit synclink_cs_exit(void)
 {
-	synclink_cs_cleanup();
+	pcmcia_unregister_driver(&mgslpc_driver);
+	tty_unregister_driver(serial_driver);
+	put_tty_driver(serial_driver);
 }
 
 module_init(synclink_cs_init);

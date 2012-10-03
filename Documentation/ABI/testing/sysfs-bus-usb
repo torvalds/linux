@@ -220,3 +220,10 @@ Description:
 		If the device doesn't support LTM, the file will read "no".
 		The file will be present for all speeds of USB devices, and will
 		always read "no" for USB 1.1 and USB 2.0 devices.
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX
+Date:		August 2012
+Contact:	Lan Tianyu <tianyu.lan@intel.com>
+Description:
+		The /sys/bus/usb/devices/.../(hub interface)/portX
+		is usb port device's sysfs directory.

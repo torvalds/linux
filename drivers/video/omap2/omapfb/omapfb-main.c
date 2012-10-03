@@ -31,6 +31,7 @@
 #include <linux/omapfb.h>
 
 #include <video/omapdss.h>
+#include <plat/cpu.h>
 #include <plat/vram.h>
 #include <plat/vrfb.h>
 

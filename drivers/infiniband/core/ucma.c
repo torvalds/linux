@@ -310,7 +310,6 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 	struct rdma_ucm_get_event cmd;
 	struct ucma_event *uevent;
 	int ret = 0;
-	DEFINE_WAIT(wait);
 
 	if (out_len < sizeof uevent->resp)
 		return -ENOSPC;

@@ -16,8 +16,6 @@
 #include "util/session.h"
 #include "util/symbol.h"
 
-#include <libelf.h>
-
 static const char *input_name;
 static bool force;
 static bool show_kernel;
@@ -71,7 +69,7 @@ static int perf_session__list_build_ids(void)
 {
 	struct perf_session *session;
 
-	elf_version(EV_CURRENT);
+	symbol__elf_init();
 
 	session = perf_session__new(input_name, O_RDONLY, force, false,
 				    &build_id__mark_dso_hit_ops);
@@ -105,7 +103,8 @@ static int __cmd_buildid_list(void)
 	return perf_session__list_build_ids();
 }
 
-int cmd_buildid_list(int argc, const char **argv, const char *prefix __used)
+int cmd_buildid_list(int argc, const char **argv,
+		     const char *prefix __maybe_unused)
 {
 	argc = parse_options(argc, argv, options, buildid_list_usage, 0);
 	setup_pager();

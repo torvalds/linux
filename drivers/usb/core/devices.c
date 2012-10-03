@@ -496,6 +496,7 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 	char *pages_start, *data_end, *speed;
 	unsigned int length;
 	ssize_t total_written = 0;
+	struct usb_device *childdev = NULL;
 
 	/* don't bother with anything else if we're not writing any data */
 	if (*nbytes <= 0)
@@ -589,14 +590,12 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes,
 	free_pages((unsigned long)pages_start, 1);
 
 	/* Now look at all of this device's children. */
-	for (chix = 0; chix < usbdev->maxchild; chix++) {
-		struct usb_device *childdev = usbdev->children[chix];
-
+	usb_hub_for_each_child(usbdev, chix, childdev) {
 		if (childdev) {
 			usb_lock_device(childdev);
 			ret = usb_device_dump(buffer, nbytes, skip_bytes,
 					      file_offset, childdev, bus,
-					      level + 1, chix, ++cnt);
+					      level + 1, chix - 1, ++cnt);
 			usb_unlock_device(childdev);
 			if (ret == -EFAULT)
 				return total_written;
@@ -624,7 +623,7 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 	/* print devices for all busses */
 	list_for_each_entry(bus, &usb_bus_list, bus_list) {
 		/* recurse through all children of the root hub */
-		if (!bus->root_hub)
+		if (!bus_to_hcd(bus)->rh_registered)
 			continue;
 		usb_lock_device(bus->root_hub);
 		ret = usb_device_dump(&buf, &nbytes, &skip_bytes, ppos,

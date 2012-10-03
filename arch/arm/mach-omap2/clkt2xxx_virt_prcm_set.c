@@ -33,11 +33,11 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 
-#include <plat/cpu.h>
 #include <plat/clock.h>
 #include <plat/sram.h>
 #include <plat/sdrc.h>
 
+#include "soc.h"
 #include "clock.h"
 #include "clock2xxx.h"
 #include "opp2xxx.h"

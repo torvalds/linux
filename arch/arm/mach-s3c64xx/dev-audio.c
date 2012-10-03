@@ -20,7 +20,7 @@
 #include <mach/dma.h>
 
 #include <plat/devs.h>
-#include <plat/audio.h>
+#include <linux/platform_data/asoc-s3c.h>
 #include <plat/gpio-cfg.h>
 
 static const char *rclksrc[] = {

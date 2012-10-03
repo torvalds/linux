@@ -321,13 +321,19 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		case Opt_uid:
 		{
 			char *uid = args[0].from;
-			sbi->uid = simple_strtoul(uid, &uid, 0);
+			uid_t val = simple_strtoul(uid, &uid, 0);
+			sbi->uid = make_kuid(current_user_ns(), val);
+			if (!uid_valid(sbi->uid))
+				goto cleanup;
 			break;
 		}
 		case Opt_gid:
 		{
 			char *gid = args[0].from;
-			sbi->gid = simple_strtoul(gid, &gid, 0);
+			gid_t val = simple_strtoul(gid, &gid, 0);
+			sbi->gid = make_kgid(current_user_ns(), val);
+			if (!gid_valid(sbi->gid))
+				goto cleanup;
 			break;
 		}
 		case Opt_umask:
@@ -443,7 +449,9 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_fs_info = sbi;
 	sb->s_max_links = JFS_LINK_MAX;
 	sbi->sb = sb;
-	sbi->uid = sbi->gid = sbi->umask = -1;
+	sbi->uid = INVALID_UID;
+	sbi->gid = INVALID_GID;
+	sbi->umask = -1;
 
 	/* initialize the mount flag and determine the default error handler */
 	flag = JFS_ERR_REMOUNT_RO;
@@ -617,10 +625,10 @@ static int jfs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(root->d_sb);
 
-	if (sbi->uid != -1)
-		seq_printf(seq, ",uid=%d", sbi->uid);
-	if (sbi->gid != -1)
-		seq_printf(seq, ",gid=%d", sbi->gid);
+	if (uid_valid(sbi->uid))
+		seq_printf(seq, ",uid=%d", from_kuid(&init_user_ns, sbi->uid));
+	if (gid_valid(sbi->gid))
+		seq_printf(seq, ",gid=%d", from_kgid(&init_user_ns, sbi->gid));
 	if (sbi->umask != -1)
 		seq_printf(seq, ",umask=%03o", sbi->umask);
 	if (sbi->flag & JFS_NOINTEGRITY)

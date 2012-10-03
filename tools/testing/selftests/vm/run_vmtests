@@ -36,7 +36,7 @@ mkdir $mnt
 mount -t hugetlbfs none $mnt
 
 echo "--------------------"
-echo "runing hugepage-mmap"
+echo "running hugepage-mmap"
 echo "--------------------"
 ./hugepage-mmap
 if [ $? -ne 0 ]; then
@@ -50,7 +50,7 @@ shmall=`cat /proc/sys/kernel/shmall`
 echo 268435456 > /proc/sys/kernel/shmmax
 echo 4194304 > /proc/sys/kernel/shmall
 echo "--------------------"
-echo "runing hugepage-shm"
+echo "running hugepage-shm"
 echo "--------------------"
 ./hugepage-shm
 if [ $? -ne 0 ]; then
@@ -62,7 +62,7 @@ echo $shmmax > /proc/sys/kernel/shmmax
 echo $shmall > /proc/sys/kernel/shmall
 
 echo "--------------------"
-echo "runing map_hugetlb"
+echo "running map_hugetlb"
 echo "--------------------"
 ./map_hugetlb
 if [ $? -ne 0 ]; then

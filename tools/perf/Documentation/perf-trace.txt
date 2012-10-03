@@ -1,0 +1,53 @@
+perf-trace(1)
+=============
+
+NAME
+----
+perf-trace - strace inspired tool
+
+SYNOPSIS
+--------
+[verse]
+'perf trace'
+
+DESCRIPTION
+-----------
+This command will show the events associated with the target, initially
+syscalls, but other system events like pagefaults, task lifetime events,
+scheduling events, etc.
+
+Initially this is a live mode only tool, but eventually will work with
+perf.data files like the other tools, allowing a detached 'record' from
+analysis phases.
+
+OPTIONS
+-------
+
+--all-cpus::
+        System-wide collection from all CPUs.
+
+-p::
+--pid=::
+	Record events on existing process ID (comma separated list).
+
+--tid=::
+        Record events on existing thread ID (comma separated list).
+
+--uid=::
+        Record events in threads owned by uid. Name or number.
+
+--no-inherit::
+	Child tasks do not inherit counters.
+
+--mmap-pages=::
+	Number of mmap data pages. Must be a power of two.
+
+--cpu::
+Collect samples only on the list of CPUs provided. Multiple CPUs can be provided as a
+comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+In per-thread mode with inheritance mode on (default), Events are captured only when
+the thread executes on the designated CPUs. Default is to monitor all CPUs.
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-script[1]

@@ -81,7 +81,7 @@ static int acl7225b_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* Relays outputs */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -91,7 +91,7 @@ static int acl7225b_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->private = (void *)ACL7225_RIO_LO;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* Relays status */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -101,7 +101,7 @@ static int acl7225b_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->private = (void *)ACL7225_RIO_LO;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* Isolated digital inputs */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;

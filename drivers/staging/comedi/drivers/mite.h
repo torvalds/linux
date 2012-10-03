@@ -25,15 +25,16 @@
 #define _MITE_H_
 
 #include <linux/pci.h>
+#include <linux/log2.h>
 #include "../comedidev.h"
 
 /*  #define DEBUG_MITE */
 #define PCIMIO_COMPAT
 
 #ifdef DEBUG_MITE
-#define MDPRINTK(format, args...)	printk(format , ## args)
+#define MDPRINTK(format, args...)	pr_debug(format , ## args)
 #else
-#define MDPRINTK(format, args...)
+#define MDPRINTK(format, args...)	do { } while (0)
 #endif
 
 #define MAX_MITE_DMA_CHANNELS 8
@@ -61,15 +62,11 @@ struct mite_channel {
 };
 
 struct mite_struct {
-	struct mite_struct *next;
-	int used;
-
 	struct pci_dev *pcidev;
 	resource_size_t mite_phys_addr;
 	void __iomem *mite_io_addr;
 	resource_size_t daq_phys_addr;
 	void __iomem *daq_io_addr;
-
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
 	short channel_allocated[MAX_MITE_DMA_CHANNELS];
 	int num_channels;
@@ -77,41 +74,12 @@ struct mite_struct {
 	spinlock_t lock;
 };
 
-static inline struct mite_dma_descriptor_ring *mite_alloc_ring(struct
-							       mite_struct
-							       *mite)
-{
-	struct mite_dma_descriptor_ring *ring =
-	    kmalloc(sizeof(struct mite_dma_descriptor_ring), GFP_KERNEL);
-	if (ring == NULL)
-		return ring;
-	ring->hw_dev = get_device(&mite->pcidev->dev);
-	if (ring->hw_dev == NULL) {
-		kfree(ring);
-		return NULL;
-	}
-	ring->n_links = 0;
-	ring->descriptors = NULL;
-	ring->descriptors_dma_addr = 0;
-	return ring;
-};
+struct mite_struct *mite_alloc(struct pci_dev *pcidev);
 
-static inline void mite_free_ring(struct mite_dma_descriptor_ring *ring)
+static inline void mite_free(struct mite_struct *mite)
 {
-	if (ring) {
-		if (ring->descriptors) {
-			dma_free_coherent(ring->hw_dev,
-					  ring->n_links *
-					  sizeof(struct mite_dma_descriptor),
-					  ring->descriptors,
-					  ring->descriptors_dma_addr);
-		}
-		put_device(ring->hw_dev);
-		kfree(ring);
-	}
-};
-
-extern struct mite_struct *mite_devices;
+	kfree(mite);
+}
 
 static inline unsigned int mite_irq(struct mite_struct *mite)
 {
@@ -123,12 +91,11 @@ static inline unsigned int mite_device_id(struct mite_struct *mite)
 	return mite->pcidev->device;
 };
 
-void mite_init(void);
-void mite_cleanup(void);
 int mite_setup(struct mite_struct *mite);
 int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1);
 void mite_unsetup(struct mite_struct *mite);
-void mite_list_devices(void);
+struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite);
+void mite_free_ring(struct mite_dma_descriptor_ring *ring);
 struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
 						   struct
 						   mite_dma_descriptor_ring
@@ -279,8 +246,9 @@ enum MITE_IODWBSR_bits {
 static inline unsigned MITE_IODWBSR_1_WSIZE_bits(unsigned size)
 {
 	unsigned order = 0;
-	while (size >>= 1)
-		++order;
+
+	BUG_ON(size == 0);
+	order = ilog2(size);
 	BUG_ON(order < 1);
 	return (order - 1) & 0x1f;
 }
@@ -427,12 +395,10 @@ static inline int CR_RL(unsigned int retry_limit)
 {
 	int value = 0;
 
-	while (retry_limit) {
-		retry_limit >>= 1;
-		value++;
-	}
+	if (retry_limit)
+		value = 1 + ilog2(retry_limit);
 	if (value > 0x7)
-		printk("comedi: bug! retry_limit too large\n");
+		value = 0x7;
 	return (value & 0x7) << 21;
 }
 

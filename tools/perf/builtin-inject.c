@@ -17,9 +17,9 @@
 static char		const *input_name = "-";
 static bool		inject_build_ids;
 
-static int perf_event__repipe_synth(struct perf_tool *tool __used,
+static int perf_event__repipe_synth(struct perf_tool *tool __maybe_unused,
 				    union perf_event *event,
-				    struct machine *machine __used)
+				    struct machine *machine __maybe_unused)
 {
 	uint32_t size;
 	void *buf = event;
@@ -40,7 +40,8 @@ static int perf_event__repipe_synth(struct perf_tool *tool __used,
 
 static int perf_event__repipe_op2_synth(struct perf_tool *tool,
 					union perf_event *event,
-					struct perf_session *session __used)
+					struct perf_session *session
+					__maybe_unused)
 {
 	return perf_event__repipe_synth(tool, event, NULL);
 }
@@ -52,13 +53,14 @@ static int perf_event__repipe_event_type_synth(struct perf_tool *tool,
 }
 
 static int perf_event__repipe_tracing_data_synth(union perf_event *event,
-						 struct perf_session *session __used)
+						 struct perf_session *session
+						 __maybe_unused)
 {
 	return perf_event__repipe_synth(NULL, event, NULL);
 }
 
 static int perf_event__repipe_attr(union perf_event *event,
-				   struct perf_evlist **pevlist __used)
+				   struct perf_evlist **pevlist __maybe_unused)
 {
 	int ret;
 	ret = perf_event__process_attr(event, pevlist);
@@ -70,7 +72,7 @@ static int perf_event__repipe_attr(union perf_event *event,
 
 static int perf_event__repipe(struct perf_tool *tool,
 			      union perf_event *event,
-			      struct perf_sample *sample __used,
+			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine)
 {
 	return perf_event__repipe_synth(tool, event, machine);
@@ -78,8 +80,8 @@ static int perf_event__repipe(struct perf_tool *tool,
 
 static int perf_event__repipe_sample(struct perf_tool *tool,
 				     union perf_event *event,
-			      struct perf_sample *sample __used,
-			      struct perf_evsel *evsel __used,
+			      struct perf_sample *sample __maybe_unused,
+			      struct perf_evsel *evsel __maybe_unused,
 			      struct machine *machine)
 {
 	return perf_event__repipe_synth(tool, event, machine);
@@ -163,7 +165,7 @@ static int dso__inject_build_id(struct dso *self, struct perf_tool *tool,
 static int perf_event__inject_buildid(struct perf_tool *tool,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct perf_evsel *evsel __used,
+				      struct perf_evsel *evsel __maybe_unused,
 				      struct machine *machine)
 {
 	struct addr_location al;
@@ -191,10 +193,13 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 				 * If this fails, too bad, let the other side
 				 * account this as unresolved.
 				 */
-			} else
+			} else {
+#ifndef NO_LIBELF_SUPPORT
 				pr_warning("no symbols found in %s, maybe "
 					   "install a debug package?\n",
 					   al.map->dso->long_name);
+#endif
+			}
 		}
 	}
 
@@ -221,7 +226,7 @@ struct perf_tool perf_inject = {
 
 extern volatile int session_done;
 
-static void sig_handler(int sig __attribute__((__unused__)))
+static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;
 }
@@ -264,7 +269,7 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-int cmd_inject(int argc, const char **argv, const char *prefix __used)
+int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	argc = parse_options(argc, argv, options, report_usage, 0);
 

@@ -1018,7 +1018,7 @@ static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 	}
 
 	/* Init work for measuring temperature periodically */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->btemp_periodic_work,
+	INIT_DEFERRABLE_WORK(&di->btemp_periodic_work,
 		ab8500_btemp_periodic_work);
 
 	/* Identify the battery */

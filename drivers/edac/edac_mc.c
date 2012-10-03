@@ -199,6 +199,36 @@ void *edac_align_ptr(void **p, unsigned size, int n_elems)
 	return (void *)(((unsigned long)ptr) + align - r);
 }
 
+static void _edac_mc_free(struct mem_ctl_info *mci)
+{
+	int i, chn, row;
+	struct csrow_info *csr;
+	const unsigned int tot_dimms = mci->tot_dimms;
+	const unsigned int tot_channels = mci->num_cschannel;
+	const unsigned int tot_csrows = mci->nr_csrows;
+
+	if (mci->dimms) {
+		for (i = 0; i < tot_dimms; i++)
+			kfree(mci->dimms[i]);
+		kfree(mci->dimms);
+	}
+	if (mci->csrows) {
+		for (row = 0; row < tot_csrows; row++) {
+			csr = mci->csrows[row];
+			if (csr) {
+				if (csr->channels) {
+					for (chn = 0; chn < tot_channels; chn++)
+						kfree(csr->channels[chn]);
+					kfree(csr->channels);
+				}
+				kfree(csr);
+			}
+		}
+		kfree(mci->csrows);
+	}
+	kfree(mci);
+}
+
 /**
  * edac_mc_alloc: Allocate and partially fill a struct mem_ctl_info structure
  * @mc_num:		Memory controller number
@@ -413,24 +443,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	return mci;
 
 error:
-	if (mci->dimms) {
-		for (i = 0; i < tot_dimms; i++)
-			kfree(mci->dimms[i]);
-		kfree(mci->dimms);
-	}
-	if (mci->csrows) {
-		for (chn = 0; chn < tot_channels; chn++) {
-			csr = mci->csrows[chn];
-			if (csr) {
-				for (chn = 0; chn < tot_channels; chn++)
-					kfree(csr->channels[chn]);
-				kfree(csr);
-			}
-			kfree(mci->csrows[i]);
-		}
-		kfree(mci->csrows);
-	}
-	kfree(mci);
+	_edac_mc_free(mci);
 
 	return NULL;
 }
@@ -444,6 +457,14 @@ EXPORT_SYMBOL_GPL(edac_mc_alloc);
 void edac_mc_free(struct mem_ctl_info *mci)
 {
 	edac_dbg(1, "\n");
+
+	/* If we're not yet registered with sysfs free only what was allocated
+	 * in edac_mc_alloc().
+	 */
+	if (!device_is_registered(&mci->dev)) {
+		_edac_mc_free(mci);
+		return;
+	}
 
 	/* the mci instance is freed here, when the sysfs object is dropped */
 	edac_unregister_sysfs(mci);
@@ -538,7 +559,7 @@ static void edac_mc_workq_setup(struct mem_ctl_info *mci, unsigned msec)
 		return;
 
 	INIT_DELAYED_WORK(&mci->work, edac_mc_workq_function);
-	queue_delayed_work(edac_workqueue, &mci->work, msecs_to_jiffies(msec));
+	mod_delayed_work(edac_workqueue, &mci->work, msecs_to_jiffies(msec));
 }
 
 /*
@@ -576,21 +597,6 @@ void edac_mc_reset_delay_period(int value)
 	struct mem_ctl_info *mci;
 	struct list_head *item;
 
-	mutex_lock(&mem_ctls_mutex);
-
-	/* scan the list and turn off all workq timers, doing so under lock
-	 */
-	list_for_each(item, &mc_devices) {
-		mci = list_entry(item, struct mem_ctl_info, link);
-
-		if (mci->op_state == OP_RUNNING_POLL)
-			cancel_delayed_work(&mci->work);
-	}
-
-	mutex_unlock(&mem_ctls_mutex);
-
-
-	/* re-walk the list, and reset the poll delay */
 	mutex_lock(&mem_ctls_mutex);
 
 	list_for_each(item, &mc_devices) {

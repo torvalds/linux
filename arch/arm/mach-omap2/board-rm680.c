@@ -17,6 +17,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -26,7 +27,7 @@
 #include <plat/usb.h>
 #include <plat/gpmc.h>
 #include "common.h"
-#include <plat/onenand.h>
+#include <plat/serial.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -72,9 +73,6 @@ static struct platform_device *rm680_peripherals_devices[] __initdata = {
 
 /* TWL */
 static struct twl4030_gpio_platform_data rm680_gpio_data = {
-	.gpio_base		= OMAP_MAX_GPIO_LINES,
-	.irq_base		= TWL4030_GPIO_IRQ_BASE,
-	.irq_end		= TWL4030_GPIO_IRQ_END,
 	.pullups		= BIT(0),
 	.pulldowns		= BIT(1) | BIT(2) | BIT(8) | BIT(15),
 };
@@ -87,7 +85,7 @@ static struct twl4030_platform_data rm680_twl_data = {
 static void __init rm680_i2c_init(void)
 {
 	omap3_pmic_get_config(&rm680_twl_data, TWL_COMMON_PDATA_USB, 0);
-	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
+	omap_pmic_init(1, 2900, "twl5031", 7 + OMAP_INTC_START, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 }

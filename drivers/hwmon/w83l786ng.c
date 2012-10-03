@@ -668,11 +668,10 @@ w83l786ng_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int i, err = 0;
 	u8 reg_tmp;
 
-	data = kzalloc(sizeof(struct w83l786ng_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct w83l786ng_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -708,8 +707,6 @@ w83l786ng_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &w83l786ng_group);
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -720,8 +717,6 @@ w83l786ng_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &w83l786ng_group);
-
-	kfree(data);
 
 	return 0;
 }

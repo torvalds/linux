@@ -123,27 +123,27 @@ struct imgchunk {
 /* s-record image processing */
 
 /* Data records */
-unsigned int ns3data;
-struct s3datarec s3data[S3DATA_MAX];
+static unsigned int ns3data;
+static struct s3datarec s3data[S3DATA_MAX];
 
 /* Plug records */
-unsigned int ns3plug;
-struct s3plugrec s3plug[S3PLUG_MAX];
+static unsigned int ns3plug;
+static struct s3plugrec s3plug[S3PLUG_MAX];
 
 /* CRC records */
-unsigned int ns3crc;
-struct s3crcrec s3crc[S3CRC_MAX];
+static unsigned int ns3crc;
+static struct s3crcrec s3crc[S3CRC_MAX];
 
 /* Info records */
-unsigned int ns3info;
-struct s3inforec s3info[S3INFO_MAX];
+static unsigned int ns3info;
+static struct s3inforec s3info[S3INFO_MAX];
 
 /* S7 record (there _better_ be only one) */
-u32 startaddr;
+static u32 startaddr;
 
 /* Load image chunks */
-unsigned int nfchunks;
-struct imgchunk fchunk[CHUNKS_MAX];
+static unsigned int nfchunks;
+static struct imgchunk fchunk[CHUNKS_MAX];
 
 /* Note that for the following pdrec_t arrays, the len and code */
 /*   fields are stored in HOST byte order. The mkpdrlist() function */
@@ -151,11 +151,11 @@ struct imgchunk fchunk[CHUNKS_MAX];
 /*----------------------------------------------------------------*/
 /* PDA, built from [card|newfile]+[addfile1+addfile2...] */
 
-struct pda pda;
-hfa384x_compident_t nicid;
-hfa384x_caplevel_t rfid;
-hfa384x_caplevel_t macid;
-hfa384x_caplevel_t priid;
+static struct pda pda;
+static hfa384x_compident_t nicid;
+static hfa384x_caplevel_t rfid;
+static hfa384x_caplevel_t macid;
+static hfa384x_caplevel_t priid;
 
 /*================================================================*/
 /* Local Function Declarations */
@@ -237,7 +237,7 @@ int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
+static int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
 {
 	signed int result = 0;
 	struct p80211msg_dot11req_mibget getmsg;
@@ -376,7 +376,7 @@ int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
+static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	     struct s3crcrec *s3crc, unsigned int ns3crc)
 {
 	int result = 0;
@@ -440,7 +440,7 @@ int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 * Returns:
 *	nothing
 ----------------------------------------------------------------*/
-void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
+static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 {
 	int i;
 	for (i = 0; i < *nfchunks; i++)
@@ -462,7 +462,7 @@ void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 * Returns:
 *	nothing
 ----------------------------------------------------------------*/
-void free_srecs(void)
+static void free_srecs(void)
 {
 	ns3data = 0;
 	memset(s3data, 0, sizeof(s3data));
@@ -489,7 +489,7 @@ void free_srecs(void)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int mkimage(struct imgchunk *clist, unsigned int *ccnt)
+static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 {
 	int result = 0;
 	int i;
@@ -582,7 +582,7 @@ int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int mkpdrlist(struct pda *pda)
+static int mkpdrlist(struct pda *pda)
 {
 	int result = 0;
 	u16 *pda16 = (u16 *) pda->buf;
@@ -656,7 +656,7 @@ int mkpdrlist(struct pda *pda)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
+static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	      struct s3plugrec *s3plug, unsigned int ns3plug, struct pda *pda)
 {
 	int result = 0;
@@ -764,7 +764,7 @@ int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
+static int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
 {
 	int result = 0;
 	struct p80211msg_p2req_readpda msg;
@@ -806,7 +806,7 @@ int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
 *
 * Note also that the start address record, originally an S7 record in
 * the srec file, is expected in the fw file to be like a data record but
-* with a certain address to make it identiable.
+* with a certain address to make it identifiable.
 *
 * Here's the SREC format that the fw should have come from:
 * S[37]nnaaaaaaaaddd...dddcc
@@ -854,7 +854,7 @@ int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int read_fwfile(const struct ihex_binrec *record)
+static int read_fwfile(const struct ihex_binrec *record)
 {
 	int		i;
 	int		rcnt = 0;
@@ -978,7 +978,7 @@ int read_fwfile(const struct ihex_binrec *record)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
+static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
 	       unsigned int nfchunks)
 {
 	int result = 0;
@@ -1130,7 +1130,7 @@ free_result:
 	return result;
 }
 
-int validate_identity(void)
+static int validate_identity(void)
 {
 	int i;
 	int result = 1;

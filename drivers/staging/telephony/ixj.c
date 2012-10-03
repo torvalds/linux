@@ -7057,7 +7057,7 @@ static int ixj_selfprobe(IXJ *j)
 		printk(KERN_INFO "Enable Line Monitor\n");
 
 	if (ixjdebug & 0x0002)
-		printk(KERN_INFO "Set Line Monitor to Asyncronous Mode\n");
+		printk(KERN_INFO "Set Line Monitor to Asynchronous Mode\n");
 
 	if (ixj_WriteDSPCommand(0x7E01, j))		/* Asynchronous Line Monitor */
 		return -1;
@@ -7068,7 +7068,7 @@ static int ixj_selfprobe(IXJ *j)
 	if (ixj_WriteDSPCommand(0x5151, j))		/* Enable DTMF detection */
 		return -1;
 
-	if (ixj_WriteDSPCommand(0x6E01, j))		/* Set Asyncronous Tone Generation */
+	if (ixj_WriteDSPCommand(0x6E01, j))		/* Set Asynchronous Tone Generation */
 		return -1;
 
 	set_rec_depth(j, 2);	/* Set Record Channel Limit to 2 frames */

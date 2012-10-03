@@ -566,9 +566,12 @@ static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
 	}
 
 	read = min_t(size_t, count, tsdata->raw_bufsize - *off);
-	error = copy_to_user(buf, tsdata->raw_buffer + *off, read);
-	if (!error)
-		*off += read;
+	if (copy_to_user(buf, tsdata->raw_buffer + *off, read)) {
+		error = -EFAULT;
+		goto out;
+	}
+
+	*off += read;
 out:
 	mutex_unlock(&tsdata->mutex);
 	return error ?: read;
@@ -779,7 +782,7 @@ static int __devinit edt_ft5x06_ts_probe(struct i2c_client *client,
 			     0, tsdata->num_x * 64 - 1, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y,
 			     0, tsdata->num_y * 64 - 1, 0, 0);
-	error = input_mt_init_slots(input, MAX_SUPPORT_POINTS);
+	error = input_mt_init_slots(input, MAX_SUPPORT_POINTS, 0);
 	if (error) {
 		dev_err(&client->dev, "Unable to init MT slots.\n");
 		goto err_free_mem;

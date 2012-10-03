@@ -1,0 +1,33 @@
+OMAP GLUE
+
+OMAP MUSB GLUE
+ - compatible : Should be "ti,omap4-musb" or "ti,omap3-musb"
+ - ti,hwmods : must be "usb_otg_hs"
+ - multipoint : Should be "1" indicating the musb controller supports
+   multipoint. This is a MUSB configuration-specific setting.
+ - num_eps : Specifies the number of endpoints. This is also a
+   MUSB configuration-specific setting. Should be set to "16"
+ - ram_bits : Specifies the ram address size. Should be set to "12"
+ - interface_type : This is a board specific setting to describe the type of
+   interface between the controller and the phy. It should be "0" or "1"
+   specifying ULPI and UTMI respectively.
+ - mode : Should be "3" to represent OTG. "1" signifies HOST and "2"
+   represents PERIPHERAL.
+ - power : Should be "50". This signifies the controller can supply upto
+   100mA when operating in host mode.
+
+SOC specific device node entry
+usb_otg_hs: usb_otg_hs@4a0ab000 {
+	compatible = "ti,omap4-musb";
+	ti,hwmods = "usb_otg_hs";
+	multipoint = <1>;
+	num_eps = <16>;
+	ram_bits = <12>;
+};
+
+Board specific device node entry
+&usb_otg_hs {
+	interface_type = <1>;
+	mode = <3>;
+	power = <50>;
+};

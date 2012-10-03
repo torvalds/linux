@@ -68,20 +68,6 @@ config AD799X_RING_BUFFER
 	  Say yes here to include ring buffer support in the AD799X
 	  ADC driver.
 
-config AD7476
-	tristate "Analog Devices AD7475/6/7/8 AD7466/7/8 and AD7495 ADC driver"
-	depends on SPI
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  Say yes here to build support for Analog Devices
-	  AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468, AD7495
-	  SPI analog to digital converters (ADC).
-	  If unsure, say N (but it's safe to say "Y").
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7476.
-
 config AD7887
 	tristate "Analog Devices AD7887 ADC driver"
 	depends on SPI
@@ -96,11 +82,12 @@ config AD7887
 	  module will be called ad7887.
 
 config AD7780
-	tristate "Analog Devices AD7780 AD7781 ADC driver"
+	tristate "Analog Devices AD7780 and similar ADCs driver"
 	depends on SPI
 	depends on GPIOLIB
+	select AD_SIGMA_DELTA
 	help
-	  Say yes here to build support for Analog Devices
+	  Say yes here to build support for Analog Devices AD7170, AD7171,
 	  AD7780 and AD7781 SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
@@ -108,13 +95,12 @@ config AD7780
 	  module will be called ad7780.
 
 config AD7793
-	tristate "Analog Devices AD7792 AD7793 ADC driver"
+	tristate "Analog Devices AD7793 and similar ADCs driver"
 	depends on SPI
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
+	select AD_SIGMA_DELTA
 	help
-	  Say yes here to build support for Analog Devices
-	  AD7792 and AD7793 SPI analog to digital converters (ADC).
+	  Say yes here to build support for Analog Devices AD7785, AD7792, AD7793,
+	  AD7794 and AD7795 SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
@@ -131,8 +117,7 @@ config AD7816
 config AD7192
 	tristate "Analog Devices AD7190 AD7192 AD7195 ADC driver"
 	depends on SPI
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
+	select AD_SIGMA_DELTA
 	help
 	  Say yes here to build support for Analog Devices AD7190,
 	  AD7192 or AD7195 SPI analog to digital converters (ADC).
@@ -199,6 +184,18 @@ config LPC32XX_ADC
 	  drivers (lpc32xx_adc or lpc32xx_ts) or, in the OpenFirmware case,
 	  activate only one via device tree selection.  Provides direct access
 	  via sysfs.
+
+config MXS_LRADC
+	tristate "Freescale i.MX28 LRADC"
+	depends on ARCH_MXS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for i.MX28 LRADC convertor
+	  built into these chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mxs-lradc.
 
 config SPEAR_ADC
 	tristate "ST SPEAr ADC"

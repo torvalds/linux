@@ -819,6 +819,7 @@ static struct irq_chip nmk_gpio_irq_chip = {
 	.irq_set_wake	= nmk_gpio_irq_set_wake,
 	.irq_startup	= nmk_gpio_irq_startup,
 	.irq_shutdown	= nmk_gpio_irq_shutdown,
+	.flags		= IRQCHIP_MASK_ON_SUSPEND,
 };
 
 static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
@@ -826,16 +827,14 @@ static void __nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc,
 {
 	struct nmk_gpio_chip *nmk_chip;
 	struct irq_chip *host_chip = irq_get_chip(irq);
-	unsigned int first_irq;
 
 	chained_irq_enter(host_chip, desc);
 
 	nmk_chip = irq_get_handler_data(irq);
-	first_irq = nmk_chip->domain->revmap_data.legacy.first_irq;
 	while (status) {
 		int bit = __ffs(status);
 
-		generic_handle_irq(first_irq + bit);
+		generic_handle_irq(irq_find_mapping(nmk_chip->domain, bit));
 		status &= ~BIT(bit);
 	}
 
@@ -1720,8 +1719,12 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 			of_match_device(nmk_pinctrl_match, &pdev->dev)->data;
 
 	/* Poke in other ASIC variants here */
+	if (version == PINCTRL_NMK_STN8815)
+		nmk_pinctrl_stn8815_init(&npct->soc);
 	if (version == PINCTRL_NMK_DB8500)
 		nmk_pinctrl_db8500_init(&npct->soc);
+	if (version == PINCTRL_NMK_DB8540)
+		nmk_pinctrl_db8540_init(&npct->soc);
 
 	/*
 	 * We need all the GPIO drivers to probe FIRST, or we will not be able
@@ -1772,6 +1775,7 @@ static struct platform_driver nmk_gpio_driver = {
 static const struct platform_device_id nmk_pinctrl_id[] = {
 	{ "pinctrl-stn8815", PINCTRL_NMK_STN8815 },
 	{ "pinctrl-db8500", PINCTRL_NMK_DB8500 },
+	{ "pinctrl-db8540", PINCTRL_NMK_DB8540 },
 };
 
 static struct platform_driver nmk_pinctrl_driver = {

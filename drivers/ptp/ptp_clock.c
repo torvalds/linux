@@ -143,10 +143,12 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct timex *tx)
 		kt = timespec_to_ktime(ts);
 		delta = ktime_to_ns(kt);
 		err = ops->adjtime(ops, delta);
-
 	} else if (tx->modes & ADJ_FREQUENCY) {
-
 		err = ops->adjfreq(ops, scaled_ppm_to_ppb(tx->freq));
+		ptp->dialed_frequency = tx->freq;
+	} else if (tx->modes == 0) {
+		tx->freq = ptp->dialed_frequency;
+		err = 0;
 	}
 
 	return err;
@@ -180,7 +182,8 @@ static void delete_ptp_clock(struct posix_clock *pc)
 
 /* public interface */
 
-struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info)
+struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
+				     struct device *parent)
 {
 	struct ptp_clock *ptp;
 	int err = 0, index, major = MAJOR(ptp_devt);
@@ -213,7 +216,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info)
 	init_waitqueue_head(&ptp->tsev_wq);
 
 	/* Create a new device in our class. */
-	ptp->dev = device_create(ptp_class, NULL, ptp->devid, ptp,
+	ptp->dev = device_create(ptp_class, parent, ptp->devid, ptp,
 				 "ptp%d", ptp->index);
 	if (IS_ERR(ptp->dev))
 		goto no_device;
@@ -299,6 +302,11 @@ void ptp_clock_event(struct ptp_clock *ptp, struct ptp_clock_event *event)
 	case PTP_CLOCK_PPS:
 		pps_get_ts(&evt);
 		pps_event(ptp->pps_source, &evt, PTP_PPS_EVENT, NULL);
+		break;
+
+	case PTP_CLOCK_PPSUSR:
+		pps_event(ptp->pps_source, &event->pps_times,
+			  PTP_PPS_EVENT, NULL);
 		break;
 	}
 }

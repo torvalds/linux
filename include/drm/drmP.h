@@ -426,8 +426,8 @@ struct drm_prime_file_private {
 /** File private data */
 struct drm_file {
 	int authenticated;
-	pid_t pid;
-	uid_t uid;
+	struct pid *pid;
+	kuid_t uid;
 	drm_magic_t magic;
 	unsigned long ioctl_count;
 	struct list_head lhead;

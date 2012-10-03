@@ -1,0 +1,12 @@
+/dts-v1/;
+/memreserve/ 0x0c000000 0x04000000;
+/include/ "bcm2835.dtsi"
+
+/ {
+	compatible = "raspberrypi,model-b", "brcm,bcm2835";
+	model = "Raspberry Pi Model B";
+
+	memory {
+		reg = <0 0x10000000>;
+	};
+};

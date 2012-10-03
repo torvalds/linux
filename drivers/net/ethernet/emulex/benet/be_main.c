@@ -20,6 +20,7 @@
 #include "be.h"
 #include "be_cmds.h"
 #include <asm/div64.h>
+#include <linux/aer.h>
 
 MODULE_VERSION(DRV_VER);
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -240,9 +241,8 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	status = be_cmd_mac_addr_query(adapter, current_mac,
-				MAC_ADDRESS_TYPE_NETWORK, false,
-				adapter->if_handle, 0);
+	status = be_cmd_mac_addr_query(adapter, current_mac, false,
+				       adapter->if_handle, 0);
 	if (status)
 		goto err;
 
@@ -1075,7 +1075,7 @@ static int be_set_vf_tx_rate(struct net_device *netdev,
 static int be_find_vfs(struct be_adapter *adapter, int vf_state)
 {
 	struct pci_dev *dev, *pdev = adapter->pdev;
-	int vfs = 0, assigned_vfs = 0, pos, vf_fn;
+	int vfs = 0, assigned_vfs = 0, pos;
 	u16 offset, stride;
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
@@ -1086,9 +1086,7 @@ static int be_find_vfs(struct be_adapter *adapter, int vf_state)
 
 	dev = pci_get_device(pdev->vendor, PCI_ANY_ID, NULL);
 	while (dev) {
-		vf_fn = (pdev->devfn + offset + stride * vfs) & 0xFFFF;
-		if (dev->is_virtfn && dev->devfn == vf_fn &&
-			dev->bus->number == pdev->bus->number) {
+		if (dev->is_virtfn && pci_physfn(dev) == pdev) {
 			vfs++;
 			if (dev->dev_flags & PCI_DEV_FLAGS_ASSIGNED)
 				assigned_vfs++;
@@ -1896,6 +1894,8 @@ static int be_tx_qs_create(struct be_adapter *adapter)
 			return status;
 	}
 
+	dev_info(&adapter->pdev->dev, "created %d TX queue(s)\n",
+		 adapter->num_tx_qs);
 	return 0;
 }
 
@@ -1946,10 +1946,9 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 			return rc;
 	}
 
-	if (adapter->num_rx_qs != MAX_RX_QS)
-		dev_info(&adapter->pdev->dev,
-			"Created only %d receive queues\n", adapter->num_rx_qs);
-
+	dev_info(&adapter->pdev->dev,
+		 "created %d RSS queue(s) and 1 default RX queue\n",
+		 adapter->num_rx_qs - 1);
 	return 0;
 }
 
@@ -2176,8 +2175,7 @@ static uint be_num_rss_want(struct be_adapter *adapter)
 {
 	u32 num = 0;
 	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
-	     !sriov_want(adapter) && be_physfn(adapter) &&
-	     !be_is_mc(adapter)) {
+	     !sriov_want(adapter) && be_physfn(adapter)) {
 		num = (adapter->be3_native) ? BE3_MAX_RSS_QS : BE2_MAX_RSS_QS;
 		num = min_t(u32, num, (u32)netif_get_num_default_rss_queues());
 	}
@@ -2188,6 +2186,7 @@ static void be_msix_enable(struct be_adapter *adapter)
 {
 #define BE_MIN_MSIX_VECTORS		1
 	int i, status, num_vec, num_roce_vec = 0;
+	struct device *dev = &adapter->pdev->dev;
 
 	/* If RSS queues are not used, need a vec for default RX Q */
 	num_vec = min(be_num_rss_want(adapter), num_online_cpus());
@@ -2212,6 +2211,8 @@ static void be_msix_enable(struct be_adapter *adapter)
 				num_vec) == 0)
 			goto done;
 	}
+
+	dev_warn(dev, "MSIx enable failed\n");
 	return;
 done:
 	if (be_roce_supported(adapter)) {
@@ -2225,6 +2226,7 @@ done:
 		}
 	} else
 		adapter->num_msix_vec = num_vec;
+	dev_info(dev, "enabled %d MSI-x vector(s)\n", adapter->num_msix_vec);
 	return;
 }
 
@@ -2441,8 +2443,7 @@ static int be_open(struct net_device *netdev)
 		be_eq_notify(adapter, eqo->q.id, true, false, 0);
 	}
 
-	status = be_cmd_link_status_query(adapter, NULL, NULL,
-					  &link_status, 0);
+	status = be_cmd_link_status_query(adapter, NULL, &link_status, 0);
 	if (!status)
 		be_link_status_update(adapter, link_status);
 
@@ -2646,8 +2647,8 @@ static int be_vf_setup(struct be_adapter *adapter)
 	}
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		status = be_cmd_link_status_query(adapter, NULL, &lnk_speed,
-						  NULL, vf + 1);
+		lnk_speed = 1000;
+		status = be_cmd_set_qos(adapter, lnk_speed, vf + 1);
 		if (status)
 			goto err;
 		vf_cfg->tx_rate = lnk_speed * 10;
@@ -2671,7 +2672,6 @@ static void be_setup_init(struct be_adapter *adapter)
 	adapter->be3_native = false;
 	adapter->promiscuous = false;
 	adapter->eq_next_idx = 0;
-	adapter->phy.forced_port_speed = -1;
 }
 
 static int be_get_mac_addr(struct be_adapter *adapter, u8 *mac, u32 if_handle,
@@ -2693,21 +2693,16 @@ static int be_get_mac_addr(struct be_adapter *adapter, u8 *mac, u32 if_handle,
 		status = be_cmd_get_mac_from_list(adapter, mac,
 						  active_mac, pmac_id, 0);
 		if (*active_mac) {
-			status = be_cmd_mac_addr_query(adapter, mac,
-						       MAC_ADDRESS_TYPE_NETWORK,
-						       false, if_handle,
-						       *pmac_id);
+			status = be_cmd_mac_addr_query(adapter, mac, false,
+						       if_handle, *pmac_id);
 		}
 	} else if (be_physfn(adapter)) {
 		/* For BE3, for PF get permanent MAC */
-		status = be_cmd_mac_addr_query(adapter, mac,
-					       MAC_ADDRESS_TYPE_NETWORK, true,
-					       0, 0);
+		status = be_cmd_mac_addr_query(adapter, mac, true, 0, 0);
 		*active_mac = false;
 	} else {
 		/* For BE3, for VF get soft MAC assigned by PF*/
-		status = be_cmd_mac_addr_query(adapter, mac,
-					       MAC_ADDRESS_TYPE_NETWORK, false,
+		status = be_cmd_mac_addr_query(adapter, mac, false,
 					       if_handle, 0);
 		*active_mac = true;
 	}
@@ -2724,6 +2719,8 @@ static int be_get_config(struct be_adapter *adapter)
 	if (pos) {
 		pci_read_config_word(adapter->pdev, pos + PCI_SRIOV_TOTAL_VF,
 				     &dev_num_vfs);
+		if (!lancer_chip(adapter))
+			dev_num_vfs = min_t(u16, dev_num_vfs, MAX_VFS);
 		adapter->dev_num_vfs = dev_num_vfs;
 	}
 	return 0;
@@ -3437,6 +3434,7 @@ static void be_ctrl_cleanup(struct be_adapter *adapter)
 	if (mem->va)
 		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
 				  mem->dma);
+	kfree(adapter->pmac_id);
 }
 
 static int be_ctrl_init(struct be_adapter *adapter)
@@ -3472,6 +3470,12 @@ static int be_ctrl_init(struct be_adapter *adapter)
 		goto free_mbox;
 	}
 	memset(rx_filter->va, 0, rx_filter->size);
+
+	/* primary mac needs 1 pmac entry */
+	adapter->pmac_id = kcalloc(adapter->max_pmac_cnt + 1,
+				   sizeof(*adapter->pmac_id), GFP_KERNEL);
+	if (!adapter->pmac_id)
+		return -ENOMEM;
 
 	mutex_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
@@ -3543,6 +3547,8 @@ static void __devexit be_remove(struct pci_dev *pdev)
 
 	be_ctrl_cleanup(adapter);
 
+	pci_disable_pcie_error_reporting(pdev);
+
 	pci_set_drvdata(pdev, NULL);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -3608,12 +3614,6 @@ static int be_get_initial_config(struct be_adapter *adapter)
 		adapter->max_pmac_cnt = BE_UC_PMAC_COUNT;
 	else
 		adapter->max_pmac_cnt = BE_VF_UC_PMAC_COUNT;
-
-	/* primary mac needs 1 pmac entry */
-	adapter->pmac_id = kcalloc(adapter->max_pmac_cnt + 1,
-				  sizeof(u32), GFP_KERNEL);
-	if (!adapter->pmac_id)
-		return -ENOMEM;
 
 	status = be_cmd_get_cntl_attributes(adapter);
 	if (status)
@@ -3800,6 +3800,23 @@ static bool be_reset_required(struct be_adapter *adapter)
 	return be_find_vfs(adapter, ENABLED) > 0 ? false : true;
 }
 
+static char *mc_name(struct be_adapter *adapter)
+{
+	if (adapter->function_mode & FLEX10_MODE)
+		return "FLEX10";
+	else if (adapter->function_mode & VNIC_MODE)
+		return "vNIC";
+	else if (adapter->function_mode & UMC_ENABLED)
+		return "UMC";
+	else
+		return "";
+}
+
+static inline char *func_name(struct be_adapter *adapter)
+{
+	return be_physfn(adapter) ? "PF" : "VF";
+}
+
 static int __devinit be_probe(struct pci_dev *pdev,
 			const struct pci_device_id *pdev_id)
 {
@@ -3844,6 +3861,10 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		}
 	}
 
+	status = pci_enable_pcie_error_reporting(pdev);
+	if (status)
+		dev_err(&pdev->dev, "Could not use PCIe error reporting\n");
+
 	status = be_ctrl_init(adapter);
 	if (status)
 		goto free_netdev;
@@ -3886,7 +3907,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 
 	status = be_setup(adapter);
 	if (status)
-		goto msix_disable;
+		goto stats_clean;
 
 	be_netdev_init(netdev);
 	status = register_netdev(netdev);
@@ -3900,15 +3921,13 @@ static int __devinit be_probe(struct pci_dev *pdev,
 
 	be_cmd_query_port_name(adapter, &port_name);
 
-	dev_info(&pdev->dev, "%s: %s port %c\n", netdev->name, nic_name(pdev),
-		 port_name);
+	dev_info(&pdev->dev, "%s: %s %s port %c\n", nic_name(pdev),
+		 func_name(adapter), mc_name(adapter), port_name);
 
 	return 0;
 
 unsetup:
 	be_clear(adapter);
-msix_disable:
-	be_msix_disable(adapter);
 stats_clean:
 	be_stats_cleanup(adapter);
 ctrl_clean:
@@ -4066,6 +4085,7 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 	if (status)
 		return PCI_ERS_RESULT_DISCONNECT;
 
+	pci_cleanup_aer_uncorrect_error_status(pdev);
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -4106,7 +4126,7 @@ err:
 	dev_err(&adapter->pdev->dev, "EEH resume failed\n");
 }
 
-static struct pci_error_handlers be_eeh_handlers = {
+static const struct pci_error_handlers be_eeh_handlers = {
 	.error_detected = be_eeh_err_detected,
 	.slot_reset = be_eeh_reset,
 	.resume = be_eeh_resume,

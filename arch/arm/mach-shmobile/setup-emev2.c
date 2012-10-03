@@ -356,6 +356,26 @@ static struct platform_device gio4_device = {
 	},
 };
 
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start	= 152,
+		.end	= 152,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start	= 153,
+		.end	= 153,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pmu_device = {
+	.name		= "arm-pmu",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pmu_resources),
+	.resource	= pmu_resources,
+};
+
 static struct platform_device *emev2_early_devices[] __initdata = {
 	&uart0_device,
 	&uart1_device,
@@ -370,6 +390,7 @@ static struct platform_device *emev2_late_devices[] __initdata = {
 	&gio2_device,
 	&gio3_device,
 	&gio4_device,
+	&pmu_device,
 };
 
 void __init emev2_add_standard_devices(void)
@@ -440,6 +461,7 @@ void __init emev2_init_irq_dt(void)
 }
 
 DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")
+	.smp		= smp_ops(emev2_smp_ops),
 	.init_early	= emev2_init_delay,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= emev2_init_irq_dt,

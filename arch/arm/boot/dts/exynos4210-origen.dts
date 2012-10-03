@@ -40,6 +40,7 @@
 			<&gpk2 4 2 3 3>,
 			<&gpk2 5 2 3 3>,
 			<&gpk2 6 2 3 3>;
+		status = "okay";
 	};
 
 	sdhci@12510000 {
@@ -53,6 +54,7 @@
 			<&gpk0 4 2 3 3>,
 			<&gpk0 5 2 3 3>,
 			<&gpk0 6 2 3 3>;
+		status = "okay";
 	};
 
 	gpio_keys {
@@ -62,88 +64,45 @@
 
 		up {
 			label = "Up";
-			gpios = <&gpx2 0 0 0 2>;
+			gpios = <&gpx2 0 0 0x10000 2>;
 			linux,code = <103>;
+			gpio-key,wakeup;
 		};
 
 		down {
 			label = "Down";
-			gpios = <&gpx2 1 0 0 2>;
+			gpios = <&gpx2 1 0 0x10000 2>;
 			linux,code = <108>;
+			gpio-key,wakeup;
 		};
 
 		back {
 			label = "Back";
-			gpios = <&gpx1 7 0 0 2>;
+			gpios = <&gpx1 7 0 0x10000 2>;
 			linux,code = <158>;
+			gpio-key,wakeup;
 		};
 
 		home {
 			label = "Home";
-			gpios = <&gpx1 6 0 0 2>;
+			gpios = <&gpx1 6 0 0x10000 2>;
 			linux,code = <102>;
+			gpio-key,wakeup;
 		};
 
 		menu {
 			label = "Menu";
-			gpios = <&gpx1 5 0 0 2>;
+			gpios = <&gpx1 5 0 0x10000 2>;
 			linux,code = <139>;
+			gpio-key,wakeup;
 		};
 	};
 
-	keypad@100A0000 {
-		status = "disabled";
-	};
-
-	sdhci@12520000 {
-		status = "disabled";
-	};
-
-	sdhci@12540000 {
-		status = "disabled";
-	};
-
-	i2c@13860000 {
-		status = "disabled";
-	};
-
-	i2c@13870000 {
-		status = "disabled";
-	};
-
-	i2c@13880000 {
-		status = "disabled";
-	};
-
-	i2c@13890000 {
-		status = "disabled";
-	};
-
-	i2c@138A0000 {
-		status = "disabled";
-	};
-
-	i2c@138B0000 {
-		status = "disabled";
-	};
-
-	i2c@138C0000 {
-		status = "disabled";
-	};
-
-	i2c@138D0000 {
-		status = "disabled";
-	};
-
-	spi_0: spi@13920000 {
-		status = "disabled";
-	};
-
-	spi_1: spi@13930000 {
-		status = "disabled";
-	};
-
-	spi_2: spi@13940000 {
-		status = "disabled";
+	leds {
+		compatible = "gpio-leds";
+		status {
+			gpios = <&gpx1 3 0 0x10000 2>;
+			linux,default-trigger = "heartbeat";
+		};
 	};
 };

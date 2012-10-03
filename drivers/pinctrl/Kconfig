@@ -26,10 +26,23 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
+config PINCTRL_BCM2835
+	bool
+	select PINMUX
+	select PINCONF
+
 config PINCTRL_IMX
 	bool
 	select PINMUX
 	select PINCONF
+
+config PINCTRL_IMX35
+	bool "IMX35 pinctrl driver"
+	depends on OF
+	depends on SOC_IMX35
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx35 pinctrl driver
 
 config PINCTRL_IMX51
 	bool "IMX51 pinctrl driver"
@@ -86,8 +99,16 @@ config PINCTRL_NOMADIK
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_STN8815
+	bool "STN8815 pin controller driver"
+	depends on PINCTRL_NOMADIK && ARCH_NOMADIK
+
 config PINCTRL_DB8500
 	bool "DB8500 pin controller driver"
+	depends on PINCTRL_NOMADIK && ARCH_U8500
+
+config PINCTRL_DB8540
+	bool "DB8540 pin controller driver"
 	depends on PINCTRL_NOMADIK && ARCH_U8500
 
 config PINCTRL_PXA168
@@ -144,6 +165,15 @@ config PINCTRL_COH901
 	  The names of the two IP block variants supported are
 	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
 	  ports of 8 GPIO pins each.
+
+config PINCTRL_SAMSUNG
+	bool "Samsung pinctrl driver"
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_EXYNOS4
+	bool "Pinctrl driver data for Exynos4 SoC"
+	select PINCTRL_SAMSUNG
 
 source "drivers/pinctrl/spear/Kconfig"
 

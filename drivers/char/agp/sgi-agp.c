@@ -289,12 +289,11 @@ static int __devinit agp_sgi_init(void)
 
 	j = 0;
 	list_for_each_entry(info, &tioca_list, ca_list) {
-		struct list_head *tmp;
 		if (list_empty(info->ca_devices))
 			continue;
-		list_for_each(tmp, info->ca_devices) {
+		list_for_each_entry(pdev, info->ca_devices, bus_list) {
 			u8 cap_ptr;
-			pdev = pci_dev_b(tmp);
+
 			if (pdev->class != (PCI_CLASS_DISPLAY_VGA << 8))
 				continue;
 			cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);

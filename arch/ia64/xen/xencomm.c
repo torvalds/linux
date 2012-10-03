@@ -17,6 +17,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/err.h>
 
 static unsigned long kernel_virtual_offset;
 static int is_xencomm_initialized;
@@ -98,7 +99,7 @@ xencomm_vtop(unsigned long vaddr)
 
 	/* We assume the page is modified.  */
 	page = follow_page(vma, vaddr, FOLL_WRITE | FOLL_TOUCH);
-	if (!page)
+	if (IS_ERR_OR_NULL(page))
 		return ~0UL;
 
 	return (page_to_pfn(page) << PAGE_SHIFT) | (vaddr & ~PAGE_MASK);

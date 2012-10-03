@@ -338,18 +338,16 @@ struct napi_struct {
 
 	unsigned long		state;
 	int			weight;
+	unsigned int		gro_count;
 	int			(*poll)(struct napi_struct *, int);
 #ifdef CONFIG_NETPOLL
 	spinlock_t		poll_lock;
 	int			poll_owner;
 #endif
-
-	unsigned int		gro_count;
-
 	struct net_device	*dev;
-	struct list_head	dev_list;
 	struct sk_buff		*gro_list;
 	struct sk_buff		*skb;
+	struct list_head	dev_list;
 };
 
 enum {
@@ -906,11 +904,12 @@ struct netdev_fcoe_hbainfo {
  *	feature set might be less than what was returned by ndo_fix_features()).
  *	Must return >0 or -errno if it changed dev->features itself.
  *
- * int (*ndo_fdb_add)(struct ndmsg *ndm, struct net_device *dev,
- *		      unsigned char *addr, u16 flags)
+ * int (*ndo_fdb_add)(struct ndmsg *ndm, struct nlattr *tb[],
+ *		      struct net_device *dev,
+ *		      const unsigned char *addr, u16 flags)
  *	Adds an FDB entry to dev for addr.
  * int (*ndo_fdb_del)(struct ndmsg *ndm, struct net_device *dev,
- *		      unsigned char *addr)
+ *		      const unsigned char *addr)
  *	Deletes the FDB entry from dev coresponding to addr.
  * int (*ndo_fdb_dump)(struct sk_buff *skb, struct netlink_callback *cb,
  *		       struct net_device *dev, int idx)
@@ -1016,12 +1015,13 @@ struct net_device_ops {
 	void			(*ndo_neigh_destroy)(struct neighbour *n);
 
 	int			(*ndo_fdb_add)(struct ndmsg *ndm,
+					       struct nlattr *tb[],
 					       struct net_device *dev,
-					       unsigned char *addr,
+					       const unsigned char *addr,
 					       u16 flags);
 	int			(*ndo_fdb_del)(struct ndmsg *ndm,
 					       struct net_device *dev,
-					       unsigned char *addr);
+					       const unsigned char *addr);
 	int			(*ndo_fdb_dump)(struct sk_buff *skb,
 						struct netlink_callback *cb,
 						struct net_device *dev,
@@ -1322,6 +1322,8 @@ struct net_device {
 	/* phy device may attach itself for hardware timestamping */
 	struct phy_device *phydev;
 
+	struct lock_class_key *qdisc_tx_busylock;
+
 	/* group the device belongs to */
 	int group;
 
@@ -1400,6 +1402,9 @@ static inline void netdev_for_each_tx_queue(struct net_device *dev,
 	for (i = 0; i < dev->num_tx_queues; i++)
 		f(dev, &dev->_tx[i], arg);
 }
+
+extern struct netdev_queue *netdev_pick_tx(struct net_device *dev,
+					   struct sk_buff *skb);
 
 /*
  * Net namespace inlines
@@ -1553,7 +1558,7 @@ struct packet_type {
 #define NETDEV_PRE_TYPE_CHANGE	0x000E
 #define NETDEV_POST_TYPE_CHANGE	0x000F
 #define NETDEV_POST_INIT	0x0010
-#define NETDEV_UNREGISTER_BATCH 0x0011
+#define NETDEV_UNREGISTER_FINAL 0x0011
 #define NETDEV_RELEASE		0x0012
 #define NETDEV_NOTIFY_PEERS	0x0013
 #define NETDEV_JOIN		0x0014
@@ -2227,6 +2232,7 @@ static inline void dev_hold(struct net_device *dev)
  * kind of lower layer not just hardware media.
  */
 
+extern void linkwatch_init_dev(struct net_device *dev);
 extern void linkwatch_fire_event(struct net_device *dev);
 extern void linkwatch_forget_dev(struct net_device *dev);
 
@@ -2248,8 +2254,6 @@ extern void __netdev_watchdog_up(struct net_device *dev);
 extern void netif_carrier_on(struct net_device *dev);
 
 extern void netif_carrier_off(struct net_device *dev);
-
-extern void netif_notify_peers(struct net_device *dev);
 
 /**
  *	netif_dormant_on - mark device as dormant.
@@ -2560,9 +2564,9 @@ extern void __hw_addr_flush(struct netdev_hw_addr_list *list);
 extern void __hw_addr_init(struct netdev_hw_addr_list *list);
 
 /* Functions used for device addresses handling */
-extern int dev_addr_add(struct net_device *dev, unsigned char *addr,
+extern int dev_addr_add(struct net_device *dev, const unsigned char *addr,
 			unsigned char addr_type);
-extern int dev_addr_del(struct net_device *dev, unsigned char *addr,
+extern int dev_addr_del(struct net_device *dev, const unsigned char *addr,
 			unsigned char addr_type);
 extern int dev_addr_add_multiple(struct net_device *to_dev,
 				 struct net_device *from_dev,
@@ -2574,20 +2578,20 @@ extern void dev_addr_flush(struct net_device *dev);
 extern int dev_addr_init(struct net_device *dev);
 
 /* Functions used for unicast addresses handling */
-extern int dev_uc_add(struct net_device *dev, unsigned char *addr);
-extern int dev_uc_add_excl(struct net_device *dev, unsigned char *addr);
-extern int dev_uc_del(struct net_device *dev, unsigned char *addr);
+extern int dev_uc_add(struct net_device *dev, const unsigned char *addr);
+extern int dev_uc_add_excl(struct net_device *dev, const unsigned char *addr);
+extern int dev_uc_del(struct net_device *dev, const unsigned char *addr);
 extern int dev_uc_sync(struct net_device *to, struct net_device *from);
 extern void dev_uc_unsync(struct net_device *to, struct net_device *from);
 extern void dev_uc_flush(struct net_device *dev);
 extern void dev_uc_init(struct net_device *dev);
 
 /* Functions used for multicast addresses handling */
-extern int dev_mc_add(struct net_device *dev, unsigned char *addr);
-extern int dev_mc_add_global(struct net_device *dev, unsigned char *addr);
-extern int dev_mc_add_excl(struct net_device *dev, unsigned char *addr);
-extern int dev_mc_del(struct net_device *dev, unsigned char *addr);
-extern int dev_mc_del_global(struct net_device *dev, unsigned char *addr);
+extern int dev_mc_add(struct net_device *dev, const unsigned char *addr);
+extern int dev_mc_add_global(struct net_device *dev, const unsigned char *addr);
+extern int dev_mc_add_excl(struct net_device *dev, const unsigned char *addr);
+extern int dev_mc_del(struct net_device *dev, const unsigned char *addr);
+extern int dev_mc_del_global(struct net_device *dev, const unsigned char *addr);
 extern int dev_mc_sync(struct net_device *to, struct net_device *from);
 extern void dev_mc_unsync(struct net_device *to, struct net_device *from);
 extern void dev_mc_flush(struct net_device *dev);
@@ -2599,8 +2603,7 @@ extern void		__dev_set_rx_mode(struct net_device *dev);
 extern int		dev_set_promiscuity(struct net_device *dev, int inc);
 extern int		dev_set_allmulti(struct net_device *dev, int inc);
 extern void		netdev_state_change(struct net_device *dev);
-extern int		netdev_bonding_change(struct net_device *dev,
-					      unsigned long event);
+extern void		netdev_notify_peers(struct net_device *dev);
 extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 extern void		dev_load(struct net *net, const char *name);
@@ -2719,9 +2722,6 @@ static inline const char *netdev_name(const struct net_device *dev)
 		return "(unregistered net_device)";
 	return dev->name;
 }
-
-extern int __netdev_printk(const char *level, const struct net_device *dev,
-			struct va_format *vaf);
 
 extern __printf(3, 4)
 int netdev_printk(const char *level, const struct net_device *dev,

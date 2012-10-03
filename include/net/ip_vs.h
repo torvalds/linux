@@ -808,8 +808,6 @@ struct netns_ipvs {
 	struct list_head	rs_table[IP_VS_RTAB_SIZE];
 	/* ip_vs_app */
 	struct list_head	app_list;
-	/* ip_vs_ftp */
-	struct ip_vs_app	*ftp_app;
 	/* ip_vs_proto */
 	#define IP_VS_PROTO_TAB_SIZE	32	/* must be power of 2 */
 	struct ip_vs_proto_data *proto_data_table[IP_VS_PROTO_TAB_SIZE];
@@ -890,6 +888,7 @@ struct netns_ipvs {
 	unsigned int		sysctl_sync_refresh_period;
 	int			sysctl_sync_retries;
 	int			sysctl_nat_icmp_send;
+	int			sysctl_pmtu_disc;
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -976,6 +975,11 @@ static inline int sysctl_sync_sock_size(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_sync_sock_size;
 }
 
+static inline int sysctl_pmtu_disc(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_pmtu_disc;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -1016,6 +1020,11 @@ static inline int sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
 static inline int sysctl_sync_sock_size(struct netns_ipvs *ipvs)
 {
 	return 0;
+}
+
+static inline int sysctl_pmtu_disc(struct netns_ipvs *ipvs)
+{
+	return 1;
 }
 
 #endif
@@ -1179,7 +1188,8 @@ extern void ip_vs_service_net_cleanup(struct net *net);
  *      (from ip_vs_app.c)
  */
 #define IP_VS_APP_MAX_PORTS  8
-extern int register_ip_vs_app(struct net *net, struct ip_vs_app *app);
+extern struct ip_vs_app *register_ip_vs_app(struct net *net,
+					    struct ip_vs_app *app);
 extern void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app);
 extern int ip_vs_bind_app(struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
 extern void ip_vs_unbind_app(struct ip_vs_conn *cp);

@@ -139,6 +139,12 @@ static ssize_t show_voltage(struct device *dev,
 	}
 }
 
+static ssize_t ads7871_show_name(struct device *dev,
+				 struct device_attribute *devattr, char *buf)
+{
+	return sprintf(buf, "%s\n", to_spi_device(dev)->modalias);
+}
+
 static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, show_voltage, NULL, 0);
 static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, show_voltage, NULL, 1);
 static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, show_voltage, NULL, 2);
@@ -147,6 +153,8 @@ static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, show_voltage, NULL, 4);
 static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, show_voltage, NULL, 5);
 static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, show_voltage, NULL, 6);
 static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, show_voltage, NULL, 7);
+
+static DEVICE_ATTR(name, S_IRUGO, ads7871_show_name, NULL);
 
 static struct attribute *ads7871_attributes[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
@@ -157,6 +165,7 @@ static struct attribute *ads7871_attributes[] = {
 	&sensor_dev_attr_in5_input.dev_attr.attr,
 	&sensor_dev_attr_in6_input.dev_attr.attr,
 	&sensor_dev_attr_in7_input.dev_attr.attr,
+	&dev_attr_name.attr,
 	NULL
 };
 
@@ -189,20 +198,17 @@ static int __devinit ads7871_probe(struct spi_device *spi)
 	 * because there is no other error checking on an SPI bus
 	 * we need to make sure we really have a chip
 	 */
-	if (val != ret) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (val != ret)
+		return -ENODEV;
 
-	pdata = kzalloc(sizeof(struct ads7871_data), GFP_KERNEL);
-	if (!pdata) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	pdata = devm_kzalloc(&spi->dev, sizeof(struct ads7871_data),
+			     GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 
 	err = sysfs_create_group(&spi->dev.kobj, &ads7871_group);
 	if (err < 0)
-		goto error_free;
+		return err;
 
 	spi_set_drvdata(spi, pdata);
 
@@ -216,9 +222,6 @@ static int __devinit ads7871_probe(struct spi_device *spi)
 
 error_remove:
 	sysfs_remove_group(&spi->dev.kobj, &ads7871_group);
-error_free:
-	kfree(pdata);
-exit:
 	return err;
 }
 
@@ -228,7 +231,6 @@ static int __devexit ads7871_remove(struct spi_device *spi)
 
 	hwmon_device_unregister(pdata->hwmon_dev);
 	sysfs_remove_group(&spi->dev.kobj, &ads7871_group);
-	kfree(pdata);
 	return 0;
 }
 

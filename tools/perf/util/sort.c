@@ -8,11 +8,10 @@ const char	default_sort_order[] = "comm,dso,symbol";
 const char	*sort_order = default_sort_order;
 int		sort__need_collapse = 0;
 int		sort__has_parent = 0;
+int		sort__has_sym = 0;
 int		sort__branch_mode = -1; /* -1 = means not set */
 
 enum sort_type	sort__first_dimension;
-
-char * field_sep;
 
 LIST_HEAD(hist_entry__sort_list);
 
@@ -23,11 +22,11 @@ static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	n = vsnprintf(bf, size, fmt, ap);
-	if (field_sep && n > 0) {
+	if (symbol_conf.field_sep && n > 0) {
 		char *sep = bf;
 
 		while (1) {
-			sep = strchr(sep, *field_sep);
+			sep = strchr(sep, *symbol_conf.field_sep);
 			if (sep == NULL)
 				break;
 			*sep = '.';
@@ -172,7 +171,7 @@ static int hist_entry__dso_snprintf(struct hist_entry *self, char *bf,
 
 static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 				     u64 ip, char level, char *bf, size_t size,
-				     unsigned int width __used)
+				     unsigned int width __maybe_unused)
 {
 	size_t ret = 0;
 
@@ -207,7 +206,8 @@ struct sort_entry sort_dso = {
 };
 
 static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
-				    size_t size, unsigned int width __used)
+				    size_t size,
+				    unsigned int width __maybe_unused)
 {
 	return _hist_entry__sym_snprintf(self->ms.map, self->ms.sym, self->ip,
 					 self->level, bf, size, width);
@@ -250,7 +250,8 @@ sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
-				   size_t size, unsigned int width __used)
+					size_t size,
+					unsigned int width __maybe_unused)
 {
 	FILE *fp;
 	char cmd[PATH_MAX + 2], *path = self->srcline, *nl;
@@ -399,7 +400,8 @@ sort__sym_to_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static int hist_entry__sym_from_snprintf(struct hist_entry *self, char *bf,
-				    size_t size, unsigned int width __used)
+					size_t size,
+					unsigned int width __maybe_unused)
 {
 	struct addr_map_symbol *from = &self->branch_info->from;
 	return _hist_entry__sym_snprintf(from->map, from->sym, from->addr,
@@ -408,7 +410,8 @@ static int hist_entry__sym_from_snprintf(struct hist_entry *self, char *bf,
 }
 
 static int hist_entry__sym_to_snprintf(struct hist_entry *self, char *bf,
-				    size_t size, unsigned int width __used)
+				       size_t size,
+				       unsigned int width __maybe_unused)
 {
 	struct addr_map_symbol *to = &self->branch_info->to;
 	return _hist_entry__sym_snprintf(to->map, to->sym, to->addr,
@@ -509,6 +512,10 @@ int sort_dimension__add(const char *tok)
 				return -EINVAL;
 			}
 			sort__has_parent = 1;
+		} else if (sd->entry == &sort_sym ||
+			   sd->entry == &sort_sym_from ||
+			   sd->entry == &sort_sym_to) {
+			sort__has_sym = 1;
 		}
 
 		if (sd->taken)

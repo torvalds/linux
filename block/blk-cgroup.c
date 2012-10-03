@@ -737,6 +737,14 @@ struct cgroup_subsys blkio_subsys = {
 	.subsys_id = blkio_subsys_id,
 	.base_cftypes = blkcg_files,
 	.module = THIS_MODULE,
+
+	/*
+	 * blkio subsystem is utterly broken in terms of hierarchy support.
+	 * It treats all cgroups equally regardless of where they're
+	 * located in the hierarchy - all cgroups are treated as if they're
+	 * right below the root.  Fix it and remove the following.
+	 */
+	.broken_hierarchy = true,
 };
 EXPORT_SYMBOL_GPL(blkio_subsys);
 

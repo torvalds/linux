@@ -2795,7 +2795,7 @@ static const struct dev_pm_ops pch_gbe_pm_ops = {
 };
 #endif
 
-static struct pci_error_handlers pch_gbe_err_handler = {
+static const struct pci_error_handlers pch_gbe_err_handler = {
 	.error_detected = pch_gbe_io_error_detected,
 	.slot_reset = pch_gbe_io_slot_reset,
 	.resume = pch_gbe_io_resume

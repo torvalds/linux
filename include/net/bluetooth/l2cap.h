@@ -433,10 +433,9 @@ struct l2cap_chan {
 	struct sock *sk;
 
 	struct l2cap_conn	*conn;
+	struct kref	kref;
 
 	__u8		state;
-
-	atomic_t	refcnt;
 
 	__le16		psm;
 	__u16		dcid;
@@ -671,20 +670,8 @@ enum {
 	L2CAP_EV_RECV_FRAME,
 };
 
-static inline void l2cap_chan_hold(struct l2cap_chan *c)
-{
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
-
-	atomic_inc(&c->refcnt);
-}
-
-static inline void l2cap_chan_put(struct l2cap_chan *c)
-{
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->refcnt));
-
-	if (atomic_dec_and_test(&c->refcnt))
-		kfree(c);
-}
+void l2cap_chan_hold(struct l2cap_chan *c);
+void l2cap_chan_put(struct l2cap_chan *c);
 
 static inline void l2cap_chan_lock(struct l2cap_chan *chan)
 {
@@ -771,7 +758,6 @@ int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
 
 struct l2cap_chan *l2cap_chan_create(void);
 void l2cap_chan_close(struct l2cap_chan *chan, int reason);
-void l2cap_chan_destroy(struct l2cap_chan *chan);
 int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		       bdaddr_t *dst, u8 dst_type);
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,

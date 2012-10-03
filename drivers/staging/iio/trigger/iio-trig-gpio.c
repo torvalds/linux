@@ -51,7 +51,7 @@ static const struct iio_trigger_ops iio_gpio_trigger_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int iio_gpio_trigger_probe(struct platform_device *pdev)
+static int __devinit iio_gpio_trigger_probe(struct platform_device *pdev)
 {
 	struct iio_gpio_trigger_info *trig_info;
 	struct iio_trigger *trig, *trig2;
@@ -130,7 +130,7 @@ error_free_completed_registrations:
 	return ret;
 }
 
-static int iio_gpio_trigger_remove(struct platform_device *pdev)
+static int __devexit iio_gpio_trigger_remove(struct platform_device *pdev)
 {
 	struct iio_trigger *trig, *trig2;
 	struct iio_gpio_trigger_info *trig_info;
@@ -153,7 +153,7 @@ static int iio_gpio_trigger_remove(struct platform_device *pdev)
 
 static struct platform_driver iio_gpio_trigger_driver = {
 	.probe = iio_gpio_trigger_probe,
-	.remove = iio_gpio_trigger_remove,
+	.remove = __devexit_p(iio_gpio_trigger_remove),
 	.driver = {
 		.name = "iio_gpio_trigger",
 		.owner = THIS_MODULE,
@@ -162,6 +162,6 @@ static struct platform_driver iio_gpio_trigger_driver = {
 
 module_platform_driver(iio_gpio_trigger_driver);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Example gpio trigger for the iio subsystem");
 MODULE_LICENSE("GPL v2");

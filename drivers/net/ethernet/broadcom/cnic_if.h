@@ -14,8 +14,8 @@
 
 #include "bnx2x/bnx2x_mfw_req.h"
 
-#define CNIC_MODULE_VERSION	"2.5.12"
-#define CNIC_MODULE_RELDATE	"June 29, 2012"
+#define CNIC_MODULE_VERSION	"2.5.14"
+#define CNIC_MODULE_RELDATE	"Sep 30, 2012"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1

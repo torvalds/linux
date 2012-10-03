@@ -32,7 +32,7 @@
 #include <linux/io.h>
 #include <linux/math64.h>
 
-#include <mach/imxfb.h>
+#include <linux/platform_data/video-imxfb.h>
 #include <mach/hardware.h>
 
 /*

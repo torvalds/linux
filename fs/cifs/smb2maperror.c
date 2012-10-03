@@ -453,7 +453,8 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_FILE_INVALID, -EIO, "STATUS_FILE_INVALID"},
 	{STATUS_ALLOTTED_SPACE_EXCEEDED, -EIO,
 	"STATUS_ALLOTTED_SPACE_EXCEEDED"},
-	{STATUS_INSUFFICIENT_RESOURCES, -EIO, "STATUS_INSUFFICIENT_RESOURCES"},
+	{STATUS_INSUFFICIENT_RESOURCES, -EREMOTEIO,
+				"STATUS_INSUFFICIENT_RESOURCES"},
 	{STATUS_DFS_EXIT_PATH_FOUND, -EIO, "STATUS_DFS_EXIT_PATH_FOUND"},
 	{STATUS_DEVICE_DATA_ERROR, -EIO, "STATUS_DEVICE_DATA_ERROR"},
 	{STATUS_DEVICE_NOT_CONNECTED, -EIO, "STATUS_DEVICE_NOT_CONNECTED"},
@@ -2455,7 +2456,8 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 		return 0;
 
 	/* mask facility */
-	if (log_err && (smb2err != (STATUS_MORE_PROCESSING_REQUIRED)))
+	if (log_err && (smb2err != STATUS_MORE_PROCESSING_REQUIRED) &&
+	    (smb2err != STATUS_END_OF_FILE))
 		smb2_print_status(smb2err);
 	else if (cifsFYI & CIFS_RC)
 		smb2_print_status(smb2err);

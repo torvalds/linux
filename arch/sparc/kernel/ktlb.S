@@ -188,31 +188,26 @@ valid_addr_bitmap_patch:
 	be,pn		%xcc, kvmap_dtlb_longpath
 
 2:	 sethi		%hi(kpte_linear_bitmap), %g2
-	or		%g2, %lo(kpte_linear_bitmap), %g2
 
 	/* Get the 256MB physical address index. */
 	sllx		%g4, 21, %g5
-	mov		1, %g7
+	or		%g2, %lo(kpte_linear_bitmap), %g2
 	srlx		%g5, 21 + 28, %g5
+	and		%g5, (32 - 1), %g7
 
-	/* Don't try this at home kids... this depends upon srlx
-	 * only taking the low 6 bits of the shift count in %g5.
-	 */
-	sllx		%g7, %g5, %g7
-
-	/* Divide by 64 to get the offset into the bitmask.  */
-	srlx		%g5, 6, %g5
+	/* Divide by 32 to get the offset into the bitmask.  */
+	srlx		%g5, 5, %g5
+	add		%g7, %g7, %g7
 	sllx		%g5, 3, %g5
 
-	/* kern_linear_pte_xor[((mask & bit) ? 1 : 0)] */
+	/* kern_linear_pte_xor[(mask >> shift) & 3)] */
 	ldx		[%g2 + %g5], %g2
-	andcc		%g2, %g7, %g0
+	srlx		%g2, %g7, %g7
 	sethi		%hi(kern_linear_pte_xor), %g5
+	and		%g7, 3, %g7
 	or		%g5, %lo(kern_linear_pte_xor), %g5
-	bne,a,pt	%xcc, 1f
-	 add		%g5, 8, %g5
-
-1:	ldx		[%g5], %g2
+	sllx		%g7, 3, %g7
+	ldx		[%g5 + %g7], %g2
 
 	.globl		kvmap_linear_patch
 kvmap_linear_patch:

@@ -19,15 +19,14 @@
  */
 
 #include <linux/io.h>
+#include <linux/platform_data/gpio-omap.h>
 #include <linux/power/smartreflex.h>
 
 #include <plat/omap_hwmod.h>
-#include <plat/cpu.h>
 #include <plat/i2c.h>
-#include <plat/gpio.h>
 #include <plat/dma.h>
-#include <plat/mcspi.h>
-#include <plat/mcbsp.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <plat/mmc.h>
 #include <plat/dmtimer.h>
 #include <plat/common.h>
@@ -5888,6 +5887,12 @@ static struct omap_hwmod_addr_space omap44xx_usb_otg_hs_addrs[] = {
 	{
 		.pa_start	= 0x4a0ab000,
 		.pa_end		= 0x4a0ab003,
+		.flags		= ADDR_TYPE_RT
+	},
+	{
+		/* XXX: Remove this once control module driver is in place */
+		.pa_start	= 0x4a00233c,
+		.pa_end		= 0x4a00233f,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }

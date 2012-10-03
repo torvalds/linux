@@ -1,0 +1,16 @@
+#
+# IIO Digital Gyroscope Sensor drivers configuration
+#
+menu "Digital gyroscope sensors"
+
+config HID_SENSOR_GYRO_3D
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	tristate "HID Gyroscope 3D"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  Gyroscope 3D.
+
+endmenu

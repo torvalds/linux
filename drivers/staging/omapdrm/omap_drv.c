@@ -571,8 +571,7 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = priv;
 
-	priv->wq = alloc_workqueue("omapdrm",
-			WQ_UNBOUND | WQ_NON_REENTRANT, 1);
+	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
 
 	INIT_LIST_HEAD(&priv->obj_list);
 
@@ -649,6 +648,8 @@ static int dev_firstopen(struct drm_device *dev)
  */
 static void dev_lastclose(struct drm_device *dev)
 {
+	int i;
+
 	/* we don't support vga-switcheroo.. so just make sure the fbdev
 	 * mode is active
 	 */
@@ -656,6 +657,21 @@ static void dev_lastclose(struct drm_device *dev)
 	int ret;
 
 	DBG("lastclose: dev=%p", dev);
+
+	/* need to restore default rotation state.. not sure if there is
+	 * a cleaner way to restore properties to default state?  Maybe
+	 * a flag that properties should automatically be restored to
+	 * default state on lastclose?
+	 */
+	for (i = 0; i < priv->num_crtcs; i++) {
+		drm_object_property_set_value(&priv->crtcs[i]->base,
+				priv->rotation_prop, 0);
+	}
+
+	for (i = 0; i < priv->num_planes; i++) {
+		drm_object_property_set_value(&priv->planes[i]->base,
+				priv->rotation_prop, 0);
+	}
 
 	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
 	if (ret)
@@ -761,7 +777,6 @@ static struct drm_driver omap_drm_driver = {
 		.irq_postinstall = dev_irq_postinstall,
 		.irq_uninstall = dev_irq_uninstall,
 		.irq_handler = dev_irq_handler,
-		.reclaim_buffers = drm_core_reclaim_buffers,
 #ifdef CONFIG_DEBUG_FS
 		.debugfs_init = omap_debugfs_init,
 		.debugfs_cleanup = omap_debugfs_cleanup,

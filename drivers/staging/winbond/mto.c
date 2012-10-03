@@ -23,7 +23,7 @@
 #include "core.h"
 
 /* Declare SQ3 to rate and fragmentation threshold table */
-/* Declare fragmentation thresholds table */
+/* Declare fragmentation threshold table */
 #define MTO_MAX_FRAG_TH_LEVELS		5
 #define MTO_MAX_DATA_RATE_LEVELS	12
 

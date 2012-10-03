@@ -33,6 +33,14 @@ config SERIAL_8250
 	  Most people will say Y or M here, so that they can use serial mice,
 	  modems and similar devices connecting to the standard serial ports.
 
+config SERIAL_8250_PNP
+	bool "8250/16550 PNP device support" if EXPERT
+	depends on SERIAL_8250 && PNP
+	default y
+	---help---
+	  This builds standard PNP serial support. You may be able to
+	  disable this feature if you only need legacy serial support.
+
 config SERIAL_8250_CONSOLE
 	bool "Console on 8250/16550 and compatible serial port"
 	depends on SERIAL_8250=y
@@ -84,14 +92,6 @@ config SERIAL_8250_PCI
 	  This builds standard PCI serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 	  Saves about 9K.
-
-config SERIAL_8250_PNP
-	tristate "8250/16550 PNP device support" if EXPERT
-	depends on SERIAL_8250 && PNP
-	default SERIAL_8250
-	help
-	  This builds standard PNP serial support. You may be able to
-	  disable this feature if you only need legacy serial support.
 
 config SERIAL_8250_HP300
 	tristate

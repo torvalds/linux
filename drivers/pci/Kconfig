@@ -3,7 +3,6 @@
 #
 config ARCH_SUPPORTS_MSI
 	bool
-	default n
 
 config PCI_MSI
 	bool "Message Signaled Interrupts (MSI and MSI-X)"

@@ -3955,12 +3955,7 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 	 * EEPROM then we need to generate the last octet and set it on the
 	 * device
 	 */
-	if (adapter->rom_addr[0] == 0x00 &&
-	    adapter->rom_addr[1] == 0x00 &&
-	    adapter->rom_addr[2] == 0x00 &&
-	    adapter->rom_addr[3] == 0x00 &&
-	    adapter->rom_addr[4] == 0x00 &&
-	    adapter->rom_addr[5] == 0x00) {
+	if (is_zero_ether_addr(adapter->rom_addr)) {
 		/*
 		 * We need to randomly generate the last octet so we
 		 * decrease our chances of setting the mac address to
@@ -3995,16 +3990,14 @@ static void et131x_hwaddr_init(struct et131x_adapter *adapter)
 static int et131x_pci_init(struct et131x_adapter *adapter,
 						struct pci_dev *pdev)
 {
-	int cap = pci_pcie_cap(pdev);
 	u16 max_payload;
-	u16 ctl;
 	int i, rc;
 
 	rc = et131x_init_eeprom(adapter);
 	if (rc < 0)
 		goto out;
 
-	if (!cap) {
+	if (!pci_is_pcie(pdev)) {
 		dev_err(&pdev->dev, "Missing PCIe capabilities\n");
 		goto err_out;
 	}
@@ -4012,7 +4005,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	/* Let's set up the PORT LOGIC Register.  First we need to know what
 	 * the max_payload_size is
 	 */
-	if (pci_read_config_word(pdev, cap + PCI_EXP_DEVCAP, &max_payload)) {
+	if (pcie_capability_read_word(pdev, PCI_EXP_DEVCAP, &max_payload)) {
 		dev_err(&pdev->dev,
 		    "Could not read PCI config space for Max Payload Size\n");
 		goto err_out;
@@ -4049,17 +4042,10 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	}
 
 	/* Change the max read size to 2k */
-	if (pci_read_config_word(pdev, cap + PCI_EXP_DEVCTL, &ctl)) {
+	if (pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
+				PCI_EXP_DEVCTL_READRQ, 0x4 << 12)) {
 		dev_err(&pdev->dev,
-			"Could not read PCI config space for Max read size\n");
-		goto err_out;
-	}
-
-	ctl = (ctl & ~PCI_EXP_DEVCTL_READRQ) | (0x04 << 12);
-
-	if (pci_write_config_word(pdev, cap + PCI_EXP_DEVCTL, ctl)) {
-		dev_err(&pdev->dev,
-		      "Could not write PCI config space for Max read size\n");
+			"Couldn't change PCI config space for Max read size\n");
 		goto err_out;
 	}
 

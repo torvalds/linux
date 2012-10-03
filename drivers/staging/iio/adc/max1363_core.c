@@ -335,12 +335,12 @@ static const enum max1363_modes max1363_mode_list[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8)			\
 	}
 
-static struct iio_chan_spec max1036_channels[] = MAX1363_4X_CHANS(8, 0);
-static struct iio_chan_spec max1136_channels[] = MAX1363_4X_CHANS(10, 0);
-static struct iio_chan_spec max1236_channels[] = MAX1363_4X_CHANS(12, 0);
-static struct iio_chan_spec max1361_channels[] =
+static const struct iio_chan_spec max1036_channels[] = MAX1363_4X_CHANS(8, 0);
+static const struct iio_chan_spec max1136_channels[] = MAX1363_4X_CHANS(10, 0);
+static const struct iio_chan_spec max1236_channels[] = MAX1363_4X_CHANS(12, 0);
+static const struct iio_chan_spec max1361_channels[] =
 	MAX1363_4X_CHANS(10, MAX1363_EV_M);
-static struct iio_chan_spec max1363_channels[] =
+static const struct iio_chan_spec max1363_channels[] =
 	MAX1363_4X_CHANS(12, MAX1363_EV_M);
 
 /* Applies to max1236, max1237 */
@@ -392,9 +392,9 @@ static const enum max1363_modes max1238_mode_list[] = {
 	MAX1363_CHAN_B(11, 10, d11m10, 23, bits, 0),	\
 	IIO_CHAN_SOFT_TIMESTAMP(24)			\
 	}
-static struct iio_chan_spec max1038_channels[] = MAX1363_12X_CHANS(8);
-static struct iio_chan_spec max1138_channels[] = MAX1363_12X_CHANS(10);
-static struct iio_chan_spec max1238_channels[] = MAX1363_12X_CHANS(12);
+static const struct iio_chan_spec max1038_channels[] = MAX1363_12X_CHANS(8);
+static const struct iio_chan_spec max1138_channels[] = MAX1363_12X_CHANS(10);
+static const struct iio_chan_spec max1238_channels[] = MAX1363_12X_CHANS(12);
 
 static const enum max1363_modes max11607_mode_list[] = {
 	_s0, _s1, _s2, _s3,
@@ -433,9 +433,9 @@ static const enum max1363_modes max11608_mode_list[] = {
 	MAX1363_CHAN_B(7, 6, d7m6, 15, bits, 0),	\
 	IIO_CHAN_SOFT_TIMESTAMP(16)			\
 }
-static struct iio_chan_spec max11602_channels[] = MAX1363_8X_CHANS(8);
-static struct iio_chan_spec max11608_channels[] = MAX1363_8X_CHANS(10);
-static struct iio_chan_spec max11614_channels[] = MAX1363_8X_CHANS(12);
+static const struct iio_chan_spec max11602_channels[] = MAX1363_8X_CHANS(8);
+static const struct iio_chan_spec max11608_channels[] = MAX1363_8X_CHANS(10);
+static const struct iio_chan_spec max11614_channels[] = MAX1363_8X_CHANS(12);
 
 static const enum max1363_modes max11644_mode_list[] = {
 	_s0, _s1, s0to1, d0m1, d1m0,
@@ -449,8 +449,8 @@ static const enum max1363_modes max11644_mode_list[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(4)			\
 	}
 
-static struct iio_chan_spec max11646_channels[] = MAX1363_2X_CHANS(10);
-static struct iio_chan_spec max11644_channels[] = MAX1363_2X_CHANS(12);
+static const struct iio_chan_spec max11646_channels[] = MAX1363_2X_CHANS(10);
+static const struct iio_chan_spec max11644_channels[] = MAX1363_2X_CHANS(12);
 
 enum { max1361,
        max1362,
@@ -1367,7 +1367,7 @@ error_out:
 	return ret;
 }
 
-static int max1363_remove(struct i2c_client *client)
+static int __devexit max1363_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct max1363_state *st = iio_priv(indio_dev);
@@ -1434,11 +1434,11 @@ static struct i2c_driver max1363_driver = {
 		.name = "max1363",
 	},
 	.probe = max1363_probe,
-	.remove = max1363_remove,
+	.remove = __devexit_p(max1363_remove),
 	.id_table = max1363_id,
 };
 module_i2c_driver(max1363_driver);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Maxim 1363 ADC");
 MODULE_LICENSE("GPL v2");

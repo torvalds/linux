@@ -8,6 +8,9 @@
  * the Free Software Foundation.
  */
 
+#ifndef __LINUX_IIO_MACHINE_H__
+#define __LINUX_IIO_MACHINE_H__
+
 /**
  * struct iio_map - description of link between consumer and device channels
  * @adc_channel_label:	Label used to identify the channel on the provider.
@@ -22,3 +25,5 @@ struct iio_map {
 	const char *consumer_dev_name;
 	const char *consumer_channel;
 };
+
+#endif

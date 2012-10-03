@@ -5,7 +5,6 @@
 
 #include <linux/io.h>
 #include <linux/usb/musb.h>
-#include <plat/board.h>
 
 #define OMAP3_HS_USB_PORTS	3
 

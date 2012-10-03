@@ -78,7 +78,7 @@ void sync_set_event(struct sync_object *event);
  * @event:	events to wait for it.
  * @timeout	timeout on waiting for the evetn.
  *
- * This functios will wait until @event is set or until timeout. In case of
+ * This function will wait until @event is set or until timeout. In case of
  * success the function will return 0 and
  * in case of timeout the function will return -ETIME
  * in case of signal the function will return -ERESTARTSYS
@@ -106,7 +106,7 @@ static inline int sync_wait_on_event(struct sync_object *event,
  * @timeout	timeout on waiting for the evetns.
  * @pu_index	index of the event set.
  *
- * This functios will wait until any of the array element is set or until
+ * This function will wait until any of the array element is set or until
  * timeout. In case of success the function will return 0 and
  * @pu_index will store the index of the array element set and in case
  * of timeout the function will return -ETIME.

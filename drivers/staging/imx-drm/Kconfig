@@ -1,0 +1,35 @@
+config DRM_IMX
+	tristate "DRM Support for Freescale i.MX"
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_CMA_HELPER
+	depends on DRM && ARCH_MXC
+	help
+	  enable i.MX graphics support
+
+config DRM_IMX_FB_HELPER
+	tristate "provide legacy framebuffer /dev/fb0"
+	select DRM_KMS_CMA_HELPER
+	depends on DRM_IMX
+	help
+	  The DRM framework can provide a legacy /dev/fb0 framebuffer
+	  for your device. This is necessary to get a framebuffer console
+	  and also for appplications using the legacy framebuffer API
+
+config DRM_IMX_PARALLEL_DISPLAY
+	tristate "Support for parallel displays"
+	depends on DRM_IMX
+
+config DRM_IMX_IPUV3_CORE
+	tristate "IPUv3 core support"
+	depends on DRM_IMX
+	help
+	  Choose this if you have a i.MX5/6 system and want
+	  to use the IPU. This option only enables IPU base
+	  support.
+
+config DRM_IMX_IPUV3
+	tristate "DRM Support for i.MX IPUv3"
+	depends on DRM_IMX
+	help
+	  Choose this if you have a i.MX5 or i.MX6 processor.

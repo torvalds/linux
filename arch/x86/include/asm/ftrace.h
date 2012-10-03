@@ -3,38 +3,54 @@
 
 #ifdef __ASSEMBLY__
 
-	.macro MCOUNT_SAVE_FRAME
-	/* taken from glibc */
-	subq $0x38, %rsp
-	movq %rax, (%rsp)
-	movq %rcx, 8(%rsp)
-	movq %rdx, 16(%rsp)
-	movq %rsi, 24(%rsp)
-	movq %rdi, 32(%rsp)
-	movq %r8, 40(%rsp)
-	movq %r9, 48(%rsp)
+	/* skip is set if the stack was already partially adjusted */
+	.macro MCOUNT_SAVE_FRAME skip=0
+	 /*
+	  * We add enough stack to save all regs.
+	  */
+	subq $(SS+8-\skip), %rsp
+	movq %rax, RAX(%rsp)
+	movq %rcx, RCX(%rsp)
+	movq %rdx, RDX(%rsp)
+	movq %rsi, RSI(%rsp)
+	movq %rdi, RDI(%rsp)
+	movq %r8, R8(%rsp)
+	movq %r9, R9(%rsp)
+	 /* Move RIP to its proper location */
+	movq SS+8(%rsp), %rdx
+	movq %rdx, RIP(%rsp)
 	.endm
 
-	.macro MCOUNT_RESTORE_FRAME
-	movq 48(%rsp), %r9
-	movq 40(%rsp), %r8
-	movq 32(%rsp), %rdi
-	movq 24(%rsp), %rsi
-	movq 16(%rsp), %rdx
-	movq 8(%rsp), %rcx
-	movq (%rsp), %rax
-	addq $0x38, %rsp
+	.macro MCOUNT_RESTORE_FRAME skip=0
+	movq R9(%rsp), %r9
+	movq R8(%rsp), %r8
+	movq RDI(%rsp), %rdi
+	movq RSI(%rsp), %rsi
+	movq RDX(%rsp), %rdx
+	movq RCX(%rsp), %rcx
+	movq RAX(%rsp), %rax
+	addq $(SS+8-\skip), %rsp
 	.endm
 
 #endif
 
 #ifdef CONFIG_FUNCTION_TRACER
-#define MCOUNT_ADDR		((long)(mcount))
+#ifdef CC_USING_FENTRY
+# define MCOUNT_ADDR		((long)(__fentry__))
+#else
+# define MCOUNT_ADDR		((long)(mcount))
+#endif
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+#define ARCH_SUPPORTS_FTRACE_OPS 1
+#define ARCH_SUPPORTS_FTRACE_SAVE_REGS
+#endif
 
 #ifndef __ASSEMBLY__
 extern void mcount(void);
 extern atomic_t modifying_ftrace_code;
+extern void __fentry__(void);
 
 static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {

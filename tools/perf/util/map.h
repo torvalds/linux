@@ -96,7 +96,7 @@ static inline u64 map__unmap_ip(struct map *map, u64 ip)
 	return ip + map->start - map->pgoff;
 }
 
-static inline u64 identity__map_ip(struct map *map __used, u64 ip)
+static inline u64 identity__map_ip(struct map *map __maybe_unused, u64 ip)
 {
 	return ip;
 }
@@ -104,7 +104,6 @@ static inline u64 identity__map_ip(struct map *map __used, u64 ip)
 
 /* rip/ip <-> addr suitable for passing to `objdump --start-address=` */
 u64 map__rip_2objdump(struct map *map, u64 rip);
-u64 map__objdump_2ip(struct map *map, u64 addr);
 
 struct symbol;
 
@@ -115,6 +114,7 @@ void map__init(struct map *self, enum map_type type,
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		     u64 pgoff, u32 pid, char *filename,
 		     enum map_type type);
+struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 void map__delete(struct map *self);
 struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
@@ -157,9 +157,12 @@ int machine__init(struct machine *self, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *self);
 void machine__delete(struct machine *self);
 
+struct perf_evsel;
+struct perf_sample;
 int machine__resolve_callchain(struct machine *machine,
+			       struct perf_evsel *evsel,
 			       struct thread *thread,
-			       struct ip_callchain *chain,
+			       struct perf_sample *sample,
 			       struct symbol **parent);
 int maps__set_kallsyms_ref_reloc_sym(struct map **maps, const char *symbol_name,
 				     u64 addr);

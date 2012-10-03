@@ -1811,7 +1811,6 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
 			src_page = pte_page(pteval);
 			copy_user_highpage(page, src_page, address, vma);
 			VM_BUG_ON(page_mapcount(src_page) != 1);
-			VM_BUG_ON(page_count(src_page) != 2);
 			release_pte_page(src_page);
 			/*
 			 * ptl mostly unnecessary, but preempt has to

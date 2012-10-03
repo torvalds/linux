@@ -1394,7 +1394,7 @@ static int offload_close(struct t3cdev *tdev)
 	sysfs_remove_group(&tdev->lldev->dev.kobj, &offload_attr_group);
 
 	/* Flush work scheduled while releasing TIDs */
-	flush_work_sync(&td->tid_release_task);
+	flush_work(&td->tid_release_task);
 
 	tdev->lldev = NULL;
 	cxgb3_set_dummy_ops(tdev);
@@ -3036,7 +3036,7 @@ static void t3_io_resume(struct pci_dev *pdev)
 	t3_resume_ports(adapter);
 }
 
-static struct pci_error_handlers t3_err_handler = {
+static const struct pci_error_handlers t3_err_handler = {
 	.error_detected = t3_io_error_detected,
 	.slot_reset = t3_io_slot_reset,
 	.resume = t3_io_resume,

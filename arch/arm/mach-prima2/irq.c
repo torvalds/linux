@@ -63,7 +63,7 @@ void __init sirfsoc_of_irq_init(void)
 
 	np = of_find_matching_node(NULL, intc_ids);
 	if (!np)
-		panic("unable to find compatible intc node in dtb\n");
+		return;
 
 	sirfsoc_intc_base = of_iomap(np, 0);
 	if (!sirfsoc_intc_base)

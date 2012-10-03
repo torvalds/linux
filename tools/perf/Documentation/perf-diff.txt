@@ -17,6 +17,9 @@ captured via perf record.
 
 If no parameters are passed it will assume perf.data.old and perf.data.
 
+The differential profile is displayed only for events matching both
+specified perf.data files.
+
 OPTIONS
 -------
 -M::

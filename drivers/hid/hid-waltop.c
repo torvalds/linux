@@ -638,28 +638,6 @@ static __u8 sirius_battery_free_tablet_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
-static int waltop_probe(struct hid_device *hdev,
-			const struct hid_device_id *id)
-{
-	int ret;
-
-	ret = hid_parse(hdev);
-	if (ret) {
-		hid_err(hdev, "parse failed\n");
-		goto err;
-	}
-
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
-	if (ret) {
-		hid_err(hdev, "hw start failed\n");
-		goto err;
-	}
-
-	return 0;
-err:
-	return ret;
-}
-
 static __u8 *waltop_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
@@ -776,11 +754,6 @@ static int waltop_raw_event(struct hid_device *hdev, struct hid_report *report,
 	return 0;
 }
 
-static void waltop_remove(struct hid_device *hdev)
-{
-	hid_hw_stop(hdev);
-}
-
 static const struct hid_device_id waltop_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WALTOP,
 				USB_DEVICE_ID_WALTOP_SLIM_TABLET_5_8_INCH) },
@@ -803,10 +776,8 @@ MODULE_DEVICE_TABLE(hid, waltop_devices);
 static struct hid_driver waltop_driver = {
 	.name = "waltop",
 	.id_table = waltop_devices,
-	.probe = waltop_probe,
 	.report_fixup = waltop_report_fixup,
 	.raw_event = waltop_raw_event,
-	.remove = waltop_remove,
 };
 
 static int __init waltop_init(void)

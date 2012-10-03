@@ -155,16 +155,16 @@ err_proto_put:
 }
 
 static int
-ctnl_timeout_fill_info(struct sk_buff *skb, u32 pid, u32 seq, u32 type,
+ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 		       int event, struct ctnl_timeout *timeout)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	unsigned int flags = pid ? NLM_F_MULTI : 0;
+	unsigned int flags = portid ? NLM_F_MULTI : 0;
 	struct nf_conntrack_l4proto *l4proto = timeout->l4proto;
 
 	event |= NFNL_SUBSYS_CTNETLINK_TIMEOUT << 8;
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*nfmsg), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
 	if (nlh == NULL)
 		goto nlmsg_failure;
 
@@ -222,7 +222,7 @@ ctnl_timeout_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (last && cur != last)
 			continue;
 
-		if (ctnl_timeout_fill_info(skb, NETLINK_CB(cb->skb).pid,
+		if (ctnl_timeout_fill_info(skb, NETLINK_CB(cb->skb).portid,
 					   cb->nlh->nlmsg_seq,
 					   NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
 					   IPCTNL_MSG_TIMEOUT_NEW, cur) < 0) {
@@ -268,7 +268,7 @@ cttimeout_get_timeout(struct sock *ctnl, struct sk_buff *skb,
 			break;
 		}
 
-		ret = ctnl_timeout_fill_info(skb2, NETLINK_CB(skb).pid,
+		ret = ctnl_timeout_fill_info(skb2, NETLINK_CB(skb).portid,
 					     nlh->nlmsg_seq,
 					     NFNL_MSG_TYPE(nlh->nlmsg_type),
 					     IPCTNL_MSG_TIMEOUT_NEW, cur);
@@ -276,7 +276,7 @@ cttimeout_get_timeout(struct sock *ctnl, struct sk_buff *skb,
 			kfree_skb(skb2);
 			break;
 		}
-		ret = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid,
+		ret = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).portid,
 					MSG_DONTWAIT);
 		if (ret > 0)
 			ret = 0;

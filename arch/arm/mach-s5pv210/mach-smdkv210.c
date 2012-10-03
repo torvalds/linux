@@ -38,9 +38,9 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/adc.h>
-#include <plat/ts.h>
-#include <plat/ata.h>
-#include <plat/iic.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
+#include <linux/platform_data/ata-samsung_cf.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/keypad.h>
 #include <plat/pm.h>
 #include <plat/fb.h>

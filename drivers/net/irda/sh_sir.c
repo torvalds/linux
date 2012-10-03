@@ -280,7 +280,7 @@ static int sh_sir_set_baudrate(struct sh_sir_self *self, u32 baudrate)
 	}
 
 	clk = clk_get(NULL, "irda_clk");
-	if (!clk) {
+	if (IS_ERR(clk)) {
 		dev_err(dev, "can not get irda_clk\n");
 		return -EIO;
 	}

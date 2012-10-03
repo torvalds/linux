@@ -74,7 +74,7 @@ static void wpadev_setup(struct net_device *dev)
 
 /*
  * Description:
- *      register netdev for wpa supplicant deamon
+ *      register netdev for wpa supplicant daemon
  *
  * Parameters:
  *  In:
@@ -154,7 +154,7 @@ static int wpa_release_wpadev(PSDevice pDevice)
 
 /*
  * Description:
- *      Set enable/disable dev for wpa supplicant deamon
+ *      Set enable/disable dev for wpa supplicant daemon
  *
  * Parameters:
  *  In:
@@ -326,7 +326,7 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
 	if ((byKeyDecMode == KEY_CTL_TKIP) &&
 		(param->u.wpa_key.key_len != MAX_KEY_LEN)) {
 		// TKIP Key must be 256 bits
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "return- TKIP Key must be 256 bits!\n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "return - TKIP Key must be 256 bits!\n");
 		return -EINVAL;
     }
 	// Check AES key length

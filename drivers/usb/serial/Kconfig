@@ -42,11 +42,6 @@ config USB_SERIAL_CONSOLE
 
 	  If unsure, say N.
 
-config USB_EZUSB
-	bool "Functions for loading firmware on EZUSB chips"
-	help
-	    Say Y here if you need EZUSB device support.
-
 config USB_SERIAL_GENERIC
 	bool "USB Generic Serial Driver"
 	help
@@ -94,7 +89,7 @@ config USB_SERIAL_CH341
 
 config USB_SERIAL_WHITEHEAT
 	tristate "USB ConnectTech WhiteHEAT Serial Driver"
-	select USB_EZUSB
+	select USB_EZUSB_FX2
 	help
 	  Say Y here if you want to use a ConnectTech WhiteHEAT 4 port
 	  USB to serial converter device.
@@ -281,7 +276,7 @@ config USB_SERIAL_IUU
 
 config USB_SERIAL_KEYSPAN_PDA
 	tristate "USB Keyspan PDA Single Port Serial Driver"
-	select USB_EZUSB
+	select USB_EZUSB_FX2
 	help
 	  Say Y here if you want to use a Keyspan PDA single port USB to
 	  serial converter device.  This driver makes use of firmware
@@ -292,7 +287,7 @@ config USB_SERIAL_KEYSPAN_PDA
 
 config USB_SERIAL_KEYSPAN
 	tristate "USB Keyspan USA-xxx Serial Driver"
-	select USB_EZUSB
+	select USB_EZUSB_FX2
 	---help---
 	  Say Y here if you want to use Keyspan USB to serial converter
 	  devices.  This driver makes use of Keyspan's official firmware
@@ -596,7 +591,7 @@ config USB_SERIAL_CYBERJACK
 
 config USB_SERIAL_XIRCOM
 	tristate "USB Xircom / Entregra Single Port Serial Driver"
-	select USB_EZUSB
+	select USB_EZUSB_FX2
 	help
 	  Say Y here if you want to use a Xircom or Entregra single port USB to
 	  serial converter device.  This driver makes use of firmware
@@ -659,6 +654,14 @@ config USB_SERIAL_ZIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called zio.
+
+config USB_SERIAL_ZTE
+	tristate "ZTE USB serial driver"
+	help
+	  Say Y here if you want to use a ZTE USB to serial device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zte.
 
 config USB_SERIAL_SSU100
 	tristate "USB Quatech SSU-100 Single Port Serial Driver"

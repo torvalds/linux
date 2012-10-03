@@ -189,7 +189,7 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 	},						\
 }
 
-static struct iio_chan_spec spear_adc_iio_channels[] = {
+static const struct iio_chan_spec spear_adc_iio_channels[] = {
 	SPEAR_ADC_CHAN(0),
 	SPEAR_ADC_CHAN(1),
 	SPEAR_ADC_CHAN(2),
@@ -330,36 +330,30 @@ static int __devinit spear_adc_probe(struct platform_device *pdev)
 		goto errout3;
 	}
 
-	ret = clk_prepare(info->clk);
-	if (ret) {
-		dev_err(dev, "failed preparing clock\n");
-		goto errout4;
-	}
-
-	ret = clk_enable(info->clk);
+	ret = clk_prepare_enable(info->clk);
 	if (ret) {
 		dev_err(dev, "failed enabling clock\n");
-		goto errout5;
+		goto errout4;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if ((irq < 0) || (irq >= NR_IRQS)) {
 		dev_err(dev, "failed getting interrupt resource\n");
 		ret = -EINVAL;
-		goto errout6;
+		goto errout5;
 	}
 
 	ret = devm_request_irq(dev, irq, spear_adc_isr, 0, MOD_NAME, info);
 	if (ret < 0) {
 		dev_err(dev, "failed requesting interrupt\n");
-		goto errout6;
+		goto errout5;
 	}
 
 	if (of_property_read_u32(np, "sampling-frequency",
 				 &info->sampling_freq)) {
 		dev_err(dev, "sampling-frequency missing in DT\n");
 		ret = -EINVAL;
-		goto errout6;
+		goto errout5;
 	}
 
 	/*
@@ -389,16 +383,14 @@ static int __devinit spear_adc_probe(struct platform_device *pdev)
 
 	ret = iio_device_register(iodev);
 	if (ret)
-		goto errout6;
+		goto errout5;
 
 	dev_info(dev, "SPEAR ADC driver loaded, IRQ %d\n", irq);
 
 	return 0;
 
-errout6:
-	clk_disable(info->clk);
 errout5:
-	clk_unprepare(info->clk);
+	clk_disable_unprepare(info->clk);
 errout4:
 	clk_put(info->clk);
 errout3:
@@ -416,8 +408,7 @@ static int __devexit spear_adc_remove(struct platform_device *pdev)
 
 	iio_device_unregister(iodev);
 	platform_set_drvdata(pdev, NULL);
-	clk_disable(info->clk);
-	clk_unprepare(info->clk);
+	clk_disable_unprepare(info->clk);
 	clk_put(info->clk);
 	iounmap(info->adc_base_spear6xx);
 	iio_device_free(iodev);

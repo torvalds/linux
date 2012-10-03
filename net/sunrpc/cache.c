@@ -1635,7 +1635,7 @@ static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 
 void __init cache_initialize(void)
 {
-	INIT_DELAYED_WORK_DEFERRABLE(&cache_cleaner, do_cache_clean);
+	INIT_DEFERRABLE_WORK(&cache_cleaner, do_cache_clean);
 }
 
 int cache_register_net(struct cache_detail *cd, struct net *net)

@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
-#include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -96,7 +95,52 @@ static void twd_timer_stop(struct clock_event_device *clk)
 	disable_percpu_irq(clk->irq);
 }
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_COMMON_CLK
+
+/*
+ * Updates clockevent frequency when the cpu frequency changes.
+ * Called on the cpu that is changing frequency with interrupts disabled.
+ */
+static void twd_update_frequency(void *new_rate)
+{
+	twd_timer_rate = *((unsigned long *) new_rate);
+
+	clockevents_update_freq(*__this_cpu_ptr(twd_evt), twd_timer_rate);
+}
+
+static int twd_rate_change(struct notifier_block *nb,
+	unsigned long flags, void *data)
+{
+	struct clk_notifier_data *cnd = data;
+
+	/*
+	 * The twd clock events must be reprogrammed to account for the new
+	 * frequency.  The timer is local to a cpu, so cross-call to the
+	 * changing cpu.
+	 */
+	if (flags == POST_RATE_CHANGE)
+		smp_call_function(twd_update_frequency,
+				  (void *)&cnd->new_rate, 1);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block twd_clk_nb = {
+	.notifier_call = twd_rate_change,
+};
+
+static int twd_clk_init(void)
+{
+	if (twd_evt && *__this_cpu_ptr(twd_evt) && !IS_ERR(twd_clk))
+		return clk_notifier_register(twd_clk, &twd_clk_nb);
+
+	return 0;
+}
+core_initcall(twd_clk_init);
+
+#elif defined (CONFIG_CPU_FREQ)
+
+#include <linux/cpufreq.h>
 
 /*
  * Updates clockevent frequency when the cpu frequency changes.

@@ -69,7 +69,28 @@ obj-$(CONFIG_HID_PRODIKEYS)	+= hid-prodikeys.o
 obj-$(CONFIG_HID_PANTHERLORD)	+= hid-pl.o
 obj-$(CONFIG_HID_PETALYNX)	+= hid-petalynx.o
 obj-$(CONFIG_HID_PICOLCD)	+= hid-picolcd.o
+hid-picolcd-y			+= hid-picolcd_core.o
+ifdef CONFIG_HID_PICOLCD_FB
+hid-picolcd-y			+= hid-picolcd_fb.o
+endif
+ifdef CONFIG_HID_PICOLCD_BACKLIGHT
+hid-picolcd-y			+= hid-picolcd_backlight.o
+endif
+ifdef CONFIG_HID_PICOLCD_LCD
+hid-picolcd-y			+= hid-picolcd_lcd.o
+endif
+ifdef CONFIG_HID_PICOLCD_LEDS
+hid-picolcd-y			+= hid-picolcd_leds.o
+endif
+ifdef CONFIG_HID_PICOLCD_CIR
+hid-picolcd-y			+= hid-picolcd_cir.o
+endif
+ifdef CONFIG_DEBUG_FS
+hid-picolcd-y			+= hid-picolcd_debugfs.o
+endif
+
 obj-$(CONFIG_HID_PRIMAX)	+= hid-primax.o
+obj-$(CONFIG_HID_PS3REMOTE)	+= hid-ps3remote.o
 obj-$(CONFIG_HID_ROCCAT)	+= hid-roccat.o hid-roccat-common.o \
 	hid-roccat-arvo.o hid-roccat-isku.o hid-roccat-kone.o \
 	hid-roccat-koneplus.o hid-roccat-kovaplus.o hid-roccat-pyra.o \
@@ -91,6 +112,7 @@ obj-$(CONFIG_HID_ZYDACRON)	+= hid-zydacron.o
 obj-$(CONFIG_HID_WACOM)		+= hid-wacom.o
 obj-$(CONFIG_HID_WALTOP)	+= hid-waltop.o
 obj-$(CONFIG_HID_WIIMOTE)	+= hid-wiimote.o
+obj-$(CONFIG_HID_SENSOR_HUB)	+= hid-sensor-hub.o
 
 obj-$(CONFIG_USB_HID)		+= usbhid/
 obj-$(CONFIG_USB_MOUSE)		+= usbhid/

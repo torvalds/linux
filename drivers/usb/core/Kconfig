@@ -56,7 +56,7 @@ config USB_SUSPEND
 
 config USB_OTG
 	bool "OTG support"
-	depends on USB && EXPERIMENTAL
+	depends on USB
 	depends on USB_SUSPEND
 	default n
 	help

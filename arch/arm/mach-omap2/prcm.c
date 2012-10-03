@@ -27,7 +27,6 @@
 
 #include "common.h"
 #include <plat/prcm.h>
-#include <plat/irqs.h>
 
 #include "clock.h"
 #include "clock2xxx.h"
@@ -140,11 +139,11 @@ int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, u8 idlest,
 			  MAX_MODULE_ENABLE_WAIT, i);
 
 	if (i < MAX_MODULE_ENABLE_WAIT)
-		pr_debug("cm: Module associated with clock %s ready after %d "
-			 "loops\n", name, i);
+		pr_debug("cm: Module associated with clock %s ready after %d loops\n",
+			 name, i);
 	else
-		pr_err("cm: Module associated with clock %s didn't enable in "
-		       "%d tries\n", name, MAX_MODULE_ENABLE_WAIT);
+		pr_err("cm: Module associated with clock %s didn't enable in %d tries\n",
+		       name, MAX_MODULE_ENABLE_WAIT);
 
 	return (i < MAX_MODULE_ENABLE_WAIT) ? 1 : 0;
 };

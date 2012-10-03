@@ -1,6 +1,6 @@
 /*  Copyright (C) 2010 Texas Instruments
     Author: Shubhrajyoti Datta <shubhrajyoti@ti.com>
-    Acknowledgement: Jonathan Cameron <jic23@cam.ac.uk> for valuable inputs.
+    Acknowledgement: Jonathan Cameron <jic23@kernel.org> for valuable inputs.
 
     Support for HMC5883 and HMC5883L by Peter Meerwald <pmeerw@pmeerw.net>.
 

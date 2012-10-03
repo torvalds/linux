@@ -46,7 +46,7 @@
 
 #define DPRINTK(format, args...)	do {		\
 	if (comedi_debug)				\
-		printk(KERN_DEBUG "comedi: " format , ## args);	\
+		pr_debug("comedi: " format, ## args);	\
 } while (0)
 
 #define COMEDI_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))

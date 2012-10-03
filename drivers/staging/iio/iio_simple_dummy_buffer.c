@@ -87,7 +87,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
 			= iio_get_time_ns();
-	buffer->access->store_to(buffer, (u8 *)data, pf->timestamp);
+	iio_push_to_buffer(buffer, (u8 *)data);
 
 	kfree(data);
 
@@ -126,7 +126,8 @@ static const struct iio_buffer_setup_ops iio_simple_dummy_buffer_setup_ops = {
 	.predisable = &iio_triggered_buffer_predisable,
 };
 
-int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
+int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev,
+	const struct iio_chan_spec *channels, unsigned int num_channels)
 {
 	int ret;
 	struct iio_buffer *buffer;
@@ -182,8 +183,15 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	 * driven by a trigger.
 	 */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
+
+	ret = iio_buffer_register(indio_dev, channels, num_channels);
+	if (ret)
+		goto error_dealloc_pollfunc;
+
 	return 0;
 
+error_dealloc_pollfunc:
+	iio_dealloc_pollfunc(indio_dev->pollfunc);
 error_free_buffer:
 	iio_kfifo_free(indio_dev->buffer);
 error_ret:
@@ -197,6 +205,7 @@ error_ret:
  */
 void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev)
 {
+	iio_buffer_unregister(indio_dev);
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	iio_kfifo_free(indio_dev->buffer);
 }

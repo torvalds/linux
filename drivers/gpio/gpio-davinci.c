@@ -366,7 +366,7 @@ static int __init davinci_gpio_irq_setup(void)
 		       PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 
 	/* Arrange gpio_to_irq() support, handling either direct IRQs or
 	 * banked IRQs.  Having GPIOs in the first GPIO bank use direct

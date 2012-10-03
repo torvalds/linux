@@ -893,7 +893,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 	ohci_dump (ohci, 1);
 
 	if (quirk_nec(ohci))
-		flush_work_sync(&ohci->nec_work);
+		flush_work(&ohci->nec_work);
 
 	ohci_usb_reset (ohci);
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
@@ -1049,7 +1049,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_at91_driver
 #endif
 
-#if defined(CONFIG_ARCH_PNX4008) || defined(CONFIG_ARCH_LPC32XX)
+#ifdef CONFIG_ARCH_LPC32XX
 #include "ohci-nxp.c"
 #define PLATFORM_DRIVER		usb_hcd_nxp_driver
 #endif

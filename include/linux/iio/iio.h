@@ -35,10 +35,13 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_FREQUENCY,
 	IIO_CHAN_INFO_PHASE,
 	IIO_CHAN_INFO_HARDWAREGAIN,
+	IIO_CHAN_INFO_HYSTERESIS,
 };
 
 #define IIO_CHAN_INFO_SHARED_BIT(type) BIT(type*2)
 #define IIO_CHAN_INFO_SEPARATE_BIT(type) BIT(type*2 + 1)
+#define IIO_CHAN_INFO_BITS(type) (IIO_CHAN_INFO_SHARED_BIT(type) | \
+				    IIO_CHAN_INFO_SEPARATE_BIT(type))
 
 #define IIO_CHAN_INFO_RAW_SEPARATE_BIT			\
 	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_RAW)
@@ -100,6 +103,10 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_HARDWAREGAIN)
 #define IIO_CHAN_INFO_HARDWAREGAIN_SHARED_BIT			\
 	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_HARDWAREGAIN)
+#define IIO_CHAN_INFO_HYSTERESIS_SEPARATE_BIT			\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_HYSTERESIS)
+#define IIO_CHAN_INFO_HYSTERESIS_SHARED_BIT			\
+	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_HYSTERESIS)
 
 enum iio_endian {
 	IIO_CPU,
@@ -164,7 +171,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  * IIO_ENUM() - Initialize enum extended channel attribute
  * @_name:	Attribute name
  * @_shared:	Whether the attribute is shared between all channels
- * @_e:		Pointer to a iio_enum struct
+ * @_e:		Pointer to an iio_enum struct
  *
  * This should usually be used together with IIO_ENUM_AVAILABLE()
  */
@@ -180,9 +187,9 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 /**
  * IIO_ENUM_AVAILABLE() - Initialize enum available extended channel attribute
  * @_name:	Attribute name ("_available" will be appended to the name)
- * @_e:		Pointer to a iio_enum struct
+ * @_e:		Pointer to an iio_enum struct
  *
- * Creates a read only attribute which list all the available enum items in a
+ * Creates a read only attribute which lists all the available enum items in a
  * space separated list. This should usually be used together with IIO_ENUM()
  */
 #define IIO_ENUM_AVAILABLE(_name, _e) \
@@ -229,6 +236,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  * @indexed:		Specify the channel has a numerical index. If not,
  *			the channel index number will be suppressed for sysfs
  *			attributes but not for event codes.
+ * @output:		Channel is output.
  * @differential:	Channel is differential.
  */
 struct iio_chan_spec {
@@ -254,6 +262,21 @@ struct iio_chan_spec {
 	unsigned		output:1;
 	unsigned		differential:1;
 };
+
+
+/**
+ * iio_channel_has_info() - Checks whether a channel supports a info attribute
+ * @chan: The channel to be queried
+ * @type: Type of the info attribute to be checked
+ *
+ * Returns true if the channels supports reporting values for the given info
+ * attribute type, false otherwise.
+ */
+static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
+	enum iio_chan_info_enum type)
+{
+	return chan->info_mask & IIO_CHAN_INFO_BITS(type);
+}
 
 #define IIO_ST(si, rb, sb, sh)						\
 	{ .sign = si, .realbits = rb, .storagebits = sb, .shift = sh }
@@ -312,6 +335,9 @@ struct iio_dev;
  *			Meaning is event dependent.
  * @validate_trigger:	function to validate the trigger when the
  *			current trigger gets changed.
+ * @update_scan_mode:	function to configure device and scan buffer when
+ *			channels have changed
+ * @debugfs_reg_access:	function to read or write register value of device
  **/
 struct iio_info {
 	struct module			*driver_module;
@@ -367,10 +393,10 @@ struct iio_info {
  *			scan mask is valid for the device.
  */
 struct iio_buffer_setup_ops {
-	int				(*preenable)(struct iio_dev *);
-	int				(*postenable)(struct iio_dev *);
-	int				(*predisable)(struct iio_dev *);
-	int				(*postdisable)(struct iio_dev *);
+	int (*preenable)(struct iio_dev *);
+	int (*postenable)(struct iio_dev *);
+	int (*predisable)(struct iio_dev *);
+	int (*postdisable)(struct iio_dev *);
 	bool (*validate_scan_mask)(struct iio_dev *indio_dev,
 				   const unsigned long *scan_mask);
 };
@@ -514,6 +540,31 @@ static inline struct iio_dev *dev_to_iio_dev(struct device *dev)
 static inline struct iio_dev *iio_device_get(struct iio_dev *indio_dev)
 {
 	return indio_dev ? dev_to_iio_dev(get_device(&indio_dev->dev)) : NULL;
+}
+
+
+/**
+ * iio_device_set_drvdata() - Set device driver data
+ * @indio_dev: IIO device structure
+ * @data: Driver specific data
+ *
+ * Allows to attach an arbitrary pointer to an IIO device, which can later be
+ * retrieved by iio_device_get_drvdata().
+ */
+static inline void iio_device_set_drvdata(struct iio_dev *indio_dev, void *data)
+{
+	dev_set_drvdata(&indio_dev->dev, data);
+}
+
+/**
+ * iio_device_get_drvdata() - Get device driver data
+ * @indio_dev: IIO device structure
+ *
+ * Returns the data previously set with iio_device_set_drvdata()
+ */
+static inline void *iio_device_get_drvdata(struct iio_dev *indio_dev)
+{
+	return dev_get_drvdata(&indio_dev->dev);
 }
 
 /* Can we make this smaller? */

@@ -31,6 +31,9 @@
 #include "fuse.h"
 #include "flowctrl.h"
 #include "reset.h"
+#include "tegra_cpu_car.h"
+
+#include "common.h"
 
 extern void tegra_secondary_startup(void);
 
@@ -38,19 +41,8 @@ static void __iomem *scu_base = IO_ADDRESS(TEGRA_ARM_PERIF_BASE);
 
 #define EVP_CPU_RESET_VECTOR \
 	(IO_ADDRESS(TEGRA_EXCEPTION_VECTORS_BASE) + 0x100)
-#define CLK_RST_CONTROLLER_CLK_CPU_CMPLX \
-	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x4c)
-#define CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET \
-	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x340)
-#define CLK_RST_CONTROLLER_RST_CPU_CMPLX_CLR \
-	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x344)
-#define CLK_RST_CONTROLLER_CLK_CPU_CMPLX_CLR \
-	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x34c)
 
-#define CPU_CLOCK(cpu)	(0x1<<(8+cpu))
-#define CPU_RESET(cpu)	(0x1111ul<<(cpu))
-
-void __cpuinit platform_secondary_init(unsigned int cpu)
+static void __cpuinit tegra_secondary_init(unsigned int cpu)
 {
 	/*
 	 * if any interrupts are already enabled for the primary
@@ -63,13 +55,8 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 
 static int tegra20_power_up_cpu(unsigned int cpu)
 {
-	u32 reg;
-
 	/* Enable the CPU clock. */
-	reg = readl(CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
-	writel(reg & ~CPU_CLOCK(cpu), CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
-	barrier();
-	reg = readl(CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
+	tegra_enable_cpu_clock(cpu);
 
 	/* Clear flow controller CSR. */
 	flowctrl_write_cpu_csr(cpu, 0);
@@ -79,7 +66,6 @@ static int tegra20_power_up_cpu(unsigned int cpu)
 
 static int tegra30_power_up_cpu(unsigned int cpu)
 {
-	u32 reg;
 	int ret, pwrgateid;
 	unsigned long timeout;
 
@@ -103,8 +89,7 @@ static int tegra30_power_up_cpu(unsigned int cpu)
 	}
 
 	/* CPU partition is powered. Enable the CPU clock. */
-	writel(CPU_CLOCK(cpu), CLK_RST_CONTROLLER_CLK_CPU_CMPLX_CLR);
-	reg = readl(CLK_RST_CONTROLLER_CLK_CPU_CMPLX_CLR);
+	tegra_enable_cpu_clock(cpu);
 	udelay(10);
 
 	/* Remove I/O clamps. */
@@ -117,7 +102,7 @@ static int tegra30_power_up_cpu(unsigned int cpu)
 	return 0;
 }
 
-int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int __cpuinit tegra_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int status;
 
@@ -128,8 +113,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * via the flow controller). This will have no effect on first boot
 	 * of the CPU since it should already be in reset.
 	 */
-	writel(CPU_RESET(cpu), CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET);
-	dmb();
+	tegra_put_cpu_in_reset(cpu);
 
 	/*
 	 * Unhalt the CPU. If the flow controller was used to power-gate the
@@ -155,8 +139,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 		goto done;
 
 	/* Take the CPU out of reset. */
-	writel(CPU_RESET(cpu), CLK_RST_CONTROLLER_RST_CPU_CMPLX_CLR);
-	wmb();
+	tegra_cpu_out_of_reset(cpu);
 done:
 	return status;
 }
@@ -165,7 +148,7 @@ done:
  * Initialise the CPU possible map early - this describes the CPUs
  * which may be present or become present in the system.
  */
-void __init smp_init_cpus(void)
+static void __init tegra_smp_init_cpus(void)
 {
 	unsigned int i, ncores = scu_get_core_count(scu_base);
 
@@ -181,8 +164,19 @@ void __init smp_init_cpus(void)
 	set_smp_cross_call(gic_raise_softirq);
 }
 
-void __init platform_smp_prepare_cpus(unsigned int max_cpus)
+static void __init tegra_smp_prepare_cpus(unsigned int max_cpus)
 {
 	tegra_cpu_reset_handler_init();
 	scu_enable(scu_base);
 }
+
+struct smp_operations tegra_smp_ops __initdata = {
+	.smp_init_cpus		= tegra_smp_init_cpus,
+	.smp_prepare_cpus	= tegra_smp_prepare_cpus,
+	.smp_secondary_init	= tegra_secondary_init,
+	.smp_boot_secondary	= tegra_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= tegra_cpu_die,
+	.cpu_disable		= tegra_cpu_disable,
+#endif
+};

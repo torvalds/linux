@@ -994,7 +994,7 @@ static int goku_get_frame(struct usb_gadget *_gadget)
 }
 
 static int goku_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int goku_stop(struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops goku_ops = {
@@ -1348,7 +1348,7 @@ static struct goku_udc	*the_controller;
  * the driver might get unbound.
  */
 static int goku_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct goku_udc	*dev = the_controller;
 	int			retval;
@@ -1368,7 +1368,7 @@ static int goku_start(struct usb_gadget_driver *driver,
 	driver->driver.bus = NULL;
 	dev->driver = driver;
 	dev->gadget.dev.driver = &driver->driver;
-	retval = bind(&dev->gadget);
+	retval = bind(&dev->gadget, driver);
 	if (retval) {
 		DBG(dev, "bind to driver %s --> error %d\n",
 				driver->driver.name, retval);

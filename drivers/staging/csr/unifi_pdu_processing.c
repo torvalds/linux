@@ -14,7 +14,7 @@
  * ---------------------------------------------------------------------------
  */
 
-
+#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
@@ -23,9 +23,6 @@
 #include "csr_wifi_hip_conversions.h"
 #include "csr_time.h"
 #include "unifi_priv.h"
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
-#include <net/iw_handler.h>
-#endif
 #include <net/pkt_sched.h>
 
 #ifdef CSR_SUPPORT_SME

@@ -217,7 +217,7 @@ unsigned char Wb35Reg_Write(struct hw_data *pHwData, u16 RegisterNo, u32 Registe
  * This command will be executed with a user defined value. When it completes,
  * this value is useful. For example, hal_set_current_channel will use it.
  * true  : read command process successfully
- * false : register not support
+ * false : register not supported
  */
 unsigned char Wb35Reg_WriteWithCallbackValue(struct hw_data *pHwData,
 						u16 RegisterNo,
@@ -631,7 +631,7 @@ unsigned char Wb35Reg_initial(struct hw_data *pHwData)
  *  CardComputeCrc --
  *
  *  Description:
- *    Runs the AUTODIN II CRC algorithm on buffer Buffer of length, Length.
+ *    Runs the AUTODIN II CRC algorithm on the buffers Buffer length.
  *
  *  Arguments:
  *    Buffer - the input buffer

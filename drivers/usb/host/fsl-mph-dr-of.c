@@ -133,6 +133,8 @@ static int usb_get_ver_info(struct device_node *np)
 			ver = FSL_USB_VER_1_6;
 		else if (of_device_is_compatible(np, "fsl-usb2-dr-v2.2"))
 			ver = FSL_USB_VER_2_2;
+		else if (of_device_is_compatible(np, "fsl-usb2-dr-v2.4"))
+			ver = FSL_USB_VER_2_4;
 		else /* for previous controller versions */
 			ver = FSL_USB_VER_OLD;
 

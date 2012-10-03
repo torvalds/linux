@@ -1191,8 +1191,6 @@ unifi_siwap(struct net_device *dev, struct iw_request_info *info,
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
     int err = 0;
-    const unsigned char zero_bssid[ETH_ALEN] = {0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00};
 
     func_enter();
 
@@ -1213,7 +1211,7 @@ unifi_siwap(struct net_device *dev, struct iw_request_info *info,
 	unifi_trace(priv, UDBG1, "unifi_siwap: asked for %pM\n",
 		wrqu->ap_addr.sa_data);
 
-    if (!memcmp(wrqu->ap_addr.sa_data, zero_bssid, ETH_ALEN)) {
+    if (is_zero_ether_addr(wrqu->ap_addr.sa_data)) {
         priv->ignore_bssid_join = FALSE;
         err = sme_mgt_disconnect(priv);
         if (err) {
@@ -3043,8 +3041,8 @@ _unifi_siwencodeext(struct net_device *dev, struct iw_request_info *info,
     memcpy(sme_key.address.a, ext->addr.sa_data, ETH_ALEN);
     if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
 
-        unifi_trace(priv, UDBG5, "RSC first 6 bytes = %02X:%02X:%02X:%02X:%02X:%02X\n",
-                    ext->rx_seq[0], ext->rx_seq[1], ext->rx_seq[2], ext->rx_seq[3], ext->rx_seq[4], ext->rx_seq[5]);
+		unifi_trace(priv, UDBG5, "RSC first 6 bytes = %*phC\n",
+					 6, ext->rx_seq);
 
         /* memcpy((u8*)(&sme_key.keyRsc), ext->rx_seq, 8); */
         sme_key.keyRsc[0] = ext->rx_seq[1] << 8 | ext->rx_seq[0];

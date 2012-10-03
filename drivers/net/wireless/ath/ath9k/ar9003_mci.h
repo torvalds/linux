@@ -190,8 +190,6 @@ enum mci_bt_state {
 enum mci_state_type {
 	MCI_STATE_ENABLE,
 	MCI_STATE_SET_BT_AWAKE,
-	MCI_STATE_SET_BT_CAL_START,
-	MCI_STATE_SET_BT_CAL,
 	MCI_STATE_LAST_SCHD_MSG_OFFSET,
 	MCI_STATE_REMOTE_SLEEP,
 	MCI_STATE_RESET_REQ_WAKE,
@@ -202,6 +200,7 @@ enum mci_state_type {
 	MCI_STATE_RECOVER_RX,
 	MCI_STATE_NEED_FTP_STOMP,
 	MCI_STATE_DEBUG,
+	MCI_STATE_NEED_FLUSH_BT_INFO,
 	MCI_STATE_MAX
 };
 
@@ -213,7 +212,8 @@ enum mci_gpm_coex_opcode {
 	MCI_GPM_COEX_WLAN_CHANNELS,
 	MCI_GPM_COEX_BT_PROFILE_INFO,
 	MCI_GPM_COEX_BT_STATUS_UPDATE,
-	MCI_GPM_COEX_BT_UPDATE_FLAGS
+	MCI_GPM_COEX_BT_UPDATE_FLAGS,
+	MCI_GPM_COEX_NOOP,
 };
 
 #define MCI_GPM_NOMORE  0
@@ -249,8 +249,8 @@ bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
 			     u32 *payload, u8 len, bool wait_done,
 			     bool check_bt);
 u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type);
-void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
-		      u16 len, u32 sched_addr);
+int ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
+		     u16 len, u32 sched_addr);
 void ar9003_mci_cleanup(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
@@ -272,8 +272,8 @@ void ar9003_mci_check_bt(struct ath_hw *ah);
 bool ar9003_mci_start_reset(struct ath_hw *ah, struct ath9k_channel *chan);
 int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 			 struct ath9k_hw_cal_data *caldata);
-void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
-		      bool is_full_sleep);
+int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
+		     bool is_full_sleep);
 void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
 void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah);
 void ar9003_mci_set_power_awake(struct ath_hw *ah);

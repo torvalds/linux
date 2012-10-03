@@ -32,7 +32,7 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa930.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 
 #include "devices.h"
 #include "generic.h"

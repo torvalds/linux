@@ -13,6 +13,7 @@
 #include <linux/mbus.h>
 #include <linux/io.h>
 #include <plat/addr-map.h>
+#include <mach/mv78xx0.h>
 #include "common.h"
 
 /*
@@ -81,7 +82,7 @@ void __init mv78xx0_setup_pcie_io_win(int window, u32 base, u32 size,
 				      int maj, int min)
 {
 	orion_setup_cpu_win(&addr_map_cfg, window, base, size,
-			    TARGET_PCIE(maj), ATTR_PCIE_IO(min), -1);
+			    TARGET_PCIE(maj), ATTR_PCIE_IO(min), 0);
 }
 
 void __init mv78xx0_setup_pcie_mem_win(int window, u32 base, u32 size,

@@ -60,7 +60,9 @@
 
 #define TIPC_MOD_VER "2.0.0"
 
-#define ULTRA_STRING_MAX_LEN 32768
+#define ULTRA_STRING_MAX_LEN	32768
+#define TIPC_MAX_SUBSCRIPTIONS	65535
+#define TIPC_MAX_PUBLICATIONS	65535
 
 struct tipc_msg;	/* msg.h */
 
@@ -74,19 +76,15 @@ int tipc_snprintf(char *buf, int len, const char *fmt, ...);
 /*
  * Global configuration variables
  */
-extern u32 tipc_own_addr;
-extern int tipc_max_ports;
-extern int tipc_max_subscriptions;
-extern int tipc_max_publications;
-extern int tipc_net_id;
-extern int tipc_remote_management;
+extern u32 tipc_own_addr __read_mostly;
+extern int tipc_max_ports __read_mostly;
+extern int tipc_net_id __read_mostly;
+extern int tipc_remote_management __read_mostly;
 
 /*
  * Other global variables
  */
-extern int tipc_random;
-extern const char tipc_alphabet[];
-
+extern int tipc_random __read_mostly;
 
 /*
  * Routines available to privileged subsystems

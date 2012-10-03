@@ -26,10 +26,12 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/vtimer.h>
+#include <asm/exec.h>
 #include <asm/irq.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include <asm/switch_to.h>
+#include <asm/runtime_instr.h>
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
@@ -132,6 +134,7 @@ EXPORT_SYMBOL(kernel_thread);
  */
 void exit_thread(void)
 {
+	exit_thread_runtime_instr();
 }
 
 void flush_thread(void)
@@ -169,6 +172,11 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 
 	/* Save access registers to new thread structure. */
 	save_access_regs(&p->thread.acrs[0]);
+
+	/* Don't copy runtime instrumentation info */
+	p->thread.ri_cb = NULL;
+	p->thread.ri_signum = 0;
+	frame->childregs.psw.mask &= ~PSW_MASK_RI;
 
 #ifndef CONFIG_64BIT
 	/*

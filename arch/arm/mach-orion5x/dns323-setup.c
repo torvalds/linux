@@ -34,6 +34,7 @@
 #include <asm/mach/pci.h>
 #include <asm/system_info.h>
 #include <mach/orion5x.h>
+#include <plat/orion-gpio.h>
 #include "common.h"
 #include "mpp.h"
 

@@ -1083,7 +1083,7 @@ int p9_trans_fd_init(void)
 
 void p9_trans_fd_exit(void)
 {
-	flush_work_sync(&p9_poll_work);
+	flush_work(&p9_poll_work);
 	v9fs_unregister_trans(&p9_tcp_trans);
 	v9fs_unregister_trans(&p9_unix_trans);
 	v9fs_unregister_trans(&p9_fd_trans);

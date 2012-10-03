@@ -2,6 +2,7 @@
 #define _KERNEL_EVENTS_INTERNAL_H
 
 #include <linux/hardirq.h>
+#include <linux/uaccess.h>
 
 /* Buffer handling */
 
@@ -76,29 +77,52 @@ static inline unsigned long perf_data_size(struct ring_buffer *rb)
 	return rb->nr_pages << (PAGE_SHIFT + page_order(rb));
 }
 
-static inline void
-__output_copy(struct perf_output_handle *handle,
-		   const void *buf, unsigned int len)
-{
-	do {
-		unsigned long size = min_t(unsigned long, handle->size, len);
-
-		memcpy(handle->addr, buf, size);
-
-		len -= size;
-		handle->addr += size;
-		buf += size;
-		handle->size -= size;
-		if (!handle->size) {
-			struct ring_buffer *rb = handle->rb;
-
-			handle->page++;
-			handle->page &= rb->nr_pages - 1;
-			handle->addr = rb->data_pages[handle->page];
-			handle->size = PAGE_SIZE << page_order(rb);
-		}
-	} while (len);
+#define DEFINE_OUTPUT_COPY(func_name, memcpy_func)			\
+static inline unsigned int						\
+func_name(struct perf_output_handle *handle,				\
+	  const void *buf, unsigned int len)				\
+{									\
+	unsigned long size, written;					\
+									\
+	do {								\
+		size = min_t(unsigned long, handle->size, len);		\
+									\
+		written = memcpy_func(handle->addr, buf, size);		\
+									\
+		len -= written;						\
+		handle->addr += written;				\
+		buf += written;						\
+		handle->size -= written;				\
+		if (!handle->size) {					\
+			struct ring_buffer *rb = handle->rb;		\
+									\
+			handle->page++;					\
+			handle->page &= rb->nr_pages - 1;		\
+			handle->addr = rb->data_pages[handle->page];	\
+			handle->size = PAGE_SIZE << page_order(rb);	\
+		}							\
+	} while (len && written == size);				\
+									\
+	return len;							\
 }
+
+static inline int memcpy_common(void *dst, const void *src, size_t n)
+{
+	memcpy(dst, src, n);
+	return n;
+}
+
+DEFINE_OUTPUT_COPY(__output_copy, memcpy_common)
+
+#define MEMCPY_SKIP(dst, src, n) (n)
+
+DEFINE_OUTPUT_COPY(__output_skip, MEMCPY_SKIP)
+
+#ifndef arch_perf_out_copy_user
+#define arch_perf_out_copy_user __copy_from_user_inatomic
+#endif
+
+DEFINE_OUTPUT_COPY(__output_copy_user, arch_perf_out_copy_user)
 
 /* Callchain handling */
 extern struct perf_callchain_entry *
@@ -133,5 +157,21 @@ static inline void put_recursion_context(int *recursion, int rctx)
 	barrier();
 	recursion[rctx]--;
 }
+
+#ifdef CONFIG_HAVE_PERF_USER_STACK_DUMP
+static inline bool arch_perf_have_user_stack_dump(void)
+{
+	return true;
+}
+
+#define perf_user_stack_pointer(regs) user_stack_pointer(regs)
+#else
+static inline bool arch_perf_have_user_stack_dump(void)
+{
+	return false;
+}
+
+#define perf_user_stack_pointer(regs) 0
+#endif /* CONFIG_HAVE_PERF_USER_STACK_DUMP */
 
 #endif /* _KERNEL_EVENTS_INTERNAL_H */

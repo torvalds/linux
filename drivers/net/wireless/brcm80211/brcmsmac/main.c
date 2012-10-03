@@ -7512,15 +7512,10 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 
 	channel = BRCMS_CHAN_CHANNEL(rxh->RxChan);
 
-	if (channel > 14) {
-		rx_status->band = IEEE80211_BAND_5GHZ;
-		rx_status->freq = ieee80211_ofdm_chan_to_freq(
-					WF_CHAN_FACTOR_5_G/2, channel);
-
-	} else {
-		rx_status->band = IEEE80211_BAND_2GHZ;
-		rx_status->freq = ieee80211_dsss_chan_to_freq(channel);
-	}
+	rx_status->band =
+		channel > 14 ? IEEE80211_BAND_5GHZ : IEEE80211_BAND_2GHZ;
+	rx_status->freq =
+		ieee80211_channel_to_frequency(channel, rx_status->band);
 
 	rx_status->signal = wlc_phy_rssi_compute(wlc->hw->band->pi, rxh);
 

@@ -6607,7 +6607,7 @@ out_error:
  * we just use some constant number as place holder.
  *
  * Return codes
- *      0 - sucessful
+ *      0 - successful
  *      -ENOMEM - No availble memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
@@ -10425,7 +10425,7 @@ static struct pci_device_id lpfc_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, lpfc_id_table);
 
-static struct pci_error_handlers lpfc_err_handler = {
+static const struct pci_error_handlers lpfc_err_handler = {
 	.error_detected = lpfc_io_error_detected,
 	.slot_reset = lpfc_io_slot_reset,
 	.resume = lpfc_io_resume,
