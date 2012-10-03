@@ -3179,7 +3179,7 @@ sctp_disposition_t sctp_sf_eat_sack_6_2(struct net *net,
 		return sctp_sf_violation_ctsn(net, ep, asoc, type, arg, commands);
 
 	/* Return this SACK for further processing.  */
-	sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_SACK, SCTP_SACKH(sackh));
+	sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_SACK, SCTP_CHUNK(chunk));
 
 	/* Note: We do the rest of the work on the PROCESS_SACK
 	 * sideeffect.
