@@ -164,10 +164,6 @@ static void nvram_read_alpha2(const char *prefix, const char *name,
 static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
 					const char *prefix)
 {
-	nvram_read_u16(prefix, NULL, "boardrev", &sprom->board_rev, 0);
-	if (!sprom->board_rev)
-		nvram_read_u16(NULL, NULL, "boardrev", &sprom->board_rev, 0);
-	nvram_read_u16(prefix, NULL, "boardnum", &sprom->board_num, 0);
 	nvram_read_u8(prefix, NULL, "ledbh0", &sprom->gpio0, 0xff);
 	nvram_read_u8(prefix, NULL, "ledbh1", &sprom->gpio1, 0xff);
 	nvram_read_u8(prefix, NULL, "ledbh2", &sprom->gpio2, 0xff);
@@ -214,13 +210,6 @@ static void bcm47xx_fill_sprom_r2389(struct ssb_sprom *sprom,
 	nvram_read_u8(prefix, NULL, "pa1himaxpwr", &sprom->maxpwr_ah, 0);
 }
 
-static void bcm47xx_fill_sprom_r2(struct ssb_sprom *sprom, const char *prefix)
-{
-	nvram_read_u32_2(prefix, "boardflags", &sprom->boardflags_lo,
-			 &sprom->boardflags_hi);
-	nvram_read_u16(prefix, NULL, "boardtype", &sprom->board_type, 0);
-}
-
 static void bcm47xx_fill_sprom_r389(struct ssb_sprom *sprom, const char *prefix)
 {
 	nvram_read_u8(prefix, NULL, "bxa2g", &sprom->bxa2g, 0);
@@ -241,9 +230,6 @@ static void bcm47xx_fill_sprom_r389(struct ssb_sprom *sprom, const char *prefix)
 
 static void bcm47xx_fill_sprom_r3(struct ssb_sprom *sprom, const char *prefix)
 {
-	nvram_read_u32_2(prefix, "boardflags", &sprom->boardflags_lo,
-			 &sprom->boardflags_hi);
-	nvram_read_u16(prefix, NULL, "boardtype", &sprom->board_type, 0);
 	nvram_read_u8(prefix, NULL, "regrev", &sprom->regrev, 0);
 	nvram_read_leddc(prefix, "leddc", &sprom->leddc_on_time,
 			 &sprom->leddc_off_time);
@@ -252,11 +238,6 @@ static void bcm47xx_fill_sprom_r3(struct ssb_sprom *sprom, const char *prefix)
 static void bcm47xx_fill_sprom_r4589(struct ssb_sprom *sprom,
 				     const char *prefix)
 {
-	nvram_read_u32_2(prefix, "boardflags", &sprom->boardflags_lo,
-			 &sprom->boardflags_hi);
-	nvram_read_u32_2(prefix, "boardflags2", &sprom->boardflags2_lo,
-			 &sprom->boardflags2_hi);
-	nvram_read_u16(prefix, NULL, "boardtype", &sprom->board_type, 0);
 	nvram_read_u8(prefix, NULL, "regrev", &sprom->regrev, 0);
 	nvram_read_s8(prefix, NULL, "ag2", &sprom->antenna_gain.a2, 0);
 	nvram_read_s8(prefix, NULL, "ag3", &sprom->antenna_gain.a3, 0);
@@ -555,9 +536,23 @@ void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom, const char *prefix)
 	nvram_read_macaddr(prefix, "il0macaddr", &sprom->il0mac);
 }
 
+static void bcm47xx_fill_board_data(struct ssb_sprom *sprom, const char *prefix)
+{
+	nvram_read_u16(prefix, NULL, "boardrev", &sprom->board_rev, 0);
+	if (!sprom->board_rev)
+		nvram_read_u16(NULL, NULL, "boardrev", &sprom->board_rev, 0);
+	nvram_read_u16(prefix, NULL, "boardnum", &sprom->board_num, 0);
+	nvram_read_u16(prefix, NULL, "boardtype", &sprom->board_type, 0);
+	nvram_read_u32_2(prefix, "boardflags", &sprom->boardflags_lo,
+			 &sprom->boardflags_hi);
+	nvram_read_u32_2(prefix, "boardflags2", &sprom->boardflags2_lo,
+			 &sprom->boardflags2_hi);
+}
+
 void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix)
 {
 	bcm47xx_fill_sprom_ethernet(sprom, prefix);
+	bcm47xx_fill_board_data(sprom, prefix);
 
 	nvram_read_u8(prefix, NULL, "sromrev", &sprom->revision, 0);
 
@@ -571,7 +566,6 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix)
 		bcm47xx_fill_sprom_r1234589(sprom, prefix);
 		bcm47xx_fill_sprom_r12389(sprom, prefix);
 		bcm47xx_fill_sprom_r2389(sprom, prefix);
-		bcm47xx_fill_sprom_r2(sprom, prefix);
 		break;
 	case 3:
 		bcm47xx_fill_sprom_r1234589(sprom, prefix);
