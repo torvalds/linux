@@ -68,8 +68,8 @@
 static int sctp_rcv_ootb(struct sk_buff *);
 static struct sctp_association *__sctp_rcv_lookup(struct net *net,
 				      struct sk_buff *skb,
-				      const union sctp_addr *laddr,
 				      const union sctp_addr *paddr,
+				      const union sctp_addr *laddr,
 				      struct sctp_transport **transportp);
 static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(struct net *net,
 						const union sctp_addr *laddr);
