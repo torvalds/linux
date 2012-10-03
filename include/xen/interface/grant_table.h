@@ -338,7 +338,7 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_dump_table);
 #define GNTTABOP_transfer                4
 struct gnttab_transfer {
     /* IN parameters. */
-    unsigned long mfn;
+    xen_pfn_t mfn;
     domid_t       domid;
     grant_ref_t   ref;
     /* OUT parameters. */
@@ -375,7 +375,7 @@ struct gnttab_copy {
 	struct {
 		union {
 			grant_ref_t ref;
-			unsigned long   gmfn;
+			xen_pfn_t   gmfn;
 		} u;
 		domid_t  domid;
 		uint16_t offset;
@@ -519,7 +519,9 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_get_version);
 #define GNTST_no_device_space  (-7) /* Out of space in I/O MMU.              */
 #define GNTST_permission_denied (-8) /* Not enough privilege for operation.  */
 #define GNTST_bad_page         (-9) /* Specified page was invalid for op.    */
-#define GNTST_bad_copy_arg    (-10) /* copy arguments cross page boundary */
+#define GNTST_bad_copy_arg    (-10) /* copy arguments cross page boundary.   */
+#define GNTST_address_too_big (-11) /* transfer page address too large.      */
+#define GNTST_eagain          (-12) /* Operation not done; try again.        */
 
 #define GNTTABOP_error_msgs {                   \
     "okay",                                     \
@@ -532,7 +534,9 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_get_version);
     "no spare translation slot in the I/O MMU", \
     "permission denied",                        \
     "bad page",                                 \
-    "copy arguments cross page boundary"        \
+    "copy arguments cross page boundary",       \
+    "page address size too large",              \
+    "operation not done; try again"             \
 }
 
 #endif /* __XEN_PUBLIC_GRANT_TABLE_H__ */

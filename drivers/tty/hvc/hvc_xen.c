@@ -21,6 +21,7 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -35,6 +36,7 @@
 #include <xen/page.h>
 #include <xen/events.h>
 #include <xen/interface/io/console.h>
+#include <xen/interface/sched.h>
 #include <xen/hvc-console.h>
 #include <xen/xenbus.h>
 
