@@ -61,12 +61,10 @@ static struct dma_map_ops arm64_swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
 };
 
-void __init swiotlb_init_with_default_size(size_t default_size, int verbose);
-
-void __init arm64_swiotlb_init(size_t max_size)
+void __init arm64_swiotlb_init(void)
 {
 	dma_ops = &arm64_swiotlb_dma_ops;
-	swiotlb_init_with_default_size(min((size_t)SZ_64M, max_size), 1);
+	swiotlb_init(1);
 }
 
 #define PREALLOC_DMA_DEBUG_ENTRIES	4096
