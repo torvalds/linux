@@ -706,8 +706,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 	struct device *hwmon_dev;
 	int ret = 0;
 
-	if (!therm || !therm->temp_get || !therm->attr_get ||
-		!therm->attr_set || therm->temp_get(therm) < 0)
+	if (!therm || !therm->temp_get || !therm->attr_get || !therm->attr_set)
 		return -ENODEV;
 
 	hwmon_dev = hwmon_device_register(&dev->pdev->dev);
