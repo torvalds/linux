@@ -169,13 +169,6 @@ static int bcm63xx_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	ret = bcm63xx_spi_check_transfer(spi, NULL);
-	if (ret < 0) {
-		dev_err(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
-		return ret;
-	}
-
 	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec/bit\n",
 		__func__, spi->mode & MODEBITS, spi->bits_per_word, 0);
 
