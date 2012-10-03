@@ -110,7 +110,7 @@ int x509_note_OID(void *context, size_t hdrlen,
 	if (ctx->last_oid == OID__NR) {
 		char buffer[50];
 		sprint_oid(value, vlen, buffer, sizeof(buffer));
-		pr_debug("Unknown OID: [%zu] %s\n",
+		pr_debug("Unknown OID: [%lu] %s\n",
 			 (unsigned long)value - ctx->data, buffer);
 	}
 	return 0;
