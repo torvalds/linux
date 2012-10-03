@@ -23,9 +23,10 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include "iomap.h"
 #include <plat-omap/dma-omap.h>
-#include <plat/omap_hwmod.h>
+
+#include "iomap.h"
+#include "omap_hwmod.h"
 #include "omap_device.h"
 #include "omap4-keypad.h"
 

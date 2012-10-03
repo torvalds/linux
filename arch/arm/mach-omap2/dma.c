@@ -28,9 +28,9 @@
 #include <linux/init.h>
 #include <linux/device.h>
 
-#include <plat/omap_hwmod.h>
 #include <plat-omap/dma-omap.h>
 
+#include "omap_hwmod.h"
 #include "omap_device.h"
 
 #define OMAP2_DMA_STRIDE	0x60

@@ -16,7 +16,7 @@
 
 #include <linux/i2c-omap.h>
 
-#include <plat/omap_hwmod.h>
+#include "omap_hwmod.h"
 #include <plat/cpu.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>

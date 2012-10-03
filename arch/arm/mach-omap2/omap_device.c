@@ -90,7 +90,7 @@
 #include <linux/notifier.h>
 
 #include "omap_device.h"
-#include <plat/omap_hwmod.h>
+#include "omap_hwmod.h"
 #include <plat/clock.h>
 
 /* These parameters are passed to _omap_device_{de,}activate() */

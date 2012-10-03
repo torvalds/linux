@@ -28,13 +28,13 @@
 #include <linux/console.h>
 
 #include <plat/omap-serial.h>
-#include "common.h"
 #include <plat-omap/dma-omap.h>
-#include <plat/omap_hwmod.h>
-#include "omap_device.h"
 #include <plat/omap-pm.h>
 #include <plat/serial.h>
 
+#include "common.h"
+#include "omap_hwmod.h"
+#include "omap_device.h"
 #include "prm2xxx_3xxx.h"
 #include "pm.h"
 #include "cm2xxx_3xxx.h"
