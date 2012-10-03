@@ -59,6 +59,17 @@ static struct quirk_entry quirk_asus_unknown = {
 	.wapf = 0,
 };
 
+/*
+ * For those machines that need software to control bt/wifi status
+ * and can't adjust brightness through ACPI interface
+ * and have duplicate events(ACPI and WMI) for display toggle
+ */
+static struct quirk_entry quirk_asus_x55u = {
+	.wapf = 4,
+	.wmi_backlight_power = true,
+	.no_display_toggle = true,
+};
+
 static struct quirk_entry quirk_asus_x401u = {
 	.wapf = 4,
 };
@@ -77,6 +88,15 @@ static struct dmi_system_id asus_quirks[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "X401U"),
 		},
+		.driver_data = &quirk_asus_x55u,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "ASUSTeK COMPUTER INC. X401A",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X401A"),
+		},
 		.driver_data = &quirk_asus_x401u,
 	},
 	{
@@ -94,6 +114,15 @@ static struct dmi_system_id asus_quirks[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "X501U"),
+		},
+		.driver_data = &quirk_asus_x55u,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "ASUSTeK COMPUTER INC. X501A",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X501A"),
 		},
 		.driver_data = &quirk_asus_x401u,
 	},
@@ -131,7 +160,7 @@ static struct dmi_system_id asus_quirks[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "X55U"),
 		},
-		.driver_data = &quirk_asus_x401u,
+		.driver_data = &quirk_asus_x55u,
 	},
 	{
 		.callback = dmi_matched,
