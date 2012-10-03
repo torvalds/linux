@@ -64,8 +64,7 @@ static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
 static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 					   struct ath_txq *txq,
 					   struct ath_atx_tid *tid,
-					   struct sk_buff *skb,
-					   bool dequeue);
+					   struct sk_buff *skb);
 
 enum {
 	MCS_HT20,
@@ -201,7 +200,15 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 		fi = get_frame_info(skb);
 		bf = fi->bf;
 
-		if (bf && fi->retries) {
+		if (!bf) {
+			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
+			if (!bf) {
+				ieee80211_free_txskb(sc->hw, skb);
+				continue;
+			}
+		}
+
+		if (fi->retries) {
 			list_add_tail(&bf->list, &bf_head);
 			ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
@@ -812,10 +819,13 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		fi = get_frame_info(skb);
 		bf = fi->bf;
 		if (!fi->bf)
-			bf = ath_tx_setup_buffer(sc, txq, tid, skb, true);
+			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
 
-		if (!bf)
+		if (!bf) {
+			__skb_unlink(skb, &tid->buf_q);
+			ieee80211_free_txskb(sc->hw, skb);
 			continue;
+		}
 
 		bf->bf_state.bf_type = BUF_AMPDU | BUF_AGGR;
 		seqno = bf->bf_state.seqno;
@@ -1717,9 +1727,11 @@ static void ath_tx_send_ampdu(struct ath_softc *sc, struct ath_atx_tid *tid,
 		return;
 	}
 
-	bf = ath_tx_setup_buffer(sc, txctl->txq, tid, skb, false);
-	if (!bf)
+	bf = ath_tx_setup_buffer(sc, txctl->txq, tid, skb);
+	if (!bf) {
+		ieee80211_free_txskb(sc->hw, skb);
 		return;
+	}
 
 	bf->bf_state.bf_type = BUF_AMPDU;
 	INIT_LIST_HEAD(&bf_head);
@@ -1743,11 +1755,6 @@ static void ath_tx_send_normal(struct ath_softc *sc, struct ath_txq *txq,
 	struct ath_buf *bf;
 
 	bf = fi->bf;
-	if (!bf)
-		bf = ath_tx_setup_buffer(sc, txq, tid, skb, false);
-
-	if (!bf)
-		return;
 
 	INIT_LIST_HEAD(&bf_head);
 	list_add_tail(&bf->list, &bf_head);
@@ -1820,8 +1827,7 @@ u8 ath_txchainmask_reduction(struct ath_softc *sc, u8 chainmask, u32 rate)
 static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 					   struct ath_txq *txq,
 					   struct ath_atx_tid *tid,
-					   struct sk_buff *skb,
-					   bool dequeue)
+					   struct sk_buff *skb)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_frame_info *fi = get_frame_info(skb);
@@ -1833,7 +1839,7 @@ static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 	bf = ath_tx_get_buffer(sc);
 	if (!bf) {
 		ath_dbg(common, XMIT, "TX buffers are full\n");
-		goto error;
+		return NULL;
 	}
 
 	ATH_TXBUF_RESET(bf);
@@ -1862,18 +1868,12 @@ static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 		ath_err(ath9k_hw_common(sc->sc_ah),
 			"dma_mapping_error() on TX\n");
 		ath_tx_return_buffer(sc, bf);
-		goto error;
+		return NULL;
 	}
 
 	fi->bf = bf;
 
 	return bf;
-
-error:
-	if (dequeue)
-		__skb_unlink(skb, &tid->buf_q);
-	dev_kfree_skb_any(skb);
-	return NULL;
 }
 
 /* FIXME: tx power */
@@ -1902,9 +1902,14 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct sk_buff *skb,
 		 */
 		ath_tx_send_ampdu(sc, tid, skb, txctl);
 	} else {
-		bf = ath_tx_setup_buffer(sc, txctl->txq, tid, skb, false);
-		if (!bf)
+		bf = ath_tx_setup_buffer(sc, txctl->txq, tid, skb);
+		if (!bf) {
+			if (txctl->paprd)
+				dev_kfree_skb_any(skb);
+			else
+				ieee80211_free_txskb(sc->hw, skb);
 			return;
+		}
 
 		bf->bf_state.bfs_paprd = txctl->paprd;
 
