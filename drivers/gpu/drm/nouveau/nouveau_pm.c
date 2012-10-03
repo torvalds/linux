@@ -64,7 +64,6 @@ nouveau_pm_perflvl_aux(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 		ret = therm->fan_set(therm, perflvl->fanspeed);
 		if (ret && ret != -ENODEV) {
 			NV_ERROR(drm, "fanspeed set failed: %d\n", ret);
-			return ret;
 		}
 	}
 
