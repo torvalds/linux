@@ -36,7 +36,6 @@
 #include <bcm63xx_dev_spi.h>
 
 #define PFX		KBUILD_MODNAME
-#define DRV_VER		"0.1.2"
 
 struct bcm63xx_spi {
 	struct completion	done;
@@ -441,8 +440,8 @@ static int __devinit bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
-	dev_info(dev, "at 0x%08x (irq %d, FIFOs size %d) v%s\n",
-		 r->start, irq, bs->fifo_size, DRV_VER);
+	dev_info(dev, "at 0x%08x (irq %d, FIFOs size %d)\n",
+		 r->start, irq, bs->fifo_size);
 
 	return 0;
 
