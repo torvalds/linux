@@ -238,7 +238,7 @@ ih:
 			cmpu b32 $r4 0x60+#dma_count
 			bra nc #illegal_mthd
 			shl b32 $r5 $r4 2
-			add b32 $r5 (#ctx_dma - 0x60 * 4) & 0xffff
+			add b32 $r5 ((#ctx_dma - 0x60 * 4) & 0xffff)
 			bset $r3 0x1e
 			st b32 D[$r5] $r3
 			add b32 $r4 0x180 - 0x60
