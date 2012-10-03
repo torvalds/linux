@@ -24,7 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
-#include <plat/omap_device.h>
+#include "omap_device.h"
 #include <plat/omap_hwmod.h>
 
 #if defined(CONFIG_DRM_OMAP) || (CONFIG_DRM_OMAP_MODULE)

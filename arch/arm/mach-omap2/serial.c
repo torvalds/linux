@@ -31,7 +31,7 @@
 #include "common.h"
 #include <plat-omap/dma-omap.h>
 #include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
+#include "omap_device.h"
 #include <plat/omap-pm.h>
 #include <plat/serial.h>
 

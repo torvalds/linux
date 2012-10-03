@@ -21,7 +21,7 @@
 
 #include "common.h"
 #include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
+#include "omap_device.h"
 
 #include "mux.h"
 #include "i2c.h"

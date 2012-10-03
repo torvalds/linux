@@ -26,7 +26,7 @@
 #include "iomap.h"
 #include <plat-omap/dma-omap.h>
 #include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
+#include "omap_device.h"
 #include "omap4-keypad.h"
 
 #include "soc.h"

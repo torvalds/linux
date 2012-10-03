@@ -31,10 +31,10 @@
 #include <asm/mach-types.h>
 
 #include <plat/cpu.h>
-#include <plat/omap_device.h>
 
 #include "soc.h"
 #include "common.h"
+#include "omap_device.h"
 #include "gpmc.h"
 
 #define	DEVICE_NAME		"omap-gpmc"

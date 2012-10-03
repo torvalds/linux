@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 
-#include <plat/omap_device.h>
+#include "omap_device.h"
 
 #include "voltage.h"
 #include "control.h"
