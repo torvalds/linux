@@ -774,7 +774,7 @@ int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
 		tf->lbam = (block >> 8) & 0xff;
 		tf->lbal = block & 0xff;
 
-		tf->device = 1 << 6;
+		tf->device = ATA_LBA;
 		if (tf->flags & ATA_TFLAG_FUA)
 			tf->device |= 1 << 7;
 	} else if (dev->flags & ATA_DFLAG_LBA) {
@@ -2155,6 +2155,7 @@ int ata_dev_configure(struct ata_device *dev)
 	int print_info = ehc->i.flags & ATA_EHI_PRINTINFO;
 	const u16 *id = dev->id;
 	unsigned long xfer_mask;
+	unsigned int err_mask;
 	char revbuf[7];		/* XYZ-99\0 */
 	char fwrevbuf[ATA_ID_FW_REV_LEN+1];
 	char modelbuf[ATA_ID_PROD_LEN+1];
@@ -2323,6 +2324,26 @@ int ata_dev_configure(struct ata_device *dev)
 			}
 		}
 
+		/* check and mark DevSlp capability */
+		if (ata_id_has_devslp(dev->id))
+			dev->flags |= ATA_DFLAG_DEVSLP;
+
+		/* Obtain SATA Settings page from Identify Device Data Log,
+		 * which contains DevSlp timing variables etc.
+		 * Exclude old devices with ata_id_has_ncq()
+		 */
+		if (ata_id_has_ncq(dev->id)) {
+			err_mask = ata_read_log_page(dev,
+						     ATA_LOG_SATA_ID_DEV_DATA,
+						     ATA_LOG_SATA_SETTINGS,
+						     dev->sata_settings,
+						     1);
+			if (err_mask)
+				ata_dev_dbg(dev,
+					    "failed to get Identify Device Data, Emask 0x%x\n",
+					    err_mask);
+		}
+
 		dev->cdb_len = 16;
 	}
 
@@ -2351,8 +2372,6 @@ int ata_dev_configure(struct ata_device *dev)
 		    (ap->flags & ATA_FLAG_AN) && ata_id_has_atapi_AN(id) &&
 		    (!sata_pmp_attached(ap) ||
 		     sata_scr_read(&ap->link, SCR_NOTIFICATION, &sntf) == 0)) {
-			unsigned int err_mask;
-
 			/* issue SET feature command to turn this on */
 			err_mask = ata_dev_set_feature(dev,
 					SETFEATURES_SATA_ENABLE, SATA_AN);
@@ -3598,7 +3617,7 @@ int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 	switch (policy) {
 	case ATA_LPM_MAX_POWER:
 		/* disable all LPM transitions */
-		scontrol |= (0x3 << 8);
+		scontrol |= (0x7 << 8);
 		/* initiate transition to active state */
 		if (spm_wakeup) {
 			scontrol |= (0x4 << 12);
@@ -3608,12 +3627,12 @@ int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 	case ATA_LPM_MED_POWER:
 		/* allow LPM to PARTIAL */
 		scontrol &= ~(0x1 << 8);
-		scontrol |= (0x2 << 8);
+		scontrol |= (0x6 << 8);
 		break;
 	case ATA_LPM_MIN_POWER:
 		if (ata_link_nr_enabled(link) > 0)
 			/* no restrictions on LPM transitions */
-			scontrol &= ~(0x3 << 8);
+			scontrol &= ~(0x7 << 8);
 		else {
 			/* empty port, power off */
 			scontrol &= ~0xf;
@@ -4472,6 +4491,7 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
 }
+EXPORT_SYMBOL_GPL(ata_dev_set_feature);
 
 /**
  *	ata_dev_init_params - Issue INIT DEV PARAMS command

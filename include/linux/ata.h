@@ -77,6 +77,9 @@ enum {
 	ATA_ID_EIDE_PIO_IORDY	= 68,
 	ATA_ID_ADDITIONAL_SUPP	= 69,
 	ATA_ID_QUEUE_DEPTH	= 75,
+	ATA_ID_SATA_CAPABILITY	= 76,
+	ATA_ID_SATA_CAPABILITY_2	= 77,
+	ATA_ID_FEATURE_SUPP	= 78,
 	ATA_ID_MAJOR_VER	= 80,
 	ATA_ID_COMMAND_SET_1	= 82,
 	ATA_ID_COMMAND_SET_2	= 83,
@@ -292,6 +295,13 @@ enum {
 
 	/* READ_LOG_EXT pages */
 	ATA_LOG_SATA_NCQ	= 0x10,
+	ATA_LOG_SATA_ID_DEV_DATA  = 0x30,
+	ATA_LOG_SATA_SETTINGS	  = 0x08,
+	ATA_LOG_DEVSLP_MDAT	  = 0x30,
+	ATA_LOG_DEVSLP_MDAT_MASK  = 0x1F,
+	ATA_LOG_DEVSLP_DETO	  = 0x31,
+	ATA_LOG_DEVSLP_VALID	  = 0x37,
+	ATA_LOG_DEVSLP_VALID_MASK = 0x80,
 
 	/* READ/WRITE LONG (obsolete) */
 	ATA_CMD_READ_LONG	= 0x22,
@@ -345,6 +355,7 @@ enum {
 	SATA_FPDMA_IN_ORDER	= 0x04,	/* FPDMA in-order data delivery */
 	SATA_AN			= 0x05,	/* Asynchronous Notification */
 	SATA_SSP		= 0x06,	/* Software Settings Preservation */
+	SATA_DEVSLP		= 0x09,	/* Device Sleep */
 
 	/* feature values for SET_MAX */
 	ATA_SET_MAX_ADDR	= 0x00,
@@ -558,15 +569,17 @@ static inline int ata_is_data(u8 prot)
 #define ata_id_is_ata(id)	(((id)[ATA_ID_CONFIG] & (1 << 15)) == 0)
 #define ata_id_has_lba(id)	((id)[ATA_ID_CAPABILITY] & (1 << 9))
 #define ata_id_has_dma(id)	((id)[ATA_ID_CAPABILITY] & (1 << 8))
-#define ata_id_has_ncq(id)	((id)[76] & (1 << 8))
+#define ata_id_has_ncq(id)	((id)[ATA_ID_SATA_CAPABILITY] & (1 << 8))
 #define ata_id_queue_depth(id)	(((id)[ATA_ID_QUEUE_DEPTH] & 0x1f) + 1)
 #define ata_id_removeable(id)	((id)[ATA_ID_CONFIG] & (1 << 7))
 #define ata_id_has_atapi_AN(id)	\
-	( (((id)[76] != 0x0000) && ((id)[76] != 0xffff)) && \
-	  ((id)[78] & (1 << 5)) )
+	((((id)[ATA_ID_SATA_CAPABILITY] != 0x0000) && \
+	  ((id)[ATA_ID_SATA_CAPABILITY] != 0xffff)) && \
+	 ((id)[ATA_ID_FEATURE_SUPP] & (1 << 5)))
 #define ata_id_has_fpdma_aa(id)	\
-	( (((id)[76] != 0x0000) && ((id)[76] != 0xffff)) && \
-	  ((id)[78] & (1 << 2)) )
+	((((id)[ATA_ID_SATA_CAPABILITY] != 0x0000) && \
+	  ((id)[ATA_ID_SATA_CAPABILITY] != 0xffff)) && \
+	 ((id)[ATA_ID_FEATURE_SUPP] & (1 << 2)))
 #define ata_id_iordy_disable(id) ((id)[ATA_ID_CAPABILITY] & (1 << 10))
 #define ata_id_has_iordy(id) ((id)[ATA_ID_CAPABILITY] & (1 << 11))
 #define ata_id_u32(id,n)	\
@@ -578,11 +591,12 @@ static inline int ata_is_data(u8 prot)
 	  ((u64) (id)[(n) + 0]) )
 
 #define ata_id_cdb_intr(id)	(((id)[ATA_ID_CONFIG] & 0x60) == 0x20)
-#define ata_id_has_da(id)	((id)[77] & (1 << 4))
+#define ata_id_has_da(id)	((id)[ATA_ID_SATA_CAPABILITY_2] & (1 << 4))
+#define ata_id_has_devslp(id)	((id)[ATA_ID_FEATURE_SUPP] & (1 << 8))
 
 static inline bool ata_id_has_hipm(const u16 *id)
 {
-	u16 val = id[76];
+	u16 val = id[ATA_ID_SATA_CAPABILITY];
 
 	if (val == 0 || val == 0xffff)
 		return false;
@@ -592,7 +606,7 @@ static inline bool ata_id_has_hipm(const u16 *id)
 
 static inline bool ata_id_has_dipm(const u16 *id)
 {
-	u16 val = id[78];
+	u16 val = id[ATA_ID_FEATURE_SUPP];
 
 	if (val == 0 || val == 0xffff)
 		return false;
