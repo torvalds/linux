@@ -51,16 +51,13 @@
 #define UBI_NAME_STR "ubi"
 
 /* Normal UBI messages */
-#define ubi_msg(fmt, ...) printk(KERN_NOTICE "UBI: " fmt "\n", ##__VA_ARGS__)
+#define ubi_msg(fmt, ...) pr_notice("UBI: " fmt "\n", ##__VA_ARGS__)
 /* UBI warning messages */
-#define ubi_warn(fmt, ...) printk(KERN_WARNING "UBI warning: %s: " fmt "\n", \
-				  __func__, ##__VA_ARGS__)
+#define ubi_warn(fmt, ...) pr_warn("UBI warning: %s: " fmt "\n",  \
+				   __func__, ##__VA_ARGS__)
 /* UBI error messages */
-#define ubi_err(fmt, ...) printk(KERN_ERR "UBI error: %s: " fmt "\n", \
+#define ubi_err(fmt, ...) pr_err("UBI error: %s: " fmt "\n",      \
 				 __func__, ##__VA_ARGS__)
-
-/* Lowest number PEBs reserved for bad PEB handling */
-#define MIN_RESEVED_PEBS 2
 
 /* Background thread name pattern */
 #define UBI_BGT_NAME_PATTERN "ubi_bgt%dd"
@@ -363,6 +360,7 @@ struct ubi_wl_entry;
  * @flash_size: underlying MTD device size (in bytes)
  * @peb_count: count of physical eraseblocks on the MTD device
  * @peb_size: physical eraseblock size
+ * @bad_peb_limit: top limit of expected bad physical eraseblocks
  * @bad_peb_count: count of bad physical eraseblocks
  * @good_peb_count: count of good physical eraseblocks
  * @corr_peb_count: count of corrupted physical eraseblocks (preserved and not
@@ -410,6 +408,7 @@ struct ubi_device {
 	int avail_pebs;
 	int beb_rsvd_pebs;
 	int beb_rsvd_level;
+	int bad_peb_limit;
 
 	int autoresize_vol_id;
 	int vtbl_slots;
@@ -694,7 +693,8 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 			 struct ubi_vid_hdr *vid_hdr);
 
 /* build.c */
-int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset);
+int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
+		       int vid_hdr_offset, int max_beb_per1024);
 int ubi_detach_mtd_dev(int ubi_num, int anyway);
 struct ubi_device *ubi_get_device(int ubi_num);
 void ubi_put_device(struct ubi_device *ubi);

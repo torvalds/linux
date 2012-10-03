@@ -29,22 +29,18 @@ void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 
 #define ubi_assert(expr)  do {                                               \
 	if (unlikely(!(expr))) {                                             \
-		printk(KERN_CRIT "UBI assert failed in %s at %u (pid %d)\n", \
+		pr_crit("UBI assert failed in %s at %u (pid %d)\n",          \
 		       __func__, __LINE__, current->pid);                    \
 		dump_stack();                                                \
 	}                                                                    \
 } while (0)
 
-#define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  \
+#define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)                   \
 		print_hex_dump(l, ps, pt, r, g, b, len, a)
 
 #define ubi_dbg_msg(type, fmt, ...) \
-	pr_debug("UBI DBG " type ": " fmt "\n", ##__VA_ARGS__)
-
-/* Just a debugging messages not related to any specific UBI subsystem */
-#define dbg_msg(fmt, ...)                                    \
-	printk(KERN_DEBUG "UBI DBG (pid %d): %s: " fmt "\n", \
-	       current->pid, __func__, ##__VA_ARGS__)
+	pr_debug("UBI DBG " type " (pid %d): " fmt "\n", current->pid,       \
+		 ##__VA_ARGS__)
 
 /* General debugging messages */
 #define dbg_gen(fmt, ...) ubi_dbg_msg("gen", fmt, ##__VA_ARGS__)

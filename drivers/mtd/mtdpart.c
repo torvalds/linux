@@ -744,7 +744,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char **types,
 	return ret;
 }
 
-int mtd_is_partition(struct mtd_info *mtd)
+int mtd_is_partition(const struct mtd_info *mtd)
 {
 	struct mtd_part *part;
 	int ispart = 0;
@@ -760,3 +760,13 @@ int mtd_is_partition(struct mtd_info *mtd)
 	return ispart;
 }
 EXPORT_SYMBOL_GPL(mtd_is_partition);
+
+/* Returns the size of the entire flash chip */
+uint64_t mtd_get_device_size(const struct mtd_info *mtd)
+{
+	if (!mtd_is_partition(mtd))
+		return mtd->size;
+
+	return PART(mtd)->master->size;
+}
+EXPORT_SYMBOL_GPL(mtd_get_device_size);
