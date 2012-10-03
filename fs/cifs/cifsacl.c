@@ -167,17 +167,17 @@ static struct shrinker cifs_shrinker = {
 };
 
 static int
-cifs_idmap_key_instantiate(struct key *key, const void *data, size_t datalen)
+cifs_idmap_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 {
 	char *payload;
 
-	payload = kmalloc(datalen, GFP_KERNEL);
+	payload = kmalloc(prep->datalen, GFP_KERNEL);
 	if (!payload)
 		return -ENOMEM;
 
-	memcpy(payload, data, datalen);
+	memcpy(payload, prep->data, prep->datalen);
 	key->payload.data = payload;
-	key->datalen = datalen;
+	key->datalen = prep->datalen;
 	return 0;
 }
 
@@ -537,18 +537,14 @@ init_cifs_idmap(void)
 	if (!cred)
 		return -ENOMEM;
 
-	keyring = key_alloc(&key_type_keyring, ".cifs_idmap", 0, 0, cred,
-			    (KEY_POS_ALL & ~KEY_POS_SETATTR) |
-			    KEY_USR_VIEW | KEY_USR_READ,
-			    KEY_ALLOC_NOT_IN_QUOTA);
+	keyring = keyring_alloc(".cifs_idmap", 0, 0, cred,
+				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
+				KEY_USR_VIEW | KEY_USR_READ,
+				KEY_ALLOC_NOT_IN_QUOTA, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto failed_put_cred;
 	}
-
-	ret = key_instantiate_and_link(keyring, NULL, 0, NULL, NULL);
-	if (ret < 0)
-		goto failed_put_key;
 
 	ret = register_key_type(&cifs_idmap_key_type);
 	if (ret < 0)

@@ -59,13 +59,13 @@ const struct cred *dns_resolver_cache;
  *        "ip1,ip2,...#foo=bar"
  */
 static int
-dns_resolver_instantiate(struct key *key, const void *_data, size_t datalen)
+dns_resolver_instantiate(struct key *key, struct key_preparsed_payload *prep)
 {
 	struct user_key_payload *upayload;
 	unsigned long derrno;
 	int ret;
-	size_t result_len = 0;
-	const char *data = _data, *end, *opt;
+	size_t datalen = prep->datalen, result_len = 0;
+	const char *data = prep->data, *end, *opt;
 
 	kenter("%%%d,%s,'%*.*s',%zu",
 	       key->serial, key->description,
@@ -259,18 +259,14 @@ static int __init init_dns_resolver(void)
 	if (!cred)
 		return -ENOMEM;
 
-	keyring = key_alloc(&key_type_keyring, ".dns_resolver", 0, 0, cred,
-			    (KEY_POS_ALL & ~KEY_POS_SETATTR) |
-			    KEY_USR_VIEW | KEY_USR_READ,
-			    KEY_ALLOC_NOT_IN_QUOTA);
+	keyring = keyring_alloc(".dns_resolver", 0, 0, cred,
+				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
+				KEY_USR_VIEW | KEY_USR_READ,
+				KEY_ALLOC_NOT_IN_QUOTA, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto failed_put_cred;
 	}
-
-	ret = key_instantiate_and_link(keyring, NULL, 0, NULL, NULL);
-	if (ret < 0)
-		goto failed_put_key;
 
 	ret = register_key_type(&key_type_dns_resolver);
 	if (ret < 0)
@@ -303,3 +299,4 @@ static void __exit exit_dns_resolver(void)
 module_init(init_dns_resolver)
 module_exit(exit_dns_resolver)
 MODULE_LICENSE("GPL");
+

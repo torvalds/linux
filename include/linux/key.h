@@ -264,6 +264,7 @@ extern int key_unlink(struct key *keyring,
 
 extern struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 				 const struct cred *cred,
+				 key_perm_t perm,
 				 unsigned long flags,
 				 struct key *dest);
 

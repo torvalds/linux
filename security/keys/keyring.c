@@ -66,7 +66,7 @@ static inline unsigned keyring_hash(const char *desc)
  * operations.
  */
 static int keyring_instantiate(struct key *keyring,
-			       const void *data, size_t datalen);
+			       struct key_preparsed_payload *prep);
 static int keyring_match(const struct key *keyring, const void *criterion);
 static void keyring_revoke(struct key *keyring);
 static void keyring_destroy(struct key *keyring);
@@ -121,12 +121,12 @@ static void keyring_publish_name(struct key *keyring)
  * Returns 0 on success, -EINVAL if given any data.
  */
 static int keyring_instantiate(struct key *keyring,
-			       const void *data, size_t datalen)
+			       struct key_preparsed_payload *prep)
 {
 	int ret;
 
 	ret = -EINVAL;
-	if (datalen == 0) {
+	if (prep->datalen == 0) {
 		/* make the keyring available by name if it has one */
 		keyring_publish_name(keyring);
 		ret = 0;
@@ -257,17 +257,14 @@ error:
  * Allocate a keyring and link into the destination keyring.
  */
 struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
-			  const struct cred *cred, unsigned long flags,
-			  struct key *dest)
+			  const struct cred *cred, key_perm_t perm,
+			  unsigned long flags, struct key *dest)
 {
 	struct key *keyring;
 	int ret;
 
 	keyring = key_alloc(&key_type_keyring, description,
-			    uid, gid, cred,
-			    (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL,
-			    flags);
-
+			    uid, gid, cred, perm, flags);
 	if (!IS_ERR(keyring)) {
 		ret = key_instantiate_and_link(keyring, NULL, 0, dest, NULL);
 		if (ret < 0) {
@@ -278,6 +275,7 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 
 	return keyring;
 }
+EXPORT_SYMBOL(keyring_alloc);
 
 /**
  * keyring_search_aux - Search a keyring tree for a key matching some criteria
