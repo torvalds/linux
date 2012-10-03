@@ -375,6 +375,7 @@ static int exynos_mipi_dsi_probe(struct platform_device *pdev)
 	dsim->clock = clk_get(&pdev->dev, "dsim0");
 	if (IS_ERR(dsim->clock)) {
 		dev_err(&pdev->dev, "failed to get dsim clock source\n");
+		ret = -ENODEV;
 		goto err_clock_get;
 	}
 
@@ -383,6 +384,7 @@ static int exynos_mipi_dsi_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to get io memory region\n");
+		ret = -ENODEV;
 		goto err_platform_get;
 	}
 
@@ -407,6 +409,7 @@ static int exynos_mipi_dsi_probe(struct platform_device *pdev)
 	dsim_ddi = exynos_mipi_dsi_bind_lcd_ddi(dsim, dsim_pd->lcd_panel_name);
 	if (!dsim_ddi) {
 		dev_err(&pdev->dev, "mipi_dsim_ddi object not found.\n");
+		ret = -EINVAL;
 		goto err_bind;
 	}
 
