@@ -1,10 +1,12 @@
 /*
- * ads7828.c - lm_sensors driver for ads7828 12-bit 8-channel ADC
+ * ads7828.c - driver for TI ADS7828 8-channel A/D converter and compatibles
  * (C) 2007 EADS Astrium
  *
  * This driver is based on the lm75 and other lm_sensors/hwmon drivers
  *
  * Written by Steve Hardy <shardy@redhat.com>
+ *
+ * ADS7830 support, by Guillaume Roguez <guillaume.roguez@savoirfairelinux.com>
  *
  * For further information, see the Documentation/hwmon/ads7828 file.
  *
@@ -43,6 +45,9 @@
 #define ADS7828_EXT_VREF_MV_MIN	50	/* External vref min value 0.05V */
 #define ADS7828_EXT_VREF_MV_MAX	5250	/* External vref max value 5.25V */
 
+/* List of supported devices */
+enum ads7828_chips { ads7828, ads7830 };
+
 /* Client specific data */
 struct ads7828_data {
 	struct device *hwmon_dev;
@@ -55,6 +60,7 @@ struct ads7828_data {
 	unsigned int vref_mv;		/* voltage reference value */
 	u8 cmd_byte;			/* Command byte without channel bits */
 	unsigned int lsb_resol;		/* Resolution of the ADC sample LSB */
+	s32 (*read_channel)(const struct i2c_client *client, u8 command);
 };
 
 /* Command byte C2,C1,C0 - see datasheet */
@@ -78,8 +84,7 @@ static struct ads7828_data *ads7828_update_device(struct device *dev)
 
 		for (ch = 0; ch < ADS7828_NCH; ch++) {
 			u8 cmd = ads7828_cmd_byte(data->cmd_byte, ch);
-			data->adc_input[ch] =
-				i2c_smbus_read_word_swapped(client, cmd);
+			data->adc_input[ch] = data->read_channel(client, cmd);
 		}
 		data->last_updated = jiffies;
 		data->valid = true;
@@ -164,7 +169,14 @@ static int ads7828_probe(struct i2c_client *client,
 	else
 		data->vref_mv = ADS7828_INT_VREF_MV;
 
-	data->lsb_resol = DIV_ROUND_CLOSEST(data->vref_mv * 1000, 4096);
+	/* ADS7828 uses 12-bit samples, while ADS7830 is 8-bit */
+	if (id->driver_data == ads7828) {
+		data->lsb_resol = DIV_ROUND_CLOSEST(data->vref_mv * 1000, 4096);
+		data->read_channel = i2c_smbus_read_word_swapped;
+	} else {
+		data->lsb_resol = DIV_ROUND_CLOSEST(data->vref_mv * 1000, 256);
+		data->read_channel = i2c_smbus_read_byte_data;
+	}
 
 	data->cmd_byte = data->ext_vref ? ADS7828_CMD_PD1 : ADS7828_CMD_PD3;
 	if (!data->diff_input)
@@ -191,7 +203,8 @@ error:
 }
 
 static const struct i2c_device_id ads7828_device_ids[] = {
-	{ "ads7828", 0 },
+	{ "ads7828", ads7828 },
+	{ "ads7830", ads7830 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ads7828_device_ids);
@@ -210,4 +223,4 @@ module_i2c_driver(ads7828_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Steve Hardy <shardy@redhat.com>");
-MODULE_DESCRIPTION("Driver for TI ADS7828 A/D converter");
+MODULE_DESCRIPTION("Driver for TI ADS7828 A/D converter and compatibles");

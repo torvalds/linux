@@ -1106,11 +1106,12 @@ config SENSORS_ADS1015
 	  will be called ads1015.
 
 config SENSORS_ADS7828
-	tristate "Texas Instruments ADS7828"
+	tristate "Texas Instruments ADS7828 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for Texas Instruments ADS7828
-	  12-bit 8-channel ADC device.
+	  If you say yes here you get support for Texas Instruments ADS7828 and
+	  ADS7830 8-channel A/D converters. ADS7828 resolution is 12-bit, while
+	  it is 8-bit on ADS7830.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ads7828.

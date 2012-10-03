@@ -7,9 +7,15 @@ Supported chips:
     Datasheet: Publicly available at the Texas Instruments website:
                http://focus.ti.com/lit/ds/symlink/ads7828.pdf
 
+  * Texas Instruments ADS7830
+    Prefix: 'ads7830'
+    Datasheet: Publicly available at the Texas Instruments website:
+               http://focus.ti.com/lit/ds/symlink/ads7830.pdf
+
 Authors:
         Steve Hardy <shardy@redhat.com>
         Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+        Guillaume Roguez <guillaume.roguez@savoirfairelinux.com>
 
 Platform data
 -------------
@@ -35,9 +41,10 @@ in include/linux/platform_data/ads7828.h). The structure fields are:
 Description
 -----------
 
-This driver implements support for the Texas Instruments ADS7828.
+This driver implements support for the Texas Instruments ADS7828 and ADS7830.
 
-This device is a 12-bit 8-channel A-D converter.
+The ADS7828 device is a 12-bit 8-channel A/D converter, while the ADS7830 does
+8-bit sampling.
 
 It can operate in single ended mode (8 +ve inputs) or in differential mode,
 where 4 differential pairs can be measured.
