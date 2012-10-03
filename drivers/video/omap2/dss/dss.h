@@ -449,16 +449,16 @@ void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable);
 void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines);
 void dispc_mgr_set_lcd_type_tft(enum omap_channel channel);
 void dispc_mgr_set_timings(enum omap_channel channel,
-		struct omap_video_timings *timings);
+		const struct omap_video_timings *timings);
 unsigned long dispc_mgr_lclk_rate(enum omap_channel channel);
 unsigned long dispc_mgr_pclk_rate(enum omap_channel channel);
 unsigned long dispc_core_clk_rate(void);
 void dispc_mgr_set_clock_div(enum omap_channel channel,
-		struct dispc_clock_info *cinfo);
+		const struct dispc_clock_info *cinfo);
 int dispc_mgr_get_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo);
 void dispc_mgr_setup(enum omap_channel channel,
-		struct omap_overlay_manager_info *info);
+		const struct omap_overlay_manager_info *info);
 
 u32 dispc_wb_get_framedone_irq(void);
 bool dispc_wb_go_busy(void);

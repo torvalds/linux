@@ -1075,7 +1075,7 @@ static void dispc_mgr_enable_cpr(enum omap_channel channel, bool enable)
 }
 
 static void dispc_mgr_set_cpr_coef(enum omap_channel channel,
-		struct omap_dss_cpr_coefs *coefs)
+		const struct omap_dss_cpr_coefs *coefs)
 {
 	u32 coef_r, coef_g, coef_b;
 
@@ -2504,7 +2504,7 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool mem_to_mem)
 {
 	int r;
-	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
+	const struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 	enum omap_channel channel;
 
 	channel = dispc_ovl_get_channel_out(plane);
@@ -2841,7 +2841,7 @@ static void dispc_mgr_enable_alpha_fixed_zorder(enum omap_channel ch,
 }
 
 void dispc_mgr_setup(enum omap_channel channel,
-		struct omap_overlay_manager_info *info)
+		const struct omap_overlay_manager_info *info)
 {
 	dispc_mgr_set_default_color(channel, info->default_color);
 	dispc_mgr_set_trans_key(channel, info->trans_key_type, info->trans_key);
@@ -3011,7 +3011,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 
 /* change name to mode? */
 void dispc_mgr_set_timings(enum omap_channel channel,
-		struct omap_video_timings *timings)
+		const struct omap_video_timings *timings)
 {
 	unsigned xtot, ytot;
 	unsigned long ht, vt;
@@ -3532,7 +3532,7 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 }
 
 void dispc_mgr_set_clock_div(enum omap_channel channel,
-		struct dispc_clock_info *cinfo)
+		const struct dispc_clock_info *cinfo)
 {
 	DSSDBG("lck = %lu (%u)\n", cinfo->lck, cinfo->lck_div);
 	DSSDBG("pck = %lu (%u)\n", cinfo->pck, cinfo->pck_div);
