@@ -696,6 +696,43 @@ config LOG_BUF_SHIFT
 config HAVE_UNSTABLE_SCHED_CLOCK
 	bool
 
+#
+# For architectures that want to enable the support for NUMA-affine scheduler
+# balancing logic:
+#
+config ARCH_SUPPORTS_NUMA_BALANCING
+	bool
+
+# For architectures that (ab)use NUMA to represent different memory regions
+# all cpu-local but of different latencies, such as SuperH.
+#
+config ARCH_WANT_NUMA_VARIABLE_LOCALITY
+	bool
+
+#
+# For architectures that are willing to define _PAGE_NUMA as _PAGE_PROTNONE
+config ARCH_WANTS_PROT_NUMA_PROT_NONE
+	bool
+
+config ARCH_USES_NUMA_PROT_NONE
+	bool
+	default y
+	depends on ARCH_WANTS_PROT_NUMA_PROT_NONE
+	depends on NUMA_BALANCING
+
+config NUMA_BALANCING
+	bool "Memory placement aware NUMA scheduler"
+	default y
+	depends on ARCH_SUPPORTS_NUMA_BALANCING
+	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
+	depends on SMP && NUMA && MIGRATION
+	help
+	  This option adds support for automatic NUMA aware memory/task placement.
+	  The mechanism is quite primitive and is based on migrating memory when
+	  it is references to the node the task is running on.
+
+	  This system will be inactive on UMA systems.
+
 menuconfig CGROUPS
 	boolean "Control Group support"
 	depends on EVENTFD
