@@ -183,6 +183,22 @@ static const struct file_operations regmap_map_fops = {
 	.llseek = default_llseek,
 };
 
+static ssize_t regmap_range_read_file(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct regmap_range_node *range = file->private_data;
+	struct regmap *map = range->map;
+
+	return regmap_read_debugfs(map, range->range_min, range->range_max,
+				   user_buf, count, ppos);
+}
+
+static const struct file_operations regmap_range_fops = {
+	.open = simple_open,
+	.read = regmap_range_read_file,
+	.llseek = default_llseek,
+};
+
 static ssize_t regmap_access_read_file(struct file *file,
 				       char __user *user_buf, size_t count,
 				       loff_t *ppos)
@@ -253,6 +269,9 @@ static const struct file_operations regmap_access_fops = {
 
 void regmap_debugfs_init(struct regmap *map, const char *name)
 {
+	struct rb_node *next;
+	struct regmap_range_node *range_node;
+
 	if (name) {
 		map->debugfs_name = kasprintf(GFP_KERNEL, "%s-%s",
 					      dev_name(map->dev), name);
@@ -284,6 +303,18 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 				    &map->cache_dirty);
 		debugfs_create_bool("cache_bypass", 0400, map->debugfs,
 				    &map->cache_bypass);
+	}
+
+	next = rb_first(&map->range_tree);
+	while (next) {
+		range_node = rb_entry(next, struct regmap_range_node, node);
+
+		if (range_node->name)
+			debugfs_create_file(range_node->name, 0400,
+					    map->debugfs, range_node,
+					    &regmap_range_fops);
+
+		next = rb_next(&range_node->node);
 	}
 }
 

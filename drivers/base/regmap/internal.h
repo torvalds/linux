@@ -121,6 +121,7 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 struct regmap_range_node {
 	struct rb_node node;
 	const char *name;
+	struct regmap *map;
 
 	unsigned int range_min;
 	unsigned int range_max;
