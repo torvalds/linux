@@ -27,7 +27,7 @@
 #ifndef _I915_DRM_H_
 #define _I915_DRM_H_
 
-#include "drm.h"
+#include <drm/drm.h>
 
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.

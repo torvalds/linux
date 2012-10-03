@@ -23,7 +23,7 @@
  */
 
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "nouveau_drv.h"
 #include "nouveau_util.h"
 #include "nouveau_vm.h"

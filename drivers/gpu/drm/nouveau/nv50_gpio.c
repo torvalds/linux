@@ -23,7 +23,7 @@
  */
 
 #include <linux/dmi.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 #include "nouveau_gpio.h"

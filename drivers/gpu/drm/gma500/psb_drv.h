@@ -23,9 +23,9 @@
 #include <linux/kref.h>
 
 #include <drm/drmP.h>
-#include "drm_global.h"
+#include <drm/drm_global.h>
 #include "gem_glue.h"
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
 #include "gtt.h"

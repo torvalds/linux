@@ -25,7 +25,7 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include "drm_dp_helper.h"
+#include <drm/drm_dp_helper.h>
 
 #define NV_I2C_PORT(n)    (0x00 + (n))
 #define NV_I2C_PORT_NUM    0x10

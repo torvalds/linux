@@ -39,11 +39,11 @@
 #define NOUVEAU_FAMILY   0x0000FFFF
 #define NOUVEAU_FLAGS    0xFFFF0000
 
-#include "ttm/ttm_bo_api.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_placement.h"
-#include "ttm/ttm_memory.h"
-#include "ttm/ttm_module.h"
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_memory.h>
+#include <drm/ttm/ttm_module.h>
 
 struct nouveau_fpriv {
 	spinlock_t lock;
@@ -59,7 +59,7 @@ nouveau_fpriv(struct drm_file *file_priv)
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
-#include "nouveau_drm.h"
+#include <drm/nouveau_drm.h>
 #include "nouveau_reg.h"
 #include "nouveau_bios.h"
 #include "nouveau_util.h"

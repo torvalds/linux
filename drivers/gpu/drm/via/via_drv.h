@@ -24,7 +24,7 @@
 #ifndef _VIA_DRV_H_
 #define _VIA_DRV_H_
 
-#include "drm_mm.h"
+#include <drm/drm_mm.h>
 #define DRIVER_AUTHOR	"Various"
 
 #define DRIVER_NAME		"via"

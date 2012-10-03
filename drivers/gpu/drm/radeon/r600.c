@@ -30,8 +30,8 @@
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_mode.h"

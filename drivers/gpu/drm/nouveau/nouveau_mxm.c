@@ -24,7 +24,7 @@
 
 #include <linux/acpi.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "nouveau_drv.h"
 
 #define MXM_DBG(dev, fmt, args...) NV_DEBUG((dev), "MXM: " fmt, ##args)

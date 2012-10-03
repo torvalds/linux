@@ -27,8 +27,8 @@
 #include <linux/i2c.h>
 #include <linux/fb.h>
 #include <drm/drm_edid.h>
-#include "drmP.h"
-#include "drm_edid.h"
+#include <drm/drmP.h>
+#include <drm/drm_edid.h>
 #include "intel_drv.h"
 #include "i915_drv.h"
 

@@ -27,7 +27,7 @@
  */
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "rv515d.h"
 #include "radeon.h"
 #include "radeon_asic.h"

@@ -26,10 +26,9 @@
  *
  */
 
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
 #include "i915_drv.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_trace.h"
 
 static bool

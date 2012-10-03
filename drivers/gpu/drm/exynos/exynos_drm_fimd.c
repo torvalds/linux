@@ -11,7 +11,7 @@
  * option) any later version.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>

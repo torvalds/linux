@@ -23,11 +23,11 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include "drmP.h"
-#include "drm_edid.h"
-#include "drm_crtc_helper.h"
-#include "drm_fb_helper.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "atom.h"
 

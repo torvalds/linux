@@ -33,7 +33,7 @@
 #include "nouveau_fbcon.h"
 #include "nouveau_ramht.h"
 #include "nouveau_software.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_crtc_helper.h>
 
 static void nv50_display_isr(struct drm_device *);
 static void nv50_display_bh(unsigned long);

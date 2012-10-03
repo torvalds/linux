@@ -27,7 +27,7 @@
 #ifndef __NOUVEAU_CONNECTOR_H__
 #define __NOUVEAU_CONNECTOR_H__
 
-#include "drm_edid.h"
+#include <drm/drm_edid.h>
 #include "nouveau_i2c.h"
 
 enum nouveau_underscan_type {

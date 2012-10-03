@@ -6,7 +6,7 @@
  * more details.
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "udl_drv.h"
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>

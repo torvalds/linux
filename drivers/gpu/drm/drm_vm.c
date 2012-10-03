@@ -33,7 +33,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include <linux/export.h>
 #if defined(__ia64__)
 #include <linux/efi.h>

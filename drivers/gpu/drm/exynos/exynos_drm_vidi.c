@@ -10,7 +10,7 @@
  * option) any later version.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -18,8 +18,8 @@
 
 #include <drm/exynos_drm.h>
 
-#include "drm_edid.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_edid.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"

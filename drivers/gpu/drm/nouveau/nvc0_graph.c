@@ -25,7 +25,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_mm.h"

@@ -24,8 +24,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_encoder.h"
@@ -34,7 +34,7 @@
 #include "nouveau_hw.h"
 #include "nvreg.h"
 
-#include "i2c/sil164.h"
+#include <drm/i2c/sil164.h>
 
 #define FP_TG_CONTROL_ON  (NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS |	\
 			   NV_PRAMDAC_FP_TG_CONTROL_HSYNC_POS |		\

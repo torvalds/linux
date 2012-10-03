@@ -2,7 +2,7 @@
 #define __ASM_SH_TLB_H
 
 #ifdef CONFIG_SUPERH64
-# include "tlb_64.h"
+# include <asm/tlb_64.h>
 #endif
 
 #ifndef __ASSEMBLY__

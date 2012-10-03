@@ -27,10 +27,10 @@
  *	    Jeremy Kolb  <jkolb@brandeis.edu>
  */
 
-#include "drmP.h"
-#include "ttm/ttm_page_alloc.h"
+#include <drm/drmP.h>
+#include <drm/ttm/ttm_page_alloc.h>
 
-#include "nouveau_drm.h"
+#include <drm/nouveau_drm.h>
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_mm.h"
