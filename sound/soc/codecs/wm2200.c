@@ -109,48 +109,42 @@ struct wm2200_priv {
 #define WM2200_DSP2_ZM_BASE (WM2200_DSP_RANGE_BASE + (5 * WM2200_DSP_SPACING))
 
 static const struct regmap_range_cfg wm2200_ranges[] = {
-	/* DSP1 DM */
-	{ .range_min = WM2200_DSP1_DM_BASE,
+	{ .name = "DSP1DM", .range_min = WM2200_DSP1_DM_BASE,
 	  .range_max = WM2200_DSP1_DM_BASE + 12287,
 	  .selector_reg = WM2200_DSP1_CONTROL_3,
 	  .selector_mask = WM2200_DSP1_PAGE_BASE_DM_0_MASK,
 	  .selector_shift = WM2200_DSP1_PAGE_BASE_DM_0_SHIFT,
 	  .window_start = WM2200_DSP1_DM_0, .window_len = 2048, },
 
-	/* DSP1 PM */
-	{ .range_min = WM2200_DSP1_PM_BASE,
+	{ .name = "DSP1PM", .range_min = WM2200_DSP1_PM_BASE,
 	  .range_max = WM2200_DSP1_PM_BASE + 12287,
 	  .selector_reg = WM2200_DSP1_CONTROL_2,
 	  .selector_mask = WM2200_DSP1_PAGE_BASE_PM_0_MASK,
 	  .selector_shift = WM2200_DSP1_PAGE_BASE_PM_0_SHIFT,
 	  .window_start = WM2200_DSP1_PM_0, .window_len = 768, },
 
-	/* DSP1 ZM */
-	{ .range_min = WM2200_DSP1_ZM_BASE,
+	{ .name = "DSP1ZM", .range_min = WM2200_DSP1_ZM_BASE,
 	  .range_max = WM2200_DSP1_ZM_BASE + 2047,
 	  .selector_reg = WM2200_DSP1_CONTROL_4,
 	  .selector_mask = WM2200_DSP1_PAGE_BASE_ZM_0_MASK,
 	  .selector_shift = WM2200_DSP1_PAGE_BASE_ZM_0_SHIFT,
 	  .window_start = WM2200_DSP1_ZM_0, .window_len = 1024, },
 
-	/* DSP2 DM */
-	{ .range_min = WM2200_DSP2_DM_BASE,
+	{ .name = "DSP2DM", .range_min = WM2200_DSP2_DM_BASE,
 	  .range_max = WM2200_DSP2_DM_BASE + 4095,
 	  .selector_reg = WM2200_DSP2_CONTROL_3,
 	  .selector_mask = WM2200_DSP2_PAGE_BASE_DM_0_MASK,
 	  .selector_shift = WM2200_DSP2_PAGE_BASE_DM_0_SHIFT,
 	  .window_start = WM2200_DSP2_DM_0, .window_len = 2048, },
 
-	/* DSP2 PM */
-	{ .range_min = WM2200_DSP2_PM_BASE,
+	{ .name = "DSP2PM", .range_min = WM2200_DSP2_PM_BASE,
 	  .range_max = WM2200_DSP2_PM_BASE + 11287,
 	  .selector_reg = WM2200_DSP2_CONTROL_2,
 	  .selector_mask = WM2200_DSP2_PAGE_BASE_PM_0_MASK,
 	  .selector_shift = WM2200_DSP2_PAGE_BASE_PM_0_SHIFT,
 	  .window_start = WM2200_DSP2_PM_0, .window_len = 768, },
 
-	/* DSP2 ZM */
-	{ .range_min = WM2200_DSP2_ZM_BASE,
+	{ .name = "DSP2ZM", .range_min = WM2200_DSP2_ZM_BASE,
 	  .range_max = WM2200_DSP2_ZM_BASE + 2047,
 	  .selector_reg = WM2200_DSP2_CONTROL_4,
 	  .selector_mask = WM2200_DSP2_PAGE_BASE_ZM_0_MASK,
