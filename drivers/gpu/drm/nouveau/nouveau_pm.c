@@ -52,7 +52,7 @@ nouveau_pm_perflvl_aux(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_pm *pm = nouveau_pm(dev);
-	struct nouveau_therm *therm = nouveau_therm(drm);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
 	int ret;
 
 	/*XXX: not on all boards, we should control based on temperature
