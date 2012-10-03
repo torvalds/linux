@@ -175,6 +175,8 @@ static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 			snprintf(prefix, sizeof(prefix), "sb/%u/",
 				 core->core_index);
 			bcm47xx_fill_sprom(out, prefix);
+		} else {
+			bcm47xx_fill_sprom(out, NULL);
 		}
 		return 0;
 	default:
