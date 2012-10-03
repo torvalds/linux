@@ -23,8 +23,8 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 
-u32 *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
-u32 *vcpu_spsr(struct kvm_vcpu *vcpu);
+unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
+unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu);
 
 int kvm_handle_wfi(struct kvm_vcpu *vcpu, struct kvm_run *run);
 void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr);
@@ -37,14 +37,14 @@ static inline bool vcpu_mode_is_32bit(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static inline u32 *vcpu_pc(struct kvm_vcpu *vcpu)
+static inline unsigned long *vcpu_pc(struct kvm_vcpu *vcpu)
 {
-	return (u32 *)&vcpu->arch.regs.usr_regs.ARM_pc;
+	return &vcpu->arch.regs.usr_regs.ARM_pc;
 }
 
-static inline u32 *vcpu_cpsr(struct kvm_vcpu *vcpu)
+static inline unsigned long *vcpu_cpsr(struct kvm_vcpu *vcpu)
 {
-	return (u32 *)&vcpu->arch.regs.usr_regs.ARM_cpsr;
+	return &vcpu->arch.regs.usr_regs.ARM_cpsr;
 }
 
 static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)

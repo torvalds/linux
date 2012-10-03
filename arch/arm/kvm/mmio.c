@@ -33,7 +33,7 @@
  */
 int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	__u32 *dest;
+	unsigned long *dest;
 	unsigned int len;
 	int mask;
 

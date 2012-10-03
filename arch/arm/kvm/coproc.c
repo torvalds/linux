@@ -76,7 +76,7 @@ static bool access_dcsw(struct kvm_vcpu *vcpu,
 			const struct coproc_params *p,
 			const struct coproc_reg *r)
 {
-	u32 val;
+	unsigned long val;
 	int cpu;
 
 	cpu = get_cpu();
@@ -298,7 +298,7 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 		}
 		/* If access function fails, it should complain. */
 	} else {
-		kvm_err("Unsupported guest CP15 access at: %08x\n",
+		kvm_err("Unsupported guest CP15 access at: %08lx\n",
 			*vcpu_pc(vcpu));
 		print_cp_instr(params);
 	}

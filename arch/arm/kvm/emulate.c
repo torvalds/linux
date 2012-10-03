@@ -109,10 +109,10 @@ static const unsigned long vcpu_reg_offsets[VCPU_NR_MODES][15] = {
  * Return a pointer to the register number valid in the current mode of
  * the virtual CPU.
  */
-u32 *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
+unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
 {
-	u32 *reg_array = (u32 *)&vcpu->arch.regs;
-	u32 mode = *vcpu_cpsr(vcpu) & MODE_MASK;
+	unsigned long *reg_array = (unsigned long *)&vcpu->arch.regs;
+	unsigned long mode = *vcpu_cpsr(vcpu) & MODE_MASK;
 
 	switch (mode) {
 	case USR_MODE...SVC_MODE:
@@ -141,9 +141,9 @@ u32 *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
 /*
  * Return the SPSR for the current mode of the virtual CPU.
  */
-u32 *vcpu_spsr(struct kvm_vcpu *vcpu)
+unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu)
 {
-	u32 mode = *vcpu_cpsr(vcpu) & MODE_MASK;
+	unsigned long mode = *vcpu_cpsr(vcpu) & MODE_MASK;
 	switch (mode) {
 	case SVC_MODE:
 		return &vcpu->arch.regs.KVM_ARM_SVC_spsr;
@@ -257,9 +257,9 @@ static u32 exc_vector_base(struct kvm_vcpu *vcpu)
  */
 void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 {
-	u32 new_lr_value;
-	u32 new_spsr_value;
-	u32 cpsr = *vcpu_cpsr(vcpu);
+	unsigned long new_lr_value;
+	unsigned long new_spsr_value;
+	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	u32 sctlr = vcpu->arch.cp15[c1_SCTLR];
 	bool is_thumb = (cpsr & PSR_T_BIT);
 	u32 vect_offset = 4;
@@ -291,9 +291,9 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu)
  */
 static void inject_abt(struct kvm_vcpu *vcpu, bool is_pabt, unsigned long addr)
 {
-	u32 new_lr_value;
-	u32 new_spsr_value;
-	u32 cpsr = *vcpu_cpsr(vcpu);
+	unsigned long new_lr_value;
+	unsigned long new_spsr_value;
+	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	u32 sctlr = vcpu->arch.cp15[c1_SCTLR];
 	bool is_thumb = (cpsr & PSR_T_BIT);
 	u32 vect_offset;
