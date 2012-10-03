@@ -46,7 +46,7 @@
 #include "omap_hwmod.h"
 #include "omap_device.h"
 #include <plat/dmtimer.h>
-#include <plat/omap-pm.h>
+#include "omap-pm.h"
 
 #include "soc.h"
 #include "common.h"

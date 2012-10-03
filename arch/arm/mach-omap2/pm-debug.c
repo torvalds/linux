@@ -31,7 +31,7 @@
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include <plat/dmtimer.h>
-#include <plat/omap-pm.h>
+#include "omap-pm.h"
 
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"

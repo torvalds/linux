@@ -20,7 +20,7 @@
 
 #include <asm/system_misc.h>
 
-#include <plat/omap-pm.h>
+#include "omap-pm.h"
 #include "omap_device.h"
 #include "common.h"
 

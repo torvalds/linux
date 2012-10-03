@@ -32,7 +32,6 @@
 
 #include "common.h"
 #include <plat-omap/dma-omap.h>
-#include <plat/omap-pm.h>
 #include "gpmc-smc91x.h"
 
 #include "board-rx51.h"
@@ -51,6 +50,7 @@
 #endif
 
 #include "mux.h"
+#include "omap-pm.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
 #include "gpmc.h"

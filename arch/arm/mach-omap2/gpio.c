@@ -25,7 +25,7 @@
 
 #include "omap_hwmod.h"
 #include "omap_device.h"
-#include <plat/omap-pm.h>
+#include "omap-pm.h"
 
 #include "powerdomain.h"
 
