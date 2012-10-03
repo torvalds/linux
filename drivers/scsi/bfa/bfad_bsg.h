@@ -319,6 +319,8 @@ struct bfa_bsg_rport_attr_s {
 	u16		vf_id;
 	wwn_t		pwwn;
 	wwn_t		rpwwn;
+	u32		pid;
+	u32		rsvd;
 	struct bfa_rport_attr_s attr;
 };
 

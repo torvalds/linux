@@ -18,10 +18,15 @@
  * included with this package.                                     *
  *******************************************************************/
 
-#define LPFC_DRIVER_VERSION "8.3.32"
+#define LPFC_DRIVER_VERSION "8.3.34"
 #define LPFC_DRIVER_NAME		"lpfc"
+
+/* Used for SLI 2/3 */
 #define LPFC_SP_DRIVER_HANDLER_NAME	"lpfc:sp"
 #define LPFC_FP_DRIVER_HANDLER_NAME	"lpfc:fp"
+
+/* Used for SLI4 */
+#define LPFC_DRIVER_HANDLER_NAME	"lpfc:"
 
 #define LPFC_MODULE_DESC "Emulex LightPulse Fibre Channel SCSI driver " \
 		LPFC_DRIVER_VERSION

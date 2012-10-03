@@ -94,6 +94,7 @@ int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
 void megaraid_sas_kill_hba(struct megasas_instance *instance);
 
 extern u32 megasas_dbg_lvl;
+extern int resetwaittime;
 
 /**
  * megasas_enable_intr_fusion -	Enables interrupts
@@ -461,17 +462,14 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 	 * Allocate the dynamic array first and then allocate individual
 	 * commands.
 	 */
-	fusion->cmd_list = kmalloc(sizeof(struct megasas_cmd_fusion *)
-				   *max_cmd, GFP_KERNEL);
+	fusion->cmd_list = kzalloc(sizeof(struct megasas_cmd_fusion *)
+				   * max_cmd, GFP_KERNEL);
 
 	if (!fusion->cmd_list) {
 		printk(KERN_DEBUG "megasas: out of memory. Could not alloc "
 		       "memory for cmd_list_fusion\n");
 		goto fail_cmd_list;
 	}
-
-	memset(fusion->cmd_list, 0, sizeof(struct megasas_cmd_fusion *)
-	       *max_cmd);
 
 	max_cmd = instance->max_fw_cmds;
 	for (i = 0; i < max_cmd; i++) {
@@ -2063,9 +2061,9 @@ megasas_check_reset_fusion(struct megasas_instance *instance,
 int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance)
 {
 	int i, outstanding, retval = 0;
-	u32 fw_state, wait_time = MEGASAS_RESET_WAIT_TIME;
+	u32 fw_state;
 
-	for (i = 0; i < wait_time; i++) {
+	for (i = 0; i < resetwaittime; i++) {
 		/* Check if firmware is in fault state */
 		fw_state = instance->instancet->read_fw_status_reg(
 			instance->reg_set) & MFI_STATE_MASK;

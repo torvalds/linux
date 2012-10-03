@@ -1279,6 +1279,7 @@ enum {
 	GS_GSPN_ID	= 0x0118,	/* Get symbolic PN on ID */
 	GS_RFT_ID	= 0x0217,	/* Register fc4type on ID */
 	GS_RSPN_ID	= 0x0218,	/* Register symbolic PN on ID */
+	GS_RSNN_NN	= 0x0239,	/* Register symbolic NN on NN */
 	GS_RPN_ID	= 0x0212,	/* Register port name */
 	GS_RNN_ID	= 0x0213,	/* Register node name */
 	GS_RCS_ID	= 0x0214,	/* Register class of service */
@@ -1354,6 +1355,15 @@ struct fcgs_rspnid_req_s {
 	u32	dap:24;		/* port identifier */
 	u8	spn_len;	/* symbolic port name length */
 	u8	spn[256];	/* symbolic port name */
+};
+
+/*
+ * RSNN_NN
+ */
+struct fcgs_rsnn_nn_req_s {
+	wwn_t	node_name;	/* Node name */
+	u8	snn_len;	/* symbolic node name length */
+	u8	snn[256];	/* symbolic node name */
 };
 
 /*
