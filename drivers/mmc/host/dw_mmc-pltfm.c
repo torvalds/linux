@@ -119,7 +119,7 @@ static const struct of_device_id dw_mci_pltfm_match[] = {
 MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
 
 static struct platform_driver dw_mci_pltfm_driver = {
-	.remove		= __exit_p(dw_mci_pltfm_remove),
+	.remove		= __devexit_p(dw_mci_pltfm_remove),
 	.driver		= {
 		.name		= "dw_mmc",
 		.of_match_table	= of_match_ptr(dw_mci_pltfm_match),
