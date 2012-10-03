@@ -574,6 +574,8 @@ static void pc236_detach(struct comedi_device *dev)
 {
 	const struct pc236_board *thisboard = comedi_board(dev);
 
+	if (!thisboard)
+		return;
 	if (dev->iobase)
 		pc236_intr_disable(dev);
 	if (dev->irq)
