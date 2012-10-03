@@ -326,7 +326,8 @@ static int ath_pci_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath_softc *sc = hw->priv;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 val;
 
 	/*
@@ -339,6 +340,7 @@ static int ath_pci_resume(struct device *device)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
 
 	ath_pci_aspm_init(common);
+	ah->reset_power_on = false;
 
 	return 0;
 }
