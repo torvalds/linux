@@ -59,32 +59,22 @@ static int snooze_loop(struct cpuidle_device *dev,
 {
 	unsigned long in_purr;
 	ktime_t kt_before;
-	unsigned long start_snooze;
-	long snooze = drv->states[0].target_residency;
+	int cpu = dev->cpu;
 
 	idle_loop_prolog(&in_purr, &kt_before);
+	local_irq_enable();
+	set_thread_flag(TIF_POLLING_NRFLAG);
 
-	if (snooze) {
-		start_snooze = get_tb() + snooze * tb_ticks_per_usec;
-		local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
-
-		while ((snooze < 0) || (get_tb() < start_snooze)) {
-			if (need_resched() || cpu_is_offline(dev->cpu))
-				goto out;
-			ppc64_runlatch_off();
-			HMT_low();
-			HMT_very_low();
-		}
-
-		HMT_medium();
-		clear_thread_flag(TIF_POLLING_NRFLAG);
-		smp_mb();
-		local_irq_disable();
+	while ((!need_resched()) && cpu_online(cpu)) {
+		ppc64_runlatch_off();
+		HMT_low();
+		HMT_very_low();
 	}
 
-out:
 	HMT_medium();
+	clear_thread_flag(TIF_POLLING_NRFLAG);
+	smp_mb();
+
 	dev->last_residency =
 		(int)idle_loop_epilog(in_purr, kt_before);
 	return index;
@@ -165,8 +155,8 @@ static struct cpuidle_state dedicated_states[MAX_IDLE_STATE_COUNT] = {
 		.name = "CEDE",
 		.desc = "CEDE",
 		.flags = CPUIDLE_FLAG_TIME_VALID,
-		.exit_latency = 1,
-		.target_residency = 10,
+		.exit_latency = 10,
+		.target_residency = 100,
 		.enter = &dedicated_cede_loop },
 };
 
@@ -197,7 +187,7 @@ void update_smt_snooze_delay(int cpu, int residency)
 			dev->states_usage[1].disable = 1;
 	} else
 		if (drv)
-			drv->states[0].target_residency = residency;
+			drv->states[1].target_residency = residency;
 }
 
 static int pseries_cpuidle_add_cpu_notifier(struct notifier_block *n,
