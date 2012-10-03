@@ -340,7 +340,7 @@ static int vpbe_s_dv_timings(struct vpbe_device *vpbe_dev,
 
 
 	if (!(cfg->outputs[out_index].output.capabilities &
-	    V4L2_OUT_CAP_CUSTOM_TIMINGS))
+	    V4L2_OUT_CAP_DV_TIMINGS))
 		return -EINVAL;
 
 	for (i = 0; i < output->num_modes; i++) {
@@ -408,7 +408,7 @@ static int vpbe_enum_dv_timings(struct vpbe_device *vpbe_dev,
 	int j = 0;
 	int i;
 
-	if (!(output->output.capabilities & V4L2_OUT_CAP_CUSTOM_TIMINGS))
+	if (!(output->output.capabilities & V4L2_OUT_CAP_DV_TIMINGS))
 		return -EINVAL;
 
 	for (i = 0; i < output->num_modes; i++) {
