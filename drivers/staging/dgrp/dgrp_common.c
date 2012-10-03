@@ -179,9 +179,9 @@ void dgrp_carrier(struct ch_struct *ch)
  */
 int dgrp_chk_perm(int mode, int op)
 {
-	if (!current_euid())
+	if (!uid_eq(GLOBAL_ROOT_UID, current_euid()))
 		mode >>= 6;
-	else if (in_egroup_p(0))
+	else if (in_egroup_p(GLOBAL_ROOT_GID))
 		mode >>= 3;
 
 	if ((mode & op & 0007) == op)
