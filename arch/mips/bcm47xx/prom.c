@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
+#include <linux/smp.h>
 #include <asm/bootinfo.h>
 #include <asm/fw/cfe/cfe_api.h>
 #include <asm/fw/cfe/cfe_error.h>
@@ -127,6 +128,7 @@ static __init void prom_init_mem(void)
 {
 	unsigned long mem;
 	unsigned long max;
+	struct cpuinfo_mips *c = &current_cpu_data;
 
 	/* Figure out memory size by finding aliases.
 	 *
@@ -154,6 +156,14 @@ static __init void prom_init_mem(void)
 		    *(unsigned long *)(prom_init))
 			break;
 	}
+
+	/* Ignoring the last page when ddr size is 128M. Cached
+	 * accesses to last page is causing the processor to prefetch
+	 * using address above 128M stepping out of the ddr address
+	 * space.
+	 */
+	if (c->cputype == CPU_74K && (mem == (128  << 20)))
+		mem -= 0x1000;
 
 	add_memory_region(0, mem, BOOT_MEM_RAM);
 }
