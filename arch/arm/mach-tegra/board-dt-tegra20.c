@@ -41,7 +41,6 @@
 #include <asm/setup.h>
 
 #include <mach/iomap.h>
-#include <mach/irqs.h>
 
 #include "board.h"
 #include "clock.h"

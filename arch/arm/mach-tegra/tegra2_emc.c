@@ -25,8 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/tegra_emc.h>
 
-#include <mach/iomap.h>
-
 #include "tegra2_emc.h"
 #include "fuse.h"
 

@@ -24,7 +24,6 @@
 #include <asm/mach-types.h>
 #include <asm/smp_scu.h>
 
-#include <mach/clk.h>
 #include <mach/iomap.h>
 #include <mach/powergate.h>
 

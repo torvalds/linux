@@ -27,8 +27,6 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
-#include <mach/clk.h>
-
 #include "board.h"
 #include "clock.h"
 #include "tegra_cpu_car.h"
