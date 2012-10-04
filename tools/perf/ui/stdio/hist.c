@@ -308,7 +308,7 @@ static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 			       struct hists *hists, struct hists *pair_hists,
-			       long displacement, u64 total_period, FILE *fp)
+			       u64 total_period, FILE *fp)
 {
 	char bf[512];
 	int ret;
@@ -316,7 +316,6 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 		.buf		= bf,
 		.size		= size,
 		.total_period	= total_period,
-		.displacement	= displacement,
 		.ptr		= pair_hists,
 	};
 	bool color = !symbol_conf.field_sep;
@@ -337,15 +336,13 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 }
 
 size_t hists__fprintf(struct hists *hists, struct hists *pair,
-		      bool show_displacement, bool show_header, int max_rows,
+		      bool show_header, int max_rows,
 		      int max_cols, FILE *fp)
 {
 	struct sort_entry *se;
 	struct rb_node *nd;
 	size_t ret = 0;
 	u64 total_period;
-	unsigned long position = 1;
-	long displacement = 0;
 	unsigned int width;
 	const char *sep = symbol_conf.field_sep;
 	const char *col_width = symbol_conf.col_width_list_str;
@@ -449,15 +446,7 @@ print_entries:
 		if (h->filtered)
 			continue;
 
-		if (show_displacement) {
-			if (h->pair != NULL)
-				displacement = ((long)h->pair->position -
-					        (long)position);
-			else
-				displacement = 0;
-			++position;
-		}
-		ret += hist_entry__fprintf(h, max_cols, hists, pair, displacement,
+		ret += hist_entry__fprintf(h, max_cols, hists, pair,
 					   total_period, fp);
 
 		if (max_rows && ++nr_rows >= max_rows)

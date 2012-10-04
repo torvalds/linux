@@ -99,8 +99,7 @@ void hists__inc_nr_events(struct hists *self, u32 type);
 size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
 
 size_t hists__fprintf(struct hists *self, struct hists *pair,
-		      bool show_displacement, bool show_header,
-		      int max_rows, int max_cols, FILE *fp);
+		      bool show_header, int max_rows, int max_cols, FILE *fp);
 
 int hist_entry__inc_addr_samples(struct hist_entry *self, int evidx, u64 addr);
 int hist_entry__annotate(struct hist_entry *self, size_t privsize);
@@ -120,7 +119,6 @@ struct perf_hpp {
 	size_t size;
 	u64 total_period;
 	const char *sep;
-	long displacement;
 	void *ptr;
 };
 
