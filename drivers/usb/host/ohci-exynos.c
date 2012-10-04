@@ -115,7 +115,7 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 	}
 
 	exynos_ohci->hcd = hcd;
-	exynos_ohci->clk = clk_get(&pdev->dev, "usbhost");
+	exynos_ohci->clk = devm_clk_get(&pdev->dev, "usbhost");
 
 	if (IS_ERR(exynos_ohci->clk)) {
 		dev_err(&pdev->dev, "Failed to get usbhost clock\n");
@@ -125,7 +125,7 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 
 	err = clk_prepare_enable(exynos_ohci->clk);
 	if (err)
-		goto fail_clken;
+		goto fail_clk;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -168,8 +168,6 @@ static int __devinit exynos_ohci_probe(struct platform_device *pdev)
 
 fail_io:
 	clk_disable_unprepare(exynos_ohci->clk);
-fail_clken:
-	clk_put(exynos_ohci->clk);
 fail_clk:
 	usb_put_hcd(hcd);
 	return err;
@@ -187,7 +185,6 @@ static int __devexit exynos_ohci_remove(struct platform_device *pdev)
 		pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
 
 	clk_disable_unprepare(exynos_ohci->clk);
-	clk_put(exynos_ohci->clk);
 
 	usb_put_hcd(hcd);
 
