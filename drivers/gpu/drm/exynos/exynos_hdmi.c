@@ -64,8 +64,8 @@ struct hdmi_context {
 	struct mutex			hdmi_mutex;
 
 	void __iomem			*regs;
-	unsigned int			external_irq;
-	unsigned int			internal_irq;
+	int				external_irq;
+	int				internal_irq;
 
 	struct i2c_client		*ddc_port;
 	struct i2c_client		*hdmiphy_port;
@@ -2424,6 +2424,7 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 
 	free_irq(hdata->internal_irq, hdata);
+	free_irq(hdata->external_irq, hdata);
 
 	hdmi_resources_cleanup(hdata);
 
