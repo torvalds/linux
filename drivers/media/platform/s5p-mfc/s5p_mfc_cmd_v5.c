@@ -113,8 +113,8 @@ int s5p_mfc_open_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 		h2r_args.arg[0] = S5P_FIMV_CODEC_NONE;
 	};
 	h2r_args.arg[1] = 0; /* no crc & no pixelcache */
-	h2r_args.arg[2] = ctx->ctx_ofs;
-	h2r_args.arg[3] = ctx->ctx_size;
+	h2r_args.arg[2] = ctx->ctx.ofs;
+	h2r_args.arg[3] = ctx->ctx.size;
 	ret = s5p_mfc_cmd_host2risc_v5(dev, S5P_FIMV_H2R_CMD_OPEN_INSTANCE,
 								&h2r_args);
 	if (ret) {

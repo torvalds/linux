@@ -12,6 +12,9 @@
 #ifndef _REGS_FIMV_H
 #define _REGS_FIMV_H
 
+#include <linux/kernel.h>
+#include <linux/sizes.h>
+
 #define S5P_FIMV_REG_SIZE	(S5P_FIMV_END_ADDR - S5P_FIMV_START_ADDR)
 #define S5P_FIMV_REG_COUNT	((S5P_FIMV_END_ADDR - S5P_FIMV_START_ADDR) / 4)
 
@@ -414,5 +417,22 @@
 #define S5P_FIMV_SHARED_EXTENDED_SAR		0x0078
 #define S5P_FIMV_SHARED_H264_I_PERIOD		0x009C
 #define S5P_FIMV_SHARED_RC_CONTROL_CONFIG	0x00A0
+#define S5P_FIMV_SHARED_DISP_FRAME_TYPE_SHIFT	2
+
+/* Offset used by the hardware to store addresses */
+#define MFC_OFFSET_SHIFT	11
+
+#define FIRMWARE_ALIGN		(128 * SZ_1K)	/* 128KB */
+#define MFC_H264_CTX_BUF_SIZE	(600 * SZ_1K)	/* 600KB per H264 instance */
+#define MFC_CTX_BUF_SIZE	(10 * SZ_1K)	/* 10KB per instance */
+#define DESC_BUF_SIZE		(128 * SZ_1K)	/* 128KB for DESC buffer */
+#define SHARED_BUF_SIZE		(8 * SZ_1K)	/* 8KB for shared buffer */
+
+#define DEF_CPB_SIZE		(256 * SZ_1K)	/* 256KB */
+#define MAX_CPB_SIZE		(4 * SZ_1M)	/* 4MB */
+#define MAX_FW_SIZE		(384 * SZ_1K)
+
+#define MFC_VERSION		0x51
+#define MFC_NUM_PORTS		2
 
 #endif /* _REGS_FIMV_H */
