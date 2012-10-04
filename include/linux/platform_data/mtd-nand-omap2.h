@@ -13,6 +13,8 @@
 
 #include <linux/mtd/partitions.h>
 
+#define	GPMC_BCH_NUM_REMAINDER	8
+
 enum nand_io {
 	NAND_OMAP_PREFETCH_POLLED = 0,	/* prefetch polled mode, default */
 	NAND_OMAP_POLLED,		/* polled mode, without prefetch */
@@ -43,7 +45,10 @@ struct gpmc_nand_regs {
 	void __iomem	*gpmc_ecc_control;
 	void __iomem	*gpmc_ecc_size_config;
 	void __iomem	*gpmc_ecc1_result;
-	void __iomem	*gpmc_bch_result0;
+	void __iomem	*gpmc_bch_result0[GPMC_BCH_NUM_REMAINDER];
+	void __iomem	*gpmc_bch_result1[GPMC_BCH_NUM_REMAINDER];
+	void __iomem	*gpmc_bch_result2[GPMC_BCH_NUM_REMAINDER];
+	void __iomem	*gpmc_bch_result3[GPMC_BCH_NUM_REMAINDER];
 };
 
 struct omap_nand_platform_data {
