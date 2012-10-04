@@ -57,9 +57,9 @@ struct clk_hw;
  * 		This function must not sleep. Optional, if this op is not
  * 		set then the enable count will be used.
  *
- * @recalc_rate	Recalculate the rate of this clock, by quering hardware.  The
+ * @recalc_rate	Recalculate the rate of this clock, by querying hardware. The
  * 		parent rate is an input parameter.  It is up to the caller to
- * 		insure that the prepare_mutex is held across this call.
+ * 		ensure that the prepare_mutex is held across this call.
  * 		Returns the calculated rate.  Optional, but recommended - if
  * 		this op is not set then clock rate will be initialized to 0.
  *
@@ -93,7 +93,7 @@ struct clk_hw;
  * implementations to split any work between atomic (enable) and sleepable
  * (prepare) contexts.  If enabling a clock requires code that might sleep,
  * this must be done in clk_prepare.  Clock enable code that will never be
- * called in a sleepable context may be implement in clk_enable.
+ * called in a sleepable context may be implemented in clk_enable.
  *
  * Typically, drivers will call clk_prepare when a clock may be needed later
  * (eg. when a device is opened), and clk_enable when the clock is actually
