@@ -112,6 +112,7 @@ struct task_group {
 	unsigned long shares;
 
 	atomic_t load_weight;
+	atomic64_t load_avg;
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -232,6 +233,9 @@ struct cfs_rq {
 	u64 runnable_load_avg, blocked_load_avg;
 	atomic64_t decay_counter, removed_load;
 	u64 last_decay;
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	u64 tg_load_contrib;
+#endif
 #endif
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	struct rq *rq;	/* cpu runqueue to which this cfs_rq is attached */
