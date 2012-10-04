@@ -610,7 +610,10 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 	if (skb != NULL) {
 		sk = skb->sk;
 		llcp_sock = nfc_llcp_sock(sk);
-		if (llcp_sock != NULL) {
+
+		if (llcp_sock == NULL && nfc_llcp_ptype(skb) == LLCP_PDU_I) {
+			nfc_llcp_send_symm(local->dev);
+		} else {
 			int ret;
 
 			pr_debug("Sending pending skb\n");
@@ -629,8 +632,6 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 				skb_queue_tail(&llcp_sock->tx_pending_queue,
 					       skb);
 			}
-		} else {
-			nfc_llcp_send_symm(local->dev);
 		}
 	} else {
 		nfc_llcp_send_symm(local->dev);
