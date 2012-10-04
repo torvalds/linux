@@ -606,7 +606,7 @@ struct regmap *regmap_init(struct device *dev,
 	}
 
 	ret = regcache_init(map, config);
-	if (ret < 0)
+	if (ret != 0)
 		goto err_range;
 
 	regmap_debugfs_init(map, config->name);
@@ -803,7 +803,7 @@ static int _regmap_select_page(struct regmap *map, unsigned int *reg,
 
 		map->work_buf = orig_work_buf;
 
-		if (ret < 0)
+		if (ret != 0)
 			return ret;
 	}
 
@@ -854,7 +854,7 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 	if (range) {
 		ret = _regmap_select_page(map, &reg, range,
 					  val_len / map->format.val_bytes);
-		if (ret < 0)
+		if (ret != 0)
 			return ret;
 	}
 
@@ -930,7 +930,7 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 		range = _regmap_range_lookup(map, reg);
 		if (range) {
 			ret = _regmap_select_page(map, &reg, range, 1);
-			if (ret < 0)
+			if (ret != 0)
 				return ret;
 		}
 
@@ -1096,7 +1096,7 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 	if (range) {
 		ret = _regmap_select_page(map, &reg, range,
 					  val_len / map->format.val_bytes);
-		if (ret < 0)
+		if (ret != 0)
 			return ret;
 	}
 
