@@ -481,6 +481,18 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	vp_regs_dump(ctx);
 }
 
+static void mixer_layer_update(struct mixer_context *ctx)
+{
+	struct mixer_resources *res = &ctx->mixer_res;
+	u32 val;
+
+	val = mixer_reg_read(res, MXR_CFG);
+
+	/* allow one update per vsync only */
+	if (!(val & MXR_CFG_LAYER_UPDATE_COUNT_MASK))
+		mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
+}
+
 static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
@@ -561,6 +573,11 @@ static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 	mixer_cfg_scan(ctx, win_data->mode_height);
 	mixer_cfg_rgb_fmt(ctx, win_data->mode_height);
 	mixer_cfg_layer(ctx, win, true);
+
+	/* layer update mandatory for mixer 16.0.33.0 */
+	if (ctx->mxr_ver == MXR_VER_16_0_33_0)
+		mixer_layer_update(ctx);
+
 	mixer_run(ctx);
 
 	mixer_vsync_set_update(ctx, true);
@@ -1065,6 +1082,11 @@ fail:
 	return ret;
 }
 
+static struct mixer_drv_data exynos5_mxr_drv_data = {
+	.version = MXR_VER_16_0_33_0,
+	.is_vp_enabled = 0,
+};
+
 static struct mixer_drv_data exynos4_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
@@ -1074,6 +1096,18 @@ static struct platform_device_id mixer_driver_types[] = {
 	{
 		.name		= "s5p-mixer",
 		.driver_data	= (unsigned long)&exynos4_mxr_drv_data,
+	}, {
+		.name		= "exynos5-mixer",
+		.driver_data	= (unsigned long)&exynos5_mxr_drv_data,
+	}, {
+		/* end node */
+	}
+};
+
+static struct of_device_id mixer_match_types[] = {
+	{
+		.compatible = "samsung,exynos5-mixer",
+		.data	= &exynos5_mxr_drv_data,
 	}, {
 		/* end node */
 	}
@@ -1104,8 +1138,16 @@ static int __devinit mixer_probe(struct platform_device *pdev)
 
 	mutex_init(&ctx->mixer_mutex);
 
-	drv = (struct mixer_drv_data *)platform_get_device_id(
-			pdev)->driver_data;
+	if (dev->of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(of_match_ptr(mixer_match_types),
+							  pdev->dev.of_node);
+		drv = match->data;
+	} else {
+		drv = (struct mixer_drv_data *)
+			platform_get_device_id(pdev)->driver_data;
+	}
+
 	ctx->dev = &pdev->dev;
 	drm_hdmi_ctx->ctx = (void *)ctx;
 	ctx->vp_enabled = drv->is_vp_enabled;
@@ -1167,9 +1209,10 @@ static SIMPLE_DEV_PM_OPS(mixer_pm_ops, mixer_suspend, NULL);
 
 struct platform_driver mixer_driver = {
 	.driver = {
-		.name = "s5p-mixer",
+		.name = "exynos-mixer",
 		.owner = THIS_MODULE,
 		.pm = &mixer_pm_ops,
+		.of_match_table = mixer_match_types,
 	},
 	.probe = mixer_probe,
 	.remove = __devexit_p(mixer_remove),
