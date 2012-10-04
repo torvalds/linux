@@ -339,11 +339,11 @@ const char *__clk_get_name(struct clk *clk);
 struct clk_hw *__clk_get_hw(struct clk *clk);
 u8 __clk_get_num_parents(struct clk *clk);
 struct clk *__clk_get_parent(struct clk *clk);
-inline int __clk_get_enable_count(struct clk *clk);
-inline int __clk_get_prepare_count(struct clk *clk);
+inline unsigned int __clk_get_enable_count(struct clk *clk);
+inline unsigned int __clk_get_prepare_count(struct clk *clk);
 unsigned long __clk_get_rate(struct clk *clk);
 unsigned long __clk_get_flags(struct clk *clk);
-int __clk_is_enabled(struct clk *clk);
+bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
 
 /*
