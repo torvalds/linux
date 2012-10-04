@@ -31,9 +31,16 @@
 #include "s5p_mfc_pm.h"
 
 #define DEF_SRC_FMT_DEC	V4L2_PIX_FMT_H264
-#define DEF_DST_FMT_DEC	V4L2_PIX_FMT_NV12MT
+#define DEF_DST_FMT_DEC	V4L2_PIX_FMT_NV12MT_16X16
 
 static struct s5p_mfc_fmt formats[] = {
+	{
+		.name		= "4:2:0 2 Planes 16x16 Tiles",
+		.fourcc		= V4L2_PIX_FMT_NV12MT_16X16,
+		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.type		= MFC_FMT_RAW,
+		.num_planes	= 2,
+	},
 	{
 		.name		= "4:2:0 2 Planes 64x32 Tiles",
 		.fourcc		= V4L2_PIX_FMT_NV12MT,
@@ -42,67 +49,88 @@ static struct s5p_mfc_fmt formats[] = {
 		.num_planes	= 2,
 	},
 	{
-		.name = "4:2:0 2 Planes",
-		.fourcc = V4L2_PIX_FMT_NV12M,
-		.codec_mode = S5P_MFC_CODEC_NONE,
-		.type = MFC_FMT_RAW,
-		.num_planes = 2,
+		.name		= "4:2:0 2 Planes Y/CbCr",
+		.fourcc		= V4L2_PIX_FMT_NV12M,
+		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.type		= MFC_FMT_RAW,
+		.num_planes	= 2,
 	},
 	{
-		.name = "H264 Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_H264,
-		.codec_mode = S5P_MFC_CODEC_H264_DEC,
-		.type = MFC_FMT_DEC,
-		.num_planes = 1,
+		.name		= "4:2:0 2 Planes Y/CrCb",
+		.fourcc		= V4L2_PIX_FMT_NV21M,
+		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.type		= MFC_FMT_RAW,
+		.num_planes	= 2,
 	},
 	{
-		.name = "H263 Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_H263,
-		.codec_mode = S5P_MFC_CODEC_H263_DEC,
-		.type = MFC_FMT_DEC,
-		.num_planes = 1,
+		.name		= "H264 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_H264,
+		.codec_mode	= S5P_MFC_CODEC_H264_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
 	},
 	{
-		.name = "MPEG1 Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_MPEG1,
-		.codec_mode = S5P_MFC_CODEC_MPEG2_DEC,
-		.type = MFC_FMT_DEC,
-		.num_planes = 1,
+		.name		= "H264/MVC Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_H264_MVC,
+		.codec_mode	= S5P_MFC_CODEC_H264_MVC_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
 	},
 	{
-		.name = "MPEG2 Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_MPEG2,
-		.codec_mode = S5P_MFC_CODEC_MPEG2_DEC,
-		.type = MFC_FMT_DEC,
-		.num_planes = 1,
+		.name		= "H263 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_H263,
+		.codec_mode	= S5P_MFC_CODEC_H263_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
 	},
 	{
-		.name = "MPEG4 Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_MPEG4,
-		.codec_mode = S5P_MFC_CODEC_MPEG4_DEC,
-		.type = MFC_FMT_DEC,
-		.num_planes = 1,
+		.name		= "MPEG1 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_MPEG1,
+		.codec_mode	= S5P_MFC_CODEC_MPEG2_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
 	},
 	{
-		.name = "XviD Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_XVID,
-		.codec_mode = S5P_MFC_CODEC_MPEG4_DEC,
-		.type = MFC_FMT_DEC,
-		.num_planes = 1,
+		.name		= "MPEG2 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_MPEG2,
+		.codec_mode	= S5P_MFC_CODEC_MPEG2_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
 	},
 	{
-		.name = "VC1 Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_VC1_ANNEX_G,
-		.codec_mode = S5P_MFC_CODEC_VC1_DEC,
-		.type = MFC_FMT_DEC,
-		.num_planes = 1,
+		.name		= "MPEG4 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_MPEG4,
+		.codec_mode	= S5P_MFC_CODEC_MPEG4_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
 	},
 	{
-		.name = "VC1 RCV Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_VC1_ANNEX_L,
-		.codec_mode = S5P_MFC_CODEC_VC1RCV_DEC,
-		.type = MFC_FMT_DEC,
-		.num_planes = 1,
+		.name		= "XviD Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_XVID,
+		.codec_mode	= S5P_MFC_CODEC_MPEG4_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
+	},
+	{
+		.name		= "VC1 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_VC1_ANNEX_G,
+		.codec_mode	= S5P_MFC_CODEC_VC1_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
+	},
+	{
+		.name		= "VC1 RCV Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_VC1_ANNEX_L,
+		.codec_mode	= S5P_MFC_CODEC_VC1RCV_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
+	},
+	{
+		.name		= "VP8 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_VP8,
+		.codec_mode	= S5P_MFC_CODEC_VP8_DEC,
+		.type		= MFC_FMT_DEC,
+		.num_planes	= 1,
 	},
 };
 
@@ -343,21 +371,36 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 /* Try format */
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
+	struct s5p_mfc_dev *dev = video_drvdata(file);
 	struct s5p_mfc_fmt *fmt;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_err("This node supports decoding only\n");
-		return -EINVAL;
+	mfc_debug(2, "Type is %d\n", f->type);
+	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		fmt = find_format(f, MFC_FMT_DEC);
+		if (!fmt) {
+			mfc_err("Unsupported format for source.\n");
+			return -EINVAL;
+		}
+		if (!IS_MFCV6(dev) && (fmt->fourcc == V4L2_PIX_FMT_VP8)) {
+			mfc_err("Not supported format.\n");
+			return -EINVAL;
+		}
+	} else if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		fmt = find_format(f, MFC_FMT_RAW);
+		if (!fmt) {
+			mfc_err("Unsupported format for destination.\n");
+			return -EINVAL;
+		}
+		if (IS_MFCV6(dev) && (fmt->fourcc == V4L2_PIX_FMT_NV12MT)) {
+			mfc_err("Not supported format.\n");
+			return -EINVAL;
+		} else if (!IS_MFCV6(dev) &&
+				(fmt->fourcc != V4L2_PIX_FMT_NV12MT)) {
+			mfc_err("Not supported format.\n");
+			return -EINVAL;
+		}
 	}
-	fmt = find_format(f, MFC_FMT_DEC);
-	if (!fmt) {
-		mfc_err("Unsupported format\n");
-		return -EINVAL;
-	}
-	if (fmt->type != MFC_FMT_DEC) {
-		mfc_err("\n");
-		return -EINVAL;
-	}
+
 	return 0;
 }
 
@@ -380,6 +423,27 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		ret = -EBUSY;
 		goto out;
 	}
+	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		fmt = find_format(f, MFC_FMT_RAW);
+		if (!fmt) {
+			mfc_err("Unsupported format for source.\n");
+			return -EINVAL;
+		}
+		if (!IS_MFCV6(dev) && (fmt->fourcc != V4L2_PIX_FMT_NV12MT)) {
+			mfc_err("Not supported format.\n");
+			return -EINVAL;
+		} else if (IS_MFCV6(dev) &&
+				(fmt->fourcc == V4L2_PIX_FMT_NV12MT)) {
+			mfc_err("Not supported format.\n");
+			return -EINVAL;
+		}
+		ctx->dst_fmt = fmt;
+		mfc_debug_leave();
+		return ret;
+	} else if (f->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		mfc_err("Wrong type error for S_FMT : %d", f->type);
+		return -EINVAL;
+	}
 	fmt = find_format(f, MFC_FMT_DEC);
 	if (!fmt || fmt->codec_mode == S5P_MFC_CODEC_NONE) {
 		mfc_err("Unknown codec\n");
@@ -391,6 +455,10 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 					"format for decoding\n");
 		ret = -EINVAL;
 		goto out;
+	}
+	if (!IS_MFCV6(dev) && (fmt->fourcc == V4L2_PIX_FMT_VP8)) {
+		mfc_err("Not supported format.\n");
+		return -EINVAL;
 	}
 	ctx->src_fmt = fmt;
 	ctx->codec_mode = fmt->codec_mode;
@@ -756,6 +824,7 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 			void *allocators[])
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
+	struct s5p_mfc_dev *dev = ctx->dev;
 
 	/* Video output for decoding (source)
 	 * this can be set after getting an instance */
@@ -791,7 +860,13 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 	    vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		psize[0] = ctx->luma_size;
 		psize[1] = ctx->chroma_size;
-		allocators[0] = ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
+
+		if (IS_MFCV6(dev))
+			allocators[0] =
+				ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
+		else
+			allocators[0] =
+				ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
 		allocators[1] = ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&
 		   ctx->state == MFCINST_INIT) {

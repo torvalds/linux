@@ -36,39 +36,53 @@
 
 static struct s5p_mfc_fmt formats[] = {
 	{
-		.name = "4:2:0 2 Planes 64x32 Tiles",
-		.fourcc = V4L2_PIX_FMT_NV12MT,
-		.codec_mode = S5P_MFC_CODEC_NONE,
-		.type = MFC_FMT_RAW,
-		.num_planes = 2,
+		.name		= "4:2:0 2 Planes 16x16 Tiles",
+		.fourcc		= V4L2_PIX_FMT_NV12MT_16X16,
+		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.type		= MFC_FMT_RAW,
+		.num_planes	= 2,
 	},
 	{
-		.name = "4:2:0 2 Planes",
-		.fourcc = V4L2_PIX_FMT_NV12M,
-		.codec_mode = S5P_MFC_CODEC_NONE,
-		.type = MFC_FMT_RAW,
-		.num_planes = 2,
+		.name		= "4:2:0 2 Planes 64x32 Tiles",
+		.fourcc		= V4L2_PIX_FMT_NV12MT,
+		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.type		= MFC_FMT_RAW,
+		.num_planes	= 2,
 	},
 	{
-		.name = "H264 Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_H264,
-		.codec_mode = S5P_MFC_CODEC_H264_ENC,
-		.type = MFC_FMT_ENC,
-		.num_planes = 1,
+		.name		= "4:2:0 2 Planes Y/CbCr",
+		.fourcc		= V4L2_PIX_FMT_NV12M,
+		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.type		= MFC_FMT_RAW,
+		.num_planes	= 2,
 	},
 	{
-		.name = "MPEG4 Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_MPEG4,
-		.codec_mode = S5P_MFC_CODEC_MPEG4_ENC,
-		.type = MFC_FMT_ENC,
-		.num_planes = 1,
+		.name		= "4:2:0 2 Planes Y/CrCb",
+		.fourcc		= V4L2_PIX_FMT_NV21M,
+		.codec_mode	= S5P_MFC_CODEC_NONE,
+		.type		= MFC_FMT_RAW,
+		.num_planes	= 2,
 	},
 	{
-		.name = "H263 Encoded Stream",
-		.fourcc = V4L2_PIX_FMT_H263,
-		.codec_mode = S5P_MFC_CODEC_H263_ENC,
-		.type = MFC_FMT_ENC,
-		.num_planes = 1,
+		.name		= "H264 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_H264,
+		.codec_mode	= S5P_MFC_CODEC_H264_ENC,
+		.type		= MFC_FMT_ENC,
+		.num_planes	= 1,
+	},
+	{
+		.name		= "MPEG4 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_MPEG4,
+		.codec_mode	= S5P_MFC_CODEC_MPEG4_ENC,
+		.type		= MFC_FMT_ENC,
+		.num_planes	= 1,
+	},
+	{
+		.name		= "H263 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_H263,
+		.codec_mode	= S5P_MFC_CODEC_H263_ENC,
+		.type		= MFC_FMT_ENC,
+		.num_planes	= 1,
 	},
 };
 
@@ -576,7 +590,8 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 	if (ctx->state == MFCINST_GOT_INST && ctx->dst_queue_cnt >= 1)
 		return 1;
 	/* context is ready to encode a frame */
-	if (ctx->state == MFCINST_RUNNING &&
+	if ((ctx->state == MFCINST_RUNNING ||
+		ctx->state == MFCINST_HEAD_PARSED) &&
 		ctx->src_queue_cnt >= 1 && ctx->dst_queue_cnt >= 1)
 		return 1;
 	/* context is ready to encode remaining frames */
@@ -645,10 +660,19 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 		vb2_buffer_done(dst_mb->b, VB2_BUF_STATE_DONE);
 		spin_unlock_irqrestore(&dev->irqlock, flags);
 	}
-	ctx->state = MFCINST_RUNNING;
-	if (s5p_mfc_ctx_ready(ctx))
-		set_work_bit_irqsave(ctx);
-	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+	if (IS_MFCV6(dev)) {
+		ctx->state = MFCINST_HEAD_PARSED; /* for INIT_BUFFER cmd */
+	} else {
+		ctx->state = MFCINST_RUNNING;
+		if (s5p_mfc_ctx_ready(ctx))
+			set_work_bit_irqsave(ctx);
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+	}
+
+	if (IS_MFCV6(dev))
+		ctx->dpb_count = s5p_mfc_hw_call(dev->mfc_ops,
+				get_enc_dpb_count, dev);
+
 	return 0;
 }
 
@@ -965,6 +989,17 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 			mfc_err("failed to set output format\n");
 			return -EINVAL;
 		}
+
+		if (!IS_MFCV6(dev) &&
+				(fmt->fourcc == V4L2_PIX_FMT_NV12MT_16X16)) {
+			mfc_err("Not supported format.\n");
+			return -EINVAL;
+		} else if (IS_MFCV6(dev) &&
+				(fmt->fourcc == V4L2_PIX_FMT_NV12MT)) {
+			mfc_err("Not supported format.\n");
+			return -EINVAL;
+		}
+
 		if (fmt->num_planes != pix_fmt_mp->num_planes) {
 			mfc_err("failed to set output format\n");
 			ret = -EINVAL;
@@ -998,6 +1033,7 @@ out:
 static int vidioc_reqbufs(struct file *file, void *priv,
 					  struct v4l2_requestbuffers *reqbufs)
 {
+	struct s5p_mfc_dev *dev = video_drvdata(file);
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	int ret = 0;
 
@@ -1017,13 +1053,16 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			return ret;
 		}
 		ctx->capture_state = QUEUE_BUFS_REQUESTED;
-		ret = s5p_mfc_hw_call(ctx->dev->mfc_ops, alloc_codec_buffers,
-				ctx);
-		if (ret) {
-			mfc_err("Failed to allocate encoding buffers\n");
-			reqbufs->count = 0;
-			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
-			return -ENOMEM;
+
+		if (!IS_MFCV6(dev)) {
+			ret = s5p_mfc_hw_call(ctx->dev->mfc_ops,
+					alloc_codec_buffers, ctx);
+			if (ret) {
+				mfc_err("Failed to allocate encoding buffers\n");
+				reqbufs->count = 0;
+				ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
+				return -ENOMEM;
+			}
 		}
 	} else if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (ctx->output_state != QUEUE_FREE) {
@@ -1285,6 +1324,13 @@ static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 		case V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE:
 			p->codec.h264.profile =
 				S5P_FIMV_ENC_PROFILE_H264_BASELINE;
+			break;
+		case V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE:
+			if (IS_MFCV6(dev))
+				p->codec.h264.profile =
+				S5P_FIMV_ENC_PROFILE_H264_CONSTRAINED_BASELINE;
+			else
+				ret = -EINVAL;
 			break;
 		default:
 			ret = -EINVAL;
@@ -1559,6 +1605,7 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 			unsigned int psize[], void *allocators[])
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
+	struct s5p_mfc_dev *dev = ctx->dev;
 
 	if (ctx->state != MFCINST_GOT_INST) {
 		mfc_err("inavlid state: %d\n", ctx->state);
@@ -1587,8 +1634,17 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 			*buf_count = MFC_MAX_BUFFERS;
 		psize[0] = ctx->luma_size;
 		psize[1] = ctx->chroma_size;
-		allocators[0] = ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
-		allocators[1] = ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
+		if (IS_MFCV6(dev)) {
+			allocators[0] =
+				ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
+			allocators[1] =
+				ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
+		} else {
+			allocators[0] =
+				ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
+			allocators[1] =
+				ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
+		}
 	} else {
 		mfc_err("inavlid queue type: %d\n", vq->type);
 		return -EINVAL;

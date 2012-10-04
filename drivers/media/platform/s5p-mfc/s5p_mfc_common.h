@@ -16,13 +16,14 @@
 #ifndef S5P_MFC_COMMON_H_
 #define S5P_MFC_COMMON_H_
 
-#include "regs-mfc.h"
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
+#include "regs-mfc.h"
+#include "regs-mfc-v6.h"
 
 /* Definitions related to MFC memory */
 
@@ -206,6 +207,14 @@ struct s5p_mfc_buf_size_v5 {
 	unsigned int shm;
 };
 
+struct s5p_mfc_buf_size_v6 {
+	unsigned int dev_ctx;
+	unsigned int h264_dec_ctx;
+	unsigned int other_dec_ctx;
+	unsigned int h264_enc_ctx;
+	unsigned int other_enc_ctx;
+};
+
 struct s5p_mfc_buf_size {
 	unsigned int fw;
 	unsigned int cpb;
@@ -221,6 +230,8 @@ struct s5p_mfc_variant {
 	unsigned int port_num;
 	struct s5p_mfc_buf_size *buf_size;
 	struct s5p_mfc_buf_align *buf_align;
+	char	*mclk_name;
+	char	*fw_name;
 };
 
 /**
@@ -277,6 +288,7 @@ struct s5p_mfc_priv_buf {
  * @watchdog_work:	worker for the watchdog
  * @alloc_ctx:		videobuf2 allocator contexts for two memory banks
  * @enter_suspend:	flag set when entering suspend
+ * @ctx_buf:		common context memory (MFCv6)
  * @warn_start:		hardware error code from which warnings start
  * @mfc_ops:		ops structure holding HW operation function pointers
  * @mfc_cmds:		cmd structure holding HW commands function pointers
@@ -318,6 +330,7 @@ struct s5p_mfc_dev {
 	void *alloc_ctx[2];
 	unsigned long enter_suspend;
 
+	struct s5p_mfc_priv_buf ctx_buf;
 	int warn_start;
 	struct s5p_mfc_hw_ops *mfc_ops;
 	struct s5p_mfc_hw_cmds *mfc_cmds;
@@ -354,6 +367,22 @@ struct s5p_mfc_h264_enc_params {
 	int level;
 	u16 cpb_size;
 	int interlace;
+	u8 hier_qp;
+	u8 hier_qp_type;
+	u8 hier_qp_layer;
+	u8 hier_qp_layer_qp[7];
+	u8 sei_frame_packing;
+	u8 sei_fp_curr_frame_0;
+	u8 sei_fp_arrangement_type;
+
+	u8 fmo;
+	u8 fmo_map_type;
+	u8 fmo_slice_grp;
+	u8 fmo_chg_dir;
+	u32 fmo_chg_rate;
+	u32 fmo_run_len[4];
+	u8 aso;
+	u32 aso_slice_order[8];
 };
 
 /**
@@ -396,6 +425,7 @@ struct s5p_mfc_enc_params {
 	u32 rc_bitrate;
 	u16 rc_reaction_coeff;
 	u16 vbv_size;
+	u32 vbv_delay;
 
 	enum v4l2_mpeg_video_header_mode seq_hdr_mode;
 	enum v4l2_mpeg_mfc51_video_frame_skip_mode frame_skip_mode;
@@ -461,6 +491,8 @@ struct s5p_mfc_codec_ops {
  *			decoding buffer
  * @dpb_flush_flag:	flag used to indicate that a DPB buffers are being
  *			flushed
+ * @head_processed:	flag mentioning whether the header data is processed
+ *			completely or not
  * @bank1_buf:		handle to memory allocated for temporary buffers from
  *			memory bank 1
  * @bank1_phys:		address of the temporary buffers from memory bank 1
@@ -485,14 +517,20 @@ struct s5p_mfc_codec_ops {
  * @display_delay_enable:	display delay for H264 enable flag
  * @after_packed_pb:	flag used to track buffer when stream is in
  *			Packed PB format
+ * @sei_fp_parse:	enable/disable parsing of frame packing SEI information
  * @dpb_count:		count of the DPB buffers required by MFC hw
  * @total_dpb_count:	count of DPB buffers with additional buffers
  *			requested by the application
  * @ctx:		context buffer information
  * @dsc:		descriptor buffer information
  * @shm:		shared memory buffer information
+ * @mv_count:		number of MV buffers allocated for decoding
  * @enc_params:		encoding parameters for MFC
  * @enc_dst_buf_size:	size of the buffers for encoder output
+ * @luma_dpb_size:	dpb buffer size for luma
+ * @chroma_dpb_size:	dpb buffer size for chroma
+ * @me_buffer_size:	size of the motion estimation buffer
+ * @tmv_buffer_size:	size of temporal predictor motion vector buffer
  * @frame_type:		used to force the type of the next encoded frame
  * @ref_queue:		list of the reference buffers for encoding
  * @ref_queue_cnt:	number of the buffers in the reference list
@@ -541,6 +579,7 @@ struct s5p_mfc_ctx {
 	unsigned long consumed_stream;
 
 	unsigned int dpb_flush_flag;
+	unsigned int head_processed;
 
 	/* Buffers */
 	void *bank1_buf;
@@ -570,10 +609,11 @@ struct s5p_mfc_ctx {
 	int display_delay;
 	int display_delay_enable;
 	int after_packed_pb;
+	int sei_fp_parse;
 
 	int dpb_count;
 	int total_dpb_count;
-
+	int mv_count;
 	/* Buffers */
 	struct s5p_mfc_priv_buf ctx;
 	struct s5p_mfc_priv_buf dsc;
@@ -582,16 +622,28 @@ struct s5p_mfc_ctx {
 	struct s5p_mfc_enc_params enc_params;
 
 	size_t enc_dst_buf_size;
+	size_t luma_dpb_size;
+	size_t chroma_dpb_size;
+	size_t me_buffer_size;
+	size_t tmv_buffer_size;
 
 	enum v4l2_mpeg_mfc51_video_force_frame_type force_frame_type;
 
 	struct list_head ref_queue;
 	unsigned int ref_queue_cnt;
 
+	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
+	union {
+		unsigned int mb;
+		unsigned int bits;
+	} slice_size;
+
 	struct s5p_mfc_codec_ops *c_ops;
 
 	struct v4l2_ctrl *ctrls[MFC_MAX_CTRLS];
 	struct v4l2_ctrl_handler ctrl_handler;
+	unsigned int frame_tag;
+	size_t scratch_buf_size;
 };
 
 /*
@@ -636,5 +688,10 @@ void clear_work_bit(struct s5p_mfc_ctx *ctx);
 void set_work_bit(struct s5p_mfc_ctx *ctx);
 void clear_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
 void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
+
+#define HAS_PORTNUM(dev)	(dev ? (dev->variant ? \
+				(dev->variant->port_num ? 1 : 0) : 0) : 0)
+#define IS_TWOPORT(dev)		(dev->variant->port_num == 2 ? 1 : 0)
+#define IS_MFCV6(dev)		(dev->variant->version >= 0x60 ? 1 : 0)
 
 #endif /* S5P_MFC_COMMON_H_ */
