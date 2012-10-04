@@ -46,12 +46,18 @@ static const unsigned char asn1_op_lengths[ASN1_OP__NR] = {
 
 /*
  * Find the length of an indefinite length object
+ * @data: The data buffer
+ * @datalen: The end of the innermost containing element in the buffer
+ * @_dp: The data parse cursor (updated before returning)
+ * @_len: Where to return the size of the element.
+ * @_errmsg: Where to return a pointer to an error message on error
  */
 static int asn1_find_indefinite_length(const unsigned char *data, size_t datalen,
-				       const char **_errmsg, size_t *_err_dp)
+				       size_t *_dp, size_t *_len,
+				       const char **_errmsg)
 {
 	unsigned char tag, tmp;
-	size_t dp = 0, len, n;
+	size_t dp = *_dp, len, n;
 	int indef_level = 1;
 
 next_tag:
@@ -67,8 +73,11 @@ next_tag:
 		/* It appears to be an EOC. */
 		if (data[dp++] != 0)
 			goto invalid_eoc;
-		if (--indef_level <= 0)
-			return dp;
+		if (--indef_level <= 0) {
+			*_len = dp - *_dp;
+			*_dp = dp;
+			return 0;
+		}
 		goto next_tag;
 	}
 
@@ -122,7 +131,7 @@ data_overrun_error:
 missing_eoc:
 	*_errmsg = "Missing EOC in indefinite len cons";
 error:
-	*_err_dp = dp;
+	*_dp = dp;
 	return -1;
 }
 
@@ -315,13 +324,14 @@ next_op:
 	skip_data:
 		if (!(flags & FLAG_CONS)) {
 			if (flags & FLAG_INDEFINITE_LENGTH) {
-				len = asn1_find_indefinite_length(
-					data + dp, datalen - dp, &errmsg, &dp);
-				if (len < 0)
+				ret = asn1_find_indefinite_length(
+					data, datalen, &dp, &len, &errmsg);
+				if (ret < 0)
 					goto error;
+			} else {
+				dp += len;
 			}
 			pr_debug("- LEAF: %zu\n", len);
-			dp += len;
 		}
 		pc += asn1_op_lengths[op];
 		goto next_op;
