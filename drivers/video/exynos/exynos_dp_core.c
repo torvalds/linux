@@ -885,7 +885,7 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 		return PTR_ERR(dp->clock);
 	}
 
-	clk_enable(dp->clock);
+	clk_prepare_enable(dp->clock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -956,7 +956,7 @@ static int __devexit exynos_dp_remove(struct platform_device *pdev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit();
 
-	clk_disable(dp->clock);
+	clk_disable_unprepare(dp->clock);
 
 	return 0;
 }
@@ -971,7 +971,7 @@ static int exynos_dp_suspend(struct device *dev)
 	if (pdata && pdata->phy_exit)
 		pdata->phy_exit();
 
-	clk_disable(dp->clock);
+	clk_disable_unprepare(dp->clock);
 
 	return 0;
 }
@@ -985,7 +985,7 @@ static int exynos_dp_resume(struct device *dev)
 	if (pdata && pdata->phy_init)
 		pdata->phy_init();
 
-	clk_enable(dp->clock);
+	clk_prepare_enable(dp->clock);
 
 	exynos_dp_init_dp(dp);
 
