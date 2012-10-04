@@ -824,9 +824,6 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 fail:
 	/* Send DM */
 	nfc_llcp_send_dm(local, dsap, ssap, reason);
-
-	return;
-
 }
 
 int nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock)
@@ -1039,8 +1036,6 @@ static void nfc_llcp_recv_dm(struct nfc_llcp_local *local, struct sk_buff *skb)
 	sk->sk_state_change(sk);
 
 	nfc_llcp_sock_put(llcp_sock);
-
-	return;
 }
 
 static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
@@ -1170,8 +1165,6 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	schedule_work(&local->tx_work);
 	kfree_skb(local->rx_pending);
 	local->rx_pending = NULL;
-
-	return;
 }
 
 void nfc_llcp_recv(void *data, struct sk_buff *skb, int err)
@@ -1187,8 +1180,6 @@ void nfc_llcp_recv(void *data, struct sk_buff *skb, int err)
 	local->rx_pending = skb_get(skb);
 	del_timer(&local->link_timer);
 	schedule_work(&local->rx_work);
-
-	return;
 }
 
 int nfc_llcp_data_received(struct nfc_dev *dev, struct sk_buff *skb)
