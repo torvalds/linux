@@ -314,29 +314,6 @@ unsigned long thread_saved_pc(struct task_struct *t)
 	return t->thread.regs.kpc;
 }
 
-/*
- * sys_execve() executes a new program.
- */
-
-asmlinkage int sys_execve(struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname((const char __user *) regs->gr[26]);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename->name,
-			  (const char __user *const __user *) regs->gr[25],
-			  (const char __user *const __user *) regs->gr[24],
-			  regs);
-	putname(filename);
-out:
-
-	return error;
-}
-
 unsigned long
 get_wchan(struct task_struct *p)
 {

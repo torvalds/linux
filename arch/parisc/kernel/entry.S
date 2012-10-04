@@ -1804,52 +1804,6 @@ ENTRY(sys_vfork_wrapper)
 ENDPROC(sys_vfork_wrapper)
 
 	
-	.macro  execve_wrapper execve
-	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1
-	ldo	TASK_REGS(%r1),%r1	/* get pt regs */
-
-	/*
-	 * Do we need to save/restore r3-r18 here?
-	 * I don't think so. why would new thread need old
-	 * threads registers?
-	 */
-
-	/* %arg0 - %arg3 are already saved for us. */
-
-	STREG %r2,-RP_OFFSET(%r30)
-	ldo FRAME_SIZE(%r30),%r30
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#endif
-	BL \execve,%r2
-	copy %r1,%arg0
-
-	ldo -FRAME_SIZE(%r30),%r30
-	LDREG -RP_OFFSET(%r30),%r2
-
-	/* If exec succeeded we need to load the args */
-
-	ldo -1024(%r0),%r1
-	cmpb,>>= %r28,%r1,error_\execve
-	copy %r2,%r19
-
-error_\execve:
-	bv %r0(%r19)
-	nop
-	.endm
-
-	.import sys_execve
-ENTRY(sys_execve_wrapper)
-	execve_wrapper sys_execve
-ENDPROC(sys_execve_wrapper)
-
-#ifdef CONFIG_64BIT
-	.import sys32_execve
-ENTRY(sys32_execve_wrapper)
-	execve_wrapper sys32_execve
-ENDPROC(sys32_execve_wrapper)
-#endif
-
 ENTRY(sys_rt_sigreturn_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
 	ldo	TASK_REGS(%r26),%r26	/* get pt regs */
