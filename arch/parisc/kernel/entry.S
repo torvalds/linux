@@ -708,59 +708,9 @@ ENTRY(end_fault_vector)
 	.import		do_cpu_irq_mask,code
 
 	/*
-	 * r26 = function to be called
-	 * r25 = argument to pass in
-	 * r24 = flags for do_fork()
-	 *
-	 * Kernel threads don't ever return, so they don't need
-	 * a true register context. We just save away the arguments
-	 * for copy_thread/ret_ to properly set up the child.
-	 */
-
-#define CLONE_VM 0x100	/* Must agree with <linux/sched.h> */
-#define CLONE_UNTRACED 0x00800000
-
-	.import do_fork
-ENTRY(__kernel_thread)
-	STREG	%r2, -RP_OFFSET(%r30)
-
-	copy	%r30, %r1
-	ldo	PT_SZ_ALGN(%r30),%r30
-#ifdef CONFIG_64BIT
-	/* Yo, function pointers in wide mode are little structs... -PB */
-	ldd	24(%r26), %r2
-	STREG	%r2, PT_GR27(%r1)	/* Store childs %dp */
-	ldd	16(%r26), %r26
-
-	STREG	%r22, PT_GR22(%r1)	/* save r22 (arg5) */
-	copy	%r0, %r22		/* user_tid */
-#endif
-	STREG	%r26, PT_GR26(%r1)  /* Store function & argument for child */
-	STREG	%r25, PT_GR25(%r1)
-	ldil	L%CLONE_UNTRACED, %r26
-	ldo	CLONE_VM(%r26), %r26   /* Force CLONE_VM since only init_mm */
-	or	%r26, %r24, %r26      /* will have kernel mappings.	 */
-	ldi	1, %r25			/* stack_start, signals kernel thread */
-	stw	%r0, -52(%r30)	     	/* user_tid */
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#endif
-	BL	do_fork, %r2
-	copy	%r1, %r24		/* pt_regs */
-
-	/* Parent Returns here */
-
-	LDREG	-PT_SZ_ALGN-RP_OFFSET(%r30), %r2
-	ldo	-PT_SZ_ALGN(%r30), %r30
-	bv	%r0(%r2)
-	nop
-ENDPROC(__kernel_thread)
-
-	/*
 	 * Child Returns here
 	 *
-	 * copy_thread moved args from temp save area set up above
-	 * into task save area.
+	 * copy_thread moved args into task save area.
 	 */
 
 ENTRY(ret_from_kernel_thread)
@@ -773,7 +723,6 @@ ENTRY(ret_from_kernel_thread)
 	LDREG	TASK_PT_GR25(%r1), %r26
 #ifdef CONFIG_64BIT
 	LDREG	TASK_PT_GR27(%r1), %r27
-	LDREG	TASK_PT_GR22(%r1), %r22
 #endif
 	LDREG	TASK_PT_GR26(%r1), %r1
 	ble	0(%sr7, %r1)

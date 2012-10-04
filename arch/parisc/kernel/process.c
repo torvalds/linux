@@ -165,23 +165,6 @@ void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
 
 /*
- * Create a kernel thread
- */
-
-extern pid_t __kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-
-	/*
-	 * FIXME: Once we are sure we don't need any debug here,
-	 *	  kernel_thread can become a #define.
-	 */
-
-	return __kernel_thread(fn, arg, flags);
-}
-EXPORT_SYMBOL(kernel_thread);
-
-/*
  * Free current thread data structures etc..
  */
 void exit_thread(void)
@@ -256,8 +239,8 @@ sys_vfork(struct pt_regs *regs)
 
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long unused,	/* in ia64 this is "user_stack_size" */
-	    struct task_struct * p, struct pt_regs * pregs)
+	    unsigned long arg,
+	    struct task_struct *p, struct pt_regs *pregs)
 {
 	struct pt_regs * cregs = &(p->thread.regs);
 	void *stack = task_stack_page(p);
@@ -271,21 +254,8 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	extern void * const hpux_child_return;
 #endif
 
-	*cregs = *pregs;
-
-	/* Set the return value for the child.  Note that this is not
-           actually restored by the syscall exit path, but we put it
-           here for consistency in case of signals. */
-	cregs->gr[28] = 0; /* child */
-
-	/*
-	 * We need to differentiate between a user fork and a
-	 * kernel fork. We can't use user_mode, because the
-	 * the syscall path doesn't save iaoq. Right now
-	 * We rely on the fact that kernel_thread passes
-	 * in zero for usp.
-	 */
-	if (usp == 1) {
+	if (unlikely((p->flags & PF_KTHREAD) && usp != 0)) {
+		memset(cregs, 0, sizeof(struct pt_regs));
 		/* kernel thread */
 		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN;
 		/* Must exit via ret_from_kernel_thread in order
@@ -297,16 +267,25 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		 * ret_from_kernel_thread.
 		 */
 #ifdef CONFIG_64BIT
-		cregs->gr[27] = pregs->gr[27];
+		cregs->gr[27] = ((unsigned long *)usp)[3];
+		cregs->gr[26] = ((unsigned long *)usp)[2];
+#else
+		cregs->gr[26] = usp;
 #endif
-		cregs->gr[26] = pregs->gr[26];
-		cregs->gr[25] = pregs->gr[25];
+		cregs->gr[25] = arg;
 	} else {
 		/* user thread */
 		/*
 		 * Note that the fork wrappers are responsible
 		 * for setting gr[21].
 		 */
+
+		*cregs = *pregs;
+
+		/* Set the return value for the child.  Note that this is not
+		   actually restored by the syscall exit path, but we put it
+		   here for consistency in case of signals. */
+		cregs->gr[28] = 0; /* child */
 
 		/* Use same stack depth as parent */
 		cregs->ksp = (unsigned long)stack
