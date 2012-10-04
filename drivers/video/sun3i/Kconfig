@@ -1,0 +1,15 @@
+menu "Display options for sun3i"
+	depends on FB && ARCH_SUN3I
+
+config LYCHEE_FB_SUN3I
+	tristate "FB Controller Driver Support(sun3i)"
+	---help---
+	default m
+
+config LYCHEE_HDMI_SUN3I
+	tristate "HDMI Driver Support(sun3i)"
+	depends on LYCHEE_FB_SUN3I
+	---help---
+	default m
+
+endmenu

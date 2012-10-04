@@ -1,0 +1,69 @@
+menu "Display options for sun4i/sun5i"
+	depends on FB
+	depends on ARCH_SUN4I || ARCH_SUN5I
+
+config LYCHEE_FB_SUN4I
+	tristate "DISP Driver Support(sun4i)"
+	select FB_SUNXI
+        depends on FB && ARCH_SUN4I
+        ---help---
+        default m
+
+config LYCHEE_FB_SUN5I
+	tristate "DISP Driver Support(sun5i)"
+	select FB_SUNXI
+        depends on FB && ARCH_SUN5I
+        ---help---
+        default m
+
+config FB_SUNXI
+        tristate
+	select FB_SUNXI_RESERVED_MEM if MALI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+
+config FB_SUNXI_RESERVED_MEM
+	bool "Reserve memory block for sunxi/fb"
+	depends on FB_SUNXI
+	default y
+
+config FB_SUNXI_UMP
+	bool "Enable FB/UMP Integration"
+	depends on MALI && FB_SUNXI
+	default y
+
+config LYCHEE_LCD_SUN4I
+	tristate "LCD Driver Support(sun4i)"
+	select FB_SUNXI_LCD
+        depends on LYCHEE_FB_SUN4I
+        ---help---
+        default m
+
+config LYCHEE_LCD_SUN5I
+	tristate "LCD Driver Support(sun5i)"
+	select FB_SUNXI_LCD
+        depends on LYCHEE_FB_SUN5I
+        ---help---
+        default m
+
+config FB_SUNXI_LCD
+        tristate
+
+config LYCHEE_HDMI_SUN4I
+	tristate "HDMI Driver Support(sun4i)"
+	select FB_SUNXI_HDMI
+        depends on LYCHEE_LCD_SUN4I
+        ---help---
+        default m
+
+config LYCHEE_HDMI_SUN5I
+	tristate "HDMI Driver Support(sun5i)"
+	select FB_SUNXI_HDMI
+        depends on LYCHEE_LCD_SUN5I
+        ---help---
+        default m
+
+config FB_SUNXI_HDMI
+        tristate
+endmenu
