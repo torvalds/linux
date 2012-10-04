@@ -563,28 +563,23 @@ void
 pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 			bool update_barrier)
 {
-	u32 oldseq, newseq;
+	u32 oldseq, newseq, new_barrier;
+	int empty = list_empty(&lo->plh_segs);
 
 	oldseq = be32_to_cpu(lo->plh_stateid.seqid);
 	newseq = be32_to_cpu(new->seqid);
-	if (list_empty(&lo->plh_segs) || pnfs_seqid_is_newer(newseq, oldseq)) {
+	if (empty || pnfs_seqid_is_newer(newseq, oldseq)) {
 		nfs4_stateid_copy(&lo->plh_stateid, new);
 		if (update_barrier) {
-			u32 new_barrier = be32_to_cpu(new->seqid);
-
-			if (pnfs_seqid_is_newer(new_barrier, lo->plh_barrier))
-				lo->plh_barrier = new_barrier;
+			new_barrier = be32_to_cpu(new->seqid);
 		} else {
 			/* Because of wraparound, we want to keep the barrier
-			 * "close" to the current seqids.  It needs to be
-			 * within 2**31 to count as "behind", so if it
-			 * gets too near that limit, give us a litle leeway
-			 * and bring it to within 2**30.
-			 * NOTE - and yes, this is all unsigned arithmetic.
+			 * "close" to the current seqids.
 			 */
-			if (unlikely((newseq - lo->plh_barrier) > (3 << 29)))
-				lo->plh_barrier = newseq - (1 << 30);
+			new_barrier = newseq - atomic_read(&lo->plh_outstanding);
 		}
+		if (empty || pnfs_seqid_is_newer(new_barrier, lo->plh_barrier))
+			lo->plh_barrier = new_barrier;
 	}
 }
 
