@@ -921,7 +921,7 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 	status = write16(state, SCU_RAM_GPIO__A, SCU_RAM_GPIO_HW_LOCK_IND_DISABLE);
 	if (status < 0)
 		goto error;
-	status = write16(state, SIO_TOP_COMM_KEY__A, 0xFABA);
+	status = write16(state, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
 	if (status < 0)
 		goto error;
 	status = read16(state, SIO_PDR_OHW_CFG__A, &sioPdrOhwCfg);
@@ -1217,7 +1217,7 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 		goto error;
 
 	/*  MPEG TS pad configuration */
-	status = write16(state, SIO_TOP_COMM_KEY__A, 0xFABA);
+	status = write16(state, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
 	if (status < 0)
 		goto error;
 
