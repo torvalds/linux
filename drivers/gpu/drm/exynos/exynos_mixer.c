@@ -1171,6 +1171,9 @@ static int __devinit mixer_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* attach mixer driver to common hdmi. */
+	exynos_mixer_drv_attach(drm_hdmi_ctx);
+
 	/* register specific callback point to common hdmi. */
 	exynos_mixer_ops_register(&mixer_ops);
 

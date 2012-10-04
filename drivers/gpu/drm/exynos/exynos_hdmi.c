@@ -2454,6 +2454,9 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 
+	/* Attach HDMI Driver to common hdmi. */
+	exynos_hdmi_drv_attach(drm_hdmi_ctx);
+
 	/* register specific callbacks to common hdmi. */
 	exynos_hdmi_ops_register(&hdmi_ops);
 
