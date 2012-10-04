@@ -420,6 +420,52 @@ error_tlv:
 	return err;
 }
 
+int nfc_llcp_send_snl(struct nfc_llcp_local *local, u8 tid, u8 sap)
+{
+	struct sk_buff *skb;
+	struct nfc_dev *dev;
+	u8 *sdres_tlv = NULL, sdres_tlv_length, sdres[2];
+	u16 size = 0;
+
+	pr_debug("Sending SNL tid 0x%x sap 0x%x\n", tid, sap);
+
+	if (local == NULL)
+		return -ENODEV;
+
+	dev = local->dev;
+	if (dev == NULL)
+		return -ENODEV;
+
+	sdres[0] = tid;
+	sdres[1] = sap;
+	sdres_tlv = nfc_llcp_build_tlv(LLCP_TLV_SDRES, sdres, 0,
+				       &sdres_tlv_length);
+	if (sdres_tlv == NULL)
+		return -ENOMEM;
+
+	size += LLCP_HEADER_SIZE;
+	size += dev->tx_headroom + dev->tx_tailroom + NFC_HEADER_SIZE;
+	size += sdres_tlv_length;
+
+	skb = alloc_skb(size, GFP_KERNEL);
+	if (skb == NULL) {
+		kfree(sdres_tlv);
+		return -ENOMEM;
+	}
+
+	skb_reserve(skb, dev->tx_headroom + NFC_HEADER_SIZE);
+
+	skb = llcp_add_header(skb, LLCP_SAP_SDP, LLCP_SAP_SDP, LLCP_PDU_SNL);
+
+	memcpy(skb_put(skb, sdres_tlv_length), sdres_tlv, sdres_tlv_length);
+
+	skb_queue_tail(&local->tx_queue, skb);
+
+	kfree(sdres_tlv);
+
+	return 0;
+}
+
 int nfc_llcp_send_dm(struct nfc_llcp_local *local, u8 ssap, u8 dsap, u8 reason)
 {
 	struct sk_buff *skb;
