@@ -33,6 +33,7 @@
 #include <linux/workqueue.h>
 #include <linux/alarmtimer.h>
 #include <linux/timer.h>
+#include <linux/mutex.h>
 #include <linux/debugfs.h>
 #include <linux/platform_data/android_battery.h>
 
@@ -92,6 +93,8 @@ static enum power_supply_property android_battery_props[] = {
 static enum power_supply_property android_power_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
+
+static DEFINE_MUTEX(android_bat_state_lock);
 
 static void android_bat_update_data(struct android_bat_data *battery);
 static int android_bat_enable_charging(struct android_bat_data *battery,
@@ -226,6 +229,13 @@ static void android_bat_get_temp(struct android_bat_data *battery)
 	battery->batt_temp = batt_temp;
 }
 
+/*
+ * android_bat_state_lock not held, may call back into
+ * android_bat_charge_source_changed.  Gathering data here can be
+ * non-atomic; updating our state based on the data may need to be
+ * atomic.
+ */
+
 static void android_bat_update_data(struct android_bat_data *battery)
 {
 	int ret;
@@ -344,15 +354,17 @@ static void android_bat_charging_timer(struct android_bat_data *battery)
 static void android_bat_charge_source_changed(struct android_bat_callbacks *ptr,
 					      int charge_source)
 {
-	struct android_bat_data *battery;
+	struct android_bat_data *battery =
+		container_of(ptr, struct android_bat_data, callbacks);
 
-	battery = container_of(ptr, struct android_bat_data, callbacks);
 	wake_lock(&battery->charger_wake_lock);
+	mutex_lock(&android_bat_state_lock);
 	battery->charge_source = charge_source;
 
 	pr_info("battery: charge source type was changed: %s\n",
 		charge_source_str(battery->charge_source));
 
+	mutex_unlock(&android_bat_state_lock);
 	queue_work(battery->monitor_wqueue, &battery->charger_work);
 }
 
@@ -361,10 +373,12 @@ static void android_bat_set_full_status(struct android_bat_callbacks *ptr)
 	struct android_bat_data *battery =
 		container_of(ptr, struct android_bat_data, callbacks);
 
+	mutex_lock(&android_bat_state_lock);
 	pr_info("battery: battery full\n");
 	battery->charging_status = POWER_SUPPLY_STATUS_FULL;
 	android_bat_enable_charging(battery, false);
 	battery->recharging = false;
+	mutex_unlock(&android_bat_state_lock);
 	power_supply_changed(&battery->psy_bat);
 }
 
@@ -372,6 +386,8 @@ static void android_bat_charger_work(struct work_struct *work)
 {
 	struct android_bat_data *battery =
 		container_of(work, struct android_bat_data, charger_work);
+
+	mutex_lock(&android_bat_state_lock);
 
 	switch (battery->charge_source) {
 	case CHARGE_SOURCE_NONE:
@@ -391,10 +407,10 @@ static void android_bat_charger_work(struct work_struct *work)
 		break;
 	}
 
+	mutex_unlock(&android_bat_state_lock);
+	wake_lock_timeout(&battery->charger_wake_lock, HZ * 2);
 	power_supply_changed(&battery->psy_ac);
 	power_supply_changed(&battery->psy_usb);
-
-	wake_lock_timeout(&battery->charger_wake_lock, HZ * 2);
 }
 
 
@@ -413,6 +429,7 @@ static void android_bat_monitor_work(struct work_struct *work)
 
 	wake_lock(&battery->monitor_wake_lock);
 	android_bat_update_data(battery);
+	mutex_lock(&android_bat_state_lock);
 
 	switch (battery->charging_status) {
 	case POWER_SUPPLY_STATUS_FULL:
@@ -474,6 +491,7 @@ static void android_bat_monitor_work(struct work_struct *work)
 		   battery->charging_start_time ?
 		   cur_time.tv_sec - battery->charging_start_time : 0,
 		charge_source_str(battery->charge_source));
+	mutex_unlock(&android_bat_state_lock);
 	power_supply_changed(&battery->psy_bat);
 	battery->last_poll = ktime_get_boottime();
 	android_bat_monitor_set_alarm(battery, FAST_POLL);
@@ -499,6 +517,7 @@ static int android_power_debug_dump(struct seq_file *s, void *unused)
 
 	android_bat_update_data(battery);
 	get_monotonic_boottime(&cur_time);
+	mutex_lock(&android_bat_state_lock);
 	seq_printf(s, "l=%d v=%d c=%d temp=%s%ld.%ld h=%d st=%d%s ct=%lu type=%s\n",
 		   battery->batt_soc, battery->batt_vcell/1000,
 		   battery->batt_current, battery->batt_temp < 0 ? "-" : "",
@@ -508,7 +527,7 @@ static int android_power_debug_dump(struct seq_file *s, void *unused)
 		   battery->charging_start_time ?
 		   cur_time.tv_sec - battery->charging_start_time : 0,
 		   charge_source_str(battery->charge_source));
-
+	mutex_unlock(&android_bat_state_lock);
 	return 0;
 }
 
