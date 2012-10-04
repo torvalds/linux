@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
+#include <linux/mtd/fsmc.h>
 #include <linux/mtd/onenand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c.h>
@@ -36,7 +37,6 @@
 #include <plat/mtu.h>
 #include <plat/pincfg.h>
 
-#include <linux/platform_data/mtd-nomadik-nand.h>
 #include <mach/fsmc.h>
 
 #include "cpu-8815.h"
@@ -48,35 +48,17 @@
 /* These addresses span 16MB, so use three individual pages */
 static struct resource nhk8815_nand_resources[] = {
 	{
-		.name = "nand_addr",
-		.start = NAND_IO_ADDR,
-		.end = NAND_IO_ADDR + 0xfff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.name = "nand_cmd",
-		.start = NAND_IO_CMD,
-		.end = NAND_IO_CMD + 0xfff,
-		.flags = IORESOURCE_MEM,
-	}, {
 		.name = "nand_data",
-		.start = NAND_IO_DATA,
-		.end = NAND_IO_DATA + 0xfff,
+		.start = 0x40000000,
+		.end = 0x40000000 + SZ_16K - 1,
 		.flags = IORESOURCE_MEM,
-	}
+	}, {
+		.name  = "fsmc_regs",
+		.start = NOMADIK_FSMC_BASE,
+		.end   = NOMADIK_FSMC_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
 };
-
-static int nhk8815_nand_init(void)
-{
-	/* FSMC setup for nand chip select (8-bit nand in 8815NHK) */
-	writel(0x0000000E, FSMC_PCR(0));
-	writel(0x000D0A00, FSMC_PMEM(0));
-	writel(0x00100A00, FSMC_PATT(0));
-
-	/* enable access to the chip select area */
-	writel(readl(FSMC_PCR(0)) | 0x04, FSMC_PCR(0));
-
-	return 0;
-}
 
 /*
  * These partitions are the same as those used in the 2.6.20 release
@@ -111,20 +93,30 @@ static struct mtd_partition nhk8815_partitions[] = {
 	}
 };
 
-static struct nomadik_nand_platform_data nhk8815_nand_data = {
-	.parts		= nhk8815_partitions,
-	.nparts		= ARRAY_SIZE(nhk8815_partitions),
-	.options	= NAND_COPYBACK | NAND_CACHEPRG | NAND_NO_PADDING,
-	.init		= nhk8815_nand_init,
+static struct fsmc_nand_timings nhk8815_nand_timings = {
+	.thiz	= 0,
+	.thold	= 0x10,
+	.twait	= 0x0A,
+	.tset	= 0,
+};
+
+static struct fsmc_nand_platform_data nhk8815_nand_platform_data = {
+	.nand_timings = &nhk8815_nand_timings,
+	.partitions = nhk8815_partitions,
+	.nr_partitions = ARRAY_SIZE(nhk8815_partitions),
+	.width = FSMC_NAND_BW8,
+	.ale_off = 0x1000000,
+	.cle_off = 0x800000,
 };
 
 static struct platform_device nhk8815_nand_device = {
-	.name		= "nomadik_nand",
-	.dev		= {
-		.platform_data = &nhk8815_nand_data,
+	.name = "fsmc-nand",
+	.id = -1,
+	.resource = nhk8815_nand_resources,
+	.num_resources = ARRAY_SIZE(nhk8815_nand_resources),
+	.dev = {
+		.platform_data = &nhk8815_nand_platform_data,
 	},
-	.resource	= nhk8815_nand_resources,
-	.num_resources	= ARRAY_SIZE(nhk8815_nand_resources),
 };
 
 /* These are the partitions for the OneNand device, different from above */
