@@ -67,13 +67,9 @@ static struct snd_pcm_hardware pcm_hardware_playback = {
 		 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME|
 		 SNDRV_PCM_INFO_BATCH),
 	.formats = DAVINCI_PCM_FMTBITS,
-	.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |
-		  SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 |
-		  SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
-		  SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 |
-		  SNDRV_PCM_RATE_KNOT),
+	.rates = SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
 	.rate_min = 8000,
-	.rate_max = 96000,
+	.rate_max = 192000,
 	.channels_min = 2,
 	.channels_max = 384,
 	.buffer_bytes_max = 128 * 1024,
@@ -90,13 +86,9 @@ static struct snd_pcm_hardware pcm_hardware_capture = {
 		 SNDRV_PCM_INFO_PAUSE |
 		 SNDRV_PCM_INFO_BATCH),
 	.formats = DAVINCI_PCM_FMTBITS,
-	.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |
-		  SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 |
-		  SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
-		  SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 |
-		  SNDRV_PCM_RATE_KNOT),
+	.rates = SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
 	.rate_min = 8000,
-	.rate_max = 96000,
+	.rate_max = 192000,
 	.channels_min = 2,
 	.channels_max = 384,
 	.buffer_bytes_max = 128 * 1024,
