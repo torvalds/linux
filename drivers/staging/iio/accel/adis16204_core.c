@@ -24,8 +24,6 @@
 
 #include "adis16204.h"
 
-#define DRIVER_NAME		"adis16204"
-
 /**
  * adis16204_spi_write_reg_8() - write single byte to a register
  * @dev: device associated with child of actual device (iio_dev or iio_trig)

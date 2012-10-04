@@ -22,8 +22,6 @@
 
 #include "adis16209.h"
 
-#define DRIVER_NAME		"adis16209"
-
 /**
  * adis16209_spi_write_reg_8() - write single byte to a register
  * @indio_dev: iio device associated with actual device

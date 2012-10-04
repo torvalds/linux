@@ -24,8 +24,6 @@
 
 #include "adis16260.h"
 
-#define DRIVER_NAME		"adis16260"
-
 static int adis16260_check_status(struct iio_dev *indio_dev);
 
 /**
