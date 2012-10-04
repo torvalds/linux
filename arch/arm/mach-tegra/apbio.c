@@ -15,7 +15,6 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
-#include <mach/iomap.h>
 #include <linux/of.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -25,6 +24,7 @@
 #include <linux/mutex.h>
 
 #include "apbio.h"
+#include "iomap.h"
 
 #if defined(CONFIG_TEGRA20_APB_DMA)
 static DEFINE_MUTEX(tegra_apb_dma_lock);

@@ -26,9 +26,9 @@
 
 #include <asm/page.h>
 #include <asm/mach/map.h>
-#include <mach/iomap.h>
 
 #include "board.h"
+#include "iomap.h"
 
 static struct map_desc tegra_io_desc[] __initdata = {
 	{

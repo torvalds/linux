@@ -22,9 +22,9 @@
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include <mach/iomap.h>
 #include <mach/irammap.h>
 
+#include "iomap.h"
 #include "reset.h"
 #include "fuse.h"
 

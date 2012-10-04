@@ -21,9 +21,8 @@
 #include <linux/io.h>
 #include <linux/export.h>
 
-#include <mach/iomap.h>
-
 #include "fuse.h"
+#include "iomap.h"
 #include "apbio.h"
 
 #define FUSE_UID_LOW		0x108
