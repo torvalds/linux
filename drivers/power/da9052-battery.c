@@ -440,8 +440,10 @@ static int da9052_bat_check_health(struct da9052_battery *bat, int *health)
 static irqreturn_t da9052_bat_irq(int irq, void *data)
 {
 	struct da9052_battery *bat = data;
+	int virq;
 
-	irq -= bat->da9052->irq_base;
+	virq = regmap_irq_get_virq(bat->da9052->irq_data, irq);
+	irq -= virq;
 
 	if (irq == DA9052_IRQ_CHGEND)
 		bat->status = POWER_SUPPLY_STATUS_FULL;
@@ -567,7 +569,7 @@ static struct power_supply template_battery = {
 	.get_property	= da9052_bat_get_property,
 };
 
-static const char *const da9052_bat_irqs[] = {
+static char *da9052_bat_irqs[] = {
 	"BATT TEMP",
 	"DCIN DET",
 	"DCIN REM",
@@ -576,12 +578,20 @@ static const char *const da9052_bat_irqs[] = {
 	"CHG END",
 };
 
+static int da9052_bat_irq_bits[] = {
+	DA9052_IRQ_TBAT,
+	DA9052_IRQ_DCIN,
+	DA9052_IRQ_DCINREM,
+	DA9052_IRQ_VBUS,
+	DA9052_IRQ_VBUSREM,
+	DA9052_IRQ_CHGEND,
+};
+
 static s32 __devinit da9052_bat_probe(struct platform_device *pdev)
 {
 	struct da9052_pdata *pdata;
 	struct da9052_battery *bat;
 	int ret;
-	int irq;
 	int i;
 
 	bat = kzalloc(sizeof(struct da9052_battery), GFP_KERNEL);
@@ -602,15 +612,14 @@ static s32 __devinit da9052_bat_probe(struct platform_device *pdev)
 		bat->psy.use_for_apm = 1;
 
 	for (i = 0; i < ARRAY_SIZE(da9052_bat_irqs); i++) {
-		irq = platform_get_irq_byname(pdev, da9052_bat_irqs[i]);
-		ret = request_threaded_irq(bat->da9052->irq_base + irq,
-					   NULL, da9052_bat_irq,
-					   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					   da9052_bat_irqs[i], bat);
+		ret = da9052_request_irq(bat->da9052,
+				da9052_bat_irq_bits[i], da9052_bat_irqs[i],
+				da9052_bat_irq, bat);
+
 		if (ret != 0) {
 			dev_err(bat->da9052->dev,
-				"DA9052 failed to request %s IRQ %d: %d\n",
-				da9052_bat_irqs[i], irq, ret);
+				"DA9052 failed to request %s IRQ: %d\n",
+				da9052_bat_irqs[i], ret);
 			goto err;
 		}
 	}
@@ -623,23 +632,20 @@ static s32 __devinit da9052_bat_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	while (--i >= 0) {
-		irq = platform_get_irq_byname(pdev, da9052_bat_irqs[i]);
-		free_irq(bat->da9052->irq_base + irq, bat);
-	}
+	while (--i >= 0)
+		da9052_free_irq(bat->da9052, da9052_bat_irq_bits[i], bat);
+
 	kfree(bat);
 	return ret;
 }
 static int __devexit da9052_bat_remove(struct platform_device *pdev)
 {
 	int i;
-	int irq;
 	struct da9052_battery *bat = platform_get_drvdata(pdev);
 
-	for (i = 0; i < ARRAY_SIZE(da9052_bat_irqs); i++) {
-		irq = platform_get_irq_byname(pdev, da9052_bat_irqs[i]);
-		free_irq(bat->da9052->irq_base + irq, bat);
-	}
+	for (i = 0; i < ARRAY_SIZE(da9052_bat_irqs); i++)
+		da9052_free_irq(bat->da9052, da9052_bat_irq_bits[i], bat);
+
 	power_supply_unregister(&bat->psy);
 	kfree(bat);
 
