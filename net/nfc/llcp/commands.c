@@ -261,7 +261,6 @@ int nfc_llcp_disconnect(struct nfc_llcp_sock *sock)
 	struct sk_buff *skb;
 	struct nfc_dev *dev;
 	struct nfc_llcp_local *local;
-	u16 size = 0;
 
 	pr_debug("Sending DISC\n");
 
@@ -273,16 +272,9 @@ int nfc_llcp_disconnect(struct nfc_llcp_sock *sock)
 	if (dev == NULL)
 		return -ENODEV;
 
-	size += LLCP_HEADER_SIZE;
-	size += dev->tx_headroom + dev->tx_tailroom + NFC_HEADER_SIZE;
-
-	skb = alloc_skb(size, GFP_ATOMIC);
+	skb = llcp_allocate_pdu(sock, LLCP_PDU_DISC, 0);
 	if (skb == NULL)
 		return -ENOMEM;
-
-	skb_reserve(skb, dev->tx_headroom + NFC_HEADER_SIZE);
-
-	skb = llcp_add_header(skb, sock->dsap, sock->ssap, LLCP_PDU_DISC);
 
 	skb_queue_tail(&local->tx_queue, skb);
 
