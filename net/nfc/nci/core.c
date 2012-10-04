@@ -420,7 +420,7 @@ static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 	if ((param.val == NULL) || (param.len == 0))
 		return rc;
 
-	if (param.len > NCI_MAX_PARAM_LEN)
+	if (param.len > NFC_MAX_GT_LEN)
 		return -EINVAL;
 
 	for (i = 0; i < param.len; i++)
