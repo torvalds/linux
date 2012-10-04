@@ -2262,6 +2262,26 @@ void hdmi_attach_hdmiphy_client(struct i2c_client *hdmiphy)
 		hdmi_hdmiphy = hdmiphy;
 }
 
+enum hdmi_type {
+	HDMI_TYPE13,
+	HDMI_TYPE14,
+};
+
+static struct platform_device_id hdmi_driver_types[] = {
+	{
+		.name		= "s5pv210-hdmi",
+		.driver_data    = HDMI_TYPE13,
+	}, {
+		.name		= "exynos4-hdmi",
+		.driver_data    = HDMI_TYPE13,
+	}, {
+		.name		= "exynos4-hdmi14",
+		.driver_data    = HDMI_TYPE14,
+	}, {
+		/* end node */
+	}
+};
+
 static int __devinit hdmi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2270,6 +2290,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	struct exynos_drm_hdmi_pdata *pdata;
 	struct resource *res;
 	int ret;
+	enum hdmi_type hdmi_type;
 
 	DRM_DEBUG_KMS("[%d]\n", __LINE__);
 
@@ -2300,7 +2321,8 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, drm_hdmi_ctx);
 
-	hdata->is_v13 = pdata->is_v13;
+	hdmi_type = platform_get_device_id(pdev)->driver_data;
+	hdata->is_v13 = (hdmi_type == HDMI_TYPE13);
 	hdata->cfg_hpd = pdata->cfg_hpd;
 	hdata->get_hpd = pdata->get_hpd;
 	hdata->dev = dev;
@@ -2447,6 +2469,7 @@ static SIMPLE_DEV_PM_OPS(hdmi_pm_ops, hdmi_suspend, hdmi_resume);
 struct platform_driver hdmi_driver = {
 	.probe		= hdmi_probe,
 	.remove		= __devexit_p(hdmi_remove),
+	.id_table = hdmi_driver_types,
 	.driver		= {
 		.name	= "exynos4-hdmi",
 		.owner	= THIS_MODULE,
