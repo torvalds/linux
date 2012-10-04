@@ -205,8 +205,8 @@ static int llcp_sock_listen(struct socket *sock, int backlog)
 
 	lock_sock(sk);
 
-	if ((sock->type != SOCK_SEQPACKET && sock->type != SOCK_STREAM)
-	    || sk->sk_state != LLCP_BOUND) {
+	if ((sock->type != SOCK_SEQPACKET && sock->type != SOCK_STREAM) ||
+	    sk->sk_state != LLCP_BOUND) {
 		ret = -EBADFD;
 		goto error;
 	}

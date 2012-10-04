@@ -205,10 +205,10 @@ static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 	cmd.num_disc_configs = 0;
 
 	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
-	    (protocols & NFC_PROTO_JEWEL_MASK
-	     || protocols & NFC_PROTO_MIFARE_MASK
-	     || protocols & NFC_PROTO_ISO14443_MASK
-	     || protocols & NFC_PROTO_NFC_DEP_MASK)) {
+	    (protocols & NFC_PROTO_JEWEL_MASK ||
+	     protocols & NFC_PROTO_MIFARE_MASK ||
+	     protocols & NFC_PROTO_ISO14443_MASK ||
+	     protocols & NFC_PROTO_NFC_DEP_MASK)) {
 		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
 			NCI_NFC_A_PASSIVE_POLL_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
@@ -224,8 +224,8 @@ static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 	}
 
 	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
-	    (protocols & NFC_PROTO_FELICA_MASK
-	     || protocols & NFC_PROTO_NFC_DEP_MASK)) {
+	    (protocols & NFC_PROTO_FELICA_MASK ||
+	     protocols & NFC_PROTO_NFC_DEP_MASK)) {
 		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
 			NCI_NFC_F_PASSIVE_POLL_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
@@ -804,8 +804,8 @@ int nci_recv_frame(struct sk_buff *skb)
 
 	pr_debug("len %d\n", skb->len);
 
-	if (!ndev || (!test_bit(NCI_UP, &ndev->flags)
-		      && !test_bit(NCI_INIT, &ndev->flags))) {
+	if (!ndev || (!test_bit(NCI_UP, &ndev->flags) &&
+	    !test_bit(NCI_INIT, &ndev->flags))) {
 		kfree_skb(skb);
 		return -ENXIO;
 	}
