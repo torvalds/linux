@@ -399,8 +399,18 @@ static void android_bat_charger_work(struct work_struct *work)
 		break;
 	case CHARGE_SOURCE_USB:
 	case CHARGE_SOURCE_AC:
-		battery->charging_status = POWER_SUPPLY_STATUS_CHARGING;
-		android_bat_enable_charging(battery, true);
+		/*
+		 * If charging status indicates a charger was already
+		 * connected prior to this and a non-charging status is
+		 * set, leave the status alone.
+		 */
+		if (battery->charging_status ==
+		    POWER_SUPPLY_STATUS_DISCHARGING ||
+		    battery->charging_status == POWER_SUPPLY_STATUS_UNKNOWN) {
+			battery->charging_status = POWER_SUPPLY_STATUS_CHARGING;
+			android_bat_enable_charging(battery, true);
+		}
+
 		break;
 	default:
 		pr_err("%s: Invalid charger type\n", __func__);
