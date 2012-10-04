@@ -18,6 +18,8 @@
 #include <asm-generic/unistd.h>
 #endif
 
-#if defined(__KERNEL__) && defined(CONFIG_COMPAT)
+#ifdef __KERNEL__
+#ifdef CONFIG_COMPAT
 #include <asm/unistd32.h>
+#endif
 #endif
