@@ -32,6 +32,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/io.h>
+#include <linux/of_gpio.h>
+#include <plat/gpio-cfg.h>
 
 #include <drm/exynos_drm.h>
 
@@ -2250,6 +2253,41 @@ void hdmi_attach_hdmiphy_client(struct i2c_client *hdmiphy)
 		hdmi_hdmiphy = hdmiphy;
 }
 
+#ifdef CONFIG_OF
+static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
+					(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct s5p_hdmi_platform_data *pd;
+	enum of_gpio_flags flags;
+	u32 value;
+
+	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	if (!pd) {
+		DRM_ERROR("memory allocation for pdata failed\n");
+		goto err_data;
+	}
+
+	if (!of_find_property(np, "hpd-gpio", &value)) {
+		DRM_ERROR("no hpd gpio property found\n");
+		goto err_data;
+	}
+
+	pd->hpd_gpio = of_get_named_gpio_flags(np, "hpd-gpio", 0, &flags);
+
+	return pd;
+
+err_data:
+	return NULL;
+}
+#else
+static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
+					(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static struct platform_device_id hdmi_driver_types[] = {
 	{
 		.name		= "s5pv210-hdmi",
@@ -2259,7 +2297,19 @@ static struct platform_device_id hdmi_driver_types[] = {
 		.driver_data    = HDMI_TYPE13,
 	}, {
 		.name		= "exynos4-hdmi14",
-		.driver_data    = HDMI_TYPE14,
+		.driver_data	= HDMI_TYPE14,
+	}, {
+		.name		= "exynos5-hdmi",
+		.driver_data	= HDMI_TYPE14,
+	}, {
+		/* end node */
+	}
+};
+
+static struct of_device_id hdmi_match_types[] = {
+	{
+		.compatible = "samsung,exynos5-hdmi",
+		.data	= (void	*)HDMI_TYPE14,
 	}, {
 		/* end node */
 	}
@@ -2276,7 +2326,16 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("[%d]\n", __LINE__);
 
-	pdata = pdev->dev.platform_data;
+	if (pdev->dev.of_node) {
+		pdata = drm_hdmi_dt_parse_pdata(dev);
+		if (IS_ERR(pdata)) {
+			DRM_ERROR("failed to parse dt\n");
+			return PTR_ERR(pdata);
+		}
+	} else {
+		pdata = pdev->dev.platform_data;
+	}
+
 	if (!pdata) {
 		DRM_ERROR("no platform data specified\n");
 		return -EINVAL;
@@ -2303,18 +2362,33 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, drm_hdmi_ctx);
 
-	hdata->type = (enum hdmi_type)platform_get_device_id
+	if (dev->of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(of_match_ptr(hdmi_match_types),
+					pdev->dev.of_node);
+		hdata->type = (enum hdmi_type)match->data;
+	} else {
+		hdata->type = (enum hdmi_type)platform_get_device_id
 					(pdev)->driver_data;
+	}
+
 	hdata->hpd_gpio = pdata->hpd_gpio;
 	hdata->dev = dev;
 
 	ret = hdmi_resources_init(hdata);
+
 	if (ret) {
 		ret = -EINVAL;
+		DRM_ERROR("hdmi_resources_init failed\n");
 		goto err_data;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		DRM_ERROR("failed to find registers\n");
+		ret = -ENOENT;
+		goto err_resource;
+	}
 
 	hdata->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!hdata->regs) {
@@ -2462,8 +2536,9 @@ struct platform_driver hdmi_driver = {
 	.remove		= __devexit_p(hdmi_remove),
 	.id_table = hdmi_driver_types,
 	.driver		= {
-		.name	= "exynos4-hdmi",
+		.name	= "exynos-hdmi",
 		.owner	= THIS_MODULE,
 		.pm	= &hdmi_pm_ops,
+		.of_match_table = hdmi_match_types,
 	},
 };
