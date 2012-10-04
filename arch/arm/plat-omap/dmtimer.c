@@ -83,7 +83,6 @@ static void omap_dm_timer_write_reg(struct omap_dm_timer *timer, u32 reg,
 
 static void omap_timer_restore_context(struct omap_dm_timer *timer)
 {
-	__raw_writel(timer->context.tisr, timer->irq_stat);
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_WAKEUP_EN_REG,
 				timer->context.twer);
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_COUNTER_REG,
@@ -440,7 +439,6 @@ int omap_dm_timer_stop(struct omap_dm_timer *timer)
 	 */
 	timer->context.tclr =
 			omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
-	timer->context.tisr = __raw_readl(timer->irq_stat);
 	omap_dm_timer_disable(timer);
 	return 0;
 }
@@ -684,8 +682,7 @@ int omap_dm_timer_write_status(struct omap_dm_timer *timer, unsigned int value)
 		return -EINVAL;
 
 	__omap_dm_timer_write_status(timer, value);
-	/* Save the context */
-	timer->context.tisr = value;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_write_status);
