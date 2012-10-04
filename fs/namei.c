@@ -692,9 +692,9 @@ static inline int may_follow_link(struct path *link, struct nameidata *nd)
 	if (uid_eq(parent->i_uid, inode->i_uid))
 		return 0;
 
+	audit_log_link_denied("follow_link", link);
 	path_put_conditional(link, nd);
 	path_put(&nd->path);
-	audit_log_link_denied("follow_link", link);
 	return -EACCES;
 }
 
