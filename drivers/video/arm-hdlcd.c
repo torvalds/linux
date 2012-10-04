@@ -33,9 +33,6 @@
 
 #include "edid.h"
 
-/* set the DVI output mode using the firmware */
-extern int set_dvi_mode(int mode);
-
 #ifdef CONFIG_SERIAL_AMBA_PCU_UART
 int get_edid(u8 *msgbuf);
 #else
@@ -221,31 +218,6 @@ static int hdlcd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	return hdlcd_set_bitfields(hdlcd, var);
 }
 
-static int hdlcd_set_output_mode(int xres, int yres)
-{
-	/* some firmware uses some stupid protocol: 5 bytes (only byte 1 used)
-	   to send 3 bits of information (value between 0 - 5) */
-	u8 msgbuffer[5];
-
-	memset(msgbuffer, 0, sizeof(msgbuffer));
-
-	if (xres < 800 && yres < 600)
-		msgbuffer[0] = 0;	/* default resolution: 640 x 480 */
-	else if (xres < 1024 && yres < 768)
-		msgbuffer[0] = 1;	/* SVGA: 800 * 600 */
-	else if (xres < 1280 && yres < 1024)
-		msgbuffer[0] = 2;	/* XGA: 1024 * 768 */
-	else if (xres < 1600 && yres < 1200)
-		msgbuffer[0] = 3;	/* SXGA: 1280 * 1024 */
-	else if (xres < 1920 && yres <= 1200)
-		msgbuffer[0] = 4;	/* UXGA: 1600 * 1200 */
-	else
-		msgbuffer[0] = 5;	/* WUXGA: 1920 * 1200 */
-
-	return set_dvi_mode(msgbuffer[0]);
-}
-
-
 /* prototype */
 static int hdlcd_pan_display(struct fb_var_screeninfo *var,
 	struct fb_info *info);
@@ -315,8 +287,6 @@ static int hdlcd_set_par(struct fb_info *info)
 #endif
 	WRITE_HDLCD_REG(HDLCD_REG_GREEN_SELECT, ((hdlcd->fb.var.green.length & 0xf) << 8) | hdlcd->fb.var.green.offset);
 	WRITE_HDLCD_REG(HDLCD_REG_BLUE_SELECT, ((hdlcd->fb.var.blue.length & 0xf) << 8) | hdlcd->fb.var.blue.offset);
-
-	hdlcd_set_output_mode(hdlcd->fb.var.xres, hdlcd->fb.var.yres);
 
 	clk_prepare(hdlcd->clk);
 	clk_set_rate(hdlcd->clk, (1000000000 / hdlcd->fb.var.pixclock) * 1000);
@@ -501,6 +471,8 @@ static int hdlcd_setup(struct hdlcd_device *hdlcd)
 {
 	u32 version;
 	int err = -EFAULT;
+
+	hdlcd->fb.device = hdlcd->dev;
 
 	hdlcd->clk = clk_get(hdlcd->dev, NULL);
 	if (IS_ERR(hdlcd->clk)) {
