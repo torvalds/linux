@@ -26,14 +26,14 @@ void of_platform_reset_gpio_probe(void)
 				   "hard-reset-gpios", 0);
 
 	if (!gpio_is_valid(handle)) {
-		printk(KERN_INFO "Skipping unavailable RESET gpio %d (%s)\n",
+		pr_info("Skipping unavailable RESET gpio %d (%s)\n",
 				handle, "reset");
 		return;
 	}
 
 	ret = gpio_request(handle, "reset");
 	if (ret < 0) {
-		printk(KERN_INFO "GPIO pin is already allocated\n");
+		pr_info("GPIO pin is already allocated\n");
 		return;
 	}
 
@@ -50,7 +50,7 @@ void of_platform_reset_gpio_probe(void)
 	/* Setup output direction */
 	gpio_set_value(handle, 0);
 
-	printk(KERN_INFO "RESET: Registered gpio device: %d, current val: %d\n",
+	pr_info("RESET: Registered gpio device: %d, current val: %d\n",
 							handle, reset_val);
 	return;
 err:
@@ -76,7 +76,7 @@ void of_platform_reset_gpio_probe(void)
 
 void machine_restart(char *cmd)
 {
-	printk(KERN_NOTICE "Machine restart...\n");
+	pr_notice("Machine restart...\n");
 	gpio_system_reset();
 	while (1)
 		;
@@ -84,21 +84,21 @@ void machine_restart(char *cmd)
 
 void machine_shutdown(void)
 {
-	printk(KERN_NOTICE "Machine shutdown...\n");
+	pr_notice("Machine shutdown...\n");
 	while (1)
 		;
 }
 
 void machine_halt(void)
 {
-	printk(KERN_NOTICE "Machine halt...\n");
+	pr_notice("Machine halt...\n");
 	while (1)
 		;
 }
 
 void machine_power_off(void)
 {
-	printk(KERN_NOTICE "Machine power off...\n");
+	pr_notice("Machine power off...\n");
 	while (1)
 		;
 }

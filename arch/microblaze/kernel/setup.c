@@ -69,7 +69,7 @@ void __init setup_arch(char **cmdline_p)
 	xilinx_pci_init();
 
 #if defined(CONFIG_SELFMOD_INTC) || defined(CONFIG_SELFMOD_TIMER)
-	printk(KERN_NOTICE "Self modified code enable\n");
+	pr_notice("Self modified code enable\n");
 #endif
 
 #ifdef CONFIG_VT
