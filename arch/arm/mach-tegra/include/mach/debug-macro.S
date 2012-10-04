@@ -27,7 +27,7 @@
 #include <linux/serial_reg.h>
 
 #include "../../iomap.h"
-#include <mach/irammap.h>
+#include "../../irammap.h"
 
 		.macro  addruart, rp, rv, tmp
 		adr	\rp, 99f		@ actual addr of 99f
