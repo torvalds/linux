@@ -73,6 +73,11 @@ struct mixer_resources {
 	struct clk		*sclk_dac;
 };
 
+enum mixer_version_id {
+	MXR_VER_0_0_0_16,
+	MXR_VER_16_0_33_0,
+};
+
 struct mixer_context {
 	struct device		*dev;
 	int			pipe;
@@ -83,6 +88,11 @@ struct mixer_context {
 	struct mutex		mixer_mutex;
 	struct mixer_resources	mixer_res;
 	struct hdmi_win_data	win_data[MIXER_WIN_NR];
+	enum mixer_version_id	mxr_ver;
+};
+
+struct mixer_drv_data {
+	enum mixer_version_id	version;
 };
 
 static const u8 filter_y_horiz_tap8[] = {
@@ -1023,11 +1033,25 @@ fail:
 	return ret;
 }
 
+static struct mixer_drv_data exynos4_mxr_drv_data = {
+	.version = MXR_VER_0_0_0_16,
+};
+
+static struct platform_device_id mixer_driver_types[] = {
+	{
+		.name		= "s5p-mixer",
+		.driver_data	= (unsigned long)&exynos4_mxr_drv_data,
+	}, {
+		/* end node */
+	}
+};
+
 static int __devinit mixer_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx;
 	struct mixer_context *ctx;
+	struct mixer_drv_data *drv;
 	int ret;
 
 	dev_info(dev, "probe start\n");
@@ -1047,8 +1071,11 @@ static int __devinit mixer_probe(struct platform_device *pdev)
 
 	mutex_init(&ctx->mixer_mutex);
 
+	drv = (struct mixer_drv_data *)platform_get_device_id(
+			pdev)->driver_data;
 	ctx->dev = &pdev->dev;
 	drm_hdmi_ctx->ctx = (void *)ctx;
+	ctx->mxr_ver = drv->version;
 
 	platform_set_drvdata(pdev, drm_hdmi_ctx);
 
@@ -1101,4 +1128,5 @@ struct platform_driver mixer_driver = {
 	},
 	.probe = mixer_probe,
 	.remove = __devexit_p(mixer_remove),
+	.id_table	= mixer_driver_types,
 };
