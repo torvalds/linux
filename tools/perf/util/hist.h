@@ -133,6 +133,7 @@ struct perf_hpp_fmt {
 extern struct perf_hpp_fmt perf_hpp__format[];
 
 enum {
+	PERF_HPP__BASELINE,
 	PERF_HPP__OVERHEAD,
 	PERF_HPP__OVERHEAD_SYS,
 	PERF_HPP__OVERHEAD_US,

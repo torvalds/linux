@@ -353,6 +353,7 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 		.size	= sizeof(bf),
 		.ptr	= pair,
 	};
+	bool first = true;
 
 	init_rem_hits();
 
@@ -364,8 +365,10 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 		if (!perf_hpp__format[idx].cond)
 			continue;
 
-		if (idx)
+		if (!first)
 			fprintf(fp, "%s", sep ?: "  ");
+		else
+			first = false;
 
 		perf_hpp__format[idx].header(&dummy_hpp);
 		fprintf(fp, "%s", bf);
@@ -400,6 +403,8 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 	if (sep)
 		goto print_entries;
 
+	first = true;
+
 	fprintf(fp, "# ");
 	for (idx = 0; idx < PERF_HPP__MAX_INDEX; idx++) {
 		unsigned int i;
@@ -407,8 +412,10 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 		if (!perf_hpp__format[idx].cond)
 			continue;
 
-		if (idx)
+		if (!first)
 			fprintf(fp, "%s", sep ?: "  ");
+		else
+			first = false;
 
 		width = perf_hpp__format[idx].width(&dummy_hpp);
 		for (i = 0; i < width; i++)

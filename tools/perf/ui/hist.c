@@ -8,9 +8,7 @@
 /* hist period print (hpp) functions */
 static int hpp__header_overhead(struct perf_hpp *hpp)
 {
-	const char *fmt = hpp->ptr ? "Baseline" : "Overhead";
-
-	return scnprintf(hpp->buf, hpp->size, fmt);
+	return scnprintf(hpp->buf, hpp->size, "Overhead");
 }
 
 static int hpp__width_overhead(struct perf_hpp *hpp __maybe_unused)
@@ -22,17 +20,6 @@ static int hpp__color_overhead(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	double percent = 100.0 * he->period / hpp->total_period;
 
-	if (hpp->ptr) {
-		struct hists *old_hists = hpp->ptr;
-		u64 total_period = old_hists->stats.total_period;
-		u64 base_period = he->pair ? he->pair->period : 0;
-
-		if (total_period)
-			percent = 100.0 * base_period / total_period;
-		else
-			percent = 0.0;
-	}
-
 	return percent_color_snprintf(hpp->buf, hpp->size, " %6.2f%%", percent);
 }
 
@@ -40,17 +27,6 @@ static int hpp__entry_overhead(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	double percent = 100.0 * he->period / hpp->total_period;
 	const char *fmt = symbol_conf.field_sep ? "%.2f" : " %6.2f%%";
-
-	if (hpp->ptr) {
-		struct hists *old_hists = hpp->ptr;
-		u64 total_period = old_hists->stats.total_period;
-		u64 base_period = he->pair ? he->pair->period : 0;
-
-		if (total_period)
-			percent = 100.0 * base_period / total_period;
-		else
-			percent = 0.0;
-	}
 
 	return scnprintf(hpp->buf, hpp->size, fmt, percent);
 }
@@ -155,6 +131,47 @@ static int hpp__entry_overhead_guest_us(struct perf_hpp *hpp,
 {
 	double percent = 100.0 * he->period_guest_us / hpp->total_period;
 	const char *fmt = symbol_conf.field_sep ? "%.2f" : " %6.2f%% ";
+
+	return scnprintf(hpp->buf, hpp->size, fmt, percent);
+}
+
+static int hpp__header_baseline(struct perf_hpp *hpp)
+{
+	return scnprintf(hpp->buf, hpp->size, "Baseline");
+}
+
+static int hpp__width_baseline(struct perf_hpp *hpp __maybe_unused)
+{
+	return 8;
+}
+
+static double baseline_percent(struct hist_entry *he)
+{
+	struct hist_entry *pair = he->pair;
+	struct hists *pair_hists = pair ? pair->hists : NULL;
+	double percent = 0.0;
+
+	if (pair) {
+		u64 total_period = pair_hists->stats.total_period;
+		u64 base_period  = pair->period;
+
+		percent = 100.0 * base_period / total_period;
+	}
+
+	return percent;
+}
+
+static int hpp__color_baseline(struct perf_hpp *hpp, struct hist_entry *he)
+{
+	double percent = baseline_percent(he);
+
+	return percent_color_snprintf(hpp->buf, hpp->size, " %6.2f%%", percent);
+}
+
+static int hpp__entry_baseline(struct perf_hpp *hpp, struct hist_entry *he)
+{
+	double percent = baseline_percent(he);
+	const char *fmt = symbol_conf.field_sep ? "%.2f" : " %6.2f%%";
 
 	return scnprintf(hpp->buf, hpp->size, fmt, percent);
 }
@@ -269,6 +286,7 @@ static int hpp__entry_displ(struct perf_hpp *hpp,
 	.entry	= hpp__entry_ ## _name
 
 struct perf_hpp_fmt perf_hpp__format[] = {
+	{ .cond = false, HPP__COLOR_PRINT_FNS(baseline) },
 	{ .cond = true,  HPP__COLOR_PRINT_FNS(overhead) },
 	{ .cond = false, HPP__COLOR_PRINT_FNS(overhead_sys) },
 	{ .cond = false, HPP__COLOR_PRINT_FNS(overhead_us) },
@@ -302,6 +320,8 @@ void perf_hpp__init(bool need_pair, bool show_displacement)
 		perf_hpp__format[PERF_HPP__PERIOD].cond = true;
 
 	if (need_pair) {
+		perf_hpp__format[PERF_HPP__OVERHEAD].cond = false;
+		perf_hpp__format[PERF_HPP__BASELINE].cond = true;
 		perf_hpp__format[PERF_HPP__DELTA].cond = true;
 
 		if (show_displacement)
@@ -321,6 +341,7 @@ int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
 	const char *sep = symbol_conf.field_sep;
 	char *start = hpp->buf;
 	int i, ret;
+	bool first = true;
 
 	if (symbol_conf.exclude_other && !he->parent)
 		return 0;
@@ -329,9 +350,10 @@ int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
 		if (!perf_hpp__format[i].cond)
 			continue;
 
-		if (!sep || i > 0) {
+		if (!sep || !first) {
 			ret = scnprintf(hpp->buf, hpp->size, "%s", sep ?: "  ");
 			advance_hpp(hpp, ret);
+			first = false;
 		}
 
 		if (color && perf_hpp__format[i].color)
