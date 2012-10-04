@@ -58,7 +58,6 @@ static noinline long fw_file_size(struct file *file)
 
 static bool fw_read_file_contents(struct file *file, struct firmware *fw)
 {
-	loff_t pos;
 	long size;
 	char *buf;
 
@@ -68,8 +67,7 @@ static bool fw_read_file_contents(struct file *file, struct firmware *fw)
 	buf = vmalloc(size);
 	if (!buf)
 		return false;
-	pos = 0;
-	if (vfs_read(file, buf, size, &pos) != size) {
+	if (kernel_read(file, 0, buf, size) != size) {
 		vfree(buf);
 		return false;
 	}
