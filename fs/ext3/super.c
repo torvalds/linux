@@ -532,6 +532,11 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(ext3_inode_cachep);
 }
 
@@ -2803,7 +2808,7 @@ static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
 
 static inline struct inode *dquot_to_inode(struct dquot *dquot)
 {
-	return sb_dqopt(dquot->dq_sb)->files[dquot->dq_type];
+	return sb_dqopt(dquot->dq_sb)->files[dquot->dq_id.type];
 }
 
 static int ext3_write_dquot(struct dquot *dquot)

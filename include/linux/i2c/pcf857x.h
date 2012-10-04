@@ -10,6 +10,7 @@
  * @setup: optional callback issued once the GPIOs are valid
  * @teardown: optional callback issued before the GPIOs are invalidated
  * @context: optional parameter passed to setup() and teardown()
+ * @irq: optional interrupt number
  *
  * In addition to the I2C_BOARD_INFO() state appropriate to each chip,
  * the i2c_board_info used with the pcf875x driver must provide its
@@ -39,6 +40,8 @@ struct pcf857x_platform_data {
 					int gpio, unsigned ngpio,
 					void *context);
 	void		*context;
+
+	int		irq;
 };
 
 #endif /* __LINUX_PCF857X_H */

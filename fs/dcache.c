@@ -2113,7 +2113,7 @@ again:
 	inode = dentry->d_inode;
 	isdir = S_ISDIR(inode->i_mode);
 	if (dentry->d_count == 1) {
-		if (inode && !spin_trylock(&inode->i_lock)) {
+		if (!spin_trylock(&inode->i_lock)) {
 			spin_unlock(&dentry->d_lock);
 			cpu_relax();
 			goto again;

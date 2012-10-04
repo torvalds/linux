@@ -1830,7 +1830,7 @@ static ssize_t store_fan_smart_tach(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	/* sanity test, ignore the write otherwise */
-	if (0 <= val && val <= 2) {
+	if (val <= 2) {
 		/* can't enable if pwm freq is 22.5KHz */
 		if (val) {
 			u8 ctl4 = lm93_read_byte(client,

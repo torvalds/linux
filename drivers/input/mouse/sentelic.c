@@ -971,7 +971,7 @@ static int fsp_set_input_params(struct psmouse *psmouse)
 
 		input_set_abs_params(dev, ABS_X, 0, abs_x, 0, 0);
 		input_set_abs_params(dev, ABS_Y, 0, abs_y, 0, 0);
-		input_mt_init_slots(dev, 2);
+		input_mt_init_slots(dev, 2, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_X, 0, abs_x, 0, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y, 0, abs_y, 0, 0);
 	}

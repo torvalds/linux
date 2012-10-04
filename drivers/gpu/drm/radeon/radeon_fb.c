@@ -27,14 +27,13 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 
-#include "drm_fb_helper.h"
+#include <drm/drm_fb_helper.h>
 
 #include <linux/vga_switcheroo.h>
 
@@ -314,22 +313,6 @@ static int radeon_fb_find_or_create_single(struct drm_fb_helper *helper,
 		new_fb = 1;
 	}
 	return new_fb;
-}
-
-static char *mode_option;
-int radeon_parse_options(char *options)
-{
-	char *this_opt;
-
-	if (!options || !*options)
-		return 0;
-
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!*this_opt)
-			continue;
-		mode_option = this_opt;
-	}
-	return 0;
 }
 
 void radeon_fb_output_poll_changed(struct radeon_device *rdev)

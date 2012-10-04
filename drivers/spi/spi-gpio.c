@@ -22,6 +22,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -46,6 +48,7 @@ struct spi_gpio {
 	struct spi_bitbang		bitbang;
 	struct spi_gpio_platform_data	pdata;
 	struct platform_device		*pdev;
+	int				cs_gpios[0];
 };
 
 /*----------------------------------------------------------------------*/
@@ -89,15 +92,21 @@ struct spi_gpio {
 
 /*----------------------------------------------------------------------*/
 
-static inline const struct spi_gpio_platform_data * __pure
-spi_to_pdata(const struct spi_device *spi)
+static inline struct spi_gpio * __pure
+spi_to_spi_gpio(const struct spi_device *spi)
 {
 	const struct spi_bitbang	*bang;
-	const struct spi_gpio		*spi_gpio;
+	struct spi_gpio			*spi_gpio;
 
 	bang = spi_master_get_devdata(spi->master);
 	spi_gpio = container_of(bang, struct spi_gpio, bitbang);
-	return &spi_gpio->pdata;
+	return spi_gpio;
+}
+
+static inline struct spi_gpio_platform_data * __pure
+spi_to_pdata(const struct spi_device *spi)
+{
+	return &spi_to_spi_gpio(spi)->pdata;
 }
 
 /* this is #defined to avoid unused-variable warnings when inlining */
@@ -210,7 +219,8 @@ static u32 spi_gpio_spec_txrx_word_mode3(struct spi_device *spi,
 
 static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 {
-	unsigned long cs = (unsigned long) spi->controller_data;
+	struct spi_gpio *spi_gpio = spi_to_spi_gpio(spi);
+	unsigned int cs = spi_gpio->cs_gpios[spi->chip_select];
 
 	/* set initial clock polarity */
 	if (is_active)
@@ -224,11 +234,26 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 
 static int spi_gpio_setup(struct spi_device *spi)
 {
-	unsigned long	cs = (unsigned long) spi->controller_data;
-	int		status = 0;
+	unsigned int		cs;
+	int			status = 0;
+	struct spi_gpio		*spi_gpio = spi_to_spi_gpio(spi);
+	struct device_node	*np = spi->master->dev.of_node;
 
 	if (spi->bits_per_word > 32)
 		return -EINVAL;
+
+	if (np) {
+		/*
+		 * In DT environments, the CS GPIOs have already been
+		 * initialized from the "cs-gpios" property of the node.
+		 */
+		cs = spi_gpio->cs_gpios[spi->chip_select];
+	} else {
+		/*
+		 * ... otherwise, take it from spi->controller_data
+		 */
+		cs = (unsigned int) spi->controller_data;
+	}
 
 	if (!spi->controller_state) {
 		if (cs != SPI_GPIO_NO_CHIPSELECT) {
@@ -239,8 +264,12 @@ static int spi_gpio_setup(struct spi_device *spi)
 					!(spi->mode & SPI_CS_HIGH));
 		}
 	}
-	if (!status)
+	if (!status) {
 		status = spi_bitbang_setup(spi);
+		/* in case it was initialized from static board data */
+		spi_gpio->cs_gpios[spi->chip_select] = cs;
+	}
+
 	if (status) {
 		if (!spi->controller_state && cs != SPI_GPIO_NO_CHIPSELECT)
 			gpio_free(cs);
@@ -250,7 +279,8 @@ static int spi_gpio_setup(struct spi_device *spi)
 
 static void spi_gpio_cleanup(struct spi_device *spi)
 {
-	unsigned long	cs = (unsigned long) spi->controller_data;
+	struct spi_gpio *spi_gpio = spi_to_spi_gpio(spi);
+	unsigned int cs = spi_gpio->cs_gpios[spi->chip_select];
 
 	if (cs != SPI_GPIO_NO_CHIPSELECT)
 		gpio_free(cs);
@@ -313,6 +343,55 @@ done:
 	return value;
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id spi_gpio_dt_ids[] = {
+	{ .compatible = "spi-gpio" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, spi_gpio_dt_ids);
+
+static int spi_gpio_probe_dt(struct platform_device *pdev)
+{
+	int ret;
+	u32 tmp;
+	struct spi_gpio_platform_data	*pdata;
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *of_id =
+			of_match_device(spi_gpio_dt_ids, &pdev->dev);
+
+	if (!of_id)
+		return 0;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	pdata->sck = of_get_named_gpio(np, "gpio-sck", 0);
+	pdata->miso = of_get_named_gpio(np, "gpio-miso", 0);
+	pdata->mosi = of_get_named_gpio(np, "gpio-mosi", 0);
+
+	ret = of_property_read_u32(np, "num-chipselects", &tmp);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "num-chipselects property not found\n");
+		goto error_free;
+	}
+
+	pdata->num_chipselect = tmp;
+	pdev->dev.platform_data = pdata;
+
+	return 1;
+
+error_free:
+	devm_kfree(&pdev->dev, pdata);
+	return ret;
+}
+#else
+static inline int spi_gpio_probe_dt(struct platform_device *pdev)
+{
+	return 0;
+}
+#endif
+
 static int __devinit spi_gpio_probe(struct platform_device *pdev)
 {
 	int				status;
@@ -320,6 +399,13 @@ static int __devinit spi_gpio_probe(struct platform_device *pdev)
 	struct spi_gpio			*spi_gpio;
 	struct spi_gpio_platform_data	*pdata;
 	u16 master_flags = 0;
+	bool use_of = 0;
+
+	status = spi_gpio_probe_dt(pdev);
+	if (status < 0)
+		return status;
+	if (status > 0)
+		use_of = 1;
 
 	pdata = pdev->dev.platform_data;
 #ifdef GENERIC_BITBANG
@@ -331,7 +417,8 @@ static int __devinit spi_gpio_probe(struct platform_device *pdev)
 	if (status < 0)
 		return status;
 
-	master = spi_alloc_master(&pdev->dev, sizeof *spi_gpio);
+	master = spi_alloc_master(&pdev->dev, sizeof(*spi_gpio) +
+					(sizeof(int) * SPI_N_CHIPSEL));
 	if (!master) {
 		status = -ENOMEM;
 		goto gpio_free;
@@ -348,6 +435,23 @@ static int __devinit spi_gpio_probe(struct platform_device *pdev)
 	master->num_chipselect = SPI_N_CHIPSEL;
 	master->setup = spi_gpio_setup;
 	master->cleanup = spi_gpio_cleanup;
+#ifdef CONFIG_OF
+	master->dev.of_node = pdev->dev.of_node;
+
+	if (use_of) {
+		int i;
+		struct device_node *np = pdev->dev.of_node;
+
+		/*
+		 * In DT environments, take the CS GPIO from the "cs-gpios"
+		 * property of the node.
+		 */
+
+		for (i = 0; i < SPI_N_CHIPSEL; i++)
+			spi_gpio->cs_gpios[i] =
+				of_get_named_gpio(np, "cs-gpios", i);
+	}
+#endif
 
 	spi_gpio->bitbang.master = spi_master_get(master);
 	spi_gpio->bitbang.chipselect = spi_gpio_chipselect;
@@ -408,8 +512,11 @@ static int __devexit spi_gpio_remove(struct platform_device *pdev)
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
 static struct platform_driver spi_gpio_driver = {
-	.driver.name	= DRIVER_NAME,
-	.driver.owner	= THIS_MODULE,
+	.driver = {
+		.name	= DRIVER_NAME,
+		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(spi_gpio_dt_ids),
+	},
 	.probe		= spi_gpio_probe,
 	.remove		= __devexit_p(spi_gpio_remove),
 };

@@ -289,12 +289,24 @@ static void ch7xxx_mode_set(struct intel_dvo_device *dvo,
 }
 
 /* set the CH7xxx power state */
-static void ch7xxx_dpms(struct intel_dvo_device *dvo, int mode)
+static void ch7xxx_dpms(struct intel_dvo_device *dvo, bool enable)
 {
-	if (mode == DRM_MODE_DPMS_ON)
+	if (enable)
 		ch7xxx_writeb(dvo, CH7xxx_PM, CH7xxx_PM_DVIL | CH7xxx_PM_DVIP);
 	else
 		ch7xxx_writeb(dvo, CH7xxx_PM, CH7xxx_PM_FPD);
+}
+
+static bool ch7xxx_get_hw_state(struct intel_dvo_device *dvo)
+{
+	u8 val;
+
+	ch7xxx_readb(dvo, CH7xxx_PM, &val);
+
+	if (val & CH7xxx_PM_FPD)
+		return false;
+	else
+		return true;
 }
 
 static void ch7xxx_dump_regs(struct intel_dvo_device *dvo)
@@ -326,6 +338,7 @@ struct intel_dvo_dev_ops ch7xxx_ops = {
 	.mode_valid = ch7xxx_mode_valid,
 	.mode_set = ch7xxx_mode_set,
 	.dpms = ch7xxx_dpms,
+	.get_hw_state = ch7xxx_get_hw_state,
 	.dump_regs = ch7xxx_dump_regs,
 	.destroy = ch7xxx_destroy,
 };

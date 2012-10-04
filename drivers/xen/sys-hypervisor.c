@@ -114,7 +114,7 @@ static void xen_sysfs_version_destroy(void)
 
 /* UUID */
 
-static ssize_t uuid_show(struct hyp_sysfs_attr *attr, char *buffer)
+static ssize_t uuid_show_fallback(struct hyp_sysfs_attr *attr, char *buffer)
 {
 	char *vm, *val;
 	int ret;
@@ -132,6 +132,17 @@ static ssize_t uuid_show(struct hyp_sysfs_attr *attr, char *buffer)
 		return PTR_ERR(val);
 	ret = sprintf(buffer, "%s\n", val);
 	kfree(val);
+	return ret;
+}
+
+static ssize_t uuid_show(struct hyp_sysfs_attr *attr, char *buffer)
+{
+	xen_domain_handle_t uuid;
+	int ret;
+	ret = HYPERVISOR_xen_version(XENVER_guest_handle, uuid);
+	if (ret)
+		return uuid_show_fallback(attr, buffer);
+	ret = sprintf(buffer, "%pU\n", uuid);
 	return ret;
 }
 

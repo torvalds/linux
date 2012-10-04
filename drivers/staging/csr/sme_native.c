@@ -12,7 +12,7 @@
  */
 
 #include <linux/netdevice.h>
-
+#include <linux/version.h>
 #include "unifi_priv.h"
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_conversions.h"
@@ -24,11 +24,7 @@ uf_sme_init(unifi_priv_t *priv)
 {
     func_enter();
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
     sema_init(&priv->mlme_blocking_mutex, 1);
-#else
-    init_MUTEX(&priv->mlme_blocking_mutex);
-#endif
 
 #ifdef CSR_SUPPORT_WEXT
     {

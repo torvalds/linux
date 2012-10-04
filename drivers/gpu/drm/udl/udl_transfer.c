@@ -15,7 +15,7 @@
 #include <linux/fb.h>
 #include <linux/prefetch.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "udl_drv.h"
 
 #define MAX_CMD_PIXELS		255
@@ -126,10 +126,10 @@ static void udl_compress_hline16(
 
 	while ((pixel_end > pixel) &&
 	       (cmd_buffer_end - MIN_RLX_CMD_BYTES > cmd)) {
-		uint8_t *raw_pixels_count_byte = 0;
-		uint8_t *cmd_pixels_count_byte = 0;
-		const u8 *raw_pixel_start = 0;
-		const u8 *cmd_pixel_start, *cmd_pixel_end = 0;
+		uint8_t *raw_pixels_count_byte = NULL;
+		uint8_t *cmd_pixels_count_byte = NULL;
+		const u8 *raw_pixel_start = NULL;
+		const u8 *cmd_pixel_start, *cmd_pixel_end = NULL;
 
 		prefetchw((void *) cmd); /* pull in one cache line at least */
 

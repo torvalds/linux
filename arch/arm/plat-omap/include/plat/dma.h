@@ -31,6 +31,8 @@
 /* Move omap4 specific defines to dma-44xx.h */
 #include "dma-44xx.h"
 
+#define INT_DMA_LCD			25
+
 /* DMA channels for omap1 */
 #define OMAP_DMA_NO_DEVICE		0
 #define OMAP_DMA_MCSI1_TX		1

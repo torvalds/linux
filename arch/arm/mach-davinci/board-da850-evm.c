@@ -40,10 +40,10 @@
 
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
-#include <mach/nand.h>
+#include <linux/platform_data/mtd-davinci.h>
 #include <mach/mux.h>
-#include <mach/aemif.h>
-#include <mach/spi.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
+#include <linux/platform_data/spi-davinci.h>
 
 #define DA850_EVM_PHY_ID		"davinci_mdio-0:00"
 #define DA850_LCD_PWR_PIN		GPIO_TO_PIN(2, 8)

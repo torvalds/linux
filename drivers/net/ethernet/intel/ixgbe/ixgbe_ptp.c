@@ -960,7 +960,8 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 	/* (Re)start the overflow check */
 	adapter->flags2 |= IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED;
 
-	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps);
+	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps,
+						&adapter->pdev->dev);
 	if (IS_ERR(adapter->ptp_clock)) {
 		adapter->ptp_clock = NULL;
 		e_dev_err("ptp_clock_register failed\n");

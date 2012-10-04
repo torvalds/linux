@@ -18,8 +18,8 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
-#include "drmP.h"
-#include "exynos_drm.h"
+#include <drm/drmP.h>
+#include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 
@@ -878,7 +878,7 @@ static int g2d_suspend(struct device *dev)
 		/* FIXME: good range? */
 		usleep_range(500, 1000);
 
-	flush_work_sync(&g2d->runqueue_work);
+	flush_work(&g2d->runqueue_work);
 
 	return 0;
 }

@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
-
+#include <linux/version.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -31,7 +31,6 @@ struct wake_lock unifi_sdio_wake_lock; /* wakelock to prevent suspend while resu
 
 static CsrSdioFunctionDriver *sdio_func_drv;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 #ifdef CONFIG_PM
 static int uf_sdio_mmc_power_event(struct notifier_block *this, unsigned long event, void *ptr);
 #endif
@@ -45,7 +44,6 @@ static int uf_sdio_mmc_power_event(struct notifier_block *this, unsigned long ev
  * returning immediately (at least on x86).
  */
 static int card_is_powered = 1;
-#endif /* 2.6.32 */
 
 /* MMC uses ENOMEDIUM to indicate card gone away */
 
@@ -637,7 +635,6 @@ CsrSdioFunctionIdle(CsrSdioFunction *function)
 CsrResult
 CsrSdioPowerOn(CsrSdioFunction *function)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
     struct sdio_func *func = (struct sdio_func *)function->priv;
     struct mmc_host *host = func->card->host;
 
@@ -649,7 +646,6 @@ CsrSdioPowerOn(CsrSdioFunction *function)
         printk(KERN_INFO "SDIO: Skip power on; card is already powered.\n");
     }
     _sdio_release_host(func);
-#endif /* 2.6.32 */
 
     return CSR_RESULT_SUCCESS;
 } /* CsrSdioPowerOn() */
@@ -667,7 +663,6 @@ CsrSdioPowerOn(CsrSdioFunction *function)
 void
 CsrSdioPowerOff(CsrSdioFunction *function)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
     struct sdio_func *func = (struct sdio_func *)function->priv;
     struct mmc_host *host = func->card->host;
 
@@ -679,7 +674,6 @@ CsrSdioPowerOff(CsrSdioFunction *function)
         printk(KERN_INFO "SDIO: Skip power off; card is already powered off.\n");
     }
     _sdio_release_host(func);
-#endif /* 2.6.32 */
 } /* CsrSdioPowerOff() */
 
 
@@ -845,19 +839,18 @@ uf_glue_sdio_int_handler(struct sdio_func *func)
  *      Status of the removal.
  * ---------------------------------------------------------------------------
  */
-int
-csr_sdio_linux_remove_irq(CsrSdioFunction *function)
+int csr_sdio_linux_remove_irq(CsrSdioFunction *function)
 {
-    struct sdio_func *func = (struct sdio_func *)function->priv;
-    int r;
+	struct sdio_func *func = (struct sdio_func *)function->priv;
+	int r;
 
-    unifi_trace(NULL, UDBG1, "csr_sdio_linux_remove_irq\n");
+	unifi_trace(NULL, UDBG1, "csr_sdio_linux_remove_irq\n");
 
-    sdio_claim_host(func);
-    r = sdio_release_irq(func);
-    sdio_release_host(func);
+	sdio_claim_host(func);
+	r = sdio_release_irq(func);
+	sdio_release_host(func);
 
-    return r;
+	return r;
 
 } /* csr_sdio_linux_remove_irq() */
 
@@ -876,28 +869,25 @@ csr_sdio_linux_remove_irq(CsrSdioFunction *function)
  *      Status of the removal.
  * ---------------------------------------------------------------------------
  */
-int
-csr_sdio_linux_install_irq(CsrSdioFunction *function)
+int csr_sdio_linux_install_irq(CsrSdioFunction *function)
 {
-    struct sdio_func *func = (struct sdio_func *)function->priv;
-    int r;
+	struct sdio_func *func = (struct sdio_func *)function->priv;
+	int r;
 
-    unifi_trace(NULL, UDBG1, "csr_sdio_linux_install_irq\n");
+	unifi_trace(NULL, UDBG1, "csr_sdio_linux_install_irq\n");
 
-    /* Register our interrupt handle */
-    sdio_claim_host(func);
-    r = sdio_claim_irq(func, uf_glue_sdio_int_handler);
-    sdio_release_host(func);
+	/* Register our interrupt handle */
+	sdio_claim_host(func);
+	r = sdio_claim_irq(func, uf_glue_sdio_int_handler);
+	sdio_release_host(func);
 
-    /* If the interrupt was installed earlier, is fine */
-    if (r == -EBUSY) {
-        r = 0;
-    }
+	/* If the interrupt was installed earlier, is fine */
+	if (r == -EBUSY)
+		r = 0;
 
-    return r;
+	return r;
 } /* csr_sdio_linux_install_irq() */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 #ifdef CONFIG_PM
 
 /*
@@ -1023,7 +1013,6 @@ uf_sdio_mmc_power_event(struct notifier_block *this, unsigned long event, void *
 }
 
 #endif /* CONFIG_PM */
-#endif /* 2.6.32 */
 
 /*
  * ---------------------------------------------------------------------------
@@ -1050,10 +1039,8 @@ uf_glue_sdio_probe(struct sdio_func *func,
     /* First of all claim the SDIO driver */
     sdio_claim_host(func);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
     /* Assume that the card is already powered */
     card_is_powered = 1;
-#endif
 
     /* Assumes one card per host, which is true for SDIO */
     instance = func->card->host->index;
@@ -1093,13 +1080,11 @@ uf_glue_sdio_probe(struct sdio_func *func,
     /* Pass context to the SDIO driver */
     sdio_set_drvdata(func, sdio_ctx);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 #ifdef CONFIG_PM
     /* Register to get PM events */
     if (uf_sdio_mmc_register_pm_notifier(sdio_ctx) == NULL) {
         unifi_error(NULL, "%s: Failed to register for PM events\n", __FUNCTION__);
     }
-#endif
 #endif
 
     /* Register this device with the SDIO function driver */
@@ -1156,11 +1141,9 @@ uf_glue_sdio_remove(struct sdio_func *func)
         sdio_func_drv->removed(sdio_ctx);
     }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 #ifdef CONFIG_PM
     /* Unregister for PM events */
     uf_sdio_mmc_unregister_pm_notifier(sdio_ctx);
-#endif
 #endif
 
     kfree(sdio_ctx);
@@ -1182,7 +1165,6 @@ static const struct sdio_device_id unifi_ids[] = {
 
 MODULE_DEVICE_TABLE(sdio, unifi_ids);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 #ifdef CONFIG_PM
 
 /*
@@ -1252,16 +1234,13 @@ static struct dev_pm_ops unifi_pm_ops = {
 #define UNIFI_PM_OPS  NULL
 
 #endif /* CONFIG_PM */
-#endif /* 2.6.32 */
 
 static struct sdio_driver unifi_driver = {
     .probe      = uf_glue_sdio_probe,
     .remove     = uf_glue_sdio_remove,
     .name       = "unifi",
     .id_table	= unifi_ids,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
     .drv.pm     = UNIFI_PM_OPS,
-#endif /* 2.6.32 */
 };
 
 
@@ -1305,11 +1284,9 @@ CsrSdioFunctionDriverRegister(CsrSdioFunctionDriver *sdio_drv)
      */
     sdio_func_drv = sdio_drv;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 #ifdef CONFIG_PM
     /* Initialise PM notifier list */
     INIT_LIST_HEAD(&uf_sdio_mmc_pm_notifiers.list);
-#endif
 #endif
 
     /* Register ourself with mmc_core */

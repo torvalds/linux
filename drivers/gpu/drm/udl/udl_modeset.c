@@ -11,9 +11,9 @@
  * more details.
  */
 
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 #include "udl_drv.h"
 
 /*
@@ -391,7 +391,7 @@ static const struct drm_crtc_funcs udl_crtc_funcs = {
 	.destroy = udl_crtc_destroy,
 };
 
-int udl_crtc_init(struct drm_device *dev)
+static int udl_crtc_init(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
 

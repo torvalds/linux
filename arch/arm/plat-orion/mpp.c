@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <mach/hardware.h>
+#include <plat/orion-gpio.h>
 #include <plat/mpp.h>
 
 /* Address of the ith MPP control register */

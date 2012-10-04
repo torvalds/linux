@@ -590,6 +590,9 @@ asmlinkage ssize_t compat_sys_process_vm_writev(compat_pid_t pid,
 		unsigned long liovcnt, const struct compat_iovec __user *rvec,
 		unsigned long riovcnt, unsigned long flags);
 
+asmlinkage long compat_sys_sendfile(int out_fd, int in_fd,
+				    compat_off_t __user *offset, compat_size_t count);
+
 #else
 
 #define is_compat_task() (0)

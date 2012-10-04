@@ -110,6 +110,7 @@ enum {
 #define TCP_REPAIR_QUEUE	20
 #define TCP_QUEUE_SEQ		21
 #define TCP_REPAIR_OPTIONS	22
+#define TCP_FASTOPEN		23	/* Enable FastOpen on listeners */
 
 struct tcp_repair_opt {
 	__u32	opt_code;
@@ -246,6 +247,7 @@ static inline unsigned int tcp_optlen(const struct sk_buff *skb)
 /* TCP Fast Open */
 #define TCP_FASTOPEN_COOKIE_MIN	4	/* Min Fast Open Cookie size in bytes */
 #define TCP_FASTOPEN_COOKIE_MAX	16	/* Max Fast Open Cookie size in bytes */
+#define TCP_FASTOPEN_COOKIE_SIZE 8	/* the size employed by this impl. */
 
 /* TCP Fast Open Cookie as stored in memory */
 struct tcp_fastopen_cookie {
@@ -312,9 +314,14 @@ struct tcp_request_sock {
 	/* Only used by TCP MD5 Signature so far. */
 	const struct tcp_request_sock_ops *af_specific;
 #endif
+	struct sock			*listener; /* needed for TFO */
 	u32				rcv_isn;
 	u32				snt_isn;
 	u32				snt_synack; /* synack sent time */
+	u32				rcv_nxt; /* the ack # by SYNACK. For
+						  * FastOpen it's the seq#
+						  * after data-in-SYN.
+						  */
 };
 
 static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
@@ -505,14 +512,18 @@ struct tcp_sock {
 	struct tcp_md5sig_info	__rcu *md5sig_info;
 #endif
 
-/* TCP fastopen related information */
-	struct tcp_fastopen_request *fastopen_req;
-
 	/* When the cookie options are generated and exchanged, then this
 	 * object holds a reference to them (cookie_values->kref).  Also
 	 * contains related tcp_cookie_transactions fields.
 	 */
 	struct tcp_cookie_values  *cookie_values;
+
+/* TCP fastopen related information */
+	struct tcp_fastopen_request *fastopen_req;
+	/* fastopen_rsk points to request_sock that resulted in this big
+	 * socket. Used to retransmit SYNACKs etc.
+	 */
+	struct request_sock *fastopen_rsk;
 };
 
 enum tsq_flags {
@@ -550,6 +561,38 @@ struct tcp_timewait_sock {
 static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)
 {
 	return (struct tcp_timewait_sock *)sk;
+}
+
+static inline bool tcp_passive_fastopen(const struct sock *sk)
+{
+	return (sk->sk_state == TCP_SYN_RECV &&
+		tcp_sk(sk)->fastopen_rsk != NULL);
+}
+
+static inline bool fastopen_cookie_present(struct tcp_fastopen_cookie *foc)
+{
+	return foc->len != -1;
+}
+
+extern void tcp_sock_destruct(struct sock *sk);
+
+static inline int fastopen_init_queue(struct sock *sk, int backlog)
+{
+	struct request_sock_queue *queue =
+	    &inet_csk(sk)->icsk_accept_queue;
+
+	if (queue->fastopenq == NULL) {
+		queue->fastopenq = kzalloc(
+		    sizeof(struct fastopen_queue),
+		    sk->sk_allocation);
+		if (queue->fastopenq == NULL)
+			return -ENOMEM;
+
+		sk->sk_destruct = tcp_sock_destruct;
+		spin_lock_init(&queue->fastopenq->lock);
+	}
+	queue->fastopenq->max_qlen = backlog;
+	return 0;
 }
 
 #endif	/* __KERNEL__ */

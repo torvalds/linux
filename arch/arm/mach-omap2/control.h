@@ -16,12 +16,12 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CONTROL_H
 #define __ARCH_ARM_MACH_OMAP2_CONTROL_H
 
-#include <mach/ctrl_module_core_44xx.h>
-#include <mach/ctrl_module_wkup_44xx.h>
-#include <mach/ctrl_module_pad_core_44xx.h>
-#include <mach/ctrl_module_pad_wkup_44xx.h>
+#include "ctrl_module_core_44xx.h"
+#include "ctrl_module_wkup_44xx.h"
+#include "ctrl_module_pad_core_44xx.h"
+#include "ctrl_module_pad_wkup_44xx.h"
 
-#include <plat/am33xx.h>
+#include "am33xx.h"
 
 #ifndef __ASSEMBLY__
 #define OMAP242X_CTRL_REGADDR(reg)					\

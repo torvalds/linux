@@ -113,7 +113,7 @@ static const char * const evlist_usage[] = {
 	NULL
 };
 
-int cmd_evlist(int argc, const char **argv, const char *prefix __used)
+int cmd_evlist(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_attr_details details = { .verbose = false, };
 	const char *input_name = NULL;

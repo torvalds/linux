@@ -399,11 +399,20 @@ static inline void nes_write8(void __iomem *addr, u8 val)
 	writeb(val, addr);
 }
 
-
+enum nes_resource {
+	NES_RESOURCE_MW = 1,
+	NES_RESOURCE_FAST_MR,
+	NES_RESOURCE_PHYS_MR,
+	NES_RESOURCE_USER_MR,
+	NES_RESOURCE_PD,
+	NES_RESOURCE_QP,
+	NES_RESOURCE_CQ,
+	NES_RESOURCE_ARP
+};
 
 static inline int nes_alloc_resource(struct nes_adapter *nesadapter,
 		unsigned long *resource_array, u32 max_resources,
-		u32 *req_resource_num, u32 *next)
+		u32 *req_resource_num, u32 *next, enum nes_resource resource_type)
 {
 	unsigned long flags;
 	u32 resource_num;
@@ -414,7 +423,7 @@ static inline int nes_alloc_resource(struct nes_adapter *nesadapter,
 	if (resource_num >= max_resources) {
 		resource_num = find_first_zero_bit(resource_array, max_resources);
 		if (resource_num >= max_resources) {
-			printk(KERN_ERR PFX "%s: No available resourcess.\n", __func__);
+			printk(KERN_ERR PFX "%s: No available resources [type=%u].\n", __func__, resource_type);
 			spin_unlock_irqrestore(&nesadapter->resource_lock, flags);
 			return -EMFILE;
 		}

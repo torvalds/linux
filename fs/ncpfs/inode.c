@@ -89,6 +89,11 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(ncp_inode_cachep);
 }
 
@@ -314,11 +319,11 @@ static void ncp_stop_tasks(struct ncp_server *server) {
 	release_sock(sk);
 	del_timer_sync(&server->timeout_tm);
 
-	flush_work_sync(&server->rcv.tq);
+	flush_work(&server->rcv.tq);
 	if (sk->sk_socket->type == SOCK_STREAM)
-		flush_work_sync(&server->tx.tq);
+		flush_work(&server->tx.tq);
 	else
-		flush_work_sync(&server->timeout_tq);
+		flush_work(&server->timeout_tq);
 }
 
 static int  ncp_show_options(struct seq_file *seq, struct dentry *root)

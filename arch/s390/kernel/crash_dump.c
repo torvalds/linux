@@ -13,8 +13,9 @@
 #include <linux/slab.h>
 #include <linux/bootmem.h>
 #include <linux/elf.h>
-#include <asm/ipl.h>
 #include <asm/os_info.h>
+#include <asm/elf.h>
+#include <asm/ipl.h>
 
 #define PTR_ADD(x, y) (((char *) (x)) + ((unsigned long) (y)))
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))

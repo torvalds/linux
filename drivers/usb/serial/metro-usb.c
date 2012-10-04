@@ -52,9 +52,6 @@ static struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-/* Input parameter constants. */
-static bool debug;
-
 /* UNI-Directional mode commands for device configure */
 #define UNI_CMD_OPEN	0x80
 #define UNI_CMD_CLOSE	0xFF
@@ -130,12 +127,6 @@ static void metrousb_read_int_callback(struct urb *urb)
 
 	/* Set the data read from the usb port into the serial port buffer. */
 	tty = tty_port_tty_get(&port->port);
-	if (!tty) {
-		dev_err(&port->dev, "%s - bad tty pointer - exiting\n",
-			__func__);
-		return;
-	}
-
 	if (tty && urb->actual_length) {
 		/* Loop through the data copying each byte to the tty layer. */
 		tty_insert_flip_string(tty, data, urb->actual_length);
@@ -442,7 +433,3 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Philip Nicastro");
 MODULE_AUTHOR("Aleksey Babahin <tamerlan311@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
-
-/* Module input parameters */
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Print debug info (bool 1=on, 0=off)");

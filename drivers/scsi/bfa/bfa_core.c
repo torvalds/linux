@@ -775,7 +775,8 @@ bfa_intx(struct bfa_s *bfa)
 	if (!intr)
 		return BFA_TRUE;
 
-	bfa_msix_lpu_err(bfa, intr);
+	if (bfa->intr_enabled)
+		bfa_msix_lpu_err(bfa, intr);
 
 	return BFA_TRUE;
 }
@@ -803,11 +804,17 @@ bfa_isr_enable(struct bfa_s *bfa)
 	writel(~umsk, bfa->iocfc.bfa_regs.intr_mask);
 	bfa->iocfc.intr_mask = ~umsk;
 	bfa_isr_mode_set(bfa, bfa->msix.nvecs != 0);
+
+	/*
+	 * Set the flag indicating successful enabling of interrupts
+	 */
+	bfa->intr_enabled = BFA_TRUE;
 }
 
 void
 bfa_isr_disable(struct bfa_s *bfa)
 {
+	bfa->intr_enabled = BFA_FALSE;
 	bfa_isr_mode_set(bfa, BFA_FALSE);
 	writel(-1L, bfa->iocfc.bfa_regs.intr_mask);
 	bfa_msix_uninstall(bfa);
@@ -1022,7 +1029,7 @@ bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg)
 {
 	u8	*dm_kva = NULL;
 	u64	dm_pa = 0;
-	int	i, per_reqq_sz, per_rspq_sz, dbgsz;
+	int	i, per_reqq_sz, per_rspq_sz;
 	struct bfa_iocfc_s  *iocfc = &bfa->iocfc;
 	struct bfa_mem_dma_s *ioc_dma = BFA_MEM_IOC_DMA(bfa);
 	struct bfa_mem_dma_s *iocfc_dma = BFA_MEM_IOCFC_DMA(bfa);
@@ -1083,11 +1090,8 @@ bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg)
 			BFA_CACHELINE_SZ);
 
 	/* Claim IOCFC kva memory */
-	dbgsz = (bfa_auto_recover) ? BFA_DBG_FWTRC_LEN : 0;
-	if (dbgsz > 0) {
-		bfa_ioc_debug_memclaim(&bfa->ioc, bfa_mem_kva_curp(iocfc));
-		bfa_mem_kva_curp(iocfc) += dbgsz;
-	}
+	bfa_ioc_debug_memclaim(&bfa->ioc, bfa_mem_kva_curp(iocfc));
+	bfa_mem_kva_curp(iocfc) += BFA_DBG_FWTRC_LEN;
 }
 
 /*
@@ -1429,8 +1433,7 @@ bfa_iocfc_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 	bfa_mem_dma_setup(meminfo, iocfc_dma, dm_len);
 
 	/* kva memory setup for IOCFC */
-	bfa_mem_kva_setup(meminfo, iocfc_kva,
-			((bfa_auto_recover) ? BFA_DBG_FWTRC_LEN : 0));
+	bfa_mem_kva_setup(meminfo, iocfc_kva, BFA_DBG_FWTRC_LEN);
 }
 
 /*

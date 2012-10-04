@@ -150,6 +150,20 @@ static void rfkill_led_trigger_activate(struct led_classdev *led)
 	rfkill_led_trigger_event(rfkill);
 }
 
+const char *rfkill_get_led_trigger_name(struct rfkill *rfkill)
+{
+	return rfkill->led_trigger.name;
+}
+EXPORT_SYMBOL(rfkill_get_led_trigger_name);
+
+void rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name)
+{
+	BUG_ON(!rfkill);
+
+	rfkill->ledtrigname = name;
+}
+EXPORT_SYMBOL(rfkill_set_led_trigger_name);
+
 static int rfkill_led_trigger_register(struct rfkill *rfkill)
 {
 	rfkill->led_trigger.name = rfkill->ledtrigname
@@ -256,6 +270,7 @@ static bool __rfkill_set_hw_state(struct rfkill *rfkill,
 static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
 {
 	unsigned long flags;
+	bool prev, curr;
 	int err;
 
 	if (unlikely(rfkill->dev.power.power_state.event & PM_EVENT_SLEEP))
@@ -270,6 +285,8 @@ static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
 		rfkill->ops->query(rfkill, rfkill->data);
 
 	spin_lock_irqsave(&rfkill->lock, flags);
+	prev = rfkill->state & RFKILL_BLOCK_SW;
+
 	if (rfkill->state & RFKILL_BLOCK_SW)
 		rfkill->state |= RFKILL_BLOCK_SW_PREV;
 	else
@@ -299,10 +316,13 @@ static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
 	}
 	rfkill->state &= ~RFKILL_BLOCK_SW_SETCALL;
 	rfkill->state &= ~RFKILL_BLOCK_SW_PREV;
+	curr = rfkill->state & RFKILL_BLOCK_SW;
 	spin_unlock_irqrestore(&rfkill->lock, flags);
 
 	rfkill_led_trigger_event(rfkill);
-	rfkill_event(rfkill);
+
+	if (prev != curr)
+		rfkill_event(rfkill);
 }
 
 #ifdef CONFIG_RFKILL_INPUT

@@ -25,6 +25,11 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
+		L2: l2-cache {
+			compatible = "marvell,tauros2-cache";
+			marvell,tauros2-cache-features = <0x3>;
+		};
+
 		axi@d4200000 {	/* AXI */
 			compatible = "mrvl,axi-bus", "simple-bus";
 			#address-cells = <1>;

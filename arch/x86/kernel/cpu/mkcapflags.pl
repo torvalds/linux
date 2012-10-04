@@ -8,7 +8,10 @@
 open(IN, "< $in\0")   or die "$0: cannot open: $in: $!\n";
 open(OUT, "> $out\0") or die "$0: cannot create: $out: $!\n";
 
-print OUT "#include <asm/cpufeature.h>\n\n";
+print OUT "#ifndef _ASM_X86_CPUFEATURE_H\n";
+print OUT "#include <asm/cpufeature.h>\n";
+print OUT "#endif\n";
+print OUT "\n";
 print OUT "const char * const x86_cap_flags[NCAPINTS*32] = {\n";
 
 %features = ();

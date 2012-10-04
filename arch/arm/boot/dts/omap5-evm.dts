@@ -17,4 +17,68 @@
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
+
+	vmmcsd_fixed: fixedregulator-mmcsd {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcsd_fixed";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+};
+
+&mmc1 {
+	vmmc-supply = <&vmmcsd_fixed>;
+	bus-width = <4>;
+};
+
+&mmc2 {
+	vmmc-supply = <&vmmcsd_fixed>;
+	bus-width = <8>;
+	ti,non-removable;
+};
+
+&mmc3 {
+	bus-width = <4>;
+	ti,non-removable;
+};
+
+&mmc4 {
+	status = "disabled";
+};
+
+&mmc5 {
+	status = "disabled";
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+
+	/* Pressure Sensor */
+	bmp085@77 {
+		compatible = "bosch,bmp085";
+		reg = <0x77>;
+	};
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+
+	/* Temperature Sensor */
+	tmp102@48{
+		compatible = "ti,tmp102";
+		reg = <0x48>;
+	};
+};
+
+&keypad {
+	keypad,num-rows = <8>;
+	keypad,num-columns = <8>;
+	linux,keymap = <0x02020073	/* VOLUP */
+			0x02030072	/* VOLDOWM */
+			0x020400e7	/* SEND */
+			0x02050066	/* HOME */
+			0x0206006b	/* END */
+			0x020700d9>;	/* SEARCH */
+	linux,input-no-autorepeat;
 };

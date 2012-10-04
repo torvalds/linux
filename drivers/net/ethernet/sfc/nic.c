@@ -298,7 +298,7 @@ efx_free_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 /**************************************************************************
  *
  * Generic buffer handling
- * These buffers are used for interrupt status and MAC stats
+ * These buffers are used for interrupt status, MAC stats, etc.
  *
  **************************************************************************/
 
@@ -401,8 +401,10 @@ void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 		++tx_queue->write_count;
 
 		/* Create TX descriptor ring entry */
+		BUILD_BUG_ON(EFX_TX_BUF_CONT != 1);
 		EFX_POPULATE_QWORD_4(*txd,
-				     FSF_AZ_TX_KER_CONT, buffer->continuation,
+				     FSF_AZ_TX_KER_CONT,
+				     buffer->flags & EFX_TX_BUF_CONT,
 				     FSF_AZ_TX_KER_BYTE_COUNT, buffer->len,
 				     FSF_AZ_TX_KER_BUF_REGION, 0,
 				     FSF_AZ_TX_KER_BUF_ADDR, buffer->dma_addr);

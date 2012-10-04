@@ -7,16 +7,12 @@
 #include <acpi/acpi.h>
 #include <linux/mxm-wmi.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "drm_sarea.h"
-#include "drm_crtc_helper.h"
-#include "nouveau_drv.h"
-#include "nouveau_drm.h"
-#include "nv50_display.h"
-#include "nouveau_connector.h"
-
 #include <linux/vga_switcheroo.h>
+
+#include <drm/drm_edid.h>
+
+#include "nouveau_drm.h"
+#include "nouveau_acpi.h"
 
 #define NOUVEAU_DSM_LED 0x02
 #define NOUVEAU_DSM_LED_STATE 0x00
@@ -390,10 +386,9 @@ int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len)
 	return nouveau_rom_call(nouveau_dsm_priv.rom_handle, bios, offset, len);
 }
 
-int
+void *
 nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 {
-	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct acpi_device *acpidev;
 	acpi_handle handle;
 	int type, ret;
@@ -405,21 +400,20 @@ nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 		type = ACPI_VIDEO_DISPLAY_LCD;
 		break;
 	default:
-		return -EINVAL;
+		return NULL;
 	}
 
 	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
 	if (!handle)
-		return -ENODEV;
+		return NULL;
 
 	ret = acpi_bus_get_device(handle, &acpidev);
 	if (ret)
-		return -ENODEV;
+		return NULL;
 
 	ret = acpi_video_get_edid(acpidev, type, -1, &edid);
 	if (ret < 0)
-		return ret;
+		return NULL;
 
-	nv_connector->edid = kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
-	return 0;
+	return kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
 }

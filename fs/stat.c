@@ -57,13 +57,13 @@ EXPORT_SYMBOL(vfs_getattr);
 
 int vfs_fstat(unsigned int fd, struct kstat *stat)
 {
-	int fput_needed;
-	struct file *f = fget_raw_light(fd, &fput_needed);
+	struct fd f = fdget_raw(fd);
 	int error = -EBADF;
 
-	if (f) {
-		error = vfs_getattr(f->f_path.mnt, f->f_path.dentry, stat);
-		fput_light(f, fput_needed);
+	if (f.file) {
+		error = vfs_getattr(f.file->f_path.mnt, f.file->f_path.dentry,
+				    stat);
+		fdput(f);
 	}
 	return error;
 }
@@ -326,7 +326,7 @@ SYSCALL_DEFINE3(readlink, const char __user *, path, char __user *, buf,
 
 
 /* ---------- LFS-64 ----------- */
-#ifdef __ARCH_WANT_STAT64
+#if defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_COMPAT_STAT64)
 
 #ifndef INIT_STRUCT_STAT64_PADDING
 #  define INIT_STRUCT_STAT64_PADDING(st) memset(&st, 0, sizeof(st))
@@ -415,7 +415,7 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
 		return error;
 	return cp_new_stat64(&stat, statbuf);
 }
-#endif /* __ARCH_WANT_STAT64 */
+#endif /* __ARCH_WANT_STAT64 || __ARCH_WANT_COMPAT_STAT64 */
 
 /* Caller is here responsible for sufficient locking (ie. inode->i_lock) */
 void __inode_add_bytes(struct inode *inode, loff_t bytes)

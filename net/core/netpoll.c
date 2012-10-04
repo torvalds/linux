@@ -328,7 +328,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 	if (skb_queue_len(&npinfo->txq) == 0 && !netpoll_owner_active(dev)) {
 		struct netdev_queue *txq;
 
-		txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+		txq = netdev_pick_tx(dev, skb);
 
 		/* try until next clock tick */
 		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
@@ -380,6 +380,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	struct udphdr *udph;
 	struct iphdr *iph;
 	struct ethhdr *eth;
+	static atomic_t ip_ident;
 
 	udp_len = len + sizeof(*udph);
 	ip_len = udp_len + sizeof(*iph);
@@ -415,7 +416,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	put_unaligned(0x45, (unsigned char *)iph);
 	iph->tos      = 0;
 	put_unaligned(htons(ip_len), &(iph->tot_len));
-	iph->id       = 0;
+	iph->id       = htons(atomic_inc_return(&ip_ident));
 	iph->frag_off = 0;
 	iph->ttl      = 64;
 	iph->protocol = IPPROTO_UDP;

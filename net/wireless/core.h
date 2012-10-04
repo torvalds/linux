@@ -55,7 +55,7 @@ struct cfg80211_registered_device {
 	int opencount; /* also protected by devlist_mtx */
 	wait_queue_head_t dev_wait;
 
-	u32 ap_beacons_nlpid;
+	u32 ap_beacons_nlportid;
 
 	/* protected by RTNL only */
 	int num_running_ifaces;

@@ -46,41 +46,39 @@ For 32-bit we have the following conventions - kernel is built with
 
 */
 
-#include "dwarf2.h"
+#include <asm/dwarf2.h>
 
 /*
- * 64-bit system call stack frame layout defines and helpers, for
- * assembly code (note that the seemingly unnecessary parentheses
- * are to prevent cpp from inserting spaces in expressions that get
- * passed to macros):
+ * 64-bit system call stack frame layout defines and helpers,
+ * for assembly code:
  */
 
-#define R15		  (0)
-#define R14		  (8)
-#define R13		 (16)
-#define R12		 (24)
-#define RBP		 (32)
-#define RBX		 (40)
+#define R15		  0
+#define R14		  8
+#define R13		 16
+#define R12		 24
+#define RBP		 32
+#define RBX		 40
 
 /* arguments: interrupts/non tracing syscalls only save up to here: */
-#define R11		 (48)
-#define R10		 (56)
-#define R9		 (64)
-#define R8		 (72)
-#define RAX		 (80)
-#define RCX		 (88)
-#define RDX		 (96)
-#define RSI		(104)
-#define RDI		(112)
-#define ORIG_RAX	(120)       /* + error_code */
+#define R11		 48
+#define R10		 56
+#define R9		 64
+#define R8		 72
+#define RAX		 80
+#define RCX		 88
+#define RDX		 96
+#define RSI		104
+#define RDI		112
+#define ORIG_RAX	120       /* + error_code */
 /* end of arguments */
 
 /* cpu exception frame or undefined in case of fast syscall: */
-#define RIP		(128)
-#define CS		(136)
-#define EFLAGS		(144)
-#define RSP		(152)
-#define SS		(160)
+#define RIP		128
+#define CS		136
+#define EFLAGS		144
+#define RSP		152
+#define SS		160
 
 #define ARGOFFSET	R11
 #define SWFRAME		ORIG_RAX

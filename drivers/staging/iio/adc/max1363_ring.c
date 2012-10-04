@@ -80,7 +80,7 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 
 	if (indio_dev->scan_timestamp)
 		memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
-	iio_push_to_buffer(indio_dev->buffer, rxbuf, time_ns);
+	iio_push_to_buffer(indio_dev->buffer, rxbuf);
 
 done_free:
 	kfree(rxbuf);

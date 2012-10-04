@@ -662,7 +662,7 @@ int iscsi_extract_key_value(char *textbuf, char **key, char **value)
 {
 	*value = strchr(textbuf, '=');
 	if (!*value) {
-		pr_err("Unable to locate \"=\" seperator for key,"
+		pr_err("Unable to locate \"=\" separator for key,"
 				" ignoring request.\n");
 		return -1;
 	}
@@ -1269,7 +1269,7 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 		comma_ptr = strchr(value, ',');
 
 		if (comma_ptr && !IS_TYPE_VALUE_LIST(param)) {
-			pr_err("Detected value seperator \",\", but"
+			pr_err("Detected value separator \",\", but"
 				" key \"%s\" does not allow a value list,"
 				" protocol error.\n", param->name);
 			return -1;

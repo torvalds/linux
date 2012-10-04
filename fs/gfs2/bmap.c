@@ -786,7 +786,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		goto out_rlist;
 
 	if (gfs2_rs_active(ip->i_res)) /* needs to be done with the rgrp glock held */
-		gfs2_rs_deltree(ip->i_res);
+		gfs2_rs_deltree(ip, ip->i_res);
 
 	error = gfs2_trans_begin(sdp, rg_blocks + RES_DINODE +
 				 RES_INDIRECT + RES_STATFS + RES_QUOTA,

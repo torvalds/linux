@@ -24,13 +24,13 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include "drmP.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon.h"
 
 #include "atom.h"
 #include "atom-bits.h"
-#include "drm_dp_helper.h"
+#include <drm/drm_dp_helper.h>
 
 /* move these to drm_dp_helper.c/h */
 #define DP_LINK_CONFIGURATION_SIZE 9
@@ -653,9 +653,7 @@ static bool radeon_dp_get_link_status(struct radeon_connector *radeon_connector,
 		return false;
 	}
 
-	DRM_DEBUG_KMS("link status %02x %02x %02x %02x %02x %02x\n",
-		  link_status[0], link_status[1], link_status[2],
-		  link_status[3], link_status[4], link_status[5]);
+	DRM_DEBUG_KMS("link status %*ph\n", 6, link_status);
 	return true;
 }
 

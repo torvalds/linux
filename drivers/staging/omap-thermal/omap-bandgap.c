@@ -157,7 +157,7 @@ static int temp_to_adc_conversion(long temp, struct omap_bandgap *bg_ptr, int i,
 	high = ts_data->adc_end_val - ts_data->adc_start_val;
 	mid = (high + low) / 2;
 
-	if (temp < bg_ptr->conv_table[high] || temp > bg_ptr->conv_table[high])
+	if (temp < bg_ptr->conv_table[low] || temp > bg_ptr->conv_table[high])
 		return -EINVAL;
 
 	while (low < high) {
@@ -953,12 +953,12 @@ int __devinit omap_bandgap_probe(struct platform_device *pdev)
 	for (i = 0; i < bg_ptr->conf->sensor_count; i++) {
 		char *domain;
 
+		if (bg_ptr->conf->sensors[i].register_cooling)
+			bg_ptr->conf->sensors[i].register_cooling(bg_ptr, i);
+
 		domain = bg_ptr->conf->sensors[i].domain;
 		if (bg_ptr->conf->expose_sensor)
 			bg_ptr->conf->expose_sensor(bg_ptr, i, domain);
-
-		if (bg_ptr->conf->sensors[i].register_cooling)
-			bg_ptr->conf->sensors[i].register_cooling(bg_ptr, i);
 	}
 
 	/*
@@ -1037,20 +1037,20 @@ static int omap_bandgap_save_ctxt(struct omap_bandgap *bg_ptr)
 
 		if (OMAP_BANDGAP_HAS(bg_ptr, MODE_CONFIG))
 			rval->bg_mode_ctrl = omap_bandgap_readl(bg_ptr,
-								tsr->bgap_mode_ctrl);
+							tsr->bgap_mode_ctrl);
 		if (OMAP_BANDGAP_HAS(bg_ptr, COUNTER))
 			rval->bg_counter = omap_bandgap_readl(bg_ptr,
-							      tsr->bgap_counter);
+							tsr->bgap_counter);
 		if (OMAP_BANDGAP_HAS(bg_ptr, TALERT)) {
 			rval->bg_threshold = omap_bandgap_readl(bg_ptr,
-								tsr->bgap_threshold);
+							tsr->bgap_threshold);
 			rval->bg_ctrl = omap_bandgap_readl(bg_ptr,
-							   tsr->bgap_mask_ctrl);
+						   tsr->bgap_mask_ctrl);
 		}
 
 		if (OMAP_BANDGAP_HAS(bg_ptr, TSHUT_CONFIG))
 			rval->tshut_threshold = omap_bandgap_readl(bg_ptr,
-								   tsr->tshut_threshold);
+						   tsr->tshut_threshold);
 	}
 
 	return 0;
@@ -1074,8 +1074,9 @@ static int omap_bandgap_restore_ctxt(struct omap_bandgap *bg_ptr)
 
 		if (val == 0) {
 			if (OMAP_BANDGAP_HAS(bg_ptr, TSHUT_CONFIG))
-				omap_bandgap_writel(bg_ptr, rval->tshut_threshold,
-							   tsr->tshut_threshold);
+				omap_bandgap_writel(bg_ptr,
+					rval->tshut_threshold,
+						   tsr->tshut_threshold);
 			/* Force immediate temperature measurement and update
 			 * of the DTEMP field
 			 */

@@ -81,7 +81,11 @@ struct wep_key {
 
 #define KEY_MGMT_ON_HOST        0x03
 #define MWIFIEX_AUTH_MODE_AUTO  0xFF
-#define BAND_CONFIG_MANUAL      0x00
+#define BAND_CONFIG_BG          0x00
+#define BAND_CONFIG_A           0x01
+#define MWIFIEX_SUPPORTED_RATES                 14
+#define MWIFIEX_SUPPORTED_RATES_EXT             32
+
 struct mwifiex_uap_bss_param {
 	u8 channel;
 	u8 band_cfg;
@@ -100,6 +104,9 @@ struct mwifiex_uap_bss_param {
 	struct wpa_param wpa_cfg;
 	struct wep_key wep_cfg[NUM_WEP_KEYS];
 	struct ieee80211_ht_cap ht_cap;
+	u8 rates[MWIFIEX_SUPPORTED_RATES];
+	u32 sta_ao_timer;
+	u32 ps_sta_ao_timer;
 };
 
 enum {
@@ -213,7 +220,7 @@ struct mwifiex_debug_info {
 };
 
 #define MWIFIEX_KEY_INDEX_UNICAST	0x40000000
-#define WAPI_RXPN_LEN			16
+#define PN_LEN				16
 
 struct mwifiex_ds_encrypt_key {
 	u32 key_disable;
@@ -222,7 +229,8 @@ struct mwifiex_ds_encrypt_key {
 	u8 key_material[WLAN_MAX_KEY_LEN];
 	u8 mac_addr[ETH_ALEN];
 	u32 is_wapi_key;
-	u8 wapi_rxpn[WAPI_RXPN_LEN];
+	u8 pn[PN_LEN];		/* packet number */
+	u8 is_igtk_key;
 };
 
 struct mwifiex_power_cfg {

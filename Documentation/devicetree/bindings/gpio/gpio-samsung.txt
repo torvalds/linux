@@ -39,3 +39,46 @@ Example:
 		#gpio-cells = <4>;
 		gpio-controller;
 	};
+
+
+Samsung S3C24XX GPIO Controller
+
+Required properties:
+- compatible: Compatible property value should be "samsung,s3c24xx-gpio".
+
+- reg: Physical base address of the controller and length of memory mapped
+  region.
+
+- #gpio-cells: Should be 3. The syntax of the gpio specifier used by client nodes
+  should be the following with values derived from the SoC user manual.
+     <[phandle of the gpio controller node]
+      [pin number within the gpio controller]
+      [mux function]
+      [flags and pull up/down]
+
+  Values for gpio specifier:
+  - Pin number: depending on the controller a number from 0 up to 15.
+  - Mux function: Depending on the SoC and the gpio bank the gpio can be set
+                  as input, output or a special function
+  - Flags and Pull Up/Down: the values to use differ for the individual SoCs
+                    example S3C2416/S3C2450:
+                            0 - Pull Up/Down Disabled.
+                            1 - Pull Down Enabled.
+                            2 - Pull Up Enabled.
+          Bit 16 (0x00010000) - Input is active low.
+  Consult the user manual for the correct values of Mux and Pull Up/Down.
+
+- gpio-controller: Specifies that the node is a gpio controller.
+- #address-cells: should be 1.
+- #size-cells: should be 1.
+
+Example:
+
+	gpa: gpio-controller@56000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "samsung,s3c24xx-gpio";
+		reg = <0x56000000 0x10>;
+		#gpio-cells = <3>;
+		gpio-controller;
+	};

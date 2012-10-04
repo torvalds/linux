@@ -221,6 +221,7 @@ config MACH_SMDKV310
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
+	select S3C24XX_PWM
 	help
 	  Machine support for Samsung SMDKV310
 
@@ -348,6 +349,7 @@ config MACH_ORIGEN
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
+	select S3C24XX_PWM
 	help
 	  Machine support for ORIGEN based on Samsung EXYNOS4210
 
@@ -383,6 +385,7 @@ config MACH_SMDK4212
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
+	select S3C24XX_PWM
 	help
 	  Machine support for Samsung SMDK4212
 
@@ -405,6 +408,8 @@ config MACH_EXYNOS4_DT
 	select USE_OF
 	select ARM_AMBA
 	select HAVE_SAMSUNG_KEYPAD if INPUT_KEYBOARD
+	select PINCTRL
+	select PINCTRL_EXYNOS4
 	help
 	  Machine support for Samsung Exynos4 machine with device tree enabled.
 	  Select this if a fdt blob is available for the Exynos4 SoC based board.
@@ -418,8 +423,8 @@ config MACH_EXYNOS5_DT
 	select USE_OF
 	select ARM_AMBA
 	help
-	  Machine support for Samsung Exynos4 machine with device tree enabled.
-	  Select this if a fdt blob is available for the EXYNOS4 SoC based board.
+	  Machine support for Samsung EXYNOS5 machine with device tree enabled.
+	  Select this if a fdt blob is available for the EXYNOS5 SoC based board.
 
 if ARCH_EXYNOS4
 

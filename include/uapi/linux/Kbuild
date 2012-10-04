@@ -1,0 +1,24 @@
+# UAPI Header export list
+header-y += byteorder/
+header-y += can/
+header-y += caif/
+header-y += dvb/
+header-y += hdlc/
+header-y += hsi/
+header-y += isdn/
+header-y += mmc/
+header-y += nfsd/
+header-y += raid/
+header-y += spi/
+header-y += sunrpc/
+header-y += tc_act/
+header-y += tc_ematch/
+header-y += netfilter/
+header-y += netfilter_arp/
+header-y += netfilter_bridge/
+header-y += netfilter_ipv4/
+header-y += netfilter_ipv6/
+header-y += usb/
+header-y += wimax/
+
+genhdr-y += version.h

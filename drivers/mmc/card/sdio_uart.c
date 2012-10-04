@@ -518,7 +518,7 @@ static void sdio_uart_check_modem_status(struct sdio_uart_port *port)
 	if (status & UART_MSR_DCTS) {
 		port->icount.cts++;
 		tty = tty_port_tty_get(&port->port);
-		if (tty && (tty->termios->c_cflag & CRTSCTS)) {
+		if (tty && (tty->termios.c_cflag & CRTSCTS)) {
 			int cts = (status & UART_MSR_CTS);
 			if (tty->hw_stopped) {
 				if (cts) {
@@ -671,12 +671,12 @@ static int sdio_uart_activate(struct tty_port *tport, struct tty_struct *tty)
 	port->ier = UART_IER_RLSI|UART_IER_RDI|UART_IER_RTOIE|UART_IER_UUE;
 	port->mctrl = TIOCM_OUT2;
 
-	sdio_uart_change_speed(port, tty->termios, NULL);
+	sdio_uart_change_speed(port, &tty->termios, NULL);
 
-	if (tty->termios->c_cflag & CBAUD)
+	if (tty->termios.c_cflag & CBAUD)
 		sdio_uart_set_mctrl(port, TIOCM_RTS | TIOCM_DTR);
 
-	if (tty->termios->c_cflag & CRTSCTS)
+	if (tty->termios.c_cflag & CRTSCTS)
 		if (!(sdio_uart_get_mctrl(port) & TIOCM_CTS))
 			tty->hw_stopped = 1;
 
@@ -850,7 +850,7 @@ static void sdio_uart_throttle(struct tty_struct *tty)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 
-	if (!I_IXOFF(tty) && !(tty->termios->c_cflag & CRTSCTS))
+	if (!I_IXOFF(tty) && !(tty->termios.c_cflag & CRTSCTS))
 		return;
 
 	if (sdio_uart_claim_func(port) != 0)
@@ -861,7 +861,7 @@ static void sdio_uart_throttle(struct tty_struct *tty)
 		sdio_uart_start_tx(port);
 	}
 
-	if (tty->termios->c_cflag & CRTSCTS)
+	if (tty->termios.c_cflag & CRTSCTS)
 		sdio_uart_clear_mctrl(port, TIOCM_RTS);
 
 	sdio_uart_irq(port->func);
@@ -872,7 +872,7 @@ static void sdio_uart_unthrottle(struct tty_struct *tty)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 
-	if (!I_IXOFF(tty) && !(tty->termios->c_cflag & CRTSCTS))
+	if (!I_IXOFF(tty) && !(tty->termios.c_cflag & CRTSCTS))
 		return;
 
 	if (sdio_uart_claim_func(port) != 0)
@@ -887,7 +887,7 @@ static void sdio_uart_unthrottle(struct tty_struct *tty)
 		}
 	}
 
-	if (tty->termios->c_cflag & CRTSCTS)
+	if (tty->termios.c_cflag & CRTSCTS)
 		sdio_uart_set_mctrl(port, TIOCM_RTS);
 
 	sdio_uart_irq(port->func);
@@ -898,12 +898,12 @@ static void sdio_uart_set_termios(struct tty_struct *tty,
 						struct ktermios *old_termios)
 {
 	struct sdio_uart_port *port = tty->driver_data;
-	unsigned int cflag = tty->termios->c_cflag;
+	unsigned int cflag = tty->termios.c_cflag;
 
 	if (sdio_uart_claim_func(port) != 0)
 		return;
 
-	sdio_uart_change_speed(port, tty->termios, old_termios);
+	sdio_uart_change_speed(port, &tty->termios, old_termios);
 
 	/* Handle transition to B0 status */
 	if ((old_termios->c_cflag & CBAUD) && !(cflag & CBAUD))
@@ -1132,8 +1132,8 @@ static int sdio_uart_probe(struct sdio_func *func,
 		kfree(port);
 	} else {
 		struct device *dev;
-		dev = tty_register_device(sdio_uart_tty_driver,
-						port->index, &func->dev);
+		dev = tty_port_register_device(&port->port,
+				sdio_uart_tty_driver, port->index, &func->dev);
 		if (IS_ERR(dev)) {
 			sdio_uart_port_remove(port);
 			ret = PTR_ERR(dev);
