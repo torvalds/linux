@@ -234,6 +234,10 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 			atomic64_read(&cfs_rq->tg->load_avg));
 	SEQ_printf(m, "  .%-30s: %lld\n", "tg_load_contrib",
 			cfs_rq->tg_load_contrib);
+	SEQ_printf(m, "  .%-30s: %d\n", "tg_runnable_contrib",
+			cfs_rq->tg_runnable_contrib);
+	SEQ_printf(m, "  .%-30s: %d\n", "tg->runnable_avg",
+			atomic_read(&cfs_rq->tg->runnable_avg));
 #endif
 
 	print_cfs_group_stats(m, cpu, cfs_rq->tg);
