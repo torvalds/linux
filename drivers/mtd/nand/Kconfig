@@ -526,12 +526,6 @@ config MTD_NAND_MXC
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
 
-config MTD_NAND_NOMADIK
-	tristate "ST Nomadik 8815 NAND support"
-	depends on ARCH_NOMADIK
-	help
-	  Driver for the NAND flash controller on the Nomadik, with ECC.
-
 config MTD_NAND_SH_FLCTL
 	tristate "Support for NAND on Renesas SuperH FLCTL"
 	depends on SUPERH || ARCH_SHMOBILE
