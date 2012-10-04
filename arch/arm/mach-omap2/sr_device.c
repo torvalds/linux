@@ -121,6 +121,19 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 	sr_data->senn_mod = 0x1;
 	sr_data->senp_mod = 0x1;
 
+	if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
+		sr_data->err_weight = OMAP3430_SR_ERRWEIGHT;
+		sr_data->err_maxlimit = OMAP3430_SR_ERRMAXLIMIT;
+		sr_data->accum_data = OMAP3430_SR_ACCUMDATA;
+		if (!(strcmp(sr_data->name, "smartreflex_mpu"))) {
+			sr_data->senn_avgweight = OMAP3430_SR1_SENNAVGWEIGHT;
+			sr_data->senp_avgweight = OMAP3430_SR1_SENPAVGWEIGHT;
+		} else {
+			sr_data->senn_avgweight = OMAP3430_SR2_SENNAVGWEIGHT;
+			sr_data->senp_avgweight = OMAP3430_SR2_SENPAVGWEIGHT;
+		}
+	}
+
 	sr_data->voltdm = voltdm_lookup(sr_dev_attr->sensor_voltdm_name);
 	if (!sr_data->voltdm) {
 		pr_err("%s: Unable to get voltage domain pointer for VDD %s\n",
