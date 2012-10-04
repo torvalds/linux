@@ -581,6 +581,8 @@ static int mc13783_probe(struct snd_soc_codec *codec)
 {
 	struct mc13783_priv *priv = snd_soc_codec_get_drvdata(codec);
 
+	codec->control_data = priv->mc13xxx;
+
 	mc13xxx_lock(priv->mc13xxx);
 
 	/* these are the reset values */
@@ -657,7 +659,7 @@ static struct snd_soc_dai_driver mc13783_dai_async[] = {
 		.id = MC13783_ID_STEREO_DAC,
 		.playback = {
 			.stream_name = "Playback",
-			.channels_min = 1,
+			.channels_min = 2,
 			.channels_max = 2,
 			.rates = SNDRV_PCM_RATE_8000_96000,
 			.formats = MC13783_FORMATS,
@@ -668,7 +670,7 @@ static struct snd_soc_dai_driver mc13783_dai_async[] = {
 		.id = MC13783_ID_STEREO_CODEC,
 		.capture = {
 			.stream_name = "Capture",
-			.channels_min = 1,
+			.channels_min = 2,
 			.channels_max = 2,
 			.rates = MC13783_RATES_RECORD,
 			.formats = MC13783_FORMATS,
@@ -690,14 +692,14 @@ static struct snd_soc_dai_driver mc13783_dai_sync[] = {
 		.id = MC13783_ID_SYNC,
 		.playback = {
 			.stream_name = "Playback",
-			.channels_min = 1,
+			.channels_min = 2,
 			.channels_max = 2,
 			.rates = SNDRV_PCM_RATE_8000_96000,
 			.formats = MC13783_FORMATS,
 		},
 		.capture = {
 			.stream_name = "Capture",
-			.channels_min = 1,
+			.channels_min = 2,
 			.channels_max = 2,
 			.rates = MC13783_RATES_RECORD,
 			.formats = MC13783_FORMATS,

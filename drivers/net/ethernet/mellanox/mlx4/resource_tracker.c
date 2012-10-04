@@ -42,6 +42,7 @@
 #include <linux/mlx4/cmd.h>
 #include <linux/mlx4/qp.h>
 #include <linux/if_ether.h>
+#include <linux/etherdevice.h>
 
 #include "mlx4.h"
 #include "fw.h"
@@ -2776,17 +2777,132 @@ ex_put:
 	return err;
 }
 
+/*
+ * MAC validation for Flow Steering rules.
+ * VF can attach rules only with a mac address which is assigned to it.
+ */
+static int validate_eth_header_mac(int slave, struct _rule_hw *eth_header,
+				   struct list_head *rlist)
+{
+	struct mac_res *res, *tmp;
+	__be64 be_mac;
+
+	/* make sure it isn't multicast or broadcast mac*/
+	if (!is_multicast_ether_addr(eth_header->eth.dst_mac) &&
+	    !is_broadcast_ether_addr(eth_header->eth.dst_mac)) {
+		list_for_each_entry_safe(res, tmp, rlist, list) {
+			be_mac = cpu_to_be64(res->mac << 16);
+			if (!memcmp(&be_mac, eth_header->eth.dst_mac, ETH_ALEN))
+				return 0;
+		}
+		pr_err("MAC %pM doesn't belong to VF %d, Steering rule rejected\n",
+		       eth_header->eth.dst_mac, slave);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/*
+ * In case of missing eth header, append eth header with a MAC address
+ * assigned to the VF.
+ */
+static int add_eth_header(struct mlx4_dev *dev, int slave,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct list_head *rlist, int header_id)
+{
+	struct mac_res *res, *tmp;
+	u8 port;
+	struct mlx4_net_trans_rule_hw_ctrl *ctrl;
+	struct mlx4_net_trans_rule_hw_eth *eth_header;
+	struct mlx4_net_trans_rule_hw_ipv4 *ip_header;
+	struct mlx4_net_trans_rule_hw_tcp_udp *l4_header;
+	__be64 be_mac = 0;
+	__be64 mac_msk = cpu_to_be64(MLX4_MAC_MASK << 16);
+
+	ctrl = (struct mlx4_net_trans_rule_hw_ctrl *)inbox->buf;
+	port = be32_to_cpu(ctrl->vf_vep_port) & 0xff;
+	eth_header = (struct mlx4_net_trans_rule_hw_eth *)(ctrl + 1);
+
+	/* Clear a space in the inbox for eth header */
+	switch (header_id) {
+	case MLX4_NET_TRANS_RULE_ID_IPV4:
+		ip_header =
+			(struct mlx4_net_trans_rule_hw_ipv4 *)(eth_header + 1);
+		memmove(ip_header, eth_header,
+			sizeof(*ip_header) + sizeof(*l4_header));
+		break;
+	case MLX4_NET_TRANS_RULE_ID_TCP:
+	case MLX4_NET_TRANS_RULE_ID_UDP:
+		l4_header = (struct mlx4_net_trans_rule_hw_tcp_udp *)
+			    (eth_header + 1);
+		memmove(l4_header, eth_header, sizeof(*l4_header));
+		break;
+	default:
+		return -EINVAL;
+	}
+	list_for_each_entry_safe(res, tmp, rlist, list) {
+		if (port == res->port) {
+			be_mac = cpu_to_be64(res->mac << 16);
+			break;
+		}
+	}
+	if (!be_mac) {
+		pr_err("Failed adding eth header to FS rule, Can't find matching MAC for port %d .\n",
+		       port);
+		return -EINVAL;
+	}
+
+	memset(eth_header, 0, sizeof(*eth_header));
+	eth_header->size = sizeof(*eth_header) >> 2;
+	eth_header->id = cpu_to_be16(__sw_id_hw[MLX4_NET_TRANS_RULE_ID_ETH]);
+	memcpy(eth_header->dst_mac, &be_mac, ETH_ALEN);
+	memcpy(eth_header->dst_mac_msk, &mac_msk, ETH_ALEN);
+
+	return 0;
+
+}
+
 int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 					 struct mlx4_vhcr *vhcr,
 					 struct mlx4_cmd_mailbox *inbox,
 					 struct mlx4_cmd_mailbox *outbox,
 					 struct mlx4_cmd_info *cmd)
 {
+
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
+	struct list_head *rlist = &tracker->slave_list[slave].res_list[RES_MAC];
 	int err;
+	struct mlx4_net_trans_rule_hw_ctrl *ctrl;
+	struct _rule_hw  *rule_header;
+	int header_id;
 
 	if (dev->caps.steering_mode !=
 	    MLX4_STEERING_MODE_DEVICE_MANAGED)
 		return -EOPNOTSUPP;
+
+	ctrl = (struct mlx4_net_trans_rule_hw_ctrl *)inbox->buf;
+	rule_header = (struct _rule_hw *)(ctrl + 1);
+	header_id = map_hw_to_sw_id(be16_to_cpu(rule_header->id));
+
+	switch (header_id) {
+	case MLX4_NET_TRANS_RULE_ID_ETH:
+		if (validate_eth_header_mac(slave, rule_header, rlist))
+			return -EINVAL;
+		break;
+	case MLX4_NET_TRANS_RULE_ID_IPV4:
+	case MLX4_NET_TRANS_RULE_ID_TCP:
+	case MLX4_NET_TRANS_RULE_ID_UDP:
+		pr_warn("Can't attach FS rule without L2 headers, adding L2 header.\n");
+		if (add_eth_header(dev, slave, inbox, rlist, header_id))
+			return -EINVAL;
+		vhcr->in_modifier +=
+			sizeof(struct mlx4_net_trans_rule_hw_eth) >> 2;
+		break;
+	default:
+		pr_err("Corrupted mailbox.\n");
+		return -EINVAL;
+	}
 
 	err = mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
 			   vhcr->in_modifier, 0,

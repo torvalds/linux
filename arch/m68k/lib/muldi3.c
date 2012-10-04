@@ -19,7 +19,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#if defined(CONFIG_M68000) || defined(CONFIG_COLDFIRE)
+#ifdef CONFIG_CPU_HAS_NO_MULDIV64
 
 #define SI_TYPE_SIZE 32
 #define __BITS4 (SI_TYPE_SIZE / 4)

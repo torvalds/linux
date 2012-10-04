@@ -49,6 +49,7 @@
 #define AR9300_DEVID_AR9462	0x0034
 #define AR9300_DEVID_AR9330	0x0035
 #define AR9300_DEVID_QCA955X	0x0038
+#define AR9485_DEVID_AR1111	0x0037
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -235,7 +236,6 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_LDPC			= BIT(6),
 	ATH9K_HW_CAP_FASTCLOCK			= BIT(7),
 	ATH9K_HW_CAP_SGI_20			= BIT(8),
-	ATH9K_HW_CAP_PAPRD			= BIT(9),
 	ATH9K_HW_CAP_ANT_DIV_COMB		= BIT(10),
 	ATH9K_HW_CAP_2GHZ			= BIT(11),
 	ATH9K_HW_CAP_5GHZ			= BIT(12),
@@ -286,12 +286,12 @@ struct ath9k_ops_config {
 	u8 pcie_clock_req;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
-	u8 paprd_disable;
 	u32 ofdm_trig_low;
 	u32 ofdm_trig_high;
 	u32 cck_trig_high;
 	u32 cck_trig_low;
 	u32 enable_ani;
+	u32 enable_paprd;
 	int serialize_regmode;
 	bool rx_intr_mitigation;
 	bool tx_intr_mitigation;
@@ -404,6 +404,7 @@ struct ath9k_hw_cal_data {
 	int8_t iCoff;
 	int8_t qCoff;
 	bool rtt_done;
+	bool paprd_packet_sent;
 	bool paprd_done;
 	bool nfcal_pending;
 	bool nfcal_interference;

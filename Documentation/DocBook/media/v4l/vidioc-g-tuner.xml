@@ -125,7 +125,7 @@ the structure refers to a radio tuner the
 <constant>V4L2_TUNER_CAP_NORM</constant> flags can't be used.</para>
 <para>If multiple frequency bands are supported, then
 <structfield>capability</structfield> is the union of all
-<structfield>capability></structfield> fields of each &v4l2-frequency-band;.
+<structfield>capability</structfield> fields of each &v4l2-frequency-band;.
 </para></entry>
 	  </row>
 	  <row>

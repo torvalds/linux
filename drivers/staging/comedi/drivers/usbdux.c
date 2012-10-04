@@ -102,6 +102,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #define BULK_TIMEOUT 1000
 
 /* constants for "firmware" upload and download */
+#define FIRMWARE "usbdux_firmware.bin"
 #define USBDUXSUB_FIRMWARE 0xA0
 #define VENDOR_DIR_IN  0xC0
 #define VENDOR_DIR_OUT 0x40
@@ -2791,7 +2792,7 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 
 	ret = request_firmware_nowait(THIS_MODULE,
 				      FW_ACTION_HOTPLUG,
-				      "usbdux_firmware.bin",
+				      FIRMWARE,
 				      &udev->dev,
 				      GFP_KERNEL,
 				      usbduxsub + index,
@@ -2850,3 +2851,4 @@ module_comedi_usb_driver(usbdux_driver, usbdux_usb_driver);
 MODULE_AUTHOR("Bernd Porr, BerndPorr@f2s.com");
 MODULE_DESCRIPTION("Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(FIRMWARE);

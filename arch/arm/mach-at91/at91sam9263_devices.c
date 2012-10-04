@@ -990,6 +990,8 @@ static struct resource rtt0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.flags	= IORESOURCE_MEM,
+	}, {
+		.flags  = IORESOURCE_IRQ,
 	}
 };
 
@@ -1006,6 +1008,8 @@ static struct resource rtt1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.flags	= IORESOURCE_MEM,
+	}, {
+		.flags  = IORESOURCE_IRQ,
 	}
 };
 
@@ -1027,14 +1031,14 @@ static void __init at91_add_device_rtt_rtc(void)
 		 * The second resource is needed only for the chosen RTT:
 		 * GPBR will serve as the storage for RTC time offset
 		 */
-		at91sam9263_rtt0_device.num_resources = 2;
+		at91sam9263_rtt0_device.num_resources = 3;
 		at91sam9263_rtt1_device.num_resources = 1;
 		pdev = &at91sam9263_rtt0_device;
 		r = rtt0_resources;
 		break;
 	case 1:
 		at91sam9263_rtt0_device.num_resources = 1;
-		at91sam9263_rtt1_device.num_resources = 2;
+		at91sam9263_rtt1_device.num_resources = 3;
 		pdev = &at91sam9263_rtt1_device;
 		r = rtt1_resources;
 		break;
@@ -1047,6 +1051,8 @@ static void __init at91_add_device_rtt_rtc(void)
 	pdev->name = "rtc-at91sam9";
 	r[1].start = AT91SAM9263_BASE_GPBR + 4 * CONFIG_RTC_DRV_AT91SAM9_GPBR;
 	r[1].end = r[1].start + 3;
+	r[2].start = NR_IRQS_LEGACY + AT91_ID_SYS;
+	r[2].end = NR_IRQS_LEGACY + AT91_ID_SYS;
 }
 #else
 static void __init at91_add_device_rtt_rtc(void)

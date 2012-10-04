@@ -74,7 +74,7 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	return clp;
 
 error:
-	kfree(clp);
+	nfs_free_client(clp);
 	return ERR_PTR(err);
 }
 

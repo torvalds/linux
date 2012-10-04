@@ -731,6 +731,18 @@ static int __net_init tcp_net_metrics_init(struct net *net)
 
 static void __net_exit tcp_net_metrics_exit(struct net *net)
 {
+	unsigned int i;
+
+	for (i = 0; i < (1U << net->ipv4.tcp_metrics_hash_log) ; i++) {
+		struct tcp_metrics_block *tm, *next;
+
+		tm = rcu_dereference_protected(net->ipv4.tcp_metrics_hash[i].chain, 1);
+		while (tm) {
+			next = rcu_dereference_protected(tm->tcpm_next, 1);
+			kfree(tm);
+			tm = next;
+		}
+	}
 	kfree(net->ipv4.tcp_metrics_hash);
 }
 

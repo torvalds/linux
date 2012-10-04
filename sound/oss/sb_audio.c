@@ -575,12 +575,14 @@ static int jazz16_audio_set_speed(int dev, int speed)
 	if (speed > 0)
 	{
 		int tmp;
-		int s = speed * devc->channels;
+		int s;
 
 		if (speed < 5000)
 			speed = 5000;
 		if (speed > 44100)
 			speed = 44100;
+
+		s = speed * devc->channels;
 
 		devc->tconst = (256 - ((1000000 + s / 2) / s)) & 0xff;
 

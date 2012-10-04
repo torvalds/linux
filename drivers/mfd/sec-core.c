@@ -141,19 +141,19 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	switch (sec_pmic->device_type) {
 	case S5M8751X:
 		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8751_devs,
-					ARRAY_SIZE(s5m8751_devs), NULL, 0);
+				      ARRAY_SIZE(s5m8751_devs), NULL, 0, NULL);
 		break;
 	case S5M8763X:
 		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8763_devs,
-					ARRAY_SIZE(s5m8763_devs), NULL, 0);
+				      ARRAY_SIZE(s5m8763_devs), NULL, 0, NULL);
 		break;
 	case S5M8767X:
 		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8767_devs,
-					ARRAY_SIZE(s5m8767_devs), NULL, 0);
+				      ARRAY_SIZE(s5m8767_devs), NULL, 0, NULL);
 		break;
 	case S2MPS11X:
 		ret = mfd_add_devices(sec_pmic->dev, -1, s2mps11_devs,
-					ARRAY_SIZE(s2mps11_devs), NULL, 0);
+				      ARRAY_SIZE(s2mps11_devs), NULL, 0, NULL);
 		break;
 	default:
 		/* If this happens the probe function is problem */

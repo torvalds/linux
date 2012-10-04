@@ -1253,7 +1253,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 			if (dev->wd_timeout)
 				*slots -= mei_data2slots(MEI_START_WD_DATA_SIZE);
 			else
-				*slots -= mei_data2slots(MEI_START_WD_DATA_SIZE);
+				*slots -= mei_data2slots(MEI_WD_PARAMS_SIZE);
 		}
 	}
 	if (dev->stop)

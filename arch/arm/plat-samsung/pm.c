@@ -74,7 +74,7 @@ unsigned char pm_uart_udivslot;
 
 #ifdef CONFIG_SAMSUNG_PM_DEBUG
 
-struct pm_uart_save uart_save[CONFIG_SERIAL_SAMSUNG_UARTS];
+static struct pm_uart_save uart_save[CONFIG_SERIAL_SAMSUNG_UARTS];
 
 static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 {

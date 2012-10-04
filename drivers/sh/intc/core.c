@@ -324,8 +324,16 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 		res = irq_create_identity_mapping(d->domain, irq);
 		if (unlikely(res)) {
-			pr_err("can't get irq_desc for %d\n", irq);
-			continue;
+			if (res == -EEXIST) {
+				res = irq_domain_associate(d->domain, irq, irq);
+				if (unlikely(res)) {
+					pr_err("domain association failure\n");
+					continue;
+				}
+			} else {
+				pr_err("can't identity map IRQ %d\n", irq);
+				continue;
+			}
 		}
 
 		intc_irq_xlate_set(irq, vect->enum_id, d);
@@ -345,8 +353,19 @@ int __init register_intc_controller(struct intc_desc *desc)
 			 */
 			res = irq_create_identity_mapping(d->domain, irq2);
 			if (unlikely(res)) {
-				pr_err("can't get irq_desc for %d\n", irq2);
-				continue;
+				if (res == -EEXIST) {
+					res = irq_domain_associate(d->domain,
+								   irq2, irq2);
+					if (unlikely(res)) {
+						pr_err("domain association "
+						       "failure\n");
+						continue;
+					}
+				} else {
+					pr_err("can't identity map IRQ %d\n",
+					       irq);
+					continue;
+				}
 			}
 
 			vect2->enum_id = 0;

@@ -259,9 +259,9 @@ static int sh73a0_set_wake(struct irq_data *data, unsigned int on)
 	return 0; /* always allow wakeup */
 }
 
-#define RELOC_BASE 0x1000
+#define RELOC_BASE 0x1200
 
-/* INTCA IRQ pins at INTCS + 0x1000 to make space for GIC+INTC handling */
+/* INTCA IRQ pins at INTCS + RELOC_BASE to make space for GIC+INTC handling */
 #define INTCS_VECT_RELOC(n, vect) INTCS_VECT((n), (vect) + RELOC_BASE)
 
 INTC_IRQ_PINS_32(intca_irq_pins, 0xe6900000,

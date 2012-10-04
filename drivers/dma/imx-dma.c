@@ -172,7 +172,8 @@ struct imxdma_engine {
 	struct device_dma_parameters	dma_parms;
 	struct dma_device		dma_device;
 	void __iomem			*base;
-	struct clk			*dma_clk;
+	struct clk			*dma_ahb;
+	struct clk			*dma_ipg;
 	spinlock_t			lock;
 	struct imx_dma_2d_config	slots_2d[IMX_DMA_2D_SLOTS];
 	struct imxdma_channel		channel[IMX_DMA_CHANNELS];
@@ -976,10 +977,20 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	imxdma->dma_clk = clk_get(NULL, "dma");
-	if (IS_ERR(imxdma->dma_clk))
-		return PTR_ERR(imxdma->dma_clk);
-	clk_enable(imxdma->dma_clk);
+	imxdma->dma_ipg = devm_clk_get(&pdev->dev, "ipg");
+	if (IS_ERR(imxdma->dma_ipg)) {
+		ret = PTR_ERR(imxdma->dma_ipg);
+		goto err_clk;
+	}
+
+	imxdma->dma_ahb = devm_clk_get(&pdev->dev, "ahb");
+	if (IS_ERR(imxdma->dma_ahb)) {
+		ret = PTR_ERR(imxdma->dma_ahb);
+		goto err_clk;
+	}
+
+	clk_prepare_enable(imxdma->dma_ipg);
+	clk_prepare_enable(imxdma->dma_ahb);
 
 	/* reset DMA module */
 	imx_dmav1_writel(imxdma, DCR_DRST, DMA_DCR);
@@ -988,16 +999,14 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		ret = request_irq(MX1_DMA_INT, dma_irq_handler, 0, "DMA", imxdma);
 		if (ret) {
 			dev_warn(imxdma->dev, "Can't register IRQ for DMA\n");
-			kfree(imxdma);
-			return ret;
+			goto err_enable;
 		}
 
 		ret = request_irq(MX1_DMA_ERR, imxdma_err_handler, 0, "DMA", imxdma);
 		if (ret) {
 			dev_warn(imxdma->dev, "Can't register ERRIRQ for DMA\n");
 			free_irq(MX1_DMA_INT, NULL);
-			kfree(imxdma);
-			return ret;
+			goto err_enable;
 		}
 	}
 
@@ -1094,7 +1103,10 @@ err_init:
 		free_irq(MX1_DMA_INT, NULL);
 		free_irq(MX1_DMA_ERR, NULL);
 	}
-
+err_enable:
+	clk_disable_unprepare(imxdma->dma_ipg);
+	clk_disable_unprepare(imxdma->dma_ahb);
+err_clk:
 	kfree(imxdma);
 	return ret;
 }
@@ -1114,7 +1126,9 @@ static int __exit imxdma_remove(struct platform_device *pdev)
 		free_irq(MX1_DMA_ERR, NULL);
 	}
 
-        kfree(imxdma);
+	clk_disable_unprepare(imxdma->dma_ipg);
+	clk_disable_unprepare(imxdma->dma_ahb);
+	kfree(imxdma);
 
         return 0;
 }

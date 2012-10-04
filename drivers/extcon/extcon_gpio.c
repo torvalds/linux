@@ -107,7 +107,8 @@ static int __devinit gpio_extcon_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = gpio_request_one(extcon_data->gpio, GPIOF_DIR_IN, pdev->name);
+	ret = devm_gpio_request_one(&pdev->dev, extcon_data->gpio, GPIOF_DIR_IN,
+				    pdev->name);
 	if (ret < 0)
 		goto err;
 

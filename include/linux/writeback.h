@@ -104,7 +104,6 @@ static inline void wait_on_inode(struct inode *inode)
 	wait_on_bit(&inode->i_state, __I_NEW, inode_wait, TASK_UNINTERRUPTIBLE);
 }
 
-
 /*
  * mm/page-writeback.c
  */

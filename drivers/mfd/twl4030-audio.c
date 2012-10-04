@@ -223,7 +223,7 @@ static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 
 	if (childs)
 		ret = mfd_add_devices(&pdev->dev, pdev->id, audio->cells,
-				      childs, NULL, 0);
+				      childs, NULL, 0, NULL);
 	else {
 		dev_err(&pdev->dev, "No platform data found for childs\n");
 		ret = -ENODEV;

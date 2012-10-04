@@ -796,6 +796,19 @@ enum mlx4_net_trans_rule_id {
 	MLX4_NET_TRANS_RULE_NUM, /* should be last */
 };
 
+extern const u16 __sw_id_hw[];
+
+static inline int map_hw_to_sw_id(u16 header_id)
+{
+
+	int i;
+	for (i = 0; i < MLX4_NET_TRANS_RULE_NUM; i++) {
+		if (header_id == __sw_id_hw[i])
+			return i;
+	}
+	return -EINVAL;
+}
+
 enum mlx4_net_trans_promisc_mode {
 	MLX4_FS_PROMISC_NONE = 0,
 	MLX4_FS_PROMISC_UPLINK,

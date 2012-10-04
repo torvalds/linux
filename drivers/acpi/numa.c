@@ -237,6 +237,8 @@ acpi_parse_processor_affinity(struct acpi_subtable_header *header,
 	return 0;
 }
 
+static int __initdata parsed_numa_memblks;
+
 static int __init
 acpi_parse_memory_affinity(struct acpi_subtable_header * header,
 			   const unsigned long end)
@@ -250,8 +252,8 @@ acpi_parse_memory_affinity(struct acpi_subtable_header * header,
 	acpi_table_print_srat_entry(header);
 
 	/* let architecture-dependent part to do it */
-	acpi_numa_memory_affinity_init(memory_affinity);
-
+	if (!acpi_numa_memory_affinity_init(memory_affinity))
+		parsed_numa_memblks++;
 	return 0;
 }
 
@@ -304,8 +306,10 @@ int __init acpi_numa_init(void)
 
 	acpi_numa_arch_fixup();
 
-	if (cnt <= 0)
-		return cnt ?: -ENOENT;
+	if (cnt < 0)
+		return cnt;
+	else if (!parsed_numa_memblks)
+		return -ENOENT;
 	return 0;
 }
 

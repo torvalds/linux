@@ -125,6 +125,7 @@ static void update_sm_ah(struct mlx4_ib_dev *dev, u8 port_num, u16 lid, u8 sl)
 {
 	struct ib_ah *new_ah;
 	struct ib_ah_attr ah_attr;
+	unsigned long flags;
 
 	if (!dev->send_agent[port_num - 1][0])
 		return;
@@ -139,11 +140,11 @@ static void update_sm_ah(struct mlx4_ib_dev *dev, u8 port_num, u16 lid, u8 sl)
 	if (IS_ERR(new_ah))
 		return;
 
-	spin_lock(&dev->sm_lock);
+	spin_lock_irqsave(&dev->sm_lock, flags);
 	if (dev->sm_ah[port_num - 1])
 		ib_destroy_ah(dev->sm_ah[port_num - 1]);
 	dev->sm_ah[port_num - 1] = new_ah;
-	spin_unlock(&dev->sm_lock);
+	spin_unlock_irqrestore(&dev->sm_lock, flags);
 }
 
 /*
@@ -197,13 +198,15 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad,
 static void node_desc_override(struct ib_device *dev,
 			       struct ib_mad *mad)
 {
+	unsigned long flags;
+
 	if ((mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
 	     mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) &&
 	    mad->mad_hdr.method == IB_MGMT_METHOD_GET_RESP &&
 	    mad->mad_hdr.attr_id == IB_SMP_ATTR_NODE_DESC) {
-		spin_lock(&to_mdev(dev)->sm_lock);
+		spin_lock_irqsave(&to_mdev(dev)->sm_lock, flags);
 		memcpy(((struct ib_smp *) mad)->data, dev->node_desc, 64);
-		spin_unlock(&to_mdev(dev)->sm_lock);
+		spin_unlock_irqrestore(&to_mdev(dev)->sm_lock, flags);
 	}
 }
 
@@ -213,6 +216,7 @@ static void forward_trap(struct mlx4_ib_dev *dev, u8 port_num, struct ib_mad *ma
 	struct ib_mad_send_buf *send_buf;
 	struct ib_mad_agent *agent = dev->send_agent[port_num - 1][qpn];
 	int ret;
+	unsigned long flags;
 
 	if (agent) {
 		send_buf = ib_create_send_mad(agent, qpn, 0, 0, IB_MGMT_MAD_HDR,
@@ -225,13 +229,13 @@ static void forward_trap(struct mlx4_ib_dev *dev, u8 port_num, struct ib_mad *ma
 		 * wrong following the IB spec strictly, but we know
 		 * it's OK for our devices).
 		 */
-		spin_lock(&dev->sm_lock);
+		spin_lock_irqsave(&dev->sm_lock, flags);
 		memcpy(send_buf->mad, mad, sizeof *mad);
 		if ((send_buf->ah = dev->sm_ah[port_num - 1]))
 			ret = ib_post_send_mad(send_buf, NULL);
 		else
 			ret = -EINVAL;
-		spin_unlock(&dev->sm_lock);
+		spin_unlock_irqrestore(&dev->sm_lock, flags);
 
 		if (ret)
 			ib_free_send_mad(send_buf);

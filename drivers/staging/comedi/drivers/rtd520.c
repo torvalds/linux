@@ -1619,9 +1619,8 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct rtdPrivate *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
+	resource_size_t pci_base;
 	int ret;
-	resource_size_t physLas1;	/* data area */
-	resource_size_t physLcfg;	/* PLX9080 */
 #ifdef USE_DMA
 	int index;
 #endif
@@ -1655,20 +1654,15 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk(KERN_INFO "Failed to enable PCI device and request regions.\n");
 		return ret;
 	}
+	dev->iobase = 1;	/* the "detach" needs this */
 
-	/*
-	 * Initialize base addresses
-	 */
-	/* Get the physical address from PCI config */
-	dev->iobase = pci_resource_start(pcidev, LAS0_PCIINDEX);
-	physLas1 = pci_resource_start(pcidev, LAS1_PCIINDEX);
-	physLcfg = pci_resource_start(pcidev, LCFG_PCIINDEX);
-	/* Now have the kernel map this into memory */
-	/* ASSUME page aligned */
-	devpriv->las0 = ioremap_nocache(dev->iobase, LAS0_PCISIZE);
-	devpriv->las1 = ioremap_nocache(physLas1, LAS1_PCISIZE);
-	devpriv->lcfg = ioremap_nocache(physLcfg, LCFG_PCISIZE);
-
+	/* Initialize the base addresses */
+	pci_base = pci_resource_start(pcidev, LAS0_PCIINDEX);
+	devpriv->las0 = ioremap_nocache(pci_base, LAS0_PCISIZE);
+	pci_base = pci_resource_start(pcidev, LAS1_PCIINDEX);
+	devpriv->las1 = ioremap_nocache(pci_base, LAS1_PCISIZE);
+	pci_base = pci_resource_start(pcidev, LCFG_PCIINDEX);
+	devpriv->lcfg = ioremap_nocache(pci_base, LCFG_PCISIZE);
 	if (!devpriv->las0 || !devpriv->las1 || !devpriv->lcfg)
 		return -ENOMEM;
 

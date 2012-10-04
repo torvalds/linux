@@ -1896,10 +1896,15 @@ static int
 ctnetlink_nfqueue_parse(const struct nlattr *attr, struct nf_conn *ct)
 {
 	struct nlattr *cda[CTA_MAX+1];
+	int ret;
 
 	nla_parse_nested(cda, CTA_MAX, attr, ct_nla_policy);
 
-	return ctnetlink_nfqueue_parse_ct((const struct nlattr **)cda, ct);
+	spin_lock_bh(&nf_conntrack_lock);
+	ret = ctnetlink_nfqueue_parse_ct((const struct nlattr **)cda, ct);
+	spin_unlock_bh(&nf_conntrack_lock);
+
+	return ret;
 }
 
 static struct nfq_ct_hook ctnetlink_nfqueue_hook = {
@@ -2785,7 +2790,8 @@ static int __init ctnetlink_init(void)
 		goto err_unreg_subsys;
 	}
 
-	if (register_pernet_subsys(&ctnetlink_net_ops)) {
+	ret = register_pernet_subsys(&ctnetlink_net_ops);
+	if (ret < 0) {
 		pr_err("ctnetlink_init: cannot register pernet operations\n");
 		goto err_unreg_exp_subsys;
 	}

@@ -1948,7 +1948,7 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 
 	if (adapter->num_rx_qs != MAX_RX_QS)
 		dev_info(&adapter->pdev->dev,
-			"Created only %d receive queues", adapter->num_rx_qs);
+			"Created only %d receive queues\n", adapter->num_rx_qs);
 
 	return 0;
 }
@@ -3763,7 +3763,9 @@ static void be_worker(struct work_struct *work)
 	/* when interrupts are not yet enabled, just reap any pending
 	* mcc completions */
 	if (!netif_running(adapter->netdev)) {
+		local_bh_disable();
 		be_process_mcc(adapter);
+		local_bh_enable();
 		goto reschedule;
 	}
 

@@ -130,6 +130,7 @@ struct compact_control {
 	int order;			/* order a direct compactor needs */
 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
 	struct zone *zone;
+	bool *contended;		/* True if a lock was contended */
 };
 
 unsigned long

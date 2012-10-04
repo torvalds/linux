@@ -2454,12 +2454,6 @@ static struct samsung_gpio_chip exynos5_gpios_1[] = {
 		},
 	}, {
 		.chip	= {
-			.base	= EXYNOS5_GPC4(0),
-			.ngpio	= EXYNOS5_GPIO_C4_NR,
-			.label	= "GPC4",
-		},
-	}, {
-		.chip	= {
 			.base	= EXYNOS5_GPD0(0),
 			.ngpio	= EXYNOS5_GPIO_D0_NR,
 			.label	= "GPD0",
@@ -2511,6 +2505,12 @@ static struct samsung_gpio_chip exynos5_gpios_1[] = {
 			.base	= EXYNOS5_GPY6(0),
 			.ngpio	= EXYNOS5_GPIO_Y6_NR,
 			.label	= "GPY6",
+		},
+	}, {
+		.chip	= {
+			.base	= EXYNOS5_GPC4(0),
+			.ngpio	= EXYNOS5_GPIO_C4_NR,
+			.label	= "GPC4",
 		},
 	}, {
 		.config	= &samsung_gpio_cfgs[9],
@@ -2836,7 +2836,7 @@ static __init void exynos5_gpiolib_init(void)
 	}
 
 	/* need to set base address for gpc4 */
-	exynos5_gpios_1[11].base = gpio_base1 + 0x2E0;
+	exynos5_gpios_1[20].base = gpio_base1 + 0x2E0;
 
 	/* need to set base address for gpx */
 	chip = &exynos5_gpios_1[21];

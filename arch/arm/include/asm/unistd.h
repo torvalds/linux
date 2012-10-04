@@ -404,6 +404,15 @@
 #define __NR_setns			(__NR_SYSCALL_BASE+375)
 #define __NR_process_vm_readv		(__NR_SYSCALL_BASE+376)
 #define __NR_process_vm_writev		(__NR_SYSCALL_BASE+377)
+					/* 378 for kcmp */
+
+/*
+ * This may need to be greater than __NR_last_syscall+1 in order to
+ * account for the padding in the syscall table
+ */
+#ifdef __KERNEL__
+#define __NR_syscalls  (380)
+#endif /* __KERNEL__ */
 
 /*
  * The following SWIs are ARM private.
@@ -483,6 +492,7 @@
  */
 #define __IGNORE_fadvise64_64
 #define __IGNORE_migrate_pages
+#define __IGNORE_kcmp
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_ARM_UNISTD_H */

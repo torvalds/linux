@@ -334,14 +334,6 @@ static inline void lockup_detector_init(void)
 }
 #endif
 
-#if defined(CONFIG_LOCKUP_DETECTOR) && defined(CONFIG_SUSPEND)
-void lockup_detector_bootcpu_resume(void);
-#else
-static inline void lockup_detector_bootcpu_resume(void)
-{
-}
-#endif
-
 #ifdef CONFIG_DETECT_HUNG_TASK
 extern unsigned int  sysctl_hung_task_panic;
 extern unsigned long sysctl_hung_task_check_count;
@@ -962,7 +954,6 @@ struct sched_domain {
 	unsigned int smt_gain;
 	int flags;			/* See SD_* */
 	int level;
-	int idle_buddy;			/* cpu assigned to select_idle_sibling() */
 
 	/* Runtime fields. */
 	unsigned long last_balance;	/* init to jiffies. units in jiffies */

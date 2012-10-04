@@ -124,6 +124,7 @@ nvc0_fb_init(struct drm_device *dev)
 	priv = dev_priv->engine.fb.priv;
 
 	nv_wr32(dev, 0x100c10, priv->r100c10 >> 8);
+	nv_mask(dev, 0x17e820, 0x00100000, 0x00000000); /* NV_PLTCG_INTR_EN */
 	return 0;
 }
 

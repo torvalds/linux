@@ -120,3 +120,4 @@ u32 gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 
 	return ret;
 }
+EXPORT_SYMBOL(gen_split_key);

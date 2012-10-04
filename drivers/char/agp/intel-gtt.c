@@ -1156,6 +1156,30 @@ static bool gen6_check_flags(unsigned int flags)
 	return true;
 }
 
+static void haswell_write_entry(dma_addr_t addr, unsigned int entry,
+				unsigned int flags)
+{
+	unsigned int type_mask = flags & ~AGP_USER_CACHED_MEMORY_GFDT;
+	unsigned int gfdt = flags & AGP_USER_CACHED_MEMORY_GFDT;
+	u32 pte_flags;
+
+	if (type_mask == AGP_USER_MEMORY)
+		pte_flags = HSW_PTE_UNCACHED | I810_PTE_VALID;
+	else if (type_mask == AGP_USER_CACHED_MEMORY_LLC_MLC) {
+		pte_flags = GEN6_PTE_LLC_MLC | I810_PTE_VALID;
+		if (gfdt)
+			pte_flags |= GEN6_PTE_GFDT;
+	} else { /* set 'normal'/'cached' to LLC by default */
+		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
+		if (gfdt)
+			pte_flags |= GEN6_PTE_GFDT;
+	}
+
+	/* gen6 has bit11-4 for physical addr bit39-32 */
+	addr |= (addr >> 28) & 0xff0;
+	writel(addr | pte_flags, intel_private.gtt + entry);
+}
+
 static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
 			     unsigned int flags)
 {
@@ -1382,6 +1406,15 @@ static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.check_flags = gen6_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
+static const struct intel_gtt_driver haswell_gtt_driver = {
+	.gen = 6,
+	.setup = i9xx_setup,
+	.cleanup = gen6_cleanup,
+	.write_entry = haswell_write_entry,
+	.dma_mask_size = 40,
+	.check_flags = gen6_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
+};
 static const struct intel_gtt_driver valleyview_gtt_driver = {
 	.gen = 7,
 	.setup = i9xx_setup,
@@ -1499,19 +1532,77 @@ static const struct intel_gtt_driver_description {
 	{ PCI_DEVICE_ID_INTEL_VALLEYVIEW_IG,
 	    "ValleyView", &valleyview_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT1_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT2_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT1_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT2_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT1_IG,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT2_IG,
-	    "Haswell", &sandybridge_gtt_driver },
-	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV,
-	    "Haswell", &sandybridge_gtt_driver },
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_D_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_D_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_D_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_M_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_M_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_M_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_S_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_S_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV_S_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_D_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_D_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_D_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_M_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_M_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_M_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_S_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_S_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_ULT_S_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_D_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_D_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_D_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_M_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_M_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_M_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_S_GT1_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_S_GT2_IG,
+	    "Haswell", &haswell_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_CRW_S_GT2_PLUS_IG,
+	    "Haswell", &haswell_gtt_driver },
 	{ 0, NULL, NULL }
 };
 

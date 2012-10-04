@@ -1811,37 +1811,31 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
 					sdata, NULL, NULL);
 		} else {
-			int is_mesh_mcast = 1;
-			const u8 *mesh_da;
+			/* DS -> MBSS (802.11-2012 13.11.3.3).
+			 * For unicast with unknown forwarding information,
+			 * destination might be in the MBSS or if that fails
+			 * forwarded to another mesh gate. In either case
+			 * resolution will be handled in ieee80211_xmit(), so
+			 * leave the original DA. This also works for mcast */
+			const u8 *mesh_da = skb->data;
 
-			if (is_multicast_ether_addr(skb->data))
-				/* DA TA mSA AE:SA */
-				mesh_da = skb->data;
-			else {
-				static const u8 bcast[ETH_ALEN] =
-					{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-				if (mppath) {
-					/* RA TA mDA mSA AE:DA SA */
-					mesh_da = mppath->mpp;
-					is_mesh_mcast = 0;
-				} else if (mpath) {
-					mesh_da = mpath->dst;
-					is_mesh_mcast = 0;
-				} else {
-					/* DA TA mSA AE:SA */
-					mesh_da = bcast;
-				}
-			}
+			if (mppath)
+				mesh_da = mppath->mpp;
+			else if (mpath)
+				mesh_da = mpath->dst;
+			rcu_read_unlock();
+
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					mesh_da, sdata->vif.addr);
-			rcu_read_unlock();
-			if (is_mesh_mcast)
+			if (is_multicast_ether_addr(mesh_da))
+				/* DA TA mSA AE:SA */
 				meshhdrlen =
 					ieee80211_new_mesh_header(&mesh_hdr,
 							sdata,
 							skb->data + ETH_ALEN,
 							NULL);
 			else
+				/* RA TA mDA mSA AE:DA SA */
 				meshhdrlen =
 					ieee80211_new_mesh_header(&mesh_hdr,
 							sdata,

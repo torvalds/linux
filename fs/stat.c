@@ -58,7 +58,7 @@ EXPORT_SYMBOL(vfs_getattr);
 int vfs_fstat(unsigned int fd, struct kstat *stat)
 {
 	int fput_needed;
-	struct file *f = fget_light(fd, &fput_needed);
+	struct file *f = fget_raw_light(fd, &fput_needed);
 	int error = -EBADF;
 
 	if (f) {

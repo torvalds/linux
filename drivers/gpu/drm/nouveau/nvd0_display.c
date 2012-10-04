@@ -790,7 +790,7 @@ nvd0_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	int ch = EVO_CURS(nv_crtc->index);
 
-	evo_piow(crtc->dev, ch, 0x0084, (y << 16) | x);
+	evo_piow(crtc->dev, ch, 0x0084, (y << 16) | (x & 0xffff));
 	evo_piow(crtc->dev, ch, 0x0080, 0x00000000);
 	return 0;
 }
@@ -1510,10 +1510,10 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	case OUTPUT_DP:
 		if (nv_connector->base.display_info.bpc == 6) {
 			nv_encoder->dp.datarate = mode->clock * 18 / 8;
-			syncs |= 0x00000140;
+			syncs |= 0x00000002 << 6;
 		} else {
 			nv_encoder->dp.datarate = mode->clock * 24 / 8;
-			syncs |= 0x00000180;
+			syncs |= 0x00000005 << 6;
 		}
 
 		if (nv_encoder->dcb->sorconf.link & 1)

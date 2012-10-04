@@ -2222,7 +2222,7 @@ create_l2(struct mISDNchannel *ch, u_int protocol, u_long options, int tei,
 	InitWin(l2);
 	l2->l2m.fsm = &l2fsm;
 	if (test_bit(FLG_LAPB, &l2->flag) ||
-	    test_bit(FLG_PTP, &l2->flag) ||
+	    test_bit(FLG_FIXED_TEI, &l2->flag) ||
 	    test_bit(FLG_LAPD_NET, &l2->flag))
 		l2->l2m.state = ST_L2_4;
 	else
