@@ -137,3 +137,15 @@
 	cs1-used;
 	device-handle = <&elpida_ECB240ABACN>;
 };
+
+&mcbsp2 {
+	status = "disabled";
+};
+
+&mcbsp3 {
+	status = "disabled";
+};
+
+&dmic {
+	status = "disabled";
+};
