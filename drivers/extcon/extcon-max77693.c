@@ -239,25 +239,19 @@ const char *max77693_extcon_cable[] = {
 static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 		enum max77693_muic_adc_debounce_time time)
 {
-	int ret = 0;
-	u8 ctrl3;
+	int ret;
 
 	switch (time) {
 	case ADC_DEBOUNCE_TIME_5MS:
 	case ADC_DEBOUNCE_TIME_10MS:
 	case ADC_DEBOUNCE_TIME_25MS:
 	case ADC_DEBOUNCE_TIME_38_62MS:
-		ret = max77693_read_reg(info->max77693->regmap_muic,
-				MAX77693_MUIC_REG_CTRL3, &ctrl3);
-		ctrl3 &= ~CONTROL3_ADCDBSET_MASK;
-		ctrl3 |= (time << CONTROL3_ADCDBSET_SHIFT);
-
-		ret = max77693_write_reg(info->max77693->regmap_muic,
-				MAX77693_MUIC_REG_CTRL3, ctrl3);
-		if (ret) {
+		ret = max77693_update_reg(info->max77693->regmap_muic,
+					  MAX77693_MUIC_REG_CTRL3,
+					  time << CONTROL3_ADCDBSET_SHIFT,
+					  CONTROL3_ADCDBSET_MASK);
+		if (ret)
 			dev_err(info->dev, "failed to set ADC debounce time\n");
-			ret = -EINVAL;
-		}
 		break;
 	default:
 		dev_err(info->dev, "invalid ADC debounce time\n");
