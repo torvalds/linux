@@ -474,15 +474,25 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 	struct cs4271_platform_data *cs4271plat = codec->dev->platform_data;
 	int ret;
 	int gpio_nreset = -EINVAL;
+	int amutec_eq_bmutec = 0;
 
 #ifdef CONFIG_OF
-	if (of_match_device(cs4271_dt_ids, codec->dev))
+	if (of_match_device(cs4271_dt_ids, codec->dev)) {
 		gpio_nreset = of_get_named_gpio(codec->dev->of_node,
 						"reset-gpio", 0);
+
+		if (!of_get_property(codec->dev->of_node,
+				     "cirrus,amutec-eq-bmutec", NULL))
+			amutec_eq_bmutec = 1;
+	}
 #endif
 
-	if (cs4271plat && gpio_is_valid(cs4271plat->gpio_nreset))
-		gpio_nreset = cs4271plat->gpio_nreset;
+	if (cs4271plat) {
+		if (gpio_is_valid(cs4271plat->gpio_nreset))
+			gpio_nreset = cs4271plat->gpio_nreset;
+
+		amutec_eq_bmutec = cs4271plat->amutec_eq_bmutec;
+	}
 
 	if (gpio_nreset >= 0)
 		if (gpio_request(gpio_nreset, "CS4271 Reset"))
@@ -527,6 +537,11 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 		return ret;
 	/* Power-up sequence requires 85 uS */
 	udelay(85);
+
+	if (amutec_eq_bmutec)
+		snd_soc_update_bits(codec, CS4271_MODE2,
+				    CS4271_MODE2_MUTECAEQUB,
+				    CS4271_MODE2_MUTECAEQUB);
 
 	return snd_soc_add_codec_controls(codec, cs4271_snd_controls,
 		ARRAY_SIZE(cs4271_snd_controls));
