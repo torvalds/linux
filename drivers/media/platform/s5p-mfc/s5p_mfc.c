@@ -1155,6 +1155,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->release	= video_device_release,
 	vfd->lock	= &dev->mfc_mutex;
 	vfd->v4l2_dev	= &dev->v4l2_dev;
+	vfd->vfl_dir	= VFL_DIR_M2M;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_ENC_NAME);
 	dev->vfd_enc	= vfd;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
