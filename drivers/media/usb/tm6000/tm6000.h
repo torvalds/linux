@@ -264,6 +264,11 @@ struct tm6000_core {
 
 	spinlock_t                   slock;
 
+	/* urb dma buffers */
+	char				**urb_buffer;
+	dma_addr_t			*urb_dma;
+	unsigned int			urb_size;
+
 	unsigned long quirks;
 };
 
