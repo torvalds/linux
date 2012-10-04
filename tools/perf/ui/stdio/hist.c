@@ -307,8 +307,7 @@ static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
 }
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
-			       struct hists *hists, struct hists *pair_hists,
-			       u64 total_period, FILE *fp)
+			       struct hists *hists, u64 total_period, FILE *fp)
 {
 	char bf[512];
 	int ret;
@@ -316,7 +315,6 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 		.buf		= bf,
 		.size		= size,
 		.total_period	= total_period,
-		.ptr		= pair_hists,
 	};
 	bool color = !symbol_conf.field_sep;
 
@@ -335,8 +333,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 	return ret;
 }
 
-size_t hists__fprintf(struct hists *hists, struct hists *pair,
-		      bool show_header, int max_rows,
+size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, FILE *fp)
 {
 	struct sort_entry *se;
@@ -351,7 +348,6 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 	struct perf_hpp dummy_hpp = {
 		.buf	= bf,
 		.size	= sizeof(bf),
-		.ptr	= pair,
 	};
 	bool first = true;
 
@@ -453,7 +449,7 @@ print_entries:
 		if (h->filtered)
 			continue;
 
-		ret += hist_entry__fprintf(h, max_cols, hists, pair,
+		ret += hist_entry__fprintf(h, max_cols, hists,
 					   total_period, fp);
 
 		if (max_rows && ++nr_rows >= max_rows)

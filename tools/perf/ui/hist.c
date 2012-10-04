@@ -228,16 +228,17 @@ static int hpp__width_delta(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_delta(struct perf_hpp *hpp, struct hist_entry *he)
 {
-	struct hists *pair_hists = hpp->ptr;
+	struct hist_entry *pair = he->pair;
+	struct hists *pair_hists = pair ? pair->hists : NULL;
 	u64 old_total, new_total;
 	double old_percent = 0, new_percent = 0;
 	double diff;
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%7.7s";
 	char buf[32] = " ";
 
-	old_total = pair_hists->stats.total_period;
-	if (old_total > 0 && he->pair)
-		old_percent = 100.0 * he->pair->period / old_total;
+	old_total = pair_hists ? pair_hists->stats.total_period : 0;
+	if (old_total > 0 && pair)
+		old_percent = 100.0 * pair->period / old_total;
 
 	new_total = hpp->total_period;
 	if (new_total > 0)

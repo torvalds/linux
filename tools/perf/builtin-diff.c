@@ -214,8 +214,7 @@ static int __cmd_diff(void)
 		first = false;
 
 		hists__match(&evsel_old->hists, &evsel->hists);
-		hists__fprintf(&evsel->hists, &evsel_old->hists,
-			       true, 0, 0, stdout);
+		hists__fprintf(&evsel->hists, true, 0, 0, stdout);
 	}
 
 out_delete:
