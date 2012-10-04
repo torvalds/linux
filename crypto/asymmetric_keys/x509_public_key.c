@@ -118,11 +118,11 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	pr_devel("Cert Issuer: %s\n", cert->issuer);
 	pr_devel("Cert Subject: %s\n", cert->subject);
 	pr_devel("Cert Key Algo: %s\n", pkey_algo[cert->pkey_algo]);
-	printk("Cert Valid From: %04ld-%02d-%02d %02d:%02d:%02d\n",
+	pr_devel("Cert Valid From: %04ld-%02d-%02d %02d:%02d:%02d\n",
 		 cert->valid_from.tm_year + 1900, cert->valid_from.tm_mon + 1,
 		 cert->valid_from.tm_mday, cert->valid_from.tm_hour,
 		 cert->valid_from.tm_min,  cert->valid_from.tm_sec);
-	printk("Cert Valid To: %04ld-%02d-%02d %02d:%02d:%02d\n",
+	pr_devel("Cert Valid To: %04ld-%02d-%02d %02d:%02d:%02d\n",
 		 cert->valid_to.tm_year + 1900, cert->valid_to.tm_mon + 1,
 		 cert->valid_to.tm_mday, cert->valid_to.tm_hour,
 		 cert->valid_to.tm_min,  cert->valid_to.tm_sec);
@@ -138,7 +138,7 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	}
 
 	time_to_tm(CURRENT_TIME.tv_sec, 0, &now);
-	printk("Now: %04ld-%02d-%02d %02d:%02d:%02d\n",
+	pr_devel("Now: %04ld-%02d-%02d %02d:%02d:%02d\n",
 		 now.tm_year + 1900, now.tm_mon + 1, now.tm_mday,
 		 now.tm_hour, now.tm_min,  now.tm_sec);
 	if (now.tm_year < cert->valid_from.tm_year ||
