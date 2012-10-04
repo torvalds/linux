@@ -1904,7 +1904,7 @@ static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum)
 	ret = dwc3_send_gadget_ep_cmd(dwc, dep->number, cmd, &params);
 	WARN_ON_ONCE(ret);
 	dep->resource_index = 0;
-
+	dep->flags &= ~DWC3_EP_BUSY;
 	udelay(100);
 }
 
