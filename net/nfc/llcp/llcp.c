@@ -1043,6 +1043,66 @@ static void nfc_llcp_recv_dm(struct nfc_llcp_local *local, struct sk_buff *skb)
 	return;
 }
 
+static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
+			      struct sk_buff *skb)
+{
+	struct nfc_llcp_sock *llcp_sock;
+	u8 dsap, ssap, *tlv, type, length, tid, sap;
+	u16 tlv_len, offset;
+	char *service_name;
+	size_t service_name_len;
+
+	dsap = nfc_llcp_dsap(skb);
+	ssap = nfc_llcp_ssap(skb);
+
+	pr_debug("%d %d\n", dsap, ssap);
+
+	if (dsap != LLCP_SAP_SDP || ssap != LLCP_SAP_SDP) {
+		pr_err("Wrong SNL SAP\n");
+		return;
+	}
+
+	tlv = &skb->data[LLCP_HEADER_SIZE];
+	tlv_len = skb->len - LLCP_HEADER_SIZE;
+	offset = 0;
+
+	while(offset < tlv_len) {
+		type = tlv[0];
+		length = tlv[1];
+
+		switch (type) {
+		case LLCP_TLV_SDREQ:
+			tid = tlv[2];
+			service_name = (char *) &tlv[3];
+			service_name_len = length - 1;
+
+			pr_debug("Looking for %s\n", service_name);
+
+			if (service_name_len == strlen("urn:nfc:sn:sdp") &&
+			    !strncmp(service_name, "urn:nfc:sn:sdp",
+				     service_name_len)) {
+				sap = 1;
+			} else {
+				llcp_sock =
+					nfc_llcp_sock_from_sn(local,
+							      service_name,
+							      service_name_len);
+				sap = llcp_sock ? llcp_sock->ssap : 0;
+			}
+
+			nfc_llcp_send_snl(local, tid, sap);
+			break;
+
+		default:
+			pr_err("Invalid SNL tlv value 0x%x\n", type);
+			break;
+		}
+
+		offset += length + 2;
+		tlv += length + 2;
+	}
+}
+
 static void nfc_llcp_rx_work(struct work_struct *work)
 {
 	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
@@ -1091,6 +1151,11 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	case LLCP_PDU_DM:
 		pr_debug("DM\n");
 		nfc_llcp_recv_dm(local, skb);
+		break;
+
+	case LLCP_PDU_SNL:
+		pr_debug("SNL\n");
+		nfc_llcp_recv_snl(local, skb);
 		break;
 
 	case LLCP_PDU_I:
