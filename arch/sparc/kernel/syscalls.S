@@ -221,8 +221,8 @@ ret_sys_call:
 	 * was invoked.
 	 */
 	ldub	[%g6 + TI_SYS_NOERROR], %l2
-	brnz,a,pn %l2, 80f
-	 stb	%g0, [%g6 + TI_SYS_NOERROR]
+	brnz,pn %l2, 80f
+	 nop
 
 	cmp	%o0, -ERESTART_RESTARTBLOCK
 	bgeu,pn	%xcc, 1f

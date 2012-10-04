@@ -2547,8 +2547,6 @@ void __init trap_init(void)
 		     TI_PRE_COUNT != offsetof(struct thread_info,
 					      preempt_count) ||
 		     TI_NEW_CHILD != offsetof(struct thread_info, new_child) ||
-		     TI_SYS_NOERROR != offsetof(struct thread_info,
-						syscall_noerror) ||
 		     TI_RESTART_BLOCK != offsetof(struct thread_info,
 						  restart_block) ||
 		     TI_KUNA_REGS != offsetof(struct thread_info,
