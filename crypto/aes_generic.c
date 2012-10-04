@@ -1448,7 +1448,6 @@ static struct crypto_alg aes_alg = {
 	.cra_ctxsize		=	sizeof(struct crypto_aes_ctx),
 	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(aes_alg.cra_list),
 	.cra_u			=	{
 		.cipher = {
 			.cia_min_keysize	=	AES_MIN_KEY_SIZE,

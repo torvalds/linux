@@ -110,7 +110,7 @@ static unsigned int __glue_cbc_encrypt_128bit(const common_glue_func_t fn,
 		nbytes -= bsize;
 	} while (nbytes >= bsize);
 
-	u128_xor((u128 *)walk->iv, (u128 *)walk->iv, iv);
+	*(u128 *)walk->iv = *iv;
 	return nbytes;
 }
 

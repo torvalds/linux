@@ -4,8 +4,8 @@
 * Derived from GnuPG implementation of cast5.
 *
 * Major Changes.
-* 	Complete conformance to rfc2144.
-* 	Supports key size from 40 to 128 bits.
+*	Complete conformance to rfc2144.
+*	Supports key size from 40 to 128 bits.
 *
 * Copyright (C) 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 * Copyright (C) 2003 Kartikey Mahendra Bhatt <kartik_me@hotmail.com>.
@@ -28,19 +28,10 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
-
-#define CAST5_BLOCK_SIZE 8
-#define CAST5_MIN_KEY_SIZE 5
-#define CAST5_MAX_KEY_SIZE 16
-
-struct cast5_ctx {
-	u32 Km[16];
-	u8 Kr[16];
-	int rr;	/* rr?number of rounds = 16:number of rounds = 12; (rfc 2144) */
-};
+#include <crypto/cast5.h>
 
 
-static const u32 s1[256] = {
+const u32 cast5_s1[256] = {
 	0x30fb40d4, 0x9fa0ff0b, 0x6beccd2f, 0x3f258c7a, 0x1e213f2f,
 	0x9c004dd3, 0x6003e540, 0xcf9fc949,
 	0xbfd4af27, 0x88bbbdb5, 0xe2034090, 0x98d09675, 0x6e63a0e0,
@@ -106,7 +97,8 @@ static const u32 s1[256] = {
 	0x1a69e783, 0x02cc4843, 0xa2f7c579, 0x429ef47d, 0x427b169c,
 	0x5ac9f049, 0xdd8f0f00, 0x5c8165bf
 };
-static const u32 s2[256] = {
+EXPORT_SYMBOL_GPL(cast5_s1);
+const u32 cast5_s2[256] = {
 	0x1f201094, 0xef0ba75b, 0x69e3cf7e, 0x393f4380, 0xfe61cf7a,
 	0xeec5207a, 0x55889c94, 0x72fc0651,
 	0xada7ef79, 0x4e1d7235, 0xd55a63ce, 0xde0436ba, 0x99c430ef,
@@ -172,7 +164,8 @@ static const u32 s2[256] = {
 	0x43d79572, 0x7e6dd07c, 0x06dfdf1e, 0x6c6cc4ef, 0x7160a539,
 	0x73bfbe70, 0x83877605, 0x4523ecf1
 };
-static const u32 s3[256] = {
+EXPORT_SYMBOL_GPL(cast5_s2);
+const u32 cast5_s3[256] = {
 	0x8defc240, 0x25fa5d9f, 0xeb903dbf, 0xe810c907, 0x47607fff,
 	0x369fe44b, 0x8c1fc644, 0xaececa90,
 	0xbeb1f9bf, 0xeefbcaea, 0xe8cf1950, 0x51df07ae, 0x920e8806,
@@ -238,7 +231,8 @@ static const u32 s3[256] = {
 	0xf7baefd5, 0x4142ed9c, 0xa4315c11, 0x83323ec5, 0xdfef4636,
 	0xa133c501, 0xe9d3531c, 0xee353783
 };
-static const u32 s4[256] = {
+EXPORT_SYMBOL_GPL(cast5_s3);
+const u32 cast5_s4[256] = {
 	0x9db30420, 0x1fb6e9de, 0xa7be7bef, 0xd273a298, 0x4a4f7bdb,
 	0x64ad8c57, 0x85510443, 0xfa020ed1,
 	0x7e287aff, 0xe60fb663, 0x095f35a1, 0x79ebf120, 0xfd059d43,
@@ -304,6 +298,7 @@ static const u32 s4[256] = {
 	0x7ae5290c, 0x3cb9536b, 0x851e20fe, 0x9833557e, 0x13ecf0b0,
 	0xd3ffb372, 0x3f85c5c1, 0x0aef7ed2
 };
+EXPORT_SYMBOL_GPL(cast5_s4);
 static const u32 s5[256] = {
 	0x7ec90c04, 0x2c6e74b9, 0x9b0e66df, 0xa6337911, 0xb86a7fff,
 	0x1dd358f5, 0x44dd9d44, 0x1731167f,
@@ -569,17 +564,21 @@ static const u32 sb8[256] = {
 	0xeaee6801, 0x8db2a283, 0xea8bf59e
 };
 
+#define s1 cast5_s1
+#define s2 cast5_s2
+#define s3 cast5_s3
+#define s4 cast5_s4
+
 #define F1(D, m, r)  ((I = ((m) + (D))), (I = rol32(I, (r))),   \
-    (((s1[I >> 24] ^ s2[(I>>16)&0xff]) - s3[(I>>8)&0xff]) + s4[I&0xff]))
+	(((s1[I >> 24] ^ s2[(I>>16)&0xff]) - s3[(I>>8)&0xff]) + s4[I&0xff]))
 #define F2(D, m, r)  ((I = ((m) ^ (D))), (I = rol32(I, (r))),   \
-    (((s1[I >> 24] - s2[(I>>16)&0xff]) + s3[(I>>8)&0xff]) ^ s4[I&0xff]))
+	(((s1[I >> 24] - s2[(I>>16)&0xff]) + s3[(I>>8)&0xff]) ^ s4[I&0xff]))
 #define F3(D, m, r)  ((I = ((m) - (D))), (I = rol32(I, (r))),   \
-    (((s1[I >> 24] + s2[(I>>16)&0xff]) ^ s3[(I>>8)&0xff]) - s4[I&0xff]))
+	(((s1[I >> 24] + s2[(I>>16)&0xff]) ^ s3[(I>>8)&0xff]) - s4[I&0xff]))
 
 
-static void cast5_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
+void __cast5_encrypt(struct cast5_ctx *c, u8 *outbuf, const u8 *inbuf)
 {
-	struct cast5_ctx *c = crypto_tfm_ctx(tfm);
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 l, r, t;
@@ -628,10 +627,15 @@ static void cast5_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 	dst[0] = cpu_to_be32(r);
 	dst[1] = cpu_to_be32(l);
 }
+EXPORT_SYMBOL_GPL(__cast5_encrypt);
 
-static void cast5_decrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
+static void cast5_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 {
-	struct cast5_ctx *c = crypto_tfm_ctx(tfm);
+	__cast5_encrypt(crypto_tfm_ctx(tfm), outbuf, inbuf);
+}
+
+void __cast5_decrypt(struct cast5_ctx *c, u8 *outbuf, const u8 *inbuf)
+{
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 l, r, t;
@@ -666,6 +670,12 @@ static void cast5_decrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 
 	dst[0] = cpu_to_be32(r);
 	dst[1] = cpu_to_be32(l);
+}
+EXPORT_SYMBOL_GPL(__cast5_decrypt);
+
+static void cast5_decrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
+{
+	__cast5_decrypt(crypto_tfm_ctx(tfm), outbuf, inbuf);
 }
 
 static void key_schedule(u32 *x, u32 *z, u32 *k)
@@ -743,7 +753,7 @@ static void key_schedule(u32 *x, u32 *z, u32 *k)
 }
 
 
-static int cast5_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned key_len)
+int cast5_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int key_len)
 {
 	struct cast5_ctx *c = crypto_tfm_ctx(tfm);
 	int i;
@@ -771,20 +781,22 @@ static int cast5_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned key_len)
 		c->Kr[i] = k[i] & 0x1f;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cast5_setkey);
 
 static struct crypto_alg alg = {
-	.cra_name 	= "cast5",
-	.cra_flags 	= CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize 	= CAST5_BLOCK_SIZE,
-	.cra_ctxsize 	= sizeof(struct cast5_ctx),
-	.cra_alignmask	= 3,
-	.cra_module 	= THIS_MODULE,
-	.cra_list 	= LIST_HEAD_INIT(alg.cra_list),
-	.cra_u 		= {
+	.cra_name		= "cast5",
+	.cra_driver_name	= "cast5-generic",
+	.cra_priority		= 100,
+	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
+	.cra_blocksize		= CAST5_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct cast5_ctx),
+	.cra_alignmask		= 3,
+	.cra_module		= THIS_MODULE,
+	.cra_u			= {
 		.cipher = {
 			.cia_min_keysize = CAST5_MIN_KEY_SIZE,
 			.cia_max_keysize = CAST5_MAX_KEY_SIZE,
-			.cia_setkey = cast5_setkey,
+			.cia_setkey  = cast5_setkey,
 			.cia_encrypt = cast5_encrypt,
 			.cia_decrypt = cast5_decrypt
 		}
@@ -806,4 +818,4 @@ module_exit(cast5_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cast5 Cipher Algorithm");
-
+MODULE_ALIAS("cast5");

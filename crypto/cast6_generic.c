@@ -25,24 +25,21 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <crypto/cast6.h>
 
-#define CAST6_BLOCK_SIZE 16
-#define CAST6_MIN_KEY_SIZE 16
-#define CAST6_MAX_KEY_SIZE 32
-
-struct cast6_ctx {
-	u32 Km[12][4];
-	u8 Kr[12][4];
-};
+#define s1 cast6_s1
+#define s2 cast6_s2
+#define s3 cast6_s3
+#define s4 cast6_s4
 
 #define F1(D, r, m)  ((I = ((m) + (D))), (I = rol32(I, (r))),   \
-    (((s1[I >> 24] ^ s2[(I>>16)&0xff]) - s3[(I>>8)&0xff]) + s4[I&0xff]))
+	(((s1[I >> 24] ^ s2[(I>>16)&0xff]) - s3[(I>>8)&0xff]) + s4[I&0xff]))
 #define F2(D, r, m)  ((I = ((m) ^ (D))), (I = rol32(I, (r))),   \
-    (((s1[I >> 24] - s2[(I>>16)&0xff]) + s3[(I>>8)&0xff]) ^ s4[I&0xff]))
+	(((s1[I >> 24] - s2[(I>>16)&0xff]) + s3[(I>>8)&0xff]) ^ s4[I&0xff]))
 #define F3(D, r, m)  ((I = ((m) - (D))), (I = rol32(I, (r))),   \
-    (((s1[I >> 24] + s2[(I>>16)&0xff]) ^ s3[(I>>8)&0xff]) - s4[I&0xff]))
+	(((s1[I >> 24] + s2[(I>>16)&0xff]) ^ s3[(I>>8)&0xff]) - s4[I&0xff]))
 
-static const u32 s1[256] = {
+const u32 cast6_s1[256] = {
 	0x30fb40d4, 0x9fa0ff0b, 0x6beccd2f, 0x3f258c7a, 0x1e213f2f,
 	0x9c004dd3, 0x6003e540, 0xcf9fc949,
 	0xbfd4af27, 0x88bbbdb5, 0xe2034090, 0x98d09675, 0x6e63a0e0,
@@ -108,8 +105,9 @@ static const u32 s1[256] = {
 	0x1a69e783, 0x02cc4843, 0xa2f7c579, 0x429ef47d, 0x427b169c,
 	0x5ac9f049, 0xdd8f0f00, 0x5c8165bf
 };
+EXPORT_SYMBOL_GPL(cast6_s1);
 
-static const u32 s2[256] = {
+const u32 cast6_s2[256] = {
 	0x1f201094, 0xef0ba75b, 0x69e3cf7e, 0x393f4380, 0xfe61cf7a,
 	0xeec5207a, 0x55889c94, 0x72fc0651,
 	0xada7ef79, 0x4e1d7235, 0xd55a63ce, 0xde0436ba, 0x99c430ef,
@@ -175,8 +173,9 @@ static const u32 s2[256] = {
 	0x43d79572, 0x7e6dd07c, 0x06dfdf1e, 0x6c6cc4ef, 0x7160a539,
 	0x73bfbe70, 0x83877605, 0x4523ecf1
 };
+EXPORT_SYMBOL_GPL(cast6_s2);
 
-static const u32 s3[256] = {
+const u32 cast6_s3[256] = {
 	0x8defc240, 0x25fa5d9f, 0xeb903dbf, 0xe810c907, 0x47607fff,
 	0x369fe44b, 0x8c1fc644, 0xaececa90,
 	0xbeb1f9bf, 0xeefbcaea, 0xe8cf1950, 0x51df07ae, 0x920e8806,
@@ -242,8 +241,9 @@ static const u32 s3[256] = {
 	0xf7baefd5, 0x4142ed9c, 0xa4315c11, 0x83323ec5, 0xdfef4636,
 	0xa133c501, 0xe9d3531c, 0xee353783
 };
+EXPORT_SYMBOL_GPL(cast6_s3);
 
-static const u32 s4[256] = {
+const u32 cast6_s4[256] = {
 	0x9db30420, 0x1fb6e9de, 0xa7be7bef, 0xd273a298, 0x4a4f7bdb,
 	0x64ad8c57, 0x85510443, 0xfa020ed1,
 	0x7e287aff, 0xe60fb663, 0x095f35a1, 0x79ebf120, 0xfd059d43,
@@ -309,6 +309,7 @@ static const u32 s4[256] = {
 	0x7ae5290c, 0x3cb9536b, 0x851e20fe, 0x9833557e, 0x13ecf0b0,
 	0xd3ffb372, 0x3f85c5c1, 0x0aef7ed2
 };
+EXPORT_SYMBOL_GPL(cast6_s4);
 
 static const u32 Tm[24][8] = {
 	{ 0x5a827999, 0xc95c653a, 0x383650db, 0xa7103c7c, 0x15ea281d,
@@ -369,7 +370,7 @@ static const u8 Tr[4][8] = {
 };
 
 /* forward octave */
-static void W(u32 *key, unsigned int i)
+static inline void W(u32 *key, unsigned int i)
 {
 	u32 I;
 	key[6] ^= F1(key[7], Tr[i % 4][0], Tm[i][0]);
@@ -382,14 +383,12 @@ static void W(u32 *key, unsigned int i)
 	key[7] ^= F2(key[0], Tr[i % 4][7], Tm[i][7]);
 }
 
-static int cast6_setkey(struct crypto_tfm *tfm, const u8 *in_key,
-			unsigned key_len)
+int __cast6_setkey(struct cast6_ctx *c, const u8 *in_key,
+		   unsigned key_len, u32 *flags)
 {
 	int i;
 	u32 key[8];
 	__be32 p_key[8]; /* padded key */
-	struct cast6_ctx *c = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
 
 	if (key_len % 4 != 0) {
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
@@ -425,9 +424,17 @@ static int cast6_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(__cast6_setkey);
+
+int cast6_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+{
+	return __cast6_setkey(crypto_tfm_ctx(tfm), key, keylen,
+			      &tfm->crt_flags);
+}
+EXPORT_SYMBOL_GPL(cast6_setkey);
 
 /*forward quad round*/
-static void Q(u32 *block, u8 *Kr, u32 *Km)
+static inline void Q(u32 *block, u8 *Kr, u32 *Km)
 {
 	u32 I;
 	block[2] ^= F1(block[3], Kr[0], Km[0]);
@@ -437,7 +444,7 @@ static void Q(u32 *block, u8 *Kr, u32 *Km)
 }
 
 /*reverse quad round*/
-static void QBAR(u32 *block, u8 *Kr, u32 *Km)
+static inline void QBAR(u32 *block, u8 *Kr, u32 *Km)
 {
 	u32 I;
 	block[3] ^= F1(block[0], Kr[3], Km[3]);
@@ -446,9 +453,8 @@ static void QBAR(u32 *block, u8 *Kr, u32 *Km)
 	block[2] ^= F1(block[3], Kr[0], Km[0]);
 }
 
-static void cast6_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
+void __cast6_encrypt(struct cast6_ctx *c, u8 *outbuf, const u8 *inbuf)
 {
-	struct cast6_ctx *c = crypto_tfm_ctx(tfm);
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 block[4];
@@ -478,10 +484,15 @@ static void cast6_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 	dst[2] = cpu_to_be32(block[2]);
 	dst[3] = cpu_to_be32(block[3]);
 }
+EXPORT_SYMBOL_GPL(__cast6_encrypt);
 
-static void cast6_decrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
+static void cast6_encrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 {
-	struct cast6_ctx *c = crypto_tfm_ctx(tfm);
+	__cast6_encrypt(crypto_tfm_ctx(tfm), outbuf, inbuf);
+}
+
+void __cast6_decrypt(struct cast6_ctx *c, u8 *outbuf, const u8 *inbuf)
+{
 	const __be32 *src = (const __be32 *)inbuf;
 	__be32 *dst = (__be32 *)outbuf;
 	u32 block[4];
@@ -511,15 +522,22 @@ static void cast6_decrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
 	dst[2] = cpu_to_be32(block[2]);
 	dst[3] = cpu_to_be32(block[3]);
 }
+EXPORT_SYMBOL_GPL(__cast6_decrypt);
+
+static void cast6_decrypt(struct crypto_tfm *tfm, u8 *outbuf, const u8 *inbuf)
+{
+	__cast6_decrypt(crypto_tfm_ctx(tfm), outbuf, inbuf);
+}
 
 static struct crypto_alg alg = {
 	.cra_name = "cast6",
+	.cra_driver_name = "cast6-generic",
+	.cra_priority = 100,
 	.cra_flags = CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize = CAST6_BLOCK_SIZE,
 	.cra_ctxsize = sizeof(struct cast6_ctx),
 	.cra_alignmask = 3,
 	.cra_module = THIS_MODULE,
-	.cra_list = LIST_HEAD_INIT(alg.cra_list),
 	.cra_u = {
 		  .cipher = {
 			     .cia_min_keysize = CAST6_MIN_KEY_SIZE,
@@ -545,3 +563,4 @@ module_exit(cast6_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cast6 Cipher Algorithm");
+MODULE_ALIAS("cast6");
