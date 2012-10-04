@@ -254,18 +254,5 @@ struct exynos_drm_common_hdmi_pd {
 	struct device *mixer_dev;
 };
 
-/**
- * Platform Specific Structure for DRM based HDMI core.
- *
- * @is_v13: set if hdmi version 13 is.
- * @cfg_hpd: function pointer to configure hdmi hotplug detection pin
- * @get_hpd: function pointer to get value of hdmi hotplug detection pin
- */
-struct exynos_drm_hdmi_pdata {
-	bool is_v13;
-	void (*cfg_hpd)(bool external);
-	int (*get_hpd)(void);
-};
-
 #endif	/* __KERNEL__ */
 #endif	/* _EXYNOS_DRM_H_ */
