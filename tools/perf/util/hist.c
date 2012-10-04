@@ -135,16 +135,16 @@ static void hist_entry__add_cpumode_period(struct hist_entry *he,
 {
 	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
-		he->period_sys += period;
+		he->stat.period_sys += period;
 		break;
 	case PERF_RECORD_MISC_USER:
-		he->period_us += period;
+		he->stat.period_us += period;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
-		he->period_guest_sys += period;
+		he->stat.period_guest_sys += period;
 		break;
 	case PERF_RECORD_MISC_GUEST_USER:
-		he->period_guest_us += period;
+		he->stat.period_guest_us += period;
 		break;
 	default:
 		break;
@@ -153,13 +153,13 @@ static void hist_entry__add_cpumode_period(struct hist_entry *he,
 
 static void hist_entry__decay(struct hist_entry *he)
 {
-	he->period = (he->period * 7) / 8;
-	he->nr_events = (he->nr_events * 7) / 8;
+	he->stat.period = (he->stat.period * 7) / 8;
+	he->stat.nr_events = (he->stat.nr_events * 7) / 8;
 }
 
 static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 {
-	u64 prev_period = he->period;
+	u64 prev_period = he->stat.period;
 
 	if (prev_period == 0)
 		return true;
@@ -167,9 +167,9 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 	hist_entry__decay(he);
 
 	if (!he->filtered)
-		hists->stats.total_period -= prev_period - he->period;
+		hists->stats.total_period -= prev_period - he->stat.period;
 
-	return he->period == 0;
+	return he->stat.period == 0;
 }
 
 static void __hists__decay_entries(struct hists *hists, bool zap_user,
@@ -223,7 +223,7 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 
 	if (he != NULL) {
 		*he = *template;
-		he->nr_events = 1;
+		he->stat.nr_events = 1;
 		if (he->ms.map)
 			he->ms.map->referenced = true;
 		if (symbol_conf.use_callchain)
@@ -238,7 +238,7 @@ static void hists__inc_nr_entries(struct hists *hists, struct hist_entry *h)
 	if (!h->filtered) {
 		hists__calc_col_len(hists, h);
 		++hists->nr_entries;
-		hists->stats.total_period += h->period;
+		hists->stats.total_period += h->stat.period;
 	}
 }
 
@@ -270,8 +270,8 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 		cmp = hist_entry__cmp(entry, he);
 
 		if (!cmp) {
-			he->period += period;
-			++he->nr_events;
+			he->stat.period += period;
+			++he->stat.nr_events;
 
 			/* If the map of an existing hist_entry has
 			 * become out-of-date due to an exec() or
@@ -321,7 +321,9 @@ struct hist_entry *__hists__add_branch_entry(struct hists *self,
 		.cpu	= al->cpu,
 		.ip	= bi->to.addr,
 		.level	= al->level,
-		.period	= period,
+		.stat = {
+			.period	= period,
+		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
 		.branch_info = bi,
@@ -344,7 +346,9 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 		.cpu	= al->cpu,
 		.ip	= al->addr,
 		.level	= al->level,
-		.period	= period,
+		.stat = {
+			.period	= period,
+		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent),
 		.hists	= self,
@@ -412,12 +416,12 @@ static bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
 		cmp = hist_entry__collapse(iter, he);
 
 		if (!cmp) {
-			iter->period		+= he->period;
-			iter->period_sys	+= he->period_sys;
-			iter->period_us		+= he->period_us;
-			iter->period_guest_sys	+= he->period_guest_sys;
-			iter->period_guest_us	+= he->period_guest_us;
-			iter->nr_events		+= he->nr_events;
+			iter->stat.period		+= he->stat.period;
+			iter->stat.period_sys		+= he->stat.period_sys;
+			iter->stat.period_us		+= he->stat.period_us;
+			iter->stat.period_guest_sys	+= he->stat.period_guest_sys;
+			iter->stat.period_guest_us	+= he->stat.period_guest_us;
+			iter->stat.nr_events		+= he->stat.nr_events;
 
 			if (symbol_conf.use_callchain) {
 				callchain_cursor_reset(&callchain_cursor);
@@ -520,7 +524,7 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 		parent = *p;
 		iter = rb_entry(parent, struct hist_entry, rb_node);
 
-		if (he->period > iter->period)
+		if (he->stat.period > iter->stat.period)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -581,8 +585,8 @@ static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h
 	if (h->ms.unfolded)
 		hists->nr_entries += h->nr_rows;
 	h->row_offset = 0;
-	hists->stats.total_period += h->period;
-	hists->stats.nr_events[PERF_RECORD_SAMPLE] += h->nr_events;
+	hists->stats.total_period += h->stat.period;
+	hists->stats.nr_events[PERF_RECORD_SAMPLE] += h->stat.nr_events;
 
 	hists__calc_col_len(hists, h);
 }

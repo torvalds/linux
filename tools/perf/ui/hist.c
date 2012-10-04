@@ -19,7 +19,7 @@ static int hpp__width_overhead(struct perf_hpp *hpp __maybe_unused)
 static int hpp__color_overhead(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period / hists->stats.total_period;
 
 	return percent_color_snprintf(hpp->buf, hpp->size, " %6.2f%%", percent);
 }
@@ -27,7 +27,7 @@ static int hpp__color_overhead(struct perf_hpp *hpp, struct hist_entry *he)
 static int hpp__entry_overhead(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period / hists->stats.total_period;
 	const char *fmt = symbol_conf.field_sep ? "%.2f" : " %6.2f%%";
 
 	return scnprintf(hpp->buf, hpp->size, fmt, percent);
@@ -48,7 +48,7 @@ static int hpp__width_overhead_sys(struct perf_hpp *hpp __maybe_unused)
 static int hpp__color_overhead_sys(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period_sys / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period_sys / hists->stats.total_period;
 
 	return percent_color_snprintf(hpp->buf, hpp->size, "%6.2f%%", percent);
 }
@@ -56,7 +56,7 @@ static int hpp__color_overhead_sys(struct perf_hpp *hpp, struct hist_entry *he)
 static int hpp__entry_overhead_sys(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period_sys / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period_sys / hists->stats.total_period;
 	const char *fmt = symbol_conf.field_sep ? "%.2f" : "%6.2f%%";
 
 	return scnprintf(hpp->buf, hpp->size, fmt, percent);
@@ -77,7 +77,7 @@ static int hpp__width_overhead_us(struct perf_hpp *hpp __maybe_unused)
 static int hpp__color_overhead_us(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period_us / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period_us / hists->stats.total_period;
 
 	return percent_color_snprintf(hpp->buf, hpp->size, "%6.2f%%", percent);
 }
@@ -85,7 +85,7 @@ static int hpp__color_overhead_us(struct perf_hpp *hpp, struct hist_entry *he)
 static int hpp__entry_overhead_us(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period_us / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period_us / hists->stats.total_period;
 	const char *fmt = symbol_conf.field_sep ? "%.2f" : "%6.2f%%";
 
 	return scnprintf(hpp->buf, hpp->size, fmt, percent);
@@ -105,7 +105,7 @@ static int hpp__color_overhead_guest_sys(struct perf_hpp *hpp,
 					 struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period_guest_sys / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period_guest_sys / hists->stats.total_period;
 
 	return percent_color_snprintf(hpp->buf, hpp->size, " %6.2f%% ", percent);
 }
@@ -114,7 +114,7 @@ static int hpp__entry_overhead_guest_sys(struct perf_hpp *hpp,
 					 struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period_guest_sys / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period_guest_sys / hists->stats.total_period;
 	const char *fmt = symbol_conf.field_sep ? "%.2f" : " %6.2f%% ";
 
 	return scnprintf(hpp->buf, hpp->size, fmt, percent);
@@ -134,7 +134,7 @@ static int hpp__color_overhead_guest_us(struct perf_hpp *hpp,
 					struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period_guest_us / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period_guest_us / hists->stats.total_period;
 
 	return percent_color_snprintf(hpp->buf, hpp->size, " %6.2f%% ", percent);
 }
@@ -143,7 +143,7 @@ static int hpp__entry_overhead_guest_us(struct perf_hpp *hpp,
 					struct hist_entry *he)
 {
 	struct hists *hists = he->hists;
-	double percent = 100.0 * he->period_guest_us / hists->stats.total_period;
+	double percent = 100.0 * he->stat.period_guest_us / hists->stats.total_period;
 	const char *fmt = symbol_conf.field_sep ? "%.2f" : " %6.2f%% ";
 
 	return scnprintf(hpp->buf, hpp->size, fmt, percent);
@@ -167,7 +167,7 @@ static double baseline_percent(struct hist_entry *he)
 
 	if (pair) {
 		u64 total_period = pair_hists->stats.total_period;
-		u64 base_period  = pair->period;
+		u64 base_period  = pair->stat.period;
 
 		percent = 100.0 * base_period / total_period;
 	}
@@ -206,7 +206,7 @@ static int hpp__entry_samples(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	const char *fmt = symbol_conf.field_sep ? "%" PRIu64 : "%11" PRIu64;
 
-	return scnprintf(hpp->buf, hpp->size, fmt, he->nr_events);
+	return scnprintf(hpp->buf, hpp->size, fmt, he->stat.nr_events);
 }
 
 static int hpp__header_period(struct perf_hpp *hpp)
@@ -225,7 +225,7 @@ static int hpp__entry_period(struct perf_hpp *hpp, struct hist_entry *he)
 {
 	const char *fmt = symbol_conf.field_sep ? "%" PRIu64 : "%12" PRIu64;
 
-	return scnprintf(hpp->buf, hpp->size, fmt, he->period);
+	return scnprintf(hpp->buf, hpp->size, fmt, he->stat.period);
 }
 
 static int hpp__header_delta(struct perf_hpp *hpp)
@@ -253,11 +253,11 @@ static int hpp__entry_delta(struct perf_hpp *hpp, struct hist_entry *he)
 
 	old_total = pair_hists ? pair_hists->stats.total_period : 0;
 	if (old_total > 0 && pair)
-		old_percent = 100.0 * pair->period / old_total;
+		old_percent = 100.0 * pair->stat.period / old_total;
 
 	new_total = hists->stats.total_period;
 	if (new_total > 0)
-		new_percent = 100.0 * he->period / new_total;
+		new_percent = 100.0 * he->stat.period / new_total;
 
 	diff = new_percent - old_percent;
 	if (fabs(diff) >= 0.01)

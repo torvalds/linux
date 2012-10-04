@@ -50,7 +50,7 @@ static int perf_gtk__hpp_color_ ## _name(struct perf_hpp *hpp,			\
 					 struct hist_entry *he)			\
 {										\
 	struct hists *hists = he->hists;					\
-	double percent = 100.0 * he->_field / hists->stats.total_period;	\
+	double percent = 100.0 * he->stat._field / hists->stats.total_period;	\
 	const char *markup;							\
 	int ret = 0;								\
 										\
