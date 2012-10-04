@@ -53,6 +53,10 @@ struct clk_hw;
  * @disable:	Disable the clock atomically. Called with enable_lock held.
  * 		This function must not sleep.
  *
+ * @is_enabled:	Queries the hardware to determine if the clock is enabled.
+ * 		This function must not sleep. Optional, if this op is not
+ * 		set then the enable count will be used.
+ *
  * @recalc_rate	Recalculate the rate of this clock, by quering hardware.  The
  * 		parent rate is an input parameter.  It is up to the caller to
  * 		insure that the prepare_mutex is held across this call.
