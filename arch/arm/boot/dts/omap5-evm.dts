@@ -82,3 +82,7 @@
 			0x020700d9>;	/* SEARCH */
 	linux,input-no-autorepeat;
 };
+
+&mcbsp3 {
+	status = "disabled";
+};
