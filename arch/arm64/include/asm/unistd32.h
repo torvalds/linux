@@ -16,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#if !defined(__ASM_UNISTD32_H) || defined(__SYSCALL)
-#define __ASM_UNISTD32_H
 
 #ifndef __SYSCALL
 #define __SYSCALL(x, y)
@@ -754,5 +752,3 @@ __SYSCALL(__NR_syncfs, sys_syncfs)
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
-
-#endif /* __ASM_UNISTD32_H */

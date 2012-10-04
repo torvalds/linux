@@ -1,6 +1,3 @@
-#if !defined(_ASM_GENERIC_UNISTD_H) || defined(__SYSCALL)
-#define _ASM_GENERIC_UNISTD_H
-
 #include <asm/bitsperlong.h>
 
 /*
@@ -930,4 +927,3 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #endif
 
 #endif /* __KERNEL__ */
-#endif /* _ASM_GENERIC_UNISTD_H */
