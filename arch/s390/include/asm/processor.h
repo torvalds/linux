@@ -159,6 +159,7 @@ extern unsigned long thread_saved_pc(struct task_struct *t);
 
 extern void show_code(struct pt_regs *regs);
 extern void print_fn_code(unsigned char *code, unsigned long len);
+extern int insn_to_mnemonic(unsigned char *instruction, char buf[8]);
 
 unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *) \
