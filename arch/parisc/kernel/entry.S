@@ -741,28 +741,12 @@ ENTRY(ret_from_kernel_thread)
 	ldi	0, %r26
 ENDPROC(ret_from_kernel_thread)
 
-	.import	sys_execve, code
-ENTRY(__execve)
-	copy	%r2, %r15
-	copy	%r30, %r16
-	ldo	PT_SZ_ALGN(%r30), %r30
-	STREG	%r26, PT_GR26(%r16)
-	STREG	%r25, PT_GR25(%r16)
-	STREG	%r24, PT_GR24(%r16)
-#ifdef CONFIG_64BIT
-	ldo	-16(%r30),%r29		/* Reference param save area */
-#endif
-	BL	sys_execve, %r2
-	copy	%r16, %r26
-
-	cmpib,=,n 0,%r28,intr_return    /* forward */
-
-	/* yes, this will trap and die. */
-	copy	%r15, %r2
-	copy	%r16, %r30
-	bv	%r0(%r2)
-	nop
-ENDPROC(__execve)
+ENTRY(ret_from_kernel_execve)
+	mfctl   %cr30, %r1
+	ldo	THREAD_SZ_ALGN(%r1), %r30
+	b	intr_return	/* forward */
+	copy	%r26,%r16	/* pt_regs into r16 */
+ENDPROC(ret_from_kernel_execve)
 
 
 	/*
