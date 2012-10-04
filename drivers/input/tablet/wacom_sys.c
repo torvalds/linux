@@ -502,56 +502,52 @@ static int wacom_parse_hid(struct usb_interface *intf,
 	return result;
 }
 
-static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_features *features)
+static int wacom_set_device_mode(struct usb_interface *intf, int report_id, int length, int mode)
 {
 	unsigned char *rep_data;
-	int limit = 0, report_id = 2;
-	int error = -ENOMEM;
+	int error = -ENOMEM, limit = 0;
 
-	rep_data = kmalloc(4, GFP_KERNEL);
+	rep_data = kzalloc(length, GFP_KERNEL);
 	if (!rep_data)
 		return error;
 
-	/* ask to report Wacom data */
-	if (features->device_type == BTN_TOOL_FINGER) {
-		/* if it is an MT Tablet PC touch */
-		if (features->type > TABLETPC) {
-			do {
-				rep_data[0] = 3;
-				rep_data[1] = 4;
-				rep_data[2] = 0;
-				rep_data[3] = 0;
-				report_id = 3;
-				error = wacom_set_report(intf,
-							 WAC_HID_FEATURE_REPORT,
-							 report_id,
-							 rep_data, 4, 1);
-				if (error >= 0)
-					error = wacom_get_report(intf,
-							WAC_HID_FEATURE_REPORT,
-							report_id,
-							rep_data, 4, 1);
-			} while ((error < 0 || rep_data[1] != 4) &&
-				 limit++ < WAC_MSG_RETRIES);
-		}
-	} else if (features->type <= BAMBOO_PT &&
-		   features->type != WIRELESS &&
-		   features->device_type == BTN_TOOL_PEN) {
-		do {
-			rep_data[0] = 2;
-			rep_data[1] = 2;
-			error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
-						 report_id, rep_data, 2, 1);
-			if (error >= 0)
-				error = wacom_get_report(intf,
-						WAC_HID_FEATURE_REPORT,
-						report_id, rep_data, 2, 1);
-		} while ((error < 0 || rep_data[1] != 2) && limit++ < WAC_MSG_RETRIES);
-	}
+	rep_data[0] = report_id;
+	rep_data[1] = mode;
+
+	do {
+		error = wacom_set_report(intf, WAC_HID_FEATURE_REPORT,
+		                         report_id, rep_data, length, 1);
+		if (error >= 0)
+			error = wacom_get_report(intf, WAC_HID_FEATURE_REPORT,
+			                         report_id, rep_data, length, 1);
+	} while ((error < 0 || rep_data[1] != mode) && limit++ < WAC_MSG_RETRIES);
 
 	kfree(rep_data);
 
 	return error < 0 ? error : 0;
+}
+
+/*
+ * Switch the tablet into its most-capable mode. Wacom tablets are
+ * typically configured to power-up in a mode which sends mouse-like
+ * reports to the OS. To get absolute position, pressure data, etc.
+ * from the tablet, it is necessary to switch the tablet out of this
+ * mode and into one which sends the full range of tablet data.
+ */
+static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_features *features)
+{
+	if (features->device_type == BTN_TOOL_FINGER) {
+		if (features->type > TABLETPC) {
+			/* MT Tablet PC touch */
+			return wacom_set_device_mode(intf, 3, 4, 4);
+		}
+	} else if (features->device_type == BTN_TOOL_PEN) {
+		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
+			return wacom_set_device_mode(intf, 2, 2, 2);
+		}
+	}
+
+	return 0;
 }
 
 static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
