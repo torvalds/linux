@@ -12,13 +12,9 @@
 #ifndef _ASMARM_TIMEX_H
 #define _ASMARM_TIMEX_H
 
-#include <asm/arch_timer.h>
 #include <mach/timex.h>
 
-#ifdef ARCH_HAS_READ_CURRENT_TIMER
+typedef unsigned long cycles_t;
 #define get_cycles()	({ cycles_t c; read_current_timer(&c) ? 0 : c; })
-#endif
-
-#include <asm-generic/timex.h>
 
 #endif
