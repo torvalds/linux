@@ -94,7 +94,6 @@ struct ast_private {
 		struct drm_global_reference mem_global_ref;
 		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
-		atomic_t validate_sequence;
 	} ttm;
 
 	struct drm_gem_object *cursor_cache;

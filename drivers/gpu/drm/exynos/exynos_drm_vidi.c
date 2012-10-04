@@ -102,7 +102,6 @@ static int vidi_get_edid(struct device *dev, struct drm_connector *connector,
 				u8 *edid, int len)
 {
 	struct vidi_context *ctx = get_vidi_context(dev);
-	struct edid *raw_edid;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -114,18 +113,6 @@ static int vidi_get_edid(struct device *dev, struct drm_connector *connector,
 		DRM_DEBUG_KMS("raw_edid is null.\n");
 		return -EFAULT;
 	}
-
-	raw_edid = kzalloc(len, GFP_KERNEL);
-	if (!raw_edid) {
-		DRM_DEBUG_KMS("failed to allocate raw_edid.\n");
-		return -ENOMEM;
-	}
-
-	memcpy(raw_edid, ctx->raw_edid, min((1 + ctx->raw_edid->extensions)
-						* EDID_LENGTH, len));
-
-	/* attach the edid data to connector. */
-	connector->display_info.raw_edid = (char *)raw_edid;
 
 	memcpy(edid, ctx->raw_edid, min((1 + ctx->raw_edid->extensions)
 					* EDID_LENGTH, len));

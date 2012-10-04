@@ -266,8 +266,8 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {
 		fb = fb_helper->fb;
-		if (fb && fb->funcs->destroy)
-			fb->funcs->destroy(fb);
+		if (fb)
+			drm_framebuffer_remove(fb);
 	}
 
 	/* release linux framebuffer */

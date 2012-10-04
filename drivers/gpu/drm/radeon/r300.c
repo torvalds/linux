@@ -296,7 +296,7 @@ void r300_ring_start(struct radeon_device *rdev, struct radeon_ring *ring)
 	radeon_ring_unlock_commit(rdev, ring);
 }
 
-void r300_errata(struct radeon_device *rdev)
+static void r300_errata(struct radeon_device *rdev)
 {
 	rdev->pll_errata = 0;
 
@@ -322,7 +322,7 @@ int r300_mc_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
-void r300_gpu_init(struct radeon_device *rdev)
+static void r300_gpu_init(struct radeon_device *rdev)
 {
 	uint32_t gb_tile_config, tmp;
 

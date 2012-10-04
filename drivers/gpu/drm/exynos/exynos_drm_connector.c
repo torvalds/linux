@@ -147,9 +147,7 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 
 		drm_mode_connector_update_edid_property(connector, edid);
 		count = drm_add_edid_modes(connector, edid);
-
-		kfree(connector->display_info.raw_edid);
-		connector->display_info.raw_edid = edid;
+		kfree(edid);
 	} else {
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
 		struct exynos_drm_panel_info *panel;

@@ -181,11 +181,6 @@ int udl_gem_vmap(struct udl_gem_object *obj)
 	int ret;
 
 	if (obj->base.import_attach) {
-		ret = dma_buf_begin_cpu_access(obj->base.import_attach->dmabuf,
-					       0, obj->base.size, DMA_BIDIRECTIONAL);
-		if (ret)
-			return -EINVAL;
-
 		obj->vmapping = dma_buf_vmap(obj->base.import_attach->dmabuf);
 		if (!obj->vmapping)
 			return -ENOMEM;
@@ -206,8 +201,6 @@ void udl_gem_vunmap(struct udl_gem_object *obj)
 {
 	if (obj->base.import_attach) {
 		dma_buf_vunmap(obj->base.import_attach->dmabuf, obj->vmapping);
-		dma_buf_end_cpu_access(obj->base.import_attach->dmabuf, 0,
-				       obj->base.size, DMA_BIDIRECTIONAL);
 		return;
 	}
 

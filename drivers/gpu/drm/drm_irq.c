@@ -1236,7 +1236,7 @@ done:
 	return ret;
 }
 
-void drm_handle_vblank_events(struct drm_device *dev, int crtc)
+static void drm_handle_vblank_events(struct drm_device *dev, int crtc)
 {
 	struct drm_pending_vblank_event *e, *t;
 	struct timeval now;

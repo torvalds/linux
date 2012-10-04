@@ -35,7 +35,7 @@
 
 #include <drm/drmP.h>
 
-#include "nouveau_drv.h"
+#include "nouveau_ioctl.h"
 
 /**
  * Called whenever a 32-bit process running under a 64-bit kernel

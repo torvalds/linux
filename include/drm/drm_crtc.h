@@ -216,11 +216,10 @@ struct drm_display_info {
 	u32 color_formats;
 
 	u8 cea_rev;
-
-	char *raw_edid; /* if any */
 };
 
 struct drm_framebuffer_funcs {
+	/* note: use drm_framebuffer_remove() */
 	void (*destroy)(struct drm_framebuffer *framebuffer);
 	int (*create_handle)(struct drm_framebuffer *fb,
 			     struct drm_file *file_priv,
@@ -245,6 +244,16 @@ struct drm_framebuffer_funcs {
 
 struct drm_framebuffer {
 	struct drm_device *dev;
+	/*
+	 * Note that the fb is refcounted for the benefit of driver internals,
+	 * for example some hw, disabling a CRTC/plane is asynchronous, and
+	 * scanout does not actually complete until the next vblank.  So some
+	 * cleanup (like releasing the reference(s) on the backing GEM bo(s))
+	 * should be deferred.  In cases like this, the driver would like to
+	 * hold a ref to the fb even though it has already been removed from
+	 * userspace perspective.
+	 */
+	struct kref refcount;
 	struct list_head head;
 	struct drm_mode_object base;
 	const struct drm_framebuffer_funcs *funcs;
@@ -360,6 +369,9 @@ struct drm_crtc_funcs {
  * @enabled: is this CRTC enabled?
  * @mode: current mode timings
  * @hwmode: mode timings as programmed to hw regs
+ * @invert_dimensions: for purposes of error checking crtc vs fb sizes,
+ *    invert the width/height of the crtc.  This is used if the driver
+ *    is performing 90 or 270 degree rotated scanout
  * @x: x position on screen
  * @y: y position on screen
  * @funcs: CRTC control functions
@@ -392,6 +404,8 @@ struct drm_crtc {
 	 * crtc, panel scaling etc. Needed for timestamping etc.
 	 */
 	struct drm_display_mode hwmode;
+
+	bool invert_dimensions;
 
 	int x, y;
 	const struct drm_crtc_funcs *funcs;
@@ -594,6 +608,7 @@ struct drm_connector {
 	int video_latency[2];	/* [0]: progressive, [1]: interlaced */
 	int audio_latency[2];
 	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
+	unsigned bad_edid_counter;
 };
 
 /**
@@ -921,6 +936,9 @@ extern void drm_framebuffer_set_object(struct drm_device *dev,
 extern int drm_framebuffer_init(struct drm_device *dev,
 				struct drm_framebuffer *fb,
 				const struct drm_framebuffer_funcs *funcs);
+extern void drm_framebuffer_unreference(struct drm_framebuffer *fb);
+extern void drm_framebuffer_reference(struct drm_framebuffer *fb);
+extern void drm_framebuffer_remove(struct drm_framebuffer *fb);
 extern void drm_framebuffer_cleanup(struct drm_framebuffer *fb);
 extern int drmfb_probe(struct drm_device *dev, struct drm_crtc *crtc);
 extern int drmfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
@@ -1036,7 +1054,7 @@ extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
 
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
-extern bool drm_edid_block_valid(u8 *raw_edid, int block);
+extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid);
 extern bool drm_edid_is_valid(struct edid *edid);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,

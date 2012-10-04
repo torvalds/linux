@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
+#include <linux/dma-buf.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
@@ -355,12 +356,12 @@ static struct fb_ops udlfb_ops = {
 	.fb_release = udl_fb_release,
 };
 
-void udl_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
+static void udl_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 			   u16 blue, int regno)
 {
 }
 
-void udl_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+static void udl_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 			     u16 *blue, int regno)
 {
 	*red = 0;
@@ -376,16 +377,33 @@ static int udl_user_framebuffer_dirty(struct drm_framebuffer *fb,
 {
 	struct udl_framebuffer *ufb = to_udl_fb(fb);
 	int i;
+	int ret = 0;
 
 	if (!ufb->active_16)
 		return 0;
 
+	if (ufb->obj->base.import_attach) {
+		ret = dma_buf_begin_cpu_access(ufb->obj->base.import_attach->dmabuf,
+					       0, ufb->obj->base.size,
+					       DMA_FROM_DEVICE);
+		if (ret)
+			return ret;
+	}
+
 	for (i = 0; i < num_clips; i++) {
-		udl_handle_damage(ufb, clips[i].x1, clips[i].y1,
+		ret = udl_handle_damage(ufb, clips[i].x1, clips[i].y1,
 				  clips[i].x2 - clips[i].x1,
 				  clips[i].y2 - clips[i].y1);
+		if (ret)
+			break;
 	}
-	return 0;
+
+	if (ufb->obj->base.import_attach) {
+		dma_buf_end_cpu_access(ufb->obj->base.import_attach->dmabuf,
+				       0, ufb->obj->base.size,
+				       DMA_FROM_DEVICE);
+	}
+	return ret;
 }
 
 static void udl_user_framebuffer_destroy(struct drm_framebuffer *fb)
