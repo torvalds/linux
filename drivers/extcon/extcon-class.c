@@ -356,7 +356,7 @@ int extcon_get_cable_state(struct extcon_dev *edev, const char *cable_name)
 EXPORT_SYMBOL_GPL(extcon_get_cable_state);
 
 /**
- * extcon_get_cable_state_() - Set the status of a specific cable.
+ * extcon_set_cable_state_() - Set the status of a specific cable.
  * @edev:	the extcon device that has the cable.
  * @index:	cable index that can be retrieved by extcon_find_cable_index().
  * @cable_state:	the new cable status. The default semantics is
@@ -376,7 +376,7 @@ int extcon_set_cable_state_(struct extcon_dev *edev,
 EXPORT_SYMBOL_GPL(extcon_set_cable_state_);
 
 /**
- * extcon_get_cable_state() - Set the status of a specific cable.
+ * extcon_set_cable_state() - Set the status of a specific cable.
  * @edev:	the extcon device that has the cable.
  * @cable_name:	cable name.
  * @cable_state:	the new cable status. The default semantics is
