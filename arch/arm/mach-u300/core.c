@@ -252,6 +252,18 @@ static struct resource rtc_resources[] = {
  */
 static struct resource fsmc_resources[] = {
 	{
+		.name  = "nand_addr",
+		.start = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_ALE,
+		.end   = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_ALE + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.name  = "nand_cmd",
+		.start = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_CLE,
+		.end   = U300_NAND_CS0_PHYS_BASE + PLAT_NAND_CLE + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
 		.name  = "nand_data",
 		.start = U300_NAND_CS0_PHYS_BASE,
 		.end   = U300_NAND_CS0_PHYS_BASE + SZ_16K - 1,
@@ -1496,8 +1508,6 @@ static struct fsmc_nand_platform_data nand_platform_data = {
 	.nr_partitions = ARRAY_SIZE(u300_partitions),
 	.options = NAND_SKIP_BBTSCAN,
 	.width = FSMC_NAND_BW8,
-	.ale_off = PLAT_NAND_ALE,
-	.cle_off = PLAT_NAND_CLE,
 };
 
 static struct platform_device nand_device = {

@@ -104,15 +104,15 @@
 			compatible = "st,spear600-fsmc-nand";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			reg = <0xb0000000 0x1000	/* FSMC Register */
-			       0xb0800000 0x0010>;	/* NAND Base */
-			reg-names = "fsmc_regs", "nand_data";
+			reg = <0xb0000000 0x1000	/* FSMC Register*/
+			       0xb0800000 0x0010	/* NAND Base DATA */
+			       0xb0820000 0x0010	/* NAND Base ADDR */
+			       0xb0810000 0x0010>;	/* NAND Base CMD */
+			reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
 			interrupts = <0 20 0x4
 				      0 21 0x4
 				      0 22 0x4
 				      0 23 0x4>;
-			st,ale-off = <0x20000>;
-			st,cle-off = <0x10000>;
 			status = "disabled";
 		};
 

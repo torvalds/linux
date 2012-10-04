@@ -67,10 +67,10 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0xd1800000 0x1000	/* FSMC Register */
-			       0xd2000000 0x4000>;	/* NAND Base */
-			reg-names = "fsmc_regs", "nand_data";
-			st,ale-off = <0x20000>;
-			st,cle-off = <0x10000>;
+			       0xd2000000 0x0010	/* NAND Base DATA */
+			       0xd2020000 0x0010	/* NAND Base ADDR */
+			       0xd2010000 0x0010>;	/* NAND Base CMD */
+			reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
 			status = "disabled";
 		};
 

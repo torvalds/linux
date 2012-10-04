@@ -876,8 +876,6 @@ static int __devinit fsmc_nand_probe_config_dt(struct platform_device *pdev,
 			return -EINVAL;
 		}
 	}
-	of_property_read_u32(np, "st,ale-off", &pdata->ale_off);
-	of_property_read_u32(np, "st,cle-off", &pdata->cle_off);
 	if (of_get_property(np, "nand-skip-bbtscan", NULL))
 		pdata->options = NAND_SKIP_BBTSCAN;
 
@@ -935,41 +933,28 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
-				pdev->name)) {
-		dev_err(&pdev->dev, "Failed to get memory data resourse\n");
-		return -ENOENT;
-	}
-
-	host->data_pa = (dma_addr_t)res->start;
-	host->data_va = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
+	host->data_va = devm_request_and_ioremap(&pdev->dev, res);
 	if (!host->data_va) {
 		dev_err(&pdev->dev, "data ioremap failed\n");
 		return -ENOMEM;
 	}
+	host->data_pa = (dma_addr_t)res->start;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start + pdata->ale_off,
-			resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "Failed to get memory ale resourse\n");
-		return -ENOENT;
-	}
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_addr");
+	if (!res)
+		return -EINVAL;
 
-	host->addr_va = devm_ioremap(&pdev->dev, res->start + pdata->ale_off,
-			resource_size(res));
+	host->addr_va = devm_request_and_ioremap(&pdev->dev, res);
 	if (!host->addr_va) {
 		dev_err(&pdev->dev, "ale ioremap failed\n");
 		return -ENOMEM;
 	}
 
-	if (!devm_request_mem_region(&pdev->dev, res->start + pdata->cle_off,
-			resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "Failed to get memory cle resourse\n");
-		return -ENOENT;
-	}
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_cmd");
+	if (!res)
+		return -EINVAL;
 
-	host->cmd_va = devm_ioremap(&pdev->dev, res->start + pdata->cle_off,
-			resource_size(res));
+	host->cmd_va = devm_request_and_ioremap(&pdev->dev, res);
 	if (!host->cmd_va) {
 		dev_err(&pdev->dev, "ale ioremap failed\n");
 		return -ENOMEM;
@@ -979,14 +964,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
-			pdev->name)) {
-		dev_err(&pdev->dev, "Failed to get memory regs resourse\n");
-		return -ENOENT;
-	}
-
-	host->regs_va = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
+	host->regs_va = devm_request_and_ioremap(&pdev->dev, res);
 	if (!host->regs_va) {
 		dev_err(&pdev->dev, "regs ioremap failed\n");
 		return -ENOMEM;
