@@ -792,7 +792,7 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 		    (irqstat[2] & (IRQSTAT_C_TERMINATION_IRQ |
 				   IRQSTAT_C_TERMINATION_STAT))) &&
 		   !smb->is_fully_charged) {
-		dev_info(&smb->client->dev, "charge terminated");
+		dev_info(&smb->client->dev, "charge terminated\n");
 		smb->is_fully_charged = true;
 		smb347_charging_disable(smb);
 		power_supply_changed(&smb->battery);
