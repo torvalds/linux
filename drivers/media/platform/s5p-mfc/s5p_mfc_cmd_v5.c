@@ -1,5 +1,5 @@
 /*
- * linux/drivers/media/platform/s5p-mfc/s5p_mfc_cmd.c
+ * linux/drivers/media/platform/s5p-mfc/s5p_mfc_cmd_v5.c
  *
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -11,13 +11,13 @@
  */
 
 #include "regs-mfc.h"
-#include "s5p_mfc_cmd_v5.h"
+#include "s5p_mfc_cmd.h"
 #include "s5p_mfc_common.h"
 #include "s5p_mfc_debug.h"
 
 /* This function is used to send a command to the MFC */
-static int s5p_mfc_cmd_host2risc(struct s5p_mfc_dev *dev, int cmd,
-						struct s5p_mfc_cmd_args *args)
+int s5p_mfc_cmd_host2risc_v5(struct s5p_mfc_dev *dev, int cmd,
+				struct s5p_mfc_cmd_args *args)
 {
 	int cur_cmd;
 	unsigned long timeout;
@@ -41,35 +41,37 @@ static int s5p_mfc_cmd_host2risc(struct s5p_mfc_dev *dev, int cmd,
 }
 
 /* Initialize the MFC */
-int s5p_mfc_sys_init_cmd(struct s5p_mfc_dev *dev)
+int s5p_mfc_sys_init_cmd_v5(struct s5p_mfc_dev *dev)
 {
 	struct s5p_mfc_cmd_args h2r_args;
 
 	memset(&h2r_args, 0, sizeof(struct s5p_mfc_cmd_args));
 	h2r_args.arg[0] = dev->fw_size;
-	return s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_SYS_INIT, &h2r_args);
+	return s5p_mfc_cmd_host2risc_v5(dev, S5P_FIMV_H2R_CMD_SYS_INIT,
+			&h2r_args);
 }
 
 /* Suspend the MFC hardware */
-int s5p_mfc_sleep_cmd(struct s5p_mfc_dev *dev)
+int s5p_mfc_sleep_cmd_v5(struct s5p_mfc_dev *dev)
 {
 	struct s5p_mfc_cmd_args h2r_args;
 
 	memset(&h2r_args, 0, sizeof(struct s5p_mfc_cmd_args));
-	return s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_SLEEP, &h2r_args);
+	return s5p_mfc_cmd_host2risc_v5(dev, S5P_FIMV_H2R_CMD_SLEEP, &h2r_args);
 }
 
 /* Wake up the MFC hardware */
-int s5p_mfc_wakeup_cmd(struct s5p_mfc_dev *dev)
+int s5p_mfc_wakeup_cmd_v5(struct s5p_mfc_dev *dev)
 {
 	struct s5p_mfc_cmd_args h2r_args;
 
 	memset(&h2r_args, 0, sizeof(struct s5p_mfc_cmd_args));
-	return s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_WAKEUP, &h2r_args);
+	return s5p_mfc_cmd_host2risc_v5(dev, S5P_FIMV_H2R_CMD_WAKEUP,
+			&h2r_args);
 }
 
 
-int s5p_mfc_open_inst_cmd(struct s5p_mfc_ctx *ctx)
+int s5p_mfc_open_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_cmd_args h2r_args;
@@ -79,11 +81,41 @@ int s5p_mfc_open_inst_cmd(struct s5p_mfc_ctx *ctx)
 	mfc_debug(2, "Getting instance number (codec: %d)\n", ctx->codec_mode);
 	dev->curr_ctx = ctx->num;
 	memset(&h2r_args, 0, sizeof(struct s5p_mfc_cmd_args));
-	h2r_args.arg[0] = ctx->codec_mode;
+	switch (ctx->codec_mode) {
+	case S5P_MFC_CODEC_H264_DEC:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_H264_DEC;
+		break;
+	case S5P_MFC_CODEC_VC1_DEC:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_VC1_DEC;
+		break;
+	case S5P_MFC_CODEC_MPEG4_DEC:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_MPEG4_DEC;
+		break;
+	case S5P_MFC_CODEC_MPEG2_DEC:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_MPEG2_DEC;
+		break;
+	case S5P_MFC_CODEC_H263_DEC:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_H263_DEC;
+		break;
+	case S5P_MFC_CODEC_VC1RCV_DEC:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_VC1RCV_DEC;
+		break;
+	case S5P_MFC_CODEC_H264_ENC:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_H264_ENC;
+		break;
+	case S5P_MFC_CODEC_MPEG4_ENC:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_MPEG4_ENC;
+		break;
+	case S5P_MFC_CODEC_H263_ENC:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_H263_ENC;
+		break;
+	default:
+		h2r_args.arg[0] = S5P_FIMV_CODEC_NONE;
+	};
 	h2r_args.arg[1] = 0; /* no crc & no pixelcache */
 	h2r_args.arg[2] = ctx->ctx_ofs;
 	h2r_args.arg[3] = ctx->ctx_size;
-	ret = s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_OPEN_INSTANCE,
+	ret = s5p_mfc_cmd_host2risc_v5(dev, S5P_FIMV_H2R_CMD_OPEN_INSTANCE,
 								&h2r_args);
 	if (ret) {
 		mfc_err("Failed to create a new instance\n");
@@ -92,7 +124,7 @@ int s5p_mfc_open_inst_cmd(struct s5p_mfc_ctx *ctx)
 	return ret;
 }
 
-int s5p_mfc_close_inst_cmd(struct s5p_mfc_ctx *ctx)
+int s5p_mfc_close_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_cmd_args h2r_args;
@@ -108,7 +140,7 @@ int s5p_mfc_close_inst_cmd(struct s5p_mfc_ctx *ctx)
 	dev->curr_ctx = ctx->num;
 	memset(&h2r_args, 0, sizeof(struct s5p_mfc_cmd_args));
 	h2r_args.arg[0] = ctx->inst_no;
-	ret = s5p_mfc_cmd_host2risc(dev, S5P_FIMV_H2R_CMD_CLOSE_INSTANCE,
+	ret = s5p_mfc_cmd_host2risc_v5(dev, S5P_FIMV_H2R_CMD_CLOSE_INSTANCE,
 								&h2r_args);
 	if (ret) {
 		mfc_err("Failed to return an instance\n");
@@ -118,3 +150,17 @@ int s5p_mfc_close_inst_cmd(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
+/* Initialize cmd function pointers for MFC v5 */
+static struct s5p_mfc_hw_cmds s5p_mfc_cmds_v5 = {
+	.cmd_host2risc = s5p_mfc_cmd_host2risc_v5,
+	.sys_init_cmd = s5p_mfc_sys_init_cmd_v5,
+	.sleep_cmd = s5p_mfc_sleep_cmd_v5,
+	.wakeup_cmd = s5p_mfc_wakeup_cmd_v5,
+	.open_inst_cmd = s5p_mfc_open_inst_cmd_v5,
+	.close_inst_cmd = s5p_mfc_close_inst_cmd_v5,
+};
+
+struct s5p_mfc_hw_cmds *s5p_mfc_init_hw_cmds_v5(void)
+{
+	return &s5p_mfc_cmds_v5;
+}
