@@ -257,16 +257,16 @@ static u8 nfc_hci_create_pipe(struct nfc_hci_dev *hdev, u8 dest_host,
 	*result = nfc_hci_execute_cmd(hdev, NFC_HCI_ADMIN_PIPE,
 				      NFC_HCI_ADM_CREATE_PIPE,
 				      (u8 *) &params, sizeof(params), &skb);
-	if (*result == 0) {
-		resp = (struct hci_create_pipe_resp *)skb->data;
-		pipe = resp->pipe;
-		kfree_skb(skb);
-
-		pr_debug("pipe created=%d\n", pipe);
-
-		return pipe;
-	} else
+	if (*result < 0)
 		return NFC_HCI_INVALID_PIPE;
+
+	resp = (struct hci_create_pipe_resp *)skb->data;
+	pipe = resp->pipe;
+	kfree_skb(skb);
+
+	pr_debug("pipe created=%d\n", pipe);
+
+	return pipe;
 }
 
 static int nfc_hci_delete_pipe(struct nfc_hci_dev *hdev, u8 pipe)
