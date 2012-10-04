@@ -652,7 +652,7 @@ static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
 	}
 
 	if (!state && (chip->intr & 0x30)) {
-		chip->intr |= ~0x30;
+		chip->intr &= ~0x30;
 		ret = i2c_smbus_write_byte_data(chip->client,
 						TSL2563_CMD | TSL2563_REG_INT,
 						chip->intr);
@@ -814,7 +814,7 @@ static int __devexit tsl2563_remove(struct i2c_client *client)
 	if (!chip->int_enabled)
 		cancel_delayed_work(&chip->poweroff_work);
 	/* Ensure that interrupts are disabled - then flush any bottom halves */
-	chip->intr |= ~0x30;
+	chip->intr &= ~0x30;
 	i2c_smbus_write_byte_data(chip->client, TSL2563_CMD | TSL2563_REG_INT,
 				  chip->intr);
 	flush_scheduled_work();
