@@ -33,6 +33,9 @@ static char aoe_iflist[IFLISTSZ];
 module_param_string(aoe_iflist, aoe_iflist, IFLISTSZ, 0600);
 MODULE_PARM_DESC(aoe_iflist, "aoe_iflist=\"dev1 [dev2 ...]\"");
 
+static wait_queue_head_t txwq;
+static struct ktstate kts;
+
 #ifndef MODULE
 static int __init aoe_iflist_setup(char *str)
 {
@@ -43,6 +46,23 @@ static int __init aoe_iflist_setup(char *str)
 
 __setup("aoe_iflist=", aoe_iflist_setup);
 #endif
+
+static spinlock_t txlock;
+static struct sk_buff_head skbtxq;
+
+/* enters with txlock held */
+static int
+tx(void)
+{
+	struct sk_buff *skb;
+
+	while ((skb = skb_dequeue(&skbtxq))) {
+		spin_unlock_irq(&txlock);
+		dev_queue_xmit(skb);
+		spin_lock_irq(&txlock);
+	}
+	return 0;
+}
 
 int
 is_aoe_netif(struct net_device *ifp)
@@ -88,10 +108,14 @@ void
 aoenet_xmit(struct sk_buff_head *queue)
 {
 	struct sk_buff *skb, *tmp;
+	ulong flags;
 
 	skb_queue_walk_safe(queue, skb, tmp) {
 		__skb_unlink(skb, queue);
-		dev_queue_xmit(skb);
+		spin_lock_irqsave(&txlock, flags);
+		skb_queue_tail(&skbtxq, skb);
+		spin_unlock_irqrestore(&txlock, flags);
+		wake_up(&txwq);
 	}
 }
 
@@ -169,6 +193,15 @@ static struct packet_type aoe_pt __read_mostly = {
 int __init
 aoenet_init(void)
 {
+	skb_queue_head_init(&skbtxq);
+	init_waitqueue_head(&txwq);
+	spin_lock_init(&txlock);
+	kts.lock = &txlock;
+	kts.fn = tx;
+	kts.waitq = &txwq;
+	kts.name = "aoe_tx";
+	if (aoe_ktstart(&kts))
+		return -EAGAIN;
 	dev_add_pack(&aoe_pt);
 	return 0;
 }
@@ -176,6 +209,8 @@ aoenet_init(void)
 void
 aoenet_exit(void)
 {
+	aoe_ktstop(&kts);
+	skb_queue_purge(&skbtxq);
 	dev_remove_pack(&aoe_pt);
 }
 

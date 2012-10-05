@@ -210,6 +210,8 @@ struct sk_buff *aoecmd_ata_id(struct aoedev *);
 void aoe_freetframe(struct frame *);
 void aoe_flush_iocq(void);
 void aoe_end_request(struct aoedev *, struct request *, int);
+int aoe_ktstart(struct ktstate *k);
+void aoe_ktstop(struct ktstate *k);
 
 int aoedev_init(void);
 void aoedev_exit(void);

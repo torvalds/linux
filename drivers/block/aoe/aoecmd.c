@@ -1110,14 +1110,14 @@ kthread(void *vp)
 	return 0;
 }
 
-static void
+void
 aoe_ktstop(struct ktstate *k)
 {
 	kthread_stop(k->task);
 	wait_for_completion(&k->rendez);
 }
 
-static int
+int
 aoe_ktstart(struct ktstate *k)
 {
 	struct task_struct *task;
