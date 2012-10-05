@@ -243,13 +243,14 @@ char *put_dec(char *buf, unsigned long long n)
 
 /* Second algorithm: valid only for 64-bit long longs */
 
+/* See comment in put_dec_full9 for choice of constants */
 static noinline_for_stack
 char *put_dec_full4(char *buf, unsigned q)
 {
 	unsigned r;
-	r      = (q * 0xcccd) >> 19;
+	r      = (q * 0xccd) >> 15;
 	*buf++ = (q - 10 * r) + '0';
-	q      = (r * 0x199a) >> 16;
+	q      = (r * 0xcd) >> 11;
 	*buf++ = (r - 10 * q)  + '0';
 	r      = (q * 0xcd) >> 11;
 	*buf++ = (q - 10 * r)  + '0';
