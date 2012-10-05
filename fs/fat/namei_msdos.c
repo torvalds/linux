@@ -407,7 +407,7 @@ out:
 static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	struct super_block *sb= inode->i_sb;
+	struct super_block *sb = inode->i_sb;
 	struct fat_slot_info sinfo;
 	int err;
 
@@ -440,7 +440,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 	struct inode *old_inode, *new_inode;
 	struct fat_slot_info old_sinfo, sinfo;
 	struct timespec ts;
-	loff_t dotdot_i_pos, new_i_pos;
+	loff_t new_i_pos;
 	int err, old_attrs, is_dir, update_dotdot, corrupt = 0;
 
 	old_sinfo.bh = sinfo.bh = dotdot_bh = NULL;
@@ -456,8 +456,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 	is_dir = S_ISDIR(old_inode->i_mode);
 	update_dotdot = (is_dir && old_dir != new_dir);
 	if (update_dotdot) {
-		if (fat_get_dotdot_entry(old_inode, &dotdot_bh, &dotdot_de,
-					 &dotdot_i_pos) < 0) {
+		if (fat_get_dotdot_entry(old_inode, &dotdot_bh, &dotdot_de)) {
 			err = -EIO;
 			goto out;
 		}

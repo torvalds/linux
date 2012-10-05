@@ -1199,6 +1199,7 @@ config BUG
           Just say Y.
 
 config ELF_CORE
+	depends on COREDUMP
 	default y
 	bool "Enable ELF core dumps" if EXPERT
 	help
@@ -1579,6 +1580,12 @@ config PREEMPT_NOTIFIERS
 
 config PADATA
 	depends on SMP
+	bool
+
+# Can be selected by architectures with broken toolchains
+# that get confused by correct const<->read_only section
+# mappings
+config BROKEN_RODATA
 	bool
 
 source "kernel/Kconfig.locks"

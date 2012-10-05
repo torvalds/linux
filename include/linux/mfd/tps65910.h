@@ -132,6 +132,16 @@
  *
  */
 
+/* RTC_CTRL_REG bitfields */
+#define TPS65910_RTC_CTRL_STOP_RTC			0x01 /*0=stop, 1=run */
+#define TPS65910_RTC_CTRL_GET_TIME			0x40
+
+/* RTC_STATUS_REG bitfields */
+#define TPS65910_RTC_STATUS_ALARM               0x40
+
+/* RTC_INTERRUPTS_REG bitfields */
+#define TPS65910_RTC_INTERRUPTS_EVERY           0x03
+#define TPS65910_RTC_INTERRUPTS_IT_ALARM        0x08
 
 /*Register BCK1  (0x80) register.RegisterDescription */
 #define BCK1_BCKUP_MASK					0xFF
