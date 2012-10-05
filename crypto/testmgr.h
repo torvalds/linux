@@ -1707,7 +1707,7 @@ static struct hash_testvec aes_xcbc128_tv_template[] = {
 	}
 };
 
-#define VMAC_AES_TEST_VECTORS	8
+#define VMAC_AES_TEST_VECTORS	11
 static char vmac_string1[128] = {'\x01', '\x01', '\x01', '\x01',
 				'\x02', '\x03', '\x02', '\x02',
 				'\x02', '\x04', '\x01', '\x07',
@@ -1722,6 +1722,19 @@ static char vmac_string3[128] = {'a', 'b', 'c', 'a', 'b', 'c',
 				'a', 'b', 'c', 'a', 'b', 'c',
 				'a', 'b', 'c', 'a', 'b', 'c',
 				};
+
+static char vmac_string4[17] = {'b', 'c', 'e', 'f',
+				'i', 'j', 'l', 'm',
+				'o', 'p', 'r', 's',
+				't', 'u', 'w', 'x', 'z'};
+
+static char vmac_string5[127] = {'r', 'm', 'b', 't', 'c',
+				 'o', 'l', 'k', ']', '%',
+				 '9', '2', '7', '!', 'A'};
+
+static char vmac_string6[129] = {'p', 't', '*', '7', 'l',
+				 'i', '!', '#', 'w', '0',
+				 'z', '/', '4', 'A', 'n'};
 
 static struct hash_testvec aes_vmac128_tv_template[] = {
 	{
@@ -1776,6 +1789,24 @@ static struct hash_testvec aes_vmac128_tv_template[] = {
 		.digest = "\x8b\x32\x8f\xe1\xed\x8f\xfa\xd4",
 		.psize  = 128,
 		.ksize  = 16,
+	}, {
+		.key = "a09b5cd!f#07K\x00\x00\x00",
+		.plaintext = vmac_string4,
+		.digest = "\xab\xa5\x0f\xea\x42\x4e\xa1\x5f",
+		.psize = sizeof(vmac_string4),
+		.ksize = 16,
+	}, {
+		.key = "a09b5cd!f#07K\x00\x00\x00",
+		.plaintext = vmac_string5,
+		.digest = "\x25\x31\x98\xbc\x1d\xe8\x67\x60",
+		.psize = sizeof(vmac_string5),
+		.ksize = 16,
+	}, {
+		.key = "a09b5cd!f#07K\x00\x00\x00",
+		.plaintext = vmac_string6,
+		.digest = "\xc4\xae\x9b\x47\x95\x65\xeb\x41",
+		.psize = sizeof(vmac_string6),
+		.ksize = 16,
 	},
 };
 
