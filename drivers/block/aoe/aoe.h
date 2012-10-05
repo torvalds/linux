@@ -125,9 +125,8 @@ struct frame {
 
 struct aoeif {
 	struct net_device *nd;
-	unsigned char lost;
-	unsigned char lostjumbo;
-	ushort maxbcnt;
+	ulong lost;
+	int bcnt;
 };
 
 struct aoetgt {
@@ -144,6 +143,7 @@ struct aoetgt {
 	u16 useme;
 	ulong falloc;
 	ulong lastwadj;		/* last window adjustment */
+	int minbcnt;
 	int wpkts, rpkts;
 };
 
@@ -172,6 +172,7 @@ struct aoedev {
 		struct bio *nxbio;
 		struct request *rq;
 	} ip;
+	ulong maxbcnt;
 	struct aoetgt *targets[NTARGETS];
 	struct aoetgt **tgt;	/* target in use when working */
 	struct aoetgt *htgt;	/* target needing rexmit assistance */
