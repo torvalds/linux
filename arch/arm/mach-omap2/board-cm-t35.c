@@ -40,7 +40,7 @@
 
 #include "common.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>

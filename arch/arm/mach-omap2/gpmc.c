@@ -29,15 +29,14 @@
 #include <linux/platform_data/mtd-nand-omap2.h>
 
 #include <asm/mach-types.h>
-#include <plat/gpmc.h>
 
 #include <plat/cpu.h>
-#include <plat/gpmc.h>
 #include <plat/sdrc.h>
 #include <plat/omap_device.h>
 
 #include "soc.h"
 #include "common.h"
+#include "gpmc.h"
 
 #define	DEVICE_NAME		"omap-gpmc"
 

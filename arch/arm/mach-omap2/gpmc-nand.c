@@ -17,8 +17,7 @@
 
 #include <asm/mach/flash.h>
 
-#include <plat/gpmc.h>
-
+#include "gpmc.h"
 #include "soc.h"
 #include "gpmc-nand.h"
 

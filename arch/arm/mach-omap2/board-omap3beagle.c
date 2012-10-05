@@ -41,7 +41,7 @@
 #include "common.h"
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <plat/usb.h>
 #include <plat/omap_device.h>

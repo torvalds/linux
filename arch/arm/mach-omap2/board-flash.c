@@ -18,7 +18,7 @@
 #include <linux/io.h>
 
 #include <plat/cpu.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 #include <plat/tc.h>

@@ -40,7 +40,7 @@
 #include "powerdomain.h"
 #include <plat/sdrc.h>
 #include <plat/prcm.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <plat/dma.h>
 
 #include "common.h"

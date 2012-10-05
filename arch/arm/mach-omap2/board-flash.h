@@ -12,7 +12,7 @@
  */
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 
 #define PDC_NOR		1
 #define PDC_NAND	2

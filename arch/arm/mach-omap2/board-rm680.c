@@ -25,7 +25,7 @@
 #include <plat/i2c.h>
 #include <plat/mmc.h>
 #include <plat/usb.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include "common.h"
 #include <plat/serial.h>
 

@@ -44,7 +44,7 @@
 #include <asm/system_info.h>
 
 #include "common.h"
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <plat/usb.h>
 

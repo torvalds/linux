@@ -10,7 +10,7 @@
 #ifndef	__OMAP2_GPMC_NAND_H
 #define	__OMAP2_GPMC_NAND_H
 
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
 
 #if IS_ENABLED(CONFIG_MTD_NAND_OMAP2)

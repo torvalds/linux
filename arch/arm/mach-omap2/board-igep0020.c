@@ -30,7 +30,7 @@
 #include <asm/mach/arch.h>
 
 #include "common.h"
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <plat/usb.h>
 
 #include <video/omapdss.h>

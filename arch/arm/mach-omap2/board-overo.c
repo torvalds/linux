@@ -49,7 +49,7 @@
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <plat/usb.h>
 
 #include "mux.h"
