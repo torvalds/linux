@@ -69,13 +69,15 @@ config RTC_INTF_SYSFS
 	  If unsure, say Y.
 
 config RTC_INTF_PROC
-	boolean "/proc/driver/rtc (procfs for rtc0)"
+	boolean "/proc/driver/rtc (procfs for rtcN)"
 	depends on PROC_FS
 	default RTC_CLASS
 	help
-	  Say yes here if you want to use your first RTC through the proc
-	  interface, /proc/driver/rtc. Other RTCs will not be available
-	  through that API.
+	  Say yes here if you want to use your system clock RTC through
+	  the proc interface, /proc/driver/rtc.
+	  Other RTCs will not be available through that API.
+	  If there is no RTC for the system clock, then the first RTC(rtc0)
+	  is used by default.
 
 	  If unsure, say Y.
 
