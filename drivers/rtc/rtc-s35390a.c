@@ -50,7 +50,11 @@ static int s35390a_set_reg(struct s35390a *s35390a, int reg, char *buf, int len)
 {
 	struct i2c_client *client = s35390a->client[reg];
 	struct i2c_msg msg[] = {
-		{ client->addr, 0, len, buf },
+		{
+			.addr = client->addr,
+			.len = len,
+			.buf = buf
+		},
 	};
 
 	if ((i2c_transfer(client->adapter, msg, 1)) != 1)
@@ -63,7 +67,12 @@ static int s35390a_get_reg(struct s35390a *s35390a, int reg, char *buf, int len)
 {
 	struct i2c_client *client = s35390a->client[reg];
 	struct i2c_msg msg[] = {
-		{ client->addr, I2C_M_RD, len, buf },
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = buf
+		},
 	};
 
 	if ((i2c_transfer(client->adapter, msg, 1)) != 1)
