@@ -245,17 +245,32 @@ char *put_dec(char *buf, unsigned long long n)
 
 /* See comment in put_dec_full9 for choice of constants */
 static noinline_for_stack
-char *put_dec_full4(char *buf, unsigned q)
+void put_dec_full4(char *buf, unsigned q)
 {
 	unsigned r;
 	r      = (q * 0xccd) >> 15;
-	*buf++ = (q - 10 * r) + '0';
+	buf[0] = (q - 10 * r) + '0';
 	q      = (r * 0xcd) >> 11;
-	*buf++ = (r - 10 * q)  + '0';
+	buf[1] = (r - 10 * q)  + '0';
 	r      = (q * 0xcd) >> 11;
-	*buf++ = (q - 10 * r)  + '0';
-	*buf++ = r + '0';
-	return buf;
+	buf[2] = (q - 10 * r)  + '0';
+	buf[3] = r + '0';
+}
+
+/*
+ * Call put_dec_full4 on x % 10000, return x / 10000.
+ * The approximation x/10000 == (x * 0x346DC5D7) >> 43
+ * holds for all x < 1,128,869,999.  The largest value this
+ * helper will ever be asked to convert is 1,125,520,955.
+ * (d1 in the put_dec code, assuming n is all-ones).
+ */
+static
+unsigned put_dec_helper4(char *buf, unsigned x)
+{
+        uint32_t q = (x * (uint64_t)0x346DC5D7) >> 43;
+
+        put_dec_full4(buf, x - q * 10000);
+        return q;
 }
 
 /* Based on code by Douglas W. Jones found at
@@ -277,28 +292,19 @@ char *put_dec(char *buf, unsigned long long n)
 	d3  = (h >> 16); /* implicit "& 0xffff" */
 
 	q   = 656 * d3 + 7296 * d2 + 5536 * d1 + ((uint32_t)n & 0xffff);
+	q = put_dec_helper4(buf, q);
 
-	buf = put_dec_full4(buf, q % 10000);
-	q   = q / 10000;
+	q += 7671 * d3 + 9496 * d2 + 6 * d1;
+	q = put_dec_helper4(buf+4, q);
 
-	d1  = q + 7671 * d3 + 9496 * d2 + 6 * d1;
-	buf = put_dec_full4(buf, d1 % 10000);
-	q   = d1 / 10000;
+	q += 4749 * d3 + 42 * d2;
+	q = put_dec_helper4(buf+8, q);
 
-	d2  = q + 4749 * d3 + 42 * d2;
-	buf = put_dec_full4(buf, d2 % 10000);
-	q   = d2 / 10000;
-
-	d3  = q + 281 * d3;
-	if (!d3)
-		goto done;
-	buf = put_dec_full4(buf, d3 % 10000);
-	q   = d3 / 10000;
-	if (!q)
-		goto done;
-	buf = put_dec_full4(buf, q);
- done:
-	while (buf[-1] == '0')
+	q += 281 * d3;
+	buf += 12;
+	if (q)
+		buf = put_dec_trunc8(buf, q);
+	else while (buf[-1] == '0')
 		--buf;
 
 	return buf;
