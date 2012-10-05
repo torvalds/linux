@@ -26,6 +26,41 @@ static bool  force;
 static bool show_displacement;
 static bool show_baseline_only;
 
+enum {
+	COMPUTE_DELTA,
+	COMPUTE_RATIO,
+	COMPUTE_MAX,
+};
+
+const char *compute_names[COMPUTE_MAX] = {
+	[COMPUTE_DELTA] = "delta",
+	[COMPUTE_RATIO] = "ratio",
+};
+
+static int compute;
+
+static int setup_compute(const struct option *opt, const char *str,
+			 int unset __maybe_unused)
+{
+	int *cp = (int *) opt->value;
+	unsigned i;
+
+	if (!str) {
+		*cp = COMPUTE_DELTA;
+		return 0;
+	}
+
+	for (i = 0; i < COMPUTE_MAX; i++)
+		if (!strcmp(str, compute_names[i])) {
+			*cp = i;
+			return 0;
+		}
+
+	pr_err("Failed: '%s' is not computation method "
+	       "(use 'delta' or 'ratio').\n", str);
+	return -EINVAL;
+}
+
 static int hists__add_entry(struct hists *self,
 			    struct addr_location *al, u64 period)
 {
@@ -262,6 +297,9 @@ static const struct option options[] = {
 		    "Show position displacement relative to baseline"),
 	OPT_BOOLEAN('b', "baseline-only", &show_baseline_only,
 		    "Show only items with match in baseline"),
+	OPT_CALLBACK('c', "compute", &compute, "delta,ratio (default delta)",
+		     "Entries differential computation selection",
+		     setup_compute),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
@@ -290,9 +328,19 @@ static void ui_init(void)
 	/* No overhead column. */
 	perf_hpp__column_enable(PERF_HPP__OVERHEAD, false);
 
-	/* Display baseline/delta/displacement columns. */
+	/* Display baseline/delta/ratio/displacement columns. */
 	perf_hpp__column_enable(PERF_HPP__BASELINE, true);
-	perf_hpp__column_enable(PERF_HPP__DELTA, true);
+
+	switch (compute) {
+	case COMPUTE_DELTA:
+		perf_hpp__column_enable(PERF_HPP__DELTA, true);
+		break;
+	case COMPUTE_RATIO:
+		perf_hpp__column_enable(PERF_HPP__RATIO, true);
+		break;
+	default:
+		BUG_ON(1);
+	};
 
 	if (show_displacement)
 		perf_hpp__column_enable(PERF_HPP__DISPL, true);

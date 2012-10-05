@@ -76,6 +76,39 @@ OPTIONS
 --baseline-only::
         Show only items with match in baseline.
 
+-c::
+--compute::
+        Differential computation selection - delta,ratio (default is delta).
+        See COMPARISON METHODS section for more info.
+
+COMPARISON METHODS
+------------------
+delta
+~~~~~
+If specified the 'Delta' column is displayed with value 'd' computed as:
+
+  d = A->period_percent - B->period_percent
+
+with:
+  - A/B being matching hist entry from first/second file specified
+    (or perf.data/perf.data.old) respectively.
+
+  - period_percent being the % of the hist entry period value within
+    single data file
+
+ratio
+~~~~~
+If specified the 'Ratio' column is displayed with value 'r' computed as:
+
+  r = A->period / B->period
+
+with:
+  - A/B being matching hist entry from first/second file specified
+    (or perf.data/perf.data.old) respectively.
+
+  - period being the hist entry period value
+
+
 SEE ALSO
 --------
 linkperf:perf-record[1]
