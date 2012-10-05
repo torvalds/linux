@@ -27,11 +27,11 @@
 #include <linux/amba/mmci.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
+#include <linux/platform_data/clk-realview.h>
 
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
-#include <asm/pmu.h>
 #include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 
@@ -241,7 +241,7 @@ static struct resource pmu_resource = {
 
 static struct platform_device pmu_device = {
 	.name			= "arm-pmu",
-	.id			= ARM_PMU_DEVICE_CPU,
+	.id			= -1,
 	.num_resources		= 1,
 	.resource		= &pmu_resource,
 };
@@ -261,6 +261,7 @@ static void __init realview_pba8_timer_init(void)
 	timer2_va_base = __io_address(REALVIEW_PBA8_TIMER2_3_BASE);
 	timer3_va_base = __io_address(REALVIEW_PBA8_TIMER2_3_BASE) + 0x20;
 
+	realview_clk_init(__io_address(REALVIEW_SYS_BASE), false);
 	realview_timer_init(IRQ_PBA8_TIMER0_1);
 }
 

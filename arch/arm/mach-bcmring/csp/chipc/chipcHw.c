@@ -26,15 +26,15 @@
 
 /* ---- Include Files ---------------------------------------------------- */
 
-#include <csp/errno.h>
-#include <csp/stdint.h>
-#include <csp/module.h>
+#include <linux/errno.h>
+#include <linux/types.h>
+#include <linux/export.h>
 
 #include <mach/csp/chipcHw_def.h>
 #include <mach/csp/chipcHw_inline.h>
 
-#include <csp/reg.h>
-#include <csp/delay.h>
+#include <mach/csp/reg.h>
+#include <linux/delay.h>
 
 /* ---- Private Constants and Types --------------------------------------- */
 
@@ -61,21 +61,21 @@ static int chipcHw_divide(int num, int denom)
 /****************************************************************************/
 chipcHw_freq chipcHw_getClockFrequency(chipcHw_CLOCK_e clock	/*  [ IN ] Configurable clock */
     ) {
-	volatile uint32_t *pPLLReg = (uint32_t *) 0x0;
-	volatile uint32_t *pClockCtrl = (uint32_t *) 0x0;
-	volatile uint32_t *pDependentClock = (uint32_t *) 0x0;
+	uint32_t __iomem *pPLLReg = NULL;
+	uint32_t __iomem *pClockCtrl = NULL;
+	uint32_t __iomem *pDependentClock = NULL;
 	uint32_t vcoFreqPll1Hz = 0;	/* Effective VCO frequency for PLL1 in Hz */
 	uint32_t vcoFreqPll2Hz = 0;	/* Effective VCO frequency for PLL2 in Hz */
 	uint32_t dependentClockType = 0;
 	uint32_t vcoHz = 0;
 
 	/* Get VCO frequencies */
-	if ((pChipcHw->PLLPreDivider & chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_MASK) != chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_INTEGER) {
+	if ((readl(&pChipcHw->PLLPreDivider) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_MASK) != chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_INTEGER) {
 		uint64_t adjustFreq = 0;
 
 		vcoFreqPll1Hz = chipcHw_XTAL_FREQ_Hz *
 		    chipcHw_divide(chipcHw_REG_PLL_PREDIVIDER_P1, chipcHw_REG_PLL_PREDIVIDER_P2) *
-		    ((pChipcHw->PLLPreDivider & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
+		    ((readl(&pChipcHw->PLLPreDivider) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
 		     chipcHw_REG_PLL_PREDIVIDER_NDIV_SHIFT);
 
 		/* Adjusted frequency due to chipcHw_REG_PLL_DIVIDER_NDIV_f_SS */
@@ -86,13 +86,13 @@ chipcHw_freq chipcHw_getClockFrequency(chipcHw_CLOCK_e clock	/*  [ IN ] Configur
 	} else {
 		vcoFreqPll1Hz = chipcHw_XTAL_FREQ_Hz *
 		    chipcHw_divide(chipcHw_REG_PLL_PREDIVIDER_P1, chipcHw_REG_PLL_PREDIVIDER_P2) *
-		    ((pChipcHw->PLLPreDivider & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
+		    ((readl(&pChipcHw->PLLPreDivider) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
 		     chipcHw_REG_PLL_PREDIVIDER_NDIV_SHIFT);
 	}
 	vcoFreqPll2Hz =
 	    chipcHw_XTAL_FREQ_Hz *
 		 chipcHw_divide(chipcHw_REG_PLL_PREDIVIDER_P1, chipcHw_REG_PLL_PREDIVIDER_P2) *
-	    ((pChipcHw->PLLPreDivider2 & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
+	    ((readl(&pChipcHw->PLLPreDivider2) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
 	     chipcHw_REG_PLL_PREDIVIDER_NDIV_SHIFT);
 
 	switch (clock) {
@@ -187,51 +187,51 @@ chipcHw_freq chipcHw_getClockFrequency(chipcHw_CLOCK_e clock	/*  [ IN ] Configur
 
 	if (pPLLReg) {
 		/* Obtain PLL clock frequency */
-		if (*pPLLReg & chipcHw_REG_PLL_CLOCK_BYPASS_SELECT) {
+		if (readl(pPLLReg) & chipcHw_REG_PLL_CLOCK_BYPASS_SELECT) {
 			/* Return crystal clock frequency when bypassed */
 			return chipcHw_XTAL_FREQ_Hz;
 		} else if (clock == chipcHw_CLOCK_DDR) {
 			/* DDR frequency is configured in PLLDivider register */
-			return chipcHw_divide (vcoHz, (((pChipcHw->PLLDivider & 0xFF000000) >> 24) ? ((pChipcHw->PLLDivider & 0xFF000000) >> 24) : 256));
+			return chipcHw_divide (vcoHz, (((readl(&pChipcHw->PLLDivider) & 0xFF000000) >> 24) ? ((readl(&pChipcHw->PLLDivider) & 0xFF000000) >> 24) : 256));
 		} else {
 			/* From chip revision number B0, LCD clock is internally divided by 2 */
 			if ((pPLLReg == &pChipcHw->LCDClock) && (chipcHw_getChipRevisionNumber() != chipcHw_REV_NUMBER_A0)) {
 				vcoHz >>= 1;
 			}
 			/* Obtain PLL clock frequency using VCO dividers */
-			return chipcHw_divide(vcoHz, ((*pPLLReg & chipcHw_REG_PLL_CLOCK_MDIV_MASK) ? (*pPLLReg & chipcHw_REG_PLL_CLOCK_MDIV_MASK) : 256));
+			return chipcHw_divide(vcoHz, ((readl(pPLLReg) & chipcHw_REG_PLL_CLOCK_MDIV_MASK) ?  (readl(pPLLReg) & chipcHw_REG_PLL_CLOCK_MDIV_MASK) : 256));
 		}
 	} else if (pClockCtrl) {
 		/* Obtain divider clock frequency */
 		uint32_t div;
 		uint32_t freq = 0;
 
-		if (*pClockCtrl & chipcHw_REG_DIV_CLOCK_BYPASS_SELECT) {
+		if (readl(pClockCtrl) & chipcHw_REG_DIV_CLOCK_BYPASS_SELECT) {
 			/* Return crystal clock frequency when bypassed */
 			return chipcHw_XTAL_FREQ_Hz;
 		} else if (pDependentClock) {
 			/* Identify the dependent clock frequency */
 			switch (dependentClockType) {
 			case PLL_CLOCK:
-				if (*pDependentClock & chipcHw_REG_PLL_CLOCK_BYPASS_SELECT) {
+				if (readl(pDependentClock) & chipcHw_REG_PLL_CLOCK_BYPASS_SELECT) {
 					/* Use crystal clock frequency when dependent PLL clock is bypassed */
 					freq = chipcHw_XTAL_FREQ_Hz;
 				} else {
 					/* Obtain PLL clock frequency using VCO dividers */
-					div = *pDependentClock & chipcHw_REG_PLL_CLOCK_MDIV_MASK;
+					div = readl(pDependentClock) & chipcHw_REG_PLL_CLOCK_MDIV_MASK;
 					freq = div ? chipcHw_divide(vcoHz, div) : 0;
 				}
 				break;
 			case NON_PLL_CLOCK:
-				if (pDependentClock == (uint32_t *) &pChipcHw->ACLKClock) {
+				if (pDependentClock == &pChipcHw->ACLKClock) {
 					freq = chipcHw_getClockFrequency (chipcHw_CLOCK_BUS);
 				} else {
-					if (*pDependentClock & chipcHw_REG_DIV_CLOCK_BYPASS_SELECT) {
+					if (readl(pDependentClock) & chipcHw_REG_DIV_CLOCK_BYPASS_SELECT) {
 						/* Use crystal clock frequency when dependent divider clock is bypassed */
 						freq = chipcHw_XTAL_FREQ_Hz;
 					} else {
 						/* Obtain divider clock frequency using XTAL dividers */
-						div = *pDependentClock & chipcHw_REG_DIV_CLOCK_DIV_MASK;
+						div = readl(pDependentClock) & chipcHw_REG_DIV_CLOCK_DIV_MASK;
 						freq = chipcHw_divide (chipcHw_XTAL_FREQ_Hz, (div ? div : 256));
 					}
 				}
@@ -242,7 +242,7 @@ chipcHw_freq chipcHw_getClockFrequency(chipcHw_CLOCK_e clock	/*  [ IN ] Configur
 			freq = chipcHw_XTAL_FREQ_Hz;
 		}
 
-		div = *pClockCtrl & chipcHw_REG_DIV_CLOCK_DIV_MASK;
+		div = readl(pClockCtrl) & chipcHw_REG_DIV_CLOCK_DIV_MASK;
 		return chipcHw_divide(freq, (div ? div : 256));
 	}
 	return 0;
@@ -261,9 +261,9 @@ chipcHw_freq chipcHw_getClockFrequency(chipcHw_CLOCK_e clock	/*  [ IN ] Configur
 chipcHw_freq chipcHw_setClockFrequency(chipcHw_CLOCK_e clock,	/*  [ IN ] Configurable clock */
 				       uint32_t freq	/*  [ IN ] Clock frequency in Hz */
     ) {
-	volatile uint32_t *pPLLReg = (uint32_t *) 0x0;
-	volatile uint32_t *pClockCtrl = (uint32_t *) 0x0;
-	volatile uint32_t *pDependentClock = (uint32_t *) 0x0;
+	uint32_t __iomem *pPLLReg = NULL;
+	uint32_t __iomem *pClockCtrl = NULL;
+	uint32_t __iomem *pDependentClock = NULL;
 	uint32_t vcoFreqPll1Hz = 0;	/* Effective VCO frequency for PLL1 in Hz */
 	uint32_t desVcoFreqPll1Hz = 0;	/* Desired VCO frequency for PLL1 in Hz */
 	uint32_t vcoFreqPll2Hz = 0;	/* Effective VCO frequency for PLL2 in Hz */
@@ -272,12 +272,12 @@ chipcHw_freq chipcHw_setClockFrequency(chipcHw_CLOCK_e clock,	/*  [ IN ] Configu
 	uint32_t desVcoHz = 0;
 
 	/* Get VCO frequencies */
-	if ((pChipcHw->PLLPreDivider & chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_MASK) != chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_INTEGER) {
+	if ((readl(&pChipcHw->PLLPreDivider) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_MASK) != chipcHw_REG_PLL_PREDIVIDER_NDIV_MODE_INTEGER) {
 		uint64_t adjustFreq = 0;
 
 		vcoFreqPll1Hz = chipcHw_XTAL_FREQ_Hz *
 		    chipcHw_divide(chipcHw_REG_PLL_PREDIVIDER_P1, chipcHw_REG_PLL_PREDIVIDER_P2) *
-		    ((pChipcHw->PLLPreDivider & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
+		    ((readl(&pChipcHw->PLLPreDivider) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
 		     chipcHw_REG_PLL_PREDIVIDER_NDIV_SHIFT);
 
 		/* Adjusted frequency due to chipcHw_REG_PLL_DIVIDER_NDIV_f_SS */
@@ -289,16 +289,16 @@ chipcHw_freq chipcHw_setClockFrequency(chipcHw_CLOCK_e clock,	/*  [ IN ] Configu
 		/* Desired VCO frequency */
 		desVcoFreqPll1Hz = chipcHw_XTAL_FREQ_Hz *
 		    chipcHw_divide(chipcHw_REG_PLL_PREDIVIDER_P1, chipcHw_REG_PLL_PREDIVIDER_P2) *
-		    (((pChipcHw->PLLPreDivider & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
+		    (((readl(&pChipcHw->PLLPreDivider) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
 		      chipcHw_REG_PLL_PREDIVIDER_NDIV_SHIFT) + 1);
 	} else {
 		vcoFreqPll1Hz = desVcoFreqPll1Hz = chipcHw_XTAL_FREQ_Hz *
 		    chipcHw_divide(chipcHw_REG_PLL_PREDIVIDER_P1, chipcHw_REG_PLL_PREDIVIDER_P2) *
-		    ((pChipcHw->PLLPreDivider & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
+		    ((readl(&pChipcHw->PLLPreDivider) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
 		     chipcHw_REG_PLL_PREDIVIDER_NDIV_SHIFT);
 	}
 	vcoFreqPll2Hz = chipcHw_XTAL_FREQ_Hz * chipcHw_divide(chipcHw_REG_PLL_PREDIVIDER_P1, chipcHw_REG_PLL_PREDIVIDER_P2) *
-	    ((pChipcHw->PLLPreDivider2 & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
+	    ((readl(&pChipcHw->PLLPreDivider2) & chipcHw_REG_PLL_PREDIVIDER_NDIV_MASK) >>
 	     chipcHw_REG_PLL_PREDIVIDER_NDIV_SHIFT);
 
 	switch (clock) {
@@ -307,8 +307,7 @@ chipcHw_freq chipcHw_setClockFrequency(chipcHw_CLOCK_e clock,	/*  [ IN ] Configu
 		{
 			REG_LOCAL_IRQ_SAVE;
 			/* Dvide DDR_phy by two to obtain DDR_ctrl clock */
-			pChipcHw->DDRClock = (pChipcHw->DDRClock & ~chipcHw_REG_PLL_CLOCK_TO_BUS_RATIO_MASK) | ((((freq / 2) / chipcHw_getClockFrequency(chipcHw_CLOCK_BUS)) - 1)
-				<< chipcHw_REG_PLL_CLOCK_TO_BUS_RATIO_SHIFT);
+			writel((readl(&pChipcHw->DDRClock) & ~chipcHw_REG_PLL_CLOCK_TO_BUS_RATIO_MASK) | ((((freq / 2) / chipcHw_getClockFrequency(chipcHw_CLOCK_BUS)) - 1) << chipcHw_REG_PLL_CLOCK_TO_BUS_RATIO_SHIFT), &pChipcHw->DDRClock);
 			REG_LOCAL_IRQ_RESTORE;
 		}
 		pPLLReg = &pChipcHw->DDRClock;
@@ -329,8 +328,7 @@ chipcHw_freq chipcHw_setClockFrequency(chipcHw_CLOCK_e clock,	/*  [ IN ] Configu
 		/* Configure the VPM:BUS ratio settings */
 		{
 			REG_LOCAL_IRQ_SAVE;
-			pChipcHw->VPMClock = (pChipcHw->VPMClock & ~chipcHw_REG_PLL_CLOCK_TO_BUS_RATIO_MASK) | ((chipcHw_divide (freq, chipcHw_getClockFrequency(chipcHw_CLOCK_BUS)) - 1)
-				<< chipcHw_REG_PLL_CLOCK_TO_BUS_RATIO_SHIFT);
+			writel((readl(&pChipcHw->VPMClock) & ~chipcHw_REG_PLL_CLOCK_TO_BUS_RATIO_MASK) | ((chipcHw_divide (freq, chipcHw_getClockFrequency(chipcHw_CLOCK_BUS)) - 1) << chipcHw_REG_PLL_CLOCK_TO_BUS_RATIO_SHIFT), &pChipcHw->VPMClock);
 			REG_LOCAL_IRQ_RESTORE;
 		}
 		pPLLReg = &pChipcHw->VPMClock;
@@ -428,9 +426,9 @@ chipcHw_freq chipcHw_setClockFrequency(chipcHw_CLOCK_e clock,	/*  [ IN ] Configu
 		/* For DDR settings use only the PLL divider clock */
 		if (pPLLReg == &pChipcHw->DDRClock) {
 			/* Set M1DIV for PLL1, which controls the DDR clock */
-			reg32_write(&pChipcHw->PLLDivider, (pChipcHw->PLLDivider & 0x00FFFFFF) | ((chipcHw_REG_PLL_DIVIDER_MDIV (desVcoHz, freq)) << 24));
+			reg32_write(&pChipcHw->PLLDivider, (readl(&pChipcHw->PLLDivider) & 0x00FFFFFF) | ((chipcHw_REG_PLL_DIVIDER_MDIV (desVcoHz, freq)) << 24));
 			/* Calculate expected frequency */
-			freq = chipcHw_divide(vcoHz, (((pChipcHw->PLLDivider & 0xFF000000) >> 24) ? ((pChipcHw->PLLDivider & 0xFF000000) >> 24) : 256));
+			freq = chipcHw_divide(vcoHz, (((readl(&pChipcHw->PLLDivider) & 0xFF000000) >> 24) ? ((readl(&pChipcHw->PLLDivider) & 0xFF000000) >> 24) : 256));
 		} else {
 			/* From chip revision number B0, LCD clock is internally divided by 2 */
 			if ((pPLLReg == &pChipcHw->LCDClock) && (chipcHw_getChipRevisionNumber() != chipcHw_REV_NUMBER_A0)) {
@@ -441,7 +439,7 @@ chipcHw_freq chipcHw_setClockFrequency(chipcHw_CLOCK_e clock,	/*  [ IN ] Configu
 			reg32_modify_and(pPLLReg, ~(chipcHw_REG_PLL_CLOCK_MDIV_MASK));
 			reg32_modify_or(pPLLReg, chipcHw_REG_PLL_DIVIDER_MDIV(desVcoHz, freq));
 			/* Calculate expected frequency */
-			freq = chipcHw_divide(vcoHz, ((*(pPLLReg) & chipcHw_REG_PLL_CLOCK_MDIV_MASK) ? (*(pPLLReg) & chipcHw_REG_PLL_CLOCK_MDIV_MASK) : 256));
+			freq = chipcHw_divide(vcoHz, ((readl(pPLLReg) & chipcHw_REG_PLL_CLOCK_MDIV_MASK) ? (readl(pPLLReg) & chipcHw_REG_PLL_CLOCK_MDIV_MASK) : 256));
 		}
 		/* Wait for for atleast 200ns as per the protocol to change frequency */
 		udelay(1);
@@ -460,16 +458,16 @@ chipcHw_freq chipcHw_setClockFrequency(chipcHw_CLOCK_e clock,	/*  [ IN ] Configu
 		if (pDependentClock) {
 			switch (dependentClockType) {
 			case PLL_CLOCK:
-				divider = chipcHw_divide(chipcHw_divide (desVcoHz, (*pDependentClock & chipcHw_REG_PLL_CLOCK_MDIV_MASK)), freq);
+				divider = chipcHw_divide(chipcHw_divide (desVcoHz, (readl(pDependentClock) & chipcHw_REG_PLL_CLOCK_MDIV_MASK)), freq);
 				break;
 			case NON_PLL_CLOCK:
 				{
 					uint32_t sourceClock = 0;
 
-					if (pDependentClock == (uint32_t *) &pChipcHw->ACLKClock) {
+					if (pDependentClock == &pChipcHw->ACLKClock) {
 						sourceClock = chipcHw_getClockFrequency (chipcHw_CLOCK_BUS);
 					} else {
-						uint32_t div = *pDependentClock & chipcHw_REG_DIV_CLOCK_DIV_MASK;
+						uint32_t div = readl(pDependentClock) & chipcHw_REG_DIV_CLOCK_DIV_MASK;
 						sourceClock = chipcHw_divide (chipcHw_XTAL_FREQ_Hz, ((div) ? div : 256));
 					}
 					divider = chipcHw_divide(sourceClock, freq);
@@ -483,7 +481,7 @@ chipcHw_freq chipcHw_setClockFrequency(chipcHw_CLOCK_e clock,	/*  [ IN ] Configu
 		if (divider) {
 			REG_LOCAL_IRQ_SAVE;
 			/* Set the divider to obtain the required frequency */
-			*pClockCtrl = (*pClockCtrl & (~chipcHw_REG_DIV_CLOCK_DIV_MASK)) | (((divider > 256) ? chipcHw_REG_DIV_CLOCK_DIV_256 : divider) & chipcHw_REG_DIV_CLOCK_DIV_MASK);
+			writel((readl(pClockCtrl) & (~chipcHw_REG_DIV_CLOCK_DIV_MASK)) | (((divider > 256) ? chipcHw_REG_DIV_CLOCK_DIV_256 : divider) & chipcHw_REG_DIV_CLOCK_DIV_MASK), pClockCtrl);
 			REG_LOCAL_IRQ_RESTORE;
 			return freq;
 		}
@@ -515,25 +513,26 @@ static int vpmPhaseAlignA0(void)
 	int count = 0;
 
 	for (iter = 0; (iter < MAX_PHASE_ALIGN_ATTEMPTS) && (adjustCount < MAX_PHASE_ADJUST_COUNT); iter++) {
-		phaseControl = (pChipcHw->VPMClock & chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK) >> chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT;
+		phaseControl = (readl(&pChipcHw->VPMClock) & chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK) >> chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT;
 		phaseValue = 0;
 		prevPhaseComp = 0;
 
 		/* Step 1: Look for falling PH_COMP transition */
 
 		/* Read the contents of VPM Clock resgister */
-		phaseValue = pChipcHw->VPMClock;
+		phaseValue = readl(&pChipcHw->VPMClock);
 		do {
 			/* Store previous value of phase comparator */
 			prevPhaseComp = phaseValue & chipcHw_REG_PLL_CLOCK_PHASE_COMP;
 			/* Change the value of PH_CTRL. */
-			reg32_write(&pChipcHw->VPMClock, (pChipcHw->VPMClock & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
+			reg32_write(&pChipcHw->VPMClock,
+			(readl(&pChipcHw->VPMClock) & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
 			/* Wait atleast 20 ns */
 			udelay(1);
 			/* Toggle the LOAD_CH after phase control is written. */
-			pChipcHw->VPMClock ^= chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE;
+			writel(readl(&pChipcHw->VPMClock) ^ chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE, &pChipcHw->VPMClock);
 			/* Read the contents of  VPM Clock resgister. */
-			phaseValue = pChipcHw->VPMClock;
+			phaseValue = readl(&pChipcHw->VPMClock);
 
 			if ((phaseValue & chipcHw_REG_PLL_CLOCK_PHASE_COMP) == 0x0) {
 				phaseControl = (0x3F & (phaseControl - 1));
@@ -557,12 +556,13 @@ static int vpmPhaseAlignA0(void)
 
 		for (count = 0; (count < 5) && ((phaseValue & chipcHw_REG_PLL_CLOCK_PHASE_COMP) == 0); count++) {
 			phaseControl = (0x3F & (phaseControl + 1));
-			reg32_write(&pChipcHw->VPMClock, (pChipcHw->VPMClock & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
+			reg32_write(&pChipcHw->VPMClock,
+			(readl(&pChipcHw->VPMClock) & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
 			/* Wait atleast 20 ns */
 			udelay(1);
 			/* Toggle the LOAD_CH after phase control is written. */
-			pChipcHw->VPMClock ^= chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE;
-			phaseValue = pChipcHw->VPMClock;
+			writel(readl(&pChipcHw->VPMClock) ^ chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE, &pChipcHw->VPMClock);
+			phaseValue = readl(&pChipcHw->VPMClock);
 			/* Count number of adjustment made */
 			adjustCount++;
 		}
@@ -581,12 +581,13 @@ static int vpmPhaseAlignA0(void)
 
 		for (count = 0; (count < 3) && ((phaseValue & chipcHw_REG_PLL_CLOCK_PHASE_COMP) == 0); count++) {
 			phaseControl = (0x3F & (phaseControl - 1));
-			reg32_write(&pChipcHw->VPMClock, (pChipcHw->VPMClock & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
+			reg32_write(&pChipcHw->VPMClock,
+			(readl(&pChipcHw->VPMClock) & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
 			/* Wait atleast 20 ns */
 			udelay(1);
 			/* Toggle the LOAD_CH after phase control is written. */
-			pChipcHw->VPMClock ^= chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE;
-			phaseValue = pChipcHw->VPMClock;
+			writel(readl(&pChipcHw->VPMClock) ^ chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE, &pChipcHw->VPMClock);
+			phaseValue = readl(&pChipcHw->VPMClock);
 			/* Count number of adjustment made */
 			adjustCount++;
 		}
@@ -605,12 +606,13 @@ static int vpmPhaseAlignA0(void)
 
 		for (count = 0; (count < 5); count++) {
 			phaseControl = (0x3F & (phaseControl - 1));
-			reg32_write(&pChipcHw->VPMClock, (pChipcHw->VPMClock & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
+			reg32_write(&pChipcHw->VPMClock,
+			(readl(&pChipcHw->VPMClock) & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
 			/* Wait atleast 20 ns */
 			udelay(1);
 			/* Toggle the LOAD_CH after phase control is written. */
-			pChipcHw->VPMClock ^= chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE;
-			phaseValue = pChipcHw->VPMClock;
+			writel(readl(&pChipcHw->VPMClock) ^ chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE, &pChipcHw->VPMClock);
+			phaseValue = readl(&pChipcHw->VPMClock);
 			/* Count number of adjustment made */
 			adjustCount++;
 		}
@@ -631,14 +633,14 @@ static int vpmPhaseAlignA0(void)
 			/* Store previous value of phase comparator */
 			prevPhaseComp = phaseValue;
 			/* Change the value of PH_CTRL. */
-			reg32_write(&pChipcHw->VPMClock, (pChipcHw->VPMClock & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
+			reg32_write(&pChipcHw->VPMClock,
+			(readl(&pChipcHw->VPMClock) & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
 			/* Wait atleast 20 ns */
 			udelay(1);
 			/* Toggle the LOAD_CH after phase control is written. */
-			pChipcHw->VPMClock ^=
-			    chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE;
+			writel(readl(&pChipcHw->VPMClock) ^ chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE, &pChipcHw->VPMClock);
 			/* Read the contents of  VPM Clock resgister. */
-			phaseValue = pChipcHw->VPMClock;
+			phaseValue = readl(&pChipcHw->VPMClock);
 
 			if ((phaseValue & chipcHw_REG_PLL_CLOCK_PHASE_COMP) == 0x0) {
 				phaseControl = (0x3F & (phaseControl - 1));
@@ -661,13 +663,13 @@ static int vpmPhaseAlignA0(void)
 	}
 
 	/* For VPM Phase should be perfectly aligned. */
-	phaseControl = (((pChipcHw->VPMClock >> chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT) - 1) & 0x3F);
+	phaseControl = (((readl(&pChipcHw->VPMClock) >> chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT) - 1) & 0x3F);
 	{
 		REG_LOCAL_IRQ_SAVE;
 
-		pChipcHw->VPMClock = (pChipcHw->VPMClock & ~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT);
+		writel((readl(&pChipcHw->VPMClock) & ~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT), &pChipcHw->VPMClock);
 		/* Load new phase value */
-		pChipcHw->VPMClock ^= chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE;
+		writel(readl(&pChipcHw->VPMClock) ^ chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE, &pChipcHw->VPMClock);
 
 		REG_LOCAL_IRQ_RESTORE;
 	}
@@ -697,7 +699,7 @@ int chipcHw_vpmPhaseAlign(void)
 		int adjustCount = 0;
 
 		/* Disable VPM access */
-		pChipcHw->Spare1 &= ~chipcHw_REG_SPARE1_VPM_BUS_ACCESS_ENABLE;
+		writel(readl(&pChipcHw->Spare1) & ~chipcHw_REG_SPARE1_VPM_BUS_ACCESS_ENABLE, &pChipcHw->Spare1);
 		/* Disable HW VPM phase alignment  */
 		chipcHw_vpmHwPhaseAlignDisable();
 		/* Enable SW VPM phase alignment  */
@@ -715,23 +717,24 @@ int chipcHw_vpmPhaseAlign(void)
 				phaseControl--;
 			} else {
 				/* Enable VPM access */
-				pChipcHw->Spare1 |= chipcHw_REG_SPARE1_VPM_BUS_ACCESS_ENABLE;
+				writel(readl(&pChipcHw->Spare1) | chipcHw_REG_SPARE1_VPM_BUS_ACCESS_ENABLE, &pChipcHw->Spare1);
 				/* Return adjust count */
 				return adjustCount;
 			}
 			/* Change the value of PH_CTRL. */
-			reg32_write(&pChipcHw->VPMClock, (pChipcHw->VPMClock & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
+			reg32_write(&pChipcHw->VPMClock,
+			(readl(&pChipcHw->VPMClock) & (~chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_MASK)) | (phaseControl << chipcHw_REG_PLL_CLOCK_PHASE_CONTROL_SHIFT));
 			/* Wait atleast 20 ns */
 			udelay(1);
 			/* Toggle the LOAD_CH after phase control is written. */
-			pChipcHw->VPMClock ^= chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE;
+			writel(readl(&pChipcHw->VPMClock) ^ chipcHw_REG_PLL_CLOCK_PHASE_UPDATE_ENABLE, &pChipcHw->VPMClock);
 			/* Count adjustment */
 			adjustCount++;
 		}
 	}
 
 	/* Disable VPM access */
-	pChipcHw->Spare1 &= ~chipcHw_REG_SPARE1_VPM_BUS_ACCESS_ENABLE;
+	writel(readl(&pChipcHw->Spare1) & ~chipcHw_REG_SPARE1_VPM_BUS_ACCESS_ENABLE, &pChipcHw->Spare1);
 	return -1;
 }
 

@@ -24,12 +24,12 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/mmc/host.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/mcspi.h>
 #include <plat/usb.h>
 #include "common.h"
 #include <plat/dma.h>
@@ -37,7 +37,7 @@
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 
-#include <plat/gpmc-smc91x.h>
+#include "gpmc-smc91x.h"
 
 #include "board-flash.h"
 #include "mux.h"

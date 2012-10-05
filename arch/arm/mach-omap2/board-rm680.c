@@ -17,6 +17,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -26,7 +27,6 @@
 #include <plat/usb.h>
 #include <plat/gpmc.h>
 #include "common.h"
-#include <plat/onenand.h>
 #include <plat/serial.h>
 
 #include "mux.h"

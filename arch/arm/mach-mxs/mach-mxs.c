@@ -12,8 +12,10 @@
 
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/can/platform/flexcan.h>
+#include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/irqdomain.h>
 #include <linux/micrel_phy.h>
@@ -21,9 +23,12 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
+#include <linux/pinctrl/consumer.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
+#include <mach/digctl.h>
+#include <mach/mxs.h>
 
 static struct fb_videomode mx23evk_video_modes[] = {
 	{
@@ -99,9 +104,40 @@ static struct fb_videomode apx4devkit_video_modes[] = {
 
 static struct mxsfb_platform_data mxsfb_pdata __initdata;
 
+/*
+ * MX28EVK_FLEXCAN_SWITCH is shared between both flexcan controllers
+ */
+#define MX28EVK_FLEXCAN_SWITCH	MXS_GPIO_NR(2, 13)
+
+static int flexcan0_en, flexcan1_en;
+
+static void mx28evk_flexcan_switch(void)
+{
+	if (flexcan0_en || flexcan1_en)
+		gpio_set_value(MX28EVK_FLEXCAN_SWITCH, 1);
+	else
+		gpio_set_value(MX28EVK_FLEXCAN_SWITCH, 0);
+}
+
+static void mx28evk_flexcan0_switch(int enable)
+{
+	flexcan0_en = enable;
+	mx28evk_flexcan_switch();
+}
+
+static void mx28evk_flexcan1_switch(int enable)
+{
+	flexcan1_en = enable;
+	mx28evk_flexcan_switch();
+}
+
+static struct flexcan_platform_data flexcan_pdata[2];
+
 static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("fsl,imx23-lcdif", 0x80030000, NULL, &mxsfb_pdata),
 	OF_DEV_AUXDATA("fsl,imx28-lcdif", 0x80030000, NULL, &mxsfb_pdata),
+	OF_DEV_AUXDATA("fsl,imx28-flexcan", 0x80032000, NULL, &flexcan_pdata[0]),
+	OF_DEV_AUXDATA("fsl,imx28-flexcan", 0x80034000, NULL, &flexcan_pdata[1]),
 	{ /* sentinel */ }
 };
 
@@ -237,13 +273,21 @@ static void __init imx28_evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(mx28evk_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+
+	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
+}
+
+static void __init imx28_evk_post_init(void)
+{
+	if (!gpio_request_one(MX28EVK_FLEXCAN_SWITCH, GPIOF_DIR_OUT,
+			      "flexcan-switch")) {
+		flexcan_pdata[0].transceiver_switch = mx28evk_flexcan0_switch;
+		flexcan_pdata[1].transceiver_switch = mx28evk_flexcan1_switch;
+	}
 }
 
 static void __init m28evk_init(void)
 {
-	enable_clk_enet_out();
-	update_fec_mac_prop(OUI_DENX);
-
 	mxsfb_pdata.mode_list = m28evk_video_modes;
 	mxsfb_pdata.mode_count = ARRAY_SIZE(m28evk_video_modes);
 	mxsfb_pdata.default_bpp = 16;
@@ -270,6 +314,80 @@ static void __init apx4devkit_init(void)
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
 }
 
+#define ENET0_MDC__GPIO_4_0	MXS_GPIO_NR(4, 0)
+#define ENET0_MDIO__GPIO_4_1	MXS_GPIO_NR(4, 1)
+#define ENET0_RX_EN__GPIO_4_2	MXS_GPIO_NR(4, 2)
+#define ENET0_RXD0__GPIO_4_3	MXS_GPIO_NR(4, 3)
+#define ENET0_RXD1__GPIO_4_4	MXS_GPIO_NR(4, 4)
+#define ENET0_TX_EN__GPIO_4_6	MXS_GPIO_NR(4, 6)
+#define ENET0_TXD0__GPIO_4_7	MXS_GPIO_NR(4, 7)
+#define ENET0_TXD1__GPIO_4_8	MXS_GPIO_NR(4, 8)
+#define ENET_CLK__GPIO_4_16	MXS_GPIO_NR(4, 16)
+
+#define TX28_FEC_PHY_POWER	MXS_GPIO_NR(3, 29)
+#define TX28_FEC_PHY_RESET	MXS_GPIO_NR(4, 13)
+#define TX28_FEC_nINT		MXS_GPIO_NR(4, 5)
+
+static const struct gpio tx28_gpios[] __initconst = {
+	{ ENET0_MDC__GPIO_4_0, GPIOF_OUT_INIT_LOW, "GPIO_4_0" },
+	{ ENET0_MDIO__GPIO_4_1, GPIOF_OUT_INIT_LOW, "GPIO_4_1" },
+	{ ENET0_RX_EN__GPIO_4_2, GPIOF_OUT_INIT_LOW, "GPIO_4_2" },
+	{ ENET0_RXD0__GPIO_4_3, GPIOF_OUT_INIT_LOW, "GPIO_4_3" },
+	{ ENET0_RXD1__GPIO_4_4, GPIOF_OUT_INIT_LOW, "GPIO_4_4" },
+	{ ENET0_TX_EN__GPIO_4_6, GPIOF_OUT_INIT_LOW, "GPIO_4_6" },
+	{ ENET0_TXD0__GPIO_4_7, GPIOF_OUT_INIT_LOW, "GPIO_4_7" },
+	{ ENET0_TXD1__GPIO_4_8, GPIOF_OUT_INIT_LOW, "GPIO_4_8" },
+	{ ENET_CLK__GPIO_4_16, GPIOF_OUT_INIT_LOW, "GPIO_4_16" },
+	{ TX28_FEC_PHY_POWER, GPIOF_OUT_INIT_LOW, "fec-phy-power" },
+	{ TX28_FEC_PHY_RESET, GPIOF_OUT_INIT_LOW, "fec-phy-reset" },
+	{ TX28_FEC_nINT, GPIOF_DIR_IN, "fec-int" },
+};
+
+static void __init tx28_post_init(void)
+{
+	struct device_node *np;
+	struct platform_device *pdev;
+	struct pinctrl *pctl;
+	int ret;
+
+	enable_clk_enet_out();
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx28-fec");
+	pdev = of_find_device_by_node(np);
+	if (!pdev) {
+		pr_err("%s: failed to find fec device\n", __func__);
+		return;
+	}
+
+	pctl = pinctrl_get_select(&pdev->dev, "gpio_mode");
+	if (IS_ERR(pctl)) {
+		pr_err("%s: failed to get pinctrl state\n", __func__);
+		return;
+	}
+
+	ret = gpio_request_array(tx28_gpios, ARRAY_SIZE(tx28_gpios));
+	if (ret) {
+		pr_err("%s: failed to request gpios: %d\n", __func__, ret);
+		return;
+	}
+
+	/* Power up fec phy */
+	gpio_set_value(TX28_FEC_PHY_POWER, 1);
+	msleep(26); /* 25ms according to data sheet */
+
+	/* Mode strap pins */
+	gpio_set_value(ENET0_RX_EN__GPIO_4_2, 1);
+	gpio_set_value(ENET0_RXD0__GPIO_4_3, 1);
+	gpio_set_value(ENET0_RXD1__GPIO_4_4, 1);
+
+	udelay(100); /* minimum assertion time for nRST */
+
+	/* Deasserting FEC PHY RESET */
+	gpio_set_value(TX28_FEC_PHY_RESET, 1);
+
+	pinctrl_put(pctl);
+}
+
 static void __init mxs_machine_init(void)
 {
 	if (of_machine_is_compatible("fsl,imx28-evk"))
@@ -283,22 +401,20 @@ static void __init mxs_machine_init(void)
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     mxs_auxdata_lookup, NULL);
+
+	if (of_machine_is_compatible("karo,tx28"))
+		tx28_post_init();
+
+	if (of_machine_is_compatible("fsl,imx28-evk"))
+		imx28_evk_post_init();
 }
 
 static const char *imx23_dt_compat[] __initdata = {
-	"fsl,imx23-evk",
-	"fsl,stmp378x_devb"
-	"olimex,imx23-olinuxino",
 	"fsl,imx23",
 	NULL,
 };
 
 static const char *imx28_dt_compat[] __initdata = {
-	"bluegiga,apx4devkit",
-	"crystalfontz,cfa10036",
-	"denx,m28evk",
-	"fsl,imx28-evk",
-	"karo,tx28",
 	"fsl,imx28",
 	NULL,
 };

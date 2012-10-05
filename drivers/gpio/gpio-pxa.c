@@ -26,6 +26,8 @@
 #include <linux/syscore_ops.h>
 #include <linux/slab.h>
 
+#include <asm/mach/irq.h>
+
 #include <mach/irqs.h>
 
 /*
@@ -59,6 +61,7 @@
 #define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
 
 int pxa_last_gpio;
+static int irq_base;
 
 #ifdef CONFIG_OF
 static struct irq_domain *domain;
@@ -167,63 +170,14 @@ static inline int __gpio_is_occupied(unsigned gpio)
 	return ret;
 }
 
-#ifdef CONFIG_ARCH_PXA
-static inline int __pxa_gpio_to_irq(int gpio)
-{
-	if (gpio_is_pxa_type(gpio_type))
-		return PXA_GPIO_TO_IRQ(gpio);
-	return -1;
-}
-
-static inline int __pxa_irq_to_gpio(int irq)
-{
-	if (gpio_is_pxa_type(gpio_type))
-		return irq - PXA_GPIO_TO_IRQ(0);
-	return -1;
-}
-#else
-static inline int __pxa_gpio_to_irq(int gpio) { return -1; }
-static inline int __pxa_irq_to_gpio(int irq) { return -1; }
-#endif
-
-#ifdef CONFIG_ARCH_MMP
-static inline int __mmp_gpio_to_irq(int gpio)
-{
-	if (gpio_is_mmp_type(gpio_type))
-		return MMP_GPIO_TO_IRQ(gpio);
-	return -1;
-}
-
-static inline int __mmp_irq_to_gpio(int irq)
-{
-	if (gpio_is_mmp_type(gpio_type))
-		return irq - MMP_GPIO_TO_IRQ(0);
-	return -1;
-}
-#else
-static inline int __mmp_gpio_to_irq(int gpio) { return -1; }
-static inline int __mmp_irq_to_gpio(int irq) { return -1; }
-#endif
-
 static int pxa_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	int gpio, ret;
-
-	gpio = chip->base + offset;
-	ret = __pxa_gpio_to_irq(gpio);
-	if (ret >= 0)
-		return ret;
-	return __mmp_gpio_to_irq(gpio);
+	return chip->base + offset + irq_base;
 }
 
 int pxa_irq_to_gpio(int irq)
 {
-	int ret;
-
-	ret = __pxa_irq_to_gpio(irq);
-	if (ret >= 0)
-		return ret;
-	return __mmp_irq_to_gpio(irq);
+	return irq - irq_base;
 }
 
 static int pxa_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -403,6 +357,9 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 	struct pxa_gpio_chip *c;
 	int loop, gpio, gpio_base, n;
 	unsigned long gedr;
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+
+	chained_irq_enter(chip, desc);
 
 	do {
 		loop = 0;
@@ -422,6 +379,8 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 			}
 		}
 	} while (loop);
+
+	chained_irq_exit(chip, desc);
 }
 
 static void pxa_ack_muxed_gpio(struct irq_data *d)
@@ -535,7 +494,7 @@ const struct irq_domain_ops pxa_irq_domain_ops = {
 
 static int __devinit pxa_gpio_probe_dt(struct platform_device *pdev)
 {
-	int ret, nr_banks, nr_gpios, irq_base;
+	int ret, nr_banks, nr_gpios;
 	struct device_node *prev, *next, *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
 				of_match_device(pxa_gpio_dt_ids, &pdev->dev);
@@ -590,10 +549,20 @@ static int __devinit pxa_gpio_probe(struct platform_device *pdev)
 	int irq0 = 0, irq1 = 0, irq_mux, gpio_offset = 0;
 
 	ret = pxa_gpio_probe_dt(pdev);
-	if (ret < 0)
+	if (ret < 0) {
 		pxa_last_gpio = pxa_gpio_nums();
-	else
+#ifdef CONFIG_ARCH_PXA
+		if (gpio_is_pxa_type(gpio_type))
+			irq_base = PXA_GPIO_TO_IRQ(0);
+#endif
+#ifdef CONFIG_ARCH_MMP
+		if (gpio_is_mmp_type(gpio_type))
+			irq_base = MMP_GPIO_TO_IRQ(0);
+#endif
+	} else {
 		use_of = 1;
+	}
+
 	if (!pxa_last_gpio)
 		return -EINVAL;
 

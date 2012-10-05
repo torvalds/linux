@@ -17,9 +17,9 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include <plat/dma.h>
-#include <plat/mcbsp.h>
 #include <plat/omap_device.h>
 #include <linux/pm_runtime.h>
 

@@ -17,7 +17,7 @@
 #include <asm/mach/arch.h>
 
 #include "common.h"
-#include <plat/gpmc-smc91x.h>
+#include "gpmc-smc91x.h"
 #include <plat/usb.h>
 
 #include <mach/board-zoom.h>

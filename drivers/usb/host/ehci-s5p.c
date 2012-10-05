@@ -16,7 +16,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/of_gpio.h>
-#include <plat/ehci.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
 #include <plat/usb-phy.h>
 
 #define EHCI_INSNREG00(base)			(base + 0x90)

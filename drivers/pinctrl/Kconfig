@@ -145,6 +145,28 @@ config PINCTRL_COH901
 	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
 	  ports of 8 GPIO pins each.
 
+config PINCTRL_MVEBU
+	bool
+	depends on ARCH_MVEBU
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_DOVE
+	bool
+	select PINCTRL_MVEBU
+
+config PINCTRL_KIRKWOOD
+	bool
+	select PINCTRL_MVEBU
+
+config PINCTRL_ARMADA_370
+	bool
+	select PINCTRL_MVEBU
+
+config PINCTRL_ARMADA_XP
+	bool
+	select PINCTRL_MVEBU
+
 source "drivers/pinctrl/spear/Kconfig"
 
 endmenu

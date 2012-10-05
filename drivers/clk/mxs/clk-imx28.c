@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <mach/common.h>
 #include <mach/mx28.h>
 #include "clk.h"
@@ -120,90 +121,6 @@ static void __init clk_misc_init(void)
 	writel_relaxed(val, FRAC0);
 }
 
-static struct clk_lookup uart_lookups[] = {
-	{ .dev_id = "duart", },
-	{ .dev_id = "mxs-auart.0", },
-	{ .dev_id = "mxs-auart.1", },
-	{ .dev_id = "mxs-auart.2", },
-	{ .dev_id = "mxs-auart.3", },
-	{ .dev_id = "mxs-auart.4", },
-	{ .dev_id = "8006a000.serial", },
-	{ .dev_id = "8006c000.serial", },
-	{ .dev_id = "8006e000.serial", },
-	{ .dev_id = "80070000.serial", },
-	{ .dev_id = "80072000.serial", },
-	{ .dev_id = "80074000.serial", },
-};
-
-static struct clk_lookup hbus_lookups[] = {
-	{ .dev_id = "imx28-dma-apbh", },
-	{ .dev_id = "80004000.dma-apbh", },
-};
-
-static struct clk_lookup xbus_lookups[] = {
-	{ .dev_id = "duart", .con_id = "apb_pclk"},
-	{ .dev_id = "80074000.serial", .con_id = "apb_pclk"},
-	{ .dev_id = "imx28-dma-apbx", },
-	{ .dev_id = "80024000.dma-apbx", },
-};
-
-static struct clk_lookup ssp0_lookups[] = {
-	{ .dev_id = "imx28-mmc.0", },
-	{ .dev_id = "80010000.ssp", },
-};
-
-static struct clk_lookup ssp1_lookups[] = {
-	{ .dev_id = "imx28-mmc.1", },
-	{ .dev_id = "80012000.ssp", },
-};
-
-static struct clk_lookup ssp2_lookups[] = {
-	{ .dev_id = "imx28-mmc.2", },
-	{ .dev_id = "80014000.ssp", },
-};
-
-static struct clk_lookup ssp3_lookups[] = {
-	{ .dev_id = "imx28-mmc.3", },
-	{ .dev_id = "80016000.ssp", },
-};
-
-static struct clk_lookup lcdif_lookups[] = {
-	{ .dev_id = "imx28-fb", },
-	{ .dev_id = "80030000.lcdif", },
-};
-
-static struct clk_lookup gpmi_lookups[] = {
-	{ .dev_id = "imx28-gpmi-nand", },
-	{ .dev_id = "8000c000.gpmi-nand", },
-};
-
-static struct clk_lookup fec_lookups[] = {
-	{ .dev_id = "imx28-fec.0", },
-	{ .dev_id = "imx28-fec.1", },
-	{ .dev_id = "800f0000.ethernet", },
-	{ .dev_id = "800f4000.ethernet", },
-};
-
-static struct clk_lookup can0_lookups[] = {
-	{ .dev_id = "flexcan.0", },
-	{ .dev_id = "80032000.can", },
-};
-
-static struct clk_lookup can1_lookups[] = {
-	{ .dev_id = "flexcan.1", },
-	{ .dev_id = "80034000.can", },
-};
-
-static struct clk_lookup saif0_lookups[] = {
-	{ .dev_id = "mxs-saif.0", },
-	{ .dev_id = "80042000.saif", },
-};
-
-static struct clk_lookup saif1_lookups[] = {
-	{ .dev_id = "mxs-saif.1", },
-	{ .dev_id = "80046000.saif", },
-};
-
 static const char *sel_cpu[]  __initconst = { "ref_cpu", "ref_xtal", };
 static const char *sel_io0[]  __initconst = { "ref_io0", "ref_xtal", };
 static const char *sel_io1[]  __initconst = { "ref_io1", "ref_xtal", };
@@ -228,6 +145,7 @@ enum imx28_clk {
 };
 
 static struct clk *clks[clk_max];
+static struct clk_onecell_data clk_data;
 
 static enum imx28_clk clks_init_on[] __initdata = {
 	cpu, hbus, xbus, emi, uart,
@@ -235,6 +153,7 @@ static enum imx28_clk clks_init_on[] __initdata = {
 
 int __init mx28_clocks_init(void)
 {
+	struct device_node *np;
 	int i;
 
 	clk_misc_init();
@@ -312,27 +231,15 @@ int __init mx28_clocks_init(void)
 			return PTR_ERR(clks[i]);
 		}
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx28-clkctrl");
+	if (np) {
+		clk_data.clks = clks;
+		clk_data.clk_num = ARRAY_SIZE(clks);
+		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+	}
+
 	clk_register_clkdev(clks[clk32k], NULL, "timrot");
 	clk_register_clkdev(clks[enet_out], NULL, "enet_out");
-	clk_register_clkdev(clks[pwm], NULL, "80064000.pwm");
-	clk_register_clkdevs(clks[hbus], hbus_lookups, ARRAY_SIZE(hbus_lookups));
-	clk_register_clkdevs(clks[xbus], xbus_lookups, ARRAY_SIZE(xbus_lookups));
-	clk_register_clkdevs(clks[uart], uart_lookups, ARRAY_SIZE(uart_lookups));
-	clk_register_clkdevs(clks[ssp0], ssp0_lookups, ARRAY_SIZE(ssp0_lookups));
-	clk_register_clkdevs(clks[ssp1], ssp1_lookups, ARRAY_SIZE(ssp1_lookups));
-	clk_register_clkdevs(clks[ssp2], ssp2_lookups, ARRAY_SIZE(ssp2_lookups));
-	clk_register_clkdevs(clks[ssp3], ssp3_lookups, ARRAY_SIZE(ssp3_lookups));
-	clk_register_clkdevs(clks[gpmi], gpmi_lookups, ARRAY_SIZE(gpmi_lookups));
-	clk_register_clkdevs(clks[saif0], saif0_lookups, ARRAY_SIZE(saif0_lookups));
-	clk_register_clkdevs(clks[saif1], saif1_lookups, ARRAY_SIZE(saif1_lookups));
-	clk_register_clkdevs(clks[lcdif], lcdif_lookups, ARRAY_SIZE(lcdif_lookups));
-	clk_register_clkdevs(clks[fec], fec_lookups, ARRAY_SIZE(fec_lookups));
-	clk_register_clkdevs(clks[can0], can0_lookups, ARRAY_SIZE(can0_lookups));
-	clk_register_clkdevs(clks[can1], can1_lookups, ARRAY_SIZE(can1_lookups));
-	clk_register_clkdev(clks[usb0_pwr], NULL, "8007c000.usbphy");
-	clk_register_clkdev(clks[usb1_pwr], NULL, "8007e000.usbphy");
-	clk_register_clkdev(clks[usb0], NULL, "80080000.usb");
-	clk_register_clkdev(clks[usb1], NULL, "80090000.usb");
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);

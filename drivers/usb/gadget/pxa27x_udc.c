@@ -2508,7 +2508,7 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 			IRQF_SHARED, driver_name, udc);
 	if (retval != 0) {
 		dev_err(udc->dev, "%s: can't get irq %i, err %d\n",
-			driver_name, IRQ_USB, retval);
+			driver_name, udc->irq, retval);
 		goto err_irq;
 	}
 	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);

@@ -48,7 +48,7 @@ EXPORT_SYMBOL_GPL(mv_mbus_dram_info);
 static void __init __iomem *
 orion_win_cfg_base(const struct orion_addr_map_cfg *cfg, int win)
 {
-	return (void __iomem *)(cfg->bridge_virt_base + (win << 4));
+	return cfg->bridge_virt_base + (win << 4);
 }
 
 /*
@@ -143,19 +143,16 @@ void __init orion_config_wins(struct orion_addr_map_cfg * cfg,
  * Setup MBUS dram target info.
  */
 void __init orion_setup_cpu_mbus_target(const struct orion_addr_map_cfg *cfg,
-					const u32 ddr_window_cpu_base)
+					const void __iomem *ddr_window_cpu_base)
 {
-	void __iomem *addr;
 	int i;
 	int cs;
 
 	orion_mbus_dram_info.mbus_dram_target_id = TARGET_DDR;
 
-	addr = (void __iomem *)ddr_window_cpu_base;
-
 	for (i = 0, cs = 0; i < 4; i++) {
-		u32 base = readl(addr + DDR_BASE_CS_OFF(i));
-		u32 size = readl(addr + DDR_SIZE_CS_OFF(i));
+		u32 base = readl(ddr_window_cpu_base + DDR_BASE_CS_OFF(i));
+		u32 size = readl(ddr_window_cpu_base + DDR_SIZE_CS_OFF(i));
 
 		/*
 		 * Chip select enabled?

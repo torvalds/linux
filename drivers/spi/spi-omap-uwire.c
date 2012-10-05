@@ -52,7 +52,7 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <plat/mux.h>
+#include <mach/mux.h>
 
 #include <mach/omap7xx.h>	/* OMAP7XX_IO_CONF registers */
 

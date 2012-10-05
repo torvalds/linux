@@ -24,7 +24,7 @@
 #ifndef _DMACHW_REG_H
 #define _DMACHW_REG_H
 
-#include <csp/stdint.h>
+#include <linux/types.h>
 #include <mach/csp/mm_io.h>
 
 /* Data type for 64 bit little endian register */
@@ -121,75 +121,75 @@ typedef struct {
 } dmacHw_MISC_t;
 
 /* Base registers */
-#define dmacHw_0_MODULE_BASE_ADDR        (char *) MM_IO_BASE_DMA0	/* DMAC 0 module's base address */
-#define dmacHw_1_MODULE_BASE_ADDR        (char *) MM_IO_BASE_DMA1	/* DMAC 1 module's base address */
+#define dmacHw_0_MODULE_BASE_ADDR        (char __iomem*) MM_IO_BASE_DMA0	/* DMAC 0 module's base address */
+#define dmacHw_1_MODULE_BASE_ADDR        (char __iomem*) MM_IO_BASE_DMA1	/* DMAC 1 module's base address */
 
 extern uint32_t dmaChannelCount_0;
 extern uint32_t dmaChannelCount_1;
 
 /* Define channel specific registers */
-#define dmacHw_CHAN_BASE(module, chan)          ((dmacHw_CH_REG_t *) ((char *)((module) ? dmacHw_1_MODULE_BASE_ADDR : dmacHw_0_MODULE_BASE_ADDR) + ((chan) * sizeof(dmacHw_CH_REG_t))))
+#define dmacHw_CHAN_BASE(module, chan)          ((dmacHw_CH_REG_t __iomem*) ((char __iomem*)((module) ? dmacHw_1_MODULE_BASE_ADDR : dmacHw_0_MODULE_BASE_ADDR) + ((chan) * sizeof(dmacHw_CH_REG_t))))
 
 /* Raw interrupt status registers */
-#define dmacHw_REG_INT_RAW_BASE(module)         ((char *)dmacHw_CHAN_BASE((module), ((module) ? dmaChannelCount_1 : dmaChannelCount_0)))
-#define dmacHw_REG_INT_RAW_TRAN(module)         (((dmacHw_INT_RAW_t *) dmacHw_REG_INT_RAW_BASE((module)))->RawTfr.lo)
-#define dmacHw_REG_INT_RAW_BLOCK(module)        (((dmacHw_INT_RAW_t *) dmacHw_REG_INT_RAW_BASE((module)))->RawBlock.lo)
-#define dmacHw_REG_INT_RAW_STRAN(module)        (((dmacHw_INT_RAW_t *) dmacHw_REG_INT_RAW_BASE((module)))->RawSrcTran.lo)
-#define dmacHw_REG_INT_RAW_DTRAN(module)        (((dmacHw_INT_RAW_t *) dmacHw_REG_INT_RAW_BASE((module)))->RawDstTran.lo)
-#define dmacHw_REG_INT_RAW_ERROR(module)        (((dmacHw_INT_RAW_t *) dmacHw_REG_INT_RAW_BASE((module)))->RawErr.lo)
+#define dmacHw_REG_INT_RAW_BASE(module)         ((char __iomem *)dmacHw_CHAN_BASE((module), ((module) ? dmaChannelCount_1 : dmaChannelCount_0)))
+#define dmacHw_REG_INT_RAW_TRAN(module)         (((dmacHw_INT_RAW_t __iomem *) dmacHw_REG_INT_RAW_BASE((module)))->RawTfr.lo)
+#define dmacHw_REG_INT_RAW_BLOCK(module)        (((dmacHw_INT_RAW_t __iomem *) dmacHw_REG_INT_RAW_BASE((module)))->RawBlock.lo)
+#define dmacHw_REG_INT_RAW_STRAN(module)        (((dmacHw_INT_RAW_t __iomem *) dmacHw_REG_INT_RAW_BASE((module)))->RawSrcTran.lo)
+#define dmacHw_REG_INT_RAW_DTRAN(module)        (((dmacHw_INT_RAW_t __iomem *) dmacHw_REG_INT_RAW_BASE((module)))->RawDstTran.lo)
+#define dmacHw_REG_INT_RAW_ERROR(module)        (((dmacHw_INT_RAW_t __iomem *) dmacHw_REG_INT_RAW_BASE((module)))->RawErr.lo)
 
 /* Interrupt status registers */
-#define dmacHw_REG_INT_STAT_BASE(module)        ((char *)(dmacHw_REG_INT_RAW_BASE((module)) + sizeof(dmacHw_INT_RAW_t)))
-#define dmacHw_REG_INT_STAT_TRAN(module)        (((dmacHw_INT_STATUS_t *) dmacHw_REG_INT_STAT_BASE((module)))->StatusTfr.lo)
-#define dmacHw_REG_INT_STAT_BLOCK(module)       (((dmacHw_INT_STATUS_t *) dmacHw_REG_INT_STAT_BASE((module)))->StatusBlock.lo)
-#define dmacHw_REG_INT_STAT_STRAN(module)       (((dmacHw_INT_STATUS_t *) dmacHw_REG_INT_STAT_BASE((module)))->StatusSrcTran.lo)
-#define dmacHw_REG_INT_STAT_DTRAN(module)       (((dmacHw_INT_STATUS_t *) dmacHw_REG_INT_STAT_BASE((module)))->StatusDstTran.lo)
-#define dmacHw_REG_INT_STAT_ERROR(module)       (((dmacHw_INT_STATUS_t *) dmacHw_REG_INT_STAT_BASE((module)))->StatusErr.lo)
+#define dmacHw_REG_INT_STAT_BASE(module)        ((char __iomem*)(dmacHw_REG_INT_RAW_BASE((module)) + sizeof(dmacHw_INT_RAW_t)))
+#define dmacHw_REG_INT_STAT_TRAN(module)        (((dmacHw_INT_STATUS_t __iomem *) dmacHw_REG_INT_STAT_BASE((module)))->StatusTfr.lo)
+#define dmacHw_REG_INT_STAT_BLOCK(module)       (((dmacHw_INT_STATUS_t __iomem *) dmacHw_REG_INT_STAT_BASE((module)))->StatusBlock.lo)
+#define dmacHw_REG_INT_STAT_STRAN(module)       (((dmacHw_INT_STATUS_t __iomem *) dmacHw_REG_INT_STAT_BASE((module)))->StatusSrcTran.lo)
+#define dmacHw_REG_INT_STAT_DTRAN(module)       (((dmacHw_INT_STATUS_t __iomem *) dmacHw_REG_INT_STAT_BASE((module)))->StatusDstTran.lo)
+#define dmacHw_REG_INT_STAT_ERROR(module)       (((dmacHw_INT_STATUS_t __iomem *) dmacHw_REG_INT_STAT_BASE((module)))->StatusErr.lo)
 
 /* Interrupt status registers */
-#define dmacHw_REG_INT_MASK_BASE(module)        ((char *)(dmacHw_REG_INT_STAT_BASE((module)) + sizeof(dmacHw_INT_STATUS_t)))
-#define dmacHw_REG_INT_MASK_TRAN(module)        (((dmacHw_INT_MASK_t *) dmacHw_REG_INT_MASK_BASE((module)))->MaskTfr.lo)
-#define dmacHw_REG_INT_MASK_BLOCK(module)       (((dmacHw_INT_MASK_t *) dmacHw_REG_INT_MASK_BASE((module)))->MaskBlock.lo)
-#define dmacHw_REG_INT_MASK_STRAN(module)       (((dmacHw_INT_MASK_t *) dmacHw_REG_INT_MASK_BASE((module)))->MaskSrcTran.lo)
-#define dmacHw_REG_INT_MASK_DTRAN(module)       (((dmacHw_INT_MASK_t *) dmacHw_REG_INT_MASK_BASE((module)))->MaskDstTran.lo)
-#define dmacHw_REG_INT_MASK_ERROR(module)       (((dmacHw_INT_MASK_t *) dmacHw_REG_INT_MASK_BASE((module)))->MaskErr.lo)
+#define dmacHw_REG_INT_MASK_BASE(module)        ((char __iomem*)(dmacHw_REG_INT_STAT_BASE((module)) + sizeof(dmacHw_INT_STATUS_t)))
+#define dmacHw_REG_INT_MASK_TRAN(module)        (((dmacHw_INT_MASK_t __iomem *) dmacHw_REG_INT_MASK_BASE((module)))->MaskTfr.lo)
+#define dmacHw_REG_INT_MASK_BLOCK(module)       (((dmacHw_INT_MASK_t __iomem *) dmacHw_REG_INT_MASK_BASE((module)))->MaskBlock.lo)
+#define dmacHw_REG_INT_MASK_STRAN(module)       (((dmacHw_INT_MASK_t __iomem *) dmacHw_REG_INT_MASK_BASE((module)))->MaskSrcTran.lo)
+#define dmacHw_REG_INT_MASK_DTRAN(module)       (((dmacHw_INT_MASK_t __iomem *) dmacHw_REG_INT_MASK_BASE((module)))->MaskDstTran.lo)
+#define dmacHw_REG_INT_MASK_ERROR(module)       (((dmacHw_INT_MASK_t __iomem *) dmacHw_REG_INT_MASK_BASE((module)))->MaskErr.lo)
 
 /* Interrupt clear registers */
-#define dmacHw_REG_INT_CLEAR_BASE(module)       ((char *)(dmacHw_REG_INT_MASK_BASE((module)) + sizeof(dmacHw_INT_MASK_t)))
-#define dmacHw_REG_INT_CLEAR_TRAN(module)       (((dmacHw_INT_CLEAR_t *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearTfr.lo)
-#define dmacHw_REG_INT_CLEAR_BLOCK(module)      (((dmacHw_INT_CLEAR_t *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearBlock.lo)
-#define dmacHw_REG_INT_CLEAR_STRAN(module)      (((dmacHw_INT_CLEAR_t *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearSrcTran.lo)
-#define dmacHw_REG_INT_CLEAR_DTRAN(module)      (((dmacHw_INT_CLEAR_t *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearDstTran.lo)
-#define dmacHw_REG_INT_CLEAR_ERROR(module)      (((dmacHw_INT_CLEAR_t *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearErr.lo)
-#define dmacHw_REG_INT_STATUS(module)           (((dmacHw_INT_CLEAR_t *) dmacHw_REG_INT_CLEAR_BASE((module)))->StatusInt.lo)
+#define dmacHw_REG_INT_CLEAR_BASE(module)       ((char __iomem*)(dmacHw_REG_INT_MASK_BASE((module)) + sizeof(dmacHw_INT_MASK_t)))
+#define dmacHw_REG_INT_CLEAR_TRAN(module)       (((dmacHw_INT_CLEAR_t __iomem *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearTfr.lo)
+#define dmacHw_REG_INT_CLEAR_BLOCK(module)      (((dmacHw_INT_CLEAR_t __iomem *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearBlock.lo)
+#define dmacHw_REG_INT_CLEAR_STRAN(module)      (((dmacHw_INT_CLEAR_t __iomem *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearSrcTran.lo)
+#define dmacHw_REG_INT_CLEAR_DTRAN(module)      (((dmacHw_INT_CLEAR_t __iomem *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearDstTran.lo)
+#define dmacHw_REG_INT_CLEAR_ERROR(module)      (((dmacHw_INT_CLEAR_t __iomem *) dmacHw_REG_INT_CLEAR_BASE((module)))->ClearErr.lo)
+#define dmacHw_REG_INT_STATUS(module)           (((dmacHw_INT_CLEAR_t __iomem *) dmacHw_REG_INT_CLEAR_BASE((module)))->StatusInt.lo)
 
 /* Software handshaking registers */
-#define dmacHw_REG_SW_HS_BASE(module)           ((char *)(dmacHw_REG_INT_CLEAR_BASE((module)) + sizeof(dmacHw_INT_CLEAR_t)))
-#define dmacHw_REG_SW_HS_SRC_REQ(module)        (((dmacHw_SW_HANDSHAKE_t *) dmacHw_REG_SW_HS_BASE((module)))->ReqSrcReg.lo)
-#define dmacHw_REG_SW_HS_DST_REQ(module)        (((dmacHw_SW_HANDSHAKE_t *) dmacHw_REG_SW_HS_BASE((module)))->ReqDstReg.lo)
-#define dmacHw_REG_SW_HS_SRC_SGL_REQ(module)    (((dmacHw_SW_HANDSHAKE_t *) dmacHw_REG_SW_HS_BASE((module)))->SglReqSrcReg.lo)
-#define dmacHw_REG_SW_HS_DST_SGL_REQ(module)    (((dmacHw_SW_HANDSHAKE_t *) dmacHw_REG_SW_HS_BASE((module)))->SglReqDstReg.lo)
-#define dmacHw_REG_SW_HS_SRC_LST_REQ(module)    (((dmacHw_SW_HANDSHAKE_t *) dmacHw_REG_SW_HS_BASE((module)))->LstSrcReg.lo)
-#define dmacHw_REG_SW_HS_DST_LST_REQ(module)    (((dmacHw_SW_HANDSHAKE_t *) dmacHw_REG_SW_HS_BASE((module)))->LstDstReg.lo)
+#define dmacHw_REG_SW_HS_BASE(module)           ((char __iomem*)(dmacHw_REG_INT_CLEAR_BASE((module)) + sizeof(dmacHw_INT_CLEAR_t)))
+#define dmacHw_REG_SW_HS_SRC_REQ(module)        (((dmacHw_SW_HANDSHAKE_t __iomem *) dmacHw_REG_SW_HS_BASE((module)))->ReqSrcReg.lo)
+#define dmacHw_REG_SW_HS_DST_REQ(module)        (((dmacHw_SW_HANDSHAKE_t __iomem *) dmacHw_REG_SW_HS_BASE((module)))->ReqDstReg.lo)
+#define dmacHw_REG_SW_HS_SRC_SGL_REQ(module)    (((dmacHw_SW_HANDSHAKE_t __iomem *) dmacHw_REG_SW_HS_BASE((module)))->SglReqSrcReg.lo)
+#define dmacHw_REG_SW_HS_DST_SGL_REQ(module)    (((dmacHw_SW_HANDSHAKE_t __iomem *) dmacHw_REG_SW_HS_BASE((module)))->SglReqDstReg.lo)
+#define dmacHw_REG_SW_HS_SRC_LST_REQ(module)    (((dmacHw_SW_HANDSHAKE_t __iomem *) dmacHw_REG_SW_HS_BASE((module)))->LstSrcReg.lo)
+#define dmacHw_REG_SW_HS_DST_LST_REQ(module)    (((dmacHw_SW_HANDSHAKE_t __iomem *) dmacHw_REG_SW_HS_BASE((module)))->LstDstReg.lo)
 
 /* Miscellaneous registers */
-#define dmacHw_REG_MISC_BASE(module)            ((char *)(dmacHw_REG_SW_HS_BASE((module)) + sizeof(dmacHw_SW_HANDSHAKE_t)))
-#define dmacHw_REG_MISC_CFG(module)             (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->DmaCfgReg.lo)
-#define dmacHw_REG_MISC_CH_ENABLE(module)       (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->ChEnReg.lo)
-#define dmacHw_REG_MISC_ID(module)              (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->DmaIdReg.lo)
-#define dmacHw_REG_MISC_TEST(module)            (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->DmaTestReg.lo)
-#define dmacHw_REG_MISC_COMP_PARAM1_LO(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm1.lo)
-#define dmacHw_REG_MISC_COMP_PARAM1_HI(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm1.hi)
-#define dmacHw_REG_MISC_COMP_PARAM2_LO(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm2.lo)
-#define dmacHw_REG_MISC_COMP_PARAM2_HI(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm2.hi)
-#define dmacHw_REG_MISC_COMP_PARAM3_LO(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm3.lo)
-#define dmacHw_REG_MISC_COMP_PARAM3_HI(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm3.hi)
-#define dmacHw_REG_MISC_COMP_PARAM4_LO(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm4.lo)
-#define dmacHw_REG_MISC_COMP_PARAM4_HI(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm4.hi)
-#define dmacHw_REG_MISC_COMP_PARAM5_LO(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm5.lo)
-#define dmacHw_REG_MISC_COMP_PARAM5_HI(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm5.hi)
-#define dmacHw_REG_MISC_COMP_PARAM6_LO(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm6.lo)
-#define dmacHw_REG_MISC_COMP_PARAM6_HI(module)  (((dmacHw_MISC_t *) dmacHw_REG_MISC_BASE((module)))->CompParm6.hi)
+#define dmacHw_REG_MISC_BASE(module)            ((char __iomem*)(dmacHw_REG_SW_HS_BASE((module)) + sizeof(dmacHw_SW_HANDSHAKE_t)))
+#define dmacHw_REG_MISC_CFG(module)             (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->DmaCfgReg.lo)
+#define dmacHw_REG_MISC_CH_ENABLE(module)       (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->ChEnReg.lo)
+#define dmacHw_REG_MISC_ID(module)              (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->DmaIdReg.lo)
+#define dmacHw_REG_MISC_TEST(module)            (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->DmaTestReg.lo)
+#define dmacHw_REG_MISC_COMP_PARAM1_LO(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm1.lo)
+#define dmacHw_REG_MISC_COMP_PARAM1_HI(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm1.hi)
+#define dmacHw_REG_MISC_COMP_PARAM2_LO(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm2.lo)
+#define dmacHw_REG_MISC_COMP_PARAM2_HI(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm2.hi)
+#define dmacHw_REG_MISC_COMP_PARAM3_LO(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm3.lo)
+#define dmacHw_REG_MISC_COMP_PARAM3_HI(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm3.hi)
+#define dmacHw_REG_MISC_COMP_PARAM4_LO(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm4.lo)
+#define dmacHw_REG_MISC_COMP_PARAM4_HI(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm4.hi)
+#define dmacHw_REG_MISC_COMP_PARAM5_LO(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm5.lo)
+#define dmacHw_REG_MISC_COMP_PARAM5_HI(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm5.hi)
+#define dmacHw_REG_MISC_COMP_PARAM6_LO(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm6.lo)
+#define dmacHw_REG_MISC_COMP_PARAM6_HI(module)  (((dmacHw_MISC_t __iomem*) dmacHw_REG_MISC_BASE((module)))->CompParm6.hi)
 
 /* Channel control registers */
 #define dmacHw_REG_SAR(module, chan)            (dmacHw_CHAN_BASE((module), (chan))->ChannelSar.lo)

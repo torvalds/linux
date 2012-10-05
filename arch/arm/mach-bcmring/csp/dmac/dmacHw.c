@@ -25,11 +25,11 @@
 /****************************************************************************/
 
 /* ---- Include Files ---------------------------------------------------- */
-#include <csp/stdint.h>
-#include <csp/string.h>
-#include <stddef.h>
+#include <linux/types.h>
+#include <linux/string.h>
+#include <linux/stddef.h>
 
-#include <csp/dmacHw.h>
+#include <mach/csp/dmacHw.h>
 #include <mach/csp/dmacHw_reg.h>
 #include <mach/csp/dmacHw_priv.h>
 #include <mach/csp/chipcHw_inline.h>
@@ -55,33 +55,32 @@ static uint32_t GetFifoSize(dmacHw_HANDLE_t handle	/*   [ IN ] DMA Channel handl
     ) {
 	uint32_t val = 0;
 	dmacHw_CBLK_t *pCblk = dmacHw_HANDLE_TO_CBLK(handle);
-	dmacHw_MISC_t *pMiscReg =
-	    (dmacHw_MISC_t *) dmacHw_REG_MISC_BASE(pCblk->module);
+	dmacHw_MISC_t __iomem *pMiscReg = (void __iomem *)dmacHw_REG_MISC_BASE(pCblk->module);
 
 	switch (pCblk->channel) {
 	case 0:
-		val = (pMiscReg->CompParm2.lo & 0x70000000) >> 28;
+		val = (readl(&pMiscReg->CompParm2.lo) & 0x70000000) >> 28;
 		break;
 	case 1:
-		val = (pMiscReg->CompParm3.hi & 0x70000000) >> 28;
+		val = (readl(&pMiscReg->CompParm3.hi) & 0x70000000) >> 28;
 		break;
 	case 2:
-		val = (pMiscReg->CompParm3.lo & 0x70000000) >> 28;
+		val = (readl(&pMiscReg->CompParm3.lo) & 0x70000000) >> 28;
 		break;
 	case 3:
-		val = (pMiscReg->CompParm4.hi & 0x70000000) >> 28;
+		val = (readl(&pMiscReg->CompParm4.hi) & 0x70000000) >> 28;
 		break;
 	case 4:
-		val = (pMiscReg->CompParm4.lo & 0x70000000) >> 28;
+		val = (readl(&pMiscReg->CompParm4.lo) & 0x70000000) >> 28;
 		break;
 	case 5:
-		val = (pMiscReg->CompParm5.hi & 0x70000000) >> 28;
+		val = (readl(&pMiscReg->CompParm5.hi) & 0x70000000) >> 28;
 		break;
 	case 6:
-		val = (pMiscReg->CompParm5.lo & 0x70000000) >> 28;
+		val = (readl(&pMiscReg->CompParm5.lo) & 0x70000000) >> 28;
 		break;
 	case 7:
-		val = (pMiscReg->CompParm6.hi & 0x70000000) >> 28;
+		val = (readl(&pMiscReg->CompParm6.hi) & 0x70000000) >> 28;
 		break;
 	}
 

@@ -35,7 +35,7 @@
 
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
-#include <plat/onenand.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -192,7 +192,7 @@ static void __init igep_flash_init(void) {}
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 
 #include <linux/smsc911x.h>
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc-smsc911x.h"
 
 static struct omap_smsc911x_platform_data smsc911x_cfg = {
 	.cs             = IGEP2_SMSC911X_CS,

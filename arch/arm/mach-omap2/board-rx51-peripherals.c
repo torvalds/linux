@@ -25,16 +25,17 @@
 #include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
 #include <linux/power/isp1704_charger.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
+
 #include <asm/system_info.h>
 
-#include <plat/mcspi.h>
 #include "common.h"
 #include <plat/dma.h>
 #include <plat/gpmc.h>
-#include <plat/onenand.h>
-#include <plat/gpmc-smc91x.h>
+#include "gpmc-smc91x.h"
 
-#include <mach/board-rx51.h>
+#include "board-rx51.h"
 
 #include <sound/tlv320aic3x.h>
 #include <sound/tpa6130a2-plat.h>

@@ -20,9 +20,9 @@
 #include <mach/pm-rmobile.h>
 
 /* SYSC */
-#define SPDCR		0xe6180008
-#define SWUCR		0xe6180014
-#define PSTR		0xe6180080
+#define SPDCR		IOMEM(0xe6180008)
+#define SWUCR		IOMEM(0xe6180014)
+#define PSTR		IOMEM(0xe6180080)
 
 #define PSTR_RETRIES	100
 #define PSTR_DELAY_US	10

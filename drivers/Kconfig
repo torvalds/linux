@@ -152,4 +152,6 @@ source "drivers/vme/Kconfig"
 
 source "drivers/pwm/Kconfig"
 
+source "drivers/irqchip/Kconfig"
+
 endmenu

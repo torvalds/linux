@@ -2,7 +2,6 @@
  * driver for NXP USB Host devices
  *
  * Currently supported OHCI host devices:
- * - Philips PNX4008
  * - NXP LPC32xx
  *
  * Authors: Dmitry Chigirev <source@mvista.com>
@@ -66,38 +65,6 @@ static struct clk *usb_pll_clk;
 static struct clk *usb_dev_clk;
 static struct clk *usb_otg_clk;
 
-static void isp1301_configure_pnx4008(void)
-{
-	/* PNX4008 only supports DAT_SE0 USB mode */
-	/* PNX4008 R2A requires setting the MAX603 to output 3.6V */
-	/* Power up externel charge-pump */
-
-	i2c_smbus_write_byte_data(isp1301_i2c_client,
-		ISP1301_I2C_MODE_CONTROL_1, MC1_DAT_SE0 | MC1_SPEED_REG);
-	i2c_smbus_write_byte_data(isp1301_i2c_client,
-		ISP1301_I2C_MODE_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR,
-		~(MC1_DAT_SE0 | MC1_SPEED_REG));
-	i2c_smbus_write_byte_data(isp1301_i2c_client,
-		ISP1301_I2C_MODE_CONTROL_2,
-		MC2_BI_DI | MC2_PSW_EN | MC2_SPD_SUSP_CTRL);
-	i2c_smbus_write_byte_data(isp1301_i2c_client,
-		ISP1301_I2C_MODE_CONTROL_2 | ISP1301_I2C_REG_CLEAR_ADDR,
-		~(MC2_BI_DI | MC2_PSW_EN | MC2_SPD_SUSP_CTRL));
-	i2c_smbus_write_byte_data(isp1301_i2c_client,
-		ISP1301_I2C_OTG_CONTROL_1, OTG1_DM_PULLDOWN | OTG1_DP_PULLDOWN);
-	i2c_smbus_write_byte_data(isp1301_i2c_client,
-		ISP1301_I2C_OTG_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR,
-		~(OTG1_DM_PULLDOWN | OTG1_DP_PULLDOWN));
-	i2c_smbus_write_byte_data(isp1301_i2c_client,
-		ISP1301_I2C_INTERRUPT_LATCH | ISP1301_I2C_REG_CLEAR_ADDR, 0xFF);
-	i2c_smbus_write_byte_data(isp1301_i2c_client,
-		ISP1301_I2C_INTERRUPT_FALLING | ISP1301_I2C_REG_CLEAR_ADDR,
-		0xFF);
-	i2c_smbus_write_byte_data(isp1301_i2c_client,
-		ISP1301_I2C_INTERRUPT_RISING | ISP1301_I2C_REG_CLEAR_ADDR,
-		0xFF);
-}
-
 static void isp1301_configure_lpc32xx(void)
 {
 	/* LPC32XX only supports DAT_SE0 USB mode */
@@ -149,10 +116,7 @@ static void isp1301_configure_lpc32xx(void)
 
 static void isp1301_configure(void)
 {
-	if (machine_is_pnx4008())
-		isp1301_configure_pnx4008();
-	else
-		isp1301_configure_lpc32xx();
+	isp1301_configure_lpc32xx();
 }
 
 static inline void isp1301_vbus_on(void)
@@ -240,47 +204,6 @@ static const struct hc_driver ohci_nxp_hc_driver = {
 #endif
 	.start_port_reset = ohci_start_port_reset,
 };
-
-static void nxp_set_usb_bits(void)
-{
-	if (machine_is_pnx4008()) {
-		start_int_set_falling_edge(SE_USB_OTG_ATX_INT_N);
-		start_int_ack(SE_USB_OTG_ATX_INT_N);
-		start_int_umask(SE_USB_OTG_ATX_INT_N);
-
-		start_int_set_rising_edge(SE_USB_OTG_TIMER_INT);
-		start_int_ack(SE_USB_OTG_TIMER_INT);
-		start_int_umask(SE_USB_OTG_TIMER_INT);
-
-		start_int_set_rising_edge(SE_USB_I2C_INT);
-		start_int_ack(SE_USB_I2C_INT);
-		start_int_umask(SE_USB_I2C_INT);
-
-		start_int_set_rising_edge(SE_USB_INT);
-		start_int_ack(SE_USB_INT);
-		start_int_umask(SE_USB_INT);
-
-		start_int_set_rising_edge(SE_USB_NEED_CLK_INT);
-		start_int_ack(SE_USB_NEED_CLK_INT);
-		start_int_umask(SE_USB_NEED_CLK_INT);
-
-		start_int_set_rising_edge(SE_USB_AHB_NEED_CLK_INT);
-		start_int_ack(SE_USB_AHB_NEED_CLK_INT);
-		start_int_umask(SE_USB_AHB_NEED_CLK_INT);
-	}
-}
-
-static void nxp_unset_usb_bits(void)
-{
-	if (machine_is_pnx4008()) {
-		start_int_mask(SE_USB_OTG_ATX_INT_N);
-		start_int_mask(SE_USB_OTG_TIMER_INT);
-		start_int_mask(SE_USB_I2C_INT);
-		start_int_mask(SE_USB_INT);
-		start_int_mask(SE_USB_NEED_CLK_INT);
-		start_int_mask(SE_USB_AHB_NEED_CLK_INT);
-	}
-}
 
 static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 {
@@ -376,9 +299,6 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 		goto out8;
 	}
 
-	/* Set all USB bits in the Start Enable register */
-	nxp_set_usb_bits();
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "Failed to get MEM resource\n");
@@ -413,7 +333,6 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 
 	nxp_stop_hc();
 out8:
-	nxp_unset_usb_bits();
 	usb_put_hcd(hcd);
 out7:
 	clk_disable(usb_otg_clk);
@@ -441,7 +360,6 @@ static int usb_hcd_nxp_remove(struct platform_device *pdev)
 	nxp_stop_hc();
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-	nxp_unset_usb_bits();
 	clk_disable(usb_pll_clk);
 	clk_put(usb_pll_clk);
 	clk_disable(usb_dev_clk);

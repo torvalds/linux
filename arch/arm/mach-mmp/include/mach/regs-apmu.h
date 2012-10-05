@@ -13,21 +13,6 @@
 
 #include <mach/addr-map.h>
 
-/* Clock Reset Control */
-#define APMU_IRE	APMU_REG(0x048)
-#define APMU_LCD	APMU_REG(0x04c)
-#define APMU_CCIC	APMU_REG(0x050)
-#define APMU_SDH0	APMU_REG(0x054)
-#define APMU_SDH1	APMU_REG(0x058)
-#define APMU_USB	APMU_REG(0x05c)
-#define APMU_NAND	APMU_REG(0x060)
-#define APMU_DMA	APMU_REG(0x064)
-#define APMU_GEU	APMU_REG(0x068)
-#define APMU_BUS	APMU_REG(0x06c)
-#define APMU_SDH2	APMU_REG(0x0e8)
-#define APMU_SDH3	APMU_REG(0x0ec)
-#define APMU_ETH	APMU_REG(0x0fc)
-
 #define APMU_FNCLK_EN	(1 << 4)
 #define APMU_AXICLK_EN	(1 << 3)
 #define APMU_FNRST_DIS	(1 << 1)

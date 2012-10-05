@@ -10,6 +10,7 @@ apm	Applied Micro Circuits Corporation (APM)
 arm	ARM Ltd.
 atmel	Atmel Corporation
 bosch	Bosch Sensortec GmbH
+brcm	Broadcom Corporation
 cavium	Cavium, Inc.
 chrp	Common Hardware Reference Platform
 cortina	Cortina Systems, Inc.

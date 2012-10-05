@@ -32,7 +32,7 @@
 #include <linux/of_gpio.h>
 
 #include <mach/dma.h>
-#include <plat/s3c64xx-spi.h>
+#include <linux/platform_data/spi-s3c64xx.h>
 
 #define MAX_SPI_PORTS		3
 

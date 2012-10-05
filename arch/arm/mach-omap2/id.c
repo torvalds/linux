@@ -23,7 +23,7 @@
 
 #include "common.h"
 
-#include <mach/id.h>
+#include "id.h"
 
 #include "soc.h"
 #include "control.h"

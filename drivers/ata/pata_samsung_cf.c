@@ -23,7 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <plat/ata.h>
+#include <linux/platform_data/ata-samsung_cf.h>
 #include <plat/regs-ata.h>
 
 #define DRV_NAME "pata_samsung_cf"

@@ -29,7 +29,7 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 
-#include <plat/board-ams-delta.h>
+#include <mach/board-ams-delta.h>
 
 #include <mach/hardware.h>
 

@@ -37,12 +37,12 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/omapfb.h>
+#include <linux/platform_data/keypad-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <mach/omap7xx.h>
-#include <plat/keypad.h>
 #include <plat/mmc.h>
 
 #include <mach/irqs.h>

@@ -14,7 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <csp/tmrHw.h>
+#include <mach/csp/tmrHw.h>
 
 #include <mach/timer.h>
 /* The core.c file initializes timers 1 and 3 as a linux clocksource. */

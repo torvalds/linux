@@ -24,8 +24,8 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <mach/hardware.h>
-#include <mach/ohci.h>
-#include <mach/pxa3xx-u2d.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
+#include <linux/platform_data/usb-pxa3xx-ulpi.h>
 
 /*
  * UHC: USB Host Controller (OHCI-like) register definitions

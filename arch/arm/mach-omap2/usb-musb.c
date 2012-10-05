@@ -28,7 +28,7 @@
 #include <plat/usb.h>
 #include <plat/omap_device.h>
 
-#include <mach/am35xx.h>
+#include "am35xx.h"
 
 #include "mux.h"
 

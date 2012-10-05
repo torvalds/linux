@@ -20,12 +20,12 @@
 #include <mach/hardware.h>
 #include <mach/csp/mm_io.h>
 
-#define IO_DESC(va, sz) { .virtual = va, \
+#define IO_DESC(va, sz) { .virtual = (unsigned long)va, \
 	.pfn = __phys_to_pfn(HW_IO_VIRT_TO_PHYS(va)), \
 	.length = sz, \
 	.type = MT_DEVICE }
 
-#define MEM_DESC(va, sz) { .virtual = va, \
+#define MEM_DESC(va, sz) { .virtual = (unsigned long)va, \
 	.pfn = __phys_to_pfn(HW_IO_VIRT_TO_PHYS(va)), \
 	.length = sz, \
 	.type = MT_MEMORY }

@@ -20,8 +20,8 @@
 #include <mach/mv78xx0.h>
 #include <mach/bridge-regs.h>
 #include <plat/cache-feroceon-l2.h>
-#include <plat/ehci-orion.h>
-#include <plat/orion_nand.h>
+#include <linux/platform_data/usb-ehci-orion.h>
+#include <linux/platform_data/mtd-orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
 #include <plat/addr-map.h>
@@ -130,17 +130,12 @@ static int get_tclk(void)
  ****************************************************************************/
 static struct map_desc mv78xx0_io_desc[] __initdata = {
 	{
-		.virtual	= MV78XX0_CORE_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) MV78XX0_CORE_REGS_VIRT_BASE,
 		.pfn		= 0,
 		.length		= MV78XX0_CORE_REGS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= MV78XX0_PCIE_IO_VIRT_BASE(0),
-		.pfn		= __phys_to_pfn(MV78XX0_PCIE_IO_PHYS_BASE(0)),
-		.length		= MV78XX0_PCIE_IO_SIZE * 8,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= MV78XX0_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) MV78XX0_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(MV78XX0_REGS_PHYS_BASE),
 		.length		= MV78XX0_REGS_SIZE,
 		.type		= MT_DEVICE,

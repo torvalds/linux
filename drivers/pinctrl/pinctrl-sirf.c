@@ -17,6 +17,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -916,11 +917,66 @@ static void sirfsoc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s
 	seq_printf(s, " " DRIVER_NAME);
 }
 
+static int sirfsoc_dt_node_to_map(struct pinctrl_dev *pctldev,
+				 struct device_node *np_config,
+				 struct pinctrl_map **map, unsigned *num_maps)
+{
+	struct sirfsoc_pmx *spmx = pinctrl_dev_get_drvdata(pctldev);
+	struct device_node *np;
+	struct property *prop;
+	const char *function, *group;
+	int ret, index = 0, count = 0;
+
+	/* calculate number of maps required */
+	for_each_child_of_node(np_config, np) {
+		ret = of_property_read_string(np, "sirf,function", &function);
+		if (ret < 0)
+			return ret;
+
+		ret = of_property_count_strings(np, "sirf,pins");
+		if (ret < 0)
+			return ret;
+
+		count += ret;
+	}
+
+	if (!count) {
+		dev_err(spmx->dev, "No child nodes passed via DT\n");
+		return -ENODEV;
+	}
+
+	*map = kzalloc(sizeof(**map) * count, GFP_KERNEL);
+	if (!*map)
+		return -ENOMEM;
+
+	for_each_child_of_node(np_config, np) {
+		of_property_read_string(np, "sirf,function", &function);
+		of_property_for_each_string(np, "sirf,pins", prop, group) {
+			(*map)[index].type = PIN_MAP_TYPE_MUX_GROUP;
+			(*map)[index].data.mux.group = group;
+			(*map)[index].data.mux.function = function;
+			index++;
+		}
+	}
+
+	*num_maps = count;
+
+	return 0;
+}
+
+static void sirfsoc_dt_free_map(struct pinctrl_dev *pctldev,
+		struct pinctrl_map *map, unsigned num_maps)
+{
+	kfree(map);
+}
+
 static struct pinctrl_ops sirfsoc_pctrl_ops = {
 	.get_groups_count = sirfsoc_get_groups_count,
 	.get_group_name = sirfsoc_get_group_name,
 	.get_group_pins = sirfsoc_get_group_pins,
 	.pin_dbg_show = sirfsoc_pin_dbg_show,
+	.dt_node_to_map = sirfsoc_dt_node_to_map,
+	.dt_free_map = sirfsoc_dt_free_map,
 };
 
 struct sirfsoc_pmx_func {
@@ -1221,7 +1277,7 @@ out_no_gpio_remap:
 }
 
 static const struct of_device_id pinmux_ids[] __devinitconst = {
-	{ .compatible = "sirf,prima2-gpio-pinmux" },
+	{ .compatible = "sirf,prima2-pinctrl" },
 	{}
 };
 

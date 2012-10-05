@@ -20,6 +20,8 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/musb.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 #include <sound/tlv320aic3x.h>
 
 #include <asm/mach/arch.h>
@@ -27,8 +29,6 @@
 
 #include "common.h"
 #include <plat/menelaus.h>
-#include <plat/mcspi.h>
-#include <plat/onenand.h>
 #include <plat/mmc.h>
 
 #include "mux.h"

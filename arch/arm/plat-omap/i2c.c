@@ -32,7 +32,6 @@
 #include <linux/clk.h>
 
 #include <mach/irqs.h>
-#include <plat/mux.h>
 #include <plat/i2c.h>
 #include <plat/omap-pm.h>
 #include <plat/omap_device.h>

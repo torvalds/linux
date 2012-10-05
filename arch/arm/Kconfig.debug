@@ -261,6 +261,20 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the serial port on MSM 8960 devices.
 
+	config DEBUG_MVEBU_UART
+		bool "Kernel low-level debugging messages via MVEBU UART"
+		depends on ARCH_MVEBU
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on MVEBU based platforms.
+
+	config DEBUG_PICOXCELL_UART
+		depends on ARCH_PICOXCELL
+		bool "Use PicoXcell UART for low-level debug"
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on PicoXcell based platforms.
+
 	config DEBUG_REALVIEW_STD_PORT
 		bool "RealView Default UART"
 		depends on ARCH_REALVIEW
@@ -310,6 +324,13 @@ choice
 		  The uncompressor code port configuration is now handled
 		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
 
+	config DEBUG_SOCFPGA_UART
+		depends on ARCH_SOCFPGA
+		bool "Use SOCFPGA UART for low-level debug"
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on SOCFPGA based platforms.
+
 	config DEBUG_VEXPRESS_UART0_DETECT
 		bool "Autodetect UART0 on Versatile Express Cortex-A core tiles"
 		depends on ARCH_VEXPRESS && CPU_CP15_MMU
@@ -338,6 +359,7 @@ choice
 
 	config DEBUG_LL_UART_NONE
 		bool "No low-level debugging UART"
+		depends on !ARCH_MULTIPLATFORM
 		help
 		  Say Y here if your platform doesn't provide a UART option
 		  below. This relies on your platform choosing the right UART
@@ -372,6 +394,17 @@ choice
 		  chapter 8 of DUI0203I_rvct_developer_guide.pdf from ARM Ltd.
 
 endchoice
+
+config DEBUG_LL_INCLUDE
+	string
+	default "debug/icedcc.S" if DEBUG_ICEDCC
+	default "debug/highbank.S" if DEBUG_HIGHBANK_UART
+	default "debug/mvebu.S" if DEBUG_MVEBU_UART
+	default "debug/picoxcell.S" if DEBUG_PICOXCELL_UART
+	default "debug/socfpga.S" if DEBUG_SOCFPGA_UART
+	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
+		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1
+	default "mach/debug-macro.S"
 
 config EARLY_PRINTK
 	bool "Early printk"
