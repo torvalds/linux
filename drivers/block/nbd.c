@@ -98,6 +98,7 @@ static const char *nbdcmd_to_ascii(int cmd)
 	case  NBD_CMD_READ: return "read";
 	case NBD_CMD_WRITE: return "write";
 	case  NBD_CMD_DISC: return "disconnect";
+	case  NBD_CMD_TRIM: return "trim/discard";
 	}
 	return "invalid";
 }
@@ -469,7 +470,11 @@ static void nbd_handle_req(struct nbd_device *nbd, struct request *req)
 
 	nbd_cmd(req) = NBD_CMD_READ;
 	if (rq_data_dir(req) == WRITE) {
-		nbd_cmd(req) = NBD_CMD_WRITE;
+		if ((req->cmd_flags & REQ_DISCARD)) {
+			WARN_ON(!(nbd->flags & NBD_FLAG_SEND_TRIM));
+			nbd_cmd(req) = NBD_CMD_TRIM;
+		} else
+			nbd_cmd(req) = NBD_CMD_WRITE;
 		if (nbd->flags & NBD_FLAG_READ_ONLY) {
 			dev_err(disk_to_dev(nbd->disk),
 				"Write on read-only\n");
@@ -676,6 +681,10 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 
 		mutex_unlock(&nbd->tx_lock);
 
+		if (nbd->flags & NBD_FLAG_SEND_TRIM)
+			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD,
+				nbd->disk->queue);
+
 		thread = kthread_create(nbd_thread, nbd, nbd->disk->disk_name);
 		if (IS_ERR(thread)) {
 			mutex_lock(&nbd->tx_lock);
@@ -693,6 +702,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		nbd->file = NULL;
 		nbd_clear_que(nbd);
 		dev_warn(disk_to_dev(nbd->disk), "queue cleared\n");
+		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
 		if (file)
 			fput(file);
 		nbd->bytesize = 0;
@@ -811,6 +821,9 @@ static int __init nbd_init(void)
 		 * Tell the block layer that we are not a rotational device
 		 */
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, disk->queue);
+		disk->queue->limits.discard_granularity = 512;
+		disk->queue->limits.max_discard_sectors = UINT_MAX;
+		disk->queue->limits.discard_zeroes_data = 0;
 	}
 
 	if (register_blkdev(NBD_MAJOR, "nbd")) {
