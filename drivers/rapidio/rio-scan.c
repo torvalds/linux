@@ -54,6 +54,114 @@ static int rio_mport_phys_table[] = {
 	-1,
 };
 
+
+/*
+ * rio_destid_alloc - Allocate next available destID for given network
+ * net: RIO network
+ *
+ * Returns next available device destination ID for the specified RIO network.
+ * Marks allocated ID as one in use.
+ * Returns RIO_INVALID_DESTID if new destID is not available.
+ */
+static u16 rio_destid_alloc(struct rio_net *net)
+{
+	int destid;
+	struct rio_id_table *idtab = &net->destid_table;
+
+	spin_lock(&idtab->lock);
+	destid = find_next_zero_bit(idtab->table, idtab->max, idtab->next);
+	if (destid >= idtab->max)
+		destid = find_first_zero_bit(idtab->table, idtab->max);
+
+	if (destid < idtab->max) {
+		idtab->next = destid + 1;
+		if (idtab->next >= idtab->max)
+			idtab->next = 0;
+		set_bit(destid, idtab->table);
+		destid += idtab->start;
+	} else
+		destid = RIO_INVALID_DESTID;
+
+	spin_unlock(&idtab->lock);
+	return (u16)destid;
+}
+
+/*
+ * rio_destid_reserve - Reserve the specivied destID
+ * net: RIO network
+ * destid: destID to reserve
+ *
+ * Tries to reserve the specified destID.
+ * Returns 0 if successfull.
+ */
+static int rio_destid_reserve(struct rio_net *net, u16 destid)
+{
+	int oldbit;
+	struct rio_id_table *idtab = &net->destid_table;
+
+	destid -= idtab->start;
+	spin_lock(&idtab->lock);
+	oldbit = test_and_set_bit(destid, idtab->table);
+	spin_unlock(&idtab->lock);
+	return oldbit;
+}
+
+/*
+ * rio_destid_free - free a previously allocated destID
+ * net: RIO network
+ * destid: destID to free
+ *
+ * Makes the specified destID available for use.
+ */
+static void rio_destid_free(struct rio_net *net, u16 destid)
+{
+	struct rio_id_table *idtab = &net->destid_table;
+
+	destid -= idtab->start;
+	spin_lock(&idtab->lock);
+	clear_bit(destid, idtab->table);
+	spin_unlock(&idtab->lock);
+}
+
+/*
+ * rio_destid_first - return first destID in use
+ * net: RIO network
+ */
+static u16 rio_destid_first(struct rio_net *net)
+{
+	int destid;
+	struct rio_id_table *idtab = &net->destid_table;
+
+	spin_lock(&idtab->lock);
+	destid = find_first_bit(idtab->table, idtab->max);
+	if (destid >= idtab->max)
+		destid = RIO_INVALID_DESTID;
+	else
+		destid += idtab->start;
+	spin_unlock(&idtab->lock);
+	return (u16)destid;
+}
+
+/*
+ * rio_destid_next - return next destID in use
+ * net: RIO network
+ * from: destination ID from which search shall continue
+ */
+static u16 rio_destid_next(struct rio_net *net, u16 from)
+{
+	int destid;
+	struct rio_id_table *idtab = &net->destid_table;
+
+	spin_lock(&idtab->lock);
+	destid = find_next_bit(idtab->table, idtab->max, from);
+	if (destid >= idtab->max)
+		destid = RIO_INVALID_DESTID;
+	else
+		destid += idtab->start;
+	spin_unlock(&idtab->lock);
+	return (u16)destid;
+}
+
 /**
  * rio_get_device_id - Get the base/extended device id for a device
  * @port: RIO master port
@@ -171,10 +279,6 @@ static int rio_enum_host(struct rio_mport *port)
 
 	/* Set master port destid and init destid ctr */
 	rio_local_set_device_id(port, port->host_deviceid);
-
-	if (next_destid == port->host_deviceid)
-		next_destid++;
-
 	return 0;
 }
 
@@ -441,9 +545,8 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 	if (rio_device_has_destid(port, rdev->src_ops, rdev->dst_ops)) {
 		if (do_enum) {
 			rio_set_device_id(port, destid, hopcount, next_destid);
-			rdev->destid = next_destid++;
-			if (next_destid == port->host_deviceid)
-				next_destid++;
+			rdev->destid = next_destid;
+			next_destid = rio_destid_alloc(net);
 		} else
 			rdev->destid = rio_get_device_id(port, destid, hopcount);
 
@@ -742,12 +845,7 @@ static u16 rio_get_host_deviceid_lock(struct rio_mport *port, u8 hopcount)
 static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 			 u8 hopcount, struct rio_dev *prev, int prev_port)
 {
-	int port_num;
-	int cur_destid;
-	int sw_destid;
-	int sw_inport;
 	struct rio_dev *rdev;
-	u16 destid;
 	u32 regval;
 	int tmp;
 
@@ -813,19 +911,26 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 		return -1;
 
 	if (rio_is_switch(rdev)) {
+		int sw_destid;
+		int cur_destid;
+		int sw_inport;
+		u16 destid;
+		int port_num;
+
 		sw_inport = RIO_GET_PORT_NUM(rdev->swpinfo);
 		rio_route_add_entry(rdev, RIO_GLOBAL_TABLE,
 				    port->host_deviceid, sw_inport, 0);
 		rdev->rswitch->route_table[port->host_deviceid] = sw_inport;
 
-		for (destid = 0; destid < next_destid; destid++) {
-			if (destid == port->host_deviceid)
-				continue;
-			rio_route_add_entry(rdev, RIO_GLOBAL_TABLE,
-					    destid, sw_inport, 0);
-			rdev->rswitch->route_table[destid] = sw_inport;
+		destid = rio_destid_first(net);
+		while (destid != RIO_INVALID_DESTID && destid < next_destid) {
+			if (destid != port->host_deviceid) {
+				rio_route_add_entry(rdev, RIO_GLOBAL_TABLE,
+						    destid, sw_inport, 0);
+				rdev->rswitch->route_table[destid] = sw_inport;
+			}
+			destid = rio_destid_next(net, destid + 1);
 		}
-
 		pr_debug(
 		    "RIO: found %s (vid %4.4x did %4.4x) with %d ports\n",
 		    rio_name(rdev), rdev->vid, rdev->did,
@@ -863,19 +968,22 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 					return -1;
 
 				/* Update routing tables */
-				if (next_destid > cur_destid) {
+				destid = rio_destid_next(net, cur_destid + 1);
+				if (destid != RIO_INVALID_DESTID) {
 					for (destid = cur_destid;
-					     destid < next_destid; destid++) {
-						if (destid == port->host_deviceid)
-							continue;
-						rio_route_add_entry(rdev,
+					     destid < next_destid;) {
+						if (destid != port->host_deviceid) {
+							rio_route_add_entry(rdev,
 								    RIO_GLOBAL_TABLE,
 								    destid,
 								    port_num,
 								    0);
-						rdev->rswitch->
-						    route_table[destid] =
-						    port_num;
+							rdev->rswitch->
+								route_table[destid] =
+								port_num;
+						}
+						destid = rio_destid_next(net,
+								destid + 1);
 					}
 				}
 			} else {
@@ -901,11 +1009,8 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 		rio_init_em(rdev);
 
 		/* Check for empty switch */
-		if (next_destid == sw_destid) {
-			next_destid++;
-			if (next_destid == port->host_deviceid)
-				next_destid++;
-		}
+		if (next_destid == sw_destid)
+			next_destid = rio_destid_alloc(net);
 
 		rdev->destid = sw_destid;
 	} else
@@ -1043,17 +1148,39 @@ static int rio_mport_is_active(struct rio_mport *port)
 /**
  * rio_alloc_net- Allocate and configure a new RIO network
  * @port: Master port associated with the RIO network
+ * @do_enum: Enumeration/Discovery mode flag
+ * @start: logical minimal start id for new net
  *
  * Allocates a RIO network structure, initializes per-network
  * list heads, and adds the associated master port to the
  * network list of associated master ports. Returns a
  * RIO network pointer on success or %NULL on failure.
  */
-static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port)
+static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port,
+					       int do_enum, u16 start)
 {
 	struct rio_net *net;
 
 	net = kzalloc(sizeof(struct rio_net), GFP_KERNEL);
+	if (net && do_enum) {
+		net->destid_table.table = kzalloc(
+			BITS_TO_LONGS(RIO_MAX_ROUTE_ENTRIES(port->sys_size)) *
+			sizeof(long),
+			GFP_KERNEL);
+
+		if (net->destid_table.table == NULL) {
+			pr_err("RIO: failed to allocate destID table\n");
+			kfree(net);
+			net = NULL;
+		} else {
+			net->destid_table.start = start;
+			net->destid_table.next = 0;
+			net->destid_table.max =
+					RIO_MAX_ROUTE_ENTRIES(port->sys_size);
+			spin_lock_init(&net->destid_table.lock);
+		}
+	}
+
 	if (net) {
 		INIT_LIST_HEAD(&net->node);
 		INIT_LIST_HEAD(&net->devices);
@@ -1163,11 +1290,15 @@ int __devinit rio_enum_mport(struct rio_mport *mport)
 
 	/* If master port has an active link, allocate net and enum peers */
 	if (rio_mport_is_active(mport)) {
-		if (!(net = rio_alloc_net(mport))) {
+		net = rio_alloc_net(mport, 1, 0);
+		if (!net) {
 			printk(KERN_ERR "RIO: failed to allocate new net\n");
 			rc = -ENOMEM;
 			goto out;
 		}
+
+		/* reserve mport destID in new net */
+		rio_destid_reserve(net, mport->host_deviceid);
 
 		/* Enable Input Output Port (transmitter reviever) */
 		rio_enable_rx_tx_port(mport, 1, 0, 0, 0);
@@ -1175,6 +1306,8 @@ int __devinit rio_enum_mport(struct rio_mport *mport)
 		/* Set component tag for host */
 		rio_local_write_config_32(mport, RIO_COMPONENT_TAG_CSR,
 					  next_comptag++);
+
+		next_destid = rio_destid_alloc(net);
 
 		if (rio_enum_peer(net, mport, 0, NULL, 0) < 0) {
 			/* A higher priority host won enumeration, bail. */
@@ -1185,6 +1318,8 @@ int __devinit rio_enum_mport(struct rio_mport *mport)
 			rc = -EBUSY;
 			goto out;
 		}
+		/* free the last allocated destID (unused) */
+		rio_destid_free(net, next_destid);
 		rio_update_route_tables(net);
 		rio_clear_locks(net);
 		rio_pw_enable(mport, 1);
@@ -1265,7 +1400,7 @@ int __devinit rio_disc_mport(struct rio_mport *mport)
 enum_done:
 		pr_debug("RIO: ... enumeration done\n");
 
-		net = rio_alloc_net(mport);
+		net = rio_alloc_net(mport, 0, 0);
 		if (!net) {
 			printk(KERN_ERR "RIO: Failed to allocate new net\n");
 			goto bail;

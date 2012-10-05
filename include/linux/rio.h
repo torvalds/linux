@@ -264,6 +264,14 @@ struct rio_mport {
 #endif
 };
 
+struct rio_id_table {
+	u16 start;	/* logical minimal id */
+	u16 next;	/* hint for find */
+	u32 max;	/* max number of IDs in table */
+	spinlock_t lock;
+	unsigned long *table;
+};
+
 /**
  * struct rio_net - RIO network info
  * @node: Node in global list of RIO networks
@@ -279,6 +287,7 @@ struct rio_net {
 	struct list_head mports;	/* list of ports accessing net */
 	struct rio_mport *hport;	/* primary port for accessing net */
 	unsigned char id;	/* RIO network ID */
+	struct rio_id_table destid_table;  /* destID allocation table */
 };
 
 /* Definitions used by switch sysfs initialization callback */
