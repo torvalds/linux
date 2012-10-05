@@ -316,11 +316,9 @@ static int a2mp_getinfo_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 	if (rsp->status)
 		return -EINVAL;
 
-	ctrl = amp_ctrl_add(mgr);
+	ctrl = amp_ctrl_add(mgr, rsp->id);
 	if (!ctrl)
 		return -ENOMEM;
-
-	ctrl->id = rsp->id;
 
 	req.id = rsp->id;
 	a2mp_send(mgr, A2MP_GETAMPASSOC_REQ, __next_ident(mgr), sizeof(req),
@@ -461,7 +459,7 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	ctrl = amp_ctrl_lookup(mgr, rsp.remote_id);
 	if (!ctrl) {
-		ctrl = amp_ctrl_add(mgr);
+		ctrl = amp_ctrl_add(mgr, rsp.remote_id);
 		if (ctrl) {
 			amp_ctrl_get(ctrl);
 		} else {
@@ -473,8 +471,6 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	if (ctrl) {
 		size_t assoc_len = le16_to_cpu(hdr->len) - sizeof(*req);
 		u8 *assoc;
-
-		ctrl->id = rsp.remote_id;
 
 		assoc = kzalloc(assoc_len, GFP_KERNEL);
 		if (!assoc) {

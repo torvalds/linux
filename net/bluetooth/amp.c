@@ -45,7 +45,7 @@ int amp_ctrl_put(struct amp_ctrl *ctrl)
 	return kref_put(&ctrl->kref, &amp_ctrl_destroy);
 }
 
-struct amp_ctrl *amp_ctrl_add(struct amp_mgr *mgr)
+struct amp_ctrl *amp_ctrl_add(struct amp_mgr *mgr, u8 id)
 {
 	struct amp_ctrl *ctrl;
 
@@ -53,11 +53,12 @@ struct amp_ctrl *amp_ctrl_add(struct amp_mgr *mgr)
 	if (!ctrl)
 		return NULL;
 
+	kref_init(&ctrl->kref);
+	ctrl->id = id;
+
 	mutex_lock(&mgr->amp_ctrls_lock);
 	list_add(&ctrl->list, &mgr->amp_ctrls);
 	mutex_unlock(&mgr->amp_ctrls_lock);
-
-	kref_init(&ctrl->kref);
 
 	BT_DBG("mgr %p ctrl %p", mgr, ctrl);
 
