@@ -3332,6 +3332,11 @@ static void ironlake_crtc_off(struct drm_crtc *crtc)
 	intel_put_pch_pll(intel_crtc);
 }
 
+static void haswell_crtc_off(struct drm_crtc *crtc)
+{
+	intel_ddi_put_crtc_pll(crtc);
+}
+
 static void intel_crtc_dpms_overlay(struct intel_crtc *intel_crtc, bool enable)
 {
 	if (!enable && intel_crtc->overlay) {
@@ -5211,6 +5216,9 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	WARN(num_connectors != 1, "%d connectors attached to pipe %c\n",
 	     num_connectors, pipe_name(pipe));
+
+	if (!intel_ddi_pll_mode_set(crtc, adjusted_mode->clock))
+		return -EINVAL;
 
 	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
 		ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
@@ -8078,7 +8086,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_mode_set = haswell_crtc_mode_set;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
-		dev_priv->display.off = ironlake_crtc_off;
+		dev_priv->display.off = haswell_crtc_off;
 		dev_priv->display.update_plane = ironlake_update_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.crtc_mode_set = ironlake_crtc_mode_set;
@@ -8532,6 +8540,9 @@ void intel_modeset_setup_hw_state(struct drm_device *dev)
 			      crtc->base.base.id,
 			      crtc->active ? "enabled" : "disabled");
 	}
+
+	if (IS_HASWELL(dev))
+		intel_ddi_setup_hw_pll_state(dev);
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
 			    base.head) {

@@ -212,6 +212,7 @@ struct intel_crtc {
 
 	/* We can share PLLs across outputs if the timings match */
 	struct intel_pch_pll *pch_pll;
+	uint32_t ddi_pll_sel;
 };
 
 struct intel_plane {
@@ -586,5 +587,10 @@ extern void intel_ddi_disable_pipe_func(struct drm_i915_private *dev_priv,
 					enum pipe pipe);
 extern void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc);
 extern void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc);
+extern void intel_ddi_setup_hw_pll_state(struct drm_device *dev);
+extern bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock);
+extern void intel_ddi_pre_enable(struct intel_encoder *intel_encoder);
+extern void intel_ddi_post_disable(struct intel_encoder *intel_encoder);
+extern void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
 
 #endif /* __INTEL_DRV_H__ */

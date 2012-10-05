@@ -4523,6 +4523,7 @@
 #define  PORT_CLK_SEL_SPLL		(3<<29)
 #define  PORT_CLK_SEL_WRPLL1		(4<<29)
 #define  PORT_CLK_SEL_WRPLL2		(5<<29)
+#define  PORT_CLK_SEL_NONE		(7<<29)
 
 /* Pipe clock selection */
 #define PIPE_CLK_SEL_A			0x46140

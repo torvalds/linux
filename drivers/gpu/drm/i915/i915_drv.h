@@ -93,6 +93,12 @@ struct intel_pch_pll {
 };
 #define I915_NUM_PLLS 2
 
+struct intel_ddi_plls {
+	int spll_refcount;
+	int wrpll1_refcount;
+	int wrpll2_refcount;
+};
+
 /* Interface history:
  *
  * 1.1: Original.
@@ -812,6 +818,7 @@ typedef struct drm_i915_private {
 	wait_queue_head_t pending_flip_queue;
 
 	struct intel_pch_pll pch_plls[I915_NUM_PLLS];
+	struct intel_ddi_plls ddi_plls;
 
 	/* Reclocking support */
 	bool render_reclock_avail;

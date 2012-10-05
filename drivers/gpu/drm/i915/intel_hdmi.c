@@ -1013,8 +1013,10 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg, enum port port)
 	}
 
 	if (IS_HASWELL(dev)) {
+		intel_encoder->pre_enable = intel_ddi_pre_enable;
 		intel_encoder->enable = intel_enable_ddi;
 		intel_encoder->disable = intel_disable_ddi;
+		intel_encoder->post_disable = intel_ddi_post_disable;
 		intel_encoder->get_hw_state = intel_ddi_get_hw_state;
 		drm_encoder_helper_add(&intel_encoder->base,
 				       &intel_hdmi_helper_funcs_hsw);
