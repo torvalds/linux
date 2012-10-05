@@ -700,21 +700,24 @@ static int android_bat_suspend(struct device *dev)
 	struct android_bat_data *battery = dev_get_drvdata(dev);
 
 	cancel_work_sync(&battery->monitor_work);
-	android_bat_monitor_set_alarm(battery, SLOW_POLL);
+	android_bat_monitor_set_alarm(
+		battery,
+		battery->charge_source == CHARGE_SOURCE_NONE ?
+		SLOW_POLL : FAST_POLL);
 	return 0;
 }
 
-static int android_bat_resume(struct device *dev)
+static void android_bat_resume(struct device *dev)
 {
 	struct android_bat_data *battery = dev_get_drvdata(dev);
 
 	android_bat_monitor_set_alarm(battery, FAST_POLL);
-	return 0;
+	return;
 }
 
 static const struct dev_pm_ops android_bat_pm_ops = {
-	.suspend	= android_bat_suspend,
-	.resume = android_bat_resume,
+	.prepare = android_bat_suspend,
+	.complete = android_bat_resume,
 };
 
 static struct platform_driver android_bat_driver = {
