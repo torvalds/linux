@@ -18,6 +18,9 @@ enum address_markers_idx {
 	KERNEL_END_NR,
 	VMEMMAP_NR,
 	VMALLOC_NR,
+#ifdef CONFIG_64BIT
+	MODULES_NR,
+#endif
 };
 
 static struct addr_marker address_markers[] = {
@@ -26,6 +29,9 @@ static struct addr_marker address_markers[] = {
 	[KERNEL_END_NR]	  = {(unsigned long)&_end, "Kernel Image End"},
 	[VMEMMAP_NR]	  = {0, "vmemmap Area"},
 	[VMALLOC_NR]	  = {0, "vmalloc Area"},
+#ifdef CONFIG_64BIT
+	[MODULES_NR]	  = {0, "Modules Area"},
+#endif
 	{ -1, NULL }
 };
 
@@ -205,11 +211,12 @@ static int pt_dump_init(void)
 	 * kernel ASCE. We need this to keep the page table walker functions
 	 * from accessing non-existent entries.
 	 */
-#ifdef CONFIG_64BIT
+#ifdef CONFIG_32BIT
+	max_addr = 1UL << 31;
+#else
 	max_addr = (S390_lowcore.kernel_asce & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);
-#else
-	max_addr = 1UL << 31;
+	address_markers[MODULES_NR].start_address = MODULES_VADDR;
 #endif
 	address_markers[VMEMMAP_NR].start_address = (unsigned long) vmemmap;
 	address_markers[VMALLOC_NR].start_address = VMALLOC_START;

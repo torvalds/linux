@@ -119,19 +119,26 @@ static inline int is_zero_pfn(unsigned long pfn)
 
 #ifndef __ASSEMBLY__
 /*
- * The vmalloc area will always be on the topmost area of the kernel
- * mapping. We reserve 96MB (31bit) / 128GB (64bit) for vmalloc,
- * which should be enough for any sane case.
- * By putting vmalloc at the top, we maximise the gap between physical
- * memory and vmalloc to catch misplaced memory accesses. As a side
- * effect, this also makes sure that 64 bit module code cannot be used
- * as system call address.
+ * The vmalloc and module area will always be on the topmost area of the kernel
+ * mapping. We reserve 96MB (31bit) / 128GB (64bit) for vmalloc and modules.
+ * On 64 bit kernels we have a 2GB area at the top of the vmalloc area where
+ * modules will reside. That makes sure that inter module branches always
+ * happen without trampolines and in addition the placement within a 2GB frame
+ * is branch prediction unit friendly.
  */
 extern unsigned long VMALLOC_START;
 extern unsigned long VMALLOC_END;
 extern struct page *vmemmap;
 
 #define VMEM_MAX_PHYS ((unsigned long) vmemmap)
+
+#ifdef CONFIG_64BIT
+extern unsigned long MODULES_VADDR;
+extern unsigned long MODULES_END;
+#define MODULES_VADDR	MODULES_VADDR
+#define MODULES_END	MODULES_END
+#define MODULES_LEN	(1UL << 31)
+#endif
 
 /*
  * A 31 bit pagetable entry of S390 has following format:
