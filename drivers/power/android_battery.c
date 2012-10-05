@@ -627,7 +627,7 @@ static int android_bat_probe(struct platform_device *pdev)
 	}
 
 	battery->monitor_wqueue =
-		create_singlethread_workqueue(dev_name(&pdev->dev));
+		alloc_workqueue(dev_name(&pdev->dev), WQ_FREEZABLE, 1);
 	if (!battery->monitor_wqueue) {
 		dev_err(battery->dev, "%s: fail to create workqueue\n",
 				__func__);
