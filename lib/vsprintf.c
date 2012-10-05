@@ -174,22 +174,12 @@ char *put_dec_trunc8(char *buf, unsigned r)
 	unsigned q;
 
 	/* Copy of previous function's body with added early returns */
-	q      = (r * (uint64_t)0x1999999a) >> 32;
-	*buf++ = (r - 10 * q) + '0'; /* 2 */
-	if (q == 0)
-		return buf;
-	r      = (q * (uint64_t)0x1999999a) >> 32;
-	*buf++ = (q - 10 * r) + '0'; /* 3 */
-	if (r == 0)
-		return buf;
-	q      = (r * (uint64_t)0x1999999a) >> 32;
-	*buf++ = (r - 10 * q) + '0'; /* 4 */
-	if (q == 0)
-		return buf;
-	r      = (q * (uint64_t)0x1999999a) >> 32;
-	*buf++ = (q - 10 * r) + '0'; /* 5 */
-	if (r == 0)
-		return buf;
+	while (r >= 10000) {
+		q = r + '0';
+		r  = (r * (uint64_t)0x1999999a) >> 32;
+		*buf++ = q - 10*r;
+	}
+
 	q      = (r * 0x199a) >> 16;
 	*buf++ = (r - 10 * q)  + '0'; /* 6 */
 	if (q == 0)
