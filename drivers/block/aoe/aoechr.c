@@ -86,10 +86,9 @@ revalidate(const char __user *str, size_t size)
 	if (copy_from_user(buf, str, size))
 		return -EFAULT;
 
-	/* should be e%d.%d format */
 	n = sscanf(buf, "e%d.%d", &major, &minor);
 	if (n != 2) {
-		printk(KERN_ERR "aoe: invalid device specification\n");
+		pr_err("aoe: invalid device specification %s\n", buf);
 		return -EINVAL;
 	}
 	d = aoedev_by_aoeaddr(major, minor);

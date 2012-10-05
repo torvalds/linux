@@ -48,47 +48,60 @@ dummy_timer(ulong vp)
 }
 
 void
-aoedev_downdev(struct aoedev *d)
+aoe_failbuf(struct aoedev *d, struct buf *buf)
 {
-	struct aoetgt **t, **te;
-	struct frame *f, *e;
-	struct buf *buf;
 	struct bio *bio;
 
-	t = d->targets;
-	te = t + NTARGETS;
-	for (; t < te && *t; t++) {
-		f = (*t)->frames;
-		e = f + (*t)->nframes;
-		for (; f < e; f->tag = FREETAG, f->buf = NULL, f++) {
-			if (f->tag == FREETAG || f->buf == NULL)
-				continue;
-			buf = f->buf;
-			bio = buf->bio;
-			if (--buf->nframesout == 0
-			&& buf != d->inprocess) {
-				mempool_free(buf, d->bufpool);
-				bio_endio(bio, -EIO);
-			}
-		}
-		(*t)->maxout = (*t)->nframes;
-		(*t)->nout = 0;
-	}
-	buf = d->inprocess;
-	if (buf) {
+	if (buf == NULL)
+		return;
+	buf->flags |= BUFFL_FAIL;
+	if (buf->nframesout == 0) {
+		if (buf == d->inprocess) /* ensure we only process this once */
+			d->inprocess = NULL;
 		bio = buf->bio;
 		mempool_free(buf, d->bufpool);
 		bio_endio(bio, -EIO);
 	}
+}
+
+void
+aoedev_downdev(struct aoedev *d)
+{
+	struct aoetgt *t, **tt, **te;
+	struct frame *f;
+	struct list_head *head, *pos, *nx;
+	int i;
+
+	/* clean out active buffers on all targets */
+	tt = d->targets;
+	te = tt + NTARGETS;
+	for (; tt < te && (t = *tt); tt++) {
+		for (i = 0; i < NFACTIVE; i++) {
+			head = &t->factive[i];
+			list_for_each_safe(pos, nx, head) {
+				list_del(pos);
+				f = list_entry(pos, struct frame, head);
+				if (f->buf) {
+					f->buf->nframesout--;
+					aoe_failbuf(d, f->buf);
+				}
+				aoe_freetframe(f);
+			}
+		}
+		t->maxout = t->nframes;
+		t->nout = 0;
+	}
+
+	/* clean out the in-process buffer (if any) */
+	aoe_failbuf(d, d->inprocess);
 	d->inprocess = NULL;
 	d->htgt = NULL;
 
+	/* clean out all pending I/O */
 	while (!list_empty(&d->bufq)) {
-		buf = container_of(d->bufq.next, struct buf, bufs);
+		struct buf *buf = container_of(d->bufq.next, struct buf, bufs);
 		list_del(d->bufq.next);
-		bio = buf->bio;
-		mempool_free(buf, d->bufpool);
-		bio_endio(bio, -EIO);
+		aoe_failbuf(d, buf);
 	}
 
 	if (d->gd)
@@ -242,13 +255,16 @@ aoedev_by_sysminor_m(ulong sysminor)
 static void
 freetgt(struct aoedev *d, struct aoetgt *t)
 {
-	struct frame *f, *e;
+	struct frame *f;
+	struct list_head *pos, *nx, *head;
 
-	f = t->frames;
-	e = f + t->nframes;
-	for (; f < e; f++)
+	head = &t->ffree;
+	list_for_each_safe(pos, nx, head) {
+		list_del(pos);
+		f = list_entry(pos, struct frame, head);
 		skbfree(f->skb);
-	kfree(t->frames);
+		kfree(f);
+	}
 	kfree(t);
 }
 

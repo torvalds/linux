@@ -91,6 +91,7 @@ enum {
 	NTARGETS = 8,
 	NAOEIFS = 8,
 	NSKBPOOLMAX = 128,
+	NFACTIVE = 17,
 
 	TIMERTICK = HZ / 10,
 	MINTIMER = HZ >> 2,
@@ -112,13 +113,16 @@ struct buf {
 };
 
 struct frame {
-	int tag;
+	struct list_head head;
+	u32 tag;
 	ulong waited;
 	struct buf *buf;
+	struct aoetgt *t;		/* parent target I belong to */
 	char *bufaddr;
 	ulong bcnt;
 	sector_t lba;
-	struct sk_buff *skb;
+	struct sk_buff *skb;		/* command skb freed on module exit */
+	struct sk_buff *r_skb;		/* response skb for async processing */
 	struct bio_vec *bv;
 	ulong bv_off;
 };
@@ -133,16 +137,18 @@ struct aoeif {
 struct aoetgt {
 	unsigned char addr[6];
 	ushort nframes;
-	struct frame *frames;
+	struct aoedev *d;			/* parent device I belong to */
+	struct list_head factive[NFACTIVE];	/* hash of active frames */
+	struct list_head ffree;			/* list of free frames */
 	struct aoeif ifs[NAOEIFS];
 	struct aoeif *ifp;	/* current aoeif in use */
 	ushort nout;
 	ushort maxout;
 	u16 lasttag;		/* last tag sent */
 	u16 useme;
+	ulong falloc;
 	ulong lastwadj;		/* last window adjustment */
 	int wpkts, rpkts;
-	int dataref;
 };
 
 struct aoedev {
@@ -169,9 +175,20 @@ struct aoedev {
 	struct buf *inprocess;	/* the one we're currently working on */
 	struct aoetgt *targets[NTARGETS];
 	struct aoetgt **tgt;	/* target in use when working */
-	struct aoetgt **htgt;	/* target needing rexmit assistance */
+	struct aoetgt *htgt;	/* target needing rexmit assistance */
+	ulong ntargets;
+	ulong kicked;
 };
 
+/* kthread tracking */
+struct ktstate {
+	struct completion rendez;
+	struct task_struct *task;
+	wait_queue_head_t *waitq;
+	int (*fn) (void);
+	char *name;
+	spinlock_t *lock;
+};
 
 int aoeblk_init(void);
 void aoeblk_exit(void);
@@ -184,11 +201,14 @@ void aoechr_error(char *);
 
 void aoecmd_work(struct aoedev *d);
 void aoecmd_cfg(ushort aoemajor, unsigned char aoeminor);
-void aoecmd_ata_rsp(struct sk_buff *);
+struct sk_buff *aoecmd_ata_rsp(struct sk_buff *);
 void aoecmd_cfg_rsp(struct sk_buff *);
 void aoecmd_sleepwork(struct work_struct *);
 void aoecmd_cleanslate(struct aoedev *);
+void aoecmd_exit(void);
+int aoecmd_init(void);
 struct sk_buff *aoecmd_ata_id(struct aoedev *);
+void aoe_freetframe(struct frame *);
 
 int aoedev_init(void);
 void aoedev_exit(void);
@@ -196,6 +216,7 @@ struct aoedev *aoedev_by_aoeaddr(int maj, int min);
 struct aoedev *aoedev_by_sysminor_m(ulong sysminor);
 void aoedev_downdev(struct aoedev *d);
 int aoedev_flush(const char __user *str, size_t size);
+void aoe_failbuf(struct aoedev *d, struct buf *buf);
 
 int aoenet_init(void);
 void aoenet_exit(void);

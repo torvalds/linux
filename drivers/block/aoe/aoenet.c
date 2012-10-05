@@ -142,7 +142,8 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 
 	switch (h->cmd) {
 	case AOECMD_ATA:
-		aoecmd_ata_rsp(skb);
+		/* ata_rsp may keep skb for later processing or give it back */
+		skb = aoecmd_ata_rsp(skb);
 		break;
 	case AOECMD_CFG:
 		aoecmd_cfg_rsp(skb);
@@ -152,6 +153,9 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 			break;	/* don't complain about vendor commands */
 		printk(KERN_INFO "aoe: unknown cmd %d\n", h->cmd);
 	}
+
+	if (!skb)
+		return 0;
 exit:
 	dev_kfree_skb(skb);
 	return 0;
