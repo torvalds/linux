@@ -2015,8 +2015,7 @@ i915_add_request(struct intel_ring_buffer *ring,
 	if (!dev_priv->mm.suspended) {
 		if (i915_enable_hangcheck) {
 			mod_timer(&dev_priv->hangcheck_timer,
-				  jiffies +
-				  msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+				  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 		}
 		if (was_empty) {
 			queue_delayed_work(dev_priv->wq,
