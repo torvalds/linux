@@ -2566,13 +2566,14 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 }
 
 static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
-				  enum ieee80211_band band,
+				  struct ieee80211_channel *chan,
 				  int power_level)
 {
 	u8 txpower, r1;
 	u16 eeprom;
 	u32 reg, offset;
 	int i, is_rate_b, delta, power_ctrl;
+	enum ieee80211_band band = chan->band;
 
 	/*
 	 * Calculate HT40 compensation delta
@@ -2720,7 +2721,7 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 
 void rt2800_gain_calibration(struct rt2x00_dev *rt2x00dev)
 {
-	rt2800_config_txpower(rt2x00dev, rt2x00dev->curr_band,
+	rt2800_config_txpower(rt2x00dev, rt2x00dev->hw->conf.channel,
 			      rt2x00dev->tx_power);
 }
 EXPORT_SYMBOL_GPL(rt2800_gain_calibration);
@@ -2855,11 +2856,11 @@ void rt2800_config(struct rt2x00_dev *rt2x00dev,
 	if (flags & IEEE80211_CONF_CHANGE_CHANNEL) {
 		rt2800_config_channel(rt2x00dev, libconf->conf,
 				      &libconf->rf, &libconf->channel);
-		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel,
 				      libconf->conf->power_level);
 	}
 	if (flags & IEEE80211_CONF_CHANGE_POWER)
-		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel,
 				      libconf->conf->power_level);
 	if (flags & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		rt2800_config_retry_limit(rt2x00dev, libconf);
