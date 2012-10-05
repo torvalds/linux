@@ -427,7 +427,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 		if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
 			pde_get(de);
 			spin_unlock(&proc_subdir_lock);
-			error = -EINVAL;
+			error = -ENOMEM;
 			inode = proc_get_inode(dir->i_sb, de);
 			goto out_unlock;
 		}
