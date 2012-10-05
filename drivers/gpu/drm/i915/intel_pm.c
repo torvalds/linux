@@ -3460,9 +3460,6 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
-	uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
-
-	I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
 
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
@@ -3472,8 +3469,6 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	 * This implements the WaDisableRCZUnitClockGating workaround.
 	 */
 	I915_WRITE(GEN6_UCGCTL2, GEN6_RCZUNIT_CLOCK_GATE_DISABLE);
-
-	I915_WRITE(ILK_DSPCLK_GATE, IVB_VRHUNIT_CLK_GATE);
 
 	/* WaDisableEarlyCull */
 	I915_WRITE(_3D_CHICKEN3,
