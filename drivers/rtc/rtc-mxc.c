@@ -367,14 +367,14 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 	pdata->ioaddr = devm_ioremap(&pdev->dev, res->start,
 				     resource_size(res));
 
-	pdata->clk = clk_get(&pdev->dev, "rtc");
+	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
 		dev_err(&pdev->dev, "unable to get clock!\n");
 		ret = PTR_ERR(pdata->clk);
 		goto exit_free_pdata;
 	}
 
-	clk_enable(pdata->clk);
+	clk_prepare_enable(pdata->clk);
 	rate = clk_get_rate(pdata->clk);
 
 	if (rate == 32768)
@@ -426,8 +426,7 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 exit_clr_drvdata:
 	platform_set_drvdata(pdev, NULL);
 exit_put_clk:
-	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
+	clk_disable_unprepare(pdata->clk);
 
 exit_free_pdata:
 
@@ -440,8 +439,7 @@ static int __exit mxc_rtc_remove(struct platform_device *pdev)
 
 	rtc_device_unregister(pdata->rtc);
 
-	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
+	clk_disable_unprepare(pdata->clk);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
