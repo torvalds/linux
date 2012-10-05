@@ -846,8 +846,10 @@ static int pxa_irda_probe(struct platform_device *pdev)
 		goto err_mem_2;
 
 	dev = alloc_irdadev(sizeof(struct pxa_irda));
-	if (!dev)
+	if (!dev) {
+		err = -ENOMEM;
 		goto err_mem_3;
+	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	si = netdev_priv(dev);
