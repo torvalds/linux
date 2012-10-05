@@ -583,17 +583,19 @@ pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 	}
 }
 
+static bool
+pnfs_layout_stateid_blocked(const struct pnfs_layout_hdr *lo,
+		const nfs4_stateid *stateid)
+{
+	u32 seqid = be32_to_cpu(stateid->seqid);
+
+	return !pnfs_seqid_is_newer(seqid, lo->plh_barrier);
+}
+
 /* lget is set to 1 if called from inside send_layoutget call chain */
 static bool
-pnfs_layoutgets_blocked(struct pnfs_layout_hdr *lo, nfs4_stateid *stateid,
-			int lget)
+pnfs_layoutgets_blocked(const struct pnfs_layout_hdr *lo, int lget)
 {
-	if (stateid != NULL) {
-		u32 seqid = be32_to_cpu(stateid->seqid);
-
-		if (!pnfs_seqid_is_newer(seqid, lo->plh_barrier))
-			return true;
-	}
 	return lo->plh_block_lgets ||
 		test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
 		(list_empty(&lo->plh_segs) &&
@@ -608,7 +610,7 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 
 	dprintk("--> %s\n", __func__);
 	spin_lock(&lo->plh_inode->i_lock);
-	if (pnfs_layoutgets_blocked(lo, NULL, 1)) {
+	if (pnfs_layoutgets_blocked(lo, 1)) {
 		status = -EAGAIN;
 	} else if (list_empty(&lo->plh_segs)) {
 		int seq;
@@ -1111,7 +1113,7 @@ pnfs_update_layout(struct inode *ino,
 	if (lseg)
 		goto out_unlock;
 
-	if (pnfs_layoutgets_blocked(lo, NULL, 0))
+	if (pnfs_layoutgets_blocked(lo, 0))
 		goto out_unlock;
 	atomic_inc(&lo->plh_outstanding);
 
@@ -1184,7 +1186,8 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		goto out_forget_reply;
 	}
 
-	if (pnfs_layoutgets_blocked(lo, &res->stateid, 1)) {
+	if (pnfs_layoutgets_blocked(lo, 1) ||
+	    pnfs_layout_stateid_blocked(lo, &res->stateid)) {
 		dprintk("%s forget reply due to state\n", __func__);
 		goto out_forget_reply;
 	}
