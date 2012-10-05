@@ -2586,6 +2586,15 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 	return min_t(u8, txpower, 0xc);
 }
 
+/*
+ * We configure transmit power using MAC TX_PWR_CFG_{0,...,N} registers and
+ * BBP R1 register. TX_PWR_CFG_X allow to configure per rate TX power values,
+ * 4 bits for each rate (tune from 0 to 15 dBm). BBP_R1 controls transmit power
+ * for all rates, but allow to set only 4 discrete values: -12, -6, 0 and 6 dBm.
+ * Reference per rate transmit power values are located in the EEPROM at
+ * EEPROM_TXPOWER_BYRATE offset. We adjust them and BBP R1 settings according to
+ * current conditions (i.e. band, bandwidth, temperature, user settings).
+ */
 static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 				  struct ieee80211_channel *chan,
 				  int power_level)
@@ -2597,17 +2606,24 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 	enum ieee80211_band band = chan->band;
 
 	/*
-	 * Calculate HT40 compensation delta
+	 * Calculate HT40 compensation. For 40MHz we need to add or subtract
+	 * value read from EEPROM (different for 2GHz and for 5GHz).
 	 */
 	delta = rt2800_get_txpower_bw_comp(rt2x00dev, band);
 
 	/*
-	 * calculate temperature compensation delta
+	 * Calculate temperature compensation. Depends on measurement of current
+	 * TSSI (Transmitter Signal Strength Indication) we know TX power (due
+	 * to temperature or maybe other factors) is smaller or bigger than
+	 * expected. We adjust it, based on TSSI reference and boundaries values
+	 * provided in EEPROM.
 	 */
 	delta += rt2800_get_gain_calibration_delta(rt2x00dev);
 
 	/*
-	 * Apply regulatory delta.
+	 * Decrease power according to user settings, on devices with unknown
+	 * maximum tx power. For other devices we take user power_level into
+	 * consideration on rt2800_compensate_txpower().
 	 */
 	delta += rt2800_get_txpower_reg_delta(rt2x00dev, power_level,
 					      chan->max_power);
