@@ -3945,8 +3945,10 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 		skge_board_name(hw), hw->chip_rev);
 
 	dev = skge_devinit(hw, 0, using_dac);
-	if (!dev)
+	if (!dev) {
+		err = -ENOMEM;
 		goto err_out_led_off;
+	}
 
 	/* Some motherboards are broken and has zero in ROM. */
 	if (!is_valid_ether_addr(dev->dev_addr))
