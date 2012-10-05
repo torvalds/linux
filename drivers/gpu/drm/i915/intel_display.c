@@ -5002,6 +5002,9 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
+	WARN(!(HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)),
+	     "Unexpected PCH type %d\n", INTEL_PCH_TYPE(dev));
+
 	ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
 				     &has_reduced_clock, &reduced_clock);
 	if (!ok) {
@@ -5027,12 +5030,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
 
-	/* CPU eDP is the only output that doesn't need a PCH PLL of its own on
-	 * pre-Haswell/LPT generation */
-	if (HAS_PCH_LPT(dev)) {
-		DRM_DEBUG_KMS("LPT detected: no PLL for pipe %d necessary\n",
-				pipe);
-	} else if (!is_cpu_edp) {
+	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
+	if (!is_cpu_edp) {
 		struct intel_pch_pll *pll;
 
 		pll = intel_get_pch_pll(intel_crtc, dpll, fp);
@@ -5155,7 +5154,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dpll, fp = 0, fp2 = 0;
+	u32 dpll = 0, fp = 0, fp2 = 0;
 	bool ok, has_reduced_clock = false;
 	bool is_lvds = false, is_dp = false, is_cpu_edp = false;
 	struct intel_encoder *encoder;
@@ -5181,11 +5180,21 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
-	ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
-				     &has_reduced_clock, &reduced_clock);
-	if (!ok) {
-		DRM_ERROR("Couldn't find PLL settings for mode!\n");
-		return -EINVAL;
+	/* We are not sure yet this won't happen. */
+	WARN(!HAS_PCH_LPT(dev), "Unexpected PCH type %d\n",
+	     INTEL_PCH_TYPE(dev));
+
+	WARN(num_connectors != 1, "%d connectors attached to pipe %c\n",
+	     num_connectors, pipe_name(pipe));
+
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+		ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
+					     &has_reduced_clock,
+					     &reduced_clock);
+		if (!ok) {
+			DRM_ERROR("Couldn't find PLL settings for mode!\n");
+			return -EINVAL;
+		}
 	}
 
 	/* Ensure that the cursor is valid for the new mode before changing... */
@@ -5196,104 +5205,112 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	if (is_lvds && dev_priv->lvds_dither)
 		dither = true;
 
-	fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
-	if (has_reduced_clock)
-		fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
-			reduced_clock.m2;
-
-	dpll = ironlake_compute_dpll(intel_crtc, adjusted_mode, &clock, fp);
-
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
 
-	/* CPU eDP is the only output that doesn't need a PCH PLL of its own on
-	 * pre-Haswell/LPT generation */
-	if (HAS_PCH_LPT(dev)) {
-		DRM_DEBUG_KMS("LPT detected: no PLL for pipe %d necessary\n",
-				pipe);
-	} else if (!is_cpu_edp) {
-		struct intel_pch_pll *pll;
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+		fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
+		if (has_reduced_clock)
+			fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
+			      reduced_clock.m2;
 
-		pll = intel_get_pch_pll(intel_crtc, dpll, fp);
-		if (pll == NULL) {
-			DRM_DEBUG_DRIVER("failed to find PLL for pipe %d\n",
-					 pipe);
-			return -EINVAL;
-		}
-	} else
-		intel_put_pch_pll(intel_crtc);
+		dpll = ironlake_compute_dpll(intel_crtc, adjusted_mode, &clock,
+					     fp);
 
-	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
-	 * This is an exception to the general rule that mode_set doesn't turn
-	 * things on.
-	 */
-	if (is_lvds) {
-		temp = I915_READ(PCH_LVDS);
-		temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
-		if (HAS_PCH_CPT(dev)) {
-			temp &= ~PORT_TRANS_SEL_MASK;
-			temp |= PORT_TRANS_SEL_CPT(pipe);
-		} else {
-			if (pipe == 1)
-				temp |= LVDS_PIPEB_SELECT;
+		/* CPU eDP is the only output that doesn't need a PCH PLL of its
+		 * own on pre-Haswell/LPT generation */
+		if (!is_cpu_edp) {
+			struct intel_pch_pll *pll;
+
+			pll = intel_get_pch_pll(intel_crtc, dpll, fp);
+			if (pll == NULL) {
+				DRM_DEBUG_DRIVER("failed to find PLL for pipe %d\n",
+						 pipe);
+				return -EINVAL;
+			}
+		} else
+			intel_put_pch_pll(intel_crtc);
+
+		/* The LVDS pin pair needs to be on before the DPLLs are
+		 * enabled.  This is an exception to the general rule that
+		 * mode_set doesn't turn things on.
+		 */
+		if (is_lvds) {
+			temp = I915_READ(PCH_LVDS);
+			temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
+			if (HAS_PCH_CPT(dev)) {
+				temp &= ~PORT_TRANS_SEL_MASK;
+				temp |= PORT_TRANS_SEL_CPT(pipe);
+			} else {
+				if (pipe == 1)
+					temp |= LVDS_PIPEB_SELECT;
+				else
+					temp &= ~LVDS_PIPEB_SELECT;
+			}
+
+			/* set the corresponsding LVDS_BORDER bit */
+			temp |= dev_priv->lvds_border_bits;
+			/* Set the B0-B3 data pairs corresponding to whether
+			 * we're going to set the DPLLs for dual-channel mode or
+			 * not.
+			 */
+			if (clock.p2 == 7)
+				temp |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
 			else
-				temp &= ~LVDS_PIPEB_SELECT;
+				temp &= ~(LVDS_B0B3_POWER_UP |
+					  LVDS_CLKB_POWER_UP);
+
+			/* It would be nice to set 24 vs 18-bit mode
+			 * (LVDS_A3_POWER_UP) appropriately here, but we need to
+			 * look more thoroughly into how panels behave in the
+			 * two modes.
+			 */
+			temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
+			if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
+				temp |= LVDS_HSYNC_POLARITY;
+			if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
+				temp |= LVDS_VSYNC_POLARITY;
+			I915_WRITE(PCH_LVDS, temp);
 		}
-
-		/* set the corresponsding LVDS_BORDER bit */
-		temp |= dev_priv->lvds_border_bits;
-		/* Set the B0-B3 data pairs corresponding to whether we're going to
-		 * set the DPLLs for dual-channel mode or not.
-		 */
-		if (clock.p2 == 7)
-			temp |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
-		else
-			temp &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
-
-		/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
-		 * appropriately here, but we need to look more thoroughly into how
-		 * panels behave in the two modes.
-		 */
-		temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
-		if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
-			temp |= LVDS_HSYNC_POLARITY;
-		if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
-			temp |= LVDS_VSYNC_POLARITY;
-		I915_WRITE(PCH_LVDS, temp);
 	}
 
 	if (is_dp && !is_cpu_edp) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 	} else {
-		/* For non-DP output, clear any trans DP clock recovery setting.*/
-		I915_WRITE(TRANSDATA_M1(pipe), 0);
-		I915_WRITE(TRANSDATA_N1(pipe), 0);
-		I915_WRITE(TRANSDPLINK_M1(pipe), 0);
-		I915_WRITE(TRANSDPLINK_N1(pipe), 0);
-	}
-
-	if (intel_crtc->pch_pll) {
-		I915_WRITE(intel_crtc->pch_pll->pll_reg, dpll);
-
-		/* Wait for the clocks to stabilize. */
-		POSTING_READ(intel_crtc->pch_pll->pll_reg);
-		udelay(150);
-
-		/* The pixel multiplier can only be updated once the
-		 * DPLL is enabled and the clocks are stable.
-		 *
-		 * So write it again.
-		 */
-		I915_WRITE(intel_crtc->pch_pll->pll_reg, dpll);
+		if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+			/* For non-DP output, clear any trans DP clock recovery
+			 * setting.*/
+			I915_WRITE(TRANSDATA_M1(pipe), 0);
+			I915_WRITE(TRANSDATA_N1(pipe), 0);
+			I915_WRITE(TRANSDPLINK_M1(pipe), 0);
+			I915_WRITE(TRANSDPLINK_N1(pipe), 0);
+		}
 	}
 
 	intel_crtc->lowfreq_avail = false;
-	if (intel_crtc->pch_pll) {
-		if (is_lvds && has_reduced_clock && i915_powersave) {
-			I915_WRITE(intel_crtc->pch_pll->fp1_reg, fp2);
-			intel_crtc->lowfreq_avail = true;
-		} else {
-			I915_WRITE(intel_crtc->pch_pll->fp1_reg, fp);
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+		if (intel_crtc->pch_pll) {
+			I915_WRITE(intel_crtc->pch_pll->pll_reg, dpll);
+
+			/* Wait for the clocks to stabilize. */
+			POSTING_READ(intel_crtc->pch_pll->pll_reg);
+			udelay(150);
+
+			/* The pixel multiplier can only be updated once the
+			 * DPLL is enabled and the clocks are stable.
+			 *
+			 * So write it again.
+			 */
+			I915_WRITE(intel_crtc->pch_pll->pll_reg, dpll);
+		}
+
+		if (intel_crtc->pch_pll) {
+			if (is_lvds && has_reduced_clock && i915_powersave) {
+				I915_WRITE(intel_crtc->pch_pll->fp1_reg, fp2);
+				intel_crtc->lowfreq_avail = true;
+			} else {
+				I915_WRITE(intel_crtc->pch_pll->fp1_reg, fp);
+			}
 		}
 	}
 
@@ -5301,8 +5318,9 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	ironlake_set_m_n(crtc, mode, adjusted_mode);
 
-	if (is_cpu_edp)
-		ironlake_set_pll_edp(crtc, adjusted_mode->clock);
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+		if (is_cpu_edp)
+			ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 
 	ironlake_set_pipeconf(crtc, adjusted_mode, dither);
 
