@@ -983,10 +983,11 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_out(up, UART_LCR, cval);
 	}
 
-	serial_omap_set_mctrl(&up->port, up->port.mctrl);
 	/* Software Flow Control Configuration */
 	if (up->port.flags & UPF_SOFT_FLOW)
 		serial_omap_configure_xonxoff(up, termios);
+
+	serial_omap_set_mctrl(&up->port, up->port.mctrl);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 	pm_runtime_mark_last_busy(up->dev);
