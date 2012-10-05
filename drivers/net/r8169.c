@@ -1157,7 +1157,7 @@ static void __rtl8169_check_link_status(struct net_device *dev,
 		netif_carrier_off(dev);
 		netif_info(tp, ifdown, dev, "link down\n");
 		if (pm)
-			pm_schedule_suspend(&tp->pci_dev->dev, 100);
+			pm_schedule_suspend(&tp->pci_dev->dev, 5000);
 	}
 	spin_unlock_irqrestore(&tp->lock, flags);
 }
