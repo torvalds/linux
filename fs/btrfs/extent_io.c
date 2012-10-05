@@ -4249,10 +4249,8 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 
 	for (i = 0; i < num_pages; i++, index++) {
 		p = find_or_create_page(mapping, index, GFP_NOFS);
-		if (!p) {
-			WARN_ON(1);
+		if (!p)
 			goto free_eb;
-		}
 
 		spin_lock(&mapping->private_lock);
 		if (PagePrivate(p)) {
