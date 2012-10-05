@@ -697,6 +697,7 @@ isl1208_remove(struct i2c_client *client)
 
 static const struct i2c_device_id isl1208_id[] = {
 	{ "isl1208", 0 },
+	{ "isl1218", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl1208_id);
