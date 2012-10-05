@@ -19,7 +19,7 @@ static void aoedev_freedev(struct aoedev *);
 static void freetgt(struct aoedev *d, struct aoetgt *t);
 static void skbpoolfree(struct aoedev *d);
 
-static int aoe_dyndevs;
+static int aoe_dyndevs = 1;
 module_param(aoe_dyndevs, int, 0644);
 MODULE_PARM_DESC(aoe_dyndevs, "Use dynamic minor numbers for devices.");
 
