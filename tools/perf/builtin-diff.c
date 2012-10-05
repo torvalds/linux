@@ -269,7 +269,7 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	if (al.filtered || al.sym == NULL)
+	if (al.filtered)
 		return 0;
 
 	if (hists__add_entry(&evsel->hists, &al, sample->period)) {
