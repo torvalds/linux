@@ -873,8 +873,6 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_out(up, UART_OMAP_MDR1, up->mdr1);
 
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-
-	up->efr = serial_in(up, UART_EFR);
 	serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
 
 	serial_out(up, UART_LCR, 0);
