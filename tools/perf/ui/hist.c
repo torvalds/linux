@@ -286,6 +286,35 @@ static int hpp__entry_ratio(struct perf_hpp *hpp, struct hist_entry *he)
 	return scnprintf(hpp->buf, hpp->size, fmt, buf);
 }
 
+static int hpp__header_wdiff(struct perf_hpp *hpp)
+{
+	const char *fmt = symbol_conf.field_sep ? "%s" : "%14s";
+
+	return scnprintf(hpp->buf, hpp->size, fmt, "Weighted diff");
+}
+
+static int hpp__width_wdiff(struct perf_hpp *hpp __maybe_unused)
+{
+	return 14;
+}
+
+static int hpp__entry_wdiff(struct perf_hpp *hpp, struct hist_entry *he)
+{
+	const char *fmt = symbol_conf.field_sep ? "%s" : "%14s";
+	char buf[32] = " ";
+	s64 wdiff;
+
+	if (he->diff.computed)
+		wdiff = he->diff.wdiff;
+	else
+		wdiff = perf_diff__compute_wdiff(he);
+
+	if (wdiff != 0)
+		scnprintf(buf, sizeof(buf), "%14ld", wdiff);
+
+	return scnprintf(hpp->buf, hpp->size, fmt, buf);
+}
+
 static int hpp__header_displ(struct perf_hpp *hpp)
 {
 	return scnprintf(hpp->buf, hpp->size, "Displ.");
@@ -332,6 +361,7 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 	{ .cond = false, HPP__PRINT_FNS(period) },
 	{ .cond = false, HPP__PRINT_FNS(delta) },
 	{ .cond = false, HPP__PRINT_FNS(ratio) },
+	{ .cond = false, HPP__PRINT_FNS(wdiff) },
 	{ .cond = false, HPP__PRINT_FNS(displ) }
 };
 

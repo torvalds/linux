@@ -63,6 +63,9 @@ struct hist_entry_diff {
 
 	/* PERF_HPP__RATIO */
 	double	period_ratio;
+
+	/* HISTC_WEIGHTED_DIFF */
+	s64	wdiff;
 };
 
 /**

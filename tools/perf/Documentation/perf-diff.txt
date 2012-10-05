@@ -78,7 +78,7 @@ OPTIONS
 
 -c::
 --compute::
-        Differential computation selection - delta,ratio (default is delta).
+        Differential computation selection - delta,ratio,wdiff (default is delta).
         If '+' is specified as a first character, the output is sorted based
         on the computation results.
         See COMPARISON METHODS section for more info.
@@ -110,6 +110,19 @@ with:
 
   - period being the hist entry period value
 
+wdiff
+~~~~~
+If specified the 'Weighted diff' column is displayed with value 'd' computed as:
+
+   d = B->period * WEIGHT-A - A->period * WEIGHT-B
+
+  - A/B being matching hist entry from first/second file specified
+    (or perf.data/perf.data.old) respectively.
+
+  - period being the hist entry period value
+
+  - WEIGHT-A/WEIGHT-B being user suplied weights in the the '-c' option
+    behind ':' separator like '-c wdiff:1,2'.
 
 SEE ALSO
 --------

@@ -27,24 +27,81 @@ static bool show_displacement;
 static bool show_baseline_only;
 static bool sort_compute;
 
+static s64 compute_wdiff_w1;
+static s64 compute_wdiff_w2;
+
 enum {
 	COMPUTE_DELTA,
 	COMPUTE_RATIO,
+	COMPUTE_WEIGHTED_DIFF,
 	COMPUTE_MAX,
 };
 
 const char *compute_names[COMPUTE_MAX] = {
 	[COMPUTE_DELTA] = "delta",
 	[COMPUTE_RATIO] = "ratio",
+	[COMPUTE_WEIGHTED_DIFF] = "wdiff",
 };
 
 static int compute;
+
+static int setup_compute_opt_wdiff(char *opt)
+{
+	char *w1_str = opt;
+	char *w2_str;
+
+	int ret = -EINVAL;
+
+	if (!opt)
+		goto out;
+
+	w2_str = strchr(opt, ',');
+	if (!w2_str)
+		goto out;
+
+	*w2_str++ = 0x0;
+	if (!*w2_str)
+		goto out;
+
+	compute_wdiff_w1 = strtol(w1_str, NULL, 10);
+	compute_wdiff_w2 = strtol(w2_str, NULL, 10);
+
+	if (!compute_wdiff_w1 || !compute_wdiff_w2)
+		goto out;
+
+	pr_debug("compute wdiff w1(%" PRId64 ") w2(%" PRId64 ")\n",
+		  compute_wdiff_w1, compute_wdiff_w2);
+
+	ret = 0;
+
+ out:
+	if (ret)
+		pr_err("Failed: wrong weight data, use 'wdiff:w1,w2'\n");
+
+	return ret;
+}
+
+static int setup_compute_opt(char *opt)
+{
+	if (compute == COMPUTE_WEIGHTED_DIFF)
+		return setup_compute_opt_wdiff(opt);
+
+	if (opt) {
+		pr_err("Failed: extra option specified '%s'", opt);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static int setup_compute(const struct option *opt, const char *str,
 			 int unset __maybe_unused)
 {
 	int *cp = (int *) opt->value;
+	char *cstr = (char *) str;
+	char buf[50];
 	unsigned i;
+	char *option;
 
 	if (!str) {
 		*cp = COMPUTE_DELTA;
@@ -53,19 +110,37 @@ static int setup_compute(const struct option *opt, const char *str,
 
 	if (*str == '+') {
 		sort_compute = true;
-		str++;
+		cstr = (char *) ++str;
 		if (!*str)
 			return 0;
 	}
 
+	option = strchr(str, ':');
+	if (option) {
+		unsigned len = option++ - str;
+
+		/*
+		 * The str data are not writeable, so we need
+		 * to use another buffer.
+		 */
+
+		/* No option value is longer. */
+		if (len >= sizeof(buf))
+			return -EINVAL;
+
+		strncpy(buf, str, len);
+		buf[len] = 0x0;
+		cstr = buf;
+	}
+
 	for (i = 0; i < COMPUTE_MAX; i++)
-		if (!strcmp(str, compute_names[i])) {
+		if (!strcmp(cstr, compute_names[i])) {
 			*cp = i;
-			return 0;
+			return setup_compute_opt(option);
 		}
 
 	pr_err("Failed: '%s' is not computation method "
-	       "(use 'delta' or 'ratio').\n", str);
+	       "(use 'delta','ratio' or 'wdiff')\n", str);
 	return -EINVAL;
 }
 
@@ -95,6 +170,23 @@ double perf_diff__compute_ratio(struct hist_entry *he)
 	he->diff.computed = true;
 	he->diff.period_ratio = pair ? (new_period / old_period) : 0;
 	return he->diff.period_ratio;
+}
+
+s64 perf_diff__compute_wdiff(struct hist_entry *he)
+{
+	struct hist_entry *pair = he->pair;
+	u64 new_period = he->stat.period;
+	u64 old_period = pair ? pair->stat.period : 0;
+
+	he->diff.computed = true;
+
+	if (!pair)
+		he->diff.wdiff = 0;
+	else
+		he->diff.wdiff = new_period * compute_wdiff_w2 -
+				 old_period * compute_wdiff_w1;
+
+	return he->diff.wdiff;
 }
 
 static int hists__add_entry(struct hists *self,
@@ -275,6 +367,9 @@ static void hists__precompute(struct hists *hists)
 		case COMPUTE_RATIO:
 			perf_diff__compute_ratio(he);
 			break;
+		case COMPUTE_WEIGHTED_DIFF:
+			perf_diff__compute_wdiff(he);
+			break;
 		default:
 			BUG_ON(1);
 		}
@@ -309,6 +404,13 @@ hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
 		double r = right->diff.period_ratio;
 
 		return cmp_doubles(l, r);
+	}
+	case COMPUTE_WEIGHTED_DIFF:
+	{
+		s64 l = left->diff.wdiff;
+		s64 r = right->diff.wdiff;
+
+		return r - l;
 	}
 	default:
 		BUG_ON(1);
@@ -434,7 +536,8 @@ static const struct option options[] = {
 		    "Show position displacement relative to baseline"),
 	OPT_BOOLEAN('b', "baseline-only", &show_baseline_only,
 		    "Show only items with match in baseline"),
-	OPT_CALLBACK('c', "compute", &compute, "delta,ratio (default delta)",
+	OPT_CALLBACK('c', "compute", &compute,
+		     "delta,ratio,wdiff:w1,w2 (default delta)",
 		     "Entries differential computation selection",
 		     setup_compute),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
@@ -474,6 +577,9 @@ static void ui_init(void)
 		break;
 	case COMPUTE_RATIO:
 		perf_hpp__column_enable(PERF_HPP__RATIO, true);
+		break;
+	case COMPUTE_WEIGHTED_DIFF:
+		perf_hpp__column_enable(PERF_HPP__WEIGHTED_DIFF, true);
 		break;
 	default:
 		BUG_ON(1);
