@@ -987,7 +987,7 @@ int kptr_restrict __read_mostly;
  * - 'm' For a 6-byte MAC address, it prints the hex address without colons
  * - 'MF' For a 6-byte MAC FDDI address, it prints the address
  *       with a dash-separated hex notation
- * - '[mM]R For a 6-byte MAC address, Reverse order (Bluetooth)
+ * - '[mM]R' For a 6-byte MAC address, Reverse order (Bluetooth)
  * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way
  *       IPv4 uses dot-separated decimal without leading 0's (1.2.3.4)
  *       IPv6 uses colon separated network-order 16 bit hex with leading 0's
@@ -1338,7 +1338,10 @@ qualifier:
  * %pR output the address range in a struct resource with decoded flags
  * %pr output the address range in a struct resource with raw flags
  * %pM output a 6-byte MAC address with colons
+ * %pMR output a 6-byte MAC address with colons in reversed order
+ * %pMF output a 6-byte MAC address with dashes
  * %pm output a 6-byte MAC address without colons
+ * %pmR output a 6-byte MAC address without colons in reversed order
  * %pI4 print an IPv4 address without leading zeros
  * %pi4 print an IPv4 address with leading zeros
  * %pI6 print an IPv6 address with colons
