@@ -186,4 +186,23 @@ int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
 int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		int exception_index);
 
+static inline void __cpu_init_hyp_mode(unsigned long long pgd_ptr,
+				       unsigned long hyp_stack_ptr,
+				       unsigned long vector_ptr)
+{
+	unsigned long pgd_low, pgd_high;
+
+	pgd_low = (pgd_ptr & ((1ULL << 32) - 1));
+	pgd_high = (pgd_ptr >> 32ULL);
+
+	/*
+	 * Call initialization code, and switch to the full blown
+	 * HYP code. The init code doesn't need to preserve these registers as
+	 * r1-r3 and r12 are already callee save according to the AAPCS.
+	 * Note that we slightly misuse the prototype by casing the pgd_low to
+	 * a void *.
+	 */
+	kvm_call_hyp((void *)pgd_low, pgd_high, hyp_stack_ptr, vector_ptr);
+}
+
 #endif /* __ARM_KVM_HOST_H__ */

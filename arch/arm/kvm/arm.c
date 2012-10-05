@@ -813,7 +813,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 static void cpu_init_hyp_mode(void *vector)
 {
 	unsigned long long pgd_ptr;
-	unsigned long pgd_low, pgd_high;
 	unsigned long hyp_stack_ptr;
 	unsigned long stack_page;
 	unsigned long vector_ptr;
@@ -822,20 +821,11 @@ static void cpu_init_hyp_mode(void *vector)
 	__hyp_set_vectors((unsigned long)vector);
 
 	pgd_ptr = (unsigned long long)kvm_mmu_get_httbr();
-	pgd_low = (pgd_ptr & ((1ULL << 32) - 1));
-	pgd_high = (pgd_ptr >> 32ULL);
 	stack_page = __get_cpu_var(kvm_arm_hyp_stack_page);
 	hyp_stack_ptr = stack_page + PAGE_SIZE;
 	vector_ptr = (unsigned long)__kvm_hyp_vector;
 
-	/*
-	 * Call initialization code, and switch to the full blown
-	 * HYP code. The init code doesn't need to preserve these registers as
-	 * r1-r3 and r12 are already callee save according to the AAPCS.
-	 * Note that we slightly misuse the prototype by casing the pgd_low to
-	 * a void *.
-	 */
-	kvm_call_hyp((void *)pgd_low, pgd_high, hyp_stack_ptr, vector_ptr);
+	__cpu_init_hyp_mode(pgd_ptr, hyp_stack_ptr, vector_ptr);
 }
 
 /**
