@@ -44,7 +44,6 @@ static void rio_init_em(struct rio_dev *rdev);
 DEFINE_SPINLOCK(rio_global_list_lock);
 
 static int next_destid = 0;
-static int next_net = 0;
 static int next_comptag = 1;
 
 static int rio_mport_phys_table[] = {
@@ -1062,7 +1061,7 @@ static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port)
 		INIT_LIST_HEAD(&net->mports);
 		list_add_tail(&port->nnode, &net->mports);
 		net->hport = port;
-		net->id = next_net++;
+		net->id = port->id;
 	}
 	return net;
 }
