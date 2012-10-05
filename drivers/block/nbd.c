@@ -78,6 +78,8 @@ static const char *ioctl_cmd_to_ascii(int cmd)
 	case NBD_SET_SOCK: return "set-sock";
 	case NBD_SET_BLKSIZE: return "set-blksize";
 	case NBD_SET_SIZE: return "set-size";
+	case NBD_SET_TIMEOUT: return "set-timeout";
+	case NBD_SET_FLAGS: return "set-flags";
 	case NBD_DO_IT: return "do-it";
 	case NBD_CLEAR_SOCK: return "clear-sock";
 	case NBD_CLEAR_QUE: return "clear-que";
@@ -468,7 +470,7 @@ static void nbd_handle_req(struct nbd_device *nbd, struct request *req)
 	nbd_cmd(req) = NBD_CMD_READ;
 	if (rq_data_dir(req) == WRITE) {
 		nbd_cmd(req) = NBD_CMD_WRITE;
-		if (nbd->flags & NBD_READ_ONLY) {
+		if (nbd->flags & NBD_FLAG_READ_ONLY) {
 			dev_err(disk_to_dev(nbd->disk),
 				"Write on read-only\n");
 			goto error_out;
@@ -649,6 +651,10 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 
 	case NBD_SET_TIMEOUT:
 		nbd->xmit_timeout = arg * HZ;
+		return 0;
+
+	case NBD_SET_FLAGS:
+		nbd->flags = arg;
 		return 0;
 
 	case NBD_SET_SIZE_BLOCKS:
