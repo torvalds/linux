@@ -52,6 +52,7 @@
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
+#include <asm/assembly.h>
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
 #include <asm/pgalloc.h>
@@ -253,14 +254,16 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_HPUX
 	extern void * const hpux_child_return;
 #endif
-
-	if (unlikely((p->flags & PF_KTHREAD) && usp != 0)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(cregs, 0, sizeof(struct pt_regs));
+		if (!usp) /* idle thread */
+			return 0;
+
 		/* kernel thread */
-		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN;
 		/* Must exit via ret_from_kernel_thread in order
 		 * to call schedule_tail()
 		 */
+		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
 		cregs->kpc = (unsigned long) &ret_from_kernel_thread;
 		/*
 		 * Copy function and argument to be called from
@@ -275,22 +278,8 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		cregs->gr[25] = arg;
 	} else {
 		/* user thread */
-		/*
-		 * Note that the fork wrappers are responsible
-		 * for setting gr[21].
-		 */
-
-		*cregs = *pregs;
-
-		/* Set the return value for the child.  Note that this is not
-		   actually restored by the syscall exit path, but we put it
-		   here for consistency in case of signals. */
-		cregs->gr[28] = 0; /* child */
-
-		/* Use same stack depth as parent */
-		cregs->ksp = (unsigned long)stack
-			+ (pregs->gr[21] & (THREAD_SIZE - 1));
 		cregs->gr[30] = usp;
+		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
 		if (personality(p->personality) == PER_HPUX) {
 #ifdef CONFIG_HPUX
 			cregs->kpc = (unsigned long) &hpux_child_return;
@@ -302,8 +291,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		}
 		/* Setup thread TLS area from the 4th parameter in clone */
 		if (clone_flags & CLONE_SETTLS)
-		  cregs->cr27 = pregs->gr[23];
-	
+			cregs->cr27 = pregs->gr[23];
 	}
 
 	return 0;
