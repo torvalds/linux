@@ -270,9 +270,28 @@
 #define ASI_BLK_INIT_QUAD_LDD_P	0xe2 /* (NG) init-store, twin load,
 				      * primary, implicit
 				      */
+#define ASI_BLK_INIT_QUAD_LDD_S	0xe3 /* (NG) init-store, twin load,
+				      * secondary, implicit
+				      */
 #define ASI_BLK_P		0xf0 /* Primary, blk ld/st		*/
 #define ASI_BLK_S		0xf1 /* Secondary, blk ld/st		*/
+#define ASI_ST_BLKINIT_MRU_P	0xf2 /* (NG4) init-store, twin load,
+				      * Most-Recently-Used, primary,
+				      * implicit
+				      */
+#define ASI_ST_BLKINIT_MRU_S	0xf2 /* (NG4) init-store, twin load,
+				      * Most-Recently-Used, secondary,
+				      * implicit
+				      */
 #define ASI_BLK_PL		0xf8 /* Primary, blk ld/st, little	*/
 #define ASI_BLK_SL		0xf9 /* Secondary, blk ld/st, little	*/
+#define ASI_ST_BLKINIT_MRU_PL	0xfa /* (NG4) init-store, twin load,
+				      * Most-Recently-Used, primary,
+				      * implicit, little-endian
+				      */
+#define ASI_ST_BLKINIT_MRU_SL	0xfb /* (NG4) init-store, twin load,
+				      * Most-Recently-Used, secondary,
+				      * implicit, little-endian
+				      */
 
 #endif /* _SPARC_ASI_H */
