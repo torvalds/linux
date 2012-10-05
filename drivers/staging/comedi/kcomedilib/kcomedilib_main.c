@@ -95,7 +95,8 @@ static int comedi_do_insn(struct comedi_device *dev,
 	s = &dev->subdevices[insn->subdev];
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
-		printk(KERN_ERR "%d not useable subdevice\n", insn->subdev);
+		dev_err(dev->class_dev,
+			"%d not useable subdevice\n", insn->subdev);
 		ret = -EIO;
 		goto error;
 	}
@@ -104,7 +105,7 @@ static int comedi_do_insn(struct comedi_device *dev,
 
 	ret = comedi_check_chanlist(s, 1, &insn->chanspec);
 	if (ret < 0) {
-		printk(KERN_ERR "bad chanspec\n");
+		dev_err(dev->class_dev, "bad chanspec\n");
 		ret = -EINVAL;
 		goto error;
 	}
