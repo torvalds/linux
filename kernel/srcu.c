@@ -34,6 +34,10 @@
 #include <linux/delay.h>
 #include <linux/srcu.h>
 
+#include <trace/events/rcu.h>
+
+#include "rcu.h"
+
 /*
  * Initialize an rcu_batch structure to empty.
  */
@@ -464,7 +468,9 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
  */
 void synchronize_srcu(struct srcu_struct *sp)
 {
-	__synchronize_srcu(sp, SYNCHRONIZE_SRCU_TRYCOUNT);
+	__synchronize_srcu(sp, rcu_expedited
+			   ? SYNCHRONIZE_SRCU_EXP_TRYCOUNT
+			   : SYNCHRONIZE_SRCU_TRYCOUNT);
 }
 EXPORT_SYMBOL_GPL(synchronize_srcu);
 
