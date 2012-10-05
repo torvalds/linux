@@ -1150,6 +1150,192 @@ out:
 	return ret;
 }
 
+static int wm2200_setup_algs(struct snd_soc_codec *codec, int base)
+{
+	struct regmap *regmap = codec->control_data;
+	struct wmfw_adsp1_id_hdr id;
+	struct wmfw_adsp1_alg_hdr *alg;
+	size_t algs;
+	int zm, dm, pm, ret, i;
+	__be32 val;
+
+	switch (base) {
+	case WM2200_DSP1_CONTROL_1:
+		dm = WM2200_DSP1_DM_BASE;
+		pm = WM2200_DSP1_PM_BASE;
+		zm = WM2200_DSP1_ZM_BASE;
+		break;
+	case WM2200_DSP2_CONTROL_1:
+		dm = WM2200_DSP2_DM_BASE;
+		pm = WM2200_DSP2_PM_BASE;
+		zm = WM2200_DSP2_ZM_BASE;
+		break;
+	default:
+		dev_err(codec->dev, "BASE %x\n", base);
+		BUG_ON(1);
+		return -EINVAL;
+	}
+
+	ret = regmap_raw_read(regmap, dm, &id, sizeof(id));
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to read algorithm info: %d\n",
+			ret);
+		return ret;
+	}
+
+	algs = be32_to_cpu(id.algs);
+	dev_info(codec->dev, "Firmware: %x v%d.%d.%d, %d algorithms\n",
+		 be32_to_cpu(id.fw.id),
+		 (be32_to_cpu(id.fw.ver) & 0xff000) >> 16,
+		 (be32_to_cpu(id.fw.ver) & 0xff00) >> 8,
+		 be32_to_cpu(id.fw.ver) & 0xff,
+		 algs);
+
+	/* Read the terminator first to validate the length */
+	ret = regmap_raw_read(regmap, dm +
+			      (sizeof(id) + (algs * sizeof(*alg))) / 2,
+			      &val, sizeof(val));
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to read algorithm list end: %d\n",
+			ret);
+		return ret;
+	}
+
+	if (be32_to_cpu(val) != 0xbedead)
+		dev_warn(codec->dev, "Algorithm list end %x 0x%x != 0xbeadead\n",
+			 (sizeof(id) + (algs * sizeof(*alg))) / 2,
+			 be32_to_cpu(val));
+
+	alg = kzalloc(sizeof(*alg) * algs, GFP_KERNEL);
+	if (!alg)
+		return -ENOMEM;
+
+	ret = regmap_raw_read(regmap, dm + (sizeof(id) / 2),
+			      alg, algs * sizeof(*alg));
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to read algorithm list: %d\n",
+			ret);
+		goto out;
+	}
+
+	for (i = 0; i < algs; i++) {
+		dev_info(codec->dev, "%d: ID %x v%d.%d.%d\n",
+			 i, be32_to_cpu(alg[i].alg.id),
+			 (be32_to_cpu(alg[i].alg.ver) & 0xff000) >> 16,
+			 (be32_to_cpu(alg[i].alg.ver) & 0xff00) >> 8,
+			 be32_to_cpu(alg[i].alg.ver) & 0xff);
+	}
+
+out:
+	kfree(alg);
+	return ret;
+}
+
+static int wm2200_load_coeff(struct snd_soc_codec *codec, int base)
+{
+	struct regmap *regmap = codec->control_data;
+	struct wmfw_coeff_hdr *hdr;
+	struct wmfw_coeff_item *blk;
+	const struct firmware *firmware;
+	const char *file, *region_name;
+	int ret, dm, pm, zm, pos, blocks, type, offset, reg;
+
+	switch (base) {
+	case WM2200_DSP1_CONTROL_1:
+		file = "wm2200-dsp1.bin";
+		dm = WM2200_DSP1_DM_BASE;
+		pm = WM2200_DSP1_PM_BASE;
+		zm = WM2200_DSP1_ZM_BASE;
+		break;
+	case WM2200_DSP2_CONTROL_1:
+		file = "wm2200-dsp2.bin";
+		dm = WM2200_DSP2_DM_BASE;
+		pm = WM2200_DSP2_PM_BASE;
+		zm = WM2200_DSP2_ZM_BASE;
+		break;
+	default:
+		dev_err(codec->dev, "BASE %x\n", base);
+		BUG_ON(1);
+		return -EINVAL;
+	}
+
+	ret = request_firmware(&firmware, file, codec->dev);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request '%s'\n", file);
+		return ret;
+	}
+
+	if (sizeof(*hdr) >= firmware->size) {
+		dev_err(codec->dev, "%s: file too short, %d bytes\n",
+			file, firmware->size);
+		return -EINVAL;
+	}
+
+	hdr = (void*)&firmware->data[0];
+	if (memcmp(hdr->magic, "WMDR", 4) != 0) {
+		dev_err(codec->dev, "%s: invalid magic\n", file);
+		return -EINVAL;
+	}
+
+	dev_dbg(codec->dev, "%s: v%d.%d.%d\n", file,
+		(le32_to_cpu(hdr->ver) >> 16) & 0xff,
+		(le32_to_cpu(hdr->ver) >>  8) & 0xff,
+		le32_to_cpu(hdr->ver) & 0xff);
+
+	pos = le32_to_cpu(hdr->len);
+
+	blocks = 0;
+	while (pos < firmware->size &&
+	       pos - firmware->size > sizeof(*blk)) {
+		blk = (void*)(&firmware->data[pos]);
+
+		type = be32_to_cpu(blk->type) & 0xff;
+		offset = le32_to_cpu(blk->offset) & 0xffffff;
+
+		dev_dbg(codec->dev, "%s.%d: %x v%d.%d.%d\n",
+			file, blocks, le32_to_cpu(blk->id),
+			(le32_to_cpu(blk->ver) >> 16) & 0xff,
+			(le32_to_cpu(blk->ver) >>  8) & 0xff,
+			le32_to_cpu(blk->ver) & 0xff);
+		dev_dbg(codec->dev, "%s.%d: %d bytes at 0x%x in %x\n",
+			file, blocks, le32_to_cpu(blk->len), offset, type);
+
+		reg = 0;
+		region_name = "Unknown";
+		switch (type) {
+		case WMFW_NAME_TEXT:
+		case WMFW_INFO_TEXT:
+			break;
+		case WMFW_ABSOLUTE:
+			region_name = "register";
+			reg = offset;
+			break;
+		default:
+			dev_err(codec->dev, "Unknown region type %x\n", type);
+			break;
+		}
+
+		if (reg) {
+			ret = regmap_raw_write(regmap, reg, blk->data,
+					       le32_to_cpu(blk->len));
+			if (ret != 0) {
+				dev_err(codec->dev,
+					"%s.%d: Failed to write to %x in %s\n",
+					file, blocks, reg, region_name);
+			}
+		}
+
+		pos += le32_to_cpu(blk->len) + sizeof(*blk);
+		blocks++;
+	}
+
+	if (pos > firmware->size)
+		dev_warn(codec->dev, "%s.%d: %d bytes at end of file\n",
+			 file, blocks, pos - firmware->size);
+
+	return 0;
+}
+
 static int wm2200_dsp_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event)
@@ -1161,6 +1347,14 @@ static int wm2200_dsp_ev(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		ret = wm2200_dsp_load(codec, base);
+		if (ret != 0)
+			return ret;
+
+		ret = wm2200_setup_algs(codec, base);
+		if (ret != 0)
+			return ret;
+
+		ret = wm2200_load_coeff(codec, base);
 		if (ret != 0)
 			return ret;
 

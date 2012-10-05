@@ -43,6 +43,49 @@ struct wmfw_region {
 	u8 data[];
 } __packed;
 
+struct wmfw_id_hdr {
+	__be32 core_id;
+	__be32 core_rev;
+	__be32 id;
+	__be32 ver;
+} __packed;
+
+struct wmfw_adsp1_id_hdr {
+	struct wmfw_id_hdr fw;
+	__be32 zm;
+	__be32 dm;
+	__be32 algs;
+} __packed;
+
+struct wmfw_alg_hdr {
+	__be32 id;
+	__be32 ver;
+} __packed;
+
+struct wmfw_adsp1_alg_hdr {
+	struct wmfw_alg_hdr alg;
+	__be32 zm;
+	__be32 dm;
+} __packed;
+
+struct wmfw_coeff_hdr {
+	u8 magic[4];
+	__le32 len;
+	__le32 ver;
+	u8 data[];
+} __packed;
+
+struct wmfw_coeff_item {
+	union {
+		__be32 type;
+		__le32 offset;
+	};
+	__le32 id;
+	__le32 ver;
+	__le32 sr;
+	__le32 len;
+	u8 data[];
+} __packed;
 #define WMFW_ADSP1 1
 
 #define WMFW_ABSOLUTE  0xf0
