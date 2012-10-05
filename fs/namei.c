@@ -352,6 +352,7 @@ int __inode_permission(struct inode *inode, int mask)
 /**
  * sb_permission - Check superblock-level permissions
  * @sb: Superblock of inode to check permission on
+ * @inode: Inode to check permission on
  * @mask: Right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
  *
  * Separate out file-system wide checks from inode-specific permission checks.
@@ -648,6 +649,122 @@ static inline void put_link(struct nameidata *nd, struct path *link, void *cooki
 	if (inode->i_op->put_link)
 		inode->i_op->put_link(link->dentry, nd, cookie);
 	path_put(link);
+}
+
+int sysctl_protected_symlinks __read_mostly = 1;
+int sysctl_protected_hardlinks __read_mostly = 1;
+
+/**
+ * may_follow_link - Check symlink following for unsafe situations
+ * @link: The path of the symlink
+ * @nd: nameidata pathwalk data
+ *
+ * In the case of the sysctl_protected_symlinks sysctl being enabled,
+ * CAP_DAC_OVERRIDE needs to be specifically ignored if the symlink is
+ * in a sticky world-writable directory. This is to protect privileged
+ * processes from failing races against path names that may change out
+ * from under them by way of other users creating malicious symlinks.
+ * It will permit symlinks to be followed only when outside a sticky
+ * world-writable directory, or when the uid of the symlink and follower
+ * match, or when the directory owner matches the symlink's owner.
+ *
+ * Returns 0 if following the symlink is allowed, -ve on error.
+ */
+static inline int may_follow_link(struct path *link, struct nameidata *nd)
+{
+	const struct inode *inode;
+	const struct inode *parent;
+
+	if (!sysctl_protected_symlinks)
+		return 0;
+
+	/* Allowed if owner and follower match. */
+	inode = link->dentry->d_inode;
+	if (current_cred()->fsuid == inode->i_uid)
+		return 0;
+
+	/* Allowed if parent directory not sticky and world-writable. */
+	parent = nd->path.dentry->d_inode;
+	if ((parent->i_mode & (S_ISVTX|S_IWOTH)) != (S_ISVTX|S_IWOTH))
+		return 0;
+
+	/* Allowed if parent directory and link owner match. */
+	if (parent->i_uid == inode->i_uid)
+		return 0;
+
+	path_put_conditional(link, nd);
+	path_put(&nd->path);
+	audit_log_link_denied("follow_link", link);
+	return -EACCES;
+}
+
+/**
+ * safe_hardlink_source - Check for safe hardlink conditions
+ * @inode: the source inode to hardlink from
+ *
+ * Return false if at least one of the following conditions:
+ *    - inode is not a regular file
+ *    - inode is setuid
+ *    - inode is setgid and group-exec
+ *    - access failure for read and write
+ *
+ * Otherwise returns true.
+ */
+static bool safe_hardlink_source(struct inode *inode)
+{
+	umode_t mode = inode->i_mode;
+
+	/* Special files should not get pinned to the filesystem. */
+	if (!S_ISREG(mode))
+		return false;
+
+	/* Setuid files should not get pinned to the filesystem. */
+	if (mode & S_ISUID)
+		return false;
+
+	/* Executable setgid files should not get pinned to the filesystem. */
+	if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP))
+		return false;
+
+	/* Hardlinking to unreadable or unwritable sources is dangerous. */
+	if (inode_permission(inode, MAY_READ | MAY_WRITE))
+		return false;
+
+	return true;
+}
+
+/**
+ * may_linkat - Check permissions for creating a hardlink
+ * @link: the source to hardlink from
+ *
+ * Block hardlink when all of:
+ *  - sysctl_protected_hardlinks enabled
+ *  - fsuid does not match inode
+ *  - hardlink source is unsafe (see safe_hardlink_source() above)
+ *  - not CAP_FOWNER
+ *
+ * Returns 0 if successful, -ve on error.
+ */
+static int may_linkat(struct path *link)
+{
+	const struct cred *cred;
+	struct inode *inode;
+
+	if (!sysctl_protected_hardlinks)
+		return 0;
+
+	cred = current_cred();
+	inode = link->dentry->d_inode;
+
+	/* Source inode owner (or CAP_FOWNER) can hardlink all they like,
+	 * otherwise, it must be a safe source.
+	 */
+	if (cred->fsuid == inode->i_uid || safe_hardlink_source(inode) ||
+	    capable(CAP_FOWNER))
+		return 0;
+
+	audit_log_link_denied("linkat", link);
+	return -EPERM;
 }
 
 static __always_inline int
@@ -1818,6 +1935,9 @@ static int path_lookupat(int dfd, const char *name,
 		while (err > 0) {
 			void *cookie;
 			struct path link = path;
+			err = may_follow_link(&link, nd);
+			if (unlikely(err))
+				break;
 			nd->flags |= LOOKUP_PARENT;
 			err = follow_link(&link, nd, &cookie);
 			if (err)
@@ -2277,7 +2397,7 @@ static int may_o_create(struct path *dir, struct dentry *dentry, umode_t mode)
 static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 			struct path *path, struct file *file,
 			const struct open_flags *op,
-			bool *want_write, bool need_lookup,
+			bool got_write, bool need_lookup,
 			int *opened)
 {
 	struct inode *dir =  nd->path.dentry->d_inode;
@@ -2296,11 +2416,11 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 		goto out;
 	}
 
-	mode = op->mode & S_IALLUGO;
+	mode = op->mode;
 	if ((open_flag & O_CREAT) && !IS_POSIXACL(dir))
 		mode &= ~current_umask();
 
-	if (open_flag & O_EXCL) {
+	if ((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT)) {
 		open_flag &= ~O_TRUNC;
 		*opened |= FILE_CREATED;
 	}
@@ -2314,12 +2434,9 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	 * Another problem is returing the "right" error value (e.g. for an
 	 * O_EXCL open we want to return EEXIST not EROFS).
 	 */
-	if ((open_flag & (O_CREAT | O_TRUNC)) ||
-	    (open_flag & O_ACCMODE) != O_RDONLY) {
-		error = mnt_want_write(nd->path.mnt);
-		if (!error) {
-			*want_write = true;
-		} else if (!(open_flag & O_CREAT)) {
+	if (((open_flag & (O_CREAT | O_TRUNC)) ||
+	    (open_flag & O_ACCMODE) != O_RDONLY) && unlikely(!got_write)) {
+		if (!(open_flag & O_CREAT)) {
 			/*
 			 * No O_CREATE -> atomicity not a requirement -> fall
 			 * back to lookup + open
@@ -2327,17 +2444,17 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 			goto no_open;
 		} else if (open_flag & (O_EXCL | O_TRUNC)) {
 			/* Fall back and fail with the right error */
-			create_error = error;
+			create_error = -EROFS;
 			goto no_open;
 		} else {
 			/* No side effects, safe to clear O_CREAT */
-			create_error = error;
+			create_error = -EROFS;
 			open_flag &= ~O_CREAT;
 		}
 	}
 
 	if (open_flag & O_CREAT) {
-		error = may_o_create(&nd->path, dentry, op->mode);
+		error = may_o_create(&nd->path, dentry, mode);
 		if (error) {
 			create_error = error;
 			if (open_flag & O_EXCL)
@@ -2373,6 +2490,10 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 		if (file->f_path.dentry) {
 			dput(dentry);
 			dentry = file->f_path.dentry;
+		}
+		if (create_error && dentry->d_inode == NULL) {
+			error = create_error;
+			goto out;
 		}
 		goto looked_up;
 	}
@@ -2438,7 +2559,7 @@ looked_up:
 static int lookup_open(struct nameidata *nd, struct path *path,
 			struct file *file,
 			const struct open_flags *op,
-			bool *want_write, int *opened)
+			bool got_write, int *opened)
 {
 	struct dentry *dir = nd->path.dentry;
 	struct inode *dir_inode = dir->d_inode;
@@ -2456,7 +2577,7 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 		goto out_no_open;
 
 	if ((nd->flags & LOOKUP_OPEN) && dir_inode->i_op->atomic_open) {
-		return atomic_open(nd, dentry, path, file, op, want_write,
+		return atomic_open(nd, dentry, path, file, op, got_write,
 				   need_lookup, opened);
 	}
 
@@ -2480,10 +2601,10 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 		 * a permanent write count is taken through
 		 * the 'struct file' in finish_open().
 		 */
-		error = mnt_want_write(nd->path.mnt);
-		if (error)
+		if (!got_write) {
+			error = -EROFS;
 			goto out_dput;
-		*want_write = true;
+		}
 		*opened |= FILE_CREATED;
 		error = security_path_mknod(&nd->path, dentry, mode, 0);
 		if (error)
@@ -2513,7 +2634,7 @@ static int do_last(struct nameidata *nd, struct path *path,
 	struct dentry *dir = nd->path.dentry;
 	int open_flag = op->open_flag;
 	bool will_truncate = (open_flag & O_TRUNC) != 0;
-	bool want_write = false;
+	bool got_write = false;
 	int acc_mode = op->acc_mode;
 	struct inode *inode;
 	bool symlink_ok = false;
@@ -2582,8 +2703,18 @@ static int do_last(struct nameidata *nd, struct path *path,
 	}
 
 retry_lookup:
+	if (op->open_flag & (O_CREAT | O_TRUNC | O_WRONLY | O_RDWR)) {
+		error = mnt_want_write(nd->path.mnt);
+		if (!error)
+			got_write = true;
+		/*
+		 * do _not_ fail yet - we might not need that or fail with
+		 * a different error; let lookup_open() decide; we'll be
+		 * dropping this one anyway.
+		 */
+	}
 	mutex_lock(&dir->d_inode->i_mutex);
-	error = lookup_open(nd, path, file, op, &want_write, opened);
+	error = lookup_open(nd, path, file, op, got_write, opened);
 	mutex_unlock(&dir->d_inode->i_mutex);
 
 	if (error <= 0) {
@@ -2608,22 +2739,23 @@ retry_lookup:
 	}
 
 	/*
-	 * It already exists.
+	 * create/update audit record if it already exists.
 	 */
-	audit_inode(pathname, path->dentry);
+	if (path->dentry->d_inode)
+		audit_inode(pathname, path->dentry);
 
 	/*
 	 * If atomic_open() acquired write access it is dropped now due to
 	 * possible mount and symlink following (this might be optimized away if
 	 * necessary...)
 	 */
-	if (want_write) {
+	if (got_write) {
 		mnt_drop_write(nd->path.mnt);
-		want_write = false;
+		got_write = false;
 	}
 
 	error = -EEXIST;
-	if (open_flag & O_EXCL)
+	if ((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT))
 		goto exit_dput;
 
 	error = follow_managed(path, nd->flags);
@@ -2684,7 +2816,7 @@ finish_open:
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
 			goto out;
-		want_write = true;
+		got_write = true;
 	}
 finish_open_created:
 	error = may_open(&nd->path, acc_mode, open_flag);
@@ -2711,7 +2843,7 @@ opened:
 			goto exit_fput;
 	}
 out:
-	if (want_write)
+	if (got_write)
 		mnt_drop_write(nd->path.mnt);
 	path_put(&save_parent);
 	terminate_walk(nd);
@@ -2735,9 +2867,9 @@ stale_open:
 	nd->inode = dir->d_inode;
 	save_parent.mnt = NULL;
 	save_parent.dentry = NULL;
-	if (want_write) {
+	if (got_write) {
 		mnt_drop_write(nd->path.mnt);
-		want_write = false;
+		got_write = false;
 	}
 	retried = true;
 	goto retry_lookup;
@@ -2777,6 +2909,9 @@ static struct file *path_openat(int dfd, const char *pathname,
 			error = -ELOOP;
 			break;
 		}
+		error = may_follow_link(&link, nd);
+		if (unlikely(error))
+			break;
 		nd->flags |= LOOKUP_PARENT;
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
 		error = follow_link(&link, nd, &cookie);
@@ -2846,6 +2981,7 @@ struct dentry *kern_path_create(int dfd, const char *pathname, struct path *path
 {
 	struct dentry *dentry = ERR_PTR(-EEXIST);
 	struct nameidata nd;
+	int err2;
 	int error = do_path_lookup(dfd, pathname, LOOKUP_PARENT, &nd);
 	if (error)
 		return ERR_PTR(error);
@@ -2859,16 +2995,19 @@ struct dentry *kern_path_create(int dfd, const char *pathname, struct path *path
 	nd.flags &= ~LOOKUP_PARENT;
 	nd.flags |= LOOKUP_CREATE | LOOKUP_EXCL;
 
+	/* don't fail immediately if it's r/o, at least try to report other errors */
+	err2 = mnt_want_write(nd.path.mnt);
 	/*
 	 * Do the final lookup.
 	 */
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_hash(&nd);
 	if (IS_ERR(dentry))
-		goto fail;
+		goto unlock;
 
+	error = -EEXIST;
 	if (dentry->d_inode)
-		goto eexist;
+		goto fail;
 	/*
 	 * Special case - lookup gave negative, but... we had foo/bar/
 	 * From the vfs_mknod() POV we just have a negative dentry -
@@ -2876,22 +3015,36 @@ struct dentry *kern_path_create(int dfd, const char *pathname, struct path *path
 	 * been asking for (non-existent) directory. -ENOENT for you.
 	 */
 	if (unlikely(!is_dir && nd.last.name[nd.last.len])) {
-		dput(dentry);
-		dentry = ERR_PTR(-ENOENT);
+		error = -ENOENT;
+		goto fail;
+	}
+	if (unlikely(err2)) {
+		error = err2;
 		goto fail;
 	}
 	*path = nd.path;
 	return dentry;
-eexist:
-	dput(dentry);
-	dentry = ERR_PTR(-EEXIST);
 fail:
+	dput(dentry);
+	dentry = ERR_PTR(error);
+unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+	if (!err2)
+		mnt_drop_write(nd.path.mnt);
 out:
 	path_put(&nd.path);
 	return dentry;
 }
 EXPORT_SYMBOL(kern_path_create);
+
+void done_path_create(struct path *path, struct dentry *dentry)
+{
+	dput(dentry);
+	mutex_unlock(&path->dentry->d_inode->i_mutex);
+	mnt_drop_write(path->mnt);
+	path_put(path);
+}
+EXPORT_SYMBOL(done_path_create);
 
 struct dentry *user_path_create(int dfd, const char __user *pathname, struct path *path, int is_dir)
 {
@@ -2956,8 +3109,9 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 	struct path path;
 	int error;
 
-	if (S_ISDIR(mode))
-		return -EPERM;
+	error = may_mknod(mode);
+	if (error)
+		return error;
 
 	dentry = user_path_create(dfd, filename, &path, 0);
 	if (IS_ERR(dentry))
@@ -2965,15 +3119,9 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 
 	if (!IS_POSIXACL(path.dentry->d_inode))
 		mode &= ~current_umask();
-	error = may_mknod(mode);
-	if (error)
-		goto out_dput;
-	error = mnt_want_write(path.mnt);
-	if (error)
-		goto out_dput;
 	error = security_path_mknod(&path, dentry, mode, dev);
 	if (error)
-		goto out_drop_write;
+		goto out;
 	switch (mode & S_IFMT) {
 		case 0: case S_IFREG:
 			error = vfs_create(path.dentry->d_inode,dentry,mode,true);
@@ -2986,13 +3134,8 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 			error = vfs_mknod(path.dentry->d_inode,dentry,mode,0);
 			break;
 	}
-out_drop_write:
-	mnt_drop_write(path.mnt);
-out_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
-
+out:
+	done_path_create(&path, dentry);
 	return error;
 }
 
@@ -3038,19 +3181,10 @@ SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, umode_t, mode)
 
 	if (!IS_POSIXACL(path.dentry->d_inode))
 		mode &= ~current_umask();
-	error = mnt_want_write(path.mnt);
-	if (error)
-		goto out_dput;
 	error = security_path_mkdir(&path, dentry, mode);
-	if (error)
-		goto out_drop_write;
-	error = vfs_mkdir(path.dentry->d_inode, dentry, mode);
-out_drop_write:
-	mnt_drop_write(path.mnt);
-out_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	if (!error)
+		error = vfs_mkdir(path.dentry->d_inode, dentry, mode);
+	done_path_create(&path, dentry);
 	return error;
 }
 
@@ -3144,6 +3278,9 @@ static long do_rmdir(int dfd, const char __user *pathname)
 	}
 
 	nd.flags &= ~LOOKUP_PARENT;
+	error = mnt_want_write(nd.path.mnt);
+	if (error)
+		goto exit1;
 
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_hash(&nd);
@@ -3154,19 +3291,15 @@ static long do_rmdir(int dfd, const char __user *pathname)
 		error = -ENOENT;
 		goto exit3;
 	}
-	error = mnt_want_write(nd.path.mnt);
-	if (error)
-		goto exit3;
 	error = security_path_rmdir(&nd.path, dentry);
 	if (error)
-		goto exit4;
+		goto exit3;
 	error = vfs_rmdir(nd.path.dentry->d_inode, dentry);
-exit4:
-	mnt_drop_write(nd.path.mnt);
 exit3:
 	dput(dentry);
 exit2:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+	mnt_drop_write(nd.path.mnt);
 exit1:
 	path_put(&nd.path);
 	putname(name);
@@ -3233,6 +3366,9 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 		goto exit1;
 
 	nd.flags &= ~LOOKUP_PARENT;
+	error = mnt_want_write(nd.path.mnt);
+	if (error)
+		goto exit1;
 
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_hash(&nd);
@@ -3245,21 +3381,17 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 		if (!inode)
 			goto slashes;
 		ihold(inode);
-		error = mnt_want_write(nd.path.mnt);
-		if (error)
-			goto exit2;
 		error = security_path_unlink(&nd.path, dentry);
 		if (error)
-			goto exit3;
+			goto exit2;
 		error = vfs_unlink(nd.path.dentry->d_inode, dentry);
-exit3:
-		mnt_drop_write(nd.path.mnt);
-	exit2:
+exit2:
 		dput(dentry);
 	}
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 	if (inode)
 		iput(inode);	/* truncate the inode here */
+	mnt_drop_write(nd.path.mnt);
 exit1:
 	path_put(&nd.path);
 	putname(name);
@@ -3324,19 +3456,10 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 	if (IS_ERR(dentry))
 		goto out_putname;
 
-	error = mnt_want_write(path.mnt);
-	if (error)
-		goto out_dput;
 	error = security_path_symlink(&path, dentry, from);
-	if (error)
-		goto out_drop_write;
-	error = vfs_symlink(path.dentry->d_inode, dentry, from);
-out_drop_write:
-	mnt_drop_write(path.mnt);
-out_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	if (!error)
+		error = vfs_symlink(path.dentry->d_inode, dentry, from);
+	done_path_create(&path, dentry);
 out_putname:
 	putname(from);
 	return error;
@@ -3436,19 +3559,15 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 	error = -EXDEV;
 	if (old_path.mnt != new_path.mnt)
 		goto out_dput;
-	error = mnt_want_write(new_path.mnt);
-	if (error)
+	error = may_linkat(&old_path);
+	if (unlikely(error))
 		goto out_dput;
 	error = security_path_link(old_path.dentry, &new_path, new_dentry);
 	if (error)
-		goto out_drop_write;
+		goto out_dput;
 	error = vfs_link(old_path.dentry, new_path.dentry->d_inode, new_dentry);
-out_drop_write:
-	mnt_drop_write(new_path.mnt);
 out_dput:
-	dput(new_dentry);
-	mutex_unlock(&new_path.dentry->d_inode->i_mutex);
-	path_put(&new_path);
+	done_path_create(&new_path, new_dentry);
 out:
 	path_put(&old_path);
 
@@ -3644,6 +3763,10 @@ SYSCALL_DEFINE4(renameat, int, olddfd, const char __user *, oldname,
 	if (newnd.last_type != LAST_NORM)
 		goto exit2;
 
+	error = mnt_want_write(oldnd.path.mnt);
+	if (error)
+		goto exit2;
+
 	oldnd.flags &= ~LOOKUP_PARENT;
 	newnd.flags &= ~LOOKUP_PARENT;
 	newnd.flags |= LOOKUP_RENAME_TARGET;
@@ -3679,23 +3802,19 @@ SYSCALL_DEFINE4(renameat, int, olddfd, const char __user *, oldname,
 	if (new_dentry == trap)
 		goto exit5;
 
-	error = mnt_want_write(oldnd.path.mnt);
-	if (error)
-		goto exit5;
 	error = security_path_rename(&oldnd.path, old_dentry,
 				     &newnd.path, new_dentry);
 	if (error)
-		goto exit6;
+		goto exit5;
 	error = vfs_rename(old_dir->d_inode, old_dentry,
 				   new_dir->d_inode, new_dentry);
-exit6:
-	mnt_drop_write(oldnd.path.mnt);
 exit5:
 	dput(new_dentry);
 exit4:
 	dput(old_dentry);
 exit3:
 	unlock_rename(new_dir, old_dir);
+	mnt_drop_write(oldnd.path.mnt);
 exit2:
 	path_put(&newnd.path);
 	putname(to);

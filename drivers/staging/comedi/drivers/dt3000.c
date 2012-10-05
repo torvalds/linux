@@ -804,6 +804,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
+	resource_size_t pci_base;
 	int ret = 0;
 
 	dev_dbg(dev->class_dev, "dt3000:\n");
@@ -820,9 +821,10 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = comedi_pci_enable(pcidev, "dt3000");
 	if (ret < 0)
 		return ret;
+	dev->iobase = 1;	/* the "detach" needs this */
 
-	dev->iobase = pci_resource_start(pcidev, 0);
-	devpriv->io_addr = ioremap(dev->iobase, DT3000_SIZE);
+	pci_base  = pci_resource_start(pcidev, 0);
+	devpriv->io_addr = ioremap(pci_base, DT3000_SIZE);
 	if (!devpriv->io_addr)
 		return -ENOMEM;
 

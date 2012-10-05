@@ -30,7 +30,7 @@ static struct irq_fd **last_irq_ptr = &active_fds;
 
 extern void free_irqs(void);
 
-void sigio_handler(int sig, struct uml_pt_regs *regs)
+void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	struct irq_fd *irq_fd;
 	int n;

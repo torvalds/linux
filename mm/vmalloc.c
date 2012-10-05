@@ -413,11 +413,11 @@ nocache:
 		if (addr + size - 1 < addr)
 			goto overflow;
 
-		n = rb_next(&first->rb_node);
-		if (n)
-			first = rb_entry(n, struct vmap_area, rb_node);
-		else
+		if (list_is_last(&first->list, &vmap_area_list))
 			goto found;
+
+		first = list_entry(first->list.next,
+				struct vmap_area, list);
 	}
 
 found:
@@ -904,6 +904,14 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
 
 	BUG_ON(size & ~PAGE_MASK);
 	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
+	if (WARN_ON(size == 0)) {
+		/*
+		 * Allocating 0 bytes isn't what caller wants since
+		 * get_order(0) returns funny result. Just warn and terminate
+		 * early.
+		 */
+		return NULL;
+	}
 	order = get_order(size);
 
 again:

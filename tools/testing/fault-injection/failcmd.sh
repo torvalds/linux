@@ -206,7 +206,7 @@ while true; do
 	esac
 done
 
-[ -z "$@" ] && exit 0
+[ -z "$1" ] && exit 0
 
 echo $oom_kill_allocating_task > /proc/sys/vm/oom_kill_allocating_task
 echo $task_filter > $FAULTATTR/task-filter

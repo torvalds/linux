@@ -40,7 +40,7 @@ static int ehci_sead3_setup(struct usb_hcd *hcd)
 	ehci->need_io_watchdog = 0;
 
 	/* Set burst length to 16 words. */
-	ehci_writel(ehci, 0x1010, &ehci->regs->reserved[1]);
+	ehci_writel(ehci, 0x1010, &ehci->regs->reserved1[1]);
 
 	return ret;
 }

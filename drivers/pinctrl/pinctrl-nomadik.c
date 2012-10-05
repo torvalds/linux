@@ -1292,7 +1292,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 						NOMADIK_GPIO_TO_IRQ(pdata->first_gpio),
 						0, &nmk_gpio_irq_simple_ops, nmk_chip);
 	if (!nmk_chip->domain) {
-		pr_err("%s: Failed to create irqdomain\n", np->full_name);
+		dev_err(&dev->dev, "failed to create irqdomain\n");
 		ret = -ENOSYS;
 		goto out;
 	}
@@ -1731,7 +1731,6 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < npct->soc->gpio_num_ranges; i++) {
 		if (!nmk_gpio_chips[i]) {
 			dev_warn(&pdev->dev, "GPIO chip %d not registered yet\n", i);
-			devm_kfree(&pdev->dev, npct);
 			return -EPROBE_DEFER;
 		}
 		npct->soc->gpio_ranges[i].gc = &nmk_gpio_chips[i]->chip;

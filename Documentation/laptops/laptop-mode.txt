@@ -262,9 +262,9 @@ MINIMUM_BATTERY_MINUTES=10
 
 #
 # Allowed dirty background ratio, in percent.  Once DIRTY_RATIO has been
-# exceeded, the kernel will wake pdflush which will then reduce the amount
-# of dirty memory to dirty_background_ratio.  Set this nice and low, so once
-# some writeout has commenced, we do a lot of it.
+# exceeded, the kernel will wake flusher threads which will then reduce the
+# amount of dirty memory to dirty_background_ratio.  Set this nice and low,
+# so once some writeout has commenced, we do a lot of it.
 #
 #DIRTY_BACKGROUND_RATIO=5
 
@@ -384,9 +384,9 @@ CPU_MAXFREQ=${CPU_MAXFREQ:-'slowest'}
 
 #
 # Allowed dirty background ratio, in percent.  Once DIRTY_RATIO has been
-# exceeded, the kernel will wake pdflush which will then reduce the amount
-# of dirty memory to dirty_background_ratio.  Set this nice and low, so once
-# some writeout has commenced, we do a lot of it.
+# exceeded, the kernel will wake flusher threads which will then reduce the
+# amount of dirty memory to dirty_background_ratio.  Set this nice and low,
+# so once some writeout has commenced, we do a lot of it.
 #
 DIRTY_BACKGROUND_RATIO=${DIRTY_BACKGROUND_RATIO:-'5'}
 

@@ -567,6 +567,34 @@ static void target_complete_failure_work(struct work_struct *work)
 	transport_generic_request_failure(cmd);
 }
 
+/*
+ * Used when asking transport to copy Sense Data from the underlying
+ * Linux/SCSI struct scsi_cmnd
+ */
+static unsigned char *transport_get_sense_buffer(struct se_cmd *cmd)
+{
+	unsigned char *buffer = cmd->sense_buffer;
+	struct se_device *dev = cmd->se_dev;
+	u32 offset = 0;
+
+	WARN_ON(!cmd->se_lun);
+
+	if (!dev)
+		return NULL;
+
+	if (cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION)
+		return NULL;
+
+	offset = cmd->se_tfo->set_fabric_sense_len(cmd, TRANSPORT_SENSE_BUFFER);
+
+	/* Automatically padded */
+	cmd->scsi_sense_length = TRANSPORT_SENSE_BUFFER + offset;
+
+	pr_debug("HBA_[%u]_PLUG[%s]: Requesting sense for SAM STATUS: 0x%02x\n",
+		dev->se_hba->hba_id, dev->transport->name, cmd->scsi_status);
+	return &buffer[offset];
+}
+
 void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -580,11 +608,11 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 	cmd->transport_state &= ~CMD_T_BUSY;
 
 	if (dev && dev->transport->transport_complete) {
-		if (dev->transport->transport_complete(cmd,
-				cmd->t_data_sg) != 0) {
-			cmd->se_cmd_flags |= SCF_TRANSPORT_TASK_SENSE;
+		dev->transport->transport_complete(cmd,
+				cmd->t_data_sg,
+				transport_get_sense_buffer(cmd));
+		if (cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE)
 			success = 1;
-		}
 	}
 
 	/*
@@ -1165,8 +1193,6 @@ int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 			" 0x%02x\n", cmd->se_tfo->get_fabric_name(),
 				cmd->data_length, size, cmd->t_task_cdb[0]);
 
-		cmd->cmd_spdtl = size;
-
 		if (cmd->data_direction == DMA_TO_DEVICE) {
 			pr_err("Rejecting underflow/overflow"
 					" WRITE data\n");
@@ -1183,15 +1209,20 @@ int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 			/* Returns CHECK_CONDITION + INVALID_CDB_FIELD */
 			goto out_invalid_cdb_field;
 		}
-
+		/*
+		 * For the overflow case keep the existing fabric provided
+		 * ->data_length.  Otherwise for the underflow case, reset
+		 * ->data_length to the smaller SCSI expected data transfer
+		 * length.
+		 */
 		if (size > cmd->data_length) {
 			cmd->se_cmd_flags |= SCF_OVERFLOW_BIT;
 			cmd->residual_count = (size - cmd->data_length);
 		} else {
 			cmd->se_cmd_flags |= SCF_UNDERFLOW_BIT;
 			cmd->residual_count = (cmd->data_length - size);
+			cmd->data_length = size;
 		}
-		cmd->data_length = size;
 	}
 
 	return 0;
@@ -1818,61 +1849,6 @@ execute:
 EXPORT_SYMBOL(target_execute_cmd);
 
 /*
- * Used to obtain Sense Data from underlying Linux/SCSI struct scsi_cmnd
- */
-static int transport_get_sense_data(struct se_cmd *cmd)
-{
-	unsigned char *buffer = cmd->sense_buffer, *sense_buffer = NULL;
-	struct se_device *dev = cmd->se_dev;
-	unsigned long flags;
-	u32 offset = 0;
-
-	WARN_ON(!cmd->se_lun);
-
-	if (!dev)
-		return 0;
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return 0;
-	}
-
-	if (!(cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE))
-		goto out;
-
-	if (!dev->transport->get_sense_buffer) {
-		pr_err("dev->transport->get_sense_buffer is NULL\n");
-		goto out;
-	}
-
-	sense_buffer = dev->transport->get_sense_buffer(cmd);
-	if (!sense_buffer) {
-		pr_err("ITT 0x%08x cmd %p: Unable to locate"
-			" sense buffer for task with sense\n",
-			cmd->se_tfo->get_task_tag(cmd), cmd);
-		goto out;
-	}
-
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	offset = cmd->se_tfo->set_fabric_sense_len(cmd, TRANSPORT_SENSE_BUFFER);
-
-	memcpy(&buffer[offset], sense_buffer, TRANSPORT_SENSE_BUFFER);
-
-	/* Automatically padded */
-	cmd->scsi_sense_length = TRANSPORT_SENSE_BUFFER + offset;
-
-	pr_debug("HBA_[%u]_PLUG[%s]: Set SAM STATUS: 0x%02x and sense\n",
-		dev->se_hba->hba_id, dev->transport->name, cmd->scsi_status);
-	return 0;
-
-out:
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	return -1;
-}
-
-/*
  * Process all commands up to the last received ORDERED task attribute which
  * requires another blocking boundary
  */
@@ -1987,7 +1963,7 @@ static void transport_handle_queue_full(
 static void target_complete_ok_work(struct work_struct *work)
 {
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
-	int reason = 0, ret;
+	int ret;
 
 	/*
 	 * Check if we need to move delayed/dormant tasks from cmds on the
@@ -2004,23 +1980,19 @@ static void target_complete_ok_work(struct work_struct *work)
 		schedule_work(&cmd->se_dev->qf_work_queue);
 
 	/*
-	 * Check if we need to retrieve a sense buffer from
+	 * Check if we need to send a sense buffer from
 	 * the struct se_cmd in question.
 	 */
 	if (cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) {
-		if (transport_get_sense_data(cmd) < 0)
-			reason = TCM_NON_EXISTENT_LUN;
+		WARN_ON(!cmd->scsi_status);
+		ret = transport_send_check_condition_and_sense(
+					cmd, 0, 1);
+		if (ret == -EAGAIN || ret == -ENOMEM)
+			goto queue_full;
 
-		if (cmd->scsi_status) {
-			ret = transport_send_check_condition_and_sense(
-					cmd, reason, 1);
-			if (ret == -EAGAIN || ret == -ENOMEM)
-				goto queue_full;
-
-			transport_lun_remove_cmd(cmd);
-			transport_cmd_check_stop_to_fabric(cmd);
-			return;
-		}
+		transport_lun_remove_cmd(cmd);
+		transport_cmd_check_stop_to_fabric(cmd);
+		return;
 	}
 	/*
 	 * Check for a callback, used by amongst other things
@@ -2218,7 +2190,6 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 	struct page **pages;
 	int i;
 
-	BUG_ON(!sg);
 	/*
 	 * We need to take into account a possible offset here for fabrics like
 	 * tcm_loop who may be using a contig buffer from the SCSI midlayer for
@@ -2226,13 +2197,17 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 	 */
 	if (!cmd->t_data_nents)
 		return NULL;
-	else if (cmd->t_data_nents == 1)
+
+	BUG_ON(!sg);
+	if (cmd->t_data_nents == 1)
 		return kmap(sg_page(sg)) + sg->offset;
 
 	/* >1 page. use vmap */
 	pages = kmalloc(sizeof(*pages) * cmd->t_data_nents, GFP_KERNEL);
-	if (!pages)
+	if (!pages) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return NULL;
+	}
 
 	/* convert sg[] to pages[] */
 	for_each_sg(cmd->t_data_sg, sg, cmd->t_data_nents, i) {
@@ -2241,8 +2216,10 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 
 	cmd->t_data_vmap = vmap(pages, cmd->t_data_nents,  VM_MAP, PAGE_KERNEL);
 	kfree(pages);
-	if (!cmd->t_data_vmap)
+	if (!cmd->t_data_vmap) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return NULL;
+	}
 
 	return cmd->t_data_vmap + cmd->t_data_sg[0].offset;
 }
@@ -2294,9 +2271,9 @@ transport_generic_get_mem(struct se_cmd *cmd)
 	return 0;
 
 out:
-	while (i >= 0) {
-		__free_page(sg_page(&cmd->t_data_sg[i]));
+	while (i > 0) {
 		i--;
+		__free_page(sg_page(&cmd->t_data_sg[i]));
 	}
 	kfree(cmd->t_data_sg);
 	cmd->t_data_sg = NULL;
@@ -2323,20 +2300,18 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		if (ret < 0)
 			goto out_fail;
 	}
-
-	/* Workaround for handling zero-length control CDBs */
-	if (!(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) && !cmd->data_length) {
+	/*
+	 * If this command doesn't have any payload and we don't have to call
+	 * into the fabric for data transfers, go ahead and complete it right
+	 * away.
+	 */
+	if (!cmd->data_length &&
+	    cmd->t_task_cdb[0] != REQUEST_SENSE &&
+	    cmd->se_dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
 		spin_lock_irq(&cmd->t_state_lock);
 		cmd->t_state = TRANSPORT_COMPLETE;
 		cmd->transport_state |= CMD_T_ACTIVE;
 		spin_unlock_irq(&cmd->t_state_lock);
-
-		if (cmd->t_task_cdb[0] == REQUEST_SENSE) {
-			u8 ua_asc = 0, ua_ascq = 0;
-
-			core_scsi3_ua_clear_for_request_sense(cmd,
-					&ua_asc, &ua_ascq);
-		}
 
 		INIT_WORK(&cmd->work, target_complete_ok_work);
 		queue_work(target_completion_wq, &cmd->work);

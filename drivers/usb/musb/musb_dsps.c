@@ -479,9 +479,9 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 		ret = -ENODEV;
 		goto err0;
 	}
-	strcpy((u8 *)res->name, "mc");
 	res->parent = NULL;
 	resources[1] = *res;
+	resources[1].name = "mc";
 
 	/* allocate the child platform device */
 	musb = platform_device_alloc("musb-hdrc", -1);
@@ -566,27 +566,28 @@ static int __devinit dsps_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, glue);
 
-	/* create the child platform device for first instances of musb */
-	ret = dsps_create_musb_pdev(glue, 0);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "failed to create child pdev\n");
-		goto err2;
-	}
-
 	/* enable the usbss clocks */
 	pm_runtime_enable(&pdev->dev);
 
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pm_runtime_get_sync FAILED");
+		goto err2;
+	}
+
+	/* create the child platform device for first instances of musb */
+	ret = dsps_create_musb_pdev(glue, 0);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "failed to create child pdev\n");
 		goto err3;
 	}
 
 	return 0;
 
 err3:
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put(&pdev->dev);
 err2:
+	pm_runtime_disable(&pdev->dev);
 	kfree(glue->wrp);
 err1:
 	kfree(glue);

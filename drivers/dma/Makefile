@@ -2,6 +2,7 @@ ccflags-$(CONFIG_DMADEVICES_DEBUG)  := -DDEBUG
 ccflags-$(CONFIG_DMADEVICES_VDEBUG) += -DVERBOSE_DEBUG
 
 obj-$(CONFIG_DMA_ENGINE) += dmaengine.o
+obj-$(CONFIG_DMA_VIRTUAL_CHANNELS) += virt-dma.o
 obj-$(CONFIG_NET_DMA) += iovlock.o
 obj-$(CONFIG_INTEL_MID_DMAC) += intel_mid_dma.o
 obj-$(CONFIG_DMATEST) += dmatest.o
@@ -30,3 +31,4 @@ obj-$(CONFIG_AMBA_PL08X) += amba-pl08x.o
 obj-$(CONFIG_EP93XX_DMA) += ep93xx_dma.o
 obj-$(CONFIG_DMA_SA11X0) += sa11x0-dma.o
 obj-$(CONFIG_MMP_TDMA) += mmp_tdma.o
+obj-$(CONFIG_DMA_OMAP) += omap-dma.o

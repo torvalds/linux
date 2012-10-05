@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk-provider.h>
 #include <linux/spinlock.h>
+#include <linux/mv643xx_i2c.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/timex.h>
@@ -276,6 +277,7 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add("0", "pcie", pex0);
 	orion_clkdev_add("1", "pcie", pex1);
 	orion_clkdev_add(NULL, "kirkwood-i2s", audio);
+	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".0", runit);
 
 	/* Marvell says runit is used by SPI, UART, NAND, TWSI, ...,
 	 * so should never be gated.
@@ -299,7 +301,7 @@ void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	orion_ge00_init(eth_data,
 			GE00_PHYS_BASE, IRQ_KIRKWOOD_GE00_SUM,
-			IRQ_KIRKWOOD_GE00_ERR);
+			IRQ_KIRKWOOD_GE00_ERR, 1600);
 	/* The interface forgets the MAC address assigned by u-boot if
 	the clock is turned off, so claim the clk now. */
 	clk_prepare_enable(ge0);
@@ -313,7 +315,7 @@ void __init kirkwood_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	orion_ge01_init(eth_data,
 			GE01_PHYS_BASE, IRQ_KIRKWOOD_GE01_SUM,
-			IRQ_KIRKWOOD_GE01_ERR);
+			IRQ_KIRKWOOD_GE01_ERR, 1600);
 	clk_prepare_enable(ge1);
 }
 
@@ -515,6 +517,13 @@ void __init kirkwood_wdt_init(void)
 void __init kirkwood_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
+
+	/*
+	 * Some Kirkwood devices allocate their coherent buffers from atomic
+	 * context. Increase size of atomic coherent pool to make sure such
+	 * the allocations won't fail.
+	 */
+	init_dma_coherent_pool_size(SZ_1M);
 }
 
 int kirkwood_tclk;

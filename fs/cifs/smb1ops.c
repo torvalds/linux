@@ -586,6 +586,27 @@ cifs_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 #endif
 }
 
+static void
+cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
+		   struct cifs_sb_info *cifs_sb, struct cifs_tcon *tcon,
+		   const unsigned int xid)
+{
+	FILE_BASIC_INFO info;
+	struct cifsInodeInfo *cifsInode;
+	u32 dosattrs;
+	int rc;
+
+	memset(&info, 0, sizeof(info));
+	cifsInode = CIFS_I(inode);
+	dosattrs = cifsInode->cifsAttrs|ATTR_READONLY;
+	info.Attributes = cpu_to_le32(dosattrs);
+	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, &info, cifs_sb->local_nls,
+				cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc == 0)
+		cifsInode->cifsAttrs = dosattrs;
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -620,6 +641,9 @@ struct smb_version_operations smb1_operations = {
 	.get_srv_inum = cifs_get_srv_inum,
 	.build_path_to_root = cifs_build_path_to_root,
 	.echo = CIFSSMBEcho,
+	.mkdir = CIFSSMBMkDir,
+	.mkdir_setinfo = cifs_mkdir_setinfo,
+	.rmdir = CIFSSMBRmDir,
 };
 
 struct smb_version_values smb1_values = {

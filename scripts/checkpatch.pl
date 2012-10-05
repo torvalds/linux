@@ -3016,7 +3016,8 @@ sub process {
 					$herectx .= raw_line($linenr, $n) . "\n";
 				}
 
-				if (($stmts =~ tr/;/;/) == 1) {
+				if (($stmts =~ tr/;/;/) == 1 &&
+				    $stmts !~ /^\s*(if|while|for|switch)\b/) {
 					WARN("SINGLE_STATEMENT_DO_WHILE_MACRO",
 					     "Single statement macros should not use a do {} while (0) loop\n" . "$herectx");
 				}

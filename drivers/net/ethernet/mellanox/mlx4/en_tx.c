@@ -164,7 +164,6 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	ring->cons = 0xffffffff;
 	ring->last_nr_txbb = 1;
 	ring->poll_cnt = 0;
-	ring->blocked = 0;
 	memset(ring->tx_info, 0, ring->size * sizeof(struct mlx4_en_tx_info));
 	memset(ring->buf, 0, ring->buf_size);
 
@@ -365,14 +364,13 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 	ring->cons += txbbs_skipped;
 	netdev_tx_completed_queue(ring->tx_queue, packets, bytes);
 
-	/* Wakeup Tx queue if this ring stopped it */
-	if (unlikely(ring->blocked)) {
-		if ((u32) (ring->prod - ring->cons) <=
-		     ring->size - HEADROOM - MAX_DESC_TXBBS) {
-			ring->blocked = 0;
-			netif_tx_wake_queue(ring->tx_queue);
-			priv->port_stats.wake_queue++;
-		}
+	/*
+	 * Wakeup Tx queue if this stopped, and at least 1 packet
+	 * was completed
+	 */
+	if (netif_tx_queue_stopped(ring->tx_queue) && txbbs_skipped > 0) {
+		netif_tx_wake_queue(ring->tx_queue);
+		priv->port_stats.wake_queue++;
 	}
 }
 
@@ -592,7 +590,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
 		/* every full Tx ring stops queue */
 		netif_tx_stop_queue(ring->tx_queue);
-		ring->blocked = 1;
 		priv->port_stats.queue_stopped++;
 
 		return NETDEV_TX_BUSY;

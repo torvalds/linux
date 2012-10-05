@@ -346,11 +346,11 @@ static struct resource sh_mmcif_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(141),
+		.start	= gic_spi(140),
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
-		.start	= gic_spi(140),
+		.start	= gic_spi(141),
 		.flags	= IORESOURCE_IRQ,
 	},
 };

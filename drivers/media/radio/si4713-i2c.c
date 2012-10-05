@@ -1213,7 +1213,7 @@ exit:
 }
 
 static int si4713_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f);
-static int si4713_s_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *);
+static int si4713_s_modulator(struct v4l2_subdev *sd, const struct v4l2_modulator *);
 /*
  * si4713_setup - Sets the device up with current configuration.
  * @sdev: si4713_device structure for the device we are communicating
@@ -1873,7 +1873,7 @@ exit:
 }
 
 /* si4713_s_modulator - set modulator attributes */
-static int si4713_s_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *vm)
+static int si4713_s_modulator(struct v4l2_subdev *sd, const struct v4l2_modulator *vm)
 {
 	struct si4713_device *sdev = to_si4713_device(sd);
 	int rval = 0;

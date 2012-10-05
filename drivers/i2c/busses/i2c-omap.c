@@ -584,7 +584,7 @@ omap_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	r = pm_runtime_get_sync(dev->dev);
 	if (IS_ERR_VALUE(r))
-		return r;
+		goto out;
 
 	r = omap_i2c_wait_for_bb(dev);
 	if (r < 0)

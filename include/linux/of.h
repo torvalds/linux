@@ -21,6 +21,7 @@
 #include <linux/kref.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spinlock.h>
+#include <linux/topology.h>
 
 #include <asm/byteorder.h>
 #include <asm/errno.h>
@@ -158,11 +159,6 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 
 #define OF_BAD_ADDR	((u64)-1)
 
-#ifndef of_node_to_nid
-static inline int of_node_to_nid(struct device_node *np) { return -1; }
-#define of_node_to_nid of_node_to_nid
-#endif
-
 static inline const char* of_node_full_name(struct device_node *np)
 {
 	return np ? np->full_name : "<no-node>";
@@ -194,9 +190,16 @@ extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_parent(struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
+extern struct device_node *of_get_next_available_child(
+	const struct device_node *node, struct device_node *prev);
+
 #define for_each_child_of_node(parent, child) \
 	for (child = of_get_next_child(parent, NULL); child != NULL; \
 	     child = of_get_next_child(parent, child))
+
+#define for_each_available_child_of_node(parent, child) \
+	for (child = of_get_next_available_child(parent, NULL); child != NULL; \
+	     child = of_get_next_available_child(parent, child))
 
 static inline int of_get_child_count(const struct device_node *np)
 {
@@ -426,6 +429,15 @@ static inline int of_machine_is_compatible(const char *compat)
 #define of_property_for_each_string(np, propname, prop, s) \
 	while (0)
 #endif /* CONFIG_OF */
+
+#ifndef of_node_to_nid
+static inline int of_node_to_nid(struct device_node *np)
+{
+	return numa_node_id();
+}
+
+#define of_node_to_nid of_node_to_nid
+#endif
 
 /**
  * of_property_read_bool - Findfrom a property

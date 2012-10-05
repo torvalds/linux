@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <linux/uio_driver.h>

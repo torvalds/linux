@@ -409,8 +409,6 @@ static irqreturn_t ab3100_irq_handler(int irq, void *data)
 	u32 fatevent;
 	int err;
 
-	add_interrupt_randomness(irq);
-
 	err = ab3100_get_register_page_interruptible(ab3100, AB3100_EVENTA1,
 				       event_regs, 3);
 	if (err)
@@ -936,8 +934,6 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 					IRQF_ONESHOT, "ab3100-core", ab3100);
 	if (err)
 		goto exit_no_irq;
-	/* This real unpredictable IRQ is of course sampled for entropy */
-	rand_initialize_irq(client->irq);
 
 	err = abx500_register_ops(&client->dev, &ab3100_ops);
 	if (err)
@@ -950,7 +946,7 @@ static int __devinit ab3100_probe(struct i2c_client *client,
 	}
 
 	err = mfd_add_devices(&client->dev, 0, ab3100_devs,
-		ARRAY_SIZE(ab3100_devs), NULL, 0);
+			      ARRAY_SIZE(ab3100_devs), NULL, 0, NULL);
 
 	ab3100_setup_debugfs(ab3100);
 

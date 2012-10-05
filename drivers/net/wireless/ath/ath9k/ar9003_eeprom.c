@@ -2982,6 +2982,10 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 	case EEP_RX_MASK:
 		return pBase->txrxMask & 0xf;
 	case EEP_PAPRD:
+		if (AR_SREV_9462(ah))
+			return false;
+		if (!ah->config.enable_paprd);
+			return false;
 		return !!(pBase->featureEnable & BIT(5));
 	case EEP_CHAIN_MASK_REDUCE:
 		return (pBase->miscConfiguration >> 0x3) & 0x1;

@@ -311,6 +311,17 @@ int ceph_monc_open_session(struct ceph_mon_client *monc)
 EXPORT_SYMBOL(ceph_monc_open_session);
 
 /*
+ * We require the fsid and global_id in order to initialize our
+ * debugfs dir.
+ */
+static bool have_debugfs_info(struct ceph_mon_client *monc)
+{
+	dout("have_debugfs_info fsid %d globalid %lld\n",
+	     (int)monc->client->have_fsid, monc->auth->global_id);
+	return monc->client->have_fsid && monc->auth->global_id > 0;
+}
+
+/*
  * The monitor responds with mount ack indicate mount success.  The
  * included client ticket allows the client to talk to MDSs and OSDs.
  */
@@ -320,8 +331,11 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 	struct ceph_client *client = monc->client;
 	struct ceph_monmap *monmap = NULL, *old = monc->monmap;
 	void *p, *end;
+	int had_debugfs_info, init_debugfs = 0;
 
 	mutex_lock(&monc->mutex);
+
+	had_debugfs_info = have_debugfs_info(monc);
 
 	dout("handle_monmap\n");
 	p = msg->front.iov_base;
@@ -344,12 +358,22 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 
 	if (!client->have_fsid) {
 		client->have_fsid = true;
+		if (!had_debugfs_info && have_debugfs_info(monc)) {
+			pr_info("client%lld fsid %pU\n",
+				ceph_client_id(monc->client),
+				&monc->client->fsid);
+			init_debugfs = 1;
+		}
 		mutex_unlock(&monc->mutex);
-		/*
-		 * do debugfs initialization without mutex to avoid
-		 * creating a locking dependency
-		 */
-		ceph_debugfs_client_init(client);
+
+		if (init_debugfs) {
+			/*
+			 * do debugfs initialization without mutex to avoid
+			 * creating a locking dependency
+			 */
+			ceph_debugfs_client_init(monc->client);
+		}
+
 		goto out_unlocked;
 	}
 out:
@@ -865,8 +889,10 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 {
 	int ret;
 	int was_auth = 0;
+	int had_debugfs_info, init_debugfs = 0;
 
 	mutex_lock(&monc->mutex);
+	had_debugfs_info = have_debugfs_info(monc);
 	if (monc->auth->ops)
 		was_auth = monc->auth->ops->is_authenticated(monc->auth);
 	monc->pending_auth = 0;
@@ -889,7 +915,22 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 		__send_subscribe(monc);
 		__resend_generic_request(monc);
 	}
+
+	if (!had_debugfs_info && have_debugfs_info(monc)) {
+		pr_info("client%lld fsid %pU\n",
+			ceph_client_id(monc->client),
+			&monc->client->fsid);
+		init_debugfs = 1;
+	}
 	mutex_unlock(&monc->mutex);
+
+	if (init_debugfs) {
+		/*
+		 * do debugfs initialization without mutex to avoid
+		 * creating a locking dependency
+		 */
+		ceph_debugfs_client_init(monc->client);
+	}
 }
 
 static int __validate_auth(struct ceph_mon_client *monc)

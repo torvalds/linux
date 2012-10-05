@@ -804,12 +804,13 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 	    link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR_SGMII) {
 		/* Set KX4/KX/KR support according to speed requested */
 		autoc &= ~(IXGBE_AUTOC_KX4_KX_SUPP_MASK | IXGBE_AUTOC_KR_SUPP);
-		if (speed & IXGBE_LINK_SPEED_10GB_FULL)
+		if (speed & IXGBE_LINK_SPEED_10GB_FULL) {
 			if (orig_autoc & IXGBE_AUTOC_KX4_SUPP)
 				autoc |= IXGBE_AUTOC_KX4_SUPP;
 			if ((orig_autoc & IXGBE_AUTOC_KR_SUPP) &&
 			    (hw->phy.smart_speed_active == false))
 				autoc |= IXGBE_AUTOC_KR_SUPP;
+		}
 		if (speed & IXGBE_LINK_SPEED_1GB_FULL)
 			autoc |= IXGBE_AUTOC_KX_SUPP;
 	} else if ((pma_pmd_1g == IXGBE_AUTOC_1G_SFI) &&

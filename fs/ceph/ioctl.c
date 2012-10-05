@@ -42,7 +42,8 @@ static long __validate_layout(struct ceph_mds_client *mdsc,
 	/* validate striping parameters */
 	if ((l->object_size & ~PAGE_MASK) ||
 	    (l->stripe_unit & ~PAGE_MASK) ||
-	    ((unsigned)l->object_size % (unsigned)l->stripe_unit))
+	    (l->stripe_unit != 0 &&
+	     ((unsigned)l->object_size % (unsigned)l->stripe_unit)))
 		return -EINVAL;
 
 	/* make sure it's a valid data pool */

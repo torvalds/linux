@@ -195,6 +195,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	if (!inode_owner_or_capable(inode))
 		return -EACCES;
 
+	ret = mnt_want_write_file(file);
+	if (ret)
+		return ret;
+
 	mutex_lock(&inode->i_mutex);
 
 	ip_oldflags = ip->flags;
@@ -208,10 +212,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 			goto out_unlock;
 		}
 	}
-
-	ret = mnt_want_write_file(file);
-	if (ret)
-		goto out_unlock;
 
 	if (flags & FS_SYNC_FL)
 		ip->flags |= BTRFS_INODE_SYNC;
@@ -275,9 +275,9 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		inode->i_flags = i_oldflags;
 	}
 
-	mnt_drop_write_file(file);
  out_unlock:
 	mutex_unlock(&inode->i_mutex);
+	mnt_drop_write_file(file);
 	return ret;
 }
 
@@ -424,7 +424,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	uuid_le_gen(&new_uuid);
 	memcpy(root_item.uuid, new_uuid.b, BTRFS_UUID_SIZE);
 	root_item.otime.sec = cpu_to_le64(cur_time.tv_sec);
-	root_item.otime.nsec = cpu_to_le64(cur_time.tv_nsec);
+	root_item.otime.nsec = cpu_to_le32(cur_time.tv_nsec);
 	root_item.ctime = root_item.otime;
 	btrfs_set_root_ctransid(&root_item, trans->transid);
 	btrfs_set_root_otransid(&root_item, trans->transid);

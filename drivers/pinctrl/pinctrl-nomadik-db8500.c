@@ -505,6 +505,8 @@ static const unsigned kp_b_1_pins[] = { DB8500_PIN_F3, DB8500_PIN_F1,
 	DB8500_PIN_J3, DB8500_PIN_H2, DB8500_PIN_J2, DB8500_PIN_H1,
 	DB8500_PIN_F4, DB8500_PIN_E3, DB8500_PIN_E4, DB8500_PIN_D2,
 	DB8500_PIN_C1, DB8500_PIN_D3, DB8500_PIN_C2, DB8500_PIN_D5 };
+static const unsigned kp_b_2_pins[] = { DB8500_PIN_F3, DB8500_PIN_F1,
+	DB8500_PIN_G3, DB8500_PIN_G2, DB8500_PIN_F4, DB8500_PIN_E3};
 static const unsigned sm_b_1_pins[] = { DB8500_PIN_C6, DB8500_PIN_B3,
 	DB8500_PIN_C4, DB8500_PIN_E6, DB8500_PIN_A3, DB8500_PIN_B6,
 	DB8500_PIN_D6, DB8500_PIN_B7, DB8500_PIN_D7, DB8500_PIN_D8,
@@ -662,6 +664,7 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(spi3_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(msp1txrx_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(kp_b_1, NMK_GPIO_ALT_B),
+	DB8500_PIN_GROUP(kp_b_2, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(sm_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(smcs0_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(smcs1_b_1, NMK_GPIO_ALT_B),
@@ -751,7 +754,7 @@ DB8500_FUNC_GROUPS(msp1, "msp1txrx_a_1", "msp1_a_1", "msp1txrx_b_1");
 DB8500_FUNC_GROUPS(lcdb, "lcdb_a_1");
 DB8500_FUNC_GROUPS(lcd, "lcdvsi0_a_1", "lcdvsi1_a_1", "lcd_d0_d7_a_1",
 	"lcd_d8_d11_a_1", "lcd_d12_d23_a_1", "lcd_b_1");
-DB8500_FUNC_GROUPS(kp, "kp_a_1", "kp_b_1", "kp_c_1", "kp_oc1_1");
+DB8500_FUNC_GROUPS(kp, "kp_a_1", "kp_b_1", "kp_b_2", "kp_c_1", "kp_oc1_1");
 DB8500_FUNC_GROUPS(mc2, "mc2_a_1", "mc2rstn_c_1");
 DB8500_FUNC_GROUPS(ssp1, "ssp1_a_1");
 DB8500_FUNC_GROUPS(ssp0, "ssp0_a_1");
@@ -766,7 +769,7 @@ DB8500_FUNC_GROUPS(ipgpio, "ipgpio0_a_1", "ipgpio1_a_1", "ipgpio7_b_1",
 DB8500_FUNC_GROUPS(msp2, "msp2sck_a_1", "msp2_a_1");
 DB8500_FUNC_GROUPS(mc4, "mc4_a_1", "mc4rstn_c_1");
 DB8500_FUNC_GROUPS(mc1, "mc1_a_1", "mc1dir_a_1");
-DB8500_FUNC_GROUPS(hsi, "hsir1_a_1", "hsit1_a_1", "hsit_a_2");
+DB8500_FUNC_GROUPS(hsi, "hsir_a_1", "hsit_a_1", "hsit_a_2");
 DB8500_FUNC_GROUPS(clkout, "clkout_a_1", "clkout_a_2", "clkout_c_1");
 DB8500_FUNC_GROUPS(usb, "usb_a_1");
 DB8500_FUNC_GROUPS(trig, "trig_b_1");

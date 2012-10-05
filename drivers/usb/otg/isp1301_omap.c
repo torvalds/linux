@@ -1576,7 +1576,6 @@ isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		isp->irq_type = IRQF_TRIGGER_FALLING;
 	}
 
-	isp->irq_type |= IRQF_SAMPLE_RANDOM;
 	status = request_irq(i2c->irq, isp1301_irq,
 			isp->irq_type, DRIVER_NAME, isp);
 	if (status < 0) {

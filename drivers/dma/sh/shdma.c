@@ -381,6 +381,17 @@ static bool sh_dmae_chan_irq(struct shdma_chan *schan, int irq)
 	return true;
 }
 
+static size_t sh_dmae_get_partial(struct shdma_chan *schan,
+				  struct shdma_desc *sdesc)
+{
+	struct sh_dmae_chan *sh_chan = container_of(schan, struct sh_dmae_chan,
+						    shdma_chan);
+	struct sh_dmae_desc *sh_desc = container_of(sdesc,
+					struct sh_dmae_desc, shdma_desc);
+	return (sh_desc->hw.tcr - sh_dmae_readl(sh_chan, TCR)) <<
+		sh_chan->xmit_shift;
+}
+
 /* Called from error IRQ or NMI */
 static bool sh_dmae_reset(struct sh_dmae_device *shdev)
 {
@@ -632,6 +643,7 @@ static const struct shdma_ops sh_dmae_shdma_ops = {
 	.start_xfer = sh_dmae_start_xfer,
 	.embedded_desc = sh_dmae_embedded_desc,
 	.chan_irq = sh_dmae_chan_irq,
+	.get_partial = sh_dmae_get_partial,
 };
 
 static int __devinit sh_dmae_probe(struct platform_device *pdev)

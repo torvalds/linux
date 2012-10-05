@@ -314,8 +314,8 @@ static int __devinit pm80x_rtc_probe(struct platform_device *pdev)
 
 	info->rtc_dev = rtc_device_register("88pm80x-rtc", &pdev->dev,
 					    &pm80x_rtc_ops, THIS_MODULE);
-	ret = PTR_ERR(info->rtc_dev);
 	if (IS_ERR(info->rtc_dev)) {
+		ret = PTR_ERR(info->rtc_dev);
 		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
 		goto out_rtc;
 	}
@@ -339,7 +339,6 @@ static int __devinit pm80x_rtc_probe(struct platform_device *pdev)
 out_rtc:
 	pm80x_free_irq(chip, info->irq, info);
 out:
-	devm_kfree(&pdev->dev, info);
 	return ret;
 }
 
@@ -349,7 +348,6 @@ static int __devexit pm80x_rtc_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	rtc_device_unregister(info->rtc_dev);
 	pm80x_free_irq(info->chip, info->irq, info);
-	devm_kfree(&pdev->dev, info);
 	return 0;
 }
 

@@ -3215,11 +3215,11 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 			dentry->d_parent->d_name.name,
 			dentry->d_name.name,
 			(unsigned long long)cookie);
-	nfs4_setup_readdir(cookie, NFS_COOKIEVERF(dir), dentry, &args);
+	nfs4_setup_readdir(cookie, NFS_I(dir)->cookieverf, dentry, &args);
 	res.pgbase = args.pgbase;
 	status = nfs4_call_sync(NFS_SERVER(dir)->client, NFS_SERVER(dir), &msg, &args.seq_args, &res.seq_res, 0);
 	if (status >= 0) {
-		memcpy(NFS_COOKIEVERF(dir), res.verifier.data, NFS4_VERIFIER_SIZE);
+		memcpy(NFS_I(dir)->cookieverf, res.verifier.data, NFS4_VERIFIER_SIZE);
 		status += args.pgbase;
 	}
 
@@ -3653,11 +3653,11 @@ static inline int nfs4_server_supports_acls(struct nfs_server *server)
 		&& (server->acl_bitmask & ACL4_SUPPORT_DENY_ACL);
 }
 
-/* Assuming that XATTR_SIZE_MAX is a multiple of PAGE_CACHE_SIZE, and that
- * it's OK to put sizeof(void) * (XATTR_SIZE_MAX/PAGE_CACHE_SIZE) bytes on
+/* Assuming that XATTR_SIZE_MAX is a multiple of PAGE_SIZE, and that
+ * it's OK to put sizeof(void) * (XATTR_SIZE_MAX/PAGE_SIZE) bytes on
  * the stack.
  */
-#define NFS4ACL_MAXPAGES (XATTR_SIZE_MAX >> PAGE_CACHE_SHIFT)
+#define NFS4ACL_MAXPAGES DIV_ROUND_UP(XATTR_SIZE_MAX, PAGE_SIZE)
 
 static int buf_to_pages_noslab(const void *buf, size_t buflen,
 		struct page **pages, unsigned int *pgbase)
@@ -3668,7 +3668,7 @@ static int buf_to_pages_noslab(const void *buf, size_t buflen,
 	spages = pages;
 
 	do {
-		len = min_t(size_t, PAGE_CACHE_SIZE, buflen);
+		len = min_t(size_t, PAGE_SIZE, buflen);
 		newpage = alloc_page(GFP_KERNEL);
 
 		if (newpage == NULL)
@@ -3737,9 +3737,10 @@ out:
 static void nfs4_write_cached_acl(struct inode *inode, struct page **pages, size_t pgbase, size_t acl_len)
 {
 	struct nfs4_cached_acl *acl;
+	size_t buflen = sizeof(*acl) + acl_len;
 
-	if (pages && acl_len <= PAGE_SIZE) {
-		acl = kmalloc(sizeof(*acl) + acl_len, GFP_KERNEL);
+	if (buflen <= PAGE_SIZE) {
+		acl = kmalloc(buflen, GFP_KERNEL);
 		if (acl == NULL)
 			goto out;
 		acl->cached = 1;
@@ -3781,17 +3782,15 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
-	int ret = -ENOMEM, npages, i;
-	size_t acl_len = 0;
+	unsigned int npages = DIV_ROUND_UP(buflen, PAGE_SIZE);
+	int ret = -ENOMEM, i;
 
-	npages = (buflen + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	/* As long as we're doing a round trip to the server anyway,
 	 * let's be prepared for a page of acl data. */
 	if (npages == 0)
 		npages = 1;
-
-	/* Add an extra page to handle the bitmap returned */
-	npages++;
+	if (npages > ARRAY_SIZE(pages))
+		return -ERANGE;
 
 	for (i = 0; i < npages; i++) {
 		pages[i] = alloc_page(GFP_KERNEL);
@@ -3807,11 +3806,6 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 	args.acl_len = npages * PAGE_SIZE;
 	args.acl_pgbase = 0;
 
-	/* Let decode_getfacl know not to fail if the ACL data is larger than
-	 * the page we send as a guess */
-	if (buf == NULL)
-		res.acl_flags |= NFS4_ACL_LEN_REQUEST;
-
 	dprintk("%s  buf %p buflen %zu npages %d args.acl_len %zu\n",
 		__func__, buf, buflen, npages, args.acl_len);
 	ret = nfs4_call_sync(NFS_SERVER(inode)->client, NFS_SERVER(inode),
@@ -3819,20 +3813,19 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 	if (ret)
 		goto out_free;
 
-	acl_len = res.acl_len - res.acl_data_offset;
-	if (acl_len > args.acl_len)
-		nfs4_write_cached_acl(inode, NULL, 0, acl_len);
-	else
-		nfs4_write_cached_acl(inode, pages, res.acl_data_offset,
-				      acl_len);
-	if (buf) {
+	/* Handle the case where the passed-in buffer is too short */
+	if (res.acl_flags & NFS4_ACL_TRUNC) {
+		/* Did the user only issue a request for the acl length? */
+		if (buf == NULL)
+			goto out_ok;
 		ret = -ERANGE;
-		if (acl_len > buflen)
-			goto out_free;
-		_copy_from_pages(buf, pages, res.acl_data_offset,
-				acl_len);
+		goto out_free;
 	}
-	ret = acl_len;
+	nfs4_write_cached_acl(inode, pages, res.acl_data_offset, res.acl_len);
+	if (buf)
+		_copy_from_pages(buf, pages, res.acl_data_offset, res.acl_len);
+out_ok:
+	ret = res.acl_len;
 out_free:
 	for (i = 0; i < npages; i++)
 		if (pages[i])
@@ -3890,10 +3883,13 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t bufl
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
 	};
+	unsigned int npages = DIV_ROUND_UP(buflen, PAGE_SIZE);
 	int ret, i;
 
 	if (!nfs4_server_supports_acls(server))
 		return -EOPNOTSUPP;
+	if (npages > ARRAY_SIZE(pages))
+		return -ERANGE;
 	i = buf_to_pages_noslab(buf, buflen, arg.acl_pages, &arg.acl_pgbase);
 	if (i < 0)
 		return i;
@@ -6223,11 +6219,58 @@ static void nfs4_layoutget_done(struct rpc_task *task, void *calldata)
 	dprintk("<-- %s\n", __func__);
 }
 
+static size_t max_response_pages(struct nfs_server *server)
+{
+	u32 max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
+	return nfs_page_array_len(0, max_resp_sz);
+}
+
+static void nfs4_free_pages(struct page **pages, size_t size)
+{
+	int i;
+
+	if (!pages)
+		return;
+
+	for (i = 0; i < size; i++) {
+		if (!pages[i])
+			break;
+		__free_page(pages[i]);
+	}
+	kfree(pages);
+}
+
+static struct page **nfs4_alloc_pages(size_t size, gfp_t gfp_flags)
+{
+	struct page **pages;
+	int i;
+
+	pages = kcalloc(size, sizeof(struct page *), gfp_flags);
+	if (!pages) {
+		dprintk("%s: can't alloc array of %zu pages\n", __func__, size);
+		return NULL;
+	}
+
+	for (i = 0; i < size; i++) {
+		pages[i] = alloc_page(gfp_flags);
+		if (!pages[i]) {
+			dprintk("%s: failed to allocate page\n", __func__);
+			nfs4_free_pages(pages, size);
+			return NULL;
+		}
+	}
+
+	return pages;
+}
+
 static void nfs4_layoutget_release(void *calldata)
 {
 	struct nfs4_layoutget *lgp = calldata;
+	struct nfs_server *server = NFS_SERVER(lgp->args.inode);
+	size_t max_pages = max_response_pages(server);
 
 	dprintk("--> %s\n", __func__);
+	nfs4_free_pages(lgp->args.layout.pages, max_pages);
 	put_nfs_open_context(lgp->args.ctx);
 	kfree(calldata);
 	dprintk("<-- %s\n", __func__);
@@ -6239,9 +6282,10 @@ static const struct rpc_call_ops nfs4_layoutget_call_ops = {
 	.rpc_release = nfs4_layoutget_release,
 };
 
-int nfs4_proc_layoutget(struct nfs4_layoutget *lgp)
+void nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags)
 {
 	struct nfs_server *server = NFS_SERVER(lgp->args.inode);
+	size_t max_pages = max_response_pages(server);
 	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LAYOUTGET],
@@ -6259,12 +6303,19 @@ int nfs4_proc_layoutget(struct nfs4_layoutget *lgp)
 
 	dprintk("--> %s\n", __func__);
 
+	lgp->args.layout.pages = nfs4_alloc_pages(max_pages, gfp_flags);
+	if (!lgp->args.layout.pages) {
+		nfs4_layoutget_release(lgp);
+		return;
+	}
+	lgp->args.layout.pglen = max_pages * PAGE_SIZE;
+
 	lgp->res.layoutp = &lgp->args.layout;
 	lgp->res.seq_res.sr_slot = NULL;
 	nfs41_init_sequence(&lgp->args.seq_args, &lgp->res.seq_res, 0);
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
-		return PTR_ERR(task);
+		return;
 	status = nfs4_wait_for_completion_rpc_task(task);
 	if (status == 0)
 		status = task->tk_status;
@@ -6272,7 +6323,7 @@ int nfs4_proc_layoutget(struct nfs4_layoutget *lgp)
 		status = pnfs_layout_process(lgp);
 	rpc_put_task(task);
 	dprintk("<-- %s status=%d\n", __func__, status);
-	return status;
+	return;
 }
 
 static void
@@ -6304,12 +6355,8 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 		return;
 	}
 	spin_lock(&lo->plh_inode->i_lock);
-	if (task->tk_status == 0) {
-		if (lrp->res.lrs_present) {
-			pnfs_set_layout_stateid(lo, &lrp->res.stateid, true);
-		} else
-			BUG_ON(!list_empty(&lo->plh_segs));
-	}
+	if (task->tk_status == 0 && lrp->res.lrs_present)
+		pnfs_set_layout_stateid(lo, &lrp->res.stateid, true);
 	lo->plh_block_lgets--;
 	spin_unlock(&lo->plh_inode->i_lock);
 	dprintk("<-- %s\n", __func__);

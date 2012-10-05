@@ -109,7 +109,8 @@ void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	orion_ge00_init(eth_data,
 			ORION5X_ETH_PHYS_BASE, IRQ_ORION5X_ETH_SUM,
-			IRQ_ORION5X_ETH_ERR);
+			IRQ_ORION5X_ETH_ERR,
+			MV643XX_TX_CSUM_DEFAULT_LIMIT);
 }
 
 
@@ -203,6 +204,13 @@ void __init orion5x_wdt_init(void)
 void __init orion5x_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
+
+	/*
+	 * Some Orion5x devices allocate their coherent buffers from atomic
+	 * context. Increase size of atomic coherent pool to make sure such
+	 * the allocations won't fail.
+	 */
+	init_dma_coherent_pool_size(SZ_1M);
 }
 
 int orion5x_tclk;

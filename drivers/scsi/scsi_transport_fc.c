@@ -4146,45 +4146,7 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
 static void
 fc_bsg_remove(struct request_queue *q)
 {
-	struct request *req; /* block request */
-	int counts; /* totals for request_list count and starved */
-
 	if (q) {
-		/* Stop taking in new requests */
-		spin_lock_irq(q->queue_lock);
-		blk_stop_queue(q);
-
-		/* drain all requests in the queue */
-		while (1) {
-			/* need the lock to fetch a request
-			 * this may fetch the same reqeust as the previous pass
-			 */
-			req = blk_fetch_request(q);
-			/* save requests in use and starved */
-			counts = q->rq.count[0] + q->rq.count[1] +
-				q->rq.starved[0] + q->rq.starved[1];
-			spin_unlock_irq(q->queue_lock);
-			/* any requests still outstanding? */
-			if (counts == 0)
-				break;
-
-			/* This may be the same req as the previous iteration,
-			 * always send the blk_end_request_all after a prefetch.
-			 * It is not okay to not end the request because the
-			 * prefetch started the request.
-			 */
-			if (req) {
-				/* return -ENXIO to indicate that this queue is
-				 * going away
-				 */
-				req->errors = -ENXIO;
-				blk_end_request_all(req, -ENXIO);
-			}
-
-			msleep(200); /* allow bsg to possibly finish */
-			spin_lock_irq(q->queue_lock);
-		}
-
 		bsg_unregister_queue(q);
 		blk_cleanup_queue(q);
 	}

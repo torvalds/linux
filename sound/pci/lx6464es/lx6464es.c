@@ -851,6 +851,8 @@ static int __devinit lx_pcm_create(struct lx6464es *chip)
 	/* hardcoded device name & channel count */
 	err = snd_pcm_new(chip->card, (char *)card_name, 0,
 			  1, 1, &pcm);
+	if (err < 0)
+		return err;
 
 	pcm->private_data = chip;
 

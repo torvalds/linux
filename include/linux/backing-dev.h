@@ -17,6 +17,7 @@
 #include <linux/timer.h>
 #include <linux/writeback.h>
 #include <linux/atomic.h>
+#include <linux/sysctl.h>
 
 struct page;
 struct device;
@@ -123,7 +124,6 @@ void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
 void bdi_start_background_writeback(struct backing_dev_info *bdi);
 int bdi_writeback_thread(void *data);
 int bdi_has_dirty_io(struct backing_dev_info *bdi);
-void bdi_arm_supers_timer(void);
 void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi);
 void bdi_lock_two(struct bdi_writeback *wb1, struct bdi_writeback *wb2);
 
@@ -304,6 +304,8 @@ void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
 void set_bdi_congested(struct backing_dev_info *bdi, int sync);
 long congestion_wait(int sync, long timeout);
 long wait_iff_congested(struct zone *zone, int sync, long timeout);
+int pdflush_proc_obsolete(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos);
 
 static inline bool bdi_cap_writeback_dirty(struct backing_dev_info *bdi)
 {

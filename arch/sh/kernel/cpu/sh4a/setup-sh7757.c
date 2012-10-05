@@ -216,6 +216,20 @@ static const struct sh_dmae_slave_config sh7757_dmae1_slaves[] = {
 				  TS_INDEX2VAL(XMIT_SZ_8BIT),
 		.mid_rid	= 0x42,
 	},
+	{
+		.slave_id	= SHDMA_SLAVE_RSPI_TX,
+		.addr		= 0xfe480004,
+		.chcr		= SM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xc1,
+	},
+	{
+		.slave_id	= SHDMA_SLAVE_RSPI_RX,
+		.addr		= 0xfe480004,
+		.chcr		= DM_INC | 0x800 | 0x40000000 |
+				  TS_INDEX2VAL(XMIT_SZ_16BIT),
+		.mid_rid	= 0xc2,
+	},
 };
 
 static const struct sh_dmae_slave_config sh7757_dmae2_slaves[] = {

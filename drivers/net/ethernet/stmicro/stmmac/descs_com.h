@@ -27,6 +27,9 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#ifndef __DESC_COM_H__
+#define __DESC_COM_H__
+
 #if defined(CONFIG_STMMAC_RING)
 static inline void ehn_desc_rx_set_on_ring_chain(struct dma_desc *p, int end)
 {
@@ -124,3 +127,5 @@ static inline void norm_set_tx_desc_len(struct dma_desc *p, int len)
 	p->des01.tx.buffer1_size = len;
 }
 #endif
+
+#endif /* __DESC_COM_H__ */

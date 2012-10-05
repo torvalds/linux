@@ -228,6 +228,8 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ret = 0;
 	if (bb->vm_ops->page_mkwrite)
 		ret = bb->vm_ops->page_mkwrite(vma, vmf);
+	else
+		file_update_time(file);
 
 	sysfs_put_active(attr_sd);
 	return ret;

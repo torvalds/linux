@@ -245,7 +245,6 @@ static inline void do_perfcnt_IRQ(void)
 
 #ifdef CONFIG_CPU_SUPPORTS_CPUFREQ
 #include <linux/cpufreq.h>
-extern void loongson2_cpu_wait(void);
 extern struct cpufreq_frequency_table loongson2_clockmod_table[];
 
 /* Chip Config */

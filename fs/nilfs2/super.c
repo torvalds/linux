@@ -676,17 +676,13 @@ static const struct super_operations nilfs_sops = {
 	.alloc_inode    = nilfs_alloc_inode,
 	.destroy_inode  = nilfs_destroy_inode,
 	.dirty_inode    = nilfs_dirty_inode,
-	/* .write_inode    = nilfs_write_inode, */
-	/* .drop_inode	  = nilfs_drop_inode, */
 	.evict_inode    = nilfs_evict_inode,
 	.put_super      = nilfs_put_super,
-	/* .write_super    = nilfs_write_super, */
 	.sync_fs        = nilfs_sync_fs,
 	.freeze_fs	= nilfs_freeze,
 	.unfreeze_fs	= nilfs_unfreeze,
 	.statfs         = nilfs_statfs,
 	.remount_fs     = nilfs_remount,
-	/* .umount_begin */
 	.show_options = nilfs_show_options
 };
 

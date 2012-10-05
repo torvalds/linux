@@ -178,9 +178,6 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	arch_suspend_enable_irqs();
 	BUG_ON(irqs_disabled());
 
-	/* Kick the lockup detector */
-	lockup_detector_bootcpu_resume();
-
  Enable_cpus:
 	enable_nonboot_cpus();
 

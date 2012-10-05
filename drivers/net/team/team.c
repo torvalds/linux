@@ -795,16 +795,17 @@ static void team_port_leave(struct team *team, struct team_port *port)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static int team_port_enable_netpoll(struct team *team, struct team_port *port)
+static int team_port_enable_netpoll(struct team *team, struct team_port *port,
+				    gfp_t gfp)
 {
 	struct netpoll *np;
 	int err;
 
-	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	np = kzalloc(sizeof(*np), gfp);
 	if (!np)
 		return -ENOMEM;
 
-	err = __netpoll_setup(np, port->dev);
+	err = __netpoll_setup(np, port->dev, gfp);
 	if (err) {
 		kfree(np);
 		return err;
@@ -833,7 +834,8 @@ static struct netpoll_info *team_netpoll_info(struct team *team)
 }
 
 #else
-static int team_port_enable_netpoll(struct team *team, struct team_port *port)
+static int team_port_enable_netpoll(struct team *team, struct team_port *port,
+				    gfp_t gfp)
 {
 	return 0;
 }
@@ -846,7 +848,7 @@ static struct netpoll_info *team_netpoll_info(struct team *team)
 }
 #endif
 
-static void __team_port_change_check(struct team_port *port, bool linkup);
+static void __team_port_change_port_added(struct team_port *port, bool linkup);
 
 static int team_port_add(struct team *team, struct net_device *port_dev)
 {
@@ -913,7 +915,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 	}
 
 	if (team_netpoll_info(team)) {
-		err = team_port_enable_netpoll(team, port);
+		err = team_port_enable_netpoll(team, port, GFP_KERNEL);
 		if (err) {
 			netdev_err(dev, "Failed to enable netpoll on device %s\n",
 				   portname);
@@ -946,7 +948,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 	team_port_enable(team, port);
 	list_add_tail_rcu(&port->list, &team->port_list);
 	__team_compute_features(team);
-	__team_port_change_check(port, !!netif_carrier_ok(port_dev));
+	__team_port_change_port_added(port, !!netif_carrier_ok(port_dev));
 	__team_options_change_check(team);
 
 	netdev_info(dev, "Port device %s added\n", portname);
@@ -981,6 +983,8 @@ err_set_mtu:
 	return err;
 }
 
+static void __team_port_change_port_removed(struct team_port *port);
+
 static int team_port_del(struct team *team, struct net_device *port_dev)
 {
 	struct net_device *dev = team->dev;
@@ -997,8 +1001,7 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	__team_option_inst_mark_removed_port(team, port);
 	__team_options_change_check(team);
 	__team_option_inst_del_port(team, port);
-	port->removed = true;
-	__team_port_change_check(port, false);
+	__team_port_change_port_removed(port);
 	team_port_disable(team, port);
 	list_del_rcu(&port->list);
 	netdev_rx_handler_unregister(port_dev);
@@ -1443,7 +1446,7 @@ static void team_netpoll_cleanup(struct net_device *dev)
 }
 
 static int team_netpoll_setup(struct net_device *dev,
-			      struct netpoll_info *npifo)
+			      struct netpoll_info *npifo, gfp_t gfp)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
@@ -1451,7 +1454,7 @@ static int team_netpoll_setup(struct net_device *dev,
 
 	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list) {
-		err = team_port_enable_netpoll(team, port);
+		err = team_port_enable_netpoll(team, port, gfp);
 		if (err) {
 			__team_netpoll_cleanup(team);
 			break;
@@ -1650,8 +1653,8 @@ static int team_nl_cmd_noop(struct sk_buff *skb, struct genl_info *info)
 
 	hdr = genlmsg_put(msg, info->snd_pid, info->snd_seq,
 			  &team_nl_family, 0, TEAM_CMD_NOOP);
-	if (IS_ERR(hdr)) {
-		err = PTR_ERR(hdr);
+	if (!hdr) {
+		err = -EMSGSIZE;
 		goto err_msg_put;
 	}
 
@@ -1845,8 +1848,8 @@ start_again:
 
 	hdr = genlmsg_put(skb, pid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_OPTIONS_GET);
-	if (IS_ERR(hdr))
-		return PTR_ERR(hdr);
+	if (!hdr)
+		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;
@@ -2065,8 +2068,8 @@ static int team_nl_fill_port_list_get(struct sk_buff *skb,
 
 	hdr = genlmsg_put(skb, pid, seq, &team_nl_family, flags,
 			  TEAM_CMD_PORT_LIST_GET);
-	if (IS_ERR(hdr))
-		return PTR_ERR(hdr);
+	if (!hdr)
+		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;
@@ -2249,12 +2252,10 @@ static void __team_options_change_check(struct team *team)
 }
 
 /* rtnl lock is held */
-static void __team_port_change_check(struct team_port *port, bool linkup)
+
+static void __team_port_change_send(struct team_port *port, bool linkup)
 {
 	int err;
-
-	if (!port->removed && port->state.linkup == linkup)
-		return;
 
 	port->changed = true;
 	port->state.linkup = linkup;
@@ -2278,6 +2279,23 @@ send_event:
 		netdev_warn(port->team->dev, "Failed to send port change of device %s via netlink\n",
 			    port->dev->name);
 
+}
+
+static void __team_port_change_check(struct team_port *port, bool linkup)
+{
+	if (port->state.linkup != linkup)
+		__team_port_change_send(port, linkup);
+}
+
+static void __team_port_change_port_added(struct team_port *port, bool linkup)
+{
+	__team_port_change_send(port, linkup);
+}
+
+static void __team_port_change_port_removed(struct team_port *port)
+{
+	port->removed = true;
+	__team_port_change_send(port, false);
 }
 
 static void team_port_change_check(struct team_port *port, bool linkup)

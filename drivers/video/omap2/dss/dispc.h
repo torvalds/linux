@@ -36,6 +36,8 @@
 #define DISPC_CONTROL2			0x0238
 #define DISPC_CONFIG2			0x0620
 #define DISPC_DIVISOR			0x0804
+#define DISPC_CONTROL3                  0x0848
+#define DISPC_CONFIG3                   0x084C
 
 /* DISPC overlay registers */
 #define DISPC_OVL_BA0(n)		(DISPC_OVL_BASE(n) + \
@@ -118,6 +120,8 @@ static inline u16 DISPC_DEFAULT_COLOR(enum omap_channel channel)
 		return 0x0050;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x03AC;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0814;
 	default:
 		BUG();
 		return 0;
@@ -133,6 +137,8 @@ static inline u16 DISPC_TRANS_COLOR(enum omap_channel channel)
 		return 0x0058;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x03B0;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0818;
 	default:
 		BUG();
 		return 0;
@@ -149,6 +155,8 @@ static inline u16 DISPC_TIMING_H(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x0400;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0840;
 	default:
 		BUG();
 		return 0;
@@ -165,6 +173,8 @@ static inline u16 DISPC_TIMING_V(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x0404;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0844;
 	default:
 		BUG();
 		return 0;
@@ -181,6 +191,8 @@ static inline u16 DISPC_POL_FREQ(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x0408;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x083C;
 	default:
 		BUG();
 		return 0;
@@ -197,6 +209,8 @@ static inline u16 DISPC_DIVISORo(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x040C;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0838;
 	default:
 		BUG();
 		return 0;
@@ -213,6 +227,8 @@ static inline u16 DISPC_SIZE_MGR(enum omap_channel channel)
 		return 0x0078;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x03CC;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0834;
 	default:
 		BUG();
 		return 0;
@@ -229,6 +245,8 @@ static inline u16 DISPC_DATA_CYCLE1(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x03C0;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0828;
 	default:
 		BUG();
 		return 0;
@@ -245,6 +263,8 @@ static inline u16 DISPC_DATA_CYCLE2(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x03C4;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x082C;
 	default:
 		BUG();
 		return 0;
@@ -261,6 +281,8 @@ static inline u16 DISPC_DATA_CYCLE3(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x03C8;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0830;
 	default:
 		BUG();
 		return 0;
@@ -277,6 +299,8 @@ static inline u16 DISPC_CPR_COEF_R(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x03BC;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0824;
 	default:
 		BUG();
 		return 0;
@@ -293,6 +317,8 @@ static inline u16 DISPC_CPR_COEF_G(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x03B8;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x0820;
 	default:
 		BUG();
 		return 0;
@@ -309,6 +335,8 @@ static inline u16 DISPC_CPR_COEF_B(enum omap_channel channel)
 		return 0;
 	case OMAP_DSS_CHANNEL_LCD2:
 		return 0x03B4;
+	case OMAP_DSS_CHANNEL_LCD3:
+		return 0x081C;
 	default:
 		BUG();
 		return 0;

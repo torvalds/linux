@@ -1,12 +1,16 @@
 <title>DVB Audio Device</title>
 <para>The DVB audio device controls the MPEG2 audio decoder of the DVB hardware. It
 can be accessed through <emphasis role="tt">/dev/dvb/adapter0/audio0</emphasis>. Data types and and
-ioctl definitions can be accessed by including <emphasis role="tt">linux/dvb/video.h</emphasis> in your
+ioctl definitions can be accessed by including <emphasis role="tt">linux/dvb/audio.h</emphasis> in your
 application.
 </para>
 <para>Please note that some DVB cards don&#8217;t have their own MPEG decoder, which results in
 the omission of the audio and video device.
 </para>
+<para>
+These ioctls were also used by V4L2 to control MPEG decoders implemented in V4L2. The use
+of these ioctls for that purpose has been made obsolete and proper V4L2 ioctls or controls
+have been created to replace that functionality.</para>
 
 <section id="audio_data_types">
 <title>Audio Data Types</title>
@@ -558,6 +562,8 @@ role="subsection"><title>AUDIO_SELECT_SOURCE</title>
 role="subsection"><title>AUDIO_SET_MUTE</title>
 <para>DESCRIPTION
 </para>
+<para>This ioctl is for DVB devices only. To control a V4L2 decoder use the V4L2
+&VIDIOC-DECODER-CMD; with the <constant>V4L2_DEC_CMD_START_MUTE_AUDIO</constant> flag instead.</para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>This ioctl call asks the audio device to mute the stream that is currently being
@@ -730,6 +736,8 @@ role="subsection"><title>AUDIO_SET_BYPASS_MODE</title>
 role="subsection"><title>AUDIO_CHANNEL_SELECT</title>
 <para>DESCRIPTION
 </para>
+<para>This ioctl is for DVB devices only. To control a V4L2 decoder use the V4L2
+<constant>V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK</constant> control instead.</para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>This ioctl call asks the Audio Device to select the requested channel if possible.</para>
@@ -768,6 +776,109 @@ role="subsection"><title>AUDIO_CHANNEL_SELECT</title>
  align="char">
 <para>Select the output format of the audio (mono left/right,
  stereo).</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+
+</section><section id="AUDIO_BILINGUAL_CHANNEL_SELECT"
+role="subsection"><title>AUDIO_BILINGUAL_CHANNEL_SELECT</title>
+<para>DESCRIPTION
+</para>
+<para>This ioctl is obsolete. Do not use in new drivers. It has been replaced by
+the V4L2 <constant>V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK</constant> control
+for MPEG decoders controlled through V4L2.</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl call asks the Audio Device to select the requested channel for bilingual streams if possible.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request =
+ AUDIO_BILINGUAL_CHANNEL_SELECT, audio_channel_select_t);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals AUDIO_BILINGUAL_CHANNEL_SELECT for this
+ command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>audio_channel_select_t
+ch</para>
+</entry><entry
+ align="char">
+<para>Select the output format of the audio (mono left/right,
+ stereo).</para>
+</entry>
+ </row>
+</tbody></tgroup></informaltable>
+&return-value-dvb;
+
+</section><section id="AUDIO_GET_PTS"
+role="subsection"><title>AUDIO_GET_PTS</title>
+<para>DESCRIPTION
+</para>
+<para>This ioctl is obsolete. Do not use in new drivers. If you need this functionality,
+then please contact the linux-media mailing list (&v4l-ml;).</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl call asks the Audio Device to return the current PTS timestamp.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request =
+ AUDIO_GET_PTS, __u64 *pts);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals AUDIO_GET_PTS for this
+ command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>__u64 *pts
+</para>
+</entry><entry
+ align="char">
+<para>Returns the 33-bit timestamp as defined in ITU T-REC-H.222.0 / ISO/IEC 13818-1.
+</para>
+<para>
+The PTS should belong to the currently played
+frame if possible, but may also be a value close to it
+like the PTS of the last decoded frame or the last PTS
+extracted by the PES parser.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;

@@ -122,6 +122,9 @@ u64 perf_evlist__sample_type(const struct perf_evlist *evlist);
 bool perf_evlist__sample_id_all(const const struct perf_evlist *evlist);
 u16 perf_evlist__id_hdr_size(const struct perf_evlist *evlist);
 
+int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
+			      struct perf_sample *sample, bool swapped);
+
 bool perf_evlist__valid_sample_type(const struct perf_evlist *evlist);
 bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist);
 

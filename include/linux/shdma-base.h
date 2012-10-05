@@ -50,6 +50,7 @@ struct shdma_desc {
 	struct list_head node;
 	struct dma_async_tx_descriptor async_tx;
 	enum dma_transfer_direction direction;
+	size_t partial;
 	dma_cookie_t cookie;
 	int chunks;
 	int mark;
@@ -98,6 +99,7 @@ struct shdma_ops {
 	void (*start_xfer)(struct shdma_chan *, struct shdma_desc *);
 	struct shdma_desc *(*embedded_desc)(void *, int);
 	bool (*chan_irq)(struct shdma_chan *, int);
+	size_t (*get_partial)(struct shdma_chan *, struct shdma_desc *);
 };
 
 struct shdma_dev {

@@ -13,6 +13,8 @@
 
 #include <asm/apic.h>
 
+#include "perf_event.h"
+
 static u32 ibs_caps;
 
 #if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_AMD)
@@ -207,6 +209,15 @@ static int perf_ibs_precise_event(struct perf_event *event, u64 *config)
 	return -EOPNOTSUPP;
 }
 
+static const struct perf_event_attr ibs_notsupp = {
+	.exclude_user	= 1,
+	.exclude_kernel	= 1,
+	.exclude_hv	= 1,
+	.exclude_idle	= 1,
+	.exclude_host	= 1,
+	.exclude_guest	= 1,
+};
+
 static int perf_ibs_init(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
@@ -226,6 +237,9 @@ static int perf_ibs_init(struct perf_event *event)
 
 	if (event->pmu != &perf_ibs->pmu)
 		return -ENOENT;
+
+	if (perf_flags(&event->attr) & perf_flags(&ibs_notsupp))
+		return -EINVAL;
 
 	if (config & ~perf_ibs->config_mask)
 		return -EINVAL;
@@ -536,7 +550,7 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	if (check_rip && (ibs_data.regs[2] & IBS_RIP_INVALID)) {
 		regs.flags &= ~PERF_EFLAGS_EXACT;
 	} else {
-		instruction_pointer_set(&regs, ibs_data.regs[1]);
+		set_linear_ip(&regs, ibs_data.regs[1]);
 		regs.flags |= PERF_EFLAGS_EXACT;
 	}
 

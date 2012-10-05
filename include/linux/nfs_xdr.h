@@ -652,7 +652,7 @@ struct nfs_getaclargs {
 };
 
 /* getxattr ACL interface flags */
-#define NFS4_ACL_LEN_REQUEST	0x0001	/* zero length getxattr buffer */
+#define NFS4_ACL_TRUNC		0x0001	/* ACL was truncated */
 struct nfs_getaclres {
 	size_t				acl_len;
 	size_t				acl_data_offset;
@@ -1248,6 +1248,7 @@ struct nfs_pgio_header {
 	void (*release) (struct nfs_pgio_header *hdr);
 	const struct nfs_pgio_completion_ops *completion_ops;
 	struct nfs_direct_req	*dreq;
+	void			*layout_private;
 	spinlock_t		lock;
 	/* fields protected by lock */
 	int			pnfs_error;

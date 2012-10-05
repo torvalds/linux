@@ -25,6 +25,7 @@
 #include <linux/stat.h>
 #include <linux/interrupt.h>
 #include <linux/sh_intc.h>
+#include <linux/irqdomain.h>
 #include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/list.h>
@@ -310,6 +311,8 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 	BUG_ON(k > 256); /* _INTC_ADDR_E() and _INTC_ADDR_D() are 8 bits */
 
+	intc_irq_domain_init(d, hw);
+
 	/* register the vectors one by one */
 	for (i = 0; i < hw->nr_vectors; i++) {
 		struct intc_vect *vect = hw->vectors + i;
@@ -319,10 +322,18 @@ int __init register_intc_controller(struct intc_desc *desc)
 		if (!vect->enum_id)
 			continue;
 
-		res = irq_alloc_desc_at(irq, numa_node_id());
-		if (res != irq && res != -EEXIST) {
-			pr_err("can't get irq_desc for %d\n", irq);
-			continue;
+		res = irq_create_identity_mapping(d->domain, irq);
+		if (unlikely(res)) {
+			if (res == -EEXIST) {
+				res = irq_domain_associate(d->domain, irq, irq);
+				if (unlikely(res)) {
+					pr_err("domain association failure\n");
+					continue;
+				}
+			} else {
+				pr_err("can't identity map IRQ %d\n", irq);
+				continue;
+			}
 		}
 
 		intc_irq_xlate_set(irq, vect->enum_id, d);
@@ -340,10 +351,21 @@ int __init register_intc_controller(struct intc_desc *desc)
 			 * IRQ support, each vector still needs to have
 			 * its own backing irq_desc.
 			 */
-			res = irq_alloc_desc_at(irq2, numa_node_id());
-			if (res != irq2 && res != -EEXIST) {
-				pr_err("can't get irq_desc for %d\n", irq2);
-				continue;
+			res = irq_create_identity_mapping(d->domain, irq2);
+			if (unlikely(res)) {
+				if (res == -EEXIST) {
+					res = irq_domain_associate(d->domain,
+								   irq2, irq2);
+					if (unlikely(res)) {
+						pr_err("domain association "
+						       "failure\n");
+						continue;
+					}
+				} else {
+					pr_err("can't identity map IRQ %d\n",
+					       irq);
+					continue;
+				}
 			}
 
 			vect2->enum_id = 0;

@@ -1165,13 +1165,19 @@ static int generic_hdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 					     struct hda_codec *codec,
 					     struct snd_pcm_substream *substream)
 {
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
+	return 0;
+}
+
+static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
+			  struct hda_codec *codec,
+			  struct snd_pcm_substream *substream)
+{
 	struct hdmi_spec *spec = codec->spec;
 	int cvt_idx, pin_idx;
 	struct hdmi_spec_per_cvt *per_cvt;
 	struct hdmi_spec_per_pin *per_pin;
 	int pinctl;
-
-	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
 
 	if (hinfo->nid) {
 		cvt_idx = cvt_nid_to_cvt_index(spec, hinfo->nid);
@@ -1195,12 +1201,12 @@ static int generic_hdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				    pinctl & ~PIN_OUT);
 		snd_hda_spdif_ctls_unassign(codec, pin_idx);
 	}
-
 	return 0;
 }
 
 static const struct hda_pcm_ops generic_ops = {
 	.open = hdmi_pcm_open,
+	.close = hdmi_pcm_close,
 	.prepare = generic_hdmi_playback_pcm_prepare,
 	.cleanup = generic_hdmi_playback_pcm_cleanup,
 };

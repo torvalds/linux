@@ -334,11 +334,11 @@ static int tegra_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		slave_config.dst_addr = dmap->addr;
-		slave_config.src_maxburst = 0;
+		slave_config.dst_maxburst = 4;
 	} else {
 		slave_config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		slave_config.src_addr = dmap->addr;
-		slave_config.dst_maxburst = 0;
+		slave_config.src_maxburst = 4;
 	}
 	slave_config.slave_id = dmap->req_sel;
 

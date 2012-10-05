@@ -334,14 +334,6 @@ static inline void lockup_detector_init(void)
 }
 #endif
 
-#if defined(CONFIG_LOCKUP_DETECTOR) && defined(CONFIG_SUSPEND)
-void lockup_detector_bootcpu_resume(void);
-#else
-static inline void lockup_detector_bootcpu_resume(void)
-{
-}
-#endif
-
 #ifdef CONFIG_DETECT_HUNG_TASK
 extern unsigned int  sysctl_hung_task_panic;
 extern unsigned long sysctl_hung_task_check_count;
@@ -962,7 +954,6 @@ struct sched_domain {
 	unsigned int smt_gain;
 	int flags;			/* See SD_* */
 	int level;
-	int idle_buddy;			/* cpu assigned to select_idle_sibling() */
 
 	/* Runtime fields. */
 	unsigned long last_balance;	/* init to jiffies. units in jiffies */
@@ -1584,7 +1575,7 @@ struct task_struct {
 	/* bitmask and counter of trace recursion */
 	unsigned long trace_recursion;
 #endif /* CONFIG_TRACING */
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR /* memcg uses this to do batch job */
+#ifdef CONFIG_MEMCG /* memcg uses this to do batch job */
 	struct memcg_batch_info {
 		int do_batch;	/* incremented when batch uncharge started */
 		struct mem_cgroup *memcg; /* target memcg of uncharge */
@@ -1893,6 +1884,13 @@ static inline void rcu_copy_process(struct task_struct *p)
 }
 
 #endif
+
+static inline void tsk_restore_flags(struct task_struct *task,
+				unsigned long orig_flags, unsigned long flags)
+{
+	task->flags &= ~flags;
+	task->flags |= orig_flags & flags;
+}
 
 #ifdef CONFIG_SMP
 extern void do_set_cpus_allowed(struct task_struct *p,

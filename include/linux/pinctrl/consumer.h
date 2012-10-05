@@ -20,6 +20,7 @@
 /* This struct is private to the core and should be regarded as a cookie */
 struct pinctrl;
 struct pinctrl_state;
+struct device;
 
 #ifdef CONFIG_PINCTRL
 

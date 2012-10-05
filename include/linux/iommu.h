@@ -20,6 +20,7 @@
 #define __LINUX_IOMMU_H
 
 #include <linux/errno.h>
+#include <linux/types.h>
 
 #define IOMMU_READ	(1)
 #define IOMMU_WRITE	(2)
@@ -30,6 +31,7 @@ struct iommu_group;
 struct bus_type;
 struct device;
 struct iommu_domain;
+struct notifier_block;
 
 /* iommu fault flags */
 #define IOMMU_FAULT_READ	0x0
@@ -254,72 +256,78 @@ static inline void iommu_set_fault_handler(struct iommu_domain *domain,
 {
 }
 
-int iommu_attach_group(struct iommu_domain *domain, struct iommu_group *group)
+static inline int iommu_attach_group(struct iommu_domain *domain,
+				     struct iommu_group *group)
 {
 	return -ENODEV;
 }
 
-void iommu_detach_group(struct iommu_domain *domain, struct iommu_group *group)
+static inline void iommu_detach_group(struct iommu_domain *domain,
+				      struct iommu_group *group)
 {
 }
 
-struct iommu_group *iommu_group_alloc(void)
+static inline struct iommu_group *iommu_group_alloc(void)
 {
 	return ERR_PTR(-ENODEV);
 }
 
-void *iommu_group_get_iommudata(struct iommu_group *group)
+static inline void *iommu_group_get_iommudata(struct iommu_group *group)
 {
 	return NULL;
 }
 
-void iommu_group_set_iommudata(struct iommu_group *group, void *iommu_data,
-			       void (*release)(void *iommu_data))
+static inline void iommu_group_set_iommudata(struct iommu_group *group,
+					     void *iommu_data,
+					     void (*release)(void *iommu_data))
 {
 }
 
-int iommu_group_set_name(struct iommu_group *group, const char *name)
-{
-	return -ENODEV;
-}
-
-int iommu_group_add_device(struct iommu_group *group, struct device *dev)
+static inline int iommu_group_set_name(struct iommu_group *group,
+				       const char *name)
 {
 	return -ENODEV;
 }
 
-void iommu_group_remove_device(struct device *dev)
-{
-}
-
-int iommu_group_for_each_dev(struct iommu_group *group, void *data,
-			     int (*fn)(struct device *, void *))
+static inline int iommu_group_add_device(struct iommu_group *group,
+					 struct device *dev)
 {
 	return -ENODEV;
 }
 
-struct iommu_group *iommu_group_get(struct device *dev)
+static inline void iommu_group_remove_device(struct device *dev)
+{
+}
+
+static inline int iommu_group_for_each_dev(struct iommu_group *group,
+					   void *data,
+					   int (*fn)(struct device *, void *))
+{
+	return -ENODEV;
+}
+
+static inline struct iommu_group *iommu_group_get(struct device *dev)
 {
 	return NULL;
 }
 
-void iommu_group_put(struct iommu_group *group)
+static inline void iommu_group_put(struct iommu_group *group)
 {
 }
 
-int iommu_group_register_notifier(struct iommu_group *group,
-				  struct notifier_block *nb)
+static inline int iommu_group_register_notifier(struct iommu_group *group,
+						struct notifier_block *nb)
 {
 	return -ENODEV;
 }
 
-int iommu_group_unregister_notifier(struct iommu_group *group,
-				    struct notifier_block *nb)
+static inline int iommu_group_unregister_notifier(struct iommu_group *group,
+						  struct notifier_block *nb)
 {
 	return 0;
 }
 
-int iommu_group_id(struct iommu_group *group)
+static inline int iommu_group_id(struct iommu_group *group)
 {
 	return -ENODEV;
 }

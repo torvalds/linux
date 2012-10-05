@@ -19,14 +19,13 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
+#include <asm/sections.h>
 
 /****************************************************************************/
 
-extern char _ebss;
-
 struct map_info uclinux_ram_map = {
 	.name = "RAM",
-	.phys = (unsigned long)&_ebss,
+	.phys = (unsigned long)__bss_stop,
 	.size = 0,
 };
 

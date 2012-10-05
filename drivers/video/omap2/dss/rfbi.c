@@ -300,10 +300,11 @@ void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
 }
 EXPORT_SYMBOL(omap_rfbi_write_pixels);
 
-static void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
+static int rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
 		u16 height, void (*callback)(void *data), void *data)
 {
 	u32 l;
+	int r;
 	struct omap_video_timings timings = {
 		.hsw		= 1,
 		.hfp		= 1,
@@ -322,7 +323,9 @@ static void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
 
 	dss_mgr_set_timings(dssdev->manager, &timings);
 
-	dispc_mgr_enable(dssdev->manager->id, true);
+	r = dss_mgr_enable(dssdev->manager);
+	if (r)
+		return r;
 
 	rfbi.framedone_callback = callback;
 	rfbi.framedone_callback_data = data;
@@ -335,6 +338,8 @@ static void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
 		l = FLD_MOD(l, 1, 4, 4); /* ITE */
 
 	rfbi_write_reg(RFBI_CONTROL, l);
+
+	return 0;
 }
 
 static void framedone_callback(void *data, u32 mask)
@@ -814,8 +819,11 @@ int omap_rfbi_update(struct omap_dss_device *dssdev,
 		u16 x, u16 y, u16 w, u16 h,
 		void (*callback)(void *), void *data)
 {
-	rfbi_transfer_area(dssdev, w, h, callback, data);
-	return 0;
+	int r;
+
+	r = rfbi_transfer_area(dssdev, w, h, callback, data);
+
+	return r;
 }
 EXPORT_SYMBOL(omap_rfbi_update);
 
@@ -859,6 +867,22 @@ static void rfbi_dump_regs(struct seq_file *s)
 #undef DUMPREG
 }
 
+static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
+{
+	struct dss_lcd_mgr_config mgr_config;
+
+	mgr_config.io_pad_mode = DSS_IO_PAD_MODE_RFBI;
+
+	mgr_config.stallmode = true;
+	/* Do we need fifohandcheck for RFBI? */
+	mgr_config.fifohandcheck = false;
+
+	mgr_config.video_port_width = dssdev->ctrl.pixel_size;
+	mgr_config.lcden_sig_polarity = 0;
+
+	dss_mgr_set_lcd_config(dssdev->manager, &mgr_config);
+}
+
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r;
@@ -885,13 +909,7 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 		goto err1;
 	}
 
-	dispc_mgr_set_lcd_display_type(dssdev->manager->id,
-			OMAP_DSS_LCD_DISPLAY_TFT);
-
-	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_RFBI);
-	dispc_mgr_enable_stallmode(dssdev->manager->id, true);
-
-	dispc_mgr_set_tft_data_lines(dssdev->manager->id, dssdev->ctrl.pixel_size);
+	rfbi_config_lcd_manager(dssdev);
 
 	rfbi_configure(dssdev->phy.rfbi.channel,
 			       dssdev->ctrl.pixel_size,

@@ -241,7 +241,8 @@ static int __devinit sch_gpio_probe(struct platform_device *pdev)
 			break;
 
 		default:
-			return -ENODEV;
+			err = -ENODEV;
+			goto err_sch_gpio_core;
 	}
 
 	sch_gpio_core.dev = &pdev->dev;

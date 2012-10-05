@@ -953,12 +953,12 @@ static struct i2c_board_info raumfeld_connector_i2c_board_info __initdata = {
 
 static struct eeti_ts_platform_data eeti_ts_pdata = {
 	.irq_active_high = 1,
+	.irq_gpio = GPIO_TOUCH_IRQ,
 };
 
 static struct i2c_board_info raumfeld_controller_i2c_board_info __initdata = {
 	.type	= "eeti_ts",
 	.addr	= 0x0a,
-	.irq	= PXA_GPIO_TO_IRQ(GPIO_TOUCH_IRQ),
 	.platform_data = &eeti_ts_pdata,
 };
 

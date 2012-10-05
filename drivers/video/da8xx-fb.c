@@ -30,7 +30,10 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/console.h>
+#include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/lcm.h>
 #include <video/da8xx-fb.h>
 #include <asm/div64.h>
 
@@ -160,6 +163,13 @@ struct da8xx_fb_par {
 	wait_queue_head_t	vsync_wait;
 	int			vsync_flag;
 	int			vsync_timeout;
+	spinlock_t		lock_for_chan_update;
+
+	/*
+	 * LCDC has 2 ping pong DMA channels, channel 0
+	 * and channel 1.
+	 */
+	unsigned int		which_dma_channel_done;
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 	unsigned int		lcd_fck_rate;
@@ -260,10 +270,18 @@ static inline void lcd_enable_raster(void)
 {
 	u32 reg;
 
+	/* Put LCDC in reset for several cycles */
+	if (lcd_revision == LCD_VERSION_2)
+		/* Write 1 to reset LCDC */
+		lcdc_write(LCD_CLK_MAIN_RESET, LCD_CLK_RESET_REG);
+	mdelay(1);
+
 	/* Bring LCDC out of reset */
 	if (lcd_revision == LCD_VERSION_2)
 		lcdc_write(0, LCD_CLK_RESET_REG);
+	mdelay(1);
 
+	/* Above reset sequence doesnot reset register context */
 	reg = lcdc_read(LCD_RASTER_CTRL_REG);
 	if (!(reg & LCD_RASTER_ENABLE))
 		lcdc_write(reg | LCD_RASTER_ENABLE, LCD_RASTER_CTRL_REG);
@@ -277,10 +295,6 @@ static inline void lcd_disable_raster(void)
 	reg = lcdc_read(LCD_RASTER_CTRL_REG);
 	if (reg & LCD_RASTER_ENABLE)
 		lcdc_write(reg & ~LCD_RASTER_ENABLE, LCD_RASTER_CTRL_REG);
-
-	if (lcd_revision == LCD_VERSION_2)
-		/* Write 1 to reset LCDC */
-		lcdc_write(LCD_CLK_MAIN_RESET, LCD_CLK_RESET_REG);
 }
 
 static void lcd_blit(int load_mode, struct da8xx_fb_par *par)
@@ -344,8 +358,8 @@ static void lcd_blit(int load_mode, struct da8xx_fb_par *par)
 	lcd_enable_raster();
 }
 
-/* Configure the Burst Size of DMA */
-static int lcd_cfg_dma(int burst_size)
+/* Configure the Burst Size and fifo threhold of DMA */
+static int lcd_cfg_dma(int burst_size, int fifo_th)
 {
 	u32 reg;
 
@@ -369,6 +383,9 @@ static int lcd_cfg_dma(int burst_size)
 	default:
 		return -EINVAL;
 	}
+
+	reg |= (fifo_th << 8);
+
 	lcdc_write(reg, LCD_DMA_CTRL_REG);
 
 	return 0;
@@ -670,8 +687,8 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 		lcdc_write((lcdc_read(LCD_RASTER_TIMING_2_REG) &
 			~LCD_INVERT_PIXEL_CLOCK), LCD_RASTER_TIMING_2_REG);
 
-	/* Configure the DMA burst size. */
-	ret = lcd_cfg_dma(cfg->dma_burst_sz);
+	/* Configure the DMA burst size and fifo threshold. */
+	ret = lcd_cfg_dma(cfg->dma_burst_sz, cfg->fifo_th);
 	if (ret < 0)
 		return ret;
 
@@ -715,7 +732,6 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 {
 	struct da8xx_fb_par *par = arg;
 	u32 stat = lcdc_read(LCD_MASKED_STAT_REG);
-	u32 reg_int;
 
 	if ((stat & LCD_SYNC_LOST) && (stat & LCD_FIFO_UNDERFLOW)) {
 		lcd_disable_raster();
@@ -732,10 +748,8 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 
 		lcdc_write(stat, LCD_MASKED_STAT_REG);
 
-		/* Disable PL completion inerrupt */
-		reg_int = lcdc_read(LCD_INT_ENABLE_CLR_REG) |
-		       (LCD_V2_PL_INT_ENA);
-		lcdc_write(reg_int, LCD_INT_ENABLE_CLR_REG);
+		/* Disable PL completion interrupt */
+		lcdc_write(LCD_V2_PL_INT_ENA, LCD_INT_ENABLE_CLR_REG);
 
 		/* Setup and start data loading mode */
 		lcd_blit(LOAD_DATA, par);
@@ -743,6 +757,7 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 		lcdc_write(stat, LCD_MASKED_STAT_REG);
 
 		if (stat & LCD_END_OF_FRAME0) {
+			par->which_dma_channel_done = 0;
 			lcdc_write(par->dma_start,
 				   LCD_DMA_FRM_BUF_BASE_ADDR_0_REG);
 			lcdc_write(par->dma_end,
@@ -752,6 +767,7 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 		}
 
 		if (stat & LCD_END_OF_FRAME1) {
+			par->which_dma_channel_done = 1;
 			lcdc_write(par->dma_start,
 				   LCD_DMA_FRM_BUF_BASE_ADDR_1_REG);
 			lcdc_write(par->dma_end,
@@ -798,6 +814,7 @@ static irqreturn_t lcdc_irq_handler_rev01(int irq, void *arg)
 		lcdc_write(stat, LCD_STAT_REG);
 
 		if (stat & LCD_END_OF_FRAME0) {
+			par->which_dma_channel_done = 0;
 			lcdc_write(par->dma_start,
 				   LCD_DMA_FRM_BUF_BASE_ADDR_0_REG);
 			lcdc_write(par->dma_end,
@@ -807,6 +824,7 @@ static irqreturn_t lcdc_irq_handler_rev01(int irq, void *arg)
 		}
 
 		if (stat & LCD_END_OF_FRAME1) {
+			par->which_dma_channel_done = 1;
 			lcdc_write(par->dma_start,
 				   LCD_DMA_FRM_BUF_BASE_ADDR_1_REG);
 			lcdc_write(par->dma_end,
@@ -1021,11 +1039,14 @@ static int cfb_blank(int blank, struct fb_info *info)
 	par->blank = blank;
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
+		lcd_enable_raster();
+
 		if (par->panel_power_ctrl)
 			par->panel_power_ctrl(1);
-
-		lcd_enable_raster();
 		break;
+	case FB_BLANK_NORMAL:
+	case FB_BLANK_VSYNC_SUSPEND:
+	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
 		if (par->panel_power_ctrl)
 			par->panel_power_ctrl(0);
@@ -1052,6 +1073,7 @@ static int da8xx_pan_display(struct fb_var_screeninfo *var,
 	struct fb_fix_screeninfo    *fix = &fbi->fix;
 	unsigned int end;
 	unsigned int start;
+	unsigned long irq_flags;
 
 	if (var->xoffset != fbi->var.xoffset ||
 			var->yoffset != fbi->var.yoffset) {
@@ -1069,6 +1091,21 @@ static int da8xx_pan_display(struct fb_var_screeninfo *var,
 			end	= start + fbi->var.yres * fix->line_length - 1;
 			par->dma_start	= start;
 			par->dma_end	= end;
+			spin_lock_irqsave(&par->lock_for_chan_update,
+					irq_flags);
+			if (par->which_dma_channel_done == 0) {
+				lcdc_write(par->dma_start,
+					   LCD_DMA_FRM_BUF_BASE_ADDR_0_REG);
+				lcdc_write(par->dma_end,
+					   LCD_DMA_FRM_BUF_CEILING_ADDR_0_REG);
+			} else if (par->which_dma_channel_done == 1) {
+				lcdc_write(par->dma_start,
+					   LCD_DMA_FRM_BUF_BASE_ADDR_1_REG);
+				lcdc_write(par->dma_end,
+					   LCD_DMA_FRM_BUF_CEILING_ADDR_1_REG);
+			}
+			spin_unlock_irqrestore(&par->lock_for_chan_update,
+					irq_flags);
 		}
 	}
 
@@ -1114,6 +1151,7 @@ static int __devinit fb_probe(struct platform_device *device)
 	struct da8xx_fb_par *par;
 	resource_size_t len;
 	int ret, i;
+	unsigned long ulcm;
 
 	if (fb_pdata == NULL) {
 		dev_err(&device->dev, "Can not get platform data\n");
@@ -1209,7 +1247,8 @@ static int __devinit fb_probe(struct platform_device *device)
 
 	/* allocate frame buffer */
 	par->vram_size = lcdc_info->width * lcdc_info->height * lcd_cfg->bpp;
-	par->vram_size = PAGE_ALIGN(par->vram_size/8);
+	ulcm = lcm((lcdc_info->width * lcd_cfg->bpp)/8, PAGE_SIZE);
+	par->vram_size = roundup(par->vram_size/8, ulcm);
 	par->vram_size = par->vram_size * LCD_NUM_BUFFERS;
 
 	par->vram_virt = dma_alloc_coherent(NULL,
@@ -1296,6 +1335,8 @@ static int __devinit fb_probe(struct platform_device *device)
 	/* initialize the vsync wait queue */
 	init_waitqueue_head(&par->vsync_wait);
 	par->vsync_timeout = HZ / 5;
+	par->which_dma_channel_done = -1;
+	spin_lock_init(&par->lock_for_chan_update);
 
 	/* Register the Frame Buffer  */
 	if (register_framebuffer(da8xx_fb_info) < 0) {
@@ -1382,11 +1423,12 @@ static int fb_resume(struct platform_device *dev)
 	struct da8xx_fb_par *par = info->par;
 
 	console_lock();
+	clk_enable(par->lcdc_clk);
+	lcd_enable_raster();
+
 	if (par->panel_power_ctrl)
 		par->panel_power_ctrl(1);
 
-	clk_enable(par->lcdc_clk);
-	lcd_enable_raster();
 	fb_set_suspend(info, 0);
 	console_unlock();
 

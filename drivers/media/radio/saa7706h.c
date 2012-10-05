@@ -199,8 +199,19 @@ static int saa7706h_get_reg16(struct v4l2_subdev *sd, u16 reg)
 	u8 buf[2];
 	int err;
 	u8 regaddr[] = {reg >> 8, reg};
-	struct i2c_msg msg[] = { {client->addr, 0, sizeof(regaddr), regaddr},
-				{client->addr, I2C_M_RD, sizeof(buf), buf} };
+	struct i2c_msg msg[] = {
+					{
+						.addr = client->addr,
+						.len = sizeof(regaddr),
+						.buf = regaddr
+					},
+					{
+						.addr = client->addr,
+						.flags = I2C_M_RD,
+						.len = sizeof(buf),
+						.buf = buf
+					}
+				};
 
 	err = saa7706h_i2c_transfer(client, msg, ARRAY_SIZE(msg));
 	if (err)

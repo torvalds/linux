@@ -11,6 +11,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/genalloc.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -194,13 +195,28 @@ static inline unsigned long meram_read_reg(void __iomem *base, unsigned int off)
 }
 
 /* -----------------------------------------------------------------------------
- * Allocation
+ * MERAM allocation and free
+ */
+
+static unsigned long meram_alloc(struct sh_mobile_meram_priv *priv, size_t size)
+{
+	return gen_pool_alloc(priv->pool, size);
+}
+
+static void meram_free(struct sh_mobile_meram_priv *priv, unsigned long mem,
+		       size_t size)
+{
+	gen_pool_free(priv->pool, mem, size);
+}
+
+/* -----------------------------------------------------------------------------
+ * LCDC cache planes allocation, init, cleanup and free
  */
 
 /* Allocate ICBs and MERAM for a plane. */
-static int __meram_alloc(struct sh_mobile_meram_priv *priv,
-			 struct sh_mobile_meram_fb_plane *plane,
-			 size_t size)
+static int meram_plane_alloc(struct sh_mobile_meram_priv *priv,
+			     struct sh_mobile_meram_fb_plane *plane,
+			     size_t size)
 {
 	unsigned long mem;
 	unsigned long idx;
@@ -215,7 +231,7 @@ static int __meram_alloc(struct sh_mobile_meram_priv *priv,
 		return -ENOMEM;
 	plane->marker = &priv->icbs[idx];
 
-	mem = gen_pool_alloc(priv->pool, size * 1024);
+	mem = meram_alloc(priv, size * 1024);
 	if (mem == 0)
 		return -ENOMEM;
 
@@ -229,11 +245,11 @@ static int __meram_alloc(struct sh_mobile_meram_priv *priv,
 }
 
 /* Free ICBs and MERAM for a plane. */
-static void __meram_free(struct sh_mobile_meram_priv *priv,
-			 struct sh_mobile_meram_fb_plane *plane)
+static void meram_plane_free(struct sh_mobile_meram_priv *priv,
+			     struct sh_mobile_meram_fb_plane *plane)
 {
-	gen_pool_free(priv->pool, priv->meram + plane->marker->offset,
-		      plane->marker->size * 1024);
+	meram_free(priv, priv->meram + plane->marker->offset,
+		   plane->marker->size * 1024);
 
 	__clear_bit(plane->marker->index, &priv->used_icb);
 	__clear_bit(plane->cache->index, &priv->used_icb);
@@ -246,62 +262,6 @@ static int is_nvcolor(int cspace)
 	    cspace == SH_MOBILE_MERAM_PF_NV24)
 		return 1;
 	return 0;
-}
-
-/* Allocate memory for the ICBs and mark them as used. */
-static struct sh_mobile_meram_fb_cache *
-meram_alloc(struct sh_mobile_meram_priv *priv,
-	    const struct sh_mobile_meram_cfg *cfg,
-	    int pixelformat)
-{
-	struct sh_mobile_meram_fb_cache *cache;
-	unsigned int nplanes = is_nvcolor(pixelformat) ? 2 : 1;
-	int ret;
-
-	if (cfg->icb[0].meram_size == 0)
-		return ERR_PTR(-EINVAL);
-
-	if (nplanes == 2 && cfg->icb[1].meram_size == 0)
-		return ERR_PTR(-EINVAL);
-
-	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
-	if (cache == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	cache->nplanes = nplanes;
-
-	ret = __meram_alloc(priv, &cache->planes[0], cfg->icb[0].meram_size);
-	if (ret < 0)
-		goto error;
-
-	cache->planes[0].marker->current_reg = 1;
-	cache->planes[0].marker->pixelformat = pixelformat;
-
-	if (cache->nplanes == 1)
-		return cache;
-
-	ret = __meram_alloc(priv, &cache->planes[1], cfg->icb[1].meram_size);
-	if (ret < 0) {
-		__meram_free(priv, &cache->planes[0]);
-		goto error;
-	}
-
-	return cache;
-
-error:
-	kfree(cache);
-	return ERR_PTR(-ENOMEM);
-}
-
-/* Unmark the specified ICB as used. */
-static void meram_free(struct sh_mobile_meram_priv *priv,
-		       struct sh_mobile_meram_fb_cache *cache)
-{
-	__meram_free(priv, &cache->planes[0]);
-	if (cache->nplanes == 2)
-		__meram_free(priv, &cache->planes[1]);
-
-	kfree(cache);
 }
 
 /* Set the next address to fetch. */
@@ -355,10 +315,10 @@ meram_get_next_icb_addr(struct sh_mobile_meram_info *pdata,
 	(((x) * (y) + (MERAM_LINE_WIDTH - 1)) & ~(MERAM_LINE_WIDTH - 1))
 
 /* Initialize MERAM. */
-static int meram_init(struct sh_mobile_meram_priv *priv,
-		      struct sh_mobile_meram_fb_plane *plane,
-		      unsigned int xres, unsigned int yres,
-		      unsigned int *out_pitch)
+static int meram_plane_init(struct sh_mobile_meram_priv *priv,
+			    struct sh_mobile_meram_fb_plane *plane,
+			    unsigned int xres, unsigned int yres,
+			    unsigned int *out_pitch)
 {
 	struct sh_mobile_meram_icb *marker = plane->marker;
 	unsigned long total_byte_count = MERAM_CALC_BYTECOUNT(xres, yres);
@@ -427,8 +387,8 @@ static int meram_init(struct sh_mobile_meram_priv *priv,
 	return 0;
 }
 
-static void meram_deinit(struct sh_mobile_meram_priv *priv,
-			 struct sh_mobile_meram_fb_plane *plane)
+static void meram_plane_cleanup(struct sh_mobile_meram_priv *priv,
+				struct sh_mobile_meram_fb_plane *plane)
 {
 	/* disable ICB */
 	meram_write_icb(priv->base, plane->cache->index,  MExxCTL,
@@ -441,19 +401,81 @@ static void meram_deinit(struct sh_mobile_meram_priv *priv,
 }
 
 /* -----------------------------------------------------------------------------
- * Registration/unregistration
+ * MERAM operations
  */
 
-static void *sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
-				      const struct sh_mobile_meram_cfg *cfg,
-				      unsigned int xres, unsigned int yres,
-				      unsigned int pixelformat,
-				      unsigned int *pitch)
+unsigned long sh_mobile_meram_alloc(struct sh_mobile_meram_info *pdata,
+				    size_t size)
+{
+	struct sh_mobile_meram_priv *priv = pdata->priv;
+
+	return meram_alloc(priv, size);
+}
+EXPORT_SYMBOL_GPL(sh_mobile_meram_alloc);
+
+void sh_mobile_meram_free(struct sh_mobile_meram_info *pdata, unsigned long mem,
+			  size_t size)
+{
+	struct sh_mobile_meram_priv *priv = pdata->priv;
+
+	meram_free(priv, mem, size);
+}
+EXPORT_SYMBOL_GPL(sh_mobile_meram_free);
+
+/* Allocate memory for the ICBs and mark them as used. */
+static struct sh_mobile_meram_fb_cache *
+meram_cache_alloc(struct sh_mobile_meram_priv *priv,
+		  const struct sh_mobile_meram_cfg *cfg,
+		  int pixelformat)
+{
+	unsigned int nplanes = is_nvcolor(pixelformat) ? 2 : 1;
+	struct sh_mobile_meram_fb_cache *cache;
+	int ret;
+
+	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
+	if (cache == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	cache->nplanes = nplanes;
+
+	ret = meram_plane_alloc(priv, &cache->planes[0],
+				cfg->icb[0].meram_size);
+	if (ret < 0)
+		goto error;
+
+	cache->planes[0].marker->current_reg = 1;
+	cache->planes[0].marker->pixelformat = pixelformat;
+
+	if (cache->nplanes == 1)
+		return cache;
+
+	ret = meram_plane_alloc(priv, &cache->planes[1],
+				cfg->icb[1].meram_size);
+	if (ret < 0) {
+		meram_plane_free(priv, &cache->planes[0]);
+		goto error;
+	}
+
+	return cache;
+
+error:
+	kfree(cache);
+	return ERR_PTR(-ENOMEM);
+}
+
+void *sh_mobile_meram_cache_alloc(struct sh_mobile_meram_info *pdata,
+				  const struct sh_mobile_meram_cfg *cfg,
+				  unsigned int xres, unsigned int yres,
+				  unsigned int pixelformat, unsigned int *pitch)
 {
 	struct sh_mobile_meram_fb_cache *cache;
 	struct sh_mobile_meram_priv *priv = pdata->priv;
 	struct platform_device *pdev = pdata->pdev;
+	unsigned int nplanes = is_nvcolor(pixelformat) ? 2 : 1;
 	unsigned int out_pitch;
+
+	if (priv == NULL)
+		return ERR_PTR(-ENODEV);
 
 	if (pixelformat != SH_MOBILE_MERAM_PF_NV &&
 	    pixelformat != SH_MOBILE_MERAM_PF_NV24 &&
@@ -469,10 +491,16 @@ static void *sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 		return ERR_PTR(-EINVAL);
 	}
 
+	if (cfg->icb[0].meram_size == 0)
+		return ERR_PTR(-EINVAL);
+
+	if (nplanes == 2 && cfg->icb[1].meram_size == 0)
+		return ERR_PTR(-EINVAL);
+
 	mutex_lock(&priv->lock);
 
 	/* We now register the ICBs and allocate the MERAM regions. */
-	cache = meram_alloc(priv, cfg, pixelformat);
+	cache = meram_cache_alloc(priv, cfg, pixelformat);
 	if (IS_ERR(cache)) {
 		dev_err(&pdev->dev, "MERAM allocation failed (%ld).",
 			PTR_ERR(cache));
@@ -480,42 +508,50 @@ static void *sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 	}
 
 	/* initialize MERAM */
-	meram_init(priv, &cache->planes[0], xres, yres, &out_pitch);
+	meram_plane_init(priv, &cache->planes[0], xres, yres, &out_pitch);
 	*pitch = out_pitch;
 	if (pixelformat == SH_MOBILE_MERAM_PF_NV)
-		meram_init(priv, &cache->planes[1], xres, (yres + 1) / 2,
-			&out_pitch);
+		meram_plane_init(priv, &cache->planes[1],
+				 xres, (yres + 1) / 2, &out_pitch);
 	else if (pixelformat == SH_MOBILE_MERAM_PF_NV24)
-		meram_init(priv, &cache->planes[1], 2 * xres, (yres + 1) / 2,
-			&out_pitch);
+		meram_plane_init(priv, &cache->planes[1],
+				 2 * xres, (yres + 1) / 2, &out_pitch);
 
 err:
 	mutex_unlock(&priv->lock);
 	return cache;
 }
+EXPORT_SYMBOL_GPL(sh_mobile_meram_cache_alloc);
 
-static void
-sh_mobile_meram_unregister(struct sh_mobile_meram_info *pdata, void *data)
+void
+sh_mobile_meram_cache_free(struct sh_mobile_meram_info *pdata, void *data)
 {
 	struct sh_mobile_meram_fb_cache *cache = data;
 	struct sh_mobile_meram_priv *priv = pdata->priv;
 
 	mutex_lock(&priv->lock);
 
-	/* deinit & free */
-	meram_deinit(priv, &cache->planes[0]);
-	if (cache->nplanes == 2)
-		meram_deinit(priv, &cache->planes[1]);
+	/* Cleanup and free. */
+	meram_plane_cleanup(priv, &cache->planes[0]);
+	meram_plane_free(priv, &cache->planes[0]);
 
-	meram_free(priv, cache);
+	if (cache->nplanes == 2) {
+		meram_plane_cleanup(priv, &cache->planes[1]);
+		meram_plane_free(priv, &cache->planes[1]);
+	}
+
+	kfree(cache);
 
 	mutex_unlock(&priv->lock);
 }
+EXPORT_SYMBOL_GPL(sh_mobile_meram_cache_free);
 
-static void
-sh_mobile_meram_update(struct sh_mobile_meram_info *pdata, void *data,
-		       unsigned long base_addr_y, unsigned long base_addr_c,
-		       unsigned long *icb_addr_y, unsigned long *icb_addr_c)
+void
+sh_mobile_meram_cache_update(struct sh_mobile_meram_info *pdata, void *data,
+			     unsigned long base_addr_y,
+			     unsigned long base_addr_c,
+			     unsigned long *icb_addr_y,
+			     unsigned long *icb_addr_c)
 {
 	struct sh_mobile_meram_fb_cache *cache = data;
 	struct sh_mobile_meram_priv *priv = pdata->priv;
@@ -527,13 +563,7 @@ sh_mobile_meram_update(struct sh_mobile_meram_info *pdata, void *data,
 
 	mutex_unlock(&priv->lock);
 }
-
-static struct sh_mobile_meram_ops sh_mobile_meram_ops = {
-	.module			= THIS_MODULE,
-	.meram_register		= sh_mobile_meram_register,
-	.meram_unregister	= sh_mobile_meram_unregister,
-	.meram_update		= sh_mobile_meram_update,
-};
+EXPORT_SYMBOL_GPL(sh_mobile_meram_cache_update);
 
 /* -----------------------------------------------------------------------------
  * Power management
@@ -624,7 +654,6 @@ static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 	for (i = 0; i < MERAM_ICB_NUM; ++i)
 		priv->icbs[i].index = i;
 
-	pdata->ops = &sh_mobile_meram_ops;
 	pdata->priv = priv;
 	pdata->pdev = pdev;
 

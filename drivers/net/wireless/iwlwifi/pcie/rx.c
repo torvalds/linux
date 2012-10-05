@@ -555,7 +555,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 	}
 
 	iwl_dump_csr(trans);
-	iwl_dump_fh(trans, NULL, false);
+	iwl_dump_fh(trans, NULL);
 
 	iwl_op_mode_nic_error(trans->op_mode);
 }

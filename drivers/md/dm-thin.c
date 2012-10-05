@@ -509,9 +509,9 @@ enum pool_mode {
 struct pool_features {
 	enum pool_mode mode;
 
-	unsigned zero_new_blocks:1;
-	unsigned discard_enabled:1;
-	unsigned discard_passdown:1;
+	bool zero_new_blocks:1;
+	bool discard_enabled:1;
+	bool discard_passdown:1;
 };
 
 struct thin_c;
@@ -580,7 +580,8 @@ struct pool_c {
 	struct dm_target_callbacks callbacks;
 
 	dm_block_t low_water_blocks;
-	struct pool_features pf;
+	struct pool_features requested_pf; /* Features requested during table load */
+	struct pool_features adjusted_pf;  /* Features used after adjusting for constituent devices */
 };
 
 /*
@@ -1839,6 +1840,47 @@ static void __requeue_bios(struct pool *pool)
 /*----------------------------------------------------------------
  * Binding of control targets to a pool object
  *--------------------------------------------------------------*/
+static bool data_dev_supports_discard(struct pool_c *pt)
+{
+	struct request_queue *q = bdev_get_queue(pt->data_dev->bdev);
+
+	return q && blk_queue_discard(q);
+}
+
+/*
+ * If discard_passdown was enabled verify that the data device
+ * supports discards.  Disable discard_passdown if not.
+ */
+static void disable_passdown_if_not_supported(struct pool_c *pt)
+{
+	struct pool *pool = pt->pool;
+	struct block_device *data_bdev = pt->data_dev->bdev;
+	struct queue_limits *data_limits = &bdev_get_queue(data_bdev)->limits;
+	sector_t block_size = pool->sectors_per_block << SECTOR_SHIFT;
+	const char *reason = NULL;
+	char buf[BDEVNAME_SIZE];
+
+	if (!pt->adjusted_pf.discard_passdown)
+		return;
+
+	if (!data_dev_supports_discard(pt))
+		reason = "discard unsupported";
+
+	else if (data_limits->max_discard_sectors < pool->sectors_per_block)
+		reason = "max discard sectors smaller than a block";
+
+	else if (data_limits->discard_granularity > block_size)
+		reason = "discard granularity larger than a block";
+
+	else if (block_size & (data_limits->discard_granularity - 1))
+		reason = "discard granularity not a factor of block size";
+
+	if (reason) {
+		DMWARN("Data device (%s) %s: Disabling discard passdown.", bdevname(data_bdev, buf), reason);
+		pt->adjusted_pf.discard_passdown = false;
+	}
+}
+
 static int bind_control_target(struct pool *pool, struct dm_target *ti)
 {
 	struct pool_c *pt = ti->private;
@@ -1847,31 +1889,16 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 	 * We want to make sure that degraded pools are never upgraded.
 	 */
 	enum pool_mode old_mode = pool->pf.mode;
-	enum pool_mode new_mode = pt->pf.mode;
+	enum pool_mode new_mode = pt->adjusted_pf.mode;
 
 	if (old_mode > new_mode)
 		new_mode = old_mode;
 
 	pool->ti = ti;
 	pool->low_water_blocks = pt->low_water_blocks;
-	pool->pf = pt->pf;
-	set_pool_mode(pool, new_mode);
+	pool->pf = pt->adjusted_pf;
 
-	/*
-	 * If discard_passdown was enabled verify that the data device
-	 * supports discards.  Disable discard_passdown if not; otherwise
-	 * -EOPNOTSUPP will be returned.
-	 */
-	/* FIXME: pull this out into a sep fn. */
-	if (pt->pf.discard_passdown) {
-		struct request_queue *q = bdev_get_queue(pt->data_dev->bdev);
-		if (!q || !blk_queue_discard(q)) {
-			char buf[BDEVNAME_SIZE];
-			DMWARN("Discard unsupported by data device (%s): Disabling discard passdown.",
-			       bdevname(pt->data_dev->bdev, buf));
-			pool->pf.discard_passdown = 0;
-		}
-	}
+	set_pool_mode(pool, new_mode);
 
 	return 0;
 }
@@ -1889,9 +1916,9 @@ static void unbind_control_target(struct pool *pool, struct dm_target *ti)
 static void pool_features_init(struct pool_features *pf)
 {
 	pf->mode = PM_WRITE;
-	pf->zero_new_blocks = 1;
-	pf->discard_enabled = 1;
-	pf->discard_passdown = 1;
+	pf->zero_new_blocks = true;
+	pf->discard_enabled = true;
+	pf->discard_passdown = true;
 }
 
 static void __pool_destroy(struct pool *pool)
@@ -2119,13 +2146,13 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 		argc--;
 
 		if (!strcasecmp(arg_name, "skip_block_zeroing"))
-			pf->zero_new_blocks = 0;
+			pf->zero_new_blocks = false;
 
 		else if (!strcasecmp(arg_name, "ignore_discard"))
-			pf->discard_enabled = 0;
+			pf->discard_enabled = false;
 
 		else if (!strcasecmp(arg_name, "no_discard_passdown"))
-			pf->discard_passdown = 0;
+			pf->discard_passdown = false;
 
 		else if (!strcasecmp(arg_name, "read_only"))
 			pf->mode = PM_READ_ONLY;
@@ -2259,8 +2286,9 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	pt->metadata_dev = metadata_dev;
 	pt->data_dev = data_dev;
 	pt->low_water_blocks = low_water_blocks;
-	pt->pf = pf;
+	pt->adjusted_pf = pt->requested_pf = pf;
 	ti->num_flush_requests = 1;
+
 	/*
 	 * Only need to enable discards if the pool should pass
 	 * them down to the data device.  The thin device's discard
@@ -2268,12 +2296,14 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	 */
 	if (pf.discard_enabled && pf.discard_passdown) {
 		ti->num_discard_requests = 1;
+
 		/*
 		 * Setting 'discards_supported' circumvents the normal
 		 * stacking of discard limits (this keeps the pool and
 		 * thin devices' discard limits consistent).
 		 */
 		ti->discards_supported = true;
+		ti->discard_zeroes_data_unsupported = true;
 	}
 	ti->private = pt;
 
@@ -2703,7 +2733,7 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 		       format_dev_t(buf2, pt->data_dev->bdev->bd_dev),
 		       (unsigned long)pool->sectors_per_block,
 		       (unsigned long long)pt->low_water_blocks);
-		emit_flags(&pt->pf, result, sz, maxlen);
+		emit_flags(&pt->requested_pf, result, sz, maxlen);
 		break;
 	}
 
@@ -2732,20 +2762,21 @@ static int pool_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
 }
 
-static void set_discard_limits(struct pool *pool, struct queue_limits *limits)
+static void set_discard_limits(struct pool_c *pt, struct queue_limits *limits)
 {
-	/*
-	 * FIXME: these limits may be incompatible with the pool's data device
-	 */
+	struct pool *pool = pt->pool;
+	struct queue_limits *data_limits;
+
 	limits->max_discard_sectors = pool->sectors_per_block;
 
 	/*
-	 * This is just a hint, and not enforced.  We have to cope with
-	 * bios that cover a block partially.  A discard that spans a block
-	 * boundary is not sent to this target.
+	 * discard_granularity is just a hint, and not enforced.
 	 */
-	limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
-	limits->discard_zeroes_data = pool->pf.zero_new_blocks;
+	if (pt->adjusted_pf.discard_passdown) {
+		data_limits = &bdev_get_queue(pt->data_dev->bdev)->limits;
+		limits->discard_granularity = data_limits->discard_granularity;
+	} else
+		limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
 }
 
 static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
@@ -2755,15 +2786,25 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 	blk_limits_io_min(limits, 0);
 	blk_limits_io_opt(limits, pool->sectors_per_block << SECTOR_SHIFT);
-	if (pool->pf.discard_enabled)
-		set_discard_limits(pool, limits);
+
+	/*
+	 * pt->adjusted_pf is a staging area for the actual features to use.
+	 * They get transferred to the live pool in bind_control_target()
+	 * called from pool_preresume().
+	 */
+	if (!pt->adjusted_pf.discard_enabled)
+		return;
+
+	disable_passdown_if_not_supported(pt);
+
+	set_discard_limits(pt, limits);
 }
 
 static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 3, 0},
+	.version = {1, 4, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -3042,19 +3083,19 @@ static int thin_iterate_devices(struct dm_target *ti,
 	return 0;
 }
 
+/*
+ * A thin device always inherits its queue limits from its pool.
+ */
 static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct thin_c *tc = ti->private;
-	struct pool *pool = tc->pool;
 
-	blk_limits_io_min(limits, 0);
-	blk_limits_io_opt(limits, pool->sectors_per_block << SECTOR_SHIFT);
-	set_discard_limits(pool, limits);
+	*limits = bdev_get_queue(tc->pool_dev->bdev)->limits;
 }
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 3, 0},
+	.version = {1, 4, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,

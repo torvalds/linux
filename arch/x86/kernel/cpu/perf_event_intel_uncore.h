@@ -5,7 +5,7 @@
 #include "perf_event.h"
 
 #define UNCORE_PMU_NAME_LEN		32
-#define UNCORE_PMU_HRTIMER_INTERVAL	(60 * NSEC_PER_SEC)
+#define UNCORE_PMU_HRTIMER_INTERVAL	(60LL * NSEC_PER_SEC)
 
 #define UNCORE_FIXED_EVENT		0xff
 #define UNCORE_PMC_IDX_MAX_GENERIC	8
@@ -230,6 +230,7 @@
 #define NHMEX_S1_MSR_MASK			0xe5a
 
 #define NHMEX_S_PMON_MM_CFG_EN			(0x1ULL << 63)
+#define NHMEX_S_EVENT_TO_R_PROG_EV		0
 
 /* NHM-EX Mbox */
 #define NHMEX_M0_MSR_GLOBAL_CTL			0xca0
@@ -275,17 +276,11 @@
 		 NHMEX_M_PMON_CTL_INC_SEL_MASK |	\
 		 NHMEX_M_PMON_CTL_SET_FLAG_SEL_MASK)
 
-
-#define NHMEX_M_PMON_ZDP_CTL_FVC_FVID_MASK	0x1f
-#define NHMEX_M_PMON_ZDP_CTL_FVC_BCMD_MASK	(0x7 << 5)
-#define NHMEX_M_PMON_ZDP_CTL_FVC_RSP_MASK	(0x7 << 8)
-#define NHMEX_M_PMON_ZDP_CTL_FVC_PBOX_INIT_ERR	(1 << 23)
-#define NHMEX_M_PMON_ZDP_CTL_FVC_MASK			\
-		(NHMEX_M_PMON_ZDP_CTL_FVC_FVID_MASK |	\
-		 NHMEX_M_PMON_ZDP_CTL_FVC_BCMD_MASK |	\
-		 NHMEX_M_PMON_ZDP_CTL_FVC_RSP_MASK  |	\
-		 NHMEX_M_PMON_ZDP_CTL_FVC_PBOX_INIT_ERR)
+#define NHMEX_M_PMON_ZDP_CTL_FVC_MASK		(((1 << 11) - 1) | (1 << 23))
 #define NHMEX_M_PMON_ZDP_CTL_FVC_EVENT_MASK(n)	(0x7 << (11 + 3 * (n)))
+
+#define WSMEX_M_PMON_ZDP_CTL_FVC_MASK		(((1 << 12) - 1) | (1 << 24))
+#define WSMEX_M_PMON_ZDP_CTL_FVC_EVENT_MASK(n)	(0x7 << (12 + 3 * (n)))
 
 /*
  * use the 9~13 bits to select event If the 7th bit is not set,
@@ -368,6 +363,7 @@ struct intel_uncore_type {
 	unsigned num_shared_regs:8;
 	unsigned single_fixed:1;
 	unsigned pair_ctr_ctl:1;
+	unsigned *msr_offsets;
 	struct event_constraint unconstrainted;
 	struct event_constraint *constraints;
 	struct intel_uncore_pmu *pmus;
@@ -485,29 +481,31 @@ unsigned uncore_pci_perf_ctr(struct intel_uncore_box *box, int idx)
 	return idx * 8 + box->pmu->type->perf_ctr;
 }
 
-static inline
-unsigned uncore_msr_box_ctl(struct intel_uncore_box *box)
+static inline unsigned uncore_msr_box_offset(struct intel_uncore_box *box)
+{
+	struct intel_uncore_pmu *pmu = box->pmu;
+	return pmu->type->msr_offsets ?
+		pmu->type->msr_offsets[pmu->pmu_idx] :
+		pmu->type->msr_offset * pmu->pmu_idx;
+}
+
+static inline unsigned uncore_msr_box_ctl(struct intel_uncore_box *box)
 {
 	if (!box->pmu->type->box_ctl)
 		return 0;
-	return box->pmu->type->box_ctl +
-		box->pmu->type->msr_offset * box->pmu->pmu_idx;
+	return box->pmu->type->box_ctl + uncore_msr_box_offset(box);
 }
 
-static inline
-unsigned uncore_msr_fixed_ctl(struct intel_uncore_box *box)
+static inline unsigned uncore_msr_fixed_ctl(struct intel_uncore_box *box)
 {
 	if (!box->pmu->type->fixed_ctl)
 		return 0;
-	return box->pmu->type->fixed_ctl +
-		box->pmu->type->msr_offset * box->pmu->pmu_idx;
+	return box->pmu->type->fixed_ctl + uncore_msr_box_offset(box);
 }
 
-static inline
-unsigned uncore_msr_fixed_ctr(struct intel_uncore_box *box)
+static inline unsigned uncore_msr_fixed_ctr(struct intel_uncore_box *box)
 {
-	return box->pmu->type->fixed_ctr +
-		box->pmu->type->msr_offset * box->pmu->pmu_idx;
+	return box->pmu->type->fixed_ctr + uncore_msr_box_offset(box);
 }
 
 static inline
@@ -515,7 +513,7 @@ unsigned uncore_msr_event_ctl(struct intel_uncore_box *box, int idx)
 {
 	return box->pmu->type->event_ctl +
 		(box->pmu->type->pair_ctr_ctl ? 2 * idx : idx) +
-		box->pmu->type->msr_offset * box->pmu->pmu_idx;
+		uncore_msr_box_offset(box);
 }
 
 static inline
@@ -523,7 +521,7 @@ unsigned uncore_msr_perf_ctr(struct intel_uncore_box *box, int idx)
 {
 	return box->pmu->type->perf_ctr +
 		(box->pmu->type->pair_ctr_ctl ? 2 * idx : idx) +
-		box->pmu->type->msr_offset * box->pmu->pmu_idx;
+		uncore_msr_box_offset(box);
 }
 
 static inline

@@ -41,7 +41,6 @@ config MACH_HREFV60
 config MACH_SNOWBALL
 	bool "U8500 Snowball platform"
 	select MACH_MOP500
-	select LEDS_GPIO
 	help
 	  Include support for the snowball development platform.
 

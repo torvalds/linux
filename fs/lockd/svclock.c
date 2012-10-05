@@ -219,7 +219,6 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_host *host,
 	struct nlm_block	*block;
 	struct nlm_rqst		*call = NULL;
 
-	nlm_get_host(host);
 	call = nlm_alloc_call(host);
 	if (call == NULL)
 		return NULL;
@@ -290,7 +289,6 @@ static void nlmsvc_free_block(struct kref *kref)
 	dprintk("lockd: freeing block %p...\n", block);
 
 	/* Remove block from file's list of blocks */
-	mutex_lock(&file->f_mutex);
 	list_del_init(&block->b_flist);
 	mutex_unlock(&file->f_mutex);
 
@@ -304,7 +302,7 @@ static void nlmsvc_free_block(struct kref *kref)
 static void nlmsvc_release_block(struct nlm_block *block)
 {
 	if (block != NULL)
-		kref_put(&block->b_count, nlmsvc_free_block);
+		kref_put_mutex(&block->b_count, nlmsvc_free_block, &block->b_file->f_mutex);
 }
 
 /*

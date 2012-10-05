@@ -678,10 +678,22 @@ static int cpuidle_coupled_cpu_notify(struct notifier_block *nb,
 	int cpu = (unsigned long)hcpu;
 	struct cpuidle_device *dev;
 
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_UP_PREPARE:
+	case CPU_DOWN_PREPARE:
+	case CPU_ONLINE:
+	case CPU_DEAD:
+	case CPU_UP_CANCELED:
+	case CPU_DOWN_FAILED:
+		break;
+	default:
+		return NOTIFY_OK;
+	}
+
 	mutex_lock(&cpuidle_lock);
 
 	dev = per_cpu(cpuidle_devices, cpu);
-	if (!dev->coupled)
+	if (!dev || !dev->coupled)
 		goto out;
 
 	switch (action & ~CPU_TASKS_FROZEN) {

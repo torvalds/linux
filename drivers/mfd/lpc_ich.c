@@ -750,7 +750,7 @@ gpe0_done:
 
 	lpc_ich_finalize_cell(&lpc_ich_cells[LPC_GPIO], id);
 	ret = mfd_add_devices(&dev->dev, -1, &lpc_ich_cells[LPC_GPIO],
-				1, NULL, 0);
+			      1, NULL, 0, NULL);
 
 gpio_done:
 	if (acpi_conflict)
@@ -765,7 +765,6 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 	u32 base_addr_cfg;
 	u32 base_addr;
 	int ret;
-	bool acpi_conflict = false;
 	struct resource *res;
 
 	/* Setup power management base register */
@@ -780,20 +779,11 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 	res = wdt_io_res(ICH_RES_IO_TCO);
 	res->start = base_addr + ACPIBASE_TCO_OFF;
 	res->end = base_addr + ACPIBASE_TCO_END;
-	ret = acpi_check_resource_conflict(res);
-	if (ret) {
-		acpi_conflict = true;
-		goto wdt_done;
-	}
 
 	res = wdt_io_res(ICH_RES_IO_SMI);
 	res->start = base_addr + ACPIBASE_SMI_OFF;
 	res->end = base_addr + ACPIBASE_SMI_END;
-	ret = acpi_check_resource_conflict(res);
-	if (ret) {
-		acpi_conflict = true;
-		goto wdt_done;
-	}
+
 	lpc_ich_enable_acpi_space(dev);
 
 	/*
@@ -813,21 +803,13 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 		res = wdt_mem_res(ICH_RES_MEM_GCS);
 		res->start = base_addr + ACPIBASE_GCS_OFF;
 		res->end = base_addr + ACPIBASE_GCS_END;
-		ret = acpi_check_resource_conflict(res);
-		if (ret) {
-			acpi_conflict = true;
-			goto wdt_done;
-		}
 	}
 
 	lpc_ich_finalize_cell(&lpc_ich_cells[LPC_WDT], id);
 	ret = mfd_add_devices(&dev->dev, -1, &lpc_ich_cells[LPC_WDT],
-				1, NULL, 0);
+			      1, NULL, 0, NULL);
 
 wdt_done:
-	if (acpi_conflict)
-		pr_warn("Resource conflict(s) found affecting %s\n",
-				lpc_ich_cells[LPC_WDT].name);
 	return ret;
 }
 

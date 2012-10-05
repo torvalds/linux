@@ -316,6 +316,11 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 	addr &= 1;
 	if (addr == 0) {
 		if (val & 0x10) {
+			u8 edge_irr = s->irr & ~s->elcr;
+			int i;
+			bool found = false;
+			struct kvm_vcpu *vcpu;
+
 			s->init4 = val & 1;
 			s->last_irr = 0;
 			s->irr &= s->elcr;
@@ -333,6 +338,18 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 			if (val & 0x08)
 				pr_pic_unimpl(
 					"level sensitive irq not supported");
+
+			kvm_for_each_vcpu(i, vcpu, s->pics_state->kvm)
+				if (kvm_apic_accept_pic_intr(vcpu)) {
+					found = true;
+					break;
+				}
+
+
+			if (found)
+				for (irq = 0; irq < PIC_NUM_PINS/2; irq++)
+					if (edge_irr & (1 << irq))
+						pic_clear_isr(s, irq);
 		} else if (val & 0x08) {
 			if (val & 0x04)
 				s->poll = 1;

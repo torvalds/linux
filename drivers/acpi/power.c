@@ -67,7 +67,9 @@ static const struct acpi_device_id power_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, power_device_ids);
 
+#ifdef CONFIG_PM_SLEEP
 static int acpi_power_resume(struct device *dev);
+#endif
 static SIMPLE_DEV_PM_OPS(acpi_power_pm, NULL, acpi_power_resume);
 
 static struct acpi_driver acpi_power_driver = {
@@ -105,6 +107,7 @@ struct acpi_power_resource {
 
 	/* List of devices relying on this power resource */
 	struct acpi_power_resource_device *devices;
+	struct mutex devices_lock;
 };
 
 static struct list_head acpi_power_resource_list;
@@ -223,7 +226,6 @@ static void acpi_power_on_device(struct acpi_power_managed_device *device)
 
 static int __acpi_power_on(struct acpi_power_resource *resource)
 {
-	struct acpi_power_resource_device *device_list = resource->devices;
 	acpi_status status = AE_OK;
 
 	status = acpi_evaluate_object(resource->device->handle, "_ON", NULL, NULL);
@@ -236,19 +238,15 @@ static int __acpi_power_on(struct acpi_power_resource *resource)
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Power resource [%s] turned on\n",
 			  resource->name));
 
-	while (device_list) {
-		acpi_power_on_device(device_list->device);
-
-		device_list = device_list->next;
-	}
-
 	return 0;
 }
 
 static int acpi_power_on(acpi_handle handle)
 {
 	int result = 0;
+	bool resume_device = false;
 	struct acpi_power_resource *resource = NULL;
+	struct acpi_power_resource_device *device_list;
 
 	result = acpi_power_get_context(handle, &resource);
 	if (result)
@@ -264,9 +262,24 @@ static int acpi_power_on(acpi_handle handle)
 		result = __acpi_power_on(resource);
 		if (result)
 			resource->ref_count--;
+		else
+			resume_device = true;
 	}
 
 	mutex_unlock(&resource->resource_lock);
+
+	if (!resume_device)
+		return result;
+
+	mutex_lock(&resource->devices_lock);
+
+	device_list = resource->devices;
+	while (device_list) {
+		acpi_power_on_device(device_list->device);
+		device_list = device_list->next;
+	}
+
+	mutex_unlock(&resource->devices_lock);
 
 	return result;
 }
@@ -353,7 +366,7 @@ static void __acpi_power_resource_unregister_device(struct device *dev,
 	if (acpi_power_get_context(res_handle, &resource))
 		return;
 
-	mutex_lock(&resource->resource_lock);
+	mutex_lock(&resource->devices_lock);
 	prev = NULL;
 	curr = resource->devices;
 	while (curr) {
@@ -370,7 +383,7 @@ static void __acpi_power_resource_unregister_device(struct device *dev,
 		prev = curr;
 		curr = curr->next;
 	}
-	mutex_unlock(&resource->resource_lock);
+	mutex_unlock(&resource->devices_lock);
 }
 
 /* Unlink dev from all power resources in _PR0 */
@@ -412,10 +425,10 @@ static int __acpi_power_resource_register_device(
 
 	power_resource_device->device = powered_device;
 
-	mutex_lock(&resource->resource_lock);
+	mutex_lock(&resource->devices_lock);
 	power_resource_device->next = resource->devices;
 	resource->devices = power_resource_device;
-	mutex_unlock(&resource->resource_lock);
+	mutex_unlock(&resource->devices_lock);
 
 	return 0;
 }
@@ -460,7 +473,7 @@ int acpi_power_resource_register_device(struct device *dev, acpi_handle handle)
 	return ret;
 
 no_power_resource:
-	printk(KERN_WARNING PREFIX "Invalid Power Resource to register!");
+	printk(KERN_DEBUG PREFIX "Invalid Power Resource to register!");
 	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(acpi_power_resource_register_device);
@@ -719,6 +732,7 @@ static int acpi_power_add(struct acpi_device *device)
 
 	resource->device = device;
 	mutex_init(&resource->resource_lock);
+	mutex_init(&resource->devices_lock);
 	strcpy(resource->name, device->pnp.bus_id);
 	strcpy(acpi_device_name(device), ACPI_POWER_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_POWER_CLASS);
@@ -775,6 +789,7 @@ static int acpi_power_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int acpi_power_resume(struct device *dev)
 {
 	int result = 0, state;
@@ -803,6 +818,7 @@ static int acpi_power_resume(struct device *dev)
 
 	return result;
 }
+#endif
 
 int __init acpi_power_init(void)
 {

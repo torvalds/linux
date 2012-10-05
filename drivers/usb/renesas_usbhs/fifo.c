@@ -818,7 +818,7 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 	    usbhs_pipe_is_dcp(pipe))
 		goto usbhsf_pio_prepare_push;
 
-	if (len % 4) /* 32bit alignment */
+	if (len & 0x7) /* 8byte alignment */
 		goto usbhsf_pio_prepare_push;
 
 	if ((uintptr_t)(pkt->buf + pkt->actual) & 0x7) /* 8byte alignment */
@@ -905,7 +905,7 @@ static int usbhsf_dma_try_pop(struct usbhs_pkt *pkt, int *is_done)
 	/* use PIO if packet is less than pio_dma_border */
 	len = usbhsf_fifo_rcv_len(priv, fifo);
 	len = min(pkt->length - pkt->actual, len);
-	if (len % 4) /* 32bit alignment */
+	if (len & 0x7) /* 8byte alignment */
 		goto usbhsf_pio_prepare_pop_unselect;
 
 	if (len < usbhs_get_dparam(priv, pio_dma_border))

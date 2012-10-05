@@ -6,10 +6,27 @@ be removed from this file.  The suggested deprecation period is 3 releases.
 
 ---------------------------
 
+What:	support for i.mx25 in mx2_camera.c
+When:	v3.8
+Why:	it's been broken for a year. Furthermore, i.MX25 video capture
+	HW doesn't have much in common with i.MX27. A separate driver
+	will be needed for it.
+Who:	Javier Martin<javier.martin@vista-silicon.com>
+
+---------------------------
+
 What:	ddebug_query="query" boot cmdline param
 When:	v3.8
 Why:	obsoleted by dyndbg="query" and module.dyndbg="query"
 Who:	Jim Cromie <jim.cromie@gmail.com>, Jason Baron <jbaron@redhat.com>
+
+---------------------------
+
+What: /proc/sys/vm/nr_pdflush_threads
+When: 2012
+Why: Since pdflush is deprecated, the interface exported in /proc/sys/vm/
+     should be removed.
+Who: Wanpeng Li <liwp@linux.vnet.ibm.com>
 
 ---------------------------
 
@@ -67,20 +84,6 @@ Why:	prism54 FullMAC PCI / Cardbus devices used to be supported only by the
 	http://wireless.kernel.org/en/users/Drivers/p54
 
 Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
-
----------------------------
-
-What:	IRQF_SAMPLE_RANDOM
-Check:	IRQF_SAMPLE_RANDOM
-When:	July 2009
-
-Why:	Many of IRQF_SAMPLE_RANDOM users are technically bogus as entropy
-	sources in the kernel's current entropy model. To resolve this, every
-	input point to the kernel's entropy pool needs to better document the
-	type of entropy source it actually is. This will be replaced with
-	additional add_*_randomness functions in drivers/char/random.c
-
-Who:	Robin Getz <rgetz@blackfin.uclinux.org> & Matt Mackall <mpm@selenic.com>
 
 ---------------------------
 
@@ -585,7 +588,7 @@ Why:	KVM tracepoints provide mostly equivalent information in a much more
 ----------------------------
 
 What:	at91-mci driver ("CONFIG_MMC_AT91")
-When:	3.7
+When:	3.8
 Why:	There are two mci drivers: at91-mci and atmel-mci. The PDC support
 	was added to atmel-mci as a first step to support more chips.
 	Then at91-mci was kept only for old IP versions (on at91rm9200 and
@@ -630,5 +633,25 @@ Why:	New drivers should use new V4L2_CAP_VIDEO_M2M capability flag
 	devices is ambiguous and may lead, for example, to identifying
 	a M2M device as a video	capture or output device.
 Who:	Sylwester Nawrocki <s.nawrocki@samsung.com>
+
+----------------------------
+
+What:	OMAP private DMA implementation
+When:	2013
+Why:	We have a DMA engine implementation; all users should be updated
+	to use this rather than persisting with the old APIs.  The old APIs
+	block merging the old DMA engine implementation into the DMA
+	engine driver.
+Who:	Russell King <linux@arm.linux.org.uk>,
+	Santosh Shilimkar <santosh.shilimkar@ti.com>
+
+----------------------------
+
+What:	Remove deprecated DV timings capability defines V4L2_IN_CAP_CUSTOM_TIMINGS
+	and V4L2_OUT_CAP_CUSTOM_TIMINGS.
+When:	3.9
+Why:	These defines have been replaced by V4L2_IN_CAP_TIMINGS and
+	V4L2_OUT_CAP_TIMINGS respectively.
+Who:	Hans Verkuil <hans.verkuil@cisco.com>
 
 ----------------------------

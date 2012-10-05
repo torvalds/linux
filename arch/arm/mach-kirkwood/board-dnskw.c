@@ -14,13 +14,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/of.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
-#include <linux/gpio_keys.h>
 #include <linux/gpio-fan.h>
 #include <linux/leds.h>
 #include <asm/mach-types.h>
@@ -33,10 +31,6 @@
 
 static struct mv643xx_eth_platform_data dnskw_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
-};
-
-static struct mv_sata_platform_data dnskw_sata_data = {
-	.n_ports	= 2,
 };
 
 static unsigned int dnskw_mpp_config[] __initdata = {
@@ -71,132 +65,6 @@ static unsigned int dnskw_mpp_config[] __initdata = {
 	MPP48_GPIO,	/* Button: Back reset */
 	MPP49_GPIO,	/* Temp Alarm (DNS-325) Pin of U5 (DNS-320) */
 	0
-};
-
-static struct gpio_led dns325_led_pins[] = {
-	{
-		.name	= "dns325:white:power",
-		.gpio	= 26,
-		.active_low = 1,
-		.default_trigger = "default-on",
-	},
-	{
-		.name	= "dns325:white:usb",
-		.gpio	= 43,
-		.active_low = 1,
-	},
-	{
-		.name	= "dns325:red:l_hdd",
-		.gpio	= 28,
-		.active_low = 1,
-	},
-	{
-		.name	= "dns325:red:r_hdd",
-		.gpio	= 27,
-		.active_low = 1,
-	},
-	{
-		.name	= "dns325:red:usb",
-		.gpio	= 29,
-		.active_low = 1,
-	},
-};
-
-static struct gpio_led_platform_data dns325_led_data = {
-	.num_leds	= ARRAY_SIZE(dns325_led_pins),
-	.leds		= dns325_led_pins,
-};
-
-static struct platform_device dns325_led_device = {
-	.name		= "leds-gpio",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &dns325_led_data,
-	},
-};
-
-static struct gpio_led dns320_led_pins[] = {
-	{
-		.name	= "dns320:blue:power",
-		.gpio	= 26,
-		.active_low = 1,
-		.default_trigger = "default-on",
-	},
-	{
-		.name	= "dns320:blue:usb",
-		.gpio	= 43,
-		.active_low = 1,
-	},
-	{
-		.name	= "dns320:orange:l_hdd",
-		.gpio	= 28,
-		.active_low = 1,
-	},
-	{
-		.name	= "dns320:orange:r_hdd",
-		.gpio	= 27,
-		.active_low = 1,
-	},
-	{
-		.name	= "dns320:orange:usb",
-		.gpio	= 35,
-		.active_low = 1,
-	},
-};
-
-static struct gpio_led_platform_data dns320_led_data = {
-	.num_leds	= ARRAY_SIZE(dns320_led_pins),
-	.leds		= dns320_led_pins,
-};
-
-static struct platform_device dns320_led_device = {
-	.name		= "leds-gpio",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &dns320_led_data,
-	},
-};
-
-static struct i2c_board_info dns325_i2c_board_info[] __initdata = {
-	{
-		I2C_BOARD_INFO("lm75", 0x48),
-	},
-	/* Something at 0x0c also */
-};
-
-static struct gpio_keys_button dnskw_button_pins[] = {
-	{
-		.code		= KEY_POWER,
-		.gpio		= 34,
-		.desc		= "Power button",
-		.active_low	= 1,
-	},
-	{
-		.code		= KEY_EJECTCD,
-		.gpio		= 47,
-		.desc		= "USB unmount button",
-		.active_low	= 1,
-	},
-	{
-		.code		= KEY_RESTART,
-		.gpio		= 48,
-		.desc		= "Reset button",
-		.active_low	= 1,
-	},
-};
-
-static struct gpio_keys_platform_data dnskw_button_data = {
-	.buttons	= dnskw_button_pins,
-	.nbuttons	= ARRAY_SIZE(dnskw_button_pins),
-};
-
-static struct platform_device dnskw_button_device = {
-	.name		= "gpio-keys",
-	.id		= -1,
-	.num_resources	= 0,
-	.dev		= {
-		.platform_data	= &dnskw_button_data,
-	}
 };
 
 /* Fan: ADDA AD045HB-G73 40mm 6000rpm@5v */
@@ -245,19 +113,8 @@ void __init dnskw_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&dnskw_ge00_data);
-	kirkwood_sata_init(&dnskw_sata_data);
-	kirkwood_i2c_init();
 
-	platform_device_register(&dnskw_button_device);
 	platform_device_register(&dnskw_fan_device);
-
-	if (of_machine_is_compatible("dlink,dns-325")) {
-		i2c_register_board_info(0, dns325_i2c_board_info,
-					ARRAY_SIZE(dns325_i2c_board_info));
-		platform_device_register(&dns325_led_device);
-
-	} else if (of_machine_is_compatible("dlink,dns-320"))
-		platform_device_register(&dns320_led_device);
 
 	/* Register power-off GPIO. */
 	if (gpio_request(36, "dnskw:power:off") == 0

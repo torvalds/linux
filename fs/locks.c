@@ -200,11 +200,7 @@ void locks_release_private(struct file_lock *fl)
 			fl->fl_ops->fl_release_private(fl);
 		fl->fl_ops = NULL;
 	}
-	if (fl->fl_lmops) {
-		if (fl->fl_lmops->lm_release_private)
-			fl->fl_lmops->lm_release_private(fl);
-		fl->fl_lmops = NULL;
-	}
+	fl->fl_lmops = NULL;
 
 }
 EXPORT_SYMBOL_GPL(locks_release_private);

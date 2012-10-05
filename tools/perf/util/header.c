@@ -174,6 +174,15 @@ perf_header__set_cmdline(int argc, const char **argv)
 {
 	int i;
 
+	/*
+	 * If header_argv has already been set, do not override it.
+	 * This allows a command to set the cmdline, parse args and
+	 * then call another builtin function that implements a
+	 * command -- e.g, cmd_kvm calling cmd_record.
+	 */
+	if (header_argv)
+		return 0;
+
 	header_argc = (u32)argc;
 
 	/* do not include NULL termination */

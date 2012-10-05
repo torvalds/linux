@@ -3217,7 +3217,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 	dev_set_drvdata(&rdev->dev, rdev);
 
-	if (config->ena_gpio) {
+	if (config->ena_gpio && gpio_is_valid(config->ena_gpio)) {
 		ret = gpio_request_one(config->ena_gpio,
 				       GPIOF_DIR_OUT | config->ena_gpio_flags,
 				       rdev_get_name(rdev));

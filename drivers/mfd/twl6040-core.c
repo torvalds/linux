@@ -632,7 +632,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 	}
 
 	ret = mfd_add_devices(&client->dev, -1, twl6040->cells, children,
-			      NULL, 0);
+			      NULL, 0, NULL);
 	if (ret)
 		goto mfd_err;
 

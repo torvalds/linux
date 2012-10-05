@@ -326,38 +326,17 @@ static void ext4_put_nojournal(handle_t *handle)
 
 /*
  * Wrappers for jbd2_journal_start/end.
- *
- * The only special thing we need to do here is to make sure that all
- * journal_end calls result in the superblock being marked dirty, so
- * that sync() will call the filesystem's write_super callback if
- * appropriate.
- *
- * To avoid j_barrier hold in userspace when a user calls freeze(),
- * ext4 prevents a new handle from being started by s_frozen, which
- * is in an upper layer.
  */
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 {
 	journal_t *journal;
-	handle_t  *handle;
 
 	trace_ext4_journal_start(sb, nblocks, _RET_IP_);
 	if (sb->s_flags & MS_RDONLY)
 		return ERR_PTR(-EROFS);
 
+	WARN_ON(sb->s_writers.frozen == SB_FREEZE_COMPLETE);
 	journal = EXT4_SB(sb)->s_journal;
-	handle = ext4_journal_current_handle();
-
-	/*
-	 * If a handle has been started, it should be allowed to
-	 * finish, otherwise deadlock could happen between freeze
-	 * and others(e.g. truncate) due to the restart of the
-	 * journal handle if the filesystem is forzen and active
-	 * handles are not stopped.
-	 */
-	if (!handle)
-		vfs_check_frozen(sb, SB_FREEZE_TRANS);
-
 	if (!journal)
 		return ext4_get_nojournal();
 	/*
@@ -372,12 +351,6 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 	return jbd2_journal_start(journal, nblocks);
 }
 
-/*
- * The only special thing we need to do here is to make sure that all
- * jbd2_journal_stop calls result in the superblock being marked dirty, so
- * that sync() will call the filesystem's write_super callback if
- * appropriate.
- */
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 {
 	struct super_block *sb;
@@ -975,6 +948,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_reserved_meta_blocks = 0;
 	ei->i_allocated_meta_blocks = 0;
 	ei->i_da_metadata_calc_len = 0;
+	ei->i_da_metadata_calc_last_lblock = 0;
 	spin_lock_init(&(ei->i_block_reservation_lock));
 #ifdef CONFIG_QUOTA
 	ei->i_reserved_quota = 0;
@@ -2747,6 +2721,7 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 	sb = elr->lr_super;
 	ngroups = EXT4_SB(sb)->s_groups_count;
 
+	sb_start_write(sb);
 	for (group = elr->lr_next_group; group < ngroups; group++) {
 		gdp = ext4_get_group_desc(sb, group, NULL);
 		if (!gdp) {
@@ -2773,6 +2748,7 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 		elr->lr_next_sched = jiffies + elr->lr_timeout;
 		elr->lr_next_group = group + 1;
 	}
+	sb_end_write(sb);
 
 	return ret;
 }
@@ -3132,6 +3108,10 @@ static int count_overhead(struct super_block *sb, ext4_group_t grp,
 	ext4_fsblk_t		first_block, last_block, b;
 	ext4_group_t		i, ngroups = ext4_get_groups_count(sb);
 	int			s, j, count = 0;
+
+	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_BIGALLOC))
+		return (ext4_bg_has_super(sb, grp) + ext4_bg_num_gdb(sb, grp) +
+			sbi->s_itb_per_group + 2);
 
 	first_block = le32_to_cpu(sbi->s_es->s_first_data_block) +
 		(grp * EXT4_BLOCKS_PER_GROUP(sb));
@@ -4444,6 +4424,7 @@ static void ext4_clear_journal_err(struct super_block *sb,
 		ext4_commit_super(sb, 1);
 
 		jbd2_journal_clear_err(journal);
+		jbd2_journal_update_sb_errno(journal);
 	}
 }
 
@@ -4460,10 +4441,8 @@ int ext4_force_commit(struct super_block *sb)
 		return 0;
 
 	journal = EXT4_SB(sb)->s_journal;
-	if (journal) {
-		vfs_check_frozen(sb, SB_FREEZE_TRANS);
+	if (journal)
 		ret = ext4_journal_force_commit(journal);
-	}
 
 	return ret;
 }
@@ -4493,9 +4472,8 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
  * gives us a chance to flush the journal completely and mark the fs clean.
  *
  * Note that only this function cannot bring a filesystem to be in a clean
- * state independently, because ext4 prevents a new handle from being started
- * by @sb->s_frozen, which stays in an upper layer.  It thus needs help from
- * the upper layer.
+ * state independently. It relies on upper layer to stop all data & metadata
+ * modifications.
  */
 static int ext4_freeze(struct super_block *sb)
 {
@@ -4522,7 +4500,7 @@ static int ext4_freeze(struct super_block *sb)
 	EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 	error = ext4_commit_super(sb, 1);
 out:
-	/* we rely on s_frozen to stop further updates */
+	/* we rely on upper layer to stop further updates */
 	jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 	return error;
 }

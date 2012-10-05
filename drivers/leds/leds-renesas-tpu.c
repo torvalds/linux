@@ -247,7 +247,7 @@ static int __devinit r_tpu_probe(struct platform_device *pdev)
 
 	if (!cfg) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		goto err0;
+		return -ENODEV;
 	}
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);

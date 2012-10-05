@@ -1217,7 +1217,6 @@ out_no_rsc_remap:
 	iounmap(spmx->gpio_virtbase);
 out_no_gpio_remap:
 	platform_set_drvdata(pdev, NULL);
-	devm_kfree(&pdev->dev, spmx);
 	return ret;
 }
 

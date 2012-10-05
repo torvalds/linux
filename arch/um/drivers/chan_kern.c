@@ -150,9 +150,11 @@ void chan_enable_winch(struct chan *chan, struct tty_struct *tty)
 static void line_timer_cb(struct work_struct *work)
 {
 	struct line *line = container_of(work, struct line, task.work);
+	struct tty_struct *tty = tty_port_tty_get(&line->port);
 
 	if (!line->throttled)
-		chan_interrupt(line, line->tty, line->driver->read_irq);
+		chan_interrupt(line, tty, line->driver->read_irq);
+	tty_kref_put(tty);
 }
 
 int enable_chan(struct line *line)

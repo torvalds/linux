@@ -69,23 +69,22 @@
     more information on how each selection target affects the image
     processing pipeline inside the subdevice.</para>
 
-    <section>
+    <refsect2>
       <title>Types of selection targets</title>
 
       <para>There are two types of selection targets: actual and bounds. The
       actual targets are the targets which configure the hardware. The BOUNDS
       target will return a rectangle that contain all possible actual
       rectangles.</para>
-    </section>
+    </refsect2>
 
-    <section>
+    <refsect2>
       <title>Discovering supported features</title>
 
       <para>To discover which targets are supported, the user can
       perform <constant>VIDIOC_SUBDEV_G_SELECTION</constant> on them.
       Any unsupported target will return
       <constant>EINVAL</constant>.</para>
-    </section>
 
     <para>Selection targets and flags are documented in <xref
     linkend="v4l2-selections-common"/>.</para>
@@ -132,6 +131,7 @@
 	</tbody>
       </tgroup>
     </table>
+    </refsect2>
 
   </refsect1>
 

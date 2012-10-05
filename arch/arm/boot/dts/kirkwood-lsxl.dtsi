@@ -1,0 +1,95 @@
+/include/ "kirkwood.dtsi"
+
+/ {
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	ocp@f1000000 {
+		sata@80000 {
+			status = "okay";
+			nr-ports = <1>;
+		};
+
+		spi@10600 {
+			status = "okay";
+
+			m25p40@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "m25p40";
+				reg = <0>;
+				spi-max-frequency = <25000000>;
+				mode = <0>;
+
+				partition@0 {
+					reg = <0x0 0x60000>;
+					label = "uboot";
+					read-only;
+				};
+
+				partition@60000 {
+					reg = <0x60000 0x10000>;
+					label = "dtb";
+					read-only;
+				};
+
+				partition@70000 {
+					reg = <0x70000 0x10000>;
+					label = "uboot_env";
+				};
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "Function Button";
+			linux,code = <132>;
+			gpios = <&gpio1 9 1>;
+		};
+		button@2 {
+			label = "Power-on Switch";
+			linux,code = <116>;
+			gpios = <&gpio1 10 1>;
+		};
+		button@3 {
+			label = "Power-auto Switch";
+			linux,code = <142>;
+			gpios = <&gpio1 11 1>;
+		};
+	};
+
+	gpio_leds {
+		compatible = "gpio-leds";
+
+		led@1 {
+			label = "lschlv2:blue:func";
+			gpios = <&gpio1 4 1>;
+		};
+
+		led@2 {
+			label = "lschlv2:red:alarm";
+			gpios = <&gpio1 5 1>;
+		};
+
+		led@3 {
+			label = "lschlv2:amber:info";
+			gpios = <&gpio1 6 1>;
+		};
+
+		led@4 {
+			label = "lschlv2:blue:power";
+			gpios = <&gpio1 7 1>;
+			linux,default-trigger = "default-on";
+		};
+
+		led@5 {
+			label = "lschlv2:red:func";
+			gpios = <&gpio1 16 1>;
+		};
+	};
+};
