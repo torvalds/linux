@@ -9,6 +9,8 @@
 #include <linux/netdevice.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/bitmap.h>
+#include <linux/kdev_t.h>
 #include "aoe.h"
 
 static void dummy_timer(ulong);
@@ -19,34 +21,62 @@ static void skbpoolfree(struct aoedev *d);
 static struct aoedev *devlist;
 static DEFINE_SPINLOCK(devlist_lock);
 
+/* Because some systems will have one, many, or no
+ *   - partitions,
+ *   - slots per shelf,
+ *   - or shelves,
+ * we need some flexibility in the way the minor numbers
+ * are allocated.  So they are dynamic.
+ */
+#define N_DEVS ((1U<<MINORBITS)/AOE_PARTITIONS)
+
+static DEFINE_SPINLOCK(used_minors_lock);
+static DECLARE_BITMAP(used_minors, N_DEVS);
+
+static int
+minor_get(ulong *minor)
+{
+	ulong flags;
+	ulong n;
+	int error = 0;
+
+	spin_lock_irqsave(&used_minors_lock, flags);
+	n = find_first_zero_bit(used_minors, N_DEVS);
+	if (n < N_DEVS)
+		set_bit(n, used_minors);
+	else
+		error = -1;
+	spin_unlock_irqrestore(&used_minors_lock, flags);
+
+	*minor = n * AOE_PARTITIONS;
+	return error;
+}
+
+static void
+minor_free(ulong minor)
+{
+	ulong flags;
+
+	minor /= AOE_PARTITIONS;
+	BUG_ON(minor >= N_DEVS);
+
+	spin_lock_irqsave(&used_minors_lock, flags);
+	BUG_ON(!test_bit(minor, used_minors));
+	clear_bit(minor, used_minors);
+	spin_unlock_irqrestore(&used_minors_lock, flags);
+}
+
 /*
- * Users who grab a pointer to the device with aoedev_by_aoeaddr or
- * aoedev_by_sysminor_m automatically get a reference count and must
- * be responsible for performing a aoedev_put.  With the addition of
- * async kthread processing I'm no longer confident that we can
+ * Users who grab a pointer to the device with aoedev_by_aoeaddr
+ * automatically get a reference count and must be responsible
+ * for performing a aoedev_put.  With the addition of async
+ * kthread processing I'm no longer confident that we can
  * guarantee consistency in the face of device flushes.
  *
  * For the time being, we only bother to add extra references for
  * frames sitting on the iocq.  When the kthreads finish processing
  * these frames, they will aoedev_put the device.
  */
-struct aoedev *
-aoedev_by_aoeaddr(int maj, int min)
-{
-	struct aoedev *d;
-	ulong flags;
-
-	spin_lock_irqsave(&devlist_lock, flags);
-
-	for (d=devlist; d; d=d->next)
-		if (d->aoemajor == maj && d->aoeminor == min) {
-			d->ref++;
-			break;
-		}
-
-	spin_unlock_irqrestore(&devlist_lock, flags);
-	return d;
-}
 
 void
 aoedev_put(struct aoedev *d)
@@ -159,6 +189,7 @@ aoedev_freedev(struct aoedev *d)
 	if (d->bufpool)
 		mempool_destroy(d->bufpool);
 	skbpoolfree(d);
+	minor_free(d->sysminor);
 	kfree(d);
 }
 
@@ -246,22 +277,23 @@ skbpoolfree(struct aoedev *d)
 	__skb_queue_head_init(&d->skbpool);
 }
 
-/* find it or malloc it */
+/* find it or allocate it */
 struct aoedev *
-aoedev_by_sysminor_m(ulong sysminor)
+aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 {
 	struct aoedev *d;
 	int i;
 	ulong flags;
+	ulong sysminor;
 
 	spin_lock_irqsave(&devlist_lock, flags);
 
 	for (d=devlist; d; d=d->next)
-		if (d->sysminor == sysminor) {
+		if (d->aoemajor == maj && d->aoeminor == min) {
 			d->ref++;
 			break;
 		}
-	if (d)
+	if (d || !do_alloc || minor_get(&sysminor) < 0)
 		goto out;
 	d = kcalloc(1, sizeof *d, GFP_ATOMIC);
 	if (!d)
@@ -280,8 +312,8 @@ aoedev_by_sysminor_m(ulong sysminor)
 	for (i = 0; i < NFACTIVE; i++)
 		INIT_LIST_HEAD(&d->factive[i]);
 	d->sysminor = sysminor;
-	d->aoemajor = AOEMAJOR(sysminor);
-	d->aoeminor = AOEMINOR(sysminor);
+	d->aoemajor = maj;
+	d->aoeminor = min;
 	d->mintimer = MINTIMER;
 	d->next = devlist;
 	devlist = d;

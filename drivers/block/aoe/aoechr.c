@@ -91,7 +91,7 @@ revalidate(const char __user *str, size_t size)
 		pr_err("aoe: invalid device specification %s\n", buf);
 		return -EINVAL;
 	}
-	d = aoedev_by_aoeaddr(major, minor);
+	d = aoedev_by_aoeaddr(major, minor, 0);
 	if (!d)
 		return -EINVAL;
 	spin_lock_irqsave(&d->lock, flags);

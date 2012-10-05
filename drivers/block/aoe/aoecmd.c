@@ -1149,7 +1149,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	h = (struct aoe_hdr *) skb->data;
 	aoemajor = be16_to_cpu(get_unaligned(&h->major));
-	d = aoedev_by_aoeaddr(aoemajor, h->minor);
+	d = aoedev_by_aoeaddr(aoemajor, h->minor, 0);
 	if (d == NULL) {
 		snprintf(ebuf, sizeof ebuf, "aoecmd_ata_rsp: ata response "
 			"for unknown device %d.%d\n",
@@ -1330,7 +1330,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	struct aoe_hdr *h;
 	struct aoe_cfghdr *ch;
 	struct aoetgt *t;
-	ulong flags, sysminor, aoemajor;
+	ulong flags, aoemajor;
 	struct sk_buff *sl;
 	struct sk_buff_head queue;
 	u16 n;
@@ -1349,30 +1349,21 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 			"Check shelf dip switches.\n");
 		return;
 	}
-	if (h->minor >= NPERSHELF) {
-		pr_err("aoe: e%ld.%d %s, %d\n",
-			aoemajor, h->minor,
-			"slot number larger than the maximum",
-			NPERSHELF-1);
+	if (aoemajor > AOE_MAXSHELF) {
+		pr_info("aoe: e%ld.%d: shelf number too large\n",
+			aoemajor, (int) h->minor);
 		return;
 	}
 
-	sysminor = SYSMINOR(aoemajor, h->minor);
-	if (sysminor * AOE_PARTITIONS + AOE_PARTITIONS > MINORMASK) {
-		printk(KERN_INFO "aoe: e%ld.%d: minor number too large\n",
-			aoemajor, (int) h->minor);
+	d = aoedev_by_aoeaddr(aoemajor, h->minor, 1);
+	if (d == NULL) {
+		pr_info("aoe: device allocation failure\n");
 		return;
 	}
 
 	n = be16_to_cpu(ch->bufcnt);
 	if (n > aoe_maxout)	/* keep it reasonable */
 		n = aoe_maxout;
-
-	d = aoedev_by_sysminor_m(sysminor);
-	if (d == NULL) {
-		printk(KERN_INFO "aoe: device sysminor_m failure\n");
-		return;
-	}
 
 	spin_lock_irqsave(&d->lock, flags);
 

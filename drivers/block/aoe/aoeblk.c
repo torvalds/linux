@@ -249,7 +249,7 @@ aoeblk_gdalloc(void *vp)
 	q->queuedata = d;
 	d->gd = gd;
 	gd->major = AOE_MAJOR;
-	gd->first_minor = d->sysminor * AOE_PARTITIONS;
+	gd->first_minor = d->sysminor;
 	gd->fops = &aoe_bdops;
 	gd->private_data = d;
 	set_capacity(gd, d->ssize);

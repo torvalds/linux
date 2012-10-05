@@ -49,6 +49,8 @@ struct aoe_hdr {
 	__be32 tag;
 };
 
+#define AOE_MAXSHELF (0xffff-1)	/* one less than the broadcast shelf address */
+
 struct aoe_atahdr {
 	unsigned char aflags;
 	unsigned char errfeat;
@@ -211,8 +213,7 @@ void aoe_ktstop(struct ktstate *k);
 
 int aoedev_init(void);
 void aoedev_exit(void);
-struct aoedev *aoedev_by_aoeaddr(int maj, int min);
-struct aoedev *aoedev_by_sysminor_m(ulong sysminor);
+struct aoedev *aoedev_by_aoeaddr(ulong maj, int min, int do_alloc);
 void aoedev_downdev(struct aoedev *d);
 int aoedev_flush(const char __user *str, size_t size);
 void aoe_failbuf(struct aoedev *, struct buf *);
@@ -223,4 +224,3 @@ void aoenet_exit(void);
 void aoenet_xmit(struct sk_buff_head *);
 int is_aoe_netif(struct net_device *ifp);
 int set_aoe_iflist(const char __user *str, size_t size);
-
