@@ -2520,6 +2520,27 @@ static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
 	return comp_value;
 }
 
+static int rt2800_get_txpower_reg_delta(struct rt2x00_dev *rt2x00dev,
+					int power_level, int max_power)
+{
+	int delta;
+
+	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags))
+		return 0;
+
+	/*
+	 * XXX: We don't know the maximum transmit power of our hardware since
+	 * the EEPROM doesn't expose it. We only know that we are calibrated
+	 * to 100% tx power.
+	 *
+	 * Hence, we assume the regulatory limit that cfg80211 calulated for
+	 * the current channel is our maximum and if we are requested to lower
+	 * the value we just reduce our tx power accordingly.
+	 */
+	delta = power_level - max_power;
+	return min(delta, 0);
+}
+
 static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 				   enum ieee80211_band band, int power_level,
 				   u8 txpower, int delta)
@@ -2584,6 +2605,12 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 	 * calculate temperature compensation delta
 	 */
 	delta += rt2800_get_gain_calibration_delta(rt2x00dev);
+
+	/*
+	 * Apply regulatory delta.
+	 */
+	delta += rt2800_get_txpower_reg_delta(rt2x00dev, power_level,
+					      chan->max_power);
 
 	/*
 	 * BBP_R1 controls TX power for all rates, it allow to set the following
