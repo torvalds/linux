@@ -2751,12 +2751,15 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 					 end_bio_extent_readpage, mirror_num,
 					 *bio_flags,
 					 this_bio_flag);
-			BUG_ON(ret == -ENOMEM);
-			nr++;
-			*bio_flags = this_bio_flag;
+			if (!ret) {
+				nr++;
+				*bio_flags = this_bio_flag;
+			}
 		}
-		if (ret)
+		if (ret) {
 			SetPageError(page);
+			unlock_extent(tree, cur, cur + iosize - 1);
+		}
 		cur = cur + iosize;
 		pg_offset += iosize;
 	}
