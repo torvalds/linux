@@ -71,7 +71,7 @@ static int __devinit i2c_mux_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = devm_kzalloc(&pdev->dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux) {
 		ret = -ENOMEM;
 		goto alloc_failed;
@@ -79,11 +79,12 @@ static int __devinit i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	mux->parent = parent;
 	mux->data = *pdata;
-	mux->adap = kzalloc(sizeof(struct i2c_adapter *) * pdata->n_values,
-			    GFP_KERNEL);
+	mux->adap = devm_kzalloc(&pdev->dev,
+				 sizeof(*mux->adap) * pdata->n_values,
+				 GFP_KERNEL);
 	if (!mux->adap) {
 		ret = -ENOMEM;
-		goto alloc_failed2;
+		goto alloc_failed;
 	}
 
 	if (pdata->idle != I2C_MUX_GPIO_NO_IDLE) {
@@ -130,9 +131,6 @@ add_adapter_failed:
 err_request_gpio:
 	for (; i > 0; i--)
 		gpio_free(pdata->gpios[i - 1]);
-	kfree(mux->adap);
-alloc_failed2:
-	kfree(mux);
 alloc_failed:
 	i2c_put_adapter(parent);
 
@@ -152,8 +150,6 @@ static int __devexit i2c_mux_gpio_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 	i2c_put_adapter(mux->parent);
-	kfree(mux->adap);
-	kfree(mux);
 
 	return 0;
 }
