@@ -160,11 +160,6 @@ struct compat_ustat {
 	char			f_fpack[6];
 };
 
-typedef union compat_sigval {
-	compat_int_t	sival_int;
-	compat_uptr_t	sival_ptr;
-} compat_sigval_t;
-
 #define COMPAT_SIGEV_PAD_SIZE	((SIGEV_MAX_SIZE/sizeof(int)) - 3)
 
 typedef struct compat_sigevent {
