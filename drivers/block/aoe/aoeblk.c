@@ -254,6 +254,7 @@ aoeblk_gdalloc(void *vp)
 {
 	struct aoedev *d = vp;
 	struct gendisk *gd;
+	enum { KB = 1024, MB = KB * KB, READ_AHEAD = MB, };
 	ulong flags;
 
 	gd = alloc_disk(AOE_PARTITIONS);
@@ -279,6 +280,8 @@ aoeblk_gdalloc(void *vp)
 	if (bdi_init(&d->blkq->backing_dev_info))
 		goto err_blkq;
 	spin_lock_irqsave(&d->lock, flags);
+	blk_queue_max_hw_sectors(d->blkq, BLK_DEF_MAX_SECTORS);
+	d->blkq->backing_dev_info.ra_pages = READ_AHEAD / PAGE_CACHE_SIZE;
 	gd->major = AOE_MAJOR;
 	gd->first_minor = d->sysminor * AOE_PARTITIONS;
 	gd->fops = &aoe_bdops;

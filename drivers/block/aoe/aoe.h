@@ -119,6 +119,8 @@ struct frame {
 	ulong bcnt;
 	sector_t lba;
 	struct sk_buff *skb;
+	struct bio_vec *bv;
+	ulong bv_off;
 };
 
 struct aoeif {

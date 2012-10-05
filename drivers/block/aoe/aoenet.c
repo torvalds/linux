@@ -102,7 +102,9 @@ static int
 aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct aoe_hdr *h;
+	struct aoe_atahdr *ah;
 	u32 n;
+	int sn;
 
 	if (dev_net(ifp) != &init_net)
 		goto exit;
@@ -110,13 +112,16 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (skb == NULL)
 		return 0;
-	if (skb_linearize(skb))
-		goto exit;
 	if (!is_aoe_netif(ifp))
 		goto exit;
 	skb_push(skb, ETH_HLEN);	/* (1) */
-
-	h = (struct aoe_hdr *) skb_mac_header(skb);
+	sn = sizeof(*h) + sizeof(*ah);
+	if (skb->len >= sn) {
+		sn -= skb_headlen(skb);
+		if (sn > 0 && !__pskb_pull_tail(skb, sn))
+			goto exit;
+	}
+	h = (struct aoe_hdr *) skb->data;
 	n = get_unaligned_be32(&h->tag);
 	if ((h->verfl & AOEFL_RSP) == 0 || (n & 1<<31))
 		goto exit;

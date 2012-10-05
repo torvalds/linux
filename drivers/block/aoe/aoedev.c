@@ -182,6 +182,7 @@ skbfree(struct sk_buff *skb)
 			"cannot free skb -- memory leaked.");
 		return;
 	}
+	skb->truesize -= skb->data_len;
 	skb_shinfo(skb)->nr_frags = skb->data_len = 0;
 	skb_trim(skb, 0);
 	dev_kfree_skb(skb);

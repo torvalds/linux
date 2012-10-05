@@ -165,7 +165,8 @@ freeframe(struct aoedev *d)
 						rf = f;
 					continue;
 				}
-gotone:				skb_shinfo(skb)->nr_frags = skb->data_len = 0;
+gotone:				skb->truesize -= skb->data_len;
+				skb_shinfo(skb)->nr_frags = skb->data_len = 0;
 				skb_trim(skb, 0);
 				d->tgt = t;
 				ifrotate(*t);
@@ -201,6 +202,24 @@ gotone:				skb_shinfo(skb)->nr_frags = skb->data_len = 0;
 	return NULL;
 }
 
+static void
+skb_fillup(struct sk_buff *skb, struct bio_vec *bv, ulong off, ulong cnt)
+{
+	int frag = 0;
+	ulong fcnt;
+loop:
+	fcnt = bv->bv_len - (off - bv->bv_offset);
+	if (fcnt > cnt)
+		fcnt = cnt;
+	skb_fill_page_desc(skb, frag++, bv->bv_page, off, fcnt);
+	cnt -= fcnt;
+	if (cnt <= 0)
+		return;
+	bv++;
+	off = bv->bv_offset;
+	goto loop;
+}
+
 static int
 aoecmd_ata_rw(struct aoedev *d)
 {
@@ -211,7 +230,7 @@ aoecmd_ata_rw(struct aoedev *d)
 	struct bio_vec *bv;
 	struct aoetgt *t;
 	struct sk_buff *skb;
-	ulong bcnt;
+	ulong bcnt, fbcnt;
 	char writebit, extbit;
 
 	writebit = 0x10;
@@ -226,8 +245,28 @@ aoecmd_ata_rw(struct aoedev *d)
 	bcnt = t->ifp->maxbcnt;
 	if (bcnt == 0)
 		bcnt = DEFAULTBCNT;
-	if (bcnt > buf->bv_resid)
-		bcnt = buf->bv_resid;
+	if (bcnt > buf->resid)
+		bcnt = buf->resid;
+	fbcnt = bcnt;
+	f->bv = buf->bv;
+	f->bv_off = f->bv->bv_offset + (f->bv->bv_len - buf->bv_resid);
+	do {
+		if (fbcnt < buf->bv_resid) {
+			buf->bv_resid -= fbcnt;
+			buf->resid -= fbcnt;
+			break;
+		}
+		fbcnt -= buf->bv_resid;
+		buf->resid -= buf->bv_resid;
+		if (buf->resid == 0) {
+			d->inprocess = NULL;
+			break;
+		}
+		buf->bv++;
+		buf->bv_resid = buf->bv->bv_len;
+		WARN_ON(buf->bv_resid == 0);
+	} while (fbcnt);
+
 	/* initialize the headers & frame */
 	skb = f->skb;
 	h = (struct aoe_hdr *) skb_mac_header(skb);
@@ -238,7 +277,6 @@ aoecmd_ata_rw(struct aoedev *d)
 	t->nout++;
 	f->waited = 0;
 	f->buf = buf;
-	f->bufaddr = page_address(bv->bv_page) + buf->bv_off;
 	f->bcnt = bcnt;
 	f->lba = buf->sector;
 
@@ -253,10 +291,11 @@ aoecmd_ata_rw(struct aoedev *d)
 		ah->lba3 |= 0xe0;	/* LBA bit + obsolete 0xa0 */
 	}
 	if (bio_data_dir(buf->bio) == WRITE) {
-		skb_fill_page_desc(skb, 0, bv->bv_page, buf->bv_off, bcnt);
+		skb_fillup(skb, f->bv, f->bv_off, bcnt);
 		ah->aflags |= AOEAFL_WRITE;
 		skb->len += bcnt;
 		skb->data_len = bcnt;
+		skb->truesize += bcnt;
 		t->wpkts++;
 	} else {
 		t->rpkts++;
@@ -267,18 +306,7 @@ aoecmd_ata_rw(struct aoedev *d)
 
 	/* mark all tracking fields and load out */
 	buf->nframesout += 1;
-	buf->bv_off += bcnt;
-	buf->bv_resid -= bcnt;
-	buf->resid -= bcnt;
 	buf->sector += bcnt >> 9;
-	if (buf->resid == 0) {
-		d->inprocess = NULL;
-	} else if (buf->bv_resid == 0) {
-		buf->bv = ++bv;
-		buf->bv_resid = bv->bv_len;
-		WARN_ON(buf->bv_resid == 0);
-		buf->bv_off = bv->bv_offset;
-	}
 
 	skb->dev = t->ifp->nd;
 	skb = skb_clone(skb, GFP_ATOMIC);
@@ -365,14 +393,12 @@ resend(struct aoedev *d, struct aoetgt *t, struct frame *f)
 		put_lba(ah, f->lba);
 
 		n = f->bcnt;
-		if (n > DEFAULTBCNT)
-			n = DEFAULTBCNT;
 		ah->scnt = n >> 9;
 		if (ah->aflags & AOEAFL_WRITE) {
-			skb_fill_page_desc(skb, 0, virt_to_page(f->bufaddr),
-				offset_in_page(f->bufaddr), n);
+			skb_fillup(skb, f->bv, f->bv_off, n);
 			skb->len = sizeof *h + sizeof *ah + n;
 			skb->data_len = n;
+			skb->truesize += n;
 		}
 	}
 	skb->dev = t->ifp->nd;
@@ -530,20 +556,6 @@ rexmit_timer(ulong vp)
 			&& (ifp != t->ifs || t->ifs[1].nd)) {
 				ejectif(t, ifp);
 				ifp = NULL;
-			}
-
-			if (ata_scnt(skb_mac_header(f->skb)) > DEFAULTBCNT / 512
-			&& ifp && ++ifp->lostjumbo > (t->nframes << 1)
-			&& ifp->maxbcnt != DEFAULTBCNT) {
-				printk(KERN_INFO
-					"aoe: e%ld.%d: "
-					"too many lost jumbo on "
-					"%s:%pm - "
-					"falling back to %d frames.\n",
-					d->aoemajor, d->aoeminor,
-					ifp->nd->name, t->addr,
-					DEFAULTBCNT);
-				ifp->maxbcnt = 0;
 			}
 			resend(d, t, f);
 		}
@@ -737,6 +749,45 @@ diskstats(struct gendisk *disk, struct bio *bio, ulong duration, sector_t sector
 	part_stat_unlock();
 }
 
+static void
+bvcpy(struct bio_vec *bv, ulong off, struct sk_buff *skb, ulong cnt)
+{
+	ulong fcnt;
+	char *p;
+	int soff = 0;
+loop:
+	fcnt = bv->bv_len - (off - bv->bv_offset);
+	if (fcnt > cnt)
+		fcnt = cnt;
+	p = page_address(bv->bv_page) + off;
+	skb_copy_bits(skb, soff, p, fcnt);
+	soff += fcnt;
+	cnt -= fcnt;
+	if (cnt <= 0)
+		return;
+	bv++;
+	off = bv->bv_offset;
+	goto loop;
+}
+
+static void
+fadvance(struct frame *f, ulong cnt)
+{
+	ulong fcnt;
+
+	f->lba += cnt >> 9;
+loop:
+	fcnt = f->bv->bv_len - (f->bv_off - f->bv->bv_offset);
+	if (fcnt > cnt) {
+		f->bv_off += cnt;
+		return;
+	}
+	cnt -= fcnt;
+	f->bv++;
+	f->bv_off = f->bv->bv_offset;
+	goto loop;
+}
+
 void
 aoecmd_ata_rsp(struct sk_buff *skb)
 {
@@ -754,6 +805,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	u16 aoemajor;
 
 	hin = (struct aoe_hdr *) skb_mac_header(skb);
+	skb_pull(skb, sizeof(*hin));
 	aoemajor = get_unaligned_be16(&hin->major);
 	d = aoedev_by_aoeaddr(aoemajor, hin->minor);
 	if (d == NULL) {
@@ -791,7 +843,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	calc_rttavg(d, tsince(f->tag));
 
-	ahin = (struct aoe_atahdr *) (hin+1);
+	ahin = (struct aoe_atahdr *) skb->data;
+	skb_pull(skb, sizeof(*ahin));
 	hout = (struct aoe_hdr *) skb_mac_header(f->skb);
 	ahout = (struct aoe_atahdr *) (hout+1);
 	buf = f->buf;
@@ -810,7 +863,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 		switch (ahout->cmdstat) {
 		case ATA_CMD_PIO_READ:
 		case ATA_CMD_PIO_READ_EXT:
-			if (skb->len - sizeof *hin - sizeof *ahin < n) {
+			if (skb->len < n) {
 				printk(KERN_ERR
 					"aoe: %s.  skb->len=%d need=%ld\n",
 					"runt data size in read", skb->len, n);
@@ -818,7 +871,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 				spin_unlock_irqrestore(&d->lock, flags);
 				return;
 			}
-			memcpy(f->bufaddr, ahin+1, n);
+			bvcpy(f->bv, f->bv_off, skb, n);
 		case ATA_CMD_PIO_WRITE:
 		case ATA_CMD_PIO_WRITE_EXT:
 			ifp = getif(t, skb->dev);
@@ -828,21 +881,22 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 					ifp->lostjumbo = 0;
 			}
 			if (f->bcnt -= n) {
-				f->lba += n >> 9;
-				f->bufaddr += n;
+				fadvance(f, n);
 				resend(d, t, f);
 				goto xmit;
 			}
 			break;
 		case ATA_CMD_ID_ATA:
-			if (skb->len - sizeof *hin - sizeof *ahin < 512) {
+			if (skb->len < 512) {
 				printk(KERN_INFO
 					"aoe: runt data size in ataid.  skb->len=%d\n",
 					skb->len);
 				spin_unlock_irqrestore(&d->lock, flags);
 				return;
 			}
-			ataid_complete(d, t, (char *) (ahin+1));
+			if (skb_linearize(skb))
+				break;
+			ataid_complete(d, t, skb->data);
 			break;
 		default:
 			printk(KERN_INFO
