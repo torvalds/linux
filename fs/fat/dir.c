@@ -1141,10 +1141,8 @@ int fat_alloc_new_dir(struct inode *dir, struct timespec *ts)
 		de[0].ctime_cs = de[1].ctime_cs = 0;
 		de[0].adate = de[0].cdate = de[1].adate = de[1].cdate = 0;
 	}
-	de[0].start = cpu_to_le16(cluster);
-	de[0].starthi = cpu_to_le16(cluster >> 16);
-	de[1].start = cpu_to_le16(MSDOS_I(dir)->i_logstart);
-	de[1].starthi = cpu_to_le16(MSDOS_I(dir)->i_logstart >> 16);
+	fat_set_start(&de[0], cluster);
+	fat_set_start(&de[1], MSDOS_I(dir)->i_logstart);
 	de[0].size = de[1].size = 0;
 	memset(de + 2, 0, sb->s_blocksize - 2 * sizeof(*de));
 	set_buffer_uptodate(bhs[0]);
