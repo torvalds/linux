@@ -11,12 +11,17 @@
 #include <linux/slab.h>
 #include <linux/bitmap.h>
 #include <linux/kdev_t.h>
+#include <linux/moduleparam.h>
 #include "aoe.h"
 
 static void dummy_timer(ulong);
 static void aoedev_freedev(struct aoedev *);
 static void freetgt(struct aoedev *d, struct aoetgt *t);
 static void skbpoolfree(struct aoedev *d);
+
+static int aoe_dyndevs;
+module_param(aoe_dyndevs, int, 0644);
+MODULE_PARM_DESC(aoe_dyndevs, "Use dynamic minor numbers for devices.");
 
 static struct aoedev *devlist;
 static DEFINE_SPINLOCK(devlist_lock);
@@ -34,7 +39,7 @@ static DEFINE_SPINLOCK(used_minors_lock);
 static DECLARE_BITMAP(used_minors, N_DEVS);
 
 static int
-minor_get(ulong *minor)
+minor_get_dyn(ulong *sysminor)
 {
 	ulong flags;
 	ulong n;
@@ -48,8 +53,51 @@ minor_get(ulong *minor)
 		error = -1;
 	spin_unlock_irqrestore(&used_minors_lock, flags);
 
-	*minor = n * AOE_PARTITIONS;
+	*sysminor = n * AOE_PARTITIONS;
 	return error;
+}
+
+static int
+minor_get_static(ulong *sysminor, ulong aoemaj, int aoemin)
+{
+	ulong flags;
+	ulong n;
+	int error = 0;
+	enum {
+		/* for backwards compatibility when !aoe_dyndevs,
+		 * a static number of supported slots per shelf */
+		NPERSHELF = 16,
+	};
+
+	n = aoemaj * NPERSHELF + aoemin;
+	if (aoemin >= NPERSHELF || n >= N_DEVS) {
+		pr_err("aoe: %s with e%ld.%d\n",
+			"cannot use static minor device numbers",
+			aoemaj, aoemin);
+		error = -1;
+	} else {
+		spin_lock_irqsave(&used_minors_lock, flags);
+		if (test_bit(n, used_minors)) {
+			pr_err("aoe: %s %lu\n",
+				"existing device already has static minor number",
+				n);
+			error = -1;
+		} else
+			set_bit(n, used_minors);
+		spin_unlock_irqrestore(&used_minors_lock, flags);
+	}
+
+	*sysminor = n;
+	return error;
+}
+
+static int
+minor_get(ulong *sysminor, ulong aoemaj, int aoemin)
+{
+	if (aoe_dyndevs)
+		return minor_get_dyn(sysminor);
+	else
+		return minor_get_static(sysminor, aoemaj, aoemin);
 }
 
 static void
@@ -293,7 +341,7 @@ aoedev_by_aoeaddr(ulong maj, int min, int do_alloc)
 			d->ref++;
 			break;
 		}
-	if (d || !do_alloc || minor_get(&sysminor) < 0)
+	if (d || !do_alloc || minor_get(&sysminor, maj, min) < 0)
 		goto out;
 	d = kcalloc(1, sizeof *d, GFP_ATOMIC);
 	if (!d)
