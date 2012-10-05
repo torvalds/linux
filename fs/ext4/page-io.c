@@ -189,8 +189,6 @@ static int ext4_do_flush_completed_IO(struct inode *inode,
 
 		list_add_tail(&io->list, &complete);
 	}
-	/* It is important to update all flags for all end_io in one shot w/o
-	 * dropping the lock.*/
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
 	while (!list_empty(&complete)) {
 		io = list_entry(complete.next, ext4_io_end_t, list);
@@ -228,9 +226,14 @@ static void ext4_end_io_work(struct work_struct *work)
 	ext4_do_flush_completed_IO(io->inode, io);
 }
 
-int ext4_flush_completed_IO(struct inode *inode)
+int ext4_flush_unwritten_io(struct inode *inode)
 {
-	return ext4_do_flush_completed_IO(inode, NULL);
+	int ret;
+	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex) &&
+		     !(inode->i_state & I_FREEING));
+	ret = ext4_do_flush_completed_IO(inode, NULL);
+	ext4_unwritten_wait(inode);
+	return ret;
 }
 
 ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)

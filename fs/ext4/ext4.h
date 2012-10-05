@@ -1947,7 +1947,7 @@ extern void ext4_htree_free_dir_info(struct dir_private_info *p);
 
 /* fsync.c */
 extern int ext4_sync_file(struct file *, loff_t, loff_t, int);
-extern int ext4_flush_completed_IO(struct inode *);
+extern int ext4_flush_unwritten_io(struct inode *);
 
 /* hash.c */
 extern int ext4fs_dirhash(const char *name, int len, struct
@@ -2371,6 +2371,7 @@ extern const struct file_operations ext4_dir_operations;
 extern const struct inode_operations ext4_file_inode_operations;
 extern const struct file_operations ext4_file_operations;
 extern loff_t ext4_llseek(struct file *file, loff_t offset, int origin);
+extern void ext4_unwritten_wait(struct inode *inode);
 
 /* namei.c */
 extern const struct inode_operations ext4_dir_inode_operations;

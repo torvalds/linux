@@ -138,7 +138,7 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (inode->i_sb->s_flags & MS_RDONLY)
 		goto out;
 
-	ret = ext4_flush_completed_IO(inode);
+	ret = ext4_flush_unwritten_io(inode);
 	if (ret < 0)
 		goto out;
 
