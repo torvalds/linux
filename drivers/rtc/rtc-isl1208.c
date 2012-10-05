@@ -68,9 +68,17 @@ isl1208_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[],
 {
 	u8 reg_addr[1] = { reg };
 	struct i2c_msg msgs[2] = {
-		{client->addr, 0, sizeof(reg_addr), reg_addr}
-		,
-		{client->addr, I2C_M_RD, len, buf}
+		{
+			.addr = client->addr,
+			.len = sizeof(reg_addr),
+			.buf = reg_addr
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = buf
+		}
 	};
 	int ret;
 
@@ -90,7 +98,11 @@ isl1208_i2c_set_regs(struct i2c_client *client, u8 reg, u8 const buf[],
 {
 	u8 i2c_buf[ISL1208_REG_USR2 + 2];
 	struct i2c_msg msgs[1] = {
-		{client->addr, 0, len + 1, i2c_buf}
+		{
+			.addr = client->addr,
+			.len = len + 1,
+			.buf = i2c_buf
+		}
 	};
 	int ret;
 
