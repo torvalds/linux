@@ -40,6 +40,7 @@
 
 #include "../plat-omap/sram.h"
 
+#include "soc.h"
 #include "common.h"
 #include "clock.h"
 #include "prm2xxx_3xxx.h"

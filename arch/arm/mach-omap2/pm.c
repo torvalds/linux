@@ -24,6 +24,7 @@
 #include "omap_device.h"
 #include "common.h"
 
+#include "soc.h"
 #include "prcm-common.h"
 #include "voltage.h"
 #include "powerdomain.h"

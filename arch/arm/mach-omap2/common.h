@@ -34,7 +34,6 @@
 
 #include <asm/proc-fns.h>
 
-#include <plat/cpu.h>
 #include <plat/serial.h>
 
 #include "../plat-omap/common.h"

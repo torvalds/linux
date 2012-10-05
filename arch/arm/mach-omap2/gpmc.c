@@ -30,8 +30,6 @@
 
 #include <asm/mach-types.h>
 
-#include <plat/cpu.h>
-
 #include "soc.h"
 #include "common.h"
 #include "omap_device.h"

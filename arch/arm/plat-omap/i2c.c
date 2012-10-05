@@ -32,7 +32,9 @@
 #include <linux/clk.h>
 
 #include <mach/irqs.h>
-#include <plat/cpu.h>
+
+#include "../mach-omap1/soc.h"
+#include "../mach-omap2/soc.h"
 
 #include "i2c.h"
 

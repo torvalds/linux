@@ -52,6 +52,7 @@
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 
+#include "soc.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"

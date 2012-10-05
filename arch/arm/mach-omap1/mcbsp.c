@@ -21,7 +21,7 @@
 
 #include <plat-omap/dma-omap.h>
 #include <mach/mux.h>
-#include <plat/cpu.h>
+#include "soc.h"
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include <mach/irqs.h>

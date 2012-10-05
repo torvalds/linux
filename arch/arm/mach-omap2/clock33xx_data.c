@@ -18,7 +18,7 @@
 #include <linux/list.h>
 #include <linux/clk.h>
 
-#include "am33xx.h"
+#include "soc.h"
 #include "iomap.h"
 #include "control.h"
 #include "clock.h"

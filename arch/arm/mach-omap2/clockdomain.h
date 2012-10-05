@@ -20,7 +20,6 @@
 #include "powerdomain.h"
 #include "clock.h"
 #include "omap_hwmod.h"
-#include <plat/cpu.h>
 
 /*
  * Clockdomain flags

@@ -30,6 +30,7 @@
 
 #include <plat-omap/dma-omap.h>
 
+#include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 

@@ -46,6 +46,7 @@
 #include <plat/usb.h>
 #include "omap_device.h"
 
+#include "soc.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "pm.h"

@@ -21,7 +21,7 @@
 
 #include <linux/i2c-omap.h>
 #include <mach/mux.h>
-#include <plat/cpu.h>
+#include "soc.h"
 
 #include "../plat-omap/i2c.h"
 

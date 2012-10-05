@@ -33,6 +33,7 @@
 #include <plat/dmtimer.h>
 #include "omap-pm.h"
 
+#include "soc.h"
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
 #include "pm.h"

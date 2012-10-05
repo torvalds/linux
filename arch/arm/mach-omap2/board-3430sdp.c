@@ -39,6 +39,7 @@
 #include "gpmc.h"
 #include "gpmc-smc91x.h"
 
+#include "soc.h"
 #include "board-flash.h"
 #include "mux.h"
 #include "sdram-qimonda-hyb18m512160af-6.h"

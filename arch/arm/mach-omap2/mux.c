@@ -38,6 +38,7 @@
 
 #include "omap_hwmod.h"
 
+#include "soc.h"
 #include "control.h"
 #include "mux.h"
 #include "prm.h"

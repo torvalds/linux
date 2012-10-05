@@ -35,6 +35,7 @@
 #include "omap_hwmod.h"
 #include "omap_device.h"
 #include "omap-pm.h"
+#include "soc.h"
 #include "prm2xxx_3xxx.h"
 #include "pm.h"
 #include "cm2xxx_3xxx.h"

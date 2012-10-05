@@ -42,6 +42,7 @@
 
 #include "../plat-omap/sram.h"
 
+#include "soc.h"
 #include "common.h"
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"

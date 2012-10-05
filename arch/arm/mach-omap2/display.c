@@ -30,6 +30,7 @@
 #include "omap-pm.h"
 #include "common.h"
 
+#include "soc.h"
 #include "iomap.h"
 #include "mux.h"
 #include "control.h"

@@ -39,7 +39,7 @@
 #include <asm/sizes.h>
 #ifndef __ASSEMBLER__
 #include <asm/types.h>
-#include <plat/cpu.h>
+#include "../../mach-omap1/soc.h"
 
 /*
  * NOTE: Please use ioremap + __raw_read/write where possible instead of these

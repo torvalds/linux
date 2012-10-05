@@ -17,6 +17,7 @@
 #include <mach/hardware.h>
 #include <linux/platform_data/gpio-omap.h>
 
+#include "soc.h"
 #include "omap_device.h"
 #include "omap-pm.h"
 

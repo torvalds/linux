@@ -28,8 +28,7 @@
 #include <plat/usb.h>
 #include "omap_device.h"
 
-#include "am35xx.h"
-
+#include "soc.h"
 #include "mux.h"
 
 static struct musb_hdrc_config musb_config = {

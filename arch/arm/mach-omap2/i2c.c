@@ -19,6 +19,7 @@
  *
  */
 
+#include "soc.h"
 #include "common.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"

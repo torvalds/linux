@@ -27,6 +27,7 @@
 
 #include <linux/bitops.h>
 
+#include "soc.h"
 #include "clock.h"
 #include "clockdomain.h"
 

@@ -18,6 +18,7 @@
 #include <video/omapdss.h>
 #include "board-zoom.h"
 
+#include "soc.h"
 #include "common.h"
 
 #define LCD_PANEL_RESET_GPIO_PROD	96

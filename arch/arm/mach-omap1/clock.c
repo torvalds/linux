@@ -22,7 +22,7 @@
 
 #include <asm/mach-types.h>
 
-#include <plat/cpu.h>
+#include "soc.h"
 #include <plat/usb.h>
 
 #include <mach/hardware.h>
