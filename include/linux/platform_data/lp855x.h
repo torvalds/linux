@@ -46,6 +46,8 @@
 #define LP8556_I2C_CONFIG	((ENABLE_BL << BL_CTL_SHFT) | \
 				(LP8556_I2C_ONLY << BRT_MODE_SHFT))
 #define LP8556_COMB2_CONFIG	(LP8556_COMBINED2 << BRT_MODE_SHFT)
+#define LP8556_FAST_CONFIG	BIT(7) /* use it if EPROMs should be maintained
+					  when exiting the low power mode */
 
 enum lp855x_chip_id {
 	LP8550,
