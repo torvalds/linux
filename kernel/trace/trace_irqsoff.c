@@ -698,4 +698,4 @@ __init static int init_irqsoff_tracer(void)
 
 	return 0;
 }
-device_initcall(init_irqsoff_tracer);
+core_initcall(init_irqsoff_tracer);

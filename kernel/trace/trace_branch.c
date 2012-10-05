@@ -199,7 +199,7 @@ __init static int init_branch_tracer(void)
 	}
 	return register_tracer(&branch_trace);
 }
-device_initcall(init_branch_tracer);
+core_initcall(init_branch_tracer);
 
 #else
 static inline

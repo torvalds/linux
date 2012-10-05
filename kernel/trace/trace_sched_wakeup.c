@@ -637,4 +637,4 @@ __init static int init_wakeup_tracer(void)
 
 	return 0;
 }
-device_initcall(init_wakeup_tracer);
+core_initcall(init_wakeup_tracer);

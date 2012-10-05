@@ -1474,4 +1474,4 @@ static __init int init_graph_trace(void)
 	return register_tracer(&graph_trace);
 }
 
-device_initcall(init_graph_trace);
+core_initcall(init_graph_trace);
