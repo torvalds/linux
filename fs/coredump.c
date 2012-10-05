@@ -149,7 +149,7 @@ put_exe_file:
  * name into corename, which must have space for at least
  * CORENAME_MAX_SIZE bytes plus one byte for the zero terminator.
  */
-static int format_corename(struct core_name *cn, long signr)
+static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 {
 	const struct cred *cred = current_cred();
 	const char *pat_ptr = core_pattern;
@@ -194,9 +194,13 @@ static int format_corename(struct core_name *cn, long signr)
 			case 'g':
 				err = cn_printf(cn, "%d", cred->gid);
 				break;
+			case 'd':
+				err = cn_printf(cn, "%d",
+					__get_dumpable(cprm->mm_flags));
+				break;
 			/* signal that caused the coredump */
 			case 's':
-				err = cn_printf(cn, "%ld", signr);
+				err = cn_printf(cn, "%ld", cprm->signr);
 				break;
 			/* UNIX time of coredump */
 			case 't': {
@@ -515,7 +519,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	 */
 	clear_thread_flag(TIF_SIGPENDING);
 
-	ispipe = format_corename(&cn, signr);
+	ispipe = format_corename(&cn, &cprm);
 
  	if (ispipe) {
 		int dump_count;
