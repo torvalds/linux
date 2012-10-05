@@ -1567,18 +1567,13 @@ irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx)
 static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
+	bool soft_enabled = ACCESS_ONCE(efx->irq_soft_enabled);
 	efx_oword_t *int_ker = efx->irq_status.addr;
 	irqreturn_t result = IRQ_NONE;
 	struct efx_channel *channel;
 	efx_dword_t reg;
 	u32 queues;
 	int syserr;
-
-	/* Could this be ours?  If interrupts are disabled then the
-	 * channel state may not be valid.
-	 */
-	if (!efx->legacy_irq_enabled)
-		return result;
 
 	/* Read the ISR which also ACKs the interrupts */
 	efx_readd(efx, &reg, FR_BZ_INT_ISR0);
@@ -1595,7 +1590,7 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	}
 
 	/* Handle non-event-queue sources */
-	if (queues & (1U << efx->irq_level)) {
+	if (queues & (1U << efx->irq_level) && soft_enabled) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
 			return efx_nic_fatal_interrupt(efx);
@@ -1607,10 +1602,12 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 			efx->irq_zero_count = 0;
 
 		/* Schedule processing of any interrupting queues */
-		efx_for_each_channel(channel, efx) {
-			if (queues & 1)
-				efx_schedule_channel_irq(channel);
-			queues >>= 1;
+		if (likely(soft_enabled)) {
+			efx_for_each_channel(channel, efx) {
+				if (queues & 1)
+					efx_schedule_channel_irq(channel);
+				queues >>= 1;
+			}
 		}
 		result = IRQ_HANDLED;
 
@@ -1623,12 +1620,15 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 			result = IRQ_HANDLED;
 
 		/* Ensure we schedule or rearm all event queues */
-		efx_for_each_channel(channel, efx) {
-			event = efx_event(channel, channel->eventq_read_ptr);
-			if (efx_event_present(event))
-				efx_schedule_channel_irq(channel);
-			else
-				efx_nic_eventq_read_ack(channel);
+		if (likely(soft_enabled)) {
+			efx_for_each_channel(channel, efx) {
+				event = efx_event(channel,
+						  channel->eventq_read_ptr);
+				if (efx_event_present(event))
+					efx_schedule_channel_irq(channel);
+				else
+					efx_nic_eventq_read_ack(channel);
+			}
 		}
 	}
 
@@ -1649,8 +1649,8 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
  */
 static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 {
-	struct efx_channel *channel = *(struct efx_channel **)dev_id;
-	struct efx_nic *efx = channel->efx;
+	struct efx_msi_context *context = dev_id;
+	struct efx_nic *efx = context->efx;
 	efx_oword_t *int_ker = efx->irq_status.addr;
 	int syserr;
 
@@ -1658,8 +1658,11 @@ static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 		   "IRQ %d on CPU %d status " EFX_OWORD_FMT "\n",
 		   irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
+	if (!likely(ACCESS_ONCE(efx->irq_soft_enabled)))
+		return IRQ_HANDLED;
+
 	/* Handle non-event-queue sources */
-	if (channel->channel == efx->irq_level) {
+	if (context->index == efx->irq_level) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
 			return efx_nic_fatal_interrupt(efx);
@@ -1667,7 +1670,7 @@ static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 	}
 
 	/* Schedule processing of the channel */
-	efx_schedule_channel_irq(channel);
+	efx_schedule_channel_irq(efx->channel[context->index]);
 
 	return IRQ_HANDLED;
 }
@@ -1739,8 +1742,8 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx) {
 		rc = request_irq(channel->irq, efx_msi_interrupt,
 				 IRQF_PROBE_SHARED, /* Not shared */
-				 efx->channel_name[channel->channel],
-				 &efx->channel[channel->channel]);
+				 efx->msi_context[channel->channel].name,
+				 &efx->msi_context[channel->channel]);
 		if (rc) {
 			netif_err(efx, drv, efx->net_dev,
 				  "failed to hook IRQ %d\n", channel->irq);
@@ -1769,7 +1772,7 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx) {
 		if (n_irqs-- == 0)
 			break;
-		free_irq(channel->irq, &efx->channel[channel->channel]);
+		free_irq(channel->irq, &efx->msi_context[channel->channel]);
 	}
  fail1:
 	return rc;
@@ -1787,7 +1790,7 @@ void efx_nic_fini_interrupt(struct efx_nic *efx)
 
 	/* Disable MSI/MSI-X interrupts */
 	efx_for_each_channel(channel, efx)
-		free_irq(channel->irq, &efx->channel[channel->channel]);
+		free_irq(channel->irq, &efx->msi_context[channel->channel]);
 
 	/* ACK legacy interrupt */
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0)

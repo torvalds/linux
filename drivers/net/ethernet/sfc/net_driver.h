@@ -420,6 +420,21 @@ struct efx_channel {
 };
 
 /**
+ * struct efx_msi_context - Context for each MSI
+ * @efx: The associated NIC
+ * @index: Index of the channel/IRQ
+ * @name: Name of the channel/IRQ
+ *
+ * Unlike &struct efx_channel, this is never reallocated and is always
+ * safe for the IRQ handler to access.
+ */
+struct efx_msi_context {
+	struct efx_nic *efx;
+	unsigned int index;
+	char name[IFNAMSIZ + 6];
+};
+
+/**
  * struct efx_channel_type - distinguishes traffic and extra channels
  * @handle_no_channel: Handle failure to allocate an extra channel
  * @pre_probe: Set up extra state prior to initialisation
@@ -669,7 +684,6 @@ struct vfdi_status;
  * @pci_dev: The PCI device
  * @type: Controller type attributes
  * @legacy_irq: IRQ number
- * @legacy_irq_enabled: Are IRQs enabled on NIC (INT_EN_KER register)?
  * @workqueue: Workqueue for port reconfigures and the HW monitor.
  *	Work items do not hold and must not acquire RTNL.
  * @workqueue_name: Name of workqueue
@@ -686,7 +700,7 @@ struct vfdi_status;
  * @tx_queue: TX DMA queues
  * @rx_queue: RX DMA queues
  * @channel: Channels
- * @channel_name: Names for channels and their IRQs
+ * @msi_context: Context for each MSI
  * @extra_channel_types: Types of extra (non-traffic) channels that
  *	should be allocated for this NIC
  * @rxq_entries: Size of receive queues requested by user.
@@ -709,6 +723,8 @@ struct vfdi_status;
  * @rx_scatter: Scatter mode enabled for receives
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
+ * @irq_soft_enabled: Are IRQs soft-enabled? If not, IRQ handler will
+ *	acknowledge but do nothing else.
  * @irq_status: Interrupt status buffer
  * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
  * @irq_level: IRQ level/index for IRQs not triggered by an event queue
@@ -786,7 +802,6 @@ struct efx_nic {
 	unsigned int port_num;
 	const struct efx_nic_type *type;
 	int legacy_irq;
-	bool legacy_irq_enabled;
 	bool eeh_disabled_legacy_irq;
 	struct workqueue_struct *workqueue;
 	char workqueue_name[16];
@@ -804,7 +819,7 @@ struct efx_nic {
 	unsigned long reset_pending;
 
 	struct efx_channel *channel[EFX_MAX_CHANNELS];
-	char channel_name[EFX_MAX_CHANNELS][IFNAMSIZ + 6];
+	struct efx_msi_context msi_context[EFX_MAX_CHANNELS];
 	const struct efx_channel_type *
 	extra_channel_type[EFX_MAX_EXTRA_CHANNELS];
 
@@ -835,6 +850,7 @@ struct efx_nic {
 	unsigned int_error_count;
 	unsigned long int_error_expire;
 
+	bool irq_soft_enabled;
 	struct efx_buffer irq_status;
 	unsigned irq_zero_count;
 	unsigned irq_level;
