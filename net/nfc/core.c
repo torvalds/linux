@@ -181,6 +181,7 @@ int nfc_stop_poll(struct nfc_dev *dev)
 
 	dev->ops->stop_poll(dev);
 	dev->polling = false;
+	dev->rf_mode = NFC_RF_NONE;
 
 error:
 	device_unlock(&dev->dev);
@@ -274,12 +275,14 @@ int nfc_dep_link_down(struct nfc_dev *dev)
 	if (!rc) {
 		dev->dep_link_up = false;
 		dev->active_target = NULL;
+		dev->rf_mode = NFC_RF_NONE;
 		nfc_llcp_mac_is_down(dev);
 		nfc_genl_dep_link_down_event(dev);
 	}
 
 error:
 	device_unlock(&dev->dev);
+
 	return rc;
 }
 
@@ -503,6 +506,7 @@ EXPORT_SYMBOL(nfc_tm_activated);
 int nfc_tm_deactivated(struct nfc_dev *dev)
 {
 	dev->dep_link_up = false;
+	dev->rf_mode = NFC_RF_NONE;
 
 	return nfc_genl_tm_deactivated(dev);
 }
@@ -782,6 +786,7 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 
 	nfc_genl_data_init(&dev->genl_data);
 
+	dev->rf_mode = NFC_RF_NONE;
 
 	/* first generation must not be 0 */
 	dev->targets_generation = 1;
