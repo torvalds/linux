@@ -2524,7 +2524,6 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 				   enum ieee80211_band band, int power_level,
 				   u8 txpower, int delta)
 {
-	u32 reg;
 	u16 eeprom;
 	u8 criterion;
 	u8 eirp_txpower;
@@ -2539,11 +2538,13 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 		 * .11b data rate need add additional 4dbm
 		 * when calculating eirp txpower.
 		 */
-		rt2800_register_read(rt2x00dev, TX_PWR_CFG_0, &reg);
-		criterion = rt2x00_get_field32(reg, TX_PWR_CFG_0_6MBS);
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TXPOWER_BYRATE + 1,
+				   &eeprom);
+		criterion = rt2x00_get_field16(eeprom,
+					       EEPROM_TXPOWER_BYRATE_RATE0);
 
-		rt2x00_eeprom_read(rt2x00dev,
-				   EEPROM_EIRP_MAX_TX_POWER, &eeprom);
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_EIRP_MAX_TX_POWER,
+				   &eeprom);
 
 		if (band == IEEE80211_BAND_2GHZ)
 			eirp_txpower_criterion = rt2x00_get_field16(eeprom,
