@@ -87,6 +87,10 @@ OPTIONS
 --period::
         Show period values for both compared hist entries.
 
+-F::
+--formula::
+        Show formula for given computation.
+
 COMPARISON METHODS
 ------------------
 delta

@@ -145,6 +145,7 @@ enum {
 	PERF_HPP__RATIO,
 	PERF_HPP__WEIGHTED_DIFF,
 	PERF_HPP__DISPL,
+	PERF_HPP__FORMULA,
 
 	PERF_HPP__MAX_INDEX
 };
@@ -210,4 +211,5 @@ unsigned int hists__sort_list_width(struct hists *self);
 double perf_diff__compute_delta(struct hist_entry *he);
 double perf_diff__compute_ratio(struct hist_entry *he);
 s64 perf_diff__compute_wdiff(struct hist_entry *he);
+int perf_diff__formula(char *buf, size_t size, struct hist_entry *he);
 #endif	/* __PERF_HIST_H */

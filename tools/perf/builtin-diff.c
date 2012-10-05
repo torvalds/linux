@@ -25,6 +25,7 @@ static char	  diff__default_sort_order[] = "dso,symbol";
 static bool  force;
 static bool show_displacement;
 static bool show_period;
+static bool show_formula;
 static bool show_baseline_only;
 static bool sort_compute;
 
@@ -188,6 +189,62 @@ s64 perf_diff__compute_wdiff(struct hist_entry *he)
 				 old_period * compute_wdiff_w1;
 
 	return he->diff.wdiff;
+}
+
+static int formula_delta(struct hist_entry *he, char *buf, size_t size)
+{
+	struct hist_entry *pair = he->pair;
+
+	if (!pair)
+		return -1;
+
+	return scnprintf(buf, size,
+			 "(%" PRIu64 " * 100 / %" PRIu64 ") - "
+			 "(%" PRIu64 " * 100 / %" PRIu64 ")",
+			  he->stat.period, he->hists->stats.total_period,
+			  pair->stat.period, pair->hists->stats.total_period);
+}
+
+static int formula_ratio(struct hist_entry *he, char *buf, size_t size)
+{
+	struct hist_entry *pair = he->pair;
+	double new_period = he->stat.period;
+	double old_period = pair ? pair->stat.period : 0;
+
+	if (!pair)
+		return -1;
+
+	return scnprintf(buf, size, "%.0F / %.0F", new_period, old_period);
+}
+
+static int formula_wdiff(struct hist_entry *he, char *buf, size_t size)
+{
+	struct hist_entry *pair = he->pair;
+	u64 new_period = he->stat.period;
+	u64 old_period = pair ? pair->stat.period : 0;
+
+	if (!pair)
+		return -1;
+
+	return scnprintf(buf, size,
+		  "(%" PRIu64 " * " "%" PRId64 ") - (%" PRIu64 " * " "%" PRId64 ")",
+		  new_period, compute_wdiff_w2, old_period, compute_wdiff_w1);
+}
+
+int perf_diff__formula(char *buf, size_t size, struct hist_entry *he)
+{
+	switch (compute) {
+	case COMPUTE_DELTA:
+		return formula_delta(he, buf, size);
+	case COMPUTE_RATIO:
+		return formula_ratio(he, buf, size);
+	case COMPUTE_WEIGHTED_DIFF:
+		return formula_wdiff(he, buf, size);
+	default:
+		BUG_ON(1);
+	}
+
+	return -1;
 }
 
 static int hists__add_entry(struct hists *self,
@@ -543,6 +600,8 @@ static const struct option options[] = {
 		     setup_compute),
 	OPT_BOOLEAN('p', "period", &show_period,
 		    "Show period values."),
+	OPT_BOOLEAN('F', "formula", &show_formula,
+		    "Show formula."),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
@@ -571,7 +630,10 @@ static void ui_init(void)
 	/* No overhead column. */
 	perf_hpp__column_enable(PERF_HPP__OVERHEAD, false);
 
-	/* Display baseline/delta/ratio/displacement/periods columns. */
+	/*
+	 * Display baseline/delta/ratio/displacement/
+	 * formula/periods columns.
+	 */
 	perf_hpp__column_enable(PERF_HPP__BASELINE, true);
 
 	switch (compute) {
@@ -590,6 +652,9 @@ static void ui_init(void)
 
 	if (show_displacement)
 		perf_hpp__column_enable(PERF_HPP__DISPL, true);
+
+	if (show_formula)
+		perf_hpp__column_enable(PERF_HPP__FORMULA, true);
 
 	if (show_period) {
 		perf_hpp__column_enable(PERF_HPP__PERIOD, true);

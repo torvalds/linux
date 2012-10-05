@@ -359,6 +359,27 @@ static int hpp__entry_displ(struct perf_hpp *hpp,
 	return scnprintf(hpp->buf, hpp->size, fmt, buf);
 }
 
+static int hpp__header_formula(struct perf_hpp *hpp)
+{
+	const char *fmt = symbol_conf.field_sep ? "%s" : "%70s";
+
+	return scnprintf(hpp->buf, hpp->size, fmt, "Formula");
+}
+
+static int hpp__width_formula(struct perf_hpp *hpp __maybe_unused)
+{
+	return 70;
+}
+
+static int hpp__entry_formula(struct perf_hpp *hpp, struct hist_entry *he)
+{
+	const char *fmt = symbol_conf.field_sep ? "%s" : "%-70s";
+	char buf[96] = " ";
+
+	perf_diff__formula(buf, sizeof(buf), he);
+	return scnprintf(hpp->buf, hpp->size, fmt, buf);
+}
+
 #define HPP__COLOR_PRINT_FNS(_name)		\
 	.header	= hpp__header_ ## _name,		\
 	.width	= hpp__width_ ## _name,		\
@@ -383,7 +404,8 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 	{ .cond = false, HPP__PRINT_FNS(delta) },
 	{ .cond = false, HPP__PRINT_FNS(ratio) },
 	{ .cond = false, HPP__PRINT_FNS(wdiff) },
-	{ .cond = false, HPP__PRINT_FNS(displ) }
+	{ .cond = false, HPP__PRINT_FNS(displ) },
+	{ .cond = false, HPP__PRINT_FNS(formula) }
 };
 
 #undef HPP__COLOR_PRINT_FNS
