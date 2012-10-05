@@ -10,6 +10,7 @@
 #include <asm/checksum.h>
 #include <asm/uaccess.h>
 #include <asm/traps.h>
+#include <asm/ftrace.h>
 #include <asm/tbx.h>
 
 /* uaccess symbols */
@@ -73,3 +74,7 @@ EXPORT_SYMBOL(div_s64);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
+
+#ifdef CONFIG_FUNCTION_TRACER
+EXPORT_SYMBOL(mcount_wrapper);
+#endif
