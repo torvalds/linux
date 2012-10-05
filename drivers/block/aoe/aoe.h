@@ -91,7 +91,7 @@ enum {
 	NTARGETS = 8,
 	NAOEIFS = 8,
 	NSKBPOOLMAX = 256,
-	NFACTIVE = 17,
+	NFACTIVE = 61,
 
 	TIMERTICK = HZ / 10,
 	MINTIMER = HZ >> 2,
@@ -132,14 +132,11 @@ struct aoetgt {
 	unsigned char addr[6];
 	ushort nframes;
 	struct aoedev *d;			/* parent device I belong to */
-	struct list_head factive[NFACTIVE];	/* hash of active frames */
 	struct list_head ffree;			/* list of free frames */
 	struct aoeif ifs[NAOEIFS];
 	struct aoeif *ifp;	/* current aoeif in use */
 	ushort nout;
 	ushort maxout;
-	u16 lasttag;		/* last tag sent */
-	u16 useme;
 	ulong falloc;
 	ulong lastwadj;		/* last window adjustment */
 	int minbcnt;
@@ -156,6 +153,8 @@ struct aoedev {
 	u16 rttavg;		/* round trip average of requests/responses */
 	u16 mintimer;
 	u16 fw_ver;		/* version of blade's firmware */
+	u16 lasttag;		/* last tag sent */
+	u16 useme;
 	ulong ref;
 	struct work_struct work;/* disk create work struct */
 	struct gendisk *gd;
@@ -172,6 +171,7 @@ struct aoedev {
 		struct request *rq;
 	} ip;
 	ulong maxbcnt;
+	struct list_head factive[NFACTIVE];	/* hash of active frames */
 	struct aoetgt *targets[NTARGETS];
 	struct aoetgt **tgt;	/* target in use when working */
 	struct aoetgt *htgt;	/* target needing rexmit assistance */

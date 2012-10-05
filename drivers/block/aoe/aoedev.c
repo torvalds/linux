@@ -103,22 +103,23 @@ aoedev_downdev(struct aoedev *d)
 
 	d->flags &= ~DEVFL_UP;
 
-	/* clean out active buffers on all targets */
+	/* clean out active buffers */
+	for (i = 0; i < NFACTIVE; i++) {
+		head = &d->factive[i];
+		list_for_each_safe(pos, nx, head) {
+			f = list_entry(pos, struct frame, head);
+			list_del(pos);
+			if (f->buf) {
+				f->buf->nframesout--;
+				aoe_failbuf(d, f->buf);
+			}
+			aoe_freetframe(f);
+		}
+	}
+	/* reset window dressings */
 	tt = d->targets;
 	te = tt + NTARGETS;
 	for (; tt < te && (t = *tt); tt++) {
-		for (i = 0; i < NFACTIVE; i++) {
-			head = &t->factive[i];
-			list_for_each_safe(pos, nx, head) {
-				list_del(pos);
-				f = list_entry(pos, struct frame, head);
-				if (f->buf) {
-					f->buf->nframesout--;
-					aoe_failbuf(d, f->buf);
-				}
-				aoe_freetframe(f);
-			}
-		}
 		t->maxout = t->nframes;
 		t->nout = 0;
 	}
@@ -250,6 +251,7 @@ struct aoedev *
 aoedev_by_sysminor_m(ulong sysminor)
 {
 	struct aoedev *d;
+	int i;
 	ulong flags;
 
 	spin_lock_irqsave(&devlist_lock, flags);
@@ -275,6 +277,8 @@ aoedev_by_sysminor_m(ulong sysminor)
 	d->bufpool = NULL;	/* defer to aoeblk_gdalloc */
 	d->tgt = d->targets;
 	d->ref = 1;
+	for (i = 0; i < NFACTIVE; i++)
+		INIT_LIST_HEAD(&d->factive[i]);
 	d->sysminor = sysminor;
 	d->aoemajor = AOEMAJOR(sysminor);
 	d->aoeminor = AOEMINOR(sysminor);

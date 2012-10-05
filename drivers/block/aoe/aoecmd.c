@@ -59,14 +59,14 @@ new_skb(ulong len)
 }
 
 static struct frame *
-getframe(struct aoetgt *t, u32 tag)
+getframe(struct aoedev *d, u32 tag)
 {
 	struct frame *f;
 	struct list_head *head, *pos, *nx;
 	u32 n;
 
 	n = tag % NFACTIVE;
-	head = &t->factive[n];
+	head = &d->factive[n];
 	list_for_each_safe(pos, nx, head) {
 		f = list_entry(pos, struct frame, head);
 		if (f->tag == tag) {
@@ -83,18 +83,18 @@ getframe(struct aoetgt *t, u32 tag)
  * This driver reserves tag -1 to mean "unused frame."
  */
 static int
-newtag(struct aoetgt *t)
+newtag(struct aoedev *d)
 {
 	register ulong n;
 
 	n = jiffies & 0xffff;
-	return n |= (++t->lasttag & 0x7fff) << 16;
+	return n |= (++d->lasttag & 0x7fff) << 16;
 }
 
 static u32
 aoehdr_atainit(struct aoedev *d, struct aoetgt *t, struct aoe_hdr *h)
 {
-	u32 host_tag = newtag(t);
+	u32 host_tag = newtag(d);
 
 	memcpy(h->src, t->ifp->nd->dev_addr, sizeof h->src);
 	memcpy(h->dst, t->addr, sizeof h->dst);
@@ -270,11 +270,11 @@ loop:
 static void
 fhash(struct frame *f)
 {
-	struct aoetgt *t = f->t;
+	struct aoedev *d = f->t->d;
 	u32 n;
 
 	n = f->tag % NFACTIVE;
-	list_add_tail(&f->head, &t->factive[n]);
+	list_add_tail(&f->head, &d->factive[n]);
 }
 
 static int
@@ -433,7 +433,7 @@ resend(struct aoedev *d, struct frame *f)
 	u32 n;
 
 	t = f->t;
-	n = newtag(t);
+	n = newtag(d);
 	skb = f->skb;
 	if (ifrotate(t) == NULL) {
 		/* probably can't happen, but set it up to fail anyway */
@@ -512,9 +512,12 @@ sthtith(struct aoedev *d)
 	int i;
 
 	for (i = 0; i < NFACTIVE; i++) {
-		head = &ht->factive[i];
+		head = &d->factive[i];
 		list_for_each_safe(pos, nx, head) {
 			f = list_entry(pos, struct frame, head);
+			if (f->t != ht)
+				continue;
+
 			nf = newframe(d);
 			if (!nf)
 				return 0;
@@ -585,22 +588,20 @@ rexmit_timer(ulong vp)
 	}
 
 	/* collect all frames to rexmit into flist */
-	tt = d->targets;
-	te = tt + NTARGETS;
-	for (; tt < te && *tt; tt++) {
-		t = *tt;
-		for (i = 0; i < NFACTIVE; i++) {
-			head = &t->factive[i];
-			list_for_each_safe(pos, nx, head) {
-				f = list_entry(pos, struct frame, head);
-				if (tsince(f->tag) < timeout)
-					continue;
-				/* move to flist for later processing */
-				list_move_tail(pos, &flist);
-			}
+	for (i = 0; i < NFACTIVE; i++) {
+		head = &d->factive[i];
+		list_for_each_safe(pos, nx, head) {
+			f = list_entry(pos, struct frame, head);
+			if (tsince(f->tag) < timeout)
+				break;	/* end of expired frames */
+			/* move to flist for later processing */
+			list_move_tail(pos, &flist);
 		}
-
-		/* window check */
+	}
+	/* window check */
+	tt = d->targets;
+	te = tt + d->ntargets;
+	for (; tt < te && (t = *tt); tt++) {
 		if (t->nout == t->maxout
 		&& t->maxout < t->nframes
 		&& (jiffies - t->lastwadj)/HZ > 10) {
@@ -626,7 +627,7 @@ rexmit_timer(ulong vp)
 			 * Hang all frames on first hash bucket for downdev
 			 * to clean up.
 			 */
-			list_splice(&flist, &f->t->factive[0]);
+			list_splice(&flist, &d->factive[0]);
 			aoedev_downdev(d);
 			break;
 		}
@@ -1162,15 +1163,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	spin_lock_irqsave(&d->lock, flags);
 
 	n = be32_to_cpu(get_unaligned(&h->tag));
-	t = gettgt(d, h->src);
-	if (t == NULL) {
-		printk(KERN_INFO "aoe: can't find target e%ld.%d:%pm\n",
-		       d->aoemajor, d->aoeminor, h->src);
-		spin_unlock_irqrestore(&d->lock, flags);
-		aoedev_put(d);
-		return skb;
-	}
-	f = getframe(t, n);
+	f = getframe(d, n);
 	if (f == NULL) {
 		calc_rttavg(d, -tsince(n));
 		spin_unlock_irqrestore(&d->lock, flags);
@@ -1185,6 +1178,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 		aoechr_error(ebuf);
 		return skb;
 	}
+	t = f->t;
 	calc_rttavg(d, tsince(f->tag));
 	t->nout--;
 	aoecmd_work(d);
@@ -1253,7 +1247,6 @@ static struct aoetgt *
 addtgt(struct aoedev *d, char *addr, ulong nframes)
 {
 	struct aoetgt *t, **tt, **te;
-	int i;
 
 	tt = d->targets;
 	te = tt + NTARGETS;
@@ -1278,8 +1271,6 @@ addtgt(struct aoedev *d, char *addr, ulong nframes)
 	t->ifp = t->ifs;
 	t->maxout = t->nframes;
 	INIT_LIST_HEAD(&t->ffree);
-	for (i = 0; i < NFACTIVE; ++i)
-		INIT_LIST_HEAD(&t->factive[i]);
 	return *tt = t;
 }
 
