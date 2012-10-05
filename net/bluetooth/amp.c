@@ -108,7 +108,7 @@ static u8 __next_handle(struct amp_mgr *mgr)
 }
 
 struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
-			     u8 remote_id)
+			     u8 remote_id, bool out)
 {
 	bdaddr_t *dst = mgr->l2cap_conn->dst;
 	struct hci_conn *hcon;
@@ -117,12 +117,14 @@ struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
 	if (!hcon)
 		return NULL;
 
+	BT_DBG("hcon %p dst %pMR", hcon, dst);
+
 	hcon->state = BT_CONNECT;
-	hcon->out = true;
 	hcon->attempt++;
 	hcon->handle = __next_handle(mgr);
 	hcon->remote_id = remote_id;
 	hcon->amp_mgr = mgr;
+	hcon->out = out;
 
 	return hcon;
 }

@@ -31,7 +31,7 @@ struct amp_ctrl *amp_ctrl_lookup(struct amp_mgr *mgr, u8 id);
 void amp_ctrl_list_flush(struct amp_mgr *mgr);
 
 struct hci_conn *phylink_add(struct hci_dev *hdev, struct amp_mgr *mgr,
-			     u8 remote_id);
+			     u8 remote_id, bool out);
 
 int phylink_gen_key(struct hci_conn *hcon, u8 *data, u8 *len, u8 *type);
 

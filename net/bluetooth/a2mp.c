@@ -417,7 +417,7 @@ static int a2mp_getampassoc_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 	if (!hdev)
 		return -EINVAL;
 
-	hcon = phylink_add(hdev, mgr, rsp->id);
+	hcon = phylink_add(hdev, mgr, rsp->id, true);
 	if (!hcon)
 		goto done;
 
@@ -487,7 +487,7 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 		amp_ctrl_put(ctrl);
 	}
 
-	hcon = phylink_add(hdev, mgr, req->local_id);
+	hcon = phylink_add(hdev, mgr, req->local_id, false);
 	if (hcon) {
 		amp_accept_phylink(hdev, mgr, hcon);
 		rsp.status = A2MP_STATUS_SUCCESS;
