@@ -2563,7 +2563,8 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 	} else
 		reg_limit = 0;
 
-	return txpower + delta - reg_limit;
+	txpower = max(0, txpower + delta - reg_limit);
+	return min_t(u8, txpower, 0xc);
 }
 
 static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
