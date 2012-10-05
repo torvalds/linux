@@ -682,12 +682,6 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	DRM_DEBUG_KMS("WR PLL: %dKHz refresh rate with p=%d, n2=%d r2=%d\n",
 		      crtc->mode.clock, p, n2, r2);
 
-	/* Enable LCPLL if disabled */
-	temp = I915_READ(LCPLL_CTL);
-	if (temp & LCPLL_PLL_DISABLE)
-		I915_WRITE(LCPLL_CTL,
-				temp & ~LCPLL_PLL_DISABLE);
-
 	/* Configure WR PLL 1, program the correct divider values for
 	 * the desired frequency and wait for warmup */
 	I915_WRITE(WRPLL_CTL1,
@@ -816,4 +810,35 @@ void intel_disable_ddi(struct intel_encoder *encoder)
 	temp &= ~DDI_BUF_CTL_ENABLE;
 
 	I915_WRITE(DDI_BUF_CTL(port), temp);
+}
+
+static int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
+{
+	if (I915_READ(HSW_FUSE_STRAP) & HSW_CDCLK_LIMIT)
+		return 450;
+	else if ((I915_READ(LCPLL_CTL) & LCPLL_CLK_FREQ_MASK) ==
+		 LCPLL_CLK_FREQ_450)
+		return 450;
+	else
+		return 540;
+}
+
+void intel_ddi_pll_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t val = I915_READ(LCPLL_CTL);
+
+	/* The LCPLL register should be turned on by the BIOS. For now let's
+	 * just check its state and print errors in case something is wrong.
+	 * Don't even try to turn it on.
+	 */
+
+	DRM_DEBUG_KMS("CDCLK running at %dMHz\n",
+		      intel_ddi_get_cdclk_freq(dev_priv));
+
+	if (val & LCPLL_CD_SOURCE_FCLK)
+		DRM_ERROR("CDCLK source is not LCPLL\n");
+
+	if (val & LCPLL_PLL_DISABLE)
+		DRM_ERROR("LCPLL is disabled\n");
 }

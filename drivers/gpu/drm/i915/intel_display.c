@@ -7477,6 +7477,12 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.page_flip = intel_crtc_page_flip,
 };
 
+static void intel_cpu_pll_init(struct drm_device *dev)
+{
+	if (IS_HASWELL(dev))
+		intel_ddi_pll_init(dev);
+}
+
 static void intel_pch_pll_init(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -8085,6 +8091,7 @@ void intel_modeset_init(struct drm_device *dev)
 			DRM_DEBUG_KMS("plane %d init failed: %d\n", i, ret);
 	}
 
+	intel_cpu_pll_init(dev);
 	intel_pch_pll_init(dev);
 
 	/* Just disable it once at startup */

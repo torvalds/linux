@@ -3456,6 +3456,9 @@
 #define GEN7_SQ_CHICKEN_MBCUNIT_CONFIG		0x9030
 #define  GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB	(1<<11)
 
+#define HSW_FUSE_STRAP		0x42014
+#define  HSW_CDCLK_LIMIT	(1 << 24)
+
 /* PCH */
 
 /* south display engine interrupt: IBX */
@@ -4531,8 +4534,11 @@
 #define LCPLL_CTL			0x130040
 #define  LCPLL_PLL_DISABLE		(1<<31)
 #define  LCPLL_PLL_LOCK			(1<<30)
+#define  LCPLL_CLK_FREQ_MASK		(3<<26)
+#define  LCPLL_CLK_FREQ_450		(0<<26)
 #define  LCPLL_CD_CLOCK_DISABLE		(1<<25)
 #define  LCPLL_CD2X_CLOCK_DISABLE	(1<<23)
+#define  LCPLL_CD_SOURCE_FCLK		(1<<21)
 
 /* Pipe WM_LINETIME - watermark line time */
 #define PIPE_WM_LINETIME_A		0x45270

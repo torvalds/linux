@@ -580,5 +580,6 @@ extern bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 extern void intel_ddi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
+extern void intel_ddi_pll_init(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */
