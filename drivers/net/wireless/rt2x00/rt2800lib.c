@@ -2531,9 +2531,6 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 	u8 eirp_txpower_criterion;
 	u8 reg_limit;
 
-	if (!((band == IEEE80211_BAND_5GHZ) && is_rate_b))
-		return txpower;
-
 	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags)) {
 		/*
 		 * Check if eirp txpower exceed txpower_limit.
