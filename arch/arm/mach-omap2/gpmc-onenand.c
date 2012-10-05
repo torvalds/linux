@@ -428,6 +428,11 @@ void __init gpmc_onenand_init(struct omap_onenand_platform_data *_onenand_data)
 		gpmc_onenand_data->flags |= ONENAND_SYNC_READ;
 	}
 
+	if (cpu_is_omap34xx())
+		gpmc_onenand_data->flags |= ONENAND_IN_OMAP34XX;
+	else
+		gpmc_onenand_data->flags &= ~ONENAND_IN_OMAP34XX;
+
 	err = gpmc_cs_request(gpmc_onenand_data->cs, ONENAND_IO_SIZE,
 				(unsigned long *)&gpmc_onenand_resource.start);
 	if (err < 0) {
