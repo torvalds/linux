@@ -79,7 +79,7 @@ struct net *ip6addrlbl_net(const struct ip6addrlbl_entry *lbl)
 
 #define IPV6_ADDR_LABEL_DEFAULT	0xffffffffUL
 
-static const __net_initdata struct ip6addrlbl_init_table
+static const __net_initconst struct ip6addrlbl_init_table
 {
 	const struct in6_addr *prefix;
 	int prefixlen;
