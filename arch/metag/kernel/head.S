@@ -43,3 +43,15 @@ __start:
 __exit:
 	XOR     TXENABLE,D0Re0,D0Re0
 	.size	__exit,.-__exit
+
+#ifdef CONFIG_SMP
+	.global _secondary_startup
+	.type _secondary_startup,function
+_secondary_startup:
+	MOVT	A0StP,#HI(_secondary_data_stack)
+	ADD	A0StP,A0StP,#LO(_secondary_data_stack)
+	GETD	A0StP,[A0StP]
+	ADD	A0StP,A0StP,#THREAD_INFO_SIZE
+	B	_secondary_start_kernel
+	.size	_secondary_startup,.-_secondary_startup
+#endif
