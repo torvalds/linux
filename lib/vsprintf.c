@@ -180,19 +180,19 @@ char *put_dec_trunc8(char *buf, unsigned r)
 		*buf++ = q - 10*r;
 	}
 
-	q      = (r * 0x199a) >> 16;
-	*buf++ = (r - 10 * q)  + '0'; /* 6 */
+	q      = (r * 0x199a) >> 16;	/* r <= 9999 */
+	*buf++ = (r - 10 * q)  + '0';
 	if (q == 0)
 		return buf;
-	r      = (q * 0xcd) >> 11;
-	*buf++ = (q - 10 * r)  + '0'; /* 7 */
+	r      = (q * 0xcd) >> 11;	/* q <= 999 */
+	*buf++ = (q - 10 * r)  + '0';
 	if (r == 0)
 		return buf;
-	q      = (r * 0xcd) >> 11;
-	*buf++ = (r - 10 * q) + '0'; /* 8 */
+	q      = (r * 0xcd) >> 11;	/* r <= 99 */
+	*buf++ = (r - 10 * q) + '0';
 	if (q == 0)
 		return buf;
-	*buf++ = q + '0'; /* 9 */
+	*buf++ = q + '0';		 /* q <= 9 */
 	return buf;
 }
 
