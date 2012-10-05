@@ -24,6 +24,7 @@ static char const *input_old = "perf.data.old",
 static char	  diff__default_sort_order[] = "dso,symbol";
 static bool  force;
 static bool show_displacement;
+static bool show_period;
 static bool show_baseline_only;
 static bool sort_compute;
 
@@ -540,6 +541,8 @@ static const struct option options[] = {
 		     "delta,ratio,wdiff:w1,w2 (default delta)",
 		     "Entries differential computation selection",
 		     setup_compute),
+	OPT_BOOLEAN('p', "period", &show_period,
+		    "Show period values."),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
@@ -568,7 +571,7 @@ static void ui_init(void)
 	/* No overhead column. */
 	perf_hpp__column_enable(PERF_HPP__OVERHEAD, false);
 
-	/* Display baseline/delta/ratio/displacement columns. */
+	/* Display baseline/delta/ratio/displacement/periods columns. */
 	perf_hpp__column_enable(PERF_HPP__BASELINE, true);
 
 	switch (compute) {
@@ -587,6 +590,11 @@ static void ui_init(void)
 
 	if (show_displacement)
 		perf_hpp__column_enable(PERF_HPP__DISPL, true);
+
+	if (show_period) {
+		perf_hpp__column_enable(PERF_HPP__PERIOD, true);
+		perf_hpp__column_enable(PERF_HPP__PERIOD_BASELINE, true);
+	}
 }
 
 int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
