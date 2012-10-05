@@ -205,4 +205,6 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
 
 unsigned int hists__sort_list_width(struct hists *self);
 
+double perf_diff__compute_delta(struct hist_entry *he);
+double perf_diff__compute_ratio(struct hist_entry *he);
 #endif	/* __PERF_HIST_H */

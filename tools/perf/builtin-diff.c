@@ -25,6 +25,7 @@ static char	  diff__default_sort_order[] = "dso,symbol";
 static bool  force;
 static bool show_displacement;
 static bool show_baseline_only;
+static bool sort_compute;
 
 enum {
 	COMPUTE_DELTA,
@@ -50,6 +51,13 @@ static int setup_compute(const struct option *opt, const char *str,
 		return 0;
 	}
 
+	if (*str == '+') {
+		sort_compute = true;
+		str++;
+		if (!*str)
+			return 0;
+	}
+
 	for (i = 0; i < COMPUTE_MAX; i++)
 		if (!strcmp(str, compute_names[i])) {
 			*cp = i;
@@ -59,6 +67,34 @@ static int setup_compute(const struct option *opt, const char *str,
 	pr_err("Failed: '%s' is not computation method "
 	       "(use 'delta' or 'ratio').\n", str);
 	return -EINVAL;
+}
+
+static double get_period_percent(struct hist_entry *he, u64 period)
+{
+	u64 total = he->hists->stats.total_period;
+	return (period * 100.0) / total;
+}
+
+double perf_diff__compute_delta(struct hist_entry *he)
+{
+	struct hist_entry *pair = he->pair;
+	double new_percent = get_period_percent(he, he->stat.period);
+	double old_percent = pair ? get_period_percent(pair, pair->stat.period) : 0.0;
+
+	he->diff.period_ratio_delta = new_percent - old_percent;
+	he->diff.computed = true;
+	return he->diff.period_ratio_delta;
+}
+
+double perf_diff__compute_ratio(struct hist_entry *he)
+{
+	struct hist_entry *pair = he->pair;
+	double new_period = he->stat.period;
+	double old_period = pair ? pair->stat.period : 0;
+
+	he->diff.computed = true;
+	he->diff.period_ratio = pair ? (new_period / old_period) : 0;
+	return he->diff.period_ratio;
 }
 
 static int hists__add_entry(struct hists *self,
@@ -223,12 +259,113 @@ static void hists__baseline_only(struct hists *hists)
 	}
 }
 
+static void hists__precompute(struct hists *hists)
+{
+	struct rb_node *next = rb_first(&hists->entries);
+
+	while (next != NULL) {
+		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node);
+
+		next = rb_next(&he->rb_node);
+
+		switch (compute) {
+		case COMPUTE_DELTA:
+			perf_diff__compute_delta(he);
+			break;
+		case COMPUTE_RATIO:
+			perf_diff__compute_ratio(he);
+			break;
+		default:
+			BUG_ON(1);
+		}
+	}
+}
+
+static int64_t cmp_doubles(double l, double r)
+{
+	if (l > r)
+		return -1;
+	else if (l < r)
+		return 1;
+	else
+		return 0;
+}
+
+static int64_t
+hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
+			int c)
+{
+	switch (c) {
+	case COMPUTE_DELTA:
+	{
+		double l = left->diff.period_ratio_delta;
+		double r = right->diff.period_ratio_delta;
+
+		return cmp_doubles(l, r);
+	}
+	case COMPUTE_RATIO:
+	{
+		double l = left->diff.period_ratio;
+		double r = right->diff.period_ratio;
+
+		return cmp_doubles(l, r);
+	}
+	default:
+		BUG_ON(1);
+	}
+
+	return 0;
+}
+
+static void insert_hist_entry_by_compute(struct rb_root *root,
+					 struct hist_entry *he,
+					 int c)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct hist_entry *iter;
+
+	while (*p != NULL) {
+		parent = *p;
+		iter = rb_entry(parent, struct hist_entry, rb_node);
+		if (hist_entry__cmp_compute(he, iter, c) < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&he->rb_node, parent, p);
+	rb_insert_color(&he->rb_node, root);
+}
+
+static void hists__compute_resort(struct hists *hists)
+{
+	struct rb_root tmp = RB_ROOT;
+	struct rb_node *next = rb_first(&hists->entries);
+
+	while (next != NULL) {
+		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node);
+
+		next = rb_next(&he->rb_node);
+
+		rb_erase(&he->rb_node, &hists->entries);
+		insert_hist_entry_by_compute(&tmp, he, compute);
+	}
+
+	hists->entries = tmp;
+}
+
 static void hists__process(struct hists *old, struct hists *new)
 {
 	hists__match(old, new);
 
 	if (show_baseline_only)
 		hists__baseline_only(new);
+
+	if (sort_compute) {
+		hists__precompute(new);
+		hists__compute_resort(new);
+	}
 
 	hists__fprintf(new, true, 0, 0, stdout);
 }

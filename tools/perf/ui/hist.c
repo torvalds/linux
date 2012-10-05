@@ -242,24 +242,15 @@ static int hpp__width_delta(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_delta(struct perf_hpp *hpp, struct hist_entry *he)
 {
-	struct hist_entry *pair = he->pair;
-	struct hists *pair_hists = pair ? pair->hists : NULL;
-	struct hists *hists = he->hists;
-	u64 old_total, new_total;
-	double old_percent = 0, new_percent = 0;
-	double diff;
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%7.7s";
 	char buf[32] = " ";
+	double diff;
 
-	old_total = pair_hists ? pair_hists->stats.total_period : 0;
-	if (old_total > 0 && pair)
-		old_percent = 100.0 * pair->stat.period / old_total;
+	if (he->diff.computed)
+		diff = he->diff.period_ratio_delta;
+	else
+		diff = perf_diff__compute_delta(he);
 
-	new_total = hists->stats.total_period;
-	if (new_total > 0)
-		new_percent = 100.0 * he->stat.period / new_total;
-
-	diff = new_percent - old_percent;
 	if (fabs(diff) >= 0.01)
 		scnprintf(buf, sizeof(buf), "%+4.2F%%", diff);
 
@@ -280,12 +271,14 @@ static int hpp__width_ratio(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_ratio(struct perf_hpp *hpp, struct hist_entry *he)
 {
-	struct hist_entry *pair = he->pair;
-	double new_period = he->stat.period;
-	double old_period = pair ? pair->stat.period : 0;
-	double ratio = pair ? new_period / old_period : 0;
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%14s";
 	char buf[32] = " ";
+	double ratio;
+
+	if (he->diff.computed)
+		ratio = he->diff.period_ratio;
+	else
+		ratio = perf_diff__compute_ratio(he);
 
 	if (ratio > 0.0)
 		scnprintf(buf, sizeof(buf), "%+14.6F", ratio);

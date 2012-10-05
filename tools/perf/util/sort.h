@@ -52,6 +52,19 @@ struct he_stat {
 	u32			nr_events;
 };
 
+struct hist_entry_diff {
+	bool	computed;
+
+	/* PERF_HPP__DISPL */
+	int	displacement;
+
+	/* PERF_HPP__DELTA */
+	double	period_ratio_delta;
+
+	/* PERF_HPP__RATIO */
+	double	period_ratio;
+};
+
 /**
  * struct hist_entry - histogram entry
  *
@@ -66,6 +79,8 @@ struct hist_entry {
 	struct thread		*thread;
 	u64			ip;
 	s32			cpu;
+
+	struct hist_entry_diff	diff;
 
 	/* XXX These two should move to some tree widget lib */
 	u16			row_offset;
