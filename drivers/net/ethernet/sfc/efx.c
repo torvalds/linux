@@ -255,23 +255,6 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 	return spent;
 }
 
-/* Mark channel as finished processing
- *
- * Note that since we will not receive further interrupts for this
- * channel before we finish processing and call the eventq_read_ack()
- * method, there is no need to use the interrupt hold-off timers.
- */
-static inline void efx_channel_processed(struct efx_channel *channel)
-{
-	/* The interrupt handler for this channel may set work_pending
-	 * as soon as we acknowledge the events we've seen.  Make sure
-	 * it's cleared before then. */
-	channel->work_pending = false;
-	smp_wmb();
-
-	efx_nic_eventq_read_ack(channel);
-}
-
 /* NAPI poll handler
  *
  * NAPI guarantees serialisation of polls of the same device, which
@@ -316,56 +299,14 @@ static int efx_poll(struct napi_struct *napi, int budget)
 
 		/* There is no race here; although napi_disable() will
 		 * only wait for napi_complete(), this isn't a problem
-		 * since efx_channel_processed() will have no effect if
+		 * since efx_nic_eventq_read_ack() will have no effect if
 		 * interrupts have already been disabled.
 		 */
 		napi_complete(napi);
-		efx_channel_processed(channel);
+		efx_nic_eventq_read_ack(channel);
 	}
 
 	return spent;
-}
-
-/* Process the eventq of the specified channel immediately on this CPU
- *
- * Disable hardware generated interrupts, wait for any existing
- * processing to finish, then directly poll (and ack ) the eventq.
- * Finally reenable NAPI and interrupts.
- *
- * This is for use only during a loopback self-test.  It must not
- * deliver any packets up the stack as this can result in deadlock.
- */
-void efx_process_channel_now(struct efx_channel *channel)
-{
-	struct efx_nic *efx = channel->efx;
-
-	BUG_ON(channel->channel >= efx->n_channels);
-	BUG_ON(!channel->enabled);
-	BUG_ON(!efx->loopback_selftest);
-
-	/* Disable interrupts and wait for ISRs to complete */
-	efx_nic_disable_interrupts(efx);
-	if (efx->legacy_irq) {
-		synchronize_irq(efx->legacy_irq);
-		efx->legacy_irq_enabled = false;
-	}
-	if (channel->irq)
-		synchronize_irq(channel->irq);
-
-	/* Wait for any NAPI processing to complete */
-	napi_disable(&channel->napi_str);
-
-	/* Poll the channel */
-	efx_process_channel(channel, channel->eventq_mask + 1);
-
-	/* Ack the eventq. This may cause an interrupt to be generated
-	 * when they are reenabled */
-	efx_channel_processed(channel);
-
-	napi_enable(&channel->napi_str);
-	if (efx->legacy_irq)
-		efx->legacy_irq_enabled = true;
-	efx_nic_enable_interrupts(efx);
 }
 
 /* Create event queue
@@ -407,11 +348,7 @@ static void efx_start_eventq(struct efx_channel *channel)
 	netif_dbg(channel->efx, ifup, channel->efx->net_dev,
 		  "chan %d start event queue\n", channel->channel);
 
-	/* The interrupt handler for this channel may set work_pending
-	 * as soon as we enable it.  Make sure it's cleared before
-	 * then.  Similarly, make sure it sees the enabled flag set.
-	 */
-	channel->work_pending = false;
+	/* Make sure the NAPI handler sees the enabled flag set */
 	channel->enabled = true;
 	smp_wmb();
 
