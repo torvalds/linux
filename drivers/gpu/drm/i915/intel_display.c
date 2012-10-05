@@ -5217,6 +5217,11 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	WARN(num_connectors != 1, "%d connectors attached to pipe %c\n",
 	     num_connectors, pipe_name(pipe));
 
+	WARN_ON(I915_READ(PIPECONF(pipe)) &
+		(PIPECONF_ENABLE | I965_PIPECONF_ACTIVE));
+
+	WARN_ON(I915_READ(DSPCNTR(plane)) & DISPLAY_PLANE_ENABLE);
+
 	if (!intel_ddi_pll_mode_set(crtc, adjusted_mode->clock))
 		return -EINVAL;
 
@@ -5356,8 +5361,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 			ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 
 	haswell_set_pipeconf(crtc, adjusted_mode, dither);
-
-	intel_wait_for_vblank(dev, pipe);
 
 	/* Set up the display plane register */
 	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE);
