@@ -5267,7 +5267,7 @@ F:	include/linux/i2c-algo-pca.h
 F:	include/linux/i2c-pca-platform.h
 
 PCDP - PRIMARY CONSOLE AND DEBUG PORT
-M:	Khalid Aziz <khalid.aziz@hp.com>
+M:	Khalid Aziz <khalid@gonehiking.org>
 S:	Maintained
 F:	drivers/firmware/pcdp.*
 
