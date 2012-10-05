@@ -2441,7 +2441,6 @@ xfs_bmap_btalloc(
 	args.tp = ap->tp;
 	args.mp = mp;
 	args.fsbno = ap->blkno;
-	args.stack_switch = ap->stack_switch;
 
 	/* Trim the allocation back to the maximum an AG can fit. */
 	args.maxlen = MIN(ap->length, XFS_ALLOC_AG_MAX_USABLE(mp));
@@ -4620,12 +4619,11 @@ xfs_bmapi_delay(
 
 
 STATIC int
-xfs_bmapi_allocate(
-	struct xfs_bmalloca	*bma,
-	int			flags)
+__xfs_bmapi_allocate(
+	struct xfs_bmalloca	*bma)
 {
 	struct xfs_mount	*mp = bma->ip->i_mount;
-	int			whichfork = (flags & XFS_BMAPI_ATTRFORK) ?
+	int			whichfork = (bma->flags & XFS_BMAPI_ATTRFORK) ?
 						XFS_ATTR_FORK : XFS_DATA_FORK;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(bma->ip, whichfork);
 	int			tmp_logflags = 0;
@@ -4658,25 +4656,25 @@ xfs_bmapi_allocate(
 	 * Indicate if this is the first user data in the file, or just any
 	 * user data.
 	 */
-	if (!(flags & XFS_BMAPI_METADATA)) {
+	if (!(bma->flags & XFS_BMAPI_METADATA)) {
 		bma->userdata = (bma->offset == 0) ?
 			XFS_ALLOC_INITIAL_USER_DATA : XFS_ALLOC_USERDATA;
 	}
 
-	bma->minlen = (flags & XFS_BMAPI_CONTIG) ? bma->length : 1;
+	bma->minlen = (bma->flags & XFS_BMAPI_CONTIG) ? bma->length : 1;
 
 	/*
 	 * Only want to do the alignment at the eof if it is userdata and
 	 * allocation length is larger than a stripe unit.
 	 */
 	if (mp->m_dalign && bma->length >= mp->m_dalign &&
-	    !(flags & XFS_BMAPI_METADATA) && whichfork == XFS_DATA_FORK) {
+	    !(bma->flags & XFS_BMAPI_METADATA) && whichfork == XFS_DATA_FORK) {
 		error = xfs_bmap_isaeof(bma, whichfork);
 		if (error)
 			return error;
 	}
 
-	if (flags & XFS_BMAPI_STACK_SWITCH)
+	if (bma->flags & XFS_BMAPI_STACK_SWITCH)
 		bma->stack_switch = 1;
 
 	error = xfs_bmap_alloc(bma);
@@ -4713,7 +4711,7 @@ xfs_bmapi_allocate(
 	 * A wasdelay extent has been initialized, so shouldn't be flagged
 	 * as unwritten.
 	 */
-	if (!bma->wasdel && (flags & XFS_BMAPI_PREALLOC) &&
+	if (!bma->wasdel && (bma->flags & XFS_BMAPI_PREALLOC) &&
 	    xfs_sb_version_hasextflgbit(&mp->m_sb))
 		bma->got.br_state = XFS_EXT_UNWRITTEN;
 
@@ -4739,6 +4737,45 @@ xfs_bmapi_allocate(
 	ASSERT(bma->got.br_state == XFS_EXT_NORM ||
 	       bma->got.br_state == XFS_EXT_UNWRITTEN);
 	return 0;
+}
+
+static void
+xfs_bmapi_allocate_worker(
+	struct work_struct	*work)
+{
+	struct xfs_bmalloca	*args = container_of(work,
+						struct xfs_bmalloca, work);
+	unsigned long		pflags;
+
+	/* we are in a transaction context here */
+	current_set_flags_nested(&pflags, PF_FSTRANS);
+
+	args->result = __xfs_bmapi_allocate(args);
+	complete(args->done);
+
+	current_restore_flags_nested(&pflags, PF_FSTRANS);
+}
+
+/*
+ * Some allocation requests often come in with little stack to work on. Push
+ * them off to a worker thread so there is lots of stack to use. Otherwise just
+ * call directly to avoid the context switch overhead here.
+ */
+int
+xfs_bmapi_allocate(
+	struct xfs_bmalloca	*args)
+{
+	DECLARE_COMPLETION_ONSTACK(done);
+
+	if (!args->stack_switch)
+		return __xfs_bmapi_allocate(args);
+
+
+	args->done = &done;
+	INIT_WORK_ONSTACK(&args->work, xfs_bmapi_allocate_worker);
+	queue_work(xfs_alloc_wq, &args->work);
+	wait_for_completion(&done);
+	return args->result;
 }
 
 STATIC int
@@ -4926,6 +4963,7 @@ xfs_bmapi_write(
 			bma.conv = !!(flags & XFS_BMAPI_CONVERT);
 			bma.wasdel = wasdelay;
 			bma.offset = bno;
+			bma.flags = flags;
 
 			/*
 			 * There's a 32/64 bit type mismatch between the
@@ -4941,7 +4979,7 @@ xfs_bmapi_write(
 
 			ASSERT(len > 0);
 			ASSERT(bma.length > 0);
-			error = xfs_bmapi_allocate(&bma, flags);
+			error = xfs_bmapi_allocate(&bma);
 			if (error)
 				goto error0;
 			if (bma.blkno == NULLFSBLOCK)
