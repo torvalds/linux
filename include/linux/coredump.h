@@ -12,9 +12,9 @@
 extern int dump_write(struct file *file, const void *addr, int nr);
 extern int dump_seek(struct file *file, loff_t off);
 #ifdef CONFIG_COREDUMP
-extern void do_coredump(long signr, int exit_code, struct pt_regs *regs);
+extern void do_coredump(siginfo_t *siginfo, struct pt_regs *regs);
 #else
-static inline void do_coredump(long signr, int exit_code, struct pt_regs *regs) {}
+static inline void do_coredump(siginfo_t *siginfo, struct pt_regs *regs) {}
 #endif
 
 #endif /* _LINUX_COREDUMP_H */

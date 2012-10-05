@@ -200,7 +200,7 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 				break;
 			/* signal that caused the coredump */
 			case 's':
-				err = cn_printf(cn, "%ld", cprm->signr);
+				err = cn_printf(cn, "%ld", cprm->siginfo->si_signo);
 				break;
 			/* UNIX time of coredump */
 			case 't': {
@@ -457,7 +457,7 @@ static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 	return 0;
 }
 
-void do_coredump(long signr, int exit_code, struct pt_regs *regs)
+void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
 {
 	struct core_state core_state;
 	struct core_name cn;
@@ -472,7 +472,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	bool need_nonrelative = false;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
-		.signr = signr,
+		.siginfo = siginfo,
 		.regs = regs,
 		.limit = rlimit(RLIMIT_CORE),
 		/*
@@ -483,7 +483,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 		.mm_flags = mm->flags,
 	};
 
-	audit_core_dumps(signr);
+	audit_core_dumps(siginfo->si_signo);
 
 	binfmt = mm->binfmt;
 	if (!binfmt || !binfmt->core_dump)
@@ -507,7 +507,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 		need_nonrelative = true;
 	}
 
-	retval = coredump_wait(exit_code, &core_state);
+	retval = coredump_wait(siginfo->si_signo, &core_state);
 	if (retval < 0)
 		goto fail_creds;
 
