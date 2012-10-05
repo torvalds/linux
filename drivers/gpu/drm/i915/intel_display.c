@@ -4721,6 +4721,31 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 	POSTING_READ(PIPECONF(pipe));
 }
 
+static void haswell_set_pipeconf(struct drm_crtc *crtc,
+				 struct drm_display_mode *adjusted_mode,
+				 bool dither)
+{
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	uint32_t val;
+
+	val = I915_READ(PIPECONF(pipe));
+
+	val &= ~(PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_MASK);
+	if (dither)
+		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
+
+	val &= ~PIPECONF_INTERLACE_MASK_HSW;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+		val |= PIPECONF_INTERLACED_ILK;
+	else
+		val |= PIPECONF_PROGRESSIVE;
+
+	I915_WRITE(PIPECONF(pipe), val);
+	POSTING_READ(PIPECONF(pipe));
+}
+
 static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 				    struct drm_display_mode *adjusted_mode,
 				    intel_clock_t *clock,
@@ -5322,7 +5347,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 		if (is_cpu_edp)
 			ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 
-	ironlake_set_pipeconf(crtc, adjusted_mode, dither);
+	haswell_set_pipeconf(crtc, adjusted_mode, dither);
 
 	intel_wait_for_vblank(dev, pipe);
 
