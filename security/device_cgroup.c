@@ -96,7 +96,6 @@ free_and_exit:
 	return -ENOMEM;
 }
 
-/* Stupid prototype - don't bother combining existing entries */
 /*
  * called under devcgroup_mutex
  */
@@ -136,16 +135,13 @@ static void dev_whitelist_rm(struct dev_cgroup *dev_cgroup,
 	struct dev_whitelist_item *walk, *tmp;
 
 	list_for_each_entry_safe(walk, tmp, &dev_cgroup->whitelist, list) {
-		if (walk->type == DEV_ALL)
-			goto remove;
 		if (walk->type != wh->type)
 			continue;
-		if (walk->major != ~0 && walk->major != wh->major)
+		if (walk->major != wh->major)
 			continue;
-		if (walk->minor != ~0 && walk->minor != wh->minor)
+		if (walk->minor != wh->minor)
 			continue;
 
-remove:
 		walk->access &= ~wh->access;
 		if (!walk->access) {
 			list_del_rcu(&walk->list);
@@ -185,19 +181,9 @@ static struct cgroup_subsys_state *devcgroup_create(struct cgroup *cgroup)
 	INIT_LIST_HEAD(&dev_cgroup->whitelist);
 	parent_cgroup = cgroup->parent;
 
-	if (parent_cgroup == NULL) {
-		struct dev_whitelist_item *wh;
-		wh = kmalloc(sizeof(*wh), GFP_KERNEL);
-		if (!wh) {
-			kfree(dev_cgroup);
-			return ERR_PTR(-ENOMEM);
-		}
-		wh->minor = wh->major = ~0;
-		wh->type = DEV_ALL;
-		wh->access = ACC_MASK;
+	if (parent_cgroup == NULL)
 		dev_cgroup->deny_all = false;
-		list_add(&wh->list, &dev_cgroup->whitelist);
-	} else {
+	else {
 		parent_dev_cgroup = cgroup_to_devcgroup(parent_cgroup);
 		mutex_lock(&devcgroup_mutex);
 		ret = dev_whitelist_copy(&dev_cgroup->whitelist,
@@ -268,33 +254,48 @@ static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
 	char maj[MAJMINLEN], min[MAJMINLEN], acc[ACCLEN];
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(wh, &devcgroup->whitelist, list) {
-		set_access(acc, wh->access);
-		set_majmin(maj, wh->major);
-		set_majmin(min, wh->minor);
-		seq_printf(m, "%c %s:%s %s\n", type_to_char(wh->type),
+	/*
+	 * To preserve the compatibility:
+	 * - Only show the "all devices" when the default policy is to allow
+	 * - List the exceptions in case the default policy is to deny
+	 * This way, the file remains as a "whitelist of devices"
+	 */
+	if (devcgroup->deny_all == false) {
+		set_access(acc, ACC_MASK);
+		set_majmin(maj, ~0);
+		set_majmin(min, ~0);
+		seq_printf(m, "%c %s:%s %s\n", type_to_char(DEV_ALL),
 			   maj, min, acc);
+	} else {
+		list_for_each_entry_rcu(wh, &devcgroup->whitelist, list) {
+			set_access(acc, wh->access);
+			set_majmin(maj, wh->major);
+			set_majmin(min, wh->minor);
+			seq_printf(m, "%c %s:%s %s\n", type_to_char(wh->type),
+				   maj, min, acc);
+		}
 	}
 	rcu_read_unlock();
 
 	return 0;
 }
 
-/*
- * may_access_whitelist:
- * does the access granted to dev_cgroup c contain the access
- * requested in whitelist item refwh.
- * return 1 if yes, 0 if no.
- * call with devcgroup_mutex held
+/**
+ * may_access_whitelist - verifies if a new rule is part of what is allowed
+ *			  by a dev cgroup based on the default policy +
+ *			  exceptions. This is used to make sure a child cgroup
+ *			  won't have more privileges than its parent or to
+ *			  verify if a certain access is allowed.
+ * @dev_cgroup: dev cgroup to be tested against
+ * @refwh: new rule
  */
-static int may_access_whitelist(struct dev_cgroup *c,
-				       struct dev_whitelist_item *refwh)
+static int may_access_whitelist(struct dev_cgroup *dev_cgroup,
+			        struct dev_whitelist_item *refwh)
 {
 	struct dev_whitelist_item *whitem;
+	bool match = false;
 
-	list_for_each_entry(whitem, &c->whitelist, list) {
-		if (whitem->type & DEV_ALL)
-			return 1;
+	list_for_each_entry(whitem, &dev_cgroup->whitelist, list) {
 		if ((refwh->type & DEV_BLOCK) && !(whitem->type & DEV_BLOCK))
 			continue;
 		if ((refwh->type & DEV_CHAR) && !(whitem->type & DEV_CHAR))
@@ -305,8 +306,21 @@ static int may_access_whitelist(struct dev_cgroup *c,
 			continue;
 		if (refwh->access & (~whitem->access))
 			continue;
-		return 1;
+		match = true;
+		break;
 	}
+
+	/*
+	 * In two cases we'll consider this new rule valid:
+	 * - the dev cgroup has its default policy to allow + exception list:
+	 *   the new rule should *not* match any of the exceptions
+	 *   (!deny_all, !match)
+	 * - the dev cgroup has its default policy to deny + exception list:
+	 *   the new rule *should* match the exceptions
+	 *   (deny_all, match)
+	 */
+	if (dev_cgroup->deny_all == match)
+		return 1;
 	return 0;
 }
 
@@ -356,11 +370,21 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 
 	switch (*b) {
 	case 'a':
-		wh.type = DEV_ALL;
-		wh.access = ACC_MASK;
-		wh.major = ~0;
-		wh.minor = ~0;
-		goto handle;
+		switch (filetype) {
+		case DEVCG_ALLOW:
+			if (!parent_has_perm(devcgroup, &wh))
+				return -EPERM;
+			dev_whitelist_clean(devcgroup);
+			devcgroup->deny_all = false;
+			break;
+		case DEVCG_DENY:
+			dev_whitelist_clean(devcgroup);
+			devcgroup->deny_all = true;
+			break;
+		default:
+			return -EINVAL;
+		}
+		return 0;
 	case 'b':
 		wh.type = DEV_BLOCK;
 		break;
@@ -419,17 +443,31 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		}
 	}
 
-handle:
 	switch (filetype) {
 	case DEVCG_ALLOW:
 		if (!parent_has_perm(devcgroup, &wh))
 			return -EPERM;
-		devcgroup->deny_all = false;
+		/*
+		 * If the default policy is to allow by default, try to remove
+		 * an matching exception instead. And be silent about it: we
+		 * don't want to break compatibility
+		 */
+		if (devcgroup->deny_all == false) {
+			dev_whitelist_rm(devcgroup, &wh);
+			return 0;
+		}
 		return dev_whitelist_add(devcgroup, &wh);
 	case DEVCG_DENY:
-		dev_whitelist_rm(devcgroup, &wh);
-		devcgroup->deny_all = true;
-		break;
+		/*
+		 * If the default policy is to deny by default, try to remove
+		 * an matching exception instead. And be silent about it: we
+		 * don't want to break compatibility
+		 */
+		if (devcgroup->deny_all == true) {
+			dev_whitelist_rm(devcgroup, &wh);
+			return 0;
+		}
+		return dev_whitelist_add(devcgroup, &wh);
 	default:
 		return -EINVAL;
 	}
@@ -485,73 +523,71 @@ struct cgroup_subsys devices_subsys = {
 	.broken_hierarchy = true,
 };
 
-int __devcgroup_inode_permission(struct inode *inode, int mask)
+/**
+ * __devcgroup_check_permission - checks if an inode operation is permitted
+ * @dev_cgroup: the dev cgroup to be tested against
+ * @type: device type
+ * @major: device major number
+ * @minor: device minor number
+ * @access: combination of ACC_WRITE, ACC_READ and ACC_MKNOD
+ *
+ * returns 0 on success, -EPERM case the operation is not permitted
+ */
+static int __devcgroup_check_permission(struct dev_cgroup *dev_cgroup,
+					short type, u32 major, u32 minor,
+				        short access)
 {
-	struct dev_cgroup *dev_cgroup;
-	struct dev_whitelist_item *wh;
+	struct dev_whitelist_item wh;
+	int rc;
+
+	memset(&wh, 0, sizeof(wh));
+	wh.type = type;
+	wh.major = major;
+	wh.minor = minor;
+	wh.access = access;
 
 	rcu_read_lock();
-
-	dev_cgroup = task_devcgroup(current);
-
-	list_for_each_entry_rcu(wh, &dev_cgroup->whitelist, list) {
-		if (wh->type & DEV_ALL)
-			goto found;
-		if ((wh->type & DEV_BLOCK) && !S_ISBLK(inode->i_mode))
-			continue;
-		if ((wh->type & DEV_CHAR) && !S_ISCHR(inode->i_mode))
-			continue;
-		if (wh->major != ~0 && wh->major != imajor(inode))
-			continue;
-		if (wh->minor != ~0 && wh->minor != iminor(inode))
-			continue;
-
-		if ((mask & MAY_WRITE) && !(wh->access & ACC_WRITE))
-			continue;
-		if ((mask & MAY_READ) && !(wh->access & ACC_READ))
-			continue;
-found:
-		rcu_read_unlock();
-		return 0;
-	}
-
+	rc = may_access_whitelist(dev_cgroup, &wh);
 	rcu_read_unlock();
 
-	return -EPERM;
+	if (!rc)
+		return -EPERM;
+
+	return 0;
+}
+
+int __devcgroup_inode_permission(struct inode *inode, int mask)
+{
+	struct dev_cgroup *dev_cgroup = task_devcgroup(current);
+	short type, access = 0;
+
+	if (S_ISBLK(inode->i_mode))
+		type = DEV_BLOCK;
+	if (S_ISCHR(inode->i_mode))
+		type = DEV_CHAR;
+	if (mask & MAY_WRITE)
+		access |= ACC_WRITE;
+	if (mask & MAY_READ)
+		access |= ACC_READ;
+
+	return __devcgroup_check_permission(dev_cgroup, type, imajor(inode),
+					    iminor(inode), access);
 }
 
 int devcgroup_inode_mknod(int mode, dev_t dev)
 {
-	struct dev_cgroup *dev_cgroup;
-	struct dev_whitelist_item *wh;
+	struct dev_cgroup *dev_cgroup = task_devcgroup(current);
+	short type;
 
 	if (!S_ISBLK(mode) && !S_ISCHR(mode))
 		return 0;
 
-	rcu_read_lock();
+	if (S_ISBLK(mode))
+		type = DEV_BLOCK;
+	else
+		type = DEV_CHAR;
 
-	dev_cgroup = task_devcgroup(current);
+	return __devcgroup_check_permission(dev_cgroup, type, MAJOR(dev),
+					    MINOR(dev), ACC_MKNOD);
 
-	list_for_each_entry_rcu(wh, &dev_cgroup->whitelist, list) {
-		if (wh->type & DEV_ALL)
-			goto found;
-		if ((wh->type & DEV_BLOCK) && !S_ISBLK(mode))
-			continue;
-		if ((wh->type & DEV_CHAR) && !S_ISCHR(mode))
-			continue;
-		if (wh->major != ~0 && wh->major != MAJOR(dev))
-			continue;
-		if (wh->minor != ~0 && wh->minor != MINOR(dev))
-			continue;
-
-		if (!(wh->access & ACC_MKNOD))
-			continue;
-found:
-		rcu_read_unlock();
-		return 0;
-	}
-
-	rcu_read_unlock();
-
-	return -EPERM;
 }
