@@ -611,7 +611,10 @@ ENDPROC(ret_to_user)
  */
 ENTRY(ret_from_fork)
 	bl	schedule_tail
-	get_thread_info tsk
+	cbz	x19, 1f				// not a kernel thread
+	mov	x0, x20
+	blr	x19
+1:	get_thread_info tsk
 	b	ret_to_user
 ENDPROC(ret_from_fork)
 
