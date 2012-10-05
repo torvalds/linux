@@ -1653,8 +1653,8 @@ static int team_nl_cmd_noop(struct sk_buff *skb, struct genl_info *info)
 
 	hdr = genlmsg_put(msg, info->snd_pid, info->snd_seq,
 			  &team_nl_family, 0, TEAM_CMD_NOOP);
-	if (IS_ERR(hdr)) {
-		err = PTR_ERR(hdr);
+	if (!hdr) {
+		err = -EMSGSIZE;
 		goto err_msg_put;
 	}
 
@@ -1848,8 +1848,8 @@ start_again:
 
 	hdr = genlmsg_put(skb, pid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_OPTIONS_GET);
-	if (IS_ERR(hdr))
-		return PTR_ERR(hdr);
+	if (!hdr)
+		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;
@@ -2068,8 +2068,8 @@ static int team_nl_fill_port_list_get(struct sk_buff *skb,
 
 	hdr = genlmsg_put(skb, pid, seq, &team_nl_family, flags,
 			  TEAM_CMD_PORT_LIST_GET);
-	if (IS_ERR(hdr))
-		return PTR_ERR(hdr);
+	if (!hdr)
+		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;

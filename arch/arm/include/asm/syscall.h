@@ -8,6 +8,7 @@
 #define _ASM_ARM_SYSCALL_H
 
 #include <linux/err.h>
+#include <linux/sched.h>
 
 #include <asm/unistd.h>
 
