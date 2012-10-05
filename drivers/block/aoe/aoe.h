@@ -49,8 +49,6 @@ struct aoe_hdr {
 	__be32 tag;
 };
 
-#define AOE_MAXSHELF (0xffff-1)	/* one less than the broadcast shelf address */
-
 struct aoe_atahdr {
 	unsigned char aflags;
 	unsigned char errfeat;

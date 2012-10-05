@@ -1349,21 +1349,26 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 			"Check shelf dip switches.\n");
 		return;
 	}
-	if (aoemajor > AOE_MAXSHELF) {
-		pr_info("aoe: e%ld.%d: shelf number too large\n",
+	if (aoemajor == 0xffff) {
+		pr_info("aoe: e%ld.%d: broadcast shelf number invalid\n",
 			aoemajor, (int) h->minor);
 		return;
 	}
-
-	d = aoedev_by_aoeaddr(aoemajor, h->minor, 1);
-	if (d == NULL) {
-		pr_info("aoe: device allocation failure\n");
+	if (h->minor == 0xff) {
+		pr_info("aoe: e%ld.%d: broadcast slot number invalid\n",
+			aoemajor, (int) h->minor);
 		return;
 	}
 
 	n = be16_to_cpu(ch->bufcnt);
 	if (n > aoe_maxout)	/* keep it reasonable */
 		n = aoe_maxout;
+
+	d = aoedev_by_aoeaddr(aoemajor, h->minor, 1);
+	if (d == NULL) {
+		pr_info("aoe: device allocation failure\n");
+		return;
+	}
 
 	spin_lock_irqsave(&d->lock, flags);
 
