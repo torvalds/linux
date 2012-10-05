@@ -184,6 +184,10 @@ int phylink_gen_key(struct hci_conn *conn, u8 *data, u8 *len, u8 *type)
 	*len = HCI_AMP_LINK_KEY_SIZE;
 
 	key = hci_find_link_key(hdev, &conn->dst);
+	if (!key) {
+		BT_DBG("No Link key for conn %p dst %pMR", conn, &conn->dst);
+		return -EACCES;
+	}
 
 	/* BR/EDR Link Key concatenated together with itself */
 	memcpy(&keybuf[0], key->val, HCI_LINK_KEY_SIZE);
