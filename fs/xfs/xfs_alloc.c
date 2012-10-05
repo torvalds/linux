@@ -2447,7 +2447,7 @@ xfs_alloc_vextent(
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 
-	if (!args->userdata)
+	if (!args->stack_switch)
 		return __xfs_alloc_vextent(args);
 
 

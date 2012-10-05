@@ -123,6 +123,7 @@ typedef struct xfs_alloc_arg {
 	struct completion *done;
 	struct work_struct work;
 	int		result;
+	char		stack_switch;
 } xfs_alloc_arg_t;
 
 /*
