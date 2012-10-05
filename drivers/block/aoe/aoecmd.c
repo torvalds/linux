@@ -284,7 +284,6 @@ aoecmd_ata_rw(struct aoedev *d)
 	struct aoe_hdr *h;
 	struct aoe_atahdr *ah;
 	struct buf *buf;
-	struct bio_vec *bv;
 	struct aoetgt *t;
 	struct sk_buff *skb;
 	struct sk_buff_head queue;
@@ -301,7 +300,6 @@ aoecmd_ata_rw(struct aoedev *d)
 	if (f == NULL)
 		return 0;
 	t = *d->tgt;
-	bv = buf->bv;
 	bcnt = d->maxbcnt;
 	if (bcnt == 0)
 		bcnt = DEFAULTBCNT;
@@ -788,28 +786,25 @@ void
 aoecmd_sleepwork(struct work_struct *work)
 {
 	struct aoedev *d = container_of(work, struct aoedev, work);
+	struct block_device *bd;
+	u64 ssize;
 
 	if (d->flags & DEVFL_GDALLOC)
 		aoeblk_gdalloc(d);
 
 	if (d->flags & DEVFL_NEWSIZE) {
-		struct block_device *bd;
-		unsigned long flags;
-		u64 ssize;
-
 		ssize = get_capacity(d->gd);
 		bd = bdget_disk(d->gd, 0);
-
 		if (bd) {
 			mutex_lock(&bd->bd_inode->i_mutex);
 			i_size_write(bd->bd_inode, (loff_t)ssize<<9);
 			mutex_unlock(&bd->bd_inode->i_mutex);
 			bdput(bd);
 		}
-		spin_lock_irqsave(&d->lock, flags);
+		spin_lock_irq(&d->lock);
 		d->flags |= DEVFL_UP;
 		d->flags &= ~DEVFL_NEWSIZE;
-		spin_unlock_irqrestore(&d->lock, flags);
+		spin_unlock_irq(&d->lock);
 	}
 }
 
