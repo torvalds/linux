@@ -1017,16 +1017,12 @@ void intel_enable_ddi(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	int port = intel_hdmi->ddi_port;
-	u32 temp;
-
-	temp = I915_READ(DDI_BUF_CTL(port));
-	temp |= DDI_BUF_CTL_ENABLE;
 
 	/* Enable DDI_BUF_CTL. In HDMI/DVI mode, the port width,
 	 * and swing/emphasis values are ignored so nothing special needs
 	 * to be done besides enabling the port.
 	 */
-	I915_WRITE(DDI_BUF_CTL(port), temp);
+	I915_WRITE(DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE);
 }
 
 void intel_disable_ddi(struct intel_encoder *encoder)
