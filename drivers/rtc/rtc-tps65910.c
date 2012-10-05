@@ -226,7 +226,6 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = NULL;
 	struct tps65910_rtc *tps_rtc = NULL;
-	struct tps65910_board *pmic_plat_data;
 	int ret;
 	int irq;
 	u32 rtc_reg;
@@ -253,15 +252,13 @@ static int __devinit tps65910_rtc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	pmic_plat_data = dev_get_platdata(tps65910->dev);
-	irq = pmic_plat_data->irq_base;
+	irq  = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		dev_warn(&pdev->dev, "Wake up is not possible as irq = %d\n",
 			irq);
 		return ret;
 	}
 
-	irq += TPS65910_IRQ_RTC_ALARM;
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 		tps65910_rtc_interrupt, IRQF_TRIGGER_LOW,
 		"rtc-tps65910", &pdev->dev);
