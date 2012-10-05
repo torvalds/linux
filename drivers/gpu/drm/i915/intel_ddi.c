@@ -1002,11 +1002,33 @@ void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 	I915_WRITE(PORT_CLK_SEL(port), intel_crtc->ddi_pll_sel);
 }
 
+static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
+				    enum port port)
+{
+	uint32_t reg = DDI_BUF_CTL(port);
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		udelay(1);
+		if (I915_READ(reg) & DDI_BUF_IS_IDLE)
+			return;
+	}
+	DRM_ERROR("Timeout waiting for DDI BUF %c idle bit\n", port_name(port));
+}
+
 void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
+	uint32_t val;
+
+	val = I915_READ(DDI_BUF_CTL(port));
+	if (val & DDI_BUF_CTL_ENABLE) {
+		val &= ~DDI_BUF_CTL_ENABLE;
+		I915_WRITE(DDI_BUF_CTL(port), val);
+		intel_wait_ddi_buf_idle(dev_priv, port);
+	}
 
 	I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
 }
@@ -1027,16 +1049,7 @@ void intel_enable_ddi(struct intel_encoder *encoder)
 
 void intel_disable_ddi(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	int port = intel_hdmi->ddi_port;
-	u32 temp;
-
-	temp = I915_READ(DDI_BUF_CTL(port));
-	temp &= ~DDI_BUF_CTL_ENABLE;
-
-	I915_WRITE(DDI_BUF_CTL(port), temp);
+	/* This will be needed in the future, so leave it here for now */
 }
 
 static int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
