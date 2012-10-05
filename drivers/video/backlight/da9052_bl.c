@@ -72,7 +72,7 @@ static int da9052_adjust_wled_brightness(struct da9052_bl *wleds)
 	if (ret < 0)
 		return ret;
 
-	msleep(10);
+	usleep_range(10000, 11000);
 
 	if (wleds->brightness) {
 		ret = da9052_reg_write(wleds->da9052, wled_bank[wleds->led_reg],
