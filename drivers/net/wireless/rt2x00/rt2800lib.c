@@ -2570,13 +2570,10 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 				  enum ieee80211_band band,
 				  int power_level)
 {
-	u8 txpower;
+	u8 txpower, r1;
 	u16 eeprom;
-	int i, is_rate_b;
-	u32 reg;
-	u8 r1;
-	u32 offset;
-	int delta;
+	u32 reg, offset;
+	int i, is_rate_b, delta, power_ctrl;
 
 	/*
 	 * Calculate HT40 compensation delta
@@ -2589,10 +2586,24 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 	delta += rt2800_get_gain_calibration_delta(rt2x00dev);
 
 	/*
-	 * set to normal bbp tx power control mode: +/- 0dBm
+	 * BBP_R1 controls TX power for all rates, it allow to set the following
+	 * gains -12, -6, 0, +6 dBm by setting values 2, 1, 0, 3 respectively.
+	 *
+	 * TODO: we do not use +6 dBm option to do not increase power beyond
+	 * regulatory limit, however this could be utilized for devices with
+	 * CAPABILITY_POWER_LIMIT.
 	 */
 	rt2800_bbp_read(rt2x00dev, 1, &r1);
-	rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, 0);
+	if (delta <= -12) {
+		power_ctrl = 2;
+		delta += 12;
+	} else if (delta <= -6) {
+		power_ctrl = 1;
+		delta += 6;
+	} else {
+		power_ctrl = 0;
+	}
+	rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, power_ctrl);
 	rt2800_bbp_write(rt2x00dev, 1, r1);
 	offset = TX_PWR_CFG_0;
 
