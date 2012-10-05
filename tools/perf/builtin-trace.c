@@ -323,14 +323,21 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_END()
 	};
 	int err;
+	char bf[BUFSIZ];
 
 	argc = parse_options(argc, argv, trace_options, trace_usage, 0);
 	if (argc)
 		usage_with_options(trace_usage, trace_options);
 
+	err = perf_target__validate(&trace.opts.target);
+	if (err) {
+		perf_target__strerror(&trace.opts.target, err, bf, sizeof(bf));
+		printf("%s", bf);
+		return err;
+	}
+
 	err = perf_target__parse_uid(&trace.opts.target);
 	if (err) {
-		char bf[BUFSIZ];
 		perf_target__strerror(&trace.opts.target, err, bf, sizeof(bf));
 		printf("%s", bf);
 		return err;
