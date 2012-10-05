@@ -2316,7 +2316,8 @@ static int __devinit tsi721_probe(struct pci_dev *pdev,
 
 	/* Configure DMA attributes. */
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (err) {
 			dev_info(&pdev->dev, "Unable to set DMA mask\n");
 			goto err_unmap_bars;
 		}
