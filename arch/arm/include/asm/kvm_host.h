@@ -183,4 +183,7 @@ struct kvm_one_reg;
 int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
 int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
 
+int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
+		int exception_index);
+
 #endif /* __ARM_KVM_HOST_H__ */

@@ -30,7 +30,6 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-#include <asm/unified.h>
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/mman.h>
@@ -478,118 +477,6 @@ static void update_vttbr(struct kvm *kvm)
 	kvm->arch.vttbr |= vmid;
 
 	spin_unlock(&kvm_vmid_lock);
-}
-
-static int handle_svc_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	/* SVC called from Hyp mode should never get here */
-	kvm_debug("SVC called from Hyp mode shouldn't go here\n");
-	BUG();
-	return -EINVAL; /* Squash warning */
-}
-
-static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	trace_kvm_hvc(*vcpu_pc(vcpu), *vcpu_reg(vcpu, 0),
-		      kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK);
-
-	if (kvm_psci_call(vcpu))
-		return 1;
-
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
-
-static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	if (kvm_psci_call(vcpu))
-		return 1;
-
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
-
-static int handle_pabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	/* The hypervisor should never cause aborts */
-	kvm_err("Prefetch Abort taken from Hyp mode at %#08lx (HSR: %#08x)\n",
-		kvm_vcpu_get_hfar(vcpu), kvm_vcpu_get_hsr(vcpu));
-	return -EFAULT;
-}
-
-static int handle_dabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	/* This is either an error in the ws. code or an external abort */
-	kvm_err("Data Abort taken from Hyp mode at %#08lx (HSR: %#08x)\n",
-		kvm_vcpu_get_hfar(vcpu), kvm_vcpu_get_hsr(vcpu));
-	return -EFAULT;
-}
-
-typedef int (*exit_handle_fn)(struct kvm_vcpu *, struct kvm_run *);
-static exit_handle_fn arm_exit_handlers[] = {
-	[HSR_EC_WFI]		= kvm_handle_wfi,
-	[HSR_EC_CP15_32]	= kvm_handle_cp15_32,
-	[HSR_EC_CP15_64]	= kvm_handle_cp15_64,
-	[HSR_EC_CP14_MR]	= kvm_handle_cp14_access,
-	[HSR_EC_CP14_LS]	= kvm_handle_cp14_load_store,
-	[HSR_EC_CP14_64]	= kvm_handle_cp14_access,
-	[HSR_EC_CP_0_13]	= kvm_handle_cp_0_13_access,
-	[HSR_EC_CP10_ID]	= kvm_handle_cp10_id,
-	[HSR_EC_SVC_HYP]	= handle_svc_hyp,
-	[HSR_EC_HVC]		= handle_hvc,
-	[HSR_EC_SMC]		= handle_smc,
-	[HSR_EC_IABT]		= kvm_handle_guest_abort,
-	[HSR_EC_IABT_HYP]	= handle_pabt_hyp,
-	[HSR_EC_DABT]		= kvm_handle_guest_abort,
-	[HSR_EC_DABT_HYP]	= handle_dabt_hyp,
-};
-
-/*
- * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
- * proper exit to QEMU.
- */
-static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
-		       int exception_index)
-{
-	unsigned long hsr_ec;
-
-	switch (exception_index) {
-	case ARM_EXCEPTION_IRQ:
-		return 1;
-	case ARM_EXCEPTION_UNDEFINED:
-		kvm_err("Undefined exception in Hyp mode at: %#08lx\n",
-			kvm_vcpu_get_hyp_pc(vcpu));
-		BUG();
-		panic("KVM: Hypervisor undefined exception!\n");
-	case ARM_EXCEPTION_DATA_ABORT:
-	case ARM_EXCEPTION_PREF_ABORT:
-	case ARM_EXCEPTION_HVC:
-		hsr_ec = kvm_vcpu_trap_get_class(vcpu);
-
-		if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers)
-		    || !arm_exit_handlers[hsr_ec]) {
-			kvm_err("Unkown exception class: %#08lx, "
-				"hsr: %#08x\n", hsr_ec,
-				(unsigned int)kvm_vcpu_get_hsr(vcpu));
-			BUG();
-		}
-
-		/*
-		 * See ARM ARM B1.14.1: "Hyp traps on instructions
-		 * that fail their condition code check"
-		 */
-		if (!kvm_condition_valid(vcpu)) {
-			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-			return 1;
-		}
-
-		return arm_exit_handlers[hsr_ec](vcpu, run);
-	default:
-		kvm_pr_unimpl("Unsupported exception type: %d",
-			      exception_index);
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		return 0;
-	}
 }
 
 static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
