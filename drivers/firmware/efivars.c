@@ -658,6 +658,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	u32 attributes;
 	struct inode *inode = file->f_mapping->host;
 	int datasize = count - sizeof(attributes);
+	unsigned long newdatasize;
 
 	if (count < sizeof(attributes))
 		return -EINVAL;
@@ -696,32 +697,60 @@ static ssize_t efivarfs_file_write(struct file *file,
 
 	switch (status) {
 	case EFI_SUCCESS:
-		mutex_lock(&inode->i_mutex);
-		i_size_write(inode, count);
-		mutex_unlock(&inode->i_mutex);
 		break;
 	case EFI_INVALID_PARAMETER:
 		count = -EINVAL;
-		break;
+		goto out;
 	case EFI_OUT_OF_RESOURCES:
 		count = -ENOSPC;
-		break;
+		goto out;
 	case EFI_DEVICE_ERROR:
 		count = -EIO;
-		break;
+		goto out;
 	case EFI_WRITE_PROTECTED:
 		count = -EROFS;
-		break;
+		goto out;
 	case EFI_SECURITY_VIOLATION:
 		count = -EACCES;
-		break;
+		goto out;
 	case EFI_NOT_FOUND:
 		count = -ENOENT;
-		break;
+		goto out;
 	default:
 		count = -EINVAL;
-		break;
+		goto out;
 	}
+
+	/*
+	 * Writing to the variable may have caused a change in size (which
+	 * could either be an append or an overwrite), or the variable to be
+	 * deleted. Perform a GetVariable() so we can tell what actually
+	 * happened.
+	 */
+	newdatasize = 0;
+	status = efivars->ops->get_variable(var->var.VariableName,
+					    &var->var.VendorGuid,
+					    NULL, &newdatasize,
+					    NULL);
+
+	if (status == EFI_BUFFER_TOO_SMALL) {
+		mutex_lock(&inode->i_mutex);
+		i_size_write(inode, newdatasize + sizeof(attributes));
+		mutex_unlock(&inode->i_mutex);
+
+	} else if (status == EFI_NOT_FOUND) {
+		spin_lock(&efivars->lock);
+		list_del(&var->list);
+		spin_unlock(&efivars->lock);
+		efivar_unregister(var);
+		drop_nlink(inode);
+		dput(file->f_dentry);
+
+	} else {
+		pr_warn("efivarfs: inconsistent EFI variable implementation? "
+				"status = %lx\n", status);
+	}
+
 out:
 	kfree(data);
 
