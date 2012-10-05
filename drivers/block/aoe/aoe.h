@@ -10,9 +10,6 @@
 #define AOE_PARTITIONS (16)
 #endif
 
-#define SYSMINOR(aoemajor, aoeminor) ((aoemajor) * NPERSHELF + (aoeminor))
-#define AOEMAJOR(sysminor) ((sysminor) / NPERSHELF)
-#define AOEMINOR(sysminor) ((sysminor) % NPERSHELF)
 #define WHITESPACE " \t\v\f\n"
 
 enum {
@@ -82,7 +79,6 @@ enum {
 
 enum {
 	DEFAULTBCNT = 2 * 512,	/* 2 sectors */
-	NPERSHELF = 16,		/* number of slots per shelf address */
 	MIN_BUFS = 16,
 	NTARGETS = 8,
 	NAOEIFS = 8,
