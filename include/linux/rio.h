@@ -275,6 +275,7 @@ struct rio_mport {
 struct rio_net {
 	struct list_head node;	/* node in list of networks */
 	struct list_head devices;	/* list of devices in this net */
+	struct list_head switches;	/* list of switches in this net */
 	struct list_head mports;	/* list of ports accessing net */
 	struct rio_mport *hport;	/* primary port for accessing net */
 	unsigned char id;	/* RIO network ID */

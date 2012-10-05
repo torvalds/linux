@@ -38,7 +38,6 @@
 #include "rio.h"
 
 LIST_HEAD(rio_devices);
-static LIST_HEAD(rio_switches);
 
 static void rio_init_em(struct rio_dev *rdev);
 
@@ -104,14 +103,15 @@ static void rio_local_set_device_id(struct rio_mport *port, u16 did)
 
 /**
  * rio_clear_locks- Release all host locks and signal enumeration complete
- * @port: Master port to issue transaction
+ * @net: RIO network to run on
  *
  * Marks the component tag CSR on each device with the enumeration
  * complete flag. When complete, it then release the host locks on
  * each device. Returns 0 on success or %-EINVAL on failure.
  */
-static int rio_clear_locks(struct rio_mport *port)
+static int rio_clear_locks(struct rio_net *net)
 {
+	struct rio_mport *port = net->hport;
 	struct rio_dev *rdev;
 	u32 result;
 	int ret = 0;
@@ -126,7 +126,7 @@ static int rio_clear_locks(struct rio_mport *port)
 		       result);
 		ret = -EINVAL;
 	}
-	list_for_each_entry(rdev, &rio_devices, global_list) {
+	list_for_each_entry(rdev, &net->devices, net_list) {
 		rio_write_config_32(rdev, RIO_HOST_DID_LOCK_CSR,
 				    port->host_deviceid);
 		rio_read_config_32(rdev, RIO_HOST_DID_LOCK_CSR, &result);
@@ -479,7 +479,7 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 			rswitch->clr_table(port, destid, hopcount,
 					   RIO_GLOBAL_TABLE);
 
-		list_add_tail(&rswitch->node, &rio_switches);
+		list_add_tail(&rswitch->node, &net->switches);
 
 	} else {
 		if (do_enum)
@@ -1058,6 +1058,7 @@ static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port)
 	if (net) {
 		INIT_LIST_HEAD(&net->node);
 		INIT_LIST_HEAD(&net->devices);
+		INIT_LIST_HEAD(&net->switches);
 		INIT_LIST_HEAD(&net->mports);
 		list_add_tail(&port->nnode, &net->mports);
 		net->hport = port;
@@ -1068,24 +1069,24 @@ static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port)
 
 /**
  * rio_update_route_tables- Updates route tables in switches
- * @port: Master port associated with the RIO network
+ * @net: RIO network to run update on
  *
  * For each enumerated device, ensure that each switch in a system
  * has correct routing entries. Add routes for devices that where
  * unknown dirung the first enumeration pass through the switch.
  */
-static void rio_update_route_tables(struct rio_mport *port)
+static void rio_update_route_tables(struct rio_net *net)
 {
 	struct rio_dev *rdev, *swrdev;
 	struct rio_switch *rswitch;
 	u8 sport;
 	u16 destid;
 
-	list_for_each_entry(rdev, &rio_devices, global_list) {
+	list_for_each_entry(rdev, &net->devices, net_list) {
 
 		destid = rdev->destid;
 
-		list_for_each_entry(rswitch, &rio_switches, node) {
+		list_for_each_entry(rswitch, &net->switches, node) {
 
 			if (rio_is_switch(rdev)	&& (rdev->rswitch == rswitch))
 				continue;
@@ -1181,12 +1182,12 @@ int __devinit rio_enum_mport(struct rio_mport *mport)
 			printk(KERN_INFO
 			       "RIO: master port %d device has lost enumeration to a remote host\n",
 			       mport->id);
-			rio_clear_locks(mport);
+			rio_clear_locks(net);
 			rc = -EBUSY;
 			goto out;
 		}
-		rio_update_route_tables(mport);
-		rio_clear_locks(mport);
+		rio_update_route_tables(net);
+		rio_clear_locks(net);
 		rio_pw_enable(mport, 1);
 	} else {
 		printk(KERN_INFO "RIO: master port %d link inactive\n",
@@ -1200,33 +1201,34 @@ int __devinit rio_enum_mport(struct rio_mport *mport)
 
 /**
  * rio_build_route_tables- Generate route tables from switch route entries
+ * @net: RIO network to run route tables scan on
  *
  * For each switch device, generate a route table by copying existing
  * route entries from the switch.
  */
-static void rio_build_route_tables(void)
+static void rio_build_route_tables(struct rio_net *net)
 {
+	struct rio_switch *rswitch;
 	struct rio_dev *rdev;
 	int i;
 	u8 sport;
 
-	list_for_each_entry(rdev, &rio_devices, global_list)
-		if (rio_is_switch(rdev)) {
-			rio_lock_device(rdev->net->hport, rdev->destid,
-					rdev->hopcount, 1000);
-			for (i = 0;
-			     i < RIO_MAX_ROUTE_ENTRIES(rdev->net->hport->sys_size);
-			     i++) {
-				if (rio_route_get_entry(rdev,
-					RIO_GLOBAL_TABLE, i, &sport, 0) < 0)
-					continue;
-				rdev->rswitch->route_table[i] = sport;
-			}
+	list_for_each_entry(rswitch, &net->switches, node) {
+		rdev = sw_to_rio_dev(rswitch);
 
-			rio_unlock_device(rdev->net->hport,
-					  rdev->destid,
-					  rdev->hopcount);
+		rio_lock_device(net->hport, rdev->destid,
+				rdev->hopcount, 1000);
+		for (i = 0;
+		     i < RIO_MAX_ROUTE_ENTRIES(net->hport->sys_size);
+		     i++) {
+			if (rio_route_get_entry(rdev, RIO_GLOBAL_TABLE,
+						i, &sport, 0) < 0)
+				continue;
+			rswitch->route_table[i] = sport;
 		}
+
+		rio_unlock_device(net->hport, rdev->destid, rdev->hopcount);
+	}
 }
 
 /**
@@ -1284,7 +1286,7 @@ enum_done:
 			goto bail;
 		}
 
-		rio_build_route_tables();
+		rio_build_route_tables(net);
 	}
 
 	return 0;
