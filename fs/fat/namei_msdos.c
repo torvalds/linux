@@ -407,7 +407,7 @@ out:
 static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	struct super_block *sb= inode->i_sb;
+	struct super_block *sb = inode->i_sb;
 	struct fat_slot_info sinfo;
 	int err;
 
