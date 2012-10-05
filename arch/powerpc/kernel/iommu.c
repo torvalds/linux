@@ -215,7 +215,8 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	spin_lock_irqsave(&(pool->lock), flags);
 
 again:
-	if ((pass == 0) && handle && *handle)
+	if ((pass == 0) && handle && *handle &&
+	    (*handle >= pool->start) && (*handle < pool->end))
 		start = *handle;
 	else
 		start = pool->hint;
@@ -236,7 +237,9 @@ again:
 		 * but on second pass, start at 0 in pool 0.
 		 */
 		if ((start & mask) >= limit || pass > 0) {
+			spin_unlock(&(pool->lock));
 			pool = &(tbl->pools[0]);
+			spin_lock(&(pool->lock));
 			start = pool->start;
 		} else {
 			start &= mask;
