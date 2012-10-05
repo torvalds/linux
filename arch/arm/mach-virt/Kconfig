@@ -1,0 +1,9 @@
+config ARCH_VIRT
+	bool "Dummy Virtual Machine" if ARCH_MULTI_V7
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
+	select ARM_ARCH_TIMER
+	select HAVE_SMP
+	select CPU_V7
+	select SPARSE_IRQ
+	select USE_OF
