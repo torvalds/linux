@@ -281,15 +281,42 @@ static inline unsigned long fat_hash(loff_t i_pos)
 	return hash_32(i_pos, FAT_HASH_BITS);
 }
 
+static void dir_hash_init(struct super_block *sb)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	int i;
+
+	spin_lock_init(&sbi->dir_hash_lock);
+	for (i = 0; i < FAT_HASH_SIZE; i++)
+		INIT_HLIST_HEAD(&sbi->dir_hashtable[i]);
+}
+
 void fat_attach(struct inode *inode, loff_t i_pos)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
-	struct hlist_head *head = sbi->inode_hashtable + fat_hash(i_pos);
 
-	spin_lock(&sbi->inode_hash_lock);
-	MSDOS_I(inode)->i_pos = i_pos;
-	hlist_add_head(&MSDOS_I(inode)->i_fat_hash, head);
-	spin_unlock(&sbi->inode_hash_lock);
+	if (inode->i_ino != MSDOS_ROOT_INO) {
+		struct hlist_head *head =   sbi->inode_hashtable
+					  + fat_hash(i_pos);
+
+		spin_lock(&sbi->inode_hash_lock);
+		MSDOS_I(inode)->i_pos = i_pos;
+		hlist_add_head(&MSDOS_I(inode)->i_fat_hash, head);
+		spin_unlock(&sbi->inode_hash_lock);
+	}
+
+	/* If NFS support is enabled, cache the mapping of start cluster
+	 * to directory inode. This is used during reconnection of
+	 * dentries to the filesystem root.
+	 */
+	if (S_ISDIR(inode->i_mode) && sbi->options.nfs) {
+		struct hlist_head *d_head = sbi->dir_hashtable;
+		d_head += fat_dir_hash(MSDOS_I(inode)->i_logstart);
+
+		spin_lock(&sbi->dir_hash_lock);
+		hlist_add_head(&MSDOS_I(inode)->i_dir_hash, d_head);
+		spin_unlock(&sbi->dir_hash_lock);
+	}
 }
 EXPORT_SYMBOL_GPL(fat_attach);
 
@@ -300,6 +327,12 @@ void fat_detach(struct inode *inode)
 	MSDOS_I(inode)->i_pos = 0;
 	hlist_del_init(&MSDOS_I(inode)->i_fat_hash);
 	spin_unlock(&sbi->inode_hash_lock);
+
+	if (S_ISDIR(inode->i_mode) && sbi->options.nfs) {
+		spin_lock(&sbi->dir_hash_lock);
+		hlist_del_init(&MSDOS_I(inode)->i_dir_hash);
+		spin_unlock(&sbi->dir_hash_lock);
+	}
 }
 EXPORT_SYMBOL_GPL(fat_detach);
 
@@ -504,6 +537,7 @@ static void init_once(void *foo)
 	ei->cache_valid_id = FAT_CACHE_VALID + 1;
 	INIT_LIST_HEAD(&ei->cache_lru);
 	INIT_HLIST_NODE(&ei->i_fat_hash);
+	INIT_HLIST_NODE(&ei->i_dir_hash);
 	inode_init_once(&ei->vfs_inode);
 }
 
@@ -560,6 +594,20 @@ static int fat_statfs(struct dentry *dentry, struct kstatfs *buf)
 		(sbi->options.isvfat ? FAT_LFN_LEN : 12) * NLS_MAX_CHARSET_SIZE;
 
 	return 0;
+}
+
+static inline loff_t fat_i_pos_read(struct msdos_sb_info *sbi,
+				    struct inode *inode)
+{
+	loff_t i_pos;
+#if BITS_PER_LONG == 32
+	spin_lock(&sbi->inode_hash_lock);
+#endif
+	i_pos = MSDOS_I(inode)->i_pos;
+#if BITS_PER_LONG == 32
+	spin_unlock(&sbi->inode_hash_lock);
+#endif
+	return i_pos;
 }
 
 static int __fat_write_inode(struct inode *inode, int wait)
@@ -655,8 +703,8 @@ static const struct super_operations fat_sops = {
 };
 
 static const struct export_operations fat_export_ops = {
-	.encode_fh	= fat_encode_fh,
 	.fh_to_dentry	= fat_fh_to_dentry,
+	.fh_to_parent	= fat_fh_to_parent,
 	.get_parent	= fat_get_parent,
 };
 
@@ -706,6 +754,8 @@ static int fat_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",usefree");
 	if (opts->quiet)
 		seq_puts(m, ",quiet");
+	if (opts->nfs)
+		seq_puts(m, ",nfs");
 	if (opts->showexec)
 		seq_puts(m, ",showexec");
 	if (opts->sys_immutable)
@@ -750,7 +800,7 @@ enum {
 	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
 	Opt_uni_xl_no, Opt_uni_xl_yes, Opt_nonumtail_no, Opt_nonumtail_yes,
 	Opt_obsolete, Opt_flush, Opt_tz_utc, Opt_rodir, Opt_err_cont,
-	Opt_err_panic, Opt_err_ro, Opt_discard, Opt_err,
+	Opt_err_panic, Opt_err_ro, Opt_discard, Opt_nfs, Opt_err,
 };
 
 static const match_table_t fat_tokens = {
@@ -779,6 +829,7 @@ static const match_table_t fat_tokens = {
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
 	{Opt_discard, "discard"},
+	{Opt_nfs, "nfs"},
 	{Opt_obsolete, "conv=binary"},
 	{Opt_obsolete, "conv=text"},
 	{Opt_obsolete, "conv=auto"},
@@ -859,6 +910,7 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 	opts->numtail = 1;
 	opts->usefree = opts->nocase = 0;
 	opts->tz_utc = 0;
+	opts->nfs = 0;
 	opts->errors = FAT_ERRORS_RO;
 	*debug = 0;
 
@@ -1022,6 +1074,9 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 			break;
 		case Opt_discard:
 			opts->discard = 1;
+			break;
+		case Opt_nfs:
+			opts->nfs = 1;
 			break;
 
 		/* obsolete mount options */
@@ -1313,6 +1368,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 
 	/* set up enough so that it can read an inode */
 	fat_hash_init(sb);
+	dir_hash_init(sb);
 	fat_ent_access_init(sb);
 
 	/*
@@ -1367,6 +1423,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	}
 	error = -ENOMEM;
 	insert_inode_hash(root_inode);
+	fat_attach(root_inode, 0);
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
 		fat_msg(sb, KERN_ERR, "get root inode failed");

@@ -872,21 +872,23 @@ static int fat_get_short_entry(struct inode *dir, loff_t *pos,
 }
 
 /*
- * The ".." entry can not provide the "struct fat_slot_info" informations
- * for inode. So, this function provide the some informations only.
+ * The ".." entry can not provide the "struct fat_slot_info" information
+ * for inode, nor a usable i_pos. So, this function provides some information
+ * only.
+ *
+ * Since this function walks through the on-disk inodes within a directory,
+ * callers are responsible for taking any locks necessary to prevent the
+ * directory from changing.
  */
 int fat_get_dotdot_entry(struct inode *dir, struct buffer_head **bh,
-			 struct msdos_dir_entry **de, loff_t *i_pos)
+			 struct msdos_dir_entry **de)
 {
-	loff_t offset;
+	loff_t offset = 0;
 
-	offset = 0;
-	*bh = NULL;
+	*de = NULL;
 	while (fat_get_short_entry(dir, &offset, bh, de) >= 0) {
-		if (!strncmp((*de)->name, MSDOS_DOTDOT, MSDOS_NAME)) {
-			*i_pos = fat_make_i_pos(dir->i_sb, *bh, *de);
+		if (!strncmp((*de)->name, MSDOS_DOTDOT, MSDOS_NAME))
 			return 0;
-		}
 	}
 	return -ENOENT;
 }
