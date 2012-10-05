@@ -299,6 +299,8 @@ enum rtl_registers {
 	Config0		= 0x51,
 	Config1		= 0x52,
 	Config2		= 0x53,
+#define PME_SIGNAL			(1 << 5)	/* 8168c and later */
+
 	Config3		= 0x54,
 	Config4		= 0x55,
 	Config5		= 0x56,
@@ -1249,6 +1251,10 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 		RTL_W8(Config1, options);
 		break;
 	default:
+		options = RTL_R8(Config2) & ~PME_SIGNAL;
+		if (wolopts)
+			options |= PME_SIGNAL;
+		RTL_W8(Config2, options);
 		break;
 	}
 
