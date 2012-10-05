@@ -161,22 +161,6 @@ unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu)
 	}
 }
 
-/**
- * kvm_handle_wfi - handle a wait-for-interrupts instruction executed by a guest
- * @vcpu:	the vcpu pointer
- * @run:	the kvm_run structure pointer
- *
- * Simply sets the wait_for_interrupts flag on the vcpu structure, which will
- * halt execution of world-switches and schedule other host processes until
- * there is an incoming IRQ or FIQ to the VM.
- */
-int kvm_handle_wfi(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	trace_kvm_wfi(*vcpu_pc(vcpu));
-	kvm_vcpu_block(vcpu);
-	return 1;
-}
-
 /*
  * A conditional instruction is allowed to trap, even though it
  * wouldn't be executed.  So let's re-implement the hardware, in

@@ -22,6 +22,9 @@
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_psci.h>
+#include <trace/events/kvm.h>
+
+#include "trace.h"
 
 #include "trace.h"
 
@@ -70,6 +73,22 @@ static int handle_dabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	kvm_err("Data Abort taken from Hyp mode at %#08lx (HSR: %#08x)\n",
 		kvm_vcpu_get_hfar(vcpu), kvm_vcpu_get_hsr(vcpu));
 	return -EFAULT;
+}
+
+/**
+ * kvm_handle_wfi - handle a wait-for-interrupts instruction executed by a guest
+ * @vcpu:	the vcpu pointer
+ * @run:	the kvm_run structure pointer
+ *
+ * Simply sets the wait_for_interrupts flag on the vcpu structure, which will
+ * halt execution of world-switches and schedule other host processes until
+ * there is an incoming IRQ or FIQ to the VM.
+ */
+static int kvm_handle_wfi(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	trace_kvm_wfi(*vcpu_pc(vcpu));
+	kvm_vcpu_block(vcpu);
+	return 1;
 }
 
 static exit_handle_fn arm_exit_handlers[] = {
