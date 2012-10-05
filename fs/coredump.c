@@ -14,6 +14,7 @@
 #include <linux/key.h>
 #include <linux/personality.h>
 #include <linux/binfmts.h>
+#include <linux/coredump.h>
 #include <linux/utsname.h>
 #include <linux/pid_namespace.h>
 #include <linux/module.h>
@@ -39,6 +40,7 @@
 
 #include <trace/events/task.h>
 #include "internal.h"
+#include "coredump.h"
 
 #include <trace/events/sched.h>
 
