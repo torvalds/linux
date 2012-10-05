@@ -686,7 +686,7 @@ static void falcon_ack_status_intr(struct efx_nic *efx)
 		return;
 
 	/* We expect xgmii faults if the wireside link is down */
-	if (!EFX_WORKAROUND_5147(efx) || !efx->link_state.up)
+	if (!efx->link_state.up)
 		return;
 
 	/* We can only use this interrupt to signal the negative edge of
@@ -795,29 +795,22 @@ static void falcon_reconfigure_xgxs_core(struct efx_nic *efx)
 	bool xgxs_loopback = (efx->loopback_mode == LOOPBACK_XGXS);
 	bool xaui_loopback = (efx->loopback_mode == LOOPBACK_XAUI);
 	bool xgmii_loopback = (efx->loopback_mode == LOOPBACK_XGMII);
+	bool old_xgmii_loopback, old_xgxs_loopback, old_xaui_loopback;
 
 	/* XGXS block is flaky and will need to be reset if moving
 	 * into our out of XGMII, XGXS or XAUI loopbacks. */
-	if (EFX_WORKAROUND_5147(efx)) {
-		bool old_xgmii_loopback, old_xgxs_loopback, old_xaui_loopback;
-		bool reset_xgxs;
+	efx_reado(efx, &reg, FR_AB_XX_CORE_STAT);
+	old_xgxs_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_XGXS_LB_EN);
+	old_xgmii_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_XGMII_LB_EN);
 
-		efx_reado(efx, &reg, FR_AB_XX_CORE_STAT);
-		old_xgxs_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_XGXS_LB_EN);
-		old_xgmii_loopback =
-			EFX_OWORD_FIELD(reg, FRF_AB_XX_XGMII_LB_EN);
+	efx_reado(efx, &reg, FR_AB_XX_SD_CTL);
+	old_xaui_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_LPBKA);
 
-		efx_reado(efx, &reg, FR_AB_XX_SD_CTL);
-		old_xaui_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_LPBKA);
-
-		/* The PHY driver may have turned XAUI off */
-		reset_xgxs = ((xgxs_loopback != old_xgxs_loopback) ||
-			      (xaui_loopback != old_xaui_loopback) ||
-			      (xgmii_loopback != old_xgmii_loopback));
-
-		if (reset_xgxs)
-			falcon_reset_xaui(efx);
-	}
+	/* The PHY driver may have turned XAUI off */
+	if ((xgxs_loopback != old_xgxs_loopback) ||
+	    (xaui_loopback != old_xaui_loopback) ||
+	    (xgmii_loopback != old_xgmii_loopback))
+		falcon_reset_xaui(efx);
 
 	efx_reado(efx, &reg, FR_AB_XX_CORE_STAT);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_XX_FORCE_SIG,
@@ -946,8 +939,8 @@ static void falcon_poll_xmac(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 
-	if (!EFX_WORKAROUND_5147(efx) || !efx->link_state.up ||
-	    !nic_data->xmac_poll_required)
+	/* We expect xgmii faults if the wireside link is down */
+	if (!efx->link_state.up || !nic_data->xmac_poll_required)
 		return;
 
 	nic_data->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 1);
