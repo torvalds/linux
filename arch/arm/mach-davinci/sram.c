@@ -18,6 +18,11 @@
 
 static struct gen_pool *sram_pool;
 
+struct gen_pool *sram_get_gen_pool(void)
+{
+	return sram_pool;
+}
+
 void *sram_alloc(size_t len, dma_addr_t *dma)
 {
 	unsigned long vaddr;
