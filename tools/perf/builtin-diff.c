@@ -24,6 +24,7 @@ static char const *input_old = "perf.data.old",
 static char	  diff__default_sort_order[] = "dso,symbol";
 static bool  force;
 static bool show_displacement;
+static bool show_baseline_only;
 
 static int hists__add_entry(struct hists *self,
 			    struct addr_location *al, u64 period)
@@ -172,6 +173,31 @@ static void perf_evlist__resort_hists(struct perf_evlist *evlist, bool name)
 	}
 }
 
+static void hists__baseline_only(struct hists *hists)
+{
+	struct rb_node *next = rb_first(&hists->entries);
+
+	while (next != NULL) {
+		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node);
+
+		next = rb_next(&he->rb_node);
+		if (!he->pair) {
+			rb_erase(&he->rb_node, &hists->entries);
+			hist_entry__free(he);
+		}
+	}
+}
+
+static void hists__process(struct hists *old, struct hists *new)
+{
+	hists__match(old, new);
+
+	if (show_baseline_only)
+		hists__baseline_only(new);
+
+	hists__fprintf(new, true, 0, 0, stdout);
+}
+
 static int __cmd_diff(void)
 {
 	int ret, i;
@@ -213,8 +239,7 @@ static int __cmd_diff(void)
 
 		first = false;
 
-		hists__match(&evsel_old->hists, &evsel->hists);
-		hists__fprintf(&evsel->hists, true, 0, 0, stdout);
+		hists__process(&evsel_old->hists, &evsel->hists);
 	}
 
 out_delete:
@@ -235,6 +260,8 @@ static const struct option options[] = {
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('M', "displacement", &show_displacement,
 		    "Show position displacement relative to baseline"),
+	OPT_BOOLEAN('b', "baseline-only", &show_baseline_only,
+		    "Show only items with match in baseline"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),

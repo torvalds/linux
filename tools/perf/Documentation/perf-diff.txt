@@ -72,6 +72,10 @@ OPTIONS
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
 
+-b::
+--baseline-only::
+        Show only items with match in baseline.
+
 SEE ALSO
 --------
 linkperf:perf-record[1]
