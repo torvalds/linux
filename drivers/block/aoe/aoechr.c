@@ -106,6 +106,7 @@ loop:
 		spin_lock_irqsave(&d->lock, flags);
 		goto loop;
 	}
+	aoedev_put(d);
 	if (skb) {
 		struct sk_buff_head queue;
 		__skb_queue_head_init(&queue);

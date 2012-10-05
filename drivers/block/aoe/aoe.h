@@ -90,7 +90,7 @@ enum {
 	MIN_BUFS = 16,
 	NTARGETS = 8,
 	NAOEIFS = 8,
-	NSKBPOOLMAX = 128,
+	NSKBPOOLMAX = 256,
 	NFACTIVE = 17,
 
 	TIMERTICK = HZ / 10,
@@ -100,30 +100,26 @@ enum {
 };
 
 struct buf {
-	struct list_head bufs;
-	ulong stime;	/* for disk stats */
-	ulong flags;
 	ulong nframesout;
 	ulong resid;
 	ulong bv_resid;
-	ulong bv_off;
 	sector_t sector;
 	struct bio *bio;
 	struct bio_vec *bv;
+	struct request *rq;
 };
 
 struct frame {
 	struct list_head head;
 	u32 tag;
 	ulong waited;
-	struct buf *buf;
 	struct aoetgt *t;		/* parent target I belong to */
-	char *bufaddr;
-	ulong bcnt;
 	sector_t lba;
 	struct sk_buff *skb;		/* command skb freed on module exit */
 	struct sk_buff *r_skb;		/* response skb for async processing */
+	struct buf *buf;
 	struct bio_vec *bv;
+	ulong bcnt;
 	ulong bv_off;
 };
 
@@ -161,6 +157,7 @@ struct aoedev {
 	u16 rttavg;		/* round trip average of requests/responses */
 	u16 mintimer;
 	u16 fw_ver;		/* version of blade's firmware */
+	ulong ref;
 	struct work_struct work;/* disk create work struct */
 	struct gendisk *gd;
 	struct request_queue *blkq;
@@ -168,11 +165,13 @@ struct aoedev {
 	sector_t ssize;
 	struct timer_list timer;
 	spinlock_t lock;
-	struct sk_buff_head sendq;
 	struct sk_buff_head skbpool;
 	mempool_t *bufpool;	/* for deadlock-free Buf allocation */
-	struct list_head bufq;	/* queue of bios to work on */
-	struct buf *inprocess;	/* the one we're currently working on */
+	struct {		/* pointers to work in progress */
+		struct buf *buf;
+		struct bio *nxbio;
+		struct request *rq;
+	} ip;
 	struct aoetgt *targets[NTARGETS];
 	struct aoetgt **tgt;	/* target in use when working */
 	struct aoetgt *htgt;	/* target needing rexmit assistance */
@@ -209,6 +208,8 @@ void aoecmd_exit(void);
 int aoecmd_init(void);
 struct sk_buff *aoecmd_ata_id(struct aoedev *);
 void aoe_freetframe(struct frame *);
+void aoe_flush_iocq(void);
+void aoe_end_request(struct aoedev *, struct request *, int);
 
 int aoedev_init(void);
 void aoedev_exit(void);
@@ -216,7 +217,8 @@ struct aoedev *aoedev_by_aoeaddr(int maj, int min);
 struct aoedev *aoedev_by_sysminor_m(ulong sysminor);
 void aoedev_downdev(struct aoedev *d);
 int aoedev_flush(const char __user *str, size_t size);
-void aoe_failbuf(struct aoedev *d, struct buf *buf);
+void aoe_failbuf(struct aoedev *, struct buf *);
+void aoedev_put(struct aoedev *);
 
 int aoenet_init(void);
 void aoenet_exit(void);
