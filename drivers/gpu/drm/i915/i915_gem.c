@@ -2019,7 +2019,8 @@ i915_add_request(struct intel_ring_buffer *ring,
 		}
 		if (was_empty) {
 			queue_delayed_work(dev_priv->wq,
-					   &dev_priv->mm.retire_work, HZ);
+					   &dev_priv->mm.retire_work,
+					   round_jiffies_up_relative(HZ));
 			intel_mark_busy(dev_priv->dev);
 		}
 	}
@@ -2208,7 +2209,8 @@ i915_gem_retire_work_handler(struct work_struct *work)
 
 	/* Come back later if the device is busy... */
 	if (!mutex_trylock(&dev->struct_mutex)) {
-		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
+		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work,
+				   round_jiffies_up_relative(HZ));
 		return;
 	}
 
@@ -2226,7 +2228,8 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	}
 
 	if (!dev_priv->mm.suspended && !idle)
-		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
+		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work,
+				   round_jiffies_up_relative(HZ));
 	if (idle)
 		intel_mark_idle(dev);
 
