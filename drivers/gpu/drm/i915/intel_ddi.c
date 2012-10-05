@@ -203,15 +203,6 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 						DP_TP_CTL_ENHANCED_FRAME_ENABLE |
 						DP_TP_CTL_ENABLE);
 
-			/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in FDI mode */
-			temp = I915_READ(DDI_FUNC_CTL(pipe));
-			temp &= ~PIPE_DDI_PORT_MASK;
-			temp |= PIPE_DDI_SELECT_PORT(PORT_E) |
-					PIPE_DDI_MODE_SELECT_FDI |
-					PIPE_DDI_FUNC_ENABLE |
-					PIPE_DDI_PORT_WIDTH_X2;
-			I915_WRITE(DDI_FUNC_CTL(pipe),
-					temp);
 			break;
 		} else {
 			DRM_ERROR("Error training BUF_CTL %d\n", i);
@@ -657,7 +648,7 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	int port = intel_hdmi->ddi_port;
 	int pipe = intel_crtc->pipe;
 	int p, n2, r2;
-	u32 temp, i;
+	u32 i;
 
 	/* On Haswell, we need to enable the clocks and prepare DDI function to
 	 * work in HDMI mode for this pipe.
@@ -715,8 +706,40 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 		intel_write_eld(encoder, adjusted_mode);
 	}
 
+	intel_hdmi->set_infoframes(encoder, adjusted_mode);
+}
+
+static struct intel_encoder *
+intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *intel_encoder, *ret = NULL;
+	int num_encoders = 0;
+
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
+		ret = intel_encoder;
+		num_encoders++;
+	}
+
+	if (num_encoders != 1)
+		WARN(1, "%d encoders on crtc for pipe %d\n", num_encoders,
+		     intel_crtc->pipe);
+
+	BUG_ON(ret == NULL);
+	return ret;
+}
+
+void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	enum pipe pipe = intel_crtc->pipe;
+	uint32_t temp;
+
 	/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in HDMI mode */
-	temp = PIPE_DDI_FUNC_ENABLE | PIPE_DDI_SELECT_PORT(port);
+	temp = PIPE_DDI_FUNC_ENABLE;
 
 	switch (intel_crtc->bpp) {
 	case 18:
@@ -736,19 +759,41 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 		     intel_crtc->bpp);
 	}
 
-	if (intel_hdmi->has_hdmi_sink)
-		temp |= PIPE_DDI_MODE_SELECT_HDMI;
-	else
-		temp |= PIPE_DDI_MODE_SELECT_DVI;
-
-	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
+	if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
 		temp |= PIPE_DDI_PVSYNC;
-	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
+	if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
 		temp |= PIPE_DDI_PHSYNC;
 
-	I915_WRITE(DDI_FUNC_CTL(pipe), temp);
+	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi =
+			enc_to_intel_hdmi(&intel_encoder->base);
 
-	intel_hdmi->set_infoframes(encoder, adjusted_mode);
+		if (intel_hdmi->has_hdmi_sink)
+			temp |= PIPE_DDI_MODE_SELECT_HDMI;
+		else
+			temp |= PIPE_DDI_MODE_SELECT_DVI;
+
+		temp |= PIPE_DDI_SELECT_PORT(intel_hdmi->ddi_port);
+	} else if (intel_encoder->type == INTEL_OUTPUT_ANALOG) {
+		temp |= PIPE_DDI_MODE_SELECT_FDI;
+		temp |= PIPE_DDI_SELECT_PORT(PORT_E);
+	} else {
+		WARN(1, "Invalid encoder type %d for pipe %d\n",
+		     intel_encoder->type, pipe);
+	}
+
+	I915_WRITE(DDI_FUNC_CTL(pipe), temp);
+}
+
+void intel_ddi_disable_pipe_func(struct drm_i915_private *dev_priv,
+				 enum pipe pipe)
+{
+	uint32_t reg = DDI_FUNC_CTL(pipe);
+	uint32_t val = I915_READ(reg);
+
+	val &= ~(PIPE_DDI_FUNC_ENABLE | PIPE_DDI_PORT_MASK);
+	val |= PIPE_DDI_PORT_NONE;
+	I915_WRITE(reg, val);
 }
 
 bool intel_ddi_get_hw_state(struct intel_encoder *encoder,

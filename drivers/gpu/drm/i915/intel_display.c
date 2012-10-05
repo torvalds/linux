@@ -3215,6 +3215,9 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	 */
 	intel_crtc_load_lut(crtc);
 
+	if (IS_HASWELL(dev))
+		intel_ddi_enable_pipe_func(crtc);
+
 	intel_enable_pipe(dev_priv, pipe, is_pch_port);
 	intel_enable_plane(dev_priv, plane, pipe);
 
@@ -3261,6 +3264,9 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		intel_disable_fbc(dev);
 
 	intel_disable_pipe(dev_priv, pipe);
+
+	if (IS_HASWELL(dev))
+		intel_ddi_disable_pipe_func(dev_priv, pipe);
 
 	/* Disable PF */
 	I915_WRITE(PF_CTL(pipe), 0);

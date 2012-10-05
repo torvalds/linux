@@ -581,5 +581,8 @@ extern void intel_ddi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
 extern void intel_ddi_pll_init(struct drm_device *dev);
+extern void intel_ddi_enable_pipe_func(struct drm_crtc *crtc);
+extern void intel_ddi_disable_pipe_func(struct drm_i915_private *dev_priv,
+					enum pipe pipe);
 
 #endif /* __INTEL_DRV_H__ */
