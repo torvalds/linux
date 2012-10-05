@@ -58,6 +58,22 @@ static const u32 hsw_ddi_translations_fdi[] = {
 	0x00FFFFFF, 0x00040006		/* HDMI parameters */
 };
 
+static enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
+{
+	int type = intel_encoder->type;
+
+	if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi =
+			enc_to_intel_hdmi(&intel_encoder->base);
+		return intel_hdmi->ddi_port;
+	} else if (type == INTEL_OUTPUT_ANALOG) {
+		return PORT_E;
+	} else {
+		DRM_ERROR("Invalid DDI encoder type %d\n", type);
+		BUG();
+	}
+}
+
 /* On Haswell, DDI port buffers must be programmed with correct values
  * in advance. The buffer values are different for FDI and DP modes,
  * but the HDMI/DVI fields are shared among those. So we program the DDI
@@ -145,8 +161,6 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	/* Use SPLL to drive the output when in FDI mode */
 	I915_WRITE(PORT_CLK_SEL(PORT_E),
 			PORT_CLK_SEL_SPLL);
-	I915_WRITE(PIPE_CLK_SEL(pipe),
-			PIPE_CLK_SEL_PORT(PORT_E));
 
 	udelay(20);
 
@@ -689,8 +703,6 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	 */
 	I915_WRITE(PORT_CLK_SEL(port),
 			PORT_CLK_SEL_WRPLL1);
-	I915_WRITE(PIPE_CLK_SEL(pipe),
-			PIPE_CLK_SEL_PORT(port));
 
 	udelay(20);
 
@@ -823,6 +835,23 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("No pipe for ddi port %i found\n", intel_hdmi->ddi_port);
 
 	return true;
+}
+
+void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc)
+{
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
+	enum port port = intel_ddi_get_encoder_port(intel_encoder);
+
+	I915_WRITE(PIPE_CLK_SEL(intel_crtc->pipe), PIPE_CLK_SEL_PORT(port));
+}
+
+void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc)
+{
+	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
+
+	I915_WRITE(PIPE_CLK_SEL(intel_crtc->pipe), PIPE_CLK_SEL_DISABLED);
 }
 
 void intel_enable_ddi(struct intel_encoder *encoder)

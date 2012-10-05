@@ -584,5 +584,7 @@ extern void intel_ddi_pll_init(struct drm_device *dev);
 extern void intel_ddi_enable_pipe_func(struct drm_crtc *crtc);
 extern void intel_ddi_disable_pipe_func(struct drm_i915_private *dev_priv,
 					enum pipe pipe);
+extern void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc);
+extern void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc);
 
 #endif /* __INTEL_DRV_H__ */
