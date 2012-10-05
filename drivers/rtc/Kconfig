@@ -350,6 +350,16 @@ config RTC_DRV_TPS65910
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-tps65910.
 
+config RTC_DRV_RC5T583
+	tristate "RICOH 5T583 RTC driver"
+	depends on MFD_RC5T583
+	help
+	  If you say yes here you get support for the RTC on the
+	  RICOH 5T583 chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rc5t583.
+
 config RTC_DRV_S35390A
 	tristate "Seiko Instruments S-35390A"
 	select BITREVERSE
