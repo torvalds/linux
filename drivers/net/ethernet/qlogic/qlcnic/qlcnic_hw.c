@@ -38,7 +38,7 @@ static inline void writeq(u64 val, void __iomem *addr)
 }
 #endif
 
-static const struct crb_128M_2M_block_map
+static struct crb_128M_2M_block_map
 crb_128M_2M_map[64] __cacheline_aligned_in_smp = {
     {{{0, 0,         0,         0} } },		/* 0: PCI */
     {{{1, 0x0100000, 0x0102000, 0x120000},	/* 1: PCIE */
