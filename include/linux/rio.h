@@ -301,6 +301,8 @@ struct rio_net {
  * @add_outb_message: Callback to add a message to an outbound mailbox queue.
  * @add_inb_buffer: Callback to	add a buffer to an inbound mailbox queue.
  * @get_inb_message: Callback to get a message from an inbound mailbox queue.
+ * @map_inb: Callback to map RapidIO address region into local memory space.
+ * @unmap_inb: Callback to unmap RapidIO address region mapped with map_inb().
  */
 struct rio_ops {
 	int (*lcread) (struct rio_mport *mport, int index, u32 offset, int len,
@@ -323,6 +325,9 @@ struct rio_ops {
 				 int mbox, void *buffer, size_t len);
 	int (*add_inb_buffer)(struct rio_mport *mport, int mbox, void *buf);
 	void *(*get_inb_message)(struct rio_mport *mport, int mbox);
+	int (*map_inb)(struct rio_mport *mport, dma_addr_t lstart,
+			u64 rstart, u32 size, u32 flags);
+	void (*unmap_inb)(struct rio_mport *mport, dma_addr_t lstart);
 };
 
 #define RIO_RESOURCE_MEM	0x00000100
