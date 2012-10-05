@@ -445,6 +445,7 @@ static int cgroupstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	na = nla_reserve(rep_skb, CGROUPSTATS_TYPE_CGROUP_STATS,
 				sizeof(struct cgroupstats));
 	if (na == NULL) {
+		nlmsg_free(rep_skb);
 		rc = -EMSGSIZE;
 		goto err;
 	}
