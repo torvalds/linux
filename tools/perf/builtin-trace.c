@@ -52,6 +52,13 @@ struct trace {
 	struct perf_record_opts opts;
 };
 
+static bool done = false;
+
+static void sig_handler(int sig __maybe_unused)
+{
+	done = true;
+}
+
 static int trace__read_syscall_info(struct trace *trace, int id)
 {
 	char tp_name[128];
@@ -189,11 +196,12 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	return 0;
 }
 
-static int trace__run(struct trace *trace)
+static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = perf_evlist__new(NULL, NULL);
 	struct perf_evsel *evsel;
 	int err = -1, i, nr_events = 0, before;
+	const bool forks = argc > 0;
 
 	if (evlist == NULL) {
 		printf("Not enough memory to run!\n");
@@ -214,6 +222,17 @@ static int trace__run(struct trace *trace)
 
 	perf_evlist__config_attrs(evlist, &trace->opts);
 
+	signal(SIGCHLD, sig_handler);
+	signal(SIGINT, sig_handler);
+
+	if (forks) {
+		err = perf_evlist__prepare_workload(evlist, &trace->opts, argv);
+		if (err < 0) {
+			printf("Couldn't run the workload!\n");
+			goto out_delete_evlist;
+		}
+	}
+
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		printf("Couldn't create the events: %s\n", strerror(errno));
@@ -227,6 +246,10 @@ static int trace__run(struct trace *trace)
 	}
 
 	perf_evlist__enable(evlist);
+
+	if (forks)
+		perf_evlist__start_workload(evlist);
+
 again:
 	before = nr_events;
 
@@ -272,8 +295,15 @@ again:
 		}
 	}
 
-	if (nr_events == before)
+	if (nr_events == before) {
+		if (done)
+			goto out_delete_evlist;
+
 		poll(evlist->pollfd, evlist->nr_fds, -1);
+	}
+
+	if (done)
+		perf_evlist__disable(evlist);
 
 	goto again;
 
@@ -286,7 +316,8 @@ out:
 int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const trace_usage[] = {
-		"perf trace [<options>]",
+		"perf trace [<options>] [<command>]",
+		"perf trace [<options>] -- <command> [<options>]",
 		NULL
 	};
 	struct trace trace = {
@@ -326,8 +357,6 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	char bf[BUFSIZ];
 
 	argc = parse_options(argc, argv, trace_options, trace_usage, 0);
-	if (argc)
-		usage_with_options(trace_usage, trace_options);
 
 	err = perf_target__validate(&trace.opts.target);
 	if (err) {
@@ -343,8 +372,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		return err;
 	}
 
-	if (perf_target__none(&trace.opts.target))
+	if (!argc && perf_target__none(&trace.opts.target))
 		trace.opts.target.system_wide = true;
 
-	return trace__run(&trace);
+	return trace__run(&trace, argc, argv);
 }
