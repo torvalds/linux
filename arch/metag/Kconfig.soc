@@ -19,6 +19,8 @@ config SOC_TZ1090
 	select METAG_LNKGET_AROUND_CACHE
 	select METAG_META21
 	select METAG_SMP_WRITE_REORDERING
+	select PINCTRL
+	select PINCTRL_TZ1090
 	help
 	  This is a Toumaz Technology Xenif TZ1090 (A.K.A. Comet) SoC containing
 	  a 2-threaded HTP.

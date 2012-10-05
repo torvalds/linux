@@ -25,5 +25,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		pinctrl: pinctrl@02005800 {
+			#gpio-range-cells = <3>;
+			compatible = "img,tz1090-pinctrl";
+			reg = <0x02005800 0xe4>;
+		};
 	};
 };
