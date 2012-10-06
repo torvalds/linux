@@ -1062,7 +1062,7 @@ static void l2cap_send_disconn_req(struct l2cap_conn *conn,
 	}
 
 	if (chan->chan_type == L2CAP_CHAN_CONN_FIX_A2MP) {
-		__l2cap_state_change(chan, BT_DISCONN);
+		l2cap_state_change(chan, BT_DISCONN);
 		return;
 	}
 
