@@ -198,6 +198,10 @@ static inline int has_extension(const char *filename, const char *ext)
 #undef tolower
 #undef toupper
 
+#ifndef NSEC_PER_MSEC
+#define NSEC_PER_MSEC	1000000L
+#endif
+
 extern unsigned char sane_ctype[256];
 #define GIT_SPACE		0x01
 #define GIT_DIGIT		0x02
