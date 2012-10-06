@@ -254,16 +254,17 @@
 	mov	lr , \reg
 	and	lr , lr , #MODE_MASK
 	cmp	lr , #HYP_MODE
-	orr	\reg , \reg , #PSR_A_BIT | PSR_I_BIT | PSR_F_BIT
+	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT
 	bic	\reg , \reg , #MODE_MASK
 	orr	\reg , \reg , #SVC_MODE
 THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
-	msr	spsr_cxsf, \reg
-	adr	lr, BSYM(2f)
 	bne	1f
+	orr	\reg, \reg, #PSR_A_BIT
+	adr	lr, BSYM(2f)
+	msr	spsr_cxsf, \reg
 	__MSR_ELR_HYP(14)
 	__ERET
-1:	movs	pc, lr
+1:	msr	cpsr_c, \reg
 2:
 .endm
 
