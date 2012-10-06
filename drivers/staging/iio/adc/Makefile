@@ -2,8 +2,6 @@
 # Makefile for industrial I/O ADC drivers
 #
 
-obj-$(CONFIG_MAX1363) += max1363.o
-
 ad7606-y := ad7606_core.o
 ad7606-$(CONFIG_IIO_BUFFER) += ad7606_ring.o
 ad7606-$(CONFIG_AD7606_IFACE_PARALLEL) += ad7606_par.o
