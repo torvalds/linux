@@ -20,8 +20,8 @@
 #include <mach/mv78xx0.h>
 #include <mach/bridge-regs.h>
 #include <plat/cache-feroceon-l2.h>
-#include <plat/ehci-orion.h>
-#include <plat/orion_nand.h>
+#include <linux/platform_data/usb-ehci-orion.h>
+#include <linux/platform_data/mtd-orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
 #include <plat/addr-map.h>

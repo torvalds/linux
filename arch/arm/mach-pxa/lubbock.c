@@ -46,9 +46,9 @@
 #include <mach/audio.h>
 #include <mach/lubbock.h>
 #include <mach/udc.h>
-#include <mach/irda.h>
-#include <mach/pxafb.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mmc-pxamci.h>
 #include <mach/pm.h>
 #include <mach/smemc.h>
 

@@ -32,8 +32,8 @@
 #include <asm/mach/irq.h>
 
 #include <plat/regs-serial.h>
-#include <plat/nand.h>
-#include <plat/iic.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 
 #include <mach/regs-power.h>
 #include <mach/regs-gpio.h>
@@ -54,7 +54,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/udc.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
 
 static struct map_desc jive_iodesc[] __initdata = {
 };

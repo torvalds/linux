@@ -35,8 +35,8 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
-#include <plat/iic.h>
-#include <plat/ehci.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
@@ -44,7 +44,7 @@
 #include <plat/mfc.h>
 #include <plat/hdmi.h>
 
-#include <mach/ohci.h>
+#include <linux/platform_data/usb-exynos.h>
 #include <mach/map.h>
 
 #include <drm/exynos_drm.h>

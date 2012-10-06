@@ -15,7 +15,7 @@
 
 #include <mach/irqs.h>
 #include <mach/map.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/usb-exynos.h>
 
 #include <plat/devs.h>
 #include <plat/usb-phy.h>

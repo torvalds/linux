@@ -40,10 +40,10 @@
 
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
-#include <mach/nand.h>
+#include <linux/platform_data/mtd-davinci.h>
 #include <mach/mux.h>
-#include <mach/aemif.h>
-#include <mach/spi.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
+#include <linux/platform_data/spi-davinci.h>
 
 #include <media/tvp514x.h>
 #include <media/adv7343.h>

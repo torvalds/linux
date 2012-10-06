@@ -56,8 +56,8 @@
 #include <mach/h1940.h>
 #include <mach/h1940-latch.h>
 #include <mach/fb.h>
-#include <plat/udc.h>
-#include <plat/iic.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/clock.h>
@@ -65,8 +65,8 @@
 #include <plat/cpu.h>
 #include <plat/pll.h>
 #include <plat/pm.h>
-#include <plat/mci.h>
-#include <plat/ts.h>
+#include <linux/platform_data/mmc-s3cmci.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <sound/uda1380.h>
 

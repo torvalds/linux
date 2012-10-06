@@ -34,7 +34,7 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/gpio-cfg.h>
 #include <plat/fb.h>
 #include <plat/mfc.h>
@@ -43,7 +43,7 @@
 #include <plat/fimc-core.h>
 #include <plat/s5p-time.h>
 #include <plat/camport.h>
-#include <plat/mipi_csis.h>
+#include <linux/platform_data/mipi-csis.h>
 
 #include <mach/map.h>
 

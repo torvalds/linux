@@ -1,6 +1,4 @@
 /*
- * include/asm-arm/arch-tegra/include/mach/sdhci.h
- *
  * Copyright (C) 2009 Palm, Inc.
  * Author: Yvonne Yip <y@palm.com>
  *
@@ -14,8 +12,8 @@
  * GNU General Public License for more details.
  *
  */
-#ifndef __ASM_ARM_ARCH_TEGRA_SDHCI_H
-#define __ASM_ARM_ARCH_TEGRA_SDHCI_H
+#ifndef __PLATFORM_DATA_TEGRA_SDHCI_H
+#define __PLATFORM_DATA_TEGRA_SDHCI_H
 
 #include <linux/mmc/host.h>
 

@@ -38,7 +38,7 @@
 //#include <asm/debug-ll.h>
 #include <mach/regs-gpio.h>
 #include <plat/regs-serial.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/s3c2410.h>
