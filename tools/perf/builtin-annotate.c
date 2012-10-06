@@ -246,6 +246,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 			.sample	= process_sample_event,
 			.mmap	= perf_event__process_mmap,
 			.comm	= perf_event__process_comm,
+			.exit	= perf_event__process_exit,
 			.fork	= perf_event__process_fork,
 			.ordered_samples = true,
 			.ordering_requires_timestamps = true,
