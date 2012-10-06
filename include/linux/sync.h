@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #ifdef __KERNEL__
 
+#include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -79,6 +80,7 @@ struct sync_timeline_ops {
 
 /**
  * struct sync_timeline - sync object
+ * @kref:		reference count on fence.
  * @ops:		ops that define the implementaiton of the sync_timeline
  * @name:		name of the sync_timeline. Useful for debugging
  * @destoryed:		set when sync_timeline is destroyed
@@ -89,6 +91,7 @@ struct sync_timeline_ops {
  * @sync_timeline_list:	membership in global sync_timeline_list
  */
 struct sync_timeline {
+	struct kref		kref;
 	const struct sync_timeline_ops	*ops;
 	char			name[32];
 
@@ -109,6 +112,7 @@ struct sync_timeline {
  * @parent:		sync_timeline to which this sync_pt belongs
  * @child_list:		membership in sync_timeline.child_list_head
  * @active_list:	membership in sync_timeline.active_list_head
+ * @signaled_list:	membership in temorary signaled_list on stack
  * @fence:		sync_fence to which the sync_pt belongs
  * @pt_list:		membership in sync_fence.pt_list_head
  * @status:		1: signaled, 0:active, <0: error
@@ -120,6 +124,7 @@ struct sync_pt {
 	struct list_head	child_list;
 
 	struct list_head	active_list;
+	struct list_head	signaled_list;
 
 	struct sync_fence	*fence;
 	struct list_head	pt_list;
@@ -133,6 +138,7 @@ struct sync_pt {
 /**
  * struct sync_fence - sync fence
  * @file:		file representing this fence
+ * @kref:		referenace count on fence.
  * @name:		name of sync_fence.  Useful for debugging
  * @pt_list_head:	list of sync_pts in ths fence.  immutable once fence
  *			  is created
@@ -145,6 +151,7 @@ struct sync_pt {
  */
 struct sync_fence {
 	struct file		*file;
+	struct kref		kref;
 	char			name[32];
 
 	/* this list is immutable once the fence is created */
@@ -322,8 +329,8 @@ int sync_fence_cancel_async(struct sync_fence *fence,
  * @fence:	fence to wait on
  * @tiemout:	timeout in ms
  *
- * Wait for @fence to be signaled or have an error.  Waits indefintly
- * if @timeout = 0
+ * Wait for @fence to be signaled or have an error.  Waits indefinitely
+ * if @timeout < 0
  */
 int sync_fence_wait(struct sync_fence *fence, long timeout);
 
@@ -382,9 +389,9 @@ struct sync_fence_info_data {
 /**
  * DOC: SYNC_IOC_WAIT - wait for a fence to signal
  *
- * pass timeout in milliseconds.
+ * pass timeout in milliseconds.  Waits indefinitely timeout < 0.
  */
-#define SYNC_IOC_WAIT		_IOW(SYNC_IOC_MAGIC, 0, __u32)
+#define SYNC_IOC_WAIT		_IOW(SYNC_IOC_MAGIC, 0, __s32)
 
 /**
  * DOC: SYNC_IOC_MERGE - merge two fences

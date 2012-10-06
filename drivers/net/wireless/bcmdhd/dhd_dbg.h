@@ -21,15 +21,17 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_dbg.h 343390 2012-07-06 22:34:19Z $
+ * $Id: dhd_dbg.h 353490 2012-08-27 21:10:02Z $
  */
 
 #ifndef _dhd_dbg_
 #define _dhd_dbg_
 
+#define USE_NET_RATELIMIT		net_ratelimit()
+
 #if defined(DHD_DEBUG)
 
-#define DHD_ERROR(args)	       do {if ((dhd_msg_level & DHD_ERROR_VAL) && (net_ratelimit())) \
+#define DHD_ERROR(args)		do {if ((dhd_msg_level & DHD_ERROR_VAL) && USE_NET_RATELIMIT) \
 								printf args;} while (0)
 #define DHD_TRACE(args)		do {if (dhd_msg_level & DHD_TRACE_VAL) printf args;} while (0)
 #define DHD_INFO(args)		do {if (dhd_msg_level & DHD_INFO_VAL) printf args;} while (0)
@@ -45,6 +47,8 @@
 #define DHD_ISCAN(args)		do {if (dhd_msg_level & DHD_ISCAN_VAL) printf args;} while (0)
 #define DHD_ARPOE(args)		do {if (dhd_msg_level & DHD_ARPOE_VAL) printf args;} while (0)
 #define DHD_REORDER(args)	do {if (dhd_msg_level & DHD_REORDER_VAL) printf args;} while (0)
+
+#define DHD_TRACE_HW4	DHD_TRACE
 
 #define DHD_ERROR_ON()		(dhd_msg_level & DHD_ERROR_VAL)
 #define DHD_TRACE_ON()		(dhd_msg_level & DHD_TRACE_VAL)
@@ -64,7 +68,7 @@
 
 #else /* defined(BCMDBG) || defined(DHD_DEBUG) */
 
-#define DHD_ERROR(args)    	do {if (net_ratelimit()) printf args;} while (0)
+#define DHD_ERROR(args)		do {if (USE_NET_RATELIMIT) printf args;} while (0)
 #define DHD_TRACE(args)
 #define DHD_INFO(args)
 #define DHD_DATA(args)
@@ -79,6 +83,8 @@
 #define DHD_ISCAN(args)
 #define DHD_ARPOE(args)
 #define DHD_REORDER(args)
+
+#define DHD_TRACE_HW4	DHD_TRACE
 
 #define DHD_ERROR_ON()		0
 #define DHD_TRACE_ON()		0

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c 337979 2012-06-09 08:33:23Z $
+ * $Id: bcmsdh_sdmmc.c 347640 2012-07-27 11:53:21Z $
  */
 #include <typedefs.h>
 
@@ -1329,6 +1329,8 @@ sdioh_start(sdioh_info_t *si, int stage)
 {
 	int ret;
 	sdioh_info_t *sd = gInstance->sd;
+
+	if (!sd) return (0);
 
 	/* Need to do this stages as we can't enable the interrupt till
 		downloading of the firmware is complete, other wise polling

@@ -1024,7 +1024,7 @@ static void flush_old_files(struct files_struct * files)
 		unsigned long set, i;
 
 		j++;
-		i = j * __NFDBITS;
+		i = j * BITS_PER_LONG;
 		fdt = files_fdtable(files);
 		if (i >= fdt->max_fds)
 			break;

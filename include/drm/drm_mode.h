@@ -343,8 +343,9 @@ struct drm_mode_mode_cmd {
 	struct drm_mode_modeinfo mode;
 };
 
-#define DRM_MODE_CURSOR_BO	(1<<0)
-#define DRM_MODE_CURSOR_MOVE	(1<<1)
+#define DRM_MODE_CURSOR_BO	0x01
+#define DRM_MODE_CURSOR_MOVE	0x02
+#define DRM_MODE_CURSOR_FLAGS	0x03
 
 /*
  * depending on the value in flags different members are used.

@@ -38,6 +38,7 @@ struct clk clk_ext_xtal_mux = {
 struct clk clk_xusbxti = {
 	.name		= "xusbxti",
 	.id		= -1,
+	.rate		= 24000000,
 };
 
 struct clk s5p_clk_27m = {

@@ -376,7 +376,7 @@ typedef struct wifi_p2p_pub_act_frame wifi_p2p_pub_act_frame_t;
 #define P2P_PAF_DEVDIS_RSP	6	
 #define P2P_PAF_PROVDIS_REQ	7	
 #define P2P_PAF_PROVDIS_RSP	8	
-
+#define P2P_PAF_SUBTYPE_INVALID	255	/* Invalid Subtype */
 
 #define P2P_TYPE_MNREQ		P2P_PAF_GON_REQ
 #define P2P_TYPE_MNRSP		P2P_PAF_GON_RSP

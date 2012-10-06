@@ -13,7 +13,6 @@
 #include <asm/uaccess.h>
 #include <asm/tlbflush.h>
 #include <asm/ctl_reg.h>
-#include <asm-generic/mm_hooks.h>
 
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
@@ -91,6 +90,19 @@ static inline void activate_mm(struct mm_struct *prev,
                                struct mm_struct *next)
 {
         switch_mm(prev, next, current);
+}
+
+static inline void arch_dup_mmap(struct mm_struct *oldmm,
+				 struct mm_struct *mm)
+{
+#ifdef CONFIG_64BIT
+	if (oldmm->context.asce_limit < mm->context.asce_limit)
+		crst_table_downgrade(mm, oldmm->context.asce_limit);
+#endif
+}
+
+static inline void arch_exit_mmap(struct mm_struct *mm)
+{
 }
 
 #endif /* __S390_MMU_CONTEXT_H */

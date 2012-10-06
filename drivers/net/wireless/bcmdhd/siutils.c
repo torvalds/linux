@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.c 330156 2012-04-28 02:15:51Z $
+ * $Id: siutils.c 347632 2012-07-27 11:00:35Z $
  */
 
 #include <bcm_cfg.h>
@@ -1927,6 +1927,70 @@ done:
 	return memsize;
 }
 
+
+/* Return the TCM-RAM size of the ARMCR4 core. */
+uint32
+si_tcm_size(si_t *sih)
+{
+	si_info_t *sii;
+	uint origidx;
+	uint intr_val = 0;
+	uint8 *regs;
+	bool wasup;
+	uint32 corecap;
+	uint memsize = 0;
+	uint32 nab = 0;
+	uint32 nbb = 0;
+	uint32 totb = 0;
+	uint32 bxinfo = 0;
+	uint32 idx = 0;
+	uint32 *arm_cap_reg;
+	uint32 *arm_bidx;
+	uint32 *arm_binfo;
+
+	sii = SI_INFO(sih);
+
+	/* Block ints and save current core */
+	INTR_OFF(sii, intr_val);
+	origidx = si_coreidx(sih);
+
+	/* Switch to CR4 core */
+	if (!(regs = si_setcore(sih, ARMCR4_CORE_ID, 0)))
+		goto done;
+
+	/* Get info for determining size. If in reset, come out of reset,
+	 * but remain in halt
+	 */
+	if (!(wasup = si_iscoreup(sih)))
+		si_core_reset(sih, SICF_CPUHALT, SICF_CPUHALT);
+
+	arm_cap_reg = (uint32 *)(regs + SI_CR4_CAP);
+	corecap = R_REG(sii->osh, arm_cap_reg);
+
+	nab = (corecap & ARMCR4_TCBANB_MASK) >> ARMCR4_TCBANB_SHIFT;
+	nbb = (corecap & ARMCR4_TCBBNB_MASK) >> ARMCR4_TCBBNB_SHIFT;
+	totb = nab + nbb;
+
+	arm_bidx = (uint32 *)(regs + SI_CR4_BANKIDX);
+	arm_binfo = (uint32 *)(regs + SI_CR4_BANKINFO);
+	for (idx = 0; idx < totb; idx++) {
+		W_REG(sii->osh, arm_bidx, idx);
+
+		bxinfo = R_REG(sii->osh, arm_binfo);
+		memsize += ((bxinfo & ARMCR4_BSZ_MASK) + 1) * ARMCR4_BSZ_MULT;
+	}
+
+	/* Return to previous state and core */
+	if (!wasup)
+		si_core_disable(sih, 0);
+	si_setcoreidx(sih, origidx);
+
+done:
+	INTR_RESTORE(sii, intr_val);
+
+	return memsize;
+}
+
 uint32
 si_socram_srmem_size(si_t *sih)
 {
@@ -2344,6 +2408,9 @@ si_is_sprom_available(si_t *sih)
 	case BCM4324_CHIP_ID:
 		return ((sih->chipst & CST4324_SPROM_MASK) &&
 			!(sih->chipst & CST4324_SFLASH_MASK));
+	case BCM4335_CHIP_ID:
+		return ((sih->chipst & CST4335_SPROM_MASK) &&
+			!(sih->chipst & CST4335_SFLASH_MASK));
 	case BCM43131_CHIP_ID:
 	case BCM43217_CHIP_ID:
 	case BCM43227_CHIP_ID:

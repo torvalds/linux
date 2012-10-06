@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 342280 2012-07-02 09:20:52Z $
+ * $Id: dhd_common.c 356374 2012-09-12 10:37:44Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -94,7 +94,7 @@ void dhd_iscan_lock(void);
 void dhd_iscan_unlock(void);
 extern int dhd_change_mtu(dhd_pub_t *dhd, int new_mtu, int ifidx);
 #if !defined(AP) && defined(WLP2P)
-extern bool dhd_concurrent_fw(dhd_pub_t *dhd);
+extern int dhd_get_concurrent_capabilites(dhd_pub_t *dhd);
 #endif
 bool ap_cfg_running = FALSE;
 bool ap_fw_loaded = FALSE;
@@ -277,11 +277,12 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int le
 	dhd_os_proto_block(dhd_pub);
 
 	ret = dhd_prot_ioctl(dhd_pub, ifindex, ioc, buf, len);
+	if ((ret) && (dhd_pub->up))
 		/* Send hang event only if dhd_open() was success */
-		if (ret && dhd_pub->up)
-			dhd_os_check_hang(dhd_pub, ifindex, ret);
+		dhd_os_check_hang(dhd_pub, ifindex, ret);
 
 	dhd_os_proto_unblock(dhd_pub);
+
 	return ret;
 }
 
@@ -313,12 +314,15 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		break;
 
 	case IOV_SVAL(IOV_MSGLEVEL):
-		dhd_msg_level = int_val;
 #ifdef WL_CFG80211
 		/* Enable DHD and WL logs in oneshot */
-		if (dhd_msg_level & DHD_WL_VAL)
-			wl_cfg80211_enable_trace(dhd_msg_level);
-#endif
+		if (int_val & DHD_WL_VAL2)
+			wl_cfg80211_enable_trace(TRUE, int_val & (~DHD_WL_VAL2));
+		else if (int_val & DHD_WL_VAL)
+			wl_cfg80211_enable_trace(FALSE, WL_DBG_DBG);
+		if (!(int_val & DHD_WL_VAL2))
+#endif /* WL_CFG80211 */
+		dhd_msg_level = int_val;
 		break;
 	case IOV_GVAL(IOV_BCMERRORSTR):
 		bcm_strncpy_s((char *)arg, len, bcmerrorstr(dhd_pub->bcmerror), BCME_STRLEN);
@@ -1556,191 +1560,6 @@ dhd_sendup_event_common(dhd_pub_t *dhdp, wl_event_msg_t *event, void *data)
 	dhd_sendup_event(dhdp, event, data);
 }
 
-#ifdef SIMPLE_ISCAN
-
-uint iscan_thread_id = 0;
-iscan_buf_t * iscan_chain = 0;
-
-iscan_buf_t *
-dhd_iscan_allocate_buf(dhd_pub_t *dhd, iscan_buf_t **iscanbuf)
-{
-	iscan_buf_t *iscanbuf_alloc = 0;
-	iscan_buf_t *iscanbuf_head;
-
-	DHD_ISCAN(("%s: Entered\n", __FUNCTION__));
-	dhd_iscan_lock();
-
-	iscanbuf_alloc = (iscan_buf_t*)MALLOC(dhd->osh, sizeof(iscan_buf_t));
-	if (iscanbuf_alloc == NULL)
-		goto fail;
-
-	iscanbuf_alloc->next = NULL;
-	iscanbuf_head = *iscanbuf;
-
-	DHD_ISCAN(("%s: addr of allocated node = 0x%X"
-		   "addr of iscanbuf_head = 0x%X dhd = 0x%X\n",
-		   __FUNCTION__, iscanbuf_alloc, iscanbuf_head, dhd));
-
-	if (iscanbuf_head == NULL) {
-		*iscanbuf = iscanbuf_alloc;
-		DHD_ISCAN(("%s: Head is allocated\n", __FUNCTION__));
-		goto fail;
-	}
-
-	while (iscanbuf_head->next)
-		iscanbuf_head = iscanbuf_head->next;
-
-	iscanbuf_head->next = iscanbuf_alloc;
-
-fail:
-	dhd_iscan_unlock();
-	return iscanbuf_alloc;
-}
-
-void
-dhd_iscan_free_buf(void *dhdp, iscan_buf_t *iscan_delete)
-{
-	iscan_buf_t *iscanbuf_free = 0;
-	iscan_buf_t *iscanbuf_prv = 0;
-	iscan_buf_t *iscanbuf_cur;
-	dhd_pub_t *dhd = dhd_bus_pub(dhdp);
-	DHD_ISCAN(("%s: Entered\n", __FUNCTION__));
-
-	dhd_iscan_lock();
-
-	iscanbuf_cur = iscan_chain;
-
-	/* If iscan_delete is null then delete the entire
-	 * chain or else delete specific one provided
-	 */
-	if (!iscan_delete) {
-		while (iscanbuf_cur) {
-			iscanbuf_free = iscanbuf_cur;
-			iscanbuf_cur = iscanbuf_cur->next;
-			iscanbuf_free->next = 0;
-			MFREE(dhd->osh, iscanbuf_free, sizeof(iscan_buf_t));
-		}
-		iscan_chain = 0;
-	} else {
-		while (iscanbuf_cur) {
-			if (iscanbuf_cur == iscan_delete)
-				break;
-			iscanbuf_prv = iscanbuf_cur;
-			iscanbuf_cur = iscanbuf_cur->next;
-		}
-		if (iscanbuf_prv)
-			iscanbuf_prv->next = iscan_delete->next;
-
-		iscan_delete->next = 0;
-		MFREE(dhd->osh, iscan_delete, sizeof(iscan_buf_t));
-
-		if (!iscanbuf_prv)
-			iscan_chain = 0;
-	}
-	dhd_iscan_unlock();
-}
-
-iscan_buf_t *
-dhd_iscan_result_buf(void)
-{
-	return iscan_chain;
-}
-
-int
-dhd_iscan_issue_request(void * dhdp, wl_iscan_params_t *pParams, uint32 size)
-{
-	int rc = -1;
-	dhd_pub_t *dhd = dhd_bus_pub(dhdp);
-	char *buf;
-	char iovar[] = "iscan";
-	uint32 allocSize = 0;
-	wl_ioctl_t ioctl;
-
-	if (pParams) {
-		allocSize = (size + strlen(iovar) + 1);
-		if ((allocSize < size) || (allocSize < strlen(iovar)))
-		{
-			DHD_ERROR(("%s: overflow - allocation size too large %d < %d + %d!\n",
-				__FUNCTION__, allocSize, size, strlen(iovar)));
-			goto cleanUp;
-		}
-		buf = MALLOC(dhd->osh, allocSize);
-
-		if (buf == NULL)
-			{
-			DHD_ERROR(("%s: malloc of size %d failed!\n", __FUNCTION__, allocSize));
-			goto cleanUp;
-			}
-		ioctl.cmd = WLC_SET_VAR;
-		bcm_mkiovar(iovar, (char *)pParams, size, buf, allocSize);
-		rc = dhd_wl_ioctl(dhd, 0, &ioctl, buf, allocSize);
-	}
-
-cleanUp:
-	if (buf) {
-		MFREE(dhd->osh, buf, allocSize);
-	}
-
-	return rc;
-}
-
-static int
-dhd_iscan_get_partial_result(void *dhdp, uint *scan_count)
-{
-	wl_iscan_results_t *list_buf;
-	wl_iscan_results_t list;
-	wl_scan_results_t *results;
-	iscan_buf_t *iscan_cur;
-	int status = -1;
-	dhd_pub_t *dhd = dhd_bus_pub(dhdp);
-	int rc;
-	wl_ioctl_t ioctl;
-
-	DHD_ISCAN(("%s: Enter\n", __FUNCTION__));
-
-	iscan_cur = dhd_iscan_allocate_buf(dhd, &iscan_chain);
-	if (!iscan_cur) {
-		DHD_ERROR(("%s: Failed to allocate node\n", __FUNCTION__));
-		dhd_iscan_free_buf(dhdp, 0);
-		dhd_iscan_request(dhdp, WL_SCAN_ACTION_ABORT);
-		dhd_ind_scan_confirm(dhdp, FALSE);
-		goto fail;
-	}
-
-	dhd_iscan_lock();
-
-	memset(iscan_cur->iscan_buf, 0, WLC_IW_ISCAN_MAXLEN);
-	list_buf = (wl_iscan_results_t*)iscan_cur->iscan_buf;
-	results = &list_buf->results;
-	results->buflen = WL_ISCAN_RESULTS_FIXED_SIZE;
-	results->version = 0;
-	results->count = 0;
-
-	memset(&list, 0, sizeof(list));
-	list.results.buflen = htod32(WLC_IW_ISCAN_MAXLEN);
-	bcm_mkiovar("iscanresults", (char *)&list, WL_ISCAN_RESULTS_FIXED_SIZE,
-		iscan_cur->iscan_buf, WLC_IW_ISCAN_MAXLEN);
-	ioctl.cmd = WLC_GET_VAR;
-	ioctl.set = FALSE;
-	rc = dhd_wl_ioctl(dhd, 0, &ioctl, iscan_cur->iscan_buf, WLC_IW_ISCAN_MAXLEN);
-
-	results->buflen = dtoh32(results->buflen);
-	results->version = dtoh32(results->version);
-	*scan_count = results->count = dtoh32(results->count);
-	status = dtoh32(list_buf->status);
-	DHD_ISCAN(("%s: Got %d resuls status = (%x)\n", __FUNCTION__, results->count, status));
-
-	dhd_iscan_unlock();
-
-	if (!(*scan_count)) {
-		 /* TODO: race condition when FLUSH already called */
-		dhd_iscan_free_buf(dhdp, 0);
-	}
-fail:
-	return status;
-}
-
-#endif /* SIMPLE_ISCAN */
 
 /*
  * returns = TRUE if associated, FALSE if not associated
@@ -1834,34 +1653,16 @@ exit:
 	return bcn_li_dtim;
 }
 
-/* Check if HostAPD or WFD mode setup */
-bool dhd_check_ap_wfd_mode_set(dhd_pub_t *dhd)
+/* Check if the mode supports STA MODE */
+bool dhd_support_sta_mode(dhd_pub_t *dhd)
 {
-#if !defined(AP) && defined(WLP2P)
-	if ((dhd->op_mode & CONCURRENT_FW_MASK) == CONCURRENT_FW_MASK)
-		return FALSE;
-#endif
+
 #ifdef  WL_CFG80211
-#ifndef WL_ENABLE_P2P_IF
-	/* To be back compatble with ICS MR1 release where p2p interface
-	 * disable but wlan0 used for p2p
-	 */
-	if (((dhd->op_mode & HOSTAPD_MASK) == HOSTAPD_MASK) ||
-		((dhd->op_mode & WFD_MASK) == WFD_MASK)) {
-		return TRUE;
-	}
-	else
-#else
-	/* concurent mode with p2p interface for wfd and wlan0 for sta */
-	if (((dhd->op_mode & P2P_GO_ENABLED) == P2P_GO_ENABLED) ||
-		((dhd->op_mode & P2P_GC_ENABLED) == P2P_GC_ENABLED)) {
-		DHD_ERROR(("%s P2P enabled for  mode=%d\n", __FUNCTION__, dhd->op_mode));
-		return TRUE;
-	}
-	else
-#endif /* WL_ENABLE_P2P_IF */
-#endif /* WL_CFG80211 */
+	if (!(dhd->op_mode & DHD_FLAG_STA_MODE))
 		return FALSE;
+	else
+#endif /* WL_CFG80211 */
+		return TRUE;
 }
 
 #if defined(PNO_SUPPORT)
@@ -1906,7 +1707,8 @@ dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 		return ret;
 	}
 
-	if (dhd_check_ap_wfd_mode_set(dhd) == TRUE)
+#ifndef WL_SCHED_SCAN
+	if (!dhd_support_sta_mode(dhd))
 		return (ret);
 
 	memset(iovbuf, 0, sizeof(iovbuf));
@@ -1915,6 +1717,7 @@ dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 		DHD_ERROR(("%s pno is NOT enable : called in assoc mode , ignore\n", __FUNCTION__));
 		return ret;
 	}
+#endif /* !WL_SCHED_SCAN */
 
 	/* Enable/disable PNO */
 	if ((ret = bcm_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf, sizeof(iovbuf))) > 0) {
@@ -1954,9 +1757,10 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr,
 		err = -1;
 		return err;
 	}
-
-	if (dhd_check_ap_wfd_mode_set(dhd) == TRUE)
-		return (err);
+#ifndef WL_SCHED_SCAN
+	if (!dhd_support_sta_mode(dhd))
+		return err;
+#endif /* !WL_SCHED_SCAN */
 
 	/* Check for broadcast ssid */
 	for (k = 0; k < nssid; k++) {
@@ -2073,8 +1877,8 @@ int dhd_keep_alive_onoff(dhd_pub_t *dhd)
 	int					str_len;
 	int res 				= -1;
 
-	if (dhd_check_ap_wfd_mode_set(dhd) == TRUE)
-		return (res);
+	if (!dhd_support_sta_mode(dhd))
+		return res;
 
 	DHD_TRACE(("%s execution\n", __FUNCTION__));
 

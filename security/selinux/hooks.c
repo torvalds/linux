@@ -2162,7 +2162,7 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 		int fd;
 
 		j++;
-		i = j * __NFDBITS;
+		i = j * BITS_PER_LONG;
 		fdt = files_fdtable(files);
 		if (i >= fdt->max_fds)
 			break;

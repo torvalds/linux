@@ -327,7 +327,7 @@ int wldev_set_band(
 	int error = -1;
 
 	if ((band == WLC_BAND_AUTO) || (band == WLC_BAND_5G) || (band == WLC_BAND_2G)) {
-		error = wldev_ioctl(dev, WLC_SET_BAND, &band, sizeof(band), 1);
+		error = wldev_ioctl(dev, WLC_SET_BAND, &band, sizeof(band), true);
 		if (!error)
 			dhd_bus_band_set(dev, band);
 	}
@@ -353,13 +353,12 @@ int wldev_set_country(
 	if ((error < 0) ||
 	    (strncmp(country_code, smbuf, WLC_CNTRY_BUF_SZ) != 0)) {
 		bzero(&scbval, sizeof(scb_val_t));
-		error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), 1);
+		error = wldev_ioctl(dev, WLC_DISASSOC, &scbval, sizeof(scb_val_t), true);
 		if (error < 0) {
 			WLDEV_ERROR(("%s: set country failed due to Disassoc error %d\n",
 				__FUNCTION__, error));
 			return error;
 		}
-
 		cspec.rev = -1;
 		memcpy(cspec.country_abbrev, country_code, WLC_CNTRY_BUF_SZ);
 		memcpy(cspec.ccode, country_code, WLC_CNTRY_BUF_SZ);

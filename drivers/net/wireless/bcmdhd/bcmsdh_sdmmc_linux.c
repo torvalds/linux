@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc_linux.c 342895 2012-07-04 11:36:15Z $
+ * $Id: bcmsdh_sdmmc_linux.c 355594 2012-09-07 10:22:02Z $
  */
 
 #include <typedefs.h>
@@ -192,7 +192,7 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 	if (func->num != 2)
 		return 0;
 
-	sd_trace(("%s Enter\n", __FUNCTION__));
+	sd_trace_hw4(("%s Enter\n", __FUNCTION__));
 
 	if (dhd_os_check_wakelock(bcmsdh_get_drvdata()))
 		return -EBUSY;
@@ -210,6 +210,7 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 		sd_err(("%s: error while trying to keep power\n", __FUNCTION__));
 		return ret;
 	}
+
 #if defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(0);
 #endif	/* defined(OOB_INTR_ONLY) */
@@ -223,14 +224,14 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 {
 #if defined(OOB_INTR_ONLY)
 	struct sdio_func *func = dev_to_sdio_func(pdev);
-#endif
-	sd_trace(("%s Enter\n", __FUNCTION__));
+#endif /* defined(OOB_INTR_ONLY) */
+	sd_trace_hw4(("%s Enter\n", __FUNCTION__));
+
 	dhd_mmc_suspend = FALSE;
 #if defined(OOB_INTR_ONLY)
 	if ((func->num == 2) && dhd_os_check_if_up(bcmsdh_get_drvdata()))
 		bcmsdh_oob_intr_set(1);
 #endif /* (OOB_INTR_ONLY) */
-
 	smp_mb();
 	return 0;
 }
@@ -365,7 +366,7 @@ static int __init
 bcmsdh_module_init(void)
 {
 	int error = 0;
-	sdio_function_init();
+	error = sdio_function_init();
 	return error;
 }
 
@@ -396,6 +397,10 @@ int sdio_function_init(void)
 		return -ENOMEM;
 
 	error = sdio_register_driver(&bcmsdh_sdmmc_driver);
+	if (error && gInstance) {
+		kfree(gInstance);
+		gInstance = 0;
+	}
 
 	return error;
 }

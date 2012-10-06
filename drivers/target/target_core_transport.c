@@ -1976,6 +1976,7 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 	case TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE:
 	case TCM_UNKNOWN_MODE_PAGE:
 	case TCM_WRITE_PROTECTED:
+	case TCM_ADDRESS_OUT_OF_RANGE:
 	case TCM_CHECK_CONDITION_ABORT_CMD:
 	case TCM_CHECK_CONDITION_UNIT_ATTENTION:
 	case TCM_CHECK_CONDITION_NOT_READY:
@@ -3166,15 +3167,20 @@ static int transport_generic_cmd_sequencer(
 			/* Returns CHECK_CONDITION + INVALID_CDB_FIELD */
 			goto out_invalid_cdb_field;
 		}
-
+		/*
+		 * For the overflow case keep the existing fabric provided
+		 * ->data_length.  Otherwise for the underflow case, reset
+		 * ->data_length to the smaller SCSI expected data transfer
+		 * length.
+		 */
 		if (size > cmd->data_length) {
 			cmd->se_cmd_flags |= SCF_OVERFLOW_BIT;
 			cmd->residual_count = (size - cmd->data_length);
 		} else {
 			cmd->se_cmd_flags |= SCF_UNDERFLOW_BIT;
 			cmd->residual_count = (cmd->data_length - size);
+			cmd->data_length = size;
 		}
-		cmd->data_length = size;
 	}
 
 	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB &&
@@ -3674,9 +3680,9 @@ transport_generic_get_mem(struct se_cmd *cmd)
 	return 0;
 
 out:
-	while (i >= 0) {
-		__free_page(sg_page(&cmd->t_data_sg[i]));
+	while (i > 0) {
 		i--;
+		__free_page(sg_page(&cmd->t_data_sg[i]));
 	}
 	kfree(cmd->t_data_sg);
 	cmd->t_data_sg = NULL;
@@ -4655,6 +4661,15 @@ int transport_send_check_condition_and_sense(
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = DATA_PROTECT;
 		/* WRITE PROTECTED */
 		buffer[offset+SPC_ASC_KEY_OFFSET] = 0x27;
+		break;
+	case TCM_ADDRESS_OUT_OF_RANGE:
+		/* CURRENT ERROR */
+		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
+		/* ILLEGAL REQUEST */
+		buffer[offset+SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
+		/* LOGICAL BLOCK ADDRESS OUT OF RANGE */
+		buffer[offset+SPC_ASC_KEY_OFFSET] = 0x21;
 		break;
 	case TCM_CHECK_CONDITION_UNIT_ATTENTION:
 		/* CURRENT ERROR */

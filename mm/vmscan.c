@@ -42,6 +42,7 @@
 #include <linux/sysctl.h>
 #include <linux/oom.h>
 #include <linux/prefetch.h>
+#include <linux/debugfs.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -201,6 +202,39 @@ static unsigned long zone_nr_lru_pages(struct mem_cgroup_zone *mz,
 	return zone_page_state(mz->zone, NR_LRU_BASE + lru);
 }
 
+struct dentry *debug_file;
+
+static int debug_shrinker_show(struct seq_file *s, void *unused)
+{
+	struct shrinker *shrinker;
+	struct shrink_control sc;
+
+	sc.gfp_mask = -1;
+	sc.nr_to_scan = 0;
+
+	down_read(&shrinker_rwsem);
+	list_for_each_entry(shrinker, &shrinker_list, list) {
+		char name[64];
+		int num_objs;
+
+		num_objs = shrinker->shrink(shrinker, &sc);
+		seq_printf(s, "%pf %d\n", shrinker->shrink, num_objs);
+	}
+	up_read(&shrinker_rwsem);
+	return 0;
+}
+
+static int debug_shrinker_open(struct inode *inode, struct file *file)
+{
+        return single_open(file, debug_shrinker_show, inode->i_private);
+}
+
+static const struct file_operations debug_shrinker_fops = {
+        .open = debug_shrinker_open,
+        .read = seq_read,
+        .llseek = seq_lseek,
+        .release = single_release,
+};
 
 /*
  * Add a shrinker callback to be called from the vm
@@ -213,6 +247,15 @@ void register_shrinker(struct shrinker *shrinker)
 	up_write(&shrinker_rwsem);
 }
 EXPORT_SYMBOL(register_shrinker);
+
+static int __init add_shrinker_debug(void)
+{
+	debugfs_create_file("shrinker", 0644, NULL, NULL,
+			    &debug_shrinker_fops);
+	return 0;
+}
+
+late_initcall(add_shrinker_debug);
 
 /*
  * Remove one
@@ -1983,10 +2026,10 @@ static void get_scan_count(struct mem_cgroup_zone *mz, struct scan_control *sc,
 	 * proportional to the fraction of recently scanned pages on
 	 * each list that were recently referenced and in active use.
 	 */
-	ap = (anon_prio + 1) * (reclaim_stat->recent_scanned[0] + 1);
+	ap = anon_prio * (reclaim_stat->recent_scanned[0] + 1);
 	ap /= reclaim_stat->recent_rotated[0] + 1;
 
-	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
+	fp = file_prio * (reclaim_stat->recent_scanned[1] + 1);
 	fp /= reclaim_stat->recent_rotated[1] + 1;
 	spin_unlock_irq(&mz->zone->lru_lock);
 
@@ -1999,7 +2042,7 @@ out:
 		unsigned long scan;
 
 		scan = zone_nr_lru_pages(mz, lru);
-		if (priority || noswap) {
+		if (priority || noswap || !vmscan_swappiness(mz, sc)) {
 			scan >>= priority;
 			if (!scan && force_scan)
 				scan = SWAP_CLUSTER_MAX;
@@ -3013,7 +3056,10 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
 		 * them before going back to sleep.
 		 */
 		set_pgdat_percpu_threshold(pgdat, calculate_normal_threshold);
-		schedule();
+
+		if (!kthread_should_stop())
+			schedule();
+
 		set_pgdat_percpu_threshold(pgdat, calculate_pressure_threshold);
 	} else {
 		if (remaining)

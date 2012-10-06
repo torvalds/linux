@@ -1231,8 +1231,14 @@ out_free:
 	SCTP_DEBUG_PRINTK("About to exit __sctp_connect() free asoc: %p"
 			  " kaddrs: %p err: %d\n",
 			  asoc, kaddrs, err);
-	if (asoc)
+	if (asoc) {
+		/* sctp_primitive_ASSOCIATE may have added this association
+		 * To the hash table, try to unhash it, just in case, its a noop
+		 * if it wasn't hashed so we're safe
+		 */
+		sctp_unhash_established(asoc);
 		sctp_association_free(asoc);
+	}
 	return err;
 }
 
@@ -1942,8 +1948,10 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	goto out_unlock;
 
 out_free:
-	if (new_asoc)
+	if (new_asoc) {
+		sctp_unhash_established(asoc);
 		sctp_association_free(asoc);
+	}
 out_unlock:
 	sctp_release_sock(sk);
 

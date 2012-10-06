@@ -67,6 +67,15 @@ config ANDROID_LOW_MEMORY_KILLER
 	---help---
 	  Register processes to be killed when memory is low
 
+config ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
+	bool "Android Low Memory Killer: detect oom_adj values"
+	depends on ANDROID_LOW_MEMORY_KILLER
+	default y
+	---help---
+	  Detect oom_adj values written to
+	  /sys/module/lowmemorykiller/parameters/adj and convert them
+	  to oom_score_adj values.
+
 source "drivers/staging/android/switch/Kconfig"
 
 config ANDROID_INTF_ALARM_DEV

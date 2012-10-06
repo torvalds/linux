@@ -169,8 +169,13 @@ long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj, unsigned long arg)
 	struct sync_fence *fence;
 	struct sw_sync_create_fence_data data;
 
-	if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
-		return -EFAULT;
+	if (fd < 0)
+		return fd;
+
+	if (copy_from_user(&data, (void __user *)arg, sizeof(data))) {
+		err = -EFAULT;
+		goto err;
+	}
 
 	pt = sw_sync_pt_create(obj, data.value);
 	if (pt == NULL) {

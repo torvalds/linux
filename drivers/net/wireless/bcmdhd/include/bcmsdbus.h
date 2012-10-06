@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdbus.h 320190 2012-03-09 19:13:53Z $
+ * $Id: bcmsdbus.h 347614 2012-07-27 10:24:51Z $
  */
 
 #ifndef	_sdio_api_h_
@@ -45,6 +45,15 @@
 
 #define SDIOH_DATA_PIO          0       /* PIO mode */
 #define SDIOH_DATA_DMA          1       /* DMA mode */
+
+#ifdef BCMSDIOH_TXGLOM
+/* Max number of glommed pkts */
+#define SDPCM_MAXGLOM_SIZE	10
+#define SDPCM_DEFGLOM_SIZE  3
+
+#define SDPCM_TXGLOM_CPY 0			/* SDIO 2.0 should use copy mode */
+#define SDPCM_TXGLOM_MDESC	1		/* SDIO 3.0 should use multi-desc mode */
+#endif
 
 
 typedef int SDIOH_API_RC;
@@ -85,6 +94,18 @@ extern SDIOH_API_RC sdioh_request_word(sdioh_info_t *si, uint cmd_type, uint rw,
 extern SDIOH_API_RC sdioh_request_buffer(sdioh_info_t *si, uint pio_dma, uint fix_inc,
 	uint rw, uint fnc_num, uint32 addr, uint regwidth, uint32 buflen, uint8 *buffer,
 	void *pkt);
+
+#ifdef BCMSDIOH_TXGLOM
+extern void	sdioh_glom_post(sdioh_info_t *sd, uint8 *frame, uint len);
+extern void sdioh_glom_clear(sdioh_info_t *sd);
+extern uint sdioh_set_mode(sdioh_info_t *sd, uint mode);
+extern bool sdioh_glom_enabled(void);
+#else
+#define sdioh_glom_post(a, b, c)
+#define sdioh_glom_clear(a)
+#define sdioh_set_mode(a) (0)
+#define sdioh_glom_enabled() (FALSE)
+#endif
 
 /* get cis data */
 extern SDIOH_API_RC sdioh_cis_read(sdioh_info_t *si, uint fuc, uint8 *cis, uint32 length);
