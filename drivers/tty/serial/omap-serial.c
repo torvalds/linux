@@ -917,19 +917,11 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 
 		/* Disable access to TCR/TLR */
 		serial_out(up, UART_MCR, up->mcr);
-		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-		serial_out(up, UART_EFR, up->efr);
-		serial_out(up, UART_LCR, cval);
 	} else {
 		/* Disable AUTORTS and AUTOCTS */
 		up->efr &= ~(UART_EFR_CTS | UART_EFR_RTS);
-
-		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-		serial_out(up, UART_EFR, up->efr);
-		serial_out(up, UART_LCR, cval);
 	}
 
-	/* Software Flow Control Configuration */
 	if (up->port.flags & UPF_SOFT_FLOW) {
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_out(up, UART_EFR, up->efr);
@@ -975,10 +967,11 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_out(up, UART_TI752_TCR, OMAP_UART_TCR_TRIG);
 		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 		serial_out(up, UART_MCR, up->mcr);
-		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-		serial_out(up, UART_EFR, up->efr);
-		serial_out(up, UART_LCR, up->lcr);
 	}
+
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+	serial_out(up, UART_EFR, up->efr);
+	serial_out(up, UART_LCR, up->lcr);
 
 	serial_omap_set_mctrl(&up->port, up->port.mctrl);
 
