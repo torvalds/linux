@@ -44,6 +44,8 @@
 
 #include <plat/omap-serial.h>
 
+#define OMAP_MAX_HSUART_PORTS	6
+
 #define UART_BUILD_REVISION(x, y)	(((x) << 8) | (y))
 
 #define OMAP_UART_REV_42 0x0402
@@ -51,10 +53,14 @@
 #define OMAP_UART_REV_52 0x0502
 #define OMAP_UART_REV_63 0x0603
 
+#define UART_ERRATA_i202_MDR1_ACCESS	BIT(0)
+#define UART_ERRATA_i291_DMA_FORCEIDLE	BIT(1)
+
 #define DEFAULT_CLK_SPEED 48000000 /* 48Mhz*/
 
 /* SCR register bitmasks */
 #define OMAP_UART_SCR_RX_TRIG_GRANU1_MASK		(1 << 7)
+#define OMAP_UART_SCR_TX_EMPTY			(1 << 3)
 
 /* FCR register bitmasks */
 #define OMAP_UART_FCR_RX_FIFO_TRIG_MASK			(0x3 << 6)
@@ -70,6 +76,52 @@
 #define OMAP_UART_MVR_MAJ_MASK		0x700
 #define OMAP_UART_MVR_MAJ_SHIFT		8
 #define OMAP_UART_MVR_MIN_MASK		0x3f
+
+#define OMAP_UART_DMA_CH_FREE	-1
+
+#define MSR_SAVE_FLAGS		UART_MSR_ANY_DELTA
+#define OMAP_MODE13X_SPEED	230400
+
+/* WER = 0x7F
+ * Enable module level wakeup in WER reg
+ */
+#define OMAP_UART_WER_MOD_WKUP	0X7F
+
+/* Enable XON/XOFF flow control on output */
+#define OMAP_UART_SW_TX		0x4
+
+/* Enable XON/XOFF flow control on input */
+#define OMAP_UART_SW_RX		0x4
+
+#define OMAP_UART_SW_CLR	0xF0
+
+#define OMAP_UART_TCR_TRIG	0x0F
+
+struct uart_omap_dma {
+	u8			uart_dma_tx;
+	u8			uart_dma_rx;
+	int			rx_dma_channel;
+	int			tx_dma_channel;
+	dma_addr_t		rx_buf_dma_phys;
+	dma_addr_t		tx_buf_dma_phys;
+	unsigned int		uart_base;
+	/*
+	 * Buffer for rx dma.It is not required for tx because the buffer
+	 * comes from port structure.
+	 */
+	unsigned char		*rx_buf;
+	unsigned int		prev_rx_dma_pos;
+	int			tx_buf_size;
+	int			tx_dma_used;
+	int			rx_dma_used;
+	spinlock_t		tx_lock;
+	spinlock_t		rx_lock;
+	/* timer to poll activity on rx dma */
+	struct timer_list	rx_timer;
+	unsigned int		rx_buf_size;
+	unsigned int		rx_poll_rate;
+	unsigned int		rx_timeout;
+};
 
 struct uart_omap_port {
 	struct uart_port	port;
