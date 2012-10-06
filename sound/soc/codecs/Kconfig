@@ -54,6 +54,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM3008
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_SGTL5000 if I2C
+	select SND_SOC_SI476X if MFD_SI476X_CORE
 	select SND_SOC_SN95031 if INTEL_SCU_IPC
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if SND_SOC_I2C_AND_SPI
@@ -275,6 +276,9 @@ config SND_SOC_RT5631
 
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
+	tristate
+
+config SND_SOC_SI476X
 	tristate
 
 config SND_SOC_SIGMADSP
