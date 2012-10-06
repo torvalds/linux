@@ -325,8 +325,6 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 {
-	/* XXX Move this to perf.c, making it generally available */
-	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
 	struct perf_mmap *md = &evlist->mmap[idx];
 	unsigned int head = perf_mmap__read_head(md);
 	unsigned int old = md->prev;
@@ -528,7 +526,6 @@ out_unmap:
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 		      bool overwrite)
 {
-	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
 	struct perf_evsel *evsel;
 	const struct cpu_map *cpus = evlist->cpus;
 	const struct thread_map *threads = evlist->threads;

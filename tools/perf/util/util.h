@@ -263,4 +263,6 @@ char *rtrim(char *s);
 
 void dump_stack(void);
 
+extern unsigned int page_size;
+
 #endif
