@@ -1434,8 +1434,8 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 			ret = mwifiex_is_network_compatible(priv, bss_desc,
 							    priv->bss_mode);
 			if (ret)
-				dev_err(priv->adapter->dev, "cannot find ssid "
-					"%s\n", bss_desc->ssid.ssid);
+				dev_err(priv->adapter->dev,
+					"Incompatible network settings\n");
 			break;
 		default:
 			ret = 0;

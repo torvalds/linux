@@ -1596,8 +1596,9 @@ done:
 		}
 	}
 
-	if (mwifiex_bss_start(priv, bss, &req_ssid))
-		return -EFAULT;
+	ret = mwifiex_bss_start(priv, bss, &req_ssid);
+	if (ret)
+		return ret;
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
 		/* Inform the BSS information to kernel, otherwise
@@ -1652,9 +1653,19 @@ done:
 			"info: association to bssid %pM failed\n",
 			priv->cfg_bssid);
 		memset(priv->cfg_bssid, 0, ETH_ALEN);
+
+		if (ret > 0)
+			cfg80211_connect_result(priv->netdev, priv->cfg_bssid,
+						NULL, 0, NULL, 0, ret,
+						GFP_KERNEL);
+		else
+			cfg80211_connect_result(priv->netdev, priv->cfg_bssid,
+						NULL, 0, NULL, 0,
+						WLAN_STATUS_UNSPECIFIED_FAILURE,
+						GFP_KERNEL);
 	}
 
-	return ret;
+	return 0;
 }
 
 /*
